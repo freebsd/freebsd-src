@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: cmglobal - Global variables for the ACPI subsystem
- *              $Revision: 116 $
+ * Module Name: utglobal - Global variables for the ACPI subsystem
+ *              $Revision: 122 $
  *
  *****************************************************************************/
 
@@ -114,7 +114,7 @@
  *
  *****************************************************************************/
 
-#define __CMGLOBAL_C__
+#define __UTGLOBAL_C__
 #define DEFINE_ACPI_GLOBALS
 
 #include "acpi.h"
@@ -124,8 +124,8 @@
 #include "amlcode.h"
 
 
-#define _COMPONENT          MISCELLANEOUS
-        MODULE_NAME         ("cmglobal")
+#define _COMPONENT          ACPI_UTILITIES
+        MODULE_NAME         ("utglobal")
 
 
 /******************************************************************************
@@ -149,7 +149,7 @@ UINT32                      AcpiDbgLevel = NORMAL_DEFAULT;
 
 /* Debug switch - layer (component) mask */
 
-UINT32                      AcpiDbgLayer = COMPONENT_DEFAULT;
+UINT32                      AcpiDbgLayer = ACPI_COMPONENT_DEFAULT;
 UINT32                      AcpiGbl_NestingLevel = 0;
 
 
@@ -182,22 +182,23 @@ UINT8                       AcpiGbl_DecodeTo8bit [8] = {1,2,4,8,16,32,64,128};
  *
  * Initial values are currently supported only for types String and Number.
  * To avoid type punning, both are specified as strings in this table.
+ *
+ * NOTES:
+ * 1) _SB_ is defined to be a device to allow _SB_/_INI to be run
+ *    during the initialization sequence.
  */
 
 PREDEFINED_NAMES            AcpiGbl_PreDefinedNames[] =
 {
     {"_GPE",    INTERNAL_TYPE_DEF_ANY},
     {"_PR_",    INTERNAL_TYPE_DEF_ANY},
-    {"_SB_",    INTERNAL_TYPE_DEF_ANY},
+    {"_SB_",    ACPI_TYPE_DEVICE},
     {"_SI_",    INTERNAL_TYPE_DEF_ANY},
     {"_TZ_",    INTERNAL_TYPE_DEF_ANY},
     {"_REV",    ACPI_TYPE_INTEGER, "2"},
     {"_OS_",    ACPI_TYPE_STRING, ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX, "0"},
-
-    /* Table terminator */
-
-    {NULL,      ACPI_TYPE_ANY}
+    {NULL,      ACPI_TYPE_ANY}           /* Table terminator */
 };
 
 
@@ -296,7 +297,7 @@ NATIVE_CHAR                 *MsgAcpiErrorBreak = "*** Break on ACPI_ERROR ***\n"
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiCmGetMutexName
+ * FUNCTION:    AcpiUtGetMutexName
  *
  * PARAMETERS:  None.
  *
@@ -307,7 +308,7 @@ NATIVE_CHAR                 *MsgAcpiErrorBreak = "*** Break on ACPI_ERROR ***\n"
  ****************************************************************************/
 
 NATIVE_CHAR *
-AcpiCmGetMutexName (
+AcpiUtGetMutexName (
     UINT32                  MutexId)
 {
 
@@ -348,18 +349,18 @@ static NATIVE_CHAR          *AcpiGbl_NsTypeNames[] =    /* printable names of AC
     /* 11 */ "Power",
     /* 12 */ "Processor",
     /* 13 */ "Thermal",
-    /* 14 */ "BufferFld",
+    /* 14 */ "BuffField",
     /* 15 */ "DdbHandle",
     /* 16 */ "DebugObj",
-    /* 17 */ "DefField",
-    /* 18 */ "BnkField",
-    /* 19 */ "IdxField",
+    /* 17 */ "RegnField",
+    /* 18 */ "BankField",
+    /* 19 */ "IndxField",
     /* 20 */ "Reference",
     /* 21 */ "Alias",
     /* 22 */ "Notify",
     /* 23 */ "AddrHndlr",
     /* 24 */ "Resource",
-    /* 25 */ "DefFldDfn",
+    /* 25 */ "RgnFldDfn",
     /* 26 */ "BnkFldDfn",
     /* 27 */ "IdxFldDfn",
     /* 28 */ "If",
@@ -374,7 +375,7 @@ static NATIVE_CHAR          *AcpiGbl_NsTypeNames[] =    /* printable names of AC
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiCmGetTypeName
+ * FUNCTION:    AcpiUtGetTypeName
  *
  * PARAMETERS:  None.
  *
@@ -385,7 +386,7 @@ static NATIVE_CHAR          *AcpiGbl_NsTypeNames[] =    /* printable names of AC
  ****************************************************************************/
 
 NATIVE_CHAR *
-AcpiCmGetTypeName (
+AcpiUtGetTypeName (
     UINT32                  Type)
 {
 
@@ -414,7 +415,7 @@ NATIVE_CHAR *AcpiGbl_RegionTypes[NUM_REGION_TYPES] =
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiCmGetRegionName
+ * FUNCTION:    AcpiUtGetRegionName
  *
  * PARAMETERS:  None.
  *
@@ -425,7 +426,7 @@ NATIVE_CHAR *AcpiGbl_RegionTypes[NUM_REGION_TYPES] =
  ****************************************************************************/
 
 NATIVE_CHAR *
-AcpiCmGetRegionName (
+AcpiUtGetRegionName (
     UINT8                   SpaceId)
 {
 
@@ -492,7 +493,7 @@ NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiCmValidObjectType
+ * FUNCTION:    AcpiUtValidObjectType
  *
  * PARAMETERS:  None.
  *
@@ -503,7 +504,7 @@ NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
  ****************************************************************************/
 
 BOOLEAN
-AcpiCmValidObjectType (
+AcpiUtValidObjectType (
     UINT32                  Type)
 {
 
@@ -522,7 +523,7 @@ AcpiCmValidObjectType (
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiCmFormatException
+ * FUNCTION:    AcpiUtFormatException
  *
  * PARAMETERS:  Status              - Acpi status to be formatted
  *
@@ -533,7 +534,7 @@ AcpiCmValidObjectType (
  ****************************************************************************/
 
 NATIVE_CHAR *
-AcpiCmFormatException (
+AcpiUtFormatException (
     ACPI_STATUS             Status)
 {
     NATIVE_CHAR             *Exception = "UNKNOWN_STATUS";
@@ -596,7 +597,7 @@ AcpiCmFormatException (
 
 /****************************************************************************
  *
- * FUNCTION:    AcpiCmAllocateOwnerId
+ * FUNCTION:    AcpiUtAllocateOwnerId
  *
  * PARAMETERS:  IdType          - Type of ID (method or table)
  *
@@ -605,16 +606,16 @@ AcpiCmFormatException (
  ***************************************************************************/
 
 ACPI_OWNER_ID
-AcpiCmAllocateOwnerId (
+AcpiUtAllocateOwnerId (
     UINT32                  IdType)
 {
     ACPI_OWNER_ID           OwnerId = 0xFFFF;
 
 
-    FUNCTION_TRACE ("CmAllocateOwnerId");
+    FUNCTION_TRACE ("UtAllocateOwnerId");
 
 
-    AcpiCmAcquireMutex (ACPI_MTX_CACHES);
+    AcpiUtAcquireMutex (ACPI_MTX_CACHES);
 
     switch (IdType)
     {
@@ -643,7 +644,7 @@ AcpiCmAllocateOwnerId (
     }
 
 
-    AcpiCmReleaseMutex (ACPI_MTX_CACHES);
+    AcpiUtReleaseMutex (ACPI_MTX_CACHES);
 
     return_VALUE (OwnerId);
 }
@@ -651,7 +652,7 @@ AcpiCmAllocateOwnerId (
 
 /****************************************************************************
  *
- * FUNCTION:    AcpiCmInitGlobals
+ * FUNCTION:    AcpiUtInitGlobals
  *
  * PARAMETERS:  none
  *
@@ -661,13 +662,13 @@ AcpiCmAllocateOwnerId (
  ***************************************************************************/
 
 void
-AcpiCmInitGlobals (
+AcpiUtInitGlobals (
     void)
 {
     UINT32                  i;
 
 
-    FUNCTION_TRACE ("CmInitGlobals");
+    FUNCTION_TRACE ("UtInitGlobals");
 
 
     /* ACPI table structure */
@@ -696,7 +697,7 @@ AcpiCmInitGlobals (
     for (i = 0; i < NUM_MTX; i++)
     {
         AcpiGbl_AcpiMutexInfo[i].Mutex      = NULL;
-        AcpiGbl_AcpiMutexInfo[i].Locked     = FALSE;
+        AcpiGbl_AcpiMutexInfo[i].OwnerId    = ACPI_MUTEX_NOT_ACQUIRED;
         AcpiGbl_AcpiMutexInfo[i].UseCount   = 0;
     }
 
@@ -723,7 +724,6 @@ AcpiCmInitGlobals (
 
     AcpiGbl_SystemFlags                 = 0;
     AcpiGbl_StartupFlags                = 0;
-    AcpiGbl_GlobalLockSet               = FALSE;
     AcpiGbl_RsdpOriginalLocation        = 0;
     AcpiGbl_CmSingleStep                = FALSE;
     AcpiGbl_DbTerminateThreads          = FALSE;

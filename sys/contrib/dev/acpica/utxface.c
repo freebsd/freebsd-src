@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: cmxface - External interfaces for "global" ACPI functions
- *              $Revision: 64 $
+ * Module Name: utxface - External interfaces for "global" ACPI functions
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -115,7 +115,7 @@
  *****************************************************************************/
 
 
-#define __CMXFACE_C__
+#define __UTXFACE_C__
 
 #include "acpi.h"
 #include "acevents.h"
@@ -126,8 +126,8 @@
 #include "acdebug.h"
 
 
-#define _COMPONENT          MISCELLANEOUS
-        MODULE_NAME         ("cmxface")
+#define _COMPONENT          ACPI_UTILITIES
+        MODULE_NAME         ("utxface")
 
 
 /*******************************************************************************
@@ -154,7 +154,7 @@ AcpiInitializeSubsystem (
 
     /* Initialize all globals used by the subsystem */
 
-    AcpiCmInitGlobals ();
+    AcpiUtInitGlobals ();
 
     /* Initialize the OS-Dependent layer */
 
@@ -162,17 +162,17 @@ AcpiInitializeSubsystem (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("OSD failed to initialize, %s\n",
-            AcpiCmFormatException (Status)));
+            AcpiUtFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
     /* Create the default mutex objects */
 
-    Status = AcpiCmMutexInitialize ();
+    Status = AcpiUtMutexInitialize ();
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("Global mutex creation failure, %s\n",
-            AcpiCmFormatException (Status)));
+            AcpiUtFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -185,7 +185,7 @@ AcpiInitializeSubsystem (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("Namespace initialization failure, %s\n",
-            AcpiCmFormatException (Status)));
+            AcpiUtFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -223,7 +223,7 @@ AcpiEnableSubsystem (
 
     /* Sanity check the FADT for valid values */
 
-    Status = AcpiCmValidateFadt ();
+    Status = AcpiUtValidateFadt ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -350,25 +350,36 @@ AcpiEnableSubsystem (
 ACPI_STATUS
 AcpiTerminate (void)
 {
+    ACPI_STATUS             Status;
+
 
     FUNCTION_TRACE ("AcpiTerminate");
 
-    /* Terminate the AML Debuger if present */
+
+    /* Ensure that ACPI has been initialized */
+
+    ACPI_IS_INITIALIZATION_COMPLETE (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Terminate the AML Debugger if present */
 
     DEBUGGER_EXEC(AcpiGbl_DbTerminateThreads = TRUE);
 
     /* TBD: [Investigate] This is no longer needed?*/
-/*    AcpiCmReleaseMutex (ACPI_MTX_DEBUG_CMD_READY); */
+/*    AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_READY); */
 
 
     /* Shutdown and free all resources */
 
-    AcpiCmSubsystemShutdown ();
+    AcpiUtSubsystemShutdown ();
 
 
     /* Free the mutex objects */
 
-    AcpiCmMutexTerminate ();
+    AcpiUtMutexTerminate ();
 
 
     /* Now we can shutdown the OS-dependent layer */
@@ -404,10 +415,19 @@ AcpiGetSystemInfo (
 {
     ACPI_SYSTEM_INFO        *InfoPtr;
     UINT32                  i;
+    ACPI_STATUS             Status;
 
 
     FUNCTION_TRACE ("AcpiGetSystemInfo");
 
+
+    /* Ensure that ACPI has been initialized */
+
+    ACPI_IS_INITIALIZATION_COMPLETE (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /*
      *  Must have a valid buffer
@@ -514,7 +534,7 @@ AcpiFormatException (
 
     /* Convert the exception code (Handles bad exception codes) */
 
-    FormattedException = AcpiCmFormatException (Exception);
+    FormattedException = AcpiUtFormatException (Exception);
 
     /*
      * Get length of string and check if it will fit in caller's buffer
@@ -535,3 +555,68 @@ AcpiFormatException (
     return_ACPI_STATUS (AE_OK);
 }
 
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiAllocate
+ *
+ * PARAMETERS:  Size                - Size of the allocation
+ *
+ * RETURN:      Address of the allocated memory on success, NULL on failure.
+ *
+ * DESCRIPTION: The subsystem's equivalent of malloc.
+ *              External front-end to the Ut* memory manager
+ *
+ ****************************************************************************/
+
+void *
+AcpiAllocate (
+    UINT32                  Size)
+{
+
+    return (AcpiUtAllocate (Size));
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiCallocate
+ *
+ * PARAMETERS:  Size                - Size of the allocation
+ *
+ * RETURN:      Address of the allocated memory on success, NULL on failure.
+ *
+ * DESCRIPTION: The subsystem's equivalent of calloc.
+ *              External front-end to the Ut* memory manager
+ *
+ ****************************************************************************/
+
+void *
+AcpiCallocate (
+    UINT32                  Size)
+{
+
+    return (AcpiUtCallocate (Size));
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiFree
+ *
+ * PARAMETERS:  Address             - Address of the memory to deallocate
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Frees the memory at Address
+ *              External front-end to the Ut* memory manager
+ *
+ ****************************************************************************/
+
+void
+AcpiFree (
+    void                    *Address)
+{
+
+    AcpiUtFree (Address);
+}

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 56 $
+ *              $Revision: 61 $
  *
  ******************************************************************************/
 
@@ -125,7 +125,7 @@
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbinput")
 
 
@@ -162,7 +162,7 @@ BOOLEAN                 opt_ini_methods = TRUE;
  * This list of commands must match the string table below it
  */
 
-enum AcpiAmlDebuggerCommands
+enum AcpiExDebuggerCommands
 {
     CMD_NOT_FOUND = 0,
     CMD_NULL,
@@ -191,6 +191,7 @@ enum AcpiAmlDebuggerCommands
     CMD_LIST,
     CMD_LOAD,
     CMD_LOCALS,
+    CMD_LOCKS,
     CMD_METHODS,
     CMD_NAMESPACE,
     CMD_NOTIFY,
@@ -244,6 +245,7 @@ COMMAND_INFO                Commands[] =
     {"LIST",         0},
     {"LOAD",         1},
     {"LOCALS",       0},
+    {"LOCKS",        0},
     {"METHODS",      0},
     {"NAMESPACE",    0},
     {"NOTIFY",       2},
@@ -318,6 +320,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Help                                This help screen\n");
         AcpiOsPrintf ("History                             Display command history buffer\n");
         AcpiOsPrintf ("Level [<DebugLevel>] [console]      Get/Set debug level for file or console\n");
+        AcpiOsPrintf ("Locks                               Current status of internal mutexes\n");
         AcpiOsPrintf ("Quit or Exit                        Exit this command\n");
         AcpiOsPrintf ("Stats [Allocations|Memory|Misc\n");
         AcpiOsPrintf ("       |Objects|Tables]             Display namespace and memory statistics\n");
@@ -353,7 +356,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Go                                  Allow method to run to completion\n");
         AcpiOsPrintf ("Information                         Display info about the current method\n");
         AcpiOsPrintf ("Into                                Step into (not over) a method call\n");
-        AcpiOsPrintf ("List [# of AcpiAml Opcodes]             Display method ASL statements\n");
+        AcpiOsPrintf ("List [# of Aml Opcodes]             Display method ASL statements\n");
         AcpiOsPrintf ("Locals                              Display method local variables\n");
         AcpiOsPrintf ("Results                             Display method result stack\n");
         AcpiOsPrintf ("Set <A|L> <#> <Value>               Set method data (Arguments/Locals)\n");
@@ -597,7 +600,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_ALLOCATIONS:
-        AcpiCmDumpCurrentAllocations ((UINT32) -1, NULL);
+        AcpiUtDumpCurrentAllocations ((UINT32) -1, NULL);
         break;
 
     case CMD_ARGS:
@@ -669,7 +672,9 @@ AcpiDbCommandDispatch (
 
         Status = AcpiDbCommandDispatch (CommandLine, WalkState, Op);
         if (ACPI_SUCCESS (Status))
+        {
             Status = AE_CTRL_TRUE;
+        }
         return (Status);
         break;
 
@@ -682,7 +687,9 @@ AcpiDbCommandDispatch (
 
         Status = AcpiDbCommandDispatch (CommandLine, WalkState, Op);
         if (ACPI_SUCCESS (Status))
+        {
             Status = AE_CTRL_TRUE;
+        }
         return (Status);
 
     case CMD_INFORMATION:
@@ -732,6 +739,10 @@ AcpiDbCommandDispatch (
         }
         break;
 
+    case CMD_LOCKS:
+        AcpiDbDisplayLocks ();
+        break;
+
     case CMD_LOCALS:
         AcpiDbDisplayLocals ();
         break;
@@ -750,7 +761,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_OBJECT:
-        AcpiDbDisplayObjects (Args[1], Args[2]);
+        AcpiDbDisplayObjects (STRUPR (Args[1]), Args[2]);
         break;
 
     case CMD_OPEN:
@@ -795,7 +806,7 @@ AcpiDbCommandDispatch (
 
     case CMD_TERMINATE:
         AcpiDbSetOutputDestination (DB_REDIRECTABLE_OUTPUT);
-        AcpiCmSubsystemShutdown ();
+        AcpiUtSubsystemShutdown ();
 
         /* TBD: [Restructure] Need some way to re-initialize without re-creating the semaphores! */
 
@@ -818,7 +829,8 @@ AcpiDbCommandDispatch (
     case CMD_QUIT:
         if (Op)
         {
-            return (AE_AML_ERROR);
+            AcpiOsPrintf ("Method execution terminated\n");
+            return (AE_CTRL_TERMINATE);
         }
 
         if (!OutputToFile)
@@ -828,7 +840,7 @@ AcpiDbCommandDispatch (
 
         /* Shutdown */
 
-        /* AcpiCmSubsystemShutdown (); */
+        /* AcpiUtSubsystemShutdown (); */
         AcpiDbCloseDebugFile ();
 
         AcpiGbl_DbTerminateThreads = TRUE;
@@ -873,9 +885,9 @@ AcpiDbExecuteThread (
         AcpiGbl_MethodExecuting = FALSE;
         AcpiGbl_StepToNextCall = FALSE;
 
-        AcpiCmAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
+        AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
         Status = AcpiDbCommandDispatch (LineBuf, NULL, NULL);
-        AcpiCmReleaseMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
+        AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
     }
 }
 
@@ -962,8 +974,8 @@ AcpiDbUserCommands (
              * and wait for the command to complete.
              */
 
-            AcpiCmReleaseMutex (ACPI_MTX_DEBUG_CMD_READY);
-            AcpiCmAcquireMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
+            AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_READY);
+            AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
         }
 
         else

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 103 $
+ *       $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -185,18 +185,18 @@ AcpiNsInitOneObject (
 
 ACPI_STATUS
 AcpiNsWalkNamespace (
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
     BOOLEAN                 UnlockBeforeCallback,
-    WALK_CALLBACK           UserFunction,
+    ACPI_WALK_CALLBACK      UserFunction,
     void                    *Context,
     void                    **ReturnValue);
 
 
 ACPI_NAMESPACE_NODE *
 AcpiNsGetNextObject (
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     ACPI_NAMESPACE_NODE     *Parent,
     ACPI_NAMESPACE_NODE     *Child);
 
@@ -241,7 +241,7 @@ ACPI_STATUS
 AcpiNsLookup (
     ACPI_GENERIC_STATE      *ScopeInfo,
     NATIVE_CHAR             *Name,
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     OPERATING_MODE          InterpreterMode,
     UINT32                  Flags,
     ACPI_WALK_STATE         *WalkState,
@@ -314,7 +314,7 @@ AcpiNsDumpRootDevices (
 
 void
 AcpiNsDumpObjects (
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     UINT32                  MaxDepth,
     UINT32                  OwnderId,
     ACPI_HANDLE             StartHandle);
@@ -374,7 +374,7 @@ AcpiNsExistDownstreamSibling (
 
 UINT32
 AcpiNsOpensScope (
-    OBJECT_TYPE_INTERNAL    Type);
+    ACPI_OBJECT_TYPE8       Type);
 
 NATIVE_CHAR *
 AcpiNsGetTablePathname (
@@ -395,12 +395,6 @@ AcpiNsPatternMatch (
     ACPI_NAMESPACE_NODE     *ObjNode,
     NATIVE_CHAR             *SearchFor);
 
-ACPI_STATUS
-AcpiNsNameCompare (
-    ACPI_HANDLE             ObjHandle,
-    UINT32                  Level,
-    void                    *Context,
-    void                    **ReturnValue);
 
 ACPI_STATUS
 AcpiNsGetNode (
@@ -421,14 +415,7 @@ ACPI_STATUS
 AcpiNsAttachObject (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_OPERAND_OBJECT     *Object,
-    OBJECT_TYPE_INTERNAL    Type);
-
-
-void *
-AcpiNsCompareValue (
-    ACPI_HANDLE             ObjHandle,
-    UINT32                  Level,
-    void                    *ObjDesc);
+    ACPI_OBJECT_TYPE8       Type);
 
 
 /*
@@ -441,7 +428,7 @@ AcpiNsSearchAndEnter (
     ACPI_WALK_STATE         *WalkState,
     ACPI_NAMESPACE_NODE     *Node,
     OPERATING_MODE          InterpreterMode,
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     UINT32                  Flags,
     ACPI_NAMESPACE_NODE     **RetNode);
 
@@ -449,7 +436,7 @@ ACPI_STATUS
 AcpiNsSearchNode (
     UINT32                  EntryName,
     ACPI_NAMESPACE_NODE     *Node,
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     ACPI_NAMESPACE_NODE     **RetNode);
 
 void
@@ -457,7 +444,7 @@ AcpiNsInstallNode (
     ACPI_WALK_STATE         *WalkState,
     ACPI_NAMESPACE_NODE     *ParentNode,    /* Parent */
     ACPI_NAMESPACE_NODE     *Node,      /* New Child*/
-    OBJECT_TYPE_INTERNAL    Type);
+    ACPI_OBJECT_TYPE8       Type);
 
 
 /*
@@ -472,17 +459,25 @@ BOOLEAN
 AcpiNsValidPathSeparator (
     NATIVE_CHAR             Sep);
 
-OBJECT_TYPE_INTERNAL
+ACPI_OBJECT_TYPE8
 AcpiNsGetType (
-    ACPI_HANDLE             ObjHandle);
+    ACPI_NAMESPACE_NODE     *Node);
 
 void *
 AcpiNsGetAttachedObject (
-    ACPI_HANDLE             ObjHandle);
+    ACPI_NAMESPACE_NODE     *Node);
 
 UINT32
 AcpiNsLocal (
-    OBJECT_TYPE_INTERNAL    Type);
+    ACPI_OBJECT_TYPE8       Type);
+
+ACPI_STATUS
+AcpiNsBuildInternalName (
+    ACPI_NAMESTRING_INFO    *Info);
+
+ACPI_STATUS
+AcpiNsGetInternalNameLength (
+    ACPI_NAMESTRING_INFO    *Info);
 
 ACPI_STATUS
 AcpiNsInternalizeName (

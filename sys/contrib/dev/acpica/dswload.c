@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 26 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -125,11 +125,11 @@
 #include "acevents.h"
 
 
-#define _COMPONENT          DISPATCHER
+#define _COMPONENT          ACPI_DISPATCHER
         MODULE_NAME         ("dswload")
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiDsLoad1BeginOp
  *
@@ -141,7 +141,7 @@
  *
  * DESCRIPTION: Descending callback used during the loading of ACPI tables.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiDsLoad1BeginOp (
@@ -152,12 +152,12 @@ AcpiDsLoad1BeginOp (
 {
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
-    OBJECT_TYPE_INTERNAL    DataType;
+    ACPI_OBJECT_TYPE8       DataType;
     NATIVE_CHAR             *Path;
 
 
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("Load1BeginOp: Op=%p State=%p\n", Op, WalkState));
+    PROC_NAME ("DsLoad1BeginOp");
+    DEBUG_PRINTP (TRACE_DISPATCH, ("Op=%p State=%p\n", Op, WalkState));
 
 
     /* We are only interested in opcodes that have an associated name */
@@ -184,14 +184,14 @@ AcpiDsLoad1BeginOp (
     DataType = AcpiDsMapNamedOpcodeToDataType (Opcode);
 
 
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("Load1BeginOp: State=%p Op=%p Type=%x\n", WalkState, Op, DataType));
+    DEBUG_PRINTP (TRACE_DISPATCH,
+        ("State=%p Op=%p Type=%x\n", WalkState, Op, DataType));
 
 
     if (Opcode == AML_SCOPE_OP)
     {
-        DEBUG_PRINT (TRACE_DISPATCH,
-            ("Load1BeginOp: State=%p Op=%p Type=%x\n", WalkState, Op, DataType));
+        DEBUG_PRINTP (TRACE_DISPATCH,
+            ("State=%p Op=%p Type=%x\n", WalkState, Op, DataType));
     }
 
     /*
@@ -199,9 +199,8 @@ AcpiDsLoad1BeginOp (
      * as we go downward in the parse tree.  Any necessary subobjects that involve
      * arguments to the opcode must be created as we go back up the parse tree later.
      */
-    Status = AcpiNsLookup (WalkState->ScopeInfo, Path,
-                            DataType, IMODE_LOAD_PASS1,
-                            NS_NO_UPSEARCH, WalkState, &(Node));
+    Status = AcpiNsLookup (WalkState->ScopeInfo, Path, DataType, 
+                    IMODE_LOAD_PASS1, NS_NO_UPSEARCH, WalkState, &(Node));
 
     if (ACPI_FAILURE (Status))
     {
@@ -238,7 +237,7 @@ AcpiDsLoad1BeginOp (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiDsLoad1EndOp
  *
@@ -251,18 +250,18 @@ AcpiDsLoad1BeginOp (
  * DESCRIPTION: Ascending callback used during the loading of the namespace,
  *              both control methods and everything else.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiDsLoad1EndOp (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op)
 {
-    OBJECT_TYPE_INTERNAL    DataType;
+    ACPI_OBJECT_TYPE8       DataType;
 
 
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("Load1EndOp: Op=%p State=%p\n", Op, WalkState));
+    PROC_NAME ("DsLoad1EndOp");
+    DEBUG_PRINT (TRACE_DISPATCH, ("Op=%p State=%p\n", Op, WalkState));
 
     /* We are only interested in opcodes that have an associated name */
 
@@ -294,10 +293,9 @@ AcpiDsLoad1EndOp (
 
     if (AcpiNsOpensScope (DataType))
     {
+        DEBUG_PRINTP (TRACE_DISPATCH, ("(%s): Popping scope for Op %p\n",
+            AcpiUtGetTypeName (DataType), Op));
 
-        DEBUG_PRINT (TRACE_DISPATCH,
-            ("Load1EndOp/%s: Popping scope for Op %p\n",
-            AcpiCmGetTypeName (DataType), Op));
         AcpiDsScopeStackPop (WalkState);
     }
 
@@ -306,7 +304,7 @@ AcpiDsLoad1EndOp (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiDsLoad2BeginOp
  *
@@ -318,7 +316,7 @@ AcpiDsLoad1EndOp (
  *
  * DESCRIPTION: Descending callback used during the loading of ACPI tables.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiDsLoad2BeginOp (
@@ -329,19 +327,19 @@ AcpiDsLoad2BeginOp (
 {
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
-    OBJECT_TYPE_INTERNAL    DataType;
+    ACPI_OBJECT_TYPE8       DataType;
     NATIVE_CHAR             *BufferPtr;
     void                    *Original = NULL;
 
 
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("Load2BeginOp: Op=%p State=%p\n", Op, WalkState));
+    PROC_NAME ("DsLoad2BeginOp");
+    DEBUG_PRINTP (TRACE_DISPATCH, ("Op=%p State=%p\n", Op, WalkState));
 
 
     /* We only care about Namespace opcodes here */
 
     if (!AcpiPsIsNamespaceOp (Opcode) &&
-        Opcode != AML_NAMEPATH_OP)
+        Opcode != AML_INT_NAMEPATH_OP)
     {
         return (AE_OK);
     }
@@ -359,7 +357,7 @@ AcpiDsLoad2BeginOp (
         /*
          * Get the name we are going to enter or lookup in the namespace
          */
-        if (Opcode == AML_NAMEPATH_OP)
+        if (Opcode == AML_INT_NAMEPATH_OP)
         {
             /* For Namepath op, get the path string */
 
@@ -390,11 +388,11 @@ AcpiDsLoad2BeginOp (
 
     DataType = AcpiDsMapNamedOpcodeToDataType (Opcode);
 
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("Load2BeginOp: State=%p Op=%p Type=%x\n", WalkState, Op, DataType));
+    DEBUG_PRINTP (TRACE_DISPATCH,
+        ("State=%p Op=%p Type=%x\n", WalkState, Op, DataType));
 
 
-    if (Opcode == AML_DEF_FIELD_OP      ||
+    if (Opcode == AML_FIELD_OP          ||
         Opcode == AML_BANK_FIELD_OP     ||
         Opcode == AML_INDEX_FIELD_OP)
     {
@@ -402,7 +400,7 @@ AcpiDsLoad2BeginOp (
         Status = AE_OK;
     }
 
-    else if (Opcode == AML_NAMEPATH_OP)
+    else if (Opcode == AML_INT_NAMEPATH_OP)
     {
         /*
          * The NamePath is an object reference to an existing object.  Don't enter the
@@ -440,10 +438,8 @@ AcpiDsLoad2BeginOp (
          * as we go downward in the parse tree.  Any necessary subobjects that involve
          * arguments to the opcode must be created as we go back up the parse tree later.
          */
-        Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr,
-                                DataType, IMODE_EXECUTE,
-                                NS_NO_UPSEARCH, WalkState,
-                                &(Node));
+        Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, DataType, 
+                        IMODE_EXECUTE, NS_NO_UPSEARCH, WalkState, &(Node));
     }
 
     if (ACPI_SUCCESS (Status))
@@ -473,23 +469,21 @@ AcpiDsLoad2BeginOp (
 
         if (Original)
         {
-            DEBUG_PRINT (ACPI_INFO,
-                ("Lookup: old %p new %p\n", Original, Node));
+            DEBUG_PRINTP (ACPI_INFO, ("old %p new %p\n", Original, Node));
 
             if (Original != Node)
             {
-                DEBUG_PRINT (ACPI_INFO,
+                DEBUG_PRINTP (ACPI_INFO,
                     ("Lookup match error: old %p new %p\n", Original, Node));
             }
         }
     }
 
-
     return (Status);
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiDsLoad2EndOp
  *
@@ -502,7 +496,7 @@ AcpiDsLoad2BeginOp (
  * DESCRIPTION: Ascending callback used during the loading of the namespace,
  *              both control methods and everything else.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiDsLoad2EndOp (
@@ -510,13 +504,14 @@ AcpiDsLoad2EndOp (
     ACPI_PARSE_OBJECT       *Op)
 {
     ACPI_STATUS             Status = AE_OK;
-    OBJECT_TYPE_INTERNAL    DataType;
+    ACPI_OBJECT_TYPE8      DataType;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_PARSE_OBJECT       *Arg;
     ACPI_NAMESPACE_NODE     *NewNode;
 
 
-    DEBUG_PRINT (TRACE_DISPATCH, ("Load2EndOp: Op=%p State=%p\n", Op, WalkState));
+    PROC_NAME ("DsLoad2EndOp");
+    DEBUG_PRINTP (TRACE_DISPATCH, ("Op=%p State=%p\n", Op, WalkState));
 
     if (!AcpiPsIsNamespaceObjectOp (Op->Opcode))
     {
@@ -525,14 +520,13 @@ AcpiDsLoad2EndOp (
 
     if (Op->Opcode == AML_SCOPE_OP)
     {
-        DEBUG_PRINT (TRACE_DISPATCH,
-            ("Load2EndOp: ending scope Op=%p State=%p\n", Op, WalkState));
+        DEBUG_PRINTP (TRACE_DISPATCH,
+            ("Ending scope Op=%p State=%p\n", Op, WalkState));
 
         if (((ACPI_PARSE2_OBJECT *)Op)->Name == -1)
         {
-            DEBUG_PRINT (ACPI_ERROR,
-                ("Load2EndOp: Un-named scope! Op=%p State=%p\n", Op,
-                WalkState));
+            DEBUG_PRINTP (ACPI_ERROR, ("Unnamed scope! Op=%p State=%p\n", 
+                Op, WalkState));
             return (AE_OK);
         }
     }
@@ -559,9 +553,8 @@ AcpiDsLoad2EndOp (
     if (AcpiNsOpensScope (DataType))
     {
 
-        DEBUG_PRINT (TRACE_DISPATCH,
-            ("AmlEndNamespaceScope/%s: Popping scope for Op %p\n",
-            AcpiCmGetTypeName (DataType), Op));
+        DEBUG_PRINTP (TRACE_DISPATCH, ("(%s) Popping scope for Op %p\n",
+            AcpiUtGetTypeName (DataType), Op));
         AcpiDsScopeStackPop (WalkState);
     }
 
@@ -589,6 +582,7 @@ AcpiDsLoad2EndOp (
      * AML_CREATEBYTEFIELD
      * AML_CREATEWORDFIELD
      * AML_CREATEDWORDFIELD
+     * AML_CREATEQWORDFIELD
      * AML_METHODCALL
      */
 
@@ -601,18 +595,19 @@ AcpiDsLoad2EndOp (
     {
 
     case AML_CREATE_FIELD_OP:
-    case AML_BIT_FIELD_OP:
-    case AML_BYTE_FIELD_OP:
-    case AML_WORD_FIELD_OP:
-    case AML_DWORD_FIELD_OP:
+    case AML_CREATE_BIT_FIELD_OP:
+    case AML_CREATE_BYTE_FIELD_OP:
+    case AML_CREATE_WORD_FIELD_OP:
+    case AML_CREATE_DWORD_FIELD_OP:
+    case AML_CREATE_QWORD_FIELD_OP:
 
         /*
          * Create the field object, but the field buffer and index must
          * be evaluated later during the execution phase
          */
 
-        DEBUG_PRINT (TRACE_DISPATCH,
-            ("LOADING-CreateXxxField: State=%p Op=%p NamedObj=%p\n",
+        DEBUG_PRINTP (TRACE_DISPATCH, 
+            ("CreateXxxField: State=%p Op=%p NamedObj=%p\n", 
             WalkState, Op, Node));
 
         /* Get the NameString argument */
@@ -628,49 +623,51 @@ AcpiDsLoad2EndOp (
             Arg = AcpiPsGetArg (Op, 2);
         }
 
+        if (!Arg)
+        {
+            Status = AE_AML_NO_OPERAND;
+            goto Cleanup;
+        }
+
         /*
          * Enter the NameString into the namespace
          */
-
-        Status = AcpiNsLookup (WalkState->ScopeInfo,
-                                Arg->Value.String,
-                                INTERNAL_TYPE_DEF_ANY,
-                                IMODE_LOAD_PASS1,
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Value.String,
+                                INTERNAL_TYPE_DEF_ANY, IMODE_LOAD_PASS1,
                                 NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
                                 WalkState, &(NewNode));
-
-        if (ACPI_SUCCESS (Status))
+        if (ACPI_FAILURE (Status))
         {
-            /* We could put the returned object (Node) on the object stack for later, but
-             * for now, we will put it in the "op" object that the parser uses, so we
-             * can get it again at the end of this scope
-             */
-            Op->Node = NewNode;
-
-            /*
-             * If there is no object attached to the node, this node was just created and
-             * we need to create the field object.  Otherwise, this was a lookup of an
-             * existing node and we don't want to create the field object again.
-             */
-            if (!NewNode->Object)
-            {
-                /*
-                 * The Field definition is not fully parsed at this time.
-                 * (We must save the address of the AML for the buffer and index operands)
-                 */
-                Status = AcpiAmlExecCreateField (((ACPI_PARSE2_OBJECT *) Op)->Data,
-                                                ((ACPI_PARSE2_OBJECT *) Op)->Length,
-                                                NewNode, WalkState);
-            }
+            goto Cleanup;
         }
 
+        /* We could put the returned object (Node) on the object stack for later, but
+         * for now, we will put it in the "op" object that the parser uses, so we
+         * can get it again at the end of this scope
+         */
+        Op->Node = NewNode;
 
+        /*
+         * If there is no object attached to the node, this node was just created and
+         * we need to create the field object.  Otherwise, this was a lookup of an
+         * existing node and we don't want to create the field object again.
+         */
+        if (!NewNode->Object)
+        {
+            /*
+             * The Field definition is not fully parsed at this time.
+             * (We must save the address of the AML for the buffer and index operands)
+             */
+            Status = AcpiExCreateBufferField (((ACPI_PARSE2_OBJECT *) Op)->Data,
+                            ((ACPI_PARSE2_OBJECT *) Op)->Length,
+                            NewNode, WalkState);
+        }
         break;
 
 
-    case AML_METHODCALL_OP:
+    case AML_INT_METHODCALL_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH, 
             ("RESOLVING-MethodCall: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
 
@@ -679,14 +676,14 @@ AcpiDsLoad2EndOp (
          */
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Value.String,
-                                ACPI_TYPE_ANY, IMODE_LOAD_PASS2,
-                                NS_SEARCH_PARENT | NS_DONT_OPEN_SCOPE,
-                                WalkState, &(NewNode));
+                        ACPI_TYPE_ANY, IMODE_LOAD_PASS2,
+                        NS_SEARCH_PARENT | NS_DONT_OPEN_SCOPE,
+                        WalkState, &(NewNode));
 
         if (ACPI_SUCCESS (Status))
         {
 
-/* has name already been resolved by here ??*/
+            /* TBD: has name already been resolved by here ??*/
 
             /* TBD: [Restructure] Make sure that what we found is indeed a method! */
             /* We didn't search for a method on purpose, to see if the name would resolve! */
@@ -706,11 +703,11 @@ AcpiDsLoad2EndOp (
 
         /* Nothing to do other than enter object into namespace */
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-Processor: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
 
-        Status = AcpiAmlExecCreateProcessor (Op, (ACPI_HANDLE) Node);
+        Status = AcpiExCreateProcessor (Op, Node);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;
@@ -726,11 +723,11 @@ AcpiDsLoad2EndOp (
 
         /* Nothing to do other than enter object into namespace */
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-PowerResource: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
 
-        Status = AcpiAmlExecCreatePowerResource (Op, (ACPI_HANDLE) Node);
+        Status = AcpiExCreatePowerResource (Op, Node);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;
@@ -746,50 +743,45 @@ AcpiDsLoad2EndOp (
 
         /* Nothing to do other than enter object into namespace */
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-ThermalZone: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
         break;
 
 
-    case AML_DEF_FIELD_OP:
+    case AML_FIELD_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-Field: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
 
         Arg = Op->Value.Arg;
 
-        Status = AcpiDsCreateField (Op,
-                                    Arg->Node,
-                                    WalkState);
+        Status = AcpiDsCreateField (Op, Arg->Node, WalkState);
         break;
 
 
     case AML_INDEX_FIELD_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-IndexField: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
 
         Arg = Op->Value.Arg;
 
-        Status = AcpiDsCreateIndexField (Op,
-                                        (ACPI_HANDLE) Arg->Node,
+        Status = AcpiDsCreateIndexField (Op, (ACPI_HANDLE) Arg->Node,
                                         WalkState);
         break;
 
 
     case AML_BANK_FIELD_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-BankField: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
 
         Arg = Op->Value.Arg;
-        Status = AcpiDsCreateBankField (Op,
-                                        Arg->Node,
-                                        WalkState);
+        Status = AcpiDsCreateBankField (Op, Arg->Node, WalkState);
         break;
 
 
@@ -798,23 +790,22 @@ AcpiDsLoad2EndOp (
      */
     case AML_METHOD_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-Method: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
 
         if (!Node->Object)
         {
-            Status = AcpiAmlExecCreateMethod (((ACPI_PARSE2_OBJECT *) Op)->Data,
+            Status = AcpiExCreateMethod (((ACPI_PARSE2_OBJECT *) Op)->Data,
                                 ((ACPI_PARSE2_OBJECT *) Op)->Length,
-                                Arg->Value.Integer, (ACPI_HANDLE) Node);
+                                Arg->Value.Integer, Node);
         }
-
         break;
 
 
     case AML_MUTEX_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-Mutex: Op=%p State=%p\n", Op, WalkState));
 
         Status = AcpiDsCreateOperands (WalkState, Arg);
@@ -823,13 +814,13 @@ AcpiDsLoad2EndOp (
             goto Cleanup;
         }
 
-        Status = AcpiAmlExecCreateMutex (WalkState);
+        Status = AcpiExCreateMutex (WalkState);
         break;
 
 
     case AML_EVENT_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-Event: Op=%p State=%p\n", Op, WalkState));
 
         Status = AcpiDsCreateOperands (WalkState, Arg);
@@ -838,7 +829,7 @@ AcpiDsLoad2EndOp (
             goto Cleanup;
         }
 
-        Status = AcpiAmlExecCreateEvent (WalkState);
+        Status = AcpiExCreateEvent (WalkState);
         break;
 
 
@@ -849,19 +840,17 @@ AcpiDsLoad2EndOp (
             break;
         }
 
-        DEBUG_PRINT (TRACE_DISPATCH,
-            ("LOADING-Opregion: Op=%p State=%p NamedObj=%p\n", Op, WalkState, Node));
-
+        DEBUG_PRINTP (TRACE_DISPATCH,
+            ("LOADING-Opregion: Op=%p State=%p NamedObj=%p\n", 
+            Op, WalkState, Node));
 
         /*
          * The OpRegion is not fully parsed at this time.  Only valid argument is the SpaceId.
          * (We must save the address of the AML of the address and length operands)
          */
-
-        Status = AcpiAmlExecCreateRegion (((ACPI_PARSE2_OBJECT *) Op)->Data,
-                                        ((ACPI_PARSE2_OBJECT *) Op)->Length,
-                                        (ACPI_ADDRESS_SPACE_TYPE) Arg->Value.Integer,
-                                        WalkState);
+        Status = AcpiExCreateRegion (((ACPI_PARSE2_OBJECT *) Op)->Data,
+                        ((ACPI_PARSE2_OBJECT *) Op)->Length,
+                         (ACPI_ADR_SPACE_TYPE) Arg->Value.Integer, WalkState);
 
         DEBUG_PRINT (TRACE_DISPATCH,
             ("Completed OpRegion Init, Op=%p State=%p entry=%p\n",
@@ -873,7 +862,7 @@ AcpiDsLoad2EndOp (
 
     case AML_ALIAS_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-Alias: Op=%p State=%p\n", Op, WalkState));
 
         Status = AcpiDsCreateOperands (WalkState, Arg);
@@ -882,13 +871,13 @@ AcpiDsLoad2EndOp (
             goto Cleanup;
         }
 
-        Status = AcpiAmlExecCreateAlias (WalkState);
+        Status = AcpiExCreateAlias (WalkState);
         break;
 
 
     case AML_NAME_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-Name: Op=%p State=%p\n", Op, WalkState));
 
         /*
@@ -905,9 +894,9 @@ AcpiDsLoad2EndOp (
         break;
 
 
-    case AML_NAMEPATH_OP:
+    case AML_INT_NAMEPATH_OP:
 
-        DEBUG_PRINT (TRACE_DISPATCH,
+        DEBUG_PRINTP (TRACE_DISPATCH,
             ("LOADING-NamePath object: State=%p Op=%p NamedObj=%p\n",
             WalkState, Op, Node));
         break;

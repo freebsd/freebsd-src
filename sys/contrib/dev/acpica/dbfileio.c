@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 38 $
+ *              $Revision: 41 $
  *
  ******************************************************************************/
 
@@ -125,7 +125,7 @@
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbfileio")
 
 
@@ -155,7 +155,7 @@ FILE                        *DebugFile = NULL;
  *
  ******************************************************************************/
 
-OBJECT_TYPE_INTERNAL
+ACPI_OBJECT_TYPE8
 AcpiDbMatchArgument (
     NATIVE_CHAR             *UserArgument,
     ARGUMENT_INFO           *Arguments)
@@ -172,7 +172,7 @@ AcpiDbMatchArgument (
     {
         if (STRSTR (Arguments[i].Name, UserArgument) == Arguments[i].Name)
         {
-            return ((OBJECT_TYPE_INTERNAL) i);
+            return ((ACPI_OBJECT_TYPE8) i);
         }
     }
 
@@ -311,7 +311,7 @@ AcpiDbLoadTable(
     /* Allocate a buffer for the table */
 
     *TableLength = TableHeader.Length;
-    *TablePtr = (ACPI_TABLE_HEADER *) AcpiCmAllocate ((size_t) *TableLength);
+    *TablePtr = (ACPI_TABLE_HEADER *) AcpiUtAllocate ((size_t) *TableLength);
     if (!*TablePtr)
     {
         AcpiOsPrintf ("Could not allocate memory for the table (size=%X)\n", TableHeader.Length);
@@ -342,7 +342,7 @@ AcpiDbLoadTable(
 
 
     AcpiOsPrintf ("Error - could not read the table file\n");
-    AcpiCmFree (*TablePtr);
+    AcpiUtFree (*TablePtr);
     *TablePtr = NULL;
     *TableLength = 0;
 
@@ -472,9 +472,9 @@ AcpiDbLoadAcpiTable (
         else
         {
             AcpiOsPrintf ("Could not install table, %s\n",
-                            AcpiCmFormatException (Status));
+                            AcpiUtFormatException (Status));
         }
-        AcpiCmFree (TablePtr);
+        AcpiUtFree (TablePtr);
         return (Status);
     }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 19 $
+ *              $Revision: 22 $
  *
  *****************************************************************************/
 
@@ -122,29 +122,8 @@
 #include "actbl.h"
 
 
-#define _COMPONENT          TABLE_MANAGER
+#define _COMPONENT          ACPI_TABLES
         MODULE_NAME         ("tbconvrt")
-
-
-/*
- * Build a GAS structure from earlier ACPI table entries (V1.0 and 0.71 extensions)
- *
- * 1) Address space
- * 2) Length in bytes -- convert to length in bits
- * 3) Bit offset is zero
- * 4) Reserved field is zero
- * 5) Expand address to 64 bits
- */
-#define ASL_BUILD_GAS_FROM_ENTRY(a,b,c,d)   {a.AddressSpaceId = (UINT8) d;\
-                                             a.RegisterBitWidth = (UINT8) MUL_8 (b);\
-                                             a.RegisterBitOffset = 0;\
-                                             a.Reserved = 0;\
-                                             ACPI_STORE_ADDRESS (a.Address,c);}
-
-
-/* ACPI V1.0 entries -- address space is always I/O */
-
-#define ASL_BUILD_GAS_FROM_V1_ENTRY(a,b,c)  ASL_BUILD_GAS_FROM_ENTRY(a,b,c,ADDRESS_SPACE_SYSTEM_IO)
 
 
 /*******************************************************************************
@@ -201,7 +180,7 @@ AcpiTbConvertToXsdt (
 
     /* Allocate an XSDT */
 
-    NewTable = AcpiCmCallocate (TableSize);
+    NewTable = AcpiUtCallocate (TableSize);
     if (!NewTable)
     {
         return (AE_NO_MEMORY);
@@ -293,7 +272,7 @@ AcpiTbConvertTableFadt (void)
     /* AcpiGbl_FADT is valid */
     /* Allocate and zero the 2.0 buffer */
 
-    FADT2 = AcpiCmCallocate (sizeof (FADT_DESCRIPTOR_REV2));
+    FADT2 = AcpiUtCallocate (sizeof (FADT_DESCRIPTOR_REV2));
     if (FADT2 == NULL)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -612,7 +591,7 @@ AcpiTbBuildCommonFacs (
 
     /* Allocate a common FACS */
 
-    CommonFacs = AcpiCmCallocate (sizeof (ACPI_COMMON_FACS));
+    CommonFacs = AcpiUtCallocate (sizeof (ACPI_COMMON_FACS));
     if (!CommonFacs)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
