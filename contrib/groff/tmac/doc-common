@@ -512,6 +512,7 @@
 .if "\\$1"libc_r" \&Reentrant C Library (libc_r, -pthread)
 .if "\\$1"libcalendar" \&Calendar Arithmetic Library (libcalendar, -lcalendar)
 .if "\\$1"libcam" \&Common Access Method User Library (libcam, -lcam)
+.if "\\$1"libcompat" \&Compatibility Library (libcompat, -lcompat)
 .if "\\$1"libcrypt" \&Crypt Library (libcrypt, -lcrypt)
 .if "\\$1"libdevstat" \&Device Statistics Library (libdevstat, -ldevstat)
 .if "\\$1"libdisk" \&Interface to Slice and Partition Labels Library (libdisk, -ldisk)
