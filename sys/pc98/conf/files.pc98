@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.91 1999/04/24 04:22:57 kato Exp $
+#	$Id: files.pc98,v 1.92 1999/05/06 09:13:56 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -138,6 +138,7 @@ pc98/pc98/atcompat_diskslice.c	optional	compat_atdisk
 i386/isa/elink.c		optional	ep	device-driver
 i386/isa/elink.c		optional	ie	device-driver
 pc98/pc98/fd.c			optional	fd	device-driver
+i386/isa/fla.c			optional	fla	device-driver
 i386/isa/gpib.c			optional	gp	device-driver
 i386/isa/asc.c			optional	asc	device-driver
 i386/isa/gsc.c			optional	gsc	device-driver
