@@ -16,15 +16,19 @@
 /*
  * Modification history
  *
- * $Log: if_ed.c,v $
- * Revision 1.6  1993/07/20  01:39:24  jkh
- * Fixed to allow iosiz config parameter to override what was (for me,
- * incorrectly) probed.  This allows you more flexibility in getting weird
- * WD 80x3 clones to work.
- *
- * Revision 1.5  1993/06/27  10:28:28  davidg
- * fixed bugs in the probe routine uncovered by the previous fix.
- *
+ * $Log:	if_ed.c,v $
+ * Revision 1.14  93/07/20  15:24:25  davidg
+ * ommision for force 16bit case fixed from last patch
+ * 
+ * Revision 1.13  93/07/20  15:13:55  davidg
+ * Added config file override for memsize by using 'iosiz'. Also added
+ * config flags overrides to force 8/16bit mode and disable the use of
+ * double xmit buffers.
+ * 
+ * Revision 1.12  93/07/07  06:27:44  davidg
+ * moved call to bpfattach to after this drivers attach printf -
+ * improves readability of startup messages.
+ * 
  * Revision 1.11  93/06/27  03:07:01  davidg
  * fixed bugs in the 3Com part of the probe routine that were uncovered by
  * the previous fix.
@@ -305,13 +309,24 @@ type_WD80x3:
 	}
 
 #if ED_DEBUG
-	printf("type=%s width=%d memsize=%d id_msize=%d\n",sc->type_str,memwidth,memsize,isa_dev->id_msize);
+	printf("type=%s memwidth=%d memsize=%d id_msize=%d\n",
+		sc->type_str,memwidth,memsize,isa_dev->id_msize);
 	for (i=0; i<8; i++)
 		printf("%x -> %x\n", i, inb(sc->asic_addr + i));
 #endif
-	/* Allow id_msize to override */
-        if (isa_dev->id_msize)
+	/*
+	 * Allow the user to override the autoconfiguration
+	 */
+	if (isa_dev->id_msize)
 		memsize = isa_dev->id_msize;
+	/*
+	 * (note that if the user specifies both of the following flags
+	 *	that '8bit' mode intentionally has precedence)
+	 */
+	if (isa_dev->id_flags & ED_FLAGS_FORCE_16BIT_MODE)
+		memwidth = 16;
+	if (isa_dev->id_flags & ED_FLAGS_FORCE_8BIT_MODE)
+		memwidth = 8;
 
 	/*
 	 * Check 83C584 interrupt configuration register if this board has one
@@ -344,7 +359,7 @@ type_WD80x3:
 	/*
 	 * allocate one xmit buffer if < 16k, two buffers otherwise
 	 */
-	if (memsize < 16384) {
+	if ((memsize < 16384) || (isa_dev->id_msize & ED_FLAGS_NO_DOUBLE_BUFFERING)) {
 		sc->smem_ring = sc->smem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE);
 		sc->txb_cnt = 1;
 		sc->rec_page_start = ED_TXBUF_SIZE;
@@ -634,7 +649,7 @@ type_3Com:
 #if 0
 printf("Starting write\n");
 for (i = 0; i < 8192; ++i)
-	bzerow(sc->smem_start, 8192);
+	bzero(sc->smem_start, 8192);
 printf("Done.\n");
 #endif
 #if 0
@@ -710,10 +725,6 @@ ed_attach(isa_dev)
 	 */
 	if_attach(ifp);
 
-#if NBPFILTER > 0
-	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
-
 	/*
 	 * Search down the ifa address list looking for the AF_LINK type entry
 	 */
@@ -744,6 +755,14 @@ ed_attach(isa_dev)
 		ether_sprintf(sc->arpcom.ac_enaddr), sc->type_str,
 		sc->memwidth, ((sc->vendor == ED_VENDOR_3COM) &&
 			(ifp->if_flags & IFF_LLC0)) ? "tranceiver disabled" : "");
+
+	/*
+	 * If BPF is in the kernel, call the attach for it
+	 */
+#if NBPFILTER > 0
+	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+#endif
+
 }
  
 /*
