@@ -27,10 +27,19 @@ status_precmd="$stop_precmd"
 status_cmd="ipfilter_status"
 extra_commands="reload resync status"
 
+ipfilter_loaded()
+{
+	if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
+		return 1
+	else
+		return 0
+	fi
+}
+
 ipfilter_prestart()
 {
 	# load ipfilter kernel module if needed
-	if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
+	if ! ipfilter_loaded; then
 		if kldload ipl; then
 			info 'IP-filter module loaded.'
 		else
@@ -97,7 +106,7 @@ ipfilter_reload()
 ipfilter_resync()
 {
 	# Don't resync if ipfilter is not loaded
-	if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
+	if ! ipfilter_loaded; then
 		 return
 	fi
 	${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
