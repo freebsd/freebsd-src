@@ -1409,6 +1409,10 @@ struct vop_openextattr_args {
 	fs = ip->i_fs;
 	if (fs->fs_magic == FS_UFS1_MAGIC)
 		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
+
 	return (ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td));
 }
 
@@ -1435,6 +1439,10 @@ struct vop_closeextattr_args {
 	fs = ip->i_fs;
 	if (fs->fs_magic == FS_UFS1_MAGIC)
 		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
+
 	return (ffs_close_ea(ap->a_vp, ap->a_commit, ap->a_cred, ap->a_td));
 }
 
@@ -1469,6 +1477,9 @@ vop_getextattr {
 
 	if (fs->fs_magic == FS_UFS1_MAGIC)
 		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, IREAD);
@@ -1552,6 +1563,9 @@ vop_setextattr {
 
 	if (fs->fs_magic == FS_UFS1_MAGIC)
 		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, IWRITE);
