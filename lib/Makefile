@@ -62,7 +62,7 @@ _compat=	compat
 
 .if defined(RELEASEDIR) || \
     (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberosIV)) || \
-    defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
+    defined(NOCRYPT) || (defined(NOSECURE) && !defined(MAKE_KERBEROS4))
 _libtelnet=	libtelnet
 .endif
 
