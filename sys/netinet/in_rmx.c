@@ -4,7 +4,7 @@
  * You may copy this file verbatim until I find the official 
  * Institute boilerplate.
  *
- * $Id: in_rmx.c,v 1.5 1994/12/02 23:10:32 wollman Exp $
+ * $Id: in_rmx.c,v 1.6 1994/12/13 22:32:45 wollman Exp $
  */
 
 /*
@@ -18,10 +18,6 @@
  *     to be deleted in some random collection of circumstances, so that
  *     a large quantity of stale routing data is not kept in kernel memory
  *     indefinitely.  See in_rtqtimo() below for the exact mechanism.
- */
-
-/*
- * XXX - look for races
  */
 
 #include <sys/param.h>
@@ -158,12 +154,15 @@ in_rtqtimo(void *rock)
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
 	struct timeval atv;
+	int s;
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = time.tv_sec + 10*rtq_timeout;
 	arg.draining = 0;
+	s = splnet();
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+	splx(s);
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop;
 	timeout(in_rtqtimo, rock, hzto(&atv));
@@ -174,11 +173,12 @@ in_rtqdrain(void)
 {
 	struct radix_node_head *rnh = rt_tables[AF_INET];
 	struct rtqk_arg arg;
-	int s = splnet();
+	int s;
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = 0;
 	arg.draining = 1;
+	s = splnet();
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	splx(s);
 }
