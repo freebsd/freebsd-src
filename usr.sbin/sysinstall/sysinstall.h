@@ -143,6 +143,7 @@
 #define VAR_IPADDR			"ipaddr"
 #define VAR_IPV6_ENABLE			"ipv6_enable"
 #define VAR_IPV6ADDR			"ipv6addr"
+#define VAR_KERN_SECURELEVEL		"kern_securelevel"
 #define VAR_KEYMAP			"keymap"
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
@@ -452,6 +453,7 @@ extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
 extern DMenu		MenuSecurity;		/* System security options menu			*/
+extern DMenu		MenuSecurelevel;	/* Securelevel menu */
 extern DMenu		MenuStartup;		/* Startup services menu			*/
 #ifdef WITH_SYSCONS
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
@@ -531,6 +533,11 @@ extern int	configMTAPostfix(dialogMenuItem *self);
 extern int	configMTAExim(dialogMenuItem *self);
 extern int	configRpcBind(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
+extern int	configSecurelevel(dialogMenuItem *self);
+extern int	configSecurelevelDisabled(dialogMenuItem *self);
+extern int	configSecurelevelSecure(dialogMenuItem *self);
+extern int	configSecurelevelHighlySecure(dialogMenuItem *self);
+extern int	configSecurelevelNetworkSecure(dialogMenuItem *self);
 extern int	configEtcTtys(dialogMenuItem *self);
 #ifdef __i386__
 extern int	checkLoaderACPI(void);
