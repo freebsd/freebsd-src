@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.25 1999/04/14 22:21:36 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.27 1999/04/29 17:56:55 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -437,8 +437,8 @@ struct xl_list_onefrag {
 };
 
 #define XL_MAXFRAGS		63
-#define XL_RX_LIST_CNT		16
-#define XL_TX_LIST_CNT		16
+#define XL_RX_LIST_CNT		128
+#define XL_TX_LIST_CNT		256
 #define XL_MIN_FRAMELEN		60
 
 struct xl_list_data {
@@ -451,7 +451,6 @@ struct xl_chain {
 	struct xl_list		*xl_ptr;
 	struct mbuf		*xl_mbuf;
 	struct xl_chain		*xl_next;
-	u_int8_t		xl_unsent;
 };
 
 struct xl_chain_onefrag {
@@ -617,15 +616,15 @@ struct xl_stats {
 #define TC_DEVICEID_BOOMERANG_10BT_COMBO	0x9001
 #define TC_DEVICEID_BOOMERANG_10_100BT		0x9050
 #define TC_DEVICEID_BOOMERANG_100BT4		0x9051
-#define TC_DEVICEID_CYCLONE_10BT		0x9004
-#define TC_DEVICEID_CYCLONE_10BT_COMBO		0x9005
-#define TC_DEVICEID_CYCLONE_10BT_TPC		0x9006
+#define TC_DEVICEID_KRAKATOA_10BT		0x9004
+#define TC_DEVICEID_KRAKATOA_10BT_COMBO		0x9005
+#define TC_DEVICEID_KRAKATOA_10BT_TPC		0x9006
 #define TC_DEVICEID_CYCLONE_10FL		0x900A
-#define TC_DEVICEID_CYCLONE_10_100BT		0x9055
+#define TC_DEVICEID_HURRICANE_10_100BT		0x9055
 #define TC_DEVICEID_CYCLONE_10_100BT4		0x9056
 #define TC_DEVICEID_CYCLONE_10_100_COMBO	0x9058
 #define TC_DEVICEID_CYCLONE_10_100FX		0x905A
-#define TC_DEVICEID_CYCLONE_10_100BT_SERV	0x9800
+#define TC_DEVICEID_HURRICANE_10_100BT_SERV	0x9800
 #define TC_DEVICEID_HURRICANE_SOHO100TX		0x7646
 
 /*
@@ -814,4 +813,8 @@ struct xl_stats {
 #undef vtophys
 #define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
 					+ 1*1024*1024*1024)
+#endif
+
+#ifndef IFM_10_FL
+#define IFM_10_FL	13		/* 10baseFL - Fiber */
 #endif
