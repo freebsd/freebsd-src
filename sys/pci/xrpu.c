@@ -94,26 +94,24 @@ xrpu_poll_pps(struct timecounter *tc)
                 
 	for (i = 0; i < XRPU_MAX_PPS; i++) {
 		if (sc->assert[i]) {
-			sc->pps[i].capgen = tc->tc_generation;
+			pps_capture(&sc->pps[i]);
 			ppscount = *(sc->assert[i]) & tc->tc_counter_mask;
 			j = 0;
 			do {
 				count1 = ppscount;
 				ppscount =  *(sc->assert[i]) & tc->tc_counter_mask;
 			} while (ppscount != count1 && ++j < 5);
-			sc->pps[i].captc = tc;
 			sc->pps[i].capcount = ppscount;
 			pps_event(&sc->pps[i], PPS_CAPTUREASSERT);
 		}
 		if (sc->clear[i]) {
-			sc->pps[i].capgen = tc->tc_generation;
+			pps_capture(&sc->pps[i]);
 			j = 0;
 			ppscount = *(sc->clear[i]) & tc->tc_counter_mask;
 			do {
 				count1 = ppscount;
 				ppscount =  *(sc->clear[i]) & tc->tc_counter_mask;
 			} while (ppscount != count1 && ++j < 5);
-			sc->pps[i].captc = tc;
 			sc->pps[i].capcount = ppscount;
 			pps_event(&sc->pps[i], PPS_CAPTURECLEAR);
 		}
