@@ -227,6 +227,11 @@ extern void		acpi_EnterDebugger(void);
 #define STEP(x)
 #endif
 
+#define ACPI_VPRINT(dev, acpi_sc, x...) do {				\
+	if (acpi_get_verbose(acpi_sc))					\
+		device_printf(dev, x);					\
+} while (0)
+
 extern BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 extern BOOLEAN		acpi_MatchHid(device_t dev, char *hid);
 extern ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result);
