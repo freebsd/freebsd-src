@@ -26,15 +26,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.23 1999/03/11 01:49:15 brian Exp $
+ *	$Id: pred.c,v 1.24 1999/03/16 01:24:23 brian Exp $
  */
 
 #include <sys/types.h>
 
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 
 #include "defs.h"
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
@@ -166,8 +168,8 @@ Pred1InitOutput(struct lcp_opt *o)
   return state;
 }
 
-static int
-Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
+static struct mbuf *
+Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
             struct mbuf *bp)
 {
   struct pred1_state *state = (struct pred1_state *)v;
@@ -183,10 +185,10 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   cp = bufp;
   *wp++ = *cp++ = orglen >> 8;
   *wp++ = *cp++ = orglen & 0377;
-  *cp++ = proto >> 8;
-  *cp++ = proto & 0377;
+  *cp++ = *proto >> 8;
+  *cp++ = *proto & 0377;
   mbuf_Read(bp, cp, orglen - 2);
-  fcs = hdlc_Fcs(INITFCS, bufp, 2 + orglen);
+  fcs = hdlc_Fcs(bufp, 2 + orglen);
   fcs = ~fcs;
 
   len = compress(state, bufp + 2, wp, orglen);
@@ -205,8 +207,8 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   *wp++ = fcs & 0377;
   *wp++ = fcs >> 8;
   mwp->cnt = wp - MBUF_CTOP(mwp);
-  hdlc_Output(l, PRI_NORMAL, ccp_Proto(ccp), mwp);
-  return 1;
+  *proto = ccp_Proto(ccp);
+  return mwp;
 }
 
 static struct mbuf *
@@ -255,7 +257,7 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   }
   *pp++ = *cp++;		/* CRC */
   *pp++ = *cp++;
-  fcs = hdlc_Fcs(INITFCS, bufp, wp->cnt = pp - bufp);
+  fcs = hdlc_Fcs(bufp, wp->cnt = pp - bufp);
   if (fcs == GOODFCS) {
     wp->offset += 2;		/* skip length */
     wp->cnt -= 4;		/* skip length & CRC */

@@ -17,10 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.74 1999/04/26 08:54:24 brian Exp $
+ * $Id: ipcp.c,v 1.75 1999/04/26 08:54:34 brian Exp $
  *
  *	TODO:
- *		o More RFC1772 backward compatibility
+ *		o Support IPADDRS properly
+ *		o Validate the length in IpcpDecodeConfig
  */
 #include <sys/param.h>
 #include <netinet/in_systm.h>
@@ -47,6 +48,7 @@
 #include "alias.h"
 #endif
 #endif
+#include "layer.h"
 #include "ua.h"
 #include "defs.h"
 #include "command.h"
@@ -54,7 +56,7 @@
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
@@ -1007,22 +1009,12 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-	ipcp->peer_ip = ipaddr;
-	ipcp->my_ip = dstipaddr;
-	memcpy(dec->ackend, cp, length);
-	dec->ackend += length;
+	memcpy(dec->rejend, cp, length);
+	dec->rejend += length;
 	break;
 
       case MODE_NAK:
-        snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s", tbuff,
-		 inet_ntoa(ipcp->my_ip));
-	log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
-	ipcp->my_ip = ipaddr;
-	ipcp->peer_ip = dstipaddr;
-	break;
-
       case MODE_REJ:
-	ipcp->peer_reject |= (1 << type);
 	break;
       }
       break;
@@ -1147,18 +1139,19 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
   }
 }
 
-void
-ipcp_Input(struct ipcp *ipcp, struct bundle *bundle, struct mbuf *bp)
+extern struct mbuf *
+ipcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_IPCP from link */
   if (bundle_Phase(bundle) == PHASE_NETWORK)
-    fsm_Input(&ipcp->fsm, bp);
+    fsm_Input(&bundle->ncp.ipcp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
       log_Printf(LogIPCP, "%s: Error: Unexpected IPCP in phase %s (ignored)\n",
-                 ipcp->fsm.link->name, bundle_PhaseName(bundle));
+                 l->name, bundle_PhaseName(bundle));
     mbuf_Free(bp);
   }
+  return NULL;
 }
 
 int

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.h,v 1.4 1998/06/09 18:49:10 brian Exp $
+ *	$Id: throughput.h,v 1.5 1998/06/12 20:12:26 brian Exp $
  */
 
 #define SAMPLE_PERIOD 5
@@ -36,11 +36,11 @@
 
 struct pppThroughput {
   time_t uptime;
-  u_long OctetsIn;
-  u_long OctetsOut;
-  u_long SampleOctets[SAMPLE_PERIOD];
-  int OctetsPerSecond;
-  int BestOctetsPerSecond;
+  unsigned long long OctetsIn;
+  unsigned long long OctetsOut;
+  unsigned long long SampleOctets[SAMPLE_PERIOD];
+  unsigned long long OctetsPerSecond;
+  unsigned long long BestOctetsPerSecond;
   time_t BestOctetsPerSecondTime;
   int nSample;
   unsigned rolling : 1;
@@ -52,6 +52,6 @@ extern void throughput_disp(struct pppThroughput *, struct prompt *);
 extern void throughput_log(struct pppThroughput *, int, const char *);
 extern void throughput_start(struct pppThroughput *, const char *, int);
 extern void throughput_stop(struct pppThroughput *);
-extern void throughput_addin(struct pppThroughput *, int);
-extern void throughput_addout(struct pppThroughput *, int);
+extern void throughput_addin(struct pppThroughput *, long long);
+extern void throughput_addout(struct pppThroughput *, long long);
 extern void throughput_clear(struct pppThroughput *, int, struct prompt *);

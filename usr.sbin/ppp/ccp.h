@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.19 1998/06/30 23:04:12 brian Exp $
+ * $Id: ccp.h,v 1.20 1999/02/26 21:28:07 brian Exp $
  *
  *	TODO:
  */
@@ -109,8 +109,8 @@ struct ccp_algorithm {
     void *(*Init)(struct lcp_opt *);
     void (*Term)(void *);
     void (*Reset)(void *);
-    int (*Write)(void *, struct ccp *, struct link *, int, u_short,
-                 struct mbuf *);
+    struct mbuf *(*Write)(void *, struct ccp *, struct link *, int, u_short *,
+                          struct mbuf *);
   } o;
 };
 
@@ -119,10 +119,10 @@ extern void ccp_Init(struct ccp *, struct bundle *, struct link *,
 extern void ccp_Setup(struct ccp *);
 
 extern void ccp_SendResetReq(struct fsm *);
-extern void ccp_Input(struct ccp *, struct bundle *, struct mbuf *);
+extern struct mbuf *ccp_Input(struct bundle *, struct link *, struct mbuf *);
 extern int ccp_ReportStatus(struct cmdargs const *);
-extern int ccp_Compress(struct ccp *, struct link *, int, u_short, struct mbuf *);
-extern struct mbuf *ccp_Decompress(struct ccp *, u_short *, struct mbuf *);
 extern u_short ccp_Proto(struct ccp *);
 extern void ccp_SetupCallbacks(struct ccp *);
 extern int ccp_SetOpenMode(struct ccp *);
+
+extern struct layer ccplayer;
