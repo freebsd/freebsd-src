@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)snprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: snprintf.c,v 1.5 1997/02/22 15:02:29 peter Exp $";
+		"$Id: snprintf.c,v 1.6 1997/12/24 12:31:31 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -65,8 +65,6 @@ snprintf(str, n, fmt, va_alist)
 	va_list ap;
 	FILE f;
 
-	if (n == 0)
-		return (0);
 	if ((int)n < 1)
 		return (EOF);
 	n--;
