@@ -1,3 +1,4 @@
+/*	$NetBSD: if_ray.c,v 1.12 2000/02/07 09:36:27 augustss Exp $	*/
 /*-
  * Copyright (C) 2000
  * Dr. Duncan McLennan Barclay, dmlb@ragnet.demon.co.uk.
@@ -31,11 +32,7 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-/*	$NetBSD: if_ray.c,v 1.12 2000/02/07 09:36:27 augustss Exp $	*/
-/* 
+/*-
  * Copyright (c) 2000 Christian E. Hopps
  * All rights reserved.
  * 
@@ -63,6 +60,9 @@ __FBSDID("$FreeBSD$");
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Card configuration
