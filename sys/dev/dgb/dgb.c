@@ -438,10 +438,7 @@ dgbprobe(dev)
 	int i, v;
 	u_long win_size;  /* size of vizible memory window */
 	int unit=dev->id_unit;
-	static int once;
 
-	if (!once++)
-		cdevsw_add(&dgb_cdevsw);
 	sc->unit=dev->id_unit;
 	sc->port=dev->id_iobase;
 
