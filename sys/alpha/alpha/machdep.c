@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.48 1999/07/08 06:05:38 mckusick Exp $
+ *	$Id: machdep.c,v 1.49 1999/08/19 00:16:51 peter Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -95,6 +95,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
@@ -247,7 +248,7 @@ static vm_offset_t pager_sva, pager_eva;
  * unconditionally drop back to the SRM console.
  */
 static void
-alpha_srm_shutdown(int howto, void *junk)
+alpha_srm_shutdown(void *junk, int howto)
 {
 	if (howto & RB_HALT)
 		alpha_pal_halt();
@@ -433,8 +434,8 @@ again:
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-	at_shutdown_pri(alpha_srm_shutdown, 0, SHUTDOWN_FINAL, 
-	    SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(shutdown_final, alpha_srm_shutdown, 0
+			      SHUTDOWN_PRI_LAST);
 }
 
 int
