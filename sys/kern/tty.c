@@ -2059,7 +2059,7 @@ loop:
 			goto out;
 		}
 		error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
-				 "ttydcd", 0);
+				 "ttywdcd", 0);
 		splx(s);
 		if (error)
 			goto out;
@@ -3126,6 +3126,7 @@ open_top:
 		 * callout, and to complete a callin open after DCD rises.
 		 */
 		tp->t_termios = ISCALLOUT(dev) ? tp->t_init_out : tp->t_init_in;
+		tp->t_cflag = tp->t_termios.c_cflag;
 		tp->t_modem(tp, SER_DTR | SER_RTS, 0);
 		++tp->t_wopeners;
 		error = tp->t_param(tp, &tp->t_termios);
@@ -3209,6 +3210,30 @@ ttyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	int	error;
 
 	tp = dev->si_tty;
+
+	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
+		int cc;
+		struct termios *dt = (struct termios *)data;
+		struct termios *lt =
+		    ISCALLOUT(dev) ?  &tp->t_lock_out : &tp->t_lock_in;
+
+		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
+		    | (dt->c_iflag & ~lt->c_iflag);
+		dt->c_oflag = (tp->t_oflag & lt->c_oflag)
+		    | (dt->c_oflag & ~lt->c_oflag);
+		dt->c_cflag = (tp->t_cflag & lt->c_cflag)
+		    | (dt->c_cflag & ~lt->c_cflag);
+		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
+		    | (dt->c_lflag & ~lt->c_lflag);
+		for (cc = 0; cc < NCCS; ++cc)
+		    if (lt->c_cc[cc] != 0)
+		        dt->c_cc[cc] = tp->t_cc[cc];
+		if (lt->c_ispeed != 0)
+		    dt->c_ispeed = tp->t_ispeed;
+		if (lt->c_ospeed != 0)
+		    dt->c_ospeed = tp->t_ospeed;
+	}
+
 	error = ttyld_ioctl(tp, cmd, data, flag, td);
 	if (error == ENOIOCTL)
 		error = ttioctl(tp, cmd, data, flag);
