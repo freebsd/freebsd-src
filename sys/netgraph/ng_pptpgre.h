@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_PPTPGRE_NODE_TYPE	"pptpgre"
-#define NGM_PPTPGRE_COOKIE	942783547
+#define NGM_PPTPGRE_COOKIE	1082548365
 
 /* Hook names */
 #define NG_PPTPGRE_HOOK_UPPER	"upper"		/* to upper layers */
@@ -56,6 +56,7 @@ struct ng_pptpgre_conf {
 	u_char		enabled;	/* enables traffic flow */
 	u_char		enableDelayedAck;/* enables delayed acks */
 	u_char		enableAlwaysAck;/* always include ack with data */
+	u_char		enableWindowing;/* enable windowing algorithm */
 	u_int16_t	cid;		/* my call id */
 	u_int16_t	peerCid;	/* peer call id */
 	u_int16_t	recvWin;	/* peer recv window size */
@@ -68,6 +69,7 @@ struct ng_pptpgre_conf {
 	  { "enabled",		&ng_parse_uint8_type	},	\
 	  { "enableDelayedAck",	&ng_parse_uint8_type	},	\
 	  { "enableAlwaysAck",	&ng_parse_uint8_type	},	\
+	  { "enableWindowing",	&ng_parse_uint8_type	},	\
 	  { "cid",		&ng_parse_hint16_type	},	\
 	  { "peerCid",		&ng_parse_hint16_type	},	\
 	  { "recvWin",		&ng_parse_uint16_type	},	\
