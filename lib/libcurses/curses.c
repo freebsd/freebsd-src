@@ -44,7 +44,13 @@ int	__rawmode = 0;			/* If stty indicates RAW mode. */
 int	__noqch = 0;			/* 
 					 * If terminal doesn't have 
 					 * insert/delete line capabilities 
+					 * or change scroll capabilities
 					 * for quick change on refresh.
+					 */
+int     __usecs = 0;                    /*
+					 * If terminal able to change scroll
+					 * region (used only if insert/delete
+					 * line capabilities absent)
 					 */
 char	AM, BS, CA, DA, EO, HC, IN, MI, MS, NC, NS, OS, PC,
 	UL, XB, XN, XT, XS, XX;

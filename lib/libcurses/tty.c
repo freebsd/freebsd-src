@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)tty.c	8.4 (Berkeley) 5/18/94";
 
 #include <termios.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "curses.h"
 
@@ -53,6 +54,7 @@ int __tcaction = 1;			/* Ignore hardware settings. */
 int __tcaction = 0;
 #endif
 
+int __tty_fileno;
 struct termios __orig_termios, __baset;
 static struct termios cbreakt, rawt, *curt;
 static int useraw;
@@ -64,6 +66,9 @@ static int useraw;
 #define	OXTABS	0
 #endif
 #endif
+#ifndef _PATH_TTY
+#define _PATH_TTY "/dev/tty"
+#endif
 
 /*
  * gettmode --
@@ -74,8 +79,12 @@ gettmode()
 {
 	useraw = 0;
 	
-	if (tcgetattr(STDIN_FILENO, &__orig_termios))
-		return (ERR);
+	if (tcgetattr(__tty_fileno = STDIN_FILENO, &__orig_termios)) {
+		if ((__tty_fileno = open(_PATH_TTY, O_RDONLY, 0)) < 0)
+  	    		return (ERR);
+		else if (tcgetattr(__tty_fileno, &__orig_termios))
+			return (ERR);
+	}
 
 	__baset = __orig_termios;
 	__baset.c_oflag &= ~OXTABS;
@@ -115,7 +124,7 @@ gettmode()
 	}
 
 	curt = &__baset;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -124,7 +133,7 @@ raw()
 {
 	useraw = __pfast = __rawmode = 1;
 	curt = &rawt;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -133,7 +142,7 @@ noraw()
 {
 	useraw = __pfast = __rawmode = 0;
 	curt = &__baset;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -143,7 +152,7 @@ cbreak()
 
 	__rawmode = 1;
 	curt = useraw ? &rawt : &cbreakt;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -153,7 +162,7 @@ nocbreak()
 
 	__rawmode = 0;
 	curt = useraw ? &rawt : &__baset;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 	
@@ -165,7 +174,7 @@ echo()
 	__baset.c_lflag |= ECHO;
 	
 	__echoit = 1;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -177,7 +186,7 @@ noecho()
 	__baset.c_lflag &= ~ECHO;
 	
 	__echoit = 0;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -192,7 +201,7 @@ nl()
 	__baset.c_oflag |= ONLCR;
 
 	__pfast = __rawmode;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -207,7 +216,7 @@ nonl()
 	__baset.c_oflag &= ~ONLCR;
 
 	__pfast = 1;
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -219,6 +228,23 @@ __startwin()
 
 	tputs(TI, 0, __cputchar);
 	tputs(VS, 0, __cputchar);
+	if (curscr != NULL && __usecs)
+		__set_scroll_region(0, curscr->maxx - 1, 0, 0);
+}
+
+void
+__set_scroll_region(top, bot, ox, oy)
+int top, bot, ox, oy;
+{
+	if (SC != NULL && RC != NULL)
+		tputs(SC, 0, __cputchar);
+	tputs(__tscroll(CS, top, bot), 1, __cputchar);
+	if (SC != NULL && RC != NULL)
+		tputs(RC, 0, __cputchar);
+	else {
+		tputs(HO, 1, __cputchar);
+		__mvcur(0, 0, oy, ox, 1);
+	}
 }
 
 int
@@ -231,6 +257,8 @@ endwin()
 			tputs(SE, 0, __cputchar);
 			curscr->flags &= ~__WSTANDOUT;
 		}
+		if (__usecs)
+			__set_scroll_region(0, curscr->maxx - 1, 0, 0);
 		__mvcur(curscr->cury, curscr->cury, curscr->maxy - 1, 0, 0);
 	}
 
@@ -239,7 +267,7 @@ endwin()
 	(void)fflush(stdout);
 	(void)setvbuf(stdout, NULL, _IOLBF, 0);
 
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, &__orig_termios) ? ERR : OK);
 }
 
@@ -252,12 +280,12 @@ static struct termios savedtty;
 int
 savetty()
 {
-	return (tcgetattr(STDIN_FILENO, &savedtty) ? ERR : OK);
+	return (tcgetattr(__tty_fileno, &savedtty) ? ERR : OK);
 }
 
 int
 resetty()
 {
-	return (tcsetattr(STDIN_FILENO, __tcaction ?
+	return (tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, &savedtty) ? ERR : OK);
 }

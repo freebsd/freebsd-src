@@ -54,7 +54,7 @@ __stop_signal_handler(signo)
 	sigset_t oset, set;
 
 	/* Get the current terminal state (which the user may have changed). */
-	if (tcgetattr(STDIN_FILENO, &save))
+	if (tcgetattr(__tty_fileno, &save))
 		return;
 
 	/*
@@ -87,10 +87,10 @@ __stop_signal_handler(signo)
 	__set_stophandler();
 
 	/* save the new "default" terminal state */
-	(void)tcgetattr(STDIN_FILENO, &__orig_termios);
+	(void)tcgetattr(__tty_fileno, &__orig_termios);
 
 	/* Reset the terminal state to the mode just before we stopped. */
-	(void)tcsetattr(STDIN_FILENO, __tcaction ?
+	(void)tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, &save);
 
 	/* Restart the screen. */
@@ -122,3 +122,7 @@ __restore_stophandler()
 {
 	(void)signal(SIGTSTP, otstpfn);
 }
+
+/* For compatibility */
+
+void tstp() { __stop_signal_handler(SIGTSTP); }

@@ -46,12 +46,12 @@ wgetstr(win, str)
 	register WINDOW *win;
 	register char *str;
 {
-	while ((*str = wgetch(win)) != ERR && *str != '\n')
-		str++;
-	if (*str == ERR) {
-		*str = '\0';
-		return (ERR);
-	}
-	*str = '\0';
+	int c;
+
+	while ((c = wgetch(win)) != ERR && c != EOF && c != '\n')
+		*str++ = c;
+  	*str = '\0';
+	if (c == ERR)
+  		return (ERR);
 	return (OK);
 }

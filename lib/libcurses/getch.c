@@ -61,13 +61,15 @@ wgetch(win)
 		weset = 0;
 
 	inp = getchar();
+	if (inp != EOF) {
 #ifdef DEBUG
-	__CTRACE("wgetch got '%s'\n", unctrl(inp));
+		__CTRACE("wgetch got '%s'\n", unctrl(inp));
 #endif
-	if (__echoit) {
-		mvwaddch(curscr,
-		    win->cury + win->begy, win->curx + win->begx, inp);
-		waddch(win, inp);
+		if (__echoit) {
+			mvwaddch(curscr,
+			    win->cury + win->begy, win->curx + win->begx, inp);
+			waddch(win, inp);
+		}
 	}
 	if (weset)
 		nocbreak();

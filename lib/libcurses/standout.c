@@ -41,28 +41,28 @@ static char sccsid[] = "@(#)standout.c	8.2 (Berkeley) 5/4/94";
  * wstandout
  *	Enter standout mode.
  */
-char *
+int
 wstandout(win)
 	register WINDOW *win;
 {
 	if (!SO && !UC)
-		return (0);
+		return (ERR);
 
 	win->flags |= __WSTANDOUT;
-	return (SO ? SO : UC);
+	return (OK);
 }
 
 /*
  * wstandend --
  *	Exit standout mode.
  */
-char *
+int
 wstandend(win)
 	register WINDOW *win;
 {
 	if (!SO && !UC)
-		return (0);
+		return (ERR);
 
 	win->flags &= ~__WSTANDOUT;
-	return (SE ? SE : UC);
+	return (OK);
 }

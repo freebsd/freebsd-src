@@ -41,6 +41,10 @@
 
 #include <stdio.h>
 
+#ifndef _BSD_VA_LIST_
+#define _BSD_VA_LIST_ char *
+#endif
+
 /*
  * The following #defines and #includes are present for backward
  * compatibility only.  They should not be used in future code.
@@ -48,6 +52,34 @@
  * START BACKWARD COMPATIBILITY ONLY.
  */
 #ifndef _CURSES_PRIVATE
+
+/* This stuff needed for those pgms which include <sgtty.h> */
+/* Undef things manually to avoid redefinition              */
+
+#undef USE_OLD_TTY
+#undef B0
+#undef B50
+#undef B75
+#undef B110
+#undef B134
+#undef B150
+#undef B200
+#undef B300
+#undef B600
+#undef B1200
+#undef B1800
+#undef B2400
+#undef B4800
+#undef B9600
+#undef EXTA
+#undef EXTB
+#undef B57600
+#undef B115200
+
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <sys/ioctl_compat.h>           /* For sgttyb and related */
+
 #define	bool	char
 #define	reg	register
 
@@ -59,7 +91,6 @@
 #endif
 
 #define	_puts(s)	tputs(s, 0, __cputchar)
-#define	_putchar(c)	__cputchar(c)
 
 /* Old-style terminal modes access. */
 #define	baudrate()	(cfgetospeed(&__baset))
@@ -68,6 +99,17 @@
 #define	killchar()	(__baset.c_cc[VKILL])
 #define	nocrmode()	nocbreak()
 #define	ospeed		(cfgetospeed(&__baset))
+
+/* WINDOW structure members name compatibility */
+#define _curx   curx
+#define _cury   cury
+#define _begx   begx
+#define _begy   begy
+#define _maxx   maxx
+#define _maxy   maxy
+
+#define _tty __baset
+
 #endif /* _CURSES_PRIVATE */
 
 extern char	 GT;			/* Gtty indicates tabs. */
@@ -147,6 +189,7 @@ typedef struct __window {		/* Window structure. */
 #define	__CLEAROK	0x040		/* Clear on next refresh. */
 #define __WSTANDOUT	0x080		/* Standout window */
 #define __LEAVEOK	0x100		/* If curser left */	
+#define __FULLLINE      0x200           /* Line width = terminal width. */
 	u_int flags;
 } WINDOW;
 
@@ -154,9 +197,12 @@ typedef struct __window {		/* Window structure. */
 extern WINDOW	*curscr;		/* Current screen. */
 extern WINDOW	*stdscr;		/* Standard screen. */
 
-extern struct termios __orig_termios;	/* Terminal state before curses */
-extern struct termios __baset;		/* Our base terminal state */
+typedef struct termios SGTTY;
+
+extern SGTTY          __orig_termios;   /* Terminal state before curses */
+extern SGTTY          __baset;          /* Our base terminal state */
 extern int __tcaction;			/* If terminal hardware set. */
+extern int __tty_fileno;		/* Terminal file descriptor */
 
 extern int	 COLS;			/* Columns on the screen. */
 extern int	 LINES;			/* Lines on the screen. */
@@ -230,7 +276,7 @@ extern char	*ttytype;		/* Full name of current terminal. */
 #define	scrollok(w, bf) \
 	((bf) ? ((w)->flags |= __SCROLLOK) : ((w)->flags &= ~__SCROLLOK))
 #define	winch(w) \
-	((w)->lines[(w)->cury]->line[(w)->curx].ch & 0177)
+	((w)->lines[(w)->cury]->line[(w)->curx].ch & 0377)
 
 /* Public function prototypes. */
 int	 box __P((WINDOW *, int, int));
@@ -289,12 +335,13 @@ int	 wmove __P((WINDOW *, int, int));
 int	 wprintw __P((WINDOW *, const char *, ...));
 int	 wrefresh __P((WINDOW *));
 int	 wscanw __P((WINDOW *, const char *, ...));
-char	*wstandend __P((WINDOW *));
-char	*wstandout __P((WINDOW *));
+int      wstandend __P((WINDOW *));
+int      wstandout __P((WINDOW *));
 int	 vwprintw __P((WINDOW *, const char *, _BSD_VA_LIST_));
 
 /* Private functions that are needed for user programs prototypes. */
 void	 __cputchar __P((int));
+int      _putchar __P((int));
 int	 __waddbytes __P((WINDOW *, const char *, int, int));
 
 /* Private functions. */
@@ -306,6 +353,7 @@ int	 __mvcur __P((int, int, int, int, int));
 void	 __restore_stophandler __P((void));
 void	 __set_stophandler __P((void));
 void	 __set_subwin __P((WINDOW *, WINDOW *));
+void     __set_scroll_region __P((int, int, int, int));
 void	 __startwin __P((void));
 void	 __stop_signal_handler __P((int));
 void	 __swflags __P((WINDOW *));
@@ -324,6 +372,14 @@ extern int	 __endwin;
 extern int	 __pfast;
 extern int	 __rawmode;
 extern int	 __noqch;
+extern int       __usecs;
+
+int	 tputs __P((char *, int, void (*)(int)));
+
+#else
+
+int      tputs __P((char *, int, int (*)(int)));
+
 #endif
 
 /* Termcap functions. */
@@ -332,6 +388,5 @@ int	 tgetnum __P((char *));
 int	 tgetflag __P((char *));
 char	*tgetstr __P((char *, char **));
 char	*tgoto __P((char *, int, int));
-int	 tputs __P((char *, int, void (*)(int)));
 
 #endif /* !_CURSES_H_ */
