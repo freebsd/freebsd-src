@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.38 1996/04/11 18:43:37 bde Exp $
+ * $Id: tty_pty.c,v 1.39 1996/06/12 05:07:34 gpalmer Exp $
  */
 
 /*
@@ -91,6 +91,19 @@ static struct cdevsw ptc_cdevsw =
 #if NPTY == 1
 #undef NPTY
 #define	NPTY	32		/* crude XXX */
+#warning	You have only one pty defined, redefining to 32.
+#endif
+
+#ifdef DEVFS
+#define MAXUNITS (8 * 32)
+static	void	*devfs_token_pts[MAXUNITS];
+static	void	*devfs_token_ptc[MAXUNITS];
+static  const	char jnames[] = "pqrsPQRS";
+#if NPTY > MAXUNITS
+#undef NPTY
+#define NPTY MAXUNITS
+#warning	Can't have more than 256 pty's with DEVFS defined.
+#endif
 #endif
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */
@@ -708,7 +721,8 @@ ptyioctl(dev, cmd, data, flag, p)
 			break;
 
 		case TIOCSIG:
-			if (*(unsigned int *)data >= NSIG)
+			if (*(unsigned int *)data >= NSIG ||
+			    *(unsigned int *)data == 0)
 				return(EINVAL);
 			if ((tp->t_lflag&NOFLSH) == 0)
 				ttyflush(tp, FREAD|FWRITE);
@@ -778,12 +792,6 @@ ptyioctl(dev, cmd, data, flag, p)
 }
 
 static ptc_devsw_installed = 0;
-#ifdef DEVFS
-#define MAXUNITS (8 * 32)
-static	void	*devfs_token_pts[MAXUNITS];
-static	void	*devfs_token_ptc[MAXUNITS];
-static  const	char jnames[] = "pqrsPQRS";
-#endif
 
 static void
 ptc_drvinit(void *unused)
@@ -800,11 +808,6 @@ ptc_drvinit(void *unused)
 		cdevsw_add(&dev, &ptc_cdevsw, NULL);
 		ptc_devsw_installed = 1;
 #ifdef DEVFS
-/*XXX*/
-#if NPTY > MAXUNITS
-#undef NPTY
-#define NPTY MAXUNITS
-#endif
 		for ( i = 0 ; i<NPTY ; i++ ) {
 			j = i / 32;
 			k = i % 32;
