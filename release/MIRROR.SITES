@@ -1,4 +1,4 @@
-$Id: MIRROR.SITES,v 1.1.2.5 1995/11/19 19:37:38 jkh Exp $
+$Id: MIRROR.SITES,v 1.1.2.6 1995/11/19 19:52:59 jkh Exp $
 
 Obtaining FreeBSD
    
@@ -81,25 +81,19 @@ Obtaining FreeBSD
           + ftp://ftp.tokyonet.ad.jp/pub/FreeBSD
             Contact: ftpadmin@TokyoNet.AD.JP.
 
-          + ftp://ftp.tut.ac.jp/FreeBSD
-            Contact: ashida@ftp.tut.ac.jp.
+          + ftp://ftp.nisiq.net/pub/os/FreeBSD/
+            Contact: ftp-admin@nisiq.net.
 
-          + ftp://ftp.sra.co.jp/pub/os/FreeBSD
-            Contact: ftp-admin@sra.co.jp.
+          + ftp://ftp.iij.ad.jp/pub/FreeBSD/
+            Contact: ftp@ftp.iij.ad.jp.
+
+          + ftp://ftp.kuis.kyoto-u.ac.jp/BSD/FreeBSD/
+            Contact: ftp-admin@kuis.kyoto-u.ac.jp.
 
           + ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org
             Contact: ftp-admin@ftp.ee.uec.ac.jp.
 
-          + ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD
-            Contact: tanig@isl.mei.co.jp.
-
-          + ftp://ftp.waseda.ac.jp/pub/FreeBSD
-            Contact: ftp-admin@waseda.ac.jp.
-
-          + ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD
-            Contact: Yoshihiko USUI usui@pu-toyama.ac.jp.
-
-          + ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD
+          + ftp://ftp.u-aizu.ac.jp/pub/os/FreeBSD
             Contact: ftp-admin@u-aizu.ac.jp.
 
    Korea
