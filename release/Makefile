@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.78 1998/02/18 12:45:09 markm Exp $
+#	$Id: Makefile,v 1.246.2.79 1998/02/18 17:25:20 jkh Exp $
 #
 # How to roll a release:
 #
@@ -22,8 +22,8 @@
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
 #NODOC=  YES
-DOCPORTS=	archivers/unzip lang/perl5 textproc/jade textproc/iso8879 \
-		textproc/linuxdoc textproc/docbook textproc/sgmlformat
+DOCPORTS= archivers/unzip lang/perl5 textproc/jade textproc/iso8879 \
+          textproc/linuxdoc textproc/docbook textproc/sgmlformat
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
@@ -54,8 +54,8 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
 BOOTMFSSIZE=		1440
-MFSINODE=		15000
-FIXITINODE=		6000
+MFSINODE=		7000
+FIXITINODE=		2000
 BOOTINODE=		100000
 
 # Things which may get you into trouble if you change them
@@ -70,8 +70,8 @@ CD_DISC2=		${CD}/disc2
 LOCALDIR=		/usr/local/bin
 
 # ${BOOTSTRAPDIR} is for those utilities that refer to the hosting
-# environment, rather then the target environment.  This is specifically
-# intended for kernel-dependant utilities that are used during the build.
+# environment, rather than the target environment.  This is specifically
+# intended for kernel-dependent utilities that are used during the build.
 #
 # ${BOOTSTRAPDIR} is actually being used by prepending it to the normal
 # ${PATH}.  Thus, it's also available to outside utilities like doFS.sh.
@@ -279,7 +279,7 @@ release.3:
 # NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
-	mkdir -p /stand
+	@mkdir -p /stand
 	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
@@ -374,12 +374,9 @@ release.7:
 	done
 .endif
 	( cd ${RD}/dists/src && \
-		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
-		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi && \
-		if [ -f scrypto.inf ] ; then mv scrypto.inf ../des ; fi && \
-		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
-		if [ -f skerbero.inf ] ; then mv skerbero.inf ../des ; fi ; )
+		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
+		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi ; )
 	@echo "src distribution is finished."
 .endif
 	touch release.7
@@ -544,7 +541,7 @@ doTARBALL:
 	( cd ${SD} && \
 		tn=`echo ${TN} | tr '[A-Z]' '[a-z]' | cut -c1-8` && \
 		echo rolling ${TD}/$$tn tarball &&\
-		tar --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
+		tar --exclude CVS --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > \
 		   ${RD}/dists/${TD}/$$tn.inf && \
