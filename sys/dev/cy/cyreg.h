@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cyreg.h,v 1.3 1996/10/13 01:09:17 davidg Exp $
  */
 
 /*
@@ -41,7 +41,13 @@
 
 #define	CY_MAX_CD1400s		8	/* for Cyclom-32Y */
 
-#define	CY_CLOCK		25000000	/* baud rate clock */
+#define	CD1400_REV_G		0x46
+#define	CD1400_REV_J		0x48
+
+#define	CY_CLOCK_25		25000000	/* baud rate clock */
+#define	CY_CLOCK_60		60000000	/* baud rate clock */
+#define CY_CLOCK_25_1MS		0x31
+#define CY_CLOCK_60_1MS		0x75
 
 #ifdef CyDebug
 #define	cd_inb(iobase, reg, cy_align)	(++cd_inbs, *((iobase) + ((reg)*2 << (cy_align))))
