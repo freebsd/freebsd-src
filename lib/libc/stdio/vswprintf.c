@@ -49,6 +49,7 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	struct __sFILEX ext;
 	char *mbp;
 	int ret, sverrno;
+	size_t nwc;
 
 	if (n == 0) {
 		errno = EINVAL;
@@ -79,13 +80,13 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	 * fputwc() did in __vfwprintf().
 	 */
 	mbs = initial;
-	if (mbsrtowcs(s, (const char **)&mbp, n, &mbs) == (size_t)-1) {
-		free(f._bf._base);
+	nwc = mbsrtowcs(s, (const char **)&mbp, n, &mbs);
+	free(f._bf._base);
+	if (nwc == (size_t)-1) {
 		errno = EILSEQ;
 		return (-1);
 	}
-	free(f._bf._base);
-	if (s[n - 1] != L'\0') {
+	if (nwc == n) {
 		s[n - 1] = L'\0';
 		errno = EOVERFLOW;
 		return (-1);
