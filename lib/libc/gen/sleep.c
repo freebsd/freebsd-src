@@ -60,6 +60,14 @@ sleep(seconds)
 	struct timespec time_remaining;
 
 	if (seconds != 0) {
+		/*
+		 * XXX
+		 * Hack to work around itimerfix(9) gratuitously limiting
+		 * the acceptable range for a struct timeval.tv_sec to
+		 * <= 100000000.
+		 */
+		if (seconds > 100000000)
+			seconds = 100000000;
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
 		nanosleep(&time_to_sleep, &time_remaining);
@@ -75,6 +83,14 @@ sleep(seconds)
 	sigset_t mask, omask;
 
 	if (seconds != 0) {
+		/*
+		 * XXX
+		 * Hack to work around itimerfix(9) gratuitously limiting
+		 * the acceptable range for a struct timeval.tv_sec to
+		 * <= 100000000.
+		 */
+		if (seconds > 100000000)
+			seconds = 100000000;
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
 
