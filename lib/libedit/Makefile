@@ -11,8 +11,7 @@ OSRCS=	chared.c common.c el.c emacs.c fcns.c help.c hist.c key.c map.c \
 DPADD=	${LIBTERMCAP}
 LDADD=	-ltermcap
 
-MAN3=   editline.3
-MAN5=   editrc.5
+MAN=	editline.3 editrc.5
 
 MLINKS=	editline.3 el_init.3 editline.3 el_end.3 editline.3 el_reset.3 \
 	editline.3 el_gets.3 editline.3 el_getc.3 editline.3 el_push.3 \

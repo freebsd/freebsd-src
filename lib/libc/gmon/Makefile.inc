@@ -7,7 +7,7 @@
 SRCS+=	gmon.c mcount.c
 
 .if ${LIB} == "c"
-MAN3+=	moncontrol.3
+MAN+=	moncontrol.3
 
 MLINKS+=moncontrol.3 monstartup.3
 .endif

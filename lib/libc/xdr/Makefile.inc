@@ -6,7 +6,7 @@ SRCS+=	xdr.c xdr_array.c xdr_float.c xdr_mem.c \
 	xdr_rec.c xdr_reference.c xdr_stdio.c
 
 .if ${LIB} == "c"
-MAN3+=	xdr.3
+MAN+=	xdr.3
 
 MLINKS+=	rpc_xdr.3 xdr_accepted_reply.3 \
 		rpc_xdr.3 xdr_authsys_parms.3 \
