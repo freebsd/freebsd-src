@@ -844,8 +844,10 @@ read_pcb (fd, uaddr)
   supply_register (6, (char *)&pcb.pcb_esi);
   supply_register (7, (char *)&pcb.pcb_edi);
   supply_register (PC_REGNUM, (char *)&pcb.pcb_eip);
-  for (i = 9; i < 16; ++i)		/* eflags, cs, ss, ds, es, fs, gs */
+  for (i = 9; i < 14; ++i)		/* eflags, cs, ss, ds, es */
     supply_register (i, (char *)&noreg);
+  supply_register (15, (char *)&pcb.pcb_fs);
+  supply_register (16, (char *)&pcb.pcb_gs);
 
   /* XXX 80387 registers? */
 }
