@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.4 1998/01/31 02:48:16 brian Exp $
+ * $Id: command.c,v 1.131.2.5 1998/02/02 19:32:04 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -654,8 +654,6 @@ static struct cmdtab const ShowCommands[] = {
   "Show STOPPED timeout", "show stopped"},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Show version string", "show version"},
-  {"vj", NULL, ShowInitVJ, LOCAL_AUTH,
-  "Show VJ values", "show vj"},
   {"help", "?", HelpCommand, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Display this message", "show help|? [command]", ShowCommands},
   {NULL, NULL, NULL},

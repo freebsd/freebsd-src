@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.4 1998/01/31 02:48:20 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.5 1998/02/02 19:32:08 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -144,26 +144,30 @@ ReportIpcpStatus(struct cmdargs const *arg)
   fprintf(VarTerm, "%s [%s]\n", IpcpInfo.fsm.name,
           StateNames[IpcpInfo.fsm.state]);
   if (IpcpInfo.fsm.state == ST_OPENED) {
-    fprintf(VarTerm, " his side: %s, %s\n",
+    fprintf(VarTerm, " His side:               %s, %s\n",
 	    inet_ntoa(IpcpInfo.his_ipaddr), vj2asc(IpcpInfo.his_compproto));
-    fprintf(VarTerm, " my  side: %s, %s\n",
+    fprintf(VarTerm, " My side:                %s, %s\n",
 	    inet_ntoa(IpcpInfo.want_ipaddr), vj2asc(IpcpInfo.want_compproto));
   }
 
-  fprintf(VarTerm, "Defaults:\n");
-  fprintf(VarTerm, " My Address:  %s/%d\n",
+  fprintf(VarTerm, "\nDefaults:\n");
+  fprintf(VarTerm, " My Address:             %s/%d\n",
 	  inet_ntoa(IpcpInfo.DefMyAddress.ipaddr), IpcpInfo.DefMyAddress.width);
   if (iplist_isvalid(&IpcpInfo.DefHisChoice))
-    fprintf(VarTerm, " His Address: %s\n", IpcpInfo.DefHisChoice.src);
+    fprintf(VarTerm, " His Address:            %s\n",
+            IpcpInfo.DefHisChoice.src);
   else
-    fprintf(VarTerm, " His Address: %s/%d\n",
+    fprintf(VarTerm, " His Address:            %s/%d\n",
 	  inet_ntoa(IpcpInfo.DefHisAddress.ipaddr),
           IpcpInfo.DefHisAddress.width);
   if (IpcpInfo.HaveTriggerAddress)
-    fprintf(VarTerm, " Negotiation(trigger): %s\n",
+    fprintf(VarTerm, " Negotiation(trigger):   %s\n",
             inet_ntoa(IpcpInfo.TriggerAddress));
   else
-    fprintf(VarTerm, " Negotiation(trigger): MYADDR\n");
+    fprintf(VarTerm, " Negotiation(trigger):   MYADDR\n");
+  fprintf(VarTerm, " Initial VJ slots:       %d\n", IpcpInfo.VJInitSlots);
+  fprintf(VarTerm, " Initial VJ compression: %s\n",
+          IpcpInfo.VJInitComp ? "on" : "off");
 
   fprintf(VarTerm, "\n");
   throughput_disp(&IpcpInfo.throughput, VarTerm);
@@ -211,17 +215,6 @@ SetInitVJ(struct cmdargs const *args)
     return 0;
   }
   return -1;
-}
-
-int
-ShowInitVJ(struct cmdargs const *args)
-{
-  if (VarTerm) {
-    fprintf(VarTerm, "Initial slots: %d\n", IpcpInfo.VJInitSlots);
-    fprintf(VarTerm, "Initial compression: %s\n",
-            IpcpInfo.VJInitComp ? "on" : "off");
-  }
-  return 0;
 }
 
 void
