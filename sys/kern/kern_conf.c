@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
@@ -66,15 +67,64 @@ static int ready_for_devs;
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
+/* Define a dead_cdevsw for use when devices leave unexpectedly. */
+
+static int
+enxio(void)
+{
+	return (ENXIO);
+}
+
+#define dead_open	(d_open_t *)enxio
+#define dead_close	(d_close_t *)enxio
+#define dead_read	(d_read_t *)enxio
+#define dead_write	(d_write_t *)enxio
+#define dead_ioctl	(d_ioctl_t *)enxio
+#define dead_poll	nopoll
+#define dead_mmap	nommap
+
+static void
+dead_strategy(struct bio *bp)
+{
+
+	biofinish(bp, NULL, ENXIO);
+}
+
+#define dead_dump	(d_dump_t *)enxio
+
+static int
+dead_psize(dev_t dev)
+{
+
+	return (-1);
+}
+
+#define dead_kqfilter	(d_kqfilter_t *)enxio
+
+static struct cdevsw dead_cdevsw = {
+	/* open */	dead_open,
+	/* close */	dead_close,
+	/* read */	dead_read,
+	/* write */	dead_write,
+	/* ioctl */	dead_ioctl,
+	/* poll */	dead_poll,
+	/* mmap */	dead_mmap,
+	/* strategy */	dead_strategy,
+	/* name */	"dead",
+	/* maj */	255,
+	/* dump */	dead_dump,
+	/* psize */	dead_psize,
+	/* flags */	0,
+	/* kqfilter */	dead_kqfilter
+};
+
 
 struct cdevsw *
 devsw(dev_t dev)
 {
 	if (dev->si_devsw)
 		return (dev->si_devsw);
-	if (dev->si_devsw)
-		return (dev->si_devsw);
-	return (NULL);
+	return (&dead_cdevsw);
 }
 
 /*
