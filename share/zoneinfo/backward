@@ -1,4 +1,4 @@
-# @(#)backward	7.13
+# @(#)backward	7.15
 
 # This file provides links between current names for time zones
 # and their old names.  Many names changed in late 1993.
@@ -38,7 +38,6 @@ Link	America/Havana		Cuba
 Link	Africa/Cairo		Egypt
 Link	Europe/Dublin		Eire
 Link	Europe/London		GB
-Link	Etc/GMT			GMT
 Link	Etc/GMT+0		GMT+0
 Link	Etc/GMT-0		GMT-0
 Link	Etc/GMT0		GMT0

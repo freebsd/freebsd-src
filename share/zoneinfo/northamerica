@@ -1,4 +1,4 @@
-# @(#)northamerica	7.32
+# @(#)northamerica	7.42
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -59,6 +59,9 @@ Rule	US	1974	only	-	Jan	6	2:00	1:00	D
 Rule	US	1975	only	-	Feb	23	2:00	1:00	D
 Rule	US	1976	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+# <a href="http://thomas.loc.gov/cgi-bin/bdquery/z?d106:h.r.00177:">
+# H.R.177
+# </a> (introduced 1999-01-06) would change April to March in the above rule.
 
 # From Bob Devine (1988-01-28):
 # ...Alaska (and Hawaii) had the timezone names changed in 1967.
@@ -262,11 +265,6 @@ Zone Pacific/Honolulu	-10:31:26 -	LMT	1900 Jan  1 12:00
 			-10:30	US	H%sT	1947 Jun  8 2:00
 			-10:00	-	HST
 
-Zone Pacific/Midway	-11:49:28 -	LMT	1901
-			-11:00	-	NST	1967 Apr	# N=Nome
-			-11:00	-	BST	1983 Nov 30	# B=Bering
-			-11:00	-	SST			# S=Samoa
-
 # Now we turn to US areas that have diverged from the consensus since 1970.
 
 # Arizona mostly uses MST.
@@ -445,8 +443,14 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 			-6:00	US	C%sT
 
 # Navassa
-# uninhabited
-
+# claimed by US under the provisions of the 1856 Guano Islands Act
+# also claimed by Haiti
+# occupied 1857/1900 by the Navassa Phosphate Co
+# US lighthouse 1917/1997-01
+# currently uninhabited
+# see Mark Fineman, ``An Isle Rich in Guano and Discord'',
+# _Los Angeles Times_ (1998-11-10), A1, A10; it cites
+# Jimmy Skaggs, _The Great Guano Rush_ (1994).
 
 # Old names, for S5 users
 
@@ -464,8 +468,8 @@ Link	Pacific/Honolulu	HST
 
 # From Paul Eggert <eggert@twinsun.com> (1996-11-22):
 # A good source for time zone historical data outside the US is
-# Thomas G. Shanks, The International Atlas (3rd edition),
-# San Diego: ACS Publications, Inc. (1991).
+# Thomas G. Shanks, The International Atlas (4th edition),
+# San Diego: ACS Publications, Inc. (1995).
 #
 # Gwillim Law <LAW@encmail.encompass.com> writes that a good source
 # for recent time zone data is the International Air Transport
@@ -481,8 +485,6 @@ Link	Pacific/Honolulu	HST
 # I found in the UCLA library.
 #
 # See the `europe' file for Greenland.
-#
-# See the `africa' file for time zone naming and abbreviation conventions.
 
 # Canada
 
@@ -652,6 +654,20 @@ Zone America/Glace_Bay	-3:59:48 -	LMT	1902 Jun 15
 # Many smaller locales did not observe peacetime DST until 1974;
 # Nipigon (EST) and Rainy River (CST) are the largest that we know of.
 # Far west Ontario is like Winnipeg; far east Quebec is like Halifax.
+
+# From Paul Eggert (1997-10-17):
+# msb@sq.com writes that an article in the 1997-10-14 Toronto Star
+# says that Atikokan, Ontario currently does not observe DST,
+# but will vote on 11-10 whether to use EST/EDT.
+# He also writes that the
+# <a href="http://www.gov.on.ca/MBS/english/publications/statregs/conttext.html">
+# Ontario Time Act (1990, Chapter T.9)
+# </a>
+# says that Ontario east of 90W uses EST/EDT, and west of 90W uses CST/CDT.
+# Officially Atikokan is therefore on CST/CDT, and most likely this report
+# concerns a non-official time observed as a matter of local practice.
+# For what it's worth, Shanks (1995) says that Atikokan has agreed with
+# Rainy River ever since standard time was introduced.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mont	1917	only	-	Mar	25	2:00	1:00	D
@@ -895,7 +911,7 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 
 # From Guy Harris:
 # Rules are from the Official Airline Guide, Worldwide Edition, for 1987.
-# Rules prior to 1987 are unknown.
+# Rules [before] 1987 are unknown.
 # The comments in the OAG say "Only Ensenada, Mexicale, San Felipe and Tijuana
 # observe DST."  This is presumably Baja California Norte, above 28th parallel,
 # as listed there; [there is also] "Baja California Sur and N. Pacific
@@ -973,9 +989,14 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # 
 # -------------- End Forwarded Message --------------
 # From Paul Eggert (1996-06-12):
-# For an English translation of the decree,
-# see ``Diario Oficial: Time Zone Changeover'',
-# <URL:http://mexico-travel.com/extra/timezone_eng.html> (1996-01-04).
+# For an English translation of the decree, see
+# <a href="http://mexico-travel.com/extra/timezone_eng.html">
+# ``Diario Oficial: Time Zone Changeover'' (1996-01-04).
+# </a>
+
+# From Rives McDow (1998-10-08):
+# The State of Quintana Roo has reverted back to central STD and DST times
+# (i.e. UTC -0600 and -0500 as of 1998-08-02).
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -994,6 +1015,13 @@ Rule	BajaN	1950	1966	-	Apr	lastSun	2:00	1:00	D
 Rule	BajaN	1950	1961	-	Sep	lastSun	2:00	0	S
 Rule	BajaN	1961	1966	-	Oct	lastSun	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Quintana Roo
+Zone America/Cancun	-5:47:04 -	LMT	1922 Jan  1  1:12:42
+			-6:00	-	CST	1996
+			-6:00	Mexico	C%sT	1997 Oct lastSun 2:00
+			-5:00	Mexico	E%sT	1998 Aug  2  2:00
+			-6:00	Mexico	C%sT
+# Central Mexico
 Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-7:00	-	MST	1927 Jun 10 23:00
 			-6:00	-	CST	1930 Nov 15
@@ -1001,6 +1029,18 @@ Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-6:00	-	CST	1931 Oct
 			-7:00	-	MST	1932 Mar 30 23:00
 			-6:00	Mexico	C%sT
+# Chihuahua
+Zone America/Chihuahua	-7:04:20 -	LMT	1921 Dec 31 23:55:44
+			-7:00	-	MST	1927 Jun 10 23:00
+			-6:00	-	CST	1930 Nov 15
+			-7:00	-	MST	1931 May  1 23:00
+			-6:00	-	CST	1931 Oct
+			-7:00	-	MST	1932 Mar 30 23:00
+			-6:00	-	CST	1996
+			-6:00	Mexico	C%sT	1998
+			-6:00	-	CST	1998 Apr Sun>=1 3:00
+			-7:00	Mexico	M%sT
+# S Baja California, Nayarit, Sinaloa, Sonora
 Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 			-7:00	-	MST	1927 Jun 10 23:00
 			-6:00	-	CST	1930 Nov 15
@@ -1011,6 +1051,7 @@ Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 			-7:00	-	MST	1949 Jan 14
 			-8:00	-	PST	1970
 			-7:00	Mexico	M%sT
+# N Baja California
 Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	-	PST	1927 Jun 10 23:00
 			-7:00	-	MST	1930 Nov 16
@@ -1019,6 +1060,7 @@ Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	BajaN	P%sT	1967 Apr lastSun 2:00
 			-8:00	US	P%sT	1996
 			-8:00	Mexico	P%sT
+# Baja California
 Zone America/Ensenada	-7:46:28 -	LMT	1922 Jan  1  0:13:32
 			-8:00	-	PST	1927 Jun 10 23:00
 			-7:00	-	MST	1930 Nov 16
@@ -1061,7 +1103,7 @@ Rule	Barb	1979	only	-	Sep	30	2:00	0	S
 Rule	Barb	1980	only	-	Sep	25	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Barbados	-3:58:28 -	LMT	1924		# Bridgetown
-			-3:58	-	BMT	1932	  # Bridgetown Mean Time
+			-3:58:28 -	BMT	1932	  # Bridgetown Mean Time
 			-4:00	Barb	A%sT
 
 # Belize
@@ -1086,11 +1128,8 @@ Zone Atlantic/Bermuda	-4:19:04 -	LMT	1930 Jan  1 2:00    # Hamilton
 # Cayman Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Cayman	-5:25:32 -	LMT	1890		# Georgetown
-			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
+			-5:07:12 -	KMT	1912 Feb    # Kingston Mean Time
 			-5:00	-	EST
-
-# Clipperton
-# uninhabited
 
 # Costa Rica
 # Shanks gives some very odd dates for 1991, and stops there.
@@ -1145,10 +1184,13 @@ Rule	Cuba	1978	1990	-	Oct	Sun>=8	0:00	0	S
 Rule	Cuba	1979	1980	-	Mar	Sun>=15	0:00	1:00	D
 Rule	Cuba	1981	1985	-	May	Sun>=5	0:00	1:00	D
 Rule	Cuba	1986	1989	-	Mar	Sun>=14	0:00	1:00	D
-Rule	Cuba	1990	max	-	Apr	Sun>=1	0:00	1:00	D
+Rule	Cuba	1990	1997	-	Apr	Sun>=1	0:00	1:00	D
 Rule	Cuba	1991	1995	-	Oct	Sun>=8	0:00s	0	S
-Rule	Cuba	1996	only	-	Oct	Sun>=1	0:00s	0	S
-Rule	Cuba	1997	max	-	Oct	Sun>=8	0:00s	0	S
+Rule	Cuba	1996	only	-	Oct	 6	0:00s	0	S
+Rule	Cuba	1997	only	-	Oct	12	0:00s	0	S
+Rule	Cuba	1998	only	-	Mar	29	0:00	1:00	D
+Rule	Cuba	1998	max	-	Oct	lastSun	0:00s	0	S
+Rule	Cuba	1999	max	-	Apr	Sun>=1	0:00s	1:00	D
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
@@ -1211,8 +1253,8 @@ Rule	Haiti	1983	only	-	May	8	0:00	1:00	D
 Rule	Haiti	1984	1987	-	Apr	lastSun	0:00	1:00	D
 Rule	Haiti	1983	1987	-	Oct	lastSun	0:00	0	S
 # Shanks says AT is 2:00, but IATA SSIM (1991/1996) says 1:00s.  Go with IATA.
-Rule	Haiti	1988	max	-	Apr	Sun>=1	1:00s	1:00	D
-Rule	Haiti	1988	max	-	Oct	lastSun	1:00s	0	S
+Rule	Haiti	1988	1997	-	Apr	Sun>=1	1:00s	1:00	D
+Rule	Haiti	1988	1997	-	Oct	lastSun	1:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 			-4:49	-	PPMT	1917 Jan 24 12:00 # P-a-P MT
@@ -1223,6 +1265,8 @@ Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Tegucigalpa -5:48:52 -	LMT	1921 Apr
 			-6:00	Salv	C%sT
+#
+# Great Swan I ceded by US to Honduras in 1972
 
 # Jamaica
 
@@ -1235,7 +1279,7 @@ Zone America/Tegucigalpa -5:48:52 -	LMT	1921 Apr
 # From Shanks (1991):
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Jamaica	-5:07:12 -	LMT	1890		# Kingston
-			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
+			-5:07:12 -	KMT	1912 Feb    # Kingston Mean Time
 			-5:00	-	EST	1974 Jan 6 2:00
 			-5:00	US	E%sT	1984
 			-5:00	-	EST
@@ -1257,6 +1301,11 @@ Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Olveston
 			-4:00	-	AST
 
 # Nicaragua
+#
+# From Steffen Thorsen (1998-12-29):
+# Nicaragua seems to be back at -6:00 but I have not been able to find when
+# they changed from -5:00.
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Nic	1979	1980	-	Mar	Sun>=16	0:00	1:00	D
 Rule	Nic	1979	1980	-	Jun	Mon>=23	0:00	0	S
@@ -1268,7 +1317,8 @@ Zone	America/Managua	-5:45:08 -	LMT	1890
 			-6:00	-	CST	1973 May
 			-5:00	-	EST	1975 Feb 16
 			-6:00	Nic	C%sT	1993 Jan 1 4:00
-			-5:00	-	EST
+			-5:00	-	EST	1998 Dec
+			-6:00	-	CST
 
 # Panama
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1305,12 +1355,12 @@ Zone America/Miquelon	-3:44:40 -	LMT	1911 May 15	# St Pierre
 # St Vincent and the Grenadines
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Vincent	-4:04:56 -	LMT	1890		# Kingstown
-			-4:05	-	KMT	1912	   # Kingstown Mean Time
+			-4:04:56 -	KMT	1912	   # Kingstown Mean Time
 			-4:00	-	AST
 
 # Turks and Caicos
-# From Paul Eggert (1996-11-22):
-# Shanks says they use US DST rules, but IATA SSIM (1991/1996)
+# From Paul Eggert (1998-08-06):
+# Shanks says they use US DST rules, but IATA SSIM (1991/1998)
 # says they switch at midnight.  Go with IATA SSIM.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	TC	1979	1986	-	Apr	lastSun	0:00	1:00	D
@@ -1318,7 +1368,7 @@ Rule	TC	1979	max	-	Oct	lastSun	0:00	0	S
 Rule	TC	1987	max	-	Apr	Sun>=1	0:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Grand_Turk	-4:44:32 -	LMT	1890
-			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
+			-5:07:12 -	KMT	1912 Feb    # Kingston Mean Time
 			-5:00	TC	E%sT
 
 # British Virgin Is

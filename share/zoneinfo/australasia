@@ -1,4 +1,4 @@
-# @(#)australasia	7.34
+# @(#)australasia	7.45
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -110,9 +110,11 @@ Rule	AV	1972	only	-	Feb	27	2:00s	0	-
 Rule	AV	1973	1985	-	Mar	Sun>=1	2:00s	0	-
 Rule	AV	1986	1990	-	Mar	Sun>=15	2:00s	0	-
 Rule	AV	1986	only	-	Oct	19	2:00s	1:00	-
-Rule	AV	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AV	1987	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AV	1991	1994	-	Mar	Sun>=1	2:00s	0	-
 Rule	AV	1995	max	-	Mar	lastSun	2:00s	0	-
+Rule	AV	2000	only	-	Aug	26	2:00s	1:00	-
+Rule	AV	2001	max	-	Oct	lastSun	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
@@ -128,9 +130,11 @@ Rule	AN	1982	only	-	Apr	Sun>=1	2:00s	0	-
 Rule	AN	1983	1985	-	Mar	Sun>=1	2:00s	0	-
 Rule	AN	1986	1989	-	Mar	Sun>=15	2:00s	0	-
 Rule	AN	1986	only	-	Oct	19	2:00s	1:00	-
-Rule	AN	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AN	1987	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AN	1990	1995	-	Mar	Sun>=1	2:00s	0	-
 Rule	AN	1996	max	-	Mar	lastSun	2:00s	0	-
+Rule	AN	2000	only	-	Aug	26	2:00s	1:00	-
+Rule	AN	2001	max	-	Oct	lastSun	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Sydney	10:04:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
@@ -158,9 +162,6 @@ Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:30	LH	LHST
 
 # Australian miscellany
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
-			7:00	-	CXT	# Christmas Island Time
 #
 # Ashmore Is, Cartier
 # no indigenous inhabitants; only seasonal caretakers
@@ -178,12 +179,17 @@ Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 # Manihiki, Penrhyn, Rakehanga
 # no information
 
+# Christmas
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
+			7:00	-	CXT	# Christmas Island Time
 
 # Cook Is
+# From Shanks (1995):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cook	1978	only	-	Nov	12	0:00	0:30	HS
-Rule	Cook	1979	max	-	Mar	Sun>=1	0:00	0	-
-Rule	Cook	1979	max	-	Oct	lastSun	0:00	0:30	HS
+Rule	Cook	1979	1991	-	Mar	Sun>=1	0:00	0	-
+Rule	Cook	1979	1990	-	Oct	lastSun	0:00	0:30	HS
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Rarotonga	-10:39:04 -	LMT	1901		# Avarua
 			-10:30	-	CKT	1978 Nov 12	# Cook Is Time
@@ -195,9 +201,12 @@ Zone Pacific/Rarotonga	-10:39:04 -	LMT	1901		# Avarua
 Zone	Indian/Cocos	6:30	-	CCT	# Cocos Islands Time
 
 # Fiji
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Fiji	1998	max	-	Nov	Sun>=1	2:00	1:00	S
+Rule	Fiji	1999	max	-	Feb	lastSun	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Fiji	11:53:40 -	LMT	1915 Oct 26	# Suva
-			12:00	-	FJT	# Fiji Time
+			12:00	Fiji	FJ%sT	# Fiji Time
 
 # French Polynesia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -207,26 +216,13 @@ Zone	Pacific/Marquesas -9:18:00 -	LMT	1912 Oct
 			 -9:30	-	MART	# Marquesas Time
 Zone	Pacific/Tahiti	 -9:58:16 -	LMT	1912 Oct	# Papeete
 			-10:00	-	TAHT	# Tahiti Time
+# Clipperton (near North America) is administered from French Polynesia;
+# it is uninhabited.
 
 # Guam
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Guam	 9:39:00 -	LMT	1901		# Agana
 			10:00	-	GST
-
-# Howland, Baker
-# uninhabited since World War II
-# no information; was probably like Pacific/Pago_Pago
-
-# Jarvis
-# uninhabited since 1958
-# no information; was probably like Pacific/Kiritimati
-
-# Johnston
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Pacific/Johnston	-10:00	-	HST
-
-# Kingman
-# uninhabited
 
 # Kiribati
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -282,9 +278,8 @@ Zone	Pacific/Nauru	11:07:40 -	LMT	1921 Jan 15	# Uaobe
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	NC	1977	1978	-	Dec	Sun>=1	0:00	1:00	S
 Rule	NC	1978	1979	-	Feb	27	0:00	0	-
-Rule	NC	1996	only	-	Dec	1	2:00s	1:00	S
-Rule	NC	1997	max	-	Mar	Sun>=1	2:00s	0	-
-Rule	NC	1997	max	-	Nov	lastSun	2:00s	1:00	S
+Rule	NC	1996	only	-	Dec	 1	2:00s	1:00	S
+Rule	NC	1997	only	-	Mar	 2	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Noumea	11:05:48 -	LMT	1912 Jan 13
 			11:00	NC	NC%sT
@@ -303,7 +298,7 @@ Rule	NZ	1928	only	-	Nov	 4	2:00	0:30	HD
 Rule	NZ	1929	only	-	Oct	30	2:00	0:30	HD
 Rule	NZ	1930	1933	-	Mar	Sun>=15	2:00	0	S
 Rule	NZ	1930	1933	-	Oct	Sun>=8	2:00	0:30	HD
-# Whitman says DST went on and off during war years, and the base GMT offset
+# Whitman says DST went on and off during war years, and the base UT offset
 # didn't change until 1945 Apr 30; go with Shanks.
 Rule	NZ	1934	1940	-	Apr	lastSun	2:00	0	S
 Rule	NZ	1934	1939	-	Sep	lastSun	2:00	0:30	HD
@@ -352,9 +347,6 @@ Zone	Pacific/Norfolk	11:11:52 -	LMT	1901		# Kingston
 Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
 			9:00	-	PWT	# Palau Time
 
-# Palmyra
-# uninhabited since World War II; was probably like Pacific/Kiritimati
-
 # Papua New Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Port_Moresby 9:48:40 -	LMT	1880
@@ -402,6 +394,39 @@ Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
 Zone Pacific/Funafuti	11:56:52 -	LMT	1901
 			12:00	-	TVT	# Tuvalu Time
 
+
+# US minor outlying islands
+
+# Howland, Baker
+# uninhabited since World War II
+# no information; was probably like Pacific/Pago_Pago
+
+# Jarvis
+# uninhabited since 1958
+# no information; was probably like Pacific/Kiritimati
+
+# Johnston
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Pacific/Johnston	-10:00	-	HST
+
+# Kingman
+# uninhabited
+
+# Midway
+Zone Pacific/Midway	-11:49:28 -	LMT	1901
+			-11:00	-	NST	1967 Apr	# N=Nome
+			-11:00	-	BST	1983 Nov 30	# B=Bering
+			-11:00	-	SST			# S=Samoa
+
+# Palmyra
+# uninhabited since World War II; was probably like Pacific/Kiritimati
+
+# Wake
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Pacific/Wake	11:06:28 -	LMT	1901
+			12:00	-	WAKT	# Wake Time
+
+
 # Vanuatu
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Vanuatu	1983	only	-	Sep	25	0:00	1:00	S
@@ -413,11 +438,6 @@ Rule	Vanuatu	1992	only	-	Oct	Sun>=23	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Efate	11:13:16 -	LMT	1912 Jan 13		# Vila
 			11:00	Vanuatu	VU%sT	# Vanuatu Time
-
-# Wake
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Pacific/Wake	11:06:28 -	LMT	1901
-			12:00	-	WAKT	# Wake Time
 
 # Wallis and Futuna
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -434,8 +454,8 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # From Paul Eggert <eggert@twinsun.com> (1996-11-22):
 # A good source for time zone historical data outside the U.S. is
-# Thomas G. Shanks, The International Atlas (3rd edition),
-# San Diego: ACS Publications, Inc. (1991).
+# Thomas G. Shanks, The International Atlas (4th edition),
+# San Diego: ACS Publications, Inc. (1995).
 #
 # Gwillim Law <LAW@encmail.encompass.com> writes that a good source
 # for recent time zone data is the International Air Transport
@@ -472,8 +492,6 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #
 # See the `northamerica' file for Hawaii.
 # See the `southamerica' file for Easter I and the Galapagos Is.
-#
-# See the `africa' file for time zone naming and abbreviation conventions.
 
 ###############################################################################
 
@@ -510,6 +528,25 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # but Robert Elz says it's been 3:00 in Victoria since 1970
 # and perhaps the newspaper's `2:00' is referring to standard time.
 # For now we'll continue to assume 2:00s for changes since 1960.
+
+# From Eric Ulevik <eau@zip.com.au> (1998-01-05):
+# 
+# Here are some URLs to Australian time legislation. These URLs are stable,
+# and should probably be included in the data file. There are probably more
+# relevant entries in this database.
+# 
+# NSW (including LHI and Broken Hill):
+# <a href="http://www.austlii.edu.au/au/legis/nsw/consol_act/sta1987137/index.html">
+# Standard Time Act 1987 (updated 1995-04-04)
+# </a>
+# ACT
+# <a href="http://www.austlii.edu.au/au/legis/act/consol_act/consol_act/stasta1972279/index.html">
+# Standard Time and Summer Time Act 1972
+# </a>
+# SA
+# <a href="http://www.austlii.edu.au/au/legis/sa/consol_act/sta1898137/index.html">
+# Standard Time Act, 1898
+# </a>
 
 # Northern Territory
 
@@ -774,6 +811,10 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # This is going to take some time to be negotiated, because the plan is to do
 # this in multiple states due to soccer games (which are not just in Sydney).
 
+# IATA SSIM (1998-09) says that the spring 2000 change for Australian
+# Capital Territory, New South Wales except Lord Howe Island and Broken
+# Hill, and Victoria will be August 26, presumably due to the Sydney Olympics.
+
 # Yancowinna
 
 # From John Basser (1989-01-04):
@@ -783,7 +824,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # # YANCOWINNA..  [ Confirmation courtesy of Broken Hill Postmaster ]
 # #					[ Dec 1990 ]
 # ...
-# # Yancowinna uses Central Standard Time, despite it's location on the
+# # Yancowinna uses Central Standard Time, despite [its] location on the
 # # New South Wales side of the S.A. border. Most business and social dealings
 # # are with CST zones, therefore CST is legislated by local government
 # # although the switch to Summer Time occurs in line with N.S.W. There have
@@ -804,7 +845,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # hour ahead of NSW time.
 
 # From Paul Eggert (1995-12-19):
-# For Lord Howe we use Shanks through its time of publication (1991).
+# For Lord Howe we use Shanks through 1991.
 # Lord Howe is part of NSW, so we'll guess it has used the same transition
 # times as NSW since 1991, even though Shanks writes that Lord Howe went
 # with Victoria when NSW and Victoria disagreed in 1982.
@@ -858,6 +899,18 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Howse writes (p 162) that in 1879 the British governor of Fiji
 # enacted an ordinance standardizing the islands on +12:00.
 # Perhaps it didn't take.  We go with Shanks's more precise date in 1915.
+
+# From Rives McDow (1998-10-08):
+# Fiji will introduce DST effective 0200 local time, 1998-11-01
+# until 0300 local time 1999-02-28.  Each year the DST period will 
+# be from the first Sunday in November until the last Sunday in February.
+
+# From the BBC World Service (1998-10-31 11:32 UTC):
+# The Fijiian government says the main reasons for the time change is to
+# improve productivity and reduce road accidents.  But correspondents say it
+# also hopes the move will boost Fiji's ability to compete with other pacific
+# islands in the effort to attract tourists to witness the dawning of the new
+# millenium.
 
 # Johnston
 
