@@ -121,7 +121,6 @@ sbin/ipfs/Makefile:MAINTAINER=	darrenr@freebsd.org
 sbin/ipfstat/Makefile:MAINTAINER=	guido@freebsd.org
 sbin/ipmon/Makefile:MAINTAINER=	guido@freebsd.org
 sbin/ipnat/Makefile:MAINTAINER=	guido@freebsd.org
-secure/Makefile:MAINTAINER=	markm@FreeBSD.org
 share/doc/smm/08.sendmailop/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
 share/sendmail/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
 sys/boot/i386/cdboot/Makefile:MAINTAINER=	jhb@FreeBSD.org
