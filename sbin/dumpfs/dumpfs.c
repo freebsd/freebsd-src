@@ -74,12 +74,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #define	afs	disk.d_fs
-
-union {
-	struct cg cg;
-	char pad[MAXBSIZE];
-} cgun;
-#define	acg	cgun.cg
+#define	acg	disk.d_cg
 
 struct uufsd disk;
 
@@ -255,7 +250,7 @@ dumpcg(int c)
 
 	printf("\ncg %d:\n", c);
 	cur = fsbtodb(&afs, cgtod(&afs, c)) * disk.d_bsize;
-	if (bread(&disk, fsbtodb(&afs, cgtod(&afs, c)), &acg, afs.fs_bsize) == -1)
+	if (cgread1(&disk, c) != 1)
 		return (1);
 	switch (disk.d_ufs) {
 	case 2:
