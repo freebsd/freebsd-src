@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.24 1996/12/11 18:23:18 jkh Exp $
+ * $Id: misc.c,v 1.25 1996/12/12 22:38:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,7 +80,7 @@ string_concat(char *one, char *two)
 char *
 sstrncpy(char *dst, const char *src, int size)
 {
-    dst[--size] = '\0';
+    dst[size] = '\0';
     return strncpy(dst, src, size);
 }
 

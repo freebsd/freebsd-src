@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.93 1996/12/12 08:33:38 jkh Exp $
+ * $Id: sysinstall.h,v 1.94 1996/12/14 23:09:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -144,7 +144,7 @@
 #define ATTR_TITLE	button_active_attr
 
 /* Handy strncpy() macro */
-#define SAFE_STRCPY(to, from)	sstrncpy((to), (from), sizeof (to))
+#define SAFE_STRCPY(to, from)	sstrncpy((to), (from), sizeof (to) - 1)
 
 /*** Types ***/
 typedef unsigned int Boolean;
