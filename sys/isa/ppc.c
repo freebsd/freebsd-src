@@ -113,7 +113,7 @@ static driver_t ppc_driver = {
 static char *ppc_models[] = {
 	"SMC-like", "SMC FDC37C665GT", "SMC FDC37C666GT", "PC87332", "PC87306",
 	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334",
-	"SMC FDC37C935", 0
+	"SMC FDC37C935", "PC87303", 0
 };
 
 /* list of available modes */
@@ -462,6 +462,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	 * 01010xxx	PC87334
 	 * 0001xxxx	PC87332
 	 * 01110xxx	PC87306
+	 * 00110xxx	PC87303
 	 */
 	outb(idport, PC873_SID);
 	val = inb(idport + 1);
@@ -471,6 +472,10 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	    ppc->ppc_model = NS_PC87306;
 	} else if ((val & 0xf8) == 0x50) {
 	    ppc->ppc_model = NS_PC87334;
+	} else if ((val & 0xf8) == 0x40) { /* Should be 0x30 by the
+					      documentation, but probing
+					      yielded 0x40... */
+	    ppc->ppc_model = NS_PC87303;
 	} else {
 	    if (bootverbose && (val != 0xff))
 		printf("PC873xx probe at 0x%x got unknown ID 0x%x\n", idport, val);
@@ -499,12 +504,47 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	    continue;
 	}
 	outb(idport, PC873_FAR);
-	val = inb(idport + 1) & 0x3;
+	val = inb(idport + 1);
 	/* XXX we should create a driver instance for every port found */
-	if (pc873xx_porttab[val] != ppc->ppc_base) {
-	    if (bootverbose)
-		printf("PC873xx at 0x%x not for driver at port 0x%x\n",
-		       pc873xx_porttab[val], ppc->ppc_base);
+	if (pc873xx_porttab[val & 0x3] != ppc->ppc_base) {
+
+	    /* First try to change the port address to that requested... */
+
+	    switch(ppc->ppc_base) {
+		case 0x378:
+		val &= 0xfc;
+		break;
+
+		case 0x3bc:
+		val &= 0xfd;
+		break;
+
+		case 0x278:
+		val &= 0xfe;
+		break;
+
+		default:
+		val &= 0xfd;
+		break;
+	    }
+
+	    outb(idport, PC873_FAR);
+	    outb(idport + 1, val);
+	    outb(idport + 1, val);
+
+	    /* Check for success by reading back the value we supposedly
+	       wrote and comparing...*/
+
+	    outb(idport, PC873_FAR);
+	    val = inb(idport + 1) & 0x3;
+
+	    /* If we fail, report the failure... */
+
+	    if (pc873xx_porttab[val] != ppc->ppc_base) {
+ 		if (bootverbose)
+	  	    printf("PC873xx at 0x%x not for driver at port 0x%x\n",
+			   pc873xx_porttab[val], ppc->ppc_base);
+	    }
 	    continue;
 	}
 
