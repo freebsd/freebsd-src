@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.23 1998/11/20 11:22:17 yokota Exp $";
+	"$Id: moused.c,v 1.24 1998/12/13 23:26:21 steve Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -1504,7 +1504,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    if ((pBuf[0] & ~MOUSE_PS2_BUTTONS) == 0xc8) {
 		/* the extended data packet encodes button and wheel events */
 		act->dx = act->dy = 0;
-		act->dz = (pBuf[1] & MOUSE_PS2PLUS_ZNEG)
+		act->dz = (pBuf[2] & MOUSE_PS2PLUS_ZNEG)
 		    ? (pBuf[2] & 0x0f) - 16 : (pBuf[2] & 0x0f);
 		act->button |= ((pBuf[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
 		    ? MOUSE_BUTTON4DOWN : 0);
