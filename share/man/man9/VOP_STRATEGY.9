@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_STRATEGY.9,v 1.4 1998/01/03 22:26:00 steve Exp $
+.\" $Id: VOP_STRATEGY.9,v 1.5 1998/03/12 07:31:15 charnier Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -39,11 +39,13 @@
 .Fd #include <sys/vnode.h>
 .Fd #include <sys/buf.h>
 .Ft int
-.Fn VOP_STRATEGY "struct buf *bp"
+.Fn VOP_STRATEGY "struct vnode *vp" "struct buf *bp"
 .Sh DESCRIPTION
 .Pp
 The arguments are:
-.Bl -tag -width bp
+.Bl -tag -width vp
+.It Ar vp
+the vnode that the buffer is for
 .It Ar bp
 the buffer to be read or written
 .El
