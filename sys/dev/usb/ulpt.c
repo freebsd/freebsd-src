@@ -298,7 +298,11 @@ USB_DETACH(ulpt)
 	int s;
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	int maj, mn;
+#elif defined(__FreeBSD__)
+	struct vnode *vp;
+#endif
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	DPRINTF(("ulpt_detach: sc=%p flags=%d\n", sc, flags));
 #elif defined(__FreeBSD__)
 	DPRINTF(("ulpt_detach: sc=%p\n", sc));
@@ -326,7 +330,12 @@ USB_DETACH(ulpt)
 	mn = self->dv_unit;
 	vdevgone(maj, mn, mn, VCHR);
 #elif defined(__FreeBSD__)
-	/* XXX not implemented yet */
+	vp = SLIST_FIRST(&sc->dev->si_hlist);
+	if (vp)
+		VOP_REVOKE(vp, REVOKEALL);
+	vp = SLIST_FIRST(&sc->dev_noprime->si_hlist);
+	if (vp)
+		VOP_REVOKE(vp, REVOKEALL);
 
 	destroy_dev(sc->dev);
 	destroy_dev(sc->dev_noprime);

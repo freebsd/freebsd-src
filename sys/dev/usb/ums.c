@@ -360,6 +360,7 @@ static int
 ums_detach(device_t self)
 {
 	struct ums_softc *sc = device_get_softc(self);
+	struct vnode *vp;
 
 	if (sc->sc_enabled)
 		ums_disable(sc);
@@ -369,6 +370,11 @@ ums_detach(device_t self)
 	free(sc->sc_loc_btn, M_USB);
 	free(sc->sc_ibuf, M_USB);
 
+	vp = SLIST_FIRST(&sc->dev->si_hlist);
+	if (vp)
+		VOP_REVOKE(vp, REVOKEALL);
+
+	/* someone waiting for data */
 	/*
 	 * XXX If we wakeup the process here, the device will be gone by
 	 * the time the process gets a chance to notice. *_close and friends
@@ -376,9 +382,6 @@ ums_detach(device_t self)
 	 * Or we should do a delayed detach for this.
 	 * Does this delay now force tsleep to exit with an error?
 	 */
-
-#if 0
-	/* someone waiting for data */
 	if (sc->state & UMS_ASLEEP) {
 		sc->state &= ~UMS_ASLEEP;
 		wakeup(sc);
@@ -387,7 +390,6 @@ ums_detach(device_t self)
 		sc->state &= ~UMS_SELECT;
 		selwakeup(&sc->rsel);
 	}
-#endif
 
 	destroy_dev(sc->dev);
 
