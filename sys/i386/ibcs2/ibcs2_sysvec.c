@@ -27,11 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.1 1995/10/10 07:59:11 swallace Exp $
+ * $Id: ibcs2_sysvec.c,v 1.2 1996/03/02 19:37:43 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/sysent.h>
+#include <sys/signalvar.h>
 #include <i386/ibcs2/ibcs2_syscall.h>
 
 extern int bsd_to_ibcs2_sig[];
@@ -49,7 +50,7 @@ struct sysentvec ibcs2_svr3_sysvec = {
         ELAST,
         bsd_to_ibcs2_errno,
 	0,		/* fixup */
-	0,		/* sendsig, ignore */
+	sendsig,
 	sigcode,	/* use generic trampoline */
 	&szsigcode,	/* use generic trampoline size */
 	0		/* prepsyscall */
