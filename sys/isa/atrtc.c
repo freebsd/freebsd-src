@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/specialreg.h>
 
-#include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <isa/rtc.h>
 #ifdef DEV_ISA

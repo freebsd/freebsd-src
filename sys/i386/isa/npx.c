@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/ucontext.h>
 
-#include <i386/isa/icu.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
