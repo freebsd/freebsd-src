@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.18 1998/10/10 21:10:36 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.19 1998/10/12 21:54:13 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -4745,7 +4745,8 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			free(request_ccb, M_TEMP);
 			return;
 		}
-		status = xpt_compile_path(new_path, periph, path->bus->path_id,
+		status = xpt_compile_path(new_path, xpt_periph,
+					  path->bus->path_id,
 					  path->target->target_id,
 					  path->device->lun_id);
 
