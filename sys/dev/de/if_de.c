@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.15 1995/02/02 13:12:13 davidg Exp $
+ * $Id: if_de.c,v 1.16 1995/02/10 06:06:42 davidg Exp $
  *
  */
 
@@ -35,6 +35,7 @@
  *   board which support DC21040.
  */
 
+#define IF_DE_C_PATCHLEVEL  "pl1 95/03/09"
 #include "de.h"
 #if NDE > 0
 
@@ -47,6 +48,7 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>	/* only for declaration of wakeup() used by vm.h */
 #include <machine/clock.h>
 
 #include <net/if.h>
@@ -661,8 +663,10 @@ tulip_intr(
     tulip_softc_t *sc)
 {
     tulip_uint32_t csr;
+    int active=0;
 
     while ((csr = *sc->tulip_csrs.csr_status) & (TULIP_STS_NORMALINTR|TULIP_STS_ABNRMLINTR)) {
+	active=1;
 	*sc->tulip_csrs.csr_status = csr & sc->tulip_intrmask;
 
 	if (csr & TULIP_STS_SYSERROR) {
@@ -684,7 +688,7 @@ tulip_intr(
 	    tulip_start(&sc->tulip_if);
 	}
     }
-    return 1;
+    return (active);
 }
 
 /*
