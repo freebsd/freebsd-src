@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/03/20 17:48:03 markm Exp $
+#	$Id: Makefile,v 1.3 1998/11/18 00:40:07 jdp Exp $
 
 LIB=		krb
 CFLAGS+=	-I${KRB4DIR}/include \
@@ -25,7 +25,7 @@ SRCS=		cr_err_reply.c create_auth_reply.c create_ciph.c \
 	  	rw.c kdc_reply.c encrypt_ktext.c swab.c gettimeofday.c \
 	  	check_time.c krb_err.c et_list.c resolve.c unparse_name.c \
 	  	logging.c k_concat.c \
-		snprintf.c strdup.c strtok_r.c strcasecmp.c \
+		snprintf.c strdup.c strcasecmp.c \
 		${KRBOBJDIR}/krb_err.h
 MAN3=		${KRB4DIR}/man/kerberos.3 \
 		${KRB4DIR}/man/krb_realmofhost.3 \
