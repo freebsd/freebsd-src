@@ -1596,7 +1596,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	int dirplen;
 	struct statfs *fsb;
 {
-	char *cp = (char *)NULL;
+	struct statfs fsb1;
+	char *cp = NULL;
 	u_int32_t **addrp;
 	int done;
 	char savedc = '\0';
@@ -1705,6 +1706,13 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 			}
 			savedc = *cp;
 			*cp = '\0';
+			/* Check that we're still on the same filesystem. */
+			if (statfs(dirp, &fsb1) != 0 || bcmp(&fsb1.f_fsid,
+			    &fsb->f_fsid, sizeof(fsb1.f_fsid)) != 0) {
+				*cp = savedc;
+				syslog(LOG_ERR, "can't export %s", dirp);
+				return (1);
+			}
 		}
 		if (addrp) {
 			++addrp;
