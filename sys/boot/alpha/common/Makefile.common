@@ -39,6 +39,7 @@ CFLAGS+=	-I${.CURDIR}/..
 CRT=		start.o
 STRIP=
 BINDIR?=	/boot
+INSTALLFLAGS?=	-b
 
 all: ${BASE}
 
@@ -60,9 +61,6 @@ ${BASE}.help: help.common help.alpha
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 beforeinstall:
-.if exists(${DESTDIR}/boot/${BASE})
-	mv ${DESTDIR}/boot/${BASE} ${DESTDIR}/boot/${BASE}.old
-.endif
 .ifdef INSTALL_HELP
 .if exists(${.OBJDIR}/${BASE}.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
