@@ -200,7 +200,7 @@ ast(framep)
 	if (sflag & PS_NEEDSIGCHK) {
 		mtx_lock(&Giant);
 		PROC_LOCK(p);
-		while ((sig = CURSIG(p)) != 0)
+		while ((sig = cursig(p)) != 0)
 			postsig(sig);
 		PROC_UNLOCK(p);
 		mtx_unlock(&Giant);

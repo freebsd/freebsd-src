@@ -249,7 +249,7 @@ done:
 	PROC_UNLOCK(p);
 done_noproclock:
 	if (error == ERESTART) {
-/*		printf("Signal: %x", CURSIG(p));*/
+/*		printf("Signal: %x", cursig(p));*/
 		error = 0;
 	}
 	return (error);
