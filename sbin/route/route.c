@@ -924,6 +924,10 @@ getaddr(which, s, hpp)
 			exit(1);
 		}
 		bcopy(res->ai_addr, &su->sa, res->ai_addrlen);
+		/* XXX: embedded link local addr check */
+		if (IN6_IS_ADDR_LINKLOCAL(&su->sin6.sin6_addr))
+			*(u_short *)&su->sin6.sin6_addr.s6_addr[2] =
+				ntohs(su->sin6.sin6_scope_id);
 		return 0;
 	  }
 #endif
