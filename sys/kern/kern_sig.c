@@ -1760,7 +1760,7 @@ tdsignal(struct thread *td, int sig)
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td0) {
 				if (TD_IS_SLEEPING(td0) &&
-					(td->td_flags & TDF_SINTR))
+					(td0->td_flags & TDF_SINTR))
 					thread_suspend_one(td0);
 			}
 			thread_stopped(p);
