@@ -33,7 +33,7 @@
  */
 
 /*
- * CATC USB-EL1201A USB to ethernet driver. Used in the CATC Netmate
+ * CATC USB-EL1210A USB to ethernet driver. Used in the CATC Netmate
  * adapters and others.
  *
  * Written by Bill Paul <wpaul@ee.columbia.edu>
@@ -42,7 +42,7 @@
  */
 
 /*
- * The CATC USB-EL1201A provides USB ethernet support at 10Mbps. The
+ * The CATC USB-EL1210A provides USB ethernet support at 10Mbps. The
  * RX filter uses a 512-bit multicast hash table, single perfect entry
  * for the station address, and promiscuous mode. Unlike the ADMtek
  * and KLSI chips, the CATC ASIC supports read and write combining
