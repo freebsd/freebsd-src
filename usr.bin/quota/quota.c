@@ -83,7 +83,6 @@ struct quotause {
 	struct	dqblk dqblk;
 	char	fsname[MAXPATHLEN + 1];
 };
-#define	FOUND	0x01
 
 static const char *timeprt(time_t seconds);
 static struct quotause *getprivs(long id, int quotatype);
