@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.15 1999/02/22 13:12:37 dcs Exp $
+ *	$Id: interp.c,v 1.16 1999/03/02 16:16:57 dcs Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -306,11 +306,11 @@ include(char *filename)
 static void
 prompt(void) 
 {
-    char	*p, *cp, *ev;
+    char	*pr, *p, *cp, *ev;
     
     if ((cp = getenv("prompt")) == NULL)
 	cp = ">";
-    p = strdup(cp);
+    pr = p = strdup(cp);
 
     while (*p != 0) {
 	if ((*p == '$') && (*(p+1) == '{')) {
@@ -327,4 +327,5 @@ prompt(void)
 	putchar(*p++);
     }
     putchar(' ');
+    free(pr);
 }
