@@ -55,22 +55,20 @@ in_cksum_hdr(const struct ip *ip)
 {
 	register u_int sum = 0;
 
-/* __volatile is necessary here because the condition codes are used. */
-#define ADD(n)	__asm __volatile ("addl %1, %0" : "+r" (sum) : \
-    "g" (((const u_int32_t *)ip)[n / 4]))
-#define ADDC(n)	__asm __volatile ("adcl %1, %0" : "+r" (sum) : \
-    "g" (((const u_int32_t *)ip)[n / 4]))
-#define MOP	__asm __volatile ("adcl $0, %0" : "+r" (sum))
-
-	ADD(0);
-	ADDC(4);
-	ADDC(8);
-	ADDC(12);
-	ADDC(16);
-	MOP;
-#undef ADD
-#undef ADDC
-#undef MOP
+	__asm __volatile (
+		"addl %1, %0\n"
+		"adcl %2, %0\n"
+		"adcl %3, %0\n"
+		"adcl %4, %0\n"
+		"adcl %5, %0\n"
+		"adcl $0, %0"
+		: "+r" (sum)
+		: "g" (((const u_int32_t *)ip)[0]),
+		  "g" (((const u_int32_t *)ip)[1]),
+		  "g" (((const u_int32_t *)ip)[2]),
+		  "g" (((const u_int32_t *)ip)[3]),
+		  "g" (((const u_int32_t *)ip)[4])
+	);
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
 		sum -= 0xffff;
