@@ -124,7 +124,8 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 
 #define SC_CONSOLECTL	255
 
-#define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x))->si_tty)
+#define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x)) != NULL ?	\
+	SC_DEV((sc), (x))->si_tty : NULL)
 
 static	int		debugger;
 
@@ -839,6 +840,24 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    sc->scrn_time_stamp -= scrn_blank_time;
 	splx(s);
 	return 0;
+
+    case CONS_SCRSHOT:		/* get a screen shot */
+    {
+	scrshot_t *ptr = (scrshot_t*)data;
+	s = spltty();
+	if (ISGRAPHSC(scp)) {
+	    splx(s);
+	    return EOPNOTSUPP;
+	}
+	if (scp->xsize != ptr->xsize || scp->ysize != ptr->ysize) {
+	    splx(s);
+	    return EINVAL;
+	}
+	copyout ((void*)scp->vtb.vtb_buffer, ptr->buf,
+		 ptr->xsize * ptr->ysize * sizeof(u_int16_t));
+	splx(s);
+	return 0;
+    }
 
     case VT_SETMODE:    	/* set screen switcher mode */
     {
