@@ -1,5 +1,3 @@
-This is the ftp://freefall.cdrom.com/pub/CTM/README file:
-
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
 # <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
@@ -7,7 +5,7 @@ This is the ftp://freefall.cdrom.com/pub/CTM/README file:
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# Mon Feb 27 00:06:22 PST 1995
+# $Id$
 #
 
 		Obtaining FreeBSD-current sources using CTM.
@@ -36,20 +34,6 @@ You will also need to make yourself aware of the various caveats in
 running "current" sources, and for this it is recommended that you
 refer to the relevant FAQ: /usr/share/FAQ/current-policy.FAQ
 
-If you have commit priviledges or are similary authorized by the
-FreeBSD core team, you can also get access to the CVS repository tree
-by the same means.  Contact me (phk@FreeBSD.org) for details.
-
-
-NOTE:
-
-All the "DES infected" (e.g. export controlled) source is not included.
-You will get the "international" version only.  If sufficient interest
-appears, we will set up a "sec-cur" sequence too.
-
-There is a sequence of deltas for the ports collection too, but interest
-has not been all that high yet.  Tell me if you want an email list for
-that too and we'll consider setting it up.
 
 What do I need to use CTM?
 --------------------------
@@ -91,12 +75,21 @@ Starting off with CTM for the first time:
 
 Before you can start using CTM deltas, you will need to get a special
 "base" delta that provides a starting point for all deltas produced
-subsequently to it.  You can recognize these in two ways: One is that
-they are large!  25 to 30 Megabytes of gzip'ed data being common for a
-base delta.  Second, they also have an 'A' appended to the number
-(src-cur.0341A.gz for instance).  Once you've picked a base delta to
-start from, you will also need all deltas with higher numbers
-following it.
+subsequently to it.
+
+You can recognize a base delta by the 'A' appended to the number
+(src-cur.0341A.gz for instance).  As a rule a base delta is produced
+every 100 deltas, the next one will be src-cur.0400A.gz.
+By the way,  they are large!  25 to 30 Megabytes of gzip'ed data is
+common for a base delta.
+
+If you do have the 2.0-RELEASE srcdist, you can instead retreive the
+src-cur.0372R20.gz file, it's only 4Mb and it will take you to current
+from the 2.0-RELEASE sources.
+
+Once you've picked a base delta to start from, you will also need all 
+deltas with higher numbers following it.
+
 
 Using CTM in your daily life:
 -----------------------------
@@ -106,20 +99,19 @@ To apply the deltas, simply say
 	cd /where/ever/you/want/the/stuff
 	ctm -v -v /where/you/store/your/deltas/src-cur.*
 
+CTM understands deltas which have been put through gzip, so you don't
+need to gunzip them first, this saves diskspace.
+
 Unless it feels very secure about the entire process, ctm will not
 touch your tree.  To check out a delta you can also use the "-c" flag
-and CTM won't actually touch your tree.
+and CTM won't actually touch your tree, but only check the integrity
+of the delta, and see if it would apply cleanly to the tree.
 
-There are other options to ctm as well, look in the sources.  It's a
-little bit confusing right now, but I promise to fix all of that very
-shortly.
+There are other options to ctm as well, look in the sources.
 
 I would also be very happy if somebody could help with the "user
 interface" portions, as I have realized that I can't make up my mind
 on what options should do what, how and when...
-
-CTM understands deltas which have been put through gzip, so you don't
-need to gunzip them first.
 
 That's really all there is to it.  Everytime you get a new delta, you
 run it through ctm.
@@ -131,19 +123,50 @@ you only have floppy disks, consider using "fdwrite" to make a copy.
 
 Plans:
 ------
-Tons of them.  Don't forget to tell me what you want though...
+
+Tons of them:
+
+ - Make local modifications to the tree possible.  One way to do it
+     could be this:
+     When CTM wants to edit the file "foo/bar.c", it would first check
+     for the existense of "foo/bar.c#ctm"  If this file exists, the
+     delta is applied to it instead.  This way the foo/bar.c file can
+     be edited to suit local needs.
+ - Make a "restore file(s)" option to ctm, something like:
+	ctm -r src/sys/i386/wd.c /here/are/my/deltas/src-cur.*
+     would restore wd.c to the current status from the files.
+ - Clean up the options to ctm, they became confusing and 
+     counter intuitive.
+
+The bad news is that I am very busy, so any help in doing this will be
+most welcome.  And don't forget to tell me what you want also...
 
 
 Misc. stuff:
 ------------
+
+All the "DES infected" (e.g. export controlled) source is not included.
+You will get the "international" version only.  If sufficient interest
+appears, we will set up a "sec-cur" sequence too.
+
 If you are a frequent or valuable contributor to FreeBSD, I will be
 willing to arrange special services, one option is delivery via ftp or
 rcp to a machine closer to you.  You need to have earned this, since
 it takes time to do, but I'll be all the more happy to do it for you
 then.
 
+There is a sequence of deltas for the ports collection too, but interest
+has not been all that high yet.  Tell me if you want an email list for
+that too and we'll consider setting it up.
+
+If you have commit priviledges or are similary authorized by the
+FreeBSD core team, you can also get access to the CVS repository tree
+by the same means.  Contact me (phk@FreeBSD.org) for details.
+
+
 Thanks!
 -------
+
 Bruce Evans, for his pointed pen and invaluable comments.
 Soren Schmidt, for patience.
 Stephen McKay, wrote ctm_[rs]mail, much appreceiated.
@@ -152,6 +175,8 @@ All the users,  I hope you like it...
 
 Comments ?
 ----------
+
 email phk@FreeBSD.org
+
 
 Poul-Henning
