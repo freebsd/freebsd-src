@@ -440,10 +440,10 @@ tables:
 table0:		.byte 0x0, 0x5, 0xf
 table0_end:
 #
-# These valuse indicate bootable types we know the names of
+# These values indicate bootable types we know the names of
 #
 table1:		.byte 0x1, 0x4, 0x6, 0x7, 0xb, 0xc, 0xe, 0x63, 0x83
-		.byte 0xa5, 0xa6, 0xa9, 0xb7
+		.byte 0x9f, 0xa5, 0xa6, 0xa9
 table1_end:
 #
 # These are offsets that match the known names above and point to the strings
@@ -459,10 +459,10 @@ table1_end:
 		.byte os_windows-.		# Windows
 		.byte os_unix-. 		# UNIX
 		.byte os_linux-.		# Linux
+		.byte os_bsdos-.		# BSD/OS
 		.byte os_freebsd-.		# FreeBSD
 		.byte os_openbsd-.		# OpenBSD
 		.byte os_netbsd-.		# NetBSD
-		.byte os_bsdos-.		# BSD/OS
 #
 # And here are the strings themselves. 0x80 or'd into a byte indicates 
 # the end of the string. (not so great for Russians but...)
