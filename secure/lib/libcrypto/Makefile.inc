@@ -7,7 +7,7 @@ CFLAGS+=	-DTERMIOS -DANSI_SOURCE -DOPENSSL_NO_KRB5
 CFLAGS+=	-I${LCRYPTO_SRC} -I${LCRYPTO_SRC}/crypto -I${.OBJDIR}
 
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
-CFLAGS+=	-DNO_IDEA
+CFLAGS+=	-DOPENSSL_NO_IDEA
 .else
 _idea_h=	idea/idea.h
 .endif
@@ -86,7 +86,7 @@ openssl/opensslconf.h:  ../../lib/libcrypto/opensslconf-${MACHINE_ARCH}.h
 openssl/evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
 	mkdir -p openssl
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
-	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
+	sed '/^#ifndef OPENSSL_NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
 .else
 	${INSTALL} -C -m 444 ${.OODATE} ${.TARGET}
 .endif
