@@ -155,7 +155,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
-#include <sys/pool.h>
 #include <sys/sched.h>
 
 #include <vm/vm.h>
