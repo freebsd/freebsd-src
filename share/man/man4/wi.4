@@ -36,7 +36,7 @@
 .Os
 .Sh NAME
 .Nm wi
-.Nd WaveLAN/IEEE, PRISM-II and Spectrum24 802.11DS wireless network driver
+.Nd "WaveLAN/IEEE, PRISM-II and Spectrum24 802.11DS wireless network driver"
 .Sh SYNOPSIS
 .Cd "device wi"
 .Sh DESCRIPTION
@@ -84,14 +84,14 @@ This mode requires the use of an access point (base station).
 .Pp
 The
 .Nm
-driver also supports an point-to-point mode where the ssid is
+driver also supports a point-to-point mode where the ssid is
 ignored and stations can communicate amongst themselves without the
 aid of an access point.
 Note that there are two possible point-to-point modes.
 One mode, referred to as
-.Dq ad-hoc demo mode ,
+.Dq "ad-hoc demo mode" ,
 or
-.Dq legacy Lucent ad-hoc mode ,
+.Dq "legacy Lucent ad-hoc mode" ,
 predates the IEEE 802.11 specification and so may not interoperate
 with cards from different vendors.
 The standardized point-to-point mode, is called IBSS (or confusingly
@@ -99,7 +99,7 @@ just ad-hoc mode), but is not supported by cards with very old
 firmware revisions.
 If your cards supports IBSS mode, it is recommended that you use it in
 preference to the
-.Dq ad-hoc demo mode
+.Dq "ad-hoc demo mode"
 in new installations.
 .Pp
 Cards based on the Intersil PRISM-II and PRISM-2.5 chips also
@@ -126,7 +126,7 @@ A true PCMCIA bridge (such as those sold by Lucent) will attach
 as a real PCMCIA controller.
 The wireless card will then attach to the PCMCIA bus.
 Wireless cards in PCMCIA slots may be inserted and ejected on the fly.
-.br
+.Pp
 A dumb bridge, on the other hand, does not show up as a true PCMCIA bus.
 The wireless card will simply appear to the host as a normal PCI
 device and will not require any PCMCIA support.
@@ -137,62 +137,80 @@ The following cards are among those supported by the
 .Nm
 driver:
 .Pp
-.in +\n(dIu
-.TS
-tab (:) ;
-l l l
-_ _ _
-l l l .
-Card:Chip:Bus
-3Com AirConnect 3CRWE737A:Spectrum24:PCMCIA
-3Com AirConnect 3CRWE777A:Prism-II:PCI
-ACTIONTEC HWC01170:Prism-2.5:PCMCIA
-Addtron AWP-100:Prism-II:PCMCIA
-Agere Orinoco:Hermes:PCMCIA
-Buffalo AirStation:Prism-II:PCMCIA
-Buffalo AirStation:Prism-II:CF
-Cabletron RoamAbout:Hermes:PCMCIA
-Compaq Agency NC5004:Prism-II:PCMCIA
-Contec FLEXLAN/FX-DS110-PCC:Prism-II:PCMCIA
-Corega PCC-11:Prism-II:PCMCIA
-Corega PCCA-11:Prism-II:PCMCIA
-Corega PCCB-11:Prism-II:PCMCIA
-Corega CGWLPCIA11:Prism-II:PCI
-Dlink DWL520:Prism-2.5:PCI
-Dlink DWL650:Prism-2.5:PCMCIA
-ELSA XI300:Prism-II:PCMCIA
-ELSA XI800:Prism-II:CF
-EMTAC A2424i:Prism-II:PCMCIA
-Ericsson Wireless LAN CARD C11:Spectrum24:PCMCIA
-Gemtek WL-311:Prism-2.5:PCMCIA
-Hawking Technology WE110P:Prism-2.5:PCMCIA
-I-O DATA WN-B11/PCM:Prism-II:PCMCIA
-Intel PRO/Wireless 2011:Spectrum24:PCMCIA
-Intersil Prism II:Prism-II:PCMCIA
-Intersil Mini-PCI:Prism-2.5:PCI
-Linksys Instant Wireless WPC11:Prism-II:PCMCIA
-Linksys Instant Wireless WPC11 2.5:Prism-2.5:PCMCIA
-Lucent WaveLAN:Hermes:PCMCIA
-NANOSPEED ROOT-RZ2000:Prism-II:PCMCIA
-NDC/Sohoware NCP130:Prism-II:PCI
-NEC CMZ-RT-WP:Prism-II:PCMCIA
-Netgear MA401:Prism-II:PCMCIA
-NTT-ME 11Mbps Wireless LAN:Prism-II:PCMCIA
-Proxim RangeLAN-DS:Prism-II:PCMCIA
-Samsung MagicLAN SWL-2000N:Prism-II:PCMCIA
-Socket Low Power WLAN-CF:Prism-II:CF
-SMC 2602 EZ Connect (3.3V):Prism-II:PCI or PCMCIA
-SMC 2632 EZ Connect:Prism-II:PCMCIA
-Symbol Spectrum24:Spectrum24:PCMCIA
-TDK LAK-CD011WL:Prism-II:PCMCIA
-.TE
-.in -\n(dIu
+.Bl -column -compact "Linksys Instant Wireless WPC11 2.5" "Spectrum24" "PCI or PCMCIA"
+.Em "Card	Chip	Bus"
+3Com AirConnect 3CRWE737A	Spectrum24	PCMCIA
+3Com AirConnect 3CRWE777A	Prism-II	PCI
+ACTIONTEC HWC01170	Prism-2.5	PCMCIA
+Addtron AWP-100	Prism-II	PCMCIA
+Adtec Adlink/340C	Prism-II	PCMCIA
+Agere Orinoco	Hermes	PCMCIA
+Avaya Wireless	Prism-II	PCMCIA
+Blue Concentric Circle WL-379F	PRISM-II	CF
+BreezeNet Wireless	Prism-II	PCMCIA
+Buffalo WLI-PCM-S11	Prism-II	PCMCIA
+Buffalo WLI-PCM-L11G	Hermes	PCMCIA
+Buffalo WLI-CF-S11G	Prism-II	CF
+Cabletron RoamAbout	Hermes	PCMCIA
+Compaq Agency NC5004	Prism-II	PCMCIA
+Compaq WL100	Prism-II	PCMCIA
+Compaq WL110	Prism-II	PCMCIA
+Compaq WL200	Prism-II	PCMCIA
+Contec FLEXLAN/FX-DS110-PCC	Prism-II	PCMCIA
+Corega PCC-11	Prism-II	PCMCIA
+Corega PCCA-11	Prism-II	PCMCIA
+Corega PCCB-11	Prism-II	PCMCIA
+Corega CGWLPCIA11	Prism-II	PCI
+Dell TrueMobile 1150	Hermes	PCMCIA
+Dlink DWL520	Prism-2.5	PCI
+Dlink DWL650	Prism-2.5	PCMCIA
+ELSA XI300	Prism-II	PCMCIA
+ELSA XI800	Prism-II	CF
+EMTAC A2424i	Prism-II	PCMCIA
+Ericsson Wireless LAN CARD C11	Spectrum24	PCMCIA
+Farallon Skyline	Prism-II	PCMCIA
+Gemtek WL-311	Prism-2.5	PCMCIA
+Hawking Technology WE110P	Prism-2.5	PCMCIA
+Home Wireless Networks	Prism-II	PCMCIA
+IBM High Rate Wireless	Hermes	PCMCIA
+ICOM SL-1100	Prism-II	PCMCIA
+I-O DATA WN-B11/PCM	Prism-II	PCMCIA
+Intel PRO/Wireless 2011	Spectrum24	PCMCIA
+Intersil Prism II	Prism-II	PCMCIA
+Intersil Mini-PCI	Prism-2.5	PCI
+Linksys Instant Wireless WPC11	Prism-II	PCMCIA
+Linksys Instant Wireless WPC11 2.5	Prism-2.5	PCMCIA
+Linksys Instant Wireless WPC11 3.0	Prism-3	PCMCIA
+Lucent WaveLAN	Hermes	PCMCIA
+Melco Airconnect	Prism-II	PCMCIA
+NANOSPEED ROOT-RZ2000	Prism-II	PCMCIA
+NDC/Sohoware NCP130	Prism-II	PCI
+NEC CMZ-RT-WP	Prism-II	PCMCIA
+NEC PK-WL001	Prism-II	PCMCIA
+NEC PC-WL/11C	PRISM-II	PCMCIA
+Netgear MA401	Prism-II	PCMCIA
+NTT-ME 11Mbps Wireless LAN	Prism-II	PCMCIA
+Planex GeoWave/GW-NS110	Prism-II	PCMCIA
+Planex GW-NS11H	Prism-II	PCMCIA
+Proxim Harmony	Prism-II	PCMCIA
+Proxim RangeLAN-DS	Prism-II	PCMCIA
+Samsung MagicLAN SWL-2000N	Prism-II	PCMCIA
+SMC 2602 EZ Connect (3.3V)	Prism-II	PCI or PCMCIA
+SMC 2632 EZ Connect	Prism-II	PCMCIA
+Socket Low Power WLAN-CF	Prism-II	CF
+Sony PCWA-C100	Lucent	PCMCIA
+Symbol Spectrum24	Spectrum24	PCMCIA
+Symbol LA-4100	Spectrum24	CF
+TDK LAK-CD011WL	Prism-II	PCMCIA
+Toshiba Wireless LAN Card	Prism-II	PCMCIA
+U.S. Robotics Wireless Card 2410	Prism-II	PCMCIA
+.El
 .Pp
 Several vendors sell PCI adapters built around the PLX Technology 9050
 or 9052 chip.
 The following such adapters are supported or expected to work:
 .Pp
-.Bl -tag -width -compact
+.Bl -tag -compact
 .It 3Com AirConnect 3CRWE777A (3.3V)
 .It Belkin F5D6000 (a rebadged WL11000P)
 .It Eumitcom WL11000P
@@ -202,7 +220,6 @@ The following such adapters are supported or expected to work:
 .It Netgear MA301
 .It US Robotics 2415 (rebadged WL11000P)
 .El
-.Pp
 .Sh EXAMPLES
 The following examples utilize
 .Xr ifconfig 8
@@ -211,64 +228,72 @@ for simplicity, however,
 can also be used to set wireless parameters.
 .Pp
 Join an existing BSS network (ie: connect to an access point):
-.Dl # ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00
+.Pp
+.Dl "ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00"
 .Pp
 Join a specific BSS network with network name
-.Dq my_net .
-.Dl # ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net
-.br
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
 .Pp
 Join a specific BSS network with WEP encryption:
-.Bd -literal -compact -offset indent
-# ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-	wepkey 0x8736639624
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+	wepmode on wepkey 0x8736639624
 .Ed
 .Pp
 Join a Lucent legacy demo ad-hoc network with network name
-.Dq my_net .
-.Bd -literal -compact -offset indent
-# ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 	mediaopt adhoc
 .Ed
 .Pp
 Create an IBSS network with network name
-.Dq my_net .
-.Bd -literal -compact -offset indent
-# ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 	mediaopt ibss-master
 .Ed
-Note: The infrastructure for mediaopt ibss-master has not been
-committed yet.
+.Pp
+.Em Note :
+The infrastructure for
+.Cm mediaopt ibss-master
+has not been committed yet.
 .Pp
 Join an IBSS network with network name
-.Dq my_net .
-.Bd -literal -compact -offset indent
-# ifconfig wi0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
 	mediaopt ibss
 .Ed
-Note: The infrastructure for mediaopt ibss has not been
-committed yet.
+.Pp
+.Em Note :
+The infrastructure for
+.Cm mediaopt ibss
+has not been committed yet.
 .Pp
 Create a host-based access point (Prism only):
-.Bd -literal -compact -offset indent
-# ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
 	mediaopt hostap
 .Ed
 .Pp
 Create a host-based access point with WEP enabled (Prism only):
-.Bd -literal -compact -offset indent
-# ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
-	wepkey 0x1234567890 mediaopt hostap
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	wepmode on wepkey 0x1234567890 mediaopt hostap
 .Ed
 .Pp
 Create a host-based wireless bridge to fxp0 (Prism only):
-.Bd -literal -compact -offset indent
+.Bd -literal -offset indent
 Add BRIDGE to the kernel config.
-# ifconfig wi0 inet up ssid my_ap mediaopt hostap
-# sysctl net.link.ether.bridge=1
-# sysctl net.link.ether.bridge_cfg="wi0 fxp0"
-# sysctl net.inet.ip.forwarding=1
+ifconfig wi0 inet up ssid my_ap mediaopt hostap
+sysctl net.link.ether.bridge=1
+sysctl net.link.ether.bridge_cfg="wi0 fxp0"
+sysctl net.inet.ip.forwarding=1
 .Ed
+.Pp
 This will give you approximately the same functionality as an access
 point.
 .Sh DIAGNOSTICS
@@ -287,8 +312,6 @@ command.
 .Xr an 4 ,
 .Xr arp 4 ,
 .Xr netintro 4 ,
-.Xr ifmedia 4 ,
-.Xr hostname.if 5 ,
 .Xr ifconfig 8 ,
 .Xr wicontrol 8
 .Rs
@@ -303,7 +326,8 @@ device driver first appeared in
 .Sh AUTHORS
 The
 .Nm
-driver was written by Bill Paul <wpaul@ctr.columbia.edu>.
+driver was written by
+.An Bill Paul Aq wpaul@ctr.columbia.edu .
 This man page comes from
 .Ox .
 .Sh CAVEATS
@@ -321,5 +345,12 @@ IBSS creation does not currently work with Symbol cards.
 Prism2 host-based access point mode has bugs for firmware versions
 prior to 0.8.3.
 .Pp
-Lucent cards prior to firmware version 6.0.4 do not support ibss
+Lucent cards prior to firmware version 6.0.4 do not support IBSS
 mode.
+.Pp
+Symbol LA-4100 series CF cards need firmware downloaded into their RAM
+before they will function.
+This functionality is not presently in
+.Fx Ns 's
+.Nm
+driver.
