@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ns.c,v 1.2 1998/09/02 11:48:07 abial Exp $
+ * $Id: ns.c,v 1.3 1998/09/02 13:11:23 abial Exp $
  */
 
 
@@ -57,13 +57,7 @@
 #include <sys/un.h>
 
 #ifdef BRIDGING
-#include <sys/param.h>
-#include <sys/mbuf.h>
-#include <net/ethernet.h>
 #include <net/if_types.h> /* IFT_ETHER */
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/if_ether.h>
 #include <net/bridge.h>
 #endif
 
@@ -72,6 +66,7 @@ int iflag=0;
 int rflag=0;
 int sflag=0;
 int pflag=0;
+int wflag=0;	/* repeat every wait seconds */
 
 extern char *optarg;
 extern int optind;
@@ -79,7 +74,7 @@ extern int optind;
 void
 usage()
 {
-	fprintf(stderr,"\n%s [-r | -i | -s [-p proto] ]\n",progname);
+	fprintf(stderr,"\n%s [-rsi] [-p proto] [-w wait]\n",progname);
 #ifdef BRIDGING
 	fprintf(stderr,"  proto: {ip|tcp|udp|icmp|bdg}\n\n");
 #else
@@ -322,8 +317,7 @@ print_routing(char *proto)
 			ifm->ifm_data.ifi_mtu);
 		    if ( sdl->sdl_alen == 6) {
 			unsigned char *p = sdl->sdl_data + sdl->sdl_nlen ;
-				
-			printf("%02x.%02x.%02x.%02x.%02x.%02x   ",
+			printf("%02x:%02x:%02x:%02x:%02x:%02x   ",
 				p[0], p[1], p[2], p[3], p[4], p[5] );
 		    } else
 			printf("                    ");
@@ -337,8 +331,13 @@ print_routing(char *proto)
 		}
 		i++;
 	}
-	if (!rflag)
+	if (!rflag) {
+		free(rt_buf);
+		free(if_buf);
+		free(if_table);
+		free(ifm_table);
 		return(0);
+	}
 	/* Now dump the routing table */
 	printf("\nRouting table:\n");
 	printf("--------------\n");
@@ -384,6 +383,10 @@ print_routing(char *proto)
 		printf("    %u",rtm->rtm_use);
 		printf("\n");
 	}
+	free(rt_buf);
+	free(if_buf);
+	free(if_table);
+	free(ifm_table);
 	return(0);
 
 }
@@ -666,8 +669,11 @@ main(int argc, char *argv[])
 
 	progname=argv[0];
 
-	while((c=getopt(argc,argv,"irsp:"))!=-1) {
+	while((c=getopt(argc,argv,"irsp:w:"))!=-1) {
 		switch(c) {
+		case 'w':
+			wflag = atoi(optarg) ;
+			break;
 		case 'r':
 			rflag++;
 			break;
@@ -697,8 +703,20 @@ main(int argc, char *argv[])
 		usage();
 		exit(-1);
 	}
+	if (wflag)
+	    printf("\033[H\033[J");
+again:
+	if (wflag) {
+	    struct timeval t ;
+	    gettimeofday ( &t, NULL);
+	    printf("\033[H%s", ctime(& t.tv_sec));
+	}
 	print_routing(proto);
 	stats(proto);
+	if (wflag) {
+		sleep(wflag);
+		goto again ;
+	}
 	exit(0);
 }
 
@@ -721,9 +739,10 @@ print_bdg_stats() /* print bridge statistics */
     }
     printf("-- Bridging statistics --\n") ;
     printf(
-"Name__  ___in___ ___out__ ___fwd__ __drop__ __bcast_ __mcast_ __local_ ___unk__\n");
+"Name          In      Out  Forward     Drop    Bcast    Mcast    Local  Unknown\n");
     for (i = 0 ; i < 16 ; i++) {
-	printf("%-6s %8d%8d%8d%8d%8d%8d%8d%8d\n",
+	if (s.s[i].name[0])
+	printf("%-6s %9d%9d%9d%9d%9d%9d%9d%9d\n",
 	  s.s[i].name,
 	  s.s[i].p_in[(int)BDG_IN],
 	  s.s[i].p_in[(int)BDG_OUT],
