@@ -143,6 +143,7 @@ MAN=	aac.4 \
 	smbus.4 \
 	smp.4 \
 	snp.4 \
+	spic.4 \
 	splash.4 \
 	sppp.4 \
 	st.4 \
