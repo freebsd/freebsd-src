@@ -6,7 +6,8 @@
 .Nd list dynamic object dependencies
 .Sh SYNOPSIS
 .Nm ldd
-.Op Ar filename Ar ...
+.Op Fl f Ar format
+.Ar program ...
 .Sh DESCRIPTION
 .Nm ldd
 displays all shared objects that are needed to run the given program.
@@ -14,6 +15,16 @@ Contrary to nm(1), the list includes
 .Dq indirect
 depedencies that are the result of needed shared objects which themselves
 depend on yet other shared objects.
+.Pp
+Zero, one or two
+.Fl f
+options may be given. The argument is a format string passed to
+.Xr rtld 1
+and allows customization of
+.Nm ldd Ns 's
+output. See
+.Xr rtld 1
+for a list of recognised conversion characters.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr ld.so 1 ,
