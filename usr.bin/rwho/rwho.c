@@ -162,10 +162,11 @@ main(argc, argv)
 	mp = myutmp;
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ], cbuf[80];
+		time_t t = int_to_time(mp->myutmp.out_time);
 
 		strftime(cbuf, sizeof(cbuf),
 			 d_first ? "%e %b %R" : "%b %e %R",
-			 localtime((time_t *)&mp->myutmp.out_time));
+			 localtime(&t));
 		(void)sprintf(buf, "%s:%-.*s", mp->myhost,
 		   sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
 		printf("%-*.*s %-*s %s",
