@@ -504,8 +504,11 @@ faultin(p)
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC (p, td)
-			if (td->td_state == TDS_RUNQ)	/* XXXKSE */
+			if (td->td_state == TDS_RUNQ) {	/* XXXKSE */
+				/* XXXKSE TDS_RUNQ causes assertion failure. */
+				td->td_state = TDS_UNQUEUED;
 				setrunqueue(td);
+			}
 
 		p->p_sflag |= PS_INMEM;
 
