@@ -1,4 +1,4 @@
-/*	$NetBSD: awi.c,v 1.61 2004/01/15 13:29:05 onoe Exp $	*/
+/*	$NetBSD: awi.c,v 1.62 2004/01/16 14:13:15 onoe Exp $	*/
 
 /*-
  * Copyright (c) 1999,2000,2001 The NetBSD Foundation, Inc.
@@ -86,7 +86,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __NetBSD__
-__KERNEL_RCSID(0, "$NetBSD: awi.c,v 1.61 2004/01/15 13:29:05 onoe Exp $");
+__KERNEL_RCSID(0, "$NetBSD: awi.c,v 1.62 2004/01/16 14:13:15 onoe Exp $");
 #endif
 #ifdef __FreeBSD__
 __FBSDID("$FreeBSD$");
@@ -1112,7 +1112,7 @@ awi_mode_init(struct awi_softc *sc)
 	}
 	sc->sc_mib_mac.aPromiscuous_Enable = 0;
 #ifdef __FreeBSD__
-	if (ifp->if_amcount != 0)
+	if (ifp->if_flags & IFF_ALLMULTI)
 		goto set_mib;
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -1141,10 +1141,12 @@ awi_mode_init(struct awi_softc *sc)
 	sc->sc_mib_local.Accept_All_Multicast_Dis = 1;
 
   set_mib:
+#ifndef __FreeBSD__
 	if (sc->sc_mib_local.Accept_All_Multicast_Dis)
 		ifp->if_flags &= ~IFF_ALLMULTI;
 	else
 		ifp->if_flags |= IFF_ALLMULTI;
+#endif
 	sc->sc_mib_mgt.Wep_Required =
 	    (sc->sc_ic.ic_flags & IEEE80211_F_WEPON) ? AWI_WEP_ON : AWI_WEP_OFF;
 
@@ -1926,7 +1928,7 @@ awi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			case IEEE80211_S_ASSOC:
 			case IEEE80211_S_INIT:
 				ieee80211_begin_scan(ifp);
-				/* FALLTHRU */
+				break;
 			case IEEE80211_S_SCAN:
 				/* scan next */
 				break;
@@ -2084,8 +2086,11 @@ awi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 	return (*sc->sc_newstate)(ic, nstate, arg);
 out:
-	if (error != 0)
+	if (error != 0) {
+		if (error == EINPROGRESS)
+			error = 0;
 		return error;
+	}
 	return (*sc->sc_newstate)(ic, nstate, arg);
 }
 
