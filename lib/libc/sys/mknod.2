@@ -108,6 +108,11 @@ The named file exists.
 .It Bq Er EFAULT
 .Fa Path
 points outside the process's allocated address space.
+.It Bq Er EINVAL
+Creating anything else than a block or character special
+file (or a
+.Em whiteout )
+is not supported.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,
