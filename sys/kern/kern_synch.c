@@ -330,6 +330,7 @@ endtsleep(arg)
 		TAILQ_REMOVE(&slpque[LOOKUP(td->td_wchan)], td, td_slpq);
 		TD_CLR_ON_SLEEPQ(td);
 		td->td_flags |= TDF_TIMEOUT;
+		td->td_wmesg = NULL;
 	} else {
 		td->td_flags |= TDF_TIMOFAIL;
 	}
@@ -374,6 +375,7 @@ unsleep(struct thread *td)
 	if (TD_ON_SLEEPQ(td)) {
 		TAILQ_REMOVE(&slpque[LOOKUP(td->td_wchan)], td, td_slpq);
 		TD_CLR_ON_SLEEPQ(td);
+		td->td_wmesg = NULL;
 	}
 	mtx_unlock_spin(&sched_lock);
 }
