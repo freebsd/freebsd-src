@@ -67,7 +67,6 @@
 #include <machine/reg.h>
 #include <machine/fpu.h>
 #include <machine/pal.h>
-#include <machine/efi.h>
 #include <machine/bootinfo.h>
 #include <machine/mutex.h>
 #include <machine/vmparam.h>
@@ -77,6 +76,12 @@
 #include <sys/vnode.h>
 #include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
+
+#include <boot/efi/include/ia64/efibind.h>
+#include <boot/efi/include/efidef.h>
+#include <boot/efi/include/efidevp.h>
+#include <boot/efi/include/eficon.h>
+#include <boot/efi/include/efiapi.h>
 
 u_int64_t cycles_per_usec;
 u_int32_t cycles_per_sec;
@@ -89,6 +94,8 @@ struct mtx Giant;
 extern char kstack[]; 
 struct user *proc0uarea;
 vm_offset_t proc0kstack;
+
+u_int64_t ia64_port_base;
 
 char machine[] = "ia64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -359,7 +366,6 @@ ia64_init()
 	vm_offset_t kernstart, kernend;
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
 	char *p;
-	EFI_MEMORY_DESCRIPTOR ski_md[2]; /* XXX */
 	EFI_MEMORY_DESCRIPTOR *mdp;
 	int mdcount, i;
 
@@ -428,35 +434,43 @@ ia64_init()
 	 */
 
 	/*
-	 * XXX hack for ski. In reality, the loader will probably ask
-	 * EFI and pass the results to us. Possibly, we will call EFI
-	 * directly.
-	 */
-	ski_md[0].Type = EfiConventionalMemory;
-	ski_md[0].PhysicalStart = 2L*1024*1024;
-	ski_md[0].VirtualStart = 0;
-	ski_md[0].NumberOfPages = (64L*1024*1024)>>12;
-	ski_md[0].Attribute = EFI_MEMORY_WB;
-
-	ski_md[1].Type = EfiConventionalMemory;
-	ski_md[1].PhysicalStart = 4096L*1024*1024;
-	ski_md[1].VirtualStart = 0;
-	ski_md[1].NumberOfPages = (32L*1024*1024)>>12;
-	ski_md[1].Attribute = EFI_MEMORY_WB;
-	
-	mdcount = 1;		/* ignore the high memory for now */
-
-	/*
 	 * Find out how much memory is available, by looking at
 	 * the memory descriptors.
 	 */
+	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
+	mdp = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
+
+	if (!mdp) {
+		static EFI_MEMORY_DESCRIPTOR ski_md[2];
+		/*
+		 * XXX hack for ski. In reality, the loader will probably ask
+		 * EFI and pass the results to us. Possibly, we will call EFI
+		 * directly.
+		 */
+		ski_md[0].Type = EfiConventionalMemory;
+		ski_md[0].PhysicalStart = 2L*1024*1024;
+		ski_md[0].VirtualStart = 0;
+		ski_md[0].NumberOfPages = (64L*1024*1024)>>12;
+		ski_md[0].Attribute = EFI_MEMORY_WB;
+
+		ski_md[1].Type = EfiConventionalMemory;
+		ski_md[1].PhysicalStart = 4096L*1024*1024;
+		ski_md[1].VirtualStart = 0;
+		ski_md[1].NumberOfPages = (32L*1024*1024)>>12;
+		ski_md[1].Attribute = EFI_MEMORY_WB;
+	
+		mdp = ski_md;
+		mdcount = 1;		/* ignore the high memory for now */
+	}
+
+#define DEBUG_MD
 #ifdef DEBUG_MD
 	printf("Memory descriptor count: %d\n", mdcount);
 #endif
 
 	phys_avail_cnt = 0;
-	for (i = 0; i < mdcount; i++) {
-		mdp = &ski_md[i];
+	for (i = 0; i < mdcount; i++,
+		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
 #ifdef DEBUG_MD
 		printf("MD %d: type %d pa 0x%lx cnt 0x%lx\n", i,
 		       mdp->Type,
@@ -465,6 +479,10 @@ ia64_init()
 #endif
 		totalphysmem += mdp->NumberOfPages;
 
+		if (mdp->Type == EfiMemoryMappedIOPortSpace) {
+			ia64_port_base = IA64_PHYS_TO_RR6(mdp->PhysicalStart);
+		}
+		
 		if (mdp->Type != EfiConventionalMemory) {
 			resvmem += mdp->NumberOfPages;
 			continue;
