@@ -50,11 +50,11 @@ int	_sema_timedwait(struct sema *sema, int timo, const char *file, int
 int	_sema_trywait(struct sema *sema, const char *file, int line);
 int	sema_value(struct sema *sema);
 
-#define	sema_post(sema)		_sema_post((sema), __FILE__, __LINE__)
-#define	sema_wait(sema)		_sema_wait((sema), __FILE__, __LINE__)
+#define	sema_post(sema)		_sema_post((sema), LOCK_FILE, LOCK_LINE)
+#define	sema_wait(sema)		_sema_wait((sema), LOCK_FILE, LOCK_LINE)
 #define	sema_timedwait(sema, timo)					\
-	_sema_timedwait((sema), (timo), __FILE__, __LINE__)
-#define	sema_trywait(sema)	_sema_trywait((sema), __FILE__, __LINE__)
+	_sema_timedwait((sema), (timo), LOCK_FILE, LOCK_LINE)
+#define	sema_trywait(sema)	_sema_trywait((sema), LOCK_FILE, LOCK_LINE)
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_SEMA_H_ */

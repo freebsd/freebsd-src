@@ -137,6 +137,18 @@ struct lock_list_entry {
 #endif
 
 /*
+ * In the LOCK_DEBUG case, use the filename and line numbers for debugging
+ * operations.  Otherwise, use default values to avoid the unneeded bloat.
+ */
+#ifdef LOCK_DEBUG
+#define	LOCK_FILE	__FILE__
+#define	LOCK_LINE	__LINE__
+#else
+#define	LOCK_FILE	NULL
+#define	LOCK_LINE	0
+#endif
+
+/*
  * Macros for KTR_LOCK tracing.
  *
  * opname  - name of this operation (LOCK/UNLOCK/SLOCK, etc.)
