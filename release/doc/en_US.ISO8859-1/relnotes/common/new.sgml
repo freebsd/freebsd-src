@@ -212,37 +212,6 @@
       has been added.  This improves the performance of SMP machines
       and is enabled by default on the i386.</para>
 
-    <para arch="i386">The &man.acpi.asus.4; driver has been added
-      to use ACPI-controlled hardware features, such as hot keys and
-      LEDs on ASUSTek laptops.</para>
-
-    <para arch="i386">The &man.acpi.panasonic.4; driver has been added
-      to support hot keys of Panasonic laptops.  It now supports
-      Let's note (or Toughbook, outside Japan) CF-R1N, CF-R2A, and
-      CF-R3.</para>
-
-    <para arch="i386">The &man.acpi.toshiba.4; driver has been added
-      to use Toshiba's Hardware Control Interface to manipulate
-      certain hardware features on Toshiba laptops, such as
-      video output switching.</para>
-
-    <para>The &man.acpi.video.4; driver has been added to provide
-      control display switching and backlight brightness using the
-      ACPI Video Extensions.</para>
-
-    <para arch="i386">The &man.acpi.4; driver now supports
-      per-device sysctls (<varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>,
-      for instance) to allow users to set whether or not a given
-      device can wake the system.</para>
-
-    <para arch="i386">The &man.acpi.4; driver will now
-      be disabled automatically when the machine has a well-known broken BIOS.
-      This behavior can be overridden by setting the loader tunable
-      <varname>hint.acpi.0.disabled</varname> to <literal>0</literal>.</para>
-
-    <para arch="amd64">The &man.agp.4; driver now supports the AMD64 graphics
-      aperture relocation table (GART).</para>
-
     <para>The &man.bus.dma.9; interface now supports transparently honoring
       the alignment and boundary constraints in the DMA tag
       when loading buffers, and <function>bus_dmamap_load()</function>
@@ -256,42 +225,10 @@
       by setting a sysctl <varname>vm.old_contigmalloc</varname>.  More details
       can be found in the &man.contigmalloc.9; manual page.</para>
 
-    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
-      synchronous serial adapters. This driver was known for a long time as
-      <quote>ct</quote> in its previous life outside the &os; source tree. &merged;
-
-      <note>
-	<para>The driver name has changed, but the network interface still
-	  has the <devicename>ct</devicename> name.</para>
-      </note>
-    </para>
-
-    <para arch="i386,pc98">The &man.cp.4; driver has been added for Cronyx Tau-PCI
-      synchronous serial adapters.
-    </para>
-
     <para>The &man.devfs.5; path rules now work correctly on
       directories.</para>
 
-    <para arch="i386,pc98">The <devicename>dgb</devicename>
-      (DigiBoard intelligent serial card) driver has been
-      removed due to breakage.  Its replacement is the &man.digi.4; driver,
-      which supports all the hardware of the <devicename>dgb</devicename>
-      driver.</para>
-
     <para>The &man.getvfsent.3; API has been removed.</para>
-
-    <para>The &man.hme.4; driver now natively supports
-      long frames, so it can be used for &man.vlan.4; with full Ethernet
-      MTU size.</para>
-
-    <para>The &man.hme.4; driver now supports
-      TCP/UDP Transmit/Receive checksum offload.
-      Since &man.hme.4; does not compensate the checksum
-      for UDP datagram which can yield to <literal>0x0</literal>,
-      UDP transmit checksum offload is disabled by default.
-      This can be reactivated by setting the special link
-      option <option>link0</option> with &man.ifconfig.8;.</para>
 
     <para>The <varname>hw.pci.allow_unsupported_io_range</varname>
       loader tunable has been removed.</para>
@@ -382,10 +319,6 @@
       Linux binaries on amd64 has been added.  This feature is enabled with the
       <literal>COMPAT_LINUX32</literal> kernel option.</para>
 
-    <para arch="i386">The <devicename>loran</devicename>
-      (Loran-C receiver) driver has been removed due to
-      breakage and lack of maintainership.</para>
-
     <para>A new kernel option <literal>MAC_STATIC</literal> which
       disables internal MAC Framework synchronization protecting against
       dynamic load and unload of MAC policies, has been added.</para>
@@ -452,33 +385,11 @@
       added.  This currently results in almost
       Giant-free execution of zero-fill page faults.</para>
 
-    <para>The &man.nmdm.4; driver has been rewritten to improve its reliability.</para>
-
-    <para>The <devicename>raid(4)</devicename> driver
-      (RAIDframe disk driver from NetBSD) has been removed.
-      It is currently non-functional, and would require some amount of work
-      to make it work under the &man.geom.4; API in 5-CURRENT.</para>
-
-    <para>An entry of the &man.pcic.4; driver has been removed from a
-      kernel configuration file for <filename>GENERIC</filename> kernel because
-      this is no longer maintained.  The entry had actually
-      been commented out for a long time.</para>
-
     <para arch="alpha,amd64,i386">A new kernel option
       <literal>PREEMPTION</literal> has been added.
       This allows the threads that are in the kernel to be preempted
       by higher priority threads.  It helps with interactivity and
       allows interrupt threads to run sooner rather than waiting.</para>
-
-    <para arch="i386">The &man.psm.4; driver and &man.moused.8;
-      now support the Synaptics TouchPad.</para>
-
-    <para arch="sparc64">The &man.sab.4; driver now supports the
-      <literal>BREAK_TO_DEBUGGER</literal> kernel option.</para>
-
-    <para arch="i386,pc98">The <devicename>sx</devicename> driver,
-      which supports Specialix I/O8+ and I/O4+
-      intelligent multiport serial controllers, has been added.</para>
 
     <para>A devclass level has been added to the dev sysctl tree,
       in order to support per-class variables in addition to
@@ -486,29 +397,27 @@
       is now called <varname>dev.foo.0.bar</varname>, and it is
       possible to to have <varname>dev.foo.bar</varname> as well.</para>
 
+    <para>A new sysctl, <varname>kern.always_console_output</varname>,
+      has been added.  It makes output from the kernel go to the console despite
+      the use of <varname>TIOCCONS</varname>.</para>
+
     <para>A sysctl <varname>kern.sched.name</varname>
       which has the name of the scheduler currently in use,
       has been added, and the <varname>kern.quantum</varname> sysctl
       has been moved to <varname>kern.sched.quantum</varname>
       for consistency.</para>
 
-    <para arch="alpha">The <devicename>tga</devicename> driver has 
-      been removed from GENERIC as it needs major work to stop it from
-      causing panics on kernel startup.  The use of a serial console
-      or a plain <devicename>vga</devicename> card is suggested as
-      an alternative.</para>
+    <para>The &man.pci.4; bus resource and power management have
+      been updated.
 
-    <para arch="alpha">Support for TurboLaser class machines has been
-      removed.</para>
-
-    <para arch="alpha,amd64,i386">For the &man.uart.4; device,
-      the <varname>hw.uart.console</varname> and
-      <varname>hw.uart.dbgport</varname> kernel environment variables
-      have been added.  They can be used to select a serial console and
-      debug port respectively, as well as the attributes.</para>
-
-    <para>The &man.ubser.4; device driver has been added to support
-      BWCT console management serial adapters.</para>
+      <note>
+	<para>Although the &man.pci.4; bus power state management
+	  has been enabled by default, it may cause problems on some systems.
+	  This can be disabled by setting the tunable
+	  <varname>hw.pci.do_powerstate</varname> to
+	  <literal>0</literal>.</para>
+      </note>
+    </para>
 
     <para>The ULE scheduler has been added as an additional scheduler.
       Note that the conventional one, which is called 4BSD, is still used
@@ -525,13 +434,6 @@
       kernel locking continues, the scheduler will be able to make
       more efficient use of the available parallel resources.</para>
 
-    <para>&man.ucycom.4; driver has been added for
-      the Cypress CY7C637xx and CY7C640/1xx families of USB to RS232 bridges,
-      such as the one found in the DeLorme Earthmate USB GPS
-      receiver (which is the only device currently supported by this driver).
-      This driver is not complete because there is no support yet for flow
-      control and output.</para>
-
     <para>A linear search algorithm used in
       &man.vm.map.findspace.9; has been replaced with
       an O(log n) algorithm built into the map entry splay tree.
@@ -543,25 +445,6 @@
       have been renamed to <varname>debug.witness.*</varname>.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
-
-    <para>The device driver infrastructure (as well as many drivers)
-      have been updated.  Among the changes: Many more drivers now use
-      automatically-assigned major numbers (instead of the old static
-      major numbers).  Enhanced functions to support cloning of
-      pseudo-devices.  Several changes to the driver API, including a
-      new <varname>d_version</varname> field in <varname>struct
-      cdevsw</varname>.  Note that third-party device drivers will
-      require recompiling after this change.</para>
-
-    <para>The pseudo-interface cloning has been updated and
-      the match function to allow creation of &man.stf.4;
-      interfaces named <devicename>stf0</devicename>,
-      <devicename>stf</devicename>, or <devicename>6to4</devicename>.
-      Note that this breaks backward compatibility; for example,
-      <command>ifconfig stf</command> now creates
-      the interface named <devicename>stf</devicename>,
-      not <devicename>stf0</devicename>, and does not print
-      <devicename>stf0</devicename> to stdout.</para>
 
     <para>The &os; dynamic and static linker now support Thread Local Storage (TLS),
       a <application>GCC</application> feature which supports
@@ -593,12 +476,126 @@
       kernel with the Intel C/C++ Compiler (as in the <filename
       role="package">lang/icc</filename> port).</para>
 
+    <sect3 id="boot">
+      <title>Boot Loader Changes</title>
+
+      <para arch="i386">A serial console-capable version of
+	<filename>boot0</filename> has been added.  It can be written
+	to a disk using &man.boot0cfg.8; and specifying
+	<filename>/boot/boot0sio</filename> as the argument to the
+	<option>-b</option> option.</para>
+
+      <para arch="i386"><filename>cdboot</filename> now works around a
+	BIOS problem observed on some systems when booting from USB
+	CDROM drives.</para>
+
+      <!-- Above this line, order boot loader changes by keyword-->
+
+    </sect3>
+
     <sect3 id="proc">
-      <title>Platform-Specific Hardware Support</title>
+      <title>Hardware Support</title>
+
+      <para arch="i386">The &man.acpi.asus.4; driver has been added
+	to use ACPI-controlled hardware features, such as hot keys and
+	LEDs on ASUSTek laptops.</para>
+
+      <para arch="i386">The &man.acpi.panasonic.4; driver has been added
+	to support hot keys of Panasonic laptops.  It now supports
+	Let's note (or Toughbook, outside Japan) CF-R1N, CF-R2A, and
+	CF-R3.</para>
+
+      <para arch="i386">The &man.acpi.toshiba.4; driver has been added
+	to use Toshiba's Hardware Control Interface to manipulate
+	certain hardware features on Toshiba laptops, such as
+	video output switching.</para>
+
+      <para>The &man.acpi.video.4; driver has been added to provide
+	control display switching and backlight brightness using the
+	ACPI Video Extensions.</para>
+
+      <para arch="i386">The &man.acpi.4; driver now supports
+	per-device sysctls (<varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>,
+	for instance) to allow users to set whether or not a given
+	device can wake the system.</para>
+
+      <para arch="i386">The &man.acpi.4; driver will now
+	be disabled automatically when the machine has a well-known broken BIOS.
+	This behavior can be overridden by setting the loader tunable
+	<varname>hint.acpi.0.disabled</varname> to <literal>0</literal>.</para>
+
+      <para arch="amd64">The &man.agp.4; driver now supports the AMD64 graphics
+	aperture relocation table (GART).</para>
+
+      <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
+	synchronous serial adapters. This driver was known for a long time as
+	<quote>ct</quote> in its previous life outside the &os; source tree. &merged;
+
+	<note>
+	  <para>The driver name has changed, but the network interface still
+	    has the <devicename>ct</devicename> name.</para>
+	</note>
+      </para>
+
+      <para arch="i386,pc98">The &man.cp.4; driver has been added for Cronyx Tau-PCI
+	synchronous serial adapters.</para>
+
+      <para arch="i386,pc98">The <devicename>dgb</devicename>
+	(DigiBoard intelligent serial card) driver has been
+	removed due to breakage.  Its replacement is the &man.digi.4; driver,
+	which supports all the hardware of the <devicename>dgb</devicename>
+	driver.</para>
+
+      <para>The &man.nmdm.4; driver has been rewritten to improve its reliability.</para>
+
+      <para>The <devicename>raid(4)</devicename> driver
+	(RAIDframe disk driver from NetBSD) has been removed.
+	It is currently non-functional, and would require some amount of work
+	to make it work under the &man.geom.4; API in 5-CURRENT.</para>
+
+      <para>An entry of the &man.pcic.4; driver has been removed from a
+	kernel configuration file for <filename>GENERIC</filename> kernel because
+	this is no longer maintained.  The entry had actually
+	been commented out for a long time.</para>
+
+      <para arch="i386">The &man.psm.4; driver and &man.moused.8;
+	now support the Synaptics TouchPad.</para>
 
       <para arch="i386">The entropy device &man.random.4; now
         supports a hardware random number generator (RNG)
         in the VIA C3 Nehemiah (Stepping 3 and above) CPU.</para>
+
+      <para arch="sparc64">The &man.sab.4; driver now supports the
+	<literal>BREAK_TO_DEBUGGER</literal> kernel option.</para>
+
+      <para arch="i386,pc98">The <devicename>sx</devicename> driver,
+	which supports Specialix I/O8+ and I/O4+
+	intelligent multiport serial controllers, has been added.</para>
+
+      <para arch="alpha">The <devicename>tga</devicename> driver has
+	been removed from GENERIC as it needs major work to stop it from
+	causing panics on kernel startup.  The use of a serial console
+	or a plain <devicename>vga</devicename> card is suggested as
+	an alternative.</para>
+
+      <para arch="alpha">Support for TurboLaser class machines has been
+	removed.</para>
+
+      <para arch="alpha,amd64,i386">For the &man.uart.4; device,
+	the <varname>hw.uart.console</varname> and
+	<varname>hw.uart.dbgport</varname> kernel environment variables
+	have been added.  They can be used to select a serial console and
+	debug port respectively, as well as the attributes.</para>
+
+      <para>The &man.ubser.4; device driver has been added to support
+	BWCT console management serial adapters.</para>
+
+      <para>&man.ucycom.4; driver has been added for
+	the Cypress CY7C637xx and CY7C640/1xx families of USB to RS232 bridges,
+	such as the one found in the DeLorme Earthmate USB GPS
+	receiver (which is the only device currently supported by this driver).
+	This driver is not complete because there is no support yet for flow
+	control and output.</para>
 
       <para arch="i386">Several old drivers for ISA cards have been removed,
 	including
@@ -618,150 +615,152 @@
 	<devicename>sasc</devicename> and <devicename>sgsc</devicename>
 	has also been removed.</para>
 
-      <para>A new sysctl, <varname>kern.always_console_output</varname>,
-	has been added.  It makes output from the kernel go to the console despite
-	the use of <varname>TIOCCONS</varname>.</para>
-    </sect3>
+      <para>The device driver infrastructure (as well as many drivers)
+	have been updated.  Among the changes: Many more drivers now use
+	automatically-assigned major numbers (instead of the old static
+	major numbers).  Enhanced functions to support cloning of
+	pseudo-devices.  Several changes to the driver API, including a
+	new <varname>d_version</varname> field in <varname>struct
+	  cdevsw</varname>.  Note that third-party device drivers will
+	require recompiling after this change.</para>
 
-    <sect3 id="boot">
-      <title>Boot Loader Changes</title>
+      <sect4 id="mm">
+	<title>Multimedia Support</title>
 
-      <para arch="i386">A serial console-capable version of
-	<filename>boot0</filename> has been added.  It can be written
-	to a disk using &man.boot0cfg.8; and specifying
-	<filename>/boot/boot0sio</filename> as the argument to the
-	<option>-b</option> option.</para>
+	<para>The <devicename>meteor</devicename> (video capture)
+	  driver has been removed due to
+	  breakage and lack of maintainership.</para>
 
-      <para arch="i386"><filename>cdboot</filename> now works around a
-	BIOS problem observed on some systems when booting from USB
-	CDROM drives.</para>
+	<para>The Direct Rendering Manager (DRM) code has been updated
+	  from the DRI Project CVS tree as of 26 May, 2004.  This update
+	  includes new PCI IDs and a new packet for Radeon.</para>
 
-      <!-- Above this line, order boot loader changes by keyword-->
+	<para>The drivers for various sound cards has been reorganized;
+	  <literal>device sound</literal> is the generic sound driver,
+	  and <literal>device snd_*</literal> are device-specific sound drivers now.
+	  The <devicename>midi</devicename> driver, which supports serial port
+	  and several sound cards, has been removed.
+	  More details can be found in related manual pages:
+	  &man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
+	  &man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
+	  &man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
+	  &man.snd.sbc.4;, &man.snd.solo.4;, and &man.snd.uaudio.4;.</para>
 
-    </sect3>
+	<para>The &man.sound.4; (formerly &man.pcm.4;) driver has been modified to read
+	  <filename>/boot/device.hints</filename> on startup, to allow setting
+	  of default values for mixer channels.
+	  Note that currently the device driver's name used in
+	  <filename>/boot/device.hints</filename> is still <literal>pcm</literal>.
+	  More detailed information and examples can be found in the &man.sound.4;
+	  manual page.</para>
+      </sect4>
 
-    <sect3 id="net-if">
-      <title>Network Interface Support</title>
+      <sect4 id="net-if">
+	<title>Network Interface Support</title>
 
-      <para arch="i386">The &man.arl.4; driver, which supports
-	Aironet Arlan 655 wireless adapters has been added. &merged;</para>
+	<para arch="i386">The &man.arl.4; driver, which supports
+	  Aironet Arlan 655 wireless adapters has been added. &merged;</para>
 
-      <para arch="sparc64">The &man.dc.4; driver now supports sparc64
-	Davicom cards that store their MAC address in
-	Open Firmware.</para>
+	<para arch="sparc64">The &man.dc.4; driver now supports sparc64
+	  Davicom cards that store their MAC address in
+	  Open Firmware.</para>
 
-      <para>A short hiccup in the &man.em.4; driver during parameter
-	reconfiguration, has been fixed.  &merged;</para>
+	<para>A short hiccup in the &man.em.4; driver during parameter
+	  reconfiguration, has been fixed.  &merged;</para>
 
-      <para>The &man.fwip.4; driver, which supports IP over FireWire has been added.
-	Note that currently the broadcast channel number is hardwired and
-	MCAP for multicast channel allocation is not supported.
-	This driver is intended to conform to the RFC 2734 and RFC 3146
-	standard for IP over FireWire and eventually replace
-	the &man.fwe.4; driver.</para>
+	<para>The &man.fwip.4; driver, which supports IP over FireWire has been added.
+	  Note that currently the broadcast channel number is hardwired and
+	  MCAP for multicast channel allocation is not supported.
+	  This driver is intended to conform to the RFC 2734 and RFC 3146
+	  standard for IP over FireWire and eventually replace
+	  the &man.fwe.4; driver.</para>
 
-      <para>&man.fxp.4; now uses the device sysctl tree such as
-	<varname>dev.fxp0</varname>, and those sysctls can be set
-	on a per-device basis.</para>
+	<para>&man.fxp.4; now uses the device sysctl tree such as
+	  <varname>dev.fxp0</varname>, and those sysctls can be set
+	  on a per-device basis.</para>
 
-      <para>&man.fxp.4; now provides actual control over its capability
-	to receive extended Ethernet frames, indicated by the <literal>VLAN_MTU</literal> interface capability.
-	It can be toggled from userland with the aid of the
-	<option>vlanmtu</option> and <option>-vlanmtu</option> options
-	to &man.ifconfig.8;.</para>
+	<para>&man.fxp.4; now provides actual control over its capability
+	  to receive extended Ethernet frames, indicated by the
+	  <literal>VLAN_MTU</literal> interface capability.
+	  It can be toggled from userland with the aid of the
+	  <option>vlanmtu</option> and <option>-vlanmtu</option> options
+	  to &man.ifconfig.8;.</para>
 
-      <para arch="i386,pc98">The <devicename>hea</devicename>
-	(Efficient Networks, Inc. ENI-155p ATM adapter)
-	driver has been removed due to breakage.  Its functionality
-	has been subsumed into the &man.en.4; driver.</para>
+	<para arch="i386,pc98">The <devicename>hea</devicename>
+	  (Efficient Networks, Inc. ENI-155p ATM adapter)
+	  driver has been removed due to breakage.  Its functionality
+	  has been subsumed into the &man.en.4; driver.</para>
 
-      <para>The &man.ixgb.4; driver, which supports
-        Intel PRO/10GBE 10 Gigabit Ethernet cards, has been
-        added. &merged;</para>
+	<para>The &man.hme.4; driver now natively supports
+	  long frames, so it can be used for &man.vlan.4; with full Ethernet
+	  MTU size.</para>
 
-      <para arch="i386">The <devicename>lmc</devicename>
-	(LAN Media Corp. PCI WAN adapter) driver has been
-	removed due to breakage and lack of maintainership.</para>
+	<para>The &man.hme.4; driver now supports
+	  TCP/UDP Transmit/Receive checksum offload.
+	  Since &man.hme.4; does not compensate the checksum
+	  for UDP datagram which can yield to <literal>0x0</literal>,
+	  UDP transmit checksum offload is disabled by default.
+	  This can be reactivated by setting the special link
+	  option <option>link0</option> with &man.ifconfig.8;.</para>
 
-      <para arch="i386">&os; now provides a binary compatibility layer
-	for using &microsoft.windows; NDIS drivers for network
-	adapters under &os;/i386.  It includes a relocator/linker for
-	&windows; <filename>.SYS</filename> files to interface with
-	the &os; kernel and emulates various parts of the NDIS API
-	using native &os; kernel functions.  This system supports PCI
-	(&man.pci.4;) and CardBus (&man.cardbus.4;) network devices,
-	and is designed principally for
-	Ethernet and wireless network interfaces.
-	For more information, see the &man.ndis.4; and
-	&man.ndiscvt.8; manual pages.</para>
+	<para>The &man.ixgb.4; driver, which supports
+	  Intel PRO/10GBE 10 Gigabit Ethernet cards, has been
+	  added. &merged;</para>
 
-      <para>The &man.ng.atmllc.4; Netgraph node type, which handles
-        RFC 1483 ATM LLC encapsulation, has been added.</para>
+	<para arch="i386">The <devicename>lmc</devicename>
+	  (LAN Media Corp. PCI WAN adapter) driver has been
+	  removed due to breakage and lack of maintainership.</para>
 
-      <para>The &man.ng.hub.4; Netgraph node type, which supports
-        a simple packet distribution that acts like an Ethernet hub,
-        has been added.  &merged;</para>
+	<para arch="i386">The <devicename>loran</devicename>
+	  (Loran-C receiver) driver has been removed due to
+	  breakage and lack of maintainership.</para>
 
-      <para>The &man.ng.rfc1490.4; Netgraph node type now supports
-	Cisco style encapsulation, which is often used alongside
-	RFC 1490 in frame relay links.</para>
+	<para arch="i386">&os; now provides a binary compatibility layer
+	  for using &microsoft.windows; NDIS drivers for network
+	  adapters under &os;/i386.  It includes a relocator/linker for
+	  &windows; <filename>.SYS</filename> files to interface with
+	  the &os; kernel and emulates various parts of the NDIS API
+	  using native &os; kernel functions.  This system supports PCI
+	  (&man.pci.4;) and CardBus (&man.cardbus.4;) network devices,
+	  and is designed principally for
+	  Ethernet and wireless network interfaces.
+	  For more information, see the &man.ndis.4; and
+	  &man.ndiscvt.8; manual pages.</para>
 
-      <para>The &man.ng.sppp.4; Netgraph node type, which is a &man.netgraph.4
-	interface to the original &man.sppp.4 network module for synchronous
-	lines, has been added.</para>
+	<para>A bug that prevents VLAN support in the &man.nge.4; driver
+	  from working has been fixed.  &merged;</para>
 
-      <para>A new Netgraph method has been added to restore some
-	behavior lost in the change from 4.<replaceable>X</replaceable> style &man.ng.tee.4;
-	Netgraph nodes.</para>
+	<para>Several bugs related to &man.polling.4; support
+	  in the &man.rl.4; driver have been fixed.  &merged;</para>
 
-      <para>The &man.ng.vlan.4; Netgraph node type, which supports
-        IEEE 802.1Q VLAN tagging, has been added.  &merged;</para>
+	<para>Several bugs related to multicast and promiscuous mode
+	  handling in the &man.sk.4; driver have been fixed.</para>
 
-      <para>A bug that prevents VLAN support in the &man.nge.4; driver
-        from working has been fixed.  &merged;</para>
+	<para>The &man.ste.4; driver now supports &man.polling.4;.
+	  &merged;</para>
 
-      <para>The &man.pci.4; bus resource and power management have
-	been updated.
+	<para>The &man.udav.4; driver has been added.  It provides
+	  support for USB Ethernet adapters based on the Davicom DM9601
+	  chipset.</para>
 
-	<note>
-	  <para>Although the &man.pci.4; bus power state management
-	    has been enabled by default, it may cause problems on some systems.
-	    This can be disabled by setting the tunable
-	    <varname>hw.pci.do_powerstate</varname> to
-	    <literal>0</literal>.</para>
-	</note>
-      </para>
+	<para>&man.vge.4; driver, which supports
+	  the VIA Networking Technologies
+	  VT6122 Gigabit Ethernet chip and integrated 10/100/1000 copper PHY,
+	  has been added.</para>
 
-      <para>Several bugs related to &man.polling.4; support
-        in the &man.rl.4; driver have been fixed.  &merged;</para>
+	<para>The &man.vr.4; driver now supports &man.polling.4;.  &merged;</para>
 
-      <para>Several bugs related to multicast and promiscuous mode
-	handling in the &man.sk.4; driver have been fixed.</para>
+	<para>The hardware TX checksum support in the &man.xl.4; driver
+	  has been disabled as it does not work correctly and slows down
+	  the transmission rate.  &merged;</para>
 
-      <para>The &man.ste.4; driver now supports &man.polling.4;.
-        &merged;</para>
-
-      <para>The &man.udav.4; driver has been added.  It provides
-	support for USB Ethernet adapters based on the Davicom DM9601
-	chipset.</para>
-
-      <para>&man.vge.4; driver, which supports
-	the VIA Networking Technologies
-	VT6122 Gigabit Ethernet chip and integrated 10/100/1000 copper PHY,
-	has been added.</para>
-
-      <para>The &man.vr.4; driver now supports &man.polling.4;.  &merged;</para>
-
-      <para>The hardware TX checksum support in the &man.xl.4; driver
-	has been disabled as it does not work correctly and slows down
-	the transmission rate.  &merged;</para>
-
-      <para>Interface &man.polling.4; support
-	can now be enabled on a per-interface basis.  All of the network drivers that support &man.polling.4;
-	(&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
-	&man.rl.4;, &man.sis.4;, &man.ste.4;, and &man.vr.4;)
-	now also support this capability and it can be controlled
-	via &man.ifconfig.8;.  &merged;</para>
+	<para>Interface &man.polling.4; support
+	  can now be enabled on a per-interface basis.  All of the network drivers that support &man.polling.4;
+	  (&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
+	  &man.rl.4;, &man.sis.4;, &man.ste.4;, and &man.vr.4;)
+	  now also support this capability and it can be controlled
+	  via &man.ifconfig.8;.  &merged;</para>
+      </sect4>
     </sect3>
 
     <sect3 id="net-proto">
@@ -830,6 +829,28 @@
 	This allows &man.natd.8; to be bound to
 	different network interfaces and sharing of load.</para>
 
+      <para>The &man.ng.atmllc.4; Netgraph node type, which handles
+	RFC 1483 ATM LLC encapsulation, has been added.</para>
+
+      <para>The &man.ng.hub.4; Netgraph node type, which supports
+	a simple packet distribution that acts like an Ethernet hub,
+	has been added.  &merged;</para>
+
+      <para>The &man.ng.rfc1490.4; Netgraph node type now supports
+	Cisco style encapsulation, which is often used alongside
+	RFC 1490 in frame relay links.</para>
+
+      <para>The &man.ng.sppp.4; Netgraph node type, which is a &man.netgraph.4
+	interface to the original &man.sppp.4 network module for synchronous
+	lines, has been added.</para>
+
+      <para>A new Netgraph method has been added to restore some
+	behavior lost in the change from 4.<replaceable>X</replaceable> style &man.ng.tee.4;
+	Netgraph nodes.</para>
+
+      <para>The &man.ng.vlan.4; Netgraph node type, which supports
+        IEEE 802.1Q VLAN tagging, has been added.  &merged;</para>
+
       <para><literal>PFIL_HOOKS</literal> support is now always
 	compiled into the kernel, and the associated kernel compile
 	options have been removed.  All of the packet filter subsystems
@@ -843,6 +864,16 @@
 	has been reimplemented.  LQM, which is described
 	in RFC 1989, allows PPP to keep track of the quality
 	of a running connection. &merged;</para>
+
+      <para>The pseudo-interface cloning has been updated and
+	the match function to allow creation of &man.stf.4;
+	interfaces named <devicename>stf0</devicename>,
+	<devicename>stf</devicename>, or <devicename>6to4</devicename>.
+	Note that this breaks backward compatibility; for example,
+	<command>ifconfig stf</command> now creates
+	the interface named <devicename>stf</devicename>,
+	not <devicename>stf0</devicename>, and does not print
+	<devicename>stf0</devicename> to stdout.</para>
 
       <para>The following TCP features are now enabled by default: RFC
 	3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -890,7 +921,6 @@
         2018 have been added.  This improves TCP performance over
         connections with heavy packet loss.  SACK can be enabled with
         the sysctl <varname>net.inet.tcp.sack.enable</varname>.</para>
-
     </sect3>
 
     <sect3 id="disks">
@@ -922,42 +952,6 @@
 
       <para arch="pc98">A bug of the automatic density selection code
 	in the &man.fd.4; driver has been fixed.</para>
-
-      <para>The &man.ips.4; driver now supports the recent
-	Adaptec ServeRAID series SCSI controller cards.</para>
-
-      <para arch="sparc64">A bug in the &man.isp.4; driver
-        which prevents the cards on SBus from working correctly,
-	has been fixed.</para>
-
-      <para arch="i386">The &man.twa.4; driver, which supports
-	3ware's 9000 series PATA/SATA RAID controllers has been added.  &merged;</para>
-
-      <para>The &man.umass.4; driver now supports the missing
-	ATAPI MMC commands and handles the timeout properly.  &merged;</para>
-
-      <para>The &man.vinum.4; volume manager, has been updated to use
-        &man.geom.4;, the 5.x disk I/O request transformation framework.
-	A <command>gvinum</command> userland utility has been added.</para>
-
-      <para arch="sparc64">The &man.esp.4; device driver has been
-        ported from NetBSD to support the SBus SCSI card in Sun Ultra
-        1e and 2 machines.</para>
-
-      <para>Support for LSI-type software RAID has been added.</para>
-
-    </sect3>
-
-    <sect3 id="fs">
-      <title>File Systems</title>
-
-      <para>The EXT2FS file system code now includes partial support
-	for large (&gt; 4GB) files.  This support is partial in that
-	it will refuse to create large files on file systems that have
-	not been upgraded to <literal>EXT2_DYN_REV</literal> or that
-	do not have the
-	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal> flag set
-	in the superblock.</para>
 
       <para>A bug in &man.geom.4; that could result in I/O hangs in some rare
 	cases has been fixed.</para>
@@ -1022,17 +1016,45 @@
 	cooperation between &man.vinum.4; and &man.geom.4;
 	has been added.</para>
 
+      <para>The &man.ips.4; driver now supports the recent
+	Adaptec ServeRAID series SCSI controller cards.</para>
+
+      <para arch="sparc64">A bug in the &man.isp.4; driver
+        which prevents the cards on SBus from working correctly,
+	has been fixed.</para>
+
+      <para arch="i386">The &man.twa.4; driver, which supports
+	3ware's 9000 series PATA/SATA RAID controllers has been added.  &merged;</para>
+
+      <para>The &man.umass.4; driver now supports the missing
+	ATAPI MMC commands and handles the timeout properly.  &merged;</para>
+
+      <para>The &man.vinum.4; volume manager, has been updated to use
+        &man.geom.4;, the 5.x disk I/O request transformation framework.
+	A <command>gvinum</command> userland utility has been added.</para>
+
+      <para arch="sparc64">The &man.esp.4; device driver has been
+        ported from NetBSD to support the SBus SCSI card in Sun Ultra
+        1e and 2 machines.</para>
+
+      <para>Support for LSI-type software RAID has been added.</para>
+
+    </sect3>
+
+    <sect3 id="fs">
+      <title>File Systems</title>
+
+      <para>The EXT2FS file system code now includes partial support
+	for large (&gt; 4GB) files.  This support is partial in that
+	it will refuse to create large files on file systems that have
+	not been upgraded to <literal>EXT2_DYN_REV</literal> or that
+	do not have the
+	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal> flag set
+	in the superblock.</para>
+
       <para>A panic in the NFSv4 client has been fixed; this occurred
 	when attempting operations against an NFSv3/NFSv2-only
 	server.</para>
-
-      <para>The SMBFS client now has support for SMB request signing,
-	which prevents <quote>man in the middle</quote> attacks and is
-	required in order to connect to Windows 2003 servers in their
-	default configuration.  As signing each message imposes a
-	significant performance penalty, this feature is only enabled
-	if the server requires it; this may eventually become an
-	option to &man.mount.smbfs.8;.</para>
 
       <para>The <literal>MSDOSFS_LARGE</literal> kernel option
 	has been added to support for FAT32 file systems bigger
@@ -1043,37 +1065,14 @@
 	with less than 1 million files and so on.
 	Exporting these large file systems
 	over NFS is not supported.</para>
-    </sect3>
 
-    <sect3 id="mm">
-      <title>Multimedia Support</title>
-
-      <para>The <devicename>meteor</devicename> (video capture)
-	driver has been removed due to
-	breakage and lack of maintainership.</para>
-
-      <para>The Direct Rendering Manager (DRM) code has been updated
-        from the DRI Project CVS tree as of 26 May, 2004.  This update
-        includes new PCI IDs and a new packet for Radeon.</para>
-
-      <para>The drivers for various sound cards has been reorganized;
-	<literal>device sound</literal> is the generic sound driver,
-	and <literal>device snd_*</literal> are device-specific sound drivers now.
-	The <devicename>midi</devicename> driver, which supports serial port
-	and several sound cards, has been removed.
-	More details can be found in related manual pages:
-	&man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
-	&man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
-	&man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
-        &man.snd.sbc.4;, &man.snd.solo.4;, and &man.snd.uaudio.4;.</para>
-
-      <para>The &man.sound.4; (formerly &man.pcm.4;) driver has been modified to read
-	<filename>/boot/device.hints</filename> on startup, to allow setting
-	of default values for mixer channels.
-	Note that currently the device driver's name used in
-	<filename>/boot/device.hints</filename> is still <literal>pcm</literal>.
-	More detailed information and examples can be found in the &man.sound.4;
-	manual page.</para>
+      <para>The SMBFS client now has support for SMB request signing,
+	which prevents <quote>man in the middle</quote> attacks and is
+	required in order to connect to Windows 2003 servers in their
+	default configuration.  As signing each message imposes a
+	significant performance penalty, this feature is only enabled
+	if the server requires it; this may eventually become an
+	option to &man.mount.smbfs.8;.</para>
     </sect3>
 
     <sect3>
