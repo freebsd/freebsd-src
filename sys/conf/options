@@ -549,6 +549,10 @@ ROOTDEVNAME		opt_rootdevname.h
 FDC_DEBUG		opt_fdc.h
 PCFCLOCK_VERBOSE	opt_pcfclock.h
 PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
+
+# RAIDframe options
+RAID_AUTOCONFIG		opt_raid.h
+RAID_DEBUG		opt_raid.h
 TDFX_LINUX opt_tdfx.h
 
 KTR			opt_global.h

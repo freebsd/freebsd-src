@@ -154,6 +154,7 @@ enum sysinit_sub_id {
 	SI_SUB_ROOT_CONF	= 0xb000000,	/* Find root devices */
 	SI_SUB_DUMP_CONF	= 0xb200000,	/* Find dump devices */
 	SI_SUB_VINUM		= 0xb300000,	/* Configure vinum */
+	SI_SUB_RAID		= 0xb380000,	/* Configure RAIDframe */
 	SI_SUB_MOUNT_ROOT	= 0xb400000,	/* root mount*/
 	SI_SUB_SWAP		= 0xc000000,	/* swap*/
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
