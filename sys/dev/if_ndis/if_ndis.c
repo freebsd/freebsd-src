@@ -1291,6 +1291,9 @@ ndis_start(ifp)
 			break;
 	}
 
+	if (pcnt == 0)
+		return;
+
 	if (sc->ndis_txpending == 0)
 		ifp->if_flags |= IFF_OACTIVE;
 
