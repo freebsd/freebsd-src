@@ -185,7 +185,7 @@ do {								\
 	_priv = DRM(find_file_by_proc)(dev, DRM_CURPROC);	\
 	DRM_UNLOCK();						\
 	if (_priv == NULL) {					\
-		DRM_ERROR("can't find authenticator\n");	\
+		DRM_DEBUG("can't find authenticator\n");	\
 		return EINVAL;					\
 	}							\
 } while (0)

@@ -826,7 +826,7 @@ int DRM(close)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	priv = DRM(find_file_by_proc)(dev, p);
 	if (!priv) {
 		DRM_UNLOCK();
-		DRM_ERROR("can't find authenticator\n");
+		DRM_DEBUG("can't find authenticator\n");
 		return EINVAL;
 	}
 
