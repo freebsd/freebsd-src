@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.26 1998/08/07 16:51:10 ache Exp $
+# $Id: Makefile,v 1.27 1998/08/10 09:49:42 phk Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -36,7 +36,8 @@ FR_LINKS =      fr_BE fr_CA fr_CH
 IT_LINKS =      it_CH
 LN_LINKS =      lt_LN.ASCII lt_LN.ISO_8859-2
 NL_LINKS =      nl_BE
-US_LINKS =      en_AU en_CA
+US_LINKS =      en_CA
+GB_LINKS =      en_AU
 
 .SUFFIXES: .src .out
 
@@ -72,6 +73,10 @@ afterinstall:
 	done
 	for l in ${US_LINKS}; do \
 		ln -fs ../en_US.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
+	done
+	for l in ${GB_LINKS}; do \
+		ln -fs ../en_GB.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
 	done
 
