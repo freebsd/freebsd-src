@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.12 1997/02/22 16:11:32 peter Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.13 1997/04/13 01:06:56 brian Exp $";
 #endif
 
 #include <stdio.h>
@@ -470,6 +470,39 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
 
 
 /*
+ * Check if an "entry" is in the file "fname" - used by ppplogin.
+ * Taken from libexec/ftpd/ftpd.c
+ * Returns: 0 if not found, 1 if found, 2 if file can't be opened for reading.
+ */
+static int
+checkfile(fname, name)
+	char *fname;
+	char *name;
+{
+	FILE *fd;
+	int found = 0;
+	char *p, line[BUFSIZ];
+
+	if ((fd = fopen(fname, "r")) != NULL) {
+		while (fgets(line, sizeof(line), fd) != NULL)
+			if ((p = strchr(line, '\n')) != NULL) {
+				*p = '\0';
+				if (line[0] == '#')
+					continue;
+				if (strcmp(line, name) == 0) {
+					found = 1;
+					break;
+				}
+			}
+		(void) fclose(fd);
+	} else {
+		return(2);
+	}
+	return (found);
+}
+
+
+/*
  * ppplogin - Check the user name and password against the system
  * password database, and login the user if OK.
  *
@@ -477,6 +510,8 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
  *	UPAP_AUTHNAK: Login failed.
  *	UPAP_AUTHACK: Login succeeded.
  * In either case, msg points to an appropriate message.
+ *
+ * UPAP_AUTHACK should only be returned *after* wtmp and utmp are updated.
  */
 static int
 ppplogin(user, passwd, msg, msglen)
@@ -500,6 +535,24 @@ ppplogin(user, passwd, msg, msglen)
 	return (UPAP_AUTHNAK);
     }
 
+/*
+ * Check that the user is not listed in /etc/ppp/ppp.disabled
+ * and that the user's shell is listed in /etc/ppp/ppp.shells
+ * if /etc/ppp/ppp.shells exists.
+ */
+
+    if (checkfile(_PATH_PPPDISABLED, user) == 1) {
+	    	syslog(LOG_WARNING, "upap user %s: account disabled in %s",
+			user, _PATH_PPPDISABLED);
+		return (UPAP_AUTHNAK);
+    }
+
+    if (checkfile(_PATH_PPPSHELLS, pw->pw_shell) == 0) {
+	    	syslog(LOG_WARNING, "upap user %s: shell %s not in %s",
+			user, pw->pw_shell, _PATH_PPPSHELLS);
+		return (UPAP_AUTHNAK);
+    }
+
 #ifdef HAS_SHADOW
     if ((spwd = getspnam(user)) == NULL) {
         pw->pw_passwd = "";
@@ -509,44 +562,42 @@ ppplogin(user, passwd, msg, msglen)
 #endif
 
     /*
-     * XXX If no passwd, let them login without one.
+     * If there is a password, check it.
      */
-    if (pw->pw_passwd == '\0') {
-	return (UPAP_AUTHACK);
-    }
+    if (pw->pw_passwd[0] != '\0') {
 
 #ifdef HAS_SHADOW
-    if ((pw->pw_passwd && pw->pw_passwd[0] == '@'
-	 && pw_auth (pw->pw_passwd+1, pw->pw_name, PW_PPP, NULL))
-	|| !valid (passwd, pw)) {
-	return (UPAP_AUTHNAK);
-    }
+	if ((pw->pw_passwd && pw->pw_passwd[0] == '@'
+		 && pw_auth (pw->pw_passwd+1, pw->pw_name, PW_PPP, NULL))
+		|| !valid (passwd, pw)) {
+		return (UPAP_AUTHNAK);
+	}
 #else
-    epasswd = crypt(passwd, pw->pw_passwd);
-    if (strcmp(epasswd, pw->pw_passwd)) {
-	return (UPAP_AUTHNAK);
-    }
+	epasswd = crypt(passwd, pw->pw_passwd);
+	if (strcmp(epasswd, pw->pw_passwd)) {
+		return (UPAP_AUTHNAK);
+	}
 #endif
 
-    if (pw->pw_expire) {
-	(void)gettimeofday(&tp, (struct timezone *)NULL);
-	if (tp.tv_sec >= pw->pw_expire) {
-	    syslog(LOG_INFO, "user %s account expired", user);
-	    return (UPAP_AUTHNAK);
+	if (pw->pw_expire) {
+		(void)gettimeofday(&tp, (struct timezone *)NULL);
+		if (tp.tv_sec >= pw->pw_expire) {
+	    		syslog(LOG_INFO, "pap user %s account expired", user);
+	    		return (UPAP_AUTHNAK);
+		}
 	}
-    }
+    } /* if password */
+
     syslog(LOG_INFO, "user %s logged in", user);
 
-    /*
-     * Write a wtmp entry for this user.
-     */
+    /* Log in wtmp and utmp using login() */
+
     tty = devnam;
     if (strncmp(tty, "/dev/", 5) == 0)
 	tty += 5;
 
     logged_in = TRUE;
 
-    /* Log in wtmp and utmp using login() */
     memset((void *)&utmp, 0, sizeof(utmp));
     (void)time(&utmp.ut_time);
     (void)strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
