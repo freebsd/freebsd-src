@@ -419,13 +419,19 @@ key_sendup(so, msg, len, target)
 	while (tlen > 0) {
 		if (tlen == len) {
 			MGETHDR(n, M_DONTWAIT, MT_DATA);
+			if (n == NULL) {
+				m_freem(m);
+				return ENOBUFS;
+			}
 			n->m_len = MHLEN;
 		} else {
 			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n == NULL) {
+				m_freem(m);
+				return ENOBUFS;
+			}
 			n->m_len = MLEN;
 		}
-		if (!n)
-			return ENOBUFS;
 		if (tlen > MCLBYTES) {	/*XXX better threshold? */
 			MCLGET(n, M_DONTWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
