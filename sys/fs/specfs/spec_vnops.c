@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.66 1998/07/11 07:45:48 bde Exp $
+ * $Id: spec_vnops.c,v 1.67 1998/07/15 02:32:22 bde Exp $
  */
 
 #include <sys/param.h>
@@ -202,17 +202,8 @@ spec_open(ap)
 					return (EPERM);
 			}
 		}
-#if 0
-		/*
-		 * Lite2 stuff.  We will almost certainly do this
-		 * differently with devfs.  The only use of this flag
-		 * is in dead_read to make ttys return EOF instead of
-		 * EIO when they are dead.  Pre-lite2 FreeBSD returns
-		 * EOF for all character devices.
-		 */
-		if (cdevsw[maj]->d_type == D_TTY)
+		if ((cdevsw[maj]->d_flags & D_TYPEMASK) == D_TTY)
 			vp->v_flag |= VISTTY;
-#endif
 		VOP_UNLOCK(vp, 0, p);
 		error = (*cdevsw[maj]->d_open)(dev, ap->a_mode, S_IFCHR, p);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
