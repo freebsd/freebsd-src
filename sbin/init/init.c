@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.18 1997/06/28 08:18:29 pst Exp $
+ *		$Id: init.c,v 1.19 1997/07/02 13:53:31 ache Exp $
  */
 
 #ifndef lint
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #include <db.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,13 +81,6 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #endif
 
 #include "pathnames.h"
-
-/*
- * Until the mythical util.h arrives...
- */
-extern int login_tty __P((int));
-extern int logout __P((const char *));
-extern void logwtmp __P((const char *, const char *, const char *));
 
 /*
  * Sleep times; used to prevent thrashing.
