@@ -355,7 +355,7 @@ chat_expect(const char *str)
 							/* See if we can resync on a
 							 * partial match in our buffer
 							 */
-							while (j < i && memcmp(got + j, str, i - j) != NULL)
+							while (j < i && memcmp(got + j, str, i - j) != 0)
 								j++;
 							if (j < i)
 								memcpy(got, got + j, i - j);
