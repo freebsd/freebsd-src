@@ -107,7 +107,7 @@ update_conf_and_pw() {
 	(cd ${DEST}/conf/base ; find etc | cpio --create -H newc | \
 		gzip > ${DEST}/conf/base/etc.cpio.gz )
 	(cd ${DEST} ; find dev | cpio --create -H newc | \
-		gzip > ${DEST}/conf/dev.cpio.gz
+		gzip > ${DEST}/conf/dev.cpio.gz )
 }
 
 update() {
