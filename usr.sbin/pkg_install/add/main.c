@@ -187,7 +187,7 @@ main(int argc, char **argv)
 			errx(1, "package name too long");
     	    }
 	    if (!strcmp(*argv, "-"))	/* stdin? */
-		(const char *)pkgs[ch] = "-";
+		pkgs[ch] = (char *)"-";
 	    else if (isURL(*argv)) {  	/* preserve URLs */
 		if (strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch]))
 		    >= sizeof(pkgnames[ch]))

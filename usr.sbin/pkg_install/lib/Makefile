@@ -7,7 +7,7 @@ SRCS=	file.c msg.c plist.c str.c exec.c global.c pen.c match.c \
 
 CFLAGS+= ${DEBUG}
 
-WARNS?=	6
+WARNS?=	3
 WFORMAT?=	1
 
 .include <bsd.lib.mk>
