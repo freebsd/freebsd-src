@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.22 1997/11/22 03:37:32 brian Exp $
+ * $Id: hdlc.c,v 1.23 1997/12/03 10:23:47 brian Exp $
  *
  *	TODO:
  */
@@ -67,8 +67,7 @@ struct protostat {
   const char *name;
   u_long in_count;
   u_long out_count;
-}         ProtocolStat[] = {
-
+} ProtocolStat[] = {
   { PROTO_IP, "IP" },
   { PROTO_VJUNCOMP, "VJ_UNCOMP" },
   { PROTO_VJCOMP, "VJ_COMP" },
@@ -245,6 +244,132 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     AsyncOutput(pri, mhp, proto);
 }
 
+/* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
+static struct {
+  u_short from;
+  u_short to;
+  const char *name;
+} protocols[] = {
+  { 0x0001, 0x0001, "Padding Protocol" },
+  { 0x0003, 0x001f, "reserved (transparency inefficient)" },
+  { 0x0021, 0x0021, "Internet Protocol" },
+  { 0x0023, 0x0023, "OSI Network Layer" },
+  { 0x0025, 0x0025, "Xerox NS IDP" },
+  { 0x0027, 0x0027, "DECnet Phase IV" },
+  { 0x0029, 0x0029, "Appletalk" },
+  { 0x002b, 0x002b, "Novell IPX" },
+  { 0x002d, 0x002d, "Van Jacobson Compressed TCP/IP" },
+  { 0x002f, 0x002f, "Van Jacobson Uncompressed TCP/IP" },
+  { 0x0031, 0x0031, "Bridging PDU" },
+  { 0x0033, 0x0033, "Stream Protocol (ST-II)" },
+  { 0x0035, 0x0035, "Banyan Vines" },
+  { 0x0037, 0x0037, "reserved (until 1993)" },
+  { 0x0039, 0x0039, "AppleTalk EDDP" },
+  { 0x003b, 0x003b, "AppleTalk SmartBuffered" },
+  { 0x003d, 0x003d, "Multi-Link" },
+  { 0x003f, 0x003f, "NETBIOS Framing" },
+  { 0x0041, 0x0041, "Cisco Systems" },
+  { 0x0043, 0x0043, "Ascom Timeplex" },
+  { 0x0045, 0x0045, "Fujitsu Link Backup and Load Balancing (LBLB)" },
+  { 0x0047, 0x0047, "DCA Remote Lan" },
+  { 0x0049, 0x0049, "Serial Data Transport Protocol (PPP-SDTP)" },
+  { 0x004b, 0x004b, "SNA over 802.2" },
+  { 0x004d, 0x004d, "SNA" },
+  { 0x004f, 0x004f, "IP6 Header Compression" },
+  { 0x0051, 0x0051, "KNX Bridging Data" },
+  { 0x0053, 0x0053, "Encryption" },
+  { 0x0055, 0x0055, "Individual Link Encryption" },
+  { 0x006f, 0x006f, "Stampede Bridging" },
+  { 0x0071, 0x0071, "BAP Bandwidth Allocation Protocol" },
+  { 0x0073, 0x0073, "MP+ Protocol" },
+  { 0x007d, 0x007d, "reserved (Control Escape)" },
+  { 0x007f, 0x007f, "reserved (compression inefficient)" },
+  { 0x00cf, 0x00cf, "reserved (PPP NLPID)" },
+  { 0x00fb, 0x00fb, "compression on single link in multilink group" },
+  { 0x00fd, 0x00fd, "1st choice compression" },
+  { 0x00ff, 0x00ff, "reserved (compression inefficient)" },
+  { 0x0200, 0x02ff, "(compression inefficient)" },
+  { 0x0201, 0x0201, "802.1d Hello Packets" },
+  { 0x0203, 0x0203, "IBM Source Routing BPDU" },
+  { 0x0205, 0x0205, "DEC LANBridge100 Spanning Tree" },
+  { 0x0207, 0x0207, "Cisco Discovery Protocol" },
+  { 0x0209, 0x0209, "Netcs Twin Routing" },
+  { 0x0231, 0x0231, "Luxcom" },
+  { 0x0233, 0x0233, "Sigma Network Systems" },
+  { 0x0235, 0x0235, "Apple Client Server Protocol" },
+  { 0x1e00, 0x1eff, "(compression inefficient)" },
+  { 0x4001, 0x4001, "Cray Communications Control Protocol" },
+  { 0x4003, 0x4003, "CDPD Mobile Network Registration Protocol" },
+  { 0x4021, 0x4021, "Stacker LZS" },
+  { 0x8001, 0x801f, "Not Used - reserved" },
+  { 0x8021, 0x8021, "Internet Protocol Control Protocol" },
+  { 0x8023, 0x8023, "OSI Network Layer Control Protocol" },
+  { 0x8025, 0x8025, "Xerox NS IDP Control Protocol" },
+  { 0x8027, 0x8027, "DECnet Phase IV Control Protocol" },
+  { 0x8029, 0x8029, "Appletalk Control Protocol" },
+  { 0x802b, 0x802b, "Novell IPX Control Protocol" },
+  { 0x802d, 0x802d, "reserved" },
+  { 0x802f, 0x802f, "reserved" },
+  { 0x8031, 0x8031, "Bridging NCP" },
+  { 0x8033, 0x8033, "Stream Protocol Control Protocol" },
+  { 0x8035, 0x8035, "Banyan Vines Control Protocol" },
+  { 0x8037, 0x8037, "reserved till 1993" },
+  { 0x8039, 0x8039, "reserved" },
+  { 0x803b, 0x803b, "reserved" },
+  { 0x803d, 0x803d, "Multi-Link Control Protocol" },
+  { 0x803f, 0x803f, "NETBIOS Framing Control Protocol" },
+  { 0x8041, 0x8041, "Cisco Systems Control Protocol" },
+  { 0x8043, 0x8043, "Ascom Timeplex" },
+  { 0x8045, 0x8045, "Fujitsu LBLB Control Protocol" },
+  { 0x8047, 0x8047, "DCA Remote Lan Network Control Protocol (RLNCP)" },
+  { 0x8049, 0x8049, "Serial Data Control Protocol (PPP-SDCP)" },
+  { 0x804b, 0x804b, "SNA over 802.2 Control Protocol" },
+  { 0x804d, 0x804d, "SNA Control Protocol" },
+  { 0x804f, 0x804f, "IP6 Header Compression Control Protocol" },
+  { 0x8051, 0x8051, "KNX Bridging Control Protocol" },
+  { 0x8053, 0x8053, "Encryption Control Protocol" },
+  { 0x8055, 0x8055, "Individual Link Encryption Control Protocol" },
+  { 0x806f, 0x806f, "Stampede Bridging Control Protocol" },
+  { 0x8073, 0x8073, "MP+ Control Protocol" },
+  { 0x8071, 0x8071, "BACP Bandwidth Allocation Control Protocol" },
+  { 0x807d, 0x807d, "Not Used - reserved" },
+  { 0x80cf, 0x80cf, "Not Used - reserved" },
+  { 0x80fb, 0x80fb, "compression on single link in multilink group control" },
+  { 0x80fd, 0x80fd, "Compression Control Protocol" },
+  { 0x80ff, 0x80ff, "Not Used - reserved" },
+  { 0x8207, 0x8207, "Cisco Discovery Protocol Control" },
+  { 0x8209, 0x8209, "Netcs Twin Routing" },
+  { 0x8235, 0x8235, "Apple Client Server Protocol Control" },
+  { 0xc021, 0xc021, "Link Control Protocol" },
+  { 0xc023, 0xc023, "Password Authentication Protocol" },
+  { 0xc025, 0xc025, "Link Quality Report" },
+  { 0xc027, 0xc027, "Shiva Password Authentication Protocol" },
+  { 0xc029, 0xc029, "CallBack Control Protocol (CBCP)" },
+  { 0xc081, 0xc081, "Container Control Protocol" },
+  { 0xc223, 0xc223, "Challenge Handshake Authentication Protocol" },
+  { 0xc225, 0xc225, "RSA Authentication Protocol" },
+  { 0xc227, 0xc227, "Extensible Authentication Protocol" },
+  { 0xc26f, 0xc26f, "Stampede Bridging Authorization Protocol" },
+  { 0xc281, 0xc281, "Proprietary Authentication Protocol" },
+  { 0xc283, 0xc283, "Proprietary Authentication Protocol" },
+  { 0xc481, 0xc481, "Proprietary Node ID Authentication Protocol" }
+};
+
+#define NPROTOCOLS (sizeof(protocols)/sizeof(protocols[0]))
+
+static const char *
+Protocol2Nam(u_short proto)
+{
+  int f;
+
+  for (f = 0; f < NPROTOCOLS; f++)
+    if (proto >= protocols[f].from && proto <= protocols[f].to)
+      return protocols[f].name;
+    else if (proto < protocols[f].from)
+      break;
+  return "unrecognised protocol";
+}
+
 void
 DecodePacket(u_short proto, struct mbuf * bp)
 {
@@ -294,7 +419,8 @@ DecodePacket(u_short proto, struct mbuf * bp)
     CcpInput(bp);
     break;
   default:
-    LogPrintf(LogPHASE, "Unknown protocol 0x%04x\n", proto);
+    LogPrintf(LogPHASE, "Unknown protocol 0x%04x (%s)\n",
+              proto, Protocol2Nam(proto));
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
