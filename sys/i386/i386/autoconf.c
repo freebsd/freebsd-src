@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.101 1998/07/18 21:42:55 des Exp $
+ *	$Id: autoconf.c,v 1.102 1998/07/19 11:12:14 jkh Exp $
  */
 
 /*
@@ -418,10 +418,6 @@ setdumpdev(dev)
 	 * and nuke dodump sysctl (too many knobs), and move this to
 	 * kern_shutdown.c...
 	 */
-#ifndef SLICE
-	if (dkpart(dev) != SWAP_PART)
-		return (ENODEV);
-#endif /* !SLICE */
 	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
 	if (newdumplo < 0)
 		return (ENOSPC);
