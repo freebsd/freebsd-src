@@ -197,7 +197,8 @@ tunclose(dev_t dev, int foo, int bar, struct proc *p)
 		if (ifp->if_flags & IFF_RUNNING) {
 		    /* find internet addresses and delete routes */
 		    register struct ifaddr *ifa;
-		    for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+		    for (ifa = ifp->if_addrhead.tqh_first; ifa;
+			 ifa = ifa->ifa_link.tqe_next) {
 			if (ifa->ifa_addr->sa_family == AF_INET) {
 			    rtinit(ifa, (int)RTM_DELETE,
 				   tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
@@ -226,7 +227,8 @@ tuninit(unit)
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
 	microtime(&ifp->if_lastchange);
 
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
+	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	     ifa = ifa->ifa_link.tqe_next)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 		    struct sockaddr_in *si;
 

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.8 1996/05/08 19:31:45 jhay Exp $
+ * $Id: ipx_ip.c,v 1.9 1996/06/12 05:10:27 gpalmer Exp $
  */
 
 /*
@@ -334,11 +334,12 @@ ipxip_route(so, m)
 		register struct in_ifaddr *ia;
 		struct ifnet *ifp = ro.ro_rt->rt_ifp;
 
-		for (ia = in_ifaddr; ia; ia = ia->ia_next)
+		for (ia = in_ifaddrhead.tqh_first; ia; 
+		     ia = ia->ia_link.tqe_next)
 			if (ia->ia_ifp == ifp)
 				break;
 		if (ia == 0)
-			ia = in_ifaddr;
+			ia = in_ifaddrhead.tqh_first;
 		if (ia == 0) {
 			RTFREE(ro.ro_rt);
 			return (EADDRNOTAVAIL);

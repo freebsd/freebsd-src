@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.32 1996/07/12 04:11:23 bde Exp $
+ * $Id: if_ze.c,v 1.33 1996/08/06 21:14:11 phk Exp $
  */
 
 #include "ze.h"
@@ -763,7 +763,7 @@ ze_init(unit)
 		Debugger("here!!");
 	ze_setup(sc);
 	/* address not known */
-	if (ifp->if_addrlist == (struct ifaddr *)0) return;
+	if (TAILQ_EMPTY(&ifp->if_addrhead)) return; /* XXX unlikely! */
 
 	/*
 	 * Initialize the NIC in the exact order outlined in the NS manual.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36 1996/10/21 10:07:52 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.37 1996/11/06 10:53:12 dfr Exp $
  */
 
 /*
@@ -1391,8 +1391,8 @@ again:
 		if (fmode & O_EXCL) {
 		    *tl = txdr_unsigned(NFSV3CREATE_EXCLUSIVE);
 		    nfsm_build(tl, u_long *, NFSX_V3CREATEVERF);
-		    if (in_ifaddr)
-			*tl++ = IA_SIN(in_ifaddr)->sin_addr.s_addr;
+		    if (!TAILQ_EMPTY(&in_ifaddrhead))
+			*tl++ = IA_SIN(in_ifaddrhead.tqh_first)->sin_addr.s_addr;
 		    else
 			*tl++ = create_verf;
 		    *tl = ++create_verf;

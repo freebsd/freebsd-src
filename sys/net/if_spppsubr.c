@@ -14,7 +14,7 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.12 1996/06/10 23:17:45 gpalmer Exp $
+ * $Id: if_spppsubr.c,v 1.13 1996/08/30 16:44:36 jhay Exp $
  */
 #undef DEBUG
 
@@ -898,7 +898,8 @@ sppp_cisco_input (struct sppp *sp, struct mbuf *m)
 		}
 		break;
 	case CISCO_ADDR_REQ:
-		for (ifa=ifp->if_addrlist; ifa; ifa=ifa->ifa_next)
+		for (ifa=ifp->if_addrhead.tqh_first; ifa; 
+		     ifa=ifa->ifa_link.tqe_next)
 			if (ifa->ifa_addr->sa_family == AF_INET)
 				break;
 		if (! ifa) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.21 1996/07/24 18:46:17 wollman Exp $
+ * $Id: ip_icmp.c,v 1.22 1996/09/20 08:23:54 pst Exp $
  */
 
 #include <sys/param.h>
@@ -509,7 +509,7 @@ icmp_reflect(m)
 	 * or anonymous), use the address which corresponds
 	 * to the incoming interface.
 	 */
-	for (ia = in_ifaddr; ia; ia = ia->ia_next) {
+	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			break;
 		if (ia->ia_ifp && (ia->ia_ifp->if_flags & IFF_BROADCAST) &&
@@ -525,7 +525,7 @@ icmp_reflect(m)
 	 * and was received on an interface with no IP address.
 	 */
 	if (ia == (struct in_ifaddr *)0)
-		ia = in_ifaddr;
+		ia = in_ifaddrhead.tqh_first;
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
 	ip->ip_ttl = MAXTTL;

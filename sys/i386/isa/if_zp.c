@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.26 1996/09/11 16:11:21 nate Exp $
+ *	$Id: if_zp.c,v 1.27 1996/11/11 17:11:08 bde Exp $
  */
 /*-
  * TODO:
@@ -581,7 +581,7 @@ zpinit(unit)
 	register struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     s, i;
 
-	if (ifp->if_addrlist == (struct ifaddr *) 0)
+	if (TAILQ_EMPTY(&ifp->if_addrhead)) /* XXX unlikely */
 		return;
 
 	s = splimp();

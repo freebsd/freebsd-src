@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.20 1996/10/07 17:50:00 wollman Exp $
+ * $Id: if_fe.c,v 1.21 1996/11/15 16:15:56 wollman Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -1701,7 +1701,7 @@ fe_init ( int unit )
 #endif
 
 	/* We need an address. */
-	if (sc->sc_if.if_addrlist == 0) {
+	if (TAILQ_EMPTY(&sc->sc_if.if_addrhead)) { /* XXX unlikely */
 #if FE_DEBUG >= 1
 		log( LOG_ERR, "fe%d: init() without any address\n",
 			sc->sc_unit );

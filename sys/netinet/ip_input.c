@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.51 1996/11/11 04:56:15 fenner Exp $
+ * $Id: ip_input.c,v 1.52 1996/12/11 03:26:36 davidg Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -102,7 +102,7 @@ extern	struct domain inetdomain;
 extern	struct protosw inetsw[];
 u_char	ip_protox[IPPROTO_MAX];
 static int	ipqmaxlen = IFQ_MAXLEN;
-struct	in_ifaddr *in_ifaddr;			/* first inet address */
+struct	in_ifaddrhead in_ifaddrhead; /* first inet address */
 struct	ifqueue ipintrq;
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_queue_maxlen, CTLFLAG_RD,
 	&ipintrq.ifq_maxlen, 0, "");
@@ -179,6 +179,7 @@ ip_init()
 	register struct protosw *pr;
 	register int i;
 
+	TAILQ_INIT(&in_ifaddrhead);
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == 0)
 		panic("ip_init");
@@ -223,8 +224,10 @@ ip_input(struct mbuf *m)
 	/*
 	 * If no IP addresses have been set yet but the interfaces
 	 * are receiving, can't do anything with incoming packets yet.
+	 * XXX This is broken! We should be able to receive broadcasts
+	 * and multicasts even without any local addresses configured.
 	 */
-	if (in_ifaddr == NULL)
+	if (TAILQ_EMPTY(&in_ifaddrhead))
 		goto bad;
 	ipstat.ips_total++;
 
@@ -358,7 +361,7 @@ tooshort:
 	/*
 	 * Check our list of addresses, to see if the packet is for us.
 	 */
-	for (ia = in_ifaddr; ia; ia = ia->ia_next) {
+	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
