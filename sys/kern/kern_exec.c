@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.88 1998/10/28 13:36:58 dg Exp $
+ *	$Id: kern_exec.c,v 1.89 1998/12/16 16:06:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -66,8 +66,7 @@
 
 static long *exec_copyout_strings __P((struct image_params *));
 
-SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, 0,
-    (u_long)PS_STRINGS, "");
+SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, 0, PS_STRINGS, "");
 SYSCTL_LONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, 0, USRSTACK, "");
 
 /*
@@ -548,7 +547,7 @@ exec_copyout_strings(imgp)
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
-	arginfo = PS_STRINGS;
+	arginfo = (struct ps_strings *)PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
