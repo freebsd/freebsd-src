@@ -47,6 +47,8 @@ my %ARCHES = (
     'sparc64'	=> [ 'sparc64' ],
 );
 
+my $DIR = ".";
+
 sub success($) {
     my $log = shift;
 
@@ -68,11 +70,10 @@ MAIN:{
 	$| = 1;
 	print "Content-Type: text/html\n\n";
     } else {
-	my $fn = "index.html";
 	if ($0 =~ m|^(/[\w/._-]+)/[^/]+$|) {
-	    $fn = "$1/$fn";
+	    $DIR = $1;
 	}
-	open(STDOUT, ">", $fn)
+	open(STDOUT, ">", "$DIR/index.html")
 	    or die("index.html: $!\n");
     }
     print "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
@@ -109,9 +110,9 @@ MAIN:{
 	    foreach my $branch (@BRANCHES) {
 		my $log = "tinderbox-$branch-$arch-$machine";
 		my $links = "";
-		if (-f "$log.brief") {
-		    my @stat = stat("$log.brief");
-		    my $class = success("$log.brief") ? "ok" : "fail";
+		if (-f "$DIR/$log.brief") {
+		    my @stat = stat("$DIR/$log.brief");
+		    my $class = success("$DIR/$log.brief") ? "ok" : "fail";
 		    $links .= "<span class=\"$class\">" .
 			strftime("%Y-%m-%d&nbsp;%H:%M", gmtime($stat[9])) .
 			"</span><br />";
@@ -120,8 +121,8 @@ MAIN:{
 			"<a href=\"$log.brief\">summary&nbsp;$size</a>" .
 			"</span><br />";
 		}
-		if (-f "$log.full") {
-		    my @stat = stat("$log.full");
+		if (-f "$DIR/$log.full") {
+		    my @stat = stat("$DIR/$log.full");
 		    my $size = sprintf("[%.1f&nbsp;MB]", $stat[7] / 1048576);
 		    $links .= " <span class=\"tiny\">" .
 			"<a href=\"$log.full\">full&nbsp;log&nbsp;$size</a>" .
