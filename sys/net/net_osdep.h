@@ -322,7 +322,6 @@
 struct ifnet;
 extern const char *if_name(struct ifnet *);
 
-#define HAVE_OLD_BPF
 #define HAVE_NEW_BPFATTACH
 
 #define ifa_list	ifa_link
