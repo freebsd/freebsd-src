@@ -70,6 +70,7 @@ SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 UCONSOLE
 ICMP_BANDLIM
+VFS_AIO
 
 # POSIX kernel options
 P1003_1B			opt_posix.h
