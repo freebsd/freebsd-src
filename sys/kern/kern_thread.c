@@ -97,8 +97,7 @@ MTX_SYSINIT(kse_zombie_lock, &kse_zombie_lock, "kse zombie lock", MTX_SPIN);
 
 static void kse_purge(struct proc *p, struct thread *td);
 static void kse_purge_group(struct thread *td);
-static int thread_update_usr_ticks(struct thread *td);
-static int thread_update_sys_ticks(struct thread *td);
+static int thread_update_usr_ticks(struct thread *td, int user);
 static void thread_alloc_spare(struct thread *td, struct thread *spare);
 
 static int
@@ -1000,6 +999,11 @@ thread_export_context(struct thread *td)
 	if (suword(addr, temp))
 		goto bad;
 
+	addr = (caddr_t)(&td->td_mailbox->tm_slices);
+	temp = fuword(addr) - td->td_usticks;
+	if (suword(addr, temp))
+		goto bad;
+
 	/* Get address in latest mbox of list pointer */
 	addr = (void *)(&td->td_mailbox->tm_next);
 	/*
@@ -1101,16 +1105,17 @@ thread_statclock(int user)
 }
 
 /*
- * Export user mode state clock ticks
+ * Export state clock ticks for userland
  */
 static int
-thread_update_usr_ticks(struct thread *td)
+thread_update_usr_ticks(struct thread *td, int user)
 {
 	struct proc *p = td->td_proc;
 	struct kse_thr_mailbox *tmbx;
 	struct kse_upcall *ku;
 	caddr_t addr;
 	uint uticks;
+	int slices;
 
 	if ((ku = td->td_upcall) == NULL)
 		return (-1);
@@ -1118,45 +1123,38 @@ thread_update_usr_ticks(struct thread *td)
 	tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
 	if ((tmbx == NULL) || (tmbx == (void *)-1))
 		return (-1);
-	uticks = td->td_uuticks;
-	td->td_uuticks = 0;
-	if (uticks) {
+	if (user) {
+		uticks = td->td_uuticks;
+		td->td_uuticks = 0;
 		addr = (caddr_t)&tmbx->tm_uticks;
-		uticks += fuword(addr);
-		if (suword(addr, uticks)) {
+	} else {
+		uticks = td->td_usticks;
+		td->td_usticks = 0;
+		addr = (caddr_t)&tmbx->tm_sticks;
+	}
+	if (uticks) {
+		if (suword(addr, uticks+fuword(addr))) {
 			PROC_LOCK(p);
 			psignal(p, SIGSEGV);
 			PROC_UNLOCK(p);
 			return (-2);
 		}
-	}
-	return (0);
-}
-
-/*
- * Export kernel mode state clock ticks
- */
-
-static int
-thread_update_sys_ticks(struct thread *td)
-{
-	struct proc *p = td->td_proc;
-	caddr_t addr;
-	int sticks;
-
-	if (td->td_mailbox == NULL)
-		return (-1);
-	if (td->td_usticks == 0)
-		return (0);
-	addr = (caddr_t)&td->td_mailbox->tm_sticks;
-	sticks = fuword(addr);
-	sticks += td->td_usticks;
-	td->td_usticks = 0;
-	if (suword(addr, sticks)) {
-		PROC_LOCK(p);
-		psignal(p, SIGSEGV);
-		PROC_UNLOCK(p);
-		return (-2);
+		addr = (caddr_t)&tmbx->tm_slices;
+		slices = (int)fuword(addr);
+		if (slices > 0) {
+			slices -= (int)uticks;
+			if (suword(addr, slices)) {
+				PROC_LOCK(p);
+				psignal(p, SIGSEGV);
+				PROC_UNLOCK(p);
+				return (-2);
+			}
+			if (slices <= 0) {
+				mtx_lock_spin(&sched_lock);
+				td->td_upcall->ku_flags |= KUF_DOUPCALL;
+				mtx_unlock_spin(&sched_lock);
+			}
+		}
 	}
 	return (0);
 }
@@ -1580,10 +1578,13 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * userland time for UTS.
 	 */
 	if (td->td_flags & TDF_USTATCLOCK) {
-		thread_update_usr_ticks(td);
+		thread_update_usr_ticks(td, 1);
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_USTATCLOCK;
 		mtx_unlock_spin(&sched_lock);
+		if (kg->kg_completed || 
+		    (td->td_upcall->ku_flags & KUF_DOUPCALL))
+			thread_user_enter(p, td);
 	}
 
 	/* 
@@ -1598,9 +1599,12 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		mtx_unlock_spin(&sched_lock);
 		if ((kg->kg_completed == NULL) &&
 		    (td->td_upcall->ku_flags & KUF_DOUPCALL) == 0) {
-			thread_update_sys_ticks(td);
-			td->td_mailbox = NULL;
-			return (0);
+			thread_update_usr_ticks(td, 0);
+			if (kg->kg_completed ||
+			    (td->td_upcall->ku_flags & KUF_DOUPCALL)) {
+				td->td_mailbox = NULL;
+				return (0);
+			}
 		}
 		error = thread_export_context(td);
 		if (error) {
