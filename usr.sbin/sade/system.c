@@ -144,7 +144,7 @@ systemInitialize(int argc, char **argv)
 
     /* Are we running as init? */
     if (getpid() == 1) {
-	int fd, type;
+	int fd;
 
 	RunningAsInit = 1;
 	setsid();
@@ -159,10 +159,10 @@ systemInitialize(int argc, char **argv)
 	 * To make _sure_ we're on a VTY and don't have /dev/console switched
 	 * away to a serial port or something, attempt to set the cursor appearance.
 	 */
-	type = 0;	/* normal */
 	if (OnVTY) {
-	    int fd2;
+	    int fd2, type;
 
+	    type = 0;	/* normal */
 	    if ((fd2 = open("/dev/console", O_RDWR)) != -1) {
 		if (ioctl(fd2, CONS_CURSORTYPE, &type) == -1) {
 		    OnVTY = FALSE;
