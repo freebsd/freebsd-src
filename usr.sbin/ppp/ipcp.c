@@ -208,7 +208,7 @@ static struct fsm_callbacks ipcp_Callbacks = {
   fsm_NullRecvResetAck
 };
 
-static const char *cftypes[] = {
+static const char * const cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
   "IPADDRS",	/* 1: IP-Addresses */	/* deprecated */
@@ -218,7 +218,7 @@ static const char *cftypes[] = {
 
 #define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
-static const char *cftypes128[] = {
+static const char * const cftypes128[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
   "PRIDNS",	/* 129: Primary DNS Server Address */
@@ -463,7 +463,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 {
   struct hostent *hp;
   char name[MAXHOSTNAMELEN];
-  static const char *timer_names[] =
+  static const char * const timer_names[] =
     {"IPCP restart", "IPCP openmode", "IPCP stopped"};
 
   fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, 1, IPCP_MAXCODE, LogIPCP,

@@ -103,7 +103,7 @@ Code2Nam(u_int code)
 const char *
 State2Nam(u_int state)
 {
-  static const char *StateNames[] = {
+  static const char * const StateNames[] = {
     "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
     "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opened",
   };
@@ -132,7 +132,7 @@ void
 fsm_Init(struct fsm *fp, const char *name, u_short proto, int mincode,
          int maxcode, int LogLevel, struct bundle *bundle,
          struct link *l, const struct fsm_parent *parent,
-         struct fsm_callbacks *fn, const char *timer_names[3])
+         struct fsm_callbacks *fn, const char * const timer_names[3])
 {
   fp->name = name;
   fp->proto = proto;

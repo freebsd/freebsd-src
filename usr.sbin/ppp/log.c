@@ -42,7 +42,7 @@
 #include "descriptor.h"
 #include "prompt.h"
 
-static const char *LogNames[] = {
+static const char * const LogNames[] = {
   "Async",
   "CBCP",
   "CCP",

@@ -19,7 +19,7 @@
  *
  * $FreeBSD$
  *
- *	TODO: Shoud send ICMP error message when we discard packets.
+ *	TODO: Should send ICMP error message when we discard packets.
  */
 
 #include <sys/param.h>
@@ -533,7 +533,7 @@ filter_Set(struct cmdargs const *arg)
 const char *
 filter_Action2Nam(int act)
 {
-  static const char *actname[] = { "  none ", "permit ", "  deny " };
+  static const char * const actname[] = { "  none ", "permit ", "  deny " };
   static char	buf[8];
 
   if (act >= 0 && act < MAXFILTERS) {
@@ -618,7 +618,7 @@ filter_Show(struct cmdargs const *arg)
   return 0;
 }
 
-static const char *protoname[] = {
+static const char * const protoname[] = {
   "none", "tcp", "udp", "icmp", "ospf", "igmp", "gre"
 };
 
@@ -645,7 +645,7 @@ filter_Nam2Proto(int argc, char const *const *argv)
   return proto;
 }
 
-static const char *opname[] = {"none", "eq", "gt", "lt"};
+static const char * const opname[] = {"none", "eq", "gt", "lt"};
 
 const char *
 filter_Op2Nam(int op)
