@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.10 1996/06/12 05:07:35 gpalmer Exp $
+ * $Id: uipc_socket2.c,v 1.12 1996/07/11 16:31:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -446,7 +446,7 @@ sbcheck(sb)
 	for (m = sb->sb_mb; m; m = m->m_next) {
 		len += m->m_len;
 		mbcnt += MSIZE;
-		if (m->m_flags & M_EXT)
+		if (m->m_flags & M_EXT) /*XXX*/ /* pretty sure this is bogus */
 			mbcnt += m->m_ext.ext_size;
 		if (m->m_nextpkt)
 			panic("sbcheck nextpkt");
