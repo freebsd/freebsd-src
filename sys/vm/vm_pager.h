@@ -146,6 +146,17 @@ vm_pager_put_pages(
 	    (object, m, count, flags, rtvals);
 }
 
+/*
+ *	vm_pager_haspage
+ *
+ *	Check to see if an object's pager has the requested page.  The
+ *	object's pager will also set before and after to give the caller
+ *	some idea of the number of pages before and after the requested
+ *	page can be I/O'd efficiently.
+ *
+ *	This routine does not have to be called at any particular spl.
+ */
+
 static __inline boolean_t
 vm_pager_has_page(
 	vm_object_t object,
