@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.40 1997/12/15 20:30:59 eivind Exp $
+ * $Id: if_ethersubr.c,v 1.41 1997/12/20 00:07:02 bde Exp $
  */
 
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -52,11 +53,14 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
+#include <net/ethernet.h>
+#include <net/if_arp.h>
+
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#endif
 #include <netinet/if_ether.h>
+#endif
 
 #ifdef IPX
 #include <netipx/ipx.h>

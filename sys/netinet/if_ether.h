@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
- *	$Id$
+ *	$Id: if_ether.h,v 1.20 1997/02/22 09:41:25 peter Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -77,21 +77,6 @@ struct	ether_arp {
 #define	arp_pln	ea_hdr.ar_pln
 #define	arp_op	ea_hdr.ar_op
 
-
-/*
- * Structure shared between the ethernet driver modules and
- * the address resolution code.  For example, each ec_softc or il_softc
- * begins with this structure.
- */
-struct	arpcom {
-	/*
-	 * The ifnet struct _must_ be at the head of this structure.
-	 */
-	struct 	ifnet ac_if;		/* network-visible interface */
-	u_char	ac_enaddr[ETHER_ADDR_LEN];		/* ethernet hardware address */
-	int	ac_multicnt;		/* length of ac_multiaddrs list */
-};
-
 struct sockaddr_inarp {
 	u_char	sin_len;
 	u_char	sin_family;
@@ -109,7 +94,6 @@ struct sockaddr_inarp {
 #define RTF_ANNOUNCE	RTF_PROTO2	/* announce new arp entry */
 
 #ifdef	KERNEL
-extern u_char	etherbroadcastaddr[ETHER_ADDR_LEN];
 extern u_char	ether_ipmulticast_min[ETHER_ADDR_LEN];
 extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 extern struct	ifqueue arpintrq;

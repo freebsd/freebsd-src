@@ -36,6 +36,8 @@
  * if_atmsubr.c
  */
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

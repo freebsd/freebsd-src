@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.8 1997/08/25 22:34:25 bde Exp $ */
+/* $Id: if_wl.c,v 1.9 1997/09/21 21:41:13 gibbs Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -191,6 +191,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "wl.h"
 #include "opt_wavelan.h"
 #include "bpfilter.h"
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -203,7 +204,9 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
 
 #ifdef INET
@@ -2581,6 +2584,7 @@ void wl_cache_store (int unit, int base, struct ether_header *eh,
 	 * keep multicast only.
 	 */
  
+#ifdef INET
 	/* reject if not IP packet
 	*/
 	if ( wl_cache_iponly && (ntohs(eh->ether_type) != 0x800)) {
@@ -2676,6 +2680,7 @@ void wl_cache_store (int unit, int base, struct ether_header *eh,
 			signal - silence;
 	else
 		sc->w_sigcache[w_insertcache].snr = 0;
+#endif /* INET */
 
 }
 #endif /* WLCACHE */

@@ -33,9 +33,10 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.22 1997/11/18 13:37:56 bde Exp $
+ * $Id: if_fddisubr.c,v 1.23 1997/12/15 20:31:01 eivind Exp $
  */
 
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -54,8 +55,10 @@
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#endif
 #include <netinet/if_ether.h>
+#endif
+#include <net/ethernet.h>		/* XXX We probably should be able to drop this */
+#include <net/if_arp.h>
 #if defined(__FreeBSD__)
 #include <netinet/if_fddi.h>
 #else

@@ -34,13 +34,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.73 1997/12/27 02:56:36 bde Exp $
+ * $Id: nfs_vnops.c,v 1.74 1997/12/29 00:23:41 dyson Exp $
  */
 
 
 /*
  * vnode op calls for Sun NFS version 2 and 3
  */
+
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -1343,9 +1345,11 @@ again:
 		if (fmode & O_EXCL) {
 		    *tl = txdr_unsigned(NFSV3CREATE_EXCLUSIVE);
 		    nfsm_build(tl, u_long *, NFSX_V3CREATEVERF);
+#ifdef INET
 		    if (!TAILQ_EMPTY(&in_ifaddrhead))
 			*tl++ = IA_SIN(in_ifaddrhead.tqh_first)->sin_addr.s_addr;
 		    else
+#endif
 			*tl++ = create_verf;
 		    *tl = ++create_verf;
 		} else {

@@ -33,16 +33,21 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.17 1997/12/15 20:31:13 eivind Exp $
+ * $Id: ipx_ip.c,v 1.18 1997/12/21 16:35:12 bde Exp $
  */
 
 /*
  * Software interface driver for encapsulating IPX in IP.
  */
 
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #ifdef IPXIP
+#ifndef INET
+#error The option IPXIP requires option INET.
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>

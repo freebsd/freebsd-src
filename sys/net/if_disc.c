@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.17 1997/03/24 11:33:10 bde Exp $
+ *	$Id: if_disc.c,v 1.18 1997/08/02 14:32:36 bde Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
 #include <net/bpf.h>
 
 #include "bpfilter.h"
+#include "opt_inet.h"
 
 #ifdef TINY_DSMTU
 #define	DSMTU	(1024+512)

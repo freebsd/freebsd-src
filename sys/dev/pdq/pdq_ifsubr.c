@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_ifsubr.c,v 1.4 1997/03/24 11:32:26 bde Exp $
+ * $Id: pdq_ifsubr.c,v 1.5 1997/06/14 13:56:07 bde Exp $
  *
  */
 
@@ -32,6 +32,8 @@
  *	(ie. it provides an ifnet interface to the rest of the system)
  */
 
+
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -48,11 +50,13 @@
 #include <net/bpf.h>
 #endif
 
+#if defined(__FreeBSD__)
+#include <net/ethernet.h>
+#include <net/if_arp.h>
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #endif
-#if defined(__FreeBSD__)
 #include <netinet/if_fddi.h>
 #else
 #include <net/if_fddi.h>

@@ -30,8 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.15 1997/09/14 03:10:39 peter Exp $
+ *	$Id: ip_divert.c,v 1.16 1997/12/18 09:13:34 davidg Exp $
  */
+
+#include "opt_inet.h"
+
+#ifndef INET
+#error IPDIVERT requires INET.
+#endif
 
 #include <sys/param.h>
 #include <sys/malloc.h>

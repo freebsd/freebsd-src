@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.46 1997/10/26 04:36:14 nate Exp $
+ * $Id: if_ze.c,v 1.47 1997/12/15 20:30:54 eivind Exp $
  */
 
 /* XXX - Don't mix different PCCARD support code */
@@ -64,6 +64,7 @@
 #include "ze.h"
 #if	NZE > 0
 #include "bpfilter.h"
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -74,7 +75,9 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 
 #ifdef INET
 #include <netinet/in.h>

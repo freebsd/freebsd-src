@@ -21,6 +21,11 @@
 #include "cx.h"
 #include "bpfilter.h"
 
+#include "sppp.h"
+#if NSPPP <= 0
+#error The device 'cx' requires sppp.
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.47 1997/10/15 10:09:24 joerg Exp $
+ *	$Id: if_ie.c,v 1.48 1997/12/15 20:30:49 eivind Exp $
  */
 
 /*
@@ -108,6 +108,7 @@ iomem and and with 0xffff.
 
 #include "ie.h"
 #if NIE > 0
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -120,7 +121,9 @@ iomem and and with 0xffff.
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 

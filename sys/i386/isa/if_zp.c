@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.41 1997/11/07 09:20:28 phk Exp $
+ *	$Id: if_zp.c,v 1.42 1997/12/15 20:30:56 eivind Exp $
  */
 /*-
  * TODO:
@@ -114,6 +114,7 @@
 #include "zp.h"
 
 #include "bpfilter.h"
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -126,7 +127,9 @@
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 
 #ifdef INET
 #include <netinet/in.h>
