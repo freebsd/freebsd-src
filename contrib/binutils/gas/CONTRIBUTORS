@@ -69,7 +69,8 @@ Ian Lance Taylor of Cygnus Solutions merged the Motorola and MIT
 syntaxes for the 68k, completed support for some COFF targets (68k,
 i386 SVR3, and SCO Unix), wrote the ECOFF support based on Michael
 Meissner's mips-tfile program, wrote the PowerPC and RS/6000 support,
-and made a few other minor patches.
+and made a few other minor patches.  He handled the binutils releases
+for versions 2.7 through 2.9.
 
 David Edelsohn contributed fixes for the PowerPC and AIX support.
 
@@ -97,6 +98,12 @@ Klaus Kaempf ported the assembler and the binutils to openVMS/Alpha.
 
 Steve Haworth contributed the support for the Texas Instruction c30
 (tms320c30).
+
+H.J. Lu has contributed many patches and much testing.
+
+Alan Modra reworked much of the i386 backend, improving the error
+checking, updating the code, and improving the 16 bit support, using
+patches from the work of Martynas Kunigelis and H.J. Lu.
 
 Many others have contributed large or small bugfixes and enhancements.  If
 you've contributed significant work and are not mentioned on this list, and

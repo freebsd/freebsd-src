@@ -14,7 +14,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 #include "ansidecl.h"
 #include "objalloc.h"
@@ -34,6 +35,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* For systems with larger pointers than ints, this must be declared.  */
 extern PTR malloc PARAMS ((size_t));
+extern void free PARAMS ((PTR));
 #endif
 
 /* These routines allocate space for an object.  Freeing allocated

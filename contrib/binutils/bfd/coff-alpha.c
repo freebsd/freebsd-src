@@ -1,5 +1,5 @@
 /* BFD back-end for ALPHA Extended-Coff files.
-   Copyright 1993, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1993, 94, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
    Modified from coff-mips.c by Steve Chamberlain <sac@cygnus.com> and
    Ian Lance Taylor <ian@cygnus.com>.
 
@@ -877,7 +877,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 	  if (r == bfd_reloc_ok && gp_undefined)
 	    {
 	      r = bfd_reloc_dangerous;
-	      err = (char *) "GP relative relocation used when GP not defined";
+	      err = (char *) _("GP relative relocation used when GP not defined");
 	    }
 	  break;
 
@@ -914,7 +914,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 	      {
 		r = bfd_reloc_dangerous;
 		err =
-		  (char *) "GP relative relocation used when GP not defined";
+		  (char *) _("GP relative relocation used when GP not defined");
 	      }
 	  }
 	  break;
@@ -1133,7 +1133,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 	    case bfd_reloc_undefined:
 	      if (! ((*link_info->callbacks->undefined_symbol)
 		     (link_info, bfd_asymbol_name (*rel->sym_ptr_ptr),
-		      input_bfd, input_section, rel->address)))
+		      input_bfd, input_section, rel->address, true)))
 		goto error_return;
 	      break;
 	    case bfd_reloc_dangerous: 
@@ -1483,7 +1483,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	      if (gp && !ecoff_data (output_bfd)->issued_multiple_gp_warning)
 		{
 		  (*info->callbacks->warning) (info,
-					       "using multiple gp values",
+					       _("using multiple gp values"),
 					       (char *) NULL, output_bfd,
 					       (asection *) NULL, (bfd_vma) 0);
 		  ecoff_data (output_bfd)->issued_multiple_gp_warning = true;
@@ -1719,7 +1719,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 			 relocated.  */
 		      if (! ((*info->callbacks->undefined_symbol)
 			     (info, h->root.root.string, input_bfd,
-			      input_section, (bfd_vma) 0)))
+			      input_section, (bfd_vma) 0, true)))
 			return false;
 		      addend = 0;
 		    }
@@ -1921,7 +1921,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 		      if (! ((*info->callbacks->undefined_symbol)
 			     (info, h->root.root.string, input_bfd,
 			      input_section,
-			      r_vaddr - input_section->vma)))
+			      r_vaddr - input_section->vma, true)))
 			return false;
 		      relocation = 0;
 		    }
@@ -1989,7 +1989,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
       if (gp_usedp && gp_undefined)
 	{
 	  if (! ((*info->callbacks->reloc_dangerous)
-		 (info, "GP relative relocation when GP not defined",
+		 (info, _("GP relative relocation when GP not defined"),
 		  input_bfd, input_section, r_vaddr - input_section->vma)))
 	    return false;
 	  /* Only give the error once per link.  */
@@ -2266,13 +2266,14 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
     (unsigned (*) PARAMS ((bfd *,PTR,PTR))) bfd_void, /* reloc_out */
     alpha_ecoff_swap_filehdr_out, alpha_ecoff_swap_aouthdr_out,
     alpha_ecoff_swap_scnhdr_out,
-    FILHSZ, AOUTSZ, SCNHSZ, 0, 0, 0, 0, true, false, 4,
+    FILHSZ, AOUTSZ, SCNHSZ, 0, 0, 0, 0, FILNMLEN, true, false, 4,
     alpha_ecoff_swap_filehdr_in, alpha_ecoff_swap_aouthdr_in,
     alpha_ecoff_swap_scnhdr_in, NULL,
     alpha_ecoff_bad_format_hook, _bfd_ecoff_set_arch_mach_hook,
     alpha_ecoff_mkobject_hook, _bfd_ecoff_styp_to_sec_flags,
     _bfd_ecoff_set_alignment_hook, _bfd_ecoff_slurp_symbol_table,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL
   },
   /* Supported architecture.  */
   bfd_arch_alpha,
@@ -2357,6 +2358,7 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
 
 /* Relaxing sections is generic.  */
 #define _bfd_ecoff_bfd_relax_section bfd_generic_relax_section
+#define _bfd_ecoff_bfd_gc_sections bfd_generic_gc_sections
 
 const bfd_target ecoffalpha_little_vec =
 {
@@ -2397,5 +2399,7 @@ const bfd_target ecoffalpha_little_vec =
      BFD_JUMP_TABLE_LINK (_bfd_ecoff),
      BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
+  NULL,
+  
   (PTR) &alpha_ecoff_backend_data
 };

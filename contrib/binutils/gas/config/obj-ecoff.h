@@ -1,5 +1,5 @@
 /* ECOFF object file format header file.
-   Copyright (C) 1993, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94, 95, 96, 97, 1999 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -36,10 +36,14 @@
    symbols is undefined (this last is needed to distinguish a .extern
    symbols from a .comm symbol).  */
 
-#define TARGET_SYMBOL_FIELDS \
-  struct efdr *ecoff_file; \
-  struct localsym *ecoff_symbol; \
+struct ecoff_sy_obj
+{
+  struct efdr *ecoff_file;
+  struct localsym *ecoff_symbol;
   valueT ecoff_extern_size;
+};
+
+#define OBJ_SYMFIELD_TYPE struct ecoff_sy_obj
 
 /* Modify the ECOFF symbol.  */
 #define obj_frob_symbol(symp, punt) ecoff_frob_symbol (symp)
@@ -60,11 +64,8 @@ extern void ecoff_frob_file PARAMS ((void));
 #define OBJ_PROCESS_STAB(seg, what, string, type, other, desc) \
   ecoff_stab ((seg), (what), (string), (type), (other), (desc))
 
-#define OBJ_GENERATE_ASM_LINENO(filename, lineno) \
-  ecoff_generate_asm_lineno ((filename), (lineno))
-
 #define EMIT_SECTION_SYMBOLS		0
 #define obj_sec_sym_ok_for_reloc(SEC)	1
 
 #define obj_ecoff_set_ext ecoff_set_ext
-extern void obj_ecoff_set_ext PARAMS ((struct symbol *, EXTR *));
+extern void obj_ecoff_set_ext PARAMS ((symbolS *, EXTR *));

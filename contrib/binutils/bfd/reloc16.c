@@ -81,7 +81,8 @@ bfd_coff_reloc16_get_value (reloc, link_info, input_section)
 	{
 	  if (! ((*link_info->callbacks->undefined_symbol)
 		 (link_info, bfd_asymbol_name (symbol),
-		  input_section->owner, input_section, reloc->address)))
+		  input_section->owner, input_section, reloc->address,
+		  true)))
 	    abort ();
 	  value = 0;
 	}
@@ -194,9 +195,10 @@ bfd_coff_reloc16_relax_section (abfd, i, link_info, again)
     {
       int another_pass = 0;
 
-      /* Allocate and initialize the shrinks array for this section.  */
-      shrinks = (int *) bfd_malloc (reloc_count * sizeof (int));
-      memset (shrinks, 0, reloc_count * sizeof (int));
+      /* Allocate and initialize the shrinks array for this section.
+         The last element is used as an accumlator of shrinks.  */
+      shrinks = (int *) bfd_malloc ((reloc_count + 1) * sizeof (int));
+      memset (shrinks, 0, (reloc_count + 1) * sizeof (int));
 
       /* Loop until nothing changes in this section.  */
       do {
@@ -218,13 +220,14 @@ bfd_coff_reloc16_relax_section (abfd, i, link_info, again)
 	    if (shrink != shrinks[i])
 	      {
 	        another_pass = 1;
-		for (j = i + 1; j < reloc_count; j++)
+		for (j = i + 1; j <= reloc_count; j++)
 		  shrinks[j] += shrink - shrinks[i];
 	      }
 	  }
   
       } while (another_pass);
 
+      shrink = shrinks[reloc_count];
       free((char *)shrinks);
     }
 

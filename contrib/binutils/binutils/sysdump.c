@@ -1,5 +1,5 @@
 /* Sysroff object format dumper.
-   Copyright (C) 1994, 95, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 98, 99, 2000 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -40,16 +40,6 @@ static int segmented_p;
 static int code;
 static int addrsize = 4;
 static FILE *file;
-
-static char *
-xcalloc (a, b)
-     int a;
-     int b;
-{
-  char *r = xmalloc (a * b);
-  memset (r, 0, a * b);
-  return r;
-}
 
 char *
 getCHARS (ptr, idx, size, max)
@@ -719,14 +709,14 @@ show_usage (file, status)
      FILE *file;
      int status;
 {
-  fprintf (file, "Usage: %s [-hV] in-file\n", program_name);
+  fprintf (file, _("Usage: %s [-hV] in-file\n"), program_name);
   exit (status);
 }
 
 static void
 show_help ()
 {
-  printf ("%s: Print a human readable interpretation of a SYSROFF object file\n",
+  printf (_("%s: Print a human readable interpretation of a SYSROFF object file\n"),
 	  program_name);
   show_usage (stdout, 0);
 }
@@ -745,6 +735,12 @@ main (ac, av)
     {NULL, no_argument, 0, 0}
   };
 
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
+
   program_name = av[0];
   xmalloc_set_program_name (program_name);
 
@@ -756,7 +752,7 @@ main (ac, av)
 	  show_help ();
 	  /*NOTREACHED*/
 	case 'V':
-	  printf ("GNU %s version %s\n", program_name, PROGRAM_VERSION);
+	  printf (_("GNU %s version %s\n"), program_name, PROGRAM_VERSION);
 	  exit (0);
 	  /*NOTREACHED*/
 	case 0:
@@ -776,17 +772,13 @@ main (ac, av)
 
   if (!input_file)
     {
-      fprintf (stderr, "%s: no input file specified\n",
-	       program_name);
-      exit (1);
+      fatal (_("no input file specified"));
     }
 
   file = fopen (input_file, FOPEN_RB);
   if (!file)
     {
-      fprintf (stderr, "%s: cannot open input file %s\n",
-	       program_name, input_file);
-      exit (1);
+      fatal (_("cannot open input file %s"), input_file);
     }
 
   module ();

@@ -107,6 +107,27 @@ Here is the section structure:
 
 @example
 
+ /* This structure is used for a comdat section, as in PE.  A comdat
+    section is associated with a particular symbol.  When the linker
+    sees a comdat section, it keeps only one of the sections with a
+    given name and associated with a given symbol. */
+
+struct bfd_comdat_info
+@{
+  /* The name of the symbol associated with a comdat section.  */
+  const char *name;
+
+  /* The local symbol table index of the symbol associated with a
+     comdat section.  This is only meaningful to the object file format
+     specific code; it is not an index into the list returned by
+     bfd_canonicalize_symtab.  */
+  long symbol;
+
+  /* If this section is being discarded, the linker uses this field
+     to point to the input section which is being kept.  */
+  struct sec *sec;
+@};
+
 typedef struct sec
 @{
         /* The name of the section; the name isn't a copy, the pointer is
@@ -172,7 +193,7 @@ typedef struct sec
            standard data. */
 #define SEC_CONSTRUCTOR 0x100
 
-        /* The section is a constuctor, and should be placed at the
+        /* The section is a constructor, and should be placed at the
           end of the text, data, or bss section(?). */
 #define SEC_CONSTRUCTOR_TEXT 0x1100
 #define SEC_CONSTRUCTOR_DATA 0x2100
@@ -261,6 +282,17 @@ typedef struct sec
           else up the line will take care of it later.  */
 #define SEC_LINKER_CREATED 0x800000
 
+       /* This section should not be subject to garbage collection.  */
+#define SEC_KEEP 0x1000000
+
+       /* This section contains "short" data, and should be placed
+          "near" the GP.  */
+#define SEC_SMALL_DATA 0x2000000
+
+       /* This section contains data which may be shared with other
+          executables or shared objects.  */
+#define SEC_SHARED 0x4000000
+
        /*  End of section flags.  */
 
        /* Some internal packed boolean fields.  */
@@ -273,6 +305,9 @@ typedef struct sec
 
        /* A mark flag used by some of the linker backends.  */
        unsigned int linker_mark : 1;
+
+       /* A mark flag used by some linker backends for garbage collection.  */
+       unsigned int gc_mark : 1;
 
        /* End of internal packed boolean fields.  */
 
@@ -291,22 +326,25 @@ typedef struct sec
 
    bfd_vma lma;
 
-        /* The size of the section in bytes, as it will be output.
-           contains a value even if the section has no contents (e.g., the
-           size of @code{.bss}). This will be filled in after relocation */
+        /* The size of the section in octets, as it will be output.
+           Contains a value even if the section has no contents (e.g., the
+           size of @code{.bss}).  This will be filled in after relocation.  */
 
    bfd_size_type _cooked_size;
 
-        /* The original size on disk of the section, in bytes.  Normally this
+        /* The original size on disk of the section, in octets.  Normally this
            value is the same as the size, but if some relaxing has
            been done, then this value will be bigger.  */
 
    bfd_size_type _raw_size;
 
         /* If this section is going to be output, then this value is the
-           offset into the output section of the first byte in the input
-           section. E.g., if this was going to start at the 100th byte in
-           the output section, this value would be 100. */
+           offset in *bytes* into the output section of the first byte in the
+           input section (byte ==> smallest addressable unit on the
+           target).  In most cases, if this was going to start at the
+           100th octet (8-bit quantity) in the output section, this value
+           would be 100.  However, if the target byte size is 16 bits
+           (bfd_octets_per_byte is "2"), this value would be 50. */
 
    bfd_vma output_offset;
 
@@ -363,6 +401,10 @@ typedef struct sec
         /* Number of line number records   */
 
    unsigned int lineno_count;
+
+        /* Optional information about a COMDAT entry; NULL if not COMDAT */
+
+   struct bfd_comdat_info *comdat;
 
         /* When a section is being output, this value changes as more
            linenumbers are written out */
@@ -423,9 +465,11 @@ extern const struct symbol_cache_entry * const bfd_com_symbol;
 extern const struct symbol_cache_entry * const bfd_und_symbol;
 extern const struct symbol_cache_entry * const bfd_ind_symbol;
 #define bfd_get_section_size_before_reloc(section) \
-     (section->reloc_done ? (abort(),1): (section)->_raw_size)
+     ((section)->reloc_done ? (abort (), (bfd_size_type) 1) \
+                            : (section)->_raw_size)
 #define bfd_get_section_size_after_reloc(section) \
-     ((section->reloc_done) ? (section)->_cooked_size: (abort(),1))
+     ((section)->reloc_done ? (section)->_cooked_size \
+                            : (abort (), (bfd_size_type) 1))
 @end example
 
 @node section prototypes,  , typedef asection, Sections
@@ -588,7 +632,7 @@ boolean bfd_set_section_contents
 Sets the contents of the section @var{section} in BFD
 @var{abfd} to the data starting in memory at @var{data}. The
 data is written to the output section starting at offset
-@var{offset} for @var{count} bytes.
+@var{offset} for @var{count} octets.
 
 Normally @code{true} is returned, else @code{false}. Possible error
 returns are:
@@ -647,4 +691,17 @@ Not enough memory exists to create private data for @var{osec}.
      BFD_SEND (obfd, _bfd_copy_private_section_data, \
                (ibfd, isection, obfd, osection))
 @end example
+
+@findex _bfd_strip_section_from_output
+@subsubsection @code{_bfd_strip_section_from_output}
+@strong{Synopsis}
+@example
+void _bfd_strip_section_from_output
+   (struct bfd_link_info *info, asection *section);
+@end example
+@strong{Description}@*
+Remove @var{section} from the output.  If the output section
+becomes empty, remove it from the output bfd.  @var{info} may
+be NULL; if it is not, it is used to decide whether the output
+section is empty.
 

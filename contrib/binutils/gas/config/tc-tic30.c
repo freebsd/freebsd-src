@@ -1,5 +1,5 @@
 /* tc-c30.c -- Assembly code for the Texas Instruments TMS320C30
-   Copyright (C) 1998 Free Software Foundation.
+   Copyright (C) 1998, 1999 Free Software Foundation.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of GAS, the GNU Assembler.
@@ -35,8 +35,6 @@ static char *ordinal_names[] =
 {"first", "second", "third", "fourth", "fifth"};
 
 const int md_reloc_size = 0;
-int md_long_jump_size = 0;
-int md_short_jump_size = 0;
 
 const char comment_chars[] = ";";
 const char line_comment_chars[] = "*";
@@ -1573,26 +1571,6 @@ md_convert_frag (abfd, sec, fragP)
   debug ("In md_convert_frag()\n");
 }
 
-void
-md_create_short_jump (ptr, from_addr, to_addr, frag, to_symbol)
-     char *ptr;
-     addressT from_addr, to_addr;
-     fragS *frag;
-     symbolS *to_symbol;
-{
-  debug ("In md_create_short_jump()\n");
-}
-
-void
-md_create_long_jump (ptr, from_addr, to_addr, frag, to_symbol)
-     char *ptr;
-     addressT from_addr, to_addr;
-     fragS *frag;
-     symbolS *to_symbol;
-{
-  debug ("In md_create_long_jump()\n");
-}
-
 int
 md_apply_fix (fixP, valP)
      fixS *fixP;
@@ -1864,7 +1842,8 @@ tc_gen_reloc (section, fixP)
 
   rel = (arelent *) xmalloc (sizeof (arelent));
   assert (rel != 0);
-  rel->sym_ptr_ptr = &fixP->fx_addsy->bsym;
+  rel->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  *rel->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
   rel->address = fixP->fx_frag->fr_address + fixP->fx_where;
   if (fixP->fx_pcrel)
     rel->addend = fixP->fx_addnumber;

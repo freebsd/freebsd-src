@@ -1,5 +1,5 @@
 /* This file is tc-alpha.h
-   Copyright (C) 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
    Written by Ken Raeburn <raeburn@cygnus.com>.
 
    This file is part of GAS, the GNU Assembler.
@@ -23,6 +23,8 @@
 
 #define TARGET_BYTES_BIG_ENDIAN 0
 
+#define WORKING_DOT_WORD
+
 #define TARGET_ARCH			bfd_arch_alpha
 
 #define TARGET_FORMAT (OUTPUT_FLAVOR == bfd_target_ecoff_flavour	\
@@ -30,7 +32,7 @@
 		       : OUTPUT_FLAVOR == bfd_target_elf_flavour	\
 		       ? "elf64-alpha"					\
 		       : OUTPUT_FLAVOR == bfd_target_evax_flavour	\
-		       ? "evax-alpha"					\
+		       ? "vms-alpha"					\
 		       : "unknown-format")
 
 #define NEED_LITERAL_POOL
@@ -47,9 +49,19 @@ extern valueT alpha_gp_value;
 #define tc_fix_adjustable(FIXP)		alpha_fix_adjustable (FIXP)
 #define RELOC_REQUIRES_SYMBOL
 
+/* This expression evaluates to false if the relocation is for a local
+   object for which we still want to do the relocation at runtime.
+   True if we are willing to perform this relocation while building
+   the .o file.  This is only used for pcrel relocations.  */
+
+#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)				\
+  ((FIX)->fx_addsy == NULL					\
+   || (! S_IS_EXTERNAL ((FIX)->fx_addsy)			\
+       && ! S_IS_WEAK ((FIX)->fx_addsy)				\
+       && S_IS_DEFINED ((FIX)->fx_addsy)			\
+       && ! S_IS_COMMON ((FIX)->fx_addsy)))
+
 #define md_convert_frag(b,s,f)		as_fatal ("alpha convert_frag\n")
-#define md_create_long_jump(p,f,t,fr,s)	as_fatal("alpha_create_long_jump")
-#define md_create_short_jump(p,f,t,fr,s) as_fatal("alpha_create_short_jump")
 #define md_estimate_size_before_relax(f,s) \
 			(as_fatal("estimate_size_before_relax called"),1)
 #define md_operand(x)
@@ -73,7 +85,7 @@ extern int tc_get_register PARAMS ((int frame));
 extern void alpha_frob_ecoff_data PARAMS ((void));
 
 #define tc_frob_label(sym) alpha_define_label (sym)
-extern void alpha_define_label PARAMS ((struct symbol *));
+extern void alpha_define_label PARAMS ((symbolS *));
 
 #define md_cons_align(nbytes) alpha_cons_align (nbytes)
 extern void alpha_cons_align PARAMS ((int));
@@ -89,4 +101,48 @@ extern void alpha_frob_file_before_adjust PARAMS ((void));
 #define ELF_TC_SPECIAL_SECTIONS \
   { ".sdata",   SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_ALPHA_GPREL  }, \
   { ".sbss",    SHT_NOBITS,     SHF_ALLOC + SHF_WRITE + SHF_ALPHA_GPREL  },
+#endif
+
+/* Whether to add support for explict !relocation_op!sequence_number.  At the
+   moment, only do this for ELF, though ECOFF could use it as well.  */
+
+#ifdef OBJ_ELF
+#define RELOC_OP_P
+#endif
+
+#ifdef RELOC_OP_P
+/* Before the relocations are written, reorder them, so that user supplied
+   !lituse relocations follow the appropriate !literal relocations.  Also
+   convert the gas-internal relocations to the appropriate linker relocations.
+   */
+#define tc_adjust_symtab() alpha_adjust_symtab ()
+extern void alpha_adjust_symtab PARAMS ((void));
+
+/* New fields for supporting explicit relocations (such as !literal to mark
+   where a pointer is loaded from the global table, and !lituse_base to track
+   all of the normal uses of that pointer).  */
+
+#define TC_FIX_TYPE struct alpha_fix_tag
+
+struct alpha_fix_tag
+{
+  struct fix *next_lituse;		/* next !lituse */
+  struct alpha_literal_tag *info;	/* other members with same sequence */
+};
+
+/* Initialize the TC_FIX_TYPE field.  */
+#define TC_INIT_FIX_DATA(fixP)						\
+do {									\
+  fixP->tc_fix_data.next_lituse = (struct fix *)0;			\
+  fixP->tc_fix_data.info = (struct alpha_literal_tag *)0;		\
+} while (0)
+
+/* Work with DEBUG5 to print fields in tc_fix_type.  */
+#define TC_FIX_DATA_PRINT(stream,fixP)					\
+do {									\
+  if (fixP->tc_fix_data.info)						\
+    fprintf (stderr, "\tinfo = 0x%lx, next_lituse = 0x%lx\n", \
+	     (long)fixP->tc_fix_data.info,				\
+	     (long)fixP->tc_fix_data.next_lituse);			\
+} while (0)
 #endif

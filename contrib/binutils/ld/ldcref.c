@@ -1,5 +1,5 @@
 /* ldcref.c -- output a cross reference table
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>
 
 This file is part of GLD, the Gnu Linker.
@@ -151,7 +151,7 @@ add_cref (name, abfd, section, value)
      const char *name;
      bfd *abfd;
      asection *section;
-     bfd_vma value;
+     bfd_vma value ATTRIBUTE_UNUSED;
 {
   struct cref_hash_entry *h;
   struct cref_ref *r;
@@ -159,13 +159,13 @@ add_cref (name, abfd, section, value)
   if (! cref_initialized)
     {
       if (! bfd_hash_table_init (&cref_table.root, cref_hash_newfunc))
-	einfo ("%X%P: bfd_hash_table_init of cref table failed: %E\n");
+	einfo (_("%X%P: bfd_hash_table_init of cref table failed: %E\n"));
       cref_initialized = true;
     }
 
   h = cref_hash_lookup (&cref_table, name, true, false);
   if (h == NULL)
-    einfo ("%X%P: cref_hash_lookup failed: %E\n");
+    einfo (_("%X%P: cref_hash_lookup failed: %E\n"));
 
   for (r = h->refs; r != NULL; r = r->next)
     if (r->abfd == abfd)
@@ -234,20 +234,22 @@ output_cref (fp)
 {
   int len;
   struct cref_hash_entry **csyms, **csym_fill, **csym, **csym_end;
+  const char *msg;
 
-  fprintf (fp, "\nCross Reference Table\n\n");
-  fprintf (fp, "Symbol");
-  len = sizeof "Symbol" - 1;
+  fprintf (fp, _("\nCross Reference Table\n\n"));
+  msg = _("Symbol");
+  fprintf (fp, "%s", msg);
+  len = strlen (msg);
   while (len < FILECOL)
     {
       putc (' ' , fp);
       ++len;
     }
-  fprintf (fp, "File\n");
+  fprintf (fp, _("File\n"));
 
   if (! cref_initialized)
     {
-      fprintf (fp, "No symbols\n");
+      fprintf (fp, _("No symbols\n"));
       return;
     }
 
@@ -352,7 +354,7 @@ check_nocrossrefs ()
 static boolean
 check_nocrossref (h, ignore)
      struct cref_hash_entry *h;
-     PTR ignore;
+     PTR ignore ATTRIBUTE_UNUSED;
 {
   struct bfd_link_hash_entry *hl;
   asection *defsec;
@@ -364,7 +366,7 @@ check_nocrossref (h, ignore)
 			     false, true);
   if (hl == NULL)
     {
-      einfo ("%P: symbol `%T' missing from main hash table\n",
+      einfo (_("%P: symbol `%T' missing from main hash table\n"),
 	     h->root.string);
       return true;
     }
@@ -436,11 +438,11 @@ check_refs (h, hl, ncrs)
 
 	  symsize = bfd_get_symtab_upper_bound (ref->abfd);
 	  if (symsize < 0)
-	    einfo ("%B%F: could not read symbols; %E\n", ref->abfd);
+	    einfo (_("%B%F: could not read symbols; %E\n"), ref->abfd);
 	  asymbols = (asymbol **) xmalloc (symsize);
 	  symbol_count = bfd_canonicalize_symtab (ref->abfd, asymbols);
 	  if (symbol_count < 0)
-	    einfo ("%B%F: could not read symbols: %E\n", ref->abfd);
+	    einfo (_("%B%F: could not read symbols: %E\n"), ref->abfd);
 	  if (li != NULL)
 	    {
 	      li->asymbols = asymbols;
@@ -512,14 +514,14 @@ check_reloc_refs (abfd, sec, iarg)
 
   relsize = bfd_get_reloc_upper_bound (abfd, sec);
   if (relsize < 0)
-    einfo ("%B%F: could not read relocs: %E\n", abfd);
+    einfo (_("%B%F: could not read relocs: %E\n"), abfd);
   if (relsize == 0)
     return;
 
   relpp = (arelent **) xmalloc (relsize);
   relcount = bfd_canonicalize_reloc (abfd, sec, relpp, info->asymbols);
   if (relcount < 0)
-    einfo ("%B%F: could not read relocs: %E\n", abfd);
+    einfo (_("%B%F: could not read relocs: %E\n"), abfd);
 
   p = relpp;
   pend = p + relcount;
@@ -537,7 +539,7 @@ check_reloc_refs (abfd, sec, iarg)
              in OUTSECNAME.  This reloc is from a section which is
              mapped into a section from which references to OUTSECNAME
              are prohibited.  We must report an error.  */
-	  einfo ("%X%C: prohibited cross reference from %s to `%T' in %s\n",
+	  einfo (_("%X%C: prohibited cross reference from %s to `%T' in %s\n"),
 		 abfd, sec, q->address, outsecname,
 		 bfd_asymbol_name (*q->sym_ptr_ptr), outdefsecname);
 	}

@@ -1,4 +1,4 @@
-@c Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
+@c Copyright (C) 1991, 92, 93, 94, 95, 97, 1998 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -16,13 +16,15 @@
 @menu
 * i386-Options::                Options
 * i386-Syntax::                 AT&T Syntax versus Intel Syntax
-* i386-Opcodes::                Opcode Naming
+* i386-Mnemonics::              Instruction Naming
 * i386-Regs::                   Register Naming
-* i386-prefixes::               Opcode Prefixes
+* i386-Prefixes::               Instruction Prefixes
 * i386-Memory::                 Memory References
 * i386-jumps::                  Handling of Jump Instructions
 * i386-Float::                  Floating Point
+* i386-SIMD::                   Intel's MMX and AMD's 3DNow! SIMD Operations
 * i386-16bit::                  Writing 16-bit Code
+* i386-Bugs::                   AT&T Syntax bugs
 * i386-Notes::                  Notes
 @end menu
 
@@ -41,7 +43,7 @@ The 80386 has no machine dependent options.
 In order to maintain compatibility with the output of @code{@value{GCC}},
 @code{@value{AS}} supports AT&T System V/386 assembler syntax.  This is quite
 different from Intel syntax.  We mention these differences because
-almost all 80386 documents used only Intel syntax.  Notable differences
+almost all 80386 documents use Intel syntax.  Notable differences
 between the two syntaxes are:
 
 @cindex immediate operands, i386
@@ -65,19 +67,21 @@ operands are prefixed by @samp{*}; they are undelimited in Intel syntax.
 AT&T and Intel syntax use the opposite order for source and destination
 operands.  Intel @samp{add eax, 4} is @samp{addl $4, %eax}.  The
 @samp{source, dest} convention is maintained for compatibility with
-previous Unix assemblers.
+previous Unix assemblers.  Note that instructions with more than one
+source operand, such as the @samp{enter} instruction, do @emph{not} have
+reversed order.  @ref{i386-Bugs}.
 
-@cindex opcode suffixes, i386
+@cindex mnemonic suffixes, i386
 @cindex sizes operands, i386
 @cindex i386 size suffixes
 @item
 In AT&T syntax the size of memory operands is determined from the last
-character of the opcode name.  Opcode suffixes of @samp{b}, @samp{w},
-and @samp{l} specify byte (8-bit), word (16-bit), and long (32-bit)
-memory references.  Intel syntax accomplishes this by prefixes memory
-operands (@emph{not} the opcodes themselves) with @samp{byte ptr},
-@samp{word ptr}, and @samp{dword ptr}.  Thus, Intel @samp{mov al, byte
-ptr @var{foo}} is @samp{movb @var{foo}, %al} in AT&T syntax.
+character of the instruction mnemonic.  Mnemonic suffixes of @samp{b},
+@samp{w}, and @samp{l} specify byte (8-bit), word (16-bit), and long
+(32-bit) memory references.  Intel syntax accomplishes this by prefixing
+memory operands (@emph{not} the instruction mnemonics) with @samp{byte
+ptr}, @samp{word ptr}, and @samp{dword ptr}.  Thus, Intel @samp{mov al,
+byte ptr @var{foo}} is @samp{movb @var{foo}, %al} in AT&T syntax.
 
 @cindex return instructions, i386
 @cindex i386 jump, call, return
@@ -97,32 +101,33 @@ The AT&T assembler does not provide support for multiple section
 programs.  Unix style systems expect all programs to be single sections.
 @end itemize
 
-@node i386-Opcodes
-@section Opcode Naming
+@node i386-Mnemonics
+@section Instruction Naming
 
-@cindex i386 opcode naming
-@cindex opcode naming, i386
-Opcode names are suffixed with one character modifiers which specify the
-size of operands.  The letters @samp{b}, @samp{w}, and @samp{l} specify
-byte, word, and long operands.  If no suffix is specified by an
-instruction and it contains no memory operands then @code{@value{AS}} tries to
-fill in the missing suffix based on the destination register operand
-(the last one by convention).  Thus, @samp{mov %ax, %bx} is equivalent
-to @samp{movw %ax, %bx}; also, @samp{mov $1, %bx} is equivalent to
-@samp{movw $1, %bx}.  Note that this is incompatible with the AT&T Unix
-assembler which assumes that a missing opcode suffix implies long
-operand size.  (This incompatibility does not affect compiler output
-since compilers always explicitly specify the opcode suffix.)
+@cindex i386 instruction naming
+@cindex instruction naming, i386
+Instruction mnemonics are suffixed with one character modifiers which
+specify the size of operands.  The letters @samp{b}, @samp{w}, and
+@samp{l} specify byte, word, and long operands.  If no suffix is
+specified by an instruction then @code{@value{AS}} tries to fill in the
+missing suffix based on the destination register operand (the last one
+by convention).  Thus, @samp{mov %ax, %bx} is equivalent to @samp{movw
+%ax, %bx}; also, @samp{mov $1, %bx} is equivalent to @samp{movw $1,
+%bx}.  Note that this is incompatible with the AT&T Unix assembler which
+assumes that a missing mnemonic suffix implies long operand size.  (This
+incompatibility does not affect compiler output since compilers always
+explicitly specify the mnemonic suffix.)
 
-Almost all opcodes have the same names in AT&T and Intel format.  There
-are a few exceptions.  The sign extend and zero extend instructions need
-two sizes to specify them.  They need a size to sign/zero extend
-@emph{from} and a size to zero extend @emph{to}.  This is accomplished
-by using two opcode suffixes in AT&T syntax.  Base names for sign extend
-and zero extend are @samp{movs@dots{}} and @samp{movz@dots{}} in AT&T
-syntax (@samp{movsx} and @samp{movzx} in Intel syntax).  The opcode
-suffixes are tacked on to this base name, the @emph{from} suffix before
-the @emph{to} suffix.  Thus, @samp{movsbl %al, %edx} is AT&T syntax for
+Almost all instructions have the same names in AT&T and Intel format.
+There are a few exceptions.  The sign extend and zero extend
+instructions need two sizes to specify them.  They need a size to
+sign/zero extend @emph{from} and a size to zero extend @emph{to}.  This
+is accomplished by using two instruction mnemonic suffixes in AT&T
+syntax.  Base names for sign extend and zero extend are
+@samp{movs@dots{}} and @samp{movz@dots{}} in AT&T syntax (@samp{movsx}
+and @samp{movzx} in Intel syntax).  The instruction mnemonic suffixes
+are tacked on to this base name, the @emph{from} suffix before the
+@emph{to} suffix.  Thus, @samp{movsbl %al, %edx} is AT&T syntax for
 ``move sign extend @emph{from} %al @emph{to} %edx.''  Possible suffixes,
 thus, are @samp{bl} (from byte to long), @samp{bw} (from byte to word),
 and @samp{wl} (from word to long).
@@ -160,7 +165,7 @@ convention.
 
 @cindex i386 registers
 @cindex registers, i386
-Register operands are always prefixes with @samp{%}.  The 80386 registers
+Register operands are always prefixed with @samp{%}.  The 80386 registers
 consist of
 
 @itemize @bullet
@@ -201,26 +206,30 @@ the 8 floating point register stack @samp{%st} or equivalently
 @samp{%st(4)}, @samp{%st(5)}, @samp{%st(6)}, and @samp{%st(7)}.
 @end itemize
 
-@node i386-prefixes
-@section Opcode Prefixes
+@node i386-Prefixes
+@section Instruction Prefixes
 
-@cindex i386 opcode prefixes
-@cindex opcode prefixes, i386
+@cindex i386 instruction prefixes
+@cindex instruction prefixes, i386
 @cindex prefixes, i386
-Opcode prefixes are used to modify the following opcode.  They are used
-to repeat string instructions, to provide section overrides, to perform
-bus lock operations, and to give operand and address size (16-bit
-operands are specified in an instruction by prefixing what would
-normally be 32-bit operands with a ``operand size'' opcode prefix).
-Opcode prefixes are usually given as single-line instructions with no
-operands, and must directly precede the instruction they act upon.  For
-example, the @samp{scas} (scan string) instruction is repeated with:
+Instruction prefixes are used to modify the following instruction.  They
+are used to repeat string instructions, to provide section overrides, to
+perform bus lock operations, and to change operand and address sizes.
+(Most instructions that normally operate on 32-bit operands will use
+16-bit operands if the instruction has an ``operand size'' prefix.)
+Instruction prefixes are best written on the same line as the instruction
+they act upon. For example, the @samp{scas} (scan string) instruction is
+repeated with:
+
 @smallexample
-        repne
-        scas
+        repne scas %es:(%edi),%al
 @end smallexample
 
-Here is a list of opcode prefixes:
+You may also place prefixes on the lines immediately preceding the
+instruction, but this circumvents checks that @code{@value{AS}} does
+with prefixes, and will not work with all prefixes.
+
+Here is a list of instruction prefixes:
 
 @cindex section override prefixes, i386
 @itemize @bullet
@@ -232,27 +241,35 @@ using the @var{section}:@var{memory-operand} form for memory references.
 @cindex size prefixes, i386
 @item
 Operand/Address size prefixes @samp{data16} and @samp{addr16}
-change 32-bit operands/addresses into 16-bit operands/addresses.  Note
-that 16-bit addressing modes (i.e. 8086 and 80286 addressing modes)
-are not supported (yet).
+change 32-bit operands/addresses into 16-bit operands/addresses,
+while @samp{data32} and @samp{addr32} change 16-bit ones (in a
+@code{.code16} section) into 32-bit operands/addresses.  These prefixes
+@emph{must} appear on the same line of code as the instruction they
+modify. For example, in a 16-bit @code{.code16} section, you might
+write:
+
+@smallexample
+        addr32 jmpl *(%ebx)
+@end smallexample
 
 @cindex bus lock prefixes, i386
 @cindex inhibiting interrupts, i386
 @item
-The bus lock prefix @samp{lock} inhibits interrupts during
-execution of the instruction it precedes.  (This is only valid with
-certain instructions; see a 80386 manual for details).
+The bus lock prefix @samp{lock} inhibits interrupts during execution of
+the instruction it precedes.  (This is only valid with certain
+instructions; see a 80386 manual for details).
 
 @cindex coprocessor wait, i386
 @item
-The wait for coprocessor prefix @samp{wait} waits for the
-coprocessor to complete the current instruction.  This should never be
-needed for the 80386/80387 combination.
+The wait for coprocessor prefix @samp{wait} waits for the coprocessor to
+complete the current instruction.  This should never be needed for the
+80386/80387 combination.
 
 @cindex repeat prefixes, i386
 @item
 The @samp{rep}, @samp{repe}, and @samp{repne} prefixes are added
-to string instructions to make them repeat @samp{%ecx} times.
+to string instructions to make them repeat @samp{%ecx} times (@samp{%cx}
+times if the current address size is 16-bits).
 @end itemize
 
 @node i386-Memory
@@ -281,7 +298,7 @@ to calculate the address of the operand.  If no @var{scale} is
 specified, @var{scale} is taken to be 1.  @var{section} specifies the
 optional section register for the memory operand, and may override the
 default section register (see a 80386 manual for section register
-defaults). Note that section overrides in AT&T syntax @emph{must} have
+defaults). Note that section overrides in AT&T syntax @emph{must}
 be preceded by a @samp{%}.  If you specify a section override which
 coincides with the default section register, @code{@value{AS}} does @emph{not}
 output any section register override prefixes to assemble the given
@@ -315,9 +332,9 @@ Absolute (as opposed to PC relative) call and jump operands must be
 prefixed with @samp{*}.  If no @samp{*} is specified, @code{@value{AS}}
 always chooses PC relative addressing for jump/call labels.
 
-Any instruction that has a memory operand @emph{must} specify its size (byte,
-word, or long) with an opcode suffix (@samp{b}, @samp{w}, or @samp{l},
-respectively).
+Any instruction that has a memory operand, but no register operand,
+@emph{must} specify its size (byte, word, or long) with an instruction
+mnemonic suffix (@samp{b}, @samp{w}, or @samp{l}, respectively).
 
 @node i386-jumps
 @section Handling of Jump Instructions
@@ -328,9 +345,10 @@ Jump instructions are always optimized to use the smallest possible
 displacements.  This is accomplished by using byte (8-bit) displacement
 jumps whenever the target is sufficiently close.  If a byte displacement
 is insufficient a long (32-bit) displacement is used.  We do not support
-word (16-bit) displacement jumps (i.e. prefixing the jump instruction
-with the @samp{addr16} opcode prefix), since the 80386 insists upon masking
-@samp{%eip} to 16 bits after the word displacement is added.
+word (16-bit) displacement jumps in 32-bit mode (i.e. prefixing the jump
+instruction with the @samp{data16} instruction prefix), since the 80386
+insists upon masking @samp{%eip} to 16 bits after the word displacement
+is added.
 
 Note that the @samp{jcxz}, @samp{jecxz}, @samp{loop}, @samp{loopz},
 @samp{loope}, @samp{loopnz} and @samp{loopne} instructions only come in byte
@@ -355,9 +373,9 @@ All 80387 floating point types except packed BCD are supported.
 (BCD support may be added without much difficulty).  These data
 types are 16-, 32-, and 64- bit integers, and single (32-bit),
 double (64-bit), and extended (80-bit) precision floating point.
-Each supported type has an opcode suffix and a constructor
-associated with it.  Opcode suffixes specify operand's data
-types.  Constructors build these data types into memory.
+Each supported type has an instruction mnemonic suffix and a constructor
+associated with it.  Instruction mnemonic suffixes specify the operand's
+data type.  Constructors build these data types into memory.
 
 @cindex @code{float} directive, i386
 @cindex @code{single} directive, i386
@@ -367,10 +385,10 @@ types.  Constructors build these data types into memory.
 @item
 Floating point constructors are @samp{.float} or @samp{.single},
 @samp{.double}, and @samp{.tfloat} for 32-, 64-, and 80-bit formats.
-These correspond to opcode suffixes @samp{s}, @samp{l}, and @samp{t}.
-@samp{t} stands for temporary real, and that the 80387 only supports
-this format via the @samp{fldt} (load temporary real to stack top) and
-@samp{fstpt} (store temporary real and pop stack) instructions.
+These correspond to instruction mnemonic suffixes @samp{s}, @samp{l},
+and @samp{t}. @samp{t} stands for 80-bit (ten byte) real.  The 80387
+only supports this format via the @samp{fldt} (load 80-bit real to stack
+top) and @samp{fstpt} (store 80-bit real and pop stack) instructions.
 
 @cindex @code{word} directive, i386
 @cindex @code{long} directive, i386
@@ -378,15 +396,46 @@ this format via the @samp{fldt} (load temporary real to stack top) and
 @cindex @code{quad} directive, i386
 @item
 Integer constructors are @samp{.word}, @samp{.long} or @samp{.int}, and
-@samp{.quad} for the 16-, 32-, and 64-bit integer formats.  The corresponding
-opcode suffixes are @samp{s} (single), @samp{l} (long), and @samp{q}
-(quad).  As with the temporary real format the 64-bit @samp{q} format is
-only present in the @samp{fildq} (load quad integer to stack top) and
-@samp{fistpq} (store quad integer and pop stack) instructions.
+@samp{.quad} for the 16-, 32-, and 64-bit integer formats.  The
+corresponding instruction mnemonic suffixes are @samp{s} (single),
+@samp{l} (long), and @samp{q} (quad).  As with the 80-bit real format,
+the 64-bit @samp{q} format is only present in the @samp{fildq} (load
+quad integer to stack top) and @samp{fistpq} (store quad integer and pop
+stack) instructions.
 @end itemize
 
-Register to register operations do not require opcode suffixes,
-so that @samp{fst %st, %st(1)} is equivalent to @samp{fstl %st, %st(1)}.
+Register to register operations should not use instruction mnemonic suffixes.
+@samp{fstl %st, %st(1)} will give a warning, and be assembled as if you
+wrote @samp{fst %st, %st(1)}, since all register to register operations
+use 80-bit floating point operands. (Contrast this with @samp{fstl %st, mem},
+which converts @samp{%st} from 80-bit to 64-bit floating point format,
+then stores the result in the 4 byte location @samp{mem})
+
+@node i386-SIMD
+@section Intel's MMX and AMD's 3DNow! SIMD Operations
+
+@cindex MMX, i386
+@cindex 3DNow!, i386
+@cindex SIMD, i386
+
+@code{@value{AS}} supports Intel's MMX instruction set (SIMD
+instructions for integer data), available on Intel's Pentium MMX
+processors and Pentium II processors, AMD's K6 and K6-2 processors,
+Cyrix' M2 processor, and probably others.  It also supports AMD's 3DNow!
+instruction set (SIMD instructions for 32-bit floating point data)
+available on AMD's K6-2 processor and possibly others in the future.
+
+Currently, @code{@value{AS}} does not support Intel's floating point
+SIMD, Katmai (KNI).
+
+The eight 64-bit MMX operands, also used by 3DNow!, are called @samp{%mm0},
+@samp{%mm1}, ... @samp{%mm7}.  They contain eight 8-bit integers, four
+16-bit integers, two 32-bit integers, one 64-bit integer, or two 32-bit
+floating point values.  The MMX registers cannot be used at the same time
+as the floating point stack.
+
+See Intel and AMD documentation, keeping in mind that the operand order in
+instructions is reversed from the Intel syntax.
 
 @node i386-16bit
 @section Writing 16-bit Code
@@ -394,44 +443,68 @@ so that @samp{fst %st, %st(1)} is equivalent to @samp{fstl %st, %st(1)}.
 @cindex i386 16-bit code
 @cindex 16-bit code, i386
 @cindex real-mode code, i386
+@cindex @code{code16gcc} directive, i386
 @cindex @code{code16} directive, i386
 @cindex @code{code32} directive, i386
-While GAS normally writes only ``pure'' 32-bit i386 code, it has limited
-support for writing code to run in real mode or in 16-bit protected mode
-code segments.  To do this, insert a @samp{.code16} directive before the
-assembly language instructions to be run in 16-bit mode.  You can switch
-GAS back to writing normal 32-bit code with the @samp{.code32} directive.
+While @code{@value{AS}} normally writes only ``pure'' 32-bit i386 code,
+it also supports writing code to run in real mode or in 16-bit protected
+mode code segments.  To do this, put a @samp{.code16} or
+@samp{.code16gcc} directive before the assembly language instructions to
+be run in 16-bit mode.  You can switch @code{@value{AS}} back to writing
+normal 32-bit code with the @samp{.code32} directive.
 
-GAS understands exactly the same assembly language syntax in 16-bit mode as
-in 32-bit mode.  The function of any given instruction is exactly the same
-regardless of mode, as long as the resulting object code is executed in the
-mode for which GAS wrote it.  So, for example, the @samp{ret} mnemonic
-produces a 32-bit return instruction regardless of whether it is to be run
-in 16-bit or 32-bit mode.  (If GAS is in 16-bit mode, it will add an
-operand size prefix to the instruction to force it to be a 32-bit return.)
+@samp{.code16gcc} provides experimental support for generating 16-bit
+code from gcc, and differs from @samp{.code16} in that @samp{call},
+@samp{ret}, @samp{enter}, @samp{leave}, @samp{push}, @samp{pop},
+@samp{pusha}, @samp{popa}, @samp{pushf}, and @samp{popf} instructions
+default to 32-bit size.  This is so that the stack pointer is
+manipulated in the same way over function calls, allowing access to
+function parameters at the same stack offsets as in 32-bit mode.
+@samp{.code16gcc} also automatically adds address size prefixes where
+necessary to use the 32-bit addressing modes that gcc generates.
 
-This means, for one thing, that you can use @sc{gnu} @sc{cc} to write code to be run
-in real mode or 16-bit protected mode.  Just insert the statement
-@samp{asm(".code16");} at the beginning of your C source file, and while
-@sc{gnu} @sc{cc} will still be generating 32-bit code, GAS will automatically add 
-all the necessary size prefixes to make that code run in 16-bit mode.  Of
-course, since @sc{gnu} @sc{cc} only writes small-model code (it doesn't know how to
-attach segment selectors to pointers like native x86 compilers do), any
-16-bit code you write with @sc{gnu} @sc{cc} will essentially be limited to a 64K
-address space.  Also, there will be a code size and performance penalty
-due to all the extra address and operand size prefixes GAS has to add to
-the instructions.
+The code which @code{@value{AS}} generates in 16-bit mode will not
+necessarily run on a 16-bit pre-80386 processor.  To write code that
+runs on such a processor, you must refrain from using @emph{any} 32-bit
+constructs which require @code{@value{AS}} to output address or operand
+size prefixes.
 
-Note that placing GAS in 16-bit mode does not mean that the resulting
-code will necessarily run on a 16-bit pre-80386 processor.  To write code
-that runs on such a processor, you would have to refrain from using
-@emph{any} 32-bit constructs which require GAS to output address or
-operand size prefixes.  At the moment this would be rather difficult,
-because GAS currently supports @emph{only} 32-bit addressing modes: when
-writing 16-bit code, it @emph{always} outputs address size prefixes for any
-instruction that uses a non-register addressing mode.  So you can write
-code that runs on 16-bit processors, but only if that code never references
-memory.
+Note that writing 16-bit code instructions by explicitly specifying a
+prefix or an instruction mnemonic suffix within a 32-bit code section
+generates different machine instructions than those generated for a
+16-bit code segment.  In a 32-bit code section, the following code
+generates the machine opcode bytes @samp{66 6a 04}, which pushes the
+value @samp{4} onto the stack, decrementing @samp{%esp} by 2.
+
+@smallexample
+        pushw $4
+@end smallexample
+
+The same code in a 16-bit code section would generate the machine
+opcode bytes @samp{6a 04} (ie. without the operand size prefix), which
+is correct since the processor default operand size is assumed to be 16
+bits in a 16-bit code section.
+
+@node i386-Bugs
+@section AT&T Syntax bugs
+
+The UnixWare assembler, and probably other AT&T derived ix86 Unix
+assemblers, generate floating point instructions with reversed source
+and destination registers in certain cases.  Unfortunately, gcc and
+possibly many other programs use this reversed syntax, so we're stuck
+with it.
+
+For example
+
+@smallexample
+        fsub %st,%st(3)
+@end smallexample
+@noindent
+results in @samp{%st(3)} being updated to @samp{%st - %st(3)} rather
+than the expected @samp{%st(3) - %st}.  This happens with all the
+non-commutative arithmetic floating point operations with two register
+operands where the source register is @samp{%st} and the destination
+register is @samp{%st(i)}.
 
 @node i386-Notes
 @section Notes

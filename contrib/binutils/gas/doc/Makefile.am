@@ -22,22 +22,31 @@ CPU_DOCS = \
 	c-h8300.texi \
 	c-h8500.texi \
 	c-hppa.texi \
+	c-i370.texi \
 	c-i386.texi \
 	c-i960.texi \
+	c-m32r.texi \
 	c-m68k.texi \
 	c-mips.texi \
 	c-ns32k.texi \
+	c-pj.texi \
 	c-sh.texi \
 	c-sparc.texi \
 	c-vax.texi \
 	c-v850.texi \
 	c-z8k.texi
 
-as.info: $(srcdir)/as.texinfo asconfig.texi $(CPU_DOCS)
-as.dvi: $(srcdir)/as.texinfo asconfig.texi $(CPU_DOCS)
+gasver.texi: Makefile
+	rm -f $@
+	echo '@set VERSION $(VERSION)' > $@
+
+as.info: $(srcdir)/as.texinfo asconfig.texi gasver.texi $(CPU_DOCS)
+as.dvi: $(srcdir)/as.texinfo asconfig.texi gasver.texi $(CPU_DOCS)
 
 # This one isn't ready for prime time yet.  Not even a little bit.
 
 noinst_TEXINFOS = internals.texi
 
 DISTCLEANFILES = asconfig.texi
+
+MAINTAINERCLEANFILES = gasver.texi

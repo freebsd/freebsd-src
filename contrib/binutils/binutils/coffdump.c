@@ -1,5 +1,5 @@
 /* Coff file dumper.
-   Copyright (C) 1994 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 98, 99, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -31,15 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bucomm.h"
 
 #define PROGRAM_VERSION "1.0"
-
-char *xcalloc(a,b)
-int a;
-int b;
-{
-  char *r = xmalloc(a*b);
-  memset (r, 0, a * b);
-  return r;
-}
 
 static int atnl;
 static void dump_coff_scope ();
@@ -100,7 +91,7 @@ dump_coff_lines (p)
   int i;
   int online = 0;
   tab(1);
-  printf("#lines %d ",p->nlines);
+  printf(_("#lines %d "),p->nlines);
   for (i = 0; i < p->nlines; i++) 
     {
       printf("(%d 0x%x)", p->lines[i], p->addresses[i]);
@@ -462,7 +453,7 @@ show_usage (file, status)
 static void
 show_help ()
 {
-  printf ("%s: Print a human readable interpretation of a SYSROFF object file\n",
+  printf (_("%s: Print a human readable interpretation of a SYSROFF object file\n"),
 	  program_name);
   show_usage (stdout, 0);
 }
@@ -485,6 +476,12 @@ main (ac, av)
       { NULL, no_argument, 0, 0 }
     };
 
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
+
   program_name = av[0];
   xmalloc_set_program_name (program_name);
 
@@ -498,7 +495,7 @@ main (ac, av)
 	  show_help ();
 	  /*NOTREACHED*/
 	case 'V':
-	  printf ("GNU %s version %s\n", program_name, PROGRAM_VERSION);
+	  printf (_("GNU %s version %s\n"), program_name, PROGRAM_VERSION);
 	  exit (0);
 	  /*NOTREACHED*/
 	case 0:
@@ -516,9 +513,7 @@ main (ac, av)
 
   if (!input_file)
     {
-      fprintf (stderr,"%s: no input file specified\n",
-	       program_name);
-      exit(1);
+      fatal (_("no input file specified"));
     }
   abfd = bfd_openr (input_file, 0);
 

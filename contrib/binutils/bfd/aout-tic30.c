@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C30 a.out binaries.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -131,7 +131,7 @@ static CONST struct aout_backend_data tic30_aout_backend_data =
    it. */
 reloc_howto_type tic30_aout_howto_table[] =
 {
-  {-1},
+  EMPTY_HOWTO (-1),
   HOWTO (1, 2, 1, 16, false, 0, 0, tic30_aout_fix_16,
 	 "16", false, 0x0000FFFF, 0x0000FFFF, false),
   HOWTO (2, 2, 2, 24, false, 0, complain_overflow_bitfield, NULL,
@@ -142,18 +142,18 @@ reloc_howto_type tic30_aout_howto_table[] =
 	 "32", false, 0xFFFFFFFF, 0xFFFFFFFF, false),
   HOWTO (5, 2, 1, 16, true, 0, complain_overflow_signed,
 	 tic30_aout_fix_pcrel_16, "PCREL", true, 0x0000FFFF, 0x0000FFFF, true),
-  {-1},
-  {-1},
-  {-1},
-  {-1},
-  {-1}
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1)
 };
 
 extern reloc_howto_type *NAME (aout, reloc_type_lookup) ();
 
 reloc_howto_type *
 tic30_aout_reloc_type_lookup (abfd, code)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      bfd_reloc_code_real_type code;
 {
   switch (code)
@@ -218,9 +218,9 @@ tic30_aout_fix_16 (abfd, reloc_entry, symbol, data, input_section, output_bfd, e
      arelent *reloc_entry;
      asymbol *symbol;
      PTR data;
-     asection *input_section;
+     asection *input_section ATTRIBUTE_UNUSED;
      bfd *output_bfd;
-     char **error_message;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   bfd_vma relocation;
 
@@ -245,9 +245,9 @@ tic30_aout_fix_32 (abfd, reloc_entry, symbol, data, input_section,
      arelent *reloc_entry;
      asymbol *symbol;
      PTR data;
-     asection *input_section;
+     asection *input_section ATTRIBUTE_UNUSED;
      bfd *output_bfd;
-     char **error_message;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   bfd_vma relocation;
 
@@ -274,11 +274,11 @@ tic30_aout_fix_pcrel_16 (abfd, reloc_entry, symbol, data, input_section,
 			 output_bfd, error_message)
      bfd *abfd;
      arelent *reloc_entry;
-     asymbol *symbol;
+     asymbol *symbol ATTRIBUTE_UNUSED;
      PTR data;
-     asection *input_section;
-     bfd *output_bfd;
-     char **error_message;
+     asection *input_section ATTRIBUTE_UNUSED;
+     bfd *output_bfd ATTRIBUTE_UNUSED;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   bfd_vma relocation = 1;
   bfd_byte offset_data = bfd_get_8 (abfd, (bfd_byte *) data + reloc_entry->address - 1);
@@ -590,9 +590,9 @@ tic30_aout_object_p (abfd)
 static boolean
 MY_bfd_copy_private_section_data (ibfd, isec, obfd, osec)
      bfd *ibfd;
-     asection *isec;
+     asection *isec ATTRIBUTE_UNUSED;
      bfd *obfd;
-     asection *osec;
+     asection *osec ATTRIBUTE_UNUSED;
 {
   if (bfd_get_flavour (obfd) == bfd_target_aout_flavour)
     obj_aout_subformat (obfd) = obj_aout_subformat (ibfd);
@@ -610,11 +610,8 @@ tic30_aout_write_object_contents (abfd)
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
 
-#if CHOOSE_RELOC_SIZE
-  CHOOSE_RELOC_SIZE (abfd);
-#else
   obj_reloc_entry_size (abfd) = RELOC_STD_SIZE;
-#endif
+
   {
     bfd_size_type text_size;	/* dummy vars */
     file_ptr text_end;
@@ -779,7 +776,7 @@ MY_bfd_final_link (abfd, info)
 enum machine_type
 tic30_aout_machine_type (arch, machine, unknown)
      enum bfd_architecture arch;
-     unsigned long machine;
+     unsigned long machine ATTRIBUTE_UNUSED;
      boolean *unknown;
 {
   enum machine_type arch_flags;
@@ -939,6 +936,9 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #ifndef MY_bfd_relax_section
 #define MY_bfd_relax_section bfd_generic_relax_section
 #endif
+#ifndef MY_bfd_gc_sections
+#define MY_bfd_gc_sections bfd_generic_gc_sections
+#endif
 #ifndef MY_bfd_reloc_type_lookup
 #define MY_bfd_reloc_type_lookup tic30_aout_reloc_type_lookup
 #endif
@@ -1057,6 +1057,8 @@ const bfd_target tic30_aout_vec =
   BFD_JUMP_TABLE_LINK (MY),
   BFD_JUMP_TABLE_DYNAMIC (MY),
 
-  (PTR) MY_backend_data,
+  NULL,
+  
+  (PTR) MY_backend_data
 };
 #endif /* MY_BFD_TARGET */

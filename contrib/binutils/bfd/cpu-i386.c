@@ -21,6 +21,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sysdep.h"
 #include "libbfd.h"
 
+const bfd_arch_info_type bfd_i386_arch_intel_syntax =
+{
+  32,	/* 32 bits in a word */
+  32,	/* 32 bits in an address */
+  8,	/* 8 bits in a byte */
+  bfd_arch_i386,
+  bfd_mach_i386_i386_intel_syntax,
+  "i386:intel",
+  "i386:intel",
+  3,
+  true,
+  bfd_default_compatible, 
+  bfd_default_scan ,
+  0,
+};
 static const bfd_arch_info_type i8086_arch =
 {
   32,	/* 32 bits in a word */
@@ -34,7 +49,7 @@ static const bfd_arch_info_type i8086_arch =
   false,
   bfd_default_compatible, 
   bfd_default_scan ,
-  0,
+  &bfd_i386_arch_intel_syntax,
 };
 
 const bfd_arch_info_type bfd_i386_arch =
@@ -52,3 +67,4 @@ const bfd_arch_info_type bfd_i386_arch =
   bfd_default_scan ,
   &i8086_arch,
 };
+

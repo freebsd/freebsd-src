@@ -56,7 +56,7 @@ build_link_order (statement)
 
 	link_order = bfd_new_link_order (output_bfd, output_section);
 	if (link_order == NULL)
-	  einfo ("%P%F: bfd_new_link_order failed\n");
+	  einfo (_("%P%F: bfd_new_link_order failed\n"));
 
 	link_order->type = bfd_data_link_order;
 	link_order->offset = statement->data_statement.output_vma;
@@ -192,7 +192,7 @@ build_link_order (statement)
 
 	link_order = bfd_new_link_order (output_bfd, output_section);
 	if (link_order == NULL)
-	  einfo ("%P%F: bfd_new_link_order failed\n");
+	  einfo (_("%P%F: bfd_new_link_order failed\n"));
 
 	link_order->offset = rs->output_vma;
 	link_order->size = bfd_get_reloc_size (rs->howto);
@@ -362,7 +362,7 @@ ds (s)
 	}
       else
 	{
-	  printf ("%8x something else\n", l->offset);
+	  printf (_("%8x something else\n"), l->offset);
 	}
       l = l->next;
     }
@@ -523,7 +523,7 @@ ldwrite ()
 	 out.  */
 
       if (bfd_get_error () != bfd_error_no_error)
-	einfo ("%F%P: final link failed: %E\n", output_bfd);
+	einfo (_("%F%P: final link failed: %E\n"), output_bfd);
       else
 	xexit(1);
     }

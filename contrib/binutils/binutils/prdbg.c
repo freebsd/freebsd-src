@@ -1,5 +1,5 @@
 /* prdbg.c -- Print out generic debugging information.
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1999 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -985,7 +985,7 @@ pr_fix_visibility (info, visibility)
      struct pr_handle *info;
      enum debug_visibility visibility;
 {
-  const char *s;
+  const char *s = NULL;
   char *t;
   unsigned int len;
 
@@ -1602,7 +1602,7 @@ pr_typdef (p, name)
 static boolean
 pr_tag (p, name)
      PTR p;
-     const char *name;
+     const char *name ATTRIBUTE_UNUSED;
 {
   struct pr_handle *info = (struct pr_handle *) p;
   char *t;
@@ -1856,7 +1856,7 @@ pr_end_block (p, addr)
 /*ARGSUSED*/
 static boolean
 pr_end_function (p)
-     PTR p;
+     PTR p ATTRIBUTE_UNUSED;
 {
   return true;
 }

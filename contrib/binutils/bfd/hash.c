@@ -1,5 +1,5 @@
 /* hash.c -- hash table routines for BFD
-   Copyright (C) 1993, 94, 95, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94, 95, 97, 1999 Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -73,7 +73,7 @@ SUBSECTION
 	The function <<bfd_hash_table_init>> take as an argument a
 	function to use to create new entries.  For a basic hash
 	table, use the function <<bfd_hash_newfunc>>.  @xref{Deriving
-	a New Hash Table Type} for why you would want to use a
+	a New Hash Table Type}, for why you would want to use a
 	different value for this argument.
 
 @findex bfd_hash_allocate
@@ -450,7 +450,7 @@ struct bfd_hash_entry *
 bfd_hash_newfunc (entry, table, string)
      struct bfd_hash_entry *entry;
      struct bfd_hash_table *table;
-     const char *string;
+     const char *string ATTRIBUTE_UNUSED;
 {
   if (entry == (struct bfd_hash_entry *) NULL)
     entry = ((struct bfd_hash_entry *)

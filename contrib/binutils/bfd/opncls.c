@@ -486,7 +486,7 @@ bfd_close_all_done (abfd)
 	  int mask = umask (0);
 	  umask (mask);
 	  chmod (abfd->filename,
-		 (0x777
+		 (0777
 		  & (buf.st_mode | ((S_IXUSR | S_IXGRP | S_IXOTH) &~ mask))));
 	}
     }
@@ -528,6 +528,109 @@ bfd_create (filename, templ)
   nbfd->direction = no_direction;
   bfd_set_format (nbfd, bfd_object);
   return nbfd;
+}
+
+/*
+FUNCTION
+	bfd_make_writable
+
+SYNOPSIS
+	boolean bfd_make_writable(bfd *abfd);
+
+DESCRIPTION
+	Takes a BFD as created by <<bfd_create>> and converts it
+	into one like as returned by <<bfd_openw>>.  It does this
+	by converting the BFD to BFD_IN_MEMORY.  It's assumed that
+	you will call <<bfd_make_readable>> on this bfd later.
+
+RETURNS
+	<<true>> is returned if all is ok, otherwise <<false>>.
+*/
+
+boolean
+bfd_make_writable(abfd)
+     bfd *abfd;
+{
+  struct bfd_in_memory *bim;
+
+  if (abfd->direction != no_direction)
+    {
+      bfd_set_error (bfd_error_invalid_operation);
+      return false;
+    }
+
+  bim = (struct bfd_in_memory *) bfd_malloc (sizeof (struct bfd_in_memory));
+  abfd->iostream = (PTR) bim;
+  /* bfd_write will grow these as needed */
+  bim->size = 0;
+  bim->buffer = 0;
+
+  abfd->flags |= BFD_IN_MEMORY;
+  abfd->direction = write_direction;
+  abfd->where = 0;
+
+  return true;
+}
+
+/*
+FUNCTION
+	bfd_make_readable
+
+SYNOPSIS
+	boolean bfd_make_readable(bfd *abfd);
+
+DESCRIPTION
+	Takes a BFD as created by <<bfd_create>> and
+	<<bfd_make_writable>> and converts it into one like as
+	returned by <<bfd_openr>>.  It does this by writing the
+	contents out to the memory buffer, then reversing the
+	direction.
+
+RETURNS
+	<<true>> is returned if all is ok, otherwise <<false>>.  */
+
+boolean
+bfd_make_readable(abfd)
+     bfd *abfd;
+{
+  if (abfd->direction != write_direction || !(abfd->flags & BFD_IN_MEMORY))
+    {
+      bfd_set_error (bfd_error_invalid_operation);
+      return false;
+    }
+
+  if (! BFD_SEND_FMT (abfd, _bfd_write_contents, (abfd)))
+    return false;
+
+  if (! BFD_SEND (abfd, _close_and_cleanup, (abfd)))
+    return false;
+
+
+  abfd->arch_info = &bfd_default_arch_struct;
+
+  abfd->where = 0;
+  abfd->sections = (asection *) NULL;
+  abfd->format = bfd_unknown;
+  abfd->my_archive = (bfd *) NULL;
+  abfd->origin = 0;				
+  abfd->opened_once = false;
+  abfd->output_has_begun = false;
+  abfd->section_count = 0;
+  abfd->usrdata = (PTR) NULL;
+  abfd->cacheable = false;
+  abfd->flags = BFD_IN_MEMORY;
+  abfd->mtime_set = false;
+
+  abfd->target_defaulted = true;
+  abfd->direction = read_direction;
+  abfd->sections = 0;
+  abfd->symcount = 0;
+  abfd->outsymbols = 0;
+  abfd->tdata.any = 0;
+
+  bfd_check_format(abfd, bfd_object);
+
+  return true;
 }
 
 /*

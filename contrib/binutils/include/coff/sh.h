@@ -16,10 +16,13 @@ struct external_filehdr {
 
 #define	SH_ARCH_MAGIC_BIG	0x0500
 #define	SH_ARCH_MAGIC_LITTLE	0x0550  /* Little endian SH */
+#define SH_ARCH_MAGIC_WINCE	0x01a2  /* Windows CE - little endian */
+#define SH_PE_MAGIC		0x010b
 
 
 #define SHBADMAG(x) \
  (((x).f_magic!=SH_ARCH_MAGIC_BIG) && \
+  ((x).f_magic!=SH_ARCH_MAGIC_WINCE) && \
   ((x).f_magic!=SH_ARCH_MAGIC_LITTLE))
 
 #define	FILHDR	struct external_filehdr
@@ -48,6 +51,12 @@ AOUTHDR;
 
 
 
+/* Define some NT default values.  */
+/*  #define NT_IMAGE_BASE        0x400000 moved to internal.h */
+#define NT_SECTION_ALIGNMENT 0x1000
+#define NT_FILE_ALIGNMENT    0x200
+#define NT_DEF_RESERVE       0x100000
+#define NT_DEF_COMMIT        0x1000
 
 /********************** SECTION HEADER **********************/
 
@@ -89,14 +98,26 @@ struct external_lineno {
 		char l_symndx[4];	/* function name symbol index, iff l_lnno == 0*/
 		char l_paddr[4];	/* (physical) address of line number	*/
 	} l_addr;
+#ifdef COFF_WITH_PE
+	char l_lnno[2];	/* line number		*/
+#else
 	char l_lnno[4];	/* line number		*/
+#endif
 };
 
 #define GET_LINENO_LNNO(abfd, ext) bfd_h_get_32(abfd, (bfd_byte *) (ext->l_lnno));
 #define PUT_LINENO_LNNO(abfd,val, ext) bfd_h_put_32(abfd,val,  (bfd_byte *) (ext->l_lnno));
 
 #define	LINENO	struct external_lineno
+#ifdef COFF_WITH_PE
+#define	LINESZ	6
+#undef GET_LINENO_LNNO
+#define GET_LINENO_LNNO(abfd, ext) bfd_h_get_16(abfd, (bfd_byte *) (ext->l_lnno));
+#undef PUT_LINENO_LNNO
+#define PUT_LINENO_LNNO(abfd,val, ext) bfd_h_put_16(abfd,val,  (bfd_byte *) (ext->l_lnno));
+#else
 #define	LINESZ	8
+#endif
 
 
 /********************** SYMBOLS **********************/
@@ -163,6 +184,9 @@ union external_auxent {
 		char x_scnlen[4];			/* section length */
 		char x_nreloc[2];	/* # relocation entries */
 		char x_nlinno[2];	/* # line numbers */
+		char x_checksum[4];	/* section COMDAT checksum */
+		char x_associated[2];	/* COMDAT associated section index */
+		char x_comdat[1];	/* COMDAT selection number */
 	} x_scn;
 
         struct {
@@ -187,6 +211,7 @@ union external_auxent {
    types on the h8 don't have room in the instruction for the entire
    offset - eg the strange jump and high page addressing modes */
 
+#ifndef COFF_WITH_PE
 struct external_reloc {
   char r_vaddr[4];
   char r_symndx[4];
@@ -194,14 +219,26 @@ struct external_reloc {
   char r_type[2];
   char r_stuff[2];
 };
+#else
+struct external_reloc {
+  char r_vaddr[4];
+  char r_symndx[4];
+  char r_type[2];
+};
+#endif
 
 
 #define RELOC struct external_reloc
+#ifdef COFF_WITH_PE
+#define RELSZ 10
+#else
 #define RELSZ 16
+#endif
 
 /* SH relocation types.  Not all of these are actually used.  */
 
 #define R_SH_UNUSED	0		/* only used internally */
+#define R_SH_IMM32CE	2		/* 32 bit immediate for WinCE */
 #define R_SH_PCREL8 	3		/*  8 bit pcrel 	*/
 #define R_SH_PCREL16 	4		/* 16 bit pcrel 	*/
 #define R_SH_HIGH8  	5		/* high 8 bits of 24 bit address */
@@ -213,6 +250,7 @@ struct external_reloc {
 #define R_SH_PCDISP     12  		/* 12 bit branch */
 #define R_SH_IMM32      14    		/* 32 bit immediate */
 #define R_SH_IMM8   	16		/* 8 bit immediate */
+#define R_SH_IMAGEBASE	16		/* Windows CE */
 #define R_SH_IMM8BY2    17		/* 8 bit immediate *2 */
 #define R_SH_IMM8BY4    18		/* 8 bit immediate *4 */
 #define R_SH_IMM4   	19		/* 4 bit immediate */

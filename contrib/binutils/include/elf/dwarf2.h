@@ -1,6 +1,6 @@
 /* Declarations and definitions of codes relating to the DWARF symbolic
    debugging information format.
-   Copyright (C) 1992, 1993, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1995, 1996, 1999 Free Software Foundation, Inc.
 
    Written by Gary Funck (gary@intrepid.com) The Ada Joint Program
    Office (AJPO), Florida State Unviversity and Silicon Graphics Inc.
@@ -33,6 +33,92 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 
 #ifndef _ELF_DWARF2_H
 #define _ELF_DWARF2_H
+
+/* Structure found in the .debug_line section.  */
+typedef struct
+{
+  unsigned char li_length          [4];
+  unsigned char li_version         [2];
+  unsigned char li_prologue_length [4];
+  unsigned char li_min_insn_length [1];
+  unsigned char li_default_is_stmt [1];
+  unsigned char li_line_base       [1];
+  unsigned char li_line_range      [1];
+  unsigned char li_opcode_base     [1];
+}
+DWARF2_External_LineInfo;
+
+typedef struct
+{
+  unsigned long  li_length;
+  unsigned short li_version;
+  unsigned int   li_prologue_length;
+  unsigned char  li_min_insn_length;
+  unsigned char  li_default_is_stmt;
+  int            li_line_base;
+  unsigned char  li_line_range;
+  unsigned char  li_opcode_base;
+}
+DWARF2_Internal_LineInfo;
+
+/* Structure found in .debug_pubnames section.  */
+typedef struct
+{
+  unsigned char pn_length  [4];
+  unsigned char pn_version [2];
+  unsigned char pn_offset  [4];
+  unsigned char pn_size    [4];
+}
+DWARF2_External_PubNames;
+
+typedef struct
+{
+  unsigned long  pn_length;
+  unsigned short pn_version;
+  unsigned long  pn_offset;
+  unsigned long  pn_size;
+}
+DWARF2_Internal_PubNames;
+
+/* Strcuture found in .debug_info section.  */
+typedef struct
+{
+  unsigned char  cu_length        [4];
+  unsigned char  cu_version       [2];
+  unsigned char  cu_abbrev_offset [4];
+  unsigned char  cu_pointer_size  [1];
+}
+DWARF2_External_CompUnit;
+
+typedef struct
+{
+  unsigned long  cu_length;
+  unsigned short cu_version;
+  unsigned long  cu_abbrev_offset;
+  unsigned char  cu_pointer_size;
+}
+DWARF2_Internal_CompUnit;
+
+typedef struct
+{
+  unsigned char  ar_length       [4];
+  unsigned char  ar_version      [2];
+  unsigned char  ar_info_offset  [4];
+  unsigned char  ar_pointer_size [1];
+  unsigned char  ar_segment_size [1];
+}
+DWARF2_External_ARange;
+
+typedef struct
+{
+  unsigned long  ar_length;
+  unsigned short ar_version;
+  unsigned long  ar_info_offset;
+  unsigned char  ar_pointer_size;
+  unsigned char  ar_segment_size;
+}
+DWARF2_Internal_ARange;
+
 
 /* Tag names and codes.  */
 
@@ -530,6 +616,7 @@ enum dwarf_source_language
     DW_LANG_Fortran90 = 0x0008,
     DW_LANG_Pascal83 = 0x0009,
     DW_LANG_Modula2 = 0x000a,
+    DW_LANG_Java = 0x9af4,
     DW_LANG_Mips_Assembler = 0x8001
   };
 

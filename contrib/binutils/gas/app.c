@@ -1,5 +1,5 @@
 /* This is the Assembler Pre-Processor
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -34,14 +34,25 @@
 #endif
 #endif
 
+#ifdef TC_M68K
 /* Whether we are scrubbing in m68k MRI mode.  This is different from
    flag_m68k_mri, because the two flags will be affected by the .mri
    pseudo-op at different times.  */
 static int scrub_m68k_mri;
+#else
+#define scrub_m68k_mri 0
+#endif
 
 /* The pseudo-op which switches in and out of MRI mode.  See the
    comment in do_scrub_chars.  */
 static const char mri_pseudo[] = ".mri 0";
+
+#if defined TC_ARM && defined OBJ_ELF
+/* The pseudo-op for which we need to special-case `@' characters. 
+   See the comment in do_scrub_chars.  */
+static const char   symver_pseudo[] = ".symver";
+static const char * symver_state;
+#endif
 
 static char lex[256];
 static const char symbol_chars[] =
@@ -61,6 +72,9 @@ static const char symbol_chars[] =
 #define LEX_IS_DOUBLEDASH_1ST		12
 #endif
 #ifdef TC_M32R
+#define DOUBLEBAR_PARALLEL
+#endif
+#ifdef DOUBLEBAR_PARALLEL
 #define LEX_IS_DOUBLEBAR_1ST		13
 #endif
 #define IS_SYMBOL_COMPONENT(c)		(lex[c] == LEX_IS_SYMBOL_COMPONENT)
@@ -78,11 +92,10 @@ static int process_escape PARAMS ((int));
 
 void 
 do_scrub_begin (m68k_mri)
-     int m68k_mri;
+     int m68k_mri ATTRIBUTE_UNUSED;
 {
   const char *p;
-
-  scrub_m68k_mri = m68k_mri;
+  int c;
 
   lex[' '] = LEX_IS_WHITESPACE;
   lex['\t'] = LEX_IS_WHITESPACE;
@@ -91,11 +104,16 @@ do_scrub_begin (m68k_mri)
   lex[';'] = LEX_IS_LINE_SEPARATOR;
   lex[':'] = LEX_IS_COLON;
 
+#ifdef TC_M68K
+  scrub_m68k_mri = m68k_mri;
+
   if (! m68k_mri)
+#endif
     {
       lex['"'] = LEX_IS_STRINGQUOTE;
 
-#ifndef TC_HPPA
+#if ! defined (TC_HPPA) && ! defined (TC_I370)
+      /* I370 uses single-quotes to delimit integer, float constants */
       lex['\''] = LEX_IS_ONECHAR_QUOTE;
 #endif
 
@@ -113,6 +131,19 @@ do_scrub_begin (m68k_mri)
     {
       lex[(unsigned char) *p] = LEX_IS_SYMBOL_COMPONENT;
     }				/* declare symbol characters */
+
+  for (c = 128; c < 256; ++c)
+    lex[c] = LEX_IS_SYMBOL_COMPONENT;
+
+#ifdef tc_symbol_chars
+  /* This macro permits the processor to specify all characters which
+     may appears in an operand.  This will prevent the scrubber from
+     discarding meaningful whitespace in certain cases.  The i386
+     backend uses this to support prefixes, which can confuse the
+     scrubber as to whether it is parsing operands or opcodes.  */
+  for (p = tc_symbol_chars; *p; ++p)
+    lex[(unsigned char) *p] = LEX_IS_SYMBOL_COMPONENT;
+#endif
 
   /* The m68k backend wants to be able to change comment_chars.  */
 #ifndef tc_comment_chars
@@ -140,6 +171,7 @@ do_scrub_begin (m68k_mri)
       lex['/'] = LEX_IS_TWOCHAR_COMMENT_1ST;
     }
 
+#ifdef TC_M68K
   if (m68k_mri)
     {
       lex['\''] = LEX_IS_STRINGQUOTE;
@@ -149,12 +181,17 @@ do_scrub_begin (m68k_mri)
          then it can't be used in an expression.  */
       lex['!'] = LEX_IS_LINE_COMMENT_START;
     }
+#endif
 
 #ifdef TC_V850
   lex['-'] = LEX_IS_DOUBLEDASH_1ST;
 #endif
-#ifdef TC_M32R
+#ifdef DOUBLEBAR_PARALLEL
   lex['|'] = LEX_IS_DOUBLEBAR_1ST;
+#endif
+#ifdef TC_D30V
+  /* must do this is we want VLIW instruction with "->" or "<-" */
+  lex['-'] = LEX_IS_SYMBOL_COMPONENT;
 #endif
 }				/* do_scrub_begin() */
 
@@ -166,6 +203,7 @@ static char out_buf[20];
 static int add_newlines;
 static char *saved_input;
 static int saved_input_len;
+static char input_buffer[32 * 1024];
 static const char *mri_state;
 static char mri_last_ch;
 
@@ -176,16 +214,21 @@ static char mri_last_ch;
 
 struct app_save
   {
-    int state;
-    int old_state;
-    char *out_string;
-    char out_buf[sizeof (out_buf)];
-    int add_newlines;
-    char *saved_input;
-    int saved_input_len;
-    int scrub_m68k_mri;
-    const char *mri_state;
-    char mri_last_ch;
+    int          state;
+    int          old_state;
+    char *       out_string;
+    char         out_buf[sizeof (out_buf)];
+    int          add_newlines;
+    char *       saved_input;
+    int          saved_input_len;
+#ifdef TC_M68K
+    int          scrub_m68k_mri;
+#endif
+    const char * mri_state;
+    char         mri_last_ch;
+#if defined TC_ARM && defined OBJ_ELF
+    const char * symver_state;
+#endif
   };
 
 char *
@@ -199,11 +242,22 @@ app_push ()
   saved->out_string = out_string;
   memcpy (saved->out_buf, out_buf, sizeof (out_buf));
   saved->add_newlines = add_newlines;
-  saved->saved_input = saved_input;
-  saved->saved_input_len = saved_input_len;
+  if (saved_input == NULL)
+    saved->saved_input = NULL;
+  else
+    {
+      saved->saved_input = xmalloc (saved_input_len);
+      memcpy (saved->saved_input, saved_input, saved_input_len);
+      saved->saved_input_len = saved_input_len;
+    }
+#ifdef TC_M68K
   saved->scrub_m68k_mri = scrub_m68k_mri;
+#endif
   saved->mri_state = mri_state;
   saved->mri_last_ch = mri_last_ch;
+#if defined TC_ARM && defined OBJ_ELF
+  saved->symver_state = symver_state;
+#endif
 
   /* do_scrub_begin() is not useful, just wastes time. */
 
@@ -225,11 +279,24 @@ app_pop (arg)
   out_string = saved->out_string;
   memcpy (out_buf, saved->out_buf, sizeof (out_buf));
   add_newlines = saved->add_newlines;
-  saved_input = saved->saved_input;
-  saved_input_len = saved->saved_input_len;
+  if (saved->saved_input == NULL)
+    saved_input = NULL;
+  else
+    {
+      assert (saved->saved_input_len <= (int) (sizeof input_buffer));
+      memcpy (input_buffer, saved->saved_input, saved->saved_input_len);
+      saved_input = input_buffer;
+      saved_input_len = saved->saved_input_len;
+      free (saved->saved_input);
+    }
+#ifdef TC_M68K
   scrub_m68k_mri = saved->scrub_m68k_mri;
+#endif
   mri_state = saved->mri_state;
   mri_last_ch = saved->mri_last_ch;
+#if defined TC_ARM && defined OBJ_ELF
+  symver_state = saved->symver_state;
+#endif
 
   free (arg);
 }				/* app_pop() */
@@ -274,7 +341,7 @@ process_escape (ch)
 
 int
 do_scrub_chars (get, tostart, tolen)
-     int (*get) PARAMS ((char **));
+     int (*get) PARAMS ((char *, int));
      char *tostart;
      int tolen;
 {
@@ -302,7 +369,7 @@ do_scrub_chars (get, tostart, tolen)
 #ifdef TC_V850
          12: After seeing a dash, looking for a second dash as a start of comment.
 #endif
-#ifdef TC_M32R
+#ifdef DOUBLEBAR_PARALLEL
 	 13: After seeing a vertical bar, looking for a second vertical bar as a parallel expression seperator.
 #endif
 	  */
@@ -323,19 +390,16 @@ do_scrub_chars (get, tostart, tolen)
 
   /* This macro gets the next input character.  */
 
-#define GET()				\
-  (from < fromend			\
-   ? *from++				\
-   : ((saved_input != NULL		\
-       ? (free (saved_input),		\
-	  saved_input = NULL,		\
-	  0)				\
-       : 0),				\
-      fromlen = (*get) (&from),		\
-      fromend = from + fromlen,		\
-      (fromlen == 0			\
-       ? EOF				\
-       : *from++)))
+#define GET()							\
+  (from < fromend						\
+   ? * (unsigned char *) (from++)				\
+   : (saved_input = NULL,					\
+      fromlen = (*get) (input_buffer, sizeof input_buffer),	\
+      from = input_buffer,					\
+      fromend = from + fromlen,					\
+      (fromlen == 0						\
+       ? EOF							\
+       : * (unsigned char *) (from++))))
 
   /* This macro pushes a character back on the input stream.  */
 
@@ -366,9 +430,10 @@ do_scrub_chars (get, tostart, tolen)
     }
   else
     {
-      fromlen = (*get) (&from);
+      fromlen = (*get) (input_buffer, sizeof input_buffer);
       if (fromlen == 0)
 	return 0;
+      from = input_buffer;
       fromend = from + fromlen;
     }
 
@@ -398,7 +463,7 @@ do_scrub_chars (get, tostart, tolen)
 
 		  if (ch == EOF)
 		    {
-		      as_warn ("end of file in comment");
+		      as_warn (_("end of file in comment"));
 		      goto fromeof;
 		    }
 
@@ -412,7 +477,7 @@ do_scrub_chars (get, tostart, tolen)
 
 	      if (ch == EOF)
 		{
-		  as_warn ("end of file in comment");
+		  as_warn (_("end of file in comment"));
 		  goto fromeof;
 		}
 
@@ -491,7 +556,7 @@ do_scrub_chars (get, tostart, tolen)
 	  ch = GET ();
 	  if (ch == EOF)
 	    {
-	      as_warn ("end of file in string: inserted '\"'");
+	      as_warn (_("end of file in string: inserted '\"'"));
 	      state = old_state;
 	      UNGET ('\n');
 	      PUT ('"');
@@ -557,7 +622,7 @@ do_scrub_chars (get, tostart, tolen)
 	      break;
 #if defined(IGNORE_NONSTANDARD_ESCAPES) | defined(ONLY_STANDARD_ESCAPES)
 	    default:
-	      as_warn ("Unknown escape '\\%c' in string: Ignored", ch);
+	      as_warn (_("Unknown escape '\\%c' in string: Ignored"), ch);
 	      break;
 #else  /* ONLY_STANDARD_ESCAPES */
 	    default:
@@ -566,7 +631,7 @@ do_scrub_chars (get, tostart, tolen)
 #endif /* ONLY_STANDARD_ESCAPES */
 
 	    case EOF:
-	      as_warn ("End of file in string: '\"' inserted");
+	      as_warn (_("End of file in string: '\"' inserted"));
 	      PUT ('"');
 	      continue;
 	    }
@@ -599,6 +664,35 @@ do_scrub_chars (get, tostart, tolen)
       ch = GET ();
 
     recycle:
+
+#if defined TC_ARM && defined OBJ_ELF
+      /* We need to watch out for .symver directives.  See the comment later
+	 in this function.  */
+      if (symver_state == NULL)
+	{
+	  if ((state == 0 || state == 1) && ch == symver_pseudo[0])
+	    symver_state = symver_pseudo + 1;
+	}
+      else
+	{
+	  /* We advance to the next state if we find the right
+	     character.  */
+	  if (ch != '\0' && (*symver_state == ch))
+	    ++symver_state;
+	  else if (*symver_state != '\0')
+	    /* We did not get the expected character, or we didn't
+	       get a valid terminating character after seeing the
+	       entire pseudo-op, so we must go back to the beginning.  */
+	    symver_state = NULL;
+	  else
+	    {
+	      /* We've read the entire pseudo-op.  If this is the end
+		 of the line, go back to the beginning.  */
+	      if (IS_NEWLINE (ch))
+		symver_state = NULL;
+	    }
+	}
+#endif /* TC_ARM && OBJ_ELF */
 
 #ifdef TC_M68K
       /* We want to have pseudo-ops which control whether we are in
@@ -657,7 +751,7 @@ do_scrub_chars (get, tostart, tolen)
 	{
 	  if (state != 0)
 	    {
-	      as_warn ("end of file not at end of a line; newline inserted");
+	      as_warn (_("end of file not at end of a line; newline inserted"));
 	      state = 0;
 	      PUT ('\n');
 	    }
@@ -685,6 +779,21 @@ do_scrub_chars (get, tostart, tolen)
 	      break;
 	    }
 
+#ifdef KEEP_WHITE_AROUND_COLON
+          if (lex[ch] == LEX_IS_COLON)
+            {
+              /* only keep this white if there's no white *after* the colon */
+              ch2 = GET ();
+              UNGET (ch2);
+              if (!IS_WHITESPACE (ch2))
+                {
+                  state = 9;
+                  UNGET (ch);
+                  PUT (' ');
+                  break;
+                }
+            }
+#endif
 	  if (IS_COMMENT (ch)
 	      || ch == '/'
 	      || IS_LINE_SEPARATOR (ch))
@@ -755,11 +864,7 @@ do_scrub_chars (get, tostart, tolen)
 	      state = 10;	/* Sp after symbol char */
 	      goto recycle;
 	    case 11:
-	      if (flag_m68k_mri
-#ifdef LABELS_WITHOUT_COLONS
-		  || 1
-#endif
-		  )
+	      if (LABELS_WITHOUT_COLONS || flag_m68k_mri)
 		state = 1;
 	      else
 		{
@@ -803,7 +908,7 @@ do_scrub_chars (get, tostart, tolen)
 		}
 
 	      if (ch2 == EOF)
-		as_warn ("end of file in multiline comment");
+		as_warn (_("end of file in multiline comment"));
 
 	      ch = ' ';
 	      goto recycle;
@@ -852,7 +957,7 @@ do_scrub_chars (get, tostart, tolen)
 	  ch = GET ();
 	  if (ch == EOF)
 	    {
-	      as_warn ("end of file after a one-character quote; \\0 inserted");
+	      as_warn (_("end of file after a one-character quote; \\0 inserted"));
 	      ch = 0;
 	    }
 	  if (ch == '\\')
@@ -860,7 +965,7 @@ do_scrub_chars (get, tostart, tolen)
 	      ch = GET ();
 	      if (ch == EOF)
 		{
-		  as_warn ("end of file in escape character");
+		  as_warn (_("end of file in escape character"));
 		  ch = '\\';
 		}
 	      else
@@ -872,7 +977,7 @@ do_scrub_chars (get, tostart, tolen)
 	  if ((ch = GET ()) != '\'')
 	    {
 #ifdef REQUIRE_CHAR_CLOSE_QUOTE
-	      as_warn ("Missing close quote: (assumed)");
+	      as_warn (_("Missing close quote: (assumed)"));
 #else
 	      if (ch != EOF)
 		UNGET (ch);
@@ -894,10 +999,14 @@ do_scrub_chars (get, tostart, tolen)
 #endif
 
 	case LEX_IS_COLON:
+#ifdef KEEP_WHITE_AROUND_COLON
+          state = 9;
+#else
 	  if (state == 9 || state == 10)
 	    state = 3;
 	  else if (state != 3)
 	    state = 1;
+#endif
 	  PUT (ch);
 	  break;
 
@@ -931,13 +1040,13 @@ do_scrub_chars (get, tostart, tolen)
 	  while (ch != EOF && ch != '\n');
 	  if (ch == EOF)
 	    {
-	      as_warn ("end of file in comment; newline inserted");
+	      as_warn (_("end of file in comment; newline inserted"));
 	    }
 	  state = 0;
 	  PUT ('\n');
 	  break;
 #endif	    
-#ifdef TC_M32R
+#ifdef DOUBLEBAR_PARALLEL
 	case LEX_IS_DOUBLEBAR_1ST:
 	  ch2 = GET();
 	  if (ch2 != '|')
@@ -985,7 +1094,7 @@ do_scrub_chars (get, tostart, tolen)
 	      while (ch != EOF && IS_WHITESPACE (ch));
 	      if (ch == EOF)
 		{
-		  as_warn ("end of file in comment; newline inserted");
+		  as_warn (_("end of file in comment; newline inserted"));
 		  PUT ('\n');
 		  break;
 		}
@@ -995,7 +1104,7 @@ do_scrub_chars (get, tostart, tolen)
 		  while (ch != EOF && !IS_NEWLINE (ch))
 		    ch = GET ();
 		  if (ch == EOF)
-		    as_warn ("EOF in Comment: Newline inserted");
+		    as_warn (_("EOF in Comment: Newline inserted"));
 		  state = 0;
 		  PUT ('\n');
 		  break;
@@ -1039,13 +1148,22 @@ do_scrub_chars (get, tostart, tolen)
 	    goto de_fault;
 	  /* Fall through.  */
 	case LEX_IS_COMMENT_START:
+#if defined TC_ARM && defined OBJ_ELF
+	  /* On the ARM, `@' is the comment character.
+	     Unfortunately this is also a special character in ELF .symver
+	     directives (and .type, though we deal with those another way).  So
+	     we check if this line is such a directive, and treat the character
+	     as default if so.  This is a hack.  */
+	  if ((symver_state != NULL) && (*symver_state == 0))
+	    goto de_fault;
+#endif
 	  do
 	    {
 	      ch = GET ();
 	    }
 	  while (ch != EOF && !IS_NEWLINE (ch));
 	  if (ch == EOF)
-	    as_warn ("end of file in comment; newline inserted");
+	    as_warn (_("end of file in comment; newline inserted"));
 	  state = 0;
 	  PUT ('\n');
 	  break;
@@ -1067,7 +1185,12 @@ do_scrub_chars (get, tostart, tolen)
 
 	  /* This is a common case.  Quickly copy CH and all the
              following symbol component or normal characters.  */
-	  if (to + 1 < toend && mri_state == NULL)
+	  if (to + 1 < toend
+	      && mri_state == NULL
+#if defined TC_ARM && defined OBJ_ELF
+	      && symver_state == NULL
+#endif
+	      )
 	    {
 	      char *s;
 	      int len;
@@ -1076,7 +1199,7 @@ do_scrub_chars (get, tostart, tolen)
 		{
 		  int type;
 
-		  ch2 = *s;
+		  ch2 = * (unsigned char *) s;
 		  type = lex[ch2];
 		  if (type != 0
 		      && type != LEX_IS_SYMBOL_COMPONENT)
@@ -1137,6 +1260,23 @@ do_scrub_chars (get, tostart, tolen)
 	    }
 	  else if (state == 10)
 	    {
+	      if (ch == '\\')
+		{
+		  /* Special handling for backslash: a backslash may
+		     be the beginning of a formal parameter (of a
+		     macro) following another symbol character, with
+		     whitespace in between.  If that is the case, we
+		     output a space before the parameter.  Strictly
+		     speaking, correct handling depends upon what the
+		     macro parameter expands into; if the parameter
+		     expands into something which does not start with
+		     an operand character, then we don't want to keep
+		     the space.  We don't have enough information to
+		     make the right choice, so here we are making the
+		     choice which is more likely to be correct.  */
+		  PUT (' ');
+		}
+
 	      state = 3;
 	    }
 	  PUT (ch);
@@ -1155,23 +1295,12 @@ do_scrub_chars (get, tostart, tolen)
      processed.  */
   if (fromend > from)
     {
-      char *save;
-
-      save = (char *) xmalloc (fromend - from);
-      memcpy (save, from, fromend - from);
-      if (saved_input != NULL)
-	free (saved_input);
-      saved_input = save;
+      saved_input = from;
       saved_input_len = fromend - from;
     }
   else
-    {
-      if (saved_input != NULL)
-	{
-	  free (saved_input);
-	  saved_input = NULL;
-	}
-    }
+    saved_input = NULL;
+
   return to - tostart;
 }
 

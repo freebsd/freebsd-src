@@ -72,14 +72,16 @@
 # We have to handle being invoked by both Cygnus configure and Autoconf.
 #
 # Cygnus configure incoming variables:
-# srcdir, subdir, target, arguments
+# srcdir, subdir, host, arguments
 #
 # Autoconf incoming variables:
-# srcdir, target, ac_configure_args
+# srcdir, host, ac_configure_args
 #
-# We *could* figure srcdir and target out, but we'd have to do work that
+# We *could* figure srcdir and host out, but we'd have to do work that
 # our caller has already done to figure them out and requiring these two
 # seems reasonable.
+# Note that `host' in this case is GCC's `target'.  Target libraries are
+# configured for a particular host.
 
 if [ -n "${ac_configure_args}" ]; then
   Makefile=${ac_file-Makefile}
@@ -99,6 +101,7 @@ fi
 
 # Scan all the arguments and set all the ones we need.
 
+ml_verbose=--verbose
 for option in ${ml_arguments}
 do
   case $option in
@@ -127,6 +130,9 @@ do
 	;;
   --norecursion | --no*)
 	ml_norecursion=yes
+	;;
+  --silent | --sil* | --quiet | --q*)
+	ml_verbose=--silent
 	;;
   --verbose | --v | --verb*)
 	ml_verbose=--verbose
@@ -200,7 +206,10 @@ for i in `${CC-gcc} --print-multi-lib 2>/dev/null`; do
   fi
 done
 
-case "${target}" in
+# Target libraries are configured for the host they run on, so we check
+# $host here, not $target.
+
+case "${host}" in
 arc-*-elf*)
 	if [ x$enable_biendian != xyes ]
 	then
@@ -209,6 +218,64 @@ arc-*-elf*)
 	  for x in ${old_multidirs}; do
 	    case "${x}" in
 	      *be*) : ;;
+	      *) multidirs="${multidirs} ${x}" ;;
+	    esac
+	  done
+	fi
+	;;
+arm-*-*)
+	if [ x"$enable_fpu" = xno ]
+	then
+	  old_multidirs=${multidirs}
+	  multidirs=""
+	  for x in ${old_multidirs}; do
+	    case "${x}" in
+	      *fpu*) : ;;
+	      *) multidirs="${multidirs} ${x}" ;;
+	    esac
+	  done
+	fi
+	if [ x"$enable_26bit" = xno ]
+	then
+	  old_multidirs=${multidirs}
+	  multidirs=""
+	  for x in ${old_multidirs}; do
+	    case "${x}" in
+	      *26bit*) : ;;
+	      *) multidirs="${multidirs} ${x}" ;;
+	    esac
+	  done
+	fi
+	if [ x"$enable_underscore" = xno ]
+	then
+	  old_multidirs=${multidirs}
+	  multidirs=""
+	  for x in ${old_multidirs}; do
+	    case "${x}" in
+	      *under*) : ;;
+	      *) multidirs="${multidirs} ${x}" ;;
+	    esac
+	  done
+	fi
+	if [ x"$enable_interwork" = xno ]
+	then
+	  old_multidirs=${multidirs}
+	  multidirs=""
+	  for x in ${old_multidirs}; do
+	    case "${x}" in
+	      *interwork*) : ;;
+	      *) multidirs="${multidirs} ${x}" ;;
+	    esac
+	  done
+	fi
+	if [ x$enable_biendian = xno ]
+	then
+	  old_multidirs="${multidirs}"
+	  multidirs=""
+	  for x in ${old_multidirs}; do
+	    case "$x" in
+	      *le* ) : ;;
+	      *be* ) : ;;
 	      *) multidirs="${multidirs} ${x}" ;;
 	    esac
 	  done
@@ -564,6 +631,13 @@ if [ -n "${multidirs}" ] && [ -z "${ml_norecursion}" ]; then
       fi
       (cd ${ml_dir}/${ml_libdir};
        ../${dotdot}${ml_unsubdir}symlink-tree ../${dotdot}${ml_unsubdir}${ml_libdir} "")
+      if [ -f ${ml_dir}/${ml_libdir}/Makefile ]; then
+	if [ x"${MAKE}" = x ]; then
+	  (cd ${ml_dir}/${ml_libdir}; make distclean)
+	else
+	  (cd ${ml_dir}/${ml_libdir}; ${MAKE} distclean)
+	fi
+      fi
       ml_newsrcdir="."
       ml_srcdiroption=
       multisrctop=${dotdot}

@@ -1,5 +1,5 @@
 /* itbl-ops.h
-   Copyright (C) 1997  Free Software Foundation, Inc.
+   Copyright (C) 1997, 1999 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -92,9 +92,9 @@ char *itbl_get_field PARAMS ((char **s));
 unsigned long itbl_assemble PARAMS ((char *name, char *operands));
 int itbl_disassemble PARAMS ((char *str, unsigned long insn));
 int itbl_parse PARAMS ((char *tbl));	/* parses insn tbl */
-unsigned long itbl_get_reg_val PARAMS ((char *name));
-unsigned long itbl_get_val PARAMS ((e_processor processor, e_type type,
-				    char *name));
+int itbl_get_reg_val PARAMS ((char *name, unsigned long *pval));
+int itbl_get_val PARAMS ((e_processor processor, e_type type, char *name,
+			  unsigned long *pval));
 char *itbl_get_name PARAMS ((e_processor processor, e_type type,
 			     unsigned long val));
 

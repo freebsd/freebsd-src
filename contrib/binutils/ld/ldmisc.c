@@ -1,5 +1,6 @@
 /* ldmisc.c
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
 This file is part of GLD, the Gnu Linker.
@@ -173,8 +174,10 @@ vfinfo (fp, fmt, arg)
 	      {
 		const char *name = va_arg (arg, const char *);
 
-		if (name == (const char *) NULL)
-		  fprintf (fp, "no symbol");
+		if (name == (const char *) NULL || *name == 0)
+		  fprintf (fp, _("no symbol"));
+		else if (! demangling)
+		  fprintf (fp, "%s", name);
 		else
 		  {
 		    char *demangled;
@@ -210,7 +213,7 @@ vfinfo (fp, fmt, arg)
 
 	    case 'E':
 	      /* current bfd error or errno */
-	      fprintf (fp, bfd_errmsg (bfd_get_error ()));
+	      fprintf (fp, "%s", bfd_errmsg (bfd_get_error ()));
 	      break;
 
 	    case 'I':
@@ -236,7 +239,7 @@ vfinfo (fp, fmt, arg)
 	      else if (ldfile_input_filename != NULL)
 		fprintf (fp, "%s:%u", ldfile_input_filename, lineno);
 	      else
-		fprintf (fp, "built in linker script:%u", lineno);
+		fprintf (fp, _("built in linker script:%u"), lineno);
 	      break;
 
 	    case 'R':
@@ -286,11 +289,11 @@ vfinfo (fp, fmt, arg)
 
 		    symsize = bfd_get_symtab_upper_bound (abfd);
 		    if (symsize < 0)
-		      einfo ("%B%F: could not read symbols\n", abfd);
+		      einfo (_("%B%F: could not read symbols\n"), abfd);
 		    asymbols = (asymbol **) xmalloc (symsize);
 		    symbol_count = bfd_canonicalize_symtab (abfd, asymbols);
 		    if (symbol_count < 0)
-		      einfo ("%B%F: could not read symbols\n", abfd);
+		      einfo (_("%B%F: could not read symbols\n"), abfd);
 		    if (entry != (lang_input_statement_type *) NULL)
 		      {
 			entry->asymbols = asymbols;
@@ -326,7 +329,7 @@ vfinfo (fp, fmt, arg)
 			    /* We use abfd->filename in this initial line,
 			       in case filename is a .h file or something
 			       similarly unhelpful.  */
-			    lfinfo (fp, "%B: In function `%T':\n",
+			    lfinfo (fp, _("%B: In function `%T':\n"),
 				    abfd, functionname);
 
 			    last_bfd = abfd;
@@ -458,7 +461,7 @@ info_assert (file, line)
      const char *file;
      unsigned int line;
 {
-  einfo ("%F%P: internal error %s %d\n", file, line);
+  einfo (_("%F%P: internal error %s %d\n"), file, line);
 }
 
 char *
@@ -532,4 +535,23 @@ void
 print_nl ()
 {
   fprintf (config.map_file, "\n");
+}
+
+/* A more or less friendly abort message.  In ld.h abort is defined to
+   call this function.  */
+
+void
+ld_abort (file, line, fn)
+     const char *file;
+     int line;
+     const char *fn;
+{
+  if (fn != NULL)
+    einfo (_("%P: internal error: aborting at %s line %d in %s\n"),
+	   file, line, fn);
+  else
+    einfo (_("%P: internal error: aborting at %s line %d\n"),
+	   file, line);
+  einfo (_("%P%F: please report this bug\n"));
+  xexit (1);
 }

@@ -1,5 +1,5 @@
 /* cond.c - conditional assembly pseudo-ops, and .include
-   Copyright (C) 1990, 91, 92, 93, 95, 96, 97, 1998
+   Copyright (C) 1990, 91, 92, 93, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -64,7 +64,7 @@ s_ifdef (arg)
      int arg;
 {
   register char *name;		/* points to name of symbol */
-  register struct symbol *symbolP;	/* Points to symbol */
+  register symbolS *symbolP;	/* Points to symbol */
   struct conditional_frame cframe;
 
   SKIP_WHITESPACE ();		/* Leading whitespace is part of operand. */
@@ -72,7 +72,7 @@ s_ifdef (arg)
 
   if (!is_name_beginner (*name))
     {
-      as_bad ("invalid identifier for \".ifdef\"");
+      as_bad (_("invalid identifier for \".ifdef\""));
       obstack_1grow (&cond_obstack, 0);
       ignore_rest_of_line ();
     }
@@ -125,7 +125,7 @@ s_if (arg)
     {
       expression (&operand);
       if (operand.X_op != O_constant)
-	as_bad ("non-constant expression in \".if\" statement");
+	as_bad (_("non-constant expression in \".if\" statement"));
     }
 
   switch ((operatorT) arg)
@@ -221,7 +221,7 @@ s_ifc (arg)
   s1 = get_mri_string (',', &len1);
 
   if (*input_line_pointer != ',')
-    as_bad ("bad format for ifc or ifnc");
+    as_bad (_("bad format for ifc or ifnc"));
   else
     ++input_line_pointer;
 
@@ -247,14 +247,94 @@ s_ifc (arg)
 }
 
 void 
-s_endif (arg)
+s_elseif (arg)
      int arg;
+{
+  expressionS operand;
+  int t;
+
+  if (current_cframe == NULL)
+    {
+      as_bad (_("\".elseif\" without matching \".if\" - ignored"));
+
+    }
+  else if (current_cframe->else_seen)
+    {
+      as_bad (_("\".elseif\" after \".else\" - ignored"));
+      as_bad_where (current_cframe->else_file_line.file,
+		    current_cframe->else_file_line.line,
+		    _("here is the previous \"else\""));
+      as_bad_where (current_cframe->if_file_line.file,
+		    current_cframe->if_file_line.line,
+		    _("here is the previous \"if\""));
+    }
+  else
+    {
+      as_where (&current_cframe->else_file_line.file,
+		&current_cframe->else_file_line.line);
+
+      if (!current_cframe->dead_tree)
+	{
+	  current_cframe->ignoring = !current_cframe->ignoring;
+	  if (LISTING_SKIP_COND ())
+	    {
+	      if (! current_cframe->ignoring)
+		listing_list (1);
+	      else
+		listing_list (2);
+	    }
+	}			/* if not a dead tree */
+    }				/* if error else do it */
+
+
+  SKIP_WHITESPACE ();		/* Leading whitespace is part of operand. */
+
+  if (current_cframe != NULL && current_cframe->ignoring)
+    {
+      operand.X_add_number = 0;
+      while (! is_end_of_line[(unsigned char) *input_line_pointer])
+	++input_line_pointer;
+    }
+  else
+    {
+      expression (&operand);
+      if (operand.X_op != O_constant)
+	as_bad (_("non-constant expression in \".elseif\" statement"));
+    }
+  
+  switch ((operatorT) arg)
+    {
+    case O_eq: t = operand.X_add_number == 0; break;
+    case O_ne: t = operand.X_add_number != 0; break;
+    case O_lt: t = operand.X_add_number < 0; break;
+    case O_le: t = operand.X_add_number <= 0; break;
+    case O_ge: t = operand.X_add_number >= 0; break;
+    case O_gt: t = operand.X_add_number > 0; break;
+    default:
+      abort ();
+      return;
+    }
+
+  current_cframe->ignoring = current_cframe->dead_tree || ! t;
+
+  if (LISTING_SKIP_COND ()
+      && current_cframe->ignoring
+      && (current_cframe->previous_cframe == NULL
+	  || ! current_cframe->previous_cframe->ignoring))
+    listing_list (2);
+
+  demand_empty_rest_of_line ();
+}
+
+void 
+s_endif (arg)
+     int arg ATTRIBUTE_UNUSED;
 {
   struct conditional_frame *hold;
 
   if (current_cframe == NULL)
     {
-      as_bad ("\".endif\" without \".if\"");
+      as_bad (_("\".endif\" without \".if\""));
     }
   else
     {
@@ -280,22 +360,22 @@ s_endif (arg)
 
 void 
 s_else (arg)
-     int arg;
+     int arg ATTRIBUTE_UNUSED;
 {
   if (current_cframe == NULL)
     {
-      as_bad (".else without matching .if - ignored");
+      as_bad (_(".else without matching .if - ignored"));
 
     }
   else if (current_cframe->else_seen)
     {
-      as_bad ("duplicate \"else\" - ignored");
+      as_bad (_("duplicate \"else\" - ignored"));
       as_bad_where (current_cframe->else_file_line.file,
 		    current_cframe->else_file_line.line,
-		    "here is the previous \"else\"");
+		    _("here is the previous \"else\""));
       as_bad_where (current_cframe->if_file_line.file,
 		    current_cframe->if_file_line.line,
-		    "here is the previous \"if\"");
+		    _("here is the previous \"if\""));
     }
   else
     {
@@ -340,7 +420,7 @@ s_ifeqs (arg)
   SKIP_WHITESPACE ();
   if (*input_line_pointer != ',')
     {
-      as_bad (".ifeqs syntax error");
+      as_bad (_(".ifeqs syntax error"));
       ignore_rest_of_line ();
       return;
     }
@@ -372,11 +452,7 @@ ignore_input ()
 
   s = input_line_pointer;
 
-  if (flag_m68k_mri
-#ifdef NO_PSEUDO_DOT
-      || 1
-#endif
-      )
+  if (NO_PSEUDO_DOT || flag_m68k_mri)
     {
       if (s[-1] != '.')
 	--s;
@@ -426,15 +502,17 @@ cond_finish_check (nest)
 {
   if (current_cframe != NULL && current_cframe->macro_nest >= nest)
     {
-      as_bad ("end of %s inside conditional",
-	      nest >= 0 ? "macro" : "file");
+      if (nest >= 0)
+	as_bad (_("end of macro inside conditional"));
+      else
+	as_bad (_("end of file inside conditional"));
       as_bad_where (current_cframe->if_file_line.file,
 		    current_cframe->if_file_line.line,
-		    "here is the start of the unterminated conditional");
+		    _("here is the start of the unterminated conditional"));
       if (current_cframe->else_seen)
 	as_bad_where (current_cframe->else_file_line.file,
 		      current_cframe->else_file_line.line,
-		      "here is the \"else\" of the unterminated conditional");
+		      _("here is the \"else\" of the unterminated conditional"));
     }
 }
 

@@ -34,9 +34,12 @@
 /* The target BFD format.  */
 #define TARGET_FORMAT 		"elf32-v850"
 
-
 #define MD_APPLY_FIX3
 #define md_operand(x)
+
+#define obj_fix_adjustable(fixP) v850_fix_adjustable(fixP)
+#define TC_FORCE_RELOCATION(fixp) v850_force_relocation(fixp)
+extern int v850_force_relocation PARAMS ((struct fix *));
 
 /* Permit temporary numeric labels.  */
 #define LOCAL_LABELS_FB 1
@@ -78,3 +81,5 @@ extern const struct relax_type md_relax_table[];
   { ".call_table_data",	SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE },	   \
   { ".call_table_text",	SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE + SHF_EXECINSTR },
 
+#define MD_PCREL_FROM_SECTION(fixP,section) v850_pcrel_from_section (fixP, section)
+extern long v850_pcrel_from_section ();

@@ -31,6 +31,8 @@
 #define TARGET_ARCH		bfd_arch_tic30
 #define TARGET_BYTES_BIG_ENDIAN	1
 
+#define WORKING_DOT_WORD
+
 char *output_invalid PARAMS ((int c));
 
 #define END_OF_INSN '\0'

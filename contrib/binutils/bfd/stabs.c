@@ -1,5 +1,5 @@
 /* Stabs in sections linking support.
-   Copyright 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -230,6 +230,8 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
       sinfo->strings = _bfd_stringtab_init ();
       if (sinfo->strings == NULL)
 	goto error_return;
+      /* Make sure the first byte is zero.  */
+      (void) _bfd_stringtab_add (sinfo->strings, "", true, true);
       if (! bfd_hash_table_init_n (&sinfo->includes.root,
 				   stab_link_includes_newfunc,
 				   251))
@@ -587,6 +589,12 @@ _bfd_write_stab_strings (output_bfd, psinfo)
   if (sinfo == NULL)
     return true;
 
+  if (bfd_is_abs_section (sinfo->stabstr->output_section))
+    {
+      /* The section was discarded from the link.  */
+      return true;
+    }
+
   BFD_ASSERT ((sinfo->stabstr->output_offset
 	       + _bfd_stringtab_size (sinfo->strings))
 	      <= sinfo->stabstr->output_section->_raw_size);
@@ -613,8 +621,8 @@ _bfd_write_stab_strings (output_bfd, psinfo)
 
 bfd_vma
 _bfd_stab_section_offset (output_bfd, psinfo, stabsec, psecinfo, offset)
-     bfd *output_bfd;
-     PTR *psinfo;
+     bfd *output_bfd ATTRIBUTE_UNUSED;
+     PTR *psinfo ATTRIBUTE_UNUSED;
      asection *stabsec;
      PTR *psecinfo;
      bfd_vma offset;

@@ -42,7 +42,7 @@ error occurs.
 The function @code{bfd_hash_table_init} take as an argument a
 function to use to create new entries.  For a basic hash
 table, use the function @code{bfd_hash_newfunc}.  @xref{Deriving
-a New Hash Table Type} for why you would want to use a
+a New Hash Table Type}, for why you would want to use a
 different value for this argument.
 
 @findex bfd_hash_allocate

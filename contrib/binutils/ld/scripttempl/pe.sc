@@ -6,21 +6,26 @@ fi
 
 # We can't easily and portably get an unquoted $ in a shell
 # substitution, so we do this instead.
+# Sorting of the .foo$* sections is required by the definition of
+# grouped sections in PE.
+# Sorting of the file names in R_IDATA is required by the
+# current implementation of dlltool (this could probably be changed to
+# use grouped sections instead).
 if test "${RELOCATING}"; then
-  R_TEXT='*(.text$*)'
-  R_DATA='*(.data$*)'
-  R_RDATA='*(.rdata$*)'
+  R_TEXT='*(SORT(.text$*))'
+  R_DATA='*(SORT(.data$*))'
+  R_RDATA='*(SORT(.rdata$*))'
   R_IDATA='
-    *(.idata$2)
-    *(.idata$3)
+    SORT(*)(.idata$2)
+    SORT(*)(.idata$3)
     /* These zeroes mark the end of the import list.  */
     LONG (0); LONG (0); LONG (0); LONG (0); LONG (0);
-    *(.idata$4)
-    *(.idata$5)
-    *(.idata$6)
-    *(.idata$7)'
-  R_CRT='*(.CRT$*)'
-  R_RSRC='*(.rsrc$*)'
+    SORT(*)(.idata$4)
+    SORT(*)(.idata$5)
+    SORT(*)(.idata$6)
+    SORT(*)(.idata$7)'
+  R_CRT='*(SORT(.CRT$*))'
+  R_RSRC='*(SORT(.rsrc$*))'
 else
   R_TEXT=
   R_DATA=
@@ -33,10 +38,11 @@ fi
 cat <<EOF
 ${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
 ${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
+${OUTPUT_ARCH+OUTPUT_ARCH(${OUTPUT_ARCH})}
 
 ${LIB_SEARCH_DIRS}
 
-ENTRY(_mainCRTStartup)
+ENTRY(${ENTRY})
 
 SECTIONS
 {
@@ -74,19 +80,24 @@ SECTIONS
     ${RELOCATING+*(.data_cygwin_nocopy)}
   }
 
+  .rdata ${RELOCATING+BLOCK(__section_alignment__)} :
+  {
+    *(.rdata)
+    ${R_RDATA}
+    *(.eh_frame)
+  }
+
+  .pdata ${RELOCATING+BLOCK(__section_alignment__)} :
+  {
+    *(.pdata)
+  }
+
   .bss ${RELOCATING+BLOCK(__section_alignment__)} :
   {
     ${RELOCATING+__bss_start__ = . ;}
     *(.bss)
     *(COMMON)
     ${RELOCATING+__bss_end__ = . ;}
-  }
-
-  .rdata ${RELOCATING+BLOCK(__section_alignment__)} :
-  {
-    *(.rdata)
-    ${R_RDATA}
-    *(.eh_frame)
   }
 
   .edata ${RELOCATING+BLOCK(__section_alignment__)} :
@@ -117,18 +128,19 @@ SECTIONS
   {
     /* end is deprecated, don't use it */
     ${RELOCATING+ end = .;}
+    ${RELOCATING+ _end = .;}
     ${RELOCATING+ __end__ = .;}
-  }
-
-  .reloc ${RELOCATING+BLOCK(__section_alignment__)} :
-  { 					
-    *(.reloc)
   }
 
   .rsrc ${RELOCATING+BLOCK(__section_alignment__)} :
   { 					
     *(.rsrc)
     ${R_RSRC}
+  }
+
+  .reloc ${RELOCATING+BLOCK(__section_alignment__)} :
+  { 					
+    *(.reloc)
   }
 
   .stab ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
