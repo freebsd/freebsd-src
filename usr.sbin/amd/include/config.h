@@ -880,11 +880,6 @@
 /* Turn off memory debugging by default */
 /* #undef DEBUG_MEM */
 
-/* Define package name (must be defined by configure.in) */
-#define PACKAGE "am-utils"
-
-/* Define version of package (must be defined by configure.in) */
-#define VERSION "6.0.9"
 
 
 /* We [FREEBSD-NATIVE] pick some parameters from our local config file */
@@ -1986,7 +1981,7 @@
 #define PACKAGE "am-utils"
 
 /* Version number of package */
-#define VERSION "6.0.7"
+#define VERSION "6.0.9"
 
 
 /**************************************************************************/
