@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.9 1999/10/12 04:38:27 grog Exp grog $
+ * $Id: vinumrevive.c,v 1.10 2000/01/03 03:40:54 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -79,7 +79,8 @@ revive_block(int sdno)
     else
 	vol = NULL;
 
-    if (sd->revive_blocksize == 0) {
+    if ((sd->revive_blocksize == 0)			    /* no block size */
+    ||(sd->revive_blocksize & ((1 << DEV_BSHIFT) - 1))) {   /* or invalid block size */
 	if (plex->stripesize != 0)			    /* we're striped, don't revive more than */
 	    sd->revive_blocksize = min(DEFAULT_REVIVE_BLOCKSIZE, /* one block at a time */
 		plex->stripesize << DEV_BSHIFT);
@@ -87,8 +88,8 @@ revive_block(int sdno)
 	    sd->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
     } else if (sd->revive_blocksize > MAX_REVIVE_BLOCKSIZE)
 	sd->revive_blocksize = MAX_REVIVE_BLOCKSIZE;
-
     size = min(sd->revive_blocksize >> DEV_BSHIFT, sd->sectors - sd->revived) << DEV_BSHIFT;
+    sd->reviver = curproc->p_pid;			    /* note who last had a bash at it */
 
     s = splbio();
     bp = geteblk(size);					    /* Get a buffer */
@@ -178,9 +179,9 @@ revive_block(int sdno)
 		       * We don't care which plex, that's the
 		       * driver's job.
 		     */
-		    bp->b_dev = VINUMBDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE); /* create the device number */
+		    bp->b_dev = VINUMDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE);	/* create the device number */
 		else					    /* it's an unattached plex */
-		    bp->b_dev = VINUMRBDEV(sd->plexno, VINUM_RAWPLEX_TYPE); /* create the device number */
+		    bp->b_dev = VINUM_PLEX(sd->plexno);	    /* create the device number */
 
 		bp->b_blkno = plexblkno;		    /* read from here */
 		bp->b_flags = B_READ;			    /* either way, read it */
@@ -215,9 +216,9 @@ revive_block(int sdno)
 	       * First, read the data from the volume.  We
 	       * don't care which plex, that's bre's job.
 	     */
-	    bp->b_dev = VINUMBDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE); /* create the device number */
+	    bp->b_dev = VINUMDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE);	/* create the device number */
 	else						    /* it's an unattached plex */
-	    bp->b_dev = VINUMRBDEV(sd->plexno, VINUM_RAWPLEX_TYPE); /* create the device number */
+	    bp->b_dev = VINUM_PLEX(sd->plexno);		    /* create the device number */
 
 	bp->b_flags = B_READ;				    /* either way, read it */
 	vinumstart(bp, 1);
@@ -233,7 +234,7 @@ revive_block(int sdno)
 	    bremfree(bp);				    /* remove it */
 	splx(s);
 
-	bp->b_dev = VINUMRBDEV(sdno, VINUM_RAWSD_TYPE);	    /* create the device number */
+	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
 	bp->b_flags = B_ORDERED;			    /* and make this an ordered write */
 	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
@@ -261,9 +262,9 @@ revive_block(int sdno)
 
 	    if (debug & DEBUG_REVIVECONFLICT)
 		log(LOG_DEBUG,
-		    "Relaunch revive conflict sd %d: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
+		    "Relaunch revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		    rq->sdno,
-		    (u_int) rq,
+		    rq,
 		    rq->bp->b_flags & B_READ ? "Read" : "Write",
 		    major(rq->bp->b_dev),
 		    minor(rq->bp->b_dev),
@@ -371,8 +372,7 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
 	    bremfree(bpp[sdno]);			    /* remove it */
 	splx(s);
 	bpp[sdno]->b_data = (caddr_t) & tbuf[isize * sdno]; /* read into here */
-	bpp[sdno]->b_dev = VINUMRBDEV(plex->sdnos[sdno],    /* device number */
-	    VINUM_RAWSD_TYPE);
+	bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[sdno]);	    /* device number */
 	bpp[sdno]->b_flags = B_READ;			    /* either way, read it */
 	bpp[sdno]->b_bufsize = mysize;
 	bpp[sdno]->b_bcount = bpp[sdno]->b_bufsize;
@@ -458,7 +458,7 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
 		bremfree(bpp[psd]);			    /* remove it */
 	    splx(s);
 
-	    bpp[psd]->b_dev = VINUMRBDEV(psd, VINUM_RAWSD_TYPE); /* create the device number */
+	    bpp[psd]->b_dev = VINUM_SD(psd);		    /* create the device number */
 	    BUF_LOCKINIT(bpp[psd]);			    /* get a lock for the buffer */
 	    BUF_LOCK(bpp[psd], LK_EXCLUSIVE);		    /* and lock it */
 	    bpp[psd]->b_resid = bpp[psd]->b_bcount;
@@ -546,7 +546,7 @@ initsd(int sdno, int verify)
 	if (bp->b_data == NULL)
 	    return ENOMEM;
 	bzero(bp->b_data, bp->b_bcount);
-	bp->b_dev = VINUMRBDEV(sdno, VINUM_RAWSD_TYPE);	    /* create the device number */
+	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
 	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	sdio(bp);					    /* perform the I/O */
@@ -577,7 +577,7 @@ initsd(int sdno, int verify)
 		    error = ENOMEM;
 		    break;
 		}
-		bp->b_dev = VINUMRBDEV(sdno, VINUM_RAWSD_TYPE);	/* create the device number */
+		bp->b_dev = VINUM_SD(sdno);		    /* create the device number */
 		bp->b_flags |= B_READ;			    /* read it back */
 		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
 		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */
@@ -589,7 +589,7 @@ initsd(int sdno, int verify)
 		||(bcmp(bp->b_data, &bp->b_data[1], bp->b_bcount - 1))) { /* or one of the others */
 		    printf("vinum: init error on %s, offset 0x%llx sectors\n",
 			sd->name,
-			sd->initialized);
+			(long long) sd->initialized);
 		    verified = 0;
 		} else
 		    verified = 1;
