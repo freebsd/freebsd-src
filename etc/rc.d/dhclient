@@ -5,19 +5,49 @@
 #
 
 # PROVIDE: dhclient
-# REQUIRE: network mountcritlocal
+# REQUIRE: network netif mountcritlocal
 # BEFORE:  NETWORKING
+# KEYWORD: FreeBSD NetBSD
 #
 #	Note that there no syslog logging of dhclient messages at boot because
 #	dhclient needs to start before services that syslog depends upon do.
 #
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="dhclient"
-rcvar=$name
 command="/sbin/${name}"
 pidfile="/var/run/${name}.pid"
+case "${OSTYPE}" in
+FreeBSD)
+	rcvar=
+	start_precmd="dhclient_prestart"
+	start_postcmd="dhclient_poststart"
+	;;
+NetBSD)
+	rcvar=$name
+	;;
+esac
+
+dhclient_prestart()
+{
+	dhcp_list="`list_net_interfaces dhcp`"
+	if [ -z "$dhcp_list" ]; then
+		return 1
+	fi
+	rc_flags="${rc_flags} ${dhcp_flags} ${dhcp_list}"
+	return 0
+}
+
+dhclient_poststart()
+{
+	for ifn in ${dhcp_list}; do
+		ifalias_up ${ifn}
+		ipx_up ${ifn}
+		ifconfig ${ifn}
+	done
+}
 
 load_rc_config $name
 run_rc_command "$1"
