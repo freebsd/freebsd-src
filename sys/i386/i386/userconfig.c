@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.7 1994/11/03 05:02:41 jkh Exp $
+ *      $Id: userconfig.c,v 1.8 1994/11/08 02:25:20 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -250,7 +250,7 @@ list_devices(CmdParm *parms)
 static int
 set_device_ioaddr(CmdParm *parms)
 {
-    parms[0].parm.dparm->id_iobase = parms[1].parm.aparm;
+    parms[0].parm.dparm->id_iobase = (int) parms[1].parm.aparm;
     return 0;
 }
 
