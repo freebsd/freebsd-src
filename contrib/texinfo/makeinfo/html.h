@@ -1,7 +1,7 @@
 /* html.h -- declarations for html-related utilities.
-   $Id: html.h,v 1.2 2000/12/19 15:17:52 karl Exp $
+   $Id: html.h,v 1.4 2002/03/18 19:45:18 karl Exp $
 
-   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
