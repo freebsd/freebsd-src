@@ -296,6 +296,29 @@ acpi_handle_apic(struct ACPIsdt *sdp)
 }
 
 static void
+acpi_handle_hpet(struct ACPIsdt *sdp)
+{
+	struct HPETbody *hpetp;
+
+	acpi_print_sdt(sdp);
+	hpetp = (struct HPETbody *) sdp->body;
+	printf(BEGIN_COMMENT);
+	printf("\tHPET Number=%d\n", hpetp->hpet_number);
+	printf("\tADDR=0x%08x\n", hpetp->base_addr);
+	printf("\tHW Rev=0x%x\n", hpetp->block_hwrev);
+	printf("\tComparitors=%d\n", hpetp->block_comparitors);
+	printf("\tCounter Size=%d\n", hpetp->block_counter_size);
+	printf("\tLegacy IRQ routing capable={");
+	if (hpetp->block_legacy_capable)
+		printf("TRUE}\n");
+	else
+		printf("FALSE}\n");
+	printf("\tPCI Vendor ID=0x%04x\n", hpetp->block_pcivendor);
+	printf("\tMinimul Tick=%d\n", hpetp->clock_tick);
+	printf(END_COMMENT);
+}
+
+static void
 init_namespace()
 {
 	struct	aml_environ env;
@@ -522,6 +545,8 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 			acpi_handle_facp((struct FACPbody *) sdp->body);
 		} else if (!memcmp(sdp->signature, "APIC", 4)) {
 			acpi_handle_apic(sdp);
+		} else if (!memcmp(sdp->signature, "HPET", 4)) {
+			acpi_handle_hpet(sdp);
 		} else {
 			acpi_print_sdt(sdp);
 		}
