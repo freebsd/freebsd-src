@@ -34,23 +34,6 @@
 .Sh SYNOPSIS
 .Cd "device umct"
 .Cd "device ucom"
-.Sh HARDWARE
-The
-.Nm
-driver supports the following adapters:
-.Pp
-.Bl -bullet -compact
-.It
-Magic Control Technology USB-232
-.It
-Sitecom USB-232
-.It
-D-Link DU-H3SP USB BAY Hub
-.It
-Belkin F5U109
-.It
-Belkin F5U409
-.El
 .Sh DESCRIPTION
 The
 .Nm
@@ -65,6 +48,23 @@ seems to be supported.
 Access to devices under this driver is via the
 .Xr ucom 4
 framework and device nodes.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Belkin F5U109
+.It
+Belkin F5U409
+.It
+D-Link DU-H3SP USB BAY Hub
+.It
+Magic Control Technology USB-232
+.It
+Sitecom USB-232
+.El
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
