@@ -1,4 +1,30 @@
-/* $Id$ */
+/*-
+ * Copyright (c) 1996
+ *      Jean-Marc Zucconi
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ *  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/* $Id: main.c,v 1.1.1.1 1996/06/19 09:32:11 asami Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -36,6 +62,7 @@ int passive_mode = 0;
 char *file_to_get = 0;
 int http = 0;
 int http_port = 80;
+int mirror = 0;
 int restart = 0;
 time_t modtime;
 
@@ -50,7 +77,7 @@ int match (char *, char *), http_open ();
 void
 usage ()
 {
-    fprintf (stderr, "usage: %s [-D:HINPV:Lqpr] [-o outputfile] <-f file -h host [-c dir]| URL>\n", progname);
+    fprintf (stderr, "usage: %s [-D:HINPMV:Lqpr] [-o outputfile] <-f file -h host [-c dir]| URL>\n", progname);
     exit (1);
 }
 
@@ -73,9 +100,9 @@ rm ()
 	if (file) {
 		fclose (file);
 		if (file != stdout) {
-			if (!restart)
+			if (!restart && !mirror)
 			    remove (outputfile);
-			else {
+			else if (!mirror) {
 				tv[0].tv_usec = tv[1].tv_usec = 0;
 				tv[0].tv_sec = time(0);
 				tv[1].tv_sec = modtime;
@@ -93,30 +120,42 @@ main (int argc, char **argv)
 
 	progname = s ? s+1 : argv[0];
 
-	while ((c = getopt (argc, argv, "D:HINPV:Lqc:f:h:o:pr")) != EOF) {
+	while ((c = getopt (argc, argv, "D:HINPMV:Lqc:f:h:o:pmr")) != EOF) {
 		switch (c) {
 		      case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 			break;	/* ncftp compatibility */
+
 		      case 'q': 
 			verbose = 0;
+
 		      case 'c':
 			change_to_dir = optarg;
 			break;
+
 		      case 'f':
 			file_to_get = optarg;
 			break;
+
 		      case 'h':
 			host = optarg;
 			break;
+
 		      case 'o':
 			outputfile = optarg;
 			break;
+
 		      case 'p': case 'P':
 			passive_mode = 1;
 			break;
+
+		      case 'm': case 'M':
+			mirror = 1;
+			break;
+
 		      case 'r':
 			restart = 1;
 			break;
+
 		      default: 	
 		      case '?':
 			usage ();
@@ -132,11 +171,16 @@ main (int argc, char **argv)
 		if (!host || !file_to_get)
 		    usage ();
 	}
+
+	if (mirror && restart)
+	    errx(1, "-m and -r are mutually exclusive.");
+
 	output_file_name ();
 
 	signal (SIGHUP, die);
 	signal (SIGINT, die);
 	signal (SIGQUIT, die);
+	signal (SIGTERM, die);
 
 	if (http)
 	    httpget ();
@@ -157,6 +201,7 @@ void
 ftpget ()
 {
 	FILE *ftp, *fp;
+	char *cp, *lp;
 	int status, n;
 	ssize_t size, size0, seekloc;
 	char ftp_pw[200];
@@ -164,19 +209,30 @@ ftpget ()
 	struct itimerval timer;
 
 	signal (SIGALRM, t_out);
-	timer.it_interval.tv_sec = timer.it_value.tv_sec = FTP_TIMEOUT;
+	if ((cp = getenv("FTP_TIMEOUT")) != NULL)
+	    timer.it_interval.tv_sec = timer.it_value.tv_sec = atoi(cp);
+	else
+	    timer.it_interval.tv_sec = timer.it_value.tv_sec = FTP_TIMEOUT;
 	timer.it_interval.tv_usec = timer.it_value.tv_usec = 0;
 	setitimer(ITIMER_REAL, &timer, 0);
 
-	sprintf (ftp_pw, "%s@", getpwuid (getuid ())->pw_name);
-	n = strlen (ftp_pw);
-	gethostname (ftp_pw+n, 200-n);
-	ftp = ftpLogin(host, "anonymous", ftp_pw, 0);
+	if ((cp = getenv("FTP_PASSWORD")) != NULL)
+	    strcpy(ftp_pw, cp);
+	else {
+	    sprintf (ftp_pw, "%s@", getpwuid (getuid ())->pw_name);
+	    n = strlen (ftp_pw);
+	    gethostname (ftp_pw + n, 200 - n);
+	}
+	if ((lp = getenv("FTP_LOGIN")) == NULL)
+	    lp = "anonymous";
+	ftp = ftpLogin(host, lp, ftp_pw, 0);
 	if (!ftp) 
-	  err(1, "Couldn't open FTP connection to %s.", host);
+	    err(1, "Couldn't open FTP connection to %s.", host);
 
-	ftpBinary (ftp, 1);
+	/* Time to set our defaults */
+	ftpBinary (ftp);
 	ftpPassive (ftp, passive_mode);
+
 	if (change_to_dir) {
 		status = ftpChdir (ftp, change_to_dir);
 		if (status)
@@ -185,25 +241,29 @@ ftpget ()
 	size = ftpGetSize (ftp, file_to_get);
 	if (size < 0)
 	    ftperr (ftp, "%s: ", file_to_get);
-
-	if (restart) {
-		modtime = ftpGetModtime (ftp, file_to_get);
-		if (modtime < -1)
-		    err (1, "Unrecoverable error (ftpGetModtime)");
-	} else
+	modtime = ftpGetModtime (ftp, file_to_get);
+	if (modtime < -1) {
+	    warnx ("Couldn't get file time for %s - using current time", file_to_get);
 	    modtime = (time_t) -1;
+	}
 
 	if (!strcmp (outputfile, "-"))
 	    restart = 0;
-	if (!restart)
-	    size0 = 0;
-	else {
-		f_size (outputfile, &size0, &t);
+	if (restart || mirror) {
+	    f_size (outputfile, &size0, &t);
+	    if (mirror && size0 == size && modtime < t) {
+		fclose(ftp);
+		return;
+	    }
+	    else if (restart) {
 		if (size0 && size0 < size && modtime == t)
 		    seekloc = size0;
 		else
 		    seekloc = size0 = 0;
+	    }
 	}	    
+	else
+	    seekloc = size0 = 0;
 
 	fp = ftpGet (ftp, file_to_get, &seekloc);
 	if (fp == NULL)
@@ -265,7 +325,7 @@ display (int size, int n)
 			     size ? "" : " [appending]");
 		else
 		    sprintf (s, "Receiving %s", outputfile);
-		printf ("\n%s", s);
+		printf ("%s", s);
 		fflush (stdout);
 		bytes = n;
 		return;
@@ -403,7 +463,7 @@ ftperr (FILE* ftp, char *fmt, ...)
 void
 httpget ()
 {
-	char str[1000];
+	char *cp, str[1000];
 	struct timeval tout;
 	fd_set fdset;
 	int i, s;
@@ -418,7 +478,10 @@ httpget ()
 
 	FD_ZERO (&fdset);
 	FD_SET (s, &fdset);
-	tout.tv_sec = HTTP_TIMEOUT;
+	if ((cp = getenv("HTTP_TIMEOUT")) != NULL)
+	    tout.tv_sec = atoi(cp);
+	else
+	    tout.tv_sec = HTTP_TIMEOUT;
 	tout.tv_usec = 0;
 
 	if (strcmp (outputfile, "-")) {
