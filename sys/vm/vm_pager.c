@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.49 1999/06/27 11:44:22 peter Exp $
+ * $Id: vm_pager.c,v 1.50 1999/07/04 00:25:38 mckusick Exp $
  */
 
 /*
@@ -377,18 +377,20 @@ getpbuf(pfreecnt)
 
 	s = splvm();
 
-retry:
-	if (pfreecnt) {
-		while (*pfreecnt == 0) {
-			tsleep(pfreecnt, PVM, "wswbuf0", 0);
+	for (;;) {
+		if (pfreecnt) {
+			while (*pfreecnt == 0) {
+				tsleep(pfreecnt, PVM, "wswbuf0", 0);
+			}
 		}
-	}
 
-	/* get a bp from the swap buffer header pool */
-	while ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
+		/* get a bp from the swap buffer header pool */
+		if ((bp = TAILQ_FIRST(&bswlist)) != NULL)
+			break;
+
 		bswneeded = 1;
 		tsleep(&bswneeded, PVM, "wswbuf1", 0);
-		goto retry;	/* loop in case someone else grabbed one */
+		/* loop in case someone else grabbed one */
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	if (pfreecnt)
