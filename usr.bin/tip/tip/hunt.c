@@ -36,12 +36,14 @@
 static char sccsid[] = "@(#)hunt.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: hunt.c,v 1.1.6.1 1997/08/20 07:06:37 charnier Exp $";
 #endif /* not lint */
 
+#include <sys/types.h>
+#include <err.h>
+#include <libutil.h>
 #include "tipconf.h"
 #include "tip.h"
-#include <err.h>
 
 extern char *getremote();
 extern char *rindex();
@@ -62,13 +64,17 @@ hunt(name)
 {
 	register char *cp;
 	sig_t f;
+	int res;
 
 	f = signal(SIGALRM, dead);
 	while ((cp = getremote(name))) {
 		deadfl = 0;
 		uucplock = rindex(cp, '/')+1;
-		if (uu_lock(uucplock) < 0)
+		if ((res = uu_lock(uucplock)) != UU_LOCK_OK) {
+			if (res != UU_LOCK_INUSE)
+				fprintf(stderr, "uu_lock: %s\n", uu_lockerr(res));
 			continue;
+		}
 		/*
 		 * Straight through call units, such as the BIZCOMP,
 		 * VADIC and the DF, must indicate they're hardwired in

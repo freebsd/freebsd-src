@@ -436,7 +436,7 @@ To make them more convenient to use,
 .i Mail
 always looks for two files when it is invoked.  It first reads
 a system wide file
-.q /usr/lib/Mail.rc,
+.q /etc/mail.rc,
 then a user specific file,
 .q .mailrc,
 which is found in the user's home directory.

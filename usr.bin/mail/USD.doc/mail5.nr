@@ -490,7 +490,7 @@ commands.
 .. The
 .. .b local
 .. command is usually not used be general users since it is designed for
-.. local configuration; it is usually found in the file /usr/lib/Mail.rc.
+.. local configuration; it is usually found in the file /etc/mail.rc.
 .ip "\fBmail\fP\ \ "
 Send mail to one or more people.  If you have the
 .i ask
@@ -747,7 +747,7 @@ and
 .q VISUAL
 for the standard and screen editors.  You might want to do:
 .(l
-set EDITOR=/usr/ucb/ex VISUAL=/usr/ucb/vi
+set EDITOR=/usr/bin/ex VISUAL=/usr/bin/vi
 .)l
 \fBVisual\fP can be abbreviated to \fBv\fP.
 .ip "\fBwrite\fP\ \ "

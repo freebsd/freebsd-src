@@ -12,6 +12,8 @@ MLINKS=	mail.1 Mail.1
 beforeinstall:
 	cd ${.CURDIR}/misc; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 ${SFILES} ${DESTDIR}/usr/share/misc
+
+etc-mailrc:
 	cd ${.CURDIR}/misc; ${INSTALL} -c -o root -g wheel \
 	    -m 644 ${EFILES} ${DESTDIR}/etc
 

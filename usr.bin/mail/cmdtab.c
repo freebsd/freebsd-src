@@ -58,7 +58,7 @@ struct cmd cmdtab[] = {
 	"delete",	delete,		W|P|MSGLIST,	0,	MMNDEL,
 	"dp",		deltype,	W|MSGLIST,	0,	MMNDEL,
 	"dt",		deltype,	W|MSGLIST,	0,	MMNDEL,
-	"undelete",	undelete,	P|MSGLIST,	MDELETED,MMNDEL,
+	"undelete",	undelete_messages, P|MSGLIST,	MDELETED,MMNDEL,
 	"unset",	unset,		M|RAWLIST,	1,	1000,
 	"mail",		sendmail,	R|M|I|STRLIST,	0,	0,
 	"mbox",		mboxit,		W|MSGLIST,	0,	0,

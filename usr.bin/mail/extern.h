@@ -239,7 +239,7 @@ void	 ttyint __P((int));
 void	 ttystop __P((int));
 int	 type __P((int *));
 int	 type1 __P((int *, int, int));
-int	 undelete __P((int *));
+int	 undelete_messages __P((int *));
 void	 unmark __P((int));
 char	**unpack __P((struct name *));
 int	 unread __P((int []));

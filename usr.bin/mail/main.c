@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include "rcv.h"
+#include <err.h>
 #include <fcntl.h>
 #include "extern.h"
 
@@ -89,7 +90,7 @@ main(argc, argv)
 	bcc = NIL;
 	smopts = NIL;
 	subject = NOSTR;
-	while ((i = getopt(argc, argv, "INT:b:c:dfins:u:v")) !=  -1) {
+	while ((i = getopt(argc, argv, "INT:b:c:dfins:u:v")) != -1) {
 		switch (i) {
 		case 'T':
 			/*
@@ -207,8 +208,19 @@ Usage: mail [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
 	input = stdin;
 	rcvmode = !to;
 	spreserve();
-	if (!nosrc)
-		load(_PATH_MASTER_RC);
+	if (!nosrc) {
+		char *s, *path_rc;
+
+		path_rc = malloc(sizeof(_PATH_MASTER_RC));
+		if (path_rc == NULL) 
+			errx(1, "malloc(path_rc) failed");
+
+		strcpy(path_rc, _PATH_MASTER_RC);
+		while ((s = strsep(&path_rc, ":")) != NULL)
+			if (*s != '\0')
+				load(s);
+	}
+		
 	/*
 	 * Expand returns a savestr, but load only uses the file name
 	 * for fopen, so it's safe to do this.
