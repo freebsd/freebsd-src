@@ -41,6 +41,9 @@ LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
 
 CLEANFILES= ${GENHDRS} gethost csh.1
 
+FILESDIR= ${SHAREDIR}/examples/tcsh
+FILES= complete.tcsh csh-mode.el
+
 csh.1: tcsh.man
 	ln -sf ${.ALLSRC} ${.TARGET}
 
