@@ -81,7 +81,7 @@ x_setpostn(xdrs, pos)
 static int32_t *
 x_inline(xdrs, len)
 	XDR *xdrs;
-	int len;
+	long len;
 {
 	if (len == 0) {
 		return (NULL);
@@ -89,7 +89,7 @@ x_inline(xdrs, len)
 	if (xdrs->x_op != XDR_ENCODE) {
 		return (NULL);
 	}
-	if (len < (int) xdrs->x_base) {
+	if (len < (long) xdrs->x_base) {
 		/* x_private was already allocated */
 		xdrs->x_handy += len;
 		return ((int32_t *) xdrs->x_private);
