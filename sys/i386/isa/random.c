@@ -1,7 +1,7 @@
 /*
  * random.c -- A strong random number generator
  *
- * $Id$
+ * $Id: random.c,v 1.1 1995/10/28 16:58:02 markm Exp $
  *
  * Version 0.92, last modified 21-Sep-95
  * 
@@ -39,8 +39,6 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-
-#ifdef DEVRANDOM
 
 #include <sys/param.h>
 #include <sys/cdefs.h>
@@ -430,23 +428,3 @@ read_random_unlimited(char * buf, u_int nbytes)
 {
 	return extract_entropy(&random_state, buf, nbytes);
 }
-
-#ifdef linux
-int
-read_random(struct inode * inode,struct file * file,char * buf,int nbytes)
-{
-	if ((nbytes * 8) > random_state.entropy_count)
-		nbytes = random_state.entropy_count / 8;
-	
-	return extract_entropy(&random_state, buf, nbytes, 1);
-}
-
-int
-read_random_unlimited(struct inode * inode,struct file * file,
-			  char * buf,int nbytes)
-{
-	return extract_entropy(&random_state, buf, nbytes, 1);
-}
-#endif
-
-#endif /* DEVRANDOM */

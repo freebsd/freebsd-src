@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.12 1995/04/15 21:32:18 bde Exp $
+ *	$Id: vector.s,v 1.13 1995/10/28 16:58:05 markm Exp $
  */
 
 #include <i386/isa/icu.h>
@@ -53,15 +53,11 @@
 #define	MAYBE_PUSHL_ES
 #endif
 
-#ifdef DEVRANDOM
 #define	ADDENTROPY(irq_num) \
 	/* Add this interrupt to the pool of entropy */ \
 	pushl	$irq_num ; \
 	call	_add_interrupt_randomness ; \
 	addl	$4,%esp
-#else
-#define	ADDENTROPY(irq_num)
-#endif
 
 /*
  * Macros for interrupt interrupt entry, call to handler, and exit.

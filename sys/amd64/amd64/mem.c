@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.17 1995/10/30 22:39:34 markm Exp $
+ *	$Id: mem.c,v 1.18 1995/11/04 13:52:30 bde Exp $
  */
 
 /*
@@ -79,10 +79,8 @@ memdev_init(dummy)
    x=dev_add("/misc",	"mem",		mmopen, 0,	DV_CHR, 0,  2, 0640);
    x=dev_add("/misc",	"kmem",		mmopen, 1,	DV_CHR, 0,  2, 0640);
    x=dev_add("/misc",	"null",		mmopen, 2,	DV_CHR, 0,  0, 0666);
-#ifdef DEVRANDOM
    x=dev_add("/misc",	"random",	mmopen, 3,	DV_CHR, 0,  0, 0666);
    x=dev_add("/misc",	"urandom",	mmopen, 4,	DV_CHR, 0,  0, 0666);
-#endif
    x=dev_add("/misc",	"zero",		mmopen, 12,	DV_CHR, 0,  0, 0666);
    x=dev_add("/misc",	"io",		mmopen, 14,	DV_CHR, 0,  2, 0640);
 }
@@ -138,9 +136,7 @@ mmrw(dev, uio, flags)
 {
 	register int o;
 	register u_int c, v;
-#ifdef DEVRANDOM
 	u_int poolsize;
-#endif
 	register struct iovec *iov;
 	int error = 0;
 	caddr_t buf = NULL;
@@ -200,7 +196,6 @@ mmrw(dev, uio, flags)
 			c = iov->iov_len;
 			break;
 
-#ifdef DEVRANDOM
 /* minor device 3 (/dev/random) is source of filth on read, rathole on write */
 		case 3:
 			if (uio->uio_rw == UIO_WRITE) {
@@ -235,7 +230,6 @@ mmrw(dev, uio, flags)
 			c = min(c, poolsize);
 			error = uiomove(buf, (int)c, uio);
 			continue;
-#endif
 
 /* minor device 12 (/dev/zero) is source of nulls on read, rathole on write */
 		case 12:
@@ -351,7 +345,6 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 	int flags;
 	struct proc *p;
 {
-#ifdef DEVRANDOM
 	int error;
 
 	if (minor(dev) != 3 && minor(dev) != 4)
@@ -384,7 +377,4 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 			return (ENOTTY);
 	}
 	return (0);
-#else
-	return (ENODEV);
-#endif /* DEVRANDOM */
 }
