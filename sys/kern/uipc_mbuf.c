@@ -58,6 +58,7 @@ SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 struct mbuf *mbutl;
 char	*mclrefcnt;
 struct mbstat mbstat;
+u_long	mbtypes[MT_NTYPES];
 struct mbuf *mmbfree;
 union mcluster *mclfree;
 int	max_linkhdr;
@@ -80,6 +81,8 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 SYSCTL_INT(_kern_ipc, OID_AUTO, mbuf_wait, CTLFLAG_RW,
 	   &mbuf_wait, 0, "");
 SYSCTL_STRUCT(_kern_ipc, KIPC_MBSTAT, mbstat, CTLFLAG_RW, &mbstat, mbstat, "");
+SYSCTL_OPAQUE(_kern_ipc, OID_AUTO, mbtypes, CTLFLAG_RD, mbtypes,
+	   sizeof(mbtypes), "LU", "");
 SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, 
 	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
@@ -184,6 +187,7 @@ m_mballoc(nmb, how)
 		p += MSIZE;
 	}
 	mbstat.m_mbufs += nmb;
+	mbtypes[MT_FREE] += nmb;
 	return (1);
 }
 
