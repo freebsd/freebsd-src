@@ -82,6 +82,7 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <timeconv.h>
 #include <unistd.h>
 #include <utmp.h>
 #include <vis.h>
@@ -356,6 +357,7 @@ main(int argc, char *argv[])
 		struct sockaddr *sa = (struct sockaddr *)&ss;
 		struct sockaddr_in *lsin = (struct sockaddr_in *)&ss;
 		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)&ss;
+		time_t t;
 		int isaddr;
 
 		host_buf[UT_HOSTSIZE] = '\0';
@@ -408,7 +410,8 @@ main(int argc, char *argv[])
 		    strncmp(ep->utmp.ut_line, "cua", 3) ?
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
 		    W_DISPHOSTSIZE, W_DISPHOSTSIZE, *p ? p : "-");
-		pr_attime(&ep->utmp.ut_time, &now);
+		t = _time_to_time32(ep->utmp.ut_time);
+		pr_attime(&t, &now);
 		longidle = pr_idle(ep->idle);
 		(void)printf("%.*s\n", argwidth - longidle, ep->args);
 	}
