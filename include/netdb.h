@@ -32,7 +32,7 @@
  *
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
  *      From: Id: netdb.h,v 8.8 1997/06/01 20:34:32 vixie Exp
- *	$Id: netdb.h,v 1.8 1997/02/23 09:17:14 peter Exp $
+ *	$Id: netdb.h,v 1.9 1997/06/27 08:32:37 peter Exp $
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  *
@@ -138,7 +138,7 @@ struct servent	*getservbyname __P((const char *, const char *));
 struct servent	*getservbyport __P((int, const char *));
 struct servent	*getservent __P((void));
 void		herror __P((const char *));
-const char	*hstrerror __P((int));
+__const char	*hstrerror __P((int));
 void		sethostent __P((int));
 /* void		sethostfile __P((const char *)); */
 void		setnetent __P((int));
