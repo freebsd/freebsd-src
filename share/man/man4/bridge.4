@@ -59,18 +59,9 @@ out undesired traffic.
 Extended functionality to enable bridging selectively on clusters
 of interfaces is still in the works.
 .Pp
-Not all interface support bridging -- at the moment it works for
-.Dq ed ,
-.Dq de ,
-.Dq ep ,
-.Dq fe ,
-.Dq fxp ,
-.Dq lnc ,
-.Dq mx ,
-.Dq tx ,
-and
-.Dq xl
-interfaces.
+Interfaces that cannot be put into promiscuous mode or that don't
+support sending packets with arbitrary Ethernet source addresses
+are not compatible with bridging.
 .Sh SEE ALSO
 .Xr ip 4 ,
 .Xr ng_bridge 4 ,
