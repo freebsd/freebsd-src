@@ -46,6 +46,7 @@
 #include <sys/rman.h>
 #include <sys/ata.h>
 #include <dev/ata/ata-all.h>
+#include <ata_if.h>
 
 #include <dev/ofw/openfirm.h>
 #include <powerpc/psim/iobusvar.h>
@@ -211,6 +212,7 @@ ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
  */
 
 static  int  ata_iobus_sub_probe(device_t dev);
+static  void ata_iobus_sub_setmode(device_t parent, device_t dev);
 
 static device_method_t ata_iobus_sub_methods[] = {
 	/* Device interface */
@@ -219,6 +221,8 @@ static device_method_t ata_iobus_sub_methods[] = {
 	DEVMETHOD(device_detach,    ata_detach),
 	DEVMETHOD(device_resume,    ata_resume),
 
+	/* ATA interface */
+	DEVMETHOD(ata_setmode,	    ata_iobus_sub_setmode),
 	{ 0, 0 }
 };
 
@@ -241,4 +245,13 @@ ata_iobus_sub_probe(device_t dev)
 	ata_generic_hw(ch);
 
 	return ata_probe(dev);
+}
+
+static void
+ata_iobus_sub_setmode(device_t parent, device_t dev)
+{
+	struct ata_device *atadev = device_get_softc(dev);
+
+	/* Only ever PIO mode here... */
+	atadev->mode = ATA_PIO;
 }
