@@ -109,22 +109,21 @@ random_read(dev_t dev, struct uio *uio, int flag)
 	int error = 0;
 	void *random_buf;
 
-	if (flag & IO_NDELAY && !random_state.seeded) {
-		error =  EWOULDBLOCK;
-	}
-	else {
-		if (random_state.seeded) {
-			c = min(uio->uio_resid, PAGE_SIZE);
-			random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
-			while (uio->uio_resid > 0 && error == 0) {
-				ret = read_random_real(random_buf, c);
-				error = uiomove(random_buf, ret, uio);
-			}
-			free(random_buf, M_TEMP);
-		}
+	while (!random_state.seeded) {
+		if (flag & IO_NDELAY)
+			error =  EWOULDBLOCK;
 		else
-			error = tsleep(&random_state, 0, "rndblk", 0);
+			error = tsleep(&random_state, PUSER|PCATCH, "rndblk", 0);
+		if (error != 0)
+			return error;
 	}
+	c = min(uio->uio_resid, PAGE_SIZE);
+	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
+	while (uio->uio_resid > 0 && error == 0) {
+		ret = read_random_real(random_buf, c);
+		error = uiomove(random_buf, ret, uio);
+	}
+	free(random_buf, M_TEMP);
 	return error;
 }
 
