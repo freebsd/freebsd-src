@@ -243,7 +243,7 @@ badsw1:
 	pushq	%r14
 	pushq	%r15
 	pushq	$sw0_1
-	call	panic
+	call	__panic
 sw0_1:	.asciz	"cpu_throw: no newthread supplied"
 
 badsw2:
@@ -263,7 +263,7 @@ badsw2:
 	pushq	%r14
 	pushq	%r15
 	pushq	$sw0_2
-	call	panic
+	call	__panic
 sw0_2:	.asciz	"cpu_switch: no curthread supplied"
 
 badsw3:
@@ -283,7 +283,7 @@ badsw3:
 	pushq	%r14
 	pushq	%r15
 	pushq	$sw0_3
-	call	panic
+	call	__panic
 sw0_3:	.asciz	"cpu_switch: no newthread supplied"
 #endif
 
