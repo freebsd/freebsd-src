@@ -338,6 +338,7 @@ MLINKS+=lo.4 loop.4
 MLINKS+=lp.4 plip.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
+MLINKS+=netintro.4 net.4
 MLINKS+=netintro.4 networking.4
 MLINKS+=nge.4 if_nge.4
 MLINKS+=oldcard.4 card.4
