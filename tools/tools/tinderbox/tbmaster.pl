@@ -35,7 +35,7 @@ use Fcntl qw(:DEFAULT :flock);
 use POSIX;
 use Getopt::Long;
 
-my $VERSION	= "2.1";
+my $VERSION	= "2.2";
 my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 		  "All rights reserved.";
 
@@ -49,6 +49,7 @@ my %CONFIG = (
     'PLATFORMS'	=> [ 'i386' ],
     'DATE'	=> '',
     'SANDBOX'	=> '/tmp/tinderbox',
+    'HOSTNAME'	=> '',
     'LOGDIR'	=> '%%SANDBOX%%/logs',
     'TARGETS'	=> [ 'update', 'world' ],
     'OPTIONS'	=> [],
@@ -187,6 +188,8 @@ sub tinderbox($$$) {
 
     # Fork and start the tinderbox
     my @args = @{$CONFIG{'OPTIONS'}};
+    push(@args, "--hostname=" . expand('HOSTNAME'))
+	if ($CONFIG{'HOSTNAME'});
     push(@args, "--sandbox=" . expand('SANDBOX'));
     push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
