@@ -73,7 +73,7 @@
  * fill_kinfo_proc and in lib/libkvm/kvm_proc.c in the function kvm_proclist.
  */
 #ifdef	__alpha__
-#define	KINFO_PROC_SIZE	912		/* the correct size for kinfo_proc */
+#define	KINFO_PROC_SIZE	920		/* the correct size for kinfo_proc */
 #else
 #define	KINFO_PROC_SIZE	648		/* the correct size for kinfo_proc */
 #endif
