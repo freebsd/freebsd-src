@@ -37,15 +37,6 @@
 
 /*
  * $Log: vgaio.y,v $
- * Revision 1.3  1999/01/01 08:32:05  peter
- * Part 4 of pcvt/voxware revival: pcvt userland
- *
- * Reviewed by:    core
- *
- * Revision 1.1.1.1  1995/02/05 13:49:24  jkh
- * PCVT userland utilities.
- * Submitted by:	hm
- *
  * Revision 1.1  1994/03/29  02:47:27  mycroft
  * pcvt 3.0, with some performance enhancements by Joerg Wunsch and me.
  *
