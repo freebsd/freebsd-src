@@ -830,6 +830,8 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	ino_t ino;
 	int ref_count, shadow_count, flags;
 	int error;
+	struct vnode *vp;
+	struct vattr vat;
 	
 	PROC_LOCK(p);
 	error = p_candebug(td, p);
@@ -858,13 +860,13 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			lobj = tobj;
 		ino = 0;
 		if (lobj) {
+			vp = lobj->handle;
 			VM_OBJECT_LOCK(lobj);
 			off = IDX_TO_OFF(lobj->size);
 			if (lobj->type == OBJT_VNODE && lobj->handle) {
-				vn_fullpath(td, (struct vnode *)lobj->handle,
-				    &name, &freename);
-				ino = ((struct vnode *)
-				    lobj->handle)->v_cachedid;
+				vn_fullpath(td, vp, &name, &freename);
+				VOP_GETATTR(vp, &vat, td->td_ucred, td);
+				ino = vat.va_fileid;
 			}
 			flags = obj->flags;
 			ref_count = obj->ref_count;
