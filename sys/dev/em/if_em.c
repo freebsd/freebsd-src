@@ -1,5 +1,4 @@
 /**************************************************************************
-**************************************************************************
 
 Copyright (c) 2001 Intel Corporation
 All rights reserved.
@@ -32,8 +31,8 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 
-***************************************************************************
 ***************************************************************************/
+
 /*$FreeBSD$*/
 
 #include <dev/em/if_em.h>
@@ -54,7 +53,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.0.9";
+char em_driver_version[] = "1.1.10";
 
 
 /*********************************************************************
@@ -125,7 +124,7 @@ static int em_allocate_receive_structures __P((struct adapter *));
 static int em_allocate_transmit_structures __P((struct adapter *));
 static void em_process_receive_interrupts __P((struct adapter *));
 static void em_receive_checksum __P((struct adapter *, 
-                                     PE1000_RECEIVE_DESCRIPTOR RxDescriptor,
+                                     struct em_rx_desc * RxDescriptor,
                                      struct mbuf *));
 static void em_transmit_checksum_setup __P((struct adapter *,
                                             struct mbuf *,
@@ -139,15 +138,6 @@ static void em_print_hw_stats __P((struct adapter *));
 static void em_print_link_status __P((struct adapter *));
 static int em_get_buf __P((struct em_rx_buffer *, struct adapter *,
                            struct mbuf *));
-static int em_get_std_buf __P((struct em_rx_buffer *, struct adapter *,
-                               struct mbuf *));
-/* Jumbo Frame */
-static int em_alloc_jumbo_mem __P((struct adapter *));
-static void *em_jalloc __P((struct adapter *));
-static void em_jref __P((caddr_t buf, u_int size));
-static void em_jfree __P((caddr_t buf, u_int size));
-static int em_get_jumbo_buf __P((struct em_rx_buffer *, struct adapter *,
-                                 struct mbuf *));
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points                    
  *********************************************************************/
@@ -249,6 +239,7 @@ em_attach(device_t dev)
    }
    bzero(Adapter, sizeof(struct adapter ));
    Adapter->dev = dev;
+   Adapter->osdep.dev = dev;
    Adapter->unit = device_get_unit(dev);
 
    if (em_adapter_list != NULL)
@@ -266,32 +257,31 @@ em_attach(device_t dev)
    Adapter->NumRxDescriptors = MAX_RXD;
    Adapter->TxIntDelay = TIDV;
    Adapter->RxIntDelay = RIDV;
-   Adapter->AutoNeg = DO_AUTO_NEG;
-   Adapter->WaitAutoNegComplete = WAIT_FOR_AUTO_NEG_DEFAULT;
-   Adapter->AutoNegAdvertised = AUTONEG_ADV_DEFAULT;
-   Adapter->TbiCompatibilityEnable = TRUE;
+   Adapter->shared.autoneg = DO_AUTO_NEG;
+   Adapter->shared.wait_autoneg_complete = WAIT_FOR_AUTO_NEG_DEFAULT;
+   Adapter->shared.autoneg_advertised = AUTONEG_ADV_DEFAULT;
+   Adapter->shared.tbi_compatibility_en = TRUE;
    Adapter->RxBufferLen = EM_RXBUFFER_2048;
    Adapter->RxChecksum = EM_ENABLE_RXCSUM_OFFLOAD;
-   Adapter->JumboEnable = EM_JUMBO_ENABLE_DEFAULT;
    
-   Adapter->FlowControlHighWatermark = FC_DEFAULT_HI_THRESH;
-   Adapter->FlowControlLowWatermark  = FC_DEFAULT_LO_THRESH;
-   Adapter->FlowControlPauseTime = FC_DEFAULT_TX_TIMER;
-   Adapter->FlowControlSendXon   = TRUE;
-   Adapter->FlowControl = FLOW_CONTROL_FULL;
+   Adapter->shared.fc_high_water = FC_DEFAULT_HI_THRESH;
+   Adapter->shared.fc_low_water  = FC_DEFAULT_LO_THRESH;
+   Adapter->shared.fc_pause_time = FC_DEFAULT_TX_TIMER;
+   Adapter->shared.fc_send_xon   = TRUE;
+   Adapter->shared.fc = em_fc_full;
 
 
    /* Set the max frame size assuming standard ethernet sized frames */   
-   Adapter->MaxFrameSize = ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN;
+   Adapter->shared.max_frame_size = ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
    /* This controls when hardware reports transmit completion status. */
    if ((EM_REPORT_TX_EARLY == 0) || (EM_REPORT_TX_EARLY == 1)) {
-      Adapter->ReportTxEarly = EM_REPORT_TX_EARLY;
+      Adapter->shared.report_tx_early = EM_REPORT_TX_EARLY;
    } else {
-      if(Adapter->MacType < MAC_LIVENGOOD) {
-         Adapter->ReportTxEarly = 0;
+      if(Adapter->shared.mac_type < em_82543) {
+         Adapter->shared.report_tx_early = 0;
       } else {
-         Adapter->ReportTxEarly = 1;
+         Adapter->shared.report_tx_early = 1;
       }
    }
 
@@ -303,10 +293,10 @@ em_attach(device_t dev)
    }
 
    tsize = EM_ROUNDUP(Adapter->NumTxDescriptors *
-                         sizeof(E1000_TRANSMIT_DESCRIPTOR), 4096);
+                      sizeof(struct em_tx_desc), 4096);
 
    /* Allocate Transmit Descriptor ring */
-   if (!(Adapter->TxDescBase = (PE1000_TRANSMIT_DESCRIPTOR)
+   if (!(Adapter->TxDescBase = (struct em_tx_desc *)
          contigmalloc(tsize, M_DEVBUF, M_NOWAIT, 0, ~0, PAGE_SIZE, 0))) {
       printf("em%d: Unable to allocate TxDescriptor memory\n", Adapter->unit);
       em_free_pci_resources(Adapter);
@@ -315,10 +305,10 @@ em_attach(device_t dev)
    }
 
    rsize = EM_ROUNDUP(Adapter->NumRxDescriptors *
-                         sizeof(E1000_RECEIVE_DESCRIPTOR), 4096);
+                      sizeof(struct em_rx_desc), 4096);
 
    /* Allocate Receive Descriptor ring */
-   if (!(Adapter->RxDescBase = (PE1000_RECEIVE_DESCRIPTOR)
+   if (!(Adapter->RxDescBase = (struct em_rx_desc *)
         contigmalloc(rsize, M_DEVBUF, M_NOWAIT, 0, ~0, PAGE_SIZE, 0))) {
       printf("em%d: Unable to allocate RxDescriptor memory\n", Adapter->unit);
       em_free_pci_resources(Adapter);
@@ -327,28 +317,12 @@ em_attach(device_t dev)
       return(ENOMEM);
    }
 
-   /* Allocate memory for jumbo frame buffers.
-    * We don't support jumbo frames on 82542 based adapters.
-    */
-   if (Adapter->MacType >= MAC_LIVENGOOD) {
-      if (em_alloc_jumbo_mem(Adapter)) {
-         printf("em%d: Unable to allocate Jumbo memory\n", Adapter->unit);
-         em_free_pci_resources(Adapter);
-         contigfree(Adapter->TxDescBase, tsize, M_DEVBUF);
-         contigfree(Adapter->RxDescBase, rsize, M_DEVBUF);
-         splx(s);
-         return(ENOMEM);
-      }
-   }
-
    /* Initialize the hardware */
    if (em_hardware_init(Adapter)) {
       printf("em%d: Unable to initialize the hardware\n",Adapter->unit);
       em_free_pci_resources(Adapter);
       contigfree(Adapter->TxDescBase, tsize, M_DEVBUF);
       contigfree(Adapter->RxDescBase, rsize, M_DEVBUF);
-      if (Adapter->MacType >= MAC_LIVENGOOD)
-         contigfree(Adapter->em_jumbo_buf, EM_JMEM, M_DEVBUF);
       splx(s);
       return(EIO);
    }
@@ -357,17 +331,19 @@ em_attach(device_t dev)
    em_setup_interface(dev, Adapter);
 
    /* Initialize statistics */
-   em_clear_hw_stats_counters(Adapter);
+   em_clear_hw_cntrs(&Adapter->shared);
    em_update_stats_counters(Adapter);
-   Adapter->GetLinkStatus = 1;
-   em_check_for_link(Adapter);
+   Adapter->shared.get_link_status = 1;
+   em_check_for_link(&Adapter->shared);
 
    /* Print the link status */
-   if (Adapter->LinkIsActive == 1)
+   if (Adapter->LinkIsActive == 1) {
+      em_get_speed_and_duplex(&Adapter->shared, &Adapter->LineSpeed, &Adapter->FullDuplex);
       printf("em%d:  Speed:%d Mbps  Duplex:%s\n",
              Adapter->unit,
              Adapter->LineSpeed,
              Adapter->FullDuplex == FULL_DUPLEX ? "Full" : "Half");
+   }
    else
       printf("em%d:  Speed:N/A  Duplex:N/A\n", Adapter->unit);
 
@@ -399,12 +375,12 @@ em_detach(device_t dev)
    s = splimp();
 
    em_stop(Adapter);
-   em_phy_hardware_reset(Adapter);
+   em_phy_hw_reset(&Adapter->shared);
    ether_ifdetach(&Adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
    em_free_pci_resources(Adapter);
 
    size = EM_ROUNDUP(Adapter->NumTxDescriptors *
-                     sizeof(E1000_TRANSMIT_DESCRIPTOR), 4096);
+                     sizeof(struct em_tx_desc), 4096);
 
    /* Free Transmit Descriptor ring */
    if (Adapter->TxDescBase) {
@@ -413,7 +389,7 @@ em_detach(device_t dev)
    }
 
    size = EM_ROUNDUP(Adapter->NumRxDescriptors *
-                     sizeof(E1000_RECEIVE_DESCRIPTOR), 4096);
+                     sizeof(struct em_rx_desc), 4096);
 
    /* Free Receive Descriptor ring */
    if (Adapter->RxDescBase) {
@@ -421,21 +397,13 @@ em_detach(device_t dev)
       Adapter->RxDescBase = NULL;
    }
 
-   /* Free Jumbo Frame buffers */
-   if (Adapter->MacType >= MAC_LIVENGOOD) {
-      if (Adapter->em_jumbo_buf) {
-         contigfree(Adapter->em_jumbo_buf, EM_JMEM, M_DEVBUF);
-         Adapter->em_jumbo_buf = NULL;
-      }
-   }
-
    /* Remove from the adapter list */
-    if(em_adapter_list == Adapter)
-        em_adapter_list = Adapter->next;
-    if(Adapter->next != NULL)
-        Adapter->next->prev = Adapter->prev;
-    if(Adapter->prev != NULL)
-        Adapter->prev->next = Adapter->next;
+   if(em_adapter_list == Adapter)
+      em_adapter_list = Adapter->next;
+   if(Adapter->next != NULL)
+      Adapter->next->prev = Adapter->prev;
+   if(Adapter->prev != NULL)
+      Adapter->prev->next = Adapter->next;
 
    ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
    ifp->if_timer = 0;
@@ -450,7 +418,7 @@ em_shutdown(device_t dev)
    struct adapter * Adapter = device_get_softc(dev);
    
    /* Issue a global reset */
-   em_adapter_stop(Adapter);
+   em_adapter_stop(&Adapter->shared);
    return(0);
 }
 
@@ -475,7 +443,7 @@ em_start(struct ifnet *ifp)
    vm_offset_t     VirtualAddress;
    u_int32_t       txd_upper; 
    u_int32_t       txd_lower;
-   PE1000_TRANSMIT_DESCRIPTOR CurrentTxDescriptor = NULL;
+   struct em_tx_desc * CurrentTxDescriptor = NULL;
    struct adapter * Adapter = ifp->if_softc;
 
    TXRX_DEBUGOUT("em_start: begin");   
@@ -539,12 +507,10 @@ em_start(struct ifnet *ifp)
             continue;
          CurrentTxDescriptor = Adapter->NextAvailTxDescriptor;
          VirtualAddress = mtod(mp, vm_offset_t);
-         CurrentTxDescriptor->BufferAddress.Hi32 = 0;
-         CurrentTxDescriptor->BufferAddress.Lo32 =
-            vtophys(VirtualAddress);
+         CurrentTxDescriptor->buffer_addr = vtophys(VirtualAddress);
 
-         CurrentTxDescriptor->Lower.DwordData = (txd_lower | mp->m_len);
-         CurrentTxDescriptor->Upper.DwordData = (txd_upper);
+         CurrentTxDescriptor->lower.data = (txd_lower | mp->m_len);
+         CurrentTxDescriptor->upper.data = (txd_upper);
 
          if (CurrentTxDescriptor == Adapter->LastTxDescriptor)
             Adapter->NextAvailTxDescriptor =
@@ -562,7 +528,7 @@ em_start(struct ifnet *ifp)
        * Last Descriptor of Packet needs End Of Packet (EOP), Report Status
        * (RS) and append Ethernet CRC (IFCS) bits set.
        */
-      CurrentTxDescriptor->Lower.DwordData |= (Adapter->TxdCmd | E1000_TXD_CMD_EOP);
+      CurrentTxDescriptor->lower.data |= (Adapter->TxdCmd | E1000_TXD_CMD_EOP);
 
       /* Send a copy of the frame to the BPF listener */
       if (ifp->if_bpf)
@@ -571,7 +537,7 @@ em_start(struct ifnet *ifp)
        * Advance the Transmit Descriptor Tail (Tdt), this tells the E1000
        * that this frame is available to transmit.
        */
-      E1000_WRITE_REG(Tdt, (((u_int32_t) Adapter->NextAvailTxDescriptor -
+      E1000_WRITE_REG(&Adapter->shared, TDT, (((u_int32_t) Adapter->NextAvailTxDescriptor -
                              (u_int32_t) Adapter->FirstTxDescriptor) >> 4));
    } /* end of while loop */
 
@@ -609,40 +575,13 @@ em_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
       break;
    case SIOCSIFMTU:
       IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
-#ifdef SUPPORTLARGEFRAME
       if (ifr->ifr_mtu > MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN) {
          error = EINVAL;
       } else {
          ifp->if_mtu = ifr->ifr_mtu;
-         Adapter->MaxFrameSize = ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
+         Adapter->shared.max_frame_size = ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
          em_init(Adapter);
       }
-#else
-     if (ifr->ifr_mtu > EM_JUMBO_MTU) {
-         error = EINVAL;
-      } else {
-
-         if(ifr->ifr_mtu > ETHERMTU &&
-            Adapter->MacType < MAC_LIVENGOOD) {
-            printf("Jumbo frames are not supported on 82542 based adapters\n");
-            error = EINVAL;
-         }
-         else {
-            ifp->if_mtu = ifr->ifr_mtu;
-            if (ifp->if_mtu > ETHERMTU) {
-               Adapter->JumboEnable = 1;
-               Adapter->RxBufferLen = EM_RXBUFFER_16384;
-            }
-            else {
-               Adapter->JumboEnable = 0;
-               Adapter->RxBufferLen = EM_RXBUFFER_2048;
-            }
-            Adapter->MaxFrameSize = ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-            em_init(Adapter);
-         }
-      }
-#endif
-
       break;
    case SIOCSIFFLAGS:
       IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
@@ -667,7 +606,7 @@ em_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
       if (ifp->if_flags & IFF_RUNNING) {
          DisableInterrupts(Adapter);
          em_set_multi(Adapter);
-         if(Adapter->MacType == MAC_WISEMAN_2_0)
+         if(Adapter->shared.mac_type == em_82542_rev2_0)
             em_initialize_receive_unit(Adapter);
          EnableInterrupts(Adapter);
       }
@@ -693,16 +632,16 @@ em_set_promisc(struct adapter * Adapter)
    u_int32_t       reg_rctl;
    struct ifnet   *ifp = &Adapter->interface_data.ac_if;
 
-   reg_rctl = E1000_READ_REG(Rctl);
+   reg_rctl = E1000_READ_REG(&Adapter->shared, RCTL);
 
    if(ifp->if_flags & IFF_PROMISC) {
       reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-      E1000_WRITE_REG(Rctl, reg_rctl);
+      E1000_WRITE_REG(&Adapter->shared, RCTL, reg_rctl);
    }
    else if (ifp->if_flags & IFF_ALLMULTI) {
       reg_rctl |= E1000_RCTL_MPE;
       reg_rctl &= ~E1000_RCTL_UPE;
-      E1000_WRITE_REG(Rctl, reg_rctl);
+      E1000_WRITE_REG(&Adapter->shared, RCTL, reg_rctl);
    }
 
    return;
@@ -713,11 +652,11 @@ em_disable_promisc(struct adapter * Adapter)
 {
    u_int32_t       reg_rctl;
 
-   reg_rctl = E1000_READ_REG(Rctl);
+   reg_rctl = E1000_READ_REG(&Adapter->shared, RCTL);
 
    reg_rctl &=  (~E1000_RCTL_UPE);
    reg_rctl &=  (~E1000_RCTL_MPE);
-   E1000_WRITE_REG(Rctl, reg_rctl);
+   E1000_WRITE_REG(&Adapter->shared, RCTL, reg_rctl);
 
    return;
 }
@@ -736,54 +675,56 @@ em_set_multi(struct adapter * Adapter)
    u_int32_t reg_rctl = 0;
    u_int8_t  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_LENGTH_OF_ADDRESS];
    u_int16_t PciCommandWord;
-   struct ifmultiaddr  *ifma_ptr;
-   int i;
-   int multi_cnt = 0;
+   struct ifmultiaddr  *ifma;
+   int mcnt = 0;
    struct ifnet   *ifp = &Adapter->interface_data.ac_if;
-   
-   IOCTL_DEBUGOUT("em_set_multi: begin");
 
-    if(Adapter->MacType == MAC_WISEMAN_2_0) {
-       reg_rctl = E1000_READ_REG(Rctl);
-       if(Adapter->PciCommandWord & CMD_MEM_WRT_INVALIDATE) {
-          PciCommandWord =Adapter->PciCommandWord & ~CMD_MEM_WRT_INVALIDATE;
+   IOCTL_DEBUGOUT("em_set_multi: begin");
+   
+    if(Adapter->shared.mac_type == em_82542_rev2_0) {
+       reg_rctl = E1000_READ_REG(&Adapter->shared, RCTL);
+       if(Adapter->shared.pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
+          PciCommandWord = Adapter->shared.pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE;
           pci_write_config(Adapter->dev, PCIR_COMMAND, PciCommandWord, 2);
        }
        reg_rctl |= E1000_RCTL_RST;
-       E1000_WRITE_REG(Rctl, reg_rctl);
-       DelayInMilliseconds(5);
+       E1000_WRITE_REG(&Adapter->shared, RCTL, reg_rctl);
+       msec_delay(5);
     }
 
-    for(i = 0, ifma_ptr = ifp->if_multiaddrs.lh_first; 
-        ifma_ptr != NULL; 
-        i++, ifma_ptr = ifma_ptr->ifma_link.le_next) {
-
-       multi_cnt++;
-       bcopy(LLADDR((struct sockaddr_dl *)ifma_ptr->ifma_addr),
-             &mta[i*ETH_LENGTH_OF_ADDRESS], ETH_LENGTH_OF_ADDRESS);
+#if __FreeBSD_version < 500000 
+    LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#else
+    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#endif
+       if (ifma->ifma_addr->sa_family != AF_LINK)
+          continue;
+       
+       bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+             &mta[mcnt*ETH_LENGTH_OF_ADDRESS], ETH_LENGTH_OF_ADDRESS);
+       mcnt++;
     }
 
-    if (multi_cnt > MAX_NUM_MULTICAST_ADDRESSES) {
-       reg_rctl = E1000_READ_REG(Rctl);
+    if (mcnt > MAX_NUM_MULTICAST_ADDRESSES) {
+       reg_rctl = E1000_READ_REG(&Adapter->shared, RCTL);
        reg_rctl |= E1000_RCTL_MPE;
-       E1000_WRITE_REG(Rctl, reg_rctl);
+       E1000_WRITE_REG(&Adapter->shared, RCTL, reg_rctl);
     }
     else
-       em_multicast_address_list_update(Adapter, mta, multi_cnt, 0);
+       em_mc_addr_list_update(&Adapter->shared, mta, mcnt, 0);
 
-    if(Adapter->MacType == MAC_WISEMAN_2_0) {
-       reg_rctl = E1000_READ_REG(Rctl);
+    if(Adapter->shared.mac_type == em_82542_rev2_0) {
+       reg_rctl = E1000_READ_REG(&Adapter->shared, RCTL);
        reg_rctl &= ~E1000_RCTL_RST;
-       E1000_WRITE_REG(Rctl, reg_rctl);
-       DelayInMilliseconds(5);
-       if(Adapter->PciCommandWord & CMD_MEM_WRT_INVALIDATE) {
-          pci_write_config(Adapter->dev, PCIR_COMMAND, Adapter->PciCommandWord, 2);
+       E1000_WRITE_REG(&Adapter->shared, RCTL, reg_rctl);
+       msec_delay(5);
+       if(Adapter->shared.pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
+          pci_write_config(Adapter->dev, PCIR_COMMAND, Adapter->shared.pci_cmd_word, 2);
        }
     }
 
-    return;    
+    return;
 }
-
 
 /*********************************************************************
  *  Watchdog entry point
@@ -801,7 +742,7 @@ em_watchdog(struct ifnet *ifp)
    /* If we are in this routine because of pause frames, then
     * don't reset the hardware.
     */
-   if(E1000_READ_REG(Status) & E1000_STATUS_TXOFF) {
+   if(E1000_READ_REG(&Adapter->shared, STATUS) & E1000_STATUS_TXOFF) {
       ifp->if_timer = EM_TX_TIMEOUT;
       return;
    }
@@ -834,7 +775,7 @@ em_local_timer(void *arg)
 
    s = splimp();
 
-   em_check_for_link(Adapter);
+   em_check_for_link(&Adapter->shared);
    em_print_link_status(Adapter);
    em_update_stats_counters(Adapter);   
    if(em_display_debug_stats && ifp->if_flags & IFF_RUNNING) {
@@ -849,9 +790,9 @@ em_local_timer(void *arg)
 static void
 em_print_link_status(struct adapter * Adapter)
 {
-   if(E1000_READ_REG(Status) & E1000_STATUS_LU) {
+   if(E1000_READ_REG(&Adapter->shared, STATUS) & E1000_STATUS_LU) {
       if(Adapter->LinkIsActive == 0) {
-         em_get_speed_and_duplex(Adapter, &Adapter->LineSpeed, &Adapter->FullDuplex);
+         em_get_speed_and_duplex(&Adapter->shared, &Adapter->LineSpeed, &Adapter->FullDuplex);
          printf("em%d: Link is up %d Mbps %s\n",
                 Adapter->unit,
                 Adapter->LineSpeed,
@@ -901,7 +842,7 @@ em_init(void *arg)
       splx(s);
       return;
    }
-   Adapter->AdapterStopped = FALSE;
+   Adapter->shared.adapter_stopped = FALSE;
    
    /* Prepare transmit descriptors and buffers */
    if (em_setup_transmit_structures(Adapter)) {
@@ -928,11 +869,11 @@ em_init(void *arg)
    ifp->if_flags |= IFF_RUNNING;
    ifp->if_flags &= ~IFF_OACTIVE;
 
-   if(Adapter->MacType >= MAC_LIVENGOOD)
+   if(Adapter->shared.mac_type >= em_82543)
       ifp->if_hwassist = EM_CHECKSUM_FEATURES;
 
    Adapter->timer_handle = timeout(em_local_timer, Adapter, 2*hz);
-   em_clear_hw_stats_counters(Adapter);
+   em_clear_hw_cntrs(&Adapter->shared);
    EnableInterrupts(Adapter);
 
    splx(s);
@@ -956,7 +897,7 @@ em_stop(void *arg)
 
    INIT_DEBUGOUT("em_stop: begin\n");
    DisableInterrupts(Adapter);
-   em_adapter_stop(Adapter);
+   em_adapter_stop(&Adapter->shared);
    untimeout(em_local_timer, Adapter, Adapter->timer_handle);
    em_free_transmit_structures(Adapter);
    em_free_receive_structures(Adapter);
@@ -985,13 +926,13 @@ em_intr(void *arg)
    ifp = &Adapter->interface_data.ac_if;
 
    DisableInterrupts(Adapter);
-   while(ProcessCount > 0 && (IcrContents = E1000_READ_REG(Icr)) != 0) {
+   while(ProcessCount > 0 && (IcrContents = E1000_READ_REG(&Adapter->shared, ICR)) != 0) {
 
       /* Link status change */
       if(IcrContents & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
          untimeout(em_local_timer, Adapter, Adapter->timer_handle);
-         Adapter->GetLinkStatus = 1;
-         em_check_for_link(Adapter);
+         Adapter->shared.get_link_status = 1;
+         em_check_for_link(&Adapter->shared);
          em_print_link_status(Adapter);
          Adapter->timer_handle = timeout(em_local_timer, Adapter, 2*hz);      
       }
@@ -1027,10 +968,10 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
    INIT_DEBUGOUT("em_media_status: begin");
 
-   em_check_for_link(Adapter);
-   if(E1000_READ_REG(Status) & E1000_STATUS_LU) {
+   em_check_for_link(&Adapter->shared);
+   if(E1000_READ_REG(&Adapter->shared, STATUS) & E1000_STATUS_LU) {
       if(Adapter->LinkIsActive == 0) {
-         em_get_speed_and_duplex(Adapter, &Adapter->LineSpeed, &Adapter->FullDuplex);
+         em_get_speed_and_duplex(&Adapter->shared, &Adapter->LineSpeed, &Adapter->FullDuplex);
          Adapter->LinkIsActive = 1;
       }
    }
@@ -1050,7 +991,7 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
    ifmr->ifm_status |= IFM_ACTIVE;
 
-   if (Adapter->MediaType == MEDIA_TYPE_FIBER) {
+   if (Adapter->shared.media_type == em_media_type_fiber) {
       ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
    } else {
       switch (Adapter->LineSpeed) {
@@ -1093,33 +1034,33 @@ em_media_change(struct ifnet *ifp)
 
    switch(IFM_SUBTYPE(ifm->ifm_media)) {
    case IFM_AUTO:
-      if (Adapter->AutoNeg)
+      if (Adapter->shared.autoneg)
          return 0;
       else {
-         Adapter->AutoNeg = DO_AUTO_NEG;
-         Adapter->AutoNegAdvertised = AUTONEG_ADV_DEFAULT;
+         Adapter->shared.autoneg = DO_AUTO_NEG;
+         Adapter->shared.autoneg_advertised = AUTONEG_ADV_DEFAULT;
       }
       break;
    case IFM_1000_SX:
    case IFM_1000_TX:
-      Adapter->AutoNeg = DO_AUTO_NEG;
-      Adapter->AutoNegAdvertised = ADVERTISE_1000_FULL;
+      Adapter->shared.autoneg = DO_AUTO_NEG;
+      Adapter->shared.autoneg_advertised = ADVERTISE_1000_FULL;
       break;
    case IFM_100_TX:
-      Adapter->AutoNeg = FALSE;
-      Adapter->AutoNegAdvertised = 0;
+      Adapter->shared.autoneg = FALSE;
+      Adapter->shared.autoneg_advertised = 0;
       if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
-         Adapter->ForcedSpeedDuplex = FULL_100;
+         Adapter->shared.forced_speed_duplex = em_100_full;
       else
-         Adapter->ForcedSpeedDuplex = HALF_100;
+         Adapter->shared.forced_speed_duplex = em_100_half;
       break;
    case IFM_10_T:
-     Adapter->AutoNeg = FALSE;
-     Adapter->AutoNegAdvertised = 0;
+     Adapter->shared.autoneg = FALSE;
+     Adapter->shared.autoneg_advertised = 0;
      if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
-        Adapter->ForcedSpeedDuplex = FULL_10;
+        Adapter->shared.forced_speed_duplex = em_10_full;
      else
-        Adapter->ForcedSpeedDuplex = HALF_10;
+        Adapter->shared.forced_speed_duplex = em_10_half;
      break;
    default:
       printf("em%d: Unsupported media type\n", Adapter->unit);
@@ -1143,9 +1084,14 @@ em_identify_hardware(struct adapter * Adapter)
    device_t dev = Adapter->dev;
 
    /* Make sure our PCI config space has the necessary stuff set */
-   Adapter->PciCommandWord = pci_read_config(dev, PCIR_COMMAND, 2);
-   Adapter->PciCommandWord |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-   pci_write_config(dev, PCIR_COMMAND, Adapter->PciCommandWord, 2);
+   Adapter->shared.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
+   if (!((Adapter->shared.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
+         (Adapter->shared.pci_cmd_word & PCIM_CMD_MEMEN))) {
+      printf("em%d: Memory Access and/or Bus Master bits were not set!\n", 
+             Adapter->unit);
+      Adapter->shared.pci_cmd_word |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
+      pci_write_config(dev, PCIR_COMMAND, Adapter->shared.pci_cmd_word, 2);
+   }
 
    /* Save off the information about this board */
    Adapter->VendorId = pci_get_vendor(dev);
@@ -1159,18 +1105,18 @@ em_identify_hardware(struct adapter * Adapter)
    /* Set MacType, etc. based on this PCI info */
    switch (Adapter->DeviceId) {
    case PCI_DEVICE_ID_82542:
-      Adapter->MacType = (Adapter->RevId == 3) ?
-         MAC_WISEMAN_2_1 : MAC_WISEMAN_2_0;
+      Adapter->shared.mac_type = (Adapter->RevId == 3) ?
+         em_82542_rev2_1 : em_82542_rev2_0;
       break;
    case PCI_DEVICE_ID_82543GC_FIBER:
    case PCI_DEVICE_ID_82543GC_COPPER:
-      Adapter->MacType = MAC_LIVENGOOD;
+      Adapter->shared.mac_type = em_82543;
       break;
    case PCI_DEVICE_ID_82544EI_FIBER:
    case PCI_DEVICE_ID_82544EI_COPPER:
    case PCI_DEVICE_ID_82544GC_COPPER:
    case PCI_DEVICE_ID_82544GC_STRG:
-      Adapter->MacType = MAC_CORDOVA;
+      Adapter->shared.mac_type = em_82544;
       break;
    default:
       INIT_DEBUGOUT1("Unknown device id 0x%x", Adapter->DeviceId);
@@ -1191,8 +1137,9 @@ em_allocate_pci_resources(struct adapter * Adapter)
       printf("em%d: Unable to allocate bus resource: memory\n", Adapter->unit);
       return(ENXIO);
    }
-   Adapter->bus_space_tag = rman_get_bustag(Adapter->res_memory);
-   Adapter->bus_space_handle = rman_get_bushandle(Adapter->res_memory);
+   Adapter->osdep.bus_space_tag = rman_get_bustag(Adapter->res_memory);
+   Adapter->osdep.bus_space_handle = rman_get_bushandle(Adapter->res_memory);
+   Adapter->shared.hw_addr = (uint8_t *)Adapter->osdep.bus_space_handle;
 
    resource_id = 0x0;
    Adapter->res_interrupt = bus_alloc_resource(dev, SYS_RES_IRQ,
@@ -1208,6 +1155,9 @@ em_allocate_pci_resources(struct adapter * Adapter)
       printf("em%d: Error registering interrupt handler!\n", Adapter->unit);
       return(ENXIO);
    }
+
+   Adapter->shared.back = &Adapter->osdep;
+
    return(0);
 }
 
@@ -1238,33 +1188,34 @@ static int
 em_hardware_init(struct adapter * Adapter)
 {
    /* Issue a global reset */
-   Adapter->AdapterStopped = FALSE;
-   em_adapter_stop(Adapter);
-   Adapter->AdapterStopped = FALSE;
+   Adapter->shared.adapter_stopped = FALSE;
+   em_adapter_stop(&Adapter->shared);
+   Adapter->shared.adapter_stopped = FALSE;
 
    /* Make sure we have a good EEPROM before we read from it */
-   if (!em_validate_eeprom_checksum(Adapter)) {
+   if (!em_validate_eeprom_checksum(&Adapter->shared)) {
       printf("em%d: The EEPROM Checksum Is Not Valid\n", Adapter->unit);
       return EIO;
    }
    /* Copy the permanent MAC address and part number out of the EEPROM */
    em_read_mac_address(Adapter, Adapter->interface_data.ac_enaddr);
-   memcpy(Adapter->CurrentNetAddress, Adapter->interface_data.ac_enaddr,
+   memcpy(Adapter->shared.mac_addr, Adapter->interface_data.ac_enaddr,
          ETH_LENGTH_OF_ADDRESS);
-   em_read_part_number(Adapter, &(Adapter->PartNumber));
+   em_read_part_num(&Adapter->shared, &(Adapter->PartNumber));
 
-   if (!em_initialize_hardware(Adapter)) {
+   if (!em_init_hw(&Adapter->shared)) {
       printf("em%d: Hardware Initialization Failed", Adapter->unit);
       return EIO;
    }
-   em_check_for_link(Adapter);
-   if (E1000_READ_REG(Status) & E1000_STATUS_LU)
+
+   em_check_for_link(&Adapter->shared);
+   if (E1000_READ_REG(&Adapter->shared, STATUS) & E1000_STATUS_LU)
       Adapter->LinkIsActive = 1;
    else
       Adapter->LinkIsActive = 0;
  
    if (Adapter->LinkIsActive) {
-      em_get_speed_and_duplex(Adapter, &Adapter->LineSpeed, &Adapter->FullDuplex);
+      em_get_speed_and_duplex(&Adapter->shared, &Adapter->LineSpeed, &Adapter->FullDuplex);
    } else {
       Adapter->LineSpeed = 0;
       Adapter->FullDuplex = 0;
@@ -1281,7 +1232,7 @@ em_read_mac_address(struct adapter * Adapter, u_int8_t * NodeAddress)
 
    for (i = 0; i < NODE_ADDRESS_SIZE; i += 2) {
       EepromWordValue =
-         em_read_eeprom_word(Adapter, EEPROM_NODE_ADDRESS_BYTE_0 + (i / 2));
+         em_read_eeprom(&Adapter->shared, EEPROM_NODE_ADDRESS_BYTE_0 + (i / 2));
       NodeAddress[i] = (uint8_t) (EepromWordValue & 0x00FF);
       NodeAddress[i + 1] = (uint8_t) (EepromWordValue >> 8);
    }
@@ -1321,7 +1272,7 @@ em_setup_interface(device_t dev, struct adapter * Adapter)
     */
    ifmedia_init(&Adapter->media, IFM_IMASK, em_media_change,
                 em_media_status);
-   if (Adapter->MediaType == MEDIA_TYPE_FIBER) {
+   if (Adapter->shared.media_type == em_media_type_fiber) {
       ifmedia_add(&Adapter->media, IFM_ETHER | IFM_1000_SX | IFM_FDX, 0,
                   NULL);
       ifmedia_add(&Adapter->media, IFM_ETHER | IFM_1000_SX , 0, NULL);
@@ -1398,7 +1349,7 @@ em_setup_transmit_structures(struct adapter * Adapter)
    }
 
    bzero((void *) Adapter->FirstTxDescriptor,
-        (sizeof(E1000_TRANSMIT_DESCRIPTOR)) * Adapter->NumTxDescriptors);
+        (sizeof(struct em_tx_desc)) * Adapter->NumTxDescriptors);
 
    /* Setup TX descriptor pointers */
    Adapter->NextAvailTxDescriptor = Adapter->FirstTxDescriptor;
@@ -1425,47 +1376,42 @@ em_initialize_transmit_unit(struct adapter * Adapter)
    u_int32_t       reg_tipg = 0;
 
    /* Setup the Base and Length of the Tx Descriptor Ring */
-   E1000_WRITE_REG(Tdbal, vtophys((vm_offset_t) Adapter->TxDescBase));
-   E1000_WRITE_REG(Tdbah, 0);
-   E1000_WRITE_REG(Tdl, Adapter->NumTxDescriptors *
-               sizeof(E1000_TRANSMIT_DESCRIPTOR));
+   E1000_WRITE_REG(&Adapter->shared, TDBAL, vtophys((vm_offset_t) Adapter->TxDescBase));
+   E1000_WRITE_REG(&Adapter->shared, TDBAH, 0);
+   E1000_WRITE_REG(&Adapter->shared, TDLEN, Adapter->NumTxDescriptors *
+               sizeof(struct em_tx_desc));
 
    /* Setup the HW Tx Head and Tail descriptor pointers */
-   E1000_WRITE_REG(Tdh, 0);
-   E1000_WRITE_REG(Tdt, 0);
+   E1000_WRITE_REG(&Adapter->shared, TDH, 0);
+   E1000_WRITE_REG(&Adapter->shared, TDT, 0);
 
 
-   HW_DEBUGOUT2("Base = %x, Length = %x\n", E1000_READ_REG(Tdbal),
-             E1000_READ_REG(Tdl));
+   HW_DEBUGOUT2("Base = %x, Length = %x\n", E1000_READ_REG(&Adapter->shared, TDBAL),
+                E1000_READ_REG(&Adapter->shared, TDLEN));
 
-
-   /* Zero out the 82542 Tx Queue State registers - we don't use them */
-   if (Adapter->MacType < MAC_LIVENGOOD) {
-      E1000_WRITE_REG(Tqsal, 0);
-      E1000_WRITE_REG(Tqsah, 0);
-   }
    
    /* Set the default values for the Tx Inter Packet Gap timer */
-   switch (Adapter->MacType) {
-   case MAC_LIVENGOOD:
-   case MAC_WAINWRIGHT:
-   case MAC_CORDOVA:
-      if (Adapter->MediaType == MEDIA_TYPE_FIBER)
-         reg_tipg = DEFAULT_LVGD_TIPG_IPGT_FIBER;
+   switch (Adapter->shared.mac_type) {
+   case em_82543:
+   case em_82544:
+      if (Adapter->shared.media_type == em_media_type_fiber)
+         reg_tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
       else
-         reg_tipg = DEFAULT_LVGD_TIPG_IPGT_COPPER;
-      reg_tipg |= DEFAULT_LVGD_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
-      reg_tipg |= DEFAULT_LVGD_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
+         reg_tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
+      reg_tipg |= DEFAULT_82543_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
+      reg_tipg |= DEFAULT_82543_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
       break;
-   case MAC_WISEMAN_2_0:
-   case MAC_WISEMAN_2_1:
-      reg_tipg = DEFAULT_WSMN_TIPG_IPGT;
-      reg_tipg |= DEFAULT_WSMN_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
-      reg_tipg |= DEFAULT_WSMN_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
+   case em_82542_rev2_0:
+   case em_82542_rev2_1:
+      reg_tipg = DEFAULT_82542_TIPG_IPGT;
+      reg_tipg |= DEFAULT_82542_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
+      reg_tipg |= DEFAULT_82542_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
       break;
+   default:
+      printf("em%d: Invalid mac type detected\n", Adapter->unit);
    }
-   E1000_WRITE_REG(Tipg, reg_tipg);
-   E1000_WRITE_REG(Tidv, Adapter->TxIntDelay);
+   E1000_WRITE_REG(&Adapter->shared, TIPG, reg_tipg);
+   E1000_WRITE_REG(&Adapter->shared, TIDV, Adapter->TxIntDelay);
 
    /* Program the Transmit Control Register */
    reg_tctl = E1000_TCTL_PSP | E1000_TCTL_EN |
@@ -1475,7 +1421,7 @@ em_initialize_transmit_unit(struct adapter * Adapter)
    } else {
       reg_tctl |= E1000_HDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
    }
-   E1000_WRITE_REG(Tctl, reg_tctl);
+   E1000_WRITE_REG(&Adapter->shared, TCTL, reg_tctl);
 
    /* Setup Transmit Descriptor Settings for this adapter */   
    Adapter->TxdCmd = E1000_TXD_CMD_IFCS;
@@ -1483,7 +1429,7 @@ em_initialize_transmit_unit(struct adapter * Adapter)
    if(Adapter->TxIntDelay > 0)
       Adapter->TxdCmd |= E1000_TXD_CMD_IDE;
    
-   if(Adapter->ReportTxEarly == 1)
+   if(Adapter->shared.report_tx_early == 1)
       Adapter->TxdCmd |= E1000_TXD_CMD_RS;
    else
       Adapter->TxdCmd |= E1000_TXD_CMD_RPS;
@@ -1533,8 +1479,8 @@ em_transmit_checksum_setup(struct adapter * Adapter,
                 u_int32_t *txd_upper,
                 u_int32_t *txd_lower) 
 {
-   PE1000_TCPIP_CONTEXT_TRANSMIT_DESCRIPTOR TXD;
-   PE1000_TRANSMIT_DESCRIPTOR CurrentTxDescriptor;
+   struct em_context_desc *TXD;
+   struct em_tx_desc * CurrentTxDescriptor;
      
    if (mp->m_pkthdr.csum_flags) {
 
@@ -1573,25 +1519,25 @@ em_transmit_checksum_setup(struct adapter * Adapter,
     * needs to be reset.
     */
    CurrentTxDescriptor = Adapter->NextAvailTxDescriptor;
-   TXD = (PE1000_TCPIP_CONTEXT_TRANSMIT_DESCRIPTOR)CurrentTxDescriptor;
+   TXD = (struct em_context_desc *)CurrentTxDescriptor;
 
-   TXD->LowerXsumSetup.IpFields.Ipcss = ETHER_HDR_LEN;
-   TXD->LowerXsumSetup.IpFields.Ipcso = ETHER_HDR_LEN + offsetof(struct ip, ip_sum);
-   TXD->LowerXsumSetup.IpFields.Ipcse = ETHER_HDR_LEN + sizeof(struct ip) - 1;
+   TXD->lower_setup.ip_fields.ipcss = ETHER_HDR_LEN;
+   TXD->lower_setup.ip_fields.ipcso = ETHER_HDR_LEN + offsetof(struct ip, ip_sum);
+   TXD->lower_setup.ip_fields.ipcse = ETHER_HDR_LEN + sizeof(struct ip) - 1;
 
-   TXD->UpperXsumSetup.TcpFields.Tucss = ETHER_HDR_LEN + sizeof(struct ip);
-   TXD->UpperXsumSetup.TcpFields.Tucse = 0;
+   TXD->upper_setup.tcp_fields.tucss = ETHER_HDR_LEN + sizeof(struct ip);
+   TXD->upper_setup.tcp_fields.tucse = 0;
 
    if(Adapter->ActiveChecksumContext == OFFLOAD_TCP_IP) {
-      TXD->UpperXsumSetup.TcpFields.Tucso = ETHER_HDR_LEN + sizeof(struct ip) + 
+      TXD->upper_setup.tcp_fields.tucso = ETHER_HDR_LEN + sizeof(struct ip) + 
          offsetof(struct tcphdr, th_sum);
    } else if (Adapter->ActiveChecksumContext == OFFLOAD_UDP_IP) {
-      TXD->UpperXsumSetup.TcpFields.Tucso = ETHER_HDR_LEN + sizeof(struct ip) + 
+      TXD->upper_setup.tcp_fields.tucso = ETHER_HDR_LEN + sizeof(struct ip) + 
          offsetof(struct udphdr, uh_sum);
    }
 
-   TXD->TcpSegSetup.DwordData = 0;
-   TXD->CmdAndLength = E1000_TXD_CMD_DEXT;
+   TXD->tcp_seg_setup.data = 0;
+   TXD->cmd_and_length = E1000_TXD_CMD_DEXT;
 
    if (CurrentTxDescriptor == Adapter->LastTxDescriptor)
       Adapter->NextAvailTxDescriptor = Adapter->FirstTxDescriptor;
@@ -1607,65 +1553,17 @@ em_transmit_checksum_setup(struct adapter * Adapter,
 
 /*********************************************************************
  *
- *  Get buffer from driver maintained free list for jumbo frames.
- *
- **********************************************************************/
-static int
-em_get_jumbo_buf(struct em_rx_buffer *rx_buffer, struct adapter *Adapter, 
-                 struct mbuf *mp)
-{
-   struct mbuf    *nmp;
-
-   if (mp == NULL) {
-      caddr_t  *buf = NULL;
-      MGETHDR(nmp, M_DONTWAIT, MT_DATA);
-      if (nmp == NULL) {
-         printf("em%d: Mbuf allocation failed\n", Adapter->unit);
-         Adapter->JumboMbufFailed++;
-         return (ENOBUFS);
-      }
-
-      /* Allocate the jumbo buffer */
-      buf = em_jalloc(Adapter);
-      if (buf == NULL) {
-         m_freem(nmp);
-         Adapter->JumboClusterFailed++;
-         return(ENOBUFS);
-      }
-
-     /* Attach the buffer to the mbuf. */
-      nmp->m_data = nmp->m_ext.ext_buf = (void *)buf;
-      nmp->m_flags |= M_EXT;
-      nmp->m_len = nmp->m_pkthdr.len =
-         nmp->m_ext.ext_size = EM_JUMBO_FRAMELEN;
-      nmp->m_ext.ext_free = em_jfree;
-      nmp->m_ext.ext_ref = em_jref;  
-   } else {
-      nmp = mp;
-      nmp->m_data = nmp->m_ext.ext_buf;
-      nmp->m_ext.ext_size = EM_JUMBO_FRAMELEN;
-   }
-
-   m_adj(nmp, ETHER_ALIGN);
-
-   rx_buffer->Packet = nmp;
-   rx_buffer->LowPhysicalAddress = vtophys(mtod(nmp, vm_offset_t));
-   rx_buffer->HighPhysicalAddress = 0;
-
-   return (0);
-}
-
-
-/*********************************************************************
- *
  *  Get a buffer from system mbuf buffer pool.
  *
  **********************************************************************/
 static int
-em_get_std_buf(struct em_rx_buffer *rx_buffer, struct adapter *Adapter,
-               struct mbuf *mp)
+em_get_buf(struct em_rx_buffer *rx_buffer, struct adapter *Adapter,
+           struct mbuf *mp)
 {
    struct mbuf    *nmp;
+   struct ifnet   *ifp;
+
+   ifp = &Adapter->interface_data.ac_if;
 
    if (mp == NULL) {
       MGETHDR(nmp, M_DONTWAIT, MT_DATA);
@@ -1686,36 +1584,18 @@ em_get_std_buf(struct em_rx_buffer *rx_buffer, struct adapter *Adapter,
       nmp = mp;
       nmp->m_len = nmp->m_pkthdr.len = MCLBYTES;
       nmp->m_data = nmp->m_ext.ext_buf;
+      nmp->m_next = NULL;
    }
 
-#ifndef SUPPORTLARGEFRAME
-   m_adj(nmp, ETHER_ALIGN);
-#endif
+   if (ifp->if_mtu <= ETHERMTU) {
+      m_adj(nmp, ETHER_ALIGN);
+   }
 
    rx_buffer->Packet = nmp;
    rx_buffer->LowPhysicalAddress = vtophys(mtod(nmp, vm_offset_t));
    rx_buffer->HighPhysicalAddress = 0;
 
    return (0);
-}
-
-/*********************************************************************
- *
- *  Get buffer from system or driver maintained buffer freelist.
- *
- **********************************************************************/
-static int
-em_get_buf(struct em_rx_buffer *rx_buffer, struct adapter * Adapter, 
-           struct mbuf *mp)
-{
-   int error = 0;
-
-   if(Adapter->JumboEnable == 1)
-      error = em_get_jumbo_buf(rx_buffer, Adapter, mp);
-   else
-      error = em_get_std_buf(rx_buffer, Adapter, mp);
-
-   return error;
 }
 
 /*********************************************************************
@@ -1764,7 +1644,7 @@ static int
 em_setup_receive_structures(struct adapter * Adapter)
 {
    struct em_rx_buffer   *rx_buffer;
-   PE1000_RECEIVE_DESCRIPTOR RxDescriptorPtr;
+   struct em_rx_desc * RxDescriptorPtr;
    int             i;
 
    if(em_allocate_receive_structures(Adapter))
@@ -1773,14 +1653,14 @@ em_setup_receive_structures(struct adapter * Adapter)
    STAILQ_INIT(&Adapter->RxSwPacketList);
 
    Adapter->FirstRxDescriptor =
-      (PE1000_RECEIVE_DESCRIPTOR) Adapter->RxDescBase;
+      (struct em_rx_desc *) Adapter->RxDescBase;
    Adapter->LastRxDescriptor =
       Adapter->FirstRxDescriptor + (Adapter->NumRxDescriptors - 1);
 
    rx_buffer = (struct em_rx_buffer *) Adapter->rx_buffer_area;
 
    bzero((void *) Adapter->FirstRxDescriptor,
-        (sizeof(E1000_RECEIVE_DESCRIPTOR)) * Adapter->NumRxDescriptors);
+        (sizeof(struct em_rx_desc)) * Adapter->NumRxDescriptors);
 
    /* Build a linked list of rx_buffer's */
    for (i = 0, RxDescriptorPtr = Adapter->FirstRxDescriptor;
@@ -1789,10 +1669,7 @@ em_setup_receive_structures(struct adapter * Adapter)
       if (rx_buffer->Packet == NULL)
          printf("em%d: Receive buffer memory not allocated", Adapter->unit);
       else {
-         RxDescriptorPtr->BufferAddress.Lo32 =
-            rx_buffer->LowPhysicalAddress;
-         RxDescriptorPtr->BufferAddress.Hi32 =
-            rx_buffer->HighPhysicalAddress;
+         RxDescriptorPtr->buffer_addr = rx_buffer->LowPhysicalAddress;
          STAILQ_INSERT_TAIL(&Adapter->RxSwPacketList, rx_buffer, em_rx_entry);
       }
    }
@@ -1815,45 +1692,32 @@ em_initialize_receive_unit(struct adapter * Adapter)
    u_int32_t       reg_rxcsum;
 
    /* Make sure receives are disabled while setting up the descriptor ring */
-   E1000_WRITE_REG(Rctl, 0);
+   E1000_WRITE_REG(&Adapter->shared, RCTL, 0);
 
    /* Set the Receive Delay Timer Register */
-   E1000_WRITE_REG(Rdtr0, Adapter->RxIntDelay | E1000_RDT0_FPDB);
+   E1000_WRITE_REG(&Adapter->shared, RDTR, Adapter->RxIntDelay | E1000_RDT_FPDB);
 
    /* Setup the Base and Length of the Rx Descriptor Ring */
-   E1000_WRITE_REG(Rdbal0, vtophys((vm_offset_t) Adapter->RxDescBase));
-   E1000_WRITE_REG(Rdbah0, 0);
-   E1000_WRITE_REG(Rdlen0, Adapter->NumRxDescriptors *
-               sizeof(E1000_RECEIVE_DESCRIPTOR));
+   E1000_WRITE_REG(&Adapter->shared, RDBAL, vtophys((vm_offset_t) Adapter->RxDescBase));
+   E1000_WRITE_REG(&Adapter->shared, RDBAH, 0);
+   E1000_WRITE_REG(&Adapter->shared, RDLEN, Adapter->NumRxDescriptors *
+               sizeof(struct em_rx_desc));
 
    /* Setup the HW Rx Head and Tail Descriptor Pointers */
-   E1000_WRITE_REG(Rdh0, 0);
-   E1000_WRITE_REG(Rdt0,
+   E1000_WRITE_REG(&Adapter->shared, RDH, 0);
+   E1000_WRITE_REG(&Adapter->shared, RDT,
                (((u_int32_t) Adapter->LastRxDescriptor -
                  (u_int32_t) Adapter->FirstRxDescriptor) >> 4));
-
-   /* 
-    * Zero out the registers associated with the 82542 second receive
-    * descriptor ring - we don't use it
-    */
-   if (Adapter->MacType < MAC_LIVENGOOD) {
-      E1000_WRITE_REG(Rdbal1, 0);
-      E1000_WRITE_REG(Rdbah1, 0);
-      E1000_WRITE_REG(Rdlen1, 0);
-      E1000_WRITE_REG(Rdh1, 0);
-      E1000_WRITE_REG(Rdt1, 0);
-   }
    
    /* Setup the Receive Control Register */
    reg_rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_LBM_NO |
-      E1000_RCTL_RDMTS0_HALF |
-      (Adapter->MulticastFilterType << E1000_RCTL_MO_SHIFT);
+      E1000_RCTL_RDMTS_HALF |
+      (Adapter->shared.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
-   if (Adapter->TbiCompatibilityOn == TRUE)
+   if (Adapter->shared.tbi_compatibility_on == TRUE)
       reg_rctl |= E1000_RCTL_SBP;
 
 
-#ifdef SUPPORTLARGEFRAME
    switch (Adapter->RxBufferLen) {
    case EM_RXBUFFER_2048:
       reg_rctl |= E1000_RCTL_SZ_2048 | E1000_RCTL_LPE;
@@ -1870,34 +1734,16 @@ em_initialize_receive_unit(struct adapter * Adapter)
    default:
       reg_rctl |= E1000_RCTL_SZ_2048;
    }
-#else
-   switch (Adapter->RxBufferLen) {
-   case EM_RXBUFFER_2048:
-      reg_rctl |= E1000_RCTL_SZ_2048;
-      break;
-   case EM_RXBUFFER_4096:
-      reg_rctl |= E1000_RCTL_SZ_4096 | E1000_RCTL_BSEX | E1000_RCTL_LPE;
-      break;            
-   case EM_RXBUFFER_8192:
-      reg_rctl |= E1000_RCTL_SZ_8192 | E1000_RCTL_BSEX | E1000_RCTL_LPE;
-      break;
-   case EM_RXBUFFER_16384:
-      reg_rctl |= E1000_RCTL_SZ_16384 | E1000_RCTL_BSEX | E1000_RCTL_LPE;
-      break;
-   default:
-      reg_rctl |= E1000_RCTL_SZ_2048;
-   }
-#endif
 
    /* Enable 82543 Receive Checksum Offload for TCP and UDP */
-   if((Adapter->MacType >= MAC_LIVENGOOD) && (Adapter->RxChecksum == 1)) {
-      reg_rxcsum = E1000_READ_REG(Rxcsum);
+   if((Adapter->shared.mac_type >= em_82543) && (Adapter->RxChecksum == 1)) {
+      reg_rxcsum = E1000_READ_REG(&Adapter->shared, RXCSUM);
       reg_rxcsum |= (E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
-      E1000_WRITE_REG(Rxcsum, reg_rxcsum);
+      E1000_WRITE_REG(&Adapter->shared, RXCSUM, reg_rxcsum);
    }
 
    /* Enable Receives */
-   E1000_WRITE_REG(Rctl, reg_rctl);
+   E1000_WRITE_REG(&Adapter->shared, RCTL, reg_rctl);
 
    return;
 }
@@ -1932,327 +1778,6 @@ em_free_receive_structures(struct adapter * Adapter)
 
 /*********************************************************************
  *
- *  Allocate memory to be used for jumbo buffers
- *
- **********************************************************************/
-static int 
-em_alloc_jumbo_mem(struct adapter *Adapter)
-{
-   caddr_t                 ptr;
-   register int            i;
-   struct em_jpool_entry   *entry;
-
-   
-   Adapter->em_jumbo_buf = contigmalloc(EM_JMEM, M_DEVBUF,
-                                        M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
-
-   if (Adapter->em_jumbo_buf == NULL) {
-      printf("em%d: No memory for jumbo buffers!\n", Adapter->unit);
-      return(ENOBUFS);
-   }
-
-   SLIST_INIT(&Adapter->em_jfree_listhead);
-   SLIST_INIT(&Adapter->em_jinuse_listhead);
-
-   /*
-    * Now divide it up into 9K pieces and save the addresses
-    * in an array. We use the the first few bytes in the buffer to hold 
-    * the address of the adapter (softc) structure for this interface. 
-    * This is because em_jfree() needs it, but it is called by the mbuf 
-    * management code which will not pass it to us explicitly.
-    */
-
-   ptr = Adapter->em_jumbo_buf;
-   for (i = 0; i < EM_JSLOTS; i++) {
-      u_int64_t               **aptr;
-      aptr = (u_int64_t **)ptr;
-      aptr[0] = (u_int64_t *)Adapter;
-      ptr += sizeof(u_int64_t);
-      Adapter->em_jslots[i].em_buf = ptr;
-      Adapter->em_jslots[i].em_inuse = 0;
-      ptr += (EM_JLEN - sizeof(u_int64_t));
-      entry = malloc(sizeof(struct em_jpool_entry),
-                     M_DEVBUF, M_NOWAIT);
-      if (entry == NULL) {
-         contigfree(Adapter->em_jumbo_buf, EM_JMEM,
-                    M_DEVBUF);
-         Adapter->em_jumbo_buf = NULL;
-         printf("em%d: No memory for jumbo buffer queue!\n", Adapter->unit);
-         return(ENOBUFS);
-      }
-      entry->slot = i;
-      SLIST_INSERT_HEAD(&Adapter->em_jfree_listhead, entry, em_jpool_entries);
-   }
-   return(0);
-}
-
-
-/*********************************************************************
- *
- *  Get Jumbo buffer from free list.
- *
- **********************************************************************/
-static void *em_jalloc(struct adapter *Adapter)
-{
-   struct em_jpool_entry   *entry;
-
-   entry = SLIST_FIRST(&Adapter->em_jfree_listhead);
-
-   if (entry == NULL) {
-      Adapter->NoJumboBufAvail++;
-      return(NULL);
-   }
-
-   SLIST_REMOVE_HEAD(&Adapter->em_jfree_listhead, em_jpool_entries);
-   SLIST_INSERT_HEAD(&Adapter->em_jinuse_listhead, entry, em_jpool_entries);
-   Adapter->em_jslots[entry->slot].em_inuse = 1;
-   return(Adapter->em_jslots[entry->slot].em_buf);
-}
-
-/*********************************************************************
- *
- *  Adjust usage count on a jumbo buffer.
- *
- *********************************************************************/
-static void 
-em_jref(caddr_t buf, u_int size)
-{
-   struct adapter          *Adapter;
-   u_int64_t               **aptr;
-   register int            i;
-
-   /* Extract the Adapter (softc) struct pointer */
-   aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
-   Adapter = (struct adapter *)(aptr[0]);
-
-   if (Adapter == NULL)
-      panic("em_jref: Can't find softc pointer!");
-
-   if (size != EM_JUMBO_FRAMELEN)
-      panic("em_jref: Adjusting reference count of buf of wrong size!");
-
-   /* Calculate the slot this buffer belongs to */
-
-   i = ((vm_offset_t)aptr
-        - (vm_offset_t)Adapter->em_jumbo_buf) / EM_JLEN;
-
-   if ((i < 0) || (i >= EM_JSLOTS))
-      panic("em_jref: Asked to reference buffer that we don't manage!");
-   else if (Adapter->em_jslots[i].em_inuse == 0)
-      panic("em_jref: Buffer already free!");
-   else
-      Adapter->em_jslots[i].em_inuse++;
-
-   return;
-}
-
-/*********************************************************************
- *
- *  Put the jumbo buffer back onto free list.
- *
- *********************************************************************/
-static void 
-em_jfree(caddr_t buf, u_int size)
-{
-   struct adapter *Adapter;
-   u_int64_t               **aptr;
-   int                     i;
-   struct em_jpool_entry   *entry;
-
-   /* Extract the adapter (softc) struct pointer. */
-   aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
-   Adapter = (struct adapter *)(aptr[0]);
-
-   if (Adapter == NULL)
-      panic("em_jfree: Can't find softc pointer!");
-
-   if (size != EM_JUMBO_FRAMELEN)
-      panic("em_jfree: Freeing buffer of wrong size!");
-
-   /* Calculate the slot this buffer belongs to */
-   i = ((vm_offset_t)aptr
-        - (vm_offset_t)Adapter->em_jumbo_buf) / EM_JLEN;
-
-   if ((i < 0) || (i >= EM_JSLOTS))
-      panic("em_jfree: Asked to free buffer that we don't manage!");
-   else if (Adapter->em_jslots[i].em_inuse == 0)
-      panic("em_jfree: Buffer already free!");
-   else {
-      Adapter->em_jslots[i].em_inuse--;
-      if(Adapter->em_jslots[i].em_inuse == 0) {
-         entry = SLIST_FIRST(&Adapter->em_jinuse_listhead);
-         if (entry == NULL)
-            panic("em_jfree: Buffer not in use!");
-         entry->slot = i;
-         SLIST_REMOVE_HEAD(&Adapter->em_jinuse_listhead,
-                           em_jpool_entries);
-         SLIST_INSERT_HEAD(&Adapter->em_jfree_listhead,
-                           entry, em_jpool_entries);
-      }
-   }
-
-   return;
-}
-
-#ifdef SUPPORTLARGEFRAME
-/*********************************************************************
- *
- *  This routine executes in interrupt context. It replenishes
- *  the mbufs in the descriptor and sends data which has been
- *  dma'ed into host memory to upper layer.
- *
- *********************************************************************/
-static void
-em_process_receive_interrupts(struct adapter * Adapter)
-{
-   struct mbuf         *mp, *lmp;
-   struct mbuf         *fmp = NULL;
-   struct ifnet        *ifp;
-   struct ether_header *eh;
-   u_int16_t           Length;
-   u_int8_t            LastByte;
-   u_int8_t            AcceptFrame = 0;
-   u_int8_t            EndOfPacket = 0;
-   u_int16_t           PacketLength = 0;
-
-   /* Pointer to the receive descriptor being examined. */
-   PE1000_RECEIVE_DESCRIPTOR CurrentDescriptor;
-   PE1000_RECEIVE_DESCRIPTOR LastDescriptorProcessed;
-   struct em_rx_buffer   *rx_buffer;
-
-   TXRX_DEBUGOUT("em_process_receive_interrupts: begin");
-
-   ifp = &Adapter->interface_data.ac_if;
-   CurrentDescriptor = Adapter->NextRxDescriptorToCheck;
-
-   if (!((CurrentDescriptor->ReceiveStatus) & E1000_RXD_STAT_DD)) {
-#ifdef DBG_STATS
-      Adapter->NoPacketsAvail++;
-#endif
-      return;
-   }
-   
-   while (CurrentDescriptor->ReceiveStatus & E1000_RXD_STAT_DD) {
-
-      /* Get a pointer to the actual receive buffer */
-      rx_buffer = STAILQ_FIRST(&Adapter->RxSwPacketList);
-
-      if(rx_buffer == NULL) {
-         printf("em%d: Found null rx_buffer\n", Adapter->unit);
-         return;
-      }
-
-      mp = rx_buffer->Packet;      
-      AcceptFrame = 1;
-
-      if (CurrentDescriptor->ReceiveStatus & E1000_RXD_STAT_EOP) {
-         EndOfPacket = 1;
-         Length = CurrentDescriptor->Length - ETHER_CRC_LEN;
-      }
-      else {
-         EndOfPacket = 0;
-         Length = CurrentDescriptor->Length;
-      }
-
-      if(CurrentDescriptor->Errors & E1000_RXD_ERR_FRAME_ERR_MASK) {
-
-         LastByte = *(mtod(rx_buffer->Packet,caddr_t) + Length - 1);
-
-         if (TBI_ACCEPT(CurrentDescriptor->Errors, LastByte, Length)) {  
-            em_adjust_tbi_accepted_stats(Adapter, Length, Adapter->CurrentNetAddress);
-            Length--;
-         } else {  
-            AcceptFrame = 0;
-         }
-      }
-
-      if (AcceptFrame) {
-
-         /* Keep track of entire packet length */
-         PacketLength += Length;
-
-         /* Assign correct length to the current fragment */
-         mp->m_len = Length;
-
-         if(fmp == NULL) {
-            fmp = mp;       /* Store the first mbuf */
-            lmp = fmp;
-         }
-         else {
-            /* Chain mbuf's together */
-            mp->m_flags &= ~M_PKTHDR;
-            lmp->m_next = mp;
-            lmp = lmp->m_next;
-            lmp->m_next = NULL;
-         }
-
-         if (em_get_buf(rx_buffer, Adapter, NULL) == ENOBUFS) {
-            Adapter->DroppedPackets++;
-            em_get_buf(rx_buffer, Adapter, mp);
-            if(fmp != NULL) m_freem(fmp);
-            fmp = NULL;
-            lmp = NULL;
-            PacketLength = 0;
-            break;
-         }
-
-         if (EndOfPacket) {
-            fmp->m_pkthdr.rcvif = ifp;
-            fmp->m_pkthdr.len = PacketLength;
-
-            eh = mtod(fmp, struct ether_header *);
-
-            /* Remove ethernet header from mbuf */
-            m_adj(fmp, sizeof(struct ether_header));
-            em_receive_checksum(Adapter, CurrentDescriptor, fmp);
-            ether_input(ifp, eh, fmp);
-      
-            fmp = NULL;
-            lmp = NULL;
-            PacketLength = 0;
-         }
-      } else {
-         Adapter->DroppedPackets++;
-         em_get_buf(rx_buffer, Adapter, mp);
-         if(fmp != NULL) m_freem(fmp);
-         fmp = NULL;
-         lmp = NULL;
-         PacketLength = 0;
-      }
-      
-      /* Zero out the receive descriptors status  */
-      CurrentDescriptor->ReceiveStatus = 0;
-      
-      if (rx_buffer->Packet != NULL) {
-         CurrentDescriptor->BufferAddress.Lo32 =
-            rx_buffer->LowPhysicalAddress;
-         CurrentDescriptor->BufferAddress.Hi32 =
-            rx_buffer->HighPhysicalAddress;
-      }
-      /* Advance our pointers to the next descriptor (checking for wrap). */
-      if (CurrentDescriptor == Adapter->LastRxDescriptor)
-         Adapter->NextRxDescriptorToCheck = Adapter->FirstRxDescriptor;
-      else
-         ((Adapter)->NextRxDescriptorToCheck)++;
-
-      LastDescriptorProcessed = CurrentDescriptor;
-      CurrentDescriptor = Adapter->NextRxDescriptorToCheck;
-      /* 
-       * Put the buffer that we just indicated back at the end of our list
-       */
-      STAILQ_REMOVE_HEAD(&Adapter->RxSwPacketList, em_rx_entry);
-      STAILQ_INSERT_TAIL(&Adapter->RxSwPacketList, rx_buffer, em_rx_entry);
-
-      /* Advance the E1000's Receive Queue #0  "Tail Pointer". */
-      E1000_WRITE_REG(Rdt0, (((u_int32_t) LastDescriptorProcessed -
-                        (u_int32_t) Adapter->FirstRxDescriptor) >> 4));
-   }
-   return;
-}
-
-#else
-/*********************************************************************
- *
  *  This routine executes in interrupt context. It replenishes
  *  the mbufs in the descriptor and sends data which has been
  *  dma'ed into host memory to upper layer.
@@ -2266,11 +1791,13 @@ em_process_receive_interrupts(struct adapter * Adapter)
    struct ether_header *eh;
    u_int16_t           Length;
    u_int8_t            LastByte;
-   u_int8_t            AcceptFrame;
+   u_int8_t            AcceptFrame = 0;
+   u_int8_t            EndOfPacket = 0;
+   u_int32_t           PacketLength = 0;
 
    /* Pointer to the receive descriptor being examined. */
-   PE1000_RECEIVE_DESCRIPTOR CurrentDescriptor;
-   PE1000_RECEIVE_DESCRIPTOR LastDescriptorProcessed;
+   struct em_rx_desc * CurrentDescriptor;
+   struct em_rx_desc * LastDescriptorProcessed;
    struct em_rx_buffer   *rx_buffer;
 
    TXRX_DEBUGOUT("em_process_receive_interrupts: begin");
@@ -2278,79 +1805,110 @@ em_process_receive_interrupts(struct adapter * Adapter)
    ifp = &Adapter->interface_data.ac_if;
    CurrentDescriptor = Adapter->NextRxDescriptorToCheck;
 
-   if (!((CurrentDescriptor->ReceiveStatus) & E1000_RXD_STAT_DD)) {
+   if (!((CurrentDescriptor->status) & E1000_RXD_STAT_DD)) {
 #ifdef DBG_STATS
       Adapter->NoPacketsAvail++;
 #endif
       return;
    }
-
-   while (CurrentDescriptor->ReceiveStatus & E1000_RXD_STAT_DD) {
+   
+   while (CurrentDescriptor->status & E1000_RXD_STAT_DD) {
 
       /* Get a pointer to the actual receive buffer */
       rx_buffer = STAILQ_FIRST(&Adapter->RxSwPacketList);
-      if(rx_buffer == NULL) return;      
-      mp = rx_buffer->Packet;
 
-      Length = CurrentDescriptor->Length;
-      
-      /* Make sure this is also the last descriptor in the packet. */      
-      if (CurrentDescriptor->ReceiveStatus & E1000_RXD_STAT_EOP) { 
+      if(rx_buffer == NULL) {
+         printf("em%d: Found null rx_buffer\n", Adapter->unit);
+         return;
+      }
 
-         AcceptFrame = 1;
+      mp = rx_buffer->Packet;      
+      AcceptFrame = 1;
 
-         if(CurrentDescriptor->Errors & E1000_RXD_ERR_FRAME_ERR_MASK) {
+      if (CurrentDescriptor->status & E1000_RXD_STAT_EOP) {
+         EndOfPacket = 1;
+         Length = CurrentDescriptor->length - ETHER_CRC_LEN;
+      }
+      else {
+         EndOfPacket = 0;
+         Length = CurrentDescriptor->length;
+      }
 
-            LastByte = *(mtod(rx_buffer->Packet,caddr_t) + Length - 1);
-            
-            if (TBI_ACCEPT(CurrentDescriptor->Errors, LastByte, Length)) {  
-               em_adjust_tbi_accepted_stats(Adapter, Length, Adapter->CurrentNetAddress);
-               Length--;
-            } else {  
-               AcceptFrame = 0;
-            }
+      if(CurrentDescriptor->errors & E1000_RXD_ERR_FRAME_ERR_MASK) {
+         
+         /* Compute packet length for tbi_accept macro */
+         PacketLength = CurrentDescriptor->length;
+         if (Adapter->fmp != NULL) {
+            PacketLength += Adapter->fmp->m_pkthdr.len; 
          }
 
-         if (AcceptFrame) {
-            if (em_get_buf(rx_buffer, Adapter, NULL) == ENOBUFS) {
-               Adapter->DroppedPackets++;
-               em_get_buf(rx_buffer, Adapter, mp);
-               break;
-            }
-            
-            mp->m_pkthdr.rcvif = ifp;
-            mp->m_pkthdr.len = mp->m_len = Length - ETHER_CRC_LEN;
-            eh = mtod(mp, struct ether_header *);
+         LastByte = *(mtod(rx_buffer->Packet,caddr_t) + CurrentDescriptor->length - 1);
+
+         if (TBI_ACCEPT(&Adapter->shared, 0, CurrentDescriptor->errors, 
+                        PacketLength, LastByte)) {  
+            PacketLength = em_tbi_adjust_stats(&Adapter->shared, &Adapter->stats, 
+                                               PacketLength, Adapter->shared.mac_addr);
+            Length--;
+         } else {  
+            AcceptFrame = 0;
+         }
+      }
+
+      if (AcceptFrame) {
+
+         if (em_get_buf(rx_buffer, Adapter, NULL) == ENOBUFS) {
+            Adapter->DroppedPackets++;
+            em_get_buf(rx_buffer, Adapter, mp);
+            if(Adapter->fmp != NULL) m_freem(Adapter->fmp);
+            Adapter->fmp = NULL;
+            Adapter->lmp = NULL;
+            break;
+         }
+
+         /* Assign correct length to the current fragment */
+         mp->m_len = Length;
+
+         if(Adapter->fmp == NULL) {
+            mp->m_pkthdr.len = Length;
+            Adapter->fmp = mp;       /* Store the first mbuf */
+            Adapter->lmp = mp;
+         }
+         else {
+            /* Chain mbuf's together */
+            mp->m_flags &= ~M_PKTHDR;
+            Adapter->lmp->m_next = mp;
+            Adapter->lmp = Adapter->lmp->m_next;
+            Adapter->fmp->m_pkthdr.len += Length;
+         }
+
+         if (EndOfPacket) {
+            Adapter->fmp->m_pkthdr.rcvif = ifp;
+
+            eh = mtod(Adapter->fmp, struct ether_header *);
 
             /* Remove ethernet header from mbuf */
-            m_adj(mp, sizeof(struct ether_header));
-            em_receive_checksum(Adapter, CurrentDescriptor, mp);            
-            ether_input(ifp, eh, mp);
-
-         } else { 
-            em_get_buf(rx_buffer, Adapter, mp);
-            Adapter->DroppedPackets++;
+            m_adj(Adapter->fmp, sizeof(struct ether_header));
+            em_receive_checksum(Adapter, CurrentDescriptor, Adapter->fmp);
+            ether_input(ifp, eh, Adapter->fmp);
+      
+            Adapter->fmp = NULL;
+            Adapter->lmp = NULL;
          }
       } else {
-         /* 
-          * If the received packet has spanned multiple descriptors, ignore
-          * and discard all the packets that do not have EOP set and proceed
-          * to the next packet.
-          */
-         printf("em%d: !Receive packet consumed multiple buffers\n", Adapter->unit);
-         em_get_buf(rx_buffer, Adapter, mp);
          Adapter->DroppedPackets++;
+         em_get_buf(rx_buffer, Adapter, mp);
+         if(Adapter->fmp != NULL) m_freem(Adapter->fmp);
+         Adapter->fmp = NULL;
+         Adapter->lmp = NULL;
       }
-
+      
       /* Zero out the receive descriptors status  */
-      CurrentDescriptor->ReceiveStatus = 0;
-
+      CurrentDescriptor->status = 0;
+      
       if (rx_buffer->Packet != NULL) {
-         CurrentDescriptor->BufferAddress.Lo32 =
-            rx_buffer->LowPhysicalAddress;
-         CurrentDescriptor->BufferAddress.Hi32 =
-            rx_buffer->HighPhysicalAddress;
+         CurrentDescriptor->buffer_addr = rx_buffer->LowPhysicalAddress;
       }
+
       /* Advance our pointers to the next descriptor (checking for wrap). */
       if (CurrentDescriptor == Adapter->LastRxDescriptor)
          Adapter->NextRxDescriptorToCheck = Adapter->FirstRxDescriptor;
@@ -2366,13 +1924,11 @@ em_process_receive_interrupts(struct adapter * Adapter)
       STAILQ_INSERT_TAIL(&Adapter->RxSwPacketList, rx_buffer, em_rx_entry);
 
       /* Advance the E1000's Receive Queue #0  "Tail Pointer". */
-      E1000_WRITE_REG(Rdt0, (((u_int32_t) LastDescriptorProcessed -
-                              (u_int32_t) Adapter->FirstRxDescriptor) >> 4));
+      E1000_WRITE_REG(&Adapter->shared, RDT, (((u_int32_t) LastDescriptorProcessed -
+                        (u_int32_t) Adapter->FirstRxDescriptor) >> 4));
    }
    return;
 }
-#endif
-
 
 /*********************************************************************
  *
@@ -2383,21 +1939,21 @@ em_process_receive_interrupts(struct adapter * Adapter)
  *********************************************************************/
 static void
 em_receive_checksum(struct adapter * Adapter,
-           PE1000_RECEIVE_DESCRIPTOR RxDescriptor,
+           struct em_rx_desc * RxDescriptor,
            struct mbuf *mp)
 {
    /* 82543 or newer only */
-   if((Adapter->MacType < MAC_LIVENGOOD) ||
+   if((Adapter->shared.mac_type < em_82543) ||
       /* Ignore Checksum bit is set */
-      (RxDescriptor->ReceiveStatus & E1000_RXD_STAT_IXSM)) {
+      (RxDescriptor->status & E1000_RXD_STAT_IXSM)) {
       RXCSUM_DEBUGOUT("Ignoring checksum");
       mp->m_pkthdr.csum_flags = 0;
       return;
    }
 
-   if (RxDescriptor->ReceiveStatus & E1000_RXD_STAT_IPCS) {
+   if (RxDescriptor->status & E1000_RXD_STAT_IPCS) {
       /* Did it pass? */
-      if (!(RxDescriptor->Errors & E1000_RXD_ERR_IPE)) {
+      if (!(RxDescriptor->errors & E1000_RXD_ERR_IPE)) {
          /* IP Checksum Good */
          RXCSUM_DEBUGOUT("Good IP checksum");
          mp->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
@@ -2413,9 +1969,9 @@ em_receive_checksum(struct adapter * Adapter,
       RXCSUM_DEBUGOUT("IP Checksum not verified");
    }
 
-   if (RxDescriptor->ReceiveStatus & E1000_RXD_STAT_TCPCS) {
+   if (RxDescriptor->status & E1000_RXD_STAT_TCPCS) {
       /* Did it pass? */        
-      if (!(RxDescriptor->Errors & E1000_RXD_ERR_TCPE)) {
+      if (!(RxDescriptor->errors & E1000_RXD_ERR_TCPE)) {
          RXCSUM_DEBUGOUT("Good TCP/UDP checksum");
          mp->m_pkthdr.csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
          mp->m_pkthdr.csum_data = htons(0xffff);
@@ -2436,15 +1992,22 @@ em_receive_checksum(struct adapter * Adapter,
 static void
 EnableInterrupts(struct adapter * Adapter)
 {
-   E1000_WRITE_REG(Ims, (IMS_ENABLE_MASK));
+   E1000_WRITE_REG(&Adapter->shared, IMS, (IMS_ENABLE_MASK));
    return;
 }
 
 static void
 DisableInterrupts(struct adapter * Adapter)
 {
-   E1000_WRITE_REG(Imc, (0xffffffff & ~E1000_IMC_RXSEQ));
+   E1000_WRITE_REG(&Adapter->shared, IMC, (0xffffffff & ~E1000_IMC_RXSEQ));
    return;
+}
+
+void em_write_pci_cfg(struct em_shared_adapter *Adapter,
+                      uint32_t reg,
+                      uint16_t * value)
+{
+   pci_write_config(((struct em_osdep *)Adapter->back)->dev, reg, *value, 2);
 }
 
 
@@ -2458,92 +2021,92 @@ em_update_stats_counters(struct adapter * Adapter)
 {
    struct ifnet   *ifp;
 
-   Adapter->Crcerrs += E1000_READ_REG(Crcerrs);
-   Adapter->Crcerrs += E1000_READ_REG(Crcerrs);
-   Adapter->Symerrs += E1000_READ_REG(Symerrs);
-   Adapter->Mpc += E1000_READ_REG(Mpc);
-   Adapter->Scc += E1000_READ_REG(Scc);
-   Adapter->Ecol += E1000_READ_REG(Ecol);
-   Adapter->Mcc += E1000_READ_REG(Mcc);
-   Adapter->Latecol += E1000_READ_REG(Latecol);
-   Adapter->Colc += E1000_READ_REG(Colc);
-   Adapter->Dc += E1000_READ_REG(Dc);
-   Adapter->Sec += E1000_READ_REG(Sec);
-   Adapter->Rlec += E1000_READ_REG(Rlec);
-   Adapter->Xonrxc += E1000_READ_REG(Xonrxc);
-   Adapter->Xontxc += E1000_READ_REG(Xontxc);
-   Adapter->Xoffrxc += E1000_READ_REG(Xoffrxc);
-   Adapter->Xofftxc += E1000_READ_REG(Xofftxc);
-   Adapter->Fcruc += E1000_READ_REG(Fcruc);
-   Adapter->Prc64 += E1000_READ_REG(Prc64);
-   Adapter->Prc127 += E1000_READ_REG(Prc127);
-   Adapter->Prc255 += E1000_READ_REG(Prc255);
-   Adapter->Prc511 += E1000_READ_REG(Prc511);
-   Adapter->Prc1023 += E1000_READ_REG(Prc1023);
-   Adapter->Prc1522 += E1000_READ_REG(Prc1522);
-   Adapter->Gprc += E1000_READ_REG(Gprc);
-   Adapter->Bprc += E1000_READ_REG(Bprc);
-   Adapter->Mprc += E1000_READ_REG(Mprc);
-   Adapter->Gptc += E1000_READ_REG(Gptc);
+   Adapter->stats.crcerrs += E1000_READ_REG(&Adapter->shared, CRCERRS);
+   Adapter->stats.symerrs += E1000_READ_REG(&Adapter->shared, SYMERRS);
+   Adapter->stats.mpc += E1000_READ_REG(&Adapter->shared, MPC);
+   Adapter->stats.scc += E1000_READ_REG(&Adapter->shared, SCC);
+   Adapter->stats.ecol += E1000_READ_REG(&Adapter->shared, ECOL);
+   Adapter->stats.mcc += E1000_READ_REG(&Adapter->shared, MCC);
+   Adapter->stats.latecol += E1000_READ_REG(&Adapter->shared, LATECOL);
+   Adapter->stats.colc += E1000_READ_REG(&Adapter->shared, COLC);
+   Adapter->stats.dc += E1000_READ_REG(&Adapter->shared, DC);
+   Adapter->stats.sec += E1000_READ_REG(&Adapter->shared, SEC);
+   Adapter->stats.rlec += E1000_READ_REG(&Adapter->shared, RLEC);
+   Adapter->stats.xonrxc += E1000_READ_REG(&Adapter->shared, XONRXC);
+   Adapter->stats.xontxc += E1000_READ_REG(&Adapter->shared, XONTXC);
+   Adapter->stats.xoffrxc += E1000_READ_REG(&Adapter->shared, XOFFRXC);
+   Adapter->stats.xofftxc += E1000_READ_REG(&Adapter->shared, XOFFTXC);
+   Adapter->stats.fcruc += E1000_READ_REG(&Adapter->shared, FCRUC);
+   Adapter->stats.prc64 += E1000_READ_REG(&Adapter->shared, PRC64);
+   Adapter->stats.prc127 += E1000_READ_REG(&Adapter->shared, PRC127);
+   Adapter->stats.prc255 += E1000_READ_REG(&Adapter->shared, PRC255);
+   Adapter->stats.prc511 += E1000_READ_REG(&Adapter->shared, PRC511);
+   Adapter->stats.prc1023 += E1000_READ_REG(&Adapter->shared, PRC1023);
+   Adapter->stats.prc1522 += E1000_READ_REG(&Adapter->shared, PRC1522);
+   Adapter->stats.gprc += E1000_READ_REG(&Adapter->shared, GPRC);
+   Adapter->stats.bprc += E1000_READ_REG(&Adapter->shared, BPRC);
+   Adapter->stats.mprc += E1000_READ_REG(&Adapter->shared, MPRC);
+   Adapter->stats.gptc += E1000_READ_REG(&Adapter->shared, GPTC);
 
    /* For the 64-bit byte counters the low dword must be read first. */
    /* Both registers clear on the read of the high dword */
 
-   Adapter->Gorcl += E1000_READ_REG(Gorl); 
-   Adapter->Gorch += E1000_READ_REG(Gorh);
-   Adapter->Gotcl += E1000_READ_REG(Gotl);
-   Adapter->Gotch += E1000_READ_REG(Goth);
+   Adapter->stats.gorcl += E1000_READ_REG(&Adapter->shared, GORCL); 
+   Adapter->stats.gorch += E1000_READ_REG(&Adapter->shared, GORCH);
+   Adapter->stats.gotcl += E1000_READ_REG(&Adapter->shared, GOTCL);
+   Adapter->stats.gotch += E1000_READ_REG(&Adapter->shared, GOTCH);
 
-   Adapter->Rnbc += E1000_READ_REG(Rnbc);
-   Adapter->Ruc += E1000_READ_REG(Ruc);
-   Adapter->Rfc += E1000_READ_REG(Rfc);
-   Adapter->Roc += E1000_READ_REG(Roc);
-   Adapter->Rjc += E1000_READ_REG(Rjc);
+   Adapter->stats.rnbc += E1000_READ_REG(&Adapter->shared, RNBC);
+   Adapter->stats.ruc += E1000_READ_REG(&Adapter->shared, RUC);
+   Adapter->stats.rfc += E1000_READ_REG(&Adapter->shared, RFC);
+   Adapter->stats.roc += E1000_READ_REG(&Adapter->shared, ROC);
+   Adapter->stats.rjc += E1000_READ_REG(&Adapter->shared, RJC);
 
-   Adapter->Torcl += E1000_READ_REG(Torl);
-   Adapter->Torch += E1000_READ_REG(Torh);
-   Adapter->Totcl += E1000_READ_REG(Totl);
-   Adapter->Totch += E1000_READ_REG(Toth);
+   Adapter->stats.torl += E1000_READ_REG(&Adapter->shared, TORL);
+   Adapter->stats.torh += E1000_READ_REG(&Adapter->shared, TORH);
+   Adapter->stats.totl += E1000_READ_REG(&Adapter->shared, TOTL);
+   Adapter->stats.toth += E1000_READ_REG(&Adapter->shared, TOTH);
 
-   Adapter->Tpr += E1000_READ_REG(Tpr);
-   Adapter->Tpt += E1000_READ_REG(Tpt);
-   Adapter->Ptc64 += E1000_READ_REG(Ptc64);
-   Adapter->Ptc127 += E1000_READ_REG(Ptc127);
-   Adapter->Ptc255 += E1000_READ_REG(Ptc255);
-   Adapter->Ptc511 += E1000_READ_REG(Ptc511);
-   Adapter->Ptc1023 += E1000_READ_REG(Ptc1023);
-   Adapter->Ptc1522 += E1000_READ_REG(Ptc1522);
-   Adapter->Mptc += E1000_READ_REG(Mptc);
-   Adapter->Bptc += E1000_READ_REG(Bptc);
+   Adapter->stats.tpr += E1000_READ_REG(&Adapter->shared, TPR);
+   Adapter->stats.tpt += E1000_READ_REG(&Adapter->shared, TPT);
+   Adapter->stats.ptc64 += E1000_READ_REG(&Adapter->shared, PTC64);
+   Adapter->stats.ptc127 += E1000_READ_REG(&Adapter->shared, PTC127);
+   Adapter->stats.ptc255 += E1000_READ_REG(&Adapter->shared, PTC255);
+   Adapter->stats.ptc511 += E1000_READ_REG(&Adapter->shared, PTC511);
+   Adapter->stats.ptc1023 += E1000_READ_REG(&Adapter->shared, PTC1023);
+   Adapter->stats.ptc1522 += E1000_READ_REG(&Adapter->shared, PTC1522);
+   Adapter->stats.mptc += E1000_READ_REG(&Adapter->shared, MPTC);
+   Adapter->stats.bptc += E1000_READ_REG(&Adapter->shared, BPTC);
 
-   if (Adapter->MacType >= MAC_LIVENGOOD) {
-      Adapter->Algnerrc += E1000_READ_REG(Algnerrc);
-      Adapter->Rxerrc += E1000_READ_REG(Rxerrc);
-      Adapter->Tuc += E1000_READ_REG(Tuc);
-      Adapter->Tncrs += E1000_READ_REG(Tncrs);
-      Adapter->Cexterr += E1000_READ_REG(Cexterr);
-      Adapter->Rutec += E1000_READ_REG(Rutec);
+   if (Adapter->shared.mac_type >= em_82543) {
+      Adapter->stats.algnerrc += E1000_READ_REG(&Adapter->shared, ALGNERRC);
+      Adapter->stats.rxerrc += E1000_READ_REG(&Adapter->shared, RXERRC);
+      Adapter->stats.tncrs += E1000_READ_REG(&Adapter->shared, TNCRS);
+      Adapter->stats.cexterr += E1000_READ_REG(&Adapter->shared, CEXTERR);
+      Adapter->stats.tsctc += E1000_READ_REG(&Adapter->shared, TSCTC);
+      Adapter->stats.tsctfc += E1000_READ_REG(&Adapter->shared, TSCTFC);
    }
    ifp = &Adapter->interface_data.ac_if;
 
    /* Fill out the OS statistics structure */
-   ifp->if_ipackets = Adapter->Gprc;
-   ifp->if_opackets = Adapter->Gptc;
-   ifp->if_ibytes = Adapter->Gorcl;
-   ifp->if_obytes = Adapter->Gotcl;
-   ifp->if_imcasts = Adapter->Mprc;
-   ifp->if_collisions = Adapter->Colc;
+   ifp->if_ipackets = Adapter->stats.gprc;
+   ifp->if_opackets = Adapter->stats.gptc;
+   ifp->if_ibytes = Adapter->stats.gorcl;
+   ifp->if_obytes = Adapter->stats.gotcl;
+   ifp->if_imcasts = Adapter->stats.mprc;
+   ifp->if_collisions = Adapter->stats.colc;
 
    /* Rx Errors */
    ifp->if_ierrors =
       Adapter->DroppedPackets +
-      Adapter->Rxerrc +
-      Adapter->Crcerrs +
-      Adapter->Algnerrc +
-      Adapter->Rlec + Adapter->Rnbc + Adapter->Mpc + Adapter->Cexterr;
+      Adapter->stats.rxerrc +
+      Adapter->stats.crcerrs +
+      Adapter->stats.algnerrc +
+      Adapter->stats.rlec + Adapter->stats.rnbc + 
+      Adapter->stats.mpc + Adapter->stats.cexterr;
 
    /* Tx Errors */
-   ifp->if_oerrors = Adapter->Ecol + Adapter->Tuc + Adapter->Latecol;
+   ifp->if_oerrors = Adapter->stats.ecol + Adapter->stats.latecol;
 
 }
 
@@ -2573,26 +2136,26 @@ em_print_hw_stats(struct adapter * Adapter)
    printf("em%d: Std Mbuf Failed = %ld\n",unit, Adapter->StdMbufFailed);
    printf("em%d: Std Cluster Failed = %ld\n",unit, Adapter->StdClusterFailed);
 
-   printf("em%d: Symbol errors = %ld\n",unit, Adapter->Symerrs);
-   printf("em%d: Sequence errors = %ld\n", unit, Adapter->Sec);
-   printf("em%d: Defer count = %ld\n", unit, Adapter->Dc);
+   printf("em%d: Symbol errors = %lld\n", unit, Adapter->stats.symerrs);
+   printf("em%d: Sequence errors = %lld\n", unit, Adapter->stats.sec);
+   printf("em%d: Defer count = %lld\n", unit, Adapter->stats.dc);
 
-   printf("em%d: Missed Packets = %ld\n", unit, Adapter->Mpc);
-   printf("em%d: Receive No Buffers = %ld\n", unit, Adapter->Rnbc);
-   printf("em%d: Receive length errors = %ld\n", unit, Adapter->Rlec);
-   printf("em%d: Receive errors = %ld\n", unit, Adapter->Rxerrc);
-   printf("em%d: Crc errors = %ld\n", unit, Adapter->Crcerrs);
-   printf("em%d: Alignment errors = %ld\n", unit, Adapter->Algnerrc);
-   printf("em%d: Carrier extension errors = %ld\n", unit, Adapter->Cexterr);
+   printf("em%d: Missed Packets = %lld\n", unit, Adapter->stats.mpc);
+   printf("em%d: Receive No Buffers = %lld\n", unit, Adapter->stats.rnbc);
+   printf("em%d: Receive length errors = %lld\n", unit, Adapter->stats.rlec);
+   printf("em%d: Receive errors = %lld\n", unit, Adapter->stats.rxerrc);
+   printf("em%d: Crc errors = %lld\n", unit, Adapter->stats.crcerrs);
+   printf("em%d: Alignment errors = %lld\n", unit, Adapter->stats.algnerrc);
+   printf("em%d: Carrier extension errors = %lld\n", unit, Adapter->stats.cexterr);
    printf("em%d: Driver dropped packets = %ld\n", unit, Adapter->DroppedPackets);
 
-   printf("em%d: XON Rcvd = %ld\n", unit, Adapter->Xonrxc);
-   printf("em%d: XON Xmtd = %ld\n", unit, Adapter->Xontxc);
-   printf("em%d: XOFF Rcvd = %ld\n", unit, Adapter->Xoffrxc);
-   printf("em%d: XOFF Xmtd = %ld\n", unit, Adapter->Xofftxc);
+   printf("em%d: XON Rcvd = %lld\n", unit, Adapter->stats.xonrxc);
+   printf("em%d: XON Xmtd = %lld\n", unit, Adapter->stats.xontxc);
+   printf("em%d: XOFF Rcvd = %lld\n", unit, Adapter->stats.xoffrxc);
+   printf("em%d: XOFF Xmtd = %lld\n", unit, Adapter->stats.xofftxc);
 
-   printf("em%d: Good Packets Rcvd = %ld\n", unit, Adapter->Gprc);
-   printf("em%d: Good Packets Xmtd = %ld\n", unit, Adapter->Gptc);
+   printf("em%d: Good Packets Rcvd = %lld\n", unit, Adapter->stats.gprc);
+   printf("em%d: Good Packets Xmtd = %lld\n", unit, Adapter->stats.gptc);
 }
 
 
@@ -2607,7 +2170,7 @@ static void
 em_clean_transmit_interrupts(struct adapter * Adapter)
 {
    struct em_tx_buffer *tx_buffer;
-   volatile PE1000_TRANSMIT_DESCRIPTOR TransmitDescriptor;
+   struct em_tx_desc *TransmitDescriptor;
    int             s;
    struct ifnet   *ifp;
 
@@ -2640,7 +2203,7 @@ em_clean_transmit_interrupts(struct adapter * Adapter)
        * If the descriptor done bit is set free tx_buffer and associated
        * resources
        */
-      if (TransmitDescriptor->Upper.Fields.TransmitStatus &
+      if (TransmitDescriptor->upper.fields.status &
          E1000_TXD_STAT_DD) {
 
          STAILQ_REMOVE_HEAD(&Adapter->UsedSwTxPacketList, em_tx_entry);
