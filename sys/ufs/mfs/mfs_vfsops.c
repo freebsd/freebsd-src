@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.50 1998/10/10 08:12:24 jkh Exp $
+ * $Id: mfs_vfsops.c,v 1.51 1998/10/12 09:02:19 peter Exp $
  */
 
 
@@ -103,7 +103,7 @@ VFS_SET(mfs_vfsops, mfs, 0);
 #ifdef MFS_ROOT_SIZE
 /* Image was already written into mfs_root */
 static u_char mfs_root[MFS_ROOT_SIZE*1024] = "MFS Filesystem goes here";
-static u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
+static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 #endif
 
 u_char *

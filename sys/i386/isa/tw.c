@@ -416,7 +416,6 @@ int twopen(dev, flag, mode, p)
 {
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
   int s;
-  int port;
 
   s = spltty();
   if(sc->sc_state == 0) {
@@ -437,7 +436,6 @@ int twclose(dev, flag, mode, p)
 {
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
   int s;
-  int port = sc->sc_port;
 
   s = spltty();
   sc->sc_state = 0;

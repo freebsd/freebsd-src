@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.2 1998/09/04 17:53:42 nsouch Exp $
+ *	$Id: smb.c,v 1.3 1998/09/09 18:57:38 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -119,8 +119,6 @@ smb_probe(device_t dev)
 static int
 smb_attach(device_t dev)
 {
-	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
-
 	return (0);
 }
 
@@ -161,7 +159,7 @@ smbwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	device_t smbdev = IIC_DEVICE(minor(dev));
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
-	int error, count;
+	int count;
 
 	if (!sc || !smbdev)
 		return (EINVAL);

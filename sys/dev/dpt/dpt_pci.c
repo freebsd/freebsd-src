@@ -32,7 +32,7 @@
  *  dptpci.c:  PCI Bus Attachment for DPT SCSI HBAs
  */
 
-#ident "$Id: dpt_pci.c,v 1.8 1998/09/15 08:33:38 gibbs Exp $"
+#ident "$Id: dpt_pci.c,v 1.9 1998/10/07 03:40:51 gibbs Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -112,14 +112,13 @@ dpt_pci_attach(pcici_t config_id, int unit)
 {
 	dpt_softc_t	   *dpt;
 	vm_offset_t	    vaddr;
+#ifdef DPT_ALLOW_MEMIO
 	vm_offset_t	    paddr;
+#endif
 	u_int16_t	    io_base;
 	bus_space_tag_t     tag;
 	bus_space_handle_t  bsh;
 	u_int32_t	    command;
-	u_int32_t	    data;
-	int		    result;
-	int		    ndx;
 	int		    s;
 
 	vaddr = NULL;

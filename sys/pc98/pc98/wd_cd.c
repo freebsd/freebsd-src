@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.4 1998/10/30 10:57:09 luigi Exp $
+ *	$Id: atapi-cd.c,v 1.5 1998/11/21 01:57:48 archie Exp $
  */
 
 #include "wdc.h"
@@ -94,7 +94,6 @@ static void acd_done(struct acd *, struct buf *, int, struct atapires);
 static int acd_read_toc(struct acd *);
 static int acd_request_wait(struct acd *, u_char, u_char, u_char, u_char, u_char, u_char, u_char, u_char, u_char, u_char, char *, int);
 static void acd_describe(struct acd *);
-static int acd_open(dev_t, int, int);
 static int acd_setchan(struct acd *, u_char, u_char, u_char, u_char);
 static int acd_eject(struct acd *, int);
 static void acd_select_slot(struct acd *);
@@ -443,16 +442,12 @@ acdclose(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 acdread(dev_t dev, struct uio *uio, int ioflag)
 {
-    struct acd *cdp = acdtab[dkunit(dev)];
-
     return physio(acdstrategy, NULL, dev, 1, minphys, uio);
 }
 
 static int
 acdwrite(dev_t dev, struct uio *uio, int ioflag)
 {
-    struct acd *cdp = acdtab[dkunit(dev)];
-
     return physio(acdstrategy, NULL, dev, 0, minphys, uio);
 }
 
@@ -1289,7 +1284,6 @@ acd_open_track(struct acd *cdp, struct wormio_prepare_track *ptp)
 {
     struct write_param param;
     struct atapires result;
-    int error;
 
     result = atapi_request_wait(cdp->ata, cdp->unit, ATAPI_MODE_SENSE,
         			0, 0x05, 0, 0, 0, 0, 
@@ -1575,8 +1569,6 @@ static acd_devsw_installed = 0;
 static void 
 acd_drvinit(void *unused)
 {
-    dev_t dev;
-
     if (!acd_devsw_installed) {
         cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &acd_cdevsw);
         acd_devsw_installed = 1;

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.124 1998/10/22 05:58:38 bde Exp $
+ *	$Id: fd.c,v 1.125 1998/12/04 22:54:46 archie Exp $
  *
  */
 
@@ -1299,7 +1299,6 @@ fdintr(fdcu_t fdcu)
 static int
 fdstate(fdcu_t fdcu, fdc_p fdc)
 {
-	struct subdev *sd;
 	int read, format, head, i, sec = 0, sectrac, st0, cyl, st3;
 	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
@@ -1743,10 +1742,8 @@ static int
 retrier(fdcu)
 	fdcu_t fdcu;
 {
-	struct subdev *sd;
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *bp;
-	int fdu;
 
 	bp = bufq_first(&fdc->head);
 

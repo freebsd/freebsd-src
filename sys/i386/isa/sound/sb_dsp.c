@@ -539,8 +539,6 @@ sb_dsp_halt_xfer(int dev)
 static int
 sb_dsp_open(int dev, int mode)
 {
-    int             retval;
-
     if (!sb_dsp_ok) {
 	printf("SB Error: SoundBlaster board not installed\n");
 	return -(ENXIO);

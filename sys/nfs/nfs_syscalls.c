@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.42 1998/08/23 03:07:16 wollman Exp $
+ * $Id: nfs_syscalls.c,v 1.43 1998/09/01 02:31:52 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -357,7 +357,6 @@ nfssvc_addsock(fp, mynam, p)
 	struct sockaddr *mynam;
 	struct proc *p;
 {
-	register struct mbuf *m;
 	register int siz;
 	register struct nfssvc_sock *slp;
 	register struct socket *so;

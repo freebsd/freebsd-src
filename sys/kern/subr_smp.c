@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.84 1998/11/26 18:50:22 eivind Exp $
+ *	$Id: mp_machdep.c,v 1.85 1998/11/26 23:14:23 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -2216,7 +2216,6 @@ void ap_init(void);
 void
 ap_init()
 {
-	u_int   temp;
 	u_int	apic_id;
 
 	smp_cpus++;

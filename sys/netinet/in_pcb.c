@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.44 1998/05/15 20:11:32 wollman Exp $
+ *	$Id: in_pcb.c,v 1.45 1998/09/17 18:42:16 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -688,7 +688,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	u_int lport_arg;
 	int wild_okay;
 {
-	register struct inpcb *inp, *match = NULL;
+	register struct inpcb *inp;
 	int matchwild = 3, wildcard;
 	u_short lport = lport_arg;
 

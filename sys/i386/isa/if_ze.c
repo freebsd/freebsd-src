@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.54 1998/06/21 17:08:08 bde Exp $
+ * $Id: if_ze.c,v 1.55 1998/10/22 05:58:39 bde Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -726,7 +726,9 @@ ze_watchdog(ifp)
 #if 1
     struct ze_softc *sc = (struct ze_softc *)ifp;
     u_char isr, imr;
+#ifndef SMP
     u_int imask;
+#endif
 
     if(!(ifp->if_flags & IFF_UP))
 	return;

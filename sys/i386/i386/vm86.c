@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.17 1998/09/29 20:36:31 ache Exp $
+ *	$Id: vm86.c,v 1.18 1998/09/29 22:06:33 ache Exp $
  */
 
 #include "opt_vm86.h"
@@ -359,7 +359,6 @@ vm86_initialize(void)
 	struct vm86_layout *vml = (struct vm86_layout *)vm86paddr;
 	struct pcb *pcb;
 	struct pcb_ext *ext;
-	struct segment_descriptor sd;
 	struct soft_segment_descriptor ssd = {
 		0,			/* segment base address (overwritten) */
 		0,			/* length (overwritten) */

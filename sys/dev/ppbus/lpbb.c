@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lpbb.c,v 1.1 1998/10/31 11:35:21 nsouch Exp $
+ *	$Id: lpbb.c,v 1.2 1998/11/09 22:22:01 nsouch Exp $
  *
  */
 
@@ -133,7 +133,6 @@ lpbb_probe(device_t dev)
 static int
 lpbb_attach(device_t dev)
 {
-	struct lpbb_softc *sc = (struct lpbb_softc *)device_get_softc(dev);
 	device_t bitbang, iicbus;
 	
 	/* add generic bit-banging code */

@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.48 1998/08/17 01:05:24 bde Exp $
+ * $Id: ip_mroute.c,v 1.49 1998/08/23 03:07:14 wollman Exp $
  */
 
 #include "opt_mrouting.h"
@@ -556,8 +556,6 @@ ip_mrouter_init(so, version)
 	struct socket *so;
 	int version;
 {
-    int *v;
-
     if (mrtdebug)
 	log(LOG_DEBUG,"ip_mrouter_init: so_type = %d, pr_protocol = %d\n",
 		so->so_type, so->so_proto->pr_protocol);
@@ -691,7 +689,6 @@ add_vif(vifcp)
     static struct sockaddr_in sin = {sizeof sin, AF_INET};
     struct ifaddr *ifa;
     struct ifnet *ifp;
-    struct ifreq ifr;
     int error, s;
     struct tbf *v_tbf = tbftable + vifcp->vifc_vifi;
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.19 1998/10/31 17:23:48 wpaul Exp $
+ *	$Id: if_tl.c,v 1.20 1998/12/05 02:21:42 wpaul Exp $
  */
 
 /*
@@ -216,9 +216,9 @@
 
 #include <pci/if_tlreg.h>
 
-#ifndef lint
-static char rcsid[] =
-	"$Id: if_tl.c,v 1.19 1998/10/31 17:23:48 wpaul Exp $";
+#if !defined(lint)
+static const char rcsid[] =
+	"$Id: if_tl.c,v 1.20 1998/12/05 02:21:42 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG

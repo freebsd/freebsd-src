@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.5 1998/10/04 02:11:15 msmith Exp $
+ * $Id: if_cs.c,v 1.6 1998/10/22 05:58:38 bde Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -190,7 +190,6 @@ get_eeprom_cksum(int off, int len, int *buffer)
 static int
 wait_eeprom_ready(struct cs_softc *sc)
 {
-	int timeout=1000;
 	DELAY ( 30000 );	/* XXX should we do some checks here ? */
 	return 0;
 }
@@ -233,7 +232,6 @@ cs_duplex_auto(struct cs_softc *sc)
 static int
 enable_tp(struct cs_softc *sc)
 {
-	int i;
 	int unit = sc->arpcom.ac_if.if_unit;
 
 	cs_writereg(sc->nic_addr, PP_LineCTL, sc->line_ctl & ~AUI_ONLY);
@@ -254,7 +252,6 @@ enable_tp(struct cs_softc *sc)
 static int
 send_test_pkt(struct cs_softc *sc)
 {
-	int unit = sc->arpcom.ac_if.if_unit;
 	char test_packet[] = { 0,0,0,0,0,0, 0,0,0,0,0,0,
 				0, 46,  /* A 46 in network order */
 				0, 0,   /* DSAP=0 & SSAP=0 fields */
@@ -343,7 +340,7 @@ cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
 			int *dev_drq, int iobase, int unit, int flags)
 {
 	unsigned rev_type = 0;
-	int i, irq=0, result;
+	int i, irq=0;
 	int eeprom_buff[CHKSUM_LEN];
 	int chip_type, pp_isaint, pp_isadma;
 	char chip_revision;
@@ -646,7 +643,7 @@ cs_init(void *xsc)
 {
 	struct cs_softc *sc=(struct cs_softc *)xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int i, s, result, rx_cfg;
+	int i, s, rx_cfg;
 
 	/* address not known */
 	if (TAILQ_EMPTY(&ifp->if_addrhead)) /* unlikely? XXX */
@@ -816,7 +813,7 @@ static void
 csintr_sc(struct cs_softc *sc, int unit)
 {
 	struct ifnet *ifp = &(sc->arpcom.ac_if);
-	int status, s;
+	int status;
 
 #ifdef CS_DEBUG
 	printf(CS_NAME"%1d: Interrupt.\n", unit);
@@ -1306,7 +1303,6 @@ csintr_pnp_add(struct cs_softc *sc, int unit)
 static void
 csintr_pnp(int unit)
 {
-    struct cs_softc *sc;
     struct csintr_list *intr;
 
     for (intr=csintr_head; intr; intr=intr->next) {

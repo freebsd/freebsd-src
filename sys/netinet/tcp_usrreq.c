@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.37 1998/01/27 09:15:11 davidg Exp $
+ *	$Id: tcp_usrreq.c,v 1.38 1998/08/23 03:07:15 wollman Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -575,7 +575,6 @@ tcp_ctloutput(so, sopt)
 	int	error, opt, optval, s;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
-	struct	mbuf *m;
 
 	error = 0;
 	s = splnet();		/* XXX */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.47 1998/11/23 00:45:39 truckman Exp $
+ * $Id: uipc_syscalls.c,v 1.48 1998/12/03 12:35:47 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -1420,7 +1420,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	struct writev_args nuap;
 	struct sf_hdtr hdtr;
 	off_t off, xfsize, sbytes = 0;
-	int error = 0, i, s;
+	int error = 0, s;
 
 	/*
 	 * Do argument checking. Must be a regular file in, stream

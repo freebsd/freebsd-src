@@ -2254,24 +2254,27 @@ static int
 my_addr(sa)
      struct sockaddr *sa;
 {
-  struct in6_ifaddr *i6a = 0;
-  struct in_ifaddr *ia = 0;
-
   switch(sa->sa_family) {
 #ifdef INET6
-  case AF_INET6:
-    for (i6a = in6_ifaddr; i6a; i6a = i6a->ia_next) {	/*XXX*/
-      if (IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)sa)->sin6_addr,
-			     &i6a->ia_addr.sin6_addr))
-	return(1);
+  case AF_INET6: {
+      struct in6_ifaddr *i6a = 0;
+
+      for (i6a = in6_ifaddr; i6a; i6a = i6a->ia_next) {	/*XXX*/
+	if (IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)sa)->sin6_addr,
+			       &i6a->ia_addr.sin6_addr))
+	  return(1);
+      }
     }
     break;
 #endif /* INET6 */
-  case AF_INET:
-    for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
-      if (((struct sockaddr_in *)sa)->sin_addr.s_addr == 
-	   ia->ia_addr.sin_addr.s_addr) 
-	return(1);
+  case AF_INET: {
+      struct in_ifaddr *ia = 0;
+
+      for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
+	if (((struct sockaddr_in *)sa)->sin_addr.s_addr == 
+	     ia->ia_addr.sin_addr.s_addr) 
+	  return(1);
+      }
     }
     break;
   }
@@ -2288,7 +2291,6 @@ key_output(m, so)
   struct socket *so;
 {
   struct key_msghdr *km = 0;
-  caddr_t cp, cplimit;
   int len;
   int error = 0;
   int dstfamily = 0;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.66 1998/10/31 15:31:25 peter Exp $
+ * $Id: nfs_subs.c,v 1.67 1998/11/09 07:00:14 peter Exp $
  */
 
 /*
@@ -650,7 +650,6 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	register int i;
 	struct mbuf *mreq, *mb2;
 	int siz, grpsiz, authsiz;
-	static u_int32_t base;
 
 	authsiz = nfsm_rndup(auth_len);
 	MGETHDR(mb, M_WAIT, MT_DATA);

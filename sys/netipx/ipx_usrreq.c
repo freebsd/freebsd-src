@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.19 1998/02/09 06:10:25 eivind Exp $
+ * $Id: ipx_usrreq.c,v 1.20 1998/08/23 03:07:15 wollman Exp $
  */
 
 #include "opt_ipx.h"
@@ -314,7 +314,6 @@ ipx_ctloutput(so, sopt)
 	struct socket *so;
 	struct sockopt *sopt;
 {
-	register struct mbuf *m;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int mask, error, optval;
 	short soptval;

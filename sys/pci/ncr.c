@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.137 1998/10/15 23:17:49 gibbs Exp $
+**  $Id: ncr.c,v 1.138 1998/12/04 22:54:55 archie Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1333,7 +1333,6 @@ static	void	ncr_getsync	(ncb_p np, u_char sfac, u_char *fakp,
 				 u_char *scntl3p);
 static	void	ncr_setsync	(ncb_p np, nccb_p cp,u_char scntl3,u_char sxfer,
 				 u_char period);
-static	void	ncr_settags     (tcb_p tp, lcb_p lp, u_long usrtag);
 static	void	ncr_setwide	(ncb_p np, nccb_p cp, u_char wide, u_char ack);
 static	int	ncr_show_msg	(u_char * msg);
 static	int	ncr_snooptest	(ncb_p np);
@@ -1356,8 +1355,10 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 */
 
 
-static char ident[] =
-	"\n$Id: ncr.c,v 1.137 1998/10/15 23:17:49 gibbs Exp $\n";
+#if !defined(lint)
+static const char ident[] =
+	"\n$Id: ncr.c,v 1.138 1998/12/04 22:54:55 archie Exp $\n";
+#endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5013,8 +5014,6 @@ ncr_setsync(ncb_p np, nccb_p cp, u_char scntl3, u_char sxfer, u_char period)
 	tp->tinfo.wval = scntl3;
 
 	if (sxfer & 0x1f) {
-		unsigned f10 = 100000 << tp->tinfo.current.width;
-		unsigned mb10 = (f10 + period_10ns/2) / period_10ns;
 		/*
 		**  Disable extended Sreq/Sack filtering
 		*/

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.22 1998/05/06 05:29:33 msmith Exp $
+ * $Id: kernfs_vfsops.c,v 1.23 1998/09/07 13:17:01 bde Exp $
  */
 
 /*
@@ -56,7 +56,6 @@ static MALLOC_DEFINE(M_KERNFSMNT, "KERNFS mount", "KERNFS mount structure");
 
 dev_t rrootdev = NODEV;
 
-static int	cdevvp __P((dev_t dev, struct vnode **vpp));
 static void	kernfs_get_rrootdev __P((void));
 static int	kernfs_init __P((struct vfsconf *vfsp));
 static int	kernfs_mount __P((struct mount *mp, char *path, caddr_t data,

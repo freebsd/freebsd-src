@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.7 1998/10/01 11:39:18 yokota Exp $
+ * $Id: vesa.c,v 1.8 1998/10/02 03:42:19 yokota Exp $
  */
 
 #include "sc.h"
@@ -349,7 +349,6 @@ vesa_bios_init(void)
 	static u_char buf[512];
 	struct vm86frame vmf;
 	struct vesa_mode vmode;
-	u_int32_t p;
 	int modes;
 	int err;
 	int i;
@@ -758,7 +757,6 @@ static int
 vesa_diag(int level)
 {
 	struct vesa_mode vmode;
-	u_int32_t p;
 	int i;
 
 #ifndef VESA_MODULE
@@ -843,7 +841,9 @@ vesa_load(void)
 {
 	int adapters;
 	int error;
+#ifdef VESA_MODULE
 	int s;
+#endif
 	int i;
 
 	if (vesa_init_done)

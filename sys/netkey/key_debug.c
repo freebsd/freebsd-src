@@ -436,7 +436,6 @@ void dump_mchain(m)
 void dump_tcpdump(m)
      struct mbuf *m;
 {
-  struct mbuf *walker;
   int i, j, count;
 
   for (i = count = 0; m && (i < 10); m = m->m_next, i++) {

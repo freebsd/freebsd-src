@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.44 1998/10/08 00:32:08 alex Exp $
+ * $Id: bpf.c,v 1.45 1998/11/11 10:04:09 truckman Exp $
  */
 
 #include "bpfilter.h"
@@ -536,8 +536,6 @@ static inline void
 bpf_wakeup(d)
 	register struct bpf_d *d;
 {
-	struct proc *p;
-
 	wakeup((caddr_t)d);
 	if (d->bd_async && d->bd_sig && d->bd_sigio)
 		pgsigio(d->bd_sigio, d->bd_sig, 0);

@@ -181,7 +181,7 @@ pmgr_access(int dev, struct patmgr_info * rec)
     if (mbox[dev])
 	printf("  PATMGR: Server %d mbox full. Why?\n", dev);
     else {
-	int             flag, chn;
+	int             chn;
 
 	rec->key = PM_K_COMMAND;
 	mbox[dev] = rec;
@@ -235,7 +235,7 @@ pmgr_inform(int dev, int event, u_long p1, u_long p2, u_long p3, u_long p4)
     if (mbox[dev])
 	printf("  PATMGR: Server %d mbox full. Why?\n", dev);
     else {
-	int             flag, chn;
+	int             chn;
 
 	mbox[dev] = tmp_mbox;
 	mbox[dev]->key = PM_K_EVENT;

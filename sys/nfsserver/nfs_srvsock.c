@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.46 1998/09/29 22:33:05 mckusick Exp $
+ * $Id: nfs_socket.c,v 1.47 1998/11/13 09:44:12 dfr Exp $
  */
 
 /*
@@ -191,7 +191,6 @@ nfs_connect(nmp, rep)
 	int s, error, rcvreserve, sndreserve;
 	struct sockaddr *saddr;
 	struct sockaddr_in *sin;
-	struct mbuf *m;
 	u_int16_t tport;
 	struct proc *p = &proc0; /* only used for socreate and sobind */
 

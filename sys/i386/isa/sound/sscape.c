@@ -292,7 +292,6 @@ void
 sscapeintr(int irq)
 {
     u_char   bits, tmp;
-    static int      debug = 0;
 
     DEB(printf("sscapeintr(0x%02x)\n", (bits = sscape_read(devc, GA_INTSTAT_REG))));
     if ((sscape_sleep_flag.mode & WK_SLEEP)) {
@@ -304,6 +303,8 @@ sscapeintr(int irq)
     }
 #if (defined(CONFIG_MPU401) || defined(CONFIG_MPU_EMU)) && defined(CONFIG_MIDI)
     if (bits & 0x01) {
+	static int debug = 0;
+
 	mpuintr(irq);
 	if (debug++ > 10) {	/* Temporary debugging hack */
 	    sscape_write(devc, GA_INTENA_REG, 0x00); /* Disable all interr. */
@@ -454,7 +455,6 @@ sscape_download_boot(struct sscape_info * devc, u_char *block, int size, int fla
     done = 0;
     timeout_val = 100;
     while (!done && timeout_val-- > 0) {
-	int   resid;
 	int   chn;
 	sscape_sleeper = &chn;
 	DO_SLEEP(chn, sscape_sleep_flag, 1);
@@ -733,6 +733,8 @@ sscape_audio_reset(int dev)
     sscape_audio_halt(dev);
 }
 
+
+#if !defined(EXCLUDE_NATIVE_PCM) && defined(CONFIG_AUDIO)
 static struct audio_operations sscape_audio_operations =
 {
 	"Not functional",
@@ -751,14 +753,13 @@ static struct audio_operations sscape_audio_operations =
 	NULL,
 	NULL
 };
+#endif /* !defined(EXCLUDE_NATIVE_PCM) && defined(CONFIG_AUDIO) */
 
 static int      sscape_detected = 0;
 
 void
 attach_sscape(struct address_info * hw_config)
 {
-    int             my_dev;
-
 #ifndef SSCAPE_REGS
     /*
      * Config register values for Spea/V7 Media FX and Ensoniq S-2000.
@@ -877,6 +878,8 @@ attach_sscape(struct address_info * hw_config)
 
 #ifdef CONFIG_AUDIO
     if (num_audiodevs < MAX_AUDIO_DEV) {
+	int my_dev;
+
 	audio_devs[my_dev = num_audiodevs++] = &sscape_audio_operations;
 	audio_devs[my_dev]->dmachan1 = hw_config->dma;
 	audio_devs[my_dev]->buffsize = DSP_BUFFSIZE;

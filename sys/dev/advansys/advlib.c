@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.8 1998/10/09 21:40:50 gibbs Exp $
+ *      $Id: advlib.c,v 1.9 1998/10/29 17:41:34 gibbs Exp $
  */
 /*
  * Ported from:
@@ -2009,8 +2009,6 @@ adv_reset_bus(struct adv_softc *adv)
 
 	count = 0;
 	while ((ccb = (union ccb *)LIST_FIRST(&adv->pending_ccbs)) != NULL) {
-		struct	adv_ccb_info *cinfo;
-		
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
 			ccb->ccb_h.status |= CAM_SCSI_BUS_RESET;
 		adv_done(adv, ccb, QD_ABORTED_BY_HOST, 0, 0, 0);

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvesactl.c,v 1.5 1998/09/26 03:38:40 yokota Exp $
+ * $Id: scvesactl.c,v 1.6 1998/10/01 11:39:17 yokota Exp $
  */
 
 #include "sc.h"
@@ -52,11 +52,8 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	scr_stat *scp;
 	struct tty *tp;
-	video_info_t info;
 	video_adapter_t *adp;
 	int mode;
-	int error;
-	int s;
 
 	tp = scdevtotty(dev);
 	if (!tp)
@@ -84,7 +81,6 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if (!(adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
-vesa_text:
 		return sc_set_text_mode(scp, tp, mode, 0, 0, 0);
 
 	/* graphics modes */
@@ -112,7 +108,6 @@ vesa_text:
 		if (!(adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
-vesa_graphics:
 		return sc_set_graphics_mode(scp, tp, mode);
 	}
 

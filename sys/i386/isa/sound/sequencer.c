@@ -157,7 +157,7 @@ sequencer_read(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
 
     flags = splhigh();
     if (!iqlen) {
-	int             flag, chn;
+	int             chn;
 
 
 	midi_sleeper = &chn;

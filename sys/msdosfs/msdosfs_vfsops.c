@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.37 1998/10/25 19:26:18 bde Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.38 1998/10/31 15:31:24 peter Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -365,6 +365,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	dev_t dev = devvp->v_rdev;
 #ifndef __FreeBSD__
 	struct partinfo dpart;
+	int bsize = 0, dtype = 0, tmp;
 #endif
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
@@ -372,7 +373,6 @@ mountmsdosfs(devvp, mp, p, argp)
 	struct byte_bpb710 *b710;
 	u_int8_t SecPerClust;
 	int	ronly, error;
-	int	bsize = 0, dtype = 0, tmp;
 
 	/*
 	 * Disallow multiple mounts of the same device.

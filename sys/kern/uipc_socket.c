@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.45 1998/08/31 18:07:23 wollman Exp $
+ *	$Id: uipc_socket.c,v 1.46 1998/11/11 10:03:56 truckman Exp $
  */
 
 #include <sys/param.h>
@@ -1181,8 +1181,6 @@ void
 sohasoutofband(so)
 	register struct socket *so;
 {
-	struct proc *p;
-
 	if (so->so_sigio != NULL)
 		pgsigio(so->so_sigio, SIGURG, 0);
 	selwakeup(&so->so_rcv.sb_sel);

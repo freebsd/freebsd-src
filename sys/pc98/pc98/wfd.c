@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.15 1998/08/23 20:16:34 phk Exp $
+ *      $Id: wfd.c,v 1.16 1998/09/15 08:15:30 gibbs Exp $
  */
 
 /*
@@ -660,9 +660,6 @@ int wfdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	int lun = UNIT(dev);
 	struct wfd *t = wfdtab[lun];
 	int error = 0;
-
-	struct disklabel *dl;
-	char buffer[DEV_BSIZE];
 
 	error = dsioctl("wfd", dev, cmd, addr, flag, &t->dk_slices,
 			wfdstrategy1, (ds_setgeom_t *)NULL);

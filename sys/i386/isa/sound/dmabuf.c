@@ -331,7 +331,6 @@ static int
 dma_sync(int dev)
 {
     u_long   flags;
-    int i = 0;
 
     if (!audio_devs[dev]->go && (!audio_devs[dev]->enable_bits & PCM_ENABLE_OUTPUT))
 	return 0;
@@ -1154,8 +1153,6 @@ DMAbuf_outputintr(int dev, int event_type)
 #ifdef ALLOW_BUFFER_MAPPING
     if (dmap->mapping_flags & DMA_MAP_MAPPED) {
 	/* mmapped access */
-
-	int             p = dmap->fragment_size * dmap->qhead;
 
 	dmap->qhead = (dmap->qhead + 1) % dmap->nbufs;
 	dmap->qlen++;	/* Yes increment it (don't decrement) */
