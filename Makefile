@@ -45,18 +45,11 @@
 # tree without touching your installed system. To be of any further use
 # though, a `make installworld' is required.
 #
-# The `make world' process always follows the installed object format.
-# This is set by creating /etc/objformat containing either OBJFORMAT=aout
-# or OBJFORMAT=elf. If this file does not exist, the object format defaults
-# to aout. This is expected to be changed to elf just prior to the release
-# or 3.0. If OBJFORMAT is set as an environment variable or in /etc/make.conf,
-# this overrides /etc/objformat.
-#
 # If -DWANT_AOUT is specified, a `make world' with OBJFORMAT=elf will
 # update the legacy support for aout. This includes all libraries, ld.so
 # and boot objects. This part of build should be regarded as
 # deprecated and you should _not_ expect to be able to do this past the
-# release of 3.1. You have exactly one major release to move entirely
+# release of 4.0. You have exactly one major release to move entirely
 # to elf.
 #
 # ----------------------------------------------------------------------------
