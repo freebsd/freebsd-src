@@ -154,6 +154,11 @@ _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 
 	es = (_EucState *)ps;
 
+	if (es->count < 0 || es->count > sizeof(es->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
 	if (s == NULL) {
 		s = "";
 		n = 1;
@@ -192,11 +197,18 @@ _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 }
 
 size_t
-_EUC_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+_EUC_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	_EucState *es;
 	wchar_t m, nm;
 	int i, len;
+
+	es = (_EucState *)ps;
+
+	if (es->count != 0) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
 
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */

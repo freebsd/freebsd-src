@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)big5.c	8.1 (Berkeley) 6/4/93";
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <runetype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,6 +101,11 @@ _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 
 	bs = (_BIG5State *)ps;
 
+	if (bs->count < 0 || bs->count > sizeof(bs->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
 	if (s == NULL) {
 		s = "";
 		n = 1;
@@ -127,9 +133,16 @@ _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 }
 
 size_t
-_BIG5_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+_BIG5_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	_BIG5State *bs;
+
+	bs = (_BIG5State *)ps;
+
+	if (bs->count != 0) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
 
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */
