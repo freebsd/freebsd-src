@@ -118,9 +118,9 @@
 #define	KERN_NO_ACCESS		8
 
 #ifndef ASSEMBLER
-#ifdef KERNEL
+#ifdef _KERNEL
 #define num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
-#endif				/* KERNEL */
+#endif				/* _KERNEL */
 #endif				/* ASSEMBLER */
 #endif				/* _VM_PARAM_ */

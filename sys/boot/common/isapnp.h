@@ -44,7 +44,7 @@
 #define MAX_PNP_LDN	20
 
 /* Static ports to access PnP state machine */
-#ifndef KERNEL
+#ifndef _KERNEL
 #ifdef PC98
 /* pnp.h is included from pnpinfo.c. */
 #define _PNP_ADDRESS		0x259
@@ -267,7 +267,7 @@ struct pnp_cinfo {
 	} mem[4];
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 struct pnp_device {
     char *pd_name;
@@ -310,6 +310,6 @@ int enable_pnp_card(void);
  */
 void pnp_configure __P((void));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_I386_ISA_PNP_H_ */

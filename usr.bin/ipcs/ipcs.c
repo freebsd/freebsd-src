@@ -43,7 +43,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/proc.h>
-#define KERNEL
+#define _KERNEL
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>

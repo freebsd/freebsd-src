@@ -264,7 +264,7 @@ extern int svc_maxfd;
 extern fd_set svc_fdset;
 #define svc_fds svc_fdset.fds_bits[0]	/* compatibility */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 /*
  * a small program implemented by the svc_rpc implementation itself;
  * also see clnt.h for protocol numbers.

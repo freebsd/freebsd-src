@@ -213,7 +213,7 @@ struct iso_extended_attributes {
 	u_char len_au			[ISODCL (247, 250)]; /* 723 */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /* CD-ROM Format type */
 enum ISO_FTYPE	{ ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP,
@@ -270,7 +270,7 @@ int isofncmp __P((u_char *, int, u_char *, int, int));
 void isofntrans __P((u_char *, int, u_char *, u_short *, int, int, int));
 ino_t isodirino __P((struct iso_directory_record *, struct iso_mnt *));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * The isonum_xxx functions are inlined anyway, and could come handy even

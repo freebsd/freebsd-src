@@ -94,7 +94,7 @@
 #undef NOPROTO
 #endif
 
-#if !defined(KERNEL) && (defined(__STDC__) || defined(VMS) || defined(M_XENIX) || defined(MSDOS))
+#if !defined(_KERNEL) && (defined(__STDC__) || defined(VMS) || defined(M_XENIX) || defined(MSDOS))
 #ifndef __NetBSD__
 #include <string.h>
 #endif

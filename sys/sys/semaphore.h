@@ -34,6 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include <sys/_posix.h>
@@ -45,7 +46,7 @@
 
 typedef int sem_t;
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -60,6 +61,6 @@ int sem_post __P((sem_t *));
 int sem_getvalue __P((sem_t *, int *));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif
 
 #endif /* _SEMAPHORE_H_ */

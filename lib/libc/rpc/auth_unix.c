@@ -123,14 +123,14 @@ authunix_create(machname, uid, gid, len, aup_gids)
 	 * Allocate and set up auth handle
 	 */
 	auth = (AUTH *)mem_alloc(sizeof(*auth));
-#ifndef KERNEL
+#ifndef _KERNEL
 	if (auth == NULL) {
 		(void)fprintf(stderr, "authunix_create: out of memory\n");
 		return (NULL);
 	}
 #endif
 	au = (struct audata *)mem_alloc(sizeof(*au));
-#ifndef KERNEL
+#ifndef _KERNEL
 	if (au == NULL) {
 		(void)fprintf(stderr, "authunix_create: out of memory\n");
 		return (NULL);
@@ -166,7 +166,7 @@ authunix_create(machname, uid, gid, len, aup_gids)
 		abort();
 	au->au_origcred.oa_length = len = XDR_GETPOS(&xdrs);
 	au->au_origcred.oa_flavor = AUTH_UNIX;
-#ifdef KERNEL
+#ifdef _KERNEL
 	au->au_origcred.oa_base = mem_alloc((u_int) len);
 #else
 	if ((au->au_origcred.oa_base = mem_alloc((u_int) len)) == NULL) {

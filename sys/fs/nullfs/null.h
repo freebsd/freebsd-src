@@ -47,7 +47,7 @@ struct null_mount {
 	struct vnode	*nullm_rootvp;	/* Reference to root null_node */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * A cache of vnode references
  */
@@ -73,4 +73,4 @@ extern struct vnode *null_checkvp __P((struct vnode *vp, char *fil, int lno));
 extern int	null_bypass __P((struct vop_generic_args *ap));
 
 extern vop_t **null_vnodeop_p;
-#endif /* KERNEL */
+#endif /* _KERNEL */

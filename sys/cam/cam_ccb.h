@@ -34,7 +34,7 @@
 #include <sys/queue.h>
 #include <sys/cdefs.h>
 #include <sys/time.h>
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/callout.h>
 #endif
 #include <cam/cam_debug.h>

@@ -34,6 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include <sys/_posix.h>
@@ -56,7 +57,7 @@ struct mq_attr {
 	long mq_curmsgs;	/* number of messages currently queued */
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <sys/cdefs.h>
 
@@ -71,6 +72,6 @@ int mq_setattr __P((mqd_t, const struct mq_attr *, struct mq_attr *));
 int mq_getattr __P((mqd_t, struct mq_attr *));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif
 
 #endif /* _MQUEUE_H_ */

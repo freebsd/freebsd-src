@@ -49,7 +49,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/vnode.h>
 #include <sys/ucred.h>
-#define KERNEL
+#define _KERNEL
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -57,7 +57,7 @@ static const char rcsid[] =
 #include <sys/uio.h>
 #include <sys/namei.h>
 #include <miscfs/union/union.h>
-#undef KERNEL
+#undef _KERNEL
 #include <sys/stat.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>

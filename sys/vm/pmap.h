@@ -86,7 +86,7 @@ typedef struct pmap_statistics *pmap_statistics_t;
 
 #include <machine/pmap.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 struct proc;
 
@@ -142,6 +142,6 @@ void		 pmap_activate __P((struct proc *p));
 vm_offset_t	 pmap_addr_hint __P((vm_object_t obj, vm_offset_t addr, vm_size_t size));
 void		pmap_init2 __P((void));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _PMAP_VM_ */

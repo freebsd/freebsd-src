@@ -35,11 +35,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include <sys/types.h>	/* For pid_t */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <time.h>		/* Per P1003.4 */
 #endif
 
@@ -54,7 +55,7 @@ struct sched_param
 	int sched_priority;
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -70,6 +71,6 @@ int sched_get_priority_min __P((int));
 int sched_rr_get_interval __P((pid_t, struct timespec *));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif
 
 #endif /* _SCHED_H_ */

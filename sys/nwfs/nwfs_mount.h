@@ -70,11 +70,11 @@ struct nwfs_args {
 	struct ncp_nlstables nls;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NWFSMNT);
 #endif
 
-#endif /* KERNEL */
+#endif
 #endif /* !_NWFS_MOUNT_H_ */

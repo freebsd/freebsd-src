@@ -39,7 +39,7 @@
 
 #define	_PATH_KERNFS	"/kern"		/* Default mountpoint */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct kernfs_mount {
 	struct vnode	*kf_root;	/* Root node */
 };
@@ -53,4 +53,4 @@ struct kernfs_node {
 
 extern vop_t **kernfs_vnodeop_p;
 extern dev_t rrootdev;
-#endif /* KERNEL */
+#endif /* _KERNEL */

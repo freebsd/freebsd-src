@@ -62,7 +62,7 @@
 #define	NQNFS_VER3	3
 #define	NQNFS_EVICTSIZ	156	/* Size of eviction request in bytes */
 
-#if defined(KERNEL) || defined(_KERNEL)
+#if defined(_KERNEL)
 /*
  * Definitions used for saving the "last lease expires" time in Non-volatile
  * RAM on the server. The default definitions below assume that NOVRAM is not

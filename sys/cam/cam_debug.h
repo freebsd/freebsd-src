@@ -30,9 +30,9 @@
 #ifndef	_CAM_CAM_DEBUG_H
 #define _CAM_CAM_DEBUG_H 1
 
-#if defined(CAMDEBUG) && defined(KERNEL)
+#if defined(CAMDEBUG) && defined(_KERNEL)
 #include <machine/clock.h>
-#endif /* CAMDEBUG && KERNEL */
+#endif /* CAMDEBUG && _KERNEL */
 
 /*
  * Debugging flags.
@@ -47,7 +47,7 @@ typedef enum {
 	CAM_DEBUG_PERIPH	= 0x20  /* print out peripheral calls */
 } cam_debug_flags;
 
-#if defined(CAMDEBUG) && defined(KERNEL)
+#if defined(CAMDEBUG) && defined(_KERNEL)
 
 /* Path we want to debug */
 extern struct cam_path *cam_dpath;
@@ -80,12 +80,12 @@ extern u_int32_t cam_debug_delay;
 			DELAY(cam_debug_delay);		\
 	}
 
-#else /* !CAMDEBUG || !KERNEL */
+#else /* !CAMDEBUG || !_KERNEL */
 
 #define	CAM_DEBUGGED(A, B)	0
 #define	CAM_DEBUG(A, B, C)
 #define	CAM_DEBUG_PRINT(A, B)
 
-#endif /* CAMDEBUG && KERNEL */
+#endif /* CAMDEBUG && _KERNEL */
 
 #endif /* _CAM_CAM_DEBUG_H */

@@ -46,9 +46,9 @@
 
 #define NCR_GETCC_WITHMSG
 
-#if defined (__FreeBSD__) && defined(KERNEL)
+#if defined (__FreeBSD__) && defined(_KERNEL)
 #include "opt_ncr.h"
-#endif /* defined(KERNEL) */
+#endif
 
 /*==========================================================
 **
@@ -175,7 +175,7 @@
 #include <sys/param.h>
 #include <sys/time.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
@@ -186,7 +186,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-#endif /* KERNEL */
+#endif
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -1304,7 +1304,7 @@ struct scripth {
 **==========================================================
 */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 static	nccb_p	ncr_alloc_nccb	(ncb_p np, u_long target, u_long lun);
 static	void	ncr_complete	(ncb_p np, nccb_p cp);
 static	int	ncr_delta	(int * from, int * to);
@@ -1346,7 +1346,7 @@ static  void    ncr_wakeup	(ncb_p np, u_long code);
 static  const char*	ncr_probe	(pcici_t tag, pcidi_t type);
 static	void	ncr_attach	(pcici_t tag, int unit);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*==========================================================
 **
@@ -1369,7 +1369,7 @@ static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct lcb)	*  3
 	+ (u_long) sizeof (struct tcb)	*  2;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 static const int nncr=MAX_UNITS;	/* XXX to be replaced by SYSCTL */
 static ncb_p ncrp [MAX_UNITS];		/* XXX to be replaced by SYSCTL */
 
@@ -7198,4 +7198,4 @@ printf ("Sum = %04x\n", sum);
 #endif /* NCR_TEKRAM_EEPROM */
 
 /*=========================================================================*/
-#endif /* KERNEL */
+#endif /* _KERNEL */

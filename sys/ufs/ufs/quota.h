@@ -108,7 +108,7 @@ struct dqblk {
 	time_t	  dqb_itime;		/* time limit for excessive files */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/queue.h>
 
@@ -191,7 +191,7 @@ int	setquota __P((struct mount *, u_long, int, caddr_t));
 int	setuse __P((struct mount *, u_long, int, caddr_t));
 int	ufs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
@@ -199,6 +199,6 @@ __BEGIN_DECLS
 int	quotactl __P((const char *, int, int, void *));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_UFS_UFS_QUOTA_H_ */

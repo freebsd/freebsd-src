@@ -44,7 +44,7 @@
 
 /* For struct sigevent:
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/signal.h>
 #else
 #include <signal.h>
@@ -87,7 +87,7 @@ struct aiocb {
 	int		aio_lio_opcode;	/* Operation to be performed */
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -105,6 +105,6 @@ int aio_suspend __P((caio_listio_ctl[], int, const struct timespec *));
 int aio_fsync __P((int, struct aiocb *));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _P1003_1B_AIO_H_ */

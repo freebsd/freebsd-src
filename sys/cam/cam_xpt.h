@@ -46,7 +46,7 @@ struct cam_path;
 
 /* Path functions */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 void			xpt_action(union ccb *new_ccb);
 void			xpt_setup_ccb(struct ccb_hdr *ccb_h,
@@ -69,7 +69,7 @@ struct cam_sim		*xpt_path_sim(struct cam_path *path);
 struct cam_periph	*xpt_path_periph(struct cam_path *path);
 void			xpt_async(u_int32_t async_code, struct cam_path *path,
 				  void *async_arg);
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _CAM_CAM_XPT_H */
 

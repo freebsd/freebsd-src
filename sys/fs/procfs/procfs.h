@@ -83,7 +83,7 @@ struct pfsnode {
 /*
  * Kernel stuff follows
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 #define CNEQ(cnp, s, len) \
 	 ((cnp)->cn_namelen == (len) && \
 	  (bcmp((s), (cnp)->cn_nameptr, (len)) == 0))
@@ -159,4 +159,4 @@ extern vop_t **procfs_vnodeop_p;
 
 int	procfs_root __P((struct mount *, struct vnode **));
 int	procfs_rw __P((struct vop_read_args *));
-#endif /* KERNEL */
+#endif /* _KERNEL */

@@ -47,7 +47,7 @@ struct mn_control	{
 	unsigned	ts[M32_CHAN];
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define PPP_HEADER_LEN       4 	/* XXX: should live in some header somewhere */
 
 #include <sys/param.h>
@@ -1287,4 +1287,4 @@ mn_attach (pcici_t tag, int unit)
 	
 	return;
 }
-#endif /* KERNEL */
+#endif /* _KERNEL */
