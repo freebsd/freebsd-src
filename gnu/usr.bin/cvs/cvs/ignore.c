@@ -1,11 +1,12 @@
 /*
- * .cvsignore file support contributed by David G. Grubbs <dgg@ksr.com>
+ * .cvsignore file support contributed by David G. Grubbs <dgg@odi.com>
  */
 
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)ignore.c 1.13 92/04/03";
+static char rcsid[] = "$CVSid: @(#)ignore.c 1.16 94/09/24 $";
+USE(rcsid)
 #endif
 
 /*
@@ -26,7 +27,7 @@ static int ign_size;			/* This many slots available (plus
 static int ign_hold;			/* Index where first "temporary" item
 					 * is held */
 
-char *ign_default = ". .. core RCSLOG tags TAGS RCS SCCS .make.state .nse_depinfo #* .#* cvslog.* ,* CVS* .del-* *.a *.o *.so *.Z *~ *.old *.elc *.ln *.bak *.BAK *.orig *.rej *.info *.db";
+char *ign_default = ". .. core RCSLOG tags TAGS RCS SCCS .make.state .nse_depinfo #* .#* cvslog.* ,* CVS* .del-* *.a *.o *.so *.Z *~ *.old *.elc *.ln *.bak *.BAK *.orig *.rej";
 
 #define IGN_GROW 16			/* grow the list by 16 elements at a
 					 * time */
@@ -224,4 +225,48 @@ ign_name (name)
 	if (fnmatch (*cpp++, name, 0) == 0)
 	    return (1);
     return (0);
+}
+
+
+static char **dir_ign_list = NULL;
+static int dir_ign_max = 0;
+static int dir_ign_current = 0;
+
+/* add a directory to list of dirs to ignore */
+void ign_dir_add (name)
+     char *name;
+{
+  /* make sure we've got the space for the entry */
+  if (dir_ign_current <= dir_ign_max)
+    {
+      dir_ign_max += IGN_GROW;
+      dir_ign_list = (char **) xrealloc ((char *) dir_ign_list, (dir_ign_max+1) * sizeof(char*));
+    }
+
+  dir_ign_list[dir_ign_current] = name;
+
+  dir_ign_current += 1 ;
+}
+
+
+/* this function returns 1 (true) if the given directory name is part of
+ * the list of directories to ignore
+ */
+
+int ignore_directory (name)
+     char *name;
+{
+  int i;
+
+  if (!dir_ign_list)
+    return 0;
+
+  i = dir_ign_current;
+  while (i--)
+    {
+      if (strncmp(name, dir_ign_list[i], strlen(dir_ign_list[i])) == 0)
+	return 1;
+    }
+
+  return 0;
 }

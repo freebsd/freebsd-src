@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Check In
  * 
@@ -18,22 +18,25 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)checkin.c 1.40 92/03/31";
+static char rcsid[] = "$CVSid: @(#)checkin.c 1.48 94/10/07 $";
+USE(rcsid)
 #endif
 
 int
-Checkin (type, file, repository, rcs, rev, tag, message, entries)
+Checkin (type, file, repository, rcs, rev, tag, options, message, entries)
     int type;
     char *file;
     char *repository;
     char *rcs;
     char *rev;
     char *tag;
+    char *options;
     char *message;
     List *entries;
 {
     char fname[PATH_MAX];
     Vers_TS *vers;
+    int set_time;
 
     (void) printf ("Checking in %s;\n", file);
     (void) sprintf (fname, "%s/%s%s", CVSADM, CVSPREFIX, file);
@@ -48,7 +51,8 @@ Checkin (type, file, repository, rcs, rev, tag, message, entries)
 
     run_setup ("%s%s -f %s%s", Rcsbin, RCS_CI,
 	       rev ? "-r" : "", rev ? rev : "");
-    run_args ("-m%s", message);
+    run_args ("-m%s", (*message == '\0' || strcmp(message, "\n") == 0) ?
+	"*** empty log message ***\n" : message);
     run_arg (rcs);
 
     switch (run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL))
@@ -64,23 +68,25 @@ Checkin (type, file, repository, rcs, rev, tag, message, entries)
 	     * original user file.
 	     */
 
-	    /* XXX - make sure -k options are used on the co; and tag/date? */
-#ifdef FREEBSD_DEVELOPER
-	    run_setup ("%s%s -q %s%s %s", Rcsbin, RCS_CO,
-		       rev ? "-r" : "", rev ? rev : "",
-		       freebsd ? "-KeAuthor,Date,Header,Id,Locker,Log,"
-		       "RCSfile,Revision,Source,State -KiFreeBSD" : "");
-#else
-	    run_setup ("%s%s -q %s%s", Rcsbin, RCS_CO,
+	    if (strcmp (options, "-V4") == 0) /* upgrade to V5 now */
+		options[0] = '\0';
+	    run_setup ("%s%s -q %s %s%s", Rcsbin, RCS_CO, options,
 		       rev ? "-r" : "", rev ? rev : "");
-#endif /* FREEBSD_DEVELOPER */
 	    run_arg (rcs);
 	    (void) run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
 	    xchmod (file, 1);
 	    if (xcmp (file, fname) == 0)
+	    {
 		rename_file (fname, file);
+		/* the time was correct, so leave it alone */
+		set_time = 0;
+	    }
 	    else
+	    {
 		(void) unlink_file (fname);
+		/* sync up with the time from the RCS file */
+		set_time = 1;
+	    }
 
 	    /*
 	     * If we want read-only files, muck the permissions here, before
@@ -99,11 +105,11 @@ Checkin (type, file, repository, rcs, rev, tag, message, entries)
 
 	    /* re-register with the new data */
 	    vers = Version_TS (repository, (char *) NULL, tag, (char *) NULL,
-			       file, 1, 1, entries, (List *) NULL);
+			       file, 1, set_time, entries, (List *) NULL);
 	    if (strcmp (vers->options, "-V4") == 0)
 		vers->options[0] = '\0';
-	    Register (entries, file, vers->vn_rcs, vers->ts_user, vers->options,
-		      vers->tag, vers->date);
+	    Register (entries, file, vers->vn_rcs, vers->ts_user,
+		      vers->options, vers->tag, vers->date, (char *) 0);
 	    history_write (type, (char *) 0, vers->vn_rcs, file, repository);
 	    freevers_ts (&vers);
 	    break;
@@ -138,5 +144,6 @@ Checkin (type, file, repository, rcs, rev, tag, message, entries)
 	run_arg (rcs);
 	(void) run_exec (RUN_TTY, RUN_TTY, DEVNULL, RUN_NORMAL);
     }
+
     return (0);
 }

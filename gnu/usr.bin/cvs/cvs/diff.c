@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Difference
  * 
@@ -17,26 +17,18 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)diff.c 1.52 92/04/10";
+static char rcsid[] = "$CVSid: @(#)diff.c 1.61 94/10/22 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static Dtype diff_dirproc (char *dir, char *pos_repos, char *update_dir);
-static int diff_filesdoneproc (int err, char *repos, char *update_dir);
-static int diff_dirleaveproc (char *dir, int err, char *update_dir);
-static int diff_file_nodiff (char *file, char *repository, List *entries,
-			     List *srcfiles, Vers_TS *vers);
-static int diff_fileproc (char *file, char *update_dir, char *repository,
-			  List * entries, List * srcfiles);
-static void diff_mark_errors (int err);
-#else
-static int diff_fileproc ();
-static Dtype diff_dirproc ();
-static int diff_filesdoneproc ();
-static int diff_dirleaveproc ();
-static int diff_file_nodiff ();
-static void diff_mark_errors ();
-#endif				/* __STDC__ */
+static Dtype diff_dirproc PROTO((char *dir, char *pos_repos, char *update_dir));
+static int diff_filesdoneproc PROTO((int err, char *repos, char *update_dir));
+static int diff_dirleaveproc PROTO((char *dir, int err, char *update_dir));
+static int diff_file_nodiff PROTO((char *file, char *repository, List *entries,
+			     List *srcfiles, Vers_TS *vers));
+static int diff_fileproc PROTO((char *file, char *update_dir, char *repository,
+			  List * entries, List * srcfiles));
+static void diff_mark_errors PROTO((int err));
 
 static char *diff_rev1, *diff_rev2;
 static char *diff_date1, *diff_date2;
@@ -44,10 +36,11 @@ static char *use_rev1, *use_rev2;
 static char *options;
 static char opts[PATH_MAX];
 static int diff_errors;
+static int empty_files = 0;
 
 static char *diff_usage[] =
 {
-    "Usage: %s %s [-l] [rcsdiff-options]\n",
+    "Usage: %s %s [-lN] [rcsdiff-options]\n",
 #ifdef CVS_DIFFDATE
     "    [[-r rev1 | -D date1] [-r rev2 | -D date2]] [files...] \n",
 #else
@@ -56,6 +49,7 @@ static char *diff_usage[] =
     "\t-l\tLocal directory only, not recursive\n",
     "\t-D d1\tDiff revision for date against working file.\n",
     "\t-D d2\tDiff rev1/date1 against date2.\n",
+    "\t-N\tinclude diffs for added and removed files.\n",
     "\t-r rev1\tDiff revision for rev1 against working file.\n",
     "\t-r rev2\tDiff rev1/date1 against rev2.\n",
     NULL
@@ -69,6 +63,7 @@ diff (argc, argv)
     char tmp[50];
     int c, err = 0;
     int local = 0;
+    int which;
 
     if (argc == -1)
 	usage (diff_usage);
@@ -79,8 +74,8 @@ diff (argc, argv)
      * non-recursive/recursive diff.
      */
     optind = 1;
-    while ((c = gnu_getopt (argc, argv,
-		   "abcdefhilnpqtuw0123456789BHQRTC:D:F:I:L:V:k:r:")) != -1)
+    while ((c = getopt (argc, argv,
+		   "abcdefhilnpqtuw0123456789BHNQRTC:D:F:I:L:V:k:r:")) != -1)
     {
 	switch (c)
 	{
@@ -139,6 +134,9 @@ diff (argc, argv)
 		    diff_date1 = Make_Date (optarg);
 		break;
 #endif
+	    case 'N':
+		empty_files = 1;
+		break;
 	    case '?':
 	    default:
 		usage (diff_usage);
@@ -152,10 +150,14 @@ diff (argc, argv)
     if (!options)
 	options = xstrdup ("");
 
+    which = W_LOCAL;
+    if (diff_rev2 != NULL || diff_date2 != NULL)
+	which |= W_REPOS | W_ATTIC;
+
     /* start the recursion processor */
     err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
 			   diff_dirleaveproc, argc, argv, local,
-			   W_LOCAL, 0, 1, (char *) NULL, 1);
+			   which, 0, 1, (char *) NULL, 1, 0);
 
     /* clean up */
     free (options);
@@ -176,11 +178,23 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 {
     int status, err = 2;		/* 2 == trouble, like rcsdiff */
     Vers_TS *vers;
+    enum {
+	DIFF_ERROR,
+	DIFF_ADDED,
+	DIFF_REMOVED,
+	DIFF_NEITHER
+    } empty_file = DIFF_NEITHER;
+    char tmp[L_tmpnam+1];
 
     vers = Version_TS (repository, (char *) NULL, (char *) NULL, (char *) NULL,
 		       file, 1, 0, entries, srcfiles);
 
-    if (vers->vn_user == NULL)
+    if (diff_rev2 != NULL || diff_date2 != NULL)
+    {
+	/* Skip all the following checks regarding the user file; we're
+	   not using it.  */
+    }
+    else if (vers->vn_user == NULL)
     {
 	error (0, 0, "I know nothing about %s", file);
 	freevers_ts (&vers);
@@ -189,17 +203,27 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
     }
     else if (vers->vn_user[0] == '0' && vers->vn_user[1] == '\0')
     {
-	error (0, 0, "%s is a new entry, no comparison available", file);
-	freevers_ts (&vers);
-	diff_mark_errors (err);
-	return (err);
+	if (empty_files)
+	    empty_file = DIFF_ADDED;
+	else
+	{
+	    error (0, 0, "%s is a new entry, no comparison available", file);
+	    freevers_ts (&vers);
+	    diff_mark_errors (err);
+	    return (err);
+	}
     }
     else if (vers->vn_user[0] == '-')
     {
-	error (0, 0, "%s was removed, no comparison available", file);
-	freevers_ts (&vers);
-	diff_mark_errors (err);
-	return (err);
+	if (empty_files)
+	    empty_file = DIFF_REMOVED;
+	else
+	{
+	    error (0, 0, "%s was removed, no comparison available", file);
+	    freevers_ts (&vers);
+	    diff_mark_errors (err);
+	    return (err);
+	}
     }
     else
     {
@@ -222,7 +246,7 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 	}
     }
 
-    if (diff_file_nodiff (file, repository, entries, srcfiles, vers))
+    if (empty_file == DIFF_NEITHER && diff_file_nodiff (file, repository, entries, srcfiles, vers))
     {
 	freevers_ts (&vers);
 	return (0);
@@ -236,18 +260,51 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 	(void) printf ("Index: %s\n", file);
     (void) fflush (stdout);
 
-    if (use_rev2)
+    if (empty_file == DIFF_ADDED || empty_file == DIFF_REMOVED)
     {
-	run_setup ("%s%s %s %s -r%s -r%s", Rcsbin, RCS_DIFF,
-		   opts, *options ? options : vers->options,
-		   use_rev1, use_rev2);
+	(void) printf ("===================================================================\nRCS file: %s\n",
+		       file);
+	(void) printf ("diff -N %s\n", file);
+
+	if (empty_file == DIFF_ADDED)
+	{
+	    run_setup ("%s %s %s %s", DIFF, opts, DEVNULL, file);
+	}
+	else
+	{
+	    /*
+	     * FIXME: Should be setting use_rev1 using the logic in
+	     * diff_file_nodiff, and using that revision.  This code
+	     * is broken for "cvs diff -N -r foo".
+	     */
+	    run_setup ("%s%s -p -q %s -r%s", Rcsbin, RCS_CO,
+		       *options ? options : vers->options, vers->vn_rcs);
+	    run_arg (vers->srcfile->path);
+	    if (run_exec (RUN_TTY, tmpnam (tmp), RUN_TTY, RUN_REALLY) == -1)
+	    {
+		(void) unlink (tmp);
+		error (1, errno, "fork failed during checkout of %s",
+		       vers->srcfile->path);
+	    }
+
+	    run_setup ("%s %s %s %s", DIFF, opts, tmp, DEVNULL);
+	}
     }
     else
     {
-	run_setup ("%s%s %s %s -r%s", Rcsbin, RCS_DIFF, opts,
-		   *options ? options : vers->options, use_rev1);
+	if (use_rev2)
+	{
+	    run_setup ("%s%s %s %s -r%s -r%s", Rcsbin, RCS_DIFF,
+		       opts, *options ? options : vers->options,
+		       use_rev1, use_rev2);
+	}
+	else
+	{
+	    run_setup ("%s%s %s %s -r%s", Rcsbin, RCS_DIFF, opts,
+		       *options ? options : vers->options, use_rev1);
+	}
+	run_arg (vers->srcfile->path);
     }
-    run_arg (vers->srcfile->path);
 
     switch ((status = run_exec (RUN_TTY, RUN_TTY, RUN_TTY,
 	RUN_REALLY|RUN_COMBINED)))
@@ -262,6 +319,9 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 	    err = status;
 	    break;
     }
+
+    if (empty_file == DIFF_REMOVED)
+	(void) unlink (tmp);
 
     (void) fflush (stdout);
     freevers_ts (&vers);
@@ -388,7 +448,12 @@ diff_file_nodiff (file, repository, entries, srcfiles, vers)
 	}
 
 	/* now, see if we really need to do the diff */
-	return (strcmp (use_rev1, use_rev2) == 0);
+	if (use_rev1 && use_rev2) {
+	    return (strcmp (use_rev1, use_rev2) == 0);
+	} else {
+	    error(0, 0, "No HEAD revision for file %s", file);
+	    return (1);
+	}
     }
     if (use_rev1 == NULL || strcmp (use_rev1, vers->vn_user) == 0)
     {
