@@ -212,6 +212,8 @@ Lcs7:
  */
 LEAF(switch_trampoline, 0)
 	MTX_EXIT(sched_lock)
+	ldiq	a0, ALPHA_PSL_IPL_0		/* drop IPL to zero */
+	call_pal PAL_OSF1_swpipl
 	mov	s0, pv
 	mov	s1, ra
 	mov	s2, a0
