@@ -961,13 +961,13 @@ int	blen;
 		*t++ = 'S';
 		lvl = LOG_ERR;
 	} else if (ipf->fl_flags & FR_PASS) {
-		if (ipf->fl_flags & FR_LOGP)
+		if (ipf->fl_flags & FR_LOG)
 			*t++ = 'p';
 		else
 			*t++ = 'P';
 		lvl = LOG_NOTICE;
 	} else if (ipf->fl_flags & FR_BLOCK) {
-		if (ipf->fl_flags & FR_LOGB)
+		if (ipf->fl_flags & FR_LOG)
 			*t++ = 'b';
 		else
 			*t++ = 'B';
