@@ -66,10 +66,10 @@ Currently
 can only enlarge unmounted file systems.
 Do not try enlarging a mounted file system, your system may panic and you will
 not be able to use the file system any longer.
-Most of the 
+Most of the
 .Xr newfs 8
 options can not be changed by
-.Nm
+.Nm .
 In fact, you can only increase the size of the file system.
 Use
 .Xr tunefs 8
@@ -86,9 +86,9 @@ enlarging the file system.
 Usally
 .Nm
 will ask you if you took a backup of your data before and will do some tests
-wether
+whether
 .Ar special
-is currently mounted or wether there are any active snapshots on the file
+is currently mounted or whether there are any active snapshots on the file
 system specified.
 This will be suppressed.
 So use this option with great care!
@@ -118,7 +118,7 @@ There may be cases on
 .Fx
 3.x only, when
 .Nm
-does not recognize exactly, wether the file system is mounted or not and
+does not recognize exactly, whether the file system is mounted or not and
 exits with an error message.
 Then please use
 .Nm
@@ -135,17 +135,19 @@ structure has to be relocated into one of the new available cylinder groups.
 On
 .Fx
 3.x this will cause problems with
-.Nm fsck
+.Xr fsck 8
 afterwards.
 So
-.Nm fsck
+.Xr fsck 8
 needs to be patched if you want to use
 .Nm
 for
 .Fx
-3.x. This is patch is already integrated in
+3.x.
+This patch is already integrated in
 .Fx
-starting with 4.4.
+starting with
+.Fx 4.4 .
 To avoid an unexpected relocation of that structure it is possible to use
 .Nm ffsinfo
 .Fl c Ar 0
@@ -157,7 +159,7 @@ has enough blocks.
 As a rule of thumb for default file system parameters one block is needed for
 every 2 GB of total file system size.
 .Pp
-Normally 
+Normally
 .Nm
 writes this critical structure to disk and reads it again later for doing more
 updates.
