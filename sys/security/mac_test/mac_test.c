@@ -221,6 +221,12 @@ static int internalize_count;
 SYSCTL_INT(_security_mac_test, OID_AUTO, internalize_count, CTLFLAG_RD,
     &internalize_count, 0, "Subject/object internalize calls");
 
+#ifdef KDB
+#define	DEBUGGER(x)	kdb_enter(x)
+#else
+#define	DEBUGGER(x)	printf("mac_test: %s\n", (x))
+#endif
+
 /*
  * Policy module operations.
  */
@@ -396,9 +402,9 @@ mac_test_destroy_bpfdesc_label(struct label *label)
 		atomic_add_int(&destroy_count_bpfdesc, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_bpfdesc: dup destroy");
+		DEBUGGER("mac_test_destroy_bpfdesc: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_bpfdesc: corrupted label");
+		DEBUGGER("mac_test_destroy_bpfdesc: corrupted label");
 	}
 }
 
@@ -410,9 +416,9 @@ mac_test_destroy_cred_label(struct label *label)
 		atomic_add_int(&destroy_count_cred, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_cred: dup destroy");
+		DEBUGGER("mac_test_destroy_cred: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_cred: corrupted label");
+		DEBUGGER("mac_test_destroy_cred: corrupted label");
 	}
 }
 
@@ -424,9 +430,9 @@ mac_test_destroy_devfsdirent_label(struct label *label)
 		atomic_add_int(&destroy_count_devfsdirent, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_devfsdirent: dup destroy");
+		DEBUGGER("mac_test_destroy_devfsdirent: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_devfsdirent: corrupted label");
+		DEBUGGER("mac_test_destroy_devfsdirent: corrupted label");
 	}
 }
 
@@ -438,9 +444,9 @@ mac_test_destroy_ifnet_label(struct label *label)
 		atomic_add_int(&destroy_count_ifnet, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_ifnet: dup destroy");
+		DEBUGGER("mac_test_destroy_ifnet: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_ifnet: corrupted label");
+		DEBUGGER("mac_test_destroy_ifnet: corrupted label");
 	}
 }
 
@@ -452,9 +458,9 @@ mac_test_destroy_inpcb_label(struct label *label)
 		atomic_add_int(&destroy_count_inpcb, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_inpcb: dup destroy");
+		DEBUGGER("mac_test_destroy_inpcb: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_inpcb: corrupted label");
+		DEBUGGER("mac_test_destroy_inpcb: corrupted label");
 	}
 }
 
@@ -466,9 +472,9 @@ mac_test_destroy_ipq_label(struct label *label)
 		atomic_add_int(&destroy_count_ipq, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_ipq: dup destroy");
+		DEBUGGER("mac_test_destroy_ipq: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_ipq: corrupted label");
+		DEBUGGER("mac_test_destroy_ipq: corrupted label");
 	}
 }
 
@@ -488,9 +494,9 @@ mac_test_destroy_mbuf_label(struct label *label)
 		atomic_add_int(&destroy_count_mbuf, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_mbuf: dup destroy");
+		DEBUGGER("mac_test_destroy_mbuf: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_mbuf: corrupted label");
+		DEBUGGER("mac_test_destroy_mbuf: corrupted label");
 	}
 }
 
@@ -502,9 +508,9 @@ mac_test_destroy_mount_label(struct label *label)
 		atomic_add_int(&destroy_count_mount, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_mount: dup destroy");
+		DEBUGGER("mac_test_destroy_mount: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_mount: corrupted label");
+		DEBUGGER("mac_test_destroy_mount: corrupted label");
 	}
 }
 
@@ -516,9 +522,9 @@ mac_test_destroy_mount_fs_label(struct label *label)
 		atomic_add_int(&destroy_count_mount_fslabel, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_mount_fslabel: dup destroy");
+		DEBUGGER("mac_test_destroy_mount_fslabel: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_mount_fslabel: corrupted label");
+		DEBUGGER("mac_test_destroy_mount_fslabel: corrupted label");
 	}
 }
 
@@ -530,9 +536,9 @@ mac_test_destroy_socket_label(struct label *label)
 		atomic_add_int(&destroy_count_socket, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_socket: dup destroy");
+		DEBUGGER("mac_test_destroy_socket: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_socket: corrupted label");
+		DEBUGGER("mac_test_destroy_socket: corrupted label");
 	}
 }
 
@@ -544,9 +550,9 @@ mac_test_destroy_socket_peer_label(struct label *label)
 		atomic_add_int(&destroy_count_socket_peerlabel, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_socket_peerlabel: dup destroy");
+		DEBUGGER("mac_test_destroy_socket_peerlabel: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_socket_peerlabel: corrupted label");
+		DEBUGGER("mac_test_destroy_socket_peerlabel: corrupted label");
 	}
 }
 
@@ -558,9 +564,9 @@ mac_test_destroy_pipe_label(struct label *label)
 		atomic_add_int(&destroy_count_pipe, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_pipe: dup destroy");
+		DEBUGGER("mac_test_destroy_pipe: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_pipe: corrupted label");
+		DEBUGGER("mac_test_destroy_pipe: corrupted label");
 	}
 }
 
@@ -572,9 +578,9 @@ mac_test_destroy_proc_label(struct label *label)
 		atomic_add_int(&destroy_count_proc, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_proc: dup destroy");
+		DEBUGGER("mac_test_destroy_proc: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_proc: corrupted label");
+		DEBUGGER("mac_test_destroy_proc: corrupted label");
 	}
 }
 
@@ -586,9 +592,9 @@ mac_test_destroy_vnode_label(struct label *label)
 		atomic_add_int(&destroy_count_vnode, 1);
 		SLOT(label) = EXMAGIC;
 	} else if (SLOT(label) == EXMAGIC) {
-		kdb_enter("mac_test_destroy_vnode: dup destroy");
+		DEBUGGER("mac_test_destroy_vnode: dup destroy");
 	} else {
-		kdb_enter("mac_test_destroy_vnode: corrupted label");
+		DEBUGGER("mac_test_destroy_vnode: corrupted label");
 	}
 }
 
