@@ -24,6 +24,7 @@
  */
 #include "includes.h"
 RCSID("$OpenBSD: auth2-chall.c,v 1.18 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include "ssh2.h"
 #include "auth.h"
@@ -41,6 +42,9 @@ static void input_userauth_info_response(int, u_int32_t, void *);
 #ifdef BSD_AUTH
 extern KbdintDevice bsdauth_device;
 #else
+#ifdef USE_PAM
+extern KbdintDevice pam_device;
+#endif
 #ifdef SKEY
 extern KbdintDevice skey_device;
 #endif
@@ -50,6 +54,9 @@ KbdintDevice *devices[] = {
 #ifdef BSD_AUTH
 	&bsdauth_device,
 #else
+#ifdef USE_PAM
+	&pam_device,
+#endif
 #ifdef SKEY
 	&skey_device,
 #endif
@@ -317,15 +324,22 @@ privsep_challenge_enable(void)
 #ifdef BSD_AUTH
 	extern KbdintDevice mm_bsdauth_device;
 #endif
+#ifdef USE_PAM
+	extern KbdintDevice mm_pam_device;
+#endif
 #ifdef SKEY
 	extern KbdintDevice mm_skey_device;
 #endif
-	/* As long as SSHv1 has devices[0] hard coded this is fine */
+	int n = 0;
+
 #ifdef BSD_AUTH
-	devices[0] = &mm_bsdauth_device;
+	devices[n++] = &mm_bsdauth_device;
 #else
+#ifdef USE_PAM
+	devices[n++] = &mm_pam_device;
+#endif
 #ifdef SKEY
-	devices[0] = &mm_skey_device;
+	devices[n++] = &mm_skey_device;
 #endif
 #endif
 }
