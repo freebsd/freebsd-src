@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.146 1998/05/24 20:01:33 jkh Exp $
+ * $Id: sysinstall.h,v 1.147 1998/07/18 09:42:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,11 +55,10 @@
 
 /*** Defines ***/
 
-/* Different packages we depend on - update this when package version change! */
-#define PACKAGE_GATED	"gated-3.5.8"
-#define PACKAGE_NETCON	"commerce/netcon/bsd61"
-#define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
-#define PACKAGE_LYNX	"lynx-2.7.2"
+/* Different packages we depend on - update symlinks when versions change! */
+#define PACKAGE_GATED	"gated"
+#define PACKAGE_PCNFSD	"pcnfsd"
+#define PACKAGE_LYNX	"lynx"
 
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
@@ -440,9 +439,6 @@ extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
-#ifdef NETCON_EXTENTIONS
-extern int	configNovell(dialogMenuItem *self);
-#endif
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
