@@ -67,7 +67,7 @@ static	size_t	nfnames;
 /*
  * Types are shared (to save memory for the types itself) and accessed
  * via indices (to save memory for references to types (indices are short)).
- * To share types, a equal type must be located fast. This is done by a
+ * To share types, an equal type must be located fast. This is done by a
  * hash table. Access by indices is done via an array of pointers to the
  * types.
  */
