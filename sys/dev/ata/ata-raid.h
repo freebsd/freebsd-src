@@ -58,7 +58,7 @@ struct ar_softc {
     
     int			total_disks;	/* number of disks in this array */
     int			generation;	/* generation of this array */
-    struct ar_disk	disks[MAX_DISKS]; /* ptr to each disk in array */
+    struct ar_disk	disks[MAX_DISKS+1]; /* ptr to each disk in array */
     int			width;		/* array width in disks */
     u_int16_t		heads;
     u_int16_t		sectors;
@@ -93,12 +93,11 @@ struct highpoint_raid_conf {
     u_int32_t		magic_0;
     u_int32_t		magic_1;
     u_int32_t		order;
-#define HPT_O_RAID0		0x00
-#define HPT_O_RAID1		0x01
+#define HPT_O_DOWN		0x00
+#define HPT_O_RAID01DEGRADED	0x01
 #define HPT_O_RAID01DST		0x02
 #define HPT_O_RAID01SRC		0x03
-#define HPT_O_RAIDMASK		0x03
-#define HPT_O_OK		0x04
+#define HPT_O_READY		0x04
 
     u_int8_t		array_width;
     u_int8_t		stripe_shift;
@@ -134,6 +133,7 @@ struct highpoint_raid_conf {
     int8_t		filler2[60];
 } __attribute__((packed));
 
+
 #define PR_LBA(adp) \
 	(((adp->total_secs / (adp->heads * adp->sectors)) * \
 	  adp->heads * adp->sectors) - adp->sectors)
@@ -143,7 +143,9 @@ struct promise_raid_conf {
 #define PR_MAGIC	"Promise Technology, Inc."
 
     u_int32_t		dummy_0;
-    u_int8_t		magic_0[8];
+    u_int64_t		magic_0;
+#define PR_MAGIC0(x)	((u_int64_t)x.device->channel->unit << 48) | \
+			((u_int64_t)(x.device->unit != 0) << 56)
     u_int16_t		magic_1;
     u_int32_t		magic_2;
     u_int8_t		filler1[470];
@@ -164,10 +166,10 @@ struct promise_raid_conf {
 	u_int8_t	disk_number;
 	u_int8_t	channel;
 	u_int8_t	device;
-	u_int8_t	magic_0[8];
+	u_int64_t	magic_0;
 	u_int32_t	disk_offset;		/* 0x210 */
 	u_int32_t	disk_sectors;
-	u_int32_t	dummy_1;
+	u_int32_t	rebuild_lba;
 	u_int16_t	generation;
 	u_int8_t	status;
 #define PR_S_VALID		0x01
@@ -176,6 +178,7 @@ struct promise_raid_conf {
 #define PR_S_READY		0x08
 #define PR_S_DEGRADED		0x10
 #define PR_S_MARKED		0x20
+#define PR_S_FUNCTIONAL		0x80
 
 	u_int8_t	type;
 #define PR_T_RAID0		0x00
@@ -192,19 +195,19 @@ struct promise_raid_conf {
 	u_int16_t	cylinders;
 	u_int8_t	heads;
 	u_int8_t	sectors;
-	int8_t		magic_1[8];
+	int64_t		magic_1;
 	struct {				/* 0x240 */
 	    u_int8_t	flags;
 	    u_int8_t	dummy_0;
 	    u_int8_t	channel;
 	    u_int8_t	device;
-	    u_int8_t	magic_0[8];
+	    u_int64_t	magic_0;
 	} disk[8];
     } raid;
     int32_t		filler2[346];
     u_int32_t		checksum;
 } __attribute__((packed));
 
-int ar_probe(struct ad_softc *);
-void atar_attach(void);
+int ata_raid_probe(struct ad_softc *);
+void ata_raid_attach(void);
 

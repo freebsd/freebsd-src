@@ -531,7 +531,7 @@ ata_boot_attach(void)
 	if (ch->devices & ATA_ATA_SLAVE)
 	    ad_attach(&ch->device[SLAVE]);
     }
-    atar_attach();
+    ata_raid_attach();
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     /* then the atapi devices */
@@ -1075,14 +1075,6 @@ void
 ata_drawerleds(struct ata_device *atadev, u_int8_t color)
 {
     u_int8_t count, drive;
-    int s = splbio();
-    int state;
-
-    if ((state = atadev->channel->active) != ATA_CONTROL) {
-	while (!atomic_cmpset_int(&atadev->channel->active,
-				  ATA_IDLE, ATA_CONTROL))
-	    tsleep((caddr_t)&s, PRIBIO, "ataled", hz/4);
-    }
 
     /* magic sequence to set the LED color on the Promise SuperSwap */
     ATA_INB(atadev->channel->r_io, ATA_DRIVE);	  
@@ -1101,9 +1093,6 @@ ata_drawerleds(struct ata_device *atadev, u_int8_t color)
     DELAY(1);
     ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
     DELAY(1);
-
-    atadev->channel->active = state;
-    splx(s);
 }
 
 static void
