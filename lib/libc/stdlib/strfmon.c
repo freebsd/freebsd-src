@@ -114,6 +114,7 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 
 	char		*tmpptr;	/* temporary vars */
 	int		*ntmp;
+	int		sverrno;
 
         va_start(ap, format);
 
@@ -377,10 +378,12 @@ format_error:
 	errno = EINVAL;
 
 end_error:
+	sverrno = errno;
 	if (asciivalue != NULL)
 		free(asciivalue);
 	if (currency_symbol != NULL)
 		free(currency_symbol);
+	errno = sverrno;
 	va_end(ap);
 	return (-1);
 }
