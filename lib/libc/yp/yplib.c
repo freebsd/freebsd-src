@@ -380,10 +380,12 @@ int *outvallen;
 	*outval = NULL;
 	*outvallen = 0;
 
-	/* Sanity check: no null keys allowed! */
+	/* Sanity check */
 
-	if (inkey == NULL || *inkey == '\0')
-		return YPERR_KEY;
+	if (inkey == NULL || !strlen(inkey) || inkeylen <= 0 ||
+	    inmap == NULL || !strlen(inmap) ||
+	    indomain == NULL || !strlen(indomain))
+		return YPERR_BADARGS;
 
 again:
 	if( _yp_dobind(indomain, &ysd) != 0)
@@ -459,6 +461,12 @@ int *outvallen;
 	struct timeval tv;
 	int r;
 
+	/* Sanity check */
+
+	if (indomain == NULL || !strlen(indomain) ||
+	    inmap == NULL || !strlen(inmap))
+		return YPERR_BADARGS;
+
 	*outkey = *outval = NULL;
 	*outkeylen = *outvallen = 0;
 
@@ -512,13 +520,15 @@ int *outvallen;
 	struct timeval tv;
 	int r;
 
+	/* Sanity check */
+
+	if (inkey == NULL || !strlen(inkey) || inkeylen <= 0 ||
+	    inmap == NULL || !strlen(inmap) ||
+	    indomain == NULL || !strlen(indomain))
+		return YPERR_BADARGS;
+
 	*outkey = *outval = NULL;
 	*outkeylen = *outvallen = 0;
-
-	/* Sanity check: no null keys allowed! */
-
-	if (inkey == NULL || *inkey == '\0')
-		return YPERR_KEY;
 
 again:
 	if( _yp_dobind(indomain, &ysd) != 0)
@@ -569,6 +579,12 @@ struct ypall_callback *incallback;
 	u_long status;
 	int clnt_sock;
 
+	/* Sanity check */
+
+	if (indomain == NULL || !strlen(indomain) ||
+	    inmap == NULL || !strlen(inmap))
+		return YPERR_BADARGS;
+
 	if( _yp_dobind(indomain, &ysd) != 0)
 		return YPERR_DOMAIN;
 
@@ -611,6 +627,12 @@ int *outorder;
 	struct timeval tv;
 	int r;
 
+	/* Sanity check */
+
+	if (indomain == NULL || !strlen(indomain) ||
+	    inmap == NULL || !strlen(inmap))
+		return YPERR_BADARGS;
+
 again:
 	if( _yp_dobind(indomain, &ysd) != 0)
 		return YPERR_DOMAIN;
@@ -649,6 +671,11 @@ char **outname;
 	struct timeval tv;
 	int r;
 
+	/* Sanity check */
+
+	if (indomain == NULL || !strlen(indomain) ||
+	    inmap == NULL || !strlen(inmap))
+		return YPERR_BADARGS;
 again:
 	if( _yp_dobind(indomain, &ysd) != 0)
 		return YPERR_DOMAIN;
@@ -684,6 +711,11 @@ struct ypmaplist **outmaplist;
 	struct ypresp_maplist ypml;
 	struct timeval tv;
 	int r;
+
+	/* Sanity check */
+
+	if (indomain == NULL || !strlen(indomain))
+		return YPERR_BADARGS;
 
 again:
 	if( _yp_dobind(indomain, &ysd) != 0)
