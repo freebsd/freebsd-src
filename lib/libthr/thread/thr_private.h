@@ -81,6 +81,24 @@
 #define	curthread	_get_curthread()
 
 /*
+ * Locking macros
+ */
+#define	THR_LOCK(m)							\
+	do {								\
+		if (umtx_lock((m), curthread->thr_id) != 0)		\
+			abort();					\
+	} while (0)
+
+#define THR_TRYLOCK(m)		_umtxtrylock((m))
+
+#define	THR_UNLOCK(m)							\
+	do {								\
+		if (umtx_unlock((m), curthread->thr_id) != 0)		\
+			abort();					\
+	} while (0)
+
+
+/*
  * State change macro without scheduling queue change:
  */
 #define PTHREAD_SET_STATE(thrd, newstate) do {				\
@@ -431,7 +449,7 @@ struct pthread {
 	/*
 	 * Lock for accesses to this thread structure.
 	 */
-	spinlock_t		lock;
+	struct umtx		lock;
 
 	/* Queue entry for list of all threads: */
 	TAILQ_ENTRY(pthread)	tle;
@@ -748,7 +766,6 @@ int	_pthread_mutexattr_settype(pthread_mutexattr_t *, int);
 int	_pthread_once(pthread_once_t *, void (*) (void));
 pthread_t _pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
-int	_spintrylock(spinlock_t *);
 void    _thread_exit(char *, int, char *);
 void    _thread_exit_cleanup(void);
 void    *_thread_cleanup(pthread_t);
@@ -768,6 +785,7 @@ void	_thread_critical_enter(pthread_t);
 void	_thread_critical_exit(pthread_t);
 void	_thread_sigblock();
 void	_thread_sigunblock();
+int	_umtxtrylock(struct umtx *lck);
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
