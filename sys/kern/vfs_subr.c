@@ -2881,28 +2881,24 @@ vprint(label, vp)
  */
 DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 {
-	struct thread *td = curthread;	/* XXX */
 	struct mount *mp, *nmp;
 	struct vnode *vp;
 
+	/*
+	 * Note: because this is DDB, we can't obey the locking semantics
+	 * for these structures, which means we could catch an inconsistent
+	 * state and dereference a nasty pointer.  Not much to be done
+	 * about that.
+	 */
 	printf("Locked vnodes\n");
-	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			continue;
-		}
-		mtx_lock(&mntvnode_mtx);
+		nmp = TAILQ_NEXT(mp, mnt_list);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 			if (VOP_ISLOCKED(vp, NULL))
 				vprint(NULL, vp);
 		}
-		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
-		vfs_unbusy(mp, td);
 	}
-	mtx_unlock(&mountlist_mtx);
 }
 #endif
 
