@@ -1114,17 +1114,12 @@ struct sk_tx_desc {
 #define SK_JUMBO_MTU		(SK_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define SK_JSLOTS		384
 
-#define SK_JRAWLEN (SK_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
+#define SK_JRAWLEN (SK_JUMBO_FRAMELEN + ETHER_ALIGN)
 #define SK_JLEN (SK_JRAWLEN + (sizeof(u_int64_t) - \
 	(SK_JRAWLEN % sizeof(u_int64_t))))
-#define SK_MCLBYTES (SK_JLEN - sizeof(u_int64_t))
 #define SK_JPAGESZ PAGE_SIZE
 #define SK_RESID (SK_JPAGESZ - (SK_JLEN * SK_JSLOTS) % SK_JPAGESZ)
 #define SK_JMEM ((SK_JLEN * SK_JSLOTS) + SK_RESID)
-
-struct sk_jslot {
-	caddr_t			sk_buf;
-};
 
 struct sk_jpool_entry {
 	int                             slot;
@@ -1147,7 +1142,7 @@ struct sk_chain_data {
 	int			sk_rx_cons;
 	int			sk_rx_cnt;
 	/* Stick the jumbo mem management stuff here too. */
-	struct sk_jslot		sk_jslots[SK_JSLOTS];
+	caddr_t			sk_jslots[SK_JSLOTS];
 	void			*sk_jumbo_buf;
 
 };
