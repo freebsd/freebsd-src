@@ -1007,6 +1007,12 @@ pcic_pci_shutdown(device_t dev)
 	sp = &sc->slots[0];
 
 	/*
+	 * Make the chips use ISA again.
+	 */
+	sc->chip->func_intr_way(&sc->slots[0], pcic_iw_isa);
+	sc->chip->csc_intr_way(&sc->slots[0], pcic_iw_isa);
+
+	/*
 	 * Turn off the power to the slot in an attempt to
 	 * keep the system from hanging on reboot.  We also turn off
 	 * card interrupts in an attempt to control interrupt storms.
@@ -1015,8 +1021,11 @@ pcic_pci_shutdown(device_t dev)
 	 * to INT_GEN is that the card is placed into "reset" mode
 	 * where nothing happens until it is taken out of "reset"
 	 * mode.
+	 *
+	 * Also, turn off the generation of status interrupts too.
 	 */
 	sp->putb(sp, PCIC_INT_GEN, 0);
+	sp->putb(sp, PCIC_STAT_INT, 0);
 	sp->putb(sp, PCIC_POWER, 0);
 
 	/*
@@ -1026,8 +1035,11 @@ pcic_pci_shutdown(device_t dev)
 	 * normal course of operations, so we do it here too.  We can't
 	 * lose any interrupts after this point, so go ahead and ack
 	 * everything.  The bits in INT_GEN clear upon reading them.
+	 * We also set the interrupt mask to 0, in an effort to avoid
+	 * getting further interrupts.
 	 */
-	bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
+	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_MASK, 0);
+	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_EVENT, 0xffffffff);
 	sp->getb(sp, PCIC_STAT_CHG);
 }
 
