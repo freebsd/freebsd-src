@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 1997, 1998 Poul-Henning Kamp <phk@FreeBSD.org>
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -36,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.55 1998/02/06 12:13:22 eivind Exp $
+ * $Id: kern_clock.c,v 1.56 1998/02/15 13:55:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +56,6 @@
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
-#define CLOCK_HAIR		/* XXX */
 #include <machine/clock.h>
 #include <machine/limits.h>
 
@@ -69,6 +69,9 @@
 
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
+
+static void tco_forward __P((void));
+static void tco_setscales __P((struct timecounter *tc));
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 #if defined(SMP) && defined(BETTER_CLOCK)
@@ -91,55 +94,43 @@ long tk_nin;
 long tk_nout;
 long tk_rawcc;
 
+struct timecounter *timecounter;
+
 /*
  * Clock handling routines.
  *
- * This code is written to operate with two timers that run independently of
- * each other.  The main clock, running hz times per second, is used to keep
- * track of real time.  The second timer handles kernel and user profiling,
- * and does resource use estimation.  If the second timer is programmable,
- * it is randomized to avoid aliasing between the two clocks.  For example,
- * the randomization prevents an adversary from always giving up the cpu
+ * This code is written to operate with two timers that run independently
+ * of each other.
+ *
+ * The main clock, running hz times per second, is used to trigger
+ * interval timers, timeouts and rescheduling as needed.
+ *
+ * The second timer handles kernel and user profiling, and does resource
+ * use estimation.  If the second timer is programmable, it is randomized
+ * to avoid aliasing between the two clocks.  For example, the
+ * randomization prevents an adversary from always giving up the cpu
  * just before its quantum expires.  Otherwise, it would never accumulate
  * cpu ticks.  The mean frequency of the second timer is stathz.
- *
- * If no second timer exists, stathz will be zero; in this case we drive
- * profiling and statistics off the main clock.  This WILL NOT be accurate;
- * do not do it unless absolutely necessary.
- *
+ * If no second timer exists, stathz will be zero; in this case we
+ * drive profiling and statistics off the main clock.  This WILL NOT
+ * be accurate; do not do it unless absolutely necessary.
  * The statistics clock may (or may not) be run at a higher rate while
- * profiling.  This profile clock runs at profhz.  We require that profhz
- * be an integral multiple of stathz.
+ * profiling.  This profile clock runs at profhz.  We require that
+ * profhz be an integral multiple of stathz.  If the statistics clock
+ * is running fast, it must be divided by the ratio profhz/stathz for
+ * statistics.  (For profiling, every tick counts.)
  *
- * If the statistics clock is running fast, it must be divided by the ratio
- * profhz/stathz for statistics.  (For profiling, every tick counts.)
+ * Time-of-day is maintained using a "timecounter", which may or may
+ * not be related to the hardware generating the above mentioned
+ * interrupts.
  */
-
-/*
- * TODO:
- *	allocate more timeout table slots when table overflows.
- */
-
-/*
- * Bump a timeval by a small number of usec's.
- */
-#define BUMPTIME(t, usec) { \
-	register volatile struct timeval *tp = (t); \
-	register long us; \
- \
-	tp->tv_usec = us = tp->tv_usec + (usec); \
-	if (us >= 1000000) { \
-		tp->tv_usec = us - 1000000; \
-		tp->tv_sec++; \
-	} \
-}
 
 int	stathz;
 int	profhz;
 static int profprocs;
 int	ticks;
 static int psdiv, pscnt;		/* prof => stat divider */
-int psratio;				/* ratio: prof / stat */
+int	psratio;			/* ratio: prof / stat */
 
 volatile struct	timeval time;
 volatile struct	timeval mono_time;
@@ -178,9 +169,6 @@ hardclock(frame)
 	register struct clockframe *frame;
 {
 	register struct proc *p;
-	int time_update;
-	struct timeval newtime = time;
-	long ltemp;
 
 	p = curproc;
 	if (p) {
@@ -208,55 +196,9 @@ hardclock(frame)
 	if (stathz == 0)
 		statclock(frame);
 
-	/*
-	 * Increment the time-of-day.
-	 */
+	tco_forward();
+
 	ticks++;
-
-	if (timedelta == 0) {
-		time_update = CPU_THISTICKLEN(tick);
-	} else {
-		time_update = CPU_THISTICKLEN(tick) + tickdelta;
-		timedelta -= tickdelta;
-	}
-	BUMPTIME(&mono_time, time_update);
-
-	/*
-	 * Compute the phase adjustment. If the low-order bits
-	 * (time_phase) of the update overflow, bump the high-order bits
-	 * (time_update).
-	 */
-	time_phase += time_adj;
-	if (time_phase <= -FINEUSEC) {
-		ltemp = -time_phase >> SHIFT_SCALE;
-		time_phase += ltemp << SHIFT_SCALE;
-		time_update -= ltemp;
-	}
-	else if (time_phase >= FINEUSEC) {
-		ltemp = time_phase >> SHIFT_SCALE;
-		time_phase -= ltemp << SHIFT_SCALE;
-		time_update += ltemp;
-	}
-
-	newtime.tv_usec += time_update;
-	/*
-	 * On rollover of the second the phase adjustment to be used for
-	 * the next second is calculated. Also, the maximum error is
-	 * increased by the tolerance. If the PPS frequency discipline
-	 * code is present, the phase is increased to compensate for the
-	 * CPU clock oscillator frequency error.
-	 *
-	 * On a 32-bit machine and given parameters in the timex.h
-	 * header file, the maximum phase adjustment is +-512 ms and
-	 * maximum frequency offset is a tad less than) +-512 ppm. On a
-	 * 64-bit machine, you shouldn't need to ask.
-	 */
-	if (newtime.tv_usec >= 1000000) {
-		newtime.tv_usec -= 1000000;
-		newtime.tv_sec++;
-		ntp_update_second(&newtime.tv_sec);
-	}
-	CPU_CLOCKUPDATE(&time, &newtime);
 
 	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL)
 		setsoftclock();
@@ -315,6 +257,10 @@ hzto(tv)
 	}
 	if (sec < 0) {
 #ifdef DIAGNOSTIC
+		if (sec == -1 && usec > 0) {
+			sec++;
+			usec -= 1000000;
+		}
 		printf("hzto: negative time difference %ld sec %ld usec\n",
 		       sec, usec);
 #endif
@@ -529,11 +475,212 @@ SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
 
 void
-nanotime(ts)
-	struct timespec *ts;
+microtime(struct timeval *tv)
 {
-	struct timeval tv;
-	microtime(&tv);
-	ts->tv_sec = tv.tv_sec;
-	ts->tv_nsec = tv.tv_usec * 1000;
+	struct timecounter *tc;
+
+	tc = (struct timecounter *)timecounter;
+	tv->tv_sec = tc->offset_sec;
+	tv->tv_usec = tc->offset_micro;
+	tv->tv_usec += 
+	    ((u_int64_t)tc->get_timedelta(tc) * tc->scale_micro) >> 32;
+	if (tv->tv_usec >= 1000000) {
+		tv->tv_usec -= 1000000;
+		tv->tv_sec++;
+	}
 }
+
+void
+nanotime(struct timespec *tv)
+{
+	u_int32_t count;
+	u_int64_t delta;
+	struct timecounter *tc;
+
+	tc = (struct timecounter *)timecounter;
+	tv->tv_sec = tc->offset_sec;
+	count = tc->get_timedelta(tc);
+	delta = tc->offset_nano;
+	delta += ((u_int64_t)count * tc->scale_nano_f);
+	delta += ((u_int64_t)count * tc->scale_nano_i) << 32;
+	delta >>= 32;
+	if (delta >= 1000000000) {
+		delta -= 1000000000;
+		tv->tv_sec++;
+	}
+	tv->tv_nsec = delta;
+}
+
+static void
+tco_setscales(struct timecounter *tc)
+{
+	u_int64_t scale;
+
+	scale = 1000000000LL << 32;
+	if (tc->adjustment > 0)
+		scale += (tc->adjustment * 1000LL) << 10;
+	else
+		scale -= (-tc->adjustment * 1000LL) << 10;
+	/* scale += tc->frequency >> 1; */ /* XXX do we want to round ? */
+	scale /= tc->frequency;
+	tc->scale_micro = scale / 1000;
+	tc->scale_nano_f = scale & 0xffffffff;
+	tc->scale_nano_i = scale >> 32;
+}
+
+static u_int
+delta_timecounter(struct timecounter *tc)
+{
+	return((tc->get_timecount() - tc->offset_count) & tc->counter_mask);
+}
+
+void
+init_timecounter(struct timecounter *tc)
+{
+	struct timespec ts0, ts1;
+	int i;
+
+	if (!tc->get_timedelta) 
+		tc->get_timedelta = delta_timecounter;
+	tc->adjustment = 0;
+	tco_setscales(tc);
+	tc->offset_count = tc->get_timecount();
+	tc[0].tweak = &tc[0];
+	tc[2] = tc[1] = tc[0];
+	tc[1].other = &tc[2];
+	tc[2].other = &tc[1];
+	if (!timecounter)
+		timecounter = &tc[2];
+	tc = &tc[1];
+
+	/* 
+	 * Figure out the cost of calling this timecounter.
+	 * XXX: The 1:15 ratio is a guess at reality.
+	 */
+	nanotime(&ts0);
+	for (i = 0; i < 16; i ++) 
+		tc->get_timecount();
+	for (i = 0; i < 240; i ++)
+		tc->get_timedelta(tc);
+	nanotime(&ts1);
+	ts1.tv_sec -= ts0.tv_sec;
+	tc->cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
+	tc->cost >>= 8;
+	printf("Timecounter \"%s\"  frequency %lu Hz  cost %u ns\n", 
+	    tc->name, tc->frequency, tc->cost);
+
+	/* XXX: For now always start using the counter. */
+	tc->offset_count = tc->get_timecount();
+	nanotime(&ts1);
+	tc->offset_nano = (u_int64_t)ts1.tv_nsec << 32;
+	tc->offset_micro = ts1.tv_nsec / 1000;
+	tc->offset_sec = ts1.tv_sec;
+	timecounter = tc;
+}
+
+void
+set_timecounter(struct timespec *ts)
+{
+	struct timecounter *tc, *tco;
+	int s;
+
+	s = splclock();
+	tc=timecounter->other;
+	tco = tc->other;
+	*tc = *timecounter;
+	tc->other = tco;
+	tc->offset_sec = ts->tv_sec;
+	tc->offset_nano = (u_int64_t)ts->tv_nsec << 32;
+	tc->offset_micro =  ts->tv_nsec / 1000;
+	tc->offset_count = tc->get_timecount();
+	time.tv_sec = tc->offset_sec;
+	time.tv_usec = tc->offset_micro;
+	timecounter = tc;
+	splx(s);
+}
+
+static struct timecounter *
+sync_other_counter(int flag)
+{
+	struct timecounter *tc, *tco;
+	u_int32_t delta;
+
+	tc = timecounter->other;
+	tco = tc->other;
+	*tc = *timecounter;
+	tc->other = tco;
+	delta = tc->get_timedelta(tc);
+	tc->offset_count += delta;
+	tc->offset_count &= tc->counter_mask;
+	tc->offset_nano += (u_int64_t)delta * tc->scale_nano_f;
+	tc->offset_nano += (u_int64_t)delta * tc->scale_nano_i << 32;
+	if (flag)
+		return (tc);
+	if (tc->offset_nano > 1000000000ULL << 32) {
+		tc->offset_sec++;
+		tc->offset_nano -= 1000000000ULL << 32;
+	}
+	tc->offset_micro = (tc->offset_nano / 1000) >> 32;
+	return (tc);
+}
+
+static void
+tco_forward(void)
+{
+	struct timecounter *tc;
+	u_int32_t time_update;
+
+	tc = sync_other_counter(1);
+	time_update = 0;
+
+	if (timedelta) {
+		time_update += tickdelta;
+		timedelta -= tickdelta;
+	}
+	mono_time.tv_usec += time_update + tick;
+	if (mono_time.tv_usec >= 1000000) {
+		mono_time.tv_usec -= 1000000;
+		mono_time.tv_sec++;
+	}
+	time_update *= 1000;
+	tc->offset_nano += (u_int64_t)time_update << 32;
+	if (tc->offset_nano >= 1000000000ULL << 32) {
+		tc->offset_nano -= 1000000000ULL << 32;
+		tc->offset_sec++;
+		tc->frequency = tc->tweak->frequency;
+		tc->adjustment = tc->tweak->adjustment;	/* XXX remove this ? */
+		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
+		tco_setscales(tc);
+	}
+	/*
+	 * Find the usec from the nsec.  This is just as fast (one 
+	 * multiplication) and prevents skew between the two due
+	 * to rounding errors. (2^32/1000 = 4294967.296)
+	 */
+	tc->offset_micro = (tc->offset_nano / 1000) >> 32;
+	time.tv_usec = tc->offset_micro;
+	time.tv_sec = tc->offset_sec;
+	timecounter = tc;
+}
+
+static int
+sysctl_kern_timecounter_frequency SYSCTL_HANDLER_ARGS
+{
+	return (sysctl_handle_opaque(oidp, &timecounter->tweak->frequency,
+	    sizeof(timecounter->tweak->frequency), req));
+}
+
+static int
+sysctl_kern_timecounter_adjustment SYSCTL_HANDLER_ARGS
+{
+	return (sysctl_handle_opaque(oidp, &timecounter->tweak->adjustment,
+	    sizeof(timecounter->tweak->adjustment), req));
+}
+
+SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
+
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, frequency, CTLTYPE_INT|CTLFLAG_RW,
+	0, sizeof(u_int) , sysctl_kern_timecounter_frequency, "I", "");
+
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT|CTLFLAG_RW,
+	0, sizeof(int) , sysctl_kern_timecounter_adjustment, "I", "");

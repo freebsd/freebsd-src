@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.109 1998/02/09 06:08:26 eivind Exp $
+ *	$Id: clock.c,v 1.110 1998/02/13 06:33:16 bde Exp $
  */
 
 /*
@@ -109,9 +109,7 @@
 /*
  * Maximum frequency that we are willing to allow for timer0.  Must be
  * low enough to guarantee that the timer interrupt handler returns
- * before the next timer interrupt.  Must result in a lower TIMER_DIV
- * value than TIMER0_LATCH_COUNT so that we don't have to worry about
- * underflow in the calculation of timer0_overflow_threshold.
+ * before the next timer interrupt.
  */
 #define	TIMER0_MAX_FREQ		20000
 
@@ -120,25 +118,21 @@ int	disable_rtc_set;	/* disable resettodr() if != 0 */
 u_int	idelayed;
 int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
-#ifdef TIMER_FREQ
-u_int	timer_freq = TIMER_FREQ;
-#else
-u_int	timer_freq = 1193182;
+#ifndef TIMER_FREQ
+#define TIMER_FREQ   1193182
 #endif
+u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
-u_int	timer0_overflow_threshold;
-u_int	timer0_prescaler_count;
-u_int	tsc_bias;
-u_int	tsc_comultiplier;
 u_int	tsc_freq;
-u_int	tsc_multiplier;
-static u_int	tsc_present;
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
 static	u_int	clk_imask = HWI_MASK | SWI_MASK;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	u_int	hardclock_max_count;
+static	u_int32_t i8254_lastcount;
+static	u_int32_t i8254_offset;
+static	int	i8254_ticked;
 /*
  * XXX new_function and timer_func should not handle clockframes, but
  * timer_func currently needs to hold hardclock to handle the
@@ -149,6 +143,7 @@ static	void	(*new_function) __P((struct clockframe *frame));
 static	u_int	new_rate;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
+static	u_int	timer0_prescaler_count;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -159,13 +154,42 @@ static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
 static	u_char	timer0_state;
 static	u_char	timer2_state;
 static	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
+static	u_int	tsc_present;
 
-static	void	set_tsc_freq(u_int tsc_count, u_int i8254_freq);
+static	u_int64_t i8254_get_timecount __P((void));
 static	void	set_timer_freq(u_int freq, int intr_freq);
+static	u_int64_t tsc_get_timecount __P((void));
+static	u_int32_t tsc_get_timedelta __P((struct timecounter *tc));
+
+static struct timecounter tsc_timecounter[3] = {
+	tsc_get_timedelta,	/* get_timedelta */
+	tsc_get_timecount,	/* get_timecount */
+ 	~0,			/* counter_mask */
+	0,			/* frequency */
+	 "TSC"			/* name */
+};
+
+SYSCTL_OPAQUE(_debug, OID_AUTO, tsc_timecounter, CTLFLAG_RD, 
+	tsc_timecounter, sizeof(tsc_timecounter), "S,timecounter", "");
+
+static struct timecounter i8254_timecounter[3] = {
+	0,			/* get_timedelta */
+	i8254_get_timecount,	/* get_timecount */
+	(1ULL << 32) - 1,	/* counter_mask */
+	0,			/* frequency */
+	"i8254"			/* name */
+};
+
+SYSCTL_OPAQUE(_debug, OID_AUTO, i8254_timecounter, CTLFLAG_RD, 
+	i8254_timecounter, sizeof(i8254_timecounter), "S,timecounter", "");
 
 static void
 clkintr(struct clockframe frame)
 {
+	if (!i8254_ticked)
+		i8254_offset += timer0_max_count;
+	else
+		i8254_ticked = 0;
 	timer_func(&frame);
 	switch (timer0_state) {
 
@@ -185,8 +209,6 @@ clkintr(struct clockframe frame)
 	case ACQUIRE_PENDING:
 		setdelayed();
 		timer0_max_count = TIMER_DIV(new_rate);
-		timer0_overflow_threshold =
-			timer0_max_count - TIMER0_LATCH_COUNT;
 		disable_intr();
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
@@ -210,8 +232,6 @@ clkintr(struct clockframe frame)
 			hardclock(&frame);
 			setdelayed();
 			timer0_max_count = hardclock_max_count;
-			timer0_overflow_threshold =
-				timer0_max_count - TIMER0_LATCH_COUNT;
 			disable_intr();
 			outb(TIMER_MODE,
 			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
@@ -235,6 +255,8 @@ acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 	static int old_rate;
 
 	if (rate <= 0 || rate > TIMER0_MAX_FREQ)
+		return (-1);
+	if (strcmp(timecounter->name, "i8254") == 0)
 		return (-1);
 	switch (timer0_state) {
 
@@ -606,14 +628,14 @@ calibrate_clocks(void)
 	 * Read the cpu cycle counter.  The timing considerations are
 	 * similar to those for the i8254 clock.
 	 */
-	if (tsc_present) {
-		set_tsc_freq((u_int)rdtsc(), tot_count);
-		if (bootverbose)
+	if (tsc_present) 
+		tsc_freq = rdtsc();
+
+	if (bootverbose) {
+	        printf("i8254 clock: %u Hz\n", tot_count);
+		if (tsc_present)
 		        printf("TSC clock: %u Hz, ", tsc_freq);
 	}
-
-	if (bootverbose)
-	        printf("i8254 clock: %u Hz\n", tot_count);
 	return (tot_count);
 
 fail:
@@ -635,8 +657,6 @@ set_timer_freq(u_int freq, int intr_freq)
 	new_timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
 	if (new_timer0_max_count != timer0_max_count) {
 		timer0_max_count = new_timer0_max_count;
-		timer0_overflow_threshold = timer0_max_count -
-		    TIMER0_LATCH_COUNT;
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
@@ -646,7 +666,7 @@ set_timer_freq(u_int freq, int intr_freq)
 }
 
 /*
- * Initialize 8253 timer 0 early so that it can be used in DELAY().
+ * Initialize 8254 timer 0 early so that it can be used in DELAY().
  * XXX initialization of other timers is unintentionally left blank.
  */
 void
@@ -700,6 +720,8 @@ startrtclock()
 	}
 
 	set_timer_freq(timer_freq, hz);
+	i8254_timecounter[0].frequency = timer_freq;
+	init_timecounter(i8254_timecounter);
 
 #ifndef CLK_USE_TSC_CALIBRATION
 	if (tsc_freq != 0) {
@@ -717,11 +739,15 @@ startrtclock()
 		 */
 		wrmsr(0x10, 0LL);	/* XXX */
 		DELAY(1000000);
-		set_tsc_freq((u_int)rdtsc(), timer_freq);
+		tsc_freq = rdtsc();
 #ifdef CLK_USE_TSC_CALIBRATION
 		if (bootverbose)
-			printf("TSC clock: %u Hz\n", tsc_freq);
+			printf("TSC clock: %u Hz (Method B)\n", tsc_freq);
 #endif
+	}
+	if (tsc_present && tsc_freq != 0) {
+		tsc_timecounter[0].frequency = tsc_freq;
+		init_timecounter(tsc_timecounter);
 	}
 }
 
@@ -736,11 +762,13 @@ inittodr(time_t base)
 	int		yd;
 	int		year, month;
 	int		y, m, s;
+	struct timespec ts;
 
 	if (base) {
 		s = splclock();
-		time.tv_sec  = base;
-		time.tv_usec = 0;
+		ts.tv_sec = base;
+		ts.tv_nsec = 0;
+		set_timecounter(&ts);
 		splx(s);
 	}
 
@@ -780,9 +808,15 @@ inittodr(time_t base)
 
 	sec += tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
-	s = splclock();
-	time.tv_sec = sec;
-	splx(s);
+	y = time.tv_sec - sec;
+	if (y <= -2 || y >= 2) {
+		/* badly off, adjust it */
+		s = splclock();
+		ts.tv_sec = sec;
+		ts.tv_nsec = 0;
+		set_timecounter(&ts);
+		splx(s);
+	}
 	return;
 
 wrong_time:
@@ -929,12 +963,6 @@ cpu_initclocks()
 
 #endif /* APIC_IO */
 
-	/*
-	 * Finish setting up anti-jitter measures.
-	 */
-	if (tsc_freq != 0)
-		tsc_bias = rdtsc();
-
 	/* Initialize RTC. */
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
@@ -987,39 +1015,16 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 	freq = timer_freq;
 	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (timer0_state != 0)
+		if (timer0_state != RELEASED)
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
-		if (tsc_present)
-			set_tsc_freq(tsc_freq, timer_freq);
+		i8254_timecounter[0].frequency = freq;
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
-
-static void
-set_tsc_freq(u_int tsc_count, u_int i8254_freq)
-{
-	u_int comultiplier, multiplier;
-	u_long ef;
-
-	if (tsc_count == 0) {
-		tsc_freq = tsc_count;
-		return;
-	}
-	comultiplier = ((unsigned long long)tsc_count
-			<< TSC_COMULTIPLIER_SHIFT) / i8254_freq;
-	multiplier = (1000000LL << TSC_MULTIPLIER_SHIFT) / tsc_count;
-	ef = read_eflags();
-	disable_intr();
-	tsc_freq = tsc_count;
-	tsc_comultiplier = comultiplier;
-	tsc_multiplier = multiplier;
-	CLOCK_UNLOCK();
-	write_eflags(ef);
-}
 
 static int
 sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
@@ -1031,10 +1036,52 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 		return (EOPNOTSUPP);
 	freq = tsc_freq;
 	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
-	if (error == 0 && req->newptr != NULL)
-		set_tsc_freq(freq, timer_freq);
+	if (error == 0 && req->newptr != NULL) {
+		tsc_freq = freq;
+		tsc_timecounter[0].frequency = tsc_freq;
+	}
 	return (error);
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
+
+static u_int64_t
+i8254_get_timecount(void)
+{
+	u_int32_t count;
+	u_long ef;
+	u_int high, low;
+
+	ef = read_eflags();
+	disable_intr();
+
+	/* Select timer0 and latch counter value. */
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
+
+	low = inb(TIMER_CNTR0);
+	high = inb(TIMER_CNTR0);
+
+	count = hardclock_max_count - ((high << 8) | low);
+	if (count < i8254_lastcount) {
+		i8254_ticked = 1;
+		i8254_offset += hardclock_max_count;
+	}
+
+	i8254_lastcount = count;
+	count += i8254_offset;
+	write_eflags(ef);
+	return (count);
+}
+
+static u_int64_t
+tsc_get_timecount(void)
+{
+	return ((u_int64_t)rdtsc());
+}
+
+static u_int32_t
+tsc_get_timedelta(struct timecounter *tc)
+{
+	return ((u_int64_t)rdtsc() - tc->offset_count);
+}
