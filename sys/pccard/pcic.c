@@ -86,7 +86,7 @@ static void		pcic98_resume(struct slot *);
 /*
  *	Per-slot data table.
  */
-static struct pcic_slot {
+struct pcic_slot {
 	int slotnum;			/* My slot number */
 	int index;			/* Index register */
 	int data;			/* Data register */
@@ -97,7 +97,13 @@ static struct pcic_slot {
 	u_char (*getb)(struct pcic_slot *, int);
 	void   (*putb)(struct pcic_slot *, int, u_char);
 	u_char	*regs;			/* Pointer to regs in mem */
-} pcic_slots[PCIC_MAX_SLOTS];
+};
+
+struct pcic_softc 
+{
+	int			unit;
+	struct pcic_slot	slots[PCIC_MAX_SLOTS];
+};
 
 static struct slot_ctrl cinfo;
 
@@ -112,7 +118,6 @@ static struct isa_pnp_id pcic_ids[] = {
 	{0}
 };
 
-static int validunits = 0;
 #ifdef	MECIA_SUPPORT
 static	u_char		pcic98_last_reg1;
 #endif /* MECIA_SUPPORT */
@@ -325,6 +330,7 @@ pcic_probe(device_t dev)
 	struct resource *r;
 	int rid;
 	static int maybe_vlsi = 0;
+	struct pcic_softc *sc;
 
 	/* Check isapnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids);
@@ -355,7 +361,9 @@ pcic_probe(device_t dev)
 		return (ENOMEM);
 	}
 
-	sp = &pcic_slots[validunits * PCIC_CARD_SLOTS];
+	sc = (struct pcic_softc *) device_get_softc(dev);
+	sc->unit = device_get_unit(dev);
+	sp = &sc->slots[0];
 	for (slotnum = 0; slotnum < PCIC_CARD_SLOTS; slotnum++, sp++) {
 		/*
 		 *	Initialise the PCIC slot table.
@@ -467,7 +475,7 @@ pcic_probe(device_t dev)
 		 *	Allocate a slot and initialise the data structures.
 		 */
 		validslots++;
-		sp->slotnum = slotnum + validunits * PCIC_CARD_SLOTS;
+		sp->slotnum = slotnum + sc->unit * PCIC_CARD_SLOTS;
 		sp->slt = (struct slot *) 1;
 		/*
 		 * Modem cards send the speaker audio (dialing noises)
@@ -485,7 +493,7 @@ pcic_probe(device_t dev)
 	if (validslots != 0)
 		return (0);
 #ifdef  PC98    
-	sp = &pcic_slots[validunits * PCIC_CARD_SLOTS];
+	sp = &sc->slots[0];
 	if (inb(PCIC98_REG0) != 0xff) {
 		sp->controller	= PCIC_PC98;
 		sp->revision	= 0;
@@ -529,12 +537,13 @@ pcic_attach(device_t dev)
 	device_t	kid;
 	struct resource *r;
 	int		rid;
+	struct pcic_softc *sc;
 	struct slot	*slt;
 	struct pcic_slot *sp;
 	int		stat;
 	
-	SET_UNIT(dev, validunits);
-	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
+	sc = (struct pcic_softc *) device_get_softc(dev);
+	sp = &sc->slots[0];
 	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
 		if (!sp->slt)
 			continue;
@@ -553,7 +562,6 @@ pcic_attach(device_t dev)
 		slt->cdata = sp;
 		sp->slt = slt;
 	}
-	validunits++;
 
 	rid = 0;
 	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
@@ -582,7 +590,7 @@ pcic_attach(device_t dev)
 	}
 	if (r) {
 		error = bus_setup_intr(dev, r, INTR_TYPE_MISC,
-		    pcicintr, (void *) GET_UNIT(dev), &ih);
+		    pcicintr, (void *) sc, &ih);
 		if (error) {
 			bus_release_resource(dev, SYS_RES_IRQ, rid, r);
 			return (error);
@@ -593,12 +601,11 @@ pcic_attach(device_t dev)
 		irq = 0;
 	}
 	if (irq == 0) {
-		pcictimeout_ch = timeout(pcictimeout, (void *) GET_UNIT(dev),
-		    hz/2);
+		pcictimeout_ch = timeout(pcictimeout, (void *) sc, hz/2);
 		device_printf(dev, "Polling mode\n");
 	}
 
-	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
+	sp = &sc->slots[0];
 	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
 		if (sp->slt == NULL)
 			continue;
@@ -837,7 +844,7 @@ pcictimeout(void *chan)
 {
 	if (pcicintr1(chan) != 0) {
 		printf("pcic%d: Static bug detected, ignoring hardware.\n",
-		    (int) chan);
+		    ((struct pcic_softc *)chan)->unit);
 		return;
 	}
 	pcictimeout_ch = timeout(pcictimeout, chan, hz/2);
@@ -854,8 +861,8 @@ pcicintr1(void *arg)
 {
 	int	slot, s;
 	unsigned char chg;
-	int unit = (int) arg;
-	struct pcic_slot *sp = &pcic_slots[unit * PCIC_CARD_SLOTS];
+	struct pcic_softc *sc = (struct pcic_softc *) arg;
+	struct pcic_slot *sp = &sc->slots[0];
 
 	s = splhigh();
 #ifdef	MECIA_SUPPORT
@@ -1400,7 +1407,7 @@ devclass_t	pcic_devclass;
 static driver_t pcic_driver = {
 	"pcic",
 	pcic_methods,
-	sizeof(int)
+	sizeof(struct pcic_softc)
 };
 
 DRIVER_MODULE(pcic, isa, pcic_driver, pcic_devclass, 0, 0);
