@@ -2782,27 +2782,27 @@ uhci_root_ctrl_start(usbd_xfer_handle xfer)
 		}
 		switch(value) {
 		case UHF_PORT_ENABLE:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x & ~UHCI_PORTSC_PE);
 			break;
 		case UHF_PORT_SUSPEND:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x & ~UHCI_PORTSC_SUSP);
 			break;
 		case UHF_PORT_RESET:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x & ~UHCI_PORTSC_PR);
 			break;
 		case UHF_C_PORT_CONNECTION:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x | UHCI_PORTSC_CSC);
 			break;
 		case UHF_C_PORT_ENABLE:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x | UHCI_PORTSC_POEDC);
 			break;
 		case UHF_C_PORT_OVER_CURRENT:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x | UHCI_PORTSC_OCIC);
 			break;
 		case UHF_C_PORT_RESET:
@@ -2908,15 +2908,15 @@ uhci_root_ctrl_start(usbd_xfer_handle xfer)
 		}
 		switch(value) {
 		case UHF_PORT_ENABLE:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x | UHCI_PORTSC_PE);
 			break;
 		case UHF_PORT_SUSPEND:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x | UHCI_PORTSC_SUSP);
 			break;
 		case UHF_PORT_RESET:
-			x = UREAD2(sc, port);
+			x = URWMASK(UREAD2(sc, port));
 			UWRITE2(sc, port, x | UHCI_PORTSC_PR);
 			usb_delay_ms(&sc->sc_bus, USB_PORT_ROOT_RESET_DELAY);
 			UWRITE2(sc, port, x & ~UHCI_PORTSC_PR);
