@@ -489,8 +489,8 @@ ast_start(struct ast_softc *stp)
 
     devstat_start_transaction(&stp->stats);
 
-    atapi_queue_cmd(stp->atp, ccb, bp->b_data, bp->b_bcount, 
-		    (bp->b_flags & B_READ) ? A_READ : 0, 60, ast_done, stp, bp);
+    atapi_queue_cmd(stp->atp, ccb, bp->b_data, blkcount * stp->blksize, 
+		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 60, ast_done, stp,bp);
 }
 
 static int32_t 
@@ -506,7 +506,7 @@ ast_done(struct atapi_request *request)
     else {
 	if (!(bp->b_flags & B_READ))
 	    stp->flags |= F_DATA_WRITTEN;
-	bp->b_resid = request->bytecount;
+	bp->b_resid = bp->b_bcount - request->donecount;
         ast_total += (bp->b_bcount - bp->b_resid);
     }
     devstat_end_transaction_buf(&stp->stats, bp);
@@ -523,7 +523,7 @@ ast_mode_sense(struct ast_softc *stp, u_int8_t page,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
  
-    error = atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, A_READ, 10, 
+    error = atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, ATPR_F_READ, 10, 
 			    NULL, NULL, NULL);
 #ifdef AST_DEBUG
     atapi_dump("ast: mode sense ", pagebuf, pagesize);
@@ -577,7 +577,7 @@ ast_read_position(struct ast_softc *stp, int32_t hard,
     int32_t error;
 
     error = atapi_queue_cmd(stp->atp, ccb, position, 
-			    sizeof(struct ast_readposition), A_READ, 10,
+			    sizeof(struct ast_readposition), ATPR_F_READ, 10,
 			    NULL, NULL, NULL);
     position->tape = ntohl(position->tape);
     position->host = ntohl(position->host);
