@@ -28,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -39,9 +37,10 @@
 #include <rpcsvc/yppasswd.h>
 #include <netinet/in.h>
 
-#ifndef LINT
-static const char rcsid[] = "$FreeBSD$";
-#endif
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 /*
  * XXX <rpcsvc/yppasswd.h> does a typedef that makes 'yppasswd'

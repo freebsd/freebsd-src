@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: ruserpass.c,v 1.14.2.1 1997/11/18 01:02:05 mellon Exp $	*/
 
 /*

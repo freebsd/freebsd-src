@@ -34,8 +34,6 @@
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
- *
- * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -46,7 +44,8 @@
 #include <rpc/key_prot.h>
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
 
 #ifndef WINDOW

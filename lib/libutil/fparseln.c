@@ -1,5 +1,4 @@
 /*	$NetBSD: fparseln.c,v 1.9 1999/09/20 04:48:06 lukem Exp $	*/
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1997 Christos Zoulas.  All rights reserved.

@@ -1,6 +1,8 @@
+/* $FreeBSD$ */
+
 /*
- * $FreeBSD$
- * $Log: revision.log,v $
+ * $Header: compress.c,v 4.0 85/07/30 12:50:00 joe Release $
+ * $Log:	compress.c,v $
  * Revision 4.0  85/07/30  12:50:00  joe
  * Removed ferror() calls in output routine on every output except first.
  * Prepared for release to the world.
@@ -113,4 +115,4 @@
  */
 
 static char rcs_ident[] =
-  "$FreeBSD$";
+	"$Header: compress.c,v 4.0 85/07/30 12:50:00 joe Release $";

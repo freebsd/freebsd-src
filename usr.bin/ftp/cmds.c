@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $	*/
 
 /*
