@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.76 1999/03/18 04:22:23 jlemon Exp $
+ *	$Id: swtch.s,v 1.77 1999/03/20 18:44:13 alc Exp $
  */
 
 #include "npx.h"
@@ -460,18 +460,25 @@ ENTRY(cpu_switch)
 	movb	%al, P_LASTCPU(%ecx)
 	movb	$0xff, P_ONCPU(%ecx)		/* "leave" the cpu */
 #endif /* SMP */
+	movl	P_VMSPACE(%ecx), %edx
+#ifdef SMP
+	movl	_cpuid, %eax
+#else
+	xorl	%eax, %eax
+#endif /* SMP */
+	btrl	%eax, VM_PMAP+PM_ACTIVE(%edx)
 
-	movl	P_ADDR(%ecx),%ecx
+	movl	P_ADDR(%ecx),%edx
 
 	movl	(%esp),%eax			/* Hardware registers */
-	movl	%eax,PCB_EIP(%ecx)
-	movl	%ebx,PCB_EBX(%ecx)
-	movl	%esp,PCB_ESP(%ecx)
-	movl	%ebp,PCB_EBP(%ecx)
-	movl	%esi,PCB_ESI(%ecx)
-	movl	%edi,PCB_EDI(%ecx)
-	movl	%fs,PCB_FS(%ecx)
-	movl	%gs,PCB_GS(%ecx)
+	movl	%eax,PCB_EIP(%edx)
+	movl	%ebx,PCB_EBX(%edx)
+	movl	%esp,PCB_ESP(%edx)
+	movl	%ebp,PCB_EBP(%edx)
+	movl	%esi,PCB_ESI(%edx)
+	movl	%edi,PCB_EDI(%edx)
+	movl	%fs,PCB_FS(%edx)
+	movl	%gs,PCB_GS(%edx)
 
 #ifdef SMP
 	movl	_mp_lock, %eax
@@ -481,16 +488,15 @@ ENTRY(cpu_switch)
 	je	badsw4				/* yes, bad medicine! */
 #endif /* DIAGNOSTIC */
 	andl	$COUNT_FIELD, %eax		/* clear CPU portion */
-	movl	%eax, PCB_MPNEST(%ecx)		/* store it */
+	movl	%eax, PCB_MPNEST(%edx)		/* store it */
 #endif /* SMP */
 
 #if NNPX > 0
 	/* have we used fp, and need a save? */
-	movl	_curproc,%eax
-	cmpl	%eax,_npxproc
+	cmpl	%ecx,_npxproc
 	jne	1f
-	addl	$PCB_SAVEFPU,%ecx		/* h/w bugs make saving complicated */
-	pushl	%ecx
+	addl	$PCB_SAVEFPU,%edx		/* h/w bugs make saving complicated */
+	pushl	%edx
 	call	_npxsave			/* do it in a big C function */
 	popl	%eax
 1:
@@ -678,6 +684,13 @@ swtch_com:
 	ltr	%si
 3:
 #endif /* VM86 */
+	movl	P_VMSPACE(%ecx), %ebx
+#ifdef SMP
+	movl	_cpuid, %eax
+#else
+	xorl	%eax, %eax
+#endif
+	btsl	%eax, VM_PMAP+PM_ACTIVE(%ebx)
 
 	/* restore context */
 	movl	PCB_EBX(%edx),%ebx

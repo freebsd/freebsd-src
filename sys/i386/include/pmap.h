@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.58 1999/03/02 16:20:39 dg Exp $
+ * 	$Id: pmap.h,v 1.59 1999/03/11 18:28:46 dg Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -199,15 +199,12 @@ struct pmap {
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	int			pm_count;	/* reference count */
-	int			pm_flags;	/* pmap flags */
+	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
 };
 
 #define pmap_resident_count(pmap) (pmap)->pm_stats.resident_count
-
-#define PM_FLAG_LOCKED	0x1
-#define PM_FLAG_WANTED	0x2
 
 typedef struct pmap	*pmap_t;
 
