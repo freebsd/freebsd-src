@@ -227,6 +227,7 @@ ata_completed(void *context, int pending)
 	    ata_prtdev(request->device,
 		       "WARNING - %s UDMA ICRC error (retrying request)\n",
 		       ata_cmd2str(request));
+	    request->flags &= ~ATA_R_SKIPSTART;
 	    ata_queue_request(request);
 	    return;
 	}
@@ -252,7 +253,7 @@ ata_completed(void *context, int pending)
 		    printf("\n");
 	    }
 
-	    /* SOS this could be more precise ? XXX*/
+	    /* SOS this could be more precise ? XXX */
 	    request->result = EIO;
 	}
 	break;
