@@ -1,30 +1,31 @@
 /* Prints out trees in human readable form.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1998,
-   1999 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 /* $FreeBSD$ */
 
-
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "tree.h"
 #include "cp-tree.h"
 
@@ -36,10 +37,7 @@ Boston, MA 02111-1307, USA.  */
 #endif
 
 void
-cxx_print_decl (file, node, indent)
-     FILE *file;
-     tree node;
-     int indent;
+cxx_print_decl (FILE *file, tree node, int indent)
 {
   if (TREE_CODE (node) == FIELD_DECL)
     {
@@ -56,29 +54,20 @@ cxx_print_decl (file, node, indent)
   indent_to (file, indent + 3);
   if (TREE_CODE (node) == FUNCTION_DECL
       && DECL_PENDING_INLINE_INFO (node))
-    {
-      fprintf (file, " pending-inline-info ");
-      fprintf (file, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE DECL_PENDING_INLINE_INFO (node));
-    }
+    fprintf (file, " pending-inline-info " HOST_PTR_PRINTF_FORMAT,
+	     HOST_PTR_PRINTF_TYPE DECL_PENDING_INLINE_INFO (node));
   if (TREE_CODE (node) == TYPE_DECL
       && DECL_SORTED_FIELDS (node))
-    {
-      fprintf (file, " sorted-fields ");
-      fprintf (file, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE DECL_SORTED_FIELDS (node));
-    }
+    fprintf (file, " sorted-fields " HOST_PTR_PRINTF_FORMAT,
+	     HOST_PTR_PRINTF_TYPE DECL_SORTED_FIELDS (node));
   if ((TREE_CODE (node) == FUNCTION_DECL || TREE_CODE (node) == VAR_DECL)
       && DECL_TEMPLATE_INFO (node))
-    {
-      fprintf (file, " template-info ");
-      fprintf (file, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE DECL_TEMPLATE_INFO (node));
-    }
+    fprintf (file, " template-info " HOST_PTR_PRINTF_FORMAT,
+	     HOST_PTR_PRINTF_TYPE DECL_TEMPLATE_INFO (node));
 }
 
 void
-cxx_print_type (file, node, indent)
-     FILE *file;
-     register tree node;
-     int indent;
+cxx_print_type (FILE *file, tree node, int indent)
 {
   switch (TREE_CODE (node))
     {
@@ -86,12 +75,10 @@ cxx_print_type (file, node, indent)
     case TEMPLATE_TEMPLATE_PARM:
     case BOUND_TEMPLATE_TEMPLATE_PARM:
       indent_to (file, indent + 3);
-      fputs ("index ", file);
-      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_TYPE_IDX (node));
-      fputs (" level ", file);
-      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_TYPE_LEVEL (node));
-      fputs (" orig_level ", file);
-      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_TYPE_ORIG_LEVEL (node));
+      fprintf (file, "index " HOST_WIDE_INT_PRINT_DEC " level "
+	       HOST_WIDE_INT_PRINT_DEC " orig_level " HOST_WIDE_INT_PRINT_DEC,
+	       TEMPLATE_TYPE_IDX (node), TEMPLATE_TYPE_LEVEL (node),
+	       TEMPLATE_TYPE_ORIG_LEVEL (node));
       return;
 
     case FUNCTION_TYPE:
@@ -144,12 +131,6 @@ cxx_print_type (file, node, indent)
     fputs (" delete[]", file);
   if (TYPE_HAS_ASSIGN_REF (node))
     fputs (" this=(X&)", file);
-  if (TYPE_OVERLOADS_CALL_EXPR (node))
-    fputs (" op()", file);
-  if (TYPE_OVERLOADS_ARRAY_REF (node))
-    fputs (" op[]", file);
-  if (TYPE_OVERLOADS_ARROW (node))
-    fputs (" op->", file);
   if (TYPE_USES_MULTIPLE_INHERITANCE (node))
     fputs (" uses-multiple-inheritance", file);
 
@@ -166,22 +147,21 @@ cxx_print_type (file, node, indent)
     }
 }
 
+
 static void
 cxx_print_binding (FILE *stream, cxx_binding *binding, const char *prefix)
 {
-  fprintf (stream, "%s <", prefix);
-  fprintf (stream, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE binding);
-  fprintf (stream, ">");
+  fprintf (stream, "%s <" HOST_PTR_PRINTF_FORMAT ">",
+	   prefix, HOST_PTR_PRINTF_TYPE binding);
 }
 
 void
-cxx_print_identifier (file, node, indent)
-     FILE *file;
-     tree node;
-     int indent;
+cxx_print_identifier (FILE *file, tree node, int indent)
 {
+  indent_to (file, indent);
   cxx_print_binding (file, IDENTIFIER_NAMESPACE_BINDINGS (node), "bindings");
   print_node (file, "class", IDENTIFIER_CLASS_VALUE (node), indent + 4);
+  indent_to (file, indent);
   cxx_print_binding (file, IDENTIFIER_BINDING (node), "local bindings");
   print_node (file, "label", IDENTIFIER_LABEL_VALUE (node), indent + 4);
   print_node (file, "template", IDENTIFIER_TEMPLATE (node), indent + 4);
@@ -190,10 +170,7 @@ cxx_print_identifier (file, node, indent)
 }
 
 void
-cxx_print_xnode (file, node, indent)
-     FILE *file;
-     tree node;
-     int indent;
+cxx_print_xnode (FILE *file, tree node, int indent)
 {
   switch (TREE_CODE (node))
     {
@@ -203,12 +180,10 @@ cxx_print_xnode (file, node, indent)
       break;
     case TEMPLATE_PARM_INDEX:
       indent_to (file, indent + 3);
-      fputs ("index ", file);
-      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_PARM_IDX (node));
-      fputs (" level ", file);
-      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_PARM_LEVEL (node));
-      fputs (" orig_level ", file);
-      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_PARM_ORIG_LEVEL (node));
+      fprintf (file, "index " HOST_WIDE_INT_PRINT_DEC " level "
+	       HOST_WIDE_INT_PRINT_DEC " orig_level " HOST_WIDE_INT_PRINT_DEC,
+	       TEMPLATE_PARM_IDX (node), TEMPLATE_PARM_LEVEL (node),
+	       TEMPLATE_PARM_ORIG_LEVEL (node));
       break;
     default:
       break;
