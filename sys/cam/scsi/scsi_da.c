@@ -500,14 +500,12 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 	struct scsi_read_capacity_data *rcap;
 	union  ccb *ccb;
 	int unit;
-	int part;
 	int error;
 	int s;
 
-	unit = dkunit(dev);
-	part = dkpart(dev);
 	s = splsoftcam();
 	periph = (struct cam_periph *)dev->si_drv1;
+	unit = periph->unit_number;
 	if (periph == NULL) {
 		splx(s);
 		return (ENXIO);	
@@ -516,8 +514,8 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 	softc = (struct da_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("daopen: dev=%s (unit %d , partition %d)\n", devtoname(dev),
-	     unit, part));
+	    ("daopen: dev=%s (unit %d)\n", devtoname(dev),
+	     unit));
 
 	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0)
 		return (error); /* error code from tsleep */
