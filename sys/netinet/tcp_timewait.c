@@ -372,7 +372,7 @@ tcpip_maketemplate(inp)
 
 /*
  * Send a single message to the TCP at address specified by
- * the given TCP/IP header.  If m == 0, then we make a copy
+ * the given TCP/IP header.  If m == NULL, then we make a copy
  * of the tcpiphdr at ti and send directly to the addressed host.
  * This is used to force keep alive messages out using the TCP
  * template for a connection.  If flags are given then we send
@@ -423,7 +423,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 				win = (long)TCP_MAXWIN << tp->rcv_scale;
 		}
 	}
-	if (m == 0) {
+	if (m == NULL) {
 		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == NULL)
 			return;
@@ -446,7 +446,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		flags = TH_ACK;
 	} else {
 		m_freem(m->m_next);
-		m->m_next = 0;
+		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
 		/* m_len is set later */
 		tlen = 0;
@@ -492,7 +492,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
       }
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
-	m->m_pkthdr.rcvif = (struct ifnet *) 0;
+	m->m_pkthdr.rcvif = NULL;
 #ifdef MAC
 	if (inp != NULL) {
 		/*
@@ -513,7 +513,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	nth->th_x2 = 0;
 	nth->th_off = sizeof (struct tcphdr) >> 2;
 	nth->th_flags = flags;
-	if (tp)
+	if (tp != NULL)
 		nth->th_win = htons((u_short) (win >> tp->rcv_scale));
 	else
 		nth->th_win = htons((u_short)win);
@@ -524,7 +524,8 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		nth->th_sum = in6_cksum(m, IPPROTO_TCP,
 					sizeof(struct ip6_hdr),
 					tlen - sizeof(struct ip6_hdr));
-		ip6->ip6_hlim = in6_selecthlim(tp ? tp->t_inpcb : NULL, NULL);
+		ip6->ip6_hlim = in6_selecthlim(tp != NULL ? tp->t_inpcb :
+		    NULL, NULL);
 	} else
 #endif /* INET6 */
       {
@@ -745,7 +746,7 @@ tcp_close(tp)
 #endif
 		in_pcbdetach(inp);
 	tcpstat.tcps_closed++;
-	return ((struct tcpcb *)0);
+	return (NULL);
 }
 
 void
@@ -770,7 +771,7 @@ tcp_drain()
 			if (inpb->inp_vflag & INP_TIMEWAIT)
 				continue;
 			INP_LOCK(inpb);
-			if ((tcpb = intotcpcb(inpb))) {
+			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				while ((te = LIST_FIRST(&tcpb->t_segq))
 			            != NULL) {
 					LIST_REMOVE(te, tqe_q);
@@ -839,14 +840,14 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * The process of preparing the TCB list is too time-consuming and
 	 * resource-intensive to repeat twice on every request.
 	 */
-	if (req->oldptr == 0) {
+	if (req->oldptr == NULL) {
 		n = tcbinfo.ipi_count;
 		req->oldidx = 2 * (sizeof xig)
 			+ (n + n/8) * sizeof(struct xtcpcb);
 		return 0;
 	}
 
-	if (req->newptr != 0)
+	if (req->newptr != NULL)
 		return EPERM;
 
 	/*
@@ -873,12 +874,12 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == 0)
+	if (inp_list == NULL)
 		return ENOMEM;
 	
 	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
-	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp && i < n;
+	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp != NULL && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
@@ -919,7 +920,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				xt.xt_tp.t_state = TCPS_TIME_WAIT;
 			} else
 				bcopy(inp_ppcb, &xt.xt_tp, sizeof xt.xt_tp);
-			if (inp->inp_socket)
+			if (inp->inp_socket != NULL)
 				sotoxsocket(inp->inp_socket, &xt.xt_socket);
 			else {
 				bzero(&xt.xt_socket, sizeof xt.xt_socket);
@@ -1099,10 +1100,10 @@ tcp_ctlinput(cmd, sa, vip)
 	 * excellent DoS attack on machines with many connections.
 	 */
 	else if (cmd == PRC_HOSTDEAD)
-		ip = 0;
+		ip = NULL;
 	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
-	if (ip) {
+	if (ip != NULL) {
 		s = splnet();
 		th = (struct tcphdr *)((caddr_t)ip 
 				       + (ip->ip_hl << 2));
@@ -1118,7 +1119,7 @@ tcp_ctlinput(cmd, sa, vip)
 			    		SEQ_LT(icmp_seq, tp->snd_max))
 					inp = (*notify)(inp, inetctlerrmap[cmd]);
 			}
-			if (inp)
+			if (inp != NULL)
 				INP_UNLOCK(inp);
 		} else {
 			struct in_conninfo inc;
@@ -1183,7 +1184,7 @@ tcp6_ctlinput(cmd, sa, d)
 		sa6_src = &sa6_any;
 	}
 
-	if (ip6) {
+	if (ip6 != NULL) {
 		struct in_conninfo inc;
 		/*
 		 * XXX: We assume that when IPV6 is non NULL,
@@ -1300,7 +1301,7 @@ tcp_quench(inp, errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
-	if (tp)
+	if (tp != NULL)
 		tp->snd_cwnd = tp->t_maxseg;
 	return (inp);
 }
@@ -1346,7 +1347,7 @@ tcp_mtudisc(inp, errno)
 #endif /* INET6 */
 	bzero(&tao, sizeof(tao));
 
-	if (tp) {
+	if (tp != NULL) {
 		maxmtu = tcp_hc_getmtu(&inp->inp_inc); /* IPv4 and IPv6 */
 		romtu =
 #ifdef INET6
