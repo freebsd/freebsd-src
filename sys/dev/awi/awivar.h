@@ -220,19 +220,3 @@ int awi_wep_setalgo __P((struct awi_softc *, int));
 int awi_wep_setkey __P((struct awi_softc *, int, unsigned char *, int));
 int awi_wep_getkey __P((struct awi_softc *, int, unsigned char *, int *));
 struct mbuf *awi_wep_encrypt __P((struct awi_softc *, struct mbuf *, int));
-
-#ifdef __FreeBSD__
-/* Provide mem* for compat with NetBSD to fix LINT */
-static __inline int
-memcmp(const void *b1, const void *b2, size_t len)
-{
-	return (bcmp(b1, b2, len));
-}
-
-static __inline void *
-memset(void *b, int c, size_t len)
-{
-	bzero(b, len);
-	return (b);
-}
-#endif
