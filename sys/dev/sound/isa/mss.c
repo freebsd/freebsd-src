@@ -586,7 +586,7 @@ static int
 mss_detect(device_t dev, struct mss_info *mss)
 {
     	int          i;
-    	u_char       tmp, tmp1, tmp2;
+    	u_char       tmp = 0, tmp1, tmp2;
     	char        *name, *yamaha;
 
     	if (mss->bd_id != 0) {
@@ -1068,34 +1068,31 @@ ad_write_cnt(struct mss_info *mss, int reg, u_short cnt)
 static void
 wait_for_calibration(struct mss_info *mss)
 {
-    	int n, t;
+    	int t;
 
     	/*
-     	* Wait until the auto calibration process has finished.
-     	*
-     	* 1) Wait until the chip becomes ready (reads don't return 0x80).
-     	* 2) Wait until the ACI bit of I11 gets on
-     	* 3) Wait until the ACI bit of I11 gets off
-     	*/
+     	 * Wait until the auto calibration process has finished.
+     	 *
+     	 * 1) Wait until the chip becomes ready (reads don't return 0x80).
+     	 * 2) Wait until the ACI bit of I11 gets on
+     	 * 3) Wait until the ACI bit of I11 gets off
+     	 */
 
-    	n = ad_wait_init(mss, 1000);
-    	if (n & MSS_IDXBUSY) printf("mss: Auto calibration timed out(1).\n");
+    	t = ad_wait_init(mss, 1000);
+    	if (t & MSS_IDXBUSY) printf("mss: Auto calibration timed out(1).\n");
 
 	/*
-	 * There is no guarantee that we'll ever see ACI go on,
-	 * calibration may finish before we get here.
-	 *
-	 * XXX Are there docs that even state that it might ever be
-	 * visible off before calibration starts using any chip?
+	 * The calibration mode for chips that support it is set so that
+	 * we never see ACI go on.
 	 */
-	if (mss->bd_id == MD_GUSMAX) {
-		/* 10 ms of busy-waiting is not reasonable normal behavior */
-		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--)
-			;
-		if (t > 0 && t != 100)
-			printf("debug: ACI turned on: t = %d\n", t);
+	if (mss->bd_id == MD_GUSMAX || mss->bd_id == MD_GUSPNP) {
+		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--);
 	} else {
-		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--) DELAY(100);
+       		/*
+		 * XXX This should only be enabled for cards that *really*
+		 * need it.  Are there any?
+		 */
+  		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--) DELAY(100);
 	}
     	for (t = 100; t > 0 && ad_read(mss, 11) & 0x20; t--) DELAY(100);
 }
