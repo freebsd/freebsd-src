@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.9 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: nlpt.c,v 1.10 1998/09/20 14:41:54 nsouch Exp $
  */
 
 /*
@@ -84,9 +84,13 @@
 #include <dev/ppbus/nlpt.h>
 
 #ifndef NLPT_DEBUG
-#define nlprintf (void)
+#define nlprintf(args)
 #else
-#define nlprintf		if (nlptflag) printf
+#define nlprintf(args)						\
+		do {						\
+			if (nlptflag)				\
+				printf args;			\
+		} while (0)
 static int volatile nlptflag = 1;
 #endif
 
@@ -207,7 +211,7 @@ nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
 		temp = ppb_rdtr(&sc->lpt_dev) & mask;
 	}
 	while (temp != data && --timeout);
-	nlprintf("out=%x\tin=%x\ttout=%d\n", data, temp, timeout);
+	nlprintf(("out=%x\tin=%x\ttout=%d\n", data, temp, timeout));
 	return (temp == data);
 }
 
@@ -368,15 +372,15 @@ nlptattach(struct ppb_device *dev)
 	ppb_wctr(&sc->lpt_dev, LPC_NINIT);
 
 	/* check if we can use interrupt, should be done by ppc stuff */
-	nlprintf("oldirq %x\n", sc->sc_irq);
+	nlprintf(("oldirq %x\n", sc->sc_irq));
 	if (ppb_get_irq(&sc->lpt_dev)) {
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		printf(LPT_NAME "%d: Interrupt-driven port\n", dev->id_unit);
 	} else {
 		sc->sc_irq = 0;
-		nlprintf(LPT_NAME "%d: Polled port\n", dev->id_unit);
+		nlprintf((LPT_NAME "%d: Polled port\n", dev->id_unit));
 	}
-	nlprintf("irq %x\n", sc->sc_irq);
+	nlprintf(("irq %x\n", sc->sc_irq));
 
 	lpt_release_ppbus(sc);
 
@@ -398,7 +402,7 @@ nlptout(void *arg)
 	struct lpt_data *sc = arg;
 	int pl;
 
-	nlprintf ("T %x ", ppb_rstr(&sc->lpt_dev));
+	nlprintf(("T %x ", ppb_rstr(&sc->lpt_dev)));
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
@@ -444,7 +448,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	sc = lptdata[unit];
 
 	if (sc->sc_state) {
-		nlprintf(LPT_NAME ": still open %x\n", sc->sc_state);
+		nlprintf((LPT_NAME ": still open %x\n", sc->sc_state));
 		return(EBUSY);
 	} else
 		sc->sc_state |= LPTINIT;
@@ -463,7 +467,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return (EINTR);
 
 	s = spltty();
-	nlprintf(LPT_NAME " flags 0x%x\n", sc->sc_flags);
+	nlprintf((LPT_NAME " flags 0x%x\n", sc->sc_flags));
 
 	/* set IRQ status according to ENABLE_IRQ flag */
 	if (sc->sc_irq & LP_ENABLE_IRQ)
@@ -489,7 +493,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		if (trys++ >= LPINITRDY*4) {
 			splx(s);
 			sc->sc_state = 0;
-			nlprintf ("status %x\n", ppb_rstr(&sc->lpt_dev) );
+			nlprintf(("status %x\n", ppb_rstr(&sc->lpt_dev)));
 
 			lpt_release_ppbus(sc);
 			return (EBUSY);
@@ -529,14 +533,14 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	lpt_release_ppbus(sc);
 
 	/* only use timeout if using interrupt */
-	nlprintf("irq %x\n", sc->sc_irq);
+	nlprintf(("irq %x\n", sc->sc_irq));
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
 		timeout(nlptout, (caddr_t)sc,
 			 (sc->sc_backoff = hz/LPTOUTINITIAL));
 	}
 
-	nlprintf("opened.\n");
+	nlprintf(("opened.\n"));
 	return(0);
 }
 
@@ -580,7 +584,7 @@ end_close:
 
 	sc->sc_state = 0;
 	sc->sc_xfercnt = 0;
-	nlprintf("closed.\n");
+	nlprintf(("closed.\n"));
 	return(0);
 }
 
@@ -598,7 +602,7 @@ nlpt_pushbytes(struct lpt_data *sc)
 	int spin, err, tic;
 	char ch;
 
-	nlprintf("p");
+	nlprintf(("p"));
 	/* loop for every character .. */
 	while (sc->sc_xfercnt > 0) {
 		/* printer data */
@@ -674,16 +678,16 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
 		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
-			nlprintf("i");
+			nlprintf(("i"));
 			/* if the printer is ready for a char, */
 			/* give it one */
 			if ((sc->sc_state & OBUSY) == 0){
-				nlprintf("\nC %d. ", sc->sc_xfercnt);
+				nlprintf(("\nC %d. ", sc->sc_xfercnt));
 				pl = spltty();
 				nlpt_intr(sc->lpt_unit);
 				(void) splx(pl);
 			}
-			nlprintf("W ");
+			nlprintf(("W "));
 			if (sc->sc_state & OBUSY)
 				if ((err = tsleep((caddr_t)sc,
 					 LPPRI|PCATCH, LPT_NAME "write", 0))) {
@@ -693,7 +697,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 		}
 		/* check to see if we must do a polled write */
 		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
-			nlprintf("p");
+			nlprintf(("p"));
 
 			err = nlpt_pushbytes(sc);
 
@@ -741,7 +745,7 @@ nlpt_intr(int unit)
 
 		if (sc->sc_xfercnt) {
 			/* send char */
-			/*nlprintf("%x ", *sc->sc_cp); */
+			/*nlprintf(("%x ", *sc->sc_cp)); */
 			ppb_wdtr(&sc->lpt_dev, *sc->sc_cp++) ;
 			ppb_wctr(&sc->lpt_dev, sc->sc_control|LPC_STB);
 			/* DELAY(X) */
@@ -759,7 +763,7 @@ nlpt_intr(int unit)
 
 		if(!(sc->sc_state & INTERRUPTED))
 			wakeup((caddr_t)sc);
-		nlprintf("w ");
+		nlprintf(("w "));
 		return;
 	} else	{	/* check for error */
 		if(((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
@@ -767,7 +771,7 @@ nlpt_intr(int unit)
 			sc->sc_state |= EERROR;
 		/* nlptout() will jump in and try to restart. */
 	}
-	nlprintf("sts %x ", sts);
+	nlprintf(("sts %x ", sts));
 }
 
 static void
