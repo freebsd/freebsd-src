@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include "un-namespace.h"
 #include "libc_private.h"
+#include "local.h"
 
 int
 fscanf(FILE * __restrict fp, char const * __restrict fmt, ...)

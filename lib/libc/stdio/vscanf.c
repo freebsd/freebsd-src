@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include "un-namespace.h"
 #include "libc_private.h"
+#include "local.h"
 
 int
 vscanf(fmt, ap)
