@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	sync
-MAN8=	sync.8
+MAN=	sync.8
 
 .include <bsd.prog.mk>

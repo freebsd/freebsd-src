@@ -29,7 +29,6 @@ SRCS+=	tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
 GENHDRS= ed.defns.h sh.err.h tc.const.h tc.defs.c
 SRCS+=	${GENHDRS}
 
-MAN1=	csh.1
 MLINKS= csh.1 tcsh.1
 # MLINKS for Shell built in commands for which there are no userland
 # utilities of the same name are handled with the associated manpage,
