@@ -63,7 +63,7 @@ dumpsys(struct dumperinfo *di)
 
 	/* Fill in the kernel dump header */
 	strcpy(kdh.magic, KERNELDUMPMAGIC);
-	strcpy(kdh.architecture, "i386");
+	strcpy(kdh.architecture, "amd64");
 	kdh.version = htod32(KERNELDUMPVERSION);
 	kdh.architectureversion = htod32(KERNELDUMP_I386_VERSION);
 	kdh.dumplength = htod64(Maxmem * (off_t)PAGE_SIZE);

@@ -84,15 +84,9 @@
  * Macros for specifying values to be written into a mode register.
  */
 #define	TIMER_CNTR0	(IO_TIMER1 + 0)	/* timer 0 counter port */
-#ifdef PC98
-#define	TIMER_CNTR1	0x3fdb		/* timer 1 counter port */
-#define	TIMER_CNTR2	(IO_TIMER1 + 4)	/* timer 2 counter port */
-#define	TIMER_MODE	(IO_TIMER1 + 6)	/* timer mode port */
-#else
 #define	TIMER_CNTR1	(IO_TIMER1 + 1)	/* timer 1 counter port */
 #define	TIMER_CNTR2	(IO_TIMER1 + 2)	/* timer 2 counter port */
 #define	TIMER_MODE	(IO_TIMER1 + 3)	/* timer mode port */
-#endif
 #define		TIMER_SEL0	0x00	/* select counter 0 */
 #define		TIMER_SEL1	0x40	/* select counter 1 */
 #define		TIMER_SEL2	0x80	/* select counter 2 */

@@ -37,69 +37,44 @@ typedef struct __mcontext {
 	 * sigcontext. So that we can support sigcontext
 	 * and ucontext_t at the same time.
 	 */
-	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;			/* machine state (struct trapframe) */
-	int	mc_fs;
-	int	mc_es;
-	int	mc_ds;
-	int	mc_edi;
-	int	mc_esi;
-	int	mc_ebp;
-	int	mc_isp;
-	int	mc_ebx;
-	int	mc_edx;
-	int	mc_ecx;
-	int	mc_eax;
-	int	mc_trapno;
-	int	mc_err;
-	int	mc_eip;
-	int	mc_cs;
-	int	mc_eflags;
-	int	mc_esp;
-	int	mc_ss;
+	register_t	mc_onstack;		/* XXX - sigcontext compat. */
+	register_t	mc_r15;			/* machine state (struct trapframe) */
+	register_t	mc_r14;
+	register_t	mc_r13;
+	register_t	mc_r12;
+	register_t	mc_r11;
+	register_t	mc_r10;
+	register_t	mc_r9;
+	register_t	mc_r8;
+	register_t	mc_rdi;
+	register_t	mc_rsi;
+	register_t	mc_rbp;
+	register_t	mc_rbx;
+	register_t	mc_rdx;
+	register_t	mc_rcx;
+	register_t	mc_rax;
+	register_t	mc_trapno;
+	register_t	mc_err;
+	register_t	mc_rip;
+	register_t	mc_cs;
+	register_t	mc_rflags;
+	register_t	mc_rsp;
+	register_t	mc_ss;
 
-	int	mc_len;			/* sizeof(mcontext_t) */
+	long	mc_len;			/* sizeof(mcontext_t) */
 #define	_MC_FPFMT_NODEV		0x10000	/* device not present or configured */
-#define	_MC_FPFMT_387		0x10001
 #define	_MC_FPFMT_XMM		0x10002
-	int	mc_fpformat;
+	long	mc_fpformat;
 #define	_MC_FPOWNED_NONE	0x20000	/* FP state not used */
 #define	_MC_FPOWNED_FPU		0x20001	/* FP state came from FPU */
 #define	_MC_FPOWNED_PCB		0x20002	/* FP state came from PCB */
-	int	mc_ownedfp;
-	int	mc_spare1[1];		/* align next field to 16 bytes */
+	long	mc_ownedfp;
+	long	mc_spare1[1];		/* align next field to 16 bytes */
 	/*
 	 * See <machine/npx.h> for the internals of mc_fpstate[].
 	 */
-	int	mc_fpstate[128] __aligned(16);
-	int	mc_spare2[8];
+	long	mc_fpstate[128] __aligned(16);
+	long	mc_spare2[8];
 } mcontext_t;
-
-#if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
-struct mcontext4 {
-	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;			/* machine state (struct trapframe) */
-	int	mc_fs;
-	int	mc_es;
-	int	mc_ds;
-	int	mc_edi;
-	int	mc_esi;
-	int	mc_ebp;
-	int	mc_isp;
-	int	mc_ebx;
-	int	mc_edx;
-	int	mc_ecx;
-	int	mc_eax;
-	int	mc_trapno;
-	int	mc_err;
-	int	mc_eip;
-	int	mc_cs;
-	int	mc_eflags;
-	int	mc_esp;			/* machine state */
-	int	mc_ss;
-	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
-	int	__spare__[17];
-};
-#endif
 
 #endif /* !_MACHINE_UCONTEXT_H_ */

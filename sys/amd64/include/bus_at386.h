@@ -92,31 +92,23 @@
 /*
  * Bus address and size types
  */
-#ifdef PAE
 typedef uint64_t bus_addr_t;
-#else
-typedef uint32_t bus_addr_t;
-#endif
-typedef uint32_t bus_size_t;
+typedef uint64_t bus_size_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE	0xFFFFFFFF
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
-#ifdef PAE
 #define BUS_SPACE_MAXADDR	0xFFFFFFFFFFFFFFFFULL
-#else
-#define BUS_SPACE_MAXADDR	0xFFFFFFFF
-#endif
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
 /*
  * Access methods for bus resources and address space.
  */
-typedef	int bus_space_tag_t;
-typedef	u_int bus_space_handle_t;
+typedef	uint64_t bus_space_tag_t;
+typedef	uint64_t bus_space_handle_t;
 
 /*
  * Map a region of device bus space into CPU virtual address space.
@@ -1215,7 +1207,7 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 {
 #ifdef	__GNUC__
 	if (flags & BUS_SPACE_BARRIER_READ)
-		__asm __volatile("lock; addl $0,0(%%esp)" : : : "memory");
+		__asm __volatile("lock; addl $0,0(%%rsp)" : : : "memory");
 	else
 		__asm __volatile("" : : : "memory");
 #endif

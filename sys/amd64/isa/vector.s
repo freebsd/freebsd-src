@@ -3,37 +3,9 @@
  * $FreeBSD$
  */
 
-/*
- * modified for PC98 by Kakefuda
- */
-
-#include "opt_auto_eoi.h"
-
-#include <i386/isa/icu.h>
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/intr_machdep.h>
-
-#define FAST_INTR_HANDLER_USES_ES 1
-#ifdef FAST_INTR_HANDLER_USES_ES
-#define	ACTUALLY_PUSHED		1
-#define	MAYBE_MOVW_AX_ES	movw	%ax,%es
-#define	MAYBE_POPL_ES		popl	%es
-#define	MAYBE_PUSHL_ES		pushl	%es
-#else
-/*
- * We can usually skip loading %es for fastintr handlers.  %es should
- * only be used for string instructions, and fastintr handlers shouldn't
- * do anything slow enough to justify using a string instruction.
- */
-#define	ACTUALLY_PUSHED		0
-#define	MAYBE_MOVW_AX_ES
-#define	MAYBE_POPL_ES
-#define	MAYBE_PUSHL_ES
-#endif
+#include <amd64/isa/icu.h>
+#include <amd64/isa/isa.h>
+#include <amd64/isa/intr_machdep.h>
 
 	.data
 	ALIGN_DATA
@@ -47,12 +19,12 @@
 
 	.globl	intrcnt, eintrcnt
 intrcnt:
-	.space	INTRCNT_COUNT * 4
+	.space	INTRCNT_COUNT * 8
 eintrcnt:
 
 	.globl	intrnames, eintrnames
 intrnames:
-	.space	INTRCNT_COUNT * 16
+	.space	INTRCNT_COUNT * 32
 eintrnames:
 	.text
 
@@ -101,8 +73,4 @@ eintrnames:
  * loading segregs.
  */
 
-#ifdef APIC_IO
-#include "i386/isa/apic_vector.s"
-#else
-#include "i386/isa/icu_vector.s"
-#endif  /* APIC_IO */
+#include "amd64/isa/icu_vector.s"

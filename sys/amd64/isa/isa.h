@@ -37,10 +37,6 @@
  * $FreeBSD$
  */
 
-#ifdef PC98
-#error isa.h is included from PC-9801 source
-#endif
-
 #ifndef _I386_ISA_ISA_H_
 #define	_I386_ISA_ISA_H_
 
@@ -151,7 +147,6 @@
 #define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
 #define	IO_DMASIZE	16		/* 8237 DMA controllers */
 #define	IO_DPGSIZE	32		/* 74LS612 DMA page registers */
-#define	IO_EISASIZE	256		/* EISA controllers */
 #define	IO_FDCSIZE	8		/* Nec765 floppy controllers */
 #define	IO_GAMSIZE	16		/* AT compatible game controllers */
 #define	IO_GSCSIZE	8		/* GeniScan GS-4500G hand scanner */
@@ -168,33 +163,5 @@
 #define	IO_WDCSIZE	8		/* WD compatible disk controllers */
 
 #endif /* !IO_ISASIZES */
-
-/*
- * Input / Output Memory Physical Addresses
- */
-#ifndef	IOM_BEGIN
-#define	IOM_BEGIN	0x0A0000	/* Start of I/O Memory "hole" */
-#define	IOM_END		0x100000	/* End of I/O Memory "hole" */
-#define	IOM_SIZE	(IOM_END - IOM_BEGIN)
-#endif /* !IOM_BEGIN */
-
-/*
- * RAM Physical Address Space (ignoring the above mentioned "hole")
- */
-#ifndef	RAM_BEGIN
-#define	RAM_BEGIN	0x0000000	/* Start of RAM Memory */
-#define	RAM_END		0x1000000	/* End of RAM Memory */
-#define	RAM_SIZE	(RAM_END - RAM_BEGIN)
-#endif /* !RAM_BEGIN */
-
-/*
- * Oddball Physical Memory Addresses
- */
-#ifndef	COMPAQ_RAMRELOC
-#define	COMPAQ_RAMRELOC	0x80C00000	/* Compaq RAM relocation/diag */
-#define	COMPAQ_RAMSETUP	0x80C00002	/* Compaq RAM setup */
-#define	WEITEK_FPU	0xC0000000	/* WTL 2167 */
-#define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
-#endif /* !COMPAQ_RAMRELOC */
 
 #endif /* !_I386_ISA_ISA_H_ */

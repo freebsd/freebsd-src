@@ -42,8 +42,7 @@
 #define	_MACHINE_SEGMENTS_H_
 
 /*
- * 386 Segmentation Data Structures and definitions
- *	William F. Jolitz (william@ernie.berkeley.edu) 6/20/1989
+ * AMD64 Segmentation Data Structures and definitions
  */
 
 /*
@@ -60,60 +59,66 @@
 #define	GSEL(s,r)	(((s)<<3) | r)			/* a global selector */
 
 /*
- * Memory and System segment descriptors
+ * User segment descriptors (%cs, %ds etc for compatability apps. 64 bit wide)
+ * For long-mode apps, %cs only has the conforming bit in sd_type, the sd_dpl,
+ * sd_p, sd_l and sd_def32 which must be zero).  %ds only has sd_p.
  */
-struct	segment_descriptor	{
-	unsigned sd_lolimit:16 ;	/* segment extent (lsb) */
-	unsigned sd_lobase:24 __packed;	/* segment base address (lsb) */
-	unsigned sd_type:5 ;		/* segment type */
-	unsigned sd_dpl:2 ;		/* segment descriptor priority level */
-	unsigned sd_p:1 ;		/* segment descriptor present */
-	unsigned sd_hilimit:4 ;		/* segment extent (msb) */
-	unsigned sd_xx:2 ;		/* unused */
-	unsigned sd_def32:1 ;		/* default 32 vs 16 bit size */
-	unsigned sd_gran:1 ;		/* limit granularity (byte/page units)*/
-	unsigned sd_hibase:8 ;		/* segment base address  (msb) */
-} ;
+struct	user_segment_descriptor {
+	u_int64_t sd_lolimit:16;	/* segment extent (lsb) */
+	u_int64_t sd_lobase:24;		/* segment base address (lsb) */
+	u_int64_t sd_type:5;		/* segment type */
+	u_int64_t sd_dpl:2;		/* segment descriptor priority level */
+	u_int64_t sd_p:1;		/* segment descriptor present */
+	u_int64_t sd_hilimit:4;		/* segment extent (msb) */
+	u_int64_t sd_xx:1;		/* unused */
+	u_int64_t sd_long:1;		/* long mode (cs only) */
+	u_int64_t sd_def32:1;		/* default 32 vs 16 bit size */
+	u_int64_t sd_gran:1;		/* limit granularity (byte/page units)*/
+	u_int64_t sd_hibase:8;		/* segment base address  (msb) */
+} __packed;
 
 /*
- * Gate descriptors (e.g. indirect descriptors)
+ * System segment descriptors (128 bit wide)
  */
-struct	gate_descriptor	{
-	unsigned gd_looffset:16 ;	/* gate offset (lsb) */
-	unsigned gd_selector:16 ;	/* gate segment selector */
-	unsigned gd_stkcpy:5 ;		/* number of stack wds to cpy */
-	unsigned gd_xx:3 ;		/* unused */
-	unsigned gd_type:5 ;		/* segment type */
-	unsigned gd_dpl:2 ;		/* segment descriptor priority level */
-	unsigned gd_p:1 ;		/* segment descriptor present */
-	unsigned gd_hioffset:16 ;	/* gate offset (msb) */
-} ;
+struct	system_segment_descriptor {
+	u_int64_t sd_lolimit:16;	/* segment extent (lsb) */
+	u_int64_t sd_lobase:24;		/* segment base address (lsb) */
+	u_int64_t sd_type:5;		/* segment type */
+	u_int64_t sd_dpl:2;		/* segment descriptor priority level */
+	u_int64_t sd_p:1;		/* segment descriptor present */
+	u_int64_t sd_hilimit:4;		/* segment extent (msb) */
+	u_int64_t sd_xx0:3;		/* unused */
+	u_int64_t sd_gran:1;		/* limit granularity (byte/page units)*/
+	u_int64_t sd_hibase:40 __packed;/* segment base address  (msb) */
+	u_int64_t sd_xx1:8;
+	u_int64_t sd_mbz:5;		/* MUST be zero */
+	u_int64_t sd_xx2:19;
+} __packed;
 
 /*
- * Generic descriptor
+ * Gate descriptors (e.g. indirect descriptors, trap, interrupt etc. 128 bit)
+ * Only interrupt and trap gates have gd_ist.
  */
-union	descriptor	{
-	struct	segment_descriptor sd;
-	struct	gate_descriptor gd;
-};
+struct	gate_descriptor {
+	u_int64_t gd_looffset:16;	/* gate offset (lsb) */
+	u_int64_t gd_selector:16;	/* gate segment selector */
+	u_int64_t gd_ist:3;		/* IST table index */
+	u_int64_t gd_xx:5;		/* unused */
+	u_int64_t gd_type:5;		/* segment type */
+	u_int64_t gd_dpl:2;		/* segment descriptor priority level */
+	u_int64_t gd_p:1;		/* segment descriptor present */
+	u_int64_t gd_hioffset:48 __packed;	/* gate offset (msb) */
+	u_int64_t sd_xx1:32;
+} __packed;
 
 	/* system segments and gate types */
 #define	SDT_SYSNULL	 0	/* system null */
-#define	SDT_SYS286TSS	 1	/* system 286 TSS available */
-#define	SDT_SYSLDT	 2	/* system local descriptor table */
-#define	SDT_SYS286BSY	 3	/* system 286 TSS busy */
-#define	SDT_SYS286CGT	 4	/* system 286 call gate */
-#define	SDT_SYSTASKGT	 5	/* system task gate */
-#define	SDT_SYS286IGT	 6	/* system 286 interrupt gate */
-#define	SDT_SYS286TGT	 7	/* system 286 trap gate */
-#define	SDT_SYSNULL2	 8	/* system null again */
-#define	SDT_SYS386TSS	 9	/* system 386 TSS available */
-#define	SDT_SYSNULL3	10	/* system null again */
-#define	SDT_SYS386BSY	11	/* system 386 TSS busy */
-#define	SDT_SYS386CGT	12	/* system 386 call gate */
-#define	SDT_SYSNULL4	13	/* system null again */
-#define	SDT_SYS386IGT	14	/* system 386 interrupt gate */
-#define	SDT_SYS386TGT	15	/* system 386 trap gate */
+#define	SDT_SYSLDT	 2	/* system 64 bit local descriptor table */
+#define	SDT_SYSTSS	 9	/* system available 64 bit TSS */
+#define	SDT_SYSBSY	11	/* system busy 64 bit TSS */
+#define	SDT_SYSCGT	12	/* system 64 bit call gate */
+#define	SDT_SYSIGT	14	/* system 64 bit interrupt gate */
+#define	SDT_SYSTGT	15	/* system 64 bit trap gate */
 
 	/* memory segment types */
 #define	SDT_MEMRO	16	/* memory read only */
@@ -139,45 +144,29 @@ union	descriptor	{
  * when needed to be used by the 386 hardware
  */
 
-struct	soft_segment_descriptor	{
-	unsigned ssd_base ;		/* segment base address  */
-	unsigned ssd_limit ;		/* segment extent */
-	unsigned ssd_type:5 ;		/* segment type */
-	unsigned ssd_dpl:2 ;		/* segment descriptor priority level */
-	unsigned ssd_p:1 ;		/* segment descriptor present */
-	unsigned ssd_xx:4 ;		/* unused */
-	unsigned ssd_xx1:2 ;		/* unused */
-	unsigned ssd_def32:1 ;		/* default 32 vs 16 bit size */
-	unsigned ssd_gran:1 ;		/* limit granularity (byte/page units)*/
-};
+struct	soft_segment_descriptor {
+	unsigned long ssd_base;		/* segment base address  */
+	unsigned long ssd_limit;	/* segment extent */
+	unsigned long ssd_type:5;	/* segment type */
+	unsigned long ssd_dpl:2;	/* segment descriptor priority level */
+	unsigned long ssd_p:1;		/* segment descriptor present */
+	unsigned long ssd_long:1;	/* long mode (for %cs) */
+	unsigned long ssd_def32:1;	/* default 32 vs 16 bit size */
+	unsigned long ssd_gran:1;	/* limit granularity (byte/page units)*/
+} __packed;
 
 /*
  * region descriptors, used to load gdt/idt tables before segments yet exist.
  */
 struct region_descriptor {
-	unsigned rd_limit:16;		/* segment extent */
-	unsigned rd_base:32 __packed;	/* base address  */
-};
-
-/*
- * Segment Protection Exception code bits
- */
-
-#define	SEGEX_EXT	0x01	/* recursive or externally induced */
-#define	SEGEX_IDT	0x02	/* interrupt descriptor table */
-#define	SEGEX_TI	0x04	/* local descriptor table */
-				/* other bits are affected descriptor index */
-#define SEGEX_IDX(s)	(((s)>>3)&0x1fff)
+	unsigned long rd_limit:16;		/* segment extent */
+	unsigned long rd_base:64 __packed;	/* base address  */
+} __packed;
 
 /*
  * Size of IDT table
  */
-
-#if defined(SMP) || defined(APIC_IO)
-#define	NIDT	256		/* we use them all */
-#else
 #define	NIDT	129		/* 32 reserved, 16 h/w, 0 s/w, linux's 0x80 */
-#endif /* SMP || APIC_IO */
 #define	NRSVIDT	32		/* reserved entries for cpu exceptions */
 
 /*
@@ -186,47 +175,25 @@ struct region_descriptor {
 #define	GNULL_SEL	0	/* Null Descriptor */
 #define	GCODE_SEL	1	/* Kernel Code Descriptor */
 #define	GDATA_SEL	2	/* Kernel Data Descriptor */
-#define	GPRIV_SEL	3	/* SMP Per-Processor Private Data */
-#define	GPROC0_SEL	4	/* Task state process slot zero and up */
-#define	GLDT_SEL	5	/* LDT - eventually one per process */
-#define	GUSERLDT_SEL	6	/* User LDT */
-#define	GTGATE_SEL	7	/* Process task switch gate */
-#define	GBIOSLOWMEM_SEL	8	/* BIOS low memory access (must be entry 8) */
-#define	GPANIC_SEL	9	/* Task state to consider panic from */
-#define GBIOSCODE32_SEL	10	/* BIOS interface (32bit Code) */
-#define GBIOSCODE16_SEL	11	/* BIOS interface (16bit Code) */
-#define GBIOSDATA_SEL	12	/* BIOS interface (Data) */
-#define GBIOSUTIL_SEL	13	/* BIOS interface (Utility) */
-#define GBIOSARGS_SEL	14	/* BIOS interface (Arguments) */
-
-#define NGDT 		15
-
-/*
- * Entries in the Local Descriptor Table (LDT)
- */
-#define	LSYS5CALLS_SEL	0	/* forced by intel BCS */
-#define	LSYS5SIGR_SEL	1
-#define	L43BSDCALLS_SEL	2	/* notyet */
-#define	LUCODE_SEL	3
-#define LSOL26CALLS_SEL	4	/* Solaris >= 2.6 system call gate */
-#define	LUDATA_SEL	5
-/* separate stack, es,fs,gs sels ? */
-/* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
-#define LBSDICALLS_SEL	16	/* BSDI system call gate */
-#define NLDT		(LBSDICALLS_SEL + 1)
+#define	GUCODE32_SEL	3	/* User 32 bit code Descriptor */
+#define	GUDATA_SEL	4	/* User 32/64 bit Data Descriptor */
+#define	GUCODE_SEL	5	/* User 64 bit Code Descriptor */
+#define	GPROC0_SEL	6	/* TSS for entering kernel etc  */
+/* slot 6 is second half of GPROC0_SEL */
+#define	NGDT 		8
 
 #ifdef _KERNEL
-extern int	_default_ldt;
-extern union descriptor gdt[];
+extern struct user_segment_descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
-extern union descriptor ldt[NLDT];
 
 void	lgdt(struct region_descriptor *rdp);
-void	sdtossd(struct segment_descriptor *sdp,
+void	sdtossd(struct user_segment_descriptor *sdp,
 	    struct soft_segment_descriptor *ssdp);
 void	ssdtosd(struct soft_segment_descriptor *ssdp,
-	    struct segment_descriptor *sdp);
+	    struct user_segment_descriptor *sdp);
+void	ssdtosyssd(struct soft_segment_descriptor *ssdp,
+	    struct system_segment_descriptor *sdp);
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_SEGMENTS_H_ */

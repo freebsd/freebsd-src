@@ -34,17 +34,11 @@
 #ifndef _I386_BUS_H_
 #define _I386_BUS_H_
 
-#ifdef	PC98
-/* NEC PC-98 */
-#include <machine/bus_pc98.h>
-#else
-/* IBM-PC */
 #include <machine/bus_at386.h>
-#endif
 #include <machine/bus_dma.h>
 
 /*
- * Stream accesses are the same as normal accesses on i386/pc98; there are no
+ * Stream accesses are the same as normal accesses on i386; there are no
  * supported bus systems with an endianess different from the host one.
  */
 #define	bus_space_read_stream_1(t, h, o)	bus_space_read_1((t), (h), (o))

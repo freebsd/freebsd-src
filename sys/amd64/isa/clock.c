@@ -50,7 +50,6 @@
 
 #include "opt_clock.h"
 #include "opt_isa.h"
-#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -67,39 +66,20 @@
 #include <sys/power.h>
 
 #include <machine/clock.h>
-#include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
-#ifdef APIC_IO
-#include <machine/segments.h>
-#endif
-#if defined(SMP) || defined(APIC_IO)
-#include <machine/smp.h>
-#endif /* SMP || APIC_IO */
 #include <machine/specialreg.h>
 
-#include <i386/isa/icu.h>
-#include <i386/isa/isa.h>
+#include <amd64/isa/icu.h>
+#include <amd64/isa/isa.h>
 #include <isa/rtc.h>
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
-#include <i386/isa/timerreg.h>
+#include <amd64/isa/timerreg.h>
 
-#include <i386/isa/intr_machdep.h>
-
-#ifdef DEV_MCA
-#include <i386/bios/mca_machdep.h>
-#endif
-
-#ifdef APIC_IO
-#include <i386/isa/intr_machdep.h>
-/* The interrupt triggered by the 8254 (timer) chip */
-int apic_8254_intr;
-static u_long read_intr_count(int vec);
-static void setup_8254_mixed_mode(void);
-#endif
+#include <amd64/isa/intr_machdep.h>
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -195,10 +175,6 @@ clkintr(struct clockframe frame)
 		mtx_unlock_spin(&clock_lock);
 	}
 	timer_func(&frame);
-#ifdef SMP
-	if (timer_func == hardclock)
-		forward_hardclock();
-#endif
 	switch (timer0_state) {
 
 	case RELEASED:
@@ -209,9 +185,6 @@ clkintr(struct clockframe frame)
 		    >= hardclock_max_count) {
 			timer0_prescaler_count -= hardclock_max_count;
 			hardclock(&frame);
-#ifdef SMP
-			forward_hardclock();
-#endif
 		}
 		break;
 
@@ -244,17 +217,9 @@ clkintr(struct clockframe frame)
 			timer_func = hardclock;
 			timer0_state = RELEASED;
 			hardclock(&frame);
-#ifdef SMP
-			forward_hardclock();
-#endif
 		}
 		break;
 	}
-#ifdef DEV_MCA
-	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
-	if (MCA_system)
-		outb(0x61, inb(0x61) | 0x80);
-#endif
 }
 
 /*
@@ -376,9 +341,6 @@ rtcintr(struct clockframe frame)
 		}
 		if (pscnt == psdiv)
 			statclock(&frame);
-#ifdef SMP
-		forward_statclock();
-#endif
 	}
 }
 
@@ -673,43 +635,6 @@ set_timer_freq(u_int freq, int intr_freq)
 	mtx_unlock_spin(&clock_lock);
 }
 
-static void
-i8254_restore(void)
-{
-
-	mtx_lock_spin(&clock_lock);
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-	outb(TIMER_CNTR0, timer0_max_count & 0xff);
-	outb(TIMER_CNTR0, timer0_max_count >> 8);
-	mtx_unlock_spin(&clock_lock);
-}
-
-static void
-rtc_restore(void)
-{
-
-	/* Restore all of the RTC's "status" (actually, control) registers. */
-	/* XXX locking is needed for RTC access. */
-	writertc(RTC_STATUSB, RTCSB_24HR);
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, rtc_statusb);
-}
-
-/*
- * Restore all the timers non-atomically (XXX: should be atomically).
- *
- * This function is called from pmtimer_resume() to restore all the timers.
- * This should not be necessary, but there are broken laptops that do not
- * restore all the timers on resume.
- */
-void
-timer_restore(void)
-{
-
-	i8254_restore();		/* restore timer_freq and hz */
-	rtc_restore();			/* reenable RTC interrupts */
-}
-
 /*
  * Initialize 8254 timer 0 early so that it can be used in DELAY().
  * XXX initialization of other timers is unintentionally left blank.
@@ -902,10 +827,6 @@ void
 cpu_initclocks()
 {
 	int diag;
-#ifdef APIC_IO
-	int apic_8254_trial;
-	void *clkdesc;
-#endif /* APIC_IO */
 	register_t crit;
 
 	if (statclock_disable) {
@@ -923,32 +844,6 @@ cpu_initclocks()
         }
 
 	/* Finish initializing 8253 timer 0. */
-#ifdef APIC_IO
-
-	apic_8254_intr = isa_apic_irq(0);
-	apic_8254_trial = 0;
-	if (apic_8254_intr >= 0 ) {
-		if (apic_int_type(0, 0) == 3)
-			apic_8254_trial = 1;
-	} else {
-		/* look for ExtInt on pin 0 */
-		if (apic_int_type(0, 0) == 3) {
-			apic_8254_intr = apic_irq(0, 0);
-			setup_8254_mixed_mode();
-		} else 
-			panic("APIC_IO: Cannot route 8254 interrupt to CPU");
-	}
-
-	inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, &clkdesc);
-	crit = intr_disable();
-	mtx_lock_spin(&icu_lock);
-	INTREN(1 << apic_8254_intr);
-	mtx_unlock_spin(&icu_lock);
-	intr_restore(crit);
-
-#else /* APIC_IO */
-
 	/*
 	 * XXX Check the priority of this interrupt handler.  I
 	 * couldn't find anything suitable in the BSD/OS code (grog,
@@ -962,8 +857,6 @@ cpu_initclocks()
 	mtx_unlock_spin(&icu_lock);
 	intr_restore(crit);
 
-#endif /* APIC_IO */
-
 	/* Initialize RTC. */
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
@@ -975,118 +868,17 @@ cpu_initclocks()
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 
-#ifdef APIC_IO
-	if (isa_apic_irq(8) != 8)
-		panic("APIC RTC != 8");
-#endif /* APIC_IO */
-
 	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL,
 	    INTR_TYPE_CLK | INTR_FAST, NULL);
 
 	crit = intr_disable();
 	mtx_lock_spin(&icu_lock);
-#ifdef APIC_IO
-	INTREN(APIC_IRQ8);
-#else
 	INTREN(IRQ8);
-#endif /* APIC_IO */
 	mtx_unlock_spin(&icu_lock);
 	intr_restore(crit);
 
 	writertc(RTC_STATUSB, rtc_statusb);
-
-#ifdef APIC_IO
-	if (apic_8254_trial) {
-
-		printf("APIC_IO: Testing 8254 interrupt delivery\n");
-		while (read_intr_count(8) < 6)
-			;	/* nothing */
-		if (read_intr_count(apic_8254_intr) < 3) {
-			/* 
-			 * The MP table is broken.
-			 * The 8254 was not connected to the specified pin
-			 * on the IO APIC.
-			 * Workaround: Limited variant of mixed mode.
-			 */
-
-			crit = intr_disable();
-			mtx_lock_spin(&icu_lock);
-			INTRDIS(1 << apic_8254_intr);
-			mtx_unlock_spin(&icu_lock);
-			intr_restore(crit);
-			inthand_remove(clkdesc);
-			printf("APIC_IO: Broken MP table detected: "
-			       "8254 is not connected to "
-			       "IOAPIC #%d intpin %d\n",
-			       int_to_apicintpin[apic_8254_intr].ioapic,
-			       int_to_apicintpin[apic_8254_intr].int_pin);
-			/* 
-			 * Revoke current ISA IRQ 0 assignment and 
-			 * configure a fallback interrupt routing from
-			 * the 8254 Timer via the 8259 PIC to the
-			 * an ExtInt interrupt line on IOAPIC #0 intpin 0.
-			 * We reuse the low level interrupt handler number.
-			 */
-			if (apic_irq(0, 0) < 0) {
-				revoke_apic_irq(apic_8254_intr);
-				assign_apic_irq(0, 0, apic_8254_intr);
-			}
-			apic_8254_intr = apic_irq(0, 0);
-			setup_8254_mixed_mode();
-			inthand_add("clk", apic_8254_intr,
-				    (driver_intr_t *)clkintr, NULL,
-				    INTR_TYPE_CLK | INTR_FAST, NULL);
-			crit = intr_disable();
-			mtx_lock_spin(&icu_lock);
-			INTREN(1 << apic_8254_intr);
-			mtx_unlock_spin(&icu_lock);
-			intr_restore(crit);
-		}
-		
-	}
-	if (apic_int_type(0, 0) != 3 ||
-	    int_to_apicintpin[apic_8254_intr].ioapic != 0 ||
-	    int_to_apicintpin[apic_8254_intr].int_pin != 0)
-		printf("APIC_IO: routing 8254 via IOAPIC #%d intpin %d\n",
-		       int_to_apicintpin[apic_8254_intr].ioapic,
-		       int_to_apicintpin[apic_8254_intr].int_pin);
-	else
-		printf("APIC_IO: "
-		       "routing 8254 via 8259 and IOAPIC #0 intpin 0\n");
-#endif
-	
 }
-
-#ifdef APIC_IO
-static u_long
-read_intr_count(int vec)
-{
-	u_long *up;
-	up = intr_countp[vec];
-	if (up)
-		return *up;
-	return 0UL;
-}
-
-static void 
-setup_8254_mixed_mode()
-{
-	/*
-	 * Allow 8254 timer to INTerrupt 8259:
-	 *  re-initialize master 8259:
-	 *   reset; prog 4 bytes, single ICU, edge triggered
-	 */
-	outb(IO_ICU1, 0x13);
-	outb(IO_ICU1 + 1, NRSVIDT);	/* start vector (unused) */
-	outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
-	outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
-	outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
-	
-	/* program IO APIC for type 3 INT on INT0 */
-	if (ext_int_setup(0, 0) < 0)
-		panic("8254 redirect via APIC pin0 impossible!");
-}
-#endif
 
 void
 cpu_startprofclock(void)
@@ -1135,9 +927,9 @@ i8254_get_timecount(struct timecounter *tc)
 {
 	u_int count;
 	u_int high, low;
-	u_int eflags;
+	u_long rflags;
 
-	eflags = read_eflags();
+	rflags = read_rflags();
 	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
@@ -1148,14 +940,8 @@ i8254_get_timecount(struct timecounter *tc)
 	count = timer0_max_count - ((high << 8) | low);
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20 || (!(eflags & PSL_I) && count < timer0_max_count / 2u)) &&
-#ifdef APIC_IO
-#define	lapic_irr1	((volatile u_int *)&lapic)[0x210 / 4]	/* XXX XXX */
-	    /* XXX this assumes that apic_8254_intr is < 24. */
-	    (lapic_irr1 & (1 << apic_8254_intr))))
-#else
+	    ((count < 20 || (!(rflags & PSL_I) && count < timer0_max_count / 2u)) &&
 	    (inb(IO_ICU1) & 1)))
-#endif
 	    )) {
 		i8254_ticked = 1;
 		i8254_offset += timer0_max_count;

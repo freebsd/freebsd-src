@@ -34,15 +34,10 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
-
 #include <machine/asmacros.h>
 #include <sys/mutex.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
-#ifdef SMP
-#include <machine/smptests.h>		/** various SMP options */
-#endif
 
 #include "assym.s"
 
@@ -79,29 +74,29 @@
  */
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
-#define	TRAP(a)		pushl $(a) ; jmp alltraps
+#define	TRAP(a)		pushq $(a) ; jmp alltraps
 
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
 
 IDTVEC(div)
-	pushl $0; TRAP(T_DIVIDE)
+	pushq $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
-	pushl $0; TRAP(T_TRCTRAP)
+	pushq $0; TRAP(T_TRCTRAP)
 IDTVEC(nmi)
-	pushl $0; TRAP(T_NMI)
+	pushq $0; TRAP(T_NMI)
 IDTVEC(bpt)
-	pushl $0; TRAP(T_BPTFLT)
+	pushq $0; TRAP(T_BPTFLT)
 IDTVEC(ofl)
-	pushl $0; TRAP(T_OFLOW)
+	pushq $0; TRAP(T_OFLOW)
 IDTVEC(bnd)
-	pushl $0; TRAP(T_BOUND)
+	pushq $0; TRAP(T_BOUND)
 IDTVEC(ill)
-	pushl $0; TRAP(T_PRIVINFLT)
+	pushq $0; TRAP(T_PRIVINFLT)
 IDTVEC(dna)
-	pushl $0; TRAP(T_DNA)
+	pushq $0; TRAP(T_DNA)
 IDTVEC(fpusegm)
-	pushl $0; TRAP(T_FPOPFLT)
+	pushq $0; TRAP(T_FPOPFLT)
 IDTVEC(tss)
 	TRAP(T_TSSFLT)
 IDTVEC(missing)
@@ -113,16 +108,15 @@ IDTVEC(prot)
 IDTVEC(page)
 	TRAP(T_PAGEFLT)
 IDTVEC(mchk)
-	pushl $0; TRAP(T_MCHK)
+	pushq $0; TRAP(T_MCHK)
 IDTVEC(rsvd)
-	pushl $0; TRAP(T_RESERVED)
+	pushq $0; TRAP(T_RESERVED)
 IDTVEC(fpu)
-	pushl $0; TRAP(T_ARITHTRAP)
+	pushq $0; TRAP(T_ARITHTRAP)
 IDTVEC(align)
 	TRAP(T_ALIGNFLT)
-
 IDTVEC(xmm)
-	pushl $0; TRAP(T_XMMFLT)
+	pushq $0; TRAP(T_XMMFLT)
 	
 	/*
 	 * alltraps entry point.  Interrupts are enabled if this was a trap
@@ -135,31 +129,36 @@ IDTVEC(xmm)
 	.globl	alltraps
 	.type	alltraps,@function
 alltraps:
-	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
+	subq	$TF_TRAPNO,%rsp		/* tf_err and tf_trapno already pushed */
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
 alltraps_with_regs_pushed:
-	mov	$KDSEL,%ax
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(13*4(%rsp))
 calltrap:
 	FAKE_MCOUNT(btrap)		/* init "from" btrap -> calltrap */
 	call	trap
-
-	/*
-	 * Return via doreti to handle ASTs.
-	 */
 	MEXITCOUNT
-	jmp	doreti
+	jmp	doreti			/* Handle any pending ASTs */
 
 /*
- * SYSCALL CALL GATE (old entry point for a.out binaries)
+ * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
  *
- * The intersegment call has been set up to specify one dummy parameter.
+ * Even though the name says 'int0x80', this is actually a TGT (trap gate)
+ * rather then an IGT (interrupt gate).  Thus interrupts are enabled on
+ * entry just as they are for a normal syscall.
  *
  * This leaves a place to put eflags so that the call frame can be
  * converted to a trap frame. Note that the eflags is (semi-)bogusly
@@ -169,79 +168,122 @@ calltrap:
  * and clobber the saved cs/eip.
  */
 	SUPERALIGN_TEXT
-IDTVEC(lcall_syscall)
-	pushfl				/* save eflags */
-	popl	8(%esp)			/* shuffle into tf_eflags */
-	pushl	$7			/* sizeof "lcall 7,0" */
-	subl	$4,%esp			/* skip over tf_trapno */
-	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
-	mov	$KDSEL,%ax		/* switch to kernel segments */
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
-	FAKE_MCOUNT(13*4(%esp))
+IDTVEC(int0x80_syscall)
+	pushq	$2			/* sizeof "int 0x80" */
+	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	FAKE_MCOUNT(13*4(%rsp))
 	call	syscall
 	MEXITCOUNT
 	jmp	doreti
 
 /*
- * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
- *
- * Even though the name says 'int0x80', this is actually a TGT (trap gate)
- * rather then an IGT (interrupt gate).  Thus interrupts are enabled on
- * entry just as they are for a normal syscall.
+ * Fast syscall entry point.  We enter here with just our new %cs/%ss set,
+ * and the new privilige level.  We are still running on the old user stack
+ * pointer.  We have to juggle a few things around to find our stack etc.
+ * swapgs gives us access to our PCPU space only.
+ * XXX The PCPU stuff is stubbed out right now...
  */
-	SUPERALIGN_TEXT
-IDTVEC(int0x80_syscall)
-	pushl	$2			/* sizeof "int 0x80" */
-	subl	$4,%esp			/* skip over tf_trapno */
-	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
-	mov	$KDSEL,%ax		/* switch to kernel segments */
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
-	FAKE_MCOUNT(13*4(%esp))
+IDTVEC(fast_syscall)
+	#swapgs
+	movq	%rsp,PCPU(SCRATCH_RSP)
+	movq	common_tss+COMMON_TSS_RSP0,%rsp
+	sti
+	/* Now emulate a trapframe. Ugh. */
+	subq	$TF_SIZE,%rsp
+	movq	$KUDSEL,TF_SS(%rsp)
+	/* defer TF_RSP till we have a spare register */
+	movq	%r11,TF_RFLAGS(%rsp)
+	movq	$KUCSEL,TF_CS(%rsp)
+	movq	%rcx,TF_RIP(%rsp)	/* %rcx original value is in %r10 */
+	movq	$2,TF_ERR(%rsp)
+	movq	%rdi,TF_RDI(%rsp)	/* arg 1 */
+	movq	%rsi,TF_RSI(%rsp)	/* arg 2 */
+	movq	%rdx,TF_RDX(%rsp)	/* arg 3 */
+	movq	%r10,TF_RCX(%rsp)	/* arg 4 */
+	movq	%r8,TF_R8(%rsp)		/* arg 5 */
+	movq	%r9,TF_R9(%rsp)		/* arg 6 */
+	movq	%rax,TF_RAX(%rsp)	/* syscall number */
+	movq	%rbx,TF_RBX(%rsp)	/* C preserved */
+	movq	%rbp,TF_RBP(%rsp)	/* C preserved */
+	movq	%r12,TF_R12(%rsp)	/* C preserved */
+	movq	%r13,TF_R13(%rsp)	/* C preserved */
+	movq	%r14,TF_R14(%rsp)	/* C preserved */
+	movq	%r15,TF_R15(%rsp)	/* C preserved */
+	movq	PCPU(SCRATCH_RSP),%r12	/* %r12 already saved */
+	movq	%r12,TF_RSP(%rsp)	/* user stack pointer */
 	call	syscall
-	MEXITCOUNT
+	movq	PCPU(CURPCB),%rax
+	testq	$PCB_FULLCTX,PCB_FLAGS(%rax)
+	jne	3f
+	/* simplified from doreti */
+1:	/* Check for and handle AST's on return to userland */
+	cli
+	movq	PCPU(CURTHREAD),%rax
+	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
+	je	2f
+	sti
+	movq	%rsp, %rdi
+	call	ast
+	jmp	1b
+2:	/* restore preserved registers */
+	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
+	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
+	movq	TF_RDX(%rsp),%rdx	/* return value 2 */
+	movq	TF_RAX(%rsp),%rax	/* return value 1 */
+	movq	TF_RBX(%rsp),%rbx	/* C preserved */
+	movq	TF_RBP(%rsp),%rbp	/* C preserved */
+	movq	TF_R12(%rsp),%r12	/* C preserved */
+	movq	TF_R13(%rsp),%r13	/* C preserved */
+	movq	TF_R14(%rsp),%r14	/* C preserved */
+	movq	TF_R15(%rsp),%r15	/* C preserved */
+	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
+	movq	TF_RIP(%rsp),%rcx	/* original %rip */
+	movq	TF_RSP(%rsp),%r9	/* user stack pointer */
+	movq	%r9,%rsp		/* original %rsp */
+	#swapgs
+	sysretq
+3:	/* Requested full context restore, use doreti for that */
+	andq	$~PCB_FULLCTX,PCB_FLAGS(%rax)
 	jmp	doreti
+
+/*
+ * Here for CYA insurance, in case a "syscall" instruction gets
+ * issued from 32 bit compatability mode. MSR_CSTAR has to point
+ * to *something* if EFER_SCE is enabled.
+ */
+IDTVEC(fast_syscall32)
+	sysret
 
 ENTRY(fork_trampoline)
-	pushl	%esp			/* trapframe pointer */
-	pushl	%ebx			/* arg1 */
-	pushl	%esi			/* function */
-	movl    PCPU(CURTHREAD),%ebx	/* setup critnest */
-	movl	$1,TD_CRITNEST(%ebx)
-	sti				/* enable interrupts */
+	movq	%r12, %rdi		/* function */
+	movq	%rbx, %rsi		/* arg1 */
+	movq	%rsp, %rdx		/* trapframe pointer */
 	call	fork_exit
-	addl	$12,%esp
-	/* cut from syscall */
-
-	/*
-	 * Return via doreti to handle ASTs.
-	 */
 	MEXITCOUNT
-	jmp	doreti
+	jmp	doreti			/* Handle any ASTs */
 
-
-/*
- * Include vm86 call routines, which want to call doreti.
- */
-#include "i386/i386/vm86bios.s"
 
 /*
  * Include what was once config+isa-dependent code.
  * XXX it should be in a stand-alone file.  It's still icu-dependent and
  * belongs in i386/isa.
  */
-#include "i386/isa/vector.s"
+#include "amd64/isa/vector.s"
 
 	.data
 	ALIGN_DATA
@@ -256,20 +298,10 @@ ENTRY(fork_trampoline)
 	.type	doreti,@function
 doreti:
 	FAKE_MCOUNT(bintr)		/* init "from" bintr -> doreti */
-doreti_next:
 	/*
-	 * Check if ASTs can be handled now.  PSL_VM must be checked first
-	 * since segment registers only have an RPL in non-VM86 mode.
+	 * Check if ASTs can be handled now.
 	 */
-	testl	$PSL_VM,TF_EFLAGS(%esp)	/* are we in vm86 mode? */
-	jz	doreti_notvm86
-	movl	PCPU(CURPCB),%ecx
-	testl	$PCB_VM86CALL,PCB_FLAGS(%ecx)	/* are we in a vm86 call? */
-	jz	doreti_ast		/* can handle ASTS now if not */
-  	jmp	doreti_exit
-
-doreti_notvm86:
-	testb	$SEL_RPL_MASK,TF_CS(%esp) /* are we returning to user mode? */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* are we returning to user mode? */
 	jz	doreti_exit		/* can't handle ASTs now if not */
 
 doreti_ast:
@@ -279,13 +311,12 @@ doreti_ast:
 	 * since we will be informed of any new ASTs by an IPI.
 	 */
 	cli
-	movl	PCPU(CURTHREAD),%eax
-	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%eax)
+	movq	PCPU(CURTHREAD),%rax
+	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
 	je	doreti_exit
 	sti
-	pushl	%esp			/* pass a pointer to the trapframe */
+	movq	%rsp, %rdi			/* pass a pointer to the trapframe */
 	call	ast
-	add	$4,%esp
 	jmp	doreti_ast
 
 	/*
@@ -298,20 +329,25 @@ doreti_ast:
 doreti_exit:
 	MEXITCOUNT
 
-	.globl	doreti_popl_fs
-doreti_popl_fs:
-	popl	%fs
-	.globl	doreti_popl_es
-doreti_popl_es:
-	popl	%es
-	.globl	doreti_popl_ds
-doreti_popl_ds:
-	popl	%ds
-	popal
-	addl	$8,%esp
+	movq	TF_RDI(%rsp),%rdi
+	movq	TF_RSI(%rsp),%rsi
+	movq	TF_RDX(%rsp),%rdx
+	movq	TF_RCX(%rsp),%rcx
+	movq	TF_R8(%rsp),%r8
+	movq	TF_R9(%rsp),%r9
+	movq	TF_RAX(%rsp),%rax
+	movq	TF_RBX(%rsp),%rbx
+	movq	TF_RBP(%rsp),%rbp
+	movq	TF_R10(%rsp),%r10
+	movq	TF_R11(%rsp),%r11
+	movq	TF_R12(%rsp),%r12
+	movq	TF_R13(%rsp),%r13
+	movq	TF_R14(%rsp),%r14
+	movq	TF_R15(%rsp),%r15
+	addq	$TF_RIP,%rsp		/* skip over tf_err, tf_trapno */
 	.globl	doreti_iret
 doreti_iret:
-	iret
+	iretq
 
   	/*
 	 * doreti_iret_fault and friends.  Alternative return code for
@@ -323,23 +359,24 @@ doreti_iret:
 	ALIGN_TEXT
 	.globl	doreti_iret_fault
 doreti_iret_fault:
-	subl	$8,%esp
-	pushal
-	pushl	%ds
-	.globl	doreti_popl_ds_fault
-doreti_popl_ds_fault:
-	pushl	%es
-	.globl	doreti_popl_es_fault
-doreti_popl_es_fault:
-	pushl	%fs
-	.globl	doreti_popl_fs_fault
-doreti_popl_fs_fault:
-	movl	$0,TF_ERR(%esp)	/* XXX should be the error code */
-	movl	$T_PROTFLT,TF_TRAPNO(%esp)
+	subq	$TF_RIP,%rsp		/* space including tf_err, tf_trapno */
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	movq	$T_PROTFLT,TF_TRAPNO(%rsp)
+	movq	$0,TF_ERR(%rsp)	/* XXX should be the error code */
 	jmp	alltraps_with_regs_pushed
 
-#ifdef APIC_IO
-#include "i386/isa/apic_ipl.s"
-#else
-#include "i386/isa/icu_ipl.s"
-#endif /* APIC_IO */
+#include "amd64/isa/icu_ipl.s"
