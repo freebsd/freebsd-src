@@ -4009,7 +4009,8 @@ next_code:
 
 	    case NEXT:
     		this_scr = get_scr_num();
-		for (i = this_scr + 1; i != this_scr; i = (i + 1)%MAXCONS) {
+		for (i = (this_scr + 1)%MAXCONS; i != this_scr;
+			 i = (i + 1)%MAXCONS) {
 		    struct tty *tp = VIRTUAL_TTY(i);
 		    if (tp->t_state & TS_ISOPEN) {
 			switch_scr(cur_console, i);
