@@ -2,6 +2,7 @@
 #
 # $FreeBSD$
 #
+
 set -e
 
 export BLOCKSIZE=512
