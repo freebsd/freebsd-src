@@ -23,13 +23,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
 /*
  * Print information about system device configuration.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <err.h>
@@ -103,11 +104,9 @@ int
 print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 {
 	struct indent_arg	*ia = (struct indent_arg *)arg;
-	struct devinfo_dev	*dev;
 	int			indent, i;
 
 	indent = ia->indent;
-	dev = (struct devinfo_dev *)ia->arg;
 
 	/* check whether there are any resources matching this device */
 	ia->indent = 0;
