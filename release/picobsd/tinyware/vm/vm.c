@@ -46,11 +46,11 @@ vm_i()
 	long uptime=1;
 
 	len=sizeof(cnt);
-	i = sysctlbyname("kern.intrcnt", &cnt, &len, NULL, 0);
+	i = sysctlbyname("hw.intrcnt", &cnt, &len, NULL, 0);
 	if (i != 0)
 		return i ;
 	len=sizeof(names);
-	i = sysctlbyname("kern.intrnames", &names, &len, NULL, 0);
+	i = sysctlbyname("hw.intrnames", &names, &len, NULL, 0);
 	if (i != 0)
 		return i ;
 	
