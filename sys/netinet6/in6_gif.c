@@ -301,8 +301,7 @@ gif_encapcheck6(m, off, proto, arg)
 	src = (struct sockaddr_in6 *)sc->gif_psrc;
 	dst = (struct sockaddr_in6 *)sc->gif_pdst;
 
-	/* LINTED const cast */
-	m_copydata((struct mbuf *)m, 0, sizeof(ip6), (caddr_t)&ip6);
+	m_copydata(m, 0, sizeof(ip6), (caddr_t)&ip6);
 
 	/* check for address match */
 	addrmatch = 0;
