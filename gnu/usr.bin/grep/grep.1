@@ -21,7 +21,7 @@ grep, egrep, fgrep, zgrep \- print lines matching a pattern
 .B grep
 .RB [ \- [ ABC ]
 .IR NUM ]
-.RB [ \-EFGHLUVZabchilnqrsuvwxyuz ]
+.RB [ \-EFGHLUVZabchilnqrsuvwxyz ]
 .RB [ \-e
 .I PATTERN
 |
@@ -112,7 +112,7 @@ is the same as
 .BR "grep\ \-F" .
 .B zgrep
 is the same as
-.BR "grep\ \-z" .
+.BR "grep\ \-Z" .
 .PD
 .PP
 All variants of
@@ -353,11 +353,12 @@ and
 .B "xargs \-0"
 to process arbitrary file names,
 even those that contain newline characters.
+.PD
 .LP
 Following option is only available if compiled with zlib(3) library:
 .PD 0
 .TP
-.B \-z, --decompress
+.B \-Z, --decompress
 Decompress the input data before searching.
 .PD
 .SH "REGULAR EXPRESSIONS"
