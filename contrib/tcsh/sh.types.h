@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.types.h,v 3.39 2002/03/08 17:36:47 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.types.h,v 3.40 2003/06/18 19:32:44 christos Exp $ */
 /* sh.types.h: Do the necessary typedefs for each system.
  *             Up till now I avoided making this into a separate file
  *	       But I just wanted to eliminate the whole mess from sh.h
@@ -142,6 +142,7 @@
 #  define _SPEED_T
 # endif /* _SPEED_T */
 
+# if HPUXVERSION < 1100	/* XXX: Not true for 11.0 */
 extern uid_t getuid(), geteuid();
 extern gid_t getgid(), getegid();
 extern sigmask_t sigblock();
@@ -155,6 +156,7 @@ extern void qsort();
 extern void free();
 extern unsigned int alarm();
 extern unsigned int sleep();
+# endif /* HPUXVERSION < 1100 */
 # if HPUXVERSION < 800	/* XXX: Not true for 8.0 */
 extern void sigpause();
 extern sigmask_t sigspace();

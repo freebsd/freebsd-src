@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.str.c,v 3.10 2002/03/08 17:36:47 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.str.c,v 3.13 2004/02/21 20:34:25 christos Exp $ */
 /*
  * tc.str.c: Short string package
  * 	     This has been a lesson of how to write buggy code!
@@ -33,7 +33,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.str.c,v 3.10 2002/03/08 17:36:47 christos Exp $")
+RCSID("$Id: tc.str.c,v 3.13 2004/02/21 20:34:25 christos Exp $")
 
 #define MALLOC_INCR	128
 
@@ -307,6 +307,33 @@ s_strncmp(str1, str2, n)
 	str1++, str2++;
     } while (--n != 0);
     return(0);
+}
+
+int
+s_strcasecmp(str1, str2)
+    register const Char *str1, *str2;
+{
+    unsigned char c1, c2, l1 = 0, l2 = 0;
+    for (; *str1 && ((*str1 == *str2 && (l1 = l2 = 0) == 0) || 
+	((c1 = (unsigned char)*str1) == *str1 &&
+	 (c2 = (unsigned char)*str2) == *str2 &&
+	(l1 = tolower(c1)) == (l2 = tolower(c2)))); str1++, str2++)
+	continue;
+    /*
+     * The following case analysis is necessary so that characters which look
+     * negative collate low against normal characters but high against the
+     * end-of-string NUL.
+     */
+    if (*str1 == '\0' && *str2 == '\0')
+	return (0);
+    else if (*str1 == '\0')
+	return (-1);
+    else if (*str2 == '\0')
+	return (1);
+    else if (l1 == l2)	/* They are zero when they are equal */
+	return (*str1 - *str2);
+    else
+	return (l1 - l2);
 }
 
 Char   *
