@@ -1168,6 +1168,8 @@ vm_pageout_page_stats()
 		tpcount = (vm_pageout_stats_max * cnt.v_active_count) / cnt.v_page_count;
 		if (pcount > tpcount)
 			pcount = tpcount;
+	} else {
+		fullintervalcount = 0;
 	}
 
 	m = TAILQ_FIRST(&vm_page_queues[PQ_ACTIVE].pl);
