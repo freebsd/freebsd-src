@@ -2,8 +2,9 @@
 
 BIND_DIR=${.CURDIR}/../../contrib/bind
 
-CFLAGS+= -idirafter ${BIND_DIR}/port/freebsd/include \
-	 -idirafter ${BIND_DIR}/include
+# contrib/bind/include/* must not override any real system includes
+CFLAGS+= -I${BIND_DIR}/port/freebsd/include -I${DESTDIR}/usr/include \
+	 -I${BIND_DIR}/include
 
 LIB=	bind
 
