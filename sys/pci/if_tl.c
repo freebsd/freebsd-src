@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.28 1998/09/18 05:22:57 wpaul Exp $
+ *	$Id: if_tl.c,v 1.30 1998/09/24 16:26:02 wpaul Exp $
  */
 
 /*
@@ -211,7 +211,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.28 1998/09/18 05:22:57 wpaul Exp $";
+	"$Id: if_tl.c,v 1.30 1998/09/24 16:26:02 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG
@@ -1750,6 +1750,15 @@ tl_attach(config_id, unit)
 		goto fail;
 	}
 
+	tl_intvec_adchk((void *)sc, 0);
+	tl_stop(sc);
+
+	/*
+	 * Attempt to clear any stray interrupts
+	 * that may be lurking.
+	 */
+	tl_intr((void *)sc);
+
 	/*
 	 * Call MI attach routines.
 	 */
@@ -2111,7 +2120,8 @@ static int tl_intvec_adchk(xsc, type)
 
 	sc = xsc;
 
-	printf("tl%d: adapter check: %x\n", sc->tl_unit,
+	if (type)
+		printf("tl%d: adapter check: %x\n", sc->tl_unit,
 			CSR_READ_4(sc, TL_CH_PARM));
 #ifdef TL_DEBUG
 	evshow(sc);
