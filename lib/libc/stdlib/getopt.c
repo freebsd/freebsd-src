@@ -32,7 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)getopt.c	8.3 (Berkeley) 4/27/95";
+#endif
+static const char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -62,6 +65,7 @@ getopt(nargc, nargv, ostr)
 	extern char *__progname;
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
+	int ret;
 
 	if (optreset || !*place) {		/* update scanning pointer */
 		optreset = 0;
@@ -101,12 +105,14 @@ getopt(nargc, nargv, ostr)
 		else if (nargc <= ++optind) {	/* no arg */
 			place = EMSG;
 			if (*ostr == ':')
-				return (BADARG);
+				ret = BADARG;
+			else
+				ret = BADCH;
 			if (opterr)
 				(void)fprintf(stderr,
 				    "%s: option requires an argument -- %c\n",
 				    __progname, optopt);
-			return (BADCH);
+			return (ret);
 		}
 	 	else				/* white space */
 			optarg = nargv[optind];
