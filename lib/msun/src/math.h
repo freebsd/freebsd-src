@@ -255,9 +255,6 @@ double	cbrt(double) __pure2;
 double	erf(double);
 double	erfc(double) __pure2;
 double	expm1(double) __pure2;
-double	fdim(double, double);
-double	fmax(double, double) __pure2;
-double	fmin(double, double) __pure2;
 double	hypot(double, double);
 int	ilogb(double);
 int	(isinf)(double) __pure2;
@@ -265,12 +262,9 @@ int	(isnan)(double) __pure2;
 double	lgamma(double);
 double	log1p(double) __pure2;
 double	logb(double) __pure2;
-double	nearbyint(double) __pure2;
 double	nextafter(double, double);
 double	remainder(double, double);
 double	rint(double) __pure2;
-double	round(double);
-double	trunc(double);
 #endif /* __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE */
 
 #if __BSD_VISIBLE || __XSI_VISIBLE
@@ -289,9 +283,15 @@ double	gamma(double);
 
 #if __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999
 double	copysign(double, double) __pure2;
+double	fdim(double, double);
+double	fmax(double, double) __pure2;
+double	fmin(double, double) __pure2;
+double	nearbyint(double) __pure2;
+double	round(double);
 double	scalbln(double, long);
 double	scalbn(double, int);
 double	tgamma(double);
+double	trunc(double);
 #endif
 
 /*
