@@ -32,129 +32,160 @@
 .\"	@(#)hash.3	8.6 (Berkeley) 8/18/94
 .\" $FreeBSD$
 .\"
-.TH HASH 3 "August 18, 1994"
-.UC 7
-.SH NAME
-hash \- hash database access method
-.SH SYNOPSIS
-.nf
-.ft B
-#include <sys/types.h>
-#include <db.h>
-.ft R
-.fi
-.SH DESCRIPTION
+.Dd August 18, 1994
+.Dt HASH 3
+.Os
+.Sh NAME
+.Nm hash
+.Nd "hash database access method"
+.Sh SYNOPSIS
+.Fd "#include <sys/types.h>"
+.Fd "#include <db.h>"
+.Sh DESCRIPTION
 The routine
-.IR dbopen
+.Fn dbopen
 is the library interface to database files.
-One of the supported file formats is hash files.
+One of the supported file formats is
+.Nm
+files.
 The general description of the database access methods is in
-.IR dbopen (3),
-this manual page describes only the hash specific information.
-.PP
-The hash data structure is an extensible, dynamic hashing scheme.
-.PP
+.Xr dbopen 3 ,
+this manual page describes only the
+.Nm
+specific information.
+.Pp
+The
+.Nm
+data structure is an extensible, dynamic hashing scheme.
+.Pp
 The access method specific data structure provided to
-.I dbopen
-is defined in the <db.h> include file as follows:
-.sp
+.Fn dbopen
+is defined in the
+.Aq Pa db.h
+include file as follows:
+.Bd -literal
 typedef struct {
-.RS
-u_int bsize;
-.br
-u_int ffactor;
-.br
-u_int nelem;
-.br
-u_int cachesize;
-.br
-u_int32_t (*hash)(const void *, size_t);
-.br
-int lorder;
-.RE
+	u_int bsize;
+	u_int ffactor;
+	u_int nelem;
+	u_int cachesize;
+	u_int32_t (*hash)(const void *, size_t);
+	int lorder;
 } HASHINFO;
-.PP
+.Ed
+.Pp
 The elements of this structure are as follows:
-.TP
-bsize
-.I Bsize
-defines the hash table bucket size, and is, by default, 256 bytes.
+.Bl -tag -width indent
+.It Va bsize
+.Va Bsize
+defines the
+.Nm
+table bucket size, and is, by default, 256 bytes.
 It may be preferable to increase the page size for disk-resident tables
 and tables with large data items.
-.TP
-ffactor
-.I Ffactor
-indicates a desired density within the hash table.
+.It Va ffactor
+.Va Ffactor
+indicates a desired density within the
+.Nm
+table.
 It is an approximation of the number of keys allowed to accumulate in any
-one bucket, determining when the hash table grows or shrinks.
+one bucket, determining when the
+.Nm
+table grows or shrinks.
 The default value is 8.
-.TP
-nelem
-.I Nelem
-is an estimate of the final size of the hash table.
-If not set or set too low, hash tables will expand gracefully as keys
+.It Va nelem
+.Va Nelem
+is an estimate of the final size of the
+.Nm
+table.
+If not set or set too low,
+.Nm
+tables will expand gracefully as keys
 are entered, although a slight performance degradation may be noticed.
 The default value is 1.
-.TP
-cachesize
+.It Va cachesize
 A suggested maximum size, in bytes, of the memory cache.
 This value is
-.B only
+.Em only
 advisory, and the access method will allocate more memory rather
 than fail.
-.TP
-hash
-.I Hash
-is a user defined hash function.
-Since no hash function performs equally well on all possible data, the
-user may find that the built-in hash function does poorly on a particular
+.It Va hash
+.Va Hash
+is a user defined
+.Nm
+function.
+Since no
+.Nm
+function performs equally well on all possible data, the
+user may find that the built-in
+.Nm
+function does poorly on a particular
 data set.
-User specified hash functions must take two arguments (a pointer to a byte
-string and a length) and return a 32-bit quantity to be used as the hash
+User specified
+.Nm
+functions must take two arguments (a pointer to a byte
+string and a length) and return a 32-bit quantity to be used as the
+.Nm
 value.
-.TP
-lorder
+.It Va lorder
 The byte order for integers in the stored database metadata.
-The number should represent the order as an integer; for example, 
+The number should represent the order as an integer; for example,
 big endian order would be the number 4,321.
 If
-.I lorder
+.Va lorder
 is 0 (no order is specified) the current host order is used.
-If the  file already exists, the specified value is ignored and the
+If the file already exists, the specified value is ignored and the
 value specified when the tree was created is used.
-.PP
-If the file already exists (and the O_TRUNC flag is not specified), the
-values specified for the parameters bsize, ffactor, lorder and nelem are
-ignored and the values specified when the tree was created are used.
-.PP
-If a hash function is specified,
-.I hash_open
-will attempt to determine if the hash function specified is the same as
-the one with which the database was created, and will fail if it is not.
-.PP
-Backward compatible interfaces to the older
-.I dbm
+.El
+.Pp
+If the file already exists (and the
+.Dv O_TRUNC
+flag is not specified), the
+values specified for the parameters
+.Va bsize , ffactor , lorder
 and
-.I ndbm
+.Va nelem
+are
+ignored and the values specified when the tree was created are used.
+.Pp
+If a
+.Nm
+function is specified,
+.Fn hash_open
+will attempt to determine if the
+.Nm
+function specified is the same as
+the one with which the database was created, and will fail if it is not.
+.Pp
+Backward compatible interfaces to the older
+.Em dbm
+and
+.Em ndbm
 routines are provided, however these interfaces are not compatible with
 previous file formats.
-.SH ERRORS
+.Sh ERRORS
 The
-.I hash
+.Nm
 access method routines may fail and set
-.I errno
+.Va errno
 for any of the errors specified for the library routine
-.IR dbopen (3).
-.SH "SEE ALSO"
-.IR btree (3),
-.IR dbopen (3),
-.IR mpool (3),
-.IR recno (3)
-.sp
-.IR "Dynamic Hash Tables" ,
-Per-Ake Larson, Communications of the ACM, April 1988.
-.sp
-.IR "A New Hash Package for UNIX" ,
-Margo Seltzer, USENIX Proceedings, Winter 1991.
-.SH BUGS
+.Xr dbopen 3 .
+.Sh SEE ALSO
+.Xr btree 3 ,
+.Xr dbopen 3 ,
+.Xr mpool 3 ,
+.Xr recno 3
+.Rs
+.%T "Dynamic Hash Tables"
+.%A Per-Ake Larson
+.%R "Communications of the ACM"
+.%D April 1988
+.Re
+.Rs
+.%T "A New Hash Package for UNIX"
+.%A Margo Seltzer
+.%R "USENIX Proceedings"
+.%D Winter 1991
+.Re
+.Sh BUGS
 Only big and little endian byte order is supported.
