@@ -40,7 +40,7 @@ maxusers	32
 
 options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
-options 	INET6			#IPv6 communications protocols
+#options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MFS			#Memory Filesystem
@@ -68,13 +68,18 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
 
+options		IPFIREWALL
+options		DUMMYNET
+options		IPFIREWALL_DEFAULT_TO_ACCEPT
+options		IPDIVERT
+
 device		isa
 device		eisa
 device		pci
 device		pccard
 device		pmtimer
 device		cardbus
-options 	COMPAT_OLDISA		# compatability shims for lnc, le
+#options 	COMPAT_OLDISA		# compatability shims for lnc, le
 
 # Floppy drives
 device		fdc
@@ -158,7 +163,7 @@ device		pcm
 
 
 # Pcmcia and cardbus bridge support
-device		pcic			# pcmcia bridge
+#device		pcic			# pcmcia bridge
 device		pccbb			# cardbus (yenta) bridge
 
 # Serial (COM) ports
@@ -196,6 +201,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.  pccard nics included.
 device		cs		# Crystal Semiconductor CS89x0 NIC
+# 'device ed' requires 'device miibus'
 device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ex		# Intel EtherExpress Pro/10 and Pro/10+
 device		ep		# Etherlink III based cards
@@ -204,8 +210,8 @@ device		sn		# SMC's 9000 series of ethernet chips
 device		xe		# Xircom pccard ethernet
 
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
-device		ie
-device		le
+#device		ie
+#device		le
 #device		lnc
 
 # Wireless NIC cards
@@ -223,8 +229,8 @@ device		ppp	1	# Kernel PPP
 device		tun		# Packet tunnel.
 device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
-device		gif	4	# IPv6 and IPv4 tunneling
-device		faith	1	# IPv6-to-IPv4 relaying (translation)
+#device		gif	4	# IPv6 and IPv4 tunneling
+#device		faith	1	# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
@@ -248,5 +254,8 @@ device		aue		# ADMtek USB ethernet
 device		cue		# CATC USB ethernet
 device		kue		# Kawasaki LSI USB ethernet
 
-# This is an experimental kernel, so include DDB
-options DDB
+# This is an experimental kernel, so include DDB, INVARIANTS and WITNESS
+options 	DDB
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS

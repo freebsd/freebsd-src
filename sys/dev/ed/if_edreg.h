@@ -1113,3 +1113,32 @@ struct ed_ring	{
 
 #define ED_AX88190_IOBASE0	0x3ca
 #define ED_AX88190_IOBASE1	0x3cc
+
+/*
+ * MII bus definitions.
+ */
+#define ED_MII_STARTDELIM	0x01
+#define ED_MII_WRITEOP		0x01
+#define ED_MII_READOP		0x02
+#define ED_MII_TURNAROUND	0x02
+#define ED_MII_IDLE		0x01
+
+#define ED_MII_STARTDELIM_BITS	2
+#define ED_MII_OP_BITS		2
+#define ED_MII_PHY_BITS		5
+#define ED_MII_REG_BITS		5
+#define ED_MII_TURNAROUND_BITS	2
+#define ED_MII_DATA_BITS	16
+#define ED_MII_ACK_BITS		1
+#define ED_MII_IDLE_BITS	1
+
+/* Dlink chipset used on some Netgear and Dlink PCMCIA cards */
+#define ED_DLINK_MIIBUS		0x0c	/* MII bus register on ASIC */
+
+#define ED_DLINK_MII_RESET1	0x04
+#define ED_DLINK_MII_RESET2	0x08
+
+#define ED_DLINK_MII_DATATIN	0x10
+#define ED_DLINK_MII_DIROUT	0x20
+#define ED_DLINK_MII_DATAOUT	0x40
+#define ED_DLINK_MII_CLK	0x80

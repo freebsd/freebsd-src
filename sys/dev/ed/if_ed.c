@@ -41,6 +41,7 @@
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
@@ -55,6 +56,10 @@
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_mib.h>
+#include <net/if_media.h>
+
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 #include <net/bpf.h>
 #include "opt_bdg.h"
@@ -74,6 +79,7 @@ static int	ed_ioctl	__P((struct ifnet *, u_long, caddr_t));
 static void	ed_start	__P((struct ifnet *));
 static void	ed_reset	__P((struct ifnet *));
 static void	ed_watchdog	__P((struct ifnet *));
+static void	ed_tick		__P((void *));
 
 static void	ds_getmcaf	__P((struct ed_softc *, u_int32_t *));
 
@@ -1586,6 +1592,7 @@ ed_attach(sc, unit, flags)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
+	callout_handle_init(&sc->tick_ch);
 	/*
 	 * Set interface to stopped condition (reset)
 	 */
@@ -1695,6 +1702,8 @@ ed_stop(sc)
 {
 	int     n = 5000;
 
+	untimeout(ed_tick, sc, sc->tick_ch);
+	callout_handle_init(&sc->tick_ch);
 	if (sc->gone)
 		return;
 	/*
@@ -1727,6 +1736,27 @@ ed_watchdog(ifp)
 	ifp->if_oerrors++;
 
 	ed_reset(ifp);
+}
+
+static void
+ed_tick(arg)
+	void *arg;
+{
+	struct ed_softc *sc = arg;
+	struct mii_data *mii;
+	int s;
+
+	if (sc->gone) {
+		callout_handle_init(&sc->tick_ch);
+		return;
+	}
+	s = splimp();
+	if (sc->miibus != NULL) {
+		mii = device_get_softc(sc->miibus);
+		mii_tick(mii);
+	}
+	sc->tick_ch = timeout(ed_tick, sc, hz);
+	splx(s);
 }
 
 /*
@@ -1870,6 +1900,11 @@ ed_init(xsc)
 		}
 	}
 
+	if (sc->miibus != NULL) {
+		struct mii_data *mii;
+		mii = device_get_softc(sc->miibus);
+		mii_mediachg(mii);
+	}
 	/*
 	 * Set 'running' flag, and clear output active flag.
 	 */
@@ -1881,6 +1916,8 @@ ed_init(xsc)
 	 */
 	ed_start(ifp);
 
+	untimeout(ed_tick, sc, sc->tick_ch);
+	sc->tick_ch = timeout(ed_tick, sc, hz);
 	(void) splx(s);
 }
 
@@ -2492,6 +2529,8 @@ ed_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	struct ed_softc *sc = ifp->if_softc;
+	struct ifreq *ifr = (struct ifreq *)data;
+	struct mii_data *mii;
 	int     s, error = 0;
 
 	if (sc == NULL || sc->gone) {
@@ -2552,6 +2591,16 @@ ed_ioctl(ifp, command, data)
 		 */
 		ed_setrcr(sc);
 		error = 0;
+		break;
+
+	case SIOCGIFMEDIA:
+	case SIOCSIFMEDIA:
+		if (sc->miibus == NULL) {
+			error = EINVAL;
+			break;
+		}
+		mii = device_get_softc(sc->miibus);
+		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 
 	default:
@@ -3171,6 +3220,101 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 		ed_asic_outw(sc, ED_HPP_OPTION, sc->hpp_options);
 
 	return (total_len);
+}
+
+/*
+ * MII bus support routines.
+ */
+int
+ed_miibus_readreg(dev, phy, reg)
+	device_t dev;
+	int phy, reg;
+{
+	struct ed_softc *sc;
+	int val;
+	int failed;
+
+	sc = device_get_softc(dev);
+	if (sc->gone)
+		return 0;
+	
+	(*sc->mii_writebits)(sc, 0xffffffff, 32);
+	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_READOP, ED_MII_OP_BITS);
+	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
+	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
+
+	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
+	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
+
+	return (failed ? 0 : val);
+}
+
+void
+ed_miibus_writereg(dev, phy, reg, data)
+	device_t dev;
+	int phy, reg, data;
+{
+	struct ed_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->gone)
+		return;
+
+	(*sc->mii_writebits)(sc, 0xffffffff, 32);
+	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_WRITEOP, ED_MII_OP_BITS);
+	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
+	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_TURNAROUND, ED_MII_TURNAROUND_BITS);
+	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
+	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
+}
+
+int
+ed_ifmedia_upd(ifp)
+	struct ifnet *ifp;
+{
+	struct ed_softc *sc;
+	struct mii_data *mii;
+
+	sc = ifp->if_softc;
+	if (sc->gone || sc->miibus == NULL)
+		return (ENXIO);
+	
+	mii = device_get_softc(sc->miibus);
+	return mii_mediachg(mii);
+}
+
+void
+ed_ifmedia_sts(ifp, ifmr)
+	struct ifnet *ifp;
+	struct ifmediareq *ifmr;
+{
+	struct ed_softc *sc;
+	struct mii_data *mii;
+
+	sc = ifp->if_softc;
+	if (sc->gone || sc->miibus == NULL)
+		return;
+
+	mii = device_get_softc(sc->miibus);
+	mii_pollstat(mii);
+	ifmr->ifm_active = mii->mii_media_active;
+	ifmr->ifm_status = mii->mii_media_status;
+}
+
+void
+ed_child_detached(dev, child)
+	device_t dev;
+	device_t child;
+{
+	struct ed_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (child == sc->miibus)
+		sc->miibus = NULL;
 }
 
 static void
