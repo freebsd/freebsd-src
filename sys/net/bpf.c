@@ -1227,6 +1227,50 @@ bpf_mtap(bp, m)
 }
 
 /*
+ * Incoming linkage from device drivers, when packet is in
+ * an mbuf chain and to be prepended by a contiguous header.
+ */
+void
+bpf_mtap2(bp, data, dlen, m)
+	struct bpf_if *bp;
+	void *data;
+	u_int dlen;
+	struct mbuf *m;
+{
+	struct mbuf mb;
+	struct bpf_d *d;
+	u_int pktlen, slen;
+
+	pktlen = m_length(m, NULL);
+	/*
+	 * Craft on-stack mbuf suitable for passing to bpf_filter.
+	 * Note that we cut corners here; we only setup what's
+	 * absolutely needed--this mbuf should never go anywhere else.
+	 */
+	mb.m_next = m;
+	mb.m_data = data;
+	mb.m_len = dlen;
+	pktlen += dlen;
+
+	BPFIF_LOCK(bp);
+	for (d = bp->bif_dlist; d != 0; d = d->bd_next) {
+		if (!d->bd_seesent && (m->m_pkthdr.rcvif == NULL))
+			continue;
+		BPFD_LOCK(d);
+		++d->bd_rcount;
+		slen = bpf_filter(d->bd_filter, (u_char *)&mb, pktlen, 0);
+		if (slen != 0)
+#ifdef MAC
+			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
+#endif
+				catchpacket(d, (u_char *)&mb, pktlen, slen,
+				    bpf_mcopy);
+		BPFD_UNLOCK(d);
+	}
+	BPFIF_UNLOCK(bp);
+}
+
+/*
  * Move the packet data from interface memory (pkt) into the
  * store buffer.  Return 1 if it's time to wakeup a listener (buffer full),
  * otherwise 0.  "copy" is the routine called to do the actual data
@@ -1575,6 +1619,15 @@ bpf_tap(bp, pkt, pktlen)
 void
 bpf_mtap(bp, m)
 	struct bpf_if *bp;
+	struct mbuf *m;
+{
+}
+
+void
+bpf_mtap2(bp, d, l, m)
+	struct bpf_if *bp;
+	const void *d;
+	u_int l;
 	struct mbuf *m;
 {
 }

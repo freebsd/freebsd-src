@@ -240,15 +240,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	osrc = 0;
 
 	if (ifp->if_bpf) {
-		/* see comment of other if_foo.c files */
-		struct mbuf m0;
 		u_int32_t af = dst->sa_family;
-
-		m0.m_next = m;
-		m0.m_len = 4;
-		m0.m_data = (char *)&af;
-
-		BPF_MTAP(ifp, &m0);
+		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);

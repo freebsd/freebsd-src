@@ -456,21 +456,8 @@ tunoutput(
 	}
 
 	if (ifp->if_bpf) {
-		/*
-		 * We need to prepend the address family as
-		 * a four byte field.  Cons up a dummy header
-		 * to pacify bpf.  This is safe because bpf
-		 * will only read from the mbuf (i.e., it won't
-		 * try to free it or keep a pointer to it).
-		 */
-		struct mbuf m;
 		uint32_t af = dst->sa_family;
-
-		m.m_next = m0;
-		m.m_len = 4;
-		m.m_data = (char *)&af;
-
-		BPF_MTAP(ifp, &m);
+		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m0);
 	}
 
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
@@ -743,39 +730,6 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	mac_create_mbuf_from_ifnet(ifp, top);
 #endif
 
-	if (ifp->if_bpf) {
-		if (tp->tun_flags & TUN_IFHEAD) {
-			/*
-			 * Conveniently, we already have a 4-byte address
-			 * family prepended to our packet !
-			 * Inconveniently, it's in the wrong byte order !
-			 */
-			if ((top = m_pullup(top, sizeof(family))) == NULL)
-				return (ENOBUFS);
-			*mtod(top, u_int32_t *) =
-			    ntohl(*mtod(top, u_int32_t *));
-			BPF_MTAP(ifp, top);
-			*mtod(top, u_int32_t *) =
-			    htonl(*mtod(top, u_int32_t *));
-		} else {
-			/*
-			 * We need to prepend the address family as
-			 * a four byte field.  Cons up a dummy header
-			 * to pacify bpf.  This is safe because bpf
-			 * will only read from the mbuf (i.e., it won't
-			 * try to free it or keep a pointer to it).
-			 */
-			struct mbuf m;
-			uint32_t af = AF_INET;
-
-			m.m_next = top;
-			m.m_len = 4;
-			m.m_data = (char *)&af;
-
-			BPF_MTAP(ifp, &m);
-		}
-	}
-
 	if (tp->tun_flags & TUN_IFHEAD) {
 		if (top->m_len < sizeof(family) &&
 		    (top = m_pullup(top, sizeof(family))) == NULL)
@@ -784,6 +738,8 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 		m_adj(top, sizeof(family));
 	} else
 		family = AF_INET;
+
+	BPF_MTAP2(ifp, &family, sizeof(family), top);
 
 	switch (family) {
 #ifdef INET
