@@ -290,6 +290,13 @@ record_label_chunks(Device **devs, Device *dev)
 		label_chunk_info[j].c = c1;
 		++j;
 	    }
+#ifdef __powerpc__
+	    if (c1->type == apple) {
+    	        label_chunk_info[j].type = PART_SLICE;
+		label_chunk_info[j].c = c1;
+		++j;
+	    }
+#endif
 	}
     }
 
@@ -330,6 +337,20 @@ record_label_chunks(Device **devs, Device *dev)
 		    label_chunk_info[j].type = PART_FILESYSTEM;
 		label_chunk_info[j].c = c1;
 		++j;
+	    }
+#endif
+#ifdef __powerpc__
+	    else if (c1->type == apple) {
+	        for (c2 = c1->part; c2; c2 = c2->next) {
+		    if (c2->type == part) {
+		        if (c2->subtype == FS_SWAP)
+			    label_chunk_info[j].type = PART_SWAP;
+			else
+			    label_chunk_info[j].type = PART_FILESYSTEM;
+			label_chunk_info[j].c = c2;
+			++j;
+		    }
+		}
 	    }
 #endif
 	}
@@ -1000,6 +1021,12 @@ diskLabel(Device *dev)
 		char osize[80];
 		u_long flags = 0;
 
+#ifdef __powerpc__
+		/* Always use the maximum size for apple partitions */
+		if (label_chunk_info[here].c->type == apple)
+		    size = sz;
+		else {
+#endif
 		sprintf(osize, "%jd", (intmax_t)sz);
 		val = msgGetInput(osize,
 				  "Please specify the partition size in blocks or append a trailing G for\n"
@@ -1030,6 +1057,9 @@ diskLabel(Device *dev)
 		    clear_wins();
 		    break;
 		}
+#ifdef __powerpc__
+		}
+#endif
 		type = get_partition_type();
 		if (type == PART_NONE) {
 		    clear_wins();
