@@ -72,6 +72,12 @@ A list of source branches to build.
 .Pq Vt hash
 Which architectures and machines to build for.
 Each hash entry maps an architecture to a list of machines.
+.It DATE
+.Pq Vt scalar
+The date to use when checking out sources, or
+.Dq today
+for today's sources.
+If left undefined, the top of each branch is used.
 .It SANDBOX
 .Pq Vt scalar
 The location of the sandbox directory.
