@@ -30,8 +30,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <string.h>
 
-#include "global.h"
-
 /*
  * Length of test block, number of test blocks.
  */
@@ -41,11 +39,11 @@ static const char rcsid[] =
 int qflag;
 int rflag;
 
-static void MDString PROTO_LIST((char *));
-static void MDTimeTrial PROTO_LIST((void));
-static void MDTestSuite PROTO_LIST((void));
-static void MDFilter PROTO_LIST((int));
-static void usage PROTO_LIST((void));
+static void MDString(const char *);
+static void MDTimeTrial(void);
+static void MDTestSuite(void);
+static void MDFilter(int);
+static void usage(void);
 
 /* Main driver.
 
@@ -57,53 +55,51 @@ Arguments (may be any combination):
   (none)   - digests standard input
  */
 int
-main(argc, argv)
-	int     argc;
-	char   *argv[];
+main(int argc, char *argv[])
 {
 	int     ch;
 	char   *p;
 	char	buf[33];
 
-	if (argc > 1) {
-		while ((ch = getopt(argc, argv, "ps:qrtx")) != -1) {
-			switch (ch) {
-			case 'p':
-				MDFilter(1);
-				break;
-			case 'q':
-				qflag = 1;
-				break;
-			case 'r':
-				rflag = 1;
-				break;
-			case 's':
-				MDString(optarg);
-				break;
-			case 't':
-				MDTimeTrial();
-				break;
-			case 'x':
-				MDTestSuite();
-				break;
-			default:
-				usage();
-			}
+	while ((ch = getopt(argc, argv, "ps:qrtx")) != -1)
+		switch (ch) {
+		case 'p':
+			MDFilter(1);
+			break;
+		case 'q':
+			qflag = 1;
+			break;
+		case 'r':
+			rflag = 1;
+			break;
+		case 's':
+			MDString(optarg);
+			break;
+		case 't':
+			MDTimeTrial();
+			break;
+		case 'x':
+			MDTestSuite();
+			break;
+		default:
+			usage();
 		}
-		while (optind < argc) {
-			p = MD5File(argv[optind], buf);
+	argc -= optind;
+	argv += optind;
+
+	if (*argv) {
+		do {
+			p = MD5File(*argv, buf);
 			if (!p)
-				warn("%s", argv[optind]);
+				warn("%s", *argv);
 			else
 				if (qflag)
 					printf("%s\n", p);
 				else if (rflag)
-					printf("%s %s\n", p, argv[optind]);
+					printf("%s %s\n", p, *argv);
 				else
-					printf("MD5 (%s) = %s\n", argv[optind],
-					    p);
-			optind++;
-		}
+					printf("MD5 (%s) = %s\n", *argv, p);
+		} while (*++argv);
 	} else
 		MDFilter(0);
 
@@ -113,8 +109,7 @@ main(argc, argv)
  * Digests a string and prints the result.
  */
 static void
-MDString(string)
-	char   *string;
+MDString(const char *string)
 {
 	size_t len = strlen(string);
 	char buf[33];
@@ -130,7 +125,7 @@ MDString(string)
  * Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte blocks.
  */
 static void
-MDTimeTrial()
+MDTimeTrial(void)
 {
 	MD5_CTX context;
 	time_t  endTime, startTime;
@@ -172,7 +167,7 @@ MDTimeTrial()
  * Digests a reference suite of strings and prints the results.
  */
 static void
-MDTestSuite()
+MDTestSuite(void)
 {
 
 	printf("MD5 test suite:\n");
@@ -193,17 +188,16 @@ MDTestSuite()
  * Digests the standard input and prints the result.
  */
 static void
-MDFilter(pipe)
-	int pipe;
+MDFilter(int tee)
 {
 	MD5_CTX context;
-	int     len;
+	unsigned int len;
 	unsigned char buffer[BUFSIZ];
 	char buf[33];
 
 	MD5Init(&context);
 	while ((len = fread(buffer, 1, BUFSIZ, stdin))) {
-		if(pipe && (len != fwrite(buffer, 1, len, stdout)))
+		if (tee && len != fwrite(buffer, 1, len, stdout))
 			err(1, "stdout");
 		MD5Update(&context, buffer, len);
 	}
@@ -211,7 +205,7 @@ MDFilter(pipe)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	fprintf(stderr, "usage: md5 [-pqrtx] [-s string] [files ...]\n");
