@@ -115,10 +115,12 @@ struct ath_softc {
 		struct ath_tx_radiotap_header th;
 		u_int8_t	pad[64];
 	} u_tx_rt;
+	int			sc_tx_th_len;
 	union {
 		struct ath_rx_radiotap_header th;
 		u_int8_t	pad[64];
 	} u_rx_rt;
+	int			sc_rx_th_len;
 
 	struct ath_desc		*sc_desc;	/* TX/RX descriptors */
 	bus_dma_segment_t	sc_dseg;
