@@ -66,7 +66,7 @@ typedef struct {
 /*
  * le_flags values
  */
-#define LUN_TQAE	0x00000001	/* bit1  Tagged Queue Action Enable */
+#define LUN_TQAE	0x00000002	/* bit1  Tagged Queue Action Enable */
 #define LUN_DSSM	0x01000000	/* bit24 Disable Sending SDP Message */
 #define	LUN_DISAD	0x02000000	/* bit25 Disable autodisconnect */
 #define LUN_DM		0x40000000	/* bit30 Disconnects Mandatory */
@@ -231,7 +231,7 @@ typedef struct {
  * at_flags values
  */
 #define AT_NODISC	0x00008000	/* disconnect disabled */
-#define AT_TQAE		0x00000001	/* Tagged Queue Action enabled */
+#define AT_TQAE		0x00000002	/* Tagged Queue Action enabled */
 
 /*
  * at_status values
@@ -242,6 +242,24 @@ typedef struct {
 #define AT_NOCAP	0x16	/* Requested capability not available */
 #define AT_BDR_MSG	0x17	/* Bus Device Reset msg received */
 #define AT_CDB		0x3D	/* CDB received */
+
+/*
+ * Macros to create and fetch and test concatenated handle and tag value macros
+ */
+
+#define	AT_MAKE_TAGID(tid, aep)						\
+	tid = ((aep)->at_handle << 16);					\
+	if ((aep)->at_flags & AT_TQAE)					\
+		(tid) |= ((aep)->at_tag_val + 1)
+
+#define	CT_MAKE_TAGID(tid, ct)						\
+	tid = ((ct)->ct_fwhandle << 16);				\
+	if ((ct)->ct_flags & CT_TQAE)					\
+		(tid) |= ((ct)->ct_tag_val + 1)
+
+#define	AT_HAS_TAG(val)		((val) & 0xffff)
+#define	AT_GET_TAG(val)		AT_HAS_TAG(val) - 1
+#define	AT_GET_HANDLE(val)	((val) >> 16)
 
 /*
  * Accept Target I/O Entry structure, Type 2
@@ -321,7 +339,7 @@ typedef struct {
 /*
  * ct_flags values
  */
-#define CT_TQAE		0x00000001	/* bit  1, Tagged Queue Action enable */
+#define CT_TQAE		0x00000002	/* bit  1, Tagged Queue Action enable */
 #define CT_DATA_IN	0x00000040	/* bits 6&7, Data direction */
 #define CT_DATA_OUT	0x00000080	/* bits 6&7, Data direction */
 #define CT_NO_DATA	0x000000C0	/* bits 6&7, Data direction */
@@ -660,39 +678,39 @@ typedef struct {
 /*
  * This function handles new response queue entry appropriate for target mode.
  */
-int isp_target_notify __P((struct ispsoftc *, void *, u_int16_t *));
+int isp_target_notify(struct ispsoftc *, void *, u_int16_t *);
 
 /*
  * Enable/Disable/Modify a logical unit.
  */
 #define	DFLT_CMD_CNT	32	/* XX */
 #define	DFLT_INOTIFY	(4)
-int isp_lun_cmd __P((struct ispsoftc *, int, int, int, int, u_int32_t));
+int isp_lun_cmd(struct ispsoftc *, int, int, int, int, u_int32_t);
 
 /*
  * General request queue 'put' routine for target mode entries.
  */
-int isp_target_put_entry __P((struct ispsoftc *isp, void *));
+int isp_target_put_entry(struct ispsoftc *isp, void *);
 
 /*
  * General routine to put back an ATIO entry-
  * used for replenishing f/w resource counts.
+ * The argument is a pointer to a source ATIO
+ * or ATIO2.
  */
-int
-isp_target_put_atio __P((struct ispsoftc *, int, int, int, int, int));
+int isp_target_put_atio(struct ispsoftc *, void *);
 
 /*
  * General routine to send a final CTIO for a command- used mostly for
  * local responses.
  */
-int
-isp_endcmd __P((struct ispsoftc *, void *, u_int32_t, u_int16_t));
+int isp_endcmd(struct ispsoftc *, void *, u_int32_t, u_int16_t);
 #define	ECMD_SVALID	0x100
 
 /*
  * Handle an asynchronous event
  */
 
-void isp_target_async __P((struct ispsoftc *, int, int));
+void isp_target_async(struct ispsoftc *, int, int);
 
 #endif	/* _ISP_TARGET_H */
