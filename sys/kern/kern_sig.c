@@ -1233,7 +1233,9 @@ psignal(p, sig)
 	register int prop;
 	register sig_t action;
 	struct thread *td;
+#ifdef SMP
 	struct ksegrp *kg;
+#endif
 
 	KASSERT(_SIG_VALID(sig),
 	    ("psignal(): invalid signal %d\n", sig));
