@@ -296,6 +296,7 @@ AcpiEnterSleepState (
     ACPI_BIT_REGISTER_INFO  *SleepTypeRegInfo;
     ACPI_BIT_REGISTER_INFO  *SleepEnableRegInfo;
     UINT32                  InValue;
+    UINT32                  Retry;
     ACPI_STATUS             Status;
 
 
@@ -422,12 +423,22 @@ AcpiEnterSleepState (
 
     /* Wait until we enter sleep state */
 
+    Retry = 1000;
     do
     {
         Status = AcpiGetRegister (ACPI_BITREG_WAKE_STATUS, &InValue, ACPI_MTX_DO_NOT_LOCK);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
+        }
+
+        /*
+         * Some BIOSs don't set WAK_STS at all.  Give up waiting after
+         * 1000 retries if it still isn't set.
+         */
+        if (Retry-- == 0)
+        {
+            break;
         }
 
         /* Spin until we wake */
