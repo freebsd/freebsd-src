@@ -39,25 +39,11 @@
 #define	PCPU_PTR(member)	(&GLOBALP->gd_ ## member)
 #define	PCPU_SET(member,value)	(GLOBALP->gd_ ## member = (value))
 
-/*
- * The following set of macros works for UP kernel as well, but for maximum
- * performance we allow the global variables to be accessed directly. On the
- * other hand, kernel modules should always use these macros to maintain
- * portability between UP and SMP kernels.
- */
 #define	curthread		PCPU_GET(curthread)
 #define	CURPROC  		(curthread->td_proc)
 #define	curproc  		(curthread->td_proc)
 #define	curksegrp		(curthread->td_ksegrp)
 #define	curkse			(curthread->td_kse)
-
-#define	idleproc		PCPU_GET(idleproc)
-#define	curpcb			PCPU_GET(curpcb)
-#define	fpcurproc		PCPU_GET(fpcurproc)
-#define	fpcurthread		PCPU_GET(fpcurthread)
-#define	switchtime		PCPU_GET(switchtime)
-#define	switchticks		PCPU_GET(switchticks)
-#define	witness_spin_check	PCPU_GET(witness_spin_check)
 
 #endif	/* _KERNEL */
 
