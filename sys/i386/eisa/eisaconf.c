@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.44 1999/05/18 21:03:30 peter Exp $
+ *	$Id: eisaconf.c,v 1.45 1999/05/24 03:08:46 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -471,6 +471,8 @@ static device_method_t eisa_methods[] = {
 	DEVMETHOD(device_probe,		eisa_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	eisa_print_child),
