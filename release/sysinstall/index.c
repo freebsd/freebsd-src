@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.26 1996/04/30 06:00:06 jkh Exp $
+ * $Id: index.c,v 1.27 1996/04/30 21:22:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -502,10 +502,10 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	    }
 	    continue;
 	}
+	items_free(nitems, &curr, &max);
+	restorescr(w);
+	return rval ? DITEM_FAILURE : DITEM_SUCCESS;
     }
-    items_free(nitems, &curr, &max);
-    restorescr(w);
-    return rval ? DITEM_FAILURE : DITEM_SUCCESS;
 }
 
 int
