@@ -96,7 +96,7 @@ umapfs_mount(mp, path, data, ndp, td)
 	struct vnode *lowerrootvp, *vp;
 	struct vnode *umapm_rootvp;
 	struct umap_mount *amp;
-	u_int size;
+	size_t size;
 	int error;
 #ifdef DEBUG
 	int	i;
