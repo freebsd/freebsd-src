@@ -213,7 +213,12 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			tcp->esc = 4;
 			return;
 #endif
-		case 'c':	/* Clear screen & home */
+		case 'c':       /* reset */
+			tcp->attr_mask = NORMAL_ATTR;
+			tcp->cur_color = tcp->std_color
+				       = tcp->dflt_std_color;
+			tcp->rev_color = tcp->dflt_rev_color;
+			tcp->cur_attr = mask2attr(tcp);
 			sc_clear_screen(scp);
 			break;
 
@@ -397,6 +402,22 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 					break;
 				case 7: /* reverse */
 					tcp->attr_mask |= REVERSE_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 22: /* remove bold (or dim) */
+					tcp->attr_mask &= ~BOLD_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 24: /* remove underline */
+					tcp->attr_mask &= ~UNDERLINE_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 25: /* remove blink */
+					tcp->attr_mask &= ~BLINK_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 27: /* remove reverse */
+					tcp->attr_mask &= ~REVERSE_ATTR;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
 				case 30: case 31: /* set ansi fg color */
