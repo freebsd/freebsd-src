@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.315 (Berkeley) 11/10/96";
+static char sccsid[] = "@(#)conf.c	8.333 (Berkeley) 1/21/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -123,14 +123,6 @@ struct hdrinfo	HdrInfo[] =
 
 	{ NULL,				0				}
 };
-
-
-
-/*
-**  Location of system files/databases/etc.
-*/
-
-char	*PidFile =	_PATH_SENDMAILPID;	/* stores daemon proc id */
 
 
 
@@ -230,6 +222,7 @@ setdefaults(e)
 	ServiceSwitchFile = "/etc/service.switch";
 	ServiceCacheMaxAge = (time_t) 10;
 	HostsFile = _PATH_HOSTS;
+	PidFile = newstr(_PATH_SENDMAILPID);
 	MustQuoteChars = "@,;:\\()[].'";
 	MciInfoTimeout = 30 MINUTES;
 	MaxRuleRecursion = MAXRULERECURSION;
@@ -1087,13 +1080,56 @@ setsignal(sig, handler)
 #endif
 }
 /*
+**  BLOCKSIGNAL -- hold a signal to prevent delivery
+**
+**	Parameters:
+**		sig -- the signal to block.
+**
+**	Returns:
+**		1 signal was previously blocked
+**		0 signal was not previously blocked
+**		-1 on failure.
+*/
+
+int
+blocksignal(sig)
+	int sig;
+{
+#ifdef BSD4_3
+# ifndef sigmask
+#  define sigmask(s)	(1 << ((s) - 1))
+# endif
+	return (sigblock(sigmask(sig)) & sigmask(sig)) != 0;
+#else
+# ifdef ALTOS_SYSTEM_V
+	sigfunc_t handler;
+
+	handler = sigset(sig, SIG_HOLD);
+	if (handler == SIG_ERR)
+		return -1;
+	else
+		return handler == SIG_HOLD;
+# else
+	sigset_t sset, oset;
+
+	sigemptyset(&sset);
+	sigaddset(&sset, sig);
+	if (sigprocmask(SIG_BLOCK, &sset, &oset) < 0)
+		return -1;
+	else
+		return sigismember(&oset, sig);
+# endif
+#endif
+}
+/*
 **  RELEASESIGNAL -- release a held signal
 **
 **	Parameters:
 **		sig -- the signal to release.
 **
 **	Returns:
-**		0 on success.
+**		1 signal was previously blocked
+**		0 signal was not previously blocked
 **		-1 on failure.
 */
 
@@ -1102,19 +1138,25 @@ releasesignal(sig)
 	int sig;
 {
 #ifdef BSD4_3
-# ifndef sigmask
-#  define sigmask(s)	(1 << ((s) - 1))
-# endif
-	return sigsetmask(sigblock(0) & ~sigmask(sig));
+	return (sigsetmask(sigblock(0) & ~sigmask(sig)) & sigmask(sig)) != 0;
 #else
 # ifdef ALTOS_SYSTEM_V
-	sigrelse(sig) ;
+	sigfunc_t handler;
+
+	handler = sigset(sig, SIG_HOLD);
+	if (sigrelse(sig) < 0)
+		return -1;
+	else
+		return handler == SIG_HOLD;
 # else
-	sigset_t sset;
+	sigset_t sset, oset;
 
 	sigemptyset(&sset);
 	sigaddset(&sset, sig);
-	return sigprocmask(SIG_UNBLOCK, &sset, NULL);
+	if (sigprocmask(SIG_UNBLOCK, &sset, &oset) < 0)
+		return -1;
+	else
+		return sigismember(&oset, sig);
 # endif
 #endif
 }
@@ -1256,6 +1298,7 @@ init_vendor_macros(e)
 #define LA_IRIX6	11	/* special IRIX 6.2 implementation */
 #define LA_KSTAT	12	/* special Solaris kstat(3k) implementation */
 #define LA_DEVSHORT	13	/* read short from a device */
+#define LA_ALPHAOSF	14	/* Digital UNIX (OSF/1 on Alpha) table() call */
 
 /* do guesses based on general OS type */
 #ifndef LA_TYPE
@@ -1378,7 +1421,8 @@ getla()
 		(void) fcntl(kmem, F_SETFD, 1);
 	}
 	if (tTd(3, 20))
-		printf("getla: symbol address = %#x\n", Nl[X_AVENRUN].n_value);
+		printf("getla: symbol address = %#lx\n",
+			(u_long) Nl[X_AVENRUN].n_value);
 	if (lseek(kmem, (off_t) Nl[X_AVENRUN].n_value, SEEK_SET) == -1 ||
 	    read(kmem, (char *) avenrun, sizeof(avenrun)) < sizeof(avenrun))
 	{
@@ -1798,12 +1842,13 @@ int getla(void)
 int
 getla()
 {
-	kstat_ctl_t *kc;
-	kstat_t *ksp;
+	static kstat_ctl_t *kc = NULL;
+	static kstat_t *ksp = NULL;
 	kstat_named_t *ksn;
 	int la;
 
-	kc = kstat_open();
+	if (kc == NULL)		/* if not initialized before */
+		kc = kstat_open();
 	if (kc == NULL)
 	{
 		if (tTd(3, 1))
@@ -1811,24 +1856,25 @@ getla()
 				errstring(errno));
 		return -1;
 	}
-	ksp = kstat_lookup(kc, "unix", 0, "system_misc"); /* NULL on error */
+	if (ksp == NULL)
+		ksp = kstat_lookup(kc, "unix", 0, "system_misc");
 	if (ksp == NULL)
 	{
 		if (tTd(3, 1))
 			printf("getla: kstat_lookup(): %s\n",
-				errstring(errno);
+				errstring(errno));
 		return -1;
 	}
 	if (kstat_read(kc, ksp, NULL) < 0)
 	{
 		if (tTd(3, 1))
 			printf("getla: kstat_read(): %s\n",
-				errstring(errno);
+				errstring(errno));
 		return -1;
 	}
 	ksn = (kstat_named_t *) kstat_data_lookup(ksp, "avenrun_1min");
-	la = (ksn->value.ul + FSCALE/2) >> FSHIFT;
-	kstat_close(kc);
+	la = ((double)ksn->value.ul + FSCALE/2) / FSCALE;
+	/* kstat_close(kc); /o do not close for fast access */
 	return la;
 }
 
@@ -1881,6 +1927,37 @@ getla()
 }
 
 #endif /* LA_TYPE == LA_DEVSHORT */
+
+#if LA_TYPE == LA_ALPHAOSF
+# include <sys/table.h>
+
+int getla()
+{
+	int ave = 0;
+	struct tbl_loadavg tab;
+
+	if (table(TBL_LOADAVG, 0, &tab, 1, sizeof(tab)) == -1)
+	{
+		if (tTd(3, 1))
+			printf("getla: table %s\n", errstring(errno));
+		return (-1);
+	}
+
+	if (tTd(3, 1))
+		printf("getla: scale = %d\n", tab.tl_lscale);
+
+	if (tab.tl_lscale)
+		ave = (tab.tl_avenrun.l[0] + (tab.tl_lscale/2)) / tab.tl_lscale;
+	else
+		ave = (int) (tab.tl_avenrun.d[0] + 0.5);
+
+	if (tTd(3, 1))
+		printf("getla: %d\n", ave);
+
+	return ave;
+}
+
+#endif
 
 #if LA_TYPE == LA_ZERO
 
@@ -2058,6 +2135,8 @@ refuseconnections(port)
 
 	if (MaxChildren > 0 && CurChildren >= MaxChildren)
 	{
+		extern void proc_list_probe __P((void));
+
 		proc_list_probe();
 		if (CurChildren >= MaxChildren)
 		{
@@ -2288,7 +2367,7 @@ setproctitle(fmt, va_alist)
 **		Picks up extant zombies.
 */
 
-void
+SIGFUNC_DECL
 reapchild(sig)
 	int sig;
 {
@@ -2330,6 +2409,7 @@ reapchild(sig)
 	(void) setsignal(SIGCHLD, reapchild);
 # endif
 	errno = olderrno;
+	return SIGFUNC_RETURN;
 }
 /*
 **  PUTENV -- emulation of putenv() in terms of setenv()
@@ -2716,12 +2796,12 @@ getopt(nargc,nargv,ostr)
 	if(!*place) {			/* update scanning pointer */
 		if (optind >= nargc || *(place = nargv[optind]) != '-' || !*++place) {
 			atend++;
-			return(EOF);
+			return -1;
 		}
 		if (*place == '-') {	/* found "--" */
 			++optind;
 			atend++;
-			return(EOF);
+			return -1;
 		}
 	}				/* option letter okay? */
 	if ((optopt = (int)*place++) == (int)':' || !(oli = strchr(ostr,optopt))) {
@@ -2870,7 +2950,7 @@ static void dopr_outch __P(( int c ));
 static void
 dopr( buffer, format, args )
        char *buffer;
-       char *format;
+       const char *format;
        va_list args;
 {
        int ch;
@@ -3602,6 +3682,7 @@ lockfile(fd, filename, ext, type)
 #  endif
 		syserr("cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
 			filename, ext, fd, type, omode, geteuid());
+		dumpfd(fd, TRUE, TRUE);
 	}
 # else
 	if (ext == NULL)
@@ -3631,6 +3712,7 @@ lockfile(fd, filename, ext, type)
 #  endif
 		syserr("cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
 			filename, ext, fd, type, omode, geteuid());
+		dumpfd(fd, TRUE, TRUE);
 	}
 # endif
 	if (tTd(55, 60))
@@ -3842,6 +3924,11 @@ vendor_pre_defaults(e)
 #ifdef SUN_EXTENSIONS
 	sun_pre_defaults(e);
 #endif
+#ifdef apollo
+	/* stupid domain/os can't even open /etc/sendmail.cf without this */
+	setuserenv("ISP", NULL);
+	setuserenv("SYSTYPE", NULL);
+#endif
 }
 
 
@@ -3916,10 +4003,13 @@ vendor_set_uid(uid)
 
 #if TCPWRAPPERS
 # include <tcpd.h>
+
+/* tcpwrappers does no logging, but you still have to declare these -- ugh */
 int	allow_severity	= LOG_INFO;
-int	deny_severity	= LOG_WARNING;
+int	deny_severity	= LOG_NOTICE;
 #endif
 
+#if DAEMON
 bool
 validate_connection(sap, hostname, e)
 	SOCKADDR *sap;
@@ -3931,10 +4021,19 @@ validate_connection(sap, hostname, e)
 
 #if TCPWRAPPERS
 	if (!hosts_ctl("sendmail", hostname, anynet_ntoa(sap), STRING_UNKNOWN))
+	{
+# ifdef LOG
+		if (LogLevel >= 4)
+			syslog(LOG_NOTICE, "tcpwrappers (%s, %s) rejection",
+				hostname, anynet_ntoa(sap));
+# endif
 		return FALSE;
+	}
 #endif
 	return TRUE;
 }
+
+#endif
 /*
 **  STRTOL -- convert string to long integer
 **
@@ -4184,14 +4283,26 @@ struct passwd *
 sm_getpwnam(user)
 	char *user;
 {
+#ifdef _AIX4
+	extern struct passwd *_getpwnam_shadow(const char *, const int);
+
+	return _getpwnam_shadow(user, 0);
+#else
 	return getpwnam(user);
+#endif
 }
 
 struct passwd *
 sm_getpwuid(uid)
 	UID_T uid;
 {
+#if defined(_AIX4) && 0
+	extern struct passwd *_getpwuid_shadow(const int, const int);
+
+	return _getpwuid_shadow(uid,0);
+#else
 	return getpwuid(uid);
+#endif
 }
 /*
 **  SECUREWARE_SETUP_SECURE -- Convex SecureWare setup
@@ -4285,7 +4396,7 @@ load_if_names()
 	int s;
 	int i;
         struct ifconf ifc;
-	char interfacebuf[1024];
+	char interfacebuf[10240];
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s == -1)
@@ -4611,9 +4722,6 @@ char	*OsCompileOptions[] =
 #if HASSETVBUF
 	"HASSETVBUF",
 #endif
-#if HASSIGSETMASK
-	"HASSIGSETMASK",
-#endif
 #if HASSNPRINTF
 	"HASSNPRINTF",
 #endif
@@ -4658,6 +4766,9 @@ char	*OsCompileOptions[] =
 #endif
 #if USE_SA_SIGACTION
 	"USE_SA_SIGACTION",
+#endif
+#if USE_SIGLONGJMP
+	"USE_SIGLONGJMP",
 #endif
 #if USESETEUID
 	"USESETEUID",

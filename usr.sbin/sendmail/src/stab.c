@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)stab.c	8.9 (Berkeley) 10/17/96";
+static char sccsid[] = "@(#)stab.c	8.10 (Berkeley) 11/23/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -131,7 +131,7 @@ stab(name, type, op)
 		printf("entered\n");
 
 	/* determine size of new entry */
-#ifdef FFR_MEMORY_MISER
+#ifdef _FFR_MEMORY_MISER
 	if (type >= ST_MCI)
 		len = sizeof s->s_mci;
 	else

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.100 (Berkeley) 9/27/96";
+static char sccsid[] = "@(#)savemail.c	8.103 (Berkeley) 1/18/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -481,8 +481,8 @@ returntosender(msg, returnq, flags, e)
 
 	if (tTd(6, 1))
 	{
-		printf("\n*** Return To Sender: msg=\"%s\", depth=%d, e=%x, returnq=",
-		       msg, returndepth, e);
+		printf("\n*** Return To Sender: msg=\"%s\", depth=%d, e=%lx, returnq=",
+		       msg, returndepth, (u_long) e);
 		printaddr(returnq, TRUE);
 		if (tTd(6, 20))
 		{
@@ -643,7 +643,7 @@ returntosender(msg, returnq, flags, e)
 	markstats(ee, NULLADDR);
 
 	/* actually deliver the error message */
-	sendall(ee, SM_DEFAULT);
+	sendall(ee, SM_DELIVER);
 
 	/* restore state */
 	dropenvelope(ee, TRUE);
@@ -1388,7 +1388,8 @@ xuntextify(t)
 **  XTEXTOK -- check if a string is legal xtext
 **
 **	Xtext is used in Delivery Status Notifications.  The spec was
-**	taken from draft-ietf-notary-mime-delivery-04.txt.
+**	taken from RFC 1891, ``SMTP Service Extension for Delivery
+**	Status Notifications''.
 **
 **	Parameters:
 **		s -- the string to check.

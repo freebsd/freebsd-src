@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)convtime.c	8.7 (Berkeley) 9/15/96";
+static char sccsid[] = "@(#)convtime.c	8.8 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -149,7 +149,10 @@ pintvl(intvl, brief)
 	hr = intvl % 24;
 	intvl /= 24;
 	if (brief)
+	{
 		dy = intvl;
+		wk = 0;
+	}
 	else
 	{
 		dy = intvl % 7;

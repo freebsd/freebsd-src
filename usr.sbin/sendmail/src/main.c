@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.215 (Berkeley) 11/16/96";
+static char sccsid[] = "@(#)main.c	8.230 (Berkeley) 1/17/97";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -103,11 +103,12 @@ static void	obsolete();
 extern void	printmailer __P((MAILER *));
 extern void	tTflag __P((char *));
 
-#ifdef DAEMON
-#ifndef SMTP
-ERROR %%%%   Cannot have daemon mode without SMTP   %%%% ERROR
-#endif /* SMTP */
-#endif /* DAEMON */
+#if DAEMON && !SMTP
+ERROR %%%%   Cannot have DAEMON mode without SMTP   %%%% ERROR
+#endif /* DAEMON && !SMTP */
+#if SMTP && !QUEUE
+ERROR %%%%   Cannot have SMTP mode without QUEUE   %%%% ERROR
+#endif /* DAEMON && !SMTP */
 
 #define MAXCONFIGLEVEL	7	/* highest config version level known */
 
@@ -134,7 +135,7 @@ main(argc, argv, envp)
 	struct passwd *pw;
 	struct stat stb;
 	struct hostent *hp;
-	bool nullserver;
+	bool nullserver = FALSE;
 	char jbuf[MAXHOSTNAMELEN];	/* holds MyHostName */
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	char *emptyenviron[1];
@@ -144,12 +145,12 @@ main(argc, argv, envp)
 	extern char *optarg;
 	extern char **environ;
 	extern time_t convtime();
-	extern void intsig();
+	extern SIGFUNC_DECL intsig __P((int));
 	extern struct hostent *myhostname();
 	extern char *getauthinfo();
 	extern char *getcfname();
-	extern void sigusr1();
-	extern void sighup();
+	extern SIGFUNC_DECL sigusr1 __P((int));
+	extern SIGFUNC_DECL sighup __P((int));
 	extern void initmacros __P((ENVELOPE *));
 	extern void init_md __P((int, char **));
 	extern int getdtsize __P((void));
@@ -164,6 +165,7 @@ main(argc, argv, envp)
 	extern void printqueue __P((void));
 	extern void sendtoargv __P((char **, ENVELOPE *));
 	extern void resetlimits __P((void));
+	extern void drop_privileges __P((void));
 
 	/*
 	**  Check to see if we reentered.
@@ -227,6 +229,9 @@ main(argc, argv, envp)
 
 	tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
 
+	/* drop group id privileges (RunAsUser not yet set) */
+	drop_privileges();
+
 	/* Handle any non-getoptable constructions. */
 	obsolete(argv);
 
@@ -244,7 +249,7 @@ main(argc, argv, envp)
 # define OPTIONS	"B:b:C:cd:e:F:f:h:IiM:mN:nO:o:p:q:R:r:sTtUV:vX:"
 #endif
 	opterr = 0;
-	while ((j = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((j = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (j)
 		{
@@ -510,7 +515,7 @@ main(argc, argv, envp)
 		OpMode = MD_PURGESTAT;
 
 	optind = 1;
-	while ((j = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((j = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (j)
 		{
@@ -519,13 +524,13 @@ main(argc, argv, envp)
 			{
 			  case MD_DAEMON:
 			  case MD_FGDAEMON:
-# ifndef DAEMON
+# if !DAEMON
 				usrerr("Daemon mode not implemented");
 				ExitStat = EX_USAGE;
 				break;
 # endif /* DAEMON */
 			  case MD_SMTP:
-# ifndef SMTP
+# if !SMTP
 				usrerr("I don't speak SMTP");
 				ExitStat = EX_USAGE;
 				break;
@@ -653,7 +658,7 @@ main(argc, argv, envp)
 			break;
 
 		  case 'q':	/* run queue files at intervals */
-# ifdef QUEUE
+# if QUEUE
 			FullName = NULL;
 			queuemode = TRUE;
 			switch (optarg[0])
@@ -805,10 +810,7 @@ main(argc, argv, envp)
 	if (OpMode != MD_DAEMON && OpMode != MD_FGDAEMON)
 	{
 		/* drop privileges -- daemon mode done after socket/bind */
-		if (RunAsGid != 0)
-			(void) setgid(RunAsGid);
-		if (RunAsUid != 0)
-			(void) setuid(RunAsUid);
+		drop_privileges();
 	}
 
 	/*
@@ -899,6 +901,20 @@ main(argc, argv, envp)
 		printf("Warning: HostStatusDirectory required for SingleThreadDelivery\n");
 	}
 
+	/* check for permissions */
+	if ((OpMode == MD_DAEMON || OpMode == MD_PURGESTAT) && RealUid != 0)
+	{
+#ifdef LOG
+		if (LogLevel > 1)
+			syslog(LOG_ALERT, "user %d attempted to %s",
+				RealUid,
+				OpMode == MD_DAEMON ? "run daemon"
+						    : "purge host status");
+#endif
+		usrerr("Permission denied");
+		exit(EX_USAGE);
+	}
+
 	if (MeToo)
 		BlankEnvelope.e_flags |= EF_METOO;
 
@@ -915,17 +931,6 @@ main(argc, argv, envp)
 		/* fall through ... */
 
 	  case MD_DAEMON:
-		/* check for permissions */
-		if (RealUid != 0)
-		{
-#ifdef LOG
-			if (LogLevel > 1)
-				syslog(LOG_ALERT, "user %d attempted to run daemon",
-					RealUid);
-#endif
-			usrerr("Permission denied");
-			exit(EX_USAGE);
-		}
 		vendor_daemon_setup(CurEnv);
 
 		/* remove things that don't make sense in daemon mode */
@@ -947,9 +952,15 @@ main(argc, argv, envp)
 		Verbose = TRUE;
 		/* fall through... */
 
+	  case MD_PRINT:
+		/* to handle sendmail -bp -qSfoobar properly */
+		queuemode = FALSE;
+		/* fall through... */
+
 	  default:
 		/* arrange to exit cleanly on hangup signal */
-		setsignal(SIGHUP, intsig);
+		if (setsignal(SIGHUP, SIG_IGN) == (sigfunc_t) SIG_DFL)
+			setsignal(SIGHUP, intsig);
 		break;
 	}
 
@@ -1046,10 +1057,6 @@ main(argc, argv, envp)
 			setbitn(M_RUNASRCPT, ProgMailer->m_flags);
 		if (FileMailer != NULL)
 			setbitn(M_RUNASRCPT, FileMailer->m_flags);
-
-		/* propogate some envariables into children */
-		setuserenv("ISP", NULL);
-		setuserenv("SYSTYPE", NULL);
 	}
 	if (ConfigLevel < 7)
 	{
@@ -1104,7 +1111,7 @@ main(argc, argv, envp)
 		HostStatDir = NULL;
 	}
 
-# ifdef QUEUE
+# if QUEUE
 	if (queuemode && RealUid != 0 && bitset(PRIV_RESTRICTQRUN, PrivacyFlags))
 	{
 		struct stat stbuf;
@@ -1141,7 +1148,7 @@ main(argc, argv, envp)
 	{
 	  case MD_PRINT:
 		/* print the queue */
-#ifdef QUEUE
+#if QUEUE
 		dropenvelope(CurEnv, TRUE);
 		printqueue();
 		endpwent();
@@ -1216,7 +1223,7 @@ main(argc, argv, envp)
 	if (OpMode == MD_TEST)
 	{
 		char buf[MAXLINE];
-		void intindebug();
+		SIGFUNC_DECL intindebug __P((int));
 
 		if (isatty(fileno(stdin)))
 			Verbose = TRUE;
@@ -1247,7 +1254,7 @@ main(argc, argv, envp)
 		}
 	}
 
-# ifdef QUEUE
+# if QUEUE
 	/*
 	**  If collecting stuff from the queue, go start doing that.
 	*/
@@ -1255,7 +1262,7 @@ main(argc, argv, envp)
 	if (queuemode && OpMode != MD_DAEMON && QueueIntvl == 0)
 	{
 		(void) unsetenv("HOSTALIASES");
-		runqueue(FALSE);
+		(void) runqueue(FALSE, Verbose);
 		finis();
 	}
 # endif /* QUEUE */
@@ -1305,10 +1312,10 @@ main(argc, argv, envp)
 		xla_create_file();
 #endif
 
-# ifdef QUEUE
+# if QUEUE
 		if (queuemode)
 		{
-			runqueue(TRUE);
+			(void) runqueue(TRUE, FALSE);
 			if (OpMode != MD_DAEMON)
 				for (;;)
 					pause();
@@ -1316,14 +1323,11 @@ main(argc, argv, envp)
 # endif /* QUEUE */
 		dropenvelope(CurEnv, TRUE);
 
-#ifdef DAEMON
+#if DAEMON
 		nullserver = getrequests(CurEnv);
 
 		/* drop privileges */
-		if (RunAsGid != 0)
-			(void) setgid(RunAsGid);
-		if (RunAsUid != 0)
-			(void) setuid(RunAsUid);
+		drop_privileges();
 
 		/* at this point we are in a child: reset state */
 		(void) newenvelope(CurEnv, CurEnv);
@@ -1337,7 +1341,7 @@ main(argc, argv, envp)
 #endif /* DAEMON */
 	}
 
-# ifdef SMTP
+# if SMTP
 	/*
 	**  If running SMTP protocol, start collecting and executing
 	**  commands.  This will never return.
@@ -1387,7 +1391,7 @@ main(argc, argv, envp)
 	if (warn_f_flag != '\0' && !wordinclass(RealUserName, 't'))
 		auth_warning(CurEnv, "%s set sender to %s using -%c",
 			RealUserName, from, warn_f_flag);
-	setsender(from, CurEnv, NULL, FALSE);
+	setsender(from, CurEnv, NULL, '\0', FALSE);
 	if (macvalue('s', CurEnv) == NULL)
 		define('s', RealHostName, CurEnv);
 
@@ -1452,10 +1456,12 @@ main(argc, argv, envp)
 }
 
 
-void
-intindebug()
+SIGFUNC_DECL
+intindebug(sig)
+	int sig;
 {
 	longjmp(TopFrame, 1);
+	return SIGFUNC_RETURN;
 }
 
 
@@ -1530,8 +1536,9 @@ finis()
 **		Unlocks the current job.
 */
 
-void
-intsig()
+SIGFUNC_DECL
+intsig(sig)
+	int sig;
 {
 #ifdef LOG
 	if (LogLevel > 79)
@@ -1651,8 +1658,8 @@ disconnect(droplev, e)
 	int fd;
 
 	if (tTd(52, 1))
-		printf("disconnect: In %d Out %d, e=%x\n",
-			fileno(InChannel), fileno(OutChannel), e);
+		printf("disconnect: In %d Out %d, e=%lx\n",
+			fileno(InChannel), fileno(OutChannel), (u_long) e);
 	if (tTd(52, 100))
 	{
 		printf("don't\n");
@@ -1946,16 +1953,27 @@ dumpstate(when)
 }
 
 
-void
-sigusr1()
+SIGFUNC_DECL
+sigusr1(sig)
+	int sig;
 {
 	dumpstate("user signal");
+	return SIGFUNC_RETURN;
 }
 
 
-void
-sighup()
+SIGFUNC_DECL
+sighup(sig)
+	int sig;
 {
+	if (SaveArgv[0][0] != '/')
+	{
+#ifdef LOG
+		if (LogLevel > 3)
+			syslog(LOG_INFO, "could not restart: need full path");
+#endif
+		exit(EX_OSFILE);
+	}
 #ifdef LOG
 	if (LogLevel > 3)
 		syslog(LOG_INFO, "restarting %s on signal", SaveArgv[0]);
@@ -1976,6 +1994,31 @@ sighup()
 		syslog(LOG_ALERT, "could not exec %s: %m", SaveArgv[0]);
 #endif
 	exit(EX_OSFILE);
+}
+/*
+**  DROP_PRIVILEGES -- reduce privileges to those of the RunAsUser option
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+*/
+
+void
+drop_privileges()
+{
+#ifdef NGROUPS_MAX
+	/* reset group permissions; these can be set later */
+	GIDSET_T emptygidset[NGROUPS_MAX];
+
+	emptygidset[0] = RunAsGid == 0 ? getegid() : RunAsGid;
+	(void) setgroups(1, emptygidset);
+#endif
+	if (RunAsGid != 0)
+		(void) setgid(RunAsGid);
+	if (RunAsUid != 0)
+		(void) setuid(RunAsUid);
 }
 /*
 **  TESTMODELINE -- process a test mode input line

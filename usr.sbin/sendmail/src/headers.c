@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.100 (Berkeley) 9/15/96";
+static char sccsid[] = "@(#)headers.c	8.103 (Berkeley) 12/11/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -569,7 +569,7 @@ eatheader(e, full)
 			if (tTd(32, 2))
 				printf("eatheader: setsender(*%s == %s)\n",
 					hi->hi_field, p);
-			setsender(p, e, NULL, TRUE);
+			setsender(p, e, NULL, '\0', TRUE);
 		}
 	}
 
@@ -1165,7 +1165,11 @@ putheader(mci, hdr, e)
 
 		/* suppress return receipts if requested */
 		if (bitset(H_RECEIPTTO, h->h_flags) &&
+#if _FFR_DSN_RRT
+		    (RrtImpliesDsn || bitset(EF_NORECEIPT, e->e_flags)))
+#else
 		    bitset(EF_NORECEIPT, e->e_flags))
+#endif
 		{
 			if (tTd(34, 11))
 				printf(" (skipped (receipt))\n");
@@ -1267,8 +1271,14 @@ put_vanilla_header(h, v, mci)
 {
 	register char *nlp;
 	register char *obp;
+	int putflags;
 	char obuf[MAXLINE];
 
+	putflags = 0;
+#ifdef _FFR_7BITHDRS
+	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
+		putflags |= PXLF_STRIP8BIT;
+#endif
 	(void) snprintf(obuf, sizeof obuf, "%.200s: ", h->h_field);
 	obp = obuf + strlen(obuf);
 	while ((nlp = strchr(v, '\n')) != NULL)
@@ -1280,7 +1290,7 @@ put_vanilla_header(h, v, mci)
 			l = sizeof obuf - (obp - obuf);
 
 		snprintf(obp, SPACELEFT(obuf, obp), "%.*s", l, v);
-		putline(obuf, mci);
+		putxline(obuf, mci, putflags);
 		v += l + 1;
 		obp = obuf;
 		if (*v != ' ' && *v != '\t')
@@ -1288,7 +1298,7 @@ put_vanilla_header(h, v, mci)
 	}
 	snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
 		sizeof obuf - (obp - obuf) - 1, v);
-	putline(obuf, mci);
+	putxline(obuf, mci, putflags);
 }
 /*
 **  COMMAIZE -- output a header field, making a comma-translated list.
@@ -1319,6 +1329,7 @@ commaize(h, p, oldstyle, mci, e)
 	int opos;
 	int omax;
 	bool firstone = TRUE;
+	int putflags = 0;
 	char obuf[MAXLINE + 3];
 
 	/*
@@ -1328,6 +1339,11 @@ commaize(h, p, oldstyle, mci, e)
 
 	if (tTd(14, 2))
 		printf("commaize(%s: %s)\n", h->h_field, p);
+
+#ifdef _FFR_7BITHDRS
+	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
+		putflags |= PXLF_STRIP8BIT;
+#endif
 
 	obp = obuf;
 	(void) snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ", h->h_field);
@@ -1425,7 +1441,7 @@ commaize(h, p, oldstyle, mci, e)
 		if (opos > omax && !firstone)
 		{
 			snprintf(obp, SPACELEFT(obuf, obp), ",\n");
-			putline(obuf, mci);
+			putxline(obuf, mci, putflags);
 			obp = obuf;
 			(void) strcpy(obp, "        ");
 			opos = strlen(obp);
@@ -1444,7 +1460,7 @@ commaize(h, p, oldstyle, mci, e)
 		*p = savechar;
 	}
 	*obp = '\0';
-	putline(obuf, mci);
+	putxline(obuf, mci, putflags);
 }
 /*
 **  COPYHEADER -- copy header list

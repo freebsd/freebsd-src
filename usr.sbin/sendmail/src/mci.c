@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.46 (Berkeley) 11/3/96";
+static char sccsid[] = "@(#)mci.c	8.54 (Berkeley) 12/1/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -114,8 +114,8 @@ mci_cache(mci)
 		mci_uncache(mcislot, TRUE);
 
 	if (tTd(42, 5))
-		printf("mci_cache: caching %x (%s) in slot %d\n",
-			mci, mci->mci_host, mcislot - MciCache);
+		printf("mci_cache: caching %lx (%s) in slot %d\n",
+			(u_long) mci, mci->mci_host, mcislot - MciCache);
 #ifdef LOG
 	if (tTd(91, 100))
 		syslog(LOG_DEBUG, "%s: mci_cache: caching %x (%.100s) in slot %d",
@@ -214,8 +214,8 @@ mci_uncache(mcislot, doquit)
 	mci_unlock_host(mci);
 
 	if (tTd(42, 5))
-		printf("mci_uncache: uncaching %x (%s) from slot %d (%d)\n",
-			mci, mci->mci_host, mcislot - MciCache, doquit);
+		printf("mci_uncache: uncaching %lx (%s) from slot %d (%d)\n",
+			(u_long) mci, mci->mci_host, mcislot - MciCache, doquit);
 #ifdef LOG
 	if (tTd(91, 100))
 		syslog(LOG_DEBUG, "%s: mci_uncache: uncaching %x (%.100s) from slot %d (%d)",
@@ -223,7 +223,7 @@ mci_uncache(mcislot, doquit)
 			mci, mci->mci_host, mcislot - MciCache, doquit);
 #endif
 
-#ifdef SMTP
+#if SMTP
 	if (doquit)
 	{
 		message("Closing connection to %s", mci->mci_host);
@@ -289,7 +289,7 @@ mci_get(host, m)
 	register MCI *mci;
 	register STAB *s;
 
-#ifdef DAEMON
+#if DAEMON
 	extern SOCKADDR CurHostAddr;
 
 	/* clear CurHostAddr so we don't get a bogus address with this name */
@@ -314,7 +314,7 @@ mci_get(host, m)
 			mci->mci_exitstat, mci->mci_errno);
 	}
 
-#ifdef SMTP
+#if SMTP
 	if (mci->mci_state == MCIS_OPEN)
 	{
 		extern int smtpprobe __P((MCI *));
@@ -329,7 +329,7 @@ mci_get(host, m)
 			mci->mci_exitstat = EX_OK;
 			mci->mci_state = MCIS_CLOSED;
 		}
-# ifdef DAEMON
+# if DAEMON
 		else
 		{
 			/* get peer host address for logging reasons only */
@@ -377,7 +377,10 @@ mci_setstat(mci, xstat, dstat, rstat)
 	char *dstat;
 	char *rstat;
 {
-	mci->mci_exitstat = xstat;
+	/* protocol errors should never be interpreted as sticky */
+	if (xstat != EX_NOTSTICKY && xstat != EX_PROTOCOL)
+		mci->mci_exitstat = xstat;
+
 	mci->mci_status = dstat;
 	if (mci->mci_rstatus != NULL)
 		free(mci->mci_rstatus);
@@ -672,7 +675,6 @@ mci_load_persistent(mci)
 {
 	int saveErrno = errno;
 	FILE *fp;
-	int status;
 	char fname[MAXPATHLEN+1];
 
 	if (mci == NULL)
@@ -682,7 +684,7 @@ mci_load_persistent(mci)
 		return;
 	}
 
-	if (HostStatDir == NULL || mci->mci_host == NULL)
+	if (IgnoreHostStatus || HostStatDir == NULL || mci->mci_host == NULL)
 		return;
 	
 	if (tTd(56, 1))
@@ -750,7 +752,7 @@ mci_read_persistent(fp, mci)
 		syserr("mci_read_persistent: NULL mci");
 	if (tTd(56, 93))
 	{
-		printf("mci_read_persistent: fp=%x, mci=", fp);
+		printf("mci_read_persistent: fp=%lx, mci=", (u_long) fp);
 		mci_dump(mci, FALSE);
 	}
 
@@ -760,6 +762,7 @@ mci_read_persistent(fp, mci)
 	mci->mci_rstatus = NULL;
 
 	rewind(fp);
+	ver = -1;
 	while (fgets(buf, sizeof buf, fp) != NULL)
 	{
 		p = strchr(buf, '\n');
@@ -806,6 +809,8 @@ mci_read_persistent(fp, mci)
 			return -1;
 		}
 	}
+	if (ver < 0)
+		return -1;
 	return 0;
 }
 /*
@@ -868,7 +873,6 @@ mci_store_persistent(mci)
 
 	fflush(mci->mci_statfile);
 
-cleanup:
 	errno = saveErrno;
 	return;
 }
@@ -903,7 +907,7 @@ mci_traverse_persistent(action, pathname)
 {
 	struct stat statbuf;
 	DIR *d;
-	int ret = 0;
+	int ret;
 
 	if (pathname == NULL)
 		pathname = HostStatDir;
@@ -961,13 +965,17 @@ mci_traverse_persistent(action, pathname)
 
 			/*
 			**  The following appears to be
-			**  necessary during purgest, since
+			**  necessary during purges, since
 			**  we modify the directory structure
 			*/
 
 			if (action == mci_purge_persistent)
 				rewinddir(d);
 		}
+
+		/* purge (or whatever) the directory proper */
+		*--newptr = '\0';
+		ret = (*action)(newpath, NULL);
 		closedir(d);
 	}
 	else if (S_ISREG(statbuf.st_mode))
@@ -1031,11 +1039,13 @@ mci_print_persistent(pathname, hostname)
 {
 	static int initflag = FALSE;
 	FILE *fp;
-	int status;
 	int width = Verbose ? 78 : 25;
 	bool locked;
-	char *p;
 	MCI mcib;
+
+	/* skip directories */
+	if (hostname == NULL)
+		return 0;
 
 	if (!initflag)
 	{
@@ -1101,6 +1111,7 @@ mci_print_persistent(pathname, hostname)
 **	Parameters:
 **		pathname -- path to the status file.
 **		hostname -- name of host corresponding to that file.
+**			NULL if this is a directory (domain).
 **
 **	Returns:
 **		0
@@ -1116,43 +1127,30 @@ mci_purge_persistent(pathname, hostname)
 	if (tTd(56, 1))
 		printf("mci_purge_persistent: purging %s\n", pathname);
 
-	/* remove the file */
-	if (unlink(pathname) < 0)
+	if (hostname != NULL)
 	{
-		if (tTd(56, 2))
-			printf("mci_purge_persistent: failed to unlink %s: %s\n",
-				pathname, errstring(errno));
-		return -1;
+		/* remove the file */
+		if (unlink(pathname) < 0)
+		{
+			if (tTd(56, 2))
+				printf("mci_purge_persistent: failed to unlink %s: %s\n",
+					pathname, errstring(errno));
+		}
 	}
-
-	/*
-	** remove empty parent directories.
-	*/
-
-	for (;;)
+	else
 	{
-		while (*end != '/')
-			end--;
-		*(end--) = '\0';
-		
+		/* remove the directory */
 		if (*end != '.')
-			break;
+			return 0;
 
 		if (tTd(56, 1))
 			printf("mci_purge_persistent: dpurge %s\n", pathname);
 
 		if (rmdir(pathname) < 0)
 		{
-			if (errno == ENOENT || errno == EEXIST)
-				break;		/* directory is not empty */
-#ifdef ENOTEMTPY
-			if (errno == ENOTEMPTY)
-				break;		/* BSDism */
-#endif
 			if (tTd(56, 2))
 				printf("mci_purge_persistent: rmdir %s: %s\n",
 					pathname, errstring(errno));
-			break;
 		}
 		
 	}

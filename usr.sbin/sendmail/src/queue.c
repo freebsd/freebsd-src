@@ -35,17 +35,17 @@
 # include "sendmail.h"
 
 #ifndef lint
-#ifdef QUEUE
-static char sccsid[] = "@(#)queue.c	8.131 (Berkeley) 11/8/96 (with queueing)";
+#if QUEUE
+static char sccsid[] = "@(#)queue.c	8.153 (Berkeley) 1/14/97 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.131 (Berkeley) 11/8/96 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.153 (Berkeley) 1/14/97 (without queueing)";
 #endif
 #endif /* not lint */
 
 # include <errno.h>
 # include <dirent.h>
 
-# ifdef QUEUE
+# if QUEUE
 
 /*
 **  Work queue.
@@ -67,10 +67,6 @@ typedef struct work	WORK;
 WORK	*WorkQ;			/* queue of things to be done */
 
 #define QF_VERSION	2	/* version number of this queue format */
-
-#if !defined(NGROUPS_MAX) && defined(NGROUPS)
-# define NGROUPS_MAX	NGROUPS	/* POSIX naming convention */
-#endif
 
 extern int orderq __P((bool));
 /*
@@ -195,7 +191,7 @@ queueup(e, announce)
 
 	if (!bitset(EF_HAS_DF, e->e_flags))
 	{
-		register FILE *dfp;
+		register FILE *dfp = NULL;
 		char dfname[20];
 		struct stat stbuf;
 
@@ -300,8 +296,9 @@ queueup(e, announce)
 		{
 #if XDEBUG
 			if (bitset(QQUEUEUP, q->q_flags))
-				syslog(LOG_DEBUG, "%s: q_flags = %x",
-					e->e_id, q->q_flags);
+				syslog(LOG_DEBUG,
+					"dropenvelope: %s: q_flags = %x, paddr = %s",
+					e->e_id, q->q_flags, q->q_paddr);
 #endif
 			continue;
 		}
@@ -474,7 +471,6 @@ printctladdr(a, tfp)
 {
 	char *uname;
 	char *paddr;
-	register struct passwd *pw;
 	register ADDRESS *q;
 	uid_t uid;
 	gid_t gid;
@@ -531,9 +527,10 @@ printctladdr(a, tfp)
 **		forkflag -- TRUE if the queue scanning should be done in
 **			a child process.  We double-fork so it is not our
 **			child and we don't have to clean up after it.
+**		verbose -- if TRUE, print out status information.
 **
 **	Returns:
-**		none.
+**		TRUE if the queue run successfully began.
 **
 **	Side Effects:
 **		runs things in the mail queue.
@@ -541,15 +538,18 @@ printctladdr(a, tfp)
 
 ENVELOPE	QueueEnvelope;		/* the queue run envelope */
 
-void
-runqueue(forkflag)
+bool
+runqueue(forkflag, verbose)
 	bool forkflag;
+	bool verbose;
 {
 	register ENVELOPE *e;
 	int njobs;
 	int sequenceno = 0;
 	extern ENVELOPE BlankEnvelope;
 	extern void clrdaemon __P((void));
+	extern void runqueueevent __P((bool));
+	extern void drop_privileges __P((void));
 
 	/*
 	**  If no work will ever be selected, don't even bother reading
@@ -558,19 +558,19 @@ runqueue(forkflag)
 
 	CurrentLA = getla();	/* get load average */
 
-	if (shouldqueue(0L, curtime()))
+	if (CurrentLA >= QueueLA)
 	{
 		char *msg = "Skipping queue run -- load average too high";
 
-		if (Verbose)
-			printf("%s\n", msg);
+		if (verbose)
+			message("458 %s\n", msg);
 #ifdef LOG
 		if (LogLevel > 8)
 			syslog(LOG_INFO, "runqueue: %s", msg);
 #endif
 		if (forkflag && QueueIntvl != 0)
-			(void) setevent(QueueIntvl, runqueue, TRUE);
-		return;
+			(void) setevent(QueueIntvl, runqueueevent, TRUE);
+		return FALSE;
 	}
 
 	/*
@@ -580,35 +580,56 @@ runqueue(forkflag)
 	if (forkflag)
 	{
 		pid_t pid;
-		extern void intsig();
+		extern SIGFUNC_DECL intsig __P((int));
 #ifdef SIGCHLD
-		extern void reapchild();
+		extern SIGFUNC_DECL reapchild __P((int));
 
+		blocksignal(SIGCHLD);
 		(void) setsignal(SIGCHLD, reapchild);
 #endif
 
 		pid = dofork();
+		if (pid == -1)
+		{
+			const char *msg = "Skipping queue run -- fork() failed";
+			const char *err = errstring(errno);
+
+			if (verbose)
+				message("458 %s: %s\n", msg, err);
+#ifdef LOG
+			if (LogLevel > 8)
+				syslog(LOG_INFO, "runqueue: %s: %s", msg, err);
+#endif
+			if (QueueIntvl != 0)
+				(void) setevent(QueueIntvl, runqueueevent, TRUE);
+			(void) releasesignal(SIGCHLD);
+			return FALSE;
+		}
 		if (pid != 0)
 		{
 			/* parent -- pick up intermediate zombie */
 #ifndef SIGCHLD
 			(void) waitfor(pid);
 #else
+			(void) blocksignal(SIGALRM);
 			proc_list_add(pid);
+			(void) releasesignal(SIGALRM);
+			releasesignal(SIGCHLD);
 #endif /* SIGCHLD */
 			if (QueueIntvl != 0)
-				(void) setevent(QueueIntvl, runqueue, TRUE);
-			return;
+				(void) setevent(QueueIntvl, runqueueevent, TRUE);
+			return TRUE;
 		}
 		/* child -- double fork and clean up signals */
+		proc_list_clear();
 #ifndef SIGCHLD
 		if (fork() != 0)
 			exit(EX_OK);
 #else /* SIGCHLD */
+		releasesignal(SIGCHLD);
 		(void) setsignal(SIGCHLD, SIG_DFL);
 #endif /* SIGCHLD */
 		(void) setsignal(SIGHUP, intsig);
-		Verbose = FALSE;
 	}
 
 	setproctitle("running queue: %s", QueueDir);
@@ -623,7 +644,7 @@ runqueue(forkflag)
 	**  Release any resources used by the daemon code.
 	*/
 
-# ifdef DAEMON
+# if DAEMON
 	clrdaemon();
 # endif /* DAEMON */
 
@@ -632,12 +653,7 @@ runqueue(forkflag)
 
 	/* drop privileges */
 	if (geteuid() == (uid_t) 0)
-	{
-		if (RunAsGid != (gid_t) 0)
-			(void) setgid(RunAsGid);
-		if (RunAsUid != (uid_t) 0)
-			(void) setuid(RunAsUid);
-	}
+		drop_privileges();
 
 	/*
 	**  Create ourselves an envelope
@@ -646,6 +662,10 @@ runqueue(forkflag)
 	CurEnv = &QueueEnvelope;
 	e = newenvelope(&QueueEnvelope, CurEnv);
 	e->e_flags = BlankEnvelope.e_flags;
+
+	/* make sure we have disconnected from parent */
+	if (forkflag)
+		disconnect(1, e);
 
 	/*
 	**  Make sure the alias database is open.
@@ -660,7 +680,10 @@ runqueue(forkflag)
 
 	if (QueueLimitId != NULL || QueueLimitSender != NULL ||
 	    QueueLimitRecipient != NULL)
-		HostStatDir = NULL;
+	{
+		IgnoreHostStatus = TRUE;
+		MinQueueAge = 0;
+	}
 
 	/*
 	**  Start making passes through the queue.
@@ -719,6 +742,20 @@ runqueue(forkflag)
 	/* exit without the usual cleanup */
 	e->e_id = NULL;
 	finis();
+	/*NOTREACHED*/
+	return TRUE;
+}
+
+
+/*
+**  RUNQUEUEEVENT -- stub for use in setevent
+*/
+
+void
+runqueueevent(forkflag)
+	bool forkflag;
+{
+	(void) runqueue(forkflag, FALSE);
 }
 /*
 **  ORDERQ -- order the work queue.
@@ -1257,7 +1294,7 @@ workcmpf3(a, b)
 	if (a->w_ctime > b->w_ctime)
 		return 1;
 	else if (a->w_ctime < b->w_ctime)
-		return 1;
+		return -1;
 	else
 		return 0;
 }
@@ -1340,6 +1377,7 @@ dowork(id, forkflag, requeueflag, e)
 			disconnect(1, e);
 			OpMode = MD_DELIVER;
 		}
+		setproctitle("%s: from queue", id);
 # ifdef LOG
 		if (LogLevel > 76)
 			syslog(LOG_DEBUG, "%s: dowork, pid=%d", e->e_id,
@@ -1526,12 +1564,13 @@ readqf(e)
 		{
 		  case 'V':		/* queue file version number */
 			qfver = atoi(&bp[1]);
-			if (qfver > QF_VERSION)
-			{
-				syserr("Version number in qf (%d) greater than max (%d)",
-					qfver, QF_VERSION);
-			}
-			break;
+			if (qfver <= QF_VERSION)
+				break;
+			syserr("Version number in qf (%d) greater than max (%d)",
+				qfver, QF_VERSION);
+			fclose(qfp);
+			loseqfile(e, "unsupported qf file version");
+			return FALSE;
 
 		  case 'C':		/* specify controlling user */
 			ctladdr = setctluser(&bp[1], qfver);
@@ -1602,7 +1641,7 @@ readqf(e)
 			break;
 
 		  case 'S':		/* sender */
-			setsender(newstr(&bp[1]), e, NULL, TRUE);
+			setsender(newstr(&bp[1]), e, NULL, '\0', TRUE);
 			break;
 
 		  case 'B':		/* body type */
@@ -2054,7 +2093,8 @@ queuename(e, type)
 		e->e_id = newstr(&qf[2]);
 		define('i', e->e_id, e);
 		if (tTd(7, 1))
-			printf("queuename: assigned id %s, env=%x\n", e->e_id, e);
+			printf("queuename: assigned id %s, env=%lx\n",
+			       e->e_id, (u_long) e);
 		if (tTd(7, 9))
 		{
 			printf("  lockfd=");
