@@ -33,7 +33,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/resource.h>

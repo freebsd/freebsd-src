@@ -48,7 +48,7 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 

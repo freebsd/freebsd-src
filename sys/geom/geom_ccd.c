@@ -98,7 +98,7 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <ufs/ffs/fs.h> 
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>

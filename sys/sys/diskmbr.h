@@ -344,7 +344,9 @@ CTASSERT(sizeof (struct dos_partition) == 16);
 #define	DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
 
 /*
- * Disk-specific ioctls.
+ * Disklabel-specific ioctls.
+ *
+ * NB: <sys/disk.h> defines ioctls from 'd'/128 and up.
  */
 		/* get and set disklabel */
 #define DIOCGDINFO	_IOR('d', 101, struct disklabel)/* get */
@@ -353,12 +355,6 @@ CTASSERT(sizeof (struct dos_partition) == 16);
 #define DIOCGDVIRGIN	_IOR('d', 105, struct disklabel)/* get virgin label */
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
-
-#define DIOCGSECTORSIZE	_IOR('d', 128, u_int)	/* Get sector size in bytes */
-#define DIOCGMEDIASIZE	_IOR('d', 129, off_t)	/* Get media size in bytes */
-#define DIOCGFWSECTORS	_IOR('d', 130, u_int)	/* Get firmware sectorcount */
-#define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
-#define DIOCGKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
 
 #ifdef __alpha__
 struct disklabel_alphahack {

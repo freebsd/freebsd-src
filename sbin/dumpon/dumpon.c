@@ -52,7 +52,7 @@ static const char rcsid[] =
 #include <paths.h>
 #include <unistd.h>
 #include <sys/param.h>
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sysexits.h>
 
 void	usage(void) __dead2;
