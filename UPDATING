@@ -1,0 +1,15 @@
+This file is maintainted by imp@village.org.  Please send new entries
+in it to him.  It contains a list, in reverse chronologocal order, of
+major breakages in tracking -current.  Not all things will be listed
+here, and it only starts on Novemeber 18, 1998.  If you have an
+earlier version of FreeBSD, you are on your own.
+
+19981118:
+	PAM integrated into the tree.   Requires new /etc/pam.conf file
+	to silence warnings from authentication programs (login, etc).
+	See src/etc/pam.conf for a sample.
+
+YYYYMMDD:
+	What happened and what you need to do.
+
+$Id:$
