@@ -127,16 +127,7 @@ points outside the process's allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
 .El
-.Sh SEE ALSO
-.Xr chmod 2 ,
-.Xr intro 2 ,
-.Xr stat 2
-.Sh STANDARDS
-The
-.Fn access
-function call is expected to conform to
-.St -p1003.1-90 .
-.Sh CAVEAT
+.Sh SECURITY CONSIDERATIONS
 The
 .Fn access
 call
@@ -151,6 +142,15 @@ The
 .Fn eaccess
 call
 likewise may be subject to races if used inappropriately.
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr intro 2 ,
+.Xr stat 2
+.Sh STANDARDS
+The
+.Fn access
+function call is expected to conform to
+.St -p1003.1-90 .
 .Sh HISTORY
 An
 .Fn access
