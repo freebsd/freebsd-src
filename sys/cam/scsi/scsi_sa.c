@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.7 1998/12/11 07:19:36 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.8 1998/12/17 18:56:23 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -218,6 +218,9 @@ static int		saloadunload(struct cam_periph *periph, int load);
 static int		saerase(struct cam_periph *periph, int longerase);
 static int		sawritefilemarks(struct cam_periph *periph,
 					 int nmarks, int setmarks);
+static int		sardpos(struct cam_periph *periph, int, u_int32_t *);
+static int		sasetpos(struct cam_periph *periph, int, u_int32_t *);
+
 
 static struct periph_driver sadriver =
 {
@@ -791,6 +794,18 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	case MTIOCIEOT:
 	case MTIOCEEOT:
 		error = 0;
+		break;
+	case MTIOCRDSPOS:
+		error = sardpos(periph, 0, (u_int32_t *) arg);
+		break;
+	case MTIOCRDHPOS:
+		error = sardpos(periph, 1, (u_int32_t *) arg);
+		break;
+	case MTIOCSLOCATE:
+		error = sasetpos(periph, 0, (u_int32_t *) arg);
+		break;
+	case MTIOCHLOCATE:
+		error = sasetpos(periph, 1, (u_int32_t *) arg);
 		break;
 	default:
 		error = cam_periph_ioctl(periph, cmd, arg, saerror);
@@ -2274,40 +2289,104 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	scsi_write_filemarks(&ccb->csio,
-			     /*retries*/1,
-			     /*cbcfp*/sadone,
-			     MSG_SIMPLE_Q_TAG,
-			     /*immediate*/FALSE,
-			     setmarks,
-			     nmarks,
-			     SSD_FULL_SIZE,
-			     60000);
+	scsi_write_filemarks(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
+	    FALSE, setmarks, nmarks, SSD_FULL_SIZE, 60000);
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
 
 	/*
 	 * XXXX: Actually, we need to get back the actual number of filemarks
 	 * XXXX: written (there can be a residual).
 	 */
-	if (error == 0) {
-		struct sa_softc *softc;
-
-		softc = (struct sa_softc *)periph->softc;
+	if (error == 0 && nmarks) {
+		struct sa_softc *softc = (struct sa_softc *)periph->softc;
 		softc->filemarks += nmarks;
+	}
+	xpt_release_ccb(ccb);
+	return (error);
+}
+
+static int
+sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
+{
+	struct scsi_tape_position_data loc;
+	union ccb *ccb;
+	struct sa_softc *softc;
+	int error;
+
+	/*
+	 * First flush any pending writes...
+	 */
+	error = sawritefilemarks(periph, 0, 0);
+
+	/*
+	 * The latter case is for 'write protected' tapes
+	 * which are too stupid to recognize a zero count
+	 * for writing filemarks as a no-op.
+	 */
+	if (error != 0 && error != EACCES)
+		return (error);
+
+	softc = (struct sa_softc *)periph->softc;
+	ccb = cam_periph_getccb(periph, /*priority*/1);
+
+	scsi_read_position(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
+	    hard, &loc, SSD_FULL_SIZE, 5000);
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
+	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
+
+	if (error == 0) {
+		if (loc.flags & SA_RPOS_UNCERTAIN) {
+			error = EINVAL;		/* nothing is certain */
+		} else {
+			*blkptr = scsi_4btoul(loc.firstblk);
+		}
 	}
 
 	xpt_release_ccb(ccb);
 	return (error);
 }
+
+static int
+sasetpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
+{
+	union ccb *ccb;
+	struct sa_softc *softc;
+	int error;
+
+	/*
+	 * First flush any pending writes...
+	 */
+	error = sawritefilemarks(periph, 0, 0);
+
+	/*
+	 * The latter case is for 'write protected' tapes
+	 * which are too stupid to recognize a zero count
+	 * for writing filemarks as a no-op.
+	 */
+	if (error != 0 && error != EACCES)
+		return (error);
+
+	softc = (struct sa_softc *)periph->softc;
+	ccb = cam_periph_getccb(periph, /*priority*/1);
+
+	scsi_set_position(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
+	    hard, *blkptr, SSD_FULL_SIZE, 60 * 60 * 1000);
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
+	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
+	xpt_release_ccb(ccb);
+	/*
+	 * XXX: Note relative file && block number position now unknown (if
+	 * XXX: these things ever start being maintained in this driver).
+	 */
+	return (error);
+}
+
 
 static int
 saretension(struct cam_periph *periph)
@@ -2711,4 +2790,45 @@ scsi_erase(struct ccb_scsiio *csio, u_int32_t retries,
 		      sense_len,
 		      sizeof(*scsi_cmd),
 		      timeout);
+}
+
+/*
+ * Read Tape Position command.
+ */
+void
+scsi_read_position(struct ccb_scsiio *csio, u_int32_t retries,
+		   void (*cbfcnp)(struct cam_periph *, union ccb *),
+		   u_int8_t tag_action, int hardsoft,
+		   struct scsi_tape_position_data *sbp,
+		   u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_tape_read_position *scmd;
+
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_IN, tag_action,
+	    (u_int8_t *)sbp, sizeof (*sbp), sense_len, sizeof(*scmd), timeout);
+	scmd = (struct scsi_tape_read_position *)&csio->cdb_io.cdb_bytes;
+	bzero(scmd, sizeof(*scmd));
+	scmd->opcode = READ_POSITION;
+	scmd->byte1 = hardsoft;
+}
+
+/*
+ * Set Tape Position command.
+ */
+void
+scsi_set_position(struct ccb_scsiio *csio, u_int32_t retries,
+		   void (*cbfcnp)(struct cam_periph *, union ccb *),
+		   u_int8_t tag_action, int hardsoft, u_int32_t blkno,
+		   u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_tape_locate *scmd;
+
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action,
+	    (u_int8_t *)NULL, 0, sense_len, sizeof(*scmd), timeout);
+	scmd = (struct scsi_tape_locate *)&csio->cdb_io.cdb_bytes;
+	bzero(scmd, sizeof(*scmd));
+	scmd->opcode = LOCATE;
+	if (hardsoft)
+		scmd->byte1 |= SA_SPOS_BT;
+	scsi_ulto4b(blkno, scmd->blkaddr);
 }
