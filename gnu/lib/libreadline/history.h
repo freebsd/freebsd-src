@@ -67,7 +67,7 @@ extern HIST_ENTRY **history_list ();
 /* Returns the number which says what history element we are now
    looking at.  */
 extern int where_history ();
-
+  
 /* Return the history entry at the current position, as determined by
    history_offset.  If there is no entry there, return a NULL pointer. */
 HIST_ENTRY *current_history ();
