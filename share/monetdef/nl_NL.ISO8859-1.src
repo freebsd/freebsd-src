@@ -4,7 +4,7 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol
-NLG
+NLG 
 # currency_symbol
 fl
 # mon_decimal_point
