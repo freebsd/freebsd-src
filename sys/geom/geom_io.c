@@ -47,11 +47,13 @@
 #include <geom/geom_int.h>
 #include <sys/devicestat.h>
 
+#include <vm/uma.h>
+
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
-static struct g_bioq g_bio_idle;
 
 static u_int pace;
+static uma_zone_t	biozone;
 
 #include <machine/atomic.h>
 
@@ -114,12 +116,7 @@ g_new_bio(void)
 {
 	struct bio *bp;
 
-	g_bioq_lock(&g_bio_idle);
-	bp = g_bioq_first(&g_bio_idle);
-	g_bioq_unlock(&g_bio_idle);
-	if (bp == NULL)
-		bp = g_malloc(sizeof *bp, M_NOWAIT | M_ZERO);
-	/* g_trace(G_T_BIO, "g_new_bio() = %p", bp); */
+	bp = uma_zalloc(biozone, M_NOWAIT | M_ZERO);
 	return (bp);
 }
 
@@ -127,9 +124,7 @@ void
 g_destroy_bio(struct bio *bp)
 {
 
-	/* g_trace(G_T_BIO, "g_destroy_bio(%p)", bp); */
-	bzero(bp, sizeof *bp);
-	g_bioq_enqueue_tail(bp, &g_bio_idle);
+	uma_zfree(biozone, bp);
 }
 
 struct bio *
@@ -137,7 +132,7 @@ g_clone_bio(struct bio *bp)
 {
 	struct bio *bp2;
 
-	bp2 = g_new_bio();
+	bp2 = uma_zalloc(biozone, M_NOWAIT | M_ZERO);
 	if (bp2 != NULL) {
 		bp2->bio_parent = bp;
 		bp2->bio_cmd = bp->bio_cmd;
@@ -147,7 +142,6 @@ g_clone_bio(struct bio *bp)
 		bp2->bio_attribute = bp->bio_attribute;
 		bp->bio_children++;
 	}
-	/* g_trace(G_T_BIO, "g_clone_bio(%p) = %p", bp, bp2); */
 	return(bp2);
 }
 
@@ -157,7 +151,10 @@ g_io_init()
 
 	g_bioq_init(&g_bio_run_down);
 	g_bioq_init(&g_bio_run_up);
-	g_bioq_init(&g_bio_idle);
+	biozone = uma_zcreate("g_bio", sizeof (struct bio),
+	    NULL, NULL,
+	    NULL, NULL,
+	    0, 0);
 }
 
 int
