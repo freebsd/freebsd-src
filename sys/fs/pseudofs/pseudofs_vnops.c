@@ -719,8 +719,7 @@ pfs_setattr(struct vop_setattr_args *va)
 	
 	if (va->a_vap->va_flags != (u_long)VNOVAL)
 		PFS_RETURN (EOPNOTSUPP);
-	/* XXX it's a bit more complex than that, really... */
-	PFS_RETURN (0);
+	PFS_RETURN (EPERM);
 }
 
 /*
