@@ -259,6 +259,8 @@ systemChangeTerminal(char *color, const u_char c_term[],
 		     char *mono, const u_char m_term[])
 {
     if (OnVTY) {
+	int setupterm(char *color, int, int *);
+
 	if (ColorDisplay) {
 	    setenv("TERM", color, 1);
 	    setenv("TERMCAP", c_term, 1);
