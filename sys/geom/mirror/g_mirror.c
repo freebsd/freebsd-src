@@ -54,6 +54,7 @@ u_int g_mirror_debug = 0;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RW, &g_mirror_debug, 0,
     "Debug level");
 static u_int g_mirror_timeout = 8;
+TUNABLE_INT("kern.geom.mirror.timeout", &g_mirror_timeout);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RW, &g_mirror_timeout,
     0, "Time to wait on all mirror components");
 static u_int g_mirror_reqs_per_sync = 5;
