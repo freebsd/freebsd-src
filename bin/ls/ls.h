@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ls.h	8.1 (Berkeley) 5/31/93
- *	$Id: ls.h,v 1.6 1997/04/29 10:03:05 dfr Exp $
+ *	$Id: ls.h,v 1.7 1997/08/07 15:33:48 steve Exp $
  */
 
 #define NO_PRINT	1
@@ -46,6 +46,7 @@ extern int f_accesstime;	/* use time of last access */
 extern int f_flags;		/* show flags associated with a file */
 extern int f_inode;		/* print inode */
 extern int f_longform;		/* long listing format */
+extern int f_octal;		/* print unprintables in octal */
 extern int f_sectime;		/* print the real time for all files */
 extern int f_size;		/* list size in short listing */
 extern int f_statustime;	/* use time of last mode change */
