@@ -2699,7 +2699,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.lock.1; now accepts a <option>-v</option> to disable
       switching VTYs while the current terminal is locked.  This permits
-      locking the entire console from a single terminal.</para>
+      locking the entire console from a single terminal. &merged;</para>
 
     <para role="historic">&man.logger.1; can now send messages directly to a remote
       syslog. &merged;</para>
@@ -3455,7 +3455,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       buffer. &merged;</para>
 
     <para>&man.vidcontrol.1; now accepts a <option>-S</option> to
-      allow the user to disable VTY switching.</para>
+      allow the user to disable VTY switching. &merged;</para>
 
     <para>The default stripe size in &man.vinum.8; has been changed
       from 256KB to 279KB, to spread out superblocks more evenly
