@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.include.dist,v 1.7.2.3 1998/02/18 11:41:29 markm Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -6,10 +6,16 @@
     arpa
     ..
     g++
-	std
-	..
+        std
+        ..
+    ..
+    isofs
+        cd9660
+        ..
     ..
     machine
+    ..
+    msdosfs
     ..
     net
     ..
