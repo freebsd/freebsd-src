@@ -1,0 +1,12 @@
+/*
+ * Russian calendar files
+ *
+ * $Id: calendar.croatian,v 1.1 1996/02/09 14:34:49 wosch Exp $
+ */
+
+#ifndef _calendar_russian_
+#define _calendar_russian_
+
+#include <ru_SU.KOI8-R/calendar.all>
+
+#endif /* !_calendar_russian_ */
