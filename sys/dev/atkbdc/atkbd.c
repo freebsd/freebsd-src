@@ -372,7 +372,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 				free(accmap, M_DEVBUF);
 			if (fkeymap != NULL)
 				free(fkeymap, M_DEVBUF);
-			if (kbd == NULL)
+			if (kbd != NULL)
 				free(kbd, M_DEVBUF);
 			return ENOMEM;
 		}
