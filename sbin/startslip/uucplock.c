@@ -40,12 +40,16 @@ static char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 #include <sys/dir.h>
 #include <errno.h>
 #include <syslog.h>
+#include <unistd.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define _PATH_LOCKDIRNAME "/var/spool/lock/LCK..%s"
 
 /* Forward declarations */
-static int put_pid (int fd, int pid);
-static int get_pid (int fd);
+static int put_pid (int fd, pid_t pid);
+static pid_t get_pid (int fd);
 
 /*
  * uucp style locking routines
@@ -53,11 +57,11 @@ static int get_pid (int fd);
  * 	  -1 - failure
  */
 
-uu_lock (char *ttyname)
+int uu_lock (char *ttyname)
 {
-	int fd, pid;
+	int fd;
+	pid_t pid;
 	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
-	off_t lseek();
 
 	(void)sprintf(tbuf, _PATH_LOCKDIRNAME, ttyname);
 	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
@@ -71,9 +75,9 @@ uu_lock (char *ttyname)
 			syslog(LOG_ERR, "lock open: %m");
 			return(-1);
 		}
-		if (get_pid (fd) == -1) {
-			(void)close(fd);
+		if ((pid = get_pid (fd)) == -1) {
 			syslog(LOG_ERR, "lock read: %m");
+			(void)close(fd);
 			return(-1);
 		}
 
@@ -86,24 +90,24 @@ uu_lock (char *ttyname)
 		 * we'll lock it ourselves
 		 */
 		if (lseek(fd, 0L, L_SET) < 0) {
-			(void)close(fd);
 			syslog(LOG_ERR, "lock lseek: %m");
+			(void)close(fd);
 			return(-1);
 		}
 		/* fall out and finish the locking process */
 	}
 	pid = getpid();
 	if (!put_pid (fd, pid)) {
+		syslog(LOG_ERR, "lock write: %m");
 		(void)close(fd);
 		(void)unlink(tbuf);
-		syslog(LOG_ERR, "lock write: %m");
 		return(-1);
 	}
 	(void)close(fd);
 	return(0);
 }
 
-uu_unlock (char *ttyname)
+int uu_unlock (char *ttyname)
 {
 	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
 
@@ -111,19 +115,20 @@ uu_unlock (char *ttyname)
 	return(unlink(tbuf));
 }
 
-static int put_pid (int fd, int pid)
+static int put_pid (int fd, pid_t pid)
 {
 	char buf [32];
 	int len;
 
-  len = sprintf (buf, "%10ld\n", (long) pid);
+  len = sprintf (buf, "%10ld\n", pid);
   return write (fd, buf, len) == len;
 }
 
-static int get_pid (int fd)
+static pid_t get_pid (int fd)
 {
-	int bytes_read, pid;
+	int bytes_read;
 	char buf [32];
+	pid_t pid;
 
       bytes_read = read (fd, buf, sizeof (buf) - 1);
       if (bytes_read > 0) {
