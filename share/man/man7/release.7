@@ -74,7 +74,7 @@ Most developers will only be concerned with the
 .Cm release
 target.
 .\" XXX: Some sort of introduction to this list?  All the others have one.
-.Bl -tag -width ".Cm rerelease"
+.Bl -tag -width ".Cm package-split"
 .It Cm release
 Uses
 .Dq Li "make installworld"
@@ -108,6 +108,19 @@ and
 targets to re-generate the floppy images of a previous
 .Dq Li "make release" .
 This is most often used to build custom boot floppies.
+.It Cm package-split
+Generates the portions of the disc 1 and disc 2 images related to packages.
+It uses the list of desired packages from the
+.Pa src/release/package-split.py
+script to pull packages out of a package build provided by the ports team
+and organize them appropriately.
+The resulting directory can then be passed to
+.Dq Li "make release"
+via the
+.Va CD_PACKAGE_TREE
+variable to populate the ISO images built by the
+.Cm iso.1
+target with the correct package related bits.
 .El
 .Pp
 Targets called by
@@ -153,8 +166,13 @@ staging directory.
 Sets up a suitable area for FTP installations in
 .Pa ${CHROOTDIR}/R/ftp .
 .It Cm cdrom.1
-Sets up a suitable area to build CD-ROM images in
+Create the layout for the live filesystem CD-ROM image in
 .Pa ${CHROOTDIR}/R/cdrom .
+.It Cm cdrom.2
+Create the layout for the first and second CD-ROM images.
+.It Cm cdrom.3
+Create the layout for the boot only CD-ROM image and the boot only UFS
+miniroot image.
 .It Cm iso.1
 Builds ISO images (installation and
 .Dq live
@@ -212,6 +230,21 @@ directory tree.
 .Pp
 Optional variables:
 .Bl -tag -width ".Va NO_PREFETCHDISTFILES"
+.It Va CD_PACKAGE_TREE
+A directory containing extra bits for the first and second CD-ROM images.
+The extra files for the first disc should be in
+.Pa ${CD_PACKAGE_TREE}/disc1
+and the extra files for the second disc should be in
+.Pa ${CD_PACKAGE_TREE}/disc2 .
+Typically, this variable will be set to the output directory of an earlier
+invocation of the
+.Cm package-split
+target.
+.It Va CVSARGS
+Additional arguments for
+.Xr cvs 1
+that come before the subcommands such as
+.Dq Li "-qR" .
 .It Va CVSCMDARGS
 Additional arguments for
 .Xr cvs 1
@@ -287,22 +320,6 @@ environment immediately after any local patches are applied.
 .It Va MAKE_ISOS
 If defined, bootable ISO CD-ROM images will be created from the
 contents of the CD-ROM stage directory.
-.It Va DISC1_LABEL
-The label used for the CD-ROM created from the disc1 contents, the
-default label will be
-.Dq Li fbsd_miniinst .
-.It Va DISC1_NAME
-The name used as part of the ISO file name for the CD-ROM created from
-the disc1 contents, the default will be
-.Dq Li miniinst .
-.It Va DISC2_LABEL
-The label used for the CD-ROM created from the disc2 contents, the
-default label will be
-.Dq Li fbsd_livefs .
-.It Va DISC2_NAME
-The name used as part of the ISO file name for the CD-ROM created from
-the disc2 contents, the default will be
-.Dq Li disc2 .
 .It Va NOCDROM
 If defined, the CD-ROM stage directories will not be created.
 .It Va NODOC
@@ -319,16 +336,6 @@ If defined, no boot and fixit floppy disk images will be created (for those
 platforms supporting them).
 .It Va NOPORTS
 If defined, the Ports Collection will be omitted from the release.
-.It Va NOPORTREADMES
-If defined, readme files will not be created for each individual port
-in the Ports Collection.
-The default behavior is for
-.Dq Li "make release"
-to run
-.Dq Li "make readmes"
-from
-.Pa ${CHROOTDIR}/usr/ports ,
-which can be a very time consuming operation.
 .It Va PORTSRELEASETAG
 The CVS tag to use when checking out the ports tree.
 Usually,
@@ -409,7 +416,6 @@ to execute up to four processes at a time.
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .It Pa /usr/src/release/Makefile
-.It Pa /usr/src/release/${arch}/drivers.conf
 .It Pa /usr/src/release/${arch}/boot_crunch.conf
 .It Pa /usr/src/release/${arch}/fixit_crunch.conf
 .El
@@ -441,7 +447,7 @@ cd /usr/src
 cvs diff -u > /path/to/local.patch
 make buildworld
 cd release
-make release CHROOTDIR=/local3/release BUILDNAME=5.0-CURRENT \\
+make release CHROOTDIR=/local3/release BUILDNAME=6.0-CURRENT \\
   CVSROOT=/host/cvs/usr/home/ncvs LOCAL_PATCHES=/path/to/local.patch
 .Ed
 .Sh SEE ALSO
@@ -453,7 +459,6 @@ make release CHROOTDIR=/local3/release BUILDNAME=5.0-CURRENT \\
 .Xr patch 1 ,
 .Xr uname 1 ,
 .Xr md 4 ,
-.Xr drivers.conf 5 ,
 .Xr make.conf 5 ,
 .Xr build 7 ,
 .Xr ports 7 ,
