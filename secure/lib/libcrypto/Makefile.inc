@@ -1,33 +1,71 @@
 # $FreeBSD$
 
-LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl/crypto
-CFLAGS+= -DTERMIOS -DANSI_SOURCE -I${LCRYPTO_SRC} -I${.OBJDIR}
+LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
+LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
+
+CFLAGS+=	-DTERMIOS -DANSI_SOURCE -DOPENSSL_NO_KRB5
+CFLAGS+=	-I${LCRYPTO_SRC} -I${LCRYPTO_SRC}/crypto -I${.OBJDIR}
+
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
-CFLAGS+= -DNO_IDEA
+CFLAGS+=	-DNO_IDEA
+.else
+_idea_h=	idea/idea.h
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-CFLAGS+= -DL_ENDIAN -DSHA1_ASM -DBN_ASM -DMD5_ASM -DRMD160_ASM
+CFLAGS+= -DL_ENDIAN
 .elif ${MACHINE_ARCH} == "alpha"
 # no ENDIAN stuff defined for alpha (64-bit)
 .endif
 
-WITH_RSA?= YES
-
-HDRS+=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
-	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
-	des/des.h dh/dh.h dsa/dsa.h ../e_os.h ../e_os2.h ebcdic.h \
-	err/err.h hmac/hmac.h lhash/lhash.h md2/md2.h \
-	md5/md5.h mdc2/mdc2.h objects/objects.h opensslv.h pem/pem.h \
-	pem/pem2.h pkcs12/pkcs12.h pkcs7/pkcs7.h rand/rand.h rc2/rc2.h \
-	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h rsa/rsa.h stack/safestack.h \
-	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
-	x509/x509_vfy.h x509v3/x509v3.h symhacks.h objects/obj_mac.h \
-	md4/md4.h dso/dso.h conf/conf_api.h
-
-.if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
-HDRS+= idea/idea.h
-.endif
+HDRS+=	\
+	../e_os.h ../e_os2.h \
+	crypto.h \
+	ebcdic.h \
+	opensslv.h \
+	ossl_typ.h \
+	symhacks.h \
+	tmdiff.h \
+	aes/aes.h aes/aes_locl.h \
+	asn1/asn1.h asn1/asn1_mac.h asn1/asn1t.h \
+	bio/bio.h \
+	bf/blowfish.h \
+	bn/bn.h \
+	buffer/buffer.h \
+	cast/cast.h \
+	comp/comp.h \
+	conf/conf.h conf/conf_api.h \
+	des/des.h des/des_old.h \
+	dh/dh.h \
+	dsa/dsa.h \
+	dso/dso.h \
+	ec/ec.h \
+	engine/eng_int.h engine/engine.h engine/hw_4758_cca_err.h \
+	engine/hw_aep_err.h engine/hw_atalla_err.h engine/hw_cswift_err.h \
+	engine/hw_ncipher_err.h engine/hw_nuron_err.h engine/hw_sureware_err.h \
+	engine/hw_ubsec_err.h \
+	err/err.h \
+	hmac/hmac.h \
+	${_idea_h} \
+	krb5/krb5_asn.h \
+	lhash/lhash.h \
+	md2/md2.h \
+	md4/md4.h \
+	md5/md5.h \
+	mdc2/mdc2.h \
+	ocsp/ocsp.h \
+	objects/objects.h objects/obj_mac.h \
+	pem/pem.h pem/pem2.h \
+	pkcs12/pkcs12.h pkcs7/pkcs7.h \
+	rand/rand.h \
+	rc2/rc2.h rc4/rc4.h rc5/rc5.h \
+	ripemd/ripemd.h \
+	rsa/rsa.h \
+	stack/stack.h stack/safestack.h \
+	sha/sha.h \
+	txt_db/txt_db.h \
+	ui/ui.h ui/ui_compat.h ui/ui_locl.h \
+	x509/x509.h x509/x509_vfy.h x509v3/x509v3.h
 
 SRCS+=		buildinf.h openssl/opensslconf.h openssl/evp.h
 CLEANFILES+=	buildinf.h openssl/opensslconf.h openssl/evp.h
@@ -41,11 +79,11 @@ buildinf.h:
 	echo "  #define DATE \"`LC_ALL=C date`\""; \
 	echo "#endif" ) > ${.TARGET}
 
-openssl/opensslconf.h:  ../libcrypto/opensslconf-${MACHINE_ARCH}.h
+openssl/opensslconf.h:  ../../lib/libcrypto/opensslconf-${MACHINE_ARCH}.h
 	mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
 
-openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
+openssl/evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
 	mkdir -p openssl
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
@@ -54,8 +92,17 @@ openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
 .endif
 
 SRCS+=	${HDRS:T:S;^;openssl/;}
-.for h in ${HDRS:S/^/${LCRYPTO_SRC}\//}
+.for h in ${HDRS:S/^/${LCRYPTO_SRC}\/crypto\//}
 openssl/${h:T}: ${h}
 	mkdir -p openssl
 	${INSTALL} -C -m 444 ${h} openssl
 .endfor
+
+man-update:
+	for i in `( cd ${LCRYPTO_DOC}/${LIB}${PROG} ; ls *.pod )` ; do \
+		cp ${LCRYPTO_DOC}/${LIB}/$$i . ;\
+		pod2man --section=3 --release="0.9.7" --center="OpenSSL" \
+			$$i > ${.CURDIR}/man/$${i%%.pod}.3 ;\
+		rm $$i ;\
+		echo $${i%%.pod} ;\
+	done
