@@ -38,13 +38,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.7 1997/08/04 19:11:12 fsmp Exp $
+ * $Id: kern_lock.c,v 1.8 1997/08/18 02:06:35 dyson Exp $
  */
 
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/systm.h>
+
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 
 /*
  * Locking primitives implementation.
