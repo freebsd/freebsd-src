@@ -34,7 +34,11 @@
 #endif
 
 /* NetBSD Emulation */
+#ifdef __NetBSD__
+#define	splhardnet	splnet
+#endif
 #ifdef __FreeBSD__
+#define	splhardnet	splimp
 #ifndef NBPG
 #define NBPG PAGE_SIZE
 #endif
