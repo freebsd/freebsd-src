@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.5 1996/03/11 15:13:57 davidg Exp $
+ * $Id: ipx_usrreq.c,v 1.6 1996/04/13 14:37:22 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -369,12 +369,12 @@ ipx_ctloutput(req, so, level, name, value)
 			break;
 #ifdef IPXIP
 		case SO_IPXIP_ROUTE:
-			error = ipxip_route(*value);
+			error = ipxip_route(so, *value);
 			break;
 #endif /* IPXIP */
 #ifdef IPXTUNNEL
 		case SO_IPXTUNNEL_ROUTE
-			error = ipxtun_route(*value);
+			error = ipxtun_route(so, *value);
 			break;
 #endif
 		default:
