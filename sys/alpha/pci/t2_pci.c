@@ -136,8 +136,8 @@ t2_pcib_maxslots(device_t dev)
 } while (0)
 
 static u_int32_t
-t2_pcib_read_config(device_t dev, int b, int s, int f,
-		    int reg, int width)
+t2_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
+		    u_int reg, int width)
 {
 	switch (width) {
 	case 1:
@@ -153,8 +153,8 @@ t2_pcib_read_config(device_t dev, int b, int s, int f,
 }
 
 static void
-t2_pcib_write_config(device_t dev, int b, int s, int f,
-		     int reg, u_int32_t val, int width)
+t2_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
+		     u_int reg, u_int32_t val, int width)
 {
 	switch (width) {
 	case 1:
