@@ -43,6 +43,9 @@ struct	globaldata {
 	struct	lock_list_entry *gd_spinlocks;
 	struct	timeval gd_switchtime;
 	int	gd_switchticks;
+
+	struct	intr_queue *gd_iq;
+	struct	intr_vector *gd_ivt;
 };
 
 #endif /* !_MACHINE_GLOBALDATA_H_ */
