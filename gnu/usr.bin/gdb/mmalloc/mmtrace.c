@@ -1,5 +1,5 @@
 /* More debugging hooks for `mmalloc'.
-   Copyright 1991, 1992 Free Software Foundation
+   Copyright 1991, 1992, 1994 Free Software Foundation
 
    Written April 2, 1991 by John Gilmore of Cygnus Support
    Based on mcheck.c by Mike Haertel.
@@ -64,7 +64,7 @@ tr_freehook (md, ptr)
 
   mdp = MD_TO_MDP (md);
   /* Be sure to print it first.  */
-  fprintf (mallstream, "- %08x\n", (unsigned int) ptr);
+  fprintf (mallstream, "- %08lx\n", (unsigned long) ptr);
   if (ptr == mallwatch)
     tr_break ();
   mdp -> mfree_hook = old_mfree_hook;
@@ -86,7 +86,7 @@ tr_mallochook (md, size)
   mdp -> mmalloc_hook = tr_mallochook;
 
   /* We could be printing a NULL here; that's OK.  */
-  fprintf (mallstream, "+ %08x %x\n", (unsigned int) hdr, size);
+  fprintf (mallstream, "+ %08lx %x\n", (unsigned long) hdr, size);
 
   if (hdr == mallwatch)
     tr_break ();
@@ -117,10 +117,10 @@ tr_reallochook (md, ptr, size)
   mdp -> mrealloc_hook = tr_reallochook;
   if (hdr == NULL)
     /* Failed realloc.  */
-    fprintf (mallstream, "! %08x %x\n", (unsigned int) ptr, size);
+    fprintf (mallstream, "! %08lx %x\n", (unsigned long) ptr, size);
   else
-    fprintf (mallstream, "< %08x\n> %08x %x\n", (unsigned int) ptr,
-	     (unsigned int) hdr, size);
+    fprintf (mallstream, "< %08lx\n> %08lx %x\n", (unsigned long) ptr,
+	     (unsigned long) hdr, size);
 
   if (hdr == mallwatch)
     tr_break ();

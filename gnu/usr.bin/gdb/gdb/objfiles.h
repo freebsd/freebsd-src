@@ -1,5 +1,5 @@
 /* Definitions for symbol file management in GDB.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -23,7 +23,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This structure maintains information on a per-objfile basis about the
    "entry point" of the objfile, and the scope within which the entry point
    exists.  It is possible that gdb will see more than one objfile that is
-   executable, each with it's own entry point.
+   executable, each with its own entry point.
 
    For example, for dynamically linked executables in SVR4, the dynamic linker
    code is contained within the shared C library, which is actually executable
@@ -40,10 +40,9 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    executable which correspond to the "startup file", I.E. crt0.o in most
    cases.  This file is assumed to be a startup file and frames with pc's
    inside it are treated as nonexistent.  Setting these variables is necessary
-   so that backtraces do not fly off the bottom of the stack (or top, depending
-   upon your stack orientation).
+   so that backtraces do not fly off the bottom of the stack.
 
-   Gdb also supports an alternate method to avoid running off the top/bottom
+   Gdb also supports an alternate method to avoid running off the bottom
    of the stack.
 
    There are two frames that are "special", the frame for the function
@@ -94,6 +93,8 @@ struct entry_info
 
   CORE_ADDR entry_point;
 
+#define INVALID_ENTRY_POINT (~0) /* ~0 will not be in any file, we hope.  */
+
   /* Start (inclusive) and end (exclusive) of function containing the
      entry point. */
 
@@ -111,8 +112,16 @@ struct entry_info
   CORE_ADDR main_func_lowpc;
   CORE_ADDR main_func_highpc;
 
-};
+/* Use these values when any of the above ranges is invalid.  */
 
+/* We use these values because it guarantees that there is no number that is
+   both >= LOWPC && < HIGHPC.  It is also highly unlikely that 3 is a valid
+   module or function start address (as opposed to 0).  */
+
+#define INVALID_ENTRY_LOWPC (3)
+#define INVALID_ENTRY_HIGHPC (1)
+
+};
 
 /* Sections in an objfile.
 
@@ -140,19 +149,20 @@ struct obj_section {
      addresses", but that's not true; addr & endaddr are actual memory
      addresses.  */
   CORE_ADDR offset;
-     
-  sec_ptr	sec_ptr; /* BFD section pointer */
 
-  /* Objfile this section is part of.  Not currently used, but I'm sure
-     that someone will want the bfd that the sec_ptr goes with or something
-     like that before long.  */
+  sec_ptr the_bfd_section; /* BFD section pointer */
+
+  /* Objfile this section is part of.  */
   struct objfile *objfile;
 };
 
-/* Master structure for keeping track of each input file from which
-   gdb reads symbols.  One of these is allocated for each such file we
-   access, e.g. the exec_file, symbol_file, and any shared library object
-   files. */
+/* Master structure for keeping track of each file from which
+   gdb reads symbols.  There are several ways these get allocated: 1.
+   The main symbol file, symfile_objfile, set by the symbol-file command,
+   2.  Additional symbol files added by the add-symbol-file command,
+   3.  Shared library objfiles, added by ADD_SOLIB,  4.  symbol files
+   for modules that were loaded when GDB attached to a remote system
+   (see remote-vx.c).  */
 
 struct objfile
 {
@@ -308,12 +318,15 @@ struct objfile
   struct obj_section
     *sections,
     *sections_end;
+
+  /* two auxiliary fields, used to hold the fp of separate symbol files */
+  FILE *auxf1, *auxf2;
 };
 
 /* Defines for the objfile flag word. */
 
 /* Gdb can arrange to allocate storage for all objects related to a
-   particular objfile in a designated section of it's address space,
+   particular objfile in a designated section of its address space,
    managed at a low level by mmap() and using a special version of
    malloc that handles malloc/free/realloc on top of the mmap() interface.
    This allows the "internal gdb state" for a particular objfile to be
@@ -360,6 +373,9 @@ extern struct objfile *object_files;
 extern struct objfile *
 allocate_objfile PARAMS ((bfd *, int));
 
+extern int
+build_objfile_section_table PARAMS ((struct objfile *));
+
 extern void
 unlink_objfile PARAMS ((struct objfile *));
 
@@ -398,7 +414,6 @@ find_pc_section PARAMS((CORE_ADDR pc));
        (obj) != NULL? ((nxt)=(obj)->next,1) :0;	\
        (obj) = (nxt))
 
-
 /* Traverse all symtabs in one objfile.  */
 
 #define	ALL_OBJFILE_SYMTABS(objfile, s) \
@@ -413,7 +428,6 @@ find_pc_section PARAMS((CORE_ADDR pc));
 
 #define	ALL_OBJFILE_MSYMBOLS(objfile, m) \
     for ((m) = (objfile) -> msymbols; SYMBOL_NAME(m) != NULL; (m)++)
-
 
 /* Traverse all symtabs in all objfiles.  */
 

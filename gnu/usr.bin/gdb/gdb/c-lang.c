@@ -1,5 +1,5 @@
 /* C language support routines for GDB, the GNU debugger.
-   Copyright 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -32,7 +32,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 static void
 emit_char (c, stream, quoter)
      register int c;
-     FILE *stream;
+     GDB_FILE *stream;
      int quoter;
 {
 
@@ -81,7 +81,7 @@ emit_char (c, stream, quoter)
 static void
 c_printchar (c, stream)
      int c;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   fputs_filtered ("'", stream);
   emit_char (c, stream, '\'');
@@ -95,7 +95,7 @@ c_printchar (c, stream)
 
 static void
 c_printstr (stream, string, length, force_ellipses)
-     FILE *stream;
+     GDB_FILE *stream;
      char *string;
      unsigned int length;
      int force_ellipses;
@@ -116,7 +116,7 @@ c_printstr (stream, string, length, force_ellipses)
 
   if (length == 0)
     {
-      fputs_filtered ("\"\"", stdout);
+      fputs_filtered ("\"\"", stream);
       return;
     }
 
@@ -243,7 +243,7 @@ c_create_fundamental_type (objfile, typeid)
       case FT_SIGNED_CHAR:
 	type = init_type (TYPE_CODE_INT,
 			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_SIGNED, "signed char", objfile);
+			  0, "signed char", objfile);
 	break;
       case FT_UNSIGNED_CHAR:
 	type = init_type (TYPE_CODE_INT,
@@ -258,7 +258,7 @@ c_create_fundamental_type (objfile, typeid)
       case FT_SIGNED_SHORT:
 	type = init_type (TYPE_CODE_INT,
 			  TARGET_SHORT_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_SIGNED, "short", objfile);	/* FIXME-fnf */
+			  0, "short", objfile);	/* FIXME-fnf */
 	break;
       case FT_UNSIGNED_SHORT:
 	type = init_type (TYPE_CODE_INT,
@@ -273,7 +273,7 @@ c_create_fundamental_type (objfile, typeid)
       case FT_SIGNED_INTEGER:
 	type = init_type (TYPE_CODE_INT,
 			  TARGET_INT_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_SIGNED, "int", objfile); /* FIXME -fnf */
+			  0, "int", objfile); /* FIXME -fnf */
 	break;
       case FT_UNSIGNED_INTEGER:
 	type = init_type (TYPE_CODE_INT,
@@ -288,7 +288,7 @@ c_create_fundamental_type (objfile, typeid)
       case FT_SIGNED_LONG:
 	type = init_type (TYPE_CODE_INT,
 			  TARGET_LONG_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_SIGNED, "long", objfile); /* FIXME -fnf */
+			  0, "long", objfile); /* FIXME -fnf */
 	break;
       case FT_UNSIGNED_LONG:
 	type = init_type (TYPE_CODE_INT,
@@ -303,7 +303,7 @@ c_create_fundamental_type (objfile, typeid)
       case FT_SIGNED_LONG_LONG:
 	type = init_type (TYPE_CODE_INT,
 			  TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_SIGNED, "signed long long", objfile);
+			  0, "signed long long", objfile);
 	break;
       case FT_UNSIGNED_LONG_LONG:
 	type = init_type (TYPE_CODE_INT,
@@ -404,8 +404,7 @@ const struct language_defn c_language_defn = {
   c_create_fundamental_type,	/* Create fundamental type in this language */
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */
-  &BUILTIN_TYPE_LONGEST,	/* longest signed   integral type */
-  &BUILTIN_TYPE_UNSIGNED_LONGEST,/* longest unsigned integral type */
+  c_value_print,		/* Print a top-level value */
   &builtin_type_double,		/* longest floating point type */ /*FIXME*/
   {"",     "",    "",  ""},	/* Binary format info */
   {"0%lo",  "0",   "o", ""},	/* Octal format info */
@@ -428,8 +427,7 @@ const struct language_defn cplus_language_defn = {
   c_create_fundamental_type,	/* Create fundamental type in this language */
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */
-  &BUILTIN_TYPE_LONGEST,	 /* longest signed   integral type */
-  &BUILTIN_TYPE_UNSIGNED_LONGEST,/* longest unsigned integral type */
+  c_value_print,		/* Print a top-level value */
   &builtin_type_double,		/* longest floating point type */ /*FIXME*/
   {"",      "",    "",   ""},	/* Binary format info */
   {"0%lo",   "0",   "o",  ""},	/* Octal format info */
@@ -439,9 +437,33 @@ const struct language_defn cplus_language_defn = {
   LANG_MAGIC
 };
 
+const struct language_defn asm_language_defn = {
+  "asm",			/* Language name */
+  language_asm,
+  c_builtin_types,
+  range_check_off,
+  type_check_off,
+  c_parse,
+  c_error,
+  c_printchar,			/* Print a character constant */
+  c_printstr,			/* Function to print string constant */
+  c_create_fundamental_type,	/* Create fundamental type in this language */
+  c_print_type,			/* Print a type using appropriate syntax */
+  c_val_print,			/* Print a value using appropriate syntax */
+  c_value_print,		/* Print a top-level value */
+  &builtin_type_double,		/* longest floating point type */ /*FIXME*/
+  {"",     "",    "",  ""},	/* Binary format info */
+  {"0%lo",  "0",   "o", ""},	/* Octal format info */
+  {"%ld",   "",    "d", ""},	/* Decimal format info */
+  {"0x%lx", "0x",  "x", ""},	/* Hex format info */
+  c_op_print_tab,		/* expression operators for printing */
+  LANG_MAGIC
+};
+
 void
 _initialize_c_language ()
 {
   add_language (&c_language_defn);
   add_language (&cplus_language_defn);
+  add_language (&asm_language_defn);
 }

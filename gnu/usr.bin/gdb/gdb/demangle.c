@@ -70,17 +70,6 @@ static const struct demangler
   {NULL, unknown_demangling, NULL}
 };
 
-/* show current demangling style. */
-
-static void
-show_demangling_command (ignore, from_tty)
-   char *ignore;
-   int from_tty;
-{
-  /* done automatically by show command. */
-}
-
-
 /* set current demangling style.  called by the "set demangling" command
    after it has updated the current_demangling_style_string to match
    what the user has entered.
@@ -98,9 +87,10 @@ show_demangling_command (ignore, from_tty)
    a malloc'd string, even if it is a null-string. */
 
 static void
-set_demangling_command (ignore, from_tty)
-   char *ignore;
-   int from_tty;
+set_demangling_command (ignore, from_tty, c)
+     char *ignore;
+     int from_tty;
+     struct cmd_list_element *c;
 {
   const struct demangler *dem;
 
@@ -127,19 +117,20 @@ set_demangling_command (ignore, from_tty)
     {
       if (*current_demangling_style_string != '\0')
 	{
-	  printf ("Unknown demangling style `%s'.\n",
+	  printf_unfiltered ("Unknown demangling style `%s'.\n",
 		  current_demangling_style_string);
 	}
-      printf ("The currently understood settings are:\n\n");
+      printf_unfiltered ("The currently understood settings are:\n\n");
       for (dem = demanglers; dem -> demangling_style_name != NULL; dem++)
 	{
-	  printf ("%-10s %s\n", dem -> demangling_style_name,
+	  printf_unfiltered ("%-10s %s\n", dem -> demangling_style_name,
 		  dem -> demangling_style_doc);
 	  if (dem -> demangling_style == current_demangling_style)
 	    {
 	      free (current_demangling_style_string);
 	      current_demangling_style_string =
-		strdup (dem -> demangling_style_name);
+		savestring (dem -> demangling_style_name,
+			    strlen (dem -> demangling_style_name));
 	    }
 	}
       if (current_demangling_style == unknown_demangling)
@@ -149,7 +140,8 @@ set_demangling_command (ignore, from_tty)
 	     one as the default. */
 	  current_demangling_style = demanglers[0].demangling_style;
 	  current_demangling_style_string =
-	    strdup (demanglers[0].demangling_style_name);
+	    savestring (demanglers[0].demangling_style_name,
+			strlen (demanglers[0].demangling_style_name));
 	  warning ("`%s' style demangling chosen as the default.\n",
 		   current_demangling_style_string);
 	}
@@ -166,7 +158,7 @@ set_demangling_style (style)
     {
       free (current_demangling_style_string);
     }
-  current_demangling_style_string = strdup (style);
+  current_demangling_style_string = savestring (style, strlen (style));
   set_demangling_command ((char *) NULL, 0);
 }
 
@@ -181,8 +173,7 @@ _initialize_demangler ()
 Use `set demangle-style' without arguments for a list of demangling styles.",
 		      &setlist);
    show = add_show_from_set (set, &showlist);
-   set -> function.cfunc = set_demangling_command;
-   show -> function.cfunc = show_demangling_command;
+   set -> function.sfunc = set_demangling_command;
 
    /* Set the default demangling style chosen at compilation time. */
    set_demangling_style (DEFAULT_DEMANGLING_STYLE);

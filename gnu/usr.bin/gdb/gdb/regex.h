@@ -177,3 +177,5 @@ extern int re_exec ();
 #ifdef SYNTAX_TABLE
 extern char *re_syntax_table;
 #endif
+
+extern int re_set_syntax ();

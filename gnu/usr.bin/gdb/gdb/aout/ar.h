@@ -6,10 +6,14 @@
 #ifndef __GNU_AR_H__
 #define __GNU_AR_H__
 
-#define ARMAG  "!<arch>\n"	/* For COFF and a.out archives */
-#define ARMAGB "!<bout>\n"	/* For b.out archives */
+/* Note that the usual '\n' in magic strings may translate to different
+   characters, as allowed by ANSI.  '\012' has a fixed value, and remains
+   compatible with existing BSDish archives. */
+
+#define ARMAG  "!<arch>\012"	/* For COFF and a.out archives */
+#define ARMAGB "!<bout>\012"	/* For b.out archives */
 #define SARMAG 8
-#define ARFMAG "`\n"
+#define ARFMAG "`\012"
 
 /* The ar_date field of the armap (__.SYMDEF) member of an archive
    must be greater than the modified date of the entire file, or 

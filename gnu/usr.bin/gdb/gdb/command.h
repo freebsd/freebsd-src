@@ -69,13 +69,18 @@ struct cmd_list_element
     enum command_class class;
 
     /* Function definition of this command.
-       Zero for command class names and for help topics that
+       NO_FUNCTION for command class names and for help topics that
        are not really commands.  */
-    union {
+    union
+      {
+	/* If type is not_set_cmd, call it like this:  */
 	void (*cfunc) PARAMS ((char *args, int from_tty));
+
+	/* If type is cmd_set or show_cmd, first set the variables, and
+	   then call this.  */
 	void (*sfunc) PARAMS ((char *args, int from_tty,
 			       struct cmd_list_element *c));
-    } function;
+      } function;
 #   define NO_FUNCTION ((void (*) PARAMS((char *args, int from_tty))) 0)
 
     /* Documentation of this command (or help topic).
@@ -194,15 +199,15 @@ extern void
 delete_cmd PARAMS ((char *, struct cmd_list_element **));
 
 extern void
-help_cmd PARAMS ((char *, FILE *));
+help_cmd PARAMS ((char *, GDB_FILE *));
 
 extern void
 help_list PARAMS ((struct cmd_list_element *, char *, enum command_class,
-		   FILE *));
+		   GDB_FILE *));
 
 extern void
 help_cmd_list PARAMS ((struct cmd_list_element *, enum command_class, char *,
-		       int, FILE *));
+		       int, GDB_FILE *));
 
 extern struct cmd_list_element *
 add_set_cmd PARAMS ((char *, enum command_class, var_types, char *, char *,

@@ -161,12 +161,12 @@ set_language_command (ignore, from_tty)
 
   /* FIXME -- do this from the list, with HELP.  */
   if (!language || !language[0]) {
-    printf("The currently understood settings are:\n\n");
-    printf ("local or auto    Automatic setting based on source file\n");
-    printf ("c                Use the C language\n");
-    printf ("c++              Use the C++ language\n");
-    printf ("chill            Use the Chill language\n");
-    printf ("modula-2         Use the Modula-2 language\n");
+    printf_unfiltered("The currently understood settings are:\n\n");
+    printf_unfiltered ("local or auto    Automatic setting based on source file\n");
+    printf_unfiltered ("c                Use the C language\n");
+    printf_unfiltered ("c++              Use the C++ language\n");
+    printf_unfiltered ("chill            Use the Chill language\n");
+    printf_unfiltered ("modula-2         Use the Modula-2 language\n");
     /* Restore the silly string. */
     set_language(current_language->la_language);
     return;
@@ -212,7 +212,7 @@ show_type_command(ignore, from_tty)
    int from_tty;
 {
    if (type_check != current_language->la_type_check)
-      printf(
+      printf_unfiltered(
 "Warning: the current type check setting does not match the language.\n");
 }
 
@@ -258,7 +258,7 @@ show_range_command(ignore, from_tty)
 {
 
    if (range_check != current_language->la_range_check)
-      printf(
+      printf_unfiltered(
 "Warning: the current range check setting does not match the language.\n");
 }
 
@@ -411,14 +411,14 @@ language_info (quietly)
     return;
 
   expected_language = current_language;
-  printf("Current language:  %s\n",language);
+  printf_unfiltered("Current language:  %s\n",language);
   show_language_command((char *)0, 1);
 
   if (!quietly)
     {
-       printf("Type checking:     %s\n",type);
+       printf_unfiltered("Type checking:     %s\n",type);
        show_type_command((char *)0, 1);
-       printf("Range checking:    %s\n",range);
+       printf_unfiltered("Range checking:    %s\n",range);
        show_range_command((char *)0, 1);
     }
 }
@@ -428,8 +428,8 @@ language_info (quietly)
 #if 0	/* Currently unused */
 
 struct type *
-binop_result_type(v1,v2)
-   value v1,v2;
+binop_result_type (v1, v2)
+   value_ptr v1, v2;
 {
    int l1,l2,size,uns;
 
@@ -698,18 +698,20 @@ int
 boolean_type (type)
    struct type *type;
 {
-   switch(current_language->la_language)
-   {
-   case language_chill:
-   case language_m2:
-      return TYPE_CODE(type) != TYPE_CODE_BOOL ? 0 : 1;
-
-   case language_c:
-   case language_cplus:
-      return TYPE_CODE(type) != TYPE_CODE_INT ? 0 : 1;
+  if (TYPE_CODE (type) == TYPE_CODE_BOOL)
+    return 1;
+  switch(current_language->la_language)
+    {
+    case language_c:
+    case language_cplus:
+      /* Might be more cleanly handled by having a TYPE_CODE_INT_NOT_BOOL
+	 for CHILL and such languages, or a TYPE_CODE_INT_OR_BOOL for C.  */
+      if (TYPE_CODE (type) == TYPE_CODE_INT)
+	return 1;
    default:
-      return (0);
+      break;
    }
+  return 0;
 }
 
 /* Returns non-zero if the value is a floating-point type */
@@ -757,46 +759,16 @@ structured_type(type)
 
 /* Returns non-zero if the value VAL represents a true value. */
 int
-value_true(val)
-     value val;
+value_true (val)
+     value_ptr val;
 {
-  int len, i;
-  struct type *type;
-  LONGEST v;
-
-  switch (current_language->la_language) {
-
-  case language_c:
-  case language_cplus:
-    return !value_logical_not (val);
-
-  case language_m2:
-    type = VALUE_TYPE(val);
-    if (TYPE_CODE (type) != TYPE_CODE_BOOL)
-      return 0;		/* Not a BOOLEAN at all */
-    /* Search the fields for one that matches the current value. */
-    len = TYPE_NFIELDS (type);
-    v = value_as_long (val);
-    for (i = 0; i < len; i++)
-      {
-	QUIT;
-	if (v == TYPE_FIELD_BITPOS (type, i))
-	  break;
-      }
-    if (i >= len)
-      return 0;		/* Not a valid BOOLEAN value */
-    if (STREQ ("TRUE", TYPE_FIELD_NAME(VALUE_TYPE(val), i)))
-      return 1;		/* BOOLEAN with value TRUE */
-    else
-      return 0;		/* BOOLEAN with value FALSE */
-    break;
-
-  case language_chill:
-    error ("Missing Chill support in function value_type.");  /*FIXME*/
-
-  default:
-    error ("Language not supported.");
-  }
+  /* It is possible that we should have some sort of error if a non-boolean
+     value is used in this context.  Possibly dependent on some kind of
+     "boolean-checking" option like range checking.  But it should probably
+     not depend on the language except insofar as is necessary to identify
+     a "boolean" value (i.e. in C using a float, pointer, etc., as a boolean
+     should be an error, probably).  */
+  return !value_logical_not (val);
 }
 
 /* Returns non-zero if the operator OP is defined on
@@ -806,7 +778,7 @@ value_true(val)
 
 void
 binop_type_check(arg1,arg2,op)
-   value arg1,arg2;
+   value_ptr arg1,arg2;
    int op;
 {
    struct type *t1, *t2;
@@ -816,7 +788,7 @@ binop_type_check(arg1,arg2,op)
       return;
 
    t1=VALUE_TYPE(arg1);
-   if (arg2!=(value)NULL)
+   if (arg2 != NULL)
       t2=VALUE_TYPE(arg2);
    else
       t2=NULL;
@@ -1011,18 +983,18 @@ type_error (va_alist)
    va_list args;
    char *string;
 
-   if (type_check==type_check_warn)
-      fprintf(stderr,warning_pre_print);
+   if (type_check == type_check_warn)
+     fprintf_filtered (gdb_stderr, warning_pre_print);
    else
-      target_terminal_ours();
+     error_begin ();
 
    va_start (args);
    string = va_arg (args, char *);
-   vfprintf (stderr, string, args);
-   fprintf (stderr, "\n");
+   vfprintf_filtered (gdb_stderr, string, args);
+   fprintf_filtered (gdb_stderr, "\n");
    va_end (args);
-   if (type_check==type_check_on)
-      return_to_top_level (RETURN_ERROR);
+   if (type_check == type_check_on)
+     return_to_top_level (RETURN_ERROR);
 }
 
 void
@@ -1032,18 +1004,18 @@ range_error (va_alist)
    va_list args;
    char *string;
 
-   if (range_check==range_check_warn)
-      fprintf(stderr,warning_pre_print);
+   if (range_check == range_check_warn)
+     fprintf_filtered (gdb_stderr, warning_pre_print);
    else
-      target_terminal_ours();
+     error_begin ();
 
    va_start (args);
    string = va_arg (args, char *);
-   vfprintf (stderr, string, args);
-   fprintf (stderr, "\n");
+   vfprintf_filtered (gdb_stderr, string, args);
+   fprintf_filtered (gdb_stderr, "\n");
    va_end (args);
-   if (range_check==range_check_on)
-      return_to_top_level (RETURN_ERROR);
+   if (range_check == range_check_on)
+     return_to_top_level (RETURN_ERROR);
 }
 
 
@@ -1085,9 +1057,9 @@ set_check (ignore, from_tty)
    char *ignore;
    int from_tty;
 {
-   printf(
+   printf_unfiltered(
 "\"set check\" must be followed by the name of a check subcommand.\n");
-   help_list(setchecklist, "set check ", -1, stdout);
+   help_list(setchecklist, "set check ", -1, gdb_stdout);
 }
 
 static void
@@ -1106,7 +1078,7 @@ add_language (lang)
 {
   if (lang->la_magic != LANG_MAGIC)
     {
-      fprintf(stderr, "Magic number of %s language struct wrong\n",
+      fprintf_unfiltered(gdb_stderr, "Magic number of %s language struct wrong\n",
 	lang->la_name);
       abort();
     }
@@ -1144,14 +1116,14 @@ unk_lang_error (msg)
 static void
 unk_lang_printchar (c, stream)
      register int c;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   error ("internal error - unimplemented function unk_lang_printchar called.");
 }
 
 static void
 unk_lang_printstr (stream, string, length, force_ellipses)
-     FILE *stream;
+     GDB_FILE *stream;
      char *string;
      unsigned int length;
      int force_ellipses;
@@ -1171,7 +1143,7 @@ void
 unk_lang_print_type (type, varstring, stream, show, level)
      struct type *type;
      char *varstring;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {
@@ -1184,13 +1156,23 @@ unk_lang_val_print (type, valaddr, address, stream, format, deref_ref,
      struct type *type;
      char *valaddr;
      CORE_ADDR address;
-     FILE *stream;
+     GDB_FILE *stream;
      int format;
      int deref_ref;
      int recurse;
      enum val_prettyprint pretty;
 {
   error ("internal error - unimplemented function unk_lang_val_print called.");
+}
+
+int
+unk_lang_value_print (val, stream, format, pretty)
+     value_ptr val;
+     GDB_FILE *stream;
+     int format;
+     enum val_prettyprint pretty;
+{
+  error ("internal error - unimplemented function unk_lang_value_print called.");
 }
 
 static struct type ** const (unknown_builtin_types[]) = { 0 };
@@ -1211,8 +1193,7 @@ const struct language_defn unknown_language_defn = {
   unk_lang_create_fundamental_type,
   unk_lang_print_type,		/* Print a type using appropriate syntax */
   unk_lang_val_print,		/* Print a value using appropriate syntax */
-  &builtin_type_error,		/* longest signed   integral type */
-  &builtin_type_error,		/* longest unsigned integral type */
+  unk_lang_value_print,		/* Print a top-level value */
   &builtin_type_error,		/* longest floating point type */
   {"",      "",    "",   ""},	/* Binary format info */
   {"0%lo",   "0",   "o",  ""},	/* Octal format info */
@@ -1236,8 +1217,7 @@ const struct language_defn auto_language_defn = {
   unk_lang_create_fundamental_type,
   unk_lang_print_type,		/* Print a type using appropriate syntax */
   unk_lang_val_print,		/* Print a value using appropriate syntax */
-  &builtin_type_error,		/* longest signed   integral type */
-  &builtin_type_error,		/* longest unsigned integral type */
+  unk_lang_value_print,		/* Print a top-level value */
   &builtin_type_error,		/* longest floating point type */
   {"",      "",    "",   ""},	/* Binary format info */
   {"0%lo",   "0",   "o",  ""},	/* Octal format info */
@@ -1260,8 +1240,7 @@ const struct language_defn local_language_defn = {
   unk_lang_create_fundamental_type,
   unk_lang_print_type,		/* Print a type using appropriate syntax */
   unk_lang_val_print,		/* Print a value using appropriate syntax */
-  &builtin_type_error,		/* longest signed   integral type */
-  &builtin_type_error,		/* longest unsigned integral type */
+  unk_lang_value_print,		/* Print a top-level value */
   &builtin_type_error,		/* longest floating point type */
   {"",      "",    "",   ""},	/* Binary format info */
   {"0%lo",   "0",   "o",  ""},	/* Octal format info */

@@ -1,6 +1,6 @@
 /* Symbol table lookup for the GNU debugger, GDB.
-   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992
-   Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994
+             Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -35,7 +35,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "demangle.h"
 
 #include <obstack.h>
-#include <assert.h>
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -73,7 +72,7 @@ static void
 sources_info PARAMS ((char *, int));
 
 static void
-list_symbols PARAMS ((char *, int, int));
+list_symbols PARAMS ((char *, int, int, int));
 
 static void
 output_source_filename PARAMS ((char *, int *));
@@ -111,8 +110,8 @@ void
 cplusplus_hint (name)
      char *name;
 {
-  printf ("Hint: try '%s<TAB> or '%s<ESC-?>\n", name, name);
-  printf ("(Note leading single quote.)\n");
+  printf_filtered ("Hint: try '%s<TAB> or '%s<ESC-?>\n", name, name);
+  printf_filtered ("(Note leading single quote.)\n");
 }
 
 /* Check for a symtab of a specific name; first in symtabs, then in
@@ -188,10 +187,16 @@ lookup_symtab (name)
      char *name;
 {
   register struct symtab *s;
+#if 0
   register char *copy;
+#endif
 
   s = lookup_symtab_1 (name);
   if (s) return s;
+
+#if 0
+  /* This screws c-exp.y:yylex if there is both a type "tree" and a symtab
+     "tree.c".  */
 
   /* If name not found as specified, see if adding ".c" helps.  */
   /* Why is this?  Is it just a user convenience?  (If so, it's pretty
@@ -203,6 +208,7 @@ lookup_symtab (name)
   strcat (copy, ".c");
   s = lookup_symtab_1 (copy);
   if (s) return s;
+#endif /* 0 */
 
   /* We didn't find anything; die.  */
   return 0;
@@ -260,6 +266,11 @@ gdb_mangle_name (type, i, j)
   char *field_name = TYPE_FN_FIELDLIST_NAME (type, i);
   char *physname = TYPE_FN_FIELD_PHYSNAME (f, j);
   char *newname = type_name_no_tag (type);
+
+  /* Does the form of physname indicate that it is the full mangled name
+     of a constructor (not just the args)?  */
+  int is_full_physname_constructor;
+
   int is_constructor;
   int is_destructor = DESTRUCTOR_PREFIX_P (physname);
   /* Need a new type prefix.  */
@@ -267,19 +278,20 @@ gdb_mangle_name (type, i, j)
   char *volatile_prefix = method->is_volatile ? "V" : "";
   char buf[20];
   int len = (newname == NULL ? 0 : strlen (newname));
-  char *opname;
 
-  is_constructor = newname && STREQ(field_name, newname);
-  if (!is_constructor)
-    is_constructor = (physname[0]=='_' && physname[1]=='_' && 
-		(isdigit(physname[2]) || physname[2]=='Q' || physname[2]=='t'));
-  if (!is_constructor)
-    is_constructor = (strncmp(physname, "__ct", 4) == 0); 
+  is_full_physname_constructor = 
+    ((physname[0]=='_' && physname[1]=='_' && 
+      (isdigit(physname[2]) || physname[2]=='Q' || physname[2]=='t'))
+     || (strncmp(physname, "__ct", 4) == 0));
+
+  is_constructor =
+    is_full_physname_constructor || (newname && STREQ(field_name, newname));
+
   if (!is_destructor)
     is_destructor = (strncmp(physname, "__dt", 4) == 0); 
 
 #ifndef GCC_MANGLE_BUG
-  if (is_destructor)
+  if (is_destructor || is_full_physname_constructor)
     {
       mangled_name = (char*) xmalloc(strlen(physname)+1);
       strcpy(mangled_name, physname);
@@ -348,6 +360,7 @@ gdb_mangle_name (type, i, j)
      work with the normal mechanisms.  */
   if (OPNAME_PREFIX_P (field_name))
     {
+      char *opname;
       opname = cplus_mangle_opname (field_name + 3, 0);
       if (opname == NULL)
 	{
@@ -413,6 +426,21 @@ find_pc_psymbol (psymtab, pc)
 
   best_pc = psymtab->textlow - 1;
 
+  /* Search the global symbols as well as the static symbols, so that
+     find_pc_partial_function doesn't use a minimal symbol and thus
+     cache a bad endaddr.  */
+  for (p = psymtab->objfile->global_psymbols.list + psymtab->globals_offset;
+       (p - (psymtab->objfile->global_psymbols.list + psymtab->globals_offset)
+	< psymtab->n_global_syms);
+       p++)
+    if (SYMBOL_NAMESPACE (p) == VAR_NAMESPACE
+	&& SYMBOL_CLASS (p) == LOC_BLOCK
+	&& pc >= SYMBOL_VALUE_ADDRESS (p)
+	&& SYMBOL_VALUE_ADDRESS (p) > best_pc)
+      {
+	best_pc = SYMBOL_VALUE_ADDRESS (p);
+	best = p;
+      }
   for (p = psymtab->objfile->static_psymbols.list + psymtab->statics_offset;
        (p - (psymtab->objfile->static_psymbols.list + psymtab->statics_offset)
 	< psymtab->n_static_syms);
@@ -441,6 +469,16 @@ find_pc_psymbol (psymtab, pc)
    *IS_A_FIELD_OF_THIS to 1, otherwise set it to zero. 
    BLOCK_FOUND is set to the block in which NAME is found (in the case of
    a field of `this', value_of_this sets BLOCK_FOUND to the proper value.) */
+
+/* This function has a bunch of loops in it and it would seem to be
+   attractive to put in some QUIT's (though I'm not really sure
+   whether it can run long enough to be really important).  But there
+   are a few calls for which it would appear to be bad news to quit
+   out of here: find_proc_desc in alpha-tdep.c and mips-tdep.c, and
+   nindy_frame_chain_valid in nindy-tdep.c.  (Note that there is C++
+   code below which can error(), but that probably doesn't affect
+   these calls since they are looking for a known variable and thus
+   can probably assume it will never hit the C++ code).  */
 
 struct symbol *
 lookup_symbol (name, block, namespace, is_a_field_of_this, symtab)
@@ -726,7 +764,8 @@ lookup_partial_symbol (pst, name, global, namespace)
       while (top > bottom)
 	{
 	  center = bottom + (top - bottom) / 2;
-	  assert (center < top);
+	  if (!(center < top))
+	    abort ();
 	  if (!do_linear_search && SYMBOL_LANGUAGE (center) == language_cplus)
 	    {
 	      do_linear_search = 1;
@@ -740,7 +779,8 @@ lookup_partial_symbol (pst, name, global, namespace)
 	      bottom = center + 1;
 	    }
 	}
-      assert (top == bottom);
+      if (!(top == bottom))
+	abort ();
       while (STREQ (SYMBOL_NAME (top), name))
 	{
 	  if (SYMBOL_NAMESPACE (top) == namespace)
@@ -992,6 +1032,7 @@ find_pc_symtab (pc)
 	/* Might want to error() here (in case symtab is corrupt and
 	   will cause a core dump), but maybe we can successfully
 	   continue, so let's not.  */
+	/* FIXME-32x64: assumes pc fits in a long */
 	warning ("\
 (Internal error: pc 0x%lx in read in psymtab, but not in symtab.)\n",
 	         (unsigned long) pc);
@@ -999,6 +1040,86 @@ find_pc_symtab (pc)
     }
   return (s);
 }
+
+#if 0
+
+/* Find the closest symbol value (of any sort -- function or variable)
+   for a given address value.  Slow but complete.  (currently unused,
+   mainly because it is too slow.  We could fix it if each symtab and
+   psymtab had contained in it the addresses ranges of each of its
+   sections, which also would be required to make things like "info
+   line *0x2345" cause psymtabs to be converted to symtabs).  */
+
+struct symbol *
+find_addr_symbol (addr, symtabp, symaddrp)
+     CORE_ADDR addr;
+     struct symtab **symtabp;
+     CORE_ADDR *symaddrp;
+{
+  struct symtab *symtab, *best_symtab;
+  struct objfile *objfile;
+  register int bot, top;
+  register struct symbol *sym;
+  register CORE_ADDR sym_addr;
+  struct block *block;
+  int blocknum;
+
+  /* Info on best symbol seen so far */
+
+  register CORE_ADDR best_sym_addr = 0;
+  struct symbol *best_sym = 0;
+
+  /* FIXME -- we should pull in all the psymtabs, too!  */
+  ALL_SYMTABS (objfile, symtab)
+    {
+      /* Search the global and static blocks in this symtab for
+	 the closest symbol-address to the desired address.  */
+
+      for (blocknum = GLOBAL_BLOCK; blocknum <= STATIC_BLOCK; blocknum++)
+	{
+	  QUIT;
+	  block = BLOCKVECTOR_BLOCK (BLOCKVECTOR (symtab), blocknum);
+	  top = BLOCK_NSYMS (block);
+	  for (bot = 0; bot < top; bot++)
+	    {
+	      sym = BLOCK_SYM (block, bot);
+	      switch (SYMBOL_CLASS (sym))
+		{
+		case LOC_STATIC:	
+		case LOC_LABEL:	
+		  sym_addr = SYMBOL_VALUE_ADDRESS (sym);
+		  break;
+
+		case LOC_BLOCK:
+		  sym_addr = BLOCK_START (SYMBOL_BLOCK_VALUE (sym));
+		  break;
+
+		default:
+		  continue;
+		}
+
+		if (sym_addr <= addr)
+		  if (sym_addr > best_sym_addr)
+		    {
+		      /* Quit if we found an exact match.  */
+		      best_sym = sym;
+		      best_sym_addr = sym_addr;
+		      best_symtab = symtab;
+		      if (sym_addr == addr)
+			goto done;
+		    }
+	    }
+	}
+    }
+
+ done:
+  if (symtabp)
+    *symtabp = best_symtab;
+  if (symaddrp)
+    *symaddrp = best_sym_addr;
+  return best_sym;
+}
+#endif /* 0 */
 
 /* Find the source file and line number for a given PC value.
    Return a structure containing a symtab pointer, a line number,
@@ -1280,37 +1401,41 @@ find_line_pc (symtab, line)
    Returns 0 if could not find the specified line.  */
 
 int
-find_line_pc_range (symtab, thisline, startptr, endptr)
-     struct symtab *symtab;
-     int thisline;
+find_line_pc_range (sal, startptr, endptr)
+     struct symtab_and_line sal;
      CORE_ADDR *startptr, *endptr;
 {
-  struct linetable *l;
-  int ind;
-  int exact_match;		/* did we get an exact linenumber match */
+  CORE_ADDR startaddr;
+  struct symtab_and_line found_sal;
 
-  if (symtab == 0)
+  startaddr = sal.pc;
+  if (startaddr == 0)
+    {
+      startaddr = find_line_pc (sal.symtab, sal.line);
+    }
+  if (startaddr == 0)
     return 0;
 
-  if (find_line_symtab (symtab, thisline, &l, &ind, &exact_match))
-    {
-      *startptr = l->item[ind].pc;
-      /* If we have not seen an entry for the specified line,
-	 assume that means the specified line has zero bytes.  */
-      if (!exact_match || ind == l->nitems-1)
-	*endptr = *startptr;
-      else
-	/* Perhaps the following entry is for the following line.
-	   It's worth a try.  */
-	if (ind+1 < l->nitems
-	 && l->item[ind+1].line == thisline + 1)
-	  *endptr = l->item[ind+1].pc;
-	else
-	  *endptr = find_line_pc (symtab, thisline+1);
-      return 1;
-    }
+  /* This whole function is based on address.  For example, if line 10 has
+     two parts, one from 0x100 to 0x200 and one from 0x300 to 0x400, then
+     "info line *0x123" should say the line goes from 0x100 to 0x200
+     and "info line *0x355" should say the line goes from 0x300 to 0x400.
+     This also insures that we never give a range like "starts at 0x134
+     and ends at 0x12c".  */
 
-  return 0;
+  found_sal = find_pc_line (startaddr, 0);
+  if (found_sal.line != sal.line)
+    {
+      /* The specified line (sal) has zero bytes.  */
+      *startptr = found_sal.pc;
+      *endptr = found_sal.pc;
+    }
+  else
+    {
+      *startptr = found_sal.pc;
+      *endptr = found_sal.end;
+    }
+  return 1;
 }
 
 /* Given a line table and a line number, return the index into the line
@@ -1375,6 +1500,51 @@ find_pc_line_pc_range (pc, startptr, endptr)
   *startptr = sal.pc;
   *endptr = sal.end;
   return sal.symtab != 0;
+}
+
+/* Given a function symbol SYM, find the symtab and line for the start
+   of the function.
+   If the argument FUNFIRSTLINE is nonzero, we want the first line
+   of real code inside the function.  */
+
+static struct symtab_and_line
+find_function_start_sal PARAMS ((struct symbol *sym, int));
+
+static struct symtab_and_line
+find_function_start_sal (sym, funfirstline)
+     struct symbol *sym;
+     int funfirstline;
+{
+  CORE_ADDR pc;
+  struct symtab_and_line sal;
+
+  pc = BLOCK_START (SYMBOL_BLOCK_VALUE (sym));
+  if (funfirstline)
+    {
+      pc += FUNCTION_START_OFFSET;
+      SKIP_PROLOGUE (pc);
+    }
+  sal = find_pc_line (pc, 0);
+
+#ifdef PROLOGUE_FIRSTLINE_OVERLAP
+  /* Convex: no need to suppress code on first line, if any */
+  sal.pc = pc;
+#else
+  /* Check if SKIP_PROLOGUE left us in mid-line, and the next
+     line is still part of the same function.  */
+  if (sal.pc != pc
+      && BLOCK_START (SYMBOL_BLOCK_VALUE (sym)) <= sal.end
+      && sal.end < BLOCK_END (SYMBOL_BLOCK_VALUE (sym)))
+    {
+      /* First pc of next line */
+      pc = sal.end;
+      /* Recalculate the line number (might not be N+1).  */
+      sal = find_pc_line (pc, 0);
+    }
+  sal.pc = pc;
+#endif
+
+  return sal;
 }
 
 /* If P is of the form "operator[ \t]+..." where `...' is
@@ -1500,8 +1670,18 @@ find_methods (t, name, sym_arr)
 	{
 	  int field_counter;
 	  struct fn_field *f = TYPE_FN_FIELDLIST1 (t, method_counter);
-
 	  char *method_name = TYPE_FN_FIELDLIST_NAME (t, method_counter);
+	  char dem_opname[64];
+
+          if (strncmp(method_name, "__", 2)==0 ||
+	    strncmp(method_name, "op", 2)==0 ||
+	    strncmp(method_name, "type", 4)==0 )
+	    {
+	      if (cplus_demangle_opname(method_name, dem_opname, DMGL_ANSI))
+	        method_name = dem_opname;
+	      else if (cplus_demangle_opname(method_name, dem_opname, 0))
+	        method_name = dem_opname; 
+	    }
 	  if (STREQ (name, method_name))
 	    /* Find all the fields with that name.  */
 	    for (field_counter = TYPE_FN_FIELDLIST_LENGTH (t, method_counter) - 1;
@@ -1531,10 +1711,11 @@ find_methods (t, name, sym_arr)
 		if (sym_arr[i1]) i1++;
 		else
 		  {
-		    fputs_filtered("(Cannot find method ", stdout);
-		    fprintf_symbol_filtered (stdout, phys_name,
-					     language_cplus, DMGL_PARAMS);
-		    fputs_filtered(" - possibly inlined.)\n", stdout);
+		    fputs_filtered("(Cannot find method ", gdb_stdout);
+		    fprintf_symbol_filtered (gdb_stdout, phys_name,
+					     language_cplus,
+					     DMGL_PARAMS | DMGL_ANSI);
+		    fputs_filtered(" - possibly inlined.)\n", gdb_stdout);
 		  }
 	      }
 	}
@@ -1633,6 +1814,11 @@ build_canonical_line_spec (sal, symname, canonical)
    if no file is validly specified.  Callers must check that.
    Also, the line number returned may be invalid.  */
 
+/* We allow single quotes in various places.  This is a hideous
+   kludge, which exists because the completer can't yet deal with the
+   lack of single quotes.  FIXME: write a linespec_completer which we
+   can use as appropriate instead of make_symbol_completion_list.  */
+
 struct symtabs_and_lines
 decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
      char **argptr;
@@ -1673,7 +1859,10 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
   struct symtab_and_line val;
 #endif
   register char *p, *p1;
-  char *q, *q1;
+  char *q, *pp;
+#if 0
+  char *q1;
+#endif
   register struct symtab *s;
 
   register struct symbol *sym;
@@ -1685,7 +1874,7 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
   char *copy;
   struct symbol *sym_class;
   int i1;
-  int is_quoted;
+  int is_quoted, has_parens;
   struct symbol **sym_arr;
   struct type *t;
   char *saved_arg = *argptr;
@@ -1720,19 +1909,30 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
   /* Maybe arg is FILE : LINENUM or FILE : FUNCTION */
 
   s = NULL;
-  is_quoted = (strchr (gdb_completer_quote_characters, **argptr) != NULL);
+  is_quoted = (strchr(gdb_completer_quote_characters, **argptr) != NULL);
+  has_parens = (( pp = strchr(*argptr, '(')) != NULL  &&
+		 (pp = strchr(pp, ')')) != NULL);
 
   for (p = *argptr; *p; p++)
     {
+      if (p[0] == '<') 
+	{
+	  while(++p && *p != '>');
+	  if (!p)
+	    {
+	      error ("non-matching '<' and '>' in command");
+	    }
+	}
       if (p[0] == ':' || p[0] == ' ' || p[0] == '\t')
 	break;
     }
   while (p[0] == ' ' || p[0] == '\t') p++;
 
-  if ((p[0] == ':') && !is_quoted)
+  if ((p[0] == ':') && !has_parens)
     {
 
       /*  C++  */
+      if (is_quoted) *argptr = *argptr+1;
       if (p[1] ==':')
 	{
 	  /* Extract the class name.  */
@@ -1755,11 +1955,19 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
 	       || TYPE_CODE (SYMBOL_TYPE (sym_class)) == TYPE_CODE_UNION))
 	    {
 	      /* Arg token is not digits => try it as a function name
-		 Find the next token (everything up to end or next whitespace). */
-	      p = *argptr;
-	      while (*p && *p != ' ' && *p != '\t' && *p != ',' && *p !=':') p++;
+		 Find the next token(everything up to end or next blank). */
+	      if (strchr(gdb_completer_quote_characters, **argptr) != NULL)
+		{
+		  p = skip_quoted(*argptr);
+		  *argptr = *argptr + 1;
+		}
+	      else
+		{
+	          p = *argptr;
+	          while (*p && *p!=' ' && *p!='\t' && *p!=',' && *p!=':') p++;
+		}
+/*
 	      q = operator_chars (*argptr, &q1);
-
 	      if (q1 - q)
 		{
 		  char *opname;
@@ -1769,7 +1977,8 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
 		  opname = cplus_mangle_opname (tmp, DMGL_ANSI);
 		  if (opname == NULL)
 		    {
-		      warning ("no mangling for \"%s\"", tmp);
+		      error_begin ();
+		      printf_filtered ("no mangling for \"%s\"\n", tmp);
 		      cplusplus_hint (saved_arg);
 		      return_to_top_level (RETURN_ERROR);
 		    }
@@ -1778,10 +1987,13 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
 		  p = q1;
 		}
 	      else
+*/
 		{
-		  copy = (char *) alloca (p - *argptr + 1 + (q1 - q));
+		  copy = (char *) alloca (p - *argptr + 1 );
 		  memcpy (copy, *argptr, p - *argptr);
 		  copy[p - *argptr] = '\0';
+		  if (strchr(gdb_completer_quote_characters, copy[p-*argptr-1]) != NULL)
+		    copy[p - *argptr -1] = '\0';
 		}
 
 	      /* no line number may be specified */
@@ -1822,14 +2034,10 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
 
 		  if (sym && SYMBOL_CLASS (sym) == LOC_BLOCK)
 		    {
-		      /* Arg is the name of a function */
-		      pc = BLOCK_START (SYMBOL_BLOCK_VALUE (sym)) + FUNCTION_START_OFFSET;
-		      if (funfirstline)
-			SKIP_PROLOGUE (pc);
 		      values.sals = (struct symtab_and_line *)xmalloc (sizeof (struct symtab_and_line));
 		      values.nelts = 1;
-		      values.sals[0] = find_pc_line (pc, 0);
-		      values.sals[0].pc = (values.sals[0].end && values.sals[0].pc != pc) ? values.sals[0].end : pc;
+		      values.sals[0] = find_function_start_sal (sym,
+								funfirstline);
 		    }
 		  else
 		    {
@@ -1855,21 +2063,25 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
 		    }
 		  else
 		    tmp = copy;
+		  error_begin ();
 		  if (tmp[0] == '~')
-		    warning ("the class `%s' does not have destructor defined",
-			     SYMBOL_SOURCE_NAME(sym_class));
+		    printf_filtered
+		      ("the class `%s' does not have destructor defined\n",
+		       SYMBOL_SOURCE_NAME(sym_class));
 		  else
-		    warning ("the class %s does not have any method named %s",
-			     SYMBOL_SOURCE_NAME(sym_class), tmp);
+		    printf_filtered
+		      ("the class %s does not have any method named %s\n",
+		       SYMBOL_SOURCE_NAME(sym_class), tmp);
 		  cplusplus_hint (saved_arg);
 		  return_to_top_level (RETURN_ERROR);
 		}
 	    }
 	  else
 	    {
+	      error_begin ();
 	      /* The quotes are important if copy is empty.  */
-	      warning ("can't find class, struct, or union named \"%s\"",
-		       copy);
+	      printf_filtered
+		("can't find class, struct, or union named \"%s\"\n", copy);
 	      cplusplus_hint (saved_arg);
 	      return_to_top_level (RETURN_ERROR);
 	    }
@@ -1904,12 +2116,12 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
 
   /* Check whether arg is all digits (and sign) */
 
-  p = *argptr;
-  if (*p == '-' || *p == '+') p++;
-  while (*p >= '0' && *p <= '9')
-    p++;
+  q = *argptr;
+  if (*q == '-' || *q == '+') q++;
+  while (*q >= '0' && *q <= '9')
+    q++;
 
-  if (p != *argptr && (*p == 0 || *p == ' ' || *p == '\t' || *p == ','))
+  if (q != *argptr && (*q == 0 || *q == ' ' || *q == '\t' || *q == ','))
     {
       /* We found a token consisting of all digits -- at least one digit.  */
       enum sign {none, plus, minus} sign = none;
@@ -1937,13 +2149,13 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
       switch (sign)
 	{
 	case plus:
-	  if (p == *argptr)
+	  if (q == *argptr)
 	    val.line = 5;
 	  if (s == 0)
 	    val.line = default_line + val.line;
 	  break;
 	case minus:
-	  if (p == *argptr)
+	  if (q == *argptr)
 	    val.line = 15;
 	  if (s == 0)
 	    val.line = default_line - val.line;
@@ -1954,8 +2166,8 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
 	  break;	/* No need to adjust val.line.  */
 	}
 
-      while (*p == ' ' || *p == '\t') p++;
-      *argptr = p;
+      while (*q == ' ' || *q == '\t') q++;
+      *argptr = q;
       if (s == 0)
 	s = default_symtab;
       val.symtab = s;
@@ -1971,13 +2183,26 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
   /* Arg token is not digits => try it as a variable name
      Find the next token (everything up to end or next whitespace).  */
 
-  p = skip_quoted (*argptr);
-  if (is_quoted && p[-1] != '\'')
-    error ("Unmatched single quote.");
+  if (is_quoted)
+    {
+      p = skip_quoted (*argptr);
+      if (p[-1] != '\'')
+        error ("Unmatched single quote.");
+    }
+  else if (has_parens)
+    {
+      p = pp+1;
+    }
+  else 
+    {
+      p = skip_quoted(*argptr);
+    }
+
   copy = (char *) alloca (p - *argptr + 1);
   memcpy (copy, *argptr, p - *argptr);
   copy[p - *argptr] = '\0';
-  if ((copy[0] == copy [p - *argptr - 1])
+  if (p != *argptr
+      && (copy[0] == copy [p - *argptr - 1])
       && strchr (gdb_completer_quote_characters, copy[0]) != NULL)
     {
       copy [p - *argptr - 1] = '\0';
@@ -1999,39 +2224,16 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
       if (SYMBOL_CLASS (sym) == LOC_BLOCK)
 	{
 	  /* Arg is the name of a function */
-	  pc = BLOCK_START (SYMBOL_BLOCK_VALUE (sym)) + FUNCTION_START_OFFSET;
-	  if (funfirstline)
-	    SKIP_PROLOGUE (pc);
-	  val = find_pc_line (pc, 0);
-#ifdef PROLOGUE_FIRSTLINE_OVERLAP
-	  /* Convex: no need to suppress code on first line, if any */
-	  val.pc = pc;
-#else
-	  /* Check if SKIP_PROLOGUE left us in mid-line, and the next
-	     line is still part of the same function.  */
-	  if (val.pc != pc
-	      && BLOCK_START (SYMBOL_BLOCK_VALUE (sym)) <= val.end
-	      && val.end < BLOCK_END (SYMBOL_BLOCK_VALUE (sym)))
-	    {
-	      /* First pc of next line */
-	      pc = val.end;
-	      /* Recalculate the line number (might not be N+1).  */
-	      val = find_pc_line (pc, 0);
-	    }
-	  val.pc = pc;
-#endif
 	  values.sals = (struct symtab_and_line *)xmalloc (sizeof (struct symtab_and_line));
-	  values.sals[0] = val;
+	  values.sals[0] = find_function_start_sal (sym, funfirstline);
 	  values.nelts = 1;
-	  
-	  /* I think this is always the same as the line that
-	     we calculate above, but the general principle is
-	     "trust the symbols more than stuff like
-	     SKIP_PROLOGUE".  */
-	  if (SYMBOL_LINE (sym) != 0)
-	    values.sals[0].line = SYMBOL_LINE (sym);
 
-	  /* We might need a canonical line spec if it is a static function.  */
+	  /* Don't use the SYMBOL_LINE; if used at all it points to
+	     the line containing the parameters or thereabouts, not
+	     the first line of code.  */
+
+	  /* We might need a canonical line spec if it is a static
+	     function.  */
 	  if (s == 0)
 	    {
 	      struct blockvector *bv = BLOCKVECTOR (sym_symtab);
@@ -2065,9 +2267,12 @@ decode_line_1 (argptr, funfirstline, default_symtab, default_line, canonical)
     {
       val.symtab = 0;
       val.line = 0;
-      val.pc = SYMBOL_VALUE_ADDRESS (msymbol) + FUNCTION_START_OFFSET;
+      val.pc = SYMBOL_VALUE_ADDRESS (msymbol);
       if (funfirstline)
-	SKIP_PROLOGUE (val.pc);
+	{
+	  val.pc += FUNCTION_START_OFFSET;
+	  SKIP_PROLOGUE (val.pc);
+	}
       values.sals = (struct symtab_and_line *)xmalloc (sizeof (struct symtab_and_line));
       values.sals[0] = val;
       values.nelts = 1;
@@ -2111,7 +2316,6 @@ decode_line_2 (sym_arr, nelts, funfirstline, canonical)
      char ***canonical;
 {
   struct symtabs_and_lines values, return_values;
-  register CORE_ADDR pc;
   char *args, *arg1;
   int i;
   char *prompt;
@@ -2132,23 +2336,20 @@ decode_line_2 (sym_arr, nelts, funfirstline, canonical)
     }
 
   i = 0;
-  printf("[0] cancel\n[1] all\n");
+  printf_unfiltered("[0] cancel\n[1] all\n");
   while (i < nelts)
     {
       if (sym_arr[i] && SYMBOL_CLASS (sym_arr[i]) == LOC_BLOCK)
 	{
-	  /* Arg is the name of a function */
-	  pc = BLOCK_START (SYMBOL_BLOCK_VALUE (sym_arr[i])) 
-	       + FUNCTION_START_OFFSET;
-	  if (funfirstline)
-	    SKIP_PROLOGUE (pc);
-	  values.sals[i] = find_pc_line (pc, 0);
-	  values.sals[i].pc = (values.sals[i].end && values.sals[i].pc != pc) ?
-			       values.sals[i].end                      :  pc;
-	  printf("[%d] %s at %s:%d\n", (i+2), SYMBOL_SOURCE_NAME (sym_arr[i]),
-		 values.sals[i].symtab->filename, values.sals[i].line);
+	  values.sals[i] = find_function_start_sal (sym_arr[i], funfirstline);
+	  printf_unfiltered ("[%d] %s at %s:%d\n",
+			     (i+2),
+			     SYMBOL_SOURCE_NAME (sym_arr[i]),
+			     values.sals[i].symtab->filename,
+			     values.sals[i].line);
 	}
-      else printf ("?HERE\n");
+      else
+	printf_unfiltered ("?HERE\n");
       i++;
     }
   
@@ -2156,10 +2357,10 @@ decode_line_2 (sym_arr, nelts, funfirstline, canonical)
     {
       prompt = ">";
     }
-  printf("%s ",prompt);
-  fflush(stdout);
+  printf_unfiltered("%s ",prompt);
+  gdb_flush(gdb_stdout);
 
-  args = command_line_input ((char *) NULL, 0);
+  args = command_line_input ((char *) NULL, 0, "overload-choice");
   
   if (args == 0 || *args == 0)
     error_no_arg ("one or more choice numbers");
@@ -2200,7 +2401,7 @@ decode_line_2 (sym_arr, nelts, funfirstline, canonical)
 
       if (num > nelts + 2)
 	{
-	  printf ("No choice number %d.\n", num);
+	  printf_unfiltered ("No choice number %d.\n", num);
 	}
       else
 	{
@@ -2218,7 +2419,7 @@ decode_line_2 (sym_arr, nelts, funfirstline, canonical)
 	    }
 	  else
 	    {
-	      printf ("duplicate request for %d ignored.\n", num);
+	      printf_unfiltered ("duplicate request for %d ignored.\n", num);
 	    }
 	}
 
@@ -2287,7 +2488,7 @@ output_source_filename (name, first)
     }
 
   wrap_here ("");
-  fputs_filtered (name, stdout);
+  fputs_filtered (name, gdb_stdout);
 }  
 
 static void
@@ -2338,10 +2539,11 @@ sources_info (ignore, from_tty)
    we find.  */
 
 static void
-list_symbols (regexp, class, bpt)
+list_symbols (regexp, class, bpt, from_tty)
      char *regexp;
      int class;
      int bpt;
+     int from_tty;
 {
   register struct symtab *s;
   register struct partial_symtab *ps;
@@ -2361,9 +2563,15 @@ list_symbols (regexp, class, bpt)
   static enum minimal_symbol_type types[]
     = {mst_data, mst_text, mst_abs, mst_unknown};
   static enum minimal_symbol_type types2[]
-    = {mst_bss,  mst_text, mst_abs, mst_unknown};
+    = {mst_bss,  mst_file_text, mst_abs, mst_unknown};
+  static enum minimal_symbol_type types3[]
+    = {mst_file_data,  mst_solib_trampoline, mst_abs, mst_unknown};
+  static enum minimal_symbol_type types4[]
+    = {mst_file_bss,   mst_text, mst_abs, mst_unknown};
   enum minimal_symbol_type ourtype = types[class];
   enum minimal_symbol_type ourtype2 = types2[class];
+  enum minimal_symbol_type ourtype3 = types3[class];
+  enum minimal_symbol_type ourtype4 = types4[class];
 
   if (regexp != NULL)
     {
@@ -2464,7 +2672,9 @@ list_symbols (regexp, class, bpt)
       ALL_MSYMBOLS (objfile, msymbol)
 	{
 	  if (MSYMBOL_TYPE (msymbol) == ourtype ||
-	      MSYMBOL_TYPE (msymbol) == ourtype2)
+	      MSYMBOL_TYPE (msymbol) == ourtype2 ||
+	      MSYMBOL_TYPE (msymbol) == ourtype3 ||
+	      MSYMBOL_TYPE (msymbol) == ourtype4)
 	    {
 	      if (regexp == NULL || SYMBOL_MATCHES_REGEXP (msymbol))
 		{
@@ -2523,22 +2733,26 @@ list_symbols (regexp, class, bpt)
 			       same name but in different files.  In order to
 			       set breakpoints on all of them, we must give
 			       both the file name and the function name to
-			       break_command.  */
+			       break_command.
+			       Quoting the symbol name gets rid of problems
+			       with mangled symbol names that contain
+			       CPLUS_MARKER characters.  */
 			    char *string =
 			      (char *) alloca (strlen (s->filename)
 					       + strlen (SYMBOL_NAME(sym))
-					       + 2);
+					       + 4);
 			    strcpy (string, s->filename);
-			    strcat (string, ":");
+			    strcat (string, ":'");
 			    strcat (string, SYMBOL_NAME(sym));
-			    break_command (string, 0);
+			    strcat (string, "'");
+			    break_command (string, from_tty);
 			  }
 		      }
 		    else if (!found_in_file)
 		      {
-			fputs_filtered ("\nFile ", stdout);
-			fputs_filtered (s->filename, stdout);
-			fputs_filtered (":\n", stdout);
+			fputs_filtered ("\nFile ", gdb_stdout);
+			fputs_filtered (s->filename, gdb_stdout);
+			fputs_filtered (":\n", gdb_stdout);
 		      }
 		    found_in_file = 1;
 		    
@@ -2548,7 +2762,7 @@ list_symbols (regexp, class, bpt)
 		    /* Typedef that is not a C++ class */
 		    if (class == 2
 			&& SYMBOL_NAMESPACE (sym) != STRUCT_NAMESPACE)
-		      c_typedef_print (SYMBOL_TYPE(sym), sym, stdout);
+		      c_typedef_print (SYMBOL_TYPE(sym), sym, gdb_stdout);
 		    /* variable, func, or typedef-that-is-c++-class */
 		    else if (class < 2 || 
 			     (class == 2 && 
@@ -2557,7 +2771,7 @@ list_symbols (regexp, class, bpt)
 			type_print (SYMBOL_TYPE (sym),
 				    (SYMBOL_CLASS (sym) == LOC_TYPEDEF
 				     ? "" : SYMBOL_SOURCE_NAME (sym)),
-				    stdout, 0);
+				    gdb_stdout, 0);
 			
 			printf_filtered (";\n");
 		      }
@@ -2566,12 +2780,12 @@ list_symbols (regexp, class, bpt)
 # if 0  /* FIXME, why is this zapped out? */
 			char buf[1024];
 			c_type_print_base (TYPE_FN_FIELD_TYPE(t, i),
-					   stdout, 0, 0); 
+					   gdb_stdout, 0, 0); 
 			c_type_print_varspec_prefix (TYPE_FN_FIELD_TYPE(t, i),
-						     stdout, 0); 
+						     gdb_stdout, 0); 
 			sprintf (buf, " %s::", type_name_no_tag (t));
 			cp_type_print_method_args (TYPE_FN_FIELD_ARGS (t, i),
-						   buf, name, stdout);
+						   buf, name, gdb_stdout);
 # endif
 		      }
 		  }
@@ -2589,7 +2803,9 @@ list_symbols (regexp, class, bpt)
       ALL_MSYMBOLS (objfile, msymbol)
 	{
 	  if (MSYMBOL_TYPE (msymbol) == ourtype ||
-	      MSYMBOL_TYPE (msymbol) == ourtype2)
+	      MSYMBOL_TYPE (msymbol) == ourtype2 ||
+	      MSYMBOL_TYPE (msymbol) == ourtype3 ||
+	      MSYMBOL_TYPE (msymbol) == ourtype4)
 	    {
 	      if (regexp == NULL || SYMBOL_MATCHES_REGEXP (msymbol))
 		{
@@ -2623,7 +2839,7 @@ variables_info (regexp, from_tty)
      char *regexp;
      int from_tty;
 {
-  list_symbols (regexp, 0, 0);
+  list_symbols (regexp, 0, 0, from_tty);
 }
 
 static void
@@ -2631,7 +2847,7 @@ functions_info (regexp, from_tty)
      char *regexp;
      int from_tty;
 {
-  list_symbols (regexp, 1, 0);
+  list_symbols (regexp, 1, 0, from_tty);
 }
 
 static void
@@ -2639,7 +2855,7 @@ types_info (regexp, from_tty)
      char *regexp;
      int from_tty;
 {
-  list_symbols (regexp, 2, 0);
+  list_symbols (regexp, 2, 0, from_tty);
 }
 
 #if 0
@@ -2648,7 +2864,7 @@ static void
 methods_info (regexp)
      char *regexp;
 {
-  list_symbols (regexp, 3, 0);
+  list_symbols (regexp, 3, 0, from_tty);
 }
 #endif /* 0 */
 
@@ -2658,7 +2874,7 @@ rbreak_command (regexp, from_tty)
      char *regexp;
      int from_tty;
 {
-  list_symbols (regexp, 1, 1);
+  list_symbols (regexp, 1, 1, from_tty);
 }
 
 

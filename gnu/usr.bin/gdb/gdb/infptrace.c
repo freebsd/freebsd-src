@@ -1,5 +1,6 @@
 /* Low level Unix child interface to ptrace, for GDB when running under Unix.
-   Copyright 1988, 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -110,12 +111,17 @@ kill_inferior ()
   if (inferior_pid == 0)
     return;
   /* ptrace PT_KILL only works if process is stopped!!!  So stop it with
-     a real signal first, if we can.  */
+     a real signal first, if we can.  FIXME: This is bogus.  When the inferior
+     is not stopped, GDB should just be waiting for it.  Either the following
+     line is unecessary, or there is some problem elsewhere in GDB which
+     causes us to get here when the inferior is not stopped.  */
   kill (inferior_pid, SIGKILL);
   ptrace (PT_KILL, inferior_pid, (PTRACE_ARG3_TYPE) 0, 0);
   wait ((int *)0);
   target_mourn_inferior ();
 }
+
+#ifndef CHILD_RESUME
 
 /* Resume execution of the inferior process.
    If STEP is nonzero, single-step it.
@@ -125,11 +131,14 @@ void
 child_resume (pid, step, signal)
      int pid;
      int step;
-     int signal;
+     enum target_signal signal;
 {
   errno = 0;
 
   if (pid == -1)
+    /* Resume all threads.  */
+    /* I think this only gets used in the non-threaded case, where "resume
+       all threads" and "resume inferior_pid" are the same.  */
     pid = inferior_pid;
 
   /* An address of (PTRACE_ARG3_TYPE)1 tells ptrace to continue from where
@@ -142,24 +151,55 @@ child_resume (pid, step, signal)
      instructions), so we don't have to worry about that here.  */
 
   if (step)
-    ptrace (PT_STEP,     pid, (PTRACE_ARG3_TYPE) 1, signal);
+    ptrace (PT_STEP,     pid, (PTRACE_ARG3_TYPE) 1,
+	    target_signal_to_host (signal));
   else
-    ptrace (PT_CONTINUE, pid, (PTRACE_ARG3_TYPE) 1, signal);
+    ptrace (PT_CONTINUE, pid, (PTRACE_ARG3_TYPE) 1,
+	    target_signal_to_host (signal));
 
   if (errno)
     perror_with_name ("ptrace");
 }
+#endif /* CHILD_RESUME */
+
 
 #ifdef ATTACH_DETACH
+#include <sys/fcntl.h>
 /* Start debugging the process whose number is PID.  */
 int
 attach (pid)
      int pid;
 {
+#if defined(BSD4_4) && BSD >= 199306
+  char procfile[MAXPATHLEN];
+  int fd;
+
+  sprintf(procfile, "/proc/%d/ctl", pid);
+  fd = open(procfile, O_RDWR, 0);
+
+  if (fd < 0) {
+    perror_with_name ("open");
+  }
+
+  /* send attach message to the process */
+  if (write (fd, "attach", 7) < 0) {
+    close(fd);
+    perror_with_name ("write:attach");
+  }
+  /* wait for the process to stop */
+#if 0
+  if (write (fd, "wait", 5) < 0) {
+    close(fd);
+    perror_with_name ("write:wait");
+  }
+#endif
+  close (fd);
+#else
   errno = 0;
   ptrace (PT_ATTACH, pid, (PTRACE_ARG3_TYPE) 0, 0);
   if (errno)
     perror_with_name ("ptrace");
+#endif
   attach_flag = 1;
   return pid;
 }
@@ -172,10 +212,29 @@ void
 detach (signal)
      int signal;
 {
+#if defined(BSD4_4) && BSD >= 199306
+  char procfile[MAXPATHLEN];
+  int fd;
+
+  sprintf(procfile, "/proc/%d/ctl", inferior_pid);
+  fd = open(procfile, O_RDWR, 0);
+
+  if (fd < 0) {
+    perror_with_name ("open");
+  }
+  /* send detach message to the process */
+  if (write (fd, "detach", 7) < 0) {
+    close(fd);
+    perror_with_name ("write:detach");
+  }
+  /* TODO signals */
+  close (fd);
+#else
   errno = 0;
   ptrace (PT_DETACH, inferior_pid, (PTRACE_ARG3_TYPE) 1, signal);
   if (errno)
     perror_with_name ("ptrace");
+#endif
   attach_flag = 0;
 }
 #endif /* ATTACH_DETACH */
@@ -185,17 +244,17 @@ detach (signal)
 #define PTRACE_XFER_TYPE int
 #endif
 
-#if !defined (FETCH_INFERIOR_REGISTERS)
-
 /* KERNEL_U_ADDR is the amount to subtract from u.u_ar0
    to get the offset in the core file of the register values.  */
-#if defined (KERNEL_U_ADDR_BSD)
+#if defined (KERNEL_U_ADDR_BSD) && !defined (FETCH_INFERIOR_REGISTERS)
 /* Get kernel_u_addr using BSD-style nlist().  */
 CORE_ADDR kernel_u_addr;
+#endif /* KERNEL_U_ADDR_BSD.  */
 
 void
 _initialize_kernel_u_addr ()
 {
+#if defined (KERNEL_U_ADDR_BSD) && !defined (FETCH_INFERIOR_REGISTERS)
   struct nlist names[2];
 
   names[0].n_un.n_name = "_u";
@@ -204,8 +263,10 @@ _initialize_kernel_u_addr ()
     kernel_u_addr = names[0].n_value;
   else
     fatal ("Unable to get kernel u area address.");
-}
 #endif /* KERNEL_U_ADDR_BSD.  */
+}
+
+#if !defined (FETCH_INFERIOR_REGISTERS)
 
 #if !defined (offsetof)
 #define offsetof(TYPE, MEMBER) ((unsigned long) &((TYPE *)0)->MEMBER)
@@ -230,7 +291,8 @@ static void
 fetch_register (regno)
      int regno;
 {
-  register unsigned int regaddr;
+  /* This isn't really an address.  But ptrace thinks of it as one.  */
+  CORE_ADDR regaddr;
   char buf[MAX_REGISTER_RAW_SIZE];
   char mess[128];				/* For messages */
   register int i;
@@ -270,9 +332,14 @@ void
 fetch_inferior_registers (regno)
      int regno;
 {
+  int numregs;
+
   if (regno == -1)
-    for (regno = 0; regno < NUM_REGS; regno++)
-      fetch_register (regno);
+    {
+      numregs = ARCH_NUM_REGS;
+      for (regno = 0; regno < numregs; regno++)
+        fetch_register (regno);
+    }
   else
     fetch_register (regno);
 }
@@ -290,9 +357,10 @@ void
 store_inferior_registers (regno)
      int regno;
 {
-  register unsigned int regaddr;
+  /* This isn't really an address.  But ptrace thinks of it as one.  */
+  CORE_ADDR regaddr;
   char buf[80];
-  register int i;
+  register int i, numregs;
 
   unsigned int offset = U_REGS_OFFSET;
 
@@ -314,7 +382,8 @@ store_inferior_registers (regno)
     }
   else
     {
-      for (regno = 0; regno < NUM_REGS; regno++)
+      numregs = ARCH_NUM_REGS;
+      for (regno = 0; regno < numregs; regno++)
 	{
 	  if (CANNOT_STORE_REGISTER (regno))
 	    continue;
@@ -336,6 +405,8 @@ store_inferior_registers (regno)
 }
 #endif /* !defined (FETCH_INFERIOR_REGISTERS).  */
 
+
+#if !defined (CHILD_XFER_MEMORY)
 /* NOTE! I tried using PTRACE_READDATA, etc., to read and write memory
    in the NEW_SUN_PTRACE case.
    It ought to be straightforward.  But it appears that writing did
@@ -434,3 +505,4 @@ child_xfer_memory (memaddr, myaddr, len, write, target)
     }
   return len;
 }
+#endif /* !defined (CHILD_XFER_MEMORY).  */

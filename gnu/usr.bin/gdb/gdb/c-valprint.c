@@ -1,5 +1,6 @@
 /* Support for printing C values for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991 Free Software Foundation, Inc.
+   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994
+             Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -29,16 +30,15 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* BEGIN-FIXME */
 
 extern int vtblprint;		/* Controls printing of vtbl's */
-extern int demangle;		/* whether to print C++ syms raw or src-form */
 
 extern void
-cp_print_class_member PARAMS ((char *, struct type *, FILE *, char *));
+cp_print_class_member PARAMS ((char *, struct type *, GDB_FILE *, char *));
 
 extern void
-cp_print_class_method PARAMS ((char *, struct type *, FILE *));
+cp_print_class_method PARAMS ((char *, struct type *, GDB_FILE *));
 
 extern void
-cp_print_value_fields PARAMS ((struct type *, char *, FILE *, int, int,
+cp_print_value_fields PARAMS ((struct type *, char *, GDB_FILE *, int, int,
 			       enum val_prettyprint, struct type **));
 
 extern int
@@ -53,11 +53,11 @@ cp_is_vtbl_member PARAMS ((struct type *));
 /* BEGIN-FIXME:  Hooks into c-typeprint.c */
 
 extern void
-c_type_print_varspec_prefix PARAMS ((struct type *, FILE *, int, int));
+c_type_print_varspec_prefix PARAMS ((struct type *, GDB_FILE *, int, int));
 
 extern void
 cp_type_print_method_args PARAMS ((struct type **, char *, char *, int,
-				   FILE *));
+				   GDB_FILE *));
 /* END-FIXME */
 
 
@@ -83,7 +83,7 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
      struct type *type;
      char *valaddr;
      CORE_ADDR address;
-     FILE *stream;
+     GDB_FILE *stream;
      int format;
      int deref_ref;
      int recurse;
@@ -109,9 +109,26 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	      print_spaces_filtered (2 + 2 * recurse, stream);
 	    }
 	  /* For an array of chars, print with string syntax.  */
-	  if (eltlen == 1 && TYPE_CODE (elttype) == TYPE_CODE_INT
+	  if (eltlen == 1 &&
+	      ((TYPE_CODE (elttype) == TYPE_CODE_INT)
+	       || ((current_language->la_language == language_m2)
+		   && (TYPE_CODE (elttype) == TYPE_CODE_CHAR)))
 	      && (format == 0 || format == 's'))
 	    {
+	      /* If requested, look for the first null char and only print
+		 elements up to it.  */
+	      if (stop_print_at_null)
+		{
+		  int temp_len;
+		  
+		  /* Look for a NULL char. */
+		  for (temp_len = 0;
+		       valaddr[temp_len]
+		       && temp_len < len && temp_len < print_max;
+		       temp_len++);
+		  len = temp_len;
+		}
+	      
 	      LA_PRINT_STRING (stream, valaddr, len, 0);
 	      i = len;
 	    }
@@ -145,6 +162,15 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	  print_scalar_formatted (valaddr, type, format, 0, stream);
 	  break;
 	}
+      if (vtblprint && cp_is_vtbl_ptr_type(type))
+	{
+          /* Print the unmangled name if desired.  */
+	  /* Print vtable entry - we only get here if we ARE using
+	     -fvtable_thunks.  (Otherwise, look under TYPE_CODE_STRUCT.) */
+	  print_address_demangle(extract_address (valaddr, TYPE_LENGTH (type)),
+				 stream, demangle);
+	  break;
+	}
       if (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_METHOD)
 	{
 	  cp_print_class_method (valaddr, type, stream);
@@ -171,7 +197,7 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 
 	  if (addressprint && format != 's')
 	    {
-	      fprintf_filtered (stream, "0x%lx", (unsigned long)addr);
+	      print_address_numeric (addr, 1, stream);
 	    }
 
 	  /* For a pointer to char or unsigned char, also print the string
@@ -197,17 +223,17 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 		  fputs_filtered (SYMBOL_SOURCE_NAME (msymbol), stream);
 		  fputs_filtered (">", stream);
 		}
-	      if (vtblprint)
+	      if (vt_address && vtblprint)
 	        {
-		  value vt_val;
+		  value_ptr vt_val;
 	          struct symbol *wsym = (struct symbol *)NULL;
 	          struct type *wtype;
 		  struct symtab *s;
 		  struct block *block = (struct block *)NULL;
 		  int is_this_fld;
 
-
-              	  wsym = lookup_symbol (SYMBOL_NAME(msymbol), block, 
+		  if (msymbol != NULL)
+              	    wsym = lookup_symbol (SYMBOL_NAME(msymbol), block, 
 				VAR_NAMESPACE, &is_this_fld, &s);
  
 		  if (wsym)
@@ -230,9 +256,10 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	        }
 	      }
 
-	  /* Return number of characters printed, plus one for the
-	     terminating null if we have "reached the end".  */
-	  return (i + (print_max && i != print_max));
+	  /* Return number of characters printed, including the terminating
+	     '\0' if we reached the end.  val_print_string takes care including
+	     the terminating '\0' if necessary.  */
+	  return i;
 	}
       break;
 
@@ -250,8 +277,10 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	}
       if (addressprint)
         {
-	  fprintf_filtered (stream, "@0x%lx",
-	  		    unpack_long (builtin_type_int, valaddr));
+	  fprintf_filtered (stream, "@");
+	  print_address_numeric
+	    (extract_address (valaddr,
+			      TARGET_PTR_BIT / HOST_CHAR_BIT), 1, stream);
 	  if (deref_ref)
 	    fputs_filtered (": ", stream);
         }
@@ -260,7 +289,7 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	{
 	  if (TYPE_CODE (TYPE_TARGET_TYPE (type)) != TYPE_CODE_UNDEF)
 	    {
-	      value deref_val =
+	      value_ptr deref_val =
 		value_at
 		  (TYPE_TARGET_TYPE (type),
 		   unpack_pointer (lookup_pointer_type (builtin_type_void),
@@ -286,6 +315,8 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
       if (vtblprint && cp_is_vtbl_ptr_type(type))
 	{
           /* Print the unmangled name if desired.  */
+	  /* Print vtable entry - we only get here if NOT using
+	     -fvtable_thunks.  (Otherwise, look under TYPE_CODE_PTR.) */
 	  print_address_demangle(*((int *) (valaddr +	/* FIXME bytesex */
 	      TYPE_FIELD_BITPOS (type, VTBL_FNADDR_OFFSET) / 8)),
 	      stream, demangle);
@@ -339,6 +370,16 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
     case TYPE_CODE_BOOL:
       /* Do something at least vaguely reasonable, for example if the
 	 language is set wrong.  */
+
+    case TYPE_CODE_RANGE:
+      /* FIXME: create_range_type does not set the unsigned bit in a
+	 range type (I think it probably should copy it from the target
+	 type), so we won't print values which are too large to
+	 fit in a signed integer correctly.  */
+      /* FIXME: Doesn't handle ranges of enums correctly.  (Can't just
+	 print with the target type, though, because the size of our type
+	 and the target type might differ).  */
+      /* FALLTHROUGH */
 
     case TYPE_CODE_INT:
       format = format ? format : output_format;
@@ -396,11 +437,6 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
       fprintf_filtered (stream, "<error type>");
       break;
 
-    case TYPE_CODE_RANGE:
-      /* FIXME, we should not ever have to print one of these yet.  */
-      fprintf_filtered (stream, "<range type>");
-      break;
-
     case TYPE_CODE_UNDEF:
       /* This happens (without TYPE_FLAG_STUB set) on systems which don't use
 	 dbx xrefs (NO_DBX_XREFS in gcc) if a file has a "struct foo *bar"
@@ -411,6 +447,67 @@ c_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
     default:
       error ("Invalid C/C++ type code %d in symbol table.", TYPE_CODE (type));
     }
-  fflush (stream);
+  gdb_flush (stream);
   return (0);
+}
+
+int
+c_value_print (val, stream, format, pretty)
+     value_ptr val;
+     GDB_FILE *stream;
+     int format;
+     enum val_prettyprint pretty;
+{
+  /* A "repeated" value really contains several values in a row.
+     They are made by the @ operator.
+     Print such values as if they were arrays.  */
+
+  if (VALUE_REPEATED (val))
+    {
+      register unsigned int n = VALUE_REPETITIONS (val);
+      register unsigned int typelen = TYPE_LENGTH (VALUE_TYPE (val));
+      fprintf_filtered (stream, "{");
+      /* Print arrays of characters using string syntax.  */
+      if (typelen == 1 && TYPE_CODE (VALUE_TYPE (val)) == TYPE_CODE_INT
+	  && format == 0)
+	LA_PRINT_STRING (stream, VALUE_CONTENTS (val), n, 0);
+      else
+	{
+	  value_print_array_elements (val, stream, format, pretty);
+	}
+      fprintf_filtered (stream, "}");
+      return (n * typelen);
+    }
+  else
+    {
+      struct type *type = VALUE_TYPE (val);
+
+      /* If it is a pointer, indicate what it points to.
+
+	 Print type also if it is a reference.
+
+         C++: if it is a member pointer, we will take care
+	 of that when we print it.  */
+      if (TYPE_CODE (type) == TYPE_CODE_PTR ||
+	  TYPE_CODE (type) == TYPE_CODE_REF)
+	{
+	  /* Hack:  remove (char *) for char strings.  Their
+	     type is indicated by the quoted string anyway. */
+          if (TYPE_CODE (type) == TYPE_CODE_PTR &&
+	      TYPE_LENGTH (TYPE_TARGET_TYPE (type)) == sizeof(char) &&
+	      TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_INT &&
+	      !TYPE_UNSIGNED (TYPE_TARGET_TYPE (type)))
+	    {
+		/* Print nothing */
+	    }
+	  else
+	    {
+	      fprintf_filtered (stream, "(");
+	      type_print (type, "", stream, -1);
+	      fprintf_filtered (stream, ") ");
+	    }
+	}
+      return (val_print (type, VALUE_CONTENTS (val),
+			 VALUE_ADDRESS (val), stream, format, 1, 0, pretty));
+    }
 }

@@ -24,6 +24,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "expression.h"
 #include "target.h"
 #include "language.h"
+#include "demangle.h"
 #include <string.h>
 
 /* Define whether or not the C operator '/' truncates towards zero for
@@ -33,15 +34,14 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define TRUNCATION_TOWARDS_ZERO ((-5 / 2) == -2)
 #endif
 
-static value
-value_subscripted_rvalue PARAMS ((value, value));
+static value_ptr value_subscripted_rvalue PARAMS ((value_ptr, value_ptr));
 
 
-value
+value_ptr
 value_add (arg1, arg2)
-	value arg1, arg2;
+     value_ptr arg1, arg2;
 {
-  register value valint, valptr;
+  register value_ptr valint, valptr;
   register int len;
 
   COERCE_ARRAY (arg1);
@@ -74,9 +74,9 @@ value_add (arg1, arg2)
   return value_binop (arg1, arg2, BINOP_ADD);
 }
 
-value
+value_ptr
 value_sub (arg1, arg2)
-	value arg1, arg2;
+     value_ptr arg1, arg2;
 {
 
   COERCE_ARRAY (arg1);
@@ -118,17 +118,18 @@ an integer nor a pointer of the same type.");
    FIXME:  Perhaps we should validate that the index is valid and if
    verbosity is set, warn about invalid indices (but still use them). */
 
-value
+value_ptr
 value_subscript (array, idx)
-     value array, idx;
+     value_ptr array, idx;
 {
   int lowerbound;
-  value bound;
+  value_ptr bound;
   struct type *range_type;
 
   COERCE_REF (array);
 
-  if (TYPE_CODE (VALUE_TYPE (array)) == TYPE_CODE_ARRAY)
+  if (TYPE_CODE (VALUE_TYPE (array)) == TYPE_CODE_ARRAY
+      || TYPE_CODE (VALUE_TYPE (array)) == TYPE_CODE_STRING)
     {
       range_type = TYPE_FIELD_TYPE (VALUE_TYPE (array), 0);
       lowerbound = TYPE_FIELD_BITPOS (range_type, 0);
@@ -141,6 +142,7 @@ value_subscript (array, idx)
 	{
 	  return value_subscripted_rvalue (array, idx);
 	}
+      array = value_coerce_array (array);
     }
   return value_ind (value_add (array, idx));
 }
@@ -149,14 +151,14 @@ value_subscript (array, idx)
    (eg, a vector register).  This routine used to promote floats
    to doubles, but no longer does.  */
 
-static value
+static value_ptr
 value_subscripted_rvalue (array, idx)
-     value array, idx;
+     value_ptr array, idx;
 {
   struct type *elt_type = TYPE_TARGET_TYPE (VALUE_TYPE (array));
   int elt_size = TYPE_LENGTH (elt_type);
   int elt_offs = elt_size * longest_to_int (value_as_long (idx));
-  value v;
+  value_ptr v;
 
   if (elt_offs >= TYPE_LENGTH (VALUE_TYPE (array)))
     error ("no such vector element");
@@ -183,7 +185,7 @@ value_subscripted_rvalue (array, idx)
 int
 binop_user_defined_p (op, arg1, arg2)
      enum exp_opcode op;
-     value arg1, arg2;
+     value_ptr arg1, arg2;
 {
   if (op == BINOP_ASSIGN)
     return 0;
@@ -203,7 +205,7 @@ binop_user_defined_p (op, arg1, arg2)
 
 int unop_user_defined_p (op, arg1)
      enum exp_opcode op;
-     value arg1;
+     value_ptr arg1;
 {
   if (op == UNOP_ADDR)
     return 0;
@@ -221,12 +223,12 @@ int unop_user_defined_p (op, arg1)
    is the opcode saying how to modify it.  Otherwise, OTHEROP is
    unused.  */
 
-value
+value_ptr
 value_x_binop (arg1, arg2, op, otherop)
-     value arg1, arg2;
+     value_ptr arg1, arg2;
      enum exp_opcode op, otherop;
 {
-  value * argvec;
+  value_ptr * argvec;
   char *ptr;
   char tstr[13];
   int static_memfuncp;
@@ -242,7 +244,7 @@ value_x_binop (arg1, arg2, op, otherop)
   if (TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_STRUCT)
     error ("Can't do that binary op on that type");  /* FIXME be explicit */
 
-  argvec = (value *) alloca (sizeof (value) * 4);
+  argvec = (value_ptr *) alloca (sizeof (value_ptr) * 4);
   argvec[1] = value_addr (arg1);
   argvec[2] = arg2;
   argvec[3] = 0;
@@ -294,7 +296,9 @@ value_x_binop (arg1, arg2, op, otherop)
     default:
       error ("Invalid binary operation specified.");
     }
+
   argvec[0] = value_struct_elt (&arg1, argvec+1, tstr, &static_memfuncp, "structure");
+  
   if (argvec[0])
     {
       if (static_memfuncp)
@@ -316,14 +320,14 @@ value_x_binop (arg1, arg2, op, otherop)
    and return that value (where '@' is (almost) any unary operator which
    is legal for GNU C++).  */
 
-value
+value_ptr
 value_x_unop (arg1, op)
-     value arg1;
+     value_ptr arg1;
      enum exp_opcode op;
 {
-  value * argvec;
-  char *ptr;
-  char tstr[13];
+  value_ptr * argvec;
+  char *ptr, *mangle_ptr;
+  char tstr[13], mangle_tstr[13];
   int static_memfuncp;
 
   COERCE_ENUM (arg1);
@@ -334,13 +338,15 @@ value_x_unop (arg1, op)
   if (TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_STRUCT)
     error ("Can't do that unary op on that type");  /* FIXME be explicit */
 
-  argvec = (value *) alloca (sizeof (value) * 3);
+  argvec = (value_ptr *) alloca (sizeof (value_ptr) * 3);
   argvec[1] = value_addr (arg1);
   argvec[2] = 0;
 
   /* make the right function name up */  
   strcpy(tstr,"operator__");
   ptr = tstr+8;
+  strcpy(mangle_tstr, "__");
+  mangle_ptr = mangle_tstr+2;
   switch (op)
     {
     case UNOP_PREINCREMENT:	strcpy(ptr,"++"); break;
@@ -353,7 +359,9 @@ value_x_unop (arg1, op)
     default:
       error ("Invalid binary operation specified.");
     }
+
   argvec[0] = value_struct_elt (&arg1, argvec+1, tstr, &static_memfuncp, "structure");
+
   if (argvec[0])
     {
       if (static_memfuncp)
@@ -389,11 +397,11 @@ value_x_unop (arg1, op)
     	string values of length 1.
 */
 
-value
+value_ptr
 value_concat (arg1, arg2)
-     value arg1, arg2;
+     value_ptr arg1, arg2;
 {
-  register value inval1, inval2, outval;
+  register value_ptr inval1, inval2, outval;
   int inval1len, inval2len;
   int count, idx;
   char *ptr;
@@ -508,43 +516,43 @@ value_concat (arg1, arg2)
 }
 
 
+
 /* Perform a binary operation on two operands which have reasonable
    representations as integers or floats.  This includes booleans,
    characters, integers, or floats.
    Does not support addition and subtraction on pointers;
    use value_add or value_sub if you want to handle those possibilities.  */
 
-value
+value_ptr
 value_binop (arg1, arg2, op)
-     value arg1, arg2;
+     value_ptr arg1, arg2;
      enum exp_opcode op;
 {
-  register value val;
+  register value_ptr val;
 
   COERCE_ENUM (arg1);
   COERCE_ENUM (arg2);
 
   if ((TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_FLT
-       &&
-       TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_CHAR
-       &&
-       TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_INT
-       &&
-       TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_BOOL)
+       && TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_CHAR
+       && TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_INT
+       && TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_BOOL
+       && TYPE_CODE (VALUE_TYPE (arg1)) != TYPE_CODE_RANGE)
       ||
       (TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_FLT
-       &&
-       TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_CHAR
-       &&
-       TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_INT
-       &&
-       TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_BOOL))
+       && TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_CHAR
+       && TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_INT
+       && TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_BOOL
+       && TYPE_CODE (VALUE_TYPE (arg2)) != TYPE_CODE_RANGE))
     error ("Argument to arithmetic operation not a number or boolean.");
 
   if (TYPE_CODE (VALUE_TYPE (arg1)) == TYPE_CODE_FLT
       ||
       TYPE_CODE (VALUE_TYPE (arg2)) == TYPE_CODE_FLT)
     {
+      /* FIXME-if-picky-about-floating-accuracy: Should be doing this
+	 in target format.  real.c in GCC probably has the necessary
+	 code.  */
       double v1, v2, v;
       v1 = value_as_double (arg1);
       v2 = value_as_double (arg2);
@@ -571,8 +579,8 @@ value_binop (arg1, arg2, op)
 	}
 
       val = allocate_value (builtin_type_double);
-      SWAP_TARGET_AND_HOST (&v, sizeof (v));
-      *(double *) VALUE_CONTENTS_RAW (val) = v;
+      store_floating (VALUE_CONTENTS_RAW (val), TYPE_LENGTH (VALUE_TYPE (val)),
+		      v);
     }
   else if (TYPE_CODE (VALUE_TYPE (arg1)) == TYPE_CODE_BOOL
 	   &&
@@ -702,7 +710,19 @@ value_binop (arg1, arg2, op)
 	      error ("Invalid binary operation on numbers.");
 	    }
 
-	  val = allocate_value (BUILTIN_TYPE_UNSIGNED_LONGEST);
+	  /* This is a kludge to get around the fact that we don't
+	     know how to determine the result type from the types of
+	     the operands.  (I'm not really sure how much we feel the
+	     need to duplicate the exact rules of the current
+	     language.  They can get really hairy.  But not to do so
+	     makes it hard to document just what we *do* do).  */
+
+	  /* Can't just call init_type because we wouldn't know what
+	     name to give the type.  */
+	  val = allocate_value
+	    (sizeof (LONGEST) > TARGET_LONG_BIT / HOST_CHAR_BIT
+	     ? builtin_type_unsigned_long_long
+	     : builtin_type_unsigned_long);
 	  store_unsigned_integer (VALUE_CONTENTS_RAW (val),
 				  TYPE_LENGTH (VALUE_TYPE (val)),
 				  v);
@@ -799,8 +819,20 @@ value_binop (arg1, arg2, op)
 	    default:
 	      error ("Invalid binary operation on numbers.");
 	    }
-	  
-	  val = allocate_value (BUILTIN_TYPE_LONGEST);
+
+	  /* This is a kludge to get around the fact that we don't
+	     know how to determine the result type from the types of
+	     the operands.  (I'm not really sure how much we feel the
+	     need to duplicate the exact rules of the current
+	     language.  They can get really hairy.  But not to do so
+	     makes it hard to document just what we *do* do).  */
+
+	  /* Can't just call init_type because we wouldn't know what
+	     name to give the type.  */
+	  val = allocate_value
+	    (sizeof (LONGEST) > TARGET_LONG_BIT / HOST_CHAR_BIT
+	     ? builtin_type_long_long
+	     : builtin_type_long);
 	  store_signed_integer (VALUE_CONTENTS_RAW (val),
 				TYPE_LENGTH (VALUE_TYPE (val)),
 				v);
@@ -814,7 +846,7 @@ value_binop (arg1, arg2, op)
 
 int
 value_logical_not (arg1)
-     value arg1;
+     value_ptr arg1;
 {
   register int len;
   register char *p;
@@ -841,7 +873,7 @@ value_logical_not (arg1)
 
 int
 value_equal (arg1, arg2)
-     register value arg1, arg2;
+     register value_ptr arg1, arg2;
 
 {
   register int len;
@@ -893,7 +925,7 @@ value_equal (arg1, arg2)
 
 int
 value_less (arg1, arg2)
-     register value arg1, arg2;
+     register value_ptr arg1, arg2;
 {
   register enum type_code code1;
   register enum type_code code2;
@@ -935,9 +967,9 @@ value_less (arg1, arg2)
 
 /* The unary operators - and ~.  Both free the argument ARG1.  */
 
-value
+value_ptr
 value_neg (arg1)
-     register value arg1;
+     register value_ptr arg1;
 {
   register struct type *type;
 
@@ -955,9 +987,9 @@ value_neg (arg1)
   }
 }
 
-value
+value_ptr
 value_complement (arg1)
-     register value arg1;
+     register value_ptr arg1;
 {
   COERCE_ENUM (arg1);
 
@@ -967,3 +999,70 @@ value_complement (arg1)
   return value_from_longest (VALUE_TYPE (arg1), ~ value_as_long (arg1));
 }
 
+/* The INDEX'th bit of SET value whose VALUE_TYPE is TYPE,
+   and whose VALUE_CONTENTS is valaddr.
+   Return -1 if out of range, -2 other error. */
+
+int
+value_bit_index (type, valaddr, index)
+     struct type *type;
+     char *valaddr;
+     int index;
+{
+  struct type *range;
+  int low_bound, high_bound, bit_length;
+  LONGEST word;
+  range = TYPE_FIELD_TYPE (type, 0);
+  if (TYPE_CODE (range) != TYPE_CODE_RANGE)
+    return -2;
+  low_bound = TYPE_LOW_BOUND (range);
+  high_bound = TYPE_HIGH_BOUND (range);
+  if (index < low_bound || index > high_bound)
+    return -1;
+  bit_length = high_bound - low_bound + 1;
+  index -= low_bound;
+  if (bit_length <= TARGET_CHAR_BIT)
+    word = unpack_long (builtin_type_unsigned_char, valaddr);
+  else if (bit_length <= TARGET_SHORT_BIT)
+    word = unpack_long (builtin_type_unsigned_short, valaddr);
+  else
+    {
+      int word_start_index = (index / TARGET_INT_BIT) * TARGET_INT_BIT;
+      index -= word_start_index;
+      word = unpack_long (builtin_type_unsigned_int,
+			  valaddr + (word_start_index / HOST_CHAR_BIT));
+    }
+#if BITS_BIG_ENDIAN
+  if (bit_length <= TARGET_CHAR_BIT)
+    index = TARGET_CHAR_BIT - 1 - index;
+  else if (bit_length <= TARGET_SHORT_BIT)
+    index = TARGET_SHORT_BIT - 1 - index;
+  else
+    index = TARGET_INT_BIT - 1 - index;
+#endif
+  return (word >> index) & 1;
+}
+
+value_ptr
+value_in (element, set)
+     value_ptr element, set;
+{
+  int member;
+  if (TYPE_CODE (VALUE_TYPE (set)) != TYPE_CODE_SET)
+    error ("Second argument of 'IN' has wrong type");
+  if (TYPE_CODE (VALUE_TYPE (element)) != TYPE_CODE_INT
+      && TYPE_CODE (VALUE_TYPE (element)) != TYPE_CODE_CHAR
+      && TYPE_CODE (VALUE_TYPE (element)) != TYPE_CODE_ENUM
+      && TYPE_CODE (VALUE_TYPE (element)) != TYPE_CODE_BOOL)
+    error ("First argument of 'IN' has wrong type");
+  member = value_bit_index (VALUE_TYPE (set), VALUE_CONTENTS (set),
+			    value_as_long (element));
+  if (member < 0)
+    error ("First argument of 'IN' not in range");
+  return value_from_longest (builtin_type_int, member);
+}
+
+void
+_initialize_valarith ()
+{
+}

@@ -31,7 +31,7 @@ static void
 show_user PARAMS ((char *, int));
 
 static void
-show_user_1 PARAMS ((struct cmd_list_element *, FILE *));
+show_user_1 PARAMS ((struct cmd_list_element *, GDB_FILE *));
 
 static void
 make_command PARAMS ((char *, int));
@@ -43,7 +43,7 @@ static int
 parse_binary_operation PARAMS ((char *));
 
 static void
-print_doc_line PARAMS ((FILE *, char *));
+print_doc_line PARAMS ((GDB_FILE *, char *));
 
 /* Add element named NAME.
    CLASS is the top level category into which commands are broken down
@@ -190,11 +190,22 @@ add_abbrev_prefix_cmd (name, class, fun, doc, prefixlist, prefixname,
   return c;
 }
 
-/* ARGSUSED */
+/* This is an empty "cfunc".  */
 void
 not_just_help_class_command (args, from_tty)
      char *args;
      int from_tty;
+{
+}
+
+/* This is an empty "sfunc".  */
+static void empty_sfunc PARAMS ((char *, int, struct cmd_list_element *));
+
+static void
+empty_sfunc (args, from_tty, c)
+     char *args;
+     int from_tty;
+     struct cmd_list_element *c;
 {
 }
 
@@ -214,17 +225,15 @@ add_set_cmd (name, class, var_type, var, doc, list)
      char *doc;
      struct cmd_list_element **list;
 {
-  /* For set/show, we have to call do_setshow_command
-     differently than an ordinary function (take commandlist as
-     well as arg), so the function field isn't helpful.  However,
-     function == NULL means that it's a help class, so set the function
-     to not_just_help_class_command.  */
   struct cmd_list_element *c
-    = add_cmd (name, class, not_just_help_class_command, doc, list);
+    = add_cmd (name, class, NO_FUNCTION, doc, list);
 
   c->type = set_cmd;
   c->var_type = var_type;
   c->var = var;
+  /* This needs to be something besides NO_FUNCTION so that this isn't
+     treated as a help class.  */
+  c->function.sfunc = empty_sfunc;
   return c;
 }
 
@@ -247,7 +256,7 @@ add_show_from_set (setcmd, list)
       && setcmd->doc[2] == 't' && setcmd->doc[3] == ' ')
     showcmd->doc = concat ("Show ", setcmd->doc + 4, NULL);
   else
-    fprintf (stderr, "GDB internal error: Bad docstring for set command\n");
+    fprintf_unfiltered (gdb_stderr, "GDB internal error: Bad docstring for set command\n");
   
   showcmd->next = *list;
   *list = showcmd;
@@ -303,7 +312,7 @@ delete_cmd (name, list)
 void
 help_cmd (command, stream)
      char *command;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   struct cmd_list_element *c;
   extern struct cmd_list_element *cmdlist;
@@ -368,7 +377,7 @@ help_list (list, cmdtype, class, stream)
      struct cmd_list_element *list;
      char *cmdtype;
      enum command_class class;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   int len;
   char *cmdtype1, *cmdtype2;
@@ -409,7 +418,7 @@ Command name abbreviations are allowed if unambiguous.\n",
 /* Print only the first line of STR on STREAM.  */
 static void
 print_doc_line (stream, str)
-     FILE *stream;
+     GDB_FILE *stream;
      char *str;
 {
   static char *line_buffer = 0;
@@ -460,7 +469,7 @@ help_cmd_list (list, class, prefix, recurse, stream)
      enum command_class class;
      char *prefix;
      int recurse;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   register struct cmd_list_element *c;
 
@@ -675,12 +684,15 @@ lookup_cmd (line, list, cmdtype, allow_unknown, ignore_help_classes)
   struct cmd_list_element *last_list = 0;
   struct cmd_list_element *c =
     lookup_cmd_1 (line, list, &last_list, ignore_help_classes);
+#if 0
+  /* This is wrong for complete_command.  */
   char *ptr = (*line) + strlen (*line) - 1;
 
   /* Clear off trailing whitespace.  */
   while (ptr >= *line && (*ptr == ' ' || *ptr == '\t'))
     ptr--;
   *(ptr + 1) = '\0';
+#endif
   
   if (!c)
     {
@@ -1041,6 +1053,11 @@ do_setshow_command (arg, from_tty, c)
 		  {
 		    /* \ at end of argument is used after spaces
 		       so they won't be lost.  */
+		    /* This is obsolete now that we no longer strip
+		       trailing whitespace and actually, the backslash
+		       didn't get here in my test, readline or
+		       something did something funky with a backslash
+		       right before a newline.  */
 		    if (*p == 0)
 		      break;
 		    ch = parse_escape (&p);
@@ -1052,8 +1069,10 @@ do_setshow_command (arg, from_tty, c)
 		else
 		  *q++ = ch;
 	      }
+#if 0
 	    if (*(p - 1) != '\\')
 	      *q++ = ' ';
+#endif
 	    *q++ = '\0';
 	    new = (char *) xrealloc (new, q - new);
 	    if (*(char **)c->var != NULL)
@@ -1111,52 +1130,52 @@ do_setshow_command (arg, from_tty, c)
   else if (c->type == show_cmd)
     {
       /* Print doc minus "show" at start.  */
-      print_doc_line (stdout, c->doc + 5);
+      print_doc_line (gdb_stdout, c->doc + 5);
       
-      fputs_filtered (" is ", stdout);
+      fputs_filtered (" is ", gdb_stdout);
       wrap_here ("    ");
       switch (c->var_type)
 	{
       case var_string:
 	{
 	  unsigned char *p;
-	  fputs_filtered ("\"", stdout);
+	  fputs_filtered ("\"", gdb_stdout);
 	  for (p = *(unsigned char **) c->var; *p != '\0'; p++)
-	    gdb_printchar (*p, stdout, '"');
-	  fputs_filtered ("\"", stdout);
+	    gdb_printchar (*p, gdb_stdout, '"');
+	  fputs_filtered ("\"", gdb_stdout);
 	}
 	break;
       case var_string_noescape:
       case var_filename:
-	fputs_filtered ("\"", stdout);
-	fputs_filtered (*(char **) c->var, stdout);
-	fputs_filtered ("\"", stdout);
+	fputs_filtered ("\"", gdb_stdout);
+	fputs_filtered (*(char **) c->var, gdb_stdout);
+	fputs_filtered ("\"", gdb_stdout);
 	break;
       case var_boolean:
-	fputs_filtered (*(int *) c->var ? "on" : "off", stdout);
+	fputs_filtered (*(int *) c->var ? "on" : "off", gdb_stdout);
 	break;
       case var_uinteger:
 	if (*(unsigned int *) c->var == UINT_MAX) {
-	  fputs_filtered ("unlimited", stdout);
+	  fputs_filtered ("unlimited", gdb_stdout);
 	  break;
 	}
 	/* else fall through */
       case var_zinteger:
-	fprintf_filtered (stdout, "%u", *(unsigned int *) c->var);
+	fprintf_filtered (gdb_stdout, "%u", *(unsigned int *) c->var);
 	break;
       case var_integer:
 	if (*(int *) c->var == INT_MAX)
 	  {
-	    fputs_filtered ("unlimited", stdout);
+	    fputs_filtered ("unlimited", gdb_stdout);
 	  }
 	else
-	  fprintf_filtered (stdout, "%d", *(int *) c->var);
+	  fprintf_filtered (gdb_stdout, "%d", *(int *) c->var);
 	break;
 	    
       default:
 	error ("gdb internal error: bad var_type in do_setshow_command");
       }
-      fputs_filtered (".\n", stdout);
+      fputs_filtered (".\n", gdb_stdout);
     }
   else
     error ("gdb internal error: bad cmd_type in do_setshow_command");
@@ -1178,9 +1197,9 @@ cmd_show_list (list, from_tty, prefix)
       cmd_show_list (*list->prefixlist, from_tty, list->prefixname + 5);
     if (list->type == show_cmd)
       {
-	fputs_filtered (prefix, stdout);
-	fputs_filtered (list->name, stdout);
-	fputs_filtered (":  ", stdout);
+	fputs_filtered (prefix, gdb_stdout);
+	fputs_filtered (list->name, gdb_stdout);
+	fputs_filtered (":  ", gdb_stdout);
 	do_setshow_command ((char *)NULL, from_tty, list);
       }
   }
@@ -1216,8 +1235,10 @@ shell_escape (arg, from_tty)
       else
 	execl (user_shell, p, "-c", arg, 0);
 
-      fprintf (stderr, "Exec of shell failed\n");
-      exit (0);
+      fprintf_unfiltered (gdb_stderr, "Cannot execute %s: %s\n", user_shell,
+			  safe_strerror (errno));
+      gdb_flush (gdb_stderr);
+      _exit (0177);
     }
 
   if (pid != -1)
@@ -1250,7 +1271,7 @@ make_command (arg, from_tty)
 static void
 show_user_1 (c, stream)
      struct cmd_list_element *c;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   register struct command_line *cmdlines;
 
@@ -1283,14 +1304,14 @@ show_user (args, from_tty)
       c = lookup_cmd (&args, cmdlist, "", 0, 1);
       if (c->class != class_user)
 	error ("Not a user command.");
-      show_user_1 (c, stdout);
+      show_user_1 (c, gdb_stdout);
     }
   else
     {
       for (c = cmdlist; c; c = c->next)
 	{
 	  if (c->class == class_user)
-	    show_user_1 (c, stdout);
+	    show_user_1 (c, gdb_stdout);
 	}
     }
 }

@@ -1,5 +1,5 @@
 /* Read NLM (NetWare Loadable Module) format executable files for GDB.
-   Copyright 1993 Free Software Foundation, Inc.
+   Copyright 1993, 1994 Free Software Foundation, Inc.
    Written by Fred Fish at Cygnus Support (fnf@cygnus.com).
 
 This file is part of GDB.
@@ -19,11 +19,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "defs.h"
+#include <string.h>
 #include "bfd.h"
 #include "symtab.h"
 #include "symfile.h"
 #include "objfiles.h"
 #include "gdb-stabs.h"
+#include "buildsym.h"
+#include "stabsread.h"
 
 static void
 nlm_new_init PARAMS ((struct objfile *));
@@ -87,7 +90,7 @@ record_minimal_symbol (name, address, ms_type, objfile)
      struct objfile *objfile;
 {
   name = obsavestring (name, strlen (name), &objfile -> symbol_obstack);
-  prim_record_minimal_symbol (name, address, ms_type);
+  prim_record_minimal_symbol (name, address, ms_type, objfile);
 }
 
 
@@ -116,50 +119,49 @@ nlm_symtab_read (abfd, addr, objfile)
      CORE_ADDR addr;
      struct objfile *objfile;
 {
-  unsigned int storage_needed;
+  long storage_needed;
   asymbol *sym;
   asymbol **symbol_table;
-  unsigned int number_of_symbols;
-  unsigned int i;
+  long number_of_symbols;
+  long i;
   struct cleanup *back_to;
   CORE_ADDR symaddr;
   enum minimal_symbol_type ms_type;
   
-  storage_needed = get_symtab_upper_bound (abfd);
+  storage_needed = bfd_get_symtab_upper_bound (abfd);
+  if (storage_needed < 0)
+    error ("Can't read symbols from %s: %s", bfd_get_filename (abfd),
+	   bfd_errmsg (bfd_get_error ()));
   if (storage_needed > 0)
     {
       symbol_table = (asymbol **) xmalloc (storage_needed);
       back_to = make_cleanup (free, symbol_table);
       number_of_symbols = bfd_canonicalize_symtab (abfd, symbol_table); 
+      if (number_of_symbols < 0)
+	error ("Can't read symbols from %s: %s", bfd_get_filename (abfd),
+	       bfd_errmsg (bfd_get_error ()));
   
       for (i = 0; i < number_of_symbols; i++)
 	{
 	  sym = symbol_table[i];
-	  if (sym -> flags & BSF_GLOBAL)
+	  if (/*sym -> flags & BSF_GLOBAL*/ 1)
 	    {
 	      /* Bfd symbols are section relative. */
 	      symaddr = sym -> value + sym -> section -> vma;
 	      /* Relocate all non-absolute symbols by base address.  */
 	      if (sym -> section != &bfd_abs_section)
-		{
-		  symaddr += addr;
-		}
+		symaddr += addr;
 
 	      /* For non-absolute symbols, use the type of the section
-		 they are relative to, to intuit text/data.  Bfd provides
+		 they are relative to, to intuit text/data.  BFD provides
 		 no way of figuring this out for absolute symbols. */
 	      if (sym -> section -> flags & SEC_CODE)
-		{
-		  ms_type = mst_text;
-		}
+		ms_type = mst_text;
 	      else if (sym -> section -> flags & SEC_DATA)
-		{
-		  ms_type = mst_data;
-		}
+		ms_type = mst_data;
 	      else
-		{
-		  ms_type = mst_unknown;
-		}
+		ms_type = mst_unknown;
+
 	      record_minimal_symbol ((char *) sym -> name, symaddr, ms_type,
 				     objfile);
 	    }
@@ -205,6 +207,7 @@ nlm_symfile_read (objfile, section_offsets, mainline)
   bfd *abfd = objfile -> obfd;
   struct cleanup *back_to;
   CORE_ADDR offset;
+  struct symbol *mainsym;
 
   init_minimal_symbol_collection ();
   back_to = make_cleanup (discard_minimal_symbols, 0);
@@ -218,15 +221,20 @@ nlm_symfile_read (objfile, section_offsets, mainline)
 
   nlm_symtab_read (abfd, offset, objfile);
 
+  stabsect_build_psymtabs (objfile, section_offsets, mainline, ".stab",
+			   ".stabstr", ".text");
+
+  mainsym = lookup_symbol ("main", NULL, VAR_NAMESPACE, NULL, NULL);
+
+  if (mainsym
+      && SYMBOL_CLASS(mainsym) == LOC_BLOCK)
+    {
+      objfile->ei.main_func_lowpc = BLOCK_START (SYMBOL_BLOCK_VALUE (mainsym));
+      objfile->ei.main_func_highpc = BLOCK_END (SYMBOL_BLOCK_VALUE (mainsym));
+    }
+
   /* FIXME:  We could locate and read the optional native debugging format
      here and add the symbols to the minimal symbol table. */
-
-  if (!have_partial_symbols ())
-    {
-      wrap_here ("");
-      printf_filtered ("(no debugging symbols found)...");
-      wrap_here ("");
-    }
 
   /* Install any minimal symbols that have been collected as the current
      minimal symbols for this objfile. */
@@ -264,7 +272,8 @@ nlm_symfile_offsets (objfile, addr)
 {
   struct section_offsets *section_offsets;
   int i;
- 
+
+  objfile->num_sections = SECT_OFF_MAX;
   section_offsets = (struct section_offsets *)
     obstack_alloc (&objfile -> psymbol_obstack,
 		   sizeof (struct section_offsets) +
@@ -279,12 +288,11 @@ nlm_symfile_offsets (objfile, addr)
 }
 
 
-/*  Register that we are able to handle NLM file format. */
+/* Register that we are able to handle NLM file format. */
 
 static struct sym_fns nlm_sym_fns =
 {
-  "nlm",		/* sym_name: name or name prefix of BFD target type */
-  3,			/* sym_namelen: number of significant sym_name chars */
+  bfd_target_nlm_flavour,
   nlm_new_init,		/* sym_new_init: init anything gbl to entire symtab */
   nlm_symfile_init,	/* sym_init: read initial info, setup for sym_read() */
   nlm_symfile_read,	/* sym_read: read a symbol file into symtab */

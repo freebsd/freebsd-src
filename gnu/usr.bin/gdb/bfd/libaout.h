@@ -18,9 +18,14 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef LIBAOUT_H
+#define LIBAOUT_H
+
 /* We try to encapsulate the differences in the various a.out file
    variants in a few routines, and otherwise share large masses of code.
    This means we only have to fix bugs in one place, most of the time.  */
+
+#include "bfdlink.h"
 
 /* Parameterize the a.out code based on whether it is being built
    for a 32-bit architecture or a 64-bit architecture.  */
@@ -44,11 +49,50 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define BYTES_IN_WORD 4
 #endif /* ARCH_SIZE==32 */
 
-/* Declare these types at file level, since they are used in parameter
-   lists, which have wierd scope.  */
+/* Declare at file level, since used in parameter lists, which have
+   weird scope.  */
 struct external_exec;
-struct internal_exec;
+struct external_nlist;
+struct reloc_ext_external;
+struct reloc_std_external;
+
+/* a.out backend linker hash table entries.  */
 
+struct aout_link_hash_entry
+{
+  struct bfd_link_hash_entry root;
+  /* Whether this symbol has been written out.  */
+  boolean written;
+  /* Symbol index in output file.  */
+  int indx;
+};
+
+/* a.out backend linker hash table.  */
+
+struct aout_link_hash_table
+{
+  struct bfd_link_hash_table root;
+};
+
+/* Look up an entry in an a.out link hash table.  */
+
+#define aout_link_hash_lookup(table, string, create, copy, follow) \
+  ((struct aout_link_hash_entry *) \
+   bfd_link_hash_lookup (&(table)->root, (string), (create), (copy), (follow)))
+
+/* Traverse an a.out link hash table.  */
+
+#define aout_link_hash_traverse(table, func, info)			\
+  (bfd_link_hash_traverse						\
+   (&(table)->root,							\
+    (boolean (*) PARAMS ((struct bfd_link_hash_entry *, PTR))) (func),	\
+    (info)))
+
+/* Get the a.out link hash table from the info structure.  This is
+   just a cast.  */
+
+#define aout_hash_table(p) ((struct aout_link_hash_table *) ((p)->hash))
+
 /* Back-end information for various a.out targets.  */
 struct aout_backend_data
 {
@@ -60,6 +104,9 @@ struct aout_backend_data
      text section, which starts immediately after the file header.
      If not, the text section starts on the next page.  */
   unsigned char text_includes_header;
+
+  /* The value to pass to N_SET_FLAGS.  */
+  unsigned char exec_hdr_flags;
 
   /* If the text section VMA isn't specified, and we need an absolute
      address, use this as the default.  If we're producing a relocatable
@@ -77,6 +124,39 @@ struct aout_backend_data
      to the size of the text section in the file for alignment purposes but
      does *not* get counted in the length of the text section. */
   unsigned char exec_header_not_counted;
+
+  /* Callback from the add symbols phase of the linker code to handle
+     a dynamic object.  */
+  boolean (*add_dynamic_symbols) PARAMS ((bfd *, struct bfd_link_info *));
+
+  /* Callback from the add symbols phase of the linker code to handle
+     adding a single symbol to the global linker hash table.  */
+  boolean (*add_one_symbol) PARAMS ((struct bfd_link_info *, bfd *,
+				     const char *, flagword, asection *,
+				     bfd_vma, const char *, boolean,
+				     boolean,
+				     struct bfd_link_hash_entry **));
+
+  /* Called to handle linking a dynamic object.  */
+  boolean (*link_dynamic_object) PARAMS ((struct bfd_link_info *, bfd *));
+
+  /* Called for each global symbol being written out by the linker.
+     This should write out the dynamic symbol information.  */
+  boolean (*write_dynamic_symbol) PARAMS ((bfd *, struct bfd_link_info *,
+					   struct aout_link_hash_entry *));
+
+  /* This callback is called by the linker for each reloc against an
+     external symbol.  RELOC is a pointer to the unswapped reloc.  If
+     *SKIP is set to true, the reloc will be skipped.  */
+  boolean (*check_dynamic_reloc) PARAMS ((struct bfd_link_info *info,
+					  bfd *input_bfd,
+					  asection *input_section,
+					  struct aout_link_hash_entry *h,
+					  PTR reloc, boolean *skip));
+
+  /* Called at the end of a link to finish up any dynamic linking
+     information.  */
+  boolean (*finish_dynamic_link) PARAMS ((bfd *, struct bfd_link_info *));
 };
 #define aout_backend_info(abfd) \
 	((CONST struct aout_backend_data *)((abfd)->xvec->backend_data))
@@ -123,10 +203,15 @@ enum machine_type {
   M_68020 = 2,
   M_SPARC = 3,
   /* skip a bunch so we don't run into any of suns numbers */
+  /* make these up for the ns32k*/
+  M_NS32032 = (64),		/* ns32032 running ? */
+  M_NS32532 = (64 + 5),		/* ns32532 running mach */
+
   M_386 = 100,
   M_29K = 101,          /* AMD 29000 */
   M_386_DYNIX = 102,	/* Sequent running dynix */
   M_386_NETBSD = 134,		/* NetBSD/386 binary */
+  M_532_NETBSD = 137,	/* MetBSD/523 binary */
   M_MIPS1 = 151,        /* MIPS R2000/R3000 binary */
   M_MIPS2 = 152,        /* MIPS R4000/R6000 binary */
   M_HP200 = 200,	/* HP 200 (68010) BSD binary */
@@ -134,7 +219,7 @@ enum machine_type {
   M_HPUX = (0x20c % 256)/* HP 200/300 HPUX binary */
 };
 
-#define N_DYNAMIC(exec) ((exec).a_info & 0x8000000)
+#define N_DYNAMIC(exec) ((exec).a_info & 0x80000000)
 
 #ifndef N_MAGIC
 # define N_MAGIC(exec) ((exec).a_info & 0xffff)
@@ -153,6 +238,12 @@ enum machine_type {
 ((exec).a_info = ((magic) & 0xffff) \
  | (((int)(type) & 0xff) << 16) \
  | (((flags) & 0xff) << 24))
+#endif
+
+#ifndef N_SET_DYNAMIC
+# define N_SET_DYNAMIC(exec, dynamic) \
+((exec).a_info = (dynamic) ? ((exec).a_info | 0x80000000) : \
+((exec).a_info & 0x7fffffff))
 #endif
 
 #ifndef N_SET_MAGIC
@@ -209,19 +300,40 @@ struct aoutdata {
   /* Segment size - needed for alignment of demand paged files. */
   unsigned long segment_size;
 
+  /* Zmagic disk block size - need to align the start of the text
+     section in ZMAGIC binaries.  Normally the same as page_size.  */
+  unsigned long zmagic_disk_block_size;
+
   unsigned exec_bytes_size;
   unsigned vma_adjusted : 1;
 
   /* used when a bfd supports several highly similar formats */
-  enum {
-    default_format = 0,
-    gnu_encap_format } subformat;
+  enum
+    {
+      default_format = 0,
+      /* Used on HP 9000/300 running HP/UX.  See hp300hpux.c.  */
+      gnu_encap_format,
+      /* Used on Linux, 386BSD, etc.  See include/aout/aout64.h.  */
+      q_magic_format
+    } subformat;
 
-  enum {
-    undecided_magic = 0,
-    z_magic,
-    o_magic,
-    n_magic } magic;
+  enum
+    {
+      undecided_magic = 0,
+      z_magic,
+      o_magic,
+      n_magic
+    } magic;
+
+  /* The external symbol information.  */
+  struct external_nlist *external_syms;
+  bfd_size_type external_sym_count;
+  char *external_strings;
+  bfd_size_type external_string_size;
+  struct aout_link_hash_entry **sym_hashes;
+
+  /* A pointer for shared library information.  */
+  PTR dynamic_info;
 };
 
 struct  aout_data_struct {
@@ -240,27 +352,49 @@ struct  aout_data_struct {
 #define	obj_reloc_entry_size(bfd) (adata(bfd).reloc_entry_size)
 #define	obj_symbol_entry_size(bfd) (adata(bfd).symbol_entry_size)
 #define obj_aout_subformat(bfd)	(adata(bfd).subformat)
+#define obj_aout_external_syms(bfd) (adata(bfd).external_syms)
+#define obj_aout_external_sym_count(bfd) (adata(bfd).external_sym_count)
+#define obj_aout_external_strings(bfd) (adata(bfd).external_strings)
+#define obj_aout_external_string_size(bfd) (adata(bfd).external_string_size)
+#define obj_aout_sym_hashes(bfd) (adata(bfd).sym_hashes)
+#define obj_aout_dynamic_info(bfd) (adata(bfd).dynamic_info)
 
 /* We take the address of the first element of an asymbol to ensure that the
    macro is only ever applied to an asymbol */
 #define aout_symbol(asymbol) ((aout_symbol_type *)(&(asymbol)->the_bfd))
+
+/* Information we keep for each a.out section.  This is currently only
+   used by the a.out backend linker.  */
+
+struct aout_section_data_struct
+{
+  /* The unswapped relocation entries for this section.  */
+  PTR relocs;
+};
+
+#define aout_section_data(s) \
+  ((struct aout_section_data_struct *) (s)->used_by_bfd)
 
 /* Prototype declarations for functions defined in aoutx.h  */
 
 boolean
 NAME(aout,squirt_out_relocs) PARAMS ((bfd *abfd, asection *section));
 
-bfd_target *
+boolean
+NAME(aout,make_sections) PARAMS ((bfd *));
+
+const bfd_target *
 NAME(aout,some_aout_object_p) PARAMS ((bfd *abfd,
-			struct internal_exec *execp,
-			bfd_target * (*callback)(bfd *)));
+				       struct internal_exec *execp,
+				       const bfd_target *(*callback)(bfd *)));
 
 boolean
 NAME(aout,mkobject) PARAMS ((bfd *abfd));
 
 enum machine_type
 NAME(aout,machine_type) PARAMS ((enum bfd_architecture arch,
-				 unsigned long machine));
+				 unsigned long machine,
+				 boolean *unknown));
 
 boolean
 NAME(aout,set_arch_mach) PARAMS ((bfd *abfd, enum bfd_architecture arch,
@@ -277,29 +411,43 @@ asymbol *
 NAME(aout,make_empty_symbol) PARAMS ((bfd *abfd));
 
 boolean
+NAME(aout,translate_symbol_table) PARAMS ((bfd *, aout_symbol_type *,
+					   struct external_nlist *,
+					   bfd_size_type, char *,
+					   bfd_size_type,
+					   boolean dynamic));
+
+boolean
 NAME(aout,slurp_symbol_table) PARAMS ((bfd *abfd));
 
-void
+boolean
 NAME(aout,write_syms) PARAMS ((bfd *abfd));
 
 void
 NAME(aout,reclaim_symbol_table) PARAMS ((bfd *abfd));
 
-unsigned int
+long
 NAME(aout,get_symtab_upper_bound) PARAMS ((bfd *abfd));
 
-unsigned int
+long
 NAME(aout,get_symtab) PARAMS ((bfd *abfd, asymbol **location));
+
+void
+NAME(aout,swap_ext_reloc_in) PARAMS ((bfd *, struct reloc_ext_external *,
+				      arelent *, asymbol **));
+void
+NAME(aout,swap_std_reloc_in) PARAMS ((bfd *, struct reloc_std_external *,
+				      arelent *, asymbol **));
 
 boolean
 NAME(aout,slurp_reloc_table) PARAMS ((bfd *abfd, sec_ptr asect,
 				      asymbol **symbols));
 
-unsigned int
+long
 NAME(aout,canonicalize_reloc) PARAMS ((bfd *abfd, sec_ptr section,
 				       arelent **relptr, asymbol **symbols));
 
-unsigned int
+long
 NAME(aout,get_reloc_upper_bound) PARAMS ((bfd *abfd, sec_ptr asect));
 
 void
@@ -315,9 +463,6 @@ NAME(aout,print_symbol) PARAMS ((bfd *ignore_abfd, PTR file,
 void
 NAME(aout,get_symbol_info) PARAMS ((bfd *ignore_abfd,
                            asymbol *symbol, symbol_info *ret));
-
-boolean
-NAME(aout,close_and_cleanup) PARAMS ((bfd *abfd));
 
 boolean
 NAME(aout,find_nearest_line) PARAMS ((bfd *abfd, asection *section,
@@ -339,6 +484,31 @@ void
 NAME(aout,swap_exec_header_out) PARAMS ((bfd *abfd,
        struct internal_exec *execp, struct external_exec *raw_bytes));
 
+struct bfd_hash_entry *
+NAME(aout,link_hash_newfunc)
+  PARAMS ((struct bfd_hash_entry *, struct bfd_hash_table *, const char *));
+
+boolean
+NAME(aout,link_hash_table_init)
+     PARAMS ((struct aout_link_hash_table *, bfd *,
+	      struct bfd_hash_entry *(*) (struct bfd_hash_entry *,
+					  struct bfd_hash_table *,
+					  const char *)));
+
+struct bfd_link_hash_table *
+NAME(aout,link_hash_table_create) PARAMS ((bfd *));
+
+boolean
+NAME(aout,link_add_symbols) PARAMS ((bfd *, struct bfd_link_info *));
+
+boolean
+NAME(aout,final_link) PARAMS ((bfd *, struct bfd_link_info *,
+			       void (*) (bfd *, file_ptr *, file_ptr *,
+					 file_ptr *)));
+
+boolean
+NAME(aout,bfd_free_cached_info) PARAMS ((bfd *));
+
 /* Prototypes for functions in stab-syms.c. */
 
 CONST char *
@@ -346,13 +516,15 @@ aout_stab_name PARAMS ((int code));
 
 /* A.out uses the generic versions of these routines... */
 
-#define	aout_32_get_section_contents	bfd_generic_get_section_contents
-#define	aout_32_close_and_cleanup	bfd_generic_close_and_cleanup
+#define	aout_32_get_section_contents	_bfd_generic_get_section_contents
 
-#define	aout_64_get_section_contents	bfd_generic_get_section_contents
-#define	aout_64_close_and_cleanup	bfd_generic_close_and_cleanup
+#define	aout_64_get_section_contents	_bfd_generic_get_section_contents
 #ifndef NO_WRITE_HEADER_KLUDGE
 #define NO_WRITE_HEADER_KLUDGE 0
+#endif
+
+#ifndef aout_32_bfd_is_local_label
+#define aout_32_bfd_is_local_label bfd_generic_is_local_label
 #endif
 
 #ifndef WRITE_HEADERS
@@ -372,22 +544,35 @@ aout_stab_name PARAMS ((int code));
 			   obj_reloc_entry_size (abfd));		      \
 	NAME(aout,swap_exec_header_out) (abfd, execp, &exec_bytes);	      \
 									      \
-	bfd_seek (abfd, (file_ptr) 0, SEEK_SET);			      \
-	bfd_write ((PTR) &exec_bytes, 1, EXEC_BYTES_SIZE, abfd);	      \
+	if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0) return false;	      \
+	if (bfd_write ((PTR) &exec_bytes, 1, EXEC_BYTES_SIZE, abfd)	      \
+	    != EXEC_BYTES_SIZE)						      \
+	  return false;							      \
 	/* Now write out reloc info, followed by syms and strings */	      \
   									      \
-	if (bfd_get_symcount (abfd) != 0) 				      \
+	if (bfd_get_outsymbols (abfd) != (asymbol **) NULL		      \
+	    && bfd_get_symcount (abfd) != 0) 				      \
 	    {								      \
-	      bfd_seek (abfd, (file_ptr)(N_SYMOFF(*execp)), SEEK_SET);	      \
+	      if (bfd_seek (abfd, (file_ptr)(N_SYMOFF(*execp)), SEEK_SET)     \
+		  != 0)							      \
+	        return false;						      \
 									      \
-	      NAME(aout,write_syms)(abfd);				      \
+	      if (! NAME(aout,write_syms)(abfd)) return false;		      \
 									      \
-	      bfd_seek (abfd, (file_ptr)(N_TRELOFF(*execp)), SEEK_SET);	      \
+	      if (bfd_seek (abfd, (file_ptr)(N_TRELOFF(*execp)), SEEK_SET)    \
+		  != 0)							      \
+	        return false;						      \
 									      \
-	      if (!NAME(aout,squirt_out_relocs) (abfd, obj_textsec (abfd))) return false; \
-	      bfd_seek (abfd, (file_ptr)(N_DRELOFF(*execp)), SEEK_SET);	      \
+	      if (!NAME(aout,squirt_out_relocs) (abfd, obj_textsec (abfd)))   \
+		return false;						      \
+	      if (bfd_seek (abfd, (file_ptr)(N_DRELOFF(*execp)), SEEK_SET)    \
+		  != 0)							      \
+	        return false;						      \
 									      \
-	      if (!NAME(aout,squirt_out_relocs)(abfd, obj_datasec (abfd))) return false; \
+	      if (!NAME(aout,squirt_out_relocs)(abfd, obj_datasec (abfd)))    \
+		return false;						      \
 	    }								      \
       }									      
 #endif
+
+#endif /* ! defined (LIBAOUT_H) */

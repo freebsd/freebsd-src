@@ -30,6 +30,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "breakpoint.h"
 #include "demangle.h"
 #include "inferior.h"
+#include "annotate.h"
 
 static void
 return_command PARAMS ((char *, int));
@@ -56,7 +57,7 @@ static void
 args_info PARAMS ((char *, int));
 
 static void
-print_frame_arg_vars PARAMS ((FRAME, FILE *));
+print_frame_arg_vars PARAMS ((FRAME, GDB_FILE *));
 
 static void
 catch_info PARAMS ((char *, int));
@@ -65,16 +66,16 @@ static void
 locals_info PARAMS ((char *, int));
 
 static void
-print_frame_label_vars PARAMS ((FRAME, int, FILE *));
+print_frame_label_vars PARAMS ((FRAME, int, GDB_FILE *));
 
 static void
-print_frame_local_vars PARAMS ((FRAME, FILE *));
+print_frame_local_vars PARAMS ((FRAME, GDB_FILE *));
 
 static int
-print_block_frame_labels PARAMS ((struct block *, int *, FILE *));
+print_block_frame_labels PARAMS ((struct block *, int *, GDB_FILE *));
 
 static int
-print_block_frame_locals PARAMS ((struct block *, FRAME, FILE *));
+print_block_frame_locals PARAMS ((struct block *, FRAME, GDB_FILE *));
 
 static void
 backtrace_command PARAMS ((char *, int));
@@ -101,10 +102,13 @@ FRAME selected_frame;
 
 int selected_frame_level;
 
-/* Nonzero means print the full filename and linenumber
-   when a frame is printed, and do so in a format programs can parse.  */
+/* Zero means do things normally; we are interacting directly with the
+   user.  One means print the full filename and linenumber when a
+   frame is printed, and do so in a format emacs18/emacs19.22 can
+   parse.  Two means print similar annotations, but in many more
+   cases and in a slightly different syntax.  */
 
-int frame_file_full_name = 0;
+int annotation_level = 0;
 
 
 struct print_stack_frame_args {
@@ -167,10 +171,12 @@ print_args_stub (args)
   int numargs;
   struct print_args_args *p = (struct print_args_args *)args;
   FRAME_NUM_ARGS (numargs, (p->fi));
-  print_frame_args (p->func, p->fi, numargs, stdout);
+  print_frame_args (p->func, p->fi, numargs, gdb_stdout);
   return 0;
 }
 
+/* LEVEL is the level of the frame, or -1 if it is the innermost frame
+   but we don't want to print the level.  */
 void
 print_frame_info (fi, level, source, args)
      struct frame_info *fi;
@@ -182,8 +188,12 @@ print_frame_info (fi, level, source, args)
   struct symbol *func;
   register char *funname = 0;
   enum language funlang = language_unknown;
+
+#if 0
   char buf[MAX_REGISTER_RAW_SIZE];
   CORE_ADDR sp;
+
+  /* On the 68k, this spends too much time in m68k_find_saved_regs.  */
 
   /* Get the value of SP_REGNUM relative to the frame.  */
   get_saved_register (buf, (int *)NULL, (CORE_ADDR *)NULL,
@@ -195,33 +205,46 @@ print_frame_info (fi, level, source, args)
      will succeed even though there is no call dummy.  Probably best is
      to check for a bp_call_dummy breakpoint.  */
   if (PC_IN_CALL_DUMMY (fi->pc, sp, fi->frame))
+#else
+  if (frame_in_dummy (fi))
+#endif
     {
+      annotate_frame_begin (level == -1 ? 0 : level, fi->pc);
+
       /* Do this regardless of SOURCE because we don't have any source
 	 to list for this frame.  */
       if (level >= 0)
 	printf_filtered ("#%-2d ", level);
+      annotate_function_call ();
       printf_filtered ("<function called from gdb>\n");
+      annotate_frame_end ();
       return;
     }
   if (fi->signal_handler_caller)
     {
+      annotate_frame_begin (level == -1 ? 0 : level, fi->pc);
+
       /* Do this regardless of SOURCE because we don't have any source
 	 to list for this frame.  */
       if (level >= 0)
 	printf_filtered ("#%-2d ", level);
+      annotate_signal_handler_caller ();
       printf_filtered ("<signal handler called>\n");
+      annotate_frame_end ();
       return;
     }
 
   /* If fi is not the innermost frame, that normally means that fi->pc
      points to *after* the call instruction, and we want to get the line
      containing the call, never the next line.  But if the next frame is
-     a signal_handler_caller frame, then the next frame was not entered
-     as the result of a call, and we want to get the line containing
-     fi->pc.  */
+     a signal_handler_caller or a dummy frame, then the next frame was
+     not entered as the result of a call, and we want to get the line
+     containing fi->pc.  */
   sal =
     find_pc_line (fi->pc,
-		  fi->next != NULL && fi->next->signal_handler_caller == 0);
+		  fi->next != NULL
+		  && !fi->next->signal_handler_caller
+		  && !frame_in_dummy (fi->next));
 
   func = find_pc_function (fi->pc);
   if (func)
@@ -247,9 +270,14 @@ print_frame_info (fi, level, source, args)
 	  && (SYMBOL_VALUE_ADDRESS (msymbol) 
 	      > BLOCK_START (SYMBOL_BLOCK_VALUE (func))))
 	{
+#if 0
+	  /* There is no particular reason to think the line number
+	     information is wrong.  Someone might have just put in
+	     a label with asm() but left the line numbers alone.  */
 	  /* In this case we have no way of knowing the source file
 	     and line number, so don't print them.  */
 	  sal.symtab = 0;
+#endif
 	  /* We also don't know anything about the function besides
 	     its address and name.  */
 	  func = 0;
@@ -274,15 +302,24 @@ print_frame_info (fi, level, source, args)
 
   if (source >= 0 || !sal.symtab)
     {
+      annotate_frame_begin (level == -1 ? 0 : level, fi->pc);
+
       if (level >= 0)
 	printf_filtered ("#%-2d ", level);
       if (addressprint)
 	if (fi->pc != sal.pc || !sal.symtab)
-	  printf_filtered ("%s in ", local_hex_string((unsigned long) fi->pc));
-      fprintf_symbol_filtered (stdout, funname ? funname : "??", funlang,
-			       DMGL_NO_OPTS);
+	  {
+	    annotate_frame_address ();
+	    print_address_numeric (fi->pc, 1, gdb_stdout);
+	    annotate_frame_address_end ();
+	    printf_filtered (" in ");
+	  }
+      annotate_frame_function_name ();
+      fprintf_symbol_filtered (gdb_stdout, funname ? funname : "??", funlang,
+			       DMGL_ANSI);
       wrap_here ("   ");
-      fputs_filtered (" (", stdout);
+      annotate_frame_args ();
+      fputs_filtered (" (", gdb_stdout);
       if (args)
 	{
 	  struct print_args_args args;
@@ -293,18 +330,28 @@ print_frame_info (fi, level, source, args)
       printf_filtered (")");
       if (sal.symtab && sal.symtab->filename)
 	{
+	  annotate_frame_source_begin ();
           wrap_here ("   ");
-	  printf_filtered (" at %s:%d", sal.symtab->filename, sal.line);
+	  printf_filtered (" at ");
+	  annotate_frame_source_file ();
+	  printf_filtered ("%s", sal.symtab->filename);
+	  annotate_frame_source_file_end ();
+	  printf_filtered (":");
+	  annotate_frame_source_line ();
+	  printf_filtered ("%d", sal.line);
+	  annotate_frame_source_end ();
 	}
 
 #ifdef PC_LOAD_SEGMENT
      /* If we couldn't print out function name but if can figure out what
         load segment this pc value is from, at least print out some info
 	about its load segment. */
-      if (!funname) {
-	wrap_here ("  ");
-	printf_filtered (" from %s", PC_LOAD_SEGMENT (fi->pc));
-      }
+      if (!funname)
+	{
+	  annotate_frame_where ();
+	  wrap_here ("  ");
+	  printf_filtered (" from %s", PC_LOAD_SEGMENT (fi->pc));
+	}
 #endif
       printf_filtered ("\n");
     }
@@ -313,13 +360,16 @@ print_frame_info (fi, level, source, args)
     {
       int done = 0;
       int mid_statement = source < 0 && fi->pc != sal.pc;
-      if (frame_file_full_name)
+      if (annotation_level)
 	done = identify_source_line (sal.symtab, sal.line, mid_statement,
 				     fi->pc);
       if (!done)
 	{
 	  if (addressprint && mid_statement)
-	    printf_filtered ("%s\t", local_hex_string((unsigned long) fi->pc));
+	    {
+	      print_address_numeric (fi->pc, 1, gdb_stdout);
+	      printf_filtered ("\t");
+	    }
 	  print_source_lines (sal.symtab, sal.line, sal.line + 1, 0);
 	}
       current_source_line = max (sal.line - lines_to_list/2, 1);
@@ -327,7 +377,9 @@ print_frame_info (fi, level, source, args)
   if (source != 0)
     set_default_breakpoint (1, fi->pc, sal.symtab, sal.line);
 
-  fflush (stdout);
+  annotate_frame_end ();
+
+  gdb_flush (gdb_stdout);
 }
 
 /*
@@ -388,6 +440,22 @@ parse_frame_specification (frame_exp)
 	  /* find_relative_frame was successful */
 	  return fid;
 
+	/* If SETUP_ARBITRARY_FRAME is defined, then frame specifications
+	   take at least 2 addresses.  It is important to detect this case
+	   here so that "frame 100" does not give a confusing error message
+	   like "frame specification requires two addresses".  This of course
+	   does not solve the "frame 100" problem for machines on which
+	   a frame specification can be made with one address.  To solve
+	   that, we need a new syntax for a specifying a frame by address.
+	   I think the cleanest syntax is $frame(0x45) ($frame(0x23,0x45) for
+	   two args, etc.), but people might think that is too much typing,
+	   so I guess *0x23,0x45 would be a possible alternative (commas
+	   really should be used instead of spaces to delimit; using spaces
+	   normally works in an expression).  */
+#ifdef SETUP_ARBITRARY_FRAME
+	error ("No frame %d", args[0]);
+#endif
+
 	/* If (s)he specifies the frame with an address, he deserves what
 	   (s)he gets.  Still, give the highest one that matches.  */
 
@@ -402,9 +470,7 @@ parse_frame_specification (frame_exp)
 	    fid = tfid;
 	  
 	/* We couldn't identify the frame as an existing frame, but
-	   perhaps we can create one with a single argument.
-	   Fall through to default case; it's up to SETUP_ARBITRARY_FRAME
-	   to complain if it doesn't like a single arg.  */
+	   perhaps we can create one with a single argument.  */
       }
 
      default:
@@ -447,7 +513,7 @@ frame_info (addr_exp, from_tty)
   struct symbol *func;
   struct symtab *s;
   FRAME calling_frame;
-  int i, count;
+  int i, count, numregs;
   char *funname = 0;
   enum language funlang = language_unknown;
 
@@ -460,7 +526,9 @@ frame_info (addr_exp, from_tty)
 
   fi = get_frame_info (frame);
   sal = find_pc_line (fi->pc,
-		      fi->next != NULL && fi->next->signal_handler_caller == 0);
+		      fi->next != NULL
+		      && !fi->next->signal_handler_caller
+		      && !frame_in_dummy (fi->next));
   func = get_frame_function (frame);
   s = find_pc_symtab(fi->pc);
   if (func)
@@ -479,23 +547,27 @@ frame_info (addr_exp, from_tty)
     }
   calling_frame = get_prev_frame (frame);
 
-  if (!addr_exp && selected_frame_level >= 0) {
-    printf_filtered ("Stack level %d, frame at %s:\n",
-		     selected_frame_level, 
-		     local_hex_string((unsigned long) FRAME_FP(frame)));
-  } else {
-    printf_filtered ("Stack frame at %s:\n",
-		     local_hex_string((unsigned long) FRAME_FP(frame)));
-  }
-  printf_filtered (" %s = %s",
-		   reg_names[PC_REGNUM], 
-		   local_hex_string((unsigned long) fi->pc));
+  if (!addr_exp && selected_frame_level >= 0)
+    {
+      printf_filtered ("Stack level %d, frame at ", selected_frame_level);
+      print_address_numeric (FRAME_FP(frame), 1, gdb_stdout);
+      printf_filtered (":\n");
+    }
+  else
+    {
+      printf_filtered ("Stack frame at ");
+      print_address_numeric (FRAME_FP(frame), 1, gdb_stdout);
+      printf_filtered (":\n");
+    }
+  printf_filtered (" %s = ",
+		   reg_names[PC_REGNUM]);
+  print_address_numeric (fi->pc, 1, gdb_stdout);
 
   wrap_here ("   ");
   if (funname)
     {
       printf_filtered (" in ");
-      fprintf_symbol_filtered (stdout, funname, funlang,
+      fprintf_symbol_filtered (gdb_stdout, funname, funlang,
 			       DMGL_ANSI | DMGL_PARAMS);
     }
   wrap_here ("   ");
@@ -503,8 +575,9 @@ frame_info (addr_exp, from_tty)
     printf_filtered (" (%s:%d)", sal.symtab->filename, sal.line);
   puts_filtered ("; ");
   wrap_here ("    ");
-  printf_filtered ("saved %s %s\n", reg_names[PC_REGNUM],
-		   local_hex_string((unsigned long) FRAME_SAVED_PC (frame)));
+  printf_filtered ("saved %s ", reg_names[PC_REGNUM]);
+  print_address_numeric (FRAME_SAVED_PC (frame), 1, gdb_stdout);
+  printf_filtered ("\n");
 
   {
     int frameless = 0;
@@ -516,18 +589,22 @@ frame_info (addr_exp, from_tty)
   }
 
   if (calling_frame)
-    printf_filtered (" called by frame at %s", 
-		     local_hex_string((unsigned long) FRAME_FP (calling_frame)));
+    {
+      printf_filtered (" called by frame at ");
+      print_address_numeric (FRAME_FP (calling_frame), 1, gdb_stdout);
+    }
   if (fi->next && calling_frame)
     puts_filtered (",");
   wrap_here ("   ");
   if (fi->next)
-    printf_filtered (" caller of frame at %s",
-		     local_hex_string ((unsigned long) fi->next->frame));
+    {
+      printf_filtered (" caller of frame at ");
+      print_address_numeric (fi->next->frame, 1, gdb_stdout);
+    }
   if (fi->next || calling_frame)
     puts_filtered ("\n");
   if (s)
-     printf_filtered(" source language %s.\n", language_str(s->language));
+    printf_filtered (" source language %s.\n", language_str (s->language));
 
 #ifdef PRINT_EXTRA_FRAME_INFO
   PRINT_EXTRA_FRAME_INFO (fi);
@@ -540,11 +617,12 @@ frame_info (addr_exp, from_tty)
     int numargs;
 
     if (arg_list == 0)
-	printf_filtered (" Arglist at unknown address.\n");
+      printf_filtered (" Arglist at unknown address.\n");
     else
       {
-	printf_filtered (" Arglist at %s,",
-			 local_hex_string((unsigned long) arg_list));
+	printf_filtered (" Arglist at ");
+	print_address_numeric (arg_list, 1, gdb_stdout);
+	printf_filtered (",");
 
 	FRAME_NUM_ARGS (numargs, fi);
 	if (numargs < 0)
@@ -555,7 +633,7 @@ frame_info (addr_exp, from_tty)
 	  puts_filtered (" 1 arg: ");
 	else
 	  printf_filtered (" %d args: ", numargs);
-	print_frame_args (func, fi, numargs, stdout);
+	print_frame_args (func, fi, numargs, gdb_stdout);
 	puts_filtered ("\n");
       }
   }
@@ -564,20 +642,25 @@ frame_info (addr_exp, from_tty)
     CORE_ADDR arg_list = FRAME_LOCALS_ADDRESS (fi);
 
     if (arg_list == 0)
-	printf_filtered (" Locals at unknown address,");
+      printf_filtered (" Locals at unknown address,");
     else
-	printf_filtered (" Locals at %s,",
-			 local_hex_string((unsigned long) arg_list));
+      {
+	printf_filtered (" Locals at ");
+	print_address_numeric (arg_list, 1, gdb_stdout);
+	printf_filtered (",");
+      }
   }
 
 #if defined (FRAME_FIND_SAVED_REGS)  
   get_frame_saved_regs (fi, &fsr);
   /* The sp is special; what's returned isn't the save address, but
      actually the value of the previous frame's sp.  */
-  printf_filtered (" Previous frame's sp is %s\n", 
-		   local_hex_string((unsigned long) fsr.regs[SP_REGNUM]));
+  printf_filtered (" Previous frame's sp is ");
+  print_address_numeric (fsr.regs[SP_REGNUM], 1, gdb_stdout);
+  printf_filtered ("\n");
   count = 0;
-  for (i = 0; i < NUM_REGS; i++)
+  numregs = ARCH_NUM_REGS;
+  for (i = 0; i < numregs; i++)
     if (fsr.regs[i] && i != SP_REGNUM)
       {
 	if (count == 0)
@@ -585,12 +668,14 @@ frame_info (addr_exp, from_tty)
 	else
 	  puts_filtered (",");
 	wrap_here (" ");
-	printf_filtered (" %s at %s", reg_names[i], 
-			 local_hex_string((unsigned long) fsr.regs[i]));
+	printf_filtered (" %s at ", reg_names[i]);
+	print_address_numeric (fsr.regs[i], 1, gdb_stdout);
 	count++;
       }
   if (count)
     puts_filtered ("\n");
+#else  /* Have FRAME_FIND_SAVED_REGS.  */
+  puts_filtered ("\n");
 #endif /* Have FRAME_FIND_SAVED_REGS.  */
 }
 
@@ -621,7 +706,7 @@ backtrace_limit_info (arg, from_tty)
   if (arg)
     error ("\"Info backtrace-limit\" takes no arguments.");
 
-  printf ("Backtrace limit: %d.\n", backtrace_limit);
+  printf_unfiltered ("Backtrace limit: %d.\n", backtrace_limit);
 }
 #endif
 
@@ -728,7 +813,7 @@ static int
 print_block_frame_locals (b, frame, stream)
      struct block *b;
      register FRAME frame;
-     register FILE *stream;
+     register GDB_FILE *stream;
 {
   int nsyms;
   register int i;
@@ -740,15 +825,22 @@ print_block_frame_locals (b, frame, stream)
   for (i = 0; i < nsyms; i++)
     {
       sym = BLOCK_SYM (b, i);
-      if (SYMBOL_CLASS (sym) == LOC_LOCAL
-	  || SYMBOL_CLASS (sym) == LOC_REGISTER
-	  || SYMBOL_CLASS (sym) == LOC_STATIC)
+      switch (SYMBOL_CLASS (sym))
 	{
+	case LOC_LOCAL:
+	case LOC_REGISTER:
+	case LOC_STATIC:
+	case LOC_BASEREG:
 	  values_printed = 1;
 	  fputs_filtered (SYMBOL_SOURCE_NAME (sym), stream);
 	  fputs_filtered (" = ", stream);
 	  print_variable_value (sym, frame, stream);
 	  fprintf_filtered (stream, "\n");
+	  break;
+
+	default:
+	  /* Ignore symbols which are not locals.  */
+	  break;
 	}
     }
   return values_printed;
@@ -760,7 +852,7 @@ static int
 print_block_frame_labels (b, have_default, stream)
      struct block *b;
      int *have_default;
-     register FILE *stream;
+     register GDB_FILE *stream;
 {
   int nsyms;
   register int i;
@@ -785,8 +877,10 @@ print_block_frame_labels (b, have_default, stream)
 	  values_printed = 1;
 	  fputs_filtered (SYMBOL_SOURCE_NAME (sym), stream);
 	  if (addressprint)
-	    fprintf_filtered (stream, " %s", 
-			      local_hex_string((unsigned long) SYMBOL_VALUE_ADDRESS (sym)));
+	    {
+	      fprintf_filtered (stream, " ");
+	      print_address_numeric (SYMBOL_VALUE_ADDRESS (sym), 1, stream);
+	    }
 	  fprintf_filtered (stream, " in file %s, line %d\n",
 			    sal.symtab->filename, sal.line);
 	}
@@ -805,7 +899,7 @@ print_block_frame_labels (b, have_default, stream)
 static void
 print_frame_local_vars (frame, stream)
      register FRAME frame;
-     register FILE *stream;
+     register GDB_FILE *stream;
 {
   register struct block *block = get_frame_block (frame);
   register int values_printed = 0;
@@ -840,7 +934,7 @@ static void
 print_frame_label_vars (frame, this_level_only, stream)
      register FRAME frame;
      int this_level_only;
-     register FILE *stream;
+     register GDB_FILE *stream;
 {
   register struct blockvector *bl;
   register struct block *block = get_frame_block (frame);
@@ -915,7 +1009,7 @@ locals_info (args, from_tty)
 {
   if (!selected_frame)
     error ("No frame selected.");
-  print_frame_local_vars (selected_frame, stdout);
+  print_frame_local_vars (selected_frame, gdb_stdout);
 }
 
 static void
@@ -925,13 +1019,13 @@ catch_info (ignore, from_tty)
 {
   if (!selected_frame)
     error ("No frame selected.");
-  print_frame_label_vars (selected_frame, 0, stdout);
+  print_frame_label_vars (selected_frame, 0, gdb_stdout);
 }
 
 static void
 print_frame_arg_vars (frame, stream)
      register FRAME frame;
-     register FILE *stream;
+     register GDB_FILE *stream;
 {
   struct symbol *func = get_frame_function (frame);
   register struct block *b;
@@ -1000,7 +1094,7 @@ args_info (ignore, from_tty)
 {
   if (!selected_frame)
     error ("No frame selected.");
-  print_frame_arg_vars (selected_frame, stdout);
+  print_frame_arg_vars (selected_frame, gdb_stdout);
 }
 
 /* Select frame FRAME, and note that its stack level is LEVEL.
@@ -1199,7 +1293,16 @@ down_silently_command (count_exp, from_tty)
 
   frame = find_relative_frame (selected_frame, &count1);
   if (count1 != 0 && count_exp == 0)
-    error ("Bottom (i.e., innermost) frame selected; you cannot go down.");
+    {
+
+      /* We only do this if count_exp is not specified.  That way "down"
+	 means to really go down (and let me know if that is
+	 impossible), but "down 9999" can be used to mean go all the way
+	 down without getting an error.  */
+
+      error ("Bottom (i.e., innermost) frame selected; you cannot go down.");
+    }
+
   select_frame (frame, selected_frame_level + count - count1);
 }
 
@@ -1222,7 +1325,7 @@ return_command (retval_exp, from_tty)
   FRAME_ADDR selected_frame_addr;
   CORE_ADDR selected_frame_pc;
   FRAME frame;
-  value return_value = NULL;
+  value_ptr return_value = NULL;
 
   if (selected_frame == NULL)
     error ("No selected frame.");

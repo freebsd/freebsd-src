@@ -1,5 +1,5 @@
 /* Remote target communications for serial-line targets in custom GDB protocol
-   Copyright 1988, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1988, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -25,7 +25,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	$ <data> # CSUM1 CSUM2
 
 	<data> must be ASCII alphanumeric and cannot include characters
-	'$' or '#'
+	'$' or '#'.  If <data> starts with two characters followed by
+	':', then the existing stubs interpret this as a sequence number.
 
 	CSUM1 and CSUM2 are ascii hex representation of an 8-bit 
 	checksum of <data>, the most significant nibble is sent first.
@@ -53,6 +54,14 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 					is described by two hex digits.
 	reply		OK		for success
 			ENN		for an error
+
+        write reg	Pn...=r...	Write register n... with value r...,
+					which contains two hex digits for each
+					byte in the register (target byte
+					order).
+	reply		OK		for success
+			ENN		for an error
+	(not supported by all stubs).
 
 	read mem	mAA..AA,LLLL	AA..AA is address, LLLL is length.
 	reply		XX..XX		XX..XX is mem contents
@@ -90,22 +99,10 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 					AA = signal number
 					n... = register number
 					r... = register contents
-	or...		WAA		The process extited, and AA is
+	or...		WAA		The process exited, and AA is
 					the exit status.  This is only
 					applicable for certains sorts of
 					targets.
-	or...		NAATT;DD;BB	Relocate the object file.
-					AA = signal number
-					TT = text address
-					DD = data address
-					BB = bss address
-					This is used by the NLM stub,
-					which is why it only has three
-					addresses rather than one per
-					section: the NLM stub always
-					sees only three sections, even
-					though gdb may see more.
-
 	kill request	k
 
 	toggle debug	d		toggle debug flag (see 386 & 68k stubs)
@@ -116,7 +113,23 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 					we can extend the protocol and GDB
 					can tell whether the stub it is
 					talking to uses the old or the new.
-*/
+	search		tAA:PP,MM	Search backwards starting at address
+					AA for a match with pattern PP and
+					mask MM.  PP and MM are 4 bytes.
+					Not supported by all stubs.
+
+	general query	qXXXX		Request info about XXXX.
+	general set	QXXXX=yyyy	Set value of XXXX to yyyy.
+	query sect offs	qOffsets	Get section offsets.  Reply is
+					Text=xxx;Data=yyy;Bss=zzz
+	console output	Otext		Send text to stdout.  Only comes from
+					remote target.
+
+	Responses can be run-length encoded to save space.  A '*' means that
+	the next two characters are hex digits giving a repeat count which
+	stands for that many repititions of the character preceding the '*'.
+	Note that this means that responses cannot contain '*'.  Example:
+	"0*03" means the same as "0000".  */
 
 #include "defs.h"
 #include <string.h>
@@ -164,7 +177,7 @@ static void
 remote_fetch_registers PARAMS ((int regno));
 
 static void
-remote_resume PARAMS ((int pid, int step, int siggnal));
+remote_resume PARAMS ((int pid, int step, enum target_signal siggnal));
 
 static int
 remote_start_remote PARAMS ((char *dummy));
@@ -188,10 +201,9 @@ static void
 remote_send PARAMS ((char *buf));
 
 static int
-readchar PARAMS ((void));
+readchar PARAMS ((int timeout));
 
-static int
-remote_wait PARAMS ((int pid, WAITTYPE *status));
+static int remote_wait PARAMS ((int pid, struct target_waitstatus *status));
 
 static int
 tohex PARAMS ((int nib));
@@ -213,15 +225,11 @@ interrupt_query PARAMS ((void));
 
 extern struct target_ops remote_ops;	/* Forward decl */
 
-extern int baud_rate;
-
-extern int remote_debug;
-
 /* This was 5 seconds, which is a long time to sit and wait.
    Unless this is going though some terminal server or multiplexer or
    other form of hairy serial connection, I would think 2 seconds would
    be plenty.  */
-static int timeout = 2;
+static int remote_timeout = 2;
 
 #if 0
 int icache;
@@ -232,17 +240,30 @@ int icache;
    starts.  */
 serial_t remote_desc = NULL;
 
-#define	PBUFSIZ	1024
+/* Having this larger than 400 causes us to be incompatible with m68k-stub.c
+   and i386-stub.c.  Normally, no one would notice because it only matters
+   for writing large chunks of memory (e.g. in downloads).  Also, this needs
+   to be more than 400 if required to hold the registers (see below, where
+   we round it up based on REGISTER_BYTES).  */
+#define	PBUFSIZ	400
 
 /* Maximum number of bytes to read/write at once.  The value here
    is chosen to fill up a packet (the headers account for the 32).  */
 #define MAXBUFBYTES ((PBUFSIZ-32)/2)
 
 /* Round up PBUFSIZ to hold all the registers, at least.  */
+/* The blank line after the #if seems to be required to work around a
+   bug in HP's PA compiler.  */
 #if REGISTER_BYTES > MAXBUFBYTES
-#undef	PBUFSIZ
+
+#undef PBUFSIZ
 #define	PBUFSIZ	(REGISTER_BYTES * 2 + 32)
 #endif
+
+/* Should we try the 'P' request?  If this is set to one when the stub
+   doesn't support 'P', the only consequence is some unnecessary traffic.  */
+static int stub_supports_P = 1;
+
 
 /* Clean up connection to a remote debugger.  */
 
@@ -256,6 +277,63 @@ remote_close (quitting)
   remote_desc = NULL;
 }
 
+/* Query the remote side for the text, data and bss offsets. */
+
+static void
+get_offsets ()
+{
+  unsigned char buf[PBUFSIZ];
+  int nvals;
+  CORE_ADDR text_addr, data_addr, bss_addr;
+  struct section_offsets *offs;
+
+  putpkt ("qOffsets");
+
+  getpkt (buf, 0);
+
+  if (buf[0] == '\000')
+    return;			/* Return silently.  Stub doesn't support this
+				   command. */
+  if (buf[0] == 'E')
+    {
+      warning ("Remote failure reply: %s", buf);
+      return;
+    }
+
+  nvals = sscanf (buf, "Text=%lx;Data=%lx;Bss=%lx", &text_addr, &data_addr,
+		  &bss_addr);
+  if (nvals != 3)
+    error ("Malformed response to offset query, %s", buf);
+
+  if (symfile_objfile == NULL)
+    return;
+
+  offs = (struct section_offsets *) alloca (sizeof (struct section_offsets)
+					    + symfile_objfile->num_sections
+					    * sizeof (offs->offsets));
+  memcpy (offs, symfile_objfile->section_offsets,
+	  sizeof (struct section_offsets)
+	  + symfile_objfile->num_sections
+	  * sizeof (offs->offsets));
+
+  /* FIXME: This code assumes gdb-stabs.h is being used; it's broken
+     for xcoff, dwarf, sdb-coff, etc.  But there is no simple
+     canonical representation for this stuff.  (Just what does "text"
+     as seen by the stub mean, anyway?  I think it means all sections
+     with SEC_CODE set, but we currently have no way to deal with that).  */
+
+  ANOFFSET (offs, SECT_OFF_TEXT) = text_addr;
+
+  /* This is a temporary kludge to force data and bss to use the same offsets
+     because that's what nlmconv does now.  The real solution requires changes
+     to the stub and remote.c that I don't have time to do right now.  */
+
+  ANOFFSET (offs, SECT_OFF_DATA) = data_addr;
+  ANOFFSET (offs, SECT_OFF_BSS) = data_addr;
+
+  objfile_relocate (symfile_objfile, offs);
+}
+
 /* Stub for catch_errors.  */
 
 static int
@@ -265,13 +343,16 @@ remote_start_remote (dummy)
   immediate_quit = 1;		/* Allow user to interrupt it */
 
   /* Ack any packet which the remote side has already sent.  */
-  /* I'm not sure this \r is needed; we don't use it any other time we
-     send an ack.  */
-  SERIAL_WRITE (remote_desc, "+\r", 2);
+
+  SERIAL_WRITE (remote_desc, "+", 1);
+
+  get_offsets ();		/* Get text, data & bss offsets */
+
   putpkt ("?");			/* initiate a query from remote machine */
   immediate_quit = 0;
 
   start_remote ();		/* Initialize gdb process mechanisms */
+
   return 1;
 }
 
@@ -300,10 +381,13 @@ device is attached to the remote system (e.g. /dev/ttya).");
   if (!remote_desc)
     perror_with_name (name);
 
-  if (SERIAL_SETBAUDRATE (remote_desc, baud_rate))
+  if (baud_rate != -1)
     {
-      SERIAL_CLOSE (remote_desc);
-      perror_with_name (name);
+      if (SERIAL_SETBAUDRATE (remote_desc, baud_rate))
+	{
+	  SERIAL_CLOSE (remote_desc);
+	  perror_with_name (name);
+	}
     }
 
   SERIAL_RAW (remote_desc);
@@ -319,6 +403,11 @@ device is attached to the remote system (e.g. /dev/ttya).");
       puts_filtered ("\n");
     }
   push_target (&remote_ops);	/* Switch to using remote target now */
+
+  /* Start out by trying the 'P' request to set registers.  We set this each
+     time that we open a new target so that if the user switches from one
+     stub to another, we can (if the target is closed and reopened) cope.  */
+  stub_supports_P = 1;
 
   /* Start the remote connection; if error (0), discard this target.
      In particular, if the user quits, be sure to discard it
@@ -361,7 +450,6 @@ fromhex (a)
     return a - 'a' + 10;
   else
     error ("Reply contains invalid hex digit");
-  return -1;
 }
 
 /* Convert number NIB to a hex digit.  */
@@ -380,21 +468,17 @@ tohex (nib)
 
 static void
 remote_resume (pid, step, siggnal)
-     int pid, step, siggnal;
+     int pid, step;
+     enum target_signal siggnal;
 {
   char buf[PBUFSIZ];
 
   if (siggnal)
     {
-      char *name;
       target_terminal_ours_for_output ();
-      printf_filtered ("Can't send signals to a remote system.  ");
-      name = strsigno (siggnal);
-      if (name)
-	printf_filtered (name);
-      else
-	printf_filtered ("Signal %d", siggnal);
-      printf_filtered (" not sent.\n");
+      printf_filtered
+	("Can't send signals to a remote system.  %s not sent.\n",
+	 target_signal_to_name (siggnal));
       target_terminal_inferior ();
     }
 
@@ -416,7 +500,7 @@ remote_interrupt (signo)
   signal (signo, remote_interrupt_twice);
   
   if (remote_debug)
-    printf ("remote_interrupt called\n");
+    printf_unfiltered ("remote_interrupt called\n");
 
   SERIAL_WRITE (remote_desc, "\003", 1); /* Send a ^C */
 }
@@ -460,11 +544,12 @@ Give up (and stop debugging it)? "))
 static int
 remote_wait (pid, status)
      int pid;
-     WAITTYPE *status;
+     struct target_waitstatus *status;
 {
   unsigned char buf[PBUFSIZ];
 
-  WSETEXIT ((*status), 0);
+  status->kind = TARGET_WAITKIND_EXITED;
+  status->value.integer = 0;
 
   while (1)
     {
@@ -474,162 +559,82 @@ remote_wait (pid, status)
       getpkt ((char *) buf, 1);
       signal (SIGINT, ofunc);
 
-      if (buf[0] == 'E')
-	warning ("Remote failure reply: %s", buf);
-      else if (buf[0] == 'T')
+      switch (buf[0])
 	{
-	  int i;
-	  long regno;
-	  char regs[MAX_REGISTER_RAW_SIZE];
+	case 'E':		/* Error of some sort */
+	  warning ("Remote failure reply: %s", buf);
+	  continue;
+	case 'T':		/* Status with PC, SP, FP, ... */
+	  {
+	    int i;
+	    long regno;
+	    char regs[MAX_REGISTER_RAW_SIZE];
 
-	  /* Expedited reply, containing Signal, {regno, reg} repeat */
-	  /*  format is:  'Tssn...:r...;n...:r...;n...:r...;#cc', where
-	      ss = signal number
-	      n... = register number
-	      r... = register contents
-	      */
+	    /* Expedited reply, containing Signal, {regno, reg} repeat */
+	    /*  format is:  'Tssn...:r...;n...:r...;n...:r...;#cc', where
+		ss = signal number
+		n... = register number
+		r... = register contents
+		*/
 
-	  p = &buf[3];		/* after Txx */
+	    p = &buf[3];	/* after Txx */
 
-	  while (*p)
-	    {
-	      unsigned char *p1;
-
-	      regno = strtol (p, &p1, 16); /* Read the register number */
-
-	      if (p1 == p)
-		warning ("Remote sent badly formed register number: %s\nPacket: '%s'\n",
-			 p1, buf);
-
-	      p = p1;
-
-	      if (*p++ != ':')
-		warning ("Malformed packet (missing colon): %s\nPacket: '%s'\n",
-			 p, buf);
-
-	      if (regno >= NUM_REGS)
-		warning ("Remote sent bad register number %d: %s\nPacket: '%s'\n",
-			 regno, p, buf);
-
-	      for (i = 0; i < REGISTER_RAW_SIZE (regno); i++)
-		{
-		  if (p[0] == 0 || p[1] == 0)
-		    warning ("Remote reply is too short: %s", buf);
-		  regs[i] = fromhex (p[0]) * 16 + fromhex (p[1]);
-		  p += 2;
-		}
-
-	      if (*p++ != ';')
-		warning ("Remote register badly formatted: %s", buf);
-
-	      supply_register (regno, regs);
-	    }
-	  break;
-	}
-      else if (buf[0] == 'N')
-	{
-	  unsigned char *p1;
-	  bfd_vma text_addr, data_addr, bss_addr;
-
-	  /* Relocate object file.  Format is NAATT;DD;BB where AA is
-	     the signal number, TT is the new text address, DD is the
-	     new data address, and BB is the new bss address.  This is
-	     used by the NLM stub; gdb may see more sections.  */
-	  p = &buf[3];
-	  text_addr = strtoul (p, &p1, 16);
-	  if (p1 == p || *p1 != ';')
-	    warning ("Malformed relocation packet: Packet '%s'", buf);
-	  p = p1 + 1;
-	  data_addr = strtoul (p, &p1, 16);
-	  if (p1 == p || *p1 != ';')
-	    warning ("Malformed relocation packet: Packet '%s'", buf);
-	  p = p1 + 1;
-	  bss_addr = strtoul (p, &p1, 16);
-	  if (p1 == p)
-	    warning ("Malformed relocation packet: Packet '%s'", buf);
-
-	  if (symfile_objfile != NULL
-	      && (ANOFFSET (symfile_objfile->section_offsets,
-			    SECT_OFF_TEXT) != text_addr
-		  || ANOFFSET (symfile_objfile->section_offsets,
-			       SECT_OFF_DATA) != data_addr
-		  || ANOFFSET (symfile_objfile->section_offsets,
-			       SECT_OFF_BSS) != bss_addr))
-	    {
-	      struct section_offsets *offs;
-
-	      /* FIXME: This code assumes gdb-stabs.h is being used;
-		 it's broken for xcoff, dwarf, sdb-coff, etc.  But
-		 there is no simple canonical representation for this
-		 stuff.  (Just what does "text" as seen by the stub
-		 mean, anyway?).  */
-
-	      /* FIXME: Why don't the various symfile_offsets routines
-		 in the sym_fns vectors set this?
-		 (no good reason -kingdon).  */
-	      if (symfile_objfile->num_sections == 0)
-		symfile_objfile->num_sections = SECT_OFF_MAX;
-
-	      offs = ((struct section_offsets *)
-		      alloca (sizeof (struct section_offsets)
-			      + (symfile_objfile->num_sections
-				 * sizeof (offs->offsets))));
-	      memcpy (offs, symfile_objfile->section_offsets,
-		      (sizeof (struct section_offsets)
-		       + (symfile_objfile->num_sections
-			  * sizeof (offs->offsets))));
-	      ANOFFSET (offs, SECT_OFF_TEXT) = text_addr;
-	      ANOFFSET (offs, SECT_OFF_DATA) = data_addr;
-	      ANOFFSET (offs, SECT_OFF_BSS) = bss_addr;
-
-	      objfile_relocate (symfile_objfile, offs);
+	    while (*p)
 	      {
-		struct obj_section *s;
-		bfd *abfd;
+		unsigned char *p1;
 
-		abfd = symfile_objfile->obfd;
+		regno = strtol (p, &p1, 16); /* Read the register number */
 
-		for (s = symfile_objfile->sections;
-		     s < symfile_objfile->sections_end; ++s)
+		if (p1 == p)
+		  warning ("Remote sent badly formed register number: %s\nPacket: '%s'\n",
+			   p1, buf);
+
+		p = p1;
+
+		if (*p++ != ':')
+		  warning ("Malformed packet (missing colon): %s\nPacket: '%s'\n",
+			   p, buf);
+
+		if (regno >= NUM_REGS)
+		  warning ("Remote sent bad register number %d: %s\nPacket: '%s'\n",
+			   regno, p, buf);
+
+		for (i = 0; i < REGISTER_RAW_SIZE (regno); i++)
 		  {
-		    flagword flags;
-
-		    flags = bfd_get_section_flags (abfd, s->sec_ptr);
-
-		    if (flags & SEC_CODE)
-		      {
-			s->addr += text_addr;
-			s->endaddr += text_addr;
-		      }
-		    else if (flags & (SEC_DATA | SEC_LOAD))
-		      {
-			s->addr += data_addr;
-			s->endaddr += data_addr;
-		      }
-		    else if (flags & SEC_ALLOC)
-		      {
-			s->addr += bss_addr;
-			s->endaddr += bss_addr;
-		      }
+		    if (p[0] == 0 || p[1] == 0)
+		      warning ("Remote reply is too short: %s", buf);
+		    regs[i] = fromhex (p[0]) * 16 + fromhex (p[1]);
+		    p += 2;
 		  }
+
+		if (*p++ != ';')
+		  warning ("Remote register badly formatted: %s", buf);
+
+		supply_register (regno, regs);
 	      }
-	    }
-	  break;
-	}
-      else if (buf[0] == 'W')
-	{
-	  /* The remote process exited.  */
-	  WSETEXIT (*status, (fromhex (buf[1]) << 4) + fromhex (buf[2]));
+	  }
+	  /* fall through */
+	case 'S':		/* Old style status, just signal only */
+	  status->kind = TARGET_WAITKIND_STOPPED;
+	  status->value.sig = (enum target_signal)
+	    (((fromhex (buf[1])) << 4) + (fromhex (buf[2])));
+
 	  return 0;
+	case 'W':		/* Target exited */
+	  {
+	    /* The remote process exited.  */
+	    status->kind = TARGET_WAITKIND_EXITED;
+	    status->value.integer = (fromhex (buf[1]) << 4) + fromhex (buf[2]);
+	    return 0;
+	  }
+	case 'O':		/* Console output */
+	  fputs_filtered (buf + 1, gdb_stdout);
+	  continue;
+	default:
+	  warning ("Invalid remote reply: %s", buf);
+	  continue;
 	}
-      else if (buf[0] == 'S')
-	break;
-      else
-	warning ("Invalid remote reply: %s", buf);
     }
-
-  WSETSTOP ((*status), (((fromhex (buf[1])) << 4) + (fromhex (buf[2]))));
-
   return 0;
 }
 
@@ -661,7 +666,7 @@ remote_fetch_registers (regno)
 	 && (buf[0] < 'a' || buf[0] > 'f'))
     {
       if (remote_debug)
-	printf ("Bad register packet; fetching a new packet\n");
+	printf_unfiltered ("Bad register packet; fetching a new packet\n");
       getpkt (buf, 0);
     }
 
@@ -699,8 +704,9 @@ remote_fetch_registers (regno)
     supply_register (i, &regs[REGISTER_BYTE(i)]);
 }
 
-/* Prepare to store registers.  Since we send them all, we have to
-   read out the ones we don't want to change first.  */
+/* Prepare to store registers.  Since we may send them all (using a
+   'G' request), we have to read out the ones we don't want to change
+   first.  */
 
 static void 
 remote_prepare_to_store ()
@@ -709,10 +715,9 @@ remote_prepare_to_store ()
   read_register_bytes (0, (char *)NULL, REGISTER_BYTES);
 }
 
-/* Store the remote registers from the contents of the block REGISTERS. 
-   FIXME, eventually just store one register if that's all that is needed.  */
+/* Store register REGNO, or all registers if REGNO == -1, from the contents
+   of REGISTERS.  FIXME: ignores errors.  */
 
-/* ARGSUSED */
 static void
 remote_store_registers (regno)
      int regno;
@@ -721,8 +726,35 @@ remote_store_registers (regno)
   int i;
   char *p;
 
+  if (regno >= 0 && stub_supports_P)
+    {
+      /* Try storing a single register.  */
+      char *regp;
+
+      sprintf (buf, "P%x=", regno);
+      p = buf + strlen (buf);
+      regp = &registers[REGISTER_BYTE (regno)];
+      for (i = 0; i < REGISTER_RAW_SIZE (regno); ++i)
+	{
+	  *p++ = tohex ((regp[i] >> 4) & 0xf);
+	  *p++ = tohex (regp[i] & 0xf);
+	}
+      *p = '\0';
+      remote_send (buf);
+      if (buf[0] != '\0')
+	{
+	  /* The stub understands the 'P' request.  We are done.  */
+	  return;
+	}
+
+      /* The stub does not support the 'P' request.  Use 'G' instead,
+	 and don't try using 'P' in the future (it will just waste our
+	 time).  */
+      stub_supports_P = 0;
+    }
+
   buf[0] = 'G';
-  
+
   /* Command describes registers byte by byte,
      each byte encoded as two hex characters.  */
 
@@ -802,10 +834,9 @@ remote_write_bytes (memaddr, myaddr, len)
   int i;
   char *p;
 
-  if (len > PBUFSIZ / 2 - 20)
-    abort ();
-
-  sprintf (buf, "M%x,%x:", memaddr, len);
+  /* FIXME-32x64: Need a version of print_address_numeric which puts the
+     result in a buffer like sprintf.  */
+  sprintf (buf, "M%lx,%x:", (unsigned long) memaddr, len);
 
   /* We send target system values byte by byte, in increasing byte addresses,
      each byte encoded as two hex characters.  */
@@ -854,7 +885,9 @@ remote_read_bytes (memaddr, myaddr, len)
   if (len > PBUFSIZ / 2 - 1)
     abort ();
 
-  sprintf (buf, "m%x,%x", memaddr, len);
+  /* FIXME-32x64: Need a version of print_address_numeric which puts the
+     result in a buffer like sprintf.  */
+  sprintf (buf, "m%lx,%x", (unsigned long) memaddr, len);
   putpkt (buf);
   getpkt (buf, 0);
 
@@ -909,9 +942,11 @@ remote_xfer_memory(memaddr, myaddr, len, should_write, target)
 	xfersize = len;
 
       if (should_write)
-        bytes_xferred = remote_write_bytes (memaddr, myaddr, xfersize);
+        bytes_xferred = remote_write_bytes (memaddr,
+					    (unsigned char *)myaddr, xfersize);
       else
-	bytes_xferred = remote_read_bytes (memaddr, myaddr, xfersize);
+	bytes_xferred = remote_read_bytes (memaddr,
+					   (unsigned char *)myaddr, xfersize);
 
       /* If we get an error, we are done xferring.  */
       if (bytes_xferred == 0)
@@ -925,6 +960,80 @@ remote_xfer_memory(memaddr, myaddr, len, should_write, target)
   return total_xferred;
 }
 
+#if 0
+/* Enable after 4.12.  */
+
+void
+remote_search (len, data, mask, startaddr, increment, lorange, hirange
+	       addr_found, data_found)
+     int len;
+     char *data;
+     char *mask;
+     CORE_ADDR startaddr;
+     int increment;
+     CORE_ADDR lorange;
+     CORE_ADDR hirange;
+     CORE_ADDR *addr_found;
+     char *data_found;
+{
+  if (increment == -4 && len == 4)
+    {
+      long mask_long, data_long;
+      long data_found_long;
+      CORE_ADDR addr_we_found;
+      char buf[PBUFSIZ];
+      long returned_long[2];
+      char *p;
+
+      mask_long = extract_unsigned_integer (mask, len);
+      data_long = extract_unsigned_integer (data, len);
+      sprintf (buf, "t%x:%x,%x", startaddr, data_long, mask_long);
+      putpkt (buf);
+      getpkt (buf, 0);
+      if (buf[0] == '\0')
+	{
+	  /* The stub doesn't support the 't' request.  We might want to
+	     remember this fact, but on the other hand the stub could be
+	     switched on us.  Maybe we should remember it only until
+	     the next "target remote".  */
+	  generic_search (len, data, mask, startaddr, increment, lorange,
+			  hirange, addr_found, data_found);
+	  return;
+	}
+
+      if (buf[0] == 'E')
+	/* There is no correspondance between what the remote protocol uses
+	   for errors and errno codes.  We would like a cleaner way of
+	   representing errors (big enough to include errno codes, bfd_error
+	   codes, and others).  But for now just use EIO.  */
+	memory_error (EIO, startaddr);
+      p = buf;
+      addr_we_found = 0;
+      while (*p != '\0' && *p != ',')
+	addr_we_found = (addr_we_found << 4) + fromhex (*p++);
+      if (*p == '\0')
+	error ("Protocol error: short return for search");
+
+      data_found_long = 0;
+      while (*p != '\0' && *p != ',')
+	data_found_long = (data_found_long << 4) + fromhex (*p++);
+      /* Ignore anything after this comma, for future extensions.  */
+
+      if (addr_we_found < lorange || addr_we_found >= hirange)
+	{
+	  *addr_found = 0;
+	  return;
+	}
+
+      *addr_found = addr_we_found;
+      *data_found = store_unsigned_integer (data_we_found, len);
+      return;
+    }
+  generic_search (len, data, mask, startaddr, increment, lorange,
+		  hirange, addr_found, data_found);
+}
+#endif /* 0 */
+
 static void
 remote_files_info (ignore)
      struct target_ops *ignore;
@@ -938,16 +1047,24 @@ remote_files_info (ignore)
 /* Read a single character from the remote end, masking it down to 7 bits. */
 
 static int
-readchar ()
+readchar (timeout)
+     int timeout;
 {
   int ch;
 
   ch = SERIAL_READCHAR (remote_desc, timeout);
 
-  if (ch < 0)
-    return ch;
-
-  return ch & 0x7f;
+  switch (ch)
+    {
+    case SERIAL_EOF:
+      error ("Remote connection closed");
+    case SERIAL_ERROR:
+      perror_with_name ("Remote communication error");
+    case SERIAL_TIMEOUT:
+      return ch;
+    default:
+      return ch & 0x7f;
+    }
 }
 
 /* Send the command in BUF to the remote machine,
@@ -1002,10 +1119,13 @@ putpkt (buf)
 
   while (1)
     {
+      int started_error_output = 0;
+
       if (remote_debug)
 	{
 	  *p = '\0';
-	  printf ("Sending packet: %s...", buf2);  fflush(stdout);
+	  printf_unfiltered ("Sending packet: %s...", buf2);
+	  gdb_flush(gdb_stdout);
 	}
       if (SERIAL_WRITE (remote_desc, buf2, p - buf2))
 	perror_with_name ("putpkt: write failed");
@@ -1013,32 +1133,150 @@ putpkt (buf)
       /* read until either a timeout occurs (-2) or '+' is read */
       while (1)
 	{
-	  ch = readchar ();
+	  ch = readchar (remote_timeout);
+
+	  if (remote_debug)
+	    {
+	      switch (ch)
+		{
+		case '+':
+		case SERIAL_TIMEOUT:
+		case '$':
+		  if (started_error_output)
+		    {
+		      putc_unfiltered ('\n');
+		      started_error_output = 0;
+		    }
+		}
+	    }
 
 	  switch (ch)
 	    {
 	    case '+':
 	      if (remote_debug)
-		printf("Ack\n");
+		printf_unfiltered("Ack\n");
 	      return;
 	    case SERIAL_TIMEOUT:
 	      break;		/* Retransmit buffer */
-	    case SERIAL_ERROR:
-	      perror_with_name ("putpkt: couldn't read ACK");
-	    case SERIAL_EOF:
-	      error ("putpkt: EOF while trying to read ACK");
+	    case '$':
+	      {
+		unsigned char junkbuf[PBUFSIZ];
+
+	      /* It's probably an old response, and we're out of sync.  Just
+		 gobble up the packet and ignore it.  */
+		getpkt (junkbuf, 0);
+		continue;		/* Now, go look for + */
+	      }
 	    default:
 	      if (remote_debug)
-		printf ("%02X %c ", ch&0xFF, ch);
+		{
+		  if (!started_error_output)
+		    {
+		      started_error_output = 1;
+		      printf_unfiltered ("putpkt: Junk: ");
+		    }
+		  putc_unfiltered (ch & 0177);
+		}
 	      continue;
 	    }
 	  break;		/* Here to retransmit */
 	}
 
+#if 0
+      /* This is wrong.  If doing a long backtrace, the user should be
+	 able to get out next time we call QUIT, without anything as violent
+	 as interrupt_query.  If we want to provide a way out of here
+	 without getting to the next QUIT, it should be based on hitting
+	 ^C twice as in remote_wait.  */
       if (quit_flag)
 	{
 	  quit_flag = 0;
 	  interrupt_query ();
+	}
+#endif
+    }
+}
+
+/* Come here after finding the start of the frame.  Collect the rest into BUF,
+   verifying the checksum, length, and handling run-length compression.
+   Returns 0 on any error, 1 on success.  */
+
+static int
+read_frame (buf)
+     char *buf;
+{
+  unsigned char csum;
+  char *bp;
+  int c;
+
+  csum = 0;
+  bp = buf;
+
+  while (1)
+    {
+      c = readchar (remote_timeout);
+
+      switch (c)
+	{
+	case SERIAL_TIMEOUT:
+	  if (remote_debug)
+	    puts_filtered ("Timeout in mid-packet, retrying\n");
+	  return 0;
+	case '$':
+	  if (remote_debug)
+	    puts_filtered ("Saw new packet start in middle of old one\n");
+	  return 0;		/* Start a new packet, count retries */
+	case '#':
+	  {
+	    unsigned char pktcsum;
+
+	    *bp = '\000';
+
+	    pktcsum = fromhex (readchar (remote_timeout)) << 4
+	      | fromhex (readchar (remote_timeout));
+
+	    if (csum == pktcsum)
+	      return 1;
+
+	    printf_filtered ("Bad checksum, sentsum=0x%x, csum=0x%x, buf=",
+			     pktcsum, csum);
+	    puts_filtered (buf);
+	    puts_filtered ("\n");
+
+	    return 0;
+	  }
+	case '*':		/* Run length encoding */
+	  c = readchar (remote_timeout);
+	  csum += c;
+	  c = c - ' ' + 3;	/* Compute repeat count */
+
+	  if (bp + c - 1 < buf + PBUFSIZ - 1)
+	    {
+	      memset (bp, *(bp - 1), c);
+	      bp += c;
+	      continue;
+	    }
+
+	  *bp = '\0';
+	  printf_filtered ("Repeat count %d too large for buffer: ", c);
+	  puts_filtered (buf);
+	  puts_filtered ("\n");
+
+	  return 0;
+	default:
+	  if (bp < buf + PBUFSIZ - 1)
+	    {
+	      *bp++ = c;
+	      csum += c;
+	      continue;
+	    }
+
+	  *bp = '\0';
+	  puts_filtered ("Remote packet too long: ");
+	  puts_filtered (buf);
+	  puts_filtered ("\n");
+
+	  return 0;
 	}
     }
 }
@@ -1054,104 +1292,62 @@ getpkt (buf, forever)
      int forever;
 {
   char *bp;
-  unsigned char csum;
-  int c = 0;
-  unsigned char c1, c2;
-  int retries = 0;
-#define MAX_RETRIES	10
+  int c;
+  int tries;
+  int timeout;
+  int val;
 
-  while (1)
+  if (forever)
+    timeout = -1;
+  else
+    timeout = remote_timeout;
+
+#define MAX_TRIES 10
+
+  for (tries = 1; tries <= MAX_TRIES; tries++)
     {
-      if (quit_flag)
-	{
-	  quit_flag = 0;
-	  interrupt_query ();
-	}
-
       /* This can loop forever if the remote side sends us characters
 	 continuously, but if it pauses, we'll get a zero from readchar
 	 because of timeout.  Then we'll count that as a retry.  */
 
-      c = readchar();
-      if (c > 0 && c != '$')
-	continue;
+      /* Note that we will only wait forever prior to the start of a packet.
+	 After that, we expect characters to arrive at a brisk pace.  They
+	 should show up within remote_timeout intervals.  */
 
-      if (c == SERIAL_TIMEOUT)
+      do
 	{
-	  if (forever)
-	    continue;
-	  if (++retries >= MAX_RETRIES)
-	    if (remote_debug) puts_filtered ("Timed out.\n");
-	  goto out;
-	}
+	  c = readchar (timeout);
 
-      if (c == SERIAL_EOF)
-	error ("Remote connection closed");
-      if (c == SERIAL_ERROR)
-	perror_with_name ("Remote communication error");
-
-      /* Force csum to be zero here because of possible error retry.  */
-      csum = 0;
-      bp = buf;
-
-      while (1)
-	{
-	  c = readchar ();
 	  if (c == SERIAL_TIMEOUT)
 	    {
 	      if (remote_debug)
-		puts_filtered ("Timeout in mid-packet, retrying\n");
-	      goto whole;		/* Start a new packet, count retries */
-	    } 
-	  if (c == '$')
-	    {
-	      if (remote_debug)
-		puts_filtered ("Saw new packet start in middle of old one\n");
-	      goto whole;		/* Start a new packet, count retries */
+		puts_filtered ("Timed out.\n");
+	      goto retry;
 	    }
-	  if (c == '#')
-	    break;
-	  if (bp >= buf+PBUFSIZ-1)
-	  {
-	    *bp = '\0';
-	    puts_filtered ("Remote packet too long: ");
-	    puts_filtered (buf);
-	    puts_filtered ("\n");
-	    goto whole;
-	  }
-	  *bp++ = c;
-	  csum += c;
 	}
-      *bp = 0;
+      while (c != '$');
 
-      c1 = fromhex (readchar ());
-      c2 = fromhex (readchar ());
-      if ((csum & 0xff) == (c1 << 4) + c2)
-	break;
-      printf_filtered ("Bad checksum, sentsum=0x%x, csum=0x%x, buf=",
-	      (c1 << 4) + c2, csum & 0xff);
-      puts_filtered (buf);
-      puts_filtered ("\n");
+      /* We've found the start of a packet, now collect the data.  */
+
+      val = read_frame (buf);
+
+      if (val == 1)
+	{
+	  if (remote_debug)
+	    fprintf_unfiltered (gdb_stderr, "Packet received: %s\n", buf);
+	  SERIAL_WRITE (remote_desc, "+", 1);
+	  return;
+	}
 
       /* Try the whole thing again.  */
-whole:
-      if (++retries < MAX_RETRIES)
-	{
-	  SERIAL_WRITE (remote_desc, "-", 1);
-	}
-      else
-	{
-	  printf ("Ignoring packet error, continuing...\n");
-	  break;
-	}
+retry:
+      SERIAL_WRITE (remote_desc, "-", 1);
     }
 
-out:
+  /* We have tried hard enough, and just can't receive the packet.  Give up. */
 
+  printf_unfiltered ("Ignoring packet error, continuing...\n");
   SERIAL_WRITE (remote_desc, "+", 1);
-
-  if (remote_debug)
-    fprintf (stderr,"Packet received: %s\n", buf);
 }
 
 static void
@@ -1263,10 +1459,12 @@ Specify the serial device it is connected to (e.g. /dev/ttya).",  /* to_doc */
   NULL,				/* sections_end */
   OPS_MAGIC			/* to_magic */
 };
+#endif /* Use remote.  */
 
 void
 _initialize_remote ()
 {
+#if !defined(DONT_USE_REMOTE)
   add_target (&remote_ops);
-}
 #endif
+}

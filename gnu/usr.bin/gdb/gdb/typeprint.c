@@ -57,7 +57,7 @@ void
 type_print (type, varstring, stream, show)
      struct type *type;
      char *varstring;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
 {
   LA_PRINT_TYPE (type, varstring, stream, show, 0);
@@ -72,7 +72,7 @@ whatis_exp (exp, show)
      int show;
 {
   struct expression *expr;
-  register value val;
+  register value_ptr val;
   register struct cleanup *old_chain = NULL;
 
   if (exp)
@@ -85,7 +85,7 @@ whatis_exp (exp, show)
     val = access_value_history (0);
 
   printf_filtered ("type = ");
-  type_print (VALUE_TYPE (val), "", stdout, show);
+  type_print (VALUE_TYPE (val), "", gdb_stdout, show);
   printf_filtered ("\n");
 
   if (exp)
@@ -146,7 +146,7 @@ ptype_command (typename, from_tty)
 	{
 	  /* User did "ptype <typename>" */
 	  printf_filtered ("type = ");
-	  type_print (type, "", stdout, 1);
+	  type_print (type, "", gdb_stdout, 1);
 	  printf_filtered ("\n");
 	  do_cleanups (old_chain);
 	}
@@ -175,7 +175,7 @@ void
 print_type_scalar (type, val, stream)
      struct type *type;
      LONGEST val;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   unsigned int i;
   unsigned len;
@@ -235,7 +235,7 @@ print_type_scalar (type, val, stream)
     default:
       error ("Invalid type code in symbol table.");
     }
-  fflush (stream);
+  gdb_flush (stream);
 }
 
 #if MAINTENANCE_CMDS
@@ -249,7 +249,7 @@ maintenance_print_type (typename, from_tty)
      char *typename;
      int from_tty;
 {
-  register value val;
+  register value_ptr val;
   register struct type *type;
   register struct cleanup *old_chain;
   struct expression *expr;
@@ -287,8 +287,8 @@ _initialize_typeprint ()
 
   add_com ("ptype", class_vars, ptype_command,
 	   "Print definition of type TYPE.\n\
-Argument may be a type name defined by typedef, or \"struct STRUCTNAME\"\n\
-or \"union UNIONNAME\" or \"enum ENUMNAME\".\n\
+Argument may be a type name defined by typedef, or \"struct STRUCT-TAG\"\n\
+or \"class CLASS-NAME\" or \"union UNION-TAG\" or \"enum ENUM-TAG\".\n\
 The selected stack frame's lexical context is used to look up the name.");
 
   add_com ("whatis", class_vars, whatis_command,

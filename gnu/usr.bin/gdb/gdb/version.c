@@ -1,3 +1,3 @@
-char *version = "4.11";
-char *host_canonical = "i386-unknown-freebsd";
-char *target_canonical = "i386-unknown-freebsd";
+char *version = "4.13";
+char *host_name = "i386-unknown-freebsd";
+char *target_name = "i386-unknown-freebsd";
