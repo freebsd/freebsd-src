@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.18 1995/05/12 20:00:21 ache Exp $
+ * $Id: raw_ip.c,v 1.20 1995/06/13 17:51:16 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -333,6 +333,7 @@ rip_usrreq(so, req, m, nam, control)
 			panic("rip_detach");
 		if (so == ip_mrouter)
 			ip_mrouter_done();
+		ip_rsvp_force_done(so);
 		if (so == ip_rsvpd)
 			ip_rsvp_done();
 		in_pcbdetach(inp);
