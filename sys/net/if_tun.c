@@ -223,7 +223,7 @@ tunstart(struct ifnet *ifp)
 		wakeup((caddr_t)tp);
 	}
 	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
-		pgsigio(tp->tun_sigio, SIGIO, 0);
+		pgsigio(&tp->tun_sigio, SIGIO, 0);
 	selwakeup(&tp->tun_rsel);
 }
 

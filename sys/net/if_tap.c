@@ -626,7 +626,7 @@ tapifstart(ifp)
 		}
 
 		if ((tp->tap_flags & TAP_ASYNC) && (tp->tap_sigio != NULL))
-			pgsigio(tp->tap_sigio, SIGIO, 0);
+			pgsigio(&tp->tap_sigio, SIGIO, 0);
 
 		selwakeup(&tp->tap_rsel);
 		ifp->if_opackets ++; /* obytes are counted in ether_output */

@@ -42,7 +42,6 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
@@ -50,7 +49,6 @@
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -1845,14 +1843,10 @@ process_ACK:
 				 * specification, but if we don't get a FIN
 				 * we'll hang forever.
 				 */
-				SIGIO_SLOCK();
 				if (so->so_state & SS_CANTRCVMORE) {
 					soisdisconnected_locked(so);
-					SIGIO_SUNLOCK();
 					callout_reset(tp->tt_2msl, tcp_maxidle,
 						      tcp_timer_2msl, tp);
-				} else {
-					SIGIO_SUNLOCK();
 				}
 				tp->t_state = TCPS_FIN_WAIT_2;
 			}

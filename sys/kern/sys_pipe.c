@@ -429,7 +429,7 @@ pipeselwakeup(cpipe)
 		selwakeup(&cpipe->pipe_sel);
 	}
 	if ((cpipe->pipe_state & PIPE_ASYNC) && cpipe->pipe_sigio)
-		pgsigio(cpipe->pipe_sigio, SIGIO, 0);
+		pgsigio(&cpipe->pipe_sigio, SIGIO, 0);
 	KNOTE(&cpipe->pipe_sel.si_note, 0);
 }
 
