@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id: radix.c,v 1.13 1997/02/22 09:41:12 peter Exp $
+ *	$Id: radix.c,v 1.14 1997/11/24 13:50:22 bde Exp $
  */
 
 /*
@@ -805,8 +805,9 @@ on1:
 					m = mm;
 				}
 			if (m)
-				log(LOG_ERR, "%s %p at %x\n",
-					    "rn_delete: Orphaned Mask", m, x);
+				log(LOG_ERR,
+				    "rn_delete: Orphaned Mask %p at %p\n",
+				    (void *)m, (void *)x);
 		}
 	}
 	/*
