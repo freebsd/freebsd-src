@@ -40,16 +40,23 @@
 .Nm setttyent ,
 .Nm endttyent
 .Nd get ttys file entry
+.Nm isdialuptty ,
+.Nm isnetworktty
+.Nd determine tty type from ttys file entry
 .Sh SYNOPSIS
 .Fd #include <ttyent.h>
 .Ft struct ttyent *
-.Fn getttyent
+.Fn getttyent void
 .Ft struct ttyent *
-.Fn getttynam "char *name"
+.Fn getttynam "const char *name"
 .Ft int
 .Fn setttyent void
 .Ft int
 .Fn endttyent void
+.Ft int
+.Fn isdialuptty "const char *name"
+.Ft int
+.Fn isnetworktty "const char *name"
 .Sh DESCRIPTION
 The
 .Fn getttyent ,
@@ -66,9 +73,12 @@ struct ttyent {
 	char	*ty_type;	/* terminal type for termcap */
 #define	TTY_ON		0x01	/* enable logins (start ty_getty program) */
 #define	TTY_SECURE	0x02	/* allow uid of 0 to login */
+#define	TTY_DIALUP	0x04	/* is a dialup tty */
+#define	TTY_NETWORK	0x08	/* is a network tty */
 	int	ty_status;	/* status flags */
 	char	*ty_window;	/* command to start up window manager */
 	char	*ty_comment;	/* comment field */
+	char	*ty_group;	/* tty group name */
 };
 .Ed
 .Pp
@@ -86,7 +96,7 @@ The name of the default terminal type connected to this tty line.
 A mask of bit fields which indicate various actions allowed on this
 tty line.
 The possible flags are as follows:
-.Bl -tag -width TTY_SECURE
+.Bl -tag -width TTY_NETWORK
 .It Dv TTY_ON
 Enables logins (i.e.,
 .Xr init 8
@@ -95,9 +105,23 @@ will start the command referenced by
 on this entry).
 .It Dv TTY_SECURE
 Allow users with a uid of 0 to login on this terminal.
+.It Dv TTY_DIALUP
+Identifies a tty as a dialin line.
+If this flag is set, then
+.Fn isdialuptty
+will return a non-zero value.
+.It Dv TTY_NETWORK
+Identifies a tty used for network connections.
+If this flag is set, then
+.Fn isnetworktty
+will return a non-zero value.
 .El
 .It Fa ty_window
 The command to execute for a window system associated with the line.
+.It Fa ty_group
+A group name to which the tty belongs.
+If no group is specified in the ttys description file,
+then the tty is placed in an anonymous group called "none".
 .It Fa ty_comment
 Any trailing comment field, with any leading hash marks (``#'') or
 whitespace removed.
@@ -150,6 +174,14 @@ function
 and
 .Fn endttyent
 return 0 on failure and 1 on success.
+.Pp
+The routines
+.Fn isdialuptty
+and
+.Fn isnetworktty
+return non-zero if the dialup or network flag is set for the
+tty entry relating to the tty named by the parameter, and
+zero otherwise.
 .Sh FILES
 .Bl -tag -width /etc/ttys -compact
 .It Pa /etc/ttys
