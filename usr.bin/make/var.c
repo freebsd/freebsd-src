@@ -142,8 +142,6 @@ GNode          *VAR_CMD;      /* variables defined on the command-line */
 #define	OPEN_BRACE		'{'
 #define	CLOSE_BRACE		'}'
 
-static char *VarGetPattern(GNode *, int, char **, int, int *, size_t *,
-			   VarPattern *);
 static int VarPrintVar(void *, void *);
 
 /*
@@ -693,10 +691,10 @@ SortIncreasing(const void *l, const void *r)
  *-----------------------------------------------------------------------
  */
 static char *
-VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
+VarGetPattern(GNode *ctxt, int err, const char **tstr, int delim, int *flags,
     size_t *length, VarPattern *pattern)
 {
-    char *cp;
+    const char *cp;
     Buffer *buf = Buf_Init(0);
     size_t junk;
 
@@ -745,7 +743,7 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
 			free(cp2);
 		    cp += len - 1;
 		} else {
-		    char *cp2 = &cp[1];
+		    const char *cp2 = &cp[1];
 
 		    if (*cp2 == OPEN_PAREN || *cp2 == OPEN_BRACE) {
 			/*
@@ -785,11 +783,12 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
 	*length = 0;
 	return (NULL);
     } else {
+	char *result;
 	*tstr = ++cp;
-	cp = (char *)Buf_GetAll(buf, length);
+	result = (char *)Buf_GetAll(buf, length);
 	*length -= 1;	/* Don't count the NULL */
 	Buf_Destroy(buf, FALSE);
-	return (cp);
+	return (result);
     }
 }
 
@@ -1157,12 +1156,12 @@ modifier_S(const char mod[], const char value[], Var *v, GNode *ctxt, Boolean er
  * XXXHB update this comment or remove it and point to the man page.
  */
 static char *
-ParseModifier(const char input[], char tstr[],
+ParseModifier(const char input[], const char tstr[],
 	char startc, char endc, Boolean dynamic, Var *v,
 	GNode *ctxt, Boolean err, size_t *lengthPtr, Boolean *freePtr)
 {
-	char	*rw_str;
-	char	*cp;
+	char		*rw_str;
+	const char	*cp;
 
 	rw_str = VarExpand(v, ctxt, err);
 	*freePtr = TRUE;
@@ -1476,10 +1475,8 @@ ParseModifier(const char input[], char tstr[],
 			    Error("Unclosed variable specification for %s",
 				  v->name);
 		    } else if (termc == ':') {
-			    *cp = termc;
 			    cp++;
 		    } else {
-			    *cp = termc;
 		    }
 		    tstr = cp;
 	    }
@@ -1533,30 +1530,28 @@ ParseModifier(const char input[], char tstr[],
  * Check if brackets contain a variable name.
  */
 static char *
-VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
+VarParseLong(const char input[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 	Boolean *freePtr)
 {
-	const char	*input = foo;
-	char		*rw_str = foo;
-	char		*ptr;
+	Buffer		*buf;
 	char		endc;	/* Ending character when variable in parens
 				 * or braces */
 	char		startc;	/* Starting character when variable in parens
 				 * or braces */
+	const char	*ptr;
 	const char	*vname;
 	size_t		vlen;	/* length of variable name, after embedded
 				 * variable expansion */
 
-	/* build up expanded variable name in this buffer */
-	Buffer	*buf = Buf_Init(MAKE_BSIZE);
+	buf = Buf_Init(MAKE_BSIZE);
 
 	/*
 	 * Skip to the end character or a colon, whichever comes first,
 	 * replacing embedded variables as we go.
 	 */
-	startc = input[1];
+	startc = input[0];
 	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
-	ptr = rw_str + 2;
+	ptr = input + 1;
 
 	while (*ptr != endc && *ptr != ':') {
 		if (*ptr == '\0') {
@@ -1567,7 +1562,7 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 			 * the string, since that's what make does.
 			 */
 			*freePtr = FALSE;
-			*lengthPtr = ptr - input;
+			*lengthPtr += ptr - input;
 			Buf_Destroy(buf, TRUE);
 			return (var_Error);
 
@@ -1591,12 +1586,10 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 		ptr++;
 	}
 
-	vname = Buf_GetAll(buf, (size_t *)NULL);	/* REPLACE str */
-	vlen = strlen(vname);
-
+	vname = Buf_GetAll(buf, &vlen);
     {
-	char	*const tstr = ptr;
-	size_t	consumed = tstr - input + 1;
+	const char	*const tstr = ptr;
+	size_t	consumed = tstr - (input - 1) + 1;
 
 	Var	*v;		/* Variable in invocation */
 	Boolean	haveModifier;	/* TRUE if have modifiers for the variable */
@@ -1605,6 +1598,7 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 				 * is done to support dynamic sources. The
 				 * result is just the invocation, unaltered */
 
+	input--;
 	haveModifier = (*tstr == ':');
 	dynamic = FALSE;
 
@@ -1825,28 +1819,25 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
  *	specification.
  *
  * Results:
- *	The (possibly-modified) value of the variable or var_Error if the
- *	specification is invalid. The length of the specification is
- *	placed in *lengthPtr (for invalid specifications, this is just
- *	2 to skip the '$' and the following letter, or 1 if '$' was the
- *	last character in the string).
- *	A Boolean in *freePtr telling whether the returned string should
- *	be freed by the caller.
+ *	The value of the variable or var_Error if the specification
+ *	is invalid.  The length of the specification is placed in
+ *	*lengthPtr (for invalid specifications, this is just 2 to
+ *	skip the '$' and the following letter, or 1 if '$' was the
+ *	last character in the string).  A Boolean in *freePtr telling
+ *	whether the returned string should be freed by the caller.
  *
  * Side Effects:
  *	None.
  *
  * Assumption:
- *	It is assumed that Var_Parse() is called with str[0] == '$'.
+ *	It is assumed that Var_Parse() is called with input[0] == '$'.
  *
  *-----------------------------------------------------------------------
  */
 char *
-Var_Parse(char *foo, GNode *ctxt, Boolean err,
+Var_Parse(const char input[], GNode *ctxt, Boolean err,
 	size_t *lengthPtr, Boolean *freePtr)
 {
-	const char *input = foo;
-
 	/* assert(input[0] == '$'); */
 
 	/* consume '$' */
@@ -1860,7 +1851,7 @@ Var_Parse(char *foo, GNode *ctxt, Boolean err,
 
 	} else if (input[0] == OPEN_PAREN || input[0] == OPEN_BRACE) {
 		/* multi letter variable name */
-		return (VarParseLong(foo, ctxt, err, lengthPtr, freePtr));
+		return (VarParseLong(input, ctxt, err, lengthPtr, freePtr));
 
 	} else {
 		/* single letter variable name */
@@ -1883,7 +1874,7 @@ Var_Parse(char *foo, GNode *ctxt, Boolean err,
  *-----------------------------------------------------------------------
  */
 Buffer *
-Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
+Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 {
     Boolean	errorReported;
     Buffer	*buf;		/* Buffer for forming things */
