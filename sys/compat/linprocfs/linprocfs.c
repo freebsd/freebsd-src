@@ -822,11 +822,102 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 static int
 linprocfs_doprocmaps(PFS_FILL_ARGS)
 {
-	sbuf_printf(sb, "doprocmaps\n%c", '\0');
-
-	return (0);
-}
-
+	int len;
+	int error;
+	int ino;
+	vm_map_t map = &p->p_vmspace->vm_map;
+	vm_map_entry_t entry;
+	char mebuffer[512];
+	
+	
+	PROC_LOCK(p);
+	error = p_candebug(td, p);
+	PROC_UNLOCK(p);
+	if (error)
+		return (error);
+	
+	if (uio->uio_rw != UIO_READ)
+		return (EOPNOTSUPP);
+	
+	if (uio->uio_offset != 0)
+		return (0);
+	
+	error = 0;
+	if (map != &curthread->td_proc->p_vmspace->vm_map)
+		vm_map_lock_read(map);
+        for (entry = map->header.next;
+	    ((uio->uio_resid > 0) && (entry != &map->header));
+	    entry = entry->next) {
+	      	vm_object_t obj, tobj, lobj;
+		int ref_count, shadow_count, flags;
+		int shared;
+		vm_ooffset_t off = 0;
+		char *name = "", *freename = NULL;
+		
+		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
+			continue;
+		
+		obj = entry->object.vm_object;
+		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object)
+			lobj = tobj;
+		
+		ino = 0;
+		if (lobj) {
+			VM_OBJECT_LOCK(lobj);
+			off = IDX_TO_OFF(lobj->size);
+			if (lobj->type == OBJT_VNODE && lobj->handle) {
+				vn_fullpath(td, (struct vnode *)lobj->handle,
+				    &name, &freename);
+				ino = ((struct vnode *)
+				    lobj->handle)->v_cachedid;
+			}
+			flags = obj->flags;
+			ref_count = obj->ref_count;
+			shadow_count = obj->shadow_count;
+			VM_OBJECT_UNLOCK(lobj);
+		} else {
+			shared = 0;
+			flags = 0;
+			ref_count = 0;
+			shadow_count = 0;
+		}
+		
+		/*
+	     	 * format:
+		 *  start, end, access, offset, major, minor, inode, name.
+		 */
+		snprintf(mebuffer, sizeof mebuffer,
+		    "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n",
+		    (u_long)entry->start, (u_long)entry->end,
+		    (entry->protection & VM_PROT_READ)?"r":"-",
+		    (entry->protection & VM_PROT_WRITE)?"w":"-",
+		    (entry->protection & VM_PROT_EXECUTE)?"x":"-",
+		    "p",
+		    (u_long) off,
+		    0,
+		    0,
+		    (u_long) ino,
+		    *name ? "     " : "",
+		    name
+		    );
+		if (freename)
+			free(freename, M_TEMP);
+		len = strlen(mebuffer);
+		if (len > uio->uio_resid)
+			len = uio->uio_resid; /*
+					       * XXX We should probably return
+					       * EFBIG here, as in procfs.
+					       */
+		error = uiomove(mebuffer, len, uio);
+		if (error)
+			break;
+	}
+	if (map != &curthread->td_proc->p_vmspace->vm_map)
+		vm_map_unlock_read(map);
+	
+	return (error);
+}	
+	
 /*
  * Filler function for proc/net/dev
  */
