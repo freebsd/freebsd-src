@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)install.1	8.1 (Berkeley) 6/6/93
+.\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
-.Dd June 6, 1993
+.Dd October 9, 1995
 .Dt INSTALL 1
 .Os BSD 4.2
 .Sh NAME
@@ -46,7 +47,7 @@
 .Op Fl o Ar owner
 .Ar file1 file2
 .Nm install
-.Op Fl cs
+.Op Fl Ccdps
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
@@ -67,11 +68,29 @@ If the target file already exists, it is overwritten if permissions
 allow.
 .Pp
 .Bl -tag -width Ds
+.It Fl C .
+Copy the file, as if the
+.Fl c
+option is specifed,
+except if the target file already exists and the files are the same,
+then don't change the modification time of the target
 .It Fl c
 Copy the file.
 This flag turns off the default behavior of
 .Nm install
 where it deletes the original file after creating the target.
+.It Fl d
+Print debugging information.
+If
+.Fl d
+is specified one or more times,
+then print the renaming steps for
+.Fl C .
+If
+.Fl d
+is specified two or more times,
+then warn about files that aren't installed with
+.Fl C .
 .It Fl f
 Specify the target's file flags.
 (See
@@ -87,6 +106,13 @@ The specified mode may be either an octal or symbolic value; see
 for a description of possible mode values.
 .It Fl o
 Specify an owner.
+.It Fl p
+Preserve the modification time.
+Copy the file, as if the
+.Fl C
+(Compare and copy) option is specifed,
+except if the target file doesn't already exist or is different,
+then preserve the modification time of the file.
 .It Fl s
 .Nm Install
 exec's the command
@@ -109,6 +135,17 @@ creates an empty file.
 .Pp
 Upon successful completion a value of 0 is returned.
 Otherwise, a value of 1 is returned.
+.Sh FILES
+.Bl -tag -width INS@XXXX -compact
+.It Pa INS@XXXX
+If the
+.Fl C
+or
+.Fl p
+option is used, then temporary files named INS@XXXX,
+where XXXX is decided by
+.Xr mkstemp 3 ,
+are created in the target directory.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
@@ -122,3 +159,7 @@ The
 .Nm install
 utility appeared in
 .Bx 4.2 .
+.Sh BUGS
+Temporary files may be left in the target directory if
+.Nm install
+exits abnormally.
