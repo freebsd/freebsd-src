@@ -213,7 +213,7 @@ COMMON ITEMS:
 	make install
 	<follow rebuild disk /dev entries above>	[1]
 	reboot
-	<in single user>
+	<in single user>				[6]
 	cd /usr/src
 	cd gnu/usr.bin/texinfo/install-info
 	make install
@@ -240,6 +240,14 @@ COMMON ITEMS:
 	[4] This step is optional, but is generally a good idea.  If
 	you wish to use many of the new features in 4.x, you must do
 	this anyway.
+	[5] Note: This won't upgrade your perl install.  You will
+	need to rebuild the world on 4.x to update perl.
+	[6] From the bootblocks, boot -s, and then do
+		fsck -p
+		mount -u /
+		mount -a
+		cd /usr/src
+		adjkerntz -i		# if COMS is wall time
 
 	To update from 4.0-RELEASE or later to the most current
 	4.x-STABLE
@@ -259,7 +267,7 @@ COMMON ITEMS:
 	otherwise quiet as unpredictable results may happen.  If in
 	doubt, reboot into single user.  For remote installs, keep
 	a separate kernel around and use a serial console if at all
-	possible.
+	possible.  See also note [6] above.
 
 What follows are older entries for those people upgrading from earlier
 versions of -stable/-current.
