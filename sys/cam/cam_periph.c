@@ -63,6 +63,29 @@ static	void		camperiphdone(struct cam_periph *periph,
 					union ccb *done_ccb);
 static  void		camperiphfree(struct cam_periph *periph);
 
+static int nperiph_drivers;
+struct periph_driver **periph_drivers;
+
+void
+periphdriver_register(void *data)
+{
+	struct periph_driver **newdrivers, **old;
+	int ndrivers;
+
+	ndrivers = nperiph_drivers + 2;
+	newdrivers = malloc(sizeof(*newdrivers) * ndrivers, M_TEMP, M_WAITOK);
+	if (periph_drivers)
+		bcopy(periph_drivers, newdrivers,
+		      sizeof(*newdrivers) * ndrivers);
+	newdrivers[nperiph_drivers] = (struct periph_driver *)data;
+	newdrivers[nperiph_drivers + 1] = NULL;
+	old = periph_drivers;
+	periph_drivers = newdrivers;
+	if (old)
+		free(old, M_TEMP);
+	nperiph_drivers++;
+}
+
 cam_status
 cam_periph_alloc(periph_ctor_t *periph_ctor,
 		 periph_oninv_t *periph_oninvalidate,
@@ -112,8 +135,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	
 	init_level++;
 
-	for (p_drv = (struct periph_driver **)periphdriver_set.ls_items;
-	     *p_drv != NULL; p_drv++) {
+	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, name) == 0)
 			break;
 	}
@@ -201,8 +223,7 @@ cam_periph_find(struct cam_path *path, char *name)
 	struct cam_periph *periph;
 	int s;
 
-	for (p_drv = (struct periph_driver **)periphdriver_set.ls_items;
-	     *p_drv != NULL; p_drv++) {
+	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 
 		if (name != NULL && (strcmp((*p_drv)->driver_name, name) != 0))
 			continue;
@@ -401,8 +422,7 @@ camperiphfree(struct cam_periph *periph)
 	int s;
 	struct periph_driver **p_drv;
 
-	for (p_drv = (struct periph_driver **)periphdriver_set.ls_items;
-	     *p_drv != NULL; p_drv++) {
+	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, periph->periph_name) == 0)
 			break;
 	}

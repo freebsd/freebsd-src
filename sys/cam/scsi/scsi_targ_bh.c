@@ -149,7 +149,7 @@ static struct periph_driver targbhdriver =
 	TAILQ_HEAD_INITIALIZER(targbhdriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, targbhdriver);
+PERIPHDRIVER_DECLARE(targbh, targbhdriver);
 
 static void
 targbhinit(void)

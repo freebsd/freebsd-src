@@ -245,7 +245,7 @@ static struct periph_driver cddriver =
 	TAILQ_HEAD_INITIALIZER(cddriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, cddriver);
+PERIPHDRIVER_DECLARE(cd, cddriver);
 
 /* For 2.2-stable support */
 #ifndef D_DISK

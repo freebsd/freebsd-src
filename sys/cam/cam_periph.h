@@ -37,7 +37,30 @@
 
 extern struct cam_periph *xpt_periph;
 
-extern struct linker_set periphdriver_set;
+extern struct periph_driver **periph_drivers;
+void periphdriver_register(void *);
+
+#include <sys/module.h>
+#define PERIPHDRIVER_DECLARE(name, driver) \
+	static int name ## _modevent(module_t mod, int type, void *data) \
+	{ \
+		switch (type) { \
+		case MOD_LOAD: \
+			periphdriver_register(data); \
+			break; \
+		case MOD_UNLOAD: \
+			printf(#name " module unload - not possible for this module type\n"); \
+			return EINVAL; \
+		} \
+		return 0; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		(void *)&driver \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_DRIVERS, SI_ORDER_ANY); \
+	MODULE_DEPEND(name, cam, 1, 1, 1)
 
 typedef void (periph_init_t)(void); /*
 				     * Callback informing the peripheral driver
