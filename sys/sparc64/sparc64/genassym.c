@@ -112,7 +112,6 @@ ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
 ASSYM(CSA_DATA, offsetof(struct cpu_start_args, csa_data));
 ASSYM(CSA_VA, offsetof(struct cpu_start_args, csa_va));
 
-ASSYM(KTR_COMPILE, KTR_COMPILE);
 ASSYM(KTR_PROC, KTR_PROC);
 ASSYM(KTR_TRAP, KTR_TRAP);
 ASSYM(KTR_SMP, KTR_SMP);
@@ -122,6 +121,10 @@ ASSYM(KTR_CT1, KTR_CT1);
 ASSYM(KTR_CT2, KTR_CT2);
 ASSYM(KTR_CT3, KTR_CT3);
 ASSYM(KTR_CT4, KTR_CT4);
+ASSYM(KTR_CT5, KTR_CT5);
+ASSYM(KTR_CT6, KTR_CT6);
+ASSYM(KTR_CT7, KTR_CT7);
+ASSYM(KTR_CT8, KTR_CT8);
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_DESC, offsetof(struct ktr_entry, ktr_desc));
