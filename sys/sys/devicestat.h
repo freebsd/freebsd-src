@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devicestat.h,v 1.1 1998/09/15 08:16:17 gibbs Exp $
+ *	$Id: devicestat.h,v 1.2 1998/09/20 00:10:58 ken Exp $
  */
 
 #ifndef _DEVICESTAT_H
@@ -182,7 +182,7 @@ struct devstat {
 };
 
 #ifdef KERNEL
-void devstat_add_entry(struct devstat *ds, char *dev_name, 
+void devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		       int unit_number, u_int32_t block_size,
 		       devstat_support_flags flags,
 		       devstat_type_flags device_type);

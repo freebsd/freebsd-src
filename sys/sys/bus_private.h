@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.2 1998/06/14 13:46:10 dfr Exp $
+ *	$Id: bus_private.h,v 1.3 1998/07/22 08:35:50 dfr Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -54,7 +54,7 @@ typedef enum {
     RES_INT, RES_STRING, RES_LONG
 } resource_type;
 
-struct resource {
+struct config_resource {
     char		*name;
     resource_type	type;
     union {
@@ -68,7 +68,7 @@ struct config_device {
     char		*name;	/* e.g. "lpt", "wdc" etc */
     int			unit;
     int			resource_count;
-    struct resource	*resources;
+    struct config_resource	*resources;
 };
 
 /*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.46 1998/11/08 12:39:07 dfr Exp $
+ * $Id: conf.h,v 1.47 1998/11/10 21:45:18 dfr Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -199,24 +199,21 @@ d_close_t	nullclose;
 l_read_t	l_noread;
 l_write_t	l_nowrite;
 
-/*
- * XXX This is ugly.
- */
-#ifdef _SYS_MODULE_H_
+struct module;
 
 struct cdevsw_module_data {
-    modeventhand_t	chainevh; /* next event handler in chain */
-    void*		chainarg; /* arg for next event handler */
-    dev_t		dev;	/* device major to use */
-    struct cdevsw*	cdevsw;	/* device functions */
+	int	(*chainevh)(struct module *, int, void *); /* next handler */
+	void	*chainarg;	/* arg for next event handler */
+	dev_t	dev;		/* device major to use */
+	struct	cdevsw *cdevsw; /* device functions */
 };
 
 struct bdevsw_module_data {
-    modeventhand_t	chainevh; /* next event handler in chain */
-    void*		chainarg; /* arg for next event handler */
-    int			bdev;	/* device major to use */
-    int			cdev;	/* device major to use */
-    struct cdevsw*	cdevsw;	/* device functions */
+	int	(*chainevh)(struct module *, int, void *); /* next handler */
+	void	*chainarg;	/* arg for next event handler */
+	int	bdev;		/* device major to use */
+	int	cdev;		/* device major to use */
+	struct	cdevsw *cdevsw;	/* device functions */
 };
 
 #define CDEV_MODULE(name, major, devsw, evh, arg)			\
@@ -244,10 +241,8 @@ static moduledata_t name##_mod = {					\
 };									\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cdev)
 
-int	cdevsw_module_handler __P((module_t mod, modeventtype_t what, void* arg));
-int	bdevsw_module_handler __P((module_t mod, modeventtype_t what, void* arg));
-
-#endif /* _SYS_MODULE_H_ */
+int	cdevsw_module_handler __P((struct module *mod, int what, void *arg));
+int	bdevsw_module_handler __P((struct module *mod, int what, void *arg));
 
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
 void	cdevsw_add_generic __P((int bdev, int cdev, struct cdevsw *cdevsw));

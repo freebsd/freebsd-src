@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.3 1998/09/16 08:25:56 dfr Exp $
+#	$Id: bus_if.m,v 1.4 1998/11/08 18:51:38 nsouch Exp $
 #
 
 INTERFACE bus;
@@ -57,7 +57,7 @@ METHOD int read_ivar {
 	device_t dev;
 	device_t child;
 	int index;
-	u_long *result;
+	uintptr_t *result;
 };
 
 #
@@ -67,27 +67,75 @@ METHOD int write_ivar {
 	device_t dev;
 	device_t child;
 	int index;
-	u_long value;
+	uintptr_t value;
 };
 
 #
-# Create an interrupt handler for the child device.  The handler will
-# be called with the value 'arg' as its only argument.  This method
-# does not activate the handler.
+# Allocate a system resource attached to `dev' on behalf of `child'.
+# The types are defined in <machine/resource.h>; the meaning of the
+# resource-ID field varies from bus to bus (but *rid == 0 is always
+# valid if the resource type is).  start and end reflect the allowable
+# range, and should be passed as `0UL' and `~0UL', respectively, if
+# the client has no range restriction.  count is the number of consecutive
+# indices in the resource required.  flags is a set of sharing flags
+# as defined in <sys/rman.h>.
 #
-METHOD void* create_intr {
-	device_t dev;
-	device_t child;
-	int irq;
-	driver_intr_t *intr;
-	void *arg;
+# Returns a resource or a null pointer on failure.  The caller is
+# responsible for calling rman_activate_resource() when it actually
+# uses the resource.
+#
+METHOD struct resource * alloc_resource {
+	device_t	dev;
+	device_t	child;
+	int		type;
+	int	       *rid;
+	u_long		start;
+	u_long		end;
+	u_long		count;
+	u_int		flags;
+};
+
+METHOD int activate_resource {
+	device_t	dev;
+	device_t	child;
+	int		type;
+	int		rid;
+	struct resource *r;
+};
+
+METHOD int deactivate_resource {
+	device_t	dev;
+	device_t	child;
+	int		type;
+	int		rid;
+	struct resource *r;
 };
 
 #
-# Activate an interrupt handler previously created with
-# BUS_CREATE_INTR.
+# Free a resource allocated by the preceding method.  The `rid' value
+# must be the same as the one returned by BUS_ALLOC_RESOURCE (which
+# is not necessarily the same as the one the client passed).
 #
-METHOD int connect_intr {
-	device_t dev;
-	void *ih;
+METHOD int release_resource {
+	device_t	dev;
+	device_t	child;
+	int		type;
+	int		rid;
+	struct resource *res;
+};
+
+METHOD int setup_intr {
+	device_t	dev;
+	device_t	child;
+	struct resource *irq;
+	driver_intr_t	*intr;
+	void		*arg;
+	void		**cookiep;
+};
+
+METHOD int teardown_intr {
+	device_t	dev;
+	device_t	child;
+	struct resource	*irq;
+	void		*cookie;
 };
