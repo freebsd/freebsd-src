@@ -454,9 +454,6 @@ transmit_event(struct dn_pipe *pipe)
 		 * it has not consumed it.
 		 */
 		if (pkt->dn_dir == DN_TO_BDG_FWD) {
-		    /*
-		     * same as ether_input, make eh be a pointer into the mbuf
-		     */
 		    m = bdg_forward_ptr(m, pkt->ifp);
 		    if (m)
 			m_freem(m);
@@ -880,11 +877,11 @@ find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
 	for (prev=NULL, q = fs->rq[i] ; q ; ) {
 	    search_steps++;
 	    if (id->dst_ip == q->id.dst_ip &&
-		id->src_ip == q->id.src_ip &&
-		id->dst_port == q->id.dst_port &&
-		id->src_port == q->id.src_port &&
-		id->proto == q->id.proto &&
-		id->flags == q->id.flags)
+		    id->src_ip == q->id.src_ip &&
+		    id->dst_port == q->id.dst_port &&
+		    id->src_port == q->id.src_port &&
+		    id->proto == q->id.proto &&
+		    id->flags == q->id.flags)
 		break ; /* found */
 	    else if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
 		/* entry is idle and not in any heap, expire it */
