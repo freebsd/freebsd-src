@@ -1473,7 +1473,7 @@ vfs_vmio_release(bp)
 	vm_page_t m;
 
 	GIANT_REQUIRED;
-
+	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
@@ -1509,6 +1509,7 @@ vfs_vmio_release(bp)
 			}
 		}
 	}
+	vm_page_unlock_queues();
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 	
 	if (bp->b_bufsize) {
@@ -2652,7 +2653,9 @@ allocbuf(struct buf *bp, int size)
 						;
 
 					bp->b_pages[i] = NULL;
+					vm_page_lock_queues();
 					vm_page_unwire(m, 0);
+					vm_page_unlock_queues();
 				}
 				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
@@ -3386,9 +3389,11 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 			}
 			bp->b_pages[index] = NULL;
 			pmap_qremove(pg, 1);
+			vm_page_lock_queues();
 			vm_page_busy(p);
 			vm_page_unwire(p, 0);
 			vm_page_free(p);
+			vm_page_unlock_queues();
 		}
 	}
 	bp->b_npages = newnpages;
