@@ -252,10 +252,10 @@ struct defid {
 	u_short defid_len;	/* length of structure */
 	u_short defid_pad;	/* force long alignment */
 
-	u_long defid_dirclust;	/* cluster this dir entry came from */
-	u_long defid_dirofs;	/* offset of entry within the cluster */
+	u_int32_t defid_dirclust; /* cluster this dir entry came from */
+	u_int32_t defid_dirofs;	/* offset of entry within the cluster */
 #if 0
-	u_long	defid_gen;	/* generation number */
+	u_int32_t defid_gen;	/* generation number */
 #endif
 };
 
