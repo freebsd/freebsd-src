@@ -62,11 +62,14 @@
 struct clockframe {
 	struct trapframe	cf_tf;
 };
-#define	CLKF_USERMODE(framep)						\
-	(((framep)->cf_tf.tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER)
+#define	TRAPF_USERMODE(framep)						\
+	(((framep)->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER)
+#define	TRAPF_PC(framep)	((framep)->tf_cr_iip)
+
+#define	CLKF_USERMODE(framep)	TRAPF_USERMODE(&(framep)->cf_tf)
+#define	CLKF_PC(framep)		TRAPF_PC(&(framep)->ct_tf)
 #define	CLKF_BASEPRI(framep)						\
 	(((framep)->cf_tf.tf_cr_ipsr & IA64_PSR_I) == 0)
-#define	CLKF_PC(framep)		((framep)->cf_tf.tf_cr_iip)
 #define	CLKF_INTR(framep)	(curproc->p_intr_nesting_level >= 2)
 
 /*
