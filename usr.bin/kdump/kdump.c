@@ -112,10 +112,8 @@ main(argc, argv)
 		default:
 			usage();
 		}
-	argv += optind;
-	argc -= optind;
 
-	if (argc > 1)
+	if (argc > optind)
 		usage();
 
 	m = (void *)malloc(size = 1025);
