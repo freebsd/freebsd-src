@@ -56,7 +56,7 @@ must be a mode indicator from the following list:
 .It Fl c
 Create a new archive containing the specified items.
 .It Fl r
-Like 
+Like
 .Fl c ,
 but new entries are appended to the archive specified with the
 .Fl f
@@ -216,7 +216,6 @@ is specified, and the program is being run by the root user.
 In this case, the file modes and flags from
 the archive will be restored, but ACLs or owner information in
 the archive will be discarded.
-(not yet implemented)
 .It Fl P
 Preserve leading slashes.
 By default, absolute pathnames (those that begin with a / character)
@@ -227,8 +226,15 @@ This option suppresses that behavior.
 Preserve file permissions.
 Attempt to restore the full permissions, including owner, file modes, file
 flags and ACLs, if available, for each item extracted from the archive.
-By default, newly-created regular files have the file mode restored and
+By default, newly-created files are owned by the user running
+.Nm ,
+the file mode is restored for newly-created regular files, and
 all other types of entries receive default permissions.
+If
+.Nm
+is being run by root, the default is to restore the owner unless the
+.Fl o
+option is also specified.
 .It Fl T Ar filename
 (c mode only)
 Read names to be archived from
@@ -485,11 +491,6 @@ conventions, is handled in a manner that does not
 depend on the order of command-line options.
 This behavior differs from that of implementations that do
 not follow standard getopt argument parsing conventions.
-.Pp
-Since many options depend on the particular operating mode,
-the mode option itself must be specified first on the command line.
-This allows for more accurate detection and reporting of
-incorrect option usage.
 .Pp
 All archive output is written in correctly-sized blocks, even
 if the output is being compressed.
