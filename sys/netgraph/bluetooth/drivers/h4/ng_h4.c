@@ -119,18 +119,17 @@ static int	ng_h4_mod_event		(module_t, int, void *);
 
 /* Netgraph node type descriptor */
 static struct ng_type		typestruct = {
-	NG_ABI_VERSION,
-	NG_H4_NODE_TYPE,	/* typename */
-	ng_h4_mod_event,	/* modevent */
-	ng_h4_constructor,	/* constructor */
-	ng_h4_rcvmsg,		/* control message */
-	ng_h4_shutdown,		/* destructor */
-	ng_h4_newhook,		/* new hook */
-	NULL,			/* find hook */
-	ng_h4_connect,		/* connect hook */
-	ng_h4_rcvdata,		/* data */
-	ng_h4_disconnect,	/* disconnect hook */
-	ng_h4_cmdlist		/* node command list */
+	.version =	NG_ABI_VERSION,
+	.name =		NG_H4_NODE_TYPE,
+	.mod_event =	ng_h4_mod_event,
+	.constructor =	ng_h4_constructor,
+	.rcvmsg =	ng_h4_rcvmsg,
+	.shutdown =	ng_h4_shutdown,
+	.newhook =	ng_h4_newhook,
+	.connect =	ng_h4_connect,
+	.rcvdata =	ng_h4_rcvdata,
+	.disconnect =	ng_h4_disconnect,
+	.cmdlist =	ng_h4_cmdlist
 };
 NETGRAPH_INIT(h4, &typestruct);
 MODULE_VERSION(ng_h4, NG_BLUETOOTH_VERSION);
