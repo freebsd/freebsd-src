@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 int
 strvalid(const char *buffer, size_t bufferlen)
 {
-	int i;
+	size_t i;
 
 	/* Must be NUL-terminated. */
 	for (i = 0; i < bufferlen; i++)
