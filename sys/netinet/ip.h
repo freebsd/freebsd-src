@@ -201,8 +201,8 @@ struct	ip_timestamp {
 struct ippseudo {
 	struct	in_addr	ippseudo_src;	/* source internet address */
 	struct	in_addr	ippseudo_dst;	/* destination internet address */
-	u_int8_t	ippseudo_pad;	/* pad, must be zero */
-	u_int8_t	ippseudo_p;	/* protocol */
-	u_int16_t	ippseudo_len;	/* protocol length */
-} __packed;
+	u_char		ippseudo_pad;	/* pad, must be zero */
+	u_char		ippseudo_p;	/* protocol */
+	u_short		ippseudo_len;	/* protocol length */
+};
 #endif
