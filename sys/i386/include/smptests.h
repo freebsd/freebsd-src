@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.13 1997/04/26 07:24:21 fsmp Exp $
+ *	$Id: smptests.h,v 1.1 1997/04/26 11:45:47 peter Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -35,26 +35,12 @@
 
 
 /*
- * faster invltlb IPI, asm only
- */
-#define XFAST_IPI32
-
-
-/*
  * use 'lowest priority' for sending IRQs to CPUs
  *
  * i386/i386/mplock.s, i386/i386/mpapic.c, kern/init_main.c
  *
  */
 #define TEST_LOPRIO
-
-
-/*
- * test the InterProcessor Interrupt mechanism.
- *
- * i386/i386/mpapic.c
- */
-#define TEST_IPI
 
 
 /*
