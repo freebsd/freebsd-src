@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -388,7 +388,8 @@ nfs_init(struct vfsconf *vfsp)
 {
 	int i;
 
-	nfsmount_zone = zinit("NFSMOUNT", sizeof(struct nfsmount), 0, 0, 1);
+	nfsmount_zone = uma_zcreate("NFSMOUNT", sizeof(struct nfsmount),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	rpc_vers = txdr_unsigned(RPC_VER2);
 	rpc_call = txdr_unsigned(RPC_CALL);
 	rpc_reply = txdr_unsigned(RPC_REPLY);

@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -78,7 +78,7 @@ MALLOC_DEFINE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");
 MALLOC_DEFINE(M_NFSDIROFF, "NFSV3 diroff", "NFS directory offset data");
 MALLOC_DEFINE(M_NFSHASH, "NFS hash", "NFS hash tables");
 
-vm_zone_t nfsmount_zone;
+uma_zone_t nfsmount_zone;
 
 struct nfsstats	nfsstats;
 SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "NFS filesystem");
@@ -809,7 +809,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		FREE(nam, M_SONAME);
 		return (0);
 	} else {
-		nmp = zalloc(nfsmount_zone);
+		nmp = uma_zalloc(nfsmount_zone, M_WAITOK);
 		bzero((caddr_t)nmp, sizeof (struct nfsmount));
 		TAILQ_INIT(&nmp->nm_bufq);
 		mp->mnt_data = (qaddr_t)nmp;
@@ -895,7 +895,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 bad:
 	nfs_disconnect(nmp);
 	crfree(nmp->nm_cred);
-	zfree(nfsmount_zone, nmp);
+	uma_zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
 	return (error);
 }
@@ -936,7 +936,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	FREE(nmp->nm_nam, M_SONAME);
 
 	crfree(nmp->nm_cred);
-	zfree(nfsmount_zone, nmp);
+	uma_zfree(nfsmount_zone, nmp);
 	return (0);
 }
 
