@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibios.c,v 2.0.0.2 94/08/18 23:04:11 wolf Exp $
+**  $Id: pcibios.c,v 2.1 94/09/16 08:01:26 wolf Rel $
 **
 **  #define   for pci-bus bios functions.
 **
@@ -40,14 +40,11 @@
 #include "i386/isa/isa.h"
 #include "i386/pci/pci.h"
 #include "i386/pci/pcibios.h"
-
+#include "i386/include/cpufunc.h"
 
 extern int printf();
 
 static char pci_mode;
-
-char ident_pcibios_c[] =
-	"\n$Id: pcibios.c,v 2.0.0.2 94/08/18 23:04:11 wolf Exp $\n";
 
 
 /*--------------------------------------------------------------------
@@ -55,11 +52,9 @@ char ident_pcibios_c[] =
 **      Port access
 **
 **--------------------------------------------------------------------
-**
-**      @FREEBSD@    inl() and outl() functions are not defined
 */
 
-#define	DIRTY
+#undef DIRTY
 
 #ifdef DIRTY
 

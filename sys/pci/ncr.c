@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.4 1994/09/16 13:33:56 davidg Exp $
+**  $Id: ncr.c,v 1.5 1994/09/24 02:42:11 rgrimes Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1173,6 +1173,7 @@ struct script {
 	ncrcmd  data_out	[MAX_SCATTER * 4 + 7];
 	ncrcmd	aborttag	[  4];
 	ncrcmd	abort		[ 20];
+	ncrcmd	snooptest	[ 11];
 };
 
 /*==========================================================
@@ -1213,6 +1214,7 @@ static	void	ncr_setsync	(ncb_p np, ccb_p cp, u_char sxfer);
 static	void	ncr_settags     (tcb_p tp, lcb_p lp);
 static	void	ncr_setwide	(ncb_p np, ccb_p cp, u_char wide);
 static	int	ncr_show_msg	(u_char * msg);
+static	int	ncr_snooptest	(ncb_p np);
 static	INT32	ncr_start       (struct scsi_xfer *xp);
 static	void	ncr_timeout	(ncb_p np);
 static	void	ncr_usercmd	(ncb_p np);
@@ -1239,14 +1241,42 @@ static  int	ncr_intr        (int dev);
 
 #ifdef DIRTY
 
-#ifdef __NetBSD__
 #include <i386/include/cpufunc.h>
+
+#ifdef __NetBSD__
 #include <i386/include/pio.h>
 #include <i386/isa/isareg.h>
 #define	DELAY(x)	delay(x)
 #else /* !__NetBSD__ */
 
 #include <i386/isa/isa.h>
+#ifdef ANCIENT
+/*
+**	Doch das ist alles nur geklaut ..
+**	aus:  386bsd:/sys/i386/include/pio.h
+**
+** Mach Operating System
+** Copyright (c) 1990 Carnegie-Mellon University
+** All rights reserved.  The CMU software License Agreement specifies
+** the terms and conditions for use and redistribution.
+*/
+
+#undef inb
+#define inb(port) \
+({ unsigned char data; \
+	__asm __volatile("inb %1, %0": "=a" (data): "d" ((u_short)(port))); \
+	data; })
+
+#undef outb
+#define outb(port, data) \
+{__asm __volatile("outb %0, %1"::"a" ((u_char)(data)), "d" ((u_short)(port)));}
+
+#define disable_intr() \
+{__asm __volatile("cli");}
+
+#define enable_intr() \
+{__asm __volatile("sti");}
+#endif /* ANCIENT */
 
 /*------------------------------------------------------------------
 **
@@ -1312,6 +1342,8 @@ u_long		nncr=NNCR;
 ncb_p		ncrp [NNCR];
 #endif
 
+int ncr_cache; /* may _NOT_ be static */
+
 /*
 **	SCSI cmd to get the SCSI sense data
 */
@@ -1328,6 +1360,9 @@ static u_char rs_cmd  [6] =
 **==========================================================
 */
 
+#define	NCR_810_ID	(0x00011000ul)
+#define	NCR_825_ID	(0x00031000ul)
+
 #ifdef __NetBSD__
 
 struct	cfdriver ncrcd = {
@@ -1339,7 +1374,7 @@ struct	cfdriver ncrcd = {
 struct	pci_driver ncr810_device = {
 	ncr_probe,
 	ncr_attach,
-	0x00011000ul,
+	NCR_810_ID,
 	"ncr 53c810 scsi",
 	ncr_intr
 };
@@ -1347,7 +1382,7 @@ struct	pci_driver ncr810_device = {
 struct	pci_driver ncr825_device = {
 	ncr_probe,
 	ncr_attach,
-	0x00031000ul,
+	NCR_825_ID,
 	"ncr 53c825 scsi",
 	ncr_intr
 };
@@ -2909,6 +2944,30 @@ static	struct script script0 = {
 		0,
 	SCR_JUMP,
 		PADDR (start),
+}/*-------------------------< SNOOPTEST >-------------------*/,{
+	/*
+	**	Read the variable.
+	*/
+	SCR_COPY (4),
+		(ncrcmd) &ncr_cache,
+		RADDR (scratcha),
+	/*
+	**	Write the variable.
+	*/
+	SCR_COPY (4),
+		RADDR (temp),
+		(ncrcmd) &ncr_cache,
+	/*
+	**	Read back the variable.
+	*/
+	SCR_COPY (4),
+		(ncrcmd) &ncr_cache,
+		RADDR (temp),
+	/*
+	**	And stop.
+	*/
+	SCR_INT,
+		99,
 }/*--------------------------------------------------------*/
 };
 
@@ -3177,8 +3236,9 @@ ncr_probe(parent, self, aux)
 
 	if (!pci_targmatch(cf, pa))
 		return 0;
-	if ((pa->pa_id & ~0x20000) != 0x00011000)
-		return 0;
+	if (pa->pa_id != NCR_810_ID &&
+	    pa->pa_id != NCR_825_ID)
+  		return 0;
 
 	return 1;
 }
@@ -3287,8 +3347,18 @@ static	int ncr_attach (pcici_t config_id)
 	**	Do chip dependent initialization.
 	*/
 
-	if (pci_conf_read (config_id, PCI_ID_REG)==0x00031000)
+#ifdef __NetBSD__
+	switch (pa->pa_id) {
+#else
+	switch (pci_conf_read (config_id, PCI_ID_REG)) {
+#endif
+	case NCR_810_ID:
+		np->maxwide = 0;
+		break;
+	case NCR_825_ID:
 		np->maxwide = 1;
+		break;
+	}
 
 	/*
 	**	Patch script to physical addresses
@@ -3334,6 +3404,15 @@ static	int ncr_attach (pcici_t config_id)
 	OUTB (nc_istat,  0   );
 
 	/*
+	**	Now check the cache handling of the pci chipset.
+	*/
+
+	if (ncr_snooptest (np)) {
+		printf ("CACHE INCORRECTLY CONFIGURED.\n");
+		return (0);
+	};
+
+	/*
 	**	After SCSI devices have been opened, we cannot
 	**	reset the bus safely, so we do it here.
 	**	Interrupt handler does the real work.
@@ -3352,7 +3431,7 @@ static	int ncr_attach (pcici_t config_id)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.4 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.5 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
@@ -3740,7 +3819,6 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		case M_SIMPLE_TAG:
 		case M_ORDERED_TAG:
 			cp -> scsi_smsg [msglen] = np->order;
-			cp -> scsi_smsg [msglen] = M_ORDERED_TAG;
 		};
 		msglen++;
 		cp -> scsi_smsg [msglen++] = cp -> tag;
@@ -6393,6 +6471,71 @@ static	int	ncr_scatter
 	};
 
 	return (segment);
+}
+
+/*==========================================================
+**
+**
+**	Test the pci bus snoop logic :-(
+**
+**	Has to be called with disabled interupts.
+**
+**
+**==========================================================
+*/
+
+static int ncr_snooptest (struct ncb* np)
+{
+	u_long	ncr_rd, ncr_wr, ncr_bk, host_rd, host_wr, pc, err=0;
+	/*
+	**	init
+	*/
+	pc  = vtophys (&np->script->snooptest);
+	host_wr = 1;
+	ncr_wr  = 2;
+	/*
+	**	Set memory and register.
+	*/
+	ncr_cache = host_wr;
+	OUTL (nc_temp, ncr_wr);
+	/*
+	**	Start script (exchange values)
+	*/
+	OUTL (nc_dsp, pc);
+	/*
+	**	Wait 'til done
+	*/
+	while (!(INB(nc_istat) & (INTF|SIP|DIP)));
+	/*
+	**	Read memory and register.
+	*/
+	host_rd = ncr_cache;
+	ncr_rd  = INL (nc_scratcha);
+	ncr_bk  = INL (nc_temp);
+	/*
+	**	Reset ncr chip
+	*/
+	OUTB (nc_istat,  SRST);
+	OUTB (nc_istat,  0   );
+	/*
+	**	Show results.
+	*/
+	if (host_wr != ncr_rd) {
+		printf ("CACHE TEST FAILED: host wrote %d, ncr read %d.\n",
+			host_wr, ncr_rd);
+		err |= 1;
+	};
+	if (host_rd != ncr_wr) {
+		printf ("CACHE TEST FAILED: ncr wrote %d, host read %d.\n",
+			ncr_wr, host_rd);
+		err |= 2;
+	};
+	if (ncr_bk != ncr_wr) {
+		printf ("CACHE TEST FAILED: ncr wrote %d, read back %d.\n",
+			ncr_wr, ncr_bk);
+		err |= 4;
+	};
+	return (err);
 }
 
 /*==========================================================

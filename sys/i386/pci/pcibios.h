@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibios.h,v 2.0.0.2 94/09/15 19:55:26 wolf Exp $
+**  $Id: pcibios.h,v 2.1 94/09/16 08:01:37 wolf Rel $
 **
 **  #define	for pci-bus bios functions.
 **  #define	for pci configuration space registers.
