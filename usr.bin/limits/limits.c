@@ -200,7 +200,7 @@ static struct {
     { "memorylocked",	login_getcapsize },
     { "maxproc",	login_getcapnum  },
     { "openfiles",	login_getcapnum  },
-    { "sbsize",		login_getcapnum  }
+    { "sbsize",		login_getcapsize  }
 };
 
 /*
