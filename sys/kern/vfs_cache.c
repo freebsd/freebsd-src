@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.23 1997/02/22 09:39:31 peter Exp $
+ * $Id: vfs_cache.c,v 1.24 1997/03/08 15:22:14 bde Exp $
  */
 
 #include <sys/param.h>
@@ -62,10 +62,6 @@
  * If it is a "negative" entry, (i.e. for a name that is known NOT to
  * exist) the vnode pointer will be NULL.
  *
- * For simplicity (and economy of storage), names longer than
- * a maximum length of NCHNAMLEN are not cached; they occur
- * infrequently in any case, and are almost never of interest.
- *
  * Upon reaching the last segment of a path, if the reference
  * is for DELETE, or NOCACHE is set (rewrite), and the
  * name is located in the cache, it will be dropped.
@@ -77,44 +73,45 @@
 #define NCHHASH(dvp, cnp) \
 	(&nchashtbl[((dvp)->v_id + (cnp)->cn_hash) % nchash])
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
+static TAILQ_HEAD(, namecache) ncneg;	/* Hash Table */
 static u_long	nchash;			/* size of hash table */
+static u_long	ncnegfactor = 16;	/* ratio of negative entries */
+SYSCTL_INT(_debug, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0, "");
+static u_long	numneg;		/* number of cache entries allocated */
+SYSCTL_INT(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0, "");
 static u_long	numcache;		/* number of cache entries allocated */
-static TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
+SYSCTL_INT(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0, "");
 struct	nchstats nchstats;		/* cache effectiveness statistics */
 
 static int	doingcache = 1;		/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vnsize, CTLFLAG_RD, 0, sizeof(struct vnode), "");
+SYSCTL_INT(_debug, OID_AUTO, ncsize, CTLFLAG_RD, 0, sizeof(struct namecache), "");
 
-#ifdef NCH_STATISTICS
-u_long	nchnbr;
-#define NCHNBR(ncp) (ncp)->nc_nbr = ++nchnbr;
-#define NCHHIT(ncp) (ncp)->nc_hits++
-#else
-#define NCHNBR(ncp)
-#define NCHHIT(ncp)
-#endif
+static void cache_zap __P((struct namecache *ncp));
 
+/*
+ * Flags in namecache.nc_flag
+ */
+#define NCF_WHITE	1
 /*
  * Delete an entry from its hash list and move it to the front
  * of the LRU list for immediate reuse.
  */
-#define PURGE(ncp)  {						\
-	LIST_REMOVE(ncp, nc_hash);				\
-	ncp->nc_hash.le_prev = 0;				\
-	TAILQ_REMOVE(&nclruhead, ncp, nc_lru);			\
-	TAILQ_INSERT_HEAD(&nclruhead, ncp, nc_lru);		\
-}
-
-/*
- * Move an entry that has been used to the tail of the LRU list
- * so that it will be preserved for future use.
- */
-#define TOUCH(ncp)  {						\
-	if (ncp->nc_lru.tqe_next != 0) {			\
-		TAILQ_REMOVE(&nclruhead, ncp, nc_lru);		\
-		TAILQ_INSERT_TAIL(&nclruhead, ncp, nc_lru);	\
-		NCHNBR(ncp);					\
-	}							\
+static void
+cache_zap(ncp)
+	struct namecache *ncp;
+{
+	LIST_REMOVE(ncp, nc_hash);
+	LIST_REMOVE(ncp, nc_src);
+	if (ncp->nc_vp) {
+		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
+	} else {
+		TAILQ_REMOVE(&ncneg, ncp, nc_dst);
+		numneg--;
+	}
+	numcache--;
+	free(ncp, M_CACHE);
 }
 
 /*
@@ -145,25 +142,25 @@ cache_lookup(dvp, vpp, cnp)
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
-	if (cnp->cn_namelen > NCHNAMLEN) {
-		nchstats.ncs_long++;
-		cnp->cn_flags &= ~MAKEENTRY;
-		return (0);
+
+	if (cnp->cn_nameptr[0] == '.') {
+		if (cnp->cn_namelen == 1) {
+			*vpp = dvp;
+			return (-1);
+		}
+		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+			if (dvp->v_dd->v_id != dvp->v_ddid ||
+			    (cnp->cn_flags & MAKEENTRY) == 0) {
+				dvp->v_ddid = 0;
+				return (0);
+			}
+			*vpp = dvp->v_dd;
+			return (-1);
+		}
 	}
 
-	ncpp = NCHHASH(dvp, cnp);
-	for (ncp = ncpp->lh_first; ncp != 0; ncp = nnp) {
-		nnp = ncp->nc_hash.le_next;
-		/* If one of the vp's went stale, don't bother anymore. */
-		if ((ncp->nc_dvpid != ncp->nc_dvp->v_id) ||
-		    (ncp->nc_vp && ncp->nc_vpid != ncp->nc_vp->v_id)) {
-			nchstats.ncs_falsehits++;
-			PURGE(ncp);
-			continue;
-		}
-		/* Now that we know the vp's to be valid, is it ours ? */
-		if (ncp->nc_dvp == dvp &&
-		    ncp->nc_nlen == cnp->cn_namelen &&
+	LIST_FOREACH(ncp, (NCHHASH(dvp, cnp)), nc_hash) {
+		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, (u_int)ncp->nc_nlen))
 			break;
 	}
@@ -174,29 +171,25 @@ cache_lookup(dvp, vpp, cnp)
 		return (0);
 	}
 
-	NCHHIT(ncp);
-
 	/* We don't want to have an entry, so dump it */
 	if ((cnp->cn_flags & MAKEENTRY) == 0) {
 		nchstats.ncs_badhits++;
-		PURGE(ncp);
+		cache_zap(ncp);
 		return (0);
 	}
 
 	/* We found a "positive" match, return the vnode */
         if (ncp->nc_vp) {
 		nchstats.ncs_goodhits++;
-		TOUCH(ncp);
+		vtouch(ncp->nc_vp);
 		*vpp = ncp->nc_vp;
-		if ((*vpp)->v_usage < MAXVNODEUSE)
-			(*vpp)->v_usage++;
 		return (-1);
 	}
 
 	/* We found a negative match, and want to create it, so purge */
 	if (cnp->cn_nameiop == CREATE) {
 		nchstats.ncs_badhits++;
-		PURGE(ncp);
+		cache_zap(ncp);
 		return (0);
 	}
 
@@ -204,9 +197,11 @@ cache_lookup(dvp, vpp, cnp)
 	 * We found a "negative" match, ENOENT notifies client of this match.
 	 * The nc_vpid field records whether this is a whiteout.
 	 */
+	TAILQ_REMOVE(&ncneg, ncp, nc_dst);
+	TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
 	nchstats.ncs_neghits++;
-	TOUCH(ncp);
-	cnp->cn_flags |= ncp->nc_vpid;
+	if (ncp->nc_flag & NCF_WHITE)
+		cnp->cn_flags |= ISWHITEOUT;
 	return (ENOENT);
 }
 
@@ -225,35 +220,28 @@ cache_enter(dvp, vp, cnp)
 	if (!doingcache)
 		return;
 
-	if (cnp->cn_namelen > NCHNAMLEN) {
-		printf("cache_enter: name too long");
-		return;
-	}
-
-	/*
-	 * We allocate a new entry if we are less than the maximum
-	 * allowed and the one at the front of the LRU list is in use.
-	 * Otherwise we use the one at the front of the LRU list.
-	 */
-	if (numcache < desiredvnodes &&
-	    ((ncp = nclruhead.tqh_first) == NULL ||
-	    ncp->nc_hash.le_prev != 0)) {
-		/* Add one more entry */
-		ncp = (struct namecache *)
-			malloc((u_long)sizeof *ncp, M_CACHE, M_WAITOK);
-		bzero((char *)ncp, sizeof *ncp);
-		numcache++;
-	} else if (ncp = nclruhead.tqh_first) {
-		/* reuse an old entry */
-		TAILQ_REMOVE(&nclruhead, ncp, nc_lru);
-		if (ncp->nc_hash.le_prev != 0) {
-			LIST_REMOVE(ncp, nc_hash);
-			ncp->nc_hash.le_prev = 0;
+	if (cnp->cn_nameptr[0] == '.') {
+		if (cnp->cn_namelen == 1) {
+			return;
 		}
-	} else {
-		/* give up */
-		return;
+		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+			if (vp) {
+				dvp->v_dd = vp;
+				dvp->v_ddid = vp->v_id;
+			} else {
+				dvp->v_dd = dvp;
+				dvp->v_ddid = 0;
+			}
+			return;
+		}
 	}
+	 
+	ncp = (struct namecache *)
+		malloc(sizeof *ncp + cnp->cn_namelen, M_CACHE, M_WAITOK);
+	bzero((char *)ncp, sizeof *ncp);
+	numcache++;
+	if (!vp)
+		numneg++;
 
 	/*
 	 * Fill in cache info, if vp is NULL this is a "negative" cache entry.
@@ -262,19 +250,25 @@ cache_enter(dvp, vp, cnp)
 	 * otherwise unused.
 	 */
 	ncp->nc_vp = vp;
-	if (vp) {
-		ncp->nc_vpid = vp->v_id;
-		if (vp->v_usage < MAXVNODEUSE)
-			++vp->v_usage;
-	} else
-		ncp->nc_vpid = cnp->cn_flags & ISWHITEOUT;
+	if (vp)
+		vtouch(vp);
+	else
+		ncp->nc_flag = cnp->cn_flags & ISWHITEOUT ? NCF_WHITE : 0;
 	ncp->nc_dvp = dvp;
-	ncp->nc_dvpid = dvp->v_id;
 	ncp->nc_nlen = cnp->cn_namelen;
 	bcopy(cnp->cn_nameptr, ncp->nc_name, (unsigned)ncp->nc_nlen);
-	TAILQ_INSERT_TAIL(&nclruhead, ncp, nc_lru);
 	ncpp = NCHHASH(dvp, cnp);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
+	LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
+	if (vp) {
+		TAILQ_INSERT_HEAD(&vp->v_cache_dst, ncp, nc_dst);
+	} else {
+		TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+	}
+	if (numneg*ncnegfactor > numcache) {
+		ncp = TAILQ_FIRST(&ncneg);
+		cache_zap(ncp);
+	}
 }
 
 /*
@@ -284,7 +278,7 @@ void
 nchinit()
 {
 
-	TAILQ_INIT(&nclruhead);
+	TAILQ_INIT(&ncneg);
 	nchashtbl = phashinit(desiredvnodes, M_CACHE, &nchash);
 }
 
@@ -304,14 +298,20 @@ cache_purge(vp)
 	struct nchashhead *ncpp;
 	static u_long nextvnodeid;
 
-	vp->v_id = ++nextvnodeid;
-	if (nextvnodeid != 0)
-		return;
-	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {
-		while (ncp = ncpp->lh_first)
-			PURGE(ncp);
-	}
-	vp->v_id = ++nextvnodeid;
+	while (!LIST_EMPTY(&vp->v_cache_src)) 
+		cache_zap(LIST_FIRST(&vp->v_cache_src));
+	while (!TAILQ_EMPTY(&vp->v_cache_dst)) 
+		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
+
+	/* Never assign the same v_id, and never assign zero as v_id */
+	do {
+		if (++nextvnodeid == vp->v_id)
+			++nextvnodeid;
+	} while (!nextvnodeid);
+
+	vp->v_id = nextvnodeid;
+	vp->v_dd = vp;
+	vp->v_ddid = 0;
 }
 
 /*
@@ -329,12 +329,10 @@ cache_purgevfs(mp)
 
 	/* Scan hash tables for applicable entries */
 	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {
-		for (ncp = ncpp->lh_first; ncp != 0; ncp = nnp) {
-			nnp = ncp->nc_hash.le_next;
-			if (ncp->nc_dvpid != ncp->nc_dvp->v_id ||
-			    (ncp->nc_vp && ncp->nc_vpid != ncp->nc_vp->v_id) ||
-			    ncp->nc_dvp->v_mount == mp) {
-				PURGE(ncp);
+		for (ncp = LIST_FIRST(ncpp); ncp != 0; ncp = nnp) {
+			nnp = LIST_NEXT(ncp, nc_hash);
+			if (ncp->nc_dvp->v_mount == mp) {
+				cache_zap(ncp);
 			}
 		}
 	}
