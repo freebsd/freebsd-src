@@ -2,7 +2,7 @@
 #------------------------------------------------------------------------------
 # commands:  file(1) magic for various shells and interpreters
 #
-0	string		:\ shell archive or script for antique kernel text
+0	string		:			shell archive or script for antique kernel text
 0	string/b	#!\ /bin/sh		Bourne shell script text executable
 0	string/b	#!\ /bin/csh		C shell script text executable
 # korn shell magic, sent by George Wu, gwu@clyde.att.com
