@@ -443,9 +443,6 @@ Can't remember is you've installed a certain port or not? Try "pkg_info |
 grep port_name".
 		-- Dru <genesis@istar.ca>
 %
-Got some time to kill? Try typing "hangman".
-		-- Dru <genesis@istar.ca>
-%
 To erase a line you've written at the command prompt, use "Ctrl-U".
 		-- Dru <genesis@istar.ca>
 %
