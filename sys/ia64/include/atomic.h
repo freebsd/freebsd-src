@@ -80,80 +80,191 @@ ia64_cmpxchg_rel_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 	return IA64_CMPXCHG(8, rel, u_int64_t, p, cmpval, newval);
 }
 
-/*
- * Store with release semantics is used to release locks.
- */
-static __inline void
-ia64_st_rel_32(volatile u_int32_t* p, u_int32_t v)
-{
-	__asm __volatile ("st4.rel %0=%1"
-			  : "=m" (*p)
-			  : "r" (v)
-			  : "memory");
+#define ATOMIC_STORE_LOAD(type, width, size)			\
+static __inline u_int##width##_t				\
+ia64_ld_acq_##width(volatile u_int##width##_t* p)		\
+{								\
+	u_int##width_t v;					\
+								\
+	__asm __volatile ("ld" size ".acq %0=%1"		\
+			  : "r" (v)				\
+			  : "=m" (*p)				\
+			  : "memory");				\
+	return (v);						\
+}								\
+								\
+static __inline u_int##width##_t				\
+atomic_load_acq_##width(volatile u_int##width##_t* p)		\
+{								\
+	u_int##width_t v;					\
+								\
+	__asm __volatile ("ld" size ".acq %0=%1"		\
+			  : "r" (v)				\
+			  : "=m" (*p)				\
+			  : "memory");				\
+	return (v);						\
+}								\
+								\
+static __inline u_int##width##_t				\
+atomic_load_acq_##type(volatile u_int##width##_t* p)		\
+{								\
+	u_int##width_t v;					\
+								\
+	__asm __volatile ("ld" size ".acq %0=%1"		\
+			  : "r" (v)				\
+			  : "=m" (*p)				\
+			  : "memory");				\
+	return (v);						\
+}								\
+							       	\
+static __inline void						\
+ia64_st_rel_##width(volatile u_int##width##_t* p, u_int##width##_t v)\
+{								\
+	__asm __volatile ("st" size ".rel %0=%1"		\
+			  : "=m" (*p)				\
+			  : "r" (v)				\
+			  : "memory");				\
+}								\
+							       	\
+static __inline void						\
+atomic_store_rel_##width(volatile u_int##width##_t* p, u_int##width##_t v)\
+{								\
+	__asm __volatile ("st" size ".rel %0=%1"		\
+			  : "=m" (*p)				\
+			  : "r" (v)				\
+			  : "memory");				\
+}								\
+							       	\
+static __inline void						\
+atomic_store_rel_##type(volatile u_int##width##_t* p, u_int##width##_t v)\
+{								\
+	__asm __volatile ("st" size ".rel %0=%1"		\
+			  : "=m" (*p)				\
+			  : "r" (v)				\
+			  : "memory");				\
 }
 
-static __inline void
-ia64_st_rel_64(volatile u_int64_t* p, u_int64_t v)
-{
-	__asm __volatile ("st8.rel %0=%1"
-			  : "=m" (*p)
-			  : "r" (v)
-			  : "memory");
-}
+ATOMIC_STORE_LOAD(char,		8,	"1")
+ATOMIC_STORE_LOAD(short,	16,	"2")
+ATOMIC_STORE_LOAD(int,		32,	"4")
+ATOMIC_STORE_LOAD(long,		64,	"8")
 
-#define IA64_ATOMIC(sz, type, name, op)					\
+#undef ATOMIC_STORE_LOAD
+
+#define IA64_ATOMIC(sz, type, name, width, op)				\
 									\
 static __inline void							\
-atomic_##name(volatile type *p, type v)					\
+atomic_##name##_acq_##width(volatile type *p, type v)			\
 {									\
 	type old;							\
 	do {								\
 		old = *p;						\
 	} while (IA64_CMPXCHG(sz, acq, type, p, old, old op v) != old);	\
+}									\
+									\
+static __inline void							\
+atomic_##name##_rel_##width(volatile type *p, type v)			\
+{									\
+	type old;							\
+	do {								\
+		old = *p;						\
+	} while (IA64_CMPXCHG(sz, rel, type, p, old, old op v) != old);	\
 }
 
-IA64_ATOMIC(1, u_int8_t,  set_8,	|)
-IA64_ATOMIC(2, u_int16_t, set_16,	|)
-IA64_ATOMIC(4, u_int32_t, set_32,	|)
-IA64_ATOMIC(8, u_int64_t, set_64,	|)
+IA64_ATOMIC(1, u_int8_t,  set,	8,	|)
+IA64_ATOMIC(2, u_int16_t, set,	16,	|)
+IA64_ATOMIC(4, u_int32_t, set,	32,	|)
+IA64_ATOMIC(8, u_int64_t, set,	64,	|)
 
-IA64_ATOMIC(1, u_int8_t,  clear_8,	&~)
-IA64_ATOMIC(2, u_int16_t, clear_16,	&~)
-IA64_ATOMIC(4, u_int32_t, clear_32,	&~)
-IA64_ATOMIC(8, u_int64_t, clear_64,	&~)
+IA64_ATOMIC(1, u_int8_t,  clear,	8,	&~)
+IA64_ATOMIC(2, u_int16_t, clear,	16,	&~)
+IA64_ATOMIC(4, u_int32_t, clear,	32,	&~)
+IA64_ATOMIC(8, u_int64_t, clear,	64,	&~)
 
-IA64_ATOMIC(1, u_int8_t,  add_8,	+)
-IA64_ATOMIC(2, u_int16_t, add_16,	+)
-IA64_ATOMIC(4, u_int32_t, add_32,	+)
-IA64_ATOMIC(8, u_int64_t, add_64,	+)
+IA64_ATOMIC(1, u_int8_t,  add,	8,	+)
+IA64_ATOMIC(2, u_int16_t, add,	16,	+)
+IA64_ATOMIC(4, u_int32_t, add,	32,	+)
+IA64_ATOMIC(8, u_int64_t, add,	64,	+)
 
-IA64_ATOMIC(1, u_int8_t,  subtract_8,	-)
-IA64_ATOMIC(2, u_int16_t, subtract_16,	-)
-IA64_ATOMIC(4, u_int32_t, subtract_32,	-)
-IA64_ATOMIC(8, u_int64_t, subtract_64,	-)
+IA64_ATOMIC(1, u_int8_t,  subtract,	8,	-)
+IA64_ATOMIC(2, u_int16_t, subtract,	16,	-)
+IA64_ATOMIC(4, u_int32_t, subtract,	32,	-)
+IA64_ATOMIC(8, u_int64_t, subtract,	64,	-)
 
 #undef IA64_ATOMIC
 #undef IA64_CMPXCHG
 
-#define atomic_set_char		atomic_set_8
-#define atomic_clear_char	atomic_clear_8
-#define atomic_add_char		atomic_add_8
-#define atomic_subtract_char	atomic_subtract_8
+#define atomic_set_8		atomic_set_acq_8
+#define	atomic_clear_8		atomic_clear_acq_8
+#define atomic_add_8		atomic_add_acq_8
+#define	atomic_subtract_8	atomic_subtract_acq_8
 
-#define atomic_set_short	atomic_set_16
-#define atomic_clear_short	atomic_clear_16
-#define atomic_add_short	atomic_add_16
-#define atomic_subtract_short	atomic_subtract_16
+#define atomic_set_16		atomic_set_acq_16
+#define	atomic_clear_16		atomic_clear_acq_16
+#define atomic_add_16		atomic_add_acq_16
+#define	atomic_subtract_16	atomic_subtract_acq_16
 
-#define atomic_set_int		atomic_set_32
-#define atomic_clear_int	atomic_clear_32
-#define atomic_add_int		atomic_add_32
-#define atomic_subtract_int	atomic_subtract_32
+#define atomic_set_32		atomic_set_acq_32
+#define	atomic_clear_32		atomic_clear_acq_32
+#define atomic_add_32		atomic_add_acq_32
+#define	atomic_subtract_32	atomic_subtract_acq_32
 
-#define atomic_set_long		atomic_set_64
-#define atomic_clear_long	atomic_clear_64
-#define atomic_add_long		atomic_add_64
-#define atomic_subtract_long	atomic_subtract_64
+#define atomic_set_64		atomic_set_acq_64
+#define	atomic_clear_64		atomic_clear_acq_64
+#define atomic_add_64		atomic_add_acq_64
+#define	atomic_subtract_64	atomic_subtract_acq_64
+
+#define atomic_set_char			atomic_set_8
+#define atomic_clear_char		atomic_clear_8
+#define atomic_add_char			atomic_add_8
+#define atomic_subtract_char		atomic_subtract_8
+#define atomic_set_acq_char		atomic_set_acq_8
+#define atomic_clear_acq_char		atomic_clear_acq_8
+#define atomic_add_acq_char		atomic_add_acq_8
+#define atomic_subtract_acq_char	atomic_subtract_acq_8
+#define atomic_set_rel_char		atomic_set_rel_8
+#define atomic_clear_rel_char		atomic_clear_rel_8
+#define atomic_add_rel_char		atomic_add_rel_8
+#define atomic_subtract_rel_char	atomic_subtract_rel_8
+
+#define atomic_set_short		atomic_set_16
+#define atomic_clear_short		atomic_clear_16
+#define atomic_add_short		atomic_add_16
+#define atomic_subtract_short		atomic_subtract_16
+#define atomic_set_acq_short		atomic_set_acq_16
+#define atomic_clear_acq_short		atomic_clear_acq_16
+#define atomic_add_acq_short		atomic_add_acq_16
+#define atomic_subtract_acq_short	atomic_subtract_acq_16
+#define atomic_set_rel_short		atomic_set_rel_16
+#define atomic_clear_rel_short		atomic_clear_rel_16
+#define atomic_add_rel_short		atomic_add_rel_16
+#define atomic_subtract_rel_short	atomic_subtract_rel_16
+
+#define atomic_set_int			atomic_set_32
+#define atomic_clear_int		atomic_clear_32
+#define atomic_add_int			atomic_add_32
+#define atomic_subtract_int		atomic_subtract_32
+#define atomic_set_acq_int		atomic_set_acq_32
+#define atomic_clear_acq_int		atomic_clear_acq_32
+#define atomic_add_acq_int		atomic_add_acq_32
+#define atomic_subtract_acq_int		atomic_subtract_acq_32
+#define atomic_set_rel_int		atomic_set_rel_32
+#define atomic_clear_rel_int		atomic_clear_rel_32
+#define atomic_add_rel_int		atomic_add_rel_32
+#define atomic_subtract_rel_int		atomic_subtract_rel_32
+
+#define atomic_set_long			atomic_set_64
+#define atomic_clear_long		atomic_clear_64
+#define atomic_add_long			atomic_add_64
+#define atomic_subtract_long		atomic_subtract_64
+#define atomic_set_acq_long		atomic_set_acq_64
+#define atomic_clear_acq_long		atomic_clear_acq_64
+#define atomic_add_acq_long		atomic_add_acq_64
+#define atomic_subtract_acq_long	atomic_subtract_acq_64
+#define atomic_set_rel_long		atomic_set_rel_64
+#define atomic_clear_rel_long		atomic_clear_rel_64
+#define atomic_add_rel_long		atomic_add_rel_64
+#define atomic_subtract_rel_long	atomic_subtract_rel_64
 
 /*
  * Atomically compare the value stored at *p with cmpval and if the
@@ -161,30 +272,69 @@ IA64_ATOMIC(8, u_int64_t, subtract_64,	-)
  * zero if the compare failed, nonzero otherwise.
  */
 static __inline int
-atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
+atomic_cmpset_acq_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 {
 	return ia64_cmpxchg_acq_32(p, cmpval, newval) == cmpval;
 }
 
+static __inline int
+atomic_cmpset_rel_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
+{
+	return ia64_cmpxchg_rel_32(p, cmpval, newval) == cmpval;
+}
+
 /*
  * Atomically compare the value stored at *p with cmpval and if the
  * two values are equal, update the value of *p with newval. Returns
  * zero if the compare failed, nonzero otherwise.
  */
 static __inline int
-atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
+atomic_cmpset_acq_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 {
 	return ia64_cmpxchg_acq_64(p, cmpval, newval) == cmpval;
 }
 
+static __inline int
+atomic_cmpset_rel_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
+{
+	return ia64_cmpxchg_rel_64(p, cmpval, newval) == cmpval;
+}
+
+#define atomic_cmpset_32	atomic_cmpset_acq_32
+#define atomic_cmpset_64	atomic_cmpset_acq_64
 #define	atomic_cmpset_int	atomic_cmpset_32
 #define	atomic_cmpset_long	atomic_cmpset_64
+#define atomic_cmpset_acq_int	atomic_cmpset_acq_32
+#define atomic_cmpset_rel_int	atomic_cmpset_rel_32
+#define atomic_cmpset_acq_long	atomic_cmpset_acq_64
+#define atomic_cmpset_rel_long	atomic_cmpset_rel_64
 
 static __inline int
-atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
+atomic_cmpset_acq_ptr(volatile void *dst, void *exp, void *src)
 {
-        return atomic_cmpset_long((volatile u_long *)dst,
-				  (u_long)exp, (u_long)src);
+        return atomic_cmpset_acq_long((volatile u_long *)dst,
+				      (u_long)exp, (u_long)src);
+}
+
+static __inline int
+atomic_cmpset_rel_ptr(volatile void *dst, void *exp, void *src)
+{
+        return atomic_cmpset_rel_long((volatile u_long *)dst,
+				      (u_long)exp, (u_long)src);
+}
+
+#define	atomic_cmpset_ptr	atomic_cmpset_acq_ptr
+
+static __inline void *
+atomic_load_acq_ptr(volatile void *p)
+{
+	return (void *)atomic_load_acq_long((volatile u_long *)p);
+}
+
+static __inline void
+atomic_store_rel_ptr(volatile void *p, void *v)
+{
+	atomic_store_rel_long((volatile u_long *)p, (u_long)v);
 }
 
 static __inline u_int32_t
