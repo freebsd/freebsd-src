@@ -125,6 +125,7 @@ _KPOSIX_VERSION			opt_posix.h
 
 # Support for Mandatory Access Control (MAC)
 MAC		opt_mac.h
+MAC_DEBUG	opt_mac.h
 MAC_NONE	opt_dontuse.h
 
 # Do we want the config file compiled into the kernel?
