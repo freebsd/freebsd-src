@@ -1,9 +1,13 @@
-#	$Id: BSD.include.dist,v 1.17 1998/05/28 06:59:50 peter Exp $
+#	$Id: BSD.include.dist,v 1.18 1998/09/14 08:34:45 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
 .
     arpa
+    ..
+    cam
+        scsi
+        ..
     ..
     g++
         std
