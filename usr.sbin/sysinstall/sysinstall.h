@@ -149,6 +149,8 @@
 #define VAR_NO_HOLOSHELL		"noHoloShell"
 #define VAR_NO_WARN			"noWarn"
 #define VAR_NO_USR			"noUsr"
+#define VAR_NO_VARTMP			"noVarTmp"
+#define VAR_NO_HOME			"noHome"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
 #define VAR_NTPDATE_FLAGS		"ntpdate_flags"
@@ -173,6 +175,8 @@
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
+#define VAR_VARTMP_SIZE			"varTmpSize"
+#define VAR_HOME_SIZE			"homeSize"
 #define VAR_XF86_CONFIG			"_xf86config"
 #define VAR_TERM			"TERM"
 #define VAR_CONSTERM                    "_consterm"
@@ -573,7 +577,7 @@ int		index_initialize(char *path);
 PkgNodePtr	index_search(PkgNodePtr top, char *str, PkgNodePtr *tp);
 
 /* install.c */
-extern Boolean	checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev);
+extern Boolean	checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev, Chunk **vtdev, Chunk **hdev);
 extern int	installCommit(dialogMenuItem *self);
 extern int	installCustomCommit(dialogMenuItem *self);
 extern int	installExpress(dialogMenuItem *self);
