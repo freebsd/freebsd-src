@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.78 1996/03/23 07:21:29 jkh Exp $
+ * $Id: install.c,v 1.79 1996/03/23 07:28:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -788,7 +788,7 @@ installVarDefaults(char *unused)
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
     variable_set2(VAR_EDITOR,			"/stand/ee");
     variable_set2(VAR_FTP_USER,			"ftp");
-    variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.4.2");
+    variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.4fm");
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
     variable_set2(VAR_CONFIG_FILE,		"freebsd.cfg");
     variable_set2(VAR_FTP_STATE,		"passive");
