@@ -1,0 +1,5 @@
+# $Id$
+# This file determines whether quotas are enabled upon system startup.
+# This option does not effect whether the kernel supports quotas.
+# The default is off.
+off

@@ -1,0 +1,4 @@
+# $Id$
+# This file determines whether any attempt is made to save a crash
+# dump in /var/crash upon boot-up.  The default is on.
+on

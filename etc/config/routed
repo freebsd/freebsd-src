@@ -1,0 +1,5 @@
+# $Id$
+# This option determines whether routed is automatically started at
+# boot time.  It should probably be turned off, but for now the
+# default is on.
+on
