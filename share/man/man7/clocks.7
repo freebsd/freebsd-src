@@ -116,13 +116,17 @@ to applications in
 etc...  This is the clock that should normally be used
 by BSD applications.
 .It
-the i8254 clock.  This is a real clock with a nominal frequency of
+The i8254 clock.  This is a real clock/timer with a nominal frequency of
 1193182.  It is divided down to give the scheduling clock.  It isn't
 available to applications.
 .It
-the i586 clock on i586 systems.  This is a real clock with a frequency
-of up to 200000000.  It is used to interpolate between values of the
-scheduling clock.  It isn't available to applications.
+The TSC clock (64-bit register) on fifth-generation or later x86 systems.
+This is a real clock with a frequency that is equivalent to the number of
+cycles per second of the CPU(s).
+Its frequency can be found using the sysctl
+.Sy machdep.tsc_freq .
+It is used to interpolate between values of the scheduling clock.
+It is only available to applications in a purely machine-dependant manner.
 .El
 .Pp
 Summary: if
