@@ -782,6 +782,7 @@ ftp_login_session(FTP_t ftp, char *host, int af,
 static int
 ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t *seekto)
 {
+    socklen_t sinlen;
     int i,l,s;
     char *q;
     unsigned char addr[64];
@@ -873,7 +874,6 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	    }
 	} else if (strcmp(cmdstr, "EPSV") == 0) {
 	    int port;
-	    int sinlen;
 	    while (*q && *q != '(')		/* ) */
 		q++;
 	    if (!*q) {
@@ -951,16 +951,16 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	}
 #endif
 
-	i = sizeof sin;
-	getsockname(ftp->fd_ctrl, (struct sockaddr *)&sin, &i);
+	sinlen = sizeof sin;
+	getsockname(ftp->fd_ctrl, (struct sockaddr *)&sin, &sinlen);
 	sin.sin4.sin_port = 0;
 	i = ((struct sockaddr *)&sin)->sa_len;
 	if (bind(s, (struct sockaddr *)&sin, i) < 0) {
 	    close(s);	
 	    return FAILURE;
 	}
-	i = sizeof sin;
-	getsockname(s,(struct sockaddr *)&sin,&i);
+	sinline = sizeof sin;
+	getsockname(s, (struct sockaddr *)&sin, &sinlen);
 	if (listen(s, 1) < 0) {
 	    close(s);	
 	    return FAILURE;
