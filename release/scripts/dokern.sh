@@ -54,6 +54,7 @@ sed	-e '/	pci$/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/P1003_1B/d' \
+	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
 	-e '/RANDOMDEV/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
