@@ -56,20 +56,10 @@ struct s_thread_info {
 /* Static variables: */
 static const struct s_thread_info thread_info[] = {
 	{PS_RUNNING	, "Running"},
-	{PS_SIGTHREAD	, "Waiting on signal thread"},
 	{PS_MUTEX_WAIT	, "Waiting on a mutex"},
 	{PS_COND_WAIT	, "Waiting on a condition variable"},
-	{PS_FDLR_WAIT	, "Waiting for a file read lock"},
-	{PS_FDLW_WAIT	, "Waiting for a file write lock"},
-	{PS_FDR_WAIT	, "Waiting for read"},
-	{PS_FDW_WAIT	, "Waiting for write"},
-	{PS_FILE_WAIT	, "Waiting for FILE lock"},
-	{PS_POLL_WAIT	, "Waiting on poll"},
-	{PS_SELECT_WAIT	, "Waiting on select"},
 	{PS_SLEEP_WAIT	, "Sleeping"},
 	{PS_WAIT_WAIT	, "Waiting process"},
-	{PS_SIGSUSPEND	, "Suspended, waiting for a signal"},
-	{PS_SIGWAIT	, "Waiting for a signal"},
 	{PS_SPINBLOCK	, "Waiting for a spinlock"},
 	{PS_JOIN	, "Waiting to join"},
 	{PS_SUSPENDED	, "Suspended"},
@@ -169,34 +159,6 @@ _thread_dump_info(void)
 			}
 		}
 
-		/* Output a header for file descriptors: */
-		snprintf(s, sizeof(s), "\n\n=============\nFILE DESCRIPTOR "
-		    "TABLE (table size %d)\n\n", _thread_dtablesize);
-		__sys_write(fd, s, strlen(s));
-
-		/* Enter a loop to report file descriptor lock usage: */
-		for (i = 0; i < _thread_dtablesize; i++) {
-			/*
-			 * Check if memory is allocated for this file
-			 * descriptor:
-			 */
-			if (_thread_fd_table[i] != NULL) {
-				/* Report the file descriptor lock status: */
-				snprintf(s, sizeof(s),
-				    "fd[%3d] read owner %p count %d [%s:%d]\n"
-				    "        write owner %p count %d [%s:%d]\n",
-				    i, _thread_fd_table[i]->r_owner,
-				    _thread_fd_table[i]->r_lockcount,
-				    _thread_fd_table[i]->r_fname,
-				    _thread_fd_table[i]->r_lineno,
-				    _thread_fd_table[i]->w_owner,
-				    _thread_fd_table[i]->w_lockcount,
-				    _thread_fd_table[i]->w_fname,
-				    _thread_fd_table[i]->w_lineno);
-				    __sys_write(fd, s, strlen(s));
-			}
-		}
-
 		/* Close the dump file: */
 		__sys_close(fd);
 	}
@@ -237,33 +199,6 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 		}
 		/* Process according to thread state: */
 		switch (pthread->state) {
-		/* File descriptor read lock wait: */
-		case PS_FDLR_WAIT:
-		case PS_FDLW_WAIT:
-		case PS_FDR_WAIT:
-		case PS_FDW_WAIT:
-			/* Write the lock details: */
-			snprintf(s, sizeof(s), "fd %d[%s:%d]",
-			    pthread->data.fd.fd,
-			    pthread->data.fd.fname,
-			    pthread->data.fd.branch);
-			__sys_write(fd, s, strlen(s));
-			snprintf(s, sizeof(s), "owner %pr/%pw\n",
-			    _thread_fd_table[pthread->data.fd.fd]->r_owner,
-			    _thread_fd_table[pthread->data.fd.fd]->w_owner);
-			__sys_write(fd, s, strlen(s));
-			break;
-		case PS_SIGWAIT:
-			snprintf(s, sizeof(s), "sigmask (hi)");
-			__sys_write(fd, s, strlen(s));
-			for (i = _SIG_WORDS - 1; i >= 0; i--) {
-				snprintf(s, sizeof(s), "%08x\n",
-				    pthread->sigmask.__bits[i]);
-				__sys_write(fd, s, strlen(s));
-			}
-			snprintf(s, sizeof(s), "(lo)\n");
-			__sys_write(fd, s, strlen(s));
-			break;
 		/*
 		 * Trap other states that are not explicitly
 		 * coded to dump information:

@@ -41,60 +41,12 @@
 __weak_reference(__sigsuspend, sigsuspend);
 
 int
-_sigsuspend(const sigset_t * set)
-{
-	struct pthread	*curthread = _get_curthread();
-	int             ret = -1;
-	sigset_t        oset, sigset;
-
-	/* Check if a new signal set was provided by the caller: */
-	if (set != NULL) {
-		/* Save the current signal mask: */
-		oset = curthread->sigmask;
-
-		/* Change the caller's mask: */
-		curthread->sigmask = *set;
-
-		/*
-		 * Check if there are pending signals for the running
-		 * thread or process that aren't blocked:
-		 */
-		sigset = curthread->sigpend;
-		SIGSETOR(sigset, _process_sigpending);
-		SIGSETNAND(sigset, curthread->sigmask);
-		if (SIGNOTEMPTY(sigset)) {
-			/*
-			 * Call the kernel scheduler which will safely
-			 * install a signal frame for the running thread:
-			 */
-			_thread_kern_sched_sig();
-		} else {
-			/* Wait for a signal: */
-			_thread_kern_sched_state(PS_SIGSUSPEND,
-			    __FILE__, __LINE__);
-		}
-
-		/* Always return an interrupted error: */
-		errno = EINTR;
-
-		/* Restore the signal mask: */
-		curthread->sigmask = oset;
-	} else {
-		/* Return an invalid argument error: */
-		errno = EINVAL;
-	}
-
-	/* Return the completion status: */
-	return (ret);
-}
-
-int
 __sigsuspend(const sigset_t * set)
 {
 	int	ret;
 
 	_thread_enter_cancellation_point();
-	ret = _sigsuspend(set);
+	ret = __sys_sigsuspend(set);
 	_thread_leave_cancellation_point();
 
 	return ret;

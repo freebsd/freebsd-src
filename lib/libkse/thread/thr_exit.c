@@ -45,42 +45,6 @@
 
 __weak_reference(_pthread_exit, pthread_exit);
 
-void _exit(int status)
-{
-	int		flags;
-	int             i;
-	struct itimerval itimer;
-
-	/* Disable the interval timer: */
-	itimer.it_interval.tv_sec  = 0;
-	itimer.it_interval.tv_usec = 0;
-	itimer.it_value.tv_sec     = 0;
-	itimer.it_value.tv_usec    = 0;
-	setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL);
-
-	/* Close the pthread kernel pipe: */
-	__sys_close(_thread_kern_pipe[0]);
-	__sys_close(_thread_kern_pipe[1]);
-
-	/*
-	 * Enter a loop to set all file descriptors to blocking
-	 * if they were not created as non-blocking:
-	 */
-	for (i = 0; i < _thread_dtablesize; i++) {
-		/* Check if this file descriptor is in use: */
-		if (_thread_fd_table[i] != NULL &&
-		    (_thread_fd_getflags(i) & O_NONBLOCK) == 0) {
-			/* Get the current flags: */
-			flags = __sys_fcntl(i, F_GETFL, NULL);
-			/* Clear the nonblocking file descriptor flag: */
-			__sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
-		}
-	}
-
-	/* Call the _exit syscall: */
-	__sys_exit(status);
-}
-
 void
 _thread_exit(char *fname, int lineno, char *string)
 {
@@ -120,9 +84,6 @@ _thread_exit_cleanup(void)
 	 * internal to the threads library, including file and fd locks,
 	 * are not visible to the application and need to be released.
 	 */
-	/* Unlock all owned fd locks: */
-	_thread_fd_unlock_owned(curthread);
-
 	/* Unlock all private mutexes: */
 	_mutex_unlock_private(curthread);
 
@@ -161,12 +122,6 @@ _pthread_exit(void *status)
 	if (curthread->specific != NULL) {
 		/* Run the thread-specific data destructors: */
 		_thread_cleanupspecific();
-	}
-
-	/* Free thread-specific poll_data structure, if allocated: */
-	if (curthread->poll_data.fds != NULL) {
-		free(curthread->poll_data.fds);
-		curthread->poll_data.fds = NULL;
 	}
 
 	/*
