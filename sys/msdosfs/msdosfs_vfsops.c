@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.31 1998/03/20 02:33:40 kato Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.32 1998/04/05 13:10:11 ache Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -230,10 +230,8 @@ msdosfs_mount(mp, path, data, ndp, p)
 	error = copyin(data, (caddr_t)&args, sizeof(struct msdosfs_args));
 	if (error)
 		return (error);
-	if (args.magic != MSDOSFS_ARGSMAGIC) {
-		printf("Old mount_msdosfs, flags=%d\n", args.flags);
+	if (args.magic != MSDOSFS_ARGSMAGIC)
 		args.flags = 0;
-	}
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
@@ -259,7 +257,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 			 */
 			if (p->p_ucred->cr_uid != 0) {
 				devvp = pmp->pm_devvp;
-				vn_lock(devvp, LK_EXCLUSIVE, p);
+				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 				error = VOP_ACCESS(devvp, VREAD | VWRITE,
 						   p->p_ucred, p);
 				if (error) {
