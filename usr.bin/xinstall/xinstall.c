@@ -37,19 +37,20 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
-static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
+#ifndef lint
+static char sccsid[] = "@(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/wait.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -61,8 +62,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sysexits.h>
+#include <unistd.h>
 #include <utime.h>
 
 #include "pathnames.h"
@@ -71,6 +72,8 @@ static const char rcsid[] =
 #ifndef MAP_FAILED
 #define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
 #endif
+
+#define MAX_CMP_SIZE	(16 * 1024 * 1024)
 
 #define	DIRECTORY	0x01		/* Tell install it's a directory. */
 #define	SETFLAGS	0x02		/* Tell install to set flags. */
@@ -83,18 +86,18 @@ gid_t gid;
 uid_t uid;
 int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
 mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-char *suffix = BACKUP_SUFFIX;
+const char *suffix = BACKUP_SUFFIX;
 
-void	copy __P((int, char *, int, char *, off_t));
-int	compare __P((int, const char *, size_t, int, const char *, size_t));
-int	create_newfile __P((char *, int, struct stat *));
-int	create_tempfile __P((char *, char *, size_t));
-void	install __P((char *, char *, u_long, u_int));
-void	install_dir __P((char *));
-u_long	numeric_id __P((char *, char *));
-void	strip __P((char *));
-int	trymmap __P((int));
-void	usage __P((void));
+void	copy(int, const char *, int, const char *, off_t);
+int	compare(int, const char *, size_t, int, const char *, size_t);
+int	create_newfile(const char *, int, struct stat *);
+int	create_tempfile(const char *, char *, size_t);
+void	install(const char *, const char *, u_long, u_int);
+void	install_dir(char *);
+u_long	numeric_id(const char *, const char *);
+void	strip(const char *);
+int	trymmap(int);
+void	usage(void);
 
 int
 main(argc, argv)
@@ -106,7 +109,8 @@ main(argc, argv)
 	u_long fset;
 	int ch, no_target;
 	u_int iflags;
-	char *flags, *group, *owner, *to_name;
+	char *flags;
+	const char *group, *owner, *to_name;
 
 	iflags = 0;
 	group = owner = NULL;
@@ -169,15 +173,8 @@ main(argc, argv)
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if ((safecopy || dostrip) && dodir)
+	if ((safecopy || docompare || dostrip) && dodir)
 		usage();
-
-	/*
-	 * Older versions allowed -d -C combo.  Issue a warning
-	 * for now, but turn this into an error before 4.5-RELEASE.
-	 */
-	if (docompare && dodir)
-		warnx("the -d and -C options may not be specified together");
 
 	/* must have at least two arguments, except when creating directories */
 	if (argc < 2 && !dodir)
@@ -192,7 +189,7 @@ main(argc, argv)
 		if ((gp = getgrnam(group)) != NULL)
 			gid = gp->gr_gid;
 		else
-			gid = (uid_t)numeric_id(group, "group");
+			gid = (gid_t)numeric_id(group, "group");
 	} else
 		gid = (gid_t)-1;
 
@@ -242,7 +239,7 @@ main(argc, argv)
 
 u_long
 numeric_id(name, type)
-	char *name, *type;
+	const char *name, *type;
 {
 	u_long val;
 	char *ep;
@@ -266,7 +263,7 @@ numeric_id(name, type)
  */
 void
 install(from_name, to_name, fset, flags)
-	char *from_name, *to_name;
+	const char *from_name, *to_name;
 	u_long fset;
 	u_int flags;
 {
@@ -406,7 +403,7 @@ install(from_name, to_name, fset, flags)
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
 		if (dobackup) {
-			if (snprintf(backup, MAXPATHLEN, "%s%s", to_name,
+			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
 			    suffix) != strlen(to_name) + strlen(suffix)) {
 				unlink(tempfile);
 				errx(EX_OSERR, "%s: backup filename too long",
@@ -514,8 +511,8 @@ install(from_name, to_name, fset, flags)
  *	compare two files; non-zero means files differ
  */
 int
-compare(int from_fd, const char *from_name, size_t from_len,
-	int to_fd, const char *to_name, size_t to_len)
+compare(int from_fd, const char *from_name __unused, size_t from_len,
+	int to_fd, const char *to_name __unused, size_t to_len)
 {
 	char *p, *q;
 	int rv;
@@ -525,7 +522,7 @@ compare(int from_fd, const char *from_name, size_t from_len,
 	if (from_len != to_len)
 		return 1;
 
-	if (from_len <= 8 * 1024 * 1024) {
+	if (from_len <= MAX_CMP_SIZE) {
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
 			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
@@ -579,7 +576,7 @@ compare(int from_fd, const char *from_name, size_t from_len,
  */
 int
 create_tempfile(path, temp, tsize)
-	char *path;
+	const char *path;
 	char *temp;
 	size_t tsize;
 {
@@ -602,7 +599,7 @@ create_tempfile(path, temp, tsize)
  */
 int
 create_newfile(path, target, sbp)
-	char *path;
+	const char *path;
 	int target;
 	struct stat *sbp;
 {
@@ -618,7 +615,7 @@ create_newfile(path, target, sbp)
 			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
 
 		if (dobackup) {
-			if (snprintf(backup, MAXPATHLEN, "%s%s",
+			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
 			    path, suffix) != strlen(path) + strlen(suffix))
 				errx(EX_OSERR, "%s: backup filename too long",
 				    path);
@@ -643,7 +640,7 @@ create_newfile(path, target, sbp)
 void
 copy(from_fd, from_name, to_fd, to_name, size)
 	register int from_fd, to_fd;
-	char *from_name, *to_name;
+	const char *from_name, *to_name;
 	off_t size;
 {
 	register int nr, nw;
@@ -697,8 +694,9 @@ copy(from_fd, from_name, to_fd, to_name, size)
  */
 void
 strip(to_name)
-	char *to_name;
+	const char *to_name;
 {
+	const char *stripbin;
 	int serrno, status;
 
 	switch (fork()) {
@@ -708,8 +706,11 @@ strip(to_name)
 		errno = serrno;
 		err(EX_TEMPFAIL, "fork");
 	case 0:
-		execlp("strip", "strip", to_name, (char *)NULL);
-		err(EX_OSERR, "exec(strip)");
+		stripbin = getenv("STRIPBIN");
+		if (stripbin == NULL)
+			stripbin = "strip";
+		execlp(stripbin, stripbin, to_name, (char *)NULL);
+		err(EX_OSERR, "exec(%s)", stripbin);
 	default:
 		if (wait(&status) == -1 || status) {
 			serrno = errno;
