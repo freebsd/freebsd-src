@@ -7,7 +7,12 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 LIB=    objc
 NOMAN=	sorry
-NOPIC=	works but method lookup slowdown is significant
+.if ${MACHINE_ARCH} == "amd64"
+SHLIB_MAJOR= 1
+.else
+# XXX is this still correct?
+NOPIC=	# works but method lookup slowdown is significant
+.endif
 
 SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
 	nil_method.c objects.c sarray.c selector.c sendmsg.c \
