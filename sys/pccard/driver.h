@@ -9,6 +9,7 @@
 
 struct lkm_table;
 struct pccard_device;
+extern struct linker_set pccarddrv_set;
 
 void	pccard_add_driver __P((struct pccard_device *));
 #ifdef _I386_ISA_ISA_DEVICE_H_ /* XXX actually if inthand2_t is declared */

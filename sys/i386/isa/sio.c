@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.184 1997/10/12 20:23:30 phk Exp $
+ *	$Id: sio.c,v 1.186 1997/10/26 04:53:56 nate Exp $
  */
 
 #include "opt_comconsole.h"
@@ -488,6 +488,8 @@ static struct pccard_device sio_info = {
 				/* XXX - Should this also include net_imask? */
 };
 
+DATA_SET(pccarddrv_set, sio_info);
+
 /*
  *	Initialize the device - called from Slot manager.
  */
@@ -587,13 +589,6 @@ sioprobe(dev)
 		for (xdev = isa_devtab_tty; xdev->id_driver != NULL; xdev++)
 			if (xdev->id_driver == &siodriver && xdev->id_enabled)
 				outb(xdev->id_iobase + com_mcr, 0);
-#if NCARD > 0
-		/*
-		 * If PC-Card probe required, then register driver with
-		 * slot manager.
-		 */
-		pccard_add_driver(&sio_info);
-#endif
 		already_init = TRUE;
 	}
 
