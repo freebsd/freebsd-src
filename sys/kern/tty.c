@@ -2385,96 +2385,103 @@ ttsetwater(struct tty *tp)
 void
 ttyinfo(struct tty *tp)
 {
-	struct proc *p, *pick;
 	struct timeval utime, stime;
-	const char *stmp, *sprefix;
-	long ltmp;
-	int tmp;
+	struct proc *p, *pick;
 	struct thread *td;
+	const char *stateprefix, *state;
+	long rss;
+	int load, pctcpu;
 
 	if (ttycheckoutq(tp,0) == 0)
 		return;
 
 	/* Print load average. */
-	tmp = (averunnable.ldavg[0] * 100 + FSCALE / 2) >> FSHIFT;
-	ttyprintf(tp, "load: %d.%02d ", tmp / 100, tmp % 100);
+	load = (averunnable.ldavg[0] * 100 + FSCALE / 2) >> FSHIFT;
+	ttyprintf(tp, "load: %d.%02d ", load / 100, load % 100);
 
-	if (tp->t_session == NULL)
+	/*
+	 * On return following a ttyprintf(), we set tp->t_rocount to 0 so
+	 * that pending input will be retyped on BS.
+	 */
+	if (tp->t_session == NULL) {
 		ttyprintf(tp, "not a controlling terminal\n");
-	else if (tp->t_pgrp == NULL)
-		ttyprintf(tp, "no foreground process group\n");
-	else {
-		PGRP_LOCK(tp->t_pgrp);
-		if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0) {
-			PGRP_UNLOCK(tp->t_pgrp);
-			ttyprintf(tp, "empty foreground process group\n");
-		} else {
-			mtx_lock_spin(&sched_lock);
-
-			/* Pick interesting process. */
-			for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
-				if (proc_compare(pick, p))
-					pick = p;
-			PGRP_UNLOCK(tp->t_pgrp);
-
-			td = FIRST_THREAD_IN_PROC(pick);
-			sprefix = "";
-			if (pick->p_flag & P_SA) {
-				stmp = "KSE" ;  /* XXXKSE */
-			} else {
-				if (td != NULL) {
-					if (TD_ON_RUNQ(td)) {
-						if (TD_IS_RUNNING(td))
-							stmp = "running";
-						else
-							stmp = "runnable";
-					} else if (TD_IS_SLEEPING(td)) {
-						if (TD_ON_SLEEPQ(td))
-							stmp = td->td_wmesg;
-						else
-							stmp = "unknown";
-					} else if (TD_ON_LOCK(td)) {
-						stmp = td->td_lockname;
-						sprefix = "*";
-					} else if (TD_IS_SUSPENDED(td)) {
-						stmp = "suspended";
-					} else if (TD_AWAITING_INTR(td)) {
-						stmp = "intrwait";
-					} else {
-						stmp = "unknown";
-					}
-				} else {
-					stmp = "threadless";
-					panic("ttyinfo: no thread!?");
-				}
-			}
-			calcru(pick, &utime, &stime, NULL);
-			if (pick->p_state == PRS_NEW ||
-			    pick->p_state == PRS_ZOMBIE) {
-				ltmp = 0;
-			} else {
-				ltmp = pgtok(
-				    vmspace_resident_count(pick->p_vmspace));
-			}
-			mtx_unlock_spin(&sched_lock);
-
-			ttyprintf(tp, " cmd: %s %d [%s%s] ", pick->p_comm,
-			    pick->p_pid, sprefix, stmp);
-
-			/* Print user time. */
-			ttyprintf(tp, "%ld.%02ldu ",
-			    utime.tv_sec, utime.tv_usec / 10000);
-
-			/* Print system time. */
-			ttyprintf(tp, "%ld.%02lds ",
-			    (long)stime.tv_sec, stime.tv_usec / 10000);
-
-			/* Print percentage cpu, resident set size. */
-			ttyprintf(tp, "%d%% %ldk\n", tmp / 100, ltmp);
-
-		}
+		tp->t_rocount = 0;
+		return;
 	}
-	tp->t_rocount = 0;	/* so pending input will be retyped if BS */
+	if (tp->t_pgrp == NULL) {
+		ttyprintf(tp, "no foreground process group\n");
+		tp->t_rocount = 0;
+		return;
+	}
+	PGRP_LOCK(tp->t_pgrp);
+	if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0) {
+		PGRP_UNLOCK(tp->t_pgrp);
+		ttyprintf(tp, "empty foreground process group\n");
+		tp->t_rocount = 0;
+		return;
+	}
+
+	/*
+	 * Pick the most interesting process and copy some of its
+	 * state for printing later.  sched_lock must be held for
+	 * most parts of this.  Holding it throughout is simplest
+	 * and prevents even unimportant inconsistencies in the
+	 * copy of the state, but may increase interrupt latency
+	 * too much.
+	 */
+	mtx_lock_spin(&sched_lock);
+	for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
+		if (proc_compare(pick, p))
+			pick = p;
+	PGRP_UNLOCK(tp->t_pgrp);
+
+	td = FIRST_THREAD_IN_PROC(pick);	/* XXXKSE */
+#if 0
+	KASSERT(td != NULL, ("ttyinfo: no thread"));
+#else
+	if (td == NULL) {
+		mtx_unlock_spin(&sched_lock);
+		ttyprintf(tp, "foreground process without thread\n");
+		tp->t_rocount = 0;
+		return;
+	}
+#endif
+	stateprefix = "";
+	if (TD_IS_RUNNING(td))
+		state = "running";
+	else if (TD_ON_RUNQ(td) || TD_CAN_RUN(td))
+		state = "runnable";
+	else if (TD_IS_SLEEPING(td)) {
+		/* XXX: If we're sleeping, are we ever not in a queue? */
+		if (TD_ON_SLEEPQ(td))
+			state = td->td_wmesg;
+		else
+			state = "sleeping without queue";
+	} else if (TD_ON_LOCK(td)) {
+		state = td->td_lockname;
+		stateprefix = "*";
+	} else if (TD_IS_SUSPENDED(td))
+		state = "suspended";
+	else if (TD_AWAITING_INTR(td))
+		state = "intrwait";
+	else
+		state = "unknown";
+	calcru(pick, &utime, &stime, NULL);
+	pctcpu = (td->td_kse->ke_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
+	if (pick->p_state == PRS_NEW || pick->p_state == PRS_ZOMBIE)
+		rss = 0;
+	else
+		rss = pgtok(vmspace_resident_count(pick->p_vmspace));
+	mtx_unlock_spin(&sched_lock);
+
+	/* Print command, pid, state, utime, stime, %cpu, and rss. */
+	ttyprintf(tp,
+	    " cmd: %s %d [%s%s] %ld.%02ldu %ld.%02lds %d%% %ldk\n",
+	    pick->p_comm, pick->p_pid, stateprefix, state,
+	    (long)utime.tv_sec, utime.tv_usec / 10000,
+	    (long)stime.tv_sec, stime.tv_usec / 10000,
+	    pctcpu / 100, rss);
+	tp->t_rocount = 0;
 }
 
 /*
