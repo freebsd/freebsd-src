@@ -81,9 +81,9 @@ void dopipe __P((void));
 void doterm __P((void));
 void initstatus __P((void));
 void logpacket __P((unsigned char *));
-void onhup __P((void));
-void onpipe __P((void));
-void onterm __P((void));
+void onhup __P((int));
+void onpipe __P((int));
+void onterm __P((int));
 void processpacket __P((unsigned char *));
 int user_command __P((void));
 
@@ -229,12 +229,9 @@ char *argv[];
    * Return here on SIGHUP after closing and reopening log file.
    * Also on SIGPIPE after closing user connection.
    */
-  term_flag = 0;
-  hup_flag = 0;
-  pipe_flag = 0;  
-  signal(SIGTERM, (sig_t)onterm);
-  signal(SIGHUP, (sig_t)onhup);
-  signal(SIGPIPE, (sig_t)onpipe);
+  signal(SIGHUP, onhup);
+  signal(SIGPIPE, onpipe);
+  signal(SIGTERM, onterm);
   setjmp(mainloop);
 
   /*
@@ -337,19 +334,19 @@ char *thedate(void)
   return(cp);
 }
 
-void onhup(void)
+void onhup(int signo)
 {
 
   hup_flag = 1;
 }
 
-void onterm(void)
+void onterm(int signo)
 {
 
   term_flag = 1;
 }
 
-void onpipe(void)
+void onpipe(int signo)
 {
 
  pipe_flag = 1;
