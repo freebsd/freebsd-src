@@ -379,6 +379,9 @@ if [ -t 0 ]; then
       echo ''
       echo -n "What would you like to use? [${w}] "
       read SCREEN_WIDTH
+      case "${SCREEN_WIDTH}" in
+      '') SCREEN_WIDTH="${w}" ;;
+      esac
       ;;
     esac
   esac
