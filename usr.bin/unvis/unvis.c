@@ -32,37 +32,39 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <vis.h>
 
-char	*Program;
-#define usage()	fprintf(stderr, "usage: %s %s\n", Program, USAGE)
-#define USAGE "[file...]"
+void process __P((FILE *, char *));
+static void usage __P((void));
 
+void
 main(argc, argv)
 	char *argv[];
 {
 	FILE *fp;
-	extern char *optarg;
-	extern int optind;
 	int ch;
 
-	Program = argv[0];
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch((char)ch) {
 		case '?':
 		default:
 			usage();
-			exit(1);
 		}
 	argc -= optind;
 	argv += optind;
@@ -72,7 +74,7 @@ main(argc, argv)
 			if ((fp=fopen(*argv, "r")) != NULL)
 				process(fp, *argv);
 			else
-				syserror("%s", *argv);
+				warn("%s", *argv);
 			argv++;
 		}
 	else
@@ -80,6 +82,14 @@ main(argc, argv)
 	exit(0);
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: unvis [file ...]\n");
+	exit(1);
+}
+
+void
 process(fp, filename)
 	FILE *fp;
 	char *filename;
@@ -99,49 +109,16 @@ process(fp, filename)
 			putchar(outc);
 			goto again;
 		case UNVIS_SYNBAD:
-			error("%s: offset: %d: can't decode", filename, offset);
+			warnx("%s: offset: %d: can't decode", filename, offset);
 			state = 0;
 			break;
 		case 0:
 		case UNVIS_NOCHAR:
 			break;
 		default:
-			error("bad return value (%d), can't happen", ret);
-			exit(1);
+			errx(1, "bad return value (%d), can't happen", ret);
 		}
 	}
 	if (unvis(&outc, (char)0, &state, UNVIS_END) == UNVIS_VALID)
 		putchar(outc);
-}
-
-#include <varargs.h>
-
-error(va_alist)
-	va_dcl
-{
-	char *fmt;
-	va_list ap;
-	extern errno;
-
-	fprintf(stderr, "%s: ", Program);
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-	(void) vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	fprintf(stderr, "\n");
-}
-
-syserror(va_alist)
-	va_dcl
-{
-	char *fmt;
-	va_list ap;
-	extern errno;
-
-	fprintf(stderr, "%s: ", Program);
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-	(void) vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	fprintf(stderr, ": %s\n", strerror(errno));
 }
