@@ -32,15 +32,15 @@
 .Dt DEVINFO 8
 .Sh NAME
 .Nm devinfo
-.Nd Print information about system device configuration.
+.Nd print information about system device configuration
 .Sh SYNOPSIS
 .Nm
 .Op Fl ru
 .Sh DESCRIPTION
-.Pp
-Devinfo with no arguments passed, shows the lists of devices using indentation
-and how they are reached from the device
-.Em nexus .
+Devinfo without any arguments, shows the lists of devices using indentation
+and how they are reached from the
+.Em nexus
+device.
 .Pp
 The following command line arguments are accepted.  When no command line
 argument(s) are passed,
@@ -60,12 +60,12 @@ set of system resources for usage and available resources. I.e., it lists all
 the IRQ consumers together.
 .El
 .Sh SEE ALSO
+.Xr systat 1 ,
+.Xr devinfo 3 ,
+.Xr iostat 8 ,
 .Xr pciconf 8 ,
 .Xr pnpinfo 8 ,
-.Xr vmstat 8 ,
-.Xr devinfo 3 ,
-.Xr systat 1
+.Xr vmstat 8
 .Sh AUTHORS
-.Pp
 .An "Mike Smith"
-.Aq msmith@FreeBSD.org .
+.Aq msmith@FreeBSD.org
