@@ -237,6 +237,8 @@ linker_file_unregister_sysctls(linker_file_t lf)
     sysctl_unregister_set(sysctls);
 }
 
+extern struct linker_set modmetadata_set;
+
 static int
 linker_file_register_modules(linker_file_t lf)
 {
@@ -251,6 +253,10 @@ linker_file_register_modules(linker_file_t lf)
 
     modules = (struct linker_set*)
 	linker_file_lookup_symbol(lf, "modmetadata_set", 0);
+
+    if (!modules && lf == linker_kernel_file)
+	modules = &modmetadata_set;
+
     mcount = 0;
     if (modules) {
 	for (mdpp = (struct mod_metadata**)modules->ls_items; *mdpp; mdpp++) {
