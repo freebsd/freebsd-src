@@ -2565,8 +2565,8 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 			DPRINTF(UDMASS_SCSI, ("%s: Converted TEST_UNIT_READY "
 				"to START_UNIT\n", USBDEVNAME(sc->sc_dev)));
 			memset(*rcmd, 0, *rcmdlen);
-			cmd[0] = START_STOP_UNIT;
-			cmd[4] = SSS_START;
+			(*rcmd)[0] = START_STOP_UNIT;
+			(*rcmd)[4] = SSS_START;
 			return 1;
 		}
 		/* fallthrough */
