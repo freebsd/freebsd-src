@@ -465,9 +465,10 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_IN && (len & 1)) {
 	    /* ATA always transfers an even number of bytes */
 	    if (!(buf = hcb->dxfer_alloc = malloc(++len, M_ATACAM,
-						  M_NOWAIT | M_ZERO)))
+						  M_NOWAIT | M_ZERO))) {
 		printf("cannot allocate ATAPI/CAM buffer\n");
 		goto action_oom;
+	    }
 	}
 	request->device = dev;
 	request->driver = hcb;
