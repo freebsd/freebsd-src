@@ -446,6 +446,8 @@ device		mn0	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  IPv6 over IPv6 tunneling.
 #  The `faith' pseudo-device captures packets sent to it and diverts them
 #  to the IPv4/IPv6 translation daemon.
+#  The `ef' pseudo-device provides support for multiple ethernet frame types
+#  specified via ETHER_* options. See ef(4) for details.
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -466,6 +468,12 @@ pseudo-device	ppp	2		#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
 options 	PPP_FILTER		#enable bpf filtering (needs bpf)
+
+pseudo-device	ef			# Multiple ethernet frames support
+options 	ETHER_II		# enable Ethernet_II frame
+options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
+options 	ETHER_8022		# enable Ethernet_802.2 frame
+options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
 
 # for IPv6
 pseudo-device	gif	4		#IPv6 and IPv4 tunneling
