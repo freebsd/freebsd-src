@@ -13,6 +13,7 @@
 # libncurses must be built before libdialog, libedit and libreadline.
 # libopie must be built before libpam.
 # libradius must be built before libpam.
+# librpcsvc must be built before libpam.
 # libtacplus must be built before libpam.
 # libutil must be built before libpam.
 # libsbuf must be built before libcam.
@@ -20,13 +21,13 @@
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
-	libncurses libradius libtacplus libutil libsbuf \
+	libncurses libradius librpcsvc libtacplus libutil libsbuf \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libfetch libform libftpio libgnumalloc ${_libio} libipsec \
 	libipx libisc libmenu ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
-	libresolv librpcsvc libsmdb libsmutil \
+	libresolv libsmdb libsmutil \
 	libstand ${_libtelnet} libusb ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
