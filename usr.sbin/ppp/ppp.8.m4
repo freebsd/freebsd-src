@@ -1,12 +1,12 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.16 1996/05/02 19:18:47 mpp Exp $
+.\" $Id: ppp.8,v 1.17 1996/05/11 20:48:40 phk Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
 .Sh NAME
 .Nm ppp
 .Nd
-Point to Point Protocol (aka iijppp)
+Point to Point Protocol (aka iijppp) 
 .Sh SYNOPSIS
 .Nm
 .Op Fl auto | Fl direct | Fl dedicated
@@ -60,7 +60,6 @@ connections.
  
 .It Supports PAP and CHAP authentication.
 
-
 .It Supports Proxy Arp.
 When
 .Em PPP
@@ -100,6 +99,12 @@ modem and also increases latency.  Unlike VJ-compression, Predictor-1
 compression pre-compresses
 .Em all
 data flowing through the link, thus reducing overhead to a minimum.
+
+.It Supports Microsofts IPCP extentions.
+Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
+with clients using the Microsoft
+.Em PPP
+stack (ie. Win95, WinNT)
 
 .It Runs under BSDI-1.1 and FreeBSD.
 
@@ -421,7 +426,7 @@ See
 .Pa /etc/ppp/ppp.conf.filter.example .
 
 
-.Sh RECEIVING INCOMING PPP CONNECTIONS
+.Sh RECEIVING INCOMING PPP CONNECTIONS (Method 1)
 
 To handle an incoming
 .Em PPP
@@ -469,8 +474,6 @@ file with the following contents:
 
 (You can specify a label name for further control.)
 
-.El
-
 .Pp
 Direct mode (
 .Fl direct )
@@ -478,7 +481,62 @@ lets
 .Nm
 work with stdin and stdout.  You can also telnet to port 3000 to get
 command mode control in the same manner as client-side
-.Nm .
+.Nm.
+
+.It
+Optional support for Microsoft's IPCP Name Server and NetBIOS
+Name Server negotiation can be enabled use
+.Dq enable msext
+and 
+.Dq set ns pri-addr [sec-addr]
+along with
+.Dq set nbns pri-addr [sec-addr]
+in your ppp.conf file
+
+.El
+
+.Sh RECEIVING INCOMING PPP CONNECTIONS (Method 2)
+
+This method differs in that it recommends the use of 
+.Em mgetty+sendfax
+to handle the modem connections.  The latest version 0.99
+can be compiled with the
+.Dq AUTO_PPP
+option to allow detection of clients speaking PPP to the login
+prompt.
+
+Follow these steps:
+
+.Bl -enum
+.It
+Get, configure, and install mgetty+sendfax v0.99 or later (beta)
+making sure you have used the AUTO_PPP option.
+.It
+Edit
+.Pa /etc/ttys
+to enable a mgetty on the port where the modem is attached.
+
+For example:
+
+.Dl cuaa1  "/usr/local/sbin/mgetty -s 57600"       dialup on
+
+.It
+Prepare an account for the incoming user.
+.Bd -literal
+Pfred:xxxx:66:66:Fred's PPP:/home/ppp:/etc/ppp/ppp-dialup
+.Ed
+
+.It
+Examine the files
+.Pa /etc/ppp/sample.ppp-dialup
+.Pa /etc/ppp/sample.ppp-pap-dialup
+and
+.Pa /etc/ppp/sample.ppp.conf
+for ideas.   ppp-pap-dialup is supposed to be called from
+.Pa /usr/local/etc/mgetty+sendfax/login.conf
+from a line like
+
+.Dl /AutoPPP/ -     -       /etc/ppp/ppp-pap-dialup
 
 .Sh SETTING IDLE, LINE QUALITY REQUEST, RETRY TIMER
 

@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.4 1996/01/30 11:08:45 dfr Exp $
+ * $Id: pap.c,v 1.5 1996/05/11 20:48:38 phk Exp $
  *
  *	TODO:
  */
@@ -111,6 +111,15 @@ u_char *name, *key;
 #ifdef DEBUG
   logprintf("name: %s (%d), key: %s (%d)\n", name, nlen, key, klen);
 #endif
+
+#ifdef PASSWDAUTH
+  if( Enabled( ConfPasswdAuth ) )
+  {
+    LogPrintf( LOG_LCP, "PasswdAuth enabled - calling\n" );
+    return PasswdAuth( name, key );
+  }
+#endif /* PASSWDAUTH */
+
   return(AuthValidate(SECRETFILE, name, key));
 }
 
