@@ -120,7 +120,8 @@ main(int argc, char *argv[])
 			timeout |= WD_PASSIVE;
 		else
 			timeout |= WD_ACTIVE;
-		if (watchdog_patpat() < 0)
+		if (watchdog_patpat() < 0 &&
+		    (timeout & WD_INTERVAL) != WD_TO_NEVER)
 			err(EX_OSERR, "patting the dog");
 		return (EX_OK);
 	}
