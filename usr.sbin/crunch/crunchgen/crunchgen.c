@@ -488,11 +488,20 @@ void fillin_program(prog_t *p)
 	    p->srcdir = strdup(path);
     }
     if(!p->objdir && p->srcdir) {
-	sprintf(path, "/usr/obj/%s", p->srcdir);
-	if(is_dir(path))
-	    p->objdir = strdup(path);
-	else
-	    p->objdir = p->srcdir;
+	FILE *f;
+
+	sprintf(path, "cd %s && echo -n /usr/obj/`pwd`", p->srcdir);
+        p->objdir = p->srcdir;
+	f = popen(path,"r");
+	if (f) {
+	    fgets(path,sizeof path, f);
+	    if (!pclose(f)) {
+		if(is_dir(path))
+		    p->objdir = strdup(path);
+	    }
+	}
+
+
     }
 
     if(p->srcdir) sprintf(path, "%s/Makefile", p->srcdir);
@@ -766,7 +775,7 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
 	fprintf(outmk, "%s_make:\n", p->ident);
-	fprintf(outmk, "\t(cd $(%s_SRCDIR); make $(%s_OBJS))\n\n",
+	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make depend && make $(%s_OBJS))\n\n",
 		p->ident, p->ident);
     }
     else
