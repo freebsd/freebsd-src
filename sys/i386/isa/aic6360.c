@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 1994 Charles Hannum.
  * Copyright (c) 1994 Jarle Greipsland
+ * Copyright (c) 1997 Oliver Breuninger (APM modification)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +32,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.37 1998/02/09 06:08:23 eivind Exp $
+ * $Id: aic6360.c,v 1.38 1998/02/27 05:38:23 msmith Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -114,6 +115,7 @@
 
 #include "opt_ddb.h"
 #include "aic.h"
+#include "apm.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -124,6 +126,9 @@
 #include <scsi/scsi_debug.h>
 
 #include <machine/clock.h>
+#if NAPM > 0
+#include <machine/apm_bios.h>
+#endif /* NAPM > 0 */
 #include <i386/isa/isa_device.h>
 
 #include "ioconf.h"
@@ -584,6 +589,7 @@ static struct aic_data { /* One of these per adapter */
 #define AIC_RESELECTED	0x04	/* Has been reselected */
 #define AIC_HASNEXUS	0x05	/* Actively using the SCSI bus */
 #define AIC_CLEANING	0x06
+#define AIC_SUSPEND	0x07	/* Suspend mode (APM) */
 	short	 flags;
 #define AIC_DROP_MSGI	0x01	/* Discard all msgs (parity err detected) */
 #define AIC_DOINGDMA	0x02	/* The FIFO data path is active! */
@@ -615,6 +621,11 @@ static struct aic_data { /* One of these per adapter */
 #ifdef PC98
 	int		*aicport;	/* I/O port information */
 #endif
+#if NAPM > 0
+	struct apmhook s_hook;	/* reconfiguration support */
+	struct apmhook r_hook;	/* reconfiguration support */
+#endif /* NAPM > 0 */
+
 } *aicdata[NAIC];
 
 #define AIC_SHOWACBS 0x01
@@ -643,6 +654,10 @@ static int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
 
 static int	aicprobe	__P((struct isa_device *));
 static int	aicattach	__P((struct isa_device *));
+#if NAPM > 0
+static int	aic_suspend	__P((struct aic_data *));
+static int	aic_resume	__P((struct aic_data *));
+#endif /* NAPM > 0 */
 static void	aic_minphys	__P((struct buf *));
 static u_int32_t	aic_adapter_info __P((int));
 static void 	aic_init	__P((struct aic_data *));
@@ -851,6 +866,33 @@ aicprobe(dev)
 	return 0x20;
 }
 
+#if NAPM > 0
+static int
+aic_suspend(aic)
+	struct aic_data *aic;
+{
+	AIC_TRACE(("Suspend aic:\n"));
+	printf ("aic: suspend\n");
+	aic->state = AIC_SUSPEND;
+	return 0;
+}
+
+static int
+aic_resume(aic)
+	struct aic_data *aic;
+{
+	AIC_TRACE(("Resume aic:\n"));
+	printf ("aic: resume\n");
+	aic->state = 0;
+	aic_init(aic);
+/*
+	aic6360_reset(aic);
+	aic_scsi_reset(aic);
+*/
+	return 0;
+}
+#endif /* NAPM > 0 */
+
 /* Do the real search-for-device.
  * Prerequisite: aic->iobase should be set to the proper value
  */
@@ -940,6 +982,19 @@ aicattach(dev)
 	aic->sc_link.adapter = &aic_switch;
 	aic->sc_link.device = &aic_dev;
 
+#if NAPM > 0
+	aic->s_hook.ah_fun   = aic_suspend;
+	aic->s_hook.ah_arg   = (void *) aic;
+	aic->s_hook.ah_name  = "Adaptec AHA1520/AIC6369";
+	aic->s_hook.ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_SUSPEND, &aic->s_hook);
+	aic->r_hook.ah_fun   = aic_resume;
+	aic->r_hook.ah_arg   = (void *) aic;
+	aic->r_hook.ah_name  = "Adaptec AHA1520/AIC6369";
+	aic->r_hook.ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_RESUME, &aic->r_hook);
+#endif /* NAPM > 0 */
+
 	/*
 	 * Prepare the scsibus_data area for the upperlevel
 	 * scsi code.
@@ -956,7 +1011,6 @@ aicattach(dev)
 
 	return 1;
 }
-
 
 /* Initialize AIC6360 chip itself
  * The following conditions should hold:
@@ -1003,6 +1057,7 @@ aic_scsi_reset(aic)
 {
 	u_short iobase = aic->iobase;
 
+	AIC_TRACE(("aic_scsi_reset:\n"));
 	outb(SCSISEQ, SCSIRSTO);
 	DELAY(500);
 	outb(SCSISEQ, 0);
@@ -1021,6 +1076,8 @@ aic_init(aic)
 	struct acb *acb;
 	int r;
 
+	AIC_TRACE(("aic_init:\n"));
+	
 				/* Reset the SCSI-bus itself */
 	aic_scsi_reset(aic);
 
