@@ -40,6 +40,7 @@
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/endian.h>
 #include <sys/md5.h>
 
 #ifdef _KERNEL
@@ -156,30 +157,30 @@ g_bde_encode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
 	for (i = 0; i < NLOCK_FIELDS; i++) {
 		switch(shuffle[i]) {
 		case 0:
-			g_enc_le8(p, gl->sector0);
+			le64enc(p, gl->sector0);
 			p += 8;
 			break;
 		case 1:
-			g_enc_le8(p, gl->sectorN);
+			le64enc(p, gl->sectorN);
 			p += 8;
 			break;
 		case 2:
-			g_enc_le8(p, gl->keyoffset);
+			le64enc(p, gl->keyoffset);
 			p += 8;
 			break;
 		case 3:
-			g_enc_le4(p, gl->sectorsize);
+			le32enc(p, gl->sectorsize);
 			p += 4;
 			break;
 		case 4:
-			g_enc_le4(p, gl->flags);
+			le32enc(p, gl->flags);
 			p += 4;
 			break;
 		case 5:
 		case 6:
 		case 7:
 		case 8:
-			g_enc_le8(p, gl->lsector[shuffle[i] - 5]);
+			le64enc(p, gl->lsector[shuffle[i] - 5]);
 			p += 8;
 			break;
 		case 9:
@@ -226,30 +227,30 @@ g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
 	for (i = 0; i < NLOCK_FIELDS; i++) {
 		switch(shuffle[i]) {
 		case 0:
-			gl->sector0 = g_dec_le8(p);
+			gl->sector0 = le64dec(p);
 			p += 8;
 			break;
 		case 1:
-			gl->sectorN = g_dec_le8(p);
+			gl->sectorN = le64dec(p);
 			p += 8;
 			break;
 		case 2:
-			gl->keyoffset = g_dec_le8(p);
+			gl->keyoffset = le64dec(p);
 			p += 8;
 			break;
 		case 3:
-			gl->sectorsize = g_dec_le4(p);
+			gl->sectorsize = le32dec(p);
 			p += 4;
 			break;
 		case 4:
-			gl->flags = g_dec_le4(p);
+			gl->flags = le32dec(p);
 			p += 4;
 			break;
 		case 5:
 		case 6:
 		case 7:
 		case 8:
-			gl->lsector[shuffle[i] - 5] = g_dec_le8(p);
+			gl->lsector[shuffle[i] - 5] = le64dec(p);
 			p += 8;
 			break;
 		case 9:
@@ -308,8 +309,8 @@ g_bde_keyloc_encrypt(struct g_bde_softc *sc, uint64_t *input, void *output)
 	keyInstance ki;
 	cipherInstance ci;
 
-	g_enc_le8(buf, input[0]);
-	g_enc_le8(buf + 8, input[1]);
+	le64enc(buf, input[0]);
+	le64enc(buf + 8, input[1]);
 	AES_init(&ci);
 	AES_makekey(&ki, DIR_ENCRYPT, G_BDE_KKEYBITS, sc->sha2 + 0);
 	AES_encrypt(&ci, &ki, buf, output, sizeof buf);
@@ -329,8 +330,8 @@ g_bde_keyloc_decrypt(struct g_bde_softc *sc, void *input, uint64_t *output)
 	AES_init(&ci);
 	AES_makekey(&ki, DIR_DECRYPT, G_BDE_KKEYBITS, sc->sha2 + 0);
 	AES_decrypt(&ci, &ki, input, buf, sizeof buf);
-	output[0] = g_dec_le8(buf);
-	output[1] = g_dec_le8(buf + 8);
+	output[0] = le64dec(buf);
+	output[1] = le64dec(buf + 8);
 	bzero(buf, sizeof buf);
 	bzero(&ci, sizeof ci);
 	bzero(&ki, sizeof ki);
