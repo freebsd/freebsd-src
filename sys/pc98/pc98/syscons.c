@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.37 1997/05/01 11:28:49 kato Exp $
+ *  $Id: syscons.c,v 1.38 1997/05/07 14:17:38 kato Exp $
  */
 
 #include "sc.h"
@@ -851,7 +851,6 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     int error;
     u_int i;
     struct tty *tp;
-    struct trapframe *fp;
     scr_stat *scp;
 
     tp = scdevtotty(dev);
@@ -1342,13 +1341,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return error;
 	if (securelevel > 0)
 	    return EPERM;
-	fp = (struct trapframe *)p->p_md.md_regs;
-	fp->tf_eflags |= PSL_IOPL;
+	p->p_md.md_regs->tf_eflags |= PSL_IOPL;
 	return 0;
 
     case KDDISABIO:     	/* disallow io operations (default) */
-	fp = (struct trapframe *)p->p_md.md_regs;
-	fp->tf_eflags &= ~PSL_IOPL;
+	p->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
 	return 0;
 
     case KDSETMODE:     	/* set current mode of this (virtual) console */
