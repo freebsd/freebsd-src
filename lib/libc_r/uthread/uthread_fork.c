@@ -132,7 +132,7 @@ _fork(void)
 				 * Advance to the next thread before
 				 * destroying the current thread:
 				 */
-				pthread = TAILQ_NEXT(pthread, dle);
+				pthread = TAILQ_NEXT(pthread, tle);
 
 				/* Make sure this isn't the running thread: */
 				if (pthread_save != _thread_run) {
