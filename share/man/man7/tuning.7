@@ -106,7 +106,8 @@ but the introduction of
 led to massive confusion
 by program writers so today programs haphazardly use one or the
 other and thus no real distinction can be made between the two.
-So it makes sense to have just one temporary directory.
+So it makes sense to have just one temporary directory and  
+softlink to it from the other tmp directory locations.
 However you handle
 .Pa /tmp ,
 the one thing you do not want to do is leave it sitting
