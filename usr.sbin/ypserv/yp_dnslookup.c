@@ -176,7 +176,7 @@ yp_send_dns_query(char *name, int type)
 	n = res_mkquery(QUERY,name,C_IN,type,NULL,0,NULL,buf,sizeof(buf));
 
 	if (n <= 0) {
-		yp_error("res_mkquery failed");
+		yp_error("res_mkquery failed for %s type %d", name, type);
 		return(0);
 	}
 
@@ -386,24 +386,7 @@ yp_run_dnsq(void)
 
 	hent = __dns_getanswer(buf, rval, q->name, q->type);
 
-	/*
-	 * If the lookup failed, try appending one of the domains
-	 * from resolv.conf. If we have no domains to test, the
-	 * query has failed.
-	 */
-	if (hent == NULL) {
-		if ((h_errno == TRY_AGAIN || h_errno == NO_RECOVERY)
-					&& q->domain && *q->domain) {
-			snprintf(retrybuf, sizeof(retrybuf), "%s.%s",
-						q->name, *q->domain);
-			if (debug)
-				yp_error("retrying with: %s", retrybuf);
-			q->id = yp_send_dns_query(retrybuf, q->type);
-			q->ttl = DEF_TTL;
-			q->domain++;
-			return;
-		}
-	} else {
+	if (hent != NULL) {
 		if (q->type == T_PTR) {
 			hent->h_addr = (char *)&q->addr.s_addr;
 			hent->h_length = sizeof(struct in_addr);
