@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.26 1996/09/11 07:52:18 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.27 1996/09/20 05:55:47 nate Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -621,6 +621,12 @@ DBPRINT(("setattr\n"));
 	{
 		return EINVAL;
 	}
+
+	if (cred->cr_uid != file_node->uid 
+	&& 	(error = suser(cred, &p->p_acflag)) 
+	&&	((vap->va_vaflags & VA_UTIMES_NULL) == 0 
+		||	(error = VOP_ACCESS(vp, VWRITE, cred, p))))
+				return (error);
 
 	if (vap->va_size != VNOVAL) {
 			return error;	/*XXX (?) */
@@ -1801,8 +1807,8 @@ static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_getattr_desc, (vop_t *)devfs_getattr },	/* getattr */
 	{ &vop_setattr_desc, (vop_t *)devfs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)spec_read },		/* read */
-	{ &vop_write_desc, (vop_t *)spec_write },	/* write */
-	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
+	{ &vop_write_desc, (vop_t *)devfs_write },	/* write */
+	{ &vop_ioctl_desc, (vop_t *)devfs_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
