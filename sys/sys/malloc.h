@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.26 1997/10/10 14:05:34 phk Exp $
+ * $Id: malloc.h,v 1.27 1997/10/10 18:15:45 phk Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -139,7 +139,6 @@ MALLOC_MAKE_TYPE(M_SECA, "key mgmt", "security associations, key management");
 MALLOC_MAKE_TYPE(M_BIOBUF, "BIO buffer", "BIO buffer");
 MALLOC_MAKE_TYPE(M_KTRACE, "KTRACE", "KTRACE");
 MALLOC_MAKE_TYPE(M_SELECT, "select", "select() buffer");
-MALLOC_MAKE_TYPE(M_VFSCONF, "VFS conf", "vfsconf structure"); /* XXX only free() ??? */
 MALLOC_MAKE_TYPE(M_AIO, "AIO", "AIO structure(s)");
 MALLOC_MAKE_TYPE(M_ZONE, "ZONE", "Zone header");
 MALLOC_MAKE_TYPE(M_HOSTCACHE, "hostcache", "per-host information cache structure");
