@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.8 1996/11/14 08:04:50 phk Exp $
+#	$Id: Makefile,v 1.246.2.9 1996/11/15 22:18:44 jkh Exp $
 #
 # How to roll a release:
 #
@@ -417,7 +417,8 @@ release.9:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
 	( cd ${RD}/fixitfd/dev && \
-		cp ${RD}/trees/bin/dev/MAKEDEV . && \
+		sed -e '/^PATH/s/^/#/' ${RD}/trees/bin/dev/MAKEDEV > MAKEDEV && \
+		chmod 755 MAKEDEV && \
 		sh MAKEDEV all )
 	cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
@@ -433,7 +434,7 @@ release.9:
 #
 release.10:
 	@for i in compat1x compat20 compat21; do \
-		mkdir ${RD}/dists/$$i && ( cd ${RD}/dists/$$i && \
+		mkdir -p ${RD}/dists/$$i && ( cd ${RD}/dists/$$i && \
 		uudecode ${.CURDIR}/compat/$$i.tgz.uu && \
 		cp ${.CURDIR}/scripts/$${i}-install.sh install.sh && \
 		md5 * > CHECKSUM.MD5 ); \
