@@ -6,10 +6,17 @@
 # even if the protocol doesn't support UDP operations.
 # Updated from RFC 1700, ``Assigned Numbers'' (October 1994).  All ports
 # are included.
+#
+# The lastest IANA port assignments can be gotten from
+#	http://www.isi.edu/in-notes/iana/assignments/port-numbers 
+# The Well Known Ports are those from 0 through 1023.
+# The Registered Ports are those from 1024 through 49151
+# The Dynamic and/or Private Ports are those from 49152 through 65535
+#
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.52 1998/07/29 19:30:44 brian Exp $
+#	$Id: services,v 1.53 1998/09/05 20:42:47 obrien Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -84,8 +91,8 @@ ni-ftp		 47/tcp	   #NI FTP
 ni-ftp		 47/udp	   #NI FTP
 auditd		 48/tcp	   #Digital Audit Daemon
 auditd		 48/udp	   #Digital Audit Daemon
-#login		  49/tcp    #Login Host	Protocol
-#login		  49/udp    #Login Host	Protocol
+tacacs		 49/tcp    #Login Host Protocol (TACACS)
+tacacs		 49/udp    #Login Host Protocol (TACACS)
 re-mail-ck	 50/tcp	   #Remote Mail Checking Protocol
 re-mail-ck	 50/udp	   #Remote Mail Checking Protocol
 la-maint	 51/tcp	   #IMP Logical Address Maintenance
@@ -169,8 +176,8 @@ ttylink		 87/tcp
 #		 87/tcp	   any private terminal link
 #PROBLEMS!===========================================================
 #		 87/udp	   any private terminal link
-kerberos-sec	 88/tcp    # krb5	# Kerberos (v5)
-kerberos-sec	 88/udp    # krb5	# Kerberos (v5)
+kerberos-sec	 88/tcp    kerberos	# krb5	# Kerberos (v5)
+kerberos-sec	 88/udp    kerberos	# krb5	# Kerberos (v5)
 su-mit-tg	 89/tcp	   #SU/MIT Telnet Gateway
 su-mit-tg	 89/udp	   #SU/MIT Telnet Gateway
 dnsix		 90/tcp	   #DNSIX Securit Attribute Token Map
@@ -202,8 +209,8 @@ gppitnp		103/tcp	   #Genesis Point-to-Point Trans Net
 gppitnp		103/udp	   #Genesis Point-to-Point Trans Net
 acr-nema	104/tcp	   #ACR-NEMA Digital Imag. & Comm. 300
 acr-nema	104/udp	   #ACR-NEMA Digital Imag. & Comm. 300
-csnet-ns	105/tcp	   cso-ns	#Mailbox Name Nameserver
-csnet-ns	105/udp	   cso-ns	#Mailbox Name Nameserver
+csnet-ns	105/tcp	   cso-ns cso	#Mailbox Name Nameserver
+csnet-ns	105/udp	   cso-ns cso	#Mailbox Name Nameserver
 pop3pw		106/tcp    3com-tsmux	#Eudora compatible PW changer
 3com-tsmux	106/udp
 rtelnet		107/tcp	   #Remote Telnet Service
@@ -262,8 +269,8 @@ statsrv		133/tcp	   #Statistics Service
 statsrv		133/udp	   #Statistics Service
 ingres-net	134/tcp	   #INGRES-NET Service
 ingres-net	134/udp	   #INGRES-NET Service
-loc-srv		135/tcp	   #Location Service
-loc-srv		135/udp	   #Location Service
+loc-srv		135/tcp	   epmap	#Location Service
+loc-srv		135/udp	   epmap	#Location Service
 profile		136/tcp	   #PROFILE Naming System	    
 profile		136/udp	   #PROFILE Naming System	    
 netbios-ns	137/tcp	   #NETBIOS Name Service    
@@ -282,14 +289,18 @@ imap		143/tcp	   imap2 imap4 #Interim Mail Access Protocol v2
 imap		143/udp	   imap2 imap4 #Interim Mail Access Protocol v2
 NeWS		144/tcp	   # Window System
 NeWS		144/udp	   # Window System
+#PROBLEMS!==============================================================
+#uma		144/tcp	   #Universal Management Architecture
+#uma		144/udp	   #Universal Management Architecture
+#PROBLEMS!==============================================================
 uaac		145/tcp	   #UAAC Protocol	      
 uaac		145/udp	   #UAAC Protocol	      
 iso-tp0		146/tcp
 iso-tp0		146/udp
 iso-ip		147/tcp
 iso-ip		147/udp
-cronus		148/tcp	   #CRONUS-SUPPORT		    
-cronus		148/udp	   #CRONUS-SUPPORT		    
+cronus		148/tcp	   jargon	#CRONUS-SUPPORT		    
+cronus		148/udp	   jargon	#CRONUS-SUPPORT		    
 aed-512		149/tcp	   #AED 512 Emulation Service		
 aed-512		149/udp	   #AED 512 Emulation Service		
 sql-net		150/tcp
@@ -348,7 +359,7 @@ genrad-mux	176/tcp
 genrad-mux	176/udp
 xdmcp		177/tcp	   #X Display Manager Control Protocol	
 xdmcp		177/udp	   #X Display Manager Control Protocol	
-nextstep	178/tcp	   NextStep NeXTStep	#NextStep Window Server
+NextStep	178/tcp	   nextstep NeXTStep	#NextStep Window Server
 NextStep	178/udp	   nextstep NeXTStep	#NextStep Window Server
 bgp		179/tcp	   #Border Gateway Protocol		
 bgp		179/udp	   #Border Gateway Protocol		
@@ -373,7 +384,7 @@ mumps		188/udp	   #Plus Five's MUMPS
 qft		189/tcp	   #Queued File Transport	 
 qft		189/udp	   #Queued File Transport	 
 gacp		190/tcp	   #Gateway Access Control Protocol
-cacp		190/udp	   #Gateway Access Control Protocol
+gacp		190/udp	   cacp 	#Gateway Access Control Protocol
 prospero	191/tcp	   #Prospero Directory Service	    
 prospero	191/udp	   #Prospero Directory Service	    
 osu-nms		192/tcp	   #OSU Network Monitoring System	
@@ -410,8 +421,12 @@ at-7		207/tcp	   #AppleTalk Unused
 at-7		207/udp	   #AppleTalk Unused			
 at-8		208/tcp	   #AppleTalk Unused			
 at-8		208/udp	   #AppleTalk Unused			
-tam		209/tcp	   #Trivial Authenticated Mail Protocol
-tam		209/udp	   #Trivial Authenticated Mail Protocol
+qmtp            209/tcp    #The Quick Mail Transfer Protocol
+qmtp            209/udp    #The Quick Mail Transfer Protocol
+#PROBLEMS!==============================================================
+#tam		209/tcp	   #Trivial Authenticated Mail Protocol
+#tam		209/udp	   #Trivial Authenticated Mail Protocol
+#PROBLEMS!==============================================================
 z39.50		210/tcp	   wais		#ANSI Z39.50
 z39.50		210/udp	   wais		#ANSI Z39.50
 914c/g		211/tcp	   #Texas Instruments 914C/G Terminal
@@ -424,8 +439,8 @@ vmpwscs		214/tcp
 vmpwscs		214/udp
 softpc		215/tcp	   #Insignia Solutions
 softpc		215/udp	   #Insignia Solutions
-atls		216/tcp	   #Access Technology License Server   
-atls		216/udp	   #Access Technology License Server   
+CAIlic		216/tcp	   atls	      #Computer Associates Int'l License Server
+CAIlic		216/udp	   atls	      #Computer Associates Int'l License Server
 dbase		217/tcp	   #dBASE Unix
 dbase		217/udp	   #dBASE Unix
 mpp		218/tcp	   #Netix Message Posting Protocol
@@ -440,12 +455,72 @@ rsh-spx		222/tcp	   #Berkeley rshd with SPX auth
 rsh-spx		222/udp	   #Berkeley rshd with SPX auth	     
 cdc		223/tcp	   #Certificate Distribution Center  
 cdc		223/udp	   #Certificate Distribution Center  
+direct		242/tcp
+direct		242/udp
 sur-meas	243/tcp	   #Survey Measurement		
 sur-meas	243/udp	   #Survey Measurement		
+dayna		244/tcp
+dayna		244/udp
 link		245/tcp
 link		245/udp
 dsp3270		246/tcp	   #Display Systems Protocol	    
 dsp3270		246/udp	   #Display Systems Protocol	    
+
+subntbcst_tftp	247/tcp	   #subntbcst_tftp
+subntbcst_tftp	247/udp	   #subntbcst_tftp
+bhfhs		248/tcp
+bhfhs		248/udp
+#		249-255    reserved
+rap		256/tcp
+rap		256/udp
+set		257/tcp	   #secure electronic transaction
+set		257/udp	   #secure electronic transaction
+yak-chat	258/tcp	   #yak winsock personal chat
+yak-chat	258/udp    #yak winsock personal chat
+esro-gen	259/tcp	   #efficient short remote operations
+esro-gen	259/udp	   #efficient short remote operations
+openport	260/tcp
+openport	260/udp
+nsiiops		261/tcp	   #iiop name service over tls/ssl
+nsiiops		261/udp	   #iiop name service over tls/ssl
+arcisdms	262/tcp
+arcisdms	262/udp
+hdap		263/tcp
+hdap		263/udp
+bgmp		264/tcp
+bgmp		264/udp
+#		265-279	   unassigned
+http-mgmt	280/tcp
+http-mgmt	280/udp
+personal-link	281/tcp
+personal-link	281/udp
+cableport-ax	282/tcp	   #cable port a/x
+cableport-ax	282/udp	   #cable port a/x
+#		283-307    unassigned
+novastorbakcup	308/tcp	   #novastor backup
+novastorbakcup	308/udp	   #novastor backup
+entrusttime	309/tcp
+entrusttime	309/udp
+bhmds		310/tcp
+bhmds 		310/udp
+asip-webadmin	311/tcp	   #appleshare ip webadmin
+asip-webadmin	311/udp	   #appleshare ip webadmin
+vslmp		312/tcp
+vslmp		312/udp
+magenta-logic	313/tcp
+magenta-logic	313/udp
+opalis-robot	314/tcp
+opalis-robot	314/udp
+dpsi		315/tcp
+dpsi		315/udp
+decauth		316/tcp
+decauth		316/udp
+zannet		317/tcp
+zannet		317/udp
+#		318-320	   #unassigned
+pip		321/tcp
+pip		321/udp
+#		322-343	   #unassigned
 pdap		344/tcp	   #Prospero Data Access Protocol
 pdap		344/udp	   #Prospero Data Access Protocol
 pawserv		345/tcp	   #Perf Analysis Workbench
@@ -456,14 +531,64 @@ fatserv		347/tcp	   #Fatmen Server
 fatserv		347/udp	   #Fatmen Server
 csi-sgwp	348/tcp	   #Cabletron Management Protocol
 csi-sgwp	348/udp	   #Cabletron Management Protocol
+
+
+mftp		349/tcp
+mftp		349/udp
+matip-type-a	350/tcp	   #MATIP Type A
+matip-type-a	350/udp
+matip-type-b	351/tcp	   #MATIP Type B
+matip-type-b	351/udp
+bhoetty		351/tcp	   #unassigned but widespread use
+bhoetty		351/udp    #unassigned but widespread use
+dtag-ste-sb	352/tcp	   #DTAG
+dtag-ste-sb	352/udp	   #DTAG
+bhoedap4	352/tcp    #unassigned but widespread use
+bhoedap4	352/udp    #unassigned but widespread use
+ndsauth		353/tcp
+ndsauth		353/udp
+bh611		354/tcp
+bh611		354/udp
+datex-asn	355/tcp
+datex-asn	355/udp
+cloanto-net-1	356/tcp	   #Cloanto Net 1
+cloanto-net-1	356/udp
+bhevent		357/tcp
+bhevent		357/udp
+shrinkwrap	358/tcp
+shrinkwrap	358/udp
+tenebris_nts	359/tcp	   #Tenebris Network Trace Service
+tenebris_nts	359/udp	   #Tenebris Network Trace Service
+scoi2odialog	360/tcp
+scoi2odialog	360/udp
+semantix	361/tcp
+semantix	361/udp
+srssend		362/tcp	   #SRS Send
+srssend		362/udp	   #SRS Send
+rsvp_tunnel	363/tcp
+rsvp_tunnel	363/udp
+aurora-cmgr	364/tcp
+aurora-cmgr	364/udp
+dtk		365/tcp    #Deception Tool Kit - Fred Cohen <fc@all.net>
+dtk		365/udp    #Deception Tool Kit - Fred Cohen <fc@all.net>
+odmr		366/tcp
+odmr		366/udp
+mortgageware	367/tcp
+mortgageware	367/udp
+qbikgdp		368/tcp	   #QbikGDP
+qbikgdp		368/udp
+rpc2portmap	369/tcp
+rpc2portmap	369/udp
+codaauth2	370/tcp
+codaauth2	370/udp
 clearcase	371/tcp
 clearcase	371/udp
-ulistserv	372/tcp	   #Unix Listserv
-ulistserv	372/udp	   #Unix Listserv
-legent-1	373/tcp	   #Legent Corporation
-legent-1	373/udp	   #Legent Corporation
-legent-2	374/tcp	   #Legent Corporation
-legent-2	374/udp	   #Legent Corporation
+ulistserv	372/tcp	   ulistproc	#Unix Listserv
+ulistserv	372/udp	   ulistproc	#Unix Listserv
+legent-1	373/tcp	   #Legent Corporation (now Computer Associates Intl.)
+legent-1	373/udp	   #Legent Corporation (now Computer Associates Intl.)
+legent-2	374/tcp	   #Legent Corporation (now Computer Associates Intl.)
+legent-2	374/udp	   #Legent Corporation (now Computer Associates Intl.)
 hassle		375/tcp
 hassle		375/udp
 nip		376/tcp	   #Amiga Envoy Network Inquiry Proto	
@@ -611,8 +736,8 @@ ddm-rdb		446/tcp
 ddm-rdb		446/udp
 ddm-dfm		447/tcp
 ddm-dfm		447/udp
-ddm-byte	448/tcp
-ddm-byte	448/udp
+ddm-ssl		448/tcp	   ddm-byte
+ddm-ssl		448/udp	   ddm-byte
 as-servermap	449/tcp	   #AS Server Mapper
 as-servermap	449/udp	   #AS Server Mapper
 tserver		450/tcp
@@ -643,8 +768,108 @@ datasurfsrvsec	462/tcp
 datasurfsrvsec	462/udp
 alpes		463/tcp
 alpes		463/udp
+#
+kpasswd5	464/tcp	   # Kerberos (v5)
+kpasswd5	464/udp	   # Kerberos (v5)
+#PROBLEMS!==============================================================
+# IANA has offically assigned these two ports as ``kpasswd''
 #kpasswd	 464/tcp	 # Kerberos (v5)
 #kpasswd	 464/udp	 # Kerberos (v5)
+#PROBLEMS!==============================================================
+smtps		465/tcp	   #smtp protocol over TLS/SSL (was ssmtp)
+smtps		465/udp	   #smtp protocol over TLS/SSL (was ssmtp)
+digital-vrc	466/tcp
+digital-vrc	466/udp
+mylex-mapd	467/tcp
+mylex-mapd	467/udp
+photuris	468/tcp
+photuris	468/udp
+rcp		469/tcp	   #Radio Control Protocol
+rcp		469/udp	   #Radio Control Protocol
+scx-proxy	470/tcp
+scx-proxy	470/udp
+mondex		471/tcp
+mondex		471/udp
+ljk-login	472/tcp
+ljk-login	472/udp
+hybrid-pop	473/tcp
+hybrid-pop	473/udp
+tn-tl-w1	474/tcp
+tn-tl-w2	474/udp
+tcpnethaspsrv	475/tcp
+tcpnethaspsrv	475/udp
+tn-tl-fd1	476/tcp
+tn-tl-fd1	476/udp
+ss7ns		477/tcp
+ss7ns		477/udp
+spsc		478/tcp
+spsc		478/udp
+iafserver	479/tcp
+iafserver	479/udp
+iafdbase	480/tcp
+iafdbase	480/udp
+ph		481/tcp
+ph		481/udp
+bgs-nsi		482/tcp
+bgs-nsi		482/udp
+ulpnet		483/tcp
+ulpnet		483/udp
+integra-sme	484/tcp	   #Integra Software Management Environment
+integra-sme	484/udp	   #Integra Software Management Environment
+powerburst	485/tcp	   #Air Soft Power Burst
+powerburst	485/udp	   #Air Soft Power Burst
+avian		486/tcp
+avian		486/udp
+saft		487/tcp	   #saft Simple Asynchronous File Transfer
+saft		487/udp	   #saft Simple Asynchronous File Transfer
+gss-http	488/tcp
+gss-http	488/udp
+nest-protocol	489/tcp
+nest-protocol	489/udp
+micom-pfs	490/tcp
+micom-pfs	490/udp
+go-login	491/tcp
+go-login	491/udp
+ticf-1		492/tcp	   #Transport Independent Convergence for FNA
+ticf-1		492/udp	   #Transport Independent Convergence for FNA
+ticf-2		493/tcp	   #Transport Independent Convergence for FNA
+ticf-2		493/udp	   #Transport Independent Convergence for FNA
+pov-ray		494/tcp
+pov-ray		494/udp
+intecourier	495/tcp
+intecourier	495/udp
+pim-rp-disc	496/tcp
+pim-rp-disc	496/udp
+dantz		497/tcp
+dantz		497/udp
+siam		498/tcp
+siam		498/udp
+iso-ill		499/tcp	   #ISO ILL Protocol
+iso-ill		499/udp	   #ISO ILL Protocol
+isakmp		500/tcp
+isakmp		500/udp
+stmf		501/tcp
+stmf		501/udp
+asa-appl-proto	502/tcp
+asa-appl-proto	502/udp
+intrinsa	503/tcp
+intrinsa	503/udp
+citadel		504/tcp
+citadel		504/udp
+mailbox-lm	505/tcp
+mailbox-lm	505/udp
+ohimsrv		506/tcp
+ohimsrv		506/udp
+crs		507/tcp
+crs		507/udp
+xvttp		508/tcp
+xvttp		508/udp
+snare		509/tcp
+snare		509/udp
+fcp		510/tcp	   #FirstClass Protocol
+fcp		510/udp	   #FirstClass Protocol
+passgo		511/tcp
+passgo		511/udp
 #
 # Berkeley-specific services
 #
@@ -664,12 +889,14 @@ who		513/udp	   whod		#maintains data bases showing who's
 #					logged in to machines on a local
 #					net and the load average of the
 #					machine
-cmd		514/tcp	   shell	#like exec, but automatic
+shell		514/tcp	   cmd		#like exec, but automatic
 #					authentication is performed as for
 #					login server
 syslog		514/udp
 printer		515/tcp	   spooler
 printer		515/udp	   spooler
+videotex	516/tcp
+videotex	516/udp
 talk		517/tcp	   #like tenex link, but across
 #			   machine - unfortunately, doesn't
 #			   use link protocol (this is actually
@@ -688,10 +915,24 @@ efs		520/tcp	   #extended file name server
 router		520/udp	   route routed	   #local routing process (on site);
 #					   uses variant of Xerox NS routing
 #					   information protocol
+ripng		521/tcp
+ripng		521/udp
+ulp		522/tcp
+ulp		522/udp
+ibm-db2		523/tcp
+ibm-db2		523/udp
+ncp		524/tcp
+ncp		524/udp
 timed		525/tcp	   timeserver
 timed		525/udp	   timeserver
 tempo		526/tcp	   newdate
 tempo		526/udp	   newdate
+stx		527/tcp	   #Stock IXChange
+stx		527/udp	   #Stock IXChange
+custix		528/tcp	   #Customer IXChange
+custix		528/udp	   #Customer IXChange
+irc-serv	529/tcp
+irc-serv	529/udp
 courier		530/tcp	   rpc
 courier		530/udp	   rpc
 conference	531/tcp	   chat
@@ -700,18 +941,38 @@ netnews		532/tcp	   readnews
 netnews		532/udp	   readnews
 netwall		533/tcp	   #for emergency broadcasts
 netwall		533/udp	   #for emergency broadcasts
+mm-admin	534/tcp	   #MegaMedia Admin
+mm-admin	534/udp	   #MegaMedia Admin
+iiop		535/tcp
+iiop		535/udp
+opalis-rdv	536/tcp
+opalis-rdv	536/udp
+nmsp		537/tcp	   #Networked Media Streaming Protocol
+nmsp		537/udp	   #Networked Media Streaming Protocol
+gdomap		538/tcp
+gdomap		538/udp
 apertus-ldp	539/tcp	   #Apertus Technologies Load Determination
 apertus-ldp	539/udp	   #Apertus Technologies Load Determination
 uucp		540/tcp	   uucpd
 uucp		540/udp	   uucpd
 uucp-rlogin	541/tcp
 uucp-rlogin	541/udp
+commerce	542/tcp
+commerce	542/udp
 klogin		543/tcp			# Kerberos (v4/v5)
 klogin		543/udp			# Kerberos (v4/v5)
 kshell		544/tcp	   krcmd	# Kerberos (v4/v5)
 kshell		544/udp	   krcmd	# Kerberos (v4/v5)
 appleqtcsrvr	545/tcp
 appleqtcsrvr	545/udp
+dhcpv6-client   546/tcp	   #DHCPv6 Client
+dhcpv6-client   546/udp	   #DHCPv6 Client
+dhcpv6-server   547/tcp	   #DHCPv6 Server
+dhcpv6-server   547/udp	   #DHCPv6 Server
+afpovertcp	548/tcp	   #AFP over TCP
+afpovertcp	548/udp	   #AFP over TCP
+idfp		549/tcp
+idfp		549/udp
 new-rwho	550/tcp	   new-who
 new-rwho	550/udp	   new-who
 cybercash	551/tcp
@@ -720,6 +981,8 @@ deviceshare	552/tcp
 deviceshare	552/udp
 pirp		553/tcp
 pirp		553/udp
+rtsp		554/tcp	   #Real Time Stream Control Protocol
+rtsp		554/udp	   #Real Time Stream Control Protocol
 dsf		555/tcp
 dsf		555/udp
 remotefs	556/tcp	   rfs rfs_server	# Brunhoff remote filesystem
@@ -736,16 +999,82 @@ monitor		561/tcp
 monitor		561/udp
 chshell		562/tcp	   chcmd
 chshell		562/udp	   chcmd
-snews		563/tcp
-snews		563/udp
+nntps		563/tcp	   snntp	#nntp protocol over TLS/SSL
+nntps		563/udp	   snntp	#nntp protocol over TLS/SSL
 9pfs		564/tcp	   #plan 9 file service
 9pfs		564/udp	   #plan 9 file service
 whoami		565/tcp
 whoami		565/udp
+streettalk	566/tcp
+banyan-rpc	567/tcp
+banyan-rpc	567/udp
+ms-shuttle	568/tcp	   #Microsoft shuttle
+ms-shuttle	568/udp	   #Microsoft shuttle
+ms-rome		569/tcp	   #Microsoft rome
+ms-rome		569/udp	   #Microsoft rome
 meter		570/tcp	   #demon
 meter		570/udp	   #demon
 umeter		571/tcp	   #udemon
 umeter		571/udp	   #udemon
+
+
+
+sonar		572/tcp
+sonar		572/udp
+banyan-vip	573/tcp
+banyan-vip	573/udp
+ftp-agent	574/tcp	   #FTP Software Agent System
+ftp-agent	574/udp	   #FTP Software Agent System
+vemmi		575/tcp
+vemmi		575/udp
+ipcd		576/tcp
+ipcd		576/udp
+vnas		577/tcp
+vnas		577/udp
+ipdd		578/tcp
+ipdd		578/udp
+decbsrv		579/tcp
+decbsrv		579/udp
+sntp-heartbeat	580/tcp
+sntp-heartbeat	580/udp
+bdp		581/tcp	   #Bundle Discovery Protocol
+bdp		581/udp	   #Bundle Discovery Protocol
+scc-security	582/tcp
+scc-security	582/udp
+philips-vc	583/tcp	   #Philips Video-Conferencing
+philips-vc	583/udp	   #Philips Video-Conferencing
+keyserver	584/tcp
+keyserver	584/udp
+imap4-ssl	585/tcp	   #IMAP4+SSL (use of 585 is not recommended,
+imap4-ssl	585/udp	   #		use 993 instead)
+password-chg 	586/tcp
+password-chg	586/udp
+submission	587/tcp
+submission	587/udp
+cal		588/tcp
+cal		588/udp
+eyelink		589/tcp
+eyelink		589/udp
+tns-cml		590/tcp
+tns-cml		590/udp
+http-alt	591/tcp	   #FileMaker, Inc. - HTTP Alternate (see Port 80)
+http-alt	591/udp	   #FileMaker, Inc. - HTTP Alternate (see Port 80)
+eudora-set	592/tcp
+eudora-set	592/udp
+http-rpc-epmap	593/tcp	   #HTTP RPC Ep Map
+http-rpc-epmap	593/udp	   #HTTP RPC Ep Map
+tpip		594/tcp
+tpip		594/udp
+cab-protocol	595/tcp
+cab-protocol	595/udp
+smsd		596/tcp
+smsd		596/udp
+ptcnameservice	597/tcp	   #PTC Name Service
+ptcnameservice	597/udp	   #PTC Name Service
+sco-websrvrmg3	598/tcp	   #SCO Web Server Manager 3
+sco-websrvrmg3	598/udp	   #SCO Web Server Manager 3
+acp		599/tcp	   #Aeolon Core Protocol
+acp		599/udp	   #Aeolon Core Protocol
 ipcserver	600/tcp	   #Sun IPC server
 ipcserver	600/udp	   #Sun IPC server
 nqs		607/tcp
