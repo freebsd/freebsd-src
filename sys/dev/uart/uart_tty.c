@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
-#define	UART_MINOR_CALLOUT	0x10000
-
 static cn_probe_t uart_cnprobe;
 static cn_init_t uart_cninit;
 static cn_term_t uart_cnterm;
@@ -61,19 +59,6 @@ static cn_putc_t uart_cnputc;
 
 CONS_DRIVER(uart, uart_cnprobe, uart_cninit, uart_cnterm, uart_cngetc,
     uart_cncheckc, uart_cnputc, NULL);
-
-static d_open_t uart_tty_open;
-static d_close_t uart_tty_close;
-static d_ioctl_t uart_tty_ioctl;
-
-static struct cdevsw uart_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	uart_tty_open,
-	.d_close =	uart_tty_close,
-	.d_ioctl =	uart_tty_ioctl,
-	.d_name =	uart_driver_name,
-	.d_flags =	D_TTY | D_NEEDGIANT,
-};
 
 static struct uart_devinfo uart_console;
 
@@ -143,6 +128,43 @@ uart_cngetc(struct consdev *cp)
 {
 
 	return (uart_getc(cp->cn_arg));
+}
+
+static int
+uart_tty_open(struct tty *tp, struct cdev *dev)
+{
+	struct uart_softc *sc;
+
+	sc = tp->t_sc;
+	sc->sc_opened = 1;
+	return (0);
+}
+
+static void
+uart_tty_close(struct tty *tp)
+{
+	struct uart_softc *sc;
+
+	sc = tp->t_sc;
+	if (sc == NULL || sc->sc_leaving)
+		return;
+	if (!sc->sc_opened) {
+		KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));
+		return;
+	}
+	KASSERT(tp->t_state & TS_ISOPEN, ("foo"));
+
+	if (sc->sc_hwiflow)
+		UART_IOCTL(sc, UART_IOCTL_IFLOW, 0);
+	if (sc->sc_hwoflow)
+		UART_IOCTL(sc, UART_IOCTL_OFLOW, 0);
+	if (sc->sc_sysdev == NULL)
+		UART_SETSIG(sc, SER_DDTR | SER_DRTS);
+
+	wakeup(sc);
+	KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));
+	sc->sc_opened = 0;
+	return;
 }
 
 static void
@@ -336,187 +358,47 @@ int
 uart_tty_attach(struct uart_softc *sc)
 {
 	struct tty *tp;
+	int unit;
 
 	tp = ttyalloc();
 	sc->sc_u.u_tty.tp = tp;
 	tp->t_sc = sc;
 
-	sc->sc_u.u_tty.si[0] = make_dev(&uart_cdevsw,
-	    device_get_unit(sc->sc_dev), UID_ROOT, GID_WHEEL, 0600, "ttyu%r",
-	    device_get_unit(sc->sc_dev));
-	sc->sc_u.u_tty.si[0]->si_drv1 = sc;
-	sc->sc_u.u_tty.si[0]->si_tty = tp;
-	sc->sc_u.u_tty.si[1] = make_dev(&uart_cdevsw,
-	    device_get_unit(sc->sc_dev) | UART_MINOR_CALLOUT, UID_UUCP,
-	    GID_DIALER, 0660, "uart%r", device_get_unit(sc->sc_dev));
-	sc->sc_u.u_tty.si[1]->si_drv1 = sc;
-	sc->sc_u.u_tty.si[1]->si_tty = tp;
+	unit = device_get_unit(sc->sc_dev);
 
 	tp->t_oproc = uart_tty_oproc;
 	tp->t_param = uart_tty_param;
 	tp->t_stop = uart_tty_stop;
 	tp->t_modem = uart_tty_modem;
 	tp->t_break = uart_tty_break;
+	tp->t_open = uart_tty_open;
+	tp->t_close = uart_tty_close;
+
+	tp->t_pps = &sc->sc_pps;
 
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		sprintf(((struct consdev *)sc->sc_sysdev->cookie)->cn_name,
-		    "ttyu%r", device_get_unit(sc->sc_dev));
+		    "ttyu%r", unit);
+		ttyconsolemode(tp, 0);
 	}
 
 	swi_add(&tty_ithd, uart_driver_name, uart_tty_intr, sc, SWI_TTY,
 	    INTR_TYPE_TTY, &sc->sc_softih);
+
+	ttycreate(tp, NULL, 0, MINOR_CALLOUT, "u%r", unit);
 
 	return (0);
 }
 
 int uart_tty_detach(struct uart_softc *sc)
 {
+	struct tty *tp;
 
+	tp = sc->sc_u.u_tty.tp;
+	tp->t_pps = NULL;
+	ttygone(tp);
 	ithread_remove_handler(sc->sc_softih);
-	destroy_dev(sc->sc_u.u_tty.si[0]);
-	destroy_dev(sc->sc_u.u_tty.si[1]);
-	/* ttyfree(sc->sc_u.u_tty.tp); */
+	ttyfree(tp);
 
 	return (0);
-}
-
-static int
-uart_tty_open(struct cdev *dev, int flags, int mode, struct thread *td)
-{
-	struct uart_softc *sc;
-	struct tty *tp;
-	int error;
-
- loop:
-	sc = dev->si_drv1;
-	if (sc == NULL || sc->sc_leaving)
-		return (ENODEV);
-
-	tp = dev->si_tty;
-
-	if (sc->sc_opened) {
-		KASSERT(tp->t_state & TS_ISOPEN, ("foo"));
-		/*
-		 * The device is open, so everything has been initialized.
-		 * Handle conflicts.
-		 */
-		if (minor(dev) & UART_MINOR_CALLOUT) {
-			if (!sc->sc_callout)
-				return (EBUSY);
-		} else {
-			if (sc->sc_callout) {
-				if (flags & O_NONBLOCK)
-					return (EBUSY);
-				error =	tsleep(sc, TTIPRI|PCATCH, "uartbi", 0);
-				if (error)
-					return (error);
-				goto loop;
-			}
-		}
-		if (tp->t_state & TS_XCLUDE && suser(td) != 0)
-			return (EBUSY);
-	} else {
-		KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));
-		/*
-		 * The device isn't open, so there are no conflicts.
-		 * Initialize it.  Initialization is done twice in many
-		 * cases: to preempt sleeping callin opens if we are
-		 * callout, and to complete a callin open after DCD rises.
-		 */
-		sc->sc_callout = (minor(dev) & UART_MINOR_CALLOUT) ? 1 : 0;
-		tp->t_dev = dev;
-
-		tp->t_cflag = TTYDEF_CFLAG;
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_lflag = TTYDEF_LFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-		ttychars(tp);
-		error = uart_tty_param(tp, &tp->t_termios);
-		if (error)
-			return (error);
-		/*
-		 * Handle initial DCD.
-		 */
-		if ((sc->sc_hwsig & SER_DCD) || sc->sc_callout)
-			ttyld_modem(tp, 1);
-	}
-	/*
-	 * Wait for DCD if necessary.
-	 */
-	if (!(tp->t_state & TS_CARR_ON) && !sc->sc_callout &&
-	    !(tp->t_cflag & CLOCAL) && !(flags & O_NONBLOCK)) {
-		error = tsleep(TSA_CARR_ON(tp), TTIPRI|PCATCH, "uartdcd", 0);
-		if (error)
-			return (error);
-		goto loop;
-	}
-	error = tty_open(dev, tp);
-	if (error)
-		return (error);
-	error = ttyld_open(tp, dev);
-	if (error)
-		return (error);
-
-	KASSERT(tp->t_state & TS_ISOPEN, ("foo"));
-	sc->sc_opened = 1;
-	return (0);
-}
-
-static int
-uart_tty_close(struct cdev *dev, int flags, int mode, struct thread *td)
-{
-	struct uart_softc *sc;
-	struct tty *tp;
-
-	sc = dev->si_drv1;
-	if (sc == NULL || sc->sc_leaving)
-		return (ENODEV);
-	tp = dev->si_tty;
-	if (!sc->sc_opened) {
-		KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));
-		return (0);
-	}
-	KASSERT(tp->t_state & TS_ISOPEN, ("foo"));
-
-	if (sc->sc_hwiflow)
-		UART_IOCTL(sc, UART_IOCTL_IFLOW, 0);
-	if (sc->sc_hwoflow)
-		UART_IOCTL(sc, UART_IOCTL_OFLOW, 0);
-	if (sc->sc_sysdev == NULL)
-		UART_SETSIG(sc, SER_DDTR | SER_DRTS);
-
-	/* Disable pulse capturing. */
-	sc->sc_pps.ppsparam.mode = 0;
-
-	ttyld_close(tp, flags);
-	tty_close(tp);
-	wakeup(sc);
-	wakeup(TSA_CARR_ON(tp));
-	KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));
-	sc->sc_opened = 0;
-	return (0);
-}
-
-static int
-uart_tty_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
-    struct thread *td)
-{
-	struct uart_softc *sc;
-	struct tty *tp;
-	int error;
-
-	sc = dev->si_drv1;
-	if (sc == NULL || sc->sc_leaving)
-		return (ENODEV);
-
-	tp = dev->si_tty;
-	error = ttyioctl(dev, cmd, data, flags, td);
-	if (error != ENOTTY)
-		return (error);
-
-	error = pps_ioctl(cmd, data, &sc->sc_pps);
-	if (error == ENODEV)
-		error = ENOTTY;
-	return (error);
 }
