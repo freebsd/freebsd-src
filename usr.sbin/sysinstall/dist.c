@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.134 1999/02/07 12:43:14 jkh Exp $
+ * $Id: dist.c,v 1.135 1999/02/07 12:57:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -379,11 +379,11 @@ distMaybeSetPorts(dialogMenuItem *self)
 {
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
-		  "This will give you ready access to over 1000 ported software packages,\n"
-		  "though at a cost of around 35MB of disk space when \"clean\" and possibly\n"
+		  "This will give you ready access to over 2000 ported software packages,\n"
+		  "though at a cost of around 50MB of disk space when \"clean\" and possibly\n"
 		  "much more than that if a lot of the distribution tarballs are loaded\n"
-		  "(unless you have the 4th CD from a FreeBSD CDROM distribution available\n"
-		  "and can mount it on /cdrom, in which case this is far less of a problem).\n\n"
+		  "(unless you have the extra CDs available from a FreeBSD CDROM distribution\n"
+		  "and can mount them on /cdrom, in which case this is far less of a problem).\n\n"
 		  "The ports collection is a very valuable resource and, if you have at least\n"
 		  "100MB to spare in your /usr partition, well worth having around.\n\n"
 		  "For more information on the ports collection & the latest ports, visit:\n"
