@@ -99,8 +99,8 @@ static inthand_t *slowintr[ICU_LEN] = {
 static driver_intr_t isa_strayintr;
 
 static void	ithds_init(void *dummy);
-static void	ithread_enable(int vector);
-static void	ithread_disable(int vector);
+static void	ithread_enable(uintptr_t vector);
+static void	ithread_disable(uintptr_t vector);
 static void	init_i8259(void);
 
 #define NMI_PARITY (1 << 7)
@@ -421,7 +421,7 @@ ithds_init(void *dummy)
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
 static void
-ithread_enable(int vector)
+ithread_enable(uintptr_t vector)
 {
 	register_t crit;
 
@@ -433,7 +433,7 @@ ithread_enable(int vector)
 }
 
 static void
-ithread_disable(int vector)
+ithread_disable(uintptr_t vector)
 {
 	register_t crit;
 
