@@ -1,7 +1,7 @@
 /* opiesu.c: main body of code for the su(1m) program
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Set up TERM and PATH correctly.
 	Modified by cmetz for OPIE 2.31. Fix sulog(). Replaced Getlogin() with
 		currentuser. Fixed fencepost error in month printed by sulog().
 	Modified by cmetz for OPIE 2.3. Limit the length of TERM on full login.
@@ -99,7 +100,7 @@ License Agreement applies to this software.
 static char userbuf[16] = "USER=";
 static char homebuf[128] = "HOME=";
 static char shellbuf[128] = "SHELL=";
-static char pathbuf[128] = "PATH=";
+static char pathbuf[sizeof("PATH") + sizeof(DEFAULT_PATH) - 1] = "PATH=";
 static char termbuf[32] = "TERM=";
 static char *cleanenv[] = {userbuf, homebuf, shellbuf, pathbuf, 0, 0};
 static char *user = "root";
@@ -268,7 +269,7 @@ int main FUNCTION((argc, argv),	int argc AND char *argv[])
   };
   };
 
-  strcpy(pathbuf, DEFAULT_PATH);
+  strcat(pathbuf, DEFAULT_PATH);
 
 again:
   if (argc > 1 && strcmp(argv[1], "-f") == 0) {
@@ -459,8 +460,8 @@ ok:
   if (thisuser.pw_shell && *thisuser.pw_shell)
     shell = thisuser.pw_shell;
   if (fulllogin) {
-    if (p = getenv("TERM")) {
-      strncpy(termbuf, p, sizeof(termbuf));
+    if ((p = getenv("TERM")) && (strlen(termbuf) + strlen(p) - 1 < sizeof(termbuf))) {
+      strcat(termbuf, p);
       cleanenv[4] = termbuf;
     }
     environ = cleanenv;

@@ -1,13 +1,15 @@
 /* pututline.c: A replacement for the pututline() function
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.32. Fixed check for fread() return
+		value.
 	Modified by cmetz for OPIE 2.31. If the OS won't tell us where
 		_PATH_UTMP is, use Autoconf-discovered values.
 	Created by cmetz for OPIE 2.3.
@@ -40,7 +42,7 @@ void pututline FUNCTION((utmp), struct utmp *utmp)
   }
 #endif /* HAVE_TTYSLOT */
 
-  while(fread(&u, sizeof(struct utmp), 1, f) == sizeof(struct utmp)) {
+  while(fread(&u, sizeof(struct utmp), 1, f) == 1) {
     if (!strncmp(utmp->ut_line, u.ut_line, sizeof(u.ut_line) - 1)) {
       if ((i = ftell(f)) < 0)
         goto ret;

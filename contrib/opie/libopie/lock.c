@@ -1,7 +1,7 @@
 /* lock.c: The opielock() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -27,6 +27,8 @@ License Agreement applies to this software.
             error return values. Check open() return value properly.
             Avoid NULL.
         Created at NRL for OPIE 2.2 from opiesubr2.c
+
+$FreeBSD$
 */
 #include "opie_cfg.h"
 #if HAVE_STRING_H
@@ -49,12 +51,17 @@ License Agreement applies to this software.
 #endif /* !HAVE_LSTAT */
 
 int __opie_lockrefcount = 0;
+static int do_atexit = 1;
 
+VOIDRET opiedisableaeh FUNCTION_NOARGS
+{
+  do_atexit = 0;
+}
 #if USER_LOCKING
 char *__opie_lockfilename = (char *)0;
 
 /* atexit() handler for opielock() */
-static VOIDRET opieunlockaeh FUNCTION_NOARGS
+VOIDRET opieunlockaeh FUNCTION_NOARGS
 {
   if (__opie_lockfilename) {
     __opie_lockrefcount = 0;
@@ -227,7 +234,8 @@ int opielock FUNCTION((principal), char *principal)
     
   __opie_lockrefcount++;
   rval = 0;
-  atexit(opieunlockaeh);
+  if (do_atexit)
+    atexit(opieunlockaeh);
 
 lockret:
   if (fh >= 0)

@@ -1,7 +1,7 @@
 /* opieftpd.c: Main program for an FTP daemon.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Remove include of dirent.h here; it's
+		done already (and conditionally) in opie_cfg.h.
 	Modified by cmetz for OPIE 2.31. Merged in some 4.4BSD-Lite changes.
 		Merged in a security fix to BSD-derived ftpds.
 	Modified by cmetz for OPIE 2.3. Fixed the filename at the top.
@@ -43,6 +45,8 @@ License Agreement applies to this software.
 	Originally from BSD Net/2.
 
 	        There is some really, really ugly code in here.
+
+$FreeBSD$
 */
 /*
  * Copyright (c) 1985, 1988, 1990 Regents of the University of California.
@@ -111,7 +115,6 @@ License Agreement applies to this software.
 #include <arpa/telnet.h>
 
 #include <signal.h>
-#include <dirent.h>
 #include <fcntl.h>
 #if HAVE_TIME_H
 #include <time.h>

@@ -1,15 +1,18 @@
 /* newseed.c: The opienewseed() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Added syslog.h if DEBUG.
 	Modified by cmetz for OPIE 2.31. Added time.h.
 	Created by cmetz for OPIE 2.22.
+
+$FreeBSD$
 */
 
 #include "opie_cfg.h"
@@ -27,6 +30,9 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #include <sys/utsname.h>
 #endif /* HAVE_SYS_UTSNAME_H */
 #include <errno.h>
+#if DEBUG
+#include <syslog.h>
+#endif /* DEBUG */
 #include "opie.h"
 
 int opienewseed FUNCTION((seed), char *seed)
@@ -87,9 +93,9 @@ int opienewseed FUNCTION((seed), char *seed)
     struct utsname utsname;
 
     if (uname(&utsname) < 0) {
-#if 0
-      perror("uname");
-#endif /* 0 */
+#if DEBUG
+      syslog(LOG_DEBUG, "uname: %s(%d)", strerror(errno), errno);
+#endif /* DEBUG */
       utsname.nodename[0] = 'k';
       utsname.nodename[1] = 'e';
     }
