@@ -37,6 +37,7 @@
 #endif
 
 static	int pc98_set_register __P((struct isa_device *dev, int type));
+static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase));
 
 /*
  * Vendor types
@@ -386,10 +387,16 @@ static	unsigned int edp_cnet98[16] = {
 static int
 pc98_set_register(struct isa_device *dev, int type)
 {
-	struct	ed_softc *sc = &ed_softc[dev->id_unit];
+	return pc98_set_register_unit(&ed_softc[dev->id_unit], type, dev->id_iobase);
+}
+
+static int
+pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
+{
 	int	adj;
 	int	nports;
 
+	sc->type = type;
 	switch (type) {
 	case ED_TYPE98_GENERIC:
 		sc->edreg.port = edp_generic;
@@ -470,9 +477,9 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_108:
 		sc->edreg.port = edp_nec108;
-		adj = (dev->id_iobase & 0xf000) / 2;
+		adj = (iobase & 0xf000) / 2;
 		ED_NOVELL_NIC_OFFSET = 0;
-		ED_NOVELL_ASIC_OFFSET = (0x888 | adj) - dev->id_iobase;
+		ED_NOVELL_ASIC_OFFSET = (0x888 | adj) - iobase;
 		ED_NOVELL_DATA = 0;
 		ED_NOVELL_RESET = 2;
 		ED_PC_MISC = 0x18;
