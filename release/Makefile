@@ -340,10 +340,11 @@ release rerelease:
 	rm -rf ${CHROOTDIR}/usr/src
 .if defined(EXTSRCDIR)
 	cd ${CHROOTDIR}/usr && \
-		cp -R -H ${EXTSRCDIR} src
+	    cp -R -H ${EXTSRCDIR} src
 .else
 	cd ${CHROOTDIR}/usr && \
-		${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_SRCARGS} ${RELEASESRCMODULE}
+	    ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} \
+	    co ${CVSCMDARGS} ${CVS_SRCARGS} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && !empty(LOCAL_PATCHES)
 .for p in ${LOCAL_PATCHES}
@@ -353,18 +354,21 @@ release rerelease:
 .endfor
 .endif
 .if defined(LOCAL_SCRIPT) && exists(${LOCAL_SCRIPT})
-	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
+	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} \
+	    RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
 	rm -rf ${CHROOTDIR}/usr/ports
 .if !defined(NOPORTSATALL)
-	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_PORTSARGS} ${RELEASEPORTSMODULE}
+	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} \
+	    co ${CVSCMDARGS} ${CVS_PORTSARGS} ${RELEASEPORTSMODULE}
 .endif
 .if !defined(NODOC)
 	rm -rf ${CHROOTDIR}/usr/doc
 .if defined(EXTDOCDIR)
 	cd ${CHROOTDIR}/usr && cp -R -H ${EXTDOCDIR} doc
 .else
-	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_DOCARGS} ${RELEASEDOCMODULE}
+	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} \
+	    co ${CVSCMDARGS} ${CVS_DOCARGS} ${RELEASEDOCMODULE}
 .endif
 	if [ -d ${RELEASEDISTFILES}/ ]; then \
 		cp -rp ${RELEASEDISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
@@ -379,21 +383,26 @@ release rerelease:
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr/src && ${CVSPREFIX} cvs -R ${CVSARGS} -q update ${CVSCMDARGS} -P -d -A
+	cd ${CHROOTDIR}/usr/src && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
+	    update ${CVSCMDARGS} -P -d -A
 .else
-	cd ${CHROOTDIR}/usr/src && ${CVSPREFIX} cvs -R ${CVSARGS} -q update ${CVSCMDARGS} -P -d -r ${RELEASETAG}
+	cd ${CHROOTDIR}/usr/src && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
+	    update ${CVSCMDARGS} -P -d -r ${RELEASETAG}
 .endif
 	rm -f ${CHROOTDIR}/tmp/.world_done 
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr/ports && ${CVSPREFIX} cvs -R ${CVSARGS} -q update ${CVSCMDARGS} -P -d
+	cd ${CHROOTDIR}/usr/ports && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
+	    update ${CVSCMDARGS} -P -d
 .endif
 .if defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
 	for i in ${MINIMALDOCPORTS}; do \
-		( cd ${CHROOTDIR}/usr/$$i && ${CVSPREFIX} cvs -R ${CVSARGS} -q update ${CVSCMDARGS} -P -d ) ; \
+	    ( cd ${CHROOTDIR}/usr/$$i && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
+		update ${CVSCMDARGS} -P -d ) ; \
 	done
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr/doc && ${CVSPREFIX} cvs -R ${CVSARGS} -q update ${CVSCMDARGS} -P -d
+	cd ${CHROOTDIR}/usr/doc && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
+	    update ${CVSCMDARGS} -P -d
 .endif
 .endif
 .endif
@@ -471,7 +480,8 @@ release rerelease:
 .if defined(NOPORTS) || defined(NOPORTREADMES)
 	touch ${CHROOTDIR}/tmp/.skip_ports
 .endif
-	# Ensure md.ko is loaded if md(4) is not statically compiled into the kernel
+	# Ensure md.ko is loaded if md(4) is not statically compiled into 
+	# the kernel
 	-mdconfig 2>/dev/null
 	env -i /usr/sbin/chroot `dirname ${_MK}` /`basename ${_MK}`
 
@@ -556,7 +566,8 @@ release.5:
 .if exists(${.CURDIR}/${TARGET}/${j}_crunch.conf)
 	rm -rf ${j}_crunch
 	mkdir ${j}_crunch
-	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${TARGET}/${j}_crunch.conf
+	cd ${j}_crunch; ${WMAKEENV} crunchgen -o \
+	    ${.CURDIR}/${TARGET}/${j}_crunch.conf
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
 	cd ${.CURDIR}/..; ${BINMAKE} -f Makefile.inc1 _build-tools
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk \
@@ -685,7 +696,8 @@ release.9:
 	  done )
 	cp ${RD}/trees/base/sbin/dhclient-script ${RD}/mfsfd/stand
 .if ${TARGET} == "pc98"
-	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
+	cp ${.CURDIR}/../etc/defaults/pccard.conf \
+	    ${RD}/mfsfd/etc/defaults/pccard.conf
 .endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	( for F in defaults/rc.conf netconfig protocols ; do \
@@ -704,15 +716,20 @@ release.9:
 	cp ${RD}/trees/base/COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt \
+	      ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt \
+	      ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	done
-	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT ${RD}/mfsfd/stand/help/INSTALL.TXT
-	@mv ${RD}/mfsfd/stand/help/EARLY-ADOPTER.TXT ${RD}/mfsfd/stand/help/EARLY.TXT
+	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT \
+	    ${RD}/mfsfd/stand/help/INSTALL.TXT
+	@mv ${RD}/mfsfd/stand/help/EARLY-ADOPTER.TXT \
+	    ${RD}/mfsfd/stand/help/EARLY.TXT
 .endif
-	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
+	-test -f ${.CURDIR}/install.cfg \
+	    && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
 .if ${TARGET_ARCH} != "ia64"
 	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
@@ -731,7 +748,7 @@ release.9:
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
 	sh -e ${DOFS_SH} ${RD}/mfsroot-small/mfsroot ${RD} ${MNT} \
-		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
+	    ${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9nv ${RD}/mfsroot-small/mfsroot
 	@rm -rf ${RD}/mfsfd/modules
 .endif
@@ -743,7 +760,7 @@ release.9:
 .endif
 	@mkdir -p ${RD}/mfsroot
 	sh -e ${DOFS_SH} ${RD}/mfsroot/mfsroot ${RD} ${MNT} \
-		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
+	    ${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9nv ${RD}/mfsroot/mfsroot
 	touch ${.TARGET}
 
@@ -758,9 +775,8 @@ release.10:
 	    ${RD}/trees/base/boot/kernel ${RD}/driversfd
 	-@rmdir ${RD}/driversfd
 	if [ -d ${RD}/driversfd ]; then \
-	    sh -e ${DOFS_SH} \
-		${RD}/floppies/drivers.flp ${RD} ${MNT} ${DRIVERSIZE} \
-		${RD}/driversfd ${DRIVERINODE} ${DRIVERLABEL}; \
+	    sh -e ${DOFS_SH} ${RD}/floppies/drivers.flp ${RD} ${MNT} \
+	        ${DRIVERSIZE} ${RD}/driversfd ${DRIVERINODE} ${DRIVERLABEL}; \
 	    cd ${RD}/driversfd && awk -f  ${.CURDIR}/scripts/driver-desc.awk \
 		*.dsc >> ${RD}/floppies/DRIVERS.TXT; \
 	fi
@@ -782,38 +798,37 @@ release.10:
 	@rm -rf ${RD}/fixitfd
 	@mkdir ${RD}/fixitfd
 	@cd ${RD}/fixitfd && \
-		mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
-		usr/share/misc
+	    mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
+	    usr/share/misc
 	@cp ${RD}/trees/base/etc/spwd.db ${RD}/trees/base/etc/group \
-		${RD}/fixitfd/etc
+	    ${RD}/fixitfd/etc
 	@sed -e 's/#.*//' ${RD}/trees/base/etc/protocols \
-		> ${RD}/fixitfd/etc/protocols
+	    > ${RD}/fixitfd/etc/protocols
 	@sed -e 's/#.*//' ${RD}/trees/base/usr/share/misc/scsi_modes \
-		> ${RD}/fixitfd/usr/share/misc/scsi_modes
+	    > ${RD}/fixitfd/usr/share/misc/scsi_modes
 	@cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	@cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	@cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
 	@chmod 555 ${RD}/fixitfd/stand/tar
 .if defined(SMALLFIXITSIZE)
 	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit-small \
-		DIR=${RD}/fixitfd/stand ZIP=false
-	@sh -e ${DOFS_SH} ${RD}/floppies/fixit-small.flp \
-		${RD} ${MNT} ${SMALLFIXITSIZE} ${RD}/fixitfd ${FIXITINODE} \
-		${SMALLFIXITLABEL}
+	    DIR=${RD}/fixitfd/stand ZIP=false
+	@sh -e ${DOFS_SH} ${RD}/floppies/fixit-small.flp ${RD} ${MNT} \
+	    ${SMALLFIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${SMALLFIXITLABEL}
 	@rm -rf ${RD}/fixitfd/stand
 	@mkdir ${RD}/fixitfd/stand
 .endif
 .if defined(FIXITSIZE)
 	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit \
-		DIR=${RD}/fixitfd/stand ZIP=false
-	@sh -e ${DOFS_SH} ${RD}/floppies/fixit.flp ${RD} \
-		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
+	    DIR=${RD}/fixitfd/stand ZIP=false
+	@sh -e ${DOFS_SH} ${RD}/floppies/fixit.flp ${RD} ${MNT} \
+	    ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 .endif
 .endif
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
 	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET}/article.txt \
-		${RD}/floppies/README.TXT
+	    ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .else
 	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
@@ -834,12 +849,16 @@ ftp.1:
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+		cp ${RND}/${RELNOTES_LANG}/$$i/article.txt \
+		    ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+		cp ${RND}/${RELNOTES_LANG}/$$i/article.html \
+		    ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+		cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt \
+		    ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+		cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.html \
+		    ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
@@ -866,7 +885,7 @@ cdrom.1:
 		if [ -d ${RD}/trees/$${i} ] ; then \
 			chflags -R noschg ${RD}/trees/$${i} || true ; \
 			( cd ${RD}/trees/$${i} && \
-			find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
+			    find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
 		fi \
 	done
 	@rm -f ${CD_DISC2}/.profile
@@ -875,12 +894,16 @@ cdrom.1:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt \
+	      ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html \
+	      ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt \
+	      ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.html \
+	      ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
@@ -932,8 +955,8 @@ iso.1:
 	    fbsd_livefs \
 	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}
 .if defined(CD_EXTRA_BITS)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
-	    ${BOOTABLE} fbsd_boot \
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	    fbsd_boot \
 	    ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
 	    ${CD_EXTRA_BITS} \
 	    && false
@@ -955,7 +978,8 @@ doc.1:
 		make all install clean BATCH=yes WITHOUT_X11=yes JADETEX=no \
 		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
 	done
-	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc
+	@cd /usr/doc && make all install 'FORMATS=html html-split txt' \
+	    INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc
 	touch ${.TARGET}
 
 #
@@ -963,7 +987,8 @@ doc.1:
 #
 doc.2:
 	@echo "Making release documentation..."
-	@cd ${.CURDIR}/doc && make all install clean 'FORMATS=html txt' INSTALL_COMPRESSED='' DOCDIR=${RND}
+	@cd ${.CURDIR}/doc && make all install clean 'FORMATS=html txt' 
+	    INSTALL_COMPRESSED='' DOCDIR=${RND}
 	touch ${.TARGET}
 
 # Various "subroutine" and other supporting targets.
@@ -989,10 +1014,11 @@ doTARBALL:
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
-		sh ${.CURDIR}/scripts/info.sh ${RD}/dists/${TD}/$$tn > \
-		   ${RD}/dists/${TD}/$$tn.inf && \
+		sh ${.CURDIR}/scripts/info.sh ${RD}/dists/${TD}/$$tn \
+		    > ${RD}/dists/${TD}/$$tn.inf && \
 		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
-		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
+			cp -p ${.CURDIR}/scripts/$${TD}-install.sh \
+			    ${RD}/dists/${TD}/install.sh; \
 		fi && \
 		if [ "${SD}" != "/usr/src" ]; then \
 			mtree -c -i -p ${SD}/${ARG} \
@@ -1001,9 +1027,9 @@ doTARBALL:
 		else \
 			true; \
 		fi; \
-		(cd ${RD}/dists/${TD}; \
-		   rm -f CHECKSUM.MD5; \
-		   md5 * > CHECKSUM.MD5) \
+		( cd ${RD}/dists/${TD}; \
+		rm -f CHECKSUM.MD5; \
+		md5 * > CHECKSUM.MD5 ) \
 	)
 
 doRELEASE: release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
@@ -1057,12 +1083,12 @@ doMFSKERN:
 .if defined(FDSIZE) && ${FDSIZE} == "SMALL" && \
     exists(${.CURDIR}/${TARGET}/drivers-small.conf)
 	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
-		${.CURDIR}/${TARGET}/drivers-small.conf \
-		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
+	    ${.CURDIR}/${TARGET}/drivers-small.conf \
+	    ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
 .elif exists(${.CURDIR}/${TARGET}/drivers.conf)
 	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
-		${.CURDIR}/${TARGET}/drivers.conf \
-		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
+	    ${.CURDIR}/${TARGET}/drivers.conf \
+	    ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
 .endif
 	cd ${.CURDIR}/..; \
 	KERNEL_KO=BOOTMFS KODIR= \
@@ -1071,28 +1097,29 @@ doMFSKERN:
 	    buildkernel reinstallkernel \
 	    DESTDIR=${RD}/kernels
 	[ -r ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ] && \
-	cp ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ${RD}/kernels
+	    cp ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ${RD}/kernels
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir ${RD}/image.${FSIMAGE}
 	@cd ${RD}/kernels && \
-	  (chflags noschg BOOTMFS || true) && \
-	  ${WMAKEENV} strip -R .comment BOOTMFS && \
-	  cp BOOTMFS BOOTMFS.${FSIMAGE} && \
-	  [ -r BOOTMFS.hints ] && mv BOOTMFS.hints BOOTMFS.${FSIMAGE}.hints
+	    (chflags noschg BOOTMFS || true) && \
+	    ${WMAKEENV} strip -R .comment BOOTMFS && \
+	    cp BOOTMFS BOOTMFS.${FSIMAGE} && \
+	    [ -r BOOTMFS.hints ] && mv BOOTMFS.hints BOOTMFS.${FSIMAGE}.hints
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 .if ${TARGET} == "i386"
-	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o \
-	    -o ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/special/boot/loader
+	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o -o \
+	    ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/special/boot/loader
 .else
 	@cp ${RD}/trees/special/boot/loader ${RD}/image.${FSIMAGE}/boot
 .endif
 	@[ -r ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints ] && \
 	  sed -e '/^hint/s/^/set /' -e '/^#/d' \
-	    ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints > \
-	    ${RD}/image.${FSIMAGE}/boot/device.hints && \
-	  echo "include /boot/device.hints" > ${RD}/image.${FSIMAGE}/boot/loader.rc
+	      ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints > \
+	      ${RD}/image.${FSIMAGE}/boot/device.hints && \
+	  echo "include /boot/device.hints" \
+	      > ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "load /kernel" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .if !defined(FDSIZE) || ${FDSIZE} != "BIG"
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
@@ -1102,7 +1129,7 @@ doMFSKERN:
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@if [ -r ${RD}/floppies/drivers.flp ]; then \
-	    echo "set driver_floppy=YES" >> ${RD}/image.${FSIMAGE}/boot/loader.rc; \
+		echo "set driver_floppy=YES" >> ${RD}/image.${FSIMAGE}/boot/loader.rc; \
 	fi
 	@echo "set module_path=\"/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
@@ -1114,23 +1141,20 @@ doMFSKERN:
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "BIG"
 	@cp ${RD}/mfsroot/mfsroot.gz ${RD}/image.${FSIMAGE}
-	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
-		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
-		${BOOTINODE} ${BIGBOOTLABEL}
+	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp ${RD} ${MNT} \
+	    ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} ${BOOTINODE} ${BIGBOOTLABEL}
 .elif defined(FDSIZE) && ${FDSIZE} == "SMALL"
-	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
-		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/mfsroot-small/mfsroot.gz \
-		${BOOTINODE} ${SMALLBOOTLABEL}
-	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
-		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/image.${FSIMAGE} \
-		${BOOTINODE} ${SMALLBOOTLABEL}
+	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp ${RD} ${MNT} \
+	    ${SMALLBOOTSIZE} ${RD}/mfsroot-small/mfsroot.gz ${BOOTINODE} \
+	    ${SMALLBOOTLABEL}
+	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp ${RD} ${MNT} \
+	    ${SMALLBOOTSIZE} ${RD}/image.${FSIMAGE} ${BOOTINODE} \
+	    ${SMALLBOOTLABEL}
 .else
-	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp \
-		${RD} ${MNT} ${BOOTSIZE} ${RD}/mfsroot/mfsroot.gz \
-		${BOOTINODE} ${BOOTLABEL}
-	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
-		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
-		${BOOTINODE} ${BOOTLABEL}
+	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp ${RD} ${MNT} \
+	    ${BOOTSIZE} ${RD}/mfsroot/mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
+	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp ${RD} ${MNT} \
+	    ${BOOTSIZE} ${RD}/image.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
 .endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
 
