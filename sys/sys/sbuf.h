@@ -58,8 +58,8 @@ __BEGIN_DECLS
 struct sbuf	*sbuf_new(struct sbuf *, char *, int, int);
 void		 sbuf_clear(struct sbuf *);
 int		 sbuf_setpos(struct sbuf *, int);
-int		 sbuf_bcat(struct sbuf *, const char *, size_t);
-int		 sbuf_bcpy(struct sbuf *, const char *, size_t);
+int		 sbuf_bcat(struct sbuf *, const void *, size_t);
+int		 sbuf_bcpy(struct sbuf *, const void *, size_t);
 int		 sbuf_cat(struct sbuf *, const char *);
 int		 sbuf_cpy(struct sbuf *, const char *);
 int		 sbuf_printf(struct sbuf *, const char *, ...) __printflike(2, 3);
