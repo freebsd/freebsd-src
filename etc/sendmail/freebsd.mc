@@ -39,35 +39,44 @@ divert(-1)
 #  environment and do the modifications there.
 #
 #  The best documentation for this .mc file is:
+#  /usr/share/sendmail/cf/README or
 #  /usr/src/contrib/sendmail/cf/README
 #
 
-divert(0)dnl
+divert(0)
 VERSIONID(`$FreeBSD$')
-OSTYPE(bsd4.4)dnl
-DOMAIN(generic)dnl
-FEATURE(relay_based_on_MX)dnl
-FEATURE(mailertable, `hash -o /etc/mail/mailertable')dnl
-FEATURE(access_db, `hash -o /etc/mail/access')dnl
-FEATURE(blacklist_recipients)dnl
-FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')dnl
+OSTYPE(bsd4.4)
+DOMAIN(generic)
+
+FEATURE(access_db, `hash -o /etc/mail/access')
+FEATURE(blacklist_recipients)
+FEATURE(local_lmtp)
+FEATURE(mailertable, `hash -o /etc/mail/mailertable')
+FEATURE(relay_based_on_MX)
+FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')
+
 dnl Uncomment to activate Realtime Blackhole List (recommended!)
 dnl information available at http://maps.vix.com/rbl/
+dnl FEATURE(dnsbl)
+
+dnl Other DNS based black hole lists
 dnl FEATURE(dnsbl,`blackholes.mail-abuse.org',` Mail from $&{client_addr} rejected, see http://mail-abuse.org/cgi-bin/lookup?$&{client_addr}')dnl
 dnl FEATURE(dnsbl,`relays.mail-abuse.org',` Mail from $&{client_addr} rejected; see http://mail-abuse.org/cgi-bin/nph-rss?$&{client_addr}')dnl
-dnl FEATURE(dnsbl,`dialups.mail-abuse.org',` Mail from dial-up rejected; see http://mail-abuse.org/dul/enduser.htm')
+
 dnl Many sites reject email connections from dialup ip addresses
 dnl by using the MAPS Dial-up User List (DUL).  http://maps.vix.com/dul/
+dnl FEATURE(dnsbl,`dialups.mail-abuse.org',` Mail from dial-up rejected; see http://mail-abuse.org/dul/enduser.htm')
+
 dnl Dialup users should uncomment and define this appropriately
-dnl define(`SMART_HOST', `your.isp.mail.server')dnl
-FEATURE(local_lmtp)dnl
-define(`LOCAL_MAILER_FLAGS', LOCAL_MAILER_FLAGS`'P)dnl
+dnl define(`SMART_HOST', `your.isp.mail.server')
+
 dnl Uncomment the first line to change the location of the default
 dnl /etc/mail/local-host-names and comment out the second line.
-dnl define(`confCW_FILE', `-o /etc/mail/sendmail.cw')dnl
-define(`confCW_FILE', `-o /etc/mail/local-host-names')dnl
-define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
-define(`confMAX_MIME_HEADER_LENGTH', `256/128')dnl
-define(`confPRIVACY_FLAGS', `authwarnings,noexpn,novrfy')dnl
-MAILER(local)dnl
-MAILER(smtp)dnl
+dnl define(`confCW_FILE', `-o /etc/mail/sendmail.cw')
+define(`confCW_FILE', `-o /etc/mail/local-host-names')
+
+define(`confMAX_MIME_HEADER_LENGTH', `256/128')
+define(`confNO_RCPT_ACTION', `add-to-undisclosed')
+define(`confPRIVACY_FLAGS', `authwarnings,noexpn,novrfy')
+MAILER(local)
+MAILER(smtp)
