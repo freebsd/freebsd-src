@@ -217,9 +217,6 @@ ddp_abort(struct socket *so)
 static void
 at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr)
 {
-    struct sockaddr_at	*sat;
-
-    *sat = ddp->ddp_lsat;
     *addr = dup_sockaddr((struct sockaddr *)&ddp->ddp_lsat, 0);
 }
 
