@@ -54,9 +54,11 @@ Fill_Disklabel(struct disklabel *dl, const struct disk *new,
 
 	dl->d_secsize = 512;
 	dl->d_secperunit = new->chunks->size;
+#ifndef __ia64__
 	dl->d_ncylinders = new->bios_cyl;
 	dl->d_ntracks = new->bios_hd;
 	dl->d_nsectors = new->bios_sect;
+#endif
 	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors;
 
 	dl->d_npartitions = MAXPARTITIONS;
