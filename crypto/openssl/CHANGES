@@ -2,11 +2,125 @@
  OpenSSL CHANGES
  _______________
 
- Changes between 0.9.6 and 0.9.6a  [xx XXX 2001]
+ Changes between 0.9.6 and 0.9.6a  [5 Apr 2001]
+
+  *) Fix a couple of memory leaks in PKCS7_dataDecode()
+     [Steve Henson, reported by Heyun Zheng <hzheng@atdsprint.com>]
+
+  *) Change Configure and Makefiles to provide EXE_EXT, which will contain
+     the default extension for executables, if any.  Also, make the perl
+     scripts that use symlink() to test if it really exists and use "cp"
+     if it doesn't.  All this made OpenSSL compilable and installable in
+     CygWin.
+     [Richard Levitte]
+
+  *) Fix for asn1_GetSequence() for indefinite length constructed data.
+     If SEQUENCE is length is indefinite just set c->slen to the total
+     amount of data available.
+     [Steve Henson, reported by shige@FreeBSD.org]
+     [This change does not apply to 0.9.7.]
+
+  *) Change bctest to avoid here-documents inside command substitution
+     (workaround for FreeBSD /bin/sh bug).
+     For compatibility with Ultrix, avoid shell functions (introduced
+     in the bctest version that searches along $PATH).
+     [Bodo Moeller]
+
+  *) Rename 'des_encrypt' to 'des_encrypt1'.  This avoids the clashes
+     with des_encrypt() defined on some operating systems, like Solaris
+     and UnixWare.
+     [Richard Levitte]
+
+  *) Check the result of RSA-CRT (see D. Boneh, R. DeMillo, R. Lipton:
+     On the Importance of Eliminating Errors in Cryptographic
+     Computations, J. Cryptology 14 (2001) 2, 101-119,
+     http://theory.stanford.edu/~dabo/papers/faults.ps.gz).
+     [Ulf Moeller]
+  
+  *) MIPS assembler BIGNUM division bug fix. 
+     [Andy Polyakov]
+
+  *) Disabled incorrect Alpha assembler code.
+     [Richard Levitte]
+
+  *) Fix PKCS#7 decode routines so they correctly update the length
+     after reading an EOC for the EXPLICIT tag.
+     [Steve Henson]
+     [This change does not apply to 0.9.7.]
+
+  *) Fix bug in PKCS#12 key generation routines. This was triggered
+     if a 3DES key was generated with a 0 initial byte. Include
+     PKCS12_BROKEN_KEYGEN compilation option to retain the old
+     (but broken) behaviour.
+     [Steve Henson]
+
+  *) Enhance bctest to search for a working bc along $PATH and print
+     it when found.
+     [Tim Rice <tim@multitalents.net> via Richard Levitte]
+
+  *) Fix memory leaks in err.c: free err_data string if necessary;
+     don't write to the wrong index in ERR_set_error_data.
+     [Bodo Moeller]
+
+  *) Implement ssl23_peek (analogous to ssl23_read), which previously
+     did not exist.
+     [Bodo Moeller]
+
+  *) Replace rdtsc with _emit statements for VC++ version 5.
+     [Jeremy Cooper <jeremy@baymoo.org>]
+
+  *) Make it possible to reuse SSLv2 sessions.
+     [Richard Levitte]
+
+  *) In copy_email() check for >= 0 as a return value for
+     X509_NAME_get_index_by_NID() since 0 is a valid index.
+     [Steve Henson reported by Massimiliano Pala <madwolf@opensca.org>]
+
+  *) Avoid coredump with unsupported or invalid public keys by checking if
+     X509_get_pubkey() fails in PKCS7_verify(). Fix memory leak when
+     PKCS7_verify() fails with non detached data.
+     [Steve Henson]
+
+  *) Don't use getenv in library functions when run as setuid/setgid.
+     New function OPENSSL_issetugid().
+     [Ulf Moeller]
+
+  *) Avoid false positives in memory leak detection code (crypto/mem_dbg.c)
+     due to incorrect handling of multi-threading:
+
+     1. Fix timing glitch in the MemCheck_off() portion of CRYPTO_mem_ctrl().
+
+     2. Fix logical glitch in is_MemCheck_on() aka CRYPTO_is_mem_check_on().
+
+     3. Count how many times MemCheck_off() has been called so that
+        nested use can be treated correctly.  This also avoids 
+        inband-signalling in the previous code (which relied on the
+        assumption that thread ID 0 is impossible).
+     [Bodo Moeller]
+
+  *) Add "-rand" option also to s_client and s_server.
+     [Lutz Jaenicke]
+
+  *) Fix CPU detection on Irix 6.x.
+     [Kurt Hockenbury <khockenb@stevens-tech.edu> and
+      "Bruce W. Forsberg" <bruce.forsberg@baesystems.com>]
+
+  *) Fix X509_NAME bug which produced incorrect encoding if X509_NAME
+     was empty.
+     [Steve Henson]
+     [This change does not apply to 0.9.7.]
+
+  *) Use the cached encoding of an X509_NAME structure rather than
+     copying it. This is apparently the reason for the libsafe "errors"
+     but the code is actually correct.
+     [Steve Henson]
 
   *) Add new function BN_rand_range(), and fix DSA_sign_setup() to prevent
      Bleichenbacher's DSA attack.
-     [Ulf Moeller]
+     Extend BN_[pseudo_]rand: As before, top=1 forces the highest two bits
+     to be set and top=0 forces the highest bit to be set; top=-1 is new
+     and leaves the highest bit random.
+     [Ulf Moeller, Bodo Moeller]
 
   *) In the NCONF_...-based implementations for CONF_... queries
      (crypto/conf/conf_lib.c), if the input LHASH is NULL, avoid using
@@ -35,6 +149,7 @@
      macros previously used would not encode an empty SEQUENCE OF
      and break the signature.
      [Steve Henson]
+     [This change does not apply to 0.9.7.]
 
   *) Zero the premaster secret after deriving the master secret in
      DH ciphersuites.
@@ -87,10 +202,17 @@
   *) Fix a deadlock in CRYPTO_mem_leaks().
      [Bodo Moeller]
 
+  *) Use better test patterns in bntest.
+     [Ulf Möller]
+
   *) rand_win.c fix for Borland C.
      [Ulf Möller]
  
   *) BN_rshift bugfix for n == 0.
+     [Bodo Moeller]
+
+  *) Add a 'bctest' script that checks for some known 'bc' bugs
+     so that 'make test' does not abort just because 'bc' is broken.
      [Bodo Moeller]
 
   *) Store verify_result within SSL_SESSION also for client side to
@@ -115,12 +237,39 @@
      does the actual work for ssl3_read_internal.
      [Bodo Moeller]
 
+  *) Initialise "ex_data" member of RSA/DSA/DH structures prior to calling
+     the method-specific "init()" handler. Also clean up ex_data after
+     calling the method-specific "finish()" handler. Previously, this was
+     happening the other way round.
+     [Geoff Thorpe]
+
   *) Increase BN_CTX_NUM (the number of BIGNUMs in a BN_CTX) to 16.
      The previous value, 12, was not always sufficient for BN_mod_exp().
      [Bodo Moeller]
 
+  *) Make sure that shared libraries get the internal name engine with
+     the full version number and not just 0.  This should mark the
+     shared libraries as not backward compatible.  Of course, this should
+     be changed again when we can guarantee backward binary compatibility.
+     [Richard Levitte]
+
   *) Fix typo in get_cert_by_subject() in by_dir.c
      [Jean-Marc Desperrier <jean-marc.desperrier@certplus.com>]
+
+  *) Rework the system to generate shared libraries:
+
+     - Make note of the expected extension for the shared libraries and
+       if there is a need for symbolic links from for example libcrypto.so.0
+       to libcrypto.so.0.9.7.  There is extended info in Configure for
+       that.
+
+     - Make as few rebuilds of the shared libraries as possible.
+
+     - Still avoid linking the OpenSSL programs with the shared libraries.
+
+     - When installing, install the shared libraries separately from the
+       static ones.
+     [Richard Levitte]
 
   *) Fix SSL_CTX_set_read_ahead macro to actually use its argument.
 
