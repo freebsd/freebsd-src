@@ -17,6 +17,9 @@ static char	elsieid[] = "@(#)localtime.c	7.57";
 
 /*LINTLIBRARY*/
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "private.h"
 #include "tzfile.h"
 #include "fcntl.h"
@@ -274,10 +277,11 @@ register struct state * const	sp;
 		return -1;
 	{
 		register int	doaccess;
+		struct stat	stab;
 		/*
 		** Section 4.9.1 of the C standard says that
 		** "FILENAME_MAX expands to an integral constant expression
-		** that is the sie needed for an array of char large enough
+		** that is the size needed for an array of char large enough
 		** to hold the longest file name string that the implementation
 		** guarantees can be opened."
 		*/
@@ -304,6 +308,8 @@ register struct state * const	sp;
 		if (doaccess && access(name, R_OK) != 0)
 			return -1;
 		if ((fid = open(name, OPEN_MODE)) == -1)
+			return -1;
+		if ((fstat(fid, &stab) < 0) || !S_ISREG(stab.st_mode))
 			return -1;
 	}
 	{
