@@ -36,6 +36,8 @@
 .Sh NAME
 .Nm pthread
 .Nd POSIX thread functions
+.Sh SYNOPSIS
+.Fd #include <pthread.h>
 .Sh DESCRIPTION
 POSIX threads are a set of functions that support applications with
 requirements for multiple flows of control, called
@@ -114,37 +116,37 @@ Returns the thread ID of the calling thread.
 Destroy a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_getinheritsched "pthread_attr_t *attr" "int *inheritsched"
+.Fn pthread_attr_getinheritsched "const pthread_attr_t *attr" "int *inheritsched"
 .Xc
 Get the inherit scheduling attribute from a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_getschedparam "pthread_attr_t *attr" "struct sched_param *param"
+.Fn pthread_attr_getschedparam "const pthread_attr_t *attr" "struct sched_param *param"
 .Xc
 Get the scheduling parameter attribute from a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_getschedpolicy "pthread_attr_t *attr" "int *policy"
+.Fn pthread_attr_getschedpolicy "const pthread_attr_t *attr" "int *policy"
 .Xc
 Get the scheduling policy attribute from a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_getscope "pthread_attr_t *attr" "int *contentionscope"
+.Fn pthread_attr_getscope "const pthread_attr_t *attr" "int *contentionscope"
 .Xc
 Get the contention scope attribute from a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_getstacksize "pthread_attr_t *attr" "size_t *stacksize"
+.Fn pthread_attr_getstacksize "const pthread_attr_t *attr" "size_t *stacksize"
 .Xc
 Get the stack size attribute from a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_getstackaddr "pthread_attr_t *attr" "void **stackaddr"
+.Fn pthread_attr_getstackaddr "const pthread_attr_t *attr" "void **stackaddr"
 .Xc
 Get the stack address attribute from a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_getdetachstate "pthread_attr_t *attr" "int *detachstate"
+.Fn pthread_attr_getdetachstate "const pthread_attr_t *attr" "int *detachstate"
 .Xc
 Get the detach state attribute from a thread attributes object.
 .It Xo
@@ -159,7 +161,7 @@ Initialize a thread attributes object with default values.
 Set the inherit scheduling attribute in a thread attributes object.
 .It Xo
 .Ft int
-.Fn pthread_attr_setschedparam "pthread_attr_t *attr" "struct sched_param *param"
+.Fn pthread_attr_setschedparam "pthread_attr_t *attr" "const struct sched_param *param"
 .Xc
 Set the scheduling parameter attribute in a thread attributes object.
 .It Xo
@@ -318,7 +320,7 @@ acquired.
 Destroy a read/write lock attribute object.
 .It Xo
 .Ft int
-.Fn pthread_rwlockattr_getpshared "pthread_rwlockattr_t *attr" "int *pshared"
+.Fn pthread_rwlockattr_getpshared "const pthread_rwlockattr_t *attr" "int *pshared"
 .Xc
 Retrieve the process shared setting for the read/write lock attribute
 object.
@@ -329,7 +331,7 @@ object.
 Initialize a read/write lock attribute object.
 .It Xo
 .Ft int
-.Fn pthread_rwlockattr_setpshared "pthread_rwlockattr_t *attr" "int *pshared"
+.Fn pthread_rwlockattr_setpshared "pthread_rwlockattr_t *attr" "int pshared"
 .Xc
 Set the process shared setting for the read/write lock attribute object.
 .El
@@ -347,7 +349,7 @@ Create a thread-specific data key.
 Delete a thread-specific data key.
 .It Xo
 .Ft "void *"
-.Fn pthread_getspecific "pthread_key_t key" "void **value_ptr"
+.Fn pthread_getspecific "pthread_key_t key"
 .Xc
 Get the thread-specific value for the specified key.
 .It Xo
