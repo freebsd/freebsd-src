@@ -44,44 +44,41 @@ struct fd_formb {
 	int cyl, head;
 	int transfer_rate;	/* FDC_???KBPS */
 
-	union {
-		struct fd_form_data {
+	struct fd_form_data {
+		/*
+		 * DO NOT CHANGE THE LAYOUT OF THIS STRUCTS
+		 * it is hardware-dependent since it exactly
+		 * matches the byte sequence to write to FDC
+		 * during its `format track' operation
+		 */
+		u_char secshift; /* 0 -> 128, ...; usually 2 -> 512 */
+		u_char nsecs;	/* must be <= FD_MAX_NSEC */
+		u_char gaplen;	/* GAP 3 length; usually 84 */
+		u_char fillbyte; /* usually 0xf6 */
+		struct fd_idfield_data {
 			/*
-			 * DO NOT CHANGE THE LAYOUT OF THIS STRUCTS
-			 * it is hardware-dependent since it exactly
-			 * matches the byte sequence to write to FDC
-			 * during its `format track' operation
+			 * data to write into id fields;
+			 * for obscure formats, they mustn't match
+			 * the real values (but mostly do)
 			 */
-			u_char secshift; /* 0 -> 128, ...; usually 2 -> 512 */
-			u_char nsecs;	/* must be <= FD_MAX_NSEC */
-			u_char gaplen;	/* GAP 3 length; usually 84 */
-			u_char fillbyte; /* usually 0xf6 */
-			struct fd_idfield_data {
-				/*
-				 * data to write into id fields;
-				 * for obscure formats, they mustn't match
-				 * the real values (but mostly do)
-				 */
-				u_char cylno;	/* 0 thru 79 (or 39) */
-				u_char headno;	/* 0, or 1 */
-				u_char secno;	/* starting at 1! */
-				u_char secsize;	/* usually 2 */
-			} idfields[FD_MAX_NSEC]; /* 0 <= idx < nsecs used */
-		} structured;
-		u_char raw[1];	/* to have continuous indexed access */
+			u_char cylno;	/* 0 thru 79 (or 39) */
+			u_char headno;	/* 0, or 1 */
+			u_char secno;	/* starting at 1! */
+			u_char secsize;	/* usually 2 */
+		} idfields[FD_MAX_NSEC]; /* 0 <= idx < nsecs used */
 	} format_info;
 };
 
 /* make life easier */
-# define fd_formb_secshift   format_info.structured.secshift
-# define fd_formb_nsecs      format_info.structured.nsecs
-# define fd_formb_gaplen     format_info.structured.gaplen
-# define fd_formb_fillbyte   format_info.structured.fillbyte
+# define fd_formb_secshift   format_info.secshift
+# define fd_formb_nsecs      format_info.nsecs
+# define fd_formb_gaplen     format_info.gaplen
+# define fd_formb_fillbyte   format_info.fillbyte
 /* these data must be filled in for(i = 0; i < fd_formb_nsecs; i++) */
-# define fd_formb_cylno(i)   format_info.structured.idfields[i].cylno
-# define fd_formb_headno(i)  format_info.structured.idfields[i].headno
-# define fd_formb_secno(i)   format_info.structured.idfields[i].secno
-# define fd_formb_secsize(i) format_info.structured.idfields[i].secsize
+# define fd_formb_cylno(i)   format_info.idfields[i].cylno
+# define fd_formb_headno(i)  format_info.idfields[i].headno
+# define fd_formb_secno(i)   format_info.idfields[i].secno
+# define fd_formb_secsize(i) format_info.idfields[i].secsize
 
 struct fd_type {
 	int	sectrac;		/* sectors per track         */
@@ -99,6 +96,7 @@ struct fd_type {
 #define FL_MFM		0x0001		/* MFM recording */
 #define FL_2STEP	0x0002		/* 2 steps between cylinders */
 #define FL_PERPND	0x0004		/* perpendicular recording */
+#define FL_AUTO		0x0008		/* autodetect format */
 };
 
 struct fdc_status {
@@ -132,8 +130,10 @@ enum fd_drivetype {
 
 #define FD_GOPTS  _IOR('F', 64, int) /* drive options, see below */
 #define FD_SOPTS  _IOW('F', 65, int)
-
+ 
+#ifdef PC98
 #define FD_DEBUG  _IOW('F', 66, int)
+#endif
 
 #define FD_CLRERR _IO('F', 67)	/* clear error counter */
 
@@ -152,8 +152,10 @@ enum fd_drivetype {
 #define FDOPT_NOERRLOG 0x002	/* no "hard error" kernel log messages */
 #define FDOPT_NOERROR 0x0004	/* do not indicate errors, caller will use
 				   FD_GSTAT in order to obtain status */
+#ifdef PC98
 #define FDOPT_AUTOSEL 0x8000	/* read/only option: device performs media
 				 * autoselection */
+#endif
 
 /*
  * Transfer rate definitions.  Used in the structures above.  They
@@ -166,5 +168,35 @@ enum fd_drivetype {
 #define	FDC_300KBPS	0x01	/* 300KBPS MFM drive transfer rate */
 #define	FDC_250KBPS	0x02	/* 250KBPS MFM drive transfer rate */
 #define	FDC_1MBPS	0x03	/* 1MPBS MFM drive transfer rate */
+
+/*
+ * Parameters for common formats
+ *
+ * See struct fd_type for layout.
+ * XXX: Field 'size' must be calculated.
+ * XXX: Fields 'f_inter' and 'offset_side2' are unused by kernel.
+ *
+ * XXX: These should really go in a /etc/floppycap colon separated file
+ * XXX: but the kernel needs some of them for proper defaults and it would
+ * XXX: should have been done 20 years ago to make sense.
+ */
+#define FDF_3_2880 36,2,0xFF,0x1B,80,0,FDC_1MBPS,002,0x4C,1,1,FL_MFM|FL_PERPND
+#define FDF_3_1722 21,2,0xFF,0x04,82,0,FDC_500KBPS,2,0x0C,2,0,FL_MFM
+#define FDF_3_1476 18,2,0xFF,0x1B,82,0,FDC_500KBPS,2,0x6C,1,0,FL_MFM
+#define FDF_3_1440 18,2,0xFF,0x1B,80,0,FDC_500KBPS,2,0x6C,1,0,FL_MFM
+#define FDF_3_1200 15,2,0xFF,0x1B,80,0,FDC_500KBPS,2,0x54,1,0,FL_MFM
+#define FDF_3_820  10,2,0xFF,0x10,82,0,FDC_250KBPS,2,0x2e,1,0,FL_MFM
+#define FDF_3_800  10,2,0xFF,0x10,80,0,FDC_250KBPS,2,0x2e,1,0,FL_MFM
+#define FDF_3_720   9,2,0xFF,0x20,80,0,FDC_250KBPS,2,0x50,1,0,FL_MFM
+#define FDF_5_1480 18,2,0xFF,0x02,82,0,FDC_500KBPS,2,0x02,2,0,FL_MFM 
+#define FDF_5_1440 18,2,0xFF,0x02,80,0,FDC_500KBPS,2,0x02,2,0,FL_MFM
+#define FDF_5_1230  8,3,0xFF,0x35,77,0,FDC_500KBPS,2,0x74,1,0,FL_MFM
+#define FDF_5_1200 15,2,0xFF,0x1B,80,0,FDC_500KBPS,2,0x54,1,0,FL_MFM
+#define FDF_5_820  10,2,0xFF,0x10,82,0,FDC_300KBPS,2,0x2e,1,0,FL_MFM
+#define FDF_5_800  10,2,0xFF,0x10,80,0,FDC_300KBPS,2,0x2e,1,0,FL_MFM
+#define FDF_5_720   9,2,0xFF,0x20,80,0,FDC_300KBPS,2,0x50,1,0,FL_MFM
+#define FDF_5_640   8,2,0xFF,0x2A,80,0,FDC_300KBPS,2,0x50,1,0,FL_MFM
+#define FDF_5_360   9,2,0xFF,0x23,40,0,FDC_300KBPS,2,0x50,1,0,FL_MFM
+/* XXX:                      0x2a ? */
 
 #endif /* !_MACHINE_IOCTL_FD_H_ */
