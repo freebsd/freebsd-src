@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.79 1998/09/20 19:49:44 obrien Exp $
+#	$Id: bsd.lib.mk,v 1.80 1998/10/19 20:09:17 imp Exp $
 #
 
 .if !target(__initialized__)
@@ -207,7 +207,8 @@ lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 .else
 lib${LIB}.so.${SHLIB_MAJOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}\)
-	@rm -f lib${LIB}.so.${SHLIB_MAJOR}
+	@rm -f lib${LIB}.so.${SHLIB_MAJOR} lib${LIB}.so
+	@ln -sf lib${LIB}.so.${SHLIB_MAJOR} lib${LIB}.so
 	@${LDDESTDIRENV} ${CC} -shared -Wl,-x \
 	    -o lib${LIB}.so.${SHLIB_MAJOR} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
@@ -228,7 +229,8 @@ clean:	_SUBDIR
 	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
 	rm -f lib${LIB}.a # llib-l${LIB}.ln
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
-	rm -f ${SOBJS} ${SOBJS:S/$/.tmp/} lib${LIB}.so.* lib${LIB}_pic.a
+	rm -f ${SOBJS} ${SOBJS:S/$/.tmp/} lib${LIB}.so.* lib${LIB}.so \
+	    lib${LIB}_pic.a
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
