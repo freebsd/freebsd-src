@@ -75,8 +75,8 @@
 
 #include <dev/advansys/advansys.h>
 
-#define PCI_BASEADR0	PCI_MAP_REG_START	/* I/O Address */
-#define PCI_BASEADR1	PCI_MAP_REG_START + 4	/* Mem I/O Address */
+#define PCI_BASEADR0	PCIR_MAPS		/* I/O Address */
+#define PCI_BASEADR1	PCIR_MAPS + 4		/* Mem I/O Address */
 
 #define	PCI_DEVICE_ID_ADVANSYS_1200A	0x110010CD
 #define	PCI_DEVICE_ID_ADVANSYS_1200B	0x120010CD
@@ -143,7 +143,7 @@ adv_pci_attach(device_t dev)
 	/*
 	 * Determine the chip version.
 	 */
-	id = pci_read_config(dev, PCI_ID_REG, /*bytes*/4);
+	id = pci_read_config(dev, PCIR_DEVVENDOR, /*bytes*/4);
 	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
 
 	/*
