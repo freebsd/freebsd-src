@@ -29,6 +29,13 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -44,7 +51,6 @@
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
  * $FreeBSD$
- *
  */
 
 #include "opt_fdc.h"
@@ -67,7 +73,6 @@
 #include <sys/proc.h>
 #include <sys/syslog.h>
 
-#include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 
@@ -223,6 +228,13 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 #define FD_FAILED -1
 #define FD_NOT_VALID -2
 #define FDC_ERRMAX	100	/* do not log more */
+/*
+ * Stop retrying after this many DMA overruns.  Since each retry takes
+ * one revolution, with 300 rpm., 25 retries take approximately 5
+ * seconds which the read attempt will block in case the DMA overrun
+ * is persistent.
+ */
+#define FDC_DMAOV_MAX	25
 
 #ifdef PC98
 #define NUMTYPES 12
@@ -232,7 +244,7 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 #define NUMDENS  (NUMTYPES - 7)
 #endif
 
-#define NO_TYPE		0	/* must match NO_TYPE in ft.c */
+#define NO_TYPE		0
 #define FD_1720         1
 #define FD_1480         2
 #define FD_1440         3
@@ -261,6 +273,7 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 #define FD_640in5_25    17
 #endif
 
+#define BIO_RDSECTID	BIO_CMD1
 
 static struct fd_type fd_types[NUMTYPES] =
 {
@@ -314,16 +327,15 @@ static bus_addr_t fdc_iat[] = {0, 2, 4};
 #endif
 
 #define MAX_SEC_SIZE	(128 << 3)
+#define MAX_CYLINDER	85	/* some people really stress their drives
+				 * up to cyl 82 */
+#define MAX_HEAD	1
 
-/***********************************************************************\
-* Per controller structure.						*
-\***********************************************************************/
 static devclass_t fdc_devclass;
 
-/***********************************************************************\
-* Per drive structure.							*
-* N per controller  (DRVS_PER_CTLR)					*
-\***********************************************************************/
+/*
+ * Per drive structure (softc).
+ */
 struct fd_data {
 	struct	fdc_data *fdc;	/* pointer to controller structure */
 	int	fdsu;		/* this units number on this controller */
@@ -339,12 +351,16 @@ struct fd_data {
 #define FD_NO_TRACK -2
 	int	track;		/* where we think the head is */
 	int	options;	/* user configurable options, see ioctl_fd.h */
-	struct	callout_handle toffhandle;
-	struct	callout_handle tohandle;
-	struct	devstat device_stats;
 #ifdef PC98
 	int	pc98_trans;
 #endif
+	struct	callout_handle toffhandle;
+	struct	callout_handle tohandle;
+	struct	devstat device_stats;
+	eventhandler_tag clonetag;
+	dev_t	masterdev;
+#define NCLONEDEVS	10	/* must match the table below */
+	dev_t	clonedevs[NCLONEDEVS];
 	device_t dev;
 	fdu_t	fdu;
 };
@@ -404,17 +420,61 @@ nrd_info(addr)
 }
 #endif /* EPSON_NRDISK */
 
-/***********************************************************************\
-* Throughout this file the following conventions will be used:		*
-* fd is a pointer to the fd_data struct for the drive in question	*
-* fdc is a pointer to the fdc_data struct for the controller		*
-* fdu is the floppy drive unit number					*
-* fdcu is the floppy controller unit number				*
-* fdsu is the floppy drive unit number on that controller. (sub-unit)	*
-\***********************************************************************/
+/*
+ * Throughout this file the following conventions will be used:
+ *
+ * fd is a pointer to the fd_data struct for the drive in question
+ * fdc is a pointer to the fdc_data struct for the controller
+ * fdu is the floppy drive unit number
+ * fdcu is the floppy controller unit number
+ * fdsu is the floppy drive unit number on that controller. (sub-unit)
+ */
 
-/* internal functions */
-static	void fdc_intr(void *);
+/*
+ * Function declarations, same (chaotic) order as they appear in the
+ * file.  Re-ordering is too late now, it would only obfuscate the
+ * diffs against old and offspring versions (like the PC98 one).
+ *
+ * Anyone adding functions here, please keep this sequence the same
+ * as below -- makes locating a particular function in the body much
+ * easier.
+ */
+#ifndef PC98
+static void fdout_wr(fdc_p, u_int8_t);
+#endif
+static u_int8_t fdsts_rd(fdc_p);
+static void fddata_wr(fdc_p, u_int8_t);
+static u_int8_t fddata_rd(fdc_p);
+#ifndef PC98
+static void fdctl_wr_isa(fdc_p, u_int8_t);
+#if NCARD > 0
+static void fdctl_wr_pcmcia(fdc_p, u_int8_t);
+#endif
+#endif /* PC98 */
+#if 0
+static u_int8_t fdin_rd(fdc_p);
+#endif
+static int fdc_err(struct fdc_data *, const char *);
+static int fd_cmd(struct fdc_data *, int, ...);
+static int enable_fifo(fdc_p fdc);
+static int fd_sense_drive_status(fdc_p, int *);
+static int fd_sense_int(fdc_p, int *, int *);
+static int fd_read_status(fdc_p);
+static int fdc_alloc_resources(struct fdc_data *);
+static void fdc_release_resources(struct fdc_data *);
+static int fdc_read_ivar(device_t, device_t, int, uintptr_t *);
+static int fdc_probe(device_t);
+#if NCARD > 0
+static int fdc_pccard_probe(device_t);
+#endif
+static int fdc_detach(device_t dev);
+static void fdc_add_child(device_t, const char *, int);
+static int fdc_attach(device_t);
+static int fdc_print_child(device_t, device_t);
+static void fd_clone (void *, char *, int, dev_t *);
+static int fd_probe(device_t);
+static int fd_attach(device_t);
+static int fd_detach(device_t);
 static void set_motor(struct fdc_data *, int, int);
 #  define TURNON 1
 #  define TURNOFF 0
@@ -424,46 +484,39 @@ static void fd_turnon(struct fd_data *);
 static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
 static int out_fdc(struct fdc_data *, int);
+/*
+ * The open function is named Fdopen() to avoid confusion with fdopen()
+ * in fd(4).  The difference is now only meaningful for debuggers.
+ */
+static	d_open_t	Fdopen;
+static	d_close_t	fdclose;
+static	d_strategy_t	fdstrategy;
 static void fdstart(struct fdc_data *);
 static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
+static driver_intr_t fdc_intr;
+static int fdcpio(fdc_p, long, caddr_t, u_int);
 static int fdstate(struct fdc_data *);
 static int retrier(struct fdc_data *);
-static int fdformat(dev_t, struct fd_formb *, struct thread *);
-
-static int enable_fifo(fdc_p fdc);
-static void fd_clone (void *arg, char *name, int namelen, dev_t *dev);
+static void fdbiodone(struct bio *);
+static int fdmisccmd(dev_t, u_int, void *);
+static	d_ioctl_t	fdioctl;
 
 static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
 
 #ifdef	FDC_DEBUG
-static char const * const fdstates[] =
-{
-"DEVIDLE",
-"FINDWORK",
-"DOSEEK",
-"SEEKCOMPLETE",
-"IOCOMPLETE",
-"RECALCOMPLETE",
-"STARTRECAL",
-"RESETCTLR",
-"SEEKWAIT",
-"RECALWAIT",
-"MOTORWAIT",
-"IOTIMEDOUT",
-"RESETCOMPLETE",
-"PIOREAD",
-};
-
 /* CAUTION: fd_debug causes huge amounts of logging output */
 static int volatile fd_debug = 0;
-#define TRACE0(arg) if(fd_debug) printf(arg)
-#define TRACE1(arg1, arg2) if(fd_debug) printf(arg1, arg2)
+#define TRACE0(arg) do { if (fd_debug) printf(arg); } while (0)
+#define TRACE1(arg1, arg2) do { if (fd_debug) printf(arg1, arg2); } while (0)
 #else /* FDC_DEBUG */
-#define TRACE0(arg)
-#define TRACE1(arg1, arg2)
+#define TRACE0(arg) do { } while (0)
+#define TRACE1(arg1, arg2) do { } while (0)
 #endif /* FDC_DEBUG */
 
+/*
+ * Bus space handling (access to low-level IO).
+ */
 #ifndef PC98
 static void
 fdout_wr(fdc_p fdc, u_int8_t v)
@@ -524,17 +577,7 @@ fdin_rd(fdc_p fdc)
 
 #endif
 
-/*
- * named Fdopen() to avoid confusion with fdopen() in fd(4); the
- * difference is now only meaningful for debuggers
- */
-static	d_open_t	Fdopen;
-static	d_close_t	fdclose;
-static	d_ioctl_t	fdioctl;
-static	d_strategy_t	fdstrategy;
-
 #define CDEV_MAJOR 9
-
 static struct cdevsw fd_cdevsw = {
 	/* open */	Fdopen,
 	/* close */	fdclose,
@@ -551,6 +594,10 @@ static struct cdevsw fd_cdevsw = {
 	/* flags */	D_DISK,
 };
 
+/*
+ * Auxiliary functions.  Well, some only.  Others are scattered
+ * throughout the entire file.
+ */
 static int
 fdc_err(struct fdc_data *fdc, const char *s)
 {
@@ -712,13 +759,13 @@ fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
 
 
 static int
-fd_read_status(fdc_p fdc, int fdsu)
+fd_read_status(fdc_p fdc)
 {
 	int i, ret;
 
-	for (i = 0; i < 7; i++) {
+	for (i = ret = 0; i < 7; i++) {
 		/*
-		 * XXX types are poorly chosen.  Only bytes can by read
+		 * XXX types are poorly chosen.  Only bytes can be read
 		 * from the hardware, but fdc->status[] wants u_ints and
 		 * fd_in() gives ints.
 		 */
@@ -757,9 +804,6 @@ fd_read_status(fdc_p fdc, int fdsu)
 	return ret;
 }
 
-/****************************************************************************/
-/*                      autoconfiguration stuff                             */
-/****************************************************************************/
 #ifdef PC98
 static int pc98_trans = 0; /* 0 : HD , 1 : DD , 2 : 1.44 */
 static int pc98_trans_prev = 0;
@@ -807,13 +851,17 @@ static int
 fdc_alloc_resources(struct fdc_data *fdc)
 {
 	device_t dev;
-	int ispnp, ispcmcia;
 #ifdef PC98
 	int rid;
+#else
+	int ispnp, ispcmcia, nports;
 #endif
+
 	dev = fdc->fdc_dev;
+#ifndef PC98
 	ispnp = (fdc->flags & FDC_ISPNP) != 0;
 	ispcmcia = (fdc->flags & FDC_ISPCMCIA) != 0;
+#endif
 	fdc->rid_ioport = fdc->rid_irq = fdc->rid_drq = 0;
 	fdc->res_ioport = fdc->res_irq = fdc->res_drq = 0;
 
@@ -821,6 +869,11 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	fdc->res_ioport = isa_alloc_resourcev(dev, SYS_RES_IOPORT,
 					      &fdc->rid_ioport, fdc_iat,
 					      3, RF_ACTIVE);
+	if (fdc->res_ioport == 0) {
+		device_printf(dev, "cannot reserve I/O port range\n");
+		return ENXIO;
+	}
+	isa_load_resourcev(fdc->res_ioport, fdc_iat, 3);
 #else
 	/*
 	 * On standard ISA, we don't just use an 8 port range
@@ -833,17 +886,15 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	 * uses the register with offset 6 for pseudo-DMA, and the
 	 * one with offset 7 as control register.
 	 */
+	nports = ispcmcia ? 8 : (ispnp ? 1 : 6);
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &fdc->rid_ioport, 0ul, ~0ul, 
-					     ispcmcia ? 8 : (ispnp ? 1 : 6),
-					     RF_ACTIVE);
-#endif
+					     nports, RF_ACTIVE);
 	if (fdc->res_ioport == 0) {
-		device_printf(dev, "cannot reserve I/O port range\n");
+		device_printf(dev, "cannot reserve I/O port range (%d ports)\n",
+			      nports);
 		return ENXIO;
 	}
-#ifdef PC98
-	isa_load_resourcev(fdc->res_ioport, fdc_iat, 3);
 #endif
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
@@ -911,7 +962,7 @@ fdc_alloc_resources(struct fdc_data *fdc)
 						  0ul, ~0ul, 1, RF_ACTIVE);
 		if (fdc->res_ctl == 0) {
 			device_printf(dev,
-				      "cannot reserve control I/O port range\n");
+		"cannot reserve control I/O port range (control port)\n");
 			return ENXIO;
 		}
 		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
@@ -987,9 +1038,9 @@ fdc_release_resources(struct fdc_data *fdc)
 	}
 }
 
-/****************************************************************************/
-/*                      autoconfiguration stuff                             */
-/****************************************************************************/
+/*
+ * Configuration/initialization stuff, per controller.
+ */
 
 static struct isa_pnp_id fdc_ids[] = {
 	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
@@ -1012,9 +1063,6 @@ fdc_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return 0;
 }
 
-/*
- * fdc controller section.
- */
 static int
 fdc_probe(device_t dev)
 {
@@ -1125,11 +1173,19 @@ fdc_pccard_probe(device_t dev)
 #endif
 
 	/* see if it can handle a command */
+#ifdef PC98
+	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(4, 240), 
+		   NE7_SPEC_2(2, 0), 0)) {
+		error = ENXIO;
+		goto out;
+	}
+#else
 	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
 		   NE7_SPEC_2(2, 0), 0)) {
 		error = ENXIO;
 		goto out;
 	}
+#endif
 
 	device_set_desc(dev, "Y-E Data PCMCIA floppy");
 	fdc->fdct = FDC_NE765;
@@ -1139,8 +1195,10 @@ out:
 	return (error);
 }
 
+#endif /* NCARD > 0 */
+
 static int
-fdc_pccard_detach(device_t dev)
+fdc_detach(device_t dev)
 {
 	struct	fdc_data *fdc;
 	int	error;
@@ -1150,6 +1208,17 @@ fdc_pccard_detach(device_t dev)
 	/* have our children detached first */
 	if ((error = bus_generic_detach(dev)))
 		return (error);
+
+#ifdef PC98
+	/* reset controller, turn motor off */
+	fdc_reset(fdc);
+#else
+	/* reset controller, turn motor off */
+	fdout_wr(fdc, 0);
+#endif
+
+	if ((fdc->flags & FDC_NODMA) == 0)
+		isa_dma_release(fdc->dmachan);
 
 	if ((fdc->flags & FDC_ATTACHED) == 0) {
 		device_printf(dev, "already unloaded\n");
@@ -1163,8 +1232,6 @@ fdc_pccard_detach(device_t dev)
 	device_printf(dev, "unload\n");
 	return (0);
 }
-
-#endif /* NCARD > 0 */
 
 /*
  * Add a child device to the fdc controller.  It will then be probed etc.
@@ -1194,8 +1261,8 @@ static int
 fdc_attach(device_t dev)
 {
 	struct	fdc_data *fdc;
-	int	i, error, dunit;
 	const char *name, *dname;
+	int	i, error, dunit;
 
 	fdc = device_get_softc(dev);
 	error = fdc_alloc_resources(fdc);
@@ -1211,7 +1278,7 @@ fdc_attach(device_t dev)
 		return error;
 	}
 	fdc->fdcu = device_get_unit(dev);
-	fdc->flags |= FDC_ATTACHED;
+	fdc->flags |= FDC_ATTACHED | FDC_NEEDS_RESET;
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
 		/*
@@ -1229,7 +1296,7 @@ fdc_attach(device_t dev)
 	fdc_reset(fdc);
 #else
 	/* reset controller, turn motor off, clear fdout mirror reg */
-	fdout_wr(fdc, ((fdc->fdout = 0)));
+	fdout_wr(fdc, fdc->fdout = 0);
 #endif
 	bioq_init(&fdc->head);
 
@@ -1242,7 +1309,10 @@ fdc_attach(device_t dev)
 	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
 		fdc_add_child(dev, dname, dunit);
 
-	return (bus_generic_attach(dev));
+	if ((error = bus_generic_attach(dev)) != 0)
+		return (error);
+
+	return (0);
 }
 
 static int
@@ -1261,7 +1331,7 @@ static device_method_t fdc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fdc_probe),
 	DEVMETHOD(device_attach,	fdc_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	fdc_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -1291,7 +1361,7 @@ static device_method_t fdc_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fdc_pccard_probe),
 	DEVMETHOD(device_attach,	fdc_attach),
-	DEVMETHOD(device_detach,	fdc_pccard_detach),
+	DEVMETHOD(device_detach,	fdc_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -1319,14 +1389,10 @@ static struct {
 	int minor;
 	int link;
 } fd_suffix[] = {
-	{ "a",		0,	1 },
-	{ "b",		0,	1 },
-	{ "c",		0,	1 },
-	{ "d",		0,	1 },
-	{ "e",		0,	1 },
-	{ "f",		0,	1 },
-	{ "g",		0,	1 },
-	{ "h",		0,	1 },
+	/*
+	 * Genuine clone devices must come first, and their number must
+	 * match NCLONEDEVS above.
+	 */
 	{ ".1720",	1,	0 },
 	{ ".1480",	2,	0 },
 	{ ".1440",	3,	0 },
@@ -1341,15 +1407,25 @@ static struct {
 	{ ".1280",	11,	0 },
 	{ ".1476",	12,	0 },
 #endif
+	{ "a",		0,	1 },
+	{ "b",		0,	1 },
+	{ "c",		0,	1 },
+	{ "d",		0,	1 },
+	{ "e",		0,	1 },
+	{ "f",		0,	1 },
+	{ "g",		0,	1 },
+	{ "h",		0,	1 },
 	{ 0, 0 }
 };
+
 static void
-fd_clone (void *arg, char *name, int namelen, dev_t *dev)
+fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
+	struct	fd_data *fd;
 	int u, d, i;
 	char *n;
-	dev_t pdev;
 
+	fd = (struct fd_data *)arg;
 	if (*dev != NODEV)
 		return;
 	if (dev_stdclone(name, &n, "fd", &u) != 2)
@@ -1365,15 +1441,14 @@ fd_clone (void *arg, char *name, int namelen, dev_t *dev)
 	if (fd_suffix[i].link == 0) {
 		*dev = make_dev(&fd_cdevsw, (u << 6) + d,
 			UID_ROOT, GID_OPERATOR, 0640, name);
+		fd->clonedevs[i] = *dev;
 	} else {
-		pdev = makedev(fd_cdevsw.d_maj, (u << 6) + d);
-		*dev = make_dev_alias(pdev, name);
+		*dev = make_dev_alias(fd->masterdev, name);
 	}
 }
 
-/******************************************************************/
 /*
- * devices attached to the controller section.  
+ * Configuration/initialization, per drive.
  */
 static int
 fd_probe(device_t dev)
@@ -1475,6 +1550,7 @@ fd_probe(device_t dev)
 #ifndef PC98
 	/* select it */
 	set_motor(fdc, fdsu, TURNON);
+	fdc_reset(fdc);		/* XXX reset, then unreset, etc. */
 	DELAY(1000000);	/* 1 sec */
 
 	/* XXX This doesn't work before the first set_motor() */
@@ -1607,21 +1683,19 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-	static int cdevsw_add_done = 0;
-
-	fd = device_get_softc(dev);
+	static	int cdevsw_add_done;
+	int i;
 
 	if (!cdevsw_add_done) {
 		cdevsw_add(&fd_cdevsw);	/* XXX */
-		cdevsw_add_done++;
+		cdevsw_add_done = 1;
 	}
-	EVENTHANDLER_REGISTER(dev_clone, fd_clone, 0, 1000);
-	make_dev(&fd_cdevsw, (fd->fdu << 6),
-		UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
-
-	/*
-	 * Export the drive to the devstat interface.
-	 */
+	fd = device_get_softc(dev);
+	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, fd, 1000);
+	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
+				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
+	for (i = 0; i < NCLONEDEVS; i++)
+		fd->clonedevs[i] = NODEV;
 	devstat_add_entry(&fd->device_stats, device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
@@ -1633,9 +1707,17 @@ static int
 fd_detach(device_t dev)
 {
 	struct	fd_data *fd;
+	int i;
 
 	fd = device_get_softc(dev);
 	untimeout(fd_turnoff, fd, fd->toffhandle);
+	devstat_remove_entry(&fd->device_stats);
+	destroy_dev(fd->masterdev);
+	for (i = 0; i < NCLONEDEVS; i++)
+		if (fd->clonedevs[i] != NODEV)
+			destroy_dev(fd->clonedevs[i]);
+	cdevsw_remove(&fd_cdevsw);
+	EVENTHANDLER_DEREGISTER(dev_clone, fd->clonetag);
 
 	return (0);
 }
@@ -1660,10 +1742,13 @@ static driver_t fd_driver = {
 
 DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
 
-/****************************************************************************/
-/*                            motor control stuff                           */
-/*		remember to not deselect the drive we're working on         */
-/****************************************************************************/
+/*
+ * More auxiliary functions.
+ */
+/*
+ * Motor control stuff.
+ * Remember to not deselect the drive we're working on.
+ */
 static void
 set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 {
@@ -1673,51 +1758,17 @@ set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 	DELAY(10);
 	fdctl_wr(fdc, FDC_DMAE | FDC_MTON);
 #else
-	int fdout = fdc->fdout;
-	int needspecify = 0;
+	int fdout;
 
-	if(turnon) {
+	fdout = fdc->fdout;
+	if (turnon) {
 		fdout &= ~FDO_FDSEL;
-		fdout |= (FDO_MOEN0 << fdsu) + fdsu;
+		fdout |= (FDO_MOEN0 << fdsu) | FDO_FDMAEN | FDO_FRST | fdsu;
 	} else
 		fdout &= ~(FDO_MOEN0 << fdsu);
-
-	if(!turnon
-	   && (fdout & (FDO_MOEN0+FDO_MOEN1+FDO_MOEN2+FDO_MOEN3)) == 0)
-		/* gonna turn off the last drive, put FDC to bed */
-		fdout &= ~ (FDO_FRST|FDO_FDMAEN);
-	else {
-		/* make sure controller is selected and specified */
-		if((fdout & (FDO_FRST|FDO_FDMAEN)) == 0)
-			needspecify = 1;
-		fdout |= (FDO_FRST|FDO_FDMAEN);
-	}
-
-	fdout_wr(fdc, fdout);
 	fdc->fdout = fdout;
+	fdout_wr(fdc, fdout);
 	TRACE1("[0x%x->FDOUT]", fdout);
-
-	if (needspecify) {
-		/*
-		 * we silently assume the command will be accepted
-		 * after an FDC reset
-		 *
-		 * Steinbach's Guideline for Systems Programming:
-		 * Never test for an error condition you don't know
-		 * how to handle.
-		 */
-#ifdef PC98
-		(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
-			     NE7_SPEC_1(4, 240), NE7_SPEC_2(2, 0),
-			     0);
-#else
-		(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
-			     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
-			     0);
-#endif
-		if (fdc->flags & FDC_HAS_FIFO)
-			(void) enable_fifo(fdc);
-	}
 #endif
 }
 
@@ -1800,7 +1851,7 @@ fdc_reset(fdc_p fdc)
 	TRACE1("[0x%x->FDOUT]", fdc->fdout);
 #endif
 
-	/* after a reset, silently believe the FDC will accept commands */
+	/* XXX after a reset, silently believe the FDC will accept commands */
 #ifdef PC98
 	(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
 		     NE7_SPEC_1(4, 240), NE7_SPEC_2(2, 0),
@@ -1814,9 +1865,10 @@ fdc_reset(fdc_p fdc)
 		(void) enable_fifo(fdc);
 }
 
-/****************************************************************************/
-/*                             fdc in/out                                   */
-/****************************************************************************/
+/*
+ * FDC IO functions, take care of the main status register, timeout
+ * in case the desired status bits are never set.
+ */
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
@@ -1862,9 +1914,10 @@ out_fdc(struct fdc_data *fdc, int x)
 	return (0);
 }
 
-/****************************************************************************/
-/*                           fdopen/fdclose                                 */
-/****************************************************************************/
+/*
+ * Block device driver interface functions (interspersed with even more
+ * auxiliary functions).
+ */
 int
 Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 {
@@ -1954,6 +2007,18 @@ Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 #endif
 	fd->ft = fd_types + type - 1;
 	fd->flags |= FD_OPEN;
+	/*
+	 * Clearing the DMA overrun counter at open time is a bit messy.
+	 * Since we're only managing one counter per controller, opening
+	 * the second drive could mess it up.  Anyway, if the DMA overrun
+	 * condition is really persistent, it will eventually time out
+	 * still.  OTOH, clearing it here will ensure we'll at least start
+	 * trying again after a previous (maybe even long ago) failure.
+	 * Also, this is merely a stop-gap measure only that should not
+	 * happen during normal operation, so we can tolerate it to be a
+	 * bit sloppy about this.
+	 */
+	fdc->dma_overruns = 0;
 
 	return 0;
 }
@@ -1971,13 +2036,10 @@ fdclose(dev_t dev, int flags, int mode, struct thread *td)
 	return (0);
 }
 
-/****************************************************************************/
-/*                               fdstrategy                                 */
-/****************************************************************************/
 void
 fdstrategy(struct bio *bp)
 {
-	unsigned nblocks, blknum, cando;
+	long blknum, nblocks;
  	int	s;
  	fdu_t	fdu;
  	fdc_p	fdc;
@@ -1994,10 +2056,9 @@ fdstrategy(struct bio *bp)
 		bp->bio_error = ENXIO;
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
-	};
-
+	}
 	fdblk = 128 << (fd->ft->secsize);
-	if (!(bp->bio_cmd & BIO_FORMAT)) {
+	if (bp->bio_cmd != BIO_FORMAT && bp->bio_cmd != BIO_RDSECTID) {
 		if (bp->bio_blkno < 0) {
 			printf(
 		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
@@ -2025,30 +2086,26 @@ fdstrategy(struct bio *bp)
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	}
-	blknum = (unsigned) bp->bio_blkno * DEV_BSIZE/fdblk;
+	blknum = bp->bio_blkno * DEV_BSIZE / fdblk;
  	nblocks = fd->ft->size;
-	bp->bio_resid = 0;
-	if (blknum + (bp->bio_bcount / fdblk) > nblocks) {
-		if (blknum <= nblocks) {
-			cando = (nblocks - blknum) * fdblk;
-			bp->bio_resid = bp->bio_bcount - cando;
-			if (cando == 0)
-				goto bad;	/* not actually bad but EOF */
-		} else {
-			bp->bio_error = EINVAL;
-			bp->bio_flags |= BIO_ERROR;
-			goto bad;
+	if (blknum + bp->bio_bcount / fdblk > nblocks) {
+		if (blknum >= nblocks) {
+			if (bp->bio_cmd == BIO_READ)
+				bp->bio_resid = bp->bio_bcount;
+			else {
+				bp->bio_error = ENOSPC;
+				bp->bio_flags |= BIO_ERROR;
+			}
+			goto bad;	/* not always bad, but EOF */
 		}
+		bp->bio_bcount = (nblocks - blknum) * fdblk;
 	}
  	bp->bio_pblkno = bp->bio_blkno;
 	s = splbio();
 	bioqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
-
-	/* Tell devstat we are starting on the transaction */
 	devstat_start_transaction(&fd->device_stats);
 	device_busy(fd->dev);
-
 	fdstart(fdc);
 	splx(s);
 	return;
@@ -2057,15 +2114,17 @@ bad:
 	biodone(bp);
 }
 
-/***************************************************************\
-*				fdstart				*
-* We have just queued something.. if the controller is not busy	*
-* then simulate the case where it has just finished a command	*
-* So that it (the interrupt routine) looks on the queue for more*
-* work to do and picks up what we just added.			*
-* If the controller is already busy, we need do nothing, as it	*
-* will pick up our work when the present work completes		*
-\***************************************************************/
+/*
+ * fdstart
+ *
+ * We have just queued something.  If the controller is not busy
+ * then simulate the case where it has just finished a command
+ * So that it (the interrupt routine) looks on the queue for more
+ * work to do and picks up what we just added.
+ *
+ * If the controller is already busy, we need do nothing, as it
+ * will pick up our work when the present work completes.
+ */
 static void
 fdstart(struct fdc_data *fdc)
 {
@@ -2107,7 +2166,7 @@ fd_iotimeout(void *xfdc)
 	splx(s);
 }
 
-/* just ensure it has the right spl */
+/* Just ensure it has the right spl. */
 static void
 fd_pseudointr(void *xfdc)
 {
@@ -2118,11 +2177,12 @@ fd_pseudointr(void *xfdc)
 	splx(s);
 }
 
-/***********************************************************************\
-*                                 fdintr				*
-* keep calling the state machine until it returns a 0			*
-* ALWAYS called at SPLBIO 						*
-\***********************************************************************/
+/*
+ * fdc_intr
+ *
+ * Keep calling the state machine until it returns a 0.
+ * Always called at splbio.
+ */
 static void
 fdc_intr(void *xfdc)
 {
@@ -2132,8 +2192,8 @@ fdc_intr(void *xfdc)
 }
 
 /*
- * magic pseudo-DMA initialization for YE FDC. Sets count and
- * direction
+ * Magic pseudo-DMA initialization for YE FDC. Sets count and
+ * direction.
  */
 #define SET_BCDR(fdc,wr,cnt,port) \
 	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port,	 \
@@ -2142,9 +2202,10 @@ fdc_intr(void *xfdc)
 	    ((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)));
 
 /*
- * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy
+ * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy.
  */
-static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
+static int
+fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 {
 	u_char *cptr = (u_char *)addr;
 
@@ -2152,7 +2213,7 @@ static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 		if (fdc->state != PIOREAD) {
 			fdc->state = PIOREAD;
 			return(0);
-		};
+		}
 		SET_BCDR(fdc, 0, count, 0);
 		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
 		    FDC_YE_DATAPORT, cptr, count);
@@ -2160,19 +2221,22 @@ static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
 		    FDC_YE_DATAPORT, cptr, count);
 		SET_BCDR(fdc, 0, count, 0);
-	};
+	}
 	return(1);
 }
 
-/***********************************************************************\
-* The controller state machine.						*
-* if it returns a non zero value, it should be called again immediatly	*
-\***********************************************************************/
+/*
+ * The controller state machine.
+ *
+ * If it returns a non zero value, it should be called again immediately.
+ */
 static int
 fdstate(fdc_p fdc)
 {
-	int read, format, head, i, sec = 0, sectrac, st0, cyl, st3, idf;
-	unsigned blknum = 0, b_cylinder = 0;
+	struct fdc_readid *idp;
+	int read, format, rdsectid, cylinder, head, i, sec = 0, sectrac;
+	int st0, cyl, st3, idf;
+	unsigned long blknum;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
 	register struct bio *bp;
@@ -2188,10 +2252,10 @@ fdstate(fdc_p fdc)
 		}
 	}
 	if (bp == NULL) {
-		/***********************************************\
-		* nothing left for this controller to do	*
-		* Force into the IDLE state,			*
-		\***********************************************/
+		/*
+		 * Nothing left for this controller to do,
+		 * force into the IDLE state.
+		 */
 		fdc->state = DEVIDLE;
 		if (fdc->fd) {
 			device_printf(fdc->fdc_dev,
@@ -2212,17 +2276,10 @@ fdstate(fdc_p fdc)
 		idf = ISADMA_READ;
 	else
 		idf = ISADMA_WRITE;
-	format = bp->bio_cmd & BIO_FORMAT;
-	if (format) {
+	format = bp->bio_cmd == BIO_FORMAT;
+	rdsectid = bp->bio_cmd == BIO_RDSECTID;
+	if (format)
 		finfo = (struct fd_formb *)bp->bio_data;
-		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
-			- (char *)finfo;
-	}
-	if (fdc->state == DOSEEK || fdc->state == SEEKCOMPLETE) {
-		blknum = (unsigned) bp->bio_pblkno * DEV_BSIZE/fdblk +
-			fd->skip/fdblk;
-		b_cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
-	}
 	TRACE1("fd%d", fdu);
 	TRACE1("[%s]", fdstates[fdc->state]);
 	TRACE1("(0x%x)", fd->flags);
@@ -2263,17 +2320,17 @@ fdstate(fdc_p fdc)
 		fdc->fdctl_wr(fdc, fd->ft->trans);
 #endif
 		TRACE1("[0x%x->FDCTL]", fd->ft->trans);
-		/*******************************************************\
-		* If the next drive has a motor startup pending, then	*
-		* it will start up in its own good time		*
-		\*******************************************************/
+		/*
+		 * If the next drive has a motor startup pending, then
+		 * it will start up in its own good time.
+		 */
 		if(fd->flags & FD_MOTOR_WAIT) {
 			fdc->state = MOTORWAIT;
-			return (0); /* come back later */
+			return (0); /* will return later */
 		}
-		/*******************************************************\
-		* Maybe if it's not starting, it SHOULD be starting	*
-		\*******************************************************/
+		/*
+		 * Maybe if it's not starting, it SHOULD be starting.
+		 */
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 			if (!(fd->flags & FD_MOTOR))
@@ -2292,7 +2349,7 @@ fdstate(fdc_p fdc)
 		{
 			fdc->state = MOTORWAIT;
 			fd_turnon(fd);
-			return (0);
+			return (0); /* will return later */
 		}
 		else	/* at least make sure we are selected */
 		{
@@ -2304,22 +2361,29 @@ fdstate(fdc_p fdc)
 			fdc->flags &= ~FDC_NEEDS_RESET;
 		} else
 			fdc->state = DOSEEK;
-		break;
+		return (1);	/* will return immediately */
+
 	case DOSEEK:
-		if (b_cylinder == (unsigned)fd->track)
+#ifdef PC98
+		blknum = bp->bio_pblkno * DEV_BSIZE / fdblk + fd->skip / fdblk;
+#else
+		blknum = bp->bio_pblkno + fd->skip / fdblk;
+#endif
+		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
+		if (cylinder == fd->track)
 		{
 			fdc->state = SEEKCOMPLETE;
-			break;
+			return (1); /* will return immediately */
 		}
 #ifdef PC98
 		pc98_fd_check_ready(fdu);
 #endif
 		if (fd_cmd(fdc, 3, NE7CMD_SEEK,
-			   fd->fdsu, b_cylinder * fd->ft->steptrac,
+			   fd->fdsu, cylinder * fd->ft->steptrac,
 			   0))
 		{
 			/*
-			 * seek command not accepted, looks like
+			 * Seek command not accepted, looks like
 			 * the FDC went off to the Saints...
 			 */
 			fdc->retry = 6;	/* try a reset */
@@ -2328,15 +2392,24 @@ fdstate(fdc_p fdc)
 		fd->track = FD_NO_TRACK;
 		fdc->state = SEEKWAIT;
 		return(0);	/* will return later */
+
 	case SEEKWAIT:
 		/* allow heads to settle */
 		timeout(fd_pseudointr, fdc, hz / 16);
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
-	case SEEKCOMPLETE : /* SEEK DONE, START DMA */
-		/* Make sure seek really happened*/
+
+	case SEEKCOMPLETE : /* seek done, start DMA */
+#ifdef PC98
+		blknum = bp->bio_pblkno * DEV_BSIZE / fdblk + fd->skip / fdblk;
+#else
+		blknum = bp->bio_pblkno + fd->skip / fdblk;
+#endif
+		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
+
+		/* Make sure seek really happened. */
 		if(fd->track == FD_NO_TRACK) {
-			int descyl = b_cylinder * fd->ft->steptrac;
+			int descyl = cylinder * fd->ft->steptrac;
 			do {
 				/*
 				 * This might be a "ready changed" interrupt,
@@ -2361,10 +2434,10 @@ fdstate(fdc_p fdc)
 				 */
 				if (fd_sense_int(fdc, &st0, &cyl)
 				    == FD_NOT_VALID)
-					return 0;
+					return (0); /* will return later */
 				if(fdc->fdct == FDC_NE765
 				   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
-					return 0; /* hope for a real intr */
+					return (0); /* hope for a real intr */
 			} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
 
 			if (0 == descyl) {
@@ -2405,20 +2478,28 @@ fdstate(fdc_p fdc)
 			}
 		}
 
-		fd->track = b_cylinder;
+		fd->track = cylinder;
+		if (format)
+			fd->skip = (char *)&(finfo->fd_formb_cylno(0))
+			    - (char *)finfo;
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-		if (!(fdc->flags & FDC_NODMA))
+		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmastart(idf, bp->bio_data+fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
+#ifdef PC98
+		blknum = bp->bio_pblkno * DEV_BSIZE / fdblk + fd->skip / fdblk;
+#else
+		blknum = bp->bio_pblkno + fd->skip / fdblk;
+#endif
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
 		head = sec / sectrac;
 		sec = sec % sectrac + 1;
 		fd->hddrv = ((head&1)<<2)+fdu;
 
-		if(format || !read)
+		if(format || !(read || rdsectid))
 		{
 			/* make sure the drive is writable */
 			if(fd_sense_drive_status(fdc, &st3) != 0)
@@ -2449,7 +2530,7 @@ fdstate(fdc_p fdc)
 				fdc->status[5] = sec;
 				fdc->retry = 8;	/* break out immediately */
 				fdc->state = IOTIMEDOUT; /* not really... */
-				return (1);
+				return (1); /* will return immediately */
 			}
 		}
 
@@ -2489,17 +2570,24 @@ fdstate(fdc_p fdc)
 				fdc->retry = 6;
 				return (retrier(fdc));
 			}
+		} else if (rdsectid) {
+			if (fd_cmd(fdc, 2, NE7CMD_READID, head << 2 | fdu, 0)) {
+				/* controller jamming */
+				fdc->retry = 6;
+				return (retrier(fdc));
+			}
 		} else {
+			/* read or write operation */
 			if (fdc->flags & FDC_NODMA) {
 				/*
-				 * this seems to be necessary even when
-				 * reading data
+				 * This seems to be necessary even when
+				 * reading data.
 				 */
 				SET_BCDR(fdc, 1, fdblk, 0);
 
 				/*
-				 * perform the write pseudo-DMA before
-				 * the WRITE command is sent
+				 * Perform the write pseudo-DMA before
+				 * the WRITE command is sent.
 				 */
 				if (!read)
 					(void)fdcpio(fdc,bp->bio_cmd,
@@ -2527,20 +2615,20 @@ fdstate(fdc_p fdc)
 				return (retrier(fdc));
 			}
 		}
-		if (fdc->flags & FDC_NODMA)
+		if (!rdsectid && (fdc->flags & FDC_NODMA))
 			/*
-			 * if this is a read, then simply await interrupt
-			 * before performing PIO
+			 * If this is a read, then simply await interrupt
+			 * before performing PIO.
 			 */
 			if (read && !fdcpio(fdc,bp->bio_cmd,
 			    bp->bio_data+fd->skip,fdblk)) {
 				fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 				return(0);      /* will return later */
-			};
+			}
 
 		/*
-		 * write (or format) operation will fall through and
-		 * await completion interrupt
+		 * Write (or format) operation will fall through and
+		 * await completion interrupt.
 		 */
 		fdc->state = IOCOMPLETE;
 		fd->tohandle = timeout(fd_iotimeout, fdc, hz);
@@ -2575,15 +2663,16 @@ fdstate(fdc_p fdc)
 			fdc->state = IOCOMPLETE;
 		}
 #endif
+
 	case PIOREAD:
 		/* 
-		 * actually perform the PIO read.  The IOCOMPLETE case
-		 * removes the timeout for us.  
+		 * Actually perform the PIO read.  The IOCOMPLETE case
+		 * removes the timeout for us.
 		 */
 		(void)fdcpio(fdc,bp->bio_cmd,bp->bio_data+fd->skip,fdblk);
 		fdc->state = IOCOMPLETE;
 		/* FALLTHROUGH */
-	case IOCOMPLETE: /* IO DONE, post-analyze */
+	case IOCOMPLETE: /* IO done, post-analyze */
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) 
 			untimeout(fd_iotimeout, fdc, fd->tohandle);
@@ -2591,8 +2680,8 @@ fdstate(fdc_p fdc)
 		untimeout(fd_iotimeout, fdc, fd->tohandle);
 #endif
 
-		if (fd_read_status(fdc, fd->fdsu)) {
-			if (!(fdc->flags & FDC_NODMA))
+		if (fd_read_status(fdc)) {
+			if (!rdsectid && !(fdc->flags & FDC_NODMA))
 				isa_dmadone(idf, bp->bio_data + fd->skip,
 					    format ? bp->bio_bcount : fdblk,
 					    fdc->dmachan);
@@ -2604,12 +2693,11 @@ fdstate(fdc_p fdc)
 		fdc->state = IOTIMEDOUT;
 
 		/* FALLTHROUGH */
-
 	case IOTIMEDOUT:
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-		if (!(fdc->flags & FDC_NODMA))
+		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmadone(idf, bp->bio_data + fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
 #ifdef EPSON_NRDISK
@@ -2620,16 +2708,23 @@ fdstate(fdc_p fdc)
                         if ((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
 			    && fdc->status[1] & NE7_ST1_OR) {
                                 /*
-				 * DMA overrun. Someone hogged the bus
-				 * and didn't release it in time for the
-				 * next FDC transfer.
-				 * Just restart it, don't increment retry
-				 * count. (vak)
-                                 */
-                                fdc->state = SEEKCOMPLETE;
-                                return (1);
+				 * DMA overrun. Someone hogged the bus and
+				 * didn't release it in time for the next
+				 * FDC transfer.
+				 *
+				 * We normally restart this without bumping
+				 * the retry counter.  However, in case
+				 * something is seriously messed up (like
+				 * broken hardware), we rather limit the
+				 * number of retries so the IO operation
+				 * doesn't block indefinately.
+				 */
+				if (fdc->dma_overruns++ < FDC_DMAOV_MAX) {
+					fdc->state = SEEKCOMPLETE;
+					return (1);/* will return immediately */
+				} /* else fall through */
                         }
-			else if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
+			if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
 				&& fdc->retry < 6)
 				fdc->retry = 6;	/* force a reset */
 			else if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
@@ -2639,13 +2734,24 @@ fdstate(fdc_p fdc)
 			return (retrier(fdc));
 		}
 		/* All OK */
+		if (rdsectid) {
+			/* copy out ID field contents */
+			idp = (struct fdc_readid *)bp->bio_data;
+			idp->cyl = fdc->status[3];
+			idp->head = fdc->status[4];
+			idp->sec = fdc->status[5];
+			idp->secshift = fdc->status[6];
+		}
+		/* Operation successful, retry DMA overruns again next time. */
+		fdc->dma_overruns = 0;
 		fd->skip += fdblk;
-		if (!format && fd->skip < bp->bio_bcount - bp->bio_resid) {
+		if (!rdsectid && !format && fd->skip < bp->bio_bcount) {
 			/* set up next transfer */
 			fdc->state = DOSEEK;
 		} else {
 			/* ALL DONE */
 			fd->skip = 0;
+			bp->bio_resid = 0;
 			fdc->bp = NULL;
 			device_unbusy(fd->dev);
 			biofinish(bp, &fd->device_stats, 0);
@@ -2653,12 +2759,14 @@ fdstate(fdc_p fdc)
 			fdc->fdu = -1;
 			fdc->state = FINDWORK;
 		}
-		return (1);
+		return (1);	/* will return immediately */
+
 	case RESETCTLR:
 		fdc_reset(fdc);
 		fdc->retry++;
 		fdc->state = RESETCOMPLETE;
-		return (0);
+		return (0);	/* will return later */
+
 	case RESETCOMPLETE:
 		/*
 		 * Discard all the results from the reset so that they
@@ -2667,7 +2775,7 @@ fdstate(fdc_p fdc)
 		for (i = 0; i < 4; i++)
 			(void)fd_sense_int(fdc, &st0, &cyl);
 		fdc->state = STARTRECAL;
-		/* Fall through. */
+		/* FALLTHROUGH */
 	case STARTRECAL:
 #ifdef PC98
 		pc98_fd_check_ready(fdu);
@@ -2679,21 +2787,23 @@ fdstate(fdc_p fdc)
 		}
 		fdc->state = RECALWAIT;
 		return (0);	/* will return later */
+
 	case RECALWAIT:
 		/* allow heads to settle */
 		timeout(fd_pseudointr, fdc, hz / 8);
 		fdc->state = RECALCOMPLETE;
 		return (0);	/* will return later */
+
 	case RECALCOMPLETE:
 		do {
 			/*
 			 * See SEEKCOMPLETE for a comment on this:
 			 */
 			if (fd_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
-				return 0;
+				return (0); /* will return later */
 			if(fdc->fdct == FDC_NE765
 			   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
-				return 0; /* hope for a real intr */
+				return (0); /* hope for a real intr */
 		} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
 #ifdef EPSON_NRDISK
 		if (fdu == nrdu) {
@@ -2705,12 +2815,12 @@ fdstate(fdc_p fdc)
 		{
 			if(fdc->retry > 3)
 				/*
-				 * a recalibrate from beyond cylinder 77
+				 * A recalibrate from beyond cylinder 77
 				 * will "fail" due to the FDC limitations;
 				 * since people used to complain much about
 				 * the failure message, try not logging
 				 * this one if it seems to be the first
-				 * time in a line
+				 * time in a line.
 				 */
 				printf("fd%d: recal failed ST0 %b cyl %d\n",
 				       fdu, st0, NE7_ST0BITS, cyl);
@@ -2720,7 +2830,8 @@ fdstate(fdc_p fdc)
 		fd->track = 0;
 		/* Seek (probably) necessary */
 		fdc->state = DOSEEK;
-		return (1);	/* will return immediatly */
+		return (1);	/* will return immediately */
+
 	case MOTORWAIT:
 		if(fd->flags & FD_MOTOR_WAIT)
 		{
@@ -2729,19 +2840,13 @@ fdstate(fdc_p fdc)
 		if (fdc->flags & FDC_NEEDS_RESET) {
 			fdc->state = RESETCTLR;
 			fdc->flags &= ~FDC_NEEDS_RESET;
-		} else {
-			/*
-			 * If all motors were off, then the controller was
-			 * reset, so it has lost track of the current
-			 * cylinder.  Recalibrate to handle this case.
-			 * But first, discard the results of the reset.
-			 */
-			fdc->state = RESETCOMPLETE;
-		}
-		return (1);	/* will return immediatly */
+		} else
+			fdc->state = DOSEEK;
+		return (1);	/* will return immediately */
+
 	default:
 		device_printf(fdc->fdc_dev, "unexpected FD int->");
-		if (fd_read_status(fdc, fd->fdsu) == 0)
+		if (fd_read_status(fdc) == 0)
 			printf("FDC status :%x %x %x %x %x %x %x   ",
 			       fdc->status[0],
 			       fdc->status[1],
@@ -2755,13 +2860,12 @@ fdstate(fdc_p fdc)
 		if (fd_sense_int(fdc, &st0, &cyl) != 0)
 		{
 			printf("[controller is dead now]\n");
-			return (0);
+			return (0); /* will return later */
 		}
 		printf("ST0 = %x, PCN = %x\n", st0, cyl);
-		return (0);
+		return (0);	/* will return later */
 	}
-	/*XXX confusing: some branches return immediately, others end up here*/
-	return (1); /* Come back immediatly to new state */
+	/* noone should ever get here */
 }
 
 static int
@@ -2793,32 +2897,27 @@ retrier(struct fdc_data *fdc)
 		break;
 	default:
 	fail:
-		{
-			int printerror = (fd->options & FDOPT_NOERRLOG) == 0;
-
-			if (printerror)
-				diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
-					(struct disklabel *)NULL);
-			if (printerror) {
-				if (fdc->flags & FDC_STAT_VALID)
-				{
-					printf(
-			" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
-					       fdc->status[0], NE7_ST0BITS,
-					       fdc->status[1], NE7_ST1BITS,
-					       fdc->status[2], NE7_ST2BITS,
-					       fdc->status[3], fdc->status[4],
-					       fdc->status[5]);
-				}
-			else
-					printf(" (No status)\n");
+		if ((fd->options & FDOPT_NOERRLOG) == 0) {
+			diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
+				(struct disklabel *)NULL);
+			if (fdc->flags & FDC_STAT_VALID) {
+				printf(
+				" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
+				       fdc->status[0], NE7_ST0BITS,
+				       fdc->status[1], NE7_ST1BITS,
+				       fdc->status[2], NE7_ST2BITS,
+				       fdc->status[3], fdc->status[4],
+				       fdc->status[5]);
 			}
+			else
+				printf(" (No status)\n");
 		}
 		if ((fd->options & FDOPT_NOERROR) == 0) {
 			bp->bio_flags |= BIO_ERROR;
 			bp->bio_error = EIO;
-			bp->bio_resid += bp->bio_bcount - fdc->fd->skip;
-		}
+			bp->bio_resid = bp->bio_bcount - fdc->fd->skip;
+		} else
+			bp->bio_resid = 0;
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
 		device_unbusy(fd->dev);
@@ -2840,150 +2939,132 @@ fdbiodone(struct bio *bp)
 }
 
 static int
-fdformat(dev, finfo, td)
-	dev_t dev;
-	struct fd_formb *finfo;
-	struct thread *td;
+fdmisccmd(dev_t dev, u_int cmd, void *data)
 {
-	struct proc *p = td->td_proc;
- 	fdu_t	fdu;
- 	fd_p	fd;
-
+ 	fdu_t fdu;
+ 	fd_p fd;
 	struct bio *bp;
-	int rv = 0, s;
+	struct fd_formb *finfo;
+	struct fdc_readid *idfield;
 	size_t fdblk;
 
- 	fdu	= FDUNIT(minor(dev));
-	fd	= devclass_get_softc(fd_devclass, fdu);
+ 	fdu = FDUNIT(minor(dev));
+	fd = devclass_get_softc(fd_devclass, fdu);
 	fdblk = 128 << fd->ft->secsize;
+	finfo = (struct fd_formb *)data;
+	idfield = (struct fdc_readid *)data;
 
-	/* set up a buffer header for fdstrategy() */
-	bp = (struct bio *)malloc(sizeof(struct bio), M_TEMP, M_NOWAIT);
-	if(bp == 0)
-		return ENOMEM;
-	/*
-	 * keep the process from being swapped
-	 */
-	PHOLD(p);
-	bzero((void *)bp, sizeof(*bp));
-	bp->bio_cmd = BIO_FORMAT;
+	bp = malloc(sizeof(struct bio), M_TEMP, M_ZERO);
 
 	/*
-	 * calculate a fake blkno, so fdstrategy() would initiate a
-	 * seek to the requested cylinder
+	 * Set up a bio request for fdstrategy().  bio_blkno is faked
+	 * so that fdstrategy() will seek to the the requested
+	 * cylinder, and use the desired head.  Since we are not
+	 * interested in bioqdisksort() munging with our faked bio
+	 * request, we mark it as being an ordered request.
 	 */
-	bp->bio_blkno = (finfo->cyl * (fd->ft->sectrac * fd->ft->heads)
-		+ finfo->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
-
-	bp->bio_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
-	bp->bio_data = (caddr_t)finfo;
-
-	/* now do the format */
+	bp->bio_cmd = cmd;
+	if (cmd == BIO_FORMAT) {
+		bp->bio_blkno =
+		    (finfo->cyl * (fd->ft->sectrac * fd->ft->heads) +
+		     finfo->head * fd->ft->sectrac) *
+		    fdblk / DEV_BSIZE;
+		bp->bio_bcount = sizeof(struct fd_idfield_data) *
+		    finfo->fd_formb_nsecs;
+	} else if (cmd == BIO_RDSECTID) {
+		bp->bio_blkno =
+		    (idfield->cyl * (fd->ft->sectrac * fd->ft->heads) +
+		     idfield->head * fd->ft->sectrac) *
+		    fdblk / DEV_BSIZE;
+		bp->bio_bcount = sizeof(struct fdc_readid);
+	} else
+		panic("wrong cmd in fdmisccmd()");
+	bp->bio_data = data;
 	bp->bio_dev = dev;
 	bp->bio_done = fdbiodone;
-	fdstrategy(bp);
+	bp->bio_flags = BIO_ORDERED;
 
-	/* ...and wait for it to complete */
-	s = splbio();
-	while(!(bp->bio_flags & BIO_DONE)) {
-		rv = tsleep((caddr_t)bp, PRIBIO, "fdform", 20 * hz);
-		if (rv == EWOULDBLOCK)
-			break;
-	}
-	splx(s);
-
-	if (rv == EWOULDBLOCK) {
-		/* timed out */
-		rv = EIO;
-		device_unbusy(fd->dev);
-	}
-	if (bp->bio_flags & BIO_ERROR)
-		rv = bp->bio_error;
 	/*
-	 * allow the process to be swapped
+	 * Now run the command.  The wait loop is a version of bufwait()
+	 * adapted for struct bio instead of struct buf and specialized
+	 * for the current context.
 	 */
-	PRELE(p);
+	fdstrategy(bp);
+	while ((bp->bio_flags & BIO_DONE) == 0)
+		tsleep(bp, PRIBIO, "fdcmd", 0);
+
 	free(bp, M_TEMP);
-	return rv;
+	return (bp->bio_flags & BIO_ERROR ? bp->bio_error : 0);
 }
 
-/*
- * TODO: don't allocate buffer on stack.
- */
-
 static int
-fdioctl(dev, cmd, addr, flag, td)
-	dev_t dev;
-	u_long cmd;
-	caddr_t addr;
-	int flag;
-	struct thread *td;
+fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
- 	fdu_t	fdu = FDUNIT(minor(dev));
- 	fd_p	fd = devclass_get_softc(fd_devclass, fdu);
-	size_t fdblk;
-
+ 	fdu_t fdu;
+ 	fd_p fd;
 	struct fd_type *fdt;
-	struct disklabel *dl;
+	struct disklabel *lp;
 	struct fdc_status *fsp;
-	char buffer[DEV_BSIZE];
-	int error = 0;
+	struct fdc_readid *rid;
+	size_t fdblk;
+	int error;
 
-	fdblk = 128 << fd->ft->secsize;
+ 	fdu = FDUNIT(minor(dev));
+ 	fd = devclass_get_softc(fd_devclass, fdu);
 
 #ifdef PC98
 	pc98_fd_check_ready(fdu);
 #endif	
+
+	fdblk = 128 << fd->ft->secsize;
+	error = 0;
+
 	switch (cmd) {
 	case DIOCGDINFO:
-		bzero(buffer, sizeof (buffer));
-		dl = (struct disklabel *)buffer;
-		dl->d_secsize = fdblk;
+		lp = malloc(sizeof(*lp), M_TEMP, M_ZERO);
+		lp->d_secsize = fdblk;
 		fdt = fd->ft;
-		dl->d_secpercyl = fdt->size / fdt->tracks;
-		dl->d_type = DTYPE_FLOPPY;
-
-		if (readdisklabel(dkmodpart(dev, RAW_PART), dl)
-		    == NULL)
-			error = 0;
-		else
+		lp->d_secpercyl = fdt->size / fdt->tracks;
+		lp->d_type = DTYPE_FLOPPY;
+		if (readdisklabel(dkmodpart(dev, RAW_PART), lp) != NULL)
 			error = EINVAL;
-
-		*(struct disklabel *)addr = *dl;
+		else
+			*(struct disklabel *)addr = *lp;
+		free(lp, M_TEMP);
 		break;
 
 	case DIOCSDINFO:
 		if ((flag & FWRITE) == 0)
-			error = EBADF;
+			return (EBADF);
+		/*
+		 * XXX perhaps should call setdisklabel() to do error checking
+		 * although there is nowhere to "set" the result.  Perhaps
+		 * should always just fail.
+		 */
 		break;
 
 	case DIOCWLABEL:
 		if ((flag & FWRITE) == 0)
-			error = EBADF;
+			return (EBADF);
 		break;
 
 	case DIOCWDINFO:
-		if ((flag & FWRITE) == 0) {
-			error = EBADF;
-			break;
-		}
-
-		dl = (struct disklabel *)addr;
-
-		if ((error = setdisklabel((struct disklabel *)buffer, dl,
-					  (u_long)0)) != 0)
-			break;
-
-		error = writedisklabel(dev, (struct disklabel *)buffer);
+		if ((flag & FWRITE) == 0)
+			return (EBADF);
+		lp = malloc(DEV_BSIZE, M_TEMP, M_ZERO);
+		error = setdisklabel(lp, (struct disklabel *)addr, (u_long)0);
+		if (error != 0)
+			error = writedisklabel(dev, lp);
+		free(lp, M_TEMP);
 		break;
+
 	case FD_FORM:
 		if ((flag & FWRITE) == 0)
-			error = EBADF;	/* must be opened for writing */
-		else if (((struct fd_formb *)addr)->format_version !=
-			FD_FORMAT_VERSION)
-			error = EINVAL;	/* wrong version of formatting prog */
-		else
-			error = fdformat(dev, (struct fd_formb *)addr, td);
+			return (EBADF);	/* must be opened for writing */
+		if (((struct fd_formb *)addr)->format_version !=
+		    FD_FORMAT_VERSION)
+			return (EINVAL); /* wrong version of formatting prog */
+		error = fdmisccmd(dev, BIO_FORMAT, addr);
 		break;
 
 	case FD_GTYPE:                  /* get drive type */
@@ -2993,7 +3074,7 @@ fdioctl(dev, cmd, addr, flag, td)
 	case FD_STYPE:                  /* set drive type */
 		/* this is considered harmful; only allow for superuser */
 		if (suser_td(td) != 0)
-			return EPERM;
+			return (EPERM);
 		*fd->ft = *(struct fd_type *)addr;
 		break;
 
@@ -3005,17 +3086,34 @@ fdioctl(dev, cmd, addr, flag, td)
 		fd->options = *(int *)addr;
 		break;
 
+#ifdef FDC_DEBUG
+	case FD_DEBUG:
+		if ((fd_debug != 0) != (*(int *)addr != 0)) {
+			fd_debug = (*(int *)addr != 0);
+			printf("fd%d: debugging turned %s\n",
+			    fd->fdu, fd_debug ? "on" : "off");
+		}
+		break;
+#endif
+
 	case FD_CLRERR:
 		if (suser_td(td) != 0)
-			return EPERM;
+			return (EPERM);
 		fd->fdc->fdc_errs = 0;
 		break;
 
 	case FD_GSTAT:
 		fsp = (struct fdc_status *)addr;
 		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
-			return EINVAL;
+			return (EINVAL);
 		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
+		break;
+
+	case FD_READID:
+		rid = (struct fdc_readid *)addr;
+		if (rid->cyl > MAX_CYLINDER || rid->head > MAX_HEAD)
+			return (EINVAL);
+		error = fdmisccmd(dev, BIO_RDSECTID, addr);
 		break;
 
 	default:
@@ -3024,20 +3122,3 @@ fdioctl(dev, cmd, addr, flag, td)
 	}
 	return (error);
 }
-
-/*
- * Hello emacs, these are the
- * Local Variables:
- *  c-indent-level:               8
- *  c-continued-statement-offset: 8
- *  c-continued-brace-offset:     0
- *  c-brace-offset:              -8
- *  c-brace-imaginary-offset:     0
- *  c-argdecl-indent:             8
- *  c-label-offset:              -8
- *  c++-hanging-braces:           1
- *  c++-access-specifier-offset: -8
- *  c++-empty-arglist-indent:     8
- *  c++-friend-offset:            0
- * End:
- */
