@@ -2840,7 +2840,7 @@ siocnattach(port, speed)
 	siocnopen(&sp, siocniobase, comdefaultrate);
 	splx(s);
 
-	cn_tab = &sio_consdev;
+	cnadd(&sio_consdev);
 	return (0);
 }
 
