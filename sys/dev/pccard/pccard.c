@@ -262,12 +262,13 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 			matches = 0;
 		if (matches && fcn != ent->pp_expfunc)
 			matches = 0;
-		if (matches && ent->pp_vendor_str &&
-		    strcmp(ent->pp_vendor_str, vendorstr) != 0)
+		if (matches && ent->pp_cis[0] &&
+		    strcmp(ent->pp_cis[0], vendorstr) != 0)
 			matches = 0;
-		if (matches && ent->pp_product_str &&
-		    strcmp(ent->pp_product_str, prodstr) != 0)
+		if (matches && ent->pp_cis[1] &&
+		    strcmp(ent->pp_cis[1], prodstr) != 0)
 			matches = 0;
+		/* XXX need to match cis[2] and cis[3] also XXX */
 		if (matchfn != NULL)
 			matches = (*matchfn)(dev, ent, matches);
 		if (matches)
