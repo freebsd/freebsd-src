@@ -45,7 +45,8 @@ _dup2(int fd, int newfd)
 	int		newfd_opened;
 
 	/* Check if the file descriptor is out of range: */
-	if (newfd < 0 || newfd >= _thread_dtablesize) {
+	if (newfd < 0 || newfd >= _thread_dtablesize ||
+	    newfd == _thread_kern_pipe[0] || newfd == _thread_kern_pipe[1]) {
 		/* Return a bad file descriptor error: */
 		errno = EBADF;
 		ret = -1;
