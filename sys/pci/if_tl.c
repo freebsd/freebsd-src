@@ -1213,7 +1213,7 @@ static int tl_attach(dev)
 	    tl_intr, sc, &sc->tl_intrhand);
 
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
 		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 		printf("tl%d: couldn't set up irq\n", unit);
 		goto fail;
