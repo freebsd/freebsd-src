@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strxfrm.3	8.1 (Berkeley) 6/4/93
-.\" FreeBSD: src/lib/libc/string/strxfrm.3,v 1.16 2002/09/06 11:24:06 tjr Exp 
+.\" FreeBSD: src/lib/libc/string/strxfrm.3,v 1.16 2002/09/06 11:24:06 tjr Exp
 .\" $FreeBSD$
 .\"
 .Dd October 4, 2002
@@ -69,7 +69,9 @@ is set to 0
 (it helps to determine an actual size needed
 for transformation),
 .Fa dst
-is permitted to be a NULL pointer.
+is permitted to be a
+.Dv NULL
+pointer.
 .Pp
 Comparing two strings using
 .Fn wcscmp
@@ -91,8 +93,8 @@ are indeterminate.
 .Sh SEE ALSO
 .Xr setlocale 3 ,
 .Xr strxfrm 3 ,
-.Xr wcscoll 3 ,
-.Xr wcscmp 3
+.Xr wcscmp 3 ,
+.Xr wcscoll 3
 .Sh STANDARDS
 The
 .Fn wcsxfrm
@@ -117,7 +119,7 @@ is
 always equivalent to comparison with
 .Fn wcscoll ;
 .Fn wcsxfrm
-only stores information about primary collation weights into 
+only stores information about primary collation weights into
 .Fa dst ,
 whereas
 .Fn wcscoll
