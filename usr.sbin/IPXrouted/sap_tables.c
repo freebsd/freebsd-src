@@ -28,14 +28,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sap_tables.c,v 1.3 1997/02/22 16:01:01 peter Exp $
  */
 
 #include "defs.h"
 #include <string.h>
 #include <stdlib.h>
-/* XXX I thought that this should work! #include <sys/systm.h> */
-#include <machine/cpufunc.h>
 
 #define FIXLEN(s) { if ((s)->sa_len == 0) (s)->sa_len = sizeof (*(s));}
 
@@ -323,4 +321,3 @@ sap_delete(struct sap_entry *sap)
 	remque(sap);
 	free(sap);
 }
-
