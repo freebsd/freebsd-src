@@ -11,7 +11,7 @@ OUTMK=	$(CRUNCHED).mk
 OUTPUTS=  $(OUTMK) $(CRUNCHED).c $(CRUNCHED).cache
 
 NOMAN=
-CLEANFILES+=$(CRUNCHED) *.o *.lo *_stub.c
+CLEANFILES+=$(CRUNCHED) *.o *.lo *_stub.c $(OUTMK)
 CLEANDIRFILES+=$(OUTPUTS)
 
 all: $(CRUNCHED)
