@@ -91,6 +91,13 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_ip_paranoia, CTLFLAG_RW,
 int nfs_debug;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
 #endif
+static int nfs_tprintf_initial_delay = NFS_TPRINTF_INITIAL_DELAY;
+SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_INITIAL_DELAY,
+        downdelayinitial, CTLFLAG_RW, &nfs_tprintf_initial_delay, 0, "");
+/* how long between console messages "nfs server foo not responding" */
+static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
+SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
+        downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
 static int	nfs_iosize(struct nfsmount *nmp);
 static void	nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp);
@@ -102,6 +109,7 @@ static vfs_unmount_t nfs_unmount;
 static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
 static vfs_sync_t nfs_sync;
+static vfs_sysctl_t nfs_sysctl;
 
 /*
  * nfs vfs operations.
@@ -114,6 +122,7 @@ static struct vfsops nfs_vfsops = {
 	.vfs_sync =		nfs_sync,
 	.vfs_uninit =		nfs_uninit,
 	.vfs_unmount =		nfs_unmount,
+	.vfs_sysctl =		nfs_sysctl,
 };
 VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 
@@ -791,6 +800,12 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_numgrps = NFS_MAXGRPS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_deadthresh = NFS_MAXDEADTHRESH;
+	nmp->nm_tprintf_delay = nfs_tprintf_delay;
+	if (nmp->nm_tprintf_delay < 0)
+		nmp->nm_tprintf_delay = 0;
+	nmp->nm_tprintf_initial_delay = nfs_tprintf_initial_delay;
+	if (nmp->nm_tprintf_initial_delay < 0)
+		nmp->nm_tprintf_initial_delay = 0;
 	nmp->nm_fhsize = argp->fhsize;
 	bcopy((caddr_t)argp->fh, (caddr_t)nmp->nm_fh, argp->fhsize);
 	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
@@ -961,4 +976,15 @@ loop:
 	}
 	MNT_IUNLOCK(mp);
 	return (allerror);
+}
+
+static int
+nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
+{
+
+	switch (op) {
+	default:
+		printf("nfs sysctl, op = %0X\n", (int) op);
+	}
+	return (0);
 }
