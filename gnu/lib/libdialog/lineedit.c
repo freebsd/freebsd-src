@@ -31,9 +31,14 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
   int i, key;
   static int input_x, scroll;
   static unsigned char instr[MAX_LEN+1];
+  unsigned char erase_char = erasechar();
+  unsigned char kill_char = killchar();
+#ifdef notyet
+  unsignec char werase_char = cur_term->Ottyb.c_cc[VWERASE];
+#endif
 
   wattrset(dialog, attr);
-    keypad(dialog, TRUE);
+  keypad(dialog, TRUE);
 
   if (first) {
     memset(instr, 0, sizeof(instr));
@@ -63,6 +68,9 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	if (key == '\r')
 	  key = '\n';
 	goto ret;
+      case '\025':
+      kill_it:
+	memset(instr, 0, sizeof(instr));
       case KEY_HOME:
 	input_x = scroll = 0;
 	wmove(dialog, box_y, box_x);
@@ -121,8 +129,11 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	  } else
 	    flash(); /* Alarm user about overflow */
 	continue;
+      case '\b':
+      case '\177':
       case KEY_BACKSPACE:
       case KEY_DC:
+      erase_it:
 	if (input_x || scroll) {
 	  i = strlen(instr);
 	  memmove(instr+scroll+input_x-1, instr+scroll+input_x, i-scroll+input_x+1);
@@ -145,6 +156,10 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	}
 	continue;
       default:
+	if (CCEQ(key, erase_char))
+	  goto erase_it;
+	if (CCEQ(key, kill_char))
+	  goto kill_it;
 	if (key < 0x100 && isprint(key)) {
 	  for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
 	    instr[i] = '\0';
