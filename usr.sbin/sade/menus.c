@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.188 1999/02/07 12:43:14 jkh Exp $
+ * $Id: menus.c,v 1.189 1999/02/11 14:42:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1401,16 +1401,24 @@ DMenu MenuSysconsSaver = {
     "probably enable one of these screen savers to prevent phosphor burn-in.",
     "Choose a nifty-looking screen saver",
     NULL,
-    { { "blank",	"Simply blank the screen",
+    { { "Blank",	"Simply blank the screen",
 	dmenuVarCheck, configSaver, NULL, "saver=blank" },
       { "Daemon",	"\"BSD Daemon\" animated screen saver",
 	dmenuVarCheck, configSaver, NULL, "saver=daemon" },
+      { "Fade",		"Fade out effect screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=fade" },
       { "Green",	"\"Green\" power saving mode (if supported by monitor)",
 	dmenuVarCheck, configSaver, NULL, "saver=green" },
+      { "Logo",		"Logo screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=logo" },
+      { "Rain",		"Rain drops screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=rain" },
       { "Snake",	"Draw a FreeBSD \"snake\" on your screen",
 	dmenuVarCheck, configSaver, NULL, "saver=snake" },
       { "Star",	"A \"twinkling stars\" effect",
 	dmenuVarCheck, configSaver, NULL, "saver=star" },
+      { "Warp",	"A \"stars warping\" effect",
+	dmenuVarCheck, configSaver, NULL, "saver=warp" },
       { "Timeout",	"Set the screen saver timeout interval",
 	NULL, configSaverTimeout, NULL, NULL, ' ', ' ', ' ' },
       { NULL } },
