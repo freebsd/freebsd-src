@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)net.c	8.3 (Berkeley) 1/2/94";
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/uio.h>
 #include "finger.h"
 
 void
@@ -65,6 +66,8 @@ netfinger(name)
 	struct sockaddr_in sin;
 	int s;
 	char *alist[1], *host;
+	struct iovec iov[3];
+	struct msghdr msg;
 
 	if (!(host = rindex(name, '@')))
 		return;
@@ -96,18 +99,31 @@ netfinger(name)
 
 	/* have network connection; identify the host connected with */
 	(void)printf("[%s]\n", hp->h_name);
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("finger: connect");
-		(void)close(s);
-		return;
-	}
+
+	msg.msg_name = (void *)&sin;
+	msg.msg_namelen = sizeof sin;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 0;
+	msg.msg_control = 0;
+	msg.msg_controllen = 0;
+	msg.msg_flags = MSG_EOF;
 
 	/* -l flag for remote fingerd  */
-	if (lflag)
-		write(s, "/W ", 3);
+	if (lflag) {
+		iov[msg.msg_iovlen].iov_base = "/W ";
+		iov[msg.msg_iovlen++].iov_len = 3;
+	}
 	/* send the name followed by <CR><LF> */
-	(void)write(s, name, strlen(name));
-	(void)write(s, "\r\n", 2);
+	iov[msg.msg_iovlen].iov_base = name;
+	iov[msg.msg_iovlen++].iov_len = strlen(name);
+	iov[msg.msg_iovlen].iov_base = "\r\n";
+	iov[msg.msg_iovlen++].iov_len = 2;
+
+	if (sendmsg(s, &msg, MSG_EOF) < 0) {
+		perror("finger: sendmsg");
+		close(s);
+		return;
+	}
 
 	/*
 	 * Read from the remote system; once we're connected, we assume some
@@ -121,7 +137,9 @@ netfinger(name)
 	 * it isn't a space, we can simply set the 7th bit.  Every ASCII
 	 * character with bit 7 set is printable.
 	 */
-	if (fp = fdopen(s, "r"))
+	if (fp = fdopen(s, "r")) {
+		int lastc = '\n';
+
 		while ((c = getc(fp)) != EOF) {
 			c &= 0x7f;
 			if (c == 0x0d) {
@@ -141,7 +159,15 @@ netfinger(name)
 			}
 			putchar(c);
 		}
-	if (lastc != '\n')
-		putchar('\n');
-	(void)fclose(fp);
+		if (lastc != '\n')
+			putchar('\n');
+
+		if (ferror(fp)) {
+			/*
+			 * Assume that whatever it was set errno...
+			 */
+			perror("finger: read");
+		}
+		(void)fclose(fp);
+	}
 }
