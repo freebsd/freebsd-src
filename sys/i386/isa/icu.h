@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.3 1994/04/02 07:00:40 davidg Exp $
+ *	$Id: icu.h,v 1.4 1994/09/16 13:33:38 davidg Exp $
  */
 
 /*
@@ -42,8 +42,8 @@
  * W. Jolitz 8/89
  */
 
-#ifndef	__ICU__
-#define	__ICU__
+#ifndef _I386_ISA_ICU_H_
+#define	_I386_ISA_ICU_H_
 
 #ifndef	LOCORE
 
@@ -52,17 +52,17 @@
  */
 extern	unsigned imen;		/* interrupt mask enable */
 
-#define	INTREN(s)	{imen &= ~(s); SET_ICUS()}
-#define	INTRDIS(s)	{imen |= (s); SET_ICUS()}
+#define	INTREN(s)	(imen &= ~(s), SET_ICUS())
+#define	INTRDIS(s)	(imen |= (s), SET_ICUS())
 #define	INTRMASK(msk,s)	(msk |= (s))
 #if 0
-#define SET_ICUS()	{outb(IO_ICU1 + 1, imen); outb(IU_ICU2 + 1, imen >> 8);}
+#define	SET_ICUS()	(outb(IO_ICU1 + 1, imen), outb(IU_ICU2 + 1, imen >> 8))
 #else
 /*
  * XXX - IO_ICU* are defined in isa.h, not icu.h, and nothing much bothers to
  * include isa.h, while too many things include icu.h.
  */
-#define SET_ICUS()	{outb(0x21, imen); outb(0xa1, imen >> 8);}
+#define	SET_ICUS()	(outb(0x21, imen), outb(0xa1, imen >> 8))
 #endif
 
 #endif
@@ -94,4 +94,4 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	ICU_OFFSET	32		/* 0-31 are processor exceptions */
 #define	ICU_LEN		16		/* 32-47 are ISA interrupts */
 
-#endif	__ICU__
+#endif /* !_I386_ISA_ICU_H_ */
