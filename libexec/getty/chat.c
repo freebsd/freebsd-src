@@ -22,7 +22,7 @@
  * Modem chat module - send/expect style functions for getty
  * For semi-intelligent modem handling.
  *
- *	$Id$
+ *	$Id: chat.c,v 1.3 1997/02/22 14:21:36 peter Exp $
  */
 
 #include <sys/param.h>
@@ -223,7 +223,7 @@ read_chat(chatstr)
 						}
 					} else {
 						/* copy standard character */
-						*r++ == *q;
+						*r++ = *q;
 					}
 				}
 
