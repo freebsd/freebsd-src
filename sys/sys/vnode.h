@@ -159,7 +159,7 @@ struct vnode {
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
 #endif
-	int	v_holdcnt;			/* i page & buffer references */
+	int	v_holdcnt;			/* i prevents recycling. */
 	int	v_usecount;			/* i ref count of users */
 	struct thread *v_vxthread;		/* i thread running vgone. */
 	u_long	v_iflag;			/* i vnode flags (see below) */
@@ -387,20 +387,16 @@ extern void	(*lease_updatetime)(int deltat);
 
 /* Requires interlock. */
 #define	VCANRECYCLE(vp)							\
-	(((vp)->v_iflag & VI_FREE) &&					\
-	 !(vp)->v_holdcnt && !(vp)->v_usecount)
+	(((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
 
 /* Requires interlock. */
 #define	VSHOULDFREE(vp)							\
-	(!((vp)->v_iflag & VI_FREE) &&					\
-	 !(vp)->v_holdcnt && !(vp)->v_usecount &&			\
-	 (!(vp)->v_object ||						\
-	  !(vp)->v_object->resident_page_count))
+	(!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt &&		\
+	 (!(vp)->v_object || !(vp)->v_object->resident_page_count))
 
 /* Requires interlock. */
 #define	VSHOULDBUSY(vp)							\
-	(((vp)->v_iflag & VI_FREE) &&					\
-	 ((vp)->v_holdcnt || (vp)->v_usecount))
+	(((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
 
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
 #define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
