@@ -270,7 +270,7 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 #ifdef DIOCSMBR
     for (p = 1; p < 5; p++) {
 	asprintf(&s, "%ss%d", fname, p);
-	fd = open(s, O_RDONLY);
+	fd = open(s, O_RDWR);
 	if (fd < 0) {
 	    free(s);
 	    continue;
