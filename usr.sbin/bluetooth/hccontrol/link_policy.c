@@ -251,7 +251,7 @@ struct hci_command	link_policy_commands[] = {
 &hci_role_discovery
 },
 {
-"switch_role <bdaddr> <role>",
+"switch_role <BD_ADDR> <role>",
 "\nThe Switch_Role command is used for a Bluetooth device to switch the\n" \
 "current role the device is performing for a particular connection with\n" \
 "another specified Bluetooth device. The BD_ADDR command parameter indicates\n"\
@@ -259,8 +259,8 @@ struct hci_command	link_policy_commands[] = {
 "the requested new role that the local device performs. Note: the BD_ADDR\n" \
 "command parameter must specify a Bluetooth device for which a connection\n"
 "already exists.\n\n" \
-"\t<bdaddr> - xx:xx:xx:xx:xx:xx; device bdaddr\n" \
-"\t<role>   - dd; role; 0 - Master, 1 - Slave",
+"\t<BD_ADDR> - xx:xx:xx:xx:xx:xx BD_ADDR or name\n" \
+"\t<role>    - dd; role; 0 - Master, 1 - Slave",
 &hci_switch_role
 },
 {

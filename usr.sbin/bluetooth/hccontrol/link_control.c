@@ -831,7 +831,7 @@ struct hci_command	link_control_commands[] = {
 {
 "create_connection <BD_ADDR> <pkt> <rep_mode> <ps_mode> <clck_off> <role_sw>",
 "" \
-"\t<BD_ADDR> - remote unit address\n\n" \
+"\t<BD_ADDR> - xx:xx:xx:xx:xx:xx BD_ADDR or name\n\n" \
 "\t<pkt>     - xxxx; packet type\n" \
 "" \
 "\t\tACL packets\n" \
@@ -929,10 +929,10 @@ struct hci_command	link_control_commands[] = {
 &hci_change_connection_packet_type
 },
 {
-"remote_name_request <bdaddr> <ps_rep_mode> <ps_mode> <clock_offset>",
+"remote_name_request <BD_ADDR> <ps_rep_mode> <ps_mode> <clock_offset>",
 "\nThe Remote_Name_Request command is used to obtain the user-friendly\n" \
 "name of another Bluetooth unit.\n\n" \
-"\t<bdaddr>       - xx:xx:xx:xx:xx:xx remote unit BD_ADDR\n" \
+"\t<BD_ADDR>      - xx:xx:xx:xx:xx:xx BD_ADDR or name\n" \
 "\t<ps_rep_mode>  - dd; page scan repetition mode [0-2]\n" \
 "\t<ps_mode>      - dd; page scan mode [0-3]\n" \
 "\t<clock_offset> - xxxx; clock offset [0 - 0xffff]",
