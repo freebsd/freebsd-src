@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Sun Feb 26 16:43:58 1995]
+ * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Sun Apr  2 18:59:11 1995]
  *
  */
 

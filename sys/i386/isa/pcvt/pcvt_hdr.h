@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Wed Mar  8 21:00:00 1995]
+ * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Fri Apr  7 10:16:58 1995]
  *
  */
 
@@ -59,13 +59,15 @@
  *	-hm	added pcstop (patch from Onno)
  *	-hm	multiple X server bugfixes from Lon Willett
  *	-hm	patch from Joerg for FreeBSD pre-2.1
+ *	-jw	adding more support for FreeBSD pre-2.1
  *
  *---------------------------------------------------------------------------*/
 
-#define	PCVT_REL "3.20-b23"	/* driver attach announcement	*/
+#define	PCVT_REL "3.20-b24"	/* driver attach announcement	*/
 				/* see also: pcvt_ioctl.h	*/
 
 #if PCVT_FREEBSD >= 200
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/ioctl.h>
@@ -79,7 +81,9 @@
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
+
 #else /* ! PCVT_FREEBSD >= 200 */
+
 #include "param.h"
 #include "conf.h"
 #include "ioctl.h"
@@ -93,6 +97,7 @@
 #include "syslog.h"
 #include "malloc.h"
 #include "time.h"
+
 #endif /* PCVT_FREEBSD >= 200 */
 
 #include "pcvt_conf.h"
@@ -158,15 +163,15 @@
 
 #if PCVT_FREEBSD >= 200
 #include <machine/pc/display.h>
+#if PCVT_FREEBSD > 200
 #include <machine/clock.h>
 #include <machine/md_var.h>
-
-#include <vm/vm_kern.h>
-#else
-#include "machine/pc/display.h"
-
-#include "vm/vm_kern.h"
 #endif
+#include <vm/vm_kern.h>
+#else /* PCVT_FREEBSD >= 200 */
+#include "machine/pc/display.h"
+#include "vm/vm_kern.h"
+#endif /* PCVT_FREEBSD >= 200 */
 
 #if PCVT_FREEBSD > 205
 #include <sys/devconf.h>
@@ -187,11 +192,6 @@
 
 /* perform option consistency checks */
 
-#if defined PCVT_386BSD && PCVT_386BSD != 0
-#undef PCVT_386BSD
-#define PCVT_386BSD 1
-#endif
-
 #if defined PCVT_FREEBSD && PCVT_FREEBSD == 1
 # undef PCVT_FREEBSD
 # define PCVT_FREEBSD 102	/* assume 1.0 release */
@@ -202,13 +202,11 @@
 #define PCVT_NETBSD 9		/* assume 0.9 release for now */
 #endif
 
-#if PCVT_386BSD + PCVT_FREEBSD + PCVT_NETBSD == 0
-# error "pcvt_hdr.h: You MUST define one of PCVT_{386,NET,FREE}BSD \
+#if PCVT_FREEBSD + PCVT_NETBSD == 0
+# error "pcvt_hdr.h: You MUST define one of PCVT_{NET,FREE}BSD \
 in the config file"
-#elif (PCVT_386BSD && (PCVT_FREEBSD || PCVT_NETBSD)) || \
-      (PCVT_NETBSD && (PCVT_FREEBSD || PCVT_386BSD)) || \
-      (PCVT_FREEBSD && (PCVT_386BSD || PCVT_NETBSD))
-# error "pcvt_hdr.h: You should only define *one* of PCVT_{386,NET,FREE}BSD \
+#elif (PCVT_FREEBSD && PCVT_NETBSD)
+# error "pcvt_hdr.h: You CAN only define *one* of PCVT_{NET,FREE}BSD \
 in the config file"
 #endif
 
@@ -235,12 +233,6 @@ in the config file"
 #endif
 
 #endif /* XSERVER */
-
-/* #undef PCVT_NEEDPG is mandatory for PCVT_NETBSD and PCVT_FREEBSD */
-#if (PCVT_NETBSD || PCVT_FREEBSD) && PCVT_NEEDPG
-#undef PCVT_NEEDPG
-#define PCVT_NEEDPG 0
-#endif
 
 /* PCVT_SCREENSAVER is mandatory for PCVT_PRETTYSCRNS */
 #if PCVT_PRETTYSCRNS && !PCVT_SCREENSAVER
@@ -1281,11 +1273,6 @@ int	kbdioctl ( Dev_t dev, int cmd, caddr_t data, int flag );
 void	loadchar ( int fontset, int character, int char_scanlines,
 		   u_char *char_table );
 void	mda2egaorvga ( void );
-		   
-#if PCVT_NEEDPG
-int	pg ( char *p, int q, int r, int s, int t, int u, int v,
-	     int w, int x, int y, int z );
-#endif
 void	roll_up ( struct video_state *svsp, int n );
 void	select_vga_charset ( int vga_charset );
 void	set_2ndcharset ( void );
@@ -1389,5 +1376,33 @@ static __inline void vt_selattr(struct video_state *svsp)
 }
 
 #endif /* PCVT_INCLUDE_VT_SELATTR */
+
+
+/*---------------------------------------------------------------------------*
+ *	produce 7 us delay accessing the keyboard controller
+ *---------------------------------------------------------------------------*/
+
+#if PCVT_PORTIO_DELAY
+				/* use multiple dummy accesses to port    */
+				/* 0x84 to produce keyboard controller    */
+				/* access delays                          */
+#define PCVT_KBD_DELAY()          \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); } \
+	{ u_char x = inb(0x84); }	
+
+#else /* PCVT_PORTIO_DELAY */
+				/* use system supplied delay function for */
+				/* producing delays for accesssing the    */
+				/* keyboard controller                    */
+#if PCVT_NETBSD > 9
+#define PCVT_KBD_DELAY()	delay(7)
+#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
+#define PCVT_KBD_DELAY()	DELAY(7)
+#endif
+#endif /* PCVT_PORTIO_DELAY */
 
 /*---------------------------------- E O F ----------------------------------*/
