@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.59 1998/12/22 12:31:25 jkh Exp $
+ * $Id: index.c,v 1.60 1999/01/11 12:45:18 asami Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,6 +87,7 @@ static char *descrs[] = {
     "games", "Various and sundry amusements.",
     "german", "Ported software for Germanic countries.",
     "graphics", "Graphics libraries and utilities.",
+    "gnome", "Components of the Gnome Desktop environment.",
     "japanese", "Ported software for the Japanese market.",
     "kde", "Software for the K Desktop Environment.",
     "korean", "Ported software for the Korean market.",
