@@ -24,9 +24,10 @@
  *
  * capi/iavc/iavc_pci.c
  *		The AVM ISDN controllers' PCI bus attachment handling.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

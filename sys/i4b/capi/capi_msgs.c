@@ -23,9 +23,10 @@
  * SUCH DAMAGE.
  *
  * capi/capi_msgs.c	The CAPI i4b message handlers.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
