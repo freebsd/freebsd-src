@@ -198,7 +198,7 @@ dec_2100_a50_intr_map(void *arg)
 			pirq = 1;
 			break;
 		default:
-			panic("dec_2100_a50_intr_map bogus PCI pin %d\n",
+			panic("dec_2100_a50_intr_map: bogus PCI pin %d\n",
 			    cfg->intpin);
 
 		}
@@ -216,7 +216,7 @@ dec_2100_a50_intr_map(void *arg)
 			pirq = 2;
 			break;
 		default:
-			panic("dec_2100_a50_intr_map bogus PCI pin %d\n",
+			panic("dec_2100_a50_intr_map: bogus PCI pin %d\n",
 			    cfg->intpin);
 
 		};
