@@ -196,7 +196,7 @@ p_flags(struct prompt *prompt, u_int32_t f, unsigned max)
     if (p->b_mask & f)
       *flags++ = p->b_val;
   *flags = '\0';
-  prompt_Printf(prompt, "%-*.*s", max, max, name);
+  prompt_Printf(prompt, "%-*.*s", (int)max, (int)max, name);
 }
 
 static int route_nifs = -1;
