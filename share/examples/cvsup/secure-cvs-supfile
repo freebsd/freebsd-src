@@ -50,6 +50,7 @@
 
 ## The international secure collections.
 cvs-crypto
+src-crypto-rsa
 #
 # These are the individual collections that make up "cvs-crypto".  If
 # you use these, be sure to comment out "cvs-crypto" above.
@@ -57,4 +58,3 @@ cvs-crypto
 #src-eBones
 #src-secure
 #src-sys-crypto
-#src-crypto-rsa
