@@ -32,7 +32,6 @@ crypt_xdr.c: ${RPCDIR}/crypt.x crypt.h
 crypt.h: ${RPCDIR}/crypt.x
 	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/crypt.x
 
-# Only build man pages with libc.
 .if ${LIB} == "c"
 #
 # XXX -- rstat.1 and rstat_svc.8 shouldn't really be here
@@ -41,13 +40,13 @@ crypt.h: ${RPCDIR}/crypt.x
 # Paul.
 #
 
-# MAN1+= rpc/rstat.1
-MAN3+= rpc/bindresvport.3 rpc/getrpcent.3 rpc/getrpcport.3 rpc/rpc.3
-MAN5+= rpc/rpc.5
-MAN8+= rpc/rstat_svc.8
+# MAN1+= rstat.1
+MAN3+= bindresvport.3 getrpcent.3 getrpcport.3 rpc.3
+MAN5+= rpc.5
+MAN8+= rstat_svc.8
 
-MAN3+= rpc/rpc_secure.3 rpc/publickey.3 rpc/rtime.3 rpc/des_crypt.3
-MAN5+= rpc/publickey.5
+MAN3+= rpc_secure.3 publickey.3 rtime.3 des_crypt.3
+MAN5+= publickey.5
 
 MLINKS+=	getrpcent.3 getrpcbyname.3 \
 		getrpcent.3 getrpcbynumber.3 \

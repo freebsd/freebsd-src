@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.8 1997/05/03 03:50:00 jb Exp $
+#	$Id: Makefile.inc,v 1.9 1997/09/24 20:38:10 julian Exp $
 
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/locale ${.CURDIR}/../libc/locale
@@ -9,15 +9,12 @@ SRCS+=	ansi.c ctype.c euc.c frune.c isctype.c lconv.c localeconv.c \
 	runetype.c tolower.c toupper.c nomacros.c collate.c setinvalidrune.c \
 	collcmp.c mskanji.c
 
-# Only build man pages with libc.
 .if ${LIB} == "c"
-MAN3+=	locale/ctype.3 locale/isalnum.3 locale/isalpha.3 locale/isascii.3 \
-	locale/isblank.3 locale/iscntrl.3 locale/isdigit.3 locale/isgraph.3 \
-	locale/islower.3 locale/isprint.3 locale/ispunct.3 locale/isspace.3 \
-	locale/isupper.3 locale/isxdigit.3 locale/mbrune.3 locale/multibyte.3 \
-	locale/rune.3 locale/setlocale.3 locale/toascii.3 locale/tolower.3 \
-	locale/toupper.3
-MAN4+=	locale/euc.4 locale/utf2.4
+MAN3+=	ctype.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
+	isdigit.3 isgraph.3 islower.3 isprint.3 ispunct.3 isspace.3 \
+	isupper.3 isxdigit.3 mbrune.3 multibyte.3 rune.3 setlocale.3 \
+	toascii.3 tolower.3 toupper.3
+MAN4+=	euc.4 utf2.4
 MLINKS+= rune.3 setrunelocale.3 rune.3 setinvalidrune.3 rune.3 sgetrune.3 \
 	 rune.3 sputrune.3 rune.3 fgetrune.3 rune.3 fungetrune.3 \
 	 rune.3 fputrune.3 mbrune.3 mbrrune.3 mbrune.3 mbmb.3 \

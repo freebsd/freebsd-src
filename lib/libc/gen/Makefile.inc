@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.38 1997/08/31 00:08:35 peter Exp $
+#	$Id: Makefile.inc,v 1.39 1997/10/14 07:43:18 bde Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
@@ -41,30 +41,24 @@ errlst.o errlst.po:
 	rm -f errlst.s
 .endif
 
-# Only build man pages with libc.
 .if ${LIB} == "c"
-MAN3+=  gen/alarm.3 gen/arc4random.3 gen/clock.3 gen/confstr.3 \
-	gen/config_open.3 gen/crypt.3 gen/ctermid.3 \
-	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 gen/exec.3 \
-	gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 gen/getbootfile.3 \
-	gen/getcap.3 gen/getcwd.3 gen/getdiskbyname.3 gen/getdomainname.3 \
-	gen/getfsent.3 gen/getgrent.3 gen/getgrouplist.3 gen/gethostname.3 \
-	gen/getloadavg.3 \
-	gen/getmntinfo.3 gen/getnetgrent.3 gen/getpagesize.3 gen/getpass.3 \
-	gen/getpwent.3 gen/getttyent.3 gen/getusershell.3 gen/getvfsbyname.3 \
-	gen/getvfsent.3 gen/glob.3 \
-	gen/initgroups.3 gen/isinf.3 gen/ldexp.3 \
-	gen/msgctl.3 gen/msgget.3 gen/msgrcv.3 gen/msgsnd.3 \
-	gen/modf.3 gen/nice.3 \
-	gen/nlist.3 gen/pause.3 gen/popen.3 gen/psignal.3 gen/pwcache.3 \
-	gen/raise.3 gen/rand48.3 \
-	gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
-	gen/siginterrupt.3 gen/signal.3 gen/sigsetops.3 gen/sleep.3 \
-	gen/stringlist.3 \
-	gen/sysconf.3 gen/sysctl.3 gen/syslog.3 gen/tcgetpgrp.3 \
-	gen/tcsendbreak.3 gen/tcsetattr.3 gen/tcsetpgrp.3 gen/time.3 \
-	gen/times.3 gen/timezone.3 gen/ttyname.3 gen/tzset.3 gen/ualarm.3 \
-	gen/uname.3 gen/unvis.3 gen/usleep.3 gen/utime.3 gen/valloc.3 gen/vis.3
+MAN3+=  alarm.3 arc4random.3 clock.3 confstr.3 \
+	config_open.3 crypt.3 ctermid.3 daemon.3 \
+	devname.3 directory.3 err.3 exec.3 fnmatch.3 frexp.3 fts.3 \
+	getbsize.3 getbootfile.3 getcap.3 getcwd.3 \
+	getdiskbyname.3 getdomainname.3 getfsent.3 \
+	getgrent.3 getgrouplist.3 gethostname.3 getloadavg.3 \
+	getmntinfo.3 getnetgrent.3 getpagesize.3 getpass.3 getpwent.3 \
+	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
+	glob.3 initgroups.3 isinf.3 \
+	ldexp.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 modf.3 \
+	nice.3 nlist.3 pause.3 popen.3 psignal.3 pwcache.3 \
+	raise.3 rand48.3 scandir.3 setjmp.3 setmode.3 siginterrupt.3 \
+	signal.3 sigsetops.3 sleep.3 stringlist.3 \
+	sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
+	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
+	ttyname.3 tzset.3 ualarm.3 uname.3 unvis.3 usleep.3 utime.3 \
+	valloc.3 vis.3
 
 MLINKS+=arc4random.3 arc4random_stir.3 arc4random.3 arc4random_addrandom.3
 MLINKS+=config_open.3 config_next.3 config_open.3 config_close.3 \
