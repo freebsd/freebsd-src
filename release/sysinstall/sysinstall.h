@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.27 1995/10/20 15:40:49 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.28 1995/10/21 14:07:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -241,7 +241,7 @@ typedef struct _part_info {
 typedef struct _opt {
     char *name;
     char *desc;
-    enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FLAG, OPT_IS_FUNC, OPT_IS_VAR } type;
+    enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FUNC, OPT_IS_VAR } type;
     void *data;
     void *aux;
     char *(*check)();
