@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.111 1996/07/09 07:17:03 jkh Exp $
+ * $Id: install.c,v 1.112 1996/07/09 14:28:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -802,20 +802,18 @@ installFilesystems(dialogMenuItem *self)
 int
 installVarDefaults(dialogMenuItem *self)
 {
+    char *cp;
+
     /* Set default startup options */
     variable_set2(VAR_ROUTEDFLAGS,		"-q");
     variable_set2(VAR_RELNAME,			RELEASE_NAME);
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
-    if (RunningAsInit)
-    	variable_set2(VAR_EDITOR,		"/usr/bin/ee");
-    else {
-	char *cp = getenv("EDITOR");
-
-	if (!cp)
-	    cp = "/usr/bin/ee";
-    	variable_set2(VAR_EDITOR,		cp);
-    }
+    variable_set2(VAR_INSTALL_ROOT,		"/");
+    cp = getenv("EDITOR");
+    if (!cp)
+	cp = "/usr/bin/ee";
+    variable_set2(VAR_EDITOR,			cp);
     variable_set2(VAR_FTP_USER,			"ftp");
     variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.5FM");
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
