@@ -1055,7 +1055,8 @@ delete(argc, argv)
 		code = -1;
 		return;
 	}
-	(void)command("DELE %s", argv[1]);
+	if (command("DELE %s", argv[1]) == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1085,7 +1086,8 @@ mdelete(argc, argv)
 			continue;
 		}
 		if (mflag && confirm(argv[0], cp)) {
-			(void)command("DELE %s", cp);
+			if (command("DELE %s", cp) == COMPLETE)
+				dirchange = 1;
 			if (!mflag && fromatty) {
 				ointer = interactive;
 				interactive = 1;
@@ -1117,8 +1119,9 @@ usage:
 		code = -1;
 		return;
 	}
-	if (command("RNFR %s", argv[1]) == CONTINUE)
-		(void)command("RNTO %s", argv[2]);
+	if (command("RNFR %s", argv[1]) == CONTINUE &&
+	    command("RNTO %s", argv[2]) == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1370,6 +1373,7 @@ makedir(argc, argv)
 	int argc;
 	char *argv[];
 {
+	int r;
 
 	if ((argc < 2 && !another(&argc, &argv, "directory-name")) ||
 	    argc > 2) {
@@ -1377,11 +1381,14 @@ makedir(argc, argv)
 		code = -1;
 		return;
 	}
-	if (command("MKD %s", argv[1]) == ERROR && code == 500) {
+	r = command("MKD %s", argv[1]);
+	if (r == ERROR && code == 500) {
 		if (verbose)
 			puts("MKD command not recognized, trying XMKD.");
-		(void)command("XMKD %s", argv[1]);
+		r = command("XMKD %s", argv[1]);
 	}
+	if (r == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1392,6 +1399,7 @@ removedir(argc, argv)
 	int argc;
 	char *argv[];
 {
+	int r;
 
 	if ((argc < 2 && !another(&argc, &argv, "directory-name")) ||
 	    argc > 2) {
@@ -1399,11 +1407,14 @@ removedir(argc, argv)
 		code = -1;
 		return;
 	}
-	if (command("RMD %s", argv[1]) == ERROR && code == 500) {
+	r = command("RMD %s", argv[1]);
+	if (r == ERROR && code == 500) {
 		if (verbose)
 			puts("RMD command not recognized, trying XRMD.");
-		(void)command("XRMD %s", argv[1]);
+		r = command("XRMD %s", argv[1]);
 	}
+	if (r == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1469,6 +1480,7 @@ quote1(initial, argc, argv)
 		while (getreply(0) == PRELIM)
 			continue;
 	}
+	dirchange = 1;
 }
 
 void

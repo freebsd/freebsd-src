@@ -644,6 +644,7 @@ sendrequest(cmd, local, remote, printnames)
 				(*closefunc)(fin);
 			goto cleanupsend;
 		}
+	dirchange = 1;
 	dout = dataconn(lmode);
 	if (dout == NULL)
 		goto abort;
