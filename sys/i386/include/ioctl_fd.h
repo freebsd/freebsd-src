@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id: ioctl_fd.h,v 1.6 1994/09/25 18:41:21 joerg Exp $
+ * $Id: ioctl_fd.h,v 1.7 1994/10/30 19:17:39 joerg Exp $
  */
 
 #ifndef _IOCTL_FD_H
@@ -46,7 +46,7 @@ struct fd_formb {
 		struct fd_form_data {
 			/*
 			 * DO NOT CHANGE THE LAYOUT OF THIS STRUCTS
-			 * it is hardware-dependant since it exactly
+			 * it is hardware-dependent since it exactly
 			 * matches the byte sequence to write to FDC
 			 * during its `format track' operation
 			 */

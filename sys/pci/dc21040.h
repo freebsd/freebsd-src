@@ -8,7 +8,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.4 1995/05/05 20:09:48 davidg Exp $
+ * $Id: dc21040.h,v 1.5 1995/09/29 19:52:08 davidg Exp $
  *
  */
 
@@ -156,7 +156,7 @@ typedef struct {
 #define	TULIP_STS_FULDPLXSHRT	0x00000800L		/* (RW)  Full Duplex Short Fram Rcvd (DC21040) */
 #define	TULIP_STS_GPTIMEOUT	0x00000800L		/* (RW)  General Purpose Timeout (DC21140) */
 #define	TULIP_STS_AUI		0x00000400L		/* (RW)  AUI/TP Switch (DC21040) */
-#define	TULIP_STS_RXTIMEOUT	0x00000200L		/* (RW)  Receive Watchbog Timeout */
+#define	TULIP_STS_RXTIMEOUT	0x00000200L		/* (RW)  Receive Watchdog Timeout */
 #define	TULIP_STS_RXSTOPPED	0x00000100L		/* (RW)  Receive Process Stopped */
 #define	TULIP_STS_RXNOBUF	0x00000080L		/* (RW)  Receive Buffer Unavailable */
 #define	TULIP_STS_RXINTR	0x00000040L		/* (RW)  Receive Interrupt */
@@ -177,7 +177,7 @@ typedef struct {
 #define	TULIP_CMD_STOREFWD	0x00200000L		/* (RW)  Store and Foward (DC21140) */
 #define	TULIP_CMD_NOHEARTBEAT	0x00080000L		/* (RW)  No Heartbeat (DC21140) */
 #define	TULIP_CMD_PORTSELECT	0x00040000L		/* (RW)  Post Select (100Mb) (DC21140) */
-#define	TULIP_CMD_ENHCAPTEFFCT	0x00040000L		/* (RW)  Enhanced Capture Effecty (DC21041) */
+#define	TULIP_CMD_ENHCAPTEFFCT	0x00040000L		/* (RW)  Enhanced Capture Effect (DC21041) */
 #define	TULIP_CMD_CAPTREFFCT	0x00020000L		/* (RW)  Capture Effect (!802.3) */
 #define	TULIP_CMD_BACKPRESSURE	0x00010000L		/* (RW)  Back Pressure (!802.3) (DC21040) */
 #define	TULIP_CMD_THRESHOLDCTL	0x0000C000L		/* (RW)  Threshold Control */
@@ -246,7 +246,7 @@ typedef struct {
 #define	TULIP_BUSMODE_DESC_BIGENDIAN	0x00100000L	/* DC21041 only */
 
 /*
- * These are the defintitions used for the DEC DC21140
+ * These are the definitions used for the DEC DC21140
  * evaluation board.
  */
 #define	TULIP_GP_EB_PINS		0x0000011F	/* General Purpose Pin directions */
@@ -265,7 +265,7 @@ typedef struct {
 #define	TULIP_GP_DE500_FORCE_100	0x00000001L
 
 /*
- * These are the defintitions used for the Cogent EM100
+ * These are the definitions used for the Cogent EM100
  * DC21140 board.
  */
 #define	TULIP_GP_EM100_PINS		0x0000013F	/* General Purpose Pin directions */
@@ -277,7 +277,7 @@ typedef struct {
 
 
 /*
- * These are the defintitions used for the Znyx ZX342
+ * These are the definitions used for the Znyx ZX342
  * 10/100 board
  */
 #define	TULIP_GP_ZX34X_PINS		0x0000011F	/* General Purpose Pin directions */

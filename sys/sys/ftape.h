@@ -172,7 +172,7 @@ typedef struct qic_vtbl {
 	char vt_vname[44];	/* Set name */
 	UCHAR vt_savdate[4];	/* Date saved */
 	UCHAR vt_flags;		/* Volume flags */
-	UCHAR vt_multi;		/* Multi cartidge sequence no. */
+	UCHAR vt_multi;		/* Multi cartridge sequence no. */
 	UCHAR vt_vext[26];	/* Extension data */
 	char vt_passwd[8];	/* Password for volume */
 	UCHAR vt_dirsize[4];	/* Directory section size */
@@ -190,7 +190,7 @@ typedef struct qic_vtbl {
 
 /* Data compression map structure. */
 typedef struct qic_dcmap {
-	UCHAR dc_sig[4];	/* Siguature "DCMS" */
+	UCHAR dc_sig[4];	/* Signature "DCMS" */
 	USHORT dc_mlen;		/* Total map length */
 	UCHAR dc_unused1[6];
 	ULONG dc_offset[7421];	/* Byte offsets to segments */

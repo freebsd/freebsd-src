@@ -7,7 +7,7 @@
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
- * Authors grant any other persons or organisations permission to use
+ * Authors grant any other persons or organizations permission to use
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
@@ -159,7 +159,7 @@ typedef struct {		/* hdlc channel option register 2 */
 	unsigned ctsae : 1;	/* CTS automatic enable */
 	unsigned rtsao : 1;	/* RTS automatic output enable */
 	unsigned zero1 : 1;
-	unsigned crcninv : 1;	/* CRC invertion option */
+	unsigned crcninv : 1;	/* CRC inversion option */
 	unsigned zero2 : 1;
 	unsigned fcsapd : 1;	/* FCS append */
 	unsigned zero3 : 1;
@@ -206,7 +206,7 @@ typedef struct {		/* channel option register 1 */
 
 typedef struct {		/* channel option register 2 */
 	unsigned syns : 4;	/* number of extra SYN chars before a frame */
-	unsigned crcninv : 1;	/* CRC invertion option */
+	unsigned crcninv : 1;	/* CRC inversion option */
 	unsigned ebcdic : 1;	/* use EBCDIC as char set (instead of ASCII) */
 	unsigned bcc : 1;	/* BCC append enable */
 	unsigned lrc : 1;       /* longitudinal redundancy check */
@@ -447,7 +447,7 @@ typedef struct _stat_t {
 typedef struct _board_t {
 	unsigned short port;	/* base board port, 0..3f0 */
 	unsigned short num;     /* board number, 0..2 */
-	unsigned char irq;      /* intterupt request {3 5 7 10 11 12 15} */
+	unsigned char irq;      /* interrupt request {3 5 7 10 11 12 15} */
 	unsigned char dma;      /* DMA request {5 6 7} */
 	unsigned char if0type;  /* chan0 interface RS-232/RS-449/V.35 */
 	unsigned char if8type;  /* chan8 interface RS-232/RS-449/V.35 */

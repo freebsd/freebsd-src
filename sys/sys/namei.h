@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id: namei.h,v 1.7 1995/07/31 00:35:58 bde Exp $
+ * $Id: namei.h,v 1.8 1995/08/28 09:19:06 julian Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -128,7 +128,7 @@ struct nameidata {
 #define	NOCROSSMOUNT	0x00100	/* do not cross mount points */
 #define	RDONLY		0x00200	/* lookup with read-only semantics */
 #define	HASBUF		0x00400	/* has allocated pathname buffer */
-#define	SAVENAME	0x00800	/* save pathanme buffer */
+#define	SAVENAME	0x00800	/* save pathname buffer */
 #define	SAVESTART	0x01000	/* save starting directory */
 #define ISDOTDOT	0x02000	/* current component name is .. */
 #define MAKEENTRY	0x04000	/* entry is to be added to name cache */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.6 1995/06/13 17:51:07 wollman Exp $
+ * $Id: igmp_var.h,v 1.7 1995/11/14 20:33:54 phk Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -47,7 +47,7 @@
  *
  * Written by Steve Deering, Stanford, May 1988.
  *
- * MULTICAST Revisiob: 3.3.1.1
+ * MULTICAST Revision: 3.3.1.1
  */
 
 struct igmpstat {

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_timer.h
  *
- * $Id: spx_timer.h,v 1.3 1995/10/31 23:36:45 julian Exp $
+ * $Id: spx_timer.h,v 1.4 1995/11/04 09:03:39 julian Exp $
  */
 
 #ifndef _NETIPX_SPX_TIMER_H_
@@ -44,7 +44,7 @@
  * down PR_SLOWHZ times a second.
  */
 #define	SPXT_REXMT	0		/* retransmit */
-#define	SPXT_PERSIST	1		/* retransmit persistance */
+#define	SPXT_PERSIST	1		/* retransmit persistence */
 #define	SPXT_KEEP	2		/* keep alive */
 #define	SPXT_2MSL	3		/* 2*msl quiet time timer */
 
@@ -91,7 +91,7 @@
 						   if 0, no idea yet */
 #define	SPXTV_SRTTDFLT	(  3*PR_SLOWHZ)		/* assumed RTT if no info */
 
-#define	SPXTV_PERSMIN	(  5*PR_SLOWHZ)		/* retransmit persistance */
+#define	SPXTV_PERSMIN	(  5*PR_SLOWHZ)		/* retransmit persistence */
 #define	SPXTV_PERSMAX	( 60*PR_SLOWHZ)		/* maximum persist interval */
 
 #define	SPXTV_KEEP	( 75*PR_SLOWHZ)		/* keep alive - 75 secs */

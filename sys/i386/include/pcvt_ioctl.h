@@ -221,7 +221,7 @@ struct mousedefs {
 #define EGA_ADAPTOR	3	/* Enhanced Graphics Adaptor */
 #define VGA_ADAPTOR	4	/* Video Graphics Adaptor/Array */
 
-/* Deifinitions of Monitor types */
+/* Definitions of Monitor types */
 
 #define MONITOR_MONO	0	/* Monochrome Monitor */
 #define MONITOR_COLOR	1	/* Color Monitor */
@@ -376,10 +376,10 @@ struct screeninfo {
 				/* on write, if -1, no change		*/
 	int vga_family;		/* if adaptor_type = VGA, this reflects */
 				/* the chipset family after a read	*/
-				/* nothing happenes on write ...        */
+				/* nothing happens on write ...        */
 	int vga_type;		/* if adaptor_type = VGA, this reflects */
 				/* the chipset after a read		*/
-				/* nothing happenes on write ...        */
+				/* nothing happens on write ...        */
 	int vga_132;		/* set to 1 if driver has support for	*/
 				/* 132 column operation for chipset	*/
 				/* currently ignored on write		*/
@@ -543,7 +543,7 @@ struct pcvtinfo {			/* compile time option values */
 
 #define VT_FALSE	0		/* release of VT refused */
 #define VT_TRUE		1		/* VT released */
-#define VT_ACKACQ	2		/* acknowledging VT acquiration */
+#define VT_ACKACQ	2		/* acknowledging VT acquisition */
 
 
 #define VT_ACTIVATE	_IO('v', 5 /*, int */)

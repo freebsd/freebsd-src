@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.15 1995/12/03 10:02:41 bde Exp $
+ * $Id: nfs.h,v 1.16 1995/12/17 21:12:05 phk Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -69,7 +69,7 @@
 #define	NFS_DEFRAHEAD	1		/* Def. read ahead # blocks */
 #define	NFS_MAXRAHEAD	4		/* Max. read ahead # blocks */
 #define	NFS_MAXUIDHASH	64		/* Max. # of hashed uid entries/mp */
-#define	NFS_MAXASYNCDAEMON 	20	/* Max. number async_daemons runable */
+#define	NFS_MAXASYNCDAEMON 	20	/* Max. number async_daemons runnable */
 #define NFS_MAXGATHERDELAY	100	/* Max. write gather delay (msec) */
 #ifndef NFS_GATHERDELAY
 #define NFS_GATHERDELAY		10	/* Default write gather delay (msec) */
@@ -89,7 +89,7 @@
 
 /*
  * XXX
- * sys/buf.h should be editted to change B_APPENDWRITE --> B_NEEDCOMMIT, but
+ * sys/buf.h should be edited to change B_APPENDWRITE --> B_NEEDCOMMIT, but
  * until then...
  * Same goes for sys/malloc.h, which needs M_NFSDIROFF,
  * M_NFSRVDESC and M_NFSBIGFH added.

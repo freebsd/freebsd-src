@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	8.1 (Berkeley) 6/11/93
- *	$Id: imgact_aout.h,v 1.3 1995/05/30 08:14:25 rgrimes Exp $
+ *	$Id: imgact_aout.h,v 1.4 1995/07/26 17:25:48 davidg Exp $
  */
 
 #ifndef	_IMGACT_AOUT_H_
@@ -139,7 +139,7 @@ struct exec {
 /*
  * a_flags
  */
-#define EX_PIC		0x10	/* contains position independant code */
+#define EX_PIC		0x10	/* contains position independent code */
 #define EX_DYNAMIC	0x20	/* contains run-time link-edit info */
 #define EX_DPMASK	0x30	/* mask for the above */
 

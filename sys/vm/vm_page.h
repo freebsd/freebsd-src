@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.23 1995/12/11 04:58:26 dyson Exp $
+ * $Id: vm_page.h,v 1.24 1996/01/19 04:00:17 dyson Exp $
  */
 
 /*
@@ -166,7 +166,7 @@ struct vm_page {
  *		non-interrupt times.
  *
  *	inactive
- *		Low activity, candidates for reclaimation.
+ *		Low activity, candidates for reclamation.
  *		This is the list of pages that should be
  *		paged out next.
  *

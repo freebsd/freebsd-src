@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf.h,v 1.6 1995/09/08 11:08:55 bde Exp $
+ * $Id: bpf.h,v 1.7 1995/11/04 13:25:03 bde Exp $
  */
 
 #ifndef _NET_BPF_H_
@@ -166,7 +166,7 @@ struct bpf_hdr {
 #define DLT_FDDI	10	/* FDDI */
 
 /*
- * The instruction encondings.
+ * The instruction encodings.
  */
 /* instruction classes */
 #define BPF_CLASS(code) ((code) & 0x07)

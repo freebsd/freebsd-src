@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id: inode.h,v 1.6 1995/05/30 08:15:30 rgrimes Exp $
+ * $Id: inode.h,v 1.7 1995/11/05 23:35:56 dyson Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -58,7 +58,7 @@
  * information. The first part is the information that is needed
  * only while the file is active (such as the identity of the file
  * and linkage to speed its lookup). The second part is the
- * permannent meta-data associated with the file which is read
+ * permanent meta-data associated with the file which is read
  * in from the permanent dinode from long term storage when the
  * file becomes active, and is put back when the file is no longer
  * being used.

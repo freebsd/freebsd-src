@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.17 1995/11/29 10:49:14 julian Exp $
+ * $Id: kernel.h,v 1.18 1995/12/16 21:50:15 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -98,8 +98,8 @@ extern long timedelta;
  * element.
  *
  * These numbers are arbitrary and are chosen ONLY for ordering; the
- * enumeration values are explicit rather than imlicit to provide
- * for binary compatability with inserted elements.
+ * enumeration values are explicit rather than implicit to provide
+ * for binary compatibility with inserted elements.
  *
  * The SI_SUB_RUN_SCHEDULER value must have the highest lexical value.
  *
@@ -111,7 +111,7 @@ extern long timedelta;
  * initializations to take place at splimp().  This is a historical
  * wart that should be removed -- probably running everything at
  * splimp() until the first init that doesn't want it is the correct
- * fix.  They are currently present to ensure historical behaviour.
+ * fix.  They are currently present to ensure historical behavior.
  */
 enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x00000000,	/* not executed; for linker*/
@@ -121,7 +121,7 @@ enum sysinit_sub_id {
 	SI_SUB_KMEM		= 0x18000000,	/* kernel memory*/
 	SI_SUB_CPU		= 0x20000000,	/* CPU resource(s)*/
 	SI_SUB_DEVFS		= 0x22000000,	/* get DEVFS ready */
-	SI_SUB_DRIVERS		= 0x23000000,	/* Let Drivers initialise */
+	SI_SUB_DRIVERS		= 0x23000000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x24000000,	/* Configure devices */
 	SI_SUB_INTRINSIC	= 0x28000000,	/* proc 0*/
 	SI_SUB_RUN_QUEUE	= 0x30000000,	/* the run queue*/
@@ -252,7 +252,7 @@ void	kproc_start __P((void *udata));
 #else /* PSEUDO_LKM */
 
 /*
- * Compatability.  To be deprecated after LKM is updated.
+ * Compatibility.  To be deprecated after LKM is updated.
  */
 #define	PSEUDO_SET(sym, name)	SYSINIT(ps, SI_SUB_PSEUDO, SI_ORDER_ANY, sym, 0)
 

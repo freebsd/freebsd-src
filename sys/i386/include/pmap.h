@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.30 1995/12/10 13:38:09 phk Exp $
+ * 	$Id: pmap.h,v 1.31 1995/12/17 07:39:05 bde Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -133,7 +133,7 @@ pmap_kextract(vm_offset_t va)
 #endif
 
 /*
- * macros to generate page directory/table indicies
+ * macros to generate page directory/table indices
  */
 
 #define	pdei(va)	(((va)&PD_MASK)>>PD_SHIFT)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.29 1995/11/13 08:52:08 bde Exp $
+ *	$Id: mount.h,v 1.30 1995/12/22 16:02:39 phk Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -91,7 +91,7 @@ struct statfs {
 #define	MOUNT_FDESC	7	/* File Descriptor Filesystem */
 #define	MOUNT_PORTAL	8	/* Portal Filesystem */
 #define MOUNT_NULL	9	/* Minimal Filesystem Layer */
-#define MOUNT_UMAP	10	/* User/Group Identifer Remapping Filesystem */
+#define MOUNT_UMAP	10	/* User/Group Identifier Remapping Filesystem */
 #define MOUNT_KERNFS	11	/* Kernel Information Filesystem */
 #define MOUNT_PROCFS	12	/* /proc Filesystem */
 #define MOUNT_AFS	13	/* Andrew Filesystem */

@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.18 1995/05/30 08:02:00 rgrimes Exp $
+ * $Id: if_edreg.h,v 1.19 1995/09/26 08:57:45 phk Exp $
  */
 /*
  * National Semiconductor DS8390 NIC register definitions
@@ -211,7 +211,7 @@
 
 /*
  * OVW: OverWrite. Indicates a receive ring-buffer overrun. Incoming network
- *	would exceed (has exceeded?) the boundry pointer, resulting in data
+ *	would exceed (has exceeded?) the boundary pointer, resulting in data
  *	that was previously received and not yet read from the buffer to be
  *	overwritten.
  */
@@ -266,7 +266,7 @@
 
 /*
  * OVWE: OverWrite error interrupt Enable. If set, an interrupt is generated whenever
- *	the receive ring-buffer is overrun. i.e. when the boundry pointer is exceeded.
+ *	the receive ring-buffer is overrun. i.e. when the boundary pointer is exceeded.
  */
 #define ED_IMR_OVWE	0x10
 
@@ -318,7 +318,7 @@
 /*
  * AR: Auto-initialize Remote. When 0, data must be removed from ring-buffer
  *	under program control. When 1, remote DMA is automatically initiated
- *	and the boundry pointer is automatically updated
+ *	and the boundary pointer is automatically updated
  */
 #define ED_DCR_AR	0x10
 
@@ -500,7 +500,7 @@
 
 /*
  * FAE: Frame Alignment Error. Indicates that the incoming packet did not end on
- *	a byte boundry and the CRC did not match at the last byte boundry.
+ *	a byte boundary and the CRC did not match at the last byte boundary.
  */
 #define ED_RSR_FAE	0x04
 
@@ -513,7 +513,7 @@
 /*
  * MPA: Missed Packet. Indicates that the received packet couldn't be stored in
  *	the ring-buffer because of insufficient buffer space (exceeding the
- *	boundry pointer), or because the transfer to the ring-buffer was inhibited
+ *	boundary pointer), or because the transfer to the ring-buffer was inhibited
  *	by RCR_MON - monitor mode.
  */
 #define ED_RSR_MPA	0x10
@@ -526,7 +526,7 @@
 #define ED_RSR_PHY	0x20
 
 /*
- * DIS: Receiver Disabled. Set to indicate that the receiver has enetered monitor
+ * DIS: Receiver Disabled. Set to indicate that the receiver has entered monitor
  *	mode. Cleared when the receiver exits monitor mode.
  */
 #define ED_RSR_DIS	0x40
@@ -539,7 +539,7 @@
 #define ED_RSR_DFR	0x80
 
 /*
- * receive ring discriptor
+ * receive ring descriptor
  *
  * The National Semiconductor DS8390 Network interface controller uses
  * the following receive ring headers.  The way this works is that the
@@ -574,7 +574,7 @@ struct ed_ring	{
  * Compile-time config flags
  */
 /*
- * this sets the default for enabling/disablng the tranceiver
+ * this sets the default for enabling/disabling the transceiver
  */
 #define ED_FLAGS_DISABLE_TRANCEIVER	0x0001
 

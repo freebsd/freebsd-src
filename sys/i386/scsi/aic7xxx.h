@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.19 1996/01/23 21:47:53 se Exp $
+ *	$Id: aic7xxx.h,v 1.20 1996/01/29 03:17:39 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -90,7 +90,7 @@ typedef enum {
  * first 26 bytes of the structure need to be transfered to the card during
  * normal operation.  The remaining fields (next_waiting and host_scb) are
  * initialized the first time an SCB is allocated in get_scb().  The fields
- * starting at byte 32 are used for kernel level bookeeping.  
+ * starting at byte 32 are used for kernel level bookkeeping.  
  */
 struct scb {
 /* ------------    Begin hardware supported fields    ---------------- */
@@ -139,7 +139,7 @@ struct ahc_data {
 	int	our_id;			/* our scsi id */
 	int	our_id_b;		/* B channel scsi id */
 	int	vect;
-	struct	scb *immed_ecb;		/* an outstanding immediete command */
+	struct	scb *immed_ecb;		/* an outstanding immediate command */
 	struct	scsi_link sc_link;
 	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
 	u_short	needsdtr_orig;		/* Targets we initiate sync neg with */

@@ -1,5 +1,5 @@
 /*	from Id: if_pppvar.h,v 1.1 1994/12/15 22:28:09 paulus Exp	*/
-/*	$Id$	*/
+/*	$Id: if_pppvar.h,v 1.2 1995/10/31 20:24:11 peter Exp $	*/
 /*
  * if_pppvar.h - private structures and declarations for PPP.
  *
@@ -39,7 +39,7 @@
  * from this software without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
 /*
