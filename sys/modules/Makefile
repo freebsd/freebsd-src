@@ -2,9 +2,9 @@
 
 # XXX present but broken: atapi ip_mroute_mod joy pcic
 
-SUBDIR=	aha al ax ccd cd9660 coda dm fdesc fxp if_disc if_ppp if_sl if_tun \
-	ipfilter ipfw kernfs md mfs mii msdos mx netgraph nfs ntfs nullfs \
-	pn portal procfs rl sf sis sk ste ti tl umapfs union vn vr wb xl
+SUBDIR=	aha ccd dc cd9660 coda fdesc fxp if_disc if_ppp if_sl if_tun \
+	ipfilter ipfw kernfs md mfs mii msdos netgraph nfs ntfs nullfs \
+	portal procfs rl sf sis sk ste ti tl umapfs union vn vr wb xl
 
 SUBDIR+=usb ugen uhid ukbd ulpt ums umodem umass
 

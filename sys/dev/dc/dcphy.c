@@ -33,13 +33,12 @@
  */
 
 /*
- * Pseudo-driver for internal NWAY support on Macronix 98713/98715/98725
- * PMAC controller chips. The Macronix chips use the same internal
- * NWAY register layout as the DEC/Intel 21143. Technically we're
- * abusing the miibus code to handle the media selection and NWAY
- * support here since there is no MII interface. However the logical
- * operations are roughly the same, and the alternative is to create
- * a fake MII interface in the driver, which is harder to do.
+ * Pseudo-driver for internal NWAY support on DEC 21143 and workalike
+ * controllers. Technically we're abusing the miibus code to handle
+ * media selection and NWAY support here since there is no MII
+ * interface. However the logical operations are roughly the same,
+ * and the alternative is to create a fake MII interface in the driver,
+ * which is harder to do.
  */
 
 #include <sys/param.h>
@@ -66,7 +65,9 @@
 #include <machine/resource.h>
 #include <sys/bus.h>
 
-#include <pci/if_mxreg.h>
+#include <pci/pcivar.h>
+
+#include <pci/if_dcreg.h>
 
 #include "miibus_if.h"
 
@@ -75,45 +76,45 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-#define MX_SETBIT(sc, reg, x)                           \
+#define DC_SETBIT(sc, reg, x)                           \
         CSR_WRITE_4(sc, reg,                            \
                 CSR_READ_4(sc, reg) | x)
 
-#define MX_CLRBIT(sc, reg, x)                           \
+#define DC_CLRBIT(sc, reg, x)                           \
         CSR_WRITE_4(sc, reg,                            \
                 CSR_READ_4(sc, reg) & ~x)
 
 #define MIIF_AUTOTIMEOUT	0x0004
 
-static int mxphy_probe		__P((device_t));
-static int mxphy_attach		__P((device_t));
-static int mxphy_detach		__P((device_t));
+static int dcphy_probe		__P((device_t));
+static int dcphy_attach		__P((device_t));
+static int dcphy_detach		__P((device_t));
 
-static device_method_t mxphy_methods[] = {
+static device_method_t dcphy_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,		mxphy_probe),
-	DEVMETHOD(device_attach,	mxphy_attach),
-	DEVMETHOD(device_detach,	mxphy_detach),
+	DEVMETHOD(device_probe,		dcphy_probe),
+	DEVMETHOD(device_attach,	dcphy_attach),
+	DEVMETHOD(device_detach,	dcphy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
 
-static devclass_t mxphy_devclass;
+static devclass_t dcphy_devclass;
 
-static driver_t mxphy_driver = {
-	"mxphy",
-	mxphy_methods,
+static driver_t dcphy_driver = {
+	"dcphy",
+	dcphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(mxphy, miibus, mxphy_driver, mxphy_devclass, 0, 0);
+DRIVER_MODULE(dcphy, miibus, dcphy_driver, dcphy_devclass, 0, 0);
 
-int	mxphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	mxphy_status __P((struct mii_softc *));
-static int mxphy_auto		__P((struct mii_softc *, int));
-static void mxphy_reset		__P((struct mii_softc *));
+int	dcphy_service __P((struct mii_softc *, struct mii_data *, int));
+void	dcphy_status __P((struct mii_softc *));
+static int dcphy_auto		__P((struct mii_softc *, int));
+static void dcphy_reset		__P((struct mii_softc *));
 
-static int mxphy_probe(dev)
+static int dcphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -121,25 +122,25 @@ static int mxphy_probe(dev)
 	ma = device_get_ivars(dev);
 
 	/*
-	 * The mx driver will report a Macronix vendor and device
+	 * The dc driver will report the 21143 vendor and device
 	 * ID to let us know that it wants us to attach.
 	 */
-	if (ma->mii_id1 != MX_VENDORID ||
-	    ma->mii_id2 != MX_DEVICEID_987x5)
+	if (ma->mii_id1 != DC_VENDORID_DEC ||
+	    ma->mii_id2 != DC_DEVICEID_21143)
 		return(ENXIO);
 
-	device_set_desc(dev, "Macronix NWAY media interface");
+	device_set_desc(dev, "Intel 21143 NWAY media interface");
 
 	return (0);
 }
 
-static int mxphy_attach(dev)
+static int dcphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	struct mx_softc *mx_sc;
+	struct dc_softc		*dc_sc;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
@@ -149,7 +150,7 @@ static int mxphy_attach(dev)
 
 	sc->mii_inst = mii->mii_instance;
 	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = mxphy_service;
+	sc->mii_service = dcphy_service;
 	sc->mii_pdata = mii;
 
 	sc->mii_flags |= MIIF_NOISOLATE;
@@ -163,13 +164,24 @@ static int mxphy_attach(dev)
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
 	    BMCR_LOOP|BMCR_S100);
 
-	/*mxphy_reset(sc);*/
-	mx_sc = mii->mii_ifp->if_softc;
-	CSR_WRITE_4(mx_sc, MX_10BTSTAT, 0);
-	CSR_WRITE_4(mx_sc, MX_10BTCTRL, 0);
+	/*dcphy_reset(sc);*/
+	dc_sc = mii->mii_ifp->if_softc;
+	CSR_WRITE_4(dc_sc, DC_10BTSTAT, 0);
+	CSR_WRITE_4(dc_sc, DC_10BTCTRL, 0);
 
-	sc->mii_capabilities =
-	    BMSR_ANEG|BMSR_100TXFDX|BMSR_100TXHDX|BMSR_10TFDX|BMSR_10THDX;
+	switch(pci_read_config(device_get_parent(sc->mii_dev),
+	    DC_PCI_CSID, 4)) {
+	case 0x99999999:
+		/* Example of how to only allow 10Mbps modes. */
+		sc->mii_capabilities = BMSR_10TFDX|BMSR_10THDX;
+		break;
+	default:
+		sc->mii_capabilities =
+		    BMSR_ANEG|BMSR_100TXFDX|BMSR_100TXHDX|
+		    BMSR_10TFDX|BMSR_10THDX;
+		break;
+	}
+
 	sc->mii_capabilities &= ma->mii_capmask;
 	device_printf(dev, " ");
 	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0)
@@ -183,7 +195,7 @@ static int mxphy_attach(dev)
 	return(0);
 }
 
-static int mxphy_detach(dev)
+static int dcphy_detach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;
@@ -198,17 +210,17 @@ static int mxphy_detach(dev)
 }
 
 int
-mxphy_service(sc, mii, cmd)
+dcphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
 	int cmd;
 {
-	struct mx_softc		*mx_sc;
+	struct dc_softc		*dc_sc;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
 	u_int32_t		mode;
 
-	mx_sc = mii->mii_ifp->if_softc;
+	dc_sc = mii->mii_ifp->if_softc;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -237,14 +249,14 @@ mxphy_service(sc, mii, cmd)
 
 		sc->mii_flags = 0;
 		mii->mii_media_active = IFM_NONE;
-		mode = CSR_READ_4(mx_sc, MX_NETCFG);
-		mode &= ~(MX_NETCFG_FULLDUPLEX|MX_NETCFG_PORTSEL|
-		    MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER|MX_NETCFG_SPEEDSEL);
+		mode = CSR_READ_4(dc_sc, DC_NETCFG);
+		mode &= ~(DC_NETCFG_FULLDUPLEX|DC_NETCFG_PORTSEL|
+		    DC_NETCFG_PCS|DC_NETCFG_SCRAMBLER|DC_NETCFG_SPEEDSEL);
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
-			mxphy_reset(sc);
-			(void) mxphy_auto(sc, 0);
+			/*dcphy_reset(sc);*/
+			(void) dcphy_auto(sc, 0);
 			break;
 		case IFM_100_T4:
 			/*
@@ -252,26 +264,32 @@ mxphy_service(sc, mii, cmd)
 			 */
 			return (EINVAL);
 		case IFM_100_TX:
-			mxphy_reset(sc);
-			MX_CLRBIT(mx_sc, MX_10BTCTRL, MX_TCTL_AUTONEGENBL);
-			mode |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|
-			    MX_NETCFG_SCRAMBLER;
+			dcphy_reset(sc);
+			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
+			mode |= DC_NETCFG_PORTSEL|DC_NETCFG_PCS|
+			    DC_NETCFG_SCRAMBLER;
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
-				mode |= MX_NETCFG_FULLDUPLEX;
+				mode |= DC_NETCFG_FULLDUPLEX;
 			else
-				mode &= ~MX_NETCFG_FULLDUPLEX;
-			CSR_WRITE_4(mx_sc, MX_NETCFG, mode);
+				mode &= ~DC_NETCFG_FULLDUPLEX;
+			CSR_WRITE_4(dc_sc, DC_NETCFG, mode);
 			break;
 		case IFM_10_T:
-			mxphy_reset(sc);
-			MX_CLRBIT(mx_sc, MX_10BTCTRL, MX_TCTL_AUTONEGENBL);
-			mode &= ~MX_NETCFG_PORTSEL;
-			mode |= MX_NETCFG_SPEEDSEL;
+			DC_CLRBIT(dc_sc, DC_SIARESET, DC_SIA_RESET);
+			DC_CLRBIT(dc_sc, DC_10BTCTRL, 0xFFFF);
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
-				mode |= MX_NETCFG_FULLDUPLEX;
+				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3D);
 			else
-				mode &= ~MX_NETCFG_FULLDUPLEX;
-			CSR_WRITE_4(mx_sc, MX_NETCFG, mode);
+				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3F);
+			DC_SETBIT(dc_sc, DC_SIARESET, DC_SIA_RESET);
+			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
+			mode &= ~DC_NETCFG_PORTSEL;
+			mode |= DC_NETCFG_SPEEDSEL;
+			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+				mode |= DC_NETCFG_FULLDUPLEX;
+			else
+				mode &= ~DC_NETCFG_FULLDUPLEX;
+			CSR_WRITE_4(dc_sc, DC_NETCFG, mode);
 			break;
 		default:
 			return(EINVAL);
@@ -315,25 +333,31 @@ mxphy_service(sc, mii, cmd)
 		 * need to restart the autonegotiation process.  Read
 		 * the BMSR twice in case it's latched.
 		 */
-		reg = CSR_READ_4(mx_sc, MX_10BTSTAT) &
-		    (MX_TSTAT_LS10|MX_TSTAT_LS100);
+		reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
+		    (DC_TSTAT_LS10|DC_TSTAT_LS100);
 
 		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX &&
-		    !(reg & MX_TSTAT_LS100)) {
+		    !(reg & DC_TSTAT_LS100)) {
 			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
 				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
 				break;
 			} else
 				return(0);
 		} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T &&
-		    !(reg & MX_TSTAT_LS10)) {
+		    !(reg & DC_TSTAT_LS10)) {
 			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
 				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
 				break;
 			} else
 				return(0);
 		} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_NONE &&
-		    (!(reg & MX_TSTAT_LS10) || !(reg & MX_TSTAT_LS100))) {
+		    (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))) {
+			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
+				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
+				break;
+			} else
+				return(0);
+		} else if (CSR_READ_4(dc_sc, DC_ISR) & DC_ISR_LINKGOOD) {
 			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
 				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
 				break;
@@ -342,14 +366,14 @@ mxphy_service(sc, mii, cmd)
 		}
 
 		sc->mii_ticks = 0;
-		mxphy_reset(sc);
-		mxphy_auto(sc, 0);
+		/*dcphy_reset(sc);*/
+		dcphy_auto(sc, 0);
 
 		break;
 	}
 
 	/* Update the media status. */
-	mxphy_status(sc);
+	dcphy_status(sc);
 
 	/* Callback if something changed. */
 	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
@@ -360,22 +384,22 @@ mxphy_service(sc, mii, cmd)
 }
 
 void
-mxphy_status(sc)
+dcphy_status(sc)
 	struct mii_softc *sc;
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int reg, anlpar;
-	struct mx_softc		*mx_sc;
+	struct dc_softc		*dc_sc;
 
-	mx_sc = mii->mii_ifp->if_softc;
+	dc_sc = mii->mii_ifp->if_softc;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
-	reg = CSR_READ_4(mx_sc, MX_10BTSTAT) &
-	     (MX_TSTAT_LS10|MX_TSTAT_LS100);
+	reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
+	     (DC_TSTAT_LS10|DC_TSTAT_LS100);
 
-	if (!(reg & MX_TSTAT_LS10) || !(reg & MX_TSTAT_LS100))
+	if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
 		mii->mii_media_status |= IFM_ACTIVE;
 
 	if (sc->mii_flags & MIIF_DOINGAUTO) {
@@ -383,17 +407,17 @@ mxphy_status(sc)
 		return;
 	}
 
-	if (CSR_READ_4(mx_sc, MX_10BTCTRL) & MX_TCTL_AUTONEGENBL &&
-	    CSR_READ_4(mx_sc, MX_10BTSTAT) & MX_TSTAT_ANEGSTAT) {
+	if (CSR_READ_4(dc_sc, DC_10BTCTRL) & DC_TCTL_AUTONEGENBL &&
+	    CSR_READ_4(dc_sc, DC_10BTSTAT) & DC_TSTAT_ANEGSTAT) {
 		/* Erg, still trying, I guess... */
-		if ((CSR_READ_4(mx_sc, MX_10BTSTAT) &
-		    MX_ASTAT_AUTONEGCMP) != MX_ASTAT_AUTONEGCMP) {
+		if ((CSR_READ_4(dc_sc, DC_10BTSTAT) &
+		    DC_ASTAT_AUTONEGCMP) != DC_ASTAT_AUTONEGCMP) {
 			mii->mii_media_active |= IFM_NONE;
 			return;
 		}
 
-		if (CSR_READ_4(mx_sc, MX_10BTSTAT) & MX_TSTAT_LP_CAN_NWAY) {
-			anlpar = CSR_READ_4(mx_sc, MX_10BTSTAT) >> 16;
+		if (CSR_READ_4(dc_sc, DC_10BTSTAT) & DC_TSTAT_LP_CAN_NWAY) {
+			anlpar = CSR_READ_4(dc_sc, DC_10BTSTAT) >> 16;
 			if (anlpar & ANLPAR_T4)
 				mii->mii_media_active |= IFM_100_T4;
 			else if (anlpar & ANLPAR_TX_FD)
@@ -406,59 +430,65 @@ mxphy_status(sc)
 				mii->mii_media_active |= IFM_10_T;
 			else
 				mii->mii_media_active |= IFM_NONE;
+			if (DC_IS_INTEL(dc_sc))
+				DC_CLRBIT(dc_sc, DC_10BTCTRL,
+				    DC_TCTL_AUTONEGENBL);
 			return;
 		}
 		/*
-	 	 * If the other side doesn't support NWAY, then the
+		 * If the other side doesn't support NWAY, then the
 		 * best we can do is determine if we have a 10Mbps or
-		 * 100Mbps link. There's no way to know if the link
+		 * 100Mbps link. There's no way to know if the link 
 		 * is full or half duplex, so we default to half duplex
 		 * and hope that the user is clever enough to manually
 		 * change the media settings if we're wrong.
 		 */
-		if (!(reg & MX_TSTAT_LS100))
+		if (!(reg & DC_TSTAT_LS100))
 			mii->mii_media_active |= IFM_100_TX;
-		else if (!(reg & MX_TSTAT_LS10))
+		else if (!(reg & DC_TSTAT_LS10))
 			mii->mii_media_active |= IFM_10_T;
 		else
 			mii->mii_media_active |= IFM_NONE;
+		if (DC_IS_INTEL(dc_sc))
+			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 		return;
 	}
 
-	if (CSR_READ_4(mx_sc, MX_NETCFG) & MX_NETCFG_SCRAMBLER)
+	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_SCRAMBLER)
 		mii->mii_media_active |= IFM_100_TX;
 	else
 		mii->mii_media_active |= IFM_10_T;
-	if (CSR_READ_4(mx_sc, MX_NETCFG) & MX_NETCFG_FULLDUPLEX)
+	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
-
 
 	return;
 }
 
 static int
-mxphy_auto(mii, waitfor)
+dcphy_auto(mii, waitfor)
 	struct mii_softc	*mii;
 	int			waitfor;
 {
 	int			i;
-	struct mx_softc		*sc;
+	struct dc_softc		*sc;
 
 	sc = mii->mii_pdata->mii_ifp->if_softc;
 
 	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		CSR_WRITE_4(sc, MX_10BTCTRL, 0x3FFFF);
-		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
-		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_FULLDUPLEX);
-		MX_SETBIT(sc, MX_10BTCTRL, MX_TCTL_AUTONEGENBL);
-		MX_SETBIT(sc, MX_10BTCTRL, MX_ASTAT_TXDISABLE);
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_FULLDUPLEX);
+		DC_CLRBIT(sc, DC_SIARESET, DC_SIA_RESET);
+		CSR_WRITE_4(sc, DC_10BTCTRL, 0x3FFFF);
+		DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
+		DC_SETBIT(sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
+		DC_SETBIT(sc, DC_10BTSTAT, DC_ASTAT_TXDISABLE);
 	}
 
 	if (waitfor) {
 		/* Wait 500ms for it to complete. */
 		for (i = 0; i < 500; i++) {
-			if ((CSR_READ_4(sc, MX_10BTSTAT) & MX_TSTAT_ANEGSTAT)
-			    == MX_ASTAT_AUTONEGCMP)
+			if ((CSR_READ_4(sc, DC_10BTSTAT) & DC_TSTAT_ANEGSTAT)
+			    == DC_ASTAT_AUTONEGCMP)
 				return(0);
 			DELAY(1000);
 		}
@@ -482,16 +512,16 @@ mxphy_auto(mii, waitfor)
 }
 
 static void
-mxphy_reset(mii)
+dcphy_reset(mii)
 	struct mii_softc	*mii;
 {
-	struct mx_softc		*sc;
+	struct dc_softc		*sc;
 
 	sc = mii->mii_pdata->mii_ifp->if_softc;
 
-	MX_SETBIT(sc, MX_SIARESET, MX_SIA_RESET_NWAY);
+	DC_CLRBIT(sc, DC_SIARESET, DC_SIA_RESET);
 	DELAY(1000);
-	MX_CLRBIT(sc, MX_SIARESET, MX_SIA_RESET_NWAY);
+	DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
 
 	return;
 }
