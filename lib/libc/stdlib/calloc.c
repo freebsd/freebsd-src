@@ -37,6 +37,8 @@ static char sccsid[] = "@(#)calloc.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,6 +48,11 @@ calloc(num, size)
 	size_t size;
 {
 	void *p;
+
+	if (size != 0 && SIZE_MAX / size < num) {
+		errno = ENOMEM;
+		return (NULL);
+	}
 
 	size *= num;
 	if ( (p = malloc(size)) )
