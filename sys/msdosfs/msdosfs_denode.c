@@ -95,7 +95,8 @@ static struct denode *
 static void	msdosfs_hashins __P((struct denode *dep));
 static void	msdosfs_hashrem __P((struct denode *dep));
 
-int msdosfs_init()
+int msdosfs_init(vfsp)
+	struct vfsconf *vfsp;
 {
 	dehashtbl = hashinit(desiredvnodes/2, M_MSDOSFSMNT, &dehash);
 	return 0;
