@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.8 1994/08/08 15:40:59 wollman Exp $
+ * $Id: vfs_bio.c,v 1.9 1994/08/18 22:35:06 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -661,6 +661,11 @@ vfs_update() {
 	}
 }
 
+#define MAXFREEBP 128
+#define LDFREE_BUSY 1
+#define LDFREE_WANT 2
+int loadfreeing;
+struct buf *freebp[MAXFREEBP];
 /*
  * these routines are not in the correct place (yet)
  * also they work *ONLY* for kernel_pmap!!!
@@ -676,7 +681,37 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 		vm_offset_t pa;
 
 	tryagain:
-		if (cnt.v_free_count <= cnt.v_free_reserved) {
+/*
+ * don't allow buffer cache to cause VM paging
+ */
+		if ( cnt.v_free_count < cnt.v_free_min) {
+			if( !loadfreeing ) {
+				int n=0;
+				struct buf *bp;
+				loadfreeing = LDFREE_BUSY;
+				while( (cnt.v_free_count <= cnt.v_free_min) && 
+					(n < MAXFREEBP)) {
+					bp = geteblk(0);
+					if( bp)
+						freebp[n++] = bp;
+					else
+						break;
+				}
+				while(--n >= 0) {
+					brelse(freebp[n]);
+				}
+				if( loadfreeing & LDFREE_WANT)
+					wakeup((caddr_t) &loadfreeing);
+				loadfreeing = 0;
+			} else {
+				loadfreeing |= LDFREE_WANT;
+				tsleep(&loadfreeing, PRIBIO, "biofree", 0);
+			}
+		}
+			
+
+		if (cnt.v_free_count <=
+			cnt.v_free_reserved + (toa-froma) / PAGE_SIZE) {
 			VM_WAIT;
 			goto tryagain;
 		}
