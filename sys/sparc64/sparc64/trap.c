@@ -77,9 +77,11 @@
 
 void trap(struct trapframe *tf);
 int trap_mmu_fault(struct thread *td, struct trapframe *tf);
-void syscall(struct thread *td, struct trapframe *tf, u_int sticks);
+void syscall(struct trapframe *tf);
 
 u_long trap_mask = 0xffffffffffffffffL & ~(1 << T_INTR);
+
+extern char fsbail[];
 
 extern char *syscallnames[];
 
@@ -123,40 +125,33 @@ const char *trap_msg[] = {
 void
 trap(struct trapframe *tf)
 {
-	u_int sticks;
 	struct thread *td;
 	struct proc *p;
+	u_int sticks;
 	int error;
 	int ucode;
+	int mask;
 	int type;
 	int sig;
-	int mask;
 
 	KASSERT(PCPU_GET(curthread) != NULL, ("trap: curthread NULL"));
-	KASSERT(PCPU_GET(curpcb) != NULL, ("trap: curpcb NULL"));
+	KASSERT(PCPU_GET(curthread)->td_kse != NULL, ("trap: curkse NULL"));
+	KASSERT(PCPU_GET(curthread)->td_proc != NULL, ("trap: curproc NULL"));
 
-	error = 0;
+	atomic_add_int(&cnt.v_trap, 1);
+
 	td = PCPU_GET(curthread);
 	p = td->td_proc;
+
+	error = 0;
 	type = tf->tf_type;
 	ucode = type;	/* XXX */
 	sticks = 0;
 
-#if KTR_COMPILE & KTR_TRAP
-	if (trap_mask & (1 << (type & ~T_KERNEL))) {
-		CTR5(KTR_TRAP, "trap: %s type=%s (%s) ws=%#lx ow=%#lx",
-		    p->p_comm, trap_msg[type & ~T_KERNEL],
-		    ((type & T_KERNEL) ? "kernel" : "user"),
-		    rdpr(wstate), rdpr(otherwin));
-	}
-#endif
-
-	if (type == T_SYSCALL)
-		cnt.v_syscall++;
-	else if ((type & ~T_KERNEL) == T_INTR)
-		cnt.v_intr++;
-	else
-		cnt.v_trap++;
+	CTR5(KTR_TRAP, "trap: %s type=%s (%s) ws=%#lx ow=%#lx",
+	    p->p_comm, trap_msg[type & ~T_KERNEL],
+	    ((type & T_KERNEL) ? "kernel" : "user"),
+	    rdpr(wstate), rdpr(otherwin));
 
 	if ((type & T_KERNEL) == 0) {
 		sticks = td->td_kse->ke_sticks;
@@ -164,6 +159,10 @@ trap(struct trapframe *tf)
 	}
 
 	switch (type) {
+
+	/*
+	 * User Mode Traps
+	 */
 	case T_ALIGN:
 	case T_ALIGN_LDDF:
 	case T_ALIGN_STDF:
@@ -198,19 +197,22 @@ trap(struct trapframe *tf)
 		sig = error;
 		goto trapsig;
 	case T_FILL:
-		if (rwindow_load(td, tf, 2))
+		if (rwindow_load(td, tf, 2)) {
+			PROC_LOCK(p);
 			sigexit(td, SIGILL);
+			/* Not reached. */
+		}
 		goto out;
 	case T_FILL_RET:
-		if (rwindow_load(td, tf, 1))
+		if (rwindow_load(td, tf, 1)) {
+			PROC_LOCK(p);
 			sigexit(td, SIGILL);
+			/* Not reached. */
+		}
 		goto out;
 	case T_INSN_ILLEGAL:
 		sig = SIGILL;
 		goto trapsig;
-	case T_INTR:
-		intr_dispatch(tf->tf_arg, tf);
-		goto out;
 	case T_PRIV_ACTION:
 	case T_PRIV_OPCODE:
 		sig = SIGBUS;
@@ -219,16 +221,19 @@ trap(struct trapframe *tf)
 		sig = SIGILL;
 		goto trapsig;
 	case T_SPILL:
-		if (rwindow_save(td))
+		if (rwindow_save(td)) {
+			PROC_LOCK(p);
 			sigexit(td, SIGILL);
-		goto out;
-	case T_SYSCALL:
-		/* syscall() calls userret(), so we need goto out; */
-		syscall(td, tf, sticks);
+			/* Not reached. */
+		}
 		goto out;
 	case T_TAG_OVFLW:
 		sig = SIGEMT;
 		goto trapsig;
+
+	/*
+	 * Kernel Mode Traps
+	 */
 #ifdef DDB
 	case T_BREAKPOINT | T_KERNEL:
 		if (kdb_trap(tf) != 0)
@@ -241,9 +246,6 @@ trap(struct trapframe *tf)
 		if (error == 0)
 			goto out;
 		break;
-	case T_INTR | T_KERNEL:
-		intr_dispatch(tf->tf_arg, tf);
-		goto out;
 	case T_WATCH_VIRT | T_KERNEL:
 		/*
 		 * At the moment, just print the information from the trap,
@@ -296,11 +298,7 @@ trapsig:
 user:
 	userret(td, tf, sticks);
 out:
-#if KTR_COMPILE & KTR_TRAP
-	if (trap_mask & (1 << (type & ~T_KERNEL))) {
-		CTR1(KTR_TRAP, "trap: p=%p return", p);
-	}
-#endif
+	CTR1(KTR_TRAP, "trap: td=%p return", td);
 	return;
 }
 
@@ -322,14 +320,16 @@ trap_mmu_fault(struct thread *td, struct trapframe *tf)
 	int rv;
 
 	p = td->td_proc;
+	KASSERT(td->td_pcb != NULL, ("trap_dmmu_miss: pcb NULL"));
 	KASSERT(p->p_vmspace != NULL, ("trap_dmmu_miss: vmspace NULL"));
 
 	rv = KERN_SUCCESS;
 	mf = (struct mmuframe *)tf->tf_arg;
 	ctx = TLB_TAR_CTX(mf->mf_tar);
-	pcb = PCPU_GET(curpcb);
+	pcb = td->td_pcb;
 	type = tf->tf_type & ~T_KERNEL;
 	va = TLB_TAR_VA(mf->mf_tar);
+	stp = NULL;
 
 	CTR4(KTR_TRAP, "trap_mmu_fault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
 	    td, p->p_vmspace->vm_pmap.pm_context, va, ctx);
@@ -358,7 +358,8 @@ trap_mmu_fault(struct thread *td, struct trapframe *tf)
 				tlb_store(TLB_DTLB, va, ctx, tte);
 		}
 	} else if (tf->tf_type & T_KERNEL &&
-	    (td->td_intr_nesting_level != 0 || pcb->pcb_onfault == NULL)) {
+	    (td->td_intr_nesting_level != 0 || pcb->pcb_onfault == NULL ||
+	    pcb->pcb_onfault == fsbail)) {
 		rv = KERN_FAILURE;
 	} else {
 		mtx_lock(&Giant);
@@ -392,17 +393,28 @@ trap_mmu_fault(struct thread *td, struct trapframe *tf)
 			PROC_LOCK(p);
 			--p->p_lock;
 			PROC_UNLOCK(p);
-		} else if (type == T_IMMU_MISS) {
-			if ((stp->st_tte.tte_data & TD_EXEC) == 0)
-				rv = KERN_FAILURE;
-			else
+		} else {
+			stp = tsb_stte_promote(pm, va, stp);
+			stp->st_tte.tte_data |= TD_REF;
+			switch (type) {
+			case T_IMMU_MISS:
+				if ((stp->st_tte.tte_data & TD_EXEC) == 0) {
+					rv = KERN_FAILURE;
+					break;
+				}
 				tlb_store(TLB_DTLB | TLB_ITLB, va, ctx,
 				    stp->st_tte);
-		} else if (type == T_DMMU_PROT &&
-			   (stp->st_tte.tte_data & TD_SW) == 0) {
-			rv = KERN_FAILURE;
-		} else {
-			tlb_store(TLB_DTLB, va, ctx, stp->st_tte);
+				break;
+			case T_DMMU_PROT:
+				if ((stp->st_tte.tte_data & TD_SW) == 0) {
+					rv = KERN_FAILURE;
+					break;
+				}
+				/* Fallthrough. */
+			case T_DMMU_MISS:
+				tlb_store(TLB_DTLB, va, ctx, stp->st_tte);
+				break;
+			}
 		}
 		mtx_unlock(&Giant);
 	}
@@ -428,25 +440,39 @@ trap_mmu_fault(struct thread *td, struct trapframe *tf)
  * in %g1 (and also saved in the trap frame).
  */
 void
-syscall(struct thread *td, struct trapframe *tf, u_int sticks)
+syscall(struct trapframe *tf)
 {
 	struct sysent *callp;
+	struct thread *td;
+	register_t args[8];
+	register_t *argp;
 	struct proc *p;
+	u_int sticks;
 	u_long code;
 	u_long tpc;
 	int reg;
 	int regcnt;
 	int narg;
 	int error;
-	register_t args[8];
-	register_t *argp;
+
+	KASSERT(PCPU_GET(curthread) != NULL, ("trap: curthread NULL"));
+	KASSERT(PCPU_GET(curthread)->td_kse != NULL, ("trap: curkse NULL"));
+	KASSERT(PCPU_GET(curthread)->td_proc != NULL, ("trap: curproc NULL"));
+
+	atomic_add_int(&cnt.v_syscall, 1);
+
+	td = PCPU_GET(curthread);
+	p = td->td_proc;
 
 	narg = 0;
 	error = 0;
 	reg = 0;
 	regcnt = REG_MAXARGS;
+
+	sticks = td->td_kse->ke_sticks;
+	td->td_frame = tf;
 	code = tf->tf_global[1];
-	p = td->td_proc;
+
 	/*
 	 * For syscalls, we don't want to retry the faulting instruction
 	 * (usually), instead we need to advance one instruction.
@@ -588,5 +614,4 @@ bad:
 #endif
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
-	
 }
