@@ -289,7 +289,10 @@ main(argc, argv)
 						if (gid == 0)
 							break;
 						else
-							errx(1, "you are not in the correct group to su %s.", user);
+							errx(1,
+			     "you are not in the correct group (%s) to su %s.",
+							    gr->gr_name,
+							    user);
 					}
 					if (strcmp(username, *g) == 0) {
 #ifdef WHEELSU
