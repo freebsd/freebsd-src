@@ -168,5 +168,5 @@ beforeinstall:
 .PATH: ${OPENPAM}/lib
 .PATH: ${OPENPAM}/doc/man
 
-# XXX Can't put openpam_static.c in SRCS but want it in .depend.
-_MKDEP: openpam_static.c
+# Can't put openpam_static.c in SRCS but want it in .depend.
+${DEPENDFILE}: openpam_static.c
