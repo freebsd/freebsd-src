@@ -15,7 +15,7 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# $Id: apropos.sh,v 1.5 1996/08/27 20:03:55 wosch Exp $
+# $Id: apropos.sh,v 1.6 1996/09/14 23:20:33 wosch Exp $
 
 
 PATH=/bin:/usr/bin:$PATH
@@ -71,7 +71,7 @@ esac
 
 for manpage
 do
-	if grep -hi $grepopt "$manpage" $mandir; then :
+	if grep -hi $grepopt -- "$manpage" $mandir; then :
 	else
         	echo "$manpage: nothing appropriate"
 	fi
@@ -90,9 +90,9 @@ done |
 
 	# nothing found, exit
 	if test -z "$line" -a ! -z "$line2"; then
-		printf "$line2"
+		printf -- "$line2"
 		exit $exit_nomatch
 	else
-		( printf "$line2"; echo $line; cat ) | $PAGER
+		( printf -- "$line2"; echo $line; cat ) | $PAGER
 	fi
 )
