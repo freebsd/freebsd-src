@@ -154,7 +154,7 @@ struct ast_softc {
 #define 	F_ONSTREAM		0x0100	/* OnStream ADR device */
 
     int				blksize;	/* block size (512 | 1024) */
-    struct bio_queue_head	bio_queue;	/* queue of i/o requests */
+    struct bio_queue_head	queue;		/* queue of i/o requests */
     struct atapi_params		*param;		/* drive parameters table */
     struct ast_cappage		cap;		/* capabilities page info */
     struct devstat		stats;		/* devstat entry */

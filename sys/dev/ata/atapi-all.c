@@ -35,6 +35,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/bio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
@@ -114,13 +115,18 @@ notfound:
 	free(atp, M_ATAPI);
 	atp = NULL;
     }
-    /* store our softc */
+
+    /* store our softc signalling we are ready to go */
     scp->dev_softc[ATA_DEV(device)] = atp;
 }
 
 void
 atapi_detach(struct atapi_softc *atp)
 {
+    struct atapi_request *request;
+
+    atp->flags |= ATAPI_F_DETACHING;
+
     switch (ATP_PARAM->device_type) {
 #ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
@@ -140,6 +146,21 @@ atapi_detach(struct atapi_softc *atp)
     default:
 	return;
     }
+    TAILQ_FOREACH(request, &atp->controller->atapi_queue, chain) {
+	if (request->device != atp)
+	    continue;
+	TAILQ_REMOVE(&atp->controller->atapi_queue, request, chain);
+	if (request->driver) {
+	    struct bio *bp = (struct bio *) request->driver;
+	    bp->bio_error = ENXIO;
+	    bp->bio_flags |= BIO_ERROR;
+	    biodone(bp);
+	}
+	if (request->dmatab)
+	    free(request->dmatab, M_DEVBUF);
+        free(request, M_ATAPI);
+    }
+    atp->controller->dev_softc[ATA_DEV(atp->unit)] = NULL;
     free(atp, M_ATAPI);
 }
 

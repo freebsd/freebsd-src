@@ -89,7 +89,7 @@ afdattach(struct atapi_softc *atp)
 	printf("afd: out of memory\n");
 	return -1;
     }
-    bioq_init(&fdp->bio_queue);
+    bioq_init(&fdp->queue);
     fdp->atp = atp;
     fdp->lun = ata_get_lun(&afd_lun_map);
 
@@ -122,7 +122,13 @@ void
 afddetach(struct atapi_softc *atp)
 {   
     struct afd_softc *fdp = atp->driver;
+    struct bio *bp;
     
+    while ((bp = bioq_first(&fdp->queue))) {
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+    }
     disk_invalidate(&fdp->disk);
     disk_destroy(fdp->dev);
     devstat_remove_entry(&fdp->stats);
@@ -181,25 +187,27 @@ afd_describe(struct afd_softc *fdp)
 	    printf(" transfer limit %d blks,", fdp->transfersize);
 	printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
 				 ATA_DEV(fdp->atp->unit)]));
-	printf("afd%d: Medium: ", fdp->lun);
-	switch (fdp->header.medium_type) {
-	case MFD_2DD:
-	    printf("720KB DD disk"); break;
+	if (fdp->header.medium_type) {
+	    printf("afd%d: Medium: ", fdp->lun);
+	    switch (fdp->header.medium_type) {
+	    case MFD_2DD:
+		printf("720KB DD disk"); break;
 
-	case MFD_HD_12:
-	    printf("1.2MB HD disk"); break;
+	    case MFD_HD_12:
+		printf("1.2MB HD disk"); break;
 
-	case MFD_HD_144:
-	    printf("1.44MB HD disk"); break;
+	    case MFD_HD_144:
+		printf("1.44MB HD disk"); break;
 
-	case MFD_UHD: 
-	    printf("120MB UHD disk"); break;
+	    case MFD_UHD: 
+		printf("120MB UHD disk"); break;
 
-	default:
-	    printf("Unknown media (0x%x)", fdp->header.medium_type);
+	    default:
+		printf("Unknown (0x%x)", fdp->header.medium_type);
+	    }
+	    if (fdp->header.wp) printf(", writeprotected");
 	}
-	if (fdp->header.wp) printf(", writeprotected");
-	    printf("\n");
+	printf("\n");
     }
     else {
 	printf("afd%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",
@@ -277,6 +285,13 @@ afdstrategy(struct bio *bp)
     struct afd_softc *fdp = bp->bio_dev->si_drv1;
     int s;
 
+    if (fdp->atp->flags & ATAPI_F_DETACHING) {
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+	return;
+    }
+
     /* if it's a null transfer, return immediatly. */
     if (bp->bio_bcount == 0) {
 	bp->bio_resid = 0;
@@ -285,7 +300,7 @@ afdstrategy(struct bio *bp)
     }
 
     s = splbio();
-    bioqdisksort(&fdp->bio_queue, bp);
+    bioqdisksort(&fdp->queue, bp);
     ata_start(fdp->atp->controller);
     splx(s);
 }
@@ -294,7 +309,7 @@ void
 afd_start(struct atapi_softc *atp)
 {
     struct afd_softc *fdp = atp->driver;
-    struct bio *bp = bioq_first(&fdp->bio_queue);
+    struct bio *bp = bioq_first(&fdp->queue);
     u_int32_t lba;
     u_int16_t count;
     int8_t ccb[16];
@@ -303,7 +318,7 @@ afd_start(struct atapi_softc *atp)
     if (!bp)
 	return;
 
-    bioq_remove(&fdp->bio_queue, bp);
+    bioq_remove(&fdp->queue, bp);
 
     /* should reject all queued entries if media have changed. */
     if (fdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
@@ -353,7 +368,8 @@ afd_start(struct atapi_softc *atp)
     ccb[8] = count;
 
     atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
-		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30, afd_done, bp);
+		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30,
+		    afd_done, bp);
 }
 
 static int 
@@ -423,5 +439,5 @@ afd_prevent_allow(struct afd_softc *fdp, int lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
-    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0,30, NULL, NULL);
+    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }

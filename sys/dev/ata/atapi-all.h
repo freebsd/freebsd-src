@@ -150,7 +150,7 @@ struct atapi_softc {
     u_int8_t			cmd;		/* last cmd executed */
     int				flags;		/* drive flags */
 #define		ATAPI_F_MEDIA_CHANGED	0x0001
-
+#define		ATAPI_F_DETACHING	0x0002
 };
 
 typedef int atapi_callback_t(struct atapi_request *);

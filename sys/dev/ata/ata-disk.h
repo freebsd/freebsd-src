@@ -68,6 +68,7 @@ struct ad_softc {
 #define		AD_F_LBA_ENABLED	0x0002
 #define		AD_F_32B_ENABLED	0x0004
 #define		AD_F_TAG_ENABLED	0x0008
+#define		AD_F_DETACHING		0x0010
 
     struct ad_request		*tags[32];	/* tag array of requests */
     int				outstanding;	/* tags not serviced yet */

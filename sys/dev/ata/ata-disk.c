@@ -96,12 +96,10 @@ ad_attach(struct ata_softc *scp, int device)
     dev_t dev;
     int secsperint;
 
-
     if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT | M_ZERO))) {
 	ata_printf(scp, device, "failed to allocate driver storage\n");
 	return;
     }
-    scp->dev_softc[ATA_DEV(device)] = adp;
     adp->controller = scp;
     adp->unit = device;
 #ifdef ATA_STATIC_ID
@@ -169,7 +167,6 @@ ad_attach(struct ata_softc *scp, int device)
     dev->si_drv1 = adp;
     dev->si_iosize_max = 256 * DEV_BSIZE;
     adp->dev = dev;
-
     bioq_init(&adp->queue);
 
     if (bootverbose) {
@@ -204,15 +201,40 @@ ad_attach(struct ata_softc *scp, int device)
 	       (adp->unit == ATA_MASTER) ? "master" : "slave",
 	       (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
 	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+
+    /* store our softc signalling we are ready to go */
+    scp->dev_softc[ATA_DEV(device)] = adp;
 }
 
 void
 ad_detach(struct ad_softc *adp)
 {
+    struct ad_request *request;
+    struct bio *bp;
+
+    adp->flags |= AD_F_DETACHING;
+    TAILQ_FOREACH(request, &adp->controller->ata_queue, chain) {
+	if (request->device != adp)
+	    continue;
+	TAILQ_REMOVE(&adp->controller->ata_queue, request, chain);
+	request->bp->bio_error = ENXIO;
+	request->bp->bio_flags |= BIO_ERROR;
+	biodone(request->bp);
+	ad_free(request);
+    }
+    while ((bp = bioq_first(&adp->queue))) {
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+    }
     disk_invalidate(&adp->disk);
     disk_destroy(adp->dev);
     devstat_remove_entry(&adp->stats);
+    if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
+		    0, 0, 0, 0, 0, ATA_WAIT_INTR))
+	printf("ad%d: flushing cache on detach failed\n", adp->lun);
     ata_free_lun(&adp_lun_map, adp->lun);
+    adp->controller->dev_softc[ATA_DEV(adp->unit)] = NULL;
     free(adp, M_AD);
 }
 
@@ -238,6 +260,13 @@ adstrategy(struct bio *bp)
 {
     struct ad_softc *adp = bp->bio_dev->si_drv1;
     int s;
+
+    if (adp->flags & AD_F_DETACHING) {
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+	return;
+    }
 
     /* if it's a null transfer, return immediatly. */
     if (bp->bio_bcount == 0) {
@@ -876,7 +905,7 @@ ad_reinit(struct ad_softc *adp)
     /* reinit disk parameters */
     ad_invalidatequeue(adp, NULL);
     ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0, 0, 0,
-		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_READY);
+		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_INTR);
     if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA)
 	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
 		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
