@@ -60,8 +60,8 @@
 #PasswordAuthentication yes
 #PermitEmptyPasswords no
 
-# Change to yes to enable s/key passwords
-#ChallengeResponseAuthentication no
+# Change to no to disable s/key passwords
+#ChallengeResponseAuthentication yes
 
 # Kerberos options
 # KerberosAuthentication automatically enabled if keyfile exists
