@@ -75,15 +75,8 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg)	do { if (!(exp)) panic msg; } while (0)
-#define	SPLASSERT(level, msg)	__CONCAT(__CONCAT(spl,level),assert)(msg)
-#define	CONDSPLASSERT(cond, level, msg) do {				\
-	if (cond)							\
-		SPLASSERT(level, msg);					\
-} while (0)
 #else
 #define	KASSERT(exp,msg)
-#define	SPLASSERT(level, msg)
-#define	CONDSPLASSERT(cond, level, msg)
 #endif
 
 /*
@@ -236,25 +229,6 @@ void		splz __P((void));
 #if defined(__ia64__)
 #include <machine/ipl.h>
 #endif
-
-#ifdef INVARIANT_SUPPORT
-void	splbioassert __P((const char *msg));
-void	splcamassert __P((const char *msg));
-void	splclockassert __P((const char *msg));
-void	splhighassert __P((const char *msg));
-void	splimpassert __P((const char *msg));
-void	splnetassert __P((const char *msg));
-void	splsoftcamassert __P((const char *msg));
-void	splsoftcambioassert __P((const char *msg));
-void	splsoftcamnetassert __P((const char *msg));
-void	splsoftclockassert __P((const char *msg));
-void	splsoftttyassert __P((const char *msg));
-void	splsoftvmassert __P((const char *msg));
-void	splsofttqassert __P((const char *msg));
-void	splstatclockassert __P((const char *msg));
-void	splttyassert __P((const char *msg));
-void	splvmassert __P((const char *msg));
-#endif /* INVARIANT_SUPPORT */
 
 /*
  * XXX It's not clear how "machine independent" these will be yet, but
