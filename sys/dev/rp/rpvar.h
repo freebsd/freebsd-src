@@ -77,16 +77,8 @@ struct rp_port {
 	int			rp_xmit_stopped:1;
 	CONTROLLER_t *		rp_ctlp;
 	CHANNEL_t		rp_channel;
+	unsigned char		TxBuf[TXFIFO_SIZE];
+	unsigned char		RxBuf[RXFIFO_SIZE];
 };
 
-struct termios deftermios = {
-	TTYDEF_IFLAG,
-	TTYDEF_OFLAG,
-	TTYDEF_CFLAG,
-	TTYDEF_LFLAG,
-	{ CEOF, CEOL, CEOL, CERASE, CWERASE, CKILL, CREPRINT,
-	_POSIX_VDISABLE, CINTR, CQUIT, CSUSP, CDSUSP, CSTART, CSTOP, CLNEXT,
-	CDISCARD, CMIN, CTIME, CSTATUS, _POSIX_VDISABLE },
-	TTYDEF_SPEED,
-	TTYDEF_SPEED
-};
+extern struct termios deftermios;

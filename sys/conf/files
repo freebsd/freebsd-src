@@ -223,6 +223,9 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/rp/rp.c		optional rp
+dev/rp/rp_isa.c		optional rp isa
+dev/rp/rp_pci.c		optional rp pci
 dev/si/si.c		optional si
 dev/si/si2_z280.c	optional si
 dev/si/si3_t225.c	optional si
