@@ -274,7 +274,9 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
 	vm_prot_t max, int cow)
 {
-	int rv;
+	vm_offset_t data_buf, off;
+	vm_size_t sz;
+	int error, rv;
 
 	if (start != trunc_page(start)) {
 		rv = __elfN(map_partial)(map, object, offset, start,
@@ -293,10 +295,6 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 	if (end > start) {
 		if (offset & PAGE_MASK) {
-			vm_offset_t data_buf, off;
-			vm_size_t sz;
-			int error;
-
 			/*
 			 * The mapping is not page aligned. This means we have
 			 * to copy the data. Sigh.
@@ -305,6 +303,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			    FALSE, prot, max, 0);
 			if (rv)
 				return (rv);
+			data_buf = 0;
 			while (start < end) {
 				vm_object_reference(object);
 				rv = vm_map_find(exec_map,
