@@ -170,7 +170,7 @@ struct input_file {
  *      pushf() - push a call frame entry onto stack
  *      pushs() - push a string pointer onto stack
  */
-#define gpbc()   (bp > bufbase) ? (*--bp ? *bp : EOF) : \
+#define gpbc()   (bp > bufbase) ? (*--bp ? (*bp & 0xFF) : EOF) : \
 	((chscratch = obtain_char(infile+ilevel)) == '\n' && \
 	++inlineno[ilevel], chscratch)
 #define pushf(x) 			\
