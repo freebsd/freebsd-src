@@ -246,10 +246,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		/* fall into downgrade */
 
 	case LK_DOWNGRADE:
-#if !defined(MAX_PERF)
 		if (lkp->lk_lockholder != pid || lkp->lk_exclusivecount == 0)
 			panic("lockmgr: not holding exclusive lock");
-#endif
 		sharelock(lkp, lkp->lk_exclusivecount);
 		lkp->lk_exclusivecount = 0;
 		lkp->lk_flags &= ~LK_HAVE_EXCL;
@@ -281,10 +279,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		 * after the upgrade). If we return an error, the file
 		 * will always be unlocked.
 		 */
-#if !defined(MAX_PERF)
 		if ((lkp->lk_lockholder == pid) || (lkp->lk_sharecount <= 0))
 			panic("lockmgr: upgrade exclusive lock");
-#endif
 		shareunlock(lkp, 1);
 		COUNT(p, -1);
 		/*
@@ -310,10 +306,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 				break;
 			lkp->lk_flags |= LK_HAVE_EXCL;
 			lkp->lk_lockholder = pid;
-#if !defined(MAX_PERF)
 			if (lkp->lk_exclusivecount != 0)
 				panic("lockmgr: non-zero exclusive count");
-#endif
 			lkp->lk_exclusivecount = 1;
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
@@ -338,10 +332,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			/*
 			 *	Recursive lock.
 			 */
-#if !defined(MAX_PERF)
 			if ((extflags & (LK_NOWAIT | LK_CANRECURSE)) == 0)
 				panic("lockmgr: locking against myself");
-#endif
 			if ((extflags & LK_CANRECURSE) != 0) {
 				lkp->lk_exclusivecount++;
 				COUNT(p, 1);
@@ -372,10 +364,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			break;
 		lkp->lk_flags |= LK_HAVE_EXCL;
 		lkp->lk_lockholder = pid;
-#if !defined(MAX_PERF)
 		if (lkp->lk_exclusivecount != 0)
 			panic("lockmgr: non-zero exclusive count");
-#endif
 		lkp->lk_exclusivecount = 1;
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
@@ -387,14 +377,12 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 
 	case LK_RELEASE:
 		if (lkp->lk_exclusivecount != 0) {
-#if !defined(MAX_PERF)
 			if (lkp->lk_lockholder != pid &&
 			    lkp->lk_lockholder != LK_KERNPROC) {
 				panic("lockmgr: pid %d, not %s %d unlocking",
 				    pid, "exclusive lock holder",
 				    lkp->lk_lockholder);
 			}
-#endif
 			if (lkp->lk_lockholder != LK_KERNPROC) {
 				COUNT(p, -1);
 			}
@@ -420,10 +408,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		 * check for holding a shared lock, but at least we can
 		 * check for an exclusive one.
 		 */
-#if !defined(MAX_PERF)
 		if (lkp->lk_lockholder == pid)
 			panic("lockmgr: draining against myself");
-#endif
 
 		error = acquiredrain(lkp, extflags);
 		if (error)
@@ -440,11 +426,9 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		break;
 
 	default:
-#if !defined(MAX_PERF)
 		simple_unlock(&lkp->lk_interlock);
 		panic("lockmgr: unknown locktype request %d",
 		    flags & LK_TYPE_MASK);
-#endif
 		/* NOTREACHED */
 	}
 	if ((lkp->lk_flags & LK_WAITDRAIN) &&
