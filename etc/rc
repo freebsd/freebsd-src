@@ -86,12 +86,12 @@ chkdepend() {
 	[Yy][Ee][Ss])
 		case ${dep_val} in
 		[Yy][Ee][Ss])
-		    ;;
+			;;
 		*)
-		    eval ${dep_var}="YES"
-		    echo "DEPENDENCY NOTE: ${dep} will be enabled" \
-			 "to support ${svc}"
-		    ;;
+			eval ${dep_var}="YES"
+			echo "DEPENDENCY NOTE: ${dep} will be enabled" \
+				"to support ${svc}"
+			;;
 		esac
 		;;
 	esac
@@ -198,7 +198,7 @@ case ${root_rw_mount} in
 [Nn][Oo] | '')
 	;;
 *)
-	if ! mount -u -o rw / ; then
+	if ! mount -u -o rw /; then
 		echo 'Mounting root filesystem rw failed, startup aborted'
 		exit 1
 	fi
@@ -239,8 +239,7 @@ purgedir() {
 			cd "$dir" && for file in .* *
 			do
 				[ ."$file" = .. -o ."$file" = ... ] && continue
-				if [ -d "$file" -a ! -L "$file" ]
-				then
+				if [ -d "$file" -a ! -L "$file" ]; then
 					purgedir "$file"
 				else
 					rm -f -- "$file"
