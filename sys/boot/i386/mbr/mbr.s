@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: $
+#	$Id: mbr.s,v 1.1.1.1 1999/05/24 22:36:24 rnordier Exp $
 
 # Master boot record
 
@@ -36,20 +36,20 @@ start:		cld				# String ops inc
 		sti				# Enable interrupts
 		movwir(main-EXEC+LOAD,_si)	# Source
 		movwir(main,_di)		# Destination
-		movwir(0x200-(main-start),_cx)	# Word count
+		movwir(0x200-(main-start),_cx)	# Byte count
 		rep				# Relocate
 		movsb				#  code
 		jmpnwi(main-LOAD+EXEC)		# To relocated code
 
-main:		xorl %esi,%esi			# No active found
+main:		xorl %esi,%esi			# No active partition
 		movwir(partbl,_bx)		# Partition table
-		movb $0x4,%cl			# Entries
+		movb $0x4,%cl			# Number of entries
 main.1: 	cmpbr0(_ch,_bx_)		# Null entry?
 		je main.2			# Yes
-		jg err_pt			# If bit 7 unset
-		testl %esi,%esi 		# Active found?
+		jg err_pt			# If 0x1..0x7f
+		testl %esi,%esi 		# Active already found?
 		jnz err_pt			# Yes
-		movl %ebx,%esi			# Keep place
+		movl %ebx,%esi			# Point to active
 main.2: 	addb $0x10,%bl			# Till
 		loop main.1			#  done
 		testl %esi,%esi 		# Active found?
