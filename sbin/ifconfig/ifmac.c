@@ -50,7 +50,7 @@
 #include "ifconfig.h"
 
 static void
-maclabel_status(int s, const struct rt_addrinfo *info)
+maclabel_status(int s)
 {
 	struct ifreq ifr;
 	mac_t label;
@@ -105,7 +105,7 @@ static struct cmd mac_cmds[] = {
 static struct afswtch af_mac = {
 	.af_name	= "af_maclabel",
 	.af_af		= AF_UNSPEC,
-	.af_status	= maclabel_status,
+	.af_other_status = maclabel_status,
 };
 
 static __constructor void
