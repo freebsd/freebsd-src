@@ -35,7 +35,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1993
+.Dd Mar 7, 2002
 .Dt SED 1
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Op Fl Ean
 .Op Fl e Ar command
 .Op Fl f Ar command_file
+.Op Fl i Ar extension
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -98,6 +99,9 @@ Append the editing commands found in the file
 .Ar command_file
 to the list of commands.
 The editing commands should each be listed on a separate line.
+.It Fl i Ar extension
+Edit files in-place, saving backups with the specified
+.Ar extension .
 .It Fl n
 By default, each line of input is echoed to the standard output after
 all of the commands have been applied to it.
@@ -513,3 +517,9 @@ The
 function is expected to be a superset of the
 .St -p1003.2
 specification.
+.Pp
+The
+.Fl i
+option is a non-standard
+.Fx
+extension and may not be available on other operating systems.
