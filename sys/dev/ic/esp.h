@@ -59,6 +59,7 @@
 #define	ESP_SETFLOWTYPE	0x08	/* set type of flow-control (2 bytes) */
 #define	ESP_SETRXFLOW	0x0a	/* set Rx FIFO flow control levels (4 bytes) */
 #define	ESP_SETMODE	0x10	/* set board mode (1 byte) */
+#define	ESP_SETCLOCK	0x23	/* set UART clock prescaler */
 
 /* Mode bits (ESP_SETMODE). */
 #define	ESP_MODE_FIFO	0x02	/* act like a 16550 (compatibility mode) */
