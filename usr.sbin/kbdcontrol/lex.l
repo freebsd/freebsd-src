@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: lex.l,v 1.5 1997/02/22 16:05:58 peter Exp $
+ *	$Id: lex.l,v 1.6 1998/01/07 08:43:28 yokota Exp $
  */
 
 %{
@@ -59,6 +59,7 @@ meta 		{ return TMETA; }
 boot 		{ return TRBT; }
 debug 		{ return TDBG; }
 susp		{ return TSUSP; }
+saver		{ return TSPSC; }
 
 NUL|nul		{ number = 0; return TNUM; }
 SOH|soh		{ number = 1; return TNUM; }
