@@ -152,10 +152,12 @@ case OBJT_DEVICE:
 		 * format:
 		 *  start, end, resident, private resident, cow, access, type.
 		 */
-		sprintf(mebuffer, "0x%-8.8x 0x%-8.8x %9d %9d %s %s %s\n",
+		sprintf(mebuffer, "0x%-8.8x 0x%-8.8x %9d %9d %s%s%s %s %s\n",
 			entry->start, entry->end,
 			resident, privateresident,
-			(entry->protection & VM_PROT_WRITE)?"RW":"RO",
+			(entry->protection & VM_PROT_READ)?"r":"-",
+			(entry->protection & VM_PROT_WRITE)?"w":"-",
+			(entry->protection & VM_PROT_EXECUTE)?"x":"-",
 			entry->copy_on_write?"COW":"   ",
 			type);
 
