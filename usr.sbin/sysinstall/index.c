@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.17 1995/10/22 17:39:10 jkh Exp $
+ * $Id: index.c,v 1.18 1995/11/06 12:49:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -438,7 +438,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     int curr, max;
     PkgNodePtr sp, kp;
     char **nitems;
-    char result[127];
+    char result[4096];
     Boolean hasPackages;
 
     hasPackages = FALSE;
