@@ -95,7 +95,7 @@ static  char        	init_done = COLD;
 static  char		shutdown_in_progress = FALSE;
 static	char		sc_malloc = FALSE;
 
-static	int		saver_mode = CONS_LKM_SAVER; /* LKM/user saver */
+static	int		saver_mode = CONS_NO_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	long        	scrn_blank_time = 0;    /* screen saver timeout value */
 #if NSPLASH > 0
@@ -122,6 +122,7 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 
 #define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x)) != NULL ?	\
 	SC_DEV((sc), (x))->si_tty : NULL)
+#define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
 
 static	int		debugger;
 
@@ -409,9 +410,7 @@ scmeminit(void *arg)
     sc_alloc_scr_buffer(sc_console, FALSE, FALSE);
 
 #ifndef SC_NO_CUTPASTE
-    /* cut buffer is available only when the mouse pointer is used */
-    if (ISMOUSEAVAIL(sc_console->sc->adp->va_flags))
-	sc_alloc_cut_buffer(sc_console, FALSE);
+    sc_alloc_cut_buffer(sc_console, FALSE);
 #endif
 
 #ifndef SC_NO_HISTORY
@@ -470,7 +469,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     tp->t_param = scparam;
     tp->t_stop = nottystop;
     tp->t_dev = dev;
-    if (!(tp->t_state & TS_ISOPEN)) {
+    if (!ISTTYOPEN(tp)) {
 	ttychars(tp);
         /* Use the current setting of the <-- key as default VERASE. */  
         /* If the Delete key is preferable, an stty is necessary     */
@@ -602,11 +601,11 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
     while ((c = scgetc(sc, SCGETC_NONBLOCK)) != NOKEY) {
 
 	cur_tty = VIRTUAL_TTY(sc, sc->cur_scp->index);
-	/* XXX */
-	if (!(cur_tty->t_state & TS_ISOPEN))
-	    if (((cur_tty = sc_console_tty) == NULL)
-	    	|| !(cur_tty->t_state & TS_ISOPEN))
+	if (!ISTTYOPEN(cur_tty)) {
+	    cur_tty = sc_console_tty;
+	    if (!ISTTYOPEN(cur_tty))
 		continue;
+	}
 
 	if ((*sc->cur_scp->tsw->te_input)(sc->cur_scp, c, cur_tty))
 	    continue;
@@ -796,6 +795,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_SAVERMODE:	/* set saver mode */
 	switch(*(int *)data) {
+	case CONS_NO_SAVER:
 	case CONS_USR_SAVER:
 	    /* if a LKM screen saver is running, stop it first. */
 	    scsplash_stick(FALSE);
@@ -808,7 +808,10 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    }
 #endif /* NSPLASH */
 	    run_scrn_saver = TRUE;
-	    scp->status |= SAVER_RUNNING;
+	    if (saver_mode == CONS_USR_SAVER)
+		scp->status |= SAVER_RUNNING;
+	    else
+		scp->status &= ~SAVER_RUNNING;
 	    scsplash_stick(TRUE);
 	    splx(s);
 	    break;
@@ -963,7 +966,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     case VT_OPENQRY:    	/* return free virtual console */
 	for (i = sc->first_vty; i < sc->first_vty + sc->vtys; i++) {
 	    tp = VIRTUAL_TTY(sc, i);
-	    if ((tp == NULL) || !(tp->t_state & TS_ISOPEN)) {
+	    if (!ISTTYOPEN(tp)) {
 		*(int *)data = i + 1;
 		return 0;
 	    }
@@ -1461,7 +1464,7 @@ sccnputc(dev_t dev, int c)
 	    sc_draw_cursor_image(scp);
 	}
 	tp = VIRTUAL_TTY(scp->sc, scp->index);
-	if (tp->t_state & TS_ISOPEN)
+	if (ISTTYOPEN(tp))
 	    scstart(tp);
     }
 #endif /* !SC_NO_HISTORY */
@@ -1616,7 +1619,7 @@ sccnupdate(scr_stat *scp)
      * when write_in_progress is non-zero.  XXX
      */
 
-    if (!ISGRAPHSC(scp) && !(scp->status & SAVER_RUNNING))
+    if (!ISGRAPHSC(scp) && !(scp->sc->flags & SC_SCRN_BLANKED))
 	scrn_update(scp, TRUE);
 }
 
@@ -1697,7 +1700,7 @@ scrn_timer(void *arg)
 
     /* Update the screen */
     scp = sc->cur_scp;		/* cur_scp may have changed... */
-    if (!ISGRAPHSC(scp) && !(scp->status & SAVER_RUNNING))
+    if (!ISGRAPHSC(scp) && !(sc->flags & SC_SCRN_BLANKED))
 	scrn_update(scp, TRUE);
 
 #if NSPLASH > 0
@@ -2206,7 +2209,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
      */
     tp = VIRTUAL_TTY(sc, sc->cur_scp->index);
     if ((sc->cur_scp->index != next_scr)
-	&& (tp->t_state & TS_ISOPEN)
+	&& ISTTYOPEN(tp)
 	&& (sc->cur_scp->smode.mode == VT_AUTO)
 	&& ISGRAPHSC(sc->cur_scp)) {
 	splx(s);
@@ -2223,7 +2226,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
      */
     if ((sc_console == NULL) || (next_scr != sc_console->index)) {
 	tp = VIRTUAL_TTY(sc, next_scr);
-	if ((tp == NULL) || !(tp->t_state & TS_ISOPEN)) {
+	if (!ISTTYOPEN(tp)) {
 	    splx(s);
 	    sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
@@ -2736,11 +2739,13 @@ sc_clean_up(scr_stat *scp)
     int error;
 #endif /* NSPLASH */
 
-    sc_touch_scrn_saver();
+    if (scp->sc->flags & SC_SCRN_BLANKED) {
+	sc_touch_scrn_saver();
 #if NSPLASH > 0
-    if ((error = wait_scrn_saver_stop(scp->sc)))
-	return error;
+	if ((error = wait_scrn_saver_stop(scp->sc)))
+	    return error;
 #endif /* NSPLASH */
+    }
     scp->status |= MOUSE_HIDDEN;
     sc_remove_mouse_image(scp);
     sc_remove_cutmarking(scp);
@@ -2790,8 +2795,7 @@ static scr_stat
 	sc_init_emulator(scp, "*");
 
 #ifndef SC_NO_CUTPASTE
-    if (ISMOUSEAVAIL(sc->adp->va_flags))
-	sc_alloc_cut_buffer(scp, TRUE);
+    sc_alloc_cut_buffer(scp, TRUE);
 #endif
 
 #ifndef SC_NO_HISTORY
@@ -3081,7 +3085,7 @@ next_code:
 			    sc_draw_cursor_image(scp);
 			}
 			tp = VIRTUAL_TTY(sc, scp->index);
-			if (tp->t_state & TS_ISOPEN)
+			if (ISTTYOPEN(tp))
 			    scstart(tp);
 #endif
 		    }
@@ -3178,7 +3182,7 @@ next_code:
 			sc->first_vty + i != this_scr; 
 			i = (i + 1)%sc->vtys) {
 		    struct tty *tp = VIRTUAL_TTY(sc, sc->first_vty + i);
-		    if (tp && tp->t_state & TS_ISOPEN) {
+		    if (ISTTYOPEN(tp)) {
 			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -3191,7 +3195,7 @@ next_code:
 			sc->first_vty + i != this_scr;
 			i = (i + sc->vtys - 1)%sc->vtys) {
 		    struct tty *tp = VIRTUAL_TTY(sc, sc->first_vty + i);
-		    if (tp && tp->t_state & TS_ISOPEN) {
+		    if (ISTTYOPEN(tp)) {
 			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -3380,7 +3384,7 @@ sc_paste(scr_stat *scp, u_char *p, int count)
 
     if (scp->status & MOUSE_VISIBLE) {
 	tp = VIRTUAL_TTY(scp->sc, scp->sc->cur_scp->index);
-	if (!(tp->t_state & TS_ISOPEN))
+	if (!ISTTYOPEN(tp))
 	    return;
 	rmap = scp->sc->scr_rmap;
 	for (; count > 0; --count)
@@ -3421,7 +3425,7 @@ blink_screen(void *arg)
 	scp->sc->blink_in_progress = 0;
     	mark_all(scp);
 	tp = VIRTUAL_TTY(scp->sc, scp->index);
-	if (tp->t_state & TS_ISOPEN)
+	if (ISTTYOPEN(tp))
 	    scstart(tp);
 	if (scp->sc->delayed_next_scr)
 	    sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
