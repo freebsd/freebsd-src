@@ -580,7 +580,7 @@ network_pass3() {
 
 	case ${pppoed_enable} in
 	[Yy][Ee][Ss])
-		if [ -n "$pppoed_provider ]; then
+		if [ -n "${pppoed_provider}" ]; then
 			pppoed_flags="${pppoed_flags} -p ${pppoed_provider}"
 		fi
 		echo -n ' pppoed';
