@@ -23,15 +23,13 @@ SRCS+=	ppp_deflate.c zlib.c
 
 CLEANFILES=	ppp.h
 
-opt_inet.h:
-	touch ${.TARGET}
 .if ${PPP_INET} > 0
+opt_inet.h:
 	echo "#define INET 1" >> ${.TARGET}
 .endif
 
-opt_ipx.h:
-	touch ${.TARGET}
 .if ${PPP_IPX} > 0
+opt_ipx.h:
 	echo "#define IPX ${PPP_IPX}" >> ${.TARGET}
 .endif
 

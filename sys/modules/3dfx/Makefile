@@ -20,7 +20,6 @@ TDFX_OPTS=	"\#define TDFX_LINUX"
 #CFLAGS+=	-DDEBUG
 
 opt_tdfx.h:
-	touch opt_tdfx.h
-	echo $(TDFX_OPTS) >> opt_tdfx.h
+	echo $(TDFX_OPTS) > opt_tdfx.h
 
 .include <bsd.kmod.mk>

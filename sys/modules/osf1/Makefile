@@ -15,7 +15,4 @@ EXPORT_SYMS=	_osf1
 opt_compat.h:
 	echo "#define COMPAT_43 1" > ${.TARGET}
 
-opt_osf1.h opt_simos.h opt_nfs.h:
-	touch ${.TARGET}
-
 .include <bsd.kmod.mk>
