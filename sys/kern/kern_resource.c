@@ -651,10 +651,10 @@ calcru(p, up, sp, ip)
 		 */
 				microuptime(&tv);
 				if (timevalcmp(&tv, PCPU_PTR(switchtime), <))
-					printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-			    		    PCPU_GET(switchtime.tv_sec),
+					printf("microuptime() went backwards (%lld.%06ld -> %lld.%06ld)\n",
+			    		    (quad_t)PCPU_GET(switchtime.tv_sec),
 					    PCPU_GET(switchtime.tv_usec),
-			    			tv.tv_sec, tv.tv_usec);
+			    			(quad_t)tv.tv_sec, tv.tv_usec);
 				else
 					tu += (tv.tv_usec
 						- PCPU_GET(switchtime.tv_usec))
