@@ -30,7 +30,7 @@
 
 struct pflog_softc {
 	struct ifnet	sc_if;  /* the interface */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	LIST_ENTRY(pflog_softc) sc_next;
 #endif
 };

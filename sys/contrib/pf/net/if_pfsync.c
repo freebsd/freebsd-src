@@ -27,19 +27,19 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 5
+#ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #endif
 
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 #include "bpfilter.h"
 #include "pfsync.h"
 #elif __FreeBSD__ >= 5
 #include "opt_bpf.h"
-#define NBPFILTER DEV_BPF
 #include "opt_pf.h"
-#define NPFSYNC DEV_PFSYNC
+#define	NBPFILTER	DEV_BPF
+#define	NPFSYNC		DEV_PFSYNC
 #endif
 
 #include <sys/param.h>
@@ -47,7 +47,7 @@
 #include <sys/time.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/sockio.h>
@@ -76,8 +76,8 @@
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 
-#if defined(__FreeBSD__)
-#define PFSYNCNAME	"pfsync"
+#ifdef __FreeBSD__
+#define	PFSYNCNAME	"pfsync"
 #endif
 
 #define PFSYNC_MINMTU	\
@@ -90,11 +90,11 @@ int pfsyncdebug;
 #define DPRINTF(x)
 #endif
 
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 struct pfsync_softc pfsyncif;
 #endif
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 void	pfsync_clone_destroy(struct ifnet *);
 int	pfsync_clone_create(struct if_clone *, int);
 #else
@@ -110,11 +110,11 @@ struct mbuf *pfsync_get_mbuf(struct pfsync_softc *sc, u_int8_t action);
 int	pfsync_sendout(struct pfsync_softc *sc);
 void	pfsync_timeout(void *v);
 
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 extern int ifqmaxlen;
 #endif
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 static MALLOC_DEFINE(M_PFSYNC, PFSYNCNAME, "Packet Filter State Sync. Interface");
 static LIST_HEAD(pfsync_list, pfsync_softc) pfsync_list;
 struct if_clone pfsync_cloner = IF_CLONE_INITIALIZER(PFSYNCNAME,
@@ -140,9 +140,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
         LIST_REMOVE(sc, sc_next);
         free(sc, M_PFSYNC);
 }
-#endif /* __FreeBSD__ */
 
-#if defined(__FreeBSD__)
 int
 pfsync_clone_create(struct if_clone *ifc, int unit)
 {
@@ -226,12 +224,12 @@ pfsyncstart(struct ifnet *ifp)
 #endif
 	int s;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	ifq = &ifp->if_snd;
 #endif
 	for (;;) {
 		s = splimp();
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		IF_LOCK(ifq);
 		_IF_DROP(ifq);
 		_IF_DEQUEUE(ifq, m);
@@ -309,7 +307,7 @@ pfsync_get_mbuf(sc, action)
 	struct pfsync_softc *sc;
 	u_int8_t action;
 {
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 	extern int hz;
 #endif
 	struct pfsync_header *h;
@@ -342,7 +340,7 @@ pfsync_get_mbuf(sc, action)
 
 	sc->sc_mbuf = m;
 	sc->sc_ptr = (struct pf_state *)((char *)h + PFSYNC_HDRLEN);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	callout_reset(&sc->sc_tmo, hz, pfsync_timeout,
 	    LIST_FIRST(&pfsync_list));
 #else
@@ -361,7 +359,7 @@ pfsync_pack_state(action, st)
 	u_int8_t action;
 	struct pf_state *st;
 {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	struct pfsync_softc *sc = LIST_FIRST(&pfsync_list);
 #else
 	extern struct timeval time;
@@ -378,11 +376,11 @@ pfsync_pack_state(action, st)
 	if (action >= PFSYNC_ACT_MAX)
 		return (EINVAL);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	/*
 	 * XXX
 	 *  If we need to check mutex owned, PF_LOCK should be
-	 * declared in pflog.ko. :-(
+	 * declared in pflog.ko.
 	 *
 	 * PF_LOCK_ASSERT();
 	 */
@@ -420,7 +418,7 @@ pfsync_pack_state(action, st)
 	pf_state_peer_hton(&st->dst, &sp->dst);
 
 	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	secs = time_second;
 #else
 	secs = time.tv_sec;
@@ -456,7 +454,7 @@ int
 pfsync_clear_state(st)
 	struct pf_state *st;
 {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	struct pfsync_softc *sc = LIST_FIRST(&pfsync_list);
 #else
 	struct ifnet *ifp = &pfsyncif.sc_if;
@@ -495,7 +493,7 @@ pfsync_sendout(sc)
 	struct ifnet *ifp = &sc->sc_if;
 	struct mbuf *m = sc->sc_mbuf;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	callout_stop(&sc->sc_tmo);
 #else
 	timeout_del(&sc->sc_tmo);
@@ -503,7 +501,7 @@ pfsync_sendout(sc)
 	sc->sc_mbuf = NULL;
 	sc->sc_ptr = NULL;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT(m != NULL, ("pfsync_sendout: null mbuf"));
 #endif
 #if NBPFILTER > 0
@@ -517,7 +515,7 @@ pfsync_sendout(sc)
 }
 
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 static int
 pfsync_modevent(module_t mod, int type, void *data)
 {

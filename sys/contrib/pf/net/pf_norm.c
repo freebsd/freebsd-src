@@ -26,12 +26,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_random_ip_id.h"	/* or ip_var does not export it */
 #include "opt_pf.h"
-#define NPFLOG DEV_PFLOG
+#define	NPFLOG DEV_PFLOG
 #else
 #include "pflog.h"
 #endif
@@ -44,11 +44,9 @@
 #include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/time.h>
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 #include <sys/pool.h>
-#endif
 
-#if !defined(__FreeBSD__)
 #include <dev/rndvar.h>
 #endif
 #include <net/if.h>
@@ -115,7 +113,7 @@ struct ip6_opt_router {
 } __packed;
 #endif /* __FreeBSD__ && INET6 */
 
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 struct pf_frent {
 	LIST_ENTRY(pf_frent) fr_next;
 	struct ip *fr_ip;
@@ -134,7 +132,7 @@ struct pf_frcache {
 #define PFFRAG_DROP	0x0004		/* Drop all fragments */
 #define BUFFER_FRAGMENTS(fr)	(!((fr)->fr_flags & PFFRAG_NOBUFFER))
 
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 struct pf_fragment {
 	RB_ENTRY(pf_fragment) fr_entry;
 	TAILQ_ENTRY(pf_fragment) frag_next;
@@ -184,7 +182,7 @@ int			 pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
 			    { printf("%s: ", __func__); printf x ;}
 
 /* Globals */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 uma_zone_t		 pf_frent_pl, pf_frag_pl, pf_cache_pl, pf_cent_pl;
 uma_zone_t		 pf_state_scrub_pl;
 #else
@@ -196,7 +194,7 @@ int			 pf_nfrents, pf_ncache;
 void
 pf_normalize_init(void)
 {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	/*
 	 * XXX
 	 * No high water mark support(It's hint not hard limit).
@@ -227,7 +225,7 @@ pf_normalize_init(void)
 	TAILQ_INIT(&pf_cachequeue);
 }
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 static int
 #else
 static __inline int
@@ -255,7 +253,7 @@ void
 pf_purge_expired_fragments(void)
 {
 	struct pf_fragment	*frag;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	u_int32_t		 expire = time_second - 
 				    pf_default_rule.timeout[PFTM_FRAG];
 #else
@@ -264,7 +262,7 @@ pf_purge_expired_fragments(void)
 #endif
 
 	while ((frag = TAILQ_LAST(&pf_fragqueue, pf_fragqueue)) != NULL) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		KASSERT((BUFFER_FRAGMENTS(frag)),
 			("BUFFER_FRAGMENTS(frag) == 0: %s", __FUNCTION__));
 #else
@@ -278,7 +276,7 @@ pf_purge_expired_fragments(void)
 	}
 
 	while ((frag = TAILQ_LAST(&pf_cachequeue, pf_cachequeue)) != NULL) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		KASSERT((!BUFFER_FRAGMENTS(frag)),
 			("BUFFER_FRAGMENTS(frag) != 0: %s", __FUNCTION__));
 #else
@@ -289,7 +287,7 @@ pf_purge_expired_fragments(void)
 
 		DPFPRINTF(("expiring %d(%p)\n", frag->fr_id, frag));
 		pf_free_fragment(frag);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		KASSERT((TAILQ_EMPTY(&pf_cachequeue) ||
 		    TAILQ_LAST(&pf_cachequeue, pf_cachequeue) != frag),
 		    ("!(TAILQ_EMPTY() || TAILQ_LAST() == farg): %s",
@@ -356,7 +354,7 @@ pf_free_fragment(struct pf_fragment *frag)
 		    frcache = LIST_FIRST(&frag->fr_cache)) {
 			LIST_REMOVE(frcache, fr_next);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			KASSERT((LIST_EMPTY(&frag->fr_cache) ||
 			    LIST_FIRST(&frag->fr_cache)->fr_off >
 			    frcache->fr_end),
@@ -396,7 +394,7 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 	frag = RB_FIND(pf_frag_tree, tree, &key);
 	if (frag != NULL) {
 		/* XXX Are we sure we want to update the timeout? */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		frag->fr_timeout = time_second;
 #else
 		frag->fr_timeout = time.tv_sec;
@@ -443,7 +441,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 	u_int16_t	 ip_len = ntohs(ip->ip_len) - ip->ip_hl * 4;
 	u_int16_t	 max = ip_len + off;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT((*frag == NULL || BUFFER_FRAGMENTS(*frag)),
 	    ("! (*frag == NULL || BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
 #else
@@ -470,7 +468,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		(*frag)->fr_dst = frent->fr_ip->ip_dst;
 		(*frag)->fr_p = frent->fr_ip->ip_p;
 		(*frag)->fr_id = frent->fr_ip->ip_id;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		(*frag)->fr_timeout = time_second;
 #else
 		(*frag)->fr_timeout = time.tv_sec;
@@ -495,7 +493,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		frep = frea;
 	}
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT((frep != NULL || frea != NULL),
 	    ("!(frep != NULL || frea != NULL): %s", __FUNCTION__));;
 #else
@@ -585,7 +583,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 
 	/* We have all the data */
 	frent = LIST_FIRST(&(*frag)->fr_queue);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT((frent != NULL), ("frent == NULL: %s", __FUNCTION__));
 #else
 	KASSERT(frent != NULL);
@@ -658,7 +656,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 	u_int16_t		 max = ip_len + off;
 	int			 hosed = 0;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT((*frag == NULL || !BUFFER_FRAGMENTS(*frag)),
 	    ("!(*frag == NULL || !BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
 #else
@@ -690,7 +688,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		(*frag)->fr_dst = h->ip_dst;
 		(*frag)->fr_p = h->ip_p;
 		(*frag)->fr_id = h->ip_id;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		(*frag)->fr_timeout = time_second;
 #else
 		(*frag)->fr_timeout = time.tv_sec;
@@ -720,7 +718,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		frp = fra;
 	}
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT((frp != NULL || fra != NULL),
 	    ("!(frp != NULL || fra != NULL): %s", __FUNCTION__));
 #else
@@ -767,7 +765,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				 * than this mbuf magic.  For my next trick,
 				 * I'll pull a rabbit out of my laptop.
 				 */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				*m0 = m_dup(m, M_DONTWAIT);
 				/* From KAME Project : We have missed this! */
 				m_adj(*m0, (h->ip_hl << 2) -
@@ -777,7 +775,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 #endif
 				if (*m0 == NULL)
 					goto no_mem;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				KASSERT(((*m0)->m_next == NULL), 
 				    ("(*m0)->m_next != NULL: %s", 
 				    __FUNCTION__));
@@ -798,7 +796,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 
 				h = mtod(m, struct ip *);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				KASSERT(((int)m->m_len == ntohs(h->ip_len) - precut),
 				    ("m->m_len != ntohs(h->ip_len) - precut: %s",
 				    __FUNCTION__));
@@ -859,7 +857,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 					m->m_pkthdr.len = plen;
 				}
 				h = mtod(m, struct ip *);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				KASSERT(((int)m->m_len == ntohs(h->ip_len) - aftercut),
 				    ("m->m_len != ntohs(h->ip_len) - aftercut: %s",
 				    __FUNCTION__));
@@ -903,7 +901,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 
 			} else if (frp && fra->fr_off <= frp->fr_end) {
 				/* Need to merge in a modified 'frp' */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				KASSERT((cur == NULL), ("cur != NULL: %s",
 				    __FUNCTION__));
 #else
@@ -1478,7 +1476,7 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 	u_int8_t hdr[60];
 	u_int8_t *opt;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT((src->scrub == NULL), 
 	    ("pf_normalize_tcp_init: src->scrub != NULL"));
 #else
@@ -1567,7 +1565,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	u_int8_t *opt;
 	int copyback = 0;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	KASSERT((src->scrub || dst->scrub), 
 	    ("pf_normalize_tcp_statefull: src->scrub && dst->scrub!"));
 #else
