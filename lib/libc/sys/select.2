@@ -186,8 +186,8 @@ reasons,
 .Fn select
 will always examine the first 256 descriptors.
 .Sh BUGS
-The Single Unix Specification allows systems to modify the original
-timeout in place.
+.St -susv2 
+allows systems to modify the original timeout in place.
 Thus, it is unwise to assume that the timeout value will be unmodified
 by the
 .Fn select
