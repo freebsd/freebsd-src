@@ -262,13 +262,12 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 
 	i_dev->si_drv1 = rdch;
 	i_dev->si_drv2 = wrch;
-	pcm_unlock(d);
-	/* finished with snddev, new channels still locked */
 
-	/* bump refcounts, reset and unlock any channels that we just opened */
+	/* Bump refcounts, reset and unlock any channels that we just opened,
+	 * and then release device lock.
+	 */
 	if (flags & FREAD) {
 		if (chn_reset(rdch, fmt)) {
-			pcm_lock(d);
 			pcm_chnrelease(rdch);
 			i_dev->si_drv1 = NULL;
 			if (wrch && (flags & FWRITE)) {
@@ -286,7 +285,6 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	}
 	if (flags & FWRITE) {
 		if (chn_reset(wrch, fmt)) {
-			pcm_lock(d);
 			pcm_chnrelease(wrch);
 			i_dev->si_drv2 = NULL;
 			if (flags & FREAD) {
@@ -304,6 +302,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 		pcm_chnref(wrch, 1);
 	 	CHN_UNLOCK(wrch);
 	}
+	pcm_unlock(d);
 	splx(s);
 	return 0;
 }
