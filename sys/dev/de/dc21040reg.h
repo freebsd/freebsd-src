@@ -345,10 +345,6 @@ typedef struct {
 #define	TULIP_GP_SMC_9332_OK100		0x00000040	/* 100 Mb/sec Signal Detect gep<6> */
 #define	TULIP_GP_SMC_9332_INIT		0x00000009	/* No loopback --- point-to-point */
 
-#define	TULIP_OUI_SMC_0			0x00
-#define	TULIP_OUI_SMC_1			0x00
-#define	TULIP_OUI_SMC_2			0xC0
-
 /*
  * There are the definitions used for the DEC DE500
  * 10/100 family of boards
@@ -369,9 +365,6 @@ typedef struct {
  */
 #define	TULIP_GP_EM100_PINS		0x0000003F	/* General Purpose Pin directions */
 #define	TULIP_GP_EM100_INIT		0x00000009	/* No loopback --- point-to-point */
-#define	TULIP_OUI_COGENT_0		0x00
-#define	TULIP_OUI_COGENT_1		0x00
-#define	TULIP_OUI_COGENT_2		0x92
 #define	TULIP_COGENT_EM100TX_ID		0x12
 #define	TULIP_COGENT_EM100FX_ID		0x15
 
@@ -380,10 +373,6 @@ typedef struct {
  * These are the defintitions used for the Znyx ZX342
  * 10/100 board
  */
-#define	TULIP_OUI_ZNYX_0		0x00
-#define	TULIP_OUI_ZNYX_1		0xC0
-#define	TULIP_OUI_ZNYX_2		0x95
-
 #define	TULIP_ZNYX_ID_ZX312		0x0602
 #define	TULIP_ZNYX_ID_ZX312T		0x0622
 #define	TULIP_ZNYX_ID_ZX314_INTA	0x0701
@@ -421,29 +410,14 @@ typedef struct {
 #define	TULIP_GP_ZX34X_INIT		0x00000009	
 
 /*
- * Compex's OUI.  We need to twiddle a bit on their 21041 card.
+ * Asante's stuff...
  */
-#define	TULIP_OUI_COMPEX_0		0x00
-#define	TULIP_OUI_COMPEX_1		0x80
-#define	TULIP_OUI_COMPEX_2		0x48
-#define	TULIP_21041_COMPEX_XREGDATA	1
-
-/*
- * Asante's OUI and stuff...
- */
-#define TULIP_OUI_ASANTE_0		0x00
-#define TULIP_OUI_ASANTE_1		0x00
-#define TULIP_OUI_ASANTE_2		0x94
 #define TULIP_GP_ASANTE_PINS		0x000000bf	/* GP pin config */
 #define TULIP_GP_ASANTE_PHYRESET	0x00000008	/* Reset PHY */
 
 /*
  * ACCTON EN1207 specialties
  */
-
-#define TULIP_OUI_EN1207_0		0x00
-#define TULIP_OUI_EN1207_1		0x00
-#define TULIP_OUI_EN1207_2		0xE8
 
 #define TULIP_CSR8_EN1207		0x08
 #define TULIP_CSR9_EN1207		0x00
