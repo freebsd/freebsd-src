@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.26 1997/07/30 22:51:11 smp Exp smp $
+ *	$Id: mpapic.c,v 1.27 1997/08/21 04:53:27 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -30,7 +30,7 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include <machine/smptests.h>	/** PEND_INTS, TEST_TEST1 */
+#include <machine/smptests.h>	/** TEST_TEST1 */
 #include <machine/smp.h>
 #include <machine/mpapic.h>
 #include <machine/segments.h>
@@ -146,9 +146,7 @@ static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
 /*
  * Setup the IO APIC.
  */
-#if defined(PEND_INTS)
 extern int	apic_pin_trigger[];	/* 'opaque' */
-#endif /* PEND_INTS */
 int
 io_apic_setup(int apic)
 {
@@ -161,9 +159,7 @@ io_apic_setup(int apic)
 
 	target = IOART_DEST;
 
-#if defined(PEND_INTS)
 	apic_pin_trigger[apic] = 0;	/* default to edge-triggered */
-#endif /* PEND_INTS */
 
 	if (apic == 0) {
 		maxpin = REDIRCNT_IOAPIC(apic);		/* pins in APIC */
@@ -189,10 +185,8 @@ io_apic_setup(int apic)
 			else {
 				flags = DEFAULT_FLAGS;
 				level = trigger(apic, pin, &flags);
-#if defined(PEND_INTS)
 				if (level == 1)
 					apic_pin_trigger[apic] |= (1 << pin);
-#endif /* PEND_INTS */
 				polarity(apic, pin, &flags, level);
 			}
 
