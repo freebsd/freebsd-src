@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.69 1998/01/27 09:15:08 davidg Exp $
+ *	$Id: tcp_input.c,v 1.70 1998/02/26 05:25:28 dg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -736,19 +736,13 @@ findpcb:
 
 	/*
 	 * If the state is SYN_RECEIVED:
-	 *	if seg contains SYN/ACK, send a RST.
 	 *	if seg contains an ACK, but not for our SYN/ACK, send a RST.
 	 */
 	case TCPS_SYN_RECEIVED:
-		if (tiflags & TH_ACK) {
-			if (tiflags & TH_SYN) {
-				tcpstat.tcps_badsyn++;
+		if ((tiflags & TH_ACK) &&
+		    (SEQ_LEQ(ti->ti_ack, tp->snd_una) ||
+		     SEQ_GT(ti->ti_ack, tp->snd_max)))
 				goto dropwithreset;
-			}
-			if (SEQ_LEQ(ti->ti_ack, tp->snd_una) ||
-			    SEQ_GT(ti->ti_ack, tp->snd_max))
-				goto dropwithreset;
-		}
 		break;
 
 	/*
