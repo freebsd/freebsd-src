@@ -34,10 +34,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ccdconfig.c,v 1.11 1999/04/05 06:30:12 peter Exp $";
+	"$Id: ccdconfig.c,v 1.12 1999/05/06 19:20:34 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/linker.h>
 #include <sys/disklabel.h>
 #include <sys/device.h>
 #include <sys/stat.h>
@@ -228,7 +229,7 @@ do_single(argc, argv, action)
 	}
 
 	/* Make sure there are enough arguments. */
-	if (argc < 4)
+	if (argc < 4) {
 		if (argc == 3) {
 			/* Assume that no flags are specified. */
 			noflags = 1;
@@ -239,6 +240,7 @@ do_single(argc, argv, action)
 			} else
 				usage();
 		}
+	}
 
 	/* First argument is the ccd to configure. */
 	cp = *argv++; --argc;
@@ -304,7 +306,7 @@ do_single(argc, argv, action)
 			    i == 0 ? '(' : ' ', cp2,
 			    i == ccio.ccio_ndisks - 1 ? ')' : ',');
 		}
-		printf(", %d blocks ", ccio.ccio_size);
+		printf(", %lu blocks ", (u_long)ccio.ccio_size);
 		if (ccio.ccio_ileave != 0)
 			printf("interleaved at %d blocks\n", ccio.ccio_ileave);
 		else
