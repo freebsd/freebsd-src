@@ -40,6 +40,8 @@
 .Nm fchmod ,
 .Nm lchmod
 .Nd change mode of file
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Fd #include <sys/stat.h>
 .Ft int
@@ -106,7 +108,7 @@ defined in
 .Ed
 .Pp
 The
-.Tn FreeBSD
+.Fx
 VM system totally ignores the sticky bit
 .Pf ( Dv ISVTX
 ) for executables.  On UFS-based filesystems (FFS, MFS, LFS) the sticky
