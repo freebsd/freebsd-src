@@ -1,10 +1,10 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.8 1995/04/13 21:23:17 rgrimes Exp $
+#	$Id: rc.i386,v 1.9 1995/05/26 18:06:52 rgrimes Exp $
 #	Do i386 specific processing
 #
 
-echo -n 'enabling FreeBSD/386 options:'
+echo -n 'enabling FreeBSD/i386 options:'
 
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2}" = X"YES" ]; then
