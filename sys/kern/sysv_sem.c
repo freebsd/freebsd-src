@@ -486,7 +486,7 @@ __semctl(td, uap)
 	mtx_lock(&Giant);
 	switch(cmd) {
 	case SEM_STAT:
-		if (semid < 0 || semid >= seminfo.semnmi)
+		if (semid < 0 || semid >= seminfo.semmni)
 			UGAR(EINVAL);
 		semaptr = &sema[semid];
 		if ((semaptr->sem_perm.mode & SEM_ALLOC) == 0 )
