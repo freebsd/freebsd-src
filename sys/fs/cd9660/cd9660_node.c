@@ -216,10 +216,8 @@ cd9660_reclaim(ap)
 	/*
 	 * Purge old data structures associated with the inode.
 	 */
-	if (ip->i_devvp) {
-		vrele(ip->i_devvp);
-		ip->i_devvp = 0;
-	}
+	if (ip->i_mnt->im_devvp)
+		vrele(ip->i_mnt->im_devvp);
 	FREE(vp->v_data, M_ISOFSNODE);
 	vp->v_data = NULL;
 	return (0);
