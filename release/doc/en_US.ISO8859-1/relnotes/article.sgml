@@ -1491,6 +1491,11 @@
     program.  They are used by error-reporting routines to produce
     consistent output. &merged;</para>
 
+    <para>&man.gprof.1; now has a <option>-K</option> option to enable
+    dynamic symbol resolution from the currently-running kernel.  With
+    this change, properly-compiled KLD modules are now able to be
+    profiled.</para>
+
     <para>&man.growfs.8;, a utility for growing FFS filesystems, has
     been added.  &man.ffsinfo.8;, a utility for dump all the
     meta-information of an existing filesystem, has also been
@@ -1976,6 +1981,10 @@
     environment variable, if set, to specify the location of temporary
     files. &merged;</para>
 
+    <para>&man.tip.1; has been updated from
+    <application>OpenBSD</application>, and has the ability to act as
+    a &man.cu.1; substitute.</para>
+
     <para>&man.top.1; will now use the full width of its tty.</para>
 
     <para>&man.touch.1; now takes a <option>-h</option> option to
@@ -1989,8 +1998,7 @@
     console. &merged;</para>
 
     <para><application>UUCP</application> has been removed from the
-    base system, with the exceptions of &man.cu.1; and &man.rmail.8;.
-    The remainder of <application>UUCP</application> can be found in
+    base system.  It can be found in
     the Ports Collection, in <port>net/freebsd-uucp</port>.</para>
 
     <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
@@ -2072,6 +2080,9 @@
       <para><application>am-utils</application> has been updated to 
       6.0.7.</para>
 
+      <para><application>awk</application> from Bell Labs has replaced
+      <application>GNU awk</application> in the &os; base system.</para>
+
       <para><application>bc</application> has been updated from 1.04 to
       1.06. &merged;</para>
 
@@ -2098,11 +2109,6 @@
       been updated to 1.4.2. &merged;</para>
 
       <para><application>file</application> has been updated to 3.37.</para>
-
-      <para>&man.awk.1;, in the form of
-      <application>gawk</application>, has been updated from 3.0.4 to 3.0.6.
-      This fixes a number of non-critical bugs and includes a few
-      performance tweaks. &merged;</para>
 
       <para><application>gcc</application> has been updated to 2.95.3. &merged;</para>
 
