@@ -8,6 +8,7 @@
  * @(#)ip_frag.h	1.5 3/24/96
  * $Id: ip_frag.h,v 2.2 1999/08/06 06:26:38 darrenr Exp $
  * $FreeBSD$
+ */
 
 #ifndef	__IP_FRAG_H__
 #define	__IP_FRAG_H__
