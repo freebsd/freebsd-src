@@ -199,8 +199,10 @@
     street will work in an Alpha machine. Things like S3 Trio64,
     Mach64, and Matrox Millennium generally work. Old ET4000 based ISA
     cards have also worked for me. But ask around first before buying.
-    Please note that TGA cards are not currently supported as &os; console
-    display cards.</para>
+    Please note that TGA-based cards are not currently supported as 
+    &os; console display cards. Digital ZLXp-xx cards are often found
+    in Alpha machines and are TGA based. You will either have to use
+    a serial console or another display card.</para>
 
     <para>Most PCI devices from the PC-world will also work in
     &os; PCI-based machines. Check the
@@ -381,6 +383,11 @@
       <screen>&gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput></screen>
       <para>at the serial console.</para>
 
+      <para>There have been reports that you sometimes need to press
+      <Control>-<Alt>-<Del> to capture the SRM's attention. I have
+      never seen this myself, but it is worth trying if you are greeted
+      by a blank screen after powerup.</para>
+
       <para>Make sure you use true 36 bit SIMMs, and only FPM (Fast
       Page Mode) DRAM. EDO DRAM or SIMMs with fake parity <emphasis>will not
       work</emphasis>. The board uses the 4 extra bits for ECC. 33
@@ -527,6 +534,11 @@ cpu	EV4</programlisting>
 
       <para>This is not a &os; problem, it is a SRM problem. The best available
       workaround to install &os; is to boot from a SCSI CDROM.</para>
+
+      <para>There have been reports that you sometimes need to press
+      <Control>-<Alt>-<Del> to capture the SRM's attention. I have
+      never seen this myself, but it is worth trying if you are greeted
+      by a blank screen after powerup.</para>
 
       <para>Sound works fine using &man.pcm.4; driver and a line in the
       kernel configuration file as follows for the Crystal CS4231
