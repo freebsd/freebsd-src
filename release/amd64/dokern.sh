@@ -119,7 +119,7 @@ sed	\
 	-e '/P1003_1B/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
 	-e '/atapist/d' \
-	-e '/ncr/d' \
+	-e '/	ncr/d' \
 	-e '/pass/d' \
 	-e '/splash/d' \
 	-e '/	apm/d' \
