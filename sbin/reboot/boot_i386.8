@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.10 1998/03/23 06:36:57 danny Exp $
+.\" $Id: boot_i386.8,v 1.11 1998/04/26 18:15:38 phk Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -173,7 +173,9 @@ you can use the
 option to force the kernel to use the serial port as its 
 console device.  Alternatively, if you boot from the serial port, 
 you can use this option to force the kernel to use the internal display 
-as the console instead.
+as the console instead.  This option has no effect if the kernel was
+compiled with
+.Em options COMCONSOLE .
 .It Fl P
 probe the keyboard.  If no keyboard is found, the
 .Fl D
