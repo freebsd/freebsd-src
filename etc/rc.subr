@@ -47,6 +47,8 @@ SYSCTL="/sbin/sysctl"
 SYSCTL_N="${SYSCTL} -n"
 CMD_OSTYPE="${SYSCTL_N} kern.ostype"
 OSTYPE=`${CMD_OSTYPE}`
+ID="/usr/bin/id"
+IDCMD="if [ -x $ID ]; then $ID -un; fi"
 
 case ${OSTYPE} in
 FreeBSD)
@@ -504,7 +506,7 @@ run_rc_command()
 	    _group=\$${name}_group	_groups=\$${name}_groups
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
-		if [ "$_user" = "$(id -un)" ]; then
+		if [ "$_user" = "$(eval $IDCMD)" ]; then
 			unset _user
 		fi
 	fi
