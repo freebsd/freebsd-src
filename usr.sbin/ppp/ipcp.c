@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.20 1997/05/26 00:44:01 brian Exp $
+ * $Id: ipcp.c,v 1.21 1997/06/09 03:27:24 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -394,7 +394,7 @@ int mode;
 	  switch (length) {
 	  case 4:	/* RFC1172 */
 	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
-	      LogPrintf(LogWARN, "Peer is speaking RFC1172 compression protocol !n");
+	      LogPrintf(LogWARN, "Peer is speaking RFC1172 compression protocol !\n");
 	      IpcpInfo.heis1172 = 1;
 	      IpcpInfo.his_compproto = compproto;
 	      bcopy(cp, ackp, length);

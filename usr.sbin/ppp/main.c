@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.65 1997/06/23 23:10:11 brian Exp $
+ * $Id: main.c,v 1.66 1997/06/24 21:25:06 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -50,6 +50,7 @@
 #include "systems.h"
 #include "ip.h"
 #include "sig.h"
+#include "server.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: Manipulation is allowed by anyone\n"
@@ -74,9 +75,7 @@ static char *ex_desc();
 static struct termios oldtio;		/* Original tty mode */
 static struct termios comtio;		/* Command level tty mode */
 int TermMode;
-static int server;
 static pid_t BGPid = 0;
-struct sockaddr_in ifsin;
 static char pid_filename[MAXPATHLEN];
 static char if_filename[MAXPATHLEN];
 int tunno;
@@ -185,11 +184,7 @@ int excode;
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n",ex_desc(excode));
   LogClose();
-  if (server >= 0) {
-    close(server);
-    server = -1;
-  }
-
+  ServerClose();
   TtyOldMode();
 
   exit(excode);
@@ -234,6 +229,15 @@ int signo;
   TtyOldMode();
   pending_signal(SIGTSTP, SIG_DFL);
   kill(getpid(), signo);
+}
+
+static void
+SetUpServer(signo)
+int signo;
+{
+  int res;
+  if ((res = ServerTcpOpen(SERVER_PORT+tunno)) != 0)
+    LogPrintf(LogERROR, "Failed %d to open port %d\n", res, SERVER_PORT+tunno);
 }
 
 static char *
@@ -310,7 +314,7 @@ Greetings()
   }
 }
 
-void
+int
 main(argc, argv)
 int argc;
 char **argv;
@@ -324,7 +328,8 @@ char **argv;
 
   argc--; argv++;
   mode = MODE_INTER;		/* default operation is interactive mode */
-  netfd = server = modem = tun_in = -1;
+  netfd = modem = tun_in = -1;
+  server = -2;
   ProcessArgs(argc, argv);
   if (!(mode & MODE_DIRECT))
     VarTerm = stdout;
@@ -335,24 +340,9 @@ char **argv;
   if (SelectSystem("default", CONFFILE) < 0 && VarTerm)
     fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
 
-  switch ( LocalAuthInit() ) {
-    case NOT_FOUND:
-        if (VarTerm) {
-    	  fprintf(VarTerm,LAUTH_M1);
-    	  fprintf(VarTerm,LAUTH_M2);
-          fflush(VarTerm);
-        }
-	/* Fall down */
-    case VALID:
-	VarLocalAuth = LOCAL_AUTH;
-	break;
-    default:
-	break;
-  }
-
   if (OpenTunnel(&tunno) < 0) {
-    LogPrintf(LogWARN, "open_tun: %s", strerror(errno));
-    exit(EX_START);
+    LogPrintf(LogWARN, "open_tun: %s\n", strerror(errno));
+    return EX_START;
   }
 
   if (mode & (MODE_AUTO|MODE_DIRECT|MODE_DEDICATED))
@@ -366,7 +356,7 @@ char **argv;
       if (VarTerm)
         fprintf(VarTerm, "Destination system must be specified in"
               " auto, background or ddial mode.\n");
-      exit(EX_START);
+      return EX_START;
     }
   }
 
@@ -382,18 +372,21 @@ char **argv;
 #ifdef SIGALRM
   pending_signal(SIGALRM, SIG_IGN);
 #endif
-  if(mode & MODE_INTER)
-    {
+  if(mode & MODE_INTER) {
 #ifdef SIGTSTP
-      pending_signal(SIGTSTP, TerminalStop);
+    pending_signal(SIGTSTP, TerminalStop);
 #endif
 #ifdef SIGTTIN
-      pending_signal(SIGTTIN, TerminalStop);
+    pending_signal(SIGTTIN, TerminalStop);
 #endif
 #ifdef SIGTTOU
-      pending_signal(SIGTTOU, SIG_IGN);
+    pending_signal(SIGTTOU, SIG_IGN);
 #endif
-    }
+  }
+#ifdef SIGUSR1
+  if (mode != MODE_INTER)
+    pending_signal(SIGUSR1, SetUpServer);
+#endif
 
   if (dstsystem) {
     if (SelectSystem(dstsystem, CONFFILE) < 0) {
@@ -407,9 +400,23 @@ char **argv;
     }
   }
 
-  if (!(mode & MODE_INTER)) {
-    int port = SERVER_PORT + tunno;
+  if (ServerType() != NO_SERVER)
+    switch ( LocalAuthInit() ) {
+      case NOT_FOUND:
+        if (VarTerm) {
+    	  fprintf(VarTerm,LAUTH_M1);
+    	  fprintf(VarTerm,LAUTH_M2);
+          fflush(VarTerm);
+        }
+	/* Fall down */
+      case VALID:
+	VarLocalAuth = LOCAL_AUTH;
+	break;
+      default:
+	break;
+    }
 
+  if (!(mode & MODE_INTER)) {
     if (mode & MODE_BACKGROUND) {
       if (pipe (BGFiledes)) {
         LogPrintf(LogERROR, "pipe: %s", strerror(errno));
@@ -417,26 +424,9 @@ char **argv;
       }
     }
 
-    /* Create server socket and listen at there. */
-    server = socket(PF_INET, SOCK_STREAM, 0);
-    if (server < 0) {
-      LogPrintf(LogERROR, "socket: %s", strerror(errno));
-      Cleanup(EX_SOCK);
-    }
-    ifsin.sin_family = AF_INET;
-    ifsin.sin_addr.s_addr = INADDR_ANY;
-    ifsin.sin_port = htons(port);
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &server, sizeof server);
-    if (bind(server, (struct sockaddr *) &ifsin, sizeof(ifsin)) < 0) {
-      LogPrintf(LogERROR, "bind: %s", strerror(errno));
-      if (errno == EADDRINUSE && VarTerm)
-        fprintf(VarTerm, "Wait for a while, then try again.\n");
-      Cleanup(EX_SOCK);
-    }
-    if (listen(server, 5) != 0) {
-      LogPrintf(LogERROR, "Unable to listen to socket - OS overload?\n");
-      Cleanup(EX_SOCK);
-    }
+    /* Create server socket and listen. */
+    if (server == -2 && ServerTcpOpen(SERVER_PORT + tunno) != 0)
+	Cleanup(EX_SOCK);
 
     if (!(mode & MODE_DIRECT)) {
       pid_t bgpid;
@@ -466,7 +456,7 @@ char **argv;
           }
           close(BGFiledes[0]);
 	}
-        exit(c);
+        return c;
       } else if (mode & MODE_BACKGROUND)
           close(BGFiledes[0]);
     }
@@ -492,9 +482,6 @@ char **argv;
     } else
       LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
                 if_filename, strerror(errno));
-
-    if (server >= 0)
-	LogPrintf(LogPHASE, "Listening at %d.\n", port);
 
     VarTerm = 0;   /* We know it's currently stdout */
     close(0);
@@ -522,6 +509,7 @@ char **argv;
   while (mode & MODE_DEDICATED);
 
   Cleanup(EX_DONE);
+  return 0;
 }
 
 /*

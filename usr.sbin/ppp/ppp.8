@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.40 1997/06/16 13:52:10 brian Exp $
+.\" $Id: ppp.8,v 1.41 1997/06/20 23:43:34 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -637,8 +637,9 @@ Direct mode (
 .Fl direct
 ) lets
 .Nm
-work with stdin and stdout.  You can also telnet to port 3000 to get
-command mode control in the same manner as client-side
+work with stdin and stdout.  You can also telnet to port 3000 plus
+the current tunnel device number to get command mode control in the
+same manner as client-side
 .Nm.
 
 .It
@@ -1260,6 +1261,52 @@ Log messages of level Warning, Error and Alert are not controlable
 using
 .Dq set log .
 
+.Sh SIGNAL HANDLING
+
+.Nm Ppp
+deals with the following signals:
+
+.Bl -tag -width 20
+.It HUP
+Receipt of this signal causes the termination of the current connection
+(if any).  This will cause
+.Nm
+to exit unless it is in
+.Fl auto
+or
+.Fl ddial
+mode.  It should be noted that unless in
+.Fl direct
+mode,
+.Nm
+does not have a controlling terminal and therefore doesn't receive
+this signal on loss of carrier.  Instead, it monitors the line
+directly for loss of carrier.
+
+.It INT
+This signal will normally terminate
+.Nm ppp .
+If, however,
+.Nm
+is in interactive mode this signal will be ignored except when dialing.
+When dialing, the signal causes
+.Nm
+to abort dialing and return to the command prompt.
+
+.It TERM & QUIT
+These signals tell
+.Nm
+to exit.
+
+.It USR1
+This signal, when not in interactive mode, tells
+.Nm
+to close any existing server socket and open an internet socket using
+the default rules for choosing a port number - that is, using port
+3000 plus the current tunnel device number.
+
+.El
+
 .Sh PPP COMMAND LIST
 
 This section lists the available commands and their effect.  They are
@@ -1616,6 +1663,26 @@ is taken before dialing each number.  A pause of
 is taken before starting at the first number again.  A value of
 .Dq random
 may be used here too.
+
+.It set server|socket TcpPort|LocalName|none
+Normally, when not in interactive mode,
+.Nm
+listens to a tcp socket for incoming command connections.  The
+socket number is calculated as 3000 plus the number of the
+tunnel device that
+.Nm
+opened.  So, for example, if
+.Nm
+opened tun2, socket 3002 would be used.
+.Pp
+Using this command, you can specify your own port number, a
+local domain socket (specified as an absolute file name), or
+you can tell
+.Nm
+not to accept any command connections.  See also the use of
+the
+.Dv USR1
+signal.
 
 .It set speed value
 This sets the speed of the serial device.
