@@ -1,3 +1,3 @@
-SUBDIR= lib ci co ident merge rcs rcsdiff rcsmerge rlog rcsfreeze
+SUBDIR= lib ci co ident merge rcs rcsclean rcsdiff rcsmerge rlog rcsfreeze
 
 .include <bsd.subdir.mk>
