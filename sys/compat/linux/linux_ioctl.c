@@ -1422,8 +1422,8 @@ linux_ifconf(struct proc *p, struct ifconf *uifc)
 	struct ifnet *ifp;
 	struct iovec iov;
 	struct uio uio;
-	int error;
-	
+	int error, ethno;
+
 	error = copyin(uifc, &ifc, sizeof ifc);
 	if (error != 0)
 		return (error);
@@ -1439,12 +1439,20 @@ linux_ifconf(struct proc *p, struct ifconf *uifc)
 	uio.uio_rw = UIO_READ;
 	uio.uio_procp = p;
 
+	/* Keep track of eth interfaces */
+	ethno = 0;
+
 	/* return interface names but no addresses. */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (uio.uio_resid <= 0)
 			break;
 		bzero(&ifr, sizeof ifr);
-		linux_ifname(ifp, ifr.ifr_name, LINUX_IFNAMSIZ);
+		if (IFP_IS_ETH(ifp))
+			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "eth%d",
+			    ethno++);
+		else
+			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "%s%d",
+			    ifp->if_name, ifp->if_unit);
 		error = uiomove((caddr_t)&ifr, sizeof ifr, &uio);
 		if (error != 0)
 			return (error);
@@ -1452,7 +1460,7 @@ linux_ifconf(struct proc *p, struct ifconf *uifc)
 
 	ifc.ifc_len -= uio.uio_resid;
 	error = copyout(&ifc, uifc, sizeof ifc);
-	
+
 	return (error);
 }
 
