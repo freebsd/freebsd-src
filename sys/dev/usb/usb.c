@@ -550,7 +550,7 @@ usbpoll(dev, events, p)
 		if ((events & mask) && usb_nevents > 0)
 			revents |= events & mask;
 		if (revents == 0 && (events & mask)) {
-			DPRINTF(("usb: sleeping on %p\n", &usb_selevent));
+			DPRINTFN(2,("usb: sleeping on %p\n", &usb_selevent));
 			selrecord(p, &usb_selevent);
 		}
 		splx(s);
