@@ -1236,7 +1236,6 @@ again:
 		/* Check if rule only valid for bridged packets */
 		if ((f->fw_flg & IP_FW_BRIDGED) != 0 && !(BRIDGED))
 		    continue;
-#undef BRIDGED
 
 		if (oif) {
 		    /* Check direction outbound */
@@ -1628,6 +1627,11 @@ got_match:
 	    && (proto != IPPROTO_ICMP || is_icmp_query(ip))
 	    && !((*m)->m_flags & (M_BCAST|M_MCAST))
 	    && !IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+		/* Must convert to host order for icmp_error() etc. */
+		if (BRIDGED) {
+			ip->ip_len = ntohs(ip->ip_len);
+			ip->ip_off = ntohs(ip->ip_off);
+		}
 		switch (f->fw_reject_code) {
 		case IP_FW_REJECT_RST:
 		    {
@@ -1670,6 +1674,7 @@ dropit:
 	 * Finally, drop the packet.
 	 */
 	return(IP_FW_PORT_DENY_FLAG);
+#undef BRIDGED
 }
 
 /*
