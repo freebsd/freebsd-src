@@ -1,8 +1,9 @@
-# $Id: pt_PT.ISO_8859-1.src,v 1.0 1996/11/29 01:42:29 ache Exp $
+# $Id: pt_PT.ISO_8859-1.src,v 1.1 1996/11/29 21:01:29 ache Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 # In Portugal we don't use the 12 + am/pm but the 24h format
+#
 # Short months names
 #
 Jan
@@ -41,16 +42,16 @@ Ter
 Qua
 Qui
 Sex
-Sab
+Sáb
 #
 # Long weekdays names
 #
 Domingo
-Segunda
-Terça
-Quarta
-Quinta
-Sexta
+Segunda Feira
+Terça Feira
+Quarta Feira
+Quinta Feira
+Sexta Feira
 Sábado
 #
 # X_fmt
@@ -67,7 +68,7 @@ Sábado
 #
 # am
 #
-am
+  
 #
 # pm
 #
