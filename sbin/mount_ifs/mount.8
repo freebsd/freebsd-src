@@ -39,13 +39,13 @@
 .Nd mount file systems
 .Sh SYNOPSIS
 .Nm mount
-.Op Fl adfruvw
+.Op Fl adfpruvw
 .Op Fl t Ar ufs | lfs | external_type
 .Nm mount
-.Op Fl dfruvw
+.Op Fl dfpruvw
 .Ar special | node
 .Nm mount
-.Op Fl dfruvw
+.Op Fl dfpruvw
 .Op Fl o Ar options
 .Op Fl t Ar ufs | lfs | external_type
 .Ar special node
@@ -167,6 +167,10 @@ to execute the equivalent of:
 .Bd -literal -offset indent
 /sbin/mount_mfs -o nosuid -N -s 4000 /dev/dk0b /tmp
 .Ed
+.It Fl p
+Print mount information in fstab format. Implies also the
+.Fl v
+option.
 .It Fl r
 The file system is to be mounted read-only.
 Mount the file system read-only (even the super-user may not write it).
