@@ -61,6 +61,13 @@ does exist,
 then its contents are echoed
 to non-superusers
 before failure is returned.
+If a "nologin" capability
+is specified in
+.Xr login.conf 5 ,
+then the file thus specified
+is used instead.
+This usually defaults to
+.Pa /var/run/nologin .
 .Pp
 The following options may be passed to the authentication module:
 .Bl -tag -width ".Cm no_warn"
@@ -77,6 +84,7 @@ authentication attempt was declined.
 .El
 .Sh SEE ALSO
 .Xr syslog 3 ,
+.Xr login.conf 5 ,
 .Xr nologin 5 ,
 .Xr pam.conf 5 ,
 .Xr pam 8
