@@ -12,45 +12,43 @@ static int pushc, pusht;
 static int lineno;
 static char *filename;
 
-static char *keys[] =
-	{
-	"io",		/* 1 */
-	"irq",		/* 2 */
-	"memory",	/* 3 */
-	"card",		/* 4 */
-	"device",	/* 5 */
-	"config",	/* 6 */
-	"__EOF__",	/* 7 */
-	"reset",	/* 8 */
-	"ether",	/* 9 */
-	"insert",	/* 10 */
-	"remove",	/* 11 */
-	"iosize",	/* 12 */
-	"memsize",	/* 13 */
+static char *keys[] = {
+	"io",			/* 1 */
+	"irq",			/* 2 */
+	"memory",		/* 3 */
+	"card",			/* 4 */
+	"device",		/* 5 */
+	"config",		/* 6 */
+	"__EOF__",		/* 7 */
+	"reset",		/* 8 */
+	"ether",		/* 9 */
+	"insert",		/* 10 */
+	"remove",		/* 11 */
+	"iosize",		/* 12 */
+	"memsize",		/* 13 */
 	0
-	};
+};
 
-struct flags
-	{
-	char *name;
-	int mask;
-	};
+struct flags {
+	char   *name;
+	int     mask;
+};
 
-void parsefile();
-char *token();
-char *getline();
-char *next_tok();
-int num_tok();
-void error(char *);
-int keyword(char *);
+void    parsefile(void);
+char   *token(void);
+char   *getline(void);
+char   *next_tok(void);
+int     num_tok(void);
+void    error(char *);
+int     keyword(char *);
 struct allocblk *ioblk_tok(int);
 struct allocblk *memblk_tok(int);
-int	irq_tok(int);
-void setflags(struct flags *, int *);
+int     irq_tok(int);
+void    setflags(struct flags *, int *);
 struct driver *new_driver(char *);
 
-void addcmd(struct cmd **cp);
-void parse_card();
+void    addcmd(struct cmd **cp);
+void    parse_card(void);
 
 /*
  * Read a file and parse the pcmcia configuration data.
@@ -59,108 +57,93 @@ void parse_card();
 void
 readfile(char *name)
 {
-struct card *cp;
+	struct card *cp;
 
 	in = fopen(name, "r");
-	if (in == 0)
-		{
+	if (in == 0) {
 		perror(name);
 		exit(1);
-		}
+	}
 	parsefile();
-	for (cp = cards; cp; cp = cp->next)
-		{
+	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
-fprintf(stderr, "warning: card %s(%s) has no valid configuration\n",
-				cp->manuf, cp->version);
-		}
+			fprintf(stderr, "warning: card %s(%s) has no valid configuration\n",
+			    cp->manuf, cp->version);
+	}
 }
+
 void
-parsefile()
+parsefile(void)
 {
-int i;
-struct allocblk *bp;
+	int     i;
+	struct allocblk *bp;
 
 	pushc = 0;
 	lineno = 1;
-	for(;;)
-	    switch(keyword(next_tok()))
-		{
-	default:
-		error("Syntax error");
-		pusht = 0;
-		break;
-	case 7:
-		return;
-/*
- *	reserved I/O blocks
- */
-	case 1:
-		while ((bp = ioblk_tok(0)) != 0)
-			{
-			if (bp->size == 0 || bp->addr == 0)
-				{
-				free(bp);
-				continue;
+	for (;;)
+		switch (keyword(next_tok())) {
+		default:
+			error("Syntax error");
+			pusht = 0;
+			break;
+		case 7:
+			return;
+		case 1:
+			/* reserved I/O blocks */
+			while ((bp = ioblk_tok(0)) != 0) {
+				if (bp->size == 0 || bp->addr == 0) {
+					free(bp);
+					continue;
 				}
-			bit_nset(io_avail, bp->addr, bp->addr+bp->size-1);
-			bp->next = pool_ioblks;
-			pool_ioblks = bp;
+				bit_nset(io_avail, bp->addr, bp->addr + bp->size - 1);
+				bp->next = pool_ioblks;
+				pool_ioblks = bp;
 			}
-		pusht = 1;
-		break;
-/*
- *	reserved irqs
- */
-	case 2:
-		while ((i = irq_tok(0)) > 0)
-			pool_irq[i] = 1;
-		pusht = 1;
-		break;
-/*
- *	reserved memory blocks.
- */
-	case 3:
-		while ((bp = memblk_tok(0)) != 0)
-			{
-			if (bp->size == 0 || bp->addr == 0)
-				{
-				free(bp);
-				continue;
+			pusht = 1;
+			break;
+		case 2:
+			/* reserved irqs */
+			while ((i = irq_tok(0)) > 0)
+				pool_irq[i] = 1;
+			pusht = 1;
+			break;
+		case 3:
+			/* reserved memory blocks. */
+			while ((bp = memblk_tok(0)) != 0) {
+				if (bp->size == 0 || bp->addr == 0) {
+					free(bp);
+					continue;
 				}
-			bit_nset(mem_avail, MEM2BIT(bp->addr),
-				MEM2BIT(bp->addr+bp->size)-1);
-			bp->next = pool_mem;
-			pool_mem = bp;
+				bit_nset(mem_avail, MEM2BIT(bp->addr),
+				    MEM2BIT(bp->addr + bp->size) - 1);
+				bp->next = pool_mem;
+				pool_mem = bp;
 			}
-		pusht = 1;
-		break;
-/*
- *	Card definition.
- */
-	case 4:
-		parse_card();
-		break;
-/*
- *	Device description
- */
+			pusht = 1;
+			break;
+		case 4:
+			/* Card definition. */
+			parse_card();
+			break;
 #if 0
-	case 5:
-		parse_device();
-		break;
+		case 5:
+			/* Device description */
+			parse_device();
+			break;
 #endif
 		}
 }
+
 /*
  *	Parse a card definition.
  */
 void
-parse_card()
+parse_card(void)
 {
-char	*man, *vers;
-struct card *cp;
-int i;
-struct card_config *confp, *lastp;
+	char   *man, *vers;
+	struct card *cp;
+	int     i;
+	struct card_config *confp, *lastp;
 
 	man = newstr(next_tok());
 	vers = newstr(next_tok());
@@ -170,71 +153,61 @@ struct card_config *confp, *lastp;
 	cp->reset_time = 50;
 	cp->next = cards;
 	cards = cp;
-	for (;;)
-		{
-		switch(keyword(next_tok()))
-			{
+	for (;;) {
+		switch (keyword(next_tok())) {
 		default:
 			pusht = 1;
 			return;
 		case 8:
 			i = num_tok();
-			if (i == -1)
-				{
+			if (i == -1) {
 				error("Illegal card reset time");
 				break;
-				}
+			}
 			cp->reset_time = i;
 			break;
 		case 6:
 			i = num_tok();
-			if (i == -1)
-				{
+			if (i == -1) {
 				error("Illegal card config index");
 				break;
-				}
+			}
 			confp = xmalloc(sizeof(*confp));
 			man = next_tok();
 			confp->driver = new_driver(man);
 			confp->irq = num_tok();
 			confp->flags = num_tok();
-			if (confp->flags == -1)
-				{
+			if (confp->flags == -1) {
 				pusht = 1;
 				confp->flags = 0;
-				}
-			if (confp->irq < 0 || confp->irq > 15)
-				{
+			}
+			if (confp->irq < 0 || confp->irq > 15) {
 				error("Illegal card IRQ value");
 				break;
-				}
+			}
 			confp->index = i & 0x3F;
-/*
- *	If no valid driver for this config, then do not save
- *	this configuration entry.
- */
-			if (confp->driver)
-				{
+
+			/*
+			 * If no valid driver for this config, then do not save
+			 * this configuration entry.
+			 */
+			if (confp->driver) {
 				if (cp->config == 0)
 					cp->config = confp;
-				else
-					{
+				else {
 					for (lastp = cp->config; lastp->next;
-								lastp = lastp->next)
-						;
+					    lastp = lastp->next);
 					lastp->next = confp;
-					}
 				}
-			else
+			} else
 				free(confp);
 			break;
 		case 9:
 			cp->ether = num_tok();
-			if (cp->ether == -1)
-				{
+			if (cp->ether == -1) {
 				error("Illegal ether address offset");
 				cp->ether = 0;
-				}
+			}
 			break;
 		case 10:
 			addcmd(&cp->insert);
@@ -242,9 +215,10 @@ struct card_config *confp, *lastp;
 		case 11:
 			addcmd(&cp->remove);
 			break;
-			}
 		}
+	}
 }
+
 /*
  *	Generate a new driver structure. If one exists, use
  *	that one after confirming the correct class.
@@ -252,12 +226,12 @@ struct card_config *confp, *lastp;
 struct driver *
 new_driver(char *name)
 {
-struct driver *drvp;
-char *p;
+	struct driver *drvp;
+	char   *p;
 
 	for (drvp = drivers; drvp; drvp = drvp->next)
-		if (strcmp(drvp->name, name)==0)
-			return(drvp);
+		if (strcmp(drvp->name, name) == 0)
+			return (drvp);
 	drvp = xmalloc(sizeof(*drvp));
 	drvp->next = drivers;
 	drivers = drvp;
@@ -265,33 +239,32 @@ char *p;
 	drvp->kernel = newstr(name);
 	p = drvp->kernel;
 	while (*p++)
-		if (*p >= '0' && *p <= '9')
-			{
+		if (*p >= '0' && *p <= '9') {
 			drvp->unit = atoi(p);
 			*p = 0;
 			break;
-			}
+		}
 #ifdef	DEBUG
 	if (verbose)
 		printf("Drv %s%d created\n", drvp->kernel, drvp->unit);
 #endif
-	return(drvp);
+	return (drvp);
 }
+
 #if 0
 /*
  *	Parse the device description.
  */
-parse_device()
+parse_device(void)
 {
-enum drvclass type = drvclass_tok();
-struct device *dp;
-static struct device *lastp;
+	enum drvclass type = drvclass_tok();
+	struct device *dp;
+	static struct device *lastp;
 
-	if (type == drv_none)
-		{
+	if (type == drv_none) {
 		error("Unknown driver class");
 		return;
-		}
+	}
 	dp = xmalloc(sizeof(*dp));
 	dp->type = type;
 	if (devlist == 0)
@@ -300,8 +273,7 @@ static struct device *lastp;
 		lastp->next = dp;
 	lastp = dp;
 	for (;;)
-		switch(keyword(next_tok()))
-			{
+		switch (keyword(next_tok())) {
 		default:
 			pusht = 1;
 			return;
@@ -311,93 +283,83 @@ static struct device *lastp;
 		case 11:
 			addcmd(&dp->remove);
 			break;
-			}
+		}
 }
+
 /*
  *	Parse the driver description.
  */
-parse_driver()
+parse_driver(void)
 {
-char	*name, *dev, *p;
-struct driver *dp;
-static struct driver *lastp;
-int i;
-struct allocblk *bp;
-static struct flags io_flags[] =
-{
-{	"ws",		0x01 },
-{	"16bit",	0x02 },
-{	"cs16",		0x04 },
-{	"zerows",	0x08 },
-{	0, 0 }
-};
-static struct flags mem_flags[] =
-{
-{	"16bit",	0x01 },
-{	"zerows",	0x02 },
-{	"ws0",		0x04 },
-{	"ws1",		0x08 },
-{	0, 0 }
-};
+	char   *name, *dev, *p;
+	struct driver *dp;
+	static struct driver *lastp;
+	int     i;
+	struct allocblk *bp;
+	static struct flags io_flags[] = {
+		{"ws", 0x01},
+		{"16bit", 0x02},
+		{"cs16", 0x04},
+		{"zerows", 0x08},
+		{0, 0}
+	};
+	static struct flags mem_flags[] = {
+		{"16bit", 0x01},
+		{"zerows", 0x02},
+		{"ws0", 0x04},
+		{"ws1", 0x08},
+		{0, 0}
+	};
 
 	name = newstr(next_tok());
 	dev = newstr(next_tok());
 	type = drvclass_tok();
-	if (type == drv_none)
-		{
+	if (type == drv_none) {
 		error("Unknown driver class");
 		return;
-		}
+	}
 	dp = xmalloc(sizeof(*dp));
 	dp->name = name;
 	dp->kernel = dev;
 	dp->type = type;
 	dp->unit = -1;
 	dp->irq = -1;
-/*
- *	Check for unit number in driver name.
- */
+
+	/* Check for unit number in driver name. */
 	p = dev;
 	while (*p++)
-		if (*p >= '0' && *p <= '9')
-			{
+		if (*p >= '0' && *p <= '9') {
 			dp->unit = atoi(p);
 			*p = 0;
 			break;
-			}
+		}
 	if (dp->unit < 0)
 		error("Illegal kernel driver unit");
-/*
- *	Place at end of list.
- */
+
+	/* Place at end of list. */
 	if (lastp == 0)
 		drivers = dp;
 	else
 		lastp->next = dp;
 	lastp = dp;
 	for (;;)
-		switch(keyword(next_tok()))
-			{
+		switch (keyword(next_tok())) {
 		default:
 			pusht = 1;
 			return;
 		case 1:
 			bp = ioblk_tok(1);
-			if (bp)
-				{
+			if (bp) {
 				setflags(io_flags, &bp->flags);
-				if (dp->io)
-					{
+				if (dp->io) {
 					error("Duplicate I/O spec");
 					free(bp);
-					}
-				else
-					{
+				} else {
 					bit_nclear(io_avail, bp->addr,
-						bp->addr+bp->size-1);
+					    bp->addr + bp->size - 1);
 					dp->io = bp;
-					}
 				}
+			}
 			break;
 		case 2:
 			dp->irq = irq_tok(1);
@@ -406,22 +368,18 @@ static struct flags mem_flags[] =
 			break;
 		case 3:
 			bp = memblk_tok(1);
-			if (bp)
-				{
+			if (bp) {
 				setflags(mem_flags, &bp->flags);
-				if (dp->mem)
-					{
+				if (dp->mem) {
 					error("Duplicate memory spec");
 					free(bp);
-					}
-				else
-					{
+				} else {
 					bit_nclear(mem_avail,
-						MEM2BIT(bp->addr),
-						MEM2BIT(bp->addr+bp->size)-1);
+					    MEM2BIT(bp->addr),
+					    MEM2BIT(bp->addr + bp->size) - 1);
 					dp->mem = bp;
-					}
 				}
+			}
 			break;
 		case 10:
 			addcmd(&dp->insert);
@@ -429,139 +387,132 @@ static struct flags mem_flags[] =
 		case 11:
 			addcmd(&dp->remove);
 			break;
-/*
- *	iosize - Don't allocate an I/O port, but specify
- *	a size for the range of ports. The actual port number
- *	will be allocated dynamically.
- */
 		case 12:
+			/*
+			 * iosize - Don't allocate an I/O port, but specify
+			 * a size for the range of ports. The actual port
+			 * number will be allocated dynamically.
+			 */
 			i = num_tok();
 			if (i <= 0 || i > 128)
 				error("Illegal iosize");
-			else
-				{
-				int flags = 0;
+			else {
+				int     flags = 0;
 				setflags(io_flags, &flags);
 				if (dp->io)
 					error("Duplicate I/O spec");
-				else
-					{
+				else {
 					dp->io = xmalloc(sizeof(*dp->io));
 					dp->io->flags = flags;
 					dp->io->size = i;
-					}
 				}
+			}
 			break;
 		case 13:
 			i = num_tok();
-			if (i <= 0 || i > 256*1024)
+			if (i <= 0 || i > 256 * 1024)
 				error("Illegal memsize");
-			else
-				{
-				int flags = 0;
+			else {
+				int     flags = 0;
 				setflags(mem_flags, &flags);
 				if (dp->mem)
 					error("Duplicate memory spec");
-				else
-					{
+				else {
 					dp->mem = xmalloc(sizeof(*dp->mem));
 					dp->mem->flags = flags;
 					dp->mem->size = i;
-					}
 				}
-			break;
 			}
+			break;
+		}
 }
 /*
  *	drvclass_tok - next token is expected to
  *	be a driver class.
  */
 enum drvclass
-drvclass_tok()
+drvclass_tok(void)
 {
-char *s = next_tok();
+	char   *s = next_tok();
 
-	if (strcmp(s, "tty")==0)
-		return(drv_tty);
-	else if (strcmp(s, "net")==0)
-		return(drv_net);
-	else if (strcmp(s, "bio")==0)
-		return(drv_bio);
-	else if (strcmp(s, "null")==0)
-		return(drv_null);
-	return(drv_none);
+	if (strcmp(s, "tty") == 0)
+		return (drv_tty);
+	else
+		if (strcmp(s, "net") == 0)
+			return (drv_net);
+		else
+			if (strcmp(s, "bio") == 0)
+				return (drv_bio);
+			else
+				if (strcmp(s, "null") == 0)
+					return (drv_null);
+	return (drv_none);
 }
-#endif /* 0 */
+#endif	/* 0 */
+
 /*
  *	Parse one I/O block.
  */
 struct allocblk *
 ioblk_tok(int force)
 {
-struct allocblk *io;
-int i, j;
+	struct allocblk *io;
+	int     i, j;
 
-	if ((i = num_tok()) >= 0)
-		{
-		if (strcmp("-", next_tok()) || (j = num_tok()) < 0 || j < i)
-			{
+	if ((i = num_tok()) >= 0) {
+		if (strcmp("-", next_tok()) || (j = num_tok()) < 0 || j < i) {
 			error("I/O block format error");
-			return(0);
-			}
+			return (0);
+		}
 		io = xmalloc(sizeof(*io));
 		io->addr = i;
 		io->size = j - i + 1;
-		if (j > IOPORTS)
-			{
+		if (j > IOPORTS) {
 			error("I/O port out of range");
-			if (force)
-				{
+			if (force) {
 				free(io);
 				io = 0;
-				}
-			else
+			} else
 				io->addr = io->size = 0;
-			}
-		return(io);
 		}
+		return (io);
+	}
 	if (force)
 		error("Illegal or missing I/O block spec");
-	return(0);
+	return (0);
 }
+
 /*
  *	Parse a memory block.
  */
 struct allocblk *
 memblk_tok(int force)
 {
-struct allocblk *mem;
-int i, j;
+	struct allocblk *mem;
+	int     i, j;
 
 	if ((i = num_tok()) >= 0)
 		if ((j = num_tok()) < 0)
 			error("Illegal memory block");
-		else
-			{
+		else {
 			mem = xmalloc(sizeof(*mem));
-			mem->addr = i & ~(MEMUNIT-1);
-			mem->size = (j + MEMUNIT - 1) & ~(MEMUNIT-1);
-			if (i < MEMSTART || (i + j) > MEMEND)
-				{
+			mem->addr = i & ~(MEMUNIT - 1);
+			mem->size = (j + MEMUNIT - 1) & ~(MEMUNIT - 1);
+			if (i < MEMSTART || (i + j) > MEMEND) {
 				error("Memory address out of range");
-				if (force)
-					{
+				if (force) {
 					free(mem);
 					mem = 0;
-					}
-				else
+				} else
 					mem->addr = mem->size = 0;
-				}
-			return(mem);
 			}
+			return (mem);
+		}
 	if (force)
 		error("Illegal or missing memory block spec");
-	return(0);
+	return (0);
 }
+
 /*
  *	IRQ token. Must be number > 0 && < 16.
  *	If force is set, IRQ must exist, and can also be '?'.
@@ -569,31 +520,32 @@ int i, j;
 int
 irq_tok(int force)
 {
-int	i;
+	int     i;
 
-	if (strcmp("?", next_tok())==0 && force)
-		return(0);
+	if (strcmp("?", next_tok()) == 0 && force)
+		return (0);
 	pusht = 1;
 	i = num_tok();
 	if (i > 0 && i < 16)
-		return(i);
+		return (i);
 	if (force)
 		error("Illegal IRQ value");
-	return(-1);
+	return (-1);
 }
+
 /*
  *	search the table for a match.
  */
 int
 keyword(char *str)
 {
-char **s;
-int i = 1;
+	char  **s;
+	int     i = 1;
 
-	for (s = keys; *s; s++,  i++)
-		if (strcmp(*s, str)==0)
-			return(i);
-	return(0);
+	for (s = keys; *s; s++, i++)
+		if (strcmp(*s, str) == 0)
+			return (i);
+	return (0);
 }
 
 /*
@@ -602,29 +554,28 @@ int i = 1;
 void
 setflags(struct flags *flags, int *value)
 {
-char *s;
-struct flags *fp;
-int set = 1;
+	char   *s;
+	struct flags *fp;
+	int     set = 1;
 
-	do	{
+	do {
 		s = next_tok();
-		if (*s == '!')
-			{
+		if (*s == '!') {
 			s++;
 			set = 0;
-			}
+		}
 		for (fp = flags; fp->name; fp++)
-			if (strcmp(s, fp->name)==0)
-				{
+			if (strcmp(s, fp->name) == 0) {
 				if (set)
 					*value |= fp->mask;
 				else
 					*value &= ~fp->mask;
 				break;
-				}
-		} while (fp->name);
+			}
+	} while (fp->name);
 	pusht = 1;
 }
+
 /*
  *	addcmd - Append the command line to the list of
  *	commands.
@@ -632,63 +583,61 @@ int set = 1;
 void
 addcmd(struct cmd **cp)
 {
-char *s = getline();
-struct cmd *ncp;
+	struct cmd *ncp;
+	char   *s = getline();
 
-	if (*s)
-		{
+	if (*s) {
 		ncp = xmalloc(sizeof(*ncp));
 		ncp->line = s;
 		while (*cp)
 			cp = &(*cp)->next;
 		*cp = ncp;
-		}
+	}
+
 }
 void
 error(char *msg)
 {
 	pusht = 1;
 	fprintf(stderr, "%s: %s at line %d, near %s\n",
-		filename, msg, lineno, next_tok());
+	    filename, msg, lineno, next_tok());
 	pusht = 1;
 }
-int last_char;
+
+int     last_char;
 
 int
-get()
+get(void)
 {
-int	c;
+	int     c;
 
 	if (pushc)
 		c = pushc;
 	else
 		c = getc(in);
 	pushc = 0;
-	while (c == '\\')
-		{
+	while (c == '\\') {
 		c = getc(in);
-		switch(c)
-			{
+		switch (c) {
 		case '#':
-			return(last_char = c);
+			return (last_char = c);
 		case '\n':
 			lineno++;
 			c = getc(in);
 			continue;
-			}
-		pushc = c;
-		return('\\');
 		}
+		pushc = c;
+		return ('\\');
+	}
 	if (c == '\n')
 		lineno++;
-	if (c == '#')
-		{
-		while (get() != '\n')
-			;
-		return(last_char = '\n');
-		}
-	return(last_char = c);
+	if (c == '#') {
+		while (get() != '\n');
+		return (last_char = '\n');
+	}
+	return (last_char = c);
 }
+
 /*
  *	num_tok - expecting a number token. If not a number,
  *	return -1.
@@ -699,127 +648,128 @@ int	c;
  *	and multiplies by 1024.
  */
 int
-num_tok()
+num_tok(void)
 {
-char *s = next_tok(), c;
-int val=0, base;
+	char   *s = next_tok(), c;
+	int     val = 0, base;
 
 	base = 10;
 	c = *s++;
-	if (c == '0')
-		{
+	if (c == '0') {
 		base = 8;
 		c = *s++;
-		if (c == 'x' || c == 'X')
-			{
+		if (c == 'x' || c == 'X') {
 			c = *s++;
 			base = 16;
-			}
 		}
-	do	{
-		switch(c)
-			{
+	}
+	do {
+		switch (c) {
 		case 'k':
 		case 'K':
 			if (val && base == 10 && *s == 0)
-				return(val * 1024);
-			return(-1);
+				return (val * 1024);
+			return (-1);
 		default:
-			return(-1);
-		case '0': case '1':
-		case '2': case '3':
-		case '4': case '5':
-		case '6': case '7':
+			return (-1);
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
 			val = val * base + c - '0';
 			break;
 
-		case '8': case '9':
+		case '8':
+		case '9':
 			if (base == 8)
-				return(-1);
+				return (-1);
 			else
 				val = val * base + c - '0';
 			break;
-		case 'a': case 'b':
-		case 'c': case 'd':
-		case 'e': case 'f':
+		case 'a':
+		case 'b':
+		case 'c':
+		case 'd':
+		case 'e':
+		case 'f':
 			if (base == 16)
 				val = val * base + c - 'a' + 10;
 			else
-				return(-1);
+				return (-1);
 			break;
-		case 'A': case 'B':
-		case 'C': case 'D':
-		case 'E': case 'F':
+		case 'A':
+		case 'B':
+		case 'C':
+		case 'D':
+		case 'E':
+		case 'F':
 			if (base == 16)
 				val = val * base + c - 'A' + 10;
 			else
-				return(-1);
+				return (-1);
 			break;
-			}
-		} while ((c = *s++) != 0);
-	return(val);
+		}
+	} while ((c = *s++) != 0);
+	return (val);
 }
-char *_next_tok();
-char *
-next_tok()
+
+char   *_next_tok(void);
+
+char   *
+next_tok(void)
 {
-char *s = _next_tok();
+	char   *s = _next_tok();
 #if 0
 	printf("Tok = %s\n", s);
 #endif
-	return(s);
+	return (s);
 }
+
 /*
  *	get one token. Handles string quoting etc.
  */
-char *
-_next_tok()
+char   *
+_next_tok(void)
 {
-static char buf[1024];
-char *p = buf, instr = 0;
-int c;
+	static char buf[1024];
+	char   *p = buf, instr = 0;
+	int     c;
 
-	if (pusht)
-		{
+	if (pusht) {
 		pusht = 0;
-		return(buf);
-		}
-	for(;;)
-		{
+		return (buf);
+	}
+	for (;;) {
 		c = get();
-		switch(c)
-			{
+		switch (c) {
 		default:
 			*p++ = c;
 			break;
 		case '"':
-			if (instr)
-				{
+			if (instr) {
 				*p++ = 0;
-				return(buf);
-				}
+				return (buf);
+			}
 			instr = 1;
 			break;
 		case '\n':
-			if (instr)
-				{
+			if (instr) {
 				error("Unterminated string");
 				break;
-				}
-/*
- *	Eat whitespace unless in a string.
- */
+			}
 		case ' ':
 		case '\t':
-			if (!instr)
-				{
-				if (p!=buf)
-					{
+			/* Eat whitespace unless in a string. */
+			if (!instr) {
+				if (p != buf) {
 					*p++ = 0;
-					return(buf);
-					}
+					return (buf);
 				}
-			else
+			} else
 				*p++ = c;
 			break;
 /*
@@ -830,48 +780,45 @@ int c;
 		case '*':
 			if (instr)
 				*p++ = c;
-			else
-				{
+			else {
 				if (p != buf)
 					pushc = c;
 				else
 					*p++ = c;
 				*p++ = 0;
-				return(buf);
-				}
+				return (buf);
+			}
 			break;
 		case EOF:
-			if (p != buf)
-				{
+			if (p != buf) {
 				*p++ = 0;
-				return(buf);
-				}
-			strcpy(buf, "__EOF__");
-			return(buf);
+				return (buf);
 			}
+			strcpy(buf, "__EOF__");
+			return (buf);
 		}
+	}
 }
-
 /*
- *	get the rest of the line. If the 
+ *	get the rest of the line. If the
  *	last character scanned was a newline, then
  *	return an empty line. If this isn't checked, then
  *	a getline may incorrectly return the next line.
  */
-char *
-getline()
+char   *
+getline(void)
 {
-char buf[1024], *p = buf;
-int c, i = 0;
+	char    buf[1024], *p = buf;
+	int     c, i = 0;
 
 	if (last_char == '\n')
-		return(newstr(""));
+		return (newstr(""));
 	do {
-	   c = get();
-	   } while (c == ' ' || c == '\t');
-	for (;c != '\n' && c != EOF; c = get())
-	    if (i++ < sizeof(buf)-10)
-		*p++ = c;
+		c = get();
+	} while (c == ' ' || c == '\t');
+	for (; c != '\n' && c != EOF; c = get())
+		if (i++ < sizeof(buf) - 10)
+			*p++ = c;
 	*p = 0;
-	return(newstr(buf));
+	return (newstr(buf));
 }
