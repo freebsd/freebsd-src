@@ -536,7 +536,7 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_INACTIVE;
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_FORCE_SYNC;
 		g_mirror_update_metadata(disk);
-		sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID_OFW;
+		sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
 		    G_MIRROR_EVENT_WAIT);
 	}
