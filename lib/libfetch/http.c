@@ -179,6 +179,7 @@ _http_growbuf(struct httpio *io, size_t len)
 		return (-1);
 	io->buf = tmp;
 	io->bufsize = len;
+	return (0);
 }
 
 /*
