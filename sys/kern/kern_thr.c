@@ -258,11 +258,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 		goto out;
 	}
 
-	/*
-	 * We need a way to force this to go into this thread's siglist.
-	 * Until then blocked signals will go to the proc.
-	 */
-	tdsignal(ttd, uap->sig);
+	tdsignal(ttd, uap->sig, SIGTARGET_TD);
 out:
 	PROC_UNLOCK(p);
 

@@ -205,6 +205,13 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 
 #ifdef _KERNEL
 
+/*
+ * Specifies the target of a signal.
+ *	P - Doesn't matter which thread it gets delivered to.
+ *	TD - Must be delivered to a specific thread.
+ */
+typedef enum sigtarget_enum { SIGTARGET_P, SIGTARGET_TD } sigtarget_t;
+
 /* Return nonzero if process p has an unmasked pending signal. */
 #define	SIGPENDING(td)							\
 	(!SIGISEMPTY((td)->td_siglist) &&				\
@@ -267,7 +274,7 @@ void	sigexit(struct thread *td, int signum) __dead2;
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
-void	tdsignal(struct thread *td, int sig);
+void	tdsignal(struct thread *td, int sig, sigtarget_t target);
 void	trapsignal(struct thread *td, int sig, u_long code);
 
 /*
