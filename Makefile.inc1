@@ -324,7 +324,7 @@ installworld:
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
 	    ln make makewhatis mkdir mtree mv perl rm sed sh sysctl \
-	    test true uname wc zic; do \
+	    test touch true uname wc which zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
 	cd ${.CURDIR}; ${IMAKE} reinstall
