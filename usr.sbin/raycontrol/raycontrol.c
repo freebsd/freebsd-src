@@ -460,6 +460,8 @@ main(int argc, char *argv[])
 				stringp = optarg;
 				ap = av;
 				*ap = strsep(&stringp, ":");
+				if (stringp == NULL)
+					usage(p);
 				ap++;
 				*ap = strsep(&stringp, ":");
 				mib = atoi(av[0]);
