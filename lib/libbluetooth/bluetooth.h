@@ -45,7 +45,7 @@
 __BEGIN_DECLS
 
 /*
- * Lunux BlueZ compatibility
+ * Linux BlueZ compatibility
  */
 
 #define	bacmp(ba1, ba2)	memcmp((ba1), (ba2), sizeof(bdaddr_t))
