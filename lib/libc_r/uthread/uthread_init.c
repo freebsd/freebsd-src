@@ -169,7 +169,7 @@ _thread_init(void)
 			PANIC("Cannot get dtablesize");
 		}
 		/* Allocate memory for the file descriptor table: */
-		if ((_thread_fd_table = (struct fd_table_entry **) malloc(sizeof(struct fd_table_entry) * _thread_dtablesize)) == NULL) {
+		if ((_thread_fd_table = (struct fd_table_entry **) malloc(sizeof(struct fd_table_entry *) * _thread_dtablesize)) == NULL) {
 			/*
 			 * Cannot allocate memory for the file descriptor
 			 * table, so abort this process. 
