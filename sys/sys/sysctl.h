@@ -585,6 +585,9 @@ void	sysctl_unregister_set(struct linker_set *lsp);
 int	kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 		      size_t *oldlenp, void *new, size_t newlen,
 		      size_t *retval);
+int	kernel_sysctlbyname(struct proc *p, char *name,
+		void *old, size_t *oldlenp, void *new, size_t newlen,
+		size_t *retval);
 int	userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 			size_t *oldlenp, int inkernel, void *new, size_t newlen,
 			size_t *retval);
