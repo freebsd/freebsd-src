@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: menu1.c,v 1.1 1996/01/01 03:45:26 jkh Exp $
  */
 
 #include <stdio.h>
@@ -107,7 +107,7 @@ main(int argc, unsigned char *argv[])
   retval = dialog_menu("this is dialog_menu() in action, test #1",
 		       "this simple menu shows off some of the straight-forward features\n"
 		       "of the new menu system's action dispatch hooks.  Select Cancel to leave",
-		       -1, -1, 3, -3, &menu1, NULL, NULL, NULL);
+		       -1, -1, 3, -3, menu1, NULL, NULL, NULL);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_menu was %d\n", retval);
 

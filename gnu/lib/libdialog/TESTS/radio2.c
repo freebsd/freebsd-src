@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: radio2.c,v 1.1 1996/01/01 03:45:29 jkh Exp $
  */
 
 #include <stdio.h>
@@ -79,7 +79,7 @@ main(int argc, unsigned char *argv[])
 			    "Welcome to \"The Love Blender!\" - America's favorite game show\n"
 			    "where YOU, the contestant, get to choose which of these two\n"
 			    "fine specimens of humanity will go home together, whether they\n"
-			    "like it or not!", -1, -1, 7, -7, &menu6, NULL);
+			    "like it or not!", -1, -1, 7, -7, menu6, NULL);
   dialog_clear();
   fprintf(stderr, "I'm sure that %s and %s will be very happy together!\n", bachelor, bachelette);
 
