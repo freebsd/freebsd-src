@@ -115,7 +115,9 @@ char	*argv[];
 		errx(1, "unknown object format \"%s\"", objformat);
 
 	hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
-	while ((c = getopt(argc, argv, "Rf:mrsv")) != -1) {
+	if (argc == 1)
+		rescan = 1;
+	else while((c = getopt(argc, argv, "Rf:mrsv")) != -1) {
 		switch (c) {
 		case 'R':
 			rescan = 1;
