@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 
 #include <err.h>
@@ -49,8 +50,13 @@ main(int argc __unused, char *argv[])
 	char path[PATH_MAX], *cp;
 	const char *cmd, *p, *q, *self;
 	size_t len;
+	struct stat self_stat, perl_stat;
 
 	self = argv[0];
+	if (stat (self, &self_stat) != 0) {
+		self_stat.st_dev = makedev (0, 0);
+		self_stat.st_ino = 0;
+	}
 	if ((cmd = strrchr(self, '/')) == NULL)
 		cmd = self;
 	else
@@ -78,6 +84,10 @@ main(int argc __unused, char *argv[])
 			/* nothing */ ;
 		len = snprintf(path, sizeof path, "%.*s/%s", (int)(q - p), p, cmd);
 		if (len >= PATH_MAX || strcmp(path, self) == 0)
+			continue;
+		if (stat (path, &perl_stat) == 0
+		    && self_stat.st_dev == perl_stat.st_dev
+		    && self_stat.st_ino == perl_stat.st_ino)
 			continue;
 		execve(path, argv, environ);
 		if (errno != ENOENT)
