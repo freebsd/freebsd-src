@@ -45,31 +45,47 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/param.h>
 
+extern char *__progname;
+
+static char *getcwd_logical(void);
 void usage(void);
 
 int
 main(int argc, char *argv[])
 {
+	int Lflag, Pflag;
 	int ch;
 	char *p;
 	char buf[PATH_MAX];
 
-	/*
-	 * Flags for pwd are a bit strange.  The POSIX 1003.2B/D9 document
-	 * has an optional -P flag for physical, which is what this program
-	 * will produce by default.  The logical flag, -L, should fail, as
-	 * there's no way to display a logical path after forking.
-	 */
-	while ((ch = getopt(argc, argv, "P")) != -1)
+	if (strcmp(__progname, "realpath") == 0) {
+		if (argc != 2)
+			usage();
+		if ((p = realpath(argv[1], buf)) == NULL)
+			err(1, "%s", argv[1]);
+		(void)printf("%s\n", p);
+		exit(0);
+	}
+
+	Lflag = Pflag = 0;
+	while ((ch = getopt(argc, argv, "LP")) != -1)
 		switch (ch) {
+		case 'L':
+			Lflag = 1;
+			break;
 		case 'P':
+			Pflag = 1;
 			break;
 		case '?':
 		default:
@@ -78,19 +94,13 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc == 1) {
-		p = realpath(argv[0], buf);
-		if (p == NULL)
-			err(1, "%s", argv[0]);
-		(void)printf("%s\n", p);
-	} else  if (argc == 0) {
-		p = getcwd(NULL, (size_t)0);
-		if (p == NULL)
-			err(1, ".");
-		(void)printf("%s\n", p);
-	} else {
+	if (argc != 0 || (Lflag && Pflag))
 		usage();
-	}
+
+	p = Lflag ? getcwd_logical() : getcwd(NULL, 0);
+	if (p == NULL)
+		err(1, ".");
+	(void)printf("%s\n", p);
 
 	exit(0);
 }
@@ -99,6 +109,30 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: pwd\n");
-	exit(1);
+	if (strcmp(__progname, "realpath") == 0)
+		(void)fprintf(stderr, "usage: realpath [path]\n");
+	else
+		(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
+  	exit(1);
+}
+
+static char *
+getcwd_logical(void)
+{
+	struct stat log, phy;
+	char *pwd;
+
+	/*
+	 * Check that $PWD is an absolute logical pathname referring to
+	 * the current working directory.
+	 */
+	if ((pwd = getenv("PWD")) != NULL && *pwd == '/') {
+		if (stat(pwd, &log) == -1 || stat(".", &phy) == -1)
+			return (NULL);
+		if (log.st_dev == phy.st_dev && log.st_ino == phy.st_ino)
+			return (pwd);
+	}
+
+	errno = ENOENT;
+	return (NULL);
 }
