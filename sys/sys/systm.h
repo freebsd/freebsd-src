@@ -282,21 +282,6 @@ static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl __unused)	{ return; }
 
-/*
- * Various callout lists.
- */
-
-/*
- * Not exactly a callout LIST, but a callout entry.
- * Allow an external module to define a hardware watchdog tickler.
- * Normally a process would do this, but there are times when the
- * kernel needs to be able to hold off the watchdog, when the process
- * is not active, e.g., when dumping core.
- */
-typedef void (*watchdog_tickle_fn)(void);
-
-extern watchdog_tickle_fn	wdog_tickler;
-
 /* 
  * Common `proc' functions are declared here so that proc.h can be included
  * less often.
