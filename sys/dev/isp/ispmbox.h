@@ -590,6 +590,22 @@ typedef struct isp_icb {
 	array[ICB_NNM7] = (u_int8_t) ((wwn >> 56) & 0xff)
 
 /*
+ * FC-AL Position Map
+ *
+ * This is an at most 128 byte map that returns either
+ * the LILP or Firmware generated list of ports.
+ *
+ * We deviate a bit from the returned qlogic format to
+ * use an extra bit to say whether this was a LILP or
+ * f/w generated map.
+ */
+typedef struct {
+	u_int8_t	fwmap	: 1,
+			count	: 7;
+	u_int8_t	map[127];
+} fcpos_map_t;
+
+/*
  * Port Data Base Element
  */
 
