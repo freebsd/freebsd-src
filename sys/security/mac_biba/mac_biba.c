@@ -72,6 +72,7 @@
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 
+#include <vm/uma.h>
 #include <vm/vm.h>
 
 #include <sys/mac_policy.h>
@@ -124,7 +125,7 @@ TUNABLE_INT("security.mac.biba.revocation_enabled", &revocation_enabled);
 static int	mac_biba_slot;
 #define	SLOT(l)	((struct mac_biba *)LABEL_TO_SLOT((l), mac_biba_slot).l_ptr)
 
-MALLOC_DEFINE(M_MACBIBA, "biba label", "MAC/Biba labels");
+static uma_zone_t	zone_biba;
 
 static __inline int
 biba_bit_set_empty(u_char *set) {
@@ -139,11 +140,8 @@ biba_bit_set_empty(u_char *set) {
 static struct mac_biba *
 biba_alloc(int flag)
 {
-	struct mac_biba *mac_biba;
 
-	mac_biba = malloc(sizeof(struct mac_biba), M_MACBIBA, M_ZERO | flag);
-
-	return (mac_biba);
+	return (uma_zalloc(zone_biba, flag | M_ZERO));
 }
 
 static void
@@ -151,7 +149,7 @@ biba_free(struct mac_biba *mac_biba)
 {
 
 	if (mac_biba != NULL)
-		free(mac_biba, M_MACBIBA);
+		uma_zfree(zone_biba, mac_biba);
 	else
 		atomic_add_int(&destroyed_not_inited, 1);
 }
@@ -492,6 +490,8 @@ static void
 mac_biba_init(struct mac_policy_conf *conf)
 {
 
+	zone_biba = uma_zcreate("mac_biba", sizeof(struct mac_biba), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 
 /*
