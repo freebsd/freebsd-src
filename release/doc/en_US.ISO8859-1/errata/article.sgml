@@ -68,15 +68,6 @@
       operation or usability.  An up-to-date version of this document
       should always be consulted before installing this version of
       &os;.</para>
-
-    <para>This errata document for &os;
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
-      will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
   <sect1>
