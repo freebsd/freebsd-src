@@ -47,9 +47,9 @@
 /*
  * ar_io.c
  */
-extern char *arcname;
+extern const char *arcname;
 extern const char *gzip_program;
-int ar_open(char *);
+int ar_open(const char *);
 void ar_close(void);
 void ar_drain(void);
 int ar_set_wr(void);
@@ -105,8 +105,8 @@ int uidtb_start(void);
 int gidtb_start(void);
 int usrtb_start(void);
 int grptb_start(void);
-char * name_uid(uid_t, int);
-char * name_gid(gid_t, int);
+const char * name_uid(uid_t, int);
+const char * name_gid(gid_t, int);
 int uid_name(char *, uid_t *);
 int gid_name(char *, gid_t *);
 
@@ -167,7 +167,7 @@ int next_file(ARCHD *);
  */
 void ls_list(ARCHD *, time_t, FILE *);
 void ls_tty(ARCHD *);
-int l_strncpy(char *, char *, int);
+int l_strncpy(char *, const char *, int);
 u_long asc_ul(char *, int, int);
 int ul_asc(u_long, char *, int, int);
 #ifndef NET2_STAT
@@ -178,7 +178,7 @@ int uqd_asc(u_quad_t, char *, int, int);
 /*
  * getoldopt.c
  */
-int getoldopt(int, char **, char *);
+int getoldopt(int, char **, const char *);
 
 /*
  * options.c
@@ -187,7 +187,7 @@ extern FSUB fsub[];
 extern int ford[];
 void options(int, char **);
 OPLIST * opt_next(void);
-int opt_add(char *);
+int opt_add(const char *);
 int bad_opt(void);
 char *chdname;
 
@@ -233,7 +233,7 @@ extern int rmleadslash;
 extern int exit_val;
 extern int docrc;
 extern char *dirptr;
-extern char *argv0;
+extern const char *argv0;
 extern FILE *listf;
 extern char *tempfile;
 extern char *tempbase;

@@ -88,7 +88,7 @@ ls_list(ARCHD *arcn, time_t now, FILE *fp)
 	struct stat *sbp;
 	char f_mode[MODELEN];
 	char f_date[DATELEN];
-	char *timefrmt;
+	const char *timefrmt;
 
 	/*
 	 * if not verbose, just print the file name
@@ -167,7 +167,7 @@ ls_tty(ARCHD *arcn)
 {
 	char f_date[DATELEN];
 	char f_mode[MODELEN];
-	char *timefrmt;
+	const char *timefrmt;
 
 	if (d_first < 0)
 		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
@@ -198,7 +198,7 @@ ls_tty(ARCHD *arcn)
  */
 
 int
-l_strncpy(char *dest, char *src, int len)
+l_strncpy(char *dest, const char *src, int len)
 {
 	char *stop;
 	char *start;

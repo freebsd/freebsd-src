@@ -173,7 +173,7 @@ grptb_start(void)
  *	Pointer to stored name (or an empty string).
  */
 
-char *
+const char *
 name_uid(uid_t uid, int frc)
 {
 	struct passwd *pw;
@@ -244,7 +244,7 @@ name_uid(uid_t uid, int frc)
  *	Pointer to stored name (or an empty string).
  */
 
-char *
+const char *
 name_gid(gid_t gid, int frc)
 {
 	struct group *gr;
