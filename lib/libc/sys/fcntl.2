@@ -333,6 +333,12 @@ locks may be safely used concurrently.
 All locks associated with a file for a given process are
 removed when the process terminates.
 .Pp
+All locks obtained before a call to
+.Xr execve 2
+remain in effect until the new program releases them.
+If the new program does not know about the locks, they will not be
+released until the program exits.
+.Pp
 A potential for deadlock occurs if a process controlling a locked region
 is put to sleep by attempting to lock the locked region of another process.
 This implementation detects that sleeping until a locked region is unlocked
