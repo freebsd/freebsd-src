@@ -149,6 +149,7 @@ void
 gusintr (int unit)
 {
   unsigned char   src;
+  unsigned long	  flags;
 
   while (1)
     {
@@ -175,7 +176,9 @@ gusintr (int unit)
 
       if (src & (WAVETABLE_IRQ | ENVELOPE_IRQ))
 	{
+	  DISABLE_INTR (flags);
 	  gus_voice_irq ();
+	  RESTORE_INTR (flags);
 	}
     }
 }
