@@ -92,6 +92,14 @@ static pcm_channel ess_chantemplate = {
 	esschan_trigger,
 	esschan_getptr,
 	esschan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 struct ess_info;
@@ -139,10 +147,11 @@ static int essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 static int essmix_setrecsrc(snd_mixer *m, u_int32_t src);
 
 static snd_mixer ess_mixer = {
-    "ESS mixer",
-    essmix_init,
-    essmix_set,
-    essmix_setrecsrc,
+    	"ESS mixer",
+    	essmix_init,
+	NULL,
+    	essmix_set,
+    	essmix_setrecsrc,
 };
 
 static devclass_t pcm_devclass;
@@ -365,7 +374,6 @@ ess_alloc_resources(struct ess_info *sc, device_t dev)
 static int
 ess_doattach(device_t dev, struct ess_info *sc)
 {
-    	snddev_info *d = device_get_softc(dev);
     	void *ih;
     	char status[SND_STATUSLEN], buf[64];
 	int ver;
@@ -374,7 +382,7 @@ ess_doattach(device_t dev, struct ess_info *sc)
 		goto no;
     	if (ess_reset_dsp(sc))
 		goto no;
-    	mixer_init(d, &ess_mixer, sc);
+    	mixer_init(dev, &ess_mixer, sc);
 
 	sc->duplex = 0;
 	sc->newspeed = 0;

@@ -78,6 +78,7 @@ struct sc_info {
 
 /* channel interface */
 static void *nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+static int nmchan_free(void *data);
 static int nmchan_setdir(void *data, int dir);
 static int nmchan_setformat(void *data, u_int32_t format);
 static int nmchan_setspeed(void *data, u_int32_t speed);
@@ -143,6 +144,14 @@ static pcm_channel nm_chantemplate = {
 	nmchan_trigger,
 	nmchan_getptr,
 	nmchan_getcaps,
+	nmchan_free, 		/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -364,6 +373,12 @@ nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
+nmchan_free(void *data)
+{
+	return 0;
+}
+
+static int
 nmchan_setdir(void *data, int dir)
 {
 	return 0;
@@ -582,13 +597,11 @@ nm_pci_probe(device_t dev)
 static int
 nm_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct sc_info *sc;
 	struct ac97_info *codec;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -622,7 +635,7 @@ nm_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, sc, nm_initcd, nm_rdcd, nm_wrcd);
 	if (codec == NULL) goto bad;
-	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -656,10 +669,8 @@ bad:
 static int
 nm_pci_resume(device_t dev)
 {
-	snddev_info *d;
 	struct sc_info *sc;
 
-	d = device_get_softc(dev);
 	sc = pcm_getdevinfo(dev);
 
 	/* Reinit audio device */
@@ -668,7 +679,7 @@ nm_pci_resume(device_t dev)
 		return ENXIO;
 	}
 	/* Reinit mixer */
-    	if (mixer_reinit(d) == -1) {
+    	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
 		return ENXIO;
 	}
