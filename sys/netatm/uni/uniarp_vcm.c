@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_vcm.c,v 1.10 1998/06/29 22:15:46 mks Exp $
+ *	@(#) $Id: uniarp_vcm.c,v 1.1 1998/09/15 08:23:10 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: uniarp_vcm.c,v 1.10 1998/06/29 22:15:46 mks Exp $";
+static char *RCSid = "@(#) $Id: uniarp_vcm.c,v 1.1 1998/09/15 08:23:10 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -92,7 +92,7 @@ uniarp_pvcopen(ivp)
 	struct uniarp	*uap;
 	int		s, err;
 
-	ATM_DEBUG1("uniarp_pvcopen: ivp=0x%x\n", (int)ivp);
+	ATM_DEBUG1("uniarp_pvcopen: ivp=%p\n", ivp);
 
 	ivp->iv_arpent = NULL;
 
@@ -195,7 +195,7 @@ uniarp_svcout(ivp, dst)
 	struct uniarp	*uap;
 	int	s = splnet();
 
-	ATM_DEBUG2("uniarp_svcout: ivp=0x%x,dst=0x%x\n", (int)ivp, dst->s_addr);
+	ATM_DEBUG2("uniarp_svcout: ivp=%p,dst=0x%x\n", ivp, dst->s_addr);
 
 	ivp->iv_arpent = NULL;
 
@@ -332,7 +332,7 @@ uniarp_svcin(ivp, dst, dstsub)
 	struct uniarp	*uap;
 	int	found = 0, i, s = splnet();
 
-	ATM_DEBUG1("uniarp_svcin: ivp=0x%x\n", (int)ivp);
+	ATM_DEBUG1("uniarp_svcin: ivp=%p\n", ivp);
 
 	/*
 	 * Clear ARP entry field
@@ -476,7 +476,7 @@ uniarp_svcactive(ivp)
 	struct uniarp	*uap;
 	int	err, s = splnet();
 
-	ATM_DEBUG1("uniarp_svcactive: ivp=0x%x\n", (int)ivp);
+	ATM_DEBUG1("uniarp_svcactive: ivp=%p\n", ivp);
 
 	inp = ivp->iv_ipnif;
 	uip = (struct uniip *)inp->inf_isintf;
@@ -571,7 +571,7 @@ uniarp_vcclose(ivp)
 	struct uniarp	*uap;
 	int	s;
 
-	ATM_DEBUG1("uniarp_vcclose: ivp=0x%x\n", (int)ivp);
+	ATM_DEBUG1("uniarp_vcclose: ivp=%p\n", ivp);
 
 	/*
 	 * Close our CM connection

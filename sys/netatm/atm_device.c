@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_device.c,v 1.7 1998/03/24 20:42:39 mks Exp $
+ *	@(#) $Id: atm_device.c,v 1.1 1998/09/15 08:22:57 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_device.c,v 1.7 1998/03/24 20:42:39 mks Exp $";
+static char *RCSid = "@(#) $Id: atm_device.c,v 1.1 1998/09/15 08:22:57 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -235,8 +235,8 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 		 */
 		if ( cvp->cv_state != CVS_INST ) {
 			log ( LOG_ERR,
-				"atm_dev_lower: INIT: tok=0x%x, state=%d\n",
-				(int)tok, cvp->cv_state );
+				"atm_dev_lower: INIT: tok=%p, state=%d\n",
+				tok, cvp->cv_state );
 			break;
 		}
 
@@ -251,8 +251,8 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 					vcp->vc_type & (VCC_IN | VCC_OUT))
 						!= cvp){
 				log ( LOG_ERR,
-				  "atm_dev_lower: dup SVC (%d,%d) tok=0x%x\n",
-					vcp->vc_vpi, vcp->vc_vci, (int)tok );
+				  "atm_dev_lower: dup SVC (%d,%d) tok=%p\n",
+					vcp->vc_vpi, vcp->vc_vci, tok );
 				atm_cm_abort(cvp->cv_connvc, &atm_dev_cause);
 				break;
 			}
@@ -347,8 +347,8 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 		if ((state != CVS_ACTIVE) && 
 		    (state != CVS_INITED)) {
 			log ( LOG_ERR,
-			    "atm_dev_lower: UNITDATA: tok=0x%x, state=%d\n",
-				(int)tok, state );
+			    "atm_dev_lower: UNITDATA: tok=%p, state=%d\n",
+				tok, state );
 			KB_FREEALL((KBuffer *)arg1);
 			break;
 		}
@@ -362,14 +362,14 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 
 	case CPCS_UABORT_INV:
 		log ( LOG_ERR,
-		    "atm_dev_lower: unimplemented stack cmd 0x%x, tok=0x%x\n",
-			cmd, (int)tok );
+		    "atm_dev_lower: unimplemented stack cmd 0x%x, tok=%p\n",
+			cmd, tok );
 		break;
 
 	default:
 		log ( LOG_ERR,
-			"atm_dev_lower: unknown stack cmd 0x%x, tok=0x%x\n",
-			cmd, (int)tok );
+			"atm_dev_lower: unknown stack cmd 0x%x, tok=%p\n",
+			cmd, tok );
 
 	}
 
@@ -506,8 +506,8 @@ atm_dev_alloc(size, align, flags)
 	 */
 	KM_ZERO(mep->me_uaddr, size);
 
-	ATM_DEBUG4("atm_dev_alloc: size=%d, align=%d, flags=%d, uaddr=0x%x\n", 
-		size, align, flags, (int)mep->me_uaddr);
+	ATM_DEBUG4("atm_dev_alloc: size=%d, align=%d, flags=%d, uaddr=%p\n", 
+		size, align, flags, mep->me_uaddr);
 
 	(void) splx(s);
 
@@ -538,7 +538,7 @@ atm_dev_free(uaddr)
 	Mem_ent		*mep;
 	int		s, i;
 
-	ATM_DEBUG1("atm_dev_free: uaddr=0x%x\n", (int)uaddr);
+	ATM_DEBUG1("atm_dev_free: uaddr=%p\n", uaddr);
 
 	s = splimp();
 

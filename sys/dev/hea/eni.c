@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.c,v 1.4 1998/06/29 19:39:10 jpt Exp $
+ *	@(#) $Id: eni.c,v 1.1 1998/09/15 08:22:52 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef	lint
-static char *RCSid = "@(#) $Id: eni.c,v 1.4 1998/06/29 19:39:10 jpt Exp $";
+static char *RCSid = "@(#) $Id: eni.c,v 1.1 1998/09/15 08:22:52 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -496,7 +496,7 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	 * Make a hw version number from the ID register values.
 	 * Format: {Midway ID}.{Mother board ID}.{Daughter board ID}
 	 */
-	sprintf ( eup->eu_config.ac_hard_vers, "%d/%d/%d",
+	sprintf ( eup->eu_config.ac_hard_vers, "%ld/%ld/%ld",
 	    (val >> ID_SHIFT) & ID_MASK,
 		(val >> MID_SHIFT) & MID_MASK,
 			(val >> DID_SHIFT) & DID_MASK );
@@ -504,7 +504,7 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	/*
 	 * There is no software version number
 	 */
-	sprintf ( eup->eu_config.ac_firm_vers, "\0" );
+	eup->eu_config.ac_firm_vers[0] = '\0';
 
 	/*
 	 * Save device ram info for user-level programs

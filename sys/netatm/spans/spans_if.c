@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_if.c,v 1.12 1998/08/26 23:29:09 mks Exp $
+ *	@(#) $Id: spans_if.c,v 1.1 1998/09/15 08:23:03 phk Exp $
  *
  */
 
@@ -37,7 +37,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: spans_if.c,v 1.12 1998/08/26 23:29:09 mks Exp $";
+static char *RCSid = "@(#) $Id: spans_if.c,v 1.1 1998/09/15 08:23:03 phk Exp $";
 #endif
 
 #ifndef ATM_SPANS_MODULE
@@ -256,7 +256,7 @@ spans_attach(smp, pip)
 	struct spans	*spp = NULL;
 	struct atm_nif	*np;
 
-	ATM_DEBUG2("spans_attach: smp=%x, pip=%x\n", smp, pip);
+	ATM_DEBUG2("spans_attach: smp=%p, pip=%p\n", smp, pip);
 
 	/*
 	 * Count network interfaces attached to the physical interface.
@@ -377,7 +377,7 @@ spans_detach(pip)
 	Atm_connection		*cop;
 	int			err;
 
-	ATM_DEBUG1("spans_detach: pip=0x%x\n", pip);
+	ATM_DEBUG1("spans_detach: pip=%p\n", pip);
 
 	/*
 	 * Get SPANS protocol instance
@@ -420,7 +420,7 @@ spans_detach(pip)
 		 */
 		err = spans_clear_vcc(spp, (struct spans_vccb *)vcp);
 		if (err) {
-			log(LOG_ERR, "spans: error %d clearing VCCB 0x%x\n",
+			log(LOG_ERR, "spans: error %d clearing VCCB %p\n",
 					err, vcp);
 		}
 	}
@@ -432,7 +432,7 @@ spans_detach(pip)
 		err = atm_cm_release(cop, &spans_cause);
 		if (err)
 			ATM_DEBUG2(
-					"spans_detach: close failed for SPANS signalling channel; cop=0x%x, err=%d\n",
+					"spans_detach: close failed for SPANS signalling channel; cop=%p, err=%d\n",
 					cop, err);
 	}
 	
@@ -494,7 +494,7 @@ spans_setup(cvp, errp)
 	struct spans	*spp = (struct spans *)pip->pif_siginst;
 	int		rc = 0;
 
-	ATM_DEBUG1("spans_setup: cvp=0x%x\n", cvp);
+	ATM_DEBUG1("spans_setup: cvp=%p\n", cvp);
 
 	/*
 	 * Intialize the returned error code
@@ -560,7 +560,7 @@ spans_release(vcp, errp)
 	struct atm_pif	*pip = vcp->vc_pif;
 	struct spans	*spp = (struct spans *)pip->pif_siginst;
 
-	ATM_DEBUG1("spans_release: vcp=0x%x\n", vcp);
+	ATM_DEBUG1("spans_release: vcp=%p\n", vcp);
 
 	/*
 	 * Initialize returned error code
@@ -632,7 +632,7 @@ spans_accept(vcp, errp)
 	struct spans		*spp = (struct spans *)pip->pif_siginst;
 	struct spans_vccb	*svp = (struct spans_vccb *)vcp;
 
-	ATM_DEBUG1("spans_accept: vcp=0x%x\n", vcp);
+	ATM_DEBUG1("spans_accept: vcp=%p\n", vcp);
 
 	/*
 	 * Initialize the returned error code
@@ -704,7 +704,7 @@ spans_reject(vcp, errp)
 	struct spans		*spp = (struct spans *)pip->pif_siginst;
 	struct spans_vccb	*svp = (struct spans_vccb *)vcp;
 
-	ATM_DEBUG1("spans_reject: vcp=0x%x\n", vcp);
+	ATM_DEBUG1("spans_reject: vcp=%p\n", vcp);
 
 	/*
 	 * Initialize the returned error code
@@ -818,7 +818,7 @@ spans_free(vcp)
 	struct atm_pif *pip = vcp->vc_pif;
 	struct spans *spp = (struct spans *)pip->pif_siginst;
 
-	ATM_DEBUG1("spans_free: vcp = 0x%x\n", vcp);
+	ATM_DEBUG1("spans_free: vcp = %p\n", vcp);
 
 	/*
 	 * Make sure VCC has been closed

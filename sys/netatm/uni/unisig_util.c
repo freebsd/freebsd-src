@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_util.c,v 1.9 1998/08/26 23:29:24 mks Exp $
+ *	@(#) $Id: unisig_util.c,v 1.1 1998/09/15 08:23:13 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_util.c,v 1.9 1998/08/26 23:29:24 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_util.c,v 1.1 1998/09/15 08:23:13 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -65,7 +65,7 @@ unisig_free_msg(msg)
 	int			i;
 	struct ie_generic	*ie, *ienxt;
 
-	ATM_DEBUG1("unisig_free_msg: msg=0x%x\n", msg);
+	ATM_DEBUG1("unisig_free_msg: msg=%p\n", msg);
 
 	/*
 	 * First free all the IEs
@@ -325,7 +325,7 @@ unisig_addr_print(p)
 		 * Print the IA5 characters of the E.164 address
 		 */
 		for(i=0; i<p->address_length; i++) {
-			sprintf(&strbuff[strlen(strbuff)], "%c\0",
+			sprintf(&strbuff[strlen(strbuff)], "%c",
 				((Atm_addr_e164 *)p->address)->aae_addr[i]);
 		}
 		break;
@@ -380,7 +380,7 @@ unisig_print_mbuf(m)
 		KB_DATASTART(m, cp, caddr_t);
 		for (i = 0; i < KB_LEN(m); i++) {
 			if (i == 0)
-				printf("   bfr=0x%x: ", (int)m);
+				printf("   bfr=%p: ", m);
 			printf("%x ", (u_char)*cp++);
 		}
 		printf("<end_bfr>\n");

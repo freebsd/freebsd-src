@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscf_uni_upper.c,v 1.7 1998/06/29 22:15:31 mks Exp $
+ *	@(#) $Id: sscf_uni_upper.c,v 1.1 1998/09/15 08:23:06 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscf_uni_upper.c,v 1.7 1998/06/29 22:15:31 mks Exp $";
+static char *RCSid = "@(#) $Id: sscf_uni_upper.c,v 1.1 1998/09/15 08:23:06 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -74,8 +74,8 @@ sscf_uni_upper(cmd, tok, arg1, arg2)
 	Atm_connvc	*cvp = uvp->uv_connvc;
 	int		err;
 
-	ATM_DEBUG5("sscf_uni_upper: cmd=0x%x, uvp=0x%x, lstate=%d, arg1=0x%x, arg2=0x%x\n",
-		cmd, (int)uvp, uvp->uv_lstate, arg1, arg2);
+	ATM_DEBUG5("sscf_uni_upper: cmd=0x%x, uvp=%p, lstate=%d, arg1=0x%x, arg2=0x%x\n",
+		cmd, uvp, uvp->uv_lstate, arg1, arg2);
 
 	switch (cmd) {
 
@@ -616,8 +616,8 @@ seqerr:
 		 * Not supported
 		 */
 	default:
-		log(LOG_ERR, "sscf_uni_upper: unknown cmd 0x%x, uvp=0x%x\n",
-			cmd, (int)uvp);
+		log(LOG_ERR, "sscf_uni_upper: unknown cmd 0x%x, uvp=%p\n",
+			cmd, uvp);
 	}
 
 	return;

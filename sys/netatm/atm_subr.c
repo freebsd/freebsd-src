@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_subr.c,v 1.10 1998/05/18 19:06:02 mks Exp $
+ *	@(#) $Id: atm_subr.c,v 1.1 1998/09/15 08:22:59 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_subr.c,v 1.10 1998/05/18 19:06:02 mks Exp $";
+static char *RCSid = "@(#) $Id: atm_subr.c,v 1.1 1998/09/15 08:22:59 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -953,8 +953,8 @@ atm_pdu_print(m, msg)
 	printf("%s:", msg);
 	while (m) { 
 		KB_DATASTART(m, cp, caddr_t);
-		printf("%cbfr=0x%x data=0x%x len=%d: ",
-			c, (int)m, (int)cp, KB_LEN(m));
+		printf("%cbfr=%p data=%p len=%d: ",
+			c, m, cp, KB_LEN(m));
 		c = '\t';
 		if (atm_print_data) {
 			for (i = 0; i < KB_LEN(m); i++) {

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_event.c,v 1.8 1998/08/06 18:21:13 mks Exp $
+ *	@(#) $Id: ipatm_event.c,v 1.1 1998/09/15 08:23:00 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: ipatm_event.c,v 1.8 1998/08/06 18:21:13 mks Exp $";
+static char *RCSid = "@(#) $Id: ipatm_event.c,v 1.1 1998/09/15 08:23:00 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -128,8 +128,8 @@ ipatm_timeout(tip)
 		break;
 
 	default:
-		log(LOG_ERR, "ipatm: invalid timer state: ivp=0x%x, state=%d\n",
-			(int)ivp, ivp->iv_state);
+		log(LOG_ERR, "ipatm: invalid timer state: ivp=%p, state=%d\n",
+			ivp, ivp->iv_state);
 	}
 }
 
@@ -383,8 +383,8 @@ ipatm_arpnotify(ivp, event)
 		break;
 
 	default:
-		log(LOG_ERR, "ipatm: unknown arp event %d, ivp=0x%x\n",
-			event, (int)ivp);
+		log(LOG_ERR, "ipatm: unknown arp event %d, ivp=%p\n",
+			event, ivp);
 	}
 }
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_sys.h,v 1.12 1998/05/18 19:05:57 mks Exp $
+ *	@(#) $Id: atm_sys.h,v 1.1 1998/09/15 08:22:59 phk Exp $
  *
  */
 
@@ -241,7 +241,7 @@ struct sp_link {
 		delta.tv_sec--;						\
 		delta.tv_usec += 1000000;				\
 	}								\
-	printf("%3d.%6d: ", delta.tv_sec, delta.tv_usec);
+	printf("%3ld.%6ld: ", delta.tv_sec, delta.tv_usec);
 
 #define	ATM_DEBUG0(f)		if (atm_debug) {ATM_TIME; printf(f);}
 #define	ATM_DEBUGN0(f)		if (atm_debug) {printf(f);}

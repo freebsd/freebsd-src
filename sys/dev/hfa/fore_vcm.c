@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_vcm.c,v 1.7 1998/06/29 21:42:20 mks Exp $
+ *	@(#) $Id: fore_vcm.c,v 1.1 1998/09/15 08:22:56 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_vcm.c,v 1.7 1998/06/29 21:42:20 mks Exp $";
+static char *RCSid = "@(#) $Id: fore_vcm.c,v 1.1 1998/09/15 08:22:56 phk Exp $";
 #endif
 
 #include <dev/hfa/fore_include.h>
@@ -133,8 +133,8 @@ fore_openvcc(cup, cvp)
 
 	vcp = fvp->fv_connvc->cvc_vcc;
 
-	ATM_DEBUG4("fore_openvcc: fup=0x%x, fvp=0x%x, vcc=(%d,%d)\n", 
-		(int)fup, (int)fvp, vcp->vc_vpi, vcp->vc_vci);
+	ATM_DEBUG4("fore_openvcc: fup=%p, fvp=%p, vcc=(%d,%d)\n", 
+		fup, fvp, vcp->vc_vpi, vcp->vc_vci);
 
 	/*
 	 * Validate the VPI and VCI values
@@ -229,8 +229,8 @@ fore_closevcc(cup, cvp)
 
 	vcp = fvp->fv_connvc->cvc_vcc;
 
-	ATM_DEBUG4("fore_closevcc: fup=0x%x, fvp=0x%x, vcc=(%d,%d)\n", 
-		(int)fup, (int)fvp, vcp->vc_vpi, vcp->vc_vci);
+	ATM_DEBUG4("fore_closevcc: fup=%p, fvp=%p, vcc=(%d,%d)\n", 
+		fup, fvp, vcp->vc_vpi, vcp->vc_vci);
 
 	DEVICE_LOCK((Cmn_unit *)fup);
 

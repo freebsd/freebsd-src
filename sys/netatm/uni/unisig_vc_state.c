@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_vc_state.c,v 1.11 1998/08/06 18:16:29 mks Exp $
+ *	@(#) $Id: unisig_vc_state.c,v 1.1 1998/09/15 08:23:13 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_vc_state.c,v 1.11 1998/08/06 18:16:29 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_vc_state.c,v 1.1 1998/09/15 08:23:13 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -233,8 +233,8 @@ unisig_vc_state(usp, uvp, event, msg)
 	/*
 	 * Perform the requested action
 	 */
-	ATM_DEBUG4("unisig_vc_state: uvp=0x%x, state=%d, event=%d, action=%d\n",
-			(int) uvp, state, event, action);
+	ATM_DEBUG4("unisig_vc_state: uvp=%p, state=%d, event=%d, action=%d\n",
+			uvp, state, event, action);
 	rc = unisig_vc_act_vec[action](usp, uvp, msg);
 
 	return(rc);
@@ -850,8 +850,8 @@ unisig_vc_act08(usp, uvp, msg)
 	Atm_addr_nsap		*nap;
 	Atm_attributes		attr;
 
-	ATM_DEBUG3("unisig_vc_act08: usp=0x%x, uvp=0x%x, msg=0x%x\n",
-			(int) usp, (int) uvp, (int) msg);
+	ATM_DEBUG3("unisig_vc_act08: usp=%p, uvp=%p, msg=%p\n",
+			usp, uvp, msg);
 
 	/*
 	 * Make sure that the called address is the right format
@@ -1467,8 +1467,8 @@ unisig_vc_act17(usp, uvp, msg)
 {
 	int			rc;
 
-	ATM_DEBUG3("unisig_vc_perror: usp=0x%x, uvp=0x%x, msg=0x%x\n",
-			(int) usp, (int) uvp, (int) msg);
+	ATM_DEBUG3("unisig_vc_perror: usp=%p, uvp=%p, msg=%p\n",
+			usp, uvp, msg);
 
 	/*
 	 * Clear any running timer
@@ -1725,8 +1725,8 @@ unisig_vc_act22(usp, uvp, msg)
 	struct unisig_msg	*status;
 	struct ie_generic	*callst_ie, *cause_ie;
 
-	ATM_DEBUG3("unisig_vc_perror: usp=0x%x, uvp=0x%x, msg=0x%x\n",
-			(int) usp, (int) uvp, (int) msg);
+	ATM_DEBUG3("unisig_vc_perror: usp=%p, uvp=%p, msg=%p\n",
+			usp, uvp, msg);
 
 	/*
 	 * Get memory for a STATUS message

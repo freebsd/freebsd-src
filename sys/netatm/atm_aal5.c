@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_aal5.c,v 1.4 1998/07/30 22:30:46 mks Exp $
+ *	@(#) $Id: atm_aal5.c,v 1.1 1998/09/15 08:22:57 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_aal5.c,v 1.4 1998/07/30 22:30:46 mks Exp $";
+static char *RCSid = "@(#) $Id: atm_aal5.c,v 1.1 1998/09/15 08:22:57 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -186,7 +186,7 @@ static Atm_attributes	atm_aal5_defattr = {
 #define ATM_INTRO(f)						\
 	int		s, err = 0;				\
 	s = splnet();						\
-	ATM_DEBUG2("aal5 socket %s (0x%x)\n", f, (int)so);	\
+	ATM_DEBUG2("aal5 socket %s (%p)\n", f, so);		\
 	/*							\
 	 * Stack queue should have been drained			\
 	 */							\

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_sigmgr_state.c,v 1.10 1998/08/26 23:29:24 mks Exp $
+ *	@(#) $Id: unisig_sigmgr_state.c,v 1.1 1998/09/15 08:23:12 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_sigmgr_state.c,v 1.10 1998/08/26 23:29:24 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_sigmgr_state.c,v 1.1 1998/09/15 08:23:12 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -249,8 +249,8 @@ unisig_sigmgr_state(usp, event, m)
 	 * the signalling manager's state
 	 */
 	action = sigmgr_state_table[event][usp->us_state];
-	ATM_DEBUG4("unisig_sigmgr_state: usp=0x%x, state=%d, event=%d, action=%d\n",
-			(u_int) usp, usp->us_state, event, action);
+	ATM_DEBUG4("unisig_sigmgr_state: usp=%p, state=%d, event=%d, action=%d\n",
+			usp, usp->us_state, event, action);
 	if (action >= MAX_ACTION || action < 0) {
 		panic("unisig_sigmgr_state: invalid action\n");
 	}
