@@ -169,7 +169,7 @@
     <para>Specifying a value of <literal>0</literal> for the
     <varname>maxusers</varname> kernel configuration parameter will
     now cause an appropriate value to be calculated at boot-time
-    (between 32 and 512, depending on the amount of memory present).
+    (between 32 and 384, depending on the amount of memory present).
     This value is now the default for all
     <filename>GENERIC</filename> kernels. &merged;</para>
 
