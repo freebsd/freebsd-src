@@ -1215,7 +1215,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	/*
 	 * Force device mappings to be shared.
 	 */
-	if (type == OBJT_DEVICE || type == OBJT_PHYS) {
+	if (type == OBJT_DEVICE) {
 		flags &= ~(MAP_PRIVATE|MAP_COPY);
 		flags |= MAP_SHARED;
 	}
