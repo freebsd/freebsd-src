@@ -382,6 +382,7 @@ fill_kinfo_proc(p, kp)
 
 	kp->ki_structsize = sizeof(*kp);
 	kp->ki_paddr = p;
+	PROC_LOCK(p);
 	kp->ki_addr = p->p_addr;
 	kp->ki_args = p->p_args;
 	kp->ki_tracep = p->p_tracep;
@@ -402,6 +403,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_sigignore = p->p_procsig->ps_sigignore;
 		kp->ki_sigcatch = p->p_procsig->ps_sigcatch;
 	}
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
 		struct vmspace *vm = p->p_vmspace;
 
@@ -412,7 +414,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_dsize = vm->vm_dsize;
 		kp->ki_ssize = vm->vm_ssize;
 	}
-	if ((p->p_flag & P_INMEM) && p->p_stats) {
+	if ((p->p_sflag & PS_INMEM) && p->p_stats) {
 		kp->ki_start = p->p_stats->p_start;
 		kp->ki_rusage = p->p_stats->p_ru;
 		kp->ki_childtime.tv_sec = p->p_stats->p_cru.ru_utime.tv_sec +
@@ -420,13 +422,33 @@ fill_kinfo_proc(p, kp)
 		kp->ki_childtime.tv_usec = p->p_stats->p_cru.ru_utime.tv_usec +
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
+	if (p->p_wmesg) {
+		strncpy(kp->ki_wmesg, p->p_wmesg, WMESGLEN);
+		kp->ki_wmesg[WMESGLEN] = 0;
+	}
+	if (p->p_stat == SMTX) {
+		kp->ki_kiflag |= KI_MTXBLOCK;
+		strncpy(kp->ki_mtxname, p->p_mtxname, MTXNAMELEN);
+		kp->ki_mtxname[MTXNAMELEN] = 0;
+	}
+	kp->ki_stat = p->p_stat;
+	kp->ki_pctcpu = p->p_pctcpu;
+	kp->ki_estcpu = p->p_estcpu;
+	kp->ki_slptime = p->p_slptime;
+	kp->ki_swtime = p->p_swtime;
+	kp->ki_wchan = p->p_wchan;
+	kp->ki_traceflag = p->p_traceflag;
+	kp->ki_priority = p->p_priority;
+	kp->ki_usrpri = p->p_usrpri;
+	kp->ki_nativepri = p->p_nativepri;
+	kp->ki_nice = p->p_nice;
 	kp->ki_rtprio = p->p_rtprio;
 	kp->ki_runtime = p->p_runtime;
 	kp->ki_pid = p->p_pid;
-	PROCTREE_LOCK(PT_SHARED);
-	if (p->p_pptr)
-		kp->ki_ppid = p->p_pptr->p_pid;
-	PROCTREE_LOCK(PT_RELEASE);
+	kp->ki_rqindex = p->p_rqindex;
+	kp->ki_oncpu = p->p_oncpu;
+	kp->ki_lastcpu = p->p_lastcpu;
+	mtx_exit(&sched_lock, MTX_SPIN);
 	sp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
@@ -449,44 +471,27 @@ fill_kinfo_proc(p, kp)
 			kp->ki_tsid = tp->t_session->s_sid;
 	} else
 		kp->ki_tdev = NOUDEV;
-	if (p->p_wmesg) {
-		strncpy(kp->ki_wmesg, p->p_wmesg, WMESGLEN);
-		kp->ki_wmesg[WMESGLEN] = 0;
-	}
 	if (p->p_comm[0] != 0) {
 		strncpy(kp->ki_comm, p->p_comm, MAXCOMLEN);
 		kp->ki_comm[MAXCOMLEN] = 0;
 	}
-	mtx_enter(&sched_lock, MTX_SPIN);
-	if (p->p_stat == SMTX) {
-		kp->ki_kiflag |= KI_MTXBLOCK;
-		strncpy(kp->ki_mtxname, p->p_mtxname, MTXNAMELEN);
-		kp->ki_mtxname[MTXNAMELEN] = 0;
-	}
-	kp->ki_stat = p->p_stat;
-	mtx_exit(&sched_lock, MTX_SPIN);
 	kp->ki_siglist = p->p_siglist;
 	kp->ki_sigmask = p->p_sigmask;
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
-	kp->ki_pctcpu = p->p_pctcpu;
-	kp->ki_estcpu = p->p_estcpu;
-	kp->ki_slptime = p->p_slptime;
-	kp->ki_swtime = p->p_swtime;
 	kp->ki_flag = p->p_flag;
-	kp->ki_wchan = p->p_wchan;
-	kp->ki_traceflag = p->p_traceflag;
-	kp->ki_priority = p->p_priority;
-	kp->ki_usrpri = p->p_usrpri;
-	kp->ki_nativepri = p->p_nativepri;
-	kp->ki_nice = p->p_nice;
 	kp->ki_lock = p->p_lock;
-	kp->ki_rqindex = p->p_rqindex;
-	kp->ki_oncpu = p->p_oncpu;
-	kp->ki_lastcpu = p->p_lastcpu;
+	PROC_UNLOCK(p);
+	PROCTREE_LOCK(PT_SHARED);
+	if (p->p_pptr)
+		kp->ki_ppid = p->p_pptr->p_pid;
+	PROCTREE_LOCK(PT_RELEASE);
 }
 
-static struct proc *
+/*
+ * Locate a zombie process by number
+ */
+struct proc *
 zpfind(pid_t pid)
 {
 	struct proc *p;
