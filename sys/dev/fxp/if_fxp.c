@@ -1227,117 +1227,117 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 {
 	struct ifnet *ifp = &sc->sc_if;
 
-		/*
-		 * Free any finished transmit mbuf chains.
-		 *
-		 * Handle the CNA event likt a CXTNO event. It used to
-		 * be that this event (control unit not ready) was not
-		 * encountered, but it is now with the SMPng modifications.
-		 * The exact sequence of events that occur when the interface
-		 * is brought up are different now, and if this event
-		 * goes unhandled, the configuration/rxfilter setup sequence
-		 * can stall for several seconds. The result is that no
-		 * packets go out onto the wire for about 5 to 10 seconds
-		 * after the interface is ifconfig'ed for the first time.
-		 */
-		if (statack & (FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA)) {
-			struct fxp_cb_tx *txp;
+	/*
+	 * Free any finished transmit mbuf chains.
+	 *
+	 * Handle the CNA event likt a CXTNO event. It used to
+	 * be that this event (control unit not ready) was not
+	 * encountered, but it is now with the SMPng modifications.
+	 * The exact sequence of events that occur when the interface
+	 * is brought up are different now, and if this event
+	 * goes unhandled, the configuration/rxfilter setup sequence
+	 * can stall for several seconds. The result is that no
+	 * packets go out onto the wire for about 5 to 10 seconds
+	 * after the interface is ifconfig'ed for the first time.
+	 */
+	if (statack & (FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA)) {
+		struct fxp_cb_tx *txp;
 
-			for (txp = sc->cbl_first; sc->tx_queued &&
-			    (txp->cb_status & FXP_CB_STATUS_C) != 0;
-			    txp = txp->next) {
-				if (txp->mb_head != NULL) {
-					m_freem(txp->mb_head);
-					txp->mb_head = NULL;
-				}
-				sc->tx_queued--;
+		for (txp = sc->cbl_first; sc->tx_queued &&
+		    (txp->cb_status & FXP_CB_STATUS_C) != 0;
+		    txp = txp->next) {
+			if (txp->mb_head != NULL) {
+				m_freem(txp->mb_head);
+				txp->mb_head = NULL;
 			}
-			sc->cbl_first = txp;
-			if (sc->tx_queued == 0) {
-				ifp->if_timer = 0;
-				if (sc->need_mcsetup)
-					fxp_mc_setup(sc);
-			} else
-				ifp->if_timer = 5;
-
-			/*
-			 * Try to start more packets transmitting.
-			 */
-			if (ifp->if_snd.ifq_head != NULL)
-				fxp_start(ifp);
+			sc->tx_queued--;
 		}
+		sc->cbl_first = txp;
+		if (sc->tx_queued == 0) {
+			ifp->if_timer = 0;
+			if (sc->need_mcsetup)
+				fxp_mc_setup(sc);
+		} else
+			ifp->if_timer = 5;
+
 		/*
-		 * Process receiver interrupts. If a no-resource (RNR)
-		 * condition exists, get whatever packets we can and
-		 * re-start the receiver.
+		 * Try to start more packets transmitting.
 		 */
-		if (statack & (FXP_SCB_STATACK_FR | FXP_SCB_STATACK_RNR)) {
-			struct mbuf *m;
-			struct fxp_rfa *rfa;
+		if (ifp->if_snd.ifq_head != NULL)
+			fxp_start(ifp);
+	}
+	/*
+	 * Process receiver interrupts. If a no-resource (RNR)
+	 * condition exists, get whatever packets we can and
+	 * re-start the receiver.
+	 */
+	if (statack & (FXP_SCB_STATACK_FR | FXP_SCB_STATACK_RNR)) {
+		struct mbuf *m;
+		struct fxp_rfa *rfa;
 rcvloop:
-			m = sc->rfa_headm;
-			rfa = (struct fxp_rfa *)(m->m_ext.ext_buf +
-			    RFA_ALIGNMENT_FUDGE);
+		m = sc->rfa_headm;
+		rfa = (struct fxp_rfa *)(m->m_ext.ext_buf +
+		    RFA_ALIGNMENT_FUDGE);
 
 #ifdef DEVICE_POLLING /* loop at most count times if count >=0 */
-			if (count < 0 || count-- > 0)
+		if (count < 0 || count-- > 0)
 #endif
-			if (rfa->rfa_status & FXP_RFA_STATUS_C) {
-				/*
-				 * Remove first packet from the chain.
-				 */
-				sc->rfa_headm = m->m_next;
-				m->m_next = NULL;
+		if (rfa->rfa_status & FXP_RFA_STATUS_C) {
+			/*
+			 * Remove first packet from the chain.
+			 */
+			sc->rfa_headm = m->m_next;
+			m->m_next = NULL;
 
-				/*
-				 * Add a new buffer to the receive chain.
-				 * If this fails, the old buffer is recycled
-				 * instead.
-				 */
-				if (fxp_add_rfabuf(sc, m) == 0) {
-					struct ether_header *eh;
-					int total_len;
+			/*
+			 * Add a new buffer to the receive chain.
+			 * If this fails, the old buffer is recycled
+			 * instead.
+			 */
+			if (fxp_add_rfabuf(sc, m) == 0) {
+				struct ether_header *eh;
+				int total_len;
 
-					total_len = rfa->actual_size &
-					    (MCLBYTES - 1);
-					if (total_len <
-					    sizeof(struct ether_header)) {
-						m_freem(m);
-						goto rcvloop;
-					}
-
-					/*
-					 * Drop the packet if it has CRC
-					 * errors.  This test is only needed
-					 * when doing 802.1q VLAN on the 82557
-					 * chip.
-					 */
-					if (rfa->rfa_status &
-					    FXP_RFA_STATUS_CRC) {
-						m_freem(m);
-						goto rcvloop;
-					}
-
-					m->m_pkthdr.rcvif = ifp;
-					m->m_pkthdr.len = m->m_len = total_len;
-					eh = mtod(m, struct ether_header *);
-					m->m_data +=
-					    sizeof(struct ether_header);
-					m->m_len -=
-					    sizeof(struct ether_header);
-					m->m_pkthdr.len = m->m_len;
-					ether_input(ifp, eh, m);
+				total_len = rfa->actual_size &
+				    (MCLBYTES - 1);
+				if (total_len <
+				    sizeof(struct ether_header)) {
+					m_freem(m);
+					goto rcvloop;
 				}
-				goto rcvloop;
+
+				/*
+				 * Drop the packet if it has CRC
+				 * errors.  This test is only needed
+				 * when doing 802.1q VLAN on the 82557
+				 * chip.
+				 */
+				if (rfa->rfa_status &
+				    FXP_RFA_STATUS_CRC) {
+					m_freem(m);
+					goto rcvloop;
+				}
+
+				m->m_pkthdr.rcvif = ifp;
+				m->m_pkthdr.len = m->m_len = total_len;
+				eh = mtod(m, struct ether_header *);
+				m->m_data +=
+				    sizeof(struct ether_header);
+				m->m_len -=
+				    sizeof(struct ether_header);
+				m->m_pkthdr.len = m->m_len;
+				ether_input(ifp, eh, m);
 			}
-			if (statack & FXP_SCB_STATACK_RNR) {
-				fxp_scb_wait(sc);
-				CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL,
-				    vtophys(sc->rfa_headm->m_ext.ext_buf) +
-					RFA_ALIGNMENT_FUDGE);
-				fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
-			}
+			goto rcvloop;
 		}
+		if (statack & FXP_SCB_STATACK_RNR) {
+			fxp_scb_wait(sc);
+			CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL,
+			    vtophys(sc->rfa_headm->m_ext.ext_buf) +
+				RFA_ALIGNMENT_FUDGE);
+			fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
+		}
+	}
 }
 
 /*
