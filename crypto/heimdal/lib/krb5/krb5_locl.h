@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5_locl.h,v 1.67 2001/08/22 20:30:30 assar Exp $ */
+/* $Id: krb5_locl.h,v 1.69 2002/08/12 15:09:19 joda Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __KRB5_LOCL_H__
@@ -106,6 +106,9 @@ struct sockaddr_dl;
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
+#ifdef HAVE_SYS_FILE_H
+#include <sys/file.h>
+#endif
 #include <roken.h>
 #include <parse_time.h>
 #include <base64.h>
@@ -136,8 +139,8 @@ struct sockaddr_dl;
 #define ALLOC_SEQ(X, N) do { (X)->len = (N); ALLOC((X)->val, (N)); } while(0)
 
 /* should this be public? */
-#define KEYTAB_DEFAULT "ANY:FILE:/etc/krb5.keytab,krb4:/etc/srvtab"
-#define KEYTAB_DEFAULT_MODIFY "FILE:/etc/krb5.keytab"
+#define KEYTAB_DEFAULT "ANY:FILE:" SYSCONFDIR "/krb5.keytab,krb4:" SYSCONFDIR "/srvtab"
+#define KEYTAB_DEFAULT_MODIFY "FILE:" SYSCONFDIR "/krb5.keytab"
 
 #ifndef O_BINARY
 #define O_BINARY 0
