@@ -725,8 +725,8 @@ updates:
 .Bd -literal
 # vinum setdaemon 4
 .Ed
-.if t .vs
-.if t .ps
+.if t .vs +3
+.if t .ps +3
 .Pp
 This will stop updates and any further corruption of the on-disk configuration.
 .Pp
@@ -739,8 +739,8 @@ Next, look at the on-disk configuration, using a Bourne-style shell:
     (dd if=$i skip=8 count=6|tr -d '\e000-\e011\e200-\e377'; echo) >> log
   done
 .Ed
-.if t .vs
-.if t .ps
+.if t .vs +3
+.if t .ps +3
 .Pp
 The names of the devices are the names of all
 .Nm
@@ -770,8 +770,8 @@ sd name obj.p1.s1 drive drive2 plex obj.p1 state reborn len 204800b driveoffset 
 sd name obj.p1.s2 drive drive3 plex obj.p1 state up len 204800b driveoffset 265b plexoffset 256b
 sd name obj.p1.s3 drive drive4 plex obj.p1 state up len 204800b driveoffset 409865b plexoffset 384b
 .Ed
-.if t .vs
-.if t .ps
+.if t .vs +3
+.if t .ps +3
 .Pp
 The first line contains the
 .Nm
@@ -805,6 +805,7 @@ command if you have this kind of trouble.
 In order to analyse a panic which you suspect comes from
 .Nm
 you will need to build a debug kernel.  See the online handbook at
+.if t .br
 .Pa /usr/share/doc/en/books/developers-handbook/kerneldebug.html
 (if installed) or
 .Pa http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/kerneldebug.html
@@ -817,10 +818,12 @@ problem:
 .It
 Copy the files
 .Pa /usr/src/sys/modules/vinum/.gdbinit.crash ,
+.if t .br
 .Pa /usr/src/sys/modules/vinum/.gdbinit.kernel ,
 .Pa /usr/src/sys/modules/vinum/.gdbinit.serial ,
 .Pa /usr/src/sys/modules/vinum/.gdbinit.vinum
 and
+.if t .br
 .Pa /usr/src/sys/modules/vinum/.gdbinit.vinum.paths
 to the directory in which you will be performing the analysis, typically
 .Pa /var/crash .
@@ -874,6 +877,7 @@ and enter:
 .Ed
 .Pp
 This example assumes that you have installed the correct debug kernel at
+.if t .br
 .Pa /var/crash/kernel.debug .
 If not, substitute the correct name of the debug kernel.
 .Pp
@@ -935,8 +939,8 @@ Debugger (msg=0xf1093174 "vinum debug") at ../../i386/i386/db_interface.c:318
 #10 0x80482ad in ?? ()
 #11 0x80480e9 in ?? ()
 .Ed
-.if t .vs
-.if t .ps
+.if t .vs +3
+.if t .ps +3
 .Pp
 When entering from the debugger, it's important that the source of frame 1
 (listed by the
@@ -947,8 +951,8 @@ file at the top of the example) contains the text
 .Bd -literal
 Debugger ("vinum debug");
 .Ed
-.if t .vs
-.if t .ps
+.if t .vs +3
+.if t .ps +3
 .Pp
 This is an indication that the address specifications are correct.  If you get
 some other output, your symbols and the kernel module are out of sync, and the
