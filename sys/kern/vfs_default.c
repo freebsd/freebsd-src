@@ -276,9 +276,9 @@ vop_stdlock(ap)
 	struct vnode *vp = ap->a_vp;
 
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(&vp->v_lock, ap->a_flags, &vp->v_interlock, ap->a_td));
+	return (lockmgr(&vp->v_lock, ap->a_flags, VI_MTX(vp), ap->a_td));
 #else
-	return (debuglockmgr(&vp->v_lock, ap->a_flags, &vp->v_interlock,
+	return (debuglockmgr(&vp->v_lock, ap->a_flags, VI_MTX(vp),
 	    ap->a_td, "vop_stdlock", vp->filename, vp->line));
 #endif
 }
@@ -294,7 +294,7 @@ vop_stdunlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	return (lockmgr(&vp->v_lock, ap->a_flags | LK_RELEASE, &vp->v_interlock, 
+	return (lockmgr(&vp->v_lock, ap->a_flags | LK_RELEASE, VI_MTX(vp),
 	    ap->a_td));
 }
 
@@ -423,9 +423,9 @@ vop_sharedlock(ap)
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_td));
+	return (lockmgr(&vp->v_lock, vnflags, VI_MTX(vp), ap->a_td));
 #else
-	return (debuglockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_td,
+	return (debuglockmgr(&vp->v_lock, vnflags, VI_MTX(vp), ap->a_td,
 	    "vop_sharedlock", vp->filename, vp->line));
 #endif
 }
@@ -480,14 +480,14 @@ vop_nolock(ap)
 	}
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
-	return(lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_td));
+	return(lockmgr(&vp->v_lock, vnflags, VI_MTX(vp), ap->a_td));
 #else /* for now */
 	/*
 	 * Since we are not using the lock manager, we must clear
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK)
-		mtx_unlock(&ap->a_vp->v_interlock);
+		VI_UNLOCK(ap->a_vp);
 	return (0);
 #endif
 }
@@ -509,7 +509,7 @@ vop_nounlock(ap)
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK)
-		mtx_unlock(&ap->a_vp->v_interlock);
+		VI_UNLOCK(ap->a_vp);
 	return (0);
 }
 
@@ -582,9 +582,13 @@ retry:
 		/*
 		 * Dereference the reference we just created.  This assumes
 		 * that the object is associated with the vp.
+		 *
+		 * We don't need to vrele because the caller must hold a ref.
 		 */
 		object->ref_count--;
+		VI_LOCK(vp);
 		vp->v_usecount--;
+		VI_UNLOCK(vp);
 	} else {
 		if (object->flags & OBJ_DEAD) {
 			VOP_UNLOCK(vp, 0, td);
