@@ -59,6 +59,12 @@ MAN+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	zone.9 \
 	sysctl_add_oid.9 sysctl_ctx_init.9
 
+MAN+=	cdevsw_add.9 cdevsw_remove.9 \
+	devsw.9 \
+	major.9 minor.9 \
+	umajor.9 uminor.9 \
+	vn_isdisk.9
+
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9
 MLINKS+=VOP_ATTRIB.9 VOP_SETATTR.9
