@@ -442,9 +442,9 @@ these steps.
            booting from the CDROM, proceed to Step 5 as soon as you hear
            the beep.
 
-        4. For a floppy boot, the first beep means to remove the kern.flp
-           floppy and and insert the mfsroot.flp, after which you should
-           press enter and wait for another beep.
+        4. For a floppy boot, the first beep means to remove the
+           kern.flp floppy and insert the mfsroot.flp floppy, after
+           which you should press enter and wait for another beep.
 
         5. Hit the space bar, then enter
 
