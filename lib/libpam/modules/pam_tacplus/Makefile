@@ -32,8 +32,8 @@ SRCS=		pam_tacplus.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBTACPLUS} ${LIBGCC_PIC}
-LDADD+=		-ltacplus -lgcc_pic
+DPADD+=		${LIBTACPLUS}
+LDADD+=		-ltacplus
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 

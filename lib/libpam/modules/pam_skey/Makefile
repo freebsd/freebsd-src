@@ -32,8 +32,8 @@ SRCS=		pam_skey.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBSKEY} ${LIBGCC_PIC}
-LDADD+=		-lskey -lgcc_pic
+DPADD+=		${LIBSKEY}
+LDADD+=		-lskey
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 

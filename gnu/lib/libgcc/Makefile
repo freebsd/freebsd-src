@@ -4,12 +4,15 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
 
 .PATH: ${GCCDIR}/cp ${GCCDIR}
 
+# allow to be overridden for the a.out case
 .if !defined(LIB) || ${LIB} != "gcc_r"
 LIB=	gcc
 .endif
 
+.if ${OBJFORMAT} == aout
 # Install libgcc_pic.a, since ld.so uses it.
 INSTALL_PIC_ARCHIVE=  yes
+.endif
 
 #
 # XXX This is a hack, but it seems to work.  libgcc1.a is supposed to be
@@ -59,6 +62,10 @@ SRCS=	frame.c tinfo.cc tinfo2.cc new.cc exception.cc
 CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I.
 CFLAGS+=	-fexceptions
 CFLAGS+=	-DIN_GCC
+.if ${OBJFORMAT} != aout
+#CFLAGS+=	-D_PTHREADS -fPIC -DGTHREAD_USE_WEAK
+CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
+.endif
 CXXFLAGS+=	-I${GCCDIR}/cp/inc
 CXXFLAGS+=	-nostdinc++
 

@@ -39,8 +39,8 @@ LDADD+=		-lkrb
 DPADD+=		${LIBCRYPTO}
 LDADD+=		-lcrypto
 .endif
-DPADD+=		${LIBGCC_PIC} ${LIBCOM_ERR}
-LDADD+=		-lgcc_pic -lcom_err
+DPADD+=		${LIBCOM_ERR}
+LDADD+=		-lcom_err
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 

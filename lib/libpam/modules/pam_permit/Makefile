@@ -34,8 +34,6 @@ SRCS=		pam_permit.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBGCC_PIC}
-LDADD+=		-lgcc_pic
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 
