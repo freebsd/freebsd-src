@@ -154,7 +154,7 @@ elf_brand_inuse(Elf_Brandinfo *entry)
 {
 	struct proc *p;
 
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_sysent == entry->sysvec)
 			return TRUE;
 	}

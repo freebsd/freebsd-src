@@ -807,7 +807,7 @@ killpg1(cp, sig, pgid, all)
 		/*
 		 * broadcast
 		 */
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p == cp || !CANSIGNAL(cp, pc, p, sig))
 				continue;
@@ -826,8 +826,7 @@ killpg1(cp, sig, pgid, all)
 			if (pgrp == NULL)
 				return (ESRCH);
 		}
-		for (p = pgrp->pg_members.lh_first; p != 0;
-		     p = p->p_pglist.le_next) {
+		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p->p_stat == SZOMB ||
 			    !CANSIGNAL(cp, pc, p, sig))
@@ -923,8 +922,7 @@ pgsignal(pgrp, sig, checkctty)
 	register struct proc *p;
 
 	if (pgrp)
-		for (p = pgrp->pg_members.lh_first; p != 0;
-		     p = p->p_pglist.le_next)
+		LIST_FOREACH(p, &pgrp->pg_members, p_pglist)
 			if (checkctty == 0 || p->p_flag & P_CONTROLT)
 				psignal(p, sig);
 }
@@ -1677,8 +1675,7 @@ pgsigio(sigio, sig, checkctty)
 	} else if (sigio->sio_pgid < 0) {
 		struct proc *p;
 
-		for (p = sigio->sio_pgrp->pg_members.lh_first; p != NULL;
-		     p = p->p_pglist.le_next)
+		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist)
 			if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred, p) &&
 			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
 				psignal(p, sig);

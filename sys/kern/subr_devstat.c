@@ -281,9 +281,9 @@ sysctl_devstat SYSCTL_HANDLER_ARGS
 	/*
 	 * Now push out all the devices.
 	 */
-	for (i = 0, nds = devstat_head->stqh_first; 
+	for (i = 0, nds = STAILQ_FIRST(devstat_head); 
 	    (nds != NULL) && (i < devstat_num_devs) && (error == 0); 
-	     nds = nds->dev_links.stqe_next, i++)
+	     nds = STAILQ_NEXT(nds, dev_links), i++)
 		error = SYSCTL_OUT(req, nds, sizeof(struct devstat));
 
 	return(error);

@@ -2228,11 +2228,11 @@ ttyinfo(tp)
 		ttyprintf(tp, "not a controlling terminal\n");
 	else if (tp->t_pgrp == NULL)
 		ttyprintf(tp, "no foreground process group\n");
-	else if ((p = tp->t_pgrp->pg_members.lh_first) == 0)
+	else if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0)
 		ttyprintf(tp, "empty foreground process group\n");
 	else {
 		/* Pick interesting process. */
-		for (pick = NULL; p != 0; p = p->p_pglist.le_next)
+		for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
 			if (proc_compare(pick, p))
 				pick = p;
 

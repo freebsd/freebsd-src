@@ -1225,16 +1225,14 @@ gbincore(struct vnode * vp, daddr_t blkno)
 	struct bufhashhdr *bh;
 
 	bh = bufhash(vp, blkno);
-	bp = bh->lh_first;
 
 	/* Search hash chain */
-	while (bp != NULL) {
+	LIST_FOREACH(bp, bh, b_hash) {
 		/* hit */
 		if (bp->b_vp == vp && bp->b_lblkno == blkno &&
 		    (bp->b_flags & B_INVAL) == 0) {
 			break;
 		}
-		bp = bp->b_hash.le_next;
 	}
 	return (bp);
 }
