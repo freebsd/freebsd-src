@@ -517,14 +517,11 @@ tcp_newtcpcb(inp)
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->t_rcvtime = ticks;
-#ifdef INET6
-	if (isipv6 != 0)
-		inp->in6p_ip6_hlim = in6_selecthlim(inp,
-						    inp->in6p_route.ro_rt ?
-						    inp->in6p_route.ro_rt->rt_ifp :
-						    NULL);
-	else
-#endif
+        /*
+	 * IPv4 TTL initialization is necessary for an IPv6 socket as well,
+	 * because the socket may be bound to an IPv6 wildcard address,
+	 * which may match an IPv4-mapped IPv6 address.
+	 */
 	inp->inp_ip_ttl = ip_defttl;
 	inp->inp_ppcb = (caddr_t)tp;
 	return (tp);		/* XXX */
