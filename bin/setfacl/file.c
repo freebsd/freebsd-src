@@ -59,7 +59,7 @@ get_acl_from_file(const char *filename)
 			err(EX_OSERR, "fopen() %s failed", filename);
 	}
 
-	fread(buf, sizeof(buf), 1, file);
+	fread(buf, sizeof(buf), (size_t)1, file);
 	if (ferror(file)) {
 		fclose(file);
 		err(EX_USAGE, "error reading from %s", filename);

@@ -173,7 +173,7 @@ main(int argc, char *argv[])
 			err(EX_USAGE, "cannot have more than one stdin");
 		have_stdin = 1;
 		bzero(&filename, sizeof(filename));
-		while (fgets(filename, sizeof(filename), stdin)) {
+		while (fgets(filename, (int)sizeof(filename), stdin)) {
 			/* remove the \n */
 			filename[strlen(filename) - 1] = '\0';
 			add_filename(filename);
