@@ -106,8 +106,8 @@ static char args[] = "M:P:S:adfhkp:w?";
 #ifdef SETREUID
 uid_t ruid;
 uid_t euid;
-uid_t rgid;
-uid_t egid;
+gid_t rgid;
+gid_t egid;
 #endif
 
 int
@@ -469,7 +469,7 @@ is_section (name)
 
   for (vs = section_list; *vs != NULL; vs++)
     if ((strcmp (*vs, name) == 0)
-	|| (isdigit (name[0]) && strlen(name) == 1))
+	|| (isdigit ((unsigned char)name[0]) && strlen(name) == 1))
       return strdup (name);
 
   return NULL;
@@ -612,7 +612,7 @@ glob_for_file (path, section, name, cat)
 
   gf = glob_filename (pathname);
 
-  if ((gf == (char **) -1 || *gf == NULL) && isdigit (*section))
+  if ((gf == (char **) -1 || *gf == NULL) && isdigit ((unsigned char)*section))
     {
       if (cat)
 	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%c*", path, section, name, *section);
@@ -621,7 +621,7 @@ glob_for_file (path, section, name, cat)
 
       gf = glob_filename (pathname);
     }
-  if ((gf == (char **) -1 || *gf == NULL) && isdigit (*section))
+  if ((gf == (char **) -1 || *gf == NULL) && isdigit ((unsigned char)*section))
     {
       if (cat)
 	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.0*", path, section, name);
