@@ -29,7 +29,7 @@
 struct bundle;
 
 struct server {
-  struct descriptor desc;
+  struct fdescriptor desc;
   int fd;
   char passwd[50];
 
