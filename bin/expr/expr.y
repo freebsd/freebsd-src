@@ -14,7 +14,9 @@
 #include <locale.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <regex.h>
+#include <limits.h>
   
 enum valtype {
 	integer, numeric_string, string
@@ -154,7 +156,11 @@ struct val *vp;
 		return 0;
 
 	/* vp->type == numeric_string, make it numeric */
+	errno = 0;
 	i  = strtoq(vp->u.s, (char**)NULL, 10);
+	if (errno != 0) {
+		errx (2, "overflow");
+	}
 	free (vp->u.s);
 	vp->u.i = i;
 	vp->type = integer;
@@ -409,6 +415,20 @@ struct val *a, *b;
 	return r;
 }
 
+int
+chk_plus (a, b, r)
+quad_t a, b, r;
+{
+	/* sum of two positive numbers must be positive */
+	if (a > 0 && b > 0 && r <= 0)
+		return 1;
+	/* sum of two negative numbers must be negative */
+	if (a < 0 && b < 0 && r >= 0)
+		return 1;
+	/* all other cases are OK */
+	return 0;
+}
+
 struct val *
 op_plus (a, b)
 struct val *a, *b;
@@ -420,11 +440,29 @@ struct val *a, *b;
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
+	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
+		errx (2, "overflow");
+	}
 	free_value (a);
 	free_value (b);
 	return r;
 }
-	
+
+int
+chk_minus (a, b, r)
+quad_t a, b, r;
+{
+	/* special case subtraction of QUAD_MIN */
+	if (b == QUAD_MIN) {
+		if (a >= 0)
+			return 1;
+		else
+			return 0;
+	}
+	/* this is allowed for b != QUAD_MIN */
+	return chk_plus (a, -b, r);
+}
+
 struct val *
 op_minus (a, b)
 struct val *a, *b;
@@ -436,11 +474,27 @@ struct val *a, *b;
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
+	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
+		errx (2, "overflow");
+	}
 	free_value (a);
 	free_value (b);
 	return r;
 }
-	
+
+int
+chk_times (a, b, r)
+quad_t a, b, r;
+{
+	/* special case: first operand is 0, no overflow possible */
+	if (a == 0)
+		return 0;
+	/* cerify that result of division matches second operand */
+	if (r / a != b)
+		return 1;
+	return 0;
+}
+
 struct val *
 op_times (a, b)
 struct val *a, *b;
@@ -452,11 +506,26 @@ struct val *a, *b;
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
+	if (chk_times (a->u.i, b->u.i, r->u.i)) {
+		errx (2, "overflow");
+	}
 	free_value (a);
 	free_value (b);
 	return (r);
 }
-	
+
+int
+chk_div (a, b, r)
+quad_t a, b, r;
+{
+	/* div by zero has been taken care of before */
+	/* only QUAD_MIN / -1 causes overflow */
+	if (a == QUAD_MIN && b == -1)
+		return 1;
+	/* everything else is OK */
+	return 0;
+}
+
 struct val *
 op_div (a, b)
 struct val *a, *b;
@@ -472,6 +541,9 @@ struct val *a, *b;
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
+	if (chk_div (a->u.i, b->u.i, r->u.i)) {
+		errx (2, "overflow");
+	}
 	free_value (a);
 	free_value (b);
 	return r;
@@ -492,6 +564,7 @@ struct val *a, *b;
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i % b->u.i));
+	/* chk_rem necessary ??? */
 	free_value (a);
 	free_value (b);
 	return r;
