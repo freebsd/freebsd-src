@@ -42,6 +42,7 @@
 #endif /*DEVFS*/
 #include <sys/uio.h>
 #include <sys/poll.h>
+#include <sys/interrupt.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
