@@ -71,8 +71,6 @@ Lst_Init(void)
 
     nList->firstPtr = NULL;
     nList->lastPtr = NULL;
-    nList->isOpen = FALSE;
-    nList->atEnd = LstUnknown;
 
     return (nList);
 }

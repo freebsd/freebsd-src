@@ -844,8 +844,8 @@ JobFinish(Job *job, int *status)
      * try and restart the job on the next command. If JobStart says it's
      * ok, it's ok. If there's an error, this puppy is done.
      */
-    if (compatMake && (WIFEXITED(*status) &&
-	!Lst_IsAtEnd(job->node->commands))) {
+    if (compatMake && WIFEXITED(*status) &&
+	Lst_Succ(job->node->compat_command) != NULL) {
 	switch (JobStart(job->node, job->flags & JOB_IGNDOTS, job)) {
 	case JOB_RUNNING:
 	    done = FALSE;
@@ -1461,31 +1461,28 @@ JobStart(GNode *gn, int flags, Job *previous)
 	     * and print it to the command file. If the command was an
 	     * ellipsis, note that there's nothing more to execute.
 	     */
-	    if ((job->flags&JOB_FIRST) && (Lst_Open(gn->commands) != SUCCESS)){
-		cmdsOK = FALSE;
-	    } else {
-		LstNode *ln = Lst_Next(gn->commands);
+	    if (job->flags & JOB_FIRST)
+		gn->compat_command = Lst_First(gn->commands);
+	    else
+		gn->compat_command = Lst_Succ(gn->compat_command);
 
-		if ((ln == NULL) ||
-		    JobPrintCommand(Lst_Datum(ln), job))
-		{
-		    noExec = TRUE;
-		    Lst_Close(gn->commands);
-		}
-		if (noExec && !(job->flags & JOB_FIRST)) {
-		    /*
-		     * If we're not going to execute anything, the job
-		     * is done and we need to close down the various
-		     * file descriptors we've opened for output, then
-		     * call JobDoOutput to catch the final characters or
-		     * send the file to the screen... Note that the i/o streams
-		     * are only open if this isn't the first job.
-		     * Note also that this could not be done in
-		     * Job_CatchChildren b/c it wasn't clear if there were
-		     * more commands to execute or not...
-		     */
-		    JobClose(job);
-		}
+	    if (gn->compat_command == NULL ||
+		JobPrintCommand(Lst_Datum(gn->compat_command), job))
+		noExec = TRUE;
+
+	    if (noExec && !(job->flags & JOB_FIRST)) {
+		/*
+		 * If we're not going to execute anything, the job
+		 * is done and we need to close down the various
+		 * file descriptors we've opened for output, then
+		 * call JobDoOutput to catch the final characters or
+		 * send the file to the screen... Note that the i/o streams
+		 * are only open if this isn't the first job.
+		 * Note also that this could not be done in
+		 * Job_CatchChildren b/c it wasn't clear if there were
+		 * more commands to execute or not...
+		 */
+		 JobClose(job);
 	    }
 	} else {
 	    /*
@@ -2032,17 +2029,13 @@ Job_CatchOutput(int flag)
 	    if (--nfds <= 0)
 		return;
 	}
-	if (Lst_Open(jobs) == FAILURE) {
-	    Punt("Cannot open job table");
-	}
-	while (nfds && (ln = Lst_Next(jobs)) != NULL) {
+	for (ln = Lst_First(jobs); nfds != 0 && ln != NULL; ln = Lst_Succ(ln)) {
 	    job = Lst_Datum(ln);
 	    if (FD_ISSET(job->inPipe, &readfds)) {
 		JobDoOutput(job, FALSE);
 		nfds -= 1;
 	    }
 	}
-	Lst_Close(jobs);
 #endif /* !USE_KQUEUE */
     }
 }
@@ -2615,13 +2608,12 @@ static void
 JobInterrupt(int runINTERRUPT, int signo)
 {
     LstNode 	  *ln;		/* element in job table */
-    Job           *job = NULL;	/* job descriptor in that element */
+    Job           *job;		/* job descriptor in that element */
     GNode         *interrupt;	/* the node describing the .INTERRUPT target */
 
     aborting = ABORT_INTERRUPT;
 
-    Lst_Open(jobs);
-    while ((ln = Lst_Next(jobs)) != NULL) {
+    for (ln = Lst_First(jobs); ln != NULL; ln = Lst_Succ(ln)) {
 	job = Lst_Datum(ln);
 
 	if (!Targ_Precious(job->node)) {
@@ -2742,8 +2734,7 @@ Job_AbortAll(void)
     aborting = ABORT_ERROR;
 
     if (nJobs) {
-	Lst_Open(jobs);
-	while ((ln = Lst_Next(jobs)) != NULL) {
+	for (ln = Lst_First(jobs); ln != NULL; ln = Lst_Succ(ln)) {
 	    job = Lst_Datum(ln);
 
 	    /*
