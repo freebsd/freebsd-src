@@ -39,7 +39,7 @@
 
 static char hexbuf[256];
 
-char *
+static char *
 prsockaddr(void *v)
 {
 	char *bp = &hexbuf[0];
@@ -132,7 +132,7 @@ at_delroute(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 /*
  * Initialize our routing tree with debugging hooks.
  */
-int
+static int
 at_inithead(void **head, int off)
 {
 	struct radix_node_head *rnh;

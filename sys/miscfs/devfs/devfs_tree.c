@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.55 1998/07/04 22:30:22 julian Exp $
+ *	$Id: devfs_tree.c,v 1.56 1998/07/05 23:10:21 julian Exp $
  */
 
 
@@ -56,7 +56,7 @@ static MALLOC_DEFINE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
 static MALLOC_DEFINE(M_DEVFSNAME, "DEVFS name", "DEVFS name");
 
 devnm_p	dev_root;		/* root of the backing tree */
-struct mount *devfs_hidden_mount;
+static struct mount *devfs_hidden_mount;
 int devfs_up_and_going; 
 
 /*
