@@ -50,11 +50,11 @@ extern char *memchr();
 #define ISALNUM(C) (isascii(C) && isalnum(C))
 #define ISUPPER(C) (isascii(C) && isupper(C))
 #else
-#define ISALNUM(C) isalnum(C)
-#define ISUPPER(C) isupper(C)
+#define ISALNUM(C) isalnum((unsigned char)C)
+#define ISUPPER(C) isupper((unsigned char)C)
 #endif
 
-#define TOLOWER(C) (ISUPPER(C) ? tolower(C) : (C))
+#define TOLOWER(C) (ISUPPER(C) ? tolower((unsigned char)C) : (C))
 
 #include "grep.h"
 #include "dfa.h"
