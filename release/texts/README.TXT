@@ -1,0 +1,110 @@
+   -----------------------------------------
+       FreeBSD 3.0  ---  SNAPSHOT Version              ,        ,
+   -----------------------------------------          /(        )`
+                                                      \ \___   / |
+This is a binary snapshot of 3.0-current, the         /- _  `-/  '
+(HEAD) branch which is currently moving towards      (/\/ \ \   /\
+the follow-on release to 3.0.                        / /   | `    \
+                                                     O O   ) /    |
+                                                     `-^--'`<     '
+                                                    (_.)  _  )   /
+                                                     `.___/`    /
+                                                       `-----' /
+Feedback or offers to help with anything  <----.     __ / __   \
+you see in this release are most welcome  <----|====O)))==) \) /====
+and should be sent to one of the approp-  <----'    `--' `.__,' \
+riate mailing lists - please see the                   |        |
+ABOUT.TXT file for more information.                    \       /       /\
+                                                   ______( (_  / \______/
+                                                 ,'  ,-----'   |
+                                                 `--{__________)
+
+TARGET AUDIENCE:
+----------------
+This release is aimed primarily at early-adopters and the various
+other folks who want to get involved with the ongoing development
+of FreeBSD and are willing to deal with a few bumps in the road.
+We do our best to ensure that each snapshot works as advertised,
+but tracking -current is a process which frequently has its off
+days.
+
+If you're both technically proficient and know exactly what you're
+getting into here (e.g. you've been following -current) then this
+snapshot is probably for you.  If you're more interested in doing
+business with FreeBSD than in playing with the cutting edge of
+technology, however, then 2.2.x is almost certainly your best bet.
+
+
+ROAD MAP:
+            Most files here are also in the Documentation
+                    Menu of the boot floppy
+
+  README.TXT    This file
+
+  ABOUT.TXT     All about FreeBSD, including contact information
+
+  RELNOTES.TXT  Release Notes - what's new & different in this
+                release
+
+  LAYOUT.TXT    Information about the layout of the release
+                directory. If you are installing from floppies,
+                it is especially important that you
+                *read this section!*
+
+  ERRATA.TXT    Any late-breaking errata information for this
+                release.  On FTP sites, this file may be frequently
+                updated so it's a good idea to check it first
+                (the master copy is always on ftp.freebsd.org)
+                before reporting problems
+
+  HARDWARE.TXT  Information about the configuration of the
+                GENERIC kernel and supported hardware
+
+  INSTALL.TXT   How to make a new installation of FreeBSD
+                on your PC using the data you see here
+
+  UPGRADE.TXT   How to upgrade an existing FreeBSD
+                installation
+
+  TROUBLE.TXT   Troubleshooting information
+
+
+o For new installation instructions, see the INSTALL.TXT
+  and HARDWARE.TXT files.
+
+o If you are upgrading from a previous FreeBSD version,
+  please take a look at UPGRADE.TXT.
+
+o It is also important to check the ERRATA.TXT file for any
+  late-breaking issues with this release. This file contains
+  the latest information on upgrade, security or other problems
+  which an administrator should be aware of.
+
+o Information regarding problems which arise after the CD
+  is printed can be found at:
+  ftp://ftp.freebsd.org/pub/FreeBSD/3.0-RELEASE/ERRATA.TXT
+
+For the most up-to-date software along the RELENG_2_2 branch
+(also known as -Stable) which is now proceeding onwards toward
+the release of FreeBSD 2.2.8, please install from:
+
+        ftp://releng22.freebsd.org/pub/FreeBSD/
+
+Or for the latest 3.0-Current (HEAD branch) snapshot releases,
+please install from:
+
+        ftp://current.freebsd.org/pub/FreeBSD
+
+If you plan to run either -Stable or -Current you MUST be
+subscribed to the appropriate mailing list, either
+freebsd-stable or freebsd-current. For information on
+subscribing to either list (or both), send an e-mail to
+majordomo@freebsd.org with the following in the body, not
+the subject of the letter as appropriate:
+
+subscribe freebsd-stable
+subscribe freebsd-current
+end
+
+We hope you enjoy using FreeBSD as much as we enjoyed
+creating it!
