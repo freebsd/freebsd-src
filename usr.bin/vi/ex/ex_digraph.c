@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_digraph.c	8.7 (Berkeley) 8/17/94";
+static char sccsid[] = "@(#)ex_digraph.c	8.8 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #ifndef NO_DIGRAPH
