@@ -34,7 +34,7 @@ void
 cpu_critical_exit(void)
 {
 	struct thread *td = curthread;
-	wrpr(td->td_md.md_savecrit, td->td_md.md_savecrit, 0); 
+	wrpr(pil, td->td_md.md_savecrit, 0); 
 }
 
 /*
