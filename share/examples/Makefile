@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1994/08/19 20:43:42 wollman Exp $
+#	$Id: Makefile,v 1.4 1994/08/28 17:21:36 bde Exp $
 #
 # Doing a make install builds /usr/share/examples
 
@@ -16,21 +16,16 @@ beforeinstall: ${SHARED}
 
 copies:
 	@${ECHO} installing ${DESTDIR}/usr/share/examples
-	@rm -rf ${DESTDIR}/usr/share/examples
-	@-mkdir ${DESTDIR}/usr/share/examples
-	@tar cf - ${DIRS} | \
-		(cd ${DESTDIR}/usr/share/examples; tar xpfB -);
-	@chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/share/examples
-	@chmod -R a-w ${DESTDIR}/usr/share/examples
+	@-for a in ${DIRS}; do \
+		rm -rf ${DESTDIR}/usr/share/examples/$$a; \
+		cp =rp $$a ${DESTDIR}/usr/share/examples; \
+	done
 
 symlinks:
 	@${ECHO} installing symlinks in ${DESTDIR}/usr/share/examples
-	@rm -rf ${DESTDIR}/usr/share/examples
-	@-mkdir ${DESTDIR}/usr/share/examples
 	@-for a in ${DIRS}; do \
+		rm -rf ${DESTDIR}/usr/share/examples/$$a; \
 		ln -s ${.CURDIR}/$$a ${DESTDIR}/usr/share/examples; \
 	done
-	@chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/share/examples
-	@chmod -R a-w ${DESTDIR}/usr/share/examples
 
 .include <bsd.prog.mk>
