@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.92 1995/08/18 11:26:26 jkh Exp $
+ *	$Id: conf.c,v 1.93 1995/08/19 15:59:32 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -953,6 +953,29 @@ d_ttycv_t	cydevtotty;
 #define	cydevtotty	nxdevtotty
 #endif
 
+#include "dgb.h"      
+#if NDGB > 0
+d_open_t		dgbopen;     
+d_close_t		dgbclose;   
+d_rdwr_t		dgbread;
+d_rdwr_t		dgbwrite; 
+d_ioctl_t		dgbioctl;   
+d_select_t		dgbselect; 
+d_stop_t		dgbstop;     
+#define	dgbreset	nxreset
+#define	dgbdevtotty	nxdevtotty
+#else
+#define dgbopen		nxopen
+#define dgbclose	nxclose
+#define dgbread		nxread
+#define dgbwrite	nxwrite
+#define dgbioctl	nxioctl
+#define dgbstop		nxstop
+#define dgbreset	nxreset
+#define dgbselect	nxselect
+#define dgbdevtotty	nxdevtotty
+#endif
+
 /* Specialix serial driver */
 #include "si.h"
 #if	NSI > 0
@@ -1277,9 +1300,9 @@ struct cdevsw	cdevsw[] =
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
 	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
 	  seltrue,	nommap,		NULL },
-	{ nxopen,	nxclose,	nxread,		nxwrite,	/*58*/
-	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* unused */
-	  nxselect,	nxmmap,		NULL },
+	{ dgbopen,      dgbclose,       dgbread,        dgbwrite,       /*58*/
+	  dgbioctl,     dgbstop,        dgbreset,       dgb_tty, /* dgb */
+	  dgbselect,    nommap,         NULL },
 	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
 	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
 	  seltrue,	nommap,         NULL },
