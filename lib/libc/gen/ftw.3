@@ -24,25 +24,24 @@
 .Dt FTW 3
 .Os
 .Sh NAME
-.Nm ftw, nftw
+.Nm ftw , nftw
 .Nd traverse (walk) a file tree
 .Sh SYNOPSIS
-.Fd #include <ftw.h>
+.In ftw.h
 .Ft int
 .Fo ftw
 .Fa "const char *path"
-.Fa "int (*fn)(const char *, const struct stat *, int)"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]const char *, const struct stat *, int\*[rp]"
 .Fa "int maxfds"
 .Fc
 .Ft int
 .Fo nftw
 .Fa "const char *path"
-.Fa "int (*fn)(const\ char\ *, const\ struct\ stat\ *, int, struct\ FTW\ *)"
+.Fa "int \*[lp]*fn\*[rp]\*[lp](const char *, const struct stat *, int, struct FTW *\*[rp]"
 .Fa "int maxfds"
 .Fa "int flags"
 .Fc
 .Sh DESCRIPTION
-.Pp
 The
 .Fn ftw
 and
@@ -54,15 +53,19 @@ pointed to by
 .Fa fn .
 The
 .Fn ftw
-function passes this function a pointer to a NUL-terminated string containing
-the name of the object, a pointer to a stat structure corresponding to the
+function passes this function a pointer to a
+.Dv NUL Ns
+-terminated string containing
+the name of the object, a pointer to a
+.Vt stat
+structure corresponding to the
 object, and an integer flag.
 The
 .Fn nftw
 function passes the aforementioned arguments plus a pointer to a
-.Dv FTW
+.Vt FTW
 structure as defined by
-.Aq Pa ftw.h
+.In ftw.h
 (shown below):
 .Bd -literal
 struct FTW {
@@ -74,7 +77,7 @@ struct FTW {
 Possible values for the flag passed to
 .Fa fn
 are:
-.Bl -tag -width FTW_DNR
+.Bl -tag -width ".Dv FTW_DNR"
 .It Dv FTW_F
 A regular file.
 .It Dv FTW_D
@@ -84,18 +87,20 @@ A directory which cannot be read.
 The directory will not be descended into.
 .It Dv FTW_DP
 A directory being visited in post-order
-.No ( Ns Fn nftw
+.Fn ( nftw
 only).
 .It Dv FTW_NS
 A file for which no
 .Xr stat 2
 information was available.
-The contents of the stat structure are undefined.
+The contents of the
+.Vt stat
+structure are undefined.
 .It Dv FTW_SL
 A symbolic link.
 .It Dv FTW_SLN
 A symbolic link with a non-existent target
-.No ( Ns Fn nftw
+.Fn ( nftw
 only).
 .El
 .Pp
@@ -115,9 +120,9 @@ The
 function has an additional
 .Fa flags
 argument with the following possible values:
-.Bl -tag -width FTW_MOUNT
+.Bl -tag -width ".Dv FTW_MOUNT"
 .It Dv FTW_PHYS
-Physical walk, don't follow symbolic links.
+Physical walk, do not follow symbolic links.
 .It Dv FTW_MOUNT
 The walk will not cross a mount point.
 .It FTW_DEPTH
@@ -199,7 +204,8 @@ and
 functions conform to
 .St -p1003.1-2001 .
 .Sh HISTORY
-These functions first appeared in System V Release 3.
+These functions first appeared in
+.At V.3 .
 Their first
 .Fx
 appearance was in
