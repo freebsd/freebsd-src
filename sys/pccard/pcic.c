@@ -32,10 +32,10 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/select.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <machine/clock.h>
 #include <pccard/i82365.h>
@@ -77,6 +77,9 @@ static struct slot_ctrl pcic_cinfo = {
 	PCIC_MEM_WIN,
 	PCIC_IO_WIN
 };
+
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 
 /*
  * Read a register from the PCIC.
@@ -316,7 +319,6 @@ pcic_attach(device_t dev)
 	struct pcic_softc *sc;
 	struct slot	*slt;
 	struct pcic_slot *sp;
-	int		stat;
 	
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	callout_handle_init(&sc->timeout_ch);
@@ -352,15 +354,8 @@ pcic_attach(device_t dev)
 
 		/* Check for changes */
 		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
-		stat = sp->getb(sp, PCIC_STATUS);
-		if (bootverbose)
-			printf("stat is %x\n", stat);
-		if ((stat & PCIC_CD) != PCIC_CD) {
-			sp->slt->laststate = sp->slt->state = empty;
-		} else {
-			sp->slt->laststate = sp->slt->state = filled;
-			pccard_event(sp->slt, card_inserted);
-		}
+		sp->slt->laststate = sp->slt->state = empty;
+		pcic_do_stat_delta(sp);
 	}
 
 	return (bus_generic_attach(dev));
@@ -553,19 +548,19 @@ pcic_reset(void *chan)
 	struct pcic_slot *sp = slt->cdata;
 
 	switch (slt->insert_seq) {
-	    case 0: /* Something funny happended on the way to the pub... */
+	case 0: /* Something funny happended on the way to the pub... */
 		return;
-	    case 1: /* Assert reset */
+	case 1: /* Assert reset */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slt->insert_seq = 2;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
-	    case 2: /* Deassert it again */
+	case 2: /* Deassert it again */
 		pcic_setb(sp, PCIC_INT_GEN, PCIC_CARDRESET | PCIC_IOCARD);
 		slt->insert_seq = 3;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
-	    case 3: /* Wait if card needs more time */
+	case 3: /* Wait if card needs more time */
 		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
 			timeout(pcic_reset, (void *)slt, hz/10);
 			return;
@@ -608,6 +603,8 @@ pcic_resume(struct slot *slt)
 		pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 		pcic_setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
+	if (sp->slt->state != inactive)
+		pcic_do_stat_delta(sp);
 }
 
 int
@@ -711,7 +708,11 @@ pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	int err;
 
+#if __FreeBSD_version >= 500000
+	if (sc->csc_route == pci_parallel && (flags & INTR_FAST))
+#else
 	if (sc->csc_route == pci_parallel && (flags & INTR_TYPE_FAST))
+#endif
 		return (EINVAL);
 
 	if (((1 << rman_get_start(irq)) & PCIC_INT_MASK_ALLOWED) == 0) {
@@ -845,4 +846,13 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags));
+}
+
+void
+pcic_do_stat_delta(struct pcic_slot *sp)
+{
+	if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD)
+		pccard_event(sp->slt, card_removed);
+	else
+		pccard_event(sp->slt, card_inserted);
 }

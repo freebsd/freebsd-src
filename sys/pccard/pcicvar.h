@@ -83,6 +83,7 @@ void pcic_clrb(struct pcic_slot *sp, int reg, unsigned char mask);
 int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
 void pcic_dealloc(device_t dev);
+void pcic_do_stat_delta(struct pcic_slot *sp);
 int pcic_get_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t *offset);
 int pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
