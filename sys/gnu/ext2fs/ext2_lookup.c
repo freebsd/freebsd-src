@@ -42,7 +42,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
+ * $FreeBSD$
  */
+
+#include <stddef.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,54 +75,44 @@
 
 extern	int dirchk;
 
-static void	ext2_dirconv2ffs __P((struct ext2_dir_entry *e2dir,
-				      struct dirent *ffsdir));
+static u_char ext2_ft_to_dt[] = {
+	DT_UNKNOWN,		/* EXT2_FT_UNKNOWN */
+	DT_REG,			/* EXT2_FT_REG_FILE */
+	DT_DIR,			/* EXT2_FT_DIR */
+	DT_CHR,			/* EXT2_FT_CHRDEV */
+	DT_BLK,			/* EXT2_FT_BLKDEV */
+	DT_FIFO,		/* EXT2_FT_FIFO */
+	DT_SOCK,		/* EXT2_FT_SOCK */
+	DT_LNK,			/* EXT2_FT_SYMLINK */
+};
+#define	FTTODT(ft)						\
+    ((ft) > sizeof(ext2_ft_to_dt) / sizeof(ext2_ft_to_dt[0]) ?	\
+    DT_UNKNOWN : ext2_ft_to_dt[(ft)])
+
+static u_char dt_to_ext2_ft[] = {
+	EXT2_FT_UNKNOWN,	/* DT_UNKNOWN */
+	EXT2_FT_FIFO,		/* DT_FIFO */
+	EXT2_FT_CHRDEV,		/* DT_CHR */
+	EXT2_FT_UNKNOWN,	/* unused */
+	EXT2_FT_DIR,		/* DT_DIR */
+	EXT2_FT_UNKNOWN,	/* unused */
+	EXT2_FT_BLKDEV,		/* DT_BLK */
+	EXT2_FT_UNKNOWN,	/* unused */
+	EXT2_FT_REG_FILE,	/* DT_REG */
+	EXT2_FT_UNKNOWN,	/* unused */
+	EXT2_FT_SYMLINK,	/* DT_LNK */
+	EXT2_FT_UNKNOWN,	/* unused */
+	EXT2_FT_SOCK,		/* DT_SOCK */
+	EXT2_FT_UNKNOWN,	/* unused */
+	EXT2_FT_UNKNOWN,	/* DT_WHT */
+};
+#define	DTTOFT(dt)						\
+    ((dt) > sizeof(dt_to_ext2_ft) / sizeof(dt_to_ext2_ft[0]) ?	\
+    EXT2_FT_UNKNOWN : dt_to_ext2_ft[(dt)])
+
 static int	ext2_dirbadentry __P((struct vnode *dp,
-				      struct ext2_dir_entry *de,
+				      struct ext2_dir_entry_2 *de,
 				      int entryoffsetinblock));
-
-/*
- * the problem that is tackled below is the fact that FFS
- * includes the terminating zero on disk while EXT2FS doesn't
- * this implies that we need to introduce some padding.
- * For instance, a filename "sbin" has normally a reclen 12 
- * in EXT2, but 16 in FFS. 
- * This reminds me of that Pepsi commercial: 'Kid saved a lousy nine cents...'
- * If it wasn't for that, the complete ufs code for directories would
- * have worked w/o changes (except for the difference in DIRBLKSIZ)
- */
-static void
-ext2_dirconv2ffs( e2dir, ffsdir)
-	struct ext2_dir_entry	*e2dir;
-	struct dirent 		*ffsdir;
-{
-	struct dirent 	de;
-
-	bzero(&de, sizeof(struct dirent));
-	de.d_fileno = e2dir->inode;
-	de.d_namlen = e2dir->name_len;
-
-#ifndef NO_HARDWIRED_CONSTANTS
-	if(e2dir->name_len + 8 == e2dir->rec_len)
-		de.d_reclen += 4;
-
-	de.d_type = DT_UNKNOWN;		/* don't know more here */
-	strncpy(de.d_name, e2dir->name, e2dir->name_len);
-	de.d_name[de.d_namlen] = '\0';
-	/* Godmar thinks: since e2dir->rec_len can be big and means 
-	   nothing anyway, we compute our own reclen according to what
-	   we think is right
-	 */
-	de.d_reclen = (de.d_namlen+8+1+3) & ~3;
-	bcopy(&de, ffsdir, de.d_reclen);
-#endif
-
-#if 0
-	printf("dirconv: ino %d rec old %d rec new %d nam %d name %s\n",
-		ffsdir->d_fileno, e2dir->rec_len, ffsdir->d_reclen, 
-		ffsdir->d_namlen, ffsdir->d_name);
-#endif
-}
 
 /*
  * Vnode op for reading directories.
@@ -150,7 +143,7 @@ ext2_readdir(ap)
         register struct uio *uio = ap->a_uio;
         int count, error;
 
-	struct ext2_dir_entry *edp, *dp;
+	struct ext2_dir_entry_2 *edp, *dp;
 	int ncookies;
 	struct dirent dstdp;
 	struct uio auio;
@@ -178,15 +171,40 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 	error = VOP_READ(ap->a_vp, &auio, 0, ap->a_cred);
 	if (error == 0) {
 		readcnt = count - auio.uio_resid;
-		edp = (struct ext2_dir_entry *)&dirbuf[readcnt];
+		edp = (struct ext2_dir_entry_2 *)&dirbuf[readcnt];
 		ncookies = 0;
-		for (dp = (struct ext2_dir_entry *)dirbuf; 
-			!error && uio->uio_resid > 0 && dp < edp; ) {
-			ext2_dirconv2ffs(dp, &dstdp);
+		bzero(&dstdp, offsetof(struct dirent, d_name));
+		for (dp = (struct ext2_dir_entry_2 *)dirbuf; 
+		    !error && uio->uio_resid > 0 && dp < edp; ) {
+			/*-
+			 * "New" ext2fs directory entries differ in 3 ways
+			 * from ufs on-disk ones:
+			 * - the name is not necessarily NUL-terminated.
+			 * - the file type field always exists and always
+			 * follows the name length field.
+			 * - the file type is encoded in a different way.
+			 *
+			 * "Old" ext2fs directory entries need no special
+			 * conversions, since they binary compatible with
+			 * "new" entries having a file type of 0 (i.e.,
+			 * EXT2_FT_UNKNOWN).  Splitting the old name length
+			 * field didn't make a mess like it did in ufs,
+			 * because ext2fs uses a machine-dependent disk
+			 * layout.
+			 */
+			dstdp.d_fileno = dp->inode;
+			dstdp.d_type = FTTODT(dp->file_type);
+			dstdp.d_namlen = dp->name_len;
+			dstdp.d_reclen = GENERIC_DIRSIZ(&dstdp);
+			bcopy(dp->name, dstdp.d_name, dstdp.d_namlen);
+			bzero(dstdp.d_name + dstdp.d_namlen,
+			    dstdp.d_reclen - offsetof(struct dirent, d_name) -
+			    dstdp.d_namlen);
+
 			if (dp->rec_len > 0) {
 				if(dstdp.d_reclen <= uio->uio_resid) {
 					/* advance dp */
-					dp = (struct ext2_dir_entry *)
+					dp = (struct ext2_dir_entry_2 *)
 					    ((char *)dp + dp->rec_len); 
 					error = 
 					  uiomove((caddr_t)&dstdp,
@@ -213,9 +231,9 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 			MALLOC(cookies, u_long *, ncookies * sizeof(u_long), M_TEMP,
 			       M_WAITOK);
 			off = startoffset;
-			for (dp = (struct ext2_dir_entry *)dirbuf, cookiep = cookies;
+			for (dp = (struct ext2_dir_entry_2 *)dirbuf, cookiep = cookies;
 			     dp < edp;
-			     dp = (struct ext2_dir_entry *)((caddr_t) dp + dp->rec_len)) {
+			     dp = (struct ext2_dir_entry_2 *)((caddr_t) dp + dp->rec_len)) {
 				off += dp->rec_len;
 				*cookiep++ = (u_long) off;
 			}
@@ -270,7 +288,7 @@ ext2_lookup(ap)
 	register struct vnode *vdp;	/* vnode for directory being searched */
 	register struct inode *dp;	/* inode for directory being searched */
 	struct buf *bp;			/* a buffer of directory entries */
-	register struct ext2_dir_entry *ep; /* the current directory entry */
+	register struct ext2_dir_entry_2 *ep; /* the current directory entry */
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
 	enum {NONE, COMPACT, FOUND} slotstatus;
 	doff_t slotoffset;		/* offset of area with free space */
@@ -383,7 +401,7 @@ searchloop:
 		 * directory. Complete checks can be run by patching
 		 * "dirchk" to be true.
 		 */
-		ep = (struct ext2_dir_entry *)
+		ep = (struct ext2_dir_entry_2 *)
 			((char *)bp->b_data + entryoffsetinblock);
 		if (ep->rec_len == 0 ||
 		    (dirchk && ext2_dirbadentry(vdp, ep, entryoffsetinblock))) {
@@ -682,7 +700,7 @@ found:
 static int
 ext2_dirbadentry(dp, de, entryoffsetinblock)
 	struct vnode *dp;
-	register struct ext2_dir_entry *de;
+	register struct ext2_dir_entry_2 *de;
 	int entryoffsetinblock;
 {
 	int	DIRBLKSIZ = VTOI(dp)->i_e2fs->s_blocksize;
@@ -725,10 +743,10 @@ ext2_direnter(ip, dvp, cnp)
 	struct vnode *dvp;
 	register struct componentname *cnp;
 {
-	register struct ext2_dir_entry *ep, *nep;
+	register struct ext2_dir_entry_2 *ep, *nep;
 	register struct inode *dp;
 	struct buf *bp;
-	struct ext2_dir_entry newdir;
+	struct ext2_dir_entry_2 newdir;
 	struct iovec aiov;
 	struct uio auio;
 	u_int dsize;
@@ -744,6 +762,11 @@ ext2_direnter(ip, dvp, cnp)
 	dp = VTOI(dvp);
 	newdir.inode = ip->i_number;
 	newdir.name_len = cnp->cn_namelen;
+	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs->s_es,
+	    EXT2_FEATURE_INCOMPAT_FILETYPE))
+		newdir.file_type = DTTOFT(IFTODT(ip->i_mode));
+	else
+		newdir.file_type = EXT2_FT_UNKNOWN;
 	bcopy(cnp->cn_nameptr, newdir.name, (unsigned)cnp->cn_namelen + 1);
 	newentrysize = EXT2_DIR_REC_LEN(newdir.name_len);
 	if (dp->i_count == 0) {
@@ -807,15 +830,15 @@ ext2_direnter(ip, dvp, cnp)
 	 * dp->i_offset + dp->i_count would yield the
 	 * space.
 	 */
-	ep = (struct ext2_dir_entry *)dirbuf;
+	ep = (struct ext2_dir_entry_2 *)dirbuf;
 	dsize = EXT2_DIR_REC_LEN(ep->name_len);
 	spacefree = ep->rec_len - dsize;
 	for (loc = ep->rec_len; loc < dp->i_count; ) {
-		nep = (struct ext2_dir_entry *)(dirbuf + loc);
+		nep = (struct ext2_dir_entry_2 *)(dirbuf + loc);
 		if (ep->inode) {
 			/* trim the existing slot */
 			ep->rec_len = dsize;
-			ep = (struct ext2_dir_entry *)((char *)ep + dsize);
+			ep = (struct ext2_dir_entry_2 *)((char *)ep + dsize);
 		} else {
 			/* overwrite; nothing there; header is ours */
 			spacefree += dsize;
@@ -838,7 +861,7 @@ ext2_direnter(ip, dvp, cnp)
 			panic("ext2_direnter: compact2");
 		newdir.rec_len = spacefree;
 		ep->rec_len = dsize;
-		ep = (struct ext2_dir_entry *)((char *)ep + dsize);
+		ep = (struct ext2_dir_entry_2 *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)&newdir, (caddr_t)ep, (u_int)newentrysize);
 	error = VOP_BWRITE(bp);
@@ -867,7 +890,7 @@ ext2_dirremove(dvp, cnp)
 	struct componentname *cnp;
 {
 	register struct inode *dp;
-	struct ext2_dir_entry *ep;
+	struct ext2_dir_entry_2 *ep;
 	struct buf *bp;
 	int error;
 	 
@@ -907,13 +930,18 @@ ext2_dirrewrite(dp, ip, cnp)
 	struct componentname *cnp;
 {
 	struct buf *bp;
-	struct ext2_dir_entry *ep;
+	struct ext2_dir_entry_2 *ep;
 	struct vnode *vdp = ITOV(dp);
 	int error;
 
 	if (error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp))
 		return (error);
 	ep->inode = ip->i_number;
+	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs->s_es,
+	    EXT2_FEATURE_INCOMPAT_FILETYPE))
+		ep->file_type = DTTOFT(IFTODT(ip->i_mode));
+	else
+		ep->file_type = EXT2_FT_UNKNOWN;
 	error = VOP_BWRITE(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
@@ -936,7 +964,7 @@ ext2_dirempty(ip, parentino, cred)
 {
 	register off_t off;
 	struct dirtemplate dbuf;
-	register struct ext2_dir_entry *dp = (struct ext2_dir_entry *)&dbuf;
+	register struct ext2_dir_entry_2 *dp = (struct ext2_dir_entry_2 *)&dbuf;
 	int error, count, namlen;
 		 
 #define	MINDIRSIZ (sizeof (struct dirtemplate) / 2)

@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * this is mixture of i386/bitops.h and asm/string.h
  * taken from the Linux source tree 
@@ -75,6 +76,7 @@ static __inline__ int test_bit(int nr, void * addr)
 static __inline__ int find_first_zero_bit(void * addr, unsigned size)
 {
 	int res;
+	int _count = (size + 31) >> 5;
 
 	if (!size)
 		return 0;
@@ -90,9 +92,9 @@ static __inline__ int find_first_zero_bit(void * addr, unsigned size)
 1:		subl %%ebx,%%edi	\n\
 		shll $3,%%edi		\n\
 		addl %%edi,%%edx"
-		:"=d" (res)
-		:"c" ((size + 31) >> 5), "D" (addr), "b" (addr)
-		:"ax", "cx", "di");
+		: "=c" (_count), "=D" (addr), "=d" (res)
+		: "0" (_count), "1" (addr), "b" (addr)
+		: "ax");
 	return res;
 }
 

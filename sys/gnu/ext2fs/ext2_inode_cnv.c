@@ -19,6 +19,7 @@
  * improvements that they make and grant CSL redistribution rights.
  *
  *      Utah $Hdr$
+ * $FreeBSD$
  */
 
 /*
@@ -33,7 +34,10 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
-/* these defs would destroy the ext2_fs_i #include */
+/*
+ * Undo the definitions in <ufs/ufs/inode.h> that would destroy the include
+ * of <gnu/ext2fs/ext2_fs.h>.
+ */
 #undef i_atime
 #undef i_blocks
 #undef i_ctime
@@ -52,7 +56,6 @@
 
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
-#include <gnu/ext2fs/ext2_fs_i.h>
 
 void
 ext2_print_dinode( di )
@@ -109,7 +112,7 @@ ext2_ei2di(ei, di)
         di->di_flags    |= (ei->i_flags & EXT2_APPEND_FL) ? APPEND : 0;
         di->di_flags    |= (ei->i_flags & EXT2_IMMUTABLE_FL) ? IMMUTABLE : 0;
         di->di_blocks   = ei->i_blocks;
-        di->di_gen      = ei->i_version;        /* XXX is that true ??? */
+        di->di_gen      = ei->i_generation;
         di->di_uid      = ei->i_uid;
         di->di_gid      = ei->i_gid;
 	/* XXX use memcpy */
@@ -146,7 +149,7 @@ ext2_di2ei(di, ei)
         ei->i_flags    		|= (di->di_flags & IMMUTABLE) 
 							? EXT2_IMMUTABLE_FL: 0;
         ei->i_blocks            = di->di_blocks;
-        ei->i_version           = di->di_gen;   /* XXX is that true ??? */
+        ei->i_generation        = di->di_gen;
         ei->i_uid               = di->di_uid;
         ei->i_gid               = di->di_gid;
 	/* XXX use memcpy */
