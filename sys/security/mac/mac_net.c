@@ -222,7 +222,7 @@ mac_init_socket_peer_label(struct label *label, int flag)
 
 	MAC_CHECK(init_socket_peer_label, label, flag);
 	if (error) {
-		MAC_PERFORM(destroy_socket_label, label);
+		MAC_PERFORM(destroy_socket_peer_label, label);
 		mac_destroy_label(label);
 	}
 
