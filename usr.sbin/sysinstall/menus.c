@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.76 1996/06/29 03:43:22 jkh Exp $
+ * $Id: menus.c,v 1.77 1996/07/02 01:03:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -334,7 +334,8 @@ consult the README file.",
   { "3 Install","A step-by-step guide to installing FreeBSD.",		NULL, dmenuDisplayFile,	NULL, "install" },
   { "4 Copyright","The FreeBSD Copyright notices.",			NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
   { "5 Release","The release notes for this version of FreeBSD.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
-  { "6 HTML Docs","Go to the HTML documentation menu (post-install).",	NULL, docBrowser },
+  { "6 Shortcuts", "Creating shortcuts to sysinstall.",	NULL, dmenuDisplayFile, NULL, "shortcuts" },
+  { "7 HTML Docs","Go to the HTML documentation menu (post-install).",	NULL, docBrowser },
   { "0 Exit",	"Exit this menu (returning to previous)",		NULL, dmenuExit },
   { NULL } },
 };
