@@ -422,12 +422,13 @@ identifycpu()
 		panic("startup: bad cpu id");
 	}
 
-#ifdef I586_CPU
+#if defined(I586_CPU)
 	if(cpu_class == CPUCLASS_586) {
 		calibrate_cyclecounter();
 		printf("%d-MHz ", pentium_mhz);
 	}
 #endif
+#if defined(I486_CPU) || defined(I586_CPU)
 	if (!strcmp(cpu_vendor,"GenuineIntel")) {
 		if ((cpu_id & 0xf00) > 3) {
 			cpu_model[0] = '\0';
@@ -442,8 +443,10 @@ identifycpu()
 			}
 			if ((cpu_id & 0xf00) == 0x400) {
 				strcat(cpu_model, "i486 ");
+#if defined(I586_CPU)
 			} else if ((cpu_id & 0xf00) == 0x500) {
 				strcat(cpu_model, "Pentium ");
+#endif
 			} else {
 				strcat(cpu_model, "unknown ");
 			}
@@ -466,7 +469,7 @@ identifycpu()
 				break;
 			case 0x480:
 				strcat(cpu_model, "DX4"); break;
-#ifdef I586_CPU
+#if defined(I586_CPU)
 			case 0x510: 
 				if (pentium_mhz == 60) {
 					strcat(cpu_model, "510\\60");
@@ -489,25 +492,32 @@ identifycpu()
 			}
 		}
 	}
-
+#endif
 	printf("%s (", cpu_model);
 	switch(cpu_class) {
 	case CPUCLASS_286:
 		printf("286");
 		break;
+#if defined(I386_CPU)
 	case CPUCLASS_386:
 		printf("386");
 		break;
+#endif
+#if defined(I486_CPU)
 	case CPUCLASS_486:
 		printf("486");
 		break;
+#endif
+#if defined(I586_CPU)
 	case CPUCLASS_586:
 		printf("Pentium");
 		break;
+#endif
 	default:
 		printf("unknown");	/* will panic below... */
 	}
 	printf("-class CPU)\n");
+#if defined(I486_CPU) || defined(I586_CPU)
 	if(*cpu_vendor)
 		printf("  Origin = \"%s\"",cpu_vendor);
 	if(cpu_id)
@@ -521,7 +531,7 @@ identifycpu()
 		}
 	}
 	printf("\n");
-
+#endif
 	/*
 	 * Now that we have told the user what they have,
 	 * let them know if that machine type isn't configured.
