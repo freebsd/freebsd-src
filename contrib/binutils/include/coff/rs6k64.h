@@ -72,11 +72,6 @@ AOUTHDR;
 #define SMALL_AOUTSZ (0)
 #define AOUTHDRSZ 72
 
-#define	RS6K_AOUTHDR_OMAGIC	0x0107	/* old: text & data writeable */
-#define	RS6K_AOUTHDR_NMAGIC	0x0108	/* new: text r/o, data r/w */
-#define	RS6K_AOUTHDR_ZMAGIC	0x010B	/* paged: text r/o, both page-aligned */
-
-
 /********************** SECTION HEADER **********************/
 
 
@@ -94,28 +89,10 @@ struct external_scnhdr {
 	char    s_pad[4];		/* padding */  
 };
 
-/*
- * names of "special" sections
- */
-#define _TEXT	".text"
-#define _DATA	".data"
-#define _BSS	".bss"
-#define _PAD	".pad"
-#define _LOADER	".loader"
 
 #define	SCNHDR	struct external_scnhdr
 
 #define	SCNHSZ	72
-
-/* XCOFF uses a special .loader section with type STYP_LOADER.  */
-#define STYP_LOADER 0x1000
-
-/* XCOFF uses a special .debug section with type STYP_DEBUG.  */
-#define STYP_DEBUG 0x2000
-
-/* XCOFF handles line number or relocation overflow by creating
-   another section header with STYP_OVRFLO set.  */
-#define STYP_OVRFLO 0x8000
 
 /********************** LINE NUMBERS **********************/
 
@@ -126,7 +103,7 @@ struct external_scnhdr {
  */
 struct external_lineno {
 	union {
-		char l_symndx[8];/* function name symbol index, iff l_lnno == 0*/
+		char l_symndx[4];/* function name symbol index, iff l_lnno == 0*/
 		char l_paddr[8];	/* (physical) address of line number	*/
 	} l_addr;
 	char l_lnno[4];		/* line number		*/
@@ -146,9 +123,7 @@ struct external_lineno {
 
 struct external_syment 
 {
-  union {
-    char e_value[8];
-  } e;
+  char e_value[8];
   char e_offset[4];
   char e_scnum[2];
   char e_type[2];
@@ -249,3 +224,44 @@ struct external_reloc {
 #define DEFAULT_TEXT_SECTION_ALIGNMENT 4
 /* For new sections we havn't heard of before */
 #define DEFAULT_SECTION_ALIGNMENT 4
+
+/* The ldhdr structure.  This appears at the start of the .loader
+   section.  */
+
+struct external_ldhdr
+{
+  bfd_byte l_version[4];
+  bfd_byte l_nsyms[4];
+  bfd_byte l_nreloc[4];
+  bfd_byte l_istlen[4];
+  bfd_byte l_nimpid[4];
+  bfd_byte l_stlen[4];
+  bfd_byte l_impoff[8];
+  bfd_byte l_stoff[8];
+  bfd_byte l_symoff[8];
+  bfd_byte l_rldoff[8];
+};
+#define LDHDRSZ (56)
+
+struct external_ldsym
+{
+  bfd_byte l_value[8];
+  bfd_byte l_offset[4];
+  bfd_byte l_scnum[2];
+  bfd_byte l_smtype[1];
+  bfd_byte l_smclas[1];
+  bfd_byte l_ifile[4];
+  bfd_byte l_parm[4];
+};
+
+#define LDSYMSZ (24)
+
+struct external_ldrel
+{
+  bfd_byte l_vaddr[8];
+  bfd_byte l_rtype[2];
+  bfd_byte l_rsecnm[2];
+  bfd_byte l_symndx[4];
+};
+
+#define LDRELSZ (16)

@@ -1,5 +1,5 @@
 /* gasp.c - Gnu assembler preprocessor main program.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
@@ -51,7 +51,6 @@ suitable for gas to consume.
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
-#include <ctype.h>
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -63,6 +62,7 @@ extern char *malloc ();
 
 #include "ansidecl.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "sb.h"
 #include "macro.h"
 #include "asintl.h"
@@ -539,7 +539,7 @@ sb_strtol (idx, string, base, ptr)
     {
       int ch = string->ptr[idx];
       int dig = 0;
-      if (isdigit (ch))
+      if (ISDIGIT (ch))
 	dig = ch - '0';
       else if (ch >= 'a' && ch <= 'f')
 	dig = ch - 'a' + 10;
@@ -574,7 +574,7 @@ level_0 (idx, string, lhs)
 
   lhs->value = 0;
 
-  if (isdigit ((unsigned char) string->ptr[idx]))
+  if (ISDIGIT (string->ptr[idx]))
     {
       idx = sb_strtol (idx, string, 10, &lhs->value);
     }
@@ -1132,7 +1132,7 @@ change_base (idx, in, out)
 	      idx++;
 	    }
 	}
-      else if (isdigit ((unsigned char) in->ptr[idx]))
+      else if (ISDIGIT (in->ptr[idx]))
 	{
 	  int value;
 	  /* All numbers must start with a digit, let's chew it and
@@ -1549,6 +1549,7 @@ get_any_string (idx, in, out, expand, pretend_quoted)
 	  int val;
 	  char buf[20];
 	  /* Turns the next expression into a string.  */
+	  /* xgettext: no-c-format */
 	  idx = exp_get_abs (_("% operator needs absolute expression"),
 			     idx + 1,
 			     in,
@@ -1676,7 +1677,7 @@ doinstr (idx, in, out)
   idx = sb_skip_comma (idx, in);
   idx = get_and_process (idx, in, &search);
   idx = sb_skip_comma (idx, in);
-  if (isdigit ((unsigned char) in->ptr[idx]))
+  if (ISDIGIT (in->ptr[idx]))
     {
       idx = exp_get_abs (_(".instr needs absolute expresson.\n"), idx, in, &start);
     }
@@ -1776,26 +1777,26 @@ process_assigns (idx, in, buf)
 	}
       else if (idx + 3 < in->len
 	       && in->ptr[idx] == '.'
-	       && toupper ((unsigned char) in->ptr[idx + 1]) == 'L'
-	       && toupper ((unsigned char) in->ptr[idx + 2]) == 'E'
-	       && toupper ((unsigned char) in->ptr[idx + 3]) == 'N')
+	       && TOUPPER (in->ptr[idx + 1]) == 'L'
+	       && TOUPPER (in->ptr[idx + 2]) == 'E'
+	       && TOUPPER (in->ptr[idx + 3]) == 'N')
 	idx = dolen (idx + 4, in, buf);
       else if (idx + 6 < in->len
 	       && in->ptr[idx] == '.'
-	       && toupper ((unsigned char) in->ptr[idx + 1]) == 'I'
-	       && toupper ((unsigned char) in->ptr[idx + 2]) == 'N'
-	       && toupper ((unsigned char) in->ptr[idx + 3]) == 'S'
-	       && toupper ((unsigned char) in->ptr[idx + 4]) == 'T'
-	       && toupper ((unsigned char) in->ptr[idx + 5]) == 'R')
+	       && TOUPPER (in->ptr[idx + 1]) == 'I'
+	       && TOUPPER (in->ptr[idx + 2]) == 'N'
+	       && TOUPPER (in->ptr[idx + 3]) == 'S'
+	       && TOUPPER (in->ptr[idx + 4]) == 'T'
+	       && TOUPPER (in->ptr[idx + 5]) == 'R')
 	idx = doinstr (idx + 6, in, buf);
       else if (idx + 7 < in->len
 	       && in->ptr[idx] == '.'
-	       && toupper ((unsigned char) in->ptr[idx + 1]) == 'S'
-	       && toupper ((unsigned char) in->ptr[idx + 2]) == 'U'
-	       && toupper ((unsigned char) in->ptr[idx + 3]) == 'B'
-	       && toupper ((unsigned char) in->ptr[idx + 4]) == 'S'
-	       && toupper ((unsigned char) in->ptr[idx + 5]) == 'T'
-	       && toupper ((unsigned char) in->ptr[idx + 6]) == 'R')
+	       && TOUPPER (in->ptr[idx + 1]) == 'S'
+	       && TOUPPER (in->ptr[idx + 2]) == 'U'
+	       && TOUPPER (in->ptr[idx + 3]) == 'B'
+	       && TOUPPER (in->ptr[idx + 4]) == 'S'
+	       && TOUPPER (in->ptr[idx + 5]) == 'T'
+	       && TOUPPER (in->ptr[idx + 6]) == 'R')
 	idx = dosubstr (idx + 7, in, buf);
       else if (ISFIRSTCHAR (in->ptr[idx]))
 	{
@@ -2130,8 +2131,8 @@ whatcond (idx, in, val)
       char a, b;
 
       p = in->ptr + idx;
-      a = toupper ((unsigned char) p[0]);
-      b = toupper ((unsigned char) p[1]);
+      a = TOUPPER (p[0]);
+      b = TOUPPER (p[1]);
       if (a == 'E' && b == 'Q')
 	cond = EQ;
       else if (a == 'N' && b == 'E')
@@ -2980,13 +2981,13 @@ chartype_init ()
   int x;
   for (x = 0; x < 256; x++)
     {
-      if (isalpha (x) || x == '_' || x == '$')
+      if (ISALPHA (x) || x == '_' || x == '$')
 	chartype[x] |= FIRSTBIT;
 
       if (mri && x == '.')
 	chartype[x] |= FIRSTBIT;
 
-      if (isdigit (x) || isalpha (x) || x == '_' || x == '$')
+      if (ISDIGIT (x) || ISALPHA (x) || x == '_' || x == '$')
 	chartype[x] |= NEXTBIT;
 
       if (x == ' ' || x == '\t' || x == ',' || x == '"' || x == ';'
@@ -3537,6 +3538,8 @@ show_help ()
   show_usage (stdout, 0);
 }
 
+int main PARAMS ((int, char **));
+
 int
 main (argc, argv)
      int argc;
@@ -3551,6 +3554,9 @@ main (argc, argv)
 
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
+#endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
 #endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);

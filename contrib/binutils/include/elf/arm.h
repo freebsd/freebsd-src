@@ -1,5 +1,5 @@
 /* ARM ELF support for BFD.
-   Copyright 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -25,29 +25,34 @@
 /* Processor specific flags for the ELF header e_flags field.  */
 #define EF_ARM_RELEXEC     0x01
 #define EF_ARM_HASENTRY    0x02
-#define EF_INTERWORK       0x04
-#define EF_APCS_26         0x08
-#define EF_APCS_FLOAT      0x10
-#define EF_PIC             0x20
-#define EF_ALIGN8	   0x40		/* 8-bit structure alignment is in use.  */
-#define EF_NEW_ABI         0x80
-#define EF_OLD_ABI         0x100
-#define EF_SOFT_FLOAT      0x200
+#define EF_ARM_INTERWORK   0x04
+#define EF_ARM_APCS_26     0x08
+#define EF_ARM_APCS_FLOAT  0x10
+#define EF_ARM_PIC         0x20
+#define EF_ARM_ALIGN8	   0x40		/* 8-bit structure alignment is in use.  */
+#define EF_ARM_NEW_ABI     0x80
+#define EF_ARM_OLD_ABI     0x100
+#define EF_ARM_SOFT_FLOAT  0x200
+#define EF_ARM_VFP_FLOAT   0x400
 
-/* Other constants defined in the ARM ELF spec. version A-08.  */
+/* Other constants defined in the ARM ELF spec. version B-01.  */
 #define EF_ARM_SYMSARESORTED 0x04	/* NB conflicts with EF_INTERWORK */
+#define EF_ARM_DYNSYMSUSESEGIDX 0x08	/* NB conflicts with EF_APCS26 */
+#define EF_ARM_MAPSYMSFIRST 0x10	/* NB conflicts with EF_APCS_FLOAT */
 #define EF_ARM_EABIMASK      0xFF000000
 
 #define EF_ARM_EABI_VERSION(flags) ((flags) & EF_ARM_EABIMASK)
 #define EF_ARM_EABI_UNKNOWN  0x00000000
 #define EF_ARM_EABI_VER1     0x01000000
+#define EF_ARM_EABI_VER2     0x02000000
 
 /* Local aliases for some flags to match names used by COFF port.  */
-#define F_INTERWORK	   EF_INTERWORK
-#define F_APCS26	   EF_APCS_26
-#define F_APCS_FLOAT	   EF_APCS_FLOAT
-#define F_PIC              EF_PIC
-#define F_SOFT_FLOAT	   EF_SOFT_FLOAT
+#define F_INTERWORK	   EF_ARM_INTERWORK
+#define F_APCS26	   EF_ARM_APCS_26
+#define F_APCS_FLOAT	   EF_ARM_APCS_FLOAT
+#define F_PIC              EF_ARM_PIC
+#define F_SOFT_FLOAT	   EF_ARM_SOFT_FLOAT
+#define F_VFP_FLOAT	   EF_ARM_VFP_FLOAT
 
 /* Additional symbol types for Thumb.  */
 #define STT_ARM_TFUNC      STT_LOPROC   /* A Thumb function.  */
@@ -109,13 +114,21 @@ START_RELOC_NUMBERS (elf_arm_reloc_type)
   FAKE_RELOC   (LAST_INVALID_RELOC,   249)
 #else /* not OLD_ARM_ABI */
   FAKE_RELOC   (FIRST_INVALID_RELOC1,  28)
-  FAKE_RELOC   (LAST_INVALID_RELOC1,   99)
+  FAKE_RELOC   (LAST_INVALID_RELOC1,   31)
+  RELOC_NUMBER (R_ARM_ALU_PCREL7_0,    32)
+  RELOC_NUMBER (R_ARM_ALU_PCREL15_8,   33)
+  RELOC_NUMBER (R_ARM_ALU_PCREL23_15,  34)
+  RELOC_NUMBER (R_ARM_LDR_SBREL11_0,   35)
+  RELOC_NUMBER (R_ARM_ALU_SBREL19_12,  36)
+  RELOC_NUMBER (R_ARM_ALU_SBREL27_20,  37)
+  FAKE_RELOC   (FIRST_INVALID_RELOC2,  38)
+  FAKE_RELOC   (LAST_INVALID_RELOC2,   99)
   RELOC_NUMBER (R_ARM_GNU_VTENTRY,    100)
   RELOC_NUMBER (R_ARM_GNU_VTINHERIT,  101)
   RELOC_NUMBER (R_ARM_THM_PC11,       102)   /* Cygnus extension to abi: Thumb unconditional branch.  */
   RELOC_NUMBER (R_ARM_THM_PC9,        103)   /* Cygnus extension to abi: Thumb conditional branch.  */
-  FAKE_RELOC   (FIRST_INVALID_RELOC2, 104)
-  FAKE_RELOC   (LAST_INVALID_RELOC2,  248)
+  FAKE_RELOC   (FIRST_INVALID_RELOC3, 104)
+  FAKE_RELOC   (LAST_INVALID_RELOC3,  248)
   RELOC_NUMBER (R_ARM_RXPC25,         249)
 #endif /* not OLD_ARM_ABI */
   RELOC_NUMBER (R_ARM_RSBREL32,       250)

@@ -38,7 +38,29 @@
 #define TC_COFF_SECTION_DEFAULT_ATTRIBUTES (SEC_LOAD | SEC_DATA)
 #endif
 
+/* This is used to hold the symbol built by a sequence of pseudo-ops
+   from .def and .endef.  */
+static symbolS *def_symbol_in_progress;
+
+typedef struct
+  {
+    unsigned long chunk_size;
+    unsigned long element_size;
+    unsigned long size;
+    char *data;
+    unsigned long pointer;
+  }
+stack;
+
+static stack *stack_init PARAMS ((unsigned long, unsigned long));
+static char *stack_push PARAMS ((stack *, char *));
+static char *stack_pop PARAMS ((stack *));
+static void tag_init PARAMS ((void));
+static void tag_insert PARAMS ((const char *, symbolS *));
+static symbolS *tag_find PARAMS ((char *));
+static symbolS *tag_find_or_make PARAMS ((char *));
 static void obj_coff_bss PARAMS ((int));
+static void obj_coff_weak PARAMS ((int));
 const char *s_get_name PARAMS ((symbolS * s));
 static void obj_coff_ln PARAMS ((int));
 static void obj_coff_def PARAMS ((int));
@@ -54,21 +76,8 @@ static void obj_coff_ident PARAMS ((int));
 #ifdef BFD_ASSEMBLER
 static void obj_coff_loc PARAMS((int));
 #endif
-
-/* This is used to hold the symbol built by a sequence of pseudo-ops
-   from .def and .endef.  */
-static symbolS *def_symbol_in_progress;
 
 /* stack stuff */
-typedef struct
-  {
-    unsigned long chunk_size;
-    unsigned long element_size;
-    unsigned long size;
-    char *data;
-    unsigned long pointer;
-  }
-stack;
 
 static stack *
 stack_init (chunk_size, element_size)
@@ -246,7 +255,11 @@ obj_coff_weak (ignore)
 
 #ifdef BFD_ASSEMBLER
 
+static segT fetch_coff_debug_section PARAMS ((void));
 static void SA_SET_SYM_TAGNDX PARAMS ((symbolS *, symbolS *));
+static int S_GET_DATA_TYPE PARAMS ((symbolS *));
+void c_symbol_merge PARAMS ((symbolS *, symbolS *));
+static void add_lineno PARAMS ((fragS *, addressT, int));
 
 #define GET_FILENAME_STRING(X) \
 ((char*) (&((X)->sy_symbol.ost_auxent->x_file.x_n.x_offset))[1])
@@ -493,13 +506,13 @@ obj_coff_ln (appline)
     }
 
   l = get_absolute_expression ();
-  if (!appline)
-    {
-      add_lineno (frag_now, frag_now_fix (), l);
-    }
 
-  if (appline)
+  /* If there is no lineno symbol, treat a .ln
+     directive as if it were a .appline directive.  */
+  if (appline || current_lineno_sym == NULL)
     new_logical_line ((char *) NULL, l - 1);
+  else
+    add_lineno (frag_now, frag_now_fix (), l);
 
 #ifndef NO_LISTING
   {
@@ -1174,18 +1187,21 @@ coff_frob_symbol (symp, punt)
 
   if (!SF_GET_DEBUG (symp))
     {
-      symbolS *real;
+      symbolS * real;
+
       if (!SF_GET_LOCAL (symp)
 	  && !SF_GET_STATICS (symp)
 	  && S_GET_STORAGE_CLASS (symp) != C_LABEL
 	  && symbol_constant_p(symp)
 	  && (real = symbol_find_base (S_GET_NAME (symp), DO_NOT_STRIP))
+	  && S_GET_STORAGE_CLASS (real) == C_NULL
 	  && real != symp)
 	{
 	  c_symbol_merge (symp, real);
 	  *punt = 1;
 	  return;
 	}
+
       if (!S_IS_DEFINED (symp) && !SF_GET_LOCAL (symp))
 	{
 	  assert (S_GET_VALUE (symp) == 0);
@@ -1199,6 +1215,7 @@ coff_frob_symbol (symp, punt)
 	  else
 	    S_SET_STORAGE_CLASS (symp, C_STAT);
 	}
+
       if (SF_GET_PROCESS (symp))
 	{
 	  if (S_GET_STORAGE_CLASS (symp) == C_BLOCK)
@@ -1208,6 +1225,7 @@ coff_frob_symbol (symp, punt)
 	      else
 		{
 		  symbolS *begin;
+
 		  begin = *(symbolS **) stack_pop (block_stack);
 		  if (begin == 0)
 		    as_warn (_("mismatched .eb"));
@@ -1215,9 +1233,11 @@ coff_frob_symbol (symp, punt)
 		    next_set_end = begin;
 		}
 	    }
+
 	  if (coff_last_function == 0 && SF_GET_FUNCTION (symp))
 	    {
 	      union internal_auxent *auxp;
+
 	      coff_last_function = symp;
 	      if (S_GET_NUMBER_AUXILIARY (symp) < 1)
 		S_SET_NUMBER_AUXILIARY (symp, 1);
@@ -1225,6 +1245,7 @@ coff_frob_symbol (symp, punt)
 	      memset (auxp->x_sym.x_fcnary.x_ary.x_dimen, 0,
 		      sizeof (auxp->x_sym.x_fcnary.x_ary.x_dimen));
 	    }
+
 	  if (S_GET_STORAGE_CLASS (symp) == C_EFCN)
 	    {
 	      if (coff_last_function == 0)
@@ -1236,6 +1257,7 @@ coff_frob_symbol (symp, punt)
 	      coff_last_function = 0;
 	    }
 	}
+
       if (S_IS_EXTERNAL (symp))
 	S_SET_STORAGE_CLASS (symp, C_EXT);
       else if (SF_GET_LOCAL (symp))
@@ -1287,6 +1309,7 @@ coff_frob_symbol (symp, punt)
       set_end = next_set_end;
     }
 
+#ifndef OBJ_XCOFF
   if (! *punt
       && S_GET_STORAGE_CLASS (symp) == C_FCN
       && strcmp (S_GET_NAME (symp), ".bf") == 0)
@@ -1295,7 +1318,7 @@ coff_frob_symbol (symp, punt)
 	SA_SET_SYM_ENDNDX (coff_last_bf, symp);
       coff_last_bf = symp;
     }
-
+#endif
   if (coffsymbol (symbol_get_bfdsym (symp))->lineno)
     {
       int i;
@@ -1608,7 +1631,7 @@ obj_coff_init_stab_section (seg)
   /* Zero it out.  */
   memset (p, 0, 12);
   as_where (&file, (unsigned int *) NULL);
-  stabstr_name = (char *) alloca (strlen (seg->name) + 4);
+  stabstr_name = (char *) xmalloc (strlen (seg->name) + 4);
   strcpy (stabstr_name, seg->name);
   strcat (stabstr_name, "str");
   stroff = get_stab_string_offset (file, stabstr_name);
@@ -1824,7 +1847,6 @@ size_section (abfd, idx)
 	  break;
 #endif
 	case rs_space:
-	  assert (frag->fr_symbol == 0);
 	case rs_fill:
 	case rs_org:
 	  size += frag->fr_fix;
@@ -1977,7 +1999,7 @@ do_relocs_for (abfd, h, file_cursor)
 		      /* Turn the segment of the symbol into an offset.  */
 		      if (symbol_ptr)
 			{
-			  resolve_symbol_value (symbol_ptr, 1);
+			  resolve_symbol_value (symbol_ptr);
 			  if (! symbol_ptr->sy_resolved)
 			    {
 			      char *file;
@@ -2038,8 +2060,8 @@ do_relocs_for (abfd, h, file_cursor)
 #endif
 
 	      /* Write out the reloc table */
-	      bfd_write ((PTR) external_reloc_vec, 1, external_reloc_size,
-			 abfd);
+	      bfd_bwrite ((PTR) external_reloc_vec,
+			  (bfd_size_type) external_reloc_size, abfd);
 	      free (external_reloc_vec);
 
 	      /* Fill in section header info.  */
@@ -2138,7 +2160,6 @@ fill_section (abfd, h, file_cursor)
 
 		  break;
 		case rs_space:
-		  assert (frag->fr_symbol == 0);
 		case rs_fill:
 		case rs_align:
 		case rs_align_code:
@@ -2182,7 +2203,7 @@ fill_section (abfd, h, file_cursor)
 	    {
 	      if (s->s_scnptr != 0)
 		{
-		  bfd_write (buffer, s->s_size, 1, abfd);
+		  bfd_bwrite (buffer, s->s_size, abfd);
 		  *file_cursor += s->s_size;
 		}
 	      free (buffer);
@@ -2206,7 +2227,7 @@ coff_header_append (abfd, h)
   unsigned long string_size = 4;
 #endif
 
-  bfd_seek (abfd, 0, 0);
+  bfd_seek (abfd, (file_ptr) 0, 0);
 
 #ifndef OBJ_COFF_OMIT_OPTIONAL_HEADER
   H_SET_MAGIC_NUMBER (h, COFF_MAGIC);
@@ -2222,8 +2243,8 @@ coff_header_append (abfd, h)
 
   i = bfd_coff_swap_filehdr_out (abfd, &h->filehdr, buffer);
 
-  bfd_write (buffer, i, 1, abfd);
-  bfd_write (buffero, H_GET_SIZEOF_OPTIONAL_HEADER (h), 1, abfd);
+  bfd_bwrite (buffer, (bfd_size_type) i, abfd);
+  bfd_bwrite (buffero, (bfd_size_type) H_GET_SIZEOF_OPTIONAL_HEADER (h), abfd);
 
   for (i = SEG_E0; i < SEG_LAST; i++)
     {
@@ -2248,7 +2269,7 @@ coff_header_append (abfd, h)
 					   buffer);
 	  if (size == 0)
 	    as_bad (_("bfd_coff_swap_scnhdr_out failed"));
-	  bfd_write (buffer, size, 1, abfd);
+	  bfd_bwrite (buffer, (bfd_size_type) size, abfd);
 	}
     }
 }
@@ -2958,7 +2979,7 @@ yank_symbols ()
 	      S_SET_SEGMENT (symbolP, SEG_E0);
 	    }			/* push data into text */
 
-	  resolve_symbol_value (symbolP, 1);
+	  resolve_symbol_value (symbolP);
 
 	  if (S_GET_STORAGE_CLASS (symbolP) == C_NULL)
 	    {
@@ -3375,7 +3396,7 @@ do_linenos_for (abfd, h, file_cursor)
 
 	  s->scnhdr.s_lnnoptr = *file_cursor;
 
-	  bfd_write (buffer, 1, s->scnhdr.s_nlnno * LINESZ, abfd);
+	  bfd_bwrite (buffer, (bfd_size_type) s->scnhdr.s_nlnno * LINESZ, abfd);
 	  free (buffer);
 
 	  *file_cursor += s->scnhdr.s_nlnno * LINESZ;
@@ -3472,6 +3493,9 @@ write_object_file ()
     {
       relax_segment (segment_info[i].frchainP->frch_root, i);
     }
+
+  /* Relaxation has completed.  Freeze all syms.  */
+  finalize_syms = 1;
 
   H_SET_NUMBER_OF_SECTIONS (&headers, 0);
 
@@ -3595,7 +3619,8 @@ write_object_file ()
     w_symbols (abfd, buffer1, symbol_rootP);
     if (string_byte_count > 0)
       w_strings (buffer1 + symtable_size);
-    bfd_write (buffer1, 1, symtable_size + string_byte_count, abfd);
+    bfd_bwrite (buffer1, (bfd_size_type) symtable_size + string_byte_count,
+		abfd);
     free (buffer1);
   }
 
@@ -4191,7 +4216,7 @@ fixup_segment (segP, this_segment_type)
       /* Make sure the symbols have been resolved; this may not have
          happened if these are expression symbols.  */
       if (add_symbolP != NULL && ! add_symbolP->sy_resolved)
-	resolve_symbol_value (add_symbolP, 1);
+	resolve_symbol_value (add_symbolP);
 
       if (add_symbolP != NULL)
 	{
@@ -4221,7 +4246,7 @@ fixup_segment (segP, this_segment_type)
 	}
 
       if (sub_symbolP != NULL && ! sub_symbolP->sy_resolved)
-	resolve_symbol_value (sub_symbolP, 1);
+	resolve_symbol_value (sub_symbolP);
 
       if (add_symbolP != NULL
 	  && add_symbolP->sy_mri_common)
@@ -4471,11 +4496,7 @@ fixup_segment (segP, this_segment_type)
 #endif
 	}			/* if pcrel */
 
-#ifdef MD_APPLY_FIX3
-      md_apply_fix3 (fixP, (valueT *) &add_number, this_segment_type);
-#else
-      md_apply_fix (fixP, add_number);
-#endif
+      md_apply_fix3 (fixP, (valueT *) & add_number, this_segment_type);
 
       if (!fixP->fx_bit_fixP && ! fixP->fx_no_overflow)
 	{

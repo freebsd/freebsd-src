@@ -43,8 +43,9 @@ struct obstack;
 struct frag {
   /* Object file address (as an octet offset).  */
   addressT fr_address;
-  /* Chain forward; ascending address order.  Rooted in frch_root.  */
-  struct frag *fr_next;
+  /* When relaxing multiple times, remember the address the frag had
+     in the last relax pass.  */
+  addressT last_fr_address;
 
   /* (Fixed) number of octets we know we have.  May be 0.  */
   offsetT fr_fix;
@@ -52,11 +53,18 @@ struct frag {
      The generic frag handling code no longer makes any use of fr_var.  */
   offsetT fr_var;
   /* For variable-length tail.  */
-  symbolS *fr_symbol;
-  /* For variable-length tail.  */
   offsetT fr_offset;
+  /* For variable-length tail.  */
+  symbolS *fr_symbol;
   /* Points to opcode low addr byte, for relaxation.  */
   char *fr_opcode;
+
+  /* Chain forward; ascending address order.  Rooted in frch_root.  */
+  struct frag *fr_next;
+
+  /* Where the frag was created, or where it became a variant frag.  */
+  char *fr_file;
+  unsigned int fr_line;
 
 #ifndef NO_LISTING
   struct list_info_struct *line;
@@ -85,10 +93,6 @@ struct frag {
 #ifdef TC_FRAG_TYPE
   TC_FRAG_TYPE tc_frag_data;
 #endif
-
-  /* Where the frag was created, or where it became a variant frag.  */
-  char *fr_file;
-  unsigned int fr_line;
 
   /* Data begins here.  */
   char fr_literal[1];

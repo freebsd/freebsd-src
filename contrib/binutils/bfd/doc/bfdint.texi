@@ -1,6 +1,6 @@
 \input texinfo
 @c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
-@c 2000
+@c 2000, 2001
 @c Free Software Foundation, Inc.
 @setfilename bfdint.info
 
@@ -335,6 +335,8 @@ VERSAdos.
 MS-DOS.
 @item bfd_target_evax_flavour
 openVMS.
+@item bfd_target_mmo_flavour
+Donald Knuth's MMIXware object format.
 @end table
 
 @item byteorder
@@ -379,7 +381,7 @@ vectors which use the same sets of functions.
 @node BFD target vector swap
 @subsection Swapping functions
 
-Every target vector has fuction pointers used for swapping information
+Every target vector has function pointers used for swapping information
 in and out of the target representation.  There are two sets of
 functions: one for data information, and one for header information.
 Each set has three sizes: 64-bit, 32-bit, and 16-bit.  Each size has
@@ -503,7 +505,7 @@ corresponds to an actual section in an actual BFD.
 Get the contents of a section.  This is called from
 @samp{bfd_get_section_contents}.  Most targets set this to
 @samp{_bfd_generic_get_section_contents}, which does a @samp{bfd_seek}
-based on the section's @samp{filepos} field and a @samp{bfd_read}.  The
+based on the section's @samp{filepos} field and a @samp{bfd_bread}.  The
 corresponding field in the target vector is named
 @samp{_bfd_get_section_contents}.
 
@@ -636,7 +638,7 @@ always uses extended name tables anyhow.  The corresponding field in the
 target vector is named @samp{_bfd_truncate_arname}.
 
 @item _write_armap
-Write out the archive symbol table using calls to @samp{bfd_write}.
+Write out the archive symbol table using calls to @samp{bfd_bwrite}.
 This is normally called from the archive @samp{write_contents} routine.
 The corresponding field in the target vector is named @samp{write_armap}
 (no leading underscore).
@@ -1291,10 +1293,13 @@ doing a link in which the output object file format is S-records.
 @item
 Using the linker to generate relocateable output in a different object
 file format is impossible in the general case, so you generally don't
-have to worry about that.  Linking input files of different object file
-formats together is quite unusual, but if you're really dedicated you
-may want to consider testing this case, both when the output object file
-format is the same as your format, and when it is different.
+have to worry about that.  The GNU linker makes sure to stop that from
+happening when an input file in a different format has relocations.
+
+Linking input files of different object file formats together is quite
+unusual, but if you're really dedicated you may want to consider testing
+this case, both when the output object file format is the same as your
+format, and when it is different.
 @end itemize
 
 @node BFD relocation codes

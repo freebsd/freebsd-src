@@ -21,9 +21,9 @@
    02111-1307, USA.  */
 
 #include <stdio.h>
-#include <ctype.h>
 #include "libiberty.h"
 #include "as.h"
+#include "safe-ctype.h"
 #include "subsegs.h"
 #include "opcode/arc.h"
 #include "../opcodes/arc-ext.h"
@@ -46,8 +46,10 @@ static void arc_common PARAMS ((int));
 static void arc_extinst PARAMS ((int));
 static void arc_extoper PARAMS ((int));
 static void arc_option PARAMS ((int));
-static int get_arc_exp_reloc_type PARAMS ((int, int, expressionS *,
+static int  get_arc_exp_reloc_type PARAMS ((int, int, expressionS *,
 					   expressionS *));
+
+static void init_opcode_tables PARAMS ((int));
 
 const struct suffix_classes {
   char *name;
@@ -393,7 +395,7 @@ md_assemble (str)
     }
 
   /* Skip leading white space.  */
-  while (isspace (*str))
+  while (ISSPACE (*str))
     str++;
 
   /* The instructions are stored in lists hashed by the first letter (though
@@ -544,7 +546,7 @@ md_assemble (str)
 		}
 
 	      /* Pick the suffix out and look it up via the hash table.  */
-	      for (t = s; *t && isalnum (*t); ++t)
+	      for (t = s; *t && ISALNUM (*t); ++t)
 		continue;
 	      c = *t;
 	      *t = '\0';
@@ -736,7 +738,7 @@ md_assemble (str)
 	     insn and it is assumed that longer versions of insns appear
 	     before shorter ones (eg: lsr r2,r3,1 vs lsr r2,r3).  */
 
-	  while (isspace (*str))
+	  while (ISSPACE (*str))
 	    ++str;
 
 	  if (!is_end_of_line[(unsigned char) *str])
@@ -832,7 +834,7 @@ md_assemble (str)
 		 operands residing in the insn, but instead just use the
 		 operand index.  This lets us easily handle fixups for any
 		 operand type, although that is admittedly not a very exciting
-		 feature.  We pick a BFD reloc type in md_apply_fix.
+		 feature.  We pick a BFD reloc type in md_apply_fix3.
 
 		 Limm values (4 byte immediate "constants") must be treated
 		 normally because they're not part of the actual insn word
@@ -913,8 +915,7 @@ arc_extoper (opertype)
   p = name;
   while (*p)
     {
-      if (isupper (*p))
-	*p = tolower (*p);
+      *p = TOLOWER (*p);
       p++;
     }
 
@@ -1538,7 +1539,7 @@ arc_option (ignore)
 
 char *
 md_atof (type, litP, sizeP)
-     char type;
+     int type;
      char *litP;
      int *sizeP;
 {
@@ -1546,7 +1547,7 @@ md_atof (type, litP, sizeP)
   LITTLENUM_TYPE words[MAX_LITTLENUMS];
   LITTLENUM_TYPE *wordP;
   char *t;
-  char *atof_ieee ();
+  char * atof_ieee PARAMS ((char *, int, LITTLENUM_TYPE *));
 
   switch (type)
     {
@@ -1631,9 +1632,7 @@ void
 arc_code_symbol (expressionP)
      expressionS *expressionP;
 {
-  if (expressionP->X_op == O_symbol && expressionP->X_add_number == 0
-      /* I think this test is unnecessary but just as a sanity check...  */
-      && expressionP->X_op_symbol == NULL)
+  if (expressionP->X_op == O_symbol && expressionP->X_add_number == 0)
     {
       expressionS two;
       expressionP->X_op = O_right_shift;
@@ -1703,7 +1702,7 @@ md_operand (expressionP)
 	while (ext_oper)
 	  {
 	    l = strlen (ext_oper->operand.name);
-	    if (!strncmp (p, ext_oper->operand.name, l) && !isalnum(*(p + l)))
+	    if (!strncmp (p, ext_oper->operand.name, l) && !ISALNUM (*(p + l)))
 	      {
 		input_line_pointer += l + 1;
 		expressionP->X_op = O_register;
@@ -1715,7 +1714,7 @@ md_operand (expressionP)
 	for (i = 0; i < arc_reg_names_count; i++)
 	  {
 	    l = strlen (arc_reg_names[i].name);
-	    if (!strncmp (p, arc_reg_names[i].name, l) && !isalnum (*(p + l)))
+	    if (!strncmp (p, arc_reg_names[i].name, l) && !ISALNUM (*(p + l)))
 	      {
 		input_line_pointer += l + 1;
 		expressionP->X_op = O_register;
@@ -1881,16 +1880,16 @@ get_arc_exp_reloc_type (data_p, default_type, exp, expnew)
    and we attempt to completely resolve the reloc.  If we can not do
    that, we determine the correct reloc code and put it back in the fixup.  */
 
-int
-md_apply_fix3 (fixP, valueP, seg)
+void
+md_apply_fix3 (fixP, valP, seg)
      fixS *fixP;
-     valueT *valueP;
+     valueT * valP;
      segT seg;
 {
 #if 0
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
 #endif
-  valueT value;
+  valueT value = * valP;
 
   /* FIXME FIXME FIXME: The value we are passed in *valueP includes
      the symbol values.  Since we are using BFD_ASSEMBLER, if we are
@@ -1904,13 +1903,10 @@ md_apply_fix3 (fixP, valueP, seg)
      result of md_pcrel_from.  This is confusing.  */
 
   if (fixP->fx_addsy == (symbolS *) NULL)
-    {
-      value = *valueP;
-      fixP->fx_done = 1;
-    }
+    fixP->fx_done = 1;
+
   else if (fixP->fx_pcrel)
     {
-      value = *valueP;
       /* ELF relocations are against symbols.
 	 If this symbol is in a different section then we need to leave it for
 	 the linker to deal with.  Unfortunately, md_pcrel_from can't tell,
@@ -1963,7 +1959,7 @@ md_apply_fix3 (fixP, valueP, seg)
       if (fixP->fx_done)
 	{
 	  /* Nothing else to do here.  */
-	  return 1;
+	  return;
 	}
 
       /* Determine a BFD reloc value based on the operand information.
@@ -1998,7 +1994,7 @@ md_apply_fix3 (fixP, valueP, seg)
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			"unresolved expression that must be resolved");
 	  fixP->fx_done = 1;
-	  return 1;
+	  return;
 	}
     }
   else
@@ -2038,8 +2034,6 @@ md_apply_fix3 (fixP, valueP, seg)
     }
 
   fixP->fx_addnumber = value;
-
-  return 1;
 }
 
 /* Translate internal representation of relocation info to BFD target

@@ -1,7 +1,57 @@
-2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
 
-	* bfdint.texi (BFD target vector miscellaneous): --oformat, not
-	-oformat.
+	* doc/bfdint.texi (BFD target vector miscellaneous): Add
+	bfd_target_mmo_flavour.
+	* doc/bfd.texinfo (BFD back ends): Add entry for mmo.
+	* doc/Makefile.am (DOCFILES): Add mmo.texi.
+	(SRCDOC): Add mmo.c.
+	(s-mmo, mmo.texi): New rules.
+
+2001-10-29  Kazu Hirata  <kazu@hxi.com>
+
+	* bfdsumm.texi: Fix a typo.
+
+2001-10-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* bfd.texinfo: Change footer to refer to FSF.  Change subtitle
+	to refer to original creation date.
+
+2001-10-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (BFD_H_DEP): Add ../version.h.
+	* Makefile.in: Regenerate.
+
+2001-10-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-10-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* header.sed: New file, adds header to generated files.
+	* Makefile.am: Rewrite rules generating libbfd.h, libcoff.h and
+	bfd.h, using above.  Add missing elf.c dependecy for libbfd.h.
+	* Makefile.in: Regenerate.
+
+2001-09-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* bfdint.texi: Replace reference to bfd_read with bfd_bread.
+	Likewise for bfd_write.
+
+2001-07-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-06-21  Hans-Peter Nilsson  <hp@axis.com>
+
+	* bfdint.texi (BFD relocation functions) <different formats>:
+	Mention that the GNU linker is aware of input-output format
+	restrictions when generating relocatable output.  Make new
+	paragraph for final-link case.
+	(BFD target vector swap): Fix typo.
 
 2001-01-25  Kazu Hirata  <kazu@hxi.com>
 
@@ -240,7 +290,7 @@ Fri Sep  2 13:33:44 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 Wed Jan 12 18:37:12 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	* bfd.texinfo: Added Linker Functions node.
-	* doc/Makefile.in (DOCFILES): Added linker.texi.
+	* Makefile.in (DOCFILES): Added linker.texi.
 	(SRCDOC): Added linker.c.
 	(linker.texi): New target.
 
@@ -355,9 +405,9 @@ Thu Nov  5 03:13:55 1992  John Gilmore  (gnu@cygnus.com)
 
 	Cleanup:  Replace all uses of EXFUN in the BFD sources, with PARAMS.
 
- 	* doc/chew.c (exfunstuff):  Eliminate.
+ 	* chew.c (exfunstuff):  Eliminate.
 	(paramstuff):  Replace exfunstuff with function to generate PARAMS.
-	* doc/proto.str:  Use paramstuff rather than exfunstuff.
+	* proto.str:  Use paramstuff rather than exfunstuff.
 
 Mon Aug 17 12:40:32 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 

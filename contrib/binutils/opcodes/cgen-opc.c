@@ -20,10 +20,10 @@
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sysdep.h"
-#include <ctype.h>
 #include <stdio.h>
 #include "ansidecl.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "bfd.h"
 #include "symcat.h"
 #include "opcode/cgen.h"
@@ -69,9 +69,7 @@ cgen_keyword_lookup_name (kt, name)
 
       while (*p
 	     && (*p == *n
-		 || (isalpha ((unsigned char) *p)
-		     && (tolower ((unsigned char) *p)
-			 == tolower ((unsigned char) *n)))))
+		 || (ISALPHA (*p) && (TOLOWER (*p) == TOLOWER (*n)))))
 	++n, ++p;
 
       if (!*p && !*n)
@@ -118,6 +116,7 @@ cgen_keyword_add (kt, ke)
      CGEN_KEYWORD_ENTRY *ke;
 {
   unsigned int hash;
+  size_t i;
 
   if (kt->name_hash_table == NULL)
     build_keyword_hash_tables (kt);
@@ -132,6 +131,21 @@ cgen_keyword_add (kt, ke)
 
   if (ke->name[0] == 0)
     kt->null_entry = ke;
+
+  for (i = 1; i < strlen (ke->name); i++)
+    if (! ISALNUM (ke->name[i])
+	&& ! strchr (kt->nonalpha_chars, ke->name[i]))
+      {
+	size_t idx = strlen (kt->nonalpha_chars);
+	
+	/* If you hit this limit, please don't just
+	   increase the size of the field, instead
+	   look for a better algorithm.  */
+	if (idx >= sizeof (kt->nonalpha_chars) - 1)
+	  abort ();
+	kt->nonalpha_chars[idx] = ke->name[i];
+	kt->nonalpha_chars[idx+1] = 0;
+      }
 }
 
 /* FIXME: Need function to return count of keywords.  */
@@ -216,7 +230,7 @@ hash_keyword_name (kt, name, case_sensitive_p)
       hash = (hash * 97) + (unsigned char) *name;
   else
     for (hash = 0; *name; ++name)
-      hash = (hash * 97) + (unsigned char) tolower (*name);
+      hash = (hash * 97) + (unsigned char) TOLOWER (*name);
   return hash % kt->hash_table_size;
 }
 
@@ -375,7 +389,35 @@ cgen_get_insn_value (cd, buf, length)
      unsigned char *buf;
      int length;
 {
-  bfd_get_bits (buf, length, cd->insn_endian == CGEN_ENDIAN_BIG);
+  int big_p = (cd->insn_endian == CGEN_ENDIAN_BIG);
+  int insn_chunk_bitsize = cd->insn_chunk_bitsize;
+  CGEN_INSN_INT value = 0;
+
+  if (insn_chunk_bitsize != 0 && insn_chunk_bitsize < length)
+    {
+      /* We need to divide up the incoming value into insn_chunk_bitsize-length
+	 segments, and endian-convert them, one at a time. */
+      int i;
+
+      /* Enforce divisibility. */ 
+      if ((length % insn_chunk_bitsize) != 0)
+	abort ();
+
+      for (i = 0; i < length; i += insn_chunk_bitsize) /* NB: i == bits */
+	{
+	  int index;
+	  bfd_vma this_value;
+	  index = i; /* NB: not dependent on endianness; opposite of cgen_put_insn_value! */
+	  this_value = bfd_get_bits (& buf[index / 8], insn_chunk_bitsize, big_p);
+	  value = (value << insn_chunk_bitsize) | this_value;
+	}
+    }
+  else
+    {
+      value = bfd_get_bits (buf, length, cd->insn_endian == CGEN_ENDIAN_BIG);
+    }
+
+  return value;
 }
 
 /* Cover function to store an insn value properly byteswapped.  */
@@ -387,8 +429,31 @@ cgen_put_insn_value (cd, buf, length, value)
      int length;
      CGEN_INSN_INT value;
 {
-  bfd_put_bits ((bfd_vma) value, buf, length,
-		cd->insn_endian == CGEN_ENDIAN_BIG);
+  int big_p = (cd->insn_endian == CGEN_ENDIAN_BIG);
+  int insn_chunk_bitsize = cd->insn_chunk_bitsize;
+
+  if (insn_chunk_bitsize != 0 && insn_chunk_bitsize < length)
+    {
+      /* We need to divide up the incoming value into insn_chunk_bitsize-length
+	 segments, and endian-convert them, one at a time. */
+      int i;
+
+      /* Enforce divisibility. */ 
+      if ((length % insn_chunk_bitsize) != 0)
+	abort ();
+
+      for (i = 0; i < length; i += insn_chunk_bitsize) /* NB: i == bits */
+	{
+	  int index;
+	  index = (length - insn_chunk_bitsize - i); /* NB: not dependent on endianness! */
+	  bfd_put_bits ((bfd_vma) value, & buf[index / 8], insn_chunk_bitsize, big_p);
+	  value >>= insn_chunk_bitsize;
+	}
+    }
+  else
+    {
+      bfd_put_bits ((bfd_vma) value, buf, length, big_p);
+    }
 }
 
 /* Look up instruction INSN_*_VALUE and extract its fields.

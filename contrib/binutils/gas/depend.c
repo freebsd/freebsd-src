@@ -1,5 +1,5 @@
 /* depend.c - Handle dependency tracking.
-   Copyright 1997, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -21,15 +21,16 @@
 #include "as.h"
 
 /* The file to write to, or NULL if no dependencies being kept.  */
-static char *dep_file = NULL;
+static char * dep_file = NULL;
 
-struct dependency {
-  char *file;
-  struct dependency *next;
-};
+struct dependency
+  {
+    char * file;
+    struct dependency * next;
+  };
 
 /* All the files we depend on.  */
-static struct dependency *dep_chain = NULL;
+static struct dependency * dep_chain = NULL;
 
 /* Current column in output file.  */
 static int column = 0;
@@ -86,9 +87,11 @@ quote_string_for_make (file, src)
 {
   char *p = src;
   int i = 0;
+
   for (;;)
     {
       char c = *p++;
+
       switch (c)
 	{
 	case '\0':
@@ -102,6 +105,7 @@ quote_string_for_make (file, src)
 	       the end of a file name; and backslashes in other
 	       contexts should not be doubled.  */
 	    char *q;
+
 	    for (q = p - 1; src < q && q[-1] == '\\'; q--)
 	      {
 		if (file)
@@ -190,10 +194,10 @@ print_dependencies ()
   if (dep_file == NULL)
     return;
 
-  f = fopen (dep_file, "w");
+  f = fopen (dep_file, FOPEN_WT);
   if (f == NULL)
     {
-      as_warn (_("Can't open `%s' for writing"), dep_file);
+      as_warn (_("can't open `%s' for writing"), dep_file);
       return;
     }
 
@@ -205,5 +209,5 @@ print_dependencies ()
   putc ('\n', f);
 
   if (fclose (f))
-    as_warn (_("Can't close `%s'"), dep_file);
+    as_warn (_("can't close `%s'"), dep_file);
 }

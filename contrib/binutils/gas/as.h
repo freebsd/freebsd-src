@@ -43,28 +43,19 @@
 /* This is the code recommended in the autoconf documentation, almost
    verbatim.  If it doesn't work for you, let me know, and notify
    djm@gnu.ai.mit.edu as well.  */
-/* Added #undef for DJ Delorie.  The right fix is to ensure that as.h
-   is included first, before even any system header files, in all files
-   that use it.  KR 1994.11.03 */
 /* Added void* version for STDC case.  This is to be compatible with
    the declaration in bison.simple, used for m68k operand parsing.
    --KR 1995.08.08 */
 /* Force void* decl for hpux.  This is what Bison uses.  --KR 1995.08.16 */
 
-/* AIX requires this to be the first thing in the file.  */
-#ifdef __GNUC__
-# ifndef alloca
-#  ifdef __STDC__
-extern void *alloca ();
-#  else
-extern char *alloca ();
-#  endif
-# endif
-#else
+#ifndef __GNUC__
 # if HAVE_ALLOCA_H
 #  include <alloca.h>
 # else
 #  ifdef _AIX
+/* Indented so that pre-ansi C compilers will ignore it, rather than
+   choke on it.  Some versions of AIX require this to be the first
+   thing in the file.  */
  #pragma alloca
 #  else
 #   ifndef alloca /* predefined by HP cc +Olibcalls */
@@ -76,13 +67,12 @@ extern void *alloca ();
 #   endif /* alloca */
 #  endif /* _AIX */
 # endif /* HAVE_ALLOCA_H */
-#endif
+#endif /* __GNUC__ */
 
 /* Now, tend to the rest of the configuration.  */
 
 /* System include files first...  */
 #include <stdio.h>
-#include <ctype.h>
 #ifdef HAVE_STRING_H
 #include <string.h>
 #else

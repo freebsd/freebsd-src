@@ -1,10 +1,10 @@
 		README for GAS
 
-A number of things have changed since version 1 and the wonderful world of gas
-looks very different.  There's still a lot of irrelevant garbage lying around
-that will be cleaned up in time.  Documentation is scarce, as are logs of the
-changes made since the last gas release.  My apologies, and I'll try to get
-something useful.
+A number of things have changed since version 1 and the wonderful
+world of gas looks very different.  There's still a lot of irrelevant
+garbage lying around that will be cleaned up in time.  Documentation
+is scarce, as are logs of the changes made since the last gas release.
+My apologies, and I'll try to get something useful.
 
 Unpacking and Installation - Summary
 ====================================
@@ -31,7 +31,7 @@ system.  You can rebuild it by typing:
 	make as.dvi
 
 The Info form is viewable with the GNU Emacs `info' subsystem, or the
-standalone `info' program, available as part of the GNU Texinfo distribution.
+stand-alone `info' program, available as part of the GNU Texinfo distribution.
 To build the info files, you will need the `makeinfo' program.  Type:
 
 	cd gas/doc
@@ -142,7 +142,7 @@ The `--enable' options recognized by software in the gas distribution are:
 Supported platforms
 ===================
 
-At this point I believe gas to be ansi only code for most target cpu's.  That
+At this point I believe gas to be ANSI only code for most target cpu's.  That
 is, there should be relatively few, if any host system dependencies.  So
 porting (as a cross-assembler) to hosts not yet supported should be fairly
 easy.  Porting to a new target shouldn't be too tough if it's a variant of one
@@ -173,9 +173,10 @@ Native assembling should work on:
 	sparc solaris
 	ns32k (netbsd, lites)
 
-I believe that gas as a cross-assembler can currently be targetted for
+I believe that gas as a cross-assembler can currently be targeted for
 most of the above hosts, plus
 
+        arm
 	decstation-bsd (a.out format, to be used in BSD 4.4)
 	ebmon29k
 	go32 (DOS on i386, with DJGPP -- old a.out version)
@@ -202,7 +203,7 @@ run gcc on it.  Or run "gcc -xassembler-with-cpp foo.s".
 Support for ELF should work now for sparc, hppa, i386, alpha, m68k,
 MIPS, powerpc.
 
-Support for sequent (ns32k), tahoe, i860, m88k may be suffering from bitrot.
+Support for sequent (ns32k), tahoe, i860 may be suffering from bitrot.
 
 If you try out gas on some host or target not listed above, please let me know
 the results, so I can update the list.
@@ -229,10 +230,13 @@ warning message when this happens.
 REPORTING BUGS IN GAS
 =====================
 
-Bugs in gas should be reported to bug-binutils@gnu.org.  They may be
-cross-posted to bug-gcc if they affect the use of gas with gcc.  They
-should not be reported just to bug-gcc, since I don't read that list,
-and therefore wouldn't see them.
+Bugs in gas should be reported to:
+
+   bug-gnu-utils@gnu.org.
+
+They may be cross-posted to gcc-bugs@gnu.org if they affect the use of
+gas with gcc.  They should not be reported just to gcc-bugs, since not
+all of the maintainers read that list.
 
 If you report a bug in GAS, please remember to include:
 
@@ -265,7 +269,7 @@ does demonstrate the problem; but if paring it down would cause large delays
 in filing the bug report, don't bother.
 
 If the input file is very large, and you are on the internet, you may want to
-make it avaliable for anonymous FTP instead of mailing it.  If you do, include
+make it available for anonymous FTP instead of mailing it.  If you do, include
 instructions for FTP'ing it in your bug report.
 
 If you expect to be contributing a large number of test cases, it would be

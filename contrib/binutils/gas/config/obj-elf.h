@@ -182,32 +182,10 @@ void elf_obj_symbol_new_hook PARAMS ((symbolS *));
 #define obj_symbol_new_hook	elf_obj_symbol_new_hook
 #endif
 
-/* When setting one symbol equal to another, by default we probably
-   want them to have the same "size", whatever it means in the current
-   context.  */
+void elf_copy_symbol_attributes PARAMS ((symbolS *, symbolS *));
 #ifndef OBJ_COPY_SYMBOL_ATTRIBUTES
-#define OBJ_COPY_SYMBOL_ATTRIBUTES(DEST,SRC)			\
-do								\
-  {								\
-    struct elf_obj_sy *srcelf = symbol_get_obj (SRC);		\
-    struct elf_obj_sy *destelf = symbol_get_obj (DEST);		\
-    if (srcelf->size)						\
-      {								\
-	if (destelf->size == NULL)				\
-	  destelf->size =					\
-	    (expressionS *) xmalloc (sizeof (expressionS));	\
-	*destelf->size = *srcelf->size;				\
-      }								\
-    else							\
-      {								\
-	if (destelf->size != NULL)				\
-	  free (destelf->size);					\
-	destelf->size = NULL;					\
-      }								\
-    S_SET_SIZE ((DEST), S_GET_SIZE (SRC));			\
-    S_SET_OTHER ((DEST), S_GET_OTHER (SRC));			\
-  }								\
-while (0)
+#define OBJ_COPY_SYMBOL_ATTRIBUTES(DEST, SRC) \
+  (elf_copy_symbol_attributes (DEST, SRC))
 #endif
 
 #ifndef SEPARATE_STAB_SECTIONS

@@ -1,5 +1,5 @@
 %{ /* rclex.l -- lexer for Windows rc files parser  */
-/* Copyright 1997, 1998, 1999 Free Software Foundation, Inc.
+/* Copyright 1997, 1998, 1999, 2001 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -26,10 +26,10 @@
 #include "bfd.h"
 #include "bucomm.h"
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "windres.h"
 #include "rcparse.h"
 
-#include <ctype.h>
 #include <assert.h>
 
 /* Whether we are in rcdata mode, in which we returns the lengths of
@@ -252,18 +252,18 @@ cpp_line (s)
   char *send, *fn;
 
   ++s;
-  while (isspace ((unsigned char) *s))
+  while (ISSPACE (*s))
     ++s;
   
   line = strtol (s, &send, 0);
-  if (*send != '\0' && ! isspace ((unsigned char) *send))
+  if (*send != '\0' && ! ISSPACE (*send))
     return;
 
   /* Subtract 1 because we are about to count the newline.  */
   rc_lineno = line - 1;
 
   s = send;
-  while (isspace ((unsigned char) *s))
+  while (ISSPACE (*s))
     ++s;
 
   if (*s != '"')
@@ -423,8 +423,8 @@ handle_quotes (input, len)
       else
 	{
 	  ++t;
-	  assert (isspace ((unsigned char) *t));
-	  while (isspace ((unsigned char) *t))
+	  assert (ISSPACE (*t));
+	  while (ISSPACE (*t))
 	    ++t;
 	  if (*t == '\0')
 	    break;
