@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: disklabel.c,v 1.2 1998/04/22 10:25:09 julian Exp $
+ *	$Id: disklabel.c,v 1.3 1998/04/22 19:27:51 julian Exp $
  */
 #define BAD144
 
@@ -74,6 +74,7 @@ static sl_h_claim_t dkl_claim;	/* upwards travelling claim */
 static sl_h_revoke_t dkl_revoke;/* upwards travelling revokation */
 static sl_h_verify_t dkl_verify;/* things changed, are we stil valid? */
 static sl_h_upconfig_t dkl_upconfig;/* config requests from below */
+static sl_h_dump_t dkl_dump;	/* core dump req downward */
 
 static struct slice_handler slicetype = {
 	"disklabel",
@@ -88,7 +89,8 @@ static struct slice_handler slicetype = {
 	&dkl_revoke,		/* revoke */
 	&dkl_claim,		/* claim */
 	&dkl_verify,		/* verify */
-	&dkl_upconfig		/* subslice manipulation */
+	&dkl_upconfig,		/* subslice manipulation */
+	&dkl_dump
 };
 
 static void
@@ -828,6 +830,7 @@ dkl_upconfig(struct slice *slice, int cmd, caddr_t addr, int flag, struct proc *
 	case SLCIOCRESET:
 		return (0);
 
+#ifdef BAD144
 	case SLCIOCTRANSBAD:
 	{
 		struct private_data *pd;
@@ -838,6 +841,7 @@ dkl_upconfig(struct slice *slice, int cmd, caddr_t addr, int flag, struct proc *
 			*(daddr_t*)addr = dkl_transbad144(pd, *(daddr_t*)addr);
 		return (0);
 	}
+#endif
 
 /* These don't really make sense. keep the headers for a reminder */
 	default:
@@ -916,3 +920,17 @@ dkcksum(lp)
 }
 #endif /* 0 */
 
+static int
+dkl_dump(void *private, int32_t blkoff, int32_t blkcnt)
+{
+	struct private_data *pd;
+	struct subdev *sdp;
+	register struct slice *slice;
+
+RR;
+	sdp = private;
+	pd = sdp->pd;
+	slice = pd->slice_down;
+	blkoff += sdp->offset;
+	return (*slice->handler_down->dump)(slice->private_down, blkoff, blkcnt);
+}
