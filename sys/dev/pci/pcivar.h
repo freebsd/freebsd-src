@@ -304,8 +304,6 @@ u_long pci_conf_read (pcici_t tag, u_long reg);
 void pci_conf_write (pcici_t tag, u_long reg, u_long data);
 int pci_map_port (pcici_t tag, u_long reg, pci_port_t* pa);
 int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
-int pci_map_dense (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
-int pci_map_bwx (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_int (pcici_t tag, pci_inthand_t *handler, void *arg,
 		 intrmask_t *maskptr);
 int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
