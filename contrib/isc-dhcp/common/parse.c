@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: parse.c,v 1.104.2.8 2002/01/10 19:37:51 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: parse.c,v 1.104.2.9 2002/04/27 05:30:02 murray Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -1804,7 +1804,7 @@ int parse_executable_statement (result, cfile, lose, case_context)
 				executable_statement_dereference (result, MDL);
 				return 0;
 			}
-			if (parse_semi (cfile)) {
+			if (!parse_semi (cfile)) {
 				*lose = 1;
 				executable_statement_dereference (result, MDL);
 				return 0;
@@ -1964,8 +1964,8 @@ int parse_executable_statement (result, cfile, lose, case_context)
 			log_fatal ("no memory for new zone.");
 		zone -> name = parse_host_name (cfile);
 		if (!zone -> name) {
-		      badzone:
 			parse_warn (cfile, "expecting hostname.");
+		      badzone:
 			*lose = 1;
 			skip_to_semi (cfile);
 			dns_zone_dereference (&zone, MDL);
@@ -1974,8 +1974,10 @@ int parse_executable_statement (result, cfile, lose, case_context)
 		i = strlen (zone -> name);
 		if (zone -> name [i - 1] != '.') {
 			s = dmalloc ((unsigned)i + 2, MDL);
-			if (!s)
+			if (!s) {
+				parse_warn (cfile, "no trailing '.' on zone");
 				goto badzone;
+			}
 			strcpy (s, zone -> name);
 			s [i] = '.';
 			s [i + 1] = 0;
@@ -1986,10 +1988,8 @@ int parse_executable_statement (result, cfile, lose, case_context)
 			goto badzone;
 		status = enter_dns_zone (zone);
 		if (status != ISC_R_SUCCESS) {
-			if (parse_semi (cfile))
-				parse_warn (cfile, "dns zone key %s: %s",
-					    zone -> name,
-					    isc_result_totext (status));
+			parse_warn (cfile, "dns zone key %s: %s",
+				    zone -> name, isc_result_totext (status));
 			dns_zone_dereference (&zone, MDL);
 			return 0;
 		}

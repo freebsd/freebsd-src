@@ -272,8 +272,10 @@ typedef enum {
 	FTS_ABANDONED = 5,
 	FTS_RESET = 6,
 	FTS_BACKUP = 7,
-	FTS_LAST = 8
 } binding_state_t;
+
+/* FTS_LAST is the highest value that is valid for a lease binding state. */
+#define FTS_LAST FTS_BACKUP
 
 /* A dhcp lease declaration structure. */
 struct lease {
@@ -781,7 +783,7 @@ struct interface_info {
 	int wfdesc;			/* Its write file descriptor, if
 					   different. */
 	unsigned char *rbuf;		/* Read buffer, if required. */
-	size_t rbuf_max;		/* Size of read buffer. */
+	unsigned int rbuf_max;		/* Size of read buffer. */
 	size_t rbuf_offset;		/* Current offset into buffer. */
 	size_t rbuf_len;		/* Length of data in buffer. */
 
@@ -2411,7 +2413,7 @@ int find_hosts_by_uid PROTO ((struct host_decl **, const unsigned char *,
 			      unsigned, const char *, int));
 int find_host_for_network PROTO ((struct subnet **, struct host_decl **,
 				  struct iaddr *, struct shared_network *));
-void new_address_range PROTO ((struct iaddr, struct iaddr,
+void new_address_range PROTO ((struct parse *, struct iaddr, struct iaddr,
 			       struct subnet *, struct pool *,
 			       struct lease **));
 isc_result_t dhcp_lease_free (omapi_object_t *, const char *, int);
