@@ -41,8 +41,12 @@ static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_types.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#define KERNEL 1
+#include <netinet/if_ether.h>
+#undef KERNEL
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 #ifdef NS
@@ -89,6 +93,8 @@ intpr(interval, ifnetaddr)
 #endif
 	} ifaddr;
 	u_long ifaddraddr;
+	u_long ifaddrfound;
+	u_long ifnetfound;
 	struct sockaddr *sa;
 	char name[32], tname[16];
 
@@ -122,6 +128,7 @@ intpr(interval, ifnetaddr)
 		int n, m;
 
 		if (ifaddraddr == 0) {
+			ifnetfound = ifnetaddr;
 			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) ||
 			    kread((u_long)ifnet.if_name, tname, 16))
 				return;
@@ -137,6 +144,7 @@ intpr(interval, ifnetaddr)
 			ifaddraddr = (u_long)ifnet.if_addrlist;
 		}
 		printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
+		ifaddrfound = ifaddraddr;
 		if (ifaddraddr == 0) {
 			printf("%-13.13s ", "none");
 			printf("%-15.15s ", "none");
@@ -248,6 +256,58 @@ intpr(interval, ifnetaddr)
 		if (dflag)
 			printf(" %3d", ifnet.if_snd.ifq_drops);
 		putchar('\n');
+		if (aflag && ifaddrfound) {
+		    /*
+		     * Print family's multicast addresses
+		     */
+		    switch (sa->sa_family) {
+		    case AF_INET:
+			{
+			    u_long multiaddr;
+			    struct in_multi inm;
+
+			    multiaddr = (u_long)ifaddr.in.ia_multiaddrs.lh_first;
+			    while (multiaddr != 0) {
+				    kread(multiaddr, (char *)&inm,
+							sizeof inm);
+				    multiaddr = (u_long)inm.inm_entry.le_next;
+				    printf("%23s %s\n", "",
+					    routename(inm.inm_addr.s_addr));
+			    }
+			    break;
+			}
+		    case AF_LINK:
+			    switch (ifnet.if_type) {
+			    case IFT_ETHER:
+			    case IFT_FDDI:	/*XXX*/
+				{
+				    off_t multiaddr;
+				    struct arpcom ac;
+				    struct ether_multi enm;
+
+				    kread(ifnetfound, (char *)&ac, sizeof ac);
+				    multiaddr = (u_long)ac.ac_multiaddrs;
+				    while (multiaddr != 0) {
+					    kread(multiaddr, (char *)&enm,
+						    sizeof enm);
+					    multiaddr = (u_long)enm.enm_next;
+					    printf("%23s %s", "",
+						ether_ntoa(&enm.enm_addrlo));
+					    if (bcmp(&enm.enm_addrlo,
+						     &enm.enm_addrhi, 6) != 0)
+						printf(" to %s",
+						    ether_ntoa(&enm.enm_addrhi));
+					    printf("\n");
+				    }
+				    break;
+				}
+			    default:
+				    break;
+			    }
+		    default:
+			    break;
+		    }
+		}
 	}
 }
 
