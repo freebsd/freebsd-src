@@ -38,6 +38,9 @@
 #ifdef _KERNEL
 #include <sys/systm.h>
 #include <vm/uma.h>
+#ifdef WITNESS
+#include <sys/lock.h>
+#endif
 #endif
 
 /*
@@ -304,6 +307,12 @@ struct mbstat {
 
 #define	MEXT_ADD_REF(m)	atomic_add_int((m)->m_ext.ref_cnt, 1)
 
+#define MBUF_CHECKSLEEP(how) do {					\
+	if (how == M_WAITOK)						\
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,		\
+		    "Sleeping in \"%s\"", __func__);			\
+} while(0)
+
 /*
  * Network buffer allocation API
  *
@@ -329,6 +338,7 @@ m_get(int how, short type)
 {
 	struct mb_args args;
 
+	MBUF_CHECKSLEEP(how);
 	args.flags = 0;
 	args.how = how;
 	args.type = type;
@@ -343,6 +353,7 @@ m_getclr(int how, short type)
 	struct mbuf *m;
 	struct mb_args args;
 
+	MBUF_CHECKSLEEP(how);
 	args.flags = 0;
 	args.how = how;
 	args.type = type;
@@ -358,6 +369,7 @@ m_gethdr(int how, short type)
 {
 	struct mb_args args;
 
+	MBUF_CHECKSLEEP(how);
 	args.flags = M_PKTHDR;
 	args.how = how;
 	args.type = type;
@@ -370,6 +382,7 @@ m_getcl(int how, short type, int flags)
 {
 	struct mb_args args;
 
+	MBUF_CHECKSLEEP(how);
 	args.flags = flags;
 	args.how = how;
 	args.type = type;
@@ -396,6 +409,8 @@ static __inline
 void
 m_clget(struct mbuf *m, int how)
 {
+
+	MBUF_CHECKSLEEP(how);
 	m->m_ext.ext_buf = NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 }
@@ -491,6 +506,7 @@ m_chtype(struct mbuf *m, short new_type)
 	int _mplen = (plen);						\
 	int __mhow = (how);						\
 									\
+	MBUF_CHECKSLEEP(how);						\
 	if (M_LEADINGSPACE(_mm) >= _mplen) {				\
 		_mm->m_data -= _mplen;					\
 		_mm->m_len += _mplen;					\
