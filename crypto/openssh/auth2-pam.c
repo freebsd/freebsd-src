@@ -41,6 +41,7 @@ RCSID("$FreeBSD$");
 #include <security/pam_appl.h>
 
 #include "auth.h"
+#include "log.h"
 #include "xmalloc.h"
 
 struct pam_ctxt {
@@ -128,8 +129,6 @@ pam_child_conv(int n,
 	 void *data)
 {
 	struct pam_ctxt *ctxt;
-	char *line;
-	size_t len;
 	int i;
 
 	ctxt = data;
@@ -176,7 +175,6 @@ pam_child(struct pam_ctxt *ctxt)
 {
 	struct pam_conv pam_conv = { pam_child_conv, ctxt };
 	pam_handle_t *pamh;
-	char *msg;
 	int pam_err;
 
 	pam_err = pam_start("sshd", ctxt->pam_user, &pam_conv, &pamh);
@@ -315,10 +313,11 @@ static void
 pam_free_ctx(void *ctxtp)
 {
 	struct pam_ctxt *ctxt = ctxtp;
-	int i;
+	int status;
 
 	close(ctxt->pam_sock);
 	kill(ctxt->pam_pid, SIGHUP);
+	waitpid(ctxt->pam_pid, &status, 0);
 	xfree(ctxt->pam_user);
 	xfree(ctxt);
 }
