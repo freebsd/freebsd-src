@@ -2674,6 +2674,22 @@ device		firewire	# Firewire bus code
 device		sbp		# SCSI over Firewire (Requires scbus and da)
 device		fwe		# Ethernet over Firewire (non-standard!)
 
+#####################################################################
+# crypto subsystem
+#
+# This is a port of the openbsd crypto framework.  Include this when
+# configuring IPsec and when you have a h/w crypto device to accelerate
+# user applications that link to openssl.
+#
+# Drivers are ports from openbsd with some simple enhancements that have
+# been fed back to openbsd (and hopefully will be included).
+
+pseudo-device	crypto		# core crypto support
+pseduo-device	cryptodev	# /dev/crypto for access to h/w
+
+device		hifn		# Hifn 7951, 7781, etc.
+device		ubsec		# Broadcom 5501, 5601, 58xx
+
 #
 # Embedded system options:
 #
