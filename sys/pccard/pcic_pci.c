@@ -196,16 +196,16 @@ struct pcic_pci_table
 } pcic_pci_devs[] = {
 	{ PCI_DEVICE_ID_PCIC_CLPD6729,
 	  "Cirrus Logic PD6729/6730 PC-Card Controller",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
+	  PCIC_PD6729, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6832,
 	  "Cirrus Logic PD6832 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6833,
 	  "Cirrus Logic PD6833 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6834,
 	  "Cirrus Logic PD6834 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6729,
 	  "O2micro OZ6729 PC-Card Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
@@ -1185,7 +1185,7 @@ pcic_pci_attach(device_t dev)
 			sp[i].getb = pcic_getb_io;
 			sp[i].putb = pcic_putb_io;
 			sp[i].offset = i * PCIC_SLOT_SIZE;
-			sp[i].controller = PCIC_PD672X;
+			sp[i].controller = PCIC_PD6729;
 			if ((sp[i].getb(&sp[i], PCIC_ID_REV) & 0xc0) == 0x80)
 				sp[i].slt = (struct slot *) 1;
 		}

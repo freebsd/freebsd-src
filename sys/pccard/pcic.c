@@ -558,6 +558,7 @@ pcic_power(struct slot *slt)
 	unsigned char c;
 	unsigned char reg = PCIC_DISRST | PCIC_PCPWRE;
 	struct pcic_slot *sp = slt->cdata;
+	struct pcic_slot *sp2;
 	struct pcic_softc *sc = sp->sc;
 
 	/*
@@ -577,19 +578,36 @@ pcic_power(struct slot *slt)
 	}
 	if (sc->flags & PCIC_PD_POWER) {
 		/*
-		 * Datasheets indicate that this is only supported on
-		 * the CL-PD6710.  However, my 6722 seems to support
-		 * it as well.  The datasheet for the '22 talks about
-		 * the need to read this from register 0x6f.0xa (both
-		 * slots are read from the same register).  The
-		 * datasheet is a little vauge.  The '29 datasheet is
-		 * clear and spells out the recommends way on the '22
-		 * is the way on the '29.  Note: PCIC_MISC1_5V_DETECT
-		 * is definitely not defined on the '29.
+		 * The 6710 does it one way, and the '22 and '29 do it
+		 * another.  And it appears that the '32 and '33 yet
+		 * another way (which I don't know).
 		 */
-		c = sp->getb(sp, PCIC_MISC1);
-		if ((c & PCIC_MISC1_5V_DETECT) == 0)
-			slt->pwr.vcc = 33;
+		switch (sp->controller) {
+		case PCIC_PD6710:
+			c = sp->getb(sp, PCIC_MISC1);
+			if ((c & PCIC_MISC1_5V_DETECT) == 0)
+				slt->pwr.vcc = 33;
+			break;
+		case PCIC_PD6722:
+		case PCIC_PD6729:
+			/*
+			 * VS[12] signals are in slot1's extended reg 0xa.
+			 */
+			sp2 = &sc->slots[1];
+			sp2->putb(sp2, PCIC_EXT_IND, PCIC_EXT_DATA);
+			c = sp2->getb(sp2, PCIC_EXTENDED);
+			if (sp == sp2) {	/* slot 1 */
+				if ((c & PCIC_VS1B) == 0)
+					slt->pwr.vcc = 33;
+			} else {
+				if ((c & PCIC_VS1A) == 0)
+					slt->pwr.vcc = 33;
+			}
+			break;
+		default:
+			/* I have no idea how do do this for others */
+			break;
+		}
 
 		/*
 		 * Regardless of the above, setting the Auto Power Switch
@@ -757,7 +775,7 @@ pcic_reset(void *chan)
 		}
 	}
 	slt->insert_seq = 0;
-	if (sp->controller == PCIC_PD672X || sp->controller == PCIC_PD6710) {
+	if (sp->controller == PCIC_PD6722 || sp->controller == PCIC_PD6710) {
 		sp->putb(sp, PCIC_TIME_SETUP0, 0x1);
 		sp->putb(sp, PCIC_TIME_CMD0, 0x6);
 		sp->putb(sp, PCIC_TIME_RECOV0, 0x0);
@@ -790,7 +808,7 @@ pcic_resume(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 
 	pcic_do_mgt_irq(sp, slt->irq);
-	if (sp->controller == PCIC_PD672X) {
+	if (sp->controller == PCIC_PD6722) {
 		pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 		pcic_setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
