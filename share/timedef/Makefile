@@ -16,10 +16,10 @@ LOCALES=	bg_BG.CP1251 \
 		hr_HR.ISO8859-2 \
 		hu_HU.ISO8859-2 \
 		is_IS.ISO8859-1 \
-		ja_JP.eucJP     \
+		ja_JP.EUC       \
 		ja_JP.SJIS      \
 		it_IT.ISO8859-1 \
-		ko_KR.eucKR     \
+		ko_KR.EUC       \
 		la_LN.ISO8859-1 \
 		lt_LT.ISO8859-4 \
 		nl_NL.ISO8859-1 \
@@ -33,7 +33,7 @@ LOCALES=	bg_BG.CP1251 \
 		sv_SE.ISO8859-1 \
 		tr_TR.ISO8859-9 \
 		uk_UA.KOI8-U    \
-		zh_CN.eucCN     \
+		zh_CN.EUC       \
 		zh_TW.Big5
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
