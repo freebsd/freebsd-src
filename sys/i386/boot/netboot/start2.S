@@ -360,12 +360,9 @@ GET DISK GEOMETRY INFO
 _get_diskinfo:
 	push	%ebp
 	mov	%esp, %ebp
-	push	%es
 	push	%ebx
 	push	%esi
 	push	%edi
-	push	%ecx
-	push	%edx
 
 	movb	0x8(%ebp), %dl		/* diskinfo(drive #) */
 	call	_prot_to_real		/* enter real mode */
@@ -414,12 +411,9 @@ ok:
 	andb	$0x3f, %cl		/* mask of cylinder gunk */
 	movb	%cl, %al		/* max sector (and # sectors) */
 
-	pop	%edx
-	pop	%ecx
 	pop	%edi
 	pop	%esi
 	pop	%ebx
-	pop	%es
 	pop	%ebp
 	ret
 

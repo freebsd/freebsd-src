@@ -203,45 +203,55 @@ cmd_hostname(p)
 			(char*)&nfsdiskless.my_hostnam) + 3) & ~3;
 	else	printf("Hostname is: %s\r\n",nfsdiskless.my_hostnam);
 }
+
+static void mountopts(prefix,args,p)
+	char *prefix;    
+	struct onfs_args *args;
+	char *p;
+{
+        char *tmp;
+
+	if (*p) {
+		args->flags = NFSMNT_RSIZE | NFSMNT_WSIZE | NFSMNT_RESVPORT;
+		args->sotype = SOCK_DGRAM;
+		if ((tmp = (char *)substr(p,"rsize=")))
+			args->rsize=getdec(&tmp);
+		if ((tmp = (char *)substr(p,"wsize=")))
+			args->wsize=getdec(&tmp);
+		if ((tmp = (char *)substr(p,"intr")))
+			args->flags |= NFSMNT_INT;
+		if ((tmp = (char *)substr(p,"soft")))
+			args->flags |= NFSMNT_SOFT;
+		if ((tmp = (char *)substr(p,"noconn")))
+			args->flags |= NFSMNT_NOCONN;
+		if ((tmp = (char *)substr(p, "tcp")))
+		    args->sotype = SOCK_STREAM;
+	} else {
+		printf("%s mount options: rsize=%d,wsize=%d,resvport",
+		       prefix,
+		       args->rsize,
+		       args->wsize);
+		if (args->flags & NFSMNT_INT)
+			printf (",intr");
+		if (args->flags & NFSMNT_SOFT)
+			printf (",soft");
+		if (args->flags & NFSMNT_NOCONN)
+			printf (",noconn");
+		if (args->sotype == SOCK_STREAM)
+			printf (",tcp");
+		else
+			printf (",udp");
+		printf ("\r\n");
+	}
+}
+
 /**************************************************************************
 CMD_ROOTOPTS - Set root mount options
 **************************************************************************/
 cmd_rootopts(p)
         char *p;
 {
-        char *tmp;
-
-        if (*p) {
-                nfsdiskless.root_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
-                nfsdiskless.root_args.sotype = SOCK_DGRAM;
-                if ((tmp = (char *)substr(p,"rsize=")))
-                        nfsdiskless.root_args.rsize=getdec(&tmp);
-                if ((tmp = (char *)substr(p,"wsize=")))
-                        nfsdiskless.root_args.wsize=getdec(&tmp);
-                if ((tmp = (char *)substr(p,"resvport")))
-                        nfsdiskless.root_args.flags |= NFSMNT_RESVPORT;
-                if ((tmp = (char *)substr(p,"intr")))
-                        nfsdiskless.root_args.flags |= NFSMNT_INT;
-                if ((tmp = (char *)substr(p,"soft")))
-                        nfsdiskless.root_args.flags |= NFSMNT_SOFT;
-                if ((tmp = (char *)substr(p, "tcp")))
-                         nfsdiskless.root_args.sotype = SOCK_STREAM;
-        } else {
-                printf("Rootfs mount options: rsize=%d,wsize=%d",
-                nfsdiskless.root_args.rsize,
-                nfsdiskless.root_args.wsize);
-                if (nfsdiskless.root_args.flags & NFSMNT_RESVPORT)
-                        printf (",resvport");
-                if (nfsdiskless.root_args.flags & NFSMNT_SOFT)
-                        printf (",soft");
-                if (nfsdiskless.root_args.flags & NFSMNT_INT)
-                        printf (",intr");
-                if (nfsdiskless.root_args.sotype == SOCK_STREAM)
-                        printf (",tcp");
-                else
-                        printf (",udp");
-                printf ("\r\n");
-        }
+	mountopts("Rootfs",&nfsdiskless.root_args,p);
 }
 
 /**************************************************************************
@@ -250,39 +260,7 @@ CMD_SWAPOPTS - Set swap mount options
 cmd_swapopts(p)
         char *p;
 {
-	char *tmp;
-
-	if (*p) {
-                nfsdiskless.swap_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
-                nfsdiskless.swap_args.sotype = SOCK_DGRAM;
-		if ((tmp = (char *)substr(p,"rsize=")))
-			nfsdiskless.swap_args.rsize=getdec(&tmp);
-		if ((tmp = (char *)substr(p,"wsize=")))
-			nfsdiskless.swap_args.wsize=getdec(&tmp);
-		if ((tmp = (char *)substr(p,"resvport")))
-			nfsdiskless.swap_args.flags |= NFSMNT_RESVPORT;
-		if ((tmp = (char *)substr(p,"intr")))
-			nfsdiskless.swap_args.flags |= NFSMNT_INT;
-		if ((tmp = (char *)substr(p,"soft")))
-			nfsdiskless.swap_args.flags |= NFSMNT_SOFT;
-		if ((tmp = (char *)substr(p, "tcp")))
-			 nfsdiskless.swap_args.sotype = SOCK_STREAM;
-        } else {
-		printf("Swapfs mount options: rsize=%d,wsize=%d",
-		nfsdiskless.swap_args.rsize,
-		nfsdiskless.swap_args.wsize);
-		if (nfsdiskless.swap_args.flags & NFSMNT_RESVPORT)
-			printf (",resvport");
-		if (nfsdiskless.swap_args.flags & NFSMNT_SOFT)
-			printf (",soft");
-		if (nfsdiskless.swap_args.flags & NFSMNT_INT)
-			printf (",intr");
-		if (nfsdiskless.swap_args.sotype == SOCK_STREAM)
-			printf (",tcp");
-		else
-			printf (",udp");
-		printf ("\r\n");
-        }
+	mountopts("Swapfs",&nfsdiskless.swap_args,p);
 }
 
 /**************************************************************************
