@@ -23,7 +23,6 @@ __FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
-#include <fetch.h>
 #include <pwd.h>
 #include <time.h>
 #include <sys/wait.h>
@@ -131,12 +130,6 @@ isURL(const char *fname)
 	return TRUE;
     return FALSE;
 }
-
-#define HOSTNAME_MAX	64
-/*
- * Try and fetch a file by URL, returning the directory name for where
- * it's unpacked, if successful.
- */
 
 char *
 fileFindByPath(const char *base, const char *fname)
