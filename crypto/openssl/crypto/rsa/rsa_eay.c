@@ -1,5 +1,4 @@
 /* crypto/rsa/rsa_eay.c */
-/* $FreeBSD$ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -62,18 +61,19 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
+#include <openssl/engine.h>
 
 #ifndef RSA_NULL
 
-static int RSA_eay_public_encrypt(int flen, unsigned char *from,
+static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
 		unsigned char *to, RSA *rsa,int padding);
-static int RSA_eay_private_encrypt(int flen, unsigned char *from,
+static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 		unsigned char *to, RSA *rsa,int padding);
-static int RSA_eay_public_decrypt(int flen, unsigned char *from,
+static int RSA_eay_public_decrypt(int flen, const unsigned char *from,
 		unsigned char *to, RSA *rsa,int padding);
-static int RSA_eay_private_decrypt(int flen, unsigned char *from,
+static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 		unsigned char *to, RSA *rsa,int padding);
-static int RSA_eay_mod_exp(BIGNUM *r0, BIGNUM *i, RSA *rsa);
+static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *i, RSA *rsa);
 static int RSA_eay_init(RSA *rsa);
 static int RSA_eay_finish(RSA *rsa);
 static RSA_METHOD rsa_pkcs1_eay_meth={
@@ -83,19 +83,21 @@ static RSA_METHOD rsa_pkcs1_eay_meth={
 	RSA_eay_private_encrypt, /* signing */
 	RSA_eay_private_decrypt,
 	RSA_eay_mod_exp,
-	BN_mod_exp_mont,
+	BN_mod_exp_mont, /* XXX probably we should not use Montgomery if  e == 3 */
 	RSA_eay_init,
 	RSA_eay_finish,
-	0,
+	0, /* flags */
 	NULL,
+	0, /* rsa_sign */
+	0  /* rsa_verify */
 	};
 
-RSA_METHOD *RSA_PKCS1_SSLeay(void)
+const RSA_METHOD *RSA_PKCS1_SSLeay(void)
 	{
 	return(&rsa_pkcs1_eay_meth);
 	}
 
-static int RSA_eay_public_encrypt(int flen, unsigned char *from,
+static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
 	     unsigned char *to, RSA *rsa, int padding)
 	{
 	BIGNUM f,ret;
@@ -118,7 +120,7 @@ static int RSA_eay_public_encrypt(int flen, unsigned char *from,
 	case RSA_PKCS1_PADDING:
 		i=RSA_padding_add_PKCS1_type_2(buf,num,from,flen);
 		break;
-#ifndef NO_SHA
+#ifndef OPENSSL_NO_SHA
 	case RSA_PKCS1_OAEP_PADDING:
 	        i=RSA_padding_add_PKCS1_OAEP(buf,num,from,flen,NULL,0);
 		break;
@@ -185,14 +187,14 @@ err:
 	BN_clear_free(&ret);
 	if (buf != NULL) 
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);
 	}
 
 /* signing */
-static int RSA_eay_private_encrypt(int flen, unsigned char *from,
+static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 	     unsigned char *to, RSA *rsa, int padding)
 	{
 	BIGNUM f,ret;
@@ -269,13 +271,13 @@ err:
 	BN_clear_free(&f);
 	if (buf != NULL)
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);
 	}
 
-static int RSA_eay_private_decrypt(int flen, unsigned char *from,
+static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 	     unsigned char *to, RSA *rsa, int padding)
 	{
 	BIGNUM f,ret;
@@ -344,7 +346,7 @@ static int RSA_eay_private_decrypt(int flen, unsigned char *from,
 	case RSA_PKCS1_PADDING:
 		r=RSA_padding_check_PKCS1_type_2(to,num,buf,j,num);
 		break;
-#ifndef NO_SHA
+#ifndef OPENSSL_NO_SHA
         case RSA_PKCS1_OAEP_PADDING:
 	        r=RSA_padding_check_PKCS1_OAEP(to,num,buf,j,num,NULL,0);
                 break;
@@ -368,14 +370,14 @@ err:
 	BN_clear_free(&ret);
 	if (buf != NULL)
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);
 	}
 
 /* signature verification */
-static int RSA_eay_public_decrypt(int flen, unsigned char *from,
+static int RSA_eay_public_decrypt(int flen, const unsigned char *from,
 	     unsigned char *to, RSA *rsa, int padding)
 	{
 	BIGNUM f,ret;
@@ -465,13 +467,13 @@ err:
 	BN_clear_free(&ret);
 	if (buf != NULL)
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);
 	}
 
-static int RSA_eay_mod_exp(BIGNUM *r0, BIGNUM *I, RSA *rsa)
+static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa)
 	{
 	BIGNUM r1,m1,vrfy;
 	int ret=0;
@@ -564,10 +566,19 @@ static int RSA_eay_mod_exp(BIGNUM *r0, BIGNUM *I, RSA *rsa)
 	if (rsa->e && rsa->n)
 		{
 		if (!rsa->meth->bn_mod_exp(&vrfy,r0,rsa->e,rsa->n,ctx,NULL)) goto err;
-		if (BN_cmp(I, &vrfy) != 0)
-			{
+		/* If 'I' was greater than (or equal to) rsa->n, the operation
+		 * will be equivalent to using 'I mod n'. However, the result of
+		 * the verify will *always* be less than 'n' so we don't check
+		 * for absolute equality, just congruency. */
+		if (!BN_sub(&vrfy, &vrfy, I)) goto err;
+		if (!BN_mod(&vrfy, &vrfy, rsa->n, ctx)) goto err;
+		if (vrfy.neg)
+			if (!BN_add(&vrfy, &vrfy, rsa->n)) goto err;
+		if (!BN_is_zero(&vrfy))
+			/* 'I' and 'vrfy' aren't congruent mod n. Don't leak
+			 * miscalculated CRT output, just do a raw (slower)
+			 * mod_exp and return that instead. */
 			if (!rsa->meth->bn_mod_exp(r0,I,rsa->d,rsa->n,ctx,NULL)) goto err;
-			}
 		}
 	ret=1;
 err:

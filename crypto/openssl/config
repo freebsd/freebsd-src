@@ -20,6 +20,31 @@
 # Be as similar to the output of config.guess/config.sub
 # as possible.
 
+PREFIX=""
+SUFFIX=""
+TEST="false"
+
+# pick up any command line args to config
+for i
+do
+case "$i" in 
+-d*) PREFIX="debug-";;
+-t*) TEST="true";;
+-h*) TEST="true"; cat <<EOF
+Usage: config [options]
+ -d	Add a debug- prefix to machine choice.
+ -t	Test mode, do not run the Configure perl script.
+ -h	This help.
+
+Any other text will be passed to the Configure perl script.
+See INSTALL for instructions.
+
+EOF
+;;
+*) options=$options" $i" ;;
+esac
+done
+
 # First get uname entries that we use below
 
 MACHINE=`(uname -m) 2>/dev/null` || MACHINE="unknown"
@@ -68,7 +93,7 @@ if [ "x$XREL" != "x" ]; then
 	    4.2)
 		echo "whatever-whatever-unixware1"; exit 0
 		;;
-     OpenUNIX)
+	    OpenUNIX)
 		if [ "`echo x$VERSION | sed -e 's/\..*//'`" = "x8" ]; then
 		    echo "${MACHINE}-unknown-OpenUNIX${VERSION}"; exit 0
 		fi
@@ -115,10 +140,7 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
     HP-UX:*)
 	HPUXVER=`echo ${RELEASE}|sed -e 's/[^.]*.[0B]*//'`
 	case "$HPUXVER" in
-	    11.*)
-		echo "${MACHINE}-hp-hpux11"; exit 0
-		;;
-	    10.*)
+	    1[0-9].*)	# HPUX 10 and 11 targets are unified
 		echo "${MACHINE}-hp-hpux10"; exit 0
 		;;
 	    *)
@@ -145,6 +167,10 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 
     Linux:1.*)
 	echo "${MACHINE}-whatever-linux1"; exit 0
+	;;
+
+    GNU*)
+	echo "hurd-x86"; exit 0;
 	;;
 
     LynxOS:*)
@@ -243,7 +269,15 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 	;;
 
     Darwin:*)
-	echo "ppc-apple-darwin"; exit 0
+	case "$MACHINE" in
+	    Power*)
+		echo "ppc-apple-darwin${VERSION}"
+		;;
+	    *)
+		echo "i386-apple-darwin${VERSION}"
+		;;
+	esac
+	exit 0
 	;;
 
     SunOS:5.*)
@@ -317,6 +351,10 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
     *CRAY*)
        echo "j90-cray-unicos"; exit 0;
        ;;
+
+    NONSTOP_KERNEL*)
+       echo "nsr-tandem-nsk"; exit 0;
+       ;;
 esac
 
 #
@@ -354,31 +392,6 @@ exit 0
 # this is where the translation occurs into SSLeay terms
 # ---------------------------------------------------------------------------
 
-PREFIX=""
-SUFFIX=""
-TEST="false"
-
-# pick up any command line args to config
-for i
-do
-case "$i" in 
--d*) PREFIX="debug-";;
--t*) TEST="true";;
--h*) TEST="true"; cat <<EOF
-Usage: config [options]
- -d	Add a debug- prefix to machine choice.
- -t	Test mode, do not run the Configure perl script.
- -h	This help.
-
-Any other text will be passed to the Configure perl script.
-See INSTALL for instructions.
-
-EOF
-;;
-*) options=$options" $i" ;;
-esac
-done
-
 # figure out if gcc is available and if so we use it otherwise
 # we fallback to whatever cc does on the system
 GCCVER=`(gcc -dumpversion) 2>/dev/null`
@@ -409,6 +422,15 @@ if [ "$SYSTEM" = "HP-UX" ];then
   fi
 fi
 if [ "$SYSTEM" = "SunOS" ]; then
+  if [ $GCCVER -ge 30 ]; then
+    # 64-bit ABI isn't officially supported in gcc 3.0, but it appears
+    # to be working, at the very least 'make test' passes...
+    if gcc -v -E -x c /dev/null 2>&1 | grep __arch64__ > /dev/null; then
+      GCC_ARCH="-m64"
+    else
+      GCC_ARCH="-m32"
+    fi
+  fi
   # check for WorkShop C, expected output is "cc: blah-blah C x.x"
   CCVER=`(cc -V 2>&1) 2>/dev/null | \
   	egrep -e '^cc: .* C [0-9]\.[0-9]' | \
@@ -439,7 +461,6 @@ if [ "${SYSTEM}-${MACHINE}" = "Linux-alpha" ]; then
   fi
 fi
 
-GCCVER=${GCCVER:-0}
 CCVER=${CCVER:-0}
 
 # read the output of the embedded GuessOS 
@@ -472,8 +493,10 @@ case "$GUESSOS" in
   mips4-sgi-irix64)
 	echo "WARNING! If you wish to build 64-bit library, then you have to"
 	echo "         invoke './Configure irix64-mips4-$CC' *manually*."
-	echo "         Type return if you want to continue, Ctrl-C to abort."
-	read waste < /dev/tty
+	if [ "$TEST" = "false" ]; then
+	  echo "         You have about 5 seconds to press Ctrl-C to abort."
+	  (stty -icanon min 0 time 50; read waste) < /dev/tty
+	fi
         CPU=`(hinv -t cpu) 2>/dev/null | sed 's/^CPU:[^R]*R\([0-9]*\).*/\1/'`
         CPU=${CPU:-0}
         if [ $CPU -ge 5000 ]; then
@@ -521,14 +544,16 @@ EOF
   m68k-*-linux*) OUT="linux-m68k" ;;
   ia64-*-linux?) OUT="linux-ia64" ;;
   ppc-apple-rhapsody) OUT="rhapsody-ppc-cc" ;;
-  ppc-apple-darwin) OUT="darwin-ppc-cc" ;;
+  ppc-apple-darwin*) OUT="darwin-ppc-cc" ;;
+  i386-apple-darwin*) OUT="darwin-i386-cc" ;;
   sparc64-*-linux2)
-	#Before we can uncomment following lines we have to wait at least
-	#till 64-bit glibc for SPARC is operational:-(
-	#echo "WARNING! If you wish to build 64-bit library, then you have to"
-	#echo "         invoke './Configure linux64-sparcv9' *manually*."
-	#echo "         Type return if you want to continue, Ctrl-C to abort."
-	#read waste < /dev/tty
+	echo "WARNING! If *know* that your GNU C supports 64-bit/V9 ABI"
+	echo "         and wish to build 64-bit library, then you have to"
+	echo "         invoke './Configure linux64-sparcv9' *manually*."
+	if [ "$TEST" = "false" ]; then
+	  echo "          You have about 5 seconds to press Ctrl-C to abort."
+	  (stty -icanon min 0 time 50; read waste) < /dev/tty
+	fi
 	OUT="linux-sparcv9" ;;
   sparc-*-linux2)
 	KARCH=`awk '/^type/{print$3}' /proc/cpuinfo`
@@ -561,17 +586,54 @@ EOF
   arm*-*-linux2) OUT="linux-elf-arm" ;;
   s390-*-linux2) OUT="linux-s390" ;;
   s390x-*-linux?) OUT="linux-s390x" ;;
-  *-*-linux2) OUT="linux-elf" ;;
+  x86_64-*-linux?) OUT="linux-x86_64" ;;
+  *-*-linux2) OUT="linux-elf"
+	if [ "$GCCVER" -gt 28 ]; then
+          if grep '^model.*Pentium' /proc/cpuinfo >/dev/null ; then
+            OUT="linux-pentium"
+          fi
+          if grep '^model.*Pentium Pro' /proc/cpuinfo >/dev/null ; then
+            OUT="linux-ppro"
+          fi
+          if grep '^model.*K6' /proc/cpuinfo >/dev/null ; then
+            OUT="linux-k6"
+          fi
+        fi ;;
   *-*-linux1) OUT="linux-aout" ;;
   sun4u*-*-solaris2)
+	OUT="solaris-sparcv9-$CC"
 	ISA64=`(isalist) 2>/dev/null | grep sparcv9`
-	if [ "$ISA64" != "" -a "$CC" = "cc" -a $CCVER -ge 50 ]; then
+	if [ "$ISA64" != "" ]; then
+	    if [ "$CC" = "cc" -a $CCVER -ge 50 ]; then
 		echo "WARNING! If you wish to build 64-bit library, then you have to"
 		echo "         invoke './Configure solaris64-sparcv9-cc' *manually*."
-		echo "         Type return if you want to continue, Ctrl-C to abort."
-		read waste < /dev/tty
+		if [ "$TEST" = "false" ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (stty -icanon min 0 time 50; read waste) < /dev/tty
+		fi
+	    elif [ "$CC" = "gcc" -a "$GCC_ARCH" = "-m64" ]; then
+		# $GCC_ARCH denotes default ABI chosen by compiler driver
+		# (first one found on the $PATH). I assume that user
+		# expects certain consistency with the rest of his builds
+		# and therefore switch over to 64-bit. <appro>
+		OUT="solaris64-sparcv9-gcc"
+		echo "WARNING! If you wish to build 32-bit library, then you have to"
+		echo "         invoke './Configure solaris-sparcv9-gcc' *manually*."
+		if [ "$TEST" = "false" ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (stty -icanon min 0 time 50; read waste) < /dev/tty
+		fi
+	    elif [ "$GCC_ARCH" = "-m32" ]; then
+		echo "NOTICE! If you *know* that your GNU C supports 64-bit/V9 ABI"
+		echo "        and wish to build 64-bit library, then you have to"
+		echo "        invoke './Configure solaris64-sparcv9-gcc' *manually*."
+		if [ "$TEST" = "false" ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (stty -icanon min 0 time 50; read waste) < /dev/tty
+		fi
+	    fi
 	fi
-	OUT="solaris-sparcv9-$CC" ;;
+	;;
   sun4m-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
   sun4d-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
   sun4*-*-solaris2)	OUT="solaris-sparcv7-$CC" ;;
@@ -583,9 +645,17 @@ EOF
   *86*-*-netbsd) OUT="NetBSD-x86" ;;
   sun3*-*-netbsd) OUT="NetBSD-m68" ;;
   *-*-netbsd) OUT="NetBSD-sparc" ;;
-  *86*-*-openbsd) OUT="OpenBSD-x86" ;;
   alpha*-*-openbsd) OUT="OpenBSD-alpha" ;;
+  *86*-*-openbsd) OUT="OpenBSD-i386" ;;
+  m68k*-*-openbsd) OUT="OpenBSD-m68k" ;;
+  m88k*-*-openbsd) OUT="OpenBSD-m88k" ;;
+  mips*-*-openbsd) OUT="OpenBSD-mips" ;;
   pmax*-*-openbsd) OUT="OpenBSD-mips" ;;
+  powerpc*-*-openbsd) OUT="OpenBSD-powerpc" ;;
+  sparc64*-*-openbsd) OUT="OpenBSD-sparc64" ;;
+  sparc*-*-openbsd) OUT="OpenBSD-sparc" ;;
+  vax*-*-openbsd) OUT="OpenBSD-vax" ;;
+  hppa*-*-openbsd) OUT="OpenBSD-hppa" ;;
   *-*-openbsd) OUT="OpenBSD" ;;
   *86*-*-bsdi4) OUT="bsdi-elf-gcc" ;;
   *-*-osf) OUT="alphaold-cc" ;;
@@ -620,6 +690,37 @@ EOF
 	else
 	  OUT="hpux-parisc-$CC"
 	fi
+	KERNEL_BITS=`(getconf KERNEL_BITS) 2>/dev/null`
+	KERNEL_BITS=${KERNEL_BITS:-32}
+	CPU_VERSION=`(getconf CPU_VERSION) 2>/dev/null`
+	CPU_VERSION=${CPU_VERSION:-0}
+	# See <sys/unistd.h> for further info on CPU_VERSION.
+	if   [ $CPU_VERSION -ge 768 ]; then	# IA-64 CPU
+	     echo "NOTICE! 64-bit is the only ABI currently operational on HP-UXi."
+	     echo "        Post request to openssl-dev@openssl.org for 32-bit support."
+	     if [ "$TEST" = "false" ]; then
+		(stty -icanon min 0 time 50; read waste) < /dev/tty
+	     fi
+	     OUT="hpux64-ia64-cc"
+	elif [ $CPU_VERSION -ge 532 ]; then	# PA-RISC 2.x CPU
+	     if [ "$CC" = "cc" ]; then
+		OUT="hpux-parisc2-cc" # can't we have hpux-parisc2-gcc?
+	     fi
+	     if [ $KERNEL_BITS -eq 64 -a "$CC" = "cc" ]; then
+		echo "WARNING! If you wish to build 64-bit library then you have to"
+		echo "         invoke './Configure hpux64-parisc2-cc' *manually*."
+		if [ "$TEST" = "false" ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (stty -icanon min 0 time 50; read waste) < /dev/tty
+		fi
+	     fi
+	elif [ $CPU_VERSION -ge 528 ]; then	# PA-RISC 1.1+ CPU
+	     :
+	elif [ $CPU_VERSION -ge 523 ]; then	# PA-RISC 1.0 CPU
+	     :
+	else					# Motorola(?) CPU
+	     OUT="hpux-$CC"
+	fi
 	options="$options -D_REENTRANT" ;;
   *-hpux)	OUT="hpux-parisc-$CC" ;;
   # these are all covered by the catchall below
@@ -630,14 +731,21 @@ EOF
   *-*-cygwin) OUT="Cygwin" ;;
   t3e-cray-unicosmk) OUT="cray-t3e" ;;
   j90-cray-unicos) OUT="cray-j90" ;;
+  nsr-tandem-nsk) OUT="tandem-c89" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
 esac
 
+# NB: This atalla support has been superceded by the ENGINE support
+# That contains its own header and definitions anyway. Support can
+# be enabled or disabled on any supported platform without external
+# headers, eg. by adding the "hw-atalla" switch to ./config or
+# perl Configure
+#
 # See whether we can compile Atalla support
-if [ -f /usr/include/atasi.h ]
-then
-  options="$options -DATALLA"
-fi
+#if [ -f /usr/include/atasi.h ]
+#then
+#  options="$options -DATALLA"
+#fi
 
 # gcc < 2.8 does not support -mcpu=ultrasparc
 if [ "$OUT" = solaris-sparcv9-gcc -a $GCCVER -lt 28 ]
@@ -658,13 +766,34 @@ case "$GUESSOS" in
   i386-*) options="$options 386" ;;
 esac
 
-for i in bf cast des dh dsa hmac idea md2 md5 mdc2 rc2 rc4 rc5 ripemd rsa sha
+for i in bf cast des dh dsa ec hmac idea md2 md5 mdc2 rc2 rc4 rc5 aes ripemd rsa sha
 do
   if [ ! -d crypto/$i ]
   then
     options="$options no-$i"
   fi
 done
+
+# Discover Kerberos 5 (since it's still a prototype, we don't
+# do any guesses yet, that's why this section is commented away.
+#if [ -d /usr/kerberos ]; then
+#    krb5_dir=/usr/kerberos
+#    if [ \( -f $krb5_dir/lib/libgssapi_krb5.a -o -f $krb5_dir/lib/libgssapi_krb5.so* \)\
+#	-a \( -f $krb5_dir/lib/libkrb5.a -o -f $krb5_dir/lib/libkrb5.so* \)\
+#	-a \( -f $krb5_dir/lib/libcom_err.a -o -f $krb5_dir/lib/libcom_err.so* \)\
+#	-a \( -f $krb5_dir/lib/libk5crypto.a -o -f $krb5_dir/lib/libk5crypto.so* \)\
+#	-a \( -f $krb5_dir/include/krb5.h \) ]; then
+#	options="$options --with-krb5-flavor=MIT"
+#    fi
+#elif [ -d /usr/heimdal ]; then
+#    krb5_dir=/usr/heimdal
+#    if [ \( -f $krb5_dir/lib/libgssapi.a -o -f $krb5_dir/lib/libgssapi.so* \)\
+#	-a \( -f $krb5_dir/lib/libkrb5.a -o -f $krb5_dir/lib/libkrb5.so* \)\
+#	-a \( -f $krb5_dir/lib/libcom_err.a -o -f $krb5_dir/lib/libcom_err.so* \)\
+#	-a \( -f $krb5_dir/include/krb5.h \) ]; then
+#	options="$options --with-krb5-flavor=Heimdal"
+#    fi
+#fi
 
 if [ -z "$OUT" ]; then
   OUT="$CC"

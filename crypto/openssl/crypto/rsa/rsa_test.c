@@ -3,12 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "openssl/e_os.h"
+#include "e_os.h"
 
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#ifdef NO_RSA
+#ifdef OPENSSL_NO_RSA
 int main(int argc, char *argv[])
 {
     printf("No RSA support\n");
@@ -16,6 +16,7 @@ int main(int argc, char *argv[])
 }
 #else
 #include <openssl/rsa.h>
+#include <openssl/engine.h>
 
 #define SetKey \
   key->n = BN_bin2bn(n, sizeof(n)-1, key->n); \
@@ -219,10 +220,12 @@ int main(int argc, char *argv[])
     int clen = 0;
     int num;
 
+    CRYPTO_malloc_debug_init();
+    CRYPTO_dbg_set_options(V_CRYPTO_MDEBUG_ALL);
+    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
+
     RAND_seed(rnd_seed, sizeof rnd_seed); /* or OAEP may fail */
 
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
-	
     plen = sizeof(ptext_ex) - 1;
 
     for (v = 0; v < 3; v++)
@@ -305,9 +308,10 @@ int main(int argc, char *argv[])
 	RSA_free(key);
 	}
 
+    CRYPTO_cleanup_all_ex_data();
     ERR_remove_state(0);
 
-    CRYPTO_mem_leaks_fp(stdout);
+    CRYPTO_mem_leaks_fp(stderr);
 
     return err;
     }

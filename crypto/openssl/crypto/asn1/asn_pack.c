@@ -60,6 +60,8 @@
 #include "cryptlib.h"
 #include <openssl/asn1.h>
 
+#ifndef NO_ASN1_OLD
+
 /* ASN1 packing and unpacking functions */
 
 /* Turn an ASN1 encoded SEQUENCE OF into a STACK of structures */
@@ -117,7 +119,7 @@ void *ASN1_unpack_string (ASN1_STRING *oct, char *(*d2i)())
 
 /* Pack an ASN1 object into an ASN1_STRING */
 
-ASN1_STRING *ASN1_pack_string (void *obj, int (*i2d)(), ASN1_STRING **oct)
+ASN1_STRING *ASN1_pack_string(void *obj, int (*i2d)(), ASN1_STRING **oct)
 {
 	unsigned char *p;
 	ASN1_STRING *octmp;
@@ -143,3 +145,47 @@ ASN1_STRING *ASN1_pack_string (void *obj, int (*i2d)(), ASN1_STRING **oct)
 	return octmp;
 }
 
+#endif
+
+/* ASN1_ITEM versions of the above */
+
+ASN1_STRING *ASN1_item_pack(void *obj, const ASN1_ITEM *it, ASN1_STRING **oct)
+{
+	ASN1_STRING *octmp;
+
+	if (!oct || !*oct) {
+		if (!(octmp = ASN1_STRING_new ())) {
+			ASN1err(ASN1_F_ASN1_PACK_STRING,ERR_R_MALLOC_FAILURE);
+			return NULL;
+		}
+		if (oct) *oct = octmp;
+	} else octmp = *oct;
+
+	if(octmp->data) {
+		OPENSSL_free(octmp->data);
+		octmp->data = NULL;
+	}
+		
+	if (!(octmp->length = ASN1_item_i2d(obj, &octmp->data, it))) {
+		ASN1err(ASN1_F_ASN1_PACK_STRING,ASN1_R_ENCODE_ERROR);
+		return NULL;
+	}
+	if (!octmp->data) {
+		ASN1err(ASN1_F_ASN1_PACK_STRING,ERR_R_MALLOC_FAILURE);
+		return NULL;
+	}
+	return octmp;
+}
+
+/* Extract an ASN1 object from an ASN1_STRING */
+
+void *ASN1_item_unpack(ASN1_STRING *oct, const ASN1_ITEM *it)
+{
+	unsigned char *p;
+	void *ret;
+
+	p = oct->data;
+	if(!(ret = ASN1_item_d2i(NULL, &p, oct->length, it)))
+		ASN1err(ASN1_F_ASN1_UNPACK_STRING,ASN1_R_DECODE_ERROR);
+	return ret;
+}

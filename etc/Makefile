@@ -204,6 +204,7 @@ distrib-dirs:
 		ln -s "$$2" "$$1"; \
 		shift; shift; \
 	done
+	cd ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1; ln -sf ../man* .
 	cd ${DESTDIR}/usr/share/nls; \
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; \

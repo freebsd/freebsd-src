@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,6 +79,9 @@
  * -des		- encrypt output if PEM format with DES in cbc mode
  * -des3	- encrypt output if PEM format
  * -idea	- encrypt output if PEM format
+ * -aes128	- encrypt output if PEM format
+ * -aes192	- encrypt output if PEM format
+ * -aes256	- encrypt output if PEM format
  * -text	- print a text version
  * -modulus	- print the DSA public key
  */
@@ -87,6 +90,7 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
+	ENGINE *e = NULL;
 	int ret=1;
 	DSA *dsa=NULL;
 	int i,badops=0;
@@ -94,7 +98,7 @@ int MAIN(int argc, char **argv)
 	BIO *in=NULL,*out=NULL;
 	int informat,outformat,text=0,noout=0;
 	int pubin = 0, pubout = 0;
-	char *infile,*outfile,*prog;
+	char *infile,*outfile,*prog,*engine;
 	char *passargin = NULL, *passargout = NULL;
 	char *passin = NULL, *passout = NULL;
 	int modulus=0;
@@ -105,6 +109,10 @@ int MAIN(int argc, char **argv)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);
 
+	if (!load_config(bio_err, NULL))
+		goto end;
+
+	engine=NULL;
 	infile=NULL;
 	outfile=NULL;
 	informat=FORMAT_PEM;
@@ -145,6 +153,11 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			passargout= *(++argv);
 			}
+		else if (strcmp(*argv,"-engine") == 0)
+			{
+			if (--argc < 1) goto bad;
+			engine= *(++argv);
+			}
 		else if (strcmp(*argv,"-noout") == 0)
 			noout=1;
 		else if (strcmp(*argv,"-text") == 0)
@@ -176,10 +189,15 @@ bad:
 		BIO_printf(bio_err," -passin arg     input file pass phrase source\n");
 		BIO_printf(bio_err," -out arg        output file\n");
 		BIO_printf(bio_err," -passout arg    output file pass phrase source\n");
+		BIO_printf(bio_err," -engine e       use engine e, possibly a hardware device.\n");
 		BIO_printf(bio_err," -des            encrypt PEM output with cbc des\n");
 		BIO_printf(bio_err," -des3           encrypt PEM output with ede cbc des using 168 bit key\n");
-#ifndef NO_IDEA
+#ifndef OPENSSL_NO_IDEA
 		BIO_printf(bio_err," -idea           encrypt PEM output with cbc idea\n");
+#endif
+#ifndef OPENSSL_NO_AES
+		BIO_printf(bio_err," -aes128, -aes192, -aes256\n");
+		BIO_printf(bio_err,"                 encrypt PEM output with cbc aes\n");
 #endif
 		BIO_printf(bio_err," -text           print the key in text\n");
 		BIO_printf(bio_err," -noout          don't print key out\n");
@@ -188,6 +206,8 @@ bad:
 		}
 
 	ERR_load_crypto_strings();
+
+        e = setup_engine(bio_err, engine, 0);
 
 	if(!app_passwd(bio_err, passargin, passargout, &passin, &passout)) {
 		BIO_printf(bio_err, "Error getting passwords\n");
@@ -235,7 +255,7 @@ bad:
 	if (outfile == NULL)
 		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 		{
 		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 		out = BIO_push(tmpbio, out);
@@ -293,6 +313,7 @@ end:
 	if(dsa != NULL) DSA_free(dsa);
 	if(passin) OPENSSL_free(passin);
 	if(passout) OPENSSL_free(passout);
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 #endif

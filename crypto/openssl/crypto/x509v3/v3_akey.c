@@ -60,7 +60,7 @@
 #include "cryptlib.h"
 #include <openssl/conf.h>
 #include <openssl/asn1.h>
-#include <openssl/asn1_mac.h>
+#include <openssl/asn1t.h>
 #include <openssl/x509v3.h>
 
 static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
@@ -69,71 +69,14 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
 			X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *values);
 
 X509V3_EXT_METHOD v3_akey_id = {
-NID_authority_key_identifier, X509V3_EXT_MULTILINE,
-(X509V3_EXT_NEW)AUTHORITY_KEYID_new,
-(X509V3_EXT_FREE)AUTHORITY_KEYID_free,
-(X509V3_EXT_D2I)d2i_AUTHORITY_KEYID,
-(X509V3_EXT_I2D)i2d_AUTHORITY_KEYID,
-NULL, NULL,
+NID_authority_key_identifier, X509V3_EXT_MULTILINE, ASN1_ITEM_ref(AUTHORITY_KEYID),
+0,0,0,0,
+0,0,
 (X509V3_EXT_I2V)i2v_AUTHORITY_KEYID,
 (X509V3_EXT_V2I)v2i_AUTHORITY_KEYID,
-NULL,NULL,
+0,0,
 NULL
 };
-
-
-int i2d_AUTHORITY_KEYID(AUTHORITY_KEYID *a, unsigned char **pp)
-{
-	M_ASN1_I2D_vars(a);
-
-	M_ASN1_I2D_len_IMP_opt (a->keyid, i2d_ASN1_OCTET_STRING);
-	M_ASN1_I2D_len_IMP_opt (a->issuer, i2d_GENERAL_NAMES);
-	M_ASN1_I2D_len_IMP_opt (a->serial, i2d_ASN1_INTEGER);
-
-	M_ASN1_I2D_seq_total();
-
-	M_ASN1_I2D_put_IMP_opt (a->keyid, i2d_ASN1_OCTET_STRING, 0);
-	M_ASN1_I2D_put_IMP_opt (a->issuer, i2d_GENERAL_NAMES, 1);
-	M_ASN1_I2D_put_IMP_opt (a->serial, i2d_ASN1_INTEGER, 2);
-
-	M_ASN1_I2D_finish();
-}
-
-AUTHORITY_KEYID *AUTHORITY_KEYID_new(void)
-{
-	AUTHORITY_KEYID *ret=NULL;
-	ASN1_CTX c;
-	M_ASN1_New_Malloc(ret, AUTHORITY_KEYID);
-	ret->keyid = NULL;
-	ret->issuer = NULL;
-	ret->serial = NULL;
-	return (ret);
-	M_ASN1_New_Error(ASN1_F_AUTHORITY_KEYID_NEW);
-}
-
-AUTHORITY_KEYID *d2i_AUTHORITY_KEYID(AUTHORITY_KEYID **a, unsigned char **pp,
-	     long length)
-{
-	M_ASN1_D2I_vars(a,AUTHORITY_KEYID *,AUTHORITY_KEYID_new);
-	M_ASN1_D2I_Init();
-	M_ASN1_D2I_start_sequence();
-	M_ASN1_D2I_get_IMP_opt (ret->keyid, d2i_ASN1_OCTET_STRING, 0,
-							V_ASN1_OCTET_STRING);
-	M_ASN1_D2I_get_IMP_opt (ret->issuer, d2i_GENERAL_NAMES, 1,
-							V_ASN1_SEQUENCE);
-	M_ASN1_D2I_get_IMP_opt (ret->serial, d2i_ASN1_INTEGER, 2,
-							V_ASN1_INTEGER);
-	M_ASN1_D2I_Finish(a, AUTHORITY_KEYID_free, ASN1_F_D2I_AUTHORITY_KEYID);
-}
-
-void AUTHORITY_KEYID_free(AUTHORITY_KEYID *a)
-{
-	if (a == NULL) return;
-	M_ASN1_OCTET_STRING_free(a->keyid);
-	sk_GENERAL_NAME_pop_free(a->issuer, GENERAL_NAME_free);
-	M_ASN1_INTEGER_free (a->serial);
-	OPENSSL_free (a);
-}
 
 static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
 	     AUTHORITY_KEYID *akeyid, STACK_OF(CONF_VALUE) *extlist)
@@ -171,7 +114,7 @@ int i;
 CONF_VALUE *cnf;
 ASN1_OCTET_STRING *ikeyid = NULL;
 X509_NAME *isname = NULL;
-STACK_OF(GENERAL_NAME) * gens = NULL;
+GENERAL_NAMES * gens = NULL;
 GENERAL_NAME *gen = NULL;
 ASN1_INTEGER *serial = NULL;
 X509_EXTENSION *ext;
@@ -191,8 +134,6 @@ for(i = 0; i < sk_CONF_VALUE_num(values); i++) {
 		return NULL;
 	}
 }
-
-
 
 if(!ctx || !ctx->issuer_cert) {
 	if(ctx && (ctx->flags==CTX_TEST)) return AUTHORITY_KEYID_new();

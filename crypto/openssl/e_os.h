@@ -77,18 +77,24 @@ extern "C" {
 #endif
 
 #ifndef DEVRANDOM
-/* set this to your 'random' device if you have one.
- * My default, we will try to read this file */
-#define DEVRANDOM "/dev/urandom"
+/* set this to a comma-separated list of 'random' device files to try out.
+ * My default, we will try to read at least one of these files */
+#define DEVRANDOM "/dev/urandom","/dev/random","/dev/srandom"
+#endif
+#ifndef DEVRANDOM_EGD
+/* set this to a comma-seperated list of 'egd' sockets to try out. These
+ * sockets will be tried in the order listed in case accessing the device files
+ * listed in DEVRANDOM did not return enough entropy. */
+#define DEVRANDOM_EGD "/var/run/egd-pool","/dev/egd-pool","/etc/egd-pool","/etc/entropy"
 #endif
 
-#if defined(VXWORKS)
+#if defined(OPENSSL_SYS_VXWORKS)
 #  define NO_SYS_PARAM_H
 #  define NO_CHMOD
 #  define NO_SYSLOG
 #endif
   
-#if defined(__MWERKS__) && defined(macintosh)
+#if defined(OPENSSL_SYS_MACINTOSH_CLASSIC)
 # if macintosh==1
 #  ifndef MAC_OS_GUSI_SOURCE
 #    define MAC_OS_pre_X
@@ -108,23 +114,23 @@ extern "C" {
  ********************************************************************/
 /* The following is used becaue of the small stack in some
  * Microsoft operating systems */
-#if defined(WIN16) || defined(MSDOS)
+#if defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYSNAME_WIN32)
 #  define MS_STATIC	static
 #else
 #  define MS_STATIC
 #endif
 
-#if defined(_WIN32) && !defined(WIN32) && !defined(__CYGWIN32__) && !defined(_UWIN)
+#if defined(OPENSSL_SYS_WIN32) && !defined(WIN32)
 #  define WIN32
 #endif
-
-#if (defined(WIN32) || defined(WIN16)) && !defined(__CYGWIN32__) && !defined(_UWIN)
-#  ifndef WINDOWS
-#    define WINDOWS
-#  endif
-#  ifndef MSDOS
-#    define MSDOS
-#  endif
+#if defined(OPENSSL_SYS_WIN16) && !defined(WIN16)
+#  define WIN16
+#endif
+#if defined(OPENSSL_SYS_WINDOWS) && !defined(WINDOWS)
+#  define WINDOWS
+#endif
+#if defined(OPENSSL_SYS_MSDOS) && !defined(MSDOS)
+#  define MSDOS
 #endif
 
 #if defined(MSDOS) && !defined(GETPID_IS_MEANINGLESS)
@@ -142,20 +148,26 @@ extern "C" {
 #define clear_sys_error()	errno=0
 #endif
 
-#if defined(WINDOWS) && !defined(__CYGWIN32__)  && !defined(_UWIN)
-
+#if defined(WINDOWS)
 #define get_last_socket_error()	WSAGetLastError()
 #define clear_socket_error()	WSASetLastError(0)
 #define readsocket(s,b,n)	recv((s),(b),(n),0)
 #define writesocket(s,b,n)	send((s),(b),(n),0)
 #define EADDRINUSE		WSAEADDRINUSE
+#elif defined(__DJGPP__)
+#define WATT32
+#define get_last_socket_error()	errno
+#define clear_socket_error()	errno=0
+#define closesocket(s)		close_s(s)
+#define readsocket(s,b,n)	read_s(s,b,n)
+#define writesocket(s,b,n)	send(s,b,n,0)
 #elif defined(MAC_OS_pre_X)
 #define get_last_socket_error()	errno
 #define clear_socket_error()	errno=0
 #define closesocket(s)		MacSocket_close(s)
 #define readsocket(s,b,n)	MacSocket_recv((s),(b),(n),true)
 #define writesocket(s,b,n)	MacSocket_send((s),(b),(n))
-#elif defined(VMS)
+#elif defined(OPENSSL_SYS_VMS)
 #define get_last_socket_error() errno
 #define clear_socket_error()    errno=0
 #define ioctlsocket(a,b,c)      ioctl(a,b,c)
@@ -172,7 +184,7 @@ extern "C" {
 #endif
 
 #ifdef WIN16
-#  define NO_FP_API
+#  define OPENSSL_NO_FP_API
 #  define MS_CALLBACK	_far _loadds
 #  define MS_FAR	_far
 #else
@@ -180,11 +192,22 @@ extern "C" {
 #  define MS_FAR
 #endif
 
-#ifdef NO_STDIO
-#  define NO_FP_API
+#ifdef OPENSSL_NO_STDIO
+#  define OPENSSL_NO_FP_API
 #endif
 
-#if (defined(WINDOWS) || defined(MSDOS)) && !defined(__CYGWIN32__) && !defined(_UWIN)
+#if (defined(WINDOWS) || defined(MSDOS))
+
+#  ifdef __DJGPP__
+#    include <unistd.h>
+#    include <sys/stat.h>
+#    include <sys/socket.h>
+#    include <tcp.h>
+#    include <netdb.h>
+#    define _setmode setmode
+#    define _O_TEXT O_TEXT
+#    define _O_BINARY O_BINARY
+#  endif /* __DJGPP__ */
 
 #  ifndef S_IFDIR
 #    define S_IFDIR	_S_IFDIR
@@ -194,7 +217,7 @@ extern "C" {
 #    define S_IFMT	_S_IFMT
 #  endif
 
-#  if !defined(WINNT)
+#  if !defined(WINNT) && !defined(__DJGPP__)
 #    define NO_SYSLOG
 #  endif
 #  define NO_DIRENT
@@ -209,6 +232,10 @@ extern "C" {
 #  include <io.h>
 #  include <fcntl.h>
 
+#  ifdef OPENSSL_SYS_WINCE
+#    include <winsock_extras.h>
+#  endif
+
 #  define ssize_t long
 
 #  if defined (__BORLANDC__)
@@ -219,10 +246,11 @@ extern "C" {
 #    define _kbhit kbhit
 #  endif
 
-#  if defined(WIN16) && !defined(MONOLITH) && defined(SSLEAY) && defined(_WINEXITNOPERSIST)
-#    define EXIT(n) { if (n == 0) _wsetexit(_WINEXITNOPERSIST); return(n); }
+#  if defined(WIN16) && defined(SSLEAY) && defined(_WINEXITNOPERSIST)
+#    define EXIT(n) _wsetexit(_WINEXITNOPERSIST)
+#    define OPENSSL_EXIT(n) do { if (n == 0) EXIT(n); return(n); } while(0)
 #  else
-#    define EXIT(n)		return(n);
+#    define EXIT(n) return(n)
 #  endif
 #  define LIST_SEPARATOR_CHAR ';'
 #  ifndef X_OK
@@ -238,15 +266,16 @@ extern "C" {
 #  define SSLEAY_CONF	OPENSSL_CONF
 #  define NUL_DEV	"nul"
 #  define RFILE		".rnd"
-#  define DEFAULT_HOME  "C:"
+#  ifdef OPENSSL_SYS_WINCE
+#    define DEFAULT_HOME  ""
+#  else
+#    define DEFAULT_HOME  "C:"
+#  endif
 
 #else /* The non-microsoft world world */
 
-#  if defined(__VMS) && !defined(VMS)
-#  define VMS 1
-#  endif
-
-#  ifdef VMS
+#  ifdef OPENSSL_SYS_VMS
+#    define VMS 1
   /* some programs don't include stdlib, so exit() and others give implicit 
      function warnings */
 #    include <stdlib.h>
@@ -260,6 +289,8 @@ extern "C" {
 #    define RFILE		".rnd"
 #    define LIST_SEPARATOR_CHAR ','
 #    define NUL_DEV		"NLA0:"
+  /* We don't have any well-defined random devices on VMS, yet... */
+#    undef DEVRANDOM
   /* We need to do this since VMS has the following coding on status codes:
 
      Bits 0-2: status type: 0 = warning, 1 = success, 2 = error, 3 = info ...
@@ -275,22 +306,17 @@ extern "C" {
      the status is tagged as an error, which I believe is what is wanted here.
      -- Richard Levitte
   */
-#    if !defined(MONOLITH) || defined(OPENSSL_C)
-#      define EXIT(n)		do { int __VMS_EXIT = n; \
+#    define EXIT(n)		do { int __VMS_EXIT = n; \
                                      if (__VMS_EXIT == 0) \
 				       __VMS_EXIT = 1; \
 				     else \
 				       __VMS_EXIT = (n << 3) | 2; \
                                      __VMS_EXIT |= 0x10000000; \
-				     exit(__VMS_EXIT); \
-				     return(__VMS_EXIT); } while(0)
-#    else
-#      define EXIT(n)		return(n)
-#    endif
+				     exit(__VMS_EXIT); } while(0)
 #    define NO_SYS_PARAM_H
 #  else
      /* !defined VMS */
-#    ifdef MPE
+#    ifdef OPENSSL_SYS_MPE
 #      define NO_SYS_PARAM_H
 #    endif
 #    ifdef OPENSSL_UNISTD
@@ -301,13 +327,13 @@ extern "C" {
 #    ifndef NO_SYS_TYPES_H
 #      include <sys/types.h>
 #    endif
-#    if defined(NeXT) || defined(NEWS4)
+#    if defined(NeXT) || defined(OPENSSL_SYS_NEWS4)
 #      define pid_t int /* pid_t is missing on NEXTSTEP/OPENSTEP
                          * (unless when compiling with -D_POSIX_SOURCE,
                          * which doesn't work for us) */
 #      define ssize_t int /* ditto */
 #    endif
-#    ifdef NEWS4 /* setvbuf is missing on mips-sony-bsd */
+#    ifdef OPENSSL_SYS_NEWS4 /* setvbuf is missing on mips-sony-bsd */
 #      define setvbuf(a, b, c, d) setbuffer((a), (b), (d))
        typedef unsigned long clock_t;
 #    endif
@@ -317,11 +343,7 @@ extern "C" {
 #    define RFILE		".rnd"
 #    define LIST_SEPARATOR_CHAR ':'
 #    define NUL_DEV		"/dev/null"
-#    ifndef MONOLITH
-#      define EXIT(n)		exit(n); return(n)
-#    else
-#      define EXIT(n)		return(n)
-#    endif
+#    define EXIT(n)		exit(n)
 #  endif
 
 #  define SSLeay_getpid()	getpid()
@@ -335,18 +357,23 @@ extern "C" {
 #  if defined(WINDOWS) || defined(MSDOS)
       /* windows world */
 
-#    ifdef NO_SOCK
+#    ifdef OPENSSL_NO_SOCK
 #      define SSLeay_Write(a,b,c)	(-1)
 #      define SSLeay_Read(a,b,c)	(-1)
 #      define SHUTDOWN(fd)		close(fd)
 #      define SHUTDOWN2(fd)		close(fd)
-#    else
+#    elif !defined(__DJGPP__)
 #      include <winsock.h>
 extern HINSTANCE _hInstance;
 #      define SSLeay_Write(a,b,c)	send((a),(b),(c),0)
 #      define SSLeay_Read(a,b,c)	recv((a),(b),(c),0)
 #      define SHUTDOWN(fd)		{ shutdown((fd),0); closesocket(fd); }
 #      define SHUTDOWN2(fd)		{ shutdown((fd),2); closesocket(fd); }
+#    else
+#      define SSLeay_Write(a,b,c)	write_s(a,b,c,0)
+#      define SSLeay_Read(a,b,c)	read_s(a,b,c)
+#      define SHUTDOWN(fd)		close_s(fd)
+#      define SHUTDOWN2(fd)		close_s(fd)
 #    endif
 
 #  elif defined(MAC_OS_pre_X)
@@ -362,14 +389,14 @@ extern HINSTANCE _hInstance;
 #    ifndef NO_SYS_PARAM_H
 #      include <sys/param.h>
 #    endif
-#    ifdef VXWORKS
+#    ifdef OPENSSL_SYS_VXWORKS
 #      include <time.h> 
-#    elif !defined(MPE)
+#    elif !defined(OPENSSL_SYS_MPE)
 #      include <sys/time.h> /* Needed under linux for FD_XXX */
 #    endif
 
 #    include <netdb.h>
-#    if defined(VMS) && !defined(__DECC)
+#    if defined(OPENSSL_SYS_VMS_NODECC)
 #      include <socket.h>
 #      include <in.h>
 #      include <inet.h>
@@ -387,7 +414,7 @@ extern HINSTANCE _hInstance;
 #      include <sys/types.h>
 #    endif
 
-#    ifdef AIX
+#    ifdef OPENSSL_SYS_AIX
 #      include <sys/select.h>
 #    endif
 
@@ -419,7 +446,9 @@ extern HINSTANCE _hInstance;
 #    define SSLeay_Write(a,b,c)    write((a),(b),(c))
 #    define SHUTDOWN(fd)    { shutdown((fd),0); closesocket((fd)); }
 #    define SHUTDOWN2(fd)   { shutdown((fd),2); closesocket((fd)); }
+#    ifndef INVALID_SOCKET
 #    define INVALID_SOCKET	(-1)
+#    endif /* INVALID_SOCKET */
 #  endif
 #endif
 
@@ -441,6 +470,14 @@ extern char *sys_errlist[]; extern int sys_nerr;
 	(((errnum)<0 || (errnum)>=sys_nerr) ? NULL : sys_errlist[errnum])
 #endif
 
+#ifndef OPENSSL_EXIT
+# if defined(MONOLITH) && !defined(OPENSSL_C)
+#  define OPENSSL_EXIT(n) return(n)
+# else
+#  define OPENSSL_EXIT(n) do { EXIT(n); return(n); } while(0)
+# endif
+#endif
+
 /***********************************************/
 
 /* do we need to do this for getenv.
@@ -460,22 +497,46 @@ extern char *sys_errlist[]; extern int sys_nerr;
 #ifdef sgi
 #define IRIX_CC_BUG	/* all version of IRIX I've tested (4.* 5.*) */
 #endif
-#ifdef SNI
+#ifdef OPENSSL_SYS_SNI
 #define IRIX_CC_BUG	/* CDS++ up to V2.0Bsomething suffered from the same bug.*/
 #endif
 
-#ifdef NO_MD2
-#define MD2_Init MD2Init
-#define MD2_Update MD2Update
-#define MD2_Final MD2Final
-#define MD2_DIGEST_LENGTH 16
+#if defined(OPENSSL_SYS_OS2) && defined(__EMX__)
+# include <io.h>
+# include <fcntl.h>
+# define NO_SYSLOG
+# define strcasecmp stricmp
 #endif
-#ifdef NO_MD5
-#define MD5_Init MD5Init 
-#define MD5_Update MD5Update
-#define MD5_Final MD5Final
-#define MD5_DIGEST_LENGTH 16
+
+/* vxworks */
+#if defined(OPENSSL_SYS_VXWORKS)
+#include <ioLib.h>
+#include <tickLib.h>
+#include <sysLib.h>
+
+#define TTY_STRUCT int
+
+#define sleep(a) taskDelay((a) * sysClkRateGet())
+#if defined(ioctlsocket)
+#undef ioctlsocket
 #endif
+#define ioctlsocket(a,b,c) ioctl((a),(b),*(c))
+
+#include <vxWorks.h>
+#include <sockLib.h>
+#include <taskLib.h>
+
+#define getpid taskIdSelf
+
+/* NOTE: these are implemented by helpers in database app!
+ * if the database is not linked, we need to implement them
+ * elswhere */
+struct hostent *gethostbyname(const char *name);
+struct hostent *gethostbyaddr(const char *addr, int length, int type);
+struct servent *getservbyname(const char *name, const char *proto);
+
+#endif
+/* end vxworks */
 
 #ifdef  __cplusplus
 }

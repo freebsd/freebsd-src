@@ -54,13 +54,12 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- * $FreeBSD$
  */
 
 #ifndef HEADER_IDEA_H
 #define HEADER_IDEA_H
 
-#ifdef NO_IDEA
+#ifdef OPENSSL_NO_IDEA
 #error IDEA is disabled.
 #endif
 

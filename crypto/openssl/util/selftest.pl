@@ -50,6 +50,7 @@ if (open(IN,"<Makefile.ssl")) {
 
 $cversion=`$cc -v 2>&1`;
 $cversion=`$cc -V 2>&1` if $cversion =~ "usage";
+$cversion=`$cc -V |head -1` if $cversion =~ "Error";
 $cversion=`$cc --version` if $cversion eq "";
 $cversion =~ s/Reading specs.*\n//;
 $cversion =~ s/usage.*\n//;
@@ -131,16 +132,11 @@ if (system("make 2>&1 | tee make.log") > 255) {
 
 $_=$options;
 s/no-asm//;
+s/no-shared//;
+s/no-krb5//;
 if (/no-/)
 {
     print OUT "Test skipped.\n";
-    goto err;
-}
-
-if (`echo 4+1 | bc` != 5)
-{
-    print OUT "Can't run bc! Test skipped.\n";
-    print OUT $not_our_fault;
     goto err;
 }
 

@@ -12,7 +12,8 @@ INSTALL_PREFIX=
 OPENSSLDIR=     /usr/local/ssl
 INSTALLTOP=/usr/local/ssl
 MAKE=           make -f Makefile.ssl
-MAKEDEPEND=	$(TOP)/util/domd $(TOP)
+MAKEDEPPROG=	makedepend
+MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
 MAKEFILE=       Makefile.ssl
 AR=             ar r
 
@@ -42,8 +43,7 @@ all:    lib
 
 lib:    $(LIBOBJ)
 	$(AR) $(LIB) $(LIBOBJ)
-	@echo You may get an error following this line.  Please ignore.
-	- $(RANLIB) $(LIB)
+	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
 # elf
@@ -92,7 +92,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
-	$(MAKEDEPEND) $(INCLUDES) $(DEPFLAG) $(PROGS) $(LIBSRC)
+	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
 	$(PERL) -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
@@ -103,11 +103,19 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-sha1_one.o: ../../include/openssl/sha.h
-sha1dgst.o: ../../include/openssl/opensslconf.h
+sha1_one.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+sha1_one.o: ../../include/openssl/opensslconf.h
+sha1_one.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
+sha1_one.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
+sha1_one.o: ../../include/openssl/symhacks.h sha1_one.c
+sha1dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
 sha1dgst.o: ../../include/openssl/opensslv.h ../../include/openssl/sha.h
-sha1dgst.o: ../md32_common.h sha_locl.h
-sha_dgst.o: ../../include/openssl/opensslconf.h
+sha1dgst.o: ../md32_common.h sha1dgst.c sha_locl.h
+sha_dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
 sha_dgst.o: ../../include/openssl/opensslv.h ../../include/openssl/sha.h
-sha_dgst.o: ../md32_common.h sha_locl.h
-sha_one.o: ../../include/openssl/sha.h
+sha_dgst.o: ../md32_common.h sha_dgst.c sha_locl.h
+sha_one.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+sha_one.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+sha_one.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
+sha_one.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+sha_one.o: sha_one.c

@@ -64,7 +64,7 @@
 #endif
 #endif
 
-#if defined(HEADER_DES_H) && !defined(DES_LONG)
+#if (defined(HEADER_DES_H) || defined(HEADER_NEW_DES_H)) && !defined(DES_LONG)
 /* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
  * %20 speed up (longs are 8 bytes, int's are 4). */
 #ifndef DES_LONG
@@ -173,3 +173,5 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 
 #endif /* DES_DEFAULT_OPTIONS */
 #endif /* HEADER_DES_LOCL_H */
+/* The Kerberos 5 support is MIT-specific. */
+#define OPENSSL_NO_KRB5

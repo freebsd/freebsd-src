@@ -108,7 +108,7 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
 		if (offset != 0)
 			{
 			size+=BUFSIZE;
-			if (!BUF_MEM_grow(buf,size)) goto err;
+			if (!BUF_MEM_grow_clean(buf,size)) goto err;
 			}
 		buf->data[offset]='\0';
 		BIO_gets(in,&(buf->data[offset]),size-offset);
@@ -155,7 +155,7 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
 		*(p++)='\0';
 		if ((n != num) || (*f != '\0'))
 			{
-#if !defined(NO_STDIO) && !defined(WIN16)	/* temporaty fix :-( */
+#if !defined(OPENSSL_NO_STDIO) && !defined(OPENSSL_SYS_WIN16)	/* temporaty fix :-( */
 			fprintf(stderr,"wrong number of fields on line %ld (looking for field %d, got %d, '%s' left)\n",ln,num,n,f);
 #endif
 			er=2;
@@ -164,7 +164,7 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
 		pp[n]=p;
 		if (!sk_push(ret->data,(char *)pp))
 			{
-#if !defined(NO_STDIO) && !defined(WIN16)	/* temporaty fix :-( */
+#if !defined(OPENSSL_NO_STDIO) && !defined(OPENSSL_SYS_WIN16)	/* temporaty fix :-( */
 			fprintf(stderr,"failure in sk_push\n");
 #endif
 			er=2;
@@ -176,7 +176,7 @@ err:
 	BUF_MEM_free(buf);
 	if (er)
 		{
-#if !defined(NO_STDIO) && !defined(WIN16)
+#if !defined(OPENSSL_NO_STDIO) && !defined(OPENSSL_SYS_WIN16)
 		if (er == 1) fprintf(stderr,"OPENSSL_malloc failure\n");
 #endif
 		if (ret->data != NULL) sk_free(ret->data);
@@ -211,7 +211,7 @@ char **TXT_DB_get_by_index(TXT_DB *db, int idx, char **value)
 	}
 
 int TXT_DB_create_index(TXT_DB *db, int field, int (*qual)(),
-	     unsigned long (*hash)(), int (*cmp)())
+		LHASH_HASH_FN_TYPE hash, LHASH_COMP_FN_TYPE cmp)
 	{
 	LHASH *idx;
 	char *r;
@@ -268,7 +268,7 @@ long TXT_DB_write(BIO *out, TXT_DB *db)
 			if (pp[j] != NULL)
 				l+=strlen(pp[j]);
 			}
-		if (!BUF_MEM_grow(buf,(int)(l*2+nn))) goto err;
+		if (!BUF_MEM_grow_clean(buf,(int)(l*2+nn))) goto err;
 
 		p=buf->data;
 		for (j=0; j<nn; j++)

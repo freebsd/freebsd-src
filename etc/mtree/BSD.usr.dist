@@ -926,6 +926,26 @@
             zh_TW.Big5
             ..
         ..
+        openssl
+            man
+/set uname=man
+                cat1
+                ..
+                cat3
+                ..
+                en.ISO8859-1    uname=root
+                    cat1
+                    ..
+                    cat3
+                    ..
+                ..
+/set uname=root
+                man1
+                ..
+                man3
+                ..
+            ..
+        ..
         pcvt
             Doc
             ..

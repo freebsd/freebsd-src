@@ -66,7 +66,7 @@
 
 static char *strip_spaces(char *name);
 static int sk_strcmp(const char * const *a, const char * const *b);
-static STACK *get_email(X509_NAME *name, STACK_OF(GENERAL_NAME) *gens);
+static STACK *get_email(X509_NAME *name, GENERAL_NAMES *gens);
 static void str_free(void *str);
 static int append_ia5(STACK **sk, ASN1_IA5STRING *email);
 
@@ -154,21 +154,40 @@ ASN1_INTEGER *s2i_ASN1_INTEGER(X509V3_EXT_METHOD *method, char *value)
 {
 	BIGNUM *bn = NULL;
 	ASN1_INTEGER *aint;
+	int isneg, ishex;
+	int ret;
 	bn = BN_new();
-	if(!value) {
+	if (!value) {
 		X509V3err(X509V3_F_S2I_ASN1_INTEGER,X509V3_R_INVALID_NULL_VALUE);
 		return 0;
 	}
-	if(!BN_dec2bn(&bn, value)) {
+	if (value[0] == '-') {
+		value++;
+		isneg = 1;
+	} else isneg = 0;
+
+	if (value[0] == '0' && ((value[1] == 'x') || (value[1] == 'X'))) {
+		value += 2;
+		ishex = 1;
+	} else ishex = 0;
+
+	if (ishex) ret = BN_hex2bn(&bn, value);
+	else ret = BN_dec2bn(&bn, value);
+
+	if (!ret) {
 		X509V3err(X509V3_F_S2I_ASN1_INTEGER,X509V3_R_BN_DEC2BN_ERROR);
 		return 0;
 	}
 
-	if(!(aint = BN_to_ASN1_INTEGER(bn, NULL))) {
+	if (isneg && BN_is_zero(bn)) isneg = 0;
+
+	aint = BN_to_ASN1_INTEGER(bn, NULL);
+	BN_free(bn);
+	if (!aint) {
 		X509V3err(X509V3_F_S2I_ASN1_INTEGER,X509V3_R_BN_TO_ASN1_INTEGER_ERROR);
 		return 0;
 	}
-	BN_free(bn);
+	if (isneg) aint->type |= V_ASN1_NEG;
 	return aint;
 }
 
@@ -221,7 +240,7 @@ int X509V3_get_value_int(CONF_VALUE *value, ASN1_INTEGER **aint)
 
 /*#define DEBUG*/
 
-STACK_OF(CONF_VALUE) *X509V3_parse_list(char *line)
+STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
 {
 	char *p, *q, c;
 	char *ntmp, *vtmp;
@@ -439,7 +458,7 @@ static int sk_strcmp(const char * const *a, const char * const *b)
 
 STACK *X509_get1_email(X509 *x)
 {
-	STACK_OF(GENERAL_NAME) *gens;
+	GENERAL_NAMES *gens;
 	STACK *ret;
 	gens = X509_get_ext_d2i(x, NID_subject_alt_name, NULL, NULL);
 	ret = get_email(X509_get_subject_name(x), gens);
@@ -449,7 +468,7 @@ STACK *X509_get1_email(X509 *x)
 
 STACK *X509_REQ_get1_email(X509_REQ *x)
 {
-	STACK_OF(GENERAL_NAME) *gens;
+	GENERAL_NAMES *gens;
 	STACK_OF(X509_EXTENSION) *exts;
 	STACK *ret;
 	exts = X509_REQ_get_extensions(x);
@@ -461,7 +480,7 @@ STACK *X509_REQ_get1_email(X509_REQ *x)
 }
 
 
-static STACK *get_email(X509_NAME *name, STACK_OF(GENERAL_NAME) *gens)
+static STACK *get_email(X509_NAME *name, GENERAL_NAMES *gens)
 {
 	STACK *ret = NULL;
 	X509_NAME_ENTRY *ne;
@@ -472,7 +491,7 @@ static STACK *get_email(X509_NAME *name, STACK_OF(GENERAL_NAME) *gens)
 	i = -1;
 	/* First supplied X509_NAME */
 	while((i = X509_NAME_get_index_by_NID(name,
-					 NID_pkcs9_emailAddress, i)) > 0) {
+					 NID_pkcs9_emailAddress, i)) >= 0) {
 		ne = X509_NAME_get_entry(name, i);
 		email = X509_NAME_ENTRY_get_data(ne);
 		if(!append_ia5(&ret, email)) return NULL;

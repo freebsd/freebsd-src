@@ -63,7 +63,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef NO_RC2
+#include "../e_os.h"
+
+#ifdef OPENSSL_NO_RC2
 int main(int argc, char *argv[])
 {
     printf("No RC2 support\n");
@@ -203,7 +205,7 @@ int main(int argc, char *argv[])
 		printf("ok\n");
 #endif
 
-	exit(err);
+	EXIT(err);
 	return(err);
 	}
 
