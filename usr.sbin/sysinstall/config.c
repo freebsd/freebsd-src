@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.135 1999/05/15 15:05:08 jkh Exp $
+ * $Id: config.c,v 1.136 1999/05/18 00:44:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -448,6 +448,14 @@ configUsers(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
+int
+configLinux(dialogMenuItem *self)
+{
+    variable_set2(VAR_LINUX_ENABLE, "YES", 1);
+    msgNotify("Installing Linux compatibility library...");
+    return package_add("linux_lib");
+}
+
 static void
 write_root_xprofile(char *str)
 {
@@ -521,6 +529,11 @@ configXDesktop(dialogMenuItem *self)
 	ret = package_add("enlightenment");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("enlightenment"))
 	    write_root_xprofile("xterm &\nexec enlightenment\n");
+    }
+    else if (!strcmp(desk, "fvwm")) {
+	ret = package_add("fvwm");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("fvwm"))
+	    write_root_xprofile("xterm &\nexec fvwm\n");
     }
     if (DITEM_STATUS(ret) == DITEM_FAILURE)
 	msgConfirm("An error occurred while adding the package(s) required\n"

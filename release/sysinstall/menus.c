@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.207 1999/06/09 09:18:33 jkh Exp $
+ * $Id: menus.c,v 1.208 1999/06/23 03:52:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -470,6 +470,8 @@ DMenu MenuXDesktops = {
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
       { "Enlightenment","The E Window manager (24 bit recommended)",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=enlightenment" },
+      { "fvwm",		"The fvwm Window manager",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm" },
       { NULL } },
 };
 
@@ -1237,7 +1239,7 @@ DMenu MenuStartup = {
       { "lpd",		"This host has a printer and wants to run lpd.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "lpd_enable=YES" },
       { "linux",	"This host wants to be able to run linux binaries.",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "linux_enable=YES" },
+	dmenuVarCheck, configLinux, NULL, VAR_LINUX_ENABLE "=YES" },
       { "quotas",	"This host wishes to check quotas on startup.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
       { "SCO",		"This host wants to be able to run IBCS2 binaries.",
