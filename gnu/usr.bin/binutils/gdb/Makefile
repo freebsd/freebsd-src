@@ -7,6 +7,7 @@ GDBDIR= ${.CURDIR}/../../../../contrib/gdb
 .PATH: ${GDBDIR}/gdb ${GDBDIR}/gdb/cli ${GDBDIR}/gdb/mi
 .PATH: ${SRCDIR}/opcodes ${SRCDIR}/binutils
 
+#	For FSF GDB files, use their CPU (arch) name; for our files use ours.
 .if ${TARGET_ARCH} == "sparc64"
 GDB_CPU=	sparc
 .elif ${TARGET_ARCH} == "amd64"
@@ -118,19 +119,18 @@ init.c: ${XSRCS}
 
 .PRECIOUS: init.c
 
-nm.h:
-	echo '#include "${GDB_CPU}/nm-fbsd.h"'	>${.TARGET}
-	echo '#include "fbsd-kgdb.h"'		>>${.TARGET}
+tm.h:
+	ln -sf ${.CURDIR}/fbsd-kgdb-${TARGET_ARCH}.h ${.TARGET}
 
-.for H in tm-fbsd xm-${GDB_CPU}
+.for H in nm-fbsd xm-${GDB_CPU}
 ${H:C/-.*$//}.h:
 	ln -sf \
-	    ${.CURDIR}/../../../../contrib/gdb/gdb/config/${GDB_CPU}/${H}.h \
+	    ${GDBDIR}/gdb/config/${GDB_CPU}/${H}.h \
 	    ${.TARGET}
 .endfor
 
 GDB_VERSION=	"5.2.1 (FreeBSD)"
-gdbversion.c:
+gdbversion.c: Makefile
 	@echo '#include "version.h"'				> ${.TARGET}
 	@echo 'const char version[] = ${GDB_VERSION};'		>>${.TARGET}
 	@echo 'const char host_name[] = "${MACHINE_ARCH}-undermydesk-freebsd";'			>>${.TARGET}
