@@ -270,8 +270,6 @@
                 ..
                 08.sendmailop
                 ..
-                09.sendmail
-                ..
                 10.named
                 ..
                 11.timedop
