@@ -106,6 +106,7 @@ struct buf {
 #define	b_bcount	b_io.bio_bcount
 #define	b_blkno		b_io.bio_blkno
 #define	b_caller1	b_io.bio_caller1
+#define	b_caller2	b_io.bio_caller2
 #define	b_data		b_io.bio_data
 #define	b_dev		b_io.bio_dev
 #define	b_driver1	b_io.bio_driver1
@@ -143,7 +144,6 @@ struct buf {
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
 	union	pager_info {
-		void	*pg_spc;
 		int	pg_reqpage;
 	} b_pager;
 	union	cluster_info {
@@ -154,8 +154,6 @@ struct buf {
 	int		b_npages;
 	struct	workhead b_dep;		/* (D) List of filesystem dependencies. */
 };
-
-#define b_spc	b_pager.pg_spc
 
 /*
  * These flags are kept in b_flags.
