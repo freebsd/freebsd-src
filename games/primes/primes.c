@@ -303,10 +303,10 @@ primes(start, stop)
 		do {
 			/* determine the factor's initial sieve point */
 			q = (char *)(start%factor); /* temp storage for mod */
-			if ((int)q & 0x1) {
-				q = &table[(factor-(int)q)/2];
+			if ((long)q & 0x1) {
+				q = &table[(factor-(long)q)/2];
 			} else {
-				q = &table[q ? factor-((int)q/2) : 0];
+				q = &table[q ? factor-((long)q/2) : 0];
 			}
 			/* sive for our current factor */
 			for ( ; q < tab_lim; q += factor) {
