@@ -245,7 +245,7 @@ sub tinderbox($$$) {
 	    @lines = ();
 	    next;
 	}
-	if (/\bStop\b/) {
+	if (/^Stop in /) {
 	    $error = 1;
 	}
 	if (@lines > 10 && !$error) {
