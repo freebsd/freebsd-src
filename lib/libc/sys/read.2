@@ -163,6 +163,9 @@ was negative.
 .It Bq Er EAGAIN
 The file was marked for non-blocking I/O,
 and no data were ready to be read.
+.It Bq Er EPERM
+The file descriptor is associated with a non regular file
+(e.g. a directory) mounted over NFS.
 .El
 .Pp
 In addition,
