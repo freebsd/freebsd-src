@@ -25,10 +25,10 @@ static char rcsid[] = "$FreeBSD$";
 
 #ifdef _SCALB_INT
 double
-__generic___ieee754_scalb(double x, int fn)
+__ieee754_scalb(double x, int fn)
 #else
 double
-__generic___ieee754_scalb(double x, double fn)
+__ieee754_scalb(double x, double fn)
 #endif
 {
 #ifdef _SCALB_INT

@@ -41,7 +41,7 @@ TWO52[2]={
 };
 
 double
-__generic_rint(double x)
+rint(double x)
 {
 	int32_t i0,j0,sx;
 	u_int32_t i,i1;

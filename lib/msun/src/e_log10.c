@@ -59,7 +59,7 @@ log10_2lo  =  3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
 static const double zero   =  0.0;
 
 double
-__generic___ieee754_log10(double x)
+__ieee754_log10(double x)
 {
 	double y,z;
 	int32_t i,k,hx;
