@@ -575,7 +575,7 @@ dosum()
 	    nchstats.ncs_miss + nchstats.ncs_long;
 	(void)printf("%9ld total name lookups\n", nchtotal);
 	(void)printf(
-	    "%9s cache hits (%d%% pos + %d%% neg) system %d%% per-process\n",
+	    "%9s cache hits (%d%% pos + %d%% neg) system %d%% per-directory\n",
 	    "", PCT(nchstats.ncs_goodhits, nchtotal),
 	    PCT(nchstats.ncs_neghits, nchtotal),
 	    PCT(nchstats.ncs_pass2, nchtotal));
