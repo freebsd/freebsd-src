@@ -153,7 +153,7 @@ ngt_constructor(node_p *nodep)
 	sc_p privdata;
 	int error = 0;
 
-	MALLOC(privdata, sc_p, sizeof(*privdata), M_NETGRAPH, M_WAITOK);
+	MALLOC(privdata, sc_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT);
 	if (privdata == NULL)
 		return (ENOMEM);
 	bzero(privdata, sizeof(*privdata));

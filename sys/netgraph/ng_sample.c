@@ -152,7 +152,7 @@ ng_xxx_constructor(node_p *nodep)
 	int i, error;
 
 	/* Initialize private descriptor */
-	MALLOC(privdata, xxx_p, sizeof(*privdata), M_NETGRAPH, M_WAITOK);
+	MALLOC(privdata, xxx_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT);
 	if (privdata == NULL)
 		return (ENOMEM);
 	bzero(privdata, sizeof(struct XXX));
