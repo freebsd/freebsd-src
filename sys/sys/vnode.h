@@ -95,27 +95,30 @@ struct vpollinfo {
  * Reading or writing any of these items requires holding the appropriate lock.
  *
  * Lock reference:
- * V		vnode lock
- * I		inter lock
- * F		freelist mutex
- * M		mntvnodes mutex
- * P		pollinfo lock
+ *	f - freelist mutex
+ *	i - interlock
+ *	m - mntvnodes mutex
+ *	p - pollinfo lock
+ *	v - vnode lock
+ *
+ * XXX Not all fields are locked yet and some fields that are marked are not
+ * locked consistently.  This is a work in progress.
  */
 
 struct vnode {
-	struct	mtx v_interlock;		/* lock on usecount and flag */
-	u_long	v_iflag;			/* I vnode flags (see below) */
-	int	v_usecount;			/* I ref count of users */
-	int	v_writecount;			/* I ref count of writers */
-	long	v_numoutput;			/* I writes in progress */
-	struct thread *v_vxproc;		/* I thread owning VXLOCK */
-	int	v_holdcnt;			/* I page & buffer references */
-	u_long	v_vflag;			/* V vnode flags */
+	struct	mtx v_interlock;		/* lock for "i" things */
+	u_long	v_iflag;			/* i vnode flags (see below) */
+	int	v_usecount;			/* i ref count of users */
+	int	v_writecount;			/* i ref count of writers */
+	long	v_numoutput;			/* i writes in progress */
+	struct thread *v_vxproc;		/* i thread owning VXLOCK */
+	int	v_holdcnt;			/* i page & buffer references */
+	u_long	v_vflag;			/* v vnode flags */
 	u_long	v_id;				/* capability identifier */
 	struct	mount *v_mount;			/* ptr to vfs we are in */
 	vop_t	**v_op;				/* vnode operations vector */
-	TAILQ_ENTRY(vnode) v_freelist;		/* F vnode freelist */
-	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* M vnodes for mount point */
+	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
+	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* m vnodes for mount point */
 	struct	buflists v_cleanblkhd;		/* SORTED clean blocklist */
 	struct buf	*v_cleanblkroot;	/* clean buf splay tree root */
 	struct	buflists v_dirtyblkhd;		/* SORTED dirty blocklist */
@@ -144,7 +147,7 @@ struct vnode {
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
-	struct vpollinfo *v_pollinfo;		/* P Poll events */
+	struct vpollinfo *v_pollinfo;		/* p Poll events */
 	struct label v_label;			/* MAC label for vnode */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
