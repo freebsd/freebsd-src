@@ -58,8 +58,11 @@ extern struct output *out2;
 
 void open_mem(char *, int, struct output *);
 void out1str(const char *);
+void out1qstr(const char *);
 void out2str(const char *);
+void out2qstr(const char *);
 void outstr(const char *, struct output *);
+void outqstr(const char *, struct output *);
 void emptyoutbuf(struct output *);
 void flushall(void);
 void flushout(struct output *);
