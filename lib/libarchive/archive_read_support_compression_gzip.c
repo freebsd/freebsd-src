@@ -426,7 +426,7 @@ drive_decompressor(struct archive *a, struct private_data *state)
 				 */
 			case 11: /* Optional Extra: Second byte of Length. */
 				if ((flags & 4)) {
-					count = (count << 8) | (255 & (int)b);
+					count = (0xff00 & ((int)b << 8)) | count;
 					header_state = 12;
 					break;
 				}
