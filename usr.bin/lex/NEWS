@@ -1,3 +1,14 @@
+Changes between release 2.5.4 (11Sep96) and release 2.5.3:
+
+	- Fixed a bug introduced in 2.5.3 that blew it when a call
+	  to input() occurred at the end of an input file.
+
+	- Fixed scanner skeleton so the example in the man page of
+	  scanning strings using exclusive start conditions works.
+
+	- Minor Makefile tweaks.
+
+
 Changes between release 2.5.3 (29May96) and release 2.5.2:
 
 	- Some serious bugs in yymore() have been fixed.  In particular,
