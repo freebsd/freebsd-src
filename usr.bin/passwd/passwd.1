@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: passwd.1,v 1.9 1998/08/24 00:56:20 steve Exp $
+.\"	$Id: passwd.1,v 1.10 1998/10/09 06:38:33 markm Exp $
 .\"
 .Dd June 6, 1993
 .Dt PASSWD 1
@@ -58,7 +58,7 @@ The new password must be entered twice to avoid typing errors.
 .Pp
 The new password should be at least six characters long (which
 may be overridden using the
-.Xr login.cap 5
+.Xr login.conf 5
 "minpasswordlen" setting for a user's login class) and not purely alphabetic.
 Its total length must be less than
 .Dv _PASSWORD_LEN
