@@ -18,11 +18,15 @@
 #include <err.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
+#include <sys/module.h>
+#include <sys/linker.h>
 #include <sys/mdioctl.h>
 
 struct md_ioctl mdio;
 
 enum {UNSET, ATTACH, DETACH} action = UNSET;
+
+void mdmaybeload(void);
 
 void
 usage()
@@ -139,6 +143,7 @@ main(int argc, char **argv)
 		}
 	}
 
+	mdmaybeload();
 	fd = open("/dev/mdctl", O_RDWR, 0);
 	if (fd < 0)
 		err(1, "open(/dev/mdctl)");
@@ -154,5 +159,36 @@ main(int argc, char **argv)
 	if (mdio.md_options & MD_AUTOUNIT)
 		printf("md%d\n", mdio.md_unit);
 	return (0);
+}
+
+void
+mdmaybeload(void)
+{
+        struct module_stat mstat;
+        int fileid, modid;
+        char *name = "md";
+	char *cp;
+
+        /* scan files in kernel */
+        mstat.version = sizeof(struct module_stat);
+        for (fileid = kldnext(0); fileid > 0; fileid = kldnext(fileid)) {
+                /* scan modules in file */
+                for (modid = kldfirstmod(fileid); modid > 0;
+                     modid = modfnext(modid)) {
+                        if (modstat(modid, &mstat) < 0)
+                                continue;
+                        /* strip bus name if present */
+                        if ((cp = strchr(mstat.name, '/')) != NULL) {
+                                cp++;
+                        } else {
+                                cp = mstat.name;
+                        }
+                        /* already loaded? */
+                        if (!strcmp(name, cp))
+                                return;
+                }
+        }
+        /* not present, we should try to load it */
+        kldload(name);
 }
 
