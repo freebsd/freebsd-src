@@ -40,6 +40,7 @@
 .Nd split a file into pieces
 .Sh SYNOPSIS
 .Nm
+.Op Fl a Ar suffix_length
 .Op Fl b Ar byte_count[k|m]
 .Op Fl l Ar line_count
 .Op Fl p Ar pattern
@@ -49,11 +50,21 @@ The
 .Nm
 utility reads the given
 .Ar file
-(or standard input if no file is specified)
 and breaks it up into files of 1000 lines each.
+If
+.Ar file
+is a single dash
+.Pq Sq Fl
+or absent,
+.Nm
+reads from the standard input.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl a
+Use
+.Ar suffix_length
+letters to form the suffix of the file name.
 .It Fl b
 Create smaller files
 .Ar byte_count
@@ -89,14 +100,32 @@ of the input file which is to be split.
 If a second additional argument is specified, it is used as a prefix
 for the names of the files into which the file is split.
 In this case, each file into which the file is split is named by the
-prefix followed by a lexically ordered suffix in the range of
-.Dq Li aa-zz .
+prefix followed by a lexically ordered suffix using
+.Ar suffix_length
+characters in the range
+.Dq Li a-z .
+If
+.Fl a
+is not specified, two letters are used as the suffix.
 .Pp
 If the
 .Ar name
 argument is not specified, the file is split into lexically ordered
-files named in the range of
-.Dq Li xaa-zzz .
+files named with prefixes in the range of
+.Dq Li x-z
+and with suffixes as above.
+.Sh SEE ALSO
+.Xr re_format 7
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v3 .
 .Sh BUGS
 For historical reasons, if you specify
 .Ar name ,
@@ -104,12 +133,8 @@ For historical reasons, if you specify
 can only create 676 separate
 files.
 The default naming convention allows 2028 separate files.
+The
+.Fl a
+option can be used to work around this limitation.
 .Pp
 The maximum line length for matching patterns is 65536.
-.Sh SEE ALSO
-.Xr re_format 7
-.Sh HISTORY
-A
-.Nm
-command appeared in
-.At v6 .

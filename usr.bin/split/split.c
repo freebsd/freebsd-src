@@ -31,27 +31,26 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
+static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 #endif
-#endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +60,7 @@ static const char rcsid[] =
 
 #define DEFLINE	1000			/* Default num lines per file. */
 
-size_t	 bytecnt;			/* Byte count to split on. */
+off_t	 bytecnt;			/* Byte count to split on. */
 long	 numlines;			/* Line count to split on. */
 int	 file_open;			/* If a file open. */
 int	 ifd = -1, ofd = -1;		/* Input/output file descriptors. */
@@ -69,21 +68,22 @@ char	 bfr[MAXBSIZE];			/* I/O buffer. */
 char	 fname[MAXPATHLEN];		/* File name prefix. */
 regex_t	 rgx;
 int	 pflag;
+long	 sufflen = 2;			/* File name suffix length. */
 
-void newfile __P((void));
-void split1 __P((void));
-void split2 __P((void));
-static void usage __P((void));
+void newfile(void);
+void split1(void);
+void split2(void);
+static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
+	long long bytecnti;
+	long scale;
 	int ch;
 	char *ep, *p;
 
-	while ((ch = getopt(argc, argv, "-0123456789b:l:p:")) != -1)
+	while ((ch = getopt(argc, argv, "-0123456789a:b:l:p:")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -108,15 +108,25 @@ main(argc, argv)
 				usage();
 			ifd = 0;
 			break;
+		case 'a':		/* Suffix length */
+			if ((sufflen = strtol(optarg, &ep, 10)) <= 0 || *ep)
+				errx(EX_USAGE,
+				    "%s: illegal suffix length", optarg);
+			break;
 		case 'b':		/* Byte count. */
-			if ((bytecnt = strtoq(optarg, &ep, 10)) <= 0 ||
-			    (*ep != '\0' && *ep != 'k' && *ep != 'm'))
+			errno = 0;
+			if ((bytecnti = strtoll(optarg, &ep, 10)) <= 0 ||
+			    (*ep != '\0' && *ep != 'k' && *ep != 'm') ||
+			    errno != 0)
 				errx(EX_USAGE,
 				    "%s: illegal byte count", optarg);
 			if (*ep == 'k')
-				bytecnt *= 1024;
+				scale = 1024;
 			else if (*ep == 'm')
-				bytecnt *= 1048576;
+				scale = 1024 * 1024;
+			else
+				scale = 1;
+			bytecnt = (off_t)(bytecnti * scale);
 			break;
 		case 'p' :      /* pattern matching. */
 			if (regcomp(&rgx, optarg, REG_EXTENDED|REG_NOSUB) != 0)
@@ -138,15 +148,20 @@ main(argc, argv)
 
 	if (*argv != NULL)
 		if (ifd == -1) {		/* Input file. */
-			if ((ifd = open(*argv, O_RDONLY, 0)) < 0)
+			if (strcmp(*argv, "-") == 0)
+				ifd = STDIN_FILENO;
+			else if ((ifd = open(*argv, O_RDONLY, 0)) < 0)
 				err(EX_NOINPUT, "%s", *argv);
 			++argv;
 		}
 	if (*argv != NULL)			/* File name prefix. */
-		(void)strcpy(fname, *argv++);
+		if (strlcpy(fname, *argv++, sizeof(fname)) >= sizeof(fname))
+			errx(EX_USAGE, "file name prefix is too long");
 	if (*argv != NULL)
 		usage();
 
+	if (strlen(fname) + (unsigned long)sufflen >= sizeof(fname))
+		errx(EX_USAGE, "suffix is too long");
 	if (pflag && (numlines != 0 || bytecnt != 0))
 		usage();
 
@@ -173,10 +188,11 @@ main(argc, argv)
  *	Split the input by bytes.
  */
 void
-split1()
+split1(void)
 {
-	size_t bcnt, dist, len;
+	off_t bcnt;
 	char *C;
+	ssize_t dist, len;
 
 	for (bcnt = 0;;)
 		switch ((len = read(ifd, bfr, MAXBSIZE))) {
@@ -197,7 +213,7 @@ split1()
 				    len -= bytecnt, C += bytecnt) {
 					newfile();
 					if (write(ofd,
-					    C, (int)bytecnt) != bytecnt)
+					    C, bytecnt) != bytecnt)
 						err(EX_IOERR, "write");
 				}
 				if (len != 0) {
@@ -220,7 +236,7 @@ split1()
  *	Split the input by lines.
  */
 void
-split2()
+split2(void)
 {
 	long lcnt = 0;
 	FILE *infp;
@@ -272,8 +288,9 @@ writeit:
  *	Open a new output file.
  */
 void
-newfile()
+newfile(void)
 {
+	long i, maxfiles, tfnum;
 	static long fnum;
 	static int defname;
 	static char *fpnt;
@@ -289,19 +306,32 @@ newfile()
 		}
 		ofd = fileno(stdout);
 	}
+
+	/* maxfiles = 26^sufflen, but don't use libm. */
+	for (maxfiles = 1, i = 0; i < sufflen; i++)
+		if ((maxfiles *= 26) <= 0)
+			errx(EX_USAGE, "suffix is too long (max %ld)", i);
+
 	/*
 	 * Hack to increase max files; original code wandered through
-	 * magic characters.  Maximum files is 3 * 26 * 26 == 2028
+	 * magic characters.
 	 */
-#define MAXFILES	676
-	if (fnum == MAXFILES) {
+	if (fnum == maxfiles) {
 		if (!defname || fname[0] == 'z')
 			errx(EX_DATAERR, "too many files");
 		++fname[0];
 		fnum = 0;
 	}
-	fpnt[0] = fnum / 26 + 'a';
-	fpnt[1] = fnum % 26 + 'a';
+
+	/* Generate suffix of sufflen letters */
+	tfnum = fnum;
+	i = sufflen - 1;
+	do {
+		fpnt[i] = tfnum % 26 + 'a';
+		tfnum /= 26;
+	} while (i-- > 0);
+	fpnt[sufflen] = '\0';
+
 	++fnum;
 	if (!freopen(fname, "w", stdout))
 		err(EX_IOERR, "%s", fname);
@@ -309,9 +339,11 @@ newfile()
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
-"usage: split [-b byte_count] [-l line_count] [-p pattern] [file [prefix]]\n");
+"usage: split [-a sufflen] [-b byte_count] [-l line_count] [-p pattern]\n");
+	(void)fprintf(stderr,
+"             [file [prefix]]\n");
 	exit(EX_USAGE);
 }
