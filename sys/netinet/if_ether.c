@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.17 1995/05/30 08:09:18 rgrimes Exp $
+ * $Id: if_ether.c,v 1.18 1995/06/27 20:36:34 wollman Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/syslog.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -79,13 +80,22 @@ int	arpt_keep = (20*60);	/* once resolved, good for 20 more minutes */
 int	arpt_down = 20;		/* once declared down, don't send for 20 secs */
 #define	rt_expire rt_rmx.rmx_expire
 
+struct llinfo_arp {
+	LIST_ENTRY(llinfo_arp) la_le;
+	struct	rtentry *la_rt;
+	struct	mbuf *la_hold;		/* last packet until resolved/timeout */
+	long	la_asked;		/* last time we QUERIED for this addr */
+#define la_timer la_rt->rt_rmx.rmx_expire /* deletion time in seconds */
+};
+static	LIST_HEAD(, llinfo_arp) llinfo_arp;
+
 static	void arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
 static	void arptfree __P((struct llinfo_arp *));
 static	void arptimer __P((void *));
 static	struct llinfo_arp *arplookup __P((u_long, int, int));
 static	void in_arpinput __P((struct mbuf *));
+static	struct llinfo_arp *arptnew __P((struct in_addr *));
 
-struct	llinfo_arp llinfo_arp = {&llinfo_arp, &llinfo_arp};
 struct	ifqueue arpintrq = {0, 0, 0, 50};
 int	arp_inuse, arp_allocated, arp_intimer;
 int	arp_maxtries = 5;
@@ -105,14 +115,15 @@ arptimer(ignored_arg)
 	void *ignored_arg;
 {
 	int s = splnet();
-	register struct llinfo_arp *la = llinfo_arp.la_next;
+	register struct llinfo_arp *la = llinfo_arp.lh_first;
+	struct llinfo_arp *ola;
 
 	timeout(arptimer, (caddr_t)0, arpt_prune * hz);
-	while (la != &llinfo_arp) {
+	while ((ola = la) != 0) {
 		register struct rtentry *rt = la->la_rt;
-		la = la->la_next;
+		la = la->la_le.le_next;
 		if (rt->rt_expire && rt->rt_expire <= time.tv_sec)
-			arptfree(la->la_prev); /* timer has expired, clear */
+			arptfree(ola); /* timer has expired, clear */
 	}
 	splx(s);
 }
@@ -132,6 +143,7 @@ arp_rtrequest(req, rt, sa)
 
 	if (!arpinit_done) {
 		arpinit_done = 1;
+		LIST_INIT(&llinfo_arp);
 		timeout(arptimer, (caddr_t)0, hz);
 	}
 	if (rt->rt_flags & RTF_GATEWAY)
@@ -190,7 +202,7 @@ arp_rtrequest(req, rt, sa)
 		Bzero(la, sizeof(*la));
 		la->la_rt = rt;
 		rt->rt_flags |= RTF_LLINFO;
-		insque(la, &llinfo_arp);
+		LIST_INSERT_HEAD(&llinfo_arp, la, la_le);
 		if (SIN(rt_key(rt))->sin_addr.s_addr ==
 		    (IA_SIN(rt->rt_ifa))->sin_addr.s_addr) {
 		    /*
@@ -216,7 +228,7 @@ arp_rtrequest(req, rt, sa)
 		if (la == 0)
 			break;
 		arp_inuse--;
-		remque(la);
+		LIST_REMOVE(la, la_le);
 		rt->rt_llinfo = 0;
 		rt->rt_flags &= ~RTF_LLINFO;
 		if (la->la_hold)
