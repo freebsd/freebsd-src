@@ -62,7 +62,7 @@ static const char rcsid[] =
  * routines that deal with I/O to and from the user
  */
 
-#define DEVTTY          "/dev/tty"      /* device for interactive i/o */
+#define DEVTTY	  "/dev/tty"      /* device for interactive i/o */
 static FILE *ttyoutf = NULL;		/* output pointing at control tty */
 static FILE *ttyinf = NULL;		/* input pointing at control tty */
 
@@ -82,7 +82,7 @@ tty_init()
 {
 	int ttyfd;
 
-        if ((ttyfd = open(DEVTTY, O_RDWR)) >= 0) {
+	if ((ttyfd = open(DEVTTY, O_RDWR)) >= 0) {
 		if ((ttyoutf = fdopen(ttyfd, "w")) != NULL) {
 			if ((ttyinf = fdopen(ttyfd, "r")) != NULL)
 				return(0);

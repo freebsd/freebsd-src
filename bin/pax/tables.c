@@ -116,9 +116,9 @@ lnk_start()
 	if (ltab != NULL)
 		return(0);
  	if ((ltab = (HRDLNK **)calloc(L_TAB_SZ, sizeof(HRDLNK *))) == NULL) {
-                paxwarn(1, "Cannot allocate memory for hard link table");
-                return(-1);
-        }
+		paxwarn(1, "Cannot allocate memory for hard link table");
+		return(-1);
+	}
 	return(0);
 }
 
@@ -360,12 +360,13 @@ int
 ftime_start()
 #endif
 {
+
 	if (ftab != NULL)
 		return(0);
  	if ((ftab = (FTM **)calloc(F_TAB_SZ, sizeof(FTM *))) == NULL) {
-                paxwarn(1, "Cannot allocate memory for file time table");
-                return(-1);
-        }
+		paxwarn(1, "Cannot allocate memory for file time table");
+		return(-1);
+	}
 
 	/*
 	 * get random name and create temporary scratch file, unlink name
@@ -530,9 +531,9 @@ name_start()
 	if (ntab != NULL)
 		return(0);
  	if ((ntab = (NAMT **)calloc(N_TAB_SZ, sizeof(NAMT *))) == NULL) {
-                paxwarn(1, "Cannot allocate memory for interactive rename table");
-                return(-1);
-        }
+		paxwarn(1, "Cannot allocate memory for interactive rename table");
+		return(-1);
+	}
 	return(0);
 }
 
@@ -723,9 +724,9 @@ dev_start()
 	if (dtab != NULL)
 		return(0);
  	if ((dtab = (DEVT **)calloc(D_TAB_SZ, sizeof(DEVT *))) == NULL) {
-                paxwarn(1, "Cannot allocate memory for device mapping table");
-                return(-1);
-        }
+		paxwarn(1, "Cannot allocate memory for device mapping table");
+		return(-1);
+	}
 	return(0);
 }
 
@@ -992,9 +993,9 @@ atdir_start()
 	if (atab != NULL)
 		return(0);
  	if ((atab = (ATDIR **)calloc(A_TAB_SZ, sizeof(ATDIR *))) == NULL) {
-                paxwarn(1,"Cannot allocate space for directory access time table");
-                return(-1);
-        }
+		paxwarn(1,"Cannot allocate space for directory access time table");
+		return(-1);
+	}
 	return(0);
 }
 
@@ -1206,6 +1207,7 @@ int
 dir_start()
 #endif
 {
+
 	if (dirfd != -1)
 		return(0);
 
@@ -1379,7 +1381,7 @@ st_hash(name, len, tabsz)
 	 * spread out the keys)
 	 */
 	if (len > MAXKEYLEN) {
-                pt = &(name[len - MAXKEYLEN]);
+		pt = &(name[len - MAXKEYLEN]);
 		len = MAXKEYLEN;
 	} else
 		pt = name;

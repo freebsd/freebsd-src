@@ -78,7 +78,7 @@ static struct stat arsb;		/* stat of archive device at open */
 static int invld_rec;			/* tape has out of spec record size */
 static int wr_trail = 1;		/* trailer was rewritten in append */
 static int can_unlnk = 0;		/* do we unlink null archives?  */
-char *arcname;                  	/* printable name of archive */
+char *arcname;		  	/* printable name of archive */
 
 static int get_phys __P((void));
 extern sigset_t s_mask;
@@ -101,7 +101,7 @@ ar_open(name)
 	char *name;
 #endif
 {
-        struct mtget mb;
+	struct mtget mb;
 
 	if (arfd != -1)
 		(void)close(arfd);
@@ -389,11 +389,11 @@ ar_close()
 
 	(void)fprintf(outf,
 #	ifdef NET2_STAT
-	    "%s: %s vol %d, %lu files, %lu bytes read, %lu bytes written.\n",
+		    "%s: %s vol %d, %lu files, %lu bytes read, %lu bytes written.\n",
 #	else
-	    "%s: %s vol %d, %lu files, %qu bytes read, %qu bytes written.\n",
+		    "%s: %s vol %d, %lu files, %qu bytes read, %qu bytes written.\n",
 #	endif
-	    argv0, frmt->name, arvol-1, flcnt, rdcnt, wrcnt);
+		    argv0, frmt->name, arvol-1, flcnt, rdcnt, wrcnt);
 	(void)fflush(outf);
 	flcnt = 0;
 }
@@ -740,7 +740,7 @@ ar_rdsync()
 	long fsbz;
 	off_t cpos;
 	off_t mpos;
-        struct mtop mb;
+	struct mtop mb;
 
 	/*
 	 * Fail resync attempts at user request (done) or this is going to be
@@ -896,7 +896,7 @@ ar_rev(sksz)
 #endif
 {
 	off_t cpos;
-        struct mtop mb;
+	struct mtop mb;
 	register int phyblk;
 
 	/*
@@ -1256,10 +1256,10 @@ ar_next()
 			tty_prnt("Empty file name, try again\n");
 			continue;
 		}
-                if (!strcmp(buf, "..")) {
-                        tty_prnt("Illegal file name: .. try again\n");
-                        continue;
-                }
+		if (!strcmp(buf, "..")) {
+			tty_prnt("Illegal file name: .. try again\n");
+			continue;
+		}
 		if (strlen(buf) > PAXPATHLEN) {
 			tty_prnt("File name too long, try again\n");
 			continue;
