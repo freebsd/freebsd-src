@@ -24,18 +24,18 @@
  *
  * 4. This notice may not be removed or altered.
  */
-#ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: file.c,v 1.7 1997/03/18 19:37:18 mpp Exp $";
-#endif	/* lint */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>	/* for open() */
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/param.h>	/* for MAXPATHLEN */
 #include <sys/stat.h>
-#include <fcntl.h>	/* for open() */
 #if (__COHERENT__ >= 0x420)
 # include <sys/utime.h>
 #else
@@ -47,15 +47,13 @@ static char *moduleid =
 #endif
 #include <unistd.h>	/* for read() */
 
-#include <netinet/in.h>		/* for byte swapping */
-
 #include "patchlevel.h"
 #include "file.h"
 
 #ifdef S_IFLNK
-# define USAGE  "Usage: %s [-vczL] [-f namefile] [-m magicfiles] file...\n"
+# define USAGE  "usage: file [-vczL] [-f namefile] [-m magicfiles] file...\n"
 #else
-# define USAGE  "Usage: %s [-vcz] [-f namefile] [-m magicfiles] file...\n"
+# define USAGE  "usage: file [-vcz] [-f namefile] [-m magicfiles] file...\n"
 #endif
 
 #ifndef MAGIC
@@ -74,11 +72,11 @@ struct  magic *magic;	/* array of magic entries		*/
 
 char *magicfile;	/* where magic be found 		*/
 
-char *progname;		/* used throughout 			*/
 int lineno;		/* line number in the magic file	*/
 
 
 static void	unwrap		__P((char *fn));
+static void	usage		__P((void));
 #if 0
 static int	byteconv4	__P((int, int, int));
 static short	byteconv2	__P((int, int, int));
@@ -95,18 +93,13 @@ char *argv[];
 	int c;
 	int check = 0, didsomefiles = 0, errflg = 0, ret = 0, app = 0;
 
-	if ((progname = strrchr(argv[0], '/')) != NULL)
-		progname++;
-	else
-		progname = argv[0];
-
 	if (!(magicfile = getenv("MAGIC")))
 		magicfile = MAGIC;
 
 	while ((c = getopt(argc, argv, "vcdf:Lm:z")) != -1)
 		switch (c) {
 		case 'v':
-			(void) fprintf(stdout, "%s-%d.%d\n", progname,
+			(void) fprintf(stdout, "file-%d.%d\n",
 				       FILE_VERSION_MAJOR, patchlevel);
 			return 1;
 		case 'c':
@@ -142,10 +135,8 @@ char *argv[];
 			break;
 		}
 
-	if (errflg) {
-		(void) fprintf(stderr, USAGE, progname);
-		exit(2);
-	}
+	if (errflg)
+		usage();
 
 	if (!app) {
 		ret = apprentice(magicfile, check);
@@ -155,10 +146,8 @@ char *argv[];
 	}
 
 	if (optind == argc) {
-		if (!didsomefiles) {
-			(void)fprintf(stderr, USAGE, progname);
-			exit(2);
-		}
+		if (!didsomefiles)
+			usage();
 	}
 	else {
 		int i, wid, nw;
@@ -174,6 +163,12 @@ char *argv[];
 	return 0;
 }
 
+static void
+usage()
+{
+	fprintf(stderr, USAGE);
+	exit(2);
+}
 
 /*
  * unwrap -- read a file of filenames, do each one.
@@ -191,7 +186,7 @@ char *fn;
 		wid = 1;
 	} else {
 		if ((f = fopen(fn, "r")) == NULL) {
-			error("Cannot open `%s' (%s).\n", fn, strerror(errno));
+			err(1, "cannot open `%s'", fn);
 			/*NOTREACHED*/
 		}
 
@@ -295,8 +290,7 @@ int wid;
 
 	if (strcmp("-", inname) == 0) {
 		if (fstat(0, &sb)<0) {
-			error("cannot fstat `%s' (%s).\n", stdname,
-			      strerror(errno));
+			err(1, "cannot fstat `%s'", stdname);
 			/*NOTREACHED*/
 		}
 		inname = stdname;
@@ -319,7 +313,7 @@ int wid;
 		    /* We can't open it, but we were able to stat it. */
 		    if (sb.st_mode & 0002) ckfputs("writeable, ", stdout);
 		    if (sb.st_mode & 0111) ckfputs("executable, ", stdout);
-		    ckfprintf(stdout, "can't read `%s' (%s).\n",
+		    ckfprintf(stdout, "can't read `%s': %s.\n",
 			inname, strerror(errno));
 		    return;
 	    }
@@ -330,7 +324,7 @@ int wid;
 	 * try looking at the first HOWMANY bytes
 	 */
 	if ((nbytes = read(fd, (char *)buf, HOWMANY)) == -1) {
-		error("read failed (%s).\n", strerror(errno));
+		err(1, "read failed");
 		/*NOTREACHED*/
 	}
 
@@ -372,12 +366,12 @@ int wid;
 
 
 int
-tryit(buf, nb, zflag)
+tryit(buf, nb, lzflag)
 unsigned char *buf;
-int nb, zflag;
+int nb, lzflag;
 {
 	/* try compression stuff */
-	if (zflag && zmagic(buf, nb))
+	if (lzflag && zmagic(buf, nb))
 		return 'z';
 
 	/* try tests in /etc/magic (or surrogate magic file) */

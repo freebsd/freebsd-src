@@ -25,17 +25,17 @@
  * 4. This notice may not be removed or altered.
  */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <errno.h>
 #include "file.h"
-
-#ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: apprentice.c,v 1.1.1.3 1997/03/18 17:58:42 mpp Exp $";
-#endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
 		      isspace((unsigned char) *l))  ++l;}
@@ -65,7 +65,7 @@ int check;			/* non-zero? checking-only run. */
 	magic = (struct magic *) calloc(sizeof(struct magic), maxmagic);
 	mfn = malloc(strlen(fn)+1);
 	if (magic == NULL || mfn == NULL) {
-		(void) fprintf(stderr, "%s: Out of memory.\n", progname);
+		warnx("out of memory");
 		if (check)
 			return -1;
 		else
@@ -83,8 +83,7 @@ int check;			/* non-zero? checking-only run. */
 		fn = p;
 	}
 	if (errs == -1)
-		(void) fprintf(stderr, "%s: couldn't find any magic files!\n",
-			       progname);
+		warnx("couldn't find any magic files");
 	if (!check && errs)
 		exit(1);
 
@@ -106,9 +105,7 @@ int check;			/* non-zero? checking-only run. */
 	f = fopen(fn, "r");
 	if (f==NULL) {
 		if (errno != ENOENT)
-			(void) fprintf(stderr,
-			"%s: can't read magic file %s (%s)\n", 
-			progname, fn, strerror(errno));
+			warn("can't read magic file %s", fn);
 		return -1;
 	}
 
@@ -164,8 +161,8 @@ uint32 v;
 		case STRING:
 			break;
 		default:
-			magwarn("can't happen: m->type=%d\n",
-				m->type);
+			warnx("can't happen: m->type=%d in file %s, line %d",
+				m->type, magicfile, lineno);
 			return -1;
 		}
 	return v;
@@ -189,7 +186,7 @@ int *ndx, check;
 	    if ((magic = (struct magic *) realloc(magic, 
 						  sizeof(struct magic) * 
 						  maxmagic)) == NULL) {
-		(void) fprintf(stderr, "%s: Out of memory.\n", progname);
+		warnx("out of memory");
 		if (check)
 			return -1;
 		else
@@ -218,7 +215,8 @@ int *ndx, check;
 	/* get offset, then skip over it */
 	m->offset = (int) strtoul(l,&t,0);
         if (l == t)
-		magwarn("offset %s invalid", l);
+		warnx("offset %s invalid in file %s, line %d",
+			l, magicfile, lineno);
         l = t;
 
 	if (m->flag & INDIR) {
@@ -242,7 +240,9 @@ int *ndx, check;
 				m->in.type = BYTE;
 				break;
 			default:
-				magwarn("indirect offset type %c invalid", *l);
+				warnx(
+			"indirect offset type %c invalid in file %s, line %d",
+					*l, magicfile, lineno);
 				break;
 			}
 			l++;
@@ -256,7 +256,9 @@ int *ndx, check;
 		else
 			t = l;
 		if (*t++ != ')')
-			magwarn("missing ')' in indirect offset");
+			warnx(
+			"missing ')' in indirect offset in file %s, line %d",
+				magicfile, lineno);
 		l = t;
 	}
 
@@ -317,7 +319,8 @@ int *ndx, check;
 		m->type = LEDATE;
 		l += NLEDATE;
 	} else {
-		magwarn("type %s invalid", l);
+		warnx("type %s invalid in file %s, line %d", l,
+			magicfile, lineno);
 		return -1;
 	}
 	/* New-style anding: "0 byte&0x80 =0x80 dynamically linked" */
@@ -363,7 +366,8 @@ int *ndx, check;
 	/*
 	 * TODO finish this macro and start using it!
 	 * #define offsetcheck {if (offset > HOWMANY-1)
-	 *	magwarn("offset too big"); }
+	 *	warnx("offset too big in file %s, line %d",
+	 *		 magicfile, lineno); }
 	 */
 
 	/*
@@ -434,7 +438,7 @@ int	plen, *slen;
 		if (isspace((unsigned char) c))
 			break;
 		if (p >= pmax) {
-			fprintf(stderr, "String too long: %s\n", origs);
+			warnx("string too long: %s", origs);
 			break;
 		}
 		if(c == '\\') {

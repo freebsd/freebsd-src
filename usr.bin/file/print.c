@@ -25,7 +25,12 @@
  * 4. This notice may not be removed or altered.
  */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <errno.h>
 #include <string.h>
 #if __STDC__
@@ -33,15 +38,8 @@
 #else
 # include <varargs.h>
 #endif
-#include <stdlib.h>
-#include <unistd.h>
 #include <time.h>
 #include "file.h"
-
-#ifndef lint
-static char *moduleid =
-	"@(#)$Id: print.c,v 1.1.1.3 1997/03/18 17:58:49 mpp Exp $";
-#endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
 
@@ -117,7 +115,7 @@ ckfputs(str, fil)
     FILE *fil;
 {
 	if (fputs(str,fil) == EOF)
-		error("write failed.\n");
+		errx(1, "write failed");
 }
 
 /*VARARGS*/
@@ -141,64 +139,6 @@ ckfprintf(va_alist)
 #endif
 	(void) vfprintf(f, fmt, va);
 	if (ferror(f))
-		error("write failed.\n");
+		errx(1, "write failed");
 	va_end(va);
-}
-
-/*
- * error - print best error message possible and exit
- */
-/*VARARGS*/
-void
-#if __STDC__
-error(const char *f, ...)
-#else
-error(va_alist)
-	va_dcl
-#endif
-{
-	va_list va;
-#if __STDC__
-	va_start(va, f);
-#else
-	const char *f;
-	va_start(va);
-	f = va_arg(va, const char *);
-#endif
-	/* cuz we use stdout for most, stderr here */
-	(void) fflush(stdout);
-
-	if (progname != NULL)
-		(void) fprintf(stderr, "%s: ", progname);
-	(void) vfprintf(stderr, f, va);
-	va_end(va);
-	exit(1);
-}
-
-/*VARARGS*/
-void
-#if __STDC__
-magwarn(const char *f, ...)
-#else
-magwarn(va_alist)
-	va_dcl
-#endif
-{
-	va_list va;
-#if __STDC__
-	va_start(va, f);
-#else
-	const char *f;
-	va_start(va);
-	f = va_arg(va, const char *);
-#endif
-	/* cuz we use stdout for most, stderr here */
-	(void) fflush(stdout);
-
-	if (progname != NULL)
-		(void) fprintf(stderr, "%s: %s, %d: ",
-			       progname, magicfile, lineno);
-	(void) vfprintf(stderr, f, va);
-	va_end(va);
-	fputc('\n', stderr);
 }
