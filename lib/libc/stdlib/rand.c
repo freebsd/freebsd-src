@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)rand.c	8.1 (Berkeley) 6/14/93";
 #include <fcntl.h>             /* for sranddev() */
 #include <stdlib.h>
 #include <unistd.h>            /* for sranddev() */
+#include "un-namespace.h"
 
 #ifdef TEST
 #include <stdio.h>
