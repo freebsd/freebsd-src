@@ -33,10 +33,10 @@ typedef struct {
 } MD4_CTX;
 
 void   MD4Init(MD4_CTX *);
-void   MD4Update(MD4_CTX *, unsigned char *, unsigned int);
+void   MD4Update(MD4_CTX *, const unsigned char *, unsigned int);
 void   MD4Final(unsigned char [16], MD4_CTX *);
 char * MD4End(MD4_CTX *);
 char * MD4File(char *);
-char * MD4Data(unsigned char *, unsigned int);
+char * MD4Data(const unsigned char *, unsigned int);
 
 #endif /* _MD4_H_ */
