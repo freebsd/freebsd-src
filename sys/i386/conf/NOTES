@@ -511,7 +511,6 @@ hint.mse.0.irq="5"
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
 #       OC-3141, OC-3540 and OC-3250.
-# rdp:  RealTek RTL 8002-based pocket ethernet adapters
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl:   Lucent Wavelan (ISA card only).
@@ -554,11 +553,6 @@ hint.lnc.0.at="isa"
 hint.lnc.0.port="0x280"
 hint.lnc.0.irq="10"
 hint.lnc.0.drq="0"
-device		rdp	1
-hint.rdp.0.at="isa"
-hint.rdp.0.port="0x378"
-hint.rdp.0.irq="7"
-hint.rdp.0.flags="2"
 device		sbni
 hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
