@@ -102,8 +102,7 @@ nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events,
 	struct thread *td)
 {
 	struct timeval atv, rtv, ttv;
-	struct proc *p;
-	int timo, error;
+	int ncoll, timo, error;
 
 	if (tv) {
 		atv = *tv;
@@ -115,57 +114,55 @@ nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events,
 		timevaladd(&atv, &rtv);
 	}
 	timo = 0;
-	p = td->td_proc;
-	PROC_LOCK(p);
+	mtx_lock(&sellock);
+retry:
+
+	ncoll = nselcoll;
 	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(p);
+	mtx_unlock(&sellock);
 	error = nb_poll(nbp, events, td);
-	PROC_LOCK(p);
+	mtx_lock(&sellock);
 	if (error) {
 		error = 0;
 		goto done;
 	}
 	if (tv) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) {
-			/*
-			 * An event of our interest may occur during locking a process.
-			 * In order to avoid missing the event that occurred during locking
-			 * the process, test P_SELECT and rescan file descriptors if
-			 * necessary.
-			 */
-			mtx_lock_spin(&sched_lock);
-			if ((td->td_flags & TDF_SELECT) == 0) {
-				td->td_flags |= TDF_SELECT;
-				mtx_unlock_spin(&sched_lock);
-				PROC_UNLOCK(p);
-				error = nb_poll(nbp, events, td);
-				PROC_LOCK(p);
-			} else
-				mtx_unlock_spin(&sched_lock);
+		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
-		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
 	}
+	/*
+	 * An event of our interest may occur during locking a process.
+	 * In order to avoid missing the event that occurred during locking
+	 * the process, test P_SELECT and rescan file descriptors if
+	 * necessary.
+	 */
 	mtx_lock_spin(&sched_lock);
-	td->td_flags &= ~TDF_SELECT;
+	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
+		mtx_unlock_spin(&sched_lock);
+		goto retry;
+	}
 	mtx_unlock_spin(&sched_lock);
+
 	if (timo > 0)
-		error = cv_timedwait(&selwait, &p->p_mtx, timo);
+		error = cv_timedwait(&selwait, &sellock, timo);
 	else {
-		cv_wait(&selwait, &p->p_mtx);
+		cv_wait(&selwait, &sellock);
 		error = 0;
 	}
 
 done:
+	clear_selinfo_list(td);
+	
 	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(p);
+	mtx_unlock(&sellock);
 
 done_noproclock:
 	if (error == ERESTART)
