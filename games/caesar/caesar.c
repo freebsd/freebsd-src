@@ -80,6 +80,7 @@ double stdf[26] = {
 	2.62, 0.81, 1.88, 0.23,  2.07, 0.06,
 };
 
+int main __P((int, char **));
 void printit __P((char *));
 
 int
@@ -97,7 +98,7 @@ main(argc, argv)
 	if (argc > 1)
 		printit(argv[1]);
 
-	if (!(inbuf = malloc(LINELENGTH))) {
+	if (!(inbuf = malloc((size_t)LINELENGTH))) {
 		(void)fprintf(stderr, "caesar: out of memory.\n");
 		exit(1);
 	}
@@ -109,7 +110,7 @@ main(argc, argv)
 	/* zero out observation table */
 	bzero(obs, 26 * sizeof(int));
 
-	if ((nread = read(STDIN_FILENO, inbuf, LINELENGTH)) < 0) {
+	if ((nread = read(STDIN_FILENO, inbuf, (size_t)LINELENGTH)) < 0) {
 		(void)fprintf(stderr, "caesar: %s\n", strerror(errno));
 		exit(1);
 	}
@@ -148,7 +149,7 @@ main(argc, argv)
 		}
 		if (nread < LINELENGTH)
 			break;
-		if ((nread = read(STDIN_FILENO, inbuf, LINELENGTH)) < 0) {
+		if ((nread = read(STDIN_FILENO, inbuf, (size_t)LINELENGTH)) < 0) {
 			(void)fprintf(stderr, "caesar: %s\n", strerror(errno));
 			exit(1);
 		}
