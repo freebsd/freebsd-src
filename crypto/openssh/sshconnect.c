@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.56 2000/02/18 08:50:33 markus Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.58 2000/03/23 22:15:33 markus Exp $");
 
 #include <openssl/bn.h>
 #include "xmalloc.h"
@@ -23,9 +23,12 @@ RCSID("$OpenBSD: sshconnect.c,v 1.56 2000/02/18 08:50:33 markus Exp $");
 #include "uidswap.h"
 #include "compat.h"
 #include "readconf.h"
-#include "fingerprint.h"
 
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
 #include <openssl/md5.h>
+#include "key.h"
+#include "hostfile.h"
 
 /* Session id for the current session. */
 unsigned char session_id[16];
@@ -634,6 +637,7 @@ try_krb4_authentication()
 	char *realm;
 	CREDENTIALS cred;
 	int r, type, plen;
+	socklen_t slen;
 	Key_schedule schedule;
 	u_long checksum, cksum;
 	MSG_DAT msg_data;
@@ -676,16 +680,16 @@ try_krb4_authentication()
 	/* Zero the buffer. */
 	(void) memset(auth.dat, 0, MAX_KTXT_LEN);
 
-	r = sizeof(local);
+	slen = sizeof(local);
 	memset(&local, 0, sizeof(local));
 	if (getsockname(packet_get_connection_in(),
-			(struct sockaddr *) & local, &r) < 0)
+			(struct sockaddr *) & local, &slen) < 0)
 		debug("getsockname failed: %s", strerror(errno));
 
-	r = sizeof(foreign);
+	slen = sizeof(foreign);
 	memset(&foreign, 0, sizeof(foreign));
 	if (getpeername(packet_get_connection_in(),
-			(struct sockaddr *) & foreign, &r) < 0) {
+			(struct sockaddr *) & foreign, &slen) < 0) {
 		debug("getpeername failed: %s", strerror(errno));
 		fatal_cleanup();
 	}
@@ -747,7 +751,7 @@ send_krb4_tgt()
 	CREDENTIALS *creds;
 	char pname[ANAME_SZ], pinst[INST_SZ], prealm[REALM_SZ];
 	int r, type, plen;
-	unsigned char buffer[8192];
+	char buffer[8192];
 	struct stat st;
 
 	/* Don't do anything if we don't have any tickets. */
@@ -768,7 +772,7 @@ send_krb4_tgt()
 		debug("Kerberos V4 ticket expired: %s", TKT_FILE);
 		return 0;
 	}
-	creds_to_radix(creds, buffer);
+	creds_to_radix(creds, (unsigned char *)buffer);
 	xfree(creds);
 
 	packet_start(SSH_CMSG_HAVE_KRB4_TGT);
@@ -794,7 +798,7 @@ send_afs_tokens(void)
 	struct ClearToken ct;
 	int i, type, len, plen;
 	char buf[2048], *p, *server_cell;
-	unsigned char buffer[8192];
+	char buffer[8192];
 
 	/* Move over ktc_GetToken, here's something leaner. */
 	for (i = 0; i < 100; i++) {	/* just in case */
@@ -836,10 +840,10 @@ send_afs_tokens(void)
 		creds.pinst[0] = '\0';
 
 		/* Encode token, ship it off. */
-		if (!creds_to_radix(&creds, buffer))
+		if (!creds_to_radix(&creds, (unsigned char*) buffer))
 			break;
 		packet_start(SSH_CMSG_HAVE_AFS_TOKEN);
-		packet_put_string((char *) buffer, strlen(buffer));
+		packet_put_string(buffer, strlen(buffer));
 		packet_send();
 		packet_write_wait();
 
@@ -1104,7 +1108,9 @@ out:
 int
 try_skey_authentication()
 {
-	int type, i, payload_len;
+	int type, i;
+	int payload_len;
+	unsigned int clen;
 	char *challenge, *response;
 
 	debug("Doing skey authentication.");
@@ -1124,7 +1130,8 @@ try_skey_authentication()
 		debug("No challenge for skey authentication.");
 		return 0;
 	}
-	challenge = packet_get_string(&payload_len);
+	challenge = packet_get_string(&clen);
+	packet_integrity_check(payload_len, (4 + clen), type);
 	if (options.cipher == SSH_CIPHER_NONE)
 		log("WARNING: Encryption is disabled! "
 		    "Reponse will be transmitted in clear text.");
@@ -1306,9 +1313,9 @@ read_yes_or_no(const char *prompt, int defval)
  */
 
 void
-check_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
+check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 {
-	RSA *file_key;
+	Key *file_key;
 	char *ip = NULL;
 	char hostline[1000], *hostp;
 	HostStatus host_status;
@@ -1358,47 +1365,34 @@ check_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
 	 * Store the host key from the known host file in here so that we can
 	 * compare it with the key for the IP address.
 	 */
-	file_key = RSA_new();
-	file_key->n = BN_new();
-	file_key->e = BN_new();
+	file_key = key_new(host_key->type);
 
 	/*
 	 * Check if the host key is present in the user\'s list of known
 	 * hosts or in the systemwide list.
 	 */
-	host_status = check_host_in_hostfile(options.user_hostfile, host,
-					     host_key->e, host_key->n,
-					     file_key->e, file_key->n);
+	host_status = check_host_in_hostfile(options.user_hostfile, host, host_key, file_key);
 	if (host_status == HOST_NEW)
-		host_status = check_host_in_hostfile(options.system_hostfile, host,
-						host_key->e, host_key->n,
-					       file_key->e, file_key->n);
+		host_status = check_host_in_hostfile(options.system_hostfile, host, host_key, file_key);
 	/*
 	 * Also perform check for the ip address, skip the check if we are
 	 * localhost or the hostname was an ip address to begin with
 	 */
 	if (options.check_host_ip && !local && strcmp(host, ip)) {
-		RSA *ip_key = RSA_new();
-		ip_key->n = BN_new();
-		ip_key->e = BN_new();
-		ip_status = check_host_in_hostfile(options.user_hostfile, ip,
-						host_key->e, host_key->n,
-						   ip_key->e, ip_key->n);
+		Key *ip_key = key_new(host_key->type);
+		ip_status = check_host_in_hostfile(options.user_hostfile, ip, host_key, ip_key);
 
 		if (ip_status == HOST_NEW)
-			ip_status = check_host_in_hostfile(options.system_hostfile, ip,
-						host_key->e, host_key->n,
-						   ip_key->e, ip_key->n);
+			ip_status = check_host_in_hostfile(options.system_hostfile, ip, host_key, ip_key);
 		if (host_status == HOST_CHANGED &&
-		    (ip_status != HOST_CHANGED ||
-		     (BN_cmp(ip_key->e, file_key->e) || BN_cmp(ip_key->n, file_key->n))))
+		    (ip_status != HOST_CHANGED || !key_equal(ip_key, file_key)))
 			host_ip_differ = 1;
 
-		RSA_free(ip_key);
+		key_free(ip_key);
 	} else
 		ip_status = host_status;
 
-	RSA_free(file_key);
+	key_free(file_key);
 
 	switch (host_status) {
 	case HOST_OK:
@@ -1406,8 +1400,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
 		debug("Host '%.200s' is known and matches the host key.", host);
 		if (options.check_host_ip) {
 			if (ip_status == HOST_NEW) {
-				if (!add_host_to_hostfile(options.user_hostfile, ip,
-					       host_key->e, host_key->n))
+				if (!add_host_to_hostfile(options.user_hostfile, ip, host_key))
 					log("Failed to add the host key for IP address '%.30s' to the list of known hosts (%.30s).",
 					    ip, options.user_hostfile);
 				else
@@ -1427,12 +1420,12 @@ check_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
 		} else if (options.strict_host_key_checking == 2) {
 			/* The default */
 			char prompt[1024];
-			char *fp = fingerprint(host_key->e, host_key->n);
+			char *fp = key_fingerprint(host_key);
 			snprintf(prompt, sizeof(prompt),
 			    "The authenticity of host '%.200s' can't be established.\n"
-			    "Key fingerprint is %d %s.\n"
+			    "Key fingerprint is %s.\n"
 			    "Are you sure you want to continue connecting (yes/no)? ",
-			    host, BN_num_bits(host_key->n), fp);
+			    host, fp);
 			if (!read_yes_or_no(prompt, -1))
 				fatal("Aborted by user!\n");
 		}
@@ -1443,8 +1436,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
 			hostp = host;
 
 		/* If not in strict mode, add the key automatically to the local known_hosts file. */
-		if (!add_host_to_hostfile(options.user_hostfile, hostp,
-					  host_key->e, host_key->n))
+		if (!add_host_to_hostfile(options.user_hostfile, hostp, host_key))
 			log("Failed to add the host to the list of known hosts (%.500s).",
 			    options.user_hostfile);
 		else
@@ -1511,6 +1503,14 @@ check_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
 	}
 	if (options.check_host_ip)
 		xfree(ip);
+}
+void
+check_rsa_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
+{
+	Key k;
+	k.type = KEY_RSA;
+	k.rsa = host_key;
+	check_host_key(host, hostaddr, &k);
 }
 
 /*
@@ -1587,7 +1587,7 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 			       8 + 4 + sum_len + 0 + 4 + 0 + 0 + 4 + 4 + 4,
 			       SSH_SMSG_PUBLIC_KEY);
 
-	check_host_key(host, hostaddr, host_key);
+	check_rsa_host_key(host, hostaddr, host_key);
 
 	client_flags = SSH_PROTOFLAG_SCREEN_NUMBER | SSH_PROTOFLAG_HOST_IN_FWD_OPEN;
 
@@ -1875,7 +1875,6 @@ ssh_userauth(int host_key_valid, RSA *own_host_key,
 	fatal("Permission denied.");
 	/* NOTREACHED */
 }
-
 /*
  * Starts a dialog with the server, and authenticates the current user on the
  * server.  This does not need any extra privileges.  The basic connection
@@ -1906,6 +1905,7 @@ ssh_login(int host_key_valid, RSA *own_host_key, const char *orighost,
 	ssh_kex(host, hostaddr);
 	if (supported_authentications == 0)
 		fatal("supported_authentications == 0.");
+
 	/* authenticate user */
 	ssh_userauth(host_key_valid, own_host_key, original_real_uid, host);
 }

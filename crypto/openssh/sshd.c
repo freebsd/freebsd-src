@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshd.c,v 1.88 2000/02/15 16:52:57 markus Exp $");
+RCSID("$OpenBSD: sshd.c,v 1.94 2000/03/23 22:15:34 markus Exp $");
 
 #include "xmalloc.h"
 #include "rsa.h"
@@ -563,9 +563,6 @@ main(int ac, char **av)
 	/* Chdir to the root directory so that the current disk can be
 	   unmounted if desired. */
 	chdir("/");
-
-	/* Close connection cleanly after attack. */
-	cipher_attack_detected = packet_disconnect;
 
 	/* Start listening for a socket, unless started from inetd. */
 	if (inetd_flag) {
@@ -1288,7 +1285,8 @@ void
 do_authentication()
 {
 	struct passwd *pw, pwcopy;
-	int plen, ulen;
+	int plen;
+	unsigned int ulen;
 	char *user;
 #ifdef LOGIN_CAP
 	login_cap_t *lc;
@@ -1423,11 +1421,13 @@ do_authloop(struct passwd * pw)
 {
 	int attempt = 0;
 	unsigned int bits;
-	BIGNUM *client_host_key_e, *client_host_key_n;
+	RSA *client_host_key;
 	BIGNUM *n;
 	char *client_user, *password;
 	char user[1024];
-	int plen, dlen, nlen, ulen, elen;
+	unsigned int dlen;
+	int plen, nlen, elen;
+	unsigned int ulen;
 	int type = 0;
 	void (*authlog) (const char *fmt,...) = verbose;
 #ifdef HAVE_LIBPAM
@@ -1584,21 +1584,24 @@ do_authloop(struct passwd * pw)
 			client_user = packet_get_string(&ulen);
 
 			/* Get the client host key. */
-			client_host_key_e = BN_new();
-			client_host_key_n = BN_new();
+			client_host_key = RSA_new();
+			if (client_host_key == NULL)
+				fatal("RSA_new failed");
+			client_host_key->e = BN_new();
+			client_host_key->n = BN_new();
+			if (client_host_key->e == NULL || client_host_key->n == NULL)
+				fatal("BN_new failed");
 			bits = packet_get_int();
-			packet_get_bignum(client_host_key_e, &elen);
-			packet_get_bignum(client_host_key_n, &nlen);
+			packet_get_bignum(client_host_key->e, &elen);
+			packet_get_bignum(client_host_key->n, &nlen);
 
-			if (bits != BN_num_bits(client_host_key_n))
+			if (bits != BN_num_bits(client_host_key->n))
 				error("Warning: keysize mismatch for client_host_key: "
-				      "actual %d, announced %d", BN_num_bits(client_host_key_n), bits);
+				      "actual %d, announced %d", BN_num_bits(client_host_key->n), bits);
 			packet_integrity_check(plen, (4 + ulen) + 4 + elen + nlen, type);
 
-			authenticated = auth_rhosts_rsa(pw, client_user,
-				   client_host_key_e, client_host_key_n);
-			BN_clear_free(client_host_key_e);
-			BN_clear_free(client_host_key_n);
+			authenticated = auth_rhosts_rsa(pw, client_user, client_host_key);
+			RSA_free(client_host_key);
 
 			snprintf(user, sizeof user, " ruser %s", client_user);
 			xfree(client_user);
@@ -1684,6 +1687,21 @@ do_authloop(struct passwd * pw)
 			break;
 		}
 
+		/*
+		 * Check if the user is logging in as root and root logins
+		 * are disallowed.
+		 * Note that root login is allowed for forced commands.
+		 */
+		if (authenticated && pw->pw_uid == 0 && !options.permit_root_login) {
+			if (forced_command) {
+				log("Root login accepted for forced command.");
+			} else {
+				authenticated = 0;
+				log("ROOT LOGIN REFUSED FROM %.200s",
+				    get_canonical_hostname());
+			}
+		}
+
 		/* Raise logging level */
 		if (authenticated ||
 		    attempt == AUTH_FAIL_LOG ||
@@ -1739,7 +1757,7 @@ do_fake_authloop(char *user)
 		int plen;
 		int type = packet_read(&plen);
 #ifdef SKEY
-		int dlen;
+		unsigned int dlen;
 		char *password, *skeyinfo;
 		/* Try to send a fake s/key challenge. */
 		if (options.skey_authentication == 1 &&
@@ -1823,6 +1841,8 @@ do_authenticated(struct passwd * pw)
 	int row, col, xpixel, ypixel, screen;
 	char ttyname[64];
 	char *command, *term = NULL, *display = NULL, *proto = NULL, *data = NULL;
+	int plen;
+	unsigned int dlen;
 	int n_bytes;
 
 	/*
@@ -1846,7 +1866,6 @@ do_authenticated(struct passwd * pw)
 	 * or a command.
 	 */
 	while (1) {
-		int plen, dlen;
 
 		/* Get a packet from the client. */
 		type = packet_read(&plen);
@@ -1925,7 +1944,7 @@ do_authenticated(struct passwd * pw)
 			if (display)
 				packet_disconnect("Protocol error: X11 display already set.");
 			{
-				int proto_len, data_len;
+				unsigned int proto_len, data_len;
 				proto = packet_get_string(&proto_len);
 				data = packet_get_string(&data_len);
 				packet_integrity_check(plen, 4 + proto_len + 4 + data_len + 4, type);
@@ -1950,8 +1969,9 @@ do_authenticated(struct passwd * pw)
 				xauthfile = NULL;
 				goto fail;
 			}
-			restore_uid();
 			strlcat(xauthfile, "/cookies", MAXPATHLEN);
+			open(xauthfile, O_RDWR|O_CREAT|O_EXCL, 0600);
+			restore_uid();
 			fatal_add_cleanup(xauthfile_cleanup_proc, NULL);
 			break;
 #else /* XAUTH_PATH */
@@ -2006,7 +2026,7 @@ do_authenticated(struct passwd * pw)
 				goto do_forced_command;
 			/* Get command from the packet. */
 			{
-				int dlen;
+				unsigned int dlen;
 				command = packet_get_string(&dlen);
 				debug("Executing command '%.500s'", command);
 				packet_integrity_check(plen, 4 + dlen, type);
@@ -2900,7 +2920,7 @@ do_child(const char *command, struct passwd * pw, const char *term,
 				f = popen(XAUTH_PATH " -q -", "w");
 				if (f) {
 					fprintf(f, "add %s %s %s\n", display, auth_proto, auth_data);
-					fclose(f);
+					pclose(f);
 				} else
 					fprintf(stderr, "Could not run %s -q -\n", XAUTH_PATH);
 			}

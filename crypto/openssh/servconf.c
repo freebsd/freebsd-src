@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: servconf.c,v 1.30 2000/02/24 18:22:16 markus Exp $");
+RCSID("$Id: servconf.c,v 1.31 2000/03/07 20:40:41 markus Exp $");
 
 #include "ssh.h"
 #include "servconf.h"
@@ -102,7 +102,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->print_motd == -1)
 		options->print_motd = 1;
 	if (options->x11_forwarding == -1)
-		options->x11_forwarding = 1;
+		options->x11_forwarding = 0;
 	if (options->x11_display_offset == -1)
 		options->x11_display_offset = 10;
 	if (options->strict_modes == -1)
