@@ -282,7 +282,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 
 	/* pass prompt message to application and receive passphrase */
 
-	if ((retval = pam_get_pass(pamh, &pass, NEED_PASSPHRASE, options))
+	if ((retval = pam_get_authtok(pamh, &pass, NEED_PASSPHRASE))
 	    != PAM_SUCCESS)
 		return retval;
 
