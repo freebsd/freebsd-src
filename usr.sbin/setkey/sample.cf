@@ -170,7 +170,7 @@ add fec0:0:0:2::1 fec0:0:0:1::1 esp 0x10004
 get fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
 
 # Also delete command, you can delete a entry of either SP or SA.
-spddelete out fec0:0:0:1::/64 fec0:0:0:2:/64 any ;
+spddelete fec0:0:0:1::/64 fec0:0:0:2::/64 any -P out;
 delete fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
 
 # By dump command, you can dump all entry of either SP or SA.
@@ -204,7 +204,7 @@ add ::1 ::1 esp 10013 -m tunnel -E rc5-cbc "testtest1234" ;
 add ::1 ::1 esp 10014 -m any -E rc5-cbc "testtest1234" ;
 add ::1 ::1 esp 10015 -m transport -f zero-pad -E simple ;
 add ::1 ::1 esp 10016 -m tunnel -f random-pad -r 8 -lh 100 -ls 80 -E simple ;
-add ::1 ::1 esp 10017 -m transport -f seq-pad -f cyclic-seq -E simple ;
+add ::1 ::1 esp 10017 -m transport -f seq-pad -f nocyclic-seq -E simple ;
 add ::1 ::1 esp 10018 -m transport -E simple ;
 #add ::1 ::1 ah 20000 -m transport -A null ;
 add ::1 ::1 ah 20001 -m any -A hmac-md5 "1234123412341234";

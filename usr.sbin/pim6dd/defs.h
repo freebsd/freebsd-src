@@ -10,15 +10,15 @@
  *  documentation, and that any documentation, advertising materials,
  *  and other materials related to such distribution and use acknowledge
  *  that the software was developed by the University of Oregon.
- *  The name of the University of Oregon may not be used to endorse or
- *  promote products derived from this software without specific prior
+ *  The name of the University of Oregon may not be used to endorse or 
+ *  promote products derived from this software without specific prior 
  *  written permission.
  *
  *  THE UNIVERSITY OF OREGON DOES NOT MAKE ANY REPRESENTATIONS
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL UO, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -30,22 +30,22 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: defs.h,v 1.6 1999/12/10 06:09:13 itojun Exp $
+ *  $Id: defs.h,v 1.7 2000/04/30 13:01:36 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
- *
+ *  
  * The pimd program is COPYRIGHT 1998 by University of Southern California.
  *
  * Part of this program has been derived from mrouted.
  * The mrouted program is covered by the license in the accompanying file
  * named "LICENSE.mrouted".
- *
+ * 
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
@@ -54,12 +54,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <unistd.h> 
 #include <ctype.h>
 #include <errno.h>
 #include <syslog.h>
-#include <signal.h>
-#include <string.h>
+#include <signal.h> 
+#include <string.h> 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -70,7 +70,9 @@
 #endif /* SYSV || __bsdi__ || SunOS 4.x */
 #include <sys/time.h>
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -80,10 +82,14 @@
 #include <netinet/ip6.h>
 
 #include <arpa/inet.h>
+#ifdef __FreeBSD__      /* sigh */
 #include <osreldate.h>
-#define	rtentry kernel_rtentry
+#endif /* __FreeBSD__ */
+#if (defined(__bsdi__)) || (defined(__FreeBSD__) && (__FreeBSD_version >= 220000))
+#define rtentry kernel_rtentry
 #include <net/route.h>
 #undef rtentry
+#endif /* __bsdi__ or __FreeBSD_version >= 220000 */
 #include <netinet/ip_mroute.h>
 #include <netinet6/ip6_mroute.h>
 #include <strings.h>
@@ -97,9 +103,9 @@ typedef u_char  u_int8;
 
 #ifndef __P
 #ifdef __STDC__
-#define	__P(x)  x
+#define __P(x)  x
 #else
-#define	__P(x)  ()
+#define __P(x)  ()
 #endif
 #endif
 
@@ -122,46 +128,46 @@ typedef void (*ihfunc_t) __P((int, fd_set *));
  */
 /* #if (!(defined(__bsdi__)) && !(defined(KERNEL))) */
 #ifndef KERNEL
-#define	max(a, b)               ((a) < (b) ? (b) : (a))
-#define	min(a, b)               ((a) > (b) ? (b) : (a))
+#define max(a, b)               ((a) < (b) ? (b) : (a))
+#define min(a, b)               ((a) > (b) ? (b) : (a))
 #endif
 
 /*
  * Various definitions to make it working for different platforms
  */
 /* The old style sockaddr definition doesn't have sa_len */
-#if (defined(BSD) && (BSD >= 199006)) /* sa_len was added with 4.3-Reno */
-#define	HAVE_SA_LEN
+#if (defined(BSD) && (BSD >= 199006)) /* sa_len was added with 4.3-Reno */ 
+#define HAVE_SA_LEN
 #endif
 
 /* Versions of Solaris older than 2.6 don't have routing sockets. */
 /* XXX TODO: check FreeBSD version and add all other platforms */
 #if ((defined(SunOS) && SunOS >=56) || (defined __FreeBSD__) || (defined IRIX) || (defined __bsdi__) || defined(__NetBSD__))
-#define	HAVE_ROUTING_SOCKETS
+#define HAVE_ROUTING_SOCKETS
 #endif
 
-#define	TRUE			1
-#define	FALSE			0
+#define TRUE			1
+#define FALSE			0
 
-#define	CREATE                  TRUE
-#define	DONT_CREATE             FALSE
+#define CREATE                  TRUE
+#define DONT_CREATE             FALSE
 
-#define	EQUAL(s1, s2)		(strcmp((s1), (s2)) == 0)
+#define EQUAL(s1, s2)		(strcmp((s1), (s2)) == 0)
 
 /* obnoxious gcc gives an extraneous warning about this constant... */
 #if defined(__STDC__) || defined(__GNUC__)
-#define	JAN_1970        2208988800UL    /* 1970 - 1900 in seconds */
+#define JAN_1970        2208988800UL    /* 1970 - 1900 in seconds */
 #else
-#define	JAN_1970        2208988800L     /* 1970 - 1900 in seconds */
-#define	const           /**/
+#define JAN_1970        2208988800L     /* 1970 - 1900 in seconds */
+#define const           /**/
 #endif
 
 
-#define	MINHLIM			1  /* min hoplim in the packets send locally */
+#define MINHLIM			1  /* min hoplim in the packets send locally */
 
-#define	MAX_IP_PACKET_LEN       576
-#define	MIN_IP_HEADER_LEN       20
-#define	MAX_IP_HEADER_LEN       60
+#define MAX_IP_PACKET_LEN       576
+#define MIN_IP_HEADER_LEN       20
+#define MAX_IP_HEADER_LEN       60
 
 
 /*
@@ -170,48 +176,48 @@ typedef void (*ihfunc_t) __P((int, fd_set *));
  */
 #ifndef INADDR_ALLRTRS_GROUP
 					/* address for multicast mtrace msg */
-#define	INADDR_ALLRTRS_GROUP	(u_int32)0xe0000002	/* 224.0.0.2 */
+#define INADDR_ALLRTRS_GROUP	(u_int32)0xe0000002	/* 224.0.0.2 */
 #endif
 
 #ifndef INADDR_MAX_LOCAL_GROUP
 define INADDR_MAX_LOCAL_GROUP        (u_int32)0xe00000ff     /* 224.0.0.255 */
 #endif
 
-#define	INADDR_ANY_N            (u_int32)0x00000000     /* INADDR_ANY in
+#define INADDR_ANY_N            (u_int32)0x00000000     /* INADDR_ANY in
 							 * network order */
-#define	CLASSD_PREFIX           (u_int32)0xe0000000     /* 224.0.0.0 */
-#define	ALL_MCAST_GROUPS_ADDR   (u_int32)0xe0000000     /* 224.0.0.0 */
-#define	ALL_MCAST_GROUPS_LENGTH 4
+#define CLASSD_PREFIX           (u_int32)0xe0000000     /* 224.0.0.0 */
+#define ALL_MCAST_GROUPS_ADDR   (u_int32)0xe0000000     /* 224.0.0.0 */
+#define ALL_MCAST_GROUPS_LENGTH 4
 
 /* Used by DVMRP */
-#define	DEFAULT_METRIC		1	/* default subnet/tunnel metric     */
-#define	DEFAULT_THRESHOLD	1	/* default subnet/tunnel threshold  */
+#define DEFAULT_METRIC		1	/* default subnet/tunnel metric     */
+#define DEFAULT_THRESHOLD	1	/* default subnet/tunnel threshold  */
 
-#define	TIMER_INTERVAL		5	/* 5 sec virtual timer granularity  */
+#define TIMER_INTERVAL		5	/* 5 sec virtual timer granularity  */
 
 #ifdef RSRR
-#define	BIT_ZERO(X)             ((X) = 0)
-#define	BIT_SET(X,n)            ((X) |= 1 << (n))
-#define	BIT_CLR(X,n)            ((X) &= ~(1 << (n)))
-#define	BIT_TST(X,n)            ((X) & 1 << (n))
+#define BIT_ZERO(X)             ((X) = 0)
+#define BIT_SET(X,n)            ((X) |= 1 << (n))
+#define BIT_CLR(X,n)            ((X) &= ~(1 << (n)))
+#define BIT_TST(X,n)            ((X) & 1 << (n))
 #endif /* RSRR */
 
 #ifdef SYSV
-#define	bcopy(a, b, c)		memcpy((b), (a), (c))
-#define	bzero(s, n)		memset((s), 0, (n))
-#define	setlinebuf(s)		setvbuf((s), (NULL), (_IOLBF), 0)
-#define	RANDOM()                lrand48()
+#define bcopy(a, b, c)		memcpy((b), (a), (c))
+#define bzero(s, n)		memset((s), 0, (n))
+#define setlinebuf(s)		setvbuf((s), (NULL), (_IOLBF), 0)
+#define RANDOM()                lrand48()
 #else
-#define	RANDOM()                random()
+#define RANDOM()                random()
 #endif /* SYSV */
 
 /*
  * External declarations for global variables and functions.
  */
-#define	RECV_BUF_SIZE 64*1024  /* Maximum buff size to send
+#define			RECV_BUF_SIZE 64*1024  /* Maximum buff size to send
 					        * or receive packet */
-#define	SO_RECV_BUF_SIZE_MAX 256*1024
-#define	SO_RECV_BUF_SIZE_MIN 48*1024
+#define                 SO_RECV_BUF_SIZE_MAX 256*1024
+#define                 SO_RECV_BUF_SIZE_MIN 48*1024
 
 /* TODO: describe the variables and clean up */
 extern char		*mld6_recv_buf;
@@ -259,41 +265,41 @@ extern char *		sys_errlist[];
 
 
 #ifndef IGMP_MEMBERSHIP_QUERY
-#define	IGMP_MEMBERSHIP_QUERY		IGMP_HOST_MEMBERSHIP_QUERY
+#define IGMP_MEMBERSHIP_QUERY		IGMP_HOST_MEMBERSHIP_QUERY
 #if !(defined(__NetBSD__))
-#define	IGMP_V1_MEMBERSHIP_REPORT	IGMP_HOST_MEMBERSHIP_REPORT
-#define	IGMP_V2_MEMBERSHIP_REPORT	IGMP_HOST_NEW_MEMBERSHIP_REPORT
+#define IGMP_V1_MEMBERSHIP_REPORT	IGMP_HOST_MEMBERSHIP_REPORT
+#define IGMP_V2_MEMBERSHIP_REPORT	IGMP_HOST_NEW_MEMBERSHIP_REPORT
 #else
-#define	IGMP_V1_MEMBERSHIP_REPORT       IGMP_v1_HOST_MEMBERSHIP_REPORT
-#define	IGMP_V2_MEMBERSHIP_REPORT       IGMP_v2_HOST_MEMBERSHIP_REPORT
+#define IGMP_V1_MEMBERSHIP_REPORT       IGMP_v1_HOST_MEMBERSHIP_REPORT
+#define IGMP_V2_MEMBERSHIP_REPORT       IGMP_v2_HOST_MEMBERSHIP_REPORT
 #endif
-#define	IGMP_V2_LEAVE_GROUP		IGMP_HOST_LEAVE_MESSAGE
+#define IGMP_V2_LEAVE_GROUP		IGMP_HOST_LEAVE_MESSAGE
 #endif
 
 #if defined(__NetBSD__)
-#define	IGMP_MTRACE_RESP                IGMP_MTRACE_REPLY
-#define	IGMP_MTRACE                     IGMP_MTRACE_QUERY
+#define IGMP_MTRACE_RESP                IGMP_MTRACE_REPLY
+#define IGMP_MTRACE                     IGMP_MTRACE_QUERY
 #endif
 
 /* For timeout. The timers count down */
-#define	SET_TIMER(timer, value) (timer) = (value)
-#define	IF_TIMER_SET(timer) if ((timer) > 0)
-#define	IF_TIMER_NOT_SET(timer) if ((timer) <= 0)
-#define	FIRE_TIMER(timer)       (timer) = 0
+#define SET_TIMER(timer, value) (timer) = (value)
+#define IF_TIMER_SET(timer) if ((timer) > 0)
+#define IF_TIMER_NOT_SET(timer) if ((timer) <= 0)
+#define FIRE_TIMER(timer)       (timer) = 0
 
-#define	IF_TIMEOUT(value)     \
+#define IF_TIMEOUT(value)     \
   if (!(((value) >= TIMER_INTERVAL) && ((value) -= TIMER_INTERVAL)))
 
-#define	IF_NOT_TIMEOUT(value) \
+#define IF_NOT_TIMEOUT(value) \
   if (((value) >= TIMER_INTERVAL) && ((value) -= TIMER_INTERVAL))
 
-#define	TIMEOUT(value)        \
+#define TIMEOUT(value)        \
      (!(((value) >= TIMER_INTERVAL) && ((value) -= TIMER_INTERVAL)))
 
-#define	NOT_TIMEOUT(value)    \
+#define NOT_TIMEOUT(value)    \
      (((value) >= TIMER_INTERVAL) && ((value) -= TIMER_INTERVAL))
 
-#define	ELSE else           /* To make emacs cc-mode happy */
+#define ELSE else           /* To make emacs cc-mode happy */      
 
 
 /*
@@ -317,6 +323,7 @@ extern void config_vifs_from_file   __P((void));
 extern char     *packet_kind __P((u_int proto, u_int type, u_int code));
 extern int      debug_kind   __P((u_int proto, u_int type, u_int code));
 extern void     log          __P((int, int, char *, ...));
+extern void	dump_mldqueriers __P((FILE *));
 extern int      log_level    __P((u_int proto, u_int type, u_int code));
 extern void     dump         __P((int i));
 extern void     fdump        __P((int i));
@@ -386,7 +393,7 @@ extern void     accept_group_report     __P((u_int32 src, u_int32 dst,
 					     u_int32 group, int r_type));
 extern void     accept_leave_message    __P((u_int32 src, u_int32 dst,
 					     u_int32 group));
-#endif
+#endif 
 
 #if 0
 /* inet.c */
@@ -482,7 +489,7 @@ extern int receive_pim6_join_prune    __P((struct sockaddr_in6 *src,
 					   char *pim_message, int datalen));
 extern int send_pim6_jp              __P((mrtentry_t *mrtentry_ptr, int action,
 					  mifi_t mifi,
-					  struct sockaddr_in6 *target_addr,
+					  struct sockaddr_in6 *target_addr, 
 					  u_int16 holdtime, int echo));
 
 extern int receive_pim6_assert        __P((struct sockaddr_in6 *src,
@@ -512,7 +519,7 @@ extern void delete_pim_nbr           __P((pim_nbr_entry_t *nbr_delete));
 extern int receive_pim_join_prune    __P((u_int32 src, u_int32 dst,
 					  char *pim_message, int datalen));
 extern int send_pim_jp               __P((mrtentry_t *mrtentry_ptr, int action,
-					  vifi_t vifi, u_int32 target_addr,
+					  vifi_t vifi, u_int32 target_addr, 
 					  u_int16 holdtime));
 extern int receive_pim_assert        __P((u_int32 src, u_int32 dst,
 					  char *pim_message, int datalen));
@@ -520,7 +527,7 @@ extern int send_pim_assert           __P((u_int32 source, u_int32 group,
 					  vifi_t vifi,
 					  mrtentry_t *mrtentry_ptr));
 extern void delete_pim_graft_entry   __P((mrtentry_t *mrtentry_ptr));
-extern int receive_pim_graft         __P((u_int32 src, u_int32 dst,
+extern int receive_pim_graft         __P((u_int32 src, u_int32 dst, 
 					  char *pim_message, int datalen,
 					  int pimtype));
 #endif
@@ -562,9 +569,9 @@ extern int    init_routesock         __P((void));
 #endif /* HAVE_ROUTING_SOCKETS */
 
 #ifdef RSRR
-#define	gtable mrtentry
-#define	RSRR_NOTIFICATION_OK        TRUE
-#define	RSRR_NOTIFICATION_FALSE    FALSE
+#define gtable mrtentry
+#define RSRR_NOTIFICATION_OK        TRUE
+#define RSRR_NOTIFICATION_FALSE    FALSE
 
 /* rsrr.c */
 extern void             rsrr_init        __P((void));

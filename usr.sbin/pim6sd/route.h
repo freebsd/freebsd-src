@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -34,20 +32,21 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef ROUTE_H
-#define	ROUTE_H
+#define ROUTE_H
 
 #include "mrt.h"
 
@@ -58,7 +57,7 @@ int change_interfaces(	mrtentry_t *mrtentry_ptr,vifi_t new_iif,
 						if_set *new_joined_oifs,if_set *new_pruned_oifs,if_set *new_leaves_ , if_set *asserted ,
 						u_int16 flags);
 
-extern void      process_kernel_call     __P(());
+extern void      process_kernel_call     __P((void));
 extern int  set_incoming        __P((srcentry_t *srcentry_ptr,
                          int srctype));
 extern vifi_t   get_iif         __P((struct sockaddr_in6 *source));
@@ -68,7 +67,7 @@ extern int  add_sg_oif      __P((mrtentry_t *mrtentry_ptr,
                          int update_holdtime));
 extern void add_leaf        __P((vifi_t vifi, struct sockaddr_in6 *source,
                          struct sockaddr_in6 *group));
-extern void delete_leaf     __P((vifi_t vifi, struct sockaddr_in6 *source,
+extern void delete_leaf     __P((vifi_t vifi, struct sockaddr_in6 *source, 
                          struct sockaddr_in6 *group));
 
 
@@ -77,7 +76,7 @@ extern void delete_leaf     __P((vifi_t vifi, struct sockaddr_in6 *source,
 extern pim_nbr_entry_t *find_pim6_nbr __P((struct sockaddr_in6 *source));
 extern void calc_oifs       __P((mrtentry_t *mrtentry_ptr,
                          if_set *oifs_ptr));
-extern void process_kernel_call __P(());
+extern void process_kernel_call __P((void));
 extern int  delete_vif_from_mrt __P((vifi_t vifi));
 extern mrtentry_t *switch_shortest_path __P((struct sockaddr_in6 *source, struct sockaddr_in6 *group));
 

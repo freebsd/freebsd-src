@@ -10,15 +10,15 @@
  *  documentation, and that any documentation, advertising materials,
  *  and other materials related to such distribution and use acknowledge
  *  that the software was developed by the University of Oregon.
- *  The name of the University of Oregon may not be used to endorse or
- *  promote products derived from this software without specific prior
+ *  The name of the University of Oregon may not be used to endorse or 
+ *  promote products derived from this software without specific prior 
  *  written permission.
  *
  *  THE UNIVERSITY OF OREGON DOES NOT MAKE ANY REPRESENTATIONS
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL UO, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -30,22 +30,22 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: mrt.c,v 1.2 1999/08/24 10:04:56 jinmei Exp $
+ *  $Id: mrt.c,v 1.3 2000/05/18 16:09:39 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
- *
+ *  
  * The pimd program is COPYRIGHT 1998 by University of Southern California.
  *
  * Part of this program has been derived from mrouted.
  * The mrouted program is covered by the license in the accompanying file
  * named "LICENSE.mrouted".
- *
+ * 
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
@@ -85,7 +85,7 @@ static mrtentry_t *create_mrtentry     __P((srcentry_t *srcentry_ptr,
 					    u_int16 flags));
 
 
-void
+void 
 init_pim6_mrt()
 {
 
@@ -106,7 +106,7 @@ init_pim6_mrt()
     srclist->metric     = 0;
     srclist->preference = 0;
     srclist->timer      = 0;
-
+    
     /* Initialize the group list */
     /* The first entry has the unspecified address and is not used */
     /* The order is the smallest address first. */
@@ -128,7 +128,7 @@ find_group(group)
 
     if (!IN6_IS_ADDR_MULTICAST(&group->sin6_addr))
 	return (grpentry_t *)NULL;
-
+    
     if (search_grplist(group, &grpentry_ptr) == TRUE) {
 	/* Group found! */
 	return (grpentry_ptr);
@@ -145,7 +145,7 @@ find_source(source)
 
     if (!inet6_valid_host(source))
 	return (srcentry_t *)NULL;
-
+    
     if (search_srclist(source, &srcentry_ptr) == TRUE) {
 	/* Source found! */
 	return (srcentry_ptr);
@@ -166,12 +166,12 @@ find_route(source, group, flags, create)
 
     if (!IN6_IS_ADDR_MULTICAST(&group->sin6_addr))
 	return (mrtentry_t *)NULL;
-
+    
     if (!inet6_valid_host(source))
 	return (mrtentry_t *)NULL;
-
+    
     if (create == DONT_CREATE) {
-	if (search_grplist(group, &grpentry_ptr) == FALSE)
+	if (search_grplist(group, &grpentry_ptr) == FALSE) 
 	    return (mrtentry_t *)NULL;
 	/* Search for the source */
 	if (search_grpmrtlink(grpentry_ptr, source,
@@ -212,11 +212,11 @@ find_route(source, group, flags, create)
 	}
 	return (mrtentry_t *)NULL;
     }
-
+    
     if (mrtentry_ptr->flags & MRTF_NEW) {
 	struct mrtfilter *f;
-	/* The mrtentry pref/metric should be the pref/metric of the
-	 * _upstream_ assert winner. Since this isn't known now,
+	/* The mrtentry pref/metric should be the pref/metric of the 
+	 * _upstream_ assert winner. Since this isn't known now, 
 	 * set it to the config'ed default
 	 */
 	mrtentry_ptr->incoming = srcentry_ptr->incoming;
@@ -227,7 +227,7 @@ find_route(source, group, flags, create)
 	if ((f = search_filter(&group->sin6_addr)))
 		IF_COPY(&f->ifset, &mrtentry_ptr->filter_oifs);
     }
-
+    
     return (mrtentry_ptr);
 }
 
@@ -245,7 +245,7 @@ delete_srcentry(srcentry_ptr)
     srcentry_ptr->prev->next = 	srcentry_ptr->next;
     if (srcentry_ptr->next != (srcentry_t *)NULL)
 	srcentry_ptr->next->prev = srcentry_ptr->prev;
-
+    
     for (mrtentry_ptr = srcentry_ptr->mrtlink;
 	 mrtentry_ptr != (mrtentry_t *)NULL;
 	 mrtentry_ptr = mrtentry_next) {
@@ -273,14 +273,14 @@ delete_grpentry(grpentry_ptr)
 {
     mrtentry_t *mrtentry_ptr;
     mrtentry_t *mrtentry_next;
-
+    
     if (grpentry_ptr == (grpentry_t *)NULL)
 	return;
     /* TODO: XXX: the first entry is unused and always there */
     grpentry_ptr->prev->next = grpentry_ptr->next;
     if (grpentry_ptr->next != (grpentry_t *)NULL)
 	grpentry_ptr->next->prev = grpentry_ptr->prev;
-
+    
     for (mrtentry_ptr = grpentry_ptr->mrtlink;
 	 mrtentry_ptr != (mrtentry_t *)NULL;
 	 mrtentry_ptr = mrtentry_next) {
@@ -329,10 +329,10 @@ delete_mrtentry(mrtentry_ptr)
 	    delete_grpentry(mrtentry_ptr->group);
 	}
     }
-
+	
     if (mrtentry_ptr->grpnext != (mrtentry_t *)NULL)
 	mrtentry_ptr->grpnext->grpprev = mrtentry_ptr->grpprev;
-
+    
     /* Delete from the srcentry MRT chain */
     if (mrtentry_ptr->srcprev != (mrtentry_t *)NULL)
 	mrtentry_ptr->srcprev->srcnext = mrtentry_ptr->srcnext;
@@ -356,7 +356,7 @@ search_srclist(source, sourceEntry)
     register srcentry_t **sourceEntry;
 {
     register srcentry_t *s_prev,*s;
-
+    
     for (s_prev = srclist, s = s_prev->next; s != (srcentry_t *)NULL;
 	 s_prev = s, s = s->next) {
 	/* The srclist is ordered with the smallest addresses first.
@@ -368,7 +368,7 @@ search_srclist(source, sourceEntry)
 	    *sourceEntry = s;
 	    return(TRUE);
 	}
-	break;
+	break;  
     }
     *sourceEntry = s_prev;   /* The insertion point is between s_prev and s */
     return(FALSE);
@@ -381,7 +381,7 @@ search_grplist(group, groupEntry)
     register grpentry_t **groupEntry;
 {
     register grpentry_t *g_prev, *g;
-
+    
     for (g_prev = grplist, g = g_prev->next; g != (grpentry_t *)NULL;
 	 g_prev = g, g = g->next) {
 	/* The grplist is ordered with the smallest address first.
@@ -408,7 +408,7 @@ create_srcentry(source)
 
     if (search_srclist(source, &srcentry_prev) == TRUE)
 	return (srcentry_prev);
-
+    
     srcentry_ptr = (srcentry_t *)malloc(sizeof(srcentry_t));
     if (srcentry_ptr == (srcentry_t *)NULL) {
 	log(LOG_WARNING, 0, "Memory allocation error for srcentry %s",
@@ -420,7 +420,7 @@ create_srcentry(source)
     /*
      * Free the memory if there is error getting the iif and
      * the next hop (upstream) router.
-     */
+     */ 
     if (set_incoming(srcentry_ptr, PIM_IIF_SOURCE) == FALSE) {
 	free((char *)srcentry_ptr);
 	return (srcentry_t *)NULL;
@@ -432,7 +432,7 @@ create_srcentry(source)
     srcentry_ptr->prev = srcentry_prev;
     if (srcentry_ptr->next != (srcentry_t *)NULL)
 	srcentry_ptr->next->prev = srcentry_ptr;
-
+    
     IF_DEBUG(DEBUG_MFC)
 	log(LOG_DEBUG, 0, "create source entry, source %s",
 	    inet6_fmt(&source->sin6_addr));
@@ -449,7 +449,7 @@ create_grpentry(group)
 
     if (search_grplist(group, &grpentry_prev) == TRUE)
 	return (grpentry_prev);
-
+    
     grpentry_ptr = (grpentry_t *)malloc(sizeof(grpentry_t));
     if (grpentry_ptr == (grpentry_t *)NULL) {
 	log(LOG_WARNING, 0, "Memory allocation error for grpentry %s",
@@ -466,7 +466,7 @@ create_grpentry(group)
     grpentry_ptr->prev          = grpentry_prev;
     if (grpentry_ptr->next != (grpentry_t *)NULL)
 	grpentry_ptr->next->prev = grpentry_ptr;
-
+    
     IF_DEBUG(DEBUG_MFC)
 	log(LOG_DEBUG, 0, "create group entry, group %s",
 	    inet6_fmt(&group->sin6_addr));
@@ -476,18 +476,18 @@ create_grpentry(group)
 
 /*
  * Return TRUE if the entry is found and then *mrtPtr is set to point to that
- * entry. Otherwise return FALSE and *mrtPtr points the the previous entry
+ * entry. Otherwise return FALSE and *mrtPtr points the previous entry
  * (or NULL if first in the chain.
  */
 static int
 search_srcmrtlink(srcentry_ptr, group, mrtPtr)
-    srcentry_t *srcentry_ptr;
+    srcentry_t *srcentry_ptr;	
     struct sockaddr_in6 *group;
     mrtentry_t **mrtPtr;
 {
     register mrtentry_t *mrtentry_ptr;
     register mrtentry_t *m_prev = (mrtentry_t *)NULL;
-
+    
     for(mrtentry_ptr = srcentry_ptr->mrtlink;
 	mrtentry_ptr != (mrtentry_t *)NULL;
 	m_prev = mrtentry_ptr, mrtentry_ptr = mrtentry_ptr->srcnext) {
@@ -509,7 +509,7 @@ search_srcmrtlink(srcentry_ptr, group, mrtPtr)
 
 /*
  * Return TRUE if the entry is found and then *mrtPtr is set to point to that
- * entry. Otherwise return FALSE and *mrtPtr points the the previous entry
+ * entry. Otherwise return FALSE and *mrtPtr points the previous entry
  * (or NULL if first in the chain.
  */
 static int
@@ -520,7 +520,7 @@ search_grpmrtlink(grpentry_ptr, source, mrtPtr)
 {
     register mrtentry_t *mrtentry_ptr;
     register mrtentry_t *m_prev = (mrtentry_t *)NULL;
-
+    
     for (mrtentry_ptr = grpentry_ptr->mrtlink;
 	 mrtentry_ptr != (mrtentry_t *)NULL;
 	 m_prev = mrtentry_ptr, mrtentry_ptr = mrtentry_ptr->grpnext) {
@@ -595,13 +595,13 @@ alloc_mrtentry(srcentry_ptr, grpentry_ptr)
     u_int16 i, *i_ptr;
     u_long  *il_ptr;
     u_int8  vif_numbers;
-
+    
     mrtentry_ptr = (mrtentry_t *)malloc(sizeof(mrtentry_t));
     if (mrtentry_ptr == (mrtentry_t *)NULL) {
 	log(LOG_WARNING, 0, "alloc_mrtentry(): out of memory");
 	return (mrtentry_t *)NULL;
     }
-
+    
     /*
      * grpnext, grpprev, srcnext, srcprev will be setup when we link the
      * mrtentry to the source and group chains
@@ -631,7 +631,7 @@ alloc_mrtentry(srcentry_ptr, grpentry_ptr)
  */
 #ifdef SAVE_MEMORY
     mrtentry_ptr->prune_timers = (u_int16 *)malloc(sizeof(u_int16) * numvifs);
-    mrtentry_ptr->prune_delay_timerids =
+    mrtentry_ptr->prune_delay_timerids = 
 	(u_long *)malloc(sizeof(u_long) * numvifs);
     mrtentry_ptr->last_assert = (u_long *)malloc(sizeof(u_long) * numvifs);
     mrtentry_ptr->last_prune = (u_long *)malloc(sizeof(u_long) * numvifs);
@@ -693,7 +693,7 @@ create_mrtentry(srcentry_ptr, grpentry_ptr, flags)
     /* (S,G) entry */
     source = &srcentry_ptr->address;
     group  = &grpentry_ptr->group;
-
+    
     if (search_grpmrtlink(grpentry_ptr, source, &r_grp_insert) == TRUE) {
 	return(r_grp_insert);
     }
@@ -715,7 +715,7 @@ create_mrtentry(srcentry_ptr, grpentry_ptr, flags)
 	return (mrtentry_t *)NULL;
     /*
      * r_new has to be insert right after r_grp_insert in the
-     * grp mrtlink chain and right after r_src_insert in the
+     * grp mrtlink chain and right after r_src_insert in the 
      * src mrtlink chain
      */
     insert_grpmrtlink(r_new, r_grp_insert, grpentry_ptr);
@@ -761,7 +761,7 @@ search_filter(maddr)
 
 /*
  * Make a new filter entry.
- * This function assumes
+ * This function assumes 
  */
 struct mrtfilter *
 add_filter(type, maddr1, maddr2, plen)

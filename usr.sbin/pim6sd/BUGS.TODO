@@ -1,7 +1,7 @@
   $Id: BUGS.TODO,v 1.1.1.1 1999/08/08 23:30:57 itojun Exp $
   $FreeBSD$
 
-THIS LIST IS FAR AWAY FROM BEING COMPLETE, so these are the few things
+THIS LIST IS FAR AWAY FROM BEING COMPLETE, so these are the few things 
 that came up at the right moment to be written down.
 
   * Experimental kernel MFC (*,G) related:
@@ -24,12 +24,12 @@ that came up at the right moment to be written down.
 
   * Use NetBSD's definition for IPADDR (netinet/in.h):
 #ifdef _KERNEL
-#define	__IPADDR(x)     ((u_int32_t) htonl((u_int32_t)(x)))
+#define __IPADDR(x)     ((u_int32_t) htonl((u_int32_t)(x)))
 #else
-#define	__IPADDR(x)     ((u_int32_t)(x))
+#define __IPADDR(x)     ((u_int32_t)(x))
 #endif
 
-
+ 
   * The (S,G)RPbit in the DR for the sender and the (S,G)SPT in the
     downstream router won't timeout and will refresh each other even
     if the sender is not active:
@@ -57,12 +57,12 @@ that came up at the right moment to be written down.
   same host as the RP for the multicast group (probably was fixed with alpha6,
   because I cannot reproduce it anymore)
 
-  * Do more precise error check for the received PIM messages. In most cases,
+  * Do more precise error check for the received PIM messages. In most cases, 
   the whole message must be parsed completely before starting processing it.
 
   * Clean up the debugging messages.
 
-  * Use Patricia tree to search the routing table
+  * Use Patricia tree to search the routing table 
   (There is a nice paper in Sigcomm '97 about fast routing tables
   implementation, so need to check it as well)
 
@@ -86,7 +86,7 @@ that came up at the right moment to be written down.
 
   * Send Initial_Reply RSRR message if the interfaces detected by pimd change
 
-  * SNMP support
+  * SNMP support 
 
 ===TODO by function name===
 igmp_proto.c:

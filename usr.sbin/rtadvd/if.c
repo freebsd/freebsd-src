@@ -1,7 +1,9 @@
+/*	$KAME: if.c,v 1.9 2000/05/27 11:30:43 jinmei Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +15,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -35,11 +37,23 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <net/if_types.h>
-#include <net/ethernet.h>
+#ifdef __FreeBSD__
+# include <net/ethernet.h>
+#endif
+#include <ifaddrs.h>
+#ifdef __NetBSD__
+#include <net/if_ether.h>
+#endif
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
+#ifdef __bsdi__
+# include <netinet/if_ether.h>
+#endif
+#ifdef __OpenBSD__
+#include <netinet/if_ether.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -48,28 +62,28 @@
 #include "rtadvd.h"
 #include "if.h"
 
-#define	ROUNDUP(a, size) \
+#define ROUNDUP(a, size) \
 	(((a) & ((size)-1)) ? (1 + ((a) | ((size)-1))) : (a))
 
-#define	NEXT_SA(ap) (ap) = (struct sockaddr *) \
+#define NEXT_SA(ap) (ap) = (struct sockaddr *) \
 	((caddr_t)(ap) + ((ap)->sa_len ? ROUNDUP((ap)->sa_len,\
 						 sizeof(u_long)) :\
 			  			 sizeof(u_long)))
 
-struct	if_msghdr **iflist;
-int	iflist_init_ok;
-size_t	ifblock_size;
-char	*ifblock;
+struct if_msghdr **iflist;
+int iflist_init_ok;
+size_t ifblock_size;
+char *ifblock;
 
-static void	get_iflist __P((char **buf, size_t *size));
-static void	parse_iflist __P((struct if_msghdr ***ifmlist_p, char *buf,
+static void get_iflist __P((char **buf, size_t *size));
+static void parse_iflist __P((struct if_msghdr ***ifmlist_p, char *buf,
 		       size_t bufsize));
 
 static void
 get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
 {
 	int i;
-
+	
 	for (i = 0; i < RTAX_MAX; i++) {
 		if (addrs & (1 << i)) {
 			rti_info[i] = sa;
@@ -108,6 +122,8 @@ if_nametosdl(char *name)
 			if ((sa = rti_info[RTAX_IFP]) != NULL) {
 				if (sa->sa_family == AF_LINK) {
 					sdl = (struct sockaddr_dl *)sa;
+					if (strlen(name) != sdl->sdl_nlen)
+						continue; /* not same len */
 					if (strncmp(&sdl->sdl_data[0],
 						    name,
 						    sdl->sdl_nlen) == 0) {
@@ -132,6 +148,7 @@ if_nametosdl(char *name)
 int
 if_getmtu(char *name)
 {
+#if 0
 	struct ifreq ifr;
 	int s;
 
@@ -148,6 +165,25 @@ if_getmtu(char *name)
 	close(s);
 
 	return(ifr.ifr_mtu);
+#else
+	struct ifaddrs *ifap, *ifa;
+	struct if_data *ifd;
+
+	if (getifaddrs(&ifap) < 0)
+		return(0);
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (strcmp(ifa->ifa_name, name) == 0) {
+			ifd = ifa->ifa_data;
+			freeifaddrs(ifap);
+			if (ifd)
+				return ifd->ifi_mtu;
+			else
+				return 0;
+		}
+	}
+	freeifaddrs(ifap);
+	return 0;
+#endif
 }
 
 /* give interface index and its old flags, then new flags returned */
@@ -170,11 +206,10 @@ if_getflags(int ifindex, int oifflags)
 		close(s);
 		return (oifflags & ~IFF_UP);
 	}
-	close(s);
 	return (ifr.ifr_flags);
 }
 
-#define	ROUNDUP8(a) (1 + (((a) - 1) | 7))
+#define ROUNDUP8(a) (1 + (((a) - 1) | 7))
 int
 lladdropt_length(struct sockaddr_dl *sdl)
 {
@@ -233,9 +268,9 @@ get_rtinfo(char *buf, size_t *len)
 	return(0);
 }
 
-#define	FILTER_MATCH(type, filter) ((0x1 << type) & filter)
-#define	SIN6(s) ((struct sockaddr_in6 *)(s))
-#define	SDL(s) ((struct sockaddr_dl *)(s))
+#define FILTER_MATCH(type, filter) ((0x1 << type) & filter)
+#define SIN6(s) ((struct sockaddr_in6 *)(s))
+#define SDL(s) ((struct sockaddr_dl *)(s))
 char *
 get_next_msg(char *buf, char *lim, int ifindex, size_t *lenp, int filter)
 {
@@ -377,7 +412,7 @@ get_prefixlen(char *buf)
 	struct sockaddr *sa, *rti_info[RTAX_MAX];
 	int masklen;
 	u_char *p, *lim;
-
+	
 	sa = (struct sockaddr *)(rtm + 1);
 	get_rtaddrs(rtm->rtm_addrs, sa, rti_info);
 	sa = rti_info[RTAX_NETMASK];
@@ -553,5 +588,4 @@ init_iflist()
 
 	/* make list of pointers to each if_msghdr */
 	parse_iflist(&iflist, ifblock, ifblock_size);
-
 }

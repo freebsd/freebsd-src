@@ -10,15 +10,15 @@
  *  documentation, and that any documentation, advertising materials,
  *  and other materials related to such distribution and use acknowledge
  *  that the software was developed by the University of Oregon.
- *  The name of the University of Oregon may not be used to endorse or
- *  promote products derived from this software without specific prior
+ *  The name of the University of Oregon may not be used to endorse or 
+ *  promote products derived from this software without specific prior 
  *  written permission.
  *
  *  THE UNIVERSITY OF OREGON DOES NOT MAKE ANY REPRESENTATIONS
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL UO, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -30,7 +30,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
  *  $Id: route.c,v 1.3 1999/10/27 11:40:30 jinmei Exp $
@@ -39,13 +39,13 @@
  * Part of this program has been derived from PIM sparse-mode pimd.
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
- *
+ *  
  * The pimd program is COPYRIGHT 1998 by University of Southern California.
  *
  * Part of this program has been derived from mrouted.
  * The mrouted program is covered by the license in the accompanying file
  * named "LICENSE.mrouted".
- *
+ * 
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
@@ -119,7 +119,7 @@ find_pim6_nbr(source)
  * Set the iif, upstream router, preference and metric for the route
  * toward the source. Return TRUE is the route was found, othewise FALSE.
  * If srctype==PIM_IIF_SOURCE and if the source is directly connected
- * then the "upstream" is set to NULL.
+ * then the "upstream" is set to NULL. 
  * Note that srctype is a hold-over from the PIM-SM daemon and is unused.
  */
 int
@@ -134,7 +134,7 @@ set_incoming(srcentry_ptr, srctype)
     register pim_nbr_entry_t *n;
 
     /* Preference will be 0 if directly connected */
-    srcentry_ptr->preference = 0;
+    srcentry_ptr->preference = 0; 
     srcentry_ptr->metric = 0;
 
     if ((srcentry_ptr->incoming = local_address(source)) != NO_VIF) {
@@ -160,7 +160,7 @@ set_incoming(srcentry_ptr, srctype)
 	neighbor_addr = &rpfc.rpfneighbor;
     }
     else {
-	/* The source is directly connected.
+	/* The source is directly connected. 
 	 */
 	srcentry_ptr->upstream = (pim_nbr_entry_t *)NULL;
 	return (TRUE);
@@ -193,13 +193,13 @@ set_incoming(srcentry_ptr, srctype)
 	}
 	else break;
     }
-
+    
     /* TODO: control the number of messages! */
     log(LOG_INFO, 0,
 	"For src %s, iif is %d, next hop router is %s: NOT A PIM ROUTER",
 	inet6_fmt(&source->sin6_addr), srcentry_ptr->incoming,
 	inet6_fmt(&neighbor_addr->sin6_addr));
-    srcentry_ptr->upstream = (pim_nbr_entry_t *)NULL;
+    srcentry_ptr->upstream = (pim_nbr_entry_t *)NULL; 
 
     return(FALSE);
 }
@@ -211,10 +211,10 @@ void set_leaves(mrtentry_ptr)
 {
     vifi_t vifi;
     struct uvif *v;
-
+    
     /* Check for a group report on each vif */
-    for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v)
-	if(check_multicast_listener(v, &mrtentry_ptr->group->group))
+    for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) 
+	if(check_multicast_listener(v, &mrtentry_ptr->group->group)) 
 	    IF_SET(vifi, &mrtentry_ptr->leaves);
 }
 
@@ -245,21 +245,21 @@ add_leaf(vifi, source, group)
 	 mrtentry_srcs = mrtentry_srcs->grpnext) {
 
 	/* if applicable, add the vif to the leaves */
-	if (mrtentry_srcs->incoming == vifi)
+	if (mrtentry_srcs->incoming == vifi) 
 	    continue;
 
 	if(!(IF_ISSET(vifi, &mrtentry_srcs->leaves))) {
 
 	    IF_DEBUG(DEBUG_MRT)
-		log(LOG_DEBUG, 0, "Adding leaf vif %d for src %s group %s",
+		log(LOG_DEBUG, 0, "Adding leaf vif %d for src %s group %s", 
 		    vifi,
 		    inet6_fmt(&mrtentry_srcs->source->address.sin6_addr),
 		    inet6_fmt(&group->sin6_addr));
 
 	    IF_COPY(&mrtentry_srcs->leaves, &new_leaves);
 	    IF_SET(vifi, &new_leaves);    /* Add the leaf */
-
-	    state_change =
+	    
+	    state_change = 
 		change_interfaces(mrtentry_srcs,
 				  mrtentry_srcs->incoming,
 				  &mrtentry_srcs->pruned_oifs,
@@ -267,7 +267,7 @@ add_leaf(vifi, source, group)
 				  &mrtentry_srcs->asserted_oifs);
 
 	    /* Handle transition from negative cache */
-	    if(state_change == 1)
+	    if(state_change == 1) 
 		trigger_join_alert(mrtentry_srcs);
 	}
     }
@@ -306,7 +306,7 @@ delete_leaf(vifi, source, group)
 	 mrtentry_srcs = mrtentry_srcs->grpnext) {
 
 	/* if applicable, delete the vif from the leaves */
-	if (mrtentry_srcs->incoming == vifi)
+	if (mrtentry_srcs->incoming == vifi) 
 	    continue;
 
 	if(IF_ISSET(vifi, &mrtentry_srcs->leaves)) {
@@ -314,13 +314,13 @@ delete_leaf(vifi, source, group)
 	    IF_DEBUG(DEBUG_MRT)
 		log(LOG_DEBUG, 0, "Deleting leaf vif %d for src %s, group %s",
 		    vifi,
-		    inet6_fmt(&mrtentry_srcs->source->address.sin6_addr),
+		    inet6_fmt(&mrtentry_srcs->source->address.sin6_addr), 
 		    inet6_fmt(&group->sin6_addr));
-
+	    
 	    IF_COPY(&mrtentry_srcs->leaves, &new_leaves);
 	    IF_CLR(vifi, &new_leaves);    /* Remove the leaf */
-
-	    state_change =
+	    
+	    state_change = 
 		change_interfaces(mrtentry_srcs,
 				  mrtentry_srcs->incoming,
 				  &mrtentry_srcs->pruned_oifs,
@@ -344,7 +344,7 @@ calc_oifs(mrtentry_ptr, oifs_ptr)
     /*
      * oifs =
      * ((nbr_ifs - my_prune) + my_leaves) - my_filters - incoming_interface,
-     * i.e.`leaves` have higher priority than `prunes`, but lower than `filters'.
+     * i.e.`leaves` have higher priority than `prunes`, but lower than `filters'. 
      * Asserted oifs (those that lost assert) are handled as pruned oifs.
      * The incoming interface is always deleted from the oifs
      */
@@ -353,7 +353,7 @@ calc_oifs(mrtentry_ptr, oifs_ptr)
         IF_ZERO(oifs_ptr);
         return;
     }
-
+ 
     IF_COPY(&nbr_mifs, &oifs);
     IF_CLR_MASK(&oifs, &mrtentry_ptr->pruned_oifs);
     IF_MERGE(&oifs, &mrtentry_ptr->leaves, &oifs);
@@ -372,7 +372,7 @@ calc_oifs(mrtentry_ptr, oifs_ptr)
  *  else return 0
  * If the iif change or if the oifs change from NULL to non-NULL
  * or vice-versa, then schedule that mrtentry join/prune timer to
- * timeout immediately.
+ * timeout immediately. 
  */
 int
 change_interfaces(mrtentry_ptr, new_iif, new_pruned_oifs,
@@ -391,7 +391,7 @@ change_interfaces(mrtentry_ptr, new_iif, new_pruned_oifs,
     if_set old_asserted_oifs;	/* unnecessary? */
     vifi_t      old_iif;
     int return_value;
-
+    
     if (mrtentry_ptr == (mrtentry_t *)NULL)
 	return (0);
 
@@ -403,7 +403,7 @@ change_interfaces(mrtentry_ptr, new_iif, new_pruned_oifs,
     IF_COPY(&mrtentry_ptr->asserted_oifs, &old_asserted_oifs);
 
     IF_COPY(&mrtentry_ptr->oifs, &old_real_oifs);
-
+    
     mrtentry_ptr->incoming = new_iif;
     IF_COPY(new_pruned_oifs, &mrtentry_ptr->pruned_oifs);
     IF_COPY(&new_leaves, &mrtentry_ptr->leaves);
@@ -427,7 +427,7 @@ change_interfaces(mrtentry_ptr, new_iif, new_pruned_oifs,
 	return 0;                  /* Nothing to change */
 
     IF_COPY(&new_real_oifs, &mrtentry_ptr->oifs);
-
+    
     k_chg_mfc(mld6_socket, &mrtentry_ptr->source->address,
 	      &mrtentry_ptr->group->group, new_iif, &new_real_oifs);
 
@@ -437,7 +437,7 @@ change_interfaces(mrtentry_ptr, new_iif, new_pruned_oifs,
 
     return (return_value);
 }
-
+    
 
 /* TODO: implement it. Required to allow changing of the physical interfaces
  * configuration without need to restart pimd.
@@ -457,22 +457,22 @@ max_prune_timeout(mrtentry_ptr)
     vifi_t vifi;
 #if 0
     /* XXX: I don't understand how the variable works...(jinmei@kame.net) */
-    u_int16 time_left = 0;
-#endif
+    u_int16 time_left = 0; 
+#endif 
     u_int16 max_holdtime = 0;
 
-    for(vifi=0; vifi < numvifs; ++vifi)
-	if(IF_ISSET(vifi, &mrtentry_ptr->pruned_oifs) &&
-	   mrtentry_ptr->prune_timers[vifi])
+    for(vifi=0; vifi < numvifs; ++vifi) 
+	if(IF_ISSET(vifi, &mrtentry_ptr->pruned_oifs) && 
+	   mrtentry_ptr->prune_timers[vifi]) 
 	    /* XXX - too expensive ? */
 	    if(mrtentry_ptr->prune_timers[vifi] > max_holdtime)
 		    max_holdtime = mrtentry_ptr->prune_timers[vifi];
 #if 0
 		    /* XXX: This is original. But does it have any meaning? */
 		    max_holdtime = time_left;
-#endif
+#endif 
 
-    if(max_holdtime == 0)
+    if(max_holdtime == 0) 
 	max_holdtime = (u_int16)PIM_JOIN_PRUNE_HOLDTIME;
 
     return(max_holdtime);
@@ -483,9 +483,9 @@ void
 process_kernel_call()
 {
     register struct mrt6msg *im; /* igmpmsg control struct */
-
+    
     im = (struct mrt6msg *) mld6_recv_buf;
-
+    
     switch (im->im6_msgtype) {
      case MRT6MSG_NOCACHE:
 	process_cache_miss(im);
@@ -523,23 +523,23 @@ process_cache_miss(im)
     source.sin6_addr = im->im6_src;
     group.sin6_scope_id = inet6_uvif2scopeid(&group, &uvifs[im->im6_mif]);
     source.sin6_scope_id = inet6_uvif2scopeid(&source, &uvifs[im->im6_mif]);
-
+    
     IF_DEBUG(DEBUG_MFC)
 	log(LOG_DEBUG, 0, "Cache miss, src %s, dst %s",
-	    inet6_fmt(&source.sin6_addr), inet6_fmt(&group.sin6_addr));
+	    inet6_fmt(&source.sin6_addr), inet6_fmt(&group.sin6_addr)); 
 
     /* Don't create routing entries for the LAN scoped addresses */
     if (IN6_IS_ADDR_MC_NODELOCAL(&group.sin6_addr) ||/* sanity? */
 	IN6_IS_ADDR_MC_LINKLOCAL(&group.sin6_addr))
-	return;
-
+	return; 
+    
     /* Create the (S,G) entry */
     mrtentry_ptr = find_route(&source, &group, MRTF_SG, CREATE);
     if (mrtentry_ptr == (mrtentry_t *)NULL)
 	return;
     mrtentry_ptr->flags &= ~MRTF_NEW;
-
-    /* Set oifs */
+    
+    /* Set oifs */	
     set_leaves(mrtentry_ptr);
     calc_oifs(mrtentry_ptr, &(mrtentry_ptr->oifs));
 
@@ -560,7 +560,7 @@ process_cache_miss(im)
 /*
  * A multicast packet has been received on wrong iif by the kernel.
  * If the packet was received on a point-to-point interface, rate-limit
- * prunes.  if the packet was received on a LAN interface, rate-limit
+ * prunes.  if the packet was received on a LAN interface, rate-limit 
  * asserts.
  */
 static void
@@ -581,7 +581,7 @@ process_wrong_iif(im)
     /* PIMDM TODO Don't create routing entries for the LAN scoped addresses */
     if (IN6_IS_ADDR_MC_NODELOCAL(&group.sin6_addr) ||/* sanity? */
 	IN6_IS_ADDR_MC_LINKLOCAL(&group.sin6_addr))
-	return;
+	return; 
 
     mrtentry_ptr = find_route(&source, &group, MRTF_SG, DONT_CREATE);
     if(mrtentry_ptr == (mrtentry_t *)NULL)
@@ -599,14 +599,14 @@ process_wrong_iif(im)
 	mrtentry_ptr->last_prune[mifi] = virtual_time;
 
 	if(uvifs[mifi].uv_rmt_addr)
-	    send_pim6_jp(mrtentry_ptr, PIM_ACTION_PRUNE, mifi,
-			uvifs[mifi].uv_rmt_addr,
+	    send_pim6_jp(mrtentry_ptr, PIM_ACTION_PRUNE, mifi, 
+			uvifs[mifi].uv_rmt_addr, 
 			max_prune_timeout(mrtentry_ptr), 0);
-	else
-	    log(LOG_WARNING, 0,
+	else 
+	    log(LOG_WARNING, 0, 
 		"Can't send wrongvif prune on p2p %s: no remote address",
 		uvifs[mifi].uv_lcl_addr);
-    } else
+    } else 
 #endif
     {
 
@@ -629,16 +629,16 @@ trigger_prune_alert(mrtentry_ptr)
 {
     IF_DEBUG(DEBUG_MRT)
 	log(LOG_DEBUG, 0, "Now negative cache for src %s, grp %s - pruning",
-	    inet6_fmt(&mrtentry_ptr->source->address.sin6_addr),
+	    inet6_fmt(&mrtentry_ptr->source->address.sin6_addr), 
 	    inet6_fmt(&mrtentry_ptr->group->group.sin6_addr));
 
     /* Set the entry timer to the max of the prune timers */
     SET_TIMER(mrtentry_ptr->timer, max_prune_timeout(mrtentry_ptr));
 
     /* Send a prune */
-    if(mrtentry_ptr->upstream)
+    if(mrtentry_ptr->upstream) 
 	send_pim6_jp(mrtentry_ptr, PIM_ACTION_PRUNE, mrtentry_ptr->incoming,
-		     &mrtentry_ptr->upstream->address,
+		     &mrtentry_ptr->upstream->address, 
 		     max_prune_timeout(mrtentry_ptr), 0);
 }
 
@@ -648,7 +648,7 @@ trigger_join_alert(mrtentry_ptr)
 {
     IF_DEBUG(DEBUG_MRT)
 	log(LOG_DEBUG, 0, "Now forwarding state for src %s, grp %s - grafting",
-	    inet6_fmt(&mrtentry_ptr->source->address.sin6_addr),
+	    inet6_fmt(&mrtentry_ptr->source->address.sin6_addr), 
 	    inet6_fmt(&mrtentry_ptr->group->group.sin6_addr));
 
     /* Refresh the entry timer */

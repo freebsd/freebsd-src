@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -14,7 +14,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -52,7 +52,11 @@ int yy_first_time = 1;
 
 extern char configfilename[];
 
+#if 0
 static void cfdebug_print __P((char *, char *, int));
+#endif
+
+extern int yylex __P((void));
 %}
 
 /* common seciton */
@@ -536,6 +540,7 @@ slash		\/
 	/* cand_bootstrap_router */
 <S_CNF>cand_bootstrap_router { DP("begin cand_bsr"); BEGIN S_CANDBSR; return(CANDBSR); }
 <S_CANDBSR>priority { YYD_ECHO; return(PRIORITY); }
+<S_CANDBSR>masklen { YYD_ECHO; return(MASKLEN); }
 <S_CANDBSR>time { YYD_ECHO; return(TIME); }
 <S_CANDBSR>{ifname} {
 	YYD_ECHO;
@@ -588,6 +593,7 @@ slash		\/
 		}
 %%
 
+#if 0
 static void
 cfdebug_print(w, t, l)
 	char *w, *t;
@@ -595,6 +601,7 @@ cfdebug_print(w, t, l)
 {
 	printf("<%d>%s [%s] (%d)\n", yy_start, w, t, l);
 }
+#endif
 
 static void
 yyerror0(char *s, va_list ap)
@@ -636,7 +643,7 @@ cfparse(strict, debugonly)
 	int strict, debugonly;
 {
 	if ((yyin = fopen(configfilename, "r")) == NULL) {
-		fprintf(stderr, "cfparse: fopen(%s)", configfilename);
+		fprintf(stderr, "cfparse: fopen(%s)\n", configfilename);
 		return(-1);
 	}
 

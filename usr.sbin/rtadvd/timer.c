@@ -1,7 +1,9 @@
+/*	$KAME: timer.c,v 1.3 2000/05/22 22:23:07 itojun Exp $	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +15,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -35,14 +37,16 @@
 #include <syslog.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef __NetBSD__
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <search.h>
 #endif
 #include "timer.h"
 
 static struct rtadvd_timer timer_head;
 
-#define	MILLION 1000000
+#define MILLION 1000000
+#define TIMEVAL_EQUAL(t1,t2) ((t1)->tv_sec == (t2)->tv_sec &&\
+ (t1)->tv_usec == (t2)->tv_usec) 
 
 static struct timeval tm_max = {0x7fffffff, 0x7fffffff};
 
@@ -93,6 +97,14 @@ rtadvd_add_timer(void (*timeout) __P((void *)),
 }
 
 void
+rtadvd_remove_timer(struct rtadvd_timer **timer)
+{
+	remque(*timer);
+	free(*timer);
+	*timer = NULL;
+}
+
+void
 rtadvd_set_timer(struct timeval *tm, struct rtadvd_timer *timer)
 {
 	struct timeval now;
@@ -138,7 +150,11 @@ rtadvd_check_timer()
 		tm = tm->next;
 	}
 
-	if (TIMEVAL_LT(timer_head.tm, now)) {
+	if (TIMEVAL_EQUAL(&tm_max, &timer_head.tm)) {
+		/* no need to timeout */
+		return(NULL);
+	}
+	else if (TIMEVAL_LT(timer_head.tm, now)) {
 		/* this may occur when the interval is too small */
 		returnval.tv_sec = returnval.tv_usec = 0;
 	}

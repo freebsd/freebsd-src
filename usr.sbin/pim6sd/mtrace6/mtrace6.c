@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -42,9 +42,8 @@
 
 #include <netinet/in.h>
 
-#include <netinet6/in6.h>
 #include <netinet6/in6_var.h>
-#include <netinet6/icmp6.h>
+#include <netinet/icmp6.h>
 
 #include <string.h>
 #include <stdio.h>
@@ -52,16 +51,38 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <err.h>
+#ifdef HAVE_GETIFADDRS
+#include <ifaddrs.h>
+#endif
 
 #include "trace.h"
 
-static void usage(), open_socket(), make_packet(), mtrace_loop(), show_result();
-
 static char *gateway, *intface, *source, *group, *receiver, *destination;
 static int mldsoc, hops = 64, maxhops = 127, waittime = 3, querylen, opt_n;
-static struct sockaddr *gw_sock, *src_sock, *grp_sock, *dst_sock, *rcv_sock;
+static struct sockaddr *gw_sock, *src_sock, *grp_sock, *dst_sock, *rcv_sock; 
 static char *querypacket;
 static char frombuf[1024];	/* XXX: enough size? */
+
+int main __P((int, char *[]));
+static char *proto_type __P((u_int));
+static char *pr_addr __P((struct sockaddr *, int));
+static void setqid __P((int, char *));
+static void mtrace_loop __P((void));
+static char *str_rflags __P((int));
+static void show_ip6_result __P((struct sockaddr_in6 *, int));
+static void show_result __P((struct sockaddr *, int));
+static void set_sockaddr __P((char *, struct addrinfo *, struct sockaddr *));
+static int is_multicast __P((struct sockaddr *));
+static char *all_routers_str __P((int));
+static int ip6_validaddr __P((char *, struct sockaddr_in6 *));
+static int get_my_sockaddr __P((int, struct sockaddr *));
+static void set_hlim __P((int, struct sockaddr *, int));
+static void set_join __P((int, char *, struct sockaddr *));
+static void set_filter __P((int, int));
+static void open_socket __P((void));
+static void make_ip6_packet __P((void));
+static void make_packet __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -126,6 +147,8 @@ main(argc, argv)
 	make_packet();
 
 	mtrace_loop();
+	exit(0);
+	/*NOTREACHED*/
 }
 
 static char *
@@ -159,7 +182,7 @@ proto_type(type)
 
 static char *
 pr_addr(addr, numeric)
-	struct sockaddr_in6 *addr;
+	struct sockaddr *addr;
 	int numeric;
 {
 	static char buf[MAXHOSTNAMELEN];
@@ -169,8 +192,7 @@ pr_addr(addr, numeric)
 		flag |= NI_NUMERICHOST;
 	flag |= NI_WITHSCOPEID;
 
-	getnameinfo((struct sockaddr *)addr, addr->sin6_len, buf, sizeof(buf),
-		    NULL, 0, flag);
+	getnameinfo(addr, addr->sa_len, buf, sizeof(buf), NULL, 0, flag);
 
 	return (buf);
 }
@@ -314,8 +336,8 @@ show_ip6_result(from6, datalen)
 			printf("%3d  ", -i);/* index */
 			/* router address and incoming/outgoing interface */
 			printf("%s", pr_addr((struct sockaddr *)&sa_resp, opt_n));
-			printf("(%s/%ld->%ld) ",
-			       pr_addr((struct sckaddr *)&sa_upstream),
+			printf("(%s/%d->%d) ",
+			       pr_addr((struct sockaddr *)&sa_upstream, 1),
 			       ntohl(rp->tr_inifid), ntohl(rp->tr_outifid));
 			/* multicast routing protocol type */
 			printf("%s ", proto_type(rp->tr_rproto));
@@ -394,7 +416,7 @@ all_routers_str(family)
 	}
 }
 
-int
+static int
 ip6_validaddr(ifname, addr)
 	char *ifname;
 	struct sockaddr_in6 *addr;
@@ -426,12 +448,39 @@ ip6_validaddr(ifname, addr)
 	return(1);
 }
 
-int
+static int
 get_my_sockaddr(family, addrp)
 	int family;
 	struct sockaddr *addrp;
 {
-#define	IF_BUFSIZE 8192		/* XXX: adhoc...should be customizable? */
+#ifdef HAVE_GETIFADDRS
+	struct ifaddrs *ifap, *ifa;
+
+	if (getifaddrs(&ifap) != 0) {
+		err(1, "getifaddrs");
+		/*NOTREACHED */
+	}
+
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr->sa_family == family) {
+			switch(family) {
+			case AF_INET6:
+				if (ip6_validaddr(ifa->ifa_name,
+						  (struct sockaddr_in6 *)ifa->ifa_addr))
+					goto found;
+			}
+		}
+	}
+
+	freeifaddrs(ifap);
+	return (-1);		/* not found */
+
+  found:
+	memcpy((void *)addrp, (void *)ifa->ifa_addr, ifa->ifa_addr->sa_len);
+	freeifaddrs(ifap);
+	return (0);
+#else
+#define IF_BUFSIZE 8192		/* XXX: adhoc...should be customizable? */
 	int i, s;
 	struct ifconf ifconf;
 	struct ifreq *ifrp;
@@ -471,7 +520,8 @@ get_my_sockaddr(family, addrp)
   found:
 	memcpy((void *)addrp, (void *)&ifrp->ifr_addr, ifrp->ifr_addr.sa_len);
 	return(0);
-#undef IF_BUFSIZE
+#undef IF_BUFSIZE	
+#endif
 }
 
 static void
@@ -504,7 +554,7 @@ set_join(s, ifname, group)
 {
 	struct ipv6_mreq mreq6;
 	u_int ifindex;
-
+	
 	switch(group->sa_family) {
 	case AF_INET6:
 		if ((ifindex = if_nametoindex(ifname)) == 0)
@@ -522,6 +572,7 @@ set_join(s, ifname, group)
 
 static void
 set_filter(s, family)
+	int s, family;
 {
 	struct icmp6_filter filter6;
 
@@ -595,7 +646,7 @@ open_socket()
 #else
 			errx(1, "receive I/F is not specified for multicast"
 			     "response(%s)", receiver);
-#endif
+#endif 
 		}
 	}
 	else {
@@ -655,7 +706,8 @@ make_packet()
 static void
 usage()
 {
-	errx(1,
+	fprintf(stderr, "usage: mtrace6 %s\n",
 	     "[-d destination] [-g gateway] [-h hops] [-i interface] "
 	     "[-m maxhops] [-n] [-r response_addr] [-w waittime] source group");
+	exit(1);
 }

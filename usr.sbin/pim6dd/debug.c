@@ -19,7 +19,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -31,10 +31,10 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
- *  $Id: debug.c,v 1.4 1999/09/20 14:28:08 jinmei Exp $
+ *  $Id: debug.c,v 1.8 2000/05/18 12:47:59 itojun Exp $
  */
 /*
  * Part of this program has been derived from mrouted.
@@ -67,6 +67,38 @@ unsigned long debug = 0x00000000;        /* If (long) is smaller than
 static char dumpfilename[] = _PATH_PIM6D_DUMP;
 static char cachefilename[] = _PATH_PIM6D_CACHE; /* TODO: notused */
 
+static char *sec2str __P((time_t));
+
+static char *
+sec2str(total)
+	time_t total;
+{
+	static char result[256];
+	int days, hours, mins, secs;
+	int first = 1;
+	char *p = result;
+
+	days = total / 3600 / 24;
+	hours = (total / 3600) % 24;
+	mins = (total / 60) % 60;
+	secs = total % 60;
+
+	if (days) {
+		first = 0;
+		p += sprintf(p, "%dd", days);
+	}
+	if (!first || hours) {
+		first = 0;
+		p += sprintf(p, "%dh", hours);
+	}
+	if (!first || mins) {
+		first = 0;
+		p += sprintf(p, "%dm", mins);
+	}
+	sprintf(p, "%ds", secs);
+
+	return(result);
+}
 
 char *
 packet_kind(proto, type, code)
@@ -160,7 +192,7 @@ log_level(proto, type, code)
 	default:
 	    return LOG_WARNING;
 	}
-
+	
     case IPPROTO_PIM:
 	/* PIM v2 */
 	switch (type) {
@@ -178,18 +210,18 @@ log_level(proto, type, code)
  * Dump internal data structures to stderr.
  */
 /* TODO: currently not used
-void
+void 
 dump(int i)
 {
     dump_vifs(stderr);
     dump_pim_mrt(stderr);
-}
+}	
 */
 
 /*
  * Dump internal data structures to a file.
  */
-void
+void 
 fdump(i)
     int i;
 {
@@ -197,6 +229,7 @@ fdump(i)
     fp = fopen(dumpfilename, "w");
     if (fp != NULL) {
 	dump_vifs(fp);
+	dump_mldqueriers(fp);
 	dump_pim_mrt(fp);
 	dump_lcl_grp(fp);
 	(void) fclose(fp);
@@ -212,11 +245,11 @@ cdump(i)
     int i;
 {
     FILE *fp;
-
+    
     fp = fopen(cachefilename, "w");
     if (fp != NULL) {
       /* TODO: implement it:
-	 dump_cache(fp);
+	 dump_cache(fp); 
 	 */
 	(void) fclose(fp);
     }
@@ -225,7 +258,7 @@ cdump(i)
 void
 dump_vifs(fp)
     FILE *fp;
-{
+{	
     vifi_t vifi;
     register struct uvif *v;
     pim_nbr_entry_t *n;
@@ -236,7 +269,7 @@ dump_vifs(fp)
     fprintf(fp, "\nMulticast Interface Table\n %-4s %-6s %-50s %-14s %s",
 	    "Mif", " PhyIF", "Local-Address/Prefixlen", "Flags",
 	    "Neighbors\n");
-
+    
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	    int firstaddr = 1;
 	    for (pa = v->uv_addrs; pa; pa = pa->pa_next) {
@@ -280,11 +313,13 @@ dump_vifs(fp)
 			    fprintf(fp, " DVMRP");
 			    width += 6;
 		    }
-#endif
+#endif 
 		    if (v->uv_flags & VIFF_NONBRS) {
 			    fprintf(fp, " %-12s", "NO-NBR");
 			    width += 6;
 		    }
+		    if (v->uv_flags & VIFF_QUERIER)
+			    fprintf(fp, " QRY");
 
 		    if ((n = v->uv_pim_neighbors) != NULL) {
 			    /* Print the first neighbor on the same line */
@@ -295,7 +330,7 @@ dump_vifs(fp)
 			    for (n = n->next; n != NULL; n = n->next)
 				    fprintf(fp, "%64s %-15s\n", "",
 					    inet6_fmt(&n->address.sin6_addr));
-
+	    
 		    }
 		    else
 			    fprintf(fp, "\n");
@@ -319,7 +354,7 @@ log(int severity, int syserr, char *format, ...)
     char *msg;
     struct timeval now;
     struct tm *thyme;
-
+    
     va_start(ap, format);
 #else
 /*VARARGS3*/
@@ -335,13 +370,13 @@ log(severity, syserr, format, va_alist)
     char tbuf[20];
     struct timeval now;
     struct tm *thyme;
-
+    
     va_start(ap);
 #endif
     vsprintf(&fmt[10], format, ap);
     va_end(ap);
     msg = (severity == LOG_WARNING) ? fmt : &fmt[10];
-
+    
     /*
      * Log to stderr if we haven't forked yet and it's a warning or worse,
      * or if we're debugging.
@@ -354,7 +389,8 @@ log(severity, syserr, format, va_alist)
 	if (!debug)
 	    fprintf(stderr, "%s: ", progname);
 	fprintf(stderr, "%02d:%02d:%02d.%03ld %s", thyme->tm_hour,
-		thyme->tm_min, thyme->tm_sec, now.tv_usec / 1000, msg);
+		thyme->tm_min, thyme->tm_sec, (long int)now.tv_usec / 1000,
+		msg);
 	if (syserr == 0)
 	    fprintf(stderr, "\n");
 	else if (syserr < sys_nerr)
@@ -362,7 +398,7 @@ log(severity, syserr, format, va_alist)
 	else
 	    fprintf(stderr, ": errno %d\n", syserr);
     }
-
+    
     /*
      * Always log things that are worse than warnings, no matter what
      * the log_nmsgs rate limiter says.
@@ -380,12 +416,41 @@ log(severity, syserr, format, va_alist)
 	} else
 	    syslog(severity, "%s", msg);
     }
-
+    
     if (severity <= LOG_ERR) exit(-1);
 }
 
-/* TODO: format the output for better readability */
 void
+dump_mldqueriers(fp)
+	FILE *fp;
+{
+	struct uvif *v;
+	vifi_t vifi;
+	time_t now;
+
+	fprintf(fp, "MLD Querier List\n");
+	fprintf(fp, " %-3s %6s %-40s %-5s %15s\n",
+		"Mif", "PhyIF", "Address", "Timer", "Last");
+	(void)time(&now);
+
+	for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
+		if (v->uv_querier) {
+			fprintf(fp, " %-3u %6s", vifi,
+				(v->uv_flags & MIFF_REGISTER) ? "regist":
+				v->uv_name);
+
+			fprintf(fp, " %-40s %5lu %15s\n",
+				inet6_fmt(&v->uv_querier->al_addr.sin6_addr),
+				(u_long)v->uv_querier->al_timer,
+				sec2str(now - v->uv_querier->al_ctime));
+		}
+	}
+
+	fprintf(fp, "\n");
+} 
+
+/* TODO: format the output for better readability */
+void 
 dump_pim_mrt(fp)
     FILE *fp;
 {
@@ -399,8 +464,8 @@ dump_pim_mrt(fp)
     char leaves_oifs[(sizeof(if_set)<<3)+1];
     char filter_oifs[(sizeof(if_set)<<3)+1];
     char incoming_iif[(sizeof(if_set)<<3)+1];
-
-    fprintf(fp, "Multicast Routing Table\n%s",
+    
+    fprintf(fp, "Multicast Routing Table\n%s", 
 	    " Source          Group           Flags\n");
 
     /* TODO: remove the dummy 0:: group (first in the chain) */
@@ -446,7 +511,7 @@ dump_pim_mrt(fp)
 	    if (r->flags & MRTF_SG)            fprintf(fp, " SG");
 	    if (r->flags & MRTF_PMBR)          fprintf(fp, " PMBR");
 	    fprintf(fp, "\n");
-
+	    
 	    fprintf(fp, "Pruned   oifs: %-20s\n", pruned_oifs);
 	    fprintf(fp, "Asserted oifs: %-20s\n", pruned_oifs);
 	    fprintf(fp, "Filtered oifs: %-20s\n", filter_oifs);
@@ -454,7 +519,7 @@ dump_pim_mrt(fp)
 	    fprintf(fp, "Outgoing oifs: %-20s\n", oifs);
 	    fprintf(fp, "Incoming     : %-20s\n", incoming_iif);
 
-	    fprintf(fp, "Upstream nbr: %s\n",
+	    fprintf(fp, "Upstream nbr: %s\n", 
 		    r->upstream ? inet6_fmt(&r->upstream->address.sin6_addr) : "NONE");
 	    fprintf(fp, "\nTIMERS:  Entry   Prune VIFS:");
 	    for (vifi = 0; vifi < numvifs; vifi++)

@@ -57,8 +57,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -66,12 +64,12 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
@@ -93,6 +91,7 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -113,6 +112,8 @@
 #include "callout.h"
 #include "timer.h"
 
+#include "mld6_proto.h"
+
 extern struct in6_addr in6addr_any;
 
 typedef struct
@@ -130,7 +131,7 @@ static void DelVif __P((void *arg));
 static int SetTimer __P((int mifi, struct listaddr * g));
 static int DeleteTimer __P((int id));
 static void SendQuery __P((void *arg));
-static int SetQueryTimer
+static int SetQueryTimer 
 __P((struct listaddr * g, int mifi, int to_expire,
      int q_time));
 
@@ -177,37 +178,34 @@ accept_listener_query(src, dst, group, tmo)
     register struct uvif *v;
     struct sockaddr_in6 group_sa = {sizeof(group_sa), AF_INET6};
 
-    /* Ignore my own membership query */
+    /* Ignore my own listener query */
     if (local_address(src) != NO_VIF)
 	return;
 
-    if ((mifi = find_vif_direct(src)) == NO_VIF)
-    {
+    if ((mifi = find_vif_direct(src)) == NO_VIF) {
 	IF_DEBUG(DEBUG_MLD)
 	    log(LOG_INFO, 0,
 		"accept_listener_query: can't find a mif");
 	return;
     }
-
+    v = &uvifs[mifi];
+    v->uv_in_mld_query++;  
     IF_DEBUG(DEBUG_MLD)
 	log(LOG_DEBUG, 0,
-	    "accepting multicast listener query: "
+	    "accepting multicast listener query on %s: "
 	    "src %s, dst %s, grp %s",
+	    v->uv_name,
 	    inet6_fmt(&src->sin6_addr), inet6_fmt(dst),
 	    inet6_fmt(group));
 
-    v = &uvifs[mifi];
-    v->uv_in_mld_query++;
-
-    if (v->uv_querier == NULL || inet6_equal(&v->uv_querier->al_addr, src))
-    {
+    if (v->uv_querier == NULL || !inet6_equal(&v->uv_querier->al_addr, src)) {
 	/*
-	 * This might be: - A query from a new querier, with a lower source
-	 * address than the current querier (who might be me) - A query from
-	 * a new router that just started up and doesn't know who the querier
-	 * is. - A query from the current querier
+	 * This might be:
+	 * - A query from a new querier, with a lower source address than
+	 *   the current querier (who might be me).
+	 * - A query from a new router that just started up and doesn't know
+	 *   who the querier is.
 	 */
-
 	if (inet6_lessthan(src, (v->uv_querier ? &v->uv_querier->al_addr
 				 : &v->uv_linklocal->pa_addr)))
 	{
@@ -218,22 +216,11 @@ accept_listener_query(src, dst, group, tmo)
 		    v->uv_querier ?
 		    inet6_fmt(&v->uv_querier->al_addr.sin6_addr) :
 		    "me", mifi);
-	    if (!v->uv_querier)
-	    {
+	    if (!v->uv_querier) { /* this should be impossible... */
 		v->uv_querier = (struct listaddr *)malloc(sizeof(struct listaddr));
-		v->uv_querier->al_next = (struct listaddr *) NULL;
-		v->uv_querier->al_timer = 0;
-		v->uv_querier->al_genid = 0;
-		v->uv_querier->al_pv = 0;
-		v->uv_querier->al_mv = 0;
-		v->uv_querier->al_old = 0;
-		v->uv_querier->al_index = 0;
-		v->uv_querier->al_timerid = 0;
-		v->uv_querier->al_query = 0;
-		v->uv_querier->al_flags = 0;
-
-		v->uv_flags &= ~VIFF_QUERIER;
+		memset(v->uv_querier, 0, sizeof(struct listaddr));
 	    }
+	    v->uv_flags &= ~VIFF_QUERIER;
 	    v->uv_querier->al_addr = *src;
 	    time(&v->uv_querier->al_ctime);
 	}
@@ -243,7 +230,7 @@ accept_listener_query(src, dst, group, tmo)
      * Reset the timer since we've received a query.
      */
     if (v->uv_querier && inet6_equal(src, &v->uv_querier->al_addr))
-	v->uv_querier->al_timer = 0;
+	v->uv_querier->al_timer = MLD6_OTHER_QUERIER_PRESENT_INTERVAL;
 
     /*
      * If this is a Group-Specific query which we did not source, we must set
@@ -369,7 +356,7 @@ accept_listener_report(src, dst, group)
     {
 	IF_DEBUG(DEBUG_MLD)
 	    log(LOG_DEBUG,0,
-	    "The group don't exist , trying to add it");
+	    "The group don't exist , trying to add it");	
 
 	g = (struct listaddr *) malloc(sizeof(struct listaddr));
 	if (g == NULL)
@@ -386,7 +373,7 @@ accept_listener_report(src, dst, group)
 	g->al_next = v->uv_groups;
 	v->uv_groups = g;
 	time(&g->al_ctime);
-
+	
 	add_leaf(mifi, NULL, &group_sa);
     }
 }
@@ -405,7 +392,7 @@ accept_listener_done(src, dst, group)
     struct sockaddr_in6 group_sa = {sizeof(group_sa), AF_INET6};
 
 	    /* Don't create routing entries for the LAN scoped addresses */
-
+ 
     if (IN6_IS_ADDR_MC_NODELOCAL(group)) /* sanity? */
     {
     IF_DEBUG(DEBUG_MLD)
@@ -521,7 +508,7 @@ DelVif(arg)
 
     /* increment statistics */
     v->uv_listener_timo++;
-
+    
     anp = &(v->uv_groups);
     while ((a = *anp) != NULL)
     {

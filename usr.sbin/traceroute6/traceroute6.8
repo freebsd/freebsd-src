@@ -25,7 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: traceroute6.8,v 1.1.1.1 1999/08/08 23:32:38 itojun Exp $
 .\"	$FreeBSD$
 .\"
 .Dd May 17, 1998
@@ -37,18 +36,48 @@
 .Nd "print the route IPv6 packets will take to the destination"
 .\"
 .Sh SYNOPSIS
-.Nm
+.Nm traceroute6
+.Bk -words
 .Op Fl dlnrv
+.Ek
+.Bk -words
+.Op Fl f Ar firsthop
+.Ek
+.Bk -words
+.Op Fl g Ar gateway
+.Ek
+.Bk -words
 .Op Fl m Ar hoplimit
+.Ek
+.Bk -words
 .Op Fl p Ar port
+.Ek
+.Bk -words
 .Op Fl q Ar probes
+.Ek
+.Bk -words
 .Op Fl s Ar src
+.Ek
+.Bk -words
 .Op Fl w Ar waittime
+.Ek
+.Bk -words
+.Ar target
+.Op Ar datalen
+.Ek
 .\"
 .Sh DESCRIPTION
 .Bl -tag -width Ds
 .It Fl d
 Debug mode.
+.It Fl f Ar firsthop
+Specify how many hops to skip in trace.
+.It Fl g Ar gateway
+Specify intermediate gateway
+.Po
+.Nm
+uses routing header
+.Pc .
 .It Fl m Ar hoplimit
 Specify maximum hoplimit.
 .It Fl l
@@ -92,7 +121,3 @@ command will exit with 0 on success, and non-zero on errors.
 The
 .Nm
 command first appeared in WIDE hydrangea IPv6 protocol stack kit.
-.Pp
-IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
-was initially integrated into
-.Fx 4.0

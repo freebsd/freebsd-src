@@ -1,3 +1,5 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -34,24 +36,25 @@
  */
 
 struct dst_list {
-	struct	dst_list *dl_next;
-	struct	sockaddr *dl_dst;
+	struct dst_list *	dl_next;
+	struct sockaddr *	dl_dst;
 };
 
-extern struct	dst_list *dl_head;
+extern struct dst_list *dl_head;
 
 struct payload_list {
-	struct	payload_list *pl_next;
-	struct	iovec pl_sndiov;
-	struct	icmp6_router_renum pl_irr;
-	struct	rr_pco_match pl_rpm;
+	struct payload_list *	pl_next;
+	struct iovec		pl_sndiov;
+	struct icmp6_router_renum
+				pl_irr;
+	struct rr_pco_match	pl_rpm;
 	/* currently, support only 1 rr_pco_use field per packet */
-	struct	rr_pco_use pl_rpu;
+	struct rr_pco_use	pl_rpu;
 };
 
-extern struct	payload_list *pl_head;
-extern u_int	retry;
-extern int	with_v4dest, with_v6dest;
+extern struct payload_list *pl_head;
+extern u_int retry;
+extern int with_v4dest, with_v6dest;
 
-#define	DEF_VLTIME 2592000
-#define	DEF_PLTIME 604800
+#define DEF_VLTIME 2592000
+#define DEF_PLTIME 604800

@@ -15,9 +15,9 @@
 
 PROG=	rtsold
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c
-CFLAGS+=-DINET6
-LDADD+=	-lkvm
-DPADD+=	${LIBKVM}
+CFLAGS+=-DINET6 -DHAVE_GETIFADDRS
+LDADD=	-lkvm
+DPADD=	${LIBKVM}
 
 MAN8=	rtsold.8
 MLINKS=	rtsold.8 rtsol.8

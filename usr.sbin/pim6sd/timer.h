@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -34,47 +32,48 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef TIMER_H
-#define	TIMER_H
+#define TIMER_H
 
 /* the default granularity if not specified in the config file */
 
-#define	DEFAULT_TIMER_INTERVAL 5
+#define DEFAULT_TIMER_INTERVAL 5
 
 /* For timeout. The timers count down */
 
-#define	SET_TIMER(timer, value) (timer) = (value)
-#define	RESET_TIMER(timer) (timer) = 0
-#define	COPY_TIMER(timer_1, timer_2) (timer_2) = (timer_1)
-#define	IF_TIMER_SET(timer) if ((timer) > 0)
-#define	IF_TIMER_NOT_SET(timer) if ((timer) <= 0)
-#define	FIRE_TIMER(timer)       (timer) = 0
+#define SET_TIMER(timer, value) (timer) = (value)
+#define RESET_TIMER(timer) (timer) = 0
+#define COPY_TIMER(timer_1, timer_2) (timer_2) = (timer_1)
+#define IF_TIMER_SET(timer) if ((timer) > 0)
+#define IF_TIMER_NOT_SET(timer) if ((timer) <= 0)
+#define FIRE_TIMER(timer)       (timer) = 0
 
 
-#define	IF_TIMER_NOT_SET(timer) if ((timer) <= 0)
+#define IF_TIMER_NOT_SET(timer) if ((timer) <= 0)
 
-#define	IF_TIMEOUT(timer)       \
+#define IF_TIMEOUT(timer)       \
     if (!((timer) -= (MIN(timer, timer_interval))))
 
-#define	IF_NOT_TIMEOUT(timer)       \
+#define IF_NOT_TIMEOUT(timer)       \
     if ((timer) -= (MIN(timer, timer_interval)))
 
-#define	TIMEOUT(timer)          \
+#define TIMEOUT(timer)          \
     (!((timer) -= (MIN(timer, timer_interval))))
-
-#define	NOT_TIMEOUT(timer)      \
+ 
+#define NOT_TIMEOUT(timer)      \
     ((timer) -= (MIN(timer, timer_interval)))
 
 
@@ -92,11 +91,11 @@ extern u_int32 pim_register_suppression_timeout;
 extern u_int32 pim_register_probe_time;
 extern u_int32 pim_assert_timeout;
 
-extern void init_timers     __P(());
-extern void init_timers     __P(());
-extern void age_vifs        __P(());
-extern void age_routes      __P(());
-extern void age_misc        __P(());
+extern void init_timers     __P((void));
+extern void init_timers     __P((void)); 
+extern void age_vifs        __P((void)); 
+extern void age_routes      __P((void)); 
+extern void age_misc        __P((void));
 
 
 #endif

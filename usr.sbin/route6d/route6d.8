@@ -1,3 +1,6 @@
+.\"	$FreeBSD$
+.\"	$KAME: route6d.8,v 1.8 2000/05/31 17:00:09 itojun Exp $
+.\"
 .\" Copyright (c) 1996 WIDE Project. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -11,9 +14,6 @@
 .\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
 .\" LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 .\" A PARTICULAR PURPOSE.
-.\"
-.\"	$FreeBSD$
-.\"
 .Dd January 31, 1997
 .Dt ROUTE6D 8
 .Os KAME
@@ -23,13 +23,27 @@
 .Sh SYNOPSIS
 .Nm route6d
 .Op Fl adDhlqsS
+.Bk -words
 .Op Fl R Ar routelog
+.Ek
+.Bk -words
 .Op Fl A Ar prefix/preflen,if1[,if2...]
+.Ek
+.Bk -words
 .Op Fl L Ar prefix/preflen,if1[,if2...]
+.Ek
+.Bk -words
 .Op Fl N Ar if1[,if2...]
+.Ek
+.Bk -words
 .Op Fl O Ar prefix/preflen,if1[,if2...]
+.Ek
+.Bk -words
 .Op Fl T Ar if1[,if2...]
+.Ek
+.Bk -words
 .Op Fl t Ar tag
+.Ek
 .\"
 .Sh DESCRIPTION
 The
@@ -92,7 +106,8 @@ Disables the split horizon processing.
 By default,
 .Nm
 will not exchange site local routes for safety reasons.
-This is because semantics of site local address space is rather vague,
+This is because semantics of site local address space is rather vague
+.Pq specification is still in being worked ,
 and there is no good way to define site local boundary.
 With
 .Fl l
@@ -185,11 +200,11 @@ or
 .Dv SIGUSR1 ,
 .Nm
 will dump the current internal state into
-.Pa /var/tmp/route6d_dump .
+.Pa /var/run/route6d_dump .
 .\"
 .Sh FILES
-.Bl -tag -width /var/tmp/route6d_dump -compact
-.It Pa /var/tmp/route6d_dump
+.Bl -tag -width /var/run/route6d_dump -compact
+.It Pa /var/run/route6d_dump
 dumps internal state on
 .Dv SIGINT
 or
@@ -220,7 +235,7 @@ and
 .Li ff02::xx
 .Pc
 so they will be visible on internal state dump file
-.Pq Pa /var/tmp/route6d_dump .
+.Pq Pa /var/run/route6d_dump .
 .Pp
 Routing table manipulation differs from IPv6 implementation to implementation.
 Currently

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -48,7 +48,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -60,10 +60,10 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
- *  $Id: mld6.c,v 1.7 2000/01/04 17:17:21 jinmei Exp $
+ *  $Id: mld6.c,v 1.13 2000/04/12 07:34:38 jinmei Exp $
  */
 /*
  * Part of this program has been derived from mrouted.
@@ -100,11 +100,12 @@ static struct msghdr 		sndmh,
 static struct iovec 		sndiov[2];
 static struct iovec 		rcviov[2];
 static struct sockaddr_in6 	from;
-static u_char   		rcvcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-			   	CMSG_SPACE(sizeof(int))];
+static u_char   		*rcvcmsgbuf = NULL;
+static int			rcvcmsglen;
+
 #ifndef USE_RFC2292BIS
 u_int8_t raopt[IP6OPT_RTALERT_LEN];
-#endif
+#endif 
 static char *sndcmsgbuf;
 static int ctlbuflen = 0;
 static u_short rtalert_code;
@@ -116,8 +117,8 @@ static void accept_mld6 __P((int len));
 static void make_mld6_msg __P((int, int, struct sockaddr_in6 *,
 	struct sockaddr_in6 *, struct in6_addr *, int, int, int, int));
 
-#ifndef IP6OPT_ROUTER_ALERT
-#define	IP6OPT_ROUTER_ALERT IP6OPT_RTALERT
+#ifndef IP6OPT_ROUTER_ALERT	/* XXX to be compatible older systems */
+#define IP6OPT_ROUTER_ALERT IP6OPT_RTALERT
 #endif
 
 /*
@@ -131,10 +132,15 @@ init_mld6()
 
     rtalert_code = htons(IP6OPT_RTALERT_MLD);
     if (!mld6_recv_buf && (mld6_recv_buf = malloc(RECV_BUF_SIZE)) == NULL)
-	    log(LOG_ERR, 0, "malloca failed");
+	    log(LOG_ERR, 0, "malloc failed");
     if (!mld6_send_buf && (mld6_send_buf = malloc(RECV_BUF_SIZE)) == NULL)
-	    log(LOG_ERR, 0, "malloca failed");
+	    log(LOG_ERR, 0, "malloc failed");
 
+    rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
+	    CMSG_SPACE(sizeof(int));
+    if (rcvcmsgbuf == NULL && (rcvcmsgbuf = malloc(rcvcmsglen)) == NULL)
+	    log(LOG_ERR, 0,"malloc failed");
+    
     IF_DEBUG(DEBUG_KERN)
         log(LOG_DEBUG,0,"%d octets allocated for the emit/recept buffer mld6",RECV_BUF_SIZE);
 
@@ -173,7 +179,7 @@ init_mld6()
     if (setsockopt(mld6_socket, IPPROTO_IPV6, IPV6_PKTINFO, &on,
 		   sizeof(on)) < 0)
 	log(LOG_ERR, errno, "setsockopt(IPV6_PKTINFO)");
-#endif
+#endif 
     on = 1;
     /* specify to tell value of hoplimit field of received IP6 hdr */
 #ifdef IPV6_RECVHOPLIMIT
@@ -184,7 +190,7 @@ init_mld6()
     if (setsockopt(mld6_socket, IPPROTO_IPV6, IPV6_HOPLIMIT, &on,
 		   sizeof(on)) < 0)
 	log(LOG_ERR, errno, "setsockopt(IPV6_HOPLIMIT)");
-#endif
+#endif 
     /* initialize msghdr for receiving packets */
     rcviov[0].iov_base = (caddr_t) mld6_recv_buf;
     rcviov[0].iov_len = RECV_BUF_SIZE;
@@ -193,7 +199,7 @@ init_mld6()
     rcvmh.msg_iov = rcviov;
     rcvmh.msg_iovlen = 1;
     rcvmh.msg_control = (caddr_t) rcvcmsgbuf;
-    rcvmh.msg_controllen = sizeof(rcvcmsgbuf);
+    rcvmh.msg_controllen = rcvcmsglen;
 
     /* initialize msghdr for sending packets */
     sndiov[0].iov_base = (caddr_t)mld6_send_buf;
@@ -205,7 +211,7 @@ init_mld6()
     raopt[0] = IP6OPT_ROUTER_ALERT;
     raopt[1] = IP6OPT_RTALERT_LEN - 2;
     memcpy(&raopt[2], (caddr_t) & rtalert_code, sizeof(u_short));
-#endif
+#endif 
 
     /* register MLD message handler */
     if (register_input_handler(mld6_socket, mld6_read) < 0)
@@ -250,19 +256,6 @@ int recvlen;
 	int ifindex = 0;
 	struct sockaddr_in6 *src = (struct sockaddr_in6 *) rcvmh.msg_name;
 
-	/*
-	 * If control length is zero, it must be an upcall from the kernel
-	 * multicast forwarding engine.
-	 * XXX: can we trust it?
-	 */
-	if (rcvmh.msg_controllen == 0) {
-		/* XXX: msg_controllen must be reset in this case. */
-		rcvmh.msg_controllen = sizeof(rcvcmsgbuf);
-
-		process_kernel_call();
-		return;
-	}
-
 	if (recvlen < sizeof(struct mld6_hdr))
 	{
 		log(LOG_WARNING, 0,
@@ -271,6 +264,20 @@ int recvlen;
 		return;
 	}
 	mldh = (struct mld6_hdr *) rcvmh.msg_iov[0].iov_base;
+
+	/*
+	 * Packets sent up from kernel to daemon have ICMPv6 type = 0.
+	 * Note that we set filters on the mld6_socket, so we should never
+	 * see a "normal" ICMPv6 packet with type 0 of ICMPv6 type.
+	 */
+	if (mldh->mld6_type == 0) {
+		/* XXX: msg_controllen must be reset in this case. */
+		rcvmh.msg_controllen = rcvcmsglen;
+
+		process_kernel_call();
+		return;
+	}
+
 	group = &mldh->mld6_addr;
 
 	/* extract optional information via Advanced API */
@@ -400,7 +407,7 @@ make_mld6_msg(type, code, src, dst, group, ifindex, delay, datalen, alert)
 	datalen = sizeof(struct mld6_hdr);
 	break;
     }
-
+   
     bzero(mhp, sizeof(*mhp));
     mhp->mld6_type = type;
     mhp->mld6_code = code;
@@ -427,6 +434,7 @@ make_mld6_msg(type, code, src, dst, group, ifindex, delay, datalen, alert)
 	hbhlen = inet6_option_space(sizeof(raopt));
 	ctllen += hbhlen;
 #endif
+	
     }
     /* extend ancillary data space (if necessary) */
     if (ctlbuflen < ctllen) {
@@ -488,7 +496,7 @@ make_mld6_msg(type, code, src, dst, group, ifindex, delay, datalen, alert)
 		    if (inet6_option_append(cmsgp, raopt, 4, 0))
 			    log(LOG_ERR, 0, /* assert */
 				"make_mld6_msg: inet6_option_append failed");
-#endif
+#endif 
 		    cmsgp = CMSG_NXTHDR(&sndmh, cmsgp);
 	    }
     }
@@ -508,7 +516,7 @@ send_mld6(type, code, src, dst, group, index, delay, datalen, alert)
 {
     int setloop = 0;
     struct sockaddr_in6 *dstp;
-
+	
     make_mld6_msg(type, code, src, dst, group, index, delay, datalen, alert);
     dstp = (struct sockaddr_in6 *)sndmh.msg_name;
     if (IN6_ARE_ADDR_EQUAL(&dstp->sin6_addr, &allnodes_group.sin6_addr)) {
@@ -529,7 +537,7 @@ send_mld6(type, code, src, dst, group, index, delay, datalen, alert)
 	    k_set_loop(mld6_socket, FALSE);
 	return;
     }
-
+    
     IF_DEBUG(DEBUG_PKT|debug_kind(IPPROTO_IGMP, type, 0))
 	log(LOG_DEBUG, 0, "SENT %s from %-15s to %s",
 	    packet_kind(IPPROTO_ICMPV6, type, 0),
