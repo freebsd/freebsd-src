@@ -73,14 +73,15 @@ struct file_list {
 #define BEFORE_DEPEND	8
 
 struct device {
-	int	d_type;			/* CONTROLLER, DEVICE, bus adaptor */
-	struct	device *d_conn;		/* what it is connected to */
+	int	d_type;			/* DEVICE, bus adaptor */
+	char	*d_conn;		/* what it is connected to */
+	int	d_connunit;		/* unit of connection */
 	char	*d_name;		/* name of device (e.g. rk11) */
 	int	d_unit;			/* unit number */
 	int	d_drive;		/* drive number */
 	int	d_target;		/* target number */
 	int	d_lun;			/* unit number */
-	int	d_slave;		/* slave number */
+	int	d_bus;			/* controller bus number */
 	int	d_count;		/* pseudo-device count */
 #define QUES	-1	/* -1 means '?' */
 #define	UNKNOWN -2	/* -2 means not set yet */
@@ -95,7 +96,6 @@ struct device {
 	int	d_irq;			/* interrupt request  */
 	struct	device *d_next;		/* Next one in list */
 };
-#define TO_NEXUS	(struct device *)-1
 
 struct config {
 	char	*s_sysname;

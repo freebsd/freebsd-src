@@ -103,11 +103,11 @@ char	errbuf[80];
 int	maxusers;
 
 int	seen_scbus;
+int	warned_controller;
 
 #define ns(s)	strdup(s)
 
-static struct device *connect __P((char *, int));
-static struct device *huhcon __P((char *));
+static int connect __P((char *, int));
 static void yyerror __P((char *s));
 
 
@@ -320,7 +320,12 @@ Device_spec:
 		cur.d_type = DEVICE;
 		} |
 	CONTROLLER Dev_name Dev_info
-	      = { cur.d_type = CONTROLLER; } |
+	      = {
+		if (warned_controller < 3)
+		    warnx("line %d: Obsolete keyword 'controller' found - use 'device'", yyline);
+		warned_controller++;
+	        cur.d_type = DEVICE;
+	        } |
 	PSEUDO_DEVICE Init_dev Dev
 	      = {
 		cur.d_name = $3;
@@ -337,9 +342,9 @@ Dev_name:
 	Init_dev Dev NUMBER
 	      = {
 		cur.d_name = $2;
+		cur.d_unit = $3;
 		if (eq($2, "scbus"))
 			seen_scbus = 1;
-		cur.d_unit = $3;
 		};
 
 Init_dev:
@@ -355,15 +360,15 @@ Dev_info:
 Con_info:
 	AT Dev NUMBER
 	      = {
-		if (eq(cur.d_name, "mba") || eq(cur.d_name, "uba")) {
-			(void) snprintf(errbuf, sizeof(errbuf), 
-				"%s must be connected to a nexus", cur.d_name);
-			yyerror(errbuf);
-		}
-		cur.d_conn = connect($2, $3);
+		connect($2, $3);
+		cur.d_conn = $2;
+		cur.d_connunit = $3;
 		} |
 	AT NEXUS NUMBER
-	      = { cur.d_conn = TO_NEXUS; };
+	      = {
+	        cur.d_conn = "nexus";
+	        cur.d_connunit = 0;
+	        };
     
 Info_list:
 	Info_list Info
@@ -373,13 +378,7 @@ Info_list:
 
 Info:
 	BUS NUMBER	/* controller scbus1 at ahc0 bus 1 - twin channel */
-	      = {
-		if (cur.d_conn != 0 && cur.d_conn->d_type == CONTROLLER)
-			cur.d_slave = $2;
-		else
-			yyerror("can't specify a bus to something "
-				 "other than a controller");
-		} |
+	      = { cur.d_bus = $2; } |
 	TARGET NUMBER
 	      = { cur.d_target = $2; } |
 	UNIT NUMBER
@@ -449,90 +448,39 @@ newdev(dp)
  * find the pointer to connect to the given device and number.
  * returns 0 if no such device and prints an error message
  */
-static struct device *
+static int
 connect(dev, num)
 	register char *dev;
 	register int num;
 {
 	register struct device *dp;
 
-	if (num == QUES)
-		return (huhcon(dev));
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if ((num != dp->d_unit) || !eq(dev, dp->d_name))
-			continue;
-		if (dp->d_type != CONTROLLER) {
-			(void) snprintf(errbuf, sizeof(errbuf), 
-			    "%s connected to non-controller", dev);
+	if (num == QUES) {
+		for (dp = dtab; dp != 0; dp = dp->d_next)
+			if (eq(dp->d_name, dev))
+				break;
+		if (dp == 0) {
+			(void) snprintf(errbuf, sizeof(errbuf),
+			    "no %s's to wildcard", dev);
 			yyerror(errbuf);
 			return (0);
 		}
-		return (dp);
+		return (1);
+	}
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		if ((num != dp->d_unit) || !eq(dev, dp->d_name))
+			continue;
+		if (dp->d_type != DEVICE) {
+			(void) snprintf(errbuf, sizeof(errbuf), 
+			    "%s connected to non-device", dev);
+			yyerror(errbuf);
+			return (0);
+		}
+		return (1);
 	}
 	(void) snprintf(errbuf, sizeof(errbuf), "%s %d not defined", dev, num);
 	yyerror(errbuf);
 	return (0);
-}
-
-/*
- * connect to an unspecific thing
- */
-static struct device *
-huhcon(dev)
-	register char *dev;
-{
-	register struct device *dp, *dcp;
-	struct device rdev;
-	int oldtype;
-
-	/*
-	 * First make certain that there are some of these to wildcard on
-	 */
-	for (dp = dtab; dp != 0; dp = dp->d_next)
-		if (eq(dp->d_name, dev))
-			break;
-	if (dp == 0) {
-		(void) snprintf(errbuf, sizeof(errbuf), "no %s's to wildcard",
-		   dev);
-		yyerror(errbuf);
-		return (0);
-	}
-	oldtype = dp->d_type;
-	dcp = dp->d_conn;
-	/*
-	 * Now see if there is already a wildcard entry for this device
-	 * (e.g. Search for a "uba ?")
-	 */
-	for (; dp != 0; dp = dp->d_next)
-		if (eq(dev, dp->d_name) && dp->d_unit == -1)
-			break;
-	/*
-	 * If there isn't, make one because everything needs to be connected
-	 * to something.
-	 */
-	if (dp == 0) {
-		dp = &rdev;
-		init_dev(dp);
-		dp->d_unit = QUES;
-		dp->d_name = ns(dev);
-		dp->d_type = oldtype;
-		newdev(dp);
-		dp = curp;
-		/*
-		 * Connect it to the same thing that other similar things are
-		 * connected to, but make sure it is a wildcard unit
-		 * (e.g. up connected to sc ?, here we make connect sc? to a
-		 * uba?).  If other things like this are on the NEXUS or
-		 * if they aren't connected to anything, then make the same
-		 * connection, else call ourself to connect to another
-		 * unspecific device.
-		 */
-		if (dcp == TO_NEXUS || dcp == 0)
-			dp->d_conn = dcp;
-		else
-			dp->d_conn = connect(dcp->d_name, QUES);
-	}
-	return (dp);
 }
 
 void
@@ -546,7 +494,7 @@ init_dev(dp)
 	dp->d_conflicts = 0;
 	dp->d_disabled = 0;
 	dp->d_flags = 0;
-	dp->d_slave = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = \
+	dp->d_bus = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = \
 		dp->d_count = UNKNOWN;
 	dp->d_port = (char *)0;
 	dp->d_portn = -1;
