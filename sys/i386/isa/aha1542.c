@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id: aha1542.c,v 1.9 1993/10/12 07:15:28 rgrimes Exp $
+ *	$Id: aha1542.c,v 1.10 1993/10/13 16:34:10 rgrimes Exp $
  */
 
 /*
@@ -151,6 +151,8 @@ extern int delaycount;  /* from clock setup code */
 #define AHA_WRITE_FIFO		0x1c	/* write fifo buffer */
 #define AHA_READ_FIFO		0x1d	/* read fifo buffer */
 #define AHA_ECHO		0x1e	/* Echo command data */
+#define AHA_EXT_BIOS		0x28	/* return extended bios info */
+#define AHA_MBX_ENABLE		0x29	/* enable mail box interface */
 
 struct aha_cmd_buf {
 	 u_char byte[16];	
@@ -292,6 +294,29 @@ struct	aha_config
 	u_char	intr;
 	u_char	scsi_dev:3;
 	u_char	:5;
+};
+
+struct	aha_inquire
+{
+	u_char	boardid;		/* type of board */
+					/* 0x20 = BusLogic 545, but it gets
+					   the command wrong, only returns
+					   one byte */
+					/* 0x31 = AHA-1540 */
+					/* 0x41 = AHA-1540A/1542A/1542B */
+					/* 0x42 = AHA-1640 */
+					/* 0x43 = AHA-1542C */
+					/* 0x44 = AHA-1542CF */
+	u_char	spec_opts;		/* special options ID */
+					/* 0x41 = Board is standard model */
+	u_char	revision_1;		/* firmware revision [0-9A-Z] */
+	u_char	revision_2;		/* firmware revision [0-9A-Z] */
+};
+
+struct	aha_extbios
+{
+	u_char	flags;			/* Bit 3 == 1 extended bios enabled */
+	u_char	mailboxlock;		/* mail box lock code to unlock it */
 };
 
 #define INT9	0x01
@@ -882,6 +907,8 @@ int	unit;
 	unsigned char ad[3];
 	volatile int i,sts;
 	struct	aha_config conf;
+	struct	aha_inquire inquire;
+	struct	aha_extbios extbios;
 
 	/***********************************************\
 	* reset board, If it doesn't respond, assume 	*
@@ -904,10 +931,45 @@ int	unit;
 #endif	/*AHADEBUG*/
 		return(ENXIO);
 	}
-
+	/*
+	 * Assume we have a board at this stage, do an adapter inquire
+	 * to find out what type of controller it is
+	 */
+	aha_cmd(unit, 0, sizeof(inquire), 1 ,&inquire, AHA_INQUIRE);
+#ifdef	AHADEBUG
+	printf("aha%d: inquire %x, %x, %x, %x\n",
+		unit,
+		inquire.boardid, inquire.spec_opts,
+		inquire.revision_1, inquire.revision_2);
+#endif	/* AHADEBUG */
+	/*
+	 * XXX The Buslogic 545S gets the AHA_INQUIRE command wrong,
+	 * they only return one byte which causes us to print an error,
+	 * so if the boardid comes back as 0x20, tell the user why they
+	 * get the "cmd/data port empty" message
+	 */
+	if (inquire.boardid == 0x20) {
+		/* looks like a Buslogic 545 */
+		printf ("aha%d: above cmd/data port empty do to Buslogic 545\n",
+			unit);
+	}
+	/*
+	 * If we are on a 1542C or 1542CF find out if the extended bios
+	 * is enabled, if it is disable it, or else it will screw us up later
+	 */
+	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44)) {
+		aha_cmd(unit, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
+#ifdef	AHADEBUG
+		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
+#endif	/* AHADEBUG */
+		if (extbios.flags & 0x8) {
+			printf("aha%d: disabling bios enhanced features\n");
+			aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
+				0, extbios.mailboxlock);
+		}
+	}
 	/***********************************************\
-	* Assume we have a board at this stage		*
-	* setup dma channel from jumpers and save int	*
+	* Setup dma channel from jumpers and save int	*
 	* level						*
 	\***********************************************/
 #ifdef	__386BSD__
