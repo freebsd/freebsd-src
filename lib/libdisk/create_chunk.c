@@ -56,19 +56,19 @@ msgDebug(char *fmt, ...)
     write(DebugFD, dbg, strlen(dbg));
 }
 
-void
+int
 Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 {
     struct chunk *c1, *c3;
     int j;
     
-    if (!strcmp(c->name, "X")) return;
+    if (!strcmp(c->name, "X")) return 0;
     
     /* reset all names to "X" */
     for (c1 = c->part; c1; c1 = c1->next) {
 	c1->oname = c1->name;
 	c1->name = malloc(12);
-	if(!c1->name) barfout(1, "Malloc failed");
+	if(!c1->name) return -1;
 	strcpy(c1->name,"X");
     }
     
@@ -96,7 +96,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 		goto newname;
 	    }
 	strcpy(c1->name, c1->oname);
-    newname:
+    newname: ;
     }
     
     
@@ -121,9 +121,10 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	free(c1->oname);
 	c1->oname = 0;
     }
+    return 0;
 }
 
-void
+int
 Fixup_Extended_Names(struct disk *d, struct chunk *c)
 {
     struct chunk *c1;
@@ -133,14 +134,16 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 	if (c1->type == unused) continue;
 	free(c1->name);
 	c1->name = malloc(12);
-	if(!c1->name) barfout(1, "malloc failed");
+	if(!c1->name) return -1;
 	sprintf(c1->name, "%ss%d", d->chunks->name, j++);
 	if (c1->type == freebsd)
-	    Fixup_FreeBSD_Names(d, c1);
+	    if (Fixup_FreeBSD_Names(d, c1) != 0)
+		return -1;
     }
+    return 0;
 }
 
-void
+int
 Fixup_Names(struct disk *d)
 {
     struct chunk *c1, *c2;
@@ -159,7 +162,7 @@ Fixup_Names(struct disk *d)
 	    continue;
 #ifdef __i386__
 	c2->oname = malloc(12);
-	if(!c2->oname) barfout(1, "malloc failed");
+	if(!c2->oname) return -1;
 	for(j = 1; j <= NDOSPART; j++) {
 	    sprintf(c2->oname, "%ss%d", c1->name, j);
 	    for(c3 = c1->part; c3; c3 = c3->next)
@@ -193,6 +196,7 @@ Fixup_Names(struct disk *d)
 	    Fixup_Extended_Names(d, c2);
 #endif
     }
+    return 0;
 }
 
 int
@@ -263,7 +267,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
     for (c1=parent->part; c1; c1 = c1->next)
 	if (c1->offset == offset)
 	    return c1;
-    barfout(1, "Serious internal trouble");
+    /* barfout(1, "Serious internal trouble"); */
     return 0;
 }
 

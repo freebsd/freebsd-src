@@ -16,25 +16,30 @@
 #include "libdisk.h"
 
 void *
-read_block(int fd, daddr_t block)
+read_block(int fd, daddr_t block, u_long sector_size)
 {
 	void *foo;
 
-	foo = malloc(512);
+	foo = malloc(sector_size);
 	if (!foo)
-		barfout(1, "malloc");
-	if (-1 == lseek(fd, (off_t)block * 512, SEEK_SET))
-		barfout(1, "lseek");
-	if (512 != read(fd, foo, 512))
-		barfout(1, "read");
+		return NULL;
+	if (-1 == lseek(fd, (off_t)block * sector_size, SEEK_SET)) {
+		free (foo);
+		return NULL;
+	}
+	if (sector_size != read(fd, foo, sector_size)) {
+		free (foo);
+		return NULL;
+	}
 	return foo;
 }
 
-void
-write_block(int fd, daddr_t block, void *foo)
+int
+write_block(int fd, daddr_t block, void *foo, u_long sector_size)
 {
-	if (-1 == lseek(fd, (off_t)block * 512, SEEK_SET))
-		barfout(1, "lseek");
-	if (512 != write(fd,foo, 512))
-		barfout(1, "write");
+	if (-1 == lseek(fd, (off_t)block * sector_size, SEEK_SET))
+		return -1;
+	if (sector_size != write(fd, foo, sector_size))
+		return -1;
+	return 0;
 }
