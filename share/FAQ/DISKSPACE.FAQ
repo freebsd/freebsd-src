@@ -111,7 +111,7 @@ Therefore, to get FreeBSD onto your disk, you need to do the following:
   ------------------------------------------------------------  ---------------
   1.  Make an MBR slice for FreeBSD                             (FDISK)
   2.  Partition the diskspace in the MBR slice into partitions  (DISKLABEL)
-  3.  Assign mount-points to the partitions.                    (DISKLABEL)
+  3.  Assign mountpoints to the partitions.                     (DISKLABEL)
 
 
 
@@ -205,7 +205,7 @@ The disklabel screen provides the following commands:
    and may say zero, even though there is diskspace available.  If it
    does, delete and resize the other partitions.
 
-(M)ountpoint -- Here you assign where the filesystem in a partition is to
+(A)ssign -- Here you assign where the filesystem in a partition is to
    be mounted.  `b' partitions will always be made into "swap" partitions.
 
 (D)elete -- Delete a partition.
@@ -262,4 +262,4 @@ Mountpoint	Filesystem size
 /usr/X11R6	50Mb	If you load the entire XFree86 binary kit.
 
 
-$Id: DISKSPACE.FAQ,v 1.5 1994/11/11 07:39:39 jkh Exp $
+$Id: DISKSPACE.FAQ,v 1.6 1994/11/18 10:32:43 jkh Exp $
