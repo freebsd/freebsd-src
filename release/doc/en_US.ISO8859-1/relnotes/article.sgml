@@ -1468,16 +1468,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<filename>/usr/src/sys/ufs/ufs/README.extattr</filename> for
 	details).</para>
 
-      <para role="historic">Due to a licensing change, softupdates have been
+      <para role="historic">Due to a licensing change, Soft Updates have been
 	integrated into the main portion of the kernel source tree.
-	As a consequence, softupdates are now available with the
+	As a consequence, Soft Updates are now available with the
 	<filename>GENERIC</filename> kernel. &merged;</para>
 
       <para>A filesystem snapshot capability has been added to FFS.
 	Details can be found in
 	<filename>/usr/src/sys/ufs/ffs/README.snapshot</filename>.</para>
 
-      <para>When running with softupdates, &man.statfs.2; and
+      <para>When running with Soft Updates, &man.statfs.2; and
 	&man.df.1; will track the number of blocks and files that are
 	committed to being freed.</para>
 
@@ -1603,6 +1603,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	selected as an option in &man.newfs.8; or via the partitioning
 	screen in &man.sysinstall.8;.  64-bit platforms can boot from
 	UFS2 root filesystems.</para>
+
+      <para>To support new features mentioned in this section, minor
+	changes have been made to the format of the UFS1 superblock.
+	These changes may create some compatability problems when a
+	system older than &os; 4.7-RELEASE attempts to &man.mount.8;
+	or &man.fsck.8; a local UFS1 filesystem created by &os;
+	&release.current; or later.  &os; 4.7-RELEASE and later are
+	fully compatible.  This situation typically arises on a
+	dual-boot machine with multiple versions of &os;
+	installed.</para>
 
     </sect3>
 
@@ -2621,7 +2631,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.fsck.ffs.8; now supports background filesystem checks
       to mounted FFS filesystems with the <option>-B</option> option
-      (softupdates must be enabled on these filesystems).  The
+      (Soft Updates must be enabled on these filesystems).  The
       <option>-F</option> flag now determines whether a specified
       filesystem needs foreground checking.</para>
 
@@ -3092,7 +3102,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       faster. &merged;</para>
 
     <para role="historic">&man.newfs.8; now takes a <option>-U</option> option to
-      enable softupdates on a new filesystem. &merged;</para>
+      enable Soft Updates on a new filesystem. &merged;</para>
 
     <para role="historic">The default number of cylinders per group in &man.newfs.8;
       is now computed to be the maximum allowable given the current
