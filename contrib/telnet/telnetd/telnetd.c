@@ -348,6 +348,9 @@ main(int argc, char *argv[])
 		    err(1, "socket");
 	    (void) setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
 				(char *)&on, sizeof(on));
+	    if (debug > 1)
+	        (void) setsockopt(s, SOL_SOCKET, SO_DEBUG,
+				(char *)&on, sizeof(on));
 	    if (bind(s, res->ai_addr, res->ai_addrlen) < 0)
 		err(1, "bind");
 	    if (listen(s, 1) < 0)
@@ -356,6 +359,8 @@ main(int argc, char *argv[])
 	    ns = accept(s, res->ai_addr, &foo);
 	    if (ns < 0)
 		err(1, "accept");
+	    (void) setsockopt(ns, SOL_SOCKET, SO_DEBUG,
+				(char *)&on, sizeof(on));
 	    (void) dup2(ns, 0);
 	    (void) close(ns);
 	    (void) close(s);
