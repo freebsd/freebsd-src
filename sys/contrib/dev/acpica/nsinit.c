@@ -515,6 +515,13 @@ AcpiNsInitOneDevice (
     }
     else
     {
+        /* Delete any return object (Especially if ImplicitReturn is enabled) */
+
+        if (Pinfo.ReturnObject)
+        {
+            AcpiUtRemoveReference (Pinfo.ReturnObject);
+        }
+
         /* Count of successful INIs */
 
         Info->Num_INI++;
