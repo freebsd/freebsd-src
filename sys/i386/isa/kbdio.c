@@ -26,8 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.1.2.2 1996/12/04 16:11:39 phk Exp $
+ * $Id: kbdio.c,v 1.1.2.3 1997/01/15 12:03:38 sos Exp $
  */
+
+#include "sc.h"
+#include "psm.h"
+#include "opt_kbdio.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
