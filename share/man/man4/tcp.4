@@ -482,6 +482,9 @@ Enable support for RFC 2018, TCP Selective Acknowledgment option,
 which allows the receiver to inform the sender about all successfully
 arrived segments, allowing the sender to retransmit the missing segments
 only.
+.It Va sack.initburst
+Control the number of SACK retransmissions done upon initiation of SACK
+recovery.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
