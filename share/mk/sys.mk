@@ -1,11 +1,15 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.3 1994/08/28 14:56:07 bde Exp $
+#	$Id: sys.mk,v 1.4 1994/08/31 03:57:32 paul Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
 .SUFFIXES: .out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .s .cl .p .h 
 
 .LIBS:		.a
+
+# A few things need X11 so we might as well centralize it so that the
+# transition to X11R6 is easier.
+X11BASE		?=	/usr/X386
 
 AR		?=	ar
 ARFLAGS		?=	rl
