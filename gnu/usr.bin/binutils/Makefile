@@ -8,7 +8,6 @@ SUBDIR=		libiberty libbfd libopcodes libbinutils \
 		addr2line ar as gasp ld nm objcopy objdump ranlib readelf \
 		size strings strip doc
 
-NO_GDB=yes
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if (${TARGET_ARCH} == "alpha" \
   || ${TARGET_ARCH} == "i386" \
