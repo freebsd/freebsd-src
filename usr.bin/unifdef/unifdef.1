@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: things/unifdef.1,v 1.25 2002/09/24 19:16:29 fanf2 Exp $
+.\"	$dotat: things/unifdef.1,v 1.26 2002/09/24 19:44:12 fanf2 Exp $
 .\" $FreeBSD$
 .\"
 .Dd September 24, 2002
@@ -82,29 +82,29 @@ of the expression syntax for
 and
 .Ic #elif
 lines.
-Integer values of symbols defined on the command line,
+It handles
+integer values of symbols defined on the command line,
 the
 .Fn defined
 operator applied to symbols defined or undefined on the command line,
 the operators
 .Ic \&! , < , > , <= , >= , == , != , && , || ,
-and parenthesized expressions
-are handled,
-and anything more complicated is passed through unharmed.
+and parenthesized expressions.
+Anything that it does not understand is passed through unharmed.
+It only processes
 .Ic #ifdef
 and
 .Ic #ifndef
-directives are only processed
-if the symbol is specified on the command line,
+directives if the symbol is specified on the command line,
 otherwise they are also passed through unchanged.
-Constant
+By default, it ignores
 .Ic #if
 and
 .Ic #elif
-expressions are passed through by default,
+lines with constant expressions,
 or they may be processed by specifying the
 .Fl k
-flag.
+flag on the command line.
 .Pp
 The
 .Nm
