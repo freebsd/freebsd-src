@@ -1258,7 +1258,8 @@ brelse(struct buf * bp)
 			if (!(bp->b_vflags & BV_BKGRDINPROG))
 				bp->b_flags |= B_RELBUF;
 			VI_UNLOCK(bp->b_vp);
-		}
+		} else
+			bp->b_flags |= B_RELBUF;
 	}
 
 	/*
