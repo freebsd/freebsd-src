@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)fileno.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -45,7 +49,8 @@ static char sccsid[] = "@(#)fileno.c	8.1 (Berkeley) 6/4/93";
  */
 #undef fileno
 
-int fileno(fp)
+int
+fileno(fp)
 	FILE *fp;
 {
 	return (__sfileno(fp));

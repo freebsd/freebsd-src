@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)fprintf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -45,8 +49,9 @@ static char sccsid[] = "@(#)fprintf.c	8.1 (Berkeley) 6/4/93";
 #include <varargs.h>
 #endif
 
+int
 #if __STDC__
-int fprintf(FILE *fp, const char *fmt, ...)
+fprintf(FILE *fp, const char *fmt, ...)
 #else
 fprintf(fp, fmt, va_alist)
 	FILE *fp;

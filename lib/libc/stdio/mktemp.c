@@ -32,7 +32,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -40,12 +44,13 @@ static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <ctype.h>
+#include <unistd.h>
 
 static int _gettemp(char *, int *);
 
-int mkstemp(path)
+int
+mkstemp(path)
 	char *path;
 {
 	int fd;
@@ -60,8 +65,8 @@ mktemp(path)
 	return(_gettemp(path, (int *)NULL) ? path : (char *)NULL);
 }
 
-static
-int _gettemp(path, doopen)
+static int
+_gettemp(path, doopen)
 	char *path;
 	register int *doopen;
 {

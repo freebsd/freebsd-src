@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)fgetln.c	8.2 (Berkeley) 1/2/94";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -50,7 +54,8 @@ static char sccsid[] = "@(#)fgetln.c	8.2 (Berkeley) 1/2/94";
  * so we add 1 here.
 #endif
  */
-int __slbexpand(fp, newsize)
+int
+__slbexpand(fp, newsize)
 	FILE *fp;
 	size_t newsize;
 {
@@ -91,7 +96,7 @@ fgetln(fp, lenp)
 	}
 
 	/* look for a newline in the input */
-	if ((p = memchr((void *)fp->_p, '\n', fp->_r)) != NULL) {
+	if ((p = memchr((void *)fp->_p, '\n', (size_t)fp->_r)) != NULL) {
 		register char *ret;
 
 		/*
@@ -133,7 +138,7 @@ fgetln(fp, lenp)
 		off = len;
 		if (__srefill(fp))
 			break;	/* EOF or error: return partial line */
-		if ((p = memchr((void *)fp->_p, '\n', fp->_r)) == NULL)
+		if ((p = memchr((void *)fp->_p, '\n', (size_t)fp->_r)) == NULL)
 			continue;
 
 		/* got it: finish up the line (like code above) */

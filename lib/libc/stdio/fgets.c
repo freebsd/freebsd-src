@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)fgets.c	8.2 (Berkeley) 12/22/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -61,7 +65,7 @@ fgets(buf, n, fp)
 	register char *s;
 	register unsigned char *p, *t;
 
-	if (n <= 0)             /* sanity check */
+	if (n <= 0)		/* sanity check */
 		return (NULL);
 
 #ifdef _THREAD_SAFE
