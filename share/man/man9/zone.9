@@ -136,10 +136,18 @@ enlarge it.
 .Sh HISTORY
 The zone allocator first appeared in
 .Fx 3.0 .
+It was radically changed in
+.Fx 5.0
+to function as a slab allocator.
 .Sh AUTHORS
 .An -nosplit
 The zone allocator was written by
 .An John S. Dyson .
+The zone allocator was rewritten in large parts by
+.An Jeff Roberson Aq jeff@FreeBSD.org
+to function as a slab allocator.
 .Pp
 This manual page was written by
 .An Dag-Erling Co\(:idan Sm\(/orgrav Aq des@FreeBSD.org .
+Changes for UMA by
+.An Jeroen Ruigrok van der Werven Aq asmodai@FreeBSD.org .
