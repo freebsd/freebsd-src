@@ -969,7 +969,7 @@ ng_findhook(node_p node, const char *name)
 		return (*node->nd_type->findhook)(node, name);
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		if (NG_HOOK_IS_VALID(hook)
-		&& (strcmp(NG_HOOK_NAME(hook), name) == 0)) {
+		&& (strcmp(NG_HOOK_NAME(hook), name) == 0))
 			return (hook);
 	}
 	return (NULL);
