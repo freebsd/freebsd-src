@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 2004
+.Dd October 22, 2004
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1812,9 +1812,9 @@ A
 .Xr divert 4
 socket bound to the specified port will receive all packets
 diverted to that port.
-If no socket is bound to the destination port, or if the kernel
-wasn't compiled with divert socket support, the packets are
-dropped.
+If no socket is bound to the destination port, or if the divert module is
+not loaded, or if the kernel wasn't compiled with divert socket support,
+the packets are dropped.
 .Sh SYSCTL VARIABLES
 A set of
 .Xr sysctl 8
