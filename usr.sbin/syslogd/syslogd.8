@@ -81,7 +81,13 @@ options may be specified.
 .Ar Allowed_peer
 can be any of the following:
 .Bl -tag -width "ipaddr/masklen[:service]XX"
-.It Ar ipaddr/masklen Ns Op Ar :service
+.It Xo
+.Sm off
+.Ar ipaddr
+.No / Ar masklen
+.Op : Ar service
+.Sm on
+.Xc
 Accept datagrams from
 .Ar ipaddr
 (in the usual dotted quad notation) with
@@ -116,13 +122,21 @@ by 24 otherwise.  If
 is IPv6 address, a missing
 .Ar masklen
 will be substituted by 128.
-.It Ar domainname Ns Op Ar :service
+.It Xo
+.Sm off
+.Ar domainname Op : Ar service
+.Sm on
+.Xc
 Accept datagrams where the reverse address lookup yields
 .Ar domainname
 for the sender address.  The meaning of
 .Ar service
 is as explained above.
-.It Ar *domainname Ns Op Ar :service
+.It Xo
+.Sm off
+.No * Ar domainname Op : Ar service
+.Sm on
+.Xc
 Same as before, except that any source host whose name
 .Em ends
 in
@@ -218,7 +232,7 @@ The message sent to
 should consist of a single line.
 The message can contain a priority code, which should be a preceding
 decimal number in angle braces, for example,
-.Sq Aq 5.
+.Sq Aq 5 .
 This priority code should map into the priorities defined in the
 include file
 .Aq Pa sys/syslog.h .
