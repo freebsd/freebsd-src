@@ -39,7 +39,7 @@
 
 #include "thr_private.h"
 
-#define	MAXTHR	128
+#define	MAXTHR	8192
 
 #define	LDT_INDEX(x)	(((long)(x) - (long)ldt_entries) / sizeof(ldt_entries[0]))
 
