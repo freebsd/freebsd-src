@@ -231,7 +231,7 @@ void pccard_check_cis_quirks(device_t dev)
 			  (strcmp(sc->card.cis1_info[1],
 					  pccard_cis_quirks[i].cis1_info[1]) == 0)))) {
 			if (!wiped) {
-				if (pccard_verbose) {
+				if (bootverbose) {
 					device_printf(dev, "using CIS quirks for ");
 					for (j = 0; j < 4; j++) {
 						if (sc->card.cis1_info[j] == NULL)
