@@ -268,6 +268,10 @@ bufcountwakeup(void)
 static __inline void
 waitrunningbufspace(void)
 {
+	/*
+	 * XXX race against wakeup interrupt, currently
+	 * protected by Giant.  FIXME!
+	 */
 	while (runningbufspace > hirunningspace) {
 		++runningbufreq;
 		tsleep(&runningbufreq, PVM, "wdrain", 0);
