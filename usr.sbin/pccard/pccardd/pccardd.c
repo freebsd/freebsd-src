@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 	while ((count = getopt(argc, argv, COM_OPTS)) != -1) {
 		switch (count) {
 		case 'I':
-			/* use_kern_irq = 0; */
+			use_kern_irq = 0;
 			break;
 		case 'd':
 			setbuf(stdout, 0);
