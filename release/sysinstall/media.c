@@ -297,7 +297,7 @@ mediaSetFTP(dialogMenuItem *self)
 	variable_unset(VAR_FTP_PATH);
 	return DITEM_FAILURE | what;
     }
-    strcpy(ftpDevice.name, cp);
+    SAFE_STRCPY(ftpDevice.name, cp);
 
     dialog_clear_norefresh();
     if (RunningAsInit &&
@@ -409,7 +409,7 @@ mediaSetNFS(dialogMenuItem *self)
 		   "host:/full/pathname/to/FreeBSD/distdir");
 	return DITEM_FAILURE;
     }
-    strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
+    SAFE_STRCPY(nfsDevice.name, cp);
     /* str == NULL means we were just called to change NFS paths, not network interfaces */
     if (!tcpDeviceSelect())
 	return DITEM_FAILURE;

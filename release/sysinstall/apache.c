@@ -232,15 +232,15 @@ apacheOpenDialog(void)
         sprintf(tconf.hostname, "www.%s", tmp);
     }
     
-    strcpy(tconf.defuser, DEFAULT_USER);
-    strcpy(tconf.defgroup, DEFAULT_GROUP);
+    SAFE_STRCPY(tconf.defuser, DEFAULT_USER);
+    SAFE_STRCPY(tconf.defgroup, DEFAULT_GROUP);
     
-    strcpy(tconf.userdir, USER_HOMEDIR);
-    strcpy(tconf.welcome, WELCOME_FILE);
+    SAFE_STRCPY(tconf.userdir, USER_HOMEDIR);
+    SAFE_STRCPY(tconf.welcome, WELCOME_FILE);
     
-    strcpy(tconf.logdir, LOGS_SUBDIR);
-    strcpy(tconf.accesslog, ACCESS_LOGNAME);
-    strcpy(tconf.errorlog, ERROR_LOGNAME);
+    SAFE_STRCPY(tconf.logdir, LOGS_SUBDIR);
+    SAFE_STRCPY(tconf.accesslog, ACCESS_LOGNAME);
+    SAFE_STRCPY(tconf.errorlog, ERROR_LOGNAME);
     
     sprintf(tconf.docroot, "%s/%s", APACHE_BASE,DATA_SUBDIR);
     
@@ -399,21 +399,21 @@ configApache(dialogMenuItem *self)
     }
     /*** Fix defaults for invalid value ***/
     if (!tconf.logdir[0])
-	strcpy(tconf.logdir, LOGS_SUBDIR);
+	SAFE_STRCPY(tconf.logdir, LOGS_SUBDIR);
     if (!tconf.accesslog[0])
-	strcpy(tconf.accesslog, ACCESS_LOGNAME);
+	SAFE_STRCPY(tconf.accesslog, ACCESS_LOGNAME);
     if (!tconf.errorlog[0])
-	strcpy(tconf.errorlog, ERROR_LOGNAME);
+	SAFE_STRCPY(tconf.errorlog, ERROR_LOGNAME);
     
     if (!tconf.welcome[0])
-	strcpy(tconf.welcome, WELCOME_FILE);
+	SAFE_STRCPY(tconf.welcome, WELCOME_FILE);
     if (!tconf.userdir[0])
-	strcpy(tconf.userdir, USER_HOMEDIR);
+	SAFE_STRCPY(tconf.userdir, USER_HOMEDIR);
     
     if (!tconf.defuser[0])
-	strcpy(tconf.defuser, DEFAULT_USER);
+	SAFE_STRCPY(tconf.defuser, DEFAULT_USER);
     if (!tconf.defgroup[0])
-	strcpy(tconf.defgroup, DEFAULT_GROUP);
+	SAFE_STRCPY(tconf.defgroup, DEFAULT_GROUP);
     
     /*** If the user did not specify a directory, use default ***/
     
@@ -433,9 +433,9 @@ configApache(dialogMenuItem *self)
 	if (!file_readable(file)) {
 	    tptr = msgGetInput(NULL, "What is your company name?");
 	    if (tptr && tptr[0])
-		strcpy(company, tptr);
+		SAFE_STRCPY(company, tptr);
 	    else
-		strcpy(company, "our Web Page");
+		SAFE_STRCPY(company, "our Web Page");
 	    
 	    msgNotify("Creating sample web page...");
 	    fptr = fopen(file,"w");
