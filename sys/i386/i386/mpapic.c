@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.1 1997/04/26 11:45:15 peter Exp $
+ *	$Id: mpapic.c,v 1.1 1997/05/01 06:58:10 smp Exp smp $
  */
 
 #include <sys/types.h>
@@ -91,143 +91,6 @@ apic_initialize(int is_bsp)
 	temp |= 0x20;		/** FIXME: 2f == strayIRQ15 */
 #endif
 	apic_base[APIC_SVR] = temp;
-}
-
-
-#if !defined(FAST_IPI)
-
-/*
- * send an IPI INTerrupt containing 'vector' to CPUs in 'target_map'
- * 'target_map' is a bitfiled of length 14,
- *   APIC #0 == bit 0, ..., APIC #14 == bit 14
- *   NOTE: these are LOGICAL APIC IDs
- */
-int
-selected_procs_ipi(int target_map, int vector)
-{
-	return selected_apic_ipi(target_map, vector, APIC_DELMODE_FIXED);
-}
-
-/*
- * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
- */
-int
-all_procs_ipi(int vector)
-{
-	return apic_ipi(APIC_DEST_ALLISELF, vector, APIC_DELMODE_FIXED);
-}
-
-/*
- * send an IPI INTerrupt containing 'vector' to all CPUs EXCEPT myself
- */
-int
-all_but_self_ipi(int vector)
-{
-	return apic_ipi(APIC_DEST_ALLESELF, vector, APIC_DELMODE_FIXED);
-}
-
-/*
- * send an IPI INTerrupt containing 'vector' to myself
- */
-int
-self_ipi(int vector)
-{
-	return apic_ipi(APIC_DEST_SELF, vector, APIC_DELMODE_FIXED);
-}
-
-/*
- * send APIC IPI 'vector' to 'destType' via 'deliveryMode'
- *
- *  destType is 1 of: APIC_DEST_SELF, APIC_DEST_ALLISELF, APIC_DEST_ALLESELF
- *  vector is any valid SYSTEM INT vector
- *  delivery_mode is 1 of: APIC_DELMODE_FIXED, APIC_DELMODE_LOWPRIO
- */
-int
-apic_ipi(int dest_type, int vector, int delivery_mode)
-{
-#if defined(APICIPI_BANDAID)
-#define MAX_SPIN1	10000000
-#define MAX_SPIN2	1000
-
-	u_long  icr_lo;
-	int     x;
-
-	/* "lazy delivery", ie we only barf if they stack up on us... */
-	for (x = MAX_SPIN1; x; --x) {
-		if ((apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK) == 0)
-			break;
-	}
-	if (x == 0) {
-		printf("apic_ipi was stuck\n");
-		panic("\n");
-	}
-	/* build IRC_LOW */
-	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK)
-	    | dest_type | delivery_mode | vector;
-
-	/* write APIC ICR */
-	apic_base[APIC_ICR_LOW] = icr_lo;
-
-	/* wait for pending status end */
-	for (x = MAX_SPIN2; x; --x) {
-		if ((apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK) == 0)
-			break;
-	}
-	if (x == 0)
-		printf("apic_ipi might be stuck\n");
-
-	/** FIXME: return result */
-	return 0;
-#else				/* APICIPI_BANDAID */
-	u_long  icr_lo;
-
-	/* build IRC_LOW */
-	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK)
-	    | dest_type | delivery_mode | vector;
-
-	/* write APIC ICR */
-	apic_base[APIC_ICR_LOW] = icr_lo;
-
-	/* wait for pending status end */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
-		 /* spin */ ;
-
-	/** FIXME: return result */
-	return 0;
-#endif	/* APICIPI_BANDAID */
-}
-#endif	/* FAST_IPI */
-
-
-/*
- * send APIC IPI 'vector' to 'target's via 'delivery_mode'
- *
- *  target contains a bitfield with a bit set for selected APICs.
- *  vector is any valid SYSTEM INT vector
- *  delivery_mode is 1 of: APIC_DELMODE_FIXED, APIC_DELMODE_LOWPRIO
- */
-int
-selected_apic_ipi(u_int target, int vector, int delivery_mode)
-{
-	int     x;
-	int     status;
-	u_long  icr_hi;
-
-	if (target & ~0x7fff)
-		return -1;	/* only 15 targets allowed */
-
-	for (status = 0, x = 0; x <= 14; ++x)
-		if (target & (1 << x)) {
-			/* write the destination field for the target AP */
-			icr_hi = apic_base[APIC_ICR_HI] & ~APIC_ID_MASK;
-			icr_hi |= (CPU_TO_ID(x) << 24);
-			apic_base[APIC_ICR_HI] = icr_hi;
-
-			/* send the IPI */
-			if (apic_ipi(APIC_DEST_DESTFLD, vector, delivery_mode) == -1)
-				status |= (1 << x);
-		}
-	return status;
 }
 
 
@@ -665,6 +528,130 @@ clr_io_apic_mask24(int apic, u_int32_t bits)
 #undef IO_FIELD
 #undef IO_MASK
 
+
+/*
+ * Inter Processor Interrupt functions.
+ */
+
+
+/*
+ * send APIC IPI 'vector' to 'destType' via 'deliveryMode'
+ *
+ *  destType is 1 of: APIC_DEST_SELF, APIC_DEST_ALLISELF, APIC_DEST_ALLESELF
+ *  vector is any valid SYSTEM INT vector
+ *  delivery_mode is 1 of: APIC_DELMODE_FIXED, APIC_DELMODE_LOWPRIO
+ */
+#define DETECT_DEADLOCK
+int
+apic_ipi(int dest_type, int vector, int delivery_mode)
+{
+	u_long  icr_lo;
+
+#if defined(DETECT_DEADLOCK)
+#define MAX_SPIN1	10000000
+#define MAX_SPIN2	1000
+	int     x;
+
+	/* "lazy delivery", ie we only barf if they stack up on us... */
+	for (x = MAX_SPIN1; x; --x) {
+		if ((apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK) == 0)
+			break;
+	}
+	if (x == 0) {
+		printf("apic_ipi was stuck\n");
+		panic("\n");
+	}
+#endif  /* DETECT_DEADLOCK */
+
+	/* build IRC_LOW */
+	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK)
+	    | dest_type | delivery_mode | vector;
+
+	/* write APIC ICR */
+	apic_base[APIC_ICR_LOW] = icr_lo;
+
+	/* wait for pending status end */
+#if defined(DETECT_DEADLOCK)
+	for (x = MAX_SPIN2; x; --x) {
+		if ((apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK) == 0)
+			break;
+	}
+	if (x == 0)
+		printf("apic_ipi might be stuck\n");
+#undef MAX_SPIN2
+#undef MAX_SPIN1
+#else
+	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
+		 /* spin */ ;
+#endif  /* DETECT_DEADLOCK */
+
+	/** FIXME: return result */
+	return 0;
+}
+
+
+/*
+ * send APIC IPI 'vector' to 'target's via 'delivery_mode'
+ *
+ *  target contains a bitfield with a bit set for selected APICs.
+ *  vector is any valid SYSTEM INT vector
+ *  delivery_mode is 1 of: APIC_DELMODE_FIXED, APIC_DELMODE_LOWPRIO
+ */
+int
+selected_apic_ipi(u_int target, int vector, int delivery_mode)
+{
+	int     x;
+	int     status;
+	u_long  icr_hi;
+
+	if (target & ~0x7fff)
+		return -1;	/* only 15 targets allowed */
+
+	for (status = 0, x = 0; x <= 14; ++x)
+		if (target & (1 << x)) {
+			/* write the destination field for the target AP */
+			icr_hi = apic_base[APIC_ICR_HI] & ~APIC_ID_MASK;
+			icr_hi |= (CPU_TO_ID(x) << 24);
+			apic_base[APIC_ICR_HI] = icr_hi;
+
+			/* send the IPI */
+			if (apic_ipi(APIC_DEST_DESTFLD, vector, delivery_mode) == -1)
+				status |= (1 << x);
+		}
+	return status;
+}
+
+
+#if defined(READY)
+/*
+ * send an IPI INTerrupt containing 'vector' to CPU 'target'
+ *   NOTE: target is a LOGICAL APIC ID
+ */
+int
+selected_proc_ipi(int target, int vector)
+{
+	u_long	icr_lo;
+	u_long	icr_hi;
+
+	/* write the destination field for the target AP */
+	icr_hi = (apic_base[APIC_ICR_HI] & ~APIC_ID_MASK) |
+	    (cpu_num_to_apic_id[target] << 24);
+	apic_base[APIC_ICR_HI] = icr_hi;
+
+	/* write command */
+	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK) |
+	    APIC_DEST_DESTFLD | APIC_DELMODE_FIXED | vector;
+	apic_base[APIC_ICR_LOW] = icr_lo;
+
+	/* wait for pending status end */
+	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
+		/* spin */ ;
+
+	return 0;	/** FIXME: return result */
+}
+#endif /* READY */
+
+
 #endif	/* APIC_IO */
 
 
@@ -680,7 +667,6 @@ clr_io_apic_mask24(int apic, u_int32_t bits)
 #endif
 
 #if defined(READY)
-
 int acquire_apic_timer __P((void));
 int release_apic_timer __P((void));
 
