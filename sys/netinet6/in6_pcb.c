@@ -123,10 +123,10 @@
 struct	in6_addr zeroin6_addr;
 
 int
-in6_pcbbind(inp, nam, td)
+in6_pcbbind(inp, nam, cred)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
-	struct thread *td;
+	struct ucred *cred;
 {
 	struct socket *so = inp->inp_socket;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
@@ -190,8 +190,8 @@ in6_pcbbind(inp, nam, td)
 			struct inpcb *t;
 
 			/* GROSS */
-			if (ntohs(lport) < IPV6PORT_RESERVED && td &&
-			    suser_cred(td->td_ucred, PRISON_ROOT))
+			if (ntohs(lport) < IPV6PORT_RESERVED &&
+			    suser_cred(cred, PRISON_ROOT))
 				return (EACCES);
 			if (so->so_cred->cr_uid != 0 &&
 			    !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
@@ -274,7 +274,7 @@ in6_pcbbind(inp, nam, td)
 	}
 	if (lport == 0) {
 		int e;
-		if ((e = in6_pcbsetport(&inp->in6p_laddr, inp, td)) != 0)
+		if ((e = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0)
 			return (e);
 	}
 	else {
@@ -360,10 +360,10 @@ in6_pcbladdr(inp, nam, plocal_addr6)
  * then pick one.
  */
 int
-in6_pcbconnect(inp, nam, td)
+in6_pcbconnect(inp, nam, cred)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
-	struct thread *td;
+	struct ucred *cred;
 {
 	struct in6_addr *addr6;
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
@@ -385,7 +385,7 @@ in6_pcbconnect(inp, nam, td)
 	}
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
 		if (inp->inp_lport == 0) {
-			error = in6_pcbbind(inp, (struct sockaddr *)0, td);
+			error = in6_pcbbind(inp, (struct sockaddr *)0, cred);
 			if (error)
 				return (error);
 		}

@@ -572,14 +572,15 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
 			s = splnet();
-			error = in_pcbbind(inp, (struct sockaddr *)&sin, td);
+			error = in_pcbbind(inp, (struct sockaddr *)&sin,
+			    td->td_ucred);
 			splx(s);
 			return error;
 		}
 	}
 
 	s = splnet();
-	error = in6_pcbbind(inp, nam, td);
+	error = in6_pcbbind(inp, nam, td->td_ucred);
 	splx(s);
 	return error;
 }
@@ -605,7 +606,8 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 				return EISCONN;
 			in6_sin6_2_sin(&sin, sin6_p);
 			s = splnet();
-			error = in_pcbconnect(inp, (struct sockaddr *)&sin, td);
+			error = in_pcbconnect(inp, (struct sockaddr *)&sin,
+			    td->td_ucred);
 			splx(s);
 			if (error == 0) {
 				inp->inp_vflag |= INP_IPV4;
@@ -618,7 +620,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 		return EISCONN;
 	s = splnet();
-	error = in6_pcbconnect(inp, nam, td);
+	error = in6_pcbconnect(inp, nam, td->td_ucred);
 	splx(s);
 	if (error == 0) {
 		if (!ip6_v6only) { /* should be non mapped addr */

@@ -505,7 +505,7 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	else {
 		((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
 		INP_LOCK(inp);
-		error = in_pcbbind(inp, nam, td);
+		error = in_pcbbind(inp, nam, td->td_ucred);
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(&divcbinfo);

@@ -252,7 +252,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = EAFNOSUPPORT;
 		goto out;
 	}
-	error = in_pcbbind(inp, nam, td);
+	error = in_pcbbind(inp, nam, td->td_ucred);
 	if (error)
 		goto out;
 	COMMON_END(PRU_BIND);
@@ -294,11 +294,12 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			in6_sin6_2_sin(&sin, sin6p);
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
-			error = in_pcbbind(inp, (struct sockaddr *)&sin, td);
+			error = in_pcbbind(inp, (struct sockaddr *)&sin,
+			    td->td_ucred);
 			goto out;
 		}
 	}
-	error = in6_pcbbind(inp, nam, td);
+	error = in6_pcbbind(inp, nam, td->td_ucred);
 	if (error)
 		goto out;
 	COMMON_END(PRU_BIND);
@@ -319,7 +320,7 @@ tcp_usr_listen(struct socket *so, struct thread *td)
 
 	COMMON_START();
 	if (inp->inp_lport == 0)
-		error = in_pcbbind(inp, (struct sockaddr *)0, td);
+		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 	if (error == 0)
 		tp->t_state = TCPS_LISTEN;
 	COMMON_END(PRU_LISTEN);
@@ -340,7 +341,7 @@ tcp6_usr_listen(struct socket *so, struct thread *td)
 		inp->inp_vflag &= ~INP_IPV4;
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
 			inp->inp_vflag |= INP_IPV4;
-		error = in6_pcbbind(inp, (struct sockaddr *)0, td);
+		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 	}
 	if (error == 0)
 		tp->t_state = TCPS_LISTEN;
@@ -865,7 +866,7 @@ tcp_connect(tp, nam, td)
 	bzero(&tao, sizeof(tao));
 
 	if (inp->inp_lport == 0) {
-		error = in_pcbbind(inp, (struct sockaddr *)0, td);
+		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 		if (error)
 			return error;
 	}
@@ -878,7 +879,7 @@ tcp_connect(tp, nam, td)
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
 	error = in_pcbconnect_setup(inp, nam, &laddr.s_addr, &lport,
-	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td);
+	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td->td_ucred);
 	if (error && oinp == NULL)
 		return error;
 	if (oinp) {
@@ -949,7 +950,7 @@ tcp6_connect(tp, nam, td)
 	bzero(&tao, sizeof(tao));
 
 	if (inp->inp_lport == 0) {
-		error = in6_pcbbind(inp, (struct sockaddr *)0, td);
+		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 		if (error)
 			return error;
 	}
