@@ -274,6 +274,12 @@ nd6_option(ndopts)
 
 	nd_opt = ndopts->nd_opts_search;
 
+	/* make sure nd_opt_len is inside the buffer */
+	if ((caddr_t)&nd_opt->nd_opt_len >= (caddr_t)ndopts->nd_opts_last) {
+		bzero(ndopts, sizeof(*ndopts));
+		return NULL;
+	}
+
 	olen = nd_opt->nd_opt_len << 3;
 	if (olen == 0) {
 		/*
@@ -285,7 +291,12 @@ nd6_option(ndopts)
 	}
 
 	ndopts->nd_opts_search = (struct nd_opt_hdr *)((caddr_t)nd_opt + olen);
-	if (!(ndopts->nd_opts_search < ndopts->nd_opts_last)) {
+	if (ndopts->nd_opts_search > ndopts->nd_opts_last) {
+		/* option overruns the end of buffer, invalid */
+		bzero(ndopts, sizeof(*ndopts));
+		return NULL;
+	} else if (ndopts->nd_opts_search == ndopts->nd_opts_last) {
+		/* reached the end of options chain */
 		ndopts->nd_opts_done = 1;
 		ndopts->nd_opts_search = NULL;
 	}
