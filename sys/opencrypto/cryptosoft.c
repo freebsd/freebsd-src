@@ -148,6 +148,16 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 		}
 	}
 
+	if (crd->crd_flags & CRD_F_KEY_EXPLICIT) {
+		int error; 
+
+		if (sw->sw_kschedule)
+			exf->zerokey(&(sw->sw_kschedule));
+		error = exf->setkey(&sw->sw_kschedule,
+				crd->crd_key, crd->crd_klen / 8);
+		if (error)
+			return (error);
+	}
 	ivp = iv;
 
 	if (outtype == CRYPTO_BUF_CONTIG) {
