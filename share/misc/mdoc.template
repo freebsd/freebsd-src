@@ -1,8 +1,10 @@
 .\" The following requests are required for all man pages.
 .Dd DATE
 .Os
-.Dt DOCUMENT_TITLE
+.Dt DOCUMENT_TITLE MANUAL_SECTION#
 .Sh NAME
+.Nm name
+.Nd one line description of name
 .Sh SYNOPSIS
 .Sh DESCRIPTION
 .\" The following requests should be uncommented and used where appropriate.
