@@ -1,19 +1,16 @@
-#	$FreeBSD$
+# $FreeBSD$
 
-LIB=		telnet
-
+LIB=	telnet
 INTERNALLIB=	yes
 
-SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
-		enc_des.c sra.c pk.c
+SRCS=	genget.c getent.c misc.c encrypt.c auth.c enc_des.c sra.c pk.c
 
-CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA \
-		-I${TELNETDIR} -I${TELNETDIR}/libtelnet
+WARNS?=	2
+CFLAGS+= -DENCRYPTION -DAUTHENTICATION -DSRA \
+	 -I${TELNETDIR} -I${TELNETDIR}/libtelnet
 
-WARNS?=		2
-
-INCS=		${TELNETDIR}/arpa/telnet.h
-INCSDIR=	${INCLUDEDIR}/arpa
+INCS=	${TELNETDIR}/arpa/telnet.h
+INCSDIR=${INCLUDEDIR}/arpa
 
 .include <bsd.lib.mk>
 
