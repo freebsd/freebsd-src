@@ -63,9 +63,7 @@ int	lflag, sflag, xflag, zflag;
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb1, sb2;
 	off_t skip1, skip2;
@@ -169,7 +167,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,

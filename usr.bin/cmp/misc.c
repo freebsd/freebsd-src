@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 void
-eofmsg(file)
-	const char *file;
+eofmsg(const char *file)
 {
 	if (!sflag)
 		warnx("EOF on %s", file);
@@ -58,9 +57,7 @@ eofmsg(file)
 }
 
 void
-diffmsg(file1, file2, byte, line)
-	const char *file1, *file2;
-	off_t byte, line;
+diffmsg(const char *file1, const char *file2, off_t byte, off_t line)
 {
 	if (!sflag)
 		(void)printf("%s %s differ: char %lld, line %lld\n",

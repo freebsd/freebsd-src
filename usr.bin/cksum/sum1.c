@@ -45,9 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 int
-csum1(fd, cval, clen)
-	int fd;
-	u_int32_t *cval, *clen;
+csum1(int fd, u_int32_t *cval, u_int32_t *clen)
 {
 	u_int32_t total;
 	int nr;
