@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.9 $"
+#ident "$Revision: 1.1.1.1 $"
 
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -69,8 +69,6 @@ static char rcsid[] = "$NetBSD$";
 #define	STIME	(250*1000)	/* usec to wait for another response */
 
 int	s;
-
-char	*pgmname;
 
 union {
 	struct rip rip;
@@ -114,7 +112,6 @@ main(int argc,
 	OMSG.rip_nets[0].n_family = RIP_AF_UNSPEC;
 	OMSG.rip_nets[0].n_metric = htonl(HOPCNT_INFINITY);
 
-	pgmname = argv[0];
 	while ((ch = getopt(argc, argv, "np1w:r:t:")) != EOF)
 		switch (ch) {
 		case 'n':
@@ -147,8 +144,7 @@ main(int argc,
 			if (!rflag) {
 				struct hostent *hp = gethostbyname(optarg);
 				if (hp == 0) {
-					fprintf(stderr, "%s: %s:",
-						pgmname, optarg);
+					fprintf(stderr, "rtquery: %s:", optarg);
 					herror(0);
 					exit(1);
 				}
@@ -214,10 +210,9 @@ main(int argc,
 	argv += optind;
 	argc -= optind;
 	if ((not_trace && trace) || argc == 0) {
-usage:		fprintf(stderr, "%s: [-np1v] [-r tgt_rt] [-w wtime]"
-			" host1 [host2 ...]\n"
-			"or\t-t {on=filename|more|off} host1 host2 ...\n",
-			pgmname);
+usage:			fprintf(stderr, "%s\n%s\n",
+		"usage: rtquery [-np1] [-r addr] [-w timeout] host ...",
+		"       rtquery [-t op] host ...");
 		exit(1);
 	}
 

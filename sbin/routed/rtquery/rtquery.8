@@ -1,4 +1,4 @@
-.\"	$Id: rtquery.8,v 1.1.1.1.2.1 1997/03/03 07:01:47 mpp Exp $
+.\"	$Id: rtquery.8,v 1.1.1.1.2.2 1997/06/13 20:59:39 max Exp $
 .Dd June 1, 1996
 .Dt RTQUERY 8
 .Os BSD 4.4
@@ -10,7 +10,6 @@
 .Op Fl np1
 .Op Fl w Ar timeout
 .Op Fl r Ar addr
-.Op Fl a Ar secret
 .Ar host ...
 
 .Nm
@@ -92,9 +91,6 @@ By default, each host is given 15 seconds to respond.
 .It Fl r Ar addr
 ask about the route to destination
 .Em addr .
-.It Fl a Ar passwd=XXX
-.It Fl a Ar md5_passwd=XXX|KeyID
-cause the query to be sent with the indicated cleartext or MD5 password.
 .It Fl t Ar op
 change tracing, where
 .Em op
