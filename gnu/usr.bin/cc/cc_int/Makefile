@@ -1,10 +1,11 @@
 #
-# $Id: Makefile,v 1.14 1997/02/22 15:44:57 peter Exp $
+# $Id: Makefile,v 1.17 1999/03/05 04:55:03 obrien Exp $
 #
 .include "../Makefile.inc"
 
-SRCS=	bc-emit.c bc-optab.c \
-	c-common.c c-pragma.c \
+.PATH: ../cc_tools ${GCCDIR}/config/${MACHINE_ARCH} ${GCCDIR}
+
+SRCS=	c-common.c c-pragma.c \
 	caller-save.c calls.c combine.c convert.c cse.c \
 	dbxout.c dwarfout.c emit-rtl.c explow.c expmed.c expr.c \
 	final.c flow.c fold-const.c function.c getpwd.c global.c \
@@ -15,7 +16,11 @@ SRCS=	bc-emit.c bc-optab.c \
 	reload.c reload1.c reorg.c rtl.c rtlanal.c \
 	sched.c sdbout.c stmt.c stor-layout.c stupid.c \
 	toplev.c tree.c unroll.c varasm.c version.c xcoffout.c \
+	alias.c bitmap.c dwarf2out.c dyn-string.c except.c \
+	gcse.c genrtl.c profile.c regmove.c varray.c \
 	${OUT_FILE}
+
+CFLAGS+=	-DTARGET_NAME=\"${MACHINE_ARCH}-unknown-freebsd\"
 
 LIB=		cc_int
 NOPROFILE=	YES
