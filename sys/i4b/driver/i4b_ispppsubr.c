@@ -572,8 +572,8 @@ isppp_input(struct ifnet *ifp, struct mbuf *m)
 				int hlen, vjlen;
 
 				if ((vjlen = sl_uncompress_tcp_core(m->m_data,
-				   m->m_len, m->m_len, TYPE_COMPRESSED_TCP,
-				   &sp->pp_comp, &iphdr, &hlen)) <= 0)
+				   m->m_len, m->m_len, TYPE_UNCOMPRESSED_TCP,
+				   &sp->pp_comp, &iphdr, &hlen)) != 0)
 					goto drop;
 
 				schednetisr (NETISR_IP);
