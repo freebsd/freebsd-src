@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdlib.h	8.5 (Berkeley) 5/19/95
+ * $FreeBSD$
  */
 
 #ifndef _STDLIB_H_
@@ -160,6 +161,7 @@ int	 radixsort __P((const unsigned char **, int, const unsigned char *,
 	    unsigned));
 int	 sradixsort __P((const unsigned char **, int, const unsigned char *,
 	    unsigned));
+int	 rand_r __P((unsigned *));
 long	 random __P((void));
 void    *reallocf __P((void *, size_t));
 char	*realpath __P((const char *, char resolved_path[]));
