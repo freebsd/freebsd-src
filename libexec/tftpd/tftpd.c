@@ -106,6 +106,7 @@ static struct dirlist {
 } dirs[MAXDIRS+1];
 static int	suppress_naks;
 static int	logging;
+static int	ipchroot;
 
 static char *errtomsg __P((int));
 static void  nak __P((int));
@@ -124,8 +125,14 @@ main(argc, argv)
 	char *chuser = "nobody";
 
 	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "lns:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "cClns:u:")) != -1) {
 		switch (ch) {
+		case 'c':
+			ipchroot = 1;
+			break;
+		case 'C':
+			ipchroot = 2;
+			break;
 		case 'l':
 			logging = 1;
 			break;
@@ -158,6 +165,10 @@ main(argc, argv)
 	else if (chroot_dir) {
 		dirs->name = "/";
 		dirs->len = 1;
+	}
+	if (ipchroot && chroot_dir == NULL) {
+		syslog(LOG_ERR, "-c requires -s");
+		exit(1);
 	}
 
 	on = 1;
@@ -229,6 +240,18 @@ main(argc, argv)
 	 * be a problem.  See the above comment about system clogging.
 	 */
 	if (chroot_dir) {
+		if (ipchroot) {
+			char *tempchroot;
+			struct stat sb;
+			int statret;
+
+			tempchroot = inet_ntoa(from.sin_addr);
+			asprintf(&tempchroot, "%s/%s", chroot_dir, tempchroot);
+			statret = stat(tempchroot, &sb);
+			if ((sb.st_mode & S_IFDIR) &&
+			    (statret == 0 || (statret == -1 && ipchroot == 1)))
+				chroot_dir = tempchroot;
+		}
 		/* Must get this before chroot because /etc might go away */
 		if ((nobody = getpwnam(chuser)) == NULL) {
 			syslog(LOG_ERR, "%s: no such user", chuser);
