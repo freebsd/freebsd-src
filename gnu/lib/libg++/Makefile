@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.19 1997/05/06 00:49:28 jdp Exp $
+# $Id: Makefile,v 1.20 1997/05/23 08:33:55 asami Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -14,6 +14,11 @@ SHLIB_MINOR=	0
 
 CFLAGS+=	-I${GPPDIR}/include -I${DESTDIR}/usr/include/g++
 CXXFLAGS+=	-I${GPPDIR}/include -I${GPPDIR}/libio -I${GPPDIR}/libstdc++
+
+# Strictly speaking, libg++ should depend on libstdc++, but 1) It doesn't
+# work (ld freaks out), and 2) the c++ driver adds it explicitly (which works).
+LDADD+=		-lm
+DPADD+=		${LIBM}
 
 # C source
 SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
