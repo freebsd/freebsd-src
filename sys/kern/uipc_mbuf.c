@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.17 1995/12/14 08:32:06 phk Exp $
+ * $Id: uipc_mbuf.c,v 1.18 1996/05/02 14:20:29 phk Exp $
  */
 
 #include <sys/param.h>
@@ -71,8 +71,8 @@ mbinit(dummy)
 {
 	int s;
 
-#if PAGE_SIZE < 4096
-#define NCL_INIT	(4096/PAGE_SIZE)
+#if MCLBYTES < 4096
+#define NCL_INIT	(4096/MCLBYTES)
 #else
 #define NCL_INIT	1
 #endif
