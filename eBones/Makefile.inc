@@ -1,40 +1,50 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.4 1995/07/18 16:34:21 mark Exp $
+#	$Id: Makefile.inc,v 1.6 1995/09/07 21:36:27 markm Exp $
 
-BINDIR?=	/usr/sbin
-SHLIB_MAJOR?=	2
-SHLIB_MINOR?=	0
 DISTRIBUTION=	krb
 
-.if exists(${.CURDIR}/../des/obj)
-DESOBJDIR=	${.CURDIR}/../des/obj
+.if exists(${.CURDIR}/../../des/obj)
+DESOBJDIR=	${.CURDIR}/../../des/obj
 .else
-DESOBJDIR=	${.CURDIR}/../des
+DESOBJDIR=	${.CURDIR}/../../des
 .endif
 
-.if exists(${.CURDIR}/../krb/obj)
-KRBOBJDIR=	${.CURDIR}/../krb/obj
+.if exists(${.CURDIR}/../../lib/libkrb/obj)
+KRBOBJDIR=	${.CURDIR}/../../lib/libkrb/obj
 .else
-KRBOBJDIR=	${.CURDIR}/../krb
+KRBOBJDIR=	${.CURDIR}/../../lib/libkrb
 .endif
 
-.if exists(${.CURDIR}/../kdb/obj)
-KDBOBJDIR=	${.CURDIR}/../kdb/obj
+.if exists(${.CURDIR}/../../lib/libkdb/obj)
+KDBOBJDIR=	${.CURDIR}/../../lib/libkdb/obj
 .else
-KDBOBJDIR=	${.CURDIR}/../kdb
+KDBOBJDIR=	${.CURDIR}/../../lib/libkdb
 .endif
 
-.if exists(${.CURDIR}/../acl/obj)
-ACLOBJDIR=	${.CURDIR}/../acl/obj
+.if exists(${.CURDIR}/../../lib/libacl/obj)
+ACLOBJDIR=	${.CURDIR}/../../lib/libacl/obj
 .else
-ACLOBJDIR=	${.CURDIR}/../acl
+ACLOBJDIR=	${.CURDIR}/../../lib/libacl
 .endif
 
-.if exists(${.CURDIR}/../libkadm/obj)
-KADMOBJDIR=	${.CURDIR}/../libkadm/obj
+.if exists(${.CURDIR}/../../lib/libkadm/obj)
+KADMOBJDIR=	${.CURDIR}/../../lib/libkadm/obj
 .else
-KADMOBJDIR=	${.CURDIR}/../libkadm
+KADMOBJDIR=	${.CURDIR}/../../lib/libkadm
 .endif
+
+CFLAGS+= -I${.CURDIR}/../../include -Wall
 
 COMPILE_ET=     compile_et
 
+${KRBOBJDIR}/krb_err.h: ${.CURDIR}/../../lib/libkrb/krb_err.et          
+	test -e ${KRBOBJDIR}/krb_err.et || ln -s ${.IMPSRC} ${KRBOBJDIR}
+	cd ${KRBOBJDIR}; compile_et krb_err.et
+
+CLEANFILES+=${KRBOBJDIR}/krb_err.h ${KRBOBJDIR}/krb_err.c
+
+${KADMOBJDIR}/kadm_err.h: ${.CURDIR}/../../lib/libkadm/kadm_err.et          
+	test -e ${KADMOBJDIR}/kadm_err.et || ln -s ${.IMPSRC} ${KADMOBJDIR}
+	cd ${KADMOBJDIR}; compile_et kadm_err.et
+
+CLEANFILES+=${KADMOBJDIR}/kadm_err.h ${KADMOBJDIR}/kadm_err.c
