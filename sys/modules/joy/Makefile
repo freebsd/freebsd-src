@@ -2,14 +2,11 @@
 
 .PATH:	${.CURDIR}/../../i386/isa
 KMOD	= joy
-SRCS	= joy.c joy.h opt_devfs.h
+SRCS	= joy.c opt_devfs.h
 MAN8	= joy.8
 
 CFLAGS		+= -DJOY_MODULE
-CLEANFILES	+= joy.h opt_devfs.h
-
-joy.h:
-	echo "#define NJOY 1" > joy.h
+CLEANFILES	+= opt_devfs.h
 
 opt_devfs.h:
 	touch opt_devfs.h
