@@ -269,7 +269,7 @@ arp_rtrequest(req, rt, info)
 		     * the route to force traffic out to the hardware.
 		     */
 			rt->rt_expire = 0;
-			Bcopy(IF_LLADDR(rt->rt_ifp), LLADDR(SDL(gate)),
+			bcopy(IF_LLADDR(rt->rt_ifp), LLADDR(SDL(gate)),
 			      SDL(gate)->sdl_alen = rt->rt_ifp->if_addrlen);
 			if (useloopback)
 				rt->rt_ifp = loif;
