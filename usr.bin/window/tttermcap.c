@@ -44,7 +44,6 @@ static char rcsid[] =
 
 char *tgetstr();
 char *tgoto();
-char *malloc();
 
 tttputc(c)
 {

@@ -49,8 +49,6 @@ static char rcsid[] =
  * Context push/pop for nested command files.
  */
 
-char *malloc();
-
 cx_alloc()
 {
 	register struct context *xp;
