@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,30 +49,25 @@
 #include <nwfs/nwfs_node.h>
 #include <nwfs/nwfs_subr.h>
 
+#define NCP_INFOSZ	(sizeof(struct nw_entry_info) - 257)
+
 MALLOC_DEFINE(M_NWFSDATA, "NWFS data", "NWFS private data");
 
-static void 
-ncp_extract_file_info(struct nwmount *nmp, struct ncp_rq *rqp, struct nw_entry_info *target) {
-	u_char name_len;
-	const int info_struct_size = sizeof(struct nw_entry_info) - 257;
+static int
+ncp_extract_file_info(struct nwmount *nmp, struct ncp_rq *rqp,
+	struct nw_entry_info *target, int withname)
+{
+	u_int8_t name_len;
 
-	ncp_rp_mem(rqp,(caddr_t)target,info_struct_size);
-	name_len = ncp_rp_byte(rqp);
+	md_get_mem(&rqp->rp, (caddr_t)target, NCP_INFOSZ, MB_MSYSTEM);
+	if (!withname)
+		return 0;
+	md_get_uint8(&rqp->rp, &name_len);
 	target->nameLen = name_len;
-	ncp_rp_mem(rqp,(caddr_t)target->entryName, name_len);
+	md_get_mem(&rqp->rp, (caddr_t)target->entryName, name_len, MB_MSYSTEM);
 	target->entryName[name_len] = '\0';
 	ncp_path2unix(target->entryName, target->entryName, name_len, &nmp->m.nls);
-	return;
-}
-
-static void 
-ncp_update_file_info(struct nwmount *nmp, struct ncp_rq *rqp, 
-	struct nw_entry_info *target)
-{
-	int info_struct_size = sizeof(struct nw_entry_info) - 257;
-
-	ncp_rp_mem(rqp,(caddr_t)target,info_struct_size);
-	return;
+	return 0;
 }
 
 int
@@ -81,21 +76,26 @@ ncp_initsearch(struct vnode *dvp,struct proc *p,struct ucred *cred)
 	struct nwmount *nmp = VTONWFS(dvp);
 	struct ncp_conn *conn = NWFSTOCONN(nmp);
 	struct nwnode *np = VTONW(dvp);
+	struct ncp_rq *rqp;
 	u_int8_t volnum = nmp->n_volume;
 	u_int32_t dirent = np->n_fid.f_id;
 	int error;
-	DECLARE_RQ;
 
 	NCPNDEBUG("vol=%d,dir=%d\n", volnum, dirent);
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 2);		/* subfunction */
-	ncp_rq_byte(rqp, nmp->name_space);
-	ncp_rq_byte(rqp, 0);		/* reserved */
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 2);		/* subfunction */
+	mb_put_uint8(&rqp->rq, nmp->name_space);
+	mb_put_uint8(&rqp->rq, 0);		/* reserved */
 	ncp_rq_dbase_path(rqp, volnum, dirent, 0, NULL, NULL);
-	checkbad(ncp_request(conn,rqp));
-	ncp_rp_mem(rqp,(caddr_t)&np->n_seq, sizeof(np->n_seq));
-	NCP_RQ_EXIT;
-	return error;
+	rqp->nr_minrplen = sizeof(np->n_seq);
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	md_get_mem(&rqp->rp, (caddr_t)&np->n_seq, sizeof(np->n_seq), MB_MSYSTEM);
+	ncp_rq_done(rqp);
+	return 0;
 }
 
 int 
@@ -105,24 +105,29 @@ ncp_search_for_file_or_subdir(struct nwmount *nmp,
 			      struct proc *p,struct ucred *cred)
 {
 	struct ncp_conn *conn = NWFSTOCONN(nmp);
+	struct ncp_rq *rqp;
 	int error;
-	DECLARE_RQ;
 
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 3);		/* subfunction */
-	ncp_rq_byte(rqp, nmp->name_space);
-	ncp_rq_byte(rqp, 0);		/* data stream */
-	ncp_rq_word_lh(rqp, 0xffff);	/* Search attribs */
-	ncp_rq_dword(rqp, IM_ALL);	/* return info mask */
-	ncp_rq_mem(rqp, (caddr_t)seq, 9);
-	ncp_rq_byte(rqp, 2);		/* 2 byte pattern */
-	ncp_rq_byte(rqp, 0xff);		/* following is a wildcard */
-	ncp_rq_byte(rqp, '*');
-	checkbad(ncp_request(conn,rqp));
-	ncp_rp_mem(rqp,(caddr_t)seq, sizeof(*seq));
-	ncp_rp_byte(rqp);		/* skip */
-	ncp_extract_file_info(nmp, rqp, target);
-	NCP_RQ_EXIT;
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 3);		/* subfunction */
+	mb_put_uint8(&rqp->rq, nmp->name_space);
+	mb_put_uint8(&rqp->rq, 0);		/* data stream */
+	mb_put_uint16le(&rqp->rq, 0xffff);	/* Search attribs */
+	mb_put_uint32le(&rqp->rq, IM_ALL);	/* return info mask */
+	mb_put_mem(&rqp->rq, (caddr_t)seq, 9, MB_MSYSTEM);
+	mb_put_uint8(&rqp->rq, 2);		/* 2 byte pattern */
+	mb_put_uint8(&rqp->rq, 0xff);		/* following is a wildcard */
+	mb_put_uint8(&rqp->rq, '*');
+	rqp->nr_minrplen = sizeof(*seq) +  1 + NCP_INFOSZ + 1;
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	md_get_mem(&rqp->rp, (caddr_t)seq, sizeof(*seq), MB_MSYSTEM);
+	md_get_uint8(&rqp->rp, NULL);		/* skip */
+	error = ncp_extract_file_info(nmp, rqp, target, 1);
+	ncp_rq_done(rqp);
 	return error;
 }
 
@@ -136,28 +141,29 @@ ncp_obtain_info(struct nwmount *nmp,  u_int32_t dirent,
 		struct proc *p,struct ucred *cred)
 {
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
+	struct ncp_rq *rqp;
 	int error;
 	u_char volnum = nmp->n_volume, ns;
-	DECLARE_RQ;
 
 	if (target == NULL) {
 		NCPFATAL("target == NULL\n");
 		return EINVAL;
 	}
 	ns = (path == NULL || path[0] == 0) ? NW_NS_DOS : nmp->name_space;
-	NCP_RQ_HEAD(87, p, cred);
-	ncp_rq_byte(rqp, 6);			/* subfunction */
-	ncp_rq_byte(rqp, ns);
-	ncp_rq_byte(rqp, ns);	/* DestNameSpace */
-	ncp_rq_word(rqp, htons(0xff00));	/* get all */
-	ncp_rq_dword(rqp, IM_ALL);
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 6);	/* subfunction */
+	mb_put_uint8(&rqp->rq, ns);
+	mb_put_uint8(&rqp->rq, ns);	/* DestNameSpace */
+	mb_put_uint16le(&rqp->rq, 0xff);	/* get all */
+	mb_put_uint32le(&rqp->rq, IM_ALL);
 	ncp_rq_dbase_path(rqp, volnum, dirent, namelen, path, &nmp->m.nls);
-	checkbad(ncp_request(conn,rqp));
-	if (path)
-		ncp_extract_file_info(nmp, rqp, target);
-	else
-		ncp_update_file_info(nmp, rqp, target);
-	NCP_RQ_EXIT;
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	error = ncp_extract_file_info(nmp, rqp, target, path != NULL);
+	ncp_rq_done(rqp);
 	return error;
 }
 /* 
@@ -219,75 +225,84 @@ ncp_open_create_file_or_subdir(struct nwmount *nmp,struct vnode *dvp,int namelen
 {
 	
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
+	struct ncp_rq *rqp;
 	u_int16_t search_attribs = SA_ALL & (~SA_SUBDIR_FILES);
 	u_int8_t volnum;
 	u_int32_t dirent;
 	int error;
-	DECLARE_RQ;
 
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
 	volnum = nmp->n_volume;
 	dirent = VTONW(dvp)->n_fid.f_id;
 	if ((create_attributes & aDIR) != 0) {
 		search_attribs |= SA_SUBDIR_FILES;
 	}
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 1);/* subfunction */
-	ncp_rq_byte(rqp, nmp->name_space);
-	ncp_rq_byte(rqp, open_create_mode);
-	ncp_rq_word(rqp, search_attribs);
-	ncp_rq_dword(rqp, IM_ALL);
-	ncp_rq_dword(rqp, create_attributes);
+	mb_put_uint8(&rqp->rq, 1);/* subfunction */
+	mb_put_uint8(&rqp->rq, nmp->name_space);
+	mb_put_uint8(&rqp->rq, open_create_mode);
+	mb_put_uint16le(&rqp->rq, search_attribs);
+	mb_put_uint32le(&rqp->rq, IM_ALL);
+	mb_put_uint32le(&rqp->rq, create_attributes);
 	/*
 	 * The desired acc rights seem to be the inherited rights mask for
 	 * directories
 	 */
-	ncp_rq_word(rqp, desired_acc_rights);
+	mb_put_uint16le(&rqp->rq, desired_acc_rights);
 	ncp_rq_dbase_path(rqp, volnum, dirent, namelen, name, &nmp->m.nls);
-	checkbad(ncp_request(conn,rqp));
-
-	nop->origfh = ncp_rp_dword_lh(rqp);
-	nop->action = ncp_rp_byte(rqp);
-	ncp_rp_byte(rqp);	/* skip */
-	ncp_extract_file_info(nmp, rqp, &nop->fattr);
-	ConvertToNWfromDWORD(nop->origfh, &nop->fh);
-	NCP_RQ_EXIT;
-	switch(error) {
-	    case NWE_FILE_NO_CREATE_PRIV:
-		error = EACCES;
-		break;
+	error = ncp_request(rqp);
+	if (error) {
+		if (error == NWE_FILE_NO_CREATE_PRIV)
+			error = EACCES;
+		return error;
 	}
+	md_get_uint32le(&rqp->rp, &nop->origfh);
+	md_get_uint8(&rqp->rp, &nop->action);
+	md_get_uint8(&rqp->rp, NULL);	/* skip */
+	error = ncp_extract_file_info(nmp, rqp, &nop->fattr, 1);
+	ncp_rq_done(rqp);
+	ConvertToNWfromDWORD(nop->origfh, &nop->fh);
 	return error;
 }
 
 int
-ncp_close_file(struct ncp_conn *conn, ncp_fh *fh,struct proc *p,struct ucred *cred) {
+ncp_close_file(struct ncp_conn *conn, ncp_fh *fh,struct proc *p,struct ucred *cred)
+{
+	struct ncp_rq *rqp;
 	int error;
-	DECLARE_RQ;
 
-	NCP_RQ_HEAD(66,p,cred);
-	ncp_rq_byte(rqp, 0);
-	ncp_rq_mem(rqp, (caddr_t)fh, 6);
-	error = ncp_request(conn,rqp);
-	NCP_RQ_EXIT_NB;
+	error = ncp_rq_alloc(66, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 0);
+	mb_put_mem(&rqp->rq, (caddr_t)fh, 6, MB_MSYSTEM);
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	ncp_rq_done(rqp);
 	return error;
 }
 
 int
 ncp_DeleteNSEntry(struct nwmount *nmp, u_int32_t dirent,
-			int namelen,char *name,struct proc *p,struct ucred *cred)
+	int namelen,char *name,struct proc *p,struct ucred *cred)
 {
+	struct ncp_rq *rqp;
 	int error;
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
-	DECLARE_RQ;
 
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 8);		/* subfunction */
-	ncp_rq_byte(rqp, nmp->name_space);
-	ncp_rq_byte(rqp, 0);		/* reserved */
-	ncp_rq_word(rqp, SA_ALL);	/* search attribs: all */
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 8);		/* subfunction */
+	mb_put_uint8(&rqp->rq, nmp->name_space);
+	mb_put_uint8(&rqp->rq, 0);		/* reserved */
+	mb_put_uint16le(&rqp->rq, SA_ALL);	/* search attribs: all */
 	ncp_rq_dbase_path(rqp, nmp->n_volume, dirent, namelen, name, &nmp->m.nls);
-	error = ncp_request(conn,rqp);
-	NCP_RQ_EXIT_NB;
+	error = ncp_request(rqp);
+	if (!error)
+		ncp_rq_done(rqp);
 	return error;
 }
 
@@ -298,28 +313,31 @@ ncp_nsrename(struct ncp_conn *conn, int volume, int ns, int oldtype,
 	nwdirent tdir, char *new_name, int newlen,
 	struct proc *p, struct ucred *cred)
 {
-	DECLARE_RQ;
+	struct ncp_rq *rqp;
 	int error;
 
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 4);
-	ncp_rq_byte(rqp, ns);
-	ncp_rq_byte(rqp, 1);
-	ncp_rq_word(rqp, oldtype);
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 4);
+	mb_put_uint8(&rqp->rq, ns);
+	mb_put_uint8(&rqp->rq, 1);	/* RRenameToMySelf */
+	mb_put_uint16le(&rqp->rq, oldtype);
 	/* source Handle Path */
-	ncp_rq_byte(rqp, volume);
-	ncp_rq_dword(rqp, fdir);
-	ncp_rq_byte(rqp, 1);
-	ncp_rq_byte(rqp, 1);	/* 1 source component */
+	mb_put_uint8(&rqp->rq, volume);
+	mb_put_mem(&rqp->rq, (c_caddr_t)&fdir, sizeof(fdir), MB_MSYSTEM);
+	mb_put_uint8(&rqp->rq, 1);
+	mb_put_uint8(&rqp->rq, 1);	/* 1 source component */
 	/* dest Handle Path */
-	ncp_rq_byte(rqp, volume);
-	ncp_rq_dword(rqp, tdir);
-	ncp_rq_byte(rqp, 1);
-	ncp_rq_byte(rqp, 1);	/* 1 destination component */
+	mb_put_uint8(&rqp->rq, volume);
+	mb_put_mem(&rqp->rq, (c_caddr_t)&tdir, sizeof(tdir), MB_MSYSTEM);
+	mb_put_uint8(&rqp->rq, 1);
+	mb_put_uint8(&rqp->rq, 1);	/* 1 destination component */
 	ncp_rq_pathstring(rqp, oldlen, old_name, nt);
 	ncp_rq_pathstring(rqp, newlen, new_name, nt);
-	error = ncp_request(conn,rqp);
-	NCP_RQ_EXIT_NB;
+	error = ncp_request(rqp);
+	if (!error)
+		ncp_rq_done(rqp);
 	return error;
 }
 
@@ -330,22 +348,25 @@ ncp_modify_file_or_subdir_dos_info(struct nwmount *nmp, struct vnode *vp,
 				struct proc *p,struct ucred *cred)
 {
 	struct nwnode *np=VTONW(vp);
+	struct ncp_rq *rqp;
 	u_int8_t volnum = nmp->n_volume;
 	u_int32_t dirent = np->n_fid.f_id;
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
 	int             error;
-	DECLARE_RQ;
 
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 7);	/* subfunction */
-	ncp_rq_byte(rqp, nmp->name_space);
-	ncp_rq_byte(rqp, 0);	/* reserved */
-	ncp_rq_word(rqp, htons(0x0680));	/* search attribs: all */
-	ncp_rq_dword(rqp, info_mask);
-	ncp_rq_mem(rqp, (caddr_t)info, sizeof(*info));
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 7);	/* subfunction */
+	mb_put_uint8(&rqp->rq, nmp->name_space);
+	mb_put_uint8(&rqp->rq, 0);	/* reserved */
+	mb_put_uint16le(&rqp->rq, SA_ALL);	/* search attribs: all */
+	mb_put_uint32le(&rqp->rq, info_mask);
+	mb_put_mem(&rqp->rq, (caddr_t)info, sizeof(*info), MB_MSYSTEM);
 	ncp_rq_dbase_path(rqp, volnum, dirent, 0, NULL, NULL);
-	error = ncp_request(conn,rqp);
-	NCP_RQ_EXIT_NB;
+	error = ncp_request(rqp);
+	if (!error)
+		ncp_rq_done(rqp);
 	return error;
 }
 
@@ -361,23 +382,30 @@ ncp_setattr(vp, vap, cred, procp)
 	struct ncp_open_info nwn;
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
 	struct nw_modify_dos_info info;
+	struct ncp_rq *rqp;
 	int error = 0, info_mask;
-	DECLARE_RQ;
 
 	if (vap->va_size != VNOVAL) {
 		error = ncp_open_create_file_or_subdir(nmp, vp, 0, NULL, OC_MODE_OPEN, 0,
 						   AR_WRITE | AR_READ, &nwn,procp,cred);
-		if (error) return error;
-		NCP_RQ_HEAD(73,procp,cred);
-		ncp_rq_byte(rqp, 0);
-		ncp_rq_mem(rqp, (caddr_t)&nwn.fh, 6);
-		ncp_rq_dword(rqp, htonl(vap->va_size));
-		ncp_rq_word_hl(rqp, 0);
-		checkbad(ncp_request(conn,rqp));
+		if (error)
+			return error;
+		error = ncp_rq_alloc(73, conn, procp, cred, &rqp);
+		if (error) {
+			ncp_close_file(conn, &nwn.fh, procp, cred);
+			return error;
+		}
+		mb_put_uint8(&rqp->rq, 0);
+		mb_put_mem(&rqp->rq, (caddr_t)&nwn.fh, 6, MB_MSYSTEM);
+		mb_put_uint32be(&rqp->rq, vap->va_size);
+		mb_put_uint16be(&rqp->rq, 0);
+		error = ncp_request(rqp);
 		np->n_vattr.va_size = np->n_size = vap->va_size;
-		NCP_RQ_EXIT;
+		if (!error)
+			ncp_rq_done(rqp);
 		ncp_close_file(conn, &nwn.fh, procp, cred);
-		if (error) return error;
+		if (error)
+			return error;
 	}
 	info_mask = 0;
 	bzero(&info, sizeof(info));
@@ -398,53 +426,65 @@ ncp_setattr(vp, vap, cred, procp)
 
 int
 ncp_get_volume_info_with_number(struct ncp_conn *conn, 
-	    int n, struct ncp_volume_info *target,
-	    struct proc *p,struct ucred *cred) {
-	int error,len;
-	DECLARE_RQ;
+	int n, struct ncp_volume_info *target,
+	struct proc *p,struct ucred *cred)
+{
+	struct ncp_rq *rqp;
+	u_int32_t tmp32;
+	u_int8_t len;
+	int error;
 
-	NCP_RQ_HEAD_S(22,44,p,cred);
-	ncp_rq_byte(rqp,n);
-	checkbad(ncp_request(conn,rqp));
-	target->total_blocks = ncp_rp_dword_lh(rqp);
-	target->free_blocks = ncp_rp_dword_lh(rqp);
-	target->purgeable_blocks = ncp_rp_dword_lh(rqp);
-	target->not_yet_purgeable_blocks = ncp_rp_dword_lh(rqp);
-	target->total_dir_entries = ncp_rp_dword_lh(rqp);
-	target->available_dir_entries = ncp_rp_dword_lh(rqp);
-	ncp_rp_dword_lh(rqp);
-	target->sectors_per_block = ncp_rp_byte(rqp);
+	error = ncp_rq_alloc_subfn(22, 44, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq,n);
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	md_get_uint32le(&rqp->rp, &target->total_blocks);
+	md_get_uint32le(&rqp->rp, &target->free_blocks);
+	md_get_uint32le(&rqp->rp, &target->purgeable_blocks);
+	md_get_uint32le(&rqp->rp, &target->not_yet_purgeable_blocks);
+	md_get_uint32le(&rqp->rp, &target->total_dir_entries);
+	md_get_uint32le(&rqp->rp, &target->available_dir_entries);
+	md_get_uint32le(&rqp->rp, &tmp32);
+	md_get_uint8(&rqp->rp, &target->sectors_per_block);
 	bzero(&target->volume_name, sizeof(target->volume_name));
-	len = ncp_rp_byte(rqp);
+	md_get_uint8(&rqp->rp, &len);
 	if (len > NCP_VOLNAME_LEN) {
 		error = ENAMETOOLONG;
 	} else {
-		ncp_rp_mem(rqp,(caddr_t)&target->volume_name, len);
+		md_get_mem(&rqp->rp, (caddr_t)&target->volume_name, len, MB_MSYSTEM);
 	}
-	NCP_RQ_EXIT;
+	ncp_rq_done(rqp);
 	return error;
 }
 
 int
 ncp_get_namespaces(struct ncp_conn *conn, u_int32_t volume, int *nsf,
-	    struct proc *p,struct ucred *cred) {
+	struct proc *p,struct ucred *cred)
+{
+	struct ncp_rq *rqp;
 	int error;
 	u_int8_t ns;
 	u_int16_t nscnt;
-	DECLARE_RQ;
 
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 24);	/* Subfunction: Get Loaded Name Spaces */
-	ncp_rq_word(rqp, 0);
-	ncp_rq_byte(rqp, volume);
-	checkbad(ncp_request(conn,rqp));
-	nscnt = ncp_rp_word_lh(rqp);
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 24);	/* Subfunction: Get Loaded Name Spaces */
+	mb_put_uint16le(&rqp->rq, 0);	/* reserved */
+	mb_put_uint8(&rqp->rq, volume);
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	md_get_uint16le(&rqp->rp, &nscnt);
 	*nsf = 0;
 	while (nscnt-- > 0) {
-		ns = ncp_rp_byte(rqp);
+		md_get_uint8(&rqp->rp, &ns);
 		*nsf |= 1 << ns;
 	}
-	NCP_RQ_EXIT;
+	ncp_rq_done(rqp);
 	return error;
 }
 
@@ -453,26 +493,31 @@ ncp_lookup_volume(struct ncp_conn *conn, char *volname,
 		u_char *volNum, u_int32_t *dirEnt,
 		struct proc *p,struct ucred *cred)
 {
+	struct ncp_rq *rqp;
+	u_int32_t tmp32;
 	int error;
-	DECLARE_RQ;
 
 	NCPNDEBUG("looking up vol %s\n", volname);
-	NCP_RQ_HEAD(87,p,cred);
-	ncp_rq_byte(rqp, 22);	/* Subfunction: Generate dir handle */
-	ncp_rq_byte(rqp, 0);	/* src name space */
-	ncp_rq_byte(rqp, 0);	/* dst name space, always zero */
-	ncp_rq_word(rqp, 0);	/* dstNSIndicator */
+	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint8(&rqp->rq, 22);	/* Subfunction: Generate dir handle */
+	mb_put_uint8(&rqp->rq, 0);	/* src name space */
+	mb_put_uint8(&rqp->rq, 0);	/* dst name space, always zero */
+	mb_put_uint16le(&rqp->rq, 0);	/* dstNSIndicator (Jn) */
 
-	ncp_rq_byte(rqp, 0);	/* faked volume number */
-	ncp_rq_dword(rqp, 0);	/* faked dir_base */
-	ncp_rq_byte(rqp, 0xff);	/* Don't have a dir_base */
-	ncp_rq_byte(rqp, 1);	/* 1 path component */
+	mb_put_uint8(&rqp->rq, 0);	/* faked volume number */
+	mb_put_uint32be(&rqp->rq, 0);	/* faked dir_base */
+	mb_put_uint8(&rqp->rq, 0xff);	/* Don't have a dir_base */
+	mb_put_uint8(&rqp->rq, 1);	/* 1 path component */
 	ncp_rq_pstring(rqp, volname);
-	checkbad(ncp_request(conn,rqp));
-	ncp_rp_dword_lh(rqp); 	/* NSDirectoryBase*/
-	*dirEnt = ncp_rp_dword_lh(rqp);
-	*volNum = ncp_rp_byte(rqp);
-	NCP_RQ_EXIT;
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	md_get_uint32le(&rqp->rp, &tmp32);
+	md_get_uint32le(&rqp->rp, dirEnt);
+	md_get_uint8(&rqp->rp, volNum);
+	ncp_rq_done(rqp);
 	return error;
 }
 
