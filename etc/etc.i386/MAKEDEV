@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.69 1995/02/14 23:48:05 jkh Exp $
+#	$Id: MAKEDEV,v 1.70 1995/02/16 16:03:29 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -686,6 +686,7 @@ gsc)
 	rm -f gsc0
 	mknod gsc0 c 47 0
 	chmod 666 gsc0
+	chown root.wheel gsc0
 	;;
 
 apm)
@@ -714,7 +715,7 @@ ttyx?|ttyy?|ttyz?)
 cronyx)
 	rm -f cronyx
 	mknod cronyx c 42 63
-	chown 444 cronyx
+	chown root.wheel cronyx
   	;;
 
 joy)
@@ -722,6 +723,7 @@ joy)
 	mknod joy0 c 51 0
 	mknod joy1 c 51 1
 	chmod 444 joy0 joy1
+	chown root.wheel joy0 joy1
 	;;
 
 spigot)
@@ -774,23 +776,23 @@ isdn*)
 	mknod /dev/itel01 c `expr $unit + 3` 1
 	mknod /dev/ispy c `expr $unit + 5` 0
 	chmod 600 n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
-	chown root n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
-	chown uucp ityo[01]
+	chown root.wheel n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
+	chown uucp.wheel ityo[01]
 	case $type in
 	5000)
 		ln /dev/snic0 /dev/nic0
 		chmod 600 /dev/nic0
-		chown root /dev/nic0
+		chown root.wheel /dev/nic0
 		;;
 	3008)
 		ln /dev/n8ic0 /dev/nic0
 		chmod 600 /dev/nic0
-		chown root /dev/nic0
+		chown root.wheel /dev/nic0
 		;;
 	3009)
 		ln /dev/n9ic0 /dev/nic0
 		chmod 600 /dev/nic0
-		chown root /dev/nic0
+		chown root.wheel /dev/nic0
 		;;
 	1000|tel*|TEL*|none)
 		;;
