@@ -164,7 +164,7 @@ struct ida_softc {
  */
 #define DRV_WRITEPROT		0x0001
 
-struct id_softc {
+struct idad_softc {
 	device_t	dev;
 	struct 		ida_softc *controller;
 	struct		disk disk;
@@ -195,6 +195,6 @@ extern int ida_command(struct ida_softc *ida, int command, void *data,
 extern void ida_submit_buf(struct ida_softc *ida, struct bio *bp);
 extern void ida_intr(void *data);
 
-extern void id_intr(struct bio *bp);
+extern void idad_intr(struct bio *bp);
 
 #endif /* _IDAVAR_H */
