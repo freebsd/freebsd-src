@@ -6,6 +6,7 @@
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
 '\" SCCS: @(#) expr.n 1.17 96/03/14 10:54:40
+'\" $Id$
 '\" 
 .so man.macros
 .TH expr n 7.4 Tcl "Tcl Built-In Commands"
@@ -259,7 +260,7 @@ example,
 \fBexpr 20.0/5.0\fR
 .CE
 returns ``4.0'', not ``4''.  The global variable \fBtcl_precision\fR
-determines the the number of significant digits that are retained
+determines the number of significant digits that are retained
 when floating values are converted to strings (except that trailing
 zeroes are omitted).  If \fBtcl_precision\fR
 is unset then 6 digits of precision are used.

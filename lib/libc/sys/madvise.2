@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
 .Dd Jul 19, 1996
 .Dt MADVISE 2
@@ -81,7 +82,7 @@ of pages in the specified range.  Additionally future references to
 this address range will incur a page fault.
 .sp
 MADV_FREE gives the VM system the freedom to free pages,
-and and tells the system that information in the specified page range
+and tells the system that information in the specified page range
 is no longer important.  This is an efficient way of allowing malloc(3) to
 free pages anywhere in the address space, while keeping the address space
 valid.  The next time that the page is referenced, the page might be demand

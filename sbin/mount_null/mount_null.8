@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount_null.8	8.4 (Berkeley) 4/19/94
-.\"
+.\"	$Id$
 .\"
 .Dd April 19, 1994
 .Dt MOUNT_NULL 8
@@ -195,7 +195,7 @@ by mapping an vnode arguments to the lower layer.
 The first approach is to call the aliasing layer's bypass routine.
 This method is most suitable when you wish to invoke the operation
 currently being handled on the lower layer.  It has the advantage
-the the bypass routine already must do argument mapping.
+the bypass routine already must do argument mapping.
 An example of this is 
 .Em null_getattrs
 in the null layer.
