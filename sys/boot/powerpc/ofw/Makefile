@@ -3,7 +3,6 @@
 BASE=		loader
 PROG=		${BASE}
 NOMAN=
-MAN1=
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" OpenFirmware/PowerPC
 BINDIR?=	/boot
