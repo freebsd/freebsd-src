@@ -394,8 +394,8 @@ ata_dmainit(struct ata_softc *scp, int device,
 		}
 	    }
 	}
-	else if (ata_find_dev(parent, 0x05961106, 0) ||		/* 82C596a */
-		 ata_find_dev(parent, 0x05861106, 0x02)) {	/* 82C586b */
+	else if (ata_find_dev(parent, 0x06861106, 0) ||		/* 82C686a */
+		 ata_find_dev(parent, 0x05961106, 0x12)) {	/* 82C596b */
 	    if (udmamode >= 4) {
 		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
