@@ -40,6 +40,7 @@ ENTRY(_start)
 	flushw
 	wrpr	%g0, 1, %cwp
 	wrpr	%g0, 0, %cleanwin
+	wrpr	%g0, 13, %pil
 
 	setx	user0 + UPAGES * PAGE_SIZE - SPOFF, %l0, %o5
 	save	%o5, -CCFSZ, %sp
