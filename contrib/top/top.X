@@ -1,5 +1,6 @@
 .\" NOTE:  changes to the manual page for "top" should be made in the
 .\"        file "top.X" and NOT in the file "top.1".
+.\" $FreeBSD$
 .nr N %topn%
 .nr D %delay%
 .TH TOP 1 Local
@@ -29,7 +30,7 @@ top \- display and update information about the top cpu processes
 .if t .ds rq ''
 .\" Just in case these number registers aren't set yet...
 .if \nN==0 .nr N 10
-.if \nD==0 .nr D 5
+.if \nD==0 .nr D 2
 .I Top
 displays the top
 .if !\nN==-1 \nN
