@@ -115,8 +115,6 @@ struct uftdi_softc {
 	u_char			sc_msr;
 	u_char			sc_lsr;
 
-	u_char			sc_dying;
-
 	u_int			last_lcr;
 };
 
@@ -289,7 +287,7 @@ uftdi_activate(device_ptr_t self, enum devact act)
 	case DVACT_DEACTIVATE:
 		if (sc->sc_subdev != NULL)
 			rv = config_deactivate(sc->sc_subdev);
-		sc->sc_dying = 1;
+		sc->sc_ucom.sc_dying = 1;
 		break;
 	}
 	return (rv);
@@ -303,7 +301,7 @@ USB_DETACH(uftdi)
 	int rv = 0;
 
 	DPRINTF(("uftdi_detach: sc=%p\n", sc));
-	sc->sc_dying = 1;
+	sc->sc_ucom.sc_dying = 1;
 	rv = ucom_detach(&sc->sc_ucom);
 
 	return rv;
@@ -313,14 +311,14 @@ Static int
 uftdi_open(void *vsc, int portno)
 {
 	struct uftdi_softc *sc = vsc;
-	struct ucom_softc *ucom = (struct ucom_softc *) vsc;
+	struct ucom_softc *ucom = &sc->sc_ucom;
 	usb_device_request_t req;
 	usbd_status err;
 	struct termios t;
 
 	DPRINTF(("uftdi_open: sc=%p\n", sc));
 
-	if (sc->sc_dying)
+	if (ucom->sc_dying)
 		return (EIO);
 
 	/* Perform a full reset on the device */
@@ -439,14 +437,14 @@ Static int
 uftdi_param(void *vsc, int portno, struct termios *t)
 {
 	struct uftdi_softc *sc = vsc;
-	struct ucom_softc *ucom = vsc;
+	struct ucom_softc *ucom = &sc->sc_ucom;
 	usb_device_request_t req;
 	usbd_status err;
 	int rate=0, data, flow;
 
 	DPRINTF(("uftdi_param: sc=%p\n", sc));
 
-	if (sc->sc_dying)
+	if (ucom->sc_dying)
 		return (EIO);
 
 	switch (sc->sc_type) {
