@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
+#	$Id$
 
 PROG=	dumplfs
 CFLAGS+=-I${.CURDIR}/../../sys/ufs/lfs
