@@ -48,17 +48,20 @@ from Intel.
 .Pp
 Note that the
 .Nm
-driver is automatically loaded by the bootloader, and should only be
+driver is automatically loaded by the
+.Xr loader 8 ,
+and should only be
 compiled into the kernel on platforms where ACPI is mandatory.
 .Sh SYSCTLS
 The
 .Nm
 driver is intended to provide power management without user intervention.
 Thus, some of these sysctls are controlled automatically by the
-.Nm power_profile
-rc script, which can be configured via
+.Pa power_profile
+.Xr rc 8
+script, which can be configured via
 .Xr rc.conf 5 .
-If you specify values manually, they may be overridden.
+If values are specified manually, they may be overridden.
 .Bl -tag -width indent
 .It Va hw.acpi.cpu.throttle_max
 Maximum value for CPU throttling, equal to 100% of the clock rate.
@@ -109,7 +112,7 @@ BIOS, you can set this to 0 to re-enable ACPI for testing.
 .It Va hw.acpi.ec.poll_timeout
 Delay in milliseconds to wait for the EC to respond.
 Try increasing this number if you get the error
-.Er AE_NO_HARDWARE_RESPONSE .
+.Qq Li AE_NO_HARDWARE_RESPONSE .
 .It Va hw.acpi.osname
 Some systems' ASL may have problems because they look for names
 of Microsoft operating systems.
@@ -125,8 +128,10 @@ Some graphic chips have problems such as LCD white-out after resume.
 Try setting this to 0 if this causes problems for you.
 .It Va hw.acpi.serialize_methods
 Allow override of whether methods execute in parallel or not.
-Enable this for serial behavior, which fixes "AE_ALREADY_EXISTS" errors for 
-AML that really can't handle parallel method execution.
+Enable this for serial behavior, which fixes
+.Qq Li AE_ALREADY_EXISTS
+errors for 
+AML that really cannot handle parallel method execution.
 It is off by default since this breaks recursive methods and some IBMs use 
 such code.
 .It Va hw.acpi.verbose
@@ -175,7 +180,7 @@ environment variable
 Multiple entries can be listed, separated by a space.
 .Pp
 ACPI sub-devices and features that can be disabled:
-.Bl -tag -width sysresource
+.Bl -tag -width ".Li sysresource"
 .It Li all
 Disable all ACPI features and devices.
 .It Li acad
@@ -248,7 +253,7 @@ know about the avoided region.
 To enable debugging output,
 .Nm
 must be compiled with
-"options ACPI_DEBUG."
+.Cd "options ACPI_DEBUG" .
 Debugging output is separated between layers and levels, where a layer is
 a component of the ACPI subsystem, and a level is a particular kind
 of debugging output.
@@ -260,7 +265,7 @@ and levels in
 .Va debug.acpi.level .
 The supported layers are:
 .Pp
-.Bl -tag -compact -width ACPI_CA_DISASSEMBLER
+.Bl -tag -compact -width ".Li ACPI_CA_DISASSEMBLER"
 .It Li ACPI_UTILITIES
 .It Li ACPI_HARDWARE
 .It Li ACPI_EVENTS
@@ -305,7 +310,7 @@ ACPI drivers
 .Pp
 The supported levels are:
 .Pp
-.Bl -tag -compact -width ACPI_LV_AML_DISASSEMBLE
+.Bl -tag -compact -width ".Li ACPI_LV_AML_DISASSEMBLE"
 .It Li ACPI_LV_ERROR
 .It Li ACPI_LV_WARN
 .It Li ACPI_LV_INIT
@@ -355,7 +360,6 @@ Output from the
 .Fx Ns -local
 code follows the same format, but
 the module name is uppercased.
-.Pp
 .Sh OVERRIDING YOUR BIOS BYTECODE
 ACPI interprets bytecode named AML
 (ACPI Machine Language)
@@ -363,7 +367,7 @@ provided by the BIOS vendor as a memory image at boot time.
 Sometimes, the AML code contains a bug that does not appear when parsed
 by the Microsoft implementation.
 .Fx
-provides a way to override it with your own AML code to workaround
+provides a way to override it with your own AML code to work around
 or debug such problems.
 Note that all AML in your DSDT and any SSDT tables is overridden.
 .Pp
@@ -378,7 +382,7 @@ acpi_dsdt_name="/boot/acpi_dsdt.aml" # You may change this name.
 In order to prepare your AML code, you will need the
 .Xr acpidump 8
 and
-.Xr iasl 1
+.Xr iasl 8
 utilities and some ACPI knowledge.
 .Sh COMPATIBILITY
 ACPI is only found and supported on i386/ia32, ia64, and amd64.
