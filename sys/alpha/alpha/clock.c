@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.7 1999/04/23 19:53:37 dt Exp $ */
+/* $Id: clock.c,v 1.8 1999/04/25 10:45:59 dt Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*
@@ -114,6 +114,7 @@ static u_int32_t max_cycles_per_tick;
 static u_int32_t last_time;
 
 static void handleclock(void* arg);
+static u_int32_t calibrate_clocks(u_int32_t firmware_freq);
 
 void
 clockattach(device_t dev)
@@ -125,6 +126,7 @@ clockattach(device_t dev)
 	if (clockdev)
 		panic("clockattach: multiple clocks");
 	clockdev = dev;
+	cycles_per_sec = calibrate_clocks(cycles_per_sec);
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
 #endif
@@ -150,6 +152,8 @@ clockattach(device_t dev)
 void
 cpu_initclocks()
 {
+	u_int32_t freq;
+
 	if (clockdev == NULL)
 		panic("cpu_initclocks: no clock attached");
 
@@ -175,11 +179,12 @@ cpu_initclocks()
 	 * hardclock, which would then fall over because p->p_stats
 	 * isn't set at that time.
 	 */
+	freq = cycles_per_sec;
 	last_time = alpha_rpcc();
-	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / cycles_per_sec;
-	max_cycles_per_tick = 2*cycles_per_sec / hz;
+	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
+	max_cycles_per_tick = 2*freq / hz;
 
-	alpha_timecounter.tc_frequency = cycles_per_sec;
+	alpha_timecounter.tc_frequency = freq;
 	init_timecounter(&alpha_timecounter);
 
 	platform.clockintr = (void (*) __P((void *))) handleclock;
@@ -188,6 +193,60 @@ cpu_initclocks()
 	 * Get the clock started.
 	 */
 	CLOCK_INIT(clockdev);
+}
+
+static u_int32_t
+calibrate_clocks(u_int32_t firmware_freq)
+{
+	u_int32_t start_pcc, stop_pcc;
+	int sec, start_sec;
+
+	if (bootverbose)
+	        printf("Calibrating clock(s) ... ");
+
+	/* Read the mc146818A seconds counter. */
+	if (CLOCK_GETSECS(clockdev, &sec))
+		goto fail;
+
+	/* Wait for the mC146818A seconds counter to change. */
+	start_sec = sec;
+	for (;;) {
+		if (CLOCK_GETSECS(clockdev, &sec))
+			goto fail;
+		if (sec != start_sec)
+			break;
+	}
+
+	/* Start keeping track of the PCC. */
+	start_pcc = alpha_rpcc();
+
+	/*
+	 * Wait for the mc146818A seconds counter to change.
+	 */
+	start_sec = sec;
+	for (;;) {
+		if (CLOCK_GETSECS(clockdev, &sec))
+			goto fail;
+		if (sec != start_sec)
+			break;
+	}
+
+	/*
+	 * Read the PCC again to work out frequency.
+	 */
+	stop_pcc = alpha_rpcc();
+
+	if (bootverbose) {
+	        printf("PCC clock: %u Hz (firmware %u Hz)\n",
+		       stop_pcc - start_pcc, firmware_freq);
+	}
+	return (stop_pcc - start_pcc);
+
+fail:
+	if (bootverbose)
+	        printf("failed, using firmware default of %u Hz\n",
+		       firmware_freq);
+	return (firmware_freq);
 }
 
 static void
