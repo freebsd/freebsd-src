@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.19 1995/09/03 20:32:52 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.20 1995/09/04 00:20:15 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -290,7 +290,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 		panic("cluster_rbuild: size %d != filesize %d\n",
 		    size, vp->v_mount->mnt_stat.f_iosize);
 #endif
-	if (size * (lbn + run + 1) > filesize)
+	if (size * (lbn + run) > filesize)
 		--run;
 
 	tbp = getblk(vp, lbn, size, 0, 0);
@@ -313,8 +313,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 	bp->b_lblkno = lbn;
 	pbgetvp(vp, bp);
 
-	b_save = malloc(sizeof(struct buf *) * run + sizeof(struct cluster_save),
-	    M_SEGMENT, M_WAITOK);
+	b_save = malloc(sizeof(struct buf *) * run +
+		sizeof(struct cluster_save), M_SEGMENT, M_WAITOK);
 	b_save->bs_nchildren = 0;
 	b_save->bs_children = (struct buf **) (b_save + 1);
 	bp->b_saveaddr = b_save;
@@ -328,6 +328,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 		if (i != 0) {
 			if ((bp->b_npages * PAGE_SIZE) + size > MAXPHYS)
 				break;
+
 			if (incore(vp, lbn + i))
 				break;
 			tbp = getblk(vp, lbn + i, size, 0, 0);
@@ -345,6 +346,10 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 			}
 
 			if (j != tbp->b_npages) {
+				/*
+				 * force buffer to be re-constituted later
+				 */
+				tbp->b_flags |= B_RELBUF;
 				brelse(tbp);
 				break;
 			}
@@ -364,13 +369,17 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 			m = tbp->b_pages[j];
 			++m->busy;
 			++m->object->paging_in_progress;
-			if (m->valid == VM_PAGE_BITS_ALL) {
+			if ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) {
 				m = bogus_page;
 			}
 			if ((bp->b_npages == 0) ||
-				(bp->b_pages[bp->b_npages - 1] != m)) {
+				(bp->b_bufsize & PAGE_MASK) == 0) {
 				bp->b_pages[bp->b_npages] = m;
 				bp->b_npages++;
+			} else {
+				if ( tbp->b_npages > 1) {
+					panic("cluster_rbuild: page unaligned filesystems not supported");
+				}
 			}
 		}
 		bp->b_bcount += tbp->b_bcount;
