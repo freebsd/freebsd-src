@@ -18,6 +18,8 @@
 #include "cdefs.h"
 #include "osdep.h"
 
+#define _ns_flagdata MR_ns_flagdata
+
 #include "minires/resolv.h"
 #include "minires/res_update.h"
 #include "isc-dhcp/result.h"
@@ -151,7 +153,7 @@ isc_result_t res_nmkquery (res_state, int, const char *, ns_class, ns_type,
 			   const unsigned char *, unsigned,
 			   const unsigned char *, double *,
 			   unsigned, unsigned *);
-int ns_initparse (const unsigned char *, unsigned, ns_msg *);
+isc_result_t ns_initparse (const unsigned char *, unsigned, ns_msg *);
 isc_result_t res_nquery(res_state, const char *,
 			ns_class, ns_type, double *, unsigned, unsigned *);
 isc_result_t res_nsearch(res_state, const char *,
@@ -161,7 +163,8 @@ isc_result_t res_nquerydomain(res_state, const char *, const char *,
 			      ns_class class, ns_type type,
 			      double *, unsigned, unsigned *);
 
-int ns_skiprr(const unsigned char *, const unsigned char *, ns_sect, int);
+isc_result_t ns_skiprr(const unsigned char *,
+		       const unsigned char *, ns_sect, int, int *);
 int dn_skipname (const unsigned char *, const unsigned char *);
 u_int32_t getULong (const unsigned char *);
 int32_t getLong (const unsigned char *);

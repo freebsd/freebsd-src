@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_verify.c,v 1.5.2.1 2001/05/17 20:47:34 mellon Exp $";
+static const char rcsid[] = "$Id: ns_verify.c,v 1.5.2.2 2002/02/19 19:23:31 mellon Exp $";
 #endif
 
 #define time(x)		trace_mr_time (x)
@@ -60,6 +60,7 @@ ns_find_tsig(u_char *msg, u_char *eom) {
 	HEADER *hp = (HEADER *)msg;
 	int n, type;
 	u_char *cp = msg, *start;
+	isc_result_t status;
 
 	if (msg == NULL || eom == NULL || msg > eom)
 		return (NULL);
@@ -72,23 +73,23 @@ ns_find_tsig(u_char *msg, u_char *eom) {
 
 	cp += HFIXEDSZ;
 
-	n = ns_skiprr(cp, eom, ns_s_qd, ntohs(hp->qdcount));
-	if (n < 0)
+	status = ns_skiprr(cp, eom, ns_s_qd, ntohs(hp->qdcount), &n);
+	if (status != ISC_R_SUCCESS)
 		return (NULL);
 	cp += n;
 
-	n = ns_skiprr(cp, eom, ns_s_an, ntohs(hp->ancount));
-	if (n < 0)
+	status = ns_skiprr(cp, eom, ns_s_an, ntohs(hp->ancount), &n);
+	if (status != ISC_R_SUCCESS)
 		return (NULL);
 	cp += n;
 
-	n = ns_skiprr(cp, eom, ns_s_ns, ntohs(hp->nscount));
-	if (n < 0)
+	status = ns_skiprr(cp, eom, ns_s_ns, ntohs(hp->nscount), &n);
+	if (status != ISC_R_SUCCESS)
 		return (NULL);
 	cp += n;
 
-	n = ns_skiprr(cp, eom, ns_s_ar, ntohs(hp->arcount) - 1);
-	if (n < 0)
+	status = ns_skiprr(cp, eom, ns_s_ar, ntohs(hp->arcount) - 1, &n);
+	if (status != ISC_R_SUCCESS)
 		return (NULL);
 	cp += n;
 
