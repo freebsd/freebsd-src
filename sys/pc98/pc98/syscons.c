@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.54 1997/08/10 10:52:17 kato Exp $
+ *  $Id: syscons.c,v 1.55 1997/09/05 10:17:28 kato Exp $
  */
 
 #include "sc.h"
@@ -291,7 +291,7 @@ static	d_mmap_t	scmmap;
 static	struct cdevsw	scdevsw = {
 	scopen,		scclose,	scread,		scwrite,
 	scioctl,	nullstop,	noreset,	scdevtotty,
-	ttselect,	scmmap,		nostrategy,	"sc",	NULL,	-1 };
+	ttpoll,		scmmap,		nostrategy,	"sc",	NULL,	-1 };
 
 #ifdef PC98
 static u_char	ibmpc_to_pc98[16] =
