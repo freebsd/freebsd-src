@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.36 1996/03/04 02:04:24 dyson Exp $
+ * $Id: vm_map.c,v 1.37 1996/03/09 06:52:05 dyson Exp $
  */
 
 /*
@@ -834,8 +834,8 @@ vm_map_simplify_entry(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
-	vm_map_entry_t prev, next;
-	vm_size_t prevsize, nextsize, esize;
+	vm_map_entry_t next;
+	vm_size_t nextsize, esize;
 
 	/*
 	 * If this entry corresponds to a sharing map, then see if we can
@@ -852,31 +852,9 @@ vm_map_simplify_entry(map, entry)
 		if (entry->wired_count)
 			return;
 
-		prev = entry->prev;
-		prevsize = prev->end - prev->start;
 		next = entry->next;
 		nextsize = next->end - next->start;
 		esize = entry->end - entry->start;
-
-		if (prev != &map->header &&
-			prev->end == entry->start &&
-			prev->is_a_map == FALSE &&
-			prev->is_sub_map == FALSE &&
-			prev->object.vm_object == entry->object.vm_object &&
-			prev->protection == entry->protection &&
-			prev->max_protection == entry->max_protection &&
-			prev->inheritance == entry->inheritance &&
-			prev->needs_copy == entry->needs_copy &&
-			prev->copy_on_write == entry->copy_on_write &&
-			prev->offset + prevsize == entry->offset &&
-			prev->wired_count == 0) {
-				vm_map_entry_unlink(map, prev);
-				entry->start = prev->start;
-				entry->offset = prev->offset;
-				vm_object_deallocate(prev->object.vm_object);
-				vm_map_entry_dispose(map, prev);
-				esize = entry->end - entry->start;
-		}
 
 		if (next != &map->header &&
 			entry->end == next->start &&
