@@ -70,6 +70,7 @@
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -86,6 +87,7 @@
 
 #include "opt_rootdevname.h"
 #include "opt_ddb.h"
+#include "opt_mac.h"
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -643,8 +645,12 @@ vfs_nmount(td, fsflags, fsoptions)
 	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
+#ifdef MAC
+	mac_init_mount(mp);
+	mac_create_mount(td->td_ucred, mp);
+#endif
 	VOP_UNLOCK(vp, 0, td);
-	mp->mnt_optnew = optlist;
+	mp->mnt_optnew = optlist;	/* XXXMAC: should this be above? */
 
 update:
 	/*
@@ -662,6 +668,9 @@ update:
 		else {
 			mp->mnt_vfc->vfc_refcount--;
 			vfs_unbusy(mp, td);
+#ifdef MAC
+			mac_destroy_mount(mp);
+#endif
 			free(mp, M_MOUNT);
 		}
 		vrele(vp);
@@ -752,6 +761,9 @@ update:
 		mtx_unlock(&vp->v_interlock);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
+#ifdef MAC
+		mac_destroy_mount(mp);
+#endif
 		free(mp, M_MOUNT);
 		vput(vp);
 		goto bad;
@@ -999,6 +1011,10 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
+#ifdef MAC
+	mac_init_mount(mp);
+	mac_create_mount(td->td_ucred, mp);
+#endif
 	VOP_UNLOCK(vp, 0, td);
 update:
 	/*
@@ -1016,6 +1032,9 @@ update:
 		else {
 			mp->mnt_vfc->vfc_refcount--;
 			vfs_unbusy(mp, td);
+#ifdef MAC
+			mac_destroy_mount(mp);
+#endif
 			free(mp, M_MOUNT);
 		}
 		vrele(vp);
@@ -1093,6 +1112,9 @@ update:
 		mtx_unlock(&vp->v_interlock);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
+#ifdef MAC
+		mac_destroy_mount(mp);
+#endif
 		free(mp, M_MOUNT);
 		vput(vp);
 	}
@@ -1304,6 +1326,9 @@ dounmount(mp, flags, td)
 		vrele(coveredvp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup(mp);
+#ifdef MAC
+	mac_destroy_mount(mp);
+#endif
 	if (mp->mnt_op->vfs_mount == NULL)
 		vfs_freeopts(mp->mnt_opt);
 	free(mp, M_MOUNT);
@@ -1350,6 +1375,10 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	mp->mnt_stat.f_mntonname[0] = '/';
 	mp->mnt_stat.f_mntonname[1] = 0;
 	(void) copystr(devname, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 0);
+#ifdef MAC
+	mac_init_mount(mp);
+	mac_create_mount(td->td_ucred, mp);
+#endif
 	*mpp = mp;
 	return (0);
 }
@@ -1502,6 +1531,9 @@ done:
 	if (error != 0) {
 		if (mp != NULL) {
 			vfs_unbusy(mp, curthread);
+#ifdef MAC
+			mac_destroy_mount(mp);
+#endif
 			free(mp, M_MOUNT);
 		}
 		printf("Root mount failed: %d\n", error);

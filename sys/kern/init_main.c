@@ -519,6 +519,9 @@ start_init(void *dummy)
 	VREF(p->p_fd->fd_rdir);
 	FILEDESC_UNLOCK(p->p_fd);
 	VOP_UNLOCK(rootvnode, 0, td);
+#ifdef MAC
+	mac_create_root_mount(td->td_ucred, TAILQ_FIRST(&mountlist));
+#endif
 
 	if (devfs_present) {
 		/*
