@@ -50,12 +50,7 @@ if [ -f /etc/dhclient-enter-hooks ]; then
   fi
 fi
 
-if [ x$new_network_number != x ]; then
-   $LOGGER New Network Number: $new_network_number
-fi
-
 if [ x$new_broadcast_address != x ]; then
- $LOGGER New Broadcast Address: $new_broadcast_address
   new_broadcast_arg="broadcast $new_broadcast_address"
 fi
 if [ x$old_broadcast_address != x ]; then
