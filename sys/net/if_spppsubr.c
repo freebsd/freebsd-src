@@ -36,6 +36,11 @@
 #include <netinet/if_ether.h>
 #endif
 
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif
+
 #ifdef NS
 #include <netns/ns.h>
 #include <netns/ns_if.h>
@@ -403,6 +408,12 @@ int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct
 	case AF_NS:     /* Xerox NS Protocol */
 		h->protocol = htons ((sp->pp_flags & PP_CISCO) ?
 			ETHERTYPE_NS : PPP_XNS);
+		break;
+#endif
+#ifdef IPX
+	case AF_IPX:     /* Xerox NS Protocol */
+		h->protocol = htons ((sp->pp_flags & PP_CISCO) ?
+			ETHERTYPE_IPX : PPP_XNS);
 		break;
 #endif
 #ifdef ISO

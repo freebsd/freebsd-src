@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_x25subr.c,v 1.6 1995/05/30 08:08:46 rgrimes Exp $
+ * $Id: if_x25subr.c,v 1.7 1995/07/29 11:41:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,11 @@
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -186,12 +191,17 @@ register struct mbuf *m;
 		break;
 
 #endif
+#ifdef IPX
+	case AF_IPX:
+		isr = NETISR_IPX;
+		inq = &ipxintrq;
+		break;
+#endif
 #ifdef NS
 	case AF_NS:
 		isr = NETISR_NS;
 		inq = &nsintrq;
 		break;
-
 #endif
 #ifdef	ISO
 	case AF_ISO:

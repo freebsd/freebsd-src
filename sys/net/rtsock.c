@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.14 1995/10/09 04:06:28 bde Exp $
+ *	$Id: rtsock.c,v 1.15 1995/10/13 16:01:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -92,12 +92,13 @@ route_usrreq(so, req, m, nam, control)
 		so->so_pcb = (caddr_t)rp;
 		if (so->so_pcb)
 			bzero(so->so_pcb, sizeof(*rp));
-
 	}
 	if (req == PRU_DETACH && rp) {
 		int af = rp->rcb_proto.sp_protocol;
 		if (af == AF_INET)
 			route_cb.ip_count--;
+		else if (af == AF_IPX)
+			route_cb.ipx_count--;
 		else if (af == AF_NS)
 			route_cb.ns_count--;
 		else if (af == AF_ISO)
@@ -116,6 +117,8 @@ route_usrreq(so, req, m, nam, control)
 		}
 		if (af == AF_INET)
 			route_cb.ip_count++;
+		else if (af == AF_IPX)
+			route_cb.ipx_count++;
 		else if (af == AF_NS)
 			route_cb.ns_count++;
 		else if (af == AF_ISO)

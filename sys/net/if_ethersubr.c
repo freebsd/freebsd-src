@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.8.2.1 1995/06/03 04:46:21 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.9 1995/06/11 19:31:39 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,11 @@
 #include <netinet/in_var.h>
 #endif
 #include <netinet/if_ether.h>
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif
 
 #ifdef NS
 #include <netns/ns.h>
@@ -145,6 +150,18 @@ ether_output(ifp, m0, dst, rt0)
 			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		off = m->m_pkthdr.len - m->m_len;
 		type = ETHERTYPE_IP;
+		break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+		type = ETHERTYPE_IPX;
+ 		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
+		    (caddr_t)edst, sizeof (edst));
+		if (!bcmp((caddr_t)edst, (caddr_t)&ipx_thishost, sizeof(edst)))
+			return (looutput(ifp, m, dst, rt));
+		/* If broadcasting on a simplex interface, loopback a copy */
+		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
+			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
 #endif
 #ifdef NS
@@ -342,12 +359,17 @@ ether_input(ifp, eh, m)
 		inq = &arpintrq;
 		break;
 #endif
+#ifdef IPX
+	case ETHERTYPE_IPX:
+		schednetisr(NETISR_IPX);
+		inq = &ipxintrq;
+		break;
+#endif
 #ifdef NS
 	case ETHERTYPE_NS:
 		schednetisr(NETISR_NS);
 		inq = &nsintrq;
 		break;
-
 #endif
 	default:
 #if defined (ISO) || defined (LLC)

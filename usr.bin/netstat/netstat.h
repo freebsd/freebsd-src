@@ -80,13 +80,21 @@ void	intpr __P((int, u_long));
 void	pr_rthdr __P(());
 void	pr_family __P((int));
 void	rt_stats __P((u_long));
+char	*ipx_pnet __P((struct sockaddr *));
+char	*ipx_phost __P((struct sockaddr *));
 char	*ns_phost __P((struct sockaddr *));
 void	upHex __P((char *));
 
 char	*routename __P((u_long));
 char	*netname __P((u_long, u_long));
+char	*ipx_print __P((struct sockaddr *));
 char	*ns_print __P((struct sockaddr *));
 void	routepr __P((u_long));
+
+void	ipxprotopr __P((u_long, char *));
+void	spx_stats __P((u_long, char *));
+void	ipx_stats __P((u_long, char *));
+void	ipxerr_stats __P((u_long, char *));
 
 void	nsprotopr __P((u_long, char *));
 void	spp_stats __P((u_long, char *));

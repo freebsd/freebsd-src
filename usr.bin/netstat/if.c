@@ -43,6 +43,8 @@ static char sccsid[] = "@(#)if.c	8.2 (Berkeley) 2/21/94";
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #include <netns/ns.h>
 #include <netns/ns_if.h>
 #include <netiso/iso.h>
@@ -74,6 +76,7 @@ intpr(interval, ifnetaddr)
 	union {
 		struct ifaddr ifa;
 		struct in_ifaddr in;
+		struct ipx_ifaddr ipx;
 		struct ns_ifaddr ns;
 		struct iso_ifaddr iso;
 	} ifaddr;
@@ -91,7 +94,7 @@ intpr(interval, ifnetaddr)
 	}
 	if (kread(ifnetaddr, (char *)&ifnetaddr, sizeof ifnetaddr))
 		return;
-	printf("%-5.5s %-5.5s %-11.11s %-15.15s %8.8s %5.5s",
+	printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
 		"Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 	if (bflag)
 		printf(" %10.10s","Ibytes");
@@ -127,7 +130,7 @@ intpr(interval, ifnetaddr)
 		}
 		printf("%-5.5s %-5d ", name, ifnet.if_mtu);
 		if (ifaddraddr == 0) {
-			printf("%-11.11s ", "none");
+			printf("%-13.13s ", "none");
 			printf("%-15.15s ", "none");
 		} else {
 			if (kread(ifaddraddr, (char *)&ifaddr, sizeof ifaddr)) {
@@ -139,7 +142,7 @@ intpr(interval, ifnetaddr)
 				CP(&ifaddr); sa = (struct sockaddr *)cp;
 			switch (sa->sa_family) {
 			case AF_UNSPEC:
-				printf("%-11.11s ", "none");
+				printf("%-13.13s ", "none");
 				printf("%-15.15s ", "none");
 				break;
 			case AF_INET:
@@ -160,12 +163,27 @@ intpr(interval, ifnetaddr)
 				printf("%-15.15s ",
 				    routename(sin->sin_addr.s_addr));
 				break;
+			case AF_IPX:
+				{
+				struct sockaddr_ipx *sipx =
+					(struct sockaddr_ipx *)sa;
+				u_long net;
+				char netnum[10];
+
+				*(union ipx_net *) &net = sipx->sipx_addr.x_net;
+				sprintf(netnum, "%lx", ntohl(net));
+				printf("ipx:%-8s ", netnum);
+/*				printf("ipx:%-8s ", netname(net, 0L)); */
+				printf("%-15s ",
+				    ipx_phost((struct sockaddr *)sipx));
+				}
+				break;
 			case AF_NS:
 				{
 				struct sockaddr_ns *sns =
 					(struct sockaddr_ns *)sa;
 				u_long net;
-				char netnum[8];
+				char netnum[10];
 
 				*(union ns_net *) &net = sns->sns_addr.x_net;
 				sprintf(netnum, "%lxH", ntohl(net));
@@ -194,7 +212,7 @@ intpr(interval, ifnetaddr)
 				while (--n >= 0)
 					m += printf("%02x%c", *cp++ & 0xff,
 						    n > 0 ? '.' : ' ');
-				m = 28 - m;
+				m = 30 - m;
 				while (m-- > 0)
 					putchar(' ');
 				break;

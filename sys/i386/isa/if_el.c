@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.14 1995/06/11 19:31:25 rgrimes Exp $
+ * $Id: if_el.c,v 1.15 1995/10/13 19:47:43 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -42,6 +42,11 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -710,6 +715,32 @@ el_ioctl(ifp, command, data)
 			el_init(ifp->if_unit);	/* before arpwhohas */
 			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
+#endif
+#ifdef IPX
+		/*
+		 * XXX - This code is probably wrong
+		 */
+		case AF_IPX:
+		    {
+			register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+
+			if (ipx_nullhost(*ina))
+				ina->x_host =
+					*(union ipx_host *)(sc->arpcom.ac_enaddr);
+			else {
+				/* 
+				 * 
+				 */
+				bcopy((caddr_t)ina->x_host.c_host,
+				      (caddr_t)sc->arpcom.ac_enaddr,
+				      sizeof(sc->arpcom.ac_enaddr));
+			}
+			/*
+			 * Set new address
+			 */
+			el_init(ifp->if_unit);
+			break;
+		    }
 #endif
 #ifdef NS
 		/*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.4 1995/05/09 13:35:40 davidg Exp $
+ * $Id: if_fddisubr.c,v 1.5 1995/05/30 08:08:05 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,11 @@
 #endif
 #include <netinet/if_ether.h>
 #include <netinet/if_fddi.h>
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif
 
 #ifdef NS
 #include <netns/ns.h>
@@ -162,6 +167,18 @@ fddi_output(ifp, m0, dst, rt0)
 		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
 			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		type = ETHERTYPE_IP;
+		break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+		type = ETHERTYPE_IPX;
+ 		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
+		    (caddr_t)edst, sizeof (edst));
+		if (!bcmp((caddr_t)edst, (caddr_t)&ipx_thishost, sizeof(edst)))
+			return (looutput(ifp, m, dst, rt));
+		/* If broadcasting on a simplex interface, loopback a copy */
+		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
+			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
 #endif
 #ifdef NS

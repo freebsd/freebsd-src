@@ -72,6 +72,11 @@
 #include <netinet/if_ether.h>
 #endif
 
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif
+
 #ifdef NS
 #include <netns/ns.h>
 #include <netns/ns_if.h>
@@ -2016,6 +2021,32 @@ fe_ioctl ( struct ifnet *ifp, int command, caddr_t data )
 			fe_init( sc->sc_unit );	/* before arpwhohas */
 			arp_ifinit( &sc->arpcom, ifa );
 			break;
+#endif
+#ifdef IPX
+
+			/*
+			 * XXX - This code is probably wrong
+			 */
+		  case AF_IPX:
+			{
+				register struct ipx_addr *ina
+				    = &(IA_SIPX(ifa)->sipx_addr);
+
+				if (ipx_nullhost(*ina))
+					ina->x_host =
+					    *(union ipx_host *) (sc->sc_enaddr);
+				else {
+					bcopy((caddr_t) ina->x_host.c_host,
+					      (caddr_t) sc->sc_enaddr,
+					      sizeof(sc->sc_enaddr));
+				}
+
+				/*
+				 * Set new address
+				 */
+				fe_init(sc->sc_unit);
+				break;
+			}
 #endif
 #ifdef NS
 
