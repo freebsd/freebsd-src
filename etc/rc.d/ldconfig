@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: ldconfig
-# REQUIRE: mountall
+# REQUIRE: mountall mountcritremote
 # BEFORE:  DAEMON
 # KEYWORD: FreeBSD NetBSD
 
