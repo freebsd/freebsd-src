@@ -176,6 +176,7 @@ MAN=	aac.4 \
 	ng_tee.4 \
 	ng_tty.4 \
 	ng_ubt.4 \
+	ng_uni.4 \
 	ng_vjc.4 \
 	nge.4 \
 	nmdm.4 \
