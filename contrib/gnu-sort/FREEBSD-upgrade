@@ -1,13 +1,16 @@
 $FreeBSD$
 
 GNU Sort
-	originals can be found at:      ftp://alpha.gnu.org/gnu/textutils/
+	originals can be found at:      ftp://ftp.gnu.org/gnu/textutils/
+
+Configure by:
+	./configure --disable-nls
 
 Imported by:
 
 	 cvs import \
-		-m "Virgin import (trimmed) of GNU Sort, textutils 2.0.21" \
-		src/contrib/gnu-sort FSF SORT_v2_0_21
+		-m "Virgin import (trimmed) of GNU Sort, textutils 2.1" \
+		src/contrib/gnu-sort FSF SORT_v2_1
 
 ache@FreeBSD.org
-8 June 2002
+30 Aug 2003

@@ -1,5 +1,6 @@
 /* hard-locale.c -- Determine whether a locale is hard.
-   Copyright 1997, 1998, 1999 Free Software Foundation, Inc.
+
+   Copyright (C) 1997, 1998, 1999, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,41 +21,26 @@
 # include <config.h>
 #endif
 
-#if __GNUC__
-# define alloca __builtin_alloca
-#else
-# ifdef HAVE_ALLOCA_H
-#  include <alloca.h>
-# else
-#  ifdef _AIX
- #  pragma alloca
-#  else
-#   ifdef _WIN32
-#    include <malloc.h>
-#    include <io.h>
-#   else
-#    ifndef alloca
-char *alloca ();
-#    endif
-#   endif
-#  endif
-# endif
-#endif
-
 #if HAVE_LOCALE_H
 # include <locale.h>
+#endif
+
+#if HAVE_STDLIB_H
+# include <stdlib.h>
 #endif
 
 #if HAVE_STRING_H
 # include <string.h>
 #endif
 
+#include "hard-locale.h"
+
 /* Return nonzero if the current CATEGORY locale is hard, i.e. if you
    can't get away with assuming traditional C or POSIX behavior.  */
 int
 hard_locale (int category)
 {
-#if ! (defined ENABLE_NLS && HAVE_SETLOCALE)
+#if ! HAVE_SETLOCALE
   return 0;
 #else
 
@@ -63,22 +49,28 @@ hard_locale (int category)
 
   if (p)
     {
-# if defined(__FreeBSD__) || (defined __GLIBC__ && __GLIBC__ >= 2)
+# if defined(__FreeBSD__) || (defined __GLIBC__ && 2 <= __GLIBC__)
       if (strcmp (p, "C") == 0 || strcmp (p, "POSIX") == 0)
 	hard = 0;
 # else
-      char *locale = alloca (strlen (p) + 1);
-      strcpy (locale, p);
+      char *locale = malloc (strlen (p) + 1);
+      if (locale)
+	{
+	  strcpy (locale, p);
 
-      /* Temporarily set the locale to the "C" and "POSIX" locales to
-	 find their names, so that we can determine whether one or the
-	 other is the caller's locale.  */
-      if (((p = setlocale (category, "C")) && strcmp (p, locale) == 0)
-	  || ((p = setlocale (category, "POSIX")) && strcmp (p, locale) == 0))
-	hard = 0;
+	  /* Temporarily set the locale to the "C" and "POSIX" locales
+	     to find their names, so that we can determine whether one
+	     or the other is the caller's locale.  */
+	  if (((p = setlocale (category, "C"))
+	       && strcmp (p, locale) == 0)
+	      || ((p = setlocale (category, "POSIX"))
+		  && strcmp (p, locale) == 0))
+	    hard = 0;
 
-      /* Restore the caller's locale.  */
-      setlocale (category, locale);
+	  /* Restore the caller's locale.  */
+	  setlocale (category, locale);
+	  free (locale);
+	}
 # endif
     }
 
