@@ -39,6 +39,8 @@ static int tregmap[] =
   tDS, tES, tFS, tGS,
 };
 
+static struct save87 pcb_savefpu;
+
 void
 fetch_inferior_registers (regno)
      int regno;
@@ -71,6 +73,8 @@ store_inferior_registers (regno)
 
 /* Extract the register values out of the core file and store
    them where `read_register' will find them.
+   Extract the floating point state out of the core file and store
+   it where `float_info' will find it.
 
    CORE_REG_SECT points to the register values themselves, read into memory.
    CORE_REG_SIZE is the size of that area.
@@ -107,26 +111,13 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   for (regno = 0; regno < NUM_REGS; regno++)
     {
       cregno = tregmap[regno];
-#if 1
       if (cregno == tFS)
-	cregno = tCS;
+        addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_fs);
       else if (cregno == tGS)
-	cregno = tDS;
-#endif
-      addr = offset + 4 * cregno;
-      if (cregno == tFS)
-	{
-#if 0
-	  supply_register (15, (char *)&u.u_pcb.pcb_fs);
-#endif
-	}
-      else if (cregno == tGS)
-	{
-#if 0
-	  supply_register (16, (char *)&u.u_pcb.pcb_gs);
-#endif
-	}
-      else if (addr < 0 || addr >= core_reg_size)
+        addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_gs);
+      else
+        addr = offset + 4 * cregno;
+      if (addr < 0 || addr >= core_reg_size)
 	{
 	  if (bad_reg < 0)
 	    bad_reg = regno;
@@ -140,6 +131,9 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
     {
       error ("Register %s not found in core file.", reg_names[bad_reg]);
     }
+
+  addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_savefpu);
+  memcpy (&pcb_savefpu, core_reg_sect + addr, sizeof pcb_savefpu);
 }
 
 #ifdef FLOAT_INFO
@@ -256,7 +250,12 @@ print_387_status (status, ep)
   printf_unfiltered (" regno     tag  msb              lsb  value\n");
   for (fpreg = 7; fpreg >= 0; fpreg--) 
     {
+      int exp;
+      int mantissa_or;
+      int normal;
+      char *sign;
       int st_regno;
+      unsigned short *usregs;
       double val;
       
       /* The physical regno `fpreg' is only relevant as an index into the
@@ -276,8 +275,52 @@ print_387_status (status, ep)
       for (i = 9; i >= 0; i--)
 	printf_unfiltered ("%02x", ep->regs[st_regno][i]);
       
-      i387_to_double((char *) ep->regs[st_regno], (char *) &val);
-      printf_unfiltered ("  %g\n", val);
+      printf_unfiltered ("  ");
+
+      /*
+       * Handle weird cases better than floatformat_to_double () and
+       * printf ().
+       */
+      usregs = (unsigned short *) ep->regs[st_regno];
+      sign = usregs[4] & 0x8000 ? "-" : "";
+      exp = usregs[4] & 0x7fff;
+      normal = usregs[3] & 0x8000;
+      mantissa_or = usregs[0] | usregs[1] | usregs[2] | (usregs[3] & 0x7fff);
+      if (exp == 0)
+	{
+	  if (normal)
+	    printf_unfiltered ("Pseudo Denormal (0 as a double)");
+	  else if (mantissa_or == 0)
+	    printf_unfiltered ("%s0", sign);
+	  else
+	    printf_unfiltered ("Denormal (0 as a double)");
+	}
+      else if (exp == 0x7fff)
+	{
+	  if (!normal)
+	    printf_unfiltered ("Pseudo ");
+	  if (mantissa_or == 0)
+	    printf_unfiltered ("%sInf", sign);
+	  else
+	    printf_unfiltered ("%s NaN",
+			       usregs[3] & 0x4000 ? "Quiet" : "Signaling");
+	  if (!normal)
+	    printf_unfiltered (" (NaN)");
+	}
+      else if (!normal)
+	printf_unfiltered ("Unnormal (NaN)");
+      else
+	{
+#if 0
+	  /* Use this we stop trapping on overflow.  */
+	  floatformat_to_double(&floatformat_i387_ext,
+				(char *) ep->regs[st_regno], &val);
+#else
+	  i387_to_double((char *) ep->regs[st_regno], (char *) &val);
+#endif
+	  printf_unfiltered ("%g", val);
+	}
+      printf_unfiltered ("\n");
     }
 }
 
@@ -313,26 +356,12 @@ i386_float_info ()
 	  *ip++ = ptrace (PT_READ_U, inferior_pid, (caddr_t)rounded_addr, 0);
 	  rounded_addr += sizeof (int);
 	}
+      fpstatep = (struct fpstate *)(buf + skip);
     } 
   else 
-    {
-      printf("float info: can't do a core file (yet)\n");
-      return;
-#if 0
-      if (lseek (corechan, uaddr, 0) < 0)
-	perror_with_name ("seek on core file");
-      if (myread (corechan, buf, sizeof (struct fpstate)) < 0) 
-	perror_with_name ("read from core file");
-      skip = 0;
-#endif
-    }
+    fpstatep = &pcb_savefpu;
 
-#ifdef	__FreeBSD__
-  fpstatep = (struct fpstate *)(buf + skip);
   print_387_status (fpstatep->sv_ex_sw, (struct env387 *)fpstatep);
-#else
-  print_387_status (0, (struct env387 *)buf);
-#endif
 }
 #endif /* FLOAT_INFO */
 
