@@ -64,10 +64,15 @@ int					abrtflag = 0;
 struct sockaddr_in	myctladdr;
 FILE				*cin = NULL, *cout = NULL;
 char				*reply_string = NULL;
-jmp_buf				sendabort, recvabort;
+static char         pad3a[8] = "Pad 3a";	/* For SunOS :-( */
+jmp_buf				sendabort;
+static char         pad3b[8] = "Pad 3b";
+jmp_buf				recvabort;
+static char         pad3c[8] = "Pad 3c";
 int					progress_meter = dPROGRESS;
 int					cur_progress_meter;
 int					sendport = -1;		/* use PORT cmd for each data connection */
+int					using_pasv;
 int					code;				/* return/reply code for ftp command */
 string				indataline;			
 int     			cpend;				/* flag: if != 0, then pending server reply */
@@ -99,9 +104,7 @@ extern struct userinfo		uinfo;
 extern struct macel			macros[];
 extern struct lslist		*lshead, *lstail;
 extern int					is_ls;
-#ifdef PASSIVEMODE
 extern int					passivemode;
-#endif
 
 #ifdef GATEWAY
 extern string				gateway;
@@ -244,6 +247,7 @@ int hookup(char *host, unsigned int port)
 #endif /* SO_OOBINLINE */
 
 	hErr = 0;
+	using_pasv = passivemode;		/* Re-init for each new connection. */
 	goto done;
 
 bad:
@@ -564,6 +568,8 @@ int getreply(int expecteof)
 		}	/* end for(;;) #2 */
 		
 		*cp = '\0';
+		dbprintf("rsp: %s", reply_string);
+
 		switch (verbose) {
 			case V_QUIET:
 				/* Don't print anything. */
@@ -1693,15 +1699,38 @@ int initconn(void)
 	int					on = 1, rval;
 	string				str;
 	Sig_t				oldintr;
-#ifdef PASSIVEMODE
+	char				*cp;
 	int					a1, a2, a3, a4, p1, p2;
 	unsigned char		n[6];
-#endif
   
   	oldintr = Signal(SIGINT, SIG_IGN);
 
-#ifdef PASSIVEMODE
-	if (passivemode) {
+	if (using_pasv) {
+		result = command("PASV");
+		if (result != COMPLETE) {
+			printf("Passive mode refused.\n");
+			using_pasv = 0;
+			goto TryPort;
+		}
+
+		/*
+		 * What we've got here is a string of comma separated one-byte
+		 * unsigned integer values.  The first four are the IP address,
+		 * the fifth is the MSB of the port address, and the sixth is the
+		 * LSB of the port address.  Extract this data and prepare a
+		 * 'data_addr' (struct sockaddr_in).
+		 */
+		for (cp = reply_string + 4; *cp != '\0'; cp++)
+			if (isdigit(*cp))
+				break;
+
+		if (sscanf(cp, "%d,%d,%d,%d,%d,%d",
+				&a1, &a2, &a3, &a4, &p1, &p2) != 6) {
+			printf("Cannot parse PASV response: %s\n", reply_string);
+			using_pasv = 0;
+			goto TryPort;
+		}
+
 		data = socket(AF_INET, SOCK_STREAM, 0);
 		if (data < 0) {
 			PERROR("initconn", "socket");
@@ -1712,25 +1741,7 @@ int initconn(void)
 			setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on, sizeof(on)) < 0 ) {
 				PERROR("initconn", "setscokopt (ignored)");
 		}
-		result = command("PASV");
-		if (result != COMPLETE) {
-			printf("Passive mode refused.\n");
-			rval = 1;
-			goto Return;
-		}
-		/*
-		 * What we've got here is a string of comma separated one-byte
-		 * unsigned integer values.  The first four are the IP address,
-		 * the fifth is the MSB of the port address, and the sixth is the
-		 * LSB of the port address.  Extract this data and prepare a
-		 * 'data_addr' (struct sockaddr_in).
-		 */
-		if (sscanf(reply_string+27, "%d,%d,%d,%d,%d,%d",
-				&a1, &a2, &a3, &a4, &p1, &p2) != 6) {
-			printf("Cannot parse PASV response: %s\n", reply_string);
-			rval = 1;
-			goto Return;
-		}
+
 		n[0] = (unsigned char) a1;
 		n[1] = (unsigned char) a2;
 		n[2] = (unsigned char) a3;
@@ -1743,6 +1754,14 @@ int initconn(void)
 		bcopy( (void *)&n[4], (void *)&data_addr.sin_port, 2 );
 
 		if (Connect( data, &data_addr, sizeof(data_addr) ) < 0 ) {
+			if (errno == ECONNREFUSED) {
+				dbprintf("Could not connect to port specified by server;\n");
+				dbprintf("Falling back to PORT mode.\n");
+				close(data);
+				data = -1;
+				using_pasv = 0;
+				goto TryPort;
+			}
 			PERROR("initconn", "connect");
 			rval = 1;
 			goto Return;
@@ -1750,7 +1769,9 @@ int initconn(void)
 		rval = 0;
 		goto Return;
 	}
-#endif
+
+TryPort:
+	rval = 0;
 
 noport:
 	data_addr = myctladdr;
@@ -1765,11 +1786,13 @@ noport:
 			sendport = 1;
 		rval = 1;  goto Return;
 	}
+
 	if (!sendport)
 		if (setsockopt(data, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof (on)) < 0) {
 			PERROR("initconn", "setsockopt (reuse address)");
 			goto bad;
 		}
+
 #ifdef SOCKS
 	if (Rbind(data, (struct sockaddr *)&data_addr, sizeof (data_addr), hisctladdr.sin_addr.s_addr) < 0) {
 #else
@@ -1859,10 +1882,8 @@ dataconn(char *mode)
 #ifdef SOCKS
 	s = Raccept(data, (struct sockaddr *) &from, &fromlen);
 #else
-#ifdef PASSIVEMODE
- 	if (passivemode)
+ 	if (using_pasv)
  		return( fdopen( data, mode ));
-#endif
 	s = Accept(data, &from, &fromlen);
 #endif
 	if (s < 0) {
