@@ -1488,11 +1488,10 @@ static int
 SetVariable(struct cmdargs const *arg)
 {
   long long_val, param = (long)arg->cmd->args;
-  int mode, dummyint, f, first;
+  int mode, dummyint, f, first, res;
   u_short *change;
   const char *argp;
   struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
-  const char *err = NULL;
   struct link *l = command_ChooseLink(arg);	/* LOCAL_CX_OPT uses this */
   struct in_addr dummyaddr, *addr;
 
@@ -1500,6 +1499,8 @@ SetVariable(struct cmdargs const *arg)
     argp = arg->argv[arg->argn];
   else
     argp = "";
+
+  res = 0;
 
   if ((arg->cmd->lauth & LOCAL_CX) && !cx) {
     log_Printf(LogWARN, "set %s: No context (use the `link' command)\n",
@@ -1542,14 +1543,16 @@ SetVariable(struct cmdargs const *arg)
       if (v1 < 0 || *end) {
         log_Printf(LogWARN, "autoload: %s: Invalid min percentage\n",
                    arg->argv[arg->argn]);
-        return 1;
+        res = 1;
+        break;
       }
 
       v2 = strtol(arg->argv[arg->argn + 1], &end, 0);
       if (v2 < 0 || *end) {
         log_Printf(LogWARN, "autoload: %s: Invalid max percentage\n",
                    arg->argv[arg->argn + 1]);
-        return 1;
+        res = 1;
+        break;
       }
       if (v2 < v1) {
         v3 = v1;
@@ -1561,7 +1564,8 @@ SetVariable(struct cmdargs const *arg)
       if (v3 <= 0 || *end) {
         log_Printf(LogWARN, "autoload: %s: Invalid throughput period\n",
                    arg->argv[arg->argn + 2]);
-        return 1;
+        res = 1;
+        break;
       }
 
       arg->bundle->ncp.mp.cfg.autoload.min = v1;
@@ -1569,8 +1573,8 @@ SetVariable(struct cmdargs const *arg)
       arg->bundle->ncp.mp.cfg.autoload.period = v3;
       mp_RestartAutoloadTimer(&arg->bundle->ncp.mp);
     } else {
-      err = "Set autoload requires three arguments\n";
-      log_Printf(LogWARN, "%s", err);
+      log_Printf(LogWARN, "Set autoload requires three arguments\n");
+      res = 1;
     }
     break;
 
@@ -1604,15 +1608,17 @@ SetVariable(struct cmdargs const *arg)
       } else
         l->ccp.cfg.deflate.in.winsize = 0;
     } else {
-      err = "No window size specified\n";
-      log_Printf(LogWARN, "%s", err);
+      log_Printf(LogWARN, "No window size specified\n");
+      res = 1;
     }
     break;
 
 #ifdef HAVE_DES
   case VAR_MPPE:
-    if (arg->argc > arg->argn + 2)
-      return -1;
+    if (arg->argc > arg->argn + 2) {
+      res = -1;
+      break;
+    }
 
     if (arg->argc == arg->argn) {
       l->ccp.cfg.mppe.keybits = 0;
@@ -1627,7 +1633,8 @@ SetVariable(struct cmdargs const *arg)
       long_val = atol(argp);
       if (long_val != 40 && long_val != 56 && long_val != 128) {
         log_Printf(LogWARN, "%s: Invalid bits value\n", argp);
-        return -1;
+        res = -1;
+        break;
       }
     }
 
@@ -1641,7 +1648,8 @@ SetVariable(struct cmdargs const *arg)
       else {
         log_Printf(LogWARN, "%s: Invalid state value\n",
                    arg->argv[arg->argn + 1]);
-        return -1;
+        res = -1;
+        break;
       }
     } else
       l->ccp.cfg.mppe.state = MPPE_ANYSTATE;
@@ -1661,8 +1669,8 @@ SetVariable(struct cmdargs const *arg)
       sscanf(argp, "%lx", &ulong_val);
       cx->physical->link.lcp.cfg.accmap = (u_int32_t)ulong_val;
     } else {
-      err = "No accmap specified\n";
-      log_Printf(LogWARN, "%s", err);
+      log_Printf(LogWARN, "No accmap specified\n");
+      res = 1;
     }
     break;
 
@@ -1670,7 +1678,8 @@ SetVariable(struct cmdargs const *arg)
     mode = Nam2mode(argp);
     if (mode == PHYS_NONE || mode == PHYS_ALL) {
       log_Printf(LogWARN, "%s: Invalid mode\n", argp);
-      return -1;
+      res = -1;
+      break;
     }
     bundle_SetMode(arg->bundle, cx, mode);
     break;
@@ -1683,20 +1692,26 @@ SetVariable(struct cmdargs const *arg)
         /* Make sure none of our links are DATALINK_LCP or greater */
         if (bundle_HighestState(arg->bundle) >= DATALINK_LCP) {
           log_Printf(LogWARN, "mrru: Only changable before LCP negotiations\n");
-          return 1;
+          res = 1;
+          break;
         }
         break;
       default:
         log_Printf(LogWARN, "mrru: Only changable at phase DEAD/ESTABLISH\n");
-        return 1;
+        res = 1;
+        break;
     }
+    if (res != 0)
+      break;
     long_val = atol(argp);
     if (long_val && long_val < MIN_MRU) {
       log_Printf(LogWARN, "MRRU %ld: too small - min %d\n", long_val, MIN_MRU);
-      return 1;
+      res = 1;
+      break;
     } else if (long_val > MAX_MRU) {
       log_Printf(LogWARN, "MRRU %ld: too big - max %d\n", long_val, MAX_MRU);
-      return 1;
+      res = 1;
+      break;
     } else
       arg->bundle->ncp.mp.cfg.mrru = long_val;
     break;
@@ -1704,40 +1719,52 @@ SetVariable(struct cmdargs const *arg)
   case VAR_MRU:
     switch(arg->argc - arg->argn) {
     case 1:
-      if (argp[strspn(argp, "0123456789")] != '\0')
-        return -1;
+      if (argp[strspn(argp, "0123456789")] != '\0') {
+        res = -1;
+        break;
+      }
+      /*FALLTHRU*/
     case 0:
       long_val = atol(argp);
       change = &l->lcp.cfg.mru;
       if (long_val > l->lcp.cfg.max_mru) {
         log_Printf(LogWARN, "MRU %ld: too large - max set to %d\n", long_val,
                    l->lcp.cfg.max_mru);
-        return 1;
+        res = 1;
+        break;
       }
       break;
     case 2:
-      if (strcasecmp(argp, "max") && strcasecmp(argp, "maximum"))
-        return -1;
+      if (strcasecmp(argp, "max") && strcasecmp(argp, "maximum")) {
+        res = -1;
+        break;
+      }
       long_val = atol(arg->argv[arg->argn + 1]);
       change = &l->lcp.cfg.max_mru;
       if (long_val > MAX_MRU) {
         log_Printf(LogWARN, "MRU %ld: too large - maximum is %d\n", long_val,
                    MAX_MRU);
-        return 1;
+        res = 1;
+        break;
       }
       break;
     default:
-      return -1;
+      res = -1;
+      break;
     }
+    if (res != 0)
+      break;
 
     if (long_val == 0)
       *change = DEF_MRU;
     else if (long_val < MIN_MRU) {
       log_Printf(LogWARN, "MRU %ld: too small - min %d\n", long_val, MIN_MRU);
-      return 1;
+      res = 1;
+      break;
     } else if (long_val > MAX_MRU) {
       log_Printf(LogWARN, "MRU %ld: too big - max %d\n", long_val, MAX_MRU);
-      return 1;
+      res = 1;
+      break;
     } else
       *change = long_val;
     if (l->lcp.cfg.mru > *change)
@@ -1747,38 +1774,51 @@ SetVariable(struct cmdargs const *arg)
   case VAR_MTU:
     switch(arg->argc - arg->argn) {
     case 1:
-      if (argp[strspn(argp, "0123456789")] != '\0')
-        return -1;
+      if (argp[strspn(argp, "0123456789")] != '\0') {
+        res = -1;
+        break;
+      }
+      /*FALLTHRU*/
     case 0:
       long_val = atol(argp);
       change = &l->lcp.cfg.mtu;
       if (long_val > l->lcp.cfg.max_mtu) {
         log_Printf(LogWARN, "MTU %ld: too large - max set to %d\n", long_val,
                    l->lcp.cfg.max_mtu);
-        return 1;
+        res = 1;
+        break;
       }
       break;
     case 2:
-      if (strcasecmp(argp, "max") && strcasecmp(argp, "maximum"))
-        return -1;
+      if (strcasecmp(argp, "max") && strcasecmp(argp, "maximum")) {
+        res = -1;
+        break;
+      }
       long_val = atol(arg->argv[arg->argn + 1]);
       change = &l->lcp.cfg.max_mtu;
       if (long_val > MAX_MTU) {
         log_Printf(LogWARN, "MTU %ld: too large - maximum is %d\n", long_val,
                    MAX_MTU);
-        return 1;
+        res = 1;
+        break;
       }
       break;
     default:
-      return -1;
+      res = -1;
+      break;
     }
+
+    if (res != 0)
+      break;
 
     if (long_val && long_val < MIN_MTU) {
       log_Printf(LogWARN, "MTU %ld: too small - min %d\n", long_val, MIN_MTU);
-      return 1;
+      res = 1;
+      break;
     } else if (long_val > MAX_MTU) {
       log_Printf(LogWARN, "MTU %ld: too big - max %d\n", long_val, MAX_MTU);
-      return 1;
+      res = 1;
+      break;
     } else
       *change = long_val;
     if (l->lcp.cfg.mtu > *change)
@@ -1792,8 +1832,8 @@ SetVariable(struct cmdargs const *arg)
     else if (strcasecmp(argp, "passive") == 0)
       cx->physical->link.lcp.cfg.openmode = OPEN_PASSIVE;
     else {
-      err = "%s: Invalid openmode\n";
-      log_Printf(LogWARN, err, argp);
+      log_Printf(LogWARN, "%s: Invalid openmode\n", argp);
+      res = 1;
     }
     break;
 
@@ -1819,19 +1859,19 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_IDLETIMEOUT:
-    if (arg->argc > arg->argn+2)
-      err = "Too many idle timeout values\n";
-    else if (arg->argc == arg->argn)
-      err = "Too few idle timeout values\n";
-    else {
+    if (arg->argc > arg->argn+2) {
+      log_Printf(LogWARN, "Too many idle timeout values\n");
+      res = 1;
+    } else if (arg->argc == arg->argn) {
+      log_Printf(LogWARN, "Too few idle timeout values\n");
+      res = 1;
+    } else {
       int timeout, min;
 
       timeout = atoi(argp);
       min = arg->argc == arg->argn + 2 ? atoi(arg->argv[arg->argn + 1]) : -1;
       bundle_SetIdleTimer(arg->bundle, timeout, min);
     }
-    if (err)
-      log_Printf(LogWARN, "%s", err);
     break;
 
   case VAR_LQRPERIOD:
@@ -1839,41 +1879,41 @@ SetVariable(struct cmdargs const *arg)
     if (long_val < MIN_LQRPERIOD) {
       log_Printf(LogWARN, "%ld: Invalid lqr period - min %d\n",
                  long_val, MIN_LQRPERIOD);
-      return 1;
+      res = 1;
     } else
       l->lcp.cfg.lqrperiod = long_val;
     break;
 
   case VAR_LCPRETRY:
-    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
-                    &cx->physical->link.lcp.cfg.fsm.timeout,
-                    &cx->physical->link.lcp.cfg.fsm.maxreq,
-                    &cx->physical->link.lcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
+    res = SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                   &cx->physical->link.lcp.cfg.fsm.timeout,
+                   &cx->physical->link.lcp.cfg.fsm.maxreq,
+                   &cx->physical->link.lcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_CHAPRETRY:
-    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
-                    &cx->chap.auth.cfg.fsm.timeout,
-                    &cx->chap.auth.cfg.fsm.maxreq, NULL, DEF_FSMAUTHTRIES);
+    res = SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                   &cx->chap.auth.cfg.fsm.timeout,
+                   &cx->chap.auth.cfg.fsm.maxreq, NULL, DEF_FSMAUTHTRIES);
     break;
 
   case VAR_PAPRETRY:
-    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
-                    &cx->pap.cfg.fsm.timeout, &cx->pap.cfg.fsm.maxreq,
-                    NULL, DEF_FSMAUTHTRIES);
+    res = SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                   &cx->pap.cfg.fsm.timeout, &cx->pap.cfg.fsm.maxreq,
+                   NULL, DEF_FSMAUTHTRIES);
     break;
 
   case VAR_CCPRETRY:
-    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
-                    &l->ccp.cfg.fsm.timeout, &l->ccp.cfg.fsm.maxreq,
-                    &l->ccp.cfg.fsm.maxtrm, DEF_FSMTRIES);
+    res = SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                   &l->ccp.cfg.fsm.timeout, &l->ccp.cfg.fsm.maxreq,
+                   &l->ccp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_IPCPRETRY:
-    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
-                    &arg->bundle->ncp.ipcp.cfg.fsm.timeout,
-                    &arg->bundle->ncp.ipcp.cfg.fsm.maxreq,
-                    &arg->bundle->ncp.ipcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
+    res = SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                   &arg->bundle->ncp.ipcp.cfg.fsm.timeout,
+                   &arg->bundle->ncp.ipcp.cfg.fsm.maxreq,
+                   &arg->bundle->ncp.ipcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_NBNS:
@@ -1922,8 +1962,10 @@ SetVariable(struct cmdargs const *arg)
         }
       } else if (!strcasecmp(arg->argv[dummyint], "none"))
         cx->cfg.callback.opmask |= CALLBACK_BIT(CALLBACK_NONE);
-      else
-        return -1;
+      else {
+        res = -1;
+        break;
+      }
     }
     if (cx->cfg.callback.opmask == CALLBACK_BIT(CALLBACK_NONE))
       cx->cfg.callback.opmask = 0;
@@ -1973,7 +2015,8 @@ SetVariable(struct cmdargs const *arg)
       *arg->bundle->radius.cfg.file = '\0';
     else if (access(argp, R_OK)) {
       log_Printf(LogWARN, "%s: %s\n", argp, strerror(errno));
-      return 1;
+      res = 1;
+      break;
     } else {
       strncpy(arg->bundle->radius.cfg.file, argp,
               sizeof arg->bundle->radius.cfg.file - 1);
@@ -2002,10 +2045,10 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_PARITY:
     if (arg->argc == arg->argn + 1)
-      return physical_SetParity(arg->cx->physical, argp);
+      res = physical_SetParity(arg->cx->physical, argp);
     else {
-      err = "Parity value must be odd, even or none\n";
-      log_Printf(LogWARN, "%s", err);
+      log_Printf(LogWARN, "Parity value must be odd, even or none\n");
+      res = 1;
     }
     break;
 
@@ -2015,8 +2058,8 @@ SetVariable(struct cmdargs const *arg)
     else if (strcasecmp(argp, "off") == 0)
       physical_SetRtsCts(arg->cx->physical, 0);
     else {
-      err = "RTS/CTS value must be on or off\n";
-      log_Printf(LogWARN, "%s", err);
+      log_Printf(LogWARN, "RTS/CTS value must be on or off\n");
+      res = 1;
     }
     break;
 
@@ -2066,7 +2109,7 @@ SetVariable(struct cmdargs const *arg)
     break;
   }
 
-  return err ? 1 : 0;
+  return res;
 }
 
 static struct cmdtab const SetCommands[] = {
