@@ -336,6 +336,7 @@ static void	unmapped(struct sockaddr *);
 static void	wallmsg(struct filed *, struct iovec *);
 static int	waitdaemon(int, int, int);
 static void	timedout(int);
+static void	double_rbuf(int);
 
 int
 main(int argc, char *argv[])
@@ -510,8 +511,11 @@ main(int argc, char *argv[])
 			dprintf("cannot create %s (%d)\n", fx->name, errno);
 			if (fx == &funix_default || fx == &funix_secure)
 				die(0);
-			else
+			else {
 				STAILQ_REMOVE(&funixes, fx, funix, next);
+				continue;
+			}
+			double_rbuf(fx->s);
 		}
 	}
 	if (SecureMode <= 1)
@@ -2560,6 +2564,8 @@ socksetup(int af, const char *bindhostname)
 			continue;
 		}
 
+		double_rbuf(*s);
+
 		(*socks)++;
 		s++;
 	}
@@ -2575,4 +2581,15 @@ socksetup(int af, const char *bindhostname)
 		freeaddrinfo(res);
 
 	return (socks);
+}
+
+static void
+double_rbuf(int fd)
+{
+	socklen_t slen, len;
+
+	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, &slen) == 0) {
+		len *= 2;
+		setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, slen);
+	}
 }
