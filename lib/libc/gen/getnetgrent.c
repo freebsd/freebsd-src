@@ -342,14 +342,23 @@ innetgr(group, host, user, dom)
 	 */
 	if (_use_only_yp) {
 		char _key[MAXHOSTNAMELEN];
-		int rot = 0;
+		int rot = 0, y = 0;
 
 		if(yp_get_default_domain(&_netgr_yp_domain))
 			return(0);
 		while(_buildkey(_key, user ? user : host, dom, &rot)) {
-			if (!yp_match(_netgr_yp_domain, user? "netgroup.byuser":
+			y = yp_match(_netgr_yp_domain, user? "netgroup.byuser":
 			    "netgroup.byhost", _key, strlen(_key), &result,
-			    	&resultlen)) {
+			    	&resultlen);
+			if (y) {
+				/*
+				 * If we get an error other than 'no
+				 * such key in map' then something is
+				 * wrong and we should stop the search.
+				 */
+				if (y != YPERR_KEY)
+					break;
+			} else {
 				rv = _listmatch(result, group, resultlen);
 				free(result);
 				if (rv)
@@ -358,18 +367,22 @@ innetgr(group, host, user, dom)
 					return(0);
 			}
 		}
-#ifdef CHARITABLE
+		/*
+		 * Couldn't match using NIS-exclusive mode. If the error
+		 * was YPERR_MAP, then the failure happened because there
+		 * was no netgroup.byhost or netgroup.byuser map. The odds
+		 * are we are talking to an Sun NIS+ server in YP emulation
+		 * mode; if this is the case, then we have to do the check
+		 * the 'old-fashioned' way by grovelling through the netgroup
+		 * map and resolving memberships on the fly.
+		 */
+		if (y != YPERR_MAP)
+			return(0);
 	}
-	/*
-	 * Couldn't match using NIS-exclusive mode -- try
-	 * standard mode.
-	 */
+
 	setnetgrent(group);
-#else
-		return(0);
-	}
-#endif /* CHARITABLE */
 #endif /* YP */
+
 	while (getnetgrent(&hst, &usr, &dm))
 		if ((host == NULL || hst == NULL || !strcmp(host, hst)) &&
 		    (user == NULL || usr == NULL || !strcmp(user, usr)) &&
