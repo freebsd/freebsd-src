@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.25 1995/10/11 09:57:30 jkh Exp $
+ * $Id: install.c,v 1.71.2.26 1995/10/12 07:35:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -467,7 +467,7 @@ installFilesystems(void)
     command_clear();
 
     /* First, create and mount the root device */
-    MakeChunkDev(rootdev, "/dev")
+    MakeDevChunk(rootdev, "/dev");
     if (strcmp(p->mountpoint, "/"))
 	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, p->mountpoint);
 
