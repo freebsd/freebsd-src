@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.6 1995/03/19 13:29:06 joerg Exp $
+ *	$Id: ps.c,v 1.7 1995/05/30 00:07:05 rgrimes Exp $
  */
 
 #ifndef lint
@@ -62,6 +62,7 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pwd.h>
 #include <unistd.h>
 
 #include "ps.h"
@@ -109,6 +110,7 @@ main(argc, argv)
 	struct kinfo_proc *kp;
 	struct varent *vent;
 	struct winsize ws;
+	struct passwd *pwd;
 	dev_t ttydev;
 	pid_t pid;
 	uid_t uid;
@@ -133,7 +135,7 @@ main(argc, argv)
 	ttydev = NODEV;
 	memf = nlistf = swapf = NULL;
 	while ((ch = getopt(argc, argv,
-	    "aCeghjLlM:mN:O:o:p:rSTt:uvW:wx")) != EOF)
+	    "aCeghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != EOF)
 		switch((char)ch) {
 		case 'a':
 			all = 1;
@@ -214,6 +216,14 @@ main(argc, argv)
 			ttydev = sb.st_rdev;
 			break;
 		}
+		case 'U':
+			pwd = getpwnam(optarg);
+			if (pwd == NULL)
+				errx(1, "%s: no such user", optarg);
+			uid = pwd->pw_uid;
+			endpwent();
+			xflg++;		/* XXX: intuitive? */
+			break;
 		case 'u':
 			parsefmt(ufmt);
 			sortby = SORTCPU;
@@ -271,7 +281,8 @@ main(argc, argv)
 	if (!fmt)
 		parsefmt(dfmt);
 
-	if (!all && ttydev == NODEV && pid == -1)  /* XXX - should be cleaner */
+	/* XXX - should be cleaner */
+	if (!all && ttydev == NODEV && pid == -1 && uid == (uid_t)-1)
 		uid = getuid();
 
 	/*
@@ -501,7 +512,7 @@ usage()
 
 	(void)fprintf(stderr,
 	    "usage:\t%s\n\t   %s\n\t%s\n",
-	    "ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid] [-t tty]",
+	    "ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid] [-t tty] [-U user]",
 	    "[-M core] [-N system] [-W swap]",
 	    "ps [-L]");
 	exit(1);
