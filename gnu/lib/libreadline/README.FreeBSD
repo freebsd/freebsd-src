@@ -11,6 +11,8 @@ Workaround for this implemented via TIOCGWINSZ/TIOCSWINSZ
 with same winsize structure: it does nothing expect polling
 process from background. Look tcsh_hack.readme for details.
 
+This version is more ctype-oriented than original bash version.
+
 If you want 8-bit clean version, put
 	set convert-meta off
 	set output-meta on
