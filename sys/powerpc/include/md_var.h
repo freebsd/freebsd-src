@@ -48,10 +48,10 @@ struct reg;
 struct cam_sim;
 struct pcicfg;
 
-void	busdma_swi __P((void));
-void	cpu_halt __P((void));
-void	cpu_reset __P((void));
-int	is_physical_memory __P((vm_offset_t addr));
-void	swi_vm __P((void *));
+void	busdma_swi(void);
+void	cpu_halt(void);
+void	cpu_reset(void);
+int	is_physical_memory(vm_offset_t addr);
+void	swi_vm(void *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -92,8 +92,8 @@ static volatile u_long	lasttb;
 #define	DIFF19041970	2082844800
 
 #if NADB > 0
-extern int adb_read_date_time __P((int *));
-extern int adb_set_date_time __P((int));
+extern int adb_read_date_time(int *);
+extern int adb_set_date_time(int);
 #endif
 
 static int		clockinitted = 0;

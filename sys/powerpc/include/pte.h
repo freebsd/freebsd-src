@@ -114,7 +114,7 @@ extern int ptab_cnt;
 
 #ifdef	_KERNEL
 #ifndef	LOCORE
-extern u_int dsisr __P((void));
+extern u_int dsisr(void);
 #endif	/* _KERNEL */
 #endif	/* LOCORE */
 #endif	/* _MACHINE_PTE_H_ */

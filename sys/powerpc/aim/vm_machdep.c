@@ -177,7 +177,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 void
 cpu_set_fork_handler(td, func, arg)
 	struct thread *td;
-	void (*func) __P((void *));
+	void (*func)(void *);
 	void *arg;
 {
 	struct	callframe *cf;
