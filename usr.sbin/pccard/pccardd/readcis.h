@@ -23,10 +23,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: readcis.h,v 1.8 1997/02/22 16:09:00 peter Exp $
  */
 
-#define	CIS_MAXSTR	20
+#define	CIS_MAXSTR	30
 struct tuple {
 	struct tuple *next;
 	unsigned char code;
