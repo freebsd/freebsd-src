@@ -452,6 +452,11 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 static int
 sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 {
+	int error;
+
+	error = suser(req->td->td_proc);
+	if (error)
+		return error;
 	sysctl_sysctl_debug_dump_node(&sysctl__children, 0);
 	return ENOENT;
 }
