@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.12 1999/05/30 10:45:03 dfr Exp $
+ *	$Id: boot.c,v 1.13 1999/07/15 20:40:52 n_hibma Exp $
  */
 
 /*
@@ -262,3 +262,71 @@ getbootfile(int try)
     return(name);
 }
 
+/*
+ * Try to find the /etc/fstab file on the filesystem (rootdev),
+ * which should be be the root filesystem, and parse it to find 
+ * out what the kernel ought to think the root filesystem is.
+ *
+ * If we're successful, set vfs.root.mountfrom to <vfstype>:<path>
+ * so that the kernel can tell both which VFS and which node to use
+ * to mount the device.  If this variable's already set, don't
+ * overwrite it.
+ */
+int
+getrootmount(char *rootdev)
+{
+    char	lbuf[128], *cp, *ep, *dev, *fstyp;
+    int		fd, error;
+
+    if (getenv("vfs.root.mountfrom") != NULL)
+	return(0);
+
+    sprintf(lbuf, "%s/etc/fstab", rootdev);
+    if ((fd = open(lbuf, O_RDONLY)) < 0)
+	return(1);
+
+    /* loop reading lines from /etc/fstab    What was that about sscanf again? */
+    error = 1;
+    while (fgetstr(lbuf, sizeof(lbuf), fd) >= 0) {
+	if ((lbuf[0] == 0) || (lbuf[0] == '#'))
+	    continue;
+	
+	/* skip device name */
+	for (cp = lbuf; (*cp != 0) && !isspace(*cp); cp++)
+	    ;
+	if (*cp == 0)		/* misformatted */
+	    continue;
+	/* delimit and save */
+	*cp++ = 0;
+	dev = strdup(lbuf);
+    
+	/* skip whitespace up to mountpoint */
+	while ((*cp != 0) && isspace(*cp))
+	    cp++;
+	/* must have /<space> to be root */
+	if ((*cp == 0) || (*cp != '/') || !isspace(*(cp + 1)))
+	    continue;
+	/* skip whitespace up to fstype */
+	cp += 2;
+	while ((*cp != 0) && isspace(*cp))
+	    cp++;
+	if (*cp == 0)		/* misformatted */
+	    continue;
+	/* skip text to end of fstype and delimit */
+	ep = cp;
+	while ((*cp != 0) && !isspace(*cp))
+	    cp++;
+	*cp = 0;
+	fstyp = strdup(ep);
+
+	/* build the final result and save it */
+	sprintf(lbuf, "%s:%s", fstyp, dev);
+	free(dev);
+	free(fstyp);
+	setenv("vfs.root.mountfrom", lbuf, 0);
+	error = 0;
+	break;
+    }
+    close(fd);
+    return(error);
+}
