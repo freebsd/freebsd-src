@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.14 1994/12/02 15:52:55 jkh Exp $
+# $Id: netinst.sh,v 1.15 1994/12/02 21:05:27 jkh Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -31,7 +31,7 @@ network_set_defaults()
 	REMOTE_HOSTIP=""
 	REMOTE_IPADDR=""
 	INTERFACE=""
-	SERIAL_INTERFACE="/dev/tty00"
+	SERIAL_INTERFACE="/dev/cuaa0"
 	SERIAL_SPEED="38400"
 }
 
