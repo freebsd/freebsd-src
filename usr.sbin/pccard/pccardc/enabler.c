@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
@@ -22,7 +23,7 @@ char	*argv[];
 struct drv_desc drv;
 struct mem_desc mem;
 struct io_desc io;
-int fd, err, slot, i, card_addr;
+int fd, slot, i, card_addr;
 char name[32];
 char	*p;
 
@@ -50,7 +51,7 @@ char	*p;
 				usage("Memory argument error");
 			if (sscanf(argv[1], "%x", &card_addr)!=1)
 				usage("Bad card address");
-			if (sscanf(argv[2], "%x", &drv.mem)!=1)
+			if (sscanf(argv[2], "%lx", &drv.mem)!=1)
 				usage("Bad memory address");
 			if (sscanf(argv[3], "%d", &i)!=1)
 				usage("Bad memory size");
@@ -80,7 +81,7 @@ char	*p;
 		}
 	if (argc)
 		usage("no parameter for argument");
-	printf("drv %s%d, mem 0x%x, size %d, io %d, irq 0x%x, flags 0x%x\n",
+	printf("drv %s%d, mem 0x%lx, size %d, io %d, irq 0x%x, flags 0x%x\n",
 		drv.name, drv.unit, drv.mem, drv.memsize, drv.iobase,
 		drv.irqmask, drv.flags);
 	sprintf(name, "/dev/card%d", slot);
@@ -121,6 +122,7 @@ char	*p;
 	if (ioctl(fd, PIOCSDRV, &drv))
 		perror("set driver");
 	close(fd);
+	return 0;
 }
 /*
  *	usage - print usage and exit

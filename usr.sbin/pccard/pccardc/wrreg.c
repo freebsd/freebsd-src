@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -36,4 +39,5 @@ struct pcic_reg r;
 	r.value = value;
 	if (ioctl(fd, PIOCSREG, &r))
 		perror("ioctl");
+	return 0;
 }

@@ -2,28 +2,49 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
 #include <pccard/cis.h>
 
-int
-rdmap_main(argc, argv)
-int	argc;
-char	*argv[];
+void
+dump_io(fd, nio)
+int fd, nio;
 {
-int	node, mask;
-struct card *cp;
+struct io_desc io;
+int	i;
 
-	for (node = 0; node < 8; node++)
-	    scan(node);
-	exit(0);
+	for (i = 0; i < nio; i++)
+		{
+		io.window = i;
+		ioctl(fd, PIOCGIO, &io);
+printf("I/O %d: flags 0x%03x port 0x%3x size %d bytes\n",
+	io.window, io.flags, io.start, io.size);
+		}
 }
-static scan(slot)
+
+void
+dump_mem(fd, nmem)
+int fd, nmem;
+{
+struct mem_desc mem;
+int	i;
+
+	for (i = 0; i < nmem; i++)
+		{
+		mem.window = i;
+		ioctl(fd, PIOCGMEM, &mem);
+printf("Mem %d: flags 0x%03x host %p card %04lx size %d bytes\n",
+	mem.window, mem.flags, mem.start, mem.card, mem.size);
+		}
+}
+
+static void
+scan(slot)
 int slot;
 {
-int	fd, mask;
-char	blk[1024];
+int	fd;
 char	name[64];
 struct slotstate st;
 
@@ -41,31 +62,15 @@ struct slotstate st;
 		}
 	close(fd);
 }
-dump_mem(fd, nmem)
-int fd, nmem;
-{
-struct mem_desc mem;
-int	i;
 
-	for (i = 0; i < nmem; i++)
-		{
-		mem.window = i;
-		ioctl(fd, PIOCGMEM, &mem);
-printf("Mem %d: flags 0x%03x host 0x%6x card %04x size %d bytes\n",
-	mem.window, mem.flags, mem.start, mem.card, mem.size);
-		}
-}
-dump_io(fd, nio)
-int fd, nio;
+int
+rdmap_main(argc, argv)
+int	argc;
+char	*argv[];
 {
-struct io_desc io;
-int	i;
+int	node;
 
-	for (i = 0; i < nio; i++)
-		{
-		io.window = i;
-		ioctl(fd, PIOCGIO, &io);
-printf("I/O %d: flags 0x%03x port 0x%3x size %d bytes\n",
-	io.window, io.flags, io.start, io.size);
-		}
+	for (node = 0; node < 8; node++)
+	    scan(node);
+	exit(0);
 }
