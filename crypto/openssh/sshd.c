@@ -149,7 +149,7 @@ struct magic_connection {
 const size_t MAGIC_CONNECTIONS_SIZE = 1;
 
 static __inline int
-magic_hash(struct sockaddr *sa) {
+magic_hash(struct sockaddr_storage *sa) {
 
 	return 0;
 }
@@ -723,7 +723,7 @@ main(int ac, char **av)
 				struct magic_connection *mc;
 
 				(void)gettimeofday(&connections_end, NULL);
-				mc = &magic_connections[magic_hash(ai->ai_addr)];
+				mc = &magic_connections[magic_hash(&from)];
 				diff = timevaldiff(&mc->connections_begin, &connections_end);
 				if (diff.tv_sec >= options.connections_period) {
 					/*
