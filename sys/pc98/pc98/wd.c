@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.48 1998/04/20 13:51:34 kato Exp $
+ *	$Id: wd.c,v 1.49 1998/04/22 10:25:23 julian Exp $
  */
 
 /* TODO:
@@ -83,6 +83,7 @@
 #ifdef SLICE
 #include <sys/device.h>
 #include <sys/fcntl.h>
+#include <sys/sliceio.h>
 #include <dev/slice/slice.h>
 #else
 #include <sys/devfsext.h>
@@ -1067,6 +1068,11 @@ wdstart(int ctrlr)
 
 		blknum = transbad144(dsgetbad(bp->b_dev, du->dk_slices),
 				     blknum - ds_offset) + ds_offset;
+	}
+#else
+	if (du->dk_flags & DKFL_SINGLE) {
+		(void) (*du->slice->handler_up->upconf)(du->slice,
+			SLCIOCTRANSBAD, (caddr_t)&blknum, 0, 0);
 	}
 #endif
 
@@ -2622,7 +2628,7 @@ out:
 static void
 wderror(struct buf *bp, struct disk *du, char *mesg)
 {
-#ifndef	SLICE
+#ifdef	SLICE
 		printf("wd%d: %s:\n", du->dk_lunit, mesg);
 #else	/* !SLICE */
 	if (bp == NULL)
@@ -2916,7 +2922,7 @@ SYSINIT(wddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wd_drvinit,NULL)
  * be a multiple of a sector in length.
  */
 static void 
-wdsIOreq(void *private ,struct buf *bp)
+wdsIOreq(void *private, struct buf *bp)
 {
 	struct disk *du = private;
 	int	s;
