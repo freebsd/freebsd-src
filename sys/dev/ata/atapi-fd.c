@@ -328,7 +328,7 @@ afd_start(struct ata_device *atadev)
     }
 
     lba = bp->bio_pblkno;
-    count = bp->bio_bcount / fdp->cap.sector_size;
+    count = min(bp->bio_bcount, fdp->dev->si_iosize_max) / fdp->cap.sector_size;
     data_ptr = bp->bio_data;
     bp->bio_resid = bp->bio_bcount; 
 
