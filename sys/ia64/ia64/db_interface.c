@@ -282,6 +282,9 @@ ddbprinttrap(int vector)
 	printf("ddbprinttrap(%d)\n", vector);
 }
 
+#define CPUSTOP_ON_DDBBREAK
+#define VERBOSE_CPUSTOP_ON_DDBBREAK
+
 /*
  *  ddb_trap - field a kernel trap
  */
@@ -323,6 +326,26 @@ kdb_trap(int vector, struct trapframe *regs)
 	 * XXX Should switch to DDB's own stack, here.
 	 */
 
+	s = cpu_critical_enter();
+
+#ifdef SMP
+#ifdef CPUSTOP_ON_DDBBREAK
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf("CPU%d stopping CPUs: 0x%08x...", PCPU_GET(cpuid),
+	    PCPU_GET(other_cpus));
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+	/* We stop all CPUs except ourselves (obviously) */
+	stop_cpus(PCPU_GET(other_cpus));
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf(" stopped.\n");
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+#endif /* CPUSTOP_ON_DDBBREAK */
+#endif /* SMP */
+
 	ddb_regs = *regs;
 
 	/*
@@ -332,14 +355,6 @@ kdb_trap(int vector, struct trapframe *regs)
 		+ (ddb_regs.tf_cr_ifs & 0x7f);
 
 	__asm __volatile("flushrs"); /* so we can look at them */
-
-	s = cpu_critical_enter();
-
-#if 0
-	db_printf("stopping %x\n", PCPU_GET(other_cpus));
-	stop_cpus(PCPU_GET(other_cpus));
-	db_printf("stopped_cpus=%x\n", stopped_cpus);
-#endif
 
 	db_active++;
 
@@ -352,13 +367,33 @@ kdb_trap(int vector, struct trapframe *regs)
 
 	db_active--;
 
-#if 0
+#ifdef SMP
+#ifdef CPUSTOP_ON_DDBBREAK
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf("CPU%d restarting CPUs: 0x%08x...", PCPU_GET(cpuid),
+	    stopped_cpus);
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+	/* Restart all the CPUs we previously stopped */
+	if (stopped_cpus != PCPU_GET(other_cpus) && smp_started != 0) {
+		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
+			  PCPU_GET(other_cpus), stopped_cpus);
+		panic("stop_cpus() failed");
+	}
 	restart_cpus(stopped_cpus);
-#endif
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf(" restarted.\n");
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+#endif /* CPUSTOP_ON_DDBBREAK */
+#endif /* SMP */
+
+	*regs = ddb_regs;
 
 	cpu_critical_exit(s);
 
-	*regs = ddb_regs;
 
 	/*
 	 * Tell caller "We HAVE handled the trap."
@@ -466,6 +501,7 @@ db_write_bundle(db_addr_t addr, struct ia64_bundle *bp)
 	db_write_bytes(addr+8, 8, (caddr_t) &high);
 
 	ia64_fc(addr);
+	ia64_sync_i();
 }
 
 void
