@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.28 1995/05/23 02:40:52 jkh Exp $
+ * $Id: devices.c,v 1.29 1995/05/24 09:00:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,8 +88,8 @@ static struct {
     { DEVICE_TYPE_TAPE, 	"wt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
-    { DEVICE_TYPE_FLOPPY,	"rfd0",		"Floppy disk drive (unit A)"				},
-    { DEVICE_TYPE_FLOPPY,	"rfd1",		"Floppy disk drive (unit B)"				},
+    { DEVICE_TYPE_FLOPPY,	"rfd0",		"floppy drive unit A"					},
+    { DEVICE_TYPE_FLOPPY,	"rfd1",		"floppy drive unit B"					},
     { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP device"		},
     { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP device"		},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
@@ -97,15 +97,15 @@ static struct {
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
     { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
-    { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 interface card"				},
-    { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 interface card"				},
-    { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A Ethernet"			},
+    { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"		},
-    { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress"					},
-    { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 and 3"				},
-    { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet cards (Isolan/Novell NE2100/NE32-VL)"	},
-    { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet"		},
-    { DEVICE_TYPE_NETWORK,	"zp",		"3Com PCMCIA Etherlink III"				},
+    { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"			},
+    { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"			},
+    { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"	},
+    { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet card"	},
+    { DEVICE_TYPE_NETWORK,	"zp",		"3Com Etherlink III PCMCIA ethernet card"		},
     { NULL },
 };
 
@@ -241,8 +241,8 @@ deviceGetAll(void)
 	    if (fd >= 0) {
 		close(fd);
 		/* The only network devices that have fds associated are serial ones */
-		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
+		deviceRegister(device_names[i].name, device_names[i].description, strdup(try), DEVICE_TYPE_NETWORK,
+			       TRUE, mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
 		msgDebug("Found a device of type network named: %s\n", device_names[i].name);
 	    }
 	    break;
@@ -275,8 +275,8 @@ deviceGetAll(void)
 	if (!strncmp(ifptr->ifr_name, "tun", 3)
 	    || !strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
-	deviceRegister(ifptr->ifr_name, ifptr->ifr_name, ifptr->ifr_name,
-		       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
+	deviceRegister(ifptr->ifr_name, ifptr->ifr_name, ifptr->ifr_name, DEVICE_TYPE_NETWORK, TRUE,
+		       mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {

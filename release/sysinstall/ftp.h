@@ -1,3 +1,6 @@
+#ifndef _FTP_H_INCLUDE
+#define _FTP_H_INCLUDE
+
 typedef struct {
     enum {init, isopen, xfer} state;
     int		fd_ctrl;
@@ -22,3 +25,5 @@ int		FtpGet(FTP_t, char *);
 int		FtpEOF(FTP_t);
 void		FtpClose(FTP_t);
 
+#endif
+/* _FTP_H_INCLUDE */
