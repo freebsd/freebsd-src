@@ -4,14 +4,7 @@
 
 .PATH:	${.CURDIR}/../../../contrib/ntp/ntpd
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
-DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBKVM}
-LDADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBKVM}
-
 PROG= ntpd
-NOMAN= yes
-CLEANFILES+= .version version.c
 
 SRCS=	map_vme.c	ntp_config.c \
 	ntp_control.c	ntp_filegen.c	ntp_intres.c \
@@ -30,6 +23,15 @@ SRCS=	map_vme.c	ntp_config.c \
 	refclock_ptbacts.c	refclock_shm.c	refclock_tpro.c \
 	refclock_trak.c	refclock_true.c	refclock_usno.c \
 	refclock_wwvb.c	 version.c
+
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
+
+NOMAN= yes
+
+DPADD=	${LIBPARSE} ${LIBNTP} -lm
+LDADD=	${LIBPARSE} ${LIBNTP} -lm
+
+CLEANFILES+= .version version.c
 
 version.c: 
 	sh -e ${.CURDIR}/../scripts/mkver ntpd
