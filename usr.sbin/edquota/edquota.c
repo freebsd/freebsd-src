@@ -103,12 +103,14 @@ main(argc, argv)
 	register char **argv;
 	int argc;
 {
-	register struct quotause *qup, *protoprivs, *curprivs;
-	register long id, protoid;
-	register int quotatype, tmpfd;
-	register uid_t startuid, enduid;
-	char *protoname, *cp, ch;
-	int tflag = 0, pflag = 0;
+	struct quotause *qup, *protoprivs, *curprivs;
+	long id, protoid;
+	long long lim;
+	int i, quotatype, range, tmpfd;
+	uid_t startuid, enduid;
+	u_int32_t *limp;
+	char *protoname, *cp, *oldoptarg, ch;
+	int eflag = 0, tflag = 0, pflag = 0;
 	char *fspath = NULL;
 	char buf[30];
 
@@ -117,7 +119,8 @@ main(argc, argv)
 	if (getuid())
 		errx(1, "permission denied");
 	quotatype = USRQUOTA;
-	while ((ch = getopt(argc, argv, "ugtf:p:")) != -1) {
+	protoprivs = NULL;
+	while ((ch = getopt(argc, argv, "ugtf:p:e:")) != -1) {
 		switch(ch) {
 		case 'f':
 			fspath = optarg;
@@ -135,6 +138,61 @@ main(argc, argv)
 		case 't':
 			tflag++;
 			break;
+		case 'e':
+			if ((qup = malloc(sizeof(*qup))) == NULL)
+				errx(2, "out of memory");
+			bzero(qup, sizeof(*qup));
+			i = 0;
+			oldoptarg = optarg;
+			for (cp = optarg; (cp = strsep(&optarg, ":")) != NULL;
+			    i++) {
+				if (cp != oldoptarg)
+					*(cp - 1) = ':';
+				limp = NULL;
+				switch (i) {
+				case 0:
+					strlcpy(qup->fsname, cp,
+					    sizeof(qup->fsname));
+					break;
+				case 1:
+					limp = &qup->dqblk.dqb_bsoftlimit;
+					break;
+				case 2:
+					limp = &qup->dqblk.dqb_bhardlimit;
+					break;
+				case 3:
+					limp = &qup->dqblk.dqb_isoftlimit;
+					break;
+				case 4:
+					limp = &qup->dqblk.dqb_ihardlimit;
+					break;
+				default:
+					warnx("incorrect quota specification: "
+					    "%s", oldoptarg);
+					usage();
+					break; /* XXX: report an error */
+				}
+				if (limp != NULL) {
+					lim = strtoll(cp, NULL, 10);
+					if (lim < 0 || lim > UINT_MAX)
+						errx(1, "invalid limit value: "
+						    "%lld", lim);
+					*limp = (u_int32_t)lim;
+				}
+			}
+			qup->dqblk.dqb_bsoftlimit =
+			    btodb((off_t)qup->dqblk.dqb_bsoftlimit * 1024);
+			qup->dqblk.dqb_bhardlimit =
+			    btodb((off_t)qup->dqblk.dqb_bhardlimit * 1024);
+			if (protoprivs == NULL) {
+				protoprivs = curprivs = qup;
+			} else {
+				curprivs->next = qup;
+				curprivs = qup;
+			}
+			eflag++;
+			pflag++;
+			break;
 		default:
 			usage();
 		}
@@ -142,12 +200,14 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 	if (pflag) {
-		if ((protoid = getentry(protoname, quotatype)) == -1)
-			exit(1);
-		protoprivs = getprivs(protoid, quotatype, fspath);
-		for (qup = protoprivs; qup; qup = qup->next) {
-			qup->dqblk.dqb_btime = 0;
-			qup->dqblk.dqb_itime = 0;
+		if (protoprivs == NULL) {
+			if ((protoid = getentry(protoname, quotatype)) == -1)
+				exit(1);
+			protoprivs = getprivs(protoid, quotatype, fspath);
+			for (qup = protoprivs; qup; qup = qup->next) {
+				qup->dqblk.dqb_btime = 0;
+				qup->dqblk.dqb_itime = 0;
+			}
 		}
 		while (argc-- > 0) {
 			if (isdigit(*argv[0]) && 
@@ -159,18 +219,35 @@ main(argc, argv)
 					errx(1,
 	"ending uid (%d) must be >= starting uid (%d) when using uid ranges",
 						enduid, startuid);
-				for ( ; startuid <= enduid; startuid++) {
-					snprintf(buf, sizeof(buf), "%d", 
-					    startuid);
-					if ((id = getentry(buf, quotatype)) < 0)
-						continue;
-					putprivs(id, quotatype, protoprivs);
-				}
-				continue;
+				range = 1;
+			} else {
+				startuid = enduid = 0;
+				range = 0;
 			}
-			if ((id = getentry(*argv++, quotatype)) < 0)
-				continue;
-			putprivs(id, quotatype, protoprivs);
+			for ( ; startuid <= enduid; startuid++) {
+				if (range)
+					snprintf(buf, sizeof(buf), "%d",
+					    startuid);
+				else
+					snprintf(buf, sizeof(buf), "%s",
+						*argv);
+				if ((id = getentry(buf, quotatype)) < 0)
+					continue;
+				if (eflag) {
+					for (qup = protoprivs; qup;
+					    qup = qup->next) {
+						curprivs = getprivs(id,
+						    quotatype, qup->fsname);
+						if (curprivs == NULL)
+							continue;
+						strcpy(qup->qfname,
+						    curprivs->qfname);
+						strcpy(qup->fsname,
+						    curprivs->fsname);
+					}
+				}
+				putprivs(id, quotatype, protoprivs);						
+			}
 		}
 		exit(0);
 	}
@@ -205,9 +282,13 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: edquota [-u] [-f fspath] [-p username] username ...",
+		"       edquota [-u] -e fspath[:bslim[:bhlim[:islim[:ihlim]]]] [-e ...]",
+		"               username ...",
 		"       edquota -g [-f fspath] [-p groupname] groupname ...",
+		"       edquota -g -e fspath[:bslim[:bhlim[:islim[:ihlim]]]] [-e ...]",
+		"               groupname ...",
 		"       edquota [-u] -t [-f fspath]",
 		"       edquota -g -t [-f fspath]");
 	exit(1);
