@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.46.2.1 1999/02/06 03:30:10 dillon Exp $
+ * $Id: sys_pipe.c,v 1.46.2.2 1999/05/05 22:53:04 dt Exp $
  */
 
 /*
@@ -59,6 +59,7 @@
 #include <sys/ttycom.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
+#include <sys/select.h>
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
@@ -281,8 +282,8 @@ pipelock(cpipe, catch)
 	int error;
 	while (cpipe->pipe_state & PIPE_LOCK) {
 		cpipe->pipe_state |= PIPE_LWANT;
-		if (error = tsleep( cpipe,
-			catch?(PRIBIO|PCATCH):PRIBIO, "pipelk", 0)) {
+		if ((error = tsleep( cpipe,
+			catch?(PRIBIO|PCATCH):PRIBIO, "pipelk", 0)) != 0) {
 			return error;
 		}
 	}
@@ -326,11 +327,15 @@ pipe_read(fp, uio, cred, flags)
 {
 
 	struct pipe *rpipe = (struct pipe *) fp->f_data;
-	int error = 0;
+	int error;
 	int nread = 0;
 	u_int size;
 
 	++rpipe->pipe_busy;
+	error = pipelock(rpipe, 1);
+	if (error)
+		goto unlocked_error;
+
 	while (uio->uio_resid) {
 		/*
 		 * normal pipe buffer receive
@@ -341,11 +346,9 @@ pipe_read(fp, uio, cred, flags)
 				size = rpipe->pipe_buffer.cnt;
 			if (size > (u_int) uio->uio_resid)
 				size = (u_int) uio->uio_resid;
-			if ((error = pipelock(rpipe,1)) == 0) {
-				error = uiomove( &rpipe->pipe_buffer.buffer[rpipe->pipe_buffer.out], 
+
+			error = uiomove(&rpipe->pipe_buffer.buffer[rpipe->pipe_buffer.out],
 					size, uio);
-				pipeunlock(rpipe);
-			}
 			if (error) {
 				break;
 			}
@@ -354,21 +357,29 @@ pipe_read(fp, uio, cred, flags)
 				rpipe->pipe_buffer.out = 0;
 
 			rpipe->pipe_buffer.cnt -= size;
+
+			/*
+			 * If there is no more to read in the pipe, reset
+			 * its pointers to the beginning.  This improves
+			 * cache hit stats.
+			 */
+			if (rpipe->pipe_buffer.cnt == 0) {
+				rpipe->pipe_buffer.in = 0;
+				rpipe->pipe_buffer.out = 0;
+			}
 			nread += size;
 #ifndef PIPE_NODIRECT
 		/*
 		 * Direct copy, bypassing a kernel buffer.
 		 */
 		} else if ((size = rpipe->pipe_map.cnt) &&
-			(rpipe->pipe_state & PIPE_DIRECTW)) {
-			caddr_t va;
+			   (rpipe->pipe_state & PIPE_DIRECTW)) {
+			caddr_t	va;
 			if (size > (u_int) uio->uio_resid)
 				size = (u_int) uio->uio_resid;
-			if ((error = pipelock(rpipe,1)) == 0) {
-				va = (caddr_t) rpipe->pipe_map.kva + rpipe->pipe_map.pos;
-				error = uiomove(va, size, uio);
-				pipeunlock(rpipe);
-			}
+
+			va = (caddr_t) rpipe->pipe_map.kva + rpipe->pipe_map.pos;
+			error = uiomove(va, size, uio);
 			if (error)
 				break;
 			nread += size;
@@ -380,32 +391,6 @@ pipe_read(fp, uio, cred, flags)
 			}
 #endif
 		} else {
-			/*
-			 * If there is no more to read in the pipe, reset
-			 * its pointers to the beginning.  This improves
-			 * cache hit stats.
-			 *
-			 * We get this over with now because it may block
-			 * and cause the state to change out from under us,
-			 * rather then have to re-test the state both before
-			 * and after this fragment.
-			 */
-		
-			if ((error = pipelock(rpipe,1)) == 0) {
-				if (rpipe->pipe_buffer.cnt == 0) {
-					rpipe->pipe_buffer.in = 0;
-					rpipe->pipe_buffer.out = 0;
-				}
-				pipeunlock(rpipe);
-
-				/*
-				 * If pipe filled up due to pipelock
-				 * blocking, loop back up.
-				 */
-				if (rpipe->pipe_buffer.cnt > 0)
-					continue;
-			}
-
 			/*
 			 * detect EOF condition
 			 */
@@ -423,55 +408,49 @@ pipe_read(fp, uio, cred, flags)
 			}
 
 			/*
-			 * break if error (signal via pipelock), or if some 
-			 * data was read
+			 * Break if some data was read.
 			 */
-			if (error || nread > 0)
+			if (nread > 0)
 				break;
 
 			/*
-			 * Handle non-blocking mode operation
+			 * Unlock the pipe buffer for our remaining processing.  We
+			 * will either break out with an error or we will sleep and
+			 * relock to loop.
 			 */
+			pipeunlock(rpipe);
 
-			if (fp->f_flag & FNONBLOCK) {
+			/*
+			 * Handle non-blocking mode operation or
+			 * wait for more data.
+			 */
+			if (fp->f_flag & FNONBLOCK)
 				error = EAGAIN;
-				break;
+			else {
+				rpipe->pipe_state |= PIPE_WANTR;
+				if ((error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) == 0)
+					error = pipelock(rpipe, 1);
 			}
-
-			/*
-			 * Wait for more data
-			 */
-
-			rpipe->pipe_state |= PIPE_WANTR;
-			if (error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) {
-				break;
-			}
+			if (error)
+				goto unlocked_error;
 		}
 	}
+	pipeunlock(rpipe);
 
 	if (error == 0)
 		getnanotime(&rpipe->pipe_atime);
-
+unlocked_error:
 	--rpipe->pipe_busy;
+
+	/*
+	 * PIPE_WANT processing only makes sense if pipe_busy is 0.
+	 */
 	if ((rpipe->pipe_busy == 0) && (rpipe->pipe_state & PIPE_WANT)) {
 		rpipe->pipe_state &= ~(PIPE_WANT|PIPE_WANTW);
 		wakeup(rpipe);
 	} else if (rpipe->pipe_buffer.cnt < MINPIPESIZE) {
 		/*
-		 * If there is no more to read in the pipe, reset
-		 * its pointers to the beginning.  This improves
-		 * cache hit stats.
-		 */
-		if (rpipe->pipe_buffer.cnt == 0) {
-			if ((error == 0) && (error = pipelock(rpipe,1)) == 0) {
-				rpipe->pipe_buffer.in = 0;
-				rpipe->pipe_buffer.out = 0;
-				pipeunlock(rpipe);
-			}
-		}
-
-		/*
-		 * If the "write-side" has been blocked, wake it up now.
+		 * Handle write blocking hysteresis.
 		 */
 		if (rpipe->pipe_state & PIPE_WANTW) {
 			rpipe->pipe_state &= ~PIPE_WANTW;
@@ -884,7 +863,7 @@ pipe_write(fp, uio, cred, flags)
 			pipeselwakeup(wpipe);
 
 			wpipe->pipe_state |= PIPE_WANTW;
-			if (error = tsleep(wpipe, (PRIBIO+1)|PCATCH, "pipewr", 0)) {
+			if ((error = tsleep(wpipe, (PRIBIO+1)|PCATCH, "pipewr", 0)) != 0) {
 				break;
 			}
 			/*
@@ -1007,8 +986,8 @@ pipe_poll(fp, events, cred, p)
 
 	if (events & (POLLOUT | POLLWRNORM))
 		if (wpipe == NULL || (wpipe->pipe_state & PIPE_EOF) ||
-		    ((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
-		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF)
+		    (((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
+		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if ((rpipe->pipe_state & PIPE_EOF) ||
@@ -1091,7 +1070,7 @@ pipeclose(cpipe)
 		/*
 		 * Disconnect from peer
 		 */
-		if (ppipe = cpipe->pipe_peer) {
+		if ((ppipe = cpipe->pipe_peer) != NULL) {
 			pipeselwakeup(ppipe);
 
 			ppipe->pipe_state |= PIPE_EOF;
