@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.115 1998/06/13 19:26:38 jhay Exp $
+#	$Id: BSD.usr.dist,v 1.116 1998/08/07 16:47:07 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -361,6 +361,8 @@
             ..
 	    sv_SE.ISO_8859-1
             ..
+	    zh_CN.EUC
+            ..
         ..
 /set type=dir uname=man gname=bin mode=0755
         man             uname=bin
@@ -543,6 +545,8 @@
             ..
 	    sv_SE.ISO_8859-1
             ..
+	    zh_CN.EUC
+	    ..
         ..
 	pcvt
 	    Doc
