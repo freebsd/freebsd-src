@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.16 1999/01/09 21:50:59 jdp Exp $
+#	$Id: Makefile.alpha,v 1.16.2.1 1999/02/14 14:09:43 des Exp $
 #
 # Makefile for FreeBSD
 #
@@ -99,7 +99,7 @@ SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
 %CLEAN
 
 .if !exists(.depend)
-${SYSTEM_OBJS}: ${BEFORE_DEPEND:M*.h}
+${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h}
 .endif
 
 clean:
