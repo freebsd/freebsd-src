@@ -188,6 +188,7 @@ MAN=	aac.4 \
 	ste.4 \
 	stf.4 \
 	sym.4 \
+	syncache.4 \
 	syncer.4 \
 	syscons.4 \
 	sysmouse.4 \
@@ -255,6 +256,7 @@ MLINKS+=scsi.4 cam.4
 MLINKS+=scsi.4 scbus.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=splash.4 screensaver.4
+MLINKS+=syncache.4 syncookies.4
 MLINKS+=syscons.4 sc.4
 MLINKS+=vpo.4 imm.4
 
