@@ -1,10 +1,10 @@
 #
 # LINT -- config file for checking all the sources, tries to pull in
-#         as much of the source tree as it can.
+#	as much of the source tree as it can.
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.43 1994/01/22 09:25:37 rgrimes Exp $
+#	$Id: LINT,v 1.44 1994/01/25 03:16:31 ache Exp $
 #
 
 machine		"i386"
@@ -48,10 +48,10 @@ options		IPBROADCASTECHO=1	#send reply to broadcast pings
 options		IPMASKAGENT=1		#send reply to icmp mask requests
 options		TPCONS			#support X.25 network-layer service
 
-options         EXCLUDE_CHIP_MIDI       # \  sound driver options
-options         "EXCLUDE_MPU401"        #  \ exclude specified
-options         EXCLUDE_GUS             #  / device or chip
-options         EXCLUDE_SBPRO           # /  from driver
+options		EXCLUDE_CHIP_MIDI	# \  sound driver options
+options		"EXCLUDE_MPU401"	#  \ exclude specified
+options		EXCLUDE_GUS		#  / device or chip
+options		EXCLUDE_SBPRO		# /  from driver
 
 #
 # options that are in sys/conf/files
@@ -91,8 +91,8 @@ device		st1
 pseudo-device	swappager
 options		SYSVSHM
 options		"SHMMAXPGS=64"		# 256Kb of sharable memory
-options         SYSVSEM
-options         SYSVMSG
+options		SYSVSEM
+options		SYSVMSG
 #pseudo-device	tb			#tablet line discipline.
 options		TPIP			# ISO TP class 4 over IP
 #pseudo-device	tun
@@ -110,13 +110,9 @@ controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
 # driver for the Adaptec 174x SCSI cards.
 controller	ahb0	at isa? bio irq 11 vector ahbintr
 # driver for the Bustek 742.
-controller	bt0	at isa? port "IO_BT0" bio irq 12  vector btintr
+controller	bt0	at isa? port "IO_BT0" bio irq 12 vector btintr
 # driver for the Seagate ST01/ST02 card, not yet finished.
-controller	sg0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector sgintr
-device		com0	at isa? port "IO_COM1" tty irq 4 vector comintr
-device		com1	at isa? port "IO_COM2" tty irq 3 vector comintr
-device		com2	at isa? port "IO_COM3" tty irq 5 vector comintr
-device		com3	at isa? port "IO_COM4" tty irq 9 vector comintr
+#controller	sg0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector sgintr
 #dcfclk	device-driver
 controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fd0 drive 0
