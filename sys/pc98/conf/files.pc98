@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.51 1998/02/02 07:55:31 kato Exp $
+#	$Id: files.pc98,v 1.52 1998/02/16 09:38:37 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -250,9 +250,10 @@ pc98/pc98/wd.c			optional	wdc	device-driver
 pc98/pc98/wd.c			optional	wd	device-driver
 i386/isa/atapi.c		optional	atapi	device-driver
 i386/isa/wcd.c			optional	wcd	device-driver
+i386/isa/wfd.c			optional	wfd	device-driver
+i386/isa/wst.c			optional	wst	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
-i386/isa/wfd.c			optional	wfd	device-driver
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_file.c		optional	compat_linux
