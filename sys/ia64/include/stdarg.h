@@ -53,4 +53,6 @@ typedef _BSD_VA_LIST_	va_list;
 #define	va_end(ap) \
 	__builtin_va_end(ap)
 
+#endif
+
 #endif /* !_MACHINE_STDARG_H_ */
