@@ -874,13 +874,15 @@ pcic_pci_cardtype(u_int32_t stat)
  * in the hardware being initialized many times, only to be torn down
  * as well.  This may also cause races with pccardd.  Instead, we wait
  * for the insertion signal to be stable for 0.5 seconds before we declare
- * it to be a real insertion event.  Removal is done right away.
+ * it to be a real insertion event.  Removal is also debounced.  We turn
+ * off interrupt servicing during the settling time to prevent infinite
+ * loops in the driver.
  *
  * Note: We only handle the card detect change events.  We don't handle
  * power events and status change events.
  */
 static void
-pcic_cd_insert(void *arg) 
+pcic_cd_change(void *arg) 
 {
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
@@ -889,9 +891,12 @@ pcic_cd_insert(void *arg)
  	sc->cd_pending = 0;
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 
-	/* Just return if the interrupt handler missed a remove transition. */
-	if ((stat & CB_SS_CD) != 0)
+	/* If the card left, remove it from the system. */
+	if ((stat & CB_SS_CD) != 0) {
+		sc->cd_present = 0;
+		pccard_event(sp->slt, card_removed);
 		return;
+	}
 	sc->cd_present = 1;
 	if ((stat & CB_SS_16BIT) == 0)
 		device_printf(sp->sc->dev, "Card type %s is unsupported\n",
@@ -919,19 +924,17 @@ pcic_pci_intr(void *arg)
 		present = (stat & CB_SS_CD) == 0;
 		if (present != sc->cd_present) {
 			if (sc->cd_pending) {
-				untimeout(pcic_cd_insert, arg, sc->cd_ch);
+				untimeout(pcic_cd_change, arg, sc->cd_ch);
 				sc->cd_pending = 0;
 			}
 			/* Delay insert events to debounce noisy signals. */
-			if (present) {
-				sc->cd_ch = timeout(pcic_cd_insert, arg, hz/2);
-				sc->cd_pending = 1;
-			} else {
-				sc->cd_present = 0;
-				pccard_event(sp->slt, card_removed);
-			}
+			sc->cd_pending = 1;
+			sc->cd_ch = timeout(pcic_cd_change, arg, hz/2);
+			/* if the card is gone, stop interrupts to it */
+			if (!present)
+				sc->func_intr = NULL;
 		}
-		if (stat & CB_SS_BADVCC)
+		if (bootverbose && (stat & CB_SS_BADVCC) != 0)
 			device_printf(sc->dev, "BAD Vcc request\n");
 
 		/* Ack the interrupt */
@@ -944,6 +947,9 @@ pcic_pci_intr(void *arg)
 	 * and read it to clear the bits.  Maybe we should check the status
 	 * ala the ISA interrupt handler, but those changes should be caught
 	 * in the CD change.
+	 *
+	 * We have to check it every interrupt because these bits can sometimes
+	 * show up indepentently of the CB_SOCKET_EVENT register above.
 	 */
 	sp->getb(sp, PCIC_STAT_CHG);
 }
@@ -1298,6 +1304,63 @@ pcic_pci_gen_mapirq(struct pcic_slot *sp, int irq)
 	return (sp->sc->chip->func_intr_way(sp, pcic_iw_pci));
 }
 
+static void
+pcic_pci_func_intr(void *arg)
+{
+	struct pcic_softc *sc = (struct pcic_softc *) arg;
+	struct pcic_slot *sp = &sc->slots[0];
+	u_int32_t stat;
+
+	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+	if ((stat & CB_SS_CD) == 0 && sc->func_intr != 0)
+		sc->func_intr(sc->func_arg);
+}
+	
+static int
+pcic_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+{
+	struct pcic_softc *sc = device_get_softc(dev);
+	struct pcic_slot *sp = &sc->slots[0];
+	int err;
+
+	if (sc->func_route == pcic_iw_isa)
+		return(pcic_setup_intr(dev, child, irq, flags, intr, arg,
+		    cookiep));
+
+#if __FreeBSD_version >= 500000
+	if ((flags & INTR_FAST) != 0)
+#else	    
+	if ((flags & INTR_TYPE_FAST) != 0)
+#endif
+		return (EINVAL);
+	if (sc->func_intr != NULL) {
+		device_printf(child, "Can't establish another ISR\n");
+		return (EINVAL);
+	}
+	
+	err = bus_generic_setup_intr(dev, child, irq, flags,
+	    pcic_pci_func_intr, sc, cookiep);
+	if (err != 0)
+		return (err);
+	sc->chip->map_irq(sp, rman_get_start(irq));
+	sc->func_intr = intr;
+	sc->func_arg = arg;
+	return (0);
+}
+
+static int
+pcic_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie)
+{
+	struct pcic_softc *sc = device_get_softc(dev);
+
+	if (sc->func_route == pcic_iw_isa)
+		return (pcic_teardown_intr(dev, child, irq, cookie));
+	sc->func_intr = NULL;
+	return (bus_generic_teardown_intr(dev, child, irq, cookie));
+}
+
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_pci_probe),
@@ -1313,8 +1376,8 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	pcic_pci_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	pcic_pci_teardown_intr),
 
 	/* Card interface */
 	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),

@@ -71,6 +71,8 @@ struct pcic_softc
 	int			cd_present; /* debounced card-present state */
 	struct callout_handle	cd_ch;	/* handle for pcic_cd_insert */
 	struct pcic_chip	*chip;
+	driver_intr_t		*func_intr;
+	void			*func_arg;
 };
 
 typedef int (pcic_intr_way_t)(struct pcic_slot *, enum pcic_intr_way);
