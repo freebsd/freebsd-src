@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.42 1995/04/16 03:11:28 davidg Exp $
+ * $Id: vm_object.c,v 1.43 1995/04/16 12:56:19 davidg Exp $
  */
 
 /*
@@ -529,9 +529,11 @@ startover:
 			if ((p->valid & p->dirty) != 0) {
 				vm_offset_t tincr;
 				tincr = vm_pageout_clean(p, VM_PAGEOUT_FORCE);
-				pgcount -= (tincr - 1);
-				tincr *= PAGE_SIZE;
-				tstart += tincr - PAGE_SIZE;
+				if( tincr) {
+					pgcount -= (tincr - 1);
+					tincr *= PAGE_SIZE;
+					tstart += tincr - PAGE_SIZE;
+				}
 				allclean = 0;
 			}
 		}
