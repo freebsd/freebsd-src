@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.61 1998/05/20 08:02:24 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.62 1998/05/20 08:05:45 peter Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -72,13 +73,15 @@ extern int	nfs_mountroot __P((struct mount *mp));
 extern int	nfs_ticks;
 
 MALLOC_DEFINE(M_NFSREQ, "NFS req", "NFS request header");
-MALLOC_DEFINE(M_NFSMNT, "NFS mount", "NFS mount structure");
 MALLOC_DEFINE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");
 MALLOC_DEFINE(M_NFSD, "NFS daemon", "Nfs server daemon structure");
 MALLOC_DEFINE(M_NFSDIROFF, "NFSV3 diroff", "NFS directory offset data");
 MALLOC_DEFINE(M_NFSRVDESC, "NFSV3 srvdesc", "NFS server socket descriptor");
 MALLOC_DEFINE(M_NFSUID, "NFS uid", "Nfs uid mapping structure");
 MALLOC_DEFINE(M_NQLEASE, "NQNFS Lease", "Nqnfs lease");
+MALLOC_DEFINE(M_NFSHASH, "NFS hash", "NFS hash tables");
+
+vm_zone_t nfsmount_zone;
 
 struct nfsstats	nfsstats;
 SYSCTL_NODE(_vfs, MOUNT_NFS, nfs, CTLFLAG_RW, 0, "NFS filesystem");
@@ -670,8 +673,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 		FREE(nam, M_SONAME);
 		return (0);
 	} else {
-		MALLOC(nmp, struct nfsmount *, sizeof (struct nfsmount),
-		    M_NFSMNT, M_WAITOK);
+		nmp = zalloc(nfsmount_zone);
 		bzero((caddr_t)nmp, sizeof (struct nfsmount));
 		TAILQ_INIT(&nmp->nm_uidlruhead);
 		TAILQ_INIT(&nmp->nm_bufq);
@@ -849,7 +851,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	return (0);
 bad:
 	nfs_disconnect(nmp);
-	free((caddr_t)nmp, M_NFSMNT);
+	zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
 	return (error);
 }
@@ -924,7 +926,7 @@ nfs_unmount(mp, mntflags, p)
 	FREE(nmp->nm_nam, M_SONAME);
 
 	if ((nmp->nm_flag & (NFSMNT_NQNFS | NFSMNT_KERB)) == 0)
-		free((caddr_t)nmp, M_NFSMNT);
+		zfree(nfsmount_zone, nmp);
 	return (0);
 }
 
