@@ -157,10 +157,22 @@ CDROM_SET_3="${CDROM_SET_3} lang/gnat"
 ## Start of set for CDROM #4
 ## End of set for CDROM #4
 
+
+## Start of set that should not be included on any CDROM.
+## This should not contain packages that are already marked BROKEN or
+## RESTRICTED, it is only for packages that sysinstall(8) has trouble
+## with.
+NO_CDROM_SET=""
+NO_CDROM_SET="${NO_CDROM_SET} net/cvsupit"
+
 # Start of actual script.
 if [ $# -lt 1 ]; then
 	echo "usage: $0 cdrom-number [portsdir]"
 	exit 2
 fi
-extract-names $*
+if [ ${1} = 0 ]; then
+	echo $NO_CDROM_SET
+else
+	extract-names $*
+fi
 exit 0
