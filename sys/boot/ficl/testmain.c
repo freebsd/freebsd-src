@@ -1,24 +1,19 @@
 /*
-** stub main for testing FICL under Win32
+** stub main for testing FICL
 ** 
 */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef WIN32
-#include <direct.h>
-#endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef linux
 #include <unistd.h>
-#endif
 
 #include "ficl.h"
 
 /*
-** Ficl interface to _getcwd (Win32)
+** Ficl interface to getcwd
 ** Prints the current working directory using the VM's 
 ** textOut method...
 */
@@ -26,20 +21,16 @@ static void ficlGetCWD(FICL_VM *pVM)
 {
     char *cp;
 
-#ifdef WIN32   
-    cp = _getcwd(NULL, 80);
-#else
    cp = getcwd(NULL, 80);
-#endif
     vmTextOut(pVM, cp, 1);
     free(cp);
     return;
 }
 
 /*
-** Ficl interface to _chdir (Win32)
+** Ficl interface to chdir
 ** Gets a newline (or NULL) delimited string from the input
-** and feeds it to the Win32 chdir function...
+** and feeds it to chdir()
 ** Example:
 **    cd c:\tmp
 */
@@ -49,11 +40,7 @@ static void ficlChDir(FICL_VM *pVM)
     vmGetString(pVM, pFS, '\n');
     if (pFS->count > 0)
     {
-#ifdef WIN32
-       int err = _chdir(pFS->text);
-#else
        int err = chdir(pFS->text);
-#endif
        if (err)
         {
             vmTextOut(pVM, "Error: path not found", 1);
@@ -70,7 +57,7 @@ static void ficlChDir(FICL_VM *pVM)
 /*
 ** Ficl interface to system (ANSI)
 ** Gets a newline (or NULL) delimited string from the input
-** and feeds it to the Win32 system function...
+** and feeds it to system()
 ** Example:
 **    system del *.*
 **    \ ouch!
@@ -114,11 +101,7 @@ static void ficlLoad(FICL_VM *pVM)
     FILE   *fp;
     int     result;
     CELL    id;
-#ifdef WIN32       
-    struct _stat buf;
-#else
     struct stat buf;
-#endif
 
 
     vmGetString(pVM, pFilename, '\n');
@@ -132,11 +115,7 @@ static void ficlLoad(FICL_VM *pVM)
     /*
     ** get the file's size and make sure it exists 
     */
-#ifdef WIN32       
-    result = _stat( pFilename->text, &buf );
-#else
     result = stat( pFilename->text, &buf );
-#endif
 
     if (result != 0)
     {
@@ -258,8 +237,6 @@ void buildTestInterface(void)
 }
 
 
-#if !defined (_WINDOWS)
-
 int main(int argc, char **argv)
 {
     char in[256];
@@ -283,7 +260,8 @@ int main(int argc, char **argv)
     for (;;)
     {
         int ret;
-        gets(in);
+        if (fgets(in, sizeof(in) - 1, stdin) == NULL)
+	    break;
         ret = ficlExec(pVM, in);
         if (ret == VM_USEREXIT)
         {
@@ -294,6 +272,4 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-#endif
 
