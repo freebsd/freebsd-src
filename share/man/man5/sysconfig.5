@@ -80,7 +80,7 @@ if the default behavior is desired.
 .Ar NO ,
 attempt to program the function keys with the value.  The value should
 be a single string of the form:
-.Ar \&"<funkey_number> <new_value> [<funkey_number> <new_value>]...\&"
+.Qq Ar "<funkey_number> <new_value> [<funkey_number> <new_value>]..."
 .It Ar cursor
 (str) Can be set to the value of
 .Ar normal ,
@@ -145,16 +145,22 @@ to be broken with respect to these options.
 (str) Set to the list of network interfaces to configure on this host.
 For example, if you had a loopback device (standard) and an SMC Elite
 Ultra NIC, you might have this set to
-.Ar \&"lo0 ed0\&"
-for the two interfaces.  An ifconfig_\fIinterface\fR
-variable is also assumed to exist for each value of \fIinterface\fR.
+.Qq Ar "lo0 ed0"
+for the two interfaces.  An 
+.No ifconfig_ Ns Em interface
+variable is also assumed to exist for each value of 
+.Em interface .
 .It Ar static_routes
 (str) Set to the list of static routes you would like to add at system
 boot time.  If not set to
 .Ar NO
 then for each whitespace separated element in the value,
-a route_\fIelement\fR variable is assumed to exist for each instance
-of \fIelement\fR, and will later be passed to a ``route add'' operation.
+a 
+.No route_ Ns em element
+variable is assumed to exist for each instance
+of 
+.Em element , 
+and will later be passed to a ``route add'' operation.
 .It Ar defaultrouter
 (str) If not set to
 .Ar NO
@@ -175,7 +181,9 @@ useful in networks where the active exchange of RIP information is encouraged.
 command with or
 .Ar NO
 if you do not wish to run timed.  This command is intended for networks
-of machines where a consistent \&"network time\&" for all of them must be
+of machines where a consistent 
+.Qq "network time"
+for all of them must be
 established.  This is often useful in large NFS environments where
 time stamps on files are expected to be consistent network-wide.
 .It Ar xntpdflags
