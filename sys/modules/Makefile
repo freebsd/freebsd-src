@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.6 1994/10/16 20:39:52 sos Exp $
+#	$Id: Makefile,v 1.7 1995/01/30 14:21:46 ugen Exp $
 
 SUBDIR=	cd9660 coff fdesc ibcs2 ip_mroute_mod ipfw kernfs msdos nfs nullfs \
-	portal procfs socksys umapfs union
+	portal procfs socksys syscons umapfs union
 #
 # Doesn't work:
 # mfs
