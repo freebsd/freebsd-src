@@ -43,7 +43,7 @@
 #include <net/if_var.h>
 #include <net/ethernet.h>
 
-#include <machine/if_wavelan_ieee.h>
+#include <dev/wi/if_wavelan_ieee.h>
 
 #include <stdio.h>
 #include <string.h>

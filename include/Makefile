@@ -48,10 +48,11 @@ LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 \
 
 LNOHEADERDIRS=	fs isofs ufs dev
 LSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs \
-	cam/scsi dev/an dev/ppbus dev/usb
+	cam/scsi dev/an dev/ppbus dev/usb dev/wi
 
 # For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
-LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/ppbus dev/usb
+LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/ppbus \
+	dev/usb dev/wi
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
