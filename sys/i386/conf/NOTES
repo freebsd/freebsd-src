@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.220 1995/12/10 22:09:14 bde Exp $
+#	$Id: LINT,v 1.221 1995/12/12 08:46:37 gibbs Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -39,8 +39,8 @@ maxusers	10
 # defaults on bootup.  (an example is a large news server in which
 # the uid, news, can sometimes need > 100 simultaneous processes running,
 # or perhaps a user using lots of windows under X).
-options		"CHILD_MAX=128"
-options		"OPEN_MAX=128"
+options		CHILD_MAX=128
+options		OPEN_MAX=128
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
@@ -133,8 +133,8 @@ options		NS			#Xerox NS communications protocols
 options		IPX			#IPX/SPX communications protocols
 options		IPXIP			#IPX in IP encapsulation (not available)
 options		IPTUNNEL		#IP in IPX encapsulation (not available)
-options		"IPXPRINTFS=0"		#IPX/SPX Console Debugging Information
-options		"IPX_ERRPRINTFS=0"	#IPX/SPX Console Debugging Information
+options		IPXPRINTFS=0		#IPX/SPX Console Debugging Information
+options		IPX_ERRPRINTFS=0	#IPX/SPX Console Debugging Information
 
 # These are currently broken and don't compile
 #options		ISO
@@ -250,10 +250,12 @@ options		DEVFS			#devices filesystem
 
 # Make space in the kernel for a MFS rootfilesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
-options		"MFS_ROOT=10"
+options		MFS_ROOT=10
+# Allow the MFS_ROOT code to load the MFS image from floppy if it is missing.
+options		MFS_AUTOLOAD
 
 # Allow this many swap-devices.
-options		"NSWAPDEV=20"
+options		NSWAPDEV=20
 
 # Disk quotas are supported when this option is enabled.  If you
 # change the value of this option, you must do a `make clean' in your
@@ -410,15 +412,15 @@ options		"AUTO_EOI_1"
 options		BOUNCE_BUFFERS
 #options	DUMMY_NOPS
 #options        "TUNE_1542"
-#options	"BROKEN_KEYBOARD_RESET"
+#options	BROKEN_KEYBOARD_RESET
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD >= 2.0.5
+options		PCVT_FREEBSD=210	# pcvt running on FreeBSD >= 2.0.5
 options		XSERVER			# include code for XFree86
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
-options		"PCVT_SCANSET=2" 	# IBM keyboards are non-std
+options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
@@ -434,7 +436,7 @@ options		HARDFONTS
 # MAXCONS is maximum number of virtual consoles, no more than 16
 # default value: 12
 #
-options         "MAXCONS=16"
+options         MAXCONS=16
 
 #
 # This device is mandatory.
@@ -549,8 +551,8 @@ tape		ft0	at fdc0 drive 2
 # usually sufficient.  The units are inverse seconds, so a value of 16
 # here means to wait 1/16th of a second; you should choose a power of
 # two.
-#
-options	FDSEEKWAIT="16"
+# XXX: this seems to be missing!
+options	FDSEEKWAIT=16
 
 #
 # Other standard PC hardware: `lpt', `mse', `psm', `sio', etc.
@@ -663,7 +665,7 @@ device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
 # options BROKEN_BUS_CLOCK	#PAS-16 isn't working and OPTI chipset
 # options SYMPHONY_PAS		#PAS-16 isn't working and SYMPHONY chipset
 # options EXCLUDE_SBPRO		#PAS-16
-# options "SBC_IRQ=5"		#PAS-16. Must match irq on sb0 line.
+# options SBC_IRQ=5		#PAS-16. Must match irq on sb0 line.
 # PAS16: The order of the pas0/sb0/opl0 is important since the
 #	sb emulation is enabled in the pas-16 attach.
 #
@@ -802,10 +804,10 @@ controller	ahc0
 # 
 # The 'meteor' device is a PCI video capture board. It can also have the
 # following options:
-#   options "METEOR_ALLOC_PAGES=xxx"	preallocate kernel pages for data entry
+#   options METEOR_ALLOC_PAGES=xxx	preallocate kernel pages for data entry
 #	figure (ROWS*COLUMN*BYTES_PER_PIXEL*FRAME+PAGE_SIZE-1)/PAGE_SIZE
 #   options METEOR_DEALLOC_PAGES	remove all allocated pages on close(2)
-#   options "METEOR_DEALLOC_ABOVE=xxx"	remove all allocated pages above the
+#   options METEOR_DEALLOC_ABOVE=xxx	remove all allocated pages above the
 #	specified amount. If this value is below the allocated amount no action
 #	taken
 #
@@ -843,3 +845,4 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 options		COMPAT_LINUX
 options		"EXT2FS"
 options		"IBCS2"
+options		SHOW_BUSYBUFS	# List buffers that prevent root unmount

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.10 1995/08/15 19:23:33 bde Exp $
+ *	$Id: exception.s,v 1.11 1995/09/07 21:36:17 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -258,7 +258,7 @@ IDTVEC(syscall)
 	MEXITCOUNT
 	jmp	_doreti
 
-#ifdef COMPAT_LINUX
+#if defined(COMPAT_LINUX) || defined(LINUX)
 /*
  * Call gate entry for Linux syscall (int 0x80)
  */
@@ -283,7 +283,7 @@ IDTVEC(linux_syscall)
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
-#endif /* COMPAT_LINUX */
+#endif /* COMPAT_LINUX || LINUX */
 
 /*
  * Include what was once config+isa-dependent code.
