@@ -64,26 +64,16 @@
 #include <vm/vm_object.h>
 #endif
 
-SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV, 
+SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
-
-#if defined(ZERO_COPY_SOCKETS) || defined(ENABLE_VFS_IOOPT)
-static int userspaceco(caddr_t cp, u_int cnt, struct uio *uio,
-		       struct vm_object *obj, int disposable);
-#endif
 
 #ifdef ZERO_COPY_SOCKETS
 /* Declared in uipc_socket.c */
 extern int so_zero_copy_receive;
 
-static int vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
-		       vm_offset_t uaddr);
-
 static int
-vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
-        vm_map_t mapa;
-	vm_object_t srcobj;
-	vm_offset_t kaddr, uaddr;
+vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
+    vm_offset_t uaddr)
 {
 	vm_map_t map = mapa;
 	vm_page_t kern_pg, user_pg;
@@ -129,20 +119,17 @@ vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
 	vm_page_flag_clear(kern_pg, PG_BUSY);
 	kern_pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
-	
+
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
 }
 #endif /* ZERO_COPY_SOCKETS */
 
 int
-uiomove(cp, n, uio)
-	register caddr_t cp;
-	register int n;
-	register struct uio *uio;
+uiomove(caddr_t cp, int n, struct uio *uio)
 {
 	struct thread *td = curthread;
-	register struct iovec *iov;
+	struct iovec *iov;
 	u_int cnt;
 	int error = 0;
 	int save = 0;
@@ -215,12 +202,8 @@ out:
  * Experimental support for zero-copy I/O
  */
 static int
-userspaceco(cp, cnt, uio, obj, disposable)
-	caddr_t cp;
-	u_int cnt;
-	struct uio *uio;
-	struct vm_object *obj;
-	int disposable;
+userspaceco(caddr_t cp, u_int cnt, struct uio *uio, struct vm_object *obj,
+    int disposable)
 {
 	struct iovec *iov;
 	int error;
@@ -245,7 +228,7 @@ userspaceco(cp, cnt, uio, obj, disposable)
 			 * kernel page to the userland process.
 			 */
 			error =	vm_pgmoveco(&curproc->p_vmspace->vm_map,
-					    obj, (vm_offset_t)cp, 
+					    obj, (vm_offset_t)cp,
 					    (vm_offset_t)iov->iov_base);
 
 			/*
@@ -298,12 +281,8 @@ userspaceco(cp, cnt, uio, obj, disposable)
 }
 
 int
-uiomoveco(cp, n, uio, obj, disposable)
-	caddr_t cp;
-	int n;
-	struct uio *uio;
-	struct vm_object *obj;
-	int disposable;
+uiomoveco(caddr_t cp, int n, struct uio *uio, struct vm_object *obj,
+    int disposable)
 {
 	struct iovec *iov;
 	u_int cnt;
@@ -363,11 +342,7 @@ uiomoveco(cp, n, uio, obj, disposable)
  * Experimental support for zero-copy I/O
  */
 int
-uioread(n, uio, obj, nread)
-	int n;
-	struct uio *uio;
-	struct vm_object *obj;
-	int *nread;
+uioread(int n, struct uio *uio, struct vm_object *obj, int *nread)
 {
 	int npagesmoved;
 	struct iovec *iov;
@@ -433,12 +408,10 @@ uioread(n, uio, obj, nread)
  * Give next character to user as result of read.
  */
 int
-ureadc(c, uio)
-	register int c;
-	register struct uio *uio;
+ureadc(int c, struct uio *uio)
 {
-	register struct iovec *iov;
-	register char *iov_base;
+	struct iovec *iov;
+	char *iov_base;
 
 again:
 	if (uio->uio_iovcnt == 0 || uio->uio_resid == 0)
@@ -476,10 +449,7 @@ again:
  * General routine to allocate a hash table.
  */
 void *
-hashinit(elements, type, hashmask)
-	int elements;
-	struct malloc_type *type;
-	u_long *hashmask;
+hashinit(int elements, struct malloc_type *type, u_long *hashmask)
 {
 	long hashsize;
 	LIST_HEAD(generic, generic) *hashtbl;
@@ -498,10 +468,7 @@ hashinit(elements, type, hashmask)
 }
 
 void
-hashdestroy(vhashtbl, type, hashmask)
-	void *vhashtbl;
-	struct malloc_type *type;
-	u_long hashmask;
+hashdestroy(void *vhashtbl, struct malloc_type *type, u_long hashmask)
 {
 	LIST_HEAD(generic, generic) *hashtbl, *hp;
 
@@ -521,10 +488,7 @@ static int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531, 2039,
  * General routine to allocate a prime number sized hash table.
  */
 void *
-phashinit(elements, type, nentries)
-	int elements;
-	struct malloc_type *type;
-	u_long *nentries;
+phashinit(int elements, struct malloc_type *type, u_long *nentries)
 {
 	long hashsize;
 	LIST_HEAD(generic, generic) *hashtbl;
@@ -547,7 +511,7 @@ phashinit(elements, type, nentries)
 }
 
 void
-uio_yield()
+uio_yield(void)
 {
 	struct thread *td;
 
