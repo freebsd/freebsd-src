@@ -315,11 +315,14 @@ void
 cpu_wait(p)
 	struct proc *p;
 {
+
+	mtx_lock(&vm_mtx);
 	/* drop per-process resources */
 	pmap_dispose_proc(p);
 
 	/* and clean-out the vmspace */
 	vmspace_free(p->p_vmspace);
+	mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -371,6 +374,7 @@ vmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
 
+	mtx_lock(&vm_mtx);
 	for (v = bp->b_saveaddr, addr = (caddr_t)trunc_page(bp->b_data);
 	    addr < bp->b_data + bp->b_bufsize;
 	    addr += PAGE_SIZE, v += PAGE_SIZE) {
@@ -386,6 +390,7 @@ vmapbuf(bp)
 		vm_page_hold(PHYS_TO_VM_PAGE(pa));
 		pmap_kenter((vm_offset_t) v, pa);
 	}
+	mtx_unlock(&vm_mtx);
 
 	kva = bp->b_saveaddr;
 	bp->b_saveaddr = bp->b_data;
@@ -406,6 +411,7 @@ vunmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
+	mtx_lock(&vm_mtx);
 	for (addr = (caddr_t)trunc_page(bp->b_data);
 	    addr < bp->b_data + bp->b_bufsize;
 	    addr += PAGE_SIZE) {
@@ -413,6 +419,7 @@ vunmapbuf(bp)
 		pmap_kremove((vm_offset_t) addr);
 		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 	}
+	mtx_unlock(&vm_mtx);
 
 	bp->b_data = bp->b_saveaddr;
 }
@@ -470,14 +477,17 @@ vm_page_zero_idle()
          * pages because doing so may flush our L1 and L2 caches too much.
 	 */
 
-	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
+	if (mtx_trylock(&vm_mtx) == 0)
+		return (0);
+	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count)) {
+		mtx_unlock(&vm_mtx);
 		return(0);
-	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
+	}
+	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count)) {
+		mtx_unlock(&vm_mtx);
 		return(0);
+	}
 
-#ifdef SMP
-	if (try_mplock()) {
-#endif
 		s = splvm();
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
 		zero_state = 0;
@@ -486,13 +496,7 @@ vm_page_zero_idle()
 			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
 			splx(s);
-#if 0
-			rel_mplock();
-#endif
 			pmap_zero_page(VM_PAGE_TO_PHYS(m));
-#if 0
-			get_mplock();
-#endif
 			(void)splvm();
 			vm_page_flag_set(m, PG_ZERO);
 			m->queue = PQ_FREE + m->pc;
@@ -506,14 +510,8 @@ vm_page_zero_idle()
 		}
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
-#ifdef SMP
-		rel_mplock();
-#endif
+		mtx_unlock(&vm_mtx);
 		return (1);
-#ifdef SMP
-	}
-#endif
-	return (0);
 }
 
 /*
