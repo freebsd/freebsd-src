@@ -164,8 +164,11 @@ struct isposinfo {
 
 #define	MAXISPREQUEST(isp)	256
 
-#ifdef	__alpha__
+#if	defined(__alpha__)
 #define	MEMORYBARRIER(isp, type, offset, size)	alpha_mb()
+#elif	defined(__ia64__)
+#define	MEMORYBARRIER(isp, type, offset, size)	\
+	do { ia64_mf(); ia64_mf_a(); } while (0)
 #else
 #define	MEMORYBARRIER(isp, type, offset, size)
 #endif
