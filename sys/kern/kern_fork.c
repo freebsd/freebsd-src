@@ -142,6 +142,9 @@ rfork(p, uap)
 int	nprocs = 1;		/* process 0 */
 static int nextpid = 0;
 
+static int randompid = 0;
+SYSCTL_INT(_kern, OID_AUTO, randompid, CTLFLAG_RW, &randompid, 0, "");
+
 int
 fork1(p1, flags, procp)
 	struct proc *p1;
@@ -262,8 +265,8 @@ retry:
 	 * restart somewhat above 0, as the low-numbered procs
 	 * tend to include daemons that don't exit.
 	 */
-	if (nextpid >= PID_MAX) {
-		nextpid = 100;
+	if (nextpid >= PID_MAX || randompid) {
+		nextpid = (randompid) ? arc4random() % PID_MAX : 100;
 		pidchecked = 0;
 	}
 	if (nextpid >= pidchecked) {

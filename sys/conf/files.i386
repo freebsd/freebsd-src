@@ -373,6 +373,7 @@ isa/sio.c			optional	sio
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/subr_diskmbr.c		standard
+libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/index.c			standard
