@@ -1681,6 +1681,7 @@ SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 static void
 sched_sync(void)
 {
+	struct synclist *next;
 	struct synclist *slp;
 	struct vnode *vp;
 	struct mount *mp;
@@ -1706,35 +1707,30 @@ sched_sync(void)
 		syncer_delayno += 1;
 		if (syncer_delayno == syncer_maxdelay)
 			syncer_delayno = 0;
+		next = &syncer_workitem_pending[syncer_delayno];
 
 		while ((vp = LIST_FIRST(slp)) != NULL) {
-			/*
-			 * XXX we have no guarantees about this vnodes
-			 * identity due to a lack of interlock.
-			 */
-			mtx_unlock(&sync_mtx);
-			if (VOP_ISLOCKED(vp, NULL) == 0 &&
-			    vn_start_write(vp, &mp, V_NOWAIT) == 0) {
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-				(void) VOP_FSYNC(vp, td->td_ucred, MNT_LAZY, td);
-				VOP_UNLOCK(vp, 0, td);
-				vn_finished_write(mp);
+			if (VOP_ISLOCKED(vp, NULL) != 0 || 
+			    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+				LIST_REMOVE(vp, v_synclist);
+				LIST_INSERT_HEAD(next, vp, v_synclist);
+				continue;
 			}
+			if (VI_TRYLOCK(vp) == 0) {
+				LIST_REMOVE(vp, v_synclist);
+				LIST_INSERT_HEAD(next, vp, v_synclist);
+				vn_finished_write(mp);
+				continue;
+			}
+			mtx_unlock(&sync_mtx);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+			(void) VOP_FSYNC(vp, td->td_ucred, MNT_LAZY, td);
+			VOP_UNLOCK(vp, 0, td);
+			vn_finished_write(mp);
 			mtx_lock(&sync_mtx);
 			if (LIST_FIRST(slp) == vp) {
-				mtx_unlock(&sync_mtx);
-				/*
-				 * Note: VFS vnodes can remain on the
-				 * worklist too with no dirty blocks, but
-				 * since sync_fsync() moves it to a different
-				 * slot we are safe.
-				 */
 				VI_LOCK(vp);
-				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
-				    !vn_isdisk(vp, NULL)) {
-					panic("sched_sync: fsync failed "
-					      "vp %p tag %s", vp, vp->v_tag);
-				}
+				mtx_unlock(&sync_mtx);
 				/*
 				 * Put us back on the worklist.  The worklist
 				 * routine will remove us from our current
