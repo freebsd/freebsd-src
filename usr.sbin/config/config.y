@@ -277,7 +277,6 @@ Device_spec:
 		op->op_line = yyline;
 		opt = op;
 		/* and the device part */
-		cur.d_type = DEVICE;
 		cur.d_name = $2;
 		cur.d_count = UNKNOWN;
 		} |
@@ -291,7 +290,6 @@ Device_spec:
 		op->op_line = yyline;
 		opt = op;
 		/* and the device part */
-		cur.d_type = DEVICE;
 		cur.d_name = $2;
 		cur.d_count = $3;
 		if (cur.d_count == 0)
@@ -319,7 +317,6 @@ newdev(struct device *dp)
 	memset(np, 0, sizeof(*np));
 	*np = *dp;
 	np->d_name = dp->d_name;
-	np->d_type = dp->d_type;
 	np->d_count = dp->d_count;
 	np->d_next = 0;
 	if (curp == 0)
