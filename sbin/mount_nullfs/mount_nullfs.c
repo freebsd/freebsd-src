@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_null.c	8.6 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id: mount_null.c,v 1.8 1997/03/11 12:33:36 peter Exp $";
+	"$Id: mount_null.c,v 1.9 1997/03/29 03:32:42 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -76,6 +76,7 @@ main(argc, argv)
 {
 	struct null_args args;
 	int ch, mntflags;
+	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error;
@@ -99,7 +100,10 @@ main(argc, argv)
 	if (realpath(argv[0], target) == 0)
 		err(EX_OSERR, "%s", target);
 
-	if (subdir(target, argv[1]) || subdir(argv[1], target))
+	if (realpath(argv[1], source) == 0)
+		err(EX_OSERR, "%s", source);
+
+	if (subdir(target, source) || subdir(source, target))
 		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
@@ -115,7 +119,7 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "null/loopback filesystem is not available");
 
-	if (mount(vfc.vfc_name, argv[1], mntflags, &args))
+	if (mount(vfc.vfc_name, source, mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }
