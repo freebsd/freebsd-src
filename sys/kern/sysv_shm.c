@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.18 1996/02/23 18:49:18 peter Exp $ */
+/*	$Id: sysv_shm.c,v 1.19 1996/05/02 14:20:26 phk Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -141,7 +141,7 @@ shm_deallocate_segment(shmseg)
 	size_t size;
 
 	shm_handle = shmseg->shm_internal;
-	size = (shmseg->shm_segsz + PAGE_SIZE-1) & ~(PAGE_SIZE-1);
+	size = round_page(shmseg->shm_segsz);
 	(void) vm_map_remove(sysvshm_map, shm_handle->kva, shm_handle->kva + size);
 	free((caddr_t)shm_handle, M_SHM);
 	shmseg->shm_internal = NULL;
@@ -161,7 +161,7 @@ shm_delete_mapping(p, shmmap_s)
 
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
-	size = (shmseg->shm_segsz + PAGE_SIZE-1) & ~(PAGE_SIZE-1);
+	size = round_page(shmseg->shm_segsz);
 	result = vm_map_remove(&p->p_vmspace->vm_map, shmmap_s->va, shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
 		return EINVAL;
@@ -246,7 +246,7 @@ shmat(p, uap, retval)
 	}
 	if (i >= shminfo.shmseg)
 		return EMFILE;
-	size = (shmseg->shm_segsz + PAGE_SIZE-1) & ~(PAGE_SIZE-1);
+	size = round_page(shmseg->shm_segsz);
 	prot = VM_PROT_READ;
 	if ((uap->shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
@@ -463,7 +463,7 @@ shmget_allocate_segment(p, uap, mode, retval)
 		return EINVAL;
 	if (shm_nused >= shminfo.shmmni) /* any shmids left? */
 		return ENOSPC;
-	size = (shmseg->shm_segsz + PAGE_SIZE-1) & ~(PAGE_SIZE-1);
+	size = round_page(shmseg->shm_segsz);
 	if (shm_committed + btoc(size) > shminfo.shmall)
 		return ENOMEM;
 	if (shm_last_free < 0) {

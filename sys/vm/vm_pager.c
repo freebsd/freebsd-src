@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.20 1995/12/11 04:58:29 dyson Exp $
+ * $Id: vm_pager.c,v 1.21 1995/12/14 09:55:11 phk Exp $
  */
 
 /*
@@ -143,7 +143,6 @@ vm_pager_bufferinit()
 	}
 	bp->b_rcred = bp->b_wcred = NOCRED;
 	bp->b_vnbufs.le_next = NOLIST;
-	bp->b_actf = NULL;
 
 	swapbkva = kmem_alloc_pageable(pager_map, nswbuf * MAXPHYS);
 	if (!swapbkva)

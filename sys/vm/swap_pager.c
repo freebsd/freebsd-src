@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.63 1996/03/06 04:31:46 dyson Exp $
+ * $Id: swap_pager.c,v 1.64 1996/05/02 14:21:14 phk Exp $
  */
 
 /*
@@ -304,13 +304,13 @@ swap_pager_alloc(handle, size, prot, offset)
 			 * rip support of "named anonymous regions" out altogether.
 			 */
 			object = vm_object_allocate(OBJT_SWAP,
-				OFF_TO_IDX(offset + PAGE_SIZE - 1) + size);
+				OFF_TO_IDX(offset + PAGE_MASK) + size);
 			object->handle = handle;
 			(void) swap_pager_swp_alloc(object, M_WAITOK);
 		}
 	} else {
 		object = vm_object_allocate(OBJT_SWAP,
-			OFF_TO_IDX(offset + PAGE_SIZE - 1) + size);
+			OFF_TO_IDX(offset + PAGE_MASK) + size);
 		(void) swap_pager_swp_alloc(object, M_WAITOK);
 	}
 
