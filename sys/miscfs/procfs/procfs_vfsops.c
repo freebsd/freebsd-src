@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_vfsops.c,v 1.9 1995/03/16 20:23:42 wollman Exp $
+ *	$Id: procfs_vfsops.c,v 1.10 1995/05/25 01:35:23 davidg Exp $
  */
 
 /*
@@ -56,7 +56,7 @@
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>			/* for PAGE_SIZE */
 
-int procfs_statfs __P((struct mount *, struct statfs *, struct proc *));
+static int procfs_statfs __P((struct mount *, struct statfs *, struct proc *));
 
 /*
  * VFS Operations.
@@ -64,7 +64,7 @@ int procfs_statfs __P((struct mount *, struct statfs *, struct proc *));
  * mount system call
  */
 /* ARGSUSED */
-int
+static int
 procfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -99,7 +99,7 @@ procfs_mount(mp, path, data, ndp, p)
 /*
  * unmount system call
  */
-int
+static int
 procfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -146,7 +146,7 @@ procfs_root(mp, vpp)
 /*
  */
 /* ARGSUSED */
-int
+static int
 procfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -159,7 +159,7 @@ procfs_start(mp, flags, p)
 /*
  * Get file system statistics.
  */
-int
+static int
 procfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -184,7 +184,7 @@ procfs_statfs(mp, sbp, p)
 }
 
 
-int
+static int
 procfs_quotactl(mp, cmds, uid, arg, p)
 	struct mount *mp;
 	int cmds;
@@ -196,7 +196,7 @@ procfs_quotactl(mp, cmds, uid, arg, p)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 procfs_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
@@ -205,7 +205,7 @@ procfs_sync(mp, waitfor)
 	return (0);
 }
 
-int
+static int
 procfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -215,7 +215,7 @@ procfs_vget(mp, ino, vpp)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 procfs_fhtovp(mp, fhp, vpp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -225,7 +225,7 @@ procfs_fhtovp(mp, fhp, vpp)
 	return (EINVAL);
 }
 
-int
+static int
 procfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -234,14 +234,14 @@ procfs_vptofh(vp, fhp)
 	return EINVAL;
 }
 
-int
+static int
 procfs_init()
 {
 
 	return (0);
 }
 
-struct vfsops procfs_vfsops = {
+static struct vfsops procfs_vfsops = {
 	procfs_mount,
 	procfs_start,
 	procfs_unmount,
