@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.3 1994/08/25 13:54:28 paul Exp $
+#	$Id: Makefile,v 1.21 1994/10/28 04:46:08 phk Exp $
 
-SUBDIR=	biosboot netboot
+SUBDIR=	biosboot 
 
 .include <bsd.subdir.mk>
