@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 1.2 1998/03/21 11:34:23 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 1.3 1998/06/20 18:37:50 peter Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
@@ -127,13 +127,13 @@ u_short sport, dport;
 {
 	if (aps->aps_dst.s_addr == dst.s_addr) {
 		if ((aps->aps_src.s_addr == src.s_addr) &&
-		    (!tcp || (sport == aps->aps_sport) &&
-		     (dport == aps->aps_dport)))
+		    (!tcp || ((sport == aps->aps_sport) &&
+		     (dport == aps->aps_dport))))
 			return 1;
 	} else if (aps->aps_dst.s_addr == src.s_addr) {
 		if ((aps->aps_src.s_addr == dst.s_addr) &&
-		    (!tcp || (sport == aps->aps_dport) &&
-		     (dport == aps->aps_sport)))
+		    (!tcp || ((sport == aps->aps_dport) &&
+		     (dport == aps->aps_sport))))
 			return 1;
 	}
 	return 0;

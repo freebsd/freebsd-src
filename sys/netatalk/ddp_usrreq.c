@@ -349,7 +349,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
 	    net = sat->sat_addr.s_net;
 	}
 	aa = 0;
-	if ( ifp = ro->ro_rt->rt_ifp ) {
+	if ((ifp = ro->ro_rt->rt_ifp) != NULL) {
 	    for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
 		if ( aa->aa_ifp == ifp &&
 			ntohs( net ) >= ntohs( aa->aa_firstnet ) &&

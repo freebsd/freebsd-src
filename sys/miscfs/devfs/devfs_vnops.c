@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.65 1999/01/12 11:49:29 eivind Exp $
+ *	$Id: devfs_vnops.c,v 1.66 1999/01/21 08:29:06 dillon Exp $
  */
 
 
@@ -138,7 +138,7 @@ DBPRINT(("lookup\n"));
 	{
 		return (ENOTDIR);
 	}
-	if (error = VOP_ACCESS(dir_vnode, VEXEC, cnp->cn_cred, p))
+	if ((error = VOP_ACCESS(dir_vnode, VEXEC, cnp->cn_cred, p)) != 0)
 	{
 		return (error);
 	}
@@ -174,8 +174,8 @@ DBPRINT(("lookup\n"));
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
 		 */
-		if (error = VOP_ACCESS(dir_vnode, VWRITE,
-				cnp->cn_cred, p))
+		if ((error = VOP_ACCESS(dir_vnode, VWRITE,
+				cnp->cn_cred, p)) != 0)
 		{
 DBPRINT(("MKACCESS "));
 			return (error);
@@ -215,8 +215,8 @@ DBPRINT(("MKACCESS "));
 		/*
 		 * Write access to directory required to delete files.
 		 */
-		if (error = VOP_ACCESS(dir_vnode, VWRITE,
-				cnp->cn_cred, p))
+		if ((error = VOP_ACCESS(dir_vnode, VWRITE,
+				cnp->cn_cred, p)) != 0)
 			return (error);
 		/*
 		 * we are trying to delete '.'.  What does this mean? XXX
@@ -257,8 +257,8 @@ DBPRINT(("MKACCESS "));
 		/*
 		 * Are we allowed to change the holding directory?
 		 */
-		if (error = VOP_ACCESS(dir_vnode, VWRITE,
-				cnp->cn_cred, p))
+		if ((error = VOP_ACCESS(dir_vnode, VWRITE,
+				cnp->cn_cred, p)) != 0)
 			return (error);
 		/*
 		 * Careful about locking second node.
@@ -338,7 +338,7 @@ devfs_access(struct vop_access_args *ap)
 	int 	i;
 
 DBPRINT(("access\n"));
-	if (error = devfs_vntodn(vp,&file_node))
+	if ((error = devfs_vntodn(vp,&file_node)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
@@ -400,7 +400,7 @@ devfs_getattr(struct vop_getattr_args *ap)
 	int	error;
 
 DBPRINT(("getattr\n"));
-	if (error = devfs_vntodn(vp,&file_node))
+	if ((error = devfs_vntodn(vp,&file_node)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
@@ -479,7 +479,7 @@ devfs_setattr(struct vop_setattr_args *ap)
 	if (vap->va_flags != VNOVAL)	/* XXX needs to be implemented */
 		return (EOPNOTSUPP);
 
-	if (error = devfs_vntodn(vp,&file_node))
+	if ((error = devfs_vntodn(vp,&file_node)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
@@ -604,7 +604,7 @@ devfs_xread(struct vop_read_args *ap)
 	dn_p	file_node;
 
 DBPRINT(("read\n"));
-	if (error = devfs_vntodn(ap->a_vp,&file_node))
+	if ((error = devfs_vntodn(ap->a_vp,&file_node)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
@@ -678,12 +678,12 @@ DBPRINT(("remove\n"));
 	 * are the end of the path. Get pointers to all our
 	 * devfs structures.
 	 */
-	if (error = devfs_vntodn(dvp, &tdp)) {
+	if ((error = devfs_vntodn(dvp, &tdp)) != 0) {
 abortit:
 		VOP_ABORTOP(dvp, cnp); 
 		return (error);
 	}
-	if (error = devfs_vntodn(vp, &tp)) goto abortit;
+	if ((error = devfs_vntodn(vp, &tp)) != 0) goto abortit;
 	/*
 	 * Assuming we are atomic, dev_lookup left this for us
 	 */
@@ -780,8 +780,8 @@ DBPRINT(("link\n"));
 	 * are the end of the path. Get pointers to all our
 	 * devfs structures.
 	 */
-	if ( error = devfs_vntodn(tdvp,&tdp)) goto abortit;
-	if ( error = devfs_vntodn(vp,&fp)) goto abortit;
+	if ((error = devfs_vntodn(tdvp,&tdp)) != 0) goto abortit;
+	if ((error = devfs_vntodn(vp,&fp)) != 0) goto abortit;
 	
 	/*
 	 * trying to move it out of devfs? (v_tag == VT_DEVFS)
@@ -880,12 +880,12 @@ devfs_rename(struct vop_rename_args *ap)
 	 * are the end of the path. Get pointers to all our
 	 * devfs structures.
 	 */
-	if ( error = devfs_vntodn(tdvp,&tdp)) goto abortit;
-	if ( error = devfs_vntodn(fdvp,&fdp)) goto abortit;
-	if ( error = devfs_vntodn(fvp,&fp)) goto abortit;
+	if ((error = devfs_vntodn(tdvp,&tdp)) != 0) goto abortit;
+	if ((error = devfs_vntodn(fdvp,&fdp)) != 0) goto abortit;
+	if ((error = devfs_vntodn(fvp,&fp)) != 0) goto abortit;
 	fnp = fp->last_lookup;
 	if (tvp) {
-		if ( error = devfs_vntodn(tvp,&tp)) goto abortit;
+		if ((error = devfs_vntodn(tvp,&tp)) != 0) goto abortit;
 		tnp = tp->last_lookup;
 	} else {
 		tp = NULL;
@@ -1075,7 +1075,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	devnm_p nm_p;
 
 DBPRINT(("symlink\n"));
-	if(error = devfs_vntodn(ap->a_dvp, &dnp)) {
+	if((error = devfs_vntodn(ap->a_dvp, &dnp)) != 0) {
 		return (error);
 	}
 		
@@ -1083,7 +1083,7 @@ DBPRINT(("symlink\n"));
 	by.Slnk.namelen = strlen(ap->a_target);
 	dev_add_entry(ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by,
 		NULL, NULL, &nm_p);
-	if(error = devfs_dntovn(nm_p->dnp, &vp)) {
+	if((error = devfs_dntovn(nm_p->dnp, &vp)) != 0) {
 		return (error);
 	}
 	VOP_SETATTR(vp, ap->a_vap, ap->a_cnp->cn_cred, ap->a_cnp->cn_proc);
@@ -1120,7 +1120,7 @@ devfs_readdir(struct vop_readdir_args *ap)
 DBPRINT(("readdir\n"));
 
 /*  set up refs to dir */
-	if (error = devfs_vntodn(vp,&dir_node))
+	if ((error = devfs_vntodn(vp,&dir_node)) != 0)
 		return error;
 	if(dir_node->type != DEV_DIR)
 		return(ENOTDIR);
@@ -1183,8 +1183,8 @@ DBPRINT(("readdir\n"));
 			if (uio->uio_resid < reclen) /* will it fit? */
 				break;
 			strcpy( dirent.d_name,name);
-			if (error = uiomove ((caddr_t)&dirent,
-					dirent.d_reclen, uio))
+			if ((error = uiomove ((caddr_t)&dirent,
+					dirent.d_reclen, uio)) != 0)
 				break;
 		}
 		pos += reclen;
@@ -1216,11 +1216,11 @@ devfs_readlink(struct vop_readlink_args *ap)
 
 DBPRINT(("readlink\n"));
 /*  set up refs to dir */
-	if (error = devfs_vntodn(vp,&lnk_node))
+	if ((error = devfs_vntodn(vp,&lnk_node)) != 0)
 		return error;
 	if(lnk_node->type != DEV_SLNK)
 		return(EINVAL);
-	if (error = VOP_ACCESS(vp, VREAD, ap->a_cred, NULL)) { /* XXX */
+	if ((error = VOP_ACCESS(vp, VREAD, ap->a_cred, NULL)) != 0) { /* XXX */
 		return error;
 	}
 	error = uiomove(lnk_node->by.Slnk.name, lnk_node->by.Slnk.namelen, uio);
@@ -1253,7 +1253,7 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 	int	error;
 
 DBPRINT(("reclaim\n"));
-	if (error = devfs_vntodn(ap->a_vp,&file_node))
+	if ((error = devfs_vntodn(ap->a_vp,&file_node)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
@@ -1328,7 +1328,7 @@ devfs_open( struct vop_open_args *ap)
 	int error;
 	dn_p	dnp;
 
-	if (error = devfs_vntodn(vp,&dnp))
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 	switch (vp->v_type) {
@@ -1341,13 +1341,16 @@ devfs_open( struct vop_open_args *ap)
 					p);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
-
+		/* NOT REACHED */
 	case VBLK:
 		error = (*dnp->by.Bdev.bdevsw->d_open)(
 					dnp->by.Bdev.dev,
 					ap->a_mode,
 					S_IFBLK,
 					p);
+		break;
+	default:
+		break;
 	}
 	return (error);
 }
@@ -1379,7 +1382,7 @@ devfs_read( struct vop_read_args *ap)
 	dev_t dev;
 	dn_p	dnp;
 
-	if (error = devfs_vntodn(vp,&dnp))
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 
@@ -1476,7 +1479,7 @@ devfs_write( struct vop_write_args *ap)
 	int error = 0;
 	dn_p	dnp;
 
-	if (error = devfs_vntodn(vp,&dnp))
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 
@@ -1556,7 +1559,7 @@ devfs_ioctl(struct vop_ioctl_args *ap)
 	dn_p	dnp;
 	int	error;
 
-	if (error = devfs_vntodn(ap->a_vp,&dnp))
+	if ((error = devfs_vntodn(ap->a_vp,&dnp)) != 0)
 		return error;
 
 
@@ -1595,7 +1598,7 @@ devfs_poll(struct vop_poll_args *ap)
 	dn_p	dnp;
 	int	error;
 
-	if (error = devfs_vntodn(ap->a_vp,&dnp))
+	if ((error = devfs_vntodn(ap->a_vp,&dnp)) != 0)
 		return error;
 
 
@@ -1630,7 +1633,7 @@ devfs_fsync(struct vop_fsync_args *ap)
 	dn_p	dnp;
 	int	error;
 
-	if (error = devfs_vntodn(vp,&dnp))
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 
@@ -1707,7 +1710,7 @@ devfs_strategy(struct vop_strategy_args *ap)
 	if ((ap->a_vp->v_type != VCHR)
 	&&  (ap->a_vp->v_type != VBLK))
 		panic ("devfs_strat:badvnode type");
-	if (error = devfs_vntodn(ap->a_vp,&dnp))
+	if ((error = devfs_vntodn(ap->a_vp,&dnp)) != 0)
 		return error;
 
 
@@ -1766,7 +1769,7 @@ devfs_close(struct vop_close_args *ap)
 	int error;
 	dn_p dnp;
 
-	if (error = devfs_vntodn(vp,&dnp))
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 
@@ -1799,8 +1802,7 @@ devfs_close(struct vop_close_args *ap)
 						ap->a_fflag,
 						S_IFCHR,
 						ap->a_p));
-		break;
-
+		/* NOT REACHED */
 	case VBLK:
 		/*
 		 * On last close of a block device (that isn't mounted)
@@ -1829,7 +1831,7 @@ devfs_close(struct vop_close_args *ap)
 						ap->a_fflag,
 						S_IFBLK,
 						ap->a_p));
-
+		/* NOT REACHED */
 	default:
 		panic("devfs_close: not special");
 	}

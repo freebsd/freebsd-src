@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_msg.h,v 1.8 1998/08/26 23:29:23 mks Exp $
+ *	@(#) $Id: unisig_msg.h,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 
@@ -114,8 +114,8 @@ struct unisig_msg {
 
 #define	EXTRACT_CREF(x)						\
 	((x) & UNI_MSG_CALL_REF_RMT ? (x) & UNI_MSG_CALL_REF_MASK : (x) | UNI_MSG_CALL_REF_RMT)
-#define GLOBAL_CREF(x)	((x) & UNI_MSG_CALL_REF_MASK == UNI_MSG_CALL_REF_GLOBAL)
-#define DUMMY_CREF(x)	((x) & UNI_MSG_CALL_REF_MASK == UNI_MSG_CALL_REF_DUMMY)
+#define GLOBAL_CREF(x)	(((x) & UNI_MSG_CALL_REF_MASK) == UNI_MSG_CALL_REF_GLOBAL)
+#define DUMMY_CREF(x)	(((x) & UNI_MSG_CALL_REF_MASK) == UNI_MSG_CALL_REF_DUMMY)
 
 #define	UNI_MSG_TYPE_FLAG_MASK	1
 #define	UNI_MSG_TYPE_FLAG_SHIFT	4

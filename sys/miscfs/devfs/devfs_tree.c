@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.57 1998/11/26 18:50:23 eivind Exp $
+ *	$Id: devfs_tree.c,v 1.58 1998/12/10 19:57:00 eivind Exp $
  */
 
 
@@ -229,8 +229,8 @@ dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp)
 		\***************************************/
 		if(!create) return ENOENT;
 
-		if(retval = dev_add_entry(name, dirnode, DEV_DIR,
-					NULL, NULL, NULL, &devnmp)) {
+		if((retval = dev_add_entry(name, dirnode, DEV_DIR,
+					NULL, NULL, NULL, &devnmp)) != 0) {
 			return retval;
 		}
 		dnp = devnmp->dnp;
@@ -600,8 +600,8 @@ devfs_propogate(devnm_p parent,devnm_p child)
 		 * if the node already exists on that plane it won't be
 		 * re-made..
 		 */
-		if ( error = dev_add_entry(child->name, adnp, type,
-					NULL, dnp, adnp->dvm, &newnmp)) {
+		if ((error = dev_add_entry(child->name, adnp, type,
+					NULL, dnp, adnp->dvm, &newnmp)) != 0) {
 			printf("duplicating %s failed\n",child->name);
 		}
 	}
@@ -670,7 +670,7 @@ dev_dup_plane(struct devfsmount *devfs_mp_p)
 
 	DBPRINT(("	dev_dup_plane\n"));
 	if(devfs_up_and_going) {
-		if(error = dev_dup_entry(NULL, dev_root, &new, devfs_mp_p)) {
+		if((error = dev_dup_entry(NULL, dev_root, &new, devfs_mp_p)) != 0) {
 			return error;
 		}
 	} else { /* we are doing the dummy mount during initialisation.. */
@@ -726,9 +726,9 @@ dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
 	 * go get the node made (if we need to)
 	 * use the back one as a prototype
 	 */
-	if ( error = dev_add_entry(back->name, parent, type,
+	if ((error = dev_add_entry(back->name, parent, type,
 				NULL, dnp,
-				parent?parent->dvm:dvm, &newnmp)) {
+				parent?parent->dvm:dvm, &newnmp)) != 0) {
 		printf("duplicating %s failed\n",back->name);
 	}
 
@@ -750,8 +750,8 @@ dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
 		for(newback = back->dnp->by.Dir.dirlist;
 				newback; newback = newback->next)
 		{
-			if(error = dev_dup_entry(newnmp->dnp,
-						newback, &newfront, NULL))
+			if((error = dev_dup_entry(newnmp->dnp,
+					    newback, &newfront, NULL)) != 0)
 			{
 				break; /* back out with an error */
 			}
@@ -895,6 +895,8 @@ DBPRINT(("	vntodn "));
 		printf("bad-type2 (VNON)");
 		return(EINVAL);
 #endif
+	default:
+		break;
 	}
 	*dn_pp = (dn_p)vn_p->v_data;
 
@@ -980,9 +982,9 @@ DBPRINT(("(New vnode)"));
 			break;
 		case	DEV_BDEV:
 			vn_p->v_type = VBLK;
-			if (nvp = checkalias(vn_p,
+			if ((nvp = checkalias(vn_p,
 			   dnp->by.Bdev.dev,
-			  (struct mount *)0))
+			  (struct mount *)0)) != NULL)
 			{
 				vput(vn_p);
 				vn_p = nvp;
@@ -990,9 +992,9 @@ DBPRINT(("(New vnode)"));
 			break;
 		case	DEV_CDEV:
 			vn_p->v_type = VCHR;
-			if (nvp = checkalias(vn_p,
+			if ((nvp = checkalias(vn_p,
 			   dnp->by.Cdev.dev,
-			  (struct mount *)0))
+			  (struct mount *)0)) != NULL)
 			{
 				vput(vn_p);
 				vn_p = nvp;
@@ -1029,14 +1031,14 @@ dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by,
 	int	error = 0;
 
 	DBPRINT(("	devfs_add_entry\n"));
-	if (error = dev_add_node(type, by, proto, &dnp, 
-			(parent?parent->dvm:dvm)))
+	if ((error = dev_add_node(type, by, proto, &dnp, 
+			(parent?parent->dvm:dvm))) != 0)
 	{
 		printf("Device %s: base node allocation failed (Errno=%d)\n",
 			name,error);
 		return error;
 	}
-	if ( error = dev_add_name(name ,parent ,NULL, dnp, nm_pp))
+	if ((error = dev_add_name(name ,parent ,NULL, dnp, nm_pp)) != 0)
 	{
 		devfs_dn_free(dnp); /* 1->0 for dir, 0->(-1) for other */
 		printf("Device %s: name slot allocation failed (Errno=%d)\n",

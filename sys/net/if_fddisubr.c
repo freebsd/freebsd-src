@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.32 1998/06/14 20:58:14 julian Exp $
+ * $Id: if_fddisubr.c,v 1.33 1998/06/21 14:53:23 bde Exp $
  */
 
 #include "opt_atalk.h"
@@ -149,9 +149,9 @@ fddi_output(ifp, m0, dst, rt0)
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
 #if !defined(__bsdi__) || _BSDI_VERSION >= 199401
-	if (rt = rt0) {
+	if ((rt = rt0) != NULL) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
-			if (rt0 = rt = RTALLOC1(dst, 1))
+			if ((rt0 = rt = RTALLOC1(dst, 1)) != NULL)
 				rt->rt_refcnt--;
 			else 
 				senderr(EHOSTUNREACH);

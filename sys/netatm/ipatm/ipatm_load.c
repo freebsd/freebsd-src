@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_load.c,v 1.1 1998/09/15 08:23:00 phk Exp $
+ *	@(#) $Id: ipatm_load.c,v 1.2 1998/10/31 20:06:55 phk Exp $
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/ipatm/ipatm_serv.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: ipatm_load.c,v 1.1 1998/09/15 08:23:00 phk Exp $");
+__RCSID("@(#) $Id: ipatm_load.c,v 1.2 1998/10/31 20:06:55 phk Exp $");
 #endif
 
 
@@ -501,9 +501,9 @@ ipatm_start()
 		/*
 		 * Now start listening
 		 */
-		if (err = atm_cm_listen(&ipatm_endpt, (void *)i,
+		if ((err = atm_cm_listen(&ipatm_endpt, (void *)i,
 				&ipatm_listeners[i].attr,
-				&ipatm_listeners[i].conn))
+				&ipatm_listeners[i].conn)) != 0)
 			goto done;
 	}
 
@@ -569,7 +569,7 @@ ipatm_stop()
 	/*
 	 * Detach all our interfaces
 	 */
-	while (inp = ipatm_nif_head) {
+	while ((inp = ipatm_nif_head) != NULL) {
 		(void) ipatm_nifstat(NCM_DETACH, inp->inf_nif, 0);
 	}
 	

@@ -342,9 +342,9 @@ at_scrub( ifp, aa )
 
     if ( aa->aa_flags & AFA_ROUTE ) {
 	if (ifp->if_flags & IFF_LOOPBACK) {
-		if (error = aa_delsingleroute(&aa->aa_ifa,
+		if ((error = aa_delsingleroute(&aa->aa_ifa,
 					&aa->aa_addr.sat_addr,
-					&aa->aa_netmask.sat_addr)) {
+					&aa->aa_netmask.sat_addr)) != 0) {
 	    		return( error );
 		}
 	} else if (ifp->if_flags & IFF_POINTOPOINT) {

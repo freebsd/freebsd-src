@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_cls.c,v 1.2 1998/10/31 20:06:56 phk Exp $
+ *	@(#) $Id: spans_cls.c,v 1.3 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/spans/spans_cls.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_cls.c,v 1.2 1998/10/31 20:06:56 phk Exp $");
+__RCSID("@(#) $Id: spans_cls.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 
@@ -703,7 +703,7 @@ spanscls_cpcs_data(tok, m)
 		/*
 		 * Packet is ready for input to IP
 		 */
-		if (inp = clp->cls_ipnif)
+		if ((inp = clp->cls_ipnif) != NULL)
 			(void) (*inp->inf_ipinput)(inp, m);
 		else
 			KB_FREEALL(m);
