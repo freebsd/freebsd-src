@@ -52,7 +52,7 @@ main(int argc, char **argv)
 	char *devname = "/dev/acd0c";
 	char buf[2352*BLOCKS];
 	int arg, file, addr, count;
-	int block_size, cdopen = 0, size, tot_size = 0;
+	int block_size = 0, cdopen = 0, size, tot_size = 0;
 	struct cdr_track track;
 
 	while ((ch = getopt(argc, argv, "ef:pqs:t")) != -1) {
@@ -142,9 +142,12 @@ main(int argc, char **argv)
 			block_size = 2048;
 			continue;
 		}
-		if ((file = open(argv[arg], O_RDONLY, 0)) < 0) {
+		if (!block_size)
+			err(EX_NOINPUT, "no data format selected");
+
+		if ((file = open(argv[arg], O_RDONLY, 0)) < 0)
 			err(EX_NOINPUT, "open(%s)", argv[arg]);
-		}
+
 		if (!cdopen) {
 			if (ioctl(fd, CDRIOCOPENDISK) < 0)
         			err(EX_IOERR, "ioctl(CDRIOCOPENDISK)");
@@ -162,20 +165,20 @@ main(int argc, char **argv)
 			if (fstat(file, &stat) < 0)
 				err(EX_IOERR, "fstat(%s)", argv[arg]);
 			fprintf(stderr, "next writeable LBA %d\n", addr);
-			fprintf(stderr, "writing from file %s size %d KB\n",
+			fprintf(stderr, "writing from file %s size %qd KB\n",
 				argv[arg], stat.st_size / 1024);
 		}
 		lseek(fd, addr * block_size, SEEK_SET);
 		size = 0;
 
 		while ((count = read(file, buf, block_size * BLOCKS)) > 0) {	
+			int res;
 			if (count % block_size) {
 				/* pad file to % block_size */
 				bzero(&buf[count], block_size * BLOCKS - count);
 				count = ((count / block_size) + 1) * block_size;
 			}
-			if (write(fd, buf, count) != count) {
-				int res;
+			if ((res = write(fd, buf, count)) != count) {
 
 				fprintf(stderr, "\nonly wrote %d of %d bytes\n",
 					res, count);
