@@ -86,6 +86,8 @@ struct common_symbol {
 struct linker_file {
     int			refs;		/* reference count */
     int			userrefs;	/* kldload(2) count */
+    int			flags;
+#define LINKER_FILE_LINKED	0x1	/* file has been fully linked */
     TAILQ_ENTRY(linker_file) link;	/* list of all loaded files */
     char*		filename;	/* file which was loaded */
     int			id;		/* unique id */
