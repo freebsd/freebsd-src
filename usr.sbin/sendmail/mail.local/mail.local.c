@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #ifndef lint
@@ -174,9 +176,9 @@ extern FILE	*fdopen __P((int, const char *));
 
 int eval = EX_OK;			/* sysexits.h error value. */
 
-void		deliver __P((int, char *));
+void		deliver __P((int, char *, int));
 void		e_to_sys __P((int));
-__dead void	err __P((const char *, ...));
+void		err __P((const char *, ...)) __dead2;
 void		notifybiff __P((char *));
 int		store __P((char *));
 void		usage __P((void));
@@ -191,7 +193,7 @@ main(argc, argv)
 	char *argv[];
 {
 	struct passwd *pw;
-	int ch, fd;
+	int ch, fd, nobiff;
 	uid_t uid;
 	char *from;
 	extern char *optarg;
@@ -211,8 +213,12 @@ main(argc, argv)
 #endif
 
 	from = NULL;
-	while ((ch = getopt(argc, argv, "df:r:")) != EOF)
+	nobiff = 0;
+	while ((ch = getopt(argc, argv, "bdf:r:")) != EOF)
 		switch(ch) {
+		case 'b':
+			nobiff++;
+			break;
 		case 'd':		/* Backward compatible. */
 			break;
 		case 'f':
@@ -253,7 +259,7 @@ main(argc, argv)
 	 * at the expense of repeated failures and multiple deliveries.
 	 */
 	for (fd = store(from); *argv; ++argv)
-		deliver(fd, *argv);
+		deliver(fd, *argv, nobiff);
 	exit(eval);
 }
 
@@ -308,8 +314,8 @@ store(from)
 }
 
 void
-deliver(fd, name)
-	int fd;
+deliver(fd, name, nobiff)
+	int fd, nobiff;
 	char *name;
 {
 	struct stat fsb, sb;
@@ -418,11 +424,13 @@ tryagain:
 		goto err1;
 	}
 
-	/* Get the starting offset of the new message for biff. */
-	curoff = lseek(mbfd, (off_t)0, SEEK_END);
-	(void)snprintf(biffmsg, sizeof(biffmsg),
-		sizeof curoff > sizeof(long) ? "%s@%qd\n" : "%s@%ld\n", 
-		name, curoff);
+ 	if (!nobiff) {
+		/* Get the starting offset of the new message for biff. */
+		curoff = lseek(mbfd, (off_t)0, SEEK_END);
+		(void)snprintf(biffmsg, sizeof(biffmsg),
+			sizeof curoff > sizeof(long) ? "%s@%qd\n" : "%s@%ld\n", 
+			name, curoff);
+ 	}
 
 	/* Copy the message into the file. */
 	if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1) {
@@ -449,13 +457,6 @@ tryagain:
 	if (nr < 0) {
 		e_to_sys(errno);
 		warn("temporary file: %s", strerror(errno));
-		goto err3;
-	}
-
-	/* Flush to disk, don't wait for update. */
-	if (fsync(mbfd)) {
-		e_to_sys(errno);
-		warn("%s: %s", path, strerror(errno));
 err3:
 		if (setreuid(0, 0) < 0) {
 			e_to_sys(errno);
@@ -469,6 +470,15 @@ err1:		(void)close(mbfd);
 err0:		unlockmbox();
 		return;
 	}
+
+#if !defined(DONT_FSYNC)
+	/* Flush to disk, don't wait for update. */
+	if (fsync(mbfd)) {
+		e_to_sys(errno);
+		warn("%s: %s", path, strerror(errno));
+		goto err3;
+	}
+#endif
 		
 	/* Close and check -- NFS doesn't write until the close. */
 	if (close(mbfd)) {
@@ -486,7 +496,8 @@ err0:		unlockmbox();
 	printf("reset euid = %d\n", geteuid());
 #endif
 	unlockmbox();
-	notifybiff(biffmsg);
+	if (!nobiff)
+		notifybiff(biffmsg);
 }
 
 /*
@@ -577,7 +588,7 @@ void
 usage()
 {
 	eval = EX_USAGE;
-	err("usage: mail.local [-f from] user ...");
+	err("usage: mail.local [-b] [-f from] user ...");
 }
 
 #if __STDC__
