@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.200 1999/06/09 08:47:32 brian Exp $
+ * $Id: command.c,v 1.201 1999/06/09 16:54:02 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -144,7 +144,7 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.22";
-const char VersionDate[] = "$Date: 1999/06/09 08:47:32 $";
+const char VersionDate[] = "$Date: 1999/06/09 16:54:02 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -354,10 +354,12 @@ strstrword(char *big, const char *little)
   len = strlen(little);
 
   while ((pos = strstr(pos, little)) != NULL)
-    if ((pos == big || !isinword(pos[-1])) && !isinword(pos[len]))
-      break;
-    else
+    if ((pos != big && isinword(pos[-1])) || isinword(pos[len]))
       pos++;
+    else if (pos != big && pos[-1] == '\\')
+      memmove(pos - 1, pos, strlen(pos) + 1);
+    else
+      break;
 
   return pos;
 }
