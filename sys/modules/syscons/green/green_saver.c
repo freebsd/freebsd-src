@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.13 1998/09/17 19:40:30 sos Exp $
+ *	$Id: green_saver.c,v 1.14 1998/11/04 03:49:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -33,18 +33,21 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 
+#include <dev/fb/vgareg.h>
+
 #include <i386/isa/isa.h>
 
 #include <saver.h>
 
-static void
-green_saver(int blank)
+static int
+green_saver(video_adapter_t *adp, int blank)
 {
+	int crtc_addr;
 	u_char val;
+
+	crtc_addr = adp->va_crtc_addr;
 	if (blank) {
-		scrn_blanked = 1;
-		cur_console->status |= SAVER_RUNNING;
-		switch (crtc_type) {
+		switch (adp->va_type) {
 		case KD_VGA:
 			outb(TSIDX, 0x01); val = inb(TSREG);
 			outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
@@ -66,7 +69,7 @@ green_saver(int blank)
 		}
 	}
 	else {
-		switch (crtc_type) {
+		switch (adp->va_type) {
 		case KD_VGA:
 			outb(TSIDX, 0x01); val = inb(TSREG);
 			outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
@@ -86,15 +89,14 @@ green_saver(int blank)
 		default:
 			break;
 		}
-		cur_console->status &= ~SAVER_RUNNING;
-		scrn_blanked = 0;
 	}
+	return 0;
 }
 
 static int
-green_saver_load(void)
+green_init(video_adapter_t *adp)
 {
-	switch (crtc_type) {
+	switch (adp->va_type) {
 	case KD_MONO:
 	case KD_HERCULES:
 	case KD_CGA:
@@ -109,13 +111,17 @@ green_saver_load(void)
 	default:
 		return ENODEV;
 	}
-	return add_scrn_saver(green_saver);
+	return 0;
 }
 
 static int
-green_saver_unload(void)
+green_term(video_adapter_t *adp)
 {
-	return remove_scrn_saver(green_saver);
+	return 0;
 }
 
-SAVER_MODULE(green_saver);
+static scrn_saver_t green_module = {
+	"green_saver", green_init, green_term, green_saver, NULL,
+};
+
+SAVER_MODULE(green_saver, green_module);

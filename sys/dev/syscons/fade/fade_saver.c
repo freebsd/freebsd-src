@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.14 1998/09/17 19:40:30 sos Exp $
+ *	$Id: fade_saver.c,v 1.15 1998/11/04 03:49:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -37,18 +37,22 @@
 
 #include <saver.h>
 
-static void
-fade_saver(int blank)
+static u_char palette[256*3];
+static int blanked;
+
+static int
+fade_saver(video_adapter_t *adp, int blank)
 {
 	static int count = 0;
 	u_char pal[256*3];
 	int i;
 
 	if (blank) {
-		scrn_blanked = 1;
-		cur_console->status |= SAVER_RUNNING;
-		switch (crtc_type) {
+		blanked = TRUE;
+		switch (adp->va_type) {
 		case KD_VGA:
+			if (count <= 0)
+				save_palette(adp, palette);
 			if (count < 64) {
 				pal[0] = pal[1] = pal[2] = 0;
 				for (i = 3; i < 256*3; i++) {
@@ -57,7 +61,7 @@ fade_saver(int blank)
 					else
 						pal[i] = 60;
 				}
-				load_palette(cur_console, pal);
+				load_palette(adp, pal);
 				count++;
 			}
 			break;
@@ -65,44 +69,44 @@ fade_saver(int blank)
 			/* not yet done XXX */
 			break;
 		case KD_CGA:
-			outb(crtc_addr + 4, 0x25);
+			outb(adp->va_crtc_addr + 4, 0x25);
 			break;
 		case KD_MONO:
 		case KD_HERCULES:
-			outb(crtc_addr + 4, 0x21);
+			outb(adp->va_crtc_addr + 4, 0x21);
 			break;
 		default:
 			break;
 		}
 	}
 	else {
-		switch (crtc_type) {
+		switch (adp->va_type) {
 		case KD_VGA:
-			load_palette(cur_console, palette);
+			load_palette(adp, palette);
 			count = 0;
 			break;
 		case KD_EGA:
 			/* not yet done XXX */
 			break;
 		case KD_CGA:
-			outb(crtc_addr + 4, 0x2d);
+			outb(adp->va_crtc_addr + 4, 0x2d);
 			break;
 		case KD_MONO:
 		case KD_HERCULES:
-			outb(crtc_addr + 4, 0x29);
+			outb(adp->va_crtc_addr + 4, 0x29);
 			break;
 		default:
 			break;
 		}
-		cur_console->status &= ~SAVER_RUNNING;
-		scrn_blanked = 0;
+		blanked = FALSE;
 	}
+	return 0;
 }
 
 static int
-fade_saver_load(void)
+fade_init(video_adapter_t *adp)
 {
-	switch (crtc_type) {
+	switch (adp->va_type) {
 	case KD_MONO:
 	case KD_HERCULES:
 	case KD_CGA:
@@ -117,13 +121,18 @@ fade_saver_load(void)
 	default:
 		return ENODEV;
 	}
-	return add_scrn_saver(fade_saver);
+	blanked = FALSE;
+	return 0;
 }
 
 static int
-fade_saver_unload(void)
+fade_term(video_adapter_t *adp)
 {
-	return remove_scrn_saver(fade_saver);
+	return 0;
 }
 
-SAVER_MODULE(fade_saver);
+static scrn_saver_t fade_module = {
+	"fade_saver", fade_init, fade_term, fade_saver, NULL,
+};
+
+SAVER_MODULE(fade_saver, fade_module);

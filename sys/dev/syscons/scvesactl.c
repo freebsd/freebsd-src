@@ -23,14 +23,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvesactl.c,v 1.7 1998/12/07 21:58:22 archie Exp $
+ * $Id: $
  */
 
 #include "sc.h"
+#include "vga.h"
+#include "opt_syscons.h"
+#include "opt_vga.h"
 #include "opt_vesa.h"
 #include "opt_vm86.h"
 
-#if (NSC > 0 && defined(VESA) && defined(VM86)) || defined(KLD_MODULE)
+#ifdef VGA_NO_MODE_CHANGE
+#undef VESA
+#endif
+
+#if (NSC > 0 && NVGA > 0 && defined(VESA) && defined(VM86)) || defined(KLD_MODULE)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -42,8 +49,8 @@
 #include <machine/console.h>
 #include <machine/pc/vesa.h>
 
-#include <i386/isa/videoio.h>
-#include <i386/isa/syscons.h>
+#include <dev/fb/fbreg.h>
+#include <dev/syscons/syscons.h>
 
 static d_ioctl_t *prev_user_ioctl;
 
@@ -52,7 +59,6 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	scr_stat *scp;
 	struct tty *tp;
-	video_adapter_t *adp;
 	int mode;
 
 	tp = scdevtotty(dev);
@@ -66,8 +72,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case SW_TEXT_132x25: case SW_TEXT_132x30:
 	case SW_TEXT_132x43: case SW_TEXT_132x50:
 	case SW_TEXT_132x60:
-		adp = get_adapter(scp);
-		if (!(adp->va_flags & V_ADP_MODECHANGE))
+		if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0);
 
@@ -77,8 +82,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case SW_VESA_C132x43:
 	case SW_VESA_C132x50:
 	case SW_VESA_C132x60:
-		adp = get_adapter(scp);
-		if (!(adp->va_flags & V_ADP_MODECHANGE))
+		if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
 		return sc_set_text_mode(scp, tp, mode, 0, 0, 0);
@@ -104,8 +108,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case SW_VESA_1280x1024:	case SW_VESA_CG1280x1024:
 	case SW_VESA_32K_1280:	case SW_VESA_64K_1280:
 	case SW_VESA_FULL_1280:
-		adp = get_adapter(scp);
-		if (!(adp->va_flags & V_ADP_MODECHANGE))
+		if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
 		return sc_set_graphics_mode(scp, tp, mode);
@@ -137,4 +140,4 @@ vesa_unload_ioctl(void)
 	return 0;
 }
 
-#endif /* (NSC > 0 && VESA && VM86) || KLD_MODULE */
+#endif /* (NSC > 0 && NVGA > 0 && VESA && VM86) || KLD_MODULE */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: blank_saver.c,v 1.13 1998/09/17 19:40:29 sos Exp $
+ *	$Id: blank_saver.c,v 1.14 1998/11/04 03:49:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -33,18 +33,18 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 
+#include <dev/fb/vgareg.h>
+
 #include <i386/isa/isa.h>
 
 #include <saver.h>
 
-static void
-blank_saver(int blank)
+static int
+blank_saver(video_adapter_t *adp, int blank)
 {
 	u_char val;
 	if (blank) {
-		scrn_blanked = 1;
-		cur_console->status |= SAVER_RUNNING;
-		switch (crtc_type) {
+		switch (adp->va_type) {
 		case KD_VGA:
 			outb(TSIDX, 0x01); val = inb(TSREG);
 			outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
@@ -53,18 +53,18 @@ blank_saver(int blank)
 			/* not yet done XXX */
 			break;
 		case KD_CGA:
-			outb(crtc_addr + 4, 0x25);
+			outb(adp->va_crtc_addr + 4, 0x25);
 			break;
 		case KD_MONO:
 		case KD_HERCULES:
-			outb(crtc_addr + 4, 0x21);
+			outb(adp->va_crtc_addr + 4, 0x21);
 			break;
 		default:
 			break;
 		}
 	}
 	else {
-		switch (crtc_type) {
+		switch (adp->va_type) {
 		case KD_VGA:
 			outb(TSIDX, 0x01); val = inb(TSREG);
 			outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
@@ -73,24 +73,23 @@ blank_saver(int blank)
 			/* not yet done XXX */
 			break;
 		case KD_CGA:
-			outb(crtc_addr + 4, 0x2d);
+			outb(adp->va_crtc_addr + 4, 0x2d);
 			break;
 		case KD_MONO:
 		case KD_HERCULES:
-			outb(crtc_addr + 4, 0x29);
+			outb(adp->va_crtc_addr + 4, 0x29);
 			break;
 		default:
 			break;
 		}
-		cur_console->status &= ~SAVER_RUNNING;
-		scrn_blanked = 0;
 	}
+	return 0;
 }
 
 static int
-blank_saver_load(void)
+blank_init(video_adapter_t *adp)
 {
-	switch (crtc_type) {
+	switch (adp->va_type) {
 	case KD_MONO:
 	case KD_HERCULES:
 	case KD_CGA:
@@ -101,13 +100,17 @@ blank_saver_load(void)
 	default:
 		return ENODEV;
 	}
-	return add_scrn_saver(blank_saver);
+	return 0;
 }
 
 static int
-blank_saver_unload(void)
+blank_term(video_adapter_t *adp)
 {
-	return remove_scrn_saver(blank_saver);
+	return 0;
 }
 
-SAVER_MODULE(blank_saver);
+static scrn_saver_t blank_module = {
+	"blank_saver", blank_init, blank_term, blank_saver, NULL,
+};
+
+SAVER_MODULE(blank_saver, blank_module);
