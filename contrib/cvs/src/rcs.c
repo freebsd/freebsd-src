@@ -3741,7 +3741,7 @@ RCS_checkout (rcs, workfile, rev, nametag, options, sout, pfn, callerdat)
 	       whether it should be considered an error for `dest' to exist
 	       at this point.  If so, the unlink call should be removed and
 	       `symlink' should signal the error. -twp) */
-	    if (unlink (dest) < 0 && existence_error (errno))
+	    if (unlink (dest) < 0 && !existence_error (errno))
 		error (1, errno, "cannot remove %s", dest);
 	    if (symlink (info->data, dest) < 0)
 		error (1, errno, "cannot create symbolic link from %s to %s",
