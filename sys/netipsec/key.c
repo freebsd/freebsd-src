@@ -2751,13 +2751,24 @@ key_delsav(sav)
 	if (__LIST_CHAINED(sav))
 		LIST_REMOVE(sav, chain);
 
+	/*
+	 * Cleanup xform state.  Note that zeroize'ing causes the
+	 * keys to be cleared; otherwise we must do it ourself.
+	 */
+	if (sav->tdb_xform != NULL) {
+		sav->tdb_xform->xf_zeroize(sav);
+		sav->tdb_xform = NULL;
+	} else {
+		if (sav->key_auth != NULL)
+			bzero(_KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
+		if (sav->key_enc != NULL)
+			bzero(_KEYBUF(sav->key_enc), _KEYLEN(sav->key_enc));
+	}
 	if (sav->key_auth != NULL) {
-		bzero(_KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
 		KFREE(sav->key_auth);
 		sav->key_auth = NULL;
 	}
 	if (sav->key_enc != NULL) {
-		bzero(_KEYBUF(sav->key_enc), _KEYLEN(sav->key_enc));
 		KFREE(sav->key_enc);
 		sav->key_enc = NULL;
 	}
