@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.16 1997/04/26 12:23:51 davidn Exp $
+.\"	$Id: ftpd.8,v 1.17 1997/04/27 08:29:21 davidn Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -286,8 +286,8 @@ This facility may also be triggered by enabling the boolean "ftp-chroot"
 capability in
 .Xr login.conf 5 .
 However, the user must still supply a password.
-This feature is intended as a compromise between a fully anonymous account
-and a fully privileged account.
+This feature is intended as a compromise between a fully anonymous
+account and a fully privileged account.
 The account should also be set up as for an anonymous account.
 .It
 If the user name is
@@ -356,6 +356,51 @@ Guests
 can then place files which are to be accessible via the anonymous
 account in this directory.
 .El
+.Pp
+If the system has multiple IP addresses,
+.Nm ftpd
+supports the idea of virtual hosts, which provides the ability to
+define multiple anonymous ftp areas, each one allocated to a different
+internet address.
+The file
+.Pa /etc/ftphosts
+contains information pertaining to each of the virtual hosts.
+Each host is defined on its own line which contains a number of
+fields separated by whitespace:
+.Bl -tag -offset indent -width hostname
+.It hostname
+Contains the hostname or IP address of the virtual host.
+.It user
+Contains a user record in the system password file.
+As with normal anonymous ftp, this user's access uid, gid and group
+memberships determine file access to the anonymous ftp area.
+The anonymous ftp area (to which any user is chrooted on login)
+is determined by the home directory defined for the account.
+User id and group for any ftp account may be the same as for the
+standard ftp user.
+.It statfile
+File to which all file transfers are logged, which
+defaults to
+.Pa /var/log/ftpd .
+.It welcome
+This file is the welcome message displayed before the server ready
+prompt.
+It defaults to
+.Pa /etc/ftpwelcome .
+.It motd
+This file is displayed after the user logs in.
+It defaults to
+.Pa /etc/ftpmotd .
+.El
+.Pp
+Defining a virtual host for the primary IP address or hostname
+changes the default for ftp logins to that address.
+The 'user', 'statfile', 'welcome' and 'motd' fields may be left
+blank, or a single hypen '-' used to indicate that the default
+value is to be used.
+.Pp
+As with any anonymous login configuration, due care must be given
+to setup and maintenance to guard against security related problems.
 .Pp
 If compiled with the
 .Em INTERNAL_LS
