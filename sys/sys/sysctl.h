@@ -317,6 +317,7 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 #define	KERN_PROC_TTY		4	/* by controlling tty */
 #define	KERN_PROC_UID		5	/* by effective uid */
 #define	KERN_PROC_RUID		6	/* by real uid */
+#define	KERN_PROC_ARGS		7	/* get/set arguments/proctitle */
 
 /*
  * KERN_IPC identifiers

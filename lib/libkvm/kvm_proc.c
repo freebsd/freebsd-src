@@ -33,6 +33,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -666,6 +668,52 @@ kvm_getargv(kd, kp, nchr)
 	const struct kinfo_proc *kp;
 	int nchr;
 {
+	int oid[4];
+	int i, l;
+	static int buflen;
+	static char *buf, *p;
+	static char **bufp;
+	static int argc;
+
+	if (!buflen) {
+		l = sizeof(buflen);
+		i = sysctlbyname("kern.ps_arg_cache_limit", 
+		    &buflen, &l, NULL, 0);
+		if (i == -1) {
+			buflen == 0;
+		} else {
+			buf = malloc(buflen);
+			if (buf == NULL)
+				buflen = 0;
+			argc = 32;
+			bufp = malloc(sizeof(char *) * argc);
+		}
+	}
+	if (buf != NULL) {
+		oid[0] = CTL_KERN;
+		oid[1] = KERN_PROC;
+		oid[2] = KERN_PROC_ARGS;
+		oid[3] = kp->kp_proc.p_pid;
+		l = buflen;
+		i = sysctl(oid, 4, buf, &l, 0, 0);
+		if (i == 0 && l > 0) {
+			i = 0;
+			p = buf;
+			do {
+				bufp[i++] = p;
+				p += strlen(p) + 1;
+				if (i >= argc) {
+					argc += argc;
+					bufp = realloc(bufp,
+					    sizeof(char *) * argc);
+				}
+			} while (p < buf + l);
+			bufp[i++] = 0;
+			return (bufp);
+		}
+	}
+	if (kp->kp_proc.p_flag & P_SYSTEM)
+		return (NULL);
 	return (kvm_doargv(kd, kp, nchr, ps_str_a));
 }
 

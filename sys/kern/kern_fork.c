@@ -337,6 +337,9 @@ again:
 		p2->p_flag |= P_JAILED;
 	}
 
+	if (p2->p_args)
+		p2->p_args->ar_ref++;
+
 	if (flags & RFSIGSHARE) {
 		p2->p_procsig = p1->p_procsig;
 		p2->p_procsig->ps_refcnt++;
