@@ -530,6 +530,7 @@ struct ste_softc {
 
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
 #define	STE_UNLOCK(_sc)		mtx_unlock(&(_sc)->ste_mtx)
+#define	STE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->ste_mtx, MA_OWNED)
 
 struct ste_mii_frame {
 	u_int8_t		mii_stdelim;

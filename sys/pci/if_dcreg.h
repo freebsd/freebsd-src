@@ -766,6 +766,7 @@ struct dc_softc {
 
 #define	DC_LOCK(_sc)		mtx_lock(&(_sc)->dc_mtx)
 #define	DC_UNLOCK(_sc)		mtx_unlock(&(_sc)->dc_mtx)
+#define	DC_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->dc_mtx, MA_OWNED)
 
 #define DC_TX_POLL		0x00000001
 #define DC_TX_COALESCE		0x00000002

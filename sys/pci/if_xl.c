@@ -2046,6 +2046,8 @@ xl_rxeof(sc)
 	int			total_len = 0;
 	u_int32_t		rxstat;
 
+	XL_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 again:
@@ -2137,7 +2139,9 @@ again:
 			}
 		}
 
+		XL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		XL_LOCK(sc);
 	}
 
 	/*

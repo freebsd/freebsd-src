@@ -1594,6 +1594,8 @@ sis_rxeof(sc)
 	int			i, total_len = 0;
 	u_int32_t		rxstat;
 
+	SIS_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 	i = sc->sis_cdata.sis_rx_prod;
 
@@ -1661,7 +1663,9 @@ sis_rxeof(sc)
 		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
 
+		SIS_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		SIS_LOCK(sc);
 	}
 
 	sc->sis_cdata.sis_rx_prod = i;

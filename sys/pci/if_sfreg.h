@@ -1051,6 +1051,7 @@ struct sf_softc {
 
 #define	SF_LOCK(_sc)		mtx_lock(&(_sc)->sf_mtx)
 #define	SF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sf_mtx)
+#define	SF_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sf_mtx, MA_OWNED)
 
 #define SF_TIMEOUT	1000
 

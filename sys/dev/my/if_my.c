@@ -1277,7 +1277,9 @@ my_rxeof(struct my_softc * sc)
 			}
 		}
 #endif
+		MY_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		MY_LOCK(sc);
 	}
 	MY_UNLOCK(sc);
 	return;

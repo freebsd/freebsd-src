@@ -479,6 +479,7 @@ struct sis_softc {
 
 #define	SIS_LOCK(_sc)		mtx_lock(&(_sc)->sis_mtx)
 #define	SIS_UNLOCK(_sc)		mtx_unlock(&(_sc)->sis_mtx)
+#define	SIS_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sis_mtx, MA_OWNED)
 
 /*
  * register space access macros
