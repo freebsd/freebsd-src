@@ -38,16 +38,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.2 1994/10/28 02:37:57 jkh Exp $
+ *      $Id: userconfig.c,v 1.3 1994/10/28 18:50:36 davidg Exp $
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/cdefs.h>
+#include <sys/systm.h>
+
+#include <i386/i386/cons.h>
+
 #include <i386/isa/isa_device.h>
-#include <i386/isa/isa.c>
-#include <machine/console.h>
-#include <machine/limits.h>
 
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
@@ -169,14 +168,18 @@ parse_cmd(char *cmd)
 static int
 parse_args(char *cmd, CmdParm *parms)
 {
-    while (*cmd) {
+    while (1) {
 	char *ptr;
 
-	if (parms->type == -1)
-	    return 0;
 	if (*cmd == ' ' || *cmd == '\t') {
 	    ++cmd;
 	    continue;
+	}
+	if (parms == NULL || parms->type == -1) {
+		if (*cmd == '\0')
+			return 0;
+		printf("Extra arg(s): %s\n", cmd);
+		return 1;
 	}
 	if (parms->type == PARM_DEVSPEC) {
 	    int i = 0;
@@ -189,6 +192,12 @@ parse_args(char *cmd, CmdParm *parms)
 	    devname[i] = NULL;
 	    if (*cmd >= '0' && *cmd <= '9') {
 		unit = strtol(cmd, &ptr, 10);
+		if (cmd == ptr) {
+		    printf("Invalid device number\n");
+		    /* XXX should print invalid token here and elsewhere. */
+		    return 1;
+		}
+		/* XXX else should require end of token. */
 		cmd = ptr;
 	    }
 	    if ((parms->parm.dparm = find_device(devname, unit)) == NULL) {
@@ -345,8 +354,6 @@ cngets(char *input, int maxin)
 
     while (1) {
 	c = cngetc();
-	if (c == NOKEY)
-	    continue;
 	/* Treat ^H or ^? as backspace */
 	if ((c == '\010' || c == '\177')) {
 	    	if (nchars) {
@@ -471,4 +478,3 @@ strtol(const char *nptr, char **endptr, int base)
 	*endptr = (char *)(any ? s - 1 : nptr);
     return (acc);
 }
-
