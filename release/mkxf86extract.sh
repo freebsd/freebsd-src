@@ -42,7 +42,7 @@ DO_THE_FUNKY_CHICKEN
 
 for i in $TARGETS; do
 	abbrevname=`echo $i | sed -e 's/XFree86-3.1-//' -e 's/.tar.gz//'`
-	echo "if dialog --title \"Install Request\" --yesno \"Do you wish to install the ${abbrevname} distribution?\" 6 72; then dialog --title \"Progress\" --infobox \"Installing $i\" 6 72; tar --unlink -xvzf $i -C /usr > /dev/ttyv1 2>&1 ; fi" >> extract.sh
+	echo "if dialog --title \"Install Request\" --yesno \"Do you wish to install the ${abbrevname} distribution?\" 6 72; then dialog --title \"Progress\" --infobox \"Installing $i\" 6 72; tar --unlink -xzf $i -C /usr; fi" >> extract.sh
 done
 
 cat >> extract.sh << OH_YEAH_BABY_GET_DOWN
