@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996, David Greenman
  * All rights reserved.
  *

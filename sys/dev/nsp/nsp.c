@@ -8,7 +8,7 @@
 	 NSP_READ_FIFO_INTERRUPTS | NSP_WRITE_FIFO_INTERRUPTS | \
 	 NSP_USE_MEMIO | NSP_WAIT_FOR_SELECT)
 
-/*
+/*-
  *  Copyright (c) 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
  *

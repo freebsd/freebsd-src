@@ -1,5 +1,5 @@
 %{
-/*
+/*-
  * Sub-Lexical Analyzer for macro invokation in 
  * the Aic7xxx SCSI Host adapter sequencer assembler.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * EISA bus probe and attach routines 
  *
  * Copyright (c) 1995, 1996 Justin T. Gibbs.

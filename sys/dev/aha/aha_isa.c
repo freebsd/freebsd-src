@@ -1,4 +1,4 @@
-/*
+/*-
  * Product specific probe and attach routines for:
  *      Adaptec 154x.
  *

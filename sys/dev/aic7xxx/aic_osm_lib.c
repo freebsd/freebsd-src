@@ -1,4 +1,4 @@
-/*
+/*-
  * FreeBSD OSM Library for the aic7xxx aic79xx based Adaptec SCSI controllers
  *
  * Copyright (c) 1994-2002 Justin T. Gibbs.

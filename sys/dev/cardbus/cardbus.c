@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 M. Warner Losh.  All Rights Reserved.
  * Copyright (c) 2000,2001 Jonathan Chen.  All rights reserved.
  *

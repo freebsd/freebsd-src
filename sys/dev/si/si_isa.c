@@ -1,4 +1,4 @@
-/*
+/*-
  * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  *
  * Copyright (C) 2000, Peter Wemm <peter@netplex.com.au>

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

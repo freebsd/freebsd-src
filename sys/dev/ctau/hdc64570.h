@@ -1,4 +1,4 @@
-/*
+/*-
  * Hitachi HD64570 serial communications adaptor registers.
  *
  * Copyright (C) 1996 Cronyx Engineering.

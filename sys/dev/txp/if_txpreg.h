@@ -1,7 +1,7 @@
 /*	$OpenBSD: if_txpreg.h,v 1.30 2001/06/23 04:18:02 jason Exp $ */
 /*	$FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 2001 Aaron Campbell <aaron@monkey.org>.
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Atsushi Onoe <onoe@sm.sony.co.jp>
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*									
+/*-
  * Low-level subroutines for Cronyx Tau-PCI adapter.			
  *									
  * Copyright (C) 1999-2003 Cronyx Engineering.				

@@ -1,4 +1,4 @@
-/*
+/*-
  * Product specific probe and attach routines for:
  * 	3COM 3C579 and 3C509(in eisa config mode) ethernet controllers
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Cronyx firmware definitions.
  *
  * Copyright (C) 1996 Cronyx Engineering.

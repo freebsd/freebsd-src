@@ -1,4 +1,4 @@
-/*
+/*-
  * Interface to the 93C46/56 serial EEPROM that is used to store BIOS
  * settings for the aic7xxx based adaptec SCSI controllers.  It can
  * also be used for 93C26 and 93C06 serial EEPROMS.

@@ -1,5 +1,5 @@
 %{
-/*
+/*-
  * Parser for the Aic7xxx SCSI Host adapter sequencer assembler.
  *
  * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.

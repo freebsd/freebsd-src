@@ -1,4 +1,4 @@
-/*
+/*-
  * if_ar.h
  *
  * Copyright (C) 1997-1999 Whistle Communications Inc.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Instruction formats for the sequencer program downloaded to
  * Aic7xxx SCSI host adapters
  *

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Qlogic ISP Host Adapter Public Target Interface Structures && Routines
  *---------------------------------------
  * Copyright (c) 2000 by Matthew Jacob

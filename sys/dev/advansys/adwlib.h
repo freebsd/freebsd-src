@@ -1,4 +1,4 @@
-/*
+/*-
  * Definitions for low level routines and data structures
  * for the Advanced Systems Inc. SCSI controllers chips.
  *
