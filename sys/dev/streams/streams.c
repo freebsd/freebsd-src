@@ -95,6 +95,9 @@ enum {
 	dev_unix_ord_stream	= 40
 };
 
+dev_t dt_ptm, dt_arp, dt_icmp, dt_ip, dt_tcp, dt_udp, dt_rawip,
+	dt_unix_dgram, dt_unix_stream, dt_unix_ord_stream;
+
 static struct fileops svr4_netops = {
 	soo_read, soo_write, soo_ioctl, soo_poll, svr4_soo_close
 };
@@ -131,11 +134,47 @@ streams_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 		/* XXX should make sure it isn't already loaded first */
-		cdevsw_add(&streams_cdevsw);
+		dt_ptm = make_dev(&streams_cdevsw, dev_ptm, 0, 0, 0666,
+			"ptm");
+		dt_arp = make_dev(&streams_cdevsw, dev_arp, 0, 0, 0666,
+			"arp");
+		dt_icmp = make_dev(&streams_cdevsw, dev_icmp, 0, 0, 0666,
+			"icmp");
+		dt_ip = make_dev(&streams_cdevsw, dev_ip, 0, 0, 0666,
+			"ip");
+		dt_tcp = make_dev(&streams_cdevsw, dev_tcp, 0, 0, 0666,
+			"tcp");
+		dt_udp = make_dev(&streams_cdevsw, dev_udp, 0, 0, 0666,
+			"udp");
+		dt_rawip = make_dev(&streams_cdevsw, dev_rawip, 0, 0, 0666,
+			"rawip");
+		dt_unix_dgram = make_dev(&streams_cdevsw, dev_unix_dgram,
+			0, 0, 0666, "ticlts");
+		dt_unix_stream = make_dev(&streams_cdevsw, dev_unix_stream,
+			0, 0, 0666, "ticots");
+		dt_unix_ord_stream = make_dev(&streams_cdevsw,
+			dev_unix_ord_stream, 0, 0, 0666, "ticotsord");
+
+		if (! (dt_ptm && dt_arp && dt_icmp && dt_ip && dt_tcp &&
+				dt_udp && dt_rawip && dt_unix_dgram &&
+				dt_unix_stream && dt_unix_ord_stream)) {
+			printf("WARNING: device config for STREAMS failed\n");
+			printf("Suggest unloading streams KLD\n");
+		}
 		return 0;
 	case MOD_UNLOAD:
 	  	/* XXX should check to see if it's busy first */
-		cdevsw_remove(&streams_cdevsw);
+		remove_dev(dt_ptm);
+		remove_dev(dt_arp);
+		remove_dev(dt_icmp);
+		remove_dev(dt_ip);
+		remove_dev(dt_tcp);
+		remove_dev(dt_udp);
+		remove_dev(dt_rawip);
+		remove_dev(dt_unix_dgram);
+		remove_dev(dt_unix_stream);
+		remove_dev(dt_unix_ord_stream);
+
 		return 0;
 	default:
 		break;
