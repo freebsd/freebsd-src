@@ -38,6 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <fnmatch.h>
 #include <dirent.h>
+#ifndef RESCUE
+#include <bsnmp/asn1.h>
+#include <bsnmp/snmp.h>
+#include <bsnmp/snmpclient.h>
+#endif
+
 #include "atmconfig.h"
 #include "private.h"
 
@@ -55,7 +61,7 @@ static int need_heading;
  */
 static void help_func(int argc, char *argv[]) __dead2;
 
-static const struct cmdtab main_tab[] = {
+static const struct cmdtab static_main_tab[] = {
 	{ "help",	NULL,		help_func },
 	{ "options",	NULL,		NULL },
 	{ "commands",	NULL,		NULL },
@@ -63,6 +69,10 @@ static const struct cmdtab main_tab[] = {
 	{ "natm",	natm_tab,	NULL },
 	{ NULL,		NULL,		NULL }
 };
+
+static struct cmdtab *main_tab = NULL;
+static size_t main_tab_size = sizeof(static_main_tab) /
+	sizeof(static_main_tab[0]);
 
 static int
 substr(const char *s1, const char *s2)
@@ -434,17 +444,112 @@ help_func(int argc, char *argv[])
 	exit(1);
 }
 
+#ifndef RESCUE
+/*
+ * Parse a server specification
+ *
+ * syntax is [trans::][community@][server][:port]
+ */
+static void
+parse_server(char *name)
+{
+	char *p, *s = name;
+
+	/* look for a double colon */
+	for (p = s; *p != '\0'; p++) {
+		if (*p == '\\' && p[1] != '\0') {
+			p++;
+			continue;
+		}
+		if (*p == ':' && p[1] == ':')
+			break;
+	}
+	if (*p != '\0') {
+		if (p > s) {
+			if (p - s == 3 && strncmp(s, "udp", 3) == 0)
+				snmp_client.trans = SNMP_TRANS_UDP;
+			else if (p - s == 6 && strncmp(s, "stream", 6) == 0)
+				snmp_client.trans = SNMP_TRANS_LOC_STREAM;
+			else if (p - s == 5 && strncmp(s, "dgram", 5) == 0)
+				snmp_client.trans = SNMP_TRANS_LOC_DGRAM;
+			else
+				errx(1, "unknown SNMP transport '%.*s'",
+				    (int)(p - s), s);
+		}
+		s = p + 2;
+	}
+
+	/* look for a @ */
+	for (p = s; *p != '\0'; p++) {
+		if (*p == '\\' && p[1] != '\0') {
+			p++;
+			continue;
+		}
+		if (*p == '@')
+			break;
+	}
+
+	if (*p != '\0') {
+		if (p - s > SNMP_COMMUNITY_MAXLEN)
+			err(1, "community string too long");
+		strncpy(snmp_client.read_community, s, p - s);
+		snmp_client.read_community[p - s] = '\0';
+		strncpy(snmp_client.write_community, s, p - s);
+		snmp_client.write_community[p - s] = '\0';
+		s = p + 1;
+	}
+
+	/* look for a colon */
+	for (p = s; *p != '\0'; p++) {
+		if (*p == '\\' && p[1] != '\0') {
+			p++;
+			continue;
+		}
+		if (*p == ':')
+			break;
+	}
+
+	if (*p == ':') {
+		if (p > s) {
+			*p = '\0';
+			snmp_client_set_host(&snmp_client, s);
+			*p = ':';
+		}
+		snmp_client_set_port(&snmp_client, p + 1);
+	} else if (p > s)
+		snmp_client_set_host(&snmp_client, s);
+}
+#endif
+
 int
 main(int argc, char *argv[])
 {
 	int opt, i;
 	const struct cmdtab *match, *cc, *tab;
 
-	while ((opt = getopt(argc, argv, "htv")) != -1)
+#ifndef RESCUE
+	snmp_client_init(&snmp_client);
+	snmp_client.trans = SNMP_TRANS_LOC_STREAM;
+	snmp_client_set_host(&snmp_client, PATH_ILMI_SOCK);
+#endif
+
+#ifdef RESCUE
+#define OPTSTR	"htv"
+#else
+#define	OPTSTR	"htvs:"
+#endif
+
+	while ((opt = getopt(argc, argv, OPTSTR)) != -1)
 		switch (opt) {
 
 		  case 'h':
 			help_func(0, argv);
+
+#ifndef RESCUE
+		  case 's':
+			parse_server(optarg);
+			break;
+#endif
 
 		  case 'v':
 			verbose++;
@@ -460,6 +565,15 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
+
+	if ((main_tab = malloc(sizeof(static_main_tab))) == NULL)
+		err(1, NULL);
+	memcpy(main_tab, static_main_tab, sizeof(static_main_tab));
+
+#ifndef RESCUE
+	/* XXX while this is compiled in */
+	device_register();
+#endif
 
 	cc = main_tab;
 	i = 0;
@@ -584,6 +698,23 @@ penum(int32_t value, const struct penum *strtab, char *buf)
 	warnx("illegal value for enumerated variable '%d'", value);
 	strcpy(buf, "?");
 	return (buf);
+}
+
+/*
+ * And the other way 'round
+ */
+int
+pparse(int32_t *val, const struct penum *tab, const char *str)
+{
+
+	while (tab->str != NULL) {
+		if (strcmp(tab->str, str) == 0) {
+			*val = tab->value;
+			return (0);
+		}
+		tab++;
+	}
+	return (-1);
 }
 
 /*
@@ -732,4 +863,18 @@ parse_options(int *pargc, char ***pargv, const struct option *opts)
 		    m->opttype, arg);
 	}
 	return (m - opts);
+}
+
+/*
+ * for compiled-in modules
+ */
+void
+register_module(const struct amodule *mod)
+{
+	main_tab_size++;
+	if ((main_tab = realloc(main_tab, main_tab_size * sizeof(main_tab[0])))
+	    == NULL)
+		err(1, NULL);
+	main_tab[main_tab_size - 2] = *mod->cmd;
+	memset(&main_tab[main_tab_size - 1], 0, sizeof(main_tab[0]));
 }

@@ -1,7 +1,12 @@
 /*
- * Copyright (c) 2001-2003
+ * Copyright (c) 2001-2002
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
+ * Copyright (c) 2003-2004
+ *	Hartmut Brandt.
+ * 	All rights reserved.
+ *
+ * Author: Hartmut Brandt <harti@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,79 +29,47 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Author: Hartmut Brandt <harti@freebsd.org>
- *
  * $FreeBSD$
  */
-#ifndef _ATMCONFIG_H
-#define	_ATMCONFIG_H
+#ifndef ATMCONFIG_DEVICE_H_
+#define ATMCONFIG_DEVICE_H_
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/queue.h>
-#include <netgraph/ng_message.h>
-
-#define	DEFAULT_INTERFACE	"hatm0"
-
-struct cmdtab {
-	const char	*string;
-	const struct cmdtab *sub;
-	void		(*func)(int, char *[]);
-};
+#include <stdint.h>
 
 /*
- * client configuration info
+ * ATM interface table
  */
-struct amodule {
-	const struct cmdtab	*cmd;
+struct atmif {
+	TAILQ_ENTRY(atmif) link;
+	uint64_t	found;
+	int32_t		index;
+	u_char		*ifname;
+	size_t		ifnamelen;
+	uint32_t	pcr;
+	int32_t		media;
+	uint32_t	vpi_bits;
+	uint32_t	vci_bits;
+	uint32_t	max_vpcs;
+	uint32_t	max_vccs;
+	u_char		*esi;
+	size_t		esilen;
+	int32_t		carrier;
+	int32_t		mode;
 };
+TAILQ_HEAD(atmif_list, atmif);
 
-#define	DEF_MODULE(CMDTAB)				\
-struct amodule amodule_1 = { CMDTAB }
+/* list of all ATM interfaces */
+extern struct atmif_list atmif_list;
 
-/* for compiled-in modules */
-void	register_module(const struct amodule *);
+/* fetch this table */
+void atmif_fetchtable(void);
 
-/* print a message if we are verbose */
-void	verb(const char *, ...) __printflike(1, 2);
+/* find an ATM interface by name */
+struct atmif *atmif_find_name(const char *);
 
-/* print heading */
-void	heading(const char *, ...) __printflike(1, 2);
+/* find an ATM interface by index */
+struct atmif *atmif_find(u_int);
 
-/* before starting output */
-void	heading_init(void);
-
-/* stringify an enumerated value */
-struct penum {
-	int32_t	value;
-	const char *str;
-};
-const char *penum(int32_t value, const struct penum *strtab, char *buf);
-int pparse(int32_t *, const struct penum *, const char *);
-
-enum {
-	OPT_NONE,
-	OPT_UINT,
-	OPT_INT,
-	OPT_UINT32,
-	OPT_INT32,
-	OPT_UINT64,
-	OPT_INT64,
-	OPT_FLAG,
-	OPT_VCI,
-	OPT_STRING,
-	OPT_SIMPLE,
-};
-struct option {
-	const char *optstr;
-	int	opttype;
-	void	*optarg;
-};
-
-int parse_options(int *_pargc, char ***_pargv,
-    const struct option *_opts);
-
-/* XXX while this is compiled in */
-void device_register(void);
-
-#endif /* _ATMCONFIG_H */
+#endif
