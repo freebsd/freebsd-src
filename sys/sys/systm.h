@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.84 1999/01/15 17:25:02 msmith Exp $
+ * $Id: systm.h,v 1.85 1999/01/28 00:57:54 dillon Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -147,8 +147,8 @@ int	subyte __P((void *base, int byte));
 int	suibyte __P((void *base, int byte));
 long	fuword __P((const void *base));
 int	suword __P((void *base, long word));
-long	fusword __P((void *base));
-int	susword __P((void *base, long word));
+int	fusword __P((void *base));
+int	susword __P((void *base, int word));
 
 void	realitexpire __P((void *));
 
