@@ -87,25 +87,28 @@ inphy_probe(device_t dev)
 	ma = device_get_ivars(dev);
 	parent = device_get_parent(device_get_parent(dev));
 
-	/* Intel 82555 */
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_INTEL &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_INTEL_I82555) {
-		device_set_desc(dev, MII_STR_INTEL_I82555);
-		return (0);
-	}
-
-	/* Intel 82553 C stepping */
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_INTEL &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_INTEL_I82553C) {
-		device_set_desc(dev, MII_STR_INTEL_I82553C);
-		return (0);
-	}
-
 	/* Intel 82553 A/B steppings */
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxINTEL &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxINTEL_I82553AB) {
 		device_set_desc(dev, MII_STR_xxINTEL_I82553AB);
 		return (0);
+	}
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_INTEL) {
+		switch (MII_MODEL(ma->mii_id2)) {
+		case MII_MODEL_INTEL_I82555:
+			device_set_desc(dev, MII_STR_INTEL_I82555);
+			return (0);
+		case MII_MODEL_INTEL_I82553C:
+			device_set_desc(dev, MII_STR_INTEL_I82553C);
+			return (0);
+		case MII_MODEL_INTEL_I82562EM:
+			device_set_desc(dev, MII_STR_INTEL_I82562EM);
+			return (0);
+		case MII_MODEL_INTEL_I82562ET:
+			device_set_desc(dev, MII_STR_INTEL_I82562ET);
+			return (0);
+		}
 	}
 
 	return (ENXIO);

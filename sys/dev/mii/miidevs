@@ -113,8 +113,10 @@ model xxICS 1890		0x0002 ICS1890 10/100 media interface
 
 /* Intel PHYs */
 model xxINTEL I82553AB		0x0000 i83553 10/100 media interface
-model INTEL I82553C		0x0035 i82553 10/100 media interface
 model INTEL I82555		0x0015 i82555 10/100 media interface
+model INTEL I82562EM		0x0032 i82562EM 10/100 media interface
+model INTEL I82562ET		0x0033 i82562ET 10/100 media interface
+model INTEL I82553C		0x0035 i82553 10/100 media interface
 
 /* Level 1 PHYs */
 model xxLEVEL1 LXT970		0x0000 LXT970 10/100 media interface
