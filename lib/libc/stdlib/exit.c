@@ -60,6 +60,12 @@ exit(status)
 	register struct atexit *p;
 	register int n;
 
+#ifdef	_THREAD_SAFE
+	extern int _thread_autoinit_dummy_decl;
+	/* Ensure that the auto-initialization routine is linked in: */
+	_thread_autoinit_dummy_decl = 1;
+#endif
+
 	for (p = __atexit; p; p = p->next)
 		for (n = p->ind; --n >= 0;)
 			(*p->fns[n])();
