@@ -25,7 +25,6 @@
 #include "inferior.h"
 #include "gdbcore.h"
 #include "regcache.h"
-#include "i387-nat.h"
 #include "gdb_assert.h"
 #include "x86-64-tdep.h"
 
@@ -158,7 +157,7 @@ fill_gregset (elf_gregset_t * gregsetp, int regno)
 
   for (i = 0; i < x86_64_num_gregs; i++)
     if ((regno == -1 || regno == i))
-      read_register_gen (i, regp + x86_64_regmap[i]);
+      read_register_gen (i, (char *) (regp + x86_64_regmap[i]));
 }
 
 /* Fetch all general-purpose registers from process/thread TID and
@@ -195,23 +194,73 @@ store_regs (int tid, int regno)
 
 /* Transfering floating-point registers between GDB, inferiors and cores.  */
 
-/* Fill GDB's register array with the floating-point register values in
-   *FPREGSETP.  */
-
-void
-supply_fpregset (elf_fpregset_t * fpregsetp)
+static void *
+x86_64_fxsave_offset (elf_fpregset_t * fxsave, int regnum)
 {
-  i387_supply_fxsave ((char *) fpregsetp);
+  const char *reg_name;
+  int reg_index;
+
+  gdb_assert (x86_64_num_gregs - 1 < regnum && regnum < x86_64_num_regs);
+
+  reg_name = x86_64_register_name (regnum);
+
+  if (reg_name[0] == 's' && reg_name[1] == 't')
+    {
+      reg_index = reg_name[2] - '0';
+      return &fxsave->st_space[reg_index * 2];
+    }
+
+  if (reg_name[0] == 'x' && reg_name[1] == 'm' && reg_name[2] == 'm')
+    {
+      reg_index = reg_name[3] - '0';
+      return &fxsave->xmm_space[reg_index * 4];
+    }
+
+  if (strcmp (reg_name, "mxcsr") == 0)
+    return &fxsave->mxcsr;
+
+  return NULL;
 }
 
-/* Fill register REGNO (if it is a floating-point register) in
-   *FPREGSETP with the value in GDB's register array.  If REGNO is -1,
-   do this for all registers.  */
+/* Fill GDB's register array with the floating-point and SSE register
+   values in *FXSAVE.  This function masks off any of the reserved
+   bits in *FXSAVE.  */
 
 void
-fill_fpregset (elf_fpregset_t * fpregsetp, int regno)
+supply_fpregset (elf_fpregset_t * fxsave)
 {
-  i387_fill_fxsave ((char *) fpregsetp, regno);
+  int i, reg_st0, reg_mxcsr;
+
+  reg_st0 = x86_64_register_number ("st0");
+  reg_mxcsr = x86_64_register_number ("mxcsr");
+
+  gdb_assert (reg_st0 > 0 && reg_mxcsr > reg_st0);
+
+  for (i = reg_st0; i <= reg_mxcsr; i++)
+    supply_register (i, x86_64_fxsave_offset (fxsave, i));
+}
+
+/* Fill register REGNUM (if it is a floating-point or SSE register) in
+   *FXSAVE with the value in GDB's register array.  If REGNUM is -1, do
+   this for all registers.  This function doesn't touch any of the
+   reserved bits in *FXSAVE.  */
+
+void
+fill_fpregset (elf_fpregset_t * fxsave, int regnum)
+{
+  int i, last_regnum = MXCSR_REGNUM;
+  void *ptr;
+
+  if (gdbarch_tdep (current_gdbarch)->num_xmm_regs == 0)
+    last_regnum = FOP_REGNUM;
+
+  for (i = FP0_REGNUM; i <= last_regnum; i++)
+    if (regnum == -1 || regnum == i)
+      {
+	ptr = x86_64_fxsave_offset (fxsave, i);
+	if (ptr)
+	  regcache_collect (i, ptr);
+      }
 }
 
 /* Fetch all floating-point registers from process/thread TID and store
@@ -406,12 +455,6 @@ static struct core_fns linux_elf_core_fns = {
 #define offsetof(TYPE, MEMBER) ((unsigned long) &((TYPE *)0)->MEMBER)
 #endif
 
-/* Record the value of the debug control register.  */
-static long debug_control_mirror;
-
-/* Record which address associates with which register.  */
-static CORE_ADDR address_lookup[DR_LASTADDR - DR_FIRSTADDR + 1];
-
 /* Return the address of register REGNUM.  BLOCKEND is the value of
    u.u_ar0, which should point to the registers.  */
 CORE_ADDR
@@ -446,4 +489,3 @@ kernel_u_size (void)
 {
   return (sizeof (struct user));
 }
-  
