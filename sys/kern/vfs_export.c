@@ -124,13 +124,13 @@ vfs_hang_addrlist(mp, nep, argp)
 	i = sizeof(struct netcred) + argp->ex_addrlen + argp->ex_masklen;
 	np = (struct netcred *) malloc(i, M_NETADDR, M_WAITOK | M_ZERO);
 	saddr = (struct sockaddr *) (np + 1);
-	if ((error = copyin(argp->ex_addr, (caddr_t) saddr, argp->ex_addrlen)))
+	if ((error = copyin(argp->ex_addr, saddr, argp->ex_addrlen)))
 		goto out;
 	if (saddr->sa_len > argp->ex_addrlen)
 		saddr->sa_len = argp->ex_addrlen;
 	if (argp->ex_masklen) {
-		smask = (struct sockaddr *) ((caddr_t) saddr + argp->ex_addrlen);
-		error = copyin(argp->ex_mask, (caddr_t) smask, argp->ex_masklen);
+		smask = (struct sockaddr *) (saddr + argp->ex_addrlen);
+		error = copyin(argp->ex_mask, smask, argp->ex_masklen);
 		if (error)
 			goto out;
 		if (smask->sa_len > argp->ex_masklen)
@@ -153,7 +153,7 @@ vfs_hang_addrlist(mp, nep, argp)
 			goto out;
 		}
 	}
-	rn = (*rnh->rnh_addaddr) ((caddr_t) saddr, (caddr_t) smask, rnh,
+	rn = (*rnh->rnh_addaddr) (saddr, smask, rnh,
 	    np->netc_rnodes);
 	if (rn == 0 || np != (struct netcred *) rn) {	/* already exists */
 		error = EPERM;
@@ -182,7 +182,7 @@ vfs_free_netcred(rn, w)
 	register struct radix_node_head *rnh = (struct radix_node_head *) w;
 
 	(*rnh->rnh_deladdr) (rn->rn_key, rn->rn_mask, rnh);
-	free((caddr_t) rn, M_NETADDR);
+	free(rn, M_NETADDR);
 	return (0);
 }
 
@@ -198,9 +198,8 @@ vfs_free_addrlist(nep)
 
 	for (i = 0; i <= AF_MAX; i++)
 		if ((rnh = nep->ne_rtable[i])) {
-			(*rnh->rnh_walktree) (rnh, vfs_free_netcred,
-			    (caddr_t) rnh);
-			free((caddr_t) rnh, M_RTABLE);
+			(*rnh->rnh_walktree) (rnh, vfs_free_netcred, rnh);
+			free(rnh, M_RTABLE);
 			nep->ne_rtable[i] = 0;
 		}
 }
@@ -288,7 +287,7 @@ vfs_setpublicfs(mp, nep, argp)
 	/*
 	 * Get real filehandle for root of exported FS.
 	 */
-	bzero((caddr_t)&nfs_pub.np_handle, sizeof(nfs_pub.np_handle));
+	bzero(&nfs_pub.np_handle, sizeof(nfs_pub.np_handle));
 	nfs_pub.np_handle.fh_fsid = mp->mnt_stat.f_fsid;
 
 	if ((error = VFS_ROOT(mp, &rvp)))
@@ -358,7 +357,7 @@ vfs_export_lookup(mp, nam)
 			rnh = nep->ne_rtable[saddr->sa_family];
 			if (rnh != NULL) {
 				np = (struct netcred *)
-					(*rnh->rnh_matchaddr)((caddr_t)saddr,
+					(*rnh->rnh_matchaddr)(saddr,
 							      rnh);
 				if (np && np->netc_rnodes->rn_flags & RNF_ROOT)
 					np = NULL;

@@ -543,7 +543,7 @@ unp_attach(so)
 	FILEDESC_UNLOCK(curproc->p_fd);
 	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
 			 : &unp_shead, unp, unp_link);
-	so->so_pcb = (caddr_t)unp;
+	so->so_pcb = unp;
 	return (0);
 }
 
@@ -1406,7 +1406,7 @@ unp_gc()
 	}
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		closef(*fpp, (struct thread *) NULL);
-	free((caddr_t)extra_ref, M_TEMP);
+	free(extra_ref, M_TEMP);
 	unp_gcing = 0;
 }
 
