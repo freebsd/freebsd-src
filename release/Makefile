@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.116 1995/03/16 05:40:02 phk Exp $
 #
 # How to roll a release:
 #
@@ -19,12 +19,14 @@ CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
 FAQS=	README README-2.0 MIRROR.SITES
 
 # define this to use a vn device instead of the floppy drive
-VNDEVICE=		vn0
+# vn driver can still do odd bogosities.  don't use it.
+# VNDEVICE=		vn0
 
 # work dir for floppies
 MNT=			/mnt
+
 # define FDFORMAT to format physical floppies
-#FDFORMAT=		yes
+FDFORMAT=		yes
 
 FDDEVICE=		fd0
 FDCYLS=			80
