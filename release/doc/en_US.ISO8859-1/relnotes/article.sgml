@@ -884,6 +884,11 @@
     user's UID before attempting to unlink the authentication
     forwarding file, nullifying the effects of a race.</para>
 
+    <para>A flaw allowed some signal handlers to remain in effect in a
+    child process after being exec-ed from its parent.  This allowed
+    an attacker to execute arbitrary code in the context of a setuid
+    binary.  This flaw has been corrected (see security advisory
+    FreeBSD-SA-01:42). &merged;</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
