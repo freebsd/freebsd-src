@@ -470,14 +470,14 @@ iommu_strbuf_flush_sync(struct iommu_state *is)
 		}
 	}
 
-	microtime(&cur);
+	microuptime(&cur);
 	end.tv_sec = 0;
 	end.tv_usec = 500000;
 	timevaladd(&end, &cur);
 
 	while ((!*is->is_flushva[0] || !*is->is_flushva[1]) &&
 	    timevalcmp(&cur, &end, <=))
-		microtime(&cur);
+		microuptime(&cur);
 
 #ifdef DIAGNOSTIC
 	if (!*is->is_flushva[0] || !*is->is_flushva[1]) {
