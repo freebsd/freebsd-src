@@ -22,8 +22,6 @@ LDFLAGS+= -static
 
 .if defined(PROG_CXX)
 PROG=	${PROG_CXX}
-DPADD+=	${LIBSTDCPLUSPLUS}
-LDADD+=	-lstdc++
 .endif
 
 .if defined(PROG)
@@ -36,9 +34,6 @@ LDADD+=	${OBJCLIBS}
 .endif
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
-
-${PROG}: ${OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 
 .else !defined(SRCS)
 
@@ -55,8 +50,12 @@ SRCS=	${PROG}.c
 #   the name of a variable temporary object.
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
+.endif
 
 ${PROG}: ${OBJS}
+.if defined(PROG_CXX)
+	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
 
@@ -88,6 +87,9 @@ _EXTRADEPEND:
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
+.if defined(PROG_CXX)
+	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
+.endif
 .endif
 .endif
 
