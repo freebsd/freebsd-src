@@ -26,59 +26,74 @@ __FBSDID("$FreeBSD$");
 int
 Track_Aligned(const struct disk *d, u_long offset)
 {
-
+#ifndef __ia64__
 	if (!d->bios_sect)
 		return 1;
 	if (offset % d->bios_sect)
 		return 0;
+#endif /* __ia64__ */
 	return 1;
 }
 
 u_long
 Prev_Track_Aligned(const struct disk *d, u_long offset)
 {
-
+#ifndef __ia64__
 	if (!d->bios_sect)
 		return offset;
 	return (offset / d->bios_sect) * d->bios_sect;
+#else
+	return 1;
+#endif
 }
 
 u_long
 Next_Track_Aligned(const struct disk *d, u_long offset)
 {
-
+#ifndef __ia64__
 	if (!d->bios_sect)
 		return offset;
 	return Prev_Track_Aligned(d, offset + d->bios_sect-1);
+#else
+	return 1;
+#endif
 }
 
 static int
 Cyl_Aligned(const struct disk *d, u_long offset)
 {
-
+#ifndef __ia64__
 	if (!d->bios_sect || !d->bios_hd)
 		return 1;
 	if (offset % (d->bios_sect * d->bios_hd))
 		return 0;
+#endif
 	return 1;
 }
 
 u_long
 Prev_Cyl_Aligned(const struct disk *d, u_long offset)
 {
-
+#ifndef __ia64__
 	if (!d->bios_sect || !d->bios_hd)
 		return offset;
-	return (offset / (d->bios_sect*d->bios_hd)) * d->bios_sect * d->bios_hd;
+	return (offset / (d->bios_sect * d->bios_hd)) * d->bios_sect *
+	    d->bios_hd;
+#else
+	return 1;
+#endif
 }
 
 u_long
 Next_Cyl_Aligned(const struct disk *d, u_long offset)
 {
-
+#ifndef __ia64__
 	if (!d->bios_sect || !d->bios_hd)
 		return offset;
 	return Prev_Cyl_Aligned(d,offset + (d->bios_sect * d->bios_hd) - 1);
+#else
+	return 1;
+#endif
 }
 
 /*
