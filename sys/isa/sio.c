@@ -692,6 +692,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x00914f3f, NULL},	/* OZO9100 - Zoom 2919 (K56 Faxmodem) */
 	{0x3024a341, NULL},	/* PMC2430 - Pace 56 Voice Internal Modem */
 	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
+	{0x1200b23d, NULL},     /* RSS0012 - OMRON ME5614ISA */
 	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
 	{0x6202734a, NULL},	/* RSS0262 - 5614Jx3[G] V90+K56Flex Modem */
 	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
