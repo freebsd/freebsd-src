@@ -26,11 +26,9 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.33 1999/04/24 20:13:58 peter Exp $
+ *	$Id: ide_pci.c,v 1.34 1999/05/09 17:06:47 peter Exp $
  */
 
-#include "pci.h"
-#if NPCI > 0
 #include "wd.h"
 
 #if NWDC > 0
@@ -1935,4 +1933,3 @@ ide_pci_iobase(void *xcp)
 }
 
 #endif
-#endif /* NPCI > 0 */

@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.250 1999/06/29 21:53:59 peter Exp $
+#	$Id: files.i386,v 1.251 1999/07/03 18:26:22 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -382,5 +382,5 @@ libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-pci/es1370.c			optional	pcm	device-driver
-pci/ide_pci.c			optional	wd	device-driver
+pci/es1370.c			optional	pcm pci	device-driver
+pci/ide_pci.c			optional	wd pci	device-driver
