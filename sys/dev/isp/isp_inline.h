@@ -276,6 +276,8 @@ static INLINE void
 isp_put_sns_request(struct ispsoftc *, sns_screq_t *, sns_screq_t *);
 static INLINE void
 isp_get_sns_response(struct ispsoftc *, sns_scrsp_t *, sns_scrsp_t *, int);
+static INLINE void
+isp_get_gan_response(struct ispsoftc *, sns_ganrsp_t *, sns_ganrsp_t *);
 #ifdef	ISP_TARGET_MODE
 #ifndef	_ISP_TARGET_H
 #include "isp_target.h"
@@ -687,6 +689,59 @@ isp_get_sns_response(struct ispsoftc *isp, sns_scrsp_t *src,
 	}
 	for (i = 0; i < nwords; i++) {
 		ISP_IOXGET_16(isp, &src->snscb_data[i], dst->snscb_data[i]);
+	}
+}
+
+static INLINE void
+isp_get_gan_response(struct ispsoftc *isp, sns_ganrsp_t *src, sns_ganrsp_t *dst)
+{
+	int i;
+	for (i = 0; i < 16; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_cthdr[i], dst->snscb_cthdr[i]);
+	}
+	ISP_IOXGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
+	for (i = 0; i < 3; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_port_id[i],
+		    dst->snscb_port_id[i]);
+	}
+	for (i = 0; i < 8; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_portname[i],
+		    dst->snscb_portname[i]);
+	}
+	ISP_IOXGET_8(isp, &src->snscb_pnlen, dst->snscb_pnlen);
+	for (i = 0; i < 255; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_pname[i], dst->snscb_pname[i]);
+	}
+	for (i = 0; i < 8; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_nodename[i],
+		    dst->snscb_nodename[i]);
+	}
+	ISP_IOXGET_8(isp, &src->snscb_nnlen, dst->snscb_nnlen);
+	for (i = 0; i < 255; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_nname[i], dst->snscb_nname[i]);
+	}
+	for (i = 0; i < 8; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_ipassoc[i],
+		    dst->snscb_ipassoc[i]);
+	}
+	for (i = 0; i < 16; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_ipaddr[i], dst->snscb_ipaddr[i]);
+	}
+	for (i = 0; i < 4; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_svc_class[i],
+		    dst->snscb_svc_class[i]);
+	}
+	for (i = 0; i < 32; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_fc4_types[i],
+		    dst->snscb_fc4_types[i]);
+	}
+	for (i = 0; i < 8; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_fpname[i], dst->snscb_fpname[i]);
+	}
+	ISP_IOXGET_8(isp, &src->snscb_reserved, dst->snscb_reserved);
+	for (i = 0; i < 3; i++) {
+		ISP_IOXGET_8(isp, &src->snscb_hardaddr[i],
+		    dst->snscb_hardaddr[i]);
 	}
 }
 
