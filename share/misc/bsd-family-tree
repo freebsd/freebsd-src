@@ -342,8 +342,8 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997-1999 Wolfram Schneider <wosch@FreeBSD.ORG>
-URL: ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/misc/bsd-family-tree
+Copyright (c) 1997-2000 Wolfram Schneider <wosch@FreeBSD.ORG>
+URL: ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/src/share/misc/bsd-family-tree
 
 $FreeBSD$
 
