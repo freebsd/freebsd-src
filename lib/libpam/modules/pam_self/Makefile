@@ -24,8 +24,8 @@
 #
 # $FreeBSD$
 
-LIB=		pam_self
-SRCS=		pam_self.c
-MAN=		pam_self.8
+LIB=	pam_self
+SRCS=	pam_self.c
+MAN=	pam_self.8
 
 .include <bsd.lib.mk>

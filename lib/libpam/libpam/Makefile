@@ -34,123 +34,118 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
-#
 
-OPENPAM		 = ${.CURDIR}/../../../contrib/openpam
+OPENPAM=	${.CURDIR}/../../../contrib/openpam
+.PATH: ${OPENPAM}/include ${OPENPAM}/lib ${OPENPAM}/doc/man
 
-LIB		 = pam
+LIB=	pam
+NOPROFILE=	YES
 
-CFLAGS		+= -I${.CURDIR} -I${OPENPAM}/include
-CFLAGS		+= -DLIB_MAJ=${SHLIB_MAJOR}
-NOPROFILE	 = YES
-WARNS		?= 4
-
-SRCS		 =
-SRCS		+= openpam_borrow_cred.c
-SRCS		+= openpam_configure.c
-SRCS		+= openpam_dispatch.c
-SRCS		+= openpam_dynamic.c
-SRCS		+= openpam_findenv.c
-SRCS		+= openpam_free_data.c
-SRCS		+= openpam_get_option.c
-SRCS		+= openpam_load.c
-SRCS		+= openpam_log.c
-SRCS		+= openpam_nullconv.c
-SRCS		+= openpam_restore_cred.c
-SRCS		+= openpam_set_option.c
-SRCS		+= openpam_ttyconv.c
-SRCS		+= pam_acct_mgmt.c
-SRCS		+= pam_authenticate.c
-SRCS		+= pam_chauthtok.c
-SRCS		+= pam_close_session.c
-SRCS		+= pam_end.c
-SRCS		+= pam_error.c
-SRCS		+= pam_get_authtok.c
-SRCS		+= pam_get_data.c
-SRCS		+= pam_get_item.c
-SRCS		+= pam_get_user.c
-SRCS		+= pam_getenv.c
-SRCS		+= pam_getenvlist.c
-SRCS		+= pam_info.c
-SRCS		+= pam_open_session.c
-SRCS		+= pam_prompt.c
-SRCS		+= pam_putenv.c
-SRCS		+= pam_set_data.c
-SRCS		+= pam_set_item.c
-SRCS		+= pam_setcred.c
-SRCS		+= pam_setenv.c
-SRCS		+= pam_start.c
-SRCS		+= pam_strerror.c
-SRCS		+= pam_verror.c
-SRCS		+= pam_vinfo.c
-SRCS		+= pam_vprompt.c
-
-MAN		 =
-MAN		+= openpam.3
-MAN		+= openpam_borrow_cred.3
-MAN		+= openpam_free_data.3
-MAN		+= openpam_get_option.3
-MAN		+= openpam_log.3
-MAN		+= openpam_nullconv.3
-MAN		+= openpam_restore_cred.3
-MAN		+= openpam_set_option.3
-MAN		+= openpam_ttyconv.3
-MAN		+= pam.3
-MAN		+= pam_acct_mgmt.3
-MAN		+= pam_authenticate.3
-MAN		+= pam_chauthtok.3
-MAN		+= pam_close_session.3
-MAN		+= pam_conv.3
-MAN		+= pam_end.3
-MAN		+= pam_error.3
-MAN		+= pam_get_authtok.3
-MAN		+= pam_get_data.3
-MAN		+= pam_get_item.3
-MAN		+= pam_get_user.3
-MAN		+= pam_getenv.3
-MAN		+= pam_getenvlist.3
-MAN		+= pam_info.3
-MAN		+= pam_open_session.3
-MAN		+= pam_prompt.3
-MAN		+= pam_putenv.3
-MAN		+= pam_set_data.3
-MAN		+= pam_set_item.3
-MAN		+= pam_setcred.3
-MAN		+= pam_setenv.3
-MAN		+= pam_sm_acct_mgmt.3
-MAN		+= pam_sm_authenticate.3
-MAN		+= pam_sm_chauthtok.3
-MAN		+= pam_sm_close_session.3
-MAN		+= pam_sm_open_session.3
-MAN		+= pam_sm_setcred.3
-MAN		+= pam_start.3
-MAN		+= pam_strerror.3
-MAN		+= pam_verror.3
-MAN		+= pam_vinfo.3
-MAN		+= pam_vprompt.3
-
+SRCS=	openpam_borrow_cred.c \
+	openpam_configure.c \
+	openpam_dispatch.c \
+	openpam_dynamic.c \
+	openpam_findenv.c \
+	openpam_free_data.c \
+	openpam_get_option.c \
+	openpam_load.c \
+	openpam_log.c \
+	openpam_nullconv.c \
+	openpam_restore_cred.c \
+	openpam_set_option.c \
+	openpam_ttyconv.c \
+	pam_acct_mgmt.c \
+	pam_authenticate.c \
+	pam_chauthtok.c \
+	pam_close_session.c \
+	pam_end.c \
+	pam_error.c \
+	pam_get_authtok.c \
+	pam_get_data.c \
+	pam_get_item.c \
+	pam_get_user.c \
+	pam_getenv.c \
+	pam_getenvlist.c \
+	pam_info.c \
+	pam_open_session.c \
+	pam_prompt.c \
+	pam_putenv.c \
+	pam_set_data.c \
+	pam_set_item.c \
+	pam_setcred.c \
+	pam_setenv.c \
+	pam_start.c \
+	pam_strerror.c \
+	pam_verror.c \
+	pam_vinfo.c \
+	pam_vprompt.c
 # Local additions
-SRCS		+= pam_debug_log.c
-SRCS		+= pam_std_option.c
+SRCS+=	pam_debug_log.c \
+	pam_std_option.c
 
-HEADERS		 =
-HEADERS		+= security/openpam.h
-HEADERS		+= security/openpam_version.h
-HEADERS		+= security/pam_appl.h
-HEADERS		+= security/pam_constants.h
-HEADERS		+= security/pam_modules.h
-HEADERS		+= security/pam_types.h
+MAN=	openpam.3 \
+	openpam_borrow_cred.3 \
+	openpam_free_data.3 \
+	openpam_get_option.3 \
+	openpam_log.3 \
+	openpam_nullconv.3 \
+	openpam_restore_cred.3 \
+	openpam_set_option.3 \
+	openpam_ttyconv.3 \
+	pam.3 \
+	pam_acct_mgmt.3 \
+	pam_authenticate.3 \
+	pam_chauthtok.3 \
+	pam_close_session.3 \
+	pam_conv.3 \
+	pam_end.3 \
+	pam_error.3 \
+	pam_get_authtok.3 \
+	pam_get_data.3 \
+	pam_get_item.3 \
+	pam_get_user.3 \
+	pam_getenv.3 \
+	pam_getenvlist.3 \
+	pam_info.3 \
+	pam_open_session.3 \
+	pam_prompt.3 \
+	pam_putenv.3 \
+	pam_set_data.3 \
+	pam_set_item.3 \
+	pam_setcred.3 \
+	pam_setenv.3 \
+	pam_sm_acct_mgmt.3 \
+	pam_sm_authenticate.3 \
+	pam_sm_chauthtok.3 \
+	pam_sm_close_session.3 \
+	pam_sm_open_session.3 \
+	pam_sm_setcred.3 \
+	pam_start.3 \
+	pam_strerror.3 \
+	pam_verror.3 \
+	pam_vinfo.3 \
+	pam_vprompt.3
 
-ADD_HEADERS	 = security/pam_mod_misc.h
+WARNS?=	4
+CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
+CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
+
+HEADERS=	security/openpam.h \
+		security/openpam_version.h \
+		security/pam_appl.h \
+		security/pam_constants.h \
+		security/pam_modules.h \
+		security/pam_types.h \
+
+ADD_HEADERS=	security/pam_mod_misc.h
 
 # Static modules
-MODULE_DIR	 = ../modules
+MODULE_DIR=	../modules
 .include "${.CURDIR}/${MODULE_DIR}/modules.inc"
-STATIC_MODULES	 = ${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
-STATICOBJS	+= openpam_static_modules.o
-CLEANFILES	+= openpam_static.o
-
-CLEANFILES+=	openpam_static_modules.o
+STATIC_MODULES=	${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
+STATICOBJS+=	openpam_static_modules.o
+CLEANFILES+=	openpam_static.o \
+		openpam_static_modules.o
 
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
@@ -160,9 +155,6 @@ INCS=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
 
 .include <bsd.lib.mk>
-.PATH: ${OPENPAM}/include
-.PATH: ${OPENPAM}/lib
-.PATH: ${OPENPAM}/doc/man
 
 # Can't put openpam_static.c in SRCS but want it in .depend.
 ${DEPENDFILE}: openpam_static.c

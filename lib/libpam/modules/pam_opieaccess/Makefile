@@ -1,9 +1,10 @@
 # $FreeBSD$
 
-LIB=		pam_opieaccess
-SRCS=		${LIB}.c
-DPADD=		${LIBOPIE}
-LDADD=		-lopie
-MAN=		pam_opieaccess.8
+LIB=	pam_opieaccess
+SRCS=	${LIB}.c
+MAN=	pam_opieaccess.8
+
+DPADD=	${LIBOPIE}
+LDADD=	-lopie
 
 .include <bsd.lib.mk>
