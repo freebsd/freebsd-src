@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.207 1999/04/29 18:15:25 alc Exp $
+ * $Id: vfs_bio.c,v 1.208 1999/05/02 23:56:10 alc Exp $
  */
 
 /*
@@ -2641,11 +2641,6 @@ vfs_unbusy_pages(struct buf * bp)
  *
  *	Set the valid bits in a page based on the supplied offset.   The
  *	range is restricted to the buffer's size.
- *
- *	For NFS, the range is additionally restricted to b_validoff/end.
- *	validoff/end must be DEV_BSIZE chunky or the end must be at the 
- *	file EOF.  If a dirty range exists, set the page's dirty bits
- *	inclusively.
  *
  *	This routine is typically called after a read completes.
  */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.65 1999/03/12 02:24:55 julian Exp $
+ * $Id: buf.h,v 1.66 1999/05/02 23:56:34 alc Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -122,13 +122,8 @@ struct buf {
 	int	b_dirtyend;		/* Offset of end of dirty region. */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
-#if 0
-	int	b_validoff;		/* Offset in buffer of valid region. */
-	int	b_validend;		/* Offset of end of valid region. */
-#endif
 	daddr_t	b_pblkno;               /* physical block number */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
-	caddr_t	b_savekva;              /* saved kva for transfer while bouncing */
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
 	union	pager_info {
