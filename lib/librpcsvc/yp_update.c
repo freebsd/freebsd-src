@@ -36,17 +36,15 @@
  * Columbia University, New York City
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <stdlib.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/ypupdate_prot.h>
 #include <rpc/key_prot.h>
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 #ifndef WINDOW
 #define WINDOW (60*60)
