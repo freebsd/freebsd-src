@@ -434,6 +434,93 @@ int ips_flush_cache(ips_softc_t *sc)
 	return 0;
 }
 
+/* Simplified localtime to provide timevalues for ffdc.
+ * Taken from libc/stdtime/localtime.c
+ */
+void static ips_ffdc_settime(ips_adapter_ffdc_cmd *command, time_t sctime)
+{
+	long	days, rem, y;
+	int	yleap, *ip, month;
+	int	year_lengths[2] = { IPS_DAYSPERNYEAR, IPS_DAYSPERLYEAR };
+	int	mon_lengths[2][IPS_MONSPERYEAR] = {
+		{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+		{ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+	};
+
+	days = sctime / IPS_SECSPERDAY;
+	rem  = sctime % IPS_SECSPERDAY;
+
+	command->hour = rem / IPS_SECSPERHOUR;
+	rem           = rem % IPS_SECSPERHOUR;
+
+	command->minute = rem / IPS_SECSPERMIN;
+	command->second = rem % IPS_SECSPERMIN;
+
+	y = IPS_EPOCH_YEAR;
+	while (days < 0 || days >= (long) year_lengths[yleap = ips_isleap(y)]) {
+		long    newy;
+
+		newy = y + days / IPS_DAYSPERNYEAR;
+		if (days < 0)
+			--newy;
+		days -= (newy - y) * IPS_DAYSPERNYEAR +
+			IPS_LEAPS_THRU_END_OF(newy - 1) -
+			IPS_LEAPS_THRU_END_OF(y - 1);
+		y = newy;
+	}
+	command->yearH = y / 100;
+	command->yearL = y % 100;
+	ip = mon_lengths[yleap];
+	for(month = 0; days >= (long) ip[month]; ++month)
+		days = days - (long) ip[month];
+	command->month = month + 1;
+	command->day = days + 1;
+}
+
+static int ips_send_ffdc_reset_cmd(ips_command_t *command)
+{
+	ips_softc_t *sc = command->sc;
+	ips_cmd_status_t *status = command->arg;
+	ips_adapter_ffdc_cmd *command_struct;
+
+	PRINTF(10,"ips test: got a command, building ffdc reset command\n");
+	command->callback = ips_wakeup_callback;
+	command_struct = (ips_adapter_ffdc_cmd *)command->command_buffer;
+	command_struct->command = IPS_FFDC_CMD;
+	command_struct->id = command->id;
+	command_struct->reset_count = sc->ffdc_resetcount;
+	command_struct->reset_type  = 0x80;
+	ips_ffdc_settime(command_struct, sc->ffdc_resettime.tv_sec);
+
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
+			BUS_DMASYNC_PREWRITE);
+	mtx_lock(&sc->cmd_mtx);
+	sc->ips_issue_cmd(command);
+	if (status->value != IPS_ERROR_STATUS)
+		msleep(status, &sc->cmd_mtx, 0, "ffdc", 0);
+	mtx_unlock(&sc->cmd_mtx);
+	ips_insert_free_cmd(sc, command);
+	return 0;
+}
+
+int ips_ffdc_reset(ips_softc_t *sc)
+{
+	ips_cmd_status_t *status;
+	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if(!status)
+		return ENOMEM;
+	if(ips_get_free_cmd(sc, ips_send_ffdc_reset_cmd, status,
+			    IPS_NOWAIT_FLAG)){
+		free(status, M_DEVBUF);
+		device_printf(sc->dev, "ERROR: unable to get a command! can't send ffdc reset!\n");
+	}
+	if(COMMAND_ERROR(status)){
+		device_printf(sc->dev, "ERROR: ffdc reset command failed!\n");
+	}
+	free(status, M_DEVBUF);
+	return 0;
+}
+
 static void ips_write_nvram(ips_command_t *command){
 	ips_softc_t *sc = command->sc;
 	ips_rw_nvram_cmd *command_struct;
@@ -449,6 +536,9 @@ static void ips_write_nvram(ips_command_t *command){
 	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
 				BUS_DMASYNC_POSTREAD);
 	nvram = command->data_buffer;
+	/* retrieve adapter info and save in sc */
+	sc->adapter_type = nvram->adapter_type;
+
 	strncpy(nvram->driver_high, IPS_VERSION_MAJOR, 4);
 	strncpy(nvram->driver_low, IPS_VERSION_MINOR, 4);
 	nvram->operating_system = IPS_OS_FREEBSD;	
