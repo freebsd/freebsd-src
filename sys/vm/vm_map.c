@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.53 1996/07/27 03:23:56 dyson Exp $
+ * $Id: vm_map.c,v 1.54 1996/07/30 03:08:09 dyson Exp $
  */
 
 /*
@@ -230,7 +230,6 @@ vmspace_alloc(min, max, pageable)
 	vm_map_init(&vm->vm_map, min, max, pageable);
 	pmap_pinit(&vm->vm_pmap);
 	vm->vm_map.pmap = &vm->vm_pmap;		/* XXX */
-	vm->vm_pmap.pm_map = &vm->vm_map;
 	vm->vm_refcnt = 1;
 	return (vm);
 }
