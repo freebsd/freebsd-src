@@ -4,6 +4,7 @@
 .include <../Makefile.inc>
 
 PROG = boot1
+LINKS =	${BINDIR}/${PROG} ${BINDIR}/boot
 
 .PATH:		${.CURDIR}/../libalpha
 
