@@ -1,4 +1,4 @@
-/* 
+/*
  *  perm.c - check user permission for at(1)
  *  Copyright (C) 1994  Thomas Koenig
  *
@@ -48,7 +48,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: perm.c,v 1.1 1994/05/10 18:23:08 kernel Exp $";
+static char rcsid[] = "$Id: perm.c,v 1.1 1995/04/12 02:42:37 ache Exp $";
 
 /* Function declarations */
 

@@ -85,8 +85,8 @@ static char *init_string;
 static char *escape_sequence;
 static int hw_flow_control;
 static int lock_baud;
-static unsigned int intercharacter_delay; 
-static unsigned int intercommand_delay; 
+static unsigned int intercharacter_delay;
+static unsigned int intercommand_delay;
 static unsigned int escape_guard_time;
 static unsigned int reset_delay;
 
@@ -157,8 +157,8 @@ void dumpmodemparms (char *modem)
 		print_str (init_string);
 		print_str (escape_sequence);
 		print_num (lock_baud);
-		print_num (intercharacter_delay); 
-		print_num (intercommand_delay); 
+		print_num (intercharacter_delay);
+		print_num (intercommand_delay);
 		print_num (escape_guard_time);
 		print_num (reset_delay);
 		printf ("\n");
@@ -175,7 +175,7 @@ static int getmodemparms (const char *modem)
 
 	ndx = 0;
 
-	if (modempath != NULL) 
+	if (modempath != NULL)
 		db_array [ndx++] = modempath;
 
 	db_array [ndx++] = _PATH_MODEMS;
@@ -336,9 +336,9 @@ int unidialer_get_modem_response (char *buf, int bufsz, int response_timeout)
 					}
 				}
 				break;
-	
+
 			case 1:
-				if (read (FD, &c, 1) == 1) 
+				if (read (FD, &c, 1) == 1)
 				{
 					if (c == '\n')
 					{
@@ -356,9 +356,9 @@ int unidialer_get_modem_response (char *buf, int bufsz, int response_timeout)
 					}
 				}
 				break;
-	
+
 			case 2:
-				if (read (FD, &c, 1) == 1) 
+				if (read (FD, &c, 1) == 1)
 				{
 					if (c == '\r')
 						++state;
@@ -366,9 +366,9 @@ int unidialer_get_modem_response (char *buf, int bufsz, int response_timeout)
 						*p++ = c;
 				}
 				break;
-	
+
 			case 3:
-				if (read (FD, &c, 1) == 1) 
+				if (read (FD, &c, 1) == 1)
 				{
 					if (c == '\n')
 					{
@@ -416,7 +416,7 @@ static int unidialer_dialer (register char *num, char *acu)
 
 	if (lock_baud) {
 		int i;
-		if ((i = speed(number(value(BAUDRATE)))) == NULL) 
+		if ((i = speed(number(value(BAUDRATE)))) == NULL)
 			return 0;
 		ttysetup (i);
 	}
@@ -694,19 +694,19 @@ static int unidialersync ()
 	char buf[40];
 
 	while (already++ < MAXRETRY) {
-		acu_nap (intercommand_delay); 
+		acu_nap (intercommand_delay);
 		acu_flush (); /* flush any clutter */
 		unidialer_write_str (FD, reset_command); /* reset modem */
 		bzero(buf, sizeof(buf));
-		acu_nap (reset_delay); 
+		acu_nap (reset_delay);
 		ioctl (FD, FIONREAD, &len);
 		if (len) {
 			len = read(FD, buf, sizeof(buf));
-#ifdef DEBUG 
+#ifdef DEBUG
 			buf [len] = '\0';
 			printf("unidialersync (%s): (\"%s\")\n\r", modem_name, buf);
 #endif
-			if (index(buf, '0') || 
+			if (index(buf, '0') ||
 		   	   (index(buf, 'O') && index(buf, 'K')))
 				return(1);
 		}
@@ -722,12 +722,12 @@ static int unidialersync ()
 		 * Toggle DTR to force anyone off that might have left
 		 * the modem connected.
 		 */
-		acu_nap (escape_guard_time); 
+		acu_nap (escape_guard_time);
 		ioctl (FD, TIOCCDTR, 0);
-		acu_nap (1000); 
+		acu_nap (1000);
 		ioctl (FD, TIOCSDTR, 0);
 	}
-	acu_nap (intercommand_delay); 
+	acu_nap (intercommand_delay);
 	unidialer_write_str (FD, reset_command);
 	return (0);
 }
@@ -747,12 +747,12 @@ static void unidialer_modem_cmd (int fd, const char *cmd)
 		naptime = oldt.tv_sec * 1000 + oldt.tv_usec / 1000;
 		if (naptime > intercommand_delay)
 		{
-#ifdef DEBUG 
+#ifdef DEBUG
 		printf ("unidialer_modem_cmd: suspicious naptime (%u ms)\r\n", naptime);
 #endif
 			naptime = intercommand_delay;
 		}
-#ifdef DEBUG 
+#ifdef DEBUG
 		printf ("unidialer_modem_cmd: delaying %u ms\r\n", naptime);
 #endif
 		acu_nap (naptime);
@@ -760,7 +760,7 @@ static void unidialer_modem_cmd (int fd, const char *cmd)
 	unidialer_write_str (fd, cmd);
 	tod_gettime (&oldt);
 	newt.tv_sec = 0;
-	newt.tv_usec = intercommand_delay; 
+	newt.tv_usec = intercommand_delay;
 	tod_addto (&oldt, &newt);
 }
 

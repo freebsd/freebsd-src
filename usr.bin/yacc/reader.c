@@ -704,7 +704,7 @@ get_literal()
     n = cinc;
     s = MALLOC(n);
     if (s == 0) no_space();
-    
+
     for (i = 0; i < n; ++i)
 	s[i] = cache[i];
 

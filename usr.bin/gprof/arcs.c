@@ -224,7 +224,7 @@ doarcs()
 	 */
     doflags();
 	/*
-	 *	starting from the topological bottom, 
+	 *	starting from the topological bottom,
 	 *	propogate children times up to parents.
 	 */
     dotime();
@@ -416,7 +416,7 @@ cyclelink()
 	    /*
 	     *	link members to cycle header
 	     */
-	for ( memberp = nlp ; memberp ; memberp = memberp -> cnext ) { 
+	for ( memberp = nlp ; memberp ; memberp = memberp -> cnext ) {
 	    memberp -> cycleno = cycle;
 	    memberp -> cyclehead = cyclenlp;
 	}
@@ -847,7 +847,7 @@ doflags()
 	    }
 	} else {
 		/*
-		 *	it has parents to pass time to, 
+		 *	it has parents to pass time to,
 		 *	but maybe someone wants to shut it up
 		 *	by puttting it on -E list.  (but favor -F over -E)
 		 */
@@ -874,7 +874,7 @@ doflags()
     /*
      *	check if any parent of this child
      *	(or outside parents of this cycle)
-     *	have their print flags on and set the 
+     *	have their print flags on and set the
      *	print flag of the child (cycle) appropriately.
      *	similarly, deal with propagation fractions from parents.
      */
@@ -915,7 +915,7 @@ inheritflags( childp )
 	}
     } else {
 	    /*
-	     *	its a member of a cycle, look at all parents from 
+	     *	its a member of a cycle, look at all parents from
 	     *	outside the cycle
 	     */
 	headp -> printflag = FALSE;

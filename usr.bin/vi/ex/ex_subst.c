@@ -112,7 +112,7 @@ ex_substitute(sp, ep, cmdp)
 	 * state of the 'c' and 'g' suffices.
 	 */
 	sp->c_suffix = sp->g_suffix = 0;
-	
+
 	/*
 	 * Get the pattern string, toss escaped characters.
 	 *

@@ -80,7 +80,7 @@ static	char	**c_header = &unk_hdr[0];
  *	define msg = .*
  *	define digit = [0-9]
  *	definename = .*
- *	define date_format letter*3 letter*3 (digit | (digit digit)) 
+ *	define date_format letter*3 letter*3 (digit | (digit digit))
  *			(digit | (digit digit)):digit*2 digit*4
  *
  *	{e,E} (piptr) (msg)	Encounter an error during textual scan
@@ -91,7 +91,7 @@ static	char	**c_header = &unk_hdr[0];
  *	... (msg)		When refer to the previous line
  *	'In' ('procedure'|'function'|'program') (name):
  *				pi is now complaining about 2nd pass errors.
- *	
+ *
  *	Here is the output from a compilation
  *
  *
@@ -291,7 +291,7 @@ Errorclass pi()
 		 *
 		 *	Turns into a message of the form:
 		 *	filename (header) letter - message
-		 *	
+		 *
 		 *	First, see if it is a message referring to more than
 		 *	one line number.  Only of the form:
  		 *		%s undefined on line%s

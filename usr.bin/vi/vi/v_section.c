@@ -137,7 +137,7 @@ v_sectionf(sp, ep, vp)
 		/*
 		 * !!!
 		 * Historic documentation (USD:15-11, 4.2) said that formfeed
-		 * characters (^L) in the first column delimited sections.  
+		 * characters (^L) in the first column delimited sections.
 		 * The historic code mentions formfeed characters, but never
 		 * implements them.  Seems reasonable, do it.
 		 */
@@ -228,7 +228,7 @@ v_sectionb(sp, ep, vp)
 		/*
 		 * !!!
 		 * Historic documentation (USD:15-11, 4.2) said that formfeed
-		 * characters (^L) in the first column delimited sections.  
+		 * characters (^L) in the first column delimited sections.
 		 * The historic code mentions formfeed characters, but never
 		 * implements them.  Seems reasonable, do it.
 		 */

@@ -46,27 +46,27 @@ int tod_cmp (const struct timeval *a, const struct timeval *b)
 /*
 	TOD < command
 */
-int tod_lt (const struct timeval *a, const struct timeval *b) 
+int tod_lt (const struct timeval *a, const struct timeval *b)
 {
 	return tod_cmp (a, b) < 0;
 }
 
-int tod_gt (const struct timeval *a, const struct timeval *b) 
+int tod_gt (const struct timeval *a, const struct timeval *b)
 {
 	return tod_cmp (a, b) > 0;
 }
 
-int tod_lte (const struct timeval *a, const struct timeval *b) 
+int tod_lte (const struct timeval *a, const struct timeval *b)
 {
 	return tod_cmp (a, b) <= 0;
 }
 
-int tod_gte (const struct timeval *a, const struct timeval *b) 
+int tod_gte (const struct timeval *a, const struct timeval *b)
 {
 	return tod_cmp (a, b) >= 0;
 }
 
-int tod_eq (const struct timeval *a, const struct timeval *b) 
+int tod_eq (const struct timeval *a, const struct timeval *b)
 {
 	return tod_cmp (a, b) == 0;
 }

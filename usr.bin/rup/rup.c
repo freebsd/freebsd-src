@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rup.c,v 1.3 1994/04/10 10:42:28 csgr Exp $";
+static char rcsid[] = "$Id: rup.c,v 1.1.1.1 1994/08/28 15:01:31 csgr Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct host_list {
 int search_host(struct in_addr addr)
 {
 	struct host_list *hp;
-	
+
 	if (!hosts)
 		return(0);
 
@@ -98,7 +98,7 @@ rstat_reply(char *replyp, struct sockaddr_in *raddrp)
 
 	if (search_host(raddrp->sin_addr))
 		return(0);
-	
+
 	hp = gethostbyaddr((char *)&raddrp->sin_addr.s_addr,
 			   sizeof(struct in_addr), AF_INET);
 	if (hp)
@@ -155,7 +155,7 @@ onehost(char *host)
 	statstime host_stat;
 	struct sockaddr_in addr;
 	struct hostent *hp;
-	
+
 	hp = gethostbyname(host);
 	if (hp == NULL) {
 		fprintf(stderr, "%s: unknown host \"%s\"\n",
@@ -208,14 +208,14 @@ main(int argc, char *argv[])
 		argv0 = argv[0];
 	else
 		argv0++;
-    
+
 	while ((ch = getopt(argc, argv, "?")) != -1)
 		switch (ch) {
 		default:
 			usage();
 			/*NOTREACHED*/
 		}
-	
+
 	setlinebuf(stdout);
 	if (argc == optind)
 		allhosts();

@@ -125,7 +125,7 @@ struct sockaddr_in *sin;
 		printf("%s\n", inet_ntoa(ss_addr));
 	return 0;
 }
-	
+
 int
 main(argc, argv)
 char **argv;

@@ -157,8 +157,8 @@ char *argv[];
 		}
 		if(strcmp(passwd,passwd2) == 0) break;
 		fprintf(stderr, "Sorry no match\n");
-		
-	
+
+
 	}
 	strcpy(seed,defaultseed);
 

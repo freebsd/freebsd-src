@@ -63,8 +63,8 @@ check_local()
 	if (!look_for_invite(rp))
 		return (0);
 	/*
-	 * There was an invitation waiting for us, 
-	 * so connect with the other (hopefully waiting) party 
+	 * There was an invitation waiting for us,
+	 * so connect with the other (hopefully waiting) party
 	 */
 	current_state = "Waiting to connect with caller";
 	do {
@@ -78,7 +78,7 @@ check_local()
 	if (errno == ECONNREFUSED) {
 		/*
 		 * The caller gave up, but his invitation somehow
-		 * was not cleared. Clear it and initiate an 
+		 * was not cleared. Clear it and initiate an
 		 * invitation. (We know there are no newer invitations,
 		 * the talkd works LIFO.)
 		 */

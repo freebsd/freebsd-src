@@ -147,7 +147,7 @@ process_file(fname)
 	FILE *fp;
 	int retval;
 	char magic[SARMAG];
-    
+
 	if (!(fp = fopen(fname, "r"))) {
 		(void)fprintf(stderr, "nm: cannot read %s.\n", fname);
 		return(1);
@@ -155,7 +155,7 @@ process_file(fname)
 
 	if (fcount > 1)
 		(void)printf("\n%s:\n", fname);
-    
+
 	/*
 	 * first check whether this is an object file - read a object
 	 * header, and skip back to the beginning

@@ -85,5 +85,5 @@ append(argv)
 		(void)close(fd);
 	}
 	close_archive(afd);
-	return (eval);	
+	return (eval);
 }

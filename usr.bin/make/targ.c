@@ -269,11 +269,11 @@ Targ_FindNode (name, flags)
 /*-
  *-----------------------------------------------------------------------
  * Targ_FindList --
- *	Make a complete list of GNodes from the given list of names 
+ *	Make a complete list of GNodes from the given list of names
  *
  * Results:
  *	A complete list of graph nodes corresponding to all instances of all
- *	the names in names. 
+ *	the names in names.
  *
  * Side Effects:
  *	If flags is TARG_CREATE, nodes will be created for all names in
@@ -390,7 +390,7 @@ Targ_Precious (gn)
 /******************* DEBUG INFO PRINTING ****************/
 
 static GNode	  *mainTarg;	/* the main target, as set by Targ_SetMain */
-/*- 
+/*-
  *-----------------------------------------------------------------------
  * Targ_SetMain --
  *	Set our idea of the main target we'll be creating. Used for
@@ -472,7 +472,7 @@ Targ_FmtTime (time)
 	     months[parts->tm_mon], parts->tm_mday, parts->tm_year);
     return(buf);
 }
-    
+
 /*-
  *-----------------------------------------------------------------------
  * Targ_PrintType --
@@ -490,7 +490,7 @@ Targ_PrintType (type)
     register int    type;
 {
     register int    tbit;
-    
+
 #ifdef __STDC__
 #define PRINTBIT(attr)	case CONCAT(OP_,attr): printf("." #attr " "); break
 #define PRINTDBIT(attr) case CONCAT(OP_,attr): if (DEBUG(TARG)) printf("." #attr " "); break
@@ -577,7 +577,7 @@ TargPrintNode (gnp, passp)
 	    Lst_ForEach (gn->parents, TargPrintName, (ClientData)0);
 	    fputc ('\n', stdout);
 	}
-	
+
 	printf("%-16s", gn->name);
 	switch (gn->type & OP_OPMASK) {
 	    case OP_DEPENDS:

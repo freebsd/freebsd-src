@@ -2,7 +2,7 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: fcrypt.c,v 1.2 1994/07/19 19:21:58 g89r4222 Exp $
+ *	$Id: fcrypt.c,v 1.1.1.1 1994/09/30 14:49:51 csgr Exp $
  */
 
 #include <stdio.h>
@@ -384,7 +384,7 @@ des_key_schedule schedule;
 		/* table contained 0213 4657 */
 		*(k++)=((t<<16)|(s&0x0000ffff))&0xffffffff;
 		s=     ((s>>16)|(t&0xffff0000));
-		
+
 		s=(s<<4)|(s>>28);
 		*(k++)=s&0xffffffff;
 		}
@@ -396,7 +396,7 @@ des_key_schedule schedule;
  ******************************************************************/
 
 /* The changes to this macro may help or hinder, depending on the
- * compiler and the achitecture.  gcc2 always seems to do well :-). 
+ * compiler and the achitecture.  gcc2 always seems to do well :-).
  * Inspired by Dana How <how@isl.stanford.edu>
  * DO NOT use the alternative version on machines with 8 byte longs.
  */

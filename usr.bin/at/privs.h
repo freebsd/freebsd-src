@@ -1,5 +1,5 @@
-/* 
- *  privs.h - header for privileged operations 
+/*
+ *  privs.h - header for privileged operations
  *  Copyright (C) 1993  Thomas Koenig
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -62,7 +62,7 @@ extern
 #endif
 uid_t real_uid, effective_uid;
 
-#ifndef MAIN 
+#ifndef MAIN
 extern
 #endif
 gid_t real_gid, effective_gid;

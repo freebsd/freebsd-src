@@ -125,9 +125,9 @@ char *tgoto();
 
 /*
  * Change terminal to "raw mode", or restore to "normal" mode.
- * "Raw mode" means 
+ * "Raw mode" means
  *	1. An outstanding read will complete on receipt of a single keystroke.
- *	2. Input is not echoed.  
+ *	2. Input is not echoed.
  *	3. On output, \n is mapped to \r\n.
  *	4. \t is NOT expanded into spaces.
  *	5. Signal-causing characters such as ctrl-C (interrupt),
@@ -340,7 +340,7 @@ get_term()
 	if (hard || sc_move == NULL || *sc_move == '\0')
 	{
 		/*
-		 * This is not an error here, because we don't 
+		 * This is not an error here, because we don't
 		 * always need sc_move.
 		 * We need it only if we don't have home or lower-left.
 		 */
@@ -382,7 +382,7 @@ get_term()
 		{
 			/*
 			 * This last resort for sc_home is supposed to
-			 * be an up-arrow suggesting moving to the 
+			 * be an up-arrow suggesting moving to the
 			 * top of the "virtual screen". (The one in
 			 * your imagination as you try to use this on
 			 * a hard copy terminal.)
@@ -390,7 +390,7 @@ get_term()
 			sc_home = "|\b^";
 		} else
 		{
-			/* 
+			/*
 			 * No "home" string,
 			 * but we can use "move(0,0)".
 			 */
@@ -409,7 +409,7 @@ get_term()
 		} else
 		{
 			/*
-			 * No "lower-left" string, 
+			 * No "lower-left" string,
 			 * but we can use "move(0,last-line)".
 			 */
 			(void)strcpy(sp, tgoto(sc_move, 0, sc_height-1));
@@ -422,7 +422,7 @@ get_term()
 	 * To add a line at top of screen and scroll the display down,
 	 * we use "al" (add line) or "sr" (scroll reverse).
 	 */
-	if ((sc_addline = tgetstr("al", &sp)) == NULL || 
+	if ((sc_addline = tgetstr("al", &sp)) == NULL ||
 		 *sc_addline == '\0')
 		sc_addline = tgetstr("sr", &sp);
 
@@ -445,7 +445,7 @@ get_term()
 
 
 /*
- * Below are the functions which perform all the 
+ * Below are the functions which perform all the
  * terminal-specific screen manipulation.
  */
 
@@ -551,7 +551,7 @@ so_exit()
 }
 
 /*
- * Begin "underline" (hopefully real underlining, 
+ * Begin "underline" (hopefully real underlining,
  * otherwise whatever the terminal provides).
  */
 ul_enter()
@@ -588,12 +588,12 @@ bo_exit()
 }
 
 /*
- * Erase the character to the left of the cursor 
+ * Erase the character to the left of the cursor
  * and move the cursor left.
  */
 backspace()
 {
-	/* 
+	/*
 	 * Try to erase the previous character by overstriking with a space.
 	 */
 	tputs(sc_backspace, 1, putchr);

@@ -153,7 +153,7 @@ main(argc, argv)
 		case FTS_D:			/* Ignore. */
 			break;
 		case FTS_DP:
-			p->fts_parent->fts_number += 
+			p->fts_parent->fts_number +=
 			    p->fts_number += p->fts_statp->st_blocks;
 			/*
 			 * If listing each directory, or not listing files

@@ -55,7 +55,7 @@ char *s;
 VOID traceset()
 {
      dotrace(sw.trace);
-     
+
      if (trace||atrace||ctrace||dtrace||etrace||gtrace||itrace||mtrace||ntrace)
           fprintf(stderr,
 "TRACESET: state=%d;att=%d;con=%d;dcl=%d;ent=%d;grp=%d;id=%d;ms=%d;dcn=%d.\n",
@@ -67,7 +67,7 @@ VOID traceset()
 VOID tracepro()
 {
      dotrace(sw.ptrace);
-     
+
      if (trace||atrace||dtrace||etrace||gtrace||mtrace||ntrace)
 	  fprintf(stderr,
 		  "TRACEPRO: state=%d; att=%d; dcl=%d; ent=%d; grp=%d; ms=%d; dcn=%d.\n",
@@ -217,7 +217,7 @@ struct entity *p;
 VOID tracedcn(p)
 struct dcncb *p;
 {
-     fprintf(stderr, 
+     fprintf(stderr,
 	    "DCN      dcn=%p; adl=%p; notation is %s\n",
 	     (UNIV)p, (UNIV)p->adl, p->ename+1);
      if (p->adl)
@@ -245,7 +245,7 @@ TECB pg;
 UNCH *gi;
 {
      int i = 0;               /* Loop counter. */
-     
+
      if (pg==SRMNULL)
 	  fprintf(stderr, "%-8s SHORTREF table empty for %s.\n", action, gi);
      else {
@@ -264,12 +264,12 @@ VOID traceadl(al)
 struct ad al[];
 {
      int i=0;
-     
+
      fprintf(stderr, "ADLIST   %p %d membe%s; %d attribut%s\n",
 	     (UNIV)al, ADN(al), ADN(al)==1 ? "r" : "rs", AN(al),
 	     AN(al)==1 ? "e" : "es");
      while (++i<=ADN(al)) {
-          fprintf(stderr, 
+          fprintf(stderr,
 		  (BITOFF(ADFLAGS(al,i), AGROUP) && ADTYPE(al,i)<=ANOTEGRP)
 		  ? "          %p %-8s %02x %02x %2d %2d %p %p\n"
 		  : "    %p %-8s %02x %02x %2d %2d %p %p\n",
@@ -325,7 +325,7 @@ VOID tracegrp(pg)
 struct etd *pg[];
 {
      int i = -1;              /* Loop counter. */
-     
+
      fprintf(stderr, "ETDGRP   %p\n", (UNIV)pg);
      while (pg[++i]!=0)
 	  fprintf(stderr, "         %p %s\n", (UNIV)pg[i], pg[i]->etdgi+1);
@@ -336,7 +336,7 @@ VOID tracengr(pg)
 struct dcncb *pg[];
 {
      int i = -1;              /* Loop counter. */
-     
+
      fprintf(stderr, "DCNGRP   %p\n", (UNIV)pg);
      while (pg[++i]!=0)
 	  fprintf(stderr, "         %p %s\n", (UNIV)pg[i], pg[i]->ename+1);
@@ -346,7 +346,7 @@ struct dcncb *pg[];
 VOID traceetd(p)
 struct etd *p;                /* Pointer to an etd. */
 {
-     fprintf(stderr, 
+     fprintf(stderr,
 "ETD      etd=%p %s min=%02x cmod=%p ttype=%02x mex=%p, pex=%p, ",
 	     (UNIV)p, p->etdgi+1, p->etdmin, (UNIV)p->etdmod,
 	     p->etdmod->ttype, (UNIV)p->etdmex, (UNIV)p->etdpex);
@@ -408,7 +408,7 @@ struct mpos pos[];            /* Position in open element's model. */
 int Tstart;                   /* Initial T for this group. */
 {
      int i = 0;               /* Loop counter. */
-     
+
      fprintf(stderr, "%-10s %d:", stagenm, P);
      while (++i<=P)
 	  fprintf(stderr, " %d-%d", pos[i].g, pos[i].t);
@@ -436,7 +436,7 @@ int opt;                      /* ALLHIT parm: 1=test optionals; 0=ignore. */
 int Tstart;                   /* Initial T for this group. */
 {
      int i = 0;               /* Loop counter. */
-     
+
      fprintf(stderr, "%-10s %d:", stagenm, P);
      while (++i<=P)
 	  fprintf(stderr, " %d-%d", pos[i].g, pos[i].t);

@@ -330,7 +330,7 @@ term_push(sp, s, nchars, flags)
 {
 	IBUF *tty;
 	size_t total;
-	
+
 	/* If we have room, stuff the keys into the buffer. */
 	tty = sp->gp->tty;
 	if (nchars <= tty->next ||
@@ -563,7 +563,7 @@ remap:		qp = seq_find(sp, NULL, &tty->ch[tty->next], tty->cnt,
 			goto loop;
 
 		/* If remapping characters, push the character on the queue. */
-		if (O_ISSET(sp, O_REMAP)) { 
+		if (O_ISSET(sp, O_REMAP)) {
 			if (init_nomap) {
 				if (term_push(sp, qp->output + qp->ilen,
 				    qp->olen - qp->ilen, CH_MAPPED))

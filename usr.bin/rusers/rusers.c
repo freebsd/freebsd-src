@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers.c,v 1.1 1993/09/16 01:15:48 jtc Exp $";
+static char rcsid[] = "$Id: rusers.c,v 1.1.1.1 1994/08/28 15:06:02 csgr Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -61,7 +61,7 @@ struct host_list {
 int search_host(struct in_addr addr)
 {
 	struct host_list *hp;
-	
+
 	if (!hosts)
 		return(0);
 
@@ -93,23 +93,23 @@ rusers_reply(char *replyp, struct sockaddr_in *raddrp)
         utmpidlearr *up = (utmpidlearr *)replyp;
         char *host;
         int days, hours, minutes, seconds;
-        
+
 	if (search_host(raddrp->sin_addr))
 		return(0);
 
         if (!allopt && !up->utmpidlearr_len)
                 return(0);
-        
+
         hp = gethostbyaddr((char *)&raddrp->sin_addr.s_addr,
                            sizeof(struct in_addr), AF_INET);
         if (hp)
                 host = hp->h_name;
         else
                 host = inet_ntoa(raddrp->sin_addr);
-        
+
         if (!longopt)
                 printf("%-*s ", HOST_WIDTH, host);
-        
+
         for (x = 0; x < up->utmpidlearr_len; x++) {
                 strncpy(date,
                         &(ctime((time_t *)&(up->utmpidlearr_val[x].ui_utmp.ut_time))[4]),
@@ -159,7 +159,7 @@ rusers_reply(char *replyp, struct sockaddr_in *raddrp)
         }
         if (!longopt)
                 putchar('\n');
-        
+
 	remember_host(raddrp->sin_addr);
 	return(0);
 }
@@ -170,7 +170,7 @@ onehost(char *host)
         CLIENT *rusers_clnt;
         struct sockaddr_in addr;
         struct hostent *hp;
-        
+
         hp = gethostbyname(host);
         if (hp == NULL) {
                 fprintf(stderr, "%s: unknown host \"%s\"\n",
@@ -218,7 +218,7 @@ main(int argc, char *argv[])
 {
         int ch;
         extern int optind;
-        
+
         if (!(argv0 = rindex(argv[0], '/')))
                 argv0 = argv[0];
         else

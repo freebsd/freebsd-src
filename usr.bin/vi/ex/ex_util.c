@@ -113,7 +113,7 @@ ex_sleave(sp)
 	/* Ignore sessions not using tty's. */
 	if (!F_ISSET(sp->gp, G_STDIN_TTY))
 		return (1);
-	
+
 	exp = EXP(sp);
 	if (tcgetattr(STDIN_FILENO, &exp->leave_term)) {
 		msgq(sp, M_SYSERR, "tcgetattr");

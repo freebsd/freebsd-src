@@ -264,7 +264,7 @@ typedef struct {
     short
 	begin;			/* Offset within buffer */
 } BufferDescriptor;
-    
+
 typedef struct {
     char
 	rc,
@@ -345,7 +345,7 @@ typedef struct {
 
 #if	defined(vax) || defined(ns32000) || defined(i386) || (defined(mips)&&defined(MIPSEL))
 #define	BYTE_ORDER	LITTLE_ENDIAN
-#endif	/* defined(vax) || defined(ns32000) */ 
+#endif	/* defined(vax) || defined(ns32000) */
 
 #if	defined(sun) || defined(tahoe) || defined(ibm032) || defined(pyr) || defined(gould) || (defined(mips)&&defined(MIPSEB))
 #define	BYTE_ORDER	BIG_ENDIAN

@@ -721,7 +721,7 @@ UNCH *tbuf;                   /* Work area for tokenization (tbuf). */
           mderr(129, tbuf+1, (UNCH *)0);
           return;
      }
-     /* Must omit omitted end-tag minimization, if omitted 
+     /* Must omit omitted end-tag minimization, if omitted
 	start-tag minimization was omitted (because OMITTAG == NO). */
      if (!minomitted) {
 	  /* PARAMETER 2B: End-tag minimization.

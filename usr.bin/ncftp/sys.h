@@ -257,7 +257,7 @@ extern int errno;
 #	define Select(a,b,c,d,e) select((a), (int *)(b), (c), (d), (e))
 #endif
 
-#ifdef HPUX 
+#ifdef HPUX
 #	define System "HP-UX"
 #	ifndef _HPUX_SOURCE
 #		define _HPUX_SOURCE 1
@@ -596,7 +596,7 @@ extern	void    bcopy(char *, char *, size_t);
 extern	void    bzero(char *, size_t);
 #endif
 
-#ifdef SOCKS 
+#ifdef SOCKS
 extern	int     Raccept(int, struct sockaddr *, int *);
 extern	int     Rbind(int, struct sockaddr *, int, unsigned long);
 extern	int     Rconnect(int, struct sockaddr *, int);

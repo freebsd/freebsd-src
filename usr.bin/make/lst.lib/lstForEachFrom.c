@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)lstForEachFrom.c	8.1 (Berkeley) 6/6/93";
  * Lst_ForEachFrom --
  *	Apply the given function to each element of the given list. The
  *	function should return 0 if traversal should continue and non-
- *	zero if it should abort. 
+ *	zero if it should abort.
  *
  * Results:
  *	None.
@@ -74,19 +74,19 @@ Lst_ForEachFrom (l, ln, proc, d)
     register ListNode	next;
     Boolean 	    	done;
     int     	    	result;
-    
+
     if (!LstValid (list) || LstIsEmpty (list)) {
 	return;
     }
-    
+
     do {
 	/*
 	 * Take care of having the current element deleted out from under
 	 * us.
 	 */
-	
+
 	next = tln->nextPtr;
-	
+
 	(void) tln->useCount++;
 	result = (*proc) (tln->datum, d);
 	(void) tln->useCount--;
@@ -99,7 +99,7 @@ Lst_ForEachFrom (l, ln, proc, d)
 	 */
 	done = (next == tln->nextPtr &&
 		(next == NilListNode || next == list->firstPtr));
-	
+
 	next = tln->nextPtr;
 
 	if (tln->flags & LN_DELETED) {
@@ -107,5 +107,5 @@ Lst_ForEachFrom (l, ln, proc, d)
 	}
 	tln = next;
     } while (!result && !LstIsEmpty(list) && !done);
-    
+
 }

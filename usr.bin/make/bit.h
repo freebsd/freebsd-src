@@ -96,5 +96,5 @@ extern Boolean	  Bit_Intersect();
 extern Boolean 	  Bit_Union();
 extern Boolean 	  Bit_AnySet();
 extern int  	  *Bit_Expand();
-	 
+
 #endif /* _BIT */

@@ -73,7 +73,7 @@ int	errorsort();
 void	onintr();
 /*
  *	error [-I ignorename] [-n] [-q] [-t suffixlist] [-s] [-v] [infile]
- *	
+ *
  *	-T:	terse output
  *
  *	-I:	the following name, `ignorename' contains a list of
@@ -155,7 +155,7 @@ main(argc, argv)
 				ignorename = argv[1];
 			break;
 		}
-	}	
+	}
 	if (notouch)
 		suffixlist = 0;
 	if (argc > 1){

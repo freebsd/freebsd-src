@@ -386,7 +386,7 @@ UNCH *parm2;                  /* Additional parameters (or NULL). */
 {
      struct error err;
      errorinit(&err, subdcl ? MDERR : MDERR2, number);
-     err.parmno = parmno; 
+     err.parmno = parmno;
      err.subdcl = subdcl;
      err.eparm[0] = (UNIV)parm1;
      err.eparm[1] = (UNIV)parm2;

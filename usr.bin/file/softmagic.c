@@ -33,8 +33,8 @@
 #include "file.h"
 
 #ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: softmagic.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
+static char *moduleid =
+	"@(#)$Id: softmagic.c,v 1.2 1995/05/24 02:54:30 ache Exp $";
 #endif	/* lint */
 
 static int match	__P((unsigned char *, int));
@@ -46,7 +46,7 @@ static void mdebug	__P((long, char *, int));
 static int mconvert	__P((union VALUETYPE *, struct magic *));
 
 /*
- * softmagic - lookup one file in database 
+ * softmagic - lookup one file in database
  * (already read from /etc/magic by apprentice.c).
  * Passed the name and FILE * of one file to be typed.
  */
@@ -103,7 +103,7 @@ int nbytes;
 		/* if main entry matches, print it... */
 		if (!mget(&p, s, &magic[magindex], nbytes) ||
 		    !mcheck(&p, &magic[magindex])) {
-			    /* 
+			    /*
 			     * main entry didn't match,
 			     * flush its continuations
 			     */
@@ -122,7 +122,7 @@ int nbytes;
 			need_separator = 1;
 		/* and any continuations that match */
 		cont_level++;
-		while (magic[magindex+1].cont_level != 0 && 
+		while (magic[magindex+1].cont_level != 0 &&
 		       ++magindex < nmagic) {
 			if (cont_level >= magic[magindex].cont_level) {
 				if (cont_level > magic[magindex].cont_level) {

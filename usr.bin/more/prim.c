@@ -115,7 +115,7 @@ forw(n, pos, only_last)
 	squish_check();
 
 	/*
-	 * do_repaint tells us not to display anything till the end, 
+	 * do_repaint tells us not to display anything till the end,
 	 * then just repaint the entire screen.
 	 */
 	do_repaint = (only_last && n > sc_height-1);
@@ -290,7 +290,7 @@ backward(n, only_last)
 	 * never empty.
 	 */
 	if (pos == NULL_POSITION)
-		return;   
+		return;
 	back(n, pos, only_last);
 }
 
@@ -356,9 +356,9 @@ jump_back(n)
 	 *    nearest known line rather than at the beginning. }}
 	 */
 	if (ch_seek((off_t)0)) {
-		/* 
-		 * Probably a pipe with beginning of file no longer buffered. 
-		 * If he wants to go to line 1, we do the best we can, 
+		/*
+		 * Probably a pipe with beginning of file no longer buffered.
+		 * If he wants to go to line 1, we do the best we can,
 		 * by going to the first line which is still buffered.
 		 */
 		if (n <= 1 && ch_beg_seek() == 0)
@@ -429,7 +429,7 @@ jump_loc(pos)
 
 	if ((nline = onscreen(pos)) >= 0) {
 		/*
-		 * The line is currently displayed.  
+		 * The line is currently displayed.
 		 * Just scroll there.
 		 */
 		forw(nline, position(BOTTOM_PLUS_ONE), 0);
@@ -579,7 +579,7 @@ get_back_scroll()
 }
 
 /*
- * Search for the n-th occurence of a specified pattern, 
+ * Search for the n-th occurence of a specified pattern,
  * either forward or backward.
  */
 search(search_forward, pattern, n, wantmatch)
@@ -603,9 +603,9 @@ search(search_forward, pattern, n, wantmatch)
 			regfree(&rx);
 		}
 
-		regerr = regcomp(&rx, pattern, (REG_EXTENDED | REG_NOSUB 
+		regerr = regcomp(&rx, pattern, (REG_EXTENDED | REG_NOSUB
 						| (caseless ? REG_ICASE : 0)));
-		
+
 		if (regerr) {
 			regerror(regerr, &rx, errbuf, sizeof errbuf);
 			error(errbuf);
@@ -618,7 +618,7 @@ search(search_forward, pattern, n, wantmatch)
 		error("No previous regular expression");
 		return 0;
 	}
-	
+
 	/*
 	 * Figure out where to start the search.
 	 */
@@ -656,8 +656,8 @@ search(search_forward, pattern, n, wantmatch)
 	for (;;)
 	{
 		/*
-		 * Get lines until we find a matching one or 
-		 * until we hit end-of-file (or beginning-of-file 
+		 * Get lines until we find a matching one or
+		 * until we hit end-of-file (or beginning-of-file
 		 * if we're going backwards).
 		 */
 		if (sigs)
@@ -669,7 +669,7 @@ search(search_forward, pattern, n, wantmatch)
 		if (search_forward)
 		{
 			/*
-			 * Read the next line, and save the 
+			 * Read the next line, and save the
 			 * starting position of that line in linepos.
 			 */
 			linepos = pos;

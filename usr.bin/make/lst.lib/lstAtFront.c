@@ -65,7 +65,7 @@ Lst_AtFront (l, d)
     ClientData	d;
 {
     register LstNode	front;
-    
+
     front = Lst_First (l);
     return (Lst_Insert (l, front, d));
 }

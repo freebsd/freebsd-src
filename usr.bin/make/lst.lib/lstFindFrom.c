@@ -69,13 +69,13 @@ Lst_FindFrom (l, ln, d, cProc)
 {
     register ListNode	tln;
     Boolean		found = FALSE;
-    
+
     if (!LstValid (l) || LstIsEmpty (l) || !LstNodeValid (ln, l)) {
 	return (NILLNODE);
     }
-    
+
     tln = (ListNode)ln;
-    
+
     do {
 	if ((*cProc) (tln->datum, d) == 0) {
 	    found = TRUE;
@@ -84,7 +84,7 @@ Lst_FindFrom (l, ln, d, cProc)
 	    tln = tln->nextPtr;
 	}
     } while (tln != (ListNode)ln && tln != NilListNode);
-    
+
     if (found) {
 	return ((LstNode)tln);
     } else {

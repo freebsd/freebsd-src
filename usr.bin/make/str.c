@@ -38,7 +38,7 @@
 
 #ifndef lint
 /* from: static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90"; */
-static char *rcsid = "$Id: str.c,v 1.8 1994/06/16 18:50:18 jtc Exp $";
+static char *rcsid = "$Id: str.c,v 1.3 1995/01/23 21:02:00 jkh Exp $";
 #endif				/* not lint */
 
 #include "make.h"
@@ -216,7 +216,7 @@ brk_string(str, store_argc, expand)
 				ch = *++p;
 				break;
 			}
-				
+
 			switch (ch = *++p) {
 			case '\0':
 			case '\n':
@@ -253,12 +253,12 @@ done:	argv[argc] = (char *)NULL;
 
 /*
  * Str_FindSubstring -- See if a string contains a particular substring.
- * 
+ *
  * Results: If string contains substring, the return value is the location of
  * the first matching instance of substring in string.  If string doesn't
  * contain substring, the return value is NULL.  Matching is done on an exact
  * character-for-character basis with no wildcards or special characters.
- * 
+ *
  * Side effects: None.
  */
 char *
@@ -291,13 +291,13 @@ Str_FindSubstring(string, substring)
 
 /*
  * Str_Match --
- * 
+ *
  * See if a particular string matches a particular pattern.
- * 
+ *
  * Results: Non-zero is returned if string matches pattern, 0 otherwise. The
  * matching operation permits the following special characters in the
  * pattern: *?\[] (see the man page for details on what these mean).
- * 
+ *
  * Side effects: None.
  */
 int
@@ -394,8 +394,8 @@ thisCharOK:	++pattern;
 /*-
  *-----------------------------------------------------------------------
  * Str_SYSVMatch --
- *	Check word against pattern for a match (% is wild), 
- *	
+ *	Check word against pattern for a match (% is wild),
+ *
  * Results:
  *	Returns the beginning position of a match or null. The number
  *	of characters matched is returned in len.
@@ -445,7 +445,7 @@ Str_SYSVMatch(word, pattern, len)
 	    return m;
 	}
     while (*w++ != '\0');
-	    
+
     return NULL;
 }
 
@@ -456,7 +456,7 @@ Str_SYSVMatch(word, pattern, len)
  *	Substitute '%' on the pattern with len characters from src.
  *	If the pattern does not contain a '%' prepend len characters
  *	from src.
- *	
+ *
  * Results:
  *	None
  *

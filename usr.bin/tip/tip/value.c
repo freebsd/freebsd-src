@@ -339,7 +339,7 @@ vstring(s,v)
 	register value_t *p;
 	char *expand();
 
-	p = vlookup(s); 
+	p = vlookup(s);
 	if (p == 0)
 		return (1);
 	if (p->v_type&NUMBER)

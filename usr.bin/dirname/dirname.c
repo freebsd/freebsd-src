@@ -116,7 +116,7 @@ main(argc, argv)
 	 *
 	 * This case has already been handled, as part of steps (1) and (2).
 	 */
-	
+
 	/*
 	 * (7) If there are any trailing slash characters in string, they
 	 *     shall be removed.

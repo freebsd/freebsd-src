@@ -118,7 +118,7 @@ FILE *fp;
 
 			if(extract(name, size, mode, mtime, fp))
 				skip = 0;
-			
+
 			if (verbose)
 				printf("\n");
 			break;
@@ -171,7 +171,7 @@ FILE *ifp;
 			return (0);
 		}
 	}
-	
+
 	for(copied = 0; copied < size; copied += TBLOCK) {
 		if(fread(fbuf, TBLOCK, 1, ifp) != 1) {
 			perror("fread");

@@ -423,10 +423,10 @@ flush_appends()
 	int count, i;
 	char buf[8 * 1024];
 
-	for (i = 0; i < appendx; i++) 
+	for (i = 0; i < appendx; i++)
 		switch (appends[i].type) {
 		case AP_STRING:
-			fwrite(appends[i].s, sizeof(char), appends[i].len, 
+			fwrite(appends[i].s, sizeof(char), appends[i].len,
 			    stdout);
 			break;
 		case AP_FILE:
@@ -468,7 +468,7 @@ lputs(s)
 		else
 			termwidth = 60;
 
-	for (count = 0; *s; ++s) { 
+	for (count = 0; *s; ++s) {
 		if (count >= termwidth) {
 			(void)printf("\\\n");
 			count = 0;
@@ -502,7 +502,7 @@ regexec_e(preg, string, eflags, nomatch, slen)
 	size_t slen;
 {
 	int eval;
-	
+
 	if (preg == NULL) {
 		if (defpreg == NULL)
 			err(FATAL, "first RE may not be empty");
@@ -514,7 +514,7 @@ regexec_e(preg, string, eflags, nomatch, slen)
 		slen--;
 	match[0].rm_so = 0;
 	match[0].rm_eo = slen;
-	
+
 	eval = regexec(defpreg, string,
 	    nomatch ? 0 : maxnsub + 1, match, eflags | REG_STARTEND);
 	switch(eval) {

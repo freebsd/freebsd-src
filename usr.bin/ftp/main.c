@@ -94,7 +94,7 @@ main(argc, argv)
 			options |= SO_DEBUG;
 			debug++;
 			break;
-			
+
 		case 'g':
 			doglob = 0;
 			break;
@@ -217,7 +217,7 @@ tail(filename)
 	char *filename;
 {
 	char *s;
-	
+
 	while (*filename) {
 		s = strrchr(filename, '/');
 		if (s == NULL)

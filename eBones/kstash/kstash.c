@@ -1,16 +1,16 @@
 /*
  * Copyright 1985, 1986, 1987, 1988 by the Massachusetts Institute
- * of Technology 
+ * of Technology
  * For copying and distribution information, please see the file
  * <Copyright.MIT>.
  *
  *	from: kstash.c,v 4.0 89/01/23 09:45:43 jtkohl Exp $
- *	$Id: kstash.c,v 1.2 1994/07/19 19:27:05 g89r4222 Exp $
+ *	$Id: kstash.c,v 1.1.1.1 1994/09/30 14:50:05 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kstash.c,v 1.2 1994/07/19 19:27:05 g89r4222 Exp $";
+"$Id: kstash.c,v 1.1.1.1 1994/09/30 14:50:05 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -84,7 +84,7 @@ main(argc, argv)
     clear_secrets();
 }
 
-static void 
+static void
 clear_secrets()
 {
     bzero(master_key_schedule, sizeof(master_key_schedule));

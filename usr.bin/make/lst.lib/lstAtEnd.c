@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)lstAtEnd.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include	"lstInt.h"
-	
+
 /*-
  *-----------------------------------------------------------------------
  * Lst_AtEnd --
@@ -64,7 +64,7 @@ Lst_AtEnd (l, d)
     ClientData	d;	/* Datum to add */
 {
     register LstNode	end;
-    
+
     end = Lst_Last (l);
     return (Lst_Append (l, end, d));
 }

@@ -518,7 +518,7 @@ void error(char *message,...)
      char *message;
 #endif
      va_list ap;
-     
+
      fprintf(stderr, "%s: ", program_name);
 #ifdef VARARGS
      va_start(ap);

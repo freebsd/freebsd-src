@@ -3,7 +3,7 @@
 /* 06-Apr-92 Luke Brennan    Support for VMS */
 
 /*-
- *	$Id: read_pwd.c,v 1.1.1.1 1994/09/30 14:49:51 csgr Exp $
+ *	$Id: read_pwd.c,v 1.2 1995/01/25 02:27:00 ache Exp $
  */
 
 #include "des_locl.h"
@@ -249,7 +249,7 @@ int verify;
 			if ((p=(char *)index(buff,'\n')) != NULL)
 				*p='\0';
 			else	read_till_nl(tty);
-				
+
 			if (strcmp(buf,buff) != 0)
 				{
 				fprintf(stderr,"\nVerify failure - try again\n");
@@ -272,7 +272,7 @@ error:
 		status = SYS$QIOW(0,channel,IO$_SETMODE,&iosb,0,0
 			,tty_orig,12,0,0,0,0);
 #endif /* VMS */
-	
+
 	if (ps >= 1) popsig();
 	if (stdin != tty) fclose(tty);
 #ifdef VMS

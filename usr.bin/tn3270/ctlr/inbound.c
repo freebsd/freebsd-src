@@ -210,7 +210,7 @@ EraseEndOfField()
 		AddHost(i, 0);
 		i = ScreenInc(i);
 	    } while (i != HighestScreen());
-       } 
+       }
     }
 }
 

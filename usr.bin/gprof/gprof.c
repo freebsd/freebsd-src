@@ -205,7 +205,7 @@ main(argc, argv)
 	 *	print the dynamic profile
 	 */
     if(!lflag) {
-	    printgprof( timesortnlp );	
+	    printgprof( timesortnlp );
     }
 	/*
 	 *	print the flat profile
@@ -216,7 +216,7 @@ main(argc, argv)
 	/*
 	 *	print the index
 	 */
-    printindex();	
+    printindex();
     done();
 }
 
@@ -552,11 +552,11 @@ readsamples(pfile)
 {
     register i;
     UNIT	sample;
-    
+
     if (samples == 0) {
 	samples = (UNIT *) calloc(sampbytes, sizeof (UNIT));
 	if (samples == 0) {
-	    fprintf( stderr , "%s: No room for %d sample pc's\n", 
+	    fprintf( stderr , "%s: No room for %d sample pc's\n",
 		whoami , sampbytes / sizeof (UNIT));
 	    done();
 	}
@@ -639,7 +639,7 @@ asgnsamples()
 	    svalue0 = nl[j].svalue;
 	    svalue1 = nl[j+1].svalue;
 		/*
-		 *	if high end of tick is below entry address, 
+		 *	if high end of tick is below entry address,
 		 *	go for next tick.
 		 */
 	    if (pch < svalue0)
@@ -656,7 +656,7 @@ asgnsamples()
 		    if (debug & SAMPLEDEBUG) {
 			printf("[asgnsamples] (0x%x->0x%x-0x%x) %s gets %f ticks %d overlap\n",
 				nl[j].value/sizeof(UNIT), svalue0, svalue1,
-				nl[j].name, 
+				nl[j].name,
 				overlap * time / scale, overlap);
 		    }
 #		endif DEBUG

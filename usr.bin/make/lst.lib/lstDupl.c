@@ -68,7 +68,7 @@ Lst_Duplicate (l, copyProc)
     register Lst 	nl;
     register ListNode  	ln;
     register List 	list = (List)l;
-    
+
     if (!LstValid (l)) {
 	return (NILLST);
     }
@@ -94,6 +94,6 @@ Lst_Duplicate (l, copyProc)
 	    ln = ln->nextPtr;
 	}
     }
-	
+
     return (nl);
 }

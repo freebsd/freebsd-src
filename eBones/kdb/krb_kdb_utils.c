@@ -10,12 +10,12 @@
  * Jon Rochlis, MIT Telecom, March 1988
  *
  *	from: krb_kdb_utils.c,v 4.1 89/07/26 11:01:12 jtkohl Exp $
- *	$Id: krb_kdb_utils.c,v 1.2 1994/07/19 19:23:38 g89r4222 Exp $
+ *	$Id: krb_kdb_utils.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_kdb_utils.c,v 1.2 1994/07/19 19:23:38 g89r4222 Exp $";
+"$Id: krb_kdb_utils.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
 #endif	lint
 
 #include <des.h>
@@ -79,7 +79,7 @@ long kdb_verify_master_key (master_key, master_key_sched, out)
   n = kerb_get_principal(KERB_M_NAME, KERB_M_INST, principal_data,
 			 1 /* only one please */, &more);
   if ((n != 1) || more) {
-    if (out != (FILE *) NULL) 
+    if (out != (FILE *) NULL)
       fprintf(out,
 	      "verify_master_key: %s, %d found.\n",
 	      "Kerberos error on master key version lookup",
@@ -96,11 +96,11 @@ long kdb_verify_master_key (master_key, master_key_sched, out)
 
   /*
    * now use the master key to decrypt the key in the db, had better
-   * be the same! 
+   * be the same!
    */
   bcopy(&principal_data[0].key_low, key_from_db, 4);
   bcopy(&principal_data[0].key_high, ((long *) key_from_db) + 1, 4);
-  kdb_encrypt_key (key_from_db, key_from_db, 
+  kdb_encrypt_key (key_from_db, key_from_db,
 		   master_key, master_key_sched, DECRYPT);
 
   /* the decrypted database key had better equal the master key */

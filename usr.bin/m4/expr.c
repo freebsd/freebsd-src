@@ -496,10 +496,10 @@ num()
 		ndig++;
 	}
 	ungetch();
-	
+
 	if (ndig == 0)
 		experr("bad constant");
-	
+
 	return rval;
 
 }
@@ -562,7 +562,7 @@ skipws()
 }
 
 /*
- * resets environment to eval(), prints an error 
+ * resets environment to eval(), prints an error
  * and forces eval to return FALSE.
  */
 static void

@@ -384,7 +384,7 @@ opts_set(sp, usage, argv)
 	OPTION *spo;
 	u_long value, turnoff;
 	int ch, equals, offset, qmark, rval;
-	char *endp, *name, *p, *sep; 
+	char *endp, *name, *p, *sep;
 
 	disp = NO_DISPLAY;
 	for (rval = 0; argv[0]->len != 0; ++argv) {

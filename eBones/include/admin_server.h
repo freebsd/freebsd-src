@@ -1,12 +1,12 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
- * Include file for the Kerberos administration server. 
+ * Include file for the Kerberos administration server.
  *
  *	from: admin_server.h,v 4.7 89/01/11 11:59:42 steiner Exp $
- *	$Id: admin_server.h,v 1.2 1994/07/19 19:22:47 g89r4222 Exp $
+ *	$Id: admin_server.h,v 1.1.1.1 1994/09/30 14:49:53 csgr Exp $
  */
 
 #ifndef ADMIN_SERVER_DEFS

@@ -13,7 +13,7 @@ static char rcsid_kadm_stream_c[] =
 "Header: /afs/athena.mit.edu/astaff/project/kerberos/src/lib/kadm/RCS/kadm_stream.c,v 4.2 89/09/26 09:20:48 jtkohl Exp ";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kadm_stream.c,v 1.1 1995/01/20 02:02:53 wollman Exp $";
 #endif	lint
 
 /*
@@ -32,11 +32,11 @@ static const char rcsid[] =
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
-/* 
+/*
 vals_to_stream
   recieves    : kadm_vals *, u_char *
   returns     : a realloced and filled in u_char *
-     
+
 this function creates a byte-stream representation of the kadm_vals structure
 */
 vals_to_stream(dt_in, dt_out)
@@ -64,16 +64,16 @@ u_char **dt_out;
       case KADM_MAXLIFE:
 	  stsize+=vts_char(dt_in->max_life, dt_out, stsize);
 	  break;
-      case KADM_DESKEY: 
-	  stsize+=vts_long(dt_in->key_high, dt_out, stsize); 
-	  stsize+=vts_long(dt_in->key_low, dt_out, stsize); 
+      case KADM_DESKEY:
+	  stsize+=vts_long(dt_in->key_high, dt_out, stsize);
+	  stsize+=vts_long(dt_in->key_low, dt_out, stsize);
 	  break;
       default:
 	  break;
       }
 }
   return(stsize);
-}  
+}
 
 build_field_header(cont, st)
 u_char *cont;			/* container for fields data */
@@ -120,7 +120,7 @@ int loc;			/* offset into the stream for current data */
   return sizeof(u_long);
 }
 
-    
+
 vts_char(dat, st, loc)
 u_char dat;			/* the attributes field */
 u_char **st;			/* a base pointer to the stream */
@@ -130,12 +130,12 @@ int loc;			/* offset into the stream for current data */
   (*st)[loc] = (u_char) dat;
   return 1;
 }
-    
-/* 
+
+/*
 stream_to_vals
   recieves    : u_char *, kadm_vals *
   returns     : a kadm_vals filled in according to u_char *
-     
+
 this decodes a byte stream represntation of a vals struct into kadm_vals
 */
 stream_to_vals(dt_in, dt_out, maxlen)
@@ -198,7 +198,7 @@ int maxlen;				/* max length to use */
 	  break;
       }
   return stsize;
-}  
+}
 
 check_field_header(st, cont, maxlen)
 u_char *st;			/* stream */
@@ -258,7 +258,7 @@ int maxlen;			/* maximum length of st */
   *dat = ntohl(temp);		/* convert to network order */
   return sizeof(u_long);
 }
-    
+
 stv_char(st, dat, loc, maxlen)
 u_char *st;			/* a base pointer to the stream */
 u_char *dat;			/* the attributes field */

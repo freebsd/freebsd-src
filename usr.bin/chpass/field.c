@@ -92,7 +92,7 @@ p_passwd(p, pw, ep)
 		warnx("can't save password entry");
 		return (1);
 	}
-	
+
 	return (0);
 }
 
@@ -170,7 +170,7 @@ p_class(p, pw, ep)
 		warnx("can't save entry");
 		return (1);
 	}
-	
+
 	return (0);
 }
 

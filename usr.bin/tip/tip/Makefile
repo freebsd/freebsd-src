@@ -19,6 +19,6 @@ LINKS=	${BINDIR}/tip
 MAN1=	tip.1
 MAN5=	modems.5
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
-	remote.c tip.c tipout.c uucplock.c value.c vars.c 
+	remote.c tip.c tipout.c uucplock.c value.c vars.c
 
 .include <bsd.prog.mk>

@@ -480,7 +480,7 @@ showkre()
 	putint((nchtotal.ncs_goodhits + nchtotal.ncs_neghits),
 	   NAMEIROW + 2, NAMEICOL + 9, 9);
 #define nz(x)	((x) ? (x) : 1)
-	putfloat((nchtotal.ncs_goodhits+nchtotal.ncs_neghits) * 
+	putfloat((nchtotal.ncs_goodhits+nchtotal.ncs_neghits) *
 	   100.0 / nz(s.nchcount),
 	   NAMEIROW + 2, NAMEICOL + 19, 4, 0, 1);
 	putint(nchtotal.ncs_pass2, NAMEIROW + 2, NAMEICOL + 23, 9);
@@ -638,7 +638,7 @@ copyinfo(from, to)
 
 	/*
 	 * time, wds, seek, and xfer are malloc'd so we have to
-	 * save the pointers before the structure copy and then 
+	 * save the pointers before the structure copy and then
 	 * copy by hand.
 	 */
 	time = to->dk_time; wds = to->dk_wds; seek = to->dk_seek;

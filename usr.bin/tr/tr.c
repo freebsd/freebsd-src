@@ -139,7 +139,7 @@ main(argc, argv)
 
 		setup(string1, argv[0], &s1, cflag);
 		setup(string2, argv[1], &s2, 0);
-		
+
 		for (lastch = OOBCH; (ch = getchar()) != EOF;)
 			if (!string1[ch] && (!string2[ch] || lastch != ch)) {
 				lastch = ch;

@@ -559,7 +559,7 @@ update(rname, opts, stp)
 	register off_t size;
 	register time_t mtime;
 
-	if (debug) 
+	if (debug)
 		printf("update(%s, %x, %x)\n", rname, opts, stp);
 
 	/*
@@ -597,7 +597,7 @@ again:
 
 	case '\3':
 		*--cp = '\0';
-		if (lfp != NULL) 
+		if (lfp != NULL)
 			log(lfp, "update: note: %s\n", s);
 		goto again;
 

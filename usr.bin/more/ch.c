@@ -428,7 +428,7 @@ ch_addbuf(nnew)
 	char *calloc();
 
 	/*
-	 * We don't have enough buffers.  
+	 * We don't have enough buffers.
 	 * Allocate some new ones.
 	 */
 	newbufs = (struct buf *)calloc((u_int)nnew, sizeof(struct buf));

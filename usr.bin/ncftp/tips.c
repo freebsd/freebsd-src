@@ -47,7 +47,7 @@ static char *tiplist[] = {
          get README\n\
          dir\n\
          (blank line to end macro)",
-    
+
     "If you want to keep your .netrc's for ftp and ncftp separate, name\n\
      ncftp's rc to .ncftprc.",
 

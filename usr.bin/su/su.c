@@ -171,7 +171,7 @@ main(argc, argv)
 		if (*pwd->pw_passwd) {
 #ifdef	SKEY
 			p = skey_getpass("Password:", pwd, 1);
-			if (strcmp(pwd->pw_passwd, 
+			if (strcmp(pwd->pw_passwd,
 				   skey_crypt(p, pwd->pw_passwd, pwd, 1))) {
 #else
 			p = getpass("Password:");

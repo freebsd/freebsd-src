@@ -285,7 +285,7 @@ if (len == 0) len = 1;
 			buf[len] = '\0';
 			printf("t3000_sync: (\"%s\")\n\r", buf);
 #endif
-			if (index(buf, '0') || 
+			if (index(buf, '0') ||
 		   	   (index(buf, 'O') && index(buf, 'K')))
 				return(1);
 		}

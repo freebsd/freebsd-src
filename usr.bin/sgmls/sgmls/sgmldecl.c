@@ -163,21 +163,21 @@ in a buffer intended for a literal.) */
 /* Table of quantity names.  Must match Q* in sgmldecl.h. */
 
 static char *quantity_names[] = {
-    "ATTCNT",   
-    "ATTSPLEN", 
-    "BSEQLEN",  
-    "DTAGLEN",  
-    "DTEMPLEN", 
-    "ENTLVL",   
-    "GRPCNT",   
-    "GRPGTCNT", 
-    "GRPLVL",   
-    "LITLEN",   
-    "NAMELEN",  
-    "NORMSEP",  
-    "PILEN",    
-    "TAGLEN",   
-    "TAGLVL",    
+    "ATTCNT",
+    "ATTSPLEN",
+    "BSEQLEN",
+    "DTAGLEN",
+    "DTEMPLEN",
+    "ENTLVL",
+    "GRPCNT",
+    "GRPGTCNT",
+    "GRPLVL",
+    "LITLEN",
+    "NAMELEN",
+    "NORMSEP",
+    "PILEN",
+    "TAGLEN",
+    "TAGLVL",
 };
 
 static int max_quantity[] = {
@@ -944,7 +944,7 @@ UNCH *tbuf;
 	       return FAIL;
 	  }
 	  start[i] = bufi;
-	  
+
 	  for (s = tbuf; *s; s++) {
 	       int c = *s;
 	       if (c == DELNONCH) {
@@ -995,7 +995,7 @@ UNCH *tbuf;
 	       nlextoke[uc] = NMS;
 	       nlextran[lc] = uc;
 	  }
-		       
+
 	  for (i = 0; i < count[2]; i++) {
 	       UNCH lc = buf[start[2] + i];
 	       UNCH uc = buf[start[3] + i];
@@ -1148,7 +1148,7 @@ UNCH *tbuf;
 	  for (i = 0; i < NKEYS; i++)
 	       if (newkey[i][0] != '\0') {
 		    UNCH temp[REFNAMELEN + 1];
-		    
+
 		    ustrcpy(temp, key[i]);
 		    ustrcpy(key[i], newkey[i]);
 		    ustrcpy(newkey[i], temp);
@@ -1388,7 +1388,7 @@ VOID sdinit()
 {
      int i;
      /* Shunned character numbers in the reference concrete syntax. */
-     static UNCH refshun[] = { 
+     static UNCH refshun[] = {
 	  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 	  19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 127, 255
 	  };
@@ -1434,7 +1434,7 @@ static
 VOID bufsrealloc()
 {
      UNS size;
-     
+
      if (ENTLVL != REFENTLVL)
 	  scbs = (struct source *)rrealloc((UNIV)scbs,
 					   (ENTLVL+1)*sizeof(struct source));
@@ -1462,7 +1462,7 @@ static VOID setlexical()
 {
      int i;
      UNCH **p;
-     
+
      if (nlextoke) {
 	  /* Handle characters that were made significant by the
 	     NAMING section. */
@@ -1492,7 +1492,7 @@ static VOID setlexical()
 	       }
 	  }
 
-     
+
      /* Now munge the lexical tables. */
      for (p = lextabs; *p; p++) {
 	  UNCH nonclass = (*p)[CANON_NONSGML];
@@ -1543,7 +1543,7 @@ static VOID setlexical()
 	  frem((UNIV)nlextoke);
 	  nlextoke = 0;
      }
-     
+
 }
 
 /* Munge parse tables so that empty start and end tags are not recognized. */
@@ -1552,7 +1552,7 @@ static VOID noemptytag()
 {
      static struct parse *pcbs[] = { &pcbconm, &pcbcone, &pcbconr, &pcbconc };
      int i;
-     
+
      for (i = 0; i < SIZEOF(pcbs); i++) {
 	  int maxclass, maxstate;
 	  int j, k, act;
@@ -1620,7 +1620,7 @@ FILE *fp;
 	     SYSTEM_CHARSET_OWNER,
 	     SYSTEM_CHARSET_DESCRIPTION,
 	     SYSTEM_CHARSET_DESIGNATING_SEQUENCE);
-     
+
      if (!done_nonsgml) {
 	  done_nonsgml = 1;
 	  for (i = 0; i < 256; i++)
@@ -1654,7 +1654,7 @@ FILE *fp;
      if (!changed)
 	  fprintf(fp, "PUBLIC \"%s\"\n", capset_map[0].name);
      fprintf(fp, "SCOPE DOCUMENT\n");
-     
+
      fprintf(fp, "SYNTAX\nSHUNCHAR");
      for (i = 0; i < 256; i++)
 	  if (char_flags[i] & CHAR_SHUNNED)

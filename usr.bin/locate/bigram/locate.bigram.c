@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 
 /*
  *  bigram < text > bigrams
- * 
+ *
  * List bigrams for 'updatedb' script.
  * Use 'code' to encode a file using this output.
  */
@@ -54,7 +54,7 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <sys/param.h>			/* for MAXPATHLEN */
 
-char buf1[MAXPATHLEN] = " ";	
+char buf1[MAXPATHLEN] = " ";
 char buf2[MAXPATHLEN];
 
 main ( )

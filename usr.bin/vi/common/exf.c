@@ -759,7 +759,7 @@ file_m3(sp, ep, force)
 /*
  * file_lock --
  *	Get an exclusive lock on a file.
- * 
+ *
  * XXX
  * The default locking is flock(2) style, not fcntl(2).  The latter is
  * known to fail badly on some systems, and its only advantage is that
@@ -804,7 +804,7 @@ file_lock(name, fdp, fd, iswrite)
 	arg.l_whence = 0;		/* SEEK_SET */
 	arg.l_start = arg.l_len = 0;
 	arg.l_pid = 0;
-	
+
 	/* If the file descriptor isn't opened for writing, it must fail. */
 	if (!iswrite) {
 		if (name == NULL || fdp == NULL)
@@ -814,7 +814,7 @@ file_lock(name, fdp, fd, iswrite)
 		*fdp = fd;
 		didopen = 1;
 	}
-		
+
 	errno = 0;
 	if (!fcntl(fd, F_SETLK, &arg))
 		return (LOCK_SUCCESS);

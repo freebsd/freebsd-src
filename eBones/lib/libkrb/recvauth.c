@@ -4,12 +4,12 @@
  * <Copyright.MIT>.
  *
  *	from: recvauth.c,v 4.4 90/03/10 19:03:08 jon Exp $";
- *	$Id: recvauth.c,v 1.2 1994/07/19 19:26:18 g89r4222 Exp $
+ *	$Id: recvauth.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: recvauth.c,v 1.2 1994/07/19 19:26:18 g89r4222 Exp $";
+"$Id: recvauth.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
 #endif	lint
 
 #include <krb.h>
@@ -214,7 +214,7 @@ char *version;			 /* version string (filled in) */
 	if (krb_net_read(fd, (char *)&tkt_len, sizeof(tkt_len)) !=
 	    sizeof(tkt_len))
 	    return(errno);
-    
+
 	/* sanity check */
 	ticket->length = ntohl((unsigned long)tkt_len);
 	if ((ticket->length <= 0) || (ticket->length > MAX_KTXT_LEN)) {

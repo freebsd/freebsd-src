@@ -60,7 +60,7 @@ struct	myutmp {
 int	nusers;
 
 #define	WHDRSIZE	(sizeof (wd) - sizeof (wd.wd_we))
-/* 
+/*
  * this macro should be shared with ruptime.
  */
 #define	down(w,now)	((now) - (w)->wd_recvtime > 11 * 60)

@@ -3,7 +3,7 @@
  * -
  * Copyright (c) 1986
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -19,7 +19,7 @@
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -33,14 +33,14 @@
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -61,13 +61,13 @@ char copyright[] =
 #endif /* not lint */
 
 /*
- * Actually, this program is from Rutgers University, however it is 
+ * Actually, this program is from Rutgers University, however it is
  * based on nslookup and other pieces of named tools, so it needs
  * that copyright notice.
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 1.1.1.1 1994/09/22 21:34:21 pst Exp $";
+static char rcsid[] = "$Id: host.c,v 1.2 1994/09/22 21:52:03 pst Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -189,12 +189,12 @@ main(c, v)
 			gettype = T_ANY;
 			v++;
 			c--;
-		}		
+		}
         }
 	if (c > 2) {
 		s = v[2];
 		server_specified++;
-		
+
 		if (!inet_aton(s, (struct in_addr *)&addr)) {
 		  hp = gethostbyname(s);
 		  if (hp == NULL) {
@@ -360,7 +360,7 @@ printanswer(hp)
 	printf("\n\n");
 }
 
-hperror(errno) 
+hperror(errno)
 int errno;
 {
 switch(errno) {
@@ -480,7 +480,7 @@ gethostinfo(name)
 	if (n == 0 && (cp = hostalias(name))) {
 	        if (verbose)
 		    printf("Aliased to \"%s\"\n", cp);
-		_res.options |= RES_DEFNAMES;	  
+		_res.options |= RES_DEFNAMES;
 		return (getdomaininfo(cp, (char *)NULL));
 	}
 	if (n >= _res.ndots) {
@@ -592,7 +592,7 @@ printinfo(answer, eom, filter, isls)
 	nscount = ntohs(hp->nscount);
 	arcount = ntohs(hp->arcount);
 	if (_res.options & RES_DEBUG || (verbose && isls == 0))
-		printf("rcode = %d (%s), ancount=%d\n", 
+		printf("rcode = %d (%s), ancount=%d\n",
 		       hp->rcode, DecodeError(hp->rcode), ancount);
 	if (hp->rcode != NOERROR || (ancount+nscount+arcount) == 0) {
 		switch (hp->rcode) {
@@ -746,9 +746,9 @@ pr_rr(cp, msg, file, filter)
 		}
 		break;
 	case T_CNAME:
-		if (dn_expand(msg, msg + 512, cp, cnamebuf, 
+		if (dn_expand(msg, msg + 512, cp, cnamebuf,
 			      sizeof(cnamebuf)) >= 0)
-			cname = cnamebuf;				
+			cname = cnamebuf;
 	case T_MB:
 #ifdef OLDRR
 	case T_MD:
@@ -836,7 +836,7 @@ pr_rr(cp, msg, file, filter)
 		{
 		  int n,j;
 		  u_char * end = cp + dlen;
-		 
+
 		  if (doprint)
 		    (void) fputs(" \"", file);
 		  while (cp < end) {
@@ -1061,7 +1061,7 @@ char *resultcodes[] = {
  *
  *  Results:
  *	SUCCESS		the listing was successful.
- *	ERROR		the server could not be contacted because 
+ *	ERROR		the server could not be contacted because
  *			a socket could not be obtained or an error
  *			occured while receiving, or the output file
  *			could not be opened.
@@ -1105,8 +1105,8 @@ ListHosts(namePtr, queryType)
 	int			thisns;
 	struct hostent		*hp;
 	enum {
-	    NO_ERRORS, 
-	    ERR_READING_LEN, 
+	    NO_ERRORS,
+	    ERR_READING_LEN,
 	    ERR_READING_MSG,
 	    ERR_PRINTING
 	} error = NO_ERRORS;
@@ -1139,13 +1139,13 @@ ListHosts(namePtr, queryType)
 	}
 
 	msglen = res_send(buf.qb2, msglen, answer.qb2, sizeof answer);
-	
+
 	if (msglen < 0) {
 		printf("Unable to get to nameserver -- try again later\n");
 		return (ERROR);
 	}
 	if (_res.options & RES_DEBUG || verbose)
-		printf("rcode = %d (%s), ancount=%d\n", 
+		printf("rcode = %d (%s), ancount=%d\n",
 		       answer.qb1.rcode, DecodeError(answer.qb1.rcode),
 		       ntohs(answer.qb1.ancount));
 
@@ -1200,7 +1200,7 @@ ListHosts(namePtr, queryType)
 	  dlen = _getshort(cp);
 	  cp += INT16SZ;
 	  if (type == T_NS) {
-	    if (dn_expand(answer.qb2, answer.qb2 + msglen, cp, 
+	    if (dn_expand(answer.qb2, answer.qb2 + msglen, cp,
 			  name, sizeof(name)) >= 0) {
 	      if (numns < NUMNS && strcasecmp((char *)domain, namePtr) == 0) {
 		for (i = 0; i < numns; i++)
@@ -1305,7 +1305,7 @@ again:
 	    perror("Connection failed, trying next server");
 	  (void) close(sockFD);
 	  sockFD = -1;
-	}	
+	}
 	if (thisns >= numnsaddr) {
 	  printf("No server for that domain responded\n");
 	  if (!verbose)
@@ -1314,7 +1314,7 @@ again:
 	}
 
 	/*
-	 * Send length & message for zone transfer 
+	 * Send length & message for zone transfer
 	 */
 
 	__putshort(msglen, (u_char *)&len);
@@ -1344,7 +1344,7 @@ again:
 	    if (numRead <= 0) {
 		error = ERR_READING_LEN;
 		break;
-	    }	
+	    }
 
 	    if ((len = _getshort((u_char*)&buf)) == 0) {
 		break;	/* nothing left to read */
@@ -1371,7 +1371,7 @@ again:
 		  (i == SERVFAIL || i == NOTIMP || i == REFUSED)) {
 		if (_res.options & RES_DEBUG || verbose)
 		  printf("Server failed, trying next server: %s\n",
-			 i != NOERROR ? 
+			 i != NOERROR ?
 			 DecodeError(i) : "Premature end of data");
 		(void) close(sockFD);
 		sockFD = -1;
@@ -1418,7 +1418,7 @@ again:
 		return(ERROR);
 
 	    case ERR_PRINTING:
-		fprintf(stderr,"*** Error during listing of %s: %s\n", 
+		fprintf(stderr,"*** Error during listing of %s: %s\n",
 				namePtr, DecodeError(result));
 		return(result);
 
@@ -1426,9 +1426,9 @@ again:
 		headerPtr = (HEADER *) &buf;
 		fprintf(stderr,"ListHosts: error receiving zone transfer:\n");
 		fprintf(stderr,
-	       "  result: %s, answers = %d, authority = %d, additional = %d\n", 
-		    	resultcodes[headerPtr->rcode], 
-		    	ntohs(headerPtr->ancount), ntohs(headerPtr->nscount), 
+	       "  result: %s, answers = %d, authority = %d, additional = %d\n",
+		    	resultcodes[headerPtr->rcode],
+		    	ntohs(headerPtr->ancount), ntohs(headerPtr->nscount),
 			ntohs(headerPtr->arcount));
 		return(ERROR);
 	    default:
@@ -1454,5 +1454,5 @@ DecodeError(result)
 	    case NONAUTH: 	return("Non-authoritative answer"); break;
 	    default: 		break;
 	}
-	return("BAD ERROR VALUE"); 
+	return("BAD ERROR VALUE");
 }

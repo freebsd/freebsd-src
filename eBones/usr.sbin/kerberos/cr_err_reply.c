@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: cr_err_reply.c,v 4.10 89/01/10 11:34:42 steiner Exp $
- *	$Id: cr_err_reply.c,v 1.1 1994/07/19 19:24:24 g89r4222 Exp $
+ *	$Id: cr_err_reply.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: cr_err_reply.c,v 1.1 1994/07/19 19:24:24 g89r4222 Exp $";
+"$Id: cr_err_reply.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
 #endif /* lint */
 
 #include <sys/types.h>
@@ -30,28 +30,28 @@ extern int req_act_vno;		/* this is defined in the kerberos
  * and an error string as arguments.  Its return value is undefined.
  *
  * The packet is built in the following format:
- * 
+ *
  * type			variable	   data
  *			or constant
  * ----			-----------	   ----
  *
  * unsigned char	req_ack_vno	   protocol version number
- * 
+ *
  * unsigned char	AUTH_MSG_ERR_REPLY protocol message type
- * 
+ *
  * [least significant	HOST_BYTE_ORDER	   sender's (server's) byte
  * bit of above field]			   order
- * 
+ *
  * string		pname		   principal's name
- * 
+ *
  * string		pinst		   principal's instance
- * 
+ *
  * string		prealm		   principal's realm
- * 
+ *
  * unsigned long	time_ws		   client's timestamp
- * 
+ *
  * unsigned long	e		   error code
- * 
+ *
  * string		e_string	   error text
  */
 

@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: kerberos.c,v 4.19 89/11/01 17:18:07 qjb Exp $
- *	$Id: kerberos.c,v 1.3 1994/09/09 21:43:51 g89r4222 Exp $
+ *	$Id: kerberos.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: kerberos.c,v 1.3 1994/09/09 21:43:51 g89r4222 Exp $";
+"$Id: kerberos.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
 #endif  lint
 
 #include <stdio.h>
@@ -97,7 +97,7 @@ static void hang();
  */
 static void usage()
 {
-    fprintf(stderr, "Usage: %s [-s] [-m] [-n] [-p pause_seconds]%s%s\n", progname, 
+    fprintf(stderr, "Usage: %s [-s] [-m] [-n] [-p pause_seconds]%s%s\n", progname,
 	    " [-a max_age] [-l log_file] [-r realm]"
 	    ," [database_pathname]"
 	    );
@@ -160,7 +160,7 @@ main(argc, argv)
 	    break;
 	case 'a':
 	    /* Set max age. */
-	    if (!isdigit(optarg[0])) 
+	    if (!isdigit(optarg[0]))
 		usage();
 	    max_age = atoi(optarg);
 	    if ((max_age < ONE_HOUR) || (max_age > THREE_DAYS)) {
@@ -194,9 +194,9 @@ main(argc, argv)
 
     if (optind != argc)
 	usage();
-	
+
     printf("Kerberos server starting\n");
-    
+
     if ((!nflag) && (max_age != -1))
 	printf("\tMaximum database age: %d seconds\n", max_age);
     if (pause_int != -1)
@@ -205,12 +205,12 @@ main(argc, argv)
 	printf("\tSleep forever on error\n");
     if (mflag)
 	printf("\tMaster key will be entered manually\n");
-    
+
     printf("\tLog file is %s\n", lflag ? log_file : KRBLOG);
 
     if (lflag)
 	kset_logfile(log_file);
-    
+
     /* find our hostname, and use it as the instance */
     if (gethostname(k_instance, INST_SZ)) {
 	fprintf(stderr, "%s: gethostname error\n", progname);
@@ -249,7 +249,7 @@ main(argc, argv)
 
     /* Make sure database isn't stale */
     check_db_age();
-    
+
     /* setup master key */
     if (kdb_get_master_key (mflag, master_key, master_key_schedule) != 0) {
       klog (L_KRB_PERR, "kerberos: couldn't get master key.\n");
@@ -449,7 +449,7 @@ kerberos(client, pkt)
 
 	    /*
 	     * get the user's key, unseal it from the server's key, and
-	     * use it to seal the cipher 
+	     * use it to seal the cipher
 	     */
 
 	    /* a_name_data.key_low a_name_data.key_high */
@@ -457,7 +457,7 @@ kerberos(client, pkt)
 	    bcopy(&a_name_data.key_high, ((long *) key) + 1, 4);
 
 	    /* unseal the a_name key from the master key */
-	    kdb_encrypt_key(key, key, master_key, 
+	    kdb_encrypt_key(key, key, master_key,
 			    master_key_schedule, DECRYPT);
 
 	    create_ciph(ciph, session_key, s_name_data.name,
@@ -616,10 +616,10 @@ kerberos(client, pkt)
 
 
 /*
- * setup_disc 
+ * setup_disc
  *
  * disconnect all descriptors, remove ourself from the process
- * group that spawned us. 
+ * group that spawned us.
  */
 
 setup_disc()
@@ -648,7 +648,7 @@ setup_disc()
 
 /*
  * kerb_er_reply creates an error reply packet and sends it to the
- * client. 
+ * client.
  */
 
 kerb_err_reply(client, pkt, err, string)
@@ -680,7 +680,7 @@ kerb_err_reply(client, pkt, err, string)
 static void check_db_age()
 {
     long age;
-    
+
     if (max_age != -1) {
 	/* Requires existance of kerb_get_db_age() */
 	gettimeofday(&kerb_time, 0);
@@ -712,16 +712,16 @@ check_princ(p_name, instance, lifetime, p)
     klog(L_ALL_REQ,
 	 "Principal: \"%s\", Instance: \"%s\" Lifetime = %d n = %d",
 	 p_name, instance, lifetime, n, 0);
-    
+
     if (n < 0) {
 	lt = klog(L_KRB_PERR, "Database unavailable!");
 	hang();
     }
-    
+
     /*
      * if more than one p_name, pick one, randomly create a session key,
      * compute maximum lifetime, lookup authorizations if applicable,
-     * and stuff into cipher. 
+     * and stuff into cipher.
      */
     if (n == 0) {
 	/* service unknown, log error, skip to next request */

@@ -262,7 +262,7 @@ main(argc, argv)
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
 #ifdef	SKEY
-		permit_passwd = skeyaccess(username, tty, 
+		permit_passwd = skeyaccess(username, tty,
 					   hostname ? full_hostname : NULL,
 					   NULL);
 		p = skey_getpass("Password:", pwd, permit_passwd);
@@ -485,7 +485,7 @@ main(argc, argv)
 	    p + 1 : pwd->pw_shell);
 
      	if (setlogin(pwd->pw_name) < 0)
-                syslog(LOG_ERR, "setlogin() failure: %m"); 
+                syslog(LOG_ERR, "setlogin() failure: %m");
 
 	/* Discard permissions last so can't get killed and drop core. */
 	if (rootlogin)

@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 
 /*
  * pr_attime --
- *	Print the time since the user logged in. 
+ *	Print the time since the user logged in.
  *
  *	Note: SCCS forces the bizarre string manipulation, things like
  *	8.2 get replaced in the source code.

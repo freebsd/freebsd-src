@@ -1,18 +1,18 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
  * program to initialize the database,  reports error if database file
- * already exists. 
+ * already exists.
  *
  *	from: kdb_init.c,v 4.0 89/01/24 21:50:45 jtkohl Exp $
- *	$Id: kdb_init.c,v 1.3 1994/09/24 14:04:17 g89r4222 Exp $
+ *	$Id: kdb_init.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_init.c,v 1.3 1994/09/24 14:04:17 g89r4222 Exp $";
+"$Id: kdb_init.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -44,7 +44,7 @@ main(argc, argv)
     char   *cp;
     int code;
     char *database;
-    
+
     progname = (cp = rindex(*argv, '/')) ? cp + 1 : *argv;
 
     if (argc > 3) {
@@ -96,7 +96,7 @@ main(argc, argv)
 	add_principal(KERB_M_NAME, KERB_M_INST, MASTER_KEY) ||
 	add_principal(KERB_DEFAULT_NAME, KERB_DEFAULT_INST, NULL_KEY) ||
 	add_principal("krbtgt", realm, RANDOM_KEY) ||
-	add_principal("changepw", KRB_MASTER, RANDOM_KEY) 
+	add_principal("changepw", KRB_MASTER, RANDOM_KEY)
 	) {
 	fprintf(stderr, "\n%s: couldn't initialize database.\n",
 		progname);
@@ -169,7 +169,7 @@ add_principal(name, instance, aap_op)
     principal.old = 0;
 
     kerb_db_put_principal(&principal, 1);
-    
+
     /* let's play it safe */
     bzero (new_key, sizeof (C_Block));
     bzero (&principal.key_low, 4);

@@ -370,7 +370,7 @@ PNE *np;
 UNCH **tp;
 {
      PECB ep;                 /* Pointer to an entity control block. */
-     
+
      ep = entfind(iname);
      if (!ep)
 	  return -1;

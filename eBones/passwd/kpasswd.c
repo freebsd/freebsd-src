@@ -13,7 +13,7 @@ static char rcsid_kpasswd_c[] =
     "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/kpasswd.c,v 4.3 89/09/26 09:33:02 jtkohl Exp ";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kpasswd.c,v 1.1 1995/01/20 22:14:14 wollman Exp $";
 #endif	lint
 
 /*
@@ -50,28 +50,28 @@ int krb_passwd(char *uname, char *iflag, char *rflag, char *uflag)
     extern char *optarg;
     extern int optind;
     char tktstring[MAXPATHLEN];
-    
+
     void get_pw_new_key();
-    
+
 #ifdef NOENCRYPTION
 #define read_long_pw_string placebo_read_pw_string
 #else
 #define read_long_pw_string des_read_pw_string
 #endif
     int read_long_pw_string();
-    
+
     bzero(name, sizeof(name));
     bzero(inst, sizeof(inst));
     bzero(realm, sizeof(realm));
-    
-    if (krb_get_tf_fullname(TKT_FILE, default_name, default_inst, 
+
+    if (krb_get_tf_fullname(TKT_FILE, default_name, default_inst,
 			    default_realm) != KSUCCESS) {
 	pw = getpwuid((int) getuid());
 	if (pw) {
 		strcpy(default_name, pw->pw_name);
 	} else {
 	    /* seems like a null name is kinda silly */
-		strcpy(default_name, ""); 
+		strcpy(default_name, "");
 	}
 	strcpy(default_inst, "");
 	if (krb_get_lrealm(default_realm, 1) != KSUCCESS)
@@ -108,7 +108,7 @@ int krb_passwd(char *uname, char *iflag, char *rflag, char *uflag)
     if(rflag) {
 	    if (k_isrealm(rflag)) {
 		    strncpy(realm, rflag, sizeof(realm) - 1);
-		    realm_given++; 
+		    realm_given++;
 	    } else {
 		    errx(1, "bad realm: %s", rflag);
 	    }
@@ -129,11 +129,11 @@ int krb_passwd(char *uname, char *iflag, char *rflag, char *uflag)
 
     (void) sprintf(tktstring, "/tmp/tkt_cpw_%d",getpid());
     krb_set_tkt_string(tktstring);
-    
+
     get_pw_new_key(new_key, name, inst, realm, realm_given);
-    
-    if ((status = kadm_init_link("changepw", KRB_MASTER, realm)) 
-	!= KADM_SUCCESS) 
+
+    if ((status = kadm_init_link("changepw", KRB_MASTER, realm))
+	!= KADM_SUCCESS)
 	com_err("kpasswd", status, "while initializing");
     else if ((status = kadm_change_pw(new_key)) != KADM_SUCCESS)
 	com_err("kpasswd", status, " attempting to change password.");
@@ -146,7 +146,7 @@ int krb_passwd(char *uname, char *iflag, char *rflag, char *uflag)
     (void) dest_tkt();
     if (status)
 	exit(2);
-    else 
+    else
 	exit(0);
 }
 
@@ -160,19 +160,19 @@ void get_pw_new_key(new_key, name, inst, realm, print_realm)
     char ppromp[40+ANAME_SZ+INST_SZ+REALM_SZ]; /* for the password prompt */
     char pword[MAX_KPW_LEN];	               /* storage for the password */
     char npromp[40+ANAME_SZ+INST_SZ+REALM_SZ]; /* for the password prompt */
-    
+
     char local_realm[REALM_SZ];
     int status;
-    
+
     /*
      * We don't care about failure; this is to determine whether or
-     * not to print the realm in the prompt for a new password. 
+     * not to print the realm in the prompt for a new password.
      */
     (void) krb_get_lrealm(local_realm, 1);
-    
+
     if (strcmp(local_realm, realm))
 	print_realm++;
-    
+
     (void) sprintf(ppromp,"Old password for %s%s%s%s%s:",
 		   name, *inst ? "." : "", inst,
 		   print_realm ? "@" : "", print_realm ? realm : "");
@@ -181,7 +181,7 @@ void get_pw_new_key(new_key, name, inst, realm, print_realm)
 	exit(1);
     }
 
-    if ((status = krb_get_pw_in_tkt(name, inst, realm, PWSERV_NAME, 
+    if ((status = krb_get_pw_in_tkt(name, inst, realm, PWSERV_NAME,
 				    KADM_SINST, 1, pword)) != KSUCCESS) {
 	if (status == INTK_BADPW) {
 	    printf("Incorrect old password.\n");
@@ -202,7 +202,7 @@ void get_pw_new_key(new_key, name, inst, realm, print_realm)
 	if (strlen(pword) == 0)
 	    printf("Null passwords are not allowed; try again.\n");
     } while (strlen(pword) == 0);
-    
+
 #ifdef NOENCRYPTION
     bzero((char *) new_key, sizeof(des_cblock));
     new_key[0] = (unsigned char) 1;

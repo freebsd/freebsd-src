@@ -45,24 +45,24 @@ static char sccsid[] = "@(#)operator.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 
 #include "find.h"
-    
+
 /*
  * yanknode --
  *	destructively removes the top from the plan
  */
 static PLAN *
-yanknode(planp)    
+yanknode(planp)
 	PLAN **planp;		/* pointer to top of plan (modified) */
 {
 	PLAN *node;		/* top node removed from the plan */
-    
+
 	if ((node = (*planp)) == NULL)
 		return (NULL);
 	(*planp) = (*planp)->next;
 	node->next = NULL;
 	return (node);
 }
- 
+
 /*
  * yankexpr --
  *	Removes one expression from the plan.  This is used mainly by
@@ -70,7 +70,7 @@ yanknode(planp)
  *	simple node or a N_EXPR node containing a list of simple nodes.
  */
 static PLAN *
-yankexpr(planp)    
+yankexpr(planp)
 	PLAN **planp;		/* pointer to top of plan (modified) */
 {
 	register PLAN *next;	/* temp node holding subexpression results */
@@ -78,11 +78,11 @@ yankexpr(planp)
 	PLAN *tail;		/* pointer to tail of subplan */
 	PLAN *subplan;		/* pointer to head of ( ) expression */
 	int f_expr();
-    
+
 	/* first pull the top node from the plan */
 	if ((node = yanknode(planp)) == NULL)
 		return (NULL);
-    
+
 	/*
 	 * If the node is an '(' then we recursively slurp up expressions
 	 * until we find its associated ')'.  If it's a closing paren we
@@ -119,7 +119,7 @@ yankexpr(planp)
 		}
 	return (node);
 }
- 
+
 /*
  * paren_squish --
  *	replaces "parentheisized" plans in our search plan with "expr" nodes.
@@ -131,7 +131,7 @@ paren_squish(plan)
 	register PLAN *expr;	/* pointer to next expression */
 	register PLAN *tail;	/* pointer to tail of result plan */
 	PLAN *result;		/* pointer to head of result plan */
-    
+
 	result = tail = NULL;
 
 	/*
@@ -157,7 +157,7 @@ paren_squish(plan)
 	}
 	return (result);
 }
- 
+
 /*
  * not_squish --
  *	compresses "!" expressions in our search plan.
@@ -170,9 +170,9 @@ not_squish(plan)
 	register PLAN *node;	/* temporary node used in N_NOT processing */
 	register PLAN *tail;	/* pointer to tail of result plan */
 	PLAN *result;		/* pointer to head of result plan */
-    
+
 	tail = result = next = NULL;
-    
+
 	while ((next = yanknode(&plan)) != NULL) {
 		/*
 		 * if we encounter a ( expression ) then look for nots in
@@ -215,7 +215,7 @@ not_squish(plan)
 	}
 	return (result);
 }
- 
+
 /*
  * or_squish --
  *	compresses -o expressions in our search plan.
@@ -227,9 +227,9 @@ or_squish(plan)
 	register PLAN *next;	/* next node being processed */
 	register PLAN *tail;	/* pointer to tail of result plan */
 	PLAN *result;		/* pointer to head of result plan */
-    
+
 	tail = result = next = NULL;
-    
+
 	while ((next = yanknode(&plan)) != NULL) {
 		/*
 		 * if we encounter a ( expression ) then look for or's in

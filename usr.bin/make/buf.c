@@ -286,7 +286,7 @@ Buf_GetBytes (bp, numBytes, bytesPtr)
     int	    numBytes;
     Byte    *bytesPtr;
 {
-    
+
     if (bp->inPtr - bp->outPtr < numBytes) {
 	numBytes = bp->inPtr - bp->outPtr;
     }
@@ -323,7 +323,7 @@ Buf_GetAll (bp, numBytesPtr)
     if (numBytesPtr != (int *)NULL) {
 	*numBytesPtr = bp->inPtr - bp->outPtr;
     }
-    
+
     return (bp->outPtr);
 }
 
@@ -336,7 +336,7 @@ Buf_GetAll (bp, numBytesPtr)
  *	None.
  *
  * Side Effects:
- *	The bytes are discarded. 
+ *	The bytes are discarded.
  *
  *-----------------------------------------------------------------------
  */
@@ -428,7 +428,7 @@ Buf_Destroy (buf, freeData)
     Buffer  buf;  	/* Buffer to destroy */
     Boolean freeData;	/* TRUE if the data should be destroyed as well */
 {
-    
+
     if (freeData) {
 	free ((char *)buf->buffer);
     }

@@ -118,12 +118,12 @@ ClientData	Lst_Datum __P((LstNode));
  * Functions for entire lists
  */
 /* Find an element in a list */
-LstNode		Lst_Find __P((Lst, ClientData, 
+LstNode		Lst_Find __P((Lst, ClientData,
 			      int (*)(ClientData, ClientData)));
 /* Find an element starting from somewhere */
 LstNode		Lst_FindFrom __P((Lst, LstNode, ClientData,
 				  int (*cProc)(ClientData, ClientData)));
-/* 
+/*
  * See if the given datum is on the list. Returns the LstNode containing
  * the datum
  */

@@ -146,7 +146,7 @@ argv_exp1(sp, ep, excp, cmd, cmdlen, is_bang)
 		goto ret;
 
 	(void)argv_exp0(sp, ep, excp, bp, len);
-		
+
 ret:	FREE_SPACE(sp, bp, blen);
 	return (0);
 }

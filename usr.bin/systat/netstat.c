@@ -177,11 +177,11 @@ fetchnetstat()
 	for (p = netcb.ni_forw; p != (struct netinfo *)&netcb; p = p->ni_forw)
 		p->ni_seen = 0;
 	if (protos&TCP) {
-		off = NPTR(X_TCB); 
+		off = NPTR(X_TCB);
 		istcp = 1;
 	}
 	else if (protos&UDP) {
-		off = NPTR(X_UDB); 
+		off = NPTR(X_UDB);
 		istcp = 0;
 	}
 	else {
@@ -281,7 +281,7 @@ labelnetstat()
 	mvwaddstr(wnd, 0, PROTO, "Proto");
 	mvwaddstr(wnd, 0, RCVCC, "Recv-Q");
 	mvwaddstr(wnd, 0, SNDCC, "Send-Q");
-	mvwaddstr(wnd, 0, STATE, "(state)"); 
+	mvwaddstr(wnd, 0, STATE, "(state)");
 }
 
 void
@@ -387,7 +387,7 @@ inetprint(in, port, proto)
 
 /*
  * Construct an Internet address representation.
- * If the nflag has been supplied, give 
+ * If the nflag has been supplied, give
  * numeric value, otherwise try for symbolic name.
  */
 static char *

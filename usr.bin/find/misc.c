@@ -49,7 +49,7 @@ static char sccsid[] = "@(#)misc.c	8.2 (Berkeley) 4/1/94";
 #include <string.h>
 
 #include "find.h"
- 
+
 /*
  * brace_subst --
  *	Replace occurrences of {} in s1 with s2 and return the result string.
@@ -110,7 +110,7 @@ queryuser(argv)
 	}
         return (first == 'y');
 }
- 
+
 /*
  * emalloc --
  *	malloc with error checking.

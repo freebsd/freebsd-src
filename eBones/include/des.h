@@ -5,8 +5,8 @@
  *
  * Include file for the Data Encryption Standard library.
  *
- *	from: des.h,v 4.11 89/01/17 16:24:57 rfrench Exp $ 
- *	$Id: des.h,v 1.2 1994/07/19 19:23:06 g89r4222 Exp $
+ *	from: des.h,v 4.11 89/01/17 16:24:57 rfrench Exp $
+ *	$Id: des.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
  */
 
 /* only do the whole thing once	 */

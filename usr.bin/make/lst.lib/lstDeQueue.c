@@ -65,12 +65,12 @@ Lst_DeQueue (l)
 {
     ClientData	  rd;
     register ListNode	tln;
-    
+
     tln = (ListNode) Lst_First (l);
     if (tln == NilListNode) {
 	return ((ClientData) NIL);
     }
-    
+
     rd = tln->datum;
     if (Lst_Remove (l, (LstNode)tln) == FAILURE) {
 	return ((ClientData) NIL);

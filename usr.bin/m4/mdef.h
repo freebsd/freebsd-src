@@ -69,13 +69,13 @@
 #define SYSVTYPE        31
 #define EXITTYPE        32
 #define DEFNTYPE        33
- 
+
 #define STATIC          128
 
 /*
  * m4 special characters
  */
- 
+
 #define ARGFLAG         '$'
 #define LPAREN          '('
 #define RPAREN          ')'
@@ -102,10 +102,10 @@
 #define STRSPMAX        4096            /* size of string space    */
 #define MAXTOK          MAXSTR          /* maximum chars in a tokn */
 #define HASHSIZE        199             /* maximum size of hashtab */
- 
+
 #define ALL             1
 #define TOP             0
- 
+
 #define TRUE            1
 #define FALSE           0
 #define cycle           for(;;)
@@ -113,18 +113,18 @@
 /*
  * m4 data structures
  */
- 
+
 typedef struct ndblock *ndptr;
- 
+
 struct ndblock {                /* hastable structure         */
         char    *name;          /* entry name..               */
         char    *defn;          /* definition..               */
         int     type;           /* type of the entry..        */
         ndptr   nxtptr;         /* link to next entry..       */
 };
- 
+
 #define nil     ((ndptr) 0)
- 
+
 struct keyblk {
         char    *knam;          /* keyword name */
         int     ktyp;           /* keyword type */

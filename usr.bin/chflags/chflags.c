@@ -125,7 +125,7 @@ main(argc, argv)
 	}
 
 	if ((ftsp = fts_open(++argv, fts_options , 0)) == NULL)
-		err(1, NULL); 
+		err(1, NULL);
 
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
 		switch (p->fts_info) {

@@ -13,12 +13,12 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: rd_safe.c,v 4.12 89/01/23 15:16:16 steiner Exp $
- *	$Id: rd_safe.c,v 1.2 1994/07/19 19:26:15 g89r4222 Exp $
+ *	$Id: rd_safe.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: rd_safe.c,v 1.2 1994/07/19 19:26:15 g89r4222 Exp $";
+"$Id: rd_safe.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
 #endif /* lint */
 
 /* system include files */
@@ -134,17 +134,17 @@ krb_rd_safe protocol err sizeof(u_long) != sizeof(struct in_addr)");
     p += sizeof(m_data->time_sec);
 
     /* check direction bit is the sign bit */
-    /* For compatibility with broken old code, compares are done in VAX 
-       byte order (LSBFIRST) */ 
+    /* For compatibility with broken old code, compares are done in VAX
+       byte order (LSBFIRST) */
     if (lsb_net_ulong_less(sender->sin_addr.s_addr,
-			   receiver->sin_addr.s_addr)==-1) 
-	/* src < recv */ 
-	m_data->time_sec =  - m_data->time_sec; 
-    else if (lsb_net_ulong_less(sender->sin_addr.s_addr, 
-				receiver->sin_addr.s_addr)==0) 
+			   receiver->sin_addr.s_addr)==-1)
+	/* src < recv */
+	m_data->time_sec =  - m_data->time_sec;
+    else if (lsb_net_ulong_less(sender->sin_addr.s_addr,
+				receiver->sin_addr.s_addr)==0)
 	if (lsb_net_ushort_less(sender->sin_port,receiver->sin_port)==-1)
 	    /* src < recv */
-	    m_data->time_sec =  - m_data->time_sec; 
+	    m_data->time_sec =  - m_data->time_sec;
 
     /*
      * All that for one tiny bit!  Heaven help those that talk to

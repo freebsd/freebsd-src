@@ -65,7 +65,7 @@ again:
 			printf("\\\n");
 			col = 0;
 			goto again;
-		} 
+		}
 		cp++;
 	}
 	return (col);
