@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.24 1995/07/22 16:45:22 bde Exp $
+ * $Id: tty.h,v 1.25 1995/07/29 13:40:13 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -130,7 +130,7 @@ struct tty {
 #endif
 
 /* These flags are kept in t_state. */
-#define	TS_ASLEEP	0x00001		/* Process waiting for tty. */
+#define	TS_SO_OLOWAT	0x00001		/* Wake up when output <= low water. */
 #define	TS_ASYNC	0x00002		/* Tty in async I/O mode. */
 #define	TS_BUSY		0x00004		/* Draining output. */
 #define	TS_CARR_ON	0x00008		/* Carrier is present. */
@@ -161,6 +161,8 @@ struct tty {
  */
 #define TS_CAN_BYPASS_L_RINT 0x20000    /* device in "raw" mode */
 
+/* Extras. */
+#define	TS_SO_OCOMPLETE	0x080000	/* Wake up when output completes. */
 
 /* Character type information. */
 #define	ORDINARY	0
@@ -201,7 +203,8 @@ struct speedtab {
 
 /* Unique sleep addresses. */
 #define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)	/* XXX overloaded */
-#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)	/* XXX overloaded */
+#define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq.c_cl)
+#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
 #define	TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)
 #define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
 #define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
