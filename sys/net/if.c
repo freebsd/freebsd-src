@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.14 1995/05/27 04:37:24 davidg Exp $
+ * $Id: if.c,v 1.15 1995/05/30 08:07:58 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -237,15 +237,14 @@ ifa_ifwithnet(addr)
 		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
 			register char *cp, *cp2, *cp3;
 
-			if (ifa->ifa_addr->sa_family != af || ifa->ifa_netmask == 0)
+			if (ifa->ifa_addr->sa_family != af)
 				next: continue;
-#ifdef P2P_LOCALADDR_SHARE
 			if (ifp->if_flags & IFF_POINTOPOINT) {
-				if (equal(addr, ifa->ifa_addr))
+				if (equal(addr, ifa->ifa_dstaddr))
  					return (ifa);
-			} else
-#endif /* P2P_LOCALADDR_SHARE */
-			{
+			} else {
+				if (ifa->ifa_netmask == 0)
+					continue;
 				cp = addr_data;
 				cp2 = ifa->ifa_addr->sa_data;
 				cp3 = ifa->ifa_netmask->sa_data;
@@ -307,13 +306,10 @@ ifaof_ifpforaddr(addr, ifp)
 				return (ifa);
 			continue;
 		}
-#ifdef P2P_LOCALADDR_SHARE
 		if (ifp->if_flags & IFF_POINTOPOINT) {
 			if (equal(addr, ifa->ifa_dstaddr))
 				return (ifa);
-		} else
-#endif /* P2P_LOCALADDR_SHARE */
-		{
+		} else {
 			cp = addr->sa_data;
 			cp2 = ifa->ifa_addr->sa_data;
 			cp3 = ifa->ifa_netmask->sa_data;
