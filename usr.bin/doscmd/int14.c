@@ -35,9 +35,13 @@
  * $FreeBSD$
  */
 
-#include "doscmd.h"
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <termios.h>
+#include <unistd.h>
+
+#include "doscmd.h"
 #include "com.h"
 
 struct com_data_struct com_data[N_COMS_MAX];
@@ -53,9 +57,7 @@ int write_div_latches() {}
 void
 int14(regcontext_t *REGS)
 {
-    int reg_num;
     struct com_data_struct *cdsp;
-    int i;
     int nbytes;
     char c;
 
@@ -142,12 +144,8 @@ int14(regcontext_t *REGS)
 void
 com_set_line(struct com_data_struct *cdsp, unsigned char port, unsigned char param)
 {
-    struct termios tty;
     struct stat stat_buf;
-    int mode = 0;		/* read|write */
-    int speed;
     int reg_num;
-    int ret_val;
 
     debug (D_PORT, "com_set_line: cdsp = 0x%08X, port = 0x%04x,"
 		   "param = 0x%04X.\n", cdsp, port, param);
@@ -409,7 +407,7 @@ com_port_out(int port, unsigned char val)
 	    write_div_latches(cdsp);
 	} else {
 	    errno = 0;
-	    nbytes = write(cdsp->fd, val, 1);
+	    nbytes = write(cdsp->fd, &val, 1);
 	    debug (D_PORT, "write of 0x%02x to fd %d on '%s' returned %d errno %d\n",
 		   val, cdsp->fd, cdsp->path, nbytes, errno);
 	    if (nbytes != 1)

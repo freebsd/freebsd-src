@@ -33,6 +33,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 int
 ParseBuffer(obuf, av, mac)

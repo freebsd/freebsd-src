@@ -38,6 +38,7 @@
 #include <stdarg.h>
 
 #include "doscmd.h"
+#include "tty.h"
 
 /* debug output goes here */
 FILE *debugf = stderr;
@@ -107,7 +108,6 @@ fatal (char *fmt, ...)
 
     if (xmode) {
 	char buf[1024];
-	char buf2[1024];
 	char *m;
 
 	va_start (args, fmt);

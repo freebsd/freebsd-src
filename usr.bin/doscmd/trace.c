@@ -183,7 +183,7 @@ tracetrap(regcontext_t *REGS)
     }
 }
 
-inline
+inline void
 showstate(long flags, long flag, char f)
 {
     putc((flags & flag) ? f : ' ', debugf);

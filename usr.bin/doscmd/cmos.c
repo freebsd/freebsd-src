@@ -91,7 +91,6 @@ int day_in_year [12] = {
 time_t 			delta_clock = 0;
 
 /* locals */
-static int		fast_delta_uclock;
 static struct timeval	fast_clock;
 static int		fast_tick;
 

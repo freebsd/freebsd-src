@@ -33,6 +33,7 @@
  */
 
 #include "doscmd.h"
+#include "tty.h"
 
 #define	K_NEXT		*(u_short *)0x41a
 #define	K_FREE		*(u_short *)0x41c
@@ -77,8 +78,6 @@ sleep_poll(void)
 void
 int16(regcontext_t *REGS)
 {               
-    int c;
-
     if (!xmode && !raw_kbd) {
 	if (vflag) dump_regs(REGS);
 	fatal ("int16 func 0x%x only supported in X mode\n", R_AH);

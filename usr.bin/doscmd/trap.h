@@ -81,3 +81,17 @@
 #define	AC_EXC	0x0c00			/* Execute Only Conforming */
 #define	AC_EXRC	0x0e00			/* Execute Readable Conforming */
 #define	AC_A	0x0100			/* Accessed */
+
+extern void	fake_int(regcontext_t *REGS, int);
+extern void	sigtrap(struct sigframe *sf);
+extern void	sigtrace(struct sigframe *sf);
+extern void	sigalrm(struct sigframe *sf);
+extern void	sigill(struct sigframe *sf);
+extern void	sigfpe(struct sigframe *sf);
+extern void	sigsegv(struct sigframe *sf);
+extern void	breakpoint(struct sigframe *sf);
+#ifdef USE_VM86
+extern void	sigurg(struct sigframe *sf);
+#else
+extern void	sigbus(struct sigframe *sf);
+#endif
