@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.112 1998/08/03 21:31:32 msmith Exp $
+ *	$Id: locore.s,v 1.113 1998/09/28 03:26:22 tegge Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -569,6 +569,22 @@ got_common_bi_size:
 	rep
 	movsb
 
+	/*
+	 * Fix up the module data and kernel environment pointers.
+	 */
+	movl	R(_bootinfo+BI_ENVP),%eax
+	testl	%eax,%eax
+	je	no_envp
+	movl	$KERNBASE,%eax
+	addl	%eax,R(_bootinfo+BI_ENVP)
+no_envp:
+	movl	R(_bootinfo+BI_MODULEP),%eax
+	testl	%eax,%eax
+	je	no_modulep
+	movl	$KERNBASE,%eax
+	addl	%eax,R(_bootinfo+BI_MODULEP)
+no_modulep:
+	
 #ifdef NFS_ROOT
 #ifndef BOOTP_NFSV3
 	/*
@@ -756,7 +772,7 @@ create_pagetables:
 /* Find end of kernel image (rounded up to a page boundary). */
 	movl	$R(_end),%esi
 
-/* include symbols in "kernel image" if they are loaded and useful */
+/* include symbols if loaded and useful */
 #ifdef DDB
 	movl	R(_bootinfo+BI_ESYMTAB),%edi
 	testl	%edi,%edi
@@ -768,6 +784,13 @@ create_pagetables:
 over_symalloc:
 #endif
 
+/* If we are told where the end of the kernel space is, believe it. */
+	movl	R(_bootinfo+BI_KERNEND),%edi
+	testl	%edi,%edi
+	je	no_kernend
+	movl	%edi,%esi
+no_kernend:
+	
 	addl	$PAGE_MASK,%esi
 	andl	$~PAGE_MASK,%esi
 	movl	%esi,R(_KERNend)	/* save end of kernel */
