@@ -96,7 +96,7 @@ and performs the minimal number of steps to rebuild the release using
 the intermediate output of the previous
 .Dq Li "make release" .
 .It Cm floppies
-Generate a new set of boot floppies.
+Generate a new set of boot and fixit floppies.
 This will call the
 .Cm release.5 ,
 .Cm release.9 ,
@@ -144,9 +144,9 @@ Creates tarballs of the assembled distribution trees.
 .It Cm release.8
 Makes source distributions.
 .It Cm release.9
-Creates the boot and MFS root floppies.
+Creates the MFS root file systems.
 .It Cm release.10
-Creates the fixit floppy.
+Creates the boot, MFS root, and fixit floppies.
 .It Cm ftp.1
 Sets up a suitable area for FTP installations in
 .Pa ${CHROOTDIR}/R/ftp .
@@ -297,7 +297,7 @@ distribution will still be created with the minimal documentation set
 provided in
 .Pa src/share/doc .
 .It Va NO_FLOPPIES
-If defined, no floppy disk image files will be created.
+If defined, no boot and fixit floppy disk images will be created.
 .It Va NOPORTS
 If defined, the Ports Collection will be omitted from the release.
 .It Va NOPORTREADMES
