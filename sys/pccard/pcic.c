@@ -165,14 +165,14 @@ static struct slot_ctrl cinfo;
  * Read a register from the PCIC.
  */
 static inline unsigned char
-getb1 (struct pcic_slot *sp, int reg)
+getb1(struct pcic_slot *sp, int reg)
 {
-	outb (sp->index, sp->offset + reg);
-	return inb (sp->data);
+	outb(sp->index, sp->offset + reg);
+	return inb(sp->data);
 }
 
 static inline unsigned char
-getb2 (struct pcic_slot *sp, int reg)
+getb2(struct pcic_slot *sp, int reg)
 {
 	return (sp->regs[reg]);
 }
@@ -181,14 +181,14 @@ getb2 (struct pcic_slot *sp, int reg)
  * Write a register on the PCIC
  */
 static inline void
-putb1 (struct pcic_slot *sp, int reg, unsigned char val)
+putb1(struct pcic_slot *sp, int reg, unsigned char val)
 {
-	outb (sp->index, sp->offset + reg);
-	outb (sp->data, val);
+	outb(sp->index, sp->offset + reg);
+	outb(sp->data, val);
 }
 
 static inline void
-putb2 (struct pcic_slot *sp, int reg, unsigned char val)
+putb2(struct pcic_slot *sp, int reg, unsigned char val)
 {
 	sp->regs[reg] = val;
 }
@@ -199,7 +199,7 @@ putb2 (struct pcic_slot *sp, int reg, unsigned char val)
 static inline void
 clrb(struct pcic_slot *sp, int reg, unsigned char mask)
 {
-	sp->putb (sp, reg, sp->getb (sp, reg) & ~mask);
+	sp->putb(sp, reg, sp->getb(sp, reg) & ~mask);
 }
 
 /*
@@ -208,7 +208,7 @@ clrb(struct pcic_slot *sp, int reg, unsigned char mask)
 static inline void
 setb(struct pcic_slot *sp, int reg, unsigned char mask)
 {
-	sp->putb (sp, reg, sp->getb (sp, reg) | mask);
+	sp->putb(sp, reg, sp->getb(sp, reg) | mask);
 }
 
 /*
@@ -217,8 +217,8 @@ setb(struct pcic_slot *sp, int reg, unsigned char mask)
 static inline void
 putw (struct pcic_slot *sp, int reg, unsigned short word)
 {
-	sp->putb (sp, reg, word & 0xFF);
-	sp->putb (sp, reg + 1, (word >> 8) & 0xff);
+	sp->putb(sp, reg, word & 0xFF);
+	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
 }
 
 
@@ -670,7 +670,7 @@ pcic_probe(void)
 		 * Intel PCMCIA controllers use 0x82 and 0x83
 		 * IBM clone chips use 0x88 and 0x89, apparently
 		 */
-		c = sp->getb (sp, PCIC_ID_REV);
+		c = sp->getb(sp, PCIC_ID_REV);
 		sp->revision = -1;
 		switch(c) {
 		/*
@@ -686,7 +686,7 @@ pcic_probe(void)
 			outb(sp->index, 0x0E);
 			outb(sp->index, 0x37);
 			setb(sp, 0x3A, 0x40);
-			c = sp->getb (sp, PCIC_ID_REV);
+			c = sp->getb(sp, PCIC_ID_REV);
 			if (c & 0x08) {
 				sp->controller = ((sp->revision = c & 7) == 4) ?	
 					PCIC_VG469 : PCIC_VG468 ;
@@ -696,7 +696,7 @@ pcic_probe(void)
 			/*
 			 * Check for RICOH RF5C396 PCMCIA Controller
 			 */
-			c = sp->getb (sp, 0x3a);
+			c = sp->getb(sp, 0x3a);
 			if (c == 0xb2) {
 				sp->controller = PCIC_RF5C396;
 			}
@@ -803,7 +803,7 @@ pcic_probe(void)
 		 *	Check for a card in this slot.
 		 */
 		setb (sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
-		if ((sp->getb (sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
+		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
 			slotp->laststate = slotp->state = empty;
 		} else {
 			slotp->laststate = slotp->state = filled;
@@ -972,12 +972,12 @@ pcic_power(struct slot *slotp)
 		}
 		break;
 	}
-	sp->putb (sp, PCIC_POWER, reg);
+	sp->putb(sp, PCIC_POWER, reg);
 	DELAY(300*1000);
 	if (slotp->pwr.vcc) {
 		reg |= PCIC_OUTENA;
-		sp->putb (sp, PCIC_POWER, reg);
-		DELAY (100*1000);
+		sp->putb(sp, PCIC_POWER, reg);
+		DELAY(100*1000);
 	}
 	/* Some chips are smarter than us it seems, so if we weren't
 	 * allowed to use 5V, try 3.3 instead
@@ -1030,8 +1030,8 @@ pcic_mapirq (struct slot *slotp, int irq)
 	if (irq == 0)
 		clrb(sp, PCIC_INT_GEN, 0xF);
 	else
-		sp->putb (sp, PCIC_INT_GEN, 
-		    (sp->getb (sp, PCIC_INT_GEN) & 0xF0) | irq);
+		sp->putb(sp, PCIC_INT_GEN, 
+		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
 }
 
 /*
