@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.141 1999/01/24 01:01:38 dillon Exp $
+ * $Id: vm_object.c,v 1.142 1999/01/28 00:57:57 dillon Exp $
  */
 
 /*
@@ -1459,7 +1459,8 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 		return (TRUE);
 	}
 
-	if (prev_object->type != OBJT_DEFAULT) {
+	if (prev_object->type != OBJT_DEFAULT &&
+	    prev_object->type != OBJT_SWAP) {
 		return (FALSE);
 	}
 
