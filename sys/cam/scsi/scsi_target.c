@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.4 1998/12/10 04:07:42 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.5 1998/12/15 08:15:15 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -106,13 +106,13 @@ struct targ_softc {
 	u_int		init_level;
 	u_int		inq_data_len;
 	struct		scsi_inquiry_data *inq_data;
-	struct		ccb_hdr_slist accept_tio_slist;
+	struct		ccb_accept_tio *accept_tio_list;
 	struct		ccb_hdr_slist immed_notify_slist;
 	struct		initiator_state istate[MAX_INITIATORS];
 };
 
 struct targ_cmd_desc {
-	SLIST_ENTRY(targ_cmd_desc) links;
+	struct	  ccb_accept_tio* atio_link;
 	u_int	  data_resid;	/* How much left to transfer */
 	u_int	  data_increment;/* Amount to send before next disconnect */
 	void*	  data;		/* The data. Can be from backing_store or not */
@@ -353,11 +353,13 @@ targenlun(struct cam_periph *periph)
 		xpt_action((union ccb *)atio);
 		status = atio->ccb_h.status;
 		if (status != CAM_REQ_INPROG) {
+			freedescr(atio->ccb_h.ccb_descr);
 			free(atio, M_DEVBUF);
 			break;
 		}
-		SLIST_INSERT_HEAD(&softc->accept_tio_slist, &atio->ccb_h,
-				  periph_links.sle);
+		((struct targ_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link =
+		    softc->accept_tio_list;
+		softc->accept_tio_list = atio;
 	}
 
 	if (i == 0) {
@@ -412,6 +414,7 @@ targdislun(struct cam_periph *periph)
 {
 	union ccb ccb;
 	struct targ_softc *softc;
+	struct ccb_accept_tio* atio;
 	struct ccb_hdr *ccb_h;
 
 	softc = (struct targ_softc *)periph->softc;
@@ -421,14 +424,18 @@ targdislun(struct cam_periph *periph)
 	/* XXX Block for Continue I/O completion */
 
 	/* Kill off all ACCECPT and IMMEDIATE CCBs */
-	SLIST_FOREACH(ccb_h, &softc->accept_tio_slist, periph_links.sle) {
+	while ((atio = softc->accept_tio_list) != NULL) {
+		
+		softc->accept_tio_list =
+		    ((struct targ_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link;
 		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
 		ccb.cab.ccb_h.func_code = XPT_ABORT;
-		ccb.cab.abort_ccb = (union ccb *)ccb_h;
+		ccb.cab.abort_ccb = (union ccb *)atio;
 		xpt_action(&ccb);
 	}
 
-	SLIST_FOREACH(ccb_h, &softc->immed_notify_slist, periph_links.sle) {
+	while ((ccb_h = SLIST_FIRST(&softc->immed_notify_slist)) != NULL) {
+		SLIST_REMOVE_HEAD(&softc->immed_notify_slist, periph_links.sle);
 		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
 		ccb.cab.ccb_h.func_code = XPT_ABORT;
 		ccb.cab.abort_ccb = (union ccb *)ccb_h;
@@ -456,7 +463,6 @@ targctor(struct cam_periph *periph, void *arg)
 {
 	struct ccb_pathinq *cpi;
 	struct targ_softc *softc;
-	cam_status status;
 	int i;
 
 	cpi = (struct ccb_pathinq *)arg;
@@ -476,7 +482,7 @@ targctor(struct cam_periph *periph, void *arg)
 	TAILQ_INIT(&softc->unknown_atio_queue);
 	bufq_init(&softc->snd_buf_queue);
 	bufq_init(&softc->rcv_buf_queue);
-	SLIST_INIT(&softc->accept_tio_slist);
+	softc->accept_tio_list = NULL;
 	SLIST_INIT(&softc->immed_notify_slist);
 	softc->state = TARG_STATE_NORMAL;
 	periph->softc = softc;
@@ -505,8 +511,7 @@ targctor(struct cam_periph *periph, void *arg)
 	softc->inq_data->version = 2;
 	softc->inq_data->response_format = 2; /* SCSI2 Inquiry Format */
 	softc->inq_data->flags =
-	    cpi->hba_inquiry & PI_SDTR_ABLE;
-	    /*cpi->hba_inquiry & (PI_SDTR_ABLE|PI_WIDE_16|PI_WIDE_32); */
+	    cpi->hba_inquiry & (PI_SDTR_ABLE|PI_WIDE_16|PI_WIDE_32);
 	softc->inq_data->additional_length = softc->inq_data_len - 4;
 	strncpy(softc->inq_data->vendor, "FreeBSD ", SID_VENDOR_SIZE);
 	strncpy(softc->inq_data->product, "TM-PT           ", SID_PRODUCT_SIZE);
@@ -618,7 +623,6 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	struct targ_softc *softc;
 	u_int  unit;
 	int    error;
-	int    s;
 
 	unit = minor(dev);
 	periph = cam_extend_get(targperiphs, unit);
@@ -726,7 +730,6 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 static int
 targsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 {
-	struct buf *bp[2];
 	struct targ_softc *softc;
 	struct cam_periph_map_info mapinfo;
 	int error, need_unmap;
@@ -980,7 +983,6 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 	struct	buf *bp;
 	struct	targ_cmd_desc *desc;
 	struct	ccb_hdr *ccbh;
-	int	added;
 	int	s;
 
 	s = splbio();
