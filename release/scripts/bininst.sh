@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst.sh,v 1.6 1995/02/02 04:57:05 jkh Exp $
+# $Id: bininst.sh,v 1.7 1995/02/02 08:31:35 jkh Exp $
 
 # Grab the miscellaneous functions.
 . /stand/scripts/miscfuncs.sh
@@ -77,7 +77,6 @@ if media_select_distribution; then
 			media_install_set
 		done
 	fi
-else
 	do_last_config
 fi
 
