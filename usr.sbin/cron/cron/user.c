@@ -16,7 +16,8 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: user.c,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp $";
+static const char rcsid[] =
+	"$Id: user.c,v 1.2 1995/05/30 03:47:01 rgrimes Exp $";
 #endif
 
 /* vix 26jan87 [log is in RCS file]
@@ -55,7 +56,7 @@ load_user(crontab_fd, pw, name)
 	char	**envp;
 
 	if (!(file = fdopen(crontab_fd, "r"))) {
-		perror("fdopen on crontab_fd in load_user");
+		warn("fdopen on crontab_fd in load_user");
 		return NULL;
 	}
 
