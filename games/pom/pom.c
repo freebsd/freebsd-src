@@ -34,13 +34,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)pom.c	8.1 (Berkeley) 5/31/93";
+static const char sccsid[] = "@(#)pom.c       8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 /*
@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)pom.c	8.1 (Berkeley) 5/31/93";
  *
  */
 
-#include <sys/time.h>
+#include <time.h>
 #include <stdio.h>
 #include <math.h>
 
@@ -65,25 +65,20 @@ static char sccsid[] = "@(#)pom.c	8.1 (Berkeley) 5/31/93";
 #define	lzero	  18.251907	/* lunar mean long at EPOCH */
 #define	Pzero	  192.917585	/* lunar mean long of perigee at EPOCH */
 #define	Nzero	  55.204723	/* lunar mean long of node at EPOCH */
-#define isleap(y) (((y) % 4) == 0 && ((y) % 100) != 0 || ((y) % 400) == 0)
+#define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 
-double dtor(), potm(), adj360();
+double dtor(), potm();
+void adj360();
 
-main()
+void main()
 {
-	extern int errno;
-	struct timeval tp;
-	struct timezone tzp;
-	struct tm *GMT, *gmtime();
+	time_t tt;
+	struct tm *GMT;
 	double days, today, tomorrow;
 	int cnt;
-	char *strerror();
 
-	if (gettimeofday(&tp,&tzp)) {
-		(void)fprintf(stderr, "pom: %s\n", strerror(errno));
-		exit(1);
-	}
-	GMT = gmtime(&tp.tv_sec);
+	(void) time(&tt);
+	GMT = gmtime(&tt);
 	days = (GMT->tm_yday + 1) + ((GMT->tm_hour +
 	    (GMT->tm_min / 60.0) + (GMT->tm_sec / 3600.0)) / 24.0);
 	for (cnt = EPOCH; cnt < GMT->tm_year; ++cnt)
@@ -164,7 +159,7 @@ dtor(deg)
  * adj360 --
  *	adjust value so 0 <= deg <= 360
  */
-double
+void
 adj360(deg)
 	double *deg;
 {

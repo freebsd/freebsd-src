@@ -5,7 +5,7 @@ MAN6=	fish.6
 HIDEGAME=hidegame
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fish.instr \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fish.instr \
 	    ${DESTDIR}/usr/share/games/fish.instr
 
 .include <bsd.prog.mk>
