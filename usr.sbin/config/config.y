@@ -75,6 +75,7 @@ static struct	device *curp = 0;
 struct  device *dtab;
 char	*ident;
 char	*hints;
+int	hintmode;
 int	yyline;
 struct  file_list *ftab;
 char	errbuf[80];
@@ -142,7 +143,10 @@ Config_spec:
 	MAXUSERS NUMBER
 	      = { maxusers = $2; } |
 	HINTS ID
-	      = { hints = $2; };
+	      = {
+		      hints = $2;
+		      hintmode = 1;
+		};
 
 System_spec:
 	CONFIG System_id System_parameter_list

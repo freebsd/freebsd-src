@@ -131,6 +131,7 @@ struct opt_list {
 extern char	*ident;
 extern char	*hints;
 extern int	do_trace;
+extern int	hintmode;
 
 char	*get_word(FILE *);
 char	*get_quoted_word(FILE *);

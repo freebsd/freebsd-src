@@ -8,4 +8,4 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	500002
+#define	CONFIGVERS	500003
