@@ -647,12 +647,15 @@ pps_event(struct pps_state *pps, int event)
 static int tc_tick;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tick, 0, "");
 
-static void
-tc_ticktock(void *dummy)
+void
+tc_ticktock(void)
 {
+	static int count;
 
+	if (++count < tc_tick)
+		return;
+	count = 0;
 	tc_windup();
-	timeout(tc_ticktock, NULL, tc_tick);
 }
 
 static void
@@ -678,7 +681,6 @@ inittimecounter(void *dummy)
 	/* warm up new timecounter (again) and get rolling. */
 	(void)timecounter->tc_get_timecount(timecounter);
 	(void)timecounter->tc_get_timecount(timecounter);
-	tc_ticktock(NULL);
 }
 
 SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_FIRST, inittimecounter, NULL)
