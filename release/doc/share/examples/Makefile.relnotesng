@@ -12,7 +12,7 @@ UNITEXTS=	readme errata
 
 IMAGEDIR=	.imagedir
 RHOST=		freefall.freebsd.org
-RDIR=		public_html/relnotes/CURRENT
+RDIR=		public_html/relnotes/4-STABLE
 DOCDIR=		./release/doc
 LANG=		en_US.ISO8859-1
 
