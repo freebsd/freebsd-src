@@ -119,7 +119,7 @@ gre_input(m, va_alist)
 
 	ret = gre_input2(m, off, proto);
 	/*
-	 * ret == 0 : packet not processed, meaning that 
+	 * ret == 0 : packet not processed, meaning that
 	 * no matching tunnel that is up is found.
 	 * we inject it to raw ip socket to see if anyone picks it up.
 	 */
@@ -179,7 +179,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		switch (ntohs(gip->gi_ptype)) { /* ethertypes */
 		case ETHERTYPE_IP: /* shouldn't need a schednetisr(), as */
 		case WCCP_PROTOCOL_TYPE: /* we are in ip_input */
-			isr = NETISR_IP; 	
+			isr = NETISR_IP;
 			break;
 #ifdef NETATALK
 		case ETHERTYPE_ATALK:
@@ -295,7 +295,7 @@ gre_mobile_input(m, va_alist)
 	 * and full size of IP packet), so that adjust accordingly.
 	 */
 	ip->ip_len = htons(ip->ip_len + sizeof(struct ip) - msiz);
-	
+
 	ip->ip_sum = 0;
 	ip->ip_sum = in_cksum(m, (ip->ip_hl << 2));
 
