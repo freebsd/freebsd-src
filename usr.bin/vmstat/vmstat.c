@@ -481,7 +481,7 @@ dovmstat(interval, reps)
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf("%8ld%6ld ",
+		(void)printf("%8ld %6ld ",
 		    (long)vmstat_pgtok(total.t_avm), (long)vmstat_pgtok(total.t_free));
 		(void)printf("%4lu ",
 		    (u_long)rate(sum.v_vm_faults - osum.v_vm_faults));
@@ -527,13 +527,13 @@ printhdr()
 	int i, num_shown;
 
 	num_shown = (num_selected < maxshowdevs) ? num_selected : maxshowdevs;
-	(void)printf(" procs      memory     page%*s", 19, "");
+	(void)printf(" procs      memory      page%*s", 19, "");
 	if (num_shown > 1)
 		(void)printf(" disks %*s", num_shown * 4 - 7, "");
 	else if (num_shown == 1)
 		(void)printf("disk");
 	(void)printf("   faults      cpu\n");
-	(void)printf(" r b w     avm   fre  flt  re  pi  po  fr  sr ");
+	(void)printf(" r b w     avm    fre  flt  re  pi  po  fr  sr ");
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected)
 		 && (dev_select[i].selected <= maxshowdevs))
