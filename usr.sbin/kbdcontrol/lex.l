@@ -61,6 +61,13 @@ boot 		{ return TRBT; }
 debug 		{ return TDBG; }
 susp		{ return TSUSP; }
 saver		{ return TSPSC; }
+panic		{ return TPANIC; }
+lshifta|shifta	{ return TLSHA; }
+rshifta		{ return TRSHA; }
+lctrla|ctrla	{ return TLCTRA; }
+rctrla		{ return TRCTRA; }
+lalta|alta	{ return TLALTA; }
+ralta		{ return TRALTA; }
 
 NUL|nul		{ number = 0; return TNUM; }
 SOH|soh		{ number = 1; return TNUM; }
