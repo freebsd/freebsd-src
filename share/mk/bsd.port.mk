@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.200 1996/04/07 08:34:21 asami Exp $
+# $Id: bsd.port.mk,v 1.201 1996/04/12 08:08:36 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -263,7 +263,7 @@ MD5_FILE?=		${FILESDIR}/md5
 
 MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
-MAKE_ENV?=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB="${MOTIFLIB}"
+MAKE_ENV?=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB="${MOTIFLIB}" CFLAGS="${CFLAGS}"
 
 NCFTP?=			/usr/bin/ncftp
 NCFTPFLAGS?=	-N
