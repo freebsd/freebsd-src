@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 		dirs->name = "/";
 		dirs->len = 1;
 	}
-	if (ipchroot && chroot_dir == NULL) {
+	if (ipchroot > 0 && chroot_dir == NULL) {
 		syslog(LOG_ERR, "-c requires -s");
 		exit(1);
 	}
@@ -245,7 +245,7 @@ main(int argc, char *argv[])
 	 * be a problem.  See the above comment about system clogging.
 	 */
 	if (chroot_dir) {
-		if (ipchroot) {
+		if (ipchroot > 0) {
 			char *tempchroot;
 			struct stat sb;
 			int statret;
@@ -258,9 +258,10 @@ main(int argc, char *argv[])
 				    hbuf, sizeof(hbuf), NULL, 0,
 				    NI_NUMERICHOST | NI_WITHSCOPEID);
 			asprintf(&tempchroot, "%s/%s", chroot_dir, hbuf);
-			statret = stat(tempchroot, &sb);
-			if ((sb.st_mode & S_IFDIR) &&
-			    (statret == 0 || (statret == -1 && ipchroot == 1)))
+			if (ipchroot == 2)
+				statret = stat(tempchroot, &sb);
+			if (ipchroot == 1 ||
+			    (statret == 0 && (sb.st_mode & S_IFDIR)))
 				chroot_dir = tempchroot;
 		}
 		/* Must get this before chroot because /etc might go away */
