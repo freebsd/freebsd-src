@@ -337,7 +337,7 @@ agp_i810_attach(device_t dev)
 
 		gatt->ag_physical = pgtblctl & ~1;
 	} else {	/* CHIP_I855 */
-		/* The 855GM automatically initializes the 128k gatt on boot. */
+		/* The i855 automatically initializes the 128k gatt on boot. */
 		unsigned int gcc1, pgtblctl;
 		
 		gcc1 = pci_read_config(sc->bdev, AGP_I855_GCC1, 1);
@@ -375,7 +375,11 @@ agp_i810_attach(device_t dev)
 		gatt->ag_physical = pgtblctl & ~1;
 	}
 
-	return 0;
+	/* Add a device for the drm to attach to */
+	if (!device_add_child( dev, "drmsub", -1 ))
+		printf("out of memory...\n");
+
+	return bus_generic_attach(dev);
 }
 
 static int
@@ -383,6 +387,7 @@ agp_i810_detach(device_t dev)
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
 	int error;
+	device_t child;
 
 	error = agp_generic_detach(dev);
 	if (error)
@@ -408,6 +413,10 @@ agp_i810_detach(device_t dev)
 
 	bus_release_resource(dev, SYS_RES_MEMORY,
 			     AGP_I810_MMADR, sc->regs);
+
+	child = device_find_child( dev, "drmsub", 0 );
+	if (child)
+	   device_delete_child( dev, child );
 
 	return 0;
 }
@@ -676,6 +685,18 @@ agp_i810_unbind_memory(device_t dev, struct agp_memory *mem)
 	return 0;
 }
 
+static int
+agp_i810_print_child(device_t dev, device_t child)
+{
+	int retval = 0;
+
+	retval += bus_print_child_header(dev, child);
+	retval += printf(": (child of agp_i810.c)");
+	retval += bus_print_child_footer(dev, child);
+
+	return retval;
+}
+
 static device_method_t agp_i810_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		agp_i810_probe),
@@ -697,6 +718,14 @@ static device_method_t agp_i810_methods[] = {
 	DEVMETHOD(agp_bind_memory,	agp_i810_bind_memory),
 	DEVMETHOD(agp_unbind_memory,	agp_i810_unbind_memory),
 
+	/* bus methods */
+	DEVMETHOD(bus_print_child,	agp_i810_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	{ 0, 0 }
 };
 
