@@ -455,12 +455,12 @@ main(int argc, char *argv[], char **envp)
 			exit(1);
 		}
 		if (setsockopt(ctl_sock, SOL_SOCKET, SO_REUSEADDR,
-		    (char *)&on, sizeof(on)) < 0)
+		    &on, sizeof(on)) < 0)
 			syslog(LOG_WARNING,
 			       "control setsockopt (SO_REUSEADDR): %m");
 		if (family == AF_INET6 && enable_v4 == 0) {
 			if (setsockopt(ctl_sock, IPPROTO_IPV6, IPV6_V6ONLY,
-				       (char *)&on, sizeof (on)) < 0)
+				       &on, sizeof (on)) < 0)
 				syslog(LOG_WARNING,
 				       "control setsockopt (IPV6_V6ONLY): %m");
 		}
@@ -551,7 +551,7 @@ main(int argc, char *argv[], char **envp)
 	if (ctrl_addr.su_family == AF_INET)
       {
 	tos = IPTOS_LOWDELAY;
-	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof(int)) < 0)
+	if (setsockopt(0, IPPROTO_IP, IP_TOS, &tos, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (IP_TOS): %m");
       }
 #endif
@@ -569,7 +569,7 @@ main(int argc, char *argv[], char **envp)
 
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
-	if (setsockopt(0, SOL_SOCKET, SO_OOBINLINE, (char *)&on, sizeof(on)) < 0)
+	if (setsockopt(0, SOL_SOCKET, SO_OOBINLINE, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (SO_OOBINLINE): %m");
 #endif
 
@@ -802,7 +802,7 @@ inithosts(void)
 				goto nextline;
 				/* NOTREACHED */
 			}
-			if ((hp = getipnodebyaddr((char*)addr, addrsize,
+			if ((hp = getipnodebyaddr(addr, addrsize,
 						  hrp->hostinfo->ai_family,
 						  &hp_error)) != NULL) {
 				if (strcmp(vhost, hp->h_name) != 0) {
@@ -1666,8 +1666,7 @@ getdatasock(char *mode)
 	s = socket(data_dest.su_family, SOCK_STREAM, 0);
 	if (s < 0)
 		goto bad;
-	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
-	    (char *) &on, sizeof(on)) < 0)
+	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "data setsockopt (SO_REUSEADDR): %m");
 	/* anchor socket to avoid multi-homing problems */
 	data_source = ctrl_addr;
@@ -1685,7 +1684,7 @@ getdatasock(char *mode)
 	if (data_source.su_family == AF_INET)
       {
 	on = IPTOS_THROUGHPUT;
-	if (setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&on, sizeof(int)) < 0)
+	if (setsockopt(s, IPPROTO_IP, IP_TOS, &on, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "data setsockopt (IP_TOS): %m");
       }
 #endif
@@ -1697,12 +1696,12 @@ getdatasock(char *mode)
 	 * in heavy-load situations.
 	 */
 	on = 1;
-	if (setsockopt(s, IPPROTO_TCP, TCP_NOPUSH, (char *)&on, sizeof on) < 0)
+	if (setsockopt(s, IPPROTO_TCP, TCP_NOPUSH, &on, sizeof on) < 0)
 		syslog(LOG_WARNING, "data setsockopt (TCP_NOPUSH): %m");
 #endif
 #ifdef SO_SNDBUF
 	on = 65536;
-	if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, (char *)&on, sizeof on) < 0)
+	if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &on, sizeof on) < 0)
 		syslog(LOG_WARNING, "data setsockopt (SO_SNDBUF): %m");
 #endif
 
@@ -1767,8 +1766,7 @@ dataconn(char *name, off_t size, char *mode)
 		if (from.su_family == AF_INET)
 	      {
 		tos = IPTOS_THROUGHPUT;
-		if (setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&tos,
-		    sizeof(int)) < 0)
+		if (setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(int)) < 0)
 			syslog(LOG_WARNING, "pdata setsockopt (IP_TOS): %m");
 	      }
 #endif
@@ -2495,7 +2493,7 @@ passive(void)
 					   : IP_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
-			    (char *)&on, sizeof(on)) < 0)
+			    &on, sizeof(on)) < 0)
 		    goto pasv_error;
 	}
 #endif
@@ -2505,7 +2503,7 @@ passive(void)
 					   : IPV6_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
-			    (char *)&on, sizeof(on)) < 0)
+			    &on, sizeof(on)) < 0)
 		    goto pasv_error;
 	}
 #endif
@@ -2606,7 +2604,7 @@ long_passive(char *cmd, int pf)
 					   : IP_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
-			    (char *)&on, sizeof(on)) < 0)
+			    &on, sizeof(on)) < 0)
 		    goto pasv_error;
 	}
 #endif
@@ -2616,7 +2614,7 @@ long_passive(char *cmd, int pf)
 					   : IPV6_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
-			    (char *)&on, sizeof(on)) < 0)
+			    &on, sizeof(on)) < 0)
 		    goto pasv_error;
 	}
 #endif
