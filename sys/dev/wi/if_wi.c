@@ -367,8 +367,10 @@ wi_attach(device_t dev)
 #endif
 		if (sc->sc_sta_firmware_ver >= 60000)
 			sc->sc_flags |= WI_FLAGS_HAS_MOR;
-		if (sc->sc_sta_firmware_ver >= 60006)
+		if (sc->sc_sta_firmware_ver >= 60006) {
 			ic->ic_caps |= IEEE80211_C_IBSS;
+			ic->ic_caps |= IEEE80211_C_MONITOR;
+		}
 		sc->sc_ibss_port = htole16(1);
 		break;
 
@@ -379,8 +381,10 @@ wi_attach(device_t dev)
 		sc->sc_flags |= WI_FLAGS_HAS_SYSSCALE;
 		if (sc->sc_sta_firmware_ver > 10101)
 			sc->sc_flags |= WI_FLAGS_HAS_DBMADJUST;
-		if (sc->sc_sta_firmware_ver >= 800)
+		if (sc->sc_sta_firmware_ver >= 800) {
 			ic->ic_caps |= IEEE80211_C_IBSS;
+			ic->ic_caps |= IEEE80211_C_MONITOR;
+		}
 		/*
 		 * version 0.8.3 and newer are the only ones that are known
 		 * to currently work.  Earlier versions can be made to work,
@@ -622,6 +626,11 @@ wi_init(void *arg)
 	case IEEE80211_M_HOSTAP:
 		wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_HOSTAP);
 		break;
+	case IEEE80211_M_MONITOR:
+		if (sc->sc_firmware_type == WI_LUCENT)
+			wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_ADHOC);
+		wi_cmd(sc, WI_CMD_DEBUG | (WI_TEST_MONITOR << 8), 0, 0, 0);
+		break;
 	}
 
 	/* Intersil interprets this RID as joining ESS even in IBSS mode */
@@ -717,6 +726,7 @@ wi_init(void *arg)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
+	    ic->ic_opmode == IEEE80211_M_MONITOR ||
 	    ic->ic_opmode == IEEE80211_M_HOSTAP)
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 
@@ -1224,6 +1234,9 @@ wi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	case IEEE80211_M_HOSTAP:
 		imr->ifm_active |= IFM_IEEE80211_HOSTAP;
 		break;
+	case IEEE80211_M_MONITOR:
+		imr->ifm_active |= IFM_IEEE80211_MONITOR;
+		break;
 	}
 }
 
@@ -1386,6 +1399,20 @@ wi_rx_intr(struct wi_softc *sc)
 
 	len = le16toh(frmhdr.wi_dat_len);
 	off = ALIGN(sizeof(struct ieee80211_frame));
+
+	/*
+	 * Sometimes the PRISM2.x returns bogusly large frames. Except
+	 * in monitor mode, just throw them away.
+	 */
+	if (off + len > MCLBYTES) {
+		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+			CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
+			ifp->if_ierrors++;
+			DPRINTF(("wi_rx_intr: oversized packet\n"));
+			return;
+		} else
+			len = 0;
+	}
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
