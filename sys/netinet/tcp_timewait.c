@@ -35,6 +35,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
@@ -101,9 +102,11 @@
 
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
+#include <netipsec/xform.h>
 #ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif
+#include <netipsec/key.h>
 #define	IPSEC
 #endif /*FAST_IPSEC*/
 
@@ -1917,3 +1920,114 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	tp->snd_bwnd = bwnd;
 }
 
+#ifdef TCP_SIGNATURE
+/*
+ * Compute TCP-MD5 hash of a TCPv4 segment. (RFC2385)
+ *
+ * We do this over ip, tcphdr, segment data, and the key in the SADB.
+ * When called from tcp_input(), we can be sure that th_sum has been
+ * zeroed out and verified already.
+ *
+ * This function is for IPv4 use only. Calling this function with an
+ * IPv6 packet in the mbuf chain will yield undefined results.
+ *
+ * Return 0 if successful, otherwise return -1.
+ *
+ * XXX The key is retrieved from the system's PF_KEY SADB, by keying a
+ * search with the destination IP address, and a 'magic SPI' to be
+ * determined by the application. This is hardcoded elsewhere to 1179
+ * right now. Another branch of this code exists which uses the SPD to
+ * specify per-application flows but it is unstable.
+ */
+int
+tcpsignature_compute(
+	struct mbuf *m,		/* mbuf chain */
+	int off0,		/* offset to TCP header */
+	int len,		/* length of TCP data */
+	int optlen,		/* length of TCP options */
+	u_char *buf,		/* storage for MD5 digest */
+	u_int direction)	/* direction of flow */
+{
+	union sockaddr_union dst;
+	struct ippseudo ippseudo;
+	MD5_CTX ctx;
+	int doff;
+	struct ip *ip;
+	struct ipovly *ipovly;
+	struct secasvar *sav;
+	struct tcphdr *th;
+	u_short savecsum;
+
+	KASSERT(m != NULL, ("passed NULL mbuf. Game over."));
+	KASSERT(buf != NULL, ("passed NULL storage pointer for MD5 signature"));
+	/*
+	 * Extract the destination from the IP header in the mbuf.
+	 */
+	ip = mtod(m, struct ip *);
+	bzero(&dst, sizeof(union sockaddr_union));
+	dst.sa.sa_len = sizeof(struct sockaddr_in);
+	dst.sa.sa_family = AF_INET;
+	dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
+	    ip->ip_src : ip->ip_dst;
+	/*
+	 * Look up an SADB entry which matches the address found in
+	 * the segment.
+	 */
+	sav = KEY_ALLOCSA(&dst, IPPROTO_TCP, htonl(TCP_SIG_SPI));
+	if (sav == NULL) {
+		printf("%s: SADB lookup failed for %s\n", __func__,
+		    inet_ntoa(dst.sin.sin_addr));
+		return (EINVAL);
+	}
+	MD5Init(&ctx);
+
+	ipovly = (struct ipovly *)ip;
+	th = (struct tcphdr *)((u_char *)ip + off0);
+	doff = off0 + sizeof(struct tcphdr) + optlen;
+	/*
+	 * Step 1: Update MD5 hash with IP pseudo-header.
+	 *
+	 * XXX The ippseudo header MUST be digested in network byte order,
+	 * or else we'll fail the regression test. Assume all fields we've
+	 * been doing arithmetic on have been in host byte order.
+	 * XXX One cannot depend on ipovly->ih_len here. When called from
+	 * tcp_output(), the underlying ip_len member has not yet been set.
+	 */
+	ippseudo.ippseudo_src = ipovly->ih_src;
+	ippseudo.ippseudo_dst = ipovly->ih_dst;
+	ippseudo.ippseudo_pad = 0;
+	ippseudo.ippseudo_p = IPPROTO_TCP;
+	ippseudo.ippseudo_len = htons(len + sizeof(struct tcphdr) + optlen);
+	MD5Update(&ctx, (char *)&ippseudo, sizeof(struct ippseudo));
+	/*
+	 * Step 2: Update MD5 hash with TCP header, excluding options.
+	 * The TCP checksum must be set to zero.
+	 */
+	savecsum = th->th_sum;
+	th->th_sum = 0;
+	MD5Update(&ctx, (char *)th, sizeof(struct tcphdr));
+	th->th_sum = savecsum;
+	/*
+	 * Step 3: Update MD5 hash with TCP segment data.
+	 *         Use m_apply() to avoid an early m_pullup().
+	 */
+	if (len > 0)
+		m_apply(m, doff, len, tcpsignature_apply, &ctx);
+	/*
+	 * Step 4: Update MD5 hash with shared secret.
+	 */
+	MD5Update(&ctx, _KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
+	MD5Final(buf, &ctx);
+	key_sa_recordxfer(sav, m);
+	KEY_FREESAV(&sav);
+	return (0);
+}
+
+int
+tcpsignature_apply(void *fstate, void *data, unsigned int len)
+{
+
+	MD5Update((MD5_CTX *)fstate, (unsigned char *)data, len);
+	return (0);
+}
+#endif /* TCP_SIGNATURE */
