@@ -38,7 +38,7 @@
 .Nd pass mouse data to the console driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl 3DPRcdfs
+.Op Fl DPRcdfs
 .Op Fl I Ar file
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
@@ -48,6 +48,7 @@
 .Op Fl w Ar N
 .Op Fl z Ar target
 .Op Fl t Ar mousetype
+.Op Fl 3 Op Fl E Ar timeout
 .Fl p Ar port
 .Pp
 .Nm
@@ -106,6 +107,16 @@ The DTR line may need to be dropped for a 3-button mouse
 to operate in the
 .Ar mousesystems
 mode.
+.It Fl E Ar timeout
+When the third button emulation is enabled
+.Pq see above ,
+the
+.Nm
+daemon waits
+.Ar timeout
+msec at maximum before deciding if two buttons are pressed
+simultaneously.
+The default timeout is 200 msec.
 .It Fl F Ar rate
 Set the report rate (reports/sec) of the device if supported.
 .It Fl I Ar file
