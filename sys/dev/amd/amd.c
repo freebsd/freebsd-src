@@ -328,7 +328,7 @@ amdexecutesrb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (nseg != 0) {
 		struct amd_sg *sg;
 		bus_dma_segment_t *end_seg;
-		int op;
+		bus_dmasync_op_t op;
 
 		end_seg = dm_segs + nseg;
 
@@ -1888,7 +1888,7 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 		  ("SRBdone - TagNumber %d\n", pSRB->TagNumber));
 
 	if ((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		int op;
+		bus_dmasync_op_t op;
 
 		if ((pccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;

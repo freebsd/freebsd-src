@@ -905,6 +905,7 @@ memsetw(void *d, int val, size_t size)
 struct mbuf;
 struct uio;
 
+typedef int bus_dmasync_op_t;
 #define	BUS_DMASYNC_PREREAD	1
 #define	BUS_DMASYNC_POSTREAD	2
 #define	BUS_DMASYNC_PREWRITE	4
@@ -975,7 +976,7 @@ struct bus_dma_tag {
 	    bus_dmamap_t, struct uio *, bus_dmamap_callback2_t *, void *, int);
 	void	(*dt_dmamap_unload)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 	void	(*dt_dmamap_sync)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-	    int);
+	    bus_dmasync_op_t);
 
 	/*
 	 * DMA memory utility functions.
@@ -1080,7 +1081,8 @@ sparc64_dmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t p)
 	sparc64_dmamap_unload((t), (t), (p))
 
 static __inline void
-sparc64_dmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m, int op)
+sparc64_dmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
+    bus_dmasync_op_t op)
 {
 	bus_dma_tag_t lt;
 

@@ -568,7 +568,7 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 	scsiq.q2.vm_id = 0;
 
 	if (nsegments != 0) {
-		int op;
+		bus_dmasync_op_t op;
 
 		scsiq.q1.data_addr = dm_segs->ds_addr;
                 scsiq.q1.data_cnt = dm_segs->ds_len;
@@ -1130,7 +1130,7 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 	LIST_REMOVE(&ccb->ccb_h, sim_links.le);
 	untimeout(adv_timeout, ccb, ccb->ccb_h.timeout_ch);
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		int op;
+		bus_dmasync_op_t op;
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;

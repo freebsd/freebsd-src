@@ -324,7 +324,7 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 {
 	struct ida_hardware_qcb *hwqcb;
 	struct ida_qcb *qcb;
-	int op;
+	bus_dmasync_op_t op;
 	int s, error;
 
 	s = splbio();
@@ -377,7 +377,7 @@ ida_construct_qcb(struct ida_softc *ida)
 {
 	struct ida_hardware_qcb *hwqcb;
 	struct ida_qcb *qcb;
-	int op;
+	bus_dmasync_op_t op;
 	struct bio *bp;
 
 	bp = bioq_first(&ida->bio_queue);
@@ -501,7 +501,7 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 	 * finish up command
 	 */
 	if (qcb->flags & DMA_DATA_TRANSFER) {
-		int op;
+		bus_dmasync_op_t op;
 
 		op = qcb->flags & DMA_DATA_IN ?
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE;

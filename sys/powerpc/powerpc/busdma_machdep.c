@@ -521,7 +521,7 @@ bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 void
-bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, int op)
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 
 	return;
