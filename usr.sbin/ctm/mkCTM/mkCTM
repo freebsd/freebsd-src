@@ -148,6 +148,18 @@ if {$CTMdest == ""} {
     set CTMdest $CTMSW/../CTM-pub/$CTMname
 }
 
+# Make sure we only run one at a time...
+
+set CTMlock Lck.${CTMname}.${CTMdate}.[id process]
+exec rm -f ${CTMlock}
+exec echo starting > ${CTMlock}
+if {[catch "ln $CTMlock LCK.$CTMname" a]} {
+	puts "Not going, lock exists..."
+	exec rm -f $CTMlock
+}
+exec rm -f $CTMlock
+set CTMlock LCK.$CTMname
+
 set CTMscratch ${CTMtmp}.tmp
 
 while 1 {
@@ -156,13 +168,15 @@ while 1 {
 
 	if {![find_delta $CTMnbr]} {
 	    puts "$CTMname delta $CTMnbr doesn't exist..."
-	    # exit 0
+	    exec rm -f $CTMlock
+	    exit 0
 	}
 
 	incr CTMnbr
 
 	if {[find_delta $CTMnbr]} {
 	    puts "$CTMname delta $CTMnbr does already exist..."
+	    exec rm -f $CTMlock
 	    exit 0
 	}
 
@@ -257,12 +271,14 @@ while 1 {
     if {$damage > $max_damage} {
 	puts "Too much damage: $damage deletes"
 	exec sh -c "rm -f ${CTMtmp}.*"
+        exec rm -f $CTMlock
 	exit 0
     }
 
     if {!$changes} {
 	puts "no changes"
 	exec sh -c "rm -f ${CTMtmp}.*"
+        exec rm -f $CTMlock
 	exit 0
     }
 
@@ -284,23 +300,28 @@ while 1 {
 
     if {$CTMtest} {
 	puts "testing, stopping now."
+        exec rm -f $CTMlock
 	exit 0
     }
     if {$CTMapply} {
 	    puts "Applying delta"
 	    flush stdout
+	    exec echo now applying > $CTMlock
 	    exec sh -e -x -c "cd $CTMcopy ; $CTMSW/ctm -v -v -v ${CTMtmp}:${nm}.gz" >&@ stdout
+	    exec echo did apply > $CTMlock
     }
     puts "Moving delta"
     flush stdout
     exec mv ${CTMtmp}:${nm}.gz $CTMdest/.CTMtmp_${nm}.gz >&@ stdout
     exec mv $CTMdest/.CTMtmp_${nm}.gz $CTMdest/${nm}.gz >&@ stdout
+    exec echo moved > $CTMlock
 
     if {$CTMmail != ""} {
 	puts "Mailing delta"
 	flush stdout
 	exec $CTMSW/ctm_smail -m 100000 -c 3000000 $CTMdest/${nm}.gz $CTMmail >&@ stdout
     }
+    exec echo mailed > $CTMlock
 
     # If we did an absolute delta: stop.
     if {$CTMsuff != ""} break
@@ -317,3 +338,4 @@ while 1 {
     set CTMspecial 1
 }
 puts "done."
+exec rm -f $CTMlock
