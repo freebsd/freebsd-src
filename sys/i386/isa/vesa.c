@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.4 1998/09/29 04:09:39 ache Exp $
+ * $Id: vesa.c,v 1.3 1998/09/25 11:55:46 yokota Exp $
  */
 
 #include "sc.h"
@@ -327,13 +327,10 @@ vesa_translate_flags(u_int16_t vflags)
 static int
 vesa_bios_init(void)
 {
-#define VESA_INFO_SIZE 512
-	static u_char buffer[VESA_INFO_SIZE * 2];
-	u_char *buf = buffer;
+	static u_char buf[512];
 	struct vm86frame vmf;
 	struct vesa_mode vmode;
 	u_int32_t p;
-	u_short offset;
 	int modes;
 	int err;
 	int i;
@@ -346,16 +343,10 @@ vesa_bios_init(void)
 	vesa_vmode[0].vi_mode = EOT;
 
 	bzero(&vmf, sizeof(vmf));	/* paranoia */
-	bzero(buffer, sizeof(buffer));
-	vmf.vmf_eax = 0x4f00;
-
-	/* workaround - see vm86.c:vm86_datacall */
-	offset = (u_int)buf & PAGE_MASK;
-	if ((offset + VESA_INFO_SIZE) & PG_FRAME)
-		buf += PAGE_SIZE - offset;
-
+	bzero(buf, sizeof(buf));
 	bcopy("VBE2", buf, 4);		/* try for VBE2 data */
-	err = vm86_datacall(0x10, &vmf, (char *)buf, VESA_INFO_SIZE,
+	vmf.vmf_eax = 0x4f00;
+	err = vm86_datacall(0x10, &vmf, (char *)buf, sizeof(buf), 
 			  &vmf.vmf_es, &vmf.vmf_di);
 	if ((err != 0) || (vmf.vmf_eax != 0x4f) || bcmp("VESA", buf, 4))
 		return 1;
