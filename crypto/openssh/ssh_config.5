@@ -35,6 +35,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $OpenBSD: ssh_config.5,v 1.1 2002/06/20 19:56:07 stevesk Exp $
+.\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
 .Os
@@ -583,6 +584,9 @@ having to remember to give the user name on the command line.
 Specifies a file to use for the user
 host key database instead of
 .Pa $HOME/.ssh/known_hosts .
+.It Cm VersionAddendum
+Specifies a string to append to the regular version string to identify
+OS- or site-specific modifications.
 .It Cm XAuthLocation
 Specifies the location of the
 .Xr xauth 1
