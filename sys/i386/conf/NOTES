@@ -14,6 +14,10 @@
 #
 machine		i386
 
+# 
+# We want LINT to cover profiling as well
+profile         2
+
 
 #####################################################################
 # SMP OPTIONS:
