@@ -39,8 +39,8 @@
 .Nd set signal timer alarm
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
-.Ft u_int
-.Fn alarm "u_int seconds"
+.Ft unsigned int
+.Fn alarm "unsigned int seconds"
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is made obsolete by setitimer(2).
@@ -48,37 +48,42 @@ This interface is made obsolete by setitimer(2).
 .Pp
 The
 .Fn alarm
-function
-waits a count of
-.Ar seconds
-before asserting the terminating signal
-.Dv SIGALRM .
-.Fn alarm
-returns the amount of time unexpired
-from any previously pending alarm.
-The maximum number of
-.Ar seconds
-allowed
-is 2147483647.
-.Pp
-If an alarm has been set with
-.Fn alarm ,
-another call to
+function sets a timer to deliver the signal
+.Dv SIGALRM 
+to the calling process after the specified number of
+.Fa seconds .
+If an alarm has already been set with
+.Fn alarm 
+but has not been delivered, another call to
 .Fn alarm
 will supersede the prior call.
 The request
 .Fn alarm "0"
 voids the current
-alarm.
+alarm and the signal SIGALRM will not be delivered. The maximum number of
+.Ar seconds
+allowed
+is 2147483647.
+.Pp
+The return value of 
+.Fn alarm
+is the amount of time left on the timer from a previous call to
+.Fn alarm .
+If no alarm is currently set, the return value is 0.
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr setitimer 2 ,
 .Xr sigpause 2 ,
-.Xr sigvec 2 ,
+.Xr sigvec 3 ,
 .Xr signal 3 ,
 .Xr sleep 3 ,
 .Xr ualarm 3 ,
 .Xr usleep 3
+.Sh STANDARDS
+The
+.Fn alarm
+function conforms to 
+.St -p1003.1-90 .
 .Sh HISTORY
 An
 .Fn alarm
