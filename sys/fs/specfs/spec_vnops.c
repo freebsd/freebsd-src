@@ -198,7 +198,12 @@ spec_open(ap)
 		vp->v_vflag |= VV_ISTTY;
 
 	VOP_UNLOCK(vp, 0, td);
-	error = (*dsw->d_open)(dev, ap->a_mode, S_IFCHR, td);
+	if(dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
+		PICKUP_GIANT();
+	} else
+		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	if (error)
@@ -254,12 +259,19 @@ spec_read(ap)
 	uio = ap->a_uio;
 	td = uio->uio_td;
 	resid = uio->uio_resid;
+	struct cdevsw *dsw;
 
 	if (resid == 0)
 		return (0);
 
+	dsw = devsw(dev);
 	VOP_UNLOCK(vp, 0, td);
-	error = (*devsw(dev)->d_read)(dev, uio, ap->a_ioflag);
+	if (dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		error = dsw->d_read(dev, uio, ap->a_ioflag);
+		PICKUP_GIANT();
+	} else
+		error = dsw->d_read(dev, uio, ap->a_ioflag);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
@@ -284,15 +296,22 @@ spec_write(ap)
 	struct uio *uio;
 	dev_t dev;
 	int error, resid;
+	struct cdevsw *dsw;
 
 	vp = ap->a_vp;
 	dev = vp->v_rdev;
+	dsw = devsw(dev);
 	uio = ap->a_uio;
 	td = uio->uio_td;
 	resid = uio->uio_resid;
 
 	VOP_UNLOCK(vp, 0, td);
-	error = (*devsw(dev)->d_write) (dev, uio, ap->a_ioflag);
+	if (dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		error = dsw->d_write(dev, uio, ap->a_ioflag);
+		PICKUP_GIANT();
+	} else
+		error = dsw->d_write(dev, uio, ap->a_ioflag);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
 		vfs_timestamp(&dev->si_ctime);
@@ -318,10 +337,18 @@ spec_ioctl(ap)
 {
 	dev_t dev;
 	int error;
+	struct cdevsw *dsw;
 
 	dev = ap->a_vp->v_rdev;
-	error = (*devsw(dev)->d_ioctl)(dev, ap->a_command,
-	    ap->a_data, ap->a_fflag, ap->a_td);
+	dsw = devsw(dev);
+	if (dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		error = dsw->d_ioctl(dev, ap->a_command,
+		    ap->a_data, ap->a_fflag, ap->a_td);
+		PICKUP_GIANT();
+	} else 
+		error = dsw->d_ioctl(dev, ap->a_command,
+		    ap->a_data, ap->a_fflag, ap->a_td);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	return (error);
@@ -338,9 +365,18 @@ spec_poll(ap)
 	} */ *ap;
 {
 	dev_t dev;
+	struct cdevsw *dsw;
+	int error;
 
 	dev = ap->a_vp->v_rdev;
-	return (*devsw(dev)->d_poll)(dev, ap->a_events, ap->a_td);
+	dsw = devsw(dev);
+	if (dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
+		PICKUP_GIANT();
+	} else
+		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
+	return(error);
 }
 
 /* ARGSUSED */
@@ -352,11 +388,20 @@ spec_kqfilter(ap)
 	} */ *ap;
 {
 	dev_t dev;
+	struct cdevsw *dsw;
+	int error;
 
 	dev = ap->a_vp->v_rdev;
-	if (devsw(dev)->d_flags & D_KQFILTER)
-		return (*devsw(dev)->d_kqfilter)(dev, ap->a_kn);
-	return (1);
+	dsw = devsw(dev);
+	if (!(dsw->d_flags & D_KQFILTER))
+		return (1);
+	if (dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		error = dsw->d_kqfilter(dev, ap->a_kn);
+		PICKUP_GIANT();
+	} else
+		error = dsw->d_kqfilter(dev, ap->a_kn);
+	return (error);
 }
 
 /*
@@ -461,6 +506,7 @@ spec_strategy(ap)
 	struct vnode *vp;
 	struct mount *mp;
 	int error;
+	struct cdevsw *dsw;
 
 	bp = ap->a_bp;
 	vp = ap->a_vp;
@@ -506,10 +552,18 @@ spec_strategy(ap)
 		biodone(&bp->b_io);
 		return (0);
 	}
-	KASSERT(devsw(bp->b_dev)->d_strategy != NULL,
+	dsw = devsw(bp->b_dev);
+	KASSERT(dsw->d_strategy != NULL,
 	   ("No strategy on dev %s responsible for buffer %p\n",
 	   devtoname(bp->b_dev), bp));
-	DEV_STRATEGY(bp, 0);
+	
+	if (dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		DEV_STRATEGY(bp, 0);
+		PICKUP_GIANT();
+	} else
+		DEV_STRATEGY(bp, 0);
+		
 	return (0);
 }
 
@@ -591,6 +645,8 @@ spec_close(ap)
 	struct vnode *vp = ap->a_vp, *oldvp;
 	struct thread *td = ap->a_td;
 	dev_t dev = vp->v_rdev;
+	struct cdevsw *dsw;
+	int error;
 
 	/*
 	 * Hack: a tty device that is a controlling terminal
@@ -607,6 +663,7 @@ spec_close(ap)
 	 * consideration.
 	 */
 
+	dsw = devsw(dev);
 	oldvp = NULL;
 	sx_xlock(&proctree_lock);
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
@@ -634,14 +691,20 @@ spec_close(ap)
 	VI_LOCK(vp);
 	if (vp->v_iflag & VI_XLOCK) {
 		/* Forced close. */
-	} else if (devsw(dev)->d_flags & D_TRACKCLOSE) {
+	} else if (dsw->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */
 	} else if (vcount(vp) > 1) {
 		VI_UNLOCK(vp);
 		return (0);
 	}
 	VI_UNLOCK(vp);
-	return (devsw(dev)->d_close(dev, ap->a_fflag, S_IFCHR, td));
+	if (dsw->d_flags & D_NOGIANT) {
+		DROP_GIANT();
+		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
+		PICKUP_GIANT();
+	} else
+		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
+	return (error);
 }
 
 /*

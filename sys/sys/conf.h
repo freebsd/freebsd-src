@@ -208,6 +208,7 @@ typedef int l_modem_t(struct tty *tp, int flag);
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define D_KQFILTER	0x00200000	/* has kqfilter entry */
+#define D_NOGIANT	0x00400000	/* Doesn't want Giant */
 
 /*
  * Character device switch table
