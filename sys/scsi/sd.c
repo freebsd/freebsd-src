@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.95.2.2 1997/02/05 19:02:22 kato Exp $
+ *      $Id: sd.c,v 1.95.2.3 1997/08/11 02:04:09 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -932,8 +932,12 @@ sddump(dev_t dev)
 
 	blknum = dumplo + blkoff;
 	while (num > 0) {
-		pmap_enter(kernel_pmap, (vm_offset_t)CADDR1, trunc_page(addr),
-			VM_PROT_READ, TRUE);
+		if (is_physical_memory((vm_offset_t)addr))
+		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+		 	       trunc_page(addr), VM_PROT_READ, TRUE);
+		else
+		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+			       trunc_page(0), VM_PROT_READ, TRUE);
 		/*
 		 *  Fill out the scsi command
 		 */

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.10 1996/10/31 00:57:27 julian Exp $
+ *	$Id: md_var.h,v 1.10.2.1 1997/06/20 10:27:43 kato Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -66,6 +66,7 @@ void	doreti_popl_es_fault __P((void)) __asm(__STRING(doreti_popl_es_fault));
 int	fill_regs __P((struct proc *p, struct reg *regs));
 void	fillw __P((int /*u_short*/ pat, void *base, size_t cnt));
 int	fusword __P((void *base));
+int	is_physical_memory __P((vm_offset_t addr));
 u_long	kvtop __P((void *addr));
 void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 		    int selec));
