@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.73 1999/04/11 21:48:09 des Exp $
+#	$Id: Makefile.inc1,v 1.74 1999/04/20 05:33:07 jkoshy Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -189,7 +189,7 @@ COMPILER_ENV=	BISON_SIMPLE=${TOOLROOT}/usr/share/misc/bison.simple \
 BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec:/usr/libexec
 XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
-		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00502 \
+		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00503 \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec \
 		CFLAGS="-nostdinc ${CFLAGS}"	# XXX -nostdlib
 
@@ -634,7 +634,7 @@ lib-tools:
 # libkrb must be built before libpam.
 # libm must be built before libf2c and libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
-# and libtacplus.
+# libtacplus and libcrypt.
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libradius must be built before libpam.
@@ -654,7 +654,7 @@ _csu=lib/csu/${MACHINE_ARCH}
 .endif
 
 .if !defined(NOSECURE) && !defined(NOCRYPT)
-_libcrypt=	secure/lib/libcrypt lib/libcrypt
+_libcrypt=	lib/libcrypt secure/lib/libcrypt
 _secure_lib=	secure/lib
 .else
 _libcrypt=	lib/libcrypt
@@ -692,8 +692,8 @@ _libperl=		gnu/usr.bin/perl/libperl
 bootstrap-libraries:
 .for _lib in ${_csu} lib/libtermcap \
     gnu/lib/libregex gnu/lib/libreadline lib/libc \
-    lib/libcrypt lib/libcurses lib/libedit ${_libm} \
-    lib/libmd lib/libutil lib/libz usr.bin/lex/lib \
+    lib/libcurses lib/libedit ${_libm} \
+    lib/libmd lib/libcrypt lib/libutil lib/libz usr.bin/lex/lib \
     ${_libperl}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
@@ -711,7 +711,7 @@ bootstrap-libraries:
 # alphabetical order.
 #
 libraries:
-.for _lib in ${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
+.for _lib in ${_csu} lib/libcom_err ${_libm} lib/libmd ${_libcrypt} \
     lib/libmytinfo lib/libncurses lib/libtermcap \
     lib/libradius lib/libskey lib/libtacplus \
     ${_secure_lib} ${_kerberosIV_lib} \
