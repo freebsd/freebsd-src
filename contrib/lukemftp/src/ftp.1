@@ -1,6 +1,6 @@
-.\" 	$NetBSD: ftp.1,v 1.101 2003/12/19 03:46:02 lukem Exp $
+.\" 	$NetBSD: ftp.1,v 1.108 2005/01/15 21:28:16 lukem Exp $
 .\"
-.\" Copyright (c) 1996-2003 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1996-2004 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
@@ -64,7 +64,7 @@
 .\"
 .\"	@(#)ftp.1	8.3 (Berkeley) 10/9/94
 .\"
-.Dd December 19, 2003
+.Dd January 15, 2005
 .Dt FTP 1
 .Os
 .Sh NAME
@@ -951,7 +951,9 @@ traffic.
 .Tn FTP
 servers are required to support the
 .Dv PASV
-command by RFC 1123, some do not.)
+command by
+.Cm RFC 1123 ,
+some do not.)
 .It Ic pdir Op Ar remote-path
 Perform
 .Ic dir
@@ -1121,7 +1123,7 @@ Outgoing transfers.
 .El
 .Pp
 .Ar maximum
-can by modified on the fly by
+can be modified on the fly by
 .Ar increment
 bytes (default: 1024) each time a given signal is received:
 .B
@@ -1614,7 +1616,10 @@ This is unlikely to be useful.
 .It
 Any
 .Sq Li \&% Ns Ar XX
-codes within the path components are decoded, with
+codes
+(per
+.Cm RFC 1738 )
+within the path components are decoded, with
 .Ar XX
 representing a character code in hexadecimal.
 This decoding takes place after the
@@ -1746,6 +1751,14 @@ is not given, the file is stored in the current directory as the
 .Xr basename 1
 of
 .Ar path .
+Note that if a
+.Tn HTTP
+redirect is received, the fetch is retried using the new target URL
+supplied by the server, with a corresponding new
+.Ar path .
+Using an explicit
+.Fl o Ar output
+is recommended, to avoid writing to unexpected file names.
 .Pp
 If a classic format or an
 .Tn FTP
@@ -2214,9 +2227,9 @@ URL requests
 .Tn FTP
 protocol).
 .Pp
-.Em NOTE :
-this is not used for interactive sessions, only for command-line
-fetches.
+See
+.Ev http_proxy
+for further notes about proxy use.
 .It Ev http_proxy
 URL of
 .Tn HTTP
@@ -2226,6 +2239,18 @@ URL requests.
 If proxy authentication is required and there is a username and
 password in this URL, they will automatically be used in the first
 attempt to authenticate to the proxy.
+.Pp
+If
+.Dq unsafe
+URL characters are required in the username or password
+(for example
+.Sq @
+or
+.Sq / ) ,
+encode them with
+.Cm RFC 1738
+.Sq Li \&% Ns Ar XX
+encoding.
 .Pp
 Note that the use of a username and password in
 .Ev ftp_proxy
