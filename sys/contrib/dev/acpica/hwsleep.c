@@ -350,22 +350,22 @@ AcpiEnterSleepState (
     SleepTypeRegInfo   = AcpiHwGetBitRegisterInfo (ACPI_BITREG_SLEEP_TYPE_A);
     SleepEnableRegInfo = AcpiHwGetBitRegisterInfo (ACPI_BITREG_SLEEP_ENABLE);
 
+    /* Clear wake status */
+
+    Status = AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiHwClearAcpiStatus (ACPI_MTX_DO_NOT_LOCK);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
     if (SleepState != ACPI_STATE_S5)
     {
-        /* Clear wake status */
-
-        Status = AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-
-        Status = AcpiHwClearAcpiStatus (ACPI_MTX_DO_NOT_LOCK);
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-
         /* Disable BM arbitration */
 
         Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
