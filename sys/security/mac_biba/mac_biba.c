@@ -3151,7 +3151,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_vnode_listextattr = mac_biba_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = mac_biba_check_vnode_lookup,
 	.mpo_check_vnode_mmap = mac_biba_check_vnode_mmap,
-	.mpo_check_vnode_mprotect = mac_biba_check_vnode_mmap,
 	.mpo_check_vnode_open = mac_biba_check_vnode_open,
 	.mpo_check_vnode_poll = mac_biba_check_vnode_poll,
 	.mpo_check_vnode_read = mac_biba_check_vnode_read,
