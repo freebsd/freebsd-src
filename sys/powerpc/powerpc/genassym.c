@@ -69,7 +69,7 @@ int	printf __P((const char *, ...));
 #define BIG(val)	((val) > 999LL || (val) < -999LL)
 
 #define P(name, val) \
-	printf(BIG(val) ? "#define\t%s 0x%qx\n" : "#define\t%s %qd\n", name, val)
+	printf(BIG(val) ? "#define\t%s 0x%llx\n" : "#define\t%s %lld\n", name, val)
 
 #define OFF(name, type, elem)	P(#name, (long long) &((type*)0)->elem)
 #define CONST2(name, val)	P(#name, (long long) val)
