@@ -5,8 +5,8 @@
 # definitions before the sub-Makefile is processed.
 
 VERSION=	"2.11.2 20010719 [FreeBSD]"
-TARGET_ARCH?=	${MACHINE_ARCH}
 
+TARGET_ARCH?=	${MACHINE_ARCH}
 BINUTIL_ARCH= ${TARGET_ARCH}
 
 # RELTOP is the relative path to this point in the source or object
