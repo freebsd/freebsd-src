@@ -938,9 +938,9 @@ inserted:
 	for (q = nq; q != NULL; q = nq) {
 		nq = q->m_nextpkt;
 		q->m_nextpkt = NULL;
-		m_cat(m, q);
 		m->m_pkthdr.csum_flags &= q->m_pkthdr.csum_flags;
 		m->m_pkthdr.csum_data += q->m_pkthdr.csum_data;
+		m_cat(m, q);
 	}
 
 #ifdef IPDIVERT
