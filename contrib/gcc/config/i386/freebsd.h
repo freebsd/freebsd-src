@@ -405,9 +405,10 @@ do {									\
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
   if (flag_pic)								\
-    fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
+    fprintf (FILE, "\tcall *%s@GOT(%%ebx)\n",				\
+      TARGET_AOUT ? "mcount" : ".mcount");				\
   else									\
-    fprintf (FILE, "\tcall mcount\n");					\
+    fprintf (FILE, "\tcall %s\n", TARGET_AOUT ? "mcount" : ".mcount");	\
 }
 
 #define FUNCTION_PROFILER_EPILOGUE(FILE)  \
@@ -415,9 +416,11 @@ do {									\
   if (TARGET_PROFILER_EPILOGUE)						\
     {									\
       if (flag_pic)							\
-	fprintf (FILE, "\tcall *mexitcount@GOT(%%ebx)\n");		\
+	fprintf (FILE, "\tcall *%s@GOT(%%ebx)\n",			\
+	  TARGET_AOUT ? "mexitcount" : ".mexitcount");			\
       else								\
-	fprintf (FILE, "\tcall mexitcount\n");				\
+	fprintf (FILE, "\tcall %s\n",					\
+	  TARGET_AOUT ? "mexitcount" : ".mexitcount");			\
     }									\
 }
 
