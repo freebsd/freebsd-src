@@ -2,5 +2,4 @@
 
 MODULE=	DB_File
 
-.include "../Makefile.inc"
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>
