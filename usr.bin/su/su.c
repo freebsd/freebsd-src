@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.28 1998/09/21 07:44:25 roberto Exp $";
+	"$Id: su.c,v 1.29 1998/10/09 20:14:48 markm Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -272,8 +272,9 @@ main(argc, argv)
 					if (!*g)
 						if (gid == 0)
 							break;
-						else
+						else {
 							errx(1, "you are not in the correct group to su %s.", user);
+						}
 					if (strcmp(username, *g) == 0) {
 #ifdef WHEELSU
 						iswheelsu = 1;
