@@ -1408,24 +1408,7 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 
 	/* LINUX_CDROMREADMODE2 */
 	/* LINUX_CDROMREADMODE1 */
-
-	case LINUX_CDROMREADAUDIO: {
-		struct l_cdrom_read_audio lra;
-		struct ioc_read_audio bra;
-
-		error = copyin((void *)args->arg, &lra, sizeof(lra));
-		if (error)
-			break;
-		bra.address_format = lra.addr_format;
-		linux_to_bsd_msf_lba(bra.address_format, &lra.addr,
-		    &bra.address);
-		bra.nframes = lra.nframes;
-		bra.buffer = lra.buf;
-		error = fo_ioctl(fp, CDIOCREADAUDIO, (caddr_t)&bra,
-		    td->td_ucred, td);
-		break;
-	}
-
+	/* LINUX_CDROMREADAUDIO */
 	/* LINUX_CDROMEJECT_SW */
 	/* LINUX_CDROMMULTISESSION */
 	/* LINUX_CDROM_GET_UPC */
