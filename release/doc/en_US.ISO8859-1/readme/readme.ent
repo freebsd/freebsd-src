@@ -6,6 +6,7 @@
 <!-- Files to be included -->
 
 <!ENTITY artheader SYSTEM "artheader.sgml">
+<!ENTITY abstract SYSTEM "abstract.sgml">
 <!ENTITY sect.intro SYSTEM "intro.sgml">
 <!ENTITY sect.about SYSTEM "about.sgml">
 <!ENTITY sect.obtaining SYSTEM "obtaining.sgml">
