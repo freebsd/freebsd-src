@@ -484,6 +484,7 @@ struct val *a, *b;
 	return r;
 }
 	
+#include <sys/types.h>
 #include <regex.h>
 
 struct val *
