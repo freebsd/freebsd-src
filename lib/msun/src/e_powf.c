@@ -229,7 +229,7 @@ __ieee754_powf(float x, float y)
 	}
 	t = p_l+p_h;
 	GET_FLOAT_WORD(is,t);
-	SET_FLOAT_WORD(t,is&0xfffff000);
+	SET_FLOAT_WORD(t,is&0xffff8000);
 	u = t*lg2_h;
 	v = (p_l-(t-p_h))*lg2+t*lg2_l;
 	z = u+v;
