@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -
 # $FreeBSD$
 ############################################
 ### Special setup for one floppy PICOBSD ###

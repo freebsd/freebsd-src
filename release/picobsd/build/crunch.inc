@@ -4,3 +4,4 @@ NOCRYPT=yes
 NOPAM=yes
 NOSECURE=yes
 NONETGRAPH=yes
+NOIPSEC=yes

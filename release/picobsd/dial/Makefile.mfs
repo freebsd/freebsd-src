@@ -2,7 +2,9 @@
 # $FreeBSD$
 #
 
+.ifndef (DESTDIR)
 DESTDIR?=/mnt
+.endif
 
 STAND_LINKS= bin sbin
 USR_LINKS= bin sbin libexec
@@ -13,19 +15,19 @@ MY_DEVS= std sysmouse tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 pty0 \
 	wd0s1h wd0s2 wd0s3 wd0s4 wd1s1h wd1s2 wd1s3 wd1s4
 
 .if ${LANGUAGE} == pl
-LOCALE= pl_PL.ISO_8859-2
+LOCALE=pl_PL.ISO_8859-2
 LOCALE_LINKS=${PL_LOCALE_LINKS}
 FONT=iso02-8x16.fnt
 KBD=pl_PL.ISO_8859-2.kbd
 .else
-LOCALE= en_US.ISO_8859-1
+LOCALE=en_US.ISO_8859-1
 LOCALE_LINKS=${US_LOCALE_LINKS}
 .endif
 
 all: tree links
 
 tree:
-	mtree -deU -f mfs.mtree -p ${DESTDIR}
+	mtree -deU -f ../build/mfs.mtree -p ${DESTDIR}
 
 links: tree
 	(cd ${DESTDIR}; \
@@ -42,13 +44,14 @@ links: tree
 		done; \
 		cd share/misc;\
 		ln -s /etc/termcap termcap; \
-		echo emacs >/mnt/usr/share/misc/init.ee; \
+		echo emacs >${DESTDIR}/usr/share/misc/init.ee; \
 		cd ../; \
 		cd locale; \
 		for i in ${LOCALE_LINKS}; \
 		do \
 			ln -s ${LOCALE} $${i}; \
 		done; \
+		mkdir ${LOCALE}/; \
 		cp /usr/share/locale/${LOCALE}/* ${LOCALE}/; \
 		if [ "X${FONT}" != "X" ]; \
 		then \
