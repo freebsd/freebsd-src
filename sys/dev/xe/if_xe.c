@@ -233,7 +233,8 @@ xe_attach (device_t dev)
   scp->ifp->if_softc = scp;
   if_initname(scp->ifp, device_get_name(dev), device_get_unit(dev));
   scp->ifp->if_timer = 0;
-  scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+  scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+    IFF_NEEDSGIANT);
   scp->ifp->if_linkmib = &scp->mibdata;
   scp->ifp->if_linkmiblen = sizeof scp->mibdata;
   scp->ifp->if_start = xe_start;
