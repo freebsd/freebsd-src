@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2004
+.Dd July 28, 2004
 .Dt ESP 4
 .Os
 .Sh NAME
@@ -101,26 +101,28 @@ and certain types of parallel port hardware.
 As such this driver may eventually replace the
 .Xr amd 4
 driver for network hardware.
-.Sh ERRORS
+.Sh DIAGNOSTICS
 The following driver specific error messages
 may be reported:
-.Bl -tag -width Er
-.It Bq Er EINVAL
-May be returned if the driver cannot detach or reset
-the state and/or bus.
-.It Bq Er ENOMEM
-Might be returned if the driver cannot allocate
-parent
-.Tn DMA
-tag, or if the device is out of memory.
-.It Bq Er ENXIO
-May be returned if the driver cannot map
-.Tn DMA
-registers.
-This error may also be returned if the driver is
-unable to map the
+.Bl -diag
+.It "esp: cannot map %d segments"
+The device was unable to map segments while mapping the
 .Tn SCSI
-core registers.
+devices in
+.Tn DMA
+mode.
+.It "unknown variant %d, devices not attached"
+An unknown version of the card was found and devices will
+not be attached.
+.It "Unhandled function code %d"
+The device returned a function code which the driver is
+unable to handle, most likely during negotiation.
+.It "esp:%d:%d): selection failed %d left in FIFO"
+The target left the command phase prematurely.
+If a command did not reach the device then it will
+be reported as shown above.
+.It "invalid state: %d"
+The device has reached an invalid state.
 .El
 .Sh SEE ALSO
 .Xr amd 4 ,
