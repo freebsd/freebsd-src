@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.9 1998/10/02 16:33:43 msmith Exp $
+ *	$Id: main.c,v 1.10 1998/10/03 18:27:50 rnordier Exp $
  */
 
 /*
@@ -51,7 +51,9 @@ static struct
     u_int32_t	bootinfo;
 } *kargs;
 
-struct bootinfo	*initial_bootinfo;
+static u_int32_t	initial_howto;
+static u_int32_t	initial_bootdev;
+static struct bootinfo	*initial_bootinfo;
 
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
@@ -70,6 +72,8 @@ main(void)
 
     /* Pick up arguments */
     kargs = (void *)__args;
+    initial_howto = kargs->howto;
+    initial_bootdev = kargs->bootdev;
     initial_bootinfo = (struct bootinfo *)PTOV(kargs->bootinfo);
 
     /* 
@@ -87,7 +91,7 @@ main(void)
      * We can use printf() etc. once this is done.
      * If the previous boot stage has requested a serial console, prefer that.
      */
-    if (kargs->howto & RB_SERIAL)
+    if (initial_howto & RB_SERIAL)
 	setenv("console", "comconsole", 1);
     cons_probe();
 
@@ -99,12 +103,11 @@ main(void)
 	    (devsw[i]->dv_init)();
 
     printf("\n");
-    printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
+    printf("%s, Revision %s  %d/%dkB\n", bootprog_name, bootprog_rev, getbasemem(), getextmem());
     printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-    printf("memory: %d/%dkB\n", getbasemem(), getextmem());
 #if 0
-    printf("diskbuf at %p, %d sectors\n", &diskbuf, diskbuf_size);
-    printf("using %d bytes of stack at %p\n",  (&stacktop - &stackbase), &stacktop);
+    printf("recovered args howto = 0x%x bootdev = 0x%x bootinfo = %p\n",
+	   initial_howto, initial_bootdev, initial_bootinfo);
 #endif
 
     extract_currdev();				/* set $currdev and $loaddev */
@@ -115,12 +118,7 @@ main(void)
     archsw.arch_copyin = i386_copyin;
     archsw.arch_copyout = i386_copyout;
     archsw.arch_readin = i386_readin;
-    /*
-     * XXX should these be in the MI source?
-     */
-#if 0
-    legacy_config();		/* read old /boot.config file */
-#endif
+
     interact();			/* doesn't return */
 }
 
@@ -134,28 +132,37 @@ static void
 extract_currdev(void)
 {
     struct i386_devdesc	currdev;
-    int			major, biosdev, i;
+    int			major, biosdev;
 
     /* We're booting from a BIOS disk, try to spiff this */
     currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
     currdev.d_type = currdev.d_dev->dv_type;
-    currdev.d_kind.biosdisk.slice = (B_ADAPTOR(kargs->bootdev) << 4) + B_CONTROLLER(kargs->bootdev) - 1;
-    currdev.d_kind.biosdisk.partition = B_PARTITION(kargs->bootdev);
 
-    biosdev = initial_bootinfo->bi_bios_dev;
-    major = B_TYPE(kargs->bootdev);
+    if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
+	/* The passed-in boot device is bad */
+	currdev.d_kind.biosdisk.slice = -1;
+	currdev.d_kind.biosdisk.partition = 0;
+	biosdev = -1;
+    } else {
+	currdev.d_kind.biosdisk.slice = (B_ADAPTOR(initial_bootdev) << 4) + B_CONTROLLER(initial_bootdev) - 1;
+	currdev.d_kind.biosdisk.partition = B_PARTITION(initial_bootdev);
+	biosdev = initial_bootinfo->bi_bios_dev;
+	major = B_TYPE(initial_bootdev);
 
-    /*
-     * If we are booted by an old bootstrap, we have to guess at the BIOS
-     * unit number.  We will loose if there is more than one disk type
-     * and we are not booting from the lowest-numbered disk type.
-     */
-    if ((biosdev == 0) && (major != 2))			/* biosdev doesn't match major */
-	biosdev = 0x80 + B_UNIT(kargs->bootdev);	/* assume harddisk */
-
+	/*
+	 * If we are booted by an old bootstrap, we have to guess at the BIOS
+	 * unit number.  We will loose if there is more than one disk type
+	 * and we are not booting from the lowest-numbered disk type 
+	 * (ie. SCSI when IDE also exists).
+	 */
+	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2))	/* biosdev doesn't match major */
+	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
+    }
+    
     if ((currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1) {
-	printf("Can't work out which disk we are booting from, defaulting to disk0:\n");
-	currdev.d_kind.biosdisk.unit;
+	printf("Can't work out which disk we are booting from.\n"
+	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
+	currdev.d_kind.biosdisk.unit = 0;
     }
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&currdev), i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&currdev), env_noset, env_nounset);
