@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.22 1997/03/29 11:11:18 peter Exp $
+# $Id: makesyscalls.sh,v 1.23 1997/06/16 00:29:31 dyson Exp $
 
 set -e
 
@@ -105,7 +105,6 @@ s/\$//g
 		printf " * created from%s\n */\n\n", $0 > sysarg
 		printf("#ifndef %s\n", sysproto_h) > sysarg
 		printf("#define\t%s\n\n", sysproto_h) > sysarg
-		printf "#include <sys/aio.h>\n" > sysarg
 		printf "#include <sys/signal.h>\n\n", $0 > sysarg
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
