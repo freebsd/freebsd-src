@@ -155,13 +155,14 @@ cia_swiz_set_hae_mem(void *arg, u_int32_t pa)
 		 * Seems fairly paranoid but this is what Linux does...
 		 */
 		u_int32_t msb = pa & REG1;
-		int s = save_intr();
-		disable_intr();
+		critical_t s;
+		
+		s = critical_enter();
 		cia_hae_mem = (cia_hae_mem & ~REG1) | msb;
 		REGVAL(CIA_CSR_HAE_MEM) = cia_hae_mem;
 		alpha_mb();
 		cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
-		restore_intr(s);
+		critical_exit(s);
 	}
 	return pa & ~REG1;
 }
@@ -227,10 +228,10 @@ cia_sgmap_invalidate_pyxis(void)
 {
 	volatile u_int64_t dummy;
 	u_int32_t ctrl;
-	int i, s;
+	int i;
+	critical_t s;
 
-	s = save_intr();
-	disable_intr();
+	s = critical_enter();
 	
 	/*
 	 * Put the Pyxis into PCI loopback mode.
@@ -261,7 +262,7 @@ cia_sgmap_invalidate_pyxis(void)
 	REGVAL(CIA_CSR_CTRL) = ctrl;
 	alpha_mb();
 
-	restore_intr(s);
+	critical_exit(s);
 }
 
 static void
