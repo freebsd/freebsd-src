@@ -8,6 +8,8 @@
  *	$NetBSD: ohci.c,v 1.144 2003/11/23 19:18:06 augustss Exp $
  *	$NetBSD: ohci.c,v 1.145 2003/11/23 19:20:25 augustss Exp $
  *	$NetBSD: ohci.c,v 1.146 2003/12/29 08:17:10 toshii Exp $
+ *	$NetBSD: ohci.c,v 1.147 2004/06/22 07:20:35 mycroft Exp $
+ *	$NetBSD: ohci.c,v 1.148 2004/06/22 18:27:46 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
@@ -1727,7 +1729,8 @@ ohci_device_request(usbd_xfer_handle xfer)
 	sed = opipe->sed;
 	opipe->u.ctl.length = len;
 
-	/* Update device address and length since they may have changed. */
+	/* Update device address and length since they may have changed
+	   during the setup of the control pipe in usbd_new_device(). */
 	/* XXX This only needs to be done once, but it's too early in open. */
 	/* XXXX Should not touch ED here! */
 	sed->ed.ed_flags = htole32(
@@ -2123,7 +2126,7 @@ ohci_open(usbd_pipe_handle pipe)
 		}
 		sed->ed.ed_flags = htole32(
 			OHCI_ED_SET_FA(addr) |
-			OHCI_ED_SET_EN(ed->bEndpointAddress) |
+			OHCI_ED_SET_EN(UE_GET_ADDR(ed->bEndpointAddress)) |
 			(dev->speed == USB_SPEED_LOW ? OHCI_ED_SPEED : 0) |
 			fmt |
 			OHCI_ED_SET_MAXP(UGETW(ed->wMaxPacketSize)));
