@@ -48,6 +48,11 @@ Boolean ftpInitted = FALSE;
 static FILE *OpenConn;
 int FtpPort;
 
+/* List of sub directories to look for under a given FTP server. */
+static const char *ftp_dirs[] = { ".", "releases/"MACHINE, "snapshots/"MACHINE,
+    "pub/FreeBSD", "pub/FreeBSD/releases/"MACHINE,
+    "pub/FreeBSD/snapshots/"MACHINE, NULL };
+
 /* Brings up attached network device, if any - takes FTP device as arg */
 static Boolean
 netUp(Device *dev)
@@ -73,7 +78,7 @@ netDown(Device *dev)
 Boolean
 mediaInitFTP(Device *dev)
 {
-    int i, code, af;
+    int i, code, af, fdir;
     char *cp, *rel, *hostname, *dir;
     char *user, *login_name, password[80];
 
@@ -141,32 +146,55 @@ try:
 	}
     }
 
-    /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to
-       __RELEASE or "none" which signifies that it's not set */
+    /*
+     * Now that we've verified that the path we're given is ok, let's try to
+     * be a bit intelligent in locating the release we are looking for.  First
+     * off, if the release is specified as "__RELEASE" or "none", then just
+     * assume that the current directory is the one we want and give up.
+     */
     rel = variable_get(VAR_RELNAME);
-    if (strcmp(rel, "__RELEASE") && strcmp(rel, "none"))
-	i = ftpChdir(OpenConn, rel);
-    else
-	i = 0;
-    if (i) {
-	if (!msgYesNo("Warning:  Can't CD to `%s' distribution on this\n"
+    if (strcmp(rel, "__RELEASE") && strcmp(rel, "none")) {
+	/*
+	 * Ok, since we have a release variable, let's walk through the list
+	 * of directories looking for a release directory.  The first one to
+	 * match wins.  For each case, we chdir to ftp_dirs[fdir] first.  If
+	 * that fails, we skip to the next one.  Otherwise, we try to chdir to
+	 * rel.  If it succeeds we break out.  If it fails, then we go back to
+	 * the base directory and try again.  Lots of chdirs, but oh well. :)
+	 */
+	fdir = 0;
+	while (ftp_dirs[fdir] != NULL) {
+	    if (ftpChdir(OpenConn, ftp_dirs[fdir++]) != 0)
+		continue;
+	    if (ftpChdir(OpenConn, rel) == 0) {
+		ftpInitted = TRUE;
+		return TRUE;
+	    }
+	    ftpChdir(OpenConn, "/");
+	    if (dir && *dir != '\0')
+		ftpChdir(OpenConn, dir);
+	}
+
+	/*
+	 * If we get here, then all of the directories we tried failed, so
+	 * print out the error message and ask the user if they want to try
+	 * again.
+	 */
+	if (!msgYesNo("Warning:  Can't find the `%s' distribution on this\n"
 		      "FTP server.  You may need to visit a different server for\n"
-		      "the release you're trying to fetch or go to the Options\n"
+		      "the release you are trying to fetch or go to the Options\n"
 		      "menu and to set the release name to explicitly match what's\n"
 		      "available on %s (or set to \"none\").\n\n"
 		      "Would you like to select another FTP server?",
 		      rel, hostname)) {
 	    variable_unset(VAR_FTP_PATH);
-	    if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE)
-		goto punt;
-	    else
+	    if (DITEM_STATUS(mediaSetFTP(NULL)) != DITEM_FAILURE)
 		goto try;
 	}
-	else
-	    goto punt;
+    } else {
+	ftpInitted = TRUE;
+	return TRUE;
     }
-    ftpInitted = TRUE;
-    return TRUE;
 
 punt:
     ftpInitted = FALSE;
