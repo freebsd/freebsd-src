@@ -7,13 +7,13 @@
 SRCS=	c-common.c c-pragma.c \
 	caller-save.c calls.c combine.c convert.c cse.c \
 	dbxout.c dwarfout.c emit-rtl.c explow.c expmed.c expr.c \
-	final.c flow.c fold-const.c function.c getpwd.c global.c \
-	insn-attrtab.c insn-emit.c insn-extract.c insn-opinit.c \
+	final.c flow.c fold-const.c function.c getpwd.c global.c graph.c \
+	hash.c insn-attrtab.c insn-emit.c insn-extract.c insn-opinit.c \
 	insn-output.c insn-peep.c insn-recog.c \
-	integrate.c jump.c local-alloc.c loop.c obstack.c optabs.c \
+	integrate.c jump.c lcm.c local-alloc.c loop.c optabs.c \
 	print-rtl.c print-tree.c real.c recog.c reg-stack.c regclass.c \
 	reload.c reload1.c reorg.c rtl.c rtlanal.c \
-	sdbout.c stmt.c stor-layout.c stupid.c \
+	sbitmap.c sdbout.c stmt.c stor-layout.c stupid.c \
 	toplev.c tree.c unroll.c varasm.c version.c xcoffout.c \
 	alias.c bitmap.c dwarf2out.c dyn-string.c except.c \
 	gcse.c genrtl.c profile.c regmove.c varray.c \
@@ -23,6 +23,9 @@ SRCS+=	haifa-sched.c
 .else
 SRCS+=	sched.c
 .endif
+
+#	stuff that makes libiberty now required (2.95) and shouldn't be...
+SRCS+=	obstack.c splay-tree.c
 
 CFLAGS+=	-DTARGET_NAME=\"${target}\"
 

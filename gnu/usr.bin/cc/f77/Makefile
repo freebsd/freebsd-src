@@ -7,8 +7,6 @@
 PROG=	f77
 SRCS=	gcc.c g77spec.c version.c
 
-CFLAGS+=	-DLANG_SPECIFIC_DRIVER
-
 DPADD=	${LIBCC_DRV} 
 LDADD=	${LIBCC_DRV}
 
