@@ -786,12 +786,15 @@ mi_switch(void)
 #endif
 
 	/*
-	 * Check if the process exceeds its cpu resource allocation.
+	 * Check if the process exceeds its cpu resource allocation.  If
+	 * over max, arrange to kill the process in ast().
 	 */
 	if (p->p_state != PRS_ZOMBIE &&
 	    p->p_limit->p_cpulimit != RLIM_INFINITY &&
-	    p->p_runtime.sec > p->p_limit->p_cpulimit)
+	    p->p_runtime.sec > p->p_limit->p_cpulimit) {
 		p->p_sflag |= PS_XCPU;
+		ke->ke_flags |= KEF_ASTPENDING;
+	}
 
 	/*
 	 * Finish up stats for outgoing thread.
