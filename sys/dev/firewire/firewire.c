@@ -149,22 +149,17 @@ fw_tbuf_update(struct firewire_comm *fc, int sub, int flag){
 	}else{
 		bulkxfer = it->stdma;
 	}
-	splx(s);
 	if(bulkxfer != NULL){
-		s = splfw();
 		bulkxfer2 = STAILQ_NEXT(bulkxfer, link);
 #if 0
 		if(it->flag & FWXFERQ_DV && bulkxfer2 == NULL){
 			bulkxfer2 = STAILQ_FIRST(&it->stfree);
 			STAILQ_REMOVE_HEAD(&it->stfree, link);
-			splx(s);
 			bcopy(bulkxfer->buf, bulkxfer2->buf,
 					it->psize * it->btpacket);
-			s = splfw();
 			STAILQ_INSERT_TAIL(&it->stvalid, bulkxfer2, link);
 		}
 #endif
-		splx(s);
 	}
 	it->stdma = bulkxfer;
 	it->stdma2 = bulkxfer2;
@@ -175,23 +170,19 @@ dvloop:
 		if(it->dvdma == NULL){
 			dvbuf = STAILQ_FIRST(&it->dvvalid);
 			if(dvbuf != NULL){
-				s = splfw();
 				STAILQ_REMOVE_HEAD(&it->dvvalid, link);
 				it->dvdma = dvbuf;
-				splx(s);
 				it->queued = 0;
 			}
 		}
 		if(it->dvdma == NULL)
-			return err;
+			goto out;
 
 		it->stproc = STAILQ_FIRST(&it->stfree);
 		if(it->stproc != NULL){
-			s = splfw();
 			STAILQ_REMOVE_HEAD(&it->stfree, link);
-			splx(s);
 		}else{
-			return err;
+			goto out;
 		}
 #if 1
 #define DVSEC 100
@@ -243,18 +234,16 @@ dvloop:
 			}
 		}
 		it->stproc->npacket = j;
-		s = splfw();
 		STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
-		splx(s);
 		if(it->queued >= it->dvpacket){
-			s = splfw();
 			STAILQ_INSERT_TAIL(&it->dvfree, it->dvdma, link);
 			it->dvdma = NULL;
-			splx(s);
 			wakeup(it);
 			goto dvloop;
 		}
 	}
+out:
+	splx(s);
 	return err;
 }
 /*
