@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)sigaltstack.2	8.2 (Berkeley) 5/1/95
-.\"	$Id: sigaltstack.2,v 1.8 1997/03/12 17:16:22 bde Exp $
+.\"	$Id: sigaltstack.2,v 1.9 1999/01/01 12:22:11 bde Exp $
 .\"
 .Dd May 1, 1995
 .Dt SIGALTSTACK 2
@@ -136,7 +136,7 @@ Otherwise, a value of -1 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Sigstack
+.Fn Sigaltstack
 will fail and the signal stack context will remain unchanged
 if one of the following occurs.
 .Bl -tag -width [ENOMEM]
