@@ -47,15 +47,21 @@
 .Op Fl / Ar pattern
 .Op Ar
 .Sh DESCRIPTION
-.Nm More
-is a filter for paging through text one screenful at a time.  It
+The
+.Nm
+command is a filter for paging through text one screenful at a time.
+It
 uses
 .Xr termcap  3
-so it can run on a variety of terminals.  There is even limited support
-for hardcopy terminals.  (On a hardcopy terminal, lines which should be
-printed at the top of the screen are prefixed with an up-arrow.)
-.Ar File
-may be a single dash (``-''), implying stdin.
+so it can run on a variety of terminals,
+including hardcopy terminals.
+On a hardcopy terminal, lines which should be
+printed at the top of the screen are prefixed with an up-arrow.
+A
+.Ar file
+may be specified as
+.Pa /dev/stdin
+to view stdin.
 .Sh OPTIONS
 Command line options are described below.
 Options are also taken from the environment variable
@@ -110,9 +116,11 @@ consecutive blank lines to be squeezed into a single blank line.
 The
 .Fl t
 option, followed immediately by a tag, will edit the file
-containing that tag.  For more information, see the
+containing that tag.
+For more information, see
 .Xr ctags  1
-command.
+and
+.Xr gtags 1 .
 .It Fl u
 By default,
 .Nm
@@ -122,6 +130,8 @@ sequences specially.  Backspaces which appear
 adjacent to an underscore character are displayed as underlined text.
 Backspaces which appear between two identical characters are displayed
 as emboldened text.
+.\" Actually, backspaces are never displayed, either higlighted or underlined,
+.\" when -u isn't specified.
 .Dv CR-LF
 sequences are compressed to a single newline
 character.  The
@@ -208,10 +218,11 @@ Go to line N in the file, default 1 (beginning of file).
 Go to line N in the file, default the end of the file.
 .It Ic p No or Ic \&%
 Go to a position N percent into the file.  N should be between 0
-and 100.  (This works if standard input is being read, but only if
+and 100.
+This does work if standard input is being read, but only if
 .Nm
 has already read to the end of the file.  It is always fast, but
-not always useful.)
+not always useful.
 .It Ic r No or Ic \&^L
 Repaint the screen.
 .It Ic R
@@ -221,17 +232,19 @@ Useful if the file is changing while it is being viewed.
 Followed by any lowercase letter,
 marks the current position with that letter.
 .It Ic \&'
-(Single quote.)
+(single quote)
 Followed by any lowercase letter, returns to the position which
 was previously marked with that letter.
 Followed by another single quote, returns to the position at
-which the last "large" movement command was executed, or the
+which the last
+.Qq large
+movement command was executed, or the
 beginning of the file if no such movements have occurred.
-All marks are lost when a new file is examined.
 .It Ic \&/ Ns Ar pattern
 Search forward in the file for the N-th line containing the pattern.
 N defaults to 1.
-The pattern is a POSIX.2
+The pattern is a
+.St -p1003.2
 .Dq extended format
 regular expression, as described in
 .Xr re_format 7 .
@@ -255,7 +268,7 @@ containing the last pattern, if the previous search
 was /! or ?!).
 .It Ic E Ns Op Ar filename
 Examine a new file.
-If the filename is missing, the "current" file (see the N and P commands
+If the filename is missing, the current file (see the N and P commands
 below) from the list of files in the command line is re-examined.
 If the filename is a pound sign (#), the previously examined file is
 re-examined.
@@ -298,18 +311,25 @@ Exits
 .Nm more .
 .El
 .Sh ENVIRONMENT
-.Nm More
-utilizes the following environment variables, if they exist:
+The following environment variables are used,
+if they exist:
 .Bl -tag -width Fl
 .It Ev MORE
-This variable may be set with favored options to
+Specifies default option flags to
 .Nm more .
+Options must be preceeded by a
+.Dq -
+as if they were specified on the command line.
 .It Ev EDITOR
-Specify default editor.
+Specifies default editor.
 .It Ev SHELL
-Current shell in use (normally set by the shell at login time).
+Specifies current shell in use.
+This is normally set by the shell at login time.
 .It Ev TERM
-Specifies terminal type, used by more to get the terminal
+Specifies terminal type.
+This is used by
+.Nm
+to get the terminal
 characteristics necessary to manipulate the screen.
 .El
 .Sh SEE ALSO
@@ -327,9 +347,6 @@ underlining to be not existing.
 .Pp
 Sometimes searches match lines that do not contain the pattern being
 searched for.
-.Pp
-The HOME and ARROW keys will only work if you use the correct vt100
-escape sequences for them.
 .Sh AUTHORS
 This software is derived from software contributed to Berkeley
 by
