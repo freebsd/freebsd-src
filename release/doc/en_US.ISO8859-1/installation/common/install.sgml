@@ -169,7 +169,7 @@ from {alpha,i386}/INSTALL.TXT.
   or one of the many mirrors listed at <ulink
     url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
     Sites</ulink> section of the Handbook, or on the
-    <ulink url="http://www.freebsdmirrors.org/"></ulink> Web pages.
+    <ulink url="http://mirrorlist.freebsd.org/"></ulink> Web pages.
   </para>
 
   <para arch="i386,alpha">Get two blank, freshly formatted floppies and image copy
