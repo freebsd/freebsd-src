@@ -55,7 +55,6 @@
 
 #include "debug.h"
 #else /* _KERNEL */
-#include <sys/bus.h>
 #include <sys/systm.h>
 #endif /* !_KERNEL */
 
@@ -378,10 +377,9 @@ aml_execute_method(struct aml_environ *env)
 }
 
 union aml_object *
-aml_invoke_method_by_name(char *method, int argc, union aml_object *argv)
+aml_invoke_method(struct aml_name *name, int argc, union aml_object *argv)
 {
 	int	i;
-	struct	aml_name *name;
 	struct	aml_name *tmp;
 	struct	aml_environ *env;
 	struct	aml_local_stack *stack;
@@ -394,7 +392,6 @@ aml_invoke_method_by_name(char *method, int argc, union aml_object *argv)
 		return (NULL);
 	}
 	bzero(env, sizeof(struct aml_environ));
-	name = aml_find_from_namespace(aml_get_rootname(), method);
 
 	if (name != NULL && name->property != NULL &&
 	    name->property->type == aml_t_method) {
@@ -423,4 +420,17 @@ aml_invoke_method_by_name(char *method, int argc, union aml_object *argv)
 	}
 	memman_free(aml_memman, memid_aml_environ, env);
 	return (retval);
+}
+
+union aml_object *
+aml_invoke_method_by_name(char *method, int argc, union aml_object *argv)
+{
+	struct	aml_name *name;
+
+	name = aml_find_from_namespace(aml_get_rootname(), method);
+	if (name == NULL) {
+		return (NULL);
+	}
+
+	return (aml_invoke_method(name, argc, argv));
 }

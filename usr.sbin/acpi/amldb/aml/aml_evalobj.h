@@ -40,6 +40,8 @@ int			 aml_eval_name_simple(struct aml_name *, va_list);
 int			 aml_objtonum(struct aml_environ *,
 				      union aml_object *);
 struct aml_name		*aml_execute_method(struct aml_environ *);
+union aml_object	*aml_invoke_method(struct aml_name *,
+					   int, union aml_object *);
 union aml_object	*aml_invoke_method_by_name(char *,
 						   int, union aml_object *);
 
