@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.22 1998/08/07 18:42:49 brian Exp $
+ *	$Id: log.h,v 1.23 1998/08/09 15:34:11 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -40,14 +40,16 @@
 #define LogLCP		(11)
 #define LogLQM		(12)
 #define LogPHASE	(13)
-#define LogTCPIP	(14)
-#define LogTIMER	(15)	/* syslog(LOG_DEBUG, ....)	 */
-#define LogTUN		(16)	/* If set, tun%d is output with each message */
-#define LogMAXCONF	(16)
-#define LogWARN		(17)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
-#define LogERROR	(18)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
-#define LogALERT	(19)	/* syslog(LOG_ALERT, ....)	 */
-#define LogMAX		(19)
+#define LogPHYSICAL	(14)	/* syslog(LOG_INFO, ....)	 */
+#define LogSYNC		(15)	/* syslog(LOG_INFO, ....)	 */
+#define LogTCPIP	(16)
+#define LogTIMER	(17)	/* syslog(LOG_DEBUG, ....)	 */
+#define LogTUN		(18)	/* If set, tun%d is output with each message */
+#define LogMAXCONF	(18)
+#define LogWARN		(19)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
+#define LogERROR	(20)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
+#define LogALERT	(21)	/* syslog(LOG_ALERT, ....)	 */
+#define LogMAX		(21)
 
 struct mbuf;
 struct cmdargs;

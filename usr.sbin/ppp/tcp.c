@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: tcp.c,v 1.1 1999/05/08 11:07:45 brian Exp $
  */
 
 #include <sys/types.h>
@@ -58,7 +58,7 @@
 #include "tcp.h"
 
 static int
-OpenConnection(const char *name, char *host, char *port)
+tcp_OpenConnection(const char *name, char *host, char *port)
 {
   struct sockaddr_in dest;
   int sock;
@@ -69,61 +69,39 @@ OpenConnection(const char *name, char *host, char *port)
   dest.sin_addr = GetIpAddr(host);
   if (dest.sin_addr.s_addr == INADDR_NONE) {
     log_Printf(LogWARN, "%s: %s: unknown host\n", name, host);
-    return (-1);
+    return -1;
   }
   dest.sin_port = htons(atoi(port));
   if (dest.sin_port == 0) {
     sp = getservbyname(port, "tcp");
-    if (sp) {
+    if (sp)
       dest.sin_port = sp->s_port;
-    } else {
+    else {
       log_Printf(LogWARN, "%s: %s: unknown service\n", name, port);
-      return (-1);
+      return -1;
     }
   }
-  log_Printf(LogPHASE, "%s: Connecting to %s:%s\n", name, host, port);
+  log_Printf(LogPHASE, "%s: Connecting to %s:%s/tcp\n", name, host, port);
 
   sock = socket(PF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
-    return (sock);
-  }
+  if (sock < 0)
+    return sock;
+
   if (connect(sock, (struct sockaddr *)&dest, sizeof dest) < 0) {
     log_Printf(LogWARN, "%s: connect: %s\n", name, strerror(errno));
     close(sock);
-    return (-1);
-  }
-  return (sock);
-}
-
-static int
-tcp_Open(struct physical *p)
-{
-  char *cp, *host, *port;
-
-  if ((cp = strchr(p->name.full, ':')) != NULL) {
-    *cp = '\0';
-    host = p->name.full;
-    port = cp + 1;
-    if (*host && *port) {
-      p->fd = OpenConnection(p->link.name, host, port);
-      *cp = ':';		/* Don't destroy name.full */
-      if (p->fd >= 0) {
-        log_Printf(LogDEBUG, "%s: Opened socket %s\n", p->link.name,
-                   p->name.full);
-        physical_SetupStack(p, 1);
-        return 1;
-      }
-    } else
-      *cp = ':';		/* Don't destroy name.full */
+    return -1;
   }
 
-  return 0;
+  return sock;
 }
 
-const struct device tcpdevice = {
-  TTY_DEVICE,
+static struct device tcpdevice = {
+  TCP_DEVICE,
   "tcp",
-  tcp_Open,
+  NULL,
+  NULL,
+  NULL,
   NULL,
   NULL,
   NULL,
@@ -132,3 +110,79 @@ const struct device tcpdevice = {
   NULL,
   NULL
 };
+
+struct device *
+tcp_iov2device(int type, struct physical *p, struct iovec *iov,
+               int *niov, int maxiov)
+{
+  if (type == TCP_DEVICE)
+    return &tcpdevice;
+
+  return NULL;
+}
+
+struct device *
+tcp_Create(struct physical *p)
+{
+  char *cp, *host, *port, *svc;
+
+  if (p->fd < 0) {
+    if ((cp = strchr(p->name.full, ':')) != NULL) {
+      *cp = '\0';
+      host = p->name.full;
+      port = cp + 1;
+      svc = strchr(port, '/');
+      if (svc && strcasecmp(svc, "/tcp")) {
+        *cp = ':';
+        return 0;
+      }
+      if (svc)
+        *svc = '\0';
+      if (*host && *port) {
+        p->fd = tcp_OpenConnection(p->link.name, host, port);
+        *cp = ':';
+        if (svc)
+          *svc = '/';
+        if (p->fd >= 0)
+          log_Printf(LogDEBUG, "%s: Opened tcp socket %s\n", p->link.name,
+                     p->name.full);
+      } else {
+        if (svc)
+          *svc = '/';
+        *cp = ':';
+      }
+    }
+  }
+
+  if (p->fd >= 0) {
+    /* See if we're a tcp socket */
+    int type, sz, err;
+
+    sz = sizeof type;
+    if ((err = getsockopt(p->fd, SOL_SOCKET, SO_TYPE, &type, &sz)) == 0 &&
+        sz == sizeof type && type == SOCK_STREAM) {
+      struct sockaddr_in sock;
+      struct sockaddr *sockp = (struct sockaddr *)&sock;
+
+      if (*p->name.full == '\0') {
+        sz = sizeof sock;
+        if (getpeername(p->fd, sockp, &sz) != 0 ||
+            sz != sizeof(struct sockaddr_in) || sock.sin_family != AF_INET) {
+          log_Printf(LogDEBUG, "%s: Link is SOCK_STREAM, but not inet\n",
+                     p->link.name);
+          return NULL;
+        }
+
+        log_Printf(LogPHASE, "%s: Link is a tcp socket\n", p->link.name);
+
+        snprintf(p->name.full, sizeof p->name.full, "%s:%d/tcp",
+                 inet_ntoa(sock.sin_addr), ntohs(sock.sin_port));
+        p->name.base = p->name.full;
+      }
+      physical_SetupStack(p, PHYSICAL_FORCE_ASYNC);
+      return &tcpdevice;
+    }
+  }
+
+  return NULL;
+}

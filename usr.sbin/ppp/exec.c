@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: exec.c,v 1.1 1999/05/08 11:06:30 brian Exp $
  */
 
 #include <sys/param.h>
@@ -78,10 +78,35 @@
 #include "datalink.h"
 #include "exec.h"
 
-static int
-exec_Open(struct physical *p)
+static struct device execdevice = {
+  EXEC_DEVICE,
+  "exec",
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL
+};
+
+struct device *
+exec_iov2device(int type, struct physical *p, struct iovec *iov,
+                int *niov, int maxiov)
 {
-  if (*p->name.full == '!') {
+  if (type == EXEC_DEVICE)
+    return &execdevice;
+
+  return NULL;
+}
+
+struct device *
+exec_Create(struct physical *p)
+{
+  if (p->fd < 0 && *p->name.full == '!') {
     int fids[2];
 
     if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, fids) < 0)
@@ -137,24 +162,11 @@ exec_Open(struct physical *p)
           p->fd = fids[0];
           waitpid(pid, &stat, 0);
           log_Printf(LogDEBUG, "Using descriptor %d for child\n", p->fd);
-          physical_SetupStack(p, 1);
-          return 1;
+          physical_SetupStack(p, PHYSICAL_FORCE_ASYNC);
+          return &execdevice;
       }
     }
   }
 
-  return 0;
+  return NULL;
 }
-
-const struct device execdevice = {
-  EXEC_DEVICE,
-  "exec",
-  exec_Open,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL
-};

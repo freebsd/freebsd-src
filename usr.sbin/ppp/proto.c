@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: proto.c,v 1.1 1999/05/08 11:07:32 brian Exp $
  */
 
 #include <sys/types.h>
@@ -34,6 +34,7 @@
 #include "layer.h"
 #include "acf.h"
 #include "defs.h"
+#include "log.h"
 #include "timer.h"
 #include "fsm.h"
 #include "mbuf.h"
@@ -71,6 +72,7 @@ static struct mbuf *
 proto_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
 {
+  log_Printf(LogDEBUG, "proto_LayerPush: Using 0x%04x\n", *proto);
   bp = proto_Prepend(bp, *proto, l->lcp.his_protocomp,
                      acf_WrapperOctets(&l->lcp, *proto));
   link_ProtocolRecord(l, *proto, PROTO_OUT);
@@ -100,6 +102,8 @@ proto_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
     *proto = (*proto << 8) | cp[1];
   } else
     bp = mbuf_Read(bp, cp, 1);
+
+  log_Printf(LogDEBUG, "proto_LayerPull: unknown -> 0x%04x\n", *proto);
 
   link_ProtocolRecord(l, *proto, PROTO_IN);
 
