@@ -124,7 +124,6 @@ SUBDIR=	apply \
 	printenv \
 	printf \
 	quota \
-	rdist \
 	renice \
 	rev \
 	rlogin \
