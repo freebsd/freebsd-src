@@ -440,7 +440,6 @@ we have simply not received any indication of this.
 
 WD1003 (any generic MFM/RLL)
 WD1007 (any generic IDE/ESDI)
-WD7000
 IDE
 ATA
 
@@ -476,6 +475,8 @@ UltraStor 14F, 24F and 34F SCSI controllers.
 Seagate ST01/02 SCSI controllers.
 
 Future Domain 8xx/950 series SCSI controllers.
+
+WD7000 SCSI controller.
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
@@ -734,4 +735,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.7 1995/06/08 09:12:55 jkh Exp $
+$Id: RELNOTES,v 1.8 1995/06/10 02:38:55 jkh Exp $
