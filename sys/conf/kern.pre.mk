@@ -18,10 +18,12 @@ SIZE?=		size
 
 .if ${CC} == "icc"
 COPTFLAGS?=-O
-.elif ${MACHINE_ARCH} == "amd64"
-COPTFLAGS?=-O2 -fno-strict-aliasing -frename-registers -pipe
 .else
+. if ${MACHINE_ARCH} == "amd64"
+COPTFLAGS?=-O2 -frename-registers -pipe
+. else
 COPTFLAGS?=-O -pipe
+. endif
 . if ${COPTFLAGS:M-O[23s]} != ""
 COPTFLAGS+= -fno-strict-aliasing
 . endif
@@ -110,6 +112,12 @@ NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
 GEN_CFILES= $S/$M/$M/genassym.c
 SYSTEM_CFILES= config.c env.c hints.c majors.c vnode_if.c
+.if ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "x86_64"
+LOCORE=locore.S
+.else
+LOCORE=locore.s
+.endif
+SYSTEM_SFILES= $S/$M/$M/${LOCORE}
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
