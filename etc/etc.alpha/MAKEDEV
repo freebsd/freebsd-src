@@ -128,7 +128,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.7 1999/06/18 06:20:08 dfr Exp $
+#	$Id: MAKEDEV,v 1.8 1999/07/09 12:52:04 sheldonh Exp $
 #	from etc.i386 MAKEDEV,v 1.199 1999/05/29 19:36:55 phk Exp
 #
 
@@ -803,7 +803,7 @@ ppi*)
 
 pps*)
 	unit=`expr $i : 'pps\(.*\)'`
-	mknod ppi$unit c 89 $unit
+	mknod pps$unit c 89 $unit
 	;;
 
 usb*)
