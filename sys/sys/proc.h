@@ -283,7 +283,7 @@ struct	proc {
 #define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
 
 /* Marked a kernel thread */
-#define	P_BUFEXHAUST	0x100000 /* dirty buffers flush is in progress */
+#define	P_UNUSED100000	0x100000
 #define	P_KTHREADP	0x200000 /* Process is really a kernel thread */
 
 #define	P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */

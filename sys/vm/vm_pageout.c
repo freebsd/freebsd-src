@@ -1352,7 +1352,6 @@ vm_pageout()
 	if (vm_pageout_stats_free_max == 0)
 		vm_pageout_stats_free_max = 5;
 
-	curproc->p_flag |= P_BUFEXHAUST;
 	swap_pager_swap_init();
 	pass = 0;
 	/*
