@@ -35,12 +35,9 @@
 # - override files in /etc with files from /conf/*/etc where
 #   '*' is default, netmask of client, ip-address of client
 #
-# WARNING: i thing you should not change /etc/rc or strange things could
-# happen.
-#
 # The operator is in charge of setting /conf/*/etc/* things as appropriate.
-# Typically rc.conf and fstab need to be changed, but possibly
-# also other files such as inetd.conf etc.
+# Typically rc.conf and fstab need to be changed, but possibly also other
+# files such as inetd.conf etc.
 
 # chkerr:
 #
