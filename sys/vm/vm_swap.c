@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.59 1999/01/21 10:17:12 dillon Exp $
+ * $Id: vm_swap.c,v 1.60 1999/02/25 05:37:18 dillon Exp $
  */
 
 #include "opt_devfs.h"
@@ -52,6 +52,7 @@
 #include <sys/fcntl.h>
 #include <sys/blist.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/swap_pager.h>
@@ -278,6 +279,7 @@ swaponvp(p, vp, dev, nblks)
 	swblk_t dvbase;
 	int error;
 
+	ASSERT_VOP_UNLOCKED(vp, "swaponvp");
 	for (sp = swdevt, index = 0 ; index < nswdev; index++, sp++) {
 		if (sp->sw_vp == vp)
 			return EBUSY;
@@ -287,7 +289,9 @@ swaponvp(p, vp, dev, nblks)
 	}
 	return EINVAL;
     found:
+	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_OPEN(vp, FREAD | FWRITE, p->p_ucred, p);
+	(void) VOP_UNLOCK(vp, 0, p);
 	if (error)
 		return (error);
 
