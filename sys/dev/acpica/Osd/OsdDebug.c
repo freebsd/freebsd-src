@@ -33,17 +33,9 @@
 
 #include "opt_ddb.h"
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/cons.h>
 #include <sys/kernel.h>
-
 #include <sys/bus.h>
-#include <machine/resource.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
-
-#include <ddb/ddb.h>
-#include <ddb/db_output.h>
 
 #include "acpi.h"
 #include "acdebug.h"
@@ -59,29 +51,28 @@ AcpiOsGetLine(char *Buffer)
     for (cp = Buffer; *cp != 0; cp++)
 	if (*cp == '\n')
 	    *cp = 0;
-    return(AE_OK);
+    return (AE_OK);
 #else
     printf("AcpiOsGetLine called but no input support");
-    return(AE_NOT_EXIST);
-#endif
+    return (AE_NOT_EXIST);
+#endif /* DDB */
 }
 
 void
-AcpiOsDbgAssert(void *FailedAssertion, void *FileName, UINT32 LineNumber, char *Message)
+AcpiOsDbgAssert(void *FailedAssertion, void *FileName, UINT32 LineNumber,
+    char *Message)
 {
     printf("ACPI: %s:%d - %s\n", (char *)FileName, LineNumber, Message);
     printf("ACPI: assertion  %s\n", (char *)FailedAssertion);
 }
 
 ACPI_STATUS
-AcpiOsSignal (
-    UINT32                  Function,
-    void                    *Info)
+AcpiOsSignal(UINT32 Function, void *Info)
 {
     ACPI_SIGNAL_FATAL_INFO	*fatal;
     char			*message;
     
-    switch(Function) {
+    switch (Function) {
     case ACPI_SIGNAL_FATAL:
 	fatal = (ACPI_SIGNAL_FATAL_INFO *)Info;
 	printf("ACPI fatal signal, type 0x%x  code 0x%x  argument 0x%x",
@@ -95,9 +86,10 @@ AcpiOsSignal (
 	break;
 
     default:
-	return(AE_BAD_PARAMETER);
+	return (AE_BAD_PARAMETER);
     }
-    return(AE_OK);
+
+    return (AE_OK);
 }
 
 #ifdef ACPI_DEBUGGER
@@ -116,4 +108,4 @@ acpi_EnterDebugger(void)
     printf("Entering ACPICA debugger...\n");
     AcpiDbUserCommands('A', &obj);
 }
-#endif
+#endif /* ACPI_DEBUGGER */

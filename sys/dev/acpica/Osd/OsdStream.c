@@ -34,7 +34,7 @@
 #include "acpi.h"
 
 void
-AcpiOsPrintf (const char *Format, ...)
+AcpiOsPrintf(const char *Format, ...)
 {
     va_list	ap;
 
@@ -44,8 +44,7 @@ AcpiOsPrintf (const char *Format, ...)
 }
 
 void
-AcpiOsVprintf (const char *Format, va_list Args)
+AcpiOsVprintf(const char *Format, va_list Args)
 {
     vprintf(Format, Args);
 }
-
