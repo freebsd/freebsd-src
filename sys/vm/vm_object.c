@@ -721,7 +721,9 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		 */
 		if (tscan >= tend && (tstart || tend < object->size)) {
 			vm_page_unlock_queues();
+			VM_OBJECT_LOCK(object);
 			vm_object_clear_flag(object, OBJ_CLEANING);
+			VM_OBJECT_UNLOCK(object);
 			return;
 		}
 		pagerflags &= ~VM_PAGER_IGNORE_CLEANCHK;
@@ -747,7 +749,9 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
 		struct vnode *vp;
 
+		VM_OBJECT_LOCK(object);
 		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+		VM_OBJECT_UNLOCK(object);
 		if (object->type == OBJT_VNODE &&
 		    (vp = (struct vnode *)object->handle) != NULL) {
 			VI_LOCK(vp);
@@ -813,7 +817,9 @@ again:
 	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
 #endif
 
+	VM_OBJECT_LOCK(object);
 	vm_object_clear_flag(object, OBJ_CLEANING);
+	VM_OBJECT_UNLOCK(object);
 	return;
 }
 
@@ -1207,8 +1213,8 @@ vm_object_split(vm_map_entry_t entry)
 		vm_page_busy(m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_LOCK(orig_object);
 	if (orig_object->type == OBJT_SWAP) {
-		VM_OBJECT_LOCK(orig_object);
 		vm_object_pip_add(orig_object, 1);
 		VM_OBJECT_UNLOCK(orig_object);
 		/*
@@ -1217,8 +1223,10 @@ vm_object_split(vm_map_entry_t entry)
 		 * shadow object.
 		 */
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
+		VM_OBJECT_LOCK(orig_object);
 		vm_object_pip_wakeup(orig_object);
 	}
+	VM_OBJECT_UNLOCK(orig_object);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(m, &new_object->memq, listq)
 		vm_page_wakeup(m);
@@ -1534,9 +1542,13 @@ vm_object_collapse(vm_object_t object)
 				    backing_object,
 				    object,
 				    OFF_TO_IDX(object->backing_object_offset), TRUE);
+				VM_OBJECT_LOCK(object);
 				vm_object_pip_wakeup(object);
+				VM_OBJECT_UNLOCK(object);
 
+				VM_OBJECT_LOCK(backing_object);
 				vm_object_pip_wakeup(backing_object);
+				VM_OBJECT_UNLOCK(backing_object);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
