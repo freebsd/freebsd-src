@@ -837,7 +837,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       HighPoint HPT370 controllers. &merged;</para>
 
       <para>The &man.ata.4; driver now supports a wider variety of SiS
-      chipsets, as listed in the Hardware Notes.</para>
+      chipsets, as listed in the Hardware Notes. &merged;</para>
 
       <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM burners, is now
       supported. &merged;</para>
