@@ -231,8 +231,6 @@ static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
 
-#define offsetof(type, member)	((size_t)(&((type *)0)->member))
-
 /*
  * Hooked into the shutdown chain; if the system is to be halted,
  * unconditionally drop back to the SRM console.

@@ -68,10 +68,6 @@
 
 #include <net/net_osdep.h>
 
-#ifndef offsetof
-#define offsetof(s, e) ((int)&((s *)0)->e)
-#endif
-
 int
 in6_gif_output(ifp, family, m, rt)
 	struct ifnet *ifp;

@@ -250,8 +250,6 @@ struct cpuhead cpuhead;
 MUTEX_DECLARE(,sched_lock);
 MUTEX_DECLARE(,Giant);
 
-#define offsetof(type, member)	((size_t)(&((type *)0)->member))
-
 static void
 cpu_startup(dummy)
 	void *dummy;
