@@ -35,10 +35,10 @@ do
 	vnconfig -s labels -c /dev/r${VNDEVICE} fs-image
 
 	dd if=${RD}/trees/bin/usr/mdec/boot1 of=fs-image conv=notrunc
-	disklabel /dev/r${VNDEVICE} | disklabel -R -B \
+	disklabel -Brw \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		/dev/r${VNDEVICE} /dev/stdin
+		${VNDEVICE} auto
 
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
 
