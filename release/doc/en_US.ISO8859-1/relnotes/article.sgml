@@ -24,7 +24,14 @@
   and improved, minor bugs were fixed, insecure coding practices were
   audited and corrected, and source code was cleaned up.</para>
 
-  <sect2>
+  <para>The release notes items are organized into three different
+  sections.  <xref linkend="kernel"> lists recent changes to the &os;
+  kernel.  Security fixes, including those pertaining to security
+  advisories, are listed in <xref linkend="security">.  Finally, <xref
+  linkend="userland"> covers changes to &os; userland applications
+  included in the base system.</para>
+
+  <sect2 id="kernel">
     <title>Kernel Changes</title>
 
     <para>The &man.kqueue.2; event notification facility was added to
@@ -787,7 +794,7 @@
       </sect4>
     </sect3>
   </sect2>
-  <sect2>
+  <sect2 id="security">
     <title>Security Fixes</title>
 
     <para>&man.sysinstall.8; now allows the user to select one of three
@@ -965,7 +972,7 @@
     <para>A remote buffer overflow in &man.telnetd.8; has been
     fixed (see security advisory FreeBSD-SA-01:49). &merged;</para>
   </sect2>
-  <sect2>
+  <sect2 id="userland">
     <title>Userland Changes</title>
 
     <para>&man.cdcontrol.1; now supports a <literal>cdid</literal>
