@@ -166,6 +166,10 @@ automaticly attached.
 Import of new sound code from Luigi Rizzo.  This code is still being
 developed, but has support for a number of different cards.
 
+The psm, mse and sysmouse drivers are improved to provide better mouse
+support.  In particular, the psm driver now supports various ``wheeled''
+mice.
+
 
 SECURITY CHANGES:
 
@@ -236,6 +240,11 @@ those that are often running over ISDN).  It also offers PAP or CHAP
 authentication.  The userland counterpart spppcontrol(8) is also the
 first program that utilizes the abovementioned SIOC[SG]IFGENERIC ioctl
 commands.
+
+moused(8) has been modified to support various mice with a ``wheel''.
+It also automatically recognizes mice which support the PnP COM device
+standard, so that the user is no longer required to supply a mouse 
+protocol type on the command line.
 
 
 2. Supported Configurations
