@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.22 1996/08/13 07:21:45 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.23 1996/08/13 19:48:41 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -11,11 +11,11 @@
 #include <sys/namei.h>
 #include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
-#include <sys/file.h>		/* define FWRITE ... */
 #include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <miscfs/specfs/specdev.h>/* definitions of spec functions we use */
 #include <sys/malloc.h>
