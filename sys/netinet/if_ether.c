@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.10 1994/12/22 22:00:29 wollman Exp $
+ * $Id: if_ether.c,v 1.11 1995/02/20 15:48:40 davidg Exp $
  */
 
 /*
@@ -95,24 +95,6 @@ int	arpinit_done = 0;
 #ifdef	ARP_PROXYALL
 int	arp_proxyall = 1;
 #endif
-
-/*
- * Support: format an IP address.  There should be a standard kernel routine
- * to do this.
- */
-static char *
-arp_ntoa(struct in_addr *x)
-{
-	static char buf[4*sizeof "123"];
-	unsigned char *ucp = (unsigned char *)x;
-
-	sprintf(buf, "%d.%d.%d.%d",
-		ucp[0] & 0xff,
-		ucp[1] & 0xff,
-		ucp[2] & 0xff,
-		ucp[3] & 0xff);
-	return buf;
-}
 
 /*
  * Timeout routine.  Age arp_tab entries periodically.
@@ -467,13 +449,13 @@ in_arpinput(m)
 	    sizeof (ea->arp_sha))) {
 		log(LOG_ERR,
 		    "arp: ether address is broadcast for IP address %s!\n",
-		    arp_ntoa(&isaddr));
+		    inet_ntoa(isaddr));
 		goto out;
 	}
 	if (isaddr.s_addr == myaddr.s_addr) {
 		log(LOG_ERR,
 		   "duplicate IP address %s! sent from ethernet address: %s\n",
-		   arp_ntoa(&isaddr), ether_sprintf(ea->arp_sha));
+		   inet_ntoa(isaddr), ether_sprintf(ea->arp_sha));
 		itaddr = myaddr;
 		goto reply;
 	}
@@ -482,7 +464,7 @@ in_arpinput(m)
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
 			log(LOG_INFO, "arp info overwritten for %s by %s\n",
-			    arp_ntoa(&isaddr), ether_sprintf(ea->arp_sha));
+			    inet_ntoa(isaddr), ether_sprintf(ea->arp_sha));
 		bcopy((caddr_t)ea->arp_sha, LLADDR(sdl),
 			    sdl->sdl_alen = sizeof(ea->arp_sha));
 		if (rt->rt_expire)
@@ -539,7 +521,7 @@ reply:
 			rtfree(rt);
 #ifdef DEBUG_PROXY
 			printf("arp: proxying for %s\n", 
-			       arp_ntoa(&itaddr));
+			       inet_ntoa(itaddr));
 #endif
 #else
 			goto out;
@@ -617,7 +599,7 @@ arplookup(addr, create, proxy)
 
 	if(why && create) {
 		log(LOG_DEBUG, "arplookup %s failed: %s\n",
-		    arp_ntoa(&sin.sin_addr), why);
+		    inet_ntoa(sin.sin_addr), why);
 		return 0;
 	} else if(why) {
 		return 0;
