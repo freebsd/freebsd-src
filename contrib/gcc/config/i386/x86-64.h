@@ -19,6 +19,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #undef ASM_COMMENT_START
 #define ASM_COMMENT_START "#"
 
@@ -27,7 +29,7 @@ Boston, MA 02111-1307, USA.  */
   (TARGET_64BIT ? dbx64_register_map[n] : svr4_dbx_register_map[n])
 
 /* Output assembler code to FILE to call the profiler.  */
-#define NO_PROFILE_COUNTERS
+#define NO_PROFILE_COUNTERS 1
 
 #undef FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
@@ -72,14 +74,6 @@ Boston, MA 02111-1307, USA.  */
    bytes if it is within MAX_SKIP bytes.
 
    This is used to align code labels according to Intel recommendations.  */
-
-#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP)			\
-  do {									\
-    if ((LOG) != 0) {							\
-      if ((MAX_SKIP) == 0) fprintf ((FILE), "\t.p2align %d\n", (LOG));	\
-      else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP));	\
-    }									\
-  } while (0)
 
 
 /* i386 System V Release 4 uses DWARF debugging info.
