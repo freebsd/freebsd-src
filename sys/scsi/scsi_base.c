@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.51 1997/09/21 22:03:07 gibbs Exp $
+ *      $Id: scsi_base.c,v 1.52 1997/10/12 08:54:46 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -36,8 +36,10 @@ static errval scsi_interpret_sense(struct scsi_xfer *);
 static struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32_t flags);
 static void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,
 		u_int32_t flags);
+#ifdef SCSIDEBUG
 static void show_mem(unsigned char *address, u_int32_t num);
 static void show_scsi_xs (struct scsi_xfer *);
+#endif
 
 #ifdef notyet
 static int scsi_sense_qualifiers (struct scsi_xfer *, int *, int *);
