@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.101 1998/12/04 18:39:44 rvb Exp $
+ *	$Id: vnode_pager.c,v 1.102 1999/01/21 08:29:12 dillon Exp $
  */
 
 /*
@@ -75,7 +75,7 @@ static int vnode_pager_input_smlfs __P((vm_object_t object, vm_page_t m));
 static int vnode_pager_input_old __P((vm_object_t object, vm_page_t m));
 static void vnode_pager_dealloc __P((vm_object_t));
 static int vnode_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
-static int vnode_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
+static void vnode_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
 static boolean_t vnode_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
 
 struct pagerops vnodepagerops = {
@@ -821,7 +821,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
  * All other FS's should use the bypass to get to the local media
  * backing vp's VOP_PUTPAGES.
  */
-static int
+static void
 vnode_pager_putpages(object, m, count, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
@@ -839,7 +839,6 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	    printf("vnode_pager: *** WARNING *** stale FS putpages\n");
 	    rtval = vnode_pager_generic_putpages( vp, m, bytes, sync, rtvals);
 	}
-	return rtval;
 }
 
 

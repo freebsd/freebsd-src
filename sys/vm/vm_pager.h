@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.18 1999/01/21 08:29:12 dillon Exp $
+ * $Id: vm_pager.h,v 1.19 1999/01/21 10:15:47 dillon Exp $
  */
 
 /*
@@ -55,7 +55,7 @@ struct pagerops {
 	vm_object_t (*pgo_alloc) __P((void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));	/* Allocate pager. */
 	void (*pgo_dealloc) __P((vm_object_t));	/* Disassociate. */
 	int (*pgo_getpages) __P((vm_object_t, vm_page_t *, int, int));	/* Get (read) page. */
-	int (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, int, int *)); /* Put (write) page. */
+	void (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, int, int *)); /* Put (write) page. */
 	boolean_t (*pgo_haspage) __P((vm_object_t, vm_pindex_t, int *, int *)); /* Does pager have page? */
 	void (*pgo_pageunswapped) __P((vm_page_t));
 };
@@ -98,7 +98,6 @@ void vm_pager_init __P((void));
 vm_object_t vm_pager_object_lookup __P((struct pagerlst *, void *));
 vm_offset_t vm_pager_map_pages __P((vm_page_t *, int, boolean_t));
 vm_offset_t vm_pager_map_page __P((vm_page_t));
-static __inline int vm_pager_put_pages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
 void vm_pager_sync __P((void));
 void vm_pager_unmap_pages __P((vm_offset_t, int));
 void vm_pager_unmap_page __P((vm_offset_t));
@@ -113,7 +112,7 @@ vm_pager_get_pages(
 	return ((*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage));
 }
 
-static __inline int
+static __inline void
 vm_pager_put_pages(
 	vm_object_t object,
 	vm_page_t *m,
@@ -121,7 +120,8 @@ vm_pager_put_pages(
 	int flags,
 	int *rtvals
 ) {
-	return ((*pagertab[object->type]->pgo_putpages)(object, m, count, flags, rtvals));
+	(*pagertab[object->type]->pgo_putpages)
+	    (object, m, count, flags, rtvals);
 }
 
 static __inline boolean_t
