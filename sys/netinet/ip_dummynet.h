@@ -109,6 +109,7 @@ struct dn_heap {
     struct dn_heap_entry *p ;	/* really an array of "size" entries */
 } ;
 
+#ifdef _KERNEL
 /*
  * struct dn_pkt identifies a packet in the dummynet queue, but
  * is also used to tag packets passed back to the various destinations
@@ -142,6 +143,7 @@ struct dn_pkt {
     struct route ro;		/* route, for ip_output. MUST COPY	*/
     int flags ;			/* flags, for ip_output (IPv6 ?)	*/
 };
+#endif /* _KERNEL */
 
 /*
  * Overall structure of dummynet (with WF2Q+):
