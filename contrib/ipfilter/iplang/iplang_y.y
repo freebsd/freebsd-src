@@ -10,6 +10,9 @@
  * $FreeBSD$
  */
 
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
