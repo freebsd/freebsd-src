@@ -1676,22 +1676,15 @@ typedef struct {
 	u_int32_t		bge_addr_hi;
 	u_int32_t		bge_addr_lo;
 } bge_hostaddr;
-#define BGE_HOSTADDR(x)	x.bge_addr_lo
+#define BGE_HOSTADDR(x)	((x).bge_addr_lo)
 
 /* Ring control block structure */
 struct bge_rcb {
 	bge_hostaddr		bge_hostaddr;
-	u_int16_t		bge_flags;
-	u_int16_t		bge_max_len;
+	u_int32_t		bge_maxlen_flags;
 	u_int32_t		bge_nicaddr;
 };
-
-struct bge_rcb_opaque {
-	u_int32_t		bge_reg0;
-	u_int32_t		bge_reg1;
-	u_int32_t		bge_reg2;
-	u_int32_t		bge_reg3;
-};
+#define BGE_RCB_MAXLEN_FLAGS(maxlen, flags)	((maxlen) << 16 | (flags))
 
 #define BGE_RCB_FLAG_USE_EXT_RX_BD	0x0001
 #define BGE_RCB_FLAG_RING_DISABLED	0x0002
