@@ -426,7 +426,9 @@ to the client. Servers should be listed in order of preference.
 This option specifies the name of the client.  The name may or may
 not be qualified with the local domain name (it is preferable to use
 the domain-name option to specify the domain name).  See RFC 1035 for
-character set restrictions.
+character set restrictions.  This option is only honored by
+.B dhclient-script(8)
+if the hostname for the client machine is not set.
 .RE
 .PP
 .B option \fBieee802-3-encapsulation\fR \fIflag\fR\fB;\fR

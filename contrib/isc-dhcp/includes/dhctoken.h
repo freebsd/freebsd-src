@@ -3,7 +3,7 @@
    Tokens for config file lexer and parser. */
 
 /*
- * Copyright (c) 1996-1999 Internet Software Consortium.
+ * Copyright (c) 1996-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -315,10 +315,11 @@ enum dhcp_token {
 	CONNECT = 610,
 	REMOVE = 611,
 	REFRESH = 612,
-	DOMAIN_NAME = 613
+	DOMAIN_NAME = 613,
+	DO_FORWARD_UPDATE = 614
 };
 
 #define is_identifier(x)	((x) >= FIRST_TOKEN &&	\
 				 (x) != STRING &&	\
 				 (x) != NUMBER &&	\
-				 (x) != EOF)
+				 (x) != END_OF_FILE)

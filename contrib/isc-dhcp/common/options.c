@@ -3,7 +3,7 @@
    DHCP options parsing and reassembly. */
 
 /*
- * Copyright (c) 1995-2001 Internet Software Consortium.
+ * Copyright (c) 1995-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: options.c,v 1.85.2.6 2001/10/18 20:11:38 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: options.c,v 1.85.2.8 2002/02/19 20:36:52 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #define DHCP_OPTION_DATA
@@ -373,8 +373,15 @@ int fqdn_universe_decode (struct option_state *options,
 
 			*s = '.';
 			s += len + 1;
-			total_len += len;
+			total_len += len + 1;
 		}
+
+		/* We wind up with a length that's one too many because
+		   we shouldn't increment for the last label, but there's
+		   no way to tell we're at the last label until we exit
+		   the loop.   :'*/
+		if (total_len > 0)
+			total_len--;
 
 		if (!terminated) {
 			first_len = total_len;
@@ -508,6 +515,7 @@ int cons_options (inpacket, outpacket, lease, client_state,
 	priority_list [priority_len++] = DHO_DHCP_LEASE_TIME;
 	priority_list [priority_len++] = DHO_DHCP_MESSAGE;
 	priority_list [priority_len++] = DHO_DHCP_REQUESTED_ADDRESS;
+	priority_list [priority_len++] = DHO_FQDN;
 
 	if (prl && prl -> len > 0) {
 		if ((op = lookup_option (&dhcp_universe, cfg_options,
@@ -544,7 +552,8 @@ int cons_options (inpacket, outpacket, lease, client_state,
 		if (cfg_options -> site_code_min) {
 		    for (i = 0; i < OPTION_HASH_SIZE; i++) {
 			hash = cfg_options -> universes [dhcp_universe.index];
-			for (pp = hash [i]; pp; pp = pp -> cdr) {
+			if (hash) {
+			    for (pp = hash [i]; pp; pp = pp -> cdr) {
 				op = (struct option_cache *)(pp -> car);
 				if (op -> option -> code <
 				    cfg_options -> site_code_min &&
@@ -553,6 +562,7 @@ int cons_options (inpacket, outpacket, lease, client_state,
 				     DHO_DHCP_AGENT_OPTIONS))
 					priority_list [priority_len++] =
 						op -> option -> code;
+			    }
 			}
 		    }
 		}
@@ -561,8 +571,9 @@ int cons_options (inpacket, outpacket, lease, client_state,
 		   is no site option space, we'll be cycling through the
 		   dhcp option space. */
 		for (i = 0; i < OPTION_HASH_SIZE; i++) {
-			hash = (cfg_options -> universes
-				[cfg_options -> site_universe]);
+		    hash = (cfg_options -> universes
+			    [cfg_options -> site_universe]);
+		    if (hash)
 			for (pp = hash [i]; pp; pp = pp -> cdr) {
 				op = (struct option_cache *)(pp -> car);
 				if (op -> option -> code >=
@@ -770,8 +781,9 @@ int store_options (buffer, buflen, packet, lease, client_state,
 	       to be encapsulated first, except that if it's a straight
 	       encapsulation and the user has provided a value for the
 	       encapsulation option, use the user-provided value. */
-	    if ((u -> options [code] -> format [0] == 'E' && !oc) ||
-		u -> options [code] -> format [0] == 'e') {
+	    if (u -> options [code] &&
+		((u -> options [code] -> format [0] == 'E' && !oc) ||
+		 u -> options [code] -> format [0] == 'e')) {
 		int uix;
 		static char *s, *t;
 		struct option_cache *tmp;

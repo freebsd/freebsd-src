@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# $FreeBSD$
+
 if [ -x /usr/bin/logger ]; then
 	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"
 else
@@ -80,7 +82,7 @@ fi
   
 if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
    [ x$reason = xREBIND ] || [ x$reason = xREBOOT ]; then
-  current_hostname=`hostname`
+  current_hostname=`/bin/hostname`
   if [ x$current_hostname = x ] || \
      [ x$current_hostname = x$old_host_name ]; then
     if [ x$current_hostname = x ] || \
@@ -101,7 +103,7 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
     for router in $old_routers; do
       route delete default $router >/dev/null 2>&1
     done
-    if [ "$old_static_routes" != "" ]; then
+    if [ -n "$old_static_routes" ]; then
       set -- $old_static_routes
       while [ $# -gt 1 ]; do
 	route delete $1 $2
@@ -114,17 +116,17 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
      [ x$reason = xBOUND ] || [ x$reason = xREBOOT ]; then
     eval "ifconfig $interface inet $new_ip_address $new_netmask_arg \
 					$new_broadcast_arg $medium"
-    $LOGGER "New IP Address($interface): $new_ip_address"
-    $LOGGER "New Subnet Mask($interface): $new_subnet_mask"
-    $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
-    if [ "$new_routers" != "" ]; then
+    $LOGGER "New IP Address ($interface): $new_ip_address"
+    $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+    $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
+    if [ -n "$new_routers" ]; then
       $LOGGER "New Routers: $new_routers"
     fi
     route add $new_ip_address 127.1 >/dev/null 2>&1
     for router in $new_routers; do
       route add default $router >/dev/null 2>&1
     done
-    if [ "$new_static_routes" != "" ]; then
+    if [ -n "$new_static_routes" ]; then
       $LOGGER "New Static Routes: $new_static_routes"
       set -- $new_static_routes
       while [ $# -gt 1 ]; do
@@ -154,14 +156,14 @@ if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ] || [ x$reason = xRELEASE ] \
     for router in $old_routers; do
       route delete default $router >/dev/null 2>&1
     done
-    if [ "$old_static_routes" != "" ]; then
+    if [ -n "$old_static_routes" ]; then
       set -- $old_static_routes
       while [ $# -gt 1 ]; do
 	route delete $1 $2
 	shift; shift
       done
     fi
-    arp -n -a | sed -n -e 's/^.*(\(.*\)) at .*$/arp -n -d \1/p' \
+    arp -n -a | sed -n -e 's/^.*(\(.*\)) at .*$/arp -d \1/p' \
 						|sh >/dev/null 2>&1
   fi
   if [ x$alias_ip_address != x ]; then
@@ -178,11 +180,11 @@ if [ x$reason = xTIMEOUT ]; then
   fi
   eval "ifconfig $interface inet $new_ip_address $new_netmask_arg \
 					$new_broadcast_arg $medium"
-  $LOGGER "New IP Address($interface): $new_ip_address"
-  $LOGGER "New Subnet Mask($interface): $new_subnet_mask"
-  $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
+  $LOGGER "New IP Address ($interface): $new_ip_address"
+  $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+  $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
   sleep 1
-  if [ "$new_routers" != "" ]; then
+  if [ -n "$new_routers" ]; then
     $LOGGER "New Routers: $new_routers"
     set -- $new_routers
     if ping -q -c 1 $1; then
@@ -208,7 +210,7 @@ if [ x$reason = xTIMEOUT ]; then
   for router in $old_routers; do
     route delete default $router >/dev/null 2>&1
   done
-  if [ "$old_static_routes" != "" ]; then
+  if [ -n "$old_static_routes" ]; then
     set -- $old_static_routes
     while [ $# -gt 1 ]; do
       route delete $1 $2
