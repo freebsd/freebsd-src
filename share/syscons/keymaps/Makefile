@@ -21,8 +21,7 @@ NOMAN = noman
 NOOBJ = noobj
 
 install:
-	cd ${.CURDIR} && \
-	       ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${KEYMAPS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${KEYMAPS} \
 			${DESTDIR}${MAPSDIR}
 
 .include <bsd.prog.mk>

@@ -21,8 +21,7 @@ NOMAN = noman
 NOOBJ = noobj
 
 install:
-	cd ${.CURDIR} && \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
 		${DESTDIR}${FONTDIR}
 
 .include <bsd.prog.mk>
