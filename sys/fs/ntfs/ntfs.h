@@ -182,6 +182,7 @@ struct attr_indexentry {
 };
 
 #define	NTFS_FILEMAGIC	(u_int32_t)(0x454C4946)
+#define	NTFS_FRFLAG_DIR	0x0002
 struct filerec {
 	struct fixuphdr fr_fixup;
 	u_int8_t        reserved[8];
@@ -195,10 +196,11 @@ struct filerec {
 	u_int16_t       fr_attrnum;	/* maximum attr number + 1 ??? */
 };
 
+#define	NTFS_ATTRNAME_MAXLEN	0x40
 #define	NTFS_ADFLAG_NONRES	0x0080	/* Attrib can be non resident */
 #define	NTFS_ADFLAG_INDEX	0x0002	/* Attrib can be indexed */
 struct attrdef {
-	wchar		ad_name[0x40];
+	wchar		ad_name[NTFS_ATTRNAME_MAXLEN];
 	u_int32_t	ad_type;
 	u_int32_t	reserved1[2];
 	u_int32_t	ad_flag;
@@ -261,8 +263,10 @@ struct ntfsmount {
 
 /* Convert mount ptr to ntfsmount ptr. */
 #define VFSTONTFS(mp)	((struct ntfsmount *)((mp)->mnt_data))
-#define VTONT(v)	((struct ntnode *)((struct vnode *)(v)->v_data))
-#define NTTOV(i)	(i->i_vnode)
+#define VTONT(v)	FTONT(VTOF(v))
+#define	VTOF(v)		((struct fnode *)((v)->v_data))
+#define	FTOV(f)		((f)->f_vp)
+#define	FTONT(f)	((f)->f_ip)
 #define ntfs_cntobn(cn)	(daddr_t)((cn) * (ntmp->ntm_spc))
 #define ntfs_cntob(cn)	(off_t)((cn) * (ntmp)->ntm_spc * (ntmp)->ntm_bps)
 #define ntfs_btocn(off)	(cn_t)((off) / ((ntmp)->ntm_spc * (ntmp)->ntm_bps))
@@ -274,9 +278,10 @@ struct ntfsmount {
 
 #if __FreeBSD_version >= 300000
 MALLOC_DECLARE(M_NTFSMNT);
-MALLOC_DECLARE(M_NTFSNODE);
+MALLOC_DECLARE(M_NTFSNTNODE);
+MALLOC_DECLARE(M_NTFSFNODE);
 MALLOC_DECLARE(M_NTFSDIR);
-MALLOC_DECLARE(M_NTFSIHASH);
+MALLOC_DECLARE(M_NTFSNTHASH);
 #endif
 
 #if defined(NTFS_DEBUG)
@@ -292,10 +297,3 @@ MALLOC_DECLARE(M_NTFSIHASH);
 #endif
 
 extern vop_t  **ntfs_vnodeop_p;
-struct ntnode;
-
-void ntfs_ihashinit __P((void));
-struct vnode   *ntfs_ihashlookup __P((dev_t, ino_t));
-struct vnode   *ntfs_ihashget __P((dev_t, ino_t));
-void ntfs_ihashins __P((struct ntnode *));
-void ntfs_ihashrem __P((register struct ntnode *));
