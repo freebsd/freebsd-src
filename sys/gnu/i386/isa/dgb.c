@@ -1,9 +1,10 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.19 1996/06/18 01:21:40 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.21 1996/12/18 16:42:01 davidn Exp $
  *
  *  Digiboard driver.
  *
  *  Stage 1. "Better than nothing".
+ *  Stage 2. "Gee, it works!".
  *
  *  Based on sio driver by Bruce Evans and on Linux driver by Troy 
  *  De Jongh <troyd@digibd.com> or <troyd@skypoint.com> 
@@ -14,11 +15,26 @@
  *      Joint Stock Commercial Bank "Chelindbank"
  *      (Chelyabinsk, Russia)
  *      babkin@hq.icb.chel.su
+ *
+ *  Assorted hacks to make it more functional and working under 3.0-current.
+ *  Fixed broken routines to prevent processes hanging on closed (thanks
+ *  to Bruce for his patience and assistance). Thanks also to Maxim Bolotin
+ *  <max@run.net> for his patches which did most of the work to get this
+ *  running under 2.2/3.0-current.
+ *  Implemented ioctls: TIOCMSDTRWAIT, TIOCMGDTRWAIT, TIOCTIMESTAMP &
+ *  TIOCDCDTIMESTAMP.
+ *  Sysctl debug flag is now a bitflag, to filter noise during debugging.
+ *	David L. Nugent <davidn@blaze.net.au>
  */
 
 #include "dgb.h"
 
 #if NDGB > 0 
+
+/* Helg: i.e.25 times per sec board will be polled */
+#define POLLSPERSEC 25
+/* How many charactes can we write to input tty rawq */
+#define DGB_IBUFSIZE (TTYHOG-100)
 
 /* the overall number of ports controlled by this driver */
 
@@ -54,7 +70,14 @@
 
 #include <gnu/i386/isa/dgbios.h>
 #include <gnu/i386/isa/dgfep.h>
+#define DEBUG
 #include <gnu/i386/isa/dgreg.h>
+
+/* This avoids warnings: we're an isa device only
+ * so it does not matter...
+ */
+#undef outb
+#define outb outbv
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -108,7 +131,7 @@ struct dgb_p {
 	u_long statusflags;
 	u_char *txptr;
 	u_char *rxptr;
-	struct board_chan *brdchan;
+	volatile struct board_chan *brdchan;
 	struct tty *tty;
 
 	bool_t  active_out;	/* nonzero if the callout device is open */
@@ -121,6 +144,11 @@ struct dgb_p {
 	/* Lock state. */
 	struct termios	lt_in;	/* should be in struct tty */
 	struct termios	lt_out;
+
+	bool_t	do_timestamp;
+	bool_t	do_dcd_timestamp;
+	struct timeval	timestamp;
+	struct timeval	dcd_timestamp;
 
 	/* flags of state, are used in sleep() too */
 	u_char closing;	/* port is being closed now */
@@ -166,6 +194,7 @@ static struct tty dgb_tty[NDGBPORTS];
 
 /* Interrupt handling entry points. */
 static void	dgbpoll		__P((void *unit_c));
+/*static void	dgbintr		__P((int unit));*/
 
 /* Device switch entry points. */
 #define	dgbreset	noreset
@@ -175,16 +204,17 @@ static void	dgbpoll		__P((void *unit_c));
 static	int	dgbattach	__P((struct isa_device *dev));
 static	int	dgbprobe	__P((struct isa_device *dev));
 
-static void fepcmd(struct dgb_p *port, int cmd, int op1, int op2,
-	int ncmds, int bytecmd);
+static void fepcmd(struct dgb_p *port, unsigned cmd, unsigned op1, unsigned op2,
+	unsigned ncmds, unsigned bytecmd);
 
 static	void	dgbstart	__P((struct tty *tp));
 static	int	dgbparam	__P((struct tty *tp, struct termios *t));
-static void dgbhardclose	__P((struct dgb_p *port));
+static	void	dgbhardclose	__P((struct dgb_p *port));
 static	void	dgb_drain_or_flush	__P((struct dgb_p *port));
 static	int	dgbdrain	__P((struct dgb_p *port));
 static	void	dgb_pause	__P((void *chan));
 static	void	wakeflush	__P((void *p));
+static	void	disc_optim	__P((struct tty	*tp, struct termios *t));
 
 
 struct isa_driver	dgbdriver = {
@@ -208,26 +238,77 @@ static struct cdevsw dgb_cdevsw =
 static	speed_t	dgbdefaultrate = TTYDEF_SPEED;
 
 static	struct speedtab dgbspeedtab[] = {
-	0,	0, /* old (sysV-like) Bx codes */
-	50,	1,
-	75,	2,
-	110, 3,
-	134, 4,
-	150, 5,
-	200, 6,
-	300, 7,
-	600, 8,
-	1200, 9,
-	1800, 10,
-	2400, 11,
-	4800, 12,
-	9600, 13,
-	19200, 14,
-	38400, 15,
-	57600, (02000 | 1),	/* B50 & fast baud table */
-	115200, (02000 | 2), /* B100 & fast baud table */
+	0,	FEP_B0, /* old (sysV-like) Bx codes */
+	50,	FEP_B50,
+	75,	FEP_B75,
+	110,	FEP_B110,
+	134,	FEP_B134,
+	150,	FEP_B150,
+	200,	FEP_B200,
+	300,	FEP_B300,
+	600,	FEP_B600,
+	1200,	FEP_B1200,
+	1800,	FEP_B1800,
+	2400,	FEP_B2400,
+	4800,	FEP_B4800,
+	9600,	FEP_B9600,
+	19200,	FEP_B19200,
+	38400,	FEP_B38400,
+	57600,	(FEP_FASTBAUD|FEP_B50),	/* B50 & fast baud table */
+	115200, (FEP_FASTBAUD|FEP_B110), /* B100 & fast baud table */
 	-1,	-1
 };
+
+static struct dbgflagtbl
+{
+  tcflag_t in_mask;
+  tcflag_t in_val;
+  tcflag_t out_val;
+} dgb_cflags[] =
+{
+  { PARODD,   PARODD,	  FEP_PARODD  },
+  { PARENB,   PARENB,	  FEP_PARENB  },
+  { CSTOPB,   CSTOPB,	  FEP_CSTOPB  },
+  { CSIZE,    CS5,	  FEP_CS6     },
+  { CSIZE,    CS6,	  FEP_CS6     },
+  { CSIZE,    CS7,	  FEP_CS7     },
+  { CSIZE,    CS8,	  FEP_CS8     },
+  { CLOCAL,   CLOCAL,	  FEP_CLOCAL  },
+  { (tcflag_t)-1 }
+}, dgb_iflags[] =
+{
+  { IGNBRK,   IGNBRK,     FEP_IGNBRK  },
+  { BRKINT,   BRKINT,	  FEP_BRKINT  },
+  { IGNPAR,   IGNPAR,	  FEP_IGNPAR  },
+  { PARMRK,   PARMRK,	  FEP_PARMRK  },
+  { INPCK,    INPCK,	  FEP_INPCK   },
+  { ISTRIP,   ISTRIP,	  FEP_ISTRIP  },
+  { IXON,     IXON,	  FEP_IXON    },
+  { IXOFF,    IXOFF,	  FEP_IXOFF   },
+  { IXANY,    IXANY,	  FEP_IXANY   },
+  { (tcflag_t)-1 }
+}, dgb_flow[] =
+{
+  { CRTSCTS,  CRTSCTS,	  CTS|RTS     },
+  { CRTSCTS,  CCTS_OFLOW, CTS	      },
+  { CRTSCTS,  CRTS_IFLOW, RTS	      },
+  { (tcflag_t)-1 }
+};
+
+/* xlat bsd termios flags to dgb sys-v style */
+static tcflag_t
+dgbflags(struct dbgflagtbl *tbl, tcflag_t input)
+{
+  tcflag_t output = 0;
+  int i;
+
+  for (i=0; tbl[i].in_mask != (tcflag_t)-1; i++)
+  {
+    if ((input & tbl[i].in_mask) == tbl[i].in_val)
+      output |= tbl[i].out_val;
+  }
+  return output;
+}
 
 static int dgbdebug=0;
 SYSCTL_INT(_debug, OID_AUTO, dgb_debug, CTLFLAG_RW,
@@ -238,17 +319,50 @@ static int setinitwin __P((struct dgb_softc *sc, unsigned addr));
 static void hidewin __P((struct dgb_softc *sc));
 static void towin __P((struct dgb_softc *sc, int win));
 
+/*Helg: to allow recursive dgb...() calls */
+typedef struct
+  {                 /* If we were called and don't want to disturb we need: */
+	short port,       /* write to this port */
+	      data;       /* this data on exit */
+	                  /* or DATA_WINOFF  to close memory window on entry */
+  } BoardMemWinState; /* so several channels and even boards can coexist */
+#define DATA_WINOFF 0
+static BoardMemWinState bmws;
+
+/* return current memory window state and close window */
+static BoardMemWinState
+bmws_get(void)
+{
+	BoardMemWinState bmwsRet=bmws;
+	if(bmws.data!=DATA_WINOFF)
+		outb(bmws.port, bmws.data=DATA_WINOFF);
+	return bmwsRet;
+}
+
+/* restore memory window state */
+static void
+bmws_set(BoardMemWinState ws)
+{
+	if(ws.data != bmws.data || ws.port!=bmws.port ) {
+		if(bmws.data!=DATA_WINOFF)
+			outb(bmws.port,DATA_WINOFF);
+		if(ws.data!=DATA_WINOFF)
+			outb(ws.port, ws.data);
+		bmws=ws;
+	}
+}
+
 static inline int 
 setwin(sc,addr)
 	struct dgb_softc *sc;
 	unsigned int addr;
 {
 	if(sc->type==PCXEVE) {
-		outb(sc->port+1, FEPWIN|(addr>>13));
-		DPRINT3("dgb%d: switched to window 0x%x\n",sc->unit,addr>>13);
+		outb(bmws.port=sc->port+1, bmws.data=FEPWIN|(addr>>13));
+		DPRINT3(DB_WIN,"dgb%d: switched to window 0x%x\n",sc->unit,addr>>13);
 		return (addr & 0x1FFF);
 	} else {
-		outb(sc->port,FEPMEM);
+		outb(bmws.port=sc->port,bmws.data=FEPMEM);
 		return addr;
 	}
 }
@@ -259,11 +373,11 @@ setinitwin(sc,addr)
 	unsigned int addr;
 {
 	if(sc->type==PCXEVE) {
-		outb(sc->port+1, FEPWIN|(addr>>13));
-		DPRINT3("dgb%d: switched to window 0x%x\n",sc->unit,addr>>13);
+		outb(bmws.port=sc->port+1, bmws.data=FEPWIN|(addr>>13));
+		DPRINT3(DB_WIN,"dgb%d: switched to window 0x%x\n",sc->unit,addr>>13);
 		return (addr & 0x1FFF);
 	} else {
-		outb(sc->port,inb(sc->port)|FEPMEM);
+		outb(bmws.port=sc->port,bmws.data=inb(sc->port)|FEPMEM);
 		return addr;
 	}
 }
@@ -272,10 +386,11 @@ static inline void
 hidewin(sc)
 	struct dgb_softc *sc;
 {
+	bmws.data=0;
 	if(sc->type==PCXEVE)
-		outb(sc->port+1, 0);
+		outb(bmws.port=sc->port+1, bmws.data);
 	else
-		outb(sc->port,0);
+		outb(bmws.port=sc->port, bmws.data);
 }
 
 static inline void
@@ -284,9 +399,9 @@ towin(sc,win)
 	int win;
 {
 	if(sc->type==PCXEVE) {
-		outb(sc->port+1, win);
+		outb(bmws.port=sc->port+1, bmws.data=win);
 	} else {
-		outb(sc->port,FEPMEM);
+		outb(bmws.port=sc->port,bmws.data=FEPMEM);
 	}
 }
 
@@ -295,8 +410,10 @@ dgbprobe(dev)
 	struct isa_device	*dev;
 {
 	struct dgb_softc *sc= &dgb_softc[dev->id_unit];
-	int i, v;
+	int i, v, t;
 	u_long win_size;  /* size of vizible memory window */
+	u_char *mem;
+	int addr;
 	int unit=dev->id_unit;
 
 	sc->unit=dev->id_unit;
@@ -310,7 +427,7 @@ dgbprobe(dev)
 	/* left 24 bits only (ISA address) */
 	sc->pmem=((long)dev->id_maddr & 0xFFFFFF); 
 	
-	DPRINT4("dgb%d: port 0x%x mem 0x%x\n",unit,sc->port,sc->pmem);
+	DPRINT4(DB_INFO,"dgb%d: port 0x%x mem 0x%x\n",unit,sc->port,sc->pmem);
 
 	outb(sc->port, FEPRST);
 	sc->status=DISABLED;
@@ -319,13 +436,13 @@ dgbprobe(dev)
 		DELAY(1);
 		if( (inb(sc->port) & FEPMASK) == FEPRST ) {
 			sc->status=ENABLED;
-			DPRINT3("dgb%d: got reset after %d us\n",unit,i);
+			DPRINT3(DB_EXCEPT,"dgb%d: got reset after %d us\n",unit,i);
 			break;
 		}
 	}
 
 	if(sc->status!=ENABLED) {
-		DPRINT2("dgb%d: failed to respond\n",dev->id_unit);
+		DPRINT2(DB_EXCEPT,"dgb%d: failed to respond\n",dev->id_unit);
 		return 0;
 	}
 
@@ -394,6 +511,7 @@ dgbprobe(dev)
 	dev->id_maddr=sc->vmem=pmap_mapdev(sc->pmem,dev->id_msize);
 
 	outb(sc->port, FEPCLR); /* drop RESET */
+	hidewin(sc); /* Helg: to set initial bmws state */
 
 	return 4; /* we need I/O space of 4 ports */
 }
@@ -409,21 +527,22 @@ dgbattach(dev)
 	u_char *ptr;
 	int addr;
 	struct dgb_p *port;
-	struct board_chan *bc;
+	volatile struct board_chan *bc;
+	struct global_data *gd;
 	int shrinkmem;
 	int nfails;
 	ushort *pstat;
 	int lowwater;
-	int nports=0;
+	static int nports=0;
 
 	if(sc->status!=ENABLED) {
-		DPRINT2("dbg%d: try to attach a disabled card\n",unit);
+		DPRINT2(DB_EXCEPT,"dbg%d: try to attach a disabled card\n",unit);
 		return 0;
 		}
 
 	mem=sc->vmem;
 
-	DPRINT3("dgb%d: internal memory segment 0x%x\n",unit,sc->mem_seg);
+	DPRINT3(DB_INFO,"dgb%d: internal memory segment 0x%x\n",unit,sc->mem_seg);
 
 	outb(sc->port, FEPRST); DELAY(1);
 
@@ -437,7 +556,7 @@ dgbattach(dev)
 		DELAY(1);
 	}
 
-	DPRINT3("dgb%d: got reset after %d us\n",unit,i);
+	DPRINT3(DB_INFO,"dgb%d: got reset after %d us\n",unit,i);
 
 	/* for PCXEVE set up interrupt and base address */
 
@@ -497,7 +616,7 @@ dgbattach(dev)
 			DELAY(1);
 		}
 
-		DPRINT3("dgb%d: got memory after %d us\n",unit,i);
+		DPRINT3(DB_INFO,"dgb%d: got memory after %d us\n",unit,i);
 	}
 
 	mem=sc->vmem;
@@ -537,7 +656,7 @@ dgbattach(dev)
 
 		addr=BIOSCODE+((0xF000-sc->mem_seg)<<4);
 
-		DPRINT3("dgb%d: BIOS local address=0x%x\n",unit,addr);
+		DPRINT3(DB_INFO,"dgb%d: BIOS local address=0x%x\n",unit,addr);
 
 		ptr= mem+addr;
 
@@ -549,7 +668,7 @@ dgbattach(dev)
 		nfails=0;
 		for(i=0; i<pcxx_nbios; i++, ptr++)
 			if( *ptr != pcxx_bios[i] ) {
-				DPRINT5("dgb%d: wrong code in BIOS at addr 0x%x : \
+				DPRINT5(DB_EXCEPT,"dgb%d: wrong code in BIOS at addr 0x%x : \
 0x%x instead of 0x%x\n", unit, ptr-(mem+addr), *ptr, pcxx_bios[i] );
 
 				if(++nfails>=5) {
@@ -570,7 +689,7 @@ dgbattach(dev)
 			DELAY(1);
 		}
 
-		DPRINT3("dgb%d: reset dropped after %d us\n",unit,i);
+		DPRINT3(DB_INFO,"dgb%d: reset dropped after %d us\n",unit,i);
 
 		for(i=0; i<200000; i++) {
 			if( *((ushort *)(mem+MISCGLOBAL)) == *((ushort *)"GD") )
@@ -578,7 +697,7 @@ dgbattach(dev)
 			DELAY(1);
 		}
 		printf("dgb%d: BIOS download failed\n",dev->id_unit);
-		DPRINT4("dgb%d: code=0x%x must be 0x%x\n",
+		DPRINT4(DB_EXCEPT,"dgb%d: code=0x%x must be 0x%x\n",
 			dev->id_unit,
 			*((ushort *)(mem+MISCGLOBAL)),
 			*((ushort *)"GD"));
@@ -602,7 +721,7 @@ dgbattach(dev)
 		nfails=0;
 		for(i=0; i<pcxx_nbios; i++, ptr++)
 			if( *ptr != pcxx_bios[i] ) {
-				DPRINT5("dgb%d: wrong code in BIOS at addr 0x%x : \
+				DPRINT5(DB_EXCEPT,"dgb%d: wrong code in BIOS at addr 0x%x : \
 0x%x instead of 0x%x\n", unit, ptr-(mem+addr), *ptr, pcxx_bios[i] );
 
 				if(++nfails>=5) {
@@ -625,7 +744,7 @@ dgbattach(dev)
 			DELAY(1);
 		}
 
-		DPRINT3("dgb%d: reset dropped after %d us\n",unit,i);
+		DPRINT3(DB_INFO,"dgb%d: reset dropped after %d us\n",unit,i);
 
 		addr=setwin(sc,MISCGLOBAL);
 
@@ -635,7 +754,7 @@ dgbattach(dev)
 			DELAY(1);
 		}
 		printf("dgb%d: BIOS download failed\n",dev->id_unit);
-		DPRINT5("dgb%d: Error#(0x%x,0x%x) code=0x%x\n",
+		DPRINT5(DB_EXCEPT,"dgb%d: Error#(0x%x,0x%x) code=0x%x\n",
 			dev->id_unit,
 			*(ushort *)(mem+0xC12),
 			*(ushort *)(mem+0xC14),
@@ -647,7 +766,7 @@ dgbattach(dev)
 	}
 
 load_fep:
-	DPRINT2("dgb%d: BIOS loaded\n",dev->id_unit);
+	DPRINT2(DB_INFO,"dgb%d: BIOS loaded\n",dev->id_unit);
 
 	addr=setwin(sc,FEPCODE);
 
@@ -670,7 +789,7 @@ load_fep:
 	for(i=0; *(ushort *)(mem+addr)!=0; i++) {
 		if(i>200000) {
 			printf("dgb%d: FEP code download failed\n",unit);
-			DPRINT3("dgb%d: code=0x%x must be 0\n", unit,
+			DPRINT3(DB_EXCEPT,"dgb%d: code=0x%x must be 0\n", unit,
 				*(ushort *)(mem+addr));
 			sc->status=DISABLED;
 			hidewin(sc);
@@ -678,7 +797,7 @@ load_fep:
 		}
 	}
 
-	DPRINT2("dgb%d: FEP code loaded\n",unit);
+	DPRINT2(DB_INFO,"dgb%d: FEP code loaded\n",unit);
 
 	*(ushort *)(mem+setwin(sc,FEPSTAT))=0;
 	addr=setwin(sc,MBOX);
@@ -699,7 +818,7 @@ load_fep:
 		}
 	}
 
-	DPRINT2("dgb%d: FEP/OS started\n",dev->id_unit);
+	DPRINT2(DB_INFO,"dgb%d: FEP/OS started\n",dev->id_unit);
 
 	sc->numports= *(ushort *)(mem+setwin(sc,NPORT));
 
@@ -730,12 +849,12 @@ load_fep:
 			sc->ports[i].status=ENABLED;
 		else {
 			sc->ports[i].status=DISABLED;
-			printf("dgb%d: port %d is broken\n", unit, i);
+			printf("dgb%d: port%d is broken\n", unit, i);
 		}
 
 	/* We should now init per-port structures */
-	bc=(struct board_chan *)(mem + CHANSTRUCT);
-	sc->mailbox=(struct global_data *)(mem + FEP_GLOBAL);
+	bc=(volatile struct board_chan *)(mem + CHANSTRUCT);
+	sc->mailbox=(volatile struct global_data *)(mem + FEP_GLOBAL);
 
 	if(sc->numports<3)
 		shrinkmem=1;
@@ -761,7 +880,7 @@ load_fep:
 		port->pnum=i;
 
 		if(shrinkmem) {
-			DPRINT2("dgb%d: shrinking memory\n",unit);
+			DPRINT2(DB_INFO,"dgb%d: shrinking memory\n",unit);
 			fepcmd(port, SETBUFFER, 32, 0, 0, 0);
 			shrinkmem=0;
 			}
@@ -783,6 +902,7 @@ load_fep:
 		port->rxbufsize=bc->rmax+1;
 
 		lowwater= (port->txbufsize>=2000) ? 1024 : (port->txbufsize/2);
+		setwin(sc,0);
 		fepcmd(port, STXLWATER, lowwater, 0, 10, 0);
 		fepcmd(port, SRXLWATER, port->rxbufsize/4, 0, 10, 0);
 		fepcmd(port, SRXHWATER, 3*port->rxbufsize/4, 0, 10, 0);
@@ -795,7 +915,10 @@ load_fep:
 		port->stopc=bc->stopc;
 		port->stopca=bc->stopca;
 			
-		port->close_delay=50;
+		/*port->close_delay=50;*/
+		port->close_delay=3 * hz;
+		port->do_timestamp=0;
+		port->do_dcd_timestamp=0;
 
 		/*
 		 * We don't use all the flags from <sys/ttydefaults.h> since they
@@ -841,7 +964,7 @@ load_fep:
 	hidewin(sc);
 
 	/* register the polling function */
-	timeout(dgbpoll, (void *)unit, hz/25);
+	timeout(dgbpoll, (void *)unit, hz/POLLSPERSEC);
 
 	return 1;
 }
@@ -860,9 +983,9 @@ dgbopen(dev, flag, mode, p)
 	int mynor;
 	int pnum;
 	struct dgb_p *port;
-	int s;
+	int s,cs;
 	int error;
-	struct board_chan *bc;
+	volatile struct board_chan *bc;
 
 	error=0;
 
@@ -871,19 +994,19 @@ dgbopen(dev, flag, mode, p)
 	pnum=MINOR_TO_PORT(mynor);
 
 	if(unit >= NDGB) {
-		DPRINT2("dgb%d: try to open a nonexisting card\n",unit);
+		DPRINT2(DB_EXCEPT,"dgb%d: try to open a nonexisting card\n",unit);
 		return ENXIO;
 	}
 
 	sc=&dgb_softc[unit];
 
 	if(sc->status!=ENABLED) {
-		DPRINT2("dgb%d: try to open a disabled card\n",unit);
+		DPRINT2(DB_EXCEPT,"dgb%d: try to open a disabled card\n",unit);
 		return ENXIO;
 	}
 
 	if(pnum>=sc->numports) {
-		DPRINT3("dgb%d: try to open non-existing port %d\n",unit,pnum);
+		DPRINT3(DB_EXCEPT,"dgb%d: try to open non-existing port %d\n",unit,pnum);
 		return ENXIO;
 	}
 
@@ -902,7 +1025,7 @@ open_top:
 		error=tsleep(&port->closing, TTOPRI|PCATCH, "dgocl", 0);
 
 		if(error) {
-			DPRINT4("dgb%d: port %d: tsleep(dgocl) error=%d\n",unit,pnum,error);
+			DPRINT4(DB_OPEN,"dgb%d: port%d: tsleep(dgocl) error=%d\n",unit,pnum,error);
 			goto out;
 		}
 	}
@@ -915,20 +1038,20 @@ open_top:
 		if (mynor & CALLOUT_MASK) {
 			if (!port->active_out) {
 				error = EBUSY;
-				DPRINT4("dgb%d: port %d: BUSY error=%d\n",unit,pnum,error);
+				DPRINT4(DB_OPEN,"dgb%d: port%d: BUSY error=%d\n",unit,pnum,error);
 				goto out;
 			}
 		} else {
 			if (port->active_out) {
 				if (flag & O_NONBLOCK) {
 					error = EBUSY;
-					DPRINT4("dgb%d: port %d: BUSY error=%d\n",unit,pnum,error);
+					DPRINT4(DB_OPEN,"dgb%d: port%d: BUSY error=%d\n",unit,pnum,error);
 					goto out;
 				}
 				error =	tsleep(&port->active_out,
 					       TTIPRI | PCATCH, "dgbi", 0);
 				if (error != 0) {
-					DPRINT4("dgb%d: port %d: tsleep(dgbi) error=%d\n",
+					DPRINT4(DB_OPEN,"dgb%d: port%d: tsleep(dgbi) error=%d\n",
 						unit,pnum,error);
 					goto out;
 				}
@@ -954,19 +1077,24 @@ open_top:
 							port->it_out :
 							port->it_in;
 
+		cs=splclock();
 		setwin(sc,0);
 		port->imodem=bc->mstat;
 		bc->rout=bc->rin; /* clear input queue */
 		bc->idata=1;
+#ifdef PRINT_BUFSIZE
+		printf("dgb buffers tx=%x:%x rx=%x:%x\n",bc->tseg,bc->tmax,bc->rseg,bc->rmax);
+#endif
 
 		hidewin(sc);
+		splx(cs);
 
 		port->wopeners++;
 		error=dgbparam(tp, &tp->t_termios);
 		port->wopeners--;
 
 		if(error!=0) {
-			DPRINT4("dgb%d: port %d: dgbparam error=%d\n",unit,pnum,error);
+			DPRINT4(DB_OPEN,"dgb%d: port%d: dgbparam error=%d\n",unit,pnum,error);
 			goto out;
 		}
 
@@ -989,14 +1117,15 @@ open_top:
 		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "dgdcd", 0);
 		--port->wopeners;
 		if (error != 0) {
-			DPRINT4("dgb%d: port %d: tsleep(dgdcd) error=%d\n",unit,pnum,error);
+			DPRINT4(DB_OPEN,"dgb%d: port%d: tsleep(dgdcd) error=%d\n",unit,pnum,error);
 			goto out;
 		}
 		splx(s);
 		goto open_top;
 	}
 	error =	linesw[tp->t_line].l_open(dev, tp);
-	DPRINT4("dgb%d: port %d: l_open error=%d\n",unit,pnum,error);
+	disc_optim(tp,&tp->t_termios);
+	DPRINT4(DB_OPEN,"dgb%d: port%d: l_open error=%d\n",unit,pnum,error);
 
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		port->active_out = TRUE;
@@ -1008,12 +1137,13 @@ open_top:
 	 */
 
 out:
+	disc_optim(tp,&tp->t_termios);
 	splx(s);
 
 	if( !(tp->t_state & TS_ISOPEN) && port->wopeners==0 )
 		dgbhardclose(port);
 
-	DPRINT4("dgb%d: port %d: open() returns %d\n",unit,pnum,error);
+	DPRINT4(DB_OPEN,"dgb%d: port%d: open() returns %d\n",unit,pnum,error);
 
 	return error;
 }
@@ -1035,6 +1165,8 @@ dgbclose(dev, flag, mode, p)
 	int i;
 
 	mynor=minor(dev);
+	if(mynor & CONTROL_MASK)
+		return 0;
 	unit=MINOR_TO_UNIT(mynor);
 	pnum=MINOR_TO_PORT(mynor);
 
@@ -1042,19 +1174,24 @@ dgbclose(dev, flag, mode, p)
 	tp=&sc->ttys[pnum];
 	port=sc->ports+pnum;
 
-	if(mynor & CONTROL_MASK)
-		return 0;
+	DPRINT3(DB_CLOSE,"dgb%d: port%d: closing\n",unit,pnum);
 
-	DPRINT3("dgb%d: port %d: closing\n",unit,pnum);
+	DPRINT3(DB_CLOSE,"dgb%d: port%d: draining port\n",unit,pnum);
+        dgb_drain_or_flush(port);
 
 	s=spltty();
 
 	port->closing=1;
+	DPRINT3(DB_CLOSE,"dgb%d: port%d: closing line disc\n",unit,pnum);
 	linesw[tp->t_line].l_close(tp,flag);
-	dgb_drain_or_flush(port);
+	disc_optim(tp,&tp->t_termios);
+
+	DPRINT3(DB_CLOSE,"dgb%d: port%d: hard closing\n",unit,pnum);
 	dgbhardclose(port);
+	DPRINT3(DB_CLOSE,"dgb%d: port%d: closing tty\n",unit,pnum);
 	ttyclose(tp);
-	port->closing=0; wakeup(&port->closing);
+	port->closing=0;
+	wakeup(&port->closing);
 	port->used=0;
 
 	/* mark the card idle when all ports are closed */
@@ -1065,9 +1202,13 @@ dgbclose(dev, flag, mode, p)
 
 	splx(s);
 
+	DPRINT3(DB_CLOSE,"dgb%d: port%d: closed\n",unit,pnum);
+
 	wakeup(TSA_CARR_ON(tp));
 	wakeup(&port->active_out);
 	port->active_out=0;
+
+	DPRINT3(DB_CLOSE,"dgb%d: port%d: close exit\n",unit,pnum);
 
 	return 0;
 }
@@ -1077,8 +1218,11 @@ dgbhardclose(port)
 	struct dgb_p *port;
 {
 	struct dgb_softc *sc=&dgb_softc[port->unit];
-	struct board_chan *bc=port->brdchan;
+	volatile struct board_chan *bc=port->brdchan;
+	int cs;
 
+	cs=splclock();
+	port->do_timestamp = 0;
 	setwin(sc,0);
 
 	bc->idata=0; bc->iempty=0; bc->ilow=0;
@@ -1088,6 +1232,7 @@ dgbhardclose(port)
 	}
 
 	hidewin(sc);
+	splx(cs);
 
 	timeout(dgb_pause, &port->brdchan, hz/2);
 	tsleep(&port->brdchan, TTIPRI | PCATCH, "dgclo", 0);
@@ -1120,8 +1265,7 @@ dgbread(dev, uio, flag)
 	tp=&dgb_softc[unit].ttys[pnum];
 
 	error=linesw[tp->t_line].l_read(tp, uio, flag);
-	DPRINT4("dgb%d: port %d: read() returns %d\n",unit,pnum,error);
-
+	DPRINT4(DB_RD,"dgb%d: port%d: read() returns %d\n",unit,pnum,error);
 	return error;
 }
 
@@ -1145,8 +1289,7 @@ dgbwrite(dev, uio, flag)
 	tp=&dgb_softc[unit].ttys[pnum];
 
 	error=linesw[tp->t_line].l_write(tp, uio, flag);
-	DPRINT4("dgb%d: port %d: write() returns %d\n",unit,pnum,error);
-
+	DPRINT4(DB_WR,"dgb%d: port%d: write() returns %d\n",unit,pnum,error);
 	return error;
 }
 
@@ -1161,15 +1304,17 @@ dgbpoll(unit_c)
 	int head, tail;
 	u_char *eventbuf;
 	int event, mstat, lstat;
-	struct board_chan *bc;
+	volatile struct board_chan *bc;
 	struct tty *tp;
 	int rhead, rtail;
 	int whead, wtail;
-	int wrapmask;
 	int size;
 	int c=0;
 	u_char *ptr;
 	int ocount;
+	int ibuf_full,obuf_full;
+
+	BoardMemWinState ws=bmws_get();
 
 	if(sc->status==DISABLED) {
 		printf("dgb%d: polling of disabled board stopped\n",unit);
@@ -1185,7 +1330,7 @@ dgbpoll(unit_c)
 		if(head >= FEP_IMAX-FEP_ISTART 
 		|| tail >= FEP_IMAX-FEP_ISTART 
 		|| (head|tail) & 03 ) {
-			printf("dgb%d: event queue's head or tail is wrong!\n", unit);
+			printf("dgb%d: event queue's head or tail is wrong! hd=%d,tl=%d\n", unit,head,tail);
 			break;
 		}
 
@@ -1196,22 +1341,21 @@ dgbpoll(unit_c)
 		lstat=eventbuf[3];
 
 		port=&sc->ports[pnum];
+		bc=port->brdchan;
 		tp=&sc->ttys[pnum];
 
 		if(pnum>=sc->numports || port->status==DISABLED) {
-			printf("dgb%d: port %d: got event on nonexisting port\n",unit,pnum);
+			printf("dgb%d: port%d: got event on nonexisting port\n",unit,pnum);
 		} else if(port->used || port->wopeners>0 ) {
 
-			bc=port->brdchan;
+			int wrapmask=port->rxbufsize-1;
 
 			if( !(event & ALL_IND) ) 
 				printf("dgb%d: port%d: ? event 0x%x mstat 0x%x lstat 0x%x\n",
 					unit, pnum, event, mstat, lstat);
 
 			if(event & DATA_IND) {
-				DPRINT3("dgb%d: port %d: DATA_IND\n",unit,pnum);
-
-				wrapmask=port->rxbufsize-1;
+				DPRINT3(DB_DATA,"dgb%d: port%d: DATA_IND\n",unit,pnum);
 
 				rhead=bc->rin & wrapmask; 
 				rtail=bc->rout & wrapmask;
@@ -1226,8 +1370,11 @@ dgbpoll(unit_c)
 					bc->orun=0;
 				}
 
-				while(rhead!=rtail) {
-					DPRINT5("dgb%d: port %d: p rx head=%d tail=%d\n",
+				if(!(tp->t_state & TS_ISOPEN))
+					goto end_of_data;
+
+				for(ibuf_full=FALSE;rhead!=rtail && !ibuf_full;) {
+					DPRINT5(DB_RXDATA,"dgb%d: port%d: p rx head=%d tail=%d\n",
 						unit,pnum,rhead,rtail);
 
 					if(rhead>rtail)
@@ -1237,36 +1384,47 @@ dgbpoll(unit_c)
 
 					ptr=port->rxptr+rtail;
 
-					for(c=0; c<size; c++) {
-						int chr;
-
-						towin(sc,port->rxwin);
-						chr= *ptr++;
-
-#if 0
-						if(chr>=' ' && chr<127)
-							DPRINT4("dgb%d: port %d: got char '%c'\n",
-								unit,pnum,chr);
-						else
-							DPRINT4("dgb%d: port %d: got char 0x%x\n",
-								unit,pnum,chr);
-#endif
-
-						hidewin(sc);
-						linesw[tp->t_line].l_rint(chr, tp);
+/* Helg: */
+					if( tp->t_rawq.c_cc + size > DGB_IBUFSIZE ) {
+						size=DGB_IBUFSIZE-tp->t_rawq.c_cc;
+						DPRINT1(DB_RXDATA,"*");
+						ibuf_full=TRUE;
 					}
 
-					setwin(sc,0);
+					if(size) {
+						/*if (0) {*/
+						if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
+							DPRINT1(DB_RXDATA,"!");
+							towin(sc,port->rxwin);
+							tk_nin += size;
+							tk_rawcc += size;
+							tp->t_rawcc += size;
+							b_to_q(ptr,size,&tp->t_rawq);
+							setwin(sc,0);
+						} else {
+							int i=size;
+							unsigned char chr;
+							do {
+								towin(sc,port->rxwin);
+								chr= *ptr++;
+								hidewin(sc);
+							       (*linesw[tp->t_line].l_rint)(chr, tp);
+							} while (--i > 0 );
+							setwin(sc,0);
+						}
+	 				}
 					rtail= (rtail + size) & wrapmask;
 					bc->rout=rtail;
-					rhead=bc->rin & wrapmask; 
+					rhead=bc->rin & wrapmask;
+					hidewin(sc);
+					ttwakeup(tp);
+					setwin(sc,0);
 				}
-					
 			end_of_data:
 			}
 
 			if(event & MODEMCHG_IND) {
-				DPRINT3("dgb%d: port %d: MODEMCHG_IND\n",unit,pnum);
+				DPRINT3(DB_MODEM,"dgb%d: port%d: MODEMCHG_IND\n",unit,pnum);
 				port->imodem=mstat;
 				if(mstat & port->dcd) {
 					hidewin(sc);
@@ -1285,43 +1443,50 @@ dgbpoll(unit_c)
 			}
 
 			if(event & BREAK_IND) {
-				DPRINT3("dgb%d: port %d: BREAK_IND\n",unit,pnum);
-				hidewin(sc);
-				linesw[tp->t_line].l_rint(TTY_BI, tp);
-				setwin(sc,0);
+				if((tp->t_state & TS_ISOPEN) && (tp->t_iflag & IGNBRK))	{
+				        DPRINT3(DB_BREAK,"dgb%d: port%d: BREAK_IND\n",unit,pnum);
+				        hidewin(sc);
+				        linesw[tp->t_line].l_rint(TTY_BI, tp);
+				        setwin(sc,0);
+			        }
 			}
 
+/* Helg: with output flow control */
+
 			if(event & (LOWTX_IND | EMPTYTX_IND) ) {
-				DPRINT3("dgb%d: port %d: LOWTX_IND or EMPTYTX_IND\n",unit,pnum);
+				DPRINT3(DB_TXDATA,"dgb%d: port%d: LOWTX_IND or EMPTYTX_IND\n",unit,pnum);
 
 				if( (event & EMPTYTX_IND ) && tp->t_outq.c_cc==0
 				&& port->draining) {
 					port->draining=0;
 					wakeup(&port->draining);
 					bc->ilow=0; bc->iempty=0;
-				}
+				} else {
 
-				wrapmask=port->txbufsize;
+					int wrapmask=port->txbufsize-1;
 
-				while( tp->t_outq.c_cc!=0 ) {
+					for(obuf_full=FALSE; tp->t_outq.c_cc!=0 && !obuf_full; ) {
+						int s;
+						/* add "last-minute" data to write buffer */
+						if(!(tp->t_state & TS_BUSY)) {
+							hidewin(sc);
 #ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
-					ttwwakeup(tp);
+					                ttwwakeup(tp);
 #else
-					if(tp->t_outq.c_cc <= tp->t_lowat) {
-						if(tp->t_state & TS_ASLEEP) {
-							tp->t_state &= ~TS_ASLEEP;
-							wakeup(TSA_OLOWAT(tp));
-						}
-						selwakeup(&tp->t_wsel);
-					}
+					                if(tp->t_outq.c_cc <= tp->t_lowat) {
+						                if(tp->t_state & TS_ASLEEP) {
+							                tp->t_state &= ~TS_ASLEEP;
+							                wakeup(TSA_OLOWAT(tp));
+						                }
+						                /* selwakeup(&tp->t_wsel); */
+					                }
 #endif
-					setwin(sc,0);
+					                setwin(sc,0);
+				                }
+						s=spltty();
 
 					whead=bc->tin & wrapmask;
 					wtail=bc->tout & wrapmask;
-
-					DPRINT5("dgb%d: port%d: p tx head=%d tail=%d\n",
-						unit,pnum,whead,wtail);
 
 					if(whead<wtail)
 						size=wtail-whead-1;
@@ -1332,8 +1497,12 @@ dgbpoll(unit_c)
 					}
 
 					if(size==0) {
+						DPRINT5(DB_WR,"dgb: head=%d tail=%d size=%d full=%d\n",
+							whead,wtail,size,obuf_full);
 						bc->iempty=1; bc->ilow=1;
-						goto end_of_buffer;
+						obuf_full=TRUE;
+						splx(s);
+						break;
 					}
 
 					towin(sc,port->txwin);
@@ -1343,9 +1512,23 @@ dgbpoll(unit_c)
 
 					setwin(sc,0);
 					bc->tin=whead;
+					bc->tin=whead & wrapmask;
+					splx(s);
 				}
+
+				if(obuf_full) {
+					DPRINT1(DB_WR," +BUSY\n");
+					tp->t_state|=TS_BUSY;
+				} else {
+					DPRINT1(DB_WR," -BUSY\n");
+					hidewin(sc);
 #ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
-				ttwwakeup(tp);
+					/* should clear TS_BUSY before ttwwakeup */
+					if(tp->t_state & TS_BUSY)	{
+						tp->t_state &= ~TS_BUSY;
+						linesw[tp->t_line].l_start(tp);
+				                ttwwakeup(tp);
+					}
 #else
 				if(tp->t_state & TS_ASLEEP) {
 					tp->t_state &= ~TS_ASLEEP;
@@ -1353,13 +1536,16 @@ dgbpoll(unit_c)
 				}
 				tp->t_state &= ~TS_BUSY;
 #endif
+				        setwin(sc,0);
+				        }
+			        }
 			end_of_buffer:
 			}
-			bc->idata=1; 
+			bc->idata=1;   /* require event on incoming data */ 
 
 		} else {
 			bc=port->brdchan;
-			DPRINT4("dgb%d: port %d: got event 0x%x on closed port\n",
+			DPRINT4(DB_EXCEPT,"dgb%d: port%d: got event 0x%x on closed port\n",
 				unit,pnum,event);
 			bc->rout=bc->rin;
 			bc->idata=bc->iempty=bc->ilow=0;
@@ -1369,10 +1555,19 @@ dgbpoll(unit_c)
 	}
 
 	sc->mailbox->eout=tail;
-	hidewin(sc);
+	bmws_set(ws);
 
-	timeout(dgbpoll, unit_c, hz/25);
+	timeout(dgbpoll, unit_c, hz/POLLSPERSEC);
 }
+
+
+#if 0
+static void
+dgbintr(unit)
+	int	unit;
+{
+}
+#endif
 
 static	int
 dgbioctl(dev, cmd, data, flag, p)
@@ -1387,10 +1582,17 @@ dgbioctl(dev, cmd, data, flag, p)
 	struct dgb_p *port;
 	int mynor;
 	struct tty *tp;
-	struct board_chan *bc;
+	volatile struct board_chan *bc;
 	int error;
-	int s;
+	int s,cs;
 	int tiocm_xxx;
+
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	int		oldcmd;
+	struct termios	term;
+#endif
+
+	BoardMemWinState ws=bmws_get();
 
 	mynor=minor(dev);
 	unit=MINOR_TO_UNIT(mynor);
@@ -1435,12 +1637,26 @@ dgbioctl(dev, cmd, data, flag, p)
 		}
 	}
 
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	term = tp->t_termios;
+	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
+	  DPRINT6(DB_PARAM,"dgb%d: port%d: dgbioctl-ISNOW c=0x%x i=0x%x l=0x%x\n",unit,pnum,term.c_cflag,term.c_iflag,term.c_lflag);
+	}
+	oldcmd = cmd;
+	error = ttsetcompat(tp, &cmd, data, &term);
+	if (error != 0)
+		return (error);
+	if (cmd != oldcmd)
+		data = (caddr_t)&term;
+#endif
+
 	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 		int	cc;
 		struct termios *dt = (struct termios *)data;
 		struct termios *lt = mynor & CALLOUT_MASK
 				     ? &port->lt_out : &port->lt_in;
 
+		DPRINT6(DB_PARAM,"dgb%d: port%d: dgbioctl-TOSET c=0x%x i=0x%x l=0x%x\n",unit,pnum,dt->c_cflag,dt->c_iflag,dt->c_lflag);
 		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
 			      | (dt->c_iflag & ~lt->c_iflag);
 		dt->c_oflag = (tp->t_oflag & lt->c_oflag)
@@ -1459,14 +1675,18 @@ dgbioctl(dev, cmd, data, flag, p)
 	}
 
 	if(cmd==TIOCSTOP) {
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, PAUSETX, 0, 0, 0, 0);
-		hidewin(sc);
+		bmws_set(ws);
+		splx(cs);
 		return 0;
 	} else if(cmd==TIOCSTART) {
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, RESUMETX, 0, 0, 0, 0);
-		hidewin(sc);
+		bmws_set(ws);
+		splx(cs);
 		return 0;
 	}
 
@@ -1474,25 +1694,31 @@ dgbioctl(dev, cmd, data, flag, p)
 		port->mustdrain=1;
 
 	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, p);
-
-	if (error >= 0)
-		return error;
-	error = ttioctl(tp, cmd, data, flag);
-
-	port->mustdrain=0;
-
 	if (error >= 0)
 		return error;
 	s = spltty();
+	error = ttioctl(tp, cmd, data, flag);
+	disc_optim(tp,&tp->t_termios);
+	port->mustdrain=0;
+	if (error >= 0) {
+		splx(s);
+		if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
+			DPRINT6(DB_PARAM,"dgb%d: port%d: dgbioctl-RES c=0x%x i=0x%x l=0x%x\n",unit,pnum,tp->t_cflag,tp->t_iflag,tp->t_lflag);
+		}
+		return error;
+	}
+
 	switch (cmd) {
 	case TIOCSBRK:
-		error=dgbdrain(port);
+/* Helg: commented */
+/*		error=dgbdrain(port);*/
 
 		if(error!=0) {
 			splx(s);
 			return error;
 		}
 
+		cs=splclock();
 		setwin(sc,0);
 	
 		/* now it sends 250 millisecond break because I don't know */
@@ -1500,33 +1726,38 @@ dgbioctl(dev, cmd, data, flag, p)
 
 		fepcmd(port, SENDBREAK, 250, 0, 10, 0);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCCBRK:
 		/* now it's empty */
 		break;
 	case TIOCSDTR:
-		DPRINT3("dgb%d: port %d: set DTR\n",unit,pnum);
+		DPRINT3(DB_MODEM,"dgb%d: port%d: set DTR\n",unit,pnum);
 		port->omodem |= DTR;
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS, 0, 1);
 
 		if( !(bc->mstat & DTR) ) {
-			DPRINT3("dgb%d: port %d: DTR is off\n",unit,pnum);
+			DPRINT3(DB_MODEM,"dgb%d: port%d: DTR is off\n",unit,pnum);
 		}
 
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCCDTR:
-		DPRINT3("dgb%d: port %d: reset DTR\n",unit,pnum);
+		DPRINT3(DB_MODEM,"dgb%d: port%d: reset DTR\n",unit,pnum);
 		port->omodem &= ~DTR;
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 
 		if( bc->mstat & DTR ) {
-			DPRINT3("dgb%d: port %d: DTR is on\n",unit,pnum);
+			DPRINT3(DB_MODEM,"dgb%d: port%d: DTR is on\n",unit,pnum);
 		}
 
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMSET:
 		if(*(int *)data & TIOCM_DTR)
@@ -1539,9 +1770,11 @@ dgbioctl(dev, cmd, data, flag, p)
 		else
 			port->omodem &=~RTS;
 
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMBIS:
 		if(*(int *)data & TIOCM_DTR)
@@ -1550,9 +1783,11 @@ dgbioctl(dev, cmd, data, flag, p)
 		if(*(int *)data & TIOCM_RTS)
 			port->omodem |=RTS;
 
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMBIC:
 		if(*(int *)data & TIOCM_DTR)
@@ -1561,9 +1796,11 @@ dgbioctl(dev, cmd, data, flag, p)
 		if(*(int *)data & TIOCM_RTS)
 			port->omodem &=~RTS;
 
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMGET:
 		setwin(sc,0);
@@ -1572,40 +1809,63 @@ dgbioctl(dev, cmd, data, flag, p)
 
 		tiocm_xxx = TIOCM_LE;	/* XXX - always enabled while open */
 
-		DPRINT3("dgb%d: port %d: modem stat -- ",unit,pnum);
+		DPRINT3(DB_MODEM,"dgb%d: port%d: modem stat -- ",unit,pnum);
 
 		if (port->imodem & DTR) {
-			DPRINT1("DTR ");
+			DPRINT1(DB_MODEM,"DTR ");
 			tiocm_xxx |= TIOCM_DTR;
 		}
 		if (port->imodem & RTS) {
-			DPRINT1("RTS ");
+			DPRINT1(DB_MODEM,"RTS ");
 			tiocm_xxx |= TIOCM_RTS;
 		}
 		if (port->imodem & CTS) {
-			DPRINT1("CTS ");
+			DPRINT1(DB_MODEM,"CTS ");
 			tiocm_xxx |= TIOCM_CTS;
 		}
 		if (port->imodem & port->dcd) {
-			DPRINT1("DCD ");
+			DPRINT1(DB_MODEM,"DCD ");
 			tiocm_xxx |= TIOCM_CD;
 		}
 		if (port->imodem & port->dsr) {
-			DPRINT1("DSR ");
+			DPRINT1(DB_MODEM,"DSR ");
 			tiocm_xxx |= TIOCM_DSR;
 		}
 		if (port->imodem & RI) {
-			DPRINT1("RI ");
+			DPRINT1(DB_MODEM,"RI ");
 			tiocm_xxx |= TIOCM_RI;
 		}
 		*(int *)data = tiocm_xxx;
-		DPRINT1("--\n");
+		DPRINT1(DB_MODEM,"--\n");
+		break;
+	case TIOCMSDTRWAIT:
+		/* must be root since the wait applies to following logins */
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error != 0) {
+			splx(s);
+			return (error);
+		}
+		port->close_delay = *(int *)data * hz / 100;
+		break;
+	case TIOCMGDTRWAIT:
+		*(int *)data = port->close_delay * 100 / hz;
+		break;
+	case TIOCTIMESTAMP:
+		port->do_timestamp = TRUE;
+		*(struct timeval *)data = port->timestamp;
+		break;
+	case TIOCDCDTIMESTAMP:
+		port->do_dcd_timestamp = TRUE;
+		*(struct timeval *)data = port->dcd_timestamp;
 		break;
 	default:
+		bmws_set(ws);
 		splx(s);
 		return ENOTTY;
 	}
+	bmws_set(ws);
 	splx(s);
+
 	return 0;
 }
 
@@ -1625,9 +1885,11 @@ dgbdrain(port)
 	struct dgb_p	*port;
 {
 	struct dgb_softc *sc=&dgb_softc[port->unit];
-	struct board_chan *bc=port->brdchan;
+	volatile struct board_chan *bc=port->brdchan;
 	int error;
 	int head, tail;
+
+	BoardMemWinState ws=bmws_get();
 
 	setwin(sc,0);
 
@@ -1636,7 +1898,7 @@ dgbdrain(port)
 	head=bc->tin;
 
 	while(tail!=head) {
-		DPRINT5("dgb%d: port %d: drain: head=%d tail=%d\n",
+		DPRINT5(DB_WR,"dgb%d: port%d: drain: head=%d tail=%d\n",
 			port->unit, port->pnum, head, tail);
 
 		hidewin(sc);
@@ -1647,20 +1909,20 @@ dgbdrain(port)
 		setwin(sc,0);
 
 		if (error != 0) {
-			DPRINT4("dgb%d: port %d: tsleep(dgdrn) error=%d\n",
+			DPRINT4(DB_WR,"dgb%d: port%d: tsleep(dgdrn) error=%d\n",
 				port->unit,port->pnum,error);
 
 			bc->iempty=0;
-			hidewin(sc);
+			bmws_set(ws);
 			return error;
 		}
 
 		tail=bc->tout;
 		head=bc->tin;
 	}
-	DPRINT5("dgb%d: port %d: drain: head=%d tail=%d\n",
+	DPRINT5(DB_WR,"dgb%d: port%d: drain: head=%d tail=%d\n",
 		port->unit, port->pnum, head, tail);
-
+	bmws_set(ws);
 	return 0;
 }
 
@@ -1673,7 +1935,7 @@ dgb_drain_or_flush(port)
 {
 	struct tty *tp=port->tty;
 	struct dgb_softc *sc=&dgb_softc[port->unit];
-	struct board_chan *bc=port->brdchan;
+	volatile struct board_chan *bc=port->brdchan;
 	int error;
 	int lasttail;
 	int head, tail;
@@ -1686,7 +1948,7 @@ dgb_drain_or_flush(port)
 	head=bc->tin;
 
 	while(tail!=head /* && tail!=lasttail */ ) {
-		DPRINT5("dgb%d: port %d: flush: head=%d tail=%d\n",
+		DPRINT5(DB_WR,"dgb%d: port%d: flush: head=%d tail=%d\n",
 			port->unit, port->pnum, head, tail);
 
 		/* if there is no carrier simply clean the buffer */
@@ -1705,7 +1967,7 @@ dgb_drain_or_flush(port)
 		setwin(sc,0);
 
 		if (error != 0) {
-			DPRINT4("dgb%d: port %d: tsleep(dgfls) error=%d\n",
+			DPRINT4(DB_WR,"dgb%d: port%d: tsleep(dgfls) error=%d\n",
 				port->unit,port->pnum,error);
 
 			/* silently clean the buffer */
@@ -1720,7 +1982,8 @@ dgb_drain_or_flush(port)
 		tail=bc->tout;
 		head=bc->tin;
 	}
-	DPRINT5("dgb%d: port %d: flush: head=%d tail=%d\n",
+	hidewin(sc);
+	DPRINT5(DB_WR,"dgb%d: port%d: flush: head=%d tail=%d\n",
 			port->unit, port->pnum, head, tail);
 }
 
@@ -1730,22 +1993,25 @@ dgbparam(tp, t)
 	struct termios	*t;
 {
 	int dev=tp->t_dev;
+	int mynor=minor(dev);
 	int unit=MINOR_TO_UNIT(dev);
 	int pnum=MINOR_TO_PORT(dev);
 	struct dgb_softc *sc=&dgb_softc[unit];
 	struct dgb_p *port=&sc->ports[pnum];
-	struct board_chan *bc=port->brdchan;
+	volatile struct board_chan *bc=port->brdchan;
 	int cflag;
 	int head;
 	int mval;
 	int iflag;
 	int hflow;
-	int s;
+	int s,cs;
 
-	DPRINT3("dgb%d: port%d: setting parameters\n",unit,pnum);
+	BoardMemWinState ws=bmws_get();
+
+	DPRINT6(DB_PARAM,"dgb%d: port%d: dgbparm c=0x%x i=0x%x l=0x%x\n",unit,pnum,t->c_cflag,t->c_iflag,t->c_lflag);
 
 	if(port->mustdrain) {
-		DPRINT3("dgb%d: port%d: must call dgbdrain()\n",unit,pnum);
+		DPRINT3(DB_PARAM,"dgb%d: port%d: must call dgbdrain()\n",unit,pnum);
 		dgbdrain(port);
 	}
 
@@ -1754,85 +2020,66 @@ dgbparam(tp, t)
 	if (t->c_ispeed == 0)
 		t->c_ispeed = t->c_ospeed;
 
-	if (cflag < 0 || cflag > 0 && t->c_ispeed != t->c_ospeed)
+	if (cflag < 0 /* || cflag > 0 && t->c_ispeed != t->c_ospeed */) {
+		DPRINT4(DB_PARAM,"dgb%d: port%d: invalid cflag=0%o\n",unit,pnum,cflag);
 		return (EINVAL);
+	}
 
-	s=spltty();
-
+	cs=splclock();
 	setwin(sc,0);
 
 	if(cflag==0) { /* hangup */
-		DPRINT3("dgb%d: port%d: hangup\n",unit,pnum);
+		DPRINT3(DB_PARAM,"dgb%d: port%d: hangup\n",unit,pnum);
 		head=bc->rin;
 		bc->rout=head;
 		head=bc->tin;
-		fepcmd(port, STOUT, head, 0, 0, 0);
+		fepcmd(port, STOUT, (unsigned)head, 0, 0, 0);
 		mval= port->omodem & ~(DTR|RTS);
 	} else {
-		DPRINT4("dgb%d: port%d: CBAUD=%d\n",unit,pnum,cflag);
-
-		/* convert flags to sysV-style values */
-		if(t->c_cflag & PARODD)
-			cflag|=01000;
-		if(t->c_cflag & PARENB)
-			cflag|=00400;
-		if(t->c_cflag & CSTOPB)
-			cflag|=00100;
-
-		cflag|= (t->c_cflag & CSIZE) >> 4;
-		DPRINT4("dgb%d: port%d: CFLAG=0x%x\n",unit,pnum,cflag);
+		cflag |= dgbflags(dgb_cflags, t->c_cflag);
 
 		if(cflag!=port->fepcflag) {
-			DPRINT3("dgb%d: port%d: set cflag\n",unit,pnum);
 			port->fepcflag=cflag;
+			DPRINT6(DB_PARAM,"dgb%d: port%d: set cflag=0x%x c=0x%x\n",
+					unit,pnum,cflag&(FEP_CBAUD|FEP_FASTBAUD),cflag,
+					t->c_cflag&~CRTSCTS);
 			fepcmd(port, SETCTRLFLAGS, (unsigned)cflag, 0, 0, 0);
 		}
-		mval= port->omodem | (DTR|RTS) ;
+		mval= port->omodem | (DTR|RTS);
 	}
 
-	iflag=t->c_iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK|ISTRIP);
-	if(t->c_cflag & IXON)
-		cflag|=002000;
-	if(t->c_cflag & IXANY)
-		cflag|=004000;
-	if(t->c_cflag & IXOFF)
-		cflag|=010000;
-
+	iflag=dgbflags(dgb_iflags, t->c_iflag);
 	if(iflag!=port->fepiflag) {
-		DPRINT3("dgb%d: port%d: set iflag\n",unit,pnum);
 		port->fepiflag=iflag;
+		DPRINT5(DB_PARAM,"dgb%d: port%d: set iflag=0x%x c=0x%x\n",unit,pnum,iflag,t->c_iflag);
 		fepcmd(port, SETIFLAGS, (unsigned)iflag, 0, 0, 0);
 	}
 
 	bc->mint=port->dcd;
 
-	if(t->c_cflag & CRTSCTS)
-		hflow=(CTS|RTS);
-	else
-		hflow=0;
-
+	hflow=dgbflags(dgb_flow, t->c_cflag);
 	if(hflow!=port->hflow) {
-		DPRINT3("dgb%d: port%d: set hflow\n",unit,pnum);
 		port->hflow=hflow;
+		DPRINT5(DB_PARAM,"dgb%d: port%d: set hflow=0x%x f=0x%x\n",unit,pnum,hflow,t->c_cflag&CRTSCTS);
 		fepcmd(port, SETHFLOW, (unsigned)hflow, 0xff, 0, 1);
 	}
 	
 	if(port->omodem != mval) {
-		DPRINT4("dgb%d: port %d: setting modem parameters 0x%x\n",
-			unit,pnum,mval);
+		DPRINT5(DB_PARAM,"dgb%d: port%d: setting modem parameters 0x%x was 0x%x\n",
+			unit,pnum,mval,port->omodem);
 		port->omodem=mval;
 		fepcmd(port, SETMODEM, (unsigned)mval, RTS|DTR, 0, 1);
 	}
 
 	if(port->fepstartc!=t->c_cc[VSTART] || port->fepstopc!=t->c_cc[VSTOP]) {
-		DPRINT3("dgb%d: port%d: set startc, stopc\n",unit,pnum);
+		DPRINT5(DB_PARAM,"dgb%d: port%d: set startc=%d, stopc=%d\n",unit,pnum,t->c_cc[VSTART],t->c_cc[VSTOP]);
 		port->fepstartc=t->c_cc[VSTART];
 		port->fepstopc=t->c_cc[VSTOP];
 		fepcmd(port, SONOFFC, port->fepstartc, port->fepstopc, 0, 1);
 	}
 
-	hidewin(sc);
-	splx(s);
+	bmws_set(ws);
+	splx(cs);
 
 	return 0;
 
@@ -1846,11 +2093,13 @@ dgbstart(tp)
 	int pnum;
 	struct dgb_p *port;
 	struct dgb_softc *sc;
-	struct board_chan *bc;
+	volatile struct board_chan *bc;
 	int head, tail;
 	int size, ocount;
 	int s;
 	int wmask;
+
+	BoardMemWinState ws=bmws_get();
 
 	unit=MINOR_TO_UNIT(minor(tp->t_dev));
 	pnum=MINOR_TO_PORT(minor(tp->t_dev));
@@ -1863,6 +2112,7 @@ dgbstart(tp)
 	s=spltty();
 
 	while( tp->t_outq.c_cc!=0 ) {
+		int cs;
 #ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
 		ttwwakeup(tp);
 #else
@@ -1871,27 +2121,44 @@ dgbstart(tp)
 				tp->t_state &= ~TS_ASLEEP;
 				wakeup(TSA_OLOWAT(tp));
 			}
-			selwakeup(&tp->t_wsel);
+			/*selwakeup(&tp->t_wsel);*/
 		}
 #endif
+		cs=splclock();
 		setwin(sc,0);
 
 		head=bc->tin & wmask;
+
+		do { tail=bc->tout; } while (tail != bc->tout);
 		tail=bc->tout & wmask;
 
-		DPRINT5("dgb%d: port%d: s tx head=%d tail=%d\n",unit,pnum,head,tail);
+		DPRINT5(DB_WR,"dgb%d: port%d: s tx head=%d tail=%d\n",unit,pnum,head,tail);
 
+#ifdef LEAVE_FREE_CHARS 
+		if(tail>head) {
+			size=tail-head-LEAVE_FREE_CHARS;
+			if (size <0)
+			        size==0;
+		        } else {
+			        size=port->txbufsize-head;
+			        if(tail+port->txbufsize < head)
+				        size==0;
+		        }
+		}
+#else
 		if(tail>head)
 			size=tail-head-1;
 		else {
-			size=port->txbufsize-head;
+			size=port->txbufsize-head/*-1*/;
 			if(tail==0)
 				size--;
 		}
+#endif
 
 		if(size==0) {
 			bc->iempty=1; bc->ilow=1;
-			hidewin(sc);
+			splx(cs);
+			bmws_set(ws);
 			tp->t_state|=TS_BUSY;
 			splx(s);
 			return;
@@ -1906,10 +2173,21 @@ dgbstart(tp)
 
 		setwin(sc,0);
 		bc->tin=head;
+
+		DPRINT5(DB_WR,"dgb%d: port%d: tx avail=%d count=%d\n",unit,pnum,size,ocount);
+		hidewin(sc);
+		splx(cs);
 	}
 
+	bmws_set(ws);
+	splx(s);
+
 #ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
-	ttwwakeup(tp);
+	if(tp->t_state & TS_BUSY) {	
+		tp->t_state&=~TS_BUSY;
+		linesw[tp->t_line].l_start(tp);
+		ttwwakeup(tp);
+	}
 #else
 	if(tp->t_state & TS_ASLEEP) {
 		tp->t_state &= ~TS_ASLEEP;
@@ -1917,8 +2195,6 @@ dgbstart(tp)
 	}
 	tp->t_state&=~TS_BUSY;
 #endif
-	hidewin(sc);
-	splx(s);
 }
 
 void
@@ -1926,6 +2202,42 @@ dgbstop(tp, rw)
 	struct tty	*tp;
 	int		rw;
 {
+	int unit;
+	int pnum;
+	struct dgb_p *port;
+	struct dgb_softc *sc;
+	volatile struct board_chan *bc;
+	int head;
+	int s;
+
+	BoardMemWinState ws=bmws_get();
+
+	DPRINT3(DB_WR,"dgb%d: port%d: stop\n",port->unit, port->pnum);
+
+	unit=MINOR_TO_UNIT(minor(tp->t_dev));
+	pnum=MINOR_TO_PORT(minor(tp->t_dev));
+
+	sc=&dgb_softc[unit];
+	port=&sc->ports[pnum];
+	bc=port->brdchan;
+
+	s = spltty();
+	setwin(sc,0);
+
+	if (rw & FWRITE) {
+		/* clear output queue */
+		bc->tout=bc->tin=0;
+		bc->ilow=0;bc->iempty=0;
+	}
+	if (rw & FREAD) {
+		/* clear input queue */
+		bc->rout=bc->rin;
+		bc->idata=1;
+	}
+	hidewin(sc);
+	bmws_set(ws);
+	splx(s);
+	dgbstart(tp);
 }
 
 struct tty *
@@ -1951,7 +2263,7 @@ dgbdevtotty(dev)
 static void 
 fepcmd(port, cmd, op1, op2, ncmds, bytecmd)
 	struct dgb_p *port;
-	int cmd, op1, op2, ncmds, bytecmd;
+	unsigned cmd, op1, op2, ncmds, bytecmd;
 {
 	struct dgb_softc *sc=&dgb_softc[port->unit];
 	u_char *mem=sc->vmem;
@@ -1959,45 +2271,68 @@ fepcmd(port, cmd, op1, op2, ncmds, bytecmd)
 	int count, n;
 
 	if(port->status==DISABLED) {
-		printf("dgb%d(%d): FEP command on disabled port\n", 
+		printf("dgb%d: port%d: FEP command on disabled port\n", 
 			port->unit, port->pnum);
 		return;
 	}
 
-	setwin(sc,0);
+	/* setwin(sc,0); Require this to be set by caller */
 	head=sc->mailbox->cin;
 
 	if(head>=(FEP_CMAX-FEP_CSTART) || (head & 3)) {
-		printf("dgb%d(%d): wrong pointer head of command queue : 0x%x\n",
+		printf("dgb%d: port%d: wrong pointer head of command queue : 0x%x\n",
 			port->unit, port->pnum, head);
 		return;
 	}
 
+	mem[head+FEP_CSTART+0]=cmd;
+	mem[head+FEP_CSTART+1]=port->pnum;
 	if(bytecmd) {
-		mem[head+FEP_CSTART+0]=cmd;
-		mem[head+FEP_CSTART+1]=port->pnum;
 		mem[head+FEP_CSTART+2]=op1;
 		mem[head+FEP_CSTART+3]=op2;
 	} else {
-		mem[head+FEP_CSTART+0]=cmd;
-		mem[head+FEP_CSTART+1]=port->pnum;
-		*(ushort *)(mem+head+FEP_CSTART+2)=op1;
+		mem[head+FEP_CSTART+2]=op1&0xff;
+		mem[head+FEP_CSTART+3]=(op1>>8)&0xff;
 	}
+
+	DPRINT7(DB_FEP,"dgb%d: port%d: %s cmd=0x%x op1=0x%x op2=0x%x\n", port->unit, port->pnum,
+			(bytecmd)?"byte":"word", cmd, mem[head+FEP_CSTART+2], mem[head+FEP_CSTART+3]);
 
 	head=(head+4) & (FEP_CMAX-FEP_CSTART-4);
 	sc->mailbox->cin=head;
 
-	for(count=FEPTIMEOUT; count>0; count--) {
+	count=FEPTIMEOUT;
+
+	while (count-- != 0) {
 		head=sc->mailbox->cin;
 		tail=sc->mailbox->cout;
-		n=(head-tail) & (FEP_CMAX-FEP_CSTART-4);
 
-		if(n <= ncmds * 4)
+		n = (head-tail) & (FEP_CMAX-FEP_CSTART-4);
+		if(n <= ncmds * (sizeof(ushort)*4))
 			return;
 	}
+	printf("dgb%d(%d): timeout on FEP cmd=0x%x\n", port->unit, port->pnum, cmd);
+}
 
-	printf("dgb%d(%d): timeout on FEP command\n",
-			port->unit, port->pnum);
+static void 
+disc_optim(tp, t)
+	struct tty	*tp;
+	struct termios	*t;
+{
+	/*
+	 * XXX can skip a lot more cases if Smarts.  Maybe
+	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
+	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
+	 */
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
+	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
+	    && (!(t->c_iflag & PARMRK)
+		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
+	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
+	    && linesw[tp->t_line].l_rint == ttyinput)
+		tp->t_state |= TS_CAN_BYPASS_L_RINT;
+	else
+		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
 
 
