@@ -1247,6 +1247,8 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 
 	/* adjust for different hw format/speed */
 	irqhz = (bs->bps * bs->spd) / bs->blksz;
+	if (irqhz < 16)
+		irqhz = 16;
 
 	b->blksz = (b->bps * b->spd) / irqhz;
 
