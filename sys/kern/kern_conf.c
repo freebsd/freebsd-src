@@ -341,7 +341,7 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 }
 
 void
-remove_dev(dev_t dev)
+destroy_dev(dev_t dev)
 {
 	if (devfs_remove_hook)
 		devfs_remove_hook(dev);
