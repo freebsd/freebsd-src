@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.4 1995/05/30 00:06:50 rgrimes Exp $
+ *	$Id: print.c,v 1.5 1995/08/07 19:17:35 wollman Exp $
  */
 
 #ifndef lint
@@ -227,9 +227,9 @@ printtime(ftime)
 	time_t ftime;
 {
 	int i;
-	char *longstring;
+	char longstring[80];
 
-	longstring = ctime(&ftime);
+	strftime(longstring, sizeof(longstring), "%c", localtime(&ftime));
 	for (i = 4; i < 11; ++i)
 		(void)putchar(longstring[i]);
 
