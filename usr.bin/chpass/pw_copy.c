@@ -58,6 +58,15 @@ pw_copy(ffd, tfd, pw)
 	FILE *from, *to;
 	int done;
 	char *p, buf[8192];
+	char uidstr[20];
+	char gidstr[20];
+	char chgstr[20];
+	char expstr[20];
+
+	snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
+	snprintf(gidstr, sizeof(gidstr), "%d", pw->pw_gid);
+	snprintf(chgstr, sizeof(chgstr), "%lu", pw->pw_change);
+	snprintf(expstr, sizeof(expstr), "%lu", pw->pw_expire);
 
 	if (!(from = fdopen(ffd, "r")))
 		pw_error(_PATH_MASTERPASSWD, 1, 1);
@@ -87,10 +96,14 @@ pw_copy(ffd, tfd, pw)
 				goto err;
 			continue;
 		}
-		(void)fprintf(to, "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s\n",
-		    pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid,
-		    pw->pw_class, pw->pw_change, pw->pw_expire, pw->pw_gecos,
-		    pw->pw_dir, pw->pw_shell);
+		(void)fprintf(to, "%s:%s:%s:%s:%s:%ld:%ld:%s:%s:%s\n",
+		    pw->pw_name, pw->pw_passwd,
+		    pw->pw_fields & _PWF_UID ? uidstr : "",
+		    pw->pw_fields & _PWF_GID ? gidstr : "",
+		    pw->pw_class,
+		    pw->pw_fields & _PWF_CHANGE ? chgstr : "",
+		    pw->pw_fields & _PWF_EXPIRE ? expstr : "",
+		    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
 		done = 1;
 		if (ferror(to))
 			goto err;
@@ -104,10 +117,14 @@ pw_copy(ffd, tfd, pw)
 			pw_error(NULL, 0, 1);
 		} else
 #endif /* YP */
-		(void)fprintf(to, "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s\n",
-		    pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid,
-		    pw->pw_class, pw->pw_change, pw->pw_expire, pw->pw_gecos,
-		    pw->pw_dir, pw->pw_shell);
+		(void)fprintf(to, "%s:%s:%s:%s:%s:%ld:%ld:%s:%s:%s\n",
+		    pw->pw_name, pw->pw_passwd,
+		    pw->pw_fields & _PWF_UID ? uidstr : "",
+		    pw->pw_fields & _PWF_GID ? gidstr : "",
+		    pw->pw_class,
+		    pw->pw_fields & _PWF_CHANGE ? chgstr : "",
+		    pw->pw_fields & _PWF_EXPIRE ? expstr : "",
+		    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
 
 	if (ferror(to))
 err:		pw_error(NULL, 1, 1);
