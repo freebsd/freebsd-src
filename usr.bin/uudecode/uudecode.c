@@ -253,7 +253,6 @@ decode2(int flag)
 	strcpy(buffn, buf); /* store file name from header line */
 
 	/* for each input line */
-next:
 	for (;;) {
 		if (!fgets(p = buf, sizeof(buf), stdin)) {
 			warnx("%s: short file", filename);
@@ -263,7 +262,7 @@ next:
 			if (strncmp(buf, "====", 4) == 0)
 				return (0);
 			base64_decode(buf);
-			goto next;
+			continue;
 		}
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
 #define IS_DEC(c) ( (((c) - ' ') >= 0) &&  (((c) - ' ') <= 077 + 1) )
