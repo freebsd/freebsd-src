@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.16 1996/09/01 08:17:12 jkh Exp $
+ * $Id: anonFTP.c,v 1.17 1996/09/06 05:58:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -179,7 +179,7 @@ createFtpUser(void)
 	
 	tptr = msgGetInput("14", "What group name to use for gid %d ?", gid);
 	if (tptr && *tptr) {
-	    strcpy(tconf.group, tptr);
+	    SAFE_STRCPY(tconf.group, tptr);
 	    if ((tgrp = getgrnam(tconf.group))) {
 		gid = tgrp->gr_gid;
 	    }
@@ -250,10 +250,10 @@ anonftpOpenDialog(void)
     
     bzero(&tconf, sizeof(tconf));
     
-    strcpy(tconf.group, FTP_GROUP);
-    strcpy(tconf.upload, FTP_UPLOAD);
-    strcpy(tconf.comment, FTP_COMMENT);
-    strcpy(tconf.homedir, FTP_HOMEDIR);
+    SAFE_STRCPY(tconf.group, FTP_GROUP);
+    SAFE_STRCPY(tconf.upload, FTP_UPLOAD);
+    SAFE_STRCPY(tconf.comment, FTP_COMMENT);
+    SAFE_STRCPY(tconf.homedir, FTP_HOMEDIR);
     sprintf(tconf.uid, "%d", FTP_UID);
     
     /* Loop over the layout list, create the objects, and add them
@@ -389,10 +389,10 @@ configAnonFTP(dialogMenuItem *self)
 	sprintf(tconf.uid, "%d", FTP_UID);
     
     if (!tconf.group[0])
-	strcpy(tconf.group, FTP_GROUP);
+	SAFE_STRCPY(tconf.group, FTP_GROUP);
     
     if (!tconf.upload[0])
-	strcpy(tconf.upload, FTP_UPLOAD);
+	SAFE_STRCPY(tconf.upload, FTP_UPLOAD);
     
     /*** If the user did not specify a directory, use default ***/
     
@@ -400,7 +400,7 @@ configAnonFTP(dialogMenuItem *self)
 	tconf.homedir[strlen(tconf.homedir) - 1] = '\0';
     
     if (!tconf.homedir[0])
-	strcpy(tconf.homedir, FTP_HOMEDIR);
+	SAFE_STRCPY(tconf.homedir, FTP_HOMEDIR);
     
     /*** If HomeDir does not exist, create it ***/
     

@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.49 1996/11/07 08:03:29 jkh Exp $
+ * $Id: tcpip.c,v 1.50 1996/12/09 06:37:46 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -210,51 +210,51 @@ tcpOpenDialog(Device *devp)
     if (devp->private) {
 	DevInfo *di = (DevInfo *)devp->private;
 
-	strcpy(ipaddr, di->ipaddr);
-	strcpy(netmask, di->netmask);
-	strcpy(extras, di->extras);
+	SAFE_STRCPY(ipaddr, di->ipaddr);
+	SAFE_STRCPY(netmask, di->netmask);
+	SAFE_STRCPY(extras, di->extras);
     }
     else { /* See if there are any defaults */
 	char *cp;
 
 	if (!ipaddr[0]) {
 	    if ((cp = variable_get(VAR_IPADDR)) != NULL)
-		strcpy(ipaddr, cp);
+		SAFE_STRCPY(ipaddr, cp);
 	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_IPADDR))) != NULL)
-		strcpy(ipaddr, cp);
+		SAFE_STRCPY(ipaddr, cp);
 	}
 	if (!netmask[0]) {
 	    if ((cp = variable_get(VAR_NETMASK)) != NULL)
-		strcpy(netmask, cp);
+		SAFE_STRCPY(netmask, cp);
 	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_NETMASK))) != NULL)
-		strcpy(netmask, cp);
+		SAFE_STRCPY(netmask, cp);
 	}
 	if (!extras[0]) {
 	    if ((cp = variable_get(VAR_EXTRAS)) != NULL)
-		strcpy(extras, cp);
+		SAFE_STRCPY(extras, cp);
 	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_EXTRAS))) != NULL)
-		strcpy(extras, cp);
+		SAFE_STRCPY(extras, cp);
 	}
     }
     /* Look up values already recorded with the system, or blank the string variables ready to accept some new data */
     tmp = variable_get(VAR_HOSTNAME);
     if (tmp)
-	strcpy(hostname, tmp);
+	SAFE_STRCPY(hostname, tmp);
     else
 	bzero(hostname, sizeof(hostname));
     tmp = variable_get(VAR_DOMAINNAME);
     if (tmp)
-	strcpy(domainname, tmp);
+	SAFE_STRCPY(domainname, tmp);
     else
 	bzero(domainname, sizeof(domainname));
     tmp = variable_get(VAR_GATEWAY);
     if (tmp)
-	strcpy(gateway, tmp);
+	SAFE_STRCPY(gateway, tmp);
     else
 	bzero(gateway, sizeof(gateway));
     tmp = variable_get(VAR_NAMESERVER);
     if (tmp)
-	strcpy(nameserver, tmp);
+	SAFE_STRCPY(nameserver, tmp);
     else
 	bzero(nameserver, sizeof(nameserver));
 
@@ -314,8 +314,7 @@ tcpOpenDialog(Device *devp)
 	if (n == LAYOUT_HOSTNAME) {
 	    /* We are in the Hostname field - calculate the domainname */
 	    if ((tmp = index(hostname, '.')) != NULL) {
-		strncpy(domainname, tmp + 1, strlen(tmp + 1));
-		domainname[strlen(tmp+1)] = '\0';
+		sstrncpy(domainname, tmp + 1, strlen(tmp + 1));
 		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
 	    }
 	}
@@ -385,8 +384,7 @@ tcpOpenDialog(Device *devp)
 
 	/* BODGE ALERT! */
 	if (((tmp = index(hostname, '.')) != NULL) && (strlen(domainname)==0)) {
-	    strncpy(domainname, tmp + 1, strlen(tmp + 1));
-	    domainname[strlen(tmp+1)] = '\0';
+	    sstrncpy(domainname, tmp + 1, strlen(tmp + 1));
 	    RefreshStringObj(layout[1].obj);
 	}
     }
@@ -416,9 +414,9 @@ tcpOpenDialog(Device *devp)
 	if (!devp->private)
 	    devp->private = (DevInfo *)safe_malloc(sizeof(DevInfo));
 	di = devp->private;
-	strcpy(di->ipaddr, ipaddr);
-	strcpy(di->netmask, netmask);
-	strcpy(di->extras, extras);
+	SAFE_STRCPY(di->ipaddr, ipaddr);
+	SAFE_STRCPY(di->netmask, netmask);
+	SAFE_STRCPY(di->extras, extras);
 
 	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.37 1996/08/01 12:02:24 jkh Exp $
+ * $Id: index.c,v 1.38 1996/08/03 10:10:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -491,7 +491,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	    char buf[256];
 
 	    /* Brutally adjust description to fit in menu */
-	    strcpy(buf, kp->desc);
+	    SAFE_STRCPY(buf, kp->desc);
 	    if (strlen(buf) > (_MAX_DESC - maxname))
 		buf[_MAX_DESC - maxname] = '\0';
 	    nitems = item_add(nitems, kp->name, buf, pkg_checked, pkg_fire, pkg_selected, kp, (int)plist, &curr, &max);
@@ -555,7 +555,7 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     if (id && id->deps && strlen(id->deps)) {
 	char t[1024], *cp, *cp2;
 
-	strcpy(t, id->deps);
+	SAFE_STRCPY(t, id->deps);
 	cp = t;
 	while (cp && DITEM_STATUS(status) == DITEM_SUCCESS) {
 	    if ((cp2 = index(cp, ' ')) != NULL)
