@@ -258,11 +258,11 @@ setup(dev)
 	 * read in the summary info.
 	 */
 	asked = 0;
+	sblock.fs_csp = calloc(1, sblock.fs_cssize);
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
 		size = sblock.fs_cssize - i < sblock.fs_bsize ?
 		    sblock.fs_cssize - i : sblock.fs_bsize;
-		sblock.fs_csp[j] = (struct csum *)calloc(1, (unsigned)size);
-		if (bread(fsreadfd, (char *)sblock.fs_csp[j],
+		if (bread(fsreadfd, (char *)sblock.fs_csp + i,
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    size) != 0 && !asked) {
 			pfatal("BAD SUMMARY INFORMATION");
@@ -380,7 +380,8 @@ readsb(listerr)
 	altsblock.fs_optim = sblock.fs_optim;
 	altsblock.fs_rotdelay = sblock.fs_rotdelay;
 	altsblock.fs_maxbpg = sblock.fs_maxbpg;
-	memmove(altsblock.fs_csp, sblock.fs_csp, sizeof sblock.fs_csp);
+	memmove(altsblock.fs_ocsp, sblock.fs_ocsp, sizeof sblock.fs_ocsp);
+	altsblock.fs_csp = sblock.fs_csp;
 	altsblock.fs_maxcluster = sblock.fs_maxcluster;
 	memmove(altsblock.fs_fsmnt, sblock.fs_fsmnt, sizeof sblock.fs_fsmnt);
 	memmove(altsblock.fs_snapinum, sblock.fs_snapinum,

@@ -83,6 +83,7 @@ ffs_snapshot(mp, snapfile)
 	int error, cg, snaploc, indiroff, numblks;
 	int i, size, base, len, loc, inoblkcnt;
 	int blksperindir, flag = mp->mnt_flag;
+	void *space;
 	struct fs *copy_fs, *fs = VFSTOUFS(mp)->um_fs;
 	struct proc *p = CURPROC;
 	struct inode *devip, *ip, *xp;
@@ -346,6 +347,7 @@ restart:
 	blkno = fragstoblks(fs, fs->fs_csaddr);
 	len = howmany(fs->fs_cssize, fs->fs_bsize) - 1;
 	size = fs->fs_bsize;
+	space = fs->fs_csp;
 	for (loc = 0; loc <= len; loc++) {
 		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)(blkno + loc)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
@@ -355,7 +357,8 @@ restart:
 			readblock(nbp, blkno + loc);
 			size = fs->fs_cssize - loc * fs->fs_bsize;
 		}
-		bcopy(fs->fs_csp[loc], nbp->b_data, size);
+		bcopy(space, nbp->b_data, size);
+		space = (char *)space + size;
 		nbp->b_flags |= B_VALIDSUSPWRT;
 		bawrite(nbp);
 	}

@@ -205,15 +205,15 @@ dumpfs(name)
 		}
 	}
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
+	afs.fs_csp = calloc(1, afs.fs_cssize);
 	for (i = 0, j = 0; i < afs.fs_cssize; i += afs.fs_bsize, j++) {
 		size = afs.fs_cssize - i < afs.fs_bsize ?
 		    afs.fs_cssize - i : afs.fs_bsize;
-		afs.fs_csp[j] = calloc(1, size);
 		if (lseek(fd,
 		    (off_t)(fsbtodb(&afs, (afs.fs_csaddr + j * afs.fs_frag))) *
 		    (off_t)dev_bsize, SEEK_SET) == (off_t)-1)
 			goto err;
-		if (read(fd, afs.fs_csp[j], size) != size)
+		if (read(fd, (char *)afs.fs_csp + i, size) != size)
 			goto err;
 	}
 	for (i = 0; i < afs.fs_ncg; i++) {
