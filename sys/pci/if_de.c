@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.82 1999/02/28 17:08:51 explorer Exp $	*/
-/*	$Id: if_de.c,v 1.102 1999/03/17 16:44:52 luigi Exp $ */
+/*	$Id: if_de.c,v 1.103 1999/04/24 20:13:59 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -5607,10 +5607,10 @@ tulip_pci_attach(
 	(sc)->tulip_pci_busno = parent; \
 	(sc)->tulip_pci_devno = pa->pa_device; \
     } while (0)
+#endif /* __NetBSD__ */
 #if defined(__alpha__)
     tulip_media_t media = TULIP_MEDIA_UNKNOWN;
 #endif
-#endif /* __NetBSD__ */
     int retval, idx;
     u_int32_t revinfo, cfdainfo, id;
 #if !defined(TULIP_IOMAPPED) && defined(__FreeBSD__)
@@ -5713,7 +5713,7 @@ tulip_pci_attach(
 	PCI_CONF_WRITE(PCI_CFDA, cfdainfo);
 	DELAY(11*1000);
     }
-#if defined(__alpha__) && defined(__NetBSD__)
+#if defined(__alpha__) 
     /*
      * The Alpha SRM console encodes a console set media in the driver
      * part of the CFDA register.  Note that the Multia presents a
@@ -5915,11 +5915,11 @@ tulip_pci_attach(
 #endif
 
 	s = TULIP_RAISESPL();
-#if defined(__alpha__) && defined(__NetBSD__)
+#if defined(__alpha__) 
 	sc->tulip_media = media;
 #endif
 	tulip_attach(sc);
-#if defined(__alpha__) && defined(__NetBSD__)
+#if defined(__alpha__) 
 	if (sc->tulip_media != TULIP_MEDIA_UNKNOWN)
 		tulip_linkup(sc, media);
 #endif
