@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.14 1995/04/12 20:47:51 wollman Exp $
+ * $Id: if_le.c,v 1.15 1995/04/17 05:52:17 bde Exp $
  */
 
 /*
@@ -925,7 +925,7 @@ lemac_reset(
      */
     if ((cksum = lemac_read_eeprom(sc)) != LEMAC_EEP_CKSUM) { 
 	printf("%s%d: reset: EEPROM checksum failed (0x%x)\n",
-	       sc->le_if.if_unit, sc->le_if.if_unit, cksum);
+	       sc->le_if.if_name, sc->le_if.if_unit, cksum);
 	return;
     }
 

@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.2 1995/03/25 18:14:37 bde Exp $ */
+/* $Id: scd.c,v 1.3 1995/04/12 20:48:02 wollman Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -327,7 +327,7 @@ scdstrategy(struct buf *bp)
 	XDEBUG(2, ("scd%d: DEBUG: strategy: block=%ld, bcount=%ld\n", unit, bp->b_blkno, bp->b_bcount));
 
 	if (unit >= NSCD || bp->b_blkno < 0 || (bp->b_bcount % SCDBLKSIZE)) {
-		printf("scd%d: strategy failure: blkno = %d, bcount = %d\n",
+		printf("scd%d: strategy failure: blkno = %ld, bcount = %ld\n",
 			unit, bp->b_blkno, bp->b_bcount);
 		bp->b_error = EINVAL;
 		bp->b_flags |= B_ERROR;
@@ -428,7 +428,7 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 	part = scd_part(dev);
 	cd = scd_data + unit;
 
-	XDEBUG(1, ("scd%d: ioctl: cmd=0x%lx\n", unit, cmd));
+	XDEBUG(1, ("scd%d: ioctl: cmd=0x%x\n", unit, cmd));
 
 	if (!(cd->flags & SCDVALID))
 		return EIO;
@@ -489,7 +489,7 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 #endif
 		return 0;
 	default:
-		printf("scd%d: unsupported ioctl (cmd=0x%lx)\n", unit, cmd);
+		printf("scd%d: unsupported ioctl (cmd=0x%x)\n", unit, cmd);
 		return ENOTTY;
 	}
 }
@@ -1234,7 +1234,7 @@ read_toc(dev_t dev)
 	cd->blksize = SCDBLKSIZE;
 	cd->disksize = last*cd->blksize/DEV_BSIZE;
 
-	XDEBUG(1, ("scd%d: firstsector = %d, lastsector = %d", unit,
+	XDEBUG(1, ("scd%d: firstsector = %ld, lastsector = %ld", unit,
 			first, last));
 
 	cd->first_track = bcd2bin(toc.first_track);
