@@ -536,7 +536,9 @@ struct vfsops {
 		#fsname,					\
 		-1,						\
 		0,						\
-		flags						\
+		flags,						\
+		NULL,						\
+		NULL						\
 	};							\
 	static moduledata_t fsname ## _mod = {			\
 		#fsname,					\
