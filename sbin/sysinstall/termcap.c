@@ -37,12 +37,12 @@ static char common_termcap[] = "\
 :dc=\\E[P:dl=\\E[M:do=\\E[B:bt=\\E[Z:ho=\\E[H:ic=\\E[@:li#25:cb=\\E[1K:\
 :ms:nd=\\E[C:pt:rs=\\E[x\\E[m\\Ec:so=\\E[7m:se=\\E[m:up=\\E[A:\
 :k1=\\E[M:k2=\\E[N:k3=\\E[O:k4=\\E[P:k5=\\E[Q:k6=\\E[R:k7=\\E[S:k8=\\E[T:\
-:k9=\\E[U:k;=\\E[V:F1=\\E[W:F2=\\E[X:\
+:k9=\\E[U:k;=\\E[V:F1=\\E[W:F2=\\E[X:K2=\\E[E:nw=\\E[E:ec=\\E[%dX:\
 :kb=^H:kh=\\E[H:ku=\\E[A:kd=\\E[B:kl=\\E[D:kr=\\E[C:\
 :le=^H:eo:sf=\\E[S:sr=\\E[T:\
 :kN=\\E[G:kP=\\E[I:@7=\\E[F:kI=\\E[L:kD=\\177:kB=\\E[Z:\
 :IC=\\E[%d@:DC=\\E[%dP:SF=\\E[%dS:SR=\\E[%dT:AL=\\E[%dL:DL=\\E[%dM:\
-:DO=\\E[%dB:LE=\\E[%dD:RI=\\E[%dC:UP=\\E[%dA:ec=\\E[%dX:cv=\\E[%dd:ch=\\E[%d`:bw:\
+:DO=\\E[%dB:LE=\\E[%dD:RI=\\E[%dC:UP=\\E[%dA:cv=\\E[%i%dd:ch=\\E[%i%d`:bw:\
 :mb=\\E[5m:mr=\\E[7m:me=\\E[m:bl=^G:ut:it#8:";
 
 static int
