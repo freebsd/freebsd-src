@@ -461,6 +461,9 @@ tunioctl(dev, cmd, data, flag, p)
 			return(EINVAL);
 		}
 		break;
+	case TUNSIFPID:
+		tp->tun_pid = curproc->p_pid;
+		break;
 	case FIONBIO:
 		break;
 	case FIOASYNC:
