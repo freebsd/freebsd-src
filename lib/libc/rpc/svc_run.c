@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_run.c 1.1 87/10/13 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_run.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_run.c,v 1.2 1995/05/30 05:41:35 rgrimes Exp $";
+static char *rcsid = "$Id: svc_run.c,v 1.3 1996/06/10 00:49:19 jraynard Exp $";
 #endif
 
 /*
@@ -43,36 +43,45 @@ static char *rcsid = "$Id: svc_run.c,v 1.2 1995/05/30 05:41:35 rgrimes Exp $";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 
-int _rpc_dtablesize(void);
+extern int __svc_fdsetsize;
+extern fd_set *__svc_fdset;
 
 void
 svc_run()
 {
-#ifdef FD_SETSIZE
-	fd_set readfds;
-#else
-      int readfds;
-#endif /* def FD_SETSIZE */
+	fd_set *fds;
 
 	for (;;) {
-#ifdef FD_SETSIZE
-		readfds = svc_fdset;
-#else
-		readfds = svc_fds;
-#endif /* def FD_SETSIZE */
-		switch (select(_rpc_dtablesize(), &readfds, NULL, NULL,
-			       (struct timeval *)0)) {
+		if (__svc_fdset) {
+			int bytes = howmany(__svc_fdsetsize, NFDBITS) *
+				sizeof(fd_mask);
+			fds = (fd_set *)malloc(bytes);
+			memcpy(fds, __svc_fdset, bytes);
+		} else
+			fds = NULL;
+		switch (select(svc_maxfd, fds, NULL, NULL,
+				(struct timeval *)0)) {
 		case -1:
 			if (errno == EINTR) {
+				if (fds)
+					free(fds);
 				continue;
 			}
 			perror("svc_run: - select failed");
+			if (fds)
+				free(fds);
 			return;
 		case 0:
+			if (fds)
+				free(fds);
 			continue;
 		default:
-			svc_getreqset(&readfds);
+			/* XXX What the hell?? what if fds == NULL?? */
+			svc_getreqset2(fds, svc_maxfd + 1);
+			free(fds);
 		}
 	}
 }
