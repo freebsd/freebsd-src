@@ -59,13 +59,13 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
+#include <locale.h>
 #include <nlist.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <locale.h>
 #include <pwd.h>
 #include <utmp.h>
 
@@ -229,7 +229,7 @@ main(argc, argv)
 			/* FALLTHROUGH */
 		case 't': {
 			struct stat sb;
-			char *ttypath, pathbuf[MAXPATHLEN];
+			char *ttypath, pathbuf[PATH_MAX];
 
 			if (strcmp(optarg, "co") == 0)
 				ttypath = _PATH_CONSOLE;
