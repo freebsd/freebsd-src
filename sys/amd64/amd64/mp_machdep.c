@@ -544,12 +544,14 @@ start_all_aps(void)
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i;
 	u_int64_t *pt4, *pt3, *pt2;
+	vm_offset_t va = boot_address + KERNBASE;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* install the AP 1st level boot code */
-	pmap_kenter(boot_address + KERNBASE, boot_address);
-	bcopy(mptramp_start, (void *)((uintptr_t)boot_address + KERNBASE), bootMP_size);
+	pmap_kenter(va, boot_address);
+	pmap_invalidate_page(kernel_pmap, va);
+	bcopy(mptramp_start, (void *)va, bootMP_size);
 
 	/* Locate the page tables, they'll be below the trampoline */
 	pt4 = (u_int64_t *)(uintptr_t)(mptramp_pagetables + KERNBASE);
