@@ -59,6 +59,7 @@
 #define	CPU_PII		14	/* Intel Pentium II */
 #define	CPU_PIII	15	/* Intel Pentium III */
 #define	CPU_P4		16	/* Intel Pentium 4 */
+#define	CPU_GEODE1100	17	/* NS Geode SC1100 */
 
 #ifndef LOCORE
 extern int	cpu;
