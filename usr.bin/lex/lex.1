@@ -1919,7 +1919,7 @@ The macro
 can be used to control whether the current buffer's scanning
 context for the next token match is done as though at the
 beginning of a line.  A non-zero macro argument makes rules anchored with
-'^' active, while a zero argument makes '^' rules inactive.
+\&'^' active, while a zero argument makes '^' rules inactive.
 .PP
 The macro
 .B YY_AT_BOL()
@@ -3712,8 +3712,7 @@ scanners;
 ignores them.
 .IP -
 The name
-.bd
-FLEX_SCANNER
+.B FLEX_SCANNER
 is #define'd so scanners may be written for use with either
 .I flex
 or
