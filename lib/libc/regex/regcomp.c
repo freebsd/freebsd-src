@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdlib.h>
 #include <regex.h>
+#include <runetype.h>
 #include <wchar.h>
 #include <wctype.h>
 
