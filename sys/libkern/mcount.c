@@ -102,7 +102,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	 */
 	if (frompci >= p->textsize) {
 		if (frompci + p->lowpc
-		    >= (uintfptr_t)(VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))
+		    >= (uintfptr_t)(VM_MAXUSER_ADDRESS))
 			goto done;
 		frompci = (uintfptr_t)user - p->lowpc;
 		if (frompci >= p->textsize)
