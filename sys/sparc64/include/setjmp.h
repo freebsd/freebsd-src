@@ -48,13 +48,13 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-struct	_sigjmp_buf {
+struct _sigjmp_buf {
 	long	_sjb[_JBLEN + 1];
 };
 typedef struct _sigjmp_buf sigjmp_buf[1];
 #endif
 
-struct	_jmp_buf {
+struct _jmp_buf {
 	long	_jb[_JBLEN + 1];
 };
 typedef struct _jmp_buf jmp_buf[1];

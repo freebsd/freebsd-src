@@ -41,7 +41,7 @@
 #include <machine/globals.h>
 #include <machine/tte.h>
 
-struct	mdproc {
+struct mdproc {
 };
 
 #endif /* !_MACHINE_PROC_H_ */
