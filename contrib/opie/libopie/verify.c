@@ -1,13 +1,15 @@
 /* verify.c: The opieverify() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
+This software is Copyright 1996-2001 by Craig Metz, All Rights Reserved.
+The Inner Net License Version 3 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Use struct opie_otpkey for keys.
+		Check that seed and sequence number are valid.
 	Modified by cmetz for OPIE 2.32. Renamed _opieparsechallenge() to
 		__opieparsechallenge() and handle new argument. Fixed init
 		response parsing bug.
@@ -67,7 +69,7 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
 {
   int i, rval = -1;
   char *c;
-  char key[8], fkey[8], lastkey[8];
+  struct opie_otpkey key, fkey, lastkey;
   struct opie nopie;
 
   if (!opie || !response)
@@ -80,7 +82,14 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
     goto verret;
 #endif /* DEBUG */
 
-  if (!opieatob8(lastkey, opie->opie_val))
+  if (!opieatob8(&lastkey, opie->opie_val))
+    goto verret;
+
+  for (c = opie->opie_seed; *c; c++)
+    if (!isalnum(*c))
+      goto verret;
+
+  if (opie->opie_n <= 0)
     goto verret;
 
   if (c = strchr(response, ':')) {
@@ -97,33 +106,33 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
   case RESPONSE_STANDARD:
     i = 1;
     
-    if (opieetob(key, response) == 1) {
-      memcpy(fkey, key, sizeof(key));
-      opiehash(fkey, MDX);
-      i = memcmp(fkey, lastkey, sizeof(key));
+    if (opieetob(&key, response) == 1) {
+      memcpy(&fkey, &key, sizeof(struct opie_otpkey));
+      opiehash(&fkey, MDX);
+      i = memcmp(&fkey, &lastkey, sizeof(struct opie_otpkey));
     }
-    if (i && opieatob8(key, response)) {
-      memcpy(fkey, key, sizeof(key));
-      opiehash(fkey, MDX);
-      i = memcmp(fkey, lastkey, sizeof(key));
+    if (i && opieatob8(&key, response)) {
+      memcpy(&fkey, &key, sizeof(struct opie_otpkey));
+      opiehash(&fkey, MDX);
+      i = memcmp(&fkey, &lastkey, sizeof(struct opie_otpkey));
     }
     break;
   case RESPONSE_WORD:
     i = 1;
 
-    if (opieetob(key, c) == 1) {
-      memcpy(fkey, key, sizeof(key));
-      opiehash(fkey, MDX);
-      i = memcmp(fkey, lastkey, sizeof(key));
+    if (opieetob(&key, c) == 1) {
+      memcpy(&fkey, &key, sizeof(struct opie_otpkey));
+      opiehash(&fkey, MDX);
+      i = memcmp(&fkey, &lastkey, sizeof(struct opie_otpkey));
     }
     break;
   case RESPONSE_HEX:
     i = 1;
 
-    if (opieatob8(key, c)) {
-      memcpy(fkey, key, sizeof(key));
-      opiehash(fkey, MDX);
-      i = memcmp(fkey, lastkey, sizeof(key));
+    if (opieatob8(&key, c)) {
+      memcpy(&fkey, &key, sizeof(struct opie_otpkey));
+      opiehash(&fkey, MDX);
+      i = memcmp(&fkey, &lastkey, sizeof(struct opie_otpkey));
     }
     break;
   case RESPONSE_INIT_HEX:
@@ -137,17 +146,17 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
       *(c2++) = 0;
 
       if (i == RESPONSE_INIT_HEX) {
-	if (!opieatob8(key, c))
+	if (!opieatob8(&key, c))
 	  goto verret;
       } else {
-	if (opieetob(key, c) != 1)
+	if (opieetob(&key, c) != 1)
 	  goto verret;
       }
 
-      memcpy(fkey, key, sizeof(key));
-      opiehash(fkey, MDX);
+      memcpy(&fkey, &key, sizeof(struct opie_otpkey));
+      opiehash(&fkey, MDX);
 
-      if (memcmp(fkey, lastkey, sizeof(key)))
+      if (memcmp(&fkey, &lastkey, sizeof(struct opie_otpkey)))
 	goto verret;
 
       if (changed(opie))
@@ -155,7 +164,7 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
       
       opie->opie_n--;
 
-      if (!opiebtoa8(opie->opie_val, key))
+      if (!opiebtoa8(opie->opie_val, &key))
 	goto verret;
 
       if (__opiewriterec(opie))
@@ -174,10 +183,10 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
       }
 
       if (i == RESPONSE_INIT_HEX) {
-	if (!opieatob8(key, c2))
+	if (!opieatob8(&key, c2))
 	  goto verret;
       } else {
-	if (opieetob(key, c2) != 1)
+	if (opieetob(&key, c2) != 1)
 	  goto verret;
       }
     }
@@ -201,7 +210,7 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
   opie->opie_n--;
 
 verwrt:
-  if (!opiebtoa8(opie->opie_val, key))
+  if (!opiebtoa8(opie->opie_val, &key))
     goto verret;
   rval = __opiewriterec(opie);
 

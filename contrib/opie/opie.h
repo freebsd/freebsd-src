@@ -2,7 +2,7 @@
 	system that a program might need.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -15,6 +15,9 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Added sequence number limits. Added
+		struct opie_otpkey and made many functions use it. Added
+		opiestrncpy(). Include header with libmissing prototypes.
 	Modified by cmetz for OPIE 2.32. Added symbolic flag names for
 		opiepasswd(). Added __opieparsechallenge() prototype.
 	Modified by cmetz for OPIE 2.31. Removed active attack protection.
@@ -126,7 +129,7 @@ struct opie {
 
 /* Minimum length of a secret password */
 #ifndef OPIE_SECRET_MIN
-#define OPIE_SECRET_MIN 10
+#define OPIE_SECRET_MIN 1
 #endif	/* OPIE_SECRET_MIN */
 
 /* Maximum length of a secret password */
@@ -159,6 +162,16 @@ struct opie {
 #define OPIE_PRINCIPAL_MAX 32
 #endif	/* OPIE_PRINCIPAL_MAX */
 
+/* Maximum sequence number */
+#ifndef OPIE_SEQUENCE_MAX
+#define OPIE_SEQUENCE_MAX 9999
+#endif /* OPIE_SEQUENCE_MAX */
+
+/* Restricted sequence number */
+#ifndef OPIE_SEQUENCE_RESTRICT
+#define OPIE_SEQUENCE_RESTRICT 9
+#endif /* OPIE_SEQUENCE_RESTRICT */
+
 #ifndef __alpha
 #define UINT4 unsigned long
 #else   /* __alpha */
@@ -169,6 +182,10 @@ struct opiemdx_ctx {
 	UINT4 state[4];
 	UINT4 count[2];
 	unsigned char buffer[64];
+};
+
+struct opie_otpkey {
+	UINT4 words[2];
 };
 
 #ifndef SEEK_SET
@@ -183,18 +200,18 @@ int  opieaccessfile __P((char *));
 int  rdnets __P((long));
 int  isaddr __P((register char *));
 int  opiealways __P((char *));
-char *opieatob8 __P((char *,char *));
+char *opieatob8 __P((struct opie_otpkey *, char *));
 VOIDRET  opiebackspace __P((char *));
-char *opiebtoa8 __P((char *,char *));
-char *opiebtoe __P((char *,char *));
-char *opiebtoh __P((char *,char *));
-int  opieetob __P((char *,char *));
+char *opiebtoa8 __P((char *, struct opie_otpkey *));
+char *opiebtoe __P((char *, struct opie_otpkey *));
+char *opiebtoh __P((char *, struct opie_otpkey *));
+int  opieetob __P((struct opie_otpkey *, char *));
 int  opiechallenge __P((struct opie *,char *,char *));
 int  opiegenerator __P((char *,char *,char *));
 int  opiegetsequence __P((struct opie *));
-VOIDRET  opiehash __P((VOIDPTR, unsigned));
+VOIDRET  opiehash __P((struct opie_otpkey *, unsigned));
 int  opiehtoi __P((register char));
-int  opiekeycrunch __P((int, char *, char *, char *));
+int  opiekeycrunch __P((int, struct opie_otpkey *, char *, char *));
 int  opielock __P((char *));
 int  opielookup __P((struct opie *,char *));
 VOIDRET  opiemd4init __P((struct opiemdx_ctx *));
@@ -221,6 +238,14 @@ FILE *__opieopen __P((char *, int, int));
 int __opiereadrec __P((struct opie *));
 int __opiewriterec __P((struct opie *));
 int __opieparsechallenge __P((char *buffer, int *algorithm, int *sequence, char **seed, int *exts));
+
+#define opiestrncpy(dst, src, n) \
+  do { \
+    strncpy(dst, src, n-1); \
+    dst[n-1] = 0; \
+  } while(0)
+
+/* #include "missing.h" */
 #endif /* _OPIE */
 
 #define OPIEPASSWD_CONSOLE 1
