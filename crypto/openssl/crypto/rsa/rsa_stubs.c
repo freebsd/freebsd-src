@@ -55,9 +55,11 @@ getsym(const char *sym)
 	ret = dlsym(rsalib, sym);
 #ifdef VERBOSE_STUBS
      if (!ret && !whined) {
-	fprintf(stderr, "** %s: Unable to find an rsa implemenation shared library.\n", sym);
+	fprintf(stderr, "** %s: Unable to find an RSA implemenation shared library.\n", sym);
 	fprintf(stderr, "** Install either the USA (%s) or International (%s)\n", RSAINTL_SHLIB, RSAUSA_SHLIB);
-	fprintf(stderr, "** RSA library on your system and run this program again\n");
+	fprintf(stderr, "** RSA library on your system and run this program again.\n");
+	fprintf(stderr, "** See Chapter 6.5 of the FreeBSD Handbook, located at\n");
+	fprintf(stderr, "** http://www.freebsd.org/handbook/openssl.html, for more information.\n");
 	whined = 1;
      }
 #endif
