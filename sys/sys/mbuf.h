@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.3 1994/08/06 11:26:16 davidg Exp $
+ * $Id: mbuf.h,v 1.4 1994/08/21 04:41:51 paul Exp $
  */
 
-#ifndef _SYS_MALLOC_H_
-#define _SYS_MALLOC_H_
+#ifndef _SYS_MBUF_H_
+#define _SYS_MBUF_H_
 
 #ifndef M_WAITOK
 #include <sys/malloc.h>
