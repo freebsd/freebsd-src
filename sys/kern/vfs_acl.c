@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2001 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -700,6 +700,28 @@ __acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 }
 
 /*
+ * Given a file path, get an ACL for it; don't follow links.
+ *
+ * MPSAFE
+ */
+int
+__acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
+{
+	struct nameidata nd;
+	int error;
+
+	mtx_lock(&Giant);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	error = namei(&nd);
+	if (error == 0) {
+		error = vacl_get_acl(td, nd.ni_vp, uap->type, uap->aclp);
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+/*
  * Given a file path, set an ACL for it
  *
  * MPSAFE
@@ -712,6 +734,28 @@ __acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 
 	mtx_lock(&Giant);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	error = namei(&nd);
+	if (error == 0) {
+		error = vacl_set_acl(td, nd.ni_vp, uap->type, uap->aclp);
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+/*
+ * Given a file path, set an ACL for it; don't follow links.
+ *
+ * MPSAFE
+ */
+int
+__acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
+{
+	struct nameidata nd;
+	int error;
+
+	mtx_lock(&Giant);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error == 0) {
 		error = vacl_set_acl(td, nd.ni_vp, uap->type, uap->aclp);
@@ -788,6 +832,28 @@ __acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 }
 
 /*
+ * Given a file path, delete an ACL from it; don't follow links.
+ *
+ * MPSAFE
+ */
+int
+__acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
+{
+	struct nameidata nd;
+	int error;
+
+	mtx_lock(&Giant);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	error = namei(&nd);
+	if (error == 0) {
+		error = vacl_delete(td, nd.ni_vp, uap->type);
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+/*
  * Given a file path, delete an ACL from it.
  *
  * MPSAFE
@@ -822,6 +888,28 @@ __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 
 	mtx_lock(&Giant);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	error = namei(&nd);
+	if (error == 0) {
+		error = vacl_aclcheck(td, nd.ni_vp, uap->type, uap->aclp);
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+/*
+ * Given a file path, check an ACL for it; don't follow links.
+ *
+ * MPSAFE
+ */
+int
+__acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
+{
+	struct nameidata	nd;
+	int	error;
+
+	mtx_lock(&Giant);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error == 0) {
 		error = vacl_aclcheck(td, nd.ni_vp, uap->type, uap->aclp);
