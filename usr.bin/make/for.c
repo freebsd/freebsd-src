@@ -226,7 +226,7 @@ For_Eval(char *line)
     }
 
     if (forLevel != 0) {
-	Buf_AddBytes(forBuf, strlen(line), (Byte *)line);
+	Buf_Append(forBuf, line);
 	Buf_AddByte(forBuf, (Byte)'\n');
 	return (1);
     }
