@@ -1071,7 +1071,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	struct vattr va;
 	void *handle;
 	vm_object_t obj;
-	int disablexworkaround, error, flags, type;
+	int error, flags, type;
 
 	mtx_lock(&Giant);
 	if ((error = vget(vp, LK_EXCLUSIVE, td)) != 0) {
@@ -1112,20 +1112,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			error = EACCES;
 			goto done;
 		}
-		/*
-		 * However, for XIG X server to continue to work,
-		 * we should allow the superuser to do it anyway.
-		 * We only allow it at securelevel < 1.
-		 * (Because the XIG X server writes directly to video
-		 * memory via /dev/mem, it should never work at any
-		 * other securelevel.
-		 * XXX this will have to go
-		 */
-		if (securelevel_ge(td->td_ucred, 1))
-			disablexworkaround = 1;
-		else
-			disablexworkaround = suser(td);
-		if (disablexworkaround && (flags & (MAP_PRIVATE|MAP_COPY))) {
+		if (flags & (MAP_PRIVATE|MAP_COPY)) {
 			error = EINVAL;
 			goto done;
 		}
