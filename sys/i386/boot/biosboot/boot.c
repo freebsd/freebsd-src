@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.51 1996/07/05 19:55:03 julian Exp $
+ *	$Id: boot.c,v 1.52 1996/07/09 02:28:20 julian Exp $
  */
 
 
@@ -61,8 +61,10 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #define NAMEBUF_LEN	(8*1024)
 
+#ifdef NAMEBLOCK
+char *dflt_name;
+#endif
 char namebuf[NAMEBUF_LEN];
-extern	char *dflt_name;
 struct exec head;
 struct bootinfo bootinfo;
 int loadflags;
