@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.7 1994/09/25 19:33:59 phk Exp $
+ * $Id: buf.h,v 1.8 1994/10/05 09:48:38 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -204,6 +204,7 @@ void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	brelse __P((struct buf *));
 struct buf *getnewbuf __P((int slpflag, int slptimeo));
+struct buf *     getpbuf __P((void));
 struct buf *incore __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
@@ -215,11 +216,14 @@ void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, struct buf **));
 void	cluster_write __P((struct buf *, u_quad_t));
-u_int	minphys __P((struct buf *bp));
-void	vwakeup __P((struct buf *bp));
-void	brelvp __P((struct buf *bp));
-void	bgetvp __P((struct vnode *vp,struct buf *bp));
-void	reassignbuf __P((struct buf *bp,struct vnode *newvp));
+u_int	minphys __P((struct buf *));
+void	vwakeup __P((struct buf *));
+void	vmapbuf __P((struct buf *));
+void	vunmapbuf __P((struct buf *));
+void	relpbuf __P((struct buf *));
+void	brelvp __P((struct buf *));
+void	bgetvp __P((struct vnode *, struct buf *));
+void	reassignbuf __P((struct buf *, struct vnode *));
 __END_DECLS
 #endif
 #endif /* !_SYS_BUF_H_ */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.15 1994/10/08 01:45:30 phk Exp $
+ * $Id: sysctl.h,v 1.16 1994/10/08 03:31:53 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -361,6 +361,8 @@ int	sysctl_clockrate __P((char *, size_t*));
 int	sysctl_vnode __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));
 int	sysctl_doproc __P((int *, u_int, char *, size_t*));
+int	kern_sysctl __P((int *, u_int, void *, size_t *, void *, size_t, struct proc *));
+int	hw_sysctl __P((int *, u_int, void *, size_t *, void *, size_t, struct proc *));
 
 #else	/* !KERNEL */
 #include <sys/cdefs.h>
