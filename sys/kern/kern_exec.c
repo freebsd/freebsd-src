@@ -311,6 +311,11 @@ interpret:
 	p->p_textvp = ndp->ni_vp;
 
 	/*
+	 * notify others that we exec'd
+	 */
+	KNOTE(&p->p_klist, NOTE_EXEC);
+
+	/*
 	 * If tracing the process, trap to debugger so breakpoints
 	 * 	can be set before the program executes.
 	 */

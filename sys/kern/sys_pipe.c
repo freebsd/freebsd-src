@@ -65,6 +65,7 @@
 #include <sys/pipe.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
+#include <sys/event.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -99,6 +100,16 @@ static int pipe_ioctl __P((struct file *fp, u_long cmd, caddr_t data, struct pro
 
 static struct fileops pipeops =
     { pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_stat, pipe_close };
+
+static int	filt_pipeattach(struct knote *kn);
+static void	filt_pipedetach(struct knote *kn);
+static int	filt_piperead(struct knote *kn, long hint);
+static int	filt_pipewrite(struct knote *kn, long hint);
+
+struct filterops pipe_rwfiltops[] = {
+	{ 1, filt_pipeattach, filt_pipedetach, filt_piperead },
+	{ 1, filt_pipeattach, filt_pipedetach, filt_pipewrite },
+};
 
 /*
  * Default pipe buffer size(s), this can be kind-of large now because pipe
@@ -316,6 +327,7 @@ pipeselwakeup(cpipe)
 	}
 	if ((cpipe->pipe_state & PIPE_ASYNC) && cpipe->pipe_sigio)
 		pgsigio(cpipe->pipe_sigio, SIGIO, 0);
+	KNOTE(&cpipe->pipe_sel.si_note, 0);
 }
 
 /* ARGSUSED */
@@ -1158,4 +1170,59 @@ pipeclose(cpipe)
 #endif
 		zfree(pipe_zone, cpipe);
 	}
+}
+
+static int
+filt_pipeattach(struct knote *kn)
+{
+	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
+
+	SLIST_INSERT_HEAD(&rpipe->pipe_sel.si_note, kn, kn_selnext);
+	return (0);
+}
+
+static void
+filt_pipedetach(struct knote *kn)
+{
+	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
+
+	SLIST_REMOVE(&rpipe->pipe_sel.si_note, kn, knote, kn_selnext);
+}
+
+/*ARGSUSED*/
+static int
+filt_piperead(struct knote *kn, long hint)
+{
+	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
+	struct pipe *wpipe = rpipe->pipe_peer;
+
+	kn->kn_data = rpipe->pipe_buffer.cnt;
+	if ((kn->kn_data == 0) && (rpipe->pipe_state & PIPE_DIRECTW))
+		kn->kn_data = rpipe->pipe_map.cnt;
+
+	if ((rpipe->pipe_state & PIPE_EOF) ||
+	    (wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
+		kn->kn_flags |= EV_EOF; 
+		return (1);
+	}
+	return (kn->kn_data > 0);
+}
+
+/*ARGSUSED*/
+static int
+filt_pipewrite(struct knote *kn, long hint)
+{
+	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
+	struct pipe *wpipe = rpipe->pipe_peer;
+
+	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
+		kn->kn_data = 0;
+		kn->kn_flags |= EV_EOF; 
+		return (1);
+	}
+	kn->kn_data = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
+	if ((wpipe->pipe_state & PIPE_DIRECTW) == 0)
+		kn->kn_data = 0;
+
+	return (kn->kn_data >= PIPE_BUF);
 }

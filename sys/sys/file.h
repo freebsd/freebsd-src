@@ -60,6 +60,7 @@ struct file {
 #define	DTYPE_SOCKET	2	/* communications endpoint */
 #define	DTYPE_PIPE	3	/* pipe */
 #define	DTYPE_FIFO	4	/* fifo (named pipe) */
+#define	DTYPE_KQUEUE	5	/* event queue */
 	short	f_type;		/* descriptor type */
 	short	f_count;	/* reference count */
 	short	f_msgcount;	/* references from message queue */

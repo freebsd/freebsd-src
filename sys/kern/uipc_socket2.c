@@ -51,6 +51,7 @@
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/aio.h> /* for aio_swake proto */
+#include <sys/event.h>
 
 int	maxsockets;
 
@@ -340,6 +341,7 @@ sowakeup(so, sb)
 		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
 	if (sb->sb_flags & SB_AIO)
 		aio_swake(so, sb);
+	KNOTE(&sb->sb_sel.si_note, 0);
 }
 
 /*
