@@ -1,11 +1,15 @@
-# NetBSD
-#MAN4=		pcvt.0
-#MLINKS=		pcvt.0 ../pcvt.0
+FILES=	Acknowledgements Bibliography BugList ChangeLog CharGen \
+	Charsets EscapeSequences Keyboard.HP Keyboard.VT \
+	Manifest NotesAndHints TestedHardware ToDo
 
-# FreeBSD
-#MAN4=		pcvt.4
-#MLINKS=		pcvt.4 ../pcvt.4
+beforeinstall:
+	for file in ${FILES}; \
+	do \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.CURDIR}/$$file ${DESTDIR}${BINDIR}/Doc/$$file ; \
+	done
 
-MANSUBDIR=	/i386
+afterdistribute: beforeinstall
 
-.include <bsd.prog.mk>
+.include "../Makefile.inc"
+.include <bsd.subdir.mk>
