@@ -311,7 +311,7 @@ main(int argc, char **argv)
     return 2;
   }
   for (f = 1; f < sizeof holdfd / sizeof *holdfd; f++)
-    dup2(holdfd[0], holdfd[f]);
+    holdfd[f] = dup(holdfd[0]);
 
   name = strrchr(argv[0], '/');
   log_Open(name ? name + 1 : argv[0]);
