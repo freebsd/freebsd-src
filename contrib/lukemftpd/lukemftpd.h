@@ -1,6 +1,6 @@
-/* $Id: lukemftpd.h,v 1.18 2002/03/14 06:02:24 lukem Exp $ */
+/* $Id: lukemftpd.h,v 1.20 2002/05/23 02:43:58 lukem Exp $ */
 
-#define	FTPD_VERSION	"lukemftpd 1.2 beta 1"
+#define	FTPD_VERSION	"lukemftpd 1.2 beta 2"
 
 #include "config.h"
 
@@ -28,7 +28,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fnmatch.h>
 #include <grp.h>
 #include <limits.h>
 #include <locale.h>
@@ -80,6 +79,12 @@
 # include <glob.h>
 #else
 # include "ftpglob.h"
+#endif
+
+#if HAVE_FNM_CASEFOLD
+# include <fnmatch.h>
+#else
+# include "ftpfnmatch.h"
 #endif
 
 #if HAVE_PATHS_H
