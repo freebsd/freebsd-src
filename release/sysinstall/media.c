@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.95 1999/02/05 22:15:50 jkh Exp $
+ * $Id: media.c,v 1.96 1999/02/15 00:49:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -772,6 +772,9 @@ mediaGenericGet(char *base, const char *file)
     char	buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "%s/%s", base, file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "%s/FreeBSD/%s", base, file);
     if (file_readable(buf))
 	return fopen(buf, "r");
     snprintf(buf, PATH_MAX, "%s/releases/%s", base, file);
