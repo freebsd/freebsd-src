@@ -41,10 +41,20 @@
 .Sh NAME
 .Nm malloc ,
 .Nd general memory allocation function
+.Pp
+.Nm free
+.Nd free up memory allocated with malloc, calloc or realloc
+.Pp
+.Nm realloc
+.Nd reallocation of memory function
 .Sh SYNOPSIS
 .Fd #include <stdlib.h>
 .Ft void *
 .Fn malloc "size_t size"
+.Ft void
+.Fn free "void *ptr"
+.Ft void *
+.Fn realloc "void *ptr" "size_t size"
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -61,30 +71,124 @@ suitably aligned (after possible pointer
 coercion) for storage of any type of object. If the space is of
 .Em pagesize
 or larger, the memory returned will be page-aligned.
+.Pp
+The
+.Fn free
+function causes the space pointed to by
+.Fa ptr
+to be deallocated, that is, at least made available for further allocation,
+but if possible, it will passed back to the kernel with
+.Xr sbrk 2 .
+If
+.Fa ptr
+is a null pointer, no action occurs.
+.Pp
+The
+.Fn realloc
+function changes the size of the object pointed to by
+.Fa ptr
+to the size specified by
+.Fa size .
+The contents of the object are unchanged up to the lesser
+of the new and old sizes.
+If the new size is larger, the value of the newly allocated portion
+of the object is indeterminate.
+If
+.Fa ptr
+is a null pointer, the
+.Fn realloc
+function behaves like the
+.Fn malloc 
+function for the specified size.
+If the space cannot be allocated, the object 
+pointed to by
+.Fa ptr
+is unchanged.
+If
+.Fa size
+is zero and
+.Fa ptr
+is not a null pointer, the object it points to is freed.
+.Pp
+
+.Pp
+The default is to compile with the ``SANITY'' option,
+which trades a couple of percent of performance for rather rigorous 
+sanity checking of the arguments passed to
+.Xr free 
+and
+.Xr realloc .
+.Pp
+If compiled without the ``SANITY'' option and the argument does not 
+match a pointer earlier returned by the
+.Xr calloc ,
+.Xr malloc ,
+or
+.Xr realloc
+function, or if the space has been deallocated by a call to
+.Fn free
+or
+.Xr realloc ,
+general havoc will be imminent.
+.Sh ENVIRONMENT
+This malloc will check the environment for a variable called
+.Em MALLOC_OPTIONS
+and scan it for flags.
+Flags are single letters, uppercase means on, lowercase means off.
+.Bl -tag -width indent
+.It A
+``abort'' malloc will coredump the process, rather that tollerate failure.
+This is a very handy debugging aid, since the core file will represent the
+time of failure, rather than when the NULL pointer was accessed.
+.It D
+``dump'' malloc will dump statistics in a file called ``malloc.out'' at exit.
+.It R
+``realloc'' always reallocate when
+.Fn realloc
+is called, even if the initial allocation was big enough.
+This can substantially aid in compacting memory.
+.El
 .Sh RETURN VALUES
 The
 .Fn malloc
 function returns
 a pointer to the allocated space if successful; otherwise
 a null pointer is returned.
+.Pp
+The
+.Fn free
+function returns no value.
+.Pp
+The
+.Fn realloc
+function returns either a null pointer or a pointer
+to the possibly moved allocated space.
 .Sh SEE ALSO
 .Xr brk 2 ,
 .Xr pagesize 2 ,
-.Xr free 3 ,
 .Xr calloc 3 ,
 .Xr alloca 3 ,
-.Xr realloc 3 ,
 .Xr memory 3
 .Sh STANDARDS
 The
 .Fn malloc
 function conforms to
 .St -ansiC .
-.Sh BUGS
-The current implementation of
-.Xr malloc
-does not always fail gracefully when system
-memory limits are approached.
-It may fail to allocate memory when larger free blocks could be broken
-up, or when limits are exceeded because the size is rounded up.
-It is optimized for sizes that are powers of two.
+.Sh HISTORY
+The present implementation of malloc started out as a filesystem on a drum
+attached to a 20bit binary challenged computer built with discrete germanium
+transistors, and it has since graduated to handle primary storage rather than
+secondary.
+.Pp
+The main difference from other malloc implementations are belived to be that
+the free pages are not accessed until allocated.
+Most malloc implementations will store a data structure containing a, 
+possibly double-, linked list in the free chunks of memory, used to tie
+all the free memory together.
+That is a quite suboptimal thing to do.
+Every time the free-list is traversed, all the otherwise unused, and very
+likely paged out, pages get faulted into primary memory, just to see what
+lies after them in the list.
+.Pp
+On systems which are paging, this can make a factor five in difference on the
+pagefaults of a process.
