@@ -55,9 +55,7 @@ struct tseg_qent {
 };
 LIST_HEAD(tsegqe_head, tseg_qent);
 extern int	tcp_reass_qsize;
-#ifdef VM_UMA_H
-extern uma_zone_t tcp_reass_zone;
-#endif
+extern struct uma_zone *tcp_reass_zone;
 
 struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
