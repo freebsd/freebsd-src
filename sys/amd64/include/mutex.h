@@ -60,6 +60,8 @@ extern char STR_SIEN[];
 #define	ASS_IDIS	MPASS2((read_eflags() & PSL_I) == 0, STR_IDIS)
 #define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr & PSL_I, STR_SIEN)
 
+#define	mtx_legal2block()	(read_eflags() & PSL_I)
+
 /*
  * Assembly macros (for internal use only)
  *------------------------------------------------------------------------------
