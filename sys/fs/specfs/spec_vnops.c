@@ -421,9 +421,11 @@ spec_strategy(ap)
 	bp = ap->a_bp;
 	vp = ap->a_vp;
 	if ((bp->b_iocmd == BIO_WRITE)) {
-		if (vp->v_mount != NULL &&
-		    (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
+		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
+		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
+		    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
 			panic("spec_strategy: bad I/O");
+		bp->b_flags &= ~B_VALIDSUSPWRT;
 		if (LIST_FIRST(&bp->b_dep) != NULL)
 			buf_start(bp);
 		if ((vp->v_flag & VCOPYONWRITE) &&
