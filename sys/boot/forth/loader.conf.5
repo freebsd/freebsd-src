@@ -55,7 +55,7 @@ If no
 exists at installworld time, one with the above lines will be installed.
 .Sh SYNTAX
 Though
-.Nm loader.conf Ns No 's
+.Nm Ns 's
 format was defined explicitly to resemble
 .Xr rc.conf 5 ,
 and can be sourced by
@@ -135,7 +135,7 @@ which aborts the bootstrap process, use of this setting should be avoided.
 .El
 .Sh DEFAULT SETTINGS
 Most of
-.Nm loader.conf Ns No 's
+.Nm Ns 's
 default settings can be ignored. The few of them which are important
 or useful are:
 .Bl -tag -width bootfile -offset indent
@@ -181,14 +181,14 @@ be displayed.
 default settings -- do not change this file.
 .It Pa /boot/loader.4th
 defines the commands used by loader to read and process
-.Nm loader.conf .
+.Nm .
 .It Pa /boot/loader.conf
 user defined settings.
 .It Pa /boot/loader.conf.local
 machine-specific settings for sites with a common loader.conf.
 .It Pa /boot/loader.rc
 contains the instructions to automatically process
-.Nm loader.conf .
+.Nm .
 .El
 .Sh SEE ALSO
 .Xr boot 8 ,
