@@ -1525,7 +1525,7 @@ log_trim(const char *logname, const struct conf_entry *log_ent)
 		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
 		    daytime, hostname, (int) getpid(), xtra);
 	if (fclose(f) == EOF)
-		err(1, "log_trim: fclose:");
+		err(1, "log_trim: fclose");
 	return (0);
 }
 
