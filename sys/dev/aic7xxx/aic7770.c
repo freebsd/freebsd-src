@@ -29,22 +29,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7770.c#8 $
+ * $Id: //depot/src/aic7xxx/aic7770.c#12 $
  *
  * $FreeBSD$
  */
 
-#ifdef	__linux__
-#include "aic7xxx_linux.h"
-#include "aic7xxx_inline.h"
-#include "aic7xxx_93cx6.h"
-#endif
-
-#ifdef	__FreeBSD__
 #include <dev/aic7xxx/aic7xxx_freebsd.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
-#endif
 
 #define ID_AIC7770	0x04907770
 #define ID_AHA_274x	0x04907771
@@ -98,14 +90,12 @@ aic7770_find_device(uint32_t id)
 int
 aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 {
-	struct	ahc_probe_config probe_config;
 	int	error;
 	u_int	hostconf;
 	u_int   irq;
 	u_int	intdef;
 
-	ahc_init_probe_config(&probe_config);
-	error = entry->setup(ahc->dev_softc, &probe_config);
+	error = entry->setup(ahc);
 	if (error != 0)
 		return (error);
 
@@ -113,8 +103,8 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	if (error != 0)
 		return (error);
 
-	probe_config.description = entry->name;
-	error = ahc_softc_init(ahc, &probe_config);
+	ahc->description = entry->name;
+	error = ahc_softc_init(ahc);
 
 	error = ahc_reset(ahc);
 	if (error != 0)
@@ -139,11 +129,7 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	if ((intdef & EDGE_TRIG) != 0)
 		ahc->flags |= AHC_EDGE_INTERRUPT;
 
-	error = aic7770_map_int(ahc, irq);
-	if (error != 0)
-		return (error);
-
-	switch (probe_config.chip & (AHC_EISA|AHC_VL)) {
+	switch (ahc->chip & (AHC_EISA|AHC_VL)) {
 	case AHC_EISA:
 	{
 		u_int biosctrl;
@@ -212,10 +198,19 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	 */
 	ahc_softc_insert(ahc);
 
+	error = aic7770_map_int(ahc, irq);
+	if (error != 0)
+		return (error);
+
 	/*
 	 * Enable the board's BUS drivers
 	 */
 	ahc_outb(ahc, BCTL, ENABLE);
+
+	/*
+	 * Allow interrupts.
+	 */
+	ahc_intr_enable(ahc, TRUE);
 
 	return (0);
 }
@@ -315,34 +310,33 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 }
 
 static int
-ahc_aic7770_VL_setup(ahc_dev_softc_t dev, struct ahc_probe_config *probe_config)
+ahc_aic7770_VL_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7770_setup(dev, probe_config);
-	probe_config->chip |= AHC_VL;
+	error = ahc_aic7770_setup(ahc);
+	ahc->chip |= AHC_VL;
 	return (error);
 }
 
 static int
-ahc_aic7770_EISA_setup(ahc_dev_softc_t dev,
-		       struct ahc_probe_config *probe_config)
+ahc_aic7770_EISA_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7770_setup(dev, probe_config);
-	probe_config->chip |= AHC_EISA;
+	error = ahc_aic7770_setup(ahc);
+	ahc->chip |= AHC_EISA;
 	return (error);
 }
 
 static int
-ahc_aic7770_setup(ahc_dev_softc_t dev, struct ahc_probe_config *probe_config)
+ahc_aic7770_setup(struct ahc_softc *ahc)
 {
-	probe_config->channel = 'A';
-	probe_config->channel_b = 'B';
-	probe_config->chip = AHC_AIC7770;
-	probe_config->features = AHC_AIC7770_FE;
-	probe_config->bugs |= AHC_TMODE_WIDEODD_BUG;
-	probe_config->flags |= AHC_PAGESCBS;
+	ahc->channel = 'A';
+	ahc->channel_b = 'B';
+	ahc->chip = AHC_AIC7770;
+	ahc->features = AHC_AIC7770_FE;
+	ahc->bugs |= AHC_TMODE_WIDEODD_BUG;
+	ahc->flags |= AHC_PAGESCBS;
 	return (0);
 }

@@ -211,3 +211,5 @@ static driver_t ahc_eisa_driver = {
 static devclass_t ahc_devclass;
 
 DRIVER_MODULE(ahc, eisa, ahc_eisa_driver, ahc_devclass, 0, 0);
+MODULE_DEPEND(ahc_eisa, ahc, 1, 1, 1);
+MODULE_VERSION(ahc_eisa, 1);

@@ -49,6 +49,7 @@ static int     ahc_debug = AHC_DEBUG;
 #if UNUSED
 static void	ahc_dump_targcmd(struct target_cmd *cmd);
 #endif
+static int	ahc_modevent(module_t mod, int type, void *data);
 static void	ahc_action(struct cam_sim *sim, union ccb *ccb);
 static void	ahc_get_tran_settings(struct ahc_softc *ahc,
 				      int our_id, char channel,
@@ -288,6 +289,27 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 	}
 
 	if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO) {
+		struct cam_path *ccb_path;
+
+		/*
+		 * If we have finally disconnected, clean up our
+		 * pending device state.
+		 * XXX - There may be error states that cause where
+		 *       we will remain connected.
+		 */
+		ccb_path = ccb->ccb_h.path;
+		if (ahc->pending_device != NULL
+		 && xpt_path_comp(ahc->pending_device->path, ccb_path) == 0) {
+
+			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
+				ahc->pending_device = NULL;
+			} else {
+				xpt_print_path(ccb->ccb_h.path);
+				printf("Still disconnected\n");
+				ahc_freeze_ccb(ccb);
+			}
+		}
+
 		if (ahc_get_transaction_status(scb) == CAM_REQ_INPROG)
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
@@ -361,7 +383,7 @@ static void
 ahc_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	ahc_softc *ahc;
-	struct	tmode_lstate *lstate;
+	struct	ahc_tmode_lstate *lstate;
 	u_int	target_id;
 	u_int	our_id;
 	long	s;
@@ -378,7 +400,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
 	case XPT_CONT_TARGET_IO:/* Continue Host Target I/O Connection*/
 	{
-		struct	   tmode_tstate *tstate;
+		struct	   ahc_tmode_tstate *tstate;
 		cam_status status;
 
 		status = ahc_find_tmode_devs(ahc, sim, ccb, &tstate,
@@ -427,6 +449,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		  || ccb->ccb_h.func_code == XPT_RESET_DEV)) {
 			ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 			xpt_done(ccb);
+			return;
 		}
 
 		/*
@@ -470,10 +493,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 				struct target_data *tdata;
 
 				tdata = &hscb->shared_data.tdata;
-				if (ahc->pending_device == lstate) {
+				if (ahc->pending_device == lstate)
 					scb->flags |= SCB_TARGET_IMMEDIATE;
-					ahc->pending_device = NULL;
-				}
 				hscb->control |= TARGET_SCB;
 				tdata->target_phases = IDENTIFY_SEEN;
 				if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
@@ -481,6 +502,9 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 					tdata->scsi_status =
 					    ccb->csio.scsi_status;
 				}
+	 			if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT)
+					tdata->target_phases |= NO_DISCONNECT;
+
 				tdata->initiator_tag = ccb->csio.tag_id;
 			}
 			if (ccb->ccb_h.flags & CAM_TAG_ACTION_VALID)
@@ -493,8 +517,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_NOTIFY_ACK:
 	case XPT_IMMED_NOTIFY:
 	{
-		struct	   tmode_tstate *tstate;
-		struct	   tmode_lstate *lstate;
+		struct	   ahc_tmode_tstate *tstate;
+		struct	   ahc_tmode_lstate *lstate;
 		cam_status status;
 
 		status = ahc_find_tmode_devs(ahc, sim, ccb, &tstate,
@@ -528,7 +552,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		struct	ccb_trans_settings_scsi *scsi;
 		struct	ccb_trans_settings_spi *spi;
 		struct	ahc_initiator_tinfo *tinfo;
-		struct	tmode_tstate *tstate;
+		struct	ahc_tmode_tstate *tstate;
 		uint16_t *discenable;
 		uint16_t *tagenable;
 		u_int	update_type;
@@ -549,9 +573,9 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			update_type |= AHC_TRANS_GOAL;
 			discenable = &tstate->discenable;
 			tagenable = &tstate->tagenable;
-			tinfo->current.protocol_version =
+			tinfo->curr.protocol_version =
 			    cts->protocol_version;
-			tinfo->current.transport_version =
+			tinfo->curr.transport_version =
 			    cts->transport_version;
 			tinfo->goal.protocol_version =
 			    cts->protocol_version;
@@ -652,7 +676,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		struct	  ahc_devinfo devinfo;
 		struct	  ccb_trans_settings *cts;
 		struct	  ahc_initiator_tinfo *tinfo;
-		struct	  tmode_tstate *tstate;
+		struct	  ahc_tmode_tstate *tstate;
 		uint16_t *discenable;
 		uint16_t *tagenable;
 		u_int	  update_type;
@@ -754,7 +778,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			 && tinfo->user.transport_version >= 3) {
 				tinfo->goal.transport_version =
 				    tinfo->user.transport_version;
-				tinfo->current.transport_version =
+				tinfo->curr.transport_version =
 				    tinfo->user.transport_version;
 			}
 			
@@ -895,7 +919,7 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 	struct	ccb_trans_settings_scsi *scsi;
 	struct	ccb_trans_settings_spi *spi;
 	struct	ahc_initiator_tinfo *targ_info;
-	struct	tmode_tstate *tstate;
+	struct	ahc_tmode_tstate *tstate;
 	struct	ahc_transinfo *tinfo;
 
 	scsi = &cts->proto_specific.scsi;
@@ -909,7 +933,7 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 					devinfo.target, &tstate);
 	
 	if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
-		tinfo = &targ_info->current;
+		tinfo = &targ_info->curr;
 	else
 		tinfo = &targ_info->user;
 	
@@ -954,7 +978,7 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 #else
 	struct	ahc_devinfo devinfo;
 	struct	ahc_initiator_tinfo *targ_info;
-	struct	tmode_tstate *tstate;
+	struct	ahc_tmode_tstate *tstate;
 	struct	ahc_transinfo *tinfo;
 	long	s;
 
@@ -967,7 +991,7 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 					devinfo.target, &tstate);
 	
 	if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
-		tinfo = &targ_info->current;
+		tinfo = &targ_info->curr;
 	else
 		tinfo = &targ_info->user;
 	
@@ -1051,7 +1075,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	union	ccb *ccb;
 	struct	ahc_softc *ahc;
 	struct	ahc_initiator_tinfo *tinfo;
-	struct	tmode_tstate *tstate;
+	struct	ahc_tmode_tstate *tstate;
 	u_int	mask;
 	long	s;
 
@@ -1082,9 +1106,12 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		/* Copy the segments into our SG list */
 		sg = scb->sg_list;
 		while (dm_segs < end_seg) {
-			sg->addr = dm_segs->ds_addr;
-/* XXX Add in the 5th byte of the address later. */
-			sg->len = dm_segs->ds_len;
+			uint32_t len;
+
+			sg->addr = ahc_htole32(dm_segs->ds_addr);
+			len = dm_segs->ds_len
+			    | ((dm_segs->ds_addr >> 8) & 0x7F000000);
+			sg->len = ahc_htole32(len);
 			sg++;
 			dm_segs++;
 		}
@@ -1095,7 +1122,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		 * sequencer will clear as soon as a data transfer
 		 * occurs.
 		 */
-		scb->hscb->sgptr = scb->sg_list_phys | SG_FULL_RESID;
+		scb->hscb->sgptr = ahc_htole32(scb->sg_list_phys|SG_FULL_RESID);
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_PREREAD;
@@ -1141,13 +1168,13 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 					xpt_done(ccb);
 					return;
 				}
-				sg->addr = ahc->dma_bug_buf;
-				sg->len = 1;
+				sg->addr = ahc_htole32(ahc->dma_bug_buf);
+				sg->len = ahc_htole32(1);
 				sg++;
 			}
 		}
 		sg--;
-		sg->len |= AHC_DMA_LAST_SEG;
+		sg->len |= ahc_htole32(AHC_DMA_LAST_SEG);
 
 		/* Copy the first SG into the "current" data pointer area */
 		scb->hscb->dataptr = scb->sg_list->addr;
@@ -1183,10 +1210,10 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 	mask = SCB_GET_TARGET_MASK(ahc, scb);
 	scb->hscb->scsirate = tinfo->scsirate;
-	scb->hscb->scsioffset = tinfo->current.offset;
+	scb->hscb->scsioffset = tinfo->curr.offset;
 	if ((tstate->ultraenb & mask) != 0)
 		scb->hscb->control |= ULTRAENB;
-		
+
 	if ((tstate->discenable & mask) != 0
 	 && (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) == 0)
 		scb->hscb->control |= DISCENB;
@@ -1196,6 +1223,9 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	  || tinfo->goal.period != 0
 	  || tinfo->goal.ppr_options != 0)) {
 		scb->flags |= SCB_NEGOTIATE;
+		scb->hscb->control |= MK_MESSAGE;
+	} else if ((tstate->auto_negotiate & mask) != 0) {
+		scb->flags |= SCB_AUTO_NEGOTIATE;
 		scb->hscb->control |= MK_MESSAGE;
 	}
 
@@ -1239,6 +1269,8 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	scb->flags |= SCB_ACTIVE;
 
 	if ((scb->flags & SCB_TARGET_IMMEDIATE) != 0) {
+		/* Define a mapping from our tag to the SCB. */
+		ahc->scb_data->scbindex[scb->hscb->tag] = scb;
 		ahc_pause(ahc);
 		if ((ahc->flags & AHC_PAGESCBS) == 0)
 			ahc_outb(ahc, SCBPTR, scb->hscb->tag);
@@ -1268,6 +1300,8 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 	hscb = scb->hscb;
 	ccb_h = &csio->ccb_h;
 	
+	csio->resid = 0;
+	csio->sense_resid = 0;
 	if (ccb_h->func_code == XPT_SCSI_IO) {
 		hscb->cdb_len = csio->cdb_len;
 		if ((ccb_h->flags & CAM_CDB_POINTER) != 0) {
@@ -1433,27 +1467,9 @@ ahc_timeout(void *arg)
 	lun = SCB_GET_LUN(scb);
 
 	ahc_print_path(ahc, scb);
-	printf("SCB 0x%x - timed out ", scb->hscb->tag);
-	/*
-	 * Take a snapshot of the bus state and print out
-	 * some information so we can track down driver bugs.
-	 */
-	last_phase = ahc_inb(ahc, LASTPHASE);
-
-	printf("%s", ahc_lookup_phase_entry(last_phase)->phasemsg);
-
-	printf(", SEQADDR == 0x%x\n",
-	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
-
-	printf("STACK == 0x%x, 0x%x, 0x%x, 0x%x\n",
-		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8),
-		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8),
-		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8),
-		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8));
-
-	printf("SXFRCTL0 == 0x%x\n", ahc_inb(ahc, SXFRCTL0));
-
+	printf("SCB 0x%x - timed out\n", scb->hscb->tag);
 	ahc_dump_card_state(ahc);
+	last_phase = ahc_inb(ahc, LASTPHASE);
 	if (scb->sg_count > 0) {
 		for (i = 0; i < scb->sg_count; i++) {
 			printf("sg[%d] - Addr 0x%x : Length %d\n",
@@ -1683,8 +1699,8 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 	case XPT_IMMED_NOTIFY:
 	case XPT_CONT_TARGET_IO:
 	{
-		struct tmode_tstate *tstate;
-		struct tmode_lstate *lstate;
+		struct ahc_tmode_tstate *tstate;
+		struct ahc_tmode_lstate *lstate;
 		struct ccb_hdr_slist *list;
 		cam_status status;
 
@@ -1757,7 +1773,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 
 void
 ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
-		u_int lun, ac_code code)
+		u_int lun, ac_code code, void *opt_arg)
 {
 	struct	ccb_trans_settings cts;
 	struct cam_path *path;
@@ -1772,8 +1788,12 @@ ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
 
 	switch (code) {
 	case AC_TRANSFER_NEG:
+	{
 #ifdef AHC_NEW_TRAN_SETTINGS
+		struct	ccb_trans_settings_scsi *scsi;
+	
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		scsi = &cts.proto_specific.scsi;
 #else
 		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
 #endif
@@ -1784,7 +1804,25 @@ ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
 							  : ahc->our_id_b,
 				      channel, &cts);
 		arg = &cts;
+#ifdef AHC_NEW_TRAN_SETTINGS
+		scsi->valid &= ~CTS_SCSI_VALID_TQ;
+		scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+#else
+		cts.valid &= ~CCB_TRANS_TQ_VALID;
+		cts.flags &= ~CCB_TRANS_TAG_ENB;
+#endif
+		if (opt_arg == NULL)
+			break;
+		if (*((ahc_queue_alg *)opt_arg) == AHC_QUEUE_TAGGED)
+#ifdef AHC_NEW_TRAN_SETTINGS
+			scsi->flags |= ~CTS_SCSI_FLAGS_TAG_ENB;
+		scsi->valid |= CTS_SCSI_VALID_TQ;
+#else
+			cts.flags |= CCB_TRANS_TAG_ENB;
+		cts.valid |= CCB_TRANS_TQ_VALID;
+#endif
 		break;
+	}
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 		break;
@@ -1818,7 +1856,6 @@ ahc_platform_free(struct ahc_softc *ahc)
 
 	pdata = ahc->platform_data;
 	if (pdata != NULL) {
-		device_printf(ahc->dev_softc, "Platform free\n");
 		if (pdata->regs != NULL)
 			bus_release_resource(ahc->dev_softc,
 					     pdata->regs_res_type,
@@ -1897,3 +1934,20 @@ ahc_dump_targcmd(struct target_cmd *cmd)
 	}
 }
 #endif
+
+static int
+ahc_modevent(module_t mod, int type, void *data)
+{
+	/* XXX Deal with busy status on unload. */
+	return 0;
+}
+  
+static moduledata_t ahc_mod = {
+	"ahc",
+	ahc_modevent,
+	NULL
+};
+
+DECLARE_MODULE(ahc, ahc_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_DEPEND(ahc, cam, 1, 1, 1);
+MODULE_VERSION(ahc, 1);
