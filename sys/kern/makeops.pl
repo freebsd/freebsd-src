@@ -36,7 +36,7 @@
 # Process the command line
 #
 while ( $arg = shift @ARGV ) {
-   if ( $arg =~ m/-.*/ ) {
+   if ( $arg =~ m/^-.*/ ) {
       push @args, $arg;
    } elsif ( $arg =~ m/\.m$/ ) {
       push @filenames, $arg;
