@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.24 1997/12/13 02:37:23 brian Exp $
+ * $Id: fsm.c,v 1.25 1997/12/24 09:28:58 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -724,18 +724,24 @@ FsmRecvTimeRemain(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 static void
 FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
-  LogPrintf(fp->LogLevel, "RecvResetReq\n");
+  LogPrintf(fp->LogLevel, "RecvResetReq(%d)\n", lhp->id);
   CcpRecvResetReq(fp);
-  LogPrintf(fp->LogLevel, "SendResetAck\n");
-  FsmOutput(fp, CODE_RESETACK, fp->reqid, NULL, 0);
+  /*
+   * All sendable compressed packets are queued in the PRI_NORMAL modem
+   * output queue.... dump 'em to the priority queue so that they arrive
+   * at the peer before our ResetAck.
+   */
+  SequenceQueues();
+  LogPrintf(fp->LogLevel, "SendResetAck(%d)\n", lhp->id);
+  FsmOutput(fp, CODE_RESETACK, lhp->id, NULL, 0);
   pfree(bp);
 }
 
 static void
 FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
-  LogPrintf(fp->LogLevel, "RecvResetAck\n");
-  CcpResetInput();
+  LogPrintf(fp->LogLevel, "RecvResetAck(%d)\n", lhp->id);
+  CcpResetInput(lhp->id);
   fp->reqid++;
   pfree(bp);
 }

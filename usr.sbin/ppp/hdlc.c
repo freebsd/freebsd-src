@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.25 1997/12/24 09:29:00 brian Exp $
+ * $Id: hdlc.c,v 1.26 1998/01/06 00:58:31 brian Exp $
  *
  *	TODO:
  */
@@ -223,12 +223,13 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     LqrChangeOrder(lqr, (struct lqrdata *) (MBUF_CTOP(bp)));
   }
   if (!DEV_IS_SYNC) {
-    fcs = HdlcFcs(INITFCS, MBUF_CTOP(mhp), mhp->cnt);
-    fcs = HdlcFcs(fcs, MBUF_CTOP(bp), bp->cnt);
+    mfcs->cnt = 0;
+    fcs = HdlcFcsBuf(INITFCS, mhp);
     fcs = ~fcs;
     cp = MBUF_CTOP(mfcs);
     *cp++ = fcs & 0377;		/* Low byte first!! */
     *cp++ = fcs >> 8;
+    mfcs->cnt = 2;
   }
   LogDumpBp(LogHDLC, "HdlcOutput", mhp);
   for (statp = ProtocolStat; statp->number; statp++)
@@ -381,11 +382,11 @@ DecodePacket(u_short proto, struct mbuf * bp)
    * If proto isn't PROTO_COMPD, we still want to pass it to the
    * decompression routines so that the dictionary's updated
    */
-  if (proto == PROTO_COMPD) {
-    if ((bp = CompdInput(&proto, bp)) == NULL)
-      return;
-  } else if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
-    if (CcpFsm.state == ST_OPENED)
+  if (CcpFsm.state == ST_OPENED)
+    if (proto == PROTO_COMPD) {
+      if ((bp = CompdInput(&proto, bp)) == NULL)
+        return;
+    } else if ((proto & 0xfff1) == 0x21)	/* Network Layer protocol */
       CcpDictSetup(proto, bp);
 
   switch (proto) {
