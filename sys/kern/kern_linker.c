@@ -700,10 +700,8 @@ kldload(struct thread *td, struct kldload_args *uap)
 
 	mtx_lock(&Giant);
 
-	if (securelevel_gt(td->td_ucred, 0) == 0) {
-		error = EPERM;
+	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		goto out;
-	}
 
 	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
 		goto out;
@@ -749,10 +747,8 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 
 	mtx_lock(&Giant);
 
-	if (securelevel_gt(td->td_ucred, 0) == 0) {
-		error = EPERM;
+	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		goto out;
-	}
 
 	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
 		goto out;
