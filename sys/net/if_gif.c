@@ -84,21 +84,12 @@
 #define GIFNAME		"gif"
 
 /*
- * gif_mtx protects the global gif_softc_list, and access to gif_called.
- * XXX: See comment blow on gif_called.
+ * gif_mtx protects the global gif_softc_list.
  * XXX: Per-softc locking is still required.
  */
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static LIST_HEAD(, gif_softc) gif_softc_list;
-
-/*
- * XXX: gif_called is a recursion counter to prevent misconfiguration to
- * cause unbounded looping in the network stack.  However, this is a flawed
- * approach as it assumes non-reentrance in the stack.  This should be
- * changed to use packet tags to track recusion..
- */
-static int gif_called = 0;
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
 void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
@@ -347,7 +338,9 @@ gif_output(ifp, m, dst, rt)
 	struct rtentry *rt;	/* added in net2 */
 {
 	struct gif_softc *sc = (struct gif_softc*)ifp;
+	struct m_tag *mtag;
 	int error = 0;
+	int gif_called;
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -359,14 +352,26 @@ gif_output(ifp, m, dst, rt)
 
 	/*
 	 * gif may cause infinite recursion calls when misconfigured.
+	 * We'll prevent this by detecting loops.
+	 *
+	 * High nesting level may cause stack exhaustion.
 	 * We'll prevent this by introducing upper limit.
-	 * XXX: this mechanism may introduce another problem about
-	 *      mutual exclusion of the variable CALLED, especially if we
-	 *      use kernel thread.
 	 */
-	mtx_lock(&gif_mtx);
-	if (++gif_called > max_gif_nesting) {
-		mtx_unlock(&gif_mtx);
+	gif_called = 1;
+	mtag = m_tag_locate(m, MTAG_GIF, MTAG_GIF_CALLED, NULL);
+	while (mtag != NULL) {
+		if (*(struct ifnet **)(mtag + 1) == ifp) {
+			log(LOG_NOTICE,
+			    "gif_output: loop detected on %s\n",
+			    (*(struct ifnet **)(mtag + 1))->if_xname);
+			m_freem(m);
+			error = EIO;	/* is there better errno? */
+			goto end;
+		}
+		mtag = m_tag_locate(m, MTAG_GIF, MTAG_GIF_CALLED, mtag);
+		gif_called++;
+	}
+	if (gif_called > max_gif_nesting) {
 		log(LOG_NOTICE,
 		    "gif_output: recursively called too many times(%d)\n",
 		    gif_called);
@@ -374,7 +379,15 @@ gif_output(ifp, m, dst, rt)
 		error = EIO;	/* is there better errno? */
 		goto end;
 	}
-	mtx_unlock(&gif_mtx);
+	mtag = m_tag_alloc(MTAG_GIF, MTAG_GIF_CALLED, sizeof(struct ifnet *),
+	    M_NOWAIT);
+	if (mtag == NULL) {
+		m_freem(m);
+		error = ENOMEM;
+		goto end;
+	}
+	*(struct ifnet **)(mtag + 1) = ifp;
+	m_tag_prepend(m, mtag);
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	if (!(ifp->if_flags & IFF_UP) ||
@@ -414,9 +427,6 @@ gif_output(ifp, m, dst, rt)
 	}
 
   end:
-	mtx_lock(&gif_mtx);
-	gif_called = 0;		/* reset recursion counter */
-	mtx_unlock(&gif_mtx);
 	if (error)
 		ifp->if_oerrors++;
 	return error;
