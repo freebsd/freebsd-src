@@ -569,7 +569,7 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	} while (0);
 
 	/* Success or failure, we can close our provider now. */
-	error = g_access(cp, -1, 0, 0);
+	g_access(cp, -1, 0, 0);
 
 	/* If we have configured any providers, return the new geom. */
 	if (gsp->nprovider > 0) {
