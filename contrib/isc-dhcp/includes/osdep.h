@@ -107,7 +107,7 @@
 #  include "cf/sco.h"
 #endif
 
-#ifdef hpux
+#if defined (hpux) || defined (__hpux)
 #  include "cf/hpux.h"
 #endif
 
@@ -210,7 +210,9 @@
 
 #if defined (USE_RAW_RECEIVE) || defined (USE_BPF_SEND) || \
 		defined (USE_NIT_RECEIVE) || defined (USE_UPF_RECEIVE) || \
-		defined (USE_DLPI_RECEIVE) || defined (USE_LPF_RECEIVE)
+		defined (USE_DLPI_RECEIVE) || \
+    defined (USE_LPF_SEND) || \
+    (defined (USE_SOCKET_SEND) && defined (SO_BINDTODEVICE))
 #  define PACKET_DECODING
 #endif
 
