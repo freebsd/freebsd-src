@@ -11,7 +11,7 @@ LIB=c_r
 SHLIB_MAJOR= 5
 CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/uthread \
-	-I${.CURDIR}/../../include
+	-I${.CURDIR}/../../include -I${.CURDIR}/../libc/${MACHINE_ARCH}
 
 # Uncomment this if you want libc_r to contain debug information for
 # thread locking.
