@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.108 1999/05/02 23:57:16 alc Exp $
+ *	$Id: vnode_pager.c,v 1.109 1999/05/06 20:00:34 phk Exp $
  */
 
 /*
@@ -768,7 +768,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		nextoff = tfoff + PAGE_SIZE;
 		mt = m[i];
 
-		if (nextoff <= size) {
+		if (nextoff <= object->un_pager.vnp.vnp_size) {
 			/*
 			 * Read filled up entire page.
 			 */
@@ -786,7 +786,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * we just try to clear the piece that we couldn't
 			 * read.
 			 */
-			vm_page_set_validclean(mt, 0, size - tfoff);
+			vm_page_set_validclean(mt, 0,
+			    object->un_pager.vnp.vnp_size - tfoff);
 			/* handled by vm_fault now */
 			/* vm_page_zero_invalid(mt, FALSE); */
 		}
