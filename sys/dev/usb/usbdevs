@@ -87,6 +87,7 @@ vendor MELCO		0x0411	Melco
 vendor CREATIVE		0x041e	Creative
 vendor ADI		0x0422	ADI Systems
 vendor CATC		0x0423	Computer Access Technology
+vendor SMC2		0x0424	Standard Microsystems
 vendor GRAVIS		0x0428	Advanced Gravis Computer Tech.
 vendor SUN		0x0430	Sun Microsystems
 vendor TAUGA		0x0436  Taugagreining HF
@@ -941,6 +942,8 @@ product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet adapter
 /* SMC products */
 product SMC 2102USB		0x0100	10Mbps ethernet adapter
 product SMC 2202USB		0x0200	10/100 ethernet adapter
+
+product SMC2 2020HUB		0x2020	USB Hub
 
 /* SOLID YEAR products */
 product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
