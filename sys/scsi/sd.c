@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.85 1996/03/02 18:24:13 peter Exp $
+ *      $Id: sd.c,v 1.86 1996/03/10 07:13:12 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -84,8 +84,9 @@ struct scsi_data {
 	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
 #ifdef	DEVFS
-	void	*c_devfs_token;
 	void	*b_devfs_token;
+	void	*c_devfs_token;
+	void	*ctl_devfs_token;
 #endif
 };
 
@@ -195,7 +196,6 @@ sdattach(struct scsi_link *sc_link)
 	struct disk_parms *dp;
 #ifdef DEVFS
 	int	mynor;
-	char	name[32];
 #endif
 
 	struct scsi_data *sd = sc_link->sd;
@@ -239,11 +239,18 @@ sdattach(struct scsi_link *sc_link)
 
 #ifdef DEVFS
 	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-	sprintf(name, "rsd%d", unit);
-	sd->b_devfs_token = devfs_add_devsw("/", name + 1, &sd_bdevsw, mynor,
-					    DV_BLK, 0, 0, 0640);
-	sd->c_devfs_token = devfs_add_devsw("/", name, &sd_cdevsw, mynor,
-					    DV_CHR, 0, 0, 0640);
+	sd->b_devfs_token = devfs_add_devswf(&sd_bdevsw, mynor, DV_BLK,
+					     UID_ROOT, GID_OPERATOR, 0640,
+					     "sd%d", unit);
+	sd->c_devfs_token = devfs_add_devswf(&sd_cdevsw, mynor, DV_CHR,
+					     UID_ROOT, GID_OPERATOR, 0640,
+					     "rsd%d", unit);
+	mynor = dkmakeminor(unit, 0, 0);	/* XXX */
+	sd->ctl_devfs_token = devfs_add_devswf(&sd_cdevsw,
+					       mynor | SCSI_CONTROL_MASK,
+					       DV_CHR,
+					       UID_ROOT, GID_WHEEL, 0600,
+					       "rsd%d.ctl", unit);
 #endif
 
 	return 0;

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.62 1996/02/19 09:36:23 julian Exp $
+ * $Id: st.c,v 1.63 1996/03/10 07:13:14 gibbs Exp $
  */
 
 /*
@@ -136,24 +136,25 @@ struct scsi_data {
 	struct {
 		void	*rst;
 		void	*nrst;
-		void	*enrst;
+		void	*erst;
 	/* end of aliases */
 		void	*rst_0;
 		void	*nrst_0;
-		void	*enrst_0;
+		void	*erst_0;
 		void	*ctl_0;
 		void	*rst_1;
 		void	*nrst_1;
-		void	*enrst_1;
+		void	*erst_1;
 		void	*ctl_1;
 		void	*rst_2;
 		void	*nrst_2;
-		void	*enrst_2;
+		void	*erst_2;
 		void	*ctl_2;
 		void	*rst_3;
 		void	*nrst_3;
-		void	*enrst_3;
+		void	*erst_3;
 		void	*ctl_3;
+		void	*ctl;
 	} devfs_token;
 #endif
 };
@@ -316,8 +317,9 @@ stattach(struct scsi_link *sc_link)
 	st->flags |= ST_INITIALIZED;
 	st_registerdev(unit);
 #ifdef	DEVFS
-#define ST_GID 13
-#define ST_UID 0
+/* XXX use these directly and change to devsw_add_devswf(). */
+#define ST_GID	GID_OPERATOR
+#define ST_UID	UID_ROOT
 	sprintf(name,"rst%ld.0",unit);
 	st->devfs_token.rst_0 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 0,
@@ -326,8 +328,8 @@ stattach(struct scsi_link *sc_link)
 	st->devfs_token.nrst_0 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 1,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%ld.0",unit);
-	st->devfs_token.enrst_0 = devfs_add_devsw( "/tape", name,
+	sprintf(name,"erst%ld.0",unit);
+	st->devfs_token.erst_0 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 2,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
 	sprintf(name,"st%ldctl.0",unit);
@@ -342,8 +344,8 @@ stattach(struct scsi_link *sc_link)
 	st->devfs_token.nrst_1 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 5,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%ld.1",unit);
-	st->devfs_token.enrst_1 = devfs_add_devsw( "/tape", name,
+	sprintf(name,"erst%ld.1",unit);
+	st->devfs_token.erst_1 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 6,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
 	sprintf(name,"st%ldctl.1",unit);
@@ -358,8 +360,8 @@ stattach(struct scsi_link *sc_link)
 	st->devfs_token.nrst_2 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 9,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%ld.2",unit);
-	st->devfs_token.enrst_2 = devfs_add_devsw( "/tape", name,
+	sprintf(name,"erst%ld.2",unit);
+	st->devfs_token.erst_2 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 10,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
 	sprintf(name,"st%ldctl.2",unit);
@@ -374,21 +376,26 @@ stattach(struct scsi_link *sc_link)
 	st->devfs_token.nrst_3 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 13,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%ld.3",unit);
-	st->devfs_token.enrst_3 = devfs_add_devsw( "/tape", name,
+	sprintf(name,"erst%ld.3",unit);
+	st->devfs_token.erst_3 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 14,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
 	sprintf(name,"st%ldctl.3",unit);
 	st->devfs_token.ctl_3 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 15,
 					DV_CHR,	ST_UID, ST_GID, 0600 );
+	st->devfs_token.ctl = devfs_add_devswf(&st_cdevsw,
+					       (unit << 4 ) | SCSI_CONTROL_MASK,
+					       DV_CHR,
+					       UID_ROOT, GID_WHEEL, 0600,
+					       "rst%d.ctl", unit);
 	/** add links **/
 	sprintf(name,"rst%ld",unit);
 	st->devfs_token.rst = dev_link( "/", name, st->devfs_token.rst_0);
 	sprintf(name,"nrst%ld",unit);
 	st->devfs_token.nrst = dev_link( "/", name, st->devfs_token.nrst_0);
-	sprintf(name,"enrst%ld",unit);
-	st->devfs_token.enrst = dev_link( "/", name, st->devfs_token.enrst_0);
+	sprintf(name,"erst%ld",unit);
+	st->devfs_token.erst = dev_link( "/", name, st->devfs_token.erst_0);
 #endif
 	return 0;
 }
