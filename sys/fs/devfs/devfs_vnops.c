@@ -38,7 +38,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/vmmeter.h>
 #include <sys/time.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
@@ -48,7 +47,6 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
-#include <sys/resource.h>
 #include <sys/eventhandler.h>
 
 #define DEVFS_INTERN
@@ -222,13 +220,15 @@ devfs_access(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	mode_t amode = ap->a_mode;
-	struct devfs_dirent *de = vp->v_data;
-	mode_t fmode = de->de_mode;
+	struct devfs_dirent *de;
+	struct devfs_dir *dd;
 
-	/* Some files are simply not modifiable. */
-	if ((amode & VWRITE) && (fmode & (S_IWUSR|S_IWGRP|S_IWOTH)) == 0)
-		return (EPERM);
+	if (vp->v_type == VDIR) {
+		dd = vp->v_data;
+		de = TAILQ_FIRST(&dd->dd_list);
+	} else {
+		de = vp->v_data;
+	}
 
 	return (vaccess(vp->v_type, de->de_mode, de->de_uid, de->de_gid,
 	    ap->a_mode, ap->a_cred));
