@@ -51,7 +51,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.4.10";
+char em_driver_version[] = "1.5.31";
 
 
 /*********************************************************************
@@ -63,6 +63,7 @@ char em_driver_version[] = "1.4.10";
  *
  *  { Vendor ID, Device ID, SubVendor ID, SubDevice ID, String Index }
  *********************************************************************/
+
 static em_vendor_info_t em_vendor_info_array[] =
 {
         /* Intel(R) PRO/1000 Network Connection */
@@ -78,10 +79,15 @@ static em_vendor_info_t em_vendor_info_array[] =
         { 0x8086, 0x1010, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x1013, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x1014, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1015, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1016, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1017, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x101E, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x1018, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x1019, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x101A, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, 0x101E, PCI_ANY_ID, PCI_ANY_ID, 0},
         /* required last entry */
         { 0, 0, 0, 0, 0}
 };
@@ -103,7 +109,7 @@ static int  em_detach(device_t);
 static int  em_shutdown(device_t);
 static void em_intr(void *);
 static void em_start(struct ifnet *);
-static int  em_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
+static int  em_ioctl(struct ifnet *, u_long, caddr_t);
 static void em_watchdog(struct ifnet *);
 static void em_init(void *);
 static void em_stop(void *);
@@ -129,7 +135,7 @@ static int  em_allocate_receive_structures(struct adapter *);
 static int  em_allocate_transmit_structures(struct adapter *);
 static void em_process_receive_interrupts(struct adapter *, int);
 static void em_receive_checksum(struct adapter *, 
-				struct em_rx_desc * rx_desc,
+				struct em_rx_desc *,
 				struct mbuf *);
 static void em_transmit_checksum_setup(struct adapter *,
 				       struct mbuf *,
@@ -142,8 +148,13 @@ static void em_print_hw_stats(struct adapter *);
 static void em_print_link_status(struct adapter *);
 static int  em_get_buf(int i, struct adapter *,
 		       struct mbuf *);
-static void em_enable_vlans(struct adapter *adapter);
-static int  em_encap(struct adapter *adapter, struct mbuf *m_head);
+static void em_enable_vlans(struct adapter *);
+static int  em_encap(struct adapter *, struct mbuf *);
+static void em_smartspeed(struct adapter *);
+static int  em_82547_fifo_workaround(struct adapter *, int);
+static void em_82547_update_fifo_head(struct adapter *, int);
+static int  em_82547_tx_fifo_reset(struct adapter *);
+static void em_82547_move_tail(void *arg);
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points                    
@@ -254,6 +265,7 @@ em_attach(device_t dev)
 	em_adapter_list = adapter;
 
 	callout_handle_init(&adapter->timer_handle);
+	callout_handle_init(&adapter->tx_fifo_timer_handle);
 
 	/* Determine hardware revision */
 	em_identify_hardware(adapter);
@@ -271,30 +283,33 @@ em_attach(device_t dev)
         adapter->hw.tbi_compatibility_en = TRUE;
         adapter->rx_buffer_len = EM_RXBUFFER_2048;
                         
+	/* These parameters control the automatic generation(Tx) and 
+	 * response(Rx) to Ethernet PAUSE frames.
+	 */
         adapter->hw.fc_high_water = FC_DEFAULT_HI_THRESH;
         adapter->hw.fc_low_water  = FC_DEFAULT_LO_THRESH;
         adapter->hw.fc_pause_time = FC_DEFAULT_TX_TIMER;
         adapter->hw.fc_send_xon   = TRUE;
         adapter->hw.fc = em_fc_full;
 
+	adapter->hw.phy_init_script = 1;
 
-	/* Set the max frame size assuming standard ethernet sized frames */   
+	/* 
+	 * Set the max frame size assuming standard ethernet 
+	 * sized frames 
+	 */   
 	adapter->hw.max_frame_size = 
 		ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 	adapter->hw.min_frame_size = 
 		MINIMUM_ETHERNET_PACKET_SIZE + ETHER_CRC_LEN;
 
-	/* This controls when hardware reports transmit completion status. */
-	if ((EM_REPORT_TX_EARLY == 0) || (EM_REPORT_TX_EARLY == 1)) {
-		adapter->hw.report_tx_early = EM_REPORT_TX_EARLY;
-	} else {
-		if (adapter->hw.mac_type < em_82543) {
-			adapter->hw.report_tx_early = 0;
-		} else {
-			adapter->hw.report_tx_early = 1;
-		}
-	}
+	/* 
+	 * This controls when hardware reports transmit completion 
+	 * status. 
+	 */
+	adapter->hw.report_tx_early = 1;
+
 
 	if (em_allocate_pci_resources(adapter)) {
 		printf("em%d: Allocation of PCI resources failed\n", 
@@ -305,6 +320,9 @@ em_attach(device_t dev)
 	}
   
 	
+	/* Initialize eeprom parameters */
+        em_init_eeprom_params(&adapter->hw);
+
 	tsize = EM_ROUNDUP(adapter->num_tx_desc *
 			   sizeof(struct em_tx_desc), 4096);
 
@@ -347,11 +365,15 @@ em_attach(device_t dev)
 	if (em_read_mac_addr(&adapter->hw) < 0) {
 		printf("em%d: EEPROM read error while reading mac address\n",
 		       adapter->unit);
+		em_free_pci_resources(adapter);
+		contigfree(adapter->tx_desc_base, tsize, M_DEVBUF);
+		contigfree(adapter->rx_desc_base, rsize, M_DEVBUF);
+		splx(s);
 		return(EIO);
 	}
 
-	memcpy(adapter->interface_data.ac_enaddr, adapter->hw.mac_addr,
-	       ETH_LENGTH_OF_ADDRESS);
+	bcopy(adapter->hw.mac_addr, adapter->interface_data.ac_enaddr,
+	      ETHER_ADDR_LEN);
 
 	/* Setup OS specific network interface */
 	em_setup_interface(dev, adapter);
@@ -372,7 +394,6 @@ em_attach(device_t dev)
 		       adapter->link_duplex == FULL_DUPLEX ? "Full" : "Half");
 	} else
 		printf("em%d:  Speed:N/A  Duplex:N/A\n", adapter->unit);
-
 
 	INIT_DEBUGOUT("em_attach: end");
 	splx(s);
@@ -403,9 +424,9 @@ em_detach(device_t dev)
 	em_stop(adapter);
 	em_phy_hw_reset(&adapter->hw);
 #if __FreeBSD_version < 500000
-	ether_ifdetach(&adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
+        ether_ifdetach(&adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
 #else
-	ether_ifdetach(&adapter->interface_data.ac_if);
+        ether_ifdetach(&adapter->interface_data.ac_if);
 #endif
 	em_free_pci_resources(adapter);
 
@@ -470,10 +491,10 @@ em_shutdown(device_t dev)
 static void
 em_start(struct ifnet *ifp)
 {
-        int             s; 
+        int             s;
         struct mbuf    *m_head;
         struct adapter *adapter = ifp->if_softc;
-        
+
         if (!adapter->link_active)
                 return;
 
@@ -484,14 +505,13 @@ em_start(struct ifnet *ifp)
                 
                 if (m_head == NULL) break;
                         
-                if (em_encap(adapter, m_head)) { 
-                        ifp->if_flags |= IFF_OACTIVE;
-                        IF_PREPEND(&ifp->if_snd, m_head);
-                        break;
+		if (em_encap(adapter, m_head)) { 
+			ifp->if_flags |= IFF_OACTIVE;
+			IF_PREPEND(&ifp->if_snd, m_head);
+			break;
                 }
 
-
-                /* Send a copy of the frame to the BPF listener */
+		/* Send a copy of the frame to the BPF listener */
 #if __FreeBSD_version < 500000
                 if (ifp->if_bpf)
                         bpf_mtap(ifp, m_head);
@@ -517,7 +537,7 @@ em_start(struct ifnet *ifp)
  **********************************************************************/
 
 static int
-em_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
+em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	int             s, mask, error = 0;
 	struct ifreq   *ifr = (struct ifreq *) data;
@@ -544,14 +564,11 @@ em_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
 	case SIOCSIFFLAGS:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC) {
-				em_set_promisc(adapter);
-			} else if (ifp->if_flags & IFF_RUNNING &&
-				   !(ifp->if_flags & IFF_PROMISC)) {
-				em_disable_promisc(adapter);
-			} else
+			if (!(ifp->if_flags & IFF_RUNNING))
 				em_init(adapter);
+
+			em_disable_promisc(adapter);
+			em_set_promisc(adapter);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				em_stop(adapter);
@@ -697,58 +714,112 @@ em_init(void *arg)
 
 	adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
 	em_clear_hw_cntrs(&adapter->hw);
-	em_enable_intr(adapter);
+#ifdef DEVICE_POLLING
+        /*
+         * Only enable interrupts if we are not polling, make sure
+         * they are off otherwise.
+         */
+        if (ifp->if_ipending & IFF_POLLING)
+                em_disable_intr(adapter);
+        else
+#endif /* DEVICE_POLLING */
+		em_enable_intr(adapter);
 
 	splx(s);
 	return;
 }
 
 
+#ifdef DEVICE_POLLING
+static poll_handler_t em_poll;
+        
+static void     
+em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+        struct adapter *adapter = ifp->if_softc;
+        u_int32_t reg_icr;
+
+        if (cmd == POLL_DEREGISTER) {       /* final call, enable interrupts */
+                em_enable_intr(adapter);
+                return;
+        }
+        if (cmd == POLL_AND_CHECK_STATUS) {
+                reg_icr = E1000_READ_REG(&adapter->hw, ICR);
+                if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+                        untimeout(em_local_timer, adapter, adapter->timer_handle);
+                        adapter->hw.get_link_status = 1;
+                        em_check_for_link(&adapter->hw);
+                        em_print_link_status(adapter);
+                        adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
+                }
+        }
+        if (ifp->if_flags & IFF_RUNNING) {
+                em_process_receive_interrupts(adapter, count);
+                em_clean_transmit_interrupts(adapter);
+        }
+	
+        if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+                em_start(ifp);
+}
+#endif /* DEVICE_POLLING */
+
 /*********************************************************************
  *
- *  Interrupt Service routine
+ *  Interrupt Service routine  
  *
  **********************************************************************/
-
 static void
 em_intr(void *arg)
 {
-	u_int32_t       loop_cnt = EM_MAX_INTR;
-	u_int32_t       reg_icr;
-	struct ifnet    *ifp;
-	struct adapter  *adapter = arg;
+        u_int32_t       loop_cnt = EM_MAX_INTR;
+        u_int32_t       reg_icr;
+        struct ifnet    *ifp;
+        struct adapter  *adapter = arg;
 
-	ifp = &adapter->interface_data.ac_if;
+        ifp = &adapter->interface_data.ac_if;  
 
-	em_disable_intr(adapter);
-	while (loop_cnt > 0 && 
-	       (reg_icr = E1000_READ_REG(&adapter->hw, ICR)) != 0) {
+#ifdef DEVICE_POLLING
+        if (ifp->if_ipending & IFF_POLLING)
+                return;
 
-		/* Link status change */
-		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			untimeout(em_local_timer, adapter, 
-				  adapter->timer_handle);
-			adapter->hw.get_link_status = 1;
-			em_check_for_link(&adapter->hw);
-			em_print_link_status(adapter);
-			adapter->timer_handle = 
-			timeout(em_local_timer, adapter, 2*hz); 
-		}
+        if (ether_poll_register(em_poll, ifp)) {
+                em_disable_intr(adapter);
+                em_poll(ifp, 0, 1);
+                return;
+        }
+#endif /* DEVICE_POLLING */
 
-		if (ifp->if_flags & IFF_RUNNING) {
-			em_process_receive_interrupts(adapter, -1);
-			em_clean_transmit_interrupts(adapter);
-		}
-		loop_cnt--;
-	}
 
-	em_enable_intr(adapter);
+        em_disable_intr(adapter);
+        while (loop_cnt > 0 &&
+               (reg_icr = E1000_READ_REG(&adapter->hw, ICR)) != 0) {
 
-	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
-		em_start(ifp);
+                /* Link status change */
+                if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+                        untimeout(em_local_timer, adapter,
+                                  adapter->timer_handle);
+                        adapter->hw.get_link_status = 1;
+                        em_check_for_link(&adapter->hw);
+                        em_print_link_status(adapter);
+                        adapter->timer_handle =
+                        timeout(em_local_timer, adapter, 2*hz);
+                }
 
-	return;
+                if (ifp->if_flags & IFF_RUNNING) {
+                        em_process_receive_interrupts(adapter, -1);
+                        em_clean_transmit_interrupts(adapter);
+                }
+                loop_cnt--;
+        }
+
+        em_enable_intr(adapter);
+
+        if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+                em_start(ifp);
+
+        return;
 }
+
 
 
 /*********************************************************************
@@ -874,6 +945,10 @@ em_media_change(struct ifnet *ifp)
 	return(0);
 }
 
+#define EM_FIFO_HDR              0x10
+#define EM_82547_PKT_THRESH      0x3e0
+#define EM_82547_TX_FIFO_SIZE    0x2800
+#define EM_82547_TX_FIFO_BEGIN   0xf00
 /*********************************************************************
  *
  *  This routine maps the mbufs to tx descriptors.
@@ -889,17 +964,20 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
         u_int32_t       txd_lower;
         int             txd_used, i, txd_saved;
         struct mbuf     *mp;
+
 #if __FreeBSD_version < 500000
         struct ifvlan *ifv = NULL;
 #else
-	struct m_tag    *mtag;
+        struct m_tag    *mtag;
 #endif
-
         struct em_buffer   *tx_buffer = NULL;
         struct em_tx_desc *current_tx_desc = NULL;
         struct ifnet   *ifp = &adapter->interface_data.ac_if;
 
-	/* Force a cleanup if number of TX descriptors available hits the threshold */
+	/* 
+	 * Force a cleanup if number of TX descriptors 
+	 * available hits the threshold 
+	 */
 	if (adapter->num_tx_desc_avail <= EM_TX_CLEANUP_THRESHOLD)
 		em_clean_transmit_interrupts(adapter);
 
@@ -915,12 +993,13 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 	else 
 		txd_upper = txd_lower = 0;
 
-	/* Find out if we are in vlan mode */
+
+        /* Find out if we are in vlan mode */
 #if __FreeBSD_version < 500000
-	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-	    m_head->m_pkthdr.rcvif != NULL &&
-	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-		ifv = m_head->m_pkthdr.rcvif->if_softc;
+        if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
+            m_head->m_pkthdr.rcvif != NULL &&
+            m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
+                ifv = m_head->m_pkthdr.rcvif->if_softc;
 #else
 	mtag = VLAN_OUTPUT_TAG(ifp, m_head);
 #endif
@@ -958,17 +1037,17 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 	adapter->next_avail_tx_desc = i;
 
 #if __FreeBSD_version < 500000
-	if (ifv != NULL) {
-		/* Set the vlan id */
-		current_tx_desc->upper.fields.special = ifv->ifv_tag;
+        if (ifv != NULL) {
+                /* Set the vlan id */
+                current_tx_desc->upper.fields.special = ifv->ifv_tag;
 #else
-	if (mtag != NULL) {
-		/* Set the vlan id */
-		current_tx_desc->upper.fields.special = VLAN_TAG_VALUE(mtag);
+        if (mtag != NULL) {
+                /* Set the vlan id */
+                current_tx_desc->upper.fields.special = VLAN_TAG_VALUE(mtag);
 #endif
-		/* Tell hardware to add tag */
-		current_tx_desc->lower.data |= E1000_TXD_CMD_VLE;
-	}
+                /* Tell hardware to add tag */
+                current_tx_desc->lower.data |= E1000_TXD_CMD_VLE;
+        }
 
 	tx_buffer->m_head = m_head;
 	
@@ -981,9 +1060,144 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 	 * Advance the Transmit Descriptor Tail (Tdt), this tells the E1000
 	 * that this frame is available to transmit.
 	 */
-	E1000_WRITE_REG(&adapter->hw, TDT, i);
+	if (adapter->hw.mac_type == em_82547 &&
+	    adapter->link_duplex == HALF_DUPLEX) {
+		em_82547_move_tail(adapter);
+	}
+	else {
+		E1000_WRITE_REG(&adapter->hw, TDT, i);
+		if (adapter->hw.mac_type == em_82547) {
+			em_82547_update_fifo_head(adapter, m_head->m_pkthdr.len);
+		}
+	}
 
 	return (0);
+}
+
+
+/*********************************************************************
+ *
+ * 82547 workaround to avoid controller hang in half-duplex environment.
+ * The workaround is to avoid queuing a large packet that would span   
+ * the internal Tx FIFO ring boundary. We need to reset the FIFO pointers
+ * in this case. We do that only when FIFO is queiced.
+ *
+ **********************************************************************/
+static void
+em_82547_move_tail(void *arg)
+{
+	int s;
+	struct adapter *adapter = arg;
+	uint16_t hw_tdt;
+	uint16_t sw_tdt;
+	struct em_tx_desc *tx_desc;
+	uint16_t length = 0;
+	boolean_t eop = 0;
+
+	s = splimp();
+	hw_tdt = E1000_READ_REG(&adapter->hw, TDT);
+	sw_tdt = adapter->next_avail_tx_desc;
+	
+	while (hw_tdt != sw_tdt) {
+		tx_desc = &adapter->tx_desc_base[hw_tdt];
+		length += tx_desc->lower.flags.length;
+		eop = tx_desc->lower.data & E1000_TXD_CMD_EOP;
+		if(++hw_tdt == adapter->num_tx_desc)
+			hw_tdt = 0;
+
+		if(eop) {
+			if (em_82547_fifo_workaround(adapter, length)) {
+				adapter->tx_fifo_wrk++;
+				adapter->tx_fifo_timer_handle = 
+					timeout(em_82547_move_tail,
+						adapter, 1);
+				splx(s);
+				return;
+			}
+			else {
+				E1000_WRITE_REG(&adapter->hw, TDT, hw_tdt);
+				em_82547_update_fifo_head(adapter, length);
+				length = 0;
+			}
+		}
+	}	
+	splx(s);
+	return;
+}
+
+static int
+em_82547_fifo_workaround(struct adapter *adapter, int len)
+{	
+	int fifo_space, fifo_pkt_len;
+
+	fifo_pkt_len = EM_ROUNDUP(len + EM_FIFO_HDR, EM_FIFO_HDR);
+
+	if (adapter->link_duplex == HALF_DUPLEX) {
+		fifo_space = EM_82547_TX_FIFO_SIZE - adapter->tx_fifo_head;
+
+		if (fifo_pkt_len >= (EM_82547_PKT_THRESH + fifo_space)) {
+			if (em_82547_tx_fifo_reset(adapter)) {
+				return(0);
+			}
+			else {
+				return(1);
+			}
+		}
+	}
+
+	return(0);
+}
+
+static void
+em_82547_update_fifo_head(struct adapter *adapter, int len)
+{
+	int fifo_pkt_len = EM_ROUNDUP(len + EM_FIFO_HDR, EM_FIFO_HDR);
+	
+	/* tx_fifo_head is always 16 byte aligned */
+	adapter->tx_fifo_head += fifo_pkt_len;
+	if (adapter->tx_fifo_head >= EM_82547_TX_FIFO_SIZE) {
+		adapter->tx_fifo_head -= EM_82547_TX_FIFO_SIZE;
+	}
+
+	return;
+}
+
+
+static int
+em_82547_tx_fifo_reset(struct adapter *adapter)
+{	
+	uint32_t tctl;
+
+	if ( (E1000_READ_REG(&adapter->hw, TDT) ==
+	      E1000_READ_REG(&adapter->hw, TDH)) &&
+	     (E1000_READ_REG(&adapter->hw, TDFT) == 
+	      E1000_READ_REG(&adapter->hw, TDFH)) &&
+	     (E1000_READ_REG(&adapter->hw, TDFTS) ==
+	      E1000_READ_REG(&adapter->hw, TDFHS)) &&
+	     (E1000_READ_REG(&adapter->hw, TDFPC) == 0)) {
+
+		/* Disable TX unit */
+		tctl = E1000_READ_REG(&adapter->hw, TCTL);
+		E1000_WRITE_REG(&adapter->hw, TCTL, tctl & ~E1000_TCTL_EN);
+
+		/* Reset FIFO pointers */
+		E1000_WRITE_REG(&adapter->hw, TDFT, EM_82547_TX_FIFO_BEGIN);
+		E1000_WRITE_REG(&adapter->hw, TDFH, EM_82547_TX_FIFO_BEGIN);
+		E1000_WRITE_REG(&adapter->hw, TDFTS, EM_82547_TX_FIFO_BEGIN);
+		E1000_WRITE_REG(&adapter->hw, TDFHS, EM_82547_TX_FIFO_BEGIN);
+
+		/* Re-enable TX unit */
+		E1000_WRITE_REG(&adapter->hw, TCTL, tctl);
+		E1000_WRITE_FLUSH(&adapter->hw);
+
+		adapter->tx_fifo_head = 0;
+		adapter->tx_fifo_reset++;
+
+		return(TRUE);
+	}
+	else {
+		return(FALSE);
+	}
 }
 
 static void
@@ -1058,12 +1272,14 @@ em_set_multi(struct adapter * adapter)
                 if (ifma->ifma_addr->sa_family != AF_LINK)
                         continue;
  
+		if (mcnt == MAX_NUM_MULTICAST_ADDRESSES) break;
+
                 bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
                       &mta[mcnt*ETH_LENGTH_OF_ADDRESS], ETH_LENGTH_OF_ADDRESS);
                 mcnt++;
         }
 
-        if (mcnt > MAX_NUM_MULTICAST_ADDRESSES) {
+        if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES) {
                 reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
                 reg_rctl |= E1000_RCTL_MPE;
                 E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
@@ -1107,6 +1323,8 @@ em_local_timer(void *arg)
 	if (em_display_debug_stats && ifp->if_flags & IFF_RUNNING) {
 		em_print_hw_stats(adapter);
 	}
+	em_smartspeed(adapter);
+
 	adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
 
 	splx(s);
@@ -1127,6 +1345,7 @@ em_print_link_status(struct adapter * adapter)
 			       ((adapter->link_duplex == FULL_DUPLEX) ?
 				"Full Duplex" : "Half Duplex"));
 			adapter->link_active = 1;
+			adapter->smartspeed = 0;
 		}
 	} else {
 		if (adapter->link_active == 1) {
@@ -1139,8 +1358,6 @@ em_print_link_status(struct adapter * adapter)
 
 	return;
 }
-
-
 
 /*********************************************************************
  *
@@ -1159,7 +1376,9 @@ em_stop(void *arg)
 	INIT_DEBUGOUT("em_stop: begin\n");
 	em_disable_intr(adapter);
 	em_reset_hw(&adapter->hw);
-	untimeout(em_local_timer, adapter, adapter->timer_handle);
+	untimeout(em_local_timer, adapter, adapter->timer_handle);	
+	untimeout(em_82547_move_tail, adapter, 
+		  adapter->tx_fifo_timer_handle);
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -1312,6 +1531,9 @@ em_hardware_init(struct adapter * adapter)
 	/* Issue a global reset */
 	em_reset_hw(&adapter->hw);
 
+	/* When hardware is reset, fifo_head is also reset */
+	adapter->tx_fifo_head = 0;
+
 	/* Make sure we have a good EEPROM before we read from it */
 	if (em_validate_eeprom_checksum(&adapter->hw) < 0) {
 		printf("em%d: The EEPROM Checksum Is Not Valid\n",
@@ -1374,10 +1596,10 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_watchdog = em_watchdog;
 	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 1;
 
-#if __FreeBSD_version < 500000 
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+#if __FreeBSD_version < 500000
+        ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 #else
-	ether_ifattach(ifp, adapter->interface_data.ac_enaddr);
+        ether_ifattach(ifp, adapter->interface_data.ac_enaddr);
 #endif
 
 	if (adapter->hw.mac_type >= em_82543) {
@@ -1385,9 +1607,10 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 		ifp->if_capenable = ifp->if_capabilities;
 	}
 
-#if __FreeBSD_version >= 500000 
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+#if __FreeBSD_version >= 500000
+        ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 #endif
+
 
 	/* 
 	 * Specify the media types supported by this adapter and register
@@ -1420,6 +1643,67 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+
+	return;
+}
+
+
+/*********************************************************************
+ *
+ *  Workaround for SmartSpeed on 82541 and 82547 controllers
+ *
+ **********************************************************************/        
+static void
+em_smartspeed(struct adapter *adapter)
+{
+        uint16_t phy_tmp;
+ 
+	if(adapter->link_active || (adapter->hw.phy_type != em_phy_igp) || 
+	   !adapter->hw.autoneg || !(adapter->hw.autoneg_advertised & ADVERTISE_1000_FULL))
+		return;
+
+        if(adapter->smartspeed == 0) {
+                /* If Master/Slave config fault is asserted twice,
+                 * we assume back-to-back */
+                em_read_phy_reg(&adapter->hw, PHY_1000T_STATUS, &phy_tmp);
+                if(!(phy_tmp & SR_1000T_MS_CONFIG_FAULT)) return;
+                em_read_phy_reg(&adapter->hw, PHY_1000T_STATUS, &phy_tmp);
+                if(phy_tmp & SR_1000T_MS_CONFIG_FAULT) {
+                        em_read_phy_reg(&adapter->hw, PHY_1000T_CTRL,
+					&phy_tmp);
+                        if(phy_tmp & CR_1000T_MS_ENABLE) {
+                                phy_tmp &= ~CR_1000T_MS_ENABLE;
+                                em_write_phy_reg(&adapter->hw,
+                                                    PHY_1000T_CTRL, phy_tmp);
+                                adapter->smartspeed++;
+                                if(adapter->hw.autoneg &&
+                                   !em_phy_setup_autoneg(&adapter->hw) &&
+				   !em_read_phy_reg(&adapter->hw, PHY_CTRL,
+                                                       &phy_tmp)) {
+                                        phy_tmp |= (MII_CR_AUTO_NEG_EN |  
+                                                    MII_CR_RESTART_AUTO_NEG);
+                                        em_write_phy_reg(&adapter->hw,
+							 PHY_CTRL, phy_tmp);
+                                }
+                        }
+                }
+                return;
+        } else if(adapter->smartspeed == EM_SMARTSPEED_DOWNSHIFT) {
+                /* If still no link, perhaps using 2/3 pair cable */
+                em_read_phy_reg(&adapter->hw, PHY_1000T_CTRL, &phy_tmp);
+                phy_tmp |= CR_1000T_MS_ENABLE;
+                em_write_phy_reg(&adapter->hw, PHY_1000T_CTRL, phy_tmp);
+                if(adapter->hw.autoneg &&
+                   !em_phy_setup_autoneg(&adapter->hw) &&
+                   !em_read_phy_reg(&adapter->hw, PHY_CTRL, &phy_tmp)) {
+                        phy_tmp |= (MII_CR_AUTO_NEG_EN |
+                                    MII_CR_RESTART_AUTO_NEG);
+                        em_write_phy_reg(&adapter->hw, PHY_CTRL, phy_tmp);
+                }
+        }
+        /* Restart process after EM_SMARTSPEED_MAX iterations */
+        if(adapter->smartspeed++ == EM_SMARTSPEED_MAX)
+                adapter->smartspeed = 0;
 
 	return;
 }
@@ -1511,6 +1795,8 @@ em_initialize_transmit_unit(struct adapter * adapter)
 	case em_82540:
 	case em_82545:
 	case em_82546:
+	case em_82541:
+	case em_82547:
 		if (adapter->hw.media_type == em_media_type_fiber)
 			reg_tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
 		else
@@ -1543,15 +1829,10 @@ em_initialize_transmit_unit(struct adapter * adapter)
 	E1000_WRITE_REG(&adapter->hw, TCTL, reg_tctl);
 
 	/* Setup Transmit Descriptor Settings for this adapter */   
-	adapter->txd_cmd = E1000_TXD_CMD_IFCS;
+	adapter->txd_cmd = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
 
 	if (adapter->tx_int_delay > 0)
 		adapter->txd_cmd |= E1000_TXD_CMD_IDE;
-
-	if (adapter->hw.report_tx_early == 1)
-		adapter->txd_cmd |= E1000_TXD_CMD_RS;
-	else
-		adapter->txd_cmd |= E1000_TXD_CMD_RPS;
 
 	return;
 }
@@ -1963,12 +2244,12 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 {
 	struct ifnet        *ifp;
 	struct mbuf         *mp;
-#if __FreeBSD_version < 500000 
-	struct ether_header *eh;
+#if __FreeBSD_version < 500000
+        struct ether_header *eh;
 #endif
 	u_int8_t            accept_frame = 0;
-	u_int8_t            eop = 0;
-	u_int16_t           len;
+ 	u_int8_t            eop = 0;
+        u_int16_t           len;
 	int                 i;
 
 	/* Pointer to the receive descriptor being examined. */
@@ -1986,6 +2267,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 	}
 
 	while ((current_desc->status & E1000_RXD_STAT_DD) && (count != 0)) {
+		
 		mp = adapter->rx_buffer_area[i].m_head;
 
 		accept_frame = 1;
@@ -2049,37 +2331,37 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 				adapter->fmp->m_pkthdr.len += len;
 			}
 
-			if (eop) {
-				adapter->fmp->m_pkthdr.rcvif = ifp;
+                        if (eop) {
+                                adapter->fmp->m_pkthdr.rcvif = ifp;
 
-#if __FreeBSD_version < 500000 
-				eh = mtod(adapter->fmp, struct ether_header *);
-				/* Remove ethernet header from mbuf */
-				m_adj(adapter->fmp, sizeof(struct ether_header));
-				em_receive_checksum(adapter, current_desc, 
-						    adapter->fmp);
-				if (current_desc->status & E1000_RXD_STAT_VP)
-					VLAN_INPUT_TAG(eh, adapter->fmp,
-							(current_desc->special &
-                                                         E1000_RXD_SPC_VLAN_MASK));
-				else
-					ether_input(ifp, eh, adapter->fmp);
+#if __FreeBSD_version < 500000
+                                eh = mtod(adapter->fmp, struct ether_header *);
+                                /* Remove ethernet header from mbuf */
+                                m_adj(adapter->fmp, sizeof(struct ether_header));
+                                em_receive_checksum(adapter, current_desc,
+                                                    adapter->fmp);
+                                if (current_desc->status & E1000_RXD_STAT_VP)
+                                        VLAN_INPUT_TAG(eh, adapter->fmp,
+                                                       (current_desc->special & 
+							E1000_RXD_SPC_VLAN_MASK));
+                                else
+                                        ether_input(ifp, eh, adapter->fmp);
 #else
 
-				em_receive_checksum(adapter, current_desc, 
-						    adapter->fmp);
-				if (current_desc->status & E1000_RXD_STAT_VP)
-					VLAN_INPUT_TAG(ifp, adapter->fmp,
-						       (current_desc->special & 
+                                em_receive_checksum(adapter, current_desc,
+                                                    adapter->fmp);
+                                if (current_desc->status & E1000_RXD_STAT_VP)
+                                        VLAN_INPUT_TAG(ifp, adapter->fmp,
+                                                       (current_desc->special &
 							E1000_RXD_SPC_VLAN_MASK),
 						       adapter->fmp = NULL);
-				
-				if (adapter->fmp != NULL)
-					(*ifp->if_input)(ifp, adapter->fmp);
+ 
+                                if (adapter->fmp != NULL)
+                                        (*ifp->if_input)(ifp, adapter->fmp);
 #endif
-				adapter->fmp = NULL;
-				adapter->lmp = NULL;
-			}
+                                adapter->fmp = NULL;
+                                adapter->lmp = NULL;
+                        }
 		} else {
 			adapter->dropped_pkts++;
 			em_get_buf(i, adapter, mp);
@@ -2156,7 +2438,7 @@ em_enable_vlans(struct adapter *adapter)
 {
 	uint32_t ctrl;
 
-	E1000_WRITE_REG(&adapter->hw, VET, QTAG_TYPE);
+	E1000_WRITE_REG(&adapter->hw, VET, ETHERTYPE_VLAN);
 
 	ctrl = E1000_READ_REG(&adapter->hw, CTRL);
 	ctrl |= E1000_CTRL_VME; 
@@ -2227,7 +2509,7 @@ em_io_write(struct em_hw *hw, uint32_t port, uint32_t value)
 {
 	outl(port, value);
 	return;
-} 
+}
 
 /**********************************************************************
  *
@@ -2244,6 +2526,7 @@ em_update_stats_counters(struct adapter *adapter)
 	adapter->stats.mpc += E1000_READ_REG(&adapter->hw, MPC);
 	adapter->stats.scc += E1000_READ_REG(&adapter->hw, SCC);
 	adapter->stats.ecol += E1000_READ_REG(&adapter->hw, ECOL);
+
 	adapter->stats.mcc += E1000_READ_REG(&adapter->hw, MCC);
 	adapter->stats.latecol += E1000_READ_REG(&adapter->hw, LATECOL);
 	adapter->stats.colc += E1000_READ_REG(&adapter->hw, COLC);
@@ -2354,14 +2637,18 @@ em_print_hw_stats(struct adapter *adapter)
 	       adapter->clean_tx_interrupts);
 #endif
 
+	printf("em%d: fifo workaround = %lld, fifo_reset = %lld\n", unit, 
+	       (long long)adapter->tx_fifo_wrk, 
+	       (long long)adapter->tx_fifo_reset);
+	printf("em%d: hw tdh = %d, hw tdt = %d\n", unit,
+	       E1000_READ_REG(&adapter->hw, TDH), 
+	       E1000_READ_REG(&adapter->hw, TDT));
+	printf("em%d: Excessive collisions = %lld\n", unit,
+	       (long long)adapter->stats.ecol);
 	printf("em%d: Tx Descriptors not avail1 = %ld\n", unit, 
 	       adapter->no_tx_desc_avail1);
 	printf("em%d: Tx Descriptors not avail2 = %ld\n", unit, 
 	       adapter->no_tx_desc_avail2);
-	printf("em%d: Std Mbuf Failed = %ld\n",unit, 
-	       adapter->mbuf_alloc_failed);
-	printf("em%d: Std Cluster Failed = %ld\n",unit, 
-	       adapter->mbuf_cluster_failed);
 
 	printf("em%d: Symbol errors = %lld\n", unit, 
 	       (long long)adapter->stats.symerrs);

@@ -78,15 +78,6 @@ POSSIBILITY OF SUCH DAMAGE.
 /* Tunables */
 
 /*
- * FlowControl
- * Valid Range: 0-3 (0=none, 1=Rx only, 2=Tx only, 3=Rx&Tx)
- * Default: Read flow control settings from the EEPROM
- *   This parameter controls the automatic generation(Tx) and response(Rx) to
- *   Ethernet PAUSE frames.
- */
-
-
-/*
  * TxDescriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *            80-4096 for 82540, 82544, 82545, and 82546-based adapters
@@ -177,16 +168,6 @@ POSSIBILITY OF SUCH DAMAGE.
  */
 #define EM_MAX_INTR                     3
 
-
-/*
- * This parameter determines when the hardware will report that it is
- * done with the packet.
- *           0 - "Done" is reported when the packet has been sent on the wire
- *           1 - "Done" is reported when the packet has been DMA'ed and is on chip.
- *           2 -  Determine the best method.
- */
-#define EM_REPORT_TX_EARLY              2
-
 /*
  * Inform the stack about transmit checksum offload capabilities.
  */
@@ -228,18 +209,16 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_VENDOR_ID                    0x8086
 #define EM_MMBA                         0x0010 /* Mem base address */
 #define EM_ROUNDUP(size, unit) (((size) + (unit) - 1) & ~((unit) - 1))
+
 #define EM_JUMBO_PBA                    0x00000028
 #define EM_DEFAULT_PBA                  0x00000030
+#define EM_SMARTSPEED_DOWNSHIFT         3
+#define EM_SMARTSPEED_MAX               15
 
-#define IOCTL_CMD_TYPE                  u_long
+
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
-
-#ifndef ETHER_ALIGN
 #define ETHER_ALIGN                     2
-#endif
-
-#define QTAG_TYPE                       0x8100
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -311,6 +290,7 @@ struct adapter {
 	void            *int_handler_tag;
 	struct ifmedia  media;
 	struct callout_handle timer_handle;
+	struct callout_handle tx_fifo_timer_handle;
 	int             io_rid;
 	u_int8_t        unit;
 
@@ -319,6 +299,7 @@ struct adapter {
 	u_int8_t        link_active;
 	u_int16_t       link_speed;
 	u_int16_t       link_duplex;
+	u_int32_t       smartspeed;
 	u_int32_t       tx_int_delay;
 	u_int32_t       tx_abs_int_delay;
 	u_int32_t       rx_int_delay;
@@ -357,11 +338,11 @@ struct adapter {
         u_int32_t          rx_buffer_len;
         struct em_buffer   *rx_buffer_area;
 
-
 	/* Jumbo frame */
-	struct mbuf     *fmp;
-	struct mbuf     *lmp;
+	struct mbuf        *fmp;
+	struct mbuf        *lmp;
 
+	u_int16_t          tx_fifo_head;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
@@ -369,12 +350,14 @@ struct adapter {
 	unsigned long   mbuf_cluster_failed;
 	unsigned long   no_tx_desc_avail1;
 	unsigned long   no_tx_desc_avail2;
+	u_int64_t       tx_fifo_reset;
+	u_int64_t       tx_fifo_wrk;
+
 #ifdef DBG_STATS
 	unsigned long   no_pkts_avail;
 	unsigned long   clean_tx_interrupts;
 
 #endif
-
 	struct em_hw_stats stats;
 };
 

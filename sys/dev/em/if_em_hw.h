@@ -56,9 +56,17 @@ typedef enum {
     em_82540,
     em_82545,
     em_82546,
+    em_82541,
+    em_82547,
     em_num_macs
 } em_mac_type;
 
+typedef enum {
+    em_eeprom_uninitialized = 0,
+    em_eeprom_spi,
+    em_eeprom_microwire,
+    em_num_eeprom_types
+} em_eeprom_type;
 
 /* Media Types */
 typedef enum {
@@ -118,6 +126,27 @@ typedef enum {
 } em_cable_length;
 
 typedef enum {
+    em_igp_cable_length_10  = 10,
+    em_igp_cable_length_20  = 20,
+    em_igp_cable_length_30  = 30,
+    em_igp_cable_length_40  = 40,
+    em_igp_cable_length_50  = 50,
+    em_igp_cable_length_60  = 60,
+    em_igp_cable_length_70  = 70,
+    em_igp_cable_length_80  = 80,
+    em_igp_cable_length_90  = 90,
+    em_igp_cable_length_100 = 100,
+    em_igp_cable_length_110 = 110,
+    em_igp_cable_length_120 = 120,
+    em_igp_cable_length_130 = 130,
+    em_igp_cable_length_140 = 140,
+    em_igp_cable_length_150 = 150,
+    em_igp_cable_length_160 = 160,
+    em_igp_cable_length_170 = 170,
+    em_igp_cable_length_180 = 180
+} em_igp_cable_length;
+
+typedef enum {
     em_10bt_ext_dist_enable_normal = 0,
     em_10bt_ext_dist_enable_lower,
     em_10bt_ext_dist_enable_undefined = 0xFF
@@ -129,6 +158,11 @@ typedef enum {
     em_rev_polarity_undefined = 0xFF
 } em_rev_polarity;
 
+typedef enum {
+    em_downshift_normal = 0,
+    em_downshift_activated,
+    em_downshift_undefined = 0xFF
+} em_downshift;
 
 typedef enum {
     em_polarity_reversal_enabled = 0,
@@ -150,11 +184,17 @@ typedef enum {
     em_1000t_rx_status_undefined = 0xFF
 } em_1000t_rx_status;
 
+typedef enum {
+    em_phy_m88 = 0,
+    em_phy_igp,
+    em_phy_undefined = 0xFF
+} em_phy_type;
 
 struct em_phy_info {
     em_cable_length cable_length;
     em_10bt_ext_dist_enable extended_10bt_distance;
     em_rev_polarity cable_polarity;
+    em_downshift downshift;
     em_polarity_reversal polarity_correction;
     em_auto_x_mode mdix_mode;
     em_1000t_rx_status local_rx;
@@ -166,6 +206,15 @@ struct em_phy_stats {
     uint32_t receive_errors;
 };
 
+struct em_eeprom_info {
+    em_eeprom_type type;
+    uint16_t word_size;
+    uint16_t opcode_bits;
+    uint16_t address_bits;
+    uint16_t delay_usec;
+    uint16_t page_size;
+};
+
 
 
 /* Error Codes */
@@ -175,6 +224,7 @@ struct em_phy_stats {
 #define E1000_ERR_CONFIG   3
 #define E1000_ERR_PARAM    4
 #define E1000_ERR_MAC_TYPE 5
+#define E1000_ERR_PHY_TYPE 6
 
 /* Function prototypes */
 /* Initialization */
@@ -198,13 +248,19 @@ void em_phy_hw_reset(struct em_hw *hw);
 int32_t em_phy_reset(struct em_hw *hw);
 int32_t em_detect_gig_phy(struct em_hw *hw);
 int32_t em_phy_get_info(struct em_hw *hw, struct em_phy_info *phy_info);
+int32_t em_phy_m88_get_info(struct em_hw *hw, struct em_phy_info *phy_info);
+int32_t em_phy_igp_get_info(struct em_hw *hw, struct em_phy_info *phy_info);
+int32_t em_get_cable_length(struct em_hw *hw, uint16_t *min_length, uint16_t *max_length);
+int32_t em_check_polarity(struct em_hw *hw, uint16_t *polarity);
+int32_t em_check_downshift(struct em_hw *hw);
 int32_t em_validate_mdi_setting(struct em_hw *hw);
 
 /* EEPROM Functions */
-int32_t em_read_eeprom(struct em_hw *hw, uint16_t reg, uint16_t *data);
+void em_init_eeprom_params(struct em_hw *hw);
+int32_t em_read_eeprom(struct em_hw *hw, uint16_t reg, uint16_t words, uint16_t *data);
 int32_t em_validate_eeprom_checksum(struct em_hw *hw);
 int32_t em_update_eeprom_checksum(struct em_hw *hw);
-int32_t em_write_eeprom(struct em_hw *hw, uint16_t reg, uint16_t data);
+int32_t em_write_eeprom(struct em_hw *hw, uint16_t reg, uint16_t words, uint16_t *data);
 int32_t em_read_part_num(struct em_hw *hw, uint32_t * part_num);
 int32_t em_read_mac_addr(struct em_hw * hw);
 
@@ -263,7 +319,10 @@ void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
 #define E1000_DEV_ID_82545EM_FIBER       0x1011
 #define E1000_DEV_ID_82546EB_COPPER      0x1010
 #define E1000_DEV_ID_82546EB_FIBER       0x1012
-#define NUM_DEV_IDS 16
+#define E1000_DEV_ID_82541EI             0x1013
+#define E1000_DEV_ID_82541EP             0x1018
+#define E1000_DEV_ID_82547EI             0x1019
+#define NUM_DEV_IDS 19
 
 #define NODE_ADDRESS_SIZE 6
 #define ETH_LENGTH_OF_ADDRESS 6
@@ -308,7 +367,7 @@ void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
 /* This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
  *   o RXDMT0 = Receive Descriptor Minimum Threshold hit (ring 0)
- *   o RXSEQ  = Receive Sequence Error 
+ *   o RXSEQ  = Receive Sequence Error
  */
 #define POLL_IMS_ENABLE_MASK ( \
     E1000_IMS_RXDMT0 |         \
@@ -332,9 +391,9 @@ void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
 /* The number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor. We
  * reserve one of these spots for our directed address, allowing us room for
- * E1000_RAR_ENTRIES - 1 multicast addresses. 
+ * E1000_RAR_ENTRIES - 1 multicast addresses.
  */
-#define E1000_RAR_ENTRIES 16
+#define E1000_RAR_ENTRIES 15
 
 #define MIN_NUMBER_OF_DESCRIPTORS 8
 #define MAX_NUMBER_OF_DESCRIPTORS 0xFFF8
@@ -533,7 +592,7 @@ struct em_ffvt_entry {
 /* Register Set. (82543, 82544)
  *
  * Registers are defined to be 32 bits and  should be accessed as 32 bit values.
- * These registers are physically located on the NIC, but are mapped into the 
+ * These registers are physically located on the NIC, but are mapped into the
  * host memory address space.
  *
  * RW - register is both readable and writable
@@ -547,6 +606,7 @@ struct em_ffvt_entry {
 #define E1000_EECD     0x00010  /* EEPROM/Flash Control - RW */
 #define E1000_EERD     0x00014  /* EEPROM Read - RW */
 #define E1000_CTRL_EXT 0x00018  /* Extended Device Control - RW */
+#define E1000_FLA      0x0001C  /* Flash Access Register - RW */
 #define E1000_MDIC     0x00020  /* MDI Control - RW */
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
@@ -579,6 +639,11 @@ struct em_ffvt_entry {
 #define E1000_RADV     0x0282C  /* RX Interrupt Absolute Delay Timer - RW */
 #define E1000_RSRPD    0x02C00  /* RX Small Packet Detect - RW */
 #define E1000_TXDMAC   0x03000  /* TX DMA Control - RW */
+#define E1000_TDFH     0x03410  /* TX Data FIFO Head - RW */
+#define E1000_TDFT     0x03418  /* TX Data FIFO Tail - RW */
+#define E1000_TDFHS    0x03420  /* TX Data FIFO Head Saved - RW */
+#define E1000_TDFTS    0x03428  /* TX Data FIFO Tail Saved - RW */
+#define E1000_TDFPC    0x03430  /* TX Data FIFO Packet Count - RW */
 #define E1000_TDBAL    0x03800  /* TX Descriptor Base Address Low - RW */
 #define E1000_TDBAH    0x03804  /* TX Descriptor Base Address High - RW */
 #define E1000_TDLEN    0x03808  /* TX Descriptor Length - RW */
@@ -674,6 +739,7 @@ struct em_ffvt_entry {
 #define E1000_82542_EECD     E1000_EECD
 #define E1000_82542_EERD     E1000_EERD
 #define E1000_82542_CTRL_EXT E1000_CTRL_EXT
+#define E1000_82542_FLA      E1000_FLA
 #define E1000_82542_MDIC     E1000_MDIC
 #define E1000_82542_FCAL     E1000_FCAL
 #define E1000_82542_FCAH     E1000_FCAH
@@ -715,6 +781,9 @@ struct em_ffvt_entry {
 #define E1000_82542_RADV     E1000_RADV
 #define E1000_82542_RSRPD    E1000_RSRPD
 #define E1000_82542_TXDMAC   E1000_TXDMAC
+#define E1000_82542_TDFHS    E1000_TDFHS
+#define E1000_82542_TDFTS    E1000_TDFTS
+#define E1000_82542_TDFPC    E1000_TDFPC
 #define E1000_82542_TXDCTL   E1000_TXDCTL
 #define E1000_82542_TADV     E1000_TADV
 #define E1000_82542_TSPMT    E1000_TSPMT
@@ -787,6 +856,8 @@ struct em_ffvt_entry {
 #define E1000_82542_WUPL     E1000_WUPL
 #define E1000_82542_WUPM     E1000_WUPM
 #define E1000_82542_FFLT     E1000_FFLT
+#define E1000_82542_TDFH     0x08010
+#define E1000_82542_TDFT     0x08018
 #define E1000_82542_FFMT     E1000_FFMT
 #define E1000_82542_FFVT     E1000_FFVT
 
@@ -856,12 +927,15 @@ struct em_hw_stats {
 struct em_hw {
     uint8_t *hw_addr;
     em_mac_type mac_type;
+    em_phy_type phy_type;
+    uint32_t phy_init_script;
     em_media_type media_type;
     void *back;
     em_fc_type fc;
     em_bus_speed bus_speed;
     em_bus_width bus_width;
     em_bus_type bus_type;
+    struct em_eeprom_info eeprom;
     uint32_t io_base;
     uint32_t phy_id;
     uint32_t phy_revision;
@@ -901,6 +975,7 @@ struct em_hw {
     uint8_t mac_addr[NODE_ADDRESS_SIZE];
     uint8_t perm_mac_addr[NODE_ADDRESS_SIZE];
     boolean_t disable_polarity_correction;
+    boolean_t speed_downgraded;
     boolean_t get_link_status;
     boolean_t tbi_compatibility_en;
     boolean_t tbi_compatibility_on;
@@ -977,14 +1052,20 @@ struct em_hw {
 #define E1000_EECD_CS        0x00000002 /* EEPROM Chip Select */
 #define E1000_EECD_DI        0x00000004 /* EEPROM Data In */
 #define E1000_EECD_DO        0x00000008 /* EEPROM Data Out */
-#define E1000_EECD_FWE_MASK  0x00000030 
+#define E1000_EECD_FWE_MASK  0x00000030
 #define E1000_EECD_FWE_DIS   0x00000010 /* Disable FLASH writes */
 #define E1000_EECD_FWE_EN    0x00000020 /* Enable FLASH writes */
 #define E1000_EECD_FWE_SHIFT 4
-#define E1000_EECD_SIZE      0x00000200 /* EEPROM Size (0=64 word 1=256 word) */
 #define E1000_EECD_REQ       0x00000040 /* EEPROM Access Request */
 #define E1000_EECD_GNT       0x00000080 /* EEPROM Access Grant */
 #define E1000_EECD_PRES      0x00000100 /* EEPROM Present */
+#define E1000_EECD_SIZE      0x00000200 /* EEPROM Size (0=64 word 1=256 word) */
+#define E1000_EECD_ADDR_BITS 0x00000400 /* EEPROM Addressing bits based on type
+					 * (0-small, 1-large) */
+#define E1000_EECD_TYPE      0x00002000 /* EEPROM Type (1-SPI, 0-Microwire) */
+#ifndef E1000_EEPROM_GRANT_ATTEMPTS
+#define E1000_EEPROM_GRANT_ATTEMPTS 1000 /* EEPROM # attempts to gain grant */
+#endif
 
 /* EEPROM Read */
 #define E1000_EERD_START      0x00000001 /* Start Read */
@@ -994,9 +1075,15 @@ struct em_hw {
 #define E1000_EERD_DATA_SHIFT 16
 #define E1000_EERD_DATA_MASK  0xFFFF0000 /* Read Data */
 
+/* SPI EEPROM Status Register */
+#define EEPROM_STATUS_RDY_SPI  0x01
+#define EEPROM_STATUS_WEN_SPI  0x02
+#define EEPROM_STATUS_BP0_SPI  0x04
+#define EEPROM_STATUS_BP1_SPI  0x08
+#define EEPROM_STATUS_WPEN_SPI 0x80
 
 /* Extended Device Control */
-#define E1000_CTRL_EXT_GPI0_EN   0x00000001 /* Maps SDP4 to GPI0 */ 
+#define E1000_CTRL_EXT_GPI0_EN   0x00000001 /* Maps SDP4 to GPI0 */
 #define E1000_CTRL_EXT_GPI1_EN   0x00000002 /* Maps SDP5 to GPI1 */
 #define E1000_CTRL_EXT_PHYINT_EN E1000_CTRL_EXT_GPI1_EN
 #define E1000_CTRL_EXT_GPI2_EN   0x00000004 /* Maps SDP6 to GPI2 */
@@ -1250,6 +1337,7 @@ struct em_hw {
 #define E1000_WUC_PME_EN     0x00000002 /* PME Enable */
 #define E1000_WUC_PME_STATUS 0x00000004 /* PME Status */
 #define E1000_WUC_APMPME     0x00000008 /* Assert PME on APM Wakeup */
+#define E1000_WUC_SPM        0x80000000 /* Enable SPM */
 
 /* Wake Up Filter Control */
 #define E1000_WUFC_LNKC 0x00000001 /* Link Status Change Wakeup Enable */
@@ -1293,7 +1381,7 @@ struct em_hw {
 #define E1000_MANC_IPV6_EN       0x00000800 /* Enable IPv6 */
 #define E1000_MANC_SNAP_EN       0x00001000 /* Accept LLC/SNAP */
 #define E1000_MANC_ARP_EN        0x00002000 /* Enable ARP Request Filtering */
-#define E1000_MANC_NEIGHBOR_EN   0x00004000 /* Enable Neighbor Discovery 
+#define E1000_MANC_NEIGHBOR_EN   0x00004000 /* Enable Neighbor Discovery
                                              * Filtering */
 #define E1000_MANC_TCO_RESET     0x00010000 /* TCO Reset Occurred */
 #define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
@@ -1313,18 +1401,40 @@ struct em_hw {
 
 #define E1000_MDALIGN          4096
 
-/* EEPROM Commands */
-#define EEPROM_READ_OPCODE  0x6  /* EERPOM read opcode */
-#define EEPROM_WRITE_OPCODE 0x5  /* EERPOM write opcode */
-#define EEPROM_ERASE_OPCODE 0x7  /* EERPOM erase opcode */
-#define EEPROM_EWEN_OPCODE  0x13 /* EERPOM erase/write enable */
-#define EEPROM_EWDS_OPCODE  0x10 /* EERPOM erast/write disable */
+/* EEPROM Commands - Microwire */
+#define EEPROM_READ_OPCODE_MICROWIRE  0x6  /* EEPROM read opcode */
+#define EEPROM_WRITE_OPCODE_MICROWIRE 0x5  /* EEPROM write opcode */
+#define EEPROM_ERASE_OPCODE_MICROWIRE 0x7  /* EEPROM erase opcode */
+#define EEPROM_EWEN_OPCODE_MICROWIRE  0x13 /* EEPROM erase/write enable */
+#define EEPROM_EWDS_OPCODE_MICROWIRE  0x10 /* EEPROM erast/write disable */
+
+/* EEPROM Commands - SPI */
+#define EEPROM_MAX_RETRY_SPI    5000 /* Max wait of 5ms, for RDY signal */
+#define EEPROM_READ_OPCODE_SPI  0x3  /* EEPROM read opcode */
+#define EEPROM_WRITE_OPCODE_SPI 0x2  /* EEPROM write opcode */
+#define EEPROM_A8_OPCODE_SPI    0x8  /* opcode bit-3 = address bit-8 */
+#define EEPROM_WREN_OPCODE_SPI  0x6  /* EEPROM set Write Enable latch */
+#define EEPROM_WRDI_OPCODE_SPI  0x4  /* EEPROM reset Write Enable latch */
+#define EEPROM_RDSR_OPCODE_SPI  0x5  /* EEPROM read Status register */
+#define EEPROM_WRSR_OPCODE_SPI  0x1  /* EEPROM write Status register */
+
+/* EEPROM Size definitions */
+#define EEPROM_SIZE_16KB        0x1800
+#define EEPROM_SIZE_8KB         0x1400
+#define EEPROM_SIZE_4KB         0x1000
+#define EEPROM_SIZE_2KB         0x0C00
+#define EEPROM_SIZE_1KB         0x0800
+#define EEPROM_SIZE_512B        0x0400
+#define EEPROM_SIZE_128B        0x0000
+#define EEPROM_SIZE_MASK        0x1C00
+
 
 /* EEPROM Word Offsets */
 #define EEPROM_COMPAT              0x0003
 #define EEPROM_ID_LED_SETTINGS     0x0004
 #define EEPROM_INIT_CONTROL1_REG   0x000A
 #define EEPROM_INIT_CONTROL2_REG   0x000F
+#define EEPROM_CFG                 0x0012
 #define EEPROM_FLASH_VERSION       0x0032
 #define EEPROM_CHECKSUM_REG        0x003F
 
@@ -1345,9 +1455,10 @@ struct em_hw {
 #define ID_LED_OFF1_ON2      0x8
 #define ID_LED_OFF1_OFF2     0x9
 
-/* Mask bits for fields in Word 0x03 of the EEPROM */
-#define EEPROM_COMPAT_SERVER 0x0400
-#define EEPROM_COMPAT_CLIENT 0x0200
+#define IGP_ACTIVITY_LED_MASK   0xFFFFF0FF
+#define IGP_ACTIVITY_LED_ENABLE 0x0300
+#define IGP_LED3_MODE           0x07000000
+
 
 /* Mask bits for fields in Word 0x0a of the EEPROM */
 #define EEPROM_WORD0A_ILOS   0x0010
@@ -1420,7 +1531,9 @@ struct em_hw {
 
 /* PBA constants */
 #define E1000_PBA_16K 0x0010    /* 16KB, default TX allocation */
+#define E1000_PBA_22K 0x0016
 #define E1000_PBA_24K 0x0018
+#define E1000_PBA_30K 0x001E
 #define E1000_PBA_40K 0x0028
 #define E1000_PBA_48K 0x0030    /* 48KB, default RX allocation */
 
@@ -1449,26 +1562,26 @@ struct em_hw {
 
 /* The number of bits that we need to shift right to move the "pause"
  * bits from the EEPROM (bits 13:12) to the "pause" (bits 8:7) field
- * in the TXCW register 
+ * in the TXCW register
  */
 #define PAUSE_SHIFT 5
 
 /* The number of bits that we need to shift left to move the "SWDPIO"
  * bits from the EEPROM (bits 8:5) to the "SWDPIO" (bits 25:22) field
- * in the CTRL register 
+ * in the CTRL register
  */
 #define SWDPIO_SHIFT 17
 
 /* The number of bits that we need to shift left to move the "SWDPIO_EXT"
  * bits from the EEPROM word F (bits 7:4) to the bits 11:8 of The
  * Extended CTRL register.
- * in the CTRL register 
+ * in the CTRL register
  */
 #define SWDPIO__EXT_SHIFT 4
 
 /* The number of bits that we need to shift left to move the "ILOS"
  * bit from the EEPROM (bit 4) to the "ILOS" (bit 7) field
- * in the CTRL register 
+ * in the CTRL register
  */
 #define ILOS_SHIFT  3
 
@@ -1486,7 +1599,7 @@ struct em_hw {
 /* TBI_ACCEPT macro definition:
  *
  * This macro requires:
- *      adapter = a pointer to struct em_hw 
+ *      adapter = a pointer to struct em_hw
  *      status = the 8 bit status field of the RX descriptor with EOP set
  *      error = the 8 bit error field of the RX descriptor with EOP set
  *      length = the sum of all the length fields of the RX descriptors that
@@ -1495,7 +1608,7 @@ struct em_hw {
  *      max_frame_length = the maximum frame length we want to accept.
  *      min_frame_length = the minimum frame length we want to accept.
  *
- * This macro is a conditional that should be used in the interrupt 
+ * This macro is a conditional that should be used in the interrupt
  * handler's Rx processing routine when RxErrors have been detected.
  *
  * Typical use:
@@ -1557,6 +1670,28 @@ struct em_hw {
 #define M88E1000_INT_STATUS        0x13  /* Interrupt Status Register */
 #define M88E1000_EXT_PHY_SPEC_CTRL 0x14  /* Extended PHY Specific Control */
 #define M88E1000_RX_ERR_CNTR       0x15  /* Receive Error Counter */
+
+/* IGP01E1000 Specific Registers */
+#define IGP01E1000_PHY_PORT_CONFIG 0x10 /* PHY Specific Port Config Register */
+#define IGP01E1000_PHY_PORT_STATUS 0x11 /* PHY Specific Status Register */
+#define IGP01E1000_PHY_PORT_CTRL   0x12 /* PHY Specific Control Register */
+#define IGP01E1000_PHY_LINK_HEALTH 0x13 /* PHY Link Health Register */
+#define IGP01E1000_GMII_FIFO       0x14 /* GMII FIFO Register */
+#define IGP01E1000_PHY_CHANNEL_QUALITY 0x15 /* PHY Channel Quality Register */
+#define IGP01E1000_PHY_PAGE_SELECT     0x1F /* PHY Page Select Core Register */
+
+/* IGP01E1000 AGC Registers - stores the cable length values*/
+#define IGP01E1000_PHY_AGC_A        0x1172
+#define IGP01E1000_PHY_AGC_B        0x1272
+#define IGP01E1000_PHY_AGC_C        0x1472
+#define IGP01E1000_PHY_AGC_D        0x1872
+
+/* Number of AGC registers */
+#define IGP01E1000_PHY_AGC_NUM     4
+
+/* IGP01E1000 PCS Initialization register - stores the polarity status when
+ * speed = 1000 Mbps. */
+#define IGP01E1000_PHY_PCS_INIT_REG  0x00B4
 
 
 #define MAX_PHY_REG_ADDRESS 0x1F        /* 5 bit address bus (0-0x1F) */
@@ -1620,7 +1755,7 @@ struct em_hw {
 #define NWAY_ER_PAGE_RXD          0x0002 /* LP is 10T   Half Duplex Capable */
 #define NWAY_ER_NEXT_PAGE_CAPS    0x0004 /* LP is 10T   Full Duplex Capable */
 #define NWAY_ER_LP_NEXT_PAGE_CAPS 0x0008 /* LP is 100TX Half Duplex Capable */
-#define NWAY_ER_PAR_DETECT_FAULT  0x0100 /* LP is 100TX Full Duplex Capable */
+#define NWAY_ER_PAR_DETECT_FAULT  0x0010 /* LP is 100TX Full Duplex Capable */
 
 /* Next Page TX Register */
 #define NPTX_MSG_CODE_FIELD 0x0001 /* NP msg code or unformatted data */
@@ -1631,7 +1766,7 @@ struct em_hw {
                                     * 0 = cannot comply with msg
                                     */
 #define NPTX_MSG_PAGE       0x2000 /* formatted(1)/unformatted(0) pg */
-#define NPTX_NEXT_PAGE      0x8000 /* 1 = addition NP will follow 
+#define NPTX_NEXT_PAGE      0x8000 /* 1 = addition NP will follow
                                     * 0 = sending last NP
                                     */
 
@@ -1640,13 +1775,13 @@ struct em_hw {
 #define LP_RNPR_TOGGLE         0x0800 /* Toggles between exchanges
                                        * of different NP
                                        */
-#define LP_RNPR_ACKNOWLDGE2    0x1000 /* 1 = will comply with msg 
+#define LP_RNPR_ACKNOWLDGE2    0x1000 /* 1 = will comply with msg
                                        * 0 = cannot comply with msg
                                        */
 #define LP_RNPR_MSG_PAGE       0x2000  /* formatted(1)/unformatted(0) pg */
 #define LP_RNPR_ACKNOWLDGE     0x4000  /* 1 = ACK / 0 = NO ACK */
 #define LP_RNPR_NEXT_PAGE      0x8000  /* 1 = addition NP will follow
-                                        * 0 = sending last NP 
+                                        * 0 = sending last NP
                                         */
 
 /* 1000BASE-T Control Register */
@@ -1693,20 +1828,20 @@ struct em_hw {
 #define M88E1000_PSCR_JABBER_DISABLE    0x0001 /* 1=Jabber Function disabled */
 #define M88E1000_PSCR_POLARITY_REVERSAL 0x0002 /* 1=Polarity Reversal enabled */
 #define M88E1000_PSCR_SQE_TEST          0x0004 /* 1=SQE Test enabled */
-#define M88E1000_PSCR_CLK125_DISABLE    0x0010 /* 1=CLK125 low, 
+#define M88E1000_PSCR_CLK125_DISABLE    0x0010 /* 1=CLK125 low,
                                                 * 0=CLK125 toggling
                                                 */
 #define M88E1000_PSCR_MDI_MANUAL_MODE  0x0000  /* MDI Crossover Mode bits 6:5 */
                                                /* Manual MDI configuration */
 #define M88E1000_PSCR_MDIX_MANUAL_MODE 0x0020  /* Manual MDIX configuration */
 #define M88E1000_PSCR_AUTO_X_1000T     0x0040  /* 1000BASE-T: Auto crossover,
-                                                *  100BASE-TX/10BASE-T: 
+                                                *  100BASE-TX/10BASE-T:
                                                 *  MDI Mode
                                                 */
-#define M88E1000_PSCR_AUTO_X_MODE      0x0060  /* Auto crossover enabled 
-                                                * all speeds. 
+#define M88E1000_PSCR_AUTO_X_MODE      0x0060  /* Auto crossover enabled
+                                                * all speeds.
                                                 */
-#define M88E1000_PSCR_10BT_EXT_DIST_ENABLE 0x0080 
+#define M88E1000_PSCR_10BT_EXT_DIST_ENABLE 0x0080
                                         /* 1=Enable Extended 10BASE-T distance
                                          * (Lower 10BASE-T RX Threshold)
                                          * 0=Normal 10BASE-T RX Threshold */
@@ -1724,6 +1859,7 @@ struct em_hw {
 /* M88E1000 PHY Specific Status Register */
 #define M88E1000_PSSR_JABBER             0x0001 /* 1=Jabber */
 #define M88E1000_PSSR_REV_POLARITY       0x0002 /* 1=Polarity reversed */
+#define M88E1000_PSSR_DOWNSHIFT          0x0020 /* 1=Downshifted */
 #define M88E1000_PSSR_MDIX               0x0040 /* 1=MDIX; 0=MDI */
 #define M88E1000_PSSR_CABLE_LENGTH       0x0380 /* 0=<50M;1=50-80M;2=80-110M;
                                             * 3=110-140M;4=>140M */
@@ -1737,6 +1873,7 @@ struct em_hw {
 #define M88E1000_PSSR_1000MBS            0x8000 /* 10=1000Mbs */
 
 #define M88E1000_PSSR_REV_POLARITY_SHIFT 1
+#define M88E1000_PSSR_DOWNSHIFT_SHIFT    5
 #define M88E1000_PSSR_MDIX_SHIFT         6
 #define M88E1000_PSSR_CABLE_LENGTH_SHIFT 7
 
@@ -1745,12 +1882,12 @@ struct em_hw {
 #define M88E1000_EPSCR_DOWN_NO_IDLE   0x8000 /* 1=Lost lock detect enabled.
                                               * Will assert lost lock and bring
                                               * link down if idle not seen
-                                              * within 1ms in 1000BASE-T 
+                                              * within 1ms in 1000BASE-T
                                               */
 /* Number of times we will attempt to autonegotiate before downshifting if we
  * are the master */
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK 0x0C00
-#define M88E1000_EPSCR_MASTER_DOWNSHIFT_1X   0x0000    
+#define M88E1000_EPSCR_MASTER_DOWNSHIFT_1X   0x0000
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_2X   0x0400
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_3X   0x0800
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_4X   0x0C00
@@ -1766,10 +1903,92 @@ struct em_hw {
 #define M88E1000_EPSCR_TX_CLK_0       0x0000 /* NO  TX_CLK */
 
 
+/* IGP01E1000 Specific Port Config Register - R/W */
+#define IGP01E1000_PSCFR_AUTO_MDIX_PAR_DETECT  0x0010
+#define IGP01E1000_PSCFR_PRE_EN                0x0020
+#define IGP01E1000_PSCFR_SMART_SPEED           0x0080
+#define IGP01E1000_PSCFR_DISABLE_TPLOOPBACK    0x0100
+#define IGP01E1000_PSCFR_DISABLE_JABBER        0x0400
+#define IGP01E1000_PSCFR_DISABLE_TRANSMIT      0x2000
+
+/* IGP01E1000 Specific Port Status Register - R/O */
+#define IGP01E1000_PSSR_AUTONEG_FAILED         0x0001 /* RO LH SC */
+#define IGP01E1000_PSSR_POLARITY_REVERSED      0x0002
+#define IGP01E1000_PSSR_CABLE_LENGTH           0x007C
+#define IGP01E1000_PSSR_FULL_DUPLEX            0x0200
+#define IGP01E1000_PSSR_LINK_UP                0x0400
+#define IGP01E1000_PSSR_MDIX                   0x0800
+#define IGP01E1000_PSSR_SPEED_MASK             0xC000 /* speed bits mask */
+#define IGP01E1000_PSSR_SPEED_10MBPS           0x4000
+#define IGP01E1000_PSSR_SPEED_100MBPS          0x8000
+#define IGP01E1000_PSSR_SPEED_1000MBPS         0xC000
+#define IGP01E1000_PSSR_CABLE_LENGTH_SHIFT     0x0002 /* shift right 2 */
+#define IGP01E1000_PSSR_MDIX_SHIFT             0x000B /* shift right 11 */
+
+/* IGP01E1000 Specific Port Control Register - R/W */
+#define IGP01E1000_PSCR_TP_LOOPBACK            0x0001
+#define IGP01E1000_PSCR_CORRECT_NC_SCMBLR      0x0200
+#define IGP01E1000_PSCR_TEN_CRS_SELECT         0x0400
+#define IGP01E1000_PSCR_FLIP_CHIP              0x0800
+#define IGP01E1000_PSCR_AUTO_MDIX              0x1000
+#define IGP01E1000_PSCR_FORCE_MDI_MDIX         0x2000 /* 0-MDI, 1-MDIX */
+
+/* IGP01E1000 Specific Port Link Health Register */
+#define IGP01E1000_PLHR_SS_DOWNGRADE           0x8000
+#define IGP01E1000_PLHR_GIG_SCRAMBLER_ERROR    0x4000
+#define IGP01E1000_PLHR_GIG_REM_RCVR_NOK       0x0800 /* LH */
+#define IGP01E1000_PLHR_IDLE_ERROR_CNT_OFLOW   0x0400 /* LH */
+#define IGP01E1000_PLHR_DATA_ERR_1             0x0200 /* LH */
+#define IGP01E1000_PLHR_DATA_ERR_0             0x0100
+#define IGP01E1000_PLHR_AUTONEG_FAULT          0x0010
+#define IGP01E1000_PLHR_AUTONEG_ACTIVE         0x0008
+#define IGP01E1000_PLHR_VALID_CHANNEL_D        0x0004
+#define IGP01E1000_PLHR_VALID_CHANNEL_C        0x0002
+#define IGP01E1000_PLHR_VALID_CHANNEL_B        0x0001
+#define IGP01E1000_PLHR_VALID_CHANNEL_A        0x0000
+
+/* IGP01E1000 Channel Quality Register */
+#define IGP01E1000_MSE_CHANNEL_D        0x000F
+#define IGP01E1000_MSE_CHANNEL_C        0x00F0
+#define IGP01E1000_MSE_CHANNEL_B        0x0F00
+#define IGP01E1000_MSE_CHANNEL_A        0xF000
+
+/* IGP01E1000 AGC Registers */
+
+#define IGP01E1000_AGC_LENGTH_SHIFT 7         /* Coarse - 13:11, Fine - 10:7 */
+
+/* 7 bits (3 Coarse + 4 Fine) --> 128 optional values */
+#define IGP01E1000_AGC_LENGTH_TABLE_SIZE 128
+
+/* The precision of the length is +/- 10 meters */
+#define IGP01E1000_AGC_RANGE    10
+
+/* IGP cable length table */
+static const
+uint16_t em_igp_cable_length_table[IGP01E1000_AGC_LENGTH_TABLE_SIZE] =
+    { 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 10, 10, 10, 10, 10, 10, 10, 20, 20, 20, 20, 20, 25, 25, 25,
+      25, 25, 25, 25, 30, 30, 30, 30, 40, 40, 40, 40, 40, 40, 40, 40,
+      40, 50, 50, 50, 50, 50, 50, 50, 60, 60, 60, 60, 60, 60, 60, 60,
+      60, 70, 70, 70, 70, 70, 70, 80, 80, 80, 80, 80, 80, 90, 90, 90,
+      90, 90, 90, 90, 90, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+      100, 100, 100, 100, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110,
+      110, 110, 110, 110, 110, 110, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120};
+
+/* IGP01E1000 PCS Initialization register */
+/* bits 3:6 in the PCS registers stores the channels polarity */
+#define IGP01E1000_PHY_POLARITY_MASK    0x0078
+
+/* IGP01E1000 GMII FIFO Register */
+#define IGP01E1000_GMII_FLEX_SPD               0x10 /* Enable flexible speed
+                                                     * on Link-Up */
+#define IGP01E1000_GMII_SPD                    0x20 /* Enable SPD */
+
 /* Bit definitions for valid PHY IDs. */
 #define M88E1000_E_PHY_ID  0x01410C50
 #define M88E1000_I_PHY_ID  0x01410C30
 #define M88E1011_I_PHY_ID  0x01410C20
+#define IGP01E1000_I_PHY_ID  0x02A80380
 #define M88E1000_12_PHY_ID M88E1000_E_PHY_ID
 #define M88E1000_14_PHY_ID M88E1000_E_PHY_ID
 #define M88E1011_I_REV_4   0x04
