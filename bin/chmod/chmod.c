@@ -72,6 +72,7 @@ main(argc, argv)
 	int Hflag, Lflag, Pflag, Rflag, ch, fflag, fts_options, hflag, rval;
 	int vflag;
 	char *ep, *mode;
+	int newmode;
 
 	set = NULL;
 	omode = 0;
@@ -191,8 +192,10 @@ done:	argv += optind;
 		default:
 			break;
 		}
-		if (chmod(p->fts_accpath, oct ? omode :
-		    getmode(set, p->fts_statp->st_mode)) && !fflag) {
+		newmode = oct ? omode : getmode(set, p->fts_statp->st_mode);
+		if ((newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
+			continue;
+		if (chmod(p->fts_accpath, newmode) && !fflag) {
 			warn("%s", p->fts_path);
 			rval = 1;
 		} else {
