@@ -34,10 +34,10 @@
 #
 # NOMAN		KLD does not have a manual page if set.
 #
-# PROG          The name of the kernel module to build. 
+# PROG          The name of the kernel module to build.
 #		If not supplied, ${KMOD}.o is used.
 #
-# SRCS          List of source files 
+# SRCS          List of source files
 #
 # KMODDEPS	List of modules which this one is dependant on
 #
@@ -66,7 +66,7 @@
 #               actions immediately before and after the install target
 #		is executed.
 #
-# 	load:	
+# 	load:
 #		Load KLD.
 #
 # 	unload:
@@ -281,9 +281,9 @@ CLEANFILES+=	${_src}
 .if !target(${_src})
 ${_src}: @
 .if exists(@)
-${_src}: @/kern/makedevops.pl @/${_srcsrc}
+${_src}: @/kern/makeops.pl @/${_srcsrc}
 .endif
-	perl @/kern/makedevops.pl -${_ext} @/${_srcsrc}
+	perl @/kern/makeops.pl -${_ext} @/${_srcsrc}
 .endif
 .endfor # _src
 .endfor # _ext

@@ -18,26 +18,26 @@ device_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 device_if.c			standard				\
-	dependency	"$S/kern/makedevops.pl $S/kern/device_if.m"	\
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/kern/device_if.m" \
+	dependency	"$S/kern/makeops.pl $S/kern/device_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/kern/device_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"device_if.c"
 device_if.h			standard				\
-	dependency	"$S/kern/makedevops.pl $S/kern/device_if.m"	\
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/kern/device_if.m" \
+	dependency	"$S/kern/makeops.pl $S/kern/device_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/kern/device_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"device_if.h"
 bus_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 bus_if.c			standard				\
-	dependency	"$S/kern/makedevops.pl $S/kern/bus_if.m"	\
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/kern/bus_if.m"	\
+	dependency	"$S/kern/makeops.pl $S/kern/bus_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend local			\
 	clean		"bus_if.c"
 bus_if.h			standard				\
-	dependency	"$S/kern/makedevops.pl $S/kern/bus_if.m"	\
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/kern/bus_if.m"	\
+	dependency	"$S/kern/makeops.pl $S/kern/bus_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"bus_if.h"
 coda/coda_namecache.c	optional vcoda
@@ -215,13 +215,13 @@ miibus_if.o		optional miibus					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 miibus_if.c		optional miibus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/mii/miibus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/mii/miibus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/mii/miibus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/mii/miibus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"miibus_if.c"
 miibus_if.h		optional miibus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/mii/miibus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/mii/miibus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/mii/miibus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/mii/miibus_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"miibus_if.h"
 dev/mlx/mlx_disk.c	optional mlx
@@ -243,13 +243,13 @@ power_if.o		optional pccard					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 power_if.c		optional pccard					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/power_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/pccard/power_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"power_if.c"
 power_if.h		optional pccard					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/power_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/pccard/power_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"power_if.h"
 power_if.o		optional card					\
@@ -257,13 +257,13 @@ power_if.o		optional card					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 power_if.c		optional card					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/power_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/pccard/power_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"power_if.c"
 power_if.h		optional card					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/power_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/pccard/power_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"power_if.h"
 card_if.o		optional pccard					\
@@ -271,13 +271,13 @@ card_if.o		optional pccard					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 card_if.c		optional pccard					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/card_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/pccard/card_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"card_if.c"
 card_if.h		optional pccard					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/card_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/pccard/card_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"card_if.h"
 card_if.o		optional card					\
@@ -285,13 +285,13 @@ card_if.o		optional card					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 card_if.c		optional card					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/card_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/pccard/card_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"card_if.c"
 card_if.h		optional card					\
-	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/card_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/pccard/card_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"card_if.h"
 dev/pcic/i82365.c	optional pcic pccard
@@ -307,13 +307,13 @@ ppbus_if.o		optional ppbus					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 ppbus_if.c		optional ppbus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/ppbus/ppbus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/ppbus/ppbus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/ppbus/ppbus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/ppbus/ppbus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"ppbus_if.c"
 ppbus_if.h		optional ppbus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/ppbus/ppbus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/ppbus/ppbus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/ppbus/ppbus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/ppbus/ppbus_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"ppbus_if.h"
 dev/ppbus/immio.c	optional vpo
@@ -336,13 +336,13 @@ smbus_if.o		optional smbus					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 smbus_if.c		optional smbus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/smbus/smbus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/smbus/smbus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/smbus/smbus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/smbus/smbus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"smbus_if.c"
 smbus_if.h		optional smbus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/smbus/smbus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/smbus/smbus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/smbus/smbus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/smbus/smbus_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"smbus_if.h"
 dev/smbus/smbconf.c	optional smbus
@@ -366,13 +366,13 @@ iicbb_if.o		optional iicbb					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 iicbb_if.c		optional iicbb					\
-	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbb_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/iicbus/iicbb_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/iicbus/iicbb_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/iicbus/iicbb_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"iicbb_if.c"
 iicbb_if.h		optional iicbb					\
-	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbb_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/iicbus/iicbb_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/iicbus/iicbb_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/iicbus/iicbb_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"iicbb_if.h"
 dev/iicbus/iicsmb.c	optional iicsmb					\
@@ -382,13 +382,13 @@ iicbus_if.o		optional iicbus					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 iicbus_if.c		optional iicbus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/iicbus/iicbus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/iicbus/iicbus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/iicbus/iicbus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"iicbus_if.c"
 iicbus_if.h		optional iicbus					\
-	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbus_if.m" \
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/iicbus/iicbus_if.m" \
+	dependency	"$S/kern/makeops.pl $S/dev/iicbus/iicbus_if.m" \
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/iicbus/iicbus_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"iicbus_if.h"
 dev/iicbus/iiconf.c	optional iicbus
@@ -521,6 +521,7 @@ kern/subr_devstat.c	standard
 kern/subr_disk.c	standard
 kern/subr_diskslice.c	standard
 kern/subr_eventhandler.c	standard
+kern/subr_kobj.c	standard
 kern/subr_log.c		standard
 kern/subr_module.c	standard
 kern/subr_prf.c		standard
@@ -917,13 +918,13 @@ agp_if.o		optional agp					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 agp_if.c		optional agp					\
-	dependency	"$S/kern/makedevops.pl $S/pci/agp_if.m"		\
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/pci/agp_if.m" \
+	dependency	"$S/kern/makeops.pl $S/pci/agp_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/pci/agp_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"agp_if.c"
 agp_if.h		optional agp					\
-	dependency	"$S/kern/makedevops.pl $S/pci/agp_if.m"		\
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/pci/agp_if.m" \
+	dependency	"$S/kern/makeops.pl $S/pci/agp_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/pci/agp_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"agp_if.h"
 pci/amd.c		optional amd
@@ -976,13 +977,13 @@ pci_if.o		optional pci					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 pci_if.c		optional pci					\
-	dependency	"$S/kern/makedevops.pl $S/pci/pci_if.m"		\
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/pci/pci_if.m" \
+	dependency	"$S/kern/makeops.pl $S/pci/pci_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/pci/pci_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"pci_if.c"
 pci_if.h		optional pci					\
-	dependency	"$S/kern/makedevops.pl $S/pci/pci_if.m"		\
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/pci/pci_if.m" \
+	dependency	"$S/kern/makeops.pl $S/pci/pci_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/pci/pci_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"pci_if.h"
 pci/simos.c		optional simos
@@ -1046,13 +1047,13 @@ usb_if.o		optional usb					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 usb_if.c		optional usb					\
-	dependency	"$S/kern/makedevops.pl $S/dev/usb/usb_if.m"	\
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/usb/usb_if.m"	\
+	dependency	"$S/kern/makeops.pl $S/dev/usb/usb_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/usb/usb_if.m"	\
 	no-obj no-implicit-rule before-depend local			\
 	clean		"usb_if.c"
 usb_if.h		optional usb					\
-	dependency	"$S/kern/makedevops.pl $S/dev/usb/usb_if.m"	\
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/usb/usb_if.m"	\
+	dependency	"$S/kern/makeops.pl $S/dev/usb/usb_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/usb/usb_if.m"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"usb_if.h"
 dev/usb/uhci.c		optional uhci
@@ -1071,7 +1072,7 @@ dev/usb/ums.c		optional ums
 dev/usb/ulpt.c		optional ulpt
 dev/usb/ukbd.c		optional ukbd
 dev/usb/umass.c		optional umass
-dev/usb/umodem.c	optional umodem 
+dev/usb/umodem.c	optional umodem
 dev/usb/uhub.c		optional usb
 dev/usb/uscanner.c	optional uscanner
 dev/usb/if_aue.c	optional aue
@@ -1082,13 +1083,13 @@ isa_if.o		optional isa					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 isa_if.c		optional isa					\
-	dependency	"$S/kern/makedevops.pl $S/isa/isa_if.m"		\
-	compile-with	"perl5 $S/kern/makedevops.pl -c $S/isa/isa_if.m" \
+	dependency	"$S/kern/makeops.pl $S/isa/isa_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/isa/isa_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"isa_if.c"
 isa_if.h		optional isa					\
-	dependency	"$S/kern/makedevops.pl $S/isa/isa_if.m"		\
-	compile-with	"perl5 $S/kern/makedevops.pl -h $S/isa/isa_if.m" \
+	dependency	"$S/kern/makeops.pl $S/isa/isa_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/isa/isa_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"isa_if.h"
 isa/isa_common.c	optional isa
