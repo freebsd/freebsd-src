@@ -168,7 +168,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 		VOP_LEASE(wvp, td, thread0.td_ucred, LEASE_WRITE);
 
 		error = vn_rdwr(UIO_WRITE, wvp, (caddr_t)&msg, sizeof(msg), 0,
-		    UIO_SYSSPACE, ioflg, thread0.td_ucred, NULL, td);
+		    UIO_SYSSPACE, ioflg, thread0.td_ucred, NOCRED, NULL, td);
 
 		if (error && (((ioflg & IO_NDELAY) == 0) || error != EAGAIN)) {
 			break;

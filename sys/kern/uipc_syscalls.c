@@ -1849,10 +1849,15 @@ retry_lookup:
 			 */
 			bsize = vp->v_mount->mnt_stat.f_iosize;
 			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
+			/*
+			 * XXXMAC: Because we don't have fp->f_cred here,
+			 * we pass in NOCRED.  This is probably wrong, but
+			 * is consistent with our original implementation.
+			 */
 			error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
 			    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
 			    IO_VMIO | ((MAXBSIZE / bsize) << 16),
-			    td->td_ucred, &resid, td);
+			    td->td_ucred, NOCRED, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
 			vm_page_lock_queues();
 			vm_page_flag_clear(pg, PG_ZERO);

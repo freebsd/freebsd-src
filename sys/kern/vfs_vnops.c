@@ -67,13 +67,13 @@ static int vn_closefile(struct file *fp, struct thread *td);
 static int vn_ioctl(struct file *fp, u_long com, void *data, 
 		struct thread *td);
 static int vn_read(struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct thread *td);
+		struct ucred *active_cred, int flags, struct thread *td);
 static int vn_poll(struct file *fp, int events, struct ucred *cred,
 		struct thread *td);
 static int vn_kqfilter(struct file *fp, struct knote *kn);
 static int vn_statfile(struct file *fp, struct stat *sb, struct thread *td);
 static int vn_write(struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct thread *td);
+		struct ucred *active_cred, int flags, struct thread *td);
 
 struct 	fileops vnops = {
 	vn_read, vn_write, vn_ioctl, vn_poll, vn_kqfilter,
@@ -355,7 +355,8 @@ sequential_heuristic(struct uio *uio, struct file *fp)
  * Package up an I/O request on a vnode into a uio and do it.
  */
 int
-vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
+vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
+    aresid, td)
 	enum uio_rw rw;
 	struct vnode *vp;
 	caddr_t base;
@@ -363,13 +364,15 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 	off_t offset;
 	enum uio_seg segflg;
 	int ioflg;
-	struct ucred *cred;
+	struct ucred *active_cred;
+	struct ucred *file_cred;
 	int *aresid;
 	struct thread *td;
 {
 	struct uio auio;
 	struct iovec aiov;
 	struct mount *mp;
+	struct ucred *cred;
 	int error;
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
@@ -398,14 +401,18 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 #ifdef MAC
 	if ((ioflg & IO_NOMACCHECK) == 0) {
 		if (rw == UIO_READ)
-			error = mac_check_vnode_op(cred, vp,
+			error = mac_check_vnode_op(active_cred, vp,
 			    MAC_OP_VNODE_READ);
 		else
-			error = mac_check_vnode_op(cred, vp,
+			error = mac_check_vnode_op(active_cred, vp,
 			    MAC_OP_VNODE_WRITE);
 	}
 #endif
 	if (error == 0) {
+		if (file_cred)
+			cred = file_cred;
+		else
+			cred = active_cred;
 		if (rw == UIO_READ)
 			error = VOP_READ(vp, &auio, ioflg, cred);
 		else
@@ -433,7 +440,8 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
  * core'ing the same binary, or unrelated processes scanning the directory).
  */
 int
-vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
+vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
+    file_cred, aresid, td)
 	enum uio_rw rw;
 	struct vnode *vp;
 	caddr_t base;
@@ -441,7 +449,8 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 	off_t offset;
 	enum uio_seg segflg;
 	int ioflg;
-	struct ucred *cred;
+	struct ucred *active_cred;
+	struct ucred *file_cred;
 	int *aresid;
 	struct thread *td;
 {
@@ -453,7 +462,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 		if (rw != UIO_READ && vp->v_type == VREG)
 			bwillwrite();
 		error = vn_rdwr(rw, vp, base, chunk, offset, segflg,
-		    ioflg, cred, aresid, td);
+		    ioflg, active_cred, file_cred, aresid, td);
 		len -= chunk;	/* aresid calc already includes length */
 		if (error)
 			break;
@@ -470,10 +479,10 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
  * File table vnode read routine.
  */
 static int
-vn_read(fp, uio, cred, flags, td)
+vn_read(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {
@@ -489,7 +498,7 @@ vn_read(fp, uio, cred, flags, td)
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	VOP_LEASE(vp, td, cred, LEASE_READ);
+	VOP_LEASE(vp, td, fp->f_cred, LEASE_READ);
 	vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
@@ -497,10 +506,10 @@ vn_read(fp, uio, cred, flags, td)
 	ioflag |= sequential_heuristic(uio, fp);
 
 #ifdef MAC
-	error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_READ);
+	error = mac_check_vnode_op(active_cred, vp, MAC_OP_VNODE_READ);
 	if (error == 0)
 #endif
-		error = VOP_READ(vp, uio, ioflag, cred);
+		error = VOP_READ(vp, uio, ioflag, fp->f_cred);
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
@@ -513,10 +522,10 @@ vn_read(fp, uio, cred, flags, td)
  * File table vnode write routine.
  */
 static int
-vn_write(fp, uio, cred, flags, td)
+vn_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {
@@ -546,16 +555,16 @@ vn_write(fp, uio, cred, flags, td)
 		mtx_unlock(&Giant);
 		return (error);
 	}
-	VOP_LEASE(vp, td, cred, LEASE_WRITE);
+	VOP_LEASE(vp, td, fp->f_cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);
 #ifdef MAC
-	error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_WRITE);
+	error = mac_check_vnode_op(active_cred, vp, MAC_OP_VNODE_WRITE);
 	if (error == 0)
 #endif
-		error = VOP_WRITE(vp, uio, ioflag, cred);
+		error = VOP_WRITE(vp, uio, ioflag, fp->f_cred);
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;

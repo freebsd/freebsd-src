@@ -57,10 +57,10 @@ struct	fileops socketops = {
 
 /* ARGSUSED */
 int
-soo_read(fp, uio, cred, flags, td)
+soo_read(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {
@@ -75,10 +75,10 @@ soo_read(fp, uio, cred, flags, td)
 
 /* ARGSUSED */
 int
-soo_write(fp, uio, cred, flags, td)
+soo_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {

@@ -375,12 +375,12 @@ cpu_coredump(td, vp, cred)
 
 	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_proc->p_uarea,
 	    ctob(UAREA_PAGES), (off_t)0,
-	    UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
+	    UIO_SYSSPACE, IO_UNIT, cred, NOCRED, (int *)NULL, td);
 	if (error)
 		return error;
 	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_kstack,
 	    ctob(KSTACK_PAGES), (off_t)0,
-	    UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
+	    UIO_SYSSPACE, IO_UNIT, cred,  NOCRED,(int *)NULL, td);
 	return error;
 }
 
