@@ -171,13 +171,11 @@ ENTRY(xscale_setttb)
 /*
  * TLB functions
  *
- * Note: We don't need to worry about issuing a CPWAIT after
- * TLB operations, because we expect a pmap_update() to follow.
  */
 ENTRY(xscale_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
-	RET
+	CPWAIT_AND_RETURN(r0)
 
 /*
  * Cache functions
