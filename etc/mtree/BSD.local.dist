@@ -17,14 +17,14 @@
     ..
     lib
         perl5
-            5.6.0
+            5.6.1
                 man
                     man3
                     ..
                 ..
             ..
             site_perl
-                5.6.0
+                5.6.1
                     auto
                     ..
                     mach
