@@ -85,6 +85,7 @@
  * ways.
  */
 /* #define _POSIX_THREAD_SAFE_FUNCTIONS */
+#define _POSIX_SEMAPHORES
 
 /* access function */
 #define	F_OK		0	/* test for existence of file */
