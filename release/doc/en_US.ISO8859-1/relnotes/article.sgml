@@ -209,6 +209,16 @@
       additional configuration from the administrator.  Work on this
       feature was sponsored by DARPA and NAI Labs.</para>
 
+    <para>&os; now supports an extensible Mandatory Access Control
+      framework.  It permits loadable kernel modules to link to the
+      kernel at compile-time, boot-time, or run-time, and augment the
+      system security policy.
+
+      <note>
+        <para>The MAC framework implementation is a work in progress.</para>
+      </note>
+      </para>
+
     <para arch="ia64">Machine Check Architecture (MCA) records are now
       collected at boot time and made available through the
       <varname>hw.mca.*</varname> sysctl variables.</para>
@@ -364,7 +374,7 @@
     <para>The <literal>USER_LDT</literal> kernel option is now
       activated by default.</para>
 
-    <para>The uvisor driver for connecting Handspring Visors via USB
+    <para>The &man.uvisor.4; driver for connecting Handspring Visors via USB
       has been added. &merged;</para>
 
     <para>A VESA S3 linear framebuffer driver has been added.</para>
@@ -3633,8 +3643,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	2.22. &merged;</para>
 
       <para arch="i386,pc98">Version 1.4.5 of the
-	<application>smbfs</application> userland utilities have been
-	imported.</para>
+	<application>smbfs</application> userland utilities has been
+	imported. &merged;</para>
 
       <para><application>GNU sort</application> has been updated to
 	the version from <application>GNU textutils
