@@ -248,19 +248,6 @@ promtimeout(v)
 	promtimeouthandle = timeout(promtimeout, tp, polltime);
 }
 
-#if	0
-static int
-prom_modevent(module_t mod, int type, void *data)
-{
-	if (type == MOD_LOAD) {
-		cdevsw_add(&prom_cdevsw);
-		return(0);
-	}
-	return (EOPNOTSUPP);
-}
-DEV_MODULE(prom, prom_modevent, 0);
-#endif
-
 CONS_DRIVER(prom, NULL, NULL, NULL, promcngetc, promcncheckc, promcnputc, NULL);
 
 static int promcn_attached = 0;
