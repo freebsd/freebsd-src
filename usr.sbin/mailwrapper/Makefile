@@ -7,6 +7,8 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
 SYMLINKS= 	${BINDIR}/mailwrapper /usr/sbin/sendmail  \
+		${BINDIR}/mailwrapper /usr/sbin/hoststat  \
+		${BINDIR}/mailwrapper /usr/sbin/purgestat \
 		${BINDIR}/mailwrapper /usr/bin/newaliases \
 		${BINDIR}/mailwrapper /usr/bin/mailq
 
