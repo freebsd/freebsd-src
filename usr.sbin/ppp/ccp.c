@@ -500,8 +500,8 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (o->val.id == cp[0])
             break;
         if (o == NULL)
-          log_Printf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent option\n",
-                    fp->link->name);
+          log_Printf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent"
+                     " option\n", fp->link->name);
         else {
 	  memcpy(&o->val, cp, length);
           if ((*algorithm[f]->o.Set)(&o->val) == MODE_ACK)

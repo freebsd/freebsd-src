@@ -308,7 +308,8 @@ lcp_Setup(struct lcp *lcp, int openmode)
     }
 
     if (p->type != PHYS_DIRECT)
-      memcpy(&lcp->want_callback, &p->dl->cfg.callback, sizeof(struct callback));
+      memcpy(&lcp->want_callback, &p->dl->cfg.callback,
+             sizeof(struct callback));
     else
       lcp->want_callback.opmask = 0;
     lcp->want_lqrperiod = IsEnabled(lcp->cfg.lqr) ?

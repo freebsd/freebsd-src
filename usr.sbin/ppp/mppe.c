@@ -71,8 +71,9 @@ MPPEResetOutput(void *v)
   log_Printf(LogCCP, "MPPE: Output channel reset\n");
 }
 
-void
-MPPEReduceSessionKey(struct mppe_state *mp) {
+static void
+MPPEReduceSessionKey(struct mppe_state *mp)
+{
   switch(mp->keybits) {
   case 40:
     mp->sesskey[2] = 0x9e;
@@ -83,8 +84,9 @@ MPPEReduceSessionKey(struct mppe_state *mp) {
   }
 }
 
-void
-MPPEKeyChange(struct mppe_state *mp) {
+static void
+MPPEKeyChange(struct mppe_state *mp)
+{
   char InterimKey[MPPE_KEY_LEN];
   RC4_KEY RC4Key;
 
@@ -143,7 +145,8 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
   /* Chage protocol number */
   *proto = ccp_Proto(ccp);
 
-  log_Printf(LogDEBUG, "MPPE: Output: Encrypted: Proto %02x (%d bytes)\n", *proto, m_length(mo));
+  log_Printf(LogDEBUG, "MPPE: Output: Encrypted: Proto %02x (%d bytes)\n",
+             *proto, m_length(mo));
 
   return mo;
 }
@@ -193,7 +196,8 @@ MPPEInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mp)
   rp = MBUF_CTOP(mp);
   RC4(&mip->rc4key, m_length(mp), rp, rp);
 
-  log_Printf(LogDEBUG, "MPPE: Input: Decrypted: Proto %02x (%d bytes)\n", *proto, m_length(mp));
+  log_Printf(LogDEBUG, "MPPE: Input: Decrypted: Proto %02x (%d bytes)\n",
+             *proto, m_length(mp));
 
   log_DumpBp(LogDEBUG, "MPPE: Input: Decrypted: Packet:", mp);
 
@@ -224,7 +228,8 @@ MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
   log_Printf(LogCCP, "MPPE: InitOptsOutput\n");
 
   if (!MPPE_MasterKeyValid) {
-    log_Printf(LogWARN, "MPPE: MasterKey is invalid, MPPE is capable only with CHAP81 authentication\n");
+    log_Printf(LogWARN, "MPPE: MasterKey is invalid,"
+               " MPPE is capable only with CHAP81 authentication\n");
     *(u_int32_t *)o->data = htonl(0x0);
     return;
   }
@@ -419,4 +424,3 @@ const struct ccp_algorithm MPPEAlgorithm = {
     MPPEOutput
   },
 };
-
