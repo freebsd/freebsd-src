@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.7 1997/05/10 01:24:33 brian Exp $
+ * $Id: command.c,v 1.24.2.8 1997/05/10 03:42:28 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -450,7 +450,7 @@ struct cmdtab const ShowCommands[] = {
   { "proto",    NULL,     ReportProtStatus,	LOCAL_AUTH,
 	"Show protocol summary", StrNull},
   { "reconnect",NULL,	  ShowReconnect,	LOCAL_AUTH,
-	"Show Reconnect timer ntries", StrNull},
+	"Show Reconnect timer,tries", StrNull},
   { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
 	"Show Redial timeout value", StrNull},
   { "route",    NULL,     ShowRoute,		LOCAL_AUTH,
