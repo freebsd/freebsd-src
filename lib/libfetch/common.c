@@ -605,6 +605,7 @@ _fetch_close(conn_t *conn)
 	if (--conn->ref > 0)
 		return (0);
 	ret = close(conn->sd);
+	free(conn->buf);
 	free(conn);
 	return (ret);
 }
