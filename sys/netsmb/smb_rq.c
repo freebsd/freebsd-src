@@ -242,7 +242,7 @@ smb_rq_bend(struct smb_rq *rqp)
 	bcnt = rqp->sr_rq.mb_count;
 	if (bcnt > 0xffff)
 		SMBERROR("byte count too large (%d)\n", bcnt);
-	*rqp->sr_bcount = htoles(bcnt);
+	*rqp->sr_bcount = htole16(bcnt);
 }
 
 int
