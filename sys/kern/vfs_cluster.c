@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.24 1995/11/14 09:19:07 phk Exp $
+ * $Id: vfs_cluster.c,v 1.25 1995/11/19 19:54:19 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -626,7 +626,7 @@ redo:
 
 	for (i = 0; i < len; ++i, ++start_lbn) {
 		if (i != 0) {
-			s = splhigh();
+			s = splbio();
 			if ((tbp = incore(vp, start_lbn)) == NULL) {
 				splx(s);
 				break;
