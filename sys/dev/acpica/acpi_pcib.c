@@ -254,8 +254,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
      * XXX check ASL examples to see if this is an acceptable set of tests
      */
     if ((crsres->Data.Irq.NumberOfInterrupts == 1) && (crsres->Data.Irq.Interrupts[0] != 0)) {
-	device_printf(pcib, "device is routed to IRQ %d\n",
-	    crsres->Data.Irq.Interrupts[0]);
+	device_printf(pcib, "slot %d INT%c is routed to irq %d\n",
+	    pci_get_slot(dev), 'A' + pin, crsres->Data.Irq.Interrupts[0]);
 	interrupt = crsres->Data.Irq.Interrupts[0];
 	goto out;
     }
@@ -311,7 +311,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     resbuf.Data.Irq.NumberOfInterrupts = 1;
     resbuf.Data.Irq.Interrupts[0] = prsres->Data.Irq.Interrupts[0];	/* just take first... */
     if (ACPI_FAILURE(status = acpi_AppendBufferResource(&crsbuf, &resbuf))) {
-	device_printf(pcib, "couldn't route interrupt %d via %s, interupt resource build failed - %s\n",
+	device_printf(pcib, "couldn't route interrupt %d via %s, interrupt resource build failed - %s\n",
 		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), AcpiFormatException(status));
 	goto out;
     }
@@ -322,8 +322,9 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     }
     
     /* successful, return the interrupt we just routed */
-    device_printf(pcib, "routed interrupt %d via %s\n", 
-		  prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev));
+    device_printf(pcib, "slot %d INT%c routed to irq %d via %s\n", 
+	pci_get_slot(dev), 'A' + pin, prsres->Data.Irq.Interrupts[0],
+	acpi_name(lnkdev));
     interrupt = prsres->Data.Irq.Interrupts[0];
 
  out:
