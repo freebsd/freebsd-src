@@ -11,6 +11,8 @@
         scsi
         ..
     ..
+    crypto
+    ..
     dev
         an
         ..
