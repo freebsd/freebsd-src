@@ -470,9 +470,6 @@ trap(frame)
 			if (PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)
 				break;
 
-			if (td->td_intr_nesting_level != 0)
-				break;
-
 			/*
 			 * Invalid %fs's and %gs's can be created using
 			 * procfs or PT_SETREGS or by invalidating the
@@ -494,6 +491,9 @@ trap(frame)
 #endif				
 				goto out;
 			}
+
+			if (td->td_intr_nesting_level != 0)
+				break;
 
 			/*
 			 * Invalid segment selectors and out of bounds
