@@ -61,6 +61,7 @@
 #define	CLPD6832_IO_LIMIT1		0x0038
 #define	CLPD6832_BRIDGE_CONTROL		0x003c
 #define	CLPD6832_LEGACY_16BIT_IOADDR	0x0044
+#define	CLPD6832_LEGACY_16BIT_IOENABLE	0x0001
 #define	CLPD6832_SOCKET	 		0x004c
 
 /* Configuration constants */
@@ -149,3 +150,4 @@
 #define	CB_PCI_SUBSYS_VENDOR_ID	0x40	/* Subsystem Vendor ID */
 #define	CB_PCI_SUBSYS_ID	0x42	/* Subsystem ID */
 #define	CB_PCI_LEGACY16_IOADDR	0x44	/* Legacy 16bit I/O address */
+#define	CB_PCI_LEGACY16_IOENABLE 0x01	/* Enable Legacy 16bit I/O address */
