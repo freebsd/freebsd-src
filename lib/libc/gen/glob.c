@@ -131,7 +131,7 @@ typedef char Char;
 
 
 static int	 compare __P((const void *, const void *));
-static int	 g_Ctoc __P((const Char *, char *, char *));
+static int	 g_Ctoc __P((const Char *, char *, u_int));
 static int	 g_lstat __P((Char *, struct stat *, glob_t *));
 static DIR	*g_opendir __P((Char *, glob_t *));
 static Char	*g_strchr __P((Char *, int));
@@ -603,7 +603,7 @@ glob3(pathbuf, pathend, pattern, restpattern, pglob, limit)
 	if ((dirp = g_opendir(pathbuf, pglob)) == NULL) {
 		/* TODO: don't call for ENOENT or ENOTDIR? */
 		if (pglob->gl_errfunc) {
-			if (g_Ctoc(pathbuf, buf, buf + sizeof(buf)))
+			if (g_Ctoc(pathbuf, buf, sizeof(buf)))
 				return (GLOB_ABEND);
 			if (pglob->gl_errfunc(buf, errno) ||
 			    pglob->gl_flags & GLOB_ERR)
@@ -698,8 +698,8 @@ globextend(path, pglob, limit)
 	for (p = path; *p++;)
 		continue;
 	len = (size_t)(p - path);
-	if ((copy = malloc(len + 1)) != NULL) {
-		if (g_Ctoc(path, copy, copy + len + 1)) {
+	if ((copy = malloc(len)) != NULL) {
+		if (g_Ctoc(path, copy, len)) {
 			free(copy);
 			return (GLOB_NOSPACE);
 		}
@@ -792,7 +792,7 @@ g_opendir(str, pglob)
 	if (!*str)
 		strcpy(buf, ".");
 	else {
-		if (g_Ctoc(str, buf, buf + sizeof(buf)))
+		if (g_Ctoc(str, buf, sizeof(buf)))
 			return (NULL);
 	}
 
@@ -810,7 +810,7 @@ g_lstat(fn, sb, pglob)
 {
 	char buf[MAXPATHLEN];
 
-	if (g_Ctoc(fn, buf, buf + sizeof(buf))) {
+	if (g_Ctoc(fn, buf, sizeof(buf))) {
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
@@ -827,7 +827,7 @@ g_stat(fn, sb, pglob)
 {
 	char buf[MAXPATHLEN];
 
-	if (g_Ctoc(fn, buf, buf + sizeof(buf))) {
+	if (g_Ctoc(fn, buf, sizeof(buf))) {
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
@@ -867,17 +867,17 @@ g_strcat(dst, src)
 #endif
 
 static int
-g_Ctoc(str, buf, ebuf)
-	register const Char *str;
-	char *buf, *ebuf;
+g_Ctoc(str, buf, len)
+	const Char *str;
+	char *buf;
+	u_int len;
 {
-	register char *dc;
 
-	for (dc = buf; dc < ebuf && (*dc++ = *str++) != EOS;)
-		continue;
-	if (dc >= ebuf)
-		return (1);
-	return (0);
+	while (len--) {
+		if ((*buf++ = *str++) == '\0')
+			return (0);
+	}
+	return (1);
 }
 
 #ifdef DEBUG
