@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.114 2003/01/11 09:39:51 ue Exp $
-  basiert auf: 1.22.2.316
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.115 2003/01/11 18:23:13 ue Exp $
+  basiert auf: 1.22.2.318
 -->
 
 <articleinfo>
@@ -128,7 +128,7 @@
 
     <para arch="i386,pc98,powerpc">Es gibt jetzt minimale
       Unterst&uuml;tzung f&uuml;r Ger&auml;te mit
-      Firewire-Schnittstellen (siehe &man.firewire.4;).</para>
+      FireWire-Schnittstellen (siehe &man.firewire.4;).</para>
 
     <para>Der neue Treiber &man.uftdi.4; unterst&uuml;tzt USB nach
       Seriell Konverter von FTDI.</para>
@@ -251,6 +251,9 @@
       eingestellt werden.  Wird der Wert <literal>max</literal>
       angegeben, wird die h&ouml;chste m&ouml;gliche Geschwindigkeit
       verwendet.</para>
+
+    <para>Das neue Programm &man.fwcontrol.8; ist ein Hilfsmittel zum
+      Zugriff auf und die Kontrolle des FireWire-Subsystems.</para>
 
     <para>Mit dem neuen Hilfsprogramm &man.getconf.1; k&ouml;nnen die
       Werte der in POSIX und X/Open angegebenen Variablen f&uuml;r die
