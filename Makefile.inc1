@@ -568,6 +568,7 @@ _strfile=	games/fortune/strfile
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.bin/xinstall \
+    usr.bin/mk_cmds \
     usr.sbin/config \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
