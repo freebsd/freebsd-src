@@ -37,7 +37,7 @@ seem to be so for getnetbyaddr
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irpd.c,v 1.7 1999/10/13 16:26:23 vixie Exp $";
+static const char rcsid[] = "$Id: irpd.c,v 1.8 2000/02/04 08:28:27 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -329,7 +329,9 @@ int
 main(int argc, char **argv) {
 	struct ctl_sctx *ctx;
 	struct sockaddr *addr;
+#ifndef NO_SOCKADDR_UN
 	struct sockaddr_un uaddr;
+#endif
 	struct sockaddr_in iaddr;
 	log_channel chan;
 	short port = IRPD_PORT;
@@ -358,11 +360,13 @@ main(int argc, char **argv) {
 			}
 			break;
 
+#ifndef NO_SOCKADDR_UN
 		case 'u':
 			sockname = optarg;
 			addr = (struct sockaddr *)&uaddr;
 			socksize = sizeof uaddr;
 			break;
+#endif
 
 		case 'h':
 		case '?':
@@ -374,7 +378,6 @@ main(int argc, char **argv) {
 	argc -= optind;
 	argv += optind;
 
-	memset(&uaddr, 0, sizeof uaddr);
 	memset(&iaddr, 0, sizeof iaddr);
 
 #ifdef HAVE_SA_LEN
@@ -384,17 +387,21 @@ main(int argc, char **argv) {
 	iaddr.sin_port = htons(IRPD_PORT);
 	iaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	uaddr.sun_family = AF_UNIX;
-	strncpy(uaddr.sun_path, sockname, sizeof uaddr.sun_path);
+#ifndef NO_SOCKADDR_UN
+	memset(&uaddr, 0, sizeof uaddr);
+	if (addr == (struct sockaddr *)&uaddr) {
+		uaddr.sun_family = AF_UNIX;
+		strncpy(uaddr.sun_path, sockname, sizeof uaddr.sun_path);
 #ifdef HAVE_SA_LEN
-	uaddr.sun_len = SUN_LEN(&uaddr);
+		uaddr.sun_len = SUN_LEN(&uaddr);
 #endif
 
-	if (addr == (struct sockaddr *)&uaddr)
 		socksize = SUN_LEN(&uaddr);
 
-	/* XXX what if this file is not currently a socket? */
-	unlink(sockname);
+		/* XXX what if this file is not currently a socket? */
+		unlink(sockname);
+	}
+#endif
 
 	evCreate(&ev);
 

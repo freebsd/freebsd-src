@@ -1,10 +1,10 @@
 %{
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_parser.y,v 8.51 1999/11/12 05:29:18 vixie Exp $";
+static char rcsid[] = "$Id: ns_parser.y,v 8.55 2000/04/23 02:18:59 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -376,8 +376,6 @@ option: /* Empty */
 	| T_HAS_OLD_CLIENTS yea_or_nay
 	{
 		set_global_boolean_option(current_options,
-					  OPTION_MAINTAIN_IXFR_BASE, $2);
-		set_global_boolean_option(current_options,
 					  OPTION_NORFC2308_TYPE1, $2);
 		set_global_boolean_option(current_options,
 					  OPTION_NONAUTH_NXDOMAIN, !$2);
@@ -589,7 +587,9 @@ control: /* Empty */
 	}
 	| T_UNIX L_QSTRING T_PERM L_NUMBER T_OWNER L_NUMBER T_GROUP L_NUMBER
 	{
+#ifndef NO_SOCKADDR_UN
 		ns_ctl_add(&current_controls, ns_ctl_new_unix($2, $4, $6, $8));
+#endif
 	}
 	| error
 	;
@@ -960,6 +960,8 @@ logging_opt: T_CATEGORY category
 							     chan_name, NULL,
 							     chan_versions,
 							     chan_max_size);
+				log_set_file_owner(current_channel,
+						   user_id, group_id);
 				freestr(chan_name);
 				chan_name = NULL;
 				break;

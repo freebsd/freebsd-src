@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: list.c,v 8.21 1999/10/15 19:49:08 vixie Exp $";
+static const char rcsid[] = "$Id: list.c,v 8.23 2000/03/30 23:25:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -135,7 +135,6 @@ int ListSubr();
  *
  *	To see all types of information sorted by name, do the following:
  *	  ls -d domain.edu > file
- *	  view file
  *
  *  Results:
  *	SUCCESS		the listing was successful.
@@ -422,8 +421,12 @@ ListSubr(int qtype, char *domain, char *cmd) {
 			}
 			name = ns_rr_name(rr);
 			if (origin[0] == '\0' && name[0] != '\0') {
-				fprintf(filePtr, "$ORIGIN %s.\n", name);
-				strcpy(origin, name);
+				if (strcmp(name, ".") != 0)
+					strcpy(origin, name);
+				fprintf(filePtr, "$ORIGIN %s.\n", origin);
+				if (strcmp(name, ".") == 0)
+					strcpy(origin, name);
+				strcpy(name_ctx, "@");
 			}
 			if (qtype == T_ANY || ns_rr_type(rr) == qtype) {
 				if (ns_sprintrr(&handle, &rr, name_ctx, origin,
@@ -495,60 +498,6 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	default:
 		return (ERROR);
 	}
-}
-
-/*
- *******************************************************************************
- *
- *  ViewList --
- *
- *	A hack to view the output of the ls command in sorted
- *	order using more.
- *
- *******************************************************************************
- */
-
-void
-ViewList(char *string) {
-    char file[PATH_MAX];
-    char command[PATH_MAX];
-    int i, j;
-    char soafile[PATH_MAX];
-
-    /* sscanf(string, " view %s", file); */
-    i = matchString(" view ", string);
-    if (i > 0) {
-	    j = pickString(string + i, file, sizeof file);
-	    if (j == 0) {
-		fprintf(stderr, "*** invalid file name: %s\n", string + i);
-		return ;
-	    }
-    }
-
-    if ( !mktemp(strcpy(soafile,"/var/tmp/nslookup_tmpXXXXXX"))) {
-	fprintf(stderr, "*** cannot create temp file\n");
-	return ;
-	}
-    (void)sprintf(command, "sed '\
-/^$/,${\
-/@/,$d\
-}\
-/^[^	]/{\
-h\
-s/^\\([^	]*	*\\).*/\\1/\
-x\
-}\
-1,/^$/{\
-w %s\
-d\
-}\
-/^	/{\
-G\
-s/^	*//\
-s/^\\(.*\\)\\n\\(.*\\)$/\\2\\1/\
-}' %s | sort | (cat %s -; rm %s) | %s",
-		  soafile, file, soafile, soafile, pager);
-    system(command);
 }
 
 /*

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_stats.c	4.10 (Berkeley) 6/27/90";
-static const char rcsid[] = "$Id: ns_stats.c,v 8.27 1999/10/13 16:39:12 vixie Exp $";
+static const char rcsid[] = "$Id: ns_stats.c,v 8.30 2000/04/23 02:18:59 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: ns_stats.c,v 8.27 1999/10/13 16:39:12 vixie Ex
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -122,6 +122,7 @@ ns_stats() {
 			  server_options->stats_filename);
 		return;
 	}
+	(void) fchown(fileno(f), user_id, group_id);
 
 	fprintf(f, "+++ Statistics Dump +++ (%ld) %s",
 		(long)timenow, checked_ctime(&timenow));
@@ -144,10 +145,11 @@ ns_stats() {
 
 	/* Now do the memory statistics file */
 	if (!(f = fopen(server_options->memstats_filename, "a"))) {
-	       ns_notice(ns_log_statistics, "cannot open memstat file, \"%s\"",
+		ns_notice(ns_log_statistics, "cannot open memstat file, \"%s\"",
 			  server_options->memstats_filename);
 		return;
 	}
+	(void) fchown(fileno(f), user_id, group_id);
 
 	fprintf(f, "+++ Memory Statistics Dump +++ (%ld) %s",
 		(long)timenow, checked_ctime(&timenow));
@@ -207,6 +209,10 @@ static const char	*statNames[nssLast] = {
 			"SFErr",	/* sent them a FORMERR */
 			"SNaAns",       /* sent them a non autoritative answer */
 			"SNXD",         /* sent them a negative response */
+			"RUQ",		/* sent us an unapproved query */
+			"RURQ",		/* sent us an unapproved recursive query */
+			"RUXFR",	/* sent us an unapproved AXFR or IXFR */
+			"RUUpd",	/* sent us an unapproved update */
 			};
 
 /*

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_main.c,v 8.117 1999/11/08 23:01:38 vixie Exp $";
+static const char rcsid[] = "$Id: ns_main.c,v 8.125 2000/04/21 06:54:08 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: ns_main.c,v 8.117 1999/11/08 23:01:38 vixie Ex
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -146,7 +146,11 @@ static	int			iflist_dont_rescan = 0;
 static	const int		drbufsize = 32 * 1024,	/* UDP rcv buf size */
 				dsbufsize = 48 * 1024,	/* UDP snd buf size */
 				sbufsize = 16 * 1024,	/* TCP snd buf size */ 
+#ifdef BROKEN_RECVFROM
+				nudptrans = 1,
+#else
 				nudptrans = 20,		/* #/udps per select */
+#endif
 				listenmax = 50;
 
 static	u_int16_t		nsid_state;
@@ -318,8 +322,8 @@ main(int argc, char *argv[], char *envp[]) {
 			break;
 
 		case 'v':
-			fprintf(stderr, "%s\n", Version);
-			exit(1);
+			fprintf(stdout, "%s\n", Version);
+			exit(0);
 
 #ifdef CAN_CHANGE_ID
 		case 'u':
@@ -754,6 +758,10 @@ tcp_send(struct qinfo *qp) {
 		sq_remove(sp);
 		return (SERVFAIL);
 	}
+	if (fcntl(sp->s_rfd, F_SETFD, 1) < 0) {
+		sq_remove(sp);
+		return (SERVFAIL);
+	}
 	if (sq_openw(sp, qp->q_msglen + INT16SZ) == -1) {
 		sq_remove(sp);
 		return (SERVFAIL);
@@ -785,7 +793,7 @@ tcp_send(struct qinfo *qp) {
 
 static void
 stream_send(evContext lev, void *uap, int fd, const void *la, int lalen,
-                               const void *ra, int ralen) {
+	    const void *ra, int ralen) {
 	struct qstream *sp = uap;
 
 	ns_debug(ns_log_default, 1, "stream_send");
@@ -890,7 +898,8 @@ stream_getlen(evContext lev, void *uap, int fd, int bytes) {
 		}
 	}
 
-	iov = evConsIovec(sp->s_buf, sp->s_size);
+	iov = evConsIovec(sp->s_buf, (sp->s_size <= sp->s_bufsize) ?
+				     sp->s_size : sp->s_bufsize);
 	if (evRead(lev, sp->s_rfd, &iov, 1, stream_getmsg, sp, &sp->evID_r)
 	    == -1)
 		ns_panic(ns_log_default, 1, "evRead(fd %d): %s",
@@ -1127,13 +1136,13 @@ getnetconf(int periodic_scan) {
 		ifc.ifc_len = bufsiz;
 		ifc.ifc_buf = buf;
 #ifdef IRIX_EMUL_IOCTL_SIOCGIFCONF
-              /*
-               * This is a fix for IRIX OS in which the call to ioctl with
-               * the flag SIOCGIFCONF may not return an entry for all the
-               * interfaces like most flavors of Unix.
-               */
-              if (emul_ioctl(&ifc) >= 0)
-                      break;
+		/*
+		 * This is a fix for IRIX OS in which the call to ioctl with
+		 * the flag SIOCGIFCONF may not return an entry for all the
+		 * interfaces like most flavors of Unix.
+		 */
+		if (emul_ioctl(&ifc) >= 0)
+			break;
 #else
 		if ((n = ioctl(s, SIOCGIFCONF, (char *)&ifc)) != -1) {
 			/*
@@ -1431,6 +1440,11 @@ opensocket_d(interface *ifp) {
 		ns_notice(ns_log_default, "fcntl(dfd, F_DUPFD, 20): %s",
 			  strerror(errno));
 #endif
+	if (fcntl(ifp->dfd, F_SETFD, 1) < 0) {
+		ns_error(ns_log_default, "F_SETFD: %s", strerror(errno));
+		close(ifp->dfd);
+		return (-1);
+	}
 	ns_debug(ns_log_default, 1, "ifp->addr %s d_dfd %d",
 		 sin_ntoa(nsa), ifp->dfd);
 	if (setsockopt(ifp->dfd, SOL_SOCKET, SO_REUSEADDR,
@@ -1516,6 +1530,11 @@ opensocket_s(interface *ifp) {
 		ns_notice(ns_log_default, "fcntl(sfd, F_DUPFD, 20): %s",
 			  strerror(errno));
 #endif
+	if (fcntl(ifp->sfd, F_SETFD, 1) < 0) {
+		ns_error(ns_log_default, "F_SETFD: %s", strerror(errno));
+		close(ifp->sfd);
+		return (-1);
+	}
 	if (setsockopt(ifp->sfd, SOL_SOCKET, SO_REUSEADDR,
 		       (char *)&on, sizeof on) != 0) {
 		ns_notice(ns_log_default, "setsockopt(REUSEADDR): %s",
@@ -1617,6 +1636,8 @@ opensocket_f() {
 			 strerror(errno));
 	if (ds > evHighestFD(ev))
 		ns_panic(ns_log_default, 1, "socket too high: %d", ds);
+	if (fcntl(ds, F_SETFD, 1) < 0)
+		ns_panic(ns_log_default, 1, "F_SETFD: %s", strerror(errno));
 	if (setsockopt(ds, SOL_SOCKET, SO_REUSEADDR,
 	    (char *)&on, sizeof on) != 0) {
 		ns_notice(ns_log_default, "setsockopt(REUSEADDR): %s",
@@ -1719,7 +1740,7 @@ sq_remove(struct qstream *qp) {
 		INSIST_ERR(evDeselectFD(ev, qp->evID_w) != -1);
 	if (qp->flags & STREAM_CONNECT_EV)
 		INSIST_ERR(evCancelConn(ev, qp->evID_c) != -1);
-	if (qp->flags & STREAM_AXFR)
+	if (qp->flags & STREAM_AXFR || qp->flags & STREAM_AXFRIXFR)
 		ns_freexfr(qp);
 	(void) close(qp->s_rfd);
 	if (qp == streamq)
@@ -1945,7 +1966,7 @@ sq_done(struct qstream *sp) {
 		sp->s_wbuf_send = sp->s_wbuf_free = NULL;
 		sp->s_wbuf_end = sp->s_wbuf = NULL;
 	}
-	if (sp->flags & STREAM_AXFR)
+	if (sp->flags & STREAM_AXFR || sp->flags & STREAM_AXFRIXFR)
 		ns_freexfr(sp);
 	sp->s_refcnt = 0;
 	sp->s_time = tt.tv_sec;
@@ -2340,7 +2361,7 @@ static const u_int16_t nsid_multiplier_table[] = {
 	10853,  1453, 18069, 21693, 30573, 36261, 37421, 42533
 };
 #define NSID_MULT_TABLE_SIZE \
-           ((sizeof nsid_multiplier_table)/(sizeof nsid_multiplier_table[0]))
+	((sizeof nsid_multiplier_table)/(sizeof nsid_multiplier_table[0]))
 
 void
 nsid_init(void) {
@@ -2623,6 +2644,7 @@ init_needs(void) {
 	handlers[main_need_debug] = use_desired_debug;
 	handlers[main_need_restart] = ns_restart;
 	handlers[main_need_reap] = reapchild;
+	handlers[main_need_noexpired] = ns_noexpired;
 }
 
 static void
@@ -2703,18 +2725,18 @@ meminit(size_t init_max_size, size_t target_size) {
 
 void *
 memget_debug(size_t size, const char *file, int line) {
-        void *ptr;
-        ptr = __memget(size);
-        fprintf(stderr, "%s:%d: memget(%lu) -> %p\n", file, line,
-                (u_long)size, ptr);
-        return (ptr);
+	void *ptr;
+	ptr = __memget(size);
+	fprintf(stderr, "%s:%d: memget(%lu) -> %p\n", file, line,
+		(u_long)size, ptr);
+	return (ptr);
 }
 
 void
 memput_debug(void *ptr, size_t size, const char *file, int line) {
-        fprintf(stderr, "%s:%d: memput(%p, %lu)\n", file, line, ptr,
-                (u_long)size);
-        __memput(ptr, size);
+	fprintf(stderr, "%s:%d: memput(%p, %lu)\n", file, line, ptr,
+		(u_long)size);
+	__memput(ptr, size);
 }
 
 void

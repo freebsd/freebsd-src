@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_lookup.c	4.18 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_lookup.c,v 8.24 1999/10/15 19:48:58 vixie Exp $";
+static const char rcsid[] = "$Id: db_lookup.c,v 8.26 2000/04/21 06:54:03 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: db_lookup.c,v 8.24 1999/10/15 19:48:58 vixie E
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -291,8 +291,18 @@ nxtlower(const char *name, struct databuf *dp) {
 int
 nxtmatch(const char *name, struct databuf *dp1, struct databuf *dp2) {
         int dp1_lower, dp2_lower;
-                
-	if (dp1->d_type != ns_t_nxt || dp2->d_type != ns_t_nxt)
+	int type1, type2;
+
+	if (dp1->d_type == ns_t_sig)
+		type1 = SIG_COVERS(dp1);
+	else
+		type1 = dp1->d_type;
+	if (dp2->d_type == ns_t_sig)
+		type2 = SIG_COVERS(dp2);
+	else
+		type2 = dp2->d_type;
+
+	if (type1 != ns_t_nxt || type2 != ns_t_nxt)
 		return (0);
         dp1_lower = nxtlower(name, dp1);
         dp2_lower = nxtlower(name, dp2);
