@@ -58,7 +58,7 @@ kernel-clobber:
 	find . -type f ! -name version -delete
 
 lint: ${CFILES}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} | more 2>&1
+	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC}
 
 locore.o: $S/$M/$M/locore.s assym.s
 	${NORMAL_S}

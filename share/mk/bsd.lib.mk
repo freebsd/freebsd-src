@@ -58,11 +58,11 @@ STRIP?=	-s
 
 .c.ln:
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
-		touch ${.TARGET}
+	    touch ${.TARGET}
 
 .cc.ln .C.ln .cpp.ln .cxx.ln:
-	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
-		touch ${.TARGET}
+	${LINT} ${LINTOBJFLAGS} ${CXXFLAGS:M-[DIU]*} ${.IMPSRC} || \
+	    touch ${.TARGET}
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -167,10 +167,9 @@ _LIBS=lib${LIB}.a
 
 LINTOBJS+= ${SRCS:M*.c:C/\..+$/.ln/}
 
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && (${LINTOBJS} != "")
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
 LINTLIB=llib-l${LIB}.ln
-.else
-LINTLIB=
+_LIBS+=${LINTLIB}
 .endif
 
 .if defined(SHLIB_NAME)
@@ -189,9 +188,9 @@ PICFLAG=-fpic
 .endif
 
 .if !defined(NOMAN)
-all: objwarn ${_LIBS} all-man _SUBDIR ${LINTLIB}
+all: objwarn ${_LIBS} all-man _SUBDIR
 .else
-all: objwarn ${_LIBS} _SUBDIR ${LINTLIB}
+all: objwarn ${_LIBS} _SUBDIR
 .endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
@@ -239,9 +238,9 @@ lib${LIB}_pic.a:: ${SOBJS}
 	${RANLIB} lib${LIB}_pic.a
 .endif
 
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && (${LINTOBJS} != "")
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
 ${LINTLIB}: ${LINTOBJS}
-	@${ECHO} building lint library ${SHLIB_NAME}
+	@${ECHO} building lint library ${LINTLIB}
 	@rm -f ${LINTLIB}
 	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
@@ -249,7 +248,7 @@ ${LINTLIB}: ${LINTOBJS}
 .if !target(clean)
 clean:	_SUBDIR
 	rm -f a.out ${OBJS} ${STATICOBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
-	rm -f lib${LIB}.a ${LINTLIB}
+	rm -f lib${LIB}.a
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
 	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/} \
 	    ${SHLIB_NAME} ${SHLIB_LINK} \
@@ -348,7 +347,7 @@ realinstall: beforeinstall
 		ln -fs $$l $$t; \
 	done; true
 .endif
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && (${LINTOBJS} != "")
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
@@ -375,9 +374,8 @@ distribute:	_SUBDIR
 
 .if !target(lint)
 lint: ${SRCS:M*.c} _SUBDIR
-	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC} | more 2>&1
+	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
-
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
