@@ -261,7 +261,7 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
  * guarantee that the generation number and the statistics match up.
  */
 static int
-sysctl_devstat (SYSCTL_HANDLER_ARGS)
+sysctl_devstat(SYSCTL_HANDLER_ARGS)
 {
 	int error, i;
 	struct devstat *nds;

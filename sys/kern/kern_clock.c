@@ -413,7 +413,7 @@ statclock(frame)
  * Return information about system clocks.
  */
 static int
-sysctl_kern_clockrate (SYSCTL_HANDLER_ARGS)
+sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 {
 	struct clockinfo clkinfo;
 	/*
