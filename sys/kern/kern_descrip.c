@@ -712,10 +712,12 @@ fpathconf(p, uap)
 	switch (fp->f_type) {
 	case DTYPE_PIPE:
 	case DTYPE_SOCKET:
-		if (uap->name != _PC_PIPE_BUF)
-			return (EINVAL);
-		p->p_retval[0] = PIPE_BUF;
-		error = 0;
+		if (uap->name != _PC_PIPE_BUF) {
+			error = EINVAL;
+		} else {
+			p->p_retval[0] = PIPE_BUF;
+			error = 0;
+		}
 		break;
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
