@@ -119,4 +119,4 @@ cdev_load(mod, cmd, arg)
 
 /* Now declare the module to the system */
 
-CDEV_MODULE(cdev_mod, CDEV_MAJOR, my_devsw, cdev_load, 0);
+DEV_MODULE(cdev_mod, CDEV_MAJOR, -1, my_devsw, cdev_load, 0);
