@@ -133,6 +133,7 @@ public:
 	void add_detach(int, event_proc *);
 	void add_directory(const char *);
 	void add_nomatch(int, event_proc *);
+	void add_notify(int, event_proc *);
 	void set_pidfile(const char *);
 	void reset();
 	void parse();
@@ -158,6 +159,7 @@ private:
 	std::vector<event_proc *> _attach_list;
 	std::vector<event_proc *> _detach_list;
 	std::vector<event_proc *> _nomatch_list;
+	std::vector<event_proc *> _notify_list;
 };
 
 #endif /* DEVD_HH */

@@ -67,6 +67,7 @@ using namespace std;
 extern FILE *yyin;
 extern int lineno;
 
+static const char notify = '!';
 static const char nomatch = '?';
 static const char attach = '+';
 static const char detach = '-';
@@ -219,6 +220,7 @@ config::reset(void)
 	delete_and_clear(_attach_list);
 	delete_and_clear(_detach_list);
 	delete_and_clear(_nomatch_list);
+	delete_and_clear(_notify_list);
 }
 
 void
@@ -282,6 +284,7 @@ config::parse(void)
 	sort_vector(_attach_list);
 	sort_vector(_detach_list);
 	sort_vector(_nomatch_list);
+	sort_vector(_notify_list);
 }
 
 void
@@ -323,6 +326,13 @@ config::add_nomatch(int prio, event_proc *p)
 {
 	p->set_priority(prio);
 	_nomatch_list.push_back(p);
+}
+
+void
+config::add_notify(int prio, event_proc *p)
+{
+	p->set_priority(prio);
+	_notify_list.push_back(p);
 }
 
 void
@@ -501,6 +511,10 @@ config::find_and_execute(char type)
 	switch (type) {
 	default:
 		return;
+	case notify:
+		l = &_notify_list;
+		s = "notify";
+		break;
 	case nomatch:
 		l = &_nomatch_list;
 		s = "nomatch";
@@ -539,7 +553,21 @@ process_event(char *buffer)
 	cfg.push_var_table();
 	// No match doesn't have a device, and the format is a little
 	// different, so handle it separately.
-	if (type != nomatch) {
+	switch (type) {
+	case notify:
+		sp = cfg.set_vars(sp);
+		break;
+	case nomatch:
+		//?vars at location on bus
+		sp = cfg.set_vars(sp);
+		if (strncmp(sp, "at ", 3) == 0)
+			sp += 3;
+		sp = cfg.set_vars(sp);
+		if (strncmp(sp, "on ", 3) == 0)
+			cfg.set_variable("bus", sp + 3);
+		break;
+	case attach:	/*FALLTHROUGH*/
+	case detach:
 		sp = strchr(sp, ' ');
 		if (sp == NULL)
 			return;	/* Can't happen? */
@@ -550,14 +578,7 @@ process_event(char *buffer)
 		sp = cfg.set_vars(sp);
 		if (strncmp(sp, "on ", 3) == 0)
 			cfg.set_variable("bus", sp + 3);
-	} else {
-		//?vars at location on bus
-		sp = cfg.set_vars(sp);
-		if (strncmp(sp, "at ", 3) == 0)
-			sp += 3;
-		sp = cfg.set_vars(sp);
-		if (strncmp(sp, "on ", 3) == 0)
-			cfg.set_variable("bus", sp + 3);
+		break;
 	}
 	
 	cfg.find_and_execute(type);
@@ -641,6 +662,12 @@ void
 add_nomatch(int prio, event_proc *p)
 {
 	cfg.add_nomatch(prio, p);
+}
+
+void
+add_notify(int prio, event_proc *p)
+{
+	cfg.add_notify(prio, p);
 }
 
 event_proc *
