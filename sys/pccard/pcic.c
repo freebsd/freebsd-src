@@ -376,7 +376,7 @@ pcic_memory(struct slot *slt, int win)
 		outb(PCIC98_REG_WINSEL, PCIC98_MAPWIN);
 		
 #if 0
-		if (mp->flags & MDF_16BITS == 1) {	/* 16bit */
+		if ((mp->flags & MDF_16BITS) == 1) {	/* 16bit */
 		    outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_8BIT));
 		}else{					/* 8bit */
 		    outb(PCIC98_REG2, inb(PCIC98_REG2) | PCIC98_8BIT);
