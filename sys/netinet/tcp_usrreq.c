@@ -562,7 +562,12 @@ tcp_connect(tp, nam, p)
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
 	tp->t_timer[TCPT_KEEP] = tcp_keepinit;
-	tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
+#ifdef TCP_COMPAT_42
+	tp->iss = tcp_iss;
+	tcp_iss += TCP_ISSINCR/2;
+#else  /* TCP_COMPAT_42 */
+	tp->iss = tcp_rndiss_next();
+#endif /* !TCP_COMPAT_42 */
 	tcp_sendseqinit(tp);
 
 	/*

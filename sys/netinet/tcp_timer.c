@@ -167,8 +167,8 @@ tcp_slowtimo()
 tpgone:
 		;
 	}
-	tcp_iss += TCP_ISSINCR/PR_SLOWHZ;		/* increment iss */
 #ifdef TCP_COMPAT_42
+	tcp_iss += TCP_ISSINCR/PR_SLOWHZ;		/* increment iss */
 	if ((int)tcp_iss < 0)
 		tcp_iss = TCP_ISSINCR;			/* XXX */
 #endif
