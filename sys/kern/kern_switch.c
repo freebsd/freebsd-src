@@ -525,6 +525,8 @@ runq_add(struct runq *rq, struct kse *ke)
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("runq_add: kse %p (%s) already in run queue", ke,
 	    ke->ke_proc->p_comm));
+	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+		("runq_add: process swapped out"));
 	pri = ke->ke_thread->td_priority / RQ_PPQ;
 	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
@@ -590,6 +592,8 @@ runq_choose(struct runq *rq)
 		    ("runq_choose: No thread on KSE"));
 		KASSERT((ke->ke_thread->td_kse != NULL),
 		    ("runq_choose: No KSE on thread"));
+		KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+			("runq_choose: process swapped out"));
 		return (ke);
 	}
 	CTR1(KTR_RUNQ, "runq_choose: idleproc pri=%d", pri);
@@ -610,6 +614,8 @@ runq_remove(struct runq *rq, struct kse *ke)
 
 	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+		("runq_remove: process swapped out"));
 	pri = ke->ke_rqindex;
 	rqh = &rq->rq_queues[pri];
 	CTR4(KTR_RUNQ, "runq_remove: p=%p pri=%d %d rqh=%p",
