@@ -1,5 +1,5 @@
-The Unix system family tree / BSD history chart
------------------------------------------------
+The UNIX system family tree: Research and BSD
+---------------------------------------------
 
 First Edition (V1)
      |
@@ -27,17 +27,15 @@ Seventh Edition (V7)    |
                   |                      |
                4.0BSD               2.7.9BSD
                   |                      |
-       *------ 4.1BSD --------------> 2.8BSD
-      /           |                      |
-Eighth Edition     |                 2.8.1BSD
-     |            |                      |
-     |        4.1aBSD -----------\       |
-     |            |                \     |
-     |        4.1bBSD                \   |
-     |            |                    \ |
-     |        4.1cBSD --------------> 2.9BSD
-     |            |                      |
-     |            |                   2.9BSD-Seismo
+               4.1BSD --------------> 2.8BSD
+                  |                      |
+              4.1aBSD -----------\       |
+                  |                \     |
+              4.1bBSD                \   |
+                  |                    \ |
+      *------ 4.1cBSD --------------> 2.9BSD
+     /            |                      |
+Eighth Edition    |                   2.9BSD-Seismo
      |            |                      |
      +----<--- 4.2BSD               2.9.1BSD
      |            |                      |
@@ -49,7 +47,7 @@ Ninth Edition     |              / 2.10.1BSD
      |            |                \     |
      v            |                  2.11BSD
 Tenth Edition     |                      |
-                  |                  2.11BSD rev #366
+                  |                  2.11BSD rev #430
                4.3BSD NET/1              |
                   |                      v
                4.3BSD Reno
@@ -118,10 +116,11 @@ FreeBSD 3.0                  |    |            |
  |   FreeBSD 3.2          NetBSD 1.4       OpenBSD 2.5
  |       |                   |    |            |
  |   FreeBSD 3.3             | NetBSD 1.4.1    |
- |       |                   |             OpenBSD 2.6
- |   FreeBSD 3.4             |                 |
+ |       |                   |    |        OpenBSD 2.6
+ |   FreeBSD 3.4             |    |            |
+ |           |               |    |            |
+FreeBSD 4.0  |               | NetBSD 1.4.2    |
  |           |               |                 |
-FreeBSD 4.0  |               |                 |
  |           |            NetBSD -current  OpenBSD -current
  |   FreeBSD 3.5             |                 |
  |                           v                 v
@@ -160,12 +159,12 @@ it was the announcement in Usenet or if it was available as tape.
 
 
 Multics                 1965
-Unix                    Summer 1969
+UNIX                    Summer 1969
 				DEC PDP-7
 First   Edition         1971-11-03 [QCU]
 				DEC PDP-11/20, Assembler
 Second  Edition         1972-06-12 [QCU]
-				10 Unix installations
+				10 UNIX installations
 Third   Edition         1973-02-xx [QCU]
 				Pipes, 16 installations
 Fourth  Edition         1973-11-xx [QCU]
@@ -176,8 +175,8 @@ Fifth   Edition         1974-06-xx [QCU]
 Sixth   Edition         1975-05-xx [QCU]
 				port to DEC Vax
 Seventh Edition         1979-01-xx [QCU]
-				first portable Unix
-Eight   Edition         1985-02-xx [QCU]
+				first portable UNIX
+Eighth  Edition         1985-02-xx [QCU]
 				VAX 11/750, VAX 11/780 [dmr]
 				descended from 4.1c BSD [dmr]
 				descended from 4.1 BSD [44B]
@@ -205,7 +204,7 @@ Tenth   Edition         1989-10-xx [QCU]
 2.10BSD			1987-04-xx [KKK]
 2.10.1BSD		1989-01-xx [SMS]
 2.11BSD			1992-02-xx [SMS]
-2.11BSD rev #366	1997-02-xx [SMS]
+2.11BSD rev #430	1999-12-13 [SMS]
 
 32V			1978-1[01]-xx [QCU]
 3BSD                    late 1979 [QCU]
@@ -276,6 +275,10 @@ NetBSD 1.4.1            1999-08-26 [NBD] (patch release)
 FreeBSD 3.3             1999-09-17 [FBD]
 OpenBSD 2.6             1999-12-01 [OBD]
 FreeBSD 3.4             1999-12-20 [FBD]
+FreeBSD 4.0             2000-03-13 [FBD]
+NetBSD 1.4.2            2000-03-19 [NBD] (patch release)
+FreeBSD 3.5		2000-06-24 [FBD]
+FreeBSD 4.1		2000-07-27 [FBD]
 
 
 Bibliography
@@ -297,25 +300,26 @@ Doug McIlroy. Research Unix Reader.
 Michael G. Brown. The Role of BSD in the Development of Unix.
 Presented to the Tasmanian Unix Special Interest Group of the
 Australian Computer Society, Hobart, August 1993.
-URL: http://www.dpac.tas.gov.au/~mgb/papers/bsdrole.html
 
-Peter H. Salus. Unix at 25. Byte Magazin, October 1994.
+Peter H. Salus. Unix at 25. Byte Magazine, October 1994.
 URL: http://www.byte.com/art/9410/sec8/art3.htm
 
 Andreas Klemm, Lars Köller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
-URL: http://www.heise.de
 
 BSD Release Announcements collection.
-URL: http://www.de.FreeBSD.ORG/de/ftp/releases/
+URL: http://www.de.FreeBSD.org/de/ftp/releases/
 
 BSD Hypertext Man Pages
-http://www.freebsd.org/cgi/man.cgi
+http://www.FreeBSD.org/cgi/man.cgi
+
+UNIX history graphing project
+http://minnie.cs.adfa.edu.au/Unix_History/index.html
 
 Acknowledgments
 ---------------
 
-Josh Gilliam for suggestions, bugfixes, and finding very old
+Josh Gilliam for suggestions, bug fixes, and finding very old
 original BSD announcements from Usenet or tapes.
 
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
@@ -325,3 +329,4 @@ Copyright (c) 1997-1999 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/misc/bsd-family-tree
 
 $FreeBSD$
+
