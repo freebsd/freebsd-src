@@ -502,13 +502,13 @@ struct vop_generic_args {
  * change the state.  They are good enough for debugging a single
  * filesystem using a single-threaded test.
  */
-void assert_vi_locked(struct vnode *vp, char *str);
-void assert_vi_unlocked(struct vnode *vp, char *str);
-void assert_vop_unlocked(struct vnode *vp, char *str);
-void assert_vop_locked(struct vnode *vp, char *str);
-void assert_vop_slocked(struct vnode *vp, char *str);
-void assert_vop_elocked(struct vnode *vp, char *str);
-void assert_vop_elocked_other(struct vnode *vp, char *str);
+void assert_vi_locked(struct vnode *vp, const char *str);
+void assert_vi_unlocked(struct vnode *vp, const char *str);
+void assert_vop_unlocked(struct vnode *vp, const char *str);
+void assert_vop_locked(struct vnode *vp, const char *str);
+void assert_vop_slocked(struct vnode *vp, const char *str);
+void assert_vop_elocked(struct vnode *vp, const char *str);
+void assert_vop_elocked_other(struct vnode *vp, const char *str);
 
 /* These are called from within the actuall VOPS */
 void vop_rename_pre(void *a);
