@@ -257,6 +257,14 @@ MAN=	aac.4 \
 	smbus.4 \
 	smp.4 \
 	sn.4 \
+	snd_ad1816.4 \
+	snd_als4000.4 \
+	snd_cmi.4 \
+	snd_cs4281.4 \
+	snd_ds1.4 \
+	snd_emu10k1.4 \
+	snd_es137x.4 \
+	snd_solo.4 \
 	snp.4 \
 	spic.4 \
 	splash.4 \
