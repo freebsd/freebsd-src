@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <md5.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -186,6 +187,16 @@ statf(indent, p)
 			err("%s: %s", p->fts_accpath, strerror(errno));
 		(void)close(fd);
 		output(indent, &offset, "cksum=%lu", val);
+	}
+	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
+		char *md5digest = MD5File(p->fts_accpath);
+
+		if (!md5digest) {
+			err("%s: %s", p->fts_accpath, strerror(errno));
+		} else {
+			output(indent, &offset, "md5digest=%s", md5digest);
+			free(md5digest);
+		}
 	}
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))

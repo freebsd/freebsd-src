@@ -181,6 +181,12 @@ set(t, ip)
 			if (*ep)
 				err("invalid checksum %s", val);
 			break;
+		case F_MD5:
+			ip->md5digest = strdup(val);
+			if(!ip->md5digest) {
+				err("%s", strerror(errno));
+			}
+			break;
 		case F_GID:
 			ip->st_gid = strtoul(val, &ep, 10);
 			if (*ep)
