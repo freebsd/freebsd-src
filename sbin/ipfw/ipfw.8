@@ -1,5 +1,5 @@
 .\"
-.\" $Id$
+.\" $Id: ipfw.8,v 1.50 1999/04/28 02:49:29 ghelmer Exp $
 .\"
 .Dd July 20, 1996
 .Dt IPFW 8 SMM
@@ -158,7 +158,38 @@ loose source route
 record route
 .Pq Ar rr ,
 and timestamp
-.Pq Ar ts 
+.Pq Ar ts
+.It ICMP Types Pq Ar icmptypes
+One or more of the ICMP types: echo reply
+.Pq Ar 0 ,
+destination unreachable
+.Pq Ar 3 ,
+source quench
+.Pq Ar 4 ,
+redirect
+.Pq Ar 5 ,
+echo request
+.Pq Ar 8 ,
+router advertisement
+.Pq Ar 9 ,
+router solicitation
+.Pq Ar 10 ,
+time-to-live exceeded
+.Pq Ar 11 ,
+IP header bad
+.Pq Ar 12 ,
+timestamp request
+.Pq Ar 13 ,
+timestamp reply
+.Pq Ar 14 ,
+information request
+.Pq Ar 15 ,
+information reply
+.Pq Ar 16 ,
+address mask request
+.Pq Ar 17 ,
+and address mask reply
+.Pq Ar 18
 .El
 .Pp
 Note that may be dangerous to filter on the source IP address or
