@@ -175,7 +175,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	DATA_SET(sysctl_set, sysctl__##parent##_##name);
 
 #define SYSCTL_ADD_OID(ctx, parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
-	sysctl_add_oid(ctx, parent, nbr, #name, kind, a1, a2, handler, fmt, descr);
+	sysctl_add_oid(ctx, parent, nbr, name, kind, a1, a2, handler, fmt, descr);
 
 /* This constructs a node from which other oids can hang. */
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr)		    \
@@ -185,7 +185,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		   "N", descr);
 
 #define SYSCTL_ADD_NODE(ctx, parent, nbr, name, access, handler, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_NODE|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_NODE|access,	    \
 	0, 0, handler, "N", descr);
 
 /* Oid for a string.  len can be 0 to indicate '\0' termination. */
@@ -194,7 +194,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		arg, len, sysctl_handle_string, "A", descr)
 
 #define SYSCTL_ADD_STRING(ctx, parent, nbr, name, access, arg, len, descr)  \
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_STRING|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_STRING|access,	    \
 	arg, len, sysctl_handle_string, "A", descr);
 
 /* Oid for an int.  If ptr is NULL, val is returned. */
@@ -203,7 +203,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		ptr, val, sysctl_handle_int, "I", descr)
 
 #define SYSCTL_ADD_INT(ctx, parent, nbr, name, access, ptr, val, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
 	ptr, val, sysctl_handle_int, "I", descr);
 
 /* Oid for an unsigned int.  If ptr is NULL, val is returned. */
@@ -212,7 +212,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		ptr, val, sysctl_handle_int, "IU", descr)
 
 #define SYSCTL_ADD_UINT(ctx, parent, nbr, name, access, ptr, val, descr)    \
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
 	ptr, val, sysctl_handle_int, "IU", descr);
 
 /* Oid for a long.  The pointer must be non NULL. */
@@ -221,7 +221,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		ptr, val, sysctl_handle_long, "L", descr)
 
 #define SYSCTL_ADD_LONG(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
 	ptr, 0, sysctl_handle_long, "L", descr);
 
 /* Oid for a long.  The pointer must be non NULL. */
@@ -230,7 +230,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		ptr, val, sysctl_handle_long, "LU", descr)
 
 #define SYSCTL_ADD_ULONG(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
 	ptr, 0, sysctl_handle_long, "LU", descr);
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
@@ -239,7 +239,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		ptr, len, sysctl_handle_opaque, fmt, descr)
 
 #define SYSCTL_ADD_OPAQUE(ctx, parent, nbr, name, access, ptr, len, fmt, descr)\
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_OPAQUE|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_OPAQUE|access,	    \
 	ptr, len, sysctl_handle_opaque, fmt, descr);
 
 /* Oid for a struct.  Specified by a pointer and a type. */
@@ -249,7 +249,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		"S," #type, descr)
 
 #define SYSCTL_ADD_STRUCT(ctx, parent, nbr, name, access, ptr, type, descr) \
-	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_OPAQUE|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_OPAQUE|access,	    \
 	ptr, sizeof(struct type), sysctl_handle_opaque, "S," #type, descr);
 
 /* Oid for a procedure.  Specified by a pointer and an arg. */
@@ -258,7 +258,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		ptr, arg, handler, fmt, descr)
 
 #define SYSCTL_ADD_PROC(ctx, parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
-	sysctl_add_oid(ctx, parent, nbr, #name, access,			    \
+	sysctl_add_oid(ctx, parent, nbr, name, access,			    \
 	ptr, arg, handler, fmt, descr);
 
 #endif /* _KERNEL */
@@ -561,10 +561,10 @@ struct linker_set;
 
 /* Dynamic oid handling */
 struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
-		struct sysctl_oid_list *parent, int nbr, char *name,
+		struct sysctl_oid_list *parent, int nbr, const char *name,
 		int kind, void *arg1, int arg2,
 		int (*handler) (SYSCTL_HANDLER_ARGS),
-		char *fmt, char *descr);
+		const char *fmt, const char *descr);
 int	sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse);
 int	sysctl_ctx_init(struct sysctl_ctx_list *clist);
 int	sysctl_ctx_free(struct sysctl_ctx_list *clist);
