@@ -59,11 +59,26 @@ typedef struct {
 } tmd_event_t;
 
 /*
- * Suggested software target mode command handling structure.
+ * Suggested Software Target Mode Command Handling structure.
  *
- * The command structure is one suggested possible MD command structure,
- * but since the handling of thbis is entirely in the MD layer, there
- * is no requirement that it be used.
+ * A note about terminology:
+ *
+ *   MD stands for "Machine Dependent".
+ *
+ *    This driver is structured in three layers: Outer MD, core, and inner MD.
+ *    The latter also is bus dependent (i.e., is cognizant of PCI bus issues
+ *    as well as platform issues).
+ *
+ *
+ *   "Outer Layer" means "Other Module"
+ *
+ *    Some additional module that actually implements SCSI target command
+ *    policy is the recipient of incoming commands and the source of the
+ *    disposition for them.
+ *
+ * The command structure below is one suggested possible MD command structure,
+ * but since the handling of thbis is entirely in the MD layer, there is
+ * no explicit or implicit requirement that it be used.
  *
  * The cd_private tag should be used by the MD layer to keep a free list
  * of these structures. Code outside of this driver can then use this
@@ -123,17 +138,16 @@ typedef struct {
  * layers must agree on the meaning of cd_data.
  *
  * The tag cd_totlen is the total data amount expected to be moved
- * over the life of the command. It may be set by the MD layer,
- * for example, from the datalen field of an FCP CMND IU unit. If
- * it shows up in the outer layers set to zero and the CDB indicates
- * data should be moved, the outer layer should set it to the amount
- * expected to be moved.
+ * over the life of the command. It *may* be set by the MD layer, possibly
+ * from the datalen field of an FCP CMND IU unit. If it shows up in the outer
+ * layers set to zero and the CDB indicates data should be moved, the outer
+ * layer should set it to the amount expected to be moved.
  *
  * The tag cd_resid should be the total residual of data not transferred.
  * The outer layers need to set this at the begining of command processing
  * to equal cd_totlen. As data is successfully moved, this value is decreased.
  * At the end of a command, any nonzero residual indicates the number of bytes
- * requested but not moved.
+ * requested but not moved. XXXXXXXXXXXXXXXXXXXXXXX TOO VAGUE!!! 
  *
  * The tag cd_xfrlen is the length of the currently active data transfer.
  * This allows several interations between any outside software and the
@@ -206,9 +220,10 @@ typedef struct tmd_cmd {
 } tmd_cmd_t;
 
 #define	CDFL_BUSY	0x01		/* this command is not on a free list */
-#define	CDFL_NODISC	0x02		/* disconnect not allowed */
+#define	CDFL_NODISC	0x02		/* disconnects disabled */
 #define	CDFL_SENTSENSE	0x04		/* last action sent sense data */
-#define	CDFL_ERROR	0x08		/* last action ended in error */
+#define	CDFL_SENTSTATUS	0x08		/* last action sent status */
+#define	CDFL_ERROR	0x10		/* last action ended in error */
 #define	CDFL_PRIVATE_0	0x80		/* private layer flags */
 
 #define	CDFH_SNSVALID	0x01		/* sense data valid */

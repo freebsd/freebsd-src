@@ -119,6 +119,7 @@
 
 /* These are for the ISP2100 FC cards */
 #define	MBOX_GET_LOOP_ID		0x20
+#define	MBOX_GET_RESOURCE_COUNT		0x42
 #define	MBOX_EXEC_COMMAND_IOCB_A64	0x54
 #define	MBOX_INIT_FIRMWARE		0x60
 #define	MBOX_GET_INIT_CONTROL_BLOCK	0x61
@@ -565,7 +566,7 @@ typedef struct {
 	u_int16_t	pdb_options;
 	u_int8_t	pdb_mstate;
 	u_int8_t	pdb_sstate;
-#define	BITS2WORD(x)	(x)[0] << 16 | (x)[3] << 8 | (x)[2]
+#define	BITS2WORD(x)	((x)[0] << 16 | (x)[3] << 8 | (x)[2])
 	u_int8_t	pdb_hardaddr_bits[4];
 	u_int8_t	pdb_portid_bits[4];
 	u_int8_t	pdb_nodename[8];
