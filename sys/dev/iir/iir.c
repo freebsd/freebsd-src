@@ -212,6 +212,7 @@ iir_init(struct gdt_softc *gdt)
                            /*maxsize*/MAXBSIZE, /*nsegments*/GDT_MAXSG,
                            /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
                            /*flags*/BUS_DMA_ALLOCNOW,
+			   /*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant,
                            &gdt->sc_buffer_dmat) != 0) {
         printf("iir%d: bus_dma_tag_create(...,gdt->sc_buffer_dmat) failed\n",
                gdt->sc_hanum);
@@ -230,7 +231,8 @@ iir_init(struct gdt_softc *gdt)
                            GDT_MAXCMDS * sizeof(struct gdt_ccb), /* maxsize */
                            /*nsegments*/1,
                            /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-                           /*flags*/0, &gdt->sc_gccb_dmat) != 0) {
+			   /*flags*/0, /*lockfunc*/busdma_lock_mutex,
+			   /*lockarg*/&Giant, &gdt->sc_gccb_dmat) != 0) {
         printf("iir%d: bus_dma_tag_create(...,gdt->sc_gccb_dmat) failed\n",
                gdt->sc_hanum);
         return (1);

@@ -98,6 +98,8 @@ static int ips_ioctl_cmd(ips_softc_t *sc, ips_ioctl_t *ioctl_cmd, ips_user_reque
 			/* numsegs   */	1,
 			/* maxsegsize*/	ioctl_cmd->datasize,
 			/* flags     */	0,
+			/* lockfunc  */ busdma_lock_mutex,
+			/* lockarg   */ &Giant,
 			&ioctl_cmd->dmatag) != 0) {
 		return ENOMEM;
         }

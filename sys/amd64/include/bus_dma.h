@@ -132,6 +132,17 @@ typedef struct bus_dma_segment {
 typedef int bus_dma_filter_t(void *, bus_addr_t);
 
 /*
+ * A function that performs driver-specific syncronization on behalf of
+ * busdma.
+ */
+typedef enum {
+	BUS_DMA_LOCK	= 0x01,
+	BUS_DMA_UNLOCK	= 0x02,
+} bus_dma_lock_op_t;
+
+typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
+
+/*
  * Allocate a device specific dma_tag encapsulating the constraints of
  * the parent tag in addition to other restrictions specified:
  *
@@ -156,7 +167,8 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		       bus_size_t boundary, bus_addr_t lowaddr,
 		       bus_addr_t highaddr, bus_dma_filter_t *filtfunc,
 		       void *filtfuncarg, bus_size_t maxsize, int nsegments,
-		       bus_size_t maxsegsz, int flags, bus_dma_tag_t *dmat);
+		       bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+		       void *lockfuncarg, bus_dma_tag_t *dmat);
 
 int bus_dma_tag_destroy(bus_dma_tag_t dmat);
 
@@ -238,4 +250,8 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 	if ((dmamap) != NULL)				\
 		_bus_dmamap_unload(dmat, dmamap)
 
+/*
+ * Generic helper function for manipulating mutexes.
+ */
+void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
 #endif /* _AMD64_BUS_DMA_H_ */

@@ -1243,6 +1243,7 @@ sis_attach(dev)
 			MAXBSIZE, SIS_NSEG_NEW,	/* maxsize, nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */ 
 			BUS_DMA_ALLOCNOW,	/* flags */
+			NULL, NULL,		/* lockfunc, lockarg */
 			&sc->sis_parent_tag);
 	if (error)
 		goto fail;
@@ -1262,6 +1263,8 @@ sis_attach(dev)
 			SIS_RX_LIST_SZ, 1,	/* maxsize,nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
+			busdma_lock_mutex,	/* lockfunc */
+			&Giant,			/* lockarg */
 			&sc->sis_ldata.sis_rx_tag);
 	if (error)
 		goto fail;
@@ -1299,6 +1302,8 @@ sis_attach(dev)
 			SIS_TX_LIST_SZ, 1,	/* maxsize,nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
+			busdma_lock_mutex,	/* lockfunc */
+			&Giant,			/* lockarg */
 			&sc->sis_ldata.sis_tx_tag);
 	if (error)
 		goto fail;
@@ -1336,6 +1341,8 @@ sis_attach(dev)
 			MCLBYTES, 1,		/* maxsize,nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
+			busdma_lock_mutex,	/* lockfunc */
+			&Giant,			/* lockarg */
 			&sc->sis_tag);
 	if (error)
 		goto fail;

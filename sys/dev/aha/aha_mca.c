@@ -31,6 +31,8 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -184,6 +186,8 @@ aha_mca_attach (device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&sc->parent_dmat);
 	if (error) {
 		device_printf(dev, "bus_dma_tag_create() failed!\n");

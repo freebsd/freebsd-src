@@ -182,6 +182,8 @@ ath_pci_attach(device_t dev)
 			       ATH_MAX_SCATTER,		/* nsegments */
 			       0xffff,			/* maxsegsize XXX */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockarg */
 			       &sc->sc_dmat)) {
 		device_printf(dev, "cannot allocate DMA tag\n");
 		goto bad3;

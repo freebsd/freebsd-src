@@ -3016,6 +3016,8 @@ trm_initSRB(PACB pACB)
 		    /*nsegments*/  1,
 		    /*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
 		    /*flags*/      0, 
+		    /*lockfunc*/   busdma_lock_mutex,
+		    /*lockarg*/    &Giant,
 		    /*dmat*/       &pSRB->sg_dmat) != 0) {
 			return ENXIO;
 		}
@@ -3408,18 +3410,21 @@ trm_init(u_int16_t unit, device_t dev)
 	pACB->dev = dev;
 	pACB->tag = rman_get_bustag(pACB->iores);
 	pACB->bsh = rman_get_bushandle(pACB->iores);
-	if (bus_dma_tag_create(/*parent_dmat*/ pACB->parent_dmat,
-	      /*alignment*/                      1,
-	      /*boundary*/                       0,
-	      /*lowaddr*/  BUS_SPACE_MAXADDR,
-	      /*highaddr*/       BUS_SPACE_MAXADDR,
-	      /*filter*/                      NULL, 
-	      /*filterarg*/                   NULL,
-	      /*maxsize*/                 MAXBSIZE,
-	      /*nsegments*/               TRM_NSEG,
-	      /*maxsegsz*/    TRM_MAXTRANSFER_SIZE,
-	      /*flags*/           BUS_DMA_ALLOCNOW,
-	      &pACB->buffer_dmat) != 0) 
+	if (bus_dma_tag_create(
+	/*parent_dmat*/	pACB->parent_dmat,
+	/*alignment*/	1,
+	/*boundary*/	0,
+	/*lowaddr*/	BUS_SPACE_MAXADDR,
+	/*highaddr*/	BUS_SPACE_MAXADDR,
+	/*filter*/	NULL, 
+	/*filterarg*/	NULL,
+	/*maxsize*/	MAXBSIZE,
+	/*nsegments*/	TRM_NSEG,
+	/*maxsegsz*/	TRM_MAXTRANSFER_SIZE,
+	/*flags*/	BUS_DMA_ALLOCNOW,
+	/*lockfunc*/	busdma_lock_mutex,
+	/*lockarg*/	&Giant,
+	/* dmat */	&pACB->buffer_dmat) != 0) 
 		goto bad;
 	/* DMA tag for our ccb structures */
 	if (bus_dma_tag_create(                                 
@@ -3433,7 +3438,9 @@ trm_init(u_int16_t unit, device_t dev)
 	/*maxsize*/    TRM_MAX_SRB_CNT * sizeof(TRM_SRB),
 	/*nsegments*/  1,
 	/*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
-	/*flags*/      0, 
+	/*flags*/      0,
+	/*lockfunc*/   busdma_lock_mutex,
+	/*lockarg*/    &Giant,
 	/*dmat*/       &pACB->srb_dmat) != 0) {
 		printf("trm_init %d: bus_dma_tag_create SRB failure\n", unit);
 		goto bad;
@@ -3455,7 +3462,8 @@ trm_init(u_int16_t unit, device_t dev)
 	    sizeof(struct scsi_sense_data) * TRM_MAX_SRB_CNT,
 	    /*nsegments*/1,
 	    /*maxsegsz*/TRM_MAXTRANSFER_SIZE,
-	    /*flags*/0, &pACB->sense_dmat) != 0) {
+	    /*flags*/0, /*lockfunc*/busdma_lock_mutex,
+	    /*lockarg*/&Giant, &pACB->sense_dmat) != 0) {
 	  if (bootverbose)
 	    device_printf(dev, "cannot create sense buffer dmat\n");
 	  goto bad;

@@ -407,6 +407,8 @@ mly_pci_attach(struct mly_softc *sc)
 			   MAXBSIZE, MLY_MAX_SGENTRIES,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
+			   NULL,			/* lockfunc */
+			   NULL,			/* lockarg */
 			   &sc->mly_parent_dmat)) {
 	mly_printf(sc, "can't allocate parent DMA tag\n");
 	goto fail;
@@ -423,6 +425,8 @@ mly_pci_attach(struct mly_softc *sc)
 			   MAXBSIZE, MLY_MAX_SGENTRIES,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex,		/* lockfunc */
+			   &Giant,			/* lockarg */
 			   &sc->mly_buffer_dmat)) {
 	mly_printf(sc, "can't allocate buffer DMA tag\n");
 	goto fail;
@@ -439,6 +443,8 @@ mly_pci_attach(struct mly_softc *sc)
 			   sizeof(union mly_command_packet) * MLY_MAX_COMMANDS, 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex,		/* lockfunc */
+			   &Giant,			/* lockarg */
 			   &sc->mly_packet_dmat)) {
 	mly_printf(sc, "can't allocate command packet DMA tag\n");
 	goto fail;
@@ -586,6 +592,8 @@ mly_sg_map(struct mly_softc *sc)
 			   segsize, 1,			/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex,		/* lockfunc */
+			   &Giant,			/* lockarg */
 			   &sc->mly_sg_dmat)) {
 	mly_printf(sc, "can't allocate scatter/gather DMA tag\n");
 	return(ENOMEM);
@@ -639,6 +647,8 @@ mly_mmbox_map(struct mly_softc *sc)
 			   sizeof(struct mly_mmbox), 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex,		/* lockfunc */
+			   &Giant,			/* lockarg */
 			   &sc->mly_mmbox_dmat)) {
 	mly_printf(sc, "can't allocate memory mailbox DMA tag\n");
 	return(ENOMEM);

@@ -765,6 +765,14 @@ wi_stop(struct ifnet *ifp, int disable)
 
 	ieee80211_new_state(ifp, IEEE80211_S_INIT, -1);
 	if (sc->sc_enabled && !sc->wi_gone) {
+		int i;
+		/* wait for the busy bit to clear */
+		for (i = 50; i > 0; i--) {	/* 5s */
+			if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY))
+				break;
+			printf("Sleeping for 10ms in wi_stop\n");
+			DELAY(10*10000);	/* 10 m sec */
+		}
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
 		wi_cmd(sc, WI_CMD_DISABLE | sc->sc_portnum, 0, 0, 0);
 		if (disable) {
@@ -1440,7 +1448,9 @@ wi_rx_intr(struct wi_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_IBSS && dir == IEEE80211_FC1_DIR_NODS)
 		wi_sync_bssid(sc, wh->i_addr3);
 
+	WI_UNLOCK(sc);
 	ieee80211_input(ifp, m, rssi, rstamp, 0);
+	WI_LOCK(sc);
 }
 
 static void

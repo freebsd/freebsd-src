@@ -2706,7 +2706,8 @@ en_dmaprobe(struct en_softc *sc)
 	 */
 	err = bus_dma_tag_create(NULL, MIDDMA_MAXBURST, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    3 * MIDDMA_MAXBURST, 1, 3 * MIDDMA_MAXBURST, 0, &tag);
+	    3 * MIDDMA_MAXBURST, 1, 3 * MIDDMA_MAXBURST, 0, busdma_lock_mutex,
+	    &Giant, &tag);
 	if (err)
 		panic("%s: cannot create test DMA tag %d", __func__, err);
 
@@ -2918,7 +2919,8 @@ en_attach(struct en_softc *sc)
 
 	if (bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    EN_TXSZ * 1024, EN_MAX_DMASEG, EN_TXSZ * 1024, 0, &sc->txtag))
+	    EN_TXSZ * 1024, EN_MAX_DMASEG, EN_TXSZ * 1024, 0, busdma_lock_mutex,
+	    &Giant, &sc->txtag))
 		goto fail;
 
 	sc->map_zone = uma_zcreate("en dma maps", sizeof(struct en_map),

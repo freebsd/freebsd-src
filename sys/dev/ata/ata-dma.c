@@ -34,6 +34,8 @@
 #include <sys/kernel.h>
 #include <sys/endian.h>
 #include <sys/malloc.h> 
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <pci/pcivar.h>
 #include <machine/bus.h>
@@ -96,7 +98,8 @@ ata_dmaalloc(struct ata_channel *ch)
 	if (bus_dma_tag_create(NULL, 1, 0,
 			       BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			       NULL, NULL, MAXCTLDMASZ, ATA_DMA_ENTRIES,
-			       BUS_SPACE_MAXSIZE_32BIT, 0, &ch->dma->dmatag)) {
+			       BUS_SPACE_MAXSIZE_32BIT, 0, busdma_lock_mutex,
+			       &Giant, &ch->dma->dmatag)) {
 	    printf("DMA tag allocation failed, disabling DMA\n");
 	}
     }
@@ -105,7 +108,8 @@ ata_dmaalloc(struct ata_channel *ch)
 					BUS_SPACE_MAXADDR_32BIT,
 					BUS_SPACE_MAXADDR, NULL, NULL,
 					MAXTABSZ, 1, MAXTABSZ,
-					BUS_DMA_ALLOCNOW, &ch->dma->cdmatag)))
+					BUS_DMA_ALLOCNOW, busdma_lock_mutex,
+					&Giant, &ch->dma->cdmatag)))
 	    return error;
     }
     if (!ch->dma->ddmatag) {
@@ -113,7 +117,8 @@ ata_dmaalloc(struct ata_channel *ch)
 					BUS_SPACE_MAXADDR_32BIT,
 					BUS_SPACE_MAXADDR, NULL, NULL,
 					MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
-					BUS_DMA_ALLOCNOW, &ch->dma->ddmatag)))
+					BUS_DMA_ALLOCNOW, busdma_lock_mutex,
+					&Giant, &ch->dma->ddmatag)))
 	    return error;
     }
     if (!ch->dma->mdmatab) {
