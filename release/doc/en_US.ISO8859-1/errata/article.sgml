@@ -166,6 +166,9 @@
       conditions that are hard to reproduce.  Work is ongoing to isolate
       these problems and determine their source.</para>
 
+    <para>(27 May 2004) The &man.bfe.4; driver for Broadcom BCM4401
+      based Fast Ethernet adapters has been added but the release notes
+      did not mention that.</para>
 ]]>
   </sect1>
 </article>
