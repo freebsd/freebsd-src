@@ -198,6 +198,15 @@ ad_attach(struct ata_softc *scp, int device)
     else
 	ad_print(adp, "");
 
+    /* construct the disklabel */
+    bzero(&adp->disk.d_label, sizeof(struct disklabel));
+    adp->disk.d_label.d_secsize = DEV_BSIZE;
+    adp->disk.d_label.d_nsectors = adp->sectors;
+    adp->disk.d_label.d_ntracks = adp->heads;
+    adp->disk.d_label.d_ncylinders = adp->total_secs/(adp->heads*adp->sectors);
+    adp->disk.d_label.d_secpercyl = adp->sectors * adp->heads;
+    adp->disk.d_label.d_secperunit = adp->total_secs;
+
     /* store our softc signalling we are ready to go */
     scp->dev_softc[ATA_DEV(device)] = adp;
 }
@@ -247,18 +256,9 @@ static int
 adopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct ad_softc *adp = dev->si_drv1;
-    struct disklabel *dl;
 
     if (adp->flags & AD_F_RAID_SUBDISK)
 	return EBUSY;
-    dl = &adp->disk.d_label;
-    bzero(dl, sizeof *dl);
-    dl->d_secsize = DEV_BSIZE;
-    dl->d_nsectors = adp->sectors;
-    dl->d_ntracks = adp->heads;
-    dl->d_ncylinders = adp->total_secs / (adp->heads * adp->sectors);
-    dl->d_secpercyl = adp->sectors * adp->heads;
-    dl->d_secperunit = adp->total_secs;
     return 0;
 }
 
