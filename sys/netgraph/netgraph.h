@@ -99,7 +99,7 @@ typedef	int	ng_rcvitem (node_p node, hook_p hook, item_p item);
  * Structure of a hook
  */
 struct ng_hook {
-	char	hk_name[NG_HOOKLEN+1];	/* what this node knows this link as */
+	char	hk_name[NG_HOOKSIZ];	/* what this node knows this link as */
 	void   *hk_private;		/* node dependant ID for this hook */
 	int	hk_flags;		/* info about this hook/link */
 	int	hk_refs;		/* dont actually free this till 0 */
@@ -322,7 +322,7 @@ struct ng_queue {
 };
 
 struct ng_node {
-	char	nd_name[NG_NODELEN+1];	/* optional globally unique name */
+	char	nd_name[NG_NODESIZ];	/* optional globally unique name */
 	struct	ng_type *nd_type;	/* the installed 'type' */
 	int	nd_flags;		/* see below for bit definitions */
 	int	nd_refs;		/* # of references to this node */
