@@ -128,6 +128,7 @@
 	#define F_F_PCM_RATE_COUNTER	0x40		/* R W	PCM		1=enable, 0=disable sample rate counter		*/
 	#define F_F_PCM_BUFFER_COUNTER	0x80		/* R W 	PCM		1=enable, 0=disable sample buffer counter	*/
 
+#define	CHIP_REV			0xFF88		/* R	Control		0=PAS, 1=PAS+, 2=CDPC, 3=PAS16C, 4=PAS16D	*/
 #define PAS_NONE	0
 #define PAS_PLUS	1
 #define PAS_CDPC	2
