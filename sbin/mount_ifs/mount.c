@@ -412,12 +412,13 @@ badvfstype(vfstype, vfslist)
 	int vfstype;
 	const char **vfslist;
 {
-static const char *vfsnames[] = INITMOUNTNAMES;
+	struct vfsconf *vfc;
+	vfc = getvfsbytype(vfstype);
 
-	if ((vfstype < 0) || (vfstype > MOUNT_MAXTYPE))
+	if ( ! vfc )
 		return (0);
 
-	return (badvfsname(vfsnames[vfstype], vfslist));
+	return (badvfsname(vfc->vfc_name, vfslist));
 }
 
 const char **
