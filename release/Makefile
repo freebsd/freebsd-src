@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.82 1995/01/14 20:15:38 jkh Exp $
+#	$Id: Makefile,v 1.83 1995/01/15 06:31:50 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -166,7 +166,7 @@ release20:
 		${MAKE} floppies )
 
 EXTRADISTRIBUTIONS=	secure src games manpages proflibs dict info
-DISTRIBUTIONS=	bin ${EXTRADISTRIBUTIONS}
+DISTRIBUTIONS=	bin src ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 SECRSRC=	src/secure src/eBones
 
@@ -225,9 +225,6 @@ beforetarballs:
 
 	mkdir -p ${RELEASEDIR}/src/usr
 	cd ${RELEASEDIR}/src/usr ; cvs export -r ${RELEASETAG} src
-	cd ${RELEASEDIR}/src/usr/src ; rm -rf secure eBones
-	cd ${RELEASEDIR}/secure/usr ; cvs export -r ${RELEASETAG} ${SECRSRC}
-	( cd ${.CURDIR}/../etc ; ${MAKE} src-tarball )
 
 tarballs:
 	rm -rf ${RELEASEDIR}/tarballs
@@ -244,5 +241,120 @@ tarballs:
 		${RELEASEDIR}/tarballs/$${i}/extract.sh;\
 	echo "$${i} distribution is finished."; \
 	done
+
+srcbase-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - [A-Z]* | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/base.)
+
+srcbin-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - bin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/srcbin.)
+
+srcetc-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - etc | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/etc.)
+
+srcgames-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - games | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/games.)
+
+srcgnu-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - gnu | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/gnu.)
+
+srcinclude-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - include | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/include.)
+
+srclib-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - lib | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lib.)
+
+srclibexec-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - libexec | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/libexec.)
+
+srcrelease-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - release | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
+
+srcsbin-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - sbin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sbin.)
+
+srcsecure-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/secure; \
+		tar -cf - secure | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/secure.)
+
+srclkm-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - lkm | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lkm.)
+
+srcerelease-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - release | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
+
+srcebones-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/secure; \
+		tar -cf - eBones | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/ebones.)
+
+srcshare-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - share | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/share.)
+
+srcsys-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - sys lkm | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sys.)
+
+srcusrbin-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - usr.bin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrbin.)
+
+srcusrsbin-tarball:
+	(cd ${RELEASEDIR}/src/usr/src; \
+		mkdir -p ${RELEASEDIR}/tarballs/src; \
+		tar -cf - usr.sbin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrsbin.)
+
+src:	srcbase-tarball srcbin-tarball srcetc-tarball \
+	srcgames-tarball srcgnu-tarball srcinclude-tarball \
+	srclib-tarball srcsecure-tarball srclibexec-tarball \
+	srcsbin-tarball srcshare-tarball srcsys-tarball \
+	srcusrbin-tarball srcusrsbin-tarball srcrelease-tarball \
+	srcebones-tarball srclkm-tarball srcrelease-tarball
 
 .include <bsd.prog.mk>
