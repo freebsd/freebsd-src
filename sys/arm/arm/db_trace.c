@@ -87,15 +87,10 @@ void db_md_list_watchpoints(void);
 #define FR_RFP	(-3)
 
 static void
-db_stack_trace_cmd(addr, have_addr, count, modif)
-	db_expr_t       addr;
-	int             have_addr;
-	db_expr_t       count;
-	char            *modif;
+db_stack_trace_cmd(db_expr_t addr, int have_addr, db_expr_t count, char *modif)
 {
 	u_int32_t	*frame, *lastframe;
 	c_db_sym_t sym;
-	db_expr_t pc;
 	char c, *cp = modif;
 	const char *name;
 	db_expr_t value;
@@ -106,7 +101,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 
 	if (kdb_frame == NULL && !have_addr)
 		return;
-	while ((c = *cp++) != 0) {
+	while (modif && ((c = *cp++) != 0)) {
 		if (c == 'u')
 			kernel_only = FALSE;
 		if (c == 't')
@@ -159,15 +154,14 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 
 		db_printsym(scp, DB_STGY_PROC);
 		db_printf("\n\t");
-		pc = kdb_frame->tf_pc;
-		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
+		sym = db_search_symbol(scp, DB_STGY_ANY, &offset);
 		if (sym == C_DB_SYM_NULL) {
 			value = 0;
 			name = "(null)";
 		} else
 			db_symbol_values(sym, &name, &value);
 		db_printf("%s() at ", name);
-		db_printsym(pc, DB_STGY_PROC);
+		db_printsym(scp, DB_STGY_PROC);
 		db_printf("\n");
 #ifdef __PROG26
 		db_printf("scp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV] & R15_PC);
