@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.4 1994/10/02 05:18:26 rgrimes Exp $
+ *	$Id: start.S,v 1.6 1995/09/16 13:51:20 bde Exp $
  */
 
 /*
@@ -51,7 +51,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 #include	"asm.h"
 
-	.file	"start.s"
+	.file	"start.S"
 
 SIGNATURE=	0xaa55
 LOADSZ=		15	/* size of unix boot */
@@ -99,7 +99,14 @@ start:
 	jae	hd
 
 fd:
+	/*
+	 * XXX some bootstraps don't pass the drive number in %dl.
+	 * This is a problem mainly when we are block 0 on a floppy.
+	 * Force drive 0 for floppies.
+	 * XXX %dl was assumed valid in the test that led here.
+	 */
 	mov	$0x0, %dl
+
 	/* reset the disk system */
 #ifdef	DEBUG
 	data32
@@ -274,7 +281,14 @@ seven:	String		"7\r\n\0"
 eread:	String		"Read error\r\n\0"
 enoboot: String		"No bootable partition\r\n\0"
 endofcode:
-/* throw in a partition in case we are block0 as well */
+/*
+ * Dummy partition table in case we are block 0.  The ending c/h/s values
+ * of the non-null partition are almost arbitary.  The length of this
+ * partition is bogus for backwards compatibility and as a signature.
+ * A real partition table shouldn't be as weird and broken as this one,
+ * and the isa slice initialization routine interprets this table as
+ * saying that the whole disk is used for FreeBSD.
+ */
 /* flag, head, sec, cyl, typ, ehead, esect, ecyl, start, len */
 	. = EXT(boot1) + PARTSTART
 	.byte 0x0,0,0,0,0,0,0,0
