@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.6 1998/11/07 14:35:41 nsouch Exp $
+ *	$Id: if_plip.c,v 1.10 1999/02/08 14:12:38 des Exp $
  */
 
 /*
@@ -101,6 +101,8 @@
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/nlpt.h>
 
+#include "opt_plip.h"
+
 #ifndef LPMTU			/* MTU for the lp# interfaces */
 #define	LPMTU	1500
 #endif
@@ -129,15 +131,12 @@
 
 #define	LPIPTBLSIZE	256	/* Size of octet translation table */
 
-#ifndef DEBUG
-#define DEBUG
-#endif
-
-#ifndef DEBUG
-#define lprintf (void)
-#else
 #define lprintf		if (lptflag) printf
+
+#ifdef PLIP_DEBUG
 static int volatile lptflag = 1;
+#else
+static int volatile lptflag = 0;
 #endif
 
 struct lpt_softc {
@@ -257,7 +256,7 @@ lpattach (struct ppb_device *dev)
 	if_attach(ifp);
 
 #if NBPFILTER > 0
-	bpfattach(ifp, DLT_NULL, LPIPHDRLEN);
+	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 #endif
 
 	return (1);
@@ -446,6 +445,26 @@ clpinbyte (int spin, struct ppb_device *dev)
 	return (ctrecvl[cl] | ctrecvh[c]);
 }
 
+#if NBPFILTER > 0
+static void
+lptap(struct ifnet *ifp, struct mbuf *m)
+{
+	/*
+	 * Send a packet through bpf. We need to prepend the address family
+	 * as a four byte field. Cons up a dummy header to pacify bpf. This
+	 * is safe because bpf will only read from the mbuf (i.e., it won't
+	 * try to free it or keep a pointer to it).
+	 */
+	u_int32_t af = AF_INET;
+	struct mbuf m0;
+	
+	m0.m_next = m;
+	m0.m_len = sizeof(u_int32_t);
+	m0.m_data = (char *)&af;
+	bpf_mtap(ifp, &m0);
+}
+#endif
+
 static void
 lpintr (int unit)
 {
@@ -505,6 +524,10 @@ lpintr (int unit)
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
+#if NBPFILTER > 0
+		if (sc->sc_if.if_bpf)
+		    lptap(&sc->sc_if, top);
+#endif
 	        IF_ENQUEUE(&ipintrq, top);
 	        schednetisr(NETISR_IP);
 	    }
@@ -549,18 +572,17 @@ lpintr (int unit)
 		IF_DROP(&ipintrq);
 		goto done;
 	    }
-#if NBPFILTER > 0
-	    if (sc->sc_if.if_bpf) {
-		bpf_tap(&sc->sc_if, sc->sc_ifbuf, len);
-	    }
-#endif
 	    len -= LPIPHDRLEN;
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
-		    IF_ENQUEUE(&ipintrq, top);
-		    schednetisr(NETISR_IP);
+#if NBPFILTER > 0
+		if (sc->sc_if.if_bpf)
+		    lptap(&sc->sc_if, top);
+#endif
+		IF_ENQUEUE(&ipintrq, top);
+		schednetisr(NETISR_IP);
 	    }
 	}
 	goto done;
@@ -611,8 +633,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     u_char *cp = "\0\0";
     u_char chksum = 0;
     int count = 0;
-    int i;
-    int spin;
+    int i, len, spin;
 
     /* We need a sensible value if we abort */
     cp++;
@@ -669,7 +690,8 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	mm = m;
 	do {
 		cp = mtod(mm, u_char *);
-		while (mm->m_len--) {
+		len = mm->m_len;
+		while (len--) {
 			chksum += *cp;
 			if (clpoutbyte(*cp++, LPMAXSPIN2, &sc->lp_dev))
 				goto nend;
@@ -692,6 +714,10 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	} else {
 		ifp->if_opackets++;
 		ifp->if_obytes += m->m_pkthdr.len;
+#if NBPFILTER > 0
+		if (ifp->if_bpf)
+		    lptap(ifp, m);
+#endif
 	}
 
 	m_freem(m);
@@ -717,7 +743,8 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     mm = m;
     do {
         cp = mtod(mm,u_char *);
-        while (mm->m_len--)
+	len = mm->m_len;
+        while (len--)
 	    if (lpoutbyte(*cp++, LPMAXSPIN2, &sc->lp_dev))
 	        goto end;
     } while ((mm = mm->m_next));
@@ -735,23 +762,8 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
 #if NBPFILTER > 0
-	if (ifp->if_bpf) {
-	    /*
-	     * We need to prepend the packet type as
-	     * a two byte field.  Cons up a dummy header
-	     * to pacify bpf.  This is safe because bpf
-	     * will only read from the mbuf (i.e., it won't
-	     * try to free it or keep a pointer to it).
-	     */
-	    struct mbuf m0;
-	    u_short hdr = 0x800;
-
-	    m0.m_next = m;
-	    m0.m_len = 2;
-	    m0.m_data = (char *)&hdr;
-
-	    bpf_mtap(ifp, &m0);
-	}
+	if (ifp->if_bpf)
+	    lptap(ifp, m);
 #endif
     }
 
