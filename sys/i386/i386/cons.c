@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.6 1993/11/25 01:30:50 wollman Exp $
+ *	$Id: cons.c,v 1.7 1993/12/12 12:22:55 davidg Exp $
  */
 
 
@@ -127,10 +127,13 @@ cnclose(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
+	return(0);
+#if 0
 	if (cn_tab == NULL)
 		return (0);
 	dev = cn_tab->cn_dev;
 	return ((*cdevsw[major(dev)].d_close)(dev, flag, mode, p));
+#endif
 }
  
 int
