@@ -48,6 +48,9 @@
 #include "netgraph.h"
 #include "internal.h"
 
+/* The socket node type KLD */
+#define NG_SOCKET_KLD	"ng_socket.ko"
+
 /*
  * Create a socket type node and give it the supplied name.
  * Return data and control sockets corresponding to the node.
@@ -65,14 +68,28 @@ NgMkSockNode(const char *name, int *csp, int *dsp)
 	if (name && *name == 0)
 		name = NULL;
 
-	/* Create control socket; this also creates the netgraph node */
+	/* Create control socket; this also creates the netgraph node.
+	   If we get a EPROTONOSUPPORT then the socket node type is
+	   not loaded, so load it and try again. */
 	if ((cs = socket(AF_NETGRAPH, SOCK_DGRAM, NG_CONTROL)) < 0) {
+		if (errno == EPROTONOSUPPORT) {
+			if (kldload(NG_SOCKET_KLD) < 0) {
+				errnosv = errno;
+				if (_gNgDebugLevel >= 1)
+					NGLOG("can't load %s", NG_SOCKET_KLD);
+				goto errout;
+			}
+			cs = socket(AF_NETGRAPH, SOCK_DGRAM, NG_CONTROL);
+			if (cs >= 0)
+				goto gotNode;
+		}
 		errnosv = errno;
 		if (_gNgDebugLevel >= 1)
 			NGLOG("socket");
 		goto errout;
 	}
 
+gotNode:
 	/* Assign the node the desired name, if any */
 	if (name != NULL) {
 		u_char sbuf[NG_NODELEN + 3];
