@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2005
+.Dd February 26, 2005
 .Dt CPUFREQ 4
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ interface of all possible levels.
 Users can access this interface directly via
 .Xr sysctl 8
 or by indicating to
-.Xr power_profile 8
+.Pa power_profile
 that it should switch settings when the AC line state changes via
 .Xr rc.conf 5 .
 .Sh SYSCTLS
@@ -76,8 +76,17 @@ If a sysctl cannot be set due to an override condition, it will return
 .It Va dev.cpu.%d.freq
 Current active CPU frequency in MHz.
 .It Va dev.cpu.%d.freq_levels
-Currently available levels for the CPU frequency and power usage for each.
+Currently available levels for the CPU (frequency/power usage).
 Values are in units of MHz and milliwatts.
+.It Va dev.DEVICE.%d.freq_settings
+Currently available settings for the driver (frequency/power usage).
+Values are in units of MHz and milliwatts.
+This is helpful for understanding which settings are offered by which
+driver for debugging purposes.
+.It Va debug.cpufreq.lowest
+Lowest CPU frequency in MHz to offer to users.
+This setting is also accessible via a tunable with the same name.
+This can be used to disable very low levels that may be unusable.
 .El
 .Sh SUPPORTED DRIVERS
 The following device drivers offer absolute frequency control via the
@@ -85,21 +94,23 @@ The following device drivers offer absolute frequency control via the
 interface.
 Usually, only one of these can be active at a time.
 .Pp
-.Bl -tag -compact -width ".Xr acpi_perf 4"
-.It Xr acpi_perf 4
+.Bl -tag -compact -width ".Pa acpi_perf"
+.It Pa acpi_perf
 ACPI CPU performance states
-.It Xr est 4
+.It Pa est
 Intel Enhanced SpeedStep
-.It Xr ichss 4
+.It Pa ichss
 Intel SpeedStep for ICH
 .El
 .Pp
 The following device drivers offer relative frequency control and
 have an additive effect:
 .Pp
-.Bl -tag -compact -width ".Xr acpi_throttle 4"
-.It Xr acpi_throttle 4
+.Bl -tag -compact -width ".Pa acpi_throttle"
+.It Pa acpi_throttle
 ACPI CPU throttling
+.It Pa p4tcc
+Pentium 4 Thermal Control Circuitry
 .El
 .Sh KERNEL INTERFACE
 Kernel components can query and set CPU frequencies through the
@@ -264,10 +275,13 @@ then it should set all elements to
 The following drivers have not yet been converted to the
 .Nm
 interface:
-.Xr longrun 4 ,
-.Xr p4tcc 4 .
+.Xr longrun 4 .
 .Pp
 Notification of CPU and bus frequency changes is not implemented yet.
 .Pp
 When multiple CPUs offer frequency control, they cannot be set to different
 levels and must all offer the same frequency settings.
+.Pp
+Some very low frequency levels can result in hangs on some systems.
+Such levels should be disabled with
+.Va debug.cpufreq.lowest .
