@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.20 1998/11/02 00:14:50 alex Exp $
+ *	$Id: machdep.c,v 1.21 1998/11/11 00:02:25 msmith Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1410,7 +1410,8 @@ cpu_boot(int howto)
 void
 cpu_halt(void)
 {
-	alpha_pal_halt();
+	/*alpha_pal_halt(); */
+	prom_halt(1);
 }
 
 /*

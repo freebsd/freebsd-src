@@ -95,8 +95,11 @@ static devclass_t		tlsb_devclass;
 static int tlsb_probe(device_t dev);
 static void tlsb_print_child(device_t dev, device_t child);
 static int tlsb_read_ivar(device_t dev, device_t child, int which, u_long* result);
-static void *tlsb_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg);
-static int tlsb_connect_intr(device_t dev, void* ih);
+static int tlsb_setup_intr(device_t dev, device_t child,
+			   struct resource *irq,
+			   driver_intr_t *intr, void *arg, void **cookiep);
+static int tlsb_teardown_intr(device_t dev, device_t child,
+			      struct resource *irq, void *cookie);
 
 static device_method_t tlsb_methods[] = {
 	/* Device interface */
@@ -109,8 +112,8 @@ static device_method_t tlsb_methods[] = {
 	DEVMETHOD(bus_print_child,	tlsb_print_child),
 	DEVMETHOD(bus_read_ivar,	tlsb_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_create_intr,	tlsb_create_intr),
-	DEVMETHOD(bus_connect_intr,	tlsb_connect_intr),
+	DEVMETHOD(bus_setup_intr,	tlsb_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	tlsb_teardown_intr),
 
 	{ 0, 0 }
 };
@@ -265,27 +268,32 @@ tlsb_read_ivar(device_t dev, device_t child,
 	return ENOENT;
 }
 
-static void *
-tlsb_create_intr(device_t dev, device_t child,
-	      int irq, driver_intr_t *intr, void *arg)
+static int
+tlsb_setup_intr(device_t dev, device_t child,
+		struct resource *irq,
+		driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct tlsb_softc* sc = device_get_softc(dev);
 	struct intr_mapping* i;
 	i = malloc(sizeof(struct intr_mapping), M_DEVBUF, M_NOWAIT);
 	if (!i)
-		return NULL;
+		return ENOMEM;
 	i->intr = intr;
 	i->arg = arg;
-	return i;
+	STAILQ_INSERT_TAIL(&sc->intr_handlers, i, queue);
+	*cookiep = i;
+	return 0;
 }
 
 static int
-tlsb_connect_intr(device_t dev, void *ih)
+tlsb_teardown_intr(device_t dev, device_t child,
+		   struct resource *irq, void *cookie)
 {
 	struct tlsb_softc* sc = device_get_softc(dev);
-	struct intr_mapping* i = ih;
+	struct intr_mapping* i = cookie;
 
-	STAILQ_INSERT_TAIL(&sc->intr_handlers, i, queue);
+	STAILQ_REMOVE(&sc->intr_handlers, i, intr_mapping, queue); 
+	free(i, M_DEVBUF);
 	return 0;
 }
 

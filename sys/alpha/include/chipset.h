@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chipset.h,v 1.4 1998/08/10 07:53:58 dfr Exp $
+ *	$Id: chipset.h,v 1.5 1998/10/06 14:18:39 dfr Exp $
  */
 
 #ifndef _MACHINE_CHIPSET_H_
@@ -54,7 +54,8 @@ typedef void		alpha_chipset_cfgwritew_t(u_int, u_int, u_int, u_int,
 typedef void		alpha_chipset_cfgwritel_t(u_int, u_int, u_int, u_int,
 						  u_int32_t);
 typedef vm_offset_t     alpha_chipset_addrcvt_t(vm_offset_t);
-
+typedef u_int64_t	alpha_chipset_read_hae_t(void);
+typedef void		alpha_chipset_write_hae_t(u_int64_t);
 
 typedef struct alpha_chipset {
     /*
@@ -91,8 +92,14 @@ typedef struct alpha_chipset {
     /*
      * PCI address space translation functions
      */
-    alpha_chipset_addrcvt_t*   cvt_to_dense;
-    alpha_chipset_addrcvt_t*   cvt_to_bwx;
+    alpha_chipset_addrcvt_t*	cvt_to_dense;
+    alpha_chipset_addrcvt_t*	cvt_to_bwx;
+
+    /*
+     * Access the HAE register
+     */
+    alpha_chipset_read_hae_t*	read_hae;
+    alpha_chipset_write_hae_t*	write_hae;
 
     /*
      * PCI interrupt device.
@@ -103,5 +110,15 @@ typedef struct alpha_chipset {
 } alpha_chipset_t;
 
 extern alpha_chipset_t chipset;
+
+/*
+ * Exported sysctl variables describing the PCI chipset.
+ */
+extern char chipset_type[10];
+extern int chipset_bwx;
+extern long chipset_ports;
+extern long chipset_memory;
+extern long chipset_dense;
+extern long chipset_hae_mask;
 
 #endif /* !_MACHINE_CHIPSET_H_ */

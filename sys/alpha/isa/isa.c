@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.4 1998/09/16 08:23:51 dfr Exp $
+ *	$Id: isa.c,v 1.5 1998/10/25 01:30:16 paul Exp $
  */
 
 #include <sys/param.h>
@@ -32,24 +32,36 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/rman.h>
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
+
+MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
 
 /*
  * The structure used to attach devices to the Isa.
  */
 struct isa_device {
-	int		id_port;
-	int		id_portsize;
+	u_short		id_port[ISA_NPORT_IVARS];
+	u_short		id_portsize[ISA_NPORT_IVARS];
+	vm_offset_t	id_maddr[ISA_NMEM_IVARS];
+	vm_size_t	id_msize[ISA_NMEM_IVARS];
+	int		id_irq[ISA_NIRQ_IVARS];
+	int		id_drq[ISA_NDRQ_IVARS];
 	int		id_flags;
-	int		id_irq;
+	struct resource	*id_portres[ISA_NPORT_IVARS];
+	struct resource	*id_memres[ISA_NMEM_IVARS];
+	struct resource	*id_irqres[ISA_NIRQ_IVARS];
+	struct resource	*id_drqres[ISA_NDRQ_IVARS];
 };
 
 #define DEVTOISA(dev)	((struct isa_device*) device_get_ivars(dev))
 
 static devclass_t isa_devclass;
+static struct rman isa_irq_rman;
 
 /*
  * Device methods
@@ -59,9 +71,16 @@ static int isa_attach(device_t dev);
 static void isa_print_child(device_t dev, device_t child);
 static int isa_read_ivar(device_t dev, device_t child, int which, u_long *result);
 static int isa_write_ivar(device_t dev, device_t child, int which, u_long result);
-static void *isa_create_intr(device_t dev, device_t child, int irq,
-			     driver_intr_t *intr, void *arg);
-static int isa_connect_intr(device_t dev, void *ih);
+static struct resource *isa_alloc_resource(device_t bus, device_t child,
+					   int type, int *rid,
+					   u_long start, u_long end,
+					   u_long count, u_int flags);
+static int isa_release_resource(device_t bus, device_t child,
+				int type, int rid, struct resource *r);
+static int isa_setup_intr(device_t dev, device_t child, struct resource *irq,
+			  driver_intr_t *intr, void *arg, void **cookiep);
+static int isa_teardown_intr(device_t dev, device_t child,
+			     struct resource *irq, void *cookie);
 
 static device_method_t isa_methods[] = {
 	/* Device interface */
@@ -74,8 +93,12 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(bus_print_child,	isa_print_child),
 	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
 	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
-	DEVMETHOD(bus_create_intr,	isa_create_intr),
-	DEVMETHOD(bus_connect_intr,	isa_connect_intr),
+	DEVMETHOD(bus_alloc_resource,	isa_alloc_resource),
+	DEVMETHOD(bus_release_resource,	isa_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
 
 	{ 0, 0 }
 };
@@ -90,34 +113,69 @@ static driver_t isa_driver = {
 static void
 isa_add_device(device_t dev, const char *name, int unit)
 {
-	struct isa_device *idev;
-	device_t child;
-	int t;
+	struct	isa_device *idev;
+	device_t	child;
+	int		sensitive, t;
+	static	device_t last_sensitive;
 
-	idev = malloc(sizeof(struct isa_device), M_DEVBUF, M_NOWAIT);
+	if (resource_int_value(name, unit, "sensitive", &sensitive) != 0)
+		sensitive = 0;
+
+	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
 	if (!idev)
 		return;
+	bzero(idev, sizeof *idev);
 
 	if (resource_int_value(name, unit, "port", &t) == 0)
-		idev->id_port = t;
+		idev->id_port[0] = t;
 	else
-		idev->id_port = 0;
+		idev->id_port[0] = 0;
+	idev->id_port[1] = 0;
+
 	if (resource_int_value(name, unit, "portsize", &t) == 0)
-		idev->id_portsize = t;
+		idev->id_portsize[0] = t;
 	else
-		idev->id_portsize = 0;
+		idev->id_portsize[0] = 0;
+	idev->id_portsize[1] = 0;
+
+	if (resource_int_value(name, unit, "iomem", &t) == 0)
+		idev->id_maddr[0] = t;
+	else
+		idev->id_maddr[0] = 0;
+	idev->id_maddr[1] = 0;
+
+	if (resource_int_value(name, unit, "msize", &t) == 0)
+		idev->id_msize[0] = t;
+	else
+		idev->id_msize[0] = 0;
+	idev->id_msize[1] = 0;
+
 	if (resource_int_value(name, unit, "flags", &t) == 0)
 		idev->id_flags = t;
 	else
 		idev->id_flags = 0;
-	if (resource_int_value(name, unit, "irq", &t) == 0)
-		idev->id_irq = t;
-	else
-		idev->id_irq = -1;
 
-	child = device_add_child(dev, name, unit, idev);
-	if (!child)
+	if (resource_int_value(name, unit, "irq", &t) == 0)
+		idev->id_irq[0] = t;
+	else
+		idev->id_irq[0] = -1;
+	idev->id_irq[1] = -1;
+
+	if (resource_int_value(name, unit, "drq", &t) == 0)
+		idev->id_drq[0] = t;
+	else
+		idev->id_drq[0] = -1;
+	idev->id_drq[1] = -1;
+
+	if (sensitive)
+		child = device_add_child_after(dev, last_sensitive, name, 
+					       unit, idev);
+	else
+		child = device_add_child(dev, name, unit, idev);
+	if (child == 0)
 		return;
+	else if (sensitive)
+		last_sensitive = child;
 
 	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
 		device_disable(child);
@@ -187,6 +245,15 @@ isa_probe(device_t dev)
 			       resource_query_unit(i));
 	}
 
+	isa_irq_rman.rm_start = 0;
+	isa_irq_rman.rm_end = 15;
+	isa_irq_rman.rm_type = RMAN_ARRAY;
+	isa_irq_rman.rm_descr = "ISA Interrupt request lines";
+	if (rman_init(&isa_irq_rman)
+	    || rman_manage_region(&isa_irq_rman, 0, 1)
+	    || rman_manage_region(&isa_irq_rman, 3, 15))
+		panic("isa_probe isa_irq_rman");
+
 	return 0;
 }
 
@@ -215,15 +282,69 @@ isa_attach(device_t dev)
 static void
 isa_print_child(device_t bus, device_t dev)
 {
-	struct isa_device* idev = DEVTOISA(dev);
+	struct	isa_device *id = DEVTOISA(dev);
 
-	printf(" at");
-	if (idev->id_port)
-		printf(" 0x%x", idev->id_port);
-	if (idev->id_portsize > 0)
-		printf("-0x%x", idev->id_port + idev->id_portsize - 1);
-	if (idev->id_irq >= 0)
-		printf(" irq %d", idev->id_irq);
+	if (id->id_port[0] > 0 || id->id_port[1] 
+	    || id->id_maddr[0] > 0 || id->id_maddr[1]
+	    || id->id_irq[0] >= 0 || id->id_irq[1] >= 0
+	    || id->id_drq[0] >= 0 || id->id_drq[1] >= 0)
+		printf(" at");
+	if (id->id_port[0] && id->id_port[1]) {
+		printf(" ports %#x", (u_int)id->id_port[0]);
+		if (id->id_portsize[0])
+			printf("-%#x", (u_int)(id->id_port[0] 
+					       + id->id_portsize[0] - 1));
+		printf(" and %#x", (u_int)id->id_port[1]);
+		if (id->id_portsize[1])
+			printf("-%#x", (u_int)(id->id_port[1] 
+					       + id->id_portsize[1] - 1));
+	} else if (id->id_port[0]) {
+		printf(" port %#x", (u_int)id->id_port[0]);
+		if (id->id_portsize[0])
+			printf("-%#x", (u_int)(id->id_port[0]
+					       + id->id_portsize[0] - 1));
+	} else if (id->id_port[1]) {
+		printf(" port %#x", (u_int)id->id_port[1]);
+		if (id->id_portsize[1])
+			printf("-%#x", (u_int)(id->id_port[1]
+					       + id->id_portsize[1] - 1));
+	}
+	if (id->id_maddr[0] && id->id_maddr[1]) {
+		printf(" iomem %#x", (u_int)id->id_maddr[0]);
+		if (id->id_msize[0])
+			printf("-%#x", (u_int)(id->id_maddr[0] 
+					       + id->id_msize[0] - 1));
+		printf(" and %#x", (u_int)id->id_maddr[1]);
+		if (id->id_msize[1])
+			printf("-%#x", (u_int)(id->id_maddr[1] 
+					       + id->id_msize[1] - 1));
+	} else if (id->id_maddr[0]) {
+		printf(" iomem %#x", (u_int)id->id_maddr[0]);
+		if (id->id_msize[0])
+			printf("-%#x", (u_int)(id->id_maddr[0]
+					       + id->id_msize[0] - 1));
+	} else if (id->id_maddr[1]) {
+		printf(" iomem %#x", (u_int)id->id_maddr[1]);
+		if (id->id_msize[1])
+			printf("-%#x", (u_int)(id->id_maddr[1]
+					       + id->id_msize[1] - 1));
+	}
+	if (id->id_irq[0] >= 0 && id->id_irq[1] >= 0)
+		printf(" irqs %d and %d", id->id_irq[0], id->id_irq[1]);
+	else if (id->id_irq[0] >= 0)
+		printf(" irq %d", id->id_irq[0]);
+	else if (id->id_irq[1] >= 0)
+		printf(" irq %d", id->id_irq[1]);
+	if (id->id_drq[0] >= 0 && id->id_drq[1] >= 0)
+		printf(" drqs %d and %d", id->id_drq[0], id->id_drq[1]);
+	else if (id->id_drq[0] >= 0)
+		printf(" drq %d", id->id_drq[0]);
+	else if (id->id_drq[1] >= 0)
+		printf(" drq %d", id->id_drq[1]);
+
+	if (id->id_flags)
+		printf(" flags %#x", id->id_flags);
+
 	printf(" on %s%d",
 	       device_get_name(bus), device_get_unit(bus));
 }
@@ -235,17 +356,44 @@ isa_read_ivar(device_t bus, device_t dev,
 	struct isa_device* idev = DEVTOISA(dev);
 
 	switch (index) {
-	case ISA_IVAR_PORT:
-		*result = idev->id_port;
+	case ISA_IVAR_PORT_0:
+		*result = idev->id_port[0];
 		break;
-	case ISA_IVAR_PORTSIZE:
-		*result = idev->id_portsize;
+	case ISA_IVAR_PORT_1:
+		*result = idev->id_port[1];
+		break;
+	case ISA_IVAR_PORTSIZE_0:
+		*result = idev->id_portsize[0];
+		break;
+	case ISA_IVAR_PORTSIZE_1:
+		*result = idev->id_portsize[1];
+		break;
+	case ISA_IVAR_MADDR_0:
+		*result = idev->id_maddr[0];
+		break;
+	case ISA_IVAR_MADDR_1:
+		*result = idev->id_maddr[1];
+		break;
+	case ISA_IVAR_MSIZE_0:
+		*result = idev->id_msize[0];
+		break;
+	case ISA_IVAR_MSIZE_1:
+		*result = idev->id_msize[1];
+		break;
+	case ISA_IVAR_IRQ_0:
+		*result = idev->id_irq[0];
+		break;
+	case ISA_IVAR_IRQ_1:
+		*result = idev->id_irq[1];
+		break;
+	case ISA_IVAR_DRQ_0:
+		*result = idev->id_drq[0];
+		break;
+	case ISA_IVAR_DRQ_1:
+		*result = idev->id_drq[1];
 		break;
 	case ISA_IVAR_FLAGS:
 		*result = idev->id_flags;
-		break;
-	case ISA_IVAR_IRQ:
-		*result = idev->id_irq;
 		break;
 	}
 	return ENOENT;
@@ -258,20 +406,198 @@ isa_write_ivar(device_t bus, device_t dev,
 	struct isa_device* idev = DEVTOISA(dev);
 
 	switch (index) {
-	case ISA_IVAR_PORT:
-		idev->id_port = value;
+	case ISA_IVAR_PORT_0:
+		idev->id_port[0] = value;
 		break;
-	case ISA_IVAR_PORTSIZE:
-		idev->id_portsize = value;
+	case ISA_IVAR_PORT_1:
+		idev->id_port[1] = value;
+		break;
+	case ISA_IVAR_PORTSIZE_0:
+		idev->id_portsize[0] = value;
+		break;
+	case ISA_IVAR_PORTSIZE_1:
+		idev->id_portsize[1] = value;
+		break;
+	case ISA_IVAR_MADDR_0:
+		idev->id_maddr[0] = value;
+		break;
+	case ISA_IVAR_MADDR_1:
+		idev->id_maddr[1] = value;
+		break;
+	case ISA_IVAR_MSIZE_0:
+		idev->id_msize[0] = value;
+		break;
+	case ISA_IVAR_MSIZE_1:
+		idev->id_msize[1] = value;
+		break;
+	case ISA_IVAR_IRQ_0:
+		idev->id_irq[0] = value;
+		break;
+	case ISA_IVAR_IRQ_1:
+		idev->id_irq[1] = value;
+		break;
+	case ISA_IVAR_DRQ_0:
+		idev->id_drq[0] = value;
+		break;
+	case ISA_IVAR_DRQ_1:
+		idev->id_drq[1] = value;
 		break;
 	case ISA_IVAR_FLAGS:
 		idev->id_flags = value;
 		break;
-	case ISA_IVAR_IRQ:
-		idev->id_irq = value;
-		break;
+	default:
+		return (ENOENT);
 	}
-	return ENOENT;
+	return (0);
+}
+
+/*
+ * This implementation simply passes the request up to the parent
+ * bus, which in our case is the pci chipset device, substituting any
+ * configured values if the caller defaulted.  We can get away with
+ * this because there is no special mapping for ISA resources on this
+ * platform.  When porting this code to another architecture, it may be
+ * necessary to interpose a mapping layer here.
+ *
+ * We manage our own interrupt resources since ISA interrupts go through
+ * the ISA PIC, not the PCI interrupt controller.
+ */
+static struct resource *
+isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
+		   u_long start, u_long end, u_long count, u_int flags)
+{
+	int	isdefault;
+	struct	resource *rv, **rvp;
+	struct	isa_device *id = DEVTOISA(child);
+
+	isdefault = (start == 0UL && end == ~0UL && *rid == 0);
+	if (*rid > 1)
+		return 0;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		if (isdefault && id->id_irq[0] >= 0) {
+			start = id->id_irq[0];
+			end = id->id_irq[0];
+			count = 1;
+		}
+		rvp = &id->id_irqres[*rid];
+		rv = rman_reserve_resource(&isa_irq_rman,
+					   start, end, count,
+					   0, child);
+		if (!rv)
+			return 0;
+		*rvp = rv;
+		id->id_irq[*rid] = rv->r_start;
+		return rv;
+
+	case SYS_RES_MEMORY:
+		if (isdefault && id->id_maddr[0]) {
+			start = id->id_maddr[0];
+			count = max(count, (u_long)id->id_msize[0]);
+			end = id->id_maddr[0] + count;
+		}
+		rvp = &id->id_memres[*rid];
+		break;
+
+	case SYS_RES_IOPORT:
+		if (isdefault && id->id_port[0]) {
+			start = id->id_port[0];
+			count = max(count, (u_long)id->id_portsize[0]);
+			end = id->id_port[0] + count;
+		}
+		rvp = &id->id_portres[*rid];
+		break;
+
+	default:
+		return 0;
+	}
+
+	/*
+	 * If the client attempts to reallocate a resource without
+	 * releasing what was there previously, die horribly so that
+	 * he knows how he !@#$ed up.
+	 */
+	if (*rvp != 0)
+		panic("%s%d: (%d, %d) not free for %s%d\n",
+		      device_get_name(bus), device_get_unit(bus),
+		      type, *rid, 
+		      device_get_name(child), device_get_unit(child));
+
+	/*
+	 * nexus_alloc_resource had better not change *rid...
+	 */
+	rv = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
+				start, end, count, flags);
+	if ((*rvp = rv) != 0) {
+		switch (type) {
+		case SYS_RES_MEMORY:
+			id->id_maddr[*rid] = rv->r_start;
+			id->id_msize[*rid] = count;
+			break;
+		case SYS_RES_IOPORT:
+			id->id_port[*rid] = rv->r_start;
+			id->id_portsize[*rid] = count;
+			break;
+		}
+	}
+	return rv;
+}
+
+static int
+isa_release_resource(device_t bus, device_t child, int type, int rid,
+		     struct resource *r)
+{
+	int	rv;
+	struct	resource **rp;
+	struct	isa_device *id = DEVTOISA(child);
+
+	if (rid > 1)
+		return EINVAL;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		return (rman_release_resource(r));
+	case SYS_RES_DRQ:
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		break;
+	default:
+		return (ENOENT);
+	}
+
+	rv = BUS_RELEASE_RESOURCE(device_get_parent(bus), child, type, rid, r);
+
+	if (rv) {
+		switch (type) {
+		case SYS_RES_IRQ:
+			id->id_irqres[rid] = 0;
+			id->id_irq[rid] = -1;
+			break;
+
+		case SYS_RES_DRQ:
+			id->id_drqres[rid] = 0;
+			id->id_drq[rid] = -1;
+			break;
+
+		case SYS_RES_MEMORY:
+			id->id_memres[rid] = 0;
+			id->id_maddr[rid] = 0;
+			id->id_msize[rid] = 0;
+			break;
+
+		case SYS_RES_IOPORT:
+			id->id_portres[rid] = 0;
+			id->id_port[rid] = 0;
+			id->id_portsize[rid] = 0;
+			break;
+
+		default:
+			return ENOENT;
+		}
+	}
+
+	return rv;
 }
 
 struct isa_intr {
@@ -299,37 +625,47 @@ isa_handle_intr(void *arg)
 	outb(IO_ICU1, 0x20 | (irq > 7 ? 2 : irq));
 }
 
-static void *
-isa_create_intr(device_t dev, device_t child, int irq,
-		driver_intr_t *intr, void *arg)
+static int
+isa_setup_intr(device_t dev, device_t child,
+	       struct resource *irq,
+	       driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct isa_intr *ii;
+	int error;
+	
+	error = rman_activate_resource(irq);
+	if (error)
+		return error;
 
-	if (irq == 2) irq = 9;
 	ii = malloc(sizeof(struct isa_intr), M_DEVBUF, M_NOWAIT);
 	if (!ii)
-		return NULL;
+		return ENOMEM;
 	ii->intr = intr;
 	ii->arg = arg;
-	ii->irq = irq;
-	ii->ih = alpha_create_intr(0x800 + (irq << 4), isa_handle_intr, ii);
-				  
-	if (!ii->ih) {
-		free(ii, M_DEVBUF);
-		return NULL;
-	}
+	ii->irq = irq->r_start;
 
-	return ii;
+	error = alpha_setup_intr(0x800 + (irq->r_start << 4),
+				 isa_handle_intr, ii, &ii->ih);
+	if (error) {
+		free(ii, M_DEVBUF);
+		return error;
+	}
+	isa_intr_enable(irq->r_start);
+
+	*cookiep = ii;
+	return 0;
 }
 
 static int
-isa_connect_intr(device_t dev, void *ih)
+isa_teardown_intr(device_t dev, device_t child,
+		  struct resource *irq, void *cookie)
 {
-	struct isa_intr *ii = ih;
-	struct alpha_intr *i = ii->ih;
+	struct isa_intr *ii = cookie;
 
-	isa_intr_enable(ii->irq);
-	return alpha_connect_intr(i);
+	alpha_teardown_intr(ii->ih);
+	isa_intr_disable(irq->r_start);
+
+	return 0;
 }
 
 DRIVER_MODULE(isa, cia, isa_driver, isa_devclass, 0, 0);

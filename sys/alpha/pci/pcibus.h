@@ -23,19 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pcibus.h,v 1.1 1998/06/10 10:55:38 dfr Exp $
  */
 
-typedef int alpha_pci_maxdevs_t(pcicfgregs*);
-typedef int alpha_pci_cfgread_t(pcicfgregs*, int, int);
-typedef void alpha_pci_cfgwrite_t(pcicfgregs*, int, int, int);
-
-struct alpha_pci_ops {
-    alpha_pci_maxdevs_t*	maxdevs;
-    alpha_pci_cfgread_t*	cfgread;
-    alpha_pci_cfgwrite_t*	cfgwrite;
-};
-
-struct alpha_pci_softc {
-    struct alpha_pci_ops*	ops;
-};
+void pci_init_resources(void);
+struct resource *pci_alloc_resource(device_t bus, device_t child,
+				    int type, int *rid,
+				    u_long start, u_long end, u_long count,
+				    u_int flags);
+int pci_activate_resource(device_t bus, device_t child, int type, int rid,
+			  struct resource *r);
+int pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
+			    struct resource *r);
+int pci_release_resource(device_t bus, device_t child, int type, int rid,
+			 struct resource *r);
