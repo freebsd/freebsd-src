@@ -34,6 +34,10 @@
  * official policies, either expressed or implied, of the FreeBSD Project.
  *
  * ------+---------+---------+---------+---------+---------+---------+---------*
+ * This is intended to be a set of general-purpose routines to process times.
+ * Right now it probably still has a number of assumptions in it, such that
+ * it works fine for newsyslog but might not work for other uses.
+ * ------+---------+---------+---------+---------+---------+---------+---------*
  */
 
 #include <sys/cdefs.h>
@@ -44,11 +48,41 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "extern.h"
 
+#define	SECS_PER_HOUR	3600
+
+/*
+ * Bit-values which indicate which components of time were specified
+ * by the string given to parse8601 or parseDWM.  These are needed to
+ * calculate what time-in-the-future will match that string.
+ */
+#define	TSPEC_YEAR		0x0001
+#define	TSPEC_MONTHOFYEAR	0x0002
+#define	TSPEC_LDAYOFMONTH	0x0004
+#define	TSPEC_DAYOFMONTH	0x0008
+#define	TSPEC_DAYOFWEEK		0x0010
+#define	TSPEC_HOUROFDAY		0x0020
+
+#define	TNYET_ADJ4DST		-10	/* DST has "not yet" been adjusted */
+
+struct ptime_data {
+	time_t		 basesecs;	/* Base point for relative times */
+	time_t		 tsecs;		/* Time in seconds */
+	struct tm	 basetm;	/* Base Time expanded into fields */
+	struct tm	 tm;		/* Time expanded into fields */
+	int		 did_adj4dst;	/* Track calls to ptime_adjust4dst */
+	int		 parseopts;	/* Options given for parsing */
+	int		 tmspec;	/* Indicates which time fields had
+					 * been specified by the user */
+};
+
 static int	 days_pmonth(int month, int year);
+static int	 parse8601(struct ptime_data *ptime, const char *str);
+static int	 parseDWM(struct ptime_data *ptime, const char *str);
 
 /*
  * Simple routine to calculate the number of days in a given month.
@@ -92,20 +126,12 @@ days_pmonth(int month, int year)
  * We don't accept a timezone specification; missing fields (including timezone)
  * are defaulted to the current date but time zero.
  */
-time_t
-parse8601(const char *s, time_t *next_time)
+static int
+parse8601(struct ptime_data *ptime, const char *s)
 {
 	char *t;
-	time_t tsecs;
-	struct tm tm, *tmp;
 	long l;
-
-	tmp = localtime(&timenow);
-	tm = *tmp;
-	if (next_time != NULL)
-		*next_time = (time_t)-1;
-
-	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+	struct tm tm;
 
 	l = strtol(s, &t, 10);
 	if (l < 0 || l >= INT_MAX || (*t != '\0' && *t != 'T'))
@@ -116,18 +142,23 @@ parse8601(const char *s, time_t *next_time)
 	 * provided) or to the letter `T' which separates date and time in
 	 * ISO 8601.  The pointer arithmetic is the same for either case.
 	 */
+	tm = ptime->tm;
+	ptime->tmspec = TSPEC_HOUROFDAY;
 	switch (t - s) {
 	case 8:
 		tm.tm_year = ((l / 1000000) - 19) * 100;
 		l = l % 1000000;
 	case 6:
+		ptime->tmspec |= TSPEC_YEAR;
 		tm.tm_year -= tm.tm_year % 100;
 		tm.tm_year += l / 10000;
 		l = l % 10000;
 	case 4:
+		ptime->tmspec |= TSPEC_MONTHOFYEAR;
 		tm.tm_mon = (l / 100) - 1;
 		l = l % 100;
 	case 2:
+		ptime->tmspec |= TSPEC_DAYOFMONTH;
 		tm.tm_mday = l;
 	case 0:
 		break;
@@ -154,6 +185,7 @@ parse8601(const char *s, time_t *next_time)
 			tm.tm_min = l % 100;
 			l /= 100;
 		case 2:
+			ptime->tmspec |= TSPEC_HOUROFDAY;
 			tm.tm_hour = l;
 		case 0:
 			break;
@@ -167,14 +199,8 @@ parse8601(const char *s, time_t *next_time)
 			return (-1);
 	}
 
-	tsecs = mktime(&tm);
-	/*
-	 * Check for invalid times, including things like the missing
-	 * hour when switching from "standard time" to "daylight saving".
-	 */
-	if (tsecs == (time_t)-1)
-		tsecs = (time_t)-2;
-	return (tsecs);
+	ptime->tm = tm;
+	return (0);
 }
 
 /*-
@@ -191,32 +217,27 @@ parse8601(const char *s, time_t *next_time)
  * We don't accept a timezone specification; missing fields
  * are defaulted to the current date but time zero.
  */
-time_t
-parseDWM(char *s, time_t *next_time)
+static int
+parseDWM(struct ptime_data *ptime, const char *s)
 {
-	int daysmon;
+	int daysmon, Dseen, WMseen;
 	char *t;
-	time_t tsecs;
-	struct tm tm, *tmp;
 	long l;
-	int WMseen = 0;
-	int Dseen = 0;
-
-	tmp = localtime(&timenow);
-	tm = *tmp;
-	if (next_time != NULL)
-		*next_time = (time_t)-1;
+	struct tm tm;
 
 	/* Save away the number of days in this month */
+	tm = ptime->tm;
 	daysmon = days_pmonth(tm.tm_mon, tm.tm_year);
-	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
 
+	WMseen = Dseen = 0;
+	ptime->tmspec = TSPEC_HOUROFDAY;
 	for (;;) {
 		switch (*s) {
 		case 'D':
 			if (Dseen)
 				return (-1);
 			Dseen++;
+			ptime->tmspec |= TSPEC_HOUROFDAY;
 			s++;
 			l = strtol(s, &t, 10);
 			if (l < 0 || l > 23)
@@ -228,6 +249,7 @@ parseDWM(char *s, time_t *next_time)
 			if (WMseen)
 				return (-1);
 			WMseen++;
+			ptime->tmspec |= TSPEC_DAYOFWEEK;
 			s++;
 			l = strtol(s, &t, 10);
 			if (l < 0 || l > 6)
@@ -255,11 +277,14 @@ parseDWM(char *s, time_t *next_time)
 			if (WMseen)
 				return (-1);
 			WMseen++;
+			ptime->tmspec |= TSPEC_DAYOFMONTH;
 			s++;
 			if (tolower(*s) == 'l') {
+				/* User wants the last day of the month. */
+				ptime->tmspec |= TSPEC_LDAYOFMONTH;
 				tm.tm_mday = daysmon;
 				s++;
-				t = s;
+				t = __DECONST(char *,s);
 			} else {
 				l = strtol(s, &t, 10);
 				if (l < 1 || l > 31)
@@ -282,12 +307,307 @@ parseDWM(char *s, time_t *next_time)
 			s = t;
 	}
 
-	tsecs = mktime(&tm);
+	ptime->tm = tm;
+	return (0);
+}
+
+/*
+ * Initialize a new ptime-related data area.
+ */
+struct ptime_data *
+ptime_init(const struct ptime_data *optsrc)
+{
+	struct ptime_data *newdata;
+
+	newdata = malloc(sizeof(struct ptime_data));
+	if (optsrc != NULL) {
+		memcpy(newdata, optsrc, sizeof(struct ptime_data));
+	} else {
+		memset(newdata, '\0', sizeof(struct ptime_data));
+		newdata->did_adj4dst = TNYET_ADJ4DST;
+	}
+
+	return (newdata);
+}
+
+/*
+ * Adjust a given time if that time is in a different timezone than
+ * some other time.
+ */
+int
+ptime_adjust4dst(struct ptime_data *ptime, const struct ptime_data *dstsrc)
+{
+	struct ptime_data adjtime;
+
+	if (ptime == NULL)
+		return (-1);
+
 	/*
-	 * Check for invalid times, including things like the missing
-	 * hour when switching from "standard time" to "daylight saving".
+	 * Changes are not made to the given time until after all
+	 * of the calculations have been successful.
 	 */
-	if (tsecs == (time_t)-1)
-		tsecs = (time_t)-2;
-	return (tsecs);
+	adjtime = *ptime;
+
+	/* Check to see if this adjustment was already made */
+	if ((adjtime.did_adj4dst != TNYET_ADJ4DST) &&
+	    (adjtime.did_adj4dst == dstsrc->tm.tm_isdst))
+		return (0);		/* yes, so don't make it twice */
+
+	/* See if daylight-saving has changed between the two times. */
+	if (dstsrc->tm.tm_isdst != adjtime.tm.tm_isdst) {
+		if (adjtime.tm.tm_isdst == 1)
+			adjtime.tsecs -= SECS_PER_HOUR;
+		else if (adjtime.tm.tm_isdst == 0)
+			adjtime.tsecs += SECS_PER_HOUR;
+		adjtime.tm = *(localtime(&adjtime.tsecs));
+		/* Remember that this adjustment has been made */
+		adjtime.did_adj4dst = dstsrc->tm.tm_isdst;
+		/*
+		 * XXX - Should probably check to see if changing the
+		 *	hour also changed the value of is_dst.  What
+		 *	should we do in that case?
+		 */
+	}
+
+	*ptime = adjtime;
+	return (0);
+}
+
+int
+ptime_relparse(struct ptime_data *ptime, int parseopts, time_t basetime,
+    const char *str)
+{
+	int dpm, pres;
+	struct tm temp_tm;
+
+	ptime->parseopts = parseopts;
+	ptime->basesecs = basetime;
+	ptime->basetm = *(localtime(&ptime->basesecs));
+	ptime->tm = ptime->basetm;
+	ptime->tm.tm_hour = ptime->tm.tm_min = ptime->tm.tm_sec = 0;
+
+	/*
+	 * Call a routine which sets ptime.tm and ptime.tspecs based
+	 * on the given string and parsing-options.  Note that the
+	 * routine should not call mktime to set ptime.tsecs.
+	 */
+	if (parseopts & PTM_PARSE_DWM)
+		pres = parseDWM(ptime, str);
+	else
+		pres = parse8601(ptime, str);
+	if (pres < 0) {
+		ptime->tsecs = (time_t)pres;
+		return (pres);
+	}
+
+	/*
+	 * Before calling mktime, check to see if we ended up with a
+	 * "day-of-month" that does not exist in the selected month.
+	 * If we did call mktime with that info, then mktime will
+	 * make it look like the user specifically requested a day
+	 * in the following month (eg: Feb 31 turns into Mar 3rd).
+	 */
+	dpm = days_pmonth(ptime->tm.tm_mon, ptime->tm.tm_year);
+	if ((parseopts & PTM_PARSE_MATCHDOM) &&
+	    (ptime->tmspec & TSPEC_DAYOFMONTH) &&
+	    (ptime->tm.tm_mday> dpm)) {
+		/*
+		 * ptime_nxtime() will want a ptime->tsecs value,
+		 * but we need to avoid mktime resetting all the
+		 * ptime->tm values.
+		 */
+		if (verbose && dbg_at_times > 1)
+			fprintf(stderr,
+			    "\t-- dom fixed: %4d/%02d/%02d %02d:%02d (%02d)",
+			    ptime->tm.tm_year, ptime->tm.tm_mon,
+			    ptime->tm.tm_mday, ptime->tm.tm_hour,
+			    ptime->tm.tm_min, dpm);
+		temp_tm = ptime->tm;
+		ptime->tsecs = mktime(&temp_tm);
+		if (ptime->tsecs > (time_t)-1)
+			ptimeset_nxtime(ptime);
+		if (verbose && dbg_at_times > 1)
+			fprintf(stderr,
+			    " to: %4d/%02d/%02d %02d:%02d\n",
+			    ptime->tm.tm_year, ptime->tm.tm_mon,
+			    ptime->tm.tm_mday, ptime->tm.tm_hour,
+			    ptime->tm.tm_min);
+	}
+
+	/*
+	 * Convert the ptime.tm into standard time_t seconds.  Check
+	 * for invalid times, which includes things like the hour lost
+	 * when switching from "standard time" to "daylight saving".
+	 */
+	ptime->tsecs = mktime(&ptime->tm);
+	if (ptime->tsecs == (time_t)-1) {
+		ptime->tsecs = (time_t)-2;
+		return (-2);
+	}
+
+	return (0);
+}
+
+int
+ptime_free(struct ptime_data *ptime)
+{
+
+	if (ptime == NULL)
+		return (-1);
+
+	free(ptime);
+	return (0);
+}
+
+/*
+ * Some trivial routines so ptime_data can remain a completely
+ * opaque type.
+ */
+const char *
+ptimeget_ctime(const struct ptime_data *ptime)
+{
+
+	if (ptime == NULL)
+		return ("Null time in ptimeget_ctime()\n");
+
+	return (ctime(&ptime->tsecs));
+}
+
+double
+ptimeget_diff(const struct ptime_data *minuend, const struct
+    ptime_data *subtrahend)
+{
+
+	/* Just like difftime(), we have no good error-return */
+	if (minuend == NULL || subtrahend == NULL)
+		return (0.0);
+
+	return (difftime(minuend->tsecs, subtrahend->tsecs));
+}
+
+time_t
+ptimeget_secs(const struct ptime_data *ptime)
+{
+
+	if (ptime == NULL)
+		return (-1);
+
+	return (ptime->tsecs);
+}
+
+/*
+ * Generate an approximate timestamp for the next event, based on
+ * what parts of time were specified by the original parameter to
+ * ptime_relparse(). The result may be -1 if there is no obvious
+ * "next time" which will work.
+ */
+int
+ptimeset_nxtime(struct ptime_data *ptime)
+{
+	int moredays, tdpm, tmon, tyear;
+	struct ptime_data nextmatch;
+
+	if (ptime == NULL)
+		return (-1);
+
+	/*
+	 * Changes are not made to the given time until after all
+	 * of the calculations have been successful.
+	 */
+	nextmatch = *ptime;
+	/*
+	 * If the user specified a year and we're already past that
+	 * time, then there will never be another one!
+	 */
+	if (ptime->tmspec & TSPEC_YEAR)
+		return (-1);
+
+	/*
+	 * The caller gave us a time in the past.  Calculate how much
+	 * time is needed to go from that valid rotate time to the
+	 * next valid rotate time.  We only need to get to the nearest
+	 * hour, because newsyslog is only run once per hour.
+	 */
+	moredays = 0;
+	if (ptime->tmspec & TSPEC_MONTHOFYEAR) {
+		/* Special case: Feb 29th does not happen every year. */
+		if (ptime->tm.tm_mon == 1 && ptime->tm.tm_mday == 29) {
+			nextmatch.tm.tm_year += 4;
+			if (days_pmonth(1, nextmatch.tm.tm_year) < 29)
+				nextmatch.tm.tm_year += 4;
+		} else {
+			nextmatch.tm.tm_year += 1;
+		}
+		nextmatch.tm.tm_isdst = -1;
+		nextmatch.tsecs = mktime(&nextmatch.tm);
+
+	} else if (ptime->tmspec & TSPEC_LDAYOFMONTH) {
+		/*
+		 * Need to get to the last day of next month.  Origtm is
+		 * already at the last day of this month, so just add to
+		 * it number of days in the next month.
+		 */
+		if (ptime->tm.tm_mon < 11)
+			moredays = days_pmonth(ptime->tm.tm_mon + 1,
+			    ptime->tm.tm_year);
+		else
+			moredays = days_pmonth(0, ptime->tm.tm_year + 1);
+
+	} else if (ptime->tmspec & TSPEC_DAYOFMONTH) {
+		/* Jump to the same day in the next month */
+		moredays = days_pmonth(ptime->tm.tm_mon, ptime->tm.tm_year);
+		/*
+		 * In some cases, the next month may not *have* the
+		 * desired day-of-the-month.  If that happens, then
+		 * move to the next month that does have enough days.
+		 */
+		tmon = ptime->tm.tm_mon;
+		tyear = ptime->tm.tm_year;
+		for (;;) {
+			if (tmon < 11)
+				tmon += 1;
+			else {
+				tmon = 0;
+				tyear += 1;
+			}
+			tdpm = days_pmonth(tmon, tyear);
+			if (tdpm >= ptime->tm.tm_mday)
+				break;
+			moredays += tdpm;
+		}
+
+	} else if (ptime->tmspec & TSPEC_DAYOFWEEK) {
+		moredays = 7;
+	} else if (ptime->tmspec & TSPEC_HOUROFDAY) {
+		moredays = 1;
+	}
+
+	if (moredays != 0) {
+		nextmatch.tsecs += SECS_PER_HOUR * 24 * moredays;
+		nextmatch.tm = *(localtime(&nextmatch.tsecs));
+	}
+
+	/*
+	 * The new time will need to be adjusted if the setting of
+	 * daylight-saving has changed between the two times.
+	 */
+	ptime_adjust4dst(&nextmatch, ptime);
+
+	/* Everything worked.  Update the given time and return. */
+	*ptime = nextmatch;
+	return (0);
+}
+
+int
+ptimeset_time(struct ptime_data *ptime, time_t secs)
+{
+
+	if (ptime == NULL)
+		return (-1);
+
+	ptime->tsecs = secs;
+	ptime->tm = *(localtime(&ptime->tsecs));
+	ptime->parseopts = 0;
+	/* ptime->tmspec = ? */
+	return (0);
 }
