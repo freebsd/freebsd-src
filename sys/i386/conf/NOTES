@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.228 1995/12/25 07:38:35 bde Exp $
+#	$Id: LINT,v 1.229 1995/12/26 14:01:16 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -69,7 +69,8 @@ config		kernel	root on wd0 dumps on wd0
 
 #
 # Implement system calls compatible with 4.3BSD and older versions of
-# FreeBSD.
+# FreeBSD.  You probably do NOT want to remove this as much current code
+# still relies on the 4.3 emulation.
 #
 options		"COMPAT_43"
 
@@ -144,9 +145,9 @@ options		IPX_ERRPRINTFS=0	#IPX/SPX Console Debugging Information
 
 #
 # Network interfaces:
-#  The `loop' pseudo-device is mandatory when networking is enabled.
+#  The `loop' pseudo-device is MANDATORY when networking is enabled.
 #  The `ether' pseudo-device provides generic code to handle
-#  Ethernets; it is mandatory when a Ethernet device driver is
+#  Ethernets; it is MANDATORY when a Ethernet device driver is
 #  configured.
 #  The 'fddi' pseudo-device provides generic code to support FDDI.
 #  The `sppp' pseudo-device serves a similar role for certain types
@@ -187,7 +188,9 @@ options		HDLC			#X.25 link layer for serial lines
 # machine and TCP connections fail.
 #
 # GATEWAY allows the machine to forward packets, and also configures
-# larger static sizes of a number of system tables.
+# larger static sizes of a number of system tables.  It is largely
+# replaced by the more dynamic behavior of
+#	sysctl -w net.inet.ip.forwarding=1
 #
 # MROUTING enables the kernel multicast packet forwarder, which works
 # with mrouted(8).
@@ -344,7 +347,9 @@ options		SCSI_REPORT_GEOMETRY
 # device usually turns out to be ``effectively mandatory'', as it is
 # required for `telnetd', `rlogind', `screen', `emacs', and `xterm',
 # among others.  The `isdn', `ii', `ity', `itel', and `ispy' devices
-# are all required when ISDN support is used.
+# are all required when ISDN support is used.  If you wish to run certain
+# system utilities which are compressed by default (like /stand/sysinstall)
+# then `gzip' becomes mandatory too.
 #
 pseudo-device	pty	16	#Pseudo ttys - can go as high as 64
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
