@@ -27,6 +27,8 @@
  */
 
 #include <sys/queue.h>
+#include <sys/proc.h>		/* XXX should these be prerequisites? */
+#include <machine/mutex.h>
 
 #ifndef SYS_EVENTHANDLER_H
 #define SYS_EVENTHANDLER_H
@@ -40,14 +42,16 @@ struct eventhandler_entry
 
 struct eventhandler_list 
 {
-    TAILQ_ENTRY(eventhandler_list)	el_link;
     char				*el_name;
     int					el_flags;
 #define EHE_INITTED	(1<<0)
+    struct mtx				el_mutex;
+    TAILQ_ENTRY(eventhandler_list)	el_link;
     TAILQ_HEAD(,eventhandler_entry)	el_entries;
 };
 
 typedef struct eventhandler_entry	*eventhandler_tag;
+struct mtx				eventhandler_mutex;
 
 /* 
  * Fast handler lists require the eventhandler list be present
@@ -72,29 +76,33 @@ struct __hack
 struct eventhandler_list Xeventhandler_list_ ## name = { #name };	\
 struct __hack
 
-#define EVENTHANDLER_FAST_INVOKE(name, args...)				\
-do {									\
-    struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;	\
-    struct eventhandler_entry *_ep = TAILQ_FIRST(&(_el->el_entries));	\
-									\
-    while (_ep != NULL) {						\
-	((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , ## args); \
-	_ep = TAILQ_NEXT(_ep, ee_link);					\
-    }									\
+#define EVENTHANDLER_FAST_INVOKE(name, args...)					\
+do {										\
+    struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;		\
+    struct eventhandler_entry *_ep = TAILQ_FIRST(&(_el->el_entries));		\
+										\
+    if (_el->el_flags & EHE_INITTED) {						\
+	mtx_enter(&_el->el_mutex, MTX_DEF);					\
+	while (_ep != NULL) {							\
+	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , 	\
+								 ## args); 	\
+	    _ep = TAILQ_NEXT(_ep, ee_link);					\
+	}									\
+	mtx_exit(&_el->el_mutex, MTX_DEF);					\
+    }										\
 } while (0)
 
 #define EVENTHANDLER_FAST_REGISTER(name, func, arg, priority) \
-    eventhandler_register(Xeventhandler_list_ ## name, #name, func, arg, priority)
+    eventhandler_register(&Xeventhandler_list_ ## name, #name, func, arg, priority)
 
 #define EVENTHANDLER_FAST_DEREGISTER(name, tag) \
-    eventhandler_deregister(Xeventhandler_list ## name, tag)
-
+    eventhandler_deregister(&Xeventhandler_list ## name, tag)
 
 /*
- * Slow handlerss are entirely dynamic; lists are created
+ * Slow handlers are entirely dynamic; lists are created
  * when entries are added to them, and thus have no concept of "owner",
  *
- * Slow handlerss need to be declared, but do not need to be defined. The
+ * Slow handlers need to be declared, but do not need to be defined. The
  * declaration must be in scope wherever the handler is to be invoked.
  */
 #define EVENTHANDLER_DECLARE(name, type)	\
@@ -105,18 +113,22 @@ struct eventhandler_entry_ ## name 		\
 };						\
 struct __hack
 
-#define EVENTHANDLER_INVOKE(name, args...)				\
-do {									\
-    struct eventhandler_list *_el;					\
-    struct eventhandler_entry *_ep;					\
-									\
-    if ((_el = eventhandler_find_list(#name)) != NULL) {		\
-	for (_ep = TAILQ_FIRST(&(_el->el_entries));			\
-	     _ep != NULL;						\
-	     _ep = TAILQ_NEXT(_ep, ee_link)) {				\
-	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , ## args); \
-	}								\
-    }									\
+#define EVENTHANDLER_INVOKE(name, args...)					\
+do {										\
+    struct eventhandler_list *_el;						\
+    struct eventhandler_entry *_ep;						\
+										\
+    if (((_el = eventhandler_find_list(#name)) != NULL) && 			\
+	(_el->el_flags & EHE_INITTED)) {					\
+	mtx_enter(&_el->el_mutex, MTX_DEF);					\
+	for (_ep = TAILQ_FIRST(&(_el->el_entries));				\
+	     _ep != NULL;							\
+	     _ep = TAILQ_NEXT(_ep, ee_link)) {					\
+	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , 	\
+								 ## args); 	\
+	}									\
+	mtx_exit(&_el->el_mutex, MTX_DEF);					\
+    }										\
 } while (0)
 
 #define EVENTHANDLER_REGISTER(name, func, arg, priority) \
@@ -154,5 +166,12 @@ typedef void (*shutdown_fn) __P((void *, int));
 EVENTHANDLER_DECLARE(shutdown_pre_sync, shutdown_fn);	/* before fs sync */
 EVENTHANDLER_DECLARE(shutdown_post_sync, shutdown_fn);	/* after fs sync */
 EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
+
+/* Idle process event */
+typedef void (*idle_eventhandler_t) __P((void *, int));
+
+#define IDLE_PRI_LAST		20000
+EVENTHANDLER_FAST_DECLARE(idle_event, idle_eventhandler_t);
+
 
 #endif /* SYS_EVENTHANDLER_H */
