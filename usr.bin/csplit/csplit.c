@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdint.h>
@@ -98,6 +99,8 @@ main(int argc, char *argv[])
 	const char *expr;
 	char *ep, *p;
 	FILE *ofp;
+
+	setlocale(LC_ALL, "");
 
 	kflag = sflag = 0;
 	prefix = "xx";
