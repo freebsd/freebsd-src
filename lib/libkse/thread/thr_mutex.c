@@ -718,6 +718,8 @@ __pthread_mutex_lock(pthread_mutex_t *m)
 	return (ret);
 }
 
+__strong_reference(__pthread_mutex_lock, _thr_mutex_lock);
+
 int
 _pthread_mutex_lock(pthread_mutex_t *m)
 {
@@ -747,6 +749,8 @@ _pthread_mutex_unlock(pthread_mutex_t *m)
 {
 	return (mutex_unlock_common(m, /* add reference */ 0));
 }
+
+__strong_reference(_pthread_mutex_unlock, _thr_mutex_unlock);
 
 int
 _mutex_cv_unlock(pthread_mutex_t *m)

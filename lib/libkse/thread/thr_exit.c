@@ -47,15 +47,11 @@ __weak_reference(_pthread_exit, pthread_exit);
 void
 _thr_exit(char *fname, int lineno, char *msg)
 {
-	char s[256];
 
-	/* Prepare an error message string: */
-	snprintf(s, sizeof(s),
+	/* Write an error message to the standard error file descriptor: */
+	_thread_printf(2,
 	    "Fatal error '%s' at line %d in file %s (errno = %d)\n",
 	    msg, lineno, fname, errno);
-
-	/* Write the string to the standard error file descriptor: */
-	__sys_write(2, s, strlen(s));
 
 	abort();
 }
