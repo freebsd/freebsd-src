@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.64 1999/05/10 09:00:29 kato Exp $
+#	$Id: Makefile.pc98,v 1.65 1999/06/28 13:07:58 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -226,7 +226,10 @@ links:
 	sh makelinks && rm -f dontlink
 
 tags:
-	@echo "see $S/kern/Makefile for tags"
+	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
+	sh $S/conf/systags.sh
+	rm -f tags1
+	sed -e 's,      ../,    ,' tags > tags1
 
 install install.debug:
 	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
