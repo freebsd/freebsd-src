@@ -314,7 +314,7 @@ config(vnp)
 
 			args.fspec = dev;
 			mflags = (flags & VN_MOUNTRO) ? MNT_RDONLY : 0;
-			rv = mount(MOUNT_UFS, oarg, mflags, &args);
+			rv = mount("ufs", oarg, mflags, &args);
 			if (rv)
 				perror("mount");
 			else if (verbose)
