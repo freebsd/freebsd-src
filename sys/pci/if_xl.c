@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.37 1999/05/09 17:07:06 peter Exp $
+ *	$Id: if_xl.c,v 1.38 1999/05/30 18:09:16 wpaul Exp $
  */
 
 /*
@@ -160,7 +160,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.37 1999/05/09 17:07:06 peter Exp $";
+	"$Id: if_xl.c,v 1.38 1999/05/30 18:09:16 wpaul Exp $";
 #endif
 
 /*
@@ -1353,6 +1353,7 @@ static void xl_mediacheck(sc)
 	case TC_DEVICEID_HURRICANE_10_100BT:	/* 3c905B-TX */
 	case TC_DEVICEID_HURRICANE_10_100BT_SERV:/*3c980-TX */
 	case TC_DEVICEID_HURRICANE_SOHO100TX:	/* 3cSOHO100-TX */
+	case TC_DEVICEID_TORNADO_10_100BT:	/* 3c905C-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		printf("xl%d: guessing 10/100 internal\n", sc->xl_unit);
