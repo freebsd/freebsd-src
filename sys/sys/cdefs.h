@@ -244,20 +244,36 @@
 #endif
 #endif
 
-#if !defined(__SCCSID) && !defined(NO__SCCSID)
-#define	__SCCSID(s)	__IDSTRING(__CONCAT(__sccsid_,__LINE__),s)
-#endif
-
-#if !defined(__RCSID) && !defined(NO__RCSID)
+#ifndef	__RCSID
+#ifndef	NO__RCSID
 #define	__RCSID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
+#else
+#define	__RCSID(s)
+#endif
 #endif
 
-#if !defined(__RCSID_SOURCE) && !defined(NO__RCSID_SOURCE)
+#ifndef	__RCSID_SOURCE
+#ifndef	NO__RCSID_SOURCE
 #define	__RCSID_SOURCE(s)	__IDSTRING(__CONCAT(__rcsid_source_,__LINE__),s)
+#else
+#define	__RCSID_SOURCE(s)
+#endif
 #endif
 
-#if !defined(__COPYRIGHT) && !defined(NO__COPYRIGHT)
+#ifndef	__SCCSID
+#ifndef	NO__SCCSID
+#define	__SCCSID(s)	__IDSTRING(__CONCAT(__sccsid_,__LINE__),s)
+#else
+#define	__SCCSID(s)
+#endif
+#endif
+
+#ifndef	__COPYRIGHT
+#ifndef	NO__COPYRIGHT
 #define	__COPYRIGHT(s)	__IDSTRING(__CONCAT(__copyright_,__LINE__),s)
+#else
+#define	__COPYRIGHT(s)
+#endif
 #endif
 
 #ifndef	__DECONST
