@@ -606,7 +606,9 @@ chn_reset(struct pcm_channel *c, u_int32_t fmt)
 	CHANNEL_RESET(c->methods, c->devinfo);
 	if (fmt) {
 		hwspd = DSP_DEFAULT_SPEED;
-		RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
+		/* only do this on a record channel until feederbuilder works */
+		if (c->direction == PCMDIR_REC)
+			RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
 		c->speed = hwspd;
 
 		r = chn_setformat(c, fmt);
