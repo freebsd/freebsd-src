@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.32 1997/09/07 22:01:53 fsmp Exp $
+ * $Id: smp.h,v 1.33 1997/12/08 22:56:44 fsmp Exp $
  *
  */
 
@@ -93,8 +93,6 @@ extern u_int			mask8254;
 
 /* functions in apic_ipl.s */
 void	vec8254			__P((void));
-void	INTREN			__P((u_int));
-void	INTRDIS			__P((u_int));
 void	apic_eoi		__P((void));
 u_int	io_apic_read		__P((int, int));
 void	io_apic_write		__P((int, int, u_int));
