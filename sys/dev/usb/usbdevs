@@ -712,6 +712,7 @@ product IOMEGA ZIP250		0x0030	Zip 250
 
 /* Kawasaki products */
 product KLSI DUH3E10BT		0x0008	USB ethernet controller engine
+product KLSI DUH3E10BTN		0x0009	USB ethernet controller engine
 
 /* Kawatsu products */
 product KAWATSU MH4000P		0x0003	MiniHub 4000P
