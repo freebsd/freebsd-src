@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
+static const char copyright[] =
+"@(#) Copyright (c) 1983, 1989, 1993, 1994\n\
+	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1983, 1989, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
+#if 0
+static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -46,17 +50,15 @@ static char copyright[] =
  */
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>
 #include <sys/mount.h>
 
-#include <ufs/ufs/dir.h>
-#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/ufsmount.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <paths.h>
 #include <stdio.h>
@@ -65,10 +67,13 @@ static char copyright[] =
 #include <syslog.h>
 #include <unistd.h>
 
+#ifdef MFS
+#include <sys/types.h>
+#include <sys/mman.h>
+#endif
+
 #if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
 #endif
 
 #include "mntopts.h"
@@ -201,13 +206,14 @@ int	unlabeled;
 char	device[MAXPATHLEN];
 char	*progname;
 
+extern void mkfs __P((struct partition *, char *, int, int));
+static void usage __P((void));
+
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	register int ch;
 	register struct partition *pp;
 	register struct disklabel *lp;
@@ -217,13 +223,14 @@ main(argc, argv)
 	struct stat st;
 	struct statfs *mp;
 	int fsi, fso, len, n;
-	char *cp, *s1, *s2, *special, *opstring, buf[BUFSIZ];
+	char *cp, *s1, *s2, *special, *opstring;
 #ifdef MFS
 	struct vfsconf vfc;
 	int error;
+	char buf[BUFSIZ];
 #endif
 
-	if (progname = strrchr(*argv, '/'))
+	if ((progname = strrchr(*argv, '/')))
 		++progname;
 	else
 		progname = *argv;
@@ -258,7 +265,7 @@ main(argc, argv)
 			break;
 		case 'a':
 			if ((maxcontig = atoi(optarg)) <= 0)
-				fatal("%s: bad maximum contiguous blocks\n",
+				fatal("%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
@@ -272,11 +279,11 @@ main(argc, argv)
 			break;
 		case 'd':
 			if ((rotdelay = atoi(optarg)) < 0)
-				fatal("%s: bad rotational delay\n", optarg);
+				fatal("%s: bad rotational delay", optarg);
 			break;
 		case 'e':
 			if ((maxbpg = atoi(optarg)) <= 0)
-		fatal("%s: bad blocks per file in a cylinder group\n",
+		fatal("%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
@@ -285,7 +292,7 @@ main(argc, argv)
 			break;
 		case 'i':
 			if ((density = atoi(optarg)) <= 0)
-				fatal("%s: bad bytes per inode\n", optarg);
+				fatal("%s: bad bytes per inode", optarg);
 			break;
 		case 'k':
 			if ((trackskew = atoi(optarg)) < 0)
@@ -297,11 +304,11 @@ main(argc, argv)
 			break;
 		case 'm':
 			if ((minfree = atoi(optarg)) < 0 || minfree > 99)
-				fatal("%s: bad free space %%\n", optarg);
+				fatal("%s: bad free space %%", optarg);
 			break;
 		case 'n':
 			if ((nrpos = atoi(optarg)) < 0)
-				fatal("%s: bad rotational layout count\n",
+				fatal("%s: bad rotational layout count",
 				    optarg);
 			if (nrpos == 0)
 				nrpos = 1;
@@ -315,7 +322,7 @@ main(argc, argv)
 				else if (strcmp(optarg, "time") == 0)
 					opt = FS_OPTTIME;
 				else
-	fatal("%s: unknown optimization preference: use `space' or `time'.");
+	fatal("%s: unknown optimization preference: use `space' or `time'");
 			}
 			break;
 		case 'p':
@@ -325,7 +332,7 @@ main(argc, argv)
 			break;
 		case 'r':
 			if ((rpm = atoi(optarg)) <= 0)
-				fatal("%s: bad revolutions/minute\n", optarg);
+				fatal("%s: bad revolutions/minute", optarg);
 			break;
 		case 's':
 			if ((fssize = atoi(optarg)) <= 0)
@@ -441,7 +448,7 @@ main(argc, argv)
 			    progname, special);
 		cp = strchr(argv[0], '\0') - 1;
 		if (cp == (char *)-1 ||
-		    (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
+		    ((*cp < 'a' || *cp > 'h') && !isdigit(*cp)))
 			fatal("%s: can't figure out file system partition",
 			    argv[0]);
 #ifdef COMPAT
@@ -681,6 +688,7 @@ fatal(fmt, va_alist)
 	/*NOTREACHED*/
 }
 
+static void
 usage()
 {
 	if (mfs) {
