@@ -1,0 +1,63 @@
+%{
+extern int m_text(), m_private(), m_who(), m_whois(), m_user(), m_list();
+extern int m_topic(), m_invite(), m_channel(), m_version(), m_quit();
+extern int m_server(), m_kill(), m_info(), m_links(), m_summon(), m_stats();
+extern int m_users(), m_nick(), m_error(), m_help(), m_whoreply();
+extern int m_squit(), m_restart(), m_away(), m_die(), m_connect();
+extern int m_ping(), m_pong(), m_oper(), m_pass(), m_wall(), m_trace();
+extern int m_time(), m_rehash(), m_names(), m_namreply(), m_admin();
+extern int m_linreply(), m_notice(), m_lusers(), m_voice(), m_grph();
+extern int m_xtra(), m_motd();
+%}
+struct Message {
+  char *cmd;
+  int (* func)();
+  int count;
+  int parameters;
+};
+%%
+NICK,    m_nick,     0, 1
+MSG,     m_text,     0, 1
+PRIVMSG, m_private,  0, 2
+WHO,     m_who,      0, 1
+WHOIS,   m_whois,    0, 4
+USER,    m_user,     0, 4
+SERVER,  m_server,   0, 2
+LIST,    m_list,     0, 1
+TOPIC,   m_topic,    0, 1
+INVITE,  m_invite,   0, 2
+CHANNEL, m_channel,  0, 1
+VERSION, m_version,  0, 1
+QUIT,    m_quit,     0, 2
+SQUIT,   m_squit,    0, 2
+KILL,    m_kill,     0, 2
+INFO,    m_info,     0, 1
+LINKS,   m_links,    0, 1
+SUMMON,  m_summon,   0, 1
+STATS,   m_stats,    0, 1
+USERS,   m_users,    0, 1
+RESTART, m_restart,  0, 1
+WHOREPLY,m_whoreply, 0, 7
+HELP,    m_help,     0, 2
+ERROR,   m_error,    0, 1
+AWAY,    m_away,     0, 1
+DIE,     m_die,      0, 1
+CONNECT, m_connect,  0, 3
+PING,    m_ping,     0, 2
+PONG,    m_pong,     0, 3
+OPER,    m_oper,     0, 3
+PASS,    m_pass,     0, 2
+WALL,    m_wall,     0, 1
+TIME,    m_time,     0, 1
+REHASH,  m_rehash,   0, 1
+NAMES,   m_names,    0, 1
+NAMREPLY,m_namreply, 0, 3
+ADMIN,   m_admin,    0, 1
+TRACE,   m_trace,    0, 1
+LINREPLY,m_linreply, 0, 2
+NOTICE,  m_notice,   0, 2
+LUSERS,  m_lusers,   0, 1
+VOICE,   m_voice,    0, 2
+GRPH,    m_grph,     0, 2
+XTRA,    m_xtra,     0, 2
+MOTD,    m_motd,     0, 2
