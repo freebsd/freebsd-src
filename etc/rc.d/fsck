@@ -6,7 +6,7 @@
 
 # PROVIDE: fsck
 # REQUIRE: localswap
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 
