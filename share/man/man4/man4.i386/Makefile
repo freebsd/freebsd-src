@@ -6,6 +6,7 @@ MAN4=	aha.4 ahb.4 bt.4 cx.4 ed.4 fdc.4 ie.4 is.4 keyboard.4 lpt.4 mem.4 \
 MLINKS=		aha.4 ../aha.4
 MLINKS+=	ahb.4 ../ahb.4
 MLINKS+=	bt.4 ../bt.4
+MLINKS+=	cx.4 ../cx.4
 MLINKS+=	ed.4 ../ed.4
 MLINKS+=	fdc.4 ../fdc.4
 MLINKS+=	ie.4 ../ie.4
