@@ -7,7 +7,6 @@ SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
 CFLAGS+=-DINET6
 CLEANFILES+=keywords.h
-BINMODE=4555
 
 keywords.h: keywords
 	sed -e '/^#/d' -e '/^$$/d' ${.CURDIR}/keywords > _keywords.tmp
