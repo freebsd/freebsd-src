@@ -558,7 +558,7 @@ acpi_ec_attach(device_t dev)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE handler\n"));
     Status = AcpiInstallGpeHandler(NULL, sc->ec_gpebit,
-		ACPI_EVENT_EDGE_TRIGGERED, &EcGpeHandler, sc);
+		ACPI_GPE_EDGE_TRIGGERED, &EcGpeHandler, sc);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
