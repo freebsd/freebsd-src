@@ -32,7 +32,7 @@ SRCS+=	globals.cc limits.cc basic_file_stdio.cc complex_io.cc ios.cc \
 	valarray-inst.cc ext-inst.cc
 
 # C parts of math
-SRCS+=	nan.c signbit.c signbitf.c signbitl.c # stubs.c
+SRCS+=	nan.c signbit.c signbitf.c signbitl.c stubs.c
 
 # Embedded copy of libsupc++
 SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc \
