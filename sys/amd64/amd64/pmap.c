@@ -1134,9 +1134,6 @@ _pmap_allocpte(pmap, ptepindex)
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 
-	KASSERT(m->queue == PQ_NONE,
-		("_pmap_allocpte: %p->queue != PQ_NONE", m));
-
 	/*
 	 * Increment the hold count for the page table page
 	 * (denoting a new mapping.)
