@@ -47,6 +47,8 @@
 
 #define _PATH_AUTHCONF  "/etc/auth.conf"
 #define	_PATH_BSHELL	"/bin/sh"
+#define	_PATH_CAPABILITY	"/etc/capability"
+#define	_PATH_CAPABILITY_DB	"/etc/capability.db"
 #define	_PATH_CONSOLE	"/dev/console"
 #define	_PATH_CSHELL	"/bin/csh"
 #define	_PATH_DEFTAPE	"/dev/sa0"
