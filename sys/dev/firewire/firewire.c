@@ -80,7 +80,8 @@ MALLOC_DEFINE(M_FWXFER, "fw_xfer", "XFER/FireWire");
 
 devclass_t firewire_devclass;
 
-static int firewire_match      (device_t);
+static void firewire_identify	(driver_t *, device_t);
+static int firewire_probe	(device_t);
 static int firewire_attach      (device_t);
 static int firewire_detach      (device_t);
 static int firewire_resume      (device_t);
@@ -105,7 +106,8 @@ static int fw_bmr (struct firewire_comm *);
 
 static device_method_t firewire_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		firewire_match),
+	DEVMETHOD(device_identify,	firewire_identify),
+	DEVMETHOD(device_probe,		firewire_probe),
 	DEVMETHOD(device_attach,	firewire_attach),
 	DEVMETHOD(device_detach,	firewire_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -310,11 +312,17 @@ fw_asystart(struct fw_xfer *xfer)
 	return;
 }
 
+static void
+firewire_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, 0, "firewire", -1);
+}
+
 static int
-firewire_match( device_t dev )
+firewire_probe(device_t dev)
 {
 	device_set_desc(dev, "IEEE1394(FireWire) bus");
-	return -140;
+	return (0);
 }
 
 static void
@@ -412,6 +420,7 @@ firewire_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	/* bus_reset */
+	fw_busreset(fc);
 	fc->ibr(fc);
 
 	return 0;
