@@ -81,6 +81,7 @@ agp_intel_match(device_t dev)
 		return ("Intel 82815 (i815 GMCH) host to PCI bridge");
 
 	case 0x25008086:
+	case 0x25018086:
 		return ("Intel 82820 host to AGP bridge");
 
 	case 0x35758086:
@@ -180,6 +181,7 @@ agp_intel_attach(device_t dev)
 		break;
 
 	case 0x25008086: /* i820 */
+	case 0x25018086: /* i820 */
 		pci_write_config(dev, AGP_INTEL_I820_RDCR,
 				 (pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
 				  | (1 << 1)), 1);
@@ -203,6 +205,7 @@ agp_intel_attach(device_t dev)
 		break;
 
 	case 0x25008086: /* i820 */
+	case 0x25018086: /* i820 */
 	case 0x1a308086: /* i845 */
 	case 0x25308086: /* i850 */
 	case 0x25318086: /* i860 */
@@ -239,6 +242,7 @@ agp_intel_detach(device_t dev)
 				& ~(1 << 9)), 2);
 
 	case 0x25008086: /* i820 */
+	case 0x25018086: /* i820 */
 		printf("%s: set RDCR to %x\n", __func__, (unsigned)
 				(pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
 				& ~(1 << 1)));
