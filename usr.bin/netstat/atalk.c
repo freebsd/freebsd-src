@@ -50,8 +50,9 @@ static const char rcsid[] =
 #include <netatalk/at.h>
 #include <netatalk/ddp_var.h>
 
-#include <nlist.h>
 #include <errno.h>
+#include <nlist.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 #include "netstat.h"
@@ -106,6 +107,7 @@ static char *
 at_pr_port(struct sockaddr_at *sat)
 {
 static	char mybuf[50];
+	struct servent *serv;
 
 	switch(sat->sat_port) {
 	case ATADDR_ANYPORT:
@@ -113,7 +115,18 @@ static	char mybuf[50];
 	case 0xff:
 		return "????";
 	default:
-		sprintf(mybuf,"%d",(unsigned int)sat->sat_port);
+		if (nflag) {
+			(void)snprintf(mybuf, sizeof(mybuf), "%d",
+			    (unsigned int)sat->sat_port);
+		} else {
+			serv = getservbyport(sat->sat_port, "ddp");
+			if (serv == NULL)
+				(void)snprintf(mybuf, sizeof(mybuf), "%d",
+				    (unsigned int) sat->sat_port);
+			else
+				(void) snprintf(mybuf, sizeof(mybuf), "%s",
+				    serv->s_name);
+		}
 	}
 	return mybuf;
 }
