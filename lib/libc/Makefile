@@ -3,9 +3,11 @@
 #
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
-# not contain these strings, add -DSTRIP_FBSDID to CFLAGS below.
+# not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
+# below.
 # To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
-# (for system call stubs) to CFLAGS below.
+# (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
+# system call stubs.
 LIB=c
 SHLIB_MAJOR= 5
 SHLIB_MINOR= 0
