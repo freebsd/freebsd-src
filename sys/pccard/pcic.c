@@ -807,17 +807,9 @@ pcic_probe(void)
 		 * enable it and hope for the best.
 		 */
 		if (sp->controller == PCIC_PD672X) {
-			sp->setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
-			sp->setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
-		}
-		if (sp->controller == PCIC_PD672X) {
-			sp->setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
-			sp->setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
-		}
-		if (sp->controller == PCIC_PD672X) {
 			setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
 			setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
-  		}
+		}
 		/*
 		 *	Check for a card in this slot.
 		 */
@@ -1191,7 +1183,7 @@ pcic_resume(struct slot *slotp)
 	if (pcic_irq > 0)
 		sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 	if (sp->controller == PCIC_PD672X) {
-		sp->setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
-		sp->setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
+		setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+		setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
 }
