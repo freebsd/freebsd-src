@@ -1274,7 +1274,7 @@ suitable for reinput to the shell.
 Continue the specified jobs
 (or the current job if no jobs are given)
 in the background.
-.It Ic command Ar cmd Op Ar arg ...
+.It Ic builtin Ar cmd Op Ar arg ...
 Execute the specified builtin command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
@@ -1332,6 +1332,26 @@ This is the default.
 A synonym for the
 .Ic cd
 builtin command.
+.It Xo
+.Ic command
+.Op Fl p
+.Oo
+.Ar utility
+.Op Ar argument ...
+.Oc
+.Xc
+Execute the specified
+.Ar utility
+as a simple command (see the
+.Sx Simple Commands
+section).
+.Pp
+If the
+.Fl p
+option is specified, the command search is performed using a
+default value of
+.Ev PATH
+that is guaranteed to find all of the standard utilities.
 .It Xo
 .Ic echo
 .Op Fl e | Fl n
