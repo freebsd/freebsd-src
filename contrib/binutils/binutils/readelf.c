@@ -127,6 +127,7 @@ int                     do_debug_frames;
 int                     do_debug_frames_interp;
 int			do_debug_macinfo;
 int			do_debug_str;
+int                     do_debug_loc;
 int                     do_arch;
 int                     do_notes;
 int			is_32bit_elf;
@@ -227,10 +228,13 @@ static int                display_debug_aranges       PARAMS ((Elf32_Internal_Sh
 static int                display_debug_frames        PARAMS ((Elf32_Internal_Shdr *, unsigned char *, FILE *));
 static int                display_debug_macinfo       PARAMS ((Elf32_Internal_Shdr *, unsigned char *, FILE *));
 static int                display_debug_str           PARAMS ((Elf32_Internal_Shdr *, unsigned char *, FILE *));
+static int                display_debug_loc           PARAMS ((Elf32_Internal_Shdr *, unsigned char *, FILE *));
 static unsigned char *    process_abbrev_section      PARAMS ((unsigned char *, unsigned char *));
 static void               load_debug_str              PARAMS ((FILE *));
 static void               free_debug_str              PARAMS ((void));
 static const char *       fetch_indirect_string       PARAMS ((unsigned long));
+static void               load_debug_loc              PARAMS ((FILE *));
+static void               free_debug_loc              PARAMS ((void));
 static unsigned long      read_leb128                 PARAMS ((unsigned char *, int *, int));
 static int                process_extended_line_op    PARAMS ((unsigned char *, int, int));
 static void               reset_state_machine         PARAMS ((int));
@@ -845,29 +849,49 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
   if (is_32bit_elf)
     {
       if (is_rela)
-	printf
-	  (_(" Offset     Info    Type            Symbol's Value  Symbol's Name          Addend\n"));
+	{
+	  if (do_wide)
+	    printf (_(" Offset     Info    Type                Sym. Value  Symbol's Name + Addend\n"));
+	  else
+	    printf (_(" Offset     Info    Type            Sym.Value  Sym. Name + Addend\n"));
+	}
       else
-	printf
-	  (_(" Offset     Info    Type            Symbol's Value  Symbol's Name\n"));
+	{
+	  if (do_wide)
+	    printf (_(" Offset     Info    Type                Sym. Value  Symbol's Name\n"));
+	  else
+	    printf (_(" Offset     Info    Type            Sym.Value  Sym. Name\n"));
+	}
     }
   else
     {
       if (is_rela)
-	printf
-	  (_("    Offset             Info            Type               Symbol's Value   Symbol's Name           Addend\n"));
+	{
+	  if (do_wide)
+	    printf (_("    Offset             Info            Type               Symbol's Value  Symbol's Name + Addend\n"));
+	  else
+	    printf (_("  Offset          Info           Type           Sym. Value    Sym. Name + Addend\n"));
+	}
       else
-	printf
-	  (_("    Offset             Info            Type               Symbol's Value   Symbol's Name\n"));
+	{
+	  if (do_wide)
+	    printf (_("    Offset             Info            Type               Symbol's Value  Symbol's Name\n"));
+	  else
+	    printf (_("  Offset          Info           Type           Sym. Value    Sym. Name\n"));
+	}
     }
 
   for (i = 0; i < rel_size; i++)
     {
       const char * rtype;
+      const char * rtype2 = NULL;
+      const char * rtype3 = NULL;
       bfd_vma      offset;
       bfd_vma      info;
       bfd_vma      symtab_index;
       bfd_vma      type;
+      bfd_vma      type2 = (bfd_vma) NULL;
+      bfd_vma      type3 = (bfd_vma) NULL;
 
       if (is_rela)
 	{
@@ -887,10 +911,16 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	}
       else
 	{
-	  if (elf_header.e_machine == EM_SPARCV9)
-	    type       = ELF64_R_TYPE_ID (info);
+	  if (elf_header.e_machine == EM_MIPS) 
+	    {
+	      type  = ELF64_MIPS_R_TYPE (info);
+	      type2 = ELF64_MIPS_R_TYPE2 (info);
+	      type3 = ELF64_MIPS_R_TYPE3 (info);
+	    }
+	  else if (elf_header.e_machine == EM_SPARCV9)
+	    type = ELF64_R_TYPE_ID (info);
 	  else
-	    type       = ELF64_R_TYPE (info);
+	    type = ELF64_R_TYPE (info);
 	  /* The #ifdef BFD64 below is to prevent a compile time warning.
 	     We know that if we do not have a 64 bit data type that we
 	     will never execute this code anyway.  */
@@ -910,13 +940,18 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
       else
 	{
 #ifdef _bfd_int64_low
-	  printf ("%8.8lx%8.8lx  %8.8lx%8.8lx ",
+	  printf (do_wide
+		  ? "%8.8lx%8.8lx  %8.8lx%8.8lx "
+		  : "%4.4lx%8.8lx  %4.4lx%8.8lx ",
 		  _bfd_int64_high (offset),
 		  _bfd_int64_low (offset),
 		  _bfd_int64_high (info),
 		  _bfd_int64_low (info));
 #else
-	  printf ("%16.16lx  %16.16lx ", offset, info);
+	  printf (do_wide
+		  ? "%16.16lx  %16.16lx "
+		  : "%12.12lx  %12.12lx ",
+		  offset, info);
 #endif
 	}
 
@@ -1006,6 +1041,11 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	case EM_MIPS:
 	case EM_MIPS_RS3_LE:
 	  rtype = elf_mips_reloc_type (type);
+	  if (!is_32bit_elf) 
+	    {
+	      rtype2 = elf_mips_reloc_type (type2);
+	      rtype3 = elf_mips_reloc_type (type3);
+	    }
 	  break;
 
 	case EM_ALPHA:
@@ -1067,12 +1107,12 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 
       if (rtype == NULL)
 #ifdef _bfd_int64_low
-	printf (_("unrecognised: %-7lx"), _bfd_int64_low (type));
+	printf (_("unrecognized: %-7lx"), _bfd_int64_low (type));
 #else
-	printf (_("unrecognised: %-7lx"), type);
+	printf (_("unrecognized: %-7lx"), type);
 #endif
       else
-	printf ("%-21.21s", rtype);
+	printf (do_wide ? "%-21.21s" : "%-17.17s", rtype);
 
       if (symtab_index)
 	{
@@ -1086,14 +1126,14 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 
 	      printf (" ");
 	      print_vma (psym->st_value, LONG_HEX);
-	      printf ("  ");
+	      printf (is_32bit_elf ? "   " : " ");
 
 	      if (psym->st_name == 0)
-		print_symbol (-25, SECTION_NAME (section_headers + psym->st_shndx));
+		print_symbol (22, SECTION_NAME (section_headers + psym->st_shndx));
 	      else if (strtab == NULL)
 		printf (_("<string table index %3ld>"), psym->st_name);
 	      else
-		print_symbol (-25, strtab + psym->st_name);
+		print_symbol (22, strtab + psym->st_name);
 
 	      if (is_rela)
 		printf (" + %lx", (unsigned long) relas [i].r_addend);
@@ -1101,7 +1141,7 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	}
       else if (is_rela)
 	{
-	  printf ("%*c", is_32bit_elf ? 34 : 26, ' ');
+	  printf ("%*c", is_32bit_elf ? (do_wide ? 34 : 28) : (do_wide ? 26 : 20), ' ');
 	  print_vma (relas[i].r_addend, LONG_HEX);
 	}
 
@@ -1110,6 +1150,33 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	printf (" + %lx", (unsigned long) ELF64_R_TYPE_DATA (info));
 
       putchar ('\n');
+
+      if (! is_32bit_elf && elf_header.e_machine == EM_MIPS) 
+	{
+	  printf ("                    Type2: ");
+
+	  if (rtype2 == NULL)
+#ifdef _bfd_int64_low
+	    printf (_("unrecognized: %-7lx"), _bfd_int64_low (type2));
+#else
+	    printf (_("unrecognized: %-7lx"), type2);
+#endif
+	  else
+	    printf ("%-17.17s", rtype2);
+
+	  printf("\n                    Type3: ");
+
+	  if (rtype3 == NULL)
+#ifdef _bfd_int64_low
+	    printf (_("unrecognized: %-7lx"), _bfd_int64_low (type3));
+#else
+	    printf (_("unrecognized: %-7lx"), type3);
+#endif
+	  else
+	    printf ("%-17.17s", rtype3);
+
+          putchar ('\n');
+	}
     }
 
   if (is_rela)
@@ -1504,7 +1571,7 @@ decode_ARM_machine_flags (e_flags, buf)
   switch (eabi)
     {
     default:
-      strcat (buf, ", <unrecognised EABI>");
+      strcat (buf, ", <unrecognized EABI>");
       if (e_flags)
 	unknown = 1;
       break;
@@ -2185,7 +2252,7 @@ usage ()
   -A --arch-specific     Display architecture specific information (if any).\n\
   -D --use-dynamic       Use the dynamic section info when displaying symbols\n\
   -x --hex-dump=<number> Dump the contents of section <number>\n\
-  -w --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str]\n\
+  -w --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]\n\
                          Display the contents of DWARF2 debug sections\n"));
 #ifdef SUPPORT_DISASSEMBLY
   fprintf (stdout, _("\
@@ -2372,8 +2439,13 @@ parse_args (argc, argv)
 		    do_debug_str = 1;
 		    break;
 
+		  case 'o':
+		  case 'O':
+		    do_debug_loc = 1;
+		    break;
+		    
 		  default:
-		    warn (_("Unrecognised debug option '%s'\n"), optarg);
+		    warn (_("Unrecognized debug option '%s'\n"), optarg);
 		    break;
 		  }
 	    }
@@ -3238,7 +3310,8 @@ process_section_headers (file)
 	}
       else if ((do_debugging || do_debug_info || do_debug_abbrevs
 		|| do_debug_lines || do_debug_pubnames || do_debug_aranges
-		|| do_debug_frames || do_debug_macinfo || do_debug_str)
+		|| do_debug_frames || do_debug_macinfo || do_debug_str
+		|| do_debug_loc)
 	       && strncmp (name, ".debug_", 7) == 0)
 	{
 	  name += 7;
@@ -3252,6 +3325,7 @@ process_section_headers (file)
 	      || (do_debug_frames   && (strcmp (name, "frame") == 0))
 	      || (do_debug_macinfo  && (strcmp (name, "macinfo") == 0))
 	      || (do_debug_str      && (strcmp (name, "str") == 0))
+	      || (do_debug_loc      && (strcmp (name, "loc") == 0))
 	      )
 	    request_dump (i, DEBUG_DUMP);
 	}
@@ -6455,6 +6529,7 @@ get_AT_name (attribute)
     case DW_AT_src_coords:           return "DW_AT_src_coords";
     case DW_AT_body_begin:           return "DW_AT_body_begin";
     case DW_AT_body_end:             return "DW_AT_body_end";
+    case DW_AT_GNU_vector:           return "DW_AT_GNU_vector";
     default:
       {
 	static char buffer [100];
@@ -7124,6 +7199,112 @@ decode_location_expression (data, pointer_size, length)
     }
 }
 
+static const char * debug_loc_contents;
+static bfd_vma      debug_loc_size;
+
+static void
+load_debug_loc (file)
+     FILE * file;
+{
+  Elf32_Internal_Shdr * sec;
+  unsigned int          i;
+
+  /* If it is already loaded, do nothing.  */
+  if (debug_loc_contents != NULL)
+    return;
+
+  /* Locate the .debug_loc section.  */
+  for (i = 0, sec = section_headers;
+       i < elf_header.e_shnum;
+       i ++, sec ++)
+    if (strcmp (SECTION_NAME (sec), ".debug_loc") == 0)
+      break;
+
+  if (i == elf_header.e_shnum || sec->sh_size == 0)
+    return;
+
+  debug_loc_size = sec->sh_size;
+
+  debug_loc_contents = ((char *)
+			get_data (NULL, file, sec->sh_offset, sec->sh_size,
+				  _("debug_loc section data")));
+}
+
+static void
+free_debug_loc ()
+{
+  if (debug_loc_contents == NULL)
+    return;
+
+  free ((char *) debug_loc_contents);
+  debug_loc_contents = NULL;
+  debug_loc_size = 0;
+}
+
+
+static int
+display_debug_loc (section, start, file)
+     Elf32_Internal_Shdr * section;
+     unsigned char * start;
+     FILE * file ATTRIBUTE_UNUSED;
+{
+  unsigned char *section_end;
+  unsigned long bytes;
+  unsigned char *section_begin = start;
+  bfd_vma addr;
+  
+  addr = section->sh_addr;
+  bytes = section->sh_size;
+  section_end = start + bytes;
+  if (bytes == 0)
+    {
+      printf (_("\nThe .debug_loc section is empty.\n"));
+      return 0;
+    }
+  printf (_("Contents of the .debug_loc section:\n\n"));
+  printf (_("\n    Offset   Begin    End      Expression\n"));
+  while (start < section_end)
+    {
+      unsigned long begin;
+      unsigned long end;
+      unsigned short length;
+      unsigned long offset;
+
+      offset = start - section_begin;
+
+      while (1)
+	{
+          /* Normally, the lists in  the debug_loc section are related to a
+	     given compilation unit, and thus, we would use the
+	     pointer size of that compilation unit.  However, since we are
+	     displaying it seperately here, we either have to store
+	     pointer sizes of all compilation units, or assume they don't
+	     change.   We assume, like the debug_line display, that
+	     it doesn't change.  */
+	  begin = byte_get (start, debug_line_pointer_size);
+	  start += debug_line_pointer_size;
+	  end = byte_get (start, debug_line_pointer_size);
+	  start += debug_line_pointer_size;
+	  
+	  if (begin == 0 && end == 0)
+	    break;
+	  
+	  begin += addr;
+	  end += addr;
+	  
+	  length = byte_get (start, 2);
+	  start += 2;
+	  
+	  printf ("    %8.8lx %8.8lx %8.8lx (", offset, begin, end);
+	  decode_location_expression (start, debug_line_pointer_size, length);
+	  printf (")\n");
+	  
+	  start += length;
+	}
+      printf ("\n");
+    }
+  return 1;
+}
 
 static const char * debug_str_contents;
 static bfd_vma      debug_str_size;
@@ -7379,7 +7560,7 @@ read_and_display_attr_value (attribute, form, data, cu_offset, pointer_size)
       break;
 
     default:
-      warn (_("Unrecognised form: %d\n"), form);
+      warn (_("Unrecognized form: %d\n"), form);
       break;
     }
 
@@ -7528,6 +7709,12 @@ read_and_display_attr_value (attribute, form, data, cu_offset, pointer_size)
 	  decode_location_expression (block_start, pointer_size, uvalue);
 	  printf (")");
 	}
+      else if (form == DW_FORM_data4)
+	{
+	  printf ("(");
+	  printf ("location list");
+	  printf (")");
+	}
       break;
 
     default:
@@ -7564,6 +7751,7 @@ display_debug_info (section, start, file)
   printf (_("The section %s contains:\n\n"), SECTION_NAME (section));
 
   load_debug_str (file);
+  load_debug_loc (file);
 
   while (start < end)
     {
@@ -7748,6 +7936,7 @@ display_debug_info (section, start, file)
     }
 
   free_debug_str ();
+  free_debug_loc ();
 
   printf ("\n");
 
@@ -8559,7 +8748,7 @@ debug_displays[] =
   { ".eh_frame",          display_debug_frames, NULL },
   { ".debug_macinfo",     display_debug_macinfo, NULL },
   { ".debug_str",         display_debug_str, NULL },
-  
+  { ".debug_loc",         display_debug_loc, NULL },
   { ".debug_pubtypes",    display_debug_not_supported, NULL },
   { ".debug_ranges",      display_debug_not_supported, NULL },
   { ".debug_static_func", display_debug_not_supported, NULL },
@@ -8602,7 +8791,7 @@ display_debug_section (section, file)
       }
 
   if (i == -1)
-    printf (_("Unrecognised debug section: %s\n"), name);
+    printf (_("Unrecognized debug section: %s\n"), name);
 
   free (start);
 
@@ -9240,6 +9429,7 @@ process_corefile_note_segment (file, offset, length)
 
   while (external < (Elf_External_Note *)((char *) pnotes + length))
     {
+      Elf_External_Note * next;
       Elf32_Internal_Note inote;
       char * temp = NULL;
 
@@ -9250,7 +9440,18 @@ process_corefile_note_segment (file, offset, length)
       inote.descdata = inote.namedata + align_power (inote.namesz, 2);
       inote.descpos  = offset + (inote.descdata - (char *) pnotes);
 
-      external = (Elf_External_Note *)(inote.descdata + align_power (inote.descsz, 2));
+      next = (Elf_External_Note *)(inote.descdata + align_power (inote.descsz, 2));
+
+      if (((char *) next) > (((char *) pnotes) + length))
+	{
+	  warn (_("corrupt note found at offset %x into core notes\n"),
+		((char *) external) - ((char *) pnotes));
+	  warn (_(" type: %x, namesize: %08lx, descsize: %08lx\n"),
+		inote.type, inote.namesz, inote.descsz);
+	  break;
+	}
+
+      external = next;
 
       /* Verify that name is null terminated.  It appears that at least
 	 one version of Linux (RedHat 6.0) generates corefiles that don't

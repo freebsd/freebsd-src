@@ -6887,7 +6887,7 @@ Tue May 24 16:17:18 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 	* libelf.h (struct elf_obj_tdata): Add new field bad_symtab.
 	(elf_bad_symtab): Define new accessor macro.
 	(_bfd_elf_link_hash_newfunc): Declare.
-	(_bew_elf_link_hash_table_init): Declare.
+	(_bfd_elf_link_hash_table_init): Declare.
 	* elfcode.h (elf_object_p): Call backend object_p hook after
 	swapping in all the section headers.
 	(map_program_segments): Correct typo: Internal for External.

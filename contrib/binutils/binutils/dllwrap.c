@@ -115,14 +115,16 @@ static int delete_exp_file = 1;
 static int delete_def_file = 1;
 
 static int run PARAMS ((const char *, char *));
+static char *mybasename PARAMS ((const char *));
+static int strhash PARAMS ((const char *));
 static void usage PARAMS ((FILE *, int));
 static void display PARAMS ((const char *, va_list));
 static void inform PARAMS ((const char *, ...));
-static void warn PARAMS ((const char *format, ...));
+static void warn PARAMS ((const char *, ...));
 static char *look_for_prog PARAMS ((const char *, const char *, int));
 static char *deduce_name PARAMS ((const char *));
 static void delete_temp_files PARAMS ((void));
-static void cleanup_and_exit PARAMS ((int status));
+static void cleanup_and_exit PARAMS ((int));
 
 /**********************************************************************/
 
@@ -147,58 +149,30 @@ display (message, args)
 }
 
 
-#ifdef __STDC__
 static void
-inform (const char * message, ...)
+inform VPARAMS ((const char *message, ...))
 {
-  va_list args;
+  VA_OPEN (args, message);
+  VA_FIXEDARG (args, const char *, message);
 
   if (!verbose)
     return;
 
-  va_start (args, message);
   display (message, args);
-  va_end (args);
+
+  VA_CLOSE (args);
 }
 
 static void
-warn (const char *format, ...)
+warn VPARAMS ((const char *format, ...))
 {
-  va_list args;
+  VA_OPEN (args, format);
+  VA_FIXEDARG (args, const char *, format);
 
-  va_start (args, format);
   display (format, args);
-  va_end (args);
+
+  VA_CLOSE (args);
 }
-#else
-
-static void
-inform (message, va_alist)
-     const char * message;
-     va_dcl
-{
-  va_list args;
-
-  if (!verbose)
-    return;
-
-  va_start (args);
-  display (message, args);
-  va_end (args);
-}
-
-static void
-warn (format, va_alist)
-     const char *format;
-     va_dcl
-{
-  va_list args;
-
-  va_start (args);
-  display (format, args);
-  va_end (args);
-}
-#endif
 
 /* Look for the program formed by concatenating PROG_NAME and the
    string running from PREFIX to END_PREFIX.  If the concatenated
@@ -375,7 +349,8 @@ delete_temp_files ()
 }
 
 static void 
-cleanup_and_exit (int status)
+cleanup_and_exit (status)
+     int status;
 {
   delete_temp_files ();
   exit (status);
@@ -487,7 +462,8 @@ mybasename (name)
 }
 
 static int 
-strhash (const char *str)
+strhash (str)
+     const char *str;
 {
   const unsigned char *s;
   unsigned long hash;
@@ -634,6 +610,8 @@ static const struct option long_options[] =
   {"as", required_argument, NULL, OPTION_AS},
   {0, 0, 0, 0}
 };
+
+int main PARAMS ((int, char **));
 
 int
 main (argc, argv)

@@ -17,6 +17,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-boolean ppc64_elf_set_toc PARAMS ((bfd *, struct bfd_link_info *));
+bfd_vma ppc64_elf_toc PARAMS ((bfd *));
 boolean ppc64_elf_size_stubs PARAMS ((bfd *, struct bfd_link_info *, int *));
 boolean ppc64_elf_build_stubs PARAMS ((bfd *, struct bfd_link_info *));
