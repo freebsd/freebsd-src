@@ -1910,20 +1910,20 @@ device		snd_vibes
 device		snd_uaudio
 
 # For non-pnp sound cards:
-hint.snd_mss.0.at="isa"
-hint.snd_mss.0.irq="10"
-hint.snd_mss.0.drq="1"
-hint.snd_mss.0.flags="0x0"
-hint.snd_sbc.0.at="isa"
-hint.snd_sbc.0.port="0x220"
-hint.snd_sbc.0.irq="5"
-hint.snd_sbc.0.drq="1"
-hint.snd_sbc.0.flags="0x15"
-hint.snd_gusc.0.at="isa"
-hint.snd_gusc.0.port="0x220"
-hint.snd_gusc.0.irq="5"
-hint.snd_gusc.0.drq="1"
-hint.snd_gusc.0.flags="0x13"
+hint.pcm.0.at="isa"
+hint.pcm.0.irq="10"
+hint.pcm.0.drq="1"
+hint.pcm.0.flags="0x0"
+hint.sbc.0.at="isa"
+hint.sbc.0.port="0x220"
+hint.sbc.0.irq="5"
+hint.sbc.0.drq="1"
+hint.sbc.0.flags="0x15"
+hint.gusc.0.at="isa"
+hint.gusc.0.port="0x220"
+hint.gusc.0.irq="5"
+hint.gusc.0.drq="1"
+hint.gusc.0.flags="0x13"
 
 #
 # Miscellaneous hardware:
