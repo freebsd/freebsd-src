@@ -1,10 +1,10 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.57 1998/09/28 05:38:52 grog Exp $
+#	$Id: Makefile,v 1.58 1998/11/09 21:52:50 dima Exp $
 
 # XXX MISSING:		icheck ncheck
 
-SUBDIR=	atm \
-	adjkerntz \
+SUBDIR=	adjkerntz \
+	atm \
 	badsect \
 	camcontrol \
 	ccdconfig \
@@ -55,8 +55,8 @@ SUBDIR=	atm \
 	savecore \
 	shutdown \
 	slattach \
-	startslip \
 	spppcontrol \
+	startslip \
 	swapon \
 	tunefs \
 	umount \
