@@ -34,11 +34,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.23.4.2 1996/06/05 02:56:22 jkh Exp $
+ * $Id: sysctl.h,v 1.23.4.1 1996/05/31 07:58:47 peter Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
 #define	_SYS_SYSCTL_H_
+
+/*
+ * These are for the eproc structure defined below.
+ */
+#ifndef KERNEL
+#include <sys/time.h>
+#include <sys/ucred.h>
+#include <sys/proc.h>
+#include <vm/vm.h>
+#endif
 
 /*
  * Definitions for sysctl call.  The sysctl call uses a hierarchical name
@@ -62,104 +72,11 @@ struct ctlname {
 	char	*ctl_name;	/* subsystem name */
 	int	ctl_type;	/* type of name */
 };
-
-#define CTLTYPE		0xf	/* Mask for the type */
 #define	CTLTYPE_NODE	1	/* name is a node */
 #define	CTLTYPE_INT	2	/* name describes an integer */
 #define	CTLTYPE_STRING	3	/* name describes a string */
 #define	CTLTYPE_QUAD	4	/* name describes a 64-bit number */
-#define	CTLTYPE_OPAQUE	5	/* name describes a structure */
-#define	CTLTYPE_STRUCT	CTLTYPE_OPAQUE	/* name describes a structure */
-
-#define CTLFLAG_RD	0x80000000	/* Allow reads of variable */
-#define CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
-#define CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
-#define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
-#define CTLFLAG_ANYBODY	0x10000000	/* All users can set this var */
-
-#define OID_AUTO	(-1)
-
-#ifdef KERNEL
-#define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2, \
-	struct sysctl_req *req)
-
-/*
- * This describes the access space for a sysctl request.  This is needed
- * so that we can use the interface from the kernel or from user-space.
- */
-struct sysctl_req {
-	struct proc	*p;
-	int		lock;
-	void		*oldptr;
-	int		oldlen;
-	int		oldidx;
-	int		(*oldfunc)(struct sysctl_req *, const void *, int);
-	void		*newptr;
-	int		newlen;
-	int		newidx;
-	int		(*newfunc)(struct sysctl_req *, void *, int);
-};
-
-/*
- * This describes one "oid" in the MIB tree.  Potentially more nodes can
- * be hidden behind it, expanded by the handler.
- */
-struct sysctl_oid {
-	int		oid_number;
-	int		oid_kind;
-	void		*oid_arg1;
-	int		oid_arg2;
-	const char	*oid_name;
-	int 		(*oid_handler) SYSCTL_HANDLER_ARGS;
-	const char	*oid_fmt;
-};
-
-#define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
-#define SYSCTL_OUT(r, p, l) (r->oldfunc)(r, p, l)
-
-int sysctl_handle_int SYSCTL_HANDLER_ARGS;
-int sysctl_handle_string SYSCTL_HANDLER_ARGS;
-int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
-
-/* This is the "raw" function for a mib-oid */
-#define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
-	static const struct sysctl_oid sysctl__##parent##_##name = { \
-		nbr, kind, a1, a2, #name, handler, fmt }; \
-	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name);
-
-/* This makes a node from which other oids can hang */
-#define SYSCTL_NODE(parent, nbr, name, access, handler, descr) \
-	extern struct linker_set sysctl_##parent##_##name; \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|access, \
-		(void*)&sysctl_##parent##_##name, 0, handler, "N", descr); \
-	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name);
-
-/* This is a string len can be 0 to indicate '\0' termination */
-#define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|access, \
-		arg, len, sysctl_handle_string, "A", descr);
-
-/* This is a integer, if ptr is NULL, val is returned */
-#define SYSCTL_INT(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
-		ptr, val, sysctl_handle_int, "I", descr);
-
-/* This is anything, specified by a pointer and a lenth */
-#define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
-		ptr, len, sysctl_handle_opaque, fmt, descr);
-
-/* This is a struct, specified by a pointer and type */
-#define SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
-		ptr, sizeof(struct type), sysctl_handle_opaque, \
-		"S," #type, descr);
-
-/* Needs a proc.  Specify by pointer and arg */
-#define SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
-	SYSCTL_OID(parent, nbr, name, access, \
-		ptr, arg, handler, fmt, descr);
-#endif /* KERNEL */
+#define	CTLTYPE_STRUCT	5	/* name describes a structure */
 
 /*
  * Top-level identifiers
@@ -167,7 +84,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	CTL_UNSPEC	0		/* unused */
 #define	CTL_KERN	1		/* "high kernel": proc, limits */
 #define	CTL_VM		2		/* virtual memory */
-#define	CTL_VFS		3		/* file system, mount type is next */
+#define	CTL_FS		3		/* file system, mount type is next */
 #define	CTL_NET		4		/* network, see socket.h */
 #define	CTL_DEBUG	5		/* debugging parameters */
 #define	CTL_HW		6		/* generic cpu/io */
@@ -179,7 +96,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ 0, 0 }, \
 	{ "kern", CTLTYPE_NODE }, \
 	{ "vm", CTLTYPE_NODE }, \
-	{ "vfs", CTLTYPE_NODE }, \
+	{ "fs", CTLTYPE_NODE }, \
 	{ "net", CTLTYPE_NODE }, \
 	{ "debug", CTLTYPE_NODE }, \
 	{ "hw", CTLTYPE_NODE }, \
@@ -219,11 +136,12 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
 #define	KERN_MAXPROCPERUID 	28	/* int: max processes per uid */
 #define KERN_DUMPDEV		29	/* dev_t: device to dump on */
-#define	KERN_SOMAXCONN		30	/* int: max connections in listen q */
-#define	KERN_MAXSOCKBUF		31	/* int: max size of a socket buffer */
+#define KERN_SOMAXCONN		30	/* int: max connections in listen q */
+#define KERN_MAXSOCKBUF		31	/* int: max size of a socket buffer */
 #define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
 #define	KERN_USRSTACK		33	/* int: address of USRSTACK */
-#define KERN_MAXID		34      /* number of valid kern ids */
+#define	KERN_SOCKBUF_WASTE	34	/* int: reserved sockbuf space */
+#define KERN_MAXID              35      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -255,20 +173,21 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "bootfile", CTLTYPE_STRING }, \
 	{ "maxfilesperproc", CTLTYPE_INT }, \
 	{ "maxprocperuid", CTLTYPE_INT }, \
-	{ "dumpdev", CTLTYPE_STRUCT }, /* we lie; don't print as int */ \
+	{ "dumpdev", CTLTYPE_STRUCT },	/* we lie; don't print as int */ \
 	{ "somaxconn", CTLTYPE_INT }, \
 	{ "maxsockbuf", CTLTYPE_INT }, \
 	{ "ps_strings", CTLTYPE_INT }, \
 	{ "usrstack", CTLTYPE_INT }, \
+	{ "sockbuf_waste_factor", CTLTYPE_INT }, \
 }
 
 /*
- * CTL_VFS identifiers
+ * CTL_FS identifiers
  */
-#define VFS_VFSCONF		0	/* get configured filesystems */
-#define VFS_MAXID		1	/* number of items */
+#define FS_VFSCONF		0	/* get configured filesystems */
+#define FS_MAXID		1	/* number of items */
 
-#define CTL_VFS_NAMES { \
+#define CTL_FS_NAMES { \
 	{ "vfsconf", CTLTYPE_STRUCT }, \
 }
 
@@ -282,6 +201,46 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KERN_PROC_TTY		4	/* by controlling tty */
 #define	KERN_PROC_UID		5	/* by effective uid */
 #define	KERN_PROC_RUID		6	/* by real uid */
+
+/*
+ * KERN_PROC subtype ops return arrays of augmented proc structures:
+ */
+struct kinfo_proc {
+	struct	proc kp_proc;			/* proc structure */
+	struct	eproc {
+		struct	proc *e_paddr;		/* address of proc */
+		struct	session *e_sess;	/* session pointer */
+		struct	pcred e_pcred;		/* process credentials */
+		struct	ucred e_ucred;		/* current credentials */
+#ifdef sparc
+		struct {
+			segsz_t	vm_rssize;	/* resident set size */
+			segsz_t	vm_tsize;	/* text size */
+			segsz_t	vm_dsize;	/* data size */
+			segsz_t	vm_ssize;	/* stack size */
+		} e_vm;
+#else
+		struct	vmspace e_vm;		/* address space */
+#endif
+		pid_t	e_ppid;			/* parent process id */
+		pid_t	e_pgid;			/* process group id */
+		short	e_jobc;			/* job control counter */
+		dev_t	e_tdev;			/* controlling tty dev */
+		pid_t	e_tpgid;		/* tty process group id */
+		struct	session *e_tsess;	/* tty session pointer */
+#define	WMESGLEN	7
+		char	e_wmesg[WMESGLEN+1];	/* wchan message */
+		segsz_t e_xsize;		/* text size */
+		short	e_xrssize;		/* text rss */
+		short	e_xccount;		/* text references */
+		short	e_xswrss;
+		long	e_flag;
+#define	EPROC_CTTY	0x01	/* controlling tty vnode active */
+#define	EPROC_SLEADER	0x02	/* session leader */
+		char	e_login[MAXLOGNAME];	/* setlogin() name */
+		long	e_spare[4];
+	} kp_eproc;
+};
 
 /*
  * CTL_HW identifiers
@@ -363,20 +322,80 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "tzname_max", CTLTYPE_INT }, \
 }
 
-#ifdef KERNEL
+/*
+ * CTL_DEBUG definitions
+ *
+ * Second level identifier specifies which debug variable.
+ * Third level identifier specifies which stucture component.
+ */
+#define	CTL_DEBUG_NAME		0	/* string: variable name */
+#define	CTL_DEBUG_VALUE		1	/* int: variable value */
+#define	CTL_DEBUG_MAXID		20
+
+#ifdef	KERNEL
+#if	defined(DEBUG) || defined(DIAGNOSTIC)
+/*
+ * CTL_DEBUG variables.
+ *
+ * These are declared as separate variables so that they can be
+ * individually initialized at the location of their associated
+ * variable. The loader prevents multiple use by issuing errors
+ * if a variable is initialized in more than one place. They are
+ * aggregated into an array in debug_sysctl(), so that it can
+ * conveniently locate them when querried. If more debugging
+ * variables are added, they must also be declared here and also
+ * entered into the array.
+ */
+struct ctldebug {
+	char	*debugname;	/* name of debugging variable */
+	int	*debugvar;	/* pointer to debugging variable */
+};
+extern struct ctldebug debug0, debug1, debug2, debug3, debug4;
+extern struct ctldebug debug5, debug6, debug7, debug8, debug9;
+extern struct ctldebug debug10, debug11, debug12, debug13, debug14;
+extern struct ctldebug debug15, debug16, debug17, debug18, debug19;
+#endif	/* DEBUG */
 
 extern char	cpu_model[];
+extern int	hw_float;
 extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
 
-int userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval);
 /*
+ * Internal sysctl function calling convention:
+ *
+ *	(*sysctlfn)(name, namelen, oldval, oldlenp, newval, newlen, p);
+ *
+ * The name parameter points at the next component of the name to be
+ * interpreted.  The namelen parameter is the number of integers in
+ * the name.
+ */
+typedef int (sysctlfn)
+    __P((int *, u_int, void *, size_t *, void *, size_t, struct proc *));
+
+sysctlfn cpu_sysctl;
+sysctlfn dev_sysctl;
+sysctlfn fs_sysctl;
+sysctlfn hw_sysctl;
+sysctlfn kern_sysctl;
+sysctlfn net_sysctl;
+sysctlfn ntp_sysctl;
+sysctlfn vm_sysctl;
+
+int sysctl_int __P((void *, size_t *, void *, size_t, int *));
+int sysctl_rdint __P((void *, size_t *, void *, int));
+int sysctl_string __P((void *, size_t *, void *, size_t, char *, int));
+int sysctl_rdstring __P((void *, size_t *, void *, char *));
+int sysctl_rdstruct __P((void *, size_t *, void *, void *, int));
+int sysctl_struct __P((void *oldp, size_t *, void *, size_t, void *, int));
+void fill_eproc __P((struct proc *, struct eproc *));
+
 int	sysctl_clockrate __P((char *, size_t*));
+int	sysctl_vnode __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));
 int	sysctl_doproc __P((int *, u_int, char *, size_t*));
 int	sysctl_doprof __P((int *, u_int, void *, size_t *, void *, size_t));
-*/
 
 #else	/* !KERNEL */
 #include <sys/cdefs.h>

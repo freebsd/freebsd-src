@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.11.4.3 1996/02/26 15:23:34 phk Exp $
+ *	$Id: ip_fw.h,v 1.11.4.4 1996/06/02 00:15:19 gpalmer Exp $
  */
 
 /*
@@ -48,7 +48,7 @@ struct ip_fw {
 #define IP_FW_MAX_PORTS	10      	/* A reasonable maximum */
     u_short fw_pts[IP_FW_MAX_PORTS];    /* Array of port numbers to match */
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
-    u_char fw_tcpf,fw_tcpnf;		/* TCP flags sen/unset */
+    u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
 };
 
 struct ip_fw_chain {

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_status.c,v 1.4 1995/05/30 08:07:10 rgrimes Exp $
+ *	$Id: procfs_status.c,v 1.4.4.1 1996/05/31 23:39:16 wosch Exp $
  */
 
 #include <sys/param.h>
@@ -78,8 +78,9 @@ procfs_dostatus(curp, p, pfs, uio)
 	sess = p->p_pgrp->pg_session;
 	sid = sess->s_leader ? sess->s_leader->p_pid : 0;
 
-/* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg uid groups ... */
-
+/* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg 
+                                euid ruid rgid,egid,groups[1 .. NGROUPS]
+*/
 	ps = psbuf;
 	bcopy(p->p_comm, ps, MAXCOMLEN);
 	ps[MAXCOMLEN] = '\0';
@@ -126,7 +127,14 @@ procfs_dostatus(curp, p, pfs, uio)
 
 	cr = p->p_ucred;
 
-	ps += sprintf(ps, " %ld %ld", cr->cr_uid, cr->cr_gid);
+	ps += sprintf(ps, " %ld %ld %ld", 
+		      cr->cr_uid,               /* euid */
+		      p->p_cred->p_ruid,        /* ruid */
+		      p->p_cred->p_rgid);       /* rgid */
+
+	/* egid (p->p_cred->p_svgid) is equal to cr_ngroups[0] 
+	   see also getegid(2) in /sys/kern/kern_prot.c */
+
 	for (i = 0; i < cr->cr_ngroups; i++)
 		ps += sprintf(ps, ",%ld", cr->cr_groups[i]);
 	ps += sprintf(ps, "\n");

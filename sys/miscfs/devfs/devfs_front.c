@@ -1,7 +1,7 @@
 /*
  * Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/miscfs/devfs/Attic/devfs_front.c,v 1.4 1995/05/30 08:06:50 rgrimes Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/Attic/devfs_front.c,v 1.4 1995/05/30 08:06:50 rgrimes Exp $
  *
  */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.33.4.1 1996/01/04 08:52:42 gibbs Exp $
+ *	$Id: autoconf.c,v 1.33.4.2 1996/06/02 19:24:05 joerg Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pte.h>
 #include <i386/isa/icu.h> /* For interrupts */
@@ -183,18 +184,29 @@ configure()
 	mfs_initminiroot(mfs_root);
 #endif /* MFS_ROOT */
 
+	if (bootverbose)
+		printf("Device configuration finished.\n");
+
 #ifdef CD9660
-	if ((boothowto & RB_CDROM) && !mountroot)
+	if ((boothowto & RB_CDROM) && !mountroot) {
+		if (bootverbose)
+			printf("Considering CD-ROM root f/s.\n");
 		mountroot = find_cdrom_root;
+	}
 #endif
 
 #ifdef NFS
-	if (!mountroot && nfs_diskless_valid)
+	if (!mountroot && nfs_diskless_valid) {
+		if (bootverbose)
+			printf("Considering NFS root f/s.\n");
 		mountroot = nfs_mountroot;
+	}
 #endif /* NFS */
 
 #ifdef FFS
 	if (!mountroot) {
+		if (bootverbose)
+			printf("Considering FFS root f/s.\n");
 		mountroot = ffs_mountroot;
 		/*
 		 * Ignore the -a flag if this kernel isn't compiled
@@ -215,8 +227,12 @@ configure()
 	 * Configure swap area and related system
 	 * parameter based on device(s) used.
 	 */
+	if (bootverbose)
+		printf("Configuring root and swap devs.\n");
 	setconf();
 	cold = 0;
+	if (bootverbose)
+		printf("configure() finished.\n");
 }
 
 int
