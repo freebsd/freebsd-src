@@ -833,7 +833,7 @@ semop(p, uap)
 
 	if ((error = ipcperm(p, &semaptr->sem_perm, IPC_W))) {
 #ifdef SEM_DEBUG
-		printf("error = %d from ipaccess\n", error);
+		printf("error = %d from ipcperm\n", error);
 #endif
 		goto done2;
 	}
