@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: var.c,v 1.12 1998/05/18 06:44:24 charnier Exp $";
+	"$Id: var.c,v 1.13 1999/04/03 11:41:46 cracauer Exp $";
 #endif /* not lint */
 
 #include <unistd.h>
@@ -218,7 +218,7 @@ setvarsafe(name, val, flags)
 }
 
 /*
- * Set the value of a variable.  The flags argument is stored with the
+ * Set the value of a variable.  The flags argument is tored with the
  * flags of the variable.  If val is NULL, the variable is unset.
  */
 
