@@ -547,9 +547,11 @@ realitexpire(arg)
 	int s;
 
 	p = (struct proc *)arg;
+	PROC_LOCK(p);
 	psignal(p, SIGALRM);
 	if (!timevalisset(&p->p_realtimer.it_interval)) {
 		timevalclear(&p->p_realtimer.it_value);
+		PROC_UNLOCK(p);
 		return;
 	}
 	for (;;) {
@@ -563,10 +565,12 @@ realitexpire(arg)
 			callout_reset(&p->p_itcallout, tvtohz(&ntv) - 1,
 			    realitexpire, p);
 			splx(s);
+			PROC_UNLOCK(p);
 			return;
 		}
 		splx(s);
 	}
+	/*NOTREACHED*/
 }
 
 /*
