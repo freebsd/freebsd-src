@@ -200,9 +200,8 @@ bshw_dmastart(bsc)
 	 */
 	/* set dma channel mode, and reset address ff */
 #ifdef __FreeBSD__
-#ifdef CYRIX_5X86
-	asm("wbinvd");
-#endif
+	if (need_pre_dma_flush)
+		wbinvd();
 #else	/* NetBSD/pc98 */
 	if (cpuspec->cpuspec_cache_flush_before)
 		(*cpuspec->cpuspec_cache_flush_before)();
@@ -247,9 +246,8 @@ bshw_dmadone(bsc)
 		(*bsc->sc_hw->dma_stop)(bsc);
 
 #ifdef __FreeBSD__
-#if defined(CYRIX_486DLC) || defined(IBM_486SLC)
-	asm(".byte 0x0f, 0x08");
-#endif
+	if (need_post_dma_flush)
+		invd();
 #else
 	if (cpuspec->cpuspec_cache_flush_after)
 		(*cpuspec->cpuspec_cache_flush_after)();
