@@ -175,26 +175,21 @@ static	struct ip_srcrt {
 	struct	in_addr route[MAX_IPOPTLEN/sizeof(struct in_addr)];
 } ip_srcrt;
 
-#ifdef IPDIVERT
-/*
- * Shared variable between ip_input() and ip_reass() to communicate
- * about which packets, once assembled from fragments, get diverted,
- * and to which port.
- */
-static u_short	frag_divert_port;
-#endif
-
 struct sockaddr_in *ip_fw_fwd_addr;
 
-static void save_rte __P((u_char *, struct in_addr));
-static int	 ip_dooptions __P((struct mbuf *));
-static void	 ip_forward __P((struct mbuf *, int));
-static void	 ip_freef __P((struct ipq *));
-static struct ip *
-	 ip_reass __P((struct mbuf *, struct ipq *, struct ipq *));
-static struct in_ifaddr *
-	 ip_rtaddr __P((struct in_addr));
+static void	save_rte __P((u_char *, struct in_addr));
+static int	ip_dooptions __P((struct mbuf *));
+static void	ip_forward __P((struct mbuf *, int));
+static void	ip_freef __P((struct ipq *));
+#ifdef IPDIVERT
+static struct	ip *ip_reass __P((struct mbuf *,
+			struct ipq *, struct ipq *, u_int32_t *, u_int16_t *));
+#else
+static struct	ip *ip_reass __P((struct mbuf *, struct ipq *, struct ipq *));
+#endif
+static struct	in_ifaddr *ip_rtaddr __P((struct in_addr));
 static void	ipintr __P((void));
+
 /*
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.
@@ -245,10 +240,19 @@ ip_input(struct mbuf *m)
 	struct in_ifaddr *ia;
 	int    i, hlen, mff;
 	u_short sum;
-#ifndef IPDIVERT /* dummy variable for the firewall code to play with */
-        u_short ip_divert_cookie = 0 ;
+	u_int16_t divert_cookie;		/* firewall cookie */
+#ifdef IPDIVERT
+	u_int32_t divert_info = 0;		/* packet divert/tee info */
 #endif
-	struct ip_fw_chain *rule = NULL ;
+	struct ip_fw_chain *rule = NULL;
+
+#ifdef IPDIVERT
+	/* Get and reset firewall cookie */
+	divert_cookie = ip_divert_cookie;
+	ip_divert_cookie = 0;
+#else
+	divert_cookie = 0;
+#endif
 
 #if defined(IPFIREWALL) && defined(DUMMYNET)
         /*
@@ -375,39 +379,39 @@ iphack:
 		if (ip_fw_fwd_addr)
 			goto ours;
 #endif	/* IPFIREWALL_FORWARD */
-		i = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie,
-					&m, &rule, &ip_fw_fwd_addr);
 		/*
-		 * see the comment in ip_output for the return values
+		 * See the comment in ip_output for the return values
 		 * produced by the firewall.
 		 */
-		if (!m) /* packet discarded by firewall */
-			return ;
-		if (i == 0 && ip_fw_fwd_addr == NULL) /* common case */
-			goto pass ;
+		i = (*ip_fw_chk_ptr)(&ip,
+		    hlen, NULL, &divert_cookie, &m, &rule, &ip_fw_fwd_addr);
+		if (m == NULL)		/* Packet discarded by firewall */
+			return;
+		if (i == 0 && ip_fw_fwd_addr == NULL)	/* common case */
+			goto pass;
 #ifdef DUMMYNET
-                if (i & 0x10000) {
-                        /* send packet to the appropriate pipe */
+                if ((i & IP_FW_PORT_DYNT_FLAG) != 0) {
+                        /* Send packet to the appropriate pipe */
                         dummynet_io(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule);
-			return ;
+			return;
 		}
 #endif
 #ifdef IPDIVERT
-		if (i > 0 && i < 0x10000) {
-			/* Divert packet */
-			frag_divert_port = i & 0xffff ;
+		if (i != 0 && (i & IP_FW_PORT_DYNT_FLAG) == 0) {
+			/* Divert or tee packet */
+			divert_info = i;
 			goto ours;
 		}
 #endif
 #ifdef IPFIREWALL_FORWARD
 		if (i == 0 && ip_fw_fwd_addr != NULL)
-			goto pass ;
+			goto pass;
 #endif
 		/*
 		 * if we get here, the packet must be dropped
 		 */
-			m_freem(m);
-			return;
+		m_freem(m);
+		return;
 	}
 pass:
 
@@ -550,10 +554,6 @@ ours:
 		if (m->m_flags & M_EXT) {		/* XXX */
 			if ((m = m_pullup(m, hlen)) == 0) {
 				ipstat.ips_toosmall++;
-#ifdef IPDIVERT
-				frag_divert_port = 0;
-				ip_divert_cookie = 0;
-#endif
 #ifdef IPFIREWALL_FORWARD
 				ip_fw_fwd_addr = NULL;
 #endif
@@ -620,9 +620,14 @@ found:
 		if (mff || ip->ip_off) {
 			ipstat.ips_fragments++;
 			m->m_pkthdr.header = ip;
+#ifdef IPDIVERT
+			ip = ip_reass(m,
+			    fp, &ipq[sum], &divert_info, &divert_cookie);
+#else
 			ip = ip_reass(m, fp, &ipq[sum]);
+#endif
 			if (ip == 0) {
-#ifdef	IPFIREWALL_FORWARD
+#ifdef IPFIREWALL_FORWARD
 				ip_fw_fwd_addr = NULL;
 #endif
 				return;
@@ -632,7 +637,8 @@ found:
 			ipstat.ips_reassembled++;
 			m = dtom(ip);
 #ifdef IPDIVERT
-			if (frag_divert_port) {
+			/* Restore original checksum before diverting packet */
+			if (divert_info != 0) {
 				ip->ip_len += hlen;
 				HTONS(ip->ip_len);
 				HTONS(ip->ip_off);
@@ -653,24 +659,35 @@ found:
 
 #ifdef IPDIVERT
 	/*
-	 * Divert reassembled packets to the divert protocol if required
-	 *  If divert port is null then cookie should be too,
-	 * so we shouldn't need to clear them here. Assume ip_divert does so.
+	 * Divert or tee packet to the divert protocol if required.
+	 *
+	 * If divert_info is zero then cookie should be too, so we shouldn't
+	 * need to clear them here.  Assume divert_packet() does so also.
 	 */
-	if (frag_divert_port) {
+	if (divert_info != 0) {
+		struct mbuf *clone = NULL;
+
+		/* Clone packet if we're doing a 'tee' */
+		if ((divert_info & IP_FW_PORT_TEE_FLAG) != 0)
+			clone = m_dup(m, M_DONTWAIT);
+
+		/* Restore packet header fields to original values */
+		ip->ip_len += hlen;
+		HTONS(ip->ip_len);
+		HTONS(ip->ip_off);
+		HTONS(ip->ip_id);
+
+		/* Deliver packet to divert input routine */
+		ip_divert_cookie = divert_cookie;
+		divert_packet(m, 1, divert_info & 0xffff);
 		ipstat.ips_delivered++;
-		ip_divert_port = frag_divert_port;
-		frag_divert_port = 0;
-		(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, hlen);
-		return;
-	}
 
-	/* Don't let packets divert themselves */
-	if (ip->ip_p == IPPROTO_DIVERT) {
-		ipstat.ips_noproto++;
-		goto bad;
+		/* If 'tee', continue with original packet */
+		if (clone == NULL)
+			return;
+		m = clone;
+		ip = mtod(m, struct ip *);
 	}
-
 #endif
 
 	/*
@@ -711,16 +728,27 @@ ipintr(void)
 NETISR_SET(NETISR_IP, ipintr);
   
 /*
- * Take incoming datagram fragment and try to
- * reassemble it into whole datagram.  If a chain for
- * reassembly of this datagram already exists, then it
- * is given as fp; otherwise have to make a chain.
+ * Take incoming datagram fragment and try to reassemble it into
+ * whole datagram.  If a chain for reassembly of this datagram already
+ * exists, then it is given as fp; otherwise have to make a chain.
+ *
+ * When IPDIVERT enabled, keep additional state with each packet that
+ * tells us if we need to divert or tee the packet we're building.
  */
+
 static struct ip *
+#ifdef IPDIVERT
+ip_reass(m, fp, where, divinfo, divcookie)
+#else
 ip_reass(m, fp, where)
+#endif
 	register struct mbuf *m;
 	register struct ipq *fp;
 	struct   ipq    *where;
+#ifdef IPDIVERT
+	u_int32_t *divinfo;
+	u_int16_t *divcookie;
+#endif
 {
 	struct ip *ip = mtod(m, struct ip *);
 	register struct mbuf *p = 0, *q, *nq;
@@ -752,7 +780,7 @@ ip_reass(m, fp, where)
 		fp->ipq_frags = m;
 		m->m_nextpkt = NULL;
 #ifdef IPDIVERT
-		fp->ipq_divert = 0;
+		fp->ipq_div_info = 0;
 		fp->ipq_div_cookie = 0;
 #endif
 		goto inserted;
@@ -812,14 +840,13 @@ inserted:
 
 #ifdef IPDIVERT
 	/*
-	 * Any fragment diverting causes the whole packet to divert
+	 * Transfer firewall instructions to the fragment structure.
+	 * Any fragment diverting causes the whole packet to divert.
 	 */
-	if (frag_divert_port) {
-		fp->ipq_divert = frag_divert_port;
-		fp->ipq_div_cookie = ip_divert_cookie;
-	}
-	frag_divert_port = 0;
-	ip_divert_cookie = 0;
+	fp->ipq_div_info = *divinfo;
+	fp->ipq_div_cookie = *divcookie;
+	*divinfo = 0;
+	*divcookie = 0;
 #endif
 
 	/*
@@ -863,10 +890,10 @@ inserted:
 
 #ifdef IPDIVERT
 	/*
-	 * extract divert port for packet, if any
+	 * Extract firewall instructions from the fragment structure.
 	 */
-	frag_divert_port = fp->ipq_divert;
-	ip_divert_cookie = fp->ipq_div_cookie;
+	*divinfo = fp->ipq_div_info;
+	*divcookie = fp->ipq_div_cookie;
 #endif
 
 	/*
@@ -894,8 +921,8 @@ inserted:
 
 dropfrag:
 #ifdef IPDIVERT
-	frag_divert_port = 0;
-	ip_divert_cookie = 0;
+	*divinfo = 0;
+	*divcookie = 0;
 #endif
 	ipstat.ips_fragdropped++;
 	m_freem(m);
