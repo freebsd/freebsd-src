@@ -339,7 +339,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 	unsigned long *dosync_off;
 	unsigned long *noprintf_off;
 {
-	char **kname;
+	char **kname, *knm;
 
 #if defined(SYS_AUX3) || defined(SYS_AUX2)
 #define X_TICKADJ       0
@@ -446,6 +446,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 
 #ifdef HAVE_GETBOOTFILE
 	/* XXX bogus cast to avoid `const' poisoning. */
+	kname = &knm;
 	*kname = (char *)getbootfile();
 	if (stat(*kname, &stbuf) == -1 || nlist(*kname, nl) == -1)
 		*kname = NULL;
