@@ -159,9 +159,11 @@ decode2(flag)
 	struct passwd *pw;
 	register int n;
 	register char ch, *p;
-	int base64, ignore, mode, n1;
-	char buf[MAXPATHLEN];
-	char buffn[MAXPATHLEN]; /* file name buffer */
+	int base64, ignore, n1;
+	char buf[MAXPATHLEN+1];
+	char buffn[MAXPATHLEN+1]; /* file name buffer */
+	char *mode, *s;
+	void *mode_handle;
 
 	base64 = ignore = 0;
 	/* search for header line */
@@ -178,52 +180,56 @@ decode2(flag)
 	if (strncmp(buf, "begin-base64", 12) == 0)
 		base64 = 1;
 
-	if (oflag) {
-		if (base64)
-			(void)sscanf(buf, "begin-base64 %o ", &mode);
-		else
-			(void)sscanf(buf, "begin %o ", &mode);
-		if (strlcpy(buf, outfile, sizeof(buf)) >= sizeof(buf)) {
-			warnx("%s: filename too long", outfile);
-			return (1);
-		}
-	} else {
-		if (base64)
-			(void)sscanf(buf, "begin-base64 %o %[^\n\r]", &mode, buf);
-		else
-			(void)sscanf(buf, "begin %o %[^\n\r]", &mode, buf);
+	/* Parse the header: begin{,-base64} mode outfile. */
+	s = strtok(buf, " ");
+	if (s == NULL)
+		errx(1, "no mode or filename in input file");
+	s = strtok(NULL, " ");
+	if (s == NULL)
+		errx(1, "no mode in input file");
+	else {
+		mode = strdup(s);
+		if (mode == NULL)
+			err(1, "strdup()");
+	}
+	if (!oflag) {
+		outfile = strtok(NULL, " \r\n");
+		if (outfile == NULL)
+			errx(1, "no filename in input file");
 	}
 
+	if (strlcpy(buf, outfile, sizeof(buf)) >= sizeof(buf))
+		errx(1, "%s: filename too long", outfile);
 	if (!sflag && !pflag) {
-		strncpy(buffn, buf, sizeof(buffn)); 
+		strlcpy(buffn, buf, sizeof(buffn)); 
 		if (strrchr(buffn, '/') != NULL)
 			strncpy(buf, strrchr(buffn, '/') + 1, sizeof(buf));
 		if (buf[0] == '\0') {
 			warnx("%s: illegal filename", buffn);
 			return(1);
 		}
-	}
 
-	/* handle ~user/file format */
-	if (buf[0] == '~') {
-		if (!(p = index(buf, '/'))) {
-			warnx("%s: illegal ~user", filename);
-			return(1);
+		/* handle ~user/file format */
+		if (buf[0] == '~') {
+			if (!(p = index(buf, '/'))) {
+				warnx("%s: illegal ~user", filename);
+				return(1);
+			}
+			*p++ = '\0';
+			if (!(pw = getpwnam(buf + 1))) {
+				warnx("%s: no user %s", filename, buf);
+				return(1);
+			}
+			n = strlen(pw->pw_dir);
+			n1 = strlen(p);
+			if (n + n1 + 2 > MAXPATHLEN) {
+				warnx("%s: path too long", filename);
+				return(1);
+			}
+			bcopy(p, buf + n + 1, n1 + 1);
+			bcopy(pw->pw_dir, buf, n);
+			buf[n] = '/';
 		}
-		*p++ = '\0';
-		if (!(pw = getpwnam(buf + 1))) {
-			warnx("%s: no user %s", filename, buf);
-			return(1);
-		}
-		n = strlen(pw->pw_dir);
-		n1 = strlen(p);
-		if (n + n1 + 2 > MAXPATHLEN) {
-			warnx("%s: path too long", filename);
-			return(1);
-		}
-		bcopy(p, buf + n + 1, n1 + 1);
-		bcopy(pw->pw_dir, buf, n);
-		buf[n] = '/';
 	}
 
 	/* create output file, set mode */
@@ -231,14 +237,19 @@ decode2(flag)
 		; /* print to stdout */
 
 	else {
+		mode_handle = setmode(mode);
+		if (mode_handle == NULL)
+			err(1, "setmode()");
 		if (iflag && !access(buf, F_OK)) {
 			(void)fprintf(stderr, "not overwritten: %s\n", buf);
 			ignore++;
 		} else if (!freopen(buf, "w", stdout) ||
-		    fchmod(fileno(stdout), mode&0666)) {
+		    fchmod(fileno(stdout), getmode(mode_handle, 0) & 0666)) {
 			warn("%s: %s", buf, filename);
 			return(1);
 		}
+		free(mode_handle);
+		free(mode);
 	}
 	strcpy(buffn, buf); /* store file name from header line */
 
