@@ -39,7 +39,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("FreeBSD: src/lib/libc/stdio/vfscanf.c,v 1.24 2002/08/13 09:30:41 tjr Exp ");
+__FBSDID("FreeBSD: src/lib/libc/stdio/vfscanf.c,v 1.32 2003/06/28 09:03:05 das Exp ");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -83,16 +83,11 @@ __FBSDID("$FreeBSD$");
 #define	UNSIGNED	0x8000	/* %[oupxX] conversions */
 
 /*
- * The following are used in numeric conversions only:
- * SIGNOK, NDIGITS, DPTOK, and EXPOK are for floating point;
- * SIGNOK, NDIGITS, PFXOK, and NZDIGITS are for integral.
+ * The following are used in integral conversions only:
+ * SIGNOK, NDIGITS, PFXOK, and NZDIGITS
  */
 #define	SIGNOK		0x40	/* +/- is (still) legal */
 #define	NDIGITS		0x80	/* no digits detected */
-
-#define	DPTOK		0x100	/* (float) decimal point is still legal */
-#define	EXPOK		0x200	/* (float) exponent (e+3, etc) still legal */
-
 #define	PFXOK		0x100	/* 0x prefix is (still) legal */
 #define	NZDIGITS	0x200	/* no zero digits detected */
 
@@ -104,6 +99,10 @@ __FBSDID("$FreeBSD$");
 #define	CT_STRING	2	/* %s conversion */
 #define	CT_INT		3	/* %[dioupxX] conversion */
 #define	CT_FLOAT	4	/* %[efgEFG] conversion */
+
+static int parsefloat(FILE *, wchar_t *, wchar_t *);
+
+extern int __scanfdebug;
 
 #define	INCCL(_c)	\
 	(cclcompl ? (wmemchr(ccls, (_c), ccle - ccls) == NULL) : \
@@ -153,9 +152,6 @@ __vfwscanf(FILE * __restrict fp, const wchar_t * __restrict fmt, va_list ap)
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
 	static short basefix[17] =
 		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-#ifdef FLOATING_POINT
-	char decimal_point = localeconv()->decimal_point[0];
-#endif
 
 	nassigned = 0;
 	nconversions = 0;
@@ -266,8 +262,8 @@ literal:
 			break;
 
 #ifdef FLOATING_POINT
-		case 'E': case 'F': case 'G':
-		case 'e': case 'f': case 'g':
+		case 'A': case 'E': case 'F': case 'G':
+		case 'a': case 'e': case 'f': case 'g':
 			c = CT_FLOAT;
 			break;
 #endif
@@ -696,94 +692,26 @@ literal:
 #ifdef FLOATING_POINT
 		case CT_FLOAT:
 			/* scan a floating point number as if by strtod */
-#ifdef hardway
 			if (width == 0 || width > sizeof(buf) - 1)
 				width = sizeof(buf) - 1;
-#else
-			/* size_t is unsigned, hence this optimisation */
-			if (--width > sizeof(buf) - 2)
-				width = sizeof(buf) - 2;
-			width++;
-#endif
-			flags |= SIGNOK | NDIGITS | DPTOK | EXPOK;
-			for (p = buf; width; width--) {
-				c = __fgetwc(fp);
-				/*
-				 * This code mimicks the integer conversion
-				 * code, but is much simpler.
-				 */
-				switch (c) {
-
-				case '0': case '1': case '2': case '3':
-				case '4': case '5': case '6': case '7':
-				case '8': case '9':
-					flags &= ~(SIGNOK | NDIGITS);
-					goto fok;
-
-				case '+': case '-':
-					if (flags & SIGNOK) {
-						flags &= ~SIGNOK;
-						goto fok;
-					}
-					break;
-				case 'e': case 'E':
-					/* no exponent without some digits */
-					if ((flags&(NDIGITS|EXPOK)) == EXPOK) {
-						flags =
-						    (flags & ~(EXPOK|DPTOK)) |
-						    SIGNOK | NDIGITS;
-						goto fok;
-					}
-					break;
-				default:
-					if (c == (wchar_t)decimal_point &&
-					    (flags & DPTOK)) {
-						flags &= ~(SIGNOK | DPTOK);
-						goto fok;
-					}
-					break;
-				}
-				if (c != WEOF)
-					__ungetwc(c, fp);
-				break;
-		fok:
-				*p++ = c;
-			}
-			/*
-			 * If no digits, might be missing exponent digits
-			 * (just give back the exponent) or might be missing
-			 * regular digits, but had sign and/or decimal point.
-			 */
-			if (flags & NDIGITS) {
-				if (flags & EXPOK) {
-					/* no digits at all */
-					while (p > buf)
-						__ungetwc(*--p, fp);
-					goto match_failure;
-				}
-				/* just a bad exponent (e and maybe sign) */
-				c = *--p;
-				if (c != 'e' && c != 'E') {
-					__ungetwc(c, fp);/* sign */
-					c = *--p;
-				}
-				__ungetwc(c, fp);
-			}
+			if ((width = parsefloat(fp, buf, buf + width)) == 0)
+				goto match_failure;
 			if ((flags & SUPPRESS) == 0) {
-				double res;
-
-				*p = 0;
-				/* XXX this loses precision for long doubles. */
-				res = wcstod(buf, NULL);
-				if (flags & LONGDBL)
+				if (flags & LONGDBL) {
+					long double res = wcstold(buf, &p);
 					*va_arg(ap, long double *) = res;
-				else if (flags & LONG)
+				} else if (flags & LONG) {
+					double res = wcstod(buf, &p);
 					*va_arg(ap, double *) = res;
-				else
+				} else {
+					float res = wcstof(buf, &p);
 					*va_arg(ap, float *) = res;
+				}
+				if (__scanfdebug && p - buf != width)
+					abort();
 				nassigned++;
 			}
-			nread += p - buf;
+			nread += width;
 			nconversions++;
 			break;
 #endif /* FLOATING_POINT */
@@ -794,3 +722,157 @@ input_failure:
 match_failure:
 	return (nassigned);
 }
+
+#ifdef FLOATING_POINT
+static int
+parsefloat(FILE *fp, wchar_t *buf, wchar_t *end)
+{
+	wchar_t *commit, *p;
+	int infnanpos = 0;
+	enum {
+		S_START, S_GOTSIGN, S_INF, S_NAN, S_MAYBEHEX,
+		S_DIGITS, S_FRAC, S_EXP, S_EXPDIGITS
+	} state = S_START;
+	wchar_t c;
+	wchar_t decpt = (wchar_t)(unsigned char)*localeconv()->decimal_point;
+	_Bool gotmantdig = 0, ishex = 0;
+
+	/*
+	 * We set commit = p whenever the string we have read so far
+	 * constitutes a valid representation of a floating point
+	 * number by itself.  At some point, the parse will complete
+	 * or fail, and we will ungetc() back to the last commit point.
+	 * To ensure that the file offset gets updated properly, it is
+	 * always necessary to read at least one character that doesn't
+	 * match; thus, we can't short-circuit "infinity" or "nan(...)".
+	 */
+	commit = buf - 1;
+	c = WEOF;
+	for (p = buf; p < end; ) {
+		if ((c = __fgetwc(fp)) == WEOF)
+			break;
+reswitch:
+		switch (state) {
+		case S_START:
+			state = S_GOTSIGN;
+			if (c == '-' || c == '+')
+				break;
+			else
+				goto reswitch;
+		case S_GOTSIGN:
+			switch (c) {
+			case '0':
+				state = S_MAYBEHEX;
+				commit = p;
+				break;
+			case 'I':
+			case 'i':
+				state = S_INF;
+				break;
+			case 'N':
+			case 'n':
+				state = S_NAN;
+				break;
+			default:
+				state = S_DIGITS;
+				goto reswitch;
+			}
+			break;
+		case S_INF:
+			if (infnanpos > 6 ||
+			    (c != "nfinity"[infnanpos] &&
+			     c != "NFINITY"[infnanpos]))
+				goto parsedone;
+			if (infnanpos == 1 || infnanpos == 6)
+				commit = p;	/* inf or infinity */
+			infnanpos++;
+			break;
+		case S_NAN:
+			switch (infnanpos) {
+			case -1:	/* XXX kludge to deal with nan(...) */
+				goto parsedone;
+			case 0:
+				if (c != 'A' && c != 'a')
+					goto parsedone;
+				break;
+			case 1:
+				if (c != 'N' && c != 'n')
+					goto parsedone;
+				else
+					commit = p;
+				break;
+			case 2:
+				if (c != '(')
+					goto parsedone;
+				break;
+			default:
+				if (c == ')') {
+					commit = p;
+					infnanpos = -2;
+				} else if (!iswalnum(c) && c != '_')
+					goto parsedone;
+				break;
+			}
+			infnanpos++;
+			break;
+		case S_MAYBEHEX:
+			state = S_DIGITS;
+			if (c == 'X' || c == 'x') {
+				ishex = 1;
+				break;
+			} else {	/* we saw a '0', but no 'x' */
+				gotmantdig = 1;
+				goto reswitch;
+			}
+		case S_DIGITS:
+			if (ishex && iswxdigit(c) || iswdigit(c))
+				gotmantdig = 1;
+			else {
+				state = S_FRAC;
+				if (c != decpt)
+					goto reswitch;
+			}
+			if (gotmantdig)
+				commit = p;
+			break;
+		case S_FRAC:
+			if ((c == 'E' || c == 'e') && !ishex ||
+			    (c == 'P' || c == 'p') && ishex) {
+				if (!gotmantdig)
+					goto parsedone;
+				else
+					state = S_EXP;
+			} else if (ishex && iswxdigit(c) || iswdigit(c)) {
+				commit = p;
+				gotmantdig = 1;
+			} else
+				goto parsedone;
+			break;
+		case S_EXP:
+			state = S_EXPDIGITS;
+			if (c == '-' || c == '+')
+				break;
+			else
+				goto reswitch;
+		case S_EXPDIGITS:
+			if (iswdigit(c))
+				commit = p;
+			else
+				goto parsedone;
+			break;
+		default:
+			abort();
+		}
+		*p++ = c;
+		c = WEOF;
+	}
+
+parsedone:
+	if (c != WEOF)
+		__ungetwc(c, fp);
+	while (commit < --p)
+		__ungetwc(*p, fp);
+	*++commit = '\0';
+	return (commit - buf);
+}
+#endif
