@@ -126,10 +126,8 @@ typedef struct video_switch {
 	(*vidsw[(adp)->va_index]->get_info)((adp), (mode), (buf))
 #define set_video_mode(adp, mode)			\
 	(*vidsw[(adp)->va_index]->set_mode)((adp), (mode))
-#if 0 /* XXX conflicts with syscons' set_border() */
 #define set_border(adp, border)				\
 	(*vidsw[(adp)->va_index]->set_border)((adp), (border))
-#endif
 #define set_origin(adp, o)				\
 	(*vidsw[(adp)->va_index]->set_win_org)(adp, o)
 
