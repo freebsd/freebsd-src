@@ -54,8 +54,8 @@ static	d_ioctl_t	cttyioctl;
 static	d_poll_t	cttypoll;
 
 #define	CDEV_MAJOR	1
-/* Don't make this static, since fdesc_vnops uses it. */
-struct cdevsw ctty_cdevsw = {
+
+static struct cdevsw ctty_cdevsw = {
 	/* open */	cttyopen,
 	/* close */	nullclose,
 	/* read */	cttyread,
@@ -86,20 +86,7 @@ cttyopen(dev, flag, mode, p)
 	if (ttyvp == NULL)
 		return (ENXIO);
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
-#ifdef PARANOID
-	/*
-	 * Since group is tty and mode is 620 on most terminal lines
-	 * and since sessions protect terminals from processes outside
-	 * your session, this check is probably no longer necessary.
-	 * Since it inhibits setuid root programs that later switch
-	 * to another user from accessing /dev/tty, we have decided
-	 * to delete this test. (mckusick 5/93)
-	 */
-	error = VOP_ACCESS(ttyvp,
-	  (flag&FREAD ? VREAD : 0) | (flag&FWRITE ? VWRITE : 0), p->p_ucred, p);
-	if (!error)
-#endif /* PARANOID */
-		error = VOP_OPEN(ttyvp, flag, NOCRED, p);
+	error = VOP_OPEN(ttyvp, flag, NOCRED, p);
 	VOP_UNLOCK(ttyvp, 0, p);
 	return (error);
 }
@@ -188,13 +175,35 @@ cttypoll(dev, events, p)
 	return (VOP_POLL(ttyvp, events, p->p_ucred, p));
 }
 
+static void ctty_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+
+static void
+ctty_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	struct vnode *vp;
+
+	if (*dev != NODEV)
+		return;
+	if (strcmp(name, "tty"))
+		return;
+	vp = cttyvp(curproc);
+	if (vp == NULL)
+		return;
+	*dev = vp->v_rdev;
+}
+
+
 static void ctty_drvinit __P((void *unused));
 static void
 ctty_drvinit(unused)
 	void *unused;
 {
 
-	make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "tty");
+	if (devfs_present) {
+		EVENTHANDLER_REGISTER(dev_clone, ctty_clone, 0, 1000);
+	} else {
+		make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "tty");
+	}
 }
 
 SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctty_drvinit,NULL)
