@@ -2458,7 +2458,7 @@ siointr(arg)
 	void		*arg;
 {
 	struct com_s	*com;
-#ifdef PC98
+#if defined(PC98) && defined(COM_MULTIPORT)
 	u_char		rsa_buf_status;
 #endif
 
