@@ -336,7 +336,7 @@ COMMON ITEMS:
 		mount -u /
 		mount -a
 		cd /usr/src
-		adjkerntz -i		# if COMS is wall time
+		adjkerntz -i		# if CMOS is wall time
 
 	To update from 4.0-RELEASE or later to the most current
 	4.x-STABLE
