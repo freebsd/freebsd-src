@@ -2239,20 +2239,6 @@ PacketAliasAddServer(struct alias_link *link, struct in_addr addr, u_short port)
 	return (-1);
 }
 
-/* Translate PPTP packets to a machine on the inside
- * XXX This function is made obsolete by PacketAliasRedirectProto().
- */
-int
-PacketAliasPptp(struct in_addr src_addr)
-{
-
-    if (src_addr.s_addr != INADDR_NONE)
-	(void)PacketAliasRedirectProto(src_addr, nullAddress, nullAddress,
-				       IPPROTO_GRE);
-
-    return 1;
-}
-
 /* Redirect packets of a given IP protocol from a specific
    public address to a private address */
 struct alias_link *

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		alias
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 SHLIB_MINOR=	0
 CFLAGS+=	-Wall -I${.CURDIR}
 SRCS=		alias.c alias_cuseeme.c alias_db.c alias_ftp.c alias_irc.c \
