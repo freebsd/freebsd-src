@@ -996,7 +996,7 @@ coda_lookup(struct vop_lookup_args *ap)
      * we are ISLASTCN
      */
     if (!error || (error == EJUSTRETURN)) {
-	if (!(cnp->cn_flags & LOCKPARENT) || !(cnp->cn_flags & ISLASTCN)) {
+	if (cnp->cn_flags & ISDOTDOT) {
 	    if ((error = VOP_UNLOCK(dvp, 0, td))) {
 		return error; 
 	    }	    
@@ -1006,8 +1006,8 @@ coda_lookup(struct vop_lookup_args *ap)
 	     */
 	    if (*ap->a_vpp) {
 		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
-		    printf("coda_lookup: ");
-		    panic("unlocked parent but couldn't lock child");
+		    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE, td);
+		    return (error);
 		}
 	    }
 	} else {
@@ -1015,8 +1015,7 @@ coda_lookup(struct vop_lookup_args *ap)
 	    if (*ap->a_vpp && (*ap->a_vpp != dvp)) {
 		/* Different, go ahead and lock it. */
 		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
-		    printf("coda_lookup: ");
-		    panic("unlocked parent but couldn't lock child");
+		    return (error);
 		}
 	    }
 	}
