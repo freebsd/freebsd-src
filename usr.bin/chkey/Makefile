@@ -4,7 +4,10 @@
 
 PROG=	chkey
 SRCS=	chkey.c generic.c update.c
-CFLAGS+=-DYP -I${.CURDIR}/../newkey
+CFLAGS+= -I${.CURDIR}/../newkey
+.if !defined(NO_NIS)
+CFLAGS+= -DYP
+.endif
 DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBCRYPTO}
 LDADD=	-lrpcsvc -lmp -lcrypto
 

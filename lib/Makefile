@@ -107,7 +107,7 @@ _libthread_db=	libthread_db
 _libusbhid=	libusbhid
 .endif
 
-.if !defined(NO_YP_LIBC)
+.if !defined(NO_NIS)
 _libypclnt=	libypclnt
 .endif
 

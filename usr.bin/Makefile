@@ -221,9 +221,9 @@ SUBDIR=	alias \
 	xstr \
 	${_yacc} \
 	yes \
-	ypcat \
-	ypmatch \
-	ypwhich
+	${_ypcat} \
+	${_ypmatch} \
+	${_ypwhich}
 
 .if ${MACHINE_ARCH} != "arm" && \
     ${MACHINE_ARCH} != "powerpc"
@@ -248,6 +248,12 @@ _bluetooth=	bluetooth
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
+.endif
+
+.if !defined(NO_NIS) 
+_ypcat=		ypcat
+_ypmatch=	ypmatch
+_ypwhich=	ypwhich
 .endif
 
 .if !defined(NO_SENDMAIL)

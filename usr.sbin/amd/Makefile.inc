@@ -17,6 +17,9 @@ CFLAGS+= -I${.OBJDIR}/../include
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/include
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd
 CFLAGS+= -DHAVE_CONFIG_H
+.if defined(NO_NIS)
+CFLAGS+= -DHAVE_LOCALCONFIG_H
+.endif
 
 CFLAGS+= -DHOST_CPU=\"${MACHINE_ARCH}\" -DHOST_ARCH=\"${MACHINE_ARCH}\"
 
