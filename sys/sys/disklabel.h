@@ -305,7 +305,7 @@ static const char *fstypenames[] = {
  * bytestring.
  */
 void bsd_partition_le_dec(u_char *ptr, struct partition *d);
-void bsd_disklabel_le_dec(u_char *ptr, struct disklabel *d);
+int bsd_disklabel_le_dec(u_char *ptr, struct disklabel *d, int maxpart);
 void bsd_partition_le_enc(u_char *ptr, struct partition *d);
 void bsd_disklabel_le_enc(u_char *ptr, struct disklabel *d);
 

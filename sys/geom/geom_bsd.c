@@ -58,6 +58,8 @@
 
 #define ALPHA_LABEL_OFFSET	64
 
+#define LABELSIZE (148 + 16 * MAXPARTITIONS)
+
 static void g_bsd_hotwrite(void *arg, int flag);
 /*
  * Our private data about one instance.  All the rest is handled by the
@@ -69,123 +71,16 @@ struct g_bsd_softc {
 	off_t	mbroffset;
 	off_t	rawoffset;
 	struct disklabel ondisk;
-	struct disklabel inram;
+	u_char	label[LABELSIZE];
 	u_char	labelsum[16];
 };
 
-static int
-g_bsd_ondisk_size(void)
-{
-	return (148 + 16 * MAXPARTITIONS);
-}
-
-/*
- * For reasons which were valid and just in their days, FreeBSD/i386 uses
- * absolute disk-addresses in disklabels.  The way it works is that the
- * p_offset field of all partitions have the first sector number of the
- * disk slice added to them.  This was hidden kernel-magic, userland did
- * not see these offsets.  These two functions subtract and add them
- * while converting from the "ondisk" to the "inram" labels and vice
- * versa.
- */
-static void
-ondisk2inram(struct g_bsd_softc *sc)
-{
-	struct partition *ppp;
-	struct disklabel *dl;
-	int i;
-
-	sc->inram = sc->ondisk;
-	dl = &sc->inram;
-
-	/* Basic sanity-check needed to avoid mistakes. */
-	if (dl->d_magic != DISKMAGIC || dl->d_magic2 != DISKMAGIC)
-		return;
-	if (dl->d_npartitions > MAXPARTITIONS)
-		return;
-
-	sc->rawoffset = dl->d_partitions[RAW_PART].p_offset;
-	for (i = 0; i < dl->d_npartitions; i++) {
-		ppp = &dl->d_partitions[i];
-		if (ppp->p_size != 0 && ppp->p_offset < sc->rawoffset)
-			sc->rawoffset = 0;
-	}
-	if (sc->rawoffset > 0) {
-		for (i = 0; i < dl->d_npartitions; i++) {
-			ppp = &dl->d_partitions[i];
-			if (ppp->p_offset != 0)
-				ppp->p_offset -= sc->rawoffset;
-		}
-	}
-	dl->d_checksum = 0;
-	dl->d_checksum = dkcksum(&sc->inram);
-}
-
-static void
-inram2ondisk(struct g_bsd_softc *sc)
-{
-	struct partition *ppp;
-	int i;
-
-	sc->ondisk = sc->inram;
-	if (sc->mbroffset != 0)
-		sc->rawoffset = sc->mbroffset / sc->inram.d_secsize; 
-	if (sc->rawoffset != 0) {
-		for (i = 0; i < sc->inram.d_npartitions; i++) {
-			ppp = &sc->ondisk.d_partitions[i];
-			if (ppp->p_size > 0) 
-				ppp->p_offset += sc->rawoffset;
-			else
-				ppp->p_offset = 0;
-		}
-	}
-	sc->ondisk.d_checksum = 0;
-	sc->ondisk.d_checksum = dkcksum(&sc->ondisk);
-}
-
-/*
- * Check that this looks like a valid disklabel, but be prepared
- * to get any kind of junk.  The checksum must be checked only
- * after this function returns success to prevent a bogus d_npartitions
- * value from tripping us up.
- */
-static int
-g_bsd_checklabel(struct disklabel *dl)
-{
-	struct partition *ppp;
-	int i;
-
-	if (dl->d_magic != DISKMAGIC || dl->d_magic2 != DISKMAGIC)
-		return (EINVAL);
-	/*
-	 * If the label specifies more partitions than we can handle
-	 * we have to reject it:  If people updated the label they would
-	 * trash it, and that would break the checksum.
-	 */
-	if (dl->d_npartitions > MAXPARTITIONS)
-		return (EINVAL);
-
-	for (i = 0; i < dl->d_npartitions; i++) {
-		ppp = &dl->d_partitions[i];
-		/* Cannot extend past unit. */
-		if (ppp->p_size != 0 &&
-		     ppp->p_offset + ppp->p_size > dl->d_secperunit) {
-			return (EINVAL);
-		}
-	}
-	return (0);
-}
-
 /*
  * Modify our slicer to match proposed disklabel, if possible.
- * First carry out all the simple checks, then lock topology
- * and check that no open providers are affected negatively
- * then carry out all the changes.
- *
- * NB: Returns with topology held only if successful return.
+ * This is where we make sure we don't do something stupid.
  */
 static int
-g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
+g_bsd_modify(struct g_geom *gp, u_char *label)
 {
 	int i, error;
 	struct partition *ppp;
@@ -193,32 +88,24 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 	struct g_consumer *cp;
 	struct g_bsd_softc *ms;
 	u_int secsize, u;
-	off_t mediasize;
+	off_t mediasize, rawoffset, o;
+	struct disklabel dl;
+	MD5_CTX md5sum;
 
-	/* Basic check that this is indeed a disklabel. */
-	error = g_bsd_checklabel(dl);
-	if (error)
+	g_topology_assert();
+	gsp = gp->softc;
+	ms = gsp->softc;
+
+	error = bsd_disklabel_le_dec(label, &dl, MAXPARTITIONS);
+	if (error) {
+printf("HERE %s %d\n", __FILE__, __LINE__);
 		return (error);
-
-	/* Make sure the checksum is OK. */
-	if (dkcksum(dl) != 0)
-		return (EINVAL);
+	}
 
 	/* Get dimensions of our device. */
 	cp = LIST_FIRST(&gp->consumer);
 	secsize = cp->provider->sectorsize;
 	mediasize = cp->provider->mediasize;
-
-#ifdef nolonger
-	/*
-	 * The raw-partition must start at zero.  We do not check that the
-	 * size == mediasize because this is overly restrictive.  We have
-	 * already tested in g_bsd_checklabel() that it is not longer.
-	 * XXX: RAW_PART is archaic anyway, and we should drop it.
-	 */
-	if (dl->d_partitions[RAW_PART].p_offset != 0)
-		return (EINVAL);
-#endif
 
 #ifdef notyet
 	/*
@@ -229,71 +116,80 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 	 * may be in order.
 	 */
 	/* The label cannot claim a larger size than the media. */
-	if ((off_t)dl->d_secperunit * dl->d_secsize > mediasize)
+	if ((off_t)dl.d_secperunit * dl.d_secsize > mediasize)
 		return (EINVAL);
 #endif
 
-
 	/* ... or a smaller sector size. */
-	if (dl->d_secsize < secsize)
+	if (dl.d_secsize < secsize) {
+printf("HERE %s %d\n", __FILE__, __LINE__);
 		return (EINVAL);
+	}
 
 	/* ... or a non-multiple sector size. */
-	if (dl->d_secsize % secsize != 0)
+	if (dl.d_secsize % secsize != 0) {
+printf("HERE %s %d\n", __FILE__, __LINE__);
 		return (EINVAL);
+	}
 
-	g_topology_lock();
+	/* Historical braindamage... */
+	rawoffset = (off_t)dl.d_partitions[RAW_PART].p_offset * dl.d_secsize;
+	for (i = 0; i < dl.d_npartitions; i++) {
+		ppp = &dl.d_partitions[i];
+		if (ppp->p_size == 0)
+			continue;
+	        o = (off_t)ppp->p_offset * dl.d_secsize;
+
+		if (o < rawoffset)
+			rawoffset = 0;
+	}
 
 	/* Don't munge open partitions. */
-	gsp = gp->softc;
-	ms = gsp->softc;
-	for (i = 0; i < dl->d_npartitions; i++) {
-		ppp = &dl->d_partitions[i];
+	for (i = 0; i < dl.d_npartitions; i++) {
+		ppp = &dl.d_partitions[i];
 
+	        o = (off_t)ppp->p_offset * dl.d_secsize;
+		if (o == 0)
+			o = rawoffset;
 		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
-		    (off_t)ppp->p_offset * dl->d_secsize,
-		    (off_t)ppp->p_size * dl->d_secsize,
-		     dl->d_secsize,
+		    o - rawoffset,
+		    (off_t)ppp->p_size * dl.d_secsize,
+		     dl.d_secsize,
 		    "%s%c", gp->name, 'a' + i);
-		if (error) {
-			g_topology_unlock();
+		if (error)
 			return (error);
-		}
 	}
 
 	/* Look good, go for it... */
 	for (u = 0; u < gsp->nslice; u++) {
-		ppp = &dl->d_partitions[u];
+		ppp = &dl.d_partitions[u];
+	        o = (off_t)ppp->p_offset * dl.d_secsize;
+		if (o == 0)
+			o = rawoffset;
 		g_slice_config(gp, u, G_SLICE_CONFIG_SET,
-		    (off_t)ppp->p_offset * dl->d_secsize,
-		    (off_t)ppp->p_size * dl->d_secsize,
-		     dl->d_secsize,
+		    o - rawoffset,
+		    (off_t)ppp->p_size * dl.d_secsize,
+		     dl.d_secsize,
 		    "%s%c", gp->name, 'a' + u);
 	}
-	g_slice_conf_hot(gp, 0, ms->labeloffset, g_bsd_ondisk_size(),
-	    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
-	gsp->hot = g_bsd_hotwrite;
+
+	/* Update our softc */
+	ms->ondisk = dl;
+	if (label != ms->label)
+		bcopy(label, ms->label, LABELSIZE);
+	ms->rawoffset = rawoffset;
+
+	/*
+	 * In order to avoid recursively attaching to the same
+	 * on-disk label (it's usually visible through the 'c'
+	 * partition) we calculate an MD5 and ask if other BSD's
+	 * below us love that label.  If they do, we don't.
+	 */
+	MD5Init(&md5sum);
+	MD5Update(&md5sum, ms->label, sizeof(ms->label));
+	MD5Final(ms->labelsum, &md5sum);
+
 	return (0);
-}
-
-/*
- * Calculate a disklabel checksum for a little-endian byte-stream.
- * We need access to the decoded disklabel because the checksum only
- * covers the partition data for the first d_npartitions.
- */
-static int
-g_bsd_lesum(struct disklabel *dl, u_char *p)
-{
-	u_char *pe;
-	uint16_t sum;
-
-	pe = p + 148 + 16 * dl->d_npartitions;
-	sum = 0;
-	while (p < pe) {
-		sum ^= le16dec(p);
-		p += 2;
-	}
-	return (sum);
 }
 
 /*
@@ -323,17 +219,9 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 
 	/* Decode into our native format. */
 	dl = &ms->ondisk;
-	bsd_disklabel_le_dec(buf + secoff, dl);
-
-	ondisk2inram(ms);
-
-	dl = &ms->inram;
-	/* Does it look like a label at all? */
-	if (g_bsd_checklabel(dl))
-		error = ENOENT;
-	/* ... and does the raw data have a good checksum? */
-	if (error == 0 && g_bsd_lesum(dl, buf + secoff) != 0)
-		error = ENOENT;
+	error = bsd_disklabel_le_dec(buf + secoff, dl, MAXPARTITIONS);
+	if (!error)
+		bcopy(buf + secoff, ms->label, LABELSIZE);
 
 	/* Remember to free the buffer g_read_data() gave us. */
 	g_free(buf);
@@ -357,47 +245,41 @@ g_bsd_ioctl(void *arg, int flag)
 	struct g_geom *gp;
 	struct g_slicer *gsp;
 	struct g_bsd_softc *ms;
-	struct disklabel *dl;
 	struct g_ioctl *gio;
 	struct g_consumer *cp;
-	u_char *buf;
+	u_char *buf, *label;
 	off_t secoff;
 	u_int secsize;
 	int error, i;
 	uint64_t sum;
 
+	g_topology_assert();
 	bp = arg;
 	if (flag == EV_CANCEL) {
 		g_io_deliver(bp, ENXIO);
 		return;
 	}
-	/* We don't need topology for now. */
-	g_topology_unlock();
 
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
 	gio = (struct g_ioctl *)bp->bio_data;
 
+	label = g_malloc(LABELSIZE, M_WAITOK);
+
 	/* The disklabel to set is the ioctl argument. */
-	dl = gio->data;
+	bsd_disklabel_le_enc(label, gio->data);
 
 	/* Validate and modify our slice instance to match. */
-	error = g_bsd_modify(gp, dl);	/* Picks up topology lock on success. */
-	if (error) {
-		g_topology_lock();
+	error = g_bsd_modify(gp, label);	/* Picks up topology lock on success. */
+	g_free(label);
+	if (error || gio->cmd == DIOCSDINFO) {
 		g_io_deliver(bp, error);
 		return;
 	}
-	/* Update our copy of the disklabel. */
-	ms->inram = *dl;
-	inram2ondisk(ms);
-
-	if (gio->cmd == DIOCSDINFO) {
-		g_io_deliver(bp, 0);
-		return;
-	}
+	
 	KASSERT(gio->cmd == DIOCWDINFO, ("Unknown ioctl in g_bsd_ioctl"));
+
 	cp = LIST_FIRST(&gp->consumer);
 	/* Get sector size, we need it to read data. */
 	secsize = cp->provider->sectorsize;
@@ -407,8 +289,7 @@ g_bsd_ioctl(void *arg, int flag)
 		g_io_deliver(bp, error);
 		return;
 	}
-	dl = &ms->ondisk;
-	bsd_disklabel_le_enc(buf + secoff, dl);
+	bcopy(ms->label, buf + secoff, sizeof(ms->label));
 	if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
 		sum = 0;
 		for (i = 0; i < 63; i++)
@@ -430,7 +311,6 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
 	struct g_geom *gp;
 	struct g_slicer *gsp;
 	struct g_bsd_softc *ms;
-	struct disklabel *dl;
 	struct g_consumer *cp;
 	u_char *buf;
 	void *p;
@@ -447,33 +327,26 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
 	buf = g_malloc(BBSIZE, M_WAITOK);
 	p = *(void **)data;
 	error = copyin(p, buf, BBSIZE);
-	if (error) {
-		g_free(buf);
-		return (error);
-	}
-	/* The disklabel to set is the ioctl argument. */
-	dl = (void *)(buf + ms->labeloffset);
-
-	DROP_GIANT();
-
-	/* Validate and modify our slice instance to match. */
-	error = g_bsd_modify(gp, dl);	/* Picks up topology lock on success. */
 	if (!error) {
-		cp = LIST_FIRST(&gp->consumer);
-		secsize = cp->provider->sectorsize;
-		dl = &ms->ondisk;
-		bsd_disklabel_le_enc(buf + ms->labeloffset, dl);
-		if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
-			sum = 0;
-			for (i = 0; i < 63; i++)
-				sum += le64dec(buf + i * 8);
-			le64enc(buf + 504, sum);
+		DROP_GIANT();
+		g_topology_lock();
+		/* Validate and modify our slice instance to match. */
+		error = g_bsd_modify(gp, buf + ms->labeloffset);
+		if (!error) {
+			cp = LIST_FIRST(&gp->consumer);
+			secsize = cp->provider->sectorsize;
+			if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
+				sum = 0;
+				for (i = 0; i < 63; i++)
+					sum += le64dec(buf + i * 8);
+				le64enc(buf + 504, sum);
+			}
+			error = g_write_data(cp, 0, buf, BBSIZE);
 		}
-		error = g_write_data(cp, 0, buf, BBSIZE);
 		g_topology_unlock();
+		PICKUP_GIANT();
 	}
 	g_free(buf);
-	PICKUP_GIANT();
 	return (error);
 }
 
@@ -490,10 +363,10 @@ g_bsd_hotwrite(void *arg, int flag)
 	struct g_slicer *gsp;
 	struct g_slice *gsl;
 	struct g_bsd_softc *ms;
-	struct g_bsd_softc fake;
 	u_char *p;
 	int error;
 	
+	g_topology_assert();
 	/*
 	 * We should never get canceled, because that would amount to a removal
 	 * of the geom while there was outstanding I/O requests.
@@ -506,28 +379,11 @@ g_bsd_hotwrite(void *arg, int flag)
 	gsl = &gsp->slices[bp->bio_to->index];
 	p = (u_char*)bp->bio_data + ms->labeloffset 
 	    - (bp->bio_offset + gsl->offset);
-	bsd_disklabel_le_dec(p, &fake.ondisk);
-	
-	ondisk2inram(&fake);
-	if (g_bsd_checklabel(&fake.inram)) {
-		g_io_deliver(bp, EPERM);
-		return;
-	}
-	if (g_bsd_lesum(&fake.ondisk, p) != 0) {
-		g_io_deliver(bp, EPERM);
-		return;
-	}
-	g_topology_unlock();
-	error = g_bsd_modify(gp, &fake.inram);	/* May pick up topology. */
+	error = g_bsd_modify(gp, p);
 	if (error) {
 		g_io_deliver(bp, EPERM);
-		g_topology_lock();
 		return;
 	}
-	/* Update our copy of the disklabel. */
-	ms->inram = fake.inram;
-	inram2ondisk(ms);
-	bsd_disklabel_le_enc(p, &ms->ondisk);
 	g_slice_finish_hot(bp);
 }
 
@@ -577,7 +433,7 @@ g_bsd_start(struct bio *bp)
 	switch (gio->cmd) {
 	case DIOCGDINFO:
 		/* Return a copy of the disklabel to userland. */
-		bcopy(&ms->inram, gio->data, sizeof(ms->inram));
+		bsd_disklabel_le_dec(ms->label, gio->data, MAXPARTITIONS);
 		g_io_deliver(bp, 0);
 		return (1);
 	case DIOCBSDBB:
@@ -629,10 +485,10 @@ g_bsd_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_
 	} else if (pp != NULL) {
 		if (indent == NULL)
 			sbuf_printf(sb, " ty %d",
-			    ms->inram.d_partitions[pp->index].p_fstype);
+			    ms->ondisk.d_partitions[pp->index].p_fstype);
 		else
 			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
-			    ms->inram.d_partitions[pp->index].p_fstype);
+			    ms->ondisk.d_partitions[pp->index].p_fstype);
 	}
 }
 
@@ -663,11 +519,10 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_consumer *cp;
 	int error, i;
 	struct g_bsd_softc *ms;
-	struct disklabel *dl;
 	u_int secsize;
 	struct g_slicer *gsp;
-	MD5_CTX md5sum;
 	u_char hash[16];
+	MD5_CTX md5sum;
 
 	g_trace(G_T_TOPOLOGY, "bsd_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -689,13 +544,6 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	     sizeof(*ms), g_bsd_start);
 	if (gp == NULL)
 		return (NULL);
-
-	/*
-	 * Now that we have attached to and opened our provider, we do
-	 * not need the topology lock until we change the topology again
-	 * next time.
-	 */
-	g_topology_unlock();
 
 	/*
 	 * Fill in the optional details, in our case we have a dumpconf
@@ -759,10 +607,8 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		 * partition) we calculate an MD5 and ask if other BSD's
 		 * below us love that label.  If they do, we don't.
 		 */
-
-		dl = &ms->inram;
 		MD5Init(&md5sum);
-		MD5Update(&md5sum, (u_char *)dl, sizeof(dl));
+		MD5Update(&md5sum, ms->label, sizeof(ms->label));
 		MD5Final(ms->labelsum, &md5sum);
 
 		error = g_getattr("BSD::labelsum", cp, &hash);
@@ -773,19 +619,19 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		 * Process the found disklabel, and modify our "slice"
 		 * instance to match it, if possible.
 		 */
-		error = g_bsd_modify(gp, dl);	/* Picks up topology lock. */
-		if (!error)
-			g_topology_unlock();
-		break;
+		error = g_bsd_modify(gp, ms->label);
 	} while (0);
 
 	/* Success or failure, we can close our provider now. */
-	g_topology_lock();
 	error = g_access_rel(cp, -1, 0, 0);
 
 	/* If we have configured any providers, return the new geom. */
-	if (gsp->nprovider > 0)
+	if (gsp->nprovider > 0) {
+		g_slice_conf_hot(gp, 0, ms->labeloffset, LABELSIZE,
+		    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
+		gsp->hot = g_bsd_hotwrite;
 		return (gp);
+	}
 	/*
 	 * ...else push the "self-destruct" button, by spoiling our own
 	 * consumer.  This triggers a call to g_slice_spoiled which will
