@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_constants.h#17 $
+ * $P4: //depot/projects/openpam/include/security/pam_constants.h#18 $
  */
 
 #ifndef _PAM_CONSTANTS_H_INCLUDED
@@ -120,9 +120,9 @@ enum {
 	PAM_OLDAUTHTOK			=   7,
 	PAM_RUSER			=   8,
 	PAM_USER_PROMPT			=   9,
-	PAM_AUTHTOK_PROMPT		=  10,		/* OpenPAM extension */
-	PAM_OLDAUTHTOK_PROMPT		=  11,		/* OpenPAM extension */
-	PAM_REPOSITORY			=  12,
+	PAM_REPOSITORY			=  10,
+	PAM_AUTHTOK_PROMPT		=  11,		/* OpenPAM extension */
+	PAM_OLDAUTHTOK_PROMPT		=  12,		/* OpenPAM extension */
 	PAM_NUM_ITEMS					/* OpenPAM extension */
 };
 
