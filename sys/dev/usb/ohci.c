@@ -1127,7 +1127,8 @@ ohci_process_done(sc, done)
 #ifdef OHCI_DEBUG
 	if (ohcidebug > 10) {
 		DPRINTF(("ohci_process_done: TD done:\n"));
-		ohci_dump_tds(sdone);
+		for (std = sdone; std; std = std->dnext)
+			ohci_dump_td(std);
 	}
 #endif
 
