@@ -1,16 +1,15 @@
-#       $Id: Makefile,v 1.15 1994/11/01 09:13:02 pst Exp $
+#       $Id: Makefile,v 1.16 1994/11/01 17:32:46 ache Exp $
 
 
-CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER \
-	 -DHAVE_UNISTD_H -DHAVE_STRING_H -DHAVE_STDLIB_H -DHAVE_VARARGS_H \
-	 -DFreeBSD
+CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H
 
 LIB=    readline
 SRCS+=  readline.c funmap.c keymaps.c vi_mode.c parens.c \
 	   rltty.c complete.c bind.c isearch.c display.c signals.c \
 	   history.c search.c tilde.c xmalloc.c
 HEADERS= history.h readline.h keymaps.h chardefs.h tilde.h
-NOMAN=	noman
+MAN3=   readline.3
+DPADD+= $(LIBTERMCAP)
 LDADD+= -ltermcap
 
 beforeinstall:
@@ -19,7 +18,7 @@ beforeinstall:
 	  chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/readline; \
 	  chmod 755 ${DESTDIR}/usr/include/readline; \
 	fi
-	cd ${.CURDIR}/readline; \
+	cd ${.CURDIR}; \
 	for m in ${HEADERS} ; do \
 	  cmp -s $$m ${DESTDIR}/usr/include/readline || \
 	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 \

@@ -19,6 +19,7 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -27,11 +28,6 @@
 #  include <sys/file.h>
 #endif /* !NO_SYS_FILE */
 #include <signal.h>
-
-/* This is needed to include support for TIOCGWINSZ and window resizing. */
-#if defined (OSF1) || defined (BSD386) || defined (_386BSD) || defined (__BSD_4_4__) || defined (AIX)
-#  include <sys/ioctl.h>
-#endif /* OSF1 || BSD386 || _386BSD || __BSD_4_4__ || AIX */
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
@@ -54,9 +50,13 @@ extern int errno;
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
 
+#if defined (GWINSZ_IN_SYS_IOCTL)
+#  include <sys/ioctl.h>
+#endif /* GWINSZ_IN_SYS_IOCTL */
+
 /* Some standard library routines. */
-#include <readline/readline.h>
-#include <readline/history.h>
+#include "readline.h"
+#include "history.h"
 
 static void cr ();
 

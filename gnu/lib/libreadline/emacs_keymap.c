@@ -24,7 +24,7 @@
 #include <stdio.h>
 #endif /* !BUFSIZ */
 
-#include <readline/readline.h>
+#include "readline.h"
 
 /* An array of function pointers, one for each possible key.
    If the type byte is ISKMAP, then the pointer is the address of
@@ -377,7 +377,7 @@ KEYMAP_ENTRY_ARRAY emacs_meta_keymap = {
   { ISFUNC, (Function *)0x0 },	/* Meta-+ */
   { ISFUNC, (Function *)0x0 },	/* Meta-, */
   { ISFUNC, rl_digit_argument }, /* Meta-- */
-  { ISFUNC, (Function *)0x0 },	/* Meta-. */
+  { ISFUNC, rl_yank_last_arg},	/* Meta-. */
   { ISFUNC, (Function *)0x0 },	/* Meta-/ */
 
   /* Regular digits. */
@@ -430,12 +430,12 @@ KEYMAP_ENTRY_ARRAY emacs_meta_keymap = {
   { ISFUNC, rl_do_lowercase_version },	/* Meta-Z */
 
   /* Some more punctuation. */
-  { ISFUNC, rl_arrow_keys },			/* Meta-[ */
+  { ISFUNC, (Function *)0x0 },		/* Meta-[ */	/* was rl_arrow_keys */
   { ISFUNC, rl_delete_horizontal_space },	/* Meta-\ */
-  { ISFUNC, (Function *)0x0 },			/* Meta-] */
-  { ISFUNC, (Function *)0x0 },			/* Meta-^ */
-  { ISFUNC, (Function *)0x0 },			/* Meta-_ */
-  { ISFUNC, (Function *)0x0 },			/* Meta-` */
+  { ISFUNC, (Function *)0x0 },		/* Meta-] */
+  { ISFUNC, (Function *)0x0 },		/* Meta-^ */
+  { ISFUNC, rl_yank_last_arg },		/* Meta-_ */
+  { ISFUNC, (Function *)0x0 },		/* Meta-` */
 
   /* Lowercase alphabet. */
   { ISFUNC, (Function *)0x0 },	/* Meta-a */
@@ -452,7 +452,7 @@ KEYMAP_ENTRY_ARRAY emacs_meta_keymap = {
   { ISFUNC, rl_downcase_word },	/* Meta-l */
   { ISFUNC, (Function *)0x0 },	/* Meta-m */
   { ISFUNC, rl_noninc_forward_search },	/* Meta-n */
-  { ISFUNC, rl_arrow_keys },	/* Meta-o */
+  { ISFUNC, (Function *)0x0 },	/* Meta-o */	/* was rl_arrow_keys */
   { ISFUNC, rl_noninc_reverse_search },	/* Meta-p */
   { ISFUNC, (Function *)0x0 },	/* Meta-q */
   { ISFUNC, rl_revert_line },	/* Meta-r */

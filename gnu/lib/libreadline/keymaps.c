@@ -18,6 +18,7 @@
    You should have received a copy of the GNU General Public License
    along with Readline; see the file COPYING.  If not, write to the Free
    Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
 
 #if defined (HAVE_STDLIB_H)
 #  include <stdlib.h>
@@ -26,10 +27,10 @@
 #endif /* HAVE_STDLIB_H */
 
 #include "rlconf.h"
-#include <readline/keymaps.h>
+#include "keymaps.h"
 #include "emacs_keymap.c"
 
-#ifdef VI_MODE
+#if defined (VI_MODE)
 #include "vi_keymap.c"
 #endif
 
