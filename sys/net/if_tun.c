@@ -676,7 +676,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 	while (m && uio->uio_resid > 0 && error == 0) {
 		len = min(uio->uio_resid, m->m_len);
 		if (len != 0)
-			error = uiomove(mtod(m, caddr_t), len, uio);
+			error = uiomove(mtod(m, void *), len, uio);
 		m = m_free(m);
 	}
 
@@ -725,7 +725,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	mp = &top;
 	while (error == 0 && uio->uio_resid > 0) {
 		m->m_len = min(mlen, uio->uio_resid);
-		error = uiomove(mtod (m, caddr_t), m->m_len, uio);
+		error = uiomove(mtod(m, void *), m->m_len, uio);
 		*mp = m;
 		mp = &m->m_next;
 		if (uio->uio_resid > 0) {

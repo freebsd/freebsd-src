@@ -146,7 +146,7 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 		    error = 0;
 		    break;
 		}
-		if ((error = uiomove((caddr_t)&dp, DE_SIZE, uio)))
+		if ((error = uiomove(&dp, DE_SIZE, uio)))
 			break;
 	}
 
