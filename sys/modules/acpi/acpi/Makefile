@@ -72,7 +72,7 @@ SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
 .if ${MACHINE} == "i386"
 SRCS+=	madt.c
 .endif
-CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin ${DBSRC}
+CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin ${DBSRC:.c=.o}
 
 acpi_wakecode.h: acpi_wakecode.S
 	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
