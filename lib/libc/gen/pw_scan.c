@@ -31,13 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
+#if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)pw_scan.c	8.3 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This module is used to "verify" password entries by chpass(1) and

@@ -32,12 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-/* From:
 static char sccsid[] = "@(#)gethostid.c	8.1 (Berkeley) 6/2/93";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
