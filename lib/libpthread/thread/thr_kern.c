@@ -439,6 +439,7 @@ _kse_setthreaded(int threaded)
 			_kse_initial->k_kcb->kcb_kmbx.km_lwp;
 		_thread_activated = 1;
 
+#ifndef SYSTEM_SCOPE_ONLY
 		if (_thread_scope_system <= 0) {
 			/* Set current thread to initial thread */
 			_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
@@ -446,10 +447,10 @@ _kse_setthreaded(int threaded)
 			_thr_start_sig_daemon();
 			_thr_setmaxconcurrency();
 		}
-		else {
+		else
+#endif
 			__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask,
 			    NULL);
-		}
 	}
 	return (0);
 }
