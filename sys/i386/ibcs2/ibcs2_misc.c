@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.26 1998/04/06 08:25:58 phk Exp $
+ * $Id: ibcs2_misc.c,v 1.27 1998/04/06 11:37:17 phk Exp $
  */
 
 /*
@@ -695,7 +695,7 @@ ibcs2_time(p, uap)
 {
 	struct timeval tv;
 
-	getmicrotime(&tv);
+	microtime(&tv);
 	p->p_retval[0] = tv.tv_sec;
 	if (SCARG(uap, tp))
 		return copyout((caddr_t)&tv.tv_sec, (caddr_t)SCARG(uap, tp),
