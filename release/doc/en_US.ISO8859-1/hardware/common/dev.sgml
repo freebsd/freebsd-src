@@ -222,6 +222,8 @@
 
     &hwlist.twe;
 
+    &hwlist.twa;
+
     <para arch="i386,pc98,alpha,sparc64,amd64">LSI/Symbios (formerly NCR)
     53C8<replaceable>XX</replaceable> and 53C10<replaceable>XX</replaceable> PCI
     SCSI controllers, either embedded on motherboard or on add-on
