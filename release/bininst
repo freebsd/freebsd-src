@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.40 1994/11/17 11:53:11 jkh Exp $
+# $Id: bininst,v 1.41 1994/11/18 10:05:29 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -41,7 +41,7 @@ trap interrupt 1 2 15
 
 # set initial defaults
 set_defaults() {
-	set_media_defaults
+	media_set_defaults
 	installing=1
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
@@ -51,14 +51,14 @@ set_defaults() {
 welcome() {
 	dialog --title "Welcome to FreeBSD!" $clear \
 	--msgbox \
-"We're now ready to install one or more packed distribution
-sets onto your machine.  Installation may be done from tape,
-CD, network (NFS or ftp over ethernet, SLIP or parallel port),
-a DOS partition or DOS floppies.  If you're installing over
-the network, make sure your cables are plugged in and ready to
-go.  If you're installing from tape, CD or floppies, now would
-be a good time to remember where you put the distribution
-media! :-)  If you're set up and ready to go, please press return!" 16 72
+"We're now ready to install one or more packed distribution sets onto
+your machine.  Installation may be done from tape, CDROM, a network
+(NFS or ftp over ethernet, SLIP or parallel port) or DOS (existing
+hard disk partition or floppies).  If you're installing over a network,
+make sure your cables are plugged in and ready to go.  If you're
+installing from tape, CD or floppies, now would be a good time to
+remember where you put the distribution media! :-)  If you're set and
+ready to go, please press return!" -1 -1
 }
 
 do_last_config()
