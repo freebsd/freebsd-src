@@ -10,10 +10,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
  *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -28,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx_asm.h,v 1.2 1997/03/16 07:28:30 gibbs Exp $
+ *      $Id: aicasm.h,v 1.3 1997/06/27 19:38:47 gibbs Exp $
  */
 
 #include <sys/queue.h>
@@ -56,13 +53,15 @@ typedef enum {
 SLIST_HEAD(path_list, path_entry);
 
 extern struct path_list search_path;
-extern struct symlist patch_options;
+extern struct scope_list scope_stack;
+extern struct symlist patch_functions;
 extern int includes_search_curdir;		/* False if we've seen -I- */
 extern char *appname;
 extern int yylineno;
 extern char *yyfilename;
 
-void stop __P((const char *errstring, int err_code));
-void include_file __P((char *file_name, include_type type));
-struct instruction *seq_alloc __P((void));
-struct patch *patch_alloc __P((void));
+void stop(const char *errstring, int err_code);
+void include_file(char *file_name, include_type type);
+struct instruction *seq_alloc(void);
+struct scope *scope_alloc(void);
+void process_scope(struct scope *);

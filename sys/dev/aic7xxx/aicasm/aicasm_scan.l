@@ -2,7 +2,7 @@
 /*
  * Lexical Analyzer for the Aic7xxx SCSI Host adapter sequencer assembler.
  *
- * Copyright (c) 1997 Justin T. Gibbs.
+ * Copyright (c) 1997-1998 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
  *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -29,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_scan.l,v 1.4 1997/09/03 03:44:42 gibbs Exp $
+ *      $Id: aicasm_scan.l,v 1.5 1997/09/27 19:37:29 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -43,6 +40,11 @@
 #include "aicasm.h"
 #include "aicasm_symbol.h"
 #include "y.tab.h"
+
+#define MAX_STR_CONST 256
+char string_buf[MAX_STR_CONST];
+char *string_buf_ptr;
+int  parren_count;
 %}
 
 PATH		[-/A-Za-z0-9_.]*[./][-/A-Za-z0-9_.]*
@@ -50,6 +52,8 @@ WORD		[A-Za-z_][-A-Za-z_0-9]*
 SPACE		[ \t]+
 
 %x COMMENT
+%x CEXPR
+%x INCLUDE
 
 %%
 \n			{ ++yylineno; }
@@ -60,6 +64,32 @@ SPACE		[ \t]+
 <COMMENT>"*"+[^*/\n]*	;
 <COMMENT>"/"+[^*/\n]*	;
 <COMMENT>"*"+"/"	{ BEGIN INITIAL; }
+if[ \t]*\(		{
+				string_buf_ptr = string_buf;
+				parren_count = 1;
+				BEGIN CEXPR;
+				return T_IF;
+			}
+<CEXPR>\(		{	*string_buf_ptr++ = '('; parren_count++; }
+<CEXPR>\)		{
+				parren_count--;
+				if (parren_count == 0) {
+					/* All done */
+					BEGIN INITIAL;
+					*string_buf_ptr = '\0';
+					yylval.sym = symtable_get(string_buf);
+					return T_CEXPR;
+				} else {
+					*string_buf_ptr++ = ')';
+				}
+			}
+<CEXPR>\n		{ ++yylineno; }
+<CEXPR>[^()\n]+		{
+				char *yptr = yytext;
+
+				while (*yptr != '\0')
+					*string_buf_ptr++ = *yptr++;
+			}
 
 {SPACE}			;
 
@@ -109,6 +139,7 @@ jnz			{ return T_JNZ;	}
 call			{ return T_CALL; }
 add			{ return T_ADD; }
 adc			{ return T_ADC; }
+bmov			{ return T_BMOV; }
 inc			{ return T_INC; }
 dec			{ return T_DEC; }
 stc			{ return T_STC;	}
@@ -120,12 +151,10 @@ and			{ return T_AND;	}
 or			{ return T_OR;	}
 ret			{ return T_RET; }
 nop			{ return T_NOP; }
-.if			{ return T_IF;  }
-.else			{ return T_ELSE; }
-.endif			{ return T_ENDIF; }
+else			{ return T_ELSE; }
 
 	/* Allowed Symbols */
-[-+,:()~|&."{};<>[\]!]		{ return yytext[0]; }
+[-+,:()~|&."{};<>[\]!]	{ return yytext[0]; }
 
 	/* Number processing */
 0[0-7]*			{
@@ -144,7 +173,11 @@ nop			{ return T_NOP; }
 			}
 
 	/* Include Files */
-#include		{ return T_INCLUDE; }
+#include		{ return T_INCLUDE; BEGIN INCLUDE;}
+<INCLUDE>[<>\"]		{ return yytext[0]; }
+<INCLUDE>{PATH}		{ yylval.str = strdup(yytext); return T_PATH; }
+<INCLUDE>;		{ BEGIN INITIAL; return yytext[0]; }
+<INCLUDE>.		{ stop("Invalid include line", EX_DATAERR); }
 
 	/* For parsing C include files with #define foo */
 #define			{ yylval.value = TRUE; return T_CONST; }

@@ -1,7 +1,7 @@
 /*
  * Aic7xxx SCSI host adapter firmware asssembler
  *
- * Copyright (c) 1997 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,10 +10,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
  *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -28,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm.c,v 1.18 1997/06/27 19:38:45 gibbs Exp $
+ *      $Id: aicasm.c,v 1.19 1997/09/03 03:44:38 gibbs Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -43,13 +40,24 @@
 #include "aicasm_symbol.h"
 #include "sequencer.h"
 
-static void usage __P((void));
-static void back_patch __P((void));
-static void output_code __P((FILE *ofile));
-static void output_listing __P((FILE *listfile, char *ifilename,
-				char *options));
-static struct patch *next_patch __P((struct patch *cur_patch, int options,
-				     int instrptr));
+typedef struct patch {
+	STAILQ_ENTRY(patch) links;
+	int		patch_func;
+	u_int		begin;
+	u_int		skip_instr;
+	u_int		skip_patch;
+} patch_t;
+
+STAILQ_HEAD(patch_list, patch) patches;
+
+static void usage(void);
+static void back_patch(void);
+static void output_code(FILE *ofile);
+static void output_listing(FILE *listfile, char *ifilename);
+static int dump_scope(scope_t *scope);
+static void emit_patch(scope_t *scope, int patch);
+static int check_patch(patch_t **start_patch, int start_instr,
+		       int *skip_addr, int *func_vals);
 
 struct path_list search_path;
 int includes_search_curdir;
@@ -62,8 +70,8 @@ char *listfilename;
 FILE *listfile;
 
 static STAILQ_HEAD(,instruction) seq_program;
-static STAILQ_HEAD(, patch) patch_list;
-symlist_t patch_options;
+struct scope_list scope_stack;
+symlist_t patch_functions;
 
 #if DEBUG
 extern int yy_flex_debug;
@@ -82,19 +90,24 @@ main(argc, argv)
 	int  ch;
 	int  retval;
 	char *inputfilename;
-	char *options;
+	scope_t *sentinal;
 
+	STAILQ_INIT(&patches);
 	SLIST_INIT(&search_path);
 	STAILQ_INIT(&seq_program);
-	STAILQ_INIT(&patch_list);
-	SLIST_INIT(&patch_options);
+	SLIST_INIT(&scope_stack);
+
+	/* Set Sentinal scope node */
+	sentinal = scope_alloc();
+	sentinal->type = SCOPE_ROOT;
+	
 	includes_search_curdir = 1;
 	appname = *argv;
 	regfile = NULL;
 	listfile = NULL;
-	options = NULL;
 #if DEBUG
 	yy_flex_debug = 0;
+	yydebug = 0;
 #endif
 	while ((ch = getopt(argc, argv, "d:l:n:o:r:I:O:")) != -1) {
 		switch(ch) {
@@ -137,10 +150,6 @@ main(argc, argv)
 				stop(NULL, EX_CANTCREAT);
 			}
 			ofilename = optarg;
-			break;
-		case 'O':
-			/* Patches to include in the listing */
-			options = optarg;
 			break;
 		case 'r':
 			if ((regfile = fopen(optarg, "w")) == NULL) {
@@ -207,13 +216,33 @@ main(argc, argv)
 	include_file(*argv, SOURCE_FILE);
 	retval = yyparse();
 	if (retval == 0) {
+		if (SLIST_FIRST(&scope_stack) == NULL
+		 || SLIST_FIRST(&scope_stack)->type != SCOPE_ROOT) {
+			stop("Unterminated conditional expression",
+			     EX_DATAERR);
+			/* NOTREACHED */
+		}
+
+		/* Process outmost scope */
+		process_scope(SLIST_FIRST(&scope_stack));
+		/*
+		 * Decend the tree of scopes and insert/emit
+		 * patches as appropriate.  We perform a depth first
+		 * tranversal, recursively handling each scope.
+		 */
+		/* start at the root scope */
+		dump_scope(SLIST_FIRST(&scope_stack));
+
+		/* Patch up forward jump addresses */
 		back_patch();
+
 		if (ofile != NULL)
 			output_code(ofile);
-		if (regfile != NULL)
+		if (regfile != NULL) {
 			symtable_dump(regfile);
+		}
 		if (listfile != NULL)
-			output_listing(listfile, inputfilename, options);
+			output_listing(listfile, inputfilename);
 	}
 
 	stop(NULL, 0);
@@ -228,7 +257,7 @@ usage()
 	(void)fprintf(stderr,
 "usage: %-16s [-nostdinc] [-I-] [-I directory] [-o output_file]
 			[-r register_output_file] [-l program_list_file]
-			[-O option_name[|options_name2]] input_file\n",
+			input_file\n",
 			appname);
 	exit(EX_USAGE);
 }
@@ -255,12 +284,9 @@ back_patch()
 				/* NOTREACHED */
 			}
 			f3_instr = &cur_instr->format.format3;
-			address = ((f3_instr->opcode_addr & ADDR_HIGH_BIT) << 8)
-				| f3_instr->address;
+			address = f3_instr->address;
 			address += cur_instr->patch_label->info.linfo->address;
-			f3_instr->opcode_addr &= ~ADDR_HIGH_BIT;
-			f3_instr->opcode_addr |= (address >> 8) & ADDR_HIGH_BIT;
-			f3_instr->address = address & 0xFF;
+			f3_instr->address = address;
 		}
 	}
 }
@@ -284,6 +310,7 @@ output_code(ofile)
 	for(cur_instr = seq_program.stqh_first;
 	    cur_instr != NULL;
 	    cur_instr = cur_instr->links.stqe_next) {
+
 		fprintf(ofile, "\t0x%02x, 0x%02x, 0x%02x, 0x%02x,\n",
 			cur_instr->format.bytes[0],
 			cur_instr->format.bytes[1],
@@ -291,60 +318,128 @@ output_code(ofile)
 			cur_instr->format.bytes[3]);
 		instrcount++;
 	}
-	fprintf(ofile, "};\n");
+	fprintf(ofile, "};\n\n");
 
 	/*
-	 *  Output the patch list, option definitions first.
+	 *  Output patch information.  Patch functions first.
 	 */
-	for(cur_node = patch_options.slh_first;
+	for(cur_node = SLIST_FIRST(&patch_functions);
 	    cur_node != NULL;
-	    cur_node = cur_node->links.sle_next) {
-		fprintf(ofile, "#define\t%-16s\t0x%x\n", cur_node->symbol->name,
-			cur_node->symbol->info.condinfo->value);
+	    cur_node = SLIST_NEXT(cur_node,links)) {
+		fprintf(ofile,
+"static int ahc_patch%d_func(struct ahc_softc *ahc);
+
+static int
+ahc_patch%d_func(struct ahc_softc *ahc)
+{
+	return (%s);
+}\n\n",
+			cur_node->symbol->info.condinfo->func_num,
+			cur_node->symbol->info.condinfo->func_num,
+			cur_node->symbol->name);
 	}
 
 	fprintf(ofile,
-"struct patch {
-	int	options;
-	int	negative;
-	int	begin;
-	int	end;
+"typedef int patch_func_t __P((struct ahc_softc *));
+struct patch {
+	patch_func_t	*patch_func;
+	u_int32_t	begin	   :10,
+			skip_instr :10,
+			skip_patch :12;
 } patches[] = {\n");
 
-	for(cur_patch = patch_list.stqh_first;
+	for(cur_patch = STAILQ_FIRST(&patches);
 	    cur_patch != NULL;
-	    cur_patch = cur_patch->links.stqe_next)
+	    cur_patch = STAILQ_NEXT(cur_patch,links)) {
+		fprintf(ofile, "\t{ ahc_patch%d_func, %d, %d, %d },\n",
+			cur_patch->patch_func, cur_patch->begin,
+			cur_patch->skip_instr, cur_patch->skip_patch);
+	}
 
-		fprintf(ofile, "\t{ 0x%08x, %d, 0x%03x, 0x%03x },\n",
-			cur_patch->options, cur_patch->negative, cur_patch->begin,
-			cur_patch->end);
+	fprintf(ofile, "\n};\n");
 
-	fprintf(ofile, "\t{ 0x%08x, %d, 0x%03x, 0x%03x }\n};\n",
-		0, 0, 0, 0);
-	
 	fprintf(stderr, "%s: %d instructions used\n", appname, instrcount);
 }
 
-void
-output_listing(listfile, ifilename, patches)
-	FILE *listfile;
-	char *ifilename;
-	char *patches;
+static int
+dump_scope(scope_t *scope)
 {
+	scope_t *cur_scope;
+	int	patches_emitted = 0;
+
+	/*
+	 * Emit the first patch for this scope
+	 */
+	emit_patch(scope, 0);
+
+	/*
+	 * Dump each scope within this one.
+	 */
+	cur_scope = TAILQ_FIRST(&scope->inner_scope);
+
+	while (cur_scope != NULL) {
+
+		dump_scope(cur_scope);
+
+		cur_scope = TAILQ_NEXT(cur_scope, scope_links);
+	}
+
+	/*
+	 * Emit the second, closing, patch for this scope
+	 */
+	emit_patch(scope, 1);
+}
+
+void
+emit_patch(scope_t *scope, int patch)
+{
+	patch_info_t *pinfo;
+	patch_t *new_patch;
+
+	pinfo = &scope->patches[patch];
+
+	if (pinfo->skip_instr == 0)
+		/* No-Op patch */
+		return;
+
+	new_patch = (patch_t *)malloc(sizeof(*new_patch));
+
+	if (new_patch == NULL)
+		stop("Could not malloc patch structure", EX_OSERR);
+
+	memset(new_patch, 0, sizeof(*new_patch));
+
+	if (patch == 0) {
+		new_patch->patch_func = scope->func_num;
+		new_patch->begin = scope->begin_addr;
+	} else {
+		new_patch->patch_func = 0;
+		new_patch->begin = scope->end_addr;
+	}
+	new_patch->skip_instr = pinfo->skip_instr;
+	new_patch->skip_patch = pinfo->skip_patch;
+	STAILQ_INSERT_TAIL(&patches, new_patch, links);
+}
+
+void
+output_listing(FILE *listfile, char *ifilename)
+{
+	char buf[1024];
 	FILE *ifile;
-	int line;
 	struct instruction *cur_instr;
+	patch_t *cur_patch;
+	symbol_node_t *cur_func;
+	int *func_values;
 	int instrcount;
 	int instrptr;
-	char buf[1024];
-	patch_t *cur_patch;
-	char *option_spec;
-	int options;
+	int line;
+	int func_count;
+	int skip_addr;
 
 	instrcount = 0;
 	instrptr = 0;
 	line = 1;
-	options = 1; /* All code outside of patch blocks */
+	skip_addr = 0;
 	if ((ifile = fopen(ifilename, "r")) == NULL) {
 		perror(ifilename);
 		stop(NULL, EX_DATAERR);
@@ -353,31 +448,66 @@ output_listing(listfile, ifilename, patches)
 	/*
 	 * Determine which options to apply to this listing.
 	 */
-	while ((option_spec = strsep(&patches, "|")) != NULL) {
-		symbol_t *symbol;
+	for (func_count = 0, cur_func = SLIST_FIRST(&patch_functions);
+	    cur_func != NULL;
+	    cur_func = SLIST_NEXT(cur_func, links))
+		func_count++;
 
-		symbol = symtable_get(option_spec);
-		if (symbol->type != CONDITIONAL) {
-			stop("Invalid option specified in patch list for "
-			     "program listing", EX_USAGE);
-			/* NOTREACHED */
+	if (func_count != 0) {
+		func_values = (int *)malloc(func_count * sizeof(int));
+
+		if (func_values == NULL)
+			stop("Could not malloc", EX_OSERR);
+		
+		func_values[0] = 0; /* FALSE func */
+		func_count--;
+
+		/*
+		 * Ask the user to fill in the return values for
+		 * the rest of the functions.
+		 */
+		
+		
+		for (cur_func = SLIST_FIRST(&patch_functions);
+		     cur_func != NULL && SLIST_NEXT(cur_func, links) != NULL;
+		     cur_func = SLIST_NEXT(cur_func, links), func_count--) {
+			int input;
+			
+			fprintf(stdout, "\n(%s)\n", cur_func->symbol->name);
+			fprintf(stdout,
+				"Enter the return value for "
+				"this expression[T/F]:");
+
+			while (1) {
+
+				input = getchar();
+				input = toupper(input);
+
+				if (input == 'T') {
+					func_values[func_count] = 1;
+					break;
+				} else if (input == 'F') {
+					func_values[func_count] = 0;
+					break;
+				}
+			}
 		}
-		options |= symbol->info.condinfo->value;
+		fprintf(stdout, "\nThanks!\n");
 	}
 
-	cur_patch = patch_list.stqh_first;
-	for(cur_instr = seq_program.stqh_first;
+	/* Now output the listing */
+	cur_patch = STAILQ_FIRST(&patches);
+	for(cur_instr = STAILQ_FIRST(&seq_program);
 	    cur_instr != NULL;
-	    cur_instr = cur_instr->links.stqe_next,instrcount++) {
+	    cur_instr = STAILQ_NEXT(cur_instr, links), instrcount++) {
 
-		cur_patch = next_patch(cur_patch, options, instrcount);
-		if (cur_patch
-		 && cur_patch->begin <= instrcount
-		 && cur_patch->end > instrcount)
+		if (check_patch(&cur_patch, instrcount,
+				&skip_addr, func_values) == 0) {
 			/* Don't count this instruction as it is in a patch
 			 * that was removed.
 			 */
                         continue;
+		}
 
 		while (line < cur_instr->srcline) {
 			fgets(buf, sizeof(buf), ifile);
@@ -401,29 +531,39 @@ output_listing(listfile, ifilename, patches)
 	fclose(ifile);
 }
 
-static struct patch *
-next_patch(cur_patch, options, instrptr)
-	struct patch *cur_patch;
-	int	options;
-	int	instrptr;
+static int
+check_patch(patch_t **start_patch, int start_instr,
+	    int *skip_addr, int *func_vals)
 {
-	while(cur_patch != NULL) {
-		if (((cur_patch->options & options) != 0
-		   && cur_patch->negative == FALSE)
-		 || ((cur_patch->options & options) == 0
-		   && cur_patch->negative == TRUE)
-		 || (instrptr >= cur_patch->end)) {
-			/*
-			 * Either we want to keep this section of code,
-			 * or we have consumed this patch. Skip to the
-			 * next patch.
+	patch_t *cur_patch;
+
+	cur_patch = *start_patch;
+
+	while (cur_patch != NULL && start_instr == cur_patch->begin) {
+		if (func_vals[cur_patch->patch_func] == 0) {
+			int skip;
+
+			/* Start rejecting code */
+			*skip_addr = start_instr + cur_patch->skip_instr;
+			for (skip = cur_patch->skip_patch;
+			     skip > 0 && cur_patch != NULL;
+			     skip--)
+				cur_patch = STAILQ_NEXT(cur_patch, links);
+		} else {
+			/* Accepted this patch.  Advance to the next
+			 * one and wait for our intruction pointer to
+			 * hit this point.
 			 */
-			cur_patch = cur_patch->links.stqe_next;
-		} else
-			/* Found an okay patch */
-			break;
+			cur_patch = STAILQ_NEXT(cur_patch, links);
+		}
 	}
-	return (cur_patch);
+
+	*start_patch = cur_patch;
+	if (start_instr < *skip_addr)
+		/* Still skipping */
+		return (0);
+
+	return (1);
 }
 
 /*
@@ -471,7 +611,7 @@ stop(string, err_code)
 		}
 	}
 
-	symlist_free(&patch_options);
+	symlist_free(&patch_functions);
 	symtable_close();
 
 	exit(err_code);
@@ -491,15 +631,85 @@ seq_alloc()
 	return new_instr;
 }
 
-patch_t *
-patch_alloc()
+scope_t *
+scope_alloc()
 {
-	patch_t *new_patch;
+	scope_t *new_scope;
 
-	new_patch = (patch_t *)malloc(sizeof(patch_t));
-	if (new_patch == NULL)
-		stop("Unable to malloc patch object", EX_SOFTWARE);
-	memset(new_patch, 0, sizeof(*new_patch));
-	STAILQ_INSERT_TAIL(&patch_list, new_patch, links);
-	return new_patch;
+	new_scope = (scope_t *)malloc(sizeof(scope_t));
+	if (new_scope == NULL)
+		stop("Unable to malloc scope object", EX_SOFTWARE);
+	memset(new_scope, 0, sizeof(*new_scope));
+	TAILQ_INIT(&new_scope->inner_scope);
+	
+	if (SLIST_FIRST(&scope_stack) != NULL) {
+		TAILQ_INSERT_TAIL(&SLIST_FIRST(&scope_stack)->inner_scope,
+				  new_scope, scope_links);
+	}
+	/* This patch is now the current scope */
+	SLIST_INSERT_HEAD(&scope_stack, new_scope, scope_stack_links);
+	return new_scope;
+}
+
+void
+process_scope(scope_t *scope)
+{
+	/*
+	 * We are "leaving" this scope.  We should now have
+	 * enough information to process the lists of scopes
+	 * we encapsulate.
+	 */
+	scope_t *cur_scope;
+	u_int skip_patch_count;
+	u_int skip_instr_count;
+
+	cur_scope = TAILQ_LAST(&scope->inner_scope, scope_tailq);
+	skip_patch_count = 0;
+	skip_instr_count = 0;
+	while (cur_scope != NULL) {
+		u_int patch0_patch_skip;
+
+		patch0_patch_skip = 0;
+		switch (cur_scope->type) {
+		case SCOPE_IF:
+		case SCOPE_ELSE_IF:
+			if (skip_instr_count != 0) {
+				/* Create a tail patch */
+				patch0_patch_skip++;
+				cur_scope->patches[1].skip_patch =
+				    skip_patch_count + 1;
+				cur_scope->patches[1].skip_instr =
+				    skip_instr_count;
+			}
+
+			/* Count Head patch */
+			patch0_patch_skip++;
+
+			/* Count any patches contained in our inner scope */
+			patch0_patch_skip += cur_scope->inner_scope_patches;
+
+			cur_scope->patches[0].skip_patch = patch0_patch_skip;
+			cur_scope->patches[0].skip_instr =
+			    cur_scope->end_addr - cur_scope->begin_addr;
+
+			skip_instr_count += cur_scope->patches[0].skip_instr;
+
+			skip_patch_count += patch0_patch_skip;
+			if (cur_scope->type == SCOPE_IF) {
+				scope->inner_scope_patches += skip_patch_count;
+				skip_patch_count = 0;
+			        skip_instr_count = 0;
+			}
+			break;
+		case SCOPE_ELSE:
+			/* Count any patches contained in our innter scope */
+			skip_patch_count += cur_scope->inner_scope_patches;
+
+			skip_instr_count += cur_scope->end_addr
+					  - cur_scope->begin_addr;
+			break;
+		}
+
+		cur_scope = TAILQ_PREV(cur_scope, scope_tailq, scope_links);
+	}
 }
