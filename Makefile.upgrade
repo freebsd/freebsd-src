@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.6 1998/09/23 01:46:25 jb Exp $
+#	$Id: Makefile.upgrade,v 1.7 1998/10/17 05:40:45 peter Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -67,7 +67,7 @@ ${MAKEOBJDIRPREFIX}/do_aout_buildworld :
 	@echo " Doing an aout buildworld to get an up-to-date set of tools"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout \
-		OBJFORMAT=aout \
+		OBJFORMAT=aout REALLY_WANT_DEPRECIATED_AOUT=yes \
 		make -f Makefile.inc1 -m ${.CURDIR}/share/mk buildworld
 	@touch ${MAKEOBJDIRPREFIX}/do_aout_buildworld
 
