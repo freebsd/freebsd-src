@@ -32,7 +32,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2002
+.Dd January 7, 2005
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -147,6 +147,7 @@ typedef struct _ftsent {
 	int fts_errno;			/* file errno */
 	long fts_number;		/* local numeric value */
 	void *fts_pointer;		/* local address value */
+	int64_t fts_bignum;		/* local 64-bit numeric value */
 	struct ftsent *fts_parent;	/* parent directory */
 	struct ftsent *fts_link;	/* next file structure */
 	struct ftsent *fts_cycle;	/* cycle structure */
@@ -295,6 +296,8 @@ not modified by the
 .Nm
 functions.
 It is initialized to 0.
+Note that this field is overlaid by
+.Fa fts_bignum .
 .It Fa fts_pointer
 This field is provided for the use of the application program and is
 not modified by the
@@ -302,6 +305,18 @@ not modified by the
 functions.
 It is initialized to
 .Dv NULL .
+Note that this field is overlaid by
+.Fa fts_bignum .
+.It Fa fts_bignum
+This field is provided for the use of the application program and is
+not modified by the
+.Nm
+functions.
+It is initialized to 0.
+Note that this field overlays
+.Fa fts_number
+and
+.Fa fts_pointer .
 .It Fa fts_parent
 A pointer to the
 .Vt FTSENT
@@ -311,6 +326,7 @@ file is a member.
 A parent structure for the initial entry point is provided as well,
 however, only the
 .Fa fts_level ,
+.Fa fts_bignum ,
 .Fa fts_number
 and
 .Fa fts_pointer
@@ -372,6 +388,13 @@ The
 .Fa fts_name
 field is always
 .Dv NUL Ns -terminated .
+.Pp
+Note that the use of
+.Fa fts_bignum
+is mutually exclusive with the use of
+.Fa fts_number
+or
+.Fa fts_pointer .
 .Sh FTS_OPEN
 The
 .Fn fts_open
