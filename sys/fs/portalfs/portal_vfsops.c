@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $Id: portal_vfsops.c,v 1.19 1998/01/01 08:28:11 bde Exp $
+ * $Id: portal_vfsops.c,v 1.20 1998/03/01 22:46:20 msmith Exp $
  */
 
 /*
@@ -273,8 +273,6 @@ portal_statfs(mp, sbp, p)
 	    size_t, struct proc *)))eopnotsupp)
 #define portal_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
 	    eopnotsupp)
-#define portal_vrele ((int (*) __P((struct mount *, struct vnode *))) \
-	    eopnotsupp)
 #define portal_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
 
 static struct vfsops portal_vfsops = {
@@ -286,7 +284,6 @@ static struct vfsops portal_vfsops = {
 	portal_statfs,
 	portal_sync,
 	portal_vget,
-	portal_vrele,
 	portal_fhtovp,
 	portal_vptofh,
 	portal_init,

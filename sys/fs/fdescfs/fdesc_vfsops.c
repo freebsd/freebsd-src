@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.13 1997/10/12 20:24:39 phk Exp $
+ * $Id: fdesc_vfsops.c,v 1.14 1998/03/01 22:46:10 msmith Exp $
  */
 
 /*
@@ -71,7 +71,6 @@ static int	fdesc_sync __P((struct mount *mp, int waitfor,
 				struct ucred *cred, struct proc *p));
 static int	fdesc_vget __P((struct mount *mp, ino_t ino,
 				struct vnode **vpp));
-static int	fdesc_vrele __P((struct mount *mp, struct vnode *vp));
 static int	fdesc_vptofh __P((struct vnode *vp, struct fid *fhp));
   
 /*
@@ -254,8 +253,6 @@ fdesc_sync(mp, waitfor, cred, p)
 	    size_t, struct proc *)))eopnotsupp)
 #define fdesc_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
 	    eopnotsupp)
-#define fdesc_vrele ((int (*) __P((struct mount *, struct vnode *))) \
-	    eopnotsupp)
 #define fdesc_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
 
 static struct vfsops fdesc_vfsops = {
@@ -267,7 +264,6 @@ static struct vfsops fdesc_vfsops = {
 	fdesc_statfs,
 	fdesc_sync,
 	fdesc_vget,
-	fdesc_vrele,
 	fdesc_fhtovp,
 	fdesc_vptofh,
 	fdesc_init,

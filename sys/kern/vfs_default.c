@@ -44,30 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/poll.h>
-
-/*
- * VFS operations
- */
-
-/*
- * Complement to all vpp returning ops.
- * XXX - initially only to get rid of WILLRELE.
- */
-/* ARGSUSED */
-int
-vfs_vrele(mp, vp)
-	struct mount *mp;
-	struct vnode *vp;
-{
-	vrele(vp);
-	return (0);
-}
-
-/*
- * vnode operations
- */
 
 static int vop_nostrategy __P((struct vop_strategy_args *));
 

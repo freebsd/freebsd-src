@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.28 1998/04/17 22:36:53 des Exp $
+ *	$Id: devfs_vfsops.c,v 1.29 1998/04/19 23:32:12 julian Exp $
  *
  */
 
@@ -342,7 +342,6 @@ static struct vfsops devfs_vfsops = {
 	devfs_statfs,
 	devfs_sync,
 	devfs_vget,
-	vfs_vrele,
 	devfs_fhtovp,
 	devfs_vptofh,
 	devfs_init

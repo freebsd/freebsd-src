@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.20 1998/02/07 01:34:32 kato Exp $
+ * $Id: umap_vfsops.c,v 1.21 1998/03/01 22:46:24 msmith Exp $
  */
 
 /*
@@ -72,7 +72,6 @@ static int	umapfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
 static int	umapfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
-static int	umapfs_vrele __P((struct mount *mp, struct vnode *vp));
 static int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
@@ -394,20 +393,6 @@ umapfs_vget(mp, ino, vpp)
 	return (VFS_VGET(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, ino, vpp));
 }
 
-/*
- * Complement to all vpp returning ops.
- * XXX - initially only to get rid of WILLRELE.
- */
-/* ARGSUSED */
-static int
-umapfs_vrele(mp, vp)
-	struct mount *mp;
-	struct vnode *vp;
-{
-	vrele(vp);
-	return (0);
-}
-
 static int
 umapfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
@@ -438,7 +423,6 @@ static struct vfsops umap_vfsops = {
 	umapfs_statfs,
 	umapfs_sync,
 	umapfs_vget,
-	umapfs_vrele,
 	umapfs_fhtovp,
 	umapfs_vptofh,
 	umapfs_init,

@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.24 1998/02/06 12:13:40 eivind Exp $
+ * $Id: null_vfsops.c,v 1.25 1998/03/01 22:46:18 msmith Exp $
  */
 
 /*
@@ -75,7 +75,6 @@ static int	nullfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
 static int	nullfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
-static int	nullfs_vrele __P((struct mount *mp, struct vnode *vp));
 static int	nullfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
@@ -389,24 +388,6 @@ nullfs_vget(mp, ino, vpp)
 	return VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, vpp);
 }
 
-/*
- * Complement to all vpp returning ops.
- * XXX - initially only to get rid of WILLRELE.
- */
-/* ARGSUSED */
-static int
-nullfs_vrele(mp, vp)
-	struct mount *mp;
-	struct vnode *vp;
-{
-	int error = 0;
-
-	error = VFS_VRELE(MOUNTTONULLMOUNT(mp)->nullm_vfs,
-			  NULLVPTOLOWERVP(vp));
-	vrele(vp);
-	return (error);
-}
-
 static int
 nullfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
@@ -438,7 +419,6 @@ static struct vfsops null_vfsops = {
 	nullfs_statfs,
 	nullfs_sync,
 	nullfs_vget,
-	nullfs_vrele,
 	nullfs_fhtovp,
 	nullfs_vptofh,
 	nullfs_init,
