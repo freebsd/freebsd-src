@@ -29,6 +29,7 @@
 const char _uuconf_tportc_rcsid[] = "$FreeBSD$";
 #endif
 
+#include <sys/socket.h>
 #include <errno.h>
 
 static int ipproto_param P((pointer pglobal, int argc, char **argv,
@@ -36,6 +37,8 @@ static int ipproto_param P((pointer pglobal, int argc, char **argv,
 static int ipbaud_range P((pointer pglobal, int argc, char **argv,
 			   pointer pvar, pointer pinfo));
 static int ipdialer P((pointer pglobal, int argc, char **argv, pointer pvar,
+		       pointer pinfo));
+static int ipfamily P((pointer pglobal, int argc, char **argv, pointer pvar,
 		       pointer pinfo));
 static int ipcunknown P((pointer pglobal, int argc, char **argv,
 			 pointer pvar, pointer pinfo));
@@ -151,6 +154,9 @@ static const struct cmdtab_offset asPtcp_cmds[] =
   { "service", UUCONF_CMDTABTYPE_STRING,
       offsetof (struct uuconf_port, uuconf_u.uuconf_stcp.uuconf_zport),
       NULL },
+  { "family", UUCONF_CMDTABTYPE_FN | 0,
+      offsetof (struct uuconf_port, uuconf_u.uuconf_stcp.uuconf_zfamily),
+      ipfamily },
   { "dialer-sequence", UUCONF_CMDTABTYPE_FULLSTRING,
       offsetof (struct uuconf_port, uuconf_u.uuconf_stcp.uuconf_pzdialer),
       NULL },
@@ -279,6 +285,7 @@ _uuconf_iport_cmd (qglobal, argc, argv, qport)
 	  break;
 	case UUCONF_PORTTYPE_TCP:
 	  qport->uuconf_u.uuconf_stcp.uuconf_zport = (char *) "uucp";
+	  qport->uuconf_u.uuconf_stcp.uuconf_zfamily = PF_UNSPEC;
 	  qport->uuconf_u.uuconf_stcp.uuconf_pzdialer = NULL;
 	  qport->uuconf_ireliable = (UUCONF_RELIABLE_SPECIFIED
 				     | UUCONF_RELIABLE_ENDTOEND
@@ -488,6 +495,35 @@ ipdialer (pglobal, argc, argv, pvar, pinfo)
 	iret |= UUCONF_CMDTABRET_EXIT;
       return iret;
     }
+}
+
+/* Handle a "family" commands.  The first argument is "inet" for
+   PF_INET or "inet6" for PF_INET6 */
+
+/*ARGSUSED*/
+static int
+ipfamily (pglobal, argc, argv, pvar, pinfo)
+     pointer pglobal;
+     int argc;
+     char **argv;
+     pointer pvar;
+     pointer pinfo;
+{
+  int *pzfamily = (int *) pvar;
+
+  if (argc < 2)
+    return UUCONF_SYNTAX_ERROR | UUCONF_CMDTABRET_EXIT;
+  if (!strcmp(argv[1], "inet"))
+    *pzfamily = PF_INET;
+#if HAVE_GETADDRINFO
+  else if (!strcmp(argv[1], "inet6"))
+    *pzfamily = PF_INET6;
+#endif
+  else if (!strcmp(argv[1], "inet46"))
+    *pzfamily = PF_UNSPEC;
+  else
+    return UUCONF_SYNTAX_ERROR | UUCONF_CMDTABRET_EXIT;
+  return UUCONF_CMDTABRET_KEEP;
 }
 
 /* Give an error for an unknown port command.  */
