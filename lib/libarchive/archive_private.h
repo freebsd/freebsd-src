@@ -48,6 +48,11 @@ struct archive {
 	unsigned	  state;
 
 	struct archive_entry	*entry;
+	uid_t		  user_uid;	/* UID of current user. */
+
+	/* Dev/ino of the archive being read/written. */
+	dev_t		  skip_file_dev;
+	ino_t		  skip_file_ino;
 
 	/* Utility:  Pointer to a block of nulls. */
 	const char 		*nulls;
@@ -61,8 +66,6 @@ struct archive {
 	off_t		  read_data_offset;
 	off_t		  read_data_output_offset;
 	size_t		  read_data_remaining;
-
-	uid_t		  user_uid;	/* UID of current user. */
 
 	/* Callbacks to open/read/write/close archive stream. */
 	archive_open_callback	*client_opener;

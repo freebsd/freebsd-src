@@ -76,8 +76,9 @@ file_open(struct archive *a, void *client_data)
 {
 	int flags;
 	struct write_file_data *mine;
-	struct stat st;
+	struct stat st, *pst;
 
+	pst = NULL;
 	mine = client_data;
 	flags = O_WRONLY | O_CREAT | O_TRUNC;
 
@@ -91,13 +92,17 @@ file_open(struct archive *a, void *client_data)
 		 * otherwise leave it unpadded.
 		 */
 		if (mine->fd >= 0 && a->bytes_in_last_block < 0) {
-			/* Last block will be fully padded. */
-			fstat(mine->fd, &st);
-			if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) ||
-			    S_ISFIFO(st.st_mode))
-				archive_write_set_bytes_in_last_block(a, 0);
-			else
-				archive_write_set_bytes_in_last_block(a, 1);
+			if (fstat(mine->fd, &st) == 0) {
+				pst = &st;
+				if (S_ISCHR(st.st_mode) ||
+				    S_ISBLK(st.st_mode) ||
+				    S_ISFIFO(st.st_mode))
+					/* Pad last block. */
+					archive_write_set_bytes_in_last_block(a, 0);
+				else
+					/* Don't pad last block. */
+					archive_write_set_bytes_in_last_block(a, 1);
+			}
 		}
 	} else {
 		mine->fd = 1;
@@ -111,6 +116,17 @@ file_open(struct archive *a, void *client_data)
 		    mine->filename);
 		return (ARCHIVE_FATAL);
 	}
+
+	if (pst == NULL && fstat(mine->fd, &st) == 0)
+		pst = &st;
+	if (pst == NULL) {
+		archive_set_error(a, errno, "Couldn't stat '%s'",
+		    mine->filename);
+		return (ARCHIVE_FATAL);
+	}
+
+	a->skip_file_dev = pst->st_dev;
+	a->skip_file_ino = pst->st_ino;
 
 	return (ARCHIVE_OK);
 }

@@ -65,10 +65,10 @@ struct archive_entry_header_ustar {
 	char	version[2]; /* For POSIX: "00" */
 	char	uname[32];
 	char	gname[32];
-	char	devmajor[6];
-	char	devmajor_padding[2];
-	char	devminor[6];
-	char	devminor_padding[2];
+	char	rdevmajor[6];
+	char	rdevmajor_padding[2];
+	char	rdevminor[6];
+	char	rdevminor_padding[2];
 	char	prefix[155];
 	char	padding[12];
 };
@@ -90,8 +90,8 @@ static const struct archive_entry_header_ustar template_header = {
 	{ '0', '0' },			/* version */
 	{ },				/* uname */
 	{ },				/* gname */
-	{ "000000" }, { ' ', '\0' },	/* devmajor, space-null termination */
-	{ "000000" }, { ' ', '\0' },	/* devminor, space-null termination */
+	{ "000000" }, { ' ', '\0' },	/* rdevmajor, space-null termination */
+	{ "000000" }, { ' ', '\0' },	/* rdevminor, space-null termination */
 	{ },				/* prefix */
 	{ }				/* padding */
 };
@@ -289,15 +289,15 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	}
 
 	if (S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode)) {
-		if (format_octal(major(st->st_rdev), h->devmajor,
-			sizeof(h->devmajor))) {
+		if (format_octal(major(st->st_rdev), h->rdevmajor,
+			sizeof(h->rdevmajor))) {
 			archive_set_error(a, ERANGE,
 			    "Major device number too large");
 			ret = ARCHIVE_WARN;
 		}
 
-		if (format_octal(minor(st->st_rdev), h->devminor,
-			sizeof(h->devminor))) {
+		if (format_octal(minor(st->st_rdev), h->rdevminor,
+			sizeof(h->rdevminor))) {
 			archive_set_error(a, ERANGE,
 			    "Minor device number too large");
 			ret = ARCHIVE_WARN;

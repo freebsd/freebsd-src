@@ -625,13 +625,13 @@ archive_read_extract_device(struct archive *a, struct archive_entry *entry,
 		unlink(archive_entry_pathname(entry));
 
 	r = mknod(archive_entry_pathname(entry), mode,
-	    archive_entry_stat(entry)->st_rdev);
+	    archive_entry_rdev(entry));
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (r != 0 && errno == ENOENT) {
 		mkdirpath(a, archive_entry_pathname(entry));
 		r = mknod(archive_entry_pathname(entry), mode,
-		    archive_entry_stat(entry)->st_rdev);
+		    archive_entry_rdev(entry));
 	}
 
 	if (r != 0) {
@@ -654,7 +654,7 @@ archive_read_extract_char_device(struct archive *a,
 {
 	mode_t mode;
 
-	mode = (archive_entry_stat(entry)->st_mode & ~S_IFMT) | S_IFCHR;
+	mode = (archive_entry_mode(entry) & ~S_IFMT) | S_IFCHR;
 	return (archive_read_extract_device(a, entry, flags, mode));
 }
 
@@ -664,7 +664,7 @@ archive_read_extract_block_device(struct archive *a,
 {
 	mode_t mode;
 
-	mode = (archive_entry_stat(entry)->st_mode & ~S_IFMT) | S_IFBLK;
+	mode = (archive_entry_mode(entry) & ~S_IFMT) | S_IFBLK;
 	return (archive_read_extract_device(a, entry, flags, mode));
 }
 
