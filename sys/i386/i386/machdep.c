@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.164 1995/12/25 01:02:32 davidg Exp $
+ *	$Id: machdep.c,v 1.165 1995/12/28 23:14:35 davidg Exp $
  */
 
 #include "npx.h"
@@ -1493,29 +1493,29 @@ init386(first)
 		/*
 		 * Test for alternating 1's and 0's
 		 */
-		*(int *)CADDR1 = 0xaaaaaaaa;
-		if (*(int *)CADDR1 != 0xaaaaaaaa) {
+		*(volatile int *)CADDR1 = 0xaaaaaaaa;
+		if (*(volatile int *)CADDR1 != 0xaaaaaaaa) {
 			page_bad = TRUE;
 		}
 		/*
 		 * Test for alternating 0's and 1's
 		 */
-		*(int *)CADDR1 = 0x55555555;
-		if (*(int *)CADDR1 != 0x55555555) {
+		*(volatile int *)CADDR1 = 0x55555555;
+		if (*(volatile int *)CADDR1 != 0x55555555) {
 			page_bad = TRUE;
 		}
 		/*
 		 * Test for all 1's
 		 */
-		*(int *)CADDR1 = 0xffffffff;
-		if (*(int *)CADDR1 != 0xffffffff) {
+		*(volatile int *)CADDR1 = 0xffffffff;
+		if (*(volatile int *)CADDR1 != 0xffffffff) {
 			page_bad = TRUE;
 		}
 		/*
 		 * Test for all 0's
 		 */
-		*(int *)CADDR1 = 0x0;
-		if (*(int *)CADDR1 != 0x0) {
+		*(volatile int *)CADDR1 = 0x0;
+		if (*(volatile int *)CADDR1 != 0x0) {
 			/*
 			 * test of page failed
 			 */
