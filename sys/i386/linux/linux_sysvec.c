@@ -40,6 +40,7 @@
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
