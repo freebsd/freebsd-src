@@ -71,8 +71,6 @@ MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
-static struct proc *dopfind(register pid_t);
-
 static void doenterpgrp(struct proc *, struct pgrp *);
 
 static void pgdelete(struct pgrp *);
@@ -251,24 +249,12 @@ pfind(pid)
 	register struct proc *p;
 
 	sx_slock(&allproc_lock);
-	p = dopfind(pid);
-	sx_sunlock(&allproc_lock);
-	return (p);
-}
-
-static struct proc *
-dopfind(pid)
-	register pid_t pid;
-{
-	register struct proc *p;
-
-	sx_assert(&allproc_lock, SX_LOCKED);
-
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
 			break;
 		}
+	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
