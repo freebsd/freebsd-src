@@ -212,8 +212,8 @@ file(char *name)
 	args[4] = &arg[4][0];
 	retval = 0;
 	while(fgets(line, 100, fp) != NULL) {
-		i = sscanf(line, "%s %s %s %s %s", arg[0], arg[1], arg[2],
-		    arg[3], arg[4]);
+		i = sscanf(line, "%49s %49s %49s %49s %49s", arg[0], arg[1],
+		    arg[2], arg[3], arg[4])
 		if (i < 2) {
 			warnx("bad line: %s", line);
 			retval = 1;
