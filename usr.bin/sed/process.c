@@ -470,7 +470,7 @@ lputs(s)
 	static int termwidth = -1;
 
 	if (termwidth == -1) {
-		if ((p = getenv("COLUMNS")))
+		if ((p = getenv("COLUMNS")) && *p != '\0')
 			termwidth = atoi(p);
 		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == 0 &&
 		    win.ws_col > 0)
