@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.8 1995/06/06 00:55:25 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9 1995/06/07 05:51:11 jkh Exp $
 
 Table of Contents
 -----------------
@@ -370,5 +370,15 @@ A: This problem may occur in a system with a 3com 3c509 ethernet adaptor.
    the ``disable'' command to disable the device probes for all devices
    at address 0x300 except the ep0 driver.   On exit, your machine should
    successfully boot FreeBSD.
+
+
+Q: My system hangs during boot, right after the "fd0: [my floppy drive]"
+   line.
+
+A: This is not actually a hang, simply a very LONG "wcd0" probe that
+   often takes a long time to complete on certain systems (where there
+   usually _isn't_ a WD controller).  Be patient, your system will boot!
+   To eliminate the problem, boot with the -c flag and eliminate the wdc0
+   device, or compile a custom kernel.
 
 [ Please add more hardware tips to this Q&A section! ]
