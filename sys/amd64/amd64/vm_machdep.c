@@ -542,7 +542,7 @@ vm_page_zero_idle()
 	static int free_rover;
 	static int zero_state;
 	vm_page_t m;
-	int s, intrsave;
+	int s;
 
 	/*
 	 * Attempt to maintain approximately 1/2 of our free pages in a
@@ -560,8 +560,6 @@ vm_page_zero_idle()
 
 	if (mtx_try_enter(&Giant, MTX_DEF)) {
 		s = splvm();
-		intrsave = save_intr();
-		enable_intr();
 		zero_state = 0;
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
 		if (m != NULL && (m->flags & PG_ZERO) == 0) {
@@ -583,16 +581,9 @@ vm_page_zero_idle()
 		}
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
-		restore_intr(intrsave);
 		mtx_exit(&Giant, MTX_DEF);
 		return (1);
 	}
-	/*
-	 * We have to enable interrupts for a moment if the try_mplock fails
-	 * in order to potentially take an IPI.   XXX this should be in 
-	 * swtch.s
-	 */
-	__asm __volatile("sti; nop; cli" : : : "memory");
 	return (0);
 }
 
