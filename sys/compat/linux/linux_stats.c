@@ -28,12 +28,15 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/stat.h>
@@ -247,6 +250,11 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	mp = ndp->ni_vp->v_mount;
 	bsd_statfs = &mp->mnt_stat;
 	vrele(ndp->ni_vp);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	if (error)
+		return (error);
+#endif
 	error = VFS_STATFS(mp, bsd_statfs, td);
 	if (error)
 		return error;
@@ -282,6 +290,13 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	if (error)
 		return error;
 	mp = ((struct vnode *)fp->f_data)->v_mount;
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	if (error) {
+		fdrop(fp, td);
+		return (error);
+	}
+#endif
 	bsd_statfs = &mp->mnt_stat;
 	error = VFS_STATFS(mp, bsd_statfs, td);
 	if (error) {
@@ -344,6 +359,11 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	if (vfinddev(dev, VCHR, &vp)) {
 		if (vp->v_mount == NULL)
 			return (EINVAL);
+#ifdef MAC
+		error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+		if (error)
+			return (error);
+#endif
 		stat = &(vp->v_mount->mnt_stat);
 		error = VFS_STATFS(vp->v_mount, stat, td);
 		if (error)

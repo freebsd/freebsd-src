@@ -38,6 +38,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "opt_compat.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,6 +52,7 @@
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <ufs/ufs/dir.h>	/* XXX only for DIRBLKSIZ */
@@ -200,7 +202,12 @@ unionread:
 
 		eofflag = 0;
 
-		error = VOP_READDIR(uvp, &uio, td->td_ucred, &eofflag, 0, 0);
+#ifdef MAC
+		error = mac_check_vnode_readdir(td->td_ucred, uvp);
+		if (error == 0)
+#endif /* MAC */
+			error = VOP_READDIR(uvp, &uio, td->td_ucred, &eofflag,
+			    0, 0);
 
 		off = uio.uio_offset;
 
