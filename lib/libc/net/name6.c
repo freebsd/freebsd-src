@@ -191,6 +191,21 @@ static void	 _dns_ehent(void);
 static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */
 
+/* Make getipnodeby*() thread-safe in libc for use with kernel threads. */
+#include "libc_private.h"
+#include "spinlock.h"
+/*
+ * XXX: Our res_*() is not thread-safe.  So, we share lock between
+ * getaddrinfo() and getipnodeby*().  Still, we cannot use
+ * getaddrinfo() and getipnodeby*() in conjunction with other
+ * functions which call res_*().
+ */
+extern spinlock_t __getaddrinfo_thread_lock;
+#define THREAD_LOCK() \
+	if (__isthreaded) _SPINLOCK(&__getaddrinfo_thread_lock);
+#define THREAD_UNLOCK() \
+	if (__isthreaded) _SPINUNLOCK(&__getaddrinfo_thread_lock);
+
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
 static const ns_src default_src[] = { 
 	{ NSSRC_FILES, NS_SUCCESS },
@@ -277,8 +292,10 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 		}
 	}
 
+	THREAD_LOCK();
 	rval = nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyname", default_src,
 			  name, af, errp);
+	THREAD_UNLOCK();
 	return (rval == NS_SUCCESS) ? hp : NULL;
 }
 
@@ -422,8 +439,10 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 		return NULL;
 	}
 
+	THREAD_LOCK();
 	rval = nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyaddr", default_src,
 			  src, len, af, errp);
+	THREAD_UNLOCK();
 	return (rval == NS_SUCCESS) ? hp : NULL;
 }
 
