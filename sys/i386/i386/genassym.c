@@ -34,14 +34,21 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.12 1994/10/02 01:28:38 rgrimes Exp $
+ *	$Id: genassym.c,v 1.13 1994/10/02 04:45:33 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/map.h>
 #include <sys/proc.h>
+/* XXX This is just real ugly to have to do, but it is what you have to do! */
+#ifndef	NFS
+#define	NFS 
 #include <sys/mount.h>
+#undef	NFS
+#else   
+#include <sys/mount.h>
+#endif
 #include <sys/mbuf.h>
 #include <sys/msgbuf.h>
 #include <machine/cpu.h>
