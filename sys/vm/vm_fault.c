@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.55 1996/07/28 01:14:01 dyson Exp $
+ * $Id: vm_fault.c,v 1.56 1996/07/30 03:08:07 dyson Exp $
  */
 
 /*
@@ -287,7 +287,7 @@ RetryFault:;
 			/*
 			 * Mark page busy for other processes, and the pagedaemon.
 			 */
-			if ((queue == PQ_CACHE) &&
+			if (((queue - m->pc) == PQ_CACHE) &&
 			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 				vm_page_activate(m);
 				UNLOCK_AND_DEALLOCATE;
