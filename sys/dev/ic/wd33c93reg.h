@@ -1,8 +1,12 @@
+/* $FreeBSD$ */
+/*	$NecBSD: wd33c93reg.h,v 1.21.24.1 2001/06/13 05:52:05 honda Exp $	*/
+/*	$NetBSD$	*/
 /*
- * [NetBSD for NEC PC98 series]
- *  Copyright (c) 1996 NetBSD/pc98 porting staff.
- *  Copyright (c) 1996 Naofumi Honda
- *  All rights reserved.
+ * [NetBSD for NEC PC-98 series]
+ *  Copyright (c) 1996, 1997, 1998
+ *	NetBSD/pc98 porting staff. All rights reserved.
+ *  Copyright (c) 1996, 1997, 1998
+ *	Naofumi Honda. All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -26,8 +30,6 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef	_WD33C93REG_H_
@@ -35,9 +37,10 @@
 
 /* wd33c93 register */
 #define	wd3s_oid		0x00
-#define	IDR_FS_15_20		0x80
+#define	IDR_FS_16_20		0x80
 #define	IDR_FS_12_15		0x40
 #define	IDR_FS_8_10		0x00
+#define	IDR_RAF			0x20
 #define	IDR_EHP			0x10
 #define	IDR_EAF			0x08
 #define	IDR_IDM			0x07
@@ -60,6 +63,8 @@
 #define	wd3s_synch		0x11
 #define	wd3s_cnt		0x12
 #define	wd3s_did		0x15
+#define	DIDR_SCC		0x80
+#define	DIDR_DPD		0x40
 
 #define	wd3s_sid		0x16
 #define	SIDR_RESEL		0x80
@@ -88,11 +93,14 @@
 #define	BSR_MSGOUT		0x06
 #define	BSR_MSGIN		0x07
 
+#define	BSR_RESET		0x00
+#define	BSR_AFM_RESET		0x01
 #define	BSR_SELECTED		0x11
 #define	BSR_SATFIN		0x16
 #define	BSR_ACKREQ		0x20
 #define	BSR_SATSDP		0x21
 #define	BSR_RESEL		0x80
+#define	BSR_AFM_RESEL		0x81
 #define	BSR_DISC		0x85
 
 #define	wd3s_cmd		0x18
