@@ -323,7 +323,7 @@ exit.3:		jz exit.3			# No
 exit.4:		jmp exit.4
 .else
 		movw $0x1234, BDA_BOOT		# Do a warm boot
-		ljmp $0xffff,$0x0		# reboot the machine
+		ljmp $0xf000,$0xfff0		# reboot the machine
 .endif
 #
 # Set IRQ offsets by reprogramming 8259A PICs.
