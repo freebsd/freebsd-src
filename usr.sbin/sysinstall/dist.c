@@ -128,7 +128,7 @@ static Distribution XF86DistTable[] = {
 { "Xdoc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},
 { "Xhtml",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_HTML,		NULL		},
 { "Xlib",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LIB,		NULL		},
-#ifdef __i386__
+#if defined(__i386__) && defined(PC98)
 { "Xlk98",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT98,	NULL		},
 #endif
 { "Xlkit",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT,		NULL		},
@@ -136,7 +136,7 @@ static Distribution XF86DistTable[] = {
 { "Xprog",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PROG,		NULL		},
 { "Xps",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PS,		NULL		},
 { "Xset",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SET,		NULL		},
-#ifdef __i386__
+#if defined(__i386__) && defined(PC98)
 { "X9set",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_9SET,		NULL		},
 #endif
 { NULL },
@@ -144,7 +144,7 @@ static Distribution XF86DistTable[] = {
 
 /* The XFree86 server distribution */
 static Distribution XF86ServerDistTable[] = {
-#ifdef __i386__
+#if defined(__i386__) && defined(PC98)
 { "PC98-Servers/X9480",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9480,	NULL		},
 { "PC98-Servers/X9EGC",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9EGC,	NULL		},
 { "PC98-Servers/X9GA9",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9GA9,	NULL		},
