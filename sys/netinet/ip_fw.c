@@ -523,7 +523,7 @@ int s=splnet();
 	struct ip_fw *ftmp;
 	ftmp = *chainptr;
 	*chainptr = ftmp->fw_next;
-	free(ftmp,M_SOOPTS);
+	free(ftmp,M_IPFW);
     }
 splx(s);
 }
@@ -545,7 +545,7 @@ struct ip_fw *frwl;
     int addb4=0;
     int n_o,n_n;
 
-    ftmp = malloc(sizeof(struct ip_fw),M_SOOPTS,M_DONTWAIT);
+    ftmp = malloc(sizeof(struct ip_fw),M_IPFW,M_DONTWAIT);
     if ( ftmp == NULL ) {
 	dprintf1("ip_fw_ctl:  malloc said no\n");
 	splx(s);
@@ -751,13 +751,13 @@ struct ip_fw *frwl;
         if (ltmp)
             {
               ltmp->fw_next=ftmp->fw_next;
-	      free(ftmp,M_SOOPTS);
+	      free(ftmp,M_IPFW);
               ftmp=ltmp->fw_next;
             }
         else
             {
              *chainptr=ftmp->fw_next; 
-             free(ftmp,M_SOOPTS);
+             free(ftmp,M_IPFW);
              ftmp=*chainptr;
             }
        
