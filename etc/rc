@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.163 1998/12/12 23:04:20 dillon Exp $
+#	$Id: rc,v 1.164 1999/01/06 14:01:52 peter Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -284,6 +284,10 @@ fi
 
 if [ "X${sendmail_enable}" = X"YES" -a -r /etc/sendmail.cf ]; then
 	echo -n ' sendmail';	/usr/sbin/sendmail ${sendmail_flags}
+fi
+
+if [ "X${usbd_enable}" = X"YES" ]; then
+	echo -n ' usbd';	/usr/sbin/usbd ${usbd_flags}
 fi
 
 echo '.'
