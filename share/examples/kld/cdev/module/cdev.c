@@ -67,9 +67,8 @@
  *
  * $FreeBSD$
  */
-#include <sys/types.h>
-#include <sys/uio.h>
 #include <sys/param.h>
+#include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
@@ -138,7 +137,7 @@ mydev_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 	error = EINVAL;
 	break;
     }
-    return error;
+    return (error);
 }
 
 /*
@@ -161,7 +160,7 @@ mydev_write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 /*
- * The mydev_read function just takes the buf that was saved 
+ * The mydev_read function just takes the buf that was saved
  * via mydev_write() and returns it to userland for
  * accessing.
  */
@@ -174,7 +173,7 @@ mydev_read(dev_t dev, struct uio *uio, int ioflag)
 	dev2udev(dev), uio, ioflag);
 
     if (len <= 0) {
-	err = -1; 
+	err = -1;
     } else {	/* copy buf to userland */
 	copystr(&buf, uio->uio_iov->iov_base, 513, &len);
     }
