@@ -72,7 +72,7 @@ _kvm_maphdrs(kvm_t *kd, size_t sz)
 	}
 
 	vm->mmapsize = sz;
-	vm->mmapbase = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, kd->pmfd, NULL);
+	vm->mmapbase = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, kd->pmfd, 0);
 	if (vm->mmapbase == MAP_FAILED) {
 		_kvm_err(kd, kd->program, "cannot mmap corefile");
 		return (-1);
