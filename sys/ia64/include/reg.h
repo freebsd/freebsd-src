@@ -55,6 +55,7 @@ struct reg {
 	uint64_t	r_ar_fpsr;
 	uint64_t	r_ar_pfs;
 	uint64_t	r_ar_lc;
+	uint64_t	r_ar_ec;
 };
 
 struct fpreg {
