@@ -348,10 +348,12 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			if (ppp->p_size == 0)
 				continue;
 			npart++;
+			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
 			    ((off_t)(ppp->p_offset - ppr->p_offset)) << 9ULL,
 			    ((off_t)ppp->p_size) << 9ULL,
 			    "%s%c", pp->name, 'a' + i);
+			g_topology_unlock();
 			g_error_provider(pp2, 0);
 		}
 		ondisk2inram(ms);
@@ -388,8 +390,10 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		dl->d_checksum = 0;
 		dl->d_checksum = dkcksum(dl);
 		ms->inram = ms->ondisk;
+		g_topology_lock();
 		pp2 = g_slice_addslice(gp, RAW_PART,
 		    0, mediasize, "%s%c", pp->name, 'a' + RAW_PART);
+		g_topology_unlock();
 		g_error_provider(pp2, 0);
 		npart = 1;
 	}

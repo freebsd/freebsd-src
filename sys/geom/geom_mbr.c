@@ -241,10 +241,12 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			g_mbr_print(i, dp + i);
 			npart++;
 			ms->type[i] = dp[i].dp_typ;
+			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
 			    ((off_t)dp[i].dp_start) << 9ULL,
 			    ((off_t)dp[i].dp_size) << 9ULL,
 			    "%ss%d", gp->name, i + 1);
+			g_topology_unlock();
 		}
 		break;
 	}
@@ -373,6 +375,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			g_mbrext_print(0, dp);
 			g_mbrext_print(1, dp + 1);
 			if (dp[0].dp_flag == 0 && dp[0].dp_size != 0) {
+				g_topology_lock();
 				pp2 = g_slice_addslice(gp, slice,
 				    (((off_t)dp[0].dp_start) << 9ULL) + off,
 				    ((off_t)dp[0].dp_size) << 9ULL,
@@ -381,6 +384,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				    strlen(gp->name) - 1,
 				    gp->name,
 				    slice + 5);
+				g_topology_unlock();
 				ms->type[slice] = dp[0].dp_typ;
 				slice++;
 				g_error_provider(pp2, 0);
