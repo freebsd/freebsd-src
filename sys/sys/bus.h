@@ -60,6 +60,7 @@ enum intr_type {
     INTR_TYPE_MISC = 16,
     INTR_TYPE_FAST = 128
 };
+#define INTR_TYPE_AV INTR_TYPE_TTY	/* for source compatability with 5.x */
 
 typedef int (*devop_t)(void);
 
