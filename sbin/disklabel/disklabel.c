@@ -149,7 +149,6 @@ char    part_size_type[MAX_NUM_PARTS];
 char    part_offset_type[MAX_NUM_PARTS];
 int     part_set[MAX_NUM_PARTS];
 
-#if NUMBOOT > 0
 int	installboot;	/* non-zero if we should install a boot program */
 char	*bootbuf;	/* pointer to buffer with remainder of boot prog */
 int	bootsize;	/* size of remaining boot program */
@@ -157,7 +156,6 @@ char	*xxboot;	/* primary boot */
 char	*bootxx;	/* secondary boot */
 char	boot0[MAXPATHLEN];
 char	boot1[MAXPATHLEN];
-#endif
 
 enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
@@ -178,7 +176,6 @@ main(int argc, char *argv[])
 
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch (ch) {
-#if NUMBOOT > 0
 			case 'B':
 				++installboot;
 				break;
@@ -189,7 +186,6 @@ main(int argc, char *argv[])
 			case 's':
 				bootxx = optarg;
 				break;
-#endif
 #endif
 			case 'n':
 				disable_write = 1;
@@ -218,7 +214,6 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
-#if NUMBOOT > 0
 	if (installboot) {
 		rflag++;
 		if (op == UNSPEC)
@@ -228,10 +223,6 @@ main(int argc, char *argv[])
 			op = READ;
 		xxboot = bootxx = 0;
 	}
-#else
-	if (op == UNSPEC)
-		op = READ;
-#endif
 	if (argc < 1)
 		usage();
 
@@ -272,7 +263,6 @@ main(int argc, char *argv[])
 		break;
 
 	case RESTORE:
-#if NUMBOOT > 0
 		if (installboot && argc == 3) {
 			makelabel(argv[2], 0, &lab);
 			argc--;
@@ -285,7 +275,6 @@ main(int argc, char *argv[])
 			 */
 			bzero((char *)&lab, sizeof(lab));
 		}
-#endif
 		if (argc != 2)
 			usage();
 		if (!(t = fopen(argv[1], "r")))
@@ -311,7 +300,6 @@ main(int argc, char *argv[])
 			error = writelabel(f, bootarea, lp);
 		break;
 
-#if NUMBOOT > 0
 	case WRITEBOOT:
 	{
 		struct disklabel tlab;
@@ -326,7 +314,6 @@ main(int argc, char *argv[])
 			error = writelabel(f, bootarea, lp);
 		break;
 	}
-#endif
 	}
 	exit(error);
 }
@@ -407,7 +394,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 		warn("write");
 		return (1);
 	}
-#if NUMBOOT > 0
 	/*
 	 * Output the remainder of the disklabel
 	 */
@@ -415,7 +401,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 		warn("write");
 		return(1);
 	}
-#endif
 	return (0);
 }
 
@@ -490,10 +475,8 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	struct disklabel *lp;
 	char *p;
 	int b;
-#if NUMBOOT > 0
 	char *dkbasename;
 	struct stat sb;
-#endif
 #ifdef __alpha__
 	u_long *bootinfo;
 	int n;
@@ -511,7 +494,6 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	lp = (struct disklabel *)
 		(boot + (LABELSECTOR * dp->d_secsize) + LABELOFFSET);
 	bzero((char *)lp, sizeof *lp);
-#if NUMBOOT > 0
 	/*
 	 * If we are not installing a boot program but we are installing a
 	 * label on disk then we must read the current bootarea so we don't
@@ -647,7 +629,6 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	}
 #endif /* NUMBOOT > 1 */
 	(void)close(b);
-#endif /* NUMBOOT > 0 */
 	/*
 	 * Make sure no part of the bootstrap is written in the area
 	 * reserved for the label.
@@ -1626,7 +1607,6 @@ Warning(const char *fmt, ...)
 void
 usage(void)
 {
-#if NUMBOOT > 0
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: disklabel [-r] disk",
 		"\t\t(to read label)",
@@ -1652,15 +1632,5 @@ usage(void)
 		"\t\t(to restore label and install boot program)"
 #endif
 	);
-#else
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-		"usage: disklabel [-r] disk", "(to read label)",
-		"       disklabel -w [-r] [-n] disk type [ packid ]",
-		"\t\t(to write label)",
-		"       disklabel -e [-r] [-n] disk",
-		"\t\t(to edit label)",
-		"       disklabel -R [-r] [-n] disk protofile",
-		"\t\t(to restore label)");
-#endif
 	exit(1);
 }
