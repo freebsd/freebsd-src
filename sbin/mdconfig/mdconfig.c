@@ -213,7 +213,7 @@ list(const int fd)
 		err(1, "sysctlbyname: kern.disks");
 	if ( (disklist = malloc(dll)) == NULL)
 		err(1, "malloc");
-	if (sysctlbyname("kern.disks", disklist, &dll, NULL, NULL) == -1)
+	if (sysctlbyname("kern.disks", disklist, &dll, NULL, 0) == -1)
 		err(1, "sysctlbyname: kern.disks");
 
 	for (p = disklist;
