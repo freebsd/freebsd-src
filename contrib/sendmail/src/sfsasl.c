@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: sfsasl.c,v 8.17.4.7 2000/07/18 18:44:51 gshapiro Exp $";
+static char id[] = "@(#)$Id: sfsasl.c,v 8.17.4.8 2000/09/14 00:14:13 ca Exp $";
 #endif /* ! lint */
 
 #if SFIO
@@ -297,6 +297,8 @@ sfdctls(fin, fout, con)
 	Tlsdisc_t *tlsin, *tlsout;
 # if !SFIO
 	FILE *fp;
+# else /* !SFIO */
+	int rfd, wfd;
 # endif /* !SFIO */
 
 	if (con == NULL)
@@ -323,8 +325,15 @@ sfdctls(fin, fout, con)
 	tlsout->disc.exceptf = NULL;
 	tlsout->con = con;
 
-	SSL_set_rfd(con, fileno(fin));	/* fileno or sffileno? XXX */
-	SSL_set_wfd(con, fileno(fout));
+	rfd = fileno(fin);
+	wfd = fileno(fout);
+	if (rfd < 0 || wfd < 0 ||
+	    SSL_set_rfd(con, rfd) <= 0 || SSL_set_wfd(con, wfd) <= 0)
+	{
+		free(tlsin);
+		free(tlsout);
+		return -1;
+	}
 	if (sfdisc(fin, (Sfdisc_t *) tlsin) != (Sfdisc_t *) tlsin ||
 	    sfdisc(fout, (Sfdisc_t *) tlsout) != (Sfdisc_t *) tlsout)
 	{

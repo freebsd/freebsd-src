@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.263.2.1.2.19 2000/07/15 17:35:18 gshapiro Exp $
+#	$Id: README,v 8.263.2.1.2.21 2000/09/27 16:36:26 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -580,6 +580,8 @@ EGD		Define this if your system has EGD installed, see
 		seed the PRNG for STARTTLS if HASURANDOMDEV is not defined.
 STARTTLS	Enables SMTP STARTTLS (RFC 2487). This requires OpenSSL
 		(http://www.OpenSSL.org/) and sfio (see below).
+		Use OpenSSL 0.9.5a or later (if compatible with this
+		version), do not use 0.9.3.
 		See STARTTLS COMPILATION AND CONFIGURATION for further
 		information.
 TLS_NO_RSA	Turn off support for RSA algorithms in STARTTLS.
@@ -1236,7 +1238,7 @@ AIX 4.3.3
 	Date: Sun, 02 Jul 2000 03:58:02 -0400
 
 	Under AIX 4.3.3, after applying bos.adt.include 4.3.3.12 to close the
-	BIND 8.2.2 security holes, you can no lonber build with  -DNETINET6
+	BIND 8.2.2 security holes, you can no longer build with  -DNETINET6
 	because they changed the value of __RES in resolv.h but failed to
 	actually provide the API changes that the change implied.
 
@@ -1465,6 +1467,8 @@ OpenSSL
 	OpenSSL versions prior to 0.9.6 use a macro named Free which
 	conflicts with existing macro names on some platforms, such as
 	AIX.
+	Do not use 0.9.3, but OpenSSL 0.9.5a or later if compatible with
+	0.9.5a.
 
 PH
 	PH support is provided by Mark Roth <roth@uiuc.edu>.  The map is
@@ -1619,4 +1623,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.263.2.1.2.19 $, last update $Date: 2000/07/15 17:35:18 $ )
+(Version $Revision: 8.263.2.1.2.21 $, last update $Date: 2000/09/27 16:36:26 $ )

@@ -1,7 +1,7 @@
 #
 #  Makefile for configuration files.
 #
-#	$Id: Makefile,v 8.40 2000/02/01 22:07:15 gshapiro Exp $
+#	$Id: Makefile,v 8.40.8.3 2000/08/08 22:23:30 gshapiro Exp $
 #
 
 #
@@ -150,6 +150,7 @@ M4FILES=\
 	${CFDIR}/ostype/solaris2.m4 \
 	${CFDIR}/ostype/solaris2.ml.m4 \
 	${CFDIR}/ostype/solaris2.pre5.m4 \
+	${CFDIR}/ostype/solaris8.m4 \
 	${CFDIR}/ostype/sunos3.5.m4 \
 	${CFDIR}/ostype/sunos4.1.m4 \
 	${CFDIR}/ostype/svr4.m4 \

@@ -1,10 +1,14 @@
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
+# sendmail dir
+SMSRCDIR=     ifdef(`confSMSRCDIR', `confSMSRCDIR', `${SRCDIR}/sendmail')
+PREPENDDEF(`confENVDEF', `confMAPDEF')
+PREPENDDEF(`confINCDIRS', `-I${SMSRCDIR} ')
+
 bldPRODUCT_START(`executable', `mail.local')
 define(`bldNO_INSTALL')
 define(`bldSOURCES', `mail.local.c ')
 bldPUSH_SMLIB(`smutil')
-PREPENDDEF(`confENVDEF', `confMAPDEF')
 bldPRODUCT_END
 
 bldPRODUCT_START(`manpage', `mail.local')
@@ -25,5 +29,3 @@ install-mail.local: mail.local
 divert
 
 bldFINISH
-
-

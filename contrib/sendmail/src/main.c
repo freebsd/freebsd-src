@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: main.c,v 8.485.4.19 2000/06/29 01:31:02 gshapiro Exp $";
+static char id[] = "@(#)$Id: main.c,v 8.485.4.27 2000/09/26 01:30:38 gshapiro Exp $";
 #endif /* ! lint */
 
 #define	_DEFINE
@@ -99,6 +99,7 @@ static sasl_callback_t srvcallbacks[] =
 	{	SASL_CB_PROXY_POLICY,	&proxy_policy,	NULL	},
 	{	SASL_CB_LIST_END,	NULL,		NULL	}
 };
+
 #endif /* SASL */
 
 int SubmitMode;
@@ -134,6 +135,9 @@ main(argc, argv, envp)
 	char jbuf[MAXHOSTNAMELEN];	/* holds MyHostName */
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	char *emptyenviron[1];
+# if STARTTLS
+	bool tls_ok;
+# endif /* STARTTLS */
 	QUEUE_CHAR *new;
 	extern int DtableSize;
 	extern int optind;
@@ -307,7 +311,6 @@ main(argc, argv, envp)
 #  endif /* LOG_MAIL */
 #endif /* LOG */
 	}
-
 
 	/* set up the blank envelope */
 	BlankEnvelope.e_puthdr = putheader;
@@ -697,13 +700,13 @@ main(argc, argv, envp)
 			break;
 
 		  case 'B':	/* body type */
-			CurEnv->e_bodytype = optarg;
+			CurEnv->e_bodytype = newstr(optarg);
 			break;
 
 		  case 'C':	/* select configuration file (already done) */
 			if (RealUid != 0)
 				warn_C_flag = TRUE;
-			ConfFile = optarg;
+			ConfFile = newstr(optarg);
 			dp = drop_privileges(TRUE);
 			setstat(dp);
 			safecf = FALSE;
@@ -1451,6 +1454,7 @@ main(argc, argv, envp)
 		milter_parse_list(InputFilterList, InputFilters, MAXFILTERS);
 #endif /* _FFR_MILTER */
 
+
 	/* if we've had errors so far, exit now */
 	if (ExitStat != EX_OK && OpMode != MD_TEST)
 		finis(FALSE, ExitStat);
@@ -1577,7 +1581,7 @@ main(argc, argv, envp)
 #  endif /* 0 */
 
 	/* initialize PRNG */
-	tls_rand_init(RandFile, 7);
+	tls_ok = tls_rand_init(RandFile, 7);
 
 # endif /* STARTTLS */
 #endif /* SMTP */
@@ -1591,6 +1595,8 @@ main(argc, argv, envp)
 	{
 # if SMTP
 #  if STARTTLS
+		if (tls_ok
+		   )
 		{
 			/* init TLS for client, ignore result for now */
 			(void) initclttls();
@@ -1756,8 +1762,9 @@ main(argc, argv, envp)
 
 #if SASL
 		/* give a syserr or just disable AUTH ? */
-		if (sasl_server_init(srvcallbacks, "Sendmail") != SASL_OK)
-			syserr("!sasl_server_init failed!");
+		if ((i = sasl_server_init(srvcallbacks, "Sendmail")) != SASL_OK)
+			syserr("!sasl_server_init failed! [%s]",
+			       sasl_errstring(i, NULL, NULL));
 #endif /* SASL */
 
 		if (OpMode == MD_DAEMON)
@@ -2755,6 +2762,11 @@ testmodeline(line, e)
 #if _FFR_ADDR_TYPE
 	define(macid("{addr_type}", NULL), "e r", e);
 #endif /* _FFR_ADDR_TYPE */
+
+	/* skip leading spaces */
+	while (*line == ' ')
+		line++;
+
 	switch (line[0])
 	{
 	  case '#':

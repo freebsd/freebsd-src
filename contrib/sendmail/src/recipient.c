@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: recipient.c,v 8.231.14.5 2000/06/27 20:15:46 gshapiro Exp $";
+static char id[] = "@(#)$Id: recipient.c,v 8.231.14.8 2000/09/14 23:32:27 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -718,7 +718,9 @@ recipient(a, sendq, aliaslevel, e)
 				(void) strlcpy(buf, pw->pw_name, buflen);
 				goto trylocaluser;
 			}
-			if (strcmp(pw->pw_dir, "/") == 0)
+			if (*pw->pw_dir == '\0')
+				a->q_home = NULL;
+			else if (strcmp(pw->pw_dir, "/") == 0)
 				a->q_home = "";
 			else
 				a->q_home = newstr(pw->pw_dir);
@@ -1134,6 +1136,23 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 		dprintf("include: old uid = %d/%d\n",
 			(int) getuid(), (int) geteuid());
 
+#if _FFR_UNSAFE_WRITABLE_INCLUDE
+	if (forwarding)
+	{
+		if (!bitnset(DBS_GROUPWRITABLEFORWARDFILE, DontBlameSendmail))
+			sfflags |= SFF_NOGWFILES;
+		if (!bitnset(DBS_WORLDWRITABLEFORWARDFILE, DontBlameSendmail))
+			sfflags |= SFF_NOWWFILES;
+	}
+	else
+	{
+		if (!bitnset(DBS_GROUPWRITABLEINCLUDEFILE, DontBlameSendmail))
+			sfflags |= SFF_NOGWFILES;
+		if (!bitnset(DBS_WORLDWRITABLEINCLUDEFILE, DontBlameSendmail))
+			sfflags |= SFF_NOWWFILES;
+	}
+#endif /* _FFR_UNSAFE_WRITABLE_INCLUDE */
+
 	if (forwarding)
 		sfflags |= SFF_MUSTOWN|SFF_ROOTOK|SFF_NOWLINK;
 
@@ -1497,7 +1516,11 @@ resetuid:
 			    isascii(p[-1]) && isspace(p[-1]) &&
 			    (p[3] == '\0' || (isascii(p[3]) && isspace(p[3]))))
 			{
-				p[-1] = '\0';
+				--p;
+				while (p > buf && isascii(p[-1]) &&
+				       isspace(p[-1]))
+					--p;
+				p[0] = '\0';
 				break;
 			}
 		}
