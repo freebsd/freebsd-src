@@ -153,7 +153,7 @@ int  *intp;
 
 struct errs		/* structure for a system-call error */
 {
-    int  errno;		/* value of errno (that is, the actual error) */
+    int  error;		/* value of errno (that is, the actual error) */
     char *arg;		/* argument that caused the error */
 };
 
@@ -172,7 +172,7 @@ static char *err_listem =
 		    else \
 		    { \
 			errs[errcnt].arg = (p); \
-			errs[errcnt++].errno = (e); \
+			errs[errcnt++].error = (e); \
 		    }
 
 /*
@@ -212,7 +212,7 @@ char *err_string()
     while (cnt < errcnt)
     {
 	errp = &(errs[cnt++]);
-	if (errp->errno != currerr)
+	if (errp->error != currerr)
 	{
 	    if (currerr != -1)
 	    {
@@ -222,7 +222,7 @@ char *err_string()
 		}
 		(void) strcat(string, "; ");	  /* we know there's more */
 	    }
-	    currerr = errp->errno;
+	    currerr = errp->error;
 	    first = Yes;
 	}
 	if ((stringlen = str_addarg(string, stringlen, errp->arg, first)) ==0)
@@ -310,7 +310,7 @@ register struct errs *p1, *p2;
 {
     register int result;
 
-    if ((result = p1->errno - p2->errno) == 0)
+    if ((result = p1->error - p2->error) == 0)
     {
 	return(strcmp(p1->arg, p2->arg));
     }
@@ -341,7 +341,7 @@ show_errors()
     while (cnt++ < errcnt)
     {
 	printf("%5s: %s\n", errp->arg,
-	    errp->errno == 0 ? "Not a number" : errmsg(errp->errno));
+	    errp->error == 0 ? "Not a number" : errmsg(errp->error));
 	errp++;
     }
 }
