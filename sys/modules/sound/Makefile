@@ -2,6 +2,6 @@
 
 SUBDIR =
 SUBDIR += pcm
-SUBDIR += driver
+SUBDIR += driver snd
 
 .include <bsd.subdir.mk>
