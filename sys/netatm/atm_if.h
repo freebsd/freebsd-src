@@ -88,6 +88,7 @@ enum atm_device {
 	DEV_FORE_SBA200E,		/* FORE SBA-200E */
 	DEV_FORE_SBA200,		/* FORE SBA-200 */
 	DEV_FORE_PCA200E,		/* FORE PCA-200E */
+	DEV_FORE_ESA200E,		/* FORE ESA-200E */
 	DEV_ENI_155P			/* ENI-155p */
 };
 typedef enum atm_device	Atm_device;
