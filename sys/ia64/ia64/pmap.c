@@ -180,6 +180,8 @@ pmap_break(void)
  * convert to an ia64 protection code.
  */
 #define pte_prot(m, p)		(protection_codes[m == pmap_kernel() ? 0 : 1][p])
+#define pte_prot_pl(m, p)	(pte_prot(m, p) & 3)
+#define pte_prot_ar(m, p)	(pte_prot(m, p) >> 2)
 int	protection_codes[2][8];
 
 /*
@@ -199,6 +201,19 @@ vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 
+/*
+ * We use an object to own the kernel's 'page tables'. For simplicity,
+ * we use one page directory to index a set of pages containing
+ * ia64_lptes. This gives us up to 2Gb of kernel virtual space.
+ */
+static vm_object_t kptobj;
+static int nkpt;
+static struct ia64_lpte **kptdir;
+#define KPTE_DIR_INDEX(va) \
+	((va >> (2*PAGE_SHIFT-5)) & ((1<<(PAGE_SHIFT-3))-1))
+#define KPTE_PTE_INDEX(va) \
+	((va >> PAGE_SHIFT) & ((1<<(PAGE_SHIFT-5))-1))
+#define NKPTEPG		(PAGE_SIZE / sizeof(struct ia64_lpte))
 
 vm_offset_t kernel_vm_end;
 
@@ -229,6 +244,13 @@ static struct pv_entry *pvinit;
 static struct pv_entry *pvbootentries;
 static int pvbootnext, pvbootmax;
 
+/*
+ * Data for allocating PTEs for user processes.
+ */
+static vm_zone_t ptezone;
+static struct vm_zone ptezone_store;
+static struct vm_object ptezone_obj;
+static struct ia64_lpte *pteinit;
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
@@ -303,6 +325,15 @@ pmap_bootstrap()
 	 * 'invalid'. RIDs 0..7 are reserved for the kernel.
 	 */
 	pmap_nextrid = (1 << pmap_ridbits) + 8;
+
+	/*
+	 * Allocate some memory for initial kernel 'page tables'.
+	 */
+	kptdir = (struct ia64_lpte **) pmap_steal_memory(PAGE_SIZE);
+	for (i = 0; i < NKPT; i++) {
+		kptdir[i] = (struct ia64_lpte *) pmap_steal_memory(PAGE_SIZE);
+	}
+	nkpt = NKPT;
 
 	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i+2]; i+= 2) ;
@@ -390,7 +421,7 @@ pmap_init(phys_start, phys_end)
  	}
 
 	/*
-	 * init the pv free list
+	 * Init the pv free list and the PTE free list.
 	 */
 	initial_pvs = vm_page_array_size;
 	if (initial_pvs < MINPV)
@@ -400,6 +431,17 @@ pmap_init(phys_start, phys_end)
 		initial_pvs * sizeof (struct pv_entry));
 	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit,
 		  vm_page_array_size);
+
+	ptezone = &ptezone_store;
+	pteinit = (struct ia64_lpte *) kmem_alloc(kernel_map,
+		initial_pvs * sizeof (struct ia64_lpte));
+	zbootinit(ptezone, "PT ENTRY", sizeof (struct ia64_lpte), pteinit,
+		  vm_page_array_size);
+
+	/*
+	 * Create the object for the kernel's page tables.
+	 */
+	kptobj = vm_object_allocate(OBJT_DEFAULT, MAXKPT);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -421,6 +463,7 @@ pmap_init2()
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
+	zinitna(ptezone, &ptezone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
 }
 
 
@@ -728,6 +771,44 @@ pmap_release(pmap_t pmap)
 void
 pmap_growkernel(vm_offset_t addr)
 {
+	struct ia64_lpte *ptepage;
+	vm_page_t nkpg;
+
+	if (kernel_vm_end == 0) {
+		kernel_vm_end = nkpt * PAGE_SIZE * NKPTEPG
+			+ IA64_RR_BASE(5);
+	}
+	addr = (addr + PAGE_SIZE * NKPTEPG) & ~(PAGE_SIZE * NKPTEPG - 1);
+	while (kernel_vm_end < addr) {
+		if (kptdir[KPTE_DIR_INDEX(kernel_vm_end)]) {
+			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NKPTEPG)
+				& ~(PAGE_SIZE * NKPTEPG - 1);
+			continue;
+		}
+
+		/*
+		 * We could handle more by increasing the size of kptdir.
+		 */
+		if (nkpt == MAXKPT)
+			panic("pmap_growkernel: out of kernel address space");
+
+		/*
+		 * This index is bogus, but out of the way
+		 */
+		nkpg = vm_page_alloc(kptobj, nkpt, VM_ALLOC_SYSTEM);
+		if (!nkpg)
+			panic("pmap_growkernel: no memory to grow kernel");
+
+		nkpt++;
+
+		vm_page_wire(nkpg);
+		ptepage = (struct ia64_lpte *)
+			IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
+		bzero(ptepage, PAGE_SIZE);
+		kptdir[KPTE_DIR_INDEX(kernel_vm_end)] = ptepage;
+
+		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NKPTEPG) & ~(PAGE_SIZE * NKPTEPG - 1);
+	}
 }
 
 /*
@@ -784,20 +865,6 @@ free_pv_entry(pv_entry_t pv)
 static pv_entry_t
 get_pv_entry(void)
 {
-	/*
-	 * We can get called a few times really early before
-	 * pmap_init() has finished allocating the pvzone (mostly as a
-	 * result of the call to kmem_alloc() in pmap_init(). We allow
-	 * a small number of entries to be allocated statically to
-	 * cover this.
-	 */
-	if (!pvinit) {
-		if (pvbootnext == pvbootmax)
-			panic("get_pv_entry: called too many times"
-			      " before pmap_init is finished");
-		return &pvbootentries[pvbootnext++];
-	}
-
 	pv_entry_count++;
 	if (pv_entry_high_water &&
 		(pv_entry_count > pv_entry_high_water) &&
@@ -805,74 +872,86 @@ get_pv_entry(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
 	}
-	return (pv_entry_t) IA64_PHYS_TO_RR7(vtophys(zalloc(pvzone)));
+	return zalloc(pvzone);
 }
 
 /*
- * Add a pv_entry to the VHPT.
+ * Add an ia64_lpte to the VHPT.
  */
 static void
-pmap_enter_vhpt(pv_entry_t pv)
+pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 {
 	struct ia64_lpte *vhpte;
+	critical_t c = critical_enter();
 
-	vhpte = (struct ia64_lpte *) ia64_thash(pv->pv_va);
+	vhpte = (struct ia64_lpte *) ia64_thash(va);
 
-	pv->pv_pte.pte_chain = vhpte->pte_chain;
-	vhpte->pte_chain = ia64_tpa((vm_offset_t) pv);
+	pte->pte_chain = vhpte->pte_chain;
+	vhpte->pte_chain = ia64_tpa((vm_offset_t) pte);
 
-	if (!vhpte->pte_p && pv->pv_pte.pte_p)
-		pmap_install_pte(vhpte, &pv->pv_pte);
+	if (!vhpte->pte_p && pte->pte_p)
+		pmap_install_pte(vhpte, pte);
 	else
 		ia64_mf();
+
+	critical_exit(c);
 }
 
 /*
- * Update VHPT after pv->pv_pte has changed.
+ * Update VHPT after a pte has changed.
  */
 static void
-pmap_update_vhpt(pv_entry_t pv)
+pmap_update_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 {
 	struct ia64_lpte *vhpte;
+	critical_t c = critical_enter();
 
-	vhpte = (struct ia64_lpte *) ia64_thash(pv->pv_va);
+	vhpte = (struct ia64_lpte *) ia64_thash(va);
 
-	if ((!vhpte->pte_p || vhpte->pte_tag == pv->pv_pte.pte_tag)
-	    && pv->pv_pte.pte_p)
-		pmap_install_pte(vhpte, &pv->pv_pte);
+	if ((!vhpte->pte_p || vhpte->pte_tag == pte->pte_tag)
+	    && pte->pte_p)
+		pmap_install_pte(vhpte, pte);
+
+	critical_exit(c);
 }
 
 /*
- * Remove a pv_entry from the VHPT. Return true if it worked.
+ * Remove the ia64_lpte matching va from the VHPT. Return zero if it
+ * worked or an appropriate error code otherwise.
  */
 static int
-pmap_remove_vhpt(pv_entry_t pv)
+pmap_remove_vhpt(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 	struct ia64_lpte *lpte;
 	struct ia64_lpte *vhpte;
 	u_int64_t tag;
+	critical_t c = critical_enter();
+	int error = ENOENT;
 
-	vhpte = (struct ia64_lpte *) ia64_thash(pv->pv_va);
+	vhpte = (struct ia64_lpte *) ia64_thash(va);
 
 	/*
 	 * If the VHPTE is invalid, there can't be a collision chain.
 	 */
 	if (!vhpte->pte_p) {
 		KASSERT(!vhpte->pte_chain, ("bad vhpte"));
-		return 0;
+		printf("can't remove vhpt entry for 0x%lx\n", va);
+		goto done;
 	}
 
 	lpte = vhpte;
 	pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(vhpte->pte_chain);
-	tag = ia64_ttag(pv->pv_va);
+	tag = ia64_ttag(va);
 
 	while (pte->pte_tag != tag) {
 		lpte = pte;
 		if (pte->pte_chain)
 			pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(pte->pte_chain);
-		else
-			return 0; /* error here? */
+		else {
+			printf("can't remove vhpt entry for 0x%lx\n", va);
+			goto done;
+		}
 	}
 
 	/*
@@ -895,167 +974,98 @@ pmap_remove_vhpt(pv_entry_t pv)
 		}
 	}
 
-	return 1;
+	error = 0;
+ done:
+	critical_exit(c);
+	return error;
 }
 
 /*
- * Make a pv_entry_t which maps the given virtual address. The pte
- * will be initialised with pte_p = 0. The function pmap_set_pv()
- * should be called to change the value of the pte.
- * Must be called at splvm().
+ * Find the ia64_lpte for the given va, if any.
  */
-static pv_entry_t
-pmap_make_pv(pmap_t pmap, vm_offset_t va)
-{
-	pv_entry_t pv;
-
-	pv = get_pv_entry();
-	bzero(pv, sizeof(*pv));
-	pv->pv_va = va;
-	pv->pv_pmap = pmap;
-
-	pv->pv_pte.pte_p = 0;		/* invalid for now */
-	pv->pv_pte.pte_ma = PTE_MA_WB;	/* cacheable, write-back */
-	pv->pv_pte.pte_a = 0;
-	pv->pv_pte.pte_d = 0;
-	pv->pv_pte.pte_pl = 0;		/* privilege level 0 */
-	pv->pv_pte.pte_ar = 3;		/* read/write/execute */
-	pv->pv_pte.pte_ppn = 0;		/* physical address */
-	pv->pv_pte.pte_ed = 0;
-	pv->pv_pte.pte_ig = 0;
-
-	pv->pv_pte.pte_ps = PAGE_SHIFT;	/* page size */
-	pv->pv_pte.pte_key = 0;		/* protection key */
-
-	pv->pv_pte.pte_tag = ia64_ttag(va);
-
-	pmap_enter_vhpt(pv);
-
-	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
-	pmap->pm_stats.resident_count++;
-
-	return pv;
-}
-
-/*
- * Initialise a pv_entry_t with a given physical address and
- * protection code. If the passed vm_page_t is non-zero, the entry is
- * added to its list of mappings.
- * Must be called at splvm().
- */
-static void
-pmap_set_pv(pmap_t pmap, pv_entry_t pv, vm_offset_t pa,
-	    int prot, vm_page_t m)
-{
-	if (pv->pv_pte.pte_p && pv->pv_pte.pte_ig & PTE_IG_MANAGED) {
-		vm_offset_t opa = pv->pv_pte.pte_ppn << 12;
-		vm_page_t om = PHYS_TO_VM_PAGE(opa);
-
-		if (pv->pv_pte.pte_d)
-			if (pmap_track_modified(pv->pv_va))
-				vm_page_dirty(om);
-		if (pv->pv_pte.pte_a)
-			vm_page_flag_set(om, PG_REFERENCED);
-
-		TAILQ_REMOVE(&om->md.pv_list, pv, pv_list);
-		om->md.pv_list_count--;
-
-		if (TAILQ_FIRST(&om->md.pv_list) == NULL)
-			vm_page_flag_clear(om, PG_MAPPED | PG_WRITEABLE);
-	}
-
-	pv->pv_pte.pte_p = 1;		/* set to valid */
-
-	/*
-	 * Only track access/modify for managed pages.
-	 */
-	if (m) {
-		pv->pv_pte.pte_a = 0;
-		pv->pv_pte.pte_d = 0;
-	} else {
-		pv->pv_pte.pte_a = 1;
-		pv->pv_pte.pte_d = 1;
-	}
-
-	pv->pv_pte.pte_pl = prot & 3;	/* privilege level */
-	pv->pv_pte.pte_ar = prot >> 2;	/* access rights */
-	pv->pv_pte.pte_ppn = pa >> 12;	/* physical address */
-
-	if (m) {
-		pv->pv_pte.pte_ig |= PTE_IG_MANAGED;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count++;
-	}
-
-	/*
-	 * Update the VHPT entry if it needs to change.
-	 */
-	pmap_update_vhpt(pv);
-}
-	
-/*
- * Remove a mapping represented by a particular pv_entry_t. If the
- * passed vm_page_t is non-zero, then the entry is removed from it.
- * Must be called at splvm().
- */
-static int
-pmap_remove_pv(pmap_t pmap, pv_entry_t pv, vm_page_t m)
-{
-	int rtval;
-
-	/*
-	 * First remove from the VHPT.
-	 */
-	rtval = pmap_remove_vhpt(pv);
-	if (!rtval)
-		return rtval;
-
-	if ((pv->pv_pte.pte_ig & PTE_IG_MANAGED) && m) {
-		if (pv->pv_pte.pte_d)
-			if (pmap_track_modified(pv->pv_va))
-				vm_page_dirty(m);
-		if (pv->pv_pte.pte_a)
-			vm_page_flag_set(m, PG_REFERENCED);
-
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		m->md.pv_list_count--;
-
-		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
-	}
-
-	TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
-	pmap->pm_stats.resident_count--;
-
-	free_pv_entry(pv);
-
-	return (rtval);
-}
-
-/*
- * Find a pv given a pmap and virtual address.
- */
-static pv_entry_t
-pmap_find_pv(pmap_t pmap, vm_offset_t va)
+static struct ia64_lpte *
+pmap_find_vhpt(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 	u_int64_t tag;
+	critical_t c = critical_enter();
 
 	pte = (struct ia64_lpte *) ia64_thash(va);
-	if (!pte->pte_chain)
-		return 0;
+	if (!pte->pte_chain) {
+		pte = 0;
+		goto done;
+	}
 
 	tag = ia64_ttag(va);
 	pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(pte->pte_chain);
 
 	while (pte->pte_tag != tag) {
-		if (pte->pte_chain)
+		if (pte->pte_chain) {
 			pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(pte->pte_chain);
-		else
-			return 0;
+		} else {
+			pte = 0;
+			break;
+		}
 	}
 
-	return (pv_entry_t) pte;	/* XXX wrong va */
+ done:
+	critical_exit(c);
+	return pte;
+}
+	
+/*
+ * Remove an entry from the list of managed mappings.
+ */
+static int
+pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pv_entry_t pv)
+{
+	if (!pv) {
+		if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
+			for (pv = TAILQ_FIRST(&m->md.pv_list);
+			     pv;
+			     pv = TAILQ_NEXT(pv, pv_list)) {
+				if (pmap == pv->pv_pmap && va == pv->pv_va) 
+					break;
+			}
+		} else {
+			for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
+			     pv;
+			     pv = TAILQ_NEXT(pv, pv_plist)) {
+				if (va == pv->pv_va) 
+					break;
+			}
+		}
+	}
+
+	if (pv) {
+		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+		m->md.pv_list_count--;
+		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
+			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+
+		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+		return 0;
+	} else {
+		return ENOENT;
+	}
+}
+
+/*
+ * Create a pv entry for page at pa for
+ * (pmap, va).
+ */
+static void
+pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	pv_entry_t pv;
+
+	pv = get_pv_entry();
+	pv->pv_pmap = pmap;
+	pv->pv_va = va;
+
+	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
+	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+	m->md.pv_list_count++;
 }
 
 /*
@@ -1069,16 +1079,167 @@ pmap_extract(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
 {
-	pv_entry_t pv = pmap_find_pv(pmap, va);
-	if (pv)
-		return pmap_pte_pa(&pv->pv_pte);
-	else
-		return 0;
+	pmap_t oldpmap;
+	vm_offset_t pa;
+
+	oldpmap = pmap_install(pmap);
+	pa = ia64_tpa(va);
+	pmap_install(oldpmap);
+	return pa;
 }
 
 /***************************************************
  * Low level mapping routines.....
  ***************************************************/
+
+/*
+ * Find the kernel lpte for mapping the given virtual address, which
+ * must be in the part of region 5 which we can cover with our kernel
+ * 'page tables'.
+ */
+static struct ia64_lpte *
+pmap_find_kpte(vm_offset_t va)
+{
+	KASSERT((va >> 61) == 5,
+		("kernel mapping 0x%lx not in region 5", va));
+	KASSERT(IA64_RR_MASK(va) < (nkpt * PAGE_SIZE * NKPTEPG),
+		("kernel mapping 0x%lx out of range", va));
+	return &kptdir[KPTE_DIR_INDEX(va)][KPTE_PTE_INDEX(va)];
+}
+
+/*
+ * Find a pte suitable for mapping a user-space address. If one exists 
+ * in the VHPT, that one will be returned, otherwise a new pte is
+ * allocated.
+ */
+static struct ia64_lpte *
+pmap_find_pte(vm_offset_t va)
+{
+	struct ia64_lpte *pte;
+
+	if (va >= VM_MAXUSER_ADDRESS)
+		return pmap_find_kpte(va);
+
+	pte = pmap_find_vhpt(va);
+	if (!pte) {
+		pte = zalloc(ptezone);
+		pte->pte_p = 0;
+	}
+	return pte;
+}
+
+/*
+ * Free a pte which is now unused. This simply returns it to the zone
+ * allocator if it is a user mapping. For kernel mappings, clear the
+ * valid bit to make it clear that the mapping is not currently used.
+ */
+static void
+pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va)
+{
+	if (va < VM_MAXUSER_ADDRESS)
+		zfree(ptezone, pte);
+	else
+		pte->pte_p = 0;
+}
+
+/*
+ * Set a pte to contain a valid mapping and enter it in the VHPT. If
+ * the pte was orginally valid, then its assumed to already be in the
+ * VHPT.
+ */
+static void
+pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
+	     int ig, int pl, int ar)
+{
+	int wasvalid = pte->pte_p;
+
+	pte->pte_p = 1;
+	pte->pte_ma = PTE_MA_WB;
+	if (ig & PTE_IG_MANAGED) {
+		pte->pte_a = 0;
+		pte->pte_d = 0;
+	} else {
+		pte->pte_a = 1;
+		pte->pte_d = 1;
+	}
+	pte->pte_pl = pl;
+	pte->pte_ar = ar;
+	pte->pte_ppn = pa >> 12;
+	pte->pte_ed = 0;
+	pte->pte_ig = ig;
+
+	pte->pte_ps = PAGE_SHIFT;
+	pte->pte_key = 0;
+
+	pte->pte_tag = ia64_ttag(va);
+
+	if (wasvalid) {
+		pmap_update_vhpt(pte, va);
+	} else {
+		pmap_enter_vhpt(pte, va);
+	}
+}
+
+/*
+ * If a pte contains a valid mapping, clear it and update the VHPT.
+ */
+static void
+pmap_clear_pte(struct ia64_lpte *pte, vm_offset_t va)
+{
+	if (pte->pte_p) {
+		pmap_remove_vhpt(va);
+		ia64_ptc_l(va, PAGE_SHIFT << 2);
+		pte->pte_p = 0;
+	}
+}
+
+/*
+ * Remove the (possibly managed) mapping represented by pte from the
+ * given pmap.
+ */
+static int
+pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
+		pv_entry_t pv, int freepte)
+{
+	int error;
+	vm_page_t m;
+
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+		("removing pte for non-current pmap"));
+
+	/*
+	 * First remove from the VHPT.
+	 */
+	error = pmap_remove_vhpt(va);
+	if (error)
+		return error;
+
+	/*
+	 * Make sure pmap_set_pte() knows it isn't in the VHPT.
+	 */
+	pte->pte_p = 0;
+
+	if (pte->pte_ig & PTE_IG_WIRED)
+		pmap->pm_stats.wired_count -= 1;
+
+	pmap->pm_stats.resident_count -= 1;
+	if (pte->pte_ig & PTE_IG_MANAGED) {
+		m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
+		if (pte->pte_d)
+			if (pmap_track_modified(va))
+				vm_page_dirty(m);
+		if (pte->pte_a)
+			vm_page_flag_set(m, PG_REFERENCED);
+
+		if (freepte)
+			pmap_free_pte(pte, va);
+		return pmap_remove_entry(pmap, m, va, pv);
+	} else {
+		if (freepte)
+			pmap_free_pte(pte, va);
+		return 0;
+	}
+}
 
 /*
  * Add a list of wired pages to the kva
@@ -1091,24 +1252,19 @@ pmap_extract(pmap, va)
 void
 pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 {
-	int i, inval;
-	pv_entry_t pv;
+	int i;
+	struct ia64_lpte *pte;
 
 	for (i = 0; i < count; i++) {
 		vm_offset_t tva = va + i * PAGE_SIZE;
-		pv = pmap_find_pv(kernel_pmap, tva);
-		inval = 0;
-		if (!pv)
-			pv = pmap_make_pv(kernel_pmap, tva);
-		else
-			inval = 1;
-
-		PMAP_DEBUG_VA(va);
-		pmap_set_pv(kernel_pmap, pv,
-			    VM_PAGE_TO_PHYS(m[i]),
-			    (PTE_AR_RWX<<2) | PTE_PL_KERN, 0);
-		if (inval)
-			pmap_invalidate_page(kernel_pmap, tva);
+		int wasvalid;
+		PMAP_DEBUG_VA(tva);
+		pte = pmap_find_kpte(tva);
+		wasvalid = pte->pte_p;
+		pmap_set_pte(pte, tva, VM_PAGE_TO_PHYS(m[i]),
+			     0, PTE_PL_KERN, PTE_AR_RWX);
+		if (wasvalid)
+			ia64_ptc_l(tva, PAGE_SHIFT << 2);
 	}
 }
 
@@ -1117,20 +1273,15 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
  * kernel -- it is meant only for temporary mappings.
  */
 void
-pmap_qremove(va, count)
-	vm_offset_t va;
-	int count;
+pmap_qremove(vm_offset_t va, int count)
 {
 	int i;
-	pv_entry_t pv;
+	struct ia64_lpte *pte;
 
 	for (i = 0; i < count; i++) {
-		pv = pmap_find_pv(kernel_pmap, va);
 		PMAP_DEBUG_VA(va);
-		if (pv) {
-			pmap_remove_pv(kernel_pmap, pv, 0);
-			pmap_invalidate_page(kernel_pmap, va);
-		}
+		pte = pmap_find_kpte(va);
+		pmap_clear_pte(pte, va);
 		va += PAGE_SIZE;
 	}
 }
@@ -1141,14 +1292,14 @@ pmap_qremove(va, count)
 void 
 pmap_kenter(vm_offset_t va, vm_offset_t pa)
 {
-	pv_entry_t pv;
+	struct ia64_lpte *pte;
+	int wasvalid;
 
-	pv = pmap_find_pv(kernel_pmap, va);
-	if (!pv)
-		pv = pmap_make_pv(kernel_pmap, va);
-	pmap_set_pv(kernel_pmap, pv,
-		    pa, (PTE_AR_RWX<<2) | PTE_PL_KERN, 0);
-	pmap_invalidate_page(kernel_pmap, va);
+	pte = pmap_find_kpte(va);
+	wasvalid = pte->pte_p;
+	pmap_set_pte(pte, va, pa, 0, PTE_PL_KERN, PTE_AR_RWX);
+	if (wasvalid)
+		ia64_ptc_l(va, PAGE_SHIFT << 2);
 }
 
 /*
@@ -1157,13 +1308,10 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 void
 pmap_kremove(vm_offset_t va)
 {
-	pv_entry_t pv;
+	struct ia64_lpte *pte;
 
-	pv = pmap_find_pv(kernel_pmap, va);
-	if (pv) {
-		pmap_remove_pv(kernel_pmap, pv, 0);
-		pmap_invalidate_page(kernel_pmap, va);
-	}
+	pte = pmap_find_kpte(va);
+	pmap_clear_pte(pte, va);
 }
 
 /*
@@ -1219,26 +1367,16 @@ pmap_collect()
 static void
 pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
-	pv_entry_t pv;
-	vm_page_t m;
-	int rtval;
-	int s;
+	struct ia64_lpte *pte;
 
 	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
 		("removing page for non-current pmap"));
 
-	s = splvm();
-
-	pv = pmap_find_pv(pmap, va);
-
-	rtval = 0;
-	if (pv) {
-		m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
-		rtval = pmap_remove_pv(pmap, pv, m);
+	pte = pmap_find_vhpt(va);
+	if (pte) {
+		pmap_remove_pte(pmap, pte, va, 0, 1);
 		pmap_invalidate_page(pmap, va);
 	}
-			
-	splx(s);
 	return;
 }
 
@@ -1252,7 +1390,7 @@ void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	pmap_t oldpmap;
-	vm_offset_t va, nva;
+	vm_offset_t va;
 
 	if (pmap == NULL)
 		return;
@@ -1273,29 +1411,16 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
-	if (atop(eva - sva) < pmap->pm_stats.resident_count) {
-		for (va = sva; va < eva; va = nva) {
-			pmap_remove_page(pmap, va);
-			nva = va + PAGE_SIZE;
-		}
-	} else {
-		pv_entry_t pv, pvnext;
-		int s;
+	for (va = sva; va < eva; va = va += PAGE_SIZE) {
+		struct ia64_lpte *pte;
 
-		s = splvm();
-		for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
-			pv;
-			pv = pvnext) {
-			pvnext = TAILQ_NEXT(pv, pv_plist);
-			if (pv->pv_va >= sva && pv->pv_va < eva) {
-				vm_page_t m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
-				va = pv->pv_va;
-				pmap_remove_pv(pmap, pv, m);
-				pmap_invalidate_page(pmap, va);
-			}
+		pte = pmap_find_vhpt(va);
+		if (pte) {
+			pmap_remove_pte(pmap, pte, va, 0, 1);
+			pmap_invalidate_page(pmap, va);
 		}
-		splx(s);
 	}
+
 	pmap_install(oldpmap);
 }
 
@@ -1316,7 +1441,7 @@ static void
 pmap_remove_all(vm_page_t m)
 {
 	pmap_t oldpmap;
-	register pv_entry_t pv;
+	pv_entry_t pv;
 	int nmodify;
 	int s;
 
@@ -1334,11 +1459,16 @@ pmap_remove_all(vm_page_t m)
 	s = splvm();
 
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
-		vm_page_t m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
+		struct ia64_lpte *pte;
+		pmap_t pmap = pv->pv_pmap;
 		vm_offset_t va = pv->pv_va;
-		oldpmap = pmap_install(pv->pv_pmap);
-		pmap_remove_pv(pv->pv_pmap, pv, m);
-		pmap_invalidate_page(pv->pv_pmap, va);
+
+		oldpmap = pmap_install(pmap);
+		pte = pmap_find_vhpt(va);
+		if (pmap_pte_pa(pte) != VM_PAGE_TO_PHYS(m))
+			panic("pmap_remove_all: pv_table for %lx is inconsistent", VM_PAGE_TO_PHYS(m));
+		pmap_remove_pte(pmap, pte, va, pv, 1);
+		pmap_invalidate_page(pmap, va);
 		pmap_install(oldpmap);
 	}
 
@@ -1356,7 +1486,7 @@ void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	pmap_t oldpmap;
-	pv_entry_t pv;
+	struct ia64_lpte *pte;
 	int newprot;
 
 	if (pmap == NULL)
@@ -1384,28 +1514,28 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		/* 
 		 * If page is invalid, skip this page
 		 */
-		pv = pmap_find_pv(pmap, sva);
-		if (!pv) {
+		pte = pmap_find_vhpt(sva);
+		if (!pte) {
 			sva += PAGE_SIZE;
 			continue;
 		}
 
-		if (pmap_pte_prot(&pv->pv_pte) != newprot) {
-			if (pv->pv_pte.pte_ig & PTE_IG_MANAGED) {
-				vm_offset_t pa = pmap_pte_pa(&pv->pv_pte);
+		if (pmap_pte_prot(pte) != newprot) {
+			if (pte->pte_ig & PTE_IG_MANAGED) {
+				vm_offset_t pa = pmap_pte_pa(pte);
 				vm_page_t m = PHYS_TO_VM_PAGE(pa);
-				if (pv->pv_pte.pte_d) {
-					if (pmap_track_modified(pv->pv_va))
+				if (pte->pte_d) {
+					if (pmap_track_modified(sva))
 						vm_page_dirty(m);
-					pv->pv_pte.pte_d = 0;
+					pte->pte_d = 0;
 				}
-				if (pv->pv_pte.pte_a) {
+				if (pte->pte_a) {
 					vm_page_flag_set(m, PG_REFERENCED);
-					pv->pv_pte.pte_a = 0;
+					pte->pte_a = 0;
 				}
 			}
-			pmap_pte_set_prot(&pv->pv_pte, newprot);
-			pmap_update_vhpt(pv);
+			pmap_pte_set_prot(pte, newprot);
+			pmap_update_vhpt(pte, sva);
 			pmap_invalidate_page(pmap, sva);
 		}
 
@@ -1432,9 +1562,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	pmap_t oldpmap;
 	vm_offset_t pa;
-	pv_entry_t pv;
 	vm_offset_t opa;
 	struct ia64_lpte origpte;
+	struct ia64_lpte *pte;
+	int managed;
 
 	if (pmap == NULL)
 		return;
@@ -1447,15 +1578,17 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		panic("pmap_enter: toobig");
 #endif
 
-	pv = pmap_find_pv(pmap, va);
-	if (!pv)
-		pv = pmap_make_pv(pmap, va);
+	/*
+	 * Find (or create) a pte for the given mapping.
+	 */
+	pte = pmap_find_pte(va);
+	origpte = *pte;
 
-	origpte = pv->pv_pte;
 	if (origpte.pte_p)
 		opa = pmap_pte_pa(&origpte);
 	else
 		opa = 0;
+	managed = 0;
 
 	pa = VM_PAGE_TO_PHYS(m) & ~PAGE_MASK;
 
@@ -1474,35 +1607,61 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		else if (!wired && (origpte.pte_ig & PTE_IG_WIRED))
 			pmap->pm_stats.wired_count--;
 
-		goto validate;
-	}  else {
 		/*
-		 * Mapping has changed, invalidate old range and fall
-		 * through to handle validating new mapping.
+		 * We might be turning off write access to the page,
+		 * so we go ahead and sense modify status.
 		 */
+		if (origpte.pte_ig & PTE_IG_MANAGED) {
+			if (origpte.pte_d && pmap_track_modified(va)) {
+				vm_page_t om;
+				om = PHYS_TO_VM_PAGE(opa);
+				vm_page_dirty(om);
+			}
+		}
+
+		managed = origpte.pte_ig & PTE_IG_MANAGED;
+		goto validate;
+	}
+	/*
+	 * Mapping has changed, invalidate old range and fall
+	 * through to handle validating new mapping.
+	 */
+	if (opa) {
+		int error;
+		error = pmap_remove_pte(pmap, pte, va, 0, 0);
+		if (error)
+			panic("pmap_enter: pte vanished, va: 0x%lx", va);
+	}
+
+	/*
+	 * Enter on the PV list if part of our managed memory.
+	 */
+	if (pmap_initialized && (m->flags & PG_FICTITIOUS) == 0) {
+		pmap_insert_entry(pmap, va, m);
+		managed |= PTE_IG_MANAGED;
 	}
 
 	/*
 	 * Increment counters
 	 */
+	pmap->pm_stats.resident_count++;
 	if (wired)
 		pmap->pm_stats.wired_count++;
 
 validate:
-	/*
-	 * Now validate mapping with desired protection/wiring.
-	 * This enters the pv_entry_t on the page's list if necessary.
-	 */
-	pmap_set_pv(pmap, pv, pa, pte_prot(pmap, prot), m);
 
-	if (wired)
-		pv->pv_pte.pte_ig |= PTE_IG_WIRED;
+	/*
+	 * Now validate mapping with desired protection/wiring. This
+	 * adds the pte to the VHPT if necessary.
+	 */
+	pmap_set_pte(pte, va, pa, managed | (wired ? PTE_IG_WIRED : 0),
+		     pte_prot_pl(pmap, prot), pte_prot_ar(pmap, prot));
 
 	/*
 	 * if the mapping or permission bits are different, we need
 	 * to invalidate the page.
 	 */
-	if (!pmap_equal_pte(&origpte, &pv->pv_pte)) {
+	if (!pmap_equal_pte(&origpte, pte)) {
 		PMAP_DEBUG_VA(va);
 		pmap_invalidate_page(pmap, va);
 	}
@@ -1524,25 +1683,25 @@ validate:
 static void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
-	pv_entry_t pv;
-	int s;
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 
-	s = splvm();
+	oldpmap = pmap_install(pmap);
 
-	pv = pmap_find_pv(pmap, va);
-	if (!pv)
-		pv = pmap_make_pv(pmap, va);
+	pte = pmap_find_pte(va);
+	if (pte->pte_p) {
+		if (pmap_pte_pa(pte) != VM_PAGE_TO_PHYS(m))
+			panic("pmap_enter_quick: page is already mapped to different address");
+		return;
+	}
 
-	/*
-	 * Enter on the PV list if part of our managed memory. Note that we
-	 * raise IPL while manipulating pv_table since pmap_enter can be
-	 * called at interrupt time.
-	 */
 	PMAP_DEBUG_VA(va);
-	pmap_set_pv(pmap, pv, VM_PAGE_TO_PHYS(m),
-		    (PTE_AR_R << 2) | PTE_PL_USER, m);
+	pmap_insert_entry(pmap, va, m);
+	pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m),
+		     PTE_IG_MANAGED,
+		     PTE_PL_USER, PTE_AR_R);
 
-	splx(s);
+	pmap_install(oldpmap);
 }
 
 /*
@@ -1688,7 +1847,7 @@ pmap_prefault(pmap, addra, entry)
 	mpte = NULL;
 	for (i = 0; i < PAGEORDER_SIZE; i++) {
 		vm_object_t lobject;
-		pv_entry_t pv;
+		struct ia64_lpte *pte;
 
 		addr = addra + pmap_prefault_pageorder[i];
 		if (addr > addra + (PFFOR * PAGE_SIZE))
@@ -1697,8 +1856,8 @@ pmap_prefault(pmap, addra, entry)
 		if (addr < starta || addr >= entry->end)
 			continue;
 
-		pv = pmap_find_pv(pmap, addr);
-		if (pv)
+		pte = pmap_find_vhpt(addr);
+		if (!pte)
 			continue;
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
@@ -1746,25 +1905,25 @@ pmap_change_wiring(pmap, va, wired)
 	boolean_t wired;
 {
 	pmap_t oldpmap;
-	pv_entry_t pv;
+	struct ia64_lpte *pte;
 
 	if (pmap == NULL)
 		return;
 
 	oldpmap = pmap_install(pmap);
 
-	pv = pmap_find_pv(pmap, va);
+	pte = pmap_find_vhpt(va);
 
-	if (wired && !pmap_pte_w(&pv->pv_pte))
+	if (wired && !pmap_pte_w(pte))
 		pmap->pm_stats.wired_count++;
-	else if (!wired && pmap_pte_w(&pv->pv_pte))
+	else if (!wired && pmap_pte_w(pte))
 		pmap->pm_stats.wired_count--;
 
 	/*
 	 * Wiring is not a hardware characteristic so there is no need to
 	 * invalidate TLB.
 	 */
-	pmap_pte_set_w(&pv->pv_pte, wired);
+	pmap_pte_set_w(pte, wired);
 
 	pmap_install(oldpmap);
 }
@@ -1922,7 +2081,7 @@ pmap_remove_pages(pmap, sva, eva)
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
 		pv;
 		pv = npv) {
-		vm_page_t m;
+		struct ia64_lpte *pte;
 
 		npv = TAILQ_NEXT(pv, pv_plist);
 
@@ -1930,17 +2089,19 @@ pmap_remove_pages(pmap, sva, eva)
 			continue;
 		}
 
+		pte = pmap_find_vhpt(pv->pv_va);
+		if (!pte)
+			panic("pmap_remove_pages: page on pm_pvlist has no pte\n");
+
+
 /*
  * We cannot remove wired pages from a process' mapping at this time
  */
-		if (pv->pv_pte.pte_ig & PTE_IG_WIRED) {
+		if (pte->pte_ig & PTE_IG_WIRED) {
 			continue;
 		}
 
-		PMAP_DEBUG_VA(pv->pv_va);
-
-		m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
-		pmap_remove_pv(pmap, pv, m);
+		pmap_remove_pte(pmap, pte, pv->pv_va, pv, 1);
 	}
 	splx(s);
 
@@ -1965,8 +2126,10 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 		     pv = TAILQ_NEXT(pv, pv_list)) {
 			int newprot = pte_prot(pv->pv_pmap, prot);
 			pmap_t oldpmap = pmap_install(pv->pv_pmap);
-			pmap_pte_set_prot(&pv->pv_pte, newprot);
-			pmap_update_vhpt(pv);
+			struct ia64_lpte *pte;
+			pte = pmap_find_vhpt(pv->pv_va);
+			pmap_pte_set_prot(pte, newprot);
+			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 			pmap_install(oldpmap);
 		}
@@ -2000,14 +2163,16 @@ pmap_ts_referenced(vm_page_t m)
 	for (pv = TAILQ_FIRST(&m->md.pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
-		if (pv->pv_pte.pte_a) {
-			pmap_t oldpmap = pmap_install(pv->pv_pmap);
+		pmap_t oldpmap = pmap_install(pv->pv_pmap);
+		struct ia64_lpte *pte;
+		pte = pmap_find_vhpt(pv->pv_va);
+		if (pte->pte_a) {
 			count++;
-			pv->pv_pte.pte_a = 0;
-			pmap_update_vhpt(pv);
+			pte->pte_a = 0;
+			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
-			pmap_install(oldpmap);
 		}
+		pmap_install(oldpmap);
 	}
 
 	return count;
@@ -2031,9 +2196,11 @@ pmap_is_referenced(vm_page_t m)
 	for (pv = TAILQ_FIRST(&m->md.pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
-		if (pv->pv_pte.pte_a) {
+		pmap_t oldpmap = pmap_install(pv->pv_pmap);
+		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		pmap_install(oldpmap);
+		if (pte->pte_a)
 			return 1;
-		}
 	}
 
 	return 0;
@@ -2057,9 +2224,11 @@ pmap_is_modified(vm_page_t m)
 	for (pv = TAILQ_FIRST(&m->md.pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
-		if (pv->pv_pte.pte_d) {
+		pmap_t oldpmap = pmap_install(pv->pv_pmap);
+		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		pmap_install(oldpmap);
+		if (pte->pte_d)
 			return 1;
-		}
 	}
 
 	return 0;
@@ -2079,13 +2248,14 @@ pmap_clear_modify(vm_page_t m)
 	for (pv = TAILQ_FIRST(&m->md.pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
-		if (pv->pv_pte.pte_d) {
-			pmap_t oldpmap = pmap_install(pv->pv_pmap);
-			pv->pv_pte.pte_d = 0;
-			pmap_update_vhpt(pv);
+		pmap_t oldpmap = pmap_install(pv->pv_pmap);
+		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		if (pte->pte_d) {
+			pte->pte_d = 0;
+			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
-			pmap_install(oldpmap);
 		}
+		pmap_install(oldpmap);
 	}
 }
 
@@ -2105,13 +2275,14 @@ pmap_clear_reference(vm_page_t m)
 	for (pv = TAILQ_FIRST(&m->md.pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
-		if (pv->pv_pte.pte_a) {
-			pmap_t oldpmap = pmap_install(pv->pv_pmap);
-			pv->pv_pte.pte_a = 0;
-			pmap_update_vhpt(pv);
+		pmap_t oldpmap = pmap_install(pv->pv_pmap);
+		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		if (pte->pte_a) {
+			pte->pte_a = 0;
+			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
-			pmap_install(oldpmap);
 		}
+		pmap_install(oldpmap);
 	}
 }
 
@@ -2203,15 +2374,16 @@ pmap_mincore(pmap, addr)
 	pmap_t pmap;
 	vm_offset_t addr;
 {
-	pv_entry_t pv;
+	pmap_t oldpmap;
 	struct ia64_lpte *pte;
 	int val = 0;
 	
-	pv = pmap_find_pv(pmap, addr);
-	if (pv == 0) {
+	oldpmap = pmap_install(pmap);
+	pte = pmap_find_vhpt(addr);
+	pmap_install(oldpmap);
+
+	if (!pte)
 		return 0;
-	}
-	pte = &pv->pv_pte;
 
 	if (pmap_pte_v(pte)) {
 		vm_page_t m;

@@ -54,6 +54,12 @@
 
 #ifdef _KERNEL
 
+#ifndef NKPT
+#define	NKPT		30	/* initial number of kernel page tables */
+#endif
+#define MAXKPT		(PAGE_SIZE/sizeof(vm_offset_t))
+
+
 /*
  *	Routine:	pmap_kextract
  *	Function:
@@ -106,7 +112,6 @@ extern pmap_t		kernel_pmap;
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
  */
 typedef struct pv_entry {
-	struct ia64_lpte pv_pte;	/* pte for collision walker */
 	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry)	pv_list;
