@@ -79,7 +79,7 @@ static struct mc malloced[MALLOCENTRIES];
 int lastfree = 0;
 struct mc freeinfo[FREECOUNT];
 
-static total_malloced;
+static int total_malloced;
 static int mallocseq = 0;
 
 caddr_t 
@@ -93,7 +93,7 @@ MMalloc(int size, char *file, int line)
 	log(LOG_ERR, "vinum: can't allocate table space to trace memory allocation");
 	return 0;					    /* can't continue */
     }
-    result = malloc(size, M_DEVBUF, M_WAITOK);		    /* use malloc for smaller and irregular stuff */
+    result = malloc(size, M_DEVBUF, M_WAITOK);
     if (result == NULL)
 	log(LOG_ERR, "vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
     else {
