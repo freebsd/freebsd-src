@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.24 1998/04/06 09:12:28 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.25 1998/04/07 00:53:43 brian Exp $
  *
  *	TODO:
  */
@@ -553,7 +553,8 @@ static const char *FrameHeaders[] = {
 u_char *
 HdlcDetect(struct physical *physical, u_char *cp, int n)
 {
-  const char *ptr, *fp, **hp;
+  const char *fp, **hp;
+  char *ptr;
 
   cp[n] = '\0';			/* be sure to null terminated */
   ptr = NULL;

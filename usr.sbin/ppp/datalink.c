@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.38 1998/04/16 00:25:56 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.39 1998/04/17 22:04:25 brian Exp $
  */
 
 #include <sys/types.h>
@@ -823,7 +823,7 @@ datalink_SetRedial(struct cmdargs const *arg)
   return -1;
 }
 
-static char *states[] = {
+static const char *states[] = {
   "closed",
   "opening",
   "hangup",

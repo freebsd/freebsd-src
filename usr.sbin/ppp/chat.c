@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.21 1998/04/07 00:53:27 brian Exp $
+ *	$Id: chat.c,v 1.44.2.22 1998/04/10 23:51:24 brian Exp $
  */
 
 #include <sys/types.h>
@@ -134,6 +134,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
   struct chat *c = descriptor2chat(d);
   int special, gotabort, gottimeout, needcr;
   int TimedOut = c->TimedOut;
+  static char arg_term;
 
   if (c->pause.state == TIMER_RUNNING)
     return 0;
@@ -144,7 +145,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       c->state = CHAT_FAILED;
     else {
       /* c->state = CHAT_EXPECT; */
-      c->argptr = "";
+      c->argptr = &arg_term;
     }
     c->TimedOut = 0;
   }
@@ -211,22 +212,22 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 
       if (gotabort) {
         if (c->abort.num < MAXABORTS) {
-          int len, n;
+          int len, i;
 
           len = strlen(c->exp+2);
-          for (n = 0; n < c->abort.num; n++)
-            if (len > c->abort.string[n].len) {
+          for (i = 0; i < c->abort.num; i++)
+            if (len > c->abort.string[i].len) {
               int last;
 
-              for (last = c->abort.num; last > n; last--) {
+              for (last = c->abort.num; last > i; last--) {
                 c->abort.string[last].data = c->abort.string[last-1].data;
                 c->abort.string[last].len = c->abort.string[last-1].len;
               }
               break;
             }
-          c->abort.string[n].len = len;
-          c->abort.string[n].data = (char *)malloc(len+1);
-          memcpy(c->abort.string[n].data, c->exp+2, len+1);
+          c->abort.string[i].len = len;
+          c->abort.string[i].data = (char *)malloc(len+1);
+          memcpy(c->abort.string[i].data, c->exp+2, len+1);
           c->abort.num++;
         } else
           LogPrintf(LogERROR, "chat_UpdateSet: too many abort strings\n");
@@ -246,7 +247,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 
         if (c->exp[2] == '\0') {
           /* Empty string, reparse (this may be better as a `goto start') */
-          c->argptr = "";
+          c->argptr = &arg_term;
           return chat_UpdateSet(d, r, w, e, n);
         }
 

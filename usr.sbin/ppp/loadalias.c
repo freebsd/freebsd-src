@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.14.2.1 1998/04/06 09:12:31 brian Exp $
+ *	$Id: loadalias.c,v 1.14.2.2 1998/04/07 00:53:57 brian Exp $
  */
 
 #include <sys/param.h>
@@ -95,8 +95,8 @@ loadAliasHandlers()
     plen = strlen(path);
     if (plen && plen < MAXPATHLEN - 1 && path[plen-1] == '.') {
       DIR *d;
-      char p[MAXPATHLEN], *fix;
-      char *file, *dir;
+      char p[MAXPATHLEN], *fix, *file;
+      const char *dir;
 
       strcpy(p, path);
       if ((file = strrchr(p, '/')) != NULL) {

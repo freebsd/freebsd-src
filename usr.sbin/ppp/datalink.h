@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.16 1998/04/07 00:53:36 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.17 1998/04/10 13:19:06 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -78,7 +78,7 @@ struct datalink {
     char list[SCRIPT_LEN];	/* copy of cfg.list for strsep() */
     char *next;			/* Next phone from the list */
     char *alt;			/* Next phone from the list */
-    char *chosen;		/* Chosen phone number after DIAL */
+    const char *chosen;		/* Chosen phone number after DIAL */
   } phone;
 
   int dial_tries;		/* currently try again this number of times */

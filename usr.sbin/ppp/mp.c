@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.3 1998/04/14 23:17:09 brian Exp $
+ *	$Id: mp.c,v 1.1.2.4 1998/04/16 00:26:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -175,9 +175,8 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
   struct mp_header mh, h;
   struct mbuf *q, *last;
   int32_t seq;
-  int len;
 
-  if ((len = mp_ReadHeader(mp, m, &mh)) == 0) {
+  if (mp_ReadHeader(mp, m, &mh) == 0) {
     pfree(m);
     return;
   }

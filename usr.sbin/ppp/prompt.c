@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.25 1998/04/10 13:19:18 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.26 1998/04/14 23:17:10 brian Exp $
  */
 
 #include <sys/param.h>
@@ -100,12 +100,12 @@ prompt_Display(struct prompt *p)
     pconnect = "ppp";
 
   if (*shostname == '\0') {
-    char *p;
+    char *dot;
 
     if (gethostname(shostname, sizeof shostname))
       strcpy(shostname, "localhost");
-    else if ((p = strchr(shostname, '.')))
-      *p = '\0';
+    else if ((dot = strchr(shostname, '.')))
+      *dot = '\0';
   }
 
   fprintf(p->Term, "%s%s%s> ", pconnect, pauth, shostname);

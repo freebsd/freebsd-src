@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.62 1998/04/16 18:30:50 brian Exp $
+ * $Id: command.c,v 1.131.2.63 1998/04/17 22:05:12 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -453,7 +453,7 @@ ShowEscape(struct cmdargs const *arg)
 {
   if (arg->cx->physical->async.cfg.EscMap[32]) {
     int code, bit;
-    char *sep = "";
+    const char *sep = "";
 
     for (code = 0; code < 32; code++)
       if (arg->cx->physical->async.cfg.EscMap[code])
@@ -500,13 +500,13 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/16 18:30:50 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/17 22:05:12 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
 }
 
-int
+static int
 ShowProtocolStats(struct cmdargs const *arg)
 {
   struct link *l = ChooseLink(arg);

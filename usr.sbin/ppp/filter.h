@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.11.2.4 1998/04/07 00:53:40 brian Exp $
+ * $Id: filter.h,v 1.11.2.5 1998/04/16 18:30:52 brian Exp $
  *
  *	TODO:
  */
@@ -70,7 +70,7 @@ struct filterent {
 
 struct filter {
   struct filterent rule[MAXFILTERS];	/* incoming packet filter */
-  char *name;
+  const char *name;
   unsigned fragok : 1;
   unsigned logok : 1;
 };

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.7 1998/04/03 19:21:33 brian Exp $
+ *  $Id: link.h,v 1.1.2.8 1998/04/03 19:25:38 brian Exp $
  *
  */
 
@@ -39,7 +39,7 @@ struct prompt;
 
 struct link {
   int type;                               /* _LINK type */
-  char *name;                             /* unique id per link type */
+  const char *name;                       /* unique id per link type */
   int len;                                /* full size of parent struct */
   struct pppThroughput throughput;        /* Link throughput statistics */
   struct pppTimer Timer;                  /* inactivity timeout */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.14 1998/04/07 23:46:09 brian Exp $
+ *	$Id: server.c,v 1.16.2.15 1998/04/10 13:19:20 brian Exp $
  */
 
 #include <sys/types.h>
@@ -94,7 +94,7 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   struct server *s = descriptor2server(d);
   char hisaddr[ADDRSZ];
   struct sockaddr *sa = (struct sockaddr *)hisaddr;
-  struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
+  struct sockaddr_in *in = (struct sockaddr_in *)hisaddr;
   int ssize = ADDRSZ, wfd;
   struct prompt *p;
 
@@ -110,15 +110,15 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       break;
 
     case AF_INET:
-      if (ntohs(sin->sin_port) < 1024) {
+      if (ntohs(in->sin_port) < 1024) {
         LogPrintf(LogALERT, "Rejected client connection from %s:%u"
                   "(invalid port number) !\n",
-                  inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+                  inet_ntoa(in->sin_addr), ntohs(in->sin_port));
         close(wfd);
         return;
       }
       LogPrintf(LogPHASE, "Connected to client from %s:%u\n",
-                inet_ntoa(sin->sin_addr), sin->sin_port);
+                inet_ntoa(in->sin_addr), in->sin_port);
       break;
 
     default:
@@ -140,7 +140,7 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       case AF_INET:
         p->src.type = "tcp";
         snprintf(p->src.from, sizeof p->src.from, "%s:%u",
-                 inet_ntoa(sin->sin_addr), sin->sin_port);
+                 inet_ntoa(in->sin_addr), in->sin_port);
         break;
     }
     prompt_TtyCommandMode(p);
