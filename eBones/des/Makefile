@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
-#	$Id: Makefile,v 1.5 1995/07/18 16:34:59 mark Exp $
+#	$Id: Makefile,v 1.3 1995/09/07 21:36:46 markm Exp $
 
 LIB=	des
 SRCS=	cbc_cksm.c cbc_enc.c ecb_enc.c enc_read.c enc_writ.c pcbc_enc.c \
@@ -19,7 +19,7 @@ CFLAGS+= -DDES_ENCRYPT -DKRBDES_ENCRYPT
 #CFLAGS+= -DKRB5
 #SRCS+=	kerberos5.c
 
-CFLAGS+= -I${.CURDIR}/include -DAUTHENTICATE
+CFLAGS+= -I${.CURDIR}/include -I${.CURDIR}/../include -DAUTHENTICATE
 SHLIB_MAJOR?= 2
 SHLIB_MINOR?= 0
 
