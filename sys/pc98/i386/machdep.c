@@ -513,25 +513,6 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	else
 		fp = (struct osigframe *)regs->tf_esp - 1;
 
-	/*
-	 * grow() will return FALSE if the fp will not fit inside the stack
-	 *	and the stack can not be grown. useracc will return FALSE
-	 *	if access is denied.
-	 */
-	if (grow_stack(p, (int)fp) == FALSE ||
-	    !useracc((caddr_t)fp, sizeof(struct osigframe), VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
-
 	/* Translate the signal if appropriate */
 	if (p->p_sysent->sv_sigtbl) {
 		if (sig <= p->p_sysent->sv_sigsize)
@@ -660,28 +641,6 @@ sendsig(catcher, sig, mask, code)
 	}
 	else
 		sfp = (struct sigframe *)regs->tf_esp - 1;
-
-	/*
-	 * grow() will return FALSE if the sfp will not fit inside the stack
-	 * and the stack can not be grown. useracc will return FALSE if
-	 * access is denied.
-	 */
-	if (grow_stack(p, (int)sfp) == FALSE ||
-	    !useracc((caddr_t)sfp, sizeof(struct sigframe), VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-#ifdef DEBUG
-		printf("process %d has trashed its stack\n", p->p_pid);
-#endif
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
 
 	/* Translate the signal is appropriate */
 	if (p->p_sysent->sv_sigtbl) {
