@@ -32,8 +32,22 @@
 #ifdef _KERNEL
 
 #ifndef	__GNUC__
-#error	gcc is required to use this file
-#endif
+
+#ifndef	lint
+#error	gcc or lint is required to use this file
+#else /* lint */
+#define	__PCPU_PTR(name)
+#define	__PCPU_GET(name)
+#define	__PCPU_SET(name, val)
+#define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
+#define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
+#define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
+#define	PCPU_MD_FIELDS		\
+	int foo;		\
+	char bar
+#endif /* lint */
+
+#else	/* __GNUC__ */
 
 #include <machine/segments.h>
 #include <machine/tss.h>
@@ -145,6 +159,8 @@
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
+
+#endif	/* __GNUC__ */
 
 #endif	/* _KERNEL */
 
