@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.31 1995/10/22 01:32:59 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.32 1995/10/22 08:33:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,6 +97,7 @@
 
 /* Ones that can be tweaked from config files */
 #define VAR_BLANKTIME			"blanktime"
+#define VAR_BOOTMGR			"bootManager"
 #define VAR_BROWSER_BINARY		"browserBinary"
 #define VAR_BROWSER_PACKAGE		"browserPackage"
 #define VAR_CONFIG_FILE			"configFile"
@@ -559,6 +560,7 @@ extern void	mediaShutdownNFS(Device *dev);
 extern int	optionsEditor(char *str);
 
 /* package.c */
+extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name);
 
 /* system.c */
