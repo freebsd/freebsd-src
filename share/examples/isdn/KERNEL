@@ -7,7 +7,7 @@
 #	file and then edited (stripped down) to match your
 #	hardware configuration.
 #
-#	last edit-date: [Sun Dec 16 17:13:57 2001]
+#	last edit-date: [Tue May 21 13:48:45 2002]
 #
 # $FreeBSD$
 #
@@ -75,7 +75,8 @@ pseudo-device	"i4btel"	2
 options		IPR_VJ
 pseudo-device	"i4bipr"	4
 
-# kernel sppp/isppp
+# kernel sppp
+pseudo-device	sppp
 pseudo-device	"i4bisppp"	4
 
 # Netgraph interface
