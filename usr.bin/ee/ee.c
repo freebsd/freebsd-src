@@ -64,7 +64,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.3  $Revision: 1.12 $";
+char *version = "@(#) ee, version 1.3";
 
 #ifdef NCURSE
 #include "new_curse.h"
