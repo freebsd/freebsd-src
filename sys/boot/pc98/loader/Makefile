@@ -105,10 +105,11 @@ ${PROG}.help: help.common help.i386
 
 .PATH: ${.CURDIR}/../../forth 
 FILES=	${PROG}.help loader.4th support.4th loader.conf
+FILES+= screen.4th frames.4th beastie.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	loader.rc
+FILES+=	${.CURDIR}/../../i386/loader/loader.rc
 .endif
 
 .include <${.CURDIR}/../Makefile.inc>
