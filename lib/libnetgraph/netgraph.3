@@ -95,6 +95,8 @@ associated with the node; either
 or
 .Fa "dsp"
 may be NULL if only one socket is desired.
+.Fn NgMkSockNode
+loads the socket node type KLD if it's not already loaded.
 .Pp
 .Fn NgNameNode
 assigns a global name to the node addressed by
@@ -273,10 +275,11 @@ ASCII control message array or fixed width string buffer overflow.
 .El
 .Sh SEE ALSO
 .Xr netgraph 4 ,
+.Xr kld 4 ,
 .Xr socket 2 ,
 .Xr select 2 ,
 .Xr warnx 3 ,
-.Xr ng_socket 8 .
+.Xr ng_socket 8
 .Sh HISTORY
 The
 .Nm netgraph
