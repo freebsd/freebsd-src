@@ -434,6 +434,8 @@ ath_intr(void *arg)
 		DPRINTF(ATH_DEBUG_ANY, ("%s: invalid; ignored\n", __func__));
 		return;
 	}
+	if (!ath_hal_intrpend(ah))		/* shared irq, not for us */
+		return;
 	if ((ifp->if_flags & (IFF_RUNNING|IFF_UP)) != (IFF_RUNNING|IFF_UP)) {
 		DPRINTF(ATH_DEBUG_ANY, ("%s: if_flags 0x%x\n",
 			__func__, ifp->if_flags));
