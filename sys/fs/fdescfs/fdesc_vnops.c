@@ -401,13 +401,17 @@ fdesc_setattr(ap)
 		return (EBADF);
 
 	/*
-	 * Do not allow anybody to actually setattr anything.
+	 * Allow setattr where there is an underlying vnode.
 	 */
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
-	case DTYPE_PIPE:
 	case DTYPE_VNODE:
+		error = VOP_SETATTR((struct vnode *) fp->f_data, ap->a_vap,
+		    ap->a_cred, ap->a_p);
+		break;
+
 	case DTYPE_SOCKET:
+	case DTYPE_PIPE:
 	case DTYPE_KQUEUE:
 		if (vap->va_flags != VNOVAL)
 			error = EOPNOTSUPP;
