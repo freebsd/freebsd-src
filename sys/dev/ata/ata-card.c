@@ -58,6 +58,8 @@ static const struct pccard_product ata_pccard_products[] = {
 	{NULL}
 };
 
+MALLOC_DECLARE(M_ATA);
+
 static int
 ata_pccard_match(device_t dev)
 {
@@ -99,8 +101,7 @@ ata_pccard_probe(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct resource *io, *altio;
-    int i, rid, len, start, end;
-    u_long tmp;
+    int i, rid, len;
 
     /* allocate the io range to get start and length */
     rid = ATA_IOADDR_RID;
@@ -110,52 +111,39 @@ ata_pccard_probe(device_t dev)
     if (!io)
 	return ENXIO;
 
-    /* reallocate the io address to only cover the io ports */
-    start = rman_get_start(io);
-    end = start + ATA_IOSIZE - 1;
-    bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
-    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			    start, end, ATA_IOSIZE, RF_ACTIVE);
-
-    /* 
-     * if we got more than the default ATA_IOSIZE ports, this is likely
-     * a pccard system where the altio ports are located at offset 14
-     * otherwise its the normal altio offset
-     */
-    if (bus_get_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, &tmp, &tmp)) {
-	if (len > ATA_IOSIZE) {
-	    bus_set_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID,
-			     start + ATA_PCCARD_ALTOFFSET, ATA_ALTIOSIZE);
-	}
-	else {
-	    bus_set_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, 
-			     start + ATA_ALTOFFSET, ATA_ALTIOSIZE);
-	}
-    }
-
-    /* allocate the altport range */
-    rid = ATA_ALTADDR_RID;
-    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			       ATA_ALTIOSIZE, RF_ACTIVE);
-    if (!altio) {
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
-	return ENXIO;
-    }
-
     /* setup the resource vectors */
     for (i = ATA_DATA; i <= ATA_STATUS; i++) {
 	ch->r_io[i].res = io;
 	ch->r_io[i].offset = i;
     }
-    ch->r_io[ATA_ALTSTAT].res = altio;
-    ch->r_io[ATA_ALTSTAT].offset = 0;
+
+    /*
+     * if we got more than the default ATA_IOSIZE ports, this is a device
+     * where altio is located at offset 14 into "normal" io space.
+     */
+    if (len > ATA_IOSIZE) {
+	ch->r_io[ATA_ALTSTAT].res = io;
+	ch->r_io[ATA_ALTSTAT].offset = 14;
+    }
+    else {
+	rid = ATA_ALTADDR_RID;
+	altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				   ATA_ALTIOSIZE, RF_ACTIVE);
+	if (!altio) {
+	    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+	    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
+		ch->r_io[i].res = NULL;
+	    return ENXIO;
+	}
+	ch->r_io[ATA_ALTSTAT].res = altio;
+	ch->r_io[ATA_ALTSTAT].offset = 0;
+    }
 
     /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     ch->locking = ata_pccard_locknoop;
     ch->device[MASTER].setmode = ata_pccard_setmode;
-    ch->device[SLAVE].setmode = ata_pccard_setmode;
     return ata_probe(dev);
 }
 
@@ -165,6 +153,8 @@ ata_pccard_detach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int i;
 
+    free(ch->device[MASTER].param, M_ATA);
+    ch->device[MASTER].param = NULL;
     ata_detach(dev);
     bus_release_resource(dev, SYS_RES_IOPORT,
 			 ATA_ALTADDR_RID, ch->r_io[ATA_ALTSTAT].res);
