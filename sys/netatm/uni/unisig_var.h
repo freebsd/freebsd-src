@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_var.h,v 1.12 1998/07/24 20:24:34 mks Exp $
+ *	@(#) $Id: unisig_var.h,v 1.1 1998/09/15 08:23:13 phk Exp $
  *
  */
 
@@ -276,7 +276,9 @@ int		unisig_sigmgr_state __P((struct unisig *, int,
 				KBuffer *));
 
 	/* unisig_subr.c */
-void		unisig_set_cause_attr __P((Atm_attributes *, int));
+void		unisig_cause_attr_from_user __P((Atm_attributes *, int));
+void		unisig_cause_attr_from_ie __P((Atm_attributes *,
+				struct ie_generic *));
 int		unisig_open_vcc __P((struct unisig *, Atm_connvc *));
 int		unisig_close_vcc __P((struct unisig *,
 				struct unisig_vccb *));
