@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcireg.h,v 1.16 2000/03/29 01:46:27 augustss Exp $	*/
+/*	$NetBSD: ohcireg.h,v 1.17 2000/04/01 09:27:35 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 
@@ -239,5 +239,9 @@ typedef struct {
 #define OHCI_CC_BUFFER_OVERRUN		12
 #define OHCI_CC_BUFFER_UNDERRUN		13
 #define OHCI_CC_NOT_ACCESSED		15
+
+/* Some delay needed when changing certain registers. */
+#define OHCI_ENABLE_POWER_DELAY	5
+#define OHCI_READ_DESC_DELAY	5
 
 #endif /* _DEV_PCI_OHCIREG_H_ */
