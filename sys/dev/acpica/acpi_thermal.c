@@ -40,7 +40,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	ACPI_THERMAL_ZONE
+#define _COMPONENT	ACPI_THERMAL
 MODULE_NAME("THERMAL")
 
 #define TZ_ZEROC	2732
@@ -84,6 +84,7 @@ struct acpi_tz_softc {
 static int	acpi_tz_probe(device_t dev);
 static int	acpi_tz_attach(device_t dev);
 static int	acpi_tz_establish(struct acpi_tz_softc *sc);
+static void	acpi_tz_monitor(struct acpi_tz_softc *sc);
 static void	acpi_tz_all_off(struct acpi_tz_softc *sc);
 static void	acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg);
 static void	acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg);
@@ -114,15 +115,21 @@ DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, acpi_tz_devclass, 0, 0);
 static int
 acpi_tz_probe(device_t dev)
 {
-
+    int		result;
+    
+    ACPI_LOCK;
+    
     /* no FUNCTION_TRACE - too noisy */
 
     if ((acpi_get_type(dev) == ACPI_TYPE_THERMAL) &&
 	!acpi_disabled("thermal")) {
 	device_set_desc(dev, "thermal zone");
-	return(-10);
+	result = -10;
+    } else {
+	result = ENXIO;
     }
-    return(ENXIO);
+    ACPI_UNLOCK;
+    return(result);
 }
 
 /*
@@ -136,6 +143,8 @@ acpi_tz_attach(device_t dev)
 
     FUNCTION_TRACE(__func__);
 
+    ACPI_LOCK;
+
     sc = device_get_softc(dev);
     sc->tz_dev = dev;
     sc->tz_handle = acpi_get_handle(dev);
@@ -145,19 +154,22 @@ acpi_tz_attach(device_t dev)
      * structures.
      */
     if ((error = acpi_tz_establish(sc)) != 0)
-	return_VALUE(error);
+	goto out;
     
     /*
      * Register for any Notify events sent to this zone.
      */
     AcpiInstallNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY, 
-			     acpi_tz_notify_handler, dev);
+			     acpi_tz_notify_handler, sc);
 
     /*
      * Don't bother evaluating/printing the temperature at this point;
      * on many systems it'll be bogus until the EC is running.
      */
-    return_VALUE(0);
+
+ out:
+    ACPI_UNLOCK;
+    return_VALUE(error);
 }
 
 /*
@@ -173,6 +185,8 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     char	nbuf[8];
     
     FUNCTION_TRACE(__func__);
+
+    ACPI_ASSERTLOCK;
 
     /*
      * Power everything off and erase any existing state.
@@ -242,6 +256,8 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 
     FUNCTION_TRACE(__func__);
 
+    ACPI_ASSERTLOCK;
+
     /*
      * Get the current temperature.
      */
@@ -250,6 +266,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 	/* XXX disable zone? go to max cooling? */
 	return_VOID;
     }
+    DEBUG_PRINT(TRACE_VALUES, ("got %d.%dC\n", TZ_KELVTOC(temp)));
 
     /*
      * Work out what we ought to be doing right now.
@@ -319,6 +336,8 @@ acpi_tz_all_off(struct acpi_tz_softc *sc)
     int		i;
 
     FUNCTION_TRACE(__func__);
+
+    ACPI_ASSERTLOCK;
     
     /*
      * Scan all the _AL objects, and turn them all off.
@@ -349,6 +368,8 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
     ACPI_HANDLE			cooler;
 
     FUNCTION_TRACE(__func__);
+
+    ACPI_ASSERTLOCK;
 
     switch(obj->Type) {
     case ACPI_TYPE_STRING:
@@ -383,16 +404,24 @@ static void
 acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
 {
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
-    ACPI_HANDLE			cooler, parent;
+    ACPI_HANDLE			cooler;
 
     FUNCTION_TRACE(__func__);
+
+    ACPI_ASSERTLOCK;
 
     switch(obj->Type) {
     case ACPI_TYPE_STRING:
 	DEBUG_PRINT(TRACE_OBJECTS, ("called to turn %s off\n", obj->String.Pointer));
 
-	/* find the handle for the device and turn it off */
-	if (acpi_GetHandleInScope(sc->tz_handle, obj->String.Pointer, &cooler) == AE_OK)
+	/*
+	 * Find the handle for the device and turn it off.
+	 * The String object here seems to contain a fully-qualified path, so we
+	 * don't have to search for it in our parents.
+	 *
+	 * XXX This may not always be the case.
+	 */
+	if (AcpiGetHandle(obj->String.Pointer, NULL, &cooler) == AE_OK)
 	    acpi_pwr_switch_consumer(cooler, ACPI_STATE_D0);
 	break;
 	
@@ -413,6 +442,8 @@ acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data)
 
     FUNCTION_TRACE(__func__);
 
+    ACPI_ASSERTLOCK;
+
     if (acpi_EvaluateInteger(sc->tz_handle, node, data) != AE_OK) {
 	*data = -1;
     } else {
@@ -432,13 +463,17 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
     FUNCTION_TRACE(__func__);
 
+    ACPI_ASSERTLOCK;
+
     switch(notify) {
     case TZ_NOTIFY_TEMPERATURE:
-	acpi_tz_monitor(sc);	/* temperature change occurred */
+	/* temperature change occurred */
+	AcpiOsQueueForExecution(OSD_PRIORITY_HIGH, (OSD_EXECUTION_CALLBACK)acpi_tz_monitor, sc);
 	break;
     case TZ_NOTIFY_DEVICES:
     case TZ_NOTIFY_LEVELS:
-	acpi_tz_establish(sc);	/* zone devices/setpoints changed */
+	/* zone devices/setpoints changed */
+	AcpiOsQueueForExecution(OSD_PRIORITY_HIGH, (OSD_EXECUTION_CALLBACK)acpi_tz_establish, sc);
 	break;
     default:
 	device_printf(sc->tz_dev, "unknown Notify event 0x%x\n", notify);
@@ -455,11 +490,15 @@ acpi_tz_timeout(void *arg)
 {
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
 
+    ACPI_LOCK;
+    
     /* check temperature, take action */
-    acpi_tz_monitor(sc);
+    AcpiOsQueueForExecution(OSD_PRIORITY_HIGH, (OSD_EXECUTION_CALLBACK)acpi_tz_monitor, sc);
 
     /* XXX passive cooling actions? */
 
     /* re-register ourself */
     sc->tz_timeout = timeout(acpi_tz_timeout, sc, TZ_POLLRATE);
+
+    ACPI_UNLOCK;
 }
