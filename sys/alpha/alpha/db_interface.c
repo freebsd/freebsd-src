@@ -1,6 +1,3 @@
-/* $NetBSD: db_interface.c,v 1.2 1997/09/16 19:07:19 thorpej Exp $ */
-/* $FreeBSD$ */
-
 /* 
  * Mach Operating System
  * Copyright (c) 1992,1991,1990 Carnegie Mellon University
@@ -49,8 +46,8 @@
  */
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
-
 /* __KERNEL_RCSID(0, "$NetBSD: db_interface.c,v 1.2 1997/09/16 19:07:19 thorpej Exp $"); */
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/proc.h>
