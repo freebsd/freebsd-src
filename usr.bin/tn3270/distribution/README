@@ -1,0 +1,99 @@
+Welcome to the new tn3270 - version 4.1.1.
+
+This version consists entirely of bug fixes to the August 1987 beta release
+of tn3270.  This version will now deal with CICS and VM/XA on the IBM
+side, and with SunOS 4.0 on Sun 3's and Sun 4's.
+
+This version has been tested on various versions of BSD Unix, including
+4.2 and 4.3 (but there are never vanilla versions) and the post-4.3 systems
+running at Berkeley.  It has been tested on CCI's, Vaxen, Sun 3's and Sun 4's.
+However, it doesn't necessarily work on all systems (nor has the testing
+been as intensive as one might like).
+
+This version should build on any Berkeley-derived system.
+
+There are two alternate make files:  ./makefile_4.2 and telnet/Makefile_ultrix.
+
+****    Try ./makefile_4.2 if you get compile-time errors, or get
+	"multiply defined" messages for "_putchar" from the loader.
+
+****    Try telnet/Makefile_ultrix if your make(1) utility doesn't
+	support VPATH.  Also try this makefile if your ld(1) doesn't
+	support the -r flag correctly.
+
+The bad news is that I've had to drop MS-DOS support.  The good news here is
+that there are various versions available for MS-DOS (from FTP Software in
+Cambridge, Mass.; from IBM; from Excelan; and probably from others).  The
+hooks are still there, as well as some code to update the screen.  However,
+I just haven't had the time to produce a fully integrated version that would
+"just make".  I suspect that a future release may have MS-DOS support back
+in it.
+
+There is no Mac support.  Contact Peter DiCamillo at Brown University if
+you need a Mac tn3270.
+
+The main code change in this version is to what used to be called "telnet.c".
+This is now replaced with a version of telnet (substantially what appeared
+in the "4.3tahoe" release from CSRG) which is broken into separate files.
+
+Here is an overview of the directory structure:
+
+    api/		General library of function needed by API
+			(and, to some extent, by the rest of tn3270).
+
+    arpa/		Location of "telnet.h" (for non-4.3 systems).
+
+    ascii/		Routines necessary to handle the case of running
+			from an ASCII-oriented system (ie: unix).
+
+    ctlr/		The main part of the emulator.  Handles 3270 scan
+			codes, 3270 data stream, 3270 display codes,
+			and EBCDIC.  Also, the internal API function
+			lives here.
+
+    general/		Some general subroutines and data structures of
+			interest to the emulator only.
+
+    sys_curses/		System-dependent code for a curses-based environment.
+
+    sys_dos/		System-dependent code for an MS-DOS-base environment.
+			Remember that this is included for your developmental
+			needs (ie: it doesn't work).
+
+    telnet/		Where the telnet portion of tn3720 is built.
+
+    tools/		Various tools.  Most of these are used during the
+			build process.  One (prt3270) is a debugging tool.
+			One (mkmake.y) is quite horrible, and attempts to
+			transform Unix makefiles into PC makefiles.
+
+    utilities/		The source for tnrecv, which receives files
+			(fairly slowly) from an IBM host.  We don't
+			include the IBM side, because we really aren't
+			happy with very much of it (except that it does,
+			sometimes, work).  Hopefully, when we get past
+			the beta stage we will have more robust (and
+			complete) code to share.
+
+The fact that system dependancies are isolated should make it easy
+to port to other systems.  I would like to hear about problems porting
+to new areas.
+
+In the August, 1987 README file, the following appeared:
+
+> WHAT IS NOT IN THIS VERSION (sigh):
+
+> 1)	We don't have a native X version yet.  I am waiting for X version 11
+> 	(though this is mostly an excuse; I could have done version 10,
+> 	but I haven't had the time).
+
+> 2)	We don't process structured fields.
+
+> 3)	We don't do 3270-style graphics (ala 3193, say).
+
+> The above three items WILL be in the next version, which should come
+> along "any day now" (say 6 months) (but, they WON'T be in the production
+> release of this version).
+
+The next piece of bad news is that none of the above have happened yet,
+and I don't know when they might occur.

@@ -1,0 +1,100 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)kdump.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt KDUMP 1
+.Os BSD 4.4
+.Sh NAME
+.Nm kdump
+.Nd display kernel trace data
+.Sh SYNOPSIS
+.Nm kdump
+.Op Fl dnlRT
+.Op Fl f Ar file
+.Op Fl m Ar maxdata
+.Op Fl t Op cnis
+.Sh DESCRIPTION
+.Nm Kdump
+displays the kernel trace files produced with
+.Xr ktrace 1
+in human readable format.
+By default, the file
+.Pa ktrace.out
+in the current directory is displayed.
+.Pp
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl d
+Display all numbers in decimal.
+.It Fl f Ar file 
+Display the specified file instead of
+.Pa ktrace.out .
+.It Fl l
+Loop reading the trace file, once the end-of-file is reached, waiting for
+more data.
+.It Fl m Ar maxdata 
+Display at most
+.Ar maxdata
+bytes when decoding
+.Tn I/O .
+.It Fl n
+Suppress ad hoc translations.
+Normally
+.Nm kdump
+tries to decode many system calls into a more human readable format.
+For example,
+.Xr ioctl 2
+values are replaced with the macro name and
+.Va errno
+values are replaced with the
+.Xr strerror 3
+string.
+Suppressing this feature yields a more consistent output format and is
+easily amenable to further processing.
+.It Fl R
+Display relative timestamps (time since previous entry).
+.It Fl T
+Display absolute timestamps for each entry (seconds since epoch).
+.It Fl t Ar cnis 
+See the
+.Fl t
+option of
+.Xr ktrace 1 .
+.El
+.Sh SEE ALSO
+.Xr ktrace 1
+.Sh HISTORY
+The
+.Nm kdump
+command appears in
+.Bx 4.4 .

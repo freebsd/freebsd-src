@@ -1,0 +1,98 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)printenv.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt PRINTENV 1
+.Os BSD 3
+.Sh NAME
+.Nm printenv , env
+.Nd print out the environment, set and print environment
+.Sh SYNOPSIS
+.Nm printenv
+.Op Ar name
+.Nm env
+.Op Fl
+.Op Ar name=value ...
+.Op Ar command
+.Sh DESCRIPTION
+.Nm Printenv
+prints out the names and values of the variables in the environment,
+with one name/value pair per line.  If
+.Ar name
+is specified, only
+its value is printed.
+.Pp
+If a
+.Ar name
+is specified and it is not defined in the environment,
+.Nm printenv
+returns exit status 1, else it returns status 0.
+.Pp
+.Nm Env
+executes
+.Ar command
+after modifying the environment as
+specified on the command line.  The option
+.Ar name=value
+specifies
+an environmental variable,
+.Ar name  ,
+with a value of
+.Ar value  .
+The option
+.Sq Fl
+causes
+.Nm env
+to completely ignore the environment
+it inherits.
+.Pp
+If no command is specified,
+.Nm env
+prints out the names and values
+of the variables in the environment, with one name/value pair per line.
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr execvp 3 ,
+.Xr environ 7
+.Sh HISTORY
+The
+.Nm printenv
+command appeared in
+.Bx 3.0 .
+.Sh BUGS
+.Nm Env
+doesn't handle commands with equal (``='') signs in their
+names, for obvious reasons.

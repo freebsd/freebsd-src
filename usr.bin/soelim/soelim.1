@@ -1,0 +1,88 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)soelim.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt SOELIM 1
+.Os BSD 3
+.Sh NAME
+.Nm soelim
+.Nd eliminate \&.so's from nroff input
+.Sh SYNOPSIS
+.Nm soelim
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm Soelim
+reads the specified files or the standard input and performs the textual
+inclusion implied by the
+.Xr nroff 1
+directives of the form:
+.Pp
+.Dl \&.so somefile
+.Pp
+The directives need to appear at the beginning of input lines.
+This is useful since programs such as
+.Xr tbl 1
+do not normally do this; it allows the placement of individual tables
+in separate files to be run as a part of a large document.
+.Pp
+An argument consisting of a single minus
+.Ql Fl
+is taken to be
+a file name corresponding to the standard input.
+.Pp
+Note that inclusion can be suppressed by using
+.Ql \e'
+instead of
+.Ql \e. ,
+i.e.
+.Pp
+.Dl \'so /usr/lib/tmac.s
+.Pp
+A sample usage of
+.Nm soelim
+would be
+.Pp
+.Bd -literal -offset indent -compact
+soelim exum?.n \&| tbl \&| nroff \-ms \&| col \&| lpr
+.Ed
+.Sh SEE ALSO
+.Xr colcrt 1 ,
+.Xr more 1
+.Sh BUGS
+The format of the source commands must involve no strangeness \-
+exactly one blank must precede and no blanks follow the file name.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
