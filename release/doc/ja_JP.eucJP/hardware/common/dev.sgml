@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.76
+        Original revision: 1.115
 -->
 
 <sect1>
@@ -58,7 +58,10 @@
           <para>Acerlabs Aladdin</para>
         </listitem>
         <listitem>
-          <para>AMD 756, 766</para>
+	  <para>AMD 756 ATA66, 766 ATA100, 768 ATA100</para>
+	</listitem>
+	<listitem>
+	  <para>Cenatek Rocket Drive</para>
         </listitem>
         <listitem>
           <para>CMD 646, 648 ATA66, 649 ATA100</para>
@@ -67,45 +70,67 @@
           <para>Cypress 82C693</para>
         </listitem>
         <listitem>
-          <para>Cyrex 5530</para>
+	  <para>Cyrix 5530 ATA33</para>
         </listitem>
         <listitem>
-          <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372 ATA133</para>
+	  <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372 ATA133, HPT374 ATA133</para>
         </listitem>
         <listitem>
           <para>Intel PIIX, PIIX3, PIIX4</para>
         </listitem>
         <listitem>
-          <para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100</para>
+	  <para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
+	</listitem>
+	<listitem>
+	  <para>nVidia nForce ATA100</para>
         </listitem>
         <listitem>
           <para>Promise ATA100 OEM チップ (pdc20265)</para>
         </listitem>
         <listitem>
-          <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
+	  <para>Promise ATA133 OEM chip (pdc20269)</para>
         </listitem>
         <listitem>
-          <para>Promise Ultra-33, -66, -100</para>
+	  <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
+	</listitem>
+	<listitem>
+	  <para>Promise Ultra-33, -66, -100, -133 TX2/TX2000</para>
         </listitem>
         <listitem>
           <para>ServerWorks ROSB4 ATA33</para>
         </listitem>
         <listitem>
+	  <para>ServerWorks CSB5 ATA66/ATA100</para>
+	</listitem>
+	<listitem>
+	  <para>Sil 0680 UDMA6</para>
+	</listitem>
+	<listitem>
           <para>SiS 530, 540, 620</para>
         </listitem>
         <listitem>
-          <para>SiS 630, 633, 635, 730, 733, 735</para>
+	  <para>SiS 630, 633, 635, 645, 730, 733, 735, 740, 745, 750</para>
         </listitem>
         <listitem>
-          <para>SiS 5591</para>
+          <para>SiS 5591 ATA100</para>
         </listitem>
         <listitem>
           <para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b ATA100</para>
         </listitem>
+	<listitem>
+	  <para>VIA 8233, 8235 ATA133</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="pc98">IDE/ATA controllers (wdc driver)
+      <itemizedlist>
+        <listitem>
+	  <para>on-board IDE controller</para>
+	</listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Adaptec SCSI コントローラ
+    <para arch="i386,pc98,alpha">Adaptec SCSI コントローラ
       <itemizedlist>
         <listitem arch="i386">
 	  <para>Adaptec 1535 ISA SCSI コントローラ</para>
@@ -155,6 +180,27 @@
             これには AHA-152x および SoundBlaster SCSI カードも含まれます。
             (&man.aic.4; ドライバ)</para>
 	</listitem>
+        <listitem arch="pc98">
+           <para>NEC PC-9801-100, Adaptec AHA-1030P,
+           1030B(&man.aic.4; ドライバ)</para>
+        </listitem>
+        <listitem arch="pc98">
+           <para>NEC PC-9821Xt13, RvII26 internal, NEC
+           PC-9821X-B02L/B09, NEC SV-98/2-B03, Adaptec AHA-2940J,
+           AHA-2940AU, AHA-2940N (&man.ahc.4; ドライバ)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Ultra-320 SCSI controllers based on the Adaptec AIC7901,
+      AIC7901A, and AIC7902 Ultra320 controller chips (&man.ahd.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Adaptec 29320, 29320A, 29320B, 29320LP</para>
+        </listitem>
+        <listitem>
+	  <para>Adaptec 39320, 39320D</para>
+        </listitem>
       </itemizedlist>
     </para>
     
@@ -199,8 +245,66 @@
       </itemizedlist>
     </para>
     
-    <para arch="i386">AdvanSys SCSI コントローラ (すべてのモデル。
-      &man.adv.4; および &man.adw.4; ドライバ)</para>
+    <para arch="pc98">NEC PC-9801-55, 92 およびその互換 C-Bus SCSI インターフェイス (bs ドライバ)
+      <itemizedlist>
+        <listitem>
+          <para>NEC PC-9801-55, 92 およびその互換機器</para>
+          <para>ICM IF-2660</para>
+          <para>Midori-Denshi MDC-554NA</para>
+          <para>Logitec LHA-N151</para>
+          <note>
+            <para>DMA 転送モードにはカーネル設定に "flags 0x00000" が必要.
+	    </para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>I-O DATA SC-98II</para>
+          <note>
+            <para>DMA 転送モードにはカーネル設定に "flags 0x10000" が必要.
+	    </para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>TEXA HA-55BS2 および後継機</para>
+          <para>Midori-Denshi MDC-926Rs</para>
+          <note>
+            <para>バスマスタ転送モードにはカーネル設定に "flags 0x20000"
+	      が必要.</para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>ELECOM Bus-master SCSI インターフェイス</para>
+          <note>
+            <para>バスマスタ転送モードにはカーネル設定に "flags 0x30000"
+	      が必要.</para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>すべての SMIT 転送式 SCSI インターフェイス</para>
+          <note>
+            <para>SMIT 転送モードにはカーネル設定に "flags 0x40000" が必要.
+	    </para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>Logitec LHA-20x シリーズ</para>
+          <para>ICM IF-2766, IF-2766ET, IF-2767, IF-2769</para>
+          <note>
+            <para>バスマスタ転送モードにはカーネル設定に "flags 0x50000"
+	      が必要.</para>
+          </note>
+        </listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386,pc98">AdvanSys SCSI コントローラ (すべてのモデル。
+      &man.adv.4; および &man.adw.4; ドライバ)
+      <itemizedlist>
+        <listitem arch="pc98">
+           <para>MELCO IFC-USP, RATOC REX-PCI30, @Nifty FNECHARD
+           IFC-USUP-TX (&man.adv.4; ドライバ)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
     
     <para arch="i386">BusLogic MultiMaster <quote>W</quote> シリーズホストアダプタ
       (&man.bt.4; ドライバ):
@@ -499,41 +603,47 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,sparc64">LSI/SymBios (以前の NCR) 53C810, 53C810a, 53C815, 53C825,
+    <para arch="i386,pc98,alpha,sparc64">LSI/SymBios (以前の NCR) 53C810, 53C810a, 53C815, 53C825,
       53C825a, 53C860, 53C875, 53C875a, 53C876, 53C885, 53C895, 53C895a,
       53C896, 53C1010-33, 53C1010-66, 53C1000, 53C1000R PCI
       SCSI コントローラ。マザーボードに内蔵のもの、および外付ボードに対応。
       (&man.ncr.4; および &man.sym.4; ドライバ)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>ASUS SC-200, SC-896</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>Data Technology DTC3130 (すべての変種)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>DawiControl DC2976UW</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>Diamond FirePort (すべて)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>NCR 製カード (すべて)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>Symbios 製カード (すべて)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D,
             390U3W</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha,sparc64">
 	  <para>Tyan S1365</para>
 	</listitem>
+        <listitem arch="pc98">
+           <para>I-O DATA SC-98/PCI, SC-PCI (&man.ncr.4; ドライバ)</para>
+        </listitem>
+        <listitem arch="pc98">
+           <para>I-O DATA SC-UPCI, Logitec LHA-521UA (&man.sym.4; ドライバ)</para>
+        </listitem>
       </itemizedlist>
     </para>      
         
-    <para arch="i386">NCR 53C500 ベースの PC-Card SCSI ホストアダプタ (ncv
+    <para arch="i386,pc98">NCR 53C500 ベースの PC-Card SCSI ホストアダプタ (ncv
       ドライバ)
       <itemizedlist>
         <listitem>
@@ -563,7 +673,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">TMC 18C30, 18C50 ベースの ISA/PC-Card SCSI
+    <para arch="i386,pc98">TMC 18C30, 18C50 ベースの ISA/PC-Card SCSI
       ホストアダプタ (stg ドライバ)
       <itemizedlist>
         <listitem>
@@ -585,54 +695,63 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64">Qlogic コントローラ。すべての変種に対応。
+    <para arch="i386,pc98,alpha,ia64">Qlogic コントローラ。すべての変種に対応。
       (&man.isp.4; ドライバ)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386,alpha,ia64">
 	  <para>Qlogic 1020, 1040 SCSI および Ultra SCSI
             ホストアダプタ</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Qlogic 1240 dual Ultra SCSI コントローラ</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Qlogic 1080 Ultra2 LVD および 1280 Dual Ultra2 LVD
             コントローラ</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Qlogic 12160 Ultra3 LVD コントローラ</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Qlogic 2100 および Qlogic 2200 Fibre Channel SCSI
             コントローラ</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Qlogic 2300 および Qlogic 2312 2-Gigabit Fibre Channel SCSI
             コントローラ</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Performance Technology SBS440 ISP1000 および、その変種</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Performance Technology SBS450 ISP1040 および、その変種</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Performance Technology SBS470 ISP2100 および、その変種</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha,ia64">
 	  <para>Antares Microsystems P-0033 ISP2100 および、その変種</para>
 	</listitem>
+        <listitem arch="pc98">
+           <para>Qlogic SCSI interface</para>
+        </listitem>
       </itemizedlist>
     </para>
 
     <para arch="i386">DTC 3290 EISA SCSI コントローラ。
       1542 エミュレーションモードに対応。</para>
 
-    <para arch="i386">Tekram DC390 および DC390T コントローラ。
+    <para arch="i386,pc98">Tekram DC390 および DC390T コントローラ。
       AMD 53c974 をベースにした他のカードも動作するかも知れません。
-      (&man.amd.4; ドライバ)</para>
+      (&man.amd.4; ドライバ)
+      <itemizedlist arch="pc98">
+        <listitem arch="pc98">
+           <para>MELCO IFC-DP</para>
+        </listitem>
+      </itemizedlist>
+    </para>
 
-    <para arch="i386">Workbit Ninja SCSI-3 ベースの PC-Card SCSI ホストアダプタ
+    <para arch="i386,pc98">Workbit Ninja SCSI-3 ベースの PC-Card SCSI ホストアダプタ
       (nsp ドライバ)
       <itemizedlist>
         <listitem>
@@ -680,6 +799,39 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
+    driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
+	architecture Fiber Channel controllers (mpt driver)
+      <itemizedlist>
+	<listitem>
+	  <para>LSI FC909, FC929</para>
+	</listitem>
+	<listitem>
+	  <para>LSI 53c1020, 53c1030</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">PCI SCSI host adapters using the Tekram
+	TRM-S1040 SCSI chipset (trm driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Tekram DC395U/UW/F</para>
+	</listitem>
+	<listitem>
+	  <para>Tekram DC315U</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para>対応しているすべての SCSI コントローラは、
       ハードディスク、光ディスク、テープドライブ (DAT, 8mm Exabyte,
       Mammoth, DLT), メディアチェンジャ、プロセッサターゲットデバイス、
@@ -698,10 +850,6 @@
             SoundBlaster SCSI が含まれます) (&man.cd.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Matsushita/Panasonic (Creative SoundBlaster)
-            専用インターフェイス (562/563 モデル) (&man.matcd.4;)</para>
-	</listitem>
-	<listitem arch="i386">
 	  <para>Sony 専用インターフェイス (すべてのモデル) (&man.scd.4;)</para>
 	</listitem>
 	<listitem>
@@ -710,14 +858,16 @@
       </itemizedlist>
     </para>
     
-    <para arch="i386">以下のドライバは旧 SCSI サブシステムで対応していましたが、
-      現在の新しい CAM SCSI 錆システムでは、まだ対応していないものです。
+    <para arch="i386">以下のドライバは旧 SCSI
+      サブシステムで対応していましたが、
+      現在の新しい &man.cam.4; SCSI サブシステムでは、
+      まだ対応していないものです。
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386">
 	  <para>NCR5380/NCR53400 (<quote>ProAudio Spectrum</quote>)
             SCSI コントローラ</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>UltraStor 14F, 24F, 34F SCSI コントローラ
 	    <note>
 	      <para>現在、UltraStor ドライバを
@@ -726,13 +876,13 @@
             </note>
           </para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Seagate ST01/02 SCSI コントローラ</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Future Domain 8xx/950 シリーズ SCSI コントローラ</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>WD7000 SCSI コントローラ</para>
 	</listitem>
       </itemizedlist>
@@ -751,9 +901,9 @@
   <sect2 id="ethernet">
     <title>Ethernet インターフェイス</title>
 
-    <para arch="i386,alpha">Adaptec AIC-6915 Fast Ethernet コントローラチップベースの
+    <para arch="i386,pc98,alpha">Adaptec AIC-6915 Fast Ethernet コントローラチップベースの
       Adaptec Duralink PCI Fast Ethernet アダプタ
-      (&man.sf.4 ドライバ)
+      (&man.sf.4; ドライバ)
       <itemizedlist>
         <listitem>
           <para>ANA-62011 64-bit シングルポート 10/100baseTX アダプタ</para>
@@ -774,7 +924,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Allied-Telesis AT1700 および RE2000 カード
+    <para arch="i386,pc98">Allied-Telesis AT1700 および RE2000 カード
       (&man.fe.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -807,7 +957,7 @@
       </itemizedlist>
     </para>
       
-    <para arch="i386">Tigon 1, Tigon 2 チップセットベースの
+    <para arch="i386,pc98">Tigon 1, Tigon 2 チップセットベースの
       Alteon Networks PCI Gigabit Ethernet NIC (&man.ti.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -846,39 +996,52 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">AMD PCnet NICs (&man.lnc.4; および &man.pcn.4; ドライバ)
+    <para arch="i386,pc98,alpha">AMD PCnet NICs (&man.lnc.4; および &man.pcn.4; ドライバ)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>AMD PCnet/PCI (79c970 & 53c974 もしくは 79c974)</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>AMD PCnet/FAST</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>Isolan AT 4141-0 (16 bit)</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>Isolink 4110 (8 bit)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>PCnet/FAST+</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>PCnet/FAST III</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>PCnet/PRO</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>PCnet/Home</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>HomePNA</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Contec C-NET(98)S</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>PCI NIC using AMD AM79C97x (PCnet-PCI/Fast)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>NEC SV-98/2-B05, B06 (PCI)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Allied-Telesis LA-PCI (PCI)</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386">SMC 83c17x (EPIC) ベースの Ethernet NIC (&man.tx.4; ドライバ)
+    <para arch="i386,pc98">SMC 83c17x (EPIC) ベースの Ethernet NIC
+      (&man.tx.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>SMC EtherPower II 9432 シリーズ</para>
@@ -886,9 +1049,13 @@
       </itemizedlist>
     </para>
     
-    <para arch="i386,alpha">National Semiconductor DS8390 ベースの Ethernet NIC。
+    <para arch="i386,pc98">National Semiconductor DS8390 ベースの Ethernet NIC。
       これには Novell NE2000 とその互換品が含まれます。
       (&man.ed.4; ドライバ)
+      <note arch="pc98">
+        <para>非 PCI デバイスの場合には、
+	  カーネル設定にフラグをセットする必要があります。</para>
+      </note>
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>3C503 Etherlink II (&man.ed.4; ドライバ)</para>
@@ -899,7 +1066,7 @@
 	<listitem arch="i386">
 	  <para>Hewlett-Packard PC Lan+ 27247B および 27252A</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>NetVin 5000</para>
         </listitem>
         <listitem>
@@ -908,29 +1075,124 @@
         <listitem>
 	  <para>RealTek 8029</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>SMC Elite 16 WD8013 Ethernet インターフェイス</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>SMC Elite Ultra</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>SMC WD8003E, WD8003EBT, WD8003W, WD8013W, WD8003S,
 	  WD8003SBT, WD8013EBT およびその互換品</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Surecom NE-34</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>VIA VT86C926</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Winbond W89C940</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>I-O DATA ET2/T-PCI</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>MELCO LGY-PCI-TR</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>PLANEX ENW-8300-T</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Allied Telesis LA-98 (flags 0x000000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Corega Ether98-T (flags 0x000000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>SMC EtherEZ98 (flags 0x000000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>ELECOM LD-BDN, LD-NW801G (flags 0x200000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>PLANEX EN-2298-C (flags 0x200000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>MELCO EGY-98 (flags 0x300000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Contec C-NET(98)E-A, C-NET(98)L-A, C-NET(98)P (flags
+          0x300000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>MELCO LGY-98, LGH-98, IND-SP, IND-SS, LGY-98-N
+          (110pin) (flags 0x400000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>MACNICA NE2098 (flags 0x400000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>ICM IF-2766ET, IF-2771ET, AD-ET2-T, DT-ET-25, DT-ET-T5,
+          NB-ET-T  (110pin) (flags 0x500000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>D-Link DE-298, DE-298P (flags 0x500000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>ELECOM LD-98P (flags 0x500000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>PLANEX EN-2298-T, EN-2298P-T (flags 0x500000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Allied Telesis SIC-98, SIU-98, SIC-98NOTE  (110pin) (flags
+          0x600000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Allied Telesis SIU-98-D (flags 0x610000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>NEC PC-9801-107, 108 (flags 0x800000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>I-O DATA LA/T-98, LA/T-98SB, LA2/T-98, ET/T-98 (flags
+          0x900000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>MACNICA ME98 (flags 0x900000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Kansai KLA-98C/T (flags 0x900000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>NEC PC-9801-77, 78 (flags 0x910000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Contec C-NET(98), RT-1007(98), C-NET(9N) (110pin) (flags
+          0xa00000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Contec C-NET(98)E, C-NET(98)L, C-NET(9N)L (110pin) (flags
+          0xb00000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Logitec LAN-98T (flags 0xb00000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Networld 98X3 (flags 0xd00000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Accton EN1644(old model), EN1646(old model), EN2203(old
+          model) (110pin) (flags 0xd00000)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Networld EC-98X, EP-98X (flags 0xd10000)</para>
         </listitem>
       </itemizedlist>
     </para>    
 
-    <para arch="i386">NE2000 互換の PC-Card (PCMCIA) Ethernet, FastEthernet
+    <para arch="i386,pc98">NE2000 互換の PC-Card (PCMCIA) Ethernet, FastEthernet
       カード (&man.ed.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1023,44 +1285,47 @@
     <para arch="i386">RealTek RTL 8002 Pocket Ethernet (&man.rdp.4;
       ドライバ)</para>
 
-    <para arch="i386,alpha">RealTek 8129/8139 Fast Ethernet NIC (&man.rl.4; ドライバ)
+    <para arch="i386,pc98,alpha">RealTek 8129/8139 Fast Ethernet NIC (&man.rl.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>Accton <quote>Cheetah</quote> EN1207D (MPX 5030/5038;
             RealTek 8139 互換品)</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>Allied Telesyn AT2550</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>Allied Telesyn AT2500TX</para>
         </listitem>
-	<listitem>
-	  <para>D-Link DFE-538TX</para>
+	<listitem arch="i386,alpha">
+	  <para>D-Link DFE-530TX+, DFE-538TX</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
           <para>Farallon NetLINE 10/100 PCI</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>Genius GF100TXR (RTL8139)</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>KTX-9130TX 10/100 Fast Ethernet</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>NDC Communications NE100TX-E</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>Netronix Inc. EA-1210 NetEther 10/100</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>OvisLink LEF-8129TX</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>OvisLink LEF-8139TX</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>SMC EZ Card 10/100 PCI 1211-TX</para>
+        </listitem>
+	<listitem arch="pc98">
+	  <para>SOHO(PRAGMATIC) UE-1211C (PCI)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1083,7 +1348,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Macronix 98713, 98713A, 98715, 98715A, 98725 Fast
+    <para arch="i386,pc98,alpha">Macronix 98713, 98713A, 98715, 98715A, 98725 Fast
       Ethernet NIC (&man.dc.4; ドライバ)
       <itemizedlist>
 	<listitem>
@@ -1110,7 +1375,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NIC
+    <para arch="i386,pc98,alpha">Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1119,7 +1384,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Winbond W89C840F Fast Ethernet NIC (&man.wb.4; ドライバ)
+    <para arch="i386,pc98,alpha">Winbond W89C840F Fast Ethernet NIC (&man.wb.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Trendware TE100-PCIE</para>
@@ -1127,31 +1392,46 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>,
+    <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>,
       VT86C100A <quote>Rhine II</quote> Fast Ethernet NIC (&man.vr.4; ドライバ)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>AOpen/Acer ALN-320</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>D-Link DFE-530TX</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Hawking Technologies PN102TX</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>MELCO LGY-PCI-TXR (PCI)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>CO-100MV (PCI)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Corega FastEtherII PCI-TX (PCI)</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Silicon Integrated Systems SiS 900
+    <para arch="i386,pc98,alpha">Silicon Integrated Systems SiS 900
       および SiS 7016 PCI Fast Ethernet NIC (&man.sis.4; ドライバ)
       <itemizedlist>
-	<listitem>
+	<listitem arch="i386,alpha">
 	  <para>SiS 630, 635, 735 マザーボードチップセット</para>
+	</listitem>
+	<listitem arch="pc98">
+	  <para>@Nifty FNECHARD IFC-USUP-TX (PCI)</para>
+	</listitem>
+	<listitem arch="pc98">
+	  <para>MELCO LGY-PCI-TXC (PCI)</para>
 	</listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">National Semiconductor DP83815 Fast Ethernet NIC
+    <para arch="i386,pc98,alpha">National Semiconductor DP83815 Fast Ethernet NIC
       (&man.sis.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1163,8 +1443,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">National Semiconductor DP83820 および DP83821 Gigabit Ethernet
-      NIC (&man.nge.4 ドライバ)
+    <para arch="i386,pc98">National Semiconductor DP83820 および DP83821 Gigabit Ethernet
+      NIC (&man.nge.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Addtron AEG320T</para>
@@ -1183,7 +1463,7 @@
 	  <para>LinkSys EG1032 (32-bit PCI) および EG1064 (64-bit PCI)</para>
         </listitem>
         <listitem>
-	  <para>Netgear GA622T</para>
+	  <para>Netgear GA621, GA622T</para>
         </listitem>
         <listitem>
 	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
@@ -1198,7 +1478,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Sundance Technologies ST201 PCI Fast Ethernet NIC
+    <para arch="i386,pc98,alpha">Sundance Technologies ST201 PCI Fast Ethernet NIC
       (&man.ste.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1207,7 +1487,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">SysKonnect SK-984x PCI Gigabit Ethernet カード
+    <para arch="i386,pc98,alpha">SysKonnect SK-984x PCI Gigabit Ethernet カード
       (&man.sk.4 ドライバ)
       <itemizedlist>
         <listitem>
@@ -1231,7 +1511,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Texas Instruments ThunderLAN PCI NIC (&man.tl.4; ドライバ)
+    <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NIC (&man.tl.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Compaq Netelligent 10, 10/100, 10/100 Dual-Port</para>
@@ -1259,10 +1539,10 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">ADMtek Inc. AL981-based PCI Fast Ethernet NIC
+    <para arch="i386,pc98,alpha">ADMtek Inc. AL981-based PCI Fast Ethernet NIC
       (&man.dc.4; ドライバ)</para>
 
-    <para arch="i386,alpha">ADMtek Inc. AN985-based PCI Fast Ethernet NIC
+    <para arch="i386,pc98,alpha">ADMtek Inc. AN985-based PCI Fast Ethernet NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1271,50 +1551,80 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">ADMtek Inc. AN986 ベースの USB Ethernet NIC
+    <para arch="i386,pc98">ADMtek Inc. AN986 ベースの USB Ethernet NIC
       (&man.aue.4; ドライバ)
       <itemizedlist>
         <listitem>
-	  <para>Billionton USB100</para>
+	  <para>Abocom UFE1000, DSB650TX_NA</para>
+	</listitem>
+        <listitem>
+	  <para>Accton USB320-EC, SpeedStream</para>
         </listitem>
         <listitem>
-	  <para>D-Link DSB-650TX</para>
+	  <para>ADMtek AN986, AN8511</para>
         </listitem>
         <listitem>
-	  <para>LinkSys USB100TX</para>
+	  <para>Billionton USB100, USB100LP, USB100EL, USBE100</para>
         </listitem>
         <listitem>
-	  <para>Melco Inc. LUA-TX</para>
+	  <para>Corega Ether FEther USB-TX, FEther USB-TXS</para>
+        </listitem>
+        <listitem>
+	  <para>D-Link DSB-650, DSB-650TX, DSB-650TX-PNA</para>
+        </listitem>
+        <listitem>
+	  <para>Elsa Microlink USB2Ethernet</para>
+        </listitem>
+        <listitem>
+	  <para>I/O Data USB ETTX</para>
+        </listitem>
+        <listitem>
+	  <para>Kingston KNU101TX</para>
+        </listitem>
+        <listitem>
+	  <para>LinkSys USB10T, USB10TA, USB10TX, USB100TX, USB100H1</para>
+        </listitem>
+        <listitem>
+	  <para>Melco Inc. LUA-TX, LUA2-TX</para>
+        </listitem>
+        <listitem>
+	  <para>Siemens Speedstream</para>
+        </listitem>
+        <listitem>
+	  <para>SmartBridges smartNIC</para>
         </listitem>
         <listitem>
 	  <para>SMC 2202USB</para>
         </listitem>
+        <listitem>
+	  <para>SOHOware NUB100</para>
+        </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386">CATC USB-EL1210A-based USB Ethernet NIC
+    <para arch="i386,pc98">CATC USB-EL1210A-based USB Ethernet NIC
       (&man.cue.4; ドライバ)
       <itemizedlist>
         <listitem>
-	  <para>Belkin F5U011</para>
+	  <para>Belkin F5U011, F5U111</para>
         </listitem>
         <listitem>
-	  <para>Belkin F5U111</para>
+	  <para>CATC Netmate, Netmate II</para>
         </listitem>
         <listitem>
-	  <para>CATC Netmate</para>
-        </listitem>
-        <listitem>
-	  <para>CATC Netmate II</para>
+	  <para>SmartBridges SmartLink</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386">Kawasaki LSI KU5KUSB101B ベースの USB Ethernet NIC
+    <para arch="i386,pc98">Kawasaki LSI KU5KUSB101B ベースの USB Ethernet NIC
       (&man.kue.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>3Com 3c19250</para>
+        </listitem>
+	<listitem>
+	  <para>AOX USB101</para>
         </listitem>
 	<listitem>
 	  <para>Abocom URE 450</para>
@@ -1329,10 +1639,16 @@
 	  <para>Corega USB-T</para>
         </listitem>
 	<listitem>
-	  <para>D-Link DSB-650</para>
+	  <para>D-Link DSB-650C</para>
         </listitem>
 	<listitem>
 	  <para>Entrega NET-USB-E45</para>
+        </listitem>
+        <listitem>
+          <para>I/O Data USB ETT</para>
+        </listitem>
+        <listitem>
+          <para>Kawasaki DU-H3E</para>
         </listitem>
         <listitem>
           <para>LinkSys USB10T</para>
@@ -1344,15 +1660,12 @@
 	  <para>Peracom USB Ethernet アダプタ</para>
         </listitem>
 	<listitem>
-	  <para>SMC 2102USB</para>
-        </listitem>
-	<listitem>
-	  <para>SMC 2104USB</para>
+	  <para>SMC 2102USB, 2104USB</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">ASIX Electronics AX88140A PCI NIC
+    <para arch="i386,pc98,alpha">ASIX Electronics AX88140A PCI NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1375,7 +1688,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">DEC DC21040, DC21041, DC21140, DC21141, DC21142, DC21143
+    <para arch="i386,pc98,alpha">DEC DC21040, DC21041, DC21140, DC21141, DC21142, DC21143
       ベースの NICs (&man.de.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1393,10 +1706,19 @@
 	<listitem>
 	  <para>ZYNX ZX 3xx</para>
 	</listitem>
+	<listitem arch="pc98">
+	  <para>I-O DATA LA2/T-PCI (PCI)</para>
+	</listitem>
+	<listitem arch="pc98">
+	  <para>ELECOM LD-PCI2T, LD-PCITS (PCI)</para>
+	</listitem>
+	<listitem arch="pc98">
+	  <para>Corega FastEther PCI-TX (PCI)
+	</listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">DEC/Intel 21143 ベースの Fast Ethernet NIC
+    <para arch="i386,pc98,alpha">DEC/Intel 21143 ベースの Fast Ethernet NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1417,7 +1739,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Davicom DM9100 および
+    <para arch="i386,pc98,alpha">Davicom DM9100 および
       DM9102 PCI Fast Ethernet NIC (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1430,48 +1752,91 @@
 
     <para arch="i386">Conexant LANfinity RS7112 (MiniPCI) (&man.dc.4; ドライバ)</para>
 
-    <para arch="i386">Fujitsu MB86960A/MB86965A ベースの
-      Fast Ethernet NIC (&man.fe.4; ドライバ)
+    <para arch="pc98">Cnet Pro120A (PCI) (&man.dc.4; driver)</para>
+
+    <para arch="pc98">MELCO LGY-PCI-TXL (PCI) (&man.dc.4; driver)</para>
+
+    <para arch="i386,pc98">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386">
           <para>CONTEC C-NET(PC)C Ethernet</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Eiger Labs EPX-10BT</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Fujitsu FMV-J182, FMV-J182A, MBH10302, MBH10303
             Ethernet PCMCIA</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Fujitsu Towa LA501 Ethernet</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>HITACHI HT-4840-11</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>NextCom J Link NC5310</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>RATOC REX-5588, REX-9822, REX-4886, REX-R280</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
+        </listitem>
+	<listitem arch="pc98">
+	  <para>Allied Telesis RE1000, RE1000Plus, ME1500 (110pin)</para>
+        </listitem>
+	<listitem arch="pc98">
+	  <para>Contec C-NET(98)P2, C-NET(9N)E (110pin),
+	  C-NET(9N)C(ExtCard)</para>
+        </listitem>
+	<listitem arch="pc98">
+          <para>Ungermann-Bass Access/PC N98C+(PC85152,PC85142),
+	  Access/NOTE N98 (PC86132) (110pin)</para>
+        </listitem>
+	<listitem arch="pc98">
+          <para>TDK LAC-98012, LAC-98013, LAC-98025, LAC-9N011
+	  (110pin)</para>
+        </listitem>
+	<listitem arch="pc98">
+          <para>Ratoc REX-9880/9881/9882/9883</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64">Intel 82557 もしくは 82559 ベースの
-      Fast Ethernet NIC (&man.fxp.4; ドライバ)
+    <para arch="i386,pc98,alpha,ia64">Intel 82557-, 82258-, 82559-, 82550-
+    or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha,ia64">
 	  <para>Intel InBusiness 10/100 PCI Network アダプタ</para>
         </listitem>
         <listitem>
 	  <para>Intel PRO/100+ Management アダプタ</para>
+        </listitem>
+        <listitem>
+          <para>Intel Pro/100 VE Desktop Adapter</para>
+        </listitem>
+        <listitem>
+          <para>Intel Pro/100 M Desktop Adapter</para>
+        </listitem>
+        <listitem>
+          <para>Intel Pro/100 S Desktop, Server and Dual-Port Server Adapters</para>
+        </listitem>
+        <listitem>
+          <para>On-board Ethernet NICs on many Intel motherboards.</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>NEC PC-9821Ra20, Rv20, Xv13, Xv20 internal 100Base-TX
+          (PCI)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>NEC PC-9821X-B06 (PCI)</para>
+        </listitem>
+        <listitem arch="pc98">
+          <para>Contec C-NET(PI)-100TX (PCI)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1507,32 +1872,35 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">3Com 3C5x9 Etherlink III NICs (&man.ep.4; ドライバ)
+    <para arch="i386,pc98">3Com 3C5x9 Etherlink III NICs (&man.ep.4; ドライバ)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386">
 	  <para>3C509</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>3C529 MCA</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>3C579 EISA</para>
         </listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>3CXE589EC, 3CXE589ET PCMCIA</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>3C589/589B/589C/589D/589E/574TX/574B
             PC-card/PCMCIA</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>OfficeConnect 3CXSH572BT</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Farallon EtherMac</para>
+	</listitem>
+	<listitem arch="pc98">
+	  <para>3Com 3C569, 3C569-TPO, 3C569B, 3C569B-COMBO</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -1540,43 +1908,43 @@
     <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
       (&man.el.4; ドライバ)</para>
 
-    <para arch="i386,alpha">3Com Etherlink XL-based NIC (&man.xl.4; ドライバ)
+    <para arch="i386,pc98,alpha">3Com Etherlink XL-based NIC (&man.xl.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>3C900/905/905B/905C PCI</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>3C556/556B MiniPCI</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>3C450-TX HomeConnect アダプタ</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>3c980/3c980B Fast Etherlink XL server アダプタ</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>3cSOHO100-TX OfficeConnect アダプタ</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Dell Optiplex GX1 内蔵の 3C918</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Dell On-board 3C920</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Dell Precision 内蔵の 3C905B</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Dell Latitude ラップトップドッキングステーションに内蔵されている
             3C905-TX</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386">3Com 3C59X シリーズ NIC (&man.vx.4; ドライバ)
+    <para arch="i386,pc98">3Com 3C59X シリーズ NIC (&man.vx.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>3C590 Etherlink III (PCI)</para>
@@ -1584,7 +1952,7 @@
         <listitem>
 	  <para>3C595 Fast Etherlink III (PCI)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>3C592/3C597 (EISA)</para>
 	</listitem>
       </itemizedlist>
@@ -1600,7 +1968,7 @@
     </para>
 
     <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT
-      (sn ドライバ)</para>
+      (&man.sn.4; ドライバ)</para>
 
     <para arch="i386">Xircom X3201 (Cardbus) ベースの Ethernet カード。
       次のものに対応しています。
@@ -1656,7 +2024,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">National Semiconductor DP8393X (SONIC) Ethernet
+    <para arch="pc98">National Semiconductor DP8393X (SONIC) Ethernet
       カード (snc ドライバ)
       <itemizedlist>
         <listitem>
@@ -1668,7 +2036,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Level 1 LXT1001 NetCellerator コントローラベースの
+    <para arch="i386,pc98">Level 1 LXT1001 NetCellerator コントローラベースの
       Gigabit Ethernet カード
       (&man.lge.4; ドライバ)
       <itemizedlist>
@@ -1681,7 +2049,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">3Com 3XP Typhoon/Sidewinder (3CR990)
+    <para arch="i386,pc98,alpha">3Com 3XP Typhoon/Sidewinder (3CR990)
       チップセットベースの Ethernet および Fast Ethernet NIC 
       (&man.txp.4; ドライバ)
       <itemizedlist>
@@ -1706,11 +2074,11 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Broadcom BCM570x ベースの
+    <para arch="i386,pc98">Broadcom BCM570x ベースの
       Gigabit Ethernet NIC (&man.bge.4; ドライバ)
       <itemizedlist>
         <listitem>
-	  <para>3Com 3c996-T</para>
+	  <para>3Com 3c996-SX, 3c996-T</para>
         </listitem>
         <listitem>
 	  <para>Netgear GA302T</para>
@@ -1722,11 +2090,17 @@
 	  <para>DELL PowerEdge 2550 サーバに内蔵されている
             Gigabit Ethernet NIC</para>
         </listitem>
+        <listitem>
+	  <para>Integrated gigabit Ethernet NICs on IBM x235 servers</para>
+        </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Intel 82542 および 82543 コントローラチップベースの
-      Gigabit Ethernet NIC (&man.gx.4; および &man.em.4; ドライバ)
+    <para arch="i386,pc98,alpha,ia64">Gigabit Ethernet NICs based on the
+    Intel 82542 and 82543 controller chips (&man.gx.4; and &man.em.4;
+    drivers), plus NICs supported by the Intel 82540EM, 82544,
+    82545EM, and 82546EB
+    controller chips (&man.em.4; driver only)
       <itemizedlist>
 	<listitem>
 	  <para>Intel PRO/1000 Gigabit Ethernet</para>
@@ -1744,19 +2118,31 @@
     
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) および ERI (Fast
       Ethernet) NIC (gem ドライバ)</para>
+
+    <para arch="i386,pc98">Myson Ethernet NICs (my driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Myson MTD80X Based Fast Ethernet Card</para>
+	</listitem>
+        <listitem>
+	  <para>Myson MTD89X Based Gigabit Ethernet Card</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
   </sect2>
 
   <sect2>
     <title>FDDI インターフェイス</title>
-    <para arch="i386,alpha">DEC DEFPA PCI (&man.fpa.4; ドライバ)</para>
+    <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; ドライバ)</para>
     <para arch="i386">DEC DEFEA EISA (&man.fpa.4; ドライバ)</para>
   </sect2>
 
   <sect2>
     <title>ATM インターフェイス</title>
-    <para arch="i386">Efficient Networks, Inc. ENI-155p ATM PCI アダプタ (hea ドライバ)</para>
-    <para arch="i386">FORE Systems, Inc. PCA-200E ATM PCI アダプタ (hfa ドライバ)</para>
-    <para arch="i386">&os; の ATM サポートは、次のシグナリングプロトコルに対応しています。
+    <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p ATM PCI アダプタ (hea ドライバ)</para>
+    <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM PCI アダプタ (hfa ドライバ)</para>
+    <para arch="i386,pc98">&os; の ATM サポートは、次のシグナリングプロトコルに対応しています。
       <itemizedlist>
         <listitem>
 	  <para>The ATM Forum UNI 3.1 signaling protocol</para>
@@ -1775,7 +2161,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">IETF <quote>Classical IP and ARP over
+    <para arch="i386,pc98">IETF <quote>Classical IP and ARP over
         ATM</quote> model も提供されており、次の RFC および Internet Drafts
       に準拠しています。
       <itemizedlist>
@@ -1807,7 +2193,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">ATM sockets interface にも対応しています。</para>
+    <para arch="i386,pc98">ATM sockets interface にも対応しています。</para>
   </sect2>
 
   <sect2>
@@ -1816,7 +2202,7 @@
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
       ISA/radio LAN カード (&man.wl.4; ドライバ)</para>
 
-    <para arch="i386">Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA および ISA,
+    <para arch="i386,pc98">Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA および ISA,
       標準速 (2Mbps) および高速 (6Mbps) 無線ネットワークアダプタとその互換品
       (&man.wi.4; ドライバ)
       <note>
@@ -1825,26 +2211,71 @@
           ISA 版も PCMCIA 版も、どちらも同じドライバで動作します。</para>
       </note>
       <itemizedlist>
-        <listitem>
-          <para>NCR WaveLAN/IEEE 802.11</para>
+	<listitem>
+	  <para>3COM 3crwe737A AirConnect Wireless LAN PC Card</para>
 	</listitem>
 	<listitem>
-          <para>3COM 3crwe737A AirConnect Wireless LAN PC Card</para>
+	  <para>Accton airDirect WN3301</para>
 	</listitem>
 	<listitem>
           <para>Addtron AWA100</para>
 	</listitem>
 	<listitem>
-          <para>Cabletron RoamAbout 802.11 DS</para>
+	  <para>Adtec ADLINK340APC</para>
 	</listitem>
 	<listitem>
-          <para>Compaq WL100</para>
+	  <para>Airway 802.11 Adapter</para>
 	</listitem>
 	<listitem>
-          <para>Corega KK Wireless LAN PCC-11</para>
+	  <para>Avaya Wireless PC Card</para>
+	</listitem>
+	<listitem>
+	  <para>Blue Concentric Circle CF Wireless LAN Model WL-379F</para>
+	</listitem>
+	<listitem>
+	  <para>BreezeNET PC-DS.11</para>
+	</listitem>
+	<listitem>
+	  <para>Buffalo WLI-CF-S11G</para>
+	</listitem>
+	<listitem>
+	  <para>Cabletron RoamAbout 802.11 DS</para>
+	</listitem>
+	<listitem>
+	  <para>Compaq WL100, WL110</para>
+	</listitem>
+	<listitem>
+	  <para>Corega KK Wireless LAN PCC-11, PCCA-11, PCCB-11</para>
 	</listitem>
 	<listitem>	
-          <para>ELECOM Air@Hawk/LD-WL11/PCC</para>
+	  <para>D-Link DWL-650</para>
+	</listitem>
+	<listitem>	
+	  <para>Dell TrueMobile 1150 Series</para>
+	</listitem>
+	<listitem>	
+	  <para>ELECOM Air@Hawk/LD-WL11/PCC</para>
+	</listitem>
+	<listitem>
+	  <para>ELSA AirLancer MC-11</para>
+	</listitem>
+	<listitem>
+	  <para>Laneed Wireless card</para>
+	</listitem>
+	<listitem>
+	  <para>Linksys Instant Wireless WPC11</para>
+	</listitem>
+        <listitem>
+	  <para>Lucent WaveLAN/IEEE 802.11</para>
+	</listitem>
+	<listitem>
+	  <para>IBM High Rate Wireless LAN PC Card</para>
+	</listitem>
+	<listitem>
+	  <para>Intel PRO/Wireless 2011 LAN PC Card</para>
+	</listitem>
+	<listitem>
+	  <para>IO Data WN-B11/PCM</para>
 	</listitem>
 	<listitem>
           <para>Farallon Skyline 11Mbps Wireless</para>
@@ -1853,24 +2284,48 @@
           <para>ICOM SL-1100</para>
 	</listitem>
 	<listitem>
-          <para>Laneed Wireless card</para>
+	  <para>Melco Airconnect WLI-PCM-S11, WLI-PCM-L11</para>
+	</listitem>
+        <listitem>
+	  <para>NCR WaveLAN/IEEE 802.11</para>
 	</listitem>
 	<listitem>
-          <para>Melco Airconnect WLI-PCM-L11</para>
+	  <para>NEC Wireless Card CMZ-RT-WP</para>
 	</listitem>
 	<listitem>
-          <para>NEC Wireless Card CMZ-RT-WP</para>
+	  <para>NEC Aterm WL11C (PC-WL/11C)</para>
 	</listitem>
 	<listitem>
-          <para>PLANEX GeoWave/GW-NS110</para>
+	  <para>NEC PK-WL001</para>
 	</listitem>
 	<listitem>
-          <para>TDK LAK-CD011WL</para>
+	  <para>Netgear MA401</para>
+	</listitem>
+	<listitem>
+	  <para>PLANEX GeoWave/GW-NS110</para>
+	</listitem>
+	<listitem>
+	  <para>Proxim Harmony, RangeLAN-DS</para>
+	</listitem>
+	<listitem>
+	  <para>SMC 2632W, 2602W</para>
+	</listitem>
+	<listitem>
+	  <para>Sony PCWA-C100</para>
+	</listitem>
+	<listitem>
+	  <para>TDK LAK-CD011WL</para>
+	</listitem>
+	<listitem>
+	  <para>Toshiba Wireless LAN Card</para>
+	</listitem>
+	<listitem>
+	  <para>US Robotics Wireless Card 2410</para>
 	</listitem>
       </itemizedlist>
     </para>
     
-    <para arch="i386">Aironet 802.11 無線アダプタ (&man.an.4; ドライバ)
+    <para arch="i386,pc98">Aironet 802.11 無線アダプタ (&man.an.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Aironet 4500/4800 シリーズ
@@ -1880,10 +2335,13 @@
 	  <para>Cisco Systems Aironet 340 および 350 シリーズ
             (PCMCIA, PCI, ISA アダプタすべてに対応)</para>
         </listitem>
+	<listitem>
+	  <para>Xircom Wireless Ethernet adapter (rebadged Aironet)</para>
+	</listitem>
       </itemizedlist>
     </para>
     
-    <para arch="i386">Raytheon Raylink 2.4GHz 無線アダプタ
+    <para arch="i386,pc98">Raytheon Raylink 2.4GHz 無線アダプタ
       (&man.ray.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1893,12 +2351,12 @@
 	  <para>Webgear Aviator Pro</para>
         </listitem>
         <listitem>
-	  <para>Raylink PC Card</para>
+	  <para>Raytheon Raylink PC Card</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386">AMD Am79C930 および Harris (Intersil)
+    <para arch="i386,pc98">AMD Am79C930 および Harris (Intersil)
       ベースの 802.11 カード (awi ドライバ)
       <itemizedlist>
         <listitem>
@@ -1992,7 +2450,7 @@
     </para>
     <para arch="i386">Compaq Microcom 610 ISDN (Compaq PSB2222I シリーズ) ISA PnP</para>
     <para arch="i386">Dr. Neuhaus Niccy Go@ およびその互換品</para>
-    <para arch="i386">Dynalink IS64PH</para>
+    <para arch="i386">Dynalink IS64PPH and IS64PPH+</para>
     <para arch="i386">Eicon Diehl DIVA 2.0 および 2.02</para>
     <para arch="i386">ELSA
       <itemizedlist>
@@ -2042,7 +2500,12 @@
   </sect2>
 
   <sect2>
-    <title>マルチポートシリアルインターフェイス</title>
+    <title>シリアルインターフェイス</title>
+    <para arch="i386,alpha,ia64,sparc64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
+
+    <para arch="sparc64">Serial ports based on the SAB82532 serial
+      chip (sab driver)</para>
+
     <para arch="i386,alpha">AST IRQ 共有機能付き 4 ポートシリアルカード</para>
 
     <para arch="i386">ARNET シリアルカード (&man.ar.4; ドライバ)
@@ -2075,9 +2538,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Comtrol Rocketport カード (rp ドライバ)</para>
+    <para arch="i386,alpha">Comtrol Rocketport カード (&man.rp.4; ドライバ)</para>
 
-    <para arch="i386">Cyclades Cyclom-y シリアルボード (&man.cy.4; ドライバ)</para>
+    <para arch="i386">Cyclades Cyclom-Y シリアルボード (&man.cy.4; ドライバ)</para>
 
     <para arch="i386">STB IRQ 共有機能付き 4 ポートカード</para>
 
@@ -2106,6 +2569,9 @@
 	</listitem>
         <listitem>
 	  <para>Netmos NM9835 PCI-2S-550</para>
+	</listitem>
+        <listitem>
+	  <para>PCCOM dual port RS232/422/485</para>
 	</listitem>
         <listitem>
           <para>SIIG Cyber Serial Dual PCI 16C550</para>
@@ -2151,6 +2617,58 @@
       transputer ベースの)  <quote>高機能版</quote>ホストカード
       (ISA, EISA, PCI 版すべて) に対応しています。
       (&man.si.4; ドライバ)</para>
+
+    <para arch="pc98">Internel serial interfaces (&man.sio.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>PC-9801 on-board</para>
+	</listitem>
+        <listitem>
+	  <para>PC-9821 2'nd CCU (flags 0x12000000)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC PC-9861K, PC-9801-101 and Midori-Denshi MDC-926Rs (&man.sio.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>COM2 (flags 0x01000000)</para>
+	</listitem>
+        <listitem>
+	  <para>COM3 (flags 0x02000000)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC PC-9801-120 (&man.sio.4; driver)</para>
+      <note arch="pc98">
+        <para>"flags 0x11000000" is necessary in kernel configuration.</para>
+      </note>
+
+    <para arch="pc98">Microcore MC-16550, MC-16550II, MC-RS98 (&man.sio.4; driver)</para>
+      <note arch="pc98">
+        <para>"flags 0x14000?01" is necessary in kernel configuration.</para>
+      </note>
+
+    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000 and AIWA B98-02 (&man.sio.4; driver)</para>
+      <note arch="pc98">
+        <para>"flags 0x15000?01" is necessary in kernel configuration.</para>
+      </note>
+
+    <para arch="pc98">Media Intelligent RSB-384 (&man.sio.4; driver)</para>
+      <note arch="pc98">
+        <para>"flags 0x16000001" is necessary in kernel configuration.</para>
+      </note>
+
+    <para arch="pc98">I-O DATA RSA-98III (&man.sio.4; driver)</para>
+      <note arch="pc98">
+        <para>"flags 0x18000?01" is necessary in kernel configuration.</para>
+      </note>
+
+    <para arch="pc98">Hayes ESP98 (&man.sio.4; driver)</para>
+      <note arch="pc98">
+        <para>"options COM_ESP" and "flags 0x19000000" are necessary in kernel configuration.</para>
+      </note>
 
   </sect2>
   <sect2>
@@ -2261,10 +2779,34 @@
 	</listitem>
       </itemizedlist>
     </para>
+    <para arch="pc98">NEC PC-9801-73, 86 and compatibles (nss driver)
+      <itemizedlist>
+        <listitem>
+          <para>NEC A-MATE internal sound</para>
+        </listitem>
+        <listitem>
+          <para>Q-Vision WaveStar, WaveMaster</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+    <para arch="pc98">NEC X-MATE, CanBe, ValueStar internal (mss driver)</para>
+    <para arch="pc98">Creative Technologies SoundBlaster(98) (&man.sb.4;
+    driver)</para>
+    <para arch="pc98">I-O DATA CD-BOX (&man.sb.4; driver)</para>
+    <para arch="pc98">Software PCM using beep (pca driver)</para>
+    <para arch="pc98">MPU-401 and compatible interfaces (mpu driver)
+      <itemizedlist>
+        <listitem>
+          <para>Q-Vision WaveStar</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+    <para arch="pc98">joystick port of SoundBlaster(98) (&man.joy.4
+    driver)</para>
   </sect2>
   <sect2>
     <title>カメラおよびビデオキャプチャデバイス</title>
-    <para arch="i386">Brooktree Bt848/849/878/879 ベースのフレームグラバ
+    <para arch="i386,pc98">Brooktree Bt848/849/878/879 ベースのフレームグラバ
       (&man.bktr.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2312,65 +2854,71 @@
           Ethernet インターフェイス</link>の節に書かれています.</para>
     </note>
 
-    <para arch="i386,alpha">ホストコントローラ
+    <para arch="i386,pc98,alpha">ホストコントローラ
       (&man.ohci.4; および &man.uhci.4; ドライバ)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>ALi Aladdin-V</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>AMD-756</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>CMD Tech 670 & 673</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Intel 82371SB (PIIX3)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Intel 82371AB および EB (PIIX4)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Intel 82801AA (ICH)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Intel 82801AB (ICH0)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Intel 82801BA/BAM (ICH2)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>Intel 82443MX</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>NEC uPD 9210</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>OPTi 82C861 (FireLink)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>SiS 5571</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>VIA 83C572 USB</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386,alpha">
 	  <para>UHCI もしくは OHCI を搭載したマザーボードチップセット
             (現時点で使えないものは報告されていません)</para>
 	</listitem>
+        <listitem arch="pc98">
+          <para>NEC PC-9821V200 etc (&man.ohci.4; driver)</para>
+        </listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">USB ホストコントローラ (PCI)
+    <para arch="i386,pc98">USB ホストコントローラ (PCI)
       <itemizedlist>
-        <listitem>
+        <listitem arch="i386">
 	  <para>ADS Electronics PCI プラグインカード (2 ポート)</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Entrega PCI プラグインカード (4 ポート)</para>
 	</listitem>
+        <listitem arch="pc98">
+          <para>TRY CORPORATION JUS-02 (&man.uhci.4; driver)</para>
+        </listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,alpha">ハブ
+    <para arch="i386,pc98,alpha">ハブ
       <itemizedlist>
         <listitem>
 	  <para>Andromeda hub</para>
@@ -2383,7 +2931,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,alpha">キーボード (&man.ukbd.4; ドライバ)
+    <para arch="i386,pc98,alpha">キーボード (&man.ukbd.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Apple iMac キーボード</para>
@@ -2403,9 +2951,12 @@
         <listitem>
 	  <para>Microsoft キーボード</para>
 	</listitem>
+	<listitem>
+	  <para>Sun Microsystems Type 6 USB keyboard</para>
+	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">その他
+    <para arch="i386,pc98">その他
       <itemizedlist>
         <listitem>
 	  <para>ActiveWire I/O Board</para>
@@ -2418,7 +2969,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">モデム (umodem ドライバ)
+    <para arch="i386,pc98">モデム (umodem ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>3Com 5605</para>
@@ -2428,7 +2979,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,alpha">マウス (&man.ums.4; ドライバ)
+    <para arch="i386,pc98,alpha">マウス (&man.ums.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Agiler Mouse 29UO</para>
@@ -2464,11 +3015,14 @@
 	  <para>Microsoft IntelliMouse (3 ボタン)</para>
 	</listitem>
         <listitem>
+	  <para>Sun Microsystems Type 6 USB Mouse</para>
+	</listitem>
+        <listitem>
 	  <para>Trust Ami Mouse (3 ボタン)</para>
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,alpha">プリンタ、パラレルプリンタ変換ケーブル(ulpt ドライバ)
+    <para arch="i386,pc98,alpha">プリンタ、パラレルプリンタ変換ケーブル(ulpt ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>ATen パラレルプリンタアダプタ</para>
@@ -2481,7 +3035,29 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">スキャナ (SANE 経由) (&man.uscanner.4; ドライバ)
+    <para arch="i386,pc98">Serial devices
+      <itemizedlist>
+        <listitem>
+	  <para>Belkin F5U103 and F5U120 (ubsa driver)</para>
+        </listitem>
+        <listitem>
+	  <para>e-Tek Labs Kwik232 (ubsa driver)</para>
+        </listitem>
+        <listitem>
+	  <para>GoHubs GoCOM232 (ubsa driver)</para>
+        </listitem>
+        <listitem>
+	  <para>Peracom single port serial adapter (ubsa driver)</para>
+        </listitem>
+        <listitem>
+	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
+        </listitem>
+        <listitem>
+	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; driver)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386,pc98">スキャナ (SANE 経由) (&man.uscanner.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Perfection 636U</para>
@@ -2491,9 +3067,9 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,alpha">ストレージデバイス (&man.umass.4; ドライバ)
+    <para arch="i386,pc98,alpha">ストレージデバイス (&man.umass.4; ドライバ)
       <itemizedlist>
-        <listitem arch="i386">
+        <listitem arch="i386,pc98">
 	  <para>Iomega USB Zip 100Mb (ただし基本的な対応のみ)</para>
 	</listitem>
         <listitem>
@@ -2510,12 +3086,103 @@
 	</listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386,pc98">Handspring Visor and other PalmOS
+      devices (&man.uvisor.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Handspring Visor</para>
+        </listitem>
+        <listitem>
+	  <para>Palm M125, M500, M505</para>
+        </listitem>
+        <listitem>
+	  <para>Sony Clie 4.0 and 4.1</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+ </sect2>
+
+  <sect2 id="firewire">
+    <title>IEEE 1394 (Firewire) Devices</title>
+
+    <para arch="i386,pc98,powerpc">Host Controllers (&man.fwohci.4;
+      driver)
+
+      <itemizedlist>
+        <listitem>
+	  <para>Ricoh R5C552 chipset</para>
+        </listitem>
+        <listitem>
+	  <para>Sony CX3022 chipset</para>
+        </listitem>
+        <listitem>
+	  <para>TI TSB12LV22, LV23, 26 and TSB43AA22 chipsets</para>
+        </listitem>
+        <listitem>
+	  <para>uPD72861 chipset</para>
+        </listitem>
+        <listitem>
+	  <para>VIA VT6306 chipset</para>
+        </listitem>
+      </itemizedlist>
+
+      </para>
+
+    <para arch="i386,pc98,powerpc">Storage (&man.sbp.4; driver)
+
+      <itemizedlist>
+	<listitem>
+          <para>Apple iPod</para>
+	</listitem>
+	<listitem>
+          <para>Apple Macintosh G4 (target mode)</para>
+	</listitem>
+      </itemizedlist>
+
+      </para>
+
+  </sect2>
+
+  <sect2>
+    <title>Cryptographic Accelerators</title>
+
+    <para arch="i386,pc98">Accelerators based on
+      the Hifn 7751, 7811, or 7951 chipsets (&man.hifn.4; driver)
+
+      <itemizedlist>
+        <listitem>
+	  <para>Invertex AEON</para>
+	</listitem>
+        <listitem>
+	  <para>Hifn 7751 reference board</para>
+	</listitem>
+        <listitem>
+	  <para>Global Technologies Group PowerCrypt and XL-Crypt</para>
+	</listitem>
+        <listitem>
+	  <para>NetSec 7751</para>
+	</listitem>
+        <listitem>
+	  <para>Soekris Engineering vpn1201 and vpn1211</para>
+	</listitem>
+      </itemizedlist>
+     </para>
+
+    <para arch="i386,pc98">Accelerators based on
+      the Bluesteel 5501 or 5601 chipsets (&man.ubsec.4;
+      driver)</para>
+
+    <para arch="i386,pc98">Accelerators based on
+      the Broadcom BCM5801, BCM5802, BCM5805, BCM5820, BCM 5821,
+      BCM5822 chipsets (&man.ubsec.4; driver)</para>
+
   </sect2>
 
   <sect2>
     <title>その他のデバイス</title>
 
-    <para arch="i386">FAX モデム/PCCARD
+    <para arch="i386,pc98">FAX モデム/PCCARD
       <itemizedlist>
         <listitem>
 	  <para>Melco IGM-PCM56K/IGM-PCM56KH</para>
@@ -2526,10 +3193,10 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">フロッピドライブ (&man.fd.4; ドライバ)</para>
+    <para arch="i386,pc98,alpha">フロッピドライブ (&man.fd.4; ドライバ)</para>
     <para arch="i386">Genius および Mustek ハンドスキャナ</para>
     <para arch="i386">GPB および Transputer ドライバ</para>
-    <para arch="i386,alpha,ia64">キーボード
+    <para arch="i386,pc98,alpha,ia64">キーボード
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>AT スタイルキーボード</para>
@@ -2537,16 +3204,19 @@
         <listitem arch="i386,alpha,ia64">
 	  <para>PS/2 キーボード</para>
 	</listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="pc98">
+	  <para>Standard keyboards</para>
+	</listitem>
+        <listitem arch="i386,pc98,alpha">
 	  <para>USB キーボード (個々の製品については
             <link linkend="usb">USB デバイス</link>の節に書かれています)</para>
 	</listitem>
       </itemizedlist>
     </para>
     <para arch="i386">Loran-C レシーバ (Dave Mills 実験用ハードウェア, loran ドライバ).</para>
-    <para arch="i386,alpha,ia64">マウス
+    <para arch="i386,pc98,alpha,ia64">マウス
       <itemizedlist>
-        <listitem arch="i386">
+        <listitem arch="i386,pc98">
 	  <para>バスマウス (&man.mse.4; ドライバ)</para>
 	</listitem>
         <listitem arch="i386,alpha,ia64">
@@ -2555,7 +3225,7 @@
         <listitem>
 	  <para>シリアルマウス</para>
 	</listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,pc98,alpha">
 	  <para>USB マウス (個々の製品については
             <link linkend="usb">USB デバイス</link>の節に書かれています)</para>
 	</listitem>
@@ -2563,10 +3233,11 @@
     </para>
 
     <para arch="i386,alpha"><quote>PC 標準</quote> のパラレルポート (&man.ppc.4; ドライバ)</para>
+    <para arch="pc98"><quote>PC-9821 standard</quote> parallel ports (&man.ppc.4; driver)</para>
 
     <para arch="i386">PC 互換のジョイスティック (&man.joy.4; ドライバ)</para>
 
-    <para arch="i386">PHS データ通信カード/PCCARD
+    <para arch="i386,pc98">PHS データ通信カード/PCCARD
       <itemizedlist>
         <listitem>
 	  <para>NTT DoCoMo P-in Comp@ct</para>
@@ -2580,14 +3251,15 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64,sparc64"><quote>PC 標準</quote>
-      の 8250, 16450, 16550 ベースのシリアルポート (&man.sio.4; ドライバ)</para>
-
     <para arch="i386">X-10 電源コントローラ (&man.tw.4; ドライバ)</para>
 
     <para arch="i386"><ulink url="http://www.vcc.com/">Virtual Computers</ulink> 製 HOT1 と互換性のある
       Xilinx XC6200 ベースの再構成可能ハードウェアカード
       (xrpu ドライバ).</para>
+
+    <para arch="pc98">Power Management Controller of NEC PC-98 Note (pmc
+    driver)</para>
+
   </sect2>
 </sect1>
 <!-- 
