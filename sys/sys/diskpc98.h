@@ -436,6 +436,7 @@ struct dos_partition {
 #define DIOCGFWSECTORS	_IOR('d', 130, u_int)	/* Get firmware sectorcount */
 #define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
 #define DIOCGFWCYLINDERS _IOR('d', 132, u_int)	/* Get firmware cyl'scount */
+#define DIOCGKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
 
 #ifdef _KERNEL
 

@@ -372,7 +372,6 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "bootfile", CTLTYPE_STRING }, \
 	{ "maxfilesperproc", CTLTYPE_INT }, \
 	{ "maxprocperuid", CTLTYPE_INT }, \
-	{ "dumpdev", CTLTYPE_STRUCT }, /* we lie; don't print as int */ \
 	{ "ipc", CTLTYPE_NODE }, \
 	{ "dummy", CTLTYPE_INT }, \
 	{ "ps_strings", CTLTYPE_INT }, \

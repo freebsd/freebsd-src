@@ -39,7 +39,6 @@ struct disk {
 
 dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, struct cdevsw *diskdevsw);
 void disk_destroy(dev_t dev);
-int disk_dumpcheck(dev_t dev, u_int *count, u_int *blkno, u_int *secsize);
 struct disk *disk_enumerate(struct disk *disk);
 void disk_invalidate(struct disk *disk);
 
