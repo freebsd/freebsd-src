@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.83 1997/04/25 06:47:12 peter Exp $
+ * $Id: vfs_subr.c,v 1.84 1997/04/30 03:09:15 dyson Exp $
  */
 
 /*
@@ -78,6 +78,7 @@ extern void	printlockedvnodes __P((void));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vgonel __P((struct vnode *vp, struct proc *p));
 unsigned long	numvnodes;
+SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 static void	vputrele __P((struct vnode *vp, int put));
 
 enum vtype iftovt_tab[16] = {
@@ -342,54 +343,36 @@ getnewvnode(tag, mp, vops, vpp)
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 
-	simple_lock(&vnode_free_list_slock);
-retry:
 	/*
-	 * we allocate a new vnode if
-	 * 	1. we don't have any free
-	 *		Pretty obvious, we actually used to panic, but that
-	 *		is a silly thing to do.
-	 *	2. we havn't filled our pool yet
-	 *		We don't want to trash the incore (VM-)vnodecache.
-	 *	3. if less that 1/4th of our vnodes are free.
-	 *		We don't want to trash the namei cache either.
+	 * We take the least recently used vnode from the freelist
+	 * if we can get it and it has no cached pages, and no
+	 * namecache entries are relative to it.
+	 * Otherwise we allocate a new vnode
 	 */
-	if (freevnodes < (numvnodes >> 2) ||
-	    numvnodes < desiredvnodes ||
-	    vnode_free_list.tqh_first == NULL) {
-		simple_unlock(&vnode_free_list_slock);
-		vp = (struct vnode *) malloc((u_long) sizeof *vp,
-		    M_VNODE, M_WAITOK);
-		bzero((char *) vp, sizeof *vp);
-		numvnodes++;
-	} else {
-		for (vp = vnode_free_list.tqh_first;
-				vp != NULLVP; vp = vp->v_freelist.tqe_next) {
-			if (simple_lock_try(&vp->v_interlock))
-				break;
-		}
-		/*
-		 * Unless this is a bad time of the month, at most
-		 * the first NCPUS items on the free list are
-		 * locked, so this is close enough to being empty.
-		 */
-		if (vp == NULLVP) {
-			simple_unlock(&vnode_free_list_slock);
-			tablefull("vnode");
-			*vpp = 0;
-			return (ENFILE);
-		}
+
+	simple_lock(&vnode_free_list_slock);
+
+	TAILQ_FOREACH(vp, &vnode_free_list, v_freelist) {
+		if (!simple_lock_try(&vp->v_interlock)) 
+			continue;
 		if (vp->v_usecount)
 			panic("free vnode isn't");
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		if (vp->v_usage > 0) {
-			simple_unlock(&vp->v_interlock);
-			--vp->v_usage;
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-			goto retry;
-		}
-		freevnodes--;
 
+		if (vp->v_object && vp->v_object->resident_page_count) {
+			/* Don't recycle if it's caching some pages */
+			simple_unlock(&vp->v_interlock);
+			continue;
+		} else if (LIST_FIRST(&vp->v_cache_src)) {
+			/* Don't recycle if active in the namecache */
+			simple_unlock(&vp->v_interlock);
+			continue;
+		} else {
+			break;
+		}
+	}
+	if (vp) {
+		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		freevnodes--;
 		/* see comment on why 0xdeadb is set at end of vgone (below) */
 		vp->v_freelist.tqe_prev = (struct vnode **) 0xdeadb;
 		simple_unlock(&vnode_free_list_slock);
@@ -420,8 +403,17 @@ retry:
 		vp->v_clen = 0;
 		vp->v_socket = 0;
 		vp->v_writecount = 0;	/* XXX */
-		vp->v_usage = 0;
+	} else {
+		simple_unlock(&vnode_free_list_slock);
+		vp = (struct vnode *) malloc((u_long) sizeof *vp,
+		    M_VNODE, M_WAITOK);
+		bzero((char *) vp, sizeof *vp);
+		vp->v_dd = vp;
+		LIST_INIT(&vp->v_cache_src);
+		TAILQ_INIT(&vp->v_cache_dst);
+		numvnodes++;
 	}
+
 	vp->v_type = VNON;
 	cache_purge(vp);
 	vp->v_tag = tag;
@@ -1119,7 +1111,6 @@ vputrele(vp, put)
 	simple_lock(&vnode_free_list_slock);
 	if (vp->v_flag & VAGE) {
 		vp->v_flag &= ~VAGE;
-		vp->v_usage = 0;
 		if(vp->v_tag != VT_TFS)
 			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
@@ -2146,4 +2137,21 @@ retry:
 
 retn:
 	return error;
+}
+
+void
+vtouch(vp)
+	struct vnode *vp;
+{
+	simple_lock(&vp->v_interlock);
+	if (vp->v_usecount) {
+		simple_unlock(&vp->v_interlock);
+		return;
+	}
+	if (simple_lock_try(&vnode_free_list_slock)) {
+		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+		simple_unlock(&vnode_free_list_slock);
+	}
+	simple_unlock(&vp->v_interlock);
 }
