@@ -261,6 +261,12 @@ struct acpi_ec_softc {
 /* Total time in ms spent in the poll loop waiting for a response. */
 #define EC_POLL_TIMEOUT	50
 
+#define EVENT_READY(event, status)			\
+	(((event) == EC_EVENT_OUTPUT_BUFFER_FULL &&	\
+	 ((status) & EC_FLAG_OUTPUT_BUFFER) != 0) ||	\
+	 ((event) == EC_EVENT_INPUT_BUFFER_EMPTY && 	\
+	 ((status) & EC_FLAG_INPUT_BUFFER) == 0))
+
 static __inline ACPI_STATUS
 EcLock(struct acpi_ec_softc *sc)
 {
@@ -439,8 +445,7 @@ acpi_ec_attach(device_t dev)
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
-	Status = AcpiRemoveGpeHandler(sc->ec_handle, sc->ec_gpebit,
-				      &EcGpeHandler);
+	Status = AcpiRemoveGpeHandler(NULL, sc->ec_gpebit, &EcGpeHandler);
 	if (ACPI_FAILURE(Status))
 	    panic("Added GPE handler but can't remove it");
 	errval = ENXIO;
@@ -461,6 +466,7 @@ acpi_ec_attach(device_t dev)
     if (sc->ec_data_res)
 	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
 			     sc->ec_data_res);
+    mtx_destroy(&sc->ec_mtx);
     return (errval);
 }
 
@@ -512,8 +518,11 @@ EcGpeQueryHandler(void *Context)
     mtx_lock(&sc->ec_mtx);
     EcStatus = EC_GET_CSR(sc);
     mtx_unlock(&sc->ec_mtx);
-    if ((EcStatus & EC_EVENT_SCI) == 0)
+    if ((EcStatus & EC_EVENT_SCI) == 0) {
+	/* If it's not an SCI, wakeup the EcWaitEvent sleep. */
+	wakeup(&sc->ec_polldelay);
 	goto re_enable;
+    }
 
     /* Find out why the EC is signaling us. */
     Status = EcQuery(sc, &Data);
@@ -655,40 +664,42 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 
     /*
      * Poll the EC status register to detect completion of the last
-     * command.  Wait up to 50 ms (in chunks of sc->ec_polldelay
-     * microseconds for the first 1 ms, in 1 ms chunks for the remainder
-     * of the period) for this to occur.
+     * command.  First, wait up to 1 ms in chunks of sc->ec_polldelay
+     * microseconds.
      */
-    for (i = 0; i < (1000 / sc->ec_polldelay) + EC_POLL_TIMEOUT; i++) {
+    for (i = 0; i < 1000 / sc->ec_polldelay; i++) {
 	EcStatus = EC_GET_CSR(sc);
-
-	/* Check if the user's event occurred. */
-	if ((Event == EC_EVENT_OUTPUT_BUFFER_FULL &&
-	    (EcStatus & EC_FLAG_OUTPUT_BUFFER) != 0) ||
-	    (Event == EC_EVENT_INPUT_BUFFER_EMPTY && 
-	    (EcStatus & EC_FLAG_INPUT_BUFFER) == 0)) {
-		Status = AE_OK;
-		break;
+	if (EVENT_READY(Event, EcStatus)) {
+	    Status = AE_OK;
+	    break;
 	}
-
-	/* For the first 1 ms, DELAY, after that, msleep. */
-	if (i < 1000)
-	    AcpiOsStall(sc->ec_polldelay);
-	else
-	    msleep(&sc->ec_polldelay, &sc->ec_mtx, PZERO, "ecpoll", 1/*ms*/);
+	AcpiOsStall(sc->ec_polldelay);
     }
 
     /* Scale poll delay by the amount of time actually waited. */
-    if (Status == AE_OK) {
-	period = i * sc->ec_polldelay;
-	if (period <= 5)
-	    sc->ec_polldelay = 1;
-	else if (period <= 20)
-	    sc->ec_polldelay = 5;
-	else if (period <= 100)
-	    sc->ec_polldelay = 10;
-	else
-	    sc->ec_polldelay = 100;
+    period = i * sc->ec_polldelay;
+    if (period <= 5)
+	sc->ec_polldelay = 1;
+    else if (period <= 20)
+	sc->ec_polldelay = 5;
+    else if (period <= 100)
+	sc->ec_polldelay = 10;
+    else
+	sc->ec_polldelay = 100;
+
+    /*
+     * If we still don't have a response, wait up to EC_POLL_TIMEOUT ms
+     * for completion, sleeping for chunks of 10 ms.
+     */
+    if (Status != AE_OK) {
+	for (i = 0; i < EC_POLL_TIMEOUT / 10; i++) {
+	    EcStatus = EC_GET_CSR(sc);
+	    if (EVENT_READY(Event, EcStatus)) {
+		Status = AE_OK;
+		break;
+	    }
+	    msleep(&sc->ec_polldelay, &sc->ec_mtx, PZERO, "ecpoll", 10/*ms*/);
+	}
     }
 
     return (Status);
