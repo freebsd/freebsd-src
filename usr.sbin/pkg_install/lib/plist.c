@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: plist.c,v 1.23 1997/09/02 08:48:47 jkh Exp $";
+	"$Id: plist.c,v 1.24 1997/10/08 07:48:15 charnier Exp $";
 #endif
 
 /*
@@ -389,7 +389,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    last_file = p->name;
 	    sprintf(tmp, "%s/%s", Where, p->name);
 	    if (isdir(tmp)) {
-		warnx("attempting to delete directory `%s' as a file\n"
+		warnx("cannot delete specified file `%s' - it is a directory!\n"
 	   "this packing list is incorrect - ignoring delete request", tmp);
 	    }
 	    else {
@@ -432,7 +432,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	case PLIST_DIR_RM:
 	    sprintf(tmp, "%s/%s", Where, p->name);
 	    if (!isdir(tmp)) {
-		warnx("attempting to delete file `%s' as a directory\n"
+		warnx("cannot delete specified directory `%s' - it is a file!\n"
 	"this packing list is incorrect - ignoring delete request", tmp);
 	    }
 	    else {
