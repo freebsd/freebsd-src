@@ -29,11 +29,10 @@
 # $FreeBSD$
 
 # parse install's options and ignore them completely.
-# XXX - not all options are recognised.
-while [ ! -z $1 ]; do
+while [ $# -gt 0 ]; do
     case $1 in
-    -b | -C | -c | -M | -p | -S | -s) shift;;
-    -B | -f | -g | -m | -o) shift; shift;;
+    -[bCcMpSs]) shift;;
+    -[Bfgmo]) shift; shift;;
     *) break;
     esac
 done
