@@ -206,7 +206,12 @@ _libinstall:
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
 .if defined(SHLIB_LINK)
-	ln -fs ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
+.if (${LIBDIR} == ${SHLIBDIR})
+	ln -fs ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.else
+	ln -fs ${LIBDIR:C|/[^/]+|/..|g:S|^/||}${SHLIBDIR}/${SHLIB_NAME} \
+	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.endif
 .endif
 .endif
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
