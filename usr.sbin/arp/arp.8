@@ -39,8 +39,10 @@
 .Nd address resolution display and control
 .Sh SYNOPSIS
 .Nm arp
+.Op Fl n
 .Ar hostname
 .Nm arp
+.Op Fl n
 .Fl a
 .Nm arp
 .Fl d Ar hostname
@@ -56,7 +58,7 @@
 .Fl f Ar filename
 .Sh DESCRIPTION
 The
-.Nm arp
+.Nm
 program displays and modifies the Internet-to-Ethernet address translation
 tables used by the address resolution protocol
 .Pq Xr arp 4 .
@@ -79,6 +81,10 @@ A super-user may delete an entry for the host called
 with the
 .Fl d
 flag.
+.It Fl n
+Show network addresses as numbers (normally
+.Nm
+attempts to display addresses symbolically).
 .It Fl s Ar hostname ether_addr
 Create an
 .Tn ARP
