@@ -54,26 +54,39 @@ static char rcsid[] = "$FreeBSD$";
 #define IS_NEGATIVE		0x80	/* is argument value negative ? */
 
 /* internal macros */
-#define PRINT(CH) {						\
+#define PRINT(CH) do {						\
 	if (dst >= s + maxsize) 				\
 		goto e2big_error;				\
 	*dst++ = CH;						\
-}
+} while (0)
 
-#define PRINTS(STR) {						\
+#define PRINTS(STR) do {					\
 	char *tmps = STR;					\
 	while (*tmps != '\0')					\
 		PRINT(*tmps++);					\
-}
+} while (0)
 
-#define GET_NUMBER(VAR)	{					\
+#define GET_NUMBER(VAR)	do {					\
 	VAR = 0;						\
 	while (isdigit((unsigned char)*fmt)) {			\
 		VAR *= 10;					\
 		VAR += *fmt - '0';				\
 		fmt++;						\
 	}							\
-}
+} while (0)
+
+#define GRPCPY(howmany) do {					\
+	int i = howmany;					\
+	while (i-- > 0) {					\
+		avalue_size--;					\
+		*--bufend = *(avalue+avalue_size+padded);	\
+	}							\
+} while (0)
+
+#define GRPSEP do {						\
+	*--bufend = thousands_sep;				\
+	groups++;						\
+} while (0)
 
 static void __setup_vars(int, char *, char *, char *, char **);
 static int __calc_left_pad(int, char *);
@@ -129,11 +142,9 @@ strfmon(s, maxsize, format, va_alist)
 	pad_size = 0;
 
 	while (*fmt) {
-
 		/* pass nonformating characters AS IS */
-		if (*fmt != '%') {
+		if (*fmt != '%')
 			goto literal;
-		}
 
 		/* '%' found ! */
 
@@ -225,8 +236,7 @@ strfmon(s, maxsize, format, va_alist)
 			currency_symbol = strdup(lc->int_curr_symbol);
 			if (currency_symbol != NULL)
 				space_char = *(currency_symbol+3);
-		}
-		else
+		} else
 			currency_symbol = strdup(lc->currency_symbol);
 
 		if (currency_symbol == NULL)
@@ -297,11 +307,10 @@ strfmon(s, maxsize, format, va_alist)
 			PRINT(' ');
 
 		if (sign_posn == 0) {
-			if (flags & IS_NEGATIVE) {
+			if (flags & IS_NEGATIVE)
 				PRINT('(');
-			} else {
+			else
 				PRINT(' ');
-			}
 		}
 
 		if (cs_precedes == 1) {
@@ -317,18 +326,14 @@ strfmon(s, maxsize, format, va_alist)
 				if (sign_posn == 4) {
 					if (sep_by_space == 2)
 						PRINT(space_char);
-					PRINTS (signstr);
+					PRINTS(signstr);
 					if (sep_by_space == 1)
 						PRINT(' ');
-				}
-				else
-					if (sep_by_space == 1)
-						PRINT(space_char);
+				} else if (sep_by_space == 1)
+					PRINT(space_char);
 			}
-		}
-		else
-			if (sign_posn == 1)
-				PRINTS(signstr);
+		} else if (sign_posn == 1)
+			PRINTS(signstr);
 
 		PRINTS(asciivalue);
 
@@ -341,12 +346,12 @@ strfmon(s, maxsize, format, va_alist)
 
 			if (!(flags & SUPRESS_CURR_SYMBOL)) {
 				if ((sign_posn == 3 && sep_by_space == 2)
-					|| (sep_by_space == 1
-						&& (sign_posn = 0
-						    || sign_posn == 1
-						    || sign_posn == 2
-						    || sign_posn == 4)))
-						PRINT(space_char);
+				    || (sep_by_space == 1
+				    && (sign_posn = 0
+				    || sign_posn == 1
+				    || sign_posn == 2
+				    || sign_posn == 4)))
+					PRINT(space_char);
 				PRINTS(currency_symbol); /* XXX: len */
 				if (sign_posn == 4) {
 					if (sep_by_space == 2)
@@ -371,7 +376,8 @@ strfmon(s, maxsize, format, va_alist)
 					PRINT(' ');
 			} else {
 				pad_size = dst-tmpptr;
-				memmove(tmpptr+width-pad_size, tmpptr, pad_size);
+				memmove(tmpptr + width-pad_size, tmpptr,
+				    pad_size);
 				memset(tmpptr, ' ', width-pad_size);
 				dst += width-pad_size;
 			}
@@ -407,12 +413,13 @@ __setup_vars(int flags, char *cs_precedes, char *sep_by_space,
 	if (flags & IS_NEGATIVE) {
 		*cs_precedes = lc->n_cs_precedes;
 		*sep_by_space = lc->n_sep_by_space;
-		*sign_posn = (flags & PARENTH_POSN)? 0 : lc->n_sign_posn;
-		*signstr = (lc->negative_sign == '\0')? "-" : lc->negative_sign;
+		*sign_posn = (flags & PARENTH_POSN) ? 0 : lc->n_sign_posn;
+		*signstr = (lc->negative_sign == '\0') ? "-"
+		    : lc->negative_sign;
 	} else {
 		*cs_precedes = lc->p_cs_precedes;
 		*sep_by_space = lc->p_sep_by_space;
-		*sign_posn = (flags & PARENTH_POSN)? 0 : lc->p_sign_posn;
+		*sign_posn = (flags & PARENTH_POSN) ? 0 : lc->p_sign_posn;
 		*signstr = lc->positive_sign;
 	}
 
@@ -446,9 +453,9 @@ __calc_left_pad(int flags, char *cur_symb) {
 		case 3:
 		case 4:
 			if (cs_precedes != 0)
-				left_chars +=  strlen(signstr);
+				left_chars += strlen(signstr);
 	}
-	return left_chars;
+	return (left_chars);
 }
 
 static int
@@ -457,7 +464,7 @@ get_groups(int size, char *grouping) {
 	int	chars = 0;
 
 	if (*grouping == CHAR_MAX || *grouping <= 0)	/* no grouping ? */
-		return 0;
+		return (0);
 
 	while (size > (int)*grouping) {
 		chars++;
@@ -471,7 +478,7 @@ get_groups(int size, char *grouping) {
 			break;
 		}
 	}
-	return chars;
+	return (chars);
 }
 
 /* convert double to ASCII */
@@ -504,9 +511,8 @@ __format_grouped_double(double value, int *flags,
 			decimal_point = '.';
 	}
 	thousands_sep = *lc->mon_thousands_sep;
-	if (thousands_sep == '\0') {
+	if (thousands_sep == '\0')
 		thousands_sep = *lc->thousands_sep;
-	}
 
 	/* fill left_prec with default value */
 	if (left_prec == -1)
@@ -527,17 +533,18 @@ __format_grouped_double(double value, int *flags,
 		left_prec += get_groups(left_prec, grouping);
 
 	/* convert to string */
-	snprintf(fmt, sizeof(fmt), "%%%d.%df", left_prec+right_prec+1, right_prec);
+	snprintf(fmt, sizeof(fmt), "%%%d.%df", left_prec + right_prec + 1,
+	    right_prec);
 	avalue_size = asprintf(&avalue, fmt, value);
 	if (avalue_size < 0)
-		return NULL;
+		return (NULL);
 
 	/* make sure that we've enough space for result string */
 	bufsize = strlen(avalue)*2+1;
 	rslt = malloc(bufsize);
 	if (rslt == NULL) {
 		free(avalue);
-		return NULL;
+		return (NULL);
 	}
 	memset(rslt, 0, bufsize);
 	bufend = rslt + bufsize - 1;	/* reserve space for trailing '\0' */
@@ -551,29 +558,16 @@ __format_grouped_double(double value, int *flags,
 
 	if (right_prec > 0) {
 		bufend -= right_prec;
-		memcpy(bufend, avalue+avalue_size+padded-right_prec, right_prec);
+		memcpy(bufend, avalue + avalue_size+padded-right_prec,
+		    right_prec);
 		*--bufend = decimal_point;
 		avalue_size -= (right_prec + 1);
 	}
 
 	if ((*flags & NEED_GROUPING) &&
-		thousands_sep != '\0' &&	/* XXX: need investigation */
-		*grouping != CHAR_MAX &&
-		*grouping > 0) {
-
-#define GRPCPY(howmany) {					\
-	int i = howmany;					\
-	while (i-- > 0) {					\
-		avalue_size--;					\
-		*--bufend = *(avalue+avalue_size+padded);	\
-	}							\
-}
-
-#define GRPSEP	{						\
-	*--bufend = thousands_sep;				\
-	groups++;						\
-}
-
+	    thousands_sep != '\0' &&	/* XXX: need investigation */
+	    *grouping != CHAR_MAX &&
+	    *grouping > 0) {
 		while (avalue_size > (int)*grouping) {
 			GRPCPY(*grouping);
 			GRPSEP;
@@ -609,8 +603,8 @@ __format_grouped_double(double value, int *flags,
 		memset(bufend, pad_char, padded);
 	}
 
-	bufsize = bufsize-(rslt-bufend);
+	bufsize = bufsize - (rslt - bufend);
 	memmove(rslt, bufend, bufsize);
 	free(avalue);
-	return rslt;
+	return (rslt);
 }
