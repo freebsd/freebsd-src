@@ -60,7 +60,7 @@ jail_start()
 
 jail_stop()
 {
-	kill -5 $(ps aux | awk '$8 ~ /.*J/ {print  $2};')
+	kill -TERM $(ps aux | awk '$8 ~ /.*J/ {print  $2};')
 }
 
 
