@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.51 2003/06/03 01:29:01 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.52 2003/06/11 16:53:26 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -95,6 +95,7 @@
 #define	PCMCIA_VENDOR_NOKIA	0x023d	/* Nokia Communications */
 #define	PCMCIA_VENDOR_SAMSUNG	0x0250	/* Samsung */
 #define	PCMCIA_VENDOR_HWN	0x0261	/* Home Wireless Networks */
+#define	PCMCIA_VENDOR_ARTEM	0x0268	/* ARtem */
 #define	PCMCIA_VENDOR_SYMBOL	0x026c	/* Symbol */
 #define	PCMCIA_VENDOR_BUFFALO	0x026f	/* BUFFALO (Melco Corporation) */
 #define	PCMCIA_VENDOR_LINKSYS2	0x0274	/* The Linksys Group */
@@ -198,6 +199,11 @@
 #define	PCMCIA_CIS_ARCHOS_ARC_ATAPI	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_ARCHOS_ARC_ATAPI	0x0043
 #define	PCMCIA_STR_ARCHOS_ARC_ATAPI	"MiniCD"
+
+/* ARtem */
+#define	PCMCIA_CIS_ARTEM_ONAIR	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_ARTEM_ONAIR	0x0001
+#define	PCMCIA_STR_ARTEM_ONAIR	"ARtem OnAir"
 
 /* Bay Networks */
 #define	PCMCIA_CIS_BAY_STACK_650	{ NULL, NULL, NULL, NULL }
