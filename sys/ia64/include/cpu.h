@@ -90,34 +90,16 @@ struct clockframe {
 
 #ifdef _KERNEL
 
-struct thread;
-struct trapframe;
-
-void	cpu_mp_add(u_int, u_int, u_int);
-int	do_ast(struct trapframe *);
-void	fork_trampoline(void);				/* MAGIC */
-int	ia64_count_cpus(void);
-int	ia64_highfp_drop(struct thread *);
-int	ia64_highfp_load(struct thread *);
-int	ia64_highfp_save(struct thread *);
-void	ia64_init(void);
-void	ia64_probe_sapics(void);
-void	interrupt(u_int64_t, struct trapframe *);
-void	map_gateway_page(void);
-void	map_pal_code(void);
-void	map_port_space(void);
-int	syscall(struct trapframe *);
-void	trap(int, struct trapframe *);
-
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
  * for non-critical timing.
  */
-static __inline u_int64_t
-get_cyclecount(void)
-{
-	return (ia64_get_itc());
-}
+#define	get_cyclecount		ia64_get_itc
+
+void	cpu_halt(void);
+void	cpu_reset(void);
+void	fork_trampoline(void);				/* MAGIC */
+void	swi_vm(void *);
 
 #endif /* _KERNEL */
 
