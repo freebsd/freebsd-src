@@ -92,6 +92,9 @@ getcwd(pt, size)
 			return (NULL);
 		ept = pt + ptsize;
 	}
+#if	defined(__NETBSD_SYSCALLS)
+	have__getcwd = 0;
+#else
 	if (have__getcwd) {
 		struct sigaction sa, osa;
 		int sigsys_installed = 0;
@@ -127,6 +130,7 @@ getcwd(pt, size)
 			return (pt);
 		}
 	}
+#endif
 	bpt = ept - 1;
 	*bpt = '\0';
 
