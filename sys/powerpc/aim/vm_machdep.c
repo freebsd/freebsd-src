@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.14 1999/04/23 19:53:38 dt Exp $
+ *	$Id: vm_machdep.c,v 1.15 1999/06/08 16:42:19 dt Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -240,10 +240,8 @@ void
 cpu_exit(p)
 	register struct proc *p;
 {
-	if (p == fpcurproc) {
-		PRELE(fpcurproc);
+	if (p == fpcurproc)
 		fpcurproc = NULL;
-	}
 
 	(void) splhigh();
 	cnt.v_swtch++;
