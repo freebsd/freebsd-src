@@ -1479,9 +1479,10 @@ vrele(vp)
 	struct proc *p = curproc;	/* XXX */
 
 	KASSERT(vp != NULL, ("vrele: null vp"));
-	KASSERT(vp->v_writecount < vp->v_usecount, ("vrele: missed vn_close"));
 
 	simple_lock(&vp->v_interlock);
+
+	KASSERT(vp->v_writecount < vp->v_usecount, ("vrele: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
 
@@ -1525,9 +1526,10 @@ vput(vp)
 	struct proc *p = curproc;	/* XXX */
 
 	KASSERT(vp != NULL, ("vput: null vp"));
-	KASSERT(vp->v_writecount < vp->v_usecount, ("vput: missed vn_close"));
 
 	simple_lock(&vp->v_interlock);
+
+	KASSERT(vp->v_writecount < vp->v_usecount, ("vput: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
 
