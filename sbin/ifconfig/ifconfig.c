@@ -102,7 +102,7 @@ static	void usage(void);
 
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
-static void af_all_status(int, const struct rt_addrinfo *sdl);
+static void af_other_status(int);
 
 static struct option *opts = NULL;
 
@@ -391,18 +391,18 @@ af_getbyfamily(int af)
 }
 
 static void
-af_all_status(int s, const struct rt_addrinfo *sdl)
+af_other_status(int s)
 {
 	struct afswtch *afp;
 	uint8_t afmask[howmany(AF_MAX, NBBY)];
 
 	memset(afmask, 0, sizeof(afmask));
 	for (afp = afs; afp != NULL; afp = afp->af_next) {
-		if (afp->af_status == NULL)
+		if (afp->af_other_status == NULL)
 			continue;
 		if (afp->af_af != AF_UNSPEC && isset(afmask, afp->af_af))
 			continue;
-		afp->af_status(s, sdl);
+		afp->af_other_status(s);
 		setbit(afmask, afp->af_af);
 	}
 }
@@ -876,10 +876,25 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 		addrcount--;
 		ifam = (struct ifa_msghdr *)((char *)ifam + ifam->ifam_msglen);
 	}
+	if (allfamilies || afp->af_af == AF_LINK) {
+		const struct afswtch *lafp;
+
+		/*
+		 * Hack; the link level address is received separately
+		 * from the routing information so any address is not
+		 * handled above.  Cobble together an entry and invoke
+		 * the status method specially.
+		 */
+		lafp = af_getbyname("lladdr");
+		if (lafp != NULL) {
+			info.rti_info[RTAX_IFA] = (struct sockaddr *)sdl;
+			lafp->af_status(s, &info);
+		}
+	}
 	if (allfamilies)
-		af_all_status(s, (const struct rt_addrinfo *) sdl);
-	else if (afp->af_status != NULL)
-		afp->af_status(s, (const struct rt_addrinfo *) sdl);
+		af_other_status(s);
+	else if (afp->af_other_status != NULL)
+		afp->af_other_status(s);
 
 	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
