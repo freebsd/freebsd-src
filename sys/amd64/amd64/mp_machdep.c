@@ -22,12 +22,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.3 1997/04/28 00:24:47 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.2 1997/04/29 22:05:13 smp Exp smp $
  */
 
 #include "opt_smp.h"
 
-#define FIX_MP_TABLE_WORKS_NOT
+#define FIX_MP_TABLE_WORKS
 
 #include "opt_serial.h"
 
@@ -670,10 +670,11 @@ parse_mp_table(void)
 static void
 fix_mp_table(void)
 {
-	int     x;
-	int     y;
-	int     num_pci_bus;
-	bus_datum bus_record;
+	int	x;
+	int	id;
+	int	bus_0;
+	int	bus_pci;
+	int	num_pci_bus;
 
 	/*
 	 * Fix mis-numbering of the PCI bus and its INT entries if the BIOS
@@ -687,51 +688,56 @@ fix_mp_table(void)
 	 * busses and associated INTs in an effort to "make it right".
 	 */
 
-	/* count the number of PCI busses */
+	/* find bus 0, PCI bus, count the number of PCI busses */
 	for (num_pci_bus = 0, x = 0; x < mp_nbusses; ++x) {
-		if (bus_data[x].bus_type == PCI)
+		if (bus_data[x].bus_id == 0) {
+			bus_0 = x;
+		}
+		if (bus_data[x].bus_type == PCI) {
 			++num_pci_bus;
+			bus_pci = x;
+		}
 	}
+	/*
+	 * bus_0 == slot of bus with ID of 0
+	 * bus_pci == slot of last PCI bus encountered
+	 */
 
 	/* check the 1 PCI bus case for sanity */
 	if (num_pci_bus == 1) {
 
-		/* if its in the first slot all is well */
-		if (bus_data[0].bus_type == PCI)
+		/* if it is number 0 all is well */
+		if (bus_data[bus_pci].bus_id == 0)
 			return;
 
 		/* mis-numbered, swap with whichever bus uses slot 0 */
 
-		/* locate the entry holding the PCI bus */
-		for (x = 1; x < mp_nbusses; ++x) {
-			if (bus_data[x].bus_type == PCI)
-				break;
-		}
-
-		/* swap the bus entry records */
-		bus_record = bus_data[0];
-		bus_data[0] = bus_data[x];
-		bus_data[x] = bus_record;
+		/* swap the bus entry types */
+		bus_data[bus_pci].bus_type = bus_data[bus_0].bus_type;
+		bus_data[bus_0].bus_type = PCI;
 
 		/* swap each relavant INTerrupt entry */
-		for (y = 0; y < nintrs; ++y) {
-			if (io_apic_ints[y].src_bus_id == x)
-				io_apic_ints[y].src_bus_id = 0;
-			else
-				if (io_apic_ints[y].src_bus_id == 0)
-					io_apic_ints[y].src_bus_id = x;
+		id = bus_data[bus_pci].bus_id;
+		for (x = 0; x < nintrs; ++x) {
+			if (io_apic_ints[x].src_bus_id == id) {
+				io_apic_ints[x].src_bus_id = 0;
+			}
+			else if (io_apic_ints[x].src_bus_id == 0) {
+				io_apic_ints[x].src_bus_id = id;
+			}
 		}
 	}
 	/* sanity check if more than 1 PCI bus */
-	else
-		if (num_pci_bus > 1) {
-			for (x = 0; x < num_pci_bus; ++x) {
-				if (bus_data[x].bus_type != PCI) {
-					printf("bad PCI bus numbering\n");
-					panic("\n");
-				}
+	else if (num_pci_bus > 1) {
+		for (x = 0; x < mp_nbusses; ++x) {
+			if (bus_data[x].bus_type != PCI)
+				continue;
+			if (bus_data[x].bus_id >= num_pci_bus ) {
+				printf("bad PCI bus numbering\n");
+				panic("\n");
 			}
 		}
+	}
 }
 #endif /* FIX_MP_TABLE_WORKS */
 
