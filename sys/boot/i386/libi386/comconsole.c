@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: comconsole.c,v 1.4 1998/10/11 10:05:13 peter Exp $
+ *	$Id: comconsole.c,v 1.5 1998/11/22 07:59:16 rnordier Exp $
  */
 
 #include <stand.h>
@@ -54,8 +54,12 @@
 #define COMC_TXWAIT	0x40000		/* transmit timeout */
 #define COMC_BPS(x)	(115200 / (x))	/* speed to DLAB divisor */
 
+#ifndef	COMPORT
 #define COMPORT		0x3f8
+#endif
+#ifndef	COMSPEED
 #define COMSPEED	9600
+#endif
 
 static void	comc_probe(struct console *cp);
 static int	comc_init(int arg);
