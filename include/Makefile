@@ -48,7 +48,7 @@ LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 \
 
 LNOHEADERDIRS=	fs isofs ufs dev
 LSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs \
-	cam/scsi dev/ppbus dev/usb
+	cam/scsi dev/an dev/ppbus dev/usb
 
 # For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
 LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/ppbus dev/usb

@@ -41,7 +41,7 @@
  */
 
 /*
- * The Aironet 4500/4800 series cards some in PCMCIA, ISA and PCI form.
+ * The Aironet 4500/4800 series cards come in PCMCIA, ISA and PCI form.
  * This driver supports all three device types (PCI devices are supported
  * through an extra PCI shim: /sys/pci/if_an_p.c). ISA devices can be
  * supported either using hard-coded IO port/IRQ settings or via Plug
@@ -53,7 +53,6 @@
  * device and a PCMCIA to ISA or PCMCIA to PCI adapter card. There are
  * a couple of important differences though:
  *
- * - Lucent doesn't currently offer a PCI card, however Aironet does
  * - Lucent ISA card looks to the host like a PCMCIA controller with
  *   a PCMCIA WaveLAN card inserted. This means that even desktop
  *   machines need to be configured with PCMCIA support in order to
@@ -69,9 +68,7 @@
  * programmed for PCMCIA operation), both Vpp1 and Vpp2 have to be
  * set to 5 volts. FreeBSD by default doesn't set the Vpp voltages,
  * which leaves the card in ISA/PCI mode, which prevents it from
- * being activated as an PCMCIA device. Consequently, /sys/pccard/pccard.c
- * has to be patched slightly in order to enable the Vpp voltages in
- * order to make the Aironet PCMCIA cards work.
+ * being activated as an PCMCIA device.
  *
  * Note that some PCMCIA controller software packages for Windows NT
  * fail to set the voltages as well.
@@ -94,7 +91,7 @@
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
@@ -128,7 +125,6 @@
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <dev/an/if_aironet_ieee.h>
@@ -166,6 +162,23 @@ static void an_cache_store	__P((struct an_softc *, struct ether_header *,
 					struct mbuf *, unsigned short));
 #endif
 
+/* function definitions for use with the Cisco's Linux configuration
+   utilities
+*/
+
+static int readrids             __P((struct ifnet*, struct aironet_ioctl*));
+static int writerids            __P((struct ifnet*, struct aironet_ioctl*));
+static int flashcard            __P((struct ifnet*, struct aironet_ioctl*));
+
+static int cmdreset             __P((struct ifnet *));
+static int setflashmode         __P((struct ifnet *));
+static int flashgchar           __P((struct ifnet *,int,int));
+static int flashpchar           __P((struct ifnet *,int,int));
+static int flashputbuf          __P((struct ifnet *));
+static int flashrestart         __P((struct ifnet *));
+static int WaitBusy             __P((struct ifnet *, int));
+static int unstickbusy          __P((struct ifnet *));
+
 static void an_dump_record	__P((struct an_softc *,struct an_ltv_gen *,
 				    char *));
 
@@ -173,6 +186,7 @@ static int an_media_change	__P((struct ifnet *));
 static void an_media_status	__P((struct ifnet *, struct ifmediareq *));
 
 static int	an_dump = 0;
+
 static char an_conf[256];
 
 /* sysctl vars */
@@ -581,7 +595,7 @@ an_rxeof(sc)
 			return;
 		}
 		m->m_pkthdr.rcvif = ifp;
-		/* Read Ethenet encapsulated packet */
+		/* Read Ethernet encapsulated packet */
 
 #ifdef ANCACHE
 		/* Read NIC frame header */
@@ -1156,6 +1170,8 @@ an_setdef(sc, areq)
 		break;
 	case AN_RID_WEP_TEMP:
 	case AN_RID_WEP_PERM:
+	case AN_RID_LEAPUSERNAME:
+	case AN_RID_LEAPPASSWORD:
 		/* Disable the MAC. */
 		an_cmd(sc, AN_CMD_DISABLE, 0);
 
@@ -1232,7 +1248,6 @@ an_ioctl(ifp, command, data)
 	int			len;
 	int			i;
 	struct an_softc		*sc;
-	struct an_req		areq;
 	struct ifreq		*ifr;
 	struct proc		*p = curproc;
 	struct ieee80211req	*ireq;
@@ -1242,17 +1257,18 @@ an_ioctl(ifp, command, data)
 	struct an_ltv_key	*key;
 	struct an_ltv_status	*status;
 	struct an_ltv_ssidlist	*ssids;
-
-	s = splimp();
+	int			mode;
+	struct aironet_ioctl	l_ioctl;
 
 	sc = ifp->if_softc;
+	s = splimp();
 	ifr = (struct ifreq *)data;
 	ireq = (struct ieee80211req *)data;
 
-	config = (struct an_ltv_genconfig *)&areq;
-	key = (struct an_ltv_key *)&areq;
-	status = (struct an_ltv_status *)&areq;
-	ssids = (struct an_ltv_ssidlist *)&areq;
+	config = (struct an_ltv_genconfig *)&sc->areq;
+	key = (struct an_ltv_key *)&sc->areq;
+	status = (struct an_ltv_status *)&sc->areq;
+	ssids = (struct an_ltv_ssidlist *)&sc->areq;
 
 	if (sc->an_gone) {
 		error = ENODEV;
@@ -1294,56 +1310,82 @@ an_ioctl(ifp, command, data)
 		error = 0;
 		break;
 	case SIOCGAIRONET:
-		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
+		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
 		if (error != 0)
 			break;
 #ifdef ANCACHE
-		if (areq.an_type == AN_RID_ZERO_CACHE) {
+		if (sc->areq.an_type == AN_RID_ZERO_CACHE) {
 			sc->an_sigitems = sc->an_nextitem = 0;
 			break;
-		} else if (areq.an_type == AN_RID_READ_CACHE) {
-			char *pt = (char *)&areq.an_val;
+		} else if (sc->areq.an_type == AN_RID_READ_CACHE) {
+			char *pt = (char *)&sc->areq.an_val;
 			bcopy((char *)&sc->an_sigitems, (char *)pt,
 			    sizeof(int));
 			pt += sizeof(int);
-			areq.an_len = sizeof(int) / 2;
+			sc->areq.an_len = sizeof(int) / 2;
 			bcopy((char *)&sc->an_sigcache, (char *)pt,
 			    sizeof(struct an_sigcache) * sc->an_sigitems);
-			areq.an_len += ((sizeof(struct an_sigcache) *
+			sc->areq.an_len += ((sizeof(struct an_sigcache) *
 			    sc->an_sigitems) / 2) + 1;
 		} else
 #endif
-		if (an_read_record(sc, (struct an_ltv_gen *)&areq)) {
+		if (an_read_record(sc, (struct an_ltv_gen *)&sc->areq)) {
 			error = EINVAL;
 			break;
 		}
-		error = copyout(&areq, ifr->ifr_data, sizeof(areq));
+		error = copyout(&sc->areq, ifr->ifr_data, sizeof(sc->areq));
 		break;
 	case SIOCSAIRONET:
 		if ((error = suser(p)))
 			goto out;
-		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
+		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
 		if (error != 0)
 			break;
-		an_setdef(sc, &areq);
+		an_setdef(sc, &sc->areq);
+		break;
+	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
+		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		mode = l_ioctl.command;
+
+		if (mode >= AIROGCAP && mode <= AIROGSTATSD32) {
+			error = readrids(ifp, &l_ioctl);
+		}else if (mode >= AIROPCAP && mode <= AIROPLEAPUSR) {
+			error = writerids(ifp, &l_ioctl);
+		}else if (mode >= AIROFLSHRST && mode <= AIRORESTART) {
+			error = flashcard(ifp, &l_ioctl);
+		}else{
+			error =-1;
+		}
+
+		/* copy out the updated command info */
+		copyout(&l_ioctl, ifr->ifr_data, sizeof(l_ioctl));
+
+		break;
+	case SIOCGPRIVATE_1:              /* used by Cisco client utility */
+		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		l_ioctl.command = 0;
+		error = AIROMAGIC;
+		copyout(&error, l_ioctl.data, sizeof(error));
+	        error = 0;
 		break;
 	case SIOCG80211:
-		areq.an_len = sizeof(areq);
+		sc->areq.an_len = sizeof(sc->areq);
+		/* was that a good idea DJA we are doing a short-cut */
 		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
 			if (ireq->i_val == -1) {
-				areq.an_type = AN_RID_STATUS;
+				sc->areq.an_type = AN_RID_STATUS;
 				if (an_read_record(sc,
-				    (struct an_ltv_gen *)&areq)) {
+				    (struct an_ltv_gen *)&sc->areq)) {
 					error = EINVAL;
 					break;
 				}
 				len = status->an_ssidlen;
 				tmpptr = status->an_ssid;
 			} else if (ireq->i_val >= 0) {
-				areq.an_type = AN_RID_SSIDLIST;
+				sc->areq.an_type = AN_RID_SSIDLIST;
 				if (an_read_record(sc,
-				    (struct an_ltv_gen *)&areq)) {
+				    (struct an_ltv_gen *)&sc->areq)) {
 					error = EINVAL;
 					break;
 				}
@@ -1352,8 +1394,8 @@ an_ioctl(ifp, command, data)
 					tmpptr = ssids->an_ssid1;
 				} else if (ireq->i_val == 1) {
 					len = ssids->an_ssid2_len;
-					tmpptr = ssids->an_ssid3;
-				} else if (ireq->i_val == 1) {
+					tmpptr = ssids->an_ssid2;
+				} else if (ireq->i_val == 2) {
 					len = ssids->an_ssid3_len;
 					tmpptr = ssids->an_ssid3;
 				} else {
@@ -1378,9 +1420,9 @@ an_ioctl(ifp, command, data)
 			ireq->i_val = 3;
 			break;
 		case IEEE80211_IOC_WEP:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1401,16 +1443,16 @@ an_ioctl(ifp, command, data)
 			 * ancontrol so it will have to do until we get
 			 * access to actual Cisco code.
 			 */
-			if (ireq->i_val < 0 || ireq->i_val > 7) {
+			if (ireq->i_val < 0 || ireq->i_val > 8) {
 				error = EINVAL;
 				break;
 			}
 			len = 0;
-			if (ireq->i_val < 4) {
-				areq.an_type = AN_RID_WEP_TEMP;
+			if (ireq->i_val < 5) {
+				sc->areq.an_type = AN_RID_WEP_TEMP;
 				for (i = 0; i < 5; i++) {
 					if (an_read_record(sc,
-					    (struct an_ltv_gen *)&areq)) {
+					    (struct an_ltv_gen *)&sc->areq)) {
 						error = EINVAL;
 						break;
 					}
@@ -1419,7 +1461,7 @@ an_ioctl(ifp, command, data)
 					if (key->kindex == ireq->i_val)
 						len = key->klen;
 					/* Required to get next entry */
-					areq.an_type = AN_RID_WEP_PERM;
+					sc->areq.an_type = AN_RID_WEP_PERM;
 				}
 				if (error != 0)
 					break;
@@ -1434,41 +1476,55 @@ an_ioctl(ifp, command, data)
 			error = copyout(tmpstr, ireq->i_data, len);
 			break;
 		case IEEE80211_IOC_NUMWEPKEYS:
-			ireq->i_val = 8;
+			ireq->i_val = 9; /* include home key */
 			break;
 		case IEEE80211_IOC_WEPTXKEY:
 			/*
 			 * For some strange reason, you have to read all
 			 * keys before you can read the txkey.
 			 */
-			areq.an_type = AN_RID_WEP_TEMP;
+			sc->areq.an_type = AN_RID_WEP_TEMP;
 			for (i = 0; i < 5; i++) {
 				if (an_read_record(sc,
-				    (struct an_ltv_gen *)&areq)) {
+				    (struct an_ltv_gen *) &sc->areq)) {
 					error = EINVAL;
 					break;
 				}
 				if (key->kindex == 0xffff)
 					break;
 				/* Required to get next entry */
-				areq.an_type = AN_RID_WEP_PERM;
+				sc->areq.an_type = AN_RID_WEP_PERM;
 			}
 			if (error != 0)
 				break;
 
-			areq.an_type = AN_RID_WEP_PERM;
+			sc->areq.an_type = AN_RID_WEP_PERM;
 			key->kindex = 0xffff;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
 			ireq->i_val = key->mac[0];
+			/*
+			 * Check for home mode.  Map home mode into
+			 * 5th key since that is how it is stored on
+			 * the card
+			 */
+			sc->areq.an_len  = sizeof(struct an_ltv_genconfig);
+			sc->areq.an_type = AN_RID_GENCONFIG;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&sc->areq)) {
+				error = EINVAL;
+				break;
+			}
+			if (config->an_home_product & AN_HOME_NETWORK)
+				ireq->i_val = 4;
 			break;
 		case IEEE80211_IOC_AUTHMODE:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1485,9 +1541,9 @@ an_ioctl(ifp, command, data)
 				error = EINVAL;
 			break;
 		case IEEE80211_IOC_STATIONNAME:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1499,18 +1555,18 @@ an_ioctl(ifp, command, data)
 			    IEEE80211_NWID_LEN);
 			break;
 		case IEEE80211_IOC_CHANNEL:
-			areq.an_type = AN_RID_STATUS;
+			sc->areq.an_type = AN_RID_STATUS;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
 			ireq->i_val = status->an_cur_channel;
 			break;
 		case IEEE80211_IOC_POWERSAVE:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1526,9 +1582,9 @@ an_ioctl(ifp, command, data)
 				error = EINVAL;
 			break;
 		case IEEE80211_IOC_POWERSAVESLEEP:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1539,7 +1595,7 @@ an_ioctl(ifp, command, data)
 	case SIOCS80211:
 		if ((error = suser(p)))
 			goto out;
-		areq.an_len = sizeof(areq);
+		sc->areq.an_len = sizeof(sc->areq);
 		/*
 		 * We need a config structure for everything but the WEP
 		 * key management and SSIDs so we get it now so avoid
@@ -1548,18 +1604,18 @@ an_ioctl(ifp, command, data)
 		if (ireq->i_type != IEEE80211_IOC_SSID &&
 		    ireq->i_type != IEEE80211_IOC_WEPKEY &&
 		    ireq->i_type != IEEE80211_IOC_WEPTXKEY) {
-			areq.an_type = AN_RID_GENCONFIG;
+			sc->areq.an_type = AN_RID_GENCONFIG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
 		}
 		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
-			areq.an_type = AN_RID_SSIDLIST;
+			sc->areq.an_type = AN_RID_SSIDLIST;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1620,25 +1676,48 @@ an_ioctl(ifp, command, data)
 			error = copyin(ireq->i_data, tmpstr, 13);
 			if (error != 0)
 				break;
-			bzero(&areq, sizeof(struct an_ltv_key));
-			areq.an_len = sizeof(struct an_ltv_key);
+			bzero(&sc->areq, sizeof(struct an_ltv_key));
+			sc->areq.an_len = sizeof(struct an_ltv_key);
 			key->mac[0] = 1;	/* The others are 0. */
 			key->kindex = ireq->i_val % 4;
 			if (ireq->i_val < 4)
-				areq.an_type = AN_RID_WEP_TEMP;
+				sc->areq.an_type = AN_RID_WEP_TEMP;
 			else
-				areq.an_type = AN_RID_WEP_PERM;
+				sc->areq.an_type = AN_RID_WEP_PERM;
 			key->klen = ireq->i_len;
 			bcopy(tmpstr, key->key, key->klen);
 			break;
 		case IEEE80211_IOC_WEPTXKEY:
-			if (ireq->i_val < 0 || ireq->i_val > 3) {
+			/*
+			 * Map the 5th key into the home mode
+			 * since that is how it is stored on
+			 * the card
+			 */
+			if (ireq->i_val < 0 || ireq->i_val > 4) {
 				error = EINVAL;
 				break;
 			}
-			bzero(&areq, sizeof(struct an_ltv_key));
-			areq.an_len = sizeof(struct an_ltv_key);
-			areq.an_type = AN_RID_WEP_PERM;
+			sc->areq.an_len  = sizeof(struct an_ltv_genconfig);
+			sc->areq.an_type = AN_RID_ACTUALCFG;
+			if (an_read_record(sc,
+	       		    (struct an_ltv_gen *)&sc->areq)) {
+	       			error = EINVAL;
+				break;
+			}
+			if (ireq->i_val ==  4) {
+				config->an_home_product |= AN_HOME_NETWORK;
+				ireq->i_val = 0;
+			} else {
+				config->an_home_product &= ~AN_HOME_NETWORK;
+			}
+
+			sc->an_config.an_home_product
+				= config->an_home_product;
+			an_write_record(sc, (struct an_ltv_gen *)&sc->areq);
+
+			bzero(&sc->areq, sizeof(struct an_ltv_key));
+			sc->areq.an_len = sizeof(struct an_ltv_key);
+			sc->areq.an_type = AN_RID_WEP_PERM;
 			key->kindex = 0xffff;
 			key->mac[0] = ireq->i_val;
 			break;
@@ -1706,7 +1785,7 @@ an_ioctl(ifp, command, data)
 		}
 
 		if (!error)
-			an_setdef(sc, &areq);
+			an_setdef(sc, &sc->areq);
 		break;
 	default:
 		error = EINVAL;
@@ -2023,7 +2102,7 @@ an_shutdown(dev)
  * a small fixed cache.  The cache wraps if > MAX slots
  * used.  The cache may be zeroed out to start over.
  * Two simple filters exist to reduce computation:
- * 1. ip only (literally 0x800) which may be used
+ * 1. ip only (literally 0x800, ETHERTYPE_IP) which may be used
  * to ignore some packets.  It defaults to ip only.
  * it could be used to focus on broadcast, non-IP 802.11 beacons.
  * 2. multicast/broadcast only.  This may be used to
@@ -2088,7 +2167,7 @@ an_cache_store (sc, eh, m, rx_quality)
 	int i;
 	static int cache_slot = 0; 	/* use this cache entry */
 	static int wrapindex = 0;       /* next "free" cache entry */
-	int saanp = 0;
+	int type_ipv4 = 0;
 
 	/* filters:
 	 * 1. ip only
@@ -2096,13 +2175,13 @@ an_cache_store (sc, eh, m, rx_quality)
 	 * keep multicast only.
 	 */
 
-	if ((ntohs(eh->ether_type) == 0x800)) {
-		saanp = 1;
+	if ((ntohs(eh->ether_type) == ETHERTYPE_IP)) {
+		type_ipv4 = 1;
 	}
 
 	/* filter for ip packets only
 	*/
-	if ( an_cache_iponly && !saanp) {
+	if ( an_cache_iponly && !type_ipv4) {
 		return;
 	}
 
@@ -2120,7 +2199,7 @@ an_cache_store (sc, eh, m, rx_quality)
 	/* find the ip header.  we want to store the ip_src
 	 * address.
 	 */
-	if (saanp) {
+	if (type_ipv4) {
 		ip = mtod(m, struct ip *);
 	}
 
@@ -2186,7 +2265,7 @@ an_cache_store (sc, eh, m, rx_quality)
 	 *  .mac src
 	 *  .signal, etc.
 	 */
-	if (saanp) {
+	if (type_ipv4) {
 		sc->an_sigcache[cache_slot].ipsrc = ip->ip_src.s_addr;
 	}
 	bcopy( eh->ether_shost, sc->an_sigcache[cache_slot].macsrc,  6);
@@ -2279,3 +2358,502 @@ an_media_status(ifp, imr)
 	else if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
 			imr->ifm_status |= IFM_ACTIVE;
 }
+
+/********************** Cisco utility support routines *************/
+
+/*
+ * ReadRids & WriteRids derived from Cisco driver additions to Ben Reed's
+ * Linux driver
+ */
+
+static int
+readrids(ifp, l_ioctl)
+	struct ifnet   *ifp;
+	struct aironet_ioctl *l_ioctl;
+{
+	unsigned short  rid;
+	struct an_softc *sc;
+
+	switch (l_ioctl->command) {
+	case AIROGCAP:
+		rid = AN_RID_CAPABILITIES;
+		break;
+	case AIROGCFG:
+		rid = AN_RID_GENCONFIG;
+		break;
+	case AIROGSLIST:
+		rid = AN_RID_SSIDLIST;
+		break;
+	case AIROGVLIST:
+		rid = AN_RID_APLIST;
+		break;
+	case AIROGDRVNAM:
+		rid = AN_RID_DRVNAME;
+		break;
+	case AIROGEHTENC:
+		rid = AN_RID_ENCAPPROTO;
+		break;
+	case AIROGWEPKTMP:
+		rid = AN_RID_WEP_TEMP;
+		break;
+	case AIROGWEPKNV:
+		rid = AN_RID_WEP_PERM;
+		break;
+	case AIROGSTAT:
+		rid = AN_RID_STATUS;
+		break;
+	case AIROGSTATSD32:
+		rid = AN_RID_32BITS_DELTA;
+		break;
+	case AIROGSTATSC32:
+		rid = AN_RID_32BITS_CUM;
+		break;
+	default:
+		rid = 999;
+		break;
+	}
+
+	if (rid == 999)	/* Is bad command */
+		return -EINVAL;
+
+	sc = ifp->if_softc;
+	sc->areq.an_len  = AN_MAX_DATALEN;
+	sc->areq.an_type = rid;
+
+	an_read_record(sc, (struct an_ltv_gen *)&sc->areq);
+
+	l_ioctl->len = sc->areq.an_len - 4;	/* just data */
+
+	/* the data contains the length at first */
+	if (copyout(&(sc->areq.an_len), l_ioctl->data,
+		    sizeof(sc->areq.an_len))) {
+		return -EFAULT;
+	}
+	/* Just copy the data back */
+	if (copyout(&(sc->areq.an_val), l_ioctl->data + 2,
+		    l_ioctl->len)) {
+		return -EFAULT;
+	}
+	return 0;
+}
+
+static int
+writerids(ifp, l_ioctl)
+	struct ifnet   *ifp;
+	struct aironet_ioctl *l_ioctl;
+{
+	struct an_softc *sc;
+	int             rid, command;
+
+	sc = ifp->if_softc;
+	rid = 0;
+	command = l_ioctl->command;
+
+	switch (command) {
+	case AIROPSIDS:
+		rid = AN_RID_SSIDLIST;
+		break;
+	case AIROPCAP:
+		rid = AN_RID_CAPABILITIES;
+		break;
+	case AIROPAPLIST:
+		rid = AN_RID_APLIST;
+		break;
+	case AIROPCFG:
+		rid = AN_RID_GENCONFIG;
+		break;
+	case AIROPMACON:
+		an_cmd(sc, AN_CMD_ENABLE, 0);
+		return 0;
+		break;
+	case AIROPMACOFF:
+		an_cmd(sc, AN_CMD_DISABLE, 0);
+		return 0;
+		break;
+	case AIROPSTCLR:
+		/*
+		 * This command merely clears the counts does not actually
+		 * store any data only reads rid. But as it changes the cards
+		 * state, I put it in the writerid routines.
+		 */
+
+		rid = AN_RID_32BITS_DELTACLR;
+		sc = ifp->if_softc;
+		sc->areq.an_len = AN_MAX_DATALEN;
+		sc->areq.an_type = rid;
+
+		an_read_record(sc, (struct an_ltv_gen *)&sc->areq);
+		l_ioctl->len = sc->areq.an_len - 4;	/* just data */
+
+		/* the data contains the length at first */
+		if (copyout(&(sc->areq.an_len), l_ioctl->data,
+			    sizeof(sc->areq.an_len))) {
+			return -EFAULT;
+		}
+		/* Just copy the data */
+		if (copyout(&(sc->areq.an_val), l_ioctl->data + 2,
+			    l_ioctl->len)) {
+			return -EFAULT;
+		}
+		return 0;
+		break;
+	case AIROPWEPKEY:
+		rid = AN_RID_WEP_TEMP;
+		break;
+	case AIROPWEPKEYNV:
+		rid = AN_RID_WEP_PERM;
+		break;
+	case AIROPLEAPUSR:
+		rid = AN_RID_LEAPUSERNAME;
+		break;
+	case AIROPLEAPPWD:
+		rid = AN_RID_LEAPPASSWORD;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (rid) {
+		if (l_ioctl->len > sizeof(sc->areq.an_val) + 4)
+			return -EINVAL;
+		sc->areq.an_len = l_ioctl->len + 4;	/* add type & length */
+		sc->areq.an_type = rid;
+
+		/* Just copy the data back */
+		copyin((l_ioctl->data) + 2, &sc->areq.an_val,
+		       l_ioctl->len);
+
+		an_cmd(sc, AN_CMD_DISABLE, 0);
+		an_write_record(sc, (struct an_ltv_gen *)&sc->areq);
+		an_cmd(sc, AN_CMD_ENABLE, 0);
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
+/*
+ * General Flash utilities derived from Cisco driver additions to Ben Reed's
+ * Linux driver
+ */
+
+#define FLASH_DELAY(x) tsleep(ifp, PZERO, "flash", ((x) / hz) + 1);
+
+static int
+unstickbusy(ifp)
+	struct ifnet   *ifp;
+{
+	struct an_softc *sc = ifp->if_softc;
+
+	if (CSR_READ_2(sc, AN_COMMAND) & AN_CMD_BUSY) {
+		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_CLR_STUCK_BUSY);
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * Wait for busy completion from card wait for delay uSec's Return true for
+ * success meaning command reg is clear
+ */
+
+static int
+WaitBusy(ifp, uSec)
+	struct ifnet   *ifp;
+	int             uSec;
+{
+	int             statword = 0xffff;
+	int             delay = 0;
+	struct an_softc *sc = ifp->if_softc;
+
+	while ((statword & AN_CMD_BUSY) && delay <= (1000 * 100)) {
+		FLASH_DELAY(10);
+		delay += 10;
+		statword = CSR_READ_2(sc, AN_COMMAND);
+
+		if ((AN_CMD_BUSY & statword) && (delay % 200)) {
+			unstickbusy(ifp);
+		}
+	}
+
+	return 0 == (AN_CMD_BUSY & statword);
+}
+
+/*
+ * STEP 1) Disable MAC and do soft reset on card.
+ */
+
+static int
+cmdreset(ifp)
+	struct ifnet   *ifp;
+{
+	int             status;
+	struct an_softc *sc = ifp->if_softc;
+
+	an_stop(sc);
+
+	an_cmd(sc, AN_CMD_DISABLE, 0);
+
+	if (!(status = WaitBusy(ifp, 600))) {
+		printf("an%d: Waitbusy hang b4 RESET =%d\n",
+		       sc->an_unit, status);
+		return -EBUSY;
+	}
+	CSR_WRITE_2(sc, AN_COMMAND, AN_CMD_FW_RESTART);
+
+	FLASH_DELAY(1000);	/* WAS 600 12/7/00 */
+
+
+	if (!(status = WaitBusy(ifp, 100))) {
+		printf("an%d: Waitbusy hang AFTER RESET =%d\n",
+		       sc->an_unit, status);
+		return -EBUSY;
+	}
+	return 0;
+}
+
+/*
+ * STEP 2) Put the card in legendary flash mode
+ */
+#define FLASH_COMMAND  0x7e7e
+
+static int
+setflashmode(ifp)
+	struct ifnet   *ifp;
+{
+	int             status;
+	struct an_softc *sc = ifp->if_softc;
+
+	CSR_WRITE_2(sc, AN_SW0, FLASH_COMMAND);
+	CSR_WRITE_2(sc, AN_SW1, FLASH_COMMAND);
+	CSR_WRITE_2(sc, AN_SW0, FLASH_COMMAND);
+	CSR_WRITE_2(sc, AN_COMMAND, FLASH_COMMAND);
+
+	/*
+	 * mdelay(500); // 500ms delay
+	 */
+
+	FLASH_DELAY(500);
+
+	if (!(status = WaitBusy(ifp, 600))) {
+		printf("Waitbusy hang after setflash mode\n");
+		return -EIO;
+	}
+	return 0;
+}
+
+/*
+ * Get a character from the card matching matchbyte Step 3)
+ */
+
+static int
+flashgchar(ifp, matchbyte, dwelltime)
+	struct ifnet   *ifp;
+	int             matchbyte;
+	int             dwelltime;
+{
+	int             rchar;
+	unsigned char   rbyte = 0;
+	int             success = -1;
+	struct an_softc *sc = ifp->if_softc;
+
+
+	do {
+		rchar = CSR_READ_2(sc, AN_SW1);
+
+		if (dwelltime && !(0x8000 & rchar)) {
+			dwelltime -= 10;
+			FLASH_DELAY(10);
+			continue;
+		}
+		rbyte = 0xff & rchar;
+
+		if ((rbyte == matchbyte) && (0x8000 & rchar)) {
+			CSR_WRITE_2(sc, AN_SW1, 0);
+			success = 1;
+			break;
+		}
+		if (rbyte == 0x81 || rbyte == 0x82 || rbyte == 0x83 || rbyte == 0x1a || 0xffff == rchar)
+			break;
+		CSR_WRITE_2(sc, AN_SW1, 0);
+
+	} while (dwelltime > 0);
+	return success;
+}
+
+/*
+ * Put character to SWS0 wait for dwelltime x 50us for  echo .
+ */
+
+static int
+flashpchar(ifp, byte, dwelltime)
+	struct ifnet   *ifp;
+	int             byte;
+	int             dwelltime;
+{
+	int             echo;
+	int             pollbusy, waittime;
+	struct an_softc *sc = ifp->if_softc;
+
+	byte |= 0x8000;
+
+	if (dwelltime == 0)
+		dwelltime = 200;
+
+	waittime = dwelltime;
+
+	/*
+	 * Wait for busy bit d15 to go false indicating buffer empty
+	 */
+	do {
+		pollbusy = CSR_READ_2(sc, AN_SW0);
+
+		if (pollbusy & 0x8000) {
+			FLASH_DELAY(50);
+			waittime -= 50;
+			continue;
+		} else
+			break;
+	}
+	while (waittime >= 0);
+
+	/* timeout for busy clear wait */
+
+	if (waittime <= 0) {
+		printf("an%d: flash putchar busywait timeout! \n",
+		       sc->an_unit);
+		return -1;
+	}
+	/*
+	 * Port is clear now write byte and wait for it to echo back
+	 */
+	do {
+		CSR_WRITE_2(sc, AN_SW0, byte);
+		FLASH_DELAY(50);
+		dwelltime -= 50;
+		echo = CSR_READ_2(sc, AN_SW1);
+	} while (dwelltime >= 0 && echo != byte);
+
+
+	CSR_WRITE_2(sc, AN_SW1, 0);
+
+	return echo == byte;
+}
+
+/*
+ * Transfer 32k of firmware data from user buffer to our buffer and send to
+ * the card
+ */
+
+static char     flashbuffer[1024 * 38];	/* RAW Buffer for flash will be
+					 * dynamic next */
+
+static int
+flashputbuf(ifp)
+	struct ifnet   *ifp;
+{
+	unsigned short *bufp;
+	int             nwords;
+	struct an_softc *sc = ifp->if_softc;
+
+	/* Write stuff */
+
+	bufp = (unsigned short *)flashbuffer;
+
+	CSR_WRITE_2(sc, AN_AUX_PAGE, 0x100);
+	CSR_WRITE_2(sc, AN_AUX_OFFSET, 0);
+
+	for (nwords = 0; nwords != 16384; nwords++) {
+		CSR_WRITE_2(sc, AN_AUX_DATA, bufp[nwords] & 0xffff);
+	}
+
+	CSR_WRITE_2(sc, AN_SW0, 0x8000);
+
+	return 0;
+}
+
+/*
+ * After flashing restart the card.
+ */
+
+static int
+flashrestart(ifp)
+	struct ifnet   *ifp;
+{
+	int             status = 0;
+	struct an_softc *sc = ifp->if_softc;
+
+	FLASH_DELAY(1024);		/* Added 12/7/00 */
+
+	an_init(sc);
+
+	FLASH_DELAY(1024);		/* Added 12/7/00 */
+	return status;
+}
+
+/*
+ * Entry point for flash ioclt.
+ */
+
+static int
+flashcard(ifp, l_ioctl)
+	struct ifnet   *ifp;
+	struct aironet_ioctl *l_ioctl;
+{
+	int             z = 0, status;
+	struct an_softc	*sc;
+
+	sc = ifp->if_softc;
+	status = l_ioctl->command;
+
+	switch (l_ioctl->command) {
+	case AIROFLSHRST:
+		return cmdreset(ifp);
+		break;
+	case AIROFLSHSTFL:
+		return setflashmode(ifp);
+		break;
+	case AIROFLSHGCHR:	/* Get char from aux */
+		copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		z = *(int *)&sc->areq;
+		if ((status = flashgchar(ifp, z, 8000)) == 1)
+			return 0;
+		else
+			return -1;
+		break;
+	case AIROFLSHPCHR:	/* Send char to card. */
+		copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		z = *(int *)&sc->areq;
+		if ((status = flashpchar(ifp, z, 8000)) == -1)
+			return -EIO;
+		else
+			return 0;
+		break;
+	case AIROFLPUTBUF:	/* Send 32k to card */
+		if (l_ioctl->len > sizeof(flashbuffer)) {
+			printf("an%d: Buffer to big, %x %x\n", sc->an_unit,
+			       l_ioctl->len, sizeof(flashbuffer));
+			return -EINVAL;
+		}
+		copyin(l_ioctl->data, &flashbuffer, l_ioctl->len);
+
+		if ((status = flashputbuf(ifp)) != 0)
+			return -EIO;
+		else
+			return 0;
+		break;
+	case AIRORESTART:
+		if ((status = flashrestart(ifp)) != 0) {
+			printf("an%d: FLASHRESTART returned %d\n",
+			       sc->an_unit, status);
+			return -EIO;
+		} else
+			return 0;
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+

@@ -102,6 +102,9 @@
 #define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
 #define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
 
+#define	SIOCGPRIVATE_0	_IOWR('i', 80, struct ifreq)	/* Linux Private + 0 */
+#define	SIOCGPRIVATE_1	_IOWR('i', 81, struct ifreq)	/* Linux Private + 1 */
+
 #define SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
 #define SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
 #define SIOCIFGCLONERS	_IOWR('i', 120, struct if_clonereq) /* get cloners */

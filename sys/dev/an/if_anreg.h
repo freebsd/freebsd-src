@@ -217,30 +217,6 @@ struct an_ltv_gen {
 #define AN_DEF_SSID_LEN		7
 #define AN_DEF_SSID		"tsunami"
 
-/*
- * Receive frame structure.
- */
-struct an_rxframe {
-	u_int32_t		an_rx_time;		/* 0x00 */
-	u_int16_t		an_rx_status;		/* 0x04 */
-	u_int16_t		an_rx_payload_len;	/* 0x06 */
-	u_int8_t		an_rsvd0;		/* 0x08 */
-	u_int8_t		an_rx_signal_strength;	/* 0x09 */
-	u_int8_t		an_rx_rate;		/* 0x0A */
-	u_int8_t		an_rx_chan;		/* 0x0B */
-	u_int8_t		an_rx_assoc_cnt;	/* 0x0C */
-	u_int8_t		an_rsvd1[3];		/* 0x0D */
-	u_int8_t		an_plcp_hdr[4];		/* 0x10 */
-	u_int16_t		an_frame_ctl;		/* 0x14 */
-	u_int16_t		an_duration;		/* 0x16 */
-	u_int8_t		an_addr1[6];		/* 0x18 */
-	u_int8_t		an_addr2[6];		/* 0x1E */
-	u_int8_t		an_addr3[6];		/* 0x24 */
-	u_int16_t		an_seq_ctl;		/* 0x2A */
-	u_int8_t		an_addr4[6];		/* 0x2C */
-	u_int16_t		an_gaplen;		/* 0x32 */
-};
-
 #define AN_RXGAP_MAX	8
 
 /*
@@ -265,8 +241,8 @@ struct an_txframe {
 	u_int8_t		an_addr3[6];		/* 0x24 */
 	u_int16_t		an_seq_ctl;		/* 0x2A */
 	u_int8_t		an_addr4[6];		/* 0x2C */
-	u_int16_t		an_gaplen;		/* 0x32 */
-};
+	u_int8_t		an_gaplen;		/* 0x32 */
+} __attribute__((packed));
 
 struct an_rxframe_802_3 {
         u_int16_t		an_rx_802_3_status;     /* 0x34 */
@@ -385,6 +361,7 @@ struct an_softc	{
 	int		        an_monitor;
 	int		        an_was_monitor;
 	u_char			buf_802_11[MCLBYTES];
+	struct an_req		areq;
 };
 
 void	an_release_resources	__P((device_t));
