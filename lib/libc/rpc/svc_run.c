@@ -40,8 +40,8 @@ static char *rcsid = "$FreeBSD$";
  * This is the rpc server side idle loop
  * Wait for input, call server program.
  */
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <err.h>
 #include <errno.h>
 #include <rpc/rpc.h>

@@ -44,8 +44,8 @@ static char *sccsid = "@(#)auth_none.c	2.1 88/07/29 4.0 RPCSRC";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <rpc/types.h>

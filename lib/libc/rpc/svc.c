@@ -45,8 +45,8 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/poll.h>
 #include <assert.h>

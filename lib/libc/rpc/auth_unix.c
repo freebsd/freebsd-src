@@ -48,8 +48,8 @@ static char *sccsid = "@(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";
  *
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/param.h>
 
 #include <assert.h>

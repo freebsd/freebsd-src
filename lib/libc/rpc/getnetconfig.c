@@ -40,8 +40,8 @@ static        char sccsid[] = "@(#)getnetconfig.c	1.12 91/12/19 SMI";
  * Copyright (c) 1989 by Sun Microsystems, Inc.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/cdefs.h>
 #include <stdio.h>
 #include <errno.h>
