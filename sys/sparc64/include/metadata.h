@@ -37,6 +37,11 @@
 #define	MODINFOMD_DTLB		0x1006
 #define	MODINFOMD_ITLB		0x1007
 
+struct tlb_entry {
+	vm_offset_t te_pa;
+	vm_offset_t te_va;
+};
+
 #define	MD_FETCH(mdp, info, type) ({ \
 	type *__p; \
 	__p = (type *)preload_search_info((mdp), MODINFO_METADATA | (info)); \
