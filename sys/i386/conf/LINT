@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.192 1995/08/11 17:18:42 joerg Exp $
+#	$Id: LINT,v 1.193 1995/08/12 13:40:42 ats Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -491,6 +491,16 @@ disk		wd1	at wdc0 drive 1
 controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
+
+#
+# Options for `wdc':
+#
+# ATAPI enables the support for ATAPI-compatible IDE devices
+#
+options         ATAPI   #Enable ATAPI support for IDE bus
+
+# IDE CD-ROM driver - requires wdc controller and ATAPI option
+device          wcd0
 
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
