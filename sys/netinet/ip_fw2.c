@@ -101,6 +101,7 @@ static int fw_verbose;
 static int verbose_limit;
 
 static struct callout ipfw_timeout;
+static uma_zone_t ipfw_dyn_rule_zone;
 #define	IPFW_DEFAULT_RULE	65535
 
 /*
@@ -782,7 +783,7 @@ hash_packet(struct ipfw_flow_id *id)
 	else								\
 		head = q = q->next;					\
 	dyn_count--;							\
-	free(old_q, M_IPFW); }
+	uma_zfree(ipfw_dyn_rule_zone, old_q); }
 
 #define TIME_LEQ(a,b)       ((int)((a)-(b)) <= 0)
 
@@ -1058,7 +1059,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	}
 	i = hash_packet(id);
 
-	r = malloc(sizeof *r, M_IPFW, M_NOWAIT | M_ZERO);
+	r = uma_zalloc(ipfw_dyn_rule_zone, M_NOWAIT | M_ZERO);
 	if (r == NULL) {
 		printf ("ipfw: sorry cannot allocate state\n");
 		return NULL;
@@ -3501,6 +3502,9 @@ ipfw_init(void)
 	layer3_chain.busy_count = 0;
 	cv_init(&layer3_chain.cv, "Condition variable for IPFW rw locks");
 	IPFW_LOCK_INIT(&layer3_chain);
+	ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule zone",
+	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
 	IPFW_DYN_LOCK_INIT();
 	callout_init(&ipfw_timeout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 
@@ -3582,6 +3586,7 @@ ipfw_destroy(void)
 		reap_rules(reap);
 	flush_tables();
 	IPFW_DYN_LOCK_DESTROY();
+	uma_zdestroy(ipfw_dyn_rule_zone);
 	IPFW_LOCK_DESTROY(&layer3_chain);
 	printf("IP firewall unloaded\n");
 }
