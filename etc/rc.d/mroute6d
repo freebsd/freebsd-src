@@ -4,8 +4,7 @@
 #
 
 # PROVIDE: mroute6d
-# REQUIRE: DAEMON
-# BEFORE: LOGIN
+# REQUIRE: network_ipv6
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr

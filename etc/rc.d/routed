@@ -5,8 +5,7 @@
 #
 
 # PROVIDE: routed
-# REQUIRE: DAEMON
-# BEFORE:  LOGIN
+# REQUIRE: network1 network2
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
