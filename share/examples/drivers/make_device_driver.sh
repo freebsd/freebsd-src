@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 # This writes a skeleton driver and puts it into the kernel tree for you.
 # It also adds FOO and files.FOO configuration files so you can compile
 # a kernel with your FOO driver linked in.
@@ -11,7 +11,7 @@
 # To do so:
 # cd /sys/modules/foo; make depend; make; make install; kldload foo
 #
-# arg1 to this script is expected to be lowercase "foo" 
+# arg1 to this script is expected to be lowercase "foo"
 #
 # Trust me, RUN THIS SCRIPT :)
 #
@@ -22,12 +22,12 @@
 # $FreeBSD$"
 #
 #
-if [ "X${1}" = "X" ] 
+if [ "X${1}" = "X" ]
 then
 	echo "Hey , how about some help here.. give me a device name!"
 	exit 1
 fi
-UPPER=`echo ${1} |tr "[:lower:]" "[:upper:]"` 
+UPPER=`echo ${1} |tr "[:lower:]" "[:upper:]"`
 
 HERE=`pwd`
 cd /sys
@@ -44,7 +44,7 @@ then
 	then
 	  VAL=YES
 	fi
-	case ${VAL} in 
+	case ${VAL} in
 	[yY]*)
 	  echo "Cleaning up from prior runs"
 	  rm -rf ${TOP}/dev/${1}
@@ -69,7 +69,6 @@ echo ${TOP}/sys/${1}io.h
 echo ${TOP}/modules/${1}
 echo ${TOP}/modules/${1}/Makefile
 
-
 	mkdir ${TOP}/modules/${1}
 
 #######################################################################
@@ -93,7 +92,7 @@ DONE
 cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$${RCS_KEYWORD}: $
+# \$${RCS_KEYWORD}$
 DONE
 
 grep -v GENERIC < /sys/i386/conf/GENERIC >>${TOP}/i386/conf/${UPPER}
@@ -107,9 +106,6 @@ if [ ! -d ${TOP}/dev/${1} ]
 then
 	mkdir -p ${TOP}/dev/${1}
 fi
-
-
-
 
 cat >${TOP}/dev/${1}/${1}.c <<DONE
 /*
@@ -136,16 +132,15 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *
- * ${1} driver
- * \$${RCS_KEYWORD}: $
  */
 
 /*
  * http://www.daemonnews.org/200008/isa.html is required reading.
  * hopefully it will make it's way into the handbook.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("\$${RCS_KEYWORD}$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -156,19 +151,21 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
+#include <sys/time.h>
+#include <sys/${1}io.h>		/* ${1} IOCTL definitions */
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
-#include <sys/rman.h>
-#include <sys/time.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
 #include <isa/isavar.h>
+
 #include "isa_if.h"
-#include <sys/${1}io.h>		/* ${1} IOCTL definitions */
 
 /* XXX These should be defined in terms of bus-space ops */
 #define ${UPPER}_INB(port) inb(port_start)
@@ -183,8 +180,8 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #define DEV2SOFTC(dev)	((struct ${1}_softc *) (dev)->si_drv1)
 #define DEVICE2SOFTC(dev) ((struct ${1}_softc *) device_get_softc(dev))
 
-/* 
- * device specific Misc defines 
+/*
+ * device specific Misc defines
  */
 #define BUFFERSIZE	1024
 #define NUMPORTS	4
@@ -209,7 +206,7 @@ struct ${1}_softc {
 	void	*intr_cookie;
 	void	*vaddr;			/* Virtual address of mem resource */
 	char	buffer[BUFFERSIZE];	/* if we needed to buffer something */
-} ;
+};
 
 /* Function prototypes (these should all be static) */
 static int ${1}_deallocate_resources(device_t device);
@@ -225,7 +222,7 @@ static d_ioctl_t	${1}ioctl;
 static d_mmap_t		${1}mmap;
 static d_poll_t		${1}poll;
 static	void		${1}intr(void *arg);
- 
+
 #define CDEV_MAJOR 20
 static struct cdevsw ${1}_cdevsw = {
 	/* open */	${1}open,
@@ -245,7 +242,7 @@ static struct cdevsw ${1}_cdevsw = {
 };
 
 static devclass_t ${1}_devclass;
- 
+
 /*
  *****************************************
  * ISA Attachment structures and functions
@@ -275,7 +272,6 @@ static driver_t ${1}_isa_driver = {
 	${1}_methods,
 	sizeof (struct ${1}_softc)
 };
-
 
 DRIVER_MODULE(${1}, isa, ${1}_isa_driver, ${1}_devclass, 0, 0);
 
@@ -319,7 +315,7 @@ static struct localhints {
  * For NON-PNP "Smart" devices:
  * If the device has a NON-PNP way of being detected and setting/sensing
  * the card, then do that here and add a child for each set of
- * hardware found. 
+ * hardware found.
  *
  * For PNP devices:
  * If the device is always PNP capable then this function can be removed.
@@ -340,7 +336,6 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 	device_t	child;
 	int i;
 
-
 	/*
 	 * If we've already got ${UPPER} attached somehow, don't try again.
 	 * Maybe it was in the hints file. or it was loaded before.
@@ -355,16 +350,14 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 
 		ioport = res[i].ioport;
 		irq = res[i].irq;
-		if ((ioport == 0) &&  (irq == 0)) {
+		if ((ioport == 0) && (irq == 0))
 			return; /* we've added all our local hints */
-		}
 
 		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "${1}", -1);
 		bus_set_resource(child, SYS_RES_IOPORT,	0, ioport, NUMPORTS);
 		bus_set_resource(child, SYS_RES_IRQ,	0, irq, 1);
 		bus_set_resource(child, SYS_RES_DRQ,	0, res[i].drq, 1);
 		bus_set_resource(child, SYS_RES_MEMORY,	0, res[i].mem, MEMSIZE);
-
 
 #if 0
 		/*
@@ -390,7 +383,7 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 /*
  * The ISA code calls this for each device it knows about,
  * whether via the PNP code or via the hints etc.
- * If the device nas no PNP capabilities, remove all the 
+ * If the device nas no PNP capabilities, remove all the
  * PNP entries, but keep the call to ISA_PNP_PROBE()
  * As it will guard against accidentally recognising
  * foreign hardware. This is because we will be called to check against
@@ -403,7 +396,6 @@ ${1}_isa_probe (device_t device)
 	device_t parent = device_get_parent(device);
 	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 	u_long	port_start, port_count;
-
 
 	bzero(scp, sizeof(*scp));
 	scp->device = device;
@@ -437,7 +429,7 @@ ${1}_isa_probe (device_t device)
 		 * Well it didn't show up in the PNP tables
 		 * so look directly at known ports (if we have any)
 		 * in case we are looking for an old pre-PNP card.
-		 * 
+		 *
 		 * Hopefully the  'identify' routine will have picked these
 		 * up for us first if they use some proprietary detection
 		 * method.
@@ -453,15 +445,15 @@ ${1}_isa_probe (device_t device)
 		 */
 		/*
 		 * find out the values of any resources we
-		 * need for our dumb probe. Also check we have enough ports 
-		 * in the request. (could be hints based). 
+		 * need for our dumb probe. Also check we have enough ports
+		 * in the request. (could be hints based).
 		 * Should probably do the same for memory regions too.
 		 */
 		error = bus_get_resource(device, SYS_RES_IOPORT, 0,
-			&port_start, &port_count);
+		    &port_start, &port_count);
 		if (port_count != NUMPORTS) {
 			bus_set_resource(device, SYS_RES_IOPORT, 0,
-			port_start, NUMPORTS);
+			    port_start, NUMPORTS);
 		}
 
 		/*
@@ -477,8 +469,8 @@ ${1}_isa_probe (device_t device)
 		}
 
 		/* dummy heuristic type probe */
-		if ( inb(port_start) != EXPECTED_VALUE) {
-			/* 
+		if (inb(port_start) != EXPECTED_VALUE) {
+			/*
 			 * It isn't what we hoped, so quit looking for it.
 			 */
 			error = ENXIO;
@@ -539,14 +531,12 @@ ${1}_isa_attach (device_t device)
 	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 
         error =  ${1}_attach(device, scp);
-        if (error) {
+        if (error)
                 ${1}_isa_detach(device);
-        }
         return (error);
-
 }
 
-/* 
+/*
  * detach the driver (e.g. module unload)
  * call the bus independent version
  * and undo anything we did in the ISA attach routine.
@@ -567,9 +557,9 @@ ${1}_isa_detach (device_t device)
  ***************************************
  */
 
-static int	${1}_pci_probe	__P((device_t));
-static int	${1}_pci_attach	__P((device_t));
-static int	${1}_pci_detach	__P((device_t));
+static int	${1}_pci_probe(device_t);
+static int	${1}_pci_attach(device_t);
+static int	${1}_pci_detach(device_t);
 
 static device_method_t ${1}_pci_methods[] = {
 	/* Device interface */
@@ -584,7 +574,6 @@ static driver_t ${1}_pci_driver = {
 	${1}_pci_methods,
 	sizeof(struct ${1}_softc),
 };
-
 
 DRIVER_MODULE(${1}, pci, ${1}_pci_driver, ${1}_devclass, 0, 0);
 /*
@@ -624,9 +613,8 @@ ${1}_pci_probe (device_t device)
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
 		return 0; /* If there might be a better driver, return -2 */
-	} else {
+	} else
 		return ENXIO;
-	}
 }
 
 static int
@@ -636,9 +624,8 @@ ${1}_pci_attach(device_t device)
 	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 
         error =  ${1}_attach(device, scp);
-        if (error) {
+        if (error)
                 ${1}_pci_detach(device);
-        }
         return (error);
 }
 
@@ -651,7 +638,6 @@ ${1}_pci_detach (device_t device)
         error =  ${1}_detach(device, scp);
         return (error);
 }
-
 
 /*
  ****************************************
@@ -668,9 +654,8 @@ ${1}_attach(device_t device, struct ${1}_softc * scp)
 			UID_ROOT, GID_OPERATOR, 0600, "${1}%d", unit);
 	scp->dev->si_drv1 = scp;
 
-	if (${1}_allocate_resources(device)) {
+	if (${1}_allocate_resources(device))
 		goto errexit;
-	}
 
 	scp->bt = rman_get_bustag(scp->res_ioport);
 	scp->bh = rman_get_bushandle(scp->res_ioport);
@@ -693,9 +678,8 @@ ${1}_attach(device_t device, struct ${1}_softc * scp)
 		if (BUS_SETUP_INTR(parent, device, scp->res_irq, INTR_TYPE_TTY,
 				${1}intr, scp, &scp->intr_cookie) == 0) {
 			/* do something if successful */
-		} else {
+		} else
 			goto errexit;
-		}
 	}
 
 	/*
@@ -724,8 +708,8 @@ ${1}_detach(device_t device, struct ${1}_softc *scp)
 
 	/*
 	 * At this point stick a strong piece of wood into the device
-	 * to make sure it is stopped safely. The alternative is to 
-	 * simply REFUSE to detach if it's busy. What you do depends on 
+	 * to make sure it is stopped safely. The alternative is to
+	 * simply REFUSE to detach if it's busy. What you do depends on
 	 * your specific situation.
 	 *
 	 * Sometimes the parent bus will detach you anyway, even if you
@@ -741,9 +725,8 @@ ${1}_detach(device_t device, struct ${1}_softc *scp)
 	 */
 	if (scp->intr_cookie != NULL) {
 		if (BUS_TEARDOWN_INTR(parent, device,
-			scp->res_irq, scp->intr_cookie) != 0) {
+			scp->res_irq, scp->intr_cookie) != 0)
 				printf("intr teardown failed.. continuing\n");
-		}
 		scp->intr_cookie = NULL;
 	}
 
@@ -764,27 +747,23 @@ ${1}_allocate_resources(device_t device)
 
 	scp->res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
 			&scp->rid_ioport, 0ul, ~0ul, size, RF_ACTIVE);
-	if (scp->res_ioport == NULL) {
+	if (scp->res_ioport == NULL)
 		goto errexit;
-	}
 
 	scp->res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
 			&scp->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE|RF_ACTIVE);
-	if (scp->res_irq == NULL) {
+	if (scp->res_irq == NULL)
 		goto errexit;
-	}
 
 	scp->res_drq = bus_alloc_resource(device, SYS_RES_DRQ,
 			&scp->rid_drq, 0ul, ~0ul, 1, RF_ACTIVE);
-	if (scp->res_drq == NULL) {
+	if (scp->res_drq == NULL)
 		goto errexit;
-	}
 
 	scp->res_memory = bus_alloc_resource(device, SYS_RES_MEMORY,
 			&scp->rid_memory, 0ul, ~0ul, MSIZE, RF_ACTIVE);
-	if (scp->res_memory == NULL) {
+	if (scp->res_memory == NULL)
 		goto errexit;
-	}
 	return (0);
 
 errexit:
@@ -827,9 +806,8 @@ ${1}_deallocate_resources(device_t device)
 			scp->rid_drq, scp->res_drq);
 		scp->res_drq = 0;
 	}
-	if (scp->dev) {
+	if (scp->dev)
 		destroy_dev(scp->dev);
-	}
 	return (0);
 }
 
@@ -838,7 +816,7 @@ ${1}intr(void *arg)
 {
 	struct ${1}_softc *scp = (struct ${1}_softc *) arg;
 
-	/* 
+	/*
 	 * well we got an interrupt, now what?
 	 *
 	 * Make sure that the interrupt routine will always terminate,
@@ -856,7 +834,7 @@ ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	case DHIOCRESET:
 		/* whatever resets it */
 #if 0
-		${UPPER}_OUTB(SOME_PORT, 0xff) ;
+		${UPPER}_OUTB(SOME_PORT, 0xff);
 #endif
 		break;
 	default:
@@ -873,7 +851,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
-	/* 
+	/*
 	 * Do processing
 	 */
 	return (0);
@@ -884,7 +862,7 @@ ${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
-	/* 
+	/*
 	 * Do processing
 	 */
 	return (0);
@@ -896,8 +874,7 @@ ${1}read(dev_t dev, struct uio *uio, int ioflag)
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	 toread;
 
-
-	/* 
+	/*
 	 * Do processing
 	 * read from buffer
 	 */
@@ -911,7 +888,7 @@ ${1}write(dev_t dev, struct uio *uio, int ioflag)
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	towrite;
 
-	/* 
+	/*
 	 * Do processing
 	 * write to buffer
 	 */
@@ -924,14 +901,13 @@ ${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
-	/* 
+	/*
 	 * Given a byte offset into your device, return the PHYSICAL
 	 * page number that it would map to.
 	 */
 #if 0	/* if we had a frame buffer or whatever.. do this */
-	if (offset > FRAMEBUFFERSIZE - PAGE_SIZE) {
+	if (offset > FRAMEBUFFERSIZE - PAGE_SIZE)
 		return (-1);
-	}
 	return i386_btop((FRAMEBASE + offset));
 #else
 	return (-1);
@@ -943,7 +919,7 @@ ${1}poll(dev_t dev, int which, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
-	/* 
+	/*
 	 * Do processing
 	 */
 	return (0); /* this is the wrong value I'm sure */
@@ -980,16 +956,16 @@ cat >${TOP}/modules/${1}/Makefile <<DONE
 #	${UPPER} Loadable Kernel Module
 #
 # \$${RCS_KEYWORD}: $
- 
+
 .PATH:  \${.CURDIR}/../../dev/${1}
 KMOD    = ${1}
 SRCS    = ${1}.c
 SRCS    += opt_inet.h device_if.h bus_if.h pci_if.h isa_if.h
-  
+
 # you may need to do this is your device is an if_xxx driver
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
-	   
+
 .include <bsd.kmod.mk>
 DONE
 
@@ -1007,8 +983,4 @@ exit
 #
 #edit to your taste..
 #
-# 
-
-
-
-
+#
