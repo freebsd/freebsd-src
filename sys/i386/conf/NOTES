@@ -2257,11 +2257,12 @@ hint.pcf.0.irq="5"
 #
 # i4b passive ISDN cards support contains the following hardware drivers:
 #
-#	isic - Siemens/Infineon ISDN ISAC/HSCX/IPAC chipset driver
-#	iwic - Winbond W6692 PCI bus ISDN S/T interface controller
-#	ifpi - AVM Fritz!Card PCI driver
-#	ihfc - Cologne Chip HFC ISA/ISA-PnP chipset driver
+#	isic  - Siemens/Infineon ISDN ISAC/HSCX/IPAC chipset driver
+#	iwic  - Winbond W6692 PCI bus ISDN S/T interface controller
+#	ifpi  - AVM Fritz!Card PCI driver
+#	ihfc  - Cologne Chip HFC ISA/ISA-PnP chipset driver
 #	ifpnp - AVM Fritz!Card PnP driver 
+#	itjc  - Siemens ISAC / TJNet Tiger300/320 chipset
 #
 # Note that the ``options'' (if given) and ``device'' lines must BOTH
 # be uncommented to enable support for a given card !
@@ -2387,6 +2388,13 @@ device  ifpi
 #
 # ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
 device  iwic
+#
+#---------------------------------------------------------------------------
+#	itjc driver for Simens ISAC / TJNet Tiger300/320 chipset
+#
+# Traverse Technologies NETjet-S
+# Teles PCI-TJ
+device  itjc
 #
 #---------------------------------------------------------------------------
 #	ISDN Protocol Stack - mandatory for all hardware drivers
