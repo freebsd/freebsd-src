@@ -110,7 +110,7 @@ boolean_t	 pmap_is_modified __P((vm_page_t m));
 boolean_t	 pmap_ts_referenced __P((vm_page_t m));
 void		 pmap_kenter __P((vm_offset_t va, vm_offset_t pa));
 void		 pmap_kremove __P((vm_offset_t));
-vm_offset_t	 pmap_map __P((vm_offset_t, vm_offset_t, vm_offset_t, int));
+vm_offset_t	 pmap_map __P((vm_offset_t *, vm_offset_t, vm_offset_t, int));
 void		 pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex, vm_offset_t size,
 		    int pagelimit));
