@@ -72,8 +72,6 @@ _thread_exit(char *fname, int lineno, char *string)
 void
 _thread_exit_cleanup(void)
 {
-	struct pthread	*curthread = _get_curthread();
-
 	/*
 	 * POSIX states that cancellation/termination of a thread should
 	 * not release any visible resources (such as mutexes) and that
@@ -93,7 +91,6 @@ _thread_exit_cleanup(void)
 void
 _pthread_exit(void *status)
 {
-	struct pthread	*curthread = _get_curthread();
 	pthread_t pthread;
 
 	/* Check if this thread is already in the process of exiting: */

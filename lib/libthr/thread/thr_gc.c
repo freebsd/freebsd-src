@@ -46,7 +46,6 @@
 pthread_addr_t
 _thread_gc(pthread_addr_t arg)
 {
-	struct pthread	*curthread = _get_curthread();
 	int		f_debug;
 	int		f_done = 0;
 	int		ret;

@@ -40,5 +40,5 @@ pthread_t
 _pthread_self(void)
 {
 	/* Return the running thread pointer: */
-	return (_get_curthread());
+	return (curthread);
 }

@@ -39,13 +39,11 @@
 int
 _find_thread(pthread_t pthread)
 {
-	pthread_t curthread;
 	pthread_t pthread1;
 
 	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
 		return(EINVAL);
 
-	curthread = _get_curthread();
 	GIANT_LOCK(curthread);
 
 	/* Search for the specified thread: */

@@ -40,15 +40,11 @@ __weak_reference(_pthread_detach, pthread_detach);
 int
 _pthread_detach(pthread_t pthread)
 {
-	pthread_t curthread;
-
 	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
 		return (EINVAL);
 
 	if (pthread->attr.flags & PTHREAD_DETACHED)
 		return (EINVAL);
-
-	curthread = _get_curthread();
 
 	pthread->attr.flags |= PTHREAD_DETACHED;
 

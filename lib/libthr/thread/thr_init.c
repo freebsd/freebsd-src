@@ -331,22 +331,6 @@ _thread_init(void)
 		PANIC("Failed to initialise garbage collector mutex or condvar");
 }
 
-struct pthread *
-_get_curthread_slow(void)
-{
-	struct pthread *td;
-	thr_id_t id;
-
-	if (_thread_initial == NULL)
-		_thread_init();
-
-	thr_self(&id);
-	TAILQ_FOREACH(td, &_thread_list, tle)
-		if (td->thr_id == id)
-			return (td);
-	return (NULL);
-}
-
 /*
  * Special start up code for NetBSD/Alpha
  */
