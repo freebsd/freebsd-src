@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Nate Lawson (SDG)
+ * Copyright (c) 2003-2005 Nate Lawson (SDG)
  * Copyright (c) 2001 Michael Smith
  * All rights reserved.
  *
@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -49,8 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 
 /*
- * Support for ACPI Processor devices, including ACPI 2.0 throttling
- * and C[1-3] sleep states.
+ * Support for ACPI Processor devices, including C[1-3] sleep states.
  *
  * TODO: implement scans of all CPUs to be sure all Cx states are
  * equivalent.
@@ -65,19 +65,24 @@ struct acpi_cx {
     uint32_t		 type;		/* C1-3 (C4 and up treated as C3). */
     uint32_t		 trans_lat;	/* Transition latency (usec). */
     uint32_t		 power;		/* Power consumed (mW). */
+    int			 res_type;	/* Resource type for p_lvlx. */
 };
 #define MAX_CX_STATES	 8
 
 struct acpi_cpu_softc {
     device_t		 cpu_dev;
     ACPI_HANDLE		 cpu_handle;
-    uint32_t		 acpi_id;	/* ACPI processor id */
+    struct pcpu		*cpu_pcpu;
+    uint32_t		 cpu_acpi_id;	/* ACPI processor id */
     uint32_t		 cpu_p_blk;	/* ACPI P_BLK location */
     uint32_t		 cpu_p_blk_len;	/* P_BLK length (must be 6). */
-    struct resource	*cpu_p_cnt;	/* Throttling control register */
     struct acpi_cx	 cpu_cx_states[MAX_CX_STATES];
     int			 cpu_cx_count;	/* Number of valid Cx states. */
     int			 cpu_prev_sleep;/* Last idle sleep duration. */
+};
+
+struct acpi_cpu_device {
+    struct resource_list        ad_rl;
 };
 
 #define CPU_GET_REG(reg, width) 					\
@@ -87,24 +92,11 @@ struct acpi_cpu_softc {
     (bus_space_write_ ## width(rman_get_bustag((reg)), 			\
 		       rman_get_bushandle((reg)), 0, (val)))
 
-/*
- * Speeds are stored in counts, from 1 to CPU_MAX_SPEED, and
- * reported to the user in tenths of a percent.
- */
-static uint32_t		 cpu_duty_offset;
-static uint32_t		 cpu_duty_width;
-#define CPU_MAX_SPEED		(1 << cpu_duty_width)
-#define CPU_SPEED_PERCENT(x)	((1000 * (x)) / CPU_MAX_SPEED)
-#define CPU_SPEED_PRINTABLE(x)	(CPU_SPEED_PERCENT(x) / 10),	\
-				(CPU_SPEED_PERCENT(x) % 10)
-#define CPU_P_CNT_THT_EN (1<<4)
 #define PM_USEC(x)	 ((x) >> 2)	/* ~4 clocks per usec (3.57955 Mhz) */
 
-#define ACPI_CPU_NOTIFY_PERF_STATES	0x80	/* _PSS changed. */
-#define ACPI_CPU_NOTIFY_CX_STATES	0x81	/* _CST changed. */
+#define ACPI_NOTIFY_CX_STATES	0x81	/* _CST changed. */
 
 #define CPU_QUIRK_NO_C3		(1<<0)	/* C3-type states are not usable. */
-#define CPU_QUIRK_NO_THROTTLE	(1<<1)	/* Throttling is not usable. */
 #define CPU_QUIRK_NO_BM_CTRL	(1<<2)	/* No bus mastering control. */
 
 #define PCI_VENDOR_INTEL	0x8086
@@ -116,7 +108,6 @@ static uint32_t		 cpu_duty_width;
 
 /* Platform hardware resource information. */
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
-static uint8_t		 cpu_pstate_cnt;/* Register to take over throttling. */
 static uint8_t		 cpu_cst_cnt;	/* Indicate we are _CST aware. */
 static int		 cpu_rid;	/* Driver-wide resource id. */
 static int		 cpu_quirks;	/* Indicate any hardware bugs. */
@@ -127,8 +118,8 @@ static int		 cpu_non_c3;	/* Index of lowest non-C3 state. */
 static u_int		 cpu_cx_stats[MAX_CX_STATES];/* Cx usage history. */
 
 /* Values for sysctl. */
-static uint32_t		 cpu_throttle_state;
-static uint32_t		 cpu_throttle_max;
+static struct sysctl_ctx_list acpi_cpu_sysctl_ctx;
+static struct sysctl_oid *acpi_cpu_sysctl_tree;
 static int		 cpu_cx_lowest;
 static char 		 cpu_cx_supported[64];
 
@@ -137,25 +128,23 @@ static int		 cpu_ndevices;
 static struct acpi_cpu_softc **cpu_softc;
 ACPI_SERIAL_DECL(cpu, "ACPI CPU");
 
-static struct sysctl_ctx_list	acpi_cpu_sysctl_ctx;
-static struct sysctl_oid	*acpi_cpu_sysctl_tree;
-
 static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
 static int	acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id,
-				 uint32_t *cpu_id);
+		    uint32_t *cpu_id);
+static struct resource_list *acpi_cpu_get_rlist(device_t dev, device_t child);
+static device_t	acpi_cpu_add_child(device_t dev, int order, const char *name,
+		    int unit);
+static int	acpi_cpu_read_ivar(device_t dev, device_t child, int index,
+		    uintptr_t *result);
 static int	acpi_cpu_shutdown(device_t dev);
-static int	acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_cx_probe(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_cx_cst(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_startup(void *arg);
-static void	acpi_cpu_startup_throttling(void);
 static void	acpi_cpu_startup_cx(void);
-static void	acpi_cpu_throttle_set(uint32_t speed);
 static void	acpi_cpu_idle(void);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(struct acpi_cpu_softc *sc);
-static int	acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS);
 
@@ -163,7 +152,24 @@ static device_method_t acpi_cpu_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_cpu_probe),
     DEVMETHOD(device_attach,	acpi_cpu_attach),
+    DEVMETHOD(device_detach,	bus_generic_detach),
     DEVMETHOD(device_shutdown,	acpi_cpu_shutdown),
+    DEVMETHOD(device_suspend,	bus_generic_suspend),
+    DEVMETHOD(device_resume,	bus_generic_resume),
+
+    /* Bus interface */
+    DEVMETHOD(bus_add_child,	acpi_cpu_add_child),
+    DEVMETHOD(bus_read_ivar,	acpi_cpu_read_ivar),
+    DEVMETHOD(bus_get_resource_list, acpi_cpu_get_rlist),
+    DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+    DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+    DEVMETHOD(bus_alloc_resource, bus_generic_rl_alloc_resource),
+    DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
+    DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+    DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+    DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+    DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+    DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
     {0, 0}
 };
@@ -265,17 +271,24 @@ acpi_cpu_attach(device_t dev)
 {
     ACPI_BUFFER		   buf;
     ACPI_OBJECT		   *obj;
+    struct pcpu		   *pcpu_data;
     struct acpi_cpu_softc *sc;
     struct acpi_softc	  *acpi_sc;
     ACPI_STATUS		   status;
-    int			   thr_ret, cx_ret;
+    int			   cpu_id;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = device_get_softc(dev);
     sc->cpu_dev = dev;
     sc->cpu_handle = acpi_get_handle(dev);
-    cpu_softc[acpi_get_magic(dev)] = sc;
+    cpu_id = acpi_get_magic(dev);
+    cpu_softc[cpu_id] = sc;
+    pcpu_data = pcpu_find(cpu_id);
+    pcpu_data->pc_device = dev;
+    sc->cpu_pcpu = pcpu_data;
+    cpu_smi_cmd = AcpiGbl_FADT->SmiCmd;
+    cpu_cst_cnt = AcpiGbl_FADT->CstCnt;
 
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -288,7 +301,7 @@ acpi_cpu_attach(device_t dev)
     obj = (ACPI_OBJECT *)buf.Pointer;
     sc->cpu_p_blk = obj->Processor.PblkAddress;
     sc->cpu_p_blk_len = obj->Processor.PblkLength;
-    sc->acpi_id = obj->Processor.ProcId;
+    sc->cpu_acpi_id = obj->Processor.ProcId;
     AcpiOsFree(obj);
     ACPI_DEBUG_PRINT((ACPI_DB_INFO, "acpi_cpu%d: P_BLK at %#x/%d\n",
 		     device_get_unit(dev), sc->cpu_p_blk, sc->cpu_p_blk_len));
@@ -296,25 +309,26 @@ acpi_cpu_attach(device_t dev)
     acpi_sc = acpi_device_get_parent_softc(dev);
     sysctl_ctx_init(&acpi_cpu_sysctl_ctx);
     acpi_cpu_sysctl_tree = SYSCTL_ADD_NODE(&acpi_cpu_sysctl_ctx,
-				SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
-				OID_AUTO, "cpu", CTLFLAG_RD, 0, "");
+	SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "cpu",
+	CTLFLAG_RD, 0, "");
 
     /*
-     * Probe for throttling and Cx state support.
-     * If none of these is present, free up unused resources.
+     * Probe for Cx state support.  If it isn't present, free up unused
+     * resources.
      */
-    thr_ret = acpi_cpu_throttle_probe(sc);
-    cx_ret = acpi_cpu_cx_probe(sc);
-    if (thr_ret == 0 || cx_ret == 0) {
+    if (acpi_cpu_cx_probe(sc) == 0) {
 	status = AcpiInstallNotifyHandler(sc->cpu_handle, ACPI_DEVICE_NOTIFY,
 					  acpi_cpu_notify, sc);
 	if (device_get_unit(dev) == 0)
 	    AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cpu_startup, NULL);
-    } else {
+    } else
 	sysctl_ctx_free(&acpi_cpu_sysctl_ctx);
-    }
 
-    return_VALUE (0);
+    /* Call identify and then probe/attach for cpu child drivers. */
+    bus_generic_probe(dev);
+    bus_generic_attach(dev);
+
+    return (0);
 }
 
 /*
@@ -353,10 +367,60 @@ acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
     return (ESRCH);
 }
 
+static struct resource_list *
+acpi_cpu_get_rlist(device_t dev, device_t child)
+{
+    struct acpi_cpu_device *ad;
+
+    ad = device_get_ivars(child);
+    if (ad == NULL)
+	return (NULL);
+    return (&ad->ad_rl);
+}
+
+static device_t
+acpi_cpu_add_child(device_t dev, int order, const char *name, int unit)
+{
+    struct acpi_cpu_device  *ad;
+    device_t            child;
+
+    if ((ad = malloc(sizeof(*ad), M_TEMP, M_NOWAIT | M_ZERO)) == NULL)
+        return (NULL);
+
+    resource_list_init(&ad->ad_rl);
+    
+    child = device_add_child_ordered(dev, order, name, unit);
+    if (child != NULL)
+        device_set_ivars(child, ad);
+    return (child);
+}
+
+static int
+acpi_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
+{
+    struct acpi_cpu_softc *sc;
+
+    sc = device_get_softc(dev);
+    switch (index) {
+    case ACPI_IVAR_HANDLE:
+	*result = (uintptr_t)sc->cpu_handle;
+	break;
+    case CPU_IVAR_PCPU:
+	*result = (uintptr_t)sc->cpu_pcpu;
+	break;
+    default:
+	return (ENOENT);
+    }
+    return (0);
+}
+
 static int
 acpi_cpu_shutdown(device_t dev)
 {
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    /* Allow children to shutdown first. */
+    bus_generic_shutdown(dev);
 
     /* Disable any entry to the idle function. */
     cpu_cx_count = 0;
@@ -365,88 +429,6 @@ acpi_cpu_shutdown(device_t dev)
     smp_rendezvous(NULL, NULL, NULL, NULL);
 
     return_VALUE (0);
-}
-
-static int
-acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc)
-{
-    uint32_t		 duty_end;
-    ACPI_BUFFER		 buf;
-    ACPI_OBJECT		 obj;
-    ACPI_GENERIC_ADDRESS gas;
-    ACPI_STATUS		 status;
-
-    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    /* Get throttling parameters from the FADT.  0 means not supported. */
-    if (device_get_unit(sc->cpu_dev) == 0) {
-	cpu_smi_cmd = AcpiGbl_FADT->SmiCmd;
-	cpu_pstate_cnt = AcpiGbl_FADT->PstateCnt;
-	cpu_cst_cnt = AcpiGbl_FADT->CstCnt;
-	cpu_duty_offset = AcpiGbl_FADT->DutyOffset;
-	cpu_duty_width = AcpiGbl_FADT->DutyWidth;
-    }
-    if (cpu_duty_width == 0 || (cpu_quirks & CPU_QUIRK_NO_THROTTLE) != 0)
-	return (ENXIO);
-
-    /* Validate the duty offset/width. */
-    duty_end = cpu_duty_offset + cpu_duty_width - 1;
-    if (duty_end > 31) {
-	device_printf(sc->cpu_dev, "CLK_VAL field overflows P_CNT register\n");
-	return (ENXIO);
-    }
-    if (cpu_duty_offset <= 4 && duty_end >= 4) {
-	device_printf(sc->cpu_dev, "CLK_VAL field overlaps THT_EN bit\n");
-	return (ENXIO);
-    }
-
-    /*
-     * If not present, fall back to using the processor's P_BLK to find
-     * the P_CNT register.
-     *
-     * Note that some systems seem to duplicate the P_BLK pointer
-     * across multiple CPUs, so not getting the resource is not fatal.
-     */
-    buf.Pointer = &obj;
-    buf.Length = sizeof(obj);
-    status = AcpiEvaluateObject(sc->cpu_handle, "_PTC", NULL, &buf);
-    if (ACPI_SUCCESS(status)) {
-	if (obj.Buffer.Length < sizeof(ACPI_GENERIC_ADDRESS) + 3) {
-	    device_printf(sc->cpu_dev, "_PTC buffer too small\n");
-	    return (ENXIO);
-	}
-	memcpy(&gas, obj.Buffer.Pointer + 3, sizeof(gas));
-	sc->cpu_p_cnt = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
-	if (sc->cpu_p_cnt != NULL) {
-	    ACPI_DEBUG_PRINT((ACPI_DB_INFO, "acpi_cpu%d: P_CNT from _PTC\n",
-			     device_get_unit(sc->cpu_dev)));
-	}
-    }
-
-    /* If _PTC not present or other failure, try the P_BLK. */
-    if (sc->cpu_p_cnt == NULL) {
-	/* 
-	 * The spec says P_BLK must be 6 bytes long.  However, some
-	 * systems use it to indicate a fractional set of features
-	 * present so we take anything >= 4.
-	 */
-	if (sc->cpu_p_blk_len < 4)
-	    return (ENXIO);
-	gas.Address = sc->cpu_p_blk;
-	gas.AddressSpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
-	gas.RegisterBitWidth = 32;
-	sc->cpu_p_cnt = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
-	if (sc->cpu_p_cnt != NULL) {
-	    ACPI_DEBUG_PRINT((ACPI_DB_INFO, "acpi_cpu%d: P_CNT from P_BLK\n",
-			     device_get_unit(sc->cpu_dev)));
-	} else {
-	    device_printf(sc->cpu_dev, "Failed to attach throttling P_CNT\n");
-	    return (ENXIO);
-	}
-    }
-    cpu_rid++;
-
-    return (0);
 }
 
 static int
@@ -509,7 +491,8 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	gas.RegisterBitWidth = 8;
 	if (AcpiGbl_FADT->Plvl2Lat <= 100) {
 	    gas.Address = sc->cpu_p_blk + 4;
-	    cx_ptr->p_lvlx = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
+	    acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cpu_rid, &gas,
+		&cx_ptr->p_lvlx);
 	    if (cx_ptr->p_lvlx != NULL) {
 		cpu_rid++;
 		cx_ptr->type = ACPI_STATE_C2;
@@ -525,9 +508,9 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	/* Validate and allocate resources for C3 (P_LVL3). */
 	if (AcpiGbl_FADT->Plvl3Lat <= 1000 &&
 	    (cpu_quirks & CPU_QUIRK_NO_C3) == 0) {
-
 	    gas.Address = sc->cpu_p_blk + 5;
-	    cx_ptr->p_lvlx = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
+	    acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cpu_rid, &gas,
+		&cx_ptr->p_lvlx);
 	    if (cx_ptr->p_lvlx != NULL) {
 		cpu_rid++;
 		cx_ptr->type = ACPI_STATE_C3;
@@ -642,8 +625,9 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 #endif
 
 	/* Allocate the control register for C2 or C3. */
-	acpi_PkgGas(sc->cpu_dev, pkg, 0, &cpu_rid, &cx_ptr->p_lvlx);
-	if (cx_ptr->p_lvlx != NULL) {
+	acpi_PkgGas(sc->cpu_dev, pkg, 0, &cx_ptr->res_type, &cpu_rid,
+	    &cx_ptr->p_lvlx);
+	if (cx_ptr->p_lvlx) {
 	    cpu_rid++;
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			     "acpi_cpu%d: Got C%d - %d latency\n",
@@ -686,55 +670,10 @@ acpi_cpu_startup(void *arg)
     }
     cpu_cx_count = count;
 
-    /* Perform throttling and Cx final initialization. */
+    /* Perform Cx final initialization. */
     sc = device_get_softc(cpu_devices[0]);
-    if (sc->cpu_p_cnt != NULL)
-	acpi_cpu_startup_throttling();
     if (cpu_cx_count > 0)
 	acpi_cpu_startup_cx();
-}
-
-/*
- * Takes the ACPI lock to avoid fighting anyone over the SMI command
- * port.
- */
-static void
-acpi_cpu_startup_throttling()
-{
-
-    /* If throttling is not usable, don't initialize it. */
-    if (cpu_quirks & CPU_QUIRK_NO_THROTTLE)
-	return;
-
-    /* Initialise throttling states */
-    cpu_throttle_max = CPU_MAX_SPEED;
-    cpu_throttle_state = CPU_MAX_SPEED;
-
-    SYSCTL_ADD_INT(&acpi_cpu_sysctl_ctx,
-		   SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-		   OID_AUTO, "throttle_max", CTLFLAG_RD,
-		   &cpu_throttle_max, 0, "maximum CPU speed");
-    SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
-		    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-		    OID_AUTO, "throttle_state",
-		    CTLTYPE_INT | CTLFLAG_RW, &cpu_throttle_state,
-		    0, acpi_cpu_throttle_sysctl, "I", "current CPU speed");
-
-    /* If ACPI 2.0+, signal platform that we are taking over throttling. */
-    if (cpu_pstate_cnt != 0) {
-	ACPI_LOCK(acpi);
-	AcpiOsWritePort(cpu_smi_cmd, cpu_pstate_cnt, 8);
-	ACPI_UNLOCK(acpi);
-    }
-
-    /* Set initial speed to maximum. */
-    ACPI_SERIAL_BEGIN(cpu);
-    acpi_cpu_throttle_set(cpu_throttle_max);
-    ACPI_SERIAL_END(cpu);
-
-    printf("acpi_cpu: throttling enabled, %d steps (100%% to %d.%d%%), "
-	   "currently %d.%d%%\n", CPU_MAX_SPEED, CPU_SPEED_PRINTABLE(1),
-	   CPU_SPEED_PRINTABLE(cpu_throttle_state));
 }
 
 static void
@@ -785,49 +724,6 @@ acpi_cpu_startup_cx()
 
     /* Take over idling from cpu_idle_default(). */
     cpu_idle_hook = acpi_cpu_idle;
-}
-
-/*
- * Set CPUs to the new state.
- *
- * Must be called with the ACPI lock held.
- */
-static void
-acpi_cpu_throttle_set(uint32_t speed)
-{
-    struct acpi_cpu_softc	*sc;
-    int				i;
-    uint32_t			p_cnt, clk_val;
-
-    ACPI_SERIAL_ASSERT(cpu);
-
-    /* Iterate over processors */
-    for (i = 0; i < cpu_ndevices; i++) {
-	sc = device_get_softc(cpu_devices[i]);
-	if (sc->cpu_p_cnt == NULL)
-	    continue;
-
-	/* Get the current P_CNT value and disable throttling */
-	p_cnt = CPU_GET_REG(sc->cpu_p_cnt, 4);
-	p_cnt &= ~CPU_P_CNT_THT_EN;
-	CPU_SET_REG(sc->cpu_p_cnt, 4, p_cnt);
-
-	/* If we're at maximum speed, that's all */
-	if (speed < CPU_MAX_SPEED) {
-	    /* Mask the old CLK_VAL off and or-in the new value */
-	    clk_val = (CPU_MAX_SPEED - 1) << cpu_duty_offset;
-	    p_cnt &= ~clk_val;
-	    p_cnt |= (speed << cpu_duty_offset);
-
-	    /* Write the new P_CNT value and then enable throttling */
-	    CPU_SET_REG(sc->cpu_p_cnt, 4, p_cnt);
-	    p_cnt |= CPU_P_CNT_THT_EN;
-	    CPU_SET_REG(sc->cpu_p_cnt, 4, p_cnt);
-	}
-	ACPI_VPRINT(sc->cpu_dev, acpi_device_get_parent_softc(sc->cpu_dev),
-		    "set speed to %d.%d%%\n", CPU_SPEED_PRINTABLE(speed));
-    }
-    cpu_throttle_state = speed;
 }
 
 /*
@@ -951,8 +847,7 @@ acpi_cpu_idle()
 }
 
 /*
- * Re-evaluate the _PSS and _CST objects when we are notified that they
- * have changed.
+ * Re-evaluate the _CST object when we are notified that it changed.
  *
  * XXX Re-evaluation disabled until locking is done.
  */
@@ -961,19 +856,11 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)context;
 
-    switch (notify) {
-    case ACPI_CPU_NOTIFY_PERF_STATES:
-	device_printf(sc->cpu_dev, "Performance states changed\n");
-	/* acpi_cpu_px_available(sc); */
-	break;
-    case ACPI_CPU_NOTIFY_CX_STATES:
-	device_printf(sc->cpu_dev, "Cx states changed\n");
-	/* acpi_cpu_cx_cst(sc); */
-	break;
-    default:
-	device_printf(sc->cpu_dev, "Unknown notify %#x\n", notify);
-	break;
-    }
+    if (notify != ACPI_NOTIFY_CX_STATES)
+	return;
+
+    device_printf(sc->cpu_dev, "Cx states changed\n");
+    /* acpi_cpu_cx_cst(sc); */
 }
 
 static int
@@ -992,18 +879,6 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
     acpi_dev = pci_find_device(PCI_VENDOR_INTEL, PCI_DEVICE_82371AB_3);
     if (acpi_dev != NULL) {
 	switch (pci_get_revid(acpi_dev)) {
-	/*
-	 * Disable throttling control on PIIX4 A and B-step.
-	 * See specification changes #13 ("Manual Throttle Duty Cycle")
-	 * and #14 ("Enabling and Disabling Manual Throttle"), plus
-	 * erratum #5 ("STPCLK# Deassertion Time") from the January
-	 * 2002 PIIX4 specification update.  Note that few (if any)
-	 * mobile systems ever used this part.
-	 */
-	case PCI_REVISION_A_STEP:
-	case PCI_REVISION_B_STEP:
-	    cpu_quirks |= CPU_QUIRK_NO_THROTTLE;
-	    /* FALLTHROUGH */
 	/*
 	 * Disable C3 support for all PIIX4 chipsets.  Some of these parts
 	 * do not report the BMIDE status to the BM status register and
@@ -1024,35 +899,6 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
 	    break;
 	}
     }
-
-    return (0);
-}
-
-/* Handle changes in the CPU throttling setting. */
-static int
-acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS)
-{
-    uint32_t	*argp;
-    uint32_t	 arg;
-    int		 error;
-
-    argp = (uint32_t *)oidp->oid_arg1;
-    arg = *argp;
-    error = sysctl_handle_int(oidp, &arg, 0, req);
-
-    /* Error or no new value */
-    if (error != 0 || req->newptr == NULL)
-	return (error);
-    if (arg < 1 || arg > cpu_throttle_max)
-	return (EINVAL);
-
-    /* If throttling changed, notify the BIOS of the new rate. */
-    ACPI_SERIAL_BEGIN(cpu);
-    if (*argp != arg) {
-	*argp = arg;
-	acpi_cpu_throttle_set(arg);
-    }
-    ACPI_SERIAL_END(cpu);
 
     return (0);
 }

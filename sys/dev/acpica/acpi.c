@@ -235,6 +235,9 @@ TUNABLE_INT("debug.acpi.do_powerstate", &acpi_do_powerstate);
 SYSCTL_INT(_debug_acpi, OID_AUTO, do_powerstate, CTLFLAG_RW,
     &acpi_do_powerstate, 1, "Turn off devices when suspending.");
 
+/* Allow users to override quirks. */
+TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
+
 /*
  * ACPI can only be loaded as a module by the loader; activating it after
  * system bootstrap time is not useful, and can be fatal to the system.
@@ -300,9 +303,10 @@ acpi_Startup(void)
     }
 
     /* Set up any quirks we have for this system. */
-    acpi_table_quirks(&acpi_quirks);
+    if (acpi_quirks == 0)
+	acpi_table_quirks(&acpi_quirks);
 
-    /* If the user manually set the disabled hint to 0, override any quirk. */
+    /* If the user manually set the disabled hint to 0, force-enable ACPI. */
     if (resource_int_value("acpi", 0, "disabled", &val) == 0 && val == 0)
 	acpi_quirks &= ~ACPI_Q_BROKEN;
     if (acpi_quirks & ACPI_Q_BROKEN) {
@@ -600,6 +604,8 @@ acpi_suspend(device_t dev)
     device_t child, *devlist;
     int error, i, numdevs, pstate;
 
+    GIANT_REQUIRED;
+
     /* First give child devices a chance to suspend. */
     error = bus_generic_suspend(dev);
     if (error)
@@ -641,6 +647,8 @@ acpi_resume(device_t dev)
     int i, numdevs;
     device_t child, *devlist;
 
+    GIANT_REQUIRED;
+
     /*
      * Put all devices in D0 before resuming them.  Call _S0D on each one
      * since some systems expect this.
@@ -662,6 +670,8 @@ acpi_resume(device_t dev)
 static int
 acpi_shutdown(device_t dev)
 {
+
+    GIANT_REQUIRED;
 
     /* Allow children to shutdown first. */
     bus_generic_shutdown(dev);
@@ -1063,28 +1073,47 @@ out:
 }
 
 /* Allocate an IO port or memory resource, given its GAS. */
-struct resource *
-acpi_bus_alloc_gas(device_t dev, int *rid, ACPI_GENERIC_ADDRESS *gas)
+int
+acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
+    struct resource **res)
 {
-    int type;
+    int error, res_type;
 
-    if (gas == NULL || !ACPI_VALID_ADDRESS(gas->Address) ||
-	gas->RegisterBitWidth < 8)
-	return (NULL);
+    error = ENOMEM;
+    if (type == NULL || rid == NULL || gas == NULL || res == NULL)
+	return (EINVAL);
 
+    /* We only support memory and IO spaces. */
     switch (gas->AddressSpaceId) {
     case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-	type = SYS_RES_MEMORY;
+	res_type = SYS_RES_MEMORY;
 	break;
     case ACPI_ADR_SPACE_SYSTEM_IO:
-	type = SYS_RES_IOPORT;
+	res_type = SYS_RES_IOPORT;
 	break;
     default:
-	return (NULL);
+	return (EOPNOTSUPP);
     }
 
-    bus_set_resource(dev, type, *rid, gas->Address, gas->RegisterBitWidth / 8);
-    return (bus_alloc_resource_any(dev, type, rid, RF_ACTIVE));
+    /*
+     * If the register width is less than 8, assume the BIOS author means
+     * it is a bit field and just allocate a byte.
+     */
+    if (gas->RegisterBitWidth && gas->RegisterBitWidth < 8)
+	gas->RegisterBitWidth = 8;
+
+    /* Validate the address after we're sure we support the space. */
+    if (!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth == 0)
+	return (EINVAL);
+
+    bus_set_resource(dev, res_type, *rid, gas->Address,
+	gas->RegisterBitWidth / 8);
+    *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE);
+    if (*res != NULL) {
+	*type = res_type;
+	error = 0;
+    }
+    return (error);
 }
 
 /* Probe _HID and _CID for compatible ISA PNP ids. */

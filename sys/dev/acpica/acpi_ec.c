@@ -177,7 +177,7 @@ typedef UINT8				EC_COMMAND;
  * Note that a set bit (1) indicates the property is TRUE
  * (e.g. if bit 0 is set then the output buffer is full).
  * +-+-+-+-+-+-+-+-+
- * |7|6|5|4|3|2|1|0|	
+ * |7|6|5|4|3|2|1|0|
  * +-+-+-+-+-+-+-+-+
  *  | | | | | | | |
  *  | | | | | | | +- Output Buffer Full?
@@ -726,15 +726,20 @@ EcGpeHandler(void *Context)
 
     KASSERT(Context != NULL, ("EcGpeHandler called with NULL"));
 
-    /* Disable further GPEs while we handle this one. */
-    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    /*
+     * Disable further GPEs while we handle this one.  Since we are directly
+     * called by ACPI-CA and it may have unknown locks held, we specify the
+     * ACPI_ISR flag to keep it from acquiring any more mutexes (which could
+     * potentially sleep.)
+     */
+    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_ISR);
 
     /* Schedule the GPE query handler. */
     Status = AcpiOsQueueForExecution(OSD_PRIORITY_GPE, EcGpeQueryHandler,
 		Context);
     if (ACPI_FAILURE(Status)) {
 	printf("Queuing GPE query handler failed.\n");
-	Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+	Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_ISR);
 	if (ACPI_FAILURE(Status))
 	    printf("EcGpeHandler: AcpiEnableEvent failed\n");
     }

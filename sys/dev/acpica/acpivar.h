@@ -160,11 +160,20 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_INTR_APIC		1
 #define	ACPI_INTR_SAPIC		2
 
-/* Quirk flags. */
+/*
+ * Quirk flags.
+ *
+ * ACPI_Q_BROKEN: Disables all ACPI support.
+ * ACPI_Q_TIMER: Disables support for the ACPI timer.
+ * ACPI_Q_MADT_IRQ0: Specifies that ISA IRQ 0 is wired up to pin 0 of the
+ *	first APIC and that the MADT should force that by ignoring the PC-AT
+ *	compatible flag and ignoring overrides that redirect IRQ 0 to pin 2.
+ */
 extern int	acpi_quirks;
 #define ACPI_Q_OK		0
-#define ACPI_Q_BROKEN		(1 << 0)	/* Disable ACPI completely. */
-#define ACPI_Q_TIMER		(1 << 1)	/* Disable ACPI timer. */
+#define ACPI_Q_BROKEN		(1 << 0)
+#define ACPI_Q_TIMER		(1 << 1)
+#define ACPI_Q_MADT_IRQ0	(1 << 2)
 
 /*
  * Note that the low ivar values are reserved to provide
@@ -282,8 +291,8 @@ int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
 void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 		    uint8_t notify);
-struct resource *acpi_bus_alloc_gas(device_t dev, int *rid,
-		    ACPI_GENERIC_ADDRESS *gas);
+int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
+		    ACPI_GENERIC_ADDRESS *gas, struct resource **res);
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
@@ -387,8 +396,8 @@ int		acpi_acad_get_acline(int *);
 int		acpi_PkgInt(ACPI_OBJECT *res, int idx, ACPI_INTEGER *dst);
 int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
-int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *rid,
-			    struct resource **dst);
+int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
+		    int *rid, struct resource **dst);
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 #ifndef ACPI_MAX_THREADS

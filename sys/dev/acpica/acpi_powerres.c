@@ -468,7 +468,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 			  acpi_name(consumer), state));
 
 	/* XXX is this appropriate?  Should we return to previous state? */
-	goto out;	
+	goto out;
     }
 
     /* Invoke power state switch method (if present) */
@@ -486,7 +486,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 		goto out;
 	}
     }
-	
+
     /* Transition was successful */
     pc->ac_state = state;
     status = AE_OK;
