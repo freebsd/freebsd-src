@@ -1,5 +1,4 @@
 set remotebaud 38400
-core-file
 set complaints 1
 set print pretty
 define xi
@@ -445,7 +444,6 @@ document pcb
 Show some pcb contents of process whose pid is specified.
 end
 define btr
-y
 set $frame = $arg0
 set $fno = 0
 while (*(int *) $frame > 0xc0000000)
@@ -531,7 +529,6 @@ document btpp
 Show a backtrace for the process previously selected with 'defproc'.
 end
 define defproc
-y
     set $nproc = nprocs
     set $aproc = allproc.lh_first
     set $proc = allproc.lh_first
@@ -563,7 +560,6 @@ document defproc
 Specify a process for btpp and fr commands.
 end
 define fr
-y
 set $fno = 0
 set $searching = 1
 if ($myvectorproc->p_flag & 4)
