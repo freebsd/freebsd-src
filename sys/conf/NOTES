@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.115 1994/12/13 20:56:30 wollman Exp $
+#	$Id: LINT,v 1.116 1994/12/13 22:01:35 wollman Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -249,11 +249,7 @@ options		QUOTA			#enable disk quotas
 controller	scbus0	#base SCSI code
 device		ch0	#SCSI media changers
 device		sd0	#SCSI disks
-device		sd1
-device		sd2
-device		sd3
 device		st0	#SCSI tapes
-device		st1
 device		uk0			#unknown scsi devices
 
 #
@@ -277,7 +273,7 @@ pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
 
-pseudo-device	vn	4	#Vnode driver (turns a file into a device)
+pseudo-device	vn		#Vnode driver (turns a file into a device)
 
 
 #####################################################################
