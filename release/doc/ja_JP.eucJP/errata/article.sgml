@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.33
+    Original revision: 1.36
 -->
 
 <!-- 
@@ -64,7 +64,8 @@
 <![ %release.type.release [
        &release.current;
 ]]>
-      の公開後に判明した重要な情報が書かれている errata リスト (正誤表) です.
+      の公開後に判明した重要な情報、あるいはリリース工程の終盤で判明し、
+      リリース文書に収録できなかった重要な情報が書かれている errata リスト (正誤表) です.
       これにはセキュリティ勧告および,
       システムの運用・利用に影響を与えるような関連ソフトウェア,
       関連文書の更新情報も含まれています.
@@ -164,6 +165,8 @@
       特殊な細工を施したメッセージを作成することができます。
       修正パッチの場所を含む詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
+      および <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>
       に記載されています。</para>
 
     <para>XDR エンコーダ / デコーダの実装に、
@@ -365,6 +368,13 @@
       NFS サーバ上のマウントポイントを、&man.amd.8;
       を使ってマウントすることができないというものがあります。
       このバグは &release.current; で修正されました。</para>
+
+    <bridgehead renderas="sect3">nsswitch</bridgehead>
+
+    <para><application>nsswitch</application>
+      に対応したことを記載したリリースノートには、
+      従来のリゾルバの設定ファイル名に誤りがありました。
+      正しくは <filename>/etc/host.conf</filename> です。</para>
 
   </sect1>
 </article>
