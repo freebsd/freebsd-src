@@ -99,7 +99,13 @@ init_TSC(void)
 	if (mp_ncpus > 1 && !smp_tsc)
 		return;
 #endif
+	return;
+}
 
+
+void
+init_TSC_tc(void)
+{
 	/*
 	 * We can not use the TSC if we support APM. Precise timekeeping
 	 * on an APM'ed machine is at best a fools pursuit, since 
