@@ -633,10 +633,6 @@ ccdopen(dev, flags, fmt, p)
 	part = ccdpart(dev);
 	pmask = (1 << part);
 
-	dev->si_bsize_phys = DEV_BSIZE;
-	dev->si_bsize_best = BLKDEV_IOSIZE;
-	dev->si_bsize_max = MAXBSIZE;
-
 	/*
 	 * If we're initialized, check to see if there are any other
 	 * open partitions.  If not, then it's safe to update

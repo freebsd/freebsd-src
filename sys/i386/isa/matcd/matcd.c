@@ -623,9 +623,6 @@ int	matcdopen(dev_t dev, int flags, int fmt,
 
 	if (ldrive >= TOTALDRIVES) return(ENXIO);
 
-	dev->si_bsize_phys = 2048;
-	dev->si_bsize_max = MAXBSIZE;
-
 #ifdef DEBUGOPEN
 	printf("matcd%d: Open: dev %x partition %x controller %x flags %x cdrive %x\n",
 	       ldrive,(int)dev,partition,controller,cd->flags,
@@ -696,7 +693,6 @@ int	matcdopen(dev_t dev, int flags, int fmt,
 	if ((cd->flags & MATCDLABEL)==0) {
 		bzero(&cd->dlabel,sizeof(struct disklabel));
 
-
 /*	Now we query the drive for the actual size of the media.
 	This is where we find out of there is any media or if the
 	media isn't a Mode 1 or Mode 2/XA disc.
@@ -748,6 +744,8 @@ int	matcdopen(dev_t dev, int flags, int fmt,
 
 		cd->flags |= MATCDLABEL;	/*Mark drive as having TOC*/
 	}
+
+	dev->si_bsize_phys = cd->blksize;
 
 #ifdef DEBUGOPEN
 	printf("matcd%d open2: partition=%d disksize=%d blksize=%x flags=%x\n",

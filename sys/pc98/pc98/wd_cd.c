@@ -399,8 +399,6 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
         return ENXIO;
     cdp = acdtab[lun];
 
-    dev->si_bsize_phys = 2048;
-    dev->si_bsize_max = MAXBSIZE;
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
         /* Prevent user eject */
         acd_request_wait(cdp, ATAPI_PREVENT_ALLOW,
@@ -411,7 +409,7 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
         cdp->flags |= F_BOPEN;
     else
         ++cdp->refcnt;
-
+    dev->si_bsize_phys = cdp->block_size;
     if (!(flags & O_NONBLOCK) && acd_read_toc(cdp) && !(flags & FWRITE))
         printf("acd%d: read_toc failed\n", lun);
     return 0;
