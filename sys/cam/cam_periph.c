@@ -2,7 +2,7 @@
  * Common functions for CAM "type" (peripheral) drivers.
  *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.14 1999/05/22 21:58:45 gibbs Exp $
+ *      $Id: cam_periph.c,v 1.15 1999/05/23 18:57:29 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -559,7 +559,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 			return(E2BIG);
 		}
 
-		if (dirs[i] & CAM_DIR_IN) {
+		if (dirs[i] & CAM_DIR_OUT) {
 			flags[i] = B_READ;
 			if (useracc(*data_ptrs[i], lengths[i], B_READ) == 0){
 				printf("cam_periph_mapmem: error, "
@@ -575,7 +575,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * XXX this check is really bogus, since B_WRITE currently
 		 * is all 0's, and so it is "set" all the time.
 		 */
-		if (dirs[i] & CAM_DIR_OUT) {
+		if (dirs[i] & CAM_DIR_IN) {
 			flags[i] |= B_WRITE;
 			if (useracc(*data_ptrs[i], lengths[i], B_WRITE) == 0){
 				printf("cam_periph_mapmem: error, "
