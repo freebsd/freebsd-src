@@ -156,17 +156,17 @@ STRINGINFO vmGetWord0(FICL_VM *pVM)
     UNS32 count = 0;
     char ch;
 
-    pSrc = skipSpace(pSrc);
+    pSrc = skipSpace(pSrc,pVM->tib.end);
     SI_SETPTR(si, pSrc);
 
-    for (ch = *pSrc; ch != '\0' && !isspace(ch); ch = *++pSrc)
+    for (ch = *pSrc; (pVM->tib.end != pSrc) && (ch != '\0') && !isspace(ch); ch = *++pSrc)
     {
         count++;
     }
 
     SI_SETLEN(si, count);
 
-    if (isspace(ch))    /* skip one trailing delimiter */
+    if ((pVM->tib.end != pSrc) && isspace(ch))    /* skip one trailing delimiter */
         pSrc++;
 
     vmUpdateTib(pVM, pSrc);
@@ -210,14 +210,15 @@ STRINGINFO vmParseString(FICL_VM *pVM, char delim)
 {
     STRINGINFO si;
     char *pSrc      = vmGetInBuf(pVM);
-    char ch;
+    char ch; 
 
-    while (*pSrc == delim)  /* skip lead delimiters */
+    while ((pVM->tib.end != pSrc) && (*pSrc == delim))  /* skip lead delimiters */
         pSrc++;
 
     SI_SETPTR(si, pSrc);    /* mark start of text */
 
-    for (ch = *pSrc; (ch != delim)
+    for (ch = *pSrc; (pVM->tib.end != pSrc)
+		  && (ch != delim)
                   && (ch != '\0') 
                   && (ch != '\r') 
                   && (ch != '\n'); ch = *++pSrc)
@@ -228,7 +229,7 @@ STRINGINFO vmParseString(FICL_VM *pVM, char delim)
                             /* set length of result */
     SI_SETLEN(si, pSrc - SI_PTR(si));
 
-    if (*pSrc == delim)     /* gobble trailing delimiter */
+    if ((pVM->tib.end != pSrc) && (*pSrc == delim))     /* gobble trailing delimiter */
         pSrc++;
 
     vmUpdateTib(pVM, pSrc);
@@ -263,7 +264,7 @@ void vmPushIP(FICL_VM *pVM, IPTYPE newIP)
                         v m P u s h T i b
 ** Binds the specified input string to the VM and clears >IN (the index)
 **************************************************************************/
-void vmPushTib(FICL_VM *pVM, char *text, TIB *pSaveTib)
+void vmPushTib(FICL_VM *pVM, char *text, INT32 size, TIB *pSaveTib)
 {
     if (pSaveTib)
     {
@@ -271,6 +272,7 @@ void vmPushTib(FICL_VM *pVM, char *text, TIB *pSaveTib)
     }
 
     pVM->tib.cp = text;
+    pVM->tib.end = text + size;
     pVM->tib.index = 0;
 }
 
@@ -302,6 +304,7 @@ void vmQuit(FICL_VM *pVM)
     pVM->runningWord = pInterp;
     pVM->state       = INTERPRET;
     pVM->tib.cp      = NULL;
+    pVM->tib.end     = NULL;
     pVM->tib.index   = 0;
     pVM->pad[0]      = '\0';
     pVM->sourceID.i  = 0;
@@ -551,12 +554,14 @@ int strincmp(char *cp1, char *cp2, FICL_COUNT count)
                         s k i p S p a c e
 ** Given a string pointer, returns a pointer to the first non-space
 ** char of the string, or to the NULL terminator if no such char found.
+** If the pointer reaches "end" first, stop there. If you don't want
+** that, pass NULL.
 **************************************************************************/
-char *skipSpace(char *cp)
+char *skipSpace(char *cp, char *end)
 {
     assert(cp);
 
-    while (isspace(*cp))
+    while ((cp != end) && isspace(*cp))
         cp++;
 
     return cp;

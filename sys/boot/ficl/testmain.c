@@ -144,11 +144,8 @@ static void ficlLoad(FICL_VM *pVM)
         if (len <= 0)
             continue;
 
-        if (cp[len] == '\n')
-            cp[len] = '\0';
-
-        result = ficlExec(pVM, cp);
-        if (result >= VM_ERREXIT)
+        result = ficlExec(pVM, cp, len);
+        if (result != VM_QUIT && result != VM_USEREXIT && result != VM_OUTOFTEXT )
         {
             pVM->sourceID = id;
             fclose(fp);
@@ -161,7 +158,7 @@ static void ficlLoad(FICL_VM *pVM)
     ** any pending REFILLs (as required by FILE wordset)
     */
     pVM->sourceID.i = -1;
-    ficlExec(pVM, "");
+    ficlExec(pVM, "", 0);
 
     pVM->sourceID = id;
     fclose(fp);
@@ -246,7 +243,7 @@ int main(int argc, char **argv)
     buildTestInterface();
     pVM = ficlNewVM();
 
-    ficlExec(pVM, ".ver .( " __DATE__ " ) cr quit");
+    ficlExec(pVM, ".ver .( " __DATE__ " ) cr quit", -1);
 
     /*
     ** load file from cmd line...
@@ -254,7 +251,7 @@ int main(int argc, char **argv)
     if (argc  > 1)
     {
         sprintf(in, ".( loading %s ) cr load %s\n cr", argv[1], argv[1]);
-        ficlExec(pVM, in);
+        ficlExec(pVM, in, -1);
     }
 
     for (;;)
@@ -262,7 +259,7 @@ int main(int argc, char **argv)
         int ret;
         if (fgets(in, sizeof(in) - 1, stdin) == NULL)
 	    break;
-        ret = ficlExec(pVM, in);
+        ret = ficlExec(pVM, in, -1);
         if (ret == VM_USEREXIT)
         {
             ficlTermSystem();
