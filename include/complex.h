@@ -30,7 +30,9 @@
 #define	_COMPLEX_H
 
 #ifdef __GNUC__
+#if __STDC_VERSION__ < 199901
 #define	_Complex	__complex__
+#endif
 #define	_Complex_I	1.0fi
 #endif
 
