@@ -39,7 +39,7 @@
 .Nm mt
 .Nd magnetic tape manipulating program
 .Sh SYNOPSIS
-.Nm mt
+.Nm
 .Op Fl f Ar tapename
 .Ar command
 .Op Ar count
@@ -47,7 +47,7 @@
 .Nm Mt
 is used to give commands to a magnetic tape drive.
 By default
-.Nm mt
+.Nm
 performs the requested operation once.  Operations
 may be performed multiple times by specifying
 .Ar count  .
@@ -118,7 +118,7 @@ Set compression mode.
 If a tape name is not specified, and the environment variable
 .Ev TAPE
 does not exist;
-.Nm mt
+.Nm
 uses the device
 .Pa /dev/nrst0 .
 .Pp
@@ -210,7 +210,7 @@ SCSI magnetic tape interface
 .Xr environ 7
 .Sh HISTORY
 The
-.Nm mt
+.Nm
 command appeared in
 .Bx 4.3 .
 

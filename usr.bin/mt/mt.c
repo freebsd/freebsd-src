@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -50,7 +54,7 @@ static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #include <sys/mtio.h>
 
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,7 +105,6 @@ struct commands {
 	{ NULL }
 };
 
-void err __P((const char *, ...));
 void printreg __P((char *, u_int, char *));
 void status __P((struct mtget *));
 void usage __P((void));
@@ -145,7 +148,7 @@ main(argc, argv)
 	len = strlen(p = *argv++);
 	for (comp = com;; comp++) {
 		if (comp->c_name == NULL)
-			err("%s: unknown command", p);
+			errx(1, "%s: unknown command", p);
 		if (strncmp(p, comp->c_name, len) == 0)
 			break;
 	}
@@ -157,7 +160,7 @@ main(argc, argv)
 	}
 #endif /* defined(__FreeBSD__) */
 	if ((mtfd = open(tape, comp->c_ronly ? O_RDONLY : O_RDWR)) < 0)
-		err("%s: %s", tape, strerror(errno));
+		err(1, "%s", tape);
 	if (comp->c_code != MTNOP) {
 		mt_com.mt_op = comp->c_code;
 		if (*argv) {
@@ -167,7 +170,7 @@ main(argc, argv)
 				const char *dcanon;
 				mt_com.mt_count = stringtodens(*argv);
 				if (mt_com.mt_count == 0)
-					err("%s: unknown density", *argv);
+					errx(1, "%s: unknown density", *argv);
 				dcanon = denstostring(mt_com.mt_count);
 				if (strcmp(dcanon, *argv) != 0)
 					printf(
@@ -187,15 +190,15 @@ main(argc, argv)
 			    0
 #endif /* defined (__FreeBSD__) */
 			    || *p)
-				err("%s: illegal count", *argv);
+				errx(1, "%s: illegal count", *argv);
 		}
 		else
 			mt_com.mt_count = 1;
 		if (ioctl(mtfd, MTIOCTOP, &mt_com) < 0)
-			err("%s: %s: %s", tape, comp->c_name, strerror(errno));
+			err(1, "%s: %s", tape, comp->c_name);
 	} else {
 		if (ioctl(mtfd, MTIOCGET, &mt_status) < 0)
-			err("%s", strerror(errno));
+			err(1, NULL);
 		status(&mt_status);
 	}
 	exit (0);
@@ -314,7 +317,7 @@ printreg(s, v, bits)
 	bits++;
 	if (v && bits) {
 		putchar('<');
-		while (i = *bits++) {
+		while ((i = *bits++)) {
 			if (v & (1 << (i-1))) {
 				if (any)
 					putchar(',');
@@ -334,35 +337,6 @@ usage()
 {
 	(void)fprintf(stderr, "usage: mt [-f device] command [ count ]\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "mt: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
 
 #if defined (__FreeBSD__)
