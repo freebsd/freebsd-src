@@ -1132,10 +1132,10 @@ thread_user_enter(struct thread *td)
 	 * First check that we shouldn't just abort.
 	 * But check if we are the single thread first!
 	 */
-	if (__predict_false(p->p_flag & P_SINGLE_EXIT)) {
-		PROC_LOCK(p);
+	if (__predict_false(td->td_proc->p_flag & P_SINGLE_EXIT)) {
+		PROC_LOCK(td->td_proc);
 		mtx_lock_spin(&sched_lock);
-		thread_stopped(p);
+		thread_stopped(td->td_proc);
 		thread_exit();
 		/* NOTREACHED */
 	}
