@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.153 2002/02/11 11:40:33 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.154 2002/02/27 12:12:45 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1886,9 +1886,14 @@ uhci_device_bulk_abort(usbd_xfer_handle xfer)
 }
 
 /*
- * XXX This way of aborting is neither safe, nor good.
- * But it will have to do until I figure out what to do.
- * I apologize for the delay().
+ * Abort a device request.
+ * If this routine is called at splusb() it guarantees that the request
+ * will be removed from the hardware scheduling and that the callback
+ * for it will be called with USBD_CANCELLED status.
+ * It's impossible to guarantee that the requested transfer will not
+ * have happened since the hardware runs concurrently.
+ * If the transaction has already happened we rely on the ordinary
+ * interrupt processing to process it.
  */
 void
 uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
@@ -1914,8 +1919,6 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	if (xfer->device->bus->intr_context || !curproc)
 		panic("ohci_abort_xfer: not in process context\n");
 
-	s = splusb();
-
 	/*
 	 * Step 1: Make interrupt routine and hardware ignore xfer.
 	 */
@@ -1932,10 +1935,11 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	 * use of the xfer.  Also make sure the soft interrupt routine
 	 * has run.
 	 */
-	usb_delay_ms(upipe->pipe.device->bus, 20); /* Hardware finishes in 1ms */
+	usb_delay_ms(upipe->pipe.device->bus, 2); /* Hardware finishes in 1ms */
 	s = splusb();
 	sc->sc_softwake = 1;
 	usb_schedsoftintr(&sc->sc_bus);
+	DPRINTFN(1,("uhci_abort_xfer: tsleep\n"));
 	tsleep(&sc->sc_softwake, PZERO, "uhciab", 0);
 	splx(s);
 		
@@ -1944,6 +1948,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	 */
 	xfer->hcpriv = ii;
 
+	DPRINTFN(1,("uhci_abort_xfer: callback\n"));
 	s = splusb();
 #ifdef DIAGNOSTIC
 	ii->isdone = 1;
@@ -2111,7 +2116,7 @@ uhci_device_intr_abort(usbd_xfer_handle xfer)
 	DPRINTFN(1,("uhci_device_intr_abort: xfer=%p\n", xfer));
 	if (xfer->pipe->intrxfer == xfer) {
 		DPRINTFN(1,("uhci_device_intr_abort: remove\n"));
-		xfer->pipe->intrxfer = 0;
+		xfer->pipe->intrxfer = NULL;
 	}
 	uhci_abort_xfer(xfer, USBD_CANCELLED);
 }
