@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_raw.c 1.22 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_raw.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_raw.c,v 1.2 1995/05/30 05:41:16 rgrimes Exp $";
+static char *rcsid = "$Id: clnt_raw.c,v 1.3 1995/10/22 14:51:16 phk Exp $";
 #endif
 
 /*
@@ -98,7 +98,7 @@ clntraw_create(prog, vers)
 		clntraw_private = clp;
 	}
 	/*
-	 * pre-serialize the staic part of the call msg and stash it away
+	 * pre-serialize the static part of the call msg and stash it away
 	 */
 	call_msg.rm_direction = CALL;
 	call_msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;
