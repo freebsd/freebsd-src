@@ -1,3 +1,32 @@
+2000-10-14  Philip Blundell  <philb@gnu.org>
+
+	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DF_1_NODEFLIB): Renamed from DF_1_NODEPLIB.
+
+	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DT_CHECKSUM): Set to 0x6ffffdf8.
+	(DTF_1_CONFEXP): It is 0x00000002 as suspected.
+
+	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DT_FEATURE): Renamed from DT_FEATURE_1.
+	(DT_CONFIG): New. From Solaris 8.
+	(DT_DEPAUDIT): Likewise.
+	(DT_AUDIT): Likewise.
+	(DT_PLTPAD): Likewise.
+	(DT_MOVETAB): Likewise.
+	(DF_1_NODEPLIB): Likewise.
+	(DF_1_NODUMP): Likewise.
+	(DF_1_CONLFAT): Likewise.
+	(DT_CHECKSUM): Likewise. FIXME. Check the value on Solaris 8.
+	(DTF_1_CONFEXP): Likewise.
+
+	From 2000-07-18  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DT_FLAGS_1): Renamed from DT_1_FLAGS.
+
 2000-05-02  H.J. Lu  <hjl@gnu.org>
 
 	* common.h (ELFOSABI_NONE): Renamed from ELFOSABI_SYSV.

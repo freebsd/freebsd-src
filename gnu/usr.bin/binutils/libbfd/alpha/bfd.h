@@ -53,6 +53,9 @@ extern "C" {
 
 #include "ansidecl.h"
 
+/* FreeBSD does not adhere to the System V 64-bit ABI.  */
+#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
+
 /* These two lines get substitutions done by commands in Makefile.in.  */
 /* #define BFD_VERSION  "2.9.5" */
 #define BFD_ARCH_SIZE 64

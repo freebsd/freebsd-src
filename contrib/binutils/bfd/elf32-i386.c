@@ -266,7 +266,9 @@ elf_i386_is_local_label_name (abfd, name)
 /* The name of the dynamic interpreter.  This is put in the .interp
    section.  */
 
-#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
+#ifndef ELF_DYNAMIC_INTERPRETER
+#define ELF_DYNAMIC_INTERPRETER "/usr/lib/libc.so.1"
+#endif
 
 /* The size in bytes of an entry in the procedure linkage table.  */
 

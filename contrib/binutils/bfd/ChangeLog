@@ -1,3 +1,147 @@
+2000-11-07  Alan Modra  <alan@linuxcare.com.au>
+
+	* coff-h8300.c (special): Adjust reloc address.
+
+	From mainline 2000-04-03  Kazu Hirata  <kazu@hxi.com>
+	* coff-h8300.c (h8300_reloc16_extra_cases): Add bsr:16 -> bsr:8 to
+	the R_PCRWORD_B case.
+
+2000-11-05  Philip Blundell  <philb@gnu.org>
+
+	* elf32-arm.h (elf32_arm_merge_private_bfd_data): Always permit
+	BFDs containing no sections to be merged, regardless of their flags.
+
+2000-11-04  Philip Blundell  <philb@gnu.org>
+
+	* elf32-arm.h (elf32_arm_relocate_section): Suppress error message
+	if a relocation for an undefined symbol also results in an
+	overflow.
+
+2000-10-31  Philip Blundell  <philb@gnu.org>
+
+	* elf32-arm.h (elf32_arm_merge_private_bfd_data): Only handle
+	EF_SOFT_FLOAT if it is defined.
+
+	From 2000-05-23  H.J. Lu  <hjl@gnu.org>
+	* elf32-ppc.c (ppc_elf_relocate_section): Fix a typo.
+
+2000-10-27  Philip Blundell  <philb@gnu.org>
+
+	* elf32-arm.h (elf32_arm_copy_private_bfd_data): Don't refuse
+	attempts to mix PIC code with non-PIC, just mark the output as
+	being position dependent.
+	(elf32_arm_merge_private_bfd_data): Likewise.  Print an error 
+	message for EF_SOFT_FLOAT mismatches.  Display diagnostics for 
+	all mismatches, not just the first one.
+	
+2000-10-23  Philip Blundell  <pb@futuretv.com>
+
+	From 2000-05-23  H.J. Lu  <hjl@gnu.org>
+	* elf64-alpha.c (elf64_alpha_relocate_section): Check
+	h->root.other not h->other.
+	* elf32-mips.c (mips_elf_calculate_relocation): Likewise.
+
+2000-10-23  Philip Blundell  <pb@futuretv.com>
+
+	* elf32-arm.h (elf32_arm_finish_dynamic_symbol): Undo previous
+	accidental checkin.
+
+2000-10-22  Philip Blundell  <philb@gnu.org>
+
+	* elf32-arm.h (elf32_arm_finish_dynamic_symbol): Don't make 
+	PLT entries that could serve as a definition for a weak symbol.
+
+	From 2000-06-05  H.J. Lu  <hjl@gnu.org>
+	* elflink.c (_bfd_elf_link_record_dynamic_symbol): Don't flag
+	an error when seeing an undefined symbol with hidden/internal
+	attribute. It is handled in *_relocate_section ().
+
+	From 2000-05-23  H.J. Lu  <hjl@gnu.org>
+	* elf32-i386.c (elf_i386_relocate_section): Don't allow the
+	undefined symbol with the non-default visibility attributes.
+	* elf-hppa.h (elf_hppa_relocate_section): Likewise.
+	* elf32-arm.h (elf32_arm_relocate_section): Likewise.
+	* elf32-i370.c (i370_elf_relocate_section): Likewise.
+	* elf32-m68k.c (elf_m68k_relocate_section): Likewise.
+	* elf32-mcore.c (mcore_elf_relocate_section): Likewise.
+	* elf32-mips.c (mips_elf_calculate_relocation): Likewise.
+	* elf32-ppc.c (ppc_elf_relocate_section): Likewise.
+	* elf32-sparc.c (elf32_sparc_relocate_section): Likewise.
+	* elf64-alpha.c (elf64_alpha_relocate_section): Likewise.
+	* elf64-sparc.c (sparc64_elf_relocate_section): Likewise.
+
+2000-10-16  Geoffrey Keating  <geoffk@cygnus.com>
+
+	From 2000-10-14  Geoffrey Keating  <geoffk@cygnus.com>
+	* elf32-ppc.c (ppc_elf_finish_dynamic_symbol): Don't make PLT
+	entries that could serve as a definition for a weak symbol.
+
+2000-10-15  Philip Blundell  <philb@gnu.org>
+
+	From 2000-09-08  Nick Clifton  <nickc@redhat.com>
+	* elf32-arm.h (elf32_arm_merge_private_bfd_data): Do not
+	initialise flags in output bfd if the input bfd is the default
+	architecture with the default flags.
+
+	From 2000-09-03  Philip Blundell  <philb@gnu.org>
+	* elf32-arm.h (elf32_arm_relocate_section): Don't try to relocate
+	references to undefined symbols in debugging sections.
+
+	From 2000-05-30  H.J. Lu  <hjl@gnu.org>
+	* elflink.c (_bfd_elf_link_record_dynamic_symbol): Clear the
+	visibility bits if the symbol is undefined. Correctly handle
+	weak undefined symbols with hidden and internal attributes.
+	* elflink.h (elf_link_add_object_symbols): Always turn the
+	symbol into local if it has the hidden or internal attribute.
+
+	From 2000-05-22  H.J. Lu  <hjl@gnu.org>
+	* elflink.h (elf_link_output_extsym): Clear the visibility
+	field for symbols not defined locally.
+
+	From 2000-05-03  Martin v. Löwis  <loewis@informatik.hu-berlin.de>
+	* elflink.h (elf_link_add_object_symbols): Reset dynindx for
+	hidden and internal symbols.
+	(elf_fix_symbol_flags): Clear NEEDS_PLT for symbols with
+	visibility.
+	* elflink.c (_bfd_elf_link_record_dynamic_symbol): Do not
+	assign a PLT or GOT entry to symbols with hidden and
+	internal visibility.
+
+2000-10-16  Philip Blundell  <pb@futuretv.com>
+
+	* configure.in: Set version to 2.10.1.
+	* configure: Regenerate.
+
+2000-09-24  H.J. Lu  <hjl@gnu.org>
+
+	From 2000-04-20  H.J. Lu  <hjl@gnu.org>
+	* elf32-i386.c (elf_i386_relocate_section): Restrict 1998-12-10
+	patch to symbols defined by a shared object.
+
+2000-09-06  Philip Blundell  <philb@gnu.org>
+
+	Merge from mainline:
+	
+	2000-05-31  Ulrich Drepper  <drepper@redhat.com>
+
+	* elf.c (_bfd_elf_slurp_version_tables): Correct reading of version
+	definitions.  We must not assume they are sorted in the file
+	according to their index numbers.
+
+2000-09-06  Philip Blundell  <philb@gnu.org>
+
+	* config.bfd (arm*-*-uclinux*): New target.
+	(armeb-*-elf, arm*b-*-linux-gnu*): Likewise.
+
+2000-08-22  Doug Kwan <dkwan@transmeta.com>
+
+	* coff-w65.c (CREATE_LITTLE_COFF_TARGET): Fix typo.
+	* coffcode.h (coff_set_flags): Add detection of w65 architecture.
+
+2000-04-14  Matthew Green  <mrg@cygnus.com>
+	
+	* config.bfd: Add NetBSD/sparc64 support.
+
 2000-05-31  Mark Kettenis  <kettenis@gnu.org>
 
         Add support for FreeBSD/Alpha.
