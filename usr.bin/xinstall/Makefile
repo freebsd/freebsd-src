@@ -4,6 +4,7 @@
 PROG=		xinstall
 PROGNAME=	install
 SRCS=		xinstall.c
+NO_WERROR=	yes
 MAN=		install.1
 
 .if defined(BOOTSTRAPPING)
