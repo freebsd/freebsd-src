@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../net
+
 KMOD=	if_ppp
 SRCS=	if_ppp.c ppp_tty.c slcompress.c \
 	opt_inet.h opt_ipx.h opt_ppp.h ppp.h vnode_if.h

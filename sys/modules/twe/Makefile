@@ -23,7 +23,8 @@ CFLAGS+=-DTWE_SHUTDOWN_NOTIFICATION
 #
 #CFLAGS+=-DTWE_OVERRIDE
 
-.PATH:	${.CURDIR}/../../dev/twe
+.PATH: ${.CURDIR}/../../dev/twe
+
 KMOD=	twe
 SRCS=	bus_if.h device_if.h pci_if.h twe.c twe_freebsd.c
 

@@ -1,13 +1,15 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/random
-.PATH:	${.CURDIR}/../../crypto/blowfish
-KMOD	= random
-SRCS	= bus_if.h device_if.h randomdev.c yarrow.c hash.c
-SRCS	+= bf_cbc.c bf_skey.c bf_enc.c
-SRCS	+= vnode_if.h opt_noblockrandom.h
-CFLAGS	+= -I${.CURDIR}/../..
-NOMAN	= yes
+.PATH: ${.CURDIR}/../../dev/random
+.PATH: ${.CURDIR}/../../crypto/blowfish
+
+KMOD=	random
+SRCS=	bus_if.h device_if.h randomdev.c yarrow.c hash.c
+SRCS+=	bf_cbc.c bf_skey.c bf_enc.c
+SRCS+=	vnode_if.h opt_noblockrandom.h
+NOMAN=	yes
+
+CFLAGS+= -I${.CURDIR}/../..
 
 # Uncomment the below macro to make a /dev/random that will not block at
 # boot time. Useful for personal workstations and the like where reboot

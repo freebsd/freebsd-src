@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../coda
+.PATH: ${.CURDIR}/../../coda
+
 KMOD=	coda
 SRCS=	vnode_if.h \
 	coda_fbsd.c coda_namecache.c coda_psdev.c coda_subr.c \

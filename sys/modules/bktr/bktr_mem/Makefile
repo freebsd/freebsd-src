@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-MAINTAINER      = roger@freebsd.org
+MAINTAINER=	roger@freebsd.org
 
-.PATH:	${.CURDIR}/../../../dev/bktr
+.PATH: ${.CURDIR}/../../../dev/bktr
+
 KMOD=	bktr_mem 
 SRCS=	bktr_mem.c
 
