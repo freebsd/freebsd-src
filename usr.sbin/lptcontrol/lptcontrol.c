@@ -49,7 +49,7 @@ static const char rcsid[] =
 
 
 #define PATH_LPCTL	_PATH_DEV "lpctl"
-#define DEFAULT_DEVICE	"/dev/lpt0"
+#define DEFAULT_DEVICE	_PATH_DEV "lpt0"
 #define IRQ_INVALID	-1
 #define DO_POLL		0
 #define USE_IRQ		1
