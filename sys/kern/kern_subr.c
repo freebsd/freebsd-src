@@ -110,9 +110,8 @@ vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
 		vm_page_busy(user_pg);
 		pmap_remove_all(user_pg);
 		vm_page_free(user_pg);
-		vm_page_unlock_queues();
-	}
-
+	} else
+		vm_page_lock_queues();
 	if (kern_pg->busy || ((kern_pg->queue - kern_pg->pc) == PQ_FREE) ||
 	    (kern_pg->hold_count != 0)|| (kern_pg->flags & PG_BUSY)) {
 		printf("vm_pgmoveco: pindex(%lu), busy(%d), PG_BUSY(%d), "
@@ -125,12 +124,13 @@ vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
 			panic("vm_pgmoveco: renaming busy page");
 	}
 	kpindex = kern_pg->pindex;
-	vm_page_lock_queues();
 	vm_page_busy(kern_pg);
 	vm_page_unlock_queues();
 	vm_page_rename(kern_pg, uobject, upindex);
+	vm_page_lock_queues();
 	vm_page_flag_clear(kern_pg, PG_BUSY);
 	kern_pg->valid = VM_PAGE_BITS_ALL;
+	vm_page_unlock_queues();
 	
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
