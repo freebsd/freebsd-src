@@ -106,7 +106,6 @@ static char version[] = "Version 6.00LS";
 extern	off_t restart_point;
 extern	char cbuf[];
 
-union sockunion server_addr;
 union sockunion ctrl_addr;
 union sockunion data_source;
 union sockunion data_dest;
@@ -258,6 +257,7 @@ static char	*sgetsave(char *);
 static void	 reapchild(int);
 static void      logxfer(char *, off_t, time_t);
 static char	*doublequote(char *);
+static int	*socksetup(int, char *, const char *);
 
 static char *
 curdir(void)
@@ -282,7 +282,6 @@ main(int argc, char *argv[], char **envp)
 	char	*bindname = NULL;
 	const char *bindport = "ftp";
 	int	family = AF_UNSPEC;
-	int	enable_v4 = 0;
 	struct sigaction sa;
 
 	tzset();		/* in case no timezone database in ~ftp */
@@ -304,13 +303,11 @@ main(int argc, char *argv[], char **envp)
 	                    "46a:AdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
-			enable_v4 = 1;
-			if (family == AF_UNSPEC)
-				family = AF_INET;
+			family = (family == AF_INET6) ? AF_UNSPEC : AF_INET;
 			break;
 
 		case '6':
-			family = AF_INET6;
+			family = (family == AF_INET) ? AF_UNSPEC : AF_INET6;
 			break;
 
 		case 'a':
@@ -430,8 +427,9 @@ main(int argc, char *argv[], char **envp)
 	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	if (daemon_mode) {
-		int ctl_sock, fd;
-		struct addrinfo hints, *res;
+		int *ctl_sock, fd, maxfd = -1, nfds, i;
+		fd_set defreadfds, readfds;
+		pid_t pid;
 
 		/*
 		 * Detach from parent.
@@ -442,61 +440,26 @@ main(int argc, char *argv[], char **envp)
 		}
 		sa.sa_handler = reapchild;
 		(void)sigaction(SIGCHLD, &sa, NULL);
-		/* init bind_sa */
-		memset(&hints, 0, sizeof(hints));
 
-		hints.ai_family = family == AF_UNSPEC ? AF_INET : family;
-		hints.ai_socktype = SOCK_STREAM;
-		hints.ai_protocol = 0;
-		hints.ai_flags = AI_PASSIVE;
-		error = getaddrinfo(bindname, bindport, &hints, &res);
-		if (error) {
-			if (family == AF_UNSPEC) {
-				hints.ai_family = AF_UNSPEC;
-				error = getaddrinfo(bindname, bindport, &hints,
-						    &res);
-			}
-		}
-		if (error) {
-			syslog(LOG_ERR, "%s", gai_strerror(error));
-			if (error == EAI_SYSTEM)
-				syslog(LOG_ERR, "%s", strerror(errno));
-			exit(1);
-		}
-		if (res->ai_addr == NULL) {
-			syslog(LOG_ERR, "-a %s: getaddrinfo failed", hostname);
-			exit(1);
-		} else
-			family = res->ai_addr->sa_family;
 		/*
 		 * Open a socket, bind it to the FTP port, and start
 		 * listening.
 		 */
-		ctl_sock = socket(family, SOCK_STREAM, 0);
-		if (ctl_sock < 0) {
-			syslog(LOG_ERR, "control socket: %m");
+		ctl_sock = socksetup(family, bindname, bindport);
+		if (ctl_sock == NULL)
 			exit(1);
+
+		FD_ZERO(&defreadfds);
+		for (i = 1; i <= *ctl_sock; i++) {
+			FD_SET(ctl_sock[i], &defreadfds);
+			if (listen(ctl_sock[i], 32) < 0) {
+				syslog(LOG_ERR, "control listen: %m");
+				exit(1);
+			}
+			if (maxfd < ctl_sock[i])
+				maxfd = ctl_sock[i];
 		}
-		if (setsockopt(ctl_sock, SOL_SOCKET, SO_REUSEADDR,
-		    &on, sizeof(on)) < 0)
-			syslog(LOG_WARNING,
-			       "control setsockopt (SO_REUSEADDR): %m");
-		if (family == AF_INET6 && enable_v4 == 0) {
-			if (setsockopt(ctl_sock, IPPROTO_IPV6, IPV6_V6ONLY,
-				       &on, sizeof (on)) < 0)
-				syslog(LOG_WARNING,
-				       "control setsockopt (IPV6_V6ONLY): %m");
-		}
-		memcpy(&server_addr, res->ai_addr, res->ai_addr->sa_len);
-		if (bind(ctl_sock, (struct sockaddr *)&server_addr,
-			 server_addr.su_len) < 0) {
-			syslog(LOG_ERR, "control bind: %m");
-			exit(1);
-		}
-		if (listen(ctl_sock, 32) < 0) {
-			syslog(LOG_ERR, "control listen: %m");
-			exit(1);
-		}
+
 		/*
 		 * Atomically write process ID
 		 */
@@ -524,16 +487,31 @@ main(int argc, char *argv[], char **envp)
 		 * children to handle them.
 		 */
 		while (1) {
-			addrlen = server_addr.su_len;
-			fd = accept(ctl_sock, (struct sockaddr *)&his_addr, &addrlen);
-			if (fork() == 0) {
-				/* child */
-				(void) dup2(fd, 0);
-				(void) dup2(fd, 1);
-				close(ctl_sock);
-				break;
+			FD_COPY(&defreadfds, &readfds);
+			nfds = select(maxfd + 1, &readfds, NULL, NULL, 0);
+			if (nfds <= 0) {
+				if (nfds < 0 && errno != EINTR)
+					syslog(LOG_WARNING, "select: %m");
+				continue;
 			}
-			close(fd);
+
+			pid = -1;
+                        for (i = 1; i <= *ctl_sock; i++)
+				if (FD_ISSET(ctl_sock[i], &readfds)) {
+					addrlen = sizeof(his_addr);
+					fd = accept(ctl_sock[i],
+					    (struct sockaddr *)&his_addr,
+					    &addrlen);
+					if ((pid = fork()) == 0) {
+						/* child */
+						(void) dup2(fd, 0);
+						(void) dup2(fd, 1);
+						close(ctl_sock[i]);
+					} else
+						close(fd);
+				}
+			if (pid == 0)
+				break;
 		}
 	} else {
 		addrlen = sizeof(his_addr);
@@ -3161,4 +3139,74 @@ doublequote(char *s)
 	*p = '\0';
 
 	return (s2);
+}
+
+/* setup server socket for specified address family */
+/* if af is PF_UNSPEC more than one socket may be returned */
+/* the returned list is dynamically allocated, so caller needs to free it */
+static int *
+socksetup(int af, char *bindname, const char *bindport)
+{
+	struct addrinfo hints, *res, *r;
+	int error, maxs, *s, *socks;
+	const int on = 1;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_STREAM;
+	error = getaddrinfo(bindname, bindport, &hints, &res);
+	if (error) {
+		syslog(LOG_ERR, "%s", gai_strerror(error));
+		if (error == EAI_SYSTEM)
+			syslog(LOG_ERR, "%s", strerror(errno));
+		return NULL;
+	}
+
+	/* Count max number of sockets we may open */
+	for (maxs = 0, r = res; r; r = r->ai_next, maxs++)
+		;
+	socks = malloc((maxs + 1) * sizeof(int));
+	if (!socks) {
+		freeaddrinfo(res);
+		syslog(LOG_ERR, "couldn't allocate memory for sockets");
+		return NULL;
+	}
+
+	*socks = 0;   /* num of sockets counter at start of array */
+	s = socks + 1;
+	for (r = res; r; r = r->ai_next) {
+		*s = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
+		if (*s < 0) {
+			syslog(LOG_DEBUG, "control socket: %m");
+			continue;
+		}
+		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR,
+		    &on, sizeof(on)) < 0)
+			syslog(LOG_WARNING,
+			    "control setsockopt (SO_REUSEADDR): %m");
+		if (r->ai_family == AF_INET6) {
+			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
+			    &on, sizeof(on)) < 0)
+				syslog(LOG_WARNING,
+				    "control setsockopt (IPV6_V6ONLY): %m");
+		}
+		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
+			syslog(LOG_DEBUG, "control bind: %m");
+			close(*s);
+			continue;
+		}
+		(*socks)++;
+		s++;
+	}
+
+	if (res)
+		freeaddrinfo(res);
+
+	if (*socks == 0) {
+		syslog(LOG_ERR, "control socket: Couldn't bind to any socket");
+		free(socks);
+		return NULL;
+	}
+	return(socks);
 }
