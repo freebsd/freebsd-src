@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1987, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,37 +62,22 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include "pw_util.h"
+#include <libutil.h>		/* must be after pwd.h */
 
-extern char *mppath;
-extern char *masterpasswd;
-char *tempname;
-
-static void	copyfile(int, int);
 static void	usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	int pfd, tfd;
-	struct stat begin, end;
-	int ch;
+	const char *passwd_dir = NULL;
+	int ch, pfd, tfd;
+	char *line;
+	size_t len;
 
 	while ((ch = getopt(argc, argv, "d:")) != -1)
 		switch (ch) {
 		case 'd':
-			if ((masterpasswd = malloc(strlen(optarg) +
-			    strlen(_MASTERPASSWD) + 2)) == NULL)
-				err(1, NULL);
-			strcpy(masterpasswd, optarg);
-			if (masterpasswd[strlen(masterpasswd) - 1] != '/')
-				strcat(masterpasswd, "/" _MASTERPASSWD);
-			else
-				strcat(masterpasswd, _MASTERPASSWD);
-			if ((mppath = strdup(optarg)) == NULL)
-				err(1, NULL);
-			if (mppath[strlen(mppath) - 1] == '/')
-				mppath[strlen(mppath) - 1] = '\0';
+			passwd_dir = optarg;
 			break;
 		case '?':
 		default:
@@ -98,49 +90,52 @@ main(int argc, char *argv[])
 	if (argc != 0)
 		usage();
 
-	pw_init();
-	pfd = pw_lock();
-	tfd = pw_tmp();
-	copyfile(pfd, tfd);
+	if (pw_init(passwd_dir, NULL) == -1)
+		err(1, "pw_init()");
+	if ((pfd = pw_lock()) == -1) {
+		pw_fini();
+		err(1, "pw_lock()");
+	}
+	if ((tfd = pw_tmp(pfd)) == -1) {
+		pw_fini();
+		err(1, "pw_tmp()");
+	}
 	(void)close(tfd);
 	/* Force umask for partial writes made in the edit phase */
 	(void)umask(077);
 
 	for (;;) {
-		if (stat(tempname, &begin))
-			pw_error(tempname, 1, 1);
-		pw_edit(0);
-		if (stat(tempname, &end))
-			pw_error(tempname, 1, 1);
-		if (begin.st_mtime == end.st_mtime) {
-			warnx("no changes made");
-			pw_error((char *)NULL, 0, 0);
-		}
-		if (pw_mkdb((char *)NULL))
+		switch (pw_edit(NULL)) {
+		case -1:
+			pw_fini();
+			err(1, "pw_edit()");
+		case 0:
+			pw_fini();
+			errx(0, "no changes made");
+		default:
 			break;
-		pw_prompt();
+		}
+		if (pw_mkdb(NULL) == 0) {
+			pw_fini();
+			errx(0, "password list updated");
+		}
+		printf("re-edit the password file? ");
+		fflush(stdout);
+		if ((line = fgetln(stdin, &len)) == NULL) {
+			pw_fini();
+			err(1, "fgetln()");
+		}
+		if (len > 0 && (*line == 'N' || *line == 'n'))
+			break;
 	}
+	pw_fini();
 	exit(0);
-}
-
-static void
-copyfile(int from, int to)
-{
-	int nr, nw, off;
-	char buf[8*1024];
-
-	while ((nr = read(from, buf, sizeof(buf))) > 0)
-		for (off = 0; off < nr; nr -= nw, off += nw)
-			if ((nw = write(to, buf + off, nr)) < 0)
-				pw_error(tempname, 1, 1);
-	if (nr < 0)
-		pw_error(masterpasswd, 1, 1);
 }
 
 static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: vipw [ -d directory ]\n");
+	(void)fprintf(stderr, "usage: vipw [-d directory]\n");
 	exit(1);
 }

@@ -52,8 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
-#include <pw_copy.h>
-#include <pw_util.h>
+#include <libutil.h>
 
 #ifdef YP
 #include <ypclnt.h>
@@ -289,7 +288,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	struct options options;
 	char salt[SALTSIZE + 1];
 	login_cap_t * lc;
-	struct passwd *pwd;
+	struct passwd *pwd, *old_pwd;
 	const char *user, *old_pass, *new_pass;
 	char *encrypted;
 	int pfd, tfd, retval;
@@ -306,6 +305,9 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			return (retval);
 		pwd = getpwnam(user);
 	}
+
+	if (pwd == NULL)
+		return (PAM_AUTHTOK_RECOVERY_ERR);
 
 	PAM_LOG("Got user: %s", user);
 
@@ -362,6 +364,9 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			return (retval);
 		}
 
+		if ((old_pwd = pw_dup(pwd)) == NULL)
+			return (PAM_BUF_ERR);
+
 		pwd->pw_change = 0;
 		lc = login_getclass(NULL);
 		if (login_setcryptfmt(lc, password_hash, NULL) == NULL)
@@ -370,16 +375,24 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		login_close(lc);
 		makesalt(salt);
 		pwd->pw_passwd = crypt(new_pass, salt);
-		retval = PAM_SUCCESS;
 #ifdef YP
-		switch (pwd->pw_fields & _PWF_SOURCE) {
+		switch (old_pwd->pw_fields & _PWF_SOURCE) {
 		case _PWF_FILES:
 #endif
-			pfd = pw_lock();
-			tfd = pw_tmp();
-			pw_copy(pfd, tfd, pwd, NULL);
-			if (!pw_mkdb(user))
-				retval = PAM_SERVICE_ERR;
+			retval = PAM_SERVICE_ERR;
+			if (pw_init(NULL, NULL))
+				openpam_log(PAM_LOG_ERROR, "pw_init() failed");
+			else if ((pfd = pw_lock()) == -1)
+				openpam_log(PAM_LOG_ERROR, "pw_lock() failed");
+			else if ((tfd = pw_tmp(-1)) == -1)
+				openpam_log(PAM_LOG_ERROR, "pw_tmp() failed");
+			else if (pw_copy(pfd, tfd, pwd, old_pwd) == -1)
+				openpam_log(PAM_LOG_ERROR, "pw_copy() failed");
+			else if (pw_mkdb(pwd->pw_name) == -1)
+				openpam_log(PAM_LOG_ERROR, "pw_mkdb() failed");
+			else
+				retval = PAM_SUCCESS;
+			pw_fini();
 #ifdef YP
 			break;
 		case _PWF_NIS:
@@ -390,12 +403,14 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			    "yp_server", (const void **)&yp_server);
 			ypclnt = ypclnt_new(yp_domain,
 			    "passwd.byname", yp_server);
-			if (ypclnt == NULL)
-				return (PAM_BUF_ERR);
-			if (ypclnt_connect(ypclnt) == -1 ||
+			if (ypclnt == NULL) {
+				retval = PAM_BUF_ERR;
+			} else if (ypclnt_connect(ypclnt) == -1 ||
 			    ypclnt_passwd(ypclnt, pwd, old_pass) == -1) {
 				openpam_log(PAM_LOG_ERROR, "%s", ypclnt->error);
 				retval = PAM_SERVICE_ERR;
+			} else {
+				retval = PAM_SUCCESS;
 			}
 			ypclnt_free(ypclnt);
 			break;
@@ -412,6 +427,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		PAM_LOG("Illegal 'flags'");
 	}
 
+	free(old_pwd);
 	return (retval);
 }
 
