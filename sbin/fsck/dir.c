@@ -328,13 +328,20 @@ mkentry(idesc)
 	dirp->d_reclen = oldlen;
 	dirp = (struct direct *)(((char *)dirp) + oldlen);
 	dirp->d_ino = idesc->id_parent;	/* ino to be entered is in id_parent */
-	if (newinofmt)
+	if (newinofmt) {
 		dirp->d_type = typemap[idesc->id_parent];
-	else
-		dirp->d_type = 0;
+		dirp->d_namlen = newent.d_namlen;
+	} else {
+#		if (BYTE_ORDER == LITTLE_ENDIAN)
+			dirp->d_type = newent.d_namlen;
+			dirp->d_namlen = 0;
+#		else
+			dirp->d_type = 0;
+			dirp->d_namlen = newent.d_namlen;
+#		endif
+	}
 	dirp->d_reclen = newent.d_reclen;
-	dirp->d_namlen = newent.d_namlen;
-	bcopy(idesc->id_name, dirp->d_name, (size_t)dirp->d_namlen + 1);
+	bcopy(idesc->id_name, dirp->d_name, (size_t)newent.d_namlen + 1);
 	return (ALTERED|STOP);
 }
 
