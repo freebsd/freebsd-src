@@ -43,11 +43,12 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)nfsstat.c	8.1 (Berkeley) 6/6/93";*/
 static const char rcsid[] =
-	"$Id: nfsstat.c,v 1.2 1994/10/23 23:25:43 wollman Exp $";
+	"$Id: nfsstat.c,v 1.3 1995/06/27 11:07:13 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/user.h>
 #include <sys/sysctl.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
