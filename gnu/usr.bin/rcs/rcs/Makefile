@@ -1,15 +1,11 @@
-PROG= rcs
+PROG=	rcs
 SRCS=	rcs.c 
-
-.if exists(${.CURDIR}/../lib/obj)
-LDADD=  -L${.CURDIR}/../lib/obj -lrcs
-.else
-LDADD=  -L${.CURDIR}/../lib/ -lrcs
-.endif
-
 CFLAGS+= -I${.CURDIR}/../lib
+LDADD=  ${LIBRCS}
+DPADD=  ${LIBRCS}
 
-MAN1=	rcs.1 rcsintro.1
-MAN5=   rcsfile.5
+MAN1=	rcs.0 rcsintro.0
+MAN5=   rcsfile.0
 
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>
