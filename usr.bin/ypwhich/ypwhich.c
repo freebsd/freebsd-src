@@ -217,7 +217,7 @@ main(int argc, char *argv[])
 		case YPERR_YPBIND:
 			errx(ERR_NOYPBIND, "not running ypbind");
 		default:
-			errx(ERR_NOMASTER, "can't find master for map %s. reason: %s",
+			errx(ERR_NOMASTER, "can't find master for map %s: reason: %s",
 				map, yperr_string(r));
 		}
 		exit(0);
@@ -247,7 +247,7 @@ main(int argc, char *argv[])
 	case YPERR_YPBIND:
 		errx(ERR_NOYPBIND, "not running ypbind");
 	default:
-		errx(ERR_NOMASTER, "can't get map list for domain %s. reason: %s",
+		errx(ERR_NOMASTER, "can't get map list for domain %s: reason: %s",
 			domnam, yperr_string(r));
 	}
 	exit(0);
