@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id:$
+ * $Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp $
  */
 
 #include <sys/types.h>
@@ -31,7 +31,8 @@
 #include <machine/cpufunc.h>
 
 #include <i386/isa/isa.h>
-#include <i386/isa/kbdio.h>
+
+#include <dev/kbd/atkbdcreg.h>
 
 #include "boot.h"
 
