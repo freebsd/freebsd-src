@@ -132,6 +132,7 @@ SUBDIR=	accf_data \
 	urio \
 	usb \
 	uscanner \
+	utopia \
 	uvisor \
 	uvscom \
 	vpo \
