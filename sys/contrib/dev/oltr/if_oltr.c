@@ -34,23 +34,16 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
-#include <sys/param.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/iso88025.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/iso88025.h>
-
 #include <net/bpf.h>
 
 #ifndef BPF_MTAP
@@ -62,60 +55,16 @@
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
+
 #include <machine/bus.h>
+#include <machine/clock.h>
 #include <machine/resource.h>
+
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#if (__FreeBSD_version < 500000)
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#else
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#endif
-
 #include "contrib/dev/oltr/trlld.h"
-
-/*#define DEBUG_MASK DEBUG_POLL*/
-
-#ifndef DEBUG_MASK
-#define DEBUG_MASK 0x0000
-#endif
-
-#define DEBUG_POLL	0x0001
-#define DEBUG_INT	0x0002
-#define DEBUG_INIT	0x0004
-#define DEBUG_FN_ENT	0x8000
-
-#define PCI_VENDOR_OLICOM 0x108D
-
-#define MIN3(A,B,C) (MIN(A, (MIN(B, C))))
-
-char *AdapterName[] = {
-	/*  0 */ "Olicom XT Adapter [unsupported]",
-	/*  1 */ "Olicom OC-3115",
-	/*  2 */ "Olicom ISA 16/4 Adapter (OC-3117)",
-	/*  3 */ "Olicom ISA 16/4 Adapter (OC-3118)",
-	/*  4 */ "Olicom MCA 16/4 Adapter (OC-3129) [unsupported]",
-	/*  5 */ "Olicom MCA 16/4 Adapter (OC-3129) [unsupported]",
-	/*  6 */ "Olicom MCA 16/4 Adapter (OC-3129) [unsupported]",
-	/*  7 */ "Olicom EISA 16/4 Adapter (OC-3133)",
-	/*  8 */ "Olicom EISA 16/4 Adapter (OC-3133)",
-	/*  9 */ "Olicom EISA 16/4 Server Adapter (OC-3135)",
-	/* 10 */ "Olicom PCI 16/4 Adapter (OC-3136)",
-	/* 11 */ "Olicom PCI 16/4 Adapter (OC-3136)",
-	/* 12 */ "Olicom PCI/II 16/4 Adapter (OC-3137)",
-	/* 13 */ "Olicom PCI 16/4 Adapter (OC-3139)",
-	/* 14 */ "Olicom RapidFire 3140 16/4 PCI Adapter (OC-3140)",
-	/* 15 */ "Olicom RapidFire 3141 Fiber Adapter (OC-3141)",
-	/* 16 */ "Olicom PCMCIA 16/4 Adapter (OC-3220) [unsupported]",
-	/* 17 */ "Olicom PCMCIA 16/4 Adapter (OC-3121, OC-3230, OC-3232) [unsupported]",
-	/* 18 */ "Olicom PCMCIA 16/4 Adapter (OC-3250)",
-	/* 19 */ "Olicom RapidFire 3540 100/16/4 Adapter (OC-3540)"
-};
+#include "contrib/dev/oltr/if_oltrvar.h"
 
 /*
  * Glue function prototypes for PMW kit IO
@@ -142,7 +91,7 @@ static void DriverStatistics	__P((void *, TRlldStatistics_t *));
 static void DriverTransmitFrameCompleted __P((void *, void *, int));
 static void DriverReceiveFrameCompleted	__P((void *, int, int, void *, int));
 
-static TRlldDriver_t LldDriver = {
+TRlldDriver_t LldDriver = {
 	TRLLD_VERSION,
 #ifndef TRlldInlineIO
 	DriverOutByte,
@@ -166,66 +115,8 @@ static TRlldDriver_t LldDriver = {
 	DriverReceiveFrameCompleted,
 };
 
-struct oltr_rx_buf {
-	int			index;
-	char			*data;
-	u_long			address;
-};
-
-struct oltr_tx_buf {
-	int			index;
-	char 			*data;
-	u_long			address;
-};
-
-#define RING_BUFFER_LEN		16
-#define RING_BUFFER(x)		((RING_BUFFER_LEN - 1) & x)
-#define RX_BUFFER_LEN		2048
-#define TX_BUFFER_LEN		2048
-
-struct oltr_softc {
-	struct arpcom		arpcom;
-	struct ifmedia		ifmedia;
-	bus_space_handle_t	oltr_bhandle;
-	bus_space_tag_t		oltr_btag;
-	void			*oltr_intrhand;
-	struct resource		*oltr_irq;
-	struct resource		*oltr_res;
-	int			unit;
-	int 			state;
-#define OL_UNKNOWN	0
-#define OL_INIT		1
-#define OL_READY	2
-#define OL_CLOSING	3
-#define OL_CLOSED	4
-#define OL_OPENING	5
-#define OL_OPEN		6
-#define OL_PROMISC	7
-#define OL_DEAD		8
-	struct oltr_rx_buf	rx_ring[RING_BUFFER_LEN];
-	int			tx_head, tx_avail, tx_frame;
-	struct oltr_tx_buf	tx_ring[RING_BUFFER_LEN];
-	TRlldTransmit_t		frame_ring[RING_BUFFER_LEN];
-	struct mbuf		*restart;
-	TRlldAdapter_t		TRlldAdapter;
-	TRlldStatistics_t	statistics;
-	TRlldStatistics_t	current;
-        TRlldAdapterConfig_t    config;
-	u_short			AdapterMode;
-	u_long			GroupAddress;
-	u_long			FunctionalAddress;
-	struct callout_handle	oltr_poll_ch;
-	/*struct callout_handle	oltr_stat_ch;*/
-	void			*work_memory;
-};
-
-#define SELF_TEST_POLLS	32
-
-void oltr_poll 			__P((void *));
-/*void oltr_stat 			__P((void *));*/
 
 static void oltr_start		__P((struct ifnet *));
-static void oltr_stop		__P((struct oltr_softc *));
 static void oltr_close		__P((struct oltr_softc *));
 static void oltr_init		__P((void *));
 static int oltr_ioctl		__P((struct ifnet *, u_long, caddr_t));
@@ -233,154 +124,34 @@ static void oltr_intr		__P((void *));
 static int oltr_ifmedia_upd	__P((struct ifnet *));
 static void oltr_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
-static int oltr_pci_probe		__P((device_t));
-static int oltr_pci_attach	__P((device_t));
-static int oltr_pci_detach	__P((device_t));
-static void oltr_pci_shutdown	__P((device_t));
 
-static device_method_t oltr_methods[] = {
-	DEVMETHOD(device_probe,		oltr_pci_probe),
-	DEVMETHOD(device_attach,	oltr_pci_attach),
-	DEVMETHOD(device_detach,	oltr_pci_detach),
-	DEVMETHOD(device_shutdown,	oltr_pci_shutdown),
-        { 0, 0 }
-};
 
-static driver_t oltr_driver = {
-	"oltr",
-	oltr_methods,
-	sizeof(struct oltr_softc)
-};
-
-static devclass_t oltr_devclass;
-
-DRIVER_MODULE(oltr, pci, oltr_driver, oltr_devclass, 0, 0);
-MODULE_DEPEND(oltr, pci, 1, 1, 1);
-MODULE_DEPEND(oltr, iso88025, 1, 1, 1);
-
-static int
-oltr_pci_probe(device_t dev)
+int
+oltr_attach(device_t dev)
 {
-        int                     i, rc;
-        char                    PCIConfigHeader[64];
-        TRlldAdapterConfig_t    config;
 
-        if ((pci_get_vendor(dev) == PCI_VENDOR_OLICOM) &&
-           ((pci_get_device(dev) == 0x0001) ||
-	    (pci_get_device(dev) == 0x0004) ||
-            (pci_get_device(dev) == 0x0005) ||
-	    (pci_get_device(dev) == 0x0007) ||
-            (pci_get_device(dev) == 0x0008))) {
-
-                for (i = 0; i < sizeof(PCIConfigHeader); i++)
-                        PCIConfigHeader[i] = pci_read_config(dev, i, 1);
-
-                rc = TRlldPCIConfig(&LldDriver, &config, PCIConfigHeader);
-                if (rc == TRLLD_PCICONFIG_FAIL) {
-                        device_printf(dev, "TRlldPciConfig failed!\n");
-                        return(ENXIO);
-                }
-                if (rc == TRLLD_PCICONFIG_VERSION) {
-                        device_printf(dev, "wrong LLD version\n");
-                        return(ENXIO);
-                }
-                device_set_desc(dev, AdapterName[config.type]);
-                return(0);
-        }
-        return(ENXIO);
-}
-
-static int
-oltr_pci_attach(device_t dev)
-{
-        int 			i, s, rc = 0, rid,
-				scratch_size;
-	int			media = IFM_TOKEN|IFM_TOK_UTP16;
-	u_long 			command;
-	char 			PCIConfigHeader[64];
 	struct oltr_softc		*sc = device_get_softc(dev);
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-
-        s = splimp();
-
-       	bzero(sc, sizeof(struct oltr_softc));
-	sc->unit = device_get_unit(dev);
-	sc->state = OL_UNKNOWN;
-
-	for (i = 0; i < sizeof(PCIConfigHeader); i++)
-		PCIConfigHeader[i] = pci_read_config(dev, i, 1);
-
-	switch(TRlldPCIConfig(&LldDriver, &sc->config, PCIConfigHeader)) {
-	case TRLLD_PCICONFIG_OK:
-		break;
-	case TRLLD_PCICONFIG_SET_COMMAND:
-		device_printf(dev, "enabling bus master mode\n");
-		command = pci_read_config(dev, PCIR_COMMAND, 4);
-		pci_write_config(dev, PCIR_COMMAND,
-			(command | PCIM_CMD_BUSMASTEREN), 4);
-		command = pci_read_config(dev, PCIR_COMMAND, 4);
-		if (!(command & PCIM_CMD_BUSMASTEREN)) {
-			device_printf(dev, "failed to enable bus master mode\n");
-			goto config_failed;
-		}
-		break;
-	case TRLLD_PCICONFIG_FAIL:
-		device_printf(dev, "TRlldPciConfig failed!\n");
-		goto config_failed;
-		break;
-	case TRLLD_PCICONFIG_VERSION:
-		device_printf(dev, "wrong LLD version\n");
-		goto config_failed;
-		break;
-	}
-	device_printf(dev, "MAC address %6D\n", sc->config.macaddress, ":");
-
-	scratch_size = TRlldAdapterSize();
-	if (bootverbose)
-		device_printf(dev, "adapter memory block size %d bytes\n", scratch_size);
-	sc->TRlldAdapter = (TRlldAdapter_t)malloc(scratch_size, M_DEVBUF, M_NOWAIT);
-	if (sc->TRlldAdapter == NULL) {
-		device_printf(dev, "couldn't allocate scratch buffer (%d bytes)\n", scratch_size);
-		goto config_failed;
-	}
-
-	/*
-	 * Allocate RX/TX Pools
-	 */
-	for (i = 0; i < RING_BUFFER_LEN; i++) {
-		sc->rx_ring[i].index = i;
-		sc->rx_ring[i].data = (char *)malloc(RX_BUFFER_LEN, M_DEVBUF, M_NOWAIT);
-		sc->rx_ring[i].address = vtophys(sc->rx_ring[i].data);
-		sc->tx_ring[i].index = i;
-		sc->tx_ring[i].data = (char *)malloc(TX_BUFFER_LEN, M_DEVBUF, M_NOWAIT);
-		sc->tx_ring[i].address = vtophys(sc->tx_ring[i].data);
-		if ((!sc->rx_ring[i].data) || (!sc->tx_ring[i].data)) {
-			device_printf(dev, "unable to allocate ring buffers\n");
-			while (i > 0) {
-				if (sc->rx_ring[i].data)
-					free(sc->rx_ring[i].data, M_DEVBUF);
-				if (sc->tx_ring[i].data)
-					free(sc->tx_ring[i].data, M_DEVBUF);
-				i--;
-			}
-			goto config_failed;
-		}
-	}
+	int		rc = 0;
+	int		media = IFM_TOKEN|IFM_TOK_UTP16;
 	
 	/*
 	 * Allocate interrupt and DMA channel
 	 */
-	rid = 0;
-	sc->oltr_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-		(sc->config.mode & TRLLD_MODE_SHARE_INTERRUPT ? RF_ACTIVE | RF_SHAREABLE : RF_ACTIVE));
-	if (sc->oltr_irq == NULL) {
+
+	sc->irq_rid = 0;
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+		(sc->config.mode & TRLLD_MODE_SHARE_INTERRUPT) ?
+		RF_ACTIVE | RF_SHAREABLE : RF_ACTIVE);
+	if (sc->irq_res == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
-		goto config_failed;
+		return (-1);
 	}
-	if (bus_setup_intr(dev, sc->oltr_irq, INTR_TYPE_NET, oltr_intr, sc, &sc->oltr_intrhand)) {
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, oltr_intr,
+			sc, &sc-> oltr_intrhand)) {
 		device_printf(dev, "couldn't setup interrupt\n");
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->oltr_irq);
-		goto config_failed;
+                bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+                return (-1);
 	}
 
 	/*
@@ -422,64 +193,12 @@ oltr_pci_attach(device_t dev)
 	/*
 	 * Attach the interface
 	 */
+
 	iso88025_ifattach(ifp, ISO88025_BPF_SUPPORTED);
 
-	splx(s);
-	return(0);
-
-config_failed:
-
-	splx(s);
-	return(ENXIO);
-}
-
-static int
-oltr_pci_detach(device_t dev)
-{
-	struct oltr_softc	*sc = device_get_softc(dev);
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int s, i;
-
-	device_printf(dev, "driver unloading\n");
-
-	s = splimp();
-
-	iso88025_ifdetach(ifp, ISO88025_BPF_SUPPORTED);
-	if (sc->state > OL_CLOSED)
-		oltr_stop(sc);
-
-	untimeout(oltr_poll, (void *)sc, sc->oltr_poll_ch);
-	/*untimeout(oltr_stat, (void *)sc, sc->oltr_stat_ch);*/
-
-	bus_teardown_intr(dev, sc->oltr_irq, sc->oltr_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->oltr_irq);
-
-	/* Deallocate all dynamic memory regions */
-	for (i = 0; i < RING_BUFFER_LEN; i++) {
-		free(sc->rx_ring[i].data, M_DEVBUF);
-		free(sc->tx_ring[i].data, M_DEVBUF);
-	}
-	if (sc->work_memory)
-		free(sc->work_memory, M_DEVBUF);
-	free(sc->TRlldAdapter, M_DEVBUF);
-
-	(void)splx(s);
-
 	return(0);
 }
 
-static void
-oltr_pci_shutdown(device_t dev)
-{
-	struct oltr_softc		*sc = device_get_softc(dev);
-
-	device_printf(dev, "oltr_pci_shutdown called\n");
-
-	if (sc->state > OL_CLOSED)
-		oltr_stop(sc);
-
-	return;
-}
 
 static void
 oltr_intr(void *xsc)
@@ -590,7 +309,7 @@ oltr_close(struct oltr_softc *sc)
 	tsleep(sc, PWAIT, "oltrclose", 30*hz);
 }
 
-static void
+void
 oltr_stop(struct oltr_softc *sc)
 {
 	struct ifnet 		*ifp = &sc->arpcom.ac_if;
@@ -624,7 +343,7 @@ oltr_init(void * xsc)
 	/*
 	 * Initialize Adapter
 	 */
-	if ((rc = TRlldAdapterInit(&LldDriver, sc->TRlldAdapter, vtophys(sc->TRlldAdapter),
+	if ((rc = TRlldAdapterInit(&LldDriver, sc->TRlldAdapter, sc->TRlldAdapter_phys,
 	    (void *)sc, &sc->config)) != TRLLD_INIT_OK) {
 		switch(rc) {
 		case TRLLD_INIT_NOT_FOUND:
@@ -1260,8 +979,6 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 					m->m_len = 0;
 				}
 			}
-			ifp->if_ipackets++;
-
 			iso88025_input(ifp, m0);
 		} else {	/* Receiver error */
 			if (ReceiveStatus != TRLLD_RCV_NO_DATA) {
