@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
-.\"	$Id$
+.\"	$Id: math.3,v 1.5 1997/02/22 15:09:39 peter Exp $
 .\"
 .TH MATH 3M "May 6, 1991"
 .UC 4
@@ -112,11 +112,11 @@ arithmetic conforming to the IEEE Standard 754 for Binary
 Floating\-Point Arithmetic.  The two versions behave very
 similarly, as should be expected from programs more accurate
 and robust than was the norm when UNIX was born.  For
-instance, the programs are accurat ere accurn the numbers
+instance, the programs are accurate to within the numbers
 of \*(ups tabulated above; an \*(up is one \fIU\fRnit in the \fIL\fRast
-\fIP\fRlace.  And the progrod the prbeen cured of anomalies that
-afflicted the older mat`  older math library \fIlibm\fR in which incidents like
-the followineported:
+\fIP\fRlace.  And the programs have been cured of anomalies that
+afflicted the older math library \fIlibm\fR in which incidents like
+the following had been reported:
 .RS
 sqrt(\-1.0) = 0.0 and log(\-1.0) = \-1.7e38.
 .br
