@@ -1051,6 +1051,17 @@ static int	cpu_idle_hlt = 1;
 SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
     &cpu_idle_hlt, 0, "Idle loop HLT enable");
 
+static void
+cpu_idle_default(void)
+{
+	/*
+	 * we must absolutely guarentee that hlt is the
+	 * absolute next instruction after sti or we
+	 * introduce a timing window.
+	 */
+	__asm __volatile("sti; hlt");
+}
+
 /*
  * Note that we have to be careful here to avoid a race between checking
  * sched_runnable() and actually halting.  If we don't do this, we may waste
@@ -1068,18 +1079,15 @@ cpu_idle(void)
 
 	if (cpu_idle_hlt) {
 		disable_intr();
-  		if (sched_runnable()) {
+  		if (sched_runnable())
 			enable_intr();
-		} else {
-			/*
-			 * we must absolutely guarentee that hlt is the
-			 * absolute next instruction after sti or we
-			 * introduce a timing window.
-			 */
-			__asm __volatile("sti; hlt");
-		}
+		else
+			(*cpu_idle_hook)();
 	}
 }
+
+/* Other subsystems (e.g., ACPI) can hook this later. */
+void (*cpu_idle_hook)(void) = cpu_idle_default;
 
 /*
  * Clear registers on exec
