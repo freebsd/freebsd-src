@@ -1,5 +1,5 @@
 
-#	$Id$
+#	$Id: Makefile,v 1.6 1997/07/16 12:24:23 julian Exp $
 # If this is a RELEASE, then set
 
 # Things which without too much trouble can be considered variables
@@ -7,7 +7,8 @@
 # mountpoint for filesystems.
 TOP=${.CURDIR}/../../../..
 OBJTOP=${.OBJDIR}/../../../..
-FS_BIN=${.CURDIR}/../..
+FS_BIN=../../bin
+SCRIPTDIR=${.CURDIR}/../../bin
 
 MNT=			/mnt
 
@@ -58,7 +59,7 @@ all: ${FS_BIN}/write_mfs_in_kernel
 CONF=${TOP}/sys/i386/conf
 COMPILE=${TOP}/sys/compile
 doKERNEL:
-	cd ${CONF} && config -n ${KERNEL}
+	cd ${CONF} && config ${KERNEL}
 	cd ${COMPILE}/${KERNEL} && \
 			make  depend && \
 			make  kernel && \
@@ -67,30 +68,45 @@ doKERNEL:
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 LABELDIR=${OBJTOP}/sys/i386/boot/biosboot
-doMFSKERN:
+
+${COMPILE}/BOOTMFS/kernel:
 	rm -f ${COMPILE}/BOOTMFS/mfs_vfsops.o
 	cd ${CONF} && \
-		fgrep -v SYSV GENERIC | \
-		fgrep -v pty | \
-		fgrep -v PROCFS | \
-		sed 's/GENERIC/BOOTMFS/g' | \
-		sed '/maxusers/s/10/4/' > BOOTMFS && \
-		echo "options  MFS" >> BOOTMFS && \
-		echo "options  NFS_NOSERVER" >> BOOTMFS && \
-		echo 'options  "MAXCONS=4"' >> BOOTMFS 
+	  sed	-e '/SYSV/d' \
+		-e '/pty/d' \
+		-e '/PROCFS/d' \
+		-e '/KTRACE/d' \
+		-e 's/GENERIC/BOOTMFS/g' \
+		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
+	  echo "options  MFS" >> BOOTMFS && \
+	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
+	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
+	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
 	echo "options \"MFS_ROOT=`cat ../mfs/fs-image.size`\"" >> \
 		${CONF}/BOOTMFS
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
+
+doMFSKERN: ${COMPILE}/BOOTMFS/kernel
 	-mkdir tree
 	cp ${COMPILE}/BOOTMFS/kernel tree
-	${FS_BIN}/write_mfs_in_kernel tree/kernel ../mfs/fs-image
-	kzip tree/kernel
+	${FS_BIN}/write_mfs_in_kernel/write_mfs_in_kernel tree/kernel ../mfs/fs-image
+	kzip -v tree/kernel
 	mv tree/kernel.kz tree/kernel
-	ls -l tree/kernel
-	sh -e ${FS_BIN}/doFS.sh ${LABELDIR} ${MNT} ${FSSIZE} tree \
+	cp ${COMPILE}/../i386/boot/biosboot/boot.help tree
+	touch tree/boot.config
+	@vnconfig /dev/vn0 ../mfs/fs-image
+	@mkdir -p /tmp/mnt_xx
+	@mount /dev/vn0 /tmp/mnt_xx 
+	${FS_BIN}/dumpnlist/dumpnlist ${COMPILE}/BOOTMFS/kernel > /tmp/mnt_xx/stand/symbols
+	@umount /tmp/mnt_xx
+	@vnconfig -u /dev/vn0
+	@rmdir /tmp/mnt_xx
+
+	sh -e ${SCRIPTDIR}/doFS.sh ${LABELDIR} ${MNT} ${FSSIZE} tree \
 		10000 ${FSLABEL}
 
 clean:
 	rm -rf tree fs-image fs-image.size
 
 .include <bsd.prog.mk>
+
