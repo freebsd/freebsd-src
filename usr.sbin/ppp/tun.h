@@ -23,19 +23,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.h,v 1.3.4.3 1998/05/06 23:50:25 brian Exp $
+ *	$Id: tun.h,v 1.4 1998/05/21 21:48:55 brian Exp $
  */
 
 struct tun_data {
 #ifdef __OpenBSD__
-  struct tunnel_header head;
+  u_int32_t head;
 #endif
   u_char data[MAX_MRU];
 };
 
 #ifdef __OpenBSD__
-#define tun_fill_header(f,proto) do { (f).head.tun_af = (proto); } while (0)
-#define tun_check_header(f,proto) ((f).head.tun_af == (proto))
+#define tun_fill_header(f,proto) do { (f).head = (proto); } while (0)
+#define tun_check_header(f,proto) ((f).head == (proto))
 #else
 #define tun_fill_header(f,proto) do { } while (0)
 #define tun_check_header(f,proto) (1)
