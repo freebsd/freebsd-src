@@ -419,7 +419,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 
     /* apparently some devices needs this repeated */
     do {
-	if (ata_command(atadev, command, 0, 0, 0, ATA_WAIT_READY)) {
+	if (ata_command(atadev, command, 0, 0, 0, ATA_WAIT_INTR)) {
 	    ata_prtdev(atadev, "%s identify failed\n",
 		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
 	    return -1;
@@ -646,7 +646,7 @@ ata_start(struct ata_channel *ch)
     }
 #endif
     splx(s);
-    ch->active = ATA_IDLE;
+    ATA_UNLOCK_CH(ch);
 }
 
 void
@@ -1113,7 +1113,7 @@ ata_change_mode(struct ata_device *atadev, int mode)
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_ACTIVE);
     ata_dmainit(atadev->channel, atadev->unit, pmode, wmode, umode);
     ATA_UNLOCK_CH(atadev->channel);
-    ata_start(atadev->channel);
+    ata_start(atadev->channel); /* XXX SOS */
 }
 
 int
