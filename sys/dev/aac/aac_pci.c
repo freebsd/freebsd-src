@@ -293,6 +293,14 @@ aac_pci_attach(device_t dev)
 		goto out;
 	}
 
+
+	/*
+	 * Check for quirky hardware
+	 */
+	if (pci_get_subdevice(dev) == 0x1364 && 
+	    pci_get_subvendor(dev) == 0x9005)
+		sc->quirks |= AAC_QUIRK_PERC2QC;
+
 	/*
 	 * Do bus-independent initialisation.
 	 */
