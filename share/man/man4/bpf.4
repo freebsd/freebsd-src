@@ -522,11 +522,9 @@ M[k] <- X
 The alu instructions perform operations between the accumulator and
 index register or constant, and store the result back in the accumulator.
 For binary operations, a source mode is required
-.Po
-.Dv BPF_K
+.Dv ( BPF_K
 or
-.Dv BPF_X
-.Pc .
+.Dv BPF_X ) .
 .Pp
 .Bl -tag -width "BPF_ALU+BPF_MUL+BPF_K" -compact
 .It Li BPF_ALU+BPF_ADD+BPF_K

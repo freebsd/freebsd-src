@@ -628,11 +628,9 @@ The local address of the interface.
 .Pq Li "struct sockaddr *"
 The remote address of point-to-point interfaces, and the broadcast
 address of broadcast interfaces.
-.Po
-.Li ifa_broadaddr
+.Li ( ifa_broadaddr
 is a macro for
-.Li ifa_dstaddr .
-.Pc
+.Li ifa_dstaddr . )
 .It Li ifa_netmask
 .Pq Li "struct sockaddr *"
 The network mask for multi-access interfaces, and the confusion

@@ -100,10 +100,8 @@ the tag is interpreted as the rule number
 rule processing should restart.
 .Sh LOOP AVOIDANCE
 Packets written into a divert socket
-.Po
-using
-.Xr sendto 2
-.Pc
+(using
+.Xr sendto 2 )
 re-enter the packet filter at the rule number
 following the tag given in the port part of the socket address, which
 is usually already set at the rule number that caused the diversion

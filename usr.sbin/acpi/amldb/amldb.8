@@ -34,7 +34,7 @@
 .Sh NAME
 .Nm amldb
 .Nd executing and debugging AML interpreter
-.Pq with DSDT files
+(with DSDT files)
 .Sh SYNOPSIS
 .Nm
 .Op Fl dhst
@@ -42,10 +42,10 @@
 .Sh DESCRIPTION
 .Nm Amldb
 parses the DSDT
-.Pq Differentiated System Description Table
+(Differentiated System Description Table)
 files, which usually are acquired from ACPI BIOS, and executes
 the sequence of ACPI Control Methods described in AML
-.Pq ACPI Machine Language
+(ACPI Machine Language)
 with its AML interpreter.
 .Nm Amldb
 also has a simple ACPI virtual machine.  During execution of the
@@ -62,7 +62,7 @@ with ACPI BIOS through
 .Xr acpidump 8 .
 The DSDT is a table, a part of the whole ACPI memory table
 located in somewhere in the BIOS area
-.Pq 0xa0000 \- 0x100000 .
+.Pq Li 0xa0000 \- 0x100000 .
 It includes such information as the detailed hardware information
 for PnP, and the set of procedures which perform power management from
 the OS.  The information is stored in AML format.
@@ -71,7 +71,7 @@ The AML interpreter can execute any of the Control Methods specified
 by users.  When executed, it interprets the byte sequence in the
 Control Method of DSDT, and disassembles the opecodes that it
 recognizes into ASL
-.Pq ACPI Source Language
+(ACPI Source Language)
 format to be displayed.
 .Pp
 If it encounters one of more accesses to the region such as
@@ -197,7 +197,7 @@ Lists the named objects that includes the specified string as the
 terminate elements searching from the ACPI namespace.  For the
 namespace is expressed as the sequence of four-character elements,
 appropriate number of additional underscore
-.Pq Sq _
+.Pq Ql _
 characters are necessary for specifying objects which have less than four
 character string.  Unless additional underscores specified, matching
 occurs as the beginning of word with the specified number of characters.
@@ -232,10 +232,10 @@ The following is an example including, invoking the
 .Nm ,
 searching
 .Li _PRS
-.Pq Possible Resource Settings
+(Possible Resource Settings)
 objects, and executing the
 .Li _PTS
-.Pq Prepare To Sleep
+(Prepare To Sleep)
 Control Method by the AML interpreter.
 .Bd -literal -offset indent
 % amldb p2b.dsdt.dat

@@ -88,10 +88,8 @@ struct sockaddr_in6 {
 .Pp
 Sockets may be created with the local address
 .Dq Dv ::
-.Po
-which is equal to IPv6 address
-.Dv 0:0:0:0:0:0:0:0
-.Pc
+(which is equal to IPv6 address
+.Dv 0:0:0:0:0:0:0:0 )
 to affect
 .Dq wildcard
 matching on incoming messages.
@@ -313,7 +311,7 @@ Boolean: enable/disable receiving of
 router advertisement packets,
 and autoconfiguration of address prefixes and default routers.
 The node must be a host
-.Pq not a router
+(not a router)
 for the option to be meaningful.
 Defaults to off.
 .It Dv IPV6CTL_KEEPFAITH
@@ -332,7 +330,7 @@ Defaults to off.
 Integer: default interval between
 .Tn IPv6
 packet forwarding engine log output
-.Pq in seconds .
+(in seconds).
 .It Dv IPV6CTL_HDRNESTLIMIT
 .Pq ip6.hdrnestlimit
 Integer: default number of the maximum
@@ -424,21 +422,17 @@ Basically, it says this:
 A specific bind on an
 .Dv AF_INET6
 socket
-.Po
-.Xr bind 2
-with an address specified
-.Pc
+.Xr ( bind 2
+with an address specified)
 should accept IPv6 traffic to that address only.
 .It
 If you perform a wildcard bind
 on an
 .Dv AF_INET6
 socket
-.Po
-.Xr bind 2
+.Xr ( bind 2
 to IPv6 address
-.Li ::
-.Pc ,
+.Li :: ) ,
 and there is no wildcard bind
 .Dv AF_INET
 socket on that TCP/UDP port, IPv6 traffic as well as IPv4 traffic
@@ -465,9 +459,7 @@ However, RFC2553 does not define the ordering constraint between calls to
 .Xr bind 2 ,
 nor how IPv4 TCP/UDP port numbers and IPv6 TCP/UDP port numbers
 relate to each other
-.Po
-should they be integrated or separated
-.Pc .
+(should they be integrated or separated).
 Implemented behavior is very different from kernel to kernel.
 Therefore, it is unwise to rely too much upon the behavior of
 .Dv AF_INET6
