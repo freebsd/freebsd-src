@@ -117,10 +117,10 @@
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <machine/clock.h>
-#include <machine/lpt.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/lptreg.h>
+#include <dev/ppbus/lptio.h>
 
 #ifdef INET
 #include <sys/malloc.h>
