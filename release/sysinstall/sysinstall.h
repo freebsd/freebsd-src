@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.15 1995/06/05 03:15:46 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.16 1995/06/05 12:04:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,6 +86,9 @@
 #define DISK_LABELLED		"_diskLabelled"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
+
+#define FTP_USER		"_ftpUser"
+#define FTP_PASS		"_ftpPass"
 
 #define OPT_NO_CONFIRM		0x0001
 #define OPT_NFS_SECURE		0x0002
