@@ -2,7 +2,7 @@
  * Product specific probe and attach routines for:
  *      3940, 2940, aic7880, aic7870, aic7860 and aic7850 SCSI controllers
  *
- * Copyright (c) 1995, 1996 Justin T. Gibbs.
+ * Copyright (c) 1995, 1996, 1997 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -793,7 +793,8 @@ load_seeprom(ahc, sxfrctl1)
 				 */
 				brdctl = read_brdctl(ahc);
 				internal50_present = !(brdctl & BRDDAT6);
-				internal68_present = !(brdctl & BRDDAT7);
+				internal68_present = !(brdctl & BRDDAT7)
+						   && (max_targ > 8);
 				if (bootverbose) {
 					printf("internal50 cable %s present\n"
 					       "internal68 cable %s present\n"
@@ -818,7 +819,7 @@ load_seeprom(ahc, sxfrctl1)
 				external68_present = !(brdctl & BRDDAT6);
 				eprom_present = brdctl & BRDDAT7;
 				if (bootverbose) {
-					printf("external68 %s present\n"
+					printf("external cable %s present\n"
 					       "eprom %s present\n"
 					       "brdctl == 0x%x\n",
 					       external68_present ? "is":"not",
@@ -833,8 +834,9 @@ load_seeprom(ahc, sxfrctl1)
 				 */
 				high_on = FALSE;
 				low_on = FALSE;
-				if ((external68_present == 0)
-				 || (internal68_present == 0))
+				if ((max_targ > 8)
+				 && ((external68_present == 0)
+				  || (internal68_present == 0)))
 					high_on = TRUE;
 
 				if (((internal50_present ? 1 : 0)
