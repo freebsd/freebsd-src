@@ -6,7 +6,7 @@
  * 
  * AD1848, CS4248, CS423x, OPTi931, Yamaha SA2 and many others.
  *
- * Copyright Luigi Rizzo, 1997
+ * Copyright Luigi Rizzo, 1997,1998
  * Copyright by Hannu Savolainen 1994, 1995
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -1392,7 +1392,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	return ;
     }
     snddev_last_probed = &tmp_d;
-    if (d.flags) {		/*** use sb-compatible codec ***/
+    if (d.flags & DV_PNP_SBCODEC) {	/*** use sb-compatible codec ***/
 	dev->id_alive = 16 ; /* number of io ports ? */
 	tmp_d = sb_op_desc ;
 	if (vend_id==0x2000a865 || vend_id==0x3000a865 || vend_id==0x8140d315) {
@@ -1511,7 +1511,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     enable_pnp_card();
 
     snddev_last_probed = &tmp_d;
-    tmp_d =  d.flags ? sb_op_desc : mss_op_desc ;
+    tmp_d =  d.flags & DV_PNP_SBCODEC ? sb_op_desc : mss_op_desc ;
 
     strcpy(tmp_d.name, name);
 
@@ -1533,7 +1533,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     opti_write(p, 4, 0xd6 /* fifo empty, OPL3, audio enable, SB3.2 */ );
     ad_write (&tmp_d, 10, 2); /* enable interrupts */
 
-    if (d.flags) { /* sb-compatible codec */
+    if (d.flags & DV_PNP_SBCODEC) { /* sb-compatible codec */
 	/*
 	 * the 931 is not a real SB, it has important pieces of
 	 * hardware controlled by both the WSS and the SB port...

@@ -32,7 +32,7 @@
  */
 
 #include <i386/isa/snd/sound.h>
-#include <i386/isa/snd/ulaw.h>
+#include <i386/isa/sound/ulaw.h>
 
 #define MIN_CHUNK_SIZE 256	/* for uiomove etc. */
 #define	DMA_ALIGN_THRESHOLD	4
@@ -247,7 +247,7 @@ dsp_write_body(snddev_info *d, struct uio *buf)
      * the previous operation.
      */
     bsz =  b->dl ? MIN_CHUNK_SIZE : b->bufsize ;
-    while ( n = buf->uio_resid ) {
+    while ( (n = buf->uio_resid) ) {
         l = min (n, bsz);       /* at most n bytes ... */
         s = spltty();  /* no interrupts here ... */
 	dsp_wr_dmaupdate(b);
@@ -761,7 +761,7 @@ snd_flush(snddev_info *d)
 	    return -1 ;
 	}
 	if ( ret && --count == 0) {
-	    printf("timeout flushing dbuf_out.chan, cnt 0x%x flags 0x%08x\n",
+	    printf("timeout flushing dbuf_out.chan, cnt 0x%x flags 0x%08lx\n",
 		    b->rl, d->flags);
 	    break;
 	}

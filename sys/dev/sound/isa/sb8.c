@@ -208,6 +208,8 @@ sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
 	d->flags |= SND_F_NBIO ;
 
     sb_reset_dsp(d->io_base);
+    if (d->bd_flags & BD_F_ESS)
+	sb_cmd(d->io_base, 0xc6 ); /* enable extended ESS mode */
     ask_init(d);
 
     return 0;
@@ -420,6 +422,9 @@ sb_callback(snddev_info *d, int reason)
 	    sb_cmd3(d->io_base, c1 , l - 1) ;
 	} else if (d->bd_flags & BD_F_ESS) {
 	    /* XXX this code is still incomplete */
+	    sb_cmd2(d->io_base,  0xb8, rd ? 4 : 0xe ) ; /* auto dma */
+	    sb_cmd2(d->io_base,  0xa8, d->flags & SND_F_STEREO ? 1 : 2) ;
+	    sb_cmd2(d->io_base,  0xb9, 2) ; /* demand dma */
 	} else { /* SBPro -- stereo not supported */
 	    u_char c ;
 	    if (!rd)
@@ -429,6 +434,10 @@ sb_callback(snddev_info *d, int reason)
 		c = (rd) ? 0x98 : 0x90 ;
 	    else
 		c = (rd) ? 0x2c : 0x1c ;
+	    if (d->flags & SND_F_STEREO)
+	        sb_setmixer(d->io_base, 0xe, 2 );
+	    else
+	        sb_setmixer(d->io_base, 0xe, 0 );
 	    /*
 	     * some ESS extensions -- they can do 16 bits
 	     */
@@ -450,6 +459,8 @@ sb_callback(snddev_info *d, int reason)
 		cmd = DSP_CMD_DMAPAUSE_16 ;
 	    if (d->bd_flags & BD_F_HISPEED) {
 		sb_reset_dsp(d->io_base);
+		if (d->bd_flags & BD_F_ESS)
+		    sb_cmd(d->io_base, 0xc6 ); /* enable extended ESS mode */
 		d->flags |= SND_F_INIT ;
 	    } else {
 		sb_cmd(d->io_base, cmd); /* pause dma. */
@@ -481,7 +492,7 @@ sb_reset_dsp(int io_base)
 {
     int loopc;
 
-    outb(io_base + SBDSP_RST, 1);
+    outb(io_base + SBDSP_RST, 3);
     DELAY(100);
     outb(io_base + SBDSP_RST, 0);
     for (loopc = 0; loopc<100 && !(inb(DSP_DATA_AVAIL) & 0x80); loopc++)
@@ -795,7 +806,9 @@ dsp_speed(snddev_info *d)
      * simultaneously using midi.
      * At the moment we do not support either...
      */
+#if 0
     d->flags &= ~SND_F_STEREO;
+#endif
 
     /*
      * here enforce speed limitations.
