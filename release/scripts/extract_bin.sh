@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract_bin.sh,v 1.1 1995/01/14 07:41:39 jkh Exp $
+# $Id: extract_bin.sh,v 1.2 1995/01/28 09:04:09 jkh Exp $
 PATH=/stand:$PATH
 DDIR=/
 
@@ -10,7 +10,6 @@ fi
 if [ -f $DDIR/etc/defaultrouter ]; then
 	cp $DDIR/etc/defaultrouter $DDIR/stand/etc
 fi
-echo; echo "Extracting bindist, please wait." 
 cat bin.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
 if [ -f $DDIR/stand/etc/myname ]; then
 	# Add back what the bindist nuked.
