@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.105 1998/06/15 19:05:27 brian Exp $
+.\" $Id: ppp.8,v 1.106 1998/06/16 19:40:28 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2941,20 +2941,17 @@ It is not possible to change a link that is
 .Sq direct
 or
 .Sq dedicated .
-.It set mrru Ar value
+.It set mrru Op Ar value
 Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.  There is no default MRRU (Maximum
-Reconstructed Receive Unit) value.
-.Em PPP
-protocol *must* be able to accept packets of at
-least 1500 octets.
+Reconstructed Receive Unit) value.  If no argument is given, multi-link
+mode is disabled.
 .It set mru Ar value
 The default MRU (Maximum Receive Unit) is 1500.  If it is increased, the
 other side *may* increase its mtu.  There is no point in decreasing the
 MRU to below the default as the
 .Em PPP
-protocol *must* be able to accept packets of at
-least 1500 octets.
+protocol *must* be able to accept packets of at least 1500 octets.
 .It set mtu Ar value
 The default MTU is 1500.  At negotiation time,
 .Nm
