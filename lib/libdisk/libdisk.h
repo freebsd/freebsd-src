@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.14 1995/05/08 02:08:30 phk Exp $
+ * $Id: libdisk.h,v 1.15 1995/05/10 05:57:03 phk Exp $
  *
  */
 
@@ -205,6 +205,10 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	 * size, and returns a pointer to it.  The first unused chunk big
 	 * enough is used.
 	 */
+
+void
+MakeDevDisk(struct disk *d,char *path);
+	/* Make device nodes for all chunks on this disk */
 
 /* 
  * Implementation details  >>> DO NOT USE <<<
