@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.12 1998/06/07 17:12:18 dfr Exp $
+ * $Id: ipx.c,v 1.13 1998/12/04 22:54:54 archie Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,7 @@ ipx_control(so, cmd, data, ifp, p)
 				  ifra->ifra_addr.sipx_addr))
 			    break;
 		    }
-		if (cmd == SIOCDIFADDR && ia == NULL)
+		if (ia == NULL)
 			return (EADDRNOTAVAIL);
 		/* FALLTHROUGH */
 
