@@ -78,7 +78,9 @@ static int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, 
 			struct proc *p));
 static int	mfs_init __P((struct vfsconf *));
+#ifdef MFS_ROOT
 static void	mfs_takeroot __P((void *));
+#endif
 
 static struct cdevsw mfs_cdevsw = {
 	/* open */      noopen,
