@@ -76,8 +76,8 @@ static struct clntraw_private {
 	u_int	mcnt;
 } *clntraw_private;
 
-static enum clnt_stat clnt_raw_call __P((CLIENT *, rpcproc_t, xdrproc_t,
-    caddr_t, xdrproc_t, caddr_t, struct timeval));
+static enum clnt_stat clnt_raw_call(CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
+	xdrproc_t, caddr_t, struct timeval);
 static void clnt_raw_geterr(CLIENT *, struct rpc_err *);
 static bool_t clnt_raw_freeres(CLIENT *, xdrproc_t, caddr_t);
 static void clnt_raw_abort(CLIENT *);

@@ -38,10 +38,8 @@ __FBSDID("$FreeBSD$");
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
  */
 
-static const char *inet_ntop4 __P((const u_char *src, char *dst,
-    socklen_t size));
-static const char *inet_ntop6 __P((const u_char *src, char *dst,
-    socklen_t size));
+static const char *inet_ntop4(const u_char *src, char *dst, socklen_t size);
+static const char *inet_ntop6(const u_char *src, char *dst, socklen_t size);
 
 /* char *
  * inet_ntop(af, src, dst, size)

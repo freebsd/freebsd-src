@@ -218,18 +218,18 @@ struct res_target {
 };
 
 static int str_isnumber(const char *);
-static int explore_fqdn __P((const struct addrinfo *, const char *,
-	const char *, struct addrinfo **));
-static int explore_null __P((const struct addrinfo *,
-	const char *, struct addrinfo **));
-static int explore_numeric __P((const struct addrinfo *, const char *,
-	const char *, struct addrinfo **));
-static int explore_numeric_scope __P((const struct addrinfo *, const char *,
-	const char *, struct addrinfo **));
-static int get_canonname __P((const struct addrinfo *,
-	struct addrinfo *, const char *));
-static struct addrinfo *get_ai __P((const struct addrinfo *,
-	const struct afd *, const char *));
+static int explore_fqdn(const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+static int explore_null(const struct addrinfo *,
+	const char *, struct addrinfo **);
+static int explore_numeric(const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+static int explore_numeric_scope(const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+static int get_canonname(const struct addrinfo *,
+	struct addrinfo *, const char *);
+static struct addrinfo *get_ai(const struct addrinfo *,
+	const struct afd *, const char *);
 static int get_portmatch(const struct addrinfo *, const char *);
 static int get_port(struct addrinfo *, const char *, int);
 static const struct afd *find_afd(int);
@@ -238,8 +238,8 @@ static int addrconfig(struct addrinfo *);
 static int ip6_str2scopeid(char *, struct sockaddr_in6 *);
 #endif
 
-static struct addrinfo *getanswer __P((const querybuf *, int, const char *, int,
-	const struct addrinfo *));
+static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
+	const struct addrinfo *);
 static int _dns_getaddrinfo(void *, void *, va_list);
 static void _sethtent(void);
 static void _endhtent(void);
@@ -253,8 +253,8 @@ extern int _yp_check(char **);
 
 static int res_queryN(const char *, struct res_target *);
 static int res_searchN(const char *, struct res_target *);
-static int res_querydomainN __P((const char *, const char *,
-	struct res_target *));
+static int res_querydomainN(const char *, const char *,
+	struct res_target *);
 
 static char *ai_errlist[] = {
 	"Success",

@@ -102,13 +102,10 @@ extern int __rpc_lowvers;
 
 static struct address_cache *check_cache(const char *, const char *);
 static void delete_cache(struct netbuf *);
-static void add_cache __P((const char *, const char *, struct netbuf *,
-			   char *));
-static CLIENT *getclnthandle __P((const char *, const struct netconfig *,
-				  char **));
+static void add_cache(const char *, const char *, struct netbuf *, char *);
+static CLIENT *getclnthandle(const char *, const struct netconfig *, char **);
 static CLIENT *local_rpcb(void);
-static struct netbuf *got_entry __P((rpcb_entry_list_ptr,
-				     const struct netconfig *));
+static struct netbuf *got_entry(rpcb_entry_list_ptr, const struct netconfig *);
 
 /*
  * This routine adjusts the timeout used for calls to the remote rpcbind.

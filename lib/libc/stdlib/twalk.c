@@ -22,8 +22,8 @@ __RCSID("$NetBSD: twalk.c,v 1.1 1999/02/22 10:33:16 christos Exp $");
 #include <search.h>
 #include <stdlib.h>
 
-static void trecurse __P((const node_t *,
-    void  (*action)(const void *, VISIT, int), int level));
+static void trecurse(const node_t *,
+    void (*action)(const void *, VISIT, int), int level);
 
 /* Walk the nodes of a tree */
 static void

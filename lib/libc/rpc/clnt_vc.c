@@ -87,8 +87,8 @@ struct cmessage {
         struct cmsgcred cmcred;
 };
 
-static enum clnt_stat clnt_vc_call __P((CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
-    xdrproc_t, caddr_t, struct timeval));
+static enum clnt_stat clnt_vc_call(CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
+    xdrproc_t, caddr_t, struct timeval);
 static void clnt_vc_geterr(CLIENT *, struct rpc_err *);
 static bool_t clnt_vc_freeres(CLIENT *, xdrproc_t, caddr_t);
 static void clnt_vc_abort(CLIENT *);
