@@ -208,6 +208,7 @@ static void sk_reset(struct sk_softc *);
 static int sk_newbuf(struct sk_if_softc *,
 					struct sk_chain *, struct mbuf *);
 static int sk_alloc_jumbo_mem(struct sk_if_softc *);
+static void sk_free_jumbo_mem(struct sk_if_softc *);
 static void *sk_jalloc(struct sk_if_softc *);
 static void sk_jfree(void *, void *);
 static int sk_init_rx_ring(struct sk_if_softc *);
@@ -1057,6 +1058,8 @@ sk_alloc_jumbo_mem(sc_if)
 		return(ENOBUFS);
 	}
 
+	mtx_init(&sc_if->sk_jlist_mtx, "sk_jlist_mtx", NULL, MTX_DEF);
+
 	SLIST_INIT(&sc_if->sk_jfree_listhead);
 	SLIST_INIT(&sc_if->sk_jinuse_listhead);
 
@@ -1071,7 +1074,7 @@ sk_alloc_jumbo_mem(sc_if)
 		entry = malloc(sizeof(struct sk_jpool_entry), 
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
-			free(sc_if->sk_cdata.sk_jumbo_buf, M_DEVBUF);
+			sk_free_jumbo_mem(sc_if);
 			sc_if->sk_cdata.sk_jumbo_buf = NULL;
 			printf("sk%d: no memory for jumbo "
 			    "buffer queue!\n", sc_if->sk_unit);
@@ -1085,6 +1088,36 @@ sk_alloc_jumbo_mem(sc_if)
 	return(0);
 }
 
+static void
+sk_free_jumbo_mem(sc_if)
+	struct sk_if_softc	*sc_if;
+{
+	struct sk_jpool_entry	*entry;
+
+	SK_JLIST_LOCK(sc_if);
+
+	/* We cannot release external mbuf storage while in use. */
+	if (!SLIST_EMPTY(&sc_if->sk_jinuse_listhead)) {
+		printf("sk%d: will leak jumbo buffer memory!\n", sc_if->sk_unit);
+		SK_JLIST_UNLOCK(sc_if);
+		return;
+	}
+
+	while (!SLIST_EMPTY(&sc_if->sk_jfree_listhead)) {
+		entry = SLIST_FIRST(&sc_if->sk_jfree_listhead);
+		SLIST_REMOVE_HEAD(&sc_if->sk_jfree_listhead, jpool_entries);
+		free(entry, M_DEVBUF);
+	}
+
+	SK_JLIST_UNLOCK(sc_if);
+
+	mtx_destroy(&sc_if->sk_jlist_mtx);
+
+	contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
+
+	return;
+}
+
 /*
  * Allocate a jumbo buffer.
  */
@@ -1094,7 +1127,7 @@ sk_jalloc(sc_if)
 {
 	struct sk_jpool_entry   *entry;
 
-	SK_IF_LOCK_ASSERT(sc_if);
+	SK_JLIST_LOCK(sc_if);
 
 	entry = SLIST_FIRST(&sc_if->sk_jfree_listhead);
 
@@ -1102,11 +1135,15 @@ sk_jalloc(sc_if)
 #ifdef SK_VERBOSE
 		printf("sk%d: no free jumbo buffers\n", sc_if->sk_unit);
 #endif
+		SK_JLIST_UNLOCK(sc_if);
 		return(NULL);
 	}
 
 	SLIST_REMOVE_HEAD(&sc_if->sk_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc_if->sk_jinuse_listhead, entry, jpool_entries);
+
+	SK_JLIST_UNLOCK(sc_if);
+
 	return(sc_if->sk_cdata.sk_jslots[entry->slot]);
 }
 
@@ -1127,7 +1164,7 @@ sk_jfree(buf, args)
 	if (sc_if == NULL)
 		panic("sk_jfree: didn't get softc pointer!");
 
-	SK_IF_LOCK(sc_if);
+	SK_JLIST_LOCK(sc_if);
 
 	/* calculate the slot this buffer belongs to */
 	i = ((vm_offset_t)buf
@@ -1142,8 +1179,10 @@ sk_jfree(buf, args)
 	entry->slot = i;
 	SLIST_REMOVE_HEAD(&sc_if->sk_jinuse_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc_if->sk_jfree_listhead, entry, jpool_entries);
+	if (SLIST_EMPTY(&sc_if->sk_jinuse_listhead))
+		wakeup(sc_if);
 
-	SK_IF_UNLOCK(sc_if);
+	SK_JLIST_UNLOCK(sc_if);
 	return;
 }
 
@@ -1369,8 +1408,6 @@ sk_attach(dev)
 	sc_if = device_get_softc(dev);
 	sc = device_get_softc(device_get_parent(dev));
 	port = *(int *)device_get_ivars(dev);
-	free(device_get_ivars(dev), M_DEVBUF);
-	device_set_ivars(dev, NULL);
 
 	sc_if->sk_dev = dev;
 	sc_if->sk_unit = device_get_unit(dev);
@@ -1384,15 +1421,13 @@ sk_attach(dev)
 
 	/* Allocate the descriptor queues. */
 	sc_if->sk_rdata = contigmalloc(sizeof(struct sk_ring_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, M_ZERO, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc_if->sk_rdata == NULL) {
 		printf("sk%d: no memory for list buffers!\n", sc_if->sk_unit);
 		error = ENOMEM;
 		goto fail;
 	}
-
-	bzero(sc_if->sk_rdata, sizeof(struct sk_ring_data));
 
 	/* Try to allocate memory for jumbo buffers. */
 	if (sk_alloc_jumbo_mem(sc_if)) {
@@ -1854,7 +1889,7 @@ sk_detach(dev)
 	*/
 	bus_generic_detach(dev);
 	if (sc_if->sk_cdata.sk_jumbo_buf != NULL)
-		contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
+		sk_free_jumbo_mem(sc_if);
 	if (sc_if->sk_rdata != NULL) {
 		contigfree(sc_if->sk_rdata, sizeof(struct sk_ring_data),
 		    M_DEVBUF);
@@ -1874,12 +1909,21 @@ skc_detach(dev)
 	KASSERT(mtx_initialized(&sc->sk_mtx), ("sk mutex not initialized"));
 
 	if (device_is_alive(dev)) {
-		if (sc->sk_devs[SK_PORT_A] != NULL)
+		if (sc->sk_devs[SK_PORT_A] != NULL) {
+			free(device_get_ivars(sc->sk_devs[SK_PORT_A]), M_DEVBUF);
 			device_delete_child(dev, sc->sk_devs[SK_PORT_A]);
-		if (sc->sk_devs[SK_PORT_B] != NULL)
+		}
+		if (sc->sk_devs[SK_PORT_B] != NULL) {
+			free(device_get_ivars(sc->sk_devs[SK_PORT_B]), M_DEVBUF);
 			device_delete_child(dev, sc->sk_devs[SK_PORT_B]);
+		}
 		bus_generic_detach(dev);
 	}
+
+	if (sc->sk_vpd_prodname != NULL)
+		free(sc->sk_vpd_prodname, M_DEVBUF);
+	if (sc->sk_vpd_readonly != NULL)
+		free(sc->sk_vpd_readonly, M_DEVBUF);
 
 	if (sc->sk_intrhand)
 		bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
