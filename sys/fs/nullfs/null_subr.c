@@ -183,10 +183,15 @@ null_node_alloc(mp, lowervp, vpp)
 	}
 	vp = *vpp;
 
-	vp->v_type = lowervp->v_type;
 	xp->null_vnode = vp;
-	vp->v_data = xp;
 	xp->null_lowervp = lowervp;
+
+	vp->v_type = lowervp->v_type;
+	vp->v_data = xp;
+
+	/* Though v_lock is inited by getnewvnode(), we want our own wmesg */
+	lockinit(&vp->v_lock, PVFS, "nunode", VLKTIMEOUT, LK_NOPAUSE);
+
 	/*
 	 * Before we insert our new node onto the hash chains,
 	 * check to see if someone else has beaten us to it.
@@ -194,9 +199,7 @@ null_node_alloc(mp, lowervp, vpp)
 	 */
 	othervp = null_node_find(mp, lowervp);
 	if (othervp) {
-		vp->v_data = NULL;
-		FREE(xp, M_NULLFSNODE);
-		vp->v_type = VBAD;	/* node is discarded */
+		xp->null_lowervp = NULL;
 		vrele(vp);
 		*vpp = othervp;
 		return 0;
@@ -284,6 +287,17 @@ null_node_create(mp, lowervp, newvpp)
 
 	*newvpp = aliasvp;
 	return (0);
+}
+
+void
+null_hashrem(xp)
+	struct null_node *xp;
+{
+	struct thread *td = curthread;	/* XXX */
+
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
+	LIST_REMOVE(xp, null_hash);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
 }
 
 #ifdef DIAGNOSTIC
