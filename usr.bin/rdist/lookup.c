@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)lookup.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lookup.c,v 1.4 1998/04/06 06:18:25 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -130,7 +130,7 @@ lookup(name, action, value)
 	register unsigned n;
 	register char *cp;
 	register struct syment *s;
-	char buf[256];
+	char buf[BUFSIZ];
 
 	if (debug)
 		printf("lookup(%s, %d, %p)\n", name, action, value);
