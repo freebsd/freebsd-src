@@ -94,6 +94,7 @@ SUBDIR=	3dfx \
 	ti \
 	tl \
 	twe \
+	trm \
 	tx \
 	txp \
 	ubsec \

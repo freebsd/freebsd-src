@@ -652,6 +652,7 @@ dev/syscons/rain/rain_saver.c	optional rain_saver
 dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_pci.c	optional tdfx pci
+dev/trm/trm.c		optional trm
 dev/twe/twe.c		optional twe
 dev/twe/twe_freebsd.c	optional twe
 dev/tx/if_tx.c		optional tx
