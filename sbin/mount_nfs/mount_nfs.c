@@ -99,6 +99,7 @@ static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
 #define ALTF_NQNFS	0x400
 #define ALTF_SOFT	0x800
 #define ALTF_TCP	0x1000
+#define ALTF_PORT	0x2000
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -121,6 +122,7 @@ struct mntopt mopts[] = {
 	{ "nqnfs", 0, ALTF_NQNFS, 1 },
 	{ "soft", 0, ALTF_SOFT, 1 },
 	{ "tcp", 0, ALTF_TCP, 1 },
+	{ "port=", 0, ALTF_PORT, 1 },
 	{ NULL }
 };
 
@@ -151,6 +153,7 @@ struct nfhret {
 #define	ISBGRND	2
 int retrycnt = DEF_RETRY;
 int opflags = 0;
+u_short port_no = 0;
 
 #ifdef KERBEROS
 char inst[INST_SZ];
@@ -289,6 +292,8 @@ main(argc, argv)
 				nfsargsp->flags |= NFSMNT_SOFT;
 			if(altflags & ALTF_TCP)
 				nfsargsp->sotype = SOCK_STREAM;
+			if(altflags & ALTF_PORT)
+				port_no = atoi(strstr(optarg, "port=") + 5);
 			altflags = 0;
 			break;
 		case 'P':
@@ -521,7 +526,8 @@ getnfsargs(spec, nfsargsp)
 	while (retrycnt > 0) {
 		saddr.sin_family = AF_INET;
 		saddr.sin_port = htons(PMAPPORT);
-		if ((tport = pmap_getport(&saddr, RPCPROG_NFS,
+		if ((tport = port_no ? port_no :
+		     pmap_getport(&saddr, RPCPROG_NFS,
 		    NFS_VER2, nfsargsp->sotype == SOCK_STREAM ? IPPROTO_TCP :
 		    IPPROTO_UDP)) == 0) {
 			if ((opflags & ISBGRND) == 0)
