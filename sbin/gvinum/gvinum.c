@@ -155,32 +155,41 @@ gvinum_create(int argc, char **argv)
 	char original[BUFSIZ], tmpfile[20], *token[GV_MAXARGS];
 	char plex[GV_MAXPLEXNAME], volume[GV_MAXVOLNAME];
 
-	snprintf(tmpfile, sizeof(tmpfile), "/tmp/gvinum.XXXXXX");
-
-	if ((fd = mkstemp(tmpfile)) == -1) {
-		warn("temporary file not accessible");
-		return;
-	}
-	if ((tmp = fdopen(fd, "w")) == NULL) {
-		warn("can't open '%s' for writing", tmpfile);
-		return;
-	}
-	printconfig(tmp, "# ");
-	fclose(tmp);
-
-	ed = getenv("EDITOR");
-	if (ed == NULL)
-		ed = _PATH_VI;
-
-	snprintf(commandline, sizeof(commandline), "%s %s", ed, tmpfile);
-	status = system(commandline);
-	if (status != 0) {
-		warn("couldn't exec %s; status: %d", ed, status);
-		return;
-	}
-
-	if ((tmp = fopen(tmpfile, "r")) == NULL) {
-		warn("can't open '%s' for reading", tmpfile);
+	if (argc == 2) {
+		if ((tmp = fopen(argv[1], "r")) == NULL) {
+			warn("can't open '%s' for reading", argv[1]);
+			return;
+		}
+	} else {
+		snprintf(tmpfile, sizeof(tmpfile), "/tmp/gvinum.XXXXXX");
+		
+		if ((fd = mkstemp(tmpfile)) == -1) {
+			warn("temporary file not accessible");
+			return;
+		}
+		if ((tmp = fdopen(fd, "w")) == NULL) {
+			warn("can't open '%s' for writing", tmpfile);
+			return;
+		}
+		printconfig(tmp, "# ");
+		fclose(tmp);
+		
+		ed = getenv("EDITOR");
+		if (ed == NULL)
+			ed = _PATH_VI;
+		
+		snprintf(commandline, sizeof(commandline), "%s %s", ed,
+		    tmpfile);
+		status = system(commandline);
+		if (status != 0) {
+			warn("couldn't exec %s; status: %d", ed, status);
+			return;
+		}
+		
+		if ((tmp = fopen(tmpfile, "r")) == NULL) {
+			warn("can't open '%s' for reading", tmpfile);
+			return;
+		}
 	}
 
 	req = gctl_get_handle();
