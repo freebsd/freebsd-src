@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.23 1997/08/02 14:32:57 bde Exp $
+ *	$Id: tcp_timer.c,v 1.24 1997/09/16 18:36:06 joerg Exp $
  */
 
+#include "opt_compat.h"
 #include "opt_tcpdebug.h"
 
 #ifndef TUBA_INCLUDE
