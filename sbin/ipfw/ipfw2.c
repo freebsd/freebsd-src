@@ -59,7 +59,6 @@ int
 		do_resolv,		/* Would try to resolve all */
 		do_time,		/* Show time stamps */
 		do_quiet,		/* Be quiet in add and flush */
-		do_force,		/* Don't ask for confirmation */
 		do_pipe,		/* this cmd refers to a pipe */
 		do_sort,		/* field to sort results (0 = no) */
 		do_dynamic,		/* display dynamic rules */
@@ -1845,7 +1844,7 @@ help(void)
 {
 	fprintf(stderr,
 "ipfw syntax summary (but please do read the ipfw(8) manpage):\n"
-"ipfw [-acdeftnNpqS] command:"
+"ipfw [-acdeftTnNpqS] <command> where <command is one of:\n"
 "add [num] [set N] [prob x] RULE-BODY\n"
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
@@ -1855,10 +1854,10 @@ help(void)
 "ACTION:	check-state | allow | count | deny | reject | skipto N |\n"
 "		{divert|tee} PORT | forward ADDR | pipe N | queue N\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
-"		[ from IPLIST [ PORT ] to IPLIST [ PORTLIST ] ]\n"
-"IPLIST:	IPADDR[,IPADDR] | { IPADDR or ... or IPADDR }\n"
-"IPADDR:	[not] { any | me | ip | ip/bits | ip:mask | ip/bits{x,y,z} }\n"
-"OPTION_LIST:	OPTION [,OPTION_LIST]\n"
+"		[ from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
+"IPADDR:	[not] { any | me | ip/bits{x,y,z} | IPLIST }\n"
+"IPLIST:	{ ip | ip/bits | ip:mask }[,IPLIST]\n"
+"OPTION_LIST:	OPTION [OPTION_LIST]\n"
 "OPTION:	bridged | {dst-ip|src-ip} ADDR | {dst-port|src-port} LIST |\n"
 "	estab | frag | {gid|uid} N | icmptypes LIST | in | out | ipid LIST |\n"
 "	iplen LIST | ipoptions SPEC | ipprecedence | ipsec | iptos SPEC |\n"
@@ -3542,11 +3541,11 @@ zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
 }
 
 static void
-flush(void)
+flush(int force)
 {
 	int cmd = do_pipe ? IP_DUMMYNET_FLUSH : IP_FW_FLUSH;
 
-	if (!do_force && !do_quiet) { /* need to ask user */
+	if (!force && !do_quiet) { /* need to ask user */
 		int c;
 
 		printf("Are you sure? [yn] ");
@@ -3569,7 +3568,21 @@ flush(void)
 }
 
 /*
- * called with the arguments (excluding program name).
+ * Free a the (locally allocated) copy of command line arguments.
+ */
+static void
+free_args(int ac, char **av)
+{
+	int i;
+
+	for (i=0; i < ac; i++)
+		free(av[i]);
+	free(av);
+}
+
+/*
+ * Called with the arguments (excluding program name).
+ * Returns 0 if successful, 1 if empty command, errx() in case of errors.
  */
 static int
 ipfw_main(int oldac, char **oldav)
@@ -3577,9 +3590,12 @@ ipfw_main(int oldac, char **oldav)
 	int ch, ac, save_ac;
 	char **av, **save_av;
 	int do_acct = 0;		/* Show packet/byte count */
+	int do_force = 0;		/* Don't ask for confirmation */
 
 #define WHITESP		" \t\f\v\n\r"
-	if (oldac == 1) {
+	if (oldac == 0)
+		return 1;
+	else if (oldac == 1) {
 		/*
 		 * If we are called with a single string, try to split it into
 		 * arguments for subsequent parsing.
@@ -3607,7 +3623,7 @@ ipfw_main(int oldac, char **oldav)
 		l = j;			/* the new argument length */
 		arg[j++] = '\0';
 		if (l == 0)		/* empty string! */
-			show_usage();
+			return 1;
 
 		/*
 		 * First, count number of arguments. Because of the previous
@@ -3658,9 +3674,6 @@ ipfw_main(int oldac, char **oldav)
 		}
 	}
 
-	if (ac == 0)
-		show_usage();
-
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
@@ -3692,6 +3705,7 @@ ipfw_main(int oldac, char **oldav)
 			break;
 
 		case 'h': /* help */
+			free_args(save_ac, save_av);
 			help();
 			break;	/* NOTREACHED */
 
@@ -3728,7 +3742,8 @@ ipfw_main(int oldac, char **oldav)
 			break;
 
 		default:
-			show_usage();
+			free_args(save_ac, save_av);
+			return 1;
 		}
 
 	ac -= optind;
@@ -3736,14 +3751,25 @@ ipfw_main(int oldac, char **oldav)
 	NEED1("bad arguments, for usage summary ``ipfw''");
 
 	/*
+	 * An undocumented behaviour of ipfw1 was to allow rule numbers first,
+	 * e.g. "100 add allow ..." instead of "add 100 allow ...".
+	 * In case, swap first and second argument to get the normal form.
+	 */
+	if (ac > 1 && isdigit(*av[0])) {
+		char *p = av[0];
+
+		av[0] = av[1];
+		av[1] = p;
+	}
+
+	/*
 	 * optional: pipe or queue
 	 */
-	if (!strncmp(*av, "pipe", strlen(*av))) {
+	if (!strncmp(*av, "pipe", strlen(*av)))
 		do_pipe = 1;
-		ac--;
-		av++;
-	} else if (!strncmp(*av, "queue", strlen(*av))) {
+	else if (!strncmp(*av, "queue", strlen(*av)))
 		do_pipe = 2;
+	if (do_pipe) {
 		ac--;
 		av++;
 	}
@@ -3756,6 +3782,7 @@ ipfw_main(int oldac, char **oldav)
 	 */
 	if (do_pipe > 0 && ac > 1 && isdigit(*av[0])) {
 		char *p = av[0];
+
 		av[0] = av[1];
 		av[1] = p;
 	}
@@ -3767,7 +3794,7 @@ ipfw_main(int oldac, char **oldav)
 	else if (!strncmp(*av, "delete", strlen(*av)))
 		delete(ac, av);
 	else if (!strncmp(*av, "flush", strlen(*av)))
-		flush();
+		flush(do_force);
 	else if (!strncmp(*av, "zero", strlen(*av)))
 		zero(ac, av, IP_FW_ZERO);
 	else if (!strncmp(*av, "resetlog", strlen(*av)))
@@ -3787,9 +3814,7 @@ ipfw_main(int oldac, char **oldav)
 		errx(EX_USAGE, "bad command `%s'", *av);
 
 	/* Free memory allocated in the argument parsing. */
-	for (ch=0; ch < save_ac; ch++)
-		free(save_av[ch]);
-	free(save_av);
+	free_args(save_ac, save_av);
 	return 0;
 }
 
@@ -3931,7 +3956,9 @@ main(int ac, char *av[])
 
 	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0)
 		ipfw_readfile(ac, av);
-	else
-		ipfw_main(ac-1, av+1);
+	else {
+		if (ipfw_main(ac-1, av+1))
+			show_usage();
+	}
 	return EX_OK;
 }
