@@ -155,10 +155,6 @@ int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
     &tcp_do_rfc1323 , 0, "Enable rfc1323 (high performance TCP) extensions");
 
-int	tcp_do_rfc1644 = 0;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644, CTLFLAG_RW,
-    &tcp_do_rfc1644 , 0, "Enable rfc1644 (TTCP) extensions");
-
 static int	tcp_tcbhashsize = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN,
      &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
@@ -245,8 +241,6 @@ void
 tcp_init()
 {
 	int hashsize = TCBHASHSIZE;
-
-	tcp_ccgen = 1;
 
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
@@ -613,8 +607,6 @@ tcp_newtcpcb(inp)
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
-	if (tcp_do_rfc1644)
-		tp->t_flags |= TF_REQ_CC;
 	tp->sack_enable = tcp_do_sack;
 	tp->t_inpcb = inp;	/* XXX */
 	/*
@@ -1409,7 +1401,6 @@ tcp_mtudisc(inp, errno)
 	int errno;
 {
 	struct tcpcb *tp = intotcpcb(inp);
-	struct rmxp_tao tao;
 	struct socket *so = inp->inp_socket;
 	u_int maxmtu;
 	u_int romtu;
@@ -1417,7 +1408,6 @@ tcp_mtudisc(inp, errno)
 #ifdef INET6
 	int isipv6;
 #endif /* INET6 */
-	bzero(&tao, sizeof(tao));
 
 	if (tp != NULL) {
 #ifdef INET6
@@ -1452,11 +1442,6 @@ tcp_mtudisc(inp, errno)
 #endif /* INET6 */
 			;
 
-		if (tcp_do_rfc1644) {
-			tcp_hc_gettao(&inp->inp_inc, &tao);
-			if (tao.tao_mssopt)
-				mss = min(mss, tao.tao_mssopt);
-		}
 		/*
 		 * XXX - The above conditional probably violates the TCP
 		 * spec.  The problem is that, since we don't know the
@@ -1481,9 +1466,6 @@ tcp_mtudisc(inp, errno)
 		if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
 		    (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP)
 			mss -= TCPOLEN_TSTAMP_APPA;
-		if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
-		    (tp->t_flags & TF_RCVD_CC) == TF_RCVD_CC)
-			mss -= TCPOLEN_CC_APPA;
 #if	(MCLBYTES & (MCLBYTES - 1)) == 0
 		if (mss > MCLBYTES)
 			mss &= ~(MCLBYTES-1);
@@ -1659,8 +1641,6 @@ tcp_twstart(tp)
 	tw->rcv_nxt = tp->rcv_nxt;
 	tw->iss     = tp->iss;
 	tw->irs     = tp->irs;
-	tw->cc_recv = tp->cc_recv;
-	tw->cc_send = tp->cc_send;
 	tw->t_starttime = tp->t_starttime;
 	tw->tw_time = 0;
 
@@ -1669,15 +1649,8 @@ tcp_twstart(tp)
  * be used for fin-wait-2 state also, then we may need
  * a ts_recent from the last segment.
  */
-	/* Shorten TIME_WAIT [RFC-1644, p.28] */
-	if (tp->cc_recv != 0 && (ticks - tp->t_starttime) < tcp_msl) {
-		tw_time = tp->t_rxtcur * TCPTV_TWTRUNC;
-		/* For T/TCP client, force ACK now. */
-		acknow = 1;
-	} else {
-		tw_time = 2 * tcp_msl;
-		acknow = tp->t_flags & TF_ACKNOW;
-	}
+	tw_time = 2 * tcp_msl;
+	acknow = tp->t_flags & TF_ACKNOW;
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
 	ACCEPT_LOCK();
@@ -1803,16 +1776,6 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		optp += TCPOLEN_TSTAMP_APPA;
 	}
 
-	/*
-	 * Send `CC-family' options if needed, and it's not a RST.
-	 */
-	if (tw->cc_recv != 0 && flags == TH_ACK) {
-		u_int32_t *lp = (u_int32_t *)optp;
-
-		*lp++ = htonl(TCPOPT_CC_HDR(TCPOPT_CC));
-		*lp   = htonl(tw->cc_send);
-		optp += TCPOLEN_CC_APPA;
-	}
 	optlen = optp - (u_int8_t *)(th + 1);
 
 	m->m_len = hdrlen + optlen;

@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041102:
+	The size of struct tcpcb has changed again due to the removal
+	of RFC1644 T/TCP.  You have to recompile userland programs that
+	read kmem for tcp sockets directly (netstat, sockstat, etc.)
+
 20041022:
 	The size of struct tcpcb has changed.  You have to recompile
 	userland programs that read kmem for tcp sockets directly
