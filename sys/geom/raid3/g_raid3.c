@@ -1778,14 +1778,6 @@ g_raid3_worker(void *arg)
 			G_RAID3_DEBUG(5, "%s: I'm here 1.", __func__);
 			continue;
 		}
-#if 1
-		if (ep != NULL) {
-			printf("The topology lock is already held.\n");
-#if 0
-			tsleep(&ep, PRIBIO, "r3:hmm", hz * 3);
-#endif
-		}
-#endif
 		/*
 		 * Now I/O requests.
 		 */
@@ -1799,7 +1791,7 @@ g_raid3_worker(void *arg)
 				 * already held? Try again.
 				 */
 				mtx_unlock(&sc->sc_queue_mtx);
-				tsleep(ep, PRIBIO, "r3:hmm1", hz / 5);
+				tsleep(ep, PRIBIO, "r3:top1", hz / 5);
 				continue;
 			}
 			if ((sc->sc_flags &
@@ -1879,7 +1871,7 @@ sleep:
 				 * We have some pending events, don't sleep now.
 				 */
 				G_RAID3_DEBUG(5, "%s: I'm here 7.", __func__);
-				tsleep(ep, PRIBIO, "r3:hmm2", hz / 5);
+				tsleep(ep, PRIBIO, "r3:top2", hz / 5);
 				continue;
 			}
 			mtx_lock(&sc->sc_queue_mtx);
