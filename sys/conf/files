@@ -246,6 +246,7 @@ dev/ppbus/immio.c	optional vpo
 dev/ppbus/if_plip.c	optional plip
 dev/ppbus/lpbb.c	optional lpbb
 dev/ppbus/lpt.c		optional lpt
+dev/ppbus/pcfclock.c	optional pcfclock
 dev/ppbus/ppb_base.c	optional ppbus
 dev/ppbus/ppb_1284.c	optional ppbus
 dev/ppbus/ppb_msq.c	optional ppbus

@@ -434,3 +434,5 @@ INIT_PATH		opt_init_path.h
 ROOTDEVNAME		opt_rootdevname.h
 
 FDC_DEBUG		opt_fdc.h
+PCFCLOCK_VERBOSE	opt_pcfclock.h
+PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
