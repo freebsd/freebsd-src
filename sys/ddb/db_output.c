@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.22 1997/04/01 14:31:06 bde Exp $
+ *	$Id: db_output.c,v 1.23 1998/06/07 17:09:37 dfr Exp $
  */
 
 /*
@@ -58,10 +58,10 @@
  */
 static int	db_output_position = 0;		/* output column */
 static int	db_last_non_space = 0;		/* last non-space character */
-long	db_tab_stop_width = 8;		/* how wide are tab stops? */
+db_expr_t	db_tab_stop_width = 8;		/* how wide are tab stops? */
 #define	NEXT_TAB(i) \
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
-long	db_max_width = 79;		/* output line width */
+db_expr_t	db_max_width = 79;		/* output line width */
 
 static void db_putchar __P((int c, void *arg));
 

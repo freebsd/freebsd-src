@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.c,v 1.14 1997/06/14 11:52:37 bde Exp $
+ *	$Id: db_variables.c,v 1.15 1998/06/07 17:09:38 dfr Exp $
  */
 
 /*
@@ -46,7 +46,7 @@ static int	db_set_variable __P((db_expr_t value));
 
 static struct db_variable db_vars[] = {
 	{ "radix",	&db_radix, FCN_NULL },
-	{ "maxoff",	(long *)&db_maxoff, FCN_NULL },
+	{ "maxoff",	&db_maxoff, FCN_NULL },
 	{ "maxwidth",	&db_max_width, FCN_NULL },
 	{ "tabstops",	&db_tab_stop_width, FCN_NULL },
 };
