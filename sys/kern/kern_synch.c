@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.71 1999/01/08 17:31:10 eivind Exp $
+ * $Id: kern_synch.c,v 1.72 1999/01/10 01:58:24 eivind Exp $
  */
 
 #include "opt_ktrace.h"
@@ -66,6 +66,7 @@ static void rqinit __P((void *));
 SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)
 
 u_char	curpriority;		/* usrpri of curproc */
+int	hogticks;
 int	lbolt;			/* once a second sleep address */
 
 static void	endtsleep __P((void *));
@@ -94,6 +95,7 @@ sysctl_kern_quantum SYSCTL_HANDLER_ARGS
 			error = EINVAL;
 		}
 	}
+	hogticks = 2 * (hz / quantum);
 	return (error);
 }
 
@@ -360,6 +362,7 @@ sleepinit()
 {
 	int i;
 
+	hogticks = 2 * (hz / quantum);
 	for (i = 0; i < TABLESIZE; i++)
 		TAILQ_INIT(&slpque[i]);
 }
@@ -828,6 +831,8 @@ mi_switch()
 		p->p_switchtime = switchtime;
 	else
 		microuptime(&p->p_switchtime);
+	switchticks = ticks;
+
 	splx(x);
 }
 
