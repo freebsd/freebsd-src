@@ -16,9 +16,6 @@
  */
 
 #include "snp.h"
-
-#if NSNP > 0
-
 #include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -519,12 +516,8 @@ snp_drvinit(unused)
 {
 	int	i;
 
-	cdevsw_add(&snp_cdevsw);
-	for ( i = 0 ; i < NSNP ; i++) 
+	for (i = 0; i < NSNP; i++) 
 		make_dev(&snp_cdevsw, i, 0, 0, 0600, "snp%d", i);
 }
 
 SYSINIT(snpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snp_drvinit,NULL)
-
-
-#endif
