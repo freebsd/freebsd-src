@@ -440,7 +440,8 @@ DeflateDispOpts(struct fsm_opt *o)
 }
 
 static void
-DeflateInitOptsOutput(struct fsm_opt *o, const struct ccp_config *cfg)
+DeflateInitOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                      const struct ccp_config *cfg)
 {
   o->hdr.len = 4;
   o->data[0] = ((cfg->deflate.out.winsize - 8) << 4) + 8;
@@ -448,7 +449,8 @@ DeflateInitOptsOutput(struct fsm_opt *o, const struct ccp_config *cfg)
 }
 
 static int
-DeflateSetOptsOutput(struct fsm_opt *o, const struct ccp_config *cfg)
+DeflateSetOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                     const struct ccp_config *cfg)
 {
   if (o->hdr.len != 4 || (o->data[0] & 15) != 8 || o->data[1] != '\0')
     return MODE_REJ;
@@ -462,7 +464,8 @@ DeflateSetOptsOutput(struct fsm_opt *o, const struct ccp_config *cfg)
 }
 
 static int
-DeflateSetOptsInput(struct fsm_opt *o, const struct ccp_config *cfg)
+DeflateSetOptsInput(struct bundle *bundle, struct fsm_opt *o,
+                    const struct ccp_config *cfg)
 {
   int want;
 
@@ -483,7 +486,7 @@ DeflateSetOptsInput(struct fsm_opt *o, const struct ccp_config *cfg)
 }
 
 static void *
-DeflateInitInput(struct fsm_opt *o)
+DeflateInitInput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct deflate_state *state;
 
@@ -506,7 +509,7 @@ DeflateInitInput(struct fsm_opt *o)
 }
 
 static void *
-DeflateInitOutput(struct fsm_opt *o)
+DeflateInitOutput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct deflate_state *state;
 

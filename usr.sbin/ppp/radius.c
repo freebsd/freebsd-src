@@ -28,6 +28,7 @@
  */
 
 #include <sys/param.h>
+
 #include <sys/socket.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -45,6 +46,9 @@
 #endif
 
 #include <errno.h>
+#ifndef NODES
+#include <md5.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -104,6 +108,112 @@ struct mschap2_response {
   u_char reserved[8];
   u_char response[24];
 };
+
+#define	AUTH_LEN	16
+#define	SALT_LEN	2
+#endif
+
+static const char *
+radius_policyname(int policy)
+{
+  switch(policy) {
+  case MPPE_POLICY_ALLOWED:
+    return "Allowed";
+  case MPPE_POLICY_REQUIRED:
+    return "Required";
+  }
+  return NumStr(policy, NULL, 0);
+}
+
+static const char *
+radius_typesname(int types)
+{
+  switch(types) {
+  case MPPE_TYPE_40BIT:
+    return "40 bit";
+  case MPPE_TYPE_128BIT:
+    return "128 bit";
+  case MPPE_TYPE_40BIT|MPPE_TYPE_128BIT:
+    return "40 or 128 bit";
+  }
+  return NumStr(types, NULL, 0);
+}
+
+#ifndef NODES
+static void
+demangle(struct radius *r, const void *mangled, size_t mlen,
+         char **buf, size_t *len)
+{
+  char R[AUTH_LEN];		/* variable names as per rfc2548 */
+  const char *S;
+  u_char b[16];
+  const u_char *A, *C;
+  MD5_CTX Context;
+  int Slen, i, Clen, Ppos;
+  u_char *P;
+
+  if (mlen % 16 != SALT_LEN) {
+    log_Printf(LogWARN, "Cannot interpret mangled data of length %ld\n",
+               (u_long)mlen);
+    *buf = NULL;
+    *len = 0;
+    return;
+  }
+
+  /* We need the RADIUS Request-Authenticator */
+  if (rad_request_authenticator(r->cx.rad, R, sizeof R) != AUTH_LEN) {
+    log_Printf(LogWARN, "Cannot obtain the RADIUS request authenticator\n");
+    *buf = NULL;
+    *len = 0;
+    return;
+  }
+
+  A = (const u_char *)mangled;			/* Salt comes first */
+  C = (const u_char *)mangled + SALT_LEN;	/* Then the ciphertext */
+  Clen = mlen - SALT_LEN;
+  S = rad_server_secret(r->cx.rad);		/* We need the RADIUS secret */
+  Slen = strlen(S);
+  P = alloca(Clen);				/* We derive our plaintext */
+
+  MD5Init(&Context);
+  MD5Update(&Context, S, Slen);
+  MD5Update(&Context, R, AUTH_LEN);
+  MD5Update(&Context, A, SALT_LEN);
+  MD5Final(b, &Context);
+  Ppos = 0;
+
+  while (Clen) {
+    Clen -= 16;
+
+    for (i = 0; i < 16; i++)
+      P[Ppos++] = C[i] ^ b[i];
+
+    if (Clen) {
+      MD5Init(&Context);
+      MD5Update(&Context, S, Slen);
+      MD5Update(&Context, C, 16);
+      MD5Final(b, &Context);
+    }
+
+    C += 16;
+  }
+
+  /*
+   * The resulting plain text consists of a one-byte length, the text and
+   * maybe some padding.
+   */
+  *len = *P;
+  if (*len > mlen - 1) {
+    log_Printf(LogWARN, "Mangled data seems to be garbage\n");
+    *buf = NULL;
+    *len = 0;
+    return;
+  }
+
+  *buf = malloc(*len);
+  memcpy(*buf, P + 1, *len);
+log_Printf(LogWARN, "demangled %d bytes\n", *len);
+}
 #endif
 
 /*
@@ -304,6 +414,7 @@ radius_Process(struct radius *r, int got)
 	switch (vendor) {
           case RAD_VENDOR_MICROSOFT:
             switch (res) {
+#ifndef NODES
               case RAD_MICROSOFT_MS_CHAP_ERROR:
                 free(r->errstr);
                 if ((r->errstr = rad_cvt_string(data, len)) == NULL) {
@@ -328,6 +439,30 @@ radius_Process(struct radius *r, int got)
                 log_Printf(LogPHASE, " MS-CHAP2-Success \"%s\"\n", r->msrepstr);
                 break;
  
+              case RAD_MICROSOFT_MS_MPPE_ENCRYPTION_POLICY:
+                r->mppe.policy = rad_cvt_int(data);
+                log_Printf(LogPHASE, " MS-MPPE-Encryption-Policy %s\n",
+                           radius_policyname(r->mppe.policy));
+                break;
+
+              case RAD_MICROSOFT_MS_MPPE_ENCRYPTION_TYPES:
+                r->mppe.types = rad_cvt_int(data);
+                log_Printf(LogPHASE, " MS-MPPE-Encryption-Types %s\n",
+                           radius_typesname(r->mppe.types));
+                break;
+
+              case RAD_MICROSOFT_MS_MPPE_RECV_KEY:
+                free(r->mppe.recvkey);
+		demangle(r, data, len, &r->mppe.recvkey, &r->mppe.recvkeylen);
+                log_Printf(LogPHASE, " MS-MPPE-Recv-Key ********\n");
+                break;
+
+              case RAD_MICROSOFT_MS_MPPE_SEND_KEY:
+		demangle(r, data, len, &r->mppe.sendkey, &r->mppe.sendkeylen);
+                log_Printf(LogPHASE, " MS-MPPE-Send-Key ********\n");
+                break;
+#endif
+
               default:
                 log_Printf(LogDEBUG, "Dropping MICROSOFT vendor specific "
                            "RADIUS attribute %d\n", res);
@@ -464,6 +599,12 @@ radius_Init(struct radius *r)
   r->msrepstr = NULL;
   r->repstr = NULL;
   r->errstr = NULL;
+  r->mppe.policy = 0;
+  r->mppe.types = 0;
+  r->mppe.recvkey = NULL;
+  r->mppe.recvkeylen = 0;
+  r->mppe.sendkey = NULL;
+  r->mppe.sendkeylen = 0;
   *r->cfg.file = '\0';;
   log_Printf(LogDEBUG, "Radius: radius_Init\n");
 }
@@ -486,6 +627,12 @@ radius_Destroy(struct radius *r)
   r->repstr = NULL;
   free(r->errstr);
   r->errstr = NULL;
+  free(r->mppe.recvkey);
+  r->mppe.recvkey = NULL;
+  r->mppe.recvkeylen = 0;
+  free(r->mppe.sendkey);
+  r->mppe.sendkey = NULL;
+  r->mppe.sendkeylen = 0;
   if (r->cx.fd != -1) {
     r->cx.fd = -1;
     rad_close(r->cx.rad);
@@ -550,8 +697,8 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   char hostname[MAXHOSTNAMELEN];
 #if 0
   struct hostent *hp;
-#endif
   struct in_addr hostaddr;
+#endif
 #ifndef NODES
   struct mschap_response msresp;
   struct mschap2_response msresp2;
@@ -723,8 +870,8 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   char hostname[MAXHOSTNAMELEN];
 #if 0
   struct hostent *hp;
-#endif
   struct in_addr hostaddr;
+#endif
 
   if (!*r->cfg.file)
     return;
@@ -736,7 +883,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
      */
     return;
 
-  radius_Destroy(r);
+  timer_Stop(&r->cx.timer);
 
   if ((r->cx.rad = rad_acct_open()) == NULL) {
     log_Printf(LogERROR, "rad_auth_open: %s\n", strerror(errno));
@@ -865,6 +1012,14 @@ radius_Show(struct radius *r, struct prompt *p)
     prompt_Printf(p, "               MTU: %lu\n", r->mtu);
     prompt_Printf(p, "                VJ: %sabled\n", r->vj ? "en" : "dis");
     prompt_Printf(p, "           Message: %s\n", r->repstr ? r->repstr : "");
+    prompt_Printf(p, "   MPPE Enc Policy: %s\n",
+                  radius_policyname(r->mppe.policy));
+    prompt_Printf(p, "    MPPE Enc Types: %s\n",
+                  radius_typesname(r->mppe.types));
+    prompt_Printf(p, "     MPPE Recv Key: %seceived\n",
+                  r->mppe.recvkey ? "R" : "Not r");
+    prompt_Printf(p, "     MPPE Send Key: %seceived\n",
+                  r->mppe.sendkey ? "R" : "Not r");
     prompt_Printf(p, " MS-CHAP2-Response: %s\n",
                   r->msrepstr ? r->msrepstr : "");
     prompt_Printf(p, "     Error Message: %s\n", r->errstr ? r->errstr : "");
