@@ -32,7 +32,7 @@ RFC951, RFC1532, and RFC1533.
 .Nm Bootpgw
 implements a simple BOOTP gateway which can be used to forward
 requests and responses between clients on one subnet and a
-BOOTP server (i.e.
+BOOTP server (i.e.\&
 .Nm )
 on another subnet. While either
 .Nm
@@ -132,7 +132,7 @@ useful when client boot files are specified as relative pathnames, and
 .Nm
 needs to use the same current directory as the TFTP server
 (typically
-.Pa /tftpboot Ns ).
+.Pa /tftpboot ) .
 This option is not recognized by
 .Nm bootpgw .
 .It Fl i
@@ -189,7 +189,7 @@ the client has been waiting for at least three seconds.
 When
 .Nm
 is started it reads a configuration file, (normally
-.Pa /etc/bootptab Ns )
+.Pa /etc/bootptab )
 that initializes the internal database of known clients and client
 options.  This internal database is reloaded
 from the configuration file when
@@ -221,7 +221,7 @@ During initialization, both programs
 determine the UDP port numbers to be used by calling
 .Xr getservbyname 3
 (which normally uses
-.Pa /etc/services Ns ).
+.Pa /etc/services ) .
 Two service names (and port numbers) are used:
 .Pp
 .Dl bootps BOOTP Server listening port

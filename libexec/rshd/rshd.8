@@ -233,15 +233,13 @@ and is not preceded by a flag byte.
 .Xr services 5 ,
 .Xr named 8 ,
 .Xr rlogind 8 ,
-.Xr syslogd 8 .
+.Xr syslogd 8
 .Sh FILES
 .Bl -tag -width /etc/hosts -compact
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
 .It Pa /etc/login.conf
-.Sm off
-.It Pa Ev $HOME /.rhosts
-.Sm on
+.It Ev $HOME Ns Pa /.rhosts
 .It Pa /var/run/nologin
 .El
 .Sh BUGS
