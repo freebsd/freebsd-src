@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.7 1994/11/29 02:48:17 ache Exp $
+# $Id: Makefile,v 1.8 1994/12/02 06:39:03 ache Exp $
 
 LIB=    ncurses
 SRCS=   lib_kernel.c lib_pad.c lib_bkgd.c \
@@ -21,7 +21,7 @@ CLEANFILES+= lib_keyname.c keys.tries
 beforedepend: keys.tries
 
 beforeinstall:
-	@cd ${.CURDIR}; for i in unctrl.h termcap.h; do \
+	@cd ${.CURDIR}; for i in unctrl.h; do \
 	  cmp -s $$i ${DESTDIR}/usr/include/$$i || \
 	  $(INSTALL) $(COPY) -m 444 -o $(BINOWN) -g $(BINGRP) $$i \
 	  ${DESTDIR}/usr/include; done
