@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mtio.4	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: mtio.4,v 1.3 1997/03/07 02:49:54 jmg Exp $
 .\"
 .Dd February 11, 1996
 .Dt MTIO 4 i386
@@ -46,10 +46,10 @@ magtape interface
 .Sh DESCRIPTION
 The special files
 named
-.Pa /dev/[nr]st*
+.Pa /dev/[nr]sa*
 refer to SCSI tape drives,
 which may be attached to the system.
-.Pa /dev/[nr]st*.ctl
+.Pa /dev/[nr]sa*.ctl
 are control devices that can be used to issue ioctls to the SCSI
 tape driver to set parameters that are required to last beyond the
 unmounting of a tape.
@@ -64,7 +64,7 @@ the name of the no-rewind devices.
 .Pp
 Tapes can be written with either fixed length records or variable length
 records.  See
-.Xr st 4
+.Xr sa 4
 for more information.  Two end-of-file markers mark the end of a tape, and
 one end-of-file marker marks the end of a tape file.
 If the tape is not to be rewound it is positioned with the
@@ -122,6 +122,31 @@ struct mtop {
 #define MTEOD		13	/* Space to EOM */
 #define MTCOMP		14	/* select compression mode 0=off, 1=def */
 #define MTRETENS	15	/* re-tension tape */
+#define MTWSS		16	/* write setmark(s) */
+#define MTFSS		17	/* forward space setmark */
+#define MTBSS		18	/* backward space setmark */
+
+#define MT_COMP_ENABLE		0xffffffff
+#define MT_COMP_DISABLED	0xfffffffe
+#define MT_COMP_UNSUPP		0xfffffffd
+
+/*
+ * Values in mt_dsreg that say what the device is doing
+ */
+#define	MTIO_DSREG_NIL	0	/* Unknown */
+#define	MTIO_DSREG_REST	1	/* Doing Nothing */
+#define	MTIO_DSREG_RBSY	2	/* Communicating with tape (but no motion) */
+#define	MTIO_DSREG_WR	20	/* Writing */
+#define	MTIO_DSREG_FMK	21	/* Writing Filemarks */
+#define	MTIO_DSREG_ZER	22	/* Erasing */
+#define	MTIO_DSREG_RD	30	/* Reading */
+#define	MTIO_DSREG_FWD	40	/* Spacing Forward */
+#define	MTIO_DSREG_REV	41	/* Spacing Reverse */
+#define	MTIO_DSREG_POS	42	/* Hardware Positioning (direction unknown) */
+#define	MTIO_DSREG_REW	43	/* Rewinding */
+#define	MTIO_DSREG_TEN	44	/* Retensioning */
+#define	MTIO_DSREG_UNL	45	/* Unloading */
+#define	MTIO_DSREG_LD	46	/* Unloading */
 
 #endif
 
@@ -151,12 +176,44 @@ struct mtget {
 	u_char	mt_comp1;	/* compression type for mode 1 */
 	u_char	mt_comp2;	/* compression type for mode 2 */
 	u_char	mt_comp3;	/* compression type for mode 3 */
+/* end not yet implemented */
 #endif
 	daddr_t	mt_fileno;	/* file number of current position */
 	daddr_t	mt_blkno;	/* block number of current position */
-/* end not yet implemented */
 };
 
+/* structure for MTIOCERRSTAT - tape get error status command */
+/* really only supported for SCSI tapes right now */
+struct scsi_tape_errors {
+	/*
+	 * These are latched from the last command that had a SCSI
+	 * Check Condition noted for these operations. The act
+	 * of issuing an MTIOCERRSTAT unlatches and clears them.
+	 */
+	u_int8_t io_sense[32];	/* Last Sense Data For Data I/O */
+	u_int32_t io_resid;	/* residual count from last Data I/O */
+	u_int8_t io_cdb[16];	/* Command that Caused the Last Data Sense */
+	u_int8_t ctl_sense[32];	/* Last Sense Data For Control I/O */
+	u_int32_t ctl_resid;	/* residual count from last Control I/O */
+	u_int8_t ctl_cdb[16];	/* Command that Caused the Last Control Sense */
+	/*
+	 * These are the read and write cumulative error counters.
+	 * (how to reset cumulative error counters is not yet defined).
+	 * (not implemented as yet but space is being reserved for them)
+	 */
+	struct {
+		u_int32_t retries;	/* total # retries performed */
+		u_int32_t corrected;	/* total # corrections performed */
+		u_int32_t processed;	/* total # corrections succssful */
+		u_int32_t failures;	/* total # corrections/retries failed */
+		u_int64_t nbytes;	/* total # bytes processed */
+	} wterr, rderr;
+};
+	
+union mterrstat {
+	struct scsi_tape_errors scsi_errstat;
+	char _reserved_padding[256];
+};
 /*
  * Constants for mt_type byte.  These are the same
  * for controllers compatible with the types listed.
@@ -185,11 +242,23 @@ struct mtget {
 /* mag tape io control commands */
 #define	MTIOCTOP	_IOW('m', 1, struct mtop)	/* do a mag tape op */
 #define	MTIOCGET	_IOR('m', 2, struct mtget)	/* get tape status */
+/* these two do not appear to be used anywhere */
 #define MTIOCIEOT	_IO('m', 3)			/* ignore EOT error */
 #define MTIOCEEOT	_IO('m', 4)			/* enable EOT error */
+/*
+ * When more SCSI-3 SSC (streaming device) devices are out there
+ * that support the full 32 byte type 2 structure, we'll have to
+ * rethink these ioctls to support all the entities they haul into
+ * the picture (64 bit blocks, logical file record numbers, etc..).
+ */
+#define	MTIOCRDSPOS	_IOR('m', 5, u_int32_t)	/* get logical blk addr */
+#define	MTIOCRDHPOS	_IOR('m', 6, u_int32_t)	/* get hardware blk addr */
+#define	MTIOCSLOCATE	_IOW('m', 5, u_int32_t)	/* seek to logical blk addr */
+#define	MTIOCHLOCATE	_IOW('m', 6, u_int32_t)	/* seek to hardware blk addr */
+#define	MTIOCERRSTAT	_IOR('m', 7, union mterrstat)	/* get tape errors */
 
 #ifndef KERNEL
-#define	DEFTAPE	"/dev/nrst0"
+#define	DEFTAPE	"/dev/nrsa0"
 #endif
 
 #ifdef	KERNEL
@@ -209,8 +278,8 @@ struct mtget {
 .Ed
 .Pp
 .Sh FILES
-.Bl -tag -width /dev/[nr]st* -compact
-.It Pa /dev/[nr]st*
+.Bl -tag -width /dev/[nr]sa* -compact
+.It Pa /dev/[nr]sa*
 .El
 .Sh SEE ALSO
 .Xr mt 1 ,
