@@ -179,11 +179,7 @@ link_elf_init(void* arg)
     linker_add_class(&link_elf_class);
 
 #ifdef __ELF__
-#ifndef __ia64__
     dp = (Elf_Dyn*) &_DYNAMIC;
-#else
-    dp = 0;
-#endif
     modname = NULL;
     modptr = preload_search_by_type("elf kernel");
     if (modptr)
