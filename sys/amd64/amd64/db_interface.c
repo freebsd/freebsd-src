@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.13 1995/04/08 21:31:53 joerg Exp $
+ *	$Id: db_interface.c,v 1.14 1995/05/30 07:59:22 rgrimes Exp $
  */
 
 /*
@@ -81,9 +81,22 @@ kdb_trap(type, code, regs)
 	    return(0);
 #endif
 
-	/* XXX: do not block forever while the console is in graphics mode */
-	if(cons_unavail)
-		return 0;
+	/*
+	 * XXX try to do nothing if the console is in graphics mode.
+	 * Handle trace traps (and hardware breakpoints...) by ignoring
+	 * them except for forgetting about them.  Return 0 for other
+	 * traps to say that we haven't done anything.  The trap handler
+	 * will usually panic.  We should handle breakpoint traps for
+	 * our breakpoints by disarming our breakpoints and fixing up
+	 * %eip.
+	 */
+	if (cons_unavail) {
+		if (type = T_TRCTRAP) {
+			regs->tf_eflags &= ~PSL_T;
+			return (1);
+		}
+		return (0);
+	}
 
 	switch (type) {
 	    case T_BPTFLT:	/* breakpoint */
@@ -246,8 +259,12 @@ Debugger(msg)
 {
 	static volatile u_char in_Debugger;
 
-	/* XXX: do not block forever while the console is in graphics mode */
-	if(cons_unavail)
+	/*
+	 * XXX do nothing if the console is in graphics mode.  This is
+	 * OK if the call is for the debugger hotkey but not if the call
+	 * is a weak form of panicing.
+	 */
+	if (cons_unavail)
 		return;
 
 	if (!in_Debugger) {
