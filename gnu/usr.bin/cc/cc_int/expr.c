@@ -180,7 +180,7 @@ void bc_load_localaddr		PROTO((rtx));
 void bc_load_parmaddr		PROTO((rtx));
 static void preexpand_calls	PROTO((tree));
 static void do_jump_by_parts_greater PROTO((tree, int, rtx, rtx));
-static void do_jump_by_parts_greater_rtx PROTO((enum machine_mode, int, rtx, rtx, rtx, rtx));
+void do_jump_by_parts_greater_rtx PROTO((enum machine_mode, int, rtx, rtx, rtx, rtx));
 static void do_jump_by_parts_equality PROTO((tree, rtx, rtx));
 static void do_jump_by_parts_equality_rtx PROTO((rtx, rtx, rtx));
 static void do_jump_for_compare	PROTO((rtx, rtx, rtx));
@@ -916,6 +916,12 @@ convert_move (to, from, unsignedp)
       /* No special multiword conversion insn; do it by hand.  */
       start_sequence ();
 
+      /* Since we will turn this into a no conflict block, we must ensure
+	 that the source does not overlap the target.  */
+
+      if (reg_overlap_mentioned_p (to, from))
+	from = force_reg (from_mode, from);
+
       /* Get a copy of FROM widened to a word, if necessary.  */
       if (GET_MODE_BITSIZE (from_mode) < BITS_PER_WORD)
 	lowpart_mode = word_mode;
@@ -1630,7 +1636,10 @@ emit_block_move (x, y, size, align)
 		 here because if SIZE is less than the mode mask, as it is
 		 returned by the macro, it will definitely be less than the
 		 actual mode mask.  */
-	      && (unsigned HOST_WIDE_INT) INTVAL (size) <= GET_MODE_MASK (mode)
+	      && ((GET_CODE (size) == CONST_INT
+		   && ((unsigned HOST_WIDE_INT) INTVAL (size)
+		       <= GET_MODE_MASK (mode)))
+		  || GET_MODE_BITSIZE (mode) >= BITS_PER_WORD)
 	      && (insn_operand_predicate[(int) code][0] == 0
 		  || (*insn_operand_predicate[(int) code][0]) (x, BLKmode))
 	      && (insn_operand_predicate[(int) code][1] == 0
@@ -1957,6 +1966,17 @@ emit_move_insn_1 (x, y)
       rtx last_insn = 0;
       rtx insns;
       
+#ifdef PUSH_ROUNDING
+
+      /* If X is a push on the stack, do the push now and replace
+	 X with a reference to the stack pointer.  */
+      if (push_operand (x, GET_MODE (x)))
+	{
+	  anti_adjust_stack (GEN_INT (GET_MODE_SIZE (GET_MODE (x))));
+	  x = change_address (x, VOIDmode, stack_pointer_rtx);
+	}
+#endif
+			     
       for (i = 0;
 	   i < (GET_MODE_SIZE (mode)  + (UNITS_PER_WORD - 1)) / UNITS_PER_WORD;
 	   i++)
@@ -5216,70 +5236,8 @@ expand_expr (exp, target, tmode, modifier)
       if (TREE_UNSIGNED (type))
 	return op0;
 
-      /* First try to do it with a special abs instruction.  */
-      temp = expand_unop (mode, abs_optab, op0, target, 0);
-      if (temp != 0)
-	return temp;
-
-      /* If this machine has expensive jumps, we can do integer absolute
-	 value of X as (((signed) x >> (W-1)) ^ x) - ((signed) x >> (W-1)),
-	 where W is the width of MODE.  */
-
-      if (GET_MODE_CLASS (mode) == MODE_INT && BRANCH_COST >= 2)
-	{
-	  rtx extended = expand_shift (RSHIFT_EXPR, mode, op0,
-				       size_int (GET_MODE_BITSIZE (mode) - 1),
-				       NULL_RTX, 0);
-
-	  temp = expand_binop (mode, xor_optab, extended, op0, target, 0,
-			       OPTAB_LIB_WIDEN);
-	  if (temp != 0)
-	    temp = expand_binop (mode, sub_optab, temp, extended, target, 0,
-				 OPTAB_LIB_WIDEN);
-
-	  if (temp != 0)
-	    return temp;
-	}
-
-      /* If that does not win, use conditional jump and negate.  */
-      target = original_target;
-      op1 = gen_label_rtx ();
-      if (target == 0 || ! safe_from_p (target, TREE_OPERAND (exp, 0))
-	  || GET_MODE (target) != mode
-	  || (GET_CODE (target) == MEM && MEM_VOLATILE_P (target))
-	  || (GET_CODE (target) == REG
-	      && REGNO (target) < FIRST_PSEUDO_REGISTER))
-	target = gen_reg_rtx (mode);
-
-      emit_move_insn (target, op0);
-      NO_DEFER_POP;
-
-      /* If this mode is an integer too wide to compare properly,
-	 compare word by word.  Rely on CSE to optimize constant cases.  */
-      if (GET_MODE_CLASS (mode) == MODE_INT && ! can_compare_p (mode))
-	do_jump_by_parts_greater_rtx (mode, 0, target, const0_rtx, 
-				      NULL_RTX, op1);
-      else
-	{
-	  temp = compare_from_rtx (target, CONST0_RTX (mode), GE, 0, mode,
-				   NULL_RTX, 0);
-	  if (temp == const1_rtx)
-	    return target;
-	  else if (temp != const0_rtx)
-	    {
-	      if (bcc_gen_fctn[(int) GET_CODE (temp)] != 0)
-		emit_jump_insn ((*bcc_gen_fctn[(int) GET_CODE (temp)]) (op1));
-	      else
-		abort ();
-	    }
-	}
-
-      op0 = expand_unop (mode, neg_optab, target, target, 0);
-      if (op0 != target)
-	emit_move_insn (target, op0);
-      emit_label (op1);
-      OK_DEFER_POP;
-      return target;
+      return expand_abs (mode, op0, target, unsignedp,
+			 safe_from_p (target, TREE_OPERAND (exp, 0)));
 
     case MAX_EXPR:
     case MIN_EXPR:
@@ -9026,7 +8984,7 @@ do_jump_by_parts_greater (exp, swap, if_false_label, if_true_label)
    UNSIGNEDP says to do unsigned comparison.
    Jump to IF_TRUE_LABEL if OP0 is greater, IF_FALSE_LABEL otherwise.  */
 
-static void
+void
 do_jump_by_parts_greater_rtx (mode, unsignedp, op0, op1, if_false_label, if_true_label)
      enum machine_mode mode;
      int unsignedp;

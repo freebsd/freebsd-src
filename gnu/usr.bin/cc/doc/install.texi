@@ -536,8 +536,8 @@ Here are the possible CPU types:
 @c gmicro, alliant, spur and tahoe omitted since they don't work.
 1750a, a29k, alpha, arm, c@var{n}, clipper, dsp16xx, elxsi, h8300,
 hppa1.0, hppa1.1, i370, i386, i486, i860, i960, m68000, m68k, m88k,
-mips, ns32k, pyramid, romp, rs6000, sh, sparc, sparclite, sparc64, vax,
-we32k.
+mips, ns32k, powerpc, pyramid, romp, rs6000, sh, sparc, sparclite,
+sparc64, vax, we32k.
 @end quotation
 
 Here are the recognized company names.  As you can see, customary
@@ -1228,18 +1228,21 @@ These errors are minor differences in some floating-point constants and
 can be safely ignored; the stage 3 compiler is correct.
 
 @item rs6000-*-aix
-If you are running AIX version 3.2.5 and have XLC version 1.3.0.0, you
-must obtain XLC 1.3.0.1 by requesting PTF 421749 from IBM.  Likewise,
-XLC-1.3.0.19 cannot correctly compile GNU CC; you must obtain
-XLC-1.3.0.24 by requesting PTF 432238 from IBM.  If you are using an
-older version of AIX you may have an old version of the IBM assembler,
-which cannot correctly handle debugging directives.  See the file
-@file{README.RS6000} for more details on both of these problems.
+@itemx powerpc-*-aix
+Various early versions of each release of the IBM XLC compiler will not
+bootstrap GNU CC.  Symptoms include differences between the stage2 and
+stage3 object files, and errors when compiling @file{libgcc.a} or
+@file{enquire}.  Known problematic releases include: xlc-1.2.1.8,
+xlc-1.3.0.0 (distributed with AIX 3.2.5), and xlc-1.3.0.19.  Both
+xlc-1.2.1.28 and xlc-1.3.0.24 (PTF 432238) are known to produce working
+versions of GNU CC, but most other recent releases correctly bootstrap
+GNU CC.  Also, releases of AIX prior to AIX 3.2.4 include a version of
+the IBM assembler which does not accept debugging directives: assembler
+updates are available as PTFs.  See the file @file{README.RS6000} for
+more details on both of these problems.
 
-The PowerPC and POWER2 architectures are now supported, but have not
-been very extensively tested due to lack of appropriate systems.  Only
-AIX is supported on the PowerPC.  GNU CC does not yet support the 64-bit
-PowerPC instructions.
+Only AIX is supported on the PowerPC.  GNU CC does not yet support the
+64-bit PowerPC instructions.
 
 Objective C does not work on this architecture.
 

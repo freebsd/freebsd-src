@@ -1342,6 +1342,7 @@ build_m_component_ref (datum, component)
 
   if (TREE_CODE (objtype) == REFERENCE_TYPE)
     objtype = TREE_TYPE (objtype);
+  objtype = TYPE_MAIN_VARIANT (objtype);
 
   if (! IS_AGGR_TYPE (objtype))
     {

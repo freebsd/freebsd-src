@@ -525,13 +525,6 @@ convert_harshness (type, parmtype, parm)
       else
 	penalty = 2;
 
-      if (TREE_UNSIGNED (ttl) ^ TREE_UNSIGNED (intype))
-	{
-	  ttl = unsigned_type (ttl);
-	  intype = unsigned_type (intype);
-	  penalty += 2;
-	}
-
       ttr = intype;
 
       /* If the initializer is not an lvalue, then it does not
@@ -549,6 +542,13 @@ convert_harshness (type, parmtype, parm)
 	    h.code |= TRIVIAL_CODE;
 	  h.distance = 0;
 	  return h;
+	}
+
+      if (TREE_UNSIGNED (ttl) ^ TREE_UNSIGNED (intype))
+	{
+	  ttl = unsigned_type (ttl);
+	  ttr = intype = unsigned_type (intype);
+	  penalty += 2;
 	}
 
       if (ttl == ttr)
