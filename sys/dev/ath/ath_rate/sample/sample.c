@@ -509,7 +509,7 @@ ath_rate_tx_complete(struct ath_softc *sc,
 		     struct ath_node *an, const struct ath_desc *ds)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
-	const struct ar5212_desc *ads = (const struct ar5212_desc *)ds;
+	const struct ar5212_desc *ads = (const struct ar5212_desc *)&ds->ds_ctl0;
 	int final_rate, short_tries, long_tries, frame_size;
 	int ndx = -1;
 
