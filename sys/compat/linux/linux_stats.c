@@ -37,6 +37,7 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
@@ -44,93 +45,41 @@
 #include <machine/../linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
 
-#include <sys/sysctl.h>
-
-struct linux_newstat {
-#ifdef __alpha__
-	u_int	stat_dev;
-	u_int	stat_ino;
-	u_int	stat_mode;
-	u_int	stat_nlink;
-	u_int	stat_uid;
-	u_int	stat_gid;
-	u_int	stat_rdev;
-	long	stat_size;
-	u_long	stat_atime;
-	u_long	stat_mtime;
-	u_long	stat_ctime;
-	u_int	stat_blksize;
-	int		stat_blocks;
-	u_int	stat_flags;
-	u_int	stat_gen;
-#else
-	u_short	stat_dev;
-	u_short	__pad1;
-	u_long	stat_ino;
-	u_short	stat_mode;
-	u_short	stat_nlink;
-	u_short	stat_uid;
-	u_short	stat_gid;
-	u_short	stat_rdev;
-	u_short	__pad2;
-	u_long	stat_size;
-	u_long	stat_blksize;
-	u_long	stat_blocks;
-	u_long	stat_atime;
-	u_long	__unused1;
-	u_long	stat_mtime;
-	u_long	__unused2;
-	u_long	stat_ctime;
-	u_long	__unused3;
-	u_long	__unused4;
-	u_long	__unused5;
-#endif
-};
-
-
-struct linux_ustat 
-{
-	int	f_tfree;
-	u_long	f_tinode;
-	char	f_fname[6];
-	char	f_fpack[6];
-};
-
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
-	struct linux_newstat tbuf;
+	struct l_newstat tbuf;
 	struct cdevsw *cdevsw;
 	dev_t dev;
 
-	tbuf.stat_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
-	tbuf.stat_ino = buf->st_ino;
-	tbuf.stat_mode = buf->st_mode;
-	tbuf.stat_nlink = buf->st_nlink;
-	tbuf.stat_uid = buf->st_uid;
-	tbuf.stat_gid = buf->st_gid;
-	tbuf.stat_rdev = buf->st_rdev;
-	tbuf.stat_size = buf->st_size;
-	tbuf.stat_atime = buf->st_atime;
-	tbuf.stat_mtime = buf->st_mtime;
-	tbuf.stat_ctime = buf->st_ctime;
-	tbuf.stat_blksize = buf->st_blksize;
-	tbuf.stat_blocks = buf->st_blocks;
+	tbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
+	tbuf.st_ino = buf->st_ino;
+	tbuf.st_mode = buf->st_mode;
+	tbuf.st_nlink = buf->st_nlink;
+	tbuf.st_uid = buf->st_uid;
+	tbuf.st_gid = buf->st_gid;
+	tbuf.st_rdev = buf->st_rdev;
+	tbuf.st_size = buf->st_size;
+	tbuf.st_atime = buf->st_atime;
+	tbuf.st_mtime = buf->st_mtime;
+	tbuf.st_ctime = buf->st_ctime;
+	tbuf.st_blksize = buf->st_blksize;
+	tbuf.st_blocks = buf->st_blocks;
 
 	/* Lie about disk drives which are character devices
 	 * in FreeBSD but block devices under Linux.
 	 */
-	if (S_ISCHR(tbuf.stat_mode) &&
+	if (S_ISCHR(tbuf.st_mode) &&
 	    (dev = udev2dev(buf->st_rdev, 0)) != NODEV) {
 		cdevsw = devsw(dev);
 		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
-			tbuf.stat_mode &= ~S_IFMT;
-			tbuf.stat_mode |= S_IFBLK;
+			tbuf.st_mode &= ~S_IFMT;
+			tbuf.st_mode |= S_IFBLK;
 
 			/* XXX this may not be quite right */
 			/* Map major number to 0 */
-			tbuf.stat_dev = uminor(buf->st_dev) & 0xf;
-			tbuf.stat_rdev = buf->st_rdev & 0xff;
+			tbuf.st_dev = uminor(buf->st_dev) & 0xf;
+			tbuf.st_rdev = buf->st_rdev & 0xff;
 		}
 	}
 
@@ -154,7 +103,7 @@ linux_newstat(struct proc *p, struct linux_newstat_args *args)
 #endif
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	       args->path, p);
+	    args->path, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
@@ -168,42 +117,35 @@ linux_newstat(struct proc *p, struct linux_newstat_args *args)
 	return (newstat_copyout(&buf, args->buf));
 }
 
-/*
- * Get file status; this version does not follow links.
- */
 int
-linux_newlstat(p, uap)
-	struct proc *p;
-	struct linux_newlstat_args *uap;
+linux_newlstat(struct proc *p, struct linux_newlstat_args *args)
 {
 	int error;
-	struct vnode *vp;
 	struct stat sb;
 	struct nameidata nd;
 	caddr_t sg;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, uap->path);
+	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
 	if (ldebug(newlstat))
-		printf(ARGS(newlstat, "%s, *"), uap->path);
+		printf(ARGS(newlstat, "%s, *"), args->path);
 #endif
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	       uap->path, p);
+	    args->path, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF); 
 
-	vp = nd.ni_vp;
-	error = vn_stat(vp, &sb, p);
-	vput(vp);
+	error = vn_stat(nd.ni_vp, &sb, p);
+	vput(nd.ni_vp);
 	if (error)
 		return (error);
 
-	return (newstat_copyout(&sb, uap->buf));
+	return (newstat_copyout(&sb, args->buf));
 }
 
 int
@@ -214,13 +156,12 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args)
 	struct stat buf;
 	int error;
 
-	fdp = p->p_fd;
-
 #ifdef DEBUG
 	if (ldebug(newfstat))
 		printf(ARGS(newfstat, "%d, *"), args->fd);
 #endif
 
+	fdp = p->p_fd;
 	if ((unsigned)args->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[args->fd]) == NULL)
 		return (EBADF);
@@ -232,21 +173,22 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args)
 	return (error);
 }
 
-struct linux_statfs_buf {
-	int ftype;
-	int fbsize;
-	int fblocks;
-	int fbfree;
-	int fbavail;
-	int ffiles;
-	int fffree;
-	linux_fsid_t ffsid;
-	int fnamelen;
-	int fspare[6];
+/* XXX - All fields of type l_int are defined as l_long on i386 */
+struct l_statfs {
+	l_int		f_type;
+	l_int		f_bsize;
+	l_int		f_blocks;
+	l_int		f_bfree;
+	l_int		f_bavail;
+	l_int		f_files;
+	l_int		f_ffree;
+	l_fsid_t	f_fsid;
+	l_int		f_namelen;
+	l_int		f_spare[6];
 };
 
 #ifndef VT_NWFS
-#define	VT_NWFS	VT_TFS	/* XXX - bug compatibility with sys/fs/nwfs/nwfs_node.h */
+#define	VT_NWFS	VT_TFS	/* XXX - bug compat. with sys/fs/nwfs/nwfs_node.h */
 #endif
 
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L
@@ -299,7 +241,7 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args)
 	struct nameidata *ndp;
 	struct statfs *bsd_statfs;
 	struct nameidata nd;
-	struct linux_statfs_buf linux_statfs_buf;
+	struct l_statfs linux_statfs;
 	int error;
 	caddr_t sg;
 
@@ -323,18 +265,18 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args)
 	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs_buf.ftype = bsd_to_linux_ftype(bsd_statfs->f_type);
-	linux_statfs_buf.fbsize = bsd_statfs->f_bsize;
-	linux_statfs_buf.fblocks = bsd_statfs->f_blocks;
-	linux_statfs_buf.fbfree = bsd_statfs->f_bfree;
-	linux_statfs_buf.fbavail = bsd_statfs->f_bavail;
-  	linux_statfs_buf.fffree = bsd_statfs->f_ffree;
-	linux_statfs_buf.ffiles = bsd_statfs->f_files;
-	linux_statfs_buf.ffsid.val[0] = bsd_statfs->f_fsid.val[0];
-	linux_statfs_buf.ffsid.val[1] = bsd_statfs->f_fsid.val[1];
-	linux_statfs_buf.fnamelen = MAXNAMLEN;
-	return copyout((caddr_t)&linux_statfs_buf, (caddr_t)args->buf,
-		       sizeof(struct linux_statfs_buf));
+	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_type);
+	linux_statfs.f_bsize = bsd_statfs->f_bsize;
+	linux_statfs.f_blocks = bsd_statfs->f_blocks;
+	linux_statfs.f_bfree = bsd_statfs->f_bfree;
+	linux_statfs.f_bavail = bsd_statfs->f_bavail;
+  	linux_statfs.f_ffree = bsd_statfs->f_ffree;
+	linux_statfs.f_files = bsd_statfs->f_files;
+	linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
+	linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
+	linux_statfs.f_namelen = MAXNAMLEN;
+	return copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
+	    sizeof(linux_statfs));
 }
 
 int
@@ -343,7 +285,7 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args)
 	struct file *fp;
 	struct mount *mp;
 	struct statfs *bsd_statfs;
-	struct linux_statfs_buf linux_statfs_buf;
+	struct l_statfs linux_statfs;
 	int error;
 
 #ifdef DEBUG
@@ -359,26 +301,32 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args)
 	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs_buf.ftype = bsd_to_linux_ftype(bsd_statfs->f_type);
-	linux_statfs_buf.fbsize = bsd_statfs->f_bsize;
-	linux_statfs_buf.fblocks = bsd_statfs->f_blocks;
-	linux_statfs_buf.fbfree = bsd_statfs->f_bfree;
-	linux_statfs_buf.fbavail = bsd_statfs->f_bavail;
-  	linux_statfs_buf.fffree = bsd_statfs->f_ffree;
-	linux_statfs_buf.ffiles = bsd_statfs->f_files;
-	linux_statfs_buf.ffsid.val[0] = bsd_statfs->f_fsid.val[0];
-	linux_statfs_buf.ffsid.val[1] = bsd_statfs->f_fsid.val[1];
-	linux_statfs_buf.fnamelen = MAXNAMLEN;
-	return copyout((caddr_t)&linux_statfs_buf, (caddr_t)args->buf,
-		       sizeof(struct linux_statfs_buf));
+	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_type);
+	linux_statfs.f_bsize = bsd_statfs->f_bsize;
+	linux_statfs.f_blocks = bsd_statfs->f_blocks;
+	linux_statfs.f_bfree = bsd_statfs->f_bfree;
+	linux_statfs.f_bavail = bsd_statfs->f_bavail;
+  	linux_statfs.f_ffree = bsd_statfs->f_ffree;
+	linux_statfs.f_files = bsd_statfs->f_files;
+	linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
+	linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
+	linux_statfs.f_namelen = MAXNAMLEN;
+	return copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
+	    sizeof(linux_statfs));
 }
 
-int
-linux_ustat(p, uap)
-	struct proc *p;
-	struct linux_ustat_args *uap;
+struct l_ustat 
 {
-	struct linux_ustat lu;
+	l_daddr_t	f_tfree;
+	l_ino_t		f_tinode;
+	char		f_fname[6];
+	char		f_fpack[6];
+};
+
+int
+linux_ustat(struct proc *p, struct linux_ustat_args *args)
+{
+	struct l_ustat lu;
 	dev_t dev;
 	struct vnode *vp;
 	struct statfs *stat;
@@ -386,7 +334,7 @@ linux_ustat(p, uap)
 
 #ifdef DEBUG
 	if (ldebug(ustat))
-		printf(ARGS(ustat, "%d, *"), uap->dev);
+		printf(ARGS(ustat, "%d, *"), args->dev);
 #endif
 
 	/*
@@ -402,7 +350,7 @@ linux_ustat(p, uap)
 	 * dev_t returned from previous syscalls. Just return a bzeroed
 	 * ustat in that case.
 	 */
-	dev = makedev(uap->dev >> 8, uap->dev & 0xFF);
+	dev = makedev(args->dev >> 8, args->dev & 0xFF);
 	if (vfinddev(dev, VCHR, &vp)) {
 		if (vp->v_mount == NULL)
 			return (EINVAL);
@@ -415,5 +363,127 @@ linux_ustat(p, uap)
 		lu.f_tinode = stat->f_ffree;
 	}
 
-	return (copyout(&lu, uap->ubuf, sizeof(lu)));
+	return (copyout(&lu, args->ubuf, sizeof(lu)));
 }
+
+#if defined(__i386__)
+
+static int
+stat64_copyout(struct stat *buf, void *ubuf)
+{
+	struct l_stat64 lbuf;
+
+	bzero(&lbuf, sizeof(lbuf));
+	lbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
+	lbuf.st_ino = buf->st_ino;
+	lbuf.st_mode = buf->st_mode;
+	lbuf.st_nlink = buf->st_nlink;
+	lbuf.st_uid = buf->st_uid;
+	lbuf.st_gid = buf->st_gid;
+	lbuf.st_rdev = buf->st_rdev;
+	lbuf.st_size = buf->st_size;
+	lbuf.st_atime = buf->st_atime;
+	lbuf.st_mtime = buf->st_mtime;
+	lbuf.st_ctime = buf->st_ctime;
+	lbuf.st_blksize = buf->st_blksize;
+	lbuf.st_blocks = buf->st_blocks;
+
+	/*
+	 * The __st_ino field makes all the difference. In the Linux kernel
+	 * it is conditionally compiled based on STAT64_HAS_BROKEN_ST_INO,
+	 * but without the assignment to __st_ino the runtime linker refuses
+	 * to mmap(2) any shared libraries. I guess it's broken alright :-)
+	 */
+	lbuf.__st_ino = buf->st_ino;
+
+	return (copyout(&lbuf, ubuf, sizeof(lbuf)));
+}
+
+int
+linux_stat64(struct proc *p, struct linux_stat64_args *args)
+{
+	struct stat buf;
+	struct nameidata nd;
+	int error;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->filename);
+
+#ifdef DEBUG
+	if (ldebug(stat64))
+		printf(ARGS(stat64, "%s, *"), args->filename);
+#endif
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
+	    args->filename, p);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	error = vn_stat(nd.ni_vp, &buf, p);
+	vput(nd.ni_vp);
+	if (error)
+		return (error);
+
+	return (stat64_copyout(&buf, args->statbuf));
+}
+
+int
+linux_lstat64(struct proc *p, struct linux_lstat64_args *args)
+{
+	int error;
+	struct stat sb;
+	struct nameidata nd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->filename);
+
+#ifdef DEBUG
+	if (ldebug(lstat64))
+		printf(ARGS(lstat64, "%s, *"), args->filename);
+#endif
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
+	    args->filename, p);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF); 
+
+	error = vn_stat(nd.ni_vp, &sb, p);
+	vput(nd.ni_vp);
+	if (error)
+		return (error);
+
+	return (stat64_copyout(&sb, args->statbuf));
+}
+
+int
+linux_fstat64(struct proc *p, struct linux_fstat64_args *args)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+	struct stat buf;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(fstat64))
+		printf(ARGS(fstat64, "%d, *"), args->fd);
+#endif
+
+	fdp = p->p_fd;
+	if ((unsigned)args->fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[args->fd]) == NULL)
+		return (EBADF);
+
+	error = fo_stat(fp, &buf, p);
+	if (!error)
+		error = stat64_copyout(&buf, args->statbuf);
+
+	return (error);
+}
+
+#endif /* __i386__ */
