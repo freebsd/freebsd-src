@@ -317,6 +317,15 @@ MAIN:{
 	error("invalid target machine");
     }
     $machine = $1;
+    if (defined($date)) {
+	if ($date eq 'today') {
+	    $date = strftime("%Y-%m-%d", localtime());
+	} elsif ($date !~ m/^(\d{4}-\d{2}-\d{2})$/) {
+	    error("invalid checkout date");
+	} else {
+	    $date = $1;
+	}
+    }
 
     if (!@ARGV) {
 	usage();
@@ -435,18 +444,15 @@ MAIN:{
 	'TARGET_ARCH'		=> $arch,
 
 	'CFLAGS'		=> "-O -pipe",
-	'NO_CPU_CFLAGS'		=> "YES",
     );
 
     # Kernel-specific variables
     if ($cmds{'generic'} || $cmds{'lint'} || $cmds{'release'}) {
 	$ENV{'COPTFLAGS'} = "-O -pipe";
-	$ENV{'NO_CPU_COPTFLAGS'} = "YES";
     }
 
     # Release-specific variables
     if ($cmds{'release'}) {
-	$ENV{'BUILDNAME'} = "${branch}_TINDERBOX";
 	$ENV{'CHROOTDIR'} = "$sandbox/root";
 	$ENV{'CVSROOT'} = $repository;
 	$ENV{'RELEASETAG'} = $branch
