@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.20 1995/05/25 03:38:11 davidg Exp $
+ * $Id: vm_swap.c,v 1.21 1995/05/30 08:16:21 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -109,7 +109,7 @@ swstrategy(bp)
 			vp->v_numoutput--;
 			if ((vp->v_flag & VBWAIT) && vp->v_numoutput <= 0) {
 				vp->v_flag &= ~VBWAIT;
-				wakeup((caddr_t) &vp->v_numoutput);
+				wakeup(&vp->v_numoutput);
 			}
 		}
 		sp->sw_vp->v_numoutput++;

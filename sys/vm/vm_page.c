@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.31 1995/04/16 12:56:21 davidg Exp $
+ *	$Id: vm_page.c,v 1.32 1995/05/30 08:16:15 rgrimes Exp $
  */
 
 /*
@@ -86,14 +86,11 @@
 struct pglist *vm_page_buckets;	/* Array of buckets */
 int vm_page_bucket_count;	/* How big is array? */
 int vm_page_hash_mask;		/* Mask for hash function */
-simple_lock_data_t bucket_lock;	/* lock for all buckets XXX */
 
 struct pglist vm_page_queue_free;
 struct pglist vm_page_queue_active;
 struct pglist vm_page_queue_inactive;
 struct pglist vm_page_queue_cache;
-simple_lock_data_t vm_page_queue_lock;
-simple_lock_data_t vm_page_queue_free_lock;
 
 /* has physical page allocation been initialized? */
 boolean_t vm_page_startup_initialized;
@@ -196,14 +193,6 @@ vm_page_startup(starta, enda, vaddr)
 
 	start = phys_avail[biggestone];
 
-
-	/*
-	 * Initialize the locks
-	 */
-
-	simple_lock_init(&vm_page_queue_free_lock);
-	simple_lock_init(&vm_page_queue_lock);
-
 	/*
 	 * Initialize the queue headers for the free queue, the active queue
 	 * and the inactive queue.
@@ -250,8 +239,6 @@ vm_page_startup(starta, enda, vaddr)
 		bucket++;
 	}
 
-	simple_lock_init(&bucket_lock);
-
 	/*
 	 * round (or truncate) the addresses to our page size.
 	 */
@@ -290,8 +277,6 @@ vm_page_startup(starta, enda, vaddr)
 	 */
 
 	first_page = phys_avail[0] / PAGE_SIZE;
-
-	/* for VM_PAGE_CHECK() */
 	last_page = phys_avail[(nblocks - 1) * 2 + 1] / PAGE_SIZE;
 
 	page_range = last_page - (phys_avail[0] / PAGE_SIZE);
@@ -342,12 +327,6 @@ vm_page_startup(starta, enda, vaddr)
 		}
 	}
 
-	/*
-	 * Initialize vm_pages_needed lock here - don't wait for pageout
-	 * daemon	XXX
-	 */
-	simple_lock_init(&vm_pages_needed_lock);
-
 	return (mapped);
 }
 
@@ -383,8 +362,6 @@ vm_page_insert(mem, object, offset)
 {
 	register struct pglist *bucket;
 
-	VM_PAGE_CHECK(mem);
-
 	if (mem->flags & PG_TABLED)
 		panic("vm_page_insert: already inserted");
 
@@ -400,9 +377,7 @@ vm_page_insert(mem, object, offset)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
-	simple_lock(&bucket_lock);
 	TAILQ_INSERT_TAIL(bucket, mem, hashq);
-	simple_unlock(&bucket_lock);
 
 	/*
 	 * Now link into the object's list of backed pages.
@@ -434,8 +409,6 @@ vm_page_remove(mem)
 {
 	register struct pglist *bucket;
 
-	VM_PAGE_CHECK(mem);
-
 	if (!(mem->flags & PG_TABLED))
 		return;
 
@@ -444,9 +417,7 @@ vm_page_remove(mem)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(mem->object, mem->offset)];
-	simple_lock(&bucket_lock);
 	TAILQ_REMOVE(bucket, mem, hashq);
-	simple_unlock(&bucket_lock);
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -488,17 +459,13 @@ vm_page_lookup(object, offset)
 	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
 
 	s = splhigh();
-	simple_lock(&bucket_lock);
 	for (mem = bucket->tqh_first; mem != NULL; mem = mem->hashq.tqe_next) {
-		VM_PAGE_CHECK(mem);
 		if ((mem->object == object) && (mem->offset == offset)) {
-			simple_unlock(&bucket_lock);
 			splx(s);
 			return (mem);
 		}
 	}
 
-	simple_unlock(&bucket_lock);
 	splx(s);
 	return (NULL);
 }
@@ -522,12 +489,10 @@ vm_page_rename(mem, new_object, new_offset)
 	if (mem->object == new_object)
 		return;
 
-	vm_page_lock_queues(); /* keep page from moving out from under pageout daemon */
 	s = splhigh();
 	vm_page_remove(mem);
 	vm_page_insert(mem, new_object, new_offset);
 	splx(s);
-	vm_page_unlock_queues();
 }
 
 /*
@@ -583,11 +548,18 @@ vm_page_alloc(object, offset, page_req)
 	register vm_page_t mem;
 	int s;
 
+#ifdef DIAGNOSTIC
+	if (offset != trunc_page(offset))
+		panic("vm_page_alloc: offset not page aligned");
+
+	mem = vm_page_lookup(object, offset);
+	if (mem)
+		panic("vm_page_alloc: page already allocated");
+#endif
+
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
 		page_req = VM_ALLOC_SYSTEM;
 	};
-
-	simple_lock(&vm_page_queue_free_lock);
 
 	s = splhigh();
 
@@ -605,7 +577,6 @@ vm_page_alloc(object, offset, page_req)
 				vm_page_remove(mem);
 				cnt.v_cache_count--;
 			} else {
-				simple_unlock(&vm_page_queue_free_lock);
 				splx(s);
 				pagedaemon_wakeup();
 				return (NULL);
@@ -626,7 +597,6 @@ vm_page_alloc(object, offset, page_req)
 				vm_page_remove(mem);
 				cnt.v_cache_count--;
 			} else {
-				simple_unlock(&vm_page_queue_free_lock);
 				splx(s);
 				pagedaemon_wakeup();
 				return (NULL);
@@ -639,7 +609,6 @@ vm_page_alloc(object, offset, page_req)
 			TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
 			cnt.v_free_count--;
 		} else {
-			simple_unlock(&vm_page_queue_free_lock);
 			splx(s);
 			pagedaemon_wakeup();
 			return NULL;
@@ -649,8 +618,6 @@ vm_page_alloc(object, offset, page_req)
 	default:
 		panic("vm_page_alloc: invalid allocation class");
 	}
-
-	simple_unlock(&vm_page_queue_free_lock);
 
 	mem->flags = PG_BUSY;
 	mem->wire_count = 0;
@@ -784,10 +751,8 @@ vm_page_free(mem)
 	}
 
 	if ((flags & PG_WANTED) != 0)
-		wakeup((caddr_t) mem);
+		wakeup(mem);
 	if ((flags & PG_FICTITIOUS) == 0) {
-
-		simple_lock(&vm_page_queue_free_lock);
 		if (mem->wire_count) {
 			if (mem->wire_count > 1) {
 				printf("vm_page_free: wire count > 1 (%d)", mem->wire_count);
@@ -798,15 +763,13 @@ vm_page_free(mem)
 		}
 		mem->flags |= PG_FREE;
 		TAILQ_INSERT_TAIL(&vm_page_queue_free, mem, pageq);
-
-		simple_unlock(&vm_page_queue_free_lock);
 		splx(s);
 		/*
 		 * if pageout daemon needs pages, then tell it that there are
 		 * some free.
 		 */
 		if (vm_pageout_pages_needed) {
-			wakeup((caddr_t) &vm_pageout_pages_needed);
+			wakeup(&vm_pageout_pages_needed);
 			vm_pageout_pages_needed = 0;
 		}
 
@@ -817,8 +780,8 @@ vm_page_free(mem)
 		 * lots of memory. this process will swapin processes.
 		 */
 		if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
-			wakeup((caddr_t) &cnt.v_free_count);
-			wakeup((caddr_t) &proc0);
+			wakeup(&cnt.v_free_count);
+			wakeup(&proc0);
 		}
 	} else {
 		splx(s);
@@ -841,7 +804,6 @@ vm_page_wire(mem)
 	register vm_page_t mem;
 {
 	int s;
-	VM_PAGE_CHECK(mem);
 
 	if (mem->wire_count == 0) {
 		s = splhigh();
@@ -866,8 +828,6 @@ vm_page_unwire(mem)
 	register vm_page_t mem;
 {
 	int s;
-
-	VM_PAGE_CHECK(mem);
 
 	s = splhigh();
 
@@ -894,8 +854,6 @@ vm_page_activate(m)
 	register vm_page_t m;
 {
 	int s;
-
-	VM_PAGE_CHECK(m);
 
 	s = splhigh();
 	if (m->flags & PG_ACTIVE)
@@ -933,8 +891,6 @@ vm_page_deactivate(m)
 {
 	int spl;
 
-	VM_PAGE_CHECK(m);
-
 	/*
 	 * Only move active pages -- ignore locked or already inactive ones.
 	 *
@@ -969,7 +925,6 @@ vm_page_cache(m)
 {
 	int s;
 
-	VM_PAGE_CHECK(m);
 	if ((m->flags & (PG_CACHE | PG_BUSY)) || m->busy || m->wire_count ||
 	    m->bmapped)
 		return;
@@ -982,11 +937,11 @@ vm_page_cache(m)
 	m->flags |= PG_CACHE;
 	cnt.v_cache_count++;
 	if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
-		wakeup((caddr_t) &cnt.v_free_count);
-		wakeup((caddr_t) &proc0);
+		wakeup(&cnt.v_free_count);
+		wakeup(&proc0);
 	}
 	if (vm_pageout_pages_needed) {
-		wakeup((caddr_t) &vm_pageout_pages_needed);
+		wakeup(&vm_pageout_pages_needed);
 		vm_pageout_pages_needed = 0;
 	}
 
@@ -1004,8 +959,6 @@ boolean_t
 vm_page_zero_fill(m)
 	vm_page_t m;
 {
-	VM_PAGE_CHECK(m);
-
 	pmap_zero_page(VM_PAGE_TO_PHYS(m));
 	m->valid = VM_PAGE_BITS_ALL;
 	return (TRUE);
@@ -1021,9 +974,6 @@ vm_page_copy(src_m, dest_m)
 	vm_page_t src_m;
 	vm_page_t dest_m;
 {
-	VM_PAGE_CHECK(src_m);
-	VM_PAGE_CHECK(dest_m);
-
 	pmap_copy_page(VM_PAGE_TO_PHYS(src_m), VM_PAGE_TO_PHYS(dest_m));
 	dest_m->valid = VM_PAGE_BITS_ALL;
 }

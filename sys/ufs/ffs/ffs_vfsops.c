@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.21 1995/05/30 08:15:03 rgrimes Exp $
+ * $Id: ffs_vfsops.c,v 1.22 1995/06/28 12:01:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -700,11 +700,7 @@ loop:
 		ip = VTOI(vp);
 		if (vp->v_object &&
 		   (((vm_object_t) vp->v_object)->flags & OBJ_WRITEABLE)) {
-			if (vget(vp, 1))
-				goto loop;
-			_vm_object_page_clean(vp->v_object,
-						0, 0, 0);
-			vput(vp);
+			vm_object_page_clean(vp->v_object, 0, 0, 0, TRUE);
 		}
 
 		if ((((ip->i_flag &

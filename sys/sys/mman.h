@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.6 1995/03/25 17:28:30 davidg Exp $
+ * $Id: mman.h,v 1.7 1995/05/14 19:19:07 nate Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -48,9 +48,9 @@
  * Flags contain sharing type and options.
  * Sharing types; choose one.
  */
-#define	MAP_SHARED	0x0001	/* share changes */
-#define	MAP_PRIVATE	0x0002	/* changes are private */
-#define	MAP_COPY	0x0004	/* "copy" region at mmap time */
+#define	MAP_SHARED	0x0001		/* share changes */
+#define	MAP_PRIVATE	0x0002		/* changes are private */
+#define	MAP_COPY	MAP_PRIVATE	/* Obsolete */
 
 /*
  * Other flags
