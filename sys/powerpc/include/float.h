@@ -34,10 +34,14 @@
 #ifndef _MACHINE_FLOAT_H_
 #define _MACHINE_FLOAT_H_ 1
 
+#include <sys/cdefs.h>
+
 #define FLT_RADIX	2		/* b */
 #define FLT_ROUNDS	1		/* FP addition rounds to nearest */
+#if __ISO_C_VISIBLE >= 1999
 #define	FLT_EVAL_METHOD	1		/* operands promoted to double */
 #define	DECIMAL_DIG	35		/* max precision in decimal digits */
+#endif
 
 #define FLT_MANT_DIG	24		/* p */
 #define FLT_EPSILON	1.19209290E-07F	/* b**(1-p) */
