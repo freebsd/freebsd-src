@@ -32,6 +32,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,7 +41,7 @@
 
 struct
 {
-    char	*name;
+    const char	*name;
     int		val;
     int		kind;
 #define MDF_SETTABLE	(1<<0)
@@ -64,12 +65,12 @@ static void	listfunc(int memfd, int argc, char *argv[]);
 static void	setfunc(int memfd, int argc, char *argv[]);
 static void	clearfunc(int memfd, int argc, char *argv[]);
 static void	helpfunc(int memfd, int argc, char *argv[]);
-static void	help(char *what);
+static void	help(const char *what);
 
 struct 
 {
-    char	*cmd;
-    char	*desc;
+    const char	*cmd;
+    const char	*desc;
     void	(*func)(int memfd, int argc, char *argv[]);
 } functions[] = {
     {"list",	
@@ -135,7 +136,7 @@ mrgetall(int memfd, int *nmr)
     *nmr = mro.mo_arg[0];
     mrd = malloc(*nmr * sizeof(struct mem_range_desc));
     if (mrd == NULL)
-	errx(1, "can't allocate %d bytes for %d range descriptors", 
+	errx(1, "can't allocate %zd bytes for %d range descriptors", 
 	     *nmr * sizeof(struct mem_range_desc), *nmr);
 
     mro.mo_arg[0] = *nmr;
@@ -177,7 +178,7 @@ listfunc(int memfd, int argc, char *argv[])
 	    continue;
 	if (owner && strcmp(mrd[i].mr_owner, owner))
 	    continue;
-	printf("%qx/%qx %.8s ", mrd[i].mr_base, mrd[i].mr_len, 
+	printf("%" PRIu64 "x/%" PRIu64 "x %.8s ", mrd[i].mr_base, mrd[i].mr_len, 
 	       mrd[i].mr_owner[0] ? mrd[i].mr_owner : "-");
 	for (j = 0; attrnames[j].name != NULL; j++)
 	    if (mrd[i].mr_flags & attrnames[j].val)
@@ -315,13 +316,13 @@ clearfunc(int memfd, int argc, char *argv[])
 }
 
 static void
-helpfunc(int memfd, int argc, char *argv[])
+helpfunc(__unused int memfd, __unused int argc, char *argv[])
 {
     help(argv[1]);
 }
 
 static void
-help(char *what)
+help(const char *what)
 {
     int		i;
 
