@@ -1505,8 +1505,12 @@ do { \
 
 			case IPV6_PKTOPTIONS:
 				if (in6p->in6p_options) {
-					error = soopt_mcopyout(sopt,
-							       in6p->in6p_options);
+					struct mbuf *m;
+					m = m_copym(in6p->in6p_options,
+					    0, M_COPYALL, M_WAIT);
+					error = soopt_mcopyout(sopt, m);
+					if (error == 0)
+						m_freem(m);
 				} else
 					sopt->sopt_valsize = 0;
 				break;
