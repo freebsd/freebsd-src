@@ -133,10 +133,10 @@
 #define	SSIZE		1		/* initial stack size/NBPG */
 #define	SINCR		1		/* increment of stack/NBPG */
 
-#define	KSTACK_PAGES		2		/* pages of kstack (with pcb) */
-#define	UAREA_PAGES		1		/* pages of u-area */
+#define	KSTACK_PAGES	2		/* pages of kstack (with pcb) */
+#define	UAREA_PAGES	1		/* pages of u-area */
 
-#define KSTACK_GUARD			/* compile in kstack guard page */
+#define	KSTACK_GUARD			/* compile in kstack guard page */
 
 /*
  * Constants related to network buffer management.
