@@ -70,6 +70,7 @@ struct _vinum_conf vinum_conf;				    /* configuration information */
 
 dev_t vinum_daemon_dev;
 dev_t vinum_super_dev;
+dev_t vinum_debug_super_dev;
 
 /*
  * Called by main() during pseudo-device attachment.  All we need
@@ -91,10 +92,15 @@ vinumattach(void *dummy)
     dqend = NULL;
 
     cdevsw_add(&vinum_cdevsw);				    /* add the cdevsw entry */
+
     vinum_daemon_dev = make_dev(&vinum_cdevsw, VINUM_DAEMON_DEV,
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, VINUM_DAEMON_DEV_NAME);               /* daemon device */
-    vinum_super_dev = make_dev(&vinum_cdevsw, VINUM_SUPERDEV,
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, VINUM_SUPERDEV_NAME);               /* daemon device */
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/controld");
+    vinum_debug_super_dev = make_dev(&vinum_cdevsw,
+	VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE),
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/Control");
+    vinum_super_dev = make_dev(&vinum_cdevsw,
+	VINUMMINOR (2, 0, 0, VINUM_SUPERDEV_TYPE),
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/control");
 
     /* allocate space: drives... */
     DRIVE = (struct drive *) Malloc(sizeof(struct drive) * INITIAL_DRIVES);
@@ -257,6 +263,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 #endif
 	destroy_dev(vinum_daemon_dev);               /* daemon device */
 	destroy_dev(vinum_super_dev);
+	destroy_dev(vinum_debug_super_dev);
 	cdevsw_remove(&vinum_cdevsw);
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
