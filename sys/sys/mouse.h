@@ -48,6 +48,8 @@
 #define MOUSE_GETHWID		_IOR('M', 13, int)
 #endif
 
+#define MOUSE_SYN_GETHWINFO	_IOR('M', 100, synapticshw_t)
+
 /* mouse status block */
 typedef struct mousestatus {
     int     flags;		/* state change flags */
@@ -88,6 +90,25 @@ typedef struct mousehw {
 				 */
 } mousehw_t;
 
+typedef struct synapticshw {
+	int infoMajor;
+	int infoMinor;
+	int infoRot180;
+	int infoPortrait;
+	int infoSensor;
+	int infoHardware;
+	int infoNewAbs;
+	int capPen;
+	int infoSimplC;
+	int infoGeometry;
+	int capExtended;
+	int capSleep;
+	int capFourButtons;
+	int capMultiFinger;
+	int capPalmDetect;
+	int capPassthrough;
+} synapticshw_t;
+
 /* iftype */
 #define MOUSE_IF_UNKNOWN	(-1)
 #define MOUSE_IF_SERIAL		0
@@ -119,6 +140,7 @@ typedef struct mousehw {
 #define MOUSE_MODEL_EXPLORER		10
 #define MOUSE_MODEL_4D			11
 #define MOUSE_MODEL_4DPLUS		12
+#define MOUSE_MODEL_SYNAPTICS		13
 
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
@@ -184,6 +206,9 @@ typedef struct mousevar {
 #define MOUSE_VARS_INPORT_SIG	0x00504e49	/* 'INP' */
 
 #endif /* MOUSE_GETVARS */
+
+/* Synaptics Touchpad */
+#define MOUSE_SYNAPTICS_PACKETSIZE	6	/* '3' works better */
 
 /* Microsoft Serial mouse data packet */
 #define MOUSE_MSS_PACKETSIZE	3
