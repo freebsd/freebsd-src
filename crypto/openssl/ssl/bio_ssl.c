@@ -403,6 +403,10 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
 			{
 			BIO_free_all(ssl->wbio);
 			}
+		if (b->next_bio != NULL)
+			{
+			CRYPTO_add(&b->next_bio->references,1,CRYPTO_LOCK_BIO);
+			}
 		ssl->wbio=NULL;
 		ssl->rbio=NULL;
 		break;
@@ -509,6 +513,7 @@ static int ssl_puts(BIO *bp, const char *str)
 
 BIO *BIO_new_buffer_ssl_connect(SSL_CTX *ctx)
 	{
+#ifndef OPENSSL_NO_SOCK
 	BIO *ret=NULL,*buf=NULL,*ssl=NULL;
 
 	if ((buf=BIO_new(BIO_f_buffer())) == NULL)
@@ -521,6 +526,7 @@ BIO *BIO_new_buffer_ssl_connect(SSL_CTX *ctx)
 err:
 	if (buf != NULL) BIO_free(buf);
 	if (ssl != NULL) BIO_free(ssl);
+#endif
 	return(NULL);
 	}
 
