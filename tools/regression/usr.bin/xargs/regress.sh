@@ -1,39 +1,11 @@
 # $FreeBSD$
 
-# Go into the regression test directory, handed to us by make(1)
-TESTDIR=$1
-if [ -z "$TESTDIR" ]; then
-  TESTDIR=.
-fi
-cd $TESTDIR
+REGRESSION_START($1)
 
-STATUS=0
+REGRESSION_TEST(`normal', `xargs echo The < regress.in')
+REGRESSION_TEST(`I', `xargs -I% echo The % % % %% % % < regress.in')
+REGRESSION_TEST(`J', `xargs -J% echo The % again. < regress.in')
+REGRESSION_TEST(`L', `xargs -L3 echo < regress.in')
+REGRESSION_TEST(`R', `xargs -I% -R1 echo The % % % %% % % < regress.in')
 
-for test in normal I J L R; do
-  echo "Running test $test"
-  case "$test" in
-  normal)
-    xargs echo The < regress.in | diff -u regress.$test.out -
-    ;;
-  I)
-    xargs -I% echo The % % % %% % % < regress.in | diff -u regress.$test.out -
-    ;;
-  J)
-    xargs -J% echo The % again. < regress.in | diff -u regress.$test.out -
-    ;;
-  L)
-    xargs -L3 echo < regress.in | diff -u regress.$test.out -
-    ;;
-  R)
-    xargs -I% -R1 echo The % % % %% % % < regress.in | diff -u regress.$test.out -
-    ;;
-  esac
-  if [ $? -eq 0 ]; then
-    echo "PASS: Test $test detected no regression, output matches."
-  else
-    STATUS=$?
-    echo "FAIL: Test $test failed: regression detected.  See above."
-  fi
-done
-
-exit $STATUS
+REGRESSION_END()
