@@ -70,6 +70,13 @@ sn_isa_probe (device_t dev)
 static int
 sn_isa_attach (device_t dev)
 {
+#if 0	/* currently not tested */
+	struct sn_softc *sc = device_get_softc(dev);
+#endif
+
+#if 0	/* currently not tested */
+	sc->pccard_enaddr = 0;
+#endif
 	return (0);
 }
 
