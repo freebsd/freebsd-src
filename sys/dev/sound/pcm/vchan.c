@@ -37,7 +37,6 @@ struct vchinfo {
 };
 
 static u_int32_t vchan_fmt[] = {
-	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
@@ -105,7 +104,6 @@ feed_vchan_s16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32
 }
 
 static struct pcm_feederdesc feeder_vchan_s16_desc[] = {
-	{FEEDER_MIXER, AFMT_S16_LE, AFMT_S16_LE, 0},
 	{FEEDER_MIXER, AFMT_S16_LE | AFMT_STEREO, AFMT_S16_LE | AFMT_STEREO, 0},
 	{0},
 };
