@@ -1,14 +1,14 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.21 1997/11/09 14:37:40 wosch Exp $
+#	$Id: bsd.sgml.mk,v 1.22 1997/11/09 15:03:15 wosch Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 #
 #
 # +++ variables +++
 #
-# DISTRIBUTION	Name of distribution. [doc]
+# DISTRIBUTION	Name of distribution. [bin]
 #
 # FORMATS 	Indicates which output formats will be generated
 #               (ascii, html, koi8-r, latex, latin1, ps, roff). 
@@ -66,7 +66,7 @@ SGMLFLAGS+=	${SGMLOPTS}
 VOLUME?=	${.CURDIR:T}
 DOC?=		${.CURDIR:T}
 SRCDIR?=	${.CURDIR}
-DISTRIBUTION?=	doc
+DISTRIBUTION?=	bin
 SGMLFMT?=	sgmlfmt
 LPR?=		lpr
 
