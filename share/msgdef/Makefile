@@ -213,5 +213,7 @@ afterinstall:
 		${LOCALEDIR}/zh_HK.UTF-8/LC_MESSAGES
 	ln -sf ../zh_TW.Big5/LC_MESSAGES \
 		${LOCALEDIR}/zh_HK.Big5HKSCS/LC_MESSAGES
+	ln -sf ../lt_LT.ISO8859-13/LC_MESSAGES \
+		${LOCALEDIR}/lt_LT.ISO8859-4/LC_MESSAGES
 
 .include <bsd.prog.mk>
