@@ -1980,10 +1980,12 @@ static void nge_stop(sc)
 	ifp->if_flags |= IFF_UP;
 	ifm = mii->mii_media.ifm_cur;
 	mtmp = ifm->ifm_media;
-	ifm->ifm_media = IFM_ETHER|IFM_NONE;
+#if 0
+	ifm->ifm_media = IFM_ETHER|IFM_AUTO;
 	mii_mediachg(mii);
 	ifm->ifm_media = mtmp;
 	ifp->if_flags = itmp;
+#endif
 
 	sc->nge_link = 0;
 
