@@ -208,20 +208,63 @@ ar_attach_raid(struct ar_softc *rdp, int update)
     }
     printf(" subdisks:\n");
     for (disk = 0; disk < rdp->total_disks; disk++) {
-	if (rdp->disks[disk].flags & AR_DF_PRESENT) {
-	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
-		printf(" %d READY ", disk);
-	    else if (rdp->disks[disk].flags & AR_DF_SPARE)
-		printf(" %d SPARE ", disk);
+	if (rdp->disks[disk].device &&
+	    AD_SOFTC(rdp->disks[disk])->flags & AD_F_RAID_SUBDISK) {
+	    if (rdp->disks[disk].flags & AR_DF_PRESENT) {
+		if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		    printf(" disk%d READY ", disk);
+		else if (rdp->disks[disk].flags & AR_DF_SPARE)
+		    printf(" disk%d SPARE ", disk);
+		else
+		    printf(" disk%d FREE  ", disk);
+	    	printf("on %s at ata%d-%s\n", rdp->disks[disk].device->name,
+		       device_get_unit(rdp->disks[disk].device->channel->dev),
+		       (rdp->disks[disk].device->unit == ATA_MASTER) ?
+		       "master" : "slave");
+	    }
+	    else if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
+		printf(" disk%d DOWN\n", disk);
 	    else
-		printf(" %d FREE  ", disk);
-	    ad_print(AD_SOFTC(rdp->disks[disk]));
+		printf(" disk%d INVALID no RAID config on this disk\n", disk);
 	}
-	else if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
-	    printf(" %d DOWN\n", disk);
 	else
-	    printf(" %d INVALID no RAID config info on this disk\n", disk);
+	    printf(" disk%d DOWN no device found for this disk\n", disk);
     }
+}
+
+int
+ata_raid_addspare(int array, int disk)
+{
+    struct ar_softc *rdp;
+    struct ata_device *atadev;
+    int i;
+
+    if (!ar_table || !(rdp = ar_table[array]))
+	return ENXIO;
+    if (!(rdp->flags & AR_F_RAID1))
+	return EPERM;
+    if (rdp->flags & AR_F_REBUILDING)
+	return EBUSY;
+    if (!(rdp->flags & AR_F_DEGRADED) || !(rdp->flags & AR_F_READY))
+	return ENXIO;
+
+    for (i = 0; i < rdp->total_disks; i++ ) {
+	if (((rdp->disks[i].flags & (AR_DF_PRESENT | AR_DF_ONLINE)) ==
+	     (AR_DF_PRESENT | AR_DF_ONLINE)) && rdp->disks[i].device)
+	    continue;
+	if ((atadev = ar_locate_disk(disk))) {
+	    if (((struct ad_softc*)(atadev->driver))->flags & AD_F_RAID_SUBDISK)
+		return EBUSY;
+	    rdp->disks[i].device = atadev;
+	    rdp->disks[i].flags |= (AR_DF_PRESENT|AR_DF_ASSIGNED|AR_DF_SPARE);
+	    AD_SOFTC(rdp->disks[i])->flags |= AD_F_RAID_SUBDISK;
+	    ata_prtdev(rdp->disks[i].device,
+		       "inserted into ar%d disk%d as spare\n", array, i);
+	    ar_config_changed(rdp, 1);
+	    return 0;
+	}
+    }
+    return ENXIO;
 }
 
 int
@@ -362,12 +405,13 @@ ata_raid_create(struct raid_setup *setup)
     rdp->flags |= AR_F_READY;
 
     ar_table[array] = rdp;
-
+#if 0
     /* kick off rebuild here */
     if (setup->type == 2) {
 	    rdp->disks[1].flags &= ~AR_DF_ONLINE;
 	    rdp->disks[1].flags |= AR_DF_SPARE;
     }
+#endif
     ar_attach_raid(rdp, 1);
     ata_raid_rebuild(array);
     setup->unit = array;
@@ -1238,14 +1282,20 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 		goto promise_out;
 	    }
 	}
-	if (raid->disks[info->raid.disk_number].flags && adp->device) {
-	    raid->disks[info->raid.disk_number].device = adp->device;
-	    raid->disks[info->raid.disk_number].flags |= AR_DF_PRESENT;
-	    raid->disks[info->raid.disk_number].disk_sectors =
-		info->raid.disk_sectors;
-	    AD_SOFTC(raid->disks[info->raid.disk_number])->flags |=
-		AD_F_RAID_SUBDISK;
-	    retval = 1;
+	if (info->raid.generation >= raid->generation) {
+	    if (raid->disks[info->raid.disk_number].flags && adp->device) {
+		raid->disks[info->raid.disk_number].device = adp->device;
+		raid->disks[info->raid.disk_number].flags |= AR_DF_PRESENT;
+		raid->disks[info->raid.disk_number].disk_sectors =
+		    info->raid.disk_sectors;
+		if ((raid->disks[info->raid.disk_number].flags &
+		    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE)) ==
+		    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_ONLINE)) {
+		    AD_SOFTC(raid->disks[info->raid.disk_number])->flags |=
+			AD_F_RAID_SUBDISK;
+		    retval = 1;
+		}
+	    }
 	}
 	break;
     }
@@ -1276,10 +1326,6 @@ ar_promise_write_conf(struct ar_softc *rdp)
 	for (count = 0; count < sizeof(struct promise_raid_conf); count++)
 	    *(((u_int8_t *)config) + count) = 255 - (count % 256);
 
-	if (local)
-	    bcopy(ATA_MAGIC, config->promise_id, sizeof(ATA_MAGIC));
-	else
-	    bcopy(PR_MAGIC, config->promise_id, sizeof(PR_MAGIC));
 	config->dummy_0 = 0x00020000;
 	config->magic_0 = PR_MAGIC0(rdp->disks[disk]) | timestamp.tv_sec;
 	config->magic_1 = timestamp.tv_sec >> 16;
@@ -1362,11 +1408,20 @@ ar_promise_write_conf(struct ar_softc *rdp)
 		PR_MAGIC0(rdp->disks[drive]) | timestamp.tv_sec;
 	}
 
-	config->checksum = 0;
-	for (ckptr = (int32_t *)config, count = 0; count < 511; count++)
-	    config->checksum += *ckptr++;
 	if (rdp->disks[disk].device && rdp->disks[disk].device->driver &&
 	    !(rdp->disks[disk].device->flags & ATA_D_DETACHING)) {
+	    if ((rdp->disks[disk].flags & (AR_DF_PRESENT | AR_DF_ONLINE)) ==
+                (AR_DF_PRESENT | AR_DF_ONLINE)) {
+		if (local)
+		    bcopy(ATA_MAGIC, config->promise_id, sizeof(ATA_MAGIC));
+		else
+		    bcopy(PR_MAGIC, config->promise_id, sizeof(PR_MAGIC));
+	    }
+	    else
+		bzero(config->promise_id, sizeof(config->promise_id));
+	    config->checksum = 0;
+	    for (ckptr = (int32_t *)config, count = 0; count < 511; count++)
+		config->checksum += *ckptr++;
 	    if (ar_rw(AD_SOFTC(rdp->disks[disk]),
 		      PR_LBA(AD_SOFTC(rdp->disks[disk])),
 		      sizeof(struct promise_raid_conf),

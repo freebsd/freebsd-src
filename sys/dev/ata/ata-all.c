@@ -383,6 +383,9 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	case ATARAIDDELETE:
 	    return ata_raid_delete(iocmd->channel);
 
+	case ATARAIDADDSPARE:
+	    return ata_raid_addspare(iocmd->channel, iocmd->u.raid_spare.disk);
+
 	case ATARAIDSTATUS:
 	    return ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
 #endif
