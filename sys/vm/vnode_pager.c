@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.5 1994/08/06 10:25:50 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.6 1994/08/07 13:10:43 davidg Exp $
  */
 
 /*
@@ -1085,6 +1085,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 
 finishup:
 	for (i = 0; i < count; i++) {
+		pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
 		m[i]->flags |= PG_CLEAN;
 		m[i]->flags &= ~PG_LAUNDRY;
 		if (i != reqpage) {

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.6 1994/08/07 13:10:37 davidg Exp $
+ * $Id: swap_pager.c,v 1.7 1994/08/18 22:36:00 wollman Exp $
  */
 
 /*
@@ -89,7 +89,6 @@ struct swpagerclean {
 	struct buf			*spc_bp;
 	sw_pager_t			spc_swp;
 	vm_offset_t			spc_kva;
-	vm_offset_t			spc_altkva;
 	int				spc_count;
 	vm_page_t			spc_m[MAX_PAGEOUT_CLUSTER];
 } swcleanlist [NPENDINGIO] ;
@@ -199,7 +198,7 @@ swap_pager_alloc(handle, size, prot, offset)
 		 * doing kmem_alloc pageables at runtime
 		 */
 		for (i = 0, spc = swcleanlist; i < npendingio ; i++, spc++) {
-			spc->spc_kva = kmem_alloc_pageable(pager_map, PAGE_SIZE);
+			spc->spc_kva = kmem_alloc_pageable(pager_map, PAGE_SIZE*MAX_PAGEOUT_CLUSTER);
 			if (!spc->spc_kva) {
 				break;
 			}
@@ -1330,6 +1329,7 @@ retrygetspace:
 	 * contention must be avoided on pageouts -- or your system will
 	 * sleep (forever) !!!
 	 */
+/*
 	if ( count > 1) {
 		kva = kmem_alloc_pageable(pager_map, count*PAGE_SIZE);
 		if( !kva) {
@@ -1341,6 +1341,7 @@ retrygetspace:
 			return VM_PAGER_AGAIN;
 		}
 	} 
+*/
 
 	/*
 	 * get a swap pager clean data structure, block until we get it
@@ -1365,12 +1366,8 @@ retrygetspace:
 
 	spc = swap_pager_free.tqh_first;
 	TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
-	if( !kva) {
-		kva = spc->spc_kva;
-		spc->spc_altkva = 0;
-	} else {
-		spc->spc_altkva = kva;
-	}
+
+	kva = spc->spc_kva;
 
 	/*
 	 * map our page(s) into kva for I/O
@@ -1511,9 +1508,6 @@ retrygetspace:
 		}
 	}
 
-	if( spc->spc_altkva)
-		kmem_free_wakeup(pager_map, kva, count * PAGE_SIZE);
-
 	if( bp->b_rcred != NOCRED)
 		crfree(bp->b_rcred);
 	if( bp->b_wcred != NOCRED)
@@ -1543,13 +1537,7 @@ swap_pager_clean()
 		 * at splbio() to avoid conflicts with swap_pager_iodone.
 		 */
 		while (spc = swap_pager_done.tqh_first) {
-			if( spc->spc_altkva) {
-				pmap_qremove( spc->spc_altkva, spc->spc_count);
-				kmem_free_wakeup(pager_map, spc->spc_altkva, spc->spc_count * PAGE_SIZE);
-				spc->spc_altkva = 0;
-			} else {
-				pmap_qremove( spc->spc_kva, 1);
-			}
+			pmap_qremove( spc->spc_kva, spc->spc_count);
 			swap_pager_finish(spc);
 			TAILQ_REMOVE(&swap_pager_done, spc, spc_list);
 			goto doclean;
