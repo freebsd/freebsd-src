@@ -180,13 +180,13 @@ static u_int16_t ofwfb_static_window[ROW*COL];
 
 static struct ofwfb_softc ofwfb_softc;
 
-static int
+static __inline int
 ofwfb_background(uint8_t attr)
 {
 	return (attr >> 4);
 }
 
-static int
+static __inline int
 ofwfb_foreground(uint8_t attr)
 {
 	return (attr & 0x0f);
@@ -694,25 +694,52 @@ ofwfb_putc8(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	struct ofwfb_softc *sc;
 	int row;
 	int col;
-	int i, j, k;
-	uint8_t *addr;
-	u_char *p;
+	int i;
+	uint32_t *addr;
+	u_char *p, fg, bg;
+	union {
+		uint32_t l;
+		uint8_t  c[4];
+	} ch1, ch2;
+
 
 	sc = (struct ofwfb_softc *)adp;
         row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
         col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 	p = sc->sc_font + c*sc->sc_font_height;
-	addr = (uint8_t *)sc->sc_addr + (row + sc->sc_ymargin)*sc->sc_stride
-		+ col + sc->sc_xmargin;
+	addr = (u_int32_t *)((int)sc->sc_addr
+		+ (row + sc->sc_ymargin)*sc->sc_stride
+		+ col + sc->sc_xmargin);
+
+	fg = ofwfb_foreground(a);
+	bg = ofwfb_background(a);
 
 	for (i = 0; i < sc->sc_font_height; i++) {
-		for (j = 0, k = 7; j < 8; j++, k--) {
-			if ((p[i] & (1 << k)) == 0)
-				*(addr + j) = ofwfb_background(a);
-			else
-				*(addr + j) = ofwfb_foreground(a);
-		}
-		addr += sc->sc_stride;
+		u_char fline = p[i];
+
+		/*
+		 * Assume that there is more background than foreground
+		 * in characters and init accordingly
+		 */
+		ch1.l = ch2.l = (bg << 24) | (bg << 16) | (bg << 8) | bg;
+
+		/*
+		 * Calculate 2 x 4-chars at a time, and then
+		 * write these out.
+		 */
+		if (fline & 0x80) ch1.c[0] = fg;
+		if (fline & 0x40) ch1.c[1] = fg;
+		if (fline & 0x20) ch1.c[2] = fg;
+		if (fline & 0x10) ch1.c[3] = fg;
+
+		if (fline & 0x08) ch2.c[0] = fg;
+		if (fline & 0x04) ch2.c[1] = fg;
+		if (fline & 0x02) ch2.c[2] = fg;
+		if (fline & 0x01) ch2.c[3] = fg;
+
+		addr[0] = ch1.l;
+		addr[1] = ch2.l;
+		addr += (sc->sc_stride / sizeof(u_int32_t));
 	}
 
 	return (0);
