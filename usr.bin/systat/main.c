@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.5.2.1 1997/08/14 06:33:29 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -81,7 +81,7 @@ int     CMDLINE;
 
 static	WINDOW *wload;			/* one line window for load average */
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
