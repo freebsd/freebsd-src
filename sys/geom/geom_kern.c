@@ -145,6 +145,7 @@ g_init(void)
 	sx_init(&topology_lock, "GEOM topology");
 	g_io_init();
 	g_event_init();
+	g_ctl_init();
 	mtx_lock(&Giant);
 	kproc_start(&g_event_kp);
 	kproc_start(&g_up_kp);
