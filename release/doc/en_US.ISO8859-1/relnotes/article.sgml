@@ -211,6 +211,9 @@
 	support for 802.11a/b/g devices based on the AR5210, AR5211,
 	and AR5212 chips.</para>
 
+      <para>The &man.bfe.4; driver has been added to support Broadcom
+	BCM4401 based Fast Ethernet adapters.</para>
+
       <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.
         &merged;</para>
 
@@ -233,9 +236,9 @@
       <para arch="i386,pc98,sparc64">The &man.patm.4; driver has been added to
         support IDT77252 based ATM interfaces.</para>
 
-      <para>The &man.rl.4; driver now has support for the RealTek
-	8139C+ Fast Ethernet chip and the RealTek 8169 Gigabit
-	Ethernet chip. &merged;</para>
+      <para>The &man.re.4; driver has been added.  It provides support
+	for the RealTek RTL8139C+, RTL8169, RTL8169S and RTL8110S PCI
+	Fast Ethernet and Gigabit Ethernet controllers.</para>
 
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.
