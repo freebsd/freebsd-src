@@ -220,12 +220,6 @@ usbd_close_pipe(usbd_pipe_handle pipe)
 	LIST_REMOVE(pipe, next);
 	pipe->endpoint->refcnt--;
 	pipe->methods->close(pipe);
-#if defined(__NetBSD__) && defined(DIAGNOSTIC)
-	if (callout_pending(&pipe->abort_handle)) {
-		callout_stop(&pipe->abort_handle);
-		printf("usbd_close_pipe: abort_handle pending");
-	}
-#endif
 	if (pipe->intrxfer != NULL)
 		usbd_free_xfer(pipe->intrxfer);
 	free(pipe, M_USB);
