@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 1.1.1.1 1994/05/24 09:57:18 rgrimes Exp $
+ *	$Id: netdb.h,v 1.2 1995/05/30 04:54:41 rgrimes Exp $
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  *
@@ -62,6 +62,8 @@
 #define	_PATH_NETWORKS	"/etc/networks"
 #define	_PATH_PROTOCOLS	"/etc/protocols"
 #define	_PATH_SERVICES	"/etc/services"
+
+extern int h_errno;
 
 /*
  * Structures returned by network data base library.  All addresses are
@@ -106,6 +108,8 @@ struct	protoent {
  * (left in extern int h_errno).
  */
 
+#define	NETDB_INTERNAL	-1	/* see errno */
+#define	NETDB_SUCCESS	0	/* no problem */
 #define	HOST_NOT_FOUND	1 /* Authoritative Answer Host not found */
 #define	TRY_AGAIN	2 /* Non-Authoritive Host not found, or SERVERFAIL */
 #define	NO_RECOVERY	3 /* Non recoverable errors, FORMERR, REFUSED, NOTIMP */
@@ -132,7 +136,7 @@ struct servent	*getservbyname __P((const char *, const char *));
 struct servent	*getservbyport __P((int, const char *));
 struct servent	*getservent __P((void));
 void		herror __P((const char *));
-char		*hstrerror __P((int));
+const char	*hstrerror __P((int));
 void		sethostent __P((int));
 /* void		sethostfile __P((const char *)); */
 void		setnetent __P((int));
