@@ -240,7 +240,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 
 	error = 0;
 
-	if (dmat->flags & BUS_DMA_ISA) {
+	if ((dmat->flags & BUS_DMA_ISA) && chipset.sgmap != NULL) {
 		bus_dmamap_t map;
 		map = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
 					     M_NOWAIT);
@@ -290,10 +290,12 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 				panic("bus_dmamap_create: page reallocation "
 				      "not implemented");
 			}
-			pages = atop(dmat->maxsize);
+			pages = atop(dmat->maxsize) + 1;
 			pages = MIN(maxpages - total_bpages, pages);
-			error = alloc_bounce_pages(dmat, pages);
 
+			if (alloc_bounce_pages(dmat, pages) < pages)
+				error = ENOMEM;
+			
 			if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0) {
 				if (error == 0)
 					dmat->flags |= BUS_DMA_MIN_ALLOC_COMP;
@@ -316,7 +318,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	if (dmat->flags & BUS_DMA_ISA) {
+	if ((dmat->flags & BUS_DMA_ISA) && chipset.sgmap != NULL) {
 		sgmap_free_region(chipset.sgmap, map->sgmaphandle);
 	}
 
@@ -404,7 +406,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	error = 0;
 
-	if (dmat->flags & BUS_DMA_ISA) {
+	if ((dmat->flags & BUS_DMA_ISA) && chipset.sgmap != NULL) {
 		/*
 		 * For ISA dma, we use the chipset's scatter-gather
 		 * map to map the tranfer into the ISA reachable range
@@ -529,7 +531,7 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	struct bounce_page *bpage;
 
-	if (dmat->flags & BUS_DMA_ISA) {
+	if ((dmat->flags & BUS_DMA_ISA) && chipset.sgmap != NULL) {
 		sgmap_unload_region(chipset.sgmap,
 				    map->busaddress,
 				    map->buflen);
@@ -606,7 +608,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 							 M_NOWAIT, 0ul,
 							 dmat->lowaddr,
 							 PAGE_SIZE,
-							 0);
+							 dmat->boundary);
 		if (bpage->vaddr == NULL) {
 			free(bpage, M_DEVBUF);
 			break;

@@ -461,10 +461,8 @@ vm_page_zero_idle()
 void  
 swi_vm() 
 {     
-#if 0
 	if (busdma_swi_pending != 0)
 		busdma_swi();
-#endif
 }
 
 /*
