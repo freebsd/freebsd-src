@@ -44,7 +44,7 @@
 #include <sys/sysctl.h>
 #include <crypto/blowfish/blowfish.h>
 
-#include "yarrow.h"
+#include "dev/randomdev/yarrow.h"
 
 static d_read_t randomread;
 static d_write_t randomwrite;
