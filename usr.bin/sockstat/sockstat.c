@@ -223,7 +223,8 @@ gather_inet(int proto)
 			bufsize *= 2;
 		}
 		xig = (struct xinpgen *)buf;
-		exig = (struct xinpgen *)((char *)buf + len - sizeof *exig);
+		exig = (struct xinpgen *)(void *)
+		    ((char *)buf + len - sizeof *exig);
 		if (xig->xig_len != sizeof *xig ||
 		    exig->xig_len != sizeof *exig)
 			errx(1, "struct xinpgen size mismatch");
@@ -233,7 +234,7 @@ gather_inet(int proto)
 		warnx("warning: data may be inconsistent");
 
 	for (;;) {
-		xig = (struct xinpgen *)((char *)xig + xig->xig_len);
+		xig = (struct xinpgen *)(void *)((char *)xig + xig->xig_len);
 		if (xig >= exig)
 			break;
 		switch (proto) {
@@ -339,7 +340,8 @@ gather_unix(int proto)
 			bufsize *= 2;
 		}
 		xug = (struct xunpgen *)buf;
-		exug = (struct xunpgen *)((char *)buf + len - sizeof *exug);
+		exug = (struct xunpgen *)(void *)
+		    ((char *)buf + len - sizeof *exug);
 		if (xug->xug_len != sizeof *xug ||
 		    exug->xug_len != sizeof *exug) {
 			warnx("struct xinpgen size mismatch");
@@ -351,7 +353,7 @@ gather_unix(int proto)
 		warnx("warning: data may be inconsistent");
 
 	for (;;) {
-		xug = (struct xunpgen *)((char *)xug + xug->xug_len);
+		xug = (struct xunpgen *)(void *)((char *)xug + xug->xug_len);
 		if (xug >= exug)
 			break;
 		xup = (struct xunpcb *)xug;
@@ -370,7 +372,8 @@ gather_unix(int proto)
 		sock->family = AF_UNIX;
 		sock->protoname = protoname;
 		if (xup->xu_unp.unp_addr != NULL)
-			sock->laddr = *(struct sockaddr_storage *)&xup->xu_addr;
+			sock->laddr =
+			    *(struct sockaddr_storage *)(void *)&xup->xu_addr;
 		else if (xup->xu_unp.unp_conn != NULL)
 			*(void **)&sock->faddr = xup->xu_unp.unp_conn;
 		hash = (int)((uintptr_t)sock->socket % HASHSIZE);
