@@ -679,7 +679,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	fp = nfp;
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
-	td->td_dupfd = -indx - 1;		/* XXX check for fdopen */
+	td->td_dupfd = -1;		/* XXX check for fdopen */
 	/*
 	 * Bump the ref count to prevent another process from closing
 	 * the descriptor while we are blocked in vn_open()
