@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.18 1995/05/08 02:08:28 phk Exp $
+ * $Id: disk.c,v 1.19 1995/05/30 08:28:11 rgrimes Exp $
  *
  */
 
@@ -199,6 +199,7 @@ Int_Open_Disk(char *name, u_long size)
 	}
 	close(fd);
 	Fixup_Names(d);
+	Bios_Limit_Chunk(d->chunks,1024*d->bios_hd*d->bios_sect);
 	return d;
 }
 

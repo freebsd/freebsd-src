@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.17 1995/05/25 06:14:49 phk Exp $
+ * $Id: libdisk.h,v 1.18 1995/05/30 08:28:12 rgrimes Exp $
  *
  */
 
@@ -210,6 +210,14 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 void
 MakeDevDisk(struct disk *d,char *path);
 	/* Make device nodes for all chunks on this disk */
+
+char *
+ShowChunkFlags(struct chunk *c);
+	/* Return string to show flags. */
+
+char *
+ChunkCanBeRoot(struct chunk *c);
+	/* Return NULL if chunk can be /, explanation otherwise */
 
 /*
  * Implementation details  >>> DO NOT USE <<<
