@@ -428,6 +428,7 @@ prep_cdevsw(struct cdevsw *devsw)
 	}
 	
 	if (devsw->d_flags & D_TTY) {
+		if (devsw->d_ioctl == NULL)	devsw->d_ioctl = ttyioctl;
 		if (devsw->d_read == NULL)	devsw->d_read = ttyread;
 		if (devsw->d_write == NULL)	devsw->d_write = ttywrite;
 		if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = ttykqfilter;

@@ -353,6 +353,7 @@ void dumpsys(struct dumperinfo *);
 extern int dumping;		/* system is dumping */
 
 /* D_TTY related functions */
+d_ioctl_t	 ttyioctl;
 d_kqfilter_t	 ttykqfilter;
 d_poll_t	 ttypoll;
 d_read_t	 ttyread;
