@@ -47,8 +47,7 @@ cons25w|ansiw|ansi80x25-raw:\
 	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\177:kB=\E[Z:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:\
-	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:\
-	:ve=\E[=S:vi=\E[=1S:vs=\E[=2S:
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:
 # CP437 FreeBSD console with ACS support
 cons25|ansis|ansi80x25:\
 	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
