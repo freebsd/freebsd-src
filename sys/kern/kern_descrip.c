@@ -307,10 +307,9 @@ fcntl(p, uap)
 			return (error);
 		}
 		if (fl.l_whence == SEEK_CUR) {
-			if ((fl.l_start > 0 &&
-			     fp->f_offset > OFF_MAX - fl.l_start) ||
-			    (fl.l_start < 0 &&
-			     fp->f_offset < OFF_MIN - fl.l_start)) {
+			if (fp->f_offset < 0 ||
+			    (fl.l_start > 0 &&
+			     fp->f_offset > OFF_MAX - fl.l_start)) {
 				fdrop(fp, p);
 				return (EOVERFLOW);
 			}
