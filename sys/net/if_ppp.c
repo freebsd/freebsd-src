@@ -494,8 +494,7 @@ pppioctl(sc, cmd, data, flag, td)
 		    sc->sc_xc_state = (*cp)->comp_alloc(ccp_option, nb);
 		    if (sc->sc_xc_state == NULL) {
 			if (sc->sc_flags & SC_DEBUG)
-			    printf("ppp%d: comp_alloc failed\n",
-			       sc->sc_if.if_unit);
+			    if_printf(&sc->sc_if, "comp_alloc failed\n");
 			error = ENOBUFS;
 		    }
 		    splimp();
@@ -509,8 +508,7 @@ pppioctl(sc, cmd, data, flag, td)
 		    sc->sc_rc_state = (*cp)->decomp_alloc(ccp_option, nb);
 		    if (sc->sc_rc_state == NULL) {
 			if (sc->sc_flags & SC_DEBUG)
-			    printf("ppp%d: decomp_alloc failed\n",
-			       sc->sc_if.if_unit);
+			    if_printf(&sc->sc_if, "decomp_alloc failed\n");
 			error = ENOBUFS;
 		    }
 		    splimp();
@@ -520,9 +518,8 @@ pppioctl(sc, cmd, data, flag, td)
 		break;
 	    }
 	if (sc->sc_flags & SC_DEBUG)
-	    printf("ppp%d: no compressor for [%x %x %x], %x\n",
-		   sc->sc_if.if_unit, ccp_option[0], ccp_option[1],
-		   ccp_option[2], nb);
+	    if_printf(&sc->sc_if, "no compressor for [%x %x %x], %x\n",
+		   ccp_option[0], ccp_option[1], ccp_option[2], nb);
 	error = EINVAL;		/* no handler found */
         break;
 #endif /* PPP_COMPRESS */
@@ -812,7 +809,7 @@ pppoutput(ifp, m0, dst, rtp)
 	mode = NPMODE_PASS;
 	break;
     default:
-	printf("ppp%d: af%d not supported\n", ifp->if_unit, dst->sa_family);
+	if_printf(ifp, "af%d not supported\n", dst->sa_family);
 	error = EAFNOSUPPORT;
 	goto bad;
     }
@@ -1320,7 +1317,7 @@ ppp_inproc(sc, m)
 
     if (sc->sc_flags & SC_LOG_INPKT) {
 	ilen = m_length(m, NULL);
-	printf("ppp%d: got %d bytes\n", ifp->if_unit, ilen);
+	if_printf(ifp, "got %d bytes\n", ilen);
 	pppdumpm(m);
     }
 
@@ -1362,7 +1359,7 @@ ppp_inproc(sc, m)
 	     * CCP down or issue a Reset-Req.
 	     */
 	    if (sc->sc_flags & SC_DEBUG)
-		printf("ppp%d: decompress failed %d\n", ifp->if_unit, rv);
+		if_printf(ifp, "decompress failed %d\n", rv);
 	    s = splimp();
 	    sc->sc_flags |= SC_VJ_RESET;
 	    if (rv == DECOMP_ERROR)
@@ -1410,8 +1407,7 @@ ppp_inproc(sc, m)
 
 	if (xlen <= 0) {
 	    if (sc->sc_flags & SC_DEBUG)
-		printf("ppp%d: VJ uncompress failed on type comp\n",
-			ifp->if_unit);
+		if_printf(ifp, "VJ uncompress failed on type comp\n");
 	    goto bad;
 	}
 
@@ -1466,8 +1462,7 @@ ppp_inproc(sc, m)
 
 	if (xlen < 0) {
 	    if (sc->sc_flags & SC_DEBUG)
-		printf("ppp%d: VJ uncompress failed on type uncomp\n",
-			ifp->if_unit);
+		if_printf(ifp, "VJ uncompress failed on type uncomp\n");
 	    goto bad;
 	}
 
@@ -1583,7 +1578,7 @@ ppp_inproc(sc, m)
      */
     if (! IF_HANDOFF(inq, m, NULL)) {
 	if (sc->sc_flags & SC_DEBUG)
-	    printf("ppp%d: input queue full\n", ifp->if_unit);
+	    if_printf(ifp, "input queue full\n");
 	ifp->if_iqdrops++;
 	goto bad;
     }
