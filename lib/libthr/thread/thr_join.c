@@ -107,9 +107,10 @@ _pthread_join(pthread_t pthread, void **thread_return)
 
 	/* Check if the thread is not dead: */
 	if (pthread->state != PS_DEAD) {
-		_thread_critical_enter(curthread);
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = curthread;
+		_SPINUNLOCK(&pthread->lock);
+		_thread_critical_enter(curthread);
 
 		/* Keep track of which thread we're joining to: */
 		curthread->join_status.thread = pthread;
@@ -118,11 +119,19 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			PTHREAD_SET_STATE(curthread, PS_JOIN);
 			/* Wait for our signal to wake up. */
 			_thread_critical_exit(curthread);
-			_SPINUNLOCK(&pthread->lock);
 			THREAD_LIST_UNLOCK;
 			DEAD_LIST_UNLOCK;
 			_thread_suspend(curthread, NULL);
 
+			/*
+			 * XXX - For correctness reasons.
+			 * We must aquire these in the same order and also
+			 * importantly, release in the same order, order because
+			 * otherwise we might deadlock with the joined thread
+			 * when we attempt to release one of these locks.
+			 */
+			DEAD_LIST_LOCK;
+			THREAD_LIST_LOCK;
 			_thread_critical_enter(curthread);
 		}
 
@@ -134,6 +143,8 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		if ((ret == 0) && (thread_return != NULL))
 			*thread_return = curthread->join_status.ret;
 		_thread_critical_exit(curthread);
+		THREAD_LIST_UNLOCK;
+		DEAD_LIST_UNLOCK;
 	} else {
 		/*
 		 * The thread exited (is dead) without being detached, and no
