@@ -36,22 +36,22 @@
 .In sys/types.h
 .In sys/lockmgr.h
 .Ft int
-.Fn lockstatus "struct lock *lkp" "struct proc *p"
+.Fn lockstatus "struct lock *lkp" "struct thread *td"
 .Sh DESCRIPTION
 The
 .Fn lockstatus
 function returns the status of the lock in relation to the
-.Vt proc
+.Vt thread
 passed to it.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa lkp"
 .It Fa lkp
 The lock to return the status of.
-.It Fa p
-The process to check any exclusive locks against.
+.It Fa td
+The thread to check any exclusive locks against.
 If
-.Fa p
+.Fa td
 is
 .Dv NULL
 and an exclusive lock is held,
@@ -61,12 +61,12 @@ is returned.
 .Sh RETURN VALUES
 .Bl -tag -width ".Dv LK_EXCLUSIVE"
 .It Dv LK_EXCLUSIVE
-An exclusive lock is held by the process
-.Fa p
+An exclusive lock is held by the thread
+.Fa td
 passed in.
 .It Dv LK_EXCLOTHER
-An exclusive lock is held by someone other then the process
-.Fa p
+An exclusive lock is held by someone other then the thread
+.Fa td
 passed in.
 .It Dv LK_SHARED
 A shared lock is held.
