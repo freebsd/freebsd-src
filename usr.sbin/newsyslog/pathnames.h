@@ -25,3 +25,4 @@ provided "as is" without express or implied warranty.
 #define _PATH_CONF	"/etc/newsyslog.conf"
 #define _PATH_SYSLOGPID	_PATH_VARRUN "syslog.pid"
 #define _PATH_GZIP	"/usr/bin/gzip"
+#define _PATH_BZIP2	"/usr/bin/bzip2"
