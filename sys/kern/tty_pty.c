@@ -69,10 +69,11 @@ static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
 static	d_read_t	ptsread;
 static	d_write_t	ptswrite;
-static	d_ioctl_t	ptyioctl;
+static	d_ioctl_t	ptsioctl;
 static	d_open_t	ptcopen;
 static	d_close_t	ptcclose;
 static	d_read_t	ptcread;
+static	d_ioctl_t	ptcioctl;
 static	d_write_t	ptcwrite;
 static	d_poll_t	ptcpoll;
 
@@ -83,7 +84,7 @@ static struct cdevsw pts_cdevsw = {
 	.d_close =	ptsclose,
 	.d_read =	ptsread,
 	.d_write =	ptswrite,
-	.d_ioctl =	ptyioctl,
+	.d_ioctl =	ptsioctl,
 	.d_name =	"pts",
 	.d_maj =	CDEV_MAJOR_S,
 	.d_flags =	D_TTY | D_NEEDGIANT,
@@ -96,7 +97,7 @@ static struct cdevsw ptc_cdevsw = {
 	.d_close =	ptcclose,
 	.d_read =	ptcread,
 	.d_write =	ptcwrite,
-	.d_ioctl =	ptyioctl,
+	.d_ioctl =	ptcioctl,
 	.d_poll =	ptcpoll,
 	.d_name =	"ptc",
 	.d_maj =	CDEV_MAJOR_C,
@@ -519,86 +520,95 @@ block:
 
 /*ARGSUSED*/
 static	int
-ptyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	struct tty *tp = dev->si_tty;
+	struct ptsc *pt = dev->si_drv1;
+
+	switch (cmd) {
+
+	case TIOCGPGRP:
+		/*
+		 * We avoid calling ttioctl on the controller since,
+		 * in that case, tp must be the controlling terminal.
+		 */
+		*(int *)data = tp->t_pgrp ? tp->t_pgrp->pg_id : 0;
+		return (0);
+
+	case TIOCPKT:
+		if (*(int *)data) {
+			if (pt->pt_flags & PF_UCNTL)
+				return (EINVAL);
+			pt->pt_flags |= PF_PKT;
+		} else
+			pt->pt_flags &= ~PF_PKT;
+		return (0);
+
+	case TIOCUCNTL:
+		if (*(int *)data) {
+			if (pt->pt_flags & PF_PKT)
+				return (EINVAL);
+			pt->pt_flags |= PF_UCNTL;
+		} else
+			pt->pt_flags &= ~PF_UCNTL;
+		return (0);
+	}
+
+	/*
+	 * The rest of the ioctls shouldn't be called until
+	 * the slave is open.
+	 */
+	if ((tp->t_state & TS_ISOPEN) == 0)
+		return (EAGAIN);
+
+	switch (cmd) {
+#ifndef BURN_BRIDGES
+#ifdef COMPAT_43
+	case TIOCSETP:
+	case TIOCSETN:
+#endif
+#endif
+	case TIOCSETD:
+	case TIOCSETA:
+	case TIOCSETAW:
+	case TIOCSETAF:
+		/*
+		 * IF CONTROLLER STTY THEN MUST FLUSH TO PREVENT A HANG.
+		 * ttywflush(tp) will hang if there are characters in
+		 * the outq.
+		 */
+		ndflush(&tp->t_outq, tp->t_outq.c_cc);
+		break;
+
+	case TIOCSIG:
+		if (*(unsigned int *)data >= NSIG ||
+		    *(unsigned int *)data == 0)
+			return(EINVAL);
+		if ((tp->t_lflag&NOFLSH) == 0)
+			ttyflush(tp, FREAD|FWRITE);
+		if (tp->t_pgrp != NULL) {
+			PGRP_LOCK(tp->t_pgrp);
+			pgsignal(tp->t_pgrp, *(unsigned int *)data, 1);
+			PGRP_UNLOCK(tp->t_pgrp);
+		}
+		if ((*(unsigned int *)data == SIGINFO) &&
+		    ((tp->t_lflag&NOKERNINFO) == 0))
+			ttyinfo(tp);
+		return(0);
+	}
+
+	return (ptsioctl(dev, cmd, data, flag, td));
+}
+
+/*ARGSUSED*/
+static	int
+ptsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
 	struct ptsc *pt = dev->si_drv1;
 	u_char *cc = tp->t_cc;
 	int stop, error;
 
-	if (devsw(dev)->d_open == ptcopen) {
-		switch (cmd) {
-
-		case TIOCGPGRP:
-			/*
-			 * We avoid calling ttioctl on the controller since,
-			 * in that case, tp must be the controlling terminal.
-			 */
-			*(int *)data = tp->t_pgrp ? tp->t_pgrp->pg_id : 0;
-			return (0);
-
-		case TIOCPKT:
-			if (*(int *)data) {
-				if (pt->pt_flags & PF_UCNTL)
-					return (EINVAL);
-				pt->pt_flags |= PF_PKT;
-			} else
-				pt->pt_flags &= ~PF_PKT;
-			return (0);
-
-		case TIOCUCNTL:
-			if (*(int *)data) {
-				if (pt->pt_flags & PF_PKT)
-					return (EINVAL);
-				pt->pt_flags |= PF_UCNTL;
-			} else
-				pt->pt_flags &= ~PF_UCNTL;
-			return (0);
-		}
-
-		/*
-		 * The rest of the ioctls shouldn't be called until
-		 * the slave is open.
-		 */
-		if ((tp->t_state & TS_ISOPEN) == 0)
-			return (EAGAIN);
-
-		switch (cmd) {
-#ifndef BURN_BRIDGES
-#ifdef COMPAT_43
-		case TIOCSETP:
-		case TIOCSETN:
-#endif
-#endif
-		case TIOCSETD:
-		case TIOCSETA:
-		case TIOCSETAW:
-		case TIOCSETAF:
-			/*
-			 * IF CONTROLLER STTY THEN MUST FLUSH TO PREVENT A HANG.
-			 * ttywflush(tp) will hang if there are characters in
-			 * the outq.
-			 */
-			ndflush(&tp->t_outq, tp->t_outq.c_cc);
-			break;
-
-		case TIOCSIG:
-			if (*(unsigned int *)data >= NSIG ||
-			    *(unsigned int *)data == 0)
-				return(EINVAL);
-			if ((tp->t_lflag&NOFLSH) == 0)
-				ttyflush(tp, FREAD|FWRITE);
-			if (tp->t_pgrp != NULL) {
-				PGRP_LOCK(tp->t_pgrp);
-				pgsignal(tp->t_pgrp, *(unsigned int *)data, 1);
-				PGRP_UNLOCK(tp->t_pgrp);
-			}
-			if ((*(unsigned int *)data == SIGINFO) &&
-			    ((tp->t_lflag&NOKERNINFO) == 0))
-				ttyinfo(tp);
-			return(0);
-		}
-	}
 	if (cmd == TIOCEXT) {
 		/*
 		 * When the EXTPROC bit is being toggled, we need
