@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.17 1995/03/19 23:08:12 davidg Exp $
+ *	$Id: kern_exec.c,v 1.18 1995/03/19 23:27:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -114,12 +114,8 @@ execve(p, uap, retval)
 	 *	in ni_vp amoung other things.
 	 */
 	ndp = &nd;
-	ndp->ni_cnd.cn_nameiop = LOOKUP;
-	ndp->ni_cnd.cn_flags = LOCKLEAF | FOLLOW | SAVENAME;
-	ndp->ni_cnd.cn_proc = curproc;
-	ndp->ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
-	ndp->ni_segflg = UIO_USERSPACE;
-	ndp->ni_dirp = uap->fname;
+	NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
+	    UIO_USERSPACE, uap->fname, curproc);
 
 interpret:
 
@@ -196,12 +192,8 @@ interpret:
 				panic("execve: header dealloc failed (1)");
 
 			/* set new name to that of the interpreter */
-			ndp->ni_segflg = UIO_SYSSPACE;
-			ndp->ni_dirp = iparams->interpreter_name;
-			ndp->ni_cnd.cn_nameiop = LOOKUP;
-			ndp->ni_cnd.cn_flags = LOCKLEAF | FOLLOW | SAVENAME;
-			ndp->ni_cnd.cn_proc = curproc;
-			ndp->ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
+			NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
+			    UIO_SYSSPACE, iparams->interpreter_name, curproc);
 			goto interpret;
 		}
 		break;
