@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 
 #include <db.h>
 #include <errno.h>
@@ -278,9 +279,16 @@ invalid:
 		warning("ignoring excess arguments");
 
 	if (devfs) {
+		struct iovec iov[4];
 		char *s;
 		int i;
 
+		iov[0].iov_base = "fstype";
+		iov[0].iov_len = sizeof("fstype");
+		iov[1].iov_base = "devfs";
+		iov[1].iov_len = sizeof("devfs");
+		iov[2].iov_base = "fspath";
+		iov[2].iov_len = sizeof("fspath");
 		/* 
 		 * Try to avoid the trailing slash in _PATH_DEV.
 		 * Be *very* defensive.
@@ -290,11 +298,15 @@ invalid:
 			i = strlen(s);
 			if (i > 0 && s[i - 1] == '/')
 				s[i - 1] = '\0';
-			mount("devfs", s, 0, 0);
-			free(s);
+			iov[3].iov_base = s;
+			iov[3].iov_len = strlen(s) + 1;
 		} else {
-			mount("devfs", _PATH_DEV, 0, 0);
+			iov[3].iov_base = _PATH_DEV;
+			iov[3].iov_len = sizeof(_PATH_DEV);
 		}
+		nmount(iov, 4, 0);
+		if (s != NULL)
+			free(s);
 	}
 
 	/*
