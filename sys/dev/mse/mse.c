@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.5 1994/08/02 07:39:39 davidg Exp $
+ * $Id: mse.c,v 1.6 1994/08/13 03:50:10 wollman Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -45,10 +45,10 @@
 #include "mse.h"
 #if NMSE > 0
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/buf.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>

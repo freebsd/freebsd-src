@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.1 1994/10/01 17:59:41 davidg Exp $
+ *	$Id: ctx.c,v 1.2 1994/10/19 01:58:55 wollman Exp $
  */
 
 /*
@@ -119,10 +119,11 @@
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/devconf.h>
 
-#include "isa.h"
-#include "isa_device.h"
-#include "ctxreg.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/ctxreg.h>
 #include <machine/ioctl_ctx.h>
 
 int     waitvb(short);
