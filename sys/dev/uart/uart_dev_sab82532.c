@@ -410,7 +410,7 @@ sab82532_bus_attach(struct uart_softc *sc)
 	uart_barrier(bas);
 
 	if (sc->sc_sysdev == NULL)
-		sab82532_bus_setsig(sc, UART_SIG_DDTR|UART_SIG_DRTS);
+		sab82532_bus_setsig(sc, SER_DDTR|SER_DRTS);
 	(void)sab82532_bus_getsig(sc);
 	return (0);
 }
@@ -455,9 +455,9 @@ sab82532_bus_getsig(struct uart_softc *sc)
 		sig = old;
 		mtx_lock_spin(&sc->sc_hwmtx);
 		star = uart_getreg(bas, SAB_STAR);
-		SIGCHG(star & SAB_STAR_CTS, sig, UART_SIG_CTS, UART_SIG_DCTS);
+		SIGCHG(star & SAB_STAR_CTS, sig, SER_CTS, SER_DCTS);
 		vstr = uart_getreg(bas, SAB_VSTR);
-		SIGCHG(vstr & SAB_VSTR_CD, sig, UART_SIG_DCD, UART_SIG_DDCD);
+		SIGCHG(vstr & SAB_VSTR_CD, sig, SER_DCD, SER_DDCD);
 		pvr = uart_getreg(bas, SAB_PVR);
 		switch (bas->chan) {
 		case 1:
@@ -467,7 +467,7 @@ sab82532_bus_getsig(struct uart_softc *sc)
 			pvr &= SAB_PVR_DSR_B;
 			break;
 		}
-		SIGCHG(~pvr, sig, UART_SIG_DSR, UART_SIG_DDSR);
+		SIGCHG(~pvr, sig, SER_DSR, SER_DDSR);
 		mtx_unlock_spin(&sc->sc_hwmtx);
 		new = sig & ~UART_SIGMASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
@@ -655,13 +655,13 @@ sab82532_bus_setsig(struct uart_softc *sc, int sig)
 	do {
 		old = sc->sc_hwsig;
 		new = old;
-		if (sig & UART_SIG_DDTR) {
-			SIGCHG(sig & UART_SIG_DTR, new, UART_SIG_DTR,
-			    UART_SIG_DDTR);
+		if (sig & SER_DDTR) {
+			SIGCHG(sig & SER_DTR, new, SER_DTR,
+			    SER_DDTR);
 		}
-		if (sig & UART_SIG_DRTS) {
-			SIGCHG(sig & UART_SIG_RTS, new, UART_SIG_RTS,
-			    UART_SIG_DRTS);
+		if (sig & SER_DRTS) {
+			SIGCHG(sig & SER_RTS, new, SER_RTS,
+			    SER_DRTS);
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 
@@ -670,13 +670,13 @@ sab82532_bus_setsig(struct uart_softc *sc, int sig)
 	pvr = uart_getreg(bas, SAB_PVR);
 	switch (bas->chan) {
 	case 1:
-		if (new & UART_SIG_DTR)
+		if (new & SER_DTR)
 			pvr &= ~SAB_PVR_DTR_A;
 		else
 			pvr |= SAB_PVR_DTR_A;
 		break;
 	case 2:
-		if (new & UART_SIG_DTR)
+		if (new & SER_DTR)
 			pvr &= ~SAB_PVR_DTR_B;
 		else
 			pvr |= SAB_PVR_DTR_B;
@@ -686,7 +686,7 @@ sab82532_bus_setsig(struct uart_softc *sc, int sig)
 
 	/* Set RTS pin. */
 	mode = uart_getreg(bas, SAB_MODE);
-	if (new & UART_SIG_RTS)
+	if (new & SER_RTS)
 		mode &= ~SAB_MODE_FRTS;
 	else
 		mode |= SAB_MODE_FRTS;

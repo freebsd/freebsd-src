@@ -33,6 +33,7 @@
 #include "opt_uart.h"
 #endif
 
+#include <sys/serial.h>
 #include <sys/timepps.h>
 
 /* Drain and flush targets. */
@@ -45,7 +46,7 @@
  * Interrupt sources (in priority order). See also uart_core.c
  * Note that the low order 16 bits are used to pass modem signals
  * from the hardware interrupt handler to the software interrupt
- * handler. See UART_SIG_* and UART_SIGMASK_* below.
+ * handler.
  */
 #define	UART_IPEND_OVERRUN	0x010000
 #define	UART_IPEND_BREAK	0x020000
@@ -62,31 +63,17 @@
 #define	UART_STAT_OVERRUN	0x0400
 #define	UART_STAT_PARERR	0x0800
 
-/* Modem and line signals. */
-#define	UART_SIG_DTR		0x0001
-#define	UART_SIG_RTS		0x0002
-#define	UART_SIG_DSR		0x0004
-#define	UART_SIG_CTS		0x0008
-#define	UART_SIG_DCD		0x0010
-#define	UART_SIG_RI		0x0020
-#define	UART_SIG_DDTR		0x0100
-#define	UART_SIG_DRTS		0x0200
-#define	UART_SIG_DDSR		0x0400
-#define	UART_SIG_DCTS		0x0800
-#define	UART_SIG_DDCD		0x1000
-#define	UART_SIG_DRI		0x2000
-
-#define	UART_SIGMASK_DTE	0x0003
-#define	UART_SIGMASK_DCE	0x003c
-#define	UART_SIGMASK_STATE	0x003f
-#define	UART_SIGMASK_DELTA	0x3f00
+#define	UART_SIGMASK_DTE	(SER_DTR | SER_RTS)
+#define	UART_SIGMASK_DCE	(SER_DSR | SER_CTS | SER_DCD | SER_RI)
+#define	UART_SIGMASK_STATE	(UART_SIGMASK_DTE | UART_SIGMASK_DCE)
+#define	UART_SIGMASK_DELTA	(UART_SIGMASK_STATE << 8)
 
 #ifdef UART_PPS_ON_CTS
-#define	UART_SIG_DPPS		UART_SIG_DCTS
-#define	UART_SIG_PPS		UART_SIG_CTS
+#define	UART_SIG_DPPS		SER_DCTS
+#define	UART_SIG_PPS		SER_CTS
 #else
-#define	UART_SIG_DPPS		UART_SIG_DDCD
-#define	UART_SIG_PPS		UART_SIG_DCD
+#define	UART_SIG_DPPS		SER_DDCD
+#define	UART_SIG_PPS		SER_DCD
 #endif
 
 /* UART_IOCTL() requests */

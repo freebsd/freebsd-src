@@ -398,9 +398,9 @@ i8251_bus_attach(struct uart_softc *sc)
 	i8251_bus_flush(sc, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
 
 	if (i8251->mcr & MCR_DTR)
-		sc->sc_hwsig |= UART_SIG_DTR;
+		sc->sc_hwsig |= SER_DTR;
 	if (i8251->mcr & MCR_RTS)
-		sc->sc_hwsig |= UART_SIG_RTS;
+		sc->sc_hwsig |= SER_RTS;
 	i8251_bus_getsig(sc);
 
 	i8251_clrint(bas);
@@ -454,10 +454,10 @@ i8251_bus_getsig(struct uart_softc *sc)
 		mtx_lock_spin(&sc->sc_hwmtx);
 		msr = uart_getreg(&sc->sc_bas, REG_MSR);
 		mtx_unlock_spin(&sc->sc_hwmtx);
-		SIGCHG(msr & MSR_DSR, sig, UART_SIG_DSR, UART_SIG_DDSR);
-		SIGCHG(msr & MSR_CTS, sig, UART_SIG_CTS, UART_SIG_DCTS);
-		SIGCHG(msr & MSR_DCD, sig, UART_SIG_DCD, UART_SIG_DDCD);
-		SIGCHG(msr & MSR_RI,  sig, UART_SIG_RI,  UART_SIG_DRI);
+		SIGCHG(msr & MSR_DSR, sig, SER_DSR, SER_DDSR);
+		SIGCHG(msr & MSR_CTS, sig, SER_CTS, SER_DCTS);
+		SIGCHG(msr & MSR_DCD, sig, SER_DCD, SER_DDCD);
+		SIGCHG(msr & MSR_RI,  sig, SER_RI,  SER_DRI);
 		new = sig & ~UART_SIGMASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
@@ -715,20 +715,20 @@ i8251_bus_setsig(struct uart_softc *sc, int sig)
 	do {
 		old = sc->sc_hwsig;
 		new = old;
-		if (sig & UART_SIG_DDTR) {
-			SIGCHG(sig & UART_SIG_DTR, new, UART_SIG_DTR,
-			    UART_SIG_DDTR);
+		if (sig & SER_DDTR) {
+			SIGCHG(sig & SER_DTR, new, SER_DTR,
+			    SER_DDTR);
 		}
-		if (sig & UART_SIG_DRTS) {
-			SIGCHG(sig & UART_SIG_RTS, new, UART_SIG_RTS,
-			    UART_SIG_DRTS);
+		if (sig & SER_DRTS) {
+			SIGCHG(sig & SER_RTS, new, SER_RTS,
+			    SER_DRTS);
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	mtx_lock_spin(&sc->sc_hwmtx);
 	i8251->mcr &= ~(MCR_DTR|MCR_RTS);
-	if (new & UART_SIG_DTR)
+	if (new & SER_DTR)
 		i8251->mcr |= MCR_DTR;
-	if (new & UART_SIG_RTS)
+	if (new & SER_RTS)
 		i8251->mcr |= MCR_RTS;
 	uart_setreg(bas, REG_MCR, i8251->mcr);
 	uart_barrier(bas);
