@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.65 1994/04/29 21:53:55 gclarkii Exp $
+#	$Id: LINT,v 1.66 1994/05/13 08:48:22 jkh Exp $
 #
 
 machine		"i386"
@@ -40,6 +40,9 @@ options		"STAR_SAVER"		#syscons "stars" screen saver
 options         "FADE_SAVER"            #syscons "fade" screen saver
 options		"SNAKE_SAVER"		#syscons "snake" screen saver
 options         "BLANK_SAVER"           #syscons "blank" screen saver
+
+#options	ALLOW_CONFLICT_IOADDR	#no IO addr conflict checks (PS/2 mice)
+#options	ALLOW_CONFLICT_IRQ	#no IRQ conflict checks (mport serial)
 
 options		"TCP_COMPAT_42"		#tcp/ip compatible with 4.2
 					# ^^^ NOT RECOMMENDED FOR NORMAL USE
@@ -146,7 +149,7 @@ device		lpa0	at isa? port "IO_LPT1" tty
 device		lpa1	at isa? port "IO_LPT2" tty
 # interrupt driven parallel printer port driver
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
-# Driver for Mutsumi CD-ROM players
+# Driver for Mitsumi CD-ROM players
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # Driver for Logitech and ATI inport bus mice
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
@@ -158,6 +161,10 @@ device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
 device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
 device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
+#PS/2 mouse driver (must follow pc0 or sc0 if enabled).  Also enable
+#ALLOW_CONFLICT_IOADDR option (see above) if you want to use this.
+device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
+
 pseudo-device	speaker
 #tw	device-driver
 controller	uha0	at isa? port "IO_UHA0" bio irq 14 drq 5 vector uhaintr
