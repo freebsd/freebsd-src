@@ -655,8 +655,12 @@ mptable_parse_io_int(int_entry_ptr intr)
 		if (busses[intr->src_bus_id].bus_type == NOBUS)
 			panic("interrupt from missing bus");
 		if (busses[intr->src_bus_id].bus_type == ISA &&
-		    intr->src_bus_irq != pin)
+		    intr->src_bus_irq != pin) {
 			ioapic_remap_vector(ioapic, pin, intr->src_bus_irq);
+			if (ioapic_get_vector(ioapic, intr->src_bus_irq) ==
+			    intr->src_bus_irq)
+				ioapic_disable_pin(ioapic, intr->src_bus_irq);
+		}
 		break;
 	case INTENTRY_TYPE_NMI:
 		ioapic_set_nmi(ioapic, pin);

@@ -521,25 +521,33 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 static void
 madt_parse_interrupt_override(INTERRUPT_SOURCE_OVERRIDE *intr)
 {
-	void *ioapic;
-	u_int pin;
+	void *new_ioapic, *old_ioapic;
+	u_int new_pin, old_pin;
 
 	if (bootverbose)
 		printf("MADT: intr override: source %u, irq %u\n",
 		    intr->Source, intr->GlobalSystemInterrupt);
 	KASSERT(intr->Bus == 0, ("bus for interrupt overrides must be zero"));
-	if (madt_find_interrupt(intr->GlobalSystemInterrupt,
-	    &ioapic, &pin) != 0) {
+	if (madt_find_interrupt(intr->GlobalSystemInterrupt, &new_ioapic,
+	    &new_pin) != 0) {
 		printf("MADT: Could not find APIC for vector %d (IRQ %d)\n",
 		    intr->GlobalSystemInterrupt, intr->Source);
 		return;
 	}
 
-	if (intr->Source != intr->GlobalSystemInterrupt)
-		ioapic_remap_vector(ioapic, pin, intr->Source);
-	ioapic_set_triggermode(ioapic, pin,
+	if (intr->Source != intr->GlobalSystemInterrupt) {
+		ioapic_remap_vector(new_ioapic, new_pin, intr->Source);
+		if (madt_find_interrupt(intr->Source, &old_ioapic,
+		    &old_pin) != 0)
+			printf("MADT: Could not find APIC for source IRQ %d\n",
+			    intr->Source);
+		else
+			ioapic_disable_pin(old_ioapic, old_pin);
+	}
+	ioapic_set_triggermode(new_ioapic, new_pin,
 	    interrupt_trigger(intr->TriggerMode));
-	ioapic_set_polarity(ioapic, pin, interrupt_polarity(intr->Polarity));
+	ioapic_set_polarity(new_ioapic, new_pin,
+	    interrupt_polarity(intr->Polarity));
 }
 
 /*
