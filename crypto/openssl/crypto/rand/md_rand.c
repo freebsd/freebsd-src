@@ -308,6 +308,7 @@ static int ssleay_rand_bytes(unsigned char *buf, int num)
 	{
 	static volatile int stirred_pool = 0;
 	int i,j,k,st_num,st_idx;
+	int num_ceil;
 	int ok;
 	long md_c[2];
 	unsigned char local_md[MD_DIGEST_LENGTH];
@@ -327,6 +328,12 @@ static int ssleay_rand_bytes(unsigned char *buf, int num)
 		return(1);
 		}
 #endif
+
+	if (num <= 0)
+		return 1;
+	
+	/* round upwards to multiple of MD_DIGEST_LENGTH/2 */
+	num_ceil = (1 + (num-1)/(MD_DIGEST_LENGTH/2)) * (MD_DIGEST_LENGTH/2);
 
 	/*
 	 * (Based on the rand(3) manpage:)
@@ -409,11 +416,11 @@ static int ssleay_rand_bytes(unsigned char *buf, int num)
 	md_c[1] = md_count[1];
 	memcpy(local_md, md, sizeof md);
 
-	state_index+=num;
+	state_index+=num_ceil;
 	if (state_index > state_num)
 		state_index %= state_num;
 
-	/* state[st_idx], ..., state[(st_idx + num - 1) % st_num]
+	/* state[st_idx], ..., state[(st_idx + num_ceil - 1) % st_num]
 	 * are now ours (but other threads may use them too) */
 
 	md_count[0] += 1;
@@ -424,6 +431,7 @@ static int ssleay_rand_bytes(unsigned char *buf, int num)
 
 	while (num > 0)
 		{
+		/* num_ceil -= MD_DIGEST_LENGTH/2 */
 		j=(num >= MD_DIGEST_LENGTH/2)?MD_DIGEST_LENGTH/2:num;
 		num-=j;
 		MD_Init(&m);
@@ -434,27 +442,28 @@ static int ssleay_rand_bytes(unsigned char *buf, int num)
 			curr_pid = 0;
 			}
 #endif
-		MD_Update(&m,&(local_md[MD_DIGEST_LENGTH/2]),MD_DIGEST_LENGTH/2);
+		MD_Update(&m,local_md,MD_DIGEST_LENGTH);
 		MD_Update(&m,(unsigned char *)&(md_c[0]),sizeof(md_c));
 #ifndef PURIFY
 		MD_Update(&m,buf,j); /* purify complains */
 #endif
-		k=(st_idx+j)-st_num;
+		k=(st_idx+MD_DIGEST_LENGTH/2)-st_num;
 		if (k > 0)
 			{
-			MD_Update(&m,&(state[st_idx]),j-k);
+			MD_Update(&m,&(state[st_idx]),MD_DIGEST_LENGTH/2-k);
 			MD_Update(&m,&(state[0]),k);
 			}
 		else
-			MD_Update(&m,&(state[st_idx]),j);
+			MD_Update(&m,&(state[st_idx]),MD_DIGEST_LENGTH/2);
 		MD_Final(local_md,&m);
 
-		for (i=0; i<j; i++)
+		for (i=0; i<MD_DIGEST_LENGTH/2; i++)
 			{
 			state[st_idx++]^=local_md[i]; /* may compete with other threads */
-			*(buf++)=local_md[i+MD_DIGEST_LENGTH/2];
 			if (st_idx >= st_num)
 				st_idx=0;
+			if (i < j)
+				*(buf++)=local_md[i+MD_DIGEST_LENGTH/2];
 			}
 		}
 
