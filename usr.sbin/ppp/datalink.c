@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.10 1998/06/16 07:15:16 brian Exp $
+ *	$Id: datalink.c,v 1.11 1998/06/20 00:19:35 brian Exp $
  */
 
 #include <sys/types.h>
@@ -363,10 +363,11 @@ datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   }
 }
 
-static void
+static int
 datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
+  int result = 0;
 
   switch (dl->state) {
     case DATALINK_CLOSED:
@@ -376,16 +377,18 @@ datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     case DATALINK_HANGUP:
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
-      descriptor_Write(&dl->chat.desc, bundle, fdset);
+      result = descriptor_Write(&dl->chat.desc, bundle, fdset);
       break;
 
     case DATALINK_READY:
     case DATALINK_LCP:
     case DATALINK_AUTH:
     case DATALINK_OPEN:
-      descriptor_Write(&dl->physical->desc, bundle, fdset);
+      result = descriptor_Write(&dl->physical->desc, bundle, fdset);
       break;
   }
+
+  return result;
 }
 
 static void

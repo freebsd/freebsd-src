@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.9 1998/06/16 19:40:40 brian Exp $
+ *	$Id: mp.c,v 1.10 1998/06/20 00:19:42 brian Exp $
  */
 
 #include <sys/types.h>
@@ -901,11 +901,12 @@ mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     close(fd);
 }
 
-static void
+static int
 mpserver_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "mpserver_Write: Internal error: Bad call !\n");
+  return 0;
 }
 
 void
