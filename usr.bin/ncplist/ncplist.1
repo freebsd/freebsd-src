@@ -13,11 +13,11 @@
 The
 .Nm
 command used to display state of ncplib and NetWare servers.
-First argument
-are one letter
+The first argument
+is a one letter
 .Ar command
 following by optional
-.Ar args
+.Ar args .
 .Pp
 The commands are:
 .Bl -tag -width indent
@@ -25,36 +25,43 @@ The commands are:
 Lists bindery objects of
 .Ar type
 on a specified
-.Ar server.
-.Ar Type
+.Ar server .
+The
+.Ar type
+argument
 can be one of the following:
 .Bd -literal -offset indent
 Type	Meaning
 user	bindery users
 group	bindery groups
 pserver	bindery print servers
-tree	tree name hosted by given server.
+tree	tree name hosted by given server
 .Ed
 .Pp
-Please note that if you are not logged in to the specified server list can be
-incomplete or empty.
+Note that if you are not logged in to the specified server,
+the list may be incomplete or empty.
 .It c
-List active NCP connections on local machine.
+List active NCP connections on the local machine.
 .It s Op Ar server
-Displays NetWare servers known to given
+Display
+.Tn NetWare
+servers known to a given
 .Ar server .
-If no server is specified nearest server will be used.
+If no server is specified, the nearest server will be used.
 .It u Ar server
-Displays a list of users logged-in on given
+Displays a list of users logged in on a given
 .Ar server .
-If you are not logged in to the specified server list will be empty.
+If you are not logged in to the specified server,
+the list will be empty.
 .It q Ar server Op Ar pattern
-Displays bindery queues on given
+Displays bindery queues on a given
 .Ar server .
 .It v Ar server
-Displays mounted volumes on given
+Displays mounted volumes on a given
 .Ar server .
 .El
+.Sh IMPLEMENTATION NOTES
+This utility is provided mostly for educational purposes.
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact
 .It Pa ~/.nwfsrc
@@ -62,14 +69,8 @@ keeps description for each connection.
 See
 .Pa /usr/share/examples/nwclient/dot.nwfsrc
 for details.
-
-.Sh NOTES
-This utility provided mostly for educational purposes.
-
-.Sh BUGS
-to number a few
-
-.Sh AUTHOR
-.An Boris Popov Aq bp@butya.kz
-,
+.Sh AUTHORS
+.An Boris Popov Aq bp@butya.kz ,
 .Aq rbp@chat.ru
+.Sh BUGS
+Please report any bugs to the author.
