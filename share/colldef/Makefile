@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 1997/11/07 15:18:11 ache Exp $
+# $Id: Makefile,v 1.12 1997/11/07 15:40:55 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -13,12 +13,6 @@ LOCALES=        de_DE.ISO_8859-1 \
 		ru_SU.KOI8-R
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
-
-.if exists(${.OBJDIR}/../colldef)
-COLLDEF=${.OBJDIR}/../colldef
-.else
-COLLDEF=${.CURDIR}/../colldef
-.endif
 
 ASCIILINKS = \
 	ko_KR.EUC ja_JP.EUC ja_JP.SJIS
@@ -35,9 +29,11 @@ DELINKS = de_AT de_CH
 .SUFFIXES: .src .out
 
 .src.out:
-	${COLLDEF} -I ${.CURDIR} -o ${.TARGET} ${.IMPSRC}
+	colldef -I ${.CURDIR} -o ${.TARGET} ${.IMPSRC}
 
+.if !defined(_BUILD_TOOLS)
 all: ${LOCALES:S/$/.out/g}
+.endif
 
 ru_SU.KOI8-R.out:       map.KOI8-R
 ru_SU.CP866.out:        map.CP866
@@ -46,6 +42,7 @@ lt_LN.ISO_8859-2.out:   map.ISO_8859-2
 es_ES.ISO_8859-1.out:   map.ISO_8859-1
 de_DE.ISO_8859-1.out:   map.ISO_8859-1
 
+.if !defined(_BUILD_TOOLS)
 afterinstall:
 .for locale in ${LOCALES}
 	${INSTALL} -c -m 644 -o ${BINOWN} -g ${BINGRP} \
@@ -67,6 +64,6 @@ afterinstall:
 	ln -fs ../de_DE.ISO_8859-1/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.ISO_8859-1/LC_COLLATE
 .endfor
-
+.endif
 
 .include <bsd.prog.mk>
