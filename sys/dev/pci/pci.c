@@ -798,7 +798,7 @@ pci_add_resources(device_t pcib, device_t dev)
 	}
 
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
-#ifdef __ia64__
+#if defined(__ia64__) || (defined(__i386__) && !defined(SMP))
 		/*
 		 * Re-route interrupts on ia64 so that we can get the
 		 * I/O SAPIC interrupt numbers (the BIOS leaves legacy
