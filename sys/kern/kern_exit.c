@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.51 1997/07/17 04:49:27 dyson Exp $
+ * $Id: kern_exit.c,v 1.52 1997/08/21 20:33:38 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -547,7 +547,8 @@ proc_reparent(child, parent)
  * returns 0 on success.
  */
 int
-at_exit(exitlist_fn function)
+at_exit(function)
+	exitlist_fn function;
 {
 	ele_p ep;
 
@@ -568,7 +569,8 @@ at_exit(exitlist_fn function)
  * Logically this can only be 0 or 1.
  */
 int
-rm_at_exit(exitlist_fn function)
+rm_at_exit(function)
+	exitlist_fn function;
 {
 	ele_p *epp, ep;
 	int count;
@@ -588,5 +590,3 @@ rm_at_exit(exitlist_fn function)
 	}
 	return (count);
 }
-
-
