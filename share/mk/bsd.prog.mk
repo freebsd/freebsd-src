@@ -3,7 +3,7 @@
 
 .include <bsd.init.mk>
 
-.SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S
+.SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S .asm
 
 CFLAGS+=${COPTS} ${DEBUG_FLAGS}
 
