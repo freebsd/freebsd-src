@@ -79,9 +79,11 @@ Normally the protocol specifies the route
 through each interface as a
 .Dq direct
 connection to the destination host
-or network.  If the route is direct, the transport layer of
+or network.
+If the route is direct, the transport layer of
 a protocol family usually requests the packet be sent to the
-same host specified in the packet.  Otherwise, the interface
+same host specified in the packet.
+Otherwise, the interface
 is requested to address the packet to the gateway listed in the routing entry
 (i.e. the packet is forwarded).
 .Pp
@@ -100,7 +102,8 @@ A wildcard routing entry is specified with a zero
 destination address value, and a mask of all zeroes.
 Wildcard routes will be used
 when the system fails to find other routes matching the
-destination.  The combination of wildcard
+destination.
+The combination of wildcard
 routes and routing redirects can provide an economical
 mechanism for routing traffic.
 .Pp
@@ -131,10 +134,11 @@ bit mask within the header, and the sequence is least significant
 to most significant bit within the vector.
 .Pp
 Any messages sent to the kernel are returned, and copies are sent
-to all interested listeners.  The kernel will provide the process
+to all interested listeners.
+The kernel will provide the process
 ID for the sender, and the sender may use an additional sequence
-field to distinguish between outstanding messages.  However,
-message replies may be lost when kernel buffers are exhausted.
+field to distinguish between outstanding messages.
+However, message replies may be lost when kernel buffers are exhausted.
 .Pp
 The kernel may reject certain messages, and will indicate this
 by filling in the

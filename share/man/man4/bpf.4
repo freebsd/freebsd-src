@@ -75,7 +75,8 @@ Note that an individual packet larger than this size is necessarily
 truncated.
 .Pp
 The packet filter will support any link level protocol that has fixed length
-headers.  Currently, only Ethernet,
+headers.
+Currently, only Ethernet,
 .Tn SLIP ,
 and
 .Tn PPP
@@ -88,8 +89,8 @@ macros to extract multi-byte values.
 .Pp
 A packet can be sent out on the network by writing to a
 .Nm
-file descriptor.  The writes are unbuffered, meaning only one
-packet can be processed per write.
+file descriptor.
+The writes are unbuffered, meaning only one packet can be processed per write.
 Currently, only writes to Ethernets and
 .Tn SLIP
 links are supported.
@@ -136,7 +137,8 @@ files.
 .Pq Li u_int
 Sets the buffer length for reads on
 .Nm
-files.  The buffer must be set before the file is attached to an interface
+files.
+The buffer must be set before the file is attached to an interface
 with
 .Dv BIOCSETIF .
 If the requested buffer size cannot be accommodated, the closest
@@ -158,8 +160,8 @@ Forces the interface into promiscuous mode.
 All packets, not just those destined for the local host, are processed.
 Since more than one file can be listening on a given interface,
 a listener that opened its interface non-promiscuously may receive
-packets promiscuously.  This problem can be remedied with an
-appropriate filter.
+packets promiscuously.
+This problem can be remedied with an appropriate filter.
 .It Dv BIOCFLUSH
 Flushes the buffer of incoming packets,
 and resets the statistics that are returned by BIOCGSTATS.
@@ -219,7 +221,8 @@ Enable or disable
 .Dq immediate mode ,
 based on the truth value of the argument.
 When immediate mode is enabled, reads return immediately upon packet
-reception.  Otherwise, a read will block until either the kernel buffer
+reception.
+Otherwise, a read will block until either the kernel buffer
 becomes full or a timeout occurs.
 This is useful for programs like
 .Xr rarpd 8
@@ -228,7 +231,8 @@ The default for a new file is off.
 .It Dv BIOCSETF
 .Pq Li "struct bpf_program"
 Sets the filter program used by the kernel to discard uninteresting
-packets.  An array of instructions and its length is passed in using
+packets.
+An array of instructions and its length is passed in using
 the following structure:
 .Bd -literal
 struct bpf_program {
@@ -253,11 +257,12 @@ for an explanation of the filter language.
 .It Dv BIOCVERSION
 .Pq Li "struct bpf_version"
 Returns the major and minor version numbers of the filter language currently
-recognized by the kernel.  Before installing a filter, applications must check
-that the current version is compatible with the running kernel.  Version
-numbers are compatible if the major numbers match and the application minor
-is less than or equal to the kernel minor.  The kernel version number is
-returned in the following structure:
+recognized by the kernel.
+Before installing a filter, applications must check
+that the current version is compatible with the running kernel.
+Version numbers are compatible if the major numbers match and the application minor
+is less than or equal to the kernel minor.
+The kernel version number is returned in the following structure:
 .Bd -literal
 struct bpf_version {
         u_short bv_major;
@@ -282,16 +287,18 @@ Set or get the status of the
 .Dq header complete
 flag.
 Set to zero if the link level source address should be filled in automatically
-by the interface output routine.  Set to one if the link level source
-address will be written, as provided, to the wire.  This flag is initialized
-to zero by default.
+by the interface output routine.
+Set to one if the link level source
+address will be written, as provided, to the wire.
+This flag is initialized to zero by default.
 .It Dv BIOCSSEESENT
 .It Dv BIOCGSEESENT
 .Pq Li u_int
 Set or get the flag determining whether locally generated packets on the
-interface should be returned by BPF.  Set to zero to see only incoming
-packets on the interface.  Set to one to see packets originating
-locally and remotely on the interface.  This flag is initialized to one by
+interface should be returned by BPF.
+Set to zero to see only incoming packets on the interface.
+Set to one to see packets originating locally and remotely on the interface.
+This flag is initialized to one by
 default.
 .El
 .Sh BPF HEADER
@@ -313,7 +320,8 @@ The fields, whose values are stored in host order, and are:
 .It Li bh_tstamp
 The time at which the packet was processed by the packet filter.
 .It Li bh_caplen
-The length of the captured portion of the packet.  This is the minimum of
+The length of the captured portion of the packet.
+This is the minimum of
 the truncation amount specified by the filter and the length of the packet.
 .It Li bh_datalen
 The length of the packet off the wire.
@@ -336,22 +344,25 @@ architectures and improves performance on many other architectures.
 The packet filter insures that the
 .Li bpf_hdr
 and the network layer
-header will be word aligned.  Suitable precautions
+header will be word aligned.
+Suitable precautions
 must be taken when accessing the link layer protocol fields on alignment
-restricted machines.  (This isn't a problem on an Ethernet, since
+restricted machines.
+(This isn't a problem on an Ethernet, since
 the type field is a short falling on an even offset,
 and the addresses are probably accessed in a bytewise fashion).
 .Pp
 Additionally, individual packets are padded so that each starts
-on a word boundary.  This requires that an application
+on a word boundary.
+This requires that an application
 has some knowledge of how to get from packet to packet.
 The macro
 .Dv BPF_WORDALIGN
 is defined in
 .Aq Pa net/bpf.h
 to facilitate
-this process.  It rounds up its argument
-to the nearest word aligned value (where a word is
+this process.
+It rounds up its argument to the nearest word aligned value (where a word is
 .Dv BPF_ALIGNMENT
 bytes wide).
 .Pp
@@ -424,7 +435,8 @@ in the packet,
 interpreted as a word (n=4),
 unsigned halfword (n=2), or unsigned byte (n=1).
 M[i] gives the i'th word in the scratch memory store, which is only
-addressed in word units.  The memory store is indexed from 0 to
+addressed in word units.
+The memory store is indexed from 0 to
 .Dv BPF_MEMWORDS
 - 1.
 .Li k ,
@@ -438,8 +450,8 @@ refers to the length of the packet.
 .Pp
 .Bl -tag -width BPF_STXx
 .It Dv BPF_LD
-These instructions copy a value into the accumulator.  The type of the
-source operand is specified by an
+These instructions copy a value into the accumulator.
+The type of the source operand is specified by an
 .Dq addressing mode
 and can be a constant
 .Pq Dv BPF_IMM ,
@@ -486,7 +498,8 @@ A <- k
 A <- M[k]
 .El
 .It Dv BPF_LDX
-These instructions load a value into the index register.  Note that
+These instructions load a value into the index register.
+Note that
 the addressing modes are more restrictive than those of the accumulator loads,
 but they include
 .Dv BPF_MSH ,
@@ -563,7 +576,8 @@ A <- A >> X
 A <- -A
 .El
 .It Dv BPF_JMP
-The jump instructions alter flow of control.  Conditional jumps
+The jump instructions alter flow of control.
+Conditional jumps
 compare the accumulator against a constant
 .Pq Dv BPF_K
 or the index register
@@ -600,8 +614,8 @@ pc += (A & X) ? jt : jf
 .El
 .It Dv BPF_RET
 The return instructions terminate the filter program and specify the amount
-of packet to accept (i.e., they return the truncation amount).  A return
-value of zero indicates that the packet should be ignored.
+of packet to accept (i.e., they return the truncation amount).
+A return value of zero indicates that the packet should be ignored.
 The return value is either a constant
 .Pq Dv BPF_K
 or the accumulator
@@ -616,7 +630,8 @@ accept k bytes
 .It Dv BPF_MISC
 The miscellaneous category was created for anything that doesn't
 fit into the above classes, and for any new instructions that might need to
-be added.  Currently, these are the register transfer instructions
+be added.
+Currently, these are the register transfer instructions
 that copy the index register to the accumulator or vice versa.
 .Pp
 .Bl -tag -width "BPF_MISC+BPF_TAX" -compact
@@ -635,8 +650,8 @@ array initializers:
 and
 .Fn BPF_JUMP opcode operand true_offset false_offset .
 .Sh EXAMPLES
-The following filter is taken from the Reverse ARP Daemon.  It accepts
-only Reverse ARP requests.
+The following filter is taken from the Reverse ARP Daemon.
+It accepts only Reverse ARP requests.
 .Bd -literal
 struct bpf_insn insns[] = {
 	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),
@@ -667,8 +682,9 @@ struct bpf_insn insns[] = {
 };
 .Ed
 .Pp
-Finally, this filter returns only TCP finger packets.  We must parse
-the IP header to reach the TCP header.  The
+Finally, this filter returns only TCP finger packets.
+We must parse the IP header to reach the TCP header.
+The
 .Dv BPF_JSET
 instruction
 checks that the IP fragment offset is 0 so we are sure
@@ -712,8 +728,9 @@ ioctl).
 .Pp
 A file that does not request promiscuous mode may receive promiscuously
 received packets as a side effect of another file requesting this
-mode on the same hardware interface.  This could be fixed in the kernel
-with additional processing overhead.  However, we favor the model where
+mode on the same hardware interface.
+This could be fixed in the kernel with additional processing overhead.
+However, we favor the model where
 all files must assume that the interface is promiscuous, and if
 so desired, must utilize a filter to reject foreign packets.
 .Pp
@@ -723,16 +740,18 @@ The
 .Dv SEESENT
 flag has been observed to work incorrectly on some interface
 types, including those with hardware loopback rather than software loopback,
-and point-to-point interfaces.  It appears to function correctly on a
+and point-to-point interfaces.
+It appears to function correctly on a
 broad range of ethernet-style interfaces.
 .Sh HISTORY
 The Enet packet filter was created in 1980 by Mike Accetta and
-Rick Rashid at Carnegie-Mellon University.  Jeffrey Mogul, at
+Rick Rashid at Carnegie-Mellon University.
+Jeffrey Mogul, at
 Stanford, ported the code to
 .Bx
 and continued its development from
-1983 on.  Since then, it has evolved into the Ultrix Packet Filter
-at
+1983 on.
+Since then, it has evolved into the Ultrix Packet Filter at
 .Tn DEC ,
 a
 .Tn STREAMS

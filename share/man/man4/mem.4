@@ -41,19 +41,19 @@
 .Nd memory files
 .Sh DESCRIPTION
 The special file
-.Nm /dev/mem
+.Pa /dev/mem
 is an interface to the physical memory of the computer.
 Byte offsets in this file are interpreted as physical memory addresses.
 Reading and writing this file is equivalent to reading and writing
 memory itself.
 Only offsets within the bounds of
-.Nm /dev/mem
+.Pa /dev/mem
 are allowed.
 .Pp
 Kernel virtual memory is accessed through the interface
-.Nm /dev/kmem
+.Pa /dev/kmem
 in the same manner as
-.Nm /dev/mem .
+.Pa /dev/mem .
 Only kernel virtual addresses that are currently mapped to memory are allowed.
 .Pp
 On
@@ -72,30 +72,32 @@ long, and ends at virtual
 address 0xf0000000.
 .Sh IOCTL INTERFACE
 Several architectures allow attributes to be associated with ranges of physical
-memory.  These attributes can be manipulated via
+memory.
+These attributes can be manipulated via
 .Fn ioctl
 calls performed on
-.Nm /dev/mem .
+.Pa /dev/mem .
 Declarations and data types are to be found in
-.Pa <sys/memrange.h>
+.Aq Pa sys/memrange.h .
 .Pp
 The specific attributes, and number of programmable ranges may vary between
-architectures.  The full set of supported attributes is:
+architectures.
+The full set of supported attributes is:
 .Bl -tag -width indent
-.It MDF_UNCACHEABLE
+.It Dv MDF_UNCACHEABLE
 The region is not cached.
-.It MDF_WRITECOMBINE
+.It Dv MDF_WRITECOMBINE
 Writes to the region may be combined or performed out of order.
-.It MDF_WRITETHROUGH
+.It Dv MDF_WRITETHROUGH
 Writes to the region are committed synchronously.
-.It MDF_WRITEBACK
+.It Dv MDF_WRITEBACK
 Writes to the region are committed asynchronously.
-.It MDF_WRITEPROTECT
+.It Dv MDF_WRITEPROTECT
 The region cannot be written to.
 .El
 .Pp
 Memory ranges are described by
-.Fa struct mem_range_desc :
+.Vt struct mem_range_desc :
 .Bd -literal -offset indent
 u_int64_t	mr_base;	/\(** physical base address \(**/
 u_int64_t	mr_len;		/\(** physical length of region \(**/
@@ -133,25 +135,32 @@ int			mo_arg[2];
 .Ed
 .Pp
 The
-.Fa MEMRANGE_GET
+.Dv MEMRANGE_GET
 ioctl is used to retrieve current memory range attributes.
 If
-.Fa mo_arg[0]
+.Va mo_arg[0]
 is set to 0, it will be updated with the total number of memory range
-descriptors.  If greater than 0, the array at
-.Fa mo_desc
+descriptors.
+If greater than 0, the array at
+.Va mo_desc
 will be filled with a corresponding number of descriptor structures,
 or the maximum, whichever is less.
 .Pp
 The
-.Fa MEMRANGE_SET
+.Dv MEMRANGE_SET
 ioctl is used to add, alter and remove memory range attributes.  A range
-with the MDF_FIXACTIVE flag may not be removed; a range with the MDF_BUSY
+with the
+.Dv MDF_FIXACTIVE
+flag may not be removed; a range with the
+.Dv MDF_BUSY
 flag may not be removed or updated.
 .Pp
-.Fa mo_arg[0]
-should be set to MEMRANGE_SET_UPDATE to update an existing
-or establish a new range, or to MEMRANGE_SET_REMOVE to remove a range.
+.Va mo_arg[0]
+should be set to
+.Dv MEMRANGE_SET_UPDATE
+to update an existing or establish a new range, or to
+.Dv MEMRANGE_SET_REMOVE
+to remove a range.
 .Sh RETURN VALUES
 .Bl -tag -width Er
 .It Bq Er EOPNOTSUPP
@@ -185,7 +194,8 @@ Busy range attributes are not yet managed correctly.
 .Xr memcontrol 8
 .Sh HISTORY
 The
-.Nm ,
+.Nm mem
+and
 .Nm kmem
 files appeared in
 .At v6 .

@@ -43,20 +43,26 @@ In
 This driver provides access to the
 .Tn SCSI
 bus connected to an Adaptec 154xA, 154xB, 154xC, 154xCF, or 154xCP
-host adapter.  Host adapters supporting a 154X compatible interface,
+host adapter.
+Host adapters supporting a 154X compatible interface,
 such as some Tekram controllers and the Adaptec 174x in 154x
-emulation mode can, also be attached with this driver.  For optimum
+emulation mode can, also be attached with this driver.
+For optimum
 performance, Adaptec 174x controllers should be configured in
 enhanced mode and attached via the
 .Xr ahb 4
 driver.
 .Pp
 One kernel config entry for every card to be attached by the system is
-required.  Specific values for the port address, irq, and drq may be
-specified.  If wildcard values are used, the driver will query the
-device for its current settings and use those.  If the port address
+required.
+Specific values for the port address, irq, and drq may be
+specified.
+If wildcard values are used, the driver will query the
+device for its current settings and use those.
+If the port address
 is a wildcard, the driver consults an internal table of possible port address
-locations and attaches to the first unattached card it finds.  The possible
+locations and attaches to the first unattached card it finds.
+The possible
 port addresses for this card are 0x330, 0x334, 0x230, 0x234, 0x130, and
 0x134.
 .Sh SEE ALSO

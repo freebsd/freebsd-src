@@ -566,7 +566,8 @@ socket option.
 .Pp
 When writing to a raw socket the kernel will automatically fragment
 the packet if its size exceeds the path MTU, inserting the required
-fragmentation headers.  On input the kernel reassembles received
+fragmentation headers.
+On input the kernel reassembles received
 fragments, so the reader of a raw socket never sees any fragment
 headers.
 .Pp
@@ -607,8 +608,10 @@ int offset = 2;
 setsockopt(fd, IPPROTO_IPV6, IPV6_CHECKSUM, &offset, sizeof(offset));
 .Ed
 .Pp
-By default, this socket option is disabled.  Setting the offset to -1
-also disables the option.  By disabled we mean (1) the kernel will
+By default, this socket option is disabled.
+Setting the offset to -1
+also disables the option.
+By disabled we mean (1) the kernel will
 not calculate and store a checksum for outgoing packets, and (2) the
 kernel will not verify a checksum for received packets.
 .Pp

@@ -33,18 +33,22 @@ are received on TCP or UDP ports where there is no socket listening.
 .Pp
 Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
-a RST segment, and drop the connection.  The connecting system will
-see this as a "Connection refused".  By setting the TCP blackhole
+a RST segment, and drop the connection.
+The connecting system will
+see this as a
+.Dq Connection refused .
+By setting the TCP blackhole
 MIB to a numeric value of one, the incoming SYN segment
 is merely dropped, and no RST is sent, making the system appear
-as a blackhole.  By setting the MIB value to two, any segment arriving
-on a closed port is dropped without returning a RST.  This provides
-some degree of protection against stealth port scans.
+as a blackhole.
+By setting the MIB value to two, any segment arriving
+on a closed port is dropped without returning a RST.
+This provides some degree of protection against stealth port scans.
 .Pp
 In the UDP instance, enabling blackhole behaviour turns off the sending
 of an ICMP port unreachable message in response to a UDP datagram which
-arrives on a port where there is no socket listening.  It must be noted
-that this behaviour will prevent remote systems from running
+arrives on a port where there is no socket listening.
+It must be noted that this behaviour will prevent remote systems from running
 .Xr traceroute 8
 to a system.
 .Pp
@@ -56,8 +60,8 @@ of service attack.
 The TCP and UDP blackhole features should not be regarded as a replacement
 for
 .Xr ipfw 8
-as a tool for firewalling a system.  In order to create a highly
-secure system,
+as a tool for firewalling a system.
+In order to create a highly secure system,
 .Xr ipfw 8
 should be used for protection, not the blackhole feature.
 .Pp

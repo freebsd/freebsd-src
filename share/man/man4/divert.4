@@ -67,7 +67,8 @@ is used to deliver the packet, or if
 is used with a destination IP address of
 .Dv INADDR_ANY ,
 then the packet is treated as if it were outgoing, i.e., destined
-for a non-local address.  Otherwise, the packet is assumed to be
+for a non-local address.
+Otherwise, the packet is assumed to be
 incoming and full packet routing is done.
 .Pp
 In the latter case, the
@@ -78,10 +79,12 @@ If an interface name is found,
 that interface will be used and the value of the IP address will be
 ignored (other than the fact that it is not
 .Dv INADDR_ANY ) .
-This is to indicate on which interface the packet ``arrived.''
+This is to indicate on which interface the packet
+.Dq arrived .
 .Pp
 Normally, packets read as incoming should be written as incoming;
-similarly for outgoing packets.  When reading and then writing back
+similarly for outgoing packets.
+When reading and then writing back
 packets, passing the same socket address supplied by
 .Xr recvfrom 2
 unmodified to

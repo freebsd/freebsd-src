@@ -77,7 +77,8 @@ respectively.
 If an uninitialized disk is opened, the slice table will be
 initialized with a fictitious
 .Fx
-slice spanning the entire disk.  Similarly, if an uninitialized
+slice spanning the entire disk.
+Similarly, if an uninitialized
 (or
 .No non- Ns Fx )
 slice is opened, its disklabel will be initialized with parameters returned
@@ -87,51 +88,61 @@ partition encompassing the entire slice.
 .Sh CACHE EFFECTS
 Many direct access devices are equipped with read and/or write caches.
 Parameters affecting the device's cache are stored in mode page 8,
-the caching control page.  Mode pages can be examined and modified
-via the
+the caching control page.
+Mode pages can be examined and modified via the
 .Xr camcontrol 8
 utility.
 .Pp
 The read cache is used to store data from device-initiated read ahead
-operations as well as frequently used data.  The read cache is transparent
+operations as well as frequently used data.
+The read cache is transparent
 to the user and can be enabled without any adverse effect.  Most devices
-with a read cache come from the factory with it enabled.  The read cache
-can be disabled by setting the
+with a read cache come from the factory with it enabled.
+The read cache can be disabled by setting the
 .Tn RCD
 (Read Cache Disable) bit in the caching control mode page.
 .Pp
 The write cache can greatly decrease the latency of write operations
 and allows the device to reorganize writes to increase efficiency and
-performance.  This performance gain comes at a price.  Should the device
+performance.
+This performance gain comes at a price.
+Should the device
 lose power while its cache contains uncommitted write operations, these
-writes will be lost.  The effect of a loss of write transactions on
-a file system is non-deterministic and can cause corruption.  Most
+writes will be lost.
+The effect of a loss of write transactions on
+a file system is non-deterministic and can cause corruption.
+Most
 devices age write transactions to limit vulnerability to a few transactions
 recently reported as complete, but it is none-the-less recommended that
 systems with write cache enabled devices reside on an Uninterruptible
-Power Supply (UPS).  The
+Power Supply (UPS).
+The
 .Nm
 device driver ensures that the cache and media are synchronized upon
-final close of the device or an unexpected shutdown (panic) event.  This
-ensures that it is safe to disconnect power once the operating system
-has reported that it has halted.  The write cache can be enabled by
-setting the
+final close of the device or an unexpected shutdown (panic) event. 
+This ensures that it is safe to disconnect power once the operating system
+has reported that it has halted.
+The write cache can be enabled by setting the
 .Tn WCE
 (Write Cache Enable) bit in the caching control mode page.
 .Sh TAGGED QUEUING
 The
 .Nm
 device driver will take full advantage of the SCSI feature known as tagged
-queueing.  Tagged queueing allows the device to process multiple transactions
+queueing.
+Tagged queueing allows the device to process multiple transactions
 concurrently, often re-ordering them to reduce the number and length of
-seeks.  To ensure that transactions to distant portions of the media,
+seeks.
+To ensure that transactions to distant portions of the media,
 which may be deferred indefinitely by servicing requests nearer the current
 head position, are completed in a timely fashion, an ordered tagged
 transaction is sent every 15 seconds during continuous device operation.
 .Sh BAD BLOCK RECOVERY
 Direct Access devices have the capability of mapping out portions of
-defective media.  Media recovery parameters are located in mode page 1,
-the Read-Write Error Recovery mode page.  The most important media
+defective media.
+Media recovery parameters are located in mode page 1,
+the Read-Write Error Recovery mode page.
+The most important media
 remapping features are 'Auto Write Reallocation' and 'Auto Read
 Reallocation' which can be enabled via the AWRE and ARRE bits,
 respectively, of the Read-Write Error Recovery page.
@@ -152,7 +163,8 @@ The following
 .Xr ioctl 2
 calls apply to
 .Tn SCSI
-disks as well as to other disks.  They are defined in the header file
+disks as well as to other disks.
+They are defined in the header file
 .Aq Pa sys/disklabel.h .
 .Pp
 .Bl -tag -width DIOCSDINFO
@@ -187,10 +199,11 @@ write the new disklabel to the disk.
 .Sh NOTES
 If a device becomes invalidated (media is removed, device becomes unresponsive)
 the disklabel and information held within the kernel about the device will
-be invalidated.  To avoid corruption of a newly inserted piece of media or
+be invalidated.
+To avoid corruption of a newly inserted piece of media or
 a replacement device, all accesses to the device will be discarded until
-the last file descriptor referencing the old device is closed.  During this
-period, all new open attempts will be rejected.
+the last file descriptor referencing the old device is closed.
+During this period, all new open attempts will be rejected.
 .Sh FILES
 .Bl -tag -width /dev/rsdXXXXX -compact
 .It Pa /dev/rda Ns Ar u

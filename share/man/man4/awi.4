@@ -28,7 +28,8 @@ BSS) mode.
 .Pp
 In infrastructure mode, it communicates with an Access Point
 which serves as a link-layer bridge between an Ethernet and
-the wireless network.  An access point also provides roaming capability
+the wireless network.
+An access point also provides roaming capability
 which allows wireless node to move between access points.
 .Pp
 In adhoc mode, it communicates peer to peer.
@@ -40,7 +41,8 @@ In addition to these two mode in IEEE 802.11 specification, the
 driver also supports a variant of adhoc mode out of spec for DS radio cards,
 which makes possible to communicate with adhoc mode of
 .Xr wi 8
-driver.  The NWID doesn't affect in this mode.
+driver.
+The NWID doesn't affect in this mode.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8
@@ -78,7 +80,8 @@ and
 .Em DS2
 media types, while the FH cards support
 .Em FH1
-media type.  For each media type,
+media type.
+For each media type,
 .Em adhoc
 mediaopt can be used to indicate the driver to operate in adhoc mode.
 For DS radio cards,
@@ -92,7 +95,8 @@ compatible adhoc mode.
 Indicates that the driver was not able to allocate 32kb of PCMCIA bus
 address space into which to map the device; the driver will use the
 (slightly slower) i/o-space only access methods to read and write to
-the shared memory.  Since by default,
+the shared memory.
+Since by default,
 .Nx ,
 only allocates 16kb of
 address space per PCMCIA controller, this message is in some sense to

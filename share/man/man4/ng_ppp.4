@@ -46,26 +46,30 @@
 .Sh DESCRIPTION
 The
 .Nm ppp
-node type performs multiplexing for the PPP protocol.  It handles
-only packets that contain data, and forwards protocol negotiation
+node type performs multiplexing for the PPP protocol.
+It handles only packets that contain data, and forwards protocol negotiation
 and control packets to a separate controlling entity (e.g., a
-user-land daemon).  This approach combines the fast dispatch of
+user-land daemon).
+This approach combines the fast dispatch of
 kernel implementations with the configuration flexibility of a
-user-land implementations.  The PPP node type directly supports
+user-land implementations.
+The PPP node type directly supports
 multi-link PPP, Van Jacobson compression, PPP compression, PPP
-encryption, and the IP, IPX, and AppleTalk protocols.  A single
-PPP node corresponds to one PPP multi-link bundle.
+encryption, and the IP, IPX, and AppleTalk protocols.
+A single PPP node corresponds to one PPP multi-link bundle.
 .Pp
 There is a separate hook for each PPP link in the bundle, plus
 several hooks corresponding to the directly supported protocols.
 For compression and encryption, separate attached nodes are required
-to do the actual work.  The node type used will of course depend
-on the algorithm negotiated.  There is also a
+to do the actual work.
+The node type used will of course depend on the algorithm negotiated.
+There is also a
 .Dv bypass
 hook which is used to handle any protocol not directly supported
-by the node. This includes all of the control protocols: LCP, IPCP,
-CCP, etc.  Typically this node is connected to a user-land daemon
-via a
+by the node.
+This includes all of the control protocols: LCP, IPCP,
+CCP, etc.
+Typically this node is connected to a user-land daemon via a
 .Xr ng_socket 4
 type node.
 .Sh ENABLING FUNCTIONALITY
@@ -94,11 +98,14 @@ information fields, but no checksum or other link-specific fields.
 On outgoing frames, when protocol compression
 has been enabled and the protocol number is suitable for compression,
 the protocol field will be compressed (i.e., sent as one byte
-instead of two).  Either compressed or uncompressed protocol fields
-are accepted on incoming frames.  Similarly, if address and control
+instead of two).
+Either compressed or uncompressed protocol fields
+are accepted on incoming frames.
+Similarly, if address and control
 field compression has been enabled for the link, the address and
 control fields will be omitted (except for LCP frames as required
-by the standards).  Incoming frames have the address and control fields
+by the standards).
+Incoming frames have the address and control fields
 stripped automatically if present.
 .Pp
 Since all negotiation is handled outside the PPP node, the links
@@ -114,7 +121,8 @@ directly out the
 .Dv bypass
 hook, and conversely, frames may be transmitted via the
 .Dv bypass
-hook as well.  This mode is appropriate for the link authentication phase.
+hook as well.
+This mode is appropriate for the link authentication phase.
 As soon as the link is enabled, the PPP node will
 begin processing frames received on the link.
 .Sh COMPRESSION AND ENCRYPTION
@@ -136,7 +144,8 @@ Encryption works exactly analogously via the
 .Dv encrypt
 and
 .Dv decrypt
-nodes.  Data is always compressed before being encrypted,
+nodes.
+Data is always compressed before being encrypted,
 and decrypted before being decompressed.
 .Pp
 Only bundle-level compression and encryption is directly supported;
@@ -163,7 +172,8 @@ When a frame is received on a link with an unsupported protocol,
 or a protocol which is disabled or for which the corresponding hook
 is unconnected, the PPP node forwards the frame out the
 .Dv bypass
-hook, prepended with a four byte prefix.  This first two bytes of
+hook, prepended with a four byte prefix.
+This first two bytes of
 the prefix indicate the link number on which the frame was received
 (in network order).
 For such frames received over the bundle (i.e., encapsulated in the
@@ -176,7 +186,8 @@ was protocol compressed.
 .Pp
 Conversely, any data written to the
 .Dv bypass
-hook is assumed to be in this same format.  The four byte header is
+hook is assumed to be in this same format.
+The four byte header is
 stripped off, the PPP protocol number is prepended (possibly compressed),
 and the frame is delivered over the desired link.
 If the link number is
@@ -191,12 +202,13 @@ the protocol) or with an LCP protocol reject (if it doesn't recognize
 or expect the protocol).
 .Sh MULTILINK OPERATION
 To enable multi-link PPP, the corresponding configuration flag must be set
-and at least one link connected.  The PPP node will not allow more than
+and at least one link connected.
+The PPP node will not allow more than
 one link to be connected if multi-link is not enabled, nor will it allow
 certain multi-link settings to be changed while multi-link operation is
 active (e.g., short sequence number header format).
 .Pp
-Because packets are sent as fragments across multiple individual links,
+Since packets are sent as fragments across multiple individual links,
 it is important that when a link goes down the PPP node is notified
 immediately, either by disconnecting the corresponding hook or disabling
 the link via the
@@ -214,18 +226,21 @@ packet delivery.
 When configured for round-robin delivery, the latency and bandwidth
 values are ignored and the PPP node simply sends each frame as a
 single fragment, alternating frames across all the links in the
-bundle.  This scheme has the advantage that even if one link fails
-silently, some packets will still get through.  It has the disadvantage
+bundle.
+This scheme has the advantage that even if one link fails
+silently, some packets will still get through.
+It has the disadvantage
 of sub-optimal overall bundle latency, which is important for
 interactive response time, and sub-optimal overall bundle bandwidth
 when links with different bandwidths exist in the same bundle.
 .Pp
 When configured for optimal delivery, the PPP node distributes the
 packet across the links in a way that minimizes the time it takes
-for the completed packet to be received by the far end.  This
-involves taking into account each link's latency, bandwidth, and
-current queue length.  Therefore these numbers should be
-configured as accurately as possible.  The algorithm does require
+for the completed packet to be received by the far end.
+This involves taking into account each link's latency, bandwidth, and
+current queue length.
+Therefore these numbers should be configured as accurately as possible.
+The algorithm does require
 some computation, so may not be appropriate for very slow machines
 and/or very fast links.
 .Pp
@@ -282,11 +297,14 @@ a link number and a PPP protocol number.
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
 .It Dv NGM_PPP_SET_CONFIG
-This command configures all aspects of the node.  This includes enabling
+This command configures all aspects of the node.
+This includes enabling
 multi-link PPP, encryption, compression, Van Jacobson compression, and IP,
-AppleTalk, and IPX packet delivery.  It includes per-link configuration,
+AppleTalk, and IPX packet delivery.
+It includes per-link configuration,
 including enabling the link, setting latency and bandwidth parameters,
-and enabling protocol field compression.  Note that no link or functionality
+and enabling protocol field compression.
+Note that no link or functionality
 is active until the corresponding hook is also connected.
 This command takes a
 .Dv "struct ng_ppp_node_config"
