@@ -32,7 +32,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd February 23, 2005
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -87,6 +87,11 @@ Too many symbolic links were encountered in translating the pathname.
 .It Bq Er EPERM
 The named file is a directory.
 .It Bq Er EPERM
+The named file has its immutable or append-only
+flag set, see the
+.Xr chflags 2
+manual page for more information.
+.It Bq Er EPERM
 The directory containing the file is marked sticky,
 and neither the containing directory nor the file to be removed
 are owned by the effective user ID.
@@ -105,6 +110,7 @@ argument
 points outside the process's allocated address space.
 .El
 .Sh SEE ALSO
+.Xr chflags 2 ,
 .Xr close 2 ,
 .Xr link 2 ,
 .Xr rmdir 2 ,
