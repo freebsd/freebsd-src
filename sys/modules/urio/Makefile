@@ -7,4 +7,4 @@ KMOD		 = urio
 SRCS		 = bus_if.h device_if.h vnode_if.h opt_usb.h urio.c
 NOMAN		 =
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

@@ -13,4 +13,4 @@ NOMAN=
 	${CC} -x assembler-with-cpp -DLOCORE ${CFLAGS} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

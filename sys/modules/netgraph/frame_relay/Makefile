@@ -5,4 +5,4 @@ KMOD=		ng_frame_relay
 SRCS= 		ng_frame_relay.c
 MAN8=		ng_frame_relay.8
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

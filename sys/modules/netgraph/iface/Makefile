@@ -5,4 +5,4 @@ KMOD=		ng_iface
 SRCS= 		ng_iface.c
 MAN8=		ng_iface.8
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

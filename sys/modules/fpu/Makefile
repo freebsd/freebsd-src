@@ -5,4 +5,4 @@ KMOD=   fpu
 SRCS=   math_emulate.c
 NOMAN=
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

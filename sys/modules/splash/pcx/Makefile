@@ -4,4 +4,4 @@ KMOD=	splash_pcx
 SRCS=	splash_pcx.c
 NOMAN=
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"
