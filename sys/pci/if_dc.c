@@ -36,7 +36,7 @@
  * DEC "tulip" clone ethernet driver. Supports the DEC/Intel 21143
  * series chips and several workalikes including the following:
  *
- * Macronix 98713/98715/98725 PMAC (www.macronix.com)
+ * Macronix 98713/98715/98725/98727/98732 PMAC (www.macronix.com)
  * Macronix/Lite-On 82c115 PNIC II (www.macronix.com)
  * Lite-On 82c168/82c169 PNIC (www.litecom.com)
  * ASIX Electronics AX88140A (www.asix.com.tw)
@@ -185,6 +185,8 @@ static struct dc_type dc_devs[] = {
 		"Macronix 98715AEC-C 10/100BaseTX" },
 	{ DC_VENDORID_MX, DC_DEVICEID_987x5,
 		"Macronix 98725 10/100BaseTX" },
+	{ DC_VENDORID_MX, DC_DEVICEID_98727,
+		"Macronix 98727/98732 10/100BaseTX" },
 	{ DC_VENDORID_LO, DC_DEVICEID_82C115,
 		"LC82C115 PNIC II 10/100BaseTX" },
 	{ DC_VENDORID_LO, DC_DEVICEID_82C168,
@@ -1219,10 +1221,14 @@ static void dc_setcfg(sc, media)
 		if (sc->dc_pmode == DC_PMODE_MII) {
 			int	watchdogreg;
 
+			if (DC_IS_INTEL(sc)) {
 			/* there's a write enable bit here that reads as 1 */
-			watchdogreg = CSR_READ_4(sc, DC_WATCHDOG);
-			watchdogreg &= ~DC_WDOG_CTLWREN;
-			watchdogreg |= DC_WDOG_JABBERDIS;
+				watchdogreg = CSR_READ_4(sc, DC_WATCHDOG);
+				watchdogreg &= ~DC_WDOG_CTLWREN;
+				watchdogreg |= DC_WDOG_JABBERDIS;
+			} else {
+				DC_SETBIT(sc, DC_WATCHDOG, DC_WDOG_JABBERDIS);
+			}
 			DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_PCS|
 			    DC_NETCFG_PORTSEL|DC_NETCFG_SCRAMBLER));
 			if (sc->dc_type == DC_TYPE_98713)
@@ -1584,6 +1590,11 @@ static int dc_attach(dev)
 		if (revision >= DC_REVISION_98715AEC_C &&
 		    revision < DC_REVISION_98725)
 			sc->dc_flags |= DC_128BIT_HASH;
+		sc->dc_type = DC_TYPE_987x5;
+		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
+		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
+		break;
+	case DC_DEVICEID_98727:
 		sc->dc_type = DC_TYPE_987x5;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
