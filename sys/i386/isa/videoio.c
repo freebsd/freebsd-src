@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: videoio.c,v 1.1 1998/09/15 18:16:38 sos Exp $
+ * $Id: videoio.c,v 1.2 1998/09/23 09:59:00 yokota Exp $
  */
 
 #include "sc.h"
@@ -1069,24 +1069,24 @@ set_font_mode(video_adapter_t *adp, u_char *buf)
     outb(ATC, 0x20);				/* enable palette */
 
 #if SLOW_VGA
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outb(TSIDX, 0x00); outb(TSREG, 0x01);
 #endif
     outb(TSIDX, 0x02); outb(TSREG, 0x04);
     outb(TSIDX, 0x04); outb(TSREG, 0x07);
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outb(TSIDX, 0x00); outb(TSREG, 0x03);
 #endif
     outb(GDCIDX, 0x04); outb(GDCREG, 0x02);
     outb(GDCIDX, 0x05); outb(GDCREG, 0x00);
     outb(GDCIDX, 0x06); outb(GDCREG, 0x04);
 #else
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outw(TSIDX, 0x0100);
 #endif
     outw(TSIDX, 0x0402);
     outw(TSIDX, 0x0704);
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outw(TSIDX, 0x0300);
 #endif
     outw(GDCIDX, 0x0204);
@@ -1111,12 +1111,12 @@ set_normal_mode(video_adapter_t *adp, u_char *buf)
     outb(ATC, 0x20);				/* enable palette */
 
 #if SLOW_VGA
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outb(TSIDX, 0x00); outb(TSREG, 0x01);
 #endif
     outb(TSIDX, 0x02); outb(TSREG, buf[0]);
     outb(TSIDX, 0x04); outb(TSREG, buf[1]);
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outb(TSIDX, 0x00); outb(TSREG, 0x03);
 #endif
     outb(GDCIDX, 0x04); outb(GDCREG, buf[2]);
@@ -1127,12 +1127,12 @@ set_normal_mode(video_adapter_t *adp, u_char *buf)
 	outb(GDCIDX, 0x06); outb(GDCREG,(buf[4] & 0x03) | 0x0c);
     }
 #else
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outw(TSIDX, 0x0100);
 #endif
     outw(TSIDX, 0x0002 | (buf[0] << 8));
     outw(TSIDX, 0x0004 | (buf[1] << 8));
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     outw(TSIDX, 0x0300);
 #endif
     outw(GDCIDX, 0x0004 | (buf[2] << 8));
@@ -1182,7 +1182,7 @@ vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     if (page > 3)
 	segment -= 0xe000;
 
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     if (adapter[ad].va_type == KD_VGA) {	/* what about EGA? XXX */
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
@@ -1206,7 +1206,7 @@ vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     }
     set_normal_mode(&adapter[ad], buf);
 
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     if (adapter[ad].va_type == KD_VGA) {
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
@@ -1257,7 +1257,7 @@ vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     if (page > 3)
 	segment -= 0xe000;
 
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     if (adapter[ad].va_type == KD_VGA) {	/* what about EGA? XXX */
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
@@ -1281,7 +1281,7 @@ vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     }
     set_normal_mode(&adapter[ad], buf);
 
-#ifndef SC_BAD_FLICKER
+#ifdef SC_ALT_SEQACCESS
     if (adapter[ad].va_type == KD_VGA) {
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
