@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.51 1998/05/06 23:50:14 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.52 1998/05/15 23:58:23 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -651,11 +651,9 @@ ipcp_CleanInterface(struct ipcp *ipcp)
     me->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
     me->sin_addr = ipcp->my_ifip;
     peer->sin_addr = ipcp->peer_ifip;
-    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0)
       log_Printf(LogERROR, "ipcp_CleanInterface: ioctl(SIOCDIFADDR): %s\n",
                 strerror(errno));
-      close(s);
-    }
     ipcp->my_ifip.s_addr = ipcp->peer_ifip.s_addr = INADDR_ANY;
   }
 

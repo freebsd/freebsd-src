@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.69 1998/05/12 17:34:29 brian Exp $
+ * $Id: modem.c,v 1.77.2.70 1998/05/13 19:06:25 brian Exp $
  *
  *  TODO:
  */
@@ -401,6 +401,7 @@ OpenConnection(const char *name, char *host, char *port)
   }
   if (connect(sock, (struct sockaddr *)&dest, sizeof dest) < 0) {
     log_Printf(LogWARN, "%s: connect: %s\n", name, strerror(errno));
+    close(sock);
     return (-1);
   }
   return (sock);

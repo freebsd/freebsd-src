@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.85 1998/05/16 23:47:20 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.86 1998/05/17 10:16:14 brian Exp $
  */
 
 #include <sys/types.h>
@@ -163,6 +163,7 @@ bundle_CleanInterface(const struct bundle *bundle)
                   "bundle_CleanInterface: Can't get dst for %s on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
                   bundle->ifp.Name);
+      close(s);
       return 0;
     }
     ifra.ifra_broadaddr = ifrq.ifr_dstaddr;
@@ -172,9 +173,11 @@ bundle_CleanInterface(const struct bundle *bundle)
                   "bundle_CleanInterface: Can't delete %s address on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
                   bundle->ifp.Name);
+      close(s);
       return 0;
     }
   }
+  close(s);
 
   return 1;
 }
