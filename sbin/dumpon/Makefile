@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	dumpon
-WARNS?=	4
+WARNS?=	6
 MAN=	dumpon.8
 
 .include <bsd.prog.mk>
