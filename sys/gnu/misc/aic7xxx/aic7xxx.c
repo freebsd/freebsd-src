@@ -26,7 +26,7 @@
  *  A <label> is an <undef-sym> ending in a colon.  Spaces, tabs, and commas
  *  are token separators.
  *	
- *	$Id$
+ *	$Id: aic7xxx.c,v 1.4 1995/01/16 16:31:20 gibbs Exp $
  */
 
 /* #define _POSIX_SOURCE	1 */
@@ -193,6 +193,7 @@ void output(FILE *fp)
 			M[i][2],
 			M[i][1],
 			M[i][0]);
+	printf("%d out of %d instructions used.\n", LC, MEMORY);
 }
 
 char **getl(int *n)
