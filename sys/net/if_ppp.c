@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.8 1994/11/26 19:23:59 bde Exp $ */
+/* $Id: if_ppp.c,v 1.9 1994/11/27 15:29:56 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -347,7 +347,8 @@ pppclose(tp, flag)
     struct mbuf *m;
     int s;
 
-    ttywflush(tp);
+    if (ttywflush(tp))
+	ttyflush(tp, FREAD | FWRITE);
     s = splimp();		/* paranoid; splnet probably ok */
     clist_free_cblocks(&tp->t_outq);
     tp->t_line = 0;
