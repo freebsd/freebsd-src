@@ -27,6 +27,7 @@
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <errno.h>
 #include <stddef.h>
@@ -47,7 +48,7 @@ static int protflags(int);	/* Elf flags -> mmap protection */
  * for the shared object.  Returns NULL on failure.
  */
 Obj_Entry *
-map_object(int fd, const char *path)
+map_object(int fd, const char *path, const struct stat *sb)
 {
     Obj_Entry *obj;
     union {
@@ -228,6 +229,10 @@ map_object(int fd, const char *path)
     }
 
     obj = obj_new();
+    if (sb != NULL) {
+	obj->dev = sb->st_dev;
+	obj->ino = sb->st_ino;
+    }
     obj->mapbase = mapbase;
     obj->mapsize = mapsize;
     obj->textsize = round_page(segs[0]->p_vaddr + segs[0]->p_memsz) -
