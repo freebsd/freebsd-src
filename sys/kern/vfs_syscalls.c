@@ -341,6 +341,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	 */
 	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
+	TAILQ_INIT(&mp->mnt_reservedvnlist);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
