@@ -80,7 +80,7 @@ struct conf_entry {
 	int hours;		/* Hours between log trimming */
 	time_t trim_at;		/* Specific time to do trimming */
 	int permissions;	/* File permissions on the log */
-	int flags;		/* Flags (CE_COMPACT & CE_BZCOMPACT & CE_BINARY)  */
+	int flags;		/* CE_COMPACT, CE_BZCOMPACT, CE_BINARY */
 	int sig;		/* Signal to send */
 	struct conf_entry *next;/* Linked list pointer */
 };
@@ -106,7 +106,8 @@ static char *missing_field(char *p, char *errline);
 static void do_entry(struct conf_entry * ent);
 static void PRS(int argc, char **argv);
 static void usage(void);
-static void dotrim(char *log, const char *pid_file, int numdays, int falgs, int perm, int owner_uid, int group_gid, int sig);
+static void dotrim(char *log, const char *pid_file, int numdays, int falgs,
+		int perm, int owner_uid, int group_gid, int sig);
 static int log_trim(char *log);
 static void compress_log(char *log);
 static void bzcompress_log(char *log);
@@ -114,7 +115,8 @@ static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(const char *pid_file);
 static time_t parse8601(char *s);
-static void movefile(char *from, char *to, int perm, int owner_uid, int group_gid);
+static void movefile(char *from, char *to, int perm, int owner_uid,
+		int group_gid);
 static void createdir(char *dirpart);
 static time_t parseDWM(char *s);
 
@@ -199,7 +201,8 @@ do_entry(struct conf_entry * ent)
 					pid_file = NULL;
 			}
 			dotrim(ent->log, pid_file, ent->numlogs,
-			    ent->flags, ent->permissions, ent->uid, ent->gid, ent->sig);
+			    ent->flags, ent->permissions, ent->uid, ent->gid,
+			    ent->sig);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
@@ -253,7 +256,9 @@ PRS(int argc, char **argv)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: newsyslog [-Fnrv] [-f config-file] [-a directory]\n");
+
+	fprintf(stderr,
+	    "usage: newsyslog [-Fnrv] [-f config-file] [-a directory]\n");
 	exit(1);
 }
 
@@ -268,11 +273,12 @@ parse_file(char **files)
 	char line[BUFSIZ], *parse, *q;
 	char *errline, *group;
 	char **p;
-	struct conf_entry *first = NULL;
-	struct conf_entry *working = NULL;
+	struct conf_entry *first, *working;
 	struct passwd *pass;
 	struct group *grp;
 	int eol;
+
+	first = working = NULL;
 
 	if (strcmp(conf, "-"))
 		f = fopen(conf, "r");
@@ -288,7 +294,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(line), errline);
 		parse = son(line);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 
 		if (*files) {
@@ -300,11 +307,13 @@ parse_file(char **files)
 		}
 
 		if (!first) {
-			if ((working = (struct conf_entry *) malloc(sizeof(struct conf_entry))) == NULL)
+			if ((working = malloc(sizeof(struct conf_entry))) ==
+			    NULL)
 				err(1, "malloc");
 			first = working;
 		} else {
-			if ((working->next = (struct conf_entry *) malloc(sizeof(struct conf_entry))) == NULL)
+			if ((working->next = malloc(sizeof(struct conf_entry)))
+			    == NULL)
 				err(1, "malloc");
 			working = working->next;
 		}
@@ -314,7 +323,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 		if ((group = strchr(q, ':')) != NULL ||
 		    (group = strrchr(q, '.')) != NULL) {
@@ -323,7 +333,7 @@ parse_file(char **files)
 				if (!(isnumber(*q))) {
 					if ((pass = getpwnam(q)) == NULL)
 						errx(1,
-						    "error in config file; unknown user:\n%s",
+				     "error in config file; unknown user:\n%s",
 						    errline);
 					working->uid = pass->pw_uid;
 				} else
@@ -336,7 +346,7 @@ parse_file(char **files)
 				if (!(isnumber(*q))) {
 					if ((grp = getgrnam(q)) == NULL)
 						errx(1,
-						    "error in config file; unknown group:\n%s",
+				    "error in config file; unknown group:\n%s",
 						    errline);
 					working->gid = grp->gr_gid;
 				} else
@@ -347,7 +357,8 @@ parse_file(char **files)
 			q = parse = missing_field(sob(++parse), errline);
 			parse = son(parse);
 			if (!*parse)
-				errx(1, "malformed line (missing fields):\n%s", errline);
+				errx(1, "malformed line (missing fields):\n%s",
+				    errline);
 			*parse = '\0';
 		} else
 			working->uid = working->gid = NONE;
@@ -359,7 +370,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 		if (!sscanf(q, "%d", &working->numlogs))
 			errx(1, "error in config file; bad number:\n%s",
@@ -368,7 +380,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 		if (isdigit(*q))
 			working->size = atoi(q);
@@ -394,7 +407,8 @@ parse_file(char **files)
 			else
 				working->hours = ul;
 
-			if (*ep != '\0' && *ep != '@' && *ep != '*' && *ep != '$')
+			if (*ep != '\0' && *ep != '@' && *ep != '*' &&
+			    *ep != '$')
 				errx(1, "malformed interval/at:\n%s", errline);
 			if (*ep == '@') {
 				if ((working->trim_at = parse8601(ep + 1))
@@ -427,7 +441,8 @@ parse_file(char **files)
 			else if ((*q == 'B') || (*q == 'b'))
 				working->flags |= CE_BINARY;
 			else if (*q != '-')
-				errx(1, "illegal flag in config file -- %c", *q);
+				errx(1, "illegal flag in config file -- %c",
+				    *q);
 			q++;
 		}
 
@@ -448,7 +463,9 @@ parse_file(char **files)
 			else if (isdigit(*q))
 				goto got_sig;
 			else
-				errx(1, "illegal pid file or signal number in config file:\n%s", errline);
+				errx(1,
+			"illegal pid file or signal number in config file:\n%s",
+				    errline);
 		}
 		if (eol)
 			q = NULL;
@@ -464,7 +481,9 @@ parse_file(char **files)
 				working->sig = atoi(q);
 			} else {
 		err_sig:
-				errx(1, "illegal signal number in config file:\n%s", errline);
+				errx(1,
+				    "illegal signal number in config file:\n%s",
+				    errline);
 			}
 			if (working->sig < 1 || working->sig >= NSIG)
 				goto err_sig;
@@ -480,6 +499,7 @@ parse_file(char **files)
 static char *
 missing_field(char *p, char *errline)
 {
+
 	if (!p || !*p)
 		errx(1, "missing field in config file:\n%s", errline);
 	return (p);
@@ -534,7 +554,8 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 			strlcpy(namepart, p + 1, sizeof(namepart));
 
 		/* name of oldest log */
-		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart, namepart, numdays);
+		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart,
+		    namepart, numdays);
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
 		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
@@ -565,15 +586,19 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 		(void) strlcpy(file2, file1, sizeof(file2));
 
 		if (archtodir)
-			(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart, namepart, numdays);
+			(void) snprintf(file1, sizeof(file1), "%s/%s.%d",
+			    dirpart, namepart, numdays);
 		else
-			(void) snprintf(file1, sizeof(file1), "%s.%d", log, numdays);
+			(void) snprintf(file1, sizeof(file1), "%s.%d", log,
+			    numdays);
 
 		(void) strlcpy(zfile1, file1, sizeof(zfile1));
 		(void) strlcpy(zfile2, file2, sizeof(zfile2));
 		if (lstat(file1, &st)) {
-			(void) strlcat(zfile1, COMPRESS_POSTFIX, sizeof(zfile1));
-			(void) strlcat(zfile2, COMPRESS_POSTFIX, sizeof(zfile2));
+			(void) strlcat(zfile1, COMPRESS_POSTFIX,
+			    sizeof(zfile1));
+			(void) strlcat(zfile2, COMPRESS_POSTFIX,
+			    sizeof(zfile2));
 			if (lstat(zfile1, &st)) {
 				strlcpy(zfile1, file1, sizeof(zfile1));
 				strlcpy(zfile2, file2, sizeof(zfile2));
@@ -609,7 +634,8 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 			printf("mv %s to %s\n", log, file1);
 		else {
 			if (archtodir)
-				movefile(log, file1, perm, owner_uid, group_gid);
+				movefile(log, file1, perm, owner_uid,
+				    group_gid);
 			else
 				(void) rename(log, file1);
 		}
@@ -653,7 +679,9 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 	}
 	if ((flags & CE_COMPACT) || (flags & CE_BZCOMPACT)) {
 		if (need_notification && !notified)
-			warnx("log %s not compressed because daemon not notified", log);
+			warnx(
+			    "log %s not compressed because daemon not notified",
+			    log);
 		else if (noaction)
 			printf("Compress %s.0\n", log);
 		else {
@@ -663,7 +691,8 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 				sleep(10);
 			}
 			if (archtodir) {
-				(void) snprintf(file1, sizeof(file1), "%s/%s", dirpart, namepart);
+				(void) snprintf(file1, sizeof(file1), "%s/%s",
+				    dirpart, namepart);
 				if (flags & CE_COMPACT)
 					compress_log(file1);
 				else if (flags & CE_BZCOMPACT)
@@ -792,7 +821,8 @@ get_pid(const char *pid_file)
 		if (fgets(line, BUFSIZ, f)) {
 			pid = atol(line);
 			if (pid < MIN_PID || pid > MAX_PID) {
-				warnx("preposterous process number: %d", (int) pid);
+				warnx("preposterous process number: %d",
+				   (int)pid);
 				pid = 0;
 			}
 		} else
