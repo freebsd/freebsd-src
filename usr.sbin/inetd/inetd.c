@@ -682,8 +682,9 @@ main(argc, argv)
 				denied = !hosts_access(&req);
 				if (denied) {
 				    syslog(deny_severity,
-				        "refused connection from %.500s, service %s (%s)",
-				        eval_client(&req), service, sep->se_proto);
+				        "refused connection from %.500s, service %s (%s%s)",
+				        eval_client(&req), service, sep->se_proto,
+					(req.client->sin->sa_family == AF_INET6 && !IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)req.client->sin)->sin6_addr)) ? "6" : "");
 				    if (sep->se_socktype != SOCK_STREAM)
 					recv(ctrl, buf, sizeof (buf), 0);
 				    if (dofork) {
@@ -693,8 +694,9 @@ main(argc, argv)
 				}
 				if (log) {
 				    syslog(allow_severity,
-				        "connection from %.500s, service %s (%s)",
-					eval_client(&req), service, sep->se_proto);
+				        "connection from %.500s, service %s (%s%s)",
+					eval_client(&req), service, sep->se_proto,
+					(req.client->sin->sa_family == AF_INET6 && !IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)req.client->sin)->sin6_addr)) ? "6" : "");
 				}
 			    }
 			    if (sep->se_bi) {
