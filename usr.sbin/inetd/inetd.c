@@ -524,6 +524,11 @@ main(argc, argv)
 		syslog(LOG_ERR, "pipe: %m");
 		exit(EX_OSERR);
 	}
+	if (fcntl(signalpipe[0], F_SETFD, FD_CLOEXEC) < 0 ||
+	    fcntl(signalpipe[1], F_SETFD, FD_CLOEXEC) < 0) {
+		syslog(LOG_ERR, "signalpipe: fcntl (F_SETFD, FD_CLOEXEC): %m");
+		exit(EX_OSERR);
+	}
 	FD_SET(signalpipe[0], &allsock);
 #ifdef SANITY_CHECK
 	nsock++;
@@ -704,11 +709,6 @@ main(argc, argv)
 		    sigsetmask(0L);
 		    if (pid == 0) {
 			    if (dofork) {
-				if (debug)
-					warnx("+ closing from %d", maxsock);
-				for (tmpint = maxsock; tmpint > 2; tmpint--)
-					if (tmpint != ctrl)
-						(void) close(tmpint);
 				sigaction(SIGALRM, &saalrm, (struct sigaction *)0);
 				sigaction(SIGCHLD, &sachld, (struct sigaction *)0);
 				sigaction(SIGHUP, &sahup, (struct sigaction *)0);
@@ -759,8 +759,17 @@ main(argc, argv)
 				if (debug)
 					warnx("%d execl %s",
 						getpid(), sep->se_server);
-				dup2(ctrl, 0);
-				close(ctrl);
+				/* Clear close-on-exec. */
+				if (fcntl(ctrl, F_SETFD, 0) < 0) {
+					syslog(LOG_ERR,
+					    "%s/%s: fcntl (F_SETFD, 0): %m",
+						sep->se_service, sep->se_proto);
+					_exit(EX_OSERR);
+				}
+				if (ctrl != 0) {
+					dup2(ctrl, 0);
+					close(ctrl);
+				}
 				dup2(0, 1);
 				dup2(0, 2);
 				if ((pwd = getpwnam(sep->se_user)) == NULL) {
@@ -812,6 +821,7 @@ main(argc, argv)
 					 sep->se_service, sep->se_user);
 					_exit(EX_OSERR);
 				}
+				login_close(lc);
 #else
 				if (pwd->pw_uid) {
 					if (setlogin(sep->se_user) < 0) {
@@ -914,7 +924,10 @@ reapchild()
 		if (pid <= 0)
 			break;
 		if (debug)
-			warnx("%d reaped, status %#x", pid, status);
+			warnx("%d reaped, %s %u", pid,
+			    WIFEXITED(status) ? "status" : "signal",
+			    WIFEXITED(status) ? WEXITSTATUS(status)
+				: WTERMSIG(status));
 		for (sep = servtab; sep; sep = sep->se_next) {
 			for (k = 0; k < sep->se_numchild; k++)
 				if (sep->se_pids[k] == pid)
@@ -924,10 +937,13 @@ reapchild()
 			if (sep->se_numchild == sep->se_maxchild)
 				enable(sep);
 			sep->se_pids[k] = sep->se_pids[--sep->se_numchild];
-			if (status)
+			if (WIFSIGNALED(status) || WEXITSTATUS(status))
 				syslog(LOG_WARNING,
-				    "%s[%d]: exit status 0x%x",
-				    sep->se_server, pid, status);
+				    "%s[%d]: exited, %s %u",
+				    sep->se_server, pid,
+				    WIFEXITED(status) ? "status" : "signal",
+				    WIFEXITED(status) ? WEXITSTATUS(status)
+					: WTERMSIG(status));
 			break;
 		}
 		reapchild_conn(pid);
@@ -945,8 +961,11 @@ void
 config()
 {
 	struct servtab *sep, *new, **sepp;
-	struct conninfo *conn;
 	long omask;
+#ifdef LOGIN_CAP
+	login_cap_t *lc = NULL;
+#endif
+
 
 	if (!setconfig()) {
 		syslog(LOG_ERR, "%s: %m", CONFIG);
@@ -968,13 +987,14 @@ config()
 			continue;
 		}
 #ifdef LOGIN_CAP
-		if (login_getclass(new->se_class) == NULL) {
+		if ((lc = login_getclass(new->se_class)) == NULL) {
 			/* error syslogged by getclass */
 			syslog(LOG_ERR,
 				"%s/%s: %s: login class error, service ignored",
 				new->se_service, new->se_proto, new->se_class);
 			continue;
 		}
+		login_close(lc);
 #endif
 		for (sep = servtab; sep; sep = sep->se_next)
 			if (strcmp(sep->se_service, new->se_service) == 0 &&
@@ -1196,6 +1216,13 @@ setup(sep)
 				sep->se_service, sep->se_proto);
 		syslog(LOG_ERR, "%s/%s: socket: %m",
 		    sep->se_service, sep->se_proto);
+		return;
+	}
+	/* Set all listening sockets to close-on-exec. */
+	if (fcntl(sep->se_fd, F_SETFD, FD_CLOEXEC) < 0) {
+		syslog(LOG_ERR, "%s/%s: fcntl (F_SETFD, FD_CLOEXEC): %m",
+		    sep->se_service, sep->se_proto);
+		close(sep->se_fd);
 		return;
 	}
 #define	turnon(fd, opt) \
@@ -1684,7 +1711,7 @@ more:
 		       sizeof(sep->se_ctrladdr4));
                 if ((versp = rindex(sep->se_service, '/'))) {
                         *versp++ = '\0';
-                        switch (sscanf(versp, "%d-%d",
+                        switch (sscanf(versp, "%u-%u",
                                        &sep->se_rpc_lowvers,
                                        &sep->se_rpc_highvers)) {
                         case 2:
@@ -2410,29 +2437,29 @@ reapchild_conn(pid_t pid)
 }
 
 static void
-resize_conn(struct servtab *sep, int maxperip)
+resize_conn(struct servtab *sep, int maxpip)
 {
 	struct conninfo *conn;
 	int i, j;
 
 	if (sep->se_maxperip <= 0)
 		return;
-	if (maxperip <= 0) {
+	if (maxpip <= 0) {
 		free_connlist(sep);
 		return;
 	}
 	for (i = 0; i < PERIPSIZE; ++i) {
 		LIST_FOREACH(conn, &sep->se_conn[i], co_link) {
-			for (j = maxperip; j < conn->co_numchild; ++j)
+			for (j = maxpip; j < conn->co_numchild; ++j)
 				free_proc(conn->co_proc[j]);
 			conn->co_proc = realloc(conn->co_proc,
-			    maxperip * sizeof(*conn->co_proc));
+			    maxpip * sizeof(*conn->co_proc));
 			if (conn->co_proc == NULL) {
 				syslog(LOG_ERR, "realloc: %m");
 				exit(EX_OSERR);
 			}
-			if (conn->co_numchild > maxperip)
-				conn->co_numchild = maxperip;
+			if (conn->co_numchild > maxpip)
+				conn->co_numchild = maxpip;
 		}
 	}
 }
