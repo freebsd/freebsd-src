@@ -323,6 +323,9 @@
       provide access to the system monitoring functions of the AMD 756
       chipset.</para>
 
+      <para>The kernel is now aware of the concept that there are
+      smaller units of scheduling than a process (but only one thread
+      per process is allowed at this time).</para>
     </sect3>
 
     <sect3>
@@ -1851,6 +1854,10 @@
 
     <para>&man.cat.1; now has the ability to read from UNIX-domain
     sockets. &merged;</para>
+
+    <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
+    unnecessary; their functionality has been completely folded into
+    &man.id.1;.</para>
 
     <sect3>
       <title>Contributed Software</title>
