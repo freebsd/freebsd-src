@@ -801,18 +801,34 @@ pmap_extract(pmap, va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
-	vm_paddr_t pa;
+	pd_entry_t pde, *pdep;
+	pt_entry_t pte;
 	vm_page_t m;
 
 	m = NULL;
-	mtx_lock(&Giant);
-	if ((pa = pmap_extract(pmap, va)) != 0) {
-		m = PHYS_TO_VM_PAGE(pa);
-		vm_page_lock_queues();
-		vm_page_hold(m);
-		vm_page_unlock_queues();
+	if (pmap == NULL)
+		return (m);
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
+	pdep = pmap_pde(pmap, va);
+	if (pdep != NULL && (pde = *pdep)) {
+		if (pde & PG_PS) {
+			if ((pde & PG_RW) || (prot & VM_PROT_WRITE) == 0) {
+				m = PHYS_TO_VM_PAGE((pde & ~PDRMASK) |
+				    (va & PDRMASK));
+				vm_page_hold(m);
+			}
+		} else {
+			pte = *pmap_pte(pmap, va);
+			if ((pte & PG_V) &&
+			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
+				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
+				vm_page_hold(m);
+			}
+		}
 	}
-	mtx_unlock(&Giant);
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
 	return (m);
 }
 
