@@ -295,6 +295,12 @@ pxe_open(struct open_file *f, ...)
 		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
 		printf("pxe_open: server path: %s\n", rootpath);
 		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
+
+		setenv("boot.pxe.server_addr", inet_ntoa(rootip), 1);
+		setenv("boot.pxe.rootpath", rootpath, 1);
+		setenv("boot.pxe.gateway", inet_ntoa(gateip), 1);
+		setenv("boot.pxe.myip", inet_ntoa(myip), 1);
+		setenv("boot.pxe.netmask", intoa(netmask), 1);
 	}
     }
     pxe_opens++;
