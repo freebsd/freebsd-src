@@ -90,7 +90,6 @@ static __inline void	openpic_eoi __P((int));
 
 unsigned int	imen = 0xffffffff;
 u_int		cpl, ipending, tickspending;
-int		astpending;
 int		imask[NIPL];
 
 int		intrtype[NIRQ], intrmask[NIRQ], intrlevel[NIRQ];
