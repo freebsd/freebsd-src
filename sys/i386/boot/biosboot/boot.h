@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.13 1996/09/14 07:38:14 bde Exp $
+ *	$Id: boot.h,v 1.19 1997/06/09 05:10:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -33,6 +33,9 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+
+#define	RB_DUAL		0x40000		/* XXX */
+#define	RB_PROBEKBD	0x80000		/* XXX */
 
 extern char *devs[];
 extern char *name;
@@ -70,13 +73,11 @@ void boot2(void);
 /* disk.c */
 int devopen(void);
 void devread(char *iodest, int sector, int cnt);
-char * Bread(int dosdev, int sector);
 
 /* io.c */
 void gateA20(void);
 void printf(const char *format, ...);
 void putchar(int c);
-int getchar(int in_buf);
 void delay1ms(void);
 int gets(char *buf);
 int strcmp(const char *s1, const char *s2);
@@ -95,6 +96,4 @@ void init_serial(void);
 /* sys.c */
 void xread(char *addr, int size);
 void read(char *buffer, int count);
-int find(char *path);
-int block_map(int file_block);
 int openrd(void);

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.59 1996/09/14 07:11:58 bde Exp $
+ *	$Id: boot.c,v 1.60 1996/10/08 22:41:34 bde Exp $
  */
 
 
@@ -56,52 +56,36 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <a.out.h>
 #include <sys/reboot.h>
 #include <machine/bootinfo.h>
-#ifdef PROBE_KEYBOARD_LOCK
-#include <machine/cpufunc.h>
-#endif
 
 #define	ouraddr	(BOOTSEG << 4)		/* XXX */
 
-#define NAMEBUF_LEN	(8*1024)
+#define	BOOT_CONFIG_SIZE	512
+#define	BOOT_HELP_SIZE		2048
+#define	KERNEL_CONFIG_SIZE	512
+#define	NAMEBUF_LEN		1024	/* oversized to defend against gets() */
 
+static char boot_config[BOOT_CONFIG_SIZE];
+static char boot_help[BOOT_HELP_SIZE];
 #ifdef NAMEBLOCK
 char *dflt_name;
 #endif
 char *name;
-char namebuf[NAMEBUF_LEN];
-struct bootinfo bootinfo;
+static char kernel_config[KERNEL_CONFIG_SIZE];
+static char kernel_config_namebuf[NAMEBUF_LEN + sizeof "config"];
+static char linebuf[NAMEBUF_LEN];
+static char namebuf[NAMEBUF_LEN];
+static struct bootinfo bootinfo;
 int loadflags;
 
 static void getbootdev(char *ptr, int *howto);
 static void loadprog(void);
+static void readfile(char *path, char *buf, size_t nbytes);
 
 /* NORETURN */
 void
 boot(int drive)
 {
 	int ret;
-
-#ifdef PROBE_KEYBOARD
-	if (probe_keyboard()) {
-		init_serial();
-		loadflags |= RB_SERIAL;
-		printf("\nNo keyboard found.");
-	}
-#endif
-
-#ifdef PROBE_KEYBOARD_LOCK
-	if (!(inb(0x64) & 0x10)) {
-		init_serial();
-		loadflags |= RB_SERIAL;
-		printf("\nKeyboard locked.");
-	}
-#endif
-
-#ifdef FORCE_COMCONSOLE
-	init_serial();
-	loadflags |= RB_SERIAL;
-	printf("\nSerial console forced.");
-#endif
 
 	/* Pick up the story from the Bios on geometry of disks */
 
@@ -140,6 +124,8 @@ boot(int drive)
 		}
 #endif
 	}
+	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
+	readfile("boot.help", boot_help, BOOT_HELP_SIZE);
 #ifdef	NAMEBLOCK
 	/*
 	 * XXX
@@ -151,19 +137,46 @@ boot(int drive)
 		name = dflt_name;
 	} else
 #endif	/*NAMEBLOCK*/
+		name = "kernel";
+	if (boot_config[0] != '\0') {
+		printf("boot.config: %s", boot_config);
+		getbootdev(boot_config, &loadflags);
+		if (openrd() != 0)
+			name = "kernel";
+	}
 loadstart:
-	name = "/kernel";
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
-	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
-	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdghrsv]\n"
-	       "Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1\n"
-	       "Use ? for file list or press Enter for defaults\n\nBoot: ",
+	printf("\r \n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory, %s%s console\n"
+	       "Boot default: %d:%s(%d,%c)%s\n"
+	       "%s\n"
+	       "boot: ",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
-	       dosdev & 0x7f, devs[maj], unit, name);
+	       (loadflags & RB_SERIAL) ? "serial" : "internal",
+	       (loadflags & RB_DUAL) ? "/dual" : "",
+	       dosdev & 0x7f, devs[maj], unit, 'a' + part,
+	       name ? name : "*specify_a_kernel_name*",
+	       boot_help);
 
-	loadflags &= RB_SERIAL;	/* clear all, but leave serial console */
-	getbootdev(namebuf, &loadflags);
+	/*
+	 * Ignore flags from previous attempted boot, if any.
+	 * XXX this is now too strict.  Settings given in boot.config should
+	 * not be changed.
+	 */
+	loadflags &= (RB_DUAL | RB_SERIAL);
+
+	/*
+	 * Be paranoid and make doubly sure that the input buffer is empty.
+	 */
+	if (loadflags & (RB_DUAL | RB_SERIAL))
+		init_serial();
+
+	if (!gets(linebuf))
+		putchar('\n');
+	else
+		getbootdev(linebuf, &loadflags);
+	if (name == NULL)
+		goto loadstart;
 	ret = openrd();
 	if (ret != 0) {
 		if (ret > 0)
@@ -186,6 +199,7 @@ loadprog(void)
 	long int bootdev;
 	int i;
 	unsigned pad;
+	char *s, *t;
 
 	read((void *)&head, sizeof(head));
 	if ( N_BADMAG(head)) {
@@ -301,67 +315,110 @@ loadprog(void)
 	bootinfo.bi_kernelname = name + ouraddr;
 	bootinfo.bi_nfs_diskless = NULL;
 	bootinfo.bi_size = sizeof(bootinfo);
+
+	/*
+	 * Load the kernel config file (if any).  Its name is given by
+	 * appending ".config" to the kernel name.  Build the name inline
+	 * because no str*() functions are available.  The file has to be
+	 * copied to &disklabel for userconfig.  It can't be loaded there
+	 * directly because the label is used late in readfile() in some
+	 * unusual cases, e.g., for bad144 handling.
+	 */
+	s = name;
+	t = kernel_config_namebuf;
+	do
+		;
+	while ((*t++ = *s++) != '\0');
+	s = ".config";
+	--t;
+	do
+		;
+	while ((*t++ = *s++) != '\0');
+	readfile(kernel_config_namebuf, kernel_config, KERNEL_CONFIG_SIZE);
+	pcpy(kernel_config, (char *)&disklabel + ouraddr, KERNEL_CONFIG_SIZE);
+
 	printf("total=0x%x entry point=0x%x\n", (int)addr, (int)startaddr);
 	startprog((int)startaddr, loadflags | RB_BOOTINFO, bootdev,
 		  (int)&bootinfo + ouraddr);
 }
 
-void
+static void
+readfile(char *path, char *buf, size_t nbytes)
+{
+	int openstatus;
+
+	buf[0] = '\0';
+	name = path;
+	openstatus = openrd();
+	if (openstatus != 0) {
+		if (openstatus > 0)
+			printf("Can't find file %s\n", name);
+	} else {
+		/* XXX no way to determine file size. */
+		read(buf, nbytes);
+	}
+	buf[nbytes - 1] = '\0';
+}
+
+static void
 getbootdev(char *ptr, int *howto)
 {
 	char c;
+	int f;
+	char *p;
 
-	/*
-	 * Be paranoid and make doubly sure that the input buffer is empty.
-	 */
-	if (*howto & RB_SERIAL)
-		init_serial();
+	/* Copy the flags to save some bytes. */
+	f = *howto;
 
-	if (!gets(ptr)) {
-		putchar('\n');
-		return;
-	}
-	while ((c = *ptr) != '\0') {
+	c = *ptr;
+	for (;;) {
 nextarg:
-		while (c == ' ')
+		while (c == ' ' || c == '\n')
 			c = *++ptr;
 		if (c == '-')
 			while ((c = *++ptr) != '\0') {
-				if (c == ' ')
+				if (c == ' ' || c == '\n')
 					goto nextarg;
-				if (c == 'C')
-					*howto |= RB_CDROM;
 				if (c == 'a')
-					*howto |= RB_ASKNAME;
-				if (c == 'b')
-					*howto |= RB_HALT;
+					f |= RB_ASKNAME;
+				if (c == 'C')
+					f |= RB_CDROM;
 				if (c == 'c')
-					*howto |= RB_CONFIG;
+					f |= RB_CONFIG;
+				if (c == 'D')
+					f ^= RB_DUAL;
 				if (c == 'd')
-					*howto |= RB_KDB;
-				if (c == 'h') {
-					*howto ^= RB_SERIAL;
-					if (*howto & RB_SERIAL)
-						init_serial();
-					continue;
-				}
+					f |= RB_KDB;
 				if (c == 'g')
-					*howto |= RB_GDB;
+					f |= RB_GDB;
+				if (c == 'h')
+					f ^= RB_SERIAL;
+				if (c == 'P')
+					f |= RB_PROBEKBD;
 				if (c == 'r')
-					*howto |= RB_DFLTROOT;
+					f |= RB_DFLTROOT;
 				if (c == 's')
-					*howto |= RB_SINGLE;
+					f |= RB_SINGLE;
 				if (c == 'v')
-					*howto |= RB_VERBOSE;
+					f |= RB_VERBOSE;
 			}
 		if (c == '\0')
-			return;
-		name = ptr;
-		while (*++ptr != '\0') {
-			if (*ptr == ' ') {
-				*ptr++ = '\0';
-				break;
-			}
+			break;
+		p = name = namebuf;
+		while (c != '\0' && c != ' ' && c != '\n') {
+			*p++ = c;
+			c = *++ptr;
 		}
+		*p = '\0';
 	}
+	if (f & RB_PROBEKBD) {
+		if (probe_keyboard()) {
+			f |= RB_DUAL | RB_SERIAL;
+			printf("No keyboard found\n");
+		} else
+			printf("Keyboard found\n");
+	}
+	if (f & (RB_DUAL | RB_SERIAL))
+		init_serial();
+	*howto = f;
 }

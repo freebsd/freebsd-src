@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.3 1995/04/21 16:30:18 bde Exp $
+ *	$Id: serial.S,v 1.3.8.1 1996/11/06 10:05:10 phk Exp $
  */
 
 /*
@@ -68,7 +68,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 	.file	"serial.s"
 
 #include "asm.h"
-#include "../../isa/sioreg.h"
+#include <i386/isa/sioreg.h>
 	.text
 
 /*
@@ -93,10 +93,13 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ENTRY(serial_putc)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
+	movl	$10000, %ecx	# timeout
 	mov	$COMCONSOLE + 5, %edx	# line status reg
-1:	inb	%dx, %al
+1:
+	decl	%ecx
+	je	2f
+	inb	%dx, %al
 	test	$0x20, %al
 	jz	1b		# TX buffer not empty
 
@@ -105,7 +108,7 @@ ENTRY(serial_putc)
 	sub	$5, %edx	# TX output reg
 	outb	%al, %dx	# send this one
 
-	pop	%edx
+2:
 	pop	%ebp
 	ret
 
@@ -117,7 +120,6 @@ ENTRY(serial_putc)
 ENTRY(serial_getc)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
 	mov	$COMCONSOLE + 5, %edx	# line status reg
 1:
@@ -134,7 +136,6 @@ ENTRY(serial_getc)
 	jne	2f
 	mov	$0x08, %eax	# look like BS
 2:
-	pop	%edx
 	pop	%ebp
 	ret
 
@@ -145,14 +146,12 @@ ENTRY(serial_getc)
 ENTRY(serial_ischar)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
 	xorl	%eax, %eax
 	mov	$COMCONSOLE + 5, %edx	# line status reg
 	inb	%dx, %al
 	andb	$0x01, %al		# RX char available?
 
-	pop	%edx
 	pop	%ebp
 	ret
 
@@ -163,7 +162,6 @@ ENTRY(serial_ischar)
 ENTRY(init_serial)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
 	mov	$COMCONSOLE + 3, %edx	# line control reg
 	movb	$0x80, %al
@@ -176,7 +174,11 @@ ENTRY(init_serial)
 	movb	%ah, %al
 	outb	%al, %dx
 
-	add	$2, %edx	# line control reg
+	incl	%edx		# fifo control register (if any)
+	xorl	%eax,%eax
+	outb	%al, %dx	# disable fifo to reduce worst-case busy-wait
+
+	incl	%edx		# line control reg
 	movb	$0x13, %al
 	outb	%al, %dx	# 8 bit, no parity, 1 stop bit
 
@@ -195,6 +197,5 @@ ENTRY(init_serial)
 	add	$5, %edx
 	jmp	1b
 2:
-	pop	%edx
 	pop	%ebp
 	ret
