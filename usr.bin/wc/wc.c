@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: wc.c,v 1.4 1996/04/13 11:35:54 bde Exp $";
 #endif
 #endif /* not lint */
 
@@ -153,7 +153,7 @@ cnt(file)
 		 * logic.
 		 */
 		if (doline) {
-			while (len = read(fd, buf, MAXBSIZE)) {
+			while ((len = read(fd, buf, MAXBSIZE))) {
 				if (len == -1) {
 					warn("%s: read", file);
 					(void)close(fd);
@@ -193,7 +193,7 @@ cnt(file)
 	}
 
 	/* Do it the hard way... */
-word:	for (gotsp = 1; len = read(fd, buf, MAXBSIZE);) {
+word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
 		if (len == -1) {
 			warn("%s: read", file);
 			(void)close(fd);
@@ -236,6 +236,6 @@ word:	for (gotsp = 1; len = read(fd, buf, MAXBSIZE);) {
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: wc [-clw] [files]\n");
+	(void)fprintf(stderr, "usage: wc [-clw] [file ...]\n");
 	exit(1);
 }
