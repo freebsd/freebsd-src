@@ -346,7 +346,7 @@ The driver currently precludes hostap functionality older station
 firmware.
 The best version of the station firmware for the Prism family of chips
 seems to be 1.4.9.
-Some users of Prism 2 and 2.5 based cards report that station firmware
+Some users of Prism-II and 2.5 based cards report that station firmware
 version 1.3.4 works better for them in hostap than 1.4.9.
 Older versions of the Prism station firmware have a number of issues
 with hostap mode.
@@ -359,7 +359,7 @@ Lucent cards prior to firmware version 6.0.4 do not support IBSS
 mode.
 These cards support only the pre 802.11 mode known as
 .Dq "demo ad-hoc mode"
-which doesn't interoperate with stations in IBSS mode.
+which does not interoperate with stations in IBSS mode.
 .Pp
 .Sh BUGS
 Not all the new messages are documented here, and many of them are
@@ -367,10 +367,12 @@ indications of transient errors that are not indications of serious
 problems.
 .Pp
 WL200 PCI wireless cards are based on a Cirrus Logic CL-PD6729 bridge
-chips glued to an intersil prism2 pcmcia chipset w/o the PC Card
+chips glued to an intersil prism-II pcmcia chipset w/o the PC Card
 form factor being present.
 These chips are special and require special care to use properly.
-One must set hw.pcic.pd6729_intr_path="2" in
+One must set
+.Va hw.pcic.pd6729_intr_path Ns = Ns Qq Li 2
+in
 .Pa /boot/loader.conf .
 This tells the pccard system to use PCI interrupts for this odd beast.
 It is not possible to know automatically which kind of interrupts to use.
