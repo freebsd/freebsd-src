@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.86 1994/12/28 03:21:16 ache Exp $
+# $Id: bsd.port.mk,v 1.87 1994/12/28 03:30:21 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -425,7 +425,10 @@ ${CONFIGURE_COOKIE}:
 		sh ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
-	@(cd ${WRKSRC}; CC=${CC} CFLAGS=${CFLAGS} ./configure ${CONFIGURE_ARGS})
+	@(cd ${WRKSRC}; CC=${CC} CFLAGS=${CFLAGS} \
+	    INSTALL="${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP}" \
+	    INSTALL_PROGRAM="${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}" \
+	    ./configure ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
 .if defined(USE_GMAKE)
