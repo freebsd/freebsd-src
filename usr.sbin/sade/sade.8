@@ -880,7 +880,7 @@ This property should be set to the
 version on the current
 media volume.
 For example,
-.Dq Li "CD_VERSION = 4.6" .
+.Dq Li "CD_VERSION = 5.3" .
 .It Va CD_MACHINE_ARCH
 This property should be set to the architecture of the contents on
 this volume.
@@ -891,7 +891,7 @@ CDs for different architectures, to provide better error messages if
 users try to install Alpha packages on an i386 machine.
 For example,
 .Dq Li "CD_MACHINE_ARCH = alpha" .
-.It Va VOLUME
+.It Va CD_VOLUME
 In a multi-volume collection (such as the
 .Fx
 4-CD set), the
@@ -901,7 +901,7 @@ The last field of the
 .Pa INDEX
 file denotes which volume the package
 appears on, and the
-.Va VOLUME
+.Va CD_VOLUME
 property here defines the volume ID of the current disc.
 .El
 .It Pa packages/INDEX
