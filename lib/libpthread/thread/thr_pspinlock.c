@@ -34,8 +34,14 @@
 
 #define SPIN_COUNT 10000
 
+__weak_reference(_pthread_spin_init, pthread_spin_init);
+__weak_reference(_pthread_spin_destroy, pthread_spin_destroy);
+__weak_reference(_pthread_spin_trylock, pthread_spin_trylock);
+__weak_reference(_pthread_spin_lock, pthread_spin_lock);
+__weak_reference(_pthread_spin_unlock, pthread_spin_unlock);
+
 int
-pthread_spin_init(pthread_spinlock_t *lock, int pshared)
+_pthread_spin_init(pthread_spinlock_t *lock, int pshared)
 {
 	struct pthread_spinlock	*lck;
 	int ret;
@@ -55,7 +61,7 @@ pthread_spin_init(pthread_spinlock_t *lock, int pshared)
 }
 
 int
-pthread_spin_destroy(pthread_spinlock_t *lock)
+_pthread_spin_destroy(pthread_spinlock_t *lock)
 {
 	int ret;
 
@@ -73,7 +79,7 @@ pthread_spin_destroy(pthread_spinlock_t *lock)
 }
 
 int
-pthread_spin_trylock(pthread_spinlock_t *lock)
+_pthread_spin_trylock(pthread_spinlock_t *lock)
 {
 	struct pthread_spinlock	*lck;
 	struct pthread *self = _pthread_self();
@@ -98,7 +104,7 @@ pthread_spin_trylock(pthread_spinlock_t *lock)
 }
 
 int
-pthread_spin_lock(pthread_spinlock_t *lock)
+_pthread_spin_lock(pthread_spinlock_t *lock)
 {
 	struct pthread_spinlock	*lck;
 	struct pthread *self = _pthread_self();
@@ -132,7 +138,7 @@ pthread_spin_lock(pthread_spinlock_t *lock)
 }
 
 int
-pthread_spin_unlock(pthread_spinlock_t *lock)
+_pthread_spin_unlock(pthread_spinlock_t *lock)
 {
 	struct pthread_spinlock	*lck;
 	int ret;
