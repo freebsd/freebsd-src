@@ -229,18 +229,23 @@ main(argc, argv)
 	/* initialization to dump internal status to a file */
 	signal(SIGUSR1, rtsold_set_dump_file);
 
+	if (!fflag)
+		daemon(0, 0);		/* act as a daemon */
+
 	/*
 	 * Open a socket for sending RS and receiving RA.
 	 * This should be done before calling ifinit(), since the function
 	 * uses the socket.
 	 */
 	if ((s = sockopen()) < 0) {
-		errx(1, "failed to open a socket");
+		warnmsg(LOG_ERR, __func__, "failed to open a socket");
+		exit(1);
 		/*NOTREACHED*/
 	}
 	maxfd = s;
 	if ((rtsock = rtsock_open()) < 0) {
-		errx(1, "failed to open a socket");
+		warnmsg(LOG_ERR, __func__, "failed to open a socket");
+		exit(1);
 		/*NOTREACHED*/
 	}
 	if (rtsock > maxfd)
@@ -258,12 +263,16 @@ main(argc, argv)
 
 	/* configuration per interface */
 	if (ifinit()) {
-		errx(1, "failed to initilizatoin interfaces");
+		warnmsg(LOG_ERR, __func__,
+		    "failed to initilizatoin interfaces");
+		exit(1);
 		/*NOTREACHED*/
 	}
 	while (argc--) {
 		if (ifconfig(*argv)) {
-			errx(1, "failed to initialize %s", *argv);
+			warnmsg(LOG_ERR, __func__,
+			    "failed to initialize %s", *argv);
+			exit(1);
 			/*NOTREACHED*/
 		}
 		argv++;
@@ -271,12 +280,11 @@ main(argc, argv)
 
 	/* setup for probing default routers */
 	if (probe_init()) {
-		errx(1, "failed to setup for probing routers");
+		warnmsg(LOG_ERR, __func__,
+		    "failed to setup for probing routers");
+		exit(1);
 		/*NOTREACHED*/
 	}
-
-	if (!fflag)
-		daemon(0, 0);		/* act as a daemon */
 
 	/* dump the current pid */
 	if (!once) {
