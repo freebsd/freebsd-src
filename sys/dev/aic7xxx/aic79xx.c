@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#196 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#197 $
  *
  * $FreeBSD$
  */
@@ -1880,8 +1880,23 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 			tinfo->goal.ppr_options = 0;
 			ahd_qinfifo_requeue_tail(ahd, scb);
 			printerror = 0;
-		} else if ((ahd_sent_msg(ahd, AHDMSG_EXT, MSG_EXT_WDTR, FALSE)
-			 || ahd_sent_msg(ahd, AHDMSG_EXT, MSG_EXT_SDTR, FALSE))
+		} else if (ahd_sent_msg(ahd, AHDMSG_EXT, MSG_EXT_WDTR, FALSE)
+			&& ppr_busfree == 0) {
+			/*
+			 * Negotiation Rejected.  Go-narrow and
+			 * retry command.
+			 */
+#ifdef AHD_DEBUG
+			if ((ahd_debug & AHD_SHOW_MESSAGES) != 0)
+				printf("WDTR negotiation rejected busfree.\n");
+#endif
+			ahd_set_width(ahd, &devinfo,
+				      MSG_EXT_WDTR_BUS_8_BIT,
+				      AHD_TRANS_CUR|AHD_TRANS_GOAL,
+				      /*paused*/TRUE);
+			ahd_qinfifo_requeue_tail(ahd, scb);
+			printerror = 0;
+		} else if (ahd_sent_msg(ahd, AHDMSG_EXT, MSG_EXT_SDTR, FALSE)
 			&& ppr_busfree == 0) {
 			/*
 			 * Negotiation Rejected.  Go-async and
@@ -1889,12 +1904,8 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 			 */
 #ifdef AHD_DEBUG
 			if ((ahd_debug & AHD_SHOW_MESSAGES) != 0)
-				printf("Negotiation rejected busfree.\n");
+				printf("SDTR negotiation rejected busfree.\n");
 #endif
-			ahd_set_width(ahd, &devinfo,
-				      MSG_EXT_WDTR_BUS_8_BIT,
-				      AHD_TRANS_CUR|AHD_TRANS_GOAL,
-				      /*paused*/TRUE);
 			ahd_set_syncrate(ahd, &devinfo,
 					/*period*/0, /*offset*/0,
 					/*ppr_options*/0,
@@ -3232,6 +3243,7 @@ ahd_build_transfer_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 	 * may change.
 	 */
 	period = tinfo->goal.period;
+	offset = tinfo->goal.offset;
 	ppr_options = tinfo->goal.ppr_options;
 	/* Target initiated PPR is not allowed in the SCSI spec */
 	if (devinfo->role == ROLE_TARGET)
@@ -3239,7 +3251,7 @@ ahd_build_transfer_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 	ahd_devlimited_syncrate(ahd, tinfo, &period,
 				&ppr_options, devinfo->role);
 	dowide = tinfo->curr.width != tinfo->goal.width;
-	dosync = tinfo->curr.period != period;
+	dosync = tinfo->curr.offset != offset || tinfo->curr.period != period;
 	/*
 	 * Only use PPR if we have options that need it, even if the device
 	 * claims to support it.  There might be an expander in the way
@@ -3249,7 +3261,7 @@ ahd_build_transfer_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 
 	if (!dowide && !dosync && !doppr) {
 		dowide = tinfo->goal.width != MSG_EXT_WDTR_BUS_8_BIT;
-		dosync = tinfo->goal.period != 0;
+		dosync = tinfo->goal.offset != 0;
 	}
 
 	if (!dowide && !dosync && !doppr) {
@@ -3983,22 +3995,30 @@ ahd_parse_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 				response = TRUE;
 				sending_reply = TRUE;
 			}
+			/*
+			 * After a wide message, we are async, but
+			 * some devices don't seem to honor this portion
+			 * of the spec.  Force a renegotiation of the
+			 * sync component of our transfer agreement even
+			 * if our goal is async.  By updating our width
+			 * after forcing the negotiation, we avoid
+			 * renegotiating for width.
+			 */
+			ahd_update_neg_request(ahd, devinfo, tstate,
+					       tinfo, AHD_NEG_ALWAYS);
 			ahd_set_width(ahd, devinfo, bus_width,
 				      AHD_TRANS_ACTIVE|AHD_TRANS_GOAL,
 				      /*paused*/TRUE);
-			/* After a wide message, we are async */
-			ahd_set_syncrate(ahd, devinfo, /*period*/0,
-					 /*offset*/0, /*ppr_options*/0,
-					 AHD_TRANS_ACTIVE, /*paused*/TRUE);
 			if (sending_reply == FALSE && reject == FALSE) {
 
-				if (tinfo->goal.offset) {
-					ahd->msgout_index = 0;
-					ahd->msgout_len = 0;
-					ahd_build_transfer_msg(ahd, devinfo);
-					ahd->msgout_index = 0;
-					response = TRUE;
-				}
+				/*
+				 * We will always have an SDTR to send.
+				 */
+				ahd->msgout_index = 0;
+				ahd->msgout_len = 0;
+				ahd_build_transfer_msg(ahd, devinfo);
+				ahd->msgout_index = 0;
+				response = TRUE;
 			}
 			done = MSGLOOP_MSGCOMPLETE;
 			break;
