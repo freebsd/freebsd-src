@@ -309,7 +309,7 @@ tty_OpenInfo(struct physical *p)
 
 static void
 tty_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   struct ttydevice *dev = device2tty(d);
   int sz = physical_MaxDeviceSize();

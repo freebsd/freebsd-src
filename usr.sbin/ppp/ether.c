@@ -175,7 +175,7 @@ ether_OpenInfo(struct physical *p)
 
 static void
 ether_device2iov(struct device *d, struct iovec *iov, int *niov,
-                 int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
+                 int maxiov, int *auxfd, int *nauxfd)
 {
   struct etherdevice *dev = device2ether(d);
   int sz = physical_MaxDeviceSize();
