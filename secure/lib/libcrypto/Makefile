@@ -248,7 +248,7 @@ SRCS+=	buildinf.h
 INCS+=	opensslconf.h evp.h
 INCSDIR=	${INCLUDEDIR}/openssl
 
-CSTD=	c89
+CSTD=	gnu89
 
 CLEANFILES=	buildinf.h opensslconf.h evp.h
 
