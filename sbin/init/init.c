@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: init.c,v 1.32 1999/06/16 20:01:19 ru Exp $";
+	"$Id: init.c,v 1.33 1999/06/18 09:08:09 ru Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -935,8 +935,10 @@ construct_argv(command)
 	register char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
 						* sizeof (char *));
 
-	if ((argv[argc++] = strk(command)) == 0)
-		return 0;
+	if ((argv[argc++] = strk(command)) == 0) {
+		free(argv);
+		return (NULL);
+	}
 	while ((argv[argc++] = strk((char *) 0)) != NULL)
 		continue;
 	return argv;
@@ -1044,7 +1046,7 @@ setupargv(sp, typ)
 		return (0);
 	}
 	if (sp->se_window) {
-			free(sp->se_window);
+		free(sp->se_window);
 		free(sp->se_window_argv_space);
 		free(sp->se_window_argv);
 	}
