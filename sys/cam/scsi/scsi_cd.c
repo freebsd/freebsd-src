@@ -152,7 +152,7 @@ struct cd_softc {
 	int			bufs_left;
 	struct cam_periph	*periph;
 	dev_t			dev;
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 	eventhandler_tag	clonetag;
 #endif
 	int			minimum_command_size;
@@ -343,7 +343,7 @@ struct cdchanger {
 
 static STAILQ_HEAD(changerlist, cdchanger) changerq;
 
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 static void
 cdclone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -535,7 +535,7 @@ cdcleanup(struct cam_periph *periph)
 	}
 	devstat_remove_entry(softc->device_stats);
 	destroy_dev(softc->dev);
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 	EVENTHANDLER_DEREGISTER(dev_clone, softc->clonetag);
 #endif
 	free(softc, M_DEVBUF);
@@ -782,7 +782,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&cd_cdevsw, periph->unit_number,
 		UID_ROOT, GID_OPERATOR, 0640, "cd%d", periph->unit_number);
 	softc->dev->si_drv1 = periph;
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 	softc->clonetag =
 	    EVENTHANDLER_REGISTER(dev_clone, cdclone, softc, 1000);
 #endif
