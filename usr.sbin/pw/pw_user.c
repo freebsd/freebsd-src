@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.2 1996/12/11 15:10:47 joerg Exp $
+ *	$Id: pw_user.c,v 1.3 1996/12/16 17:37:58 davidn Exp $
  */
 
 #include <unistd.h>
@@ -771,7 +771,7 @@ pw_getrand(u_char *buf, int len)
 {
 	int		fd;
 	fd = open("/dev/urandom", O_RDONLY);
-	if (!fd || read(fd, buf, len)!=len) {
+	if (fd==-1 || read(fd, buf, len)!=len) {
 		int n;
 		for (n=0;n<len;n+=16) {
 			u_char ubuf[16];
