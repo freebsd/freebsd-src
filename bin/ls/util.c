@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: util.c,v 1.8 1997/02/22 14:04:03 peter Exp $
  */
 
 #ifndef lint
@@ -71,7 +71,7 @@ usage()
 #ifdef BSD4_4_LITE
 	(void)fprintf(stderr, "usage: ls [-1ACFLRTacdfiklqrstu] [file ...]\n");
 #else
-	(void)fprintf(stderr, "usage: ls [-1ACFLRTWacdfiklqrstu] [file ...]\n");
+	(void)fprintf(stderr, "usage: ls [-ACFLRTWacdfgikloqrstu1] [file ...]\n");
 #endif
 	exit(1);
 }
