@@ -524,8 +524,7 @@ mount(td, uap)
 	int error;
 
 	/* Kick out MNT_ROOTFS early as it is legal internally */
-	if (uap->flags & MNT_ROOTFS)
-		return (EINVAL);
+	uap->flags &= ~MNT_ROOTFS;
 
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
 
