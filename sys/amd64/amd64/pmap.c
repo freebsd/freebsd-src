@@ -802,7 +802,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 				PMAP_UNLOCK(pmap);
 				return rtval;
 			}
-			pte = pmap_pte(pmap, va);
+			pte = pmap_pde_to_pte(pdep, va);
 			rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
 		}
 	}
@@ -836,7 +836,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 				vm_page_hold(m);
 			}
 		} else {
-			pte = *pmap_pte(pmap, va);
+			pte = *pmap_pde_to_pte(pdep, va);
 			if ((pte & PG_V) &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
@@ -1612,8 +1612,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		ptpaddr = *pde;
 
 		/*
-		 * Weed out invalid mappings. Note: we assume that the page
-		 * directory table is always allocated, and in kernel virtual.
+		 * Weed out invalid mappings.
 		 */
 		if (ptpaddr == 0)
 			continue;
@@ -1765,8 +1764,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		ptpaddr = *pde;
 
 		/*
-		 * Weed out invalid mappings. Note: we assume that the page
-		 * directory table is always allocated, and in kernel virtual.
+		 * Weed out invalid mappings.
 		 */
 		if (ptpaddr == 0)
 			continue;
@@ -2339,7 +2337,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				    M_NOWAIT);
 				if (dstmpte == NULL)
 					break;
-				dst_pte = pmap_pte(dst_pmap, addr);
+				dst_pte = (pt_entry_t *)
+				    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
+				dst_pte = &dst_pte[pmap_pte_index(addr)];
 				if (*dst_pte == 0) {
 					/*
 					 * Clear the modified and
