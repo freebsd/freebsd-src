@@ -13,7 +13,7 @@ Overview
 This document tries to provide a starting point for those who want to start
 running FreeBSD on an Alpha-based machine. It is aimed at providing
 background information on the various hardware designs. It is not a
-replacement for the system's manuals. 
+replacement for the systems manuals. 
 
 The information is structured as follows:
 
@@ -49,7 +49,7 @@ for your particular system. In any case: no SRM -> no FreeBSD (or NetBSD,
 OpenBSD, Tru64 Unix or OpenVMS for that matter). 
 
 As part of the SRM you will get the so called OSF/1 PAL code (OSF/1 being the
-initial name of DEC's Unix offering on Alpha). The PAL code can be thought
+initial name of DECs Unix offering on Alpha). The PAL code can be thought
 of as a software abstraction layer between the hardware and the operating
 system. It uses normal CPU instruction plus a handful of privileged
 instructions specific for PAL use. PAL is not microcode by the way. 
@@ -80,7 +80,7 @@ SRM versions versions exist (depends on the mainboard) that can also boot
 from IDE disks. 
 
 FreeBSD/alpha 4.0 and later can be booted from the distribution CDROM.
-Earlier versions needed booting from a 2 floppy set.
+Earlier versions needed booting from a 2-floppy set.
 
 If you don't have/want a local disk drive you can boot via the Ethernet.
 This assumes a Ethernet adapter/chip that is recognized by the SRM.
@@ -101,17 +101,21 @@ If you want to run your Alpha without a monitor/graphics card
 just don't connect a keyboard/mouse to the machine. Instead hook 
 up a serial terminal[emulator] to serial port #1.  The SRM will 
 talk 9600N81 to you. This can be really practical for debugging purposes.
+Beware: some/most (?) SRMs will also present you with a console prompt at
+serial port #2. The booting kernel, however, will display the boot messages
+on serial port #1 and will also put the console there.
 
 Most PCI based Alphas can use ordinary PC-type VGA cards. The SRM contains
 enough smarts to make that work. It does not, however, mean that each and
 every PCI VGA card out on the street will work in an Alpha machine. Things
-like S3 Trio64 generally work. But ask around first before buying.
+like S3 Trio64, Mach64 generally work. Old ET4000 based ISA cards have also
+worked for me. But ask around first before buying.
 
 Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
 this.
 
-Currently all parallel ports do not work on FreeBSD/alpha. The driver needs
+Currently parallel ports do not work on FreeBSD/alpha. The driver needs
 work to make this happen. 
 
 For Alpha CPUs you will find multiple versions. The original Alpha
@@ -162,7 +166,7 @@ Features:
 - 21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
   (21068 CPUs are also possible, but are even slower. Never seen/used one)
 - memory bus: 64 bits 
-- on-board Bcache / L2 cache: 0, 256k or 1Mbyte (uses DIL chips)
+- on-board Bcache / L2 cache: 0, 256k or 1 Mbyte (uses DIL chips)
 - PS/2 mouse & keyboard port OR 5pin DIN keyboard (2 mainboard models)
 - memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
 	  70ns or better,
@@ -177,14 +181,14 @@ Features:
 - embedded Fast SCSI using a NCR/Symbios 53C810 chip
 
 SRM:
-NoName's can either have SRM *or* ARC console firmware in their Flash ROM.
+NoNames can either have SRM *or* ARC console firmware in their Flash ROM.
 The Flash ROM is not big enough to hold both ARC and SRM at the same time 
 and allow software selection of alternate console code. But you need 
 SRM only anyway.
 
 Cache:
-Cache for the NoNames are 15 or 20ns DIL chips. For a 256kByte cache you
-want to check your junked 486 mainboard. Chips for a 1Mbyte cache are a rarer
+Cache for the NoNames are 15 or 20 ns DIL chips. For a 256 kByte cache you
+want to check your junked 486 mainboard. Chips for a 1 Mbyte cache are a rarer
 breed unfortunately. Getting at least a 256kByte cache is recommended
 performance wise. Cache-less they are really slow.
 
@@ -229,7 +233,7 @@ get.
 Features:
 - 21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
 - memory bus: 64 bits 
-- on-board Bcache / L2 cache: COAST-like 256kByte cache module
+- on-board Bcache / L2 cache: COAST-like 256 kByte cache module
 - PS/2 mouse & keyboard port
 - memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
 	  70ns or better,
@@ -299,7 +303,7 @@ USB connectors. If yes, it is a MiataGL.
 System designations look like "Personal Workstation 433a". This means 
 it has a 433 MHz CPU, and started life as a WinNT workstation 
 (the trailing 'a'). Systems designated from day 1 to run Tru64 
-Unix or OpenVMS will sport '433au'. WinNT-Miata's are likely
+Unix or OpenVMS will sport '433au'. WinNT-Miatas are likely
 to come pre-configured with an IDE CDROM drive. There was also a Miata model
 with a special cooling system by Kryotech. This one has a different
 enclosure.
@@ -308,11 +312,12 @@ Features:
 
 - 21164A EV56 Alpha CPU, at 433, 500 or 600MHz 
 - 21174 Core Logic ("Pyxis") chip set
-- on-board Bcache / L3 cache: 0, 2, 4Mbyte (uses a cache module)
+- on-board Bcache / L3 cache: 0, 2 or 4 Mbytes (uses a cache module)
 - memory bus: 128 bits wide, ECC protected
 - memory: Miata uses unbuffered SDRAMs, 
 	  installed in pairs of 2,
 	  6 DIMM sockets
+	  1.5 Gbytes max
 - on-board Fast Ethernet based on:
   - MX5 uses a 21142 or 21143 Ethernet chip dependent on the version of the
     PCI riser card, 
@@ -330,7 +335,7 @@ Features:
 - 1x parallel port 
 - PS/2 keyboard & mouse port
 - USB interface [MiataGL only]
-- embedded sound based on a ESS1888 chip
+- embedded sound based on an ESS1888 chip
 
 CPU mainboard and PCI 'riser' board: 
 the Miata is divided into two printed circuit boards. 
@@ -345,7 +350,7 @@ Everything else (cabinet, wiring etc etc) is identical for MX5 and MiataGL.
 
 DMA bug: 
 MX5 has problems with DMA via the 2 64-bit PCI slots when this DMA
-crosses a page boundary. The 32bit slots don't have this problem because the
+crosses a page boundary. The 32 bit slots don't have this problem because the
 PCI-PCI bridge chip does not allow the offending transfers. The SRM code 
 knows about the problem and refuses to start the system if there is a PCI
 card in one of the 64bit slots that it does not know about. Cards that are
@@ -353,10 +358,19 @@ card in one of the 64bit slots that it does not know about. Cards that are
 
 If you want to fool the SRM you can type "set pci_device_override" at
 the SRM prompt. Just don't complain if your data mysteriously gets mangled.
+
 The complete command is:
 
 	set pci_device_override <vendor_id><device_id>
 	e.g. set pci_device_override 88c15333
+
+A more radical approach is to use: 
+	
+	set pci_device_override -1
+
+This disables PCI ID checking altogether, so that you can stick in any
+random PCI card without its ID getting checked. Again: do this on your own
+risk.
 
 The kernel reports it when it sees a buggy Pyxis chip:
 Sep 16 18:39:43 miata /kernel: cia0: Pyxis, pass 1
@@ -375,12 +389,12 @@ problems by the MiataGL SRM.
 
 The latest mainboard revisions of MX5 contain a hardware workaround for the
 bug. The SRM does not know about the ECO and will complain about unknown cards
-just like before. The same applies to the FreeBSD kernel by the way.
+as before. The same remark applies to the FreeBSD kernel by the way.
 
 EIDE:
 The Miata SRM can boot from IDE CDROM drives. Harddisk boot is known to work for
 both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
-on MX5 are around 14 Mb/sec assuming a suitable drive. The CMD646 chip will
+on MX5 are around 14 Mbytes/sec assuming a suitable drive. The CMD646 chip will
 support up to WDMA2 mode as the silicon is too buggy for use with UDMA.
 
 PCI-PCI bridge:
@@ -401,8 +415,8 @@ troubleshooting). The cache module is identical between MX5 and MiataGL.
 Installing a cache module achieves, apart from a 10-15% speed increase (based 
 on buildworld elapsed time), a *decrease* for PCI DMA read bandwidth from 
 64bit PCI cards. A benchmark on a 64-bit Myrinet card resulted in a decrease
-from 149 Mb/sec to 115 Mb/sec. Something to keep in mind when doing really
-high speed things with 64 bit PCI adapters.
+from 149 Mbytes/sec to 115 Mbytes/sec. Something to keep in mind when doing 
+really high speed things with 64 bit PCI adapters.
 
 USB:
 Does not currently seem to work on FreeBSD/alpha judging from the kernel
@@ -523,10 +537,10 @@ Open    GND     80 nsec
 GND     Open    70 nsec
 Open    Open    60 nsec
 
-DEC3000/500-class can use 2, 4, 8, 16 and 32Mbyte 100pin SIMMs. 
+DEC3000/500-class can use 2, 4, 8, 16 and 32 Mbyte 100pin SIMMs. 
 Note that the maximum memory size varies from system to system, 
 desktop machines have sacrificed box size for less memory SIMM sockets. 
-Given enough sockets and enough SIMMs you can get to 512Mbytes maximum.
+Given enough sockets and enough SIMMs you can get to 512 Mbytes maximum.
 This is one of the main differences between floor standing and desktop
 machines, the latter have much less SIMM sockets.
 
@@ -568,15 +582,15 @@ set:
 - memory bus: 128 bit
 - memory:  PS/2 style 72 pin 33 bit Fast Page Mode SIMMs, 
 	   70ns or better,
-           installed in sets of 4,
+           installed in sets of 4
            8 SIMM sockets
            uses parity
-- Bcache / L2 cache: 512 kByte, 1 Mbyte or 2 Mbyte
+- Bcache / L2 cache: 512 kByte, 1 Mbyte or 2 Mbytes
 - 21072 ("APECS") chip set 
 - Intel 82378ZB PCI to ISA bridge chip ('Saturn')
 - dual 16550A serial ports
 - NCR/Symbios 53C810 Fast-SCSI
-- embedded 10Mbit Ethernet
+- embedded 10 Mbit Ethernet
 - 2 PCI slots
 - 3 ISA slots
 
@@ -651,7 +665,7 @@ PC164SX is reported to boot fine with an NCR875 based card.
 
 SRM quirks:
 PC164 the SRM sometimes seems to loose its variable settings. 
-"For PC164's, current superstition says that, to avoid losing settings,
+"For PC164, current superstition says that, to avoid losing settings,
 you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
 
 On PC164SX the AlphaBIOS allows you a selection to select 'SRM' to
@@ -755,7 +769,7 @@ Features:
 - memory: AS500: industry standard 8 byte wide DIMMs
           	 8 DIMM slots
 	  	 installed in sets of 4,
-	  	 maximum memory is 1 Gb (512Mb max on 333 MHz CPUs)
+	  	 maximum memory is 1 Gb (512 Mb max on 333 MHz CPUs)
 		 uses ECC 
   	  AS600: industry standard 36 bit Fast Page Mode SIMMs
 		 32 SIMM slots,
@@ -890,12 +904,12 @@ user) memory and I/O system bandwidth.
 
 Features:
 - 21264 EV6 CPU at 466 MHz
-- L2 / Bcache: 4MB 
+- L2 / Bcache: 2MB 
 - memory bus: 128 bit via crossbar
 - memory: industry standard 200 pin 83 MHz buffered ECC SDRAM DIMMs
 	  4 DIMM slots
 	  installed in pairs of 2
-	  max memory is 2Gb
+	  max memory is 2 Gb
 - 21271 Core Logic chipset ("Tsunami")
 - 2 on-board 21143 Fast Ethernet controllers
 - AcerLabs M5237 (Aladdin-V) USB controller
@@ -923,7 +937,7 @@ rack.
 Memory:
 DS10 has 4 DIMM slots. DIMMs are installed as pairs. Please note that 
 DIMM pairs are not installed in adjacent DIMM sockets but rather physically
-interleaved. 
+interleaved. DIMM sizes of 32, 64, 128, 256 and 512 Mbytes are supported.
 
 EIDE:
 The base model comes with a FUJITSU 9.5GB ATA disk as its boot device.
@@ -944,7 +958,7 @@ Features:
   21264 EV67 at 500 or 667 MHz
 - L2 / Bcache: 4MB 
 - memory bus: 256 bit 
-- memory: 128 or 256Mb 100 MHz (PC100) registered ECC SDRAM DIMMs
+- memory: 128 or 256 Mbytes 100 MHz (PC100) registered ECC SDRAM DIMMs
 - 21271 Core Logic chip-set ("Tsunami")
 - 1 on-board 21143 Ethernet controller
 - Cypress 82C693 USB controller       
@@ -974,9 +988,9 @@ box.
 
 Memory:
 For 500 MHz CPUs 83 MHz DIMMs will do. DIMMs are installed in sets of 4,
-starting with the DIMM slots marked '0'. Memory capacity is max 4Gb. 
+starting with the DIMM slots marked '0'. Memory capacity is max 4 Gb. 
 DIMMs are installed 'physically interleaved', note the markings of the
-slots.
+slots. Memory bandwith of Monet is twice that of Webbrick.
 
 EIDE:
 Is usable / bootable for system disk so FreeBSD can be rooted on an EIDE
@@ -999,10 +1013,10 @@ kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
 ** DS20/DS20E ("Goldrush"):
 
 Features:
-- 21264 EV6 CPU at 500 or 600 MHz
+- 21264 EV6 CPU at 500 or 670 MHz
 - dual CPU capable machine
 - L2 / Bcache: 4 Mbytes per CPU
-- memory bus: 256 bit 
+- memory bus: dual 256 bit wide with crossbar switch
 - memory: SDRAM DIMMs
 	  installed in sets of 4
 	  uses ECC 
@@ -1098,7 +1112,7 @@ The MCA bus is not supported. The EISA bus is not supported for use with
 EISA expansion cards as the EISA support code is lacking. ISA cards in EISA 
 slots are reported to work.
 
-- Floppy drives: 1.44Mbyte and 1.2Mbyte floppy drives are supported.
+- Floppy drives: 1.44 Mbyte and 1.2 Mbyte floppy drives are supported.
 2.88Mbyte drives sometimes found in Alpha machines are supported up to
 1.44Mbyte.
 
