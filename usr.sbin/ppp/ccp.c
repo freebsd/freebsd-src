@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.14 1997/08/20 23:47:40 brian Exp $
+ * $Id: ccp.c,v 1.15 1997/08/25 00:29:06 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -130,7 +130,6 @@ CcpSendConfigReq(struct fsm * fp)
 void
 CcpSendResetReq(struct fsm * fp)
 {
-  Pred1Init(1);			/* Initialize Input part */
   LogPrintf(LogCCP, "CcpSendResetReq\n");
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
@@ -258,7 +257,8 @@ CcpInput(struct mbuf * bp)
   if (phase == PHASE_NETWORK)
     FsmInput(&CcpFsm, bp);
   else {
-    LogPrintf(LogERROR, "Unexpected CCP in phase %d\n", phase);
+    if (phase > PHASE_NETWORK)
+      LogPrintf(LogERROR, "Unexpected CCP in phase %d\n", phase);
     pfree(bp);
   }
 }
