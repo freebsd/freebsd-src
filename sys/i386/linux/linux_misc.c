@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.28 1997/04/28 02:53:17 msmith Exp $
+ *  $Id: linux_misc.c,v 1.29 1997/07/20 16:06:01 bde Exp $
  */
 
 #include <sys/param.h>
@@ -82,11 +82,12 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
     if (itimerfix(&it.it_value) || itimerfix(&it.it_interval))
 	return EINVAL;
     s = splclock();
-    untimeout(realitexpire, (caddr_t)p);
+    if (timerisset(&p->p_realtimer.it_value))
+	    untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
     tv = time;
     if (timerisset(&it.it_value)) {
 	timevaladd(&it.it_value, &tv);
-	timeout(realitexpire, (caddr_t)p, hzto(&it.it_value));
+	p->p_ithandle = timeout(realitexpire, (caddr_t)p, hzto(&it.it_value));
     }
     p->p_realtimer = it;
     splx(s);
