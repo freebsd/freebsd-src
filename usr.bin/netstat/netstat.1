@@ -57,6 +57,7 @@
 .Op Fl N Ar system
 .Nm
 .Fl s Op Fl s
+.Op Fl z
 .Op Fl f Ar address_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -272,6 +273,8 @@ some fields to overflow.
 Show network interface statistics at intervals of
 .Ar wait
 seconds.
+.It Fl z
+Reset statistics.
 .El
 .Pp
 The default display, for active sockets, shows the local
