@@ -53,7 +53,7 @@ const char * ftype(u_int type);
 extern int ftsoptions;
 extern u_int keys;
 extern int lineno;
-extern int dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag;
+extern int dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, wflag;
 #ifdef MAXPATHLEN
 extern char fullpath[MAXPATHLEN];
 #endif

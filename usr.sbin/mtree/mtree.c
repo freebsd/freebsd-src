@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 int ftsoptions = FTS_PHYSICAL;
-int cflag, dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, Uflag;
+int cflag, dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, Uflag, wflag;
 u_int keys;
 char fullpath[MAXPATHLEN];
 
@@ -72,7 +72,7 @@ main(int argc, char *argv[])
 	spec1 = stdin;
 	spec2 = NULL;
 
-	while ((ch = getopt(argc, argv, "cdef:iK:k:LnPp:qrs:UuxX:")) != -1)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:LnPp:qrs:UuwxX:")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -141,6 +141,9 @@ main(int argc, char *argv[])
 			break;
 		case 'u':
 			uflag = 1;
+			break;
+		case 'w':
+			wflag = 1;
 			break;
 		case 'x':
 			ftsoptions |= FTS_XDEV;

@@ -98,7 +98,7 @@ cwalk(void)
 	argv[0] = dot;
 	argv[1] = NULL;
 	if ((t = fts_open(argv, ftsoptions, dsort)) == NULL)
-		err(1, "line %d: fts_open", lineno);
+		err(1, "fts_open()");
 	while ((p = fts_read(t))) {
 		if (iflag)
 			indent = p->fts_level * 4;
@@ -171,22 +171,32 @@ statf(int indent, FTSENT *p)
 		output(indent, &offset, "type=%s", inotype(p->fts_statp->st_mode));
 	if (p->fts_statp->st_uid != uid) {
 		if (keys & F_UNAME) {
-			if ((pw = getpwuid(p->fts_statp->st_uid)) == NULL)
+			pw = getpwuid(p->fts_statp->st_uid);
+			if (pw != NULL)
+				output(indent, &offset, "uname=%s", pw->pw_name);
+			else if (wflag)
+				warnx("Could not get uname for uid=%u",
+				    p->fts_statp->st_uid);
+			else
 				errx(1,
-				    "line %d: could not get uname for uid=%u",
-				    lineno, p->fts_statp->st_uid);
-			output(indent, &offset, "uname=%s", pw->pw_name);
+				    "Could not get uname for uid=%u",
+				    p->fts_statp->st_uid);
 		}
 		if (keys & F_UID)
 			output(indent, &offset, "uid=%u", p->fts_statp->st_uid);
 	}
 	if (p->fts_statp->st_gid != gid) {
 		if (keys & F_GNAME) {
-			if ((gr = getgrgid(p->fts_statp->st_gid)) == NULL)
+			gr = getgrgid(p->fts_statp->st_gid);
+			if (gr != NULL)
+				output(indent, &offset, "gname=%s", gr->gr_name);
+			else if (wflag)
+				warnx("Could not get gname for gid=%u",
+				    p->fts_statp->st_gid);
+			else
 				errx(1,
-				    "line %d: could not get gname for gid=%u",
-				    lineno, p->fts_statp->st_gid);
-			output(indent, &offset, "gname=%s", gr->gr_name);
+				    "Could not get gname for gid=%u",
+				    p->fts_statp->st_gid);
 		}
 		if (keys & F_GID)
 			output(indent, &offset, "gid=%u", p->fts_statp->st_gid);
@@ -205,7 +215,7 @@ statf(int indent, FTSENT *p)
 	if (keys & F_CKSUM && S_ISREG(p->fts_statp->st_mode)) {
 		if ((fd = open(p->fts_accpath, O_RDONLY, 0)) < 0 ||
 		    crc(fd, &val, &len))
-			err(1, "line %d: %s", lineno, p->fts_accpath);
+			err(1, "%s", p->fts_accpath);
 		(void)close(fd);
 		output(indent, &offset, "cksum=%lu", (unsigned long)val);
 	}
@@ -215,7 +225,7 @@ statf(int indent, FTSENT *p)
 
 		digest = MD5File(p->fts_accpath, buf);
 		if (!digest)
-			err(1, "line %d: %s", lineno, p->fts_accpath);
+			err(1, "%s", p->fts_accpath);
 		output(indent, &offset, "md5digest=%s", digest);
 	}
 #endif /* MD5 */
@@ -225,7 +235,7 @@ statf(int indent, FTSENT *p)
 
 		digest = SHA1_File(p->fts_accpath, buf);
 		if (!digest)
-			err(1, "line %d: %s", lineno, p->fts_accpath);
+			err(1, "%s", p->fts_accpath);
 		output(indent, &offset, "sha1digest=%s", digest);
 	}
 #endif /* SHA1 */
@@ -235,7 +245,7 @@ statf(int indent, FTSENT *p)
 
 		digest = RIPEMD160_File(p->fts_accpath, buf);
 		if (!digest)
-			err(1, "line %d: %s", lineno, p->fts_accpath);
+			err(1, "%s", p->fts_accpath);
 		output(indent, &offset, "ripemd160digest=%s", digest);
 	}
 #endif /* RMD160 */
@@ -277,7 +287,7 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode, u_long *p
 
 	if ((p = fts_children(t, 0)) == NULL) {
 		if (errno)
-			err(1, "line %d: %s", lineno, RP(parent));
+			err(1, "%s", RP(parent));
 		return (1);
 	}
 
@@ -336,22 +346,24 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode, u_long *p
 		else
 			(void)printf("/set type=file");
 		if (keys & F_UNAME) {
-			if ((pw = getpwuid(saveuid)) != NULL)
+			pw = getpwuid(saveuid);
+			if (pw != NULL)
 				(void)printf(" uname=%s", pw->pw_name);
+			else if (wflag)
+				warnx( "Could not get uname for uid=%u", saveuid);
 			else
-				errx(1,
-				"line %d: could not get uname for uid=%u",
-				lineno, saveuid);
+				errx(1, "Could not get uname for uid=%u", saveuid);
 		}
 		if (keys & F_UID)
 			(void)printf(" uid=%lu", (u_long)saveuid);
 		if (keys & F_GNAME) {
-			if ((gr = getgrgid(savegid)) != NULL)
+			gr = getgrgid(savegid);
+			if (gr != NULL)
 				(void)printf(" gname=%s", gr->gr_name);
+			else if (wflag)
+				warnx("Could not get gname for gid=%u", savegid);
 			else
-				errx(1,
-				"line %d: could not get gname for gid=%u",
-				lineno, savegid);
+				errx(1, "Could not get gname for gid=%u", savegid);
 		}
 		if (keys & F_GID)
 			(void)printf(" gid=%lu", (u_long)savegid);
