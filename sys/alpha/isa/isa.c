@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.7 1998/11/18 23:53:11 dfr Exp $
+ *	$Id: isa.c,v 1.8 1998/11/28 09:55:16 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -242,6 +242,16 @@ isa_probe(device_t dev)
 	for (i = resource_query_string(-1, "at", "isa0");
 	     i != -1;
 	     i = resource_query_string(i, "at", "isa0")) {
+		isa_add_device(dev, resource_query_name(i),
+			       resource_query_unit(i));
+	}
+
+	/*
+	 * and isa?
+	 */
+	for (i = resource_query_string(-1, "at", "isa");
+	     i != -1;
+	     i = resource_query_string(i, "at", "isa")) {
 		isa_add_device(dev, resource_query_name(i),
 			       resource_query_unit(i));
 	}
@@ -471,9 +481,16 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct	resource *rv, **rvp;
 	struct	isa_device *id;
 
-	if (child)
-		id = DEVTOISA(child);
-	else
+	if (child) {
+		/*
+		 * If this is our child, then use the isa_device to find 
+		 * defaults and to record results.
+		 */
+		if (device_get_devclass(device_get_parent(child)) == isa_devclass)
+			id = DEVTOISA(child);
+		else
+			id = NULL;
+	} else
 		id = NULL;
 	isdefault = (start == 0UL && end == ~0UL && *rid == 0);
 	if (*rid > 1)
