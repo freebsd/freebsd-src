@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.h,v 1.3.4.4 1998/04/30 23:53:40 brian Exp $
+ *	$Id: id.h,v 1.5 1998/05/21 21:45:34 brian Exp $
  */
 
 struct utmp;
@@ -38,6 +38,7 @@ extern FILE *ID0fopen(const char *, const char *);
 extern int ID0open(const char *, int, ...);
 extern int ID0write(int, const void *, size_t);
 extern int ID0uu_lock(const char *);
+extern int ID0uu_lock_txfr(const char *, pid_t);
 extern int ID0uu_unlock(const char *);
 extern void ID0login(struct utmp *);
 extern void ID0logout(const char *);
