@@ -1,5 +1,5 @@
 /*
- * $Id: $
+ * $Id: phase.c,v 1.1 1997/10/26 01:03:31 brian Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,7 @@ NewPhase(int new)
     CcpUp();
     CcpOpen();
     break;
-  case PHASE_TERMINATE:
+  case PHASE_DEAD:
     if (mode & MODE_DIRECT)
       Cleanup(EX_DEAD);
     if (mode & MODE_BACKGROUND && reconnectState != RECON_TRUE)

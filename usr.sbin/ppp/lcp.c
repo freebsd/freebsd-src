@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.40 1997/10/26 01:02:57 brian Exp $
+ * $Id: lcp.c,v 1.41 1997/10/26 12:42:11 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -311,12 +311,10 @@ static void
 LcpLayerFinish(struct fsm * fp)
 {
   LogPrintf(LogLCP, "LcpLayerFinish\n");
-  OsCloseLink(1);
-  NewPhase(PHASE_DEAD);
+  HangupModem(0);
   StopAllTimers();
-  (void) OsInterfaceDown(0);
   /* We're down at last.  Lets tell background and direct mode to get out */
-  NewPhase(PHASE_TERMINATE);
+  NewPhase(PHASE_DEAD);
   LcpInit();
   IpcpInit();
   CcpInit();
@@ -363,13 +361,9 @@ void
 LcpDown()
 {				/* Sudden death */
   LcpFailedMagic = 0;
-  NewPhase(PHASE_DEAD);
-  StopAllTimers();
   FsmDown(&LcpFsm);
-  /*
-   * We now wait for the FsmDown() to result in a LcpLayerDown() (if we're
-   * open).
-   */
+  /* FsmDown() results in a LcpLayerDown() if we're currently open. */
+  LcpLayerFinish(&LcpFsm);
 }
 
 void
@@ -383,6 +377,8 @@ LcpOpen(int mode)
 void
 LcpClose()
 {
+  NewPhase(PHASE_TERMINATE);
+  OsInterfaceDown(0);
   FsmClose(&LcpFsm);
   LcpFailedMagic = 0;
 }

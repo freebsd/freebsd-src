@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.30 1997/09/22 23:59:16 brian Exp $
+ * $Id: vars.c,v 1.31 1997/10/26 01:03:58 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -39,8 +39,8 @@
 #include "auth.h"
 #include "defs.h"
 
-char VarVersion[] = "PPP Version 1.2";
-char VarLocalVersion[] = "$Date: 1997/09/22 23:59:16 $";
+char VarVersion[] = "PPP Version 1.3";
+char VarLocalVersion[] = "$Date: 1997/10/26 01:03:58 $";
 int Utmp = 0;
 int ipInOctets = 0;
 int ipOutOctets = 0;
