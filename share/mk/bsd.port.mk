@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.22 1994/08/30 16:39:27 adam Exp $
+# $Id: bsd.port.mk,v 1.23 1994/09/01 16:01:34 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -61,6 +61,7 @@
 .endif
 
 GMAKE?=		gmake
+NCFTP?=		/usr/local/bin/ncftp
 
 # These need to be absolute since we don't know how deep in the ports
 # tree we are and thus can't go relative.  They can, of course, be overridden
@@ -279,15 +280,38 @@ ${EXTRACT_COOKIE}:
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
 	@if [ ! -f ${DISTFILE} ]; then \
-	   echo ">> Sorry, can't find: ${DISTFILE}"; \
-	   echo ">> Please obtain this file from:"; \
+	   echo ">> Sorry, I can't seem to find: ${DISTFILE}"; \
+	   echo ">> on this system."; \
 .if defined(HOME_LOCATION)
-	   echo ">>	${HOME_LOCATION}"; \
+	   if [ -f ${NCFTP} ]; then \
+		echo ">> Would you like me to fetch it from: ${HOME_LOCATION}";\
+		echo -n ">> with ncftp? [y/n] "; \
+		read ans; \
+		if [ "$ans" = "y" ]; then \
+			mkdir -p `dirname ${DISTFILE}`; \
+			if cd `dirname ${DISTFILE}`; then \
+				if ${NCFTP} ${HOME_LOCATION}; then \
+					${EXTRACT_CMD} ${EXTRACT_ARGS}; \
+				else \
+					echo "Couldn't fetch it - please retreive ${DISTFILE} manually and try again."; \
+					exit 1; \
+				fi \
+			else \
+				echo "Couldn't cd to `dirname ${DISTFILE}`.  Please correct and try again."; \
+				exit 1; \
+			fi \
+		else \
+			echo "Please ensure ${DISTFILE} exists before trying again."; \
+			exit 1; \
+		fi \
+	    else \
+		echo ">> Please fetch it from ${HOME_LOCATION} and try again.";\
+		echo ">> Installing ${NCFTP} can also make this easier in the future."; \
+	    fi \
 .else
-	   echo ">>	<original site unknown>"; \
+	    echo ">>	<original site unknown>"; \
+	    exit 1; \
 .endif
-	   echo ">>before proceeding."; \
-	   exit 1; \
 	fi
 	@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTFILE}
 	@touch -f ${EXTRACT_COOKIE}
