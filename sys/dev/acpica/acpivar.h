@@ -86,8 +86,18 @@ struct acpi_device {
 
     /* Resources */
     struct resource_list	ad_rl;
-
 };
+
+struct acpi_prw_data {
+    ACPI_HANDLE			gpe_handle;
+    int				gpe_bit;
+    int				lowest_wake;
+    void			*power_res;
+};
+
+/* Flags for each device defined in the AML namespace. */
+#define ACPI_FLAG_WAKE_CAPABLE	0x1
+#define ACPI_FLAG_WAKE_ENABLED	0x2
 
 #if __FreeBSD_version < 500000
 /*
@@ -139,62 +149,30 @@ struct acpi_device {
 #define ACPI_IVAR_MAGIC		0x101
 #define ACPI_IVAR_PRIVATE	0x102
 
-static __inline ACPI_HANDLE
-acpi_get_handle(device_t dev)
-{
-    uintptr_t up;
-
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, &up))
-	return (NULL);
-    return ((ACPI_HANDLE)up);
+/*
+ * Accessor functions for our ivars.  Default value for BUS_READ_IVAR is
+ * (type) 0.  The <sys/bus.h> accessor functions don't check return values.
+ */
+#define __ACPI_BUS_ACCESSOR(varp, var, ivarp, ivar, type)	\
+								\
+static __inline type varp ## _get_ ## var(device_t dev)		\
+{								\
+    uintptr_t v = 0;						\
+    BUS_READ_IVAR(device_get_parent(dev), dev,			\
+	ivarp ## _IVAR_ ## ivar, &v);				\
+    return ((type) v);						\
+}								\
+								\
+static __inline void varp ## _set_ ## var(device_t dev, type t)	\
+{								\
+    uintptr_t v = (uintptr_t) t;				\
+    BUS_WRITE_IVAR(device_get_parent(dev), dev,			\
+	ivarp ## _IVAR_ ## ivar, v);				\
 }
 
-static __inline int
-acpi_set_handle(device_t dev, ACPI_HANDLE h)
-{
-    uintptr_t up;
-
-    up = (uintptr_t)h;
-    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, up));
-}
-
-static __inline int
-acpi_get_magic(device_t dev)
-{
-    uintptr_t up;
-
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, &up))
-	return(0);
-    return ((int)up);
-}
-
-static __inline int
-acpi_set_magic(device_t dev, int m)
-{
-    uintptr_t up;
-
-    up = (uintptr_t)m;
-    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, up));
-}
-
-static __inline void *
-acpi_get_private(device_t dev)
-{
-    uintptr_t up;
-
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, &up))
-	return (NULL);
-    return ((void *)up);
-}
-
-static __inline int
-acpi_set_private(device_t dev, void *p)
-{
-    uintptr_t up;
-
-    up = (uintptr_t)p;
-    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, up));
-}
+__ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
+__ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, int)
+__ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 
 static __inline ACPI_OBJECT_TYPE
 acpi_get_type(device_t dev)
@@ -249,6 +227,9 @@ extern ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 extern ACPI_STATUS	acpi_OverrideInterruptLevel(UINT32 InterruptNumber);
 extern ACPI_STATUS	acpi_SetIntrModel(int model);
 extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
+int		acpi_wake_init(device_t dev, int type);
+int		acpi_wake_set_enable(device_t dev, int enable);
+int		acpi_wake_sleep_prep(device_t dev, int sstate);
 extern ACPI_STATUS	acpi_Startup(void);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
 extern ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
