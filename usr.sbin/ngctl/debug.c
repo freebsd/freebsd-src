@@ -48,7 +48,8 @@ const struct ngcmd debug_cmd = {
 	"Without any argument, this command displays the current"
 	" debugging verbosity level. If the argument is ``+'' or ``-''"
 	" the debug level is incremented or decremented; otherwise,"
-	" it must be an absolute numerical level."
+	" it must be an absolute numerical level.",
+	{}
 };
 
 static int
