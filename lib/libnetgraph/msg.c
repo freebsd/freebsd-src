@@ -1,4 +1,3 @@
-
 /*
  * msg.c
  *
@@ -36,9 +35,11 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
  * $Whistle: msg.c,v 1.9 1999/01/20 00:57:23 archie Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <stdarg.h>
