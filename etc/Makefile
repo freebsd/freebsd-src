@@ -25,7 +25,7 @@ WCS1=	wcs fppwcs poc poc1 poc2 fppoc
 WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
 # Special top level files for FreeBSD
-COPYRIGHT=	COPYRIGHT
+COPYRIGHT=	COPYRIGHT.386BSD COPYRIGHT.FreeBSD
 FREEBSD=	CONTRIB.386BSD CONTRIB.FreeBSD
 FREEBSD+=	MIRROR.SITES PERSONAL.ACKS RELNOTES.FreeBSD SUPPORT.TXT
 FREEBSD+=	${COPYRIGHT}
