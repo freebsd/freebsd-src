@@ -49,7 +49,8 @@ static char sccsid[] = "@(#)dumprmt.c	8.1 (Berkeley) 6/5/93";
 #endif
 
 #include <netinet/in.h>
-#include <netinet/tcp.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <protocols/dumprestore.h>
 
@@ -121,7 +122,7 @@ rmtgetconn()
 #endif
 	char *tuser;
 	int size;
-	int maxseg;
+	int throughput;
 
 	if (sp == NULL) {
 		sp = getservbyname("shell", "tcp");
@@ -148,6 +149,8 @@ rmtgetconn()
 		rmt = _PATH_RMT;
 	rmtape = rcmd(&rmtpeer, (u_short)sp->s_port, pwd->pw_name, tuser,
 	    rmt, (int *)0);
+	if (rmtape < 0)
+		return;
 	size = ntrec * TP_BSIZE;
 	if (size > 60 * 1024)		/* XXX */
 		size = 60 * 1024;
@@ -157,10 +160,10 @@ rmtgetconn()
 	    setsockopt(rmtape, SOL_SOCKET, SO_SNDBUF, &size, sizeof (size)) < 0)
 		    size -= TP_BSIZE;
 	(void)setsockopt(rmtape, SOL_SOCKET, SO_RCVBUF, &size, sizeof (size));
-	maxseg = 1024;
-	if (setsockopt(rmtape, IPPROTO_TCP, TCP_MAXSEG,
-	    &maxseg, sizeof (maxseg)) < 0)
-		perror("TCP_MAXSEG setsockopt");
+	throughput = IPTOS_THROUGHPUT;
+	if (setsockopt(rmtape, IPPROTO_IP, IP_TOS,
+	    &throughput, sizeof(throughput)) < 0)
+		perror("IP_TOS:IPTOS_THROUGHPUT setsockopt");
 
 #ifdef notdef
 	if (setsockopt(rmtape, IPPROTO_TCP, TCP_NODELAY, &on, sizeof (on)) < 0)
