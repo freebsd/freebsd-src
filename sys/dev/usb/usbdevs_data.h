@@ -52,6 +52,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "HomeConnect USB Camera",
 	},
 	{
+	    USB_VENDOR_3COM, USB_PRODUCT_3COM_3CREB96,
+	    0,
+	    "3Com",
+	    "Bluetooth USB dongle",
+	},
+	{
 	    USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250,
 	    0,
 	    "3Com",
@@ -526,6 +532,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "Keyboard with mouse port",
 	},
 	{
+	    USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033,
+	    0,
+	    "Broadcom",
+	    "BCM2033 Bluetooth USB dongle",
+	},
+	{
 	    USB_VENDOR_CANON, USB_PRODUCT_CANON_N656U,
 	    0,
 	    "Canon",
@@ -650,6 +662,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Creative",
 	    "Nomad II MP3 player",
+	},
+	{
+	    USB_VENDOR_CSR, USB_PRODUCT_CSR_BT_DONGLE,
+	    0,
+	    "Cambridge Silicon Radio Ltd.",
+	    "Bluetooth USB dongle",
 	},
 	{
 	    USB_VENDOR_CTX, USB_PRODUCT_CTX_EX1300,
@@ -2032,10 +2050,22 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "Dimage 5400",
 	},
 	{
+	    USB_VENDOR_MSI, USB_PRODUCT_MSI_BT_DONGLE,
+	    0,
+	    "Micro Star International",
+	    "Bluetooth USB dongle",
+	},
+	{
 	    USB_VENDOR_MITSUMI, USB_PRODUCT_MITSUMI_CDRRW,
 	    0,
 	    "Mitsumi",
 	    "CD-R/RW Drive",
+	},
+	{
+	    USB_VENDOR_MITSUMI, USB_PRODUCT_MITSUMI_BT_DONGLE,
+	    0,
+	    "Mitsumi",
+	    "Bluetooth USB dongle",
 	},
 	{
 	    USB_VENDOR_MOTOROLA, USB_PRODUCT_MOTOROLA_MC141555,
@@ -2954,6 +2984,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "TDK",
 	    "USB-PHS Adapter UPA6400",
+	},
+	{
+	    USB_VENDOR_TDK, USB_PRODUCT_TDK_BT_DONGLE,
+	    0,
+	    "TDK",
+	    "Bluetooth USB dongle",
 	},
 	{
 	    USB_VENDOR_TEAC, USB_PRODUCT_TEAC_FD05PUB,
@@ -4756,6 +4792,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_CSR, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Cambridge Silicon Radio Ltd.",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_TREK, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Trek Technology",
@@ -4861,6 +4903,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_PNY, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "PNY",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_MSI, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Micro Star International",
 	    NULL,
 	},
 	{
