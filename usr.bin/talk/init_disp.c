@@ -40,10 +40,10 @@ static char sccsid[] = "@(#)init_disp.c	8.2 (Berkeley) 2/16/94";
  * as well as the signal handling routines.
  */
 
-#include <sys/ioctl.h>
-#include <sys/ioctl_compat.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/termios.h>
+#include <sys/ttydefaults.h>
 
 #include <unistd.h>
 #include <signal.h>
@@ -74,13 +74,14 @@ check_writeable()
 void
 init_display()
 {
-	struct sigvec sigv;
+	struct sigaction sa;
+	int i;
 
 	if (initscr() == NULL)
 		errx(1, "Terminal type unset or lacking necessary features.");
-	(void) sigvec(SIGTSTP, (struct sigvec *)0, &sigv);
-	sigv.sv_mask |= sigmask(SIGALRM);
-	(void) sigvec(SIGTSTP, &sigv, (struct sigvec *)0);
+	(void) sigaction(SIGTSTP, (struct sigaction *)0, &sa);
+	sigaddset(&sa.sa_mask, SIGALRM);
+	(void) sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 	curses_initialized = 1;
 	clear();
 	refresh();
@@ -103,7 +104,8 @@ init_display()
 	wclear(his_win.x_win);
 
 	line_win = newwin(1, COLS, my_win.x_nlines, 0);
-	box(line_win, '-', '-');
+	for (i = 0; i < COLS; i++)
+		mvwaddch(line_win, 0, i, '-');
 	wrefresh(line_win);
 	/* let them know we are working on it */
 	current_state = "No connection yet";
@@ -119,17 +121,18 @@ set_edit_chars()
 {
 	char buf[3];
 	int cc;
-	struct sgttyb tty;
-	struct ltchars ltc;
+	struct termios tio;
 
-	ioctl(0, TIOCGETP, &tty);
-	ioctl(0, TIOCGLTC, (struct sgttyb *)&ltc);
-	my_win.cerase = tty.sg_erase;
-	my_win.kill = tty.sg_kill;
-	if (ltc.t_werasc == (char) -1)
-		my_win.werase = '\027';	 /* control W */
-	else
-		my_win.werase = ltc.t_werasc;
+	tcgetattr(0, &tio);
+	my_win.cerase = tio.c_cc[VERASE];
+	my_win.kill = tio.c_cc[VKILL];
+	my_win.werase = tio.c_cc[VWERASE];
+	if (my_win.cerase == (char)_POSIX_VDISABLE)
+		my_win.kill = CERASE;
+	if (my_win.kill == (char)_POSIX_VDISABLE)
+		my_win.kill = CKILL;
+	if (my_win.werase == (char)_POSIX_VDISABLE)
+		my_win.werase = CWERASE;
 	buf[0] = my_win.cerase;
 	buf[1] = my_win.kill;
 	buf[2] = my_win.werase;
