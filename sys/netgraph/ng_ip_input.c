@@ -91,18 +91,11 @@ static ng_rcvdata_t	ngipi_rcvdata;
 static ng_disconnect_t	ngipi_disconnect;
 
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_IP_INPUT_NODE_TYPE,
-	NULL,		/* modeventhand_t */
-	ngipi_cons,	/* ng_constructor_t */
-	NULL,		/* ng_rcvmsg_t */
-	NULL,		/* ng_shutdown_t */
-	NULL,		/* ng_newhook_t */
-	NULL,		/* ng_findhook_t */
-	NULL,		/* ng_connect_t */
-	ngipi_rcvdata,	/* ng_rcvdata_t */
-	ngipi_disconnect, /* ng_disconnect_t */
-	NULL		/* ng_cmdlist */
+	.version =	NG_ABI_VERSION,
+	.name =		NG_IP_INPUT_NODE_TYPE,
+	.constructor =	ngipi_cons,
+	.rcvdata =	ngipi_rcvdata,
+	.disconnect =	ngipi_disconnect,
 };
 NETGRAPH_INIT(ip_input, &typestruct);
 

@@ -76,18 +76,16 @@ static	ng_rcvdata_t		ng_hci_raw_rcvdata;
 
 /* Netgraph node type descriptor */
 static	struct ng_type		typestruct = {
-	NG_ABI_VERSION,
-	NG_HCI_NODE_TYPE,	/* typename */
-	NULL,			/* modevent */
-	ng_hci_constructor,	/* constructor */
-	ng_hci_default_rcvmsg,	/* control message */
-	ng_hci_shutdown,	/* destructor */
-	ng_hci_newhook,		/* new hook */
-	NULL,			/* findhook */
-	ng_hci_connect,		/* connect hook */
-	ng_hci_drv_rcvdata,	/* data */
-	ng_hci_disconnect,	/* disconnect hook */
-	ng_hci_cmdlist		/* node command list */
+	.version =	NG_ABI_VERSION,
+	.name =		NG_HCI_NODE_TYPE,
+	.constructor =	ng_hci_constructor,
+	.rcvmsg =	ng_hci_default_rcvmsg,
+	.shutdown =	ng_hci_shutdown,
+	.newhook =	ng_hci_newhook,
+	.connect =	ng_hci_connect,
+	.rcvdata =	ng_hci_drv_rcvdata,
+	.disconnect =	ng_hci_disconnect,
+	.cmdlist =	ng_hci_cmdlist,
 };
 NETGRAPH_INIT(hci, &typestruct);
 MODULE_VERSION(ng_hci, NG_BLUETOOTH_VERSION);

@@ -75,19 +75,17 @@ static	ng_rcvmsg_t		ng_l2cap_default_rcvmsg;
 static	ng_rcvdata_t		ng_l2cap_rcvdata;
 
 /* Netgraph node type descriptor */
-static	struct ng_type		typestruct = {
-	NG_ABI_VERSION,
-	NG_L2CAP_NODE_TYPE,	/* typename */
-	NULL,			/* modevent */
-	ng_l2cap_constructor,	/* constructor */
-	ng_l2cap_default_rcvmsg,/* control message */
-	ng_l2cap_shutdown,	/* destructor */
-	ng_l2cap_newhook,	/* new hook */
-	NULL,			/* findhook */
-	ng_l2cap_connect,	/* connect hook */
-	ng_l2cap_rcvdata,	/* data */
-	ng_l2cap_disconnect,	/* disconnect hook */
-	ng_l2cap_cmdlist	/* node command list */
+static	struct ng_type typestruct = {
+	.version =	NG_ABI_VERSION,
+	.name =		NG_L2CAP_NODE_TYPE,
+	.constructor =	ng_l2cap_constructor,
+	.rcvmsg =	ng_l2cap_default_rcvmsg,
+	.shutdown =	ng_l2cap_shutdown,
+	.newhook =	ng_l2cap_newhook,
+	.connect =	ng_l2cap_connect,
+	.rcvdata =	ng_l2cap_rcvdata,
+	.disconnect =	ng_l2cap_disconnect,
+	.cmdlist =	ng_l2cap_cmdlist,
 };
 NETGRAPH_INIT(l2cap, &typestruct);
 MODULE_VERSION(ng_l2cap, NG_BLUETOOTH_VERSION);

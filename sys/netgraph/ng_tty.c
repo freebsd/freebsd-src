@@ -154,18 +154,16 @@ static struct linesw ngt_disc = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_TTY_NODE_TYPE,
-	ngt_mod_event,
-	ngt_constructor,
-	ngt_rcvmsg,
-	ngt_shutdown,
-	ngt_newhook,
-	NULL,
-	ngt_connect,
-	ngt_rcvdata,
-	ngt_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_TTY_NODE_TYPE,
+	.mod_event =	ngt_mod_event,
+	.constructor =	ngt_constructor,
+	.rcvmsg =	ngt_rcvmsg,
+	.shutdown =	ngt_shutdown,
+	.newhook =	ngt_newhook,
+	.connect =	ngt_connect,
+	.rcvdata =	ngt_rcvdata,
+	.disconnect =	ngt_disconnect,
 };
 NETGRAPH_INIT(tty, &typestruct);
 

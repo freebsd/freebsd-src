@@ -98,18 +98,14 @@ static ng_disconnect_t	nglmi_disconnect;
 static int	nglmi_checkdata(hook_p hook, struct mbuf *m);
 
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_LMI_NODE_TYPE,
-	NULL,
-	nglmi_constructor,
-	nglmi_rcvmsg,
-	nglmi_shutdown,
-	nglmi_newhook,
-	NULL,
-	NULL,
-	nglmi_rcvdata,
-	nglmi_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_LMI_NODE_TYPE,
+	.constructor =	nglmi_constructor,
+	.rcvmsg	=	nglmi_rcvmsg,
+	.shutdown =	nglmi_shutdown,
+	.newhook =	nglmi_newhook,
+	.rcvdata =	nglmi_rcvdata,
+	.disconnect =	nglmi_disconnect,
 };
 NETGRAPH_INIT(lmi, &typestruct);
 

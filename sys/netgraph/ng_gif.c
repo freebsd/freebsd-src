@@ -138,18 +138,17 @@ static const struct ng_cmdlist ng_gif_cmdlist[] = {
 };
 
 static struct ng_type ng_gif_typestruct = {
-	NG_ABI_VERSION,
-	NG_GIF_NODE_TYPE,
-	ng_gif_mod_event,
-	ng_gif_constructor,
-	ng_gif_rcvmsg,
-	ng_gif_shutdown,
-	ng_gif_newhook,
-	NULL,
-	ng_gif_connect,
-	ng_gif_rcvdata,
-	ng_gif_disconnect,
-	ng_gif_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_GIF_NODE_TYPE,
+	.mod_event =	ng_gif_mod_event,
+	.constructor =	ng_gif_constructor,
+	.rcvmsg =	ng_gif_rcvmsg,
+	.shutdown =	ng_gif_shutdown,
+	.newhook =	ng_gif_newhook,
+	.connect =	ng_gif_connect,
+	.rcvdata =	ng_gif_rcvdata,
+	.disconnect =	ng_gif_disconnect,
+	.cmdlist =	ng_gif_cmdlist,
 };
 MODULE_VERSION(ng_gif, 1);
 MODULE_DEPEND(ng_gif, if_gif, 1,1,1);

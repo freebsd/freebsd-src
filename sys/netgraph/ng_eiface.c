@@ -98,18 +98,16 @@ static ng_disconnect_t ng_eiface_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_EIFACE_NODE_TYPE,
-	NULL,
-	ng_eiface_constructor,
-	ng_eiface_rcvmsg,
-	ng_eiface_rmnode,
-	ng_eiface_newhook,
-	NULL,
-	ng_eiface_connect,
-	ng_eiface_rcvdata,
-	ng_eiface_disconnect,
-	ng_eiface_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_EIFACE_NODE_TYPE,
+	.constructor =	ng_eiface_constructor,
+	.rcvmsg =	ng_eiface_rcvmsg,
+	.shutdown =	ng_eiface_rmnode,
+	.newhook =	ng_eiface_newhook,
+	.connect =	ng_eiface_connect,
+	.rcvdata =	ng_eiface_rcvdata,
+	.disconnect =	ng_eiface_disconnect,
+	.cmdlist =	ng_eiface_cmdlist
 };
 NETGRAPH_INIT(eiface, &typestruct);
 

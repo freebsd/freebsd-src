@@ -271,18 +271,15 @@ static const struct ng_cmdlist ng_bridge_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_bridge_typestruct = {
-	NG_ABI_VERSION,
-	NG_BRIDGE_NODE_TYPE,
-	NULL,
-	ng_bridge_constructor,
-	ng_bridge_rcvmsg,
-	ng_bridge_shutdown,
-	ng_bridge_newhook,
-	NULL,
-	NULL,
-	ng_bridge_rcvdata,
-	ng_bridge_disconnect,
-	ng_bridge_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_BRIDGE_NODE_TYPE,
+	.constructor =	ng_bridge_constructor,
+	.rcvmsg =	ng_bridge_rcvmsg,
+	.shutdown =	ng_bridge_shutdown,
+	.newhook =	ng_bridge_newhook,
+	.rcvdata =	ng_bridge_rcvdata,
+	.disconnect =	ng_bridge_disconnect,
+	.cmdlist =	ng_bridge_cmdlist,
 };
 NETGRAPH_INIT(bridge, &ng_bridge_typestruct);
 

@@ -198,18 +198,16 @@ static const struct ng_cmdlist ng_ing_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_ING_NODE_TYPE,
-	NULL,
-	ng_ing_constructor,
-	ng_ing_rcvmsg,
-	ng_ing_shutdown,
-	ng_ing_newhook,
-	NULL,
-	ng_ing_connect,
-	ng_ing_rcvdata,
-	ng_ing_disconnect,
-	ng_ing_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_ING_NODE_TYPE,
+	.constructor =	ng_ing_constructor,
+	.rcvmsg =	ng_ing_rcvmsg,
+	.shutdown =	ng_ing_shutdown,
+	.newhook =	ng_ing_newhook,
+	.connect =	ng_ing_connect,
+	.rcvdata =	ng_ing_rcvdata,
+	.disconnect =	ng_ing_disconnect,
+	.cmdlist =	ng_ing_cmdlist,
 };
 
 NETGRAPH_INIT_ORDERED(ing, &typestruct, SI_SUB_DRIVERS, SI_ORDER_ANY);

@@ -190,18 +190,15 @@ static const struct ng_cmdlist ng_source_cmds[] = {
 
 /* Netgraph type descriptor */
 static struct ng_type ng_source_typestruct = {
-	NG_ABI_VERSION,
-	NG_SOURCE_NODE_TYPE,
-	NULL,					/* module event handler */
-	ng_source_constructor,
-	ng_source_rcvmsg,
-	ng_source_rmnode,
-	ng_source_newhook,
-	NULL,					/* findhook */
-	NULL,					/* connect */
-	ng_source_rcvdata,			/* rcvdata */
-	ng_source_disconnect,
-	ng_source_cmds
+	.version =	NG_ABI_VERSION,
+	.name =		NG_SOURCE_NODE_TYPE,
+	.constructor =	ng_source_constructor,
+	.rcvmsg =	ng_source_rcvmsg,
+	.shutdown =	ng_source_rmnode,
+	.newhook =	ng_source_newhook,
+	.rcvdata =	ng_source_rcvdata,
+	.disconnect =	ng_source_disconnect,
+	.cmdlist =	ng_source_cmds,
 };
 NETGRAPH_INIT(source, &ng_source_typestruct);
 

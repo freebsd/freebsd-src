@@ -492,18 +492,16 @@ static const struct ng_cmdlist ng_ksocket_cmds[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_ksocket_typestruct = {
-	NG_ABI_VERSION,
-	NG_KSOCKET_NODE_TYPE,
-	NULL,
-	ng_ksocket_constructor,
-	ng_ksocket_rcvmsg,
-	ng_ksocket_shutdown,
-	ng_ksocket_newhook,
-	NULL,
-	ng_ksocket_connect,
-	ng_ksocket_rcvdata,
-	ng_ksocket_disconnect,
-	ng_ksocket_cmds
+	.version =	NG_ABI_VERSION,
+	.name =		NG_KSOCKET_NODE_TYPE,
+	.constructor =	ng_ksocket_constructor,
+	.rcvmsg =	ng_ksocket_rcvmsg,
+	.shutdown =	ng_ksocket_shutdown,
+	.newhook =	ng_ksocket_newhook,
+	.connect =	ng_ksocket_connect,
+	.rcvdata =	ng_ksocket_rcvdata,
+	.disconnect =	ng_ksocket_disconnect,
+	.cmdlist =	ng_ksocket_cmds,
 };
 NETGRAPH_INIT(ksocket, &ng_ksocket_typestruct);
 

@@ -162,18 +162,15 @@ static const struct ng_cmdlist ng_one2many_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_one2many_typestruct = {
-	NG_ABI_VERSION,
-	NG_ONE2MANY_NODE_TYPE,
-	NULL,
-	ng_one2many_constructor,
-	ng_one2many_rcvmsg,
-	ng_one2many_shutdown,
-	ng_one2many_newhook,
-	NULL,
-	NULL,
-	ng_one2many_rcvdata,
-	ng_one2many_disconnect,
-	ng_one2many_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_ONE2MANY_NODE_TYPE,
+	.constructor =	ng_one2many_constructor,
+	.rcvmsg =	ng_one2many_rcvmsg,
+	.shutdown =	ng_one2many_shutdown,
+	.newhook =	ng_one2many_newhook,
+	.rcvdata =	ng_one2many_rcvdata,
+	.disconnect =	ng_one2many_disconnect,
+	.cmdlist =	ng_one2many_cmdlist,
 };
 NETGRAPH_INIT(one2many, &ng_one2many_typestruct);
 

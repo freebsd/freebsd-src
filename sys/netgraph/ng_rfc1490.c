@@ -97,18 +97,14 @@ static ng_disconnect_t	ng_rfc1490_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_RFC1490_NODE_TYPE,
-	NULL,
-	ng_rfc1490_constructor,
-	ng_rfc1490_rcvmsg,
-	ng_rfc1490_shutdown,
-	ng_rfc1490_newhook,
-	NULL,
-	NULL,
-	ng_rfc1490_rcvdata,
-	ng_rfc1490_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_RFC1490_NODE_TYPE,
+	.constructor =	ng_rfc1490_constructor,
+	.rcvmsg =	ng_rfc1490_rcvmsg,
+	.shutdown =	ng_rfc1490_shutdown,
+	.newhook =	ng_rfc1490_newhook,
+	.rcvdata =	ng_rfc1490_rcvdata,
+	.disconnect =	ng_rfc1490_disconnect,
 };
 NETGRAPH_INIT(rfc1490, &typestruct);
 
