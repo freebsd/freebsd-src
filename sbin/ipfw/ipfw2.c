@@ -367,7 +367,7 @@ do_cmd(int optname, void *optval, socklen_t optlen)
 {
 	static int s = -1;	/* the socket */
 	int i;
-	
+
 	if (test_only)
 		return 0;
 
@@ -500,7 +500,7 @@ strtoport(char *s, char **end, int base, int proto)
 	int i;
 
 	*end = s;		/* default - not found */
-	if ( *s == '\0')
+	if (*s == '\0')
 		return 0;	/* not found */
 
 	if (isdigit(*s))
@@ -521,7 +521,7 @@ strtoport(char *s, char **end, int base, int proto)
 	 * copy into a buffer skipping backslashes
 	 */
 	for (p = s, i = 0; p != s1 ; p++)
-		if ( *p != '\\')
+		if (*p != '\\')
 			buf[i++] = *p;
 	buf[i++] = '\0';
 
@@ -645,9 +645,10 @@ print_reject_code(uint16_t code)
  * len is the max length in bits.
  */
 static int
-contigmask(u_char *p, int len)
+contigmask(uint8_t *p, int len)
 {
 	int i, n;
+
 	for (i=0; i<len ; i++)
 		if ( (p[i/8] & (1 << (7 - (i%8)))) == 0) /* first bit unset */
 			break;
@@ -666,8 +667,8 @@ print_flags(char const *name, ipfw_insn *cmd, struct _s_x *list)
 {
 	char const *comma = "";
 	int i;
-	u_char set = cmd->arg1 & 0xff;
-	u_char clear = (cmd->arg1 >> 8) & 0xff;
+	uint8_t set = cmd->arg1 & 0xff;
+	uint8_t clear = (cmd->arg1 >> 8) & 0xff;
 
 	if (list == f_tcpflags && set == TH_SYN && clear == TH_ACK) {
 		printf(" setup");
@@ -714,7 +715,7 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
 		x = htonl( ~x );
 		cmd->addr.s_addr = htonl(cmd->addr.s_addr);
 		printf("%s/%d", inet_ntoa(cmd->addr),
-			contigmask((u_char *)&x, 32));
+			contigmask((uint8_t *)&x, 32));
 		x = cmd->addr.s_addr = htonl(cmd->addr.s_addr);
 		x &= 0xff; /* base */
 		/*
@@ -746,7 +747,7 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
     for (len = len / 2; len > 0; len--, a += 2) {
 	int mb =	/* mask length */
 	    (cmd->o.opcode == O_IP_SRC || cmd->o.opcode == O_IP_DST) ?
-		32 : contigmask((u_char *)&(a[1]), 32);
+		32 : contigmask((uint8_t *)&(a[1]), 32);
 	if (mb == 32 && do_resolv)
 		he = gethostbyaddr((char *)&(a[0]), sizeof(u_long), AF_INET);
 	if (he != NULL)		/* resolved to name */
@@ -763,14 +764,13 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
 	if (len > 1)
 		printf(",");
     }
-	   
 }
 
 /*
  * prints a MAC address/mask pair
  */
 static void
-print_mac(u_char *addr, u_char *mask)
+print_mac(uint8_t *addr, uint8_t *mask)
 {
 	int l = contigmask(mask, 48);
 
@@ -1038,7 +1038,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		show_prerequisites(&flags, 0, cmd->opcode);
 
 		switch(cmd->opcode) {
-		case O_PROB:	
+		case O_PROB:
 			break;	/* done already */
 
 		case O_PROBE_STATE:
@@ -1053,8 +1053,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(" not");
 			printf(" MAC");
 			flags |= HAVE_MAC;
-			print_mac( m->addr, m->mask);
-			print_mac( m->addr + 6, m->mask + 6);
+			print_mac(m->addr, m->mask);
+			print_mac(m->addr + 6, m->mask + 6);
 			}
 			break;
 
@@ -1278,7 +1278,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				char const *comma = " ";
 
 				printf(" limit");
-				for ( ; p->x != 0 ; p++)
+				for (; p->x != 0 ; p++)
 					if ((x & p->x) == p->x) {
 						x &= ~p->x;
 						printf("%s%s", comma, p->s);
@@ -1560,13 +1560,13 @@ sets_handler(int ac, char *av[])
 			&set_disable, sizeof(set_disable));
 
 		for (i = 0, msg = "disable" ; i < 31; i++)
-			if (  (set_disable & (1<<i))) {
+			if ((set_disable & (1<<i))) {
 				printf("%s %d", msg, i);
 				msg = "";
 			}
 		msg = (set_disable) ? " enable" : "enable";
 		for (i = 0; i < 31; i++)
-			if ( !(set_disable & (1<<i))) {
+			if (!(set_disable & (1<<i))) {
 				printf("%s %d", msg, i);
 				msg = "";
 			}
@@ -1778,7 +1778,6 @@ list(int ac, char *av[], int show_counters)
 		if (*endptr == '-')
 			last = strtoul(endptr+1, &endptr, 10);
 		if (*endptr) {
-				
 			exitval = EX_USAGE;
 			warnx("invalid rule number: %s", *(lav - 1));
 			continue;
@@ -1844,7 +1843,7 @@ help(void)
 {
 	fprintf(stderr,
 "ipfw syntax summary (but please do read the ipfw(8) manpage):\n"
-"ipfw [-acdeftTnNpqS] <command> where <command is one of:\n"
+"ipfw [-acdeftTnNpqS] <command> where <command> is one of:\n"
 "add [num] [set N] [prob x] RULE-BODY\n"
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
@@ -1971,7 +1970,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		 */
 		uint32_t *map = (uint32_t *)&cmd->mask;
 		int low, high;
-		int i = contigmask((u_char *)&(d[1]), 32);
+		int i = contigmask((uint8_t *)&(d[1]), 32);
 
 		if (len > 0)
 			errx(EX_DATAERR, "address set cannot be in a list");
@@ -2507,7 +2506,7 @@ end_mask:
 }
 
 static void
-get_mac_addr_mask(char *p, u_char *addr, u_char *mask)
+get_mac_addr_mask(char *p, uint8_t *addr, uint8_t *mask)
 {
 	int i, l;
 
@@ -2560,7 +2559,7 @@ fill_comment(ipfw_insn *cmd, int ac, char **av)
 {
 	int i, l;
 	char *p = (char *)(cmd + 1);
-	
+
 	cmd->opcode = O_NOP;
 	cmd->len =  (cmd->len & (F_NOT | F_OR));
 
@@ -2581,7 +2580,7 @@ fill_comment(ipfw_insn *cmd, int ac, char **av)
 	}
 	*(--p) = '\0';
 }
-		
+
 /*
  * A function to fill simple commands of size 1.
  * Existing flags are preserved.
@@ -3476,7 +3475,7 @@ done:
 	 * put back O_LOG if necessary
 	 */
 	src = (ipfw_insn *)cmdbuf;
-	if ( src->opcode == O_LOG ) {
+	if (src->opcode == O_LOG) {
 		i = F_LEN(src);
 		bcopy(src, dst, i * sizeof(uint32_t));
 		dst += i;
@@ -3893,7 +3892,7 @@ ipfw_readfile(int ac, char *av[])
 		if (preproc == -1)
 			err(EX_OSERR, "cannot fork");
 
-		if (preproc == 0) {		
+		if (preproc == 0) {
 			/*
 			 * Child, will run the preprocessor with the
 			 * file on stdin and the pipe on stdout.
