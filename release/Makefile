@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.305 1997/06/22 17:21:59 jkh Exp $
+#	$Id: Makefile,v 1.306 1997/06/22 17:59:04 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -85,10 +85,11 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-EXTRAS=	cdrom.1
+EXTRAS=
 .if !defined(NOPORTS)
 EXTRAS+= ports.1
 .endif
+EXTRAS+= cdrom.1
 
 .if !defined(NODOC)
 DOCREL= doc.1
