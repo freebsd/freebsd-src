@@ -30,12 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 26, 2002
+.Dd September 3, 2004
 .Dt TI 4
 .Os
 .Sh NAME
 .Nm ti
-.Nd "Alteon Networks Tigon I and Tigon II gigabit ethernet driver"
+.Nd "Alteon Networks Tigon I and Tigon II Gigabit Ethernet driver"
 .Sh SYNOPSIS
 .Cd "device ti"
 .Cd "options TI_PRIVATE_JUMBOS"
@@ -43,8 +43,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI gigabit ethernet adapters based on
-the Alteon Networks Tigon gigabit ethernet controller chip.
+driver provides support for PCI Gigabit Ethernet adapters based on
+the Alteon Networks Tigon Gigabit Ethernet controller chip.
 The Tigon
 contains an embedded R4000 CPU, gigabit MAC, dual DMA channels and
 a PCI interface unit.
@@ -56,48 +56,10 @@ Communication with the chip is achieved via PCI shared memory
 and bus master DMA.
 The Tigon I and II support hardware multicast
 address filtering, VLAN tag extraction and insertion, and jumbo
-ethernet frames sizes up to 9000 bytes.
+Ethernet frames sizes up to 9000 bytes.
 Note that the Tigon I chipset
 is no longer in active production: all new adapters should come equipped
 with Tigon II chipsets.
-.Pp
-There are several PCI boards available from both Alteon and other
-vendors that use the Tigon chipset under OEM contract.
-The
-.Nm
-driver has been tested with the following Tigon-based adapters:
-.Pp
-.Bl -bullet -compact -offset indent
-.It
-3Com 3c985-SX Gigabit Ethernet adapter (Tigon 1)
-.It
-3Com 3c985B-SX Gigabit Ethernet adapter (Tigon 2)
-.It
-Alteon AceNIC V Gigabit Ethernet adapter (1000baseSX)
-.It
-Alteon AceNIC V Gigabit Ethernet adapter (1000baseT)
-.It
-Netgear GA620 Gigabit Ethernet adapter (1000baseSX)
-.It
-Netgear GA620T Gigabit Ethernet adapter (1000baseT)
-.El
-.Pp
-The following should also be supported but have not yet been tested:
-.Pp
-.Bl -bullet -compact -offset indent
-.It
-Asante GigaNIX1000T Gigabit Ethernet adapter
-.It
-Asante PCI 1000BASE-SX Gigabit Ethernet adapter
-.It
-Digital EtherWORKS 1000SX PCI Gigabit adapter
-.It
-Farallon PN9000SX Gigabit Ethernet adapter
-.It
-NEC Gigabit Ethernet
-.It
-Silicon Graphics PCI Gigabit Ethernet adapter
-.El
 .Pp
 While the Tigon chipset supports 10, 100 and 1000Mbps speeds, support for
 10 and 100Mbps speeds is only available on boards with the proper
@@ -160,7 +122,7 @@ or
 .Ar half-duplex
 modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Ar mediaopt
 option can also be used to select either
@@ -169,7 +131,7 @@ or
 .Ar half-duplex
 modes.
 .It 1000baseSX
-Set 1000Mbps (gigabit ethernet) operation.
+Set 1000Mbps (Gigabit Ethernet) operation.
 Only full
 .Ar full-duplex
 mode is supported at this speed.
@@ -188,6 +150,47 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Gigabit Ethernet adapters based on the
+Alteon Tigon I and II chips.
+The
+.Nm
+driver has been tested with the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c985-SX Gigabit Ethernet adapter (Tigon 1)
+.It
+3Com 3c985B-SX Gigabit Ethernet adapter (Tigon 2)
+.It
+Alteon AceNIC V Gigabit Ethernet adapter (1000baseSX)
+.It
+Alteon AceNIC V Gigabit Ethernet adapter (1000baseT)
+.It
+Digital EtherWORKS 1000SX PCI Gigabit adapter
+.It
+Netgear GA620 Gigabit Ethernet adapter (1000baseSX)
+.It
+Netgear GA620T Gigabit Ethernet adapter (1000baseT)
+.El
+.Pp
+The following adapters should also be supported but have
+not yet been tested:
+.Pp
+.Bl -bullet -compact
+.It
+Asante GigaNIX1000T Gigabit Ethernet adapter
+.It
+Asante PCI 1000BASE-SX Gigabit Ethernet adapter
+.It
+Farallon PN9000SX Gigabit Ethernet adapter
+.It
+NEC Gigabit Ethernet
+.It
+Silicon Graphics PCI Gigabit Ethernet adapter
+.El
 .Sh IOCTLS
 In addition to the standard
 .Xr socket 2
