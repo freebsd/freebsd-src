@@ -369,6 +369,8 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		return ESRCH;
 	}
 found:
+	TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
+	kg->kg_idle_kses--;
 	thread_schedule_upcall(td, ke);
 	mtx_unlock_spin(&sched_lock);
 	td->td_retval[0] = 0;
