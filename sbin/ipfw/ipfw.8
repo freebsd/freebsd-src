@@ -511,6 +511,11 @@ ipfw flush
 .Ed
 .Pp
 in similar surroundings is also a bad idea.
+.Pp
+The IP filter list may not be modified if the system security level
+is set to 3 or higher (see
+.Xr init 8
+for information on system security levels).
 .Sh PACKET DIVERSION
 A divert socket bound to the specified port will receive all packets diverted
 to that port; see
@@ -551,6 +556,7 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Xr ipfirewall 4 ,
 .Xr protocols 5 ,
 .Xr services 5 ,
+.Xr init 8 ,
 .Xr reboot 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8
