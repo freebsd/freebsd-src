@@ -1,4 +1,5 @@
 /* crypto/err/err_all.c */
+/* $FreeBSD$ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -64,9 +65,6 @@
 #ifndef NO_RSA
 #include <openssl/rsa.h>
 #endif
-#ifdef RSAref
-#include <openssl/rsaref.h>
-#endif
 #ifndef NO_DH
 #include <openssl/dh.h>
 #endif
@@ -95,11 +93,7 @@ void ERR_load_crypto_strings(void)
 	ERR_load_BIO_strings();
 	ERR_load_CONF_strings();
 #ifndef NO_RSA
-#ifdef RSAref
-	ERR_load_RSAREF_strings();
-#else
 	ERR_load_RSA_strings();
-#endif
 #endif
 #ifndef NO_DH
 	ERR_load_DH_strings();

@@ -1,4 +1,5 @@
 /* rsaref/rsaref.h */
+/* $FreeBSD$ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -131,8 +132,8 @@ int R_GetRandomBytesNeeded(unsigned int *,RSARandomState *rnd);
 int R_RandomUpdate(RSARandomState *rnd, unsigned char *data, unsigned int n);
 int R_RandomFinal(RSARandomState *rnd);
 
-void ERR_load_RSAREF_strings(void );
-RSA_METHOD *RSA_PKCS1_RSAref(void );
+void ERR_load_RSA_strings(void );
+RSA_METHOD *RSA_PKCS1(void );
 #endif
 
 /* BEGIN ERROR CODES */
