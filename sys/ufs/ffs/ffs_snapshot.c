@@ -254,7 +254,7 @@ restart:
 	 * Allocate all cylinder group blocks.
 	 */
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
-		error = UFS_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
+		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
@@ -272,7 +272,7 @@ restart:
 	MALLOC(fs->fs_active, int *, len, M_DEVBUF, M_WAITOK);
 	bzero(fs->fs_active, len);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
-		error = UFS_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
+		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
@@ -328,7 +328,7 @@ restart:
 		if ((ACTIVECGNUM(fs, cg) & ACTIVECGOFF(cg)) != 0)
 			continue;
 		redo++;
-		error = UFS_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
+		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out1;
