@@ -256,6 +256,11 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 		printf ("wcd: too many units\n");
 		return (0);
 	}
+	if (!atapi_request_immediate) {
+		printf("wcd: configuration error, ATAPI core code not present!\n");
+		printf("wcd: check `options ATAPI_STATIC' in your kernel config file!\n");
+		return (0);
+	}
 	t = malloc (sizeof (struct wcd), M_TEMP, M_NOWAIT);
 	if (! t) {
 		printf ("wcd: out of memory\n");
@@ -1136,7 +1141,7 @@ int wcd_unload (struct lkm_table *lkmtp, int cmd)
 /*
  * Dispatcher function for the module (load/unload/stat).
  */
-int wcd (struct lkm_table *lkmtp, int cmd, int ver)
+int wcd_mod (struct lkm_table *lkmtp, int cmd, int ver)
 {
 	int err = 0;
 
