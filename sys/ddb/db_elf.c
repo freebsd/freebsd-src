@@ -51,10 +51,15 @@
 
 #include <machine/db_machdep.h>
 
+#include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_output.h>
 
 #include <machine/elf.h>
+
+#ifndef _ALIGNED_POINTER
+#define	_ALIGNED_POINTER(ptr, type)	1
+#endif
 
 static char *db_elf_find_strtab(db_symtab_t *);
 
@@ -82,7 +87,7 @@ X_db_sym_init(symtab, esymtab, name)
 	char *strtab_start, *strtab_end;
 	int i;
 
-	if (ALIGNED_POINTER(symtab, long) == 0) {
+	if (_ALIGNED_POINTER(symtab, long) == 0) {
 		printf("DDB: bad symbol table start address %p\n", symtab);
 		return;
 	}
@@ -164,8 +169,8 @@ X_db_sym_init(symtab, esymtab, name)
 	 * Now, sanity check the symbols against the string table.
 	 */
 	if (symtab_start == NULL || strtab_start == NULL ||
-	    ALIGNED_POINTER(symtab_start, long) == 0 ||
-	    ALIGNED_POINTER(strtab_start, long) == 0)
+	    _ALIGNED_POINTER(symtab_start, long) == 0 ||
+	    _ALIGNED_POINTER(strtab_start, long) == 0)
 		goto badheader;
 	for (symp = symtab_start; symp < symtab_end; symp++)
 		if (symp->st_name + strtab_start > strtab_end)
@@ -217,7 +222,7 @@ db_elf_find_strtab(stab)
 /*
  * Lookup the symbol with the given name.
  */
-db_sym_t
+c_db_sym_t
 X_db_lookup(stab, symstr)
 	db_symtab_t *stab;
 	const char *symstr;
@@ -245,7 +250,7 @@ X_db_lookup(stab, symstr)
  * Search for the symbol with the given address (matching within the
  * provided threshold).
  */
-db_sym_t
+c_db_sym_t
 X_db_search_symbol(symtab, off, strategy, diffp)
 	db_symtab_t *symtab;
 	db_addr_t off;
@@ -311,11 +316,11 @@ X_db_search_symbol(symtab, off, strategy, diffp)
 void
 X_db_symbol_values(symtab, sym, namep, valuep)
 	db_symtab_t *symtab;
-	db_sym_t sym;
+	c_db_sym_t sym;
 	const char **namep;
 	db_expr_t *valuep;
 {
-	Elf_Sym *symp = (Elf_Sym *)sym;
+	const Elf_Sym *symp = (const Elf_Sym *)sym;
 	char *strtab;
 
 	if (namep) {
@@ -337,7 +342,7 @@ X_db_symbol_values(symtab, sym, namep, valuep)
 boolean_t
 X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 	db_symtab_t *symtab;
-	db_sym_t cursym;
+	c_db_sym_t cursym;
 	char **filename;
 	int *linenum;
 	db_expr_t off;
@@ -370,7 +375,12 @@ X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 /*
  * Initialization routine for Elf files.
  */
+
+#ifdef __i386__
+void *ksym_start, *ksym_end;
+#else
 extern void *ksym_start, *ksym_end;
+#endif
 
 void
 kdb_init(void)
