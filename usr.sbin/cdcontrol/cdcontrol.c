@@ -411,7 +411,7 @@ int info (char *arg)
 		printf ("%5d  ", toc_buffer[i].track);
 		prtrack (toc_buffer + i, 0);
 	}
-	printf ("  end  ");
+	printf ("%5d  ", toc_buffer[n].track);
 	prtrack (toc_buffer + n, 1);
 	return (0);
 }
