@@ -70,9 +70,9 @@ main(int argc, char *argv[])
     int cflag, vflag, c;
 
     tmpdir = getenv("TMPDIR");
-    if (asprintf(&tname, "%s/kgzXXXXXXXXXX", tmpdir == NULL ? _PATH_TMP : tmpdir) == -1)
+    if (asprintf(&tname, "%s/kgzXXXXXXXXXX",
+		 tmpdir == NULL ? _PATH_TMP : tmpdir) == -1)
 	errx(1, "Out of memory");
-
     output = NULL;
     cflag = vflag = 0;
     while ((c = getopt(argc, argv, "cvf:l:o:")) != -1)
