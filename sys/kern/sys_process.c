@@ -199,35 +199,95 @@ struct ptrace_args {
 #endif
 
 int
-ptrace(curp, uap)
-	struct proc *curp;
-	struct ptrace_args *uap;
+ptrace(struct proc *p, struct ptrace_args *uap)
+{
+	/*
+	 * XXX this obfuscation is to reduce stack usage, but the register
+	 * structs may be too large to put on the stack anyway.
+	 */
+	union {
+		struct ptrace_io_desc piod;
+		struct dbreg dbreg;
+		struct fpreg fpreg;
+		struct reg reg;
+	} r;
+	void *addr;
+	int error = 0;
+
+	addr = &r;
+	switch (uap->req) {
+	case PT_GETREGS:
+	case PT_GETFPREGS:
+	case PT_GETDBREGS:
+		break;
+	case PT_SETREGS:
+		error = copyin(uap->addr, &r.reg, sizeof r.reg);
+		break;
+	case PT_SETFPREGS:
+		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
+		break;
+	case PT_SETDBREGS:
+		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
+		break;
+	case PT_IO:
+		error = copyin(uap->addr, &r.piod, sizeof r.piod);
+		break;
+	default:
+		addr = uap->addr;
+	}
+	if (error)
+		return (error);
+
+	error = kern_ptrace(p, uap->req, uap->pid, addr, uap->data);
+	if (error)
+		return (error);
+
+	switch (uap->req) {
+	case PT_IO:
+		(void)copyout(&r.piod, uap->addr, sizeof r.piod);
+		break;
+	case PT_GETREGS:
+		error = copyout(&r.reg, uap->addr, sizeof r.reg);
+		break;
+	case PT_GETFPREGS:
+		error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
+		break;
+	case PT_GETDBREGS:
+		error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
+		break;
+	}
+
+	return (error);
+}
+
+int
+kern_ptrace(struct proc *curp, int req, pid_t pid, void *addr, int data)
 {
 	struct proc *p, *pp;
 	struct iovec iov;
 	struct uio uio;
+	struct ptrace_io_desc *piod;
 	int error = 0;
-	int write;
-	int s;
+	int write, tmp, s;
 
 	write = 0;
-	if (uap->req == PT_TRACE_ME)
+	if (req == PT_TRACE_ME)
 		p = curp;
 	else {
-		if ((p = pfind(uap->pid)) == NULL)
+		if ((p = pfind(pid)) == NULL)
 			return ESRCH;
 	}
 	if (!PRISON_CHECK(curp, p))
 		return (ESRCH);
 
-	/* Can't trace a process that's currently exec'ing. */ 
+	/* Can't trace a process that's currently exec'ing. */
 	if ((p->p_flag & P_INEXEC) != 0)
 		return EAGAIN;
 
 	/*
 	 * Permissions check
 	 */
-	switch (uap->req) {
+	switch (req) {
 	case PT_TRACE_ME:
 		/* Always legal. */
 		break;
@@ -245,7 +305,6 @@ ptrace(curp, uap)
 			for (pp = curp->p_pptr; pp != NULL; pp = pp->p_pptr)
 				if (pp == p)
 					return (EINVAL);
-		  
 
 		/* not owned by you, has done setuid (unless you're root) */
 		if ((p->p_cred->p_ruid != curp->p_cred->p_ruid) ||
@@ -265,6 +324,7 @@ ptrace(curp, uap)
 	case PT_READ_D:
 	case PT_WRITE_I:
 	case PT_WRITE_D:
+	case PT_IO:
 	case PT_CONTINUE:
 	case PT_KILL:
 	case PT_STEP:
@@ -319,7 +379,7 @@ ptrace(curp, uap)
 
 	curp->p_retval[0] = 0;
 
-	switch (uap->req) {
+	switch (req) {
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
 		p->p_flag |= P_TRACED;
@@ -332,34 +392,34 @@ ptrace(curp, uap)
 		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != curp)
 			proc_reparent(p, curp);
-		uap->data = SIGSTOP;
+		data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_DETACH:
-		if ((uap->req != PT_STEP) && ((unsigned)uap->data >= NSIG))
+		if ((req != PT_STEP) && ((unsigned)data > _SIG_MAXSIG))
 			return EINVAL;
 
 		PHOLD(p);
 
-		if (uap->req == PT_STEP) {
+		if (req == PT_STEP) {
 			if ((error = ptrace_single_step (p))) {
 				PRELE(p);
 				return error;
 			}
 		}
 
-		if (uap->addr != (caddr_t)1) {
+		if (addr != (void *)1) {
 			if ((error = ptrace_set_pc (p,
-			    (u_long)(uintfptr_t)uap->addr))) {
+			    (u_long)(uintfptr_t)addr))) {
 				PRELE(p);
 				return error;
 			}
 		}
 		PRELE(p);
 
-		if (uap->req == PT_DETACH) {
+		if (req == PT_DETACH) {
 			/* reset process parent */
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				struct proc *pp;
@@ -372,17 +432,16 @@ ptrace(curp, uap)
 			p->p_oppid = 0;
 
 			/* should we send SIGCHLD? */
-
 		}
 
 	sendsig:
 		/* deliver or queue signal */
 		s = splhigh();
 		if (p->p_stat == SSTOP) {
-			p->p_xstat = uap->data;
+			p->p_xstat = data;
 			setrunnable(p);
-		} else if (uap->data) {
-			psignal(p, uap->data);
+		} else if (data) {
+			psignal(p, data);
 		}
 		splx(s);
 		return 0;
@@ -393,14 +452,15 @@ ptrace(curp, uap)
 		/* fallthrough */
 	case PT_READ_I:
 	case PT_READ_D:
+		tmp = 0;
 		/* write = 0 set above */
-		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)curp->p_retval;
+		iov.iov_base = write ? (caddr_t)&data : (caddr_t)&tmp;
 		iov.iov_len = sizeof(int);
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
-		uio.uio_offset = (off_t)(uintptr_t)uap->addr;
+		uio.uio_offset = (off_t)(uintptr_t)addr;
 		uio.uio_resid = sizeof(int);
-		uio.uio_segflg = UIO_SYSSPACE;	/* ie: the uap */
+		uio.uio_segflg = UIO_SYSSPACE;
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 		uio.uio_procp = p;
 		error = procfs_domem(curp, p, NULL, &uio);
@@ -417,10 +477,38 @@ ptrace(curp, uap)
 			if (error == 0 || error == ENOSPC || error == EPERM)
 				error = EINVAL;	/* EOF */
 		}
+		if (!write)
+			curp->p_retval[0] = tmp;
+		return (error);
+
+	case PT_IO:
+		piod = addr;
+		iov.iov_base = piod->piod_addr;
+		iov.iov_len = piod->piod_len;
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = (off_t)(uintptr_t)piod->piod_offs;
+		uio.uio_resid = piod->piod_len;
+		uio.uio_segflg = UIO_USERSPACE;
+		uio.uio_procp = p;
+		switch (piod->piod_op) {
+		case PIOD_READ_D:
+		case PIOD_READ_I:
+			uio.uio_rw = UIO_READ;
+			break;
+		case PIOD_WRITE_D:
+		case PIOD_WRITE_I:
+			uio.uio_rw = UIO_WRITE;
+			break;
+		default:
+			return (EINVAL);
+		}
+		error = procfs_domem(curp, p, NULL, &uio);
+		piod->piod_len -= uio.uio_resid;
 		return (error);
 
 	case PT_KILL:
-		uap->data = SIGKILL;
+		data = SIGKILL;
 		goto sendsig;	/* in PT_CONTINUE above */
 
 #ifdef PT_SETREGS
@@ -436,13 +524,13 @@ ptrace(curp, uap)
 		if (!procfs_validregs(p))	/* no P_SYSTEM procs please */
 			return EINVAL;
 		else {
-			iov.iov_base = uap->addr;
+			iov.iov_base = addr;
 			iov.iov_len = sizeof(struct reg);
 			uio.uio_iov = &iov;
 			uio.uio_iovcnt = 1;
 			uio.uio_offset = 0;
 			uio.uio_resid = sizeof(struct reg);
-			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_segflg = UIO_SYSSPACE;
 			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 			uio.uio_procp = curp;
 			return (procfs_doregs(curp, p, NULL, &uio));
@@ -462,13 +550,13 @@ ptrace(curp, uap)
 		if (!procfs_validfpregs(p))	/* no P_SYSTEM procs please */
 			return EINVAL;
 		else {
-			iov.iov_base = uap->addr;
+			iov.iov_base = addr;
 			iov.iov_len = sizeof(struct fpreg);
 			uio.uio_iov = &iov;
 			uio.uio_iovcnt = 1;
 			uio.uio_offset = 0;
 			uio.uio_resid = sizeof(struct fpreg);
-			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_segflg = UIO_SYSSPACE;
 			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 			uio.uio_procp = curp;
 			return (procfs_dofpregs(curp, p, NULL, &uio));
@@ -488,13 +576,13 @@ ptrace(curp, uap)
 		if (!procfs_validdbregs(p))	/* no P_SYSTEM procs please */
 			return EINVAL;
 		else {
-			iov.iov_base = uap->addr;
+			iov.iov_base = addr;
 			iov.iov_len = sizeof(struct dbreg);
 			uio.uio_iov = &iov;
 			uio.uio_iovcnt = 1;
 			uio.uio_offset = 0;
 			uio.uio_resid = sizeof(struct dbreg);
-			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_segflg = UIO_SYSSPACE;
 			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 			uio.uio_procp = curp;
 			return (procfs_dodbregs(curp, p, NULL, &uio));
