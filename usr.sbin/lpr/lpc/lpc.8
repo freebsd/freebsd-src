@@ -32,7 +32,7 @@
 .\"     @(#)lpc.8	8.5 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2001
+.Dd June 15, 2002
 .Dt LPC 8
 .Os
 .Sh NAME
@@ -58,7 +58,11 @@ disable or enable a printer's spooling queue,
 rearrange the order of jobs in a spooling queue,
 .It
 find the status of printers, and their associated
-spooling queues and printer daemons.
+spooling queues and printer daemons,
+.It
+change the status message for printer queues (the status message
+may be seen by users as part of the output of the
+.Xr lpq 1 utility).
 .El
 .Pp
 Without any arguments,
@@ -138,6 +142,17 @@ die unexpectedly, leaving jobs in the queue.
 will report that there is no daemon present when this condition occurs.
 If the user is the super-user,
 try to abort the current daemon first (i.e., kill and restart a stuck daemon).
+.Pp
+.It Ic setstatus Bro Cm all | Ar printer Brc Cm -msg Ar message ...
+Set the status message for the specified printers.
+The
+.Ic -msg
+argument is required to separate the list of printers from the text
+that will be the new status message.
+This is normally used to change the status message when the printer
+queue is no longer active after printing has been disabled, and you
+want to change what users will see in the output of the
+.Xr lpq 1 utility.
 .Pp
 .It Ic start Brq Cm all | Ar printer
 Enable printing and start a spooling daemon for the listed printers.

@@ -55,6 +55,8 @@ char	downhelp[] =	"do a 'stop' followed by 'disable' and put a message in status
 char	helphelp[] =	"get help on commands";
 char	quithelp[] =	"exit lpc";
 char	restarthelp[] =	"kill (if possible) and restart a spooling daemon";
+char	setstatushelp[] = "set the status message of a queue, requires\n"
+			"\t\t\"-msg\" before the text of the new message";
 char	starthelp[] =	"enable printing and start a spooling daemon";
 char	statushelp[] =	"show status of daemon and queue";
 char	stophelp[] =	"stop a spooling daemon after current job completes and disable printing";
@@ -62,7 +64,9 @@ char	tcleanhelp[] =	"test to see what files a clean cmd would remove";
 char	topqhelp[] =	"put job at top of printer queue";
 char	uphelp[] =	"enable everything and restart spooling daemon";
 
-#define PR	1	/* a privileged command */
+/* Use some abbreviations so entries won't need to wrap */
+#define PR	LPC_PRIVCMD
+#define M	LPC_MSGOPT
 
 struct cmd cmdtab[] = {
 	{ "abort",	aborthelp,	PR,	0,		abort_q },
@@ -76,6 +80,7 @@ struct cmd cmdtab[] = {
 	{ "restart",	restarthelp,	0,	0,		restart_q },
 	{ "start",	starthelp,	PR,	0,		start_q },
 	{ "status",	statushelp,	0,	0,		status },
+	{ "setstatus",	setstatushelp,	PR|M,	setstatus_gi,	setstatus_q },
 	{ "stop",	stophelp,	PR,	0,		stop_q },
 	{ "tclean",	tcleanhelp,	0,	init_tclean,	clean_q },
 	{ "topq",	topqhelp,	PR,	topq,		0 },
