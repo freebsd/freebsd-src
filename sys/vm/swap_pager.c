@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.7 1994/08/18 22:36:00 wollman Exp $
+ * $Id: swap_pager.c,v 1.8 1994/08/29 06:23:18 davidg Exp $
  */
 
 /*
@@ -355,6 +355,7 @@ swap_pager_setvalid(swp, offset, valid)
  */
 int
 swap_pager_getswapspace( unsigned amount, unsigned *rtval) {
+#ifdef EXP
 	unsigned tmpalloc;
 	unsigned nblocksfrag = btodb(SWB_NPAGES*PAGE_SIZE);
 	if( amount < nblocksfrag) {
@@ -366,6 +367,7 @@ swap_pager_getswapspace( unsigned amount, unsigned *rtval) {
 		*rtval = tmpalloc;
 		return 1;
 	}
+#endif
 	if( !rlist_alloc(&swapmap, amount, rtval))
 		return 0;
 	else
@@ -380,18 +382,18 @@ void
 swap_pager_freeswapspace( unsigned from, unsigned to) {
 	unsigned nblocksfrag = btodb(SWB_NPAGES*PAGE_SIZE);
 	unsigned tmpalloc;
+#ifdef EXP
 	if( ((to + 1) - from) >= nblocksfrag) {
-		while( (from + nblocksfrag) <= to + 1) {
-			rlist_free(&swapmap, from, from + nblocksfrag - 1);
-			from += nblocksfrag;
-		}
-	}
-	if( from >= to)
+#endif
+		rlist_free(&swapmap, from, to);
+#ifdef EXP
 		return;
+	}
 	rlist_free(&swapfrag, from, to);
 	while( rlist_alloc(&swapfrag, nblocksfrag, &tmpalloc)) {
 		rlist_free(&swapmap, tmpalloc, tmpalloc + nblocksfrag-1);
 	}
+#endif
 }
 /*
  * this routine frees swap blocks from a specified pager
