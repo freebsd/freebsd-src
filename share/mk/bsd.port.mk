@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.78 1994/12/11 15:31:22 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.79 1994/12/11 20:36:12 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -290,6 +290,9 @@ ${INSTALL_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-install
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
+.if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
+	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
+.endif
 .else defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${MAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
