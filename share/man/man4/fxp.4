@@ -80,10 +80,10 @@ the network connection (cable).
 .It "fxp%d: Ethernet address ff:ff:ff:ff:ff:ff"
 In some Alpha's (AXPpci and Multia) you must tell the driver to use (slower)
 I/O rather than memory to access the card.
-Add
-.Dq Li fxp_iomap=1
-to
-.Pa /boot/loader.rc .
+Create, if it does net yet exist, and add to the file
+.Pa /boot/device.hints
+the line
+.Dq Li hint.fxp.0.prefer_iomap="0" .
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
