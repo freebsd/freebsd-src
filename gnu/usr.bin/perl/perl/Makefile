@@ -29,6 +29,10 @@ DYNAMIC_EXT+=	Thread/Thread
 
 NONXS_EXT=	Errno/pm_to_blib
 
+MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
+		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
+		PERL=perl FULLPERL=perl
+
 ${PROG}: Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
 Config.pm: links ${PERL5SRC}/configpm myconfig config.sh
@@ -48,9 +52,8 @@ autosplit: links Config.pm lib/*.pm lib/*/*.pm
 .for I in ${STATIC_EXT}
 ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags Config.pm config.h
 	cd ext/${I:H}; \
-	miniperl -I${.OBJDIR}/lib Makefile.PL \
-		LINKTYPE=static INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
-		LIBS="-lperl" INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3; \
+	miniperl -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
+		LINKTYPE=static LIBS="-lperl"; \
 	make -B config PERL_SRC=${.OBJDIR}
 
 lib/auto/${I}.a: links ext/${I:H}/Makefile
@@ -65,13 +68,11 @@ STATICS+=	lib/auto/${I}.a
 .for I in ${DYNAMIC_EXT}
 ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags Config.pm pod2man config.h
 	cd ext/${I:H}; \
-	miniperl -I${.OBJDIR}/lib Makefile.PL \
-		LINKTYPE=dynamic INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
-		LIBS="-lperl" INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
+	miniperl -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
+		LINKTYPE=dynamic LIBS="-lperl" \
 		INST_LIB=${.OBJDIR}/build/${I:H} \
-		INST_ARCHLIB=${.OBJDIR}/build/${I:H} ;\
+		INST_ARCHLIB=${.OBJDIR}/build/${I:H}; \
 	make -B config PERL_SRC=${.OBJDIR}
-	
 
 lib/auto/${I}.so: links ${PROG} ext/${I:H}/Makefile
 	cd ext/${I:H}; \
@@ -86,11 +87,9 @@ DYNAMICS+=	lib/auto/${I}.so
 ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags lib/Config.pm
 	mkdir -p ${.OBJDIR}/lib/auto/${I:H} ;\
 	cd ext/${I:H} ;\
-	miniperl -I${.OBJDIR}/lib Makefile.PL \
-		INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
-		INSTALLMAN3DIR=/usr/share/perl/man3 \
+	miniperl -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
 		INST_LIB=${.OBJDIR}/lib/auto/${I:H} \
-		INST_ARCHLIB=${.OBJDIR}/lib/auto/${I:H} ;\
+		INST_ARCHLIB=${.OBJDIR}/lib/auto/${I:H}; \
 	make -B config PERL_SRC=${.OBJDIR}
 
 lib/auto/${I}: links ${PROG} ext/${I:H}/Makefile
