@@ -1,4 +1,4 @@
-/*	$KAME: des_enc.c,v 1.1 2001/09/10 04:03:58 itojun Exp $	*/
+/*	$KAME: kame/kame/sys/crypto/des/des_enc.c,v 1.1 2001/09/10 04:03:58 itojun Exp $	*/
 /*	$FreeBSD$	*/
 
 /* crypto/des/des_enc.c */
