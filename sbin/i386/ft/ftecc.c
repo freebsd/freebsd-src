@@ -29,6 +29,12 @@
  *  Modified slightly to fit with my driver.  Based entirely upon David
  *  L. Brown's package.
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <sys/ftape.h>
 
 /* Inverse matrix */
