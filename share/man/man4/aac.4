@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 4, 2004
+.Dd Augyst 12, 2004
 .Dt AAC 4
 .Os
 .Sh NAME
@@ -38,17 +38,18 @@
 The
 .Nm
 driver provides support for the Adaptec AAC family of SCSI Ultra2, Ultra160,
-and Ultra320 RAID controllers.
+and Ultra320, and SATA RAID controllers.
 .Pp
 Access to RAID containers is available via the
 .Pa /dev/aacd?
 device nodes.
-Individual drives cannot be accessed
-unless they are part of a container or volume set,
-and non-fixed disks cannot be accessed.
-Containers can be configured by using
-either the on-board BIOS utility of the card,
-or a command-line interface management application.
+The
+.Nm aacp
+device enables the SCSI pass-thru interface and allows devices connected
+to the card such as cdroms to be available via the CAM
+.Xr scsi 4
+subsystem.
+Note that not all cards allow this interface to be enabled.
 .Pp
 The
 .Pa /dev/aac?
@@ -58,8 +59,8 @@ The aliases
 .Pa /dev/afa?
 and
 .Pa /dev/hpn?
-exist for the Dell and HP flavors, respectively, and are required for
-the CLI management utility available from these vendors to work.
+exist for compatibilty with the Dell and HP versions of management tools,
+respectively.
 If the kernel is compiled with the
 .Dv COMPAT_LINUX
 option, or the
@@ -71,14 +72,6 @@ Linux-compatible
 .Xr ioctl 2
 interface for the management device will be enabled and will allow
 Linux-based management applications to control the card.
-.Pp
-The
-.Nm aacp
-device enables the SCSI pass-thru interface and allows devices connected
-to the card such as cdroms to be available via the CAM
-.Xr scsi 4
-subsystem.
-Note that not all cards allow this interface to be enabled.
 .Ss Tuning
 The read-only sysctl
 .Va hw.aac.iosize_max
@@ -107,6 +100,8 @@ driver include:
 Adaptec AAC-364
 .It
 Adaptec SCSI RAID 2120S
+.It
+Adaptec SCSI RAID 2130S
 .It
 Adaptec SCSI RAID 2200S
 .It
