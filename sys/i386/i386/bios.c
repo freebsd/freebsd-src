@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.10 1998/02/09 06:08:12 eivind Exp $
+ *      $Id: bios.c,v 1.11 1998/07/15 03:58:57 bde Exp $
  */
 
 /*
@@ -153,7 +153,7 @@ bios32_init(void *junk)
     if (bootverbose) {
 	    /* look for other know signatures */
 	    printf("Other BIOS signatures found:\n");
-	    printf("ACPI: %08x\n", bios_sigsearch(0, "FACP", 4, 1, 0));
+	    printf("ACPI: %08x\n", bios_sigsearch(0, "RST PTR", 8, 16, 0));
 	    printf("$PnP: %08x\n", bios_sigsearch(0, "$PnP", 4, 16, 0));
     }
 }
