@@ -62,8 +62,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 8
-static void 	bqu_devsw_install();
 #endif /*JREMOD*/
 
 static u_char d_inb(u_int port);
@@ -577,9 +580,6 @@ printf("bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS x0%x\n
 #ifndef DEV_LKM
     bqu_registerdev(idp);
 #endif /* not DEV_LKM */
-#ifdef JREMOD
-        bqu_devsw_install();
-#endif /*JREMOD*/
 
 
     for (test = 0; (test < B004_CHANCE); test++) {
@@ -635,6 +635,7 @@ printf("bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS x0%x\n
 	return(20);
 } /* bquprobe() */
 
+
 #ifdef JREMOD
 struct cdevsw bqu_cdevsw = 
 	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
@@ -643,18 +644,28 @@ struct cdevsw bqu_cdevsw =
 
 static bqu_devsw_installed = 0;
 
-static void 	bqu_devsw_install()
+static void 	bqu_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! bqu_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&bqu_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&bqu_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&bqu_cdevsw,NULL);
 		bqu_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"bqu",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(bqudev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bqu_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NBQU */

@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.9 1995/11/04 13:23:39 bde Exp $ */
+/* $Id: scd.c,v 1.10 1995/11/28 09:41:36 julian Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -73,9 +73,12 @@
 #include <i386/isa/scdreg.h>
 
 #ifdef JREMOD
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 45
 #define BDEV_MAJOR 16
-static void 	scd_devsw_install();
 #endif /*JREMOD */
 
 #define scd_part(dev)	((minor(dev)) & 7)
@@ -223,10 +226,6 @@ int scd_attach(struct isa_device *dev)
 
 	cd->flags = SCDINIT;
 	cd->audio_status = CD_AS_AUDIO_INVALID;
-
-#ifdef JREMOD
-	scd_devsw_install();
-#endif /*JREMOD*/
 
 	return 1;
 }
@@ -1529,6 +1528,7 @@ scd_toc_entrys (int unit, struct ioc_read_toc_entry *te)
 	return 0;
 }
 
+
 #ifdef JREMOD
 struct bdevsw scd_bdevsw = 
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
@@ -1541,19 +1541,34 @@ struct cdevsw scd_cdevsw =
 
 static scd_devsw_installed = 0;
 
-static void 	scd_devsw_install()
+static void 	scd_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+	dev_t dev_chr;
+
 	if( ! scd_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&scd_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&scd_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&scd_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&scd_bdevsw,NULL);
 		scd_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rscd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"scd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(scddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,scd_drvinit,NULL)
+
 #endif /* JREMOD */
 
 #endif /* NSCD > 0 */

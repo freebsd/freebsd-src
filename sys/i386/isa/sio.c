@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.119 1995/11/21 09:15:04 bde Exp $
+ *	$Id: sio.c,v 1.120 1995/11/28 09:41:47 julian Exp $
  */
 
 #include "sio.h"
@@ -97,8 +97,10 @@
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
 #ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 28
-static void 	sio_devsw_install();
 #endif /*JREMOD*/
 
 
@@ -883,9 +885,6 @@ determined_type: ;
 	s = spltty();
 	com_addr(unit) = com;
 	splx(s);
-#ifdef JREMOD
-	sio_devsw_install();
-#endif /*JREMOD*/
 
 	return (1);
 }
@@ -2574,18 +2573,28 @@ struct cdevsw sio_cdevsw =
 
 static sio_devsw_installed = 0;
 
-static void 	sio_devsw_install()
+static void 	sio_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! sio_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&sio_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&sio_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&sio_cdevsw,NULL);
 		sio_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"sio",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(siodev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sio_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NSIO > 0 */

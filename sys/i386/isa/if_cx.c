@@ -44,6 +44,10 @@
 #   if __FreeBSD__ < 2
 #      include <machine/pio.h>
 #   else
+#      ifdef DEVFS
+#        include <sys/devfsext.h>
+#      endif /*DEVFS*/
+#      define CDEV_MAJOR 42 /*XXX*/ /* replace with variable ASAP*/
 #      include <sys/devconf.h>
 #   endif
 #   define init_func_t     void(*)(int)
@@ -220,7 +224,6 @@ static struct mbuf *makembuf (void *buf, unsigned len)
  * Test the presence of the adapter on the given i/o port.
  */
 #ifdef __FreeBSD__
-extern void cx_devsw_install();
 int cxprobe (struct isa_device *id)
 {
 	int unit = id->id_unit;
@@ -266,9 +269,6 @@ int cxprobe (struct device *parent, struct cfdata *cf, void *aux)
 	}
 	if (! cx_probe_board (iobase))
 		return (0);
-#ifdef JREMOD
-        cx_devsw_install();
-#endif /*JREMOD*/
 
 	return (1);
 }
@@ -373,6 +373,15 @@ void cxattach (struct device *parent, struct device *self, void *aux)
 #endif
 #ifdef __FreeBSD__
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
+#ifdef DEVFS
+	{
+		int x;
+/* default for a simple device with no probe routine (usually delete this) */
+		x=devfs_add_devsw(
+/*	path	name	devsw			minor	type   uid gid perm*/
+	"/",	"cx",	major(CDEV_MAJOR),	0,	DV_CHR,	0,  0, 0600);
+	}
+#endif
 	return (1);
 #endif
 #ifdef __bsdi__
@@ -981,3 +990,5 @@ void cxswitch (cx_chan_t *c, cx_soft_opt_t new)
 	c->sopt = new;
 }
 #endif /* NCX */
+
+

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.43 1995/11/19 22:22:32 dyson Exp $
+ * $Id: st.c,v 1.44 1995/11/20 12:42:34 phk Exp $
  */
 
 /*
@@ -46,7 +46,16 @@
 #include <scsi/scsiconf.h>
 #include <sys/devconf.h>
 
-u_int32 ststrats, stqueues;
+#ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 14
+#define BDEV_MAJOR 5
+#endif /*JREMOD */
+
 
 /* Defines for device specific stuff */
 #define		PAGE_0_SENSE_DATA_SIZE	12
@@ -595,7 +604,7 @@ errval
 st_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
-	unsigned char unit, mode;
+	u_int32 unit, mode;
 	struct scsi_data *st;
 
 	unit = STUNIT(dev);
@@ -897,12 +906,11 @@ done:
 void
 st_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	unsigned char unit;	/* XXX Everywhere else unit is "u_int32". Please int? */
+	u_int32 unit;
 	u_int32 opri;
 	struct scsi_data *st;
 	int	len;
 
-	ststrats++;
 	unit = STUNIT((bp->b_dev));
 	st = sc_link->sd;
 	/*
@@ -1110,7 +1118,6 @@ ststart(unit, flags)
 			100000,
 			bp,
 			flags) == SUCCESSFULLY_QUEUED) {
-			stqueues++;
 		} else {
 badnews:
 			printf("st%ld: oops not queued\n", unit);
@@ -1130,7 +1137,7 @@ st_ioctl(dev_t dev, int cmd, caddr_t arg, int	flag,
 struct proc *p, struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
-	unsigned char unit;
+	u_int32 unit;
 	u_int32 number, flags, dsty;
 	struct scsi_data *st;
 	u_int32 hold_blksiz;
@@ -2070,3 +2077,44 @@ bad:			free(buf, M_TEMP);
 	free(buf, M_TEMP);
 	return 0;
 }
+
+#ifdef JREMOD
+struct bdevsw st_bdevsw = 
+	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
+	  nxdump,	zerosize,	0 };
+
+struct cdevsw st_cdevsw = 
+	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
+	  stioctl,	nostop,		nullreset,	nodevtotty,/* st */
+	  seltrue,	nommap,		ststrategy };
+
+static st_devsw_installed = 0;
+
+static void 	st_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! st_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&st_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&st_bdevsw,NULL);
+		st_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rst",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(stdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,st_drvinit,NULL)
+
+#endif /* JREMOD */
+

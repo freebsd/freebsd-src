@@ -43,8 +43,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 51
-static void 	joy_devsw_install();
 #endif /*JREMOD*/
 
 /* The game port can manage 4 buttons and 4 variable resistors (usually 2
@@ -104,10 +107,6 @@ joyattach (struct isa_device *dev)
     joy[dev->id_unit].port = dev->id_iobase;
     joy[dev->id_unit].timeout[0] = joy[dev->id_unit].timeout[1] = 0;
     printf("joy%d: joystick\n", dev->id_unit);
-
-#ifdef JREMOD
-    joy_devsw_install();
-#endif /*JREMOD*/
 
     return 1;
 }
@@ -224,18 +223,28 @@ struct cdevsw joy_cdevsw =
 
 static joy_devsw_installed = 0;
 
-static void 	joy_devsw_install()
+static void 	joy_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! joy_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&joy_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&joy_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&joy_cdevsw,NULL);
 		joy_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"joy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(joydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,joy_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NJOY > 0 */

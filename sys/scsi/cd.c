@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.44 1995/11/19 22:22:18 dyson Exp $
+ *      $Id: cd.c,v 1.45 1995/11/20 12:42:25 phk Exp $
  */
 
 #define SPLCD splbio
@@ -40,6 +40,15 @@
 #include <scsi/scsiconf.h>
 #include <sys/devconf.h>
 #include <sys/dkstat.h>
+
+#ifdef JREMOD
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 15
+#define BDEV_MAJOR 6
+#endif /*JREMOD */
 
 /* static function prototypes */
 static errval cd_get_parms __P((int, int));
@@ -1296,3 +1305,48 @@ cdsize(dev_t dev)
 {
 	return (-1);
 }
+
+#ifdef JREMOD
+struct bdevsw cd_bdevsw = 
+	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
+	  nxdump,	cdsize,		0 };
+#endif /*JREMOD*/
+
+#ifdef JREMOD
+struct cdevsw cd_cdevsw = 
+	{ cdopen,	cdclose,	rawread,	nowrite,	/*15*/
+	  cdioctl,	nostop,		nullreset,	nodevtotty,/* cd */
+	  seltrue,	nommap,		cdstrategy };
+
+static cd_devsw_installed = 0;
+
+static void 	cd_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! cd_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&cd_cdevsw,NULL);
+		dev_chr = dev;
+#if defined(BDEV_MAJOR)
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&cd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		cd_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"cd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(cddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cd_drvinit,NULL)
+
+#endif /* JREMOD */
+

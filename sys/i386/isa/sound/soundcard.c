@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.31 1995/11/28 09:43:45 julian Exp $
+ * $Id: soundcard.c,v 1.32 1995/11/29 01:07:52 jkh Exp $
  */
 
 #include "sound_config.h"
@@ -38,8 +38,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 30
-static void 	snd_devsw_install();
 #endif /*JREMOD*/
 
 
@@ -352,10 +355,6 @@ sndattach (struct isa_device *dev)
     }
 #endif
 
-#ifdef JREMOD
-        snd_devsw_install();
-#endif /*JREMOD*/
-
   return TRUE;
 }
 
@@ -484,6 +483,7 @@ snd_release_irq(int vect)
 {
 }
 
+#endif
 #ifdef JREMOD
 struct cdevsw snd_cdevsw = 
 	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
@@ -492,18 +492,28 @@ struct cdevsw snd_cdevsw =
 
 static snd_devsw_installed = 0;
 
-static void 	snd_devsw_install()
+static void 	snd_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! snd_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&snd_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&snd_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&snd_cdevsw,NULL);
+		dev_chr = dev;
 		snd_devsw_installed = 1;
-	}
-}
-#endif /* JREMOD */
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"snd",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
 #endif
+}
+
+SYSINIT(snddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snd_drvinit,NULL)
+
+#endif /* JREMOD */
+

@@ -49,9 +49,13 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 44
-static void 	gp_devsw_install();
 #endif /*JREMOD*/
+
 
 int initgpib(void);
 void closegpib(void);
@@ -129,9 +133,6 @@ gpattach(isdp)
         if (sc->sc_type==1)
            printf ("gp%d: type AT-GPIB chip NAT4882A\n",sc->sc_unit);
         sc->sc_flags |=ATTACHED;
-#ifdef JREMOD
-        gp_devsw_install();
-#endif /*JREMOD*/
 
         return (1);
 }
@@ -1271,19 +1272,28 @@ struct cdevsw gp_cdevsw =
 
 static gp_devsw_installed = 0;
 
-static void 	gp_devsw_install()
+static void 	gp_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! gp_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&gp_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&gp_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&gp_cdevsw,NULL);
 		gp_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"gp",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(gpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gp_drvinit,NULL)
+
 #endif /* JREMOD */
 
 #endif /* NGPIB > 0 */

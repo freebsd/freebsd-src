@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.13 1995/11/12 06:42:52 bde Exp $
+ * $Id: kern_descrip.c,v 1.14 1995/11/14 08:58:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,14 @@
 #include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 22
+#endif /*JREMOD*/
 
 int finishdup(struct filedesc *fdp, int old, int new, int *retval);
 /*
@@ -1013,6 +1021,43 @@ sysctl_kern_file SYSCTL_HANDLER_ARGS
 	}
 	return (0);
 }
+#ifdef JREMOD
+struct cdevsw fildesc_cdevsw = 
+	{ fdopen,	noclose,	noread,		nowrite,	/*22*/
+	  noioc,	nostop,		nullreset,	nodevtotty,/*fd(!=Fd)*/
+	  noselect,	nommap,		nostrat };
+
+static fildesc_devsw_installed = 0;
+
+static void 	fildesc_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! fildesc_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&fildesc_cdevsw,NULL);
+		fildesc_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+/*	path	name	devsw		minor	type   uid gid perm*/
+			x=devfs_add_devsw("/","stdin",major(dev),0,DV_CHR,
+					0,  0, 0600);
+			x=devfs_add_devsw("/","stdout",major(dev),1,DV_CHR,
+					0,  0, 0600);
+			x=devfs_add_devsw("/","stderr",major(dev),2,DV_CHR,
+					0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,
+					fildesc_drvinit,NULL)
+
+#endif /* JREMOD */
+
 
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_kern_file, "");

@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.5 1995/05/03 18:09:20 dufault Exp $
+ *      $Id: su.c,v 1.6 1995/11/06 00:36:08 bde Exp $
  *
  * Tabstops 4
  */
@@ -57,6 +57,14 @@
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/systm.h>
+
+#ifdef JREMOD
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 18
+#endif /*JREMOD*/
 
 /* Build an old style device number (unit encoded in the minor number)
  * from a base old one (no flag bits) and a full new one
@@ -278,3 +286,36 @@ int suselect(dev_t dev, int which, struct proc *p)
 
 	return (*cdev->d_select)(base, which, p);
 }
+
+#ifdef JREMOD
+struct cdevsw su_cdevsw = 
+	{ suopen,	suclose,	suread,		suwrite,	/*18*/
+	  suioctl,	nostop,		nullreset,	nodevtotty,/* scsi */
+	  suselect,	nxmmap,		sustrategy };		/* 'generic' */
+
+static su_devsw_installed = 0;
+
+static void 	su_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! su_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&su_cdevsw,NULL);
+		su_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"su",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(sudev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,su_drvinit,NULL)
+
+#endif /* JREMOD */
+
