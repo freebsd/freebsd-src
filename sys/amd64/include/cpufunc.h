@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.85 1999/01/09 13:00:27 bde Exp $
+ *	$Id: cpufunc.h,v 1.86 1999/04/28 01:03:58 luoqi Exp $
  */
 
 /*
@@ -289,7 +289,7 @@ inw(u_int port)
 }
 
 static __inline u_int
-loadandclear(u_int *addr)
+loadandclear(volatile u_int *addr)
 {
 	u_int	result;
 

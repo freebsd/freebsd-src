@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.17 1999/04/28 01:04:15 luoqi Exp $
+ *	$Id: ipl_funcs.c,v 1.18 1999/05/06 22:13:53 peter Exp $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,7 @@ void name(void)					\
 	setbits(var, bits);			\
 }
 
-DO_SETBITS(setdelayed,   &ipending, loadandclear((unsigned *)&idelayed))
+DO_SETBITS(setdelayed,   &ipending, loadandclear(&idelayed))
 DO_SETBITS(setsoftast,   &ipending, SWI_AST_PENDING)
 DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
 DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
@@ -143,7 +143,7 @@ void name(void)					\
 	IFCPL_UNLOCK();				\
 }
 
-DO_SETBITS(setdelayed,   &ipending, loadandclear((unsigned *)&idelayed))
+DO_SETBITS(setdelayed,   &ipending, loadandclear(&idelayed))
 DO_SETBITS(setsoftast,   &ipending, SWI_AST_PENDING)
 DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
 DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
