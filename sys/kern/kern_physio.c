@@ -61,7 +61,6 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				bp->b_iocmd = BIO_READ;
 			else 
 				bp->b_iocmd = BIO_WRITE;
-			bp->b_dev = dev;
 			bp->b_iodone = bdone;
 			bp->b_data = uio->uio_iov[i].iov_base;
 			bp->b_bcount = uio->uio_iov[i].iov_len;
