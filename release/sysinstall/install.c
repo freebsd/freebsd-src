@@ -426,6 +426,7 @@ fixit_common(void)
 	_exit(1);;
     }
     else {
+	dialog_clear_norefresh();
 	msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
 		  "typing ALT-F4.  When you are done, type ``exit'' to exit\n"
 		  "the fixit shell and be returned here.");
@@ -737,12 +738,14 @@ installFixupBin(dialogMenuItem *self)
 	}
 	
 	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
+	dialog_clear_norefresh();
 	msgNotify("Remaking all devices.. Please wait!");
 	if (vsystem("cd /dev; sh MAKEDEV all")) {
 	    msgConfirm("MAKEDEV returned non-zero status");
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
+	dialog_clear_norefresh();
 	msgNotify("Resurrecting /dev entries for slices..");
 	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 	if (!devs)
@@ -759,10 +762,11 @@ installFixupBin(dialogMenuItem *self)
 		msgFatal("No chunk list found for %s!", disk->name);
 	    for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == freebsd) {
+		    dialog_clear_norefresh();
 		    msgNotify("Making slice entries for %s", c1->name);
 		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name)) {
 			msgConfirm("Unable to make slice entries for %s!", c1->name);
-			return DITEM_FAILURE;
+			return DITEM_FAILURE | DITEM_RESTORE;
 		    }
 		}
 	    }
@@ -789,7 +793,7 @@ installFixupBin(dialogMenuItem *self)
 
 	/* Do all the last ugly work-arounds here */
     }
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 /* Fix side-effects from the the XFree86 installation */
@@ -798,17 +802,19 @@ installFixupXFree(dialogMenuItem *self)
 {
     /* BOGON #1:  XFree86 requires various specialized fixups */
     if (directory_exists("/usr/X11R6")) {
+	dialog_clear_norefresh();
 	msgNotify("Fixing permissions in XFree86 tree..");
 	vsystem("chmod -R a+r /usr/X11R6");
 	vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
 
 	/* Also do bogus minimal package registration so ports don't whine */
 	if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz")) {
+	    dialog_clear_norefresh();
 	    msgNotify("Installing package metainfo..");
 	    vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
 	}
     }
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
@@ -848,12 +854,15 @@ installFilesystems(dialogMenuItem *self)
 	}
 
 	if (!Fake) {
-	    if (!swapon(dname))
+	    if (!swapon(dname)) {
+		dialog_clear_norefresh();
 		msgNotify("Added %s as initial swap device", dname);
-	    else
+	    }
+	    else {
 		msgConfirm("WARNING!  Unable to swap to %s: %s\n"
 			   "This may cause the installation to fail at some point\n"
 			   "if you don't have a lot of memory.", dname, strerror(errno));
+	    }
 	}
     }
 
@@ -863,7 +872,7 @@ installFilesystems(dialogMenuItem *self)
 	if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
 	    msgConfirm("Unable to make device node for %s in /dev!\n"
 		       "The creation of filesystems will be aborted.", dname);
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	if (strcmp(root->mountpoint, "/"))
 	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
@@ -871,12 +880,13 @@ installFilesystems(dialogMenuItem *self)
 	if (root->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs the root partition?"))) {
 	    int i;
 
+	    dialog_clear_norefresh();
 	    msgNotify("Making a new root filesystem on %s", dname);
 	    i = vsystem("%s %s", root->newfs_cmd, dname);
 	    if (i) {
 		msgConfirm("Unable to make new root filesystem on %s!\n"
 			   "Command returned status %d", dname, i);
-		return DITEM_FAILURE;
+		return DITEM_FAILURE | DITEM_RESTORE;
 	    }
 	}
 	else {
@@ -884,6 +894,7 @@ installFilesystems(dialogMenuItem *self)
 		msgConfirm("Warning:  Using existing root partition.  It will be assumed\n"
 			   "that you have the appropriate device entries already in /dev.");
 	    }
+	    dialog_clear_norefresh();
 	    msgNotify("Checking integrity of existing %s filesystem.", dname);
 	    i = vsystem("fsck -y %s", dname);
 	    if (i)
@@ -895,7 +906,7 @@ installFilesystems(dialogMenuItem *self)
 	sprintf(dname, "/dev/%s", rootdev->name);
 	if (Mount("/mnt", dname)) {
 	    msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
     }
 
@@ -908,7 +919,7 @@ installFilesystems(dialogMenuItem *self)
 	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks) {
 	    msgConfirm("No chunk list found for %s!", disk->name);
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	if (RunningAsInit && root && (root->newfs || upgrade)) {
 	    Mkdir("/mnt/dev");
@@ -942,10 +953,13 @@ installFilesystems(dialogMenuItem *self)
 			    continue;
 			sprintf(fname, "%s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			i = (Fake || swapon(fname));
-			if (!i)
+			if (!i) {
+			    dialog_clear_norefresh();
 			    msgNotify("Added %s as an additional swap device", fname);
-			else
+			}
+			else {
 			    msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
+			}
 		    }
 		}
 	    }
@@ -959,18 +973,19 @@ installFilesystems(dialogMenuItem *self)
     }
 
     if (RunningAsInit) {
+	dialog_clear_norefresh();
 	msgNotify("Copying initial device files..");
 	/* Copy the boot floppy's dev files */
 	if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
 	    msgConfirm("Couldn't clone the /dev files!");
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
     }
 
     command_sort();
     command_execute();
     dialog_clear_norefresh();
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 static char *
