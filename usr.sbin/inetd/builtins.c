@@ -414,7 +414,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 				 * gives a more optimal way to reload the
 				 * random number only when necessary.
 				 *
-				 * 32 bits from arc4random corrisponds to
+				 * 32 bits from arc4random corresponds to
 				 * about 6 base-36 digits, so we reseed evey 6.
 				 */
 				for (i = 0; i < sizeof(idbuf) - 1; i++) {
