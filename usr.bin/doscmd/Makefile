@@ -3,8 +3,8 @@
 # $FreeBSD$
 
 PROG=	doscmd
-SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
-	cwd.c debug.c disktab.c doscmd.c ems.c emuint.c exe.c i386-pinsn.c \
+SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cmos.c config.c cpu.c cwd.c \
+	debug.c disktab.c dos.c doscmd.c ems.c emuint.c exe.c i386-pinsn.c \
 	int.c int10.c int13.c int14.c int16.c int17.c int1a.c int2f.c intff.c \
 	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c \
 	tty.c video.c xms.c ${FONTHDRS}
