@@ -133,15 +133,25 @@ StopTimerNoBlock(struct pppTimer *tp)
     pt = t;
 
   if (t) {
-    if (pt) {
+    if (pt)
       pt->next = t->next;
-    } else {
+    else {
       TimerList = t->next;
       if (TimerList == NULL)	/* Last one ? */
 	timer_TermService();	/* Terminate Timer Service */
     }
-    if (t->next)
-      t->next->rest += tp->rest;
+    if (t->next) {
+      if (!pt) {		/* t (tp) was the first in the list */
+        struct itimerval itimer;
+
+        if (getitimer(ITIMER_REAL, &itimer) == 0)
+          t->rest = itimer.it_value.tv_sec * SECTICKS +
+                    itimer.it_value.tv_usec / TICKUNIT;
+      }
+      t->next->rest += t->rest;
+      if (!pt)			/* t->next is now the first in the list */
+        timer_InitService(1);
+    }
   } else {
     /* Search for any pending expired timers */
     pt = NULL;
