@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.20 1997/06/29 15:13:44 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.21 1997/07/07 13:40:23 brian Exp $
  */
 
 #include "sc.h"
@@ -3000,8 +3000,7 @@ next_code:
 				       (cur_console->xsize*i),
 				       cur_console->xsize * sizeof(u_short));
 				ptr += cur_console->xsize;
-				if (cur_console->history &&
-				    ptr + cur_console->xsize >
+				if (ptr + cur_console->xsize >
 				    cur_console->history +
 				    cur_console->history_size)
 				    ptr = cur_console->history;
