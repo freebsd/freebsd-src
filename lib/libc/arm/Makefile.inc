@@ -7,6 +7,5 @@ SOFTFLOAT_BITS=32
 
 CFLAGS+=-DSOFTFLOAT
 
-# Long double is 80 bits
-GDTOASRCS+=strtopx.c
-MDSRCS+=machdep_ldisx.c
+# Long double is just double precision.
+MDSRCS+=machdep_ldisd.c
