@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.15 1997/02/22 15:46:19 peter Exp $
+.\"	$Id: ld.1,v 1.16 1997/03/22 02:59:38 jdp Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -73,10 +73,18 @@ The options are as follows:
 The the symbol-file is taken as a base for link-editing the object files
 on the command line.
 .It Fl assert Ar keyword
-This option has currently no effect. It is here for compatibility with
-SunOS ld. All conditions which would cause a Sun assertion to fail will
+This option is here mainly for compatibility with SunOS
+.Nm ld .
+Most conditions which would cause a Sun assertion to fail will
 currently always cause error or warning messages from
 .Nm ld .
+The only keyword implemented by
+.Nm ld
+is
+.Nm pure-text ,
+which generates a warning if a position independent object is being
+created and some of the files being linked are not position
+independent.
 .It Fl B Ns Ar dynamic
 Specifies that linking against dynamic libraries can take place. If a library
 specifier of the form -lx appears on the command line,
@@ -91,6 +99,13 @@ found a traditional archive is looked for.
 This options can appear anywhere on the command line and is complementary
 to
 .Fl B Ns Ar static.
+.It Fl B Ns Ar forcedynamic
+This is similar to
+.Fl B Ns Ar dynamic
+except that if no dynamic libraries are linked against,
+.Nm ld
+will still produce a dynamic executable.  This is useful for programs
+which are static but still need to load dynamic objects at runtime.
 .It Fl B Ns Ar static
 The counterpart of
 .Fl B Ns Ar dynamic .
