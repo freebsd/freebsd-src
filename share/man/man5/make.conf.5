@@ -181,11 +181,13 @@ instead of
 .It Va INSTALL
 .Pq Vt str
 the default install command.
-To have commands compared before doing
-the install, use
+To install only files for which the target differs or does not exist, use
 .Bd -literal -offset indent
 INSTALL="install -C"
 .Ed
+Note that some makefiles (including those in
+.Pa /usr/share/mk )
+may hardcode options for the supplied install command.
 .It Va LOCAL_DIRS
 .Pq Vt str
 List any directories that should be entered when doing
