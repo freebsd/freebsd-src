@@ -232,7 +232,7 @@ main(argc, argv)
 		specname = dkname;
 	f = open(specname, op == READ ? O_RDONLY : O_RDWR);
 	if (f < 0 && errno == ENOENT && dkname[0] != '/') {
-		(void)sprintf(specname, "%sr%s", _PATH_DEV, dkname);
+		(void)sprintf(specname, "%s%s", _PATH_DEV, dkname);
 		np = namebuf + strlen(specname) + 1;
 		f = open(specname, op == READ ? O_RDONLY : O_RDWR);
 	}
@@ -1342,7 +1342,7 @@ getvirginlabel(void)
 		warnx("\"auto\" requires the usage of a canonical disk name");
 		return (NULL);
 	}
-	(void)snprintf(namebuf, BBSIZE, "%sr%s", _PATH_DEV, dkname);
+	(void)snprintf(namebuf, BBSIZE, "%s%s", _PATH_DEV, dkname);
 	if ((f = open(namebuf, O_RDONLY)) == -1) {
 		warn("cannot open %s", namebuf);
 		return (NULL);
