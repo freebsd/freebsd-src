@@ -30,7 +30,6 @@
  */
 
 #include <sys/types.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
