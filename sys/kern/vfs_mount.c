@@ -69,8 +69,8 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
-#include <sys/malloc.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>

@@ -45,8 +45,8 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/mac.h>
+#include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/ttycom.h>
