@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.22 1998/09/20 03:24:55 jdp Exp $
+ * $Id: cdefs.h,v 1.23 1998/10/29 04:41:24 jdp Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -145,7 +145,7 @@
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
-#if 272101 <= __FreeBSD_cc_version && __FreeBSD_cc_version < 1000000
+#if __FreeBSD_cc_version >= 300001
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else
