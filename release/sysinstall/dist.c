@@ -210,6 +210,8 @@ distVerifyFlags(void)
 	    CRYPTODists |= DIST_CRYPTO_CRYPTO;
 	Dists |= DIST_CRYPTO;
     }
+    else if ((Dists & DIST_CRYPTO) && !CRYPTODists)
+	CRYPTODists |= DIST_CRYPTO_CRYPTO;
     if (XF86Dists & DIST_XF86_SET)
 	XF86ServerDists |= DIST_XF86_SERVER_VGA16;
     if (XF86ServerDists)
