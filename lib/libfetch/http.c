@@ -275,25 +275,22 @@ _http_base64(char *dst, char *src, int l)
 char *
 _http_auth(char *usr, char *pwd)
 {
-    int len, lu, lp;
-    char *str, *s;
+    int len, lup;
+    char *uandp, *str = NULL;
 
-    lu = strlen(usr);
-    lp = strlen(pwd);
-		
-    len = (lu * 4 + 2) / 3	/* user name, round up */
-	+ 1			/* colon */
-	+ (lp * 4 + 2) / 3	/* password, round up */
-	+ 1;			/* null */
-    
-    if ((s = str = (char *)malloc(len)) == NULL)
-	return NULL;
-
-    s += _http_base64(s, usr, lu);
-    *s++ = ':';
-    s += _http_base64(s, pwd, lp);
-    *s = 0;
-
+    lup = strlen(usr) + 1 + strlen(pwd);/* length of "usr:pwd" */
+    uandp = (char*)malloc(lup + 1);
+    if (uandp) {
+	len = ((lup + 2) / 3) * 4;	/* length of base64 encoded "usr:pwd" incl. padding */
+	str = (char*)malloc(len + 1);
+	if (str) {
+	    strcpy(uandp, usr);
+	    strcat(uandp, ":");
+	    strcat(uandp, pwd);
+	    _http_base64(str, uandp, lup);
+	}
+	free(uandp);
+    }
     return str;
 }
 
@@ -465,6 +462,35 @@ _http_request(FILE *f, char *op, struct url *URL, char *flags)
 	    return 999; /* XXX wrong */
 	_http_cmd(f, "Authorization: Basic %s" ENDL, auth_str);
 	free(auth_str);
+    }
+    if (p = getenv("HTTP_PROXY_AUTH")) {
+	char *auth;
+
+	/* skip leading "basic:*:", if present */
+	if (strncmp(p, "basic:*:", 6 + 2) == 0)
+	    p += 6 + 2;
+	auth = strchr(p, ':');
+	if (auth != NULL) {
+	    int len = auth - p;
+	    char *user;
+	    char *auth_str;
+
+	    if ((user = (char*)malloc(len + 1)) == NULL) {
+		free(auth); 
+		return 999; /* XXX wrong */
+	    }
+	    strncpy(user, p, len);
+	    user[len] = 0;
+	    auth++;
+	    auth_str = _http_auth(user, auth);
+	    free(user);
+	    if (auth_str == NULL)
+		return 999; /* XXX wrong */
+	    _http_cmd(f, "Proxy-Authorization: Basic %s" ENDL, auth_str);
+	    free(auth_str);
+	} else {
+	    return 999; /* XXX wrong */
+	}
     }
     _http_cmd(f, "Host: %s:%d" ENDL, host, URL->port);
     _http_cmd(f, "User-Agent: %s " _LIBFETCH_VER ENDL, __progname);
