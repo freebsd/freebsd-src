@@ -21,7 +21,7 @@ network_pass1() {
 	    eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
 	    if [ -n "${ifconfig_args}" ]; then
 		ifconfig ${ifn} ${ifconfig_args} alias
-		alias=`expr ${alias} + 1`
+		alias=$((${alias} + 1))
 	    else
 		break;
 	    fi
