@@ -78,6 +78,7 @@ struct uwx_str_pool;
 struct uwx_env {
     struct uwx_context context;
     uint64_t *rstate;
+    uint64_t remapped_ip;
     int64_t function_offset;
     struct uwx_history history;
     alloc_cb allocate_cb;
