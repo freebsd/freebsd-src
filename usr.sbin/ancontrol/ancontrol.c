@@ -118,6 +118,10 @@ int main			__P((int, char **));
 #define ACT_DUMPCACHE 31
 #define ACT_ZEROCACHE 32
 
+#define ACT_ENABLE_WEP 33
+#define ACT_SET_KEY_TYPE 34
+#define ACT_SET_KEYS 35
+
 static void an_getval(iface, areq)
 	char			*iface;
 	struct an_req		*areq;
@@ -239,6 +243,8 @@ static void an_printhex(ptr, len)
 	printf(" ]");
 	return;
 }
+
+
 
 static void an_dumpstatus(iface)
 	char			*iface;
@@ -681,14 +687,20 @@ static void an_dumpconfig(iface)
 	an_printwords(&cfg->an_ibss_join_net_timeout, 1);
 	printf("\nAuthentication timeout:\t\t\t");
 	an_printwords(&cfg->an_auth_timeout, 1);
+	printf("\nWEP enabled:\t\t\t\t[ ");
+	if (cfg->an_authtype & AN_AUTHTYPE_ENABLE)
+		printf("yes");
+	else
+		printf("no");
+	printf(" ]");
 	printf("\nAuthentication type:\t\t\t[ ");
-	if (cfg->an_authtype == AN_AUTHTYPE_NONE)
-		printf("no auth");
-	if (cfg->an_authtype == AN_AUTHTYPE_OPEN)
+	if ((cfg->an_authtype & AN_AUTHTYPE_MASK) == AN_AUTHTYPE_NONE)
+		printf("none");
+	if ((cfg->an_authtype & AN_AUTHTYPE_MASK) == AN_AUTHTYPE_OPEN)
 		printf("open");
-	if (cfg->an_authtype == AN_AUTHTYPE_SHAREDKEY)
+	if ((cfg->an_authtype & AN_AUTHTYPE_MASK) == AN_AUTHTYPE_SHAREDKEY)
 		printf("shared key");
-	if (cfg->an_authtype == AN_AUTHTYPE_EXCLUDE_UNENCRYPTED)
+	if ((cfg->an_authtype & AN_AUTHTYPE_MASK) == AN_AUTHTYPE_EXCLUDE_UNENCRYPTED)
 		printf("exclude unencrypted");
 	printf(" ]");
 	printf("\nAssociation timeout:\t\t\t");
@@ -795,6 +807,9 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -b val (set beacon period)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 0|1] -d val (set diversity)\n", p);
 	fprintf(stderr, "\t%s -i iface -j val (set netjoin timeout)\n", p);
+	fprintf(stderr, "\t%s -i iface [-v 0|1|2|3|4|5|6|7] -k key (set key)\n", p);
+	fprintf(stderr, "\t%s -i iface -K 0|1|2|4 (set auth type 2=shared secret)\n", p);
+	fprintf(stderr, "\t%s -i iface -W 0|1 (enable WEP)\n", p);
 	fprintf(stderr, "\t%s -i iface -l val (set station name)\n", p);
 	fprintf(stderr, "\t%s -i iface -m val (set MAC address)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 1|2|3] -n SSID "
@@ -917,6 +932,14 @@ static void an_setconfig(iface, act, arg)
 			errx(1, "badly formatted address");
 		bzero(cfg->an_macaddr, ETHER_ADDR_LEN);
 		bcopy((char *)addr, (char *)&cfg->an_macaddr, ETHER_ADDR_LEN);
+		break;
+	case ACT_ENABLE_WEP:
+		cfg->an_authtype = (cfg->an_authtype & AN_AUTHTYPE_MASK)
+		        | atoi(arg) * AN_AUTHTYPE_ENABLE;
+		break;
+	case ACT_SET_KEY_TYPE:
+		cfg->an_authtype = (cfg->an_authtype & ~AN_AUTHTYPE_MASK) 
+		        | atoi(arg);
 		break;
 	default:
 		errx(1, "unknown action");
@@ -1122,6 +1145,92 @@ static void an_readcache(iface)
 }
 #endif
 
+static int an_hex2int(c)
+	char			c;
+{
+	if (c >= '0' && c <= '9')
+		return (c - '0');
+	if (c >= 'A' && c <= 'F')
+		return (c - 'A' + 10);
+	if (c >= 'a' && c <= 'f')
+		return (c - 'a' + 10);
+
+	return (0); 
+}
+
+static void an_str2key(s, k)
+	char			*s;
+	struct an_ltv_key	*k;
+{
+	int			n, i;
+	char			*p;
+
+	/* Is this a hex string? */
+	if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+		/* Yes, convert to int. */
+		n = 0;
+		p = (char *)&k->key[0];
+		for (i = 2; i < strlen(s); i+= 2) {
+			*p++ = (an_hex2int(s[i]) << 4) + an_hex2int(s[i + 1]);
+			n++;
+		}
+		k->klen = n;
+	} else {
+		/* No, just copy it in. */
+		bcopy(s, k->key, strlen(s));
+		k->klen = strlen(s);
+	}
+
+	return;
+}
+
+static void an_setkeys(iface, key, keytype)
+	char			*iface;
+	char			*key;
+	int			keytype;
+{
+	struct an_req		areq;
+	struct an_ltv_key	*k;
+
+	bzero((char *)&areq, sizeof(areq));
+	k = (struct an_ltv_key *)&areq;
+
+	if (strlen(key) > 28) {
+		err(1, "encryption key must be no "
+		    "more than 18 characters long");
+	}
+
+	an_str2key(key, k);
+	
+	k->kindex=keytype/2;
+
+	if (!(k->klen==0 || k->klen==5 || k->klen==13)) {
+		err(1, "encryption key must be 0, 5 or 13 bytes long");
+	}
+
+	/* default mac and only valid one (from manual) 1.0.0.0.0.0 */
+	k->mac[0]=1;
+	k->mac[1]=0;
+	k->mac[2]=0;
+	k->mac[3]=0;
+	k->mac[4]=0;
+	k->mac[5]=0;
+
+	switch(keytype & 1){
+	case 0:
+	  areq.an_len = sizeof(struct an_ltv_key);
+	  areq.an_type = AN_RID_WEP_PERM;
+	  an_setval(iface, &areq);
+	  break;
+	case 1:
+	  areq.an_len = sizeof(struct an_ltv_key);
+	  areq.an_type = AN_RID_WEP_TEMP;
+	  an_setval(iface, &areq);
+	  break;
+	}
+	  
+	return;
+}
 
 int main(argc, argv)
 	int			argc;
@@ -1131,6 +1240,7 @@ int main(argc, argv)
 	int			act = 0;
 	char			*iface = NULL;
 	int			modifier = 0;
+	char			*key = NULL;
 	void			*arg = NULL;
 	char			*p = argv[0];
 
@@ -1147,7 +1257,7 @@ int main(argc, argv)
 	opterr = 1;
 
 	while ((ch = getopt(argc, argv,
-	    "ANISCTht:a:o:s:n:v:d:j:b:c:r:p:w:m:l:QZ")) != -1) {
+	    "ANISCTht:a:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZ")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef ANCACHE
@@ -1282,6 +1392,18 @@ int main(argc, argv)
 			act = ACT_SET_FRAG_THRESH;
 			arg = optarg;
 			break;
+		case 'W':
+			act = ACT_ENABLE_WEP;
+			arg = optarg;
+			break;
+		case 'K':
+			act = ACT_SET_KEY_TYPE;
+			arg = optarg;
+			break;
+		case 'k':
+			act = ACT_SET_KEYS;
+			key = optarg;
+			break;
 		case 'q':
 			act = ACT_SET_RTS_RETRYLIM;
 			arg = optarg;
@@ -1300,7 +1422,7 @@ int main(argc, argv)
 		}
 	}
 
-	if (iface == NULL || !act)
+	if (iface == NULL || (!act && !key))
 		usage(p);
 
 	switch(act) {
@@ -1343,7 +1465,11 @@ int main(argc, argv)
 	case ACT_DUMPCACHE:
 		an_readcache(iface);
 		break;
+
 #endif
+	case ACT_SET_KEYS:
+		an_setkeys(iface, key, modifier);
+		break;
 	default:
 		an_setconfig(iface, act, arg);
 		break;
