@@ -153,6 +153,7 @@ struct mount {
 #define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
 #define	MNT_SOFTDEP	0x00200000	/* soft updates being done */
 #define	MNT_NOSYMFOLLOW	0x00400000	/* do not follow symlinks */
+#define	MNT_JAILDEVFS	0x02000000	/* Jail friendly DEVFS behaviour */
 #define	MNT_NOATIME	0x10000000	/* disable update of file access time */
 #define	MNT_NOCLUSTERR	0x40000000	/* disable cluster read */
 #define	MNT_NOCLUSTERW	0x80000000	/* disable cluster write */
@@ -190,7 +191,16 @@ struct mount {
 			MNT_LOCAL	| MNT_USER	| MNT_QUOTA	| \
 			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
-			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW)
+			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
+			MNT_JAILDEVFS)
+
+/* Mask of flags that can be updated */
+#define MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| MNT_NODEV	| \
+			MNT_SYNCHRONOUS	| MNT_UNION	| MNT_ASYNC	| \
+			MNT_NOATIME | \
+			MNT_NOSYMFOLLOW	| MNT_IGNORE	| MNT_JAILDEVFS	| \
+			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR)
+  
 /*
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
@@ -206,7 +216,6 @@ struct mount {
 /*
  * Still available
  */
-#define	MNT_SPARE1	0x02000000
 #define	MNT_SPARE2	0x04000000
 #define	MNT_SPARE3	0x08000000
 /*
