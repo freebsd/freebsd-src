@@ -101,7 +101,7 @@ sysctl_kse_virtual_cpu(SYSCTL_HANDLER_ARGS)
 	else
 		new_val = virtual_cpu;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
-        if (error != 0 || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (new_val < 0)
 		return (EINVAL);
