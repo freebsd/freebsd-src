@@ -50,3 +50,11 @@ void	 printscol __P((DISPLAY *));
 void	 usage __P((void));
 int	 len_octal __P((char *, int));
 int	 prn_octal __P((char *));
+#ifdef COLORLS
+void	 parsecolors __P((char *cs));
+void     colorquit __P((int));
+
+extern  char    *ansi_fgcol;
+extern  char    *ansi_bgcol;
+extern  char    *ansi_coloff;
+#endif
