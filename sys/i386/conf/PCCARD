@@ -23,7 +23,7 @@ cpu		"I386_CPU"
 cpu		"I486_CPU"
 cpu		"I586_CPU"
 cpu		"I686_CPU"
-ident		GENERIC
+ident		PCCARD
 maxusers	32
 
 options		MATH_EMULATE		#Support for x87 emulation
