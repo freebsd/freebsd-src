@@ -49,7 +49,7 @@ VGA_NO_MODE_CHANGE	opt_vga.h
 VGA_SLOW_IOACCESS	opt_vga.h
 VGA_WIDTH90		opt_vga.h
 
-PSM_HOOKAPM		opt_psm.h
+PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 

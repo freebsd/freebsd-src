@@ -933,7 +933,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 device		psm0	at atkbdc? irq 12
 
 # Options for psm:
-options 	PSM_HOOKAPM		#hook the APM resume event, useful
+options 	PSM_HOOKRESUME		#hook the system resume event, useful
 					#for some laptops
 options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
