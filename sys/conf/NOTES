@@ -1631,6 +1631,7 @@ device		miibus
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gx:   Intel Pro/1000 Gigabit Ethernet (82542, 82543-F, 82543-T)
+# hme:  Sun HME (Happy Meal Ethernet)
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
@@ -1732,6 +1733,7 @@ device		xe
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 hint.fxp.0.prefer_iomap="0"
+device		hme		# Sun HME (Happy Meal Ethernet)
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
 device		rl		# RealTek 8129/8139
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
