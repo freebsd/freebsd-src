@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.96 1994/12/11 02:28:36 davidg Exp $
+ *	$Id: machdep.c,v 1.97 1994/12/11 03:11:23 davidg Exp $
  */
 
 #include "npx.h"
@@ -1300,8 +1300,6 @@ init386(first)
 	 *	are trying to use bus mastering ISA controllers with the
 	 *	"16MB limit"; they only have 16MB, but the remapping puts
 	 *	them beyond the limit.
-	 * XXX - this should be removed when bounce buffers are
-	 *	implemented.
 	 */
 	/*
 	 * If extended memory is between 15-16MB (16-17MB phys address range),
