@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.4 1998/09/17 23:52:07 msmith Exp $
+ *	$Id: aout_freebsd.c,v 1.5 1998/09/28 22:01:19 peter Exp $
  */
 
 #include <sys/param.h>
@@ -102,7 +102,7 @@ aout_exec(struct loaded_module *mp)
     argv[2] = 0;				/* old cyloffset */
     argv[3] = 0;				/* old esym */
     argv[4] = 0;				/* "new" bootinfo magic */
-    argv[5] = (u_int32_t)VTOP(&bi);
+    argv[5] = 0;				/* physical addr of bootinfo */
 
     /* find the last module in the chain */
     for (xp = mp; xp->m_next != NULL; xp = xp->m_next)
@@ -118,6 +118,13 @@ aout_exec(struct loaded_module *mp)
     bi.bi_envp = addr;
     addr = bi_copyenv(addr);
 
+    /* pad to a 4-byte boundary */
+    addr = (addr + 0x3) & ~0x3;
+
+    /* leave space for bootinfo */
+    argv[5] = (u_int32_t)addr;
+    addr += sizeof(struct bootinfo);
+
     /* pad to a page boundary */
     pad = (u_int)addr & PAGE_MASK;
     if (pad != 0) {
@@ -130,6 +137,11 @@ aout_exec(struct loaded_module *mp)
 
     /* all done copying stuff in, save end of loaded object space */
     bi.bi_kernend = addr;
+
+    /* and insert bootinfo struct into reserved spot */
+    i386_copyin(&bi, (vm_offset_t)argv[5], sizeof(bi));
+    argv[0] |= RB_BOOTINFO;		/* it's there now */
+
     entry = ehdr->a_entry & 0xffffff;
 
 #ifdef DEBUG
