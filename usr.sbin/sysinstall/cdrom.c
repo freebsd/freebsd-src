@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.44 1998/12/22 12:31:24 jkh Exp $
+ * $Id: cdrom.c,v 1.45 1999/01/20 12:31:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -112,36 +112,57 @@ mediaInitCDROM(Device *dev)
 	}
     }
 
-    if (readInfo &&
-	(!(cd_attr = read_props(string_concat(mountpoint, "/cdrom.inf"))) ||
-	!(cp = property_find(cd_attr, "CD_VERSION")) || (strcmp(cp, variable_get(VAR_RELNAME)) && strcmp("none", variable_get(VAR_RELNAME))))) {
-	if (!cp) {
+    if (readInfo) {
+	if (!(cd_attr = read_props(string_concat(mountpoint, "/cdrom.inf")))
+	    || !(cp = property_find(cd_attr, "CD_VERSION"))) {
 	    msgConfirm("Unable to find a %s/cdrom.inf file.\n"
 		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
 		       "the CDROM driver or something is wrong with your hardware.\n"
 		       "Please fix this problem (check the console logs on VTY2) and\n"
 		       "try again.", mountpoint);
 	}
-	else if (!bogusCDOK) {
-	    msgConfirm("Warning: The version of the FreeBSD CD currently in the drive\n"
-		       "(%s) does not match the version of the boot floppy\n"
-		       "(%s).\n\n"
-		       "If this is intentional, to avoid this message in the future\n"
-		       "please visit the Options editor to set the boot floppy version\n"
-		       "string to match that of the CD before selecting it as your\n"
-		       "installation media.", cp, variable_get(VAR_RELNAME));
+	else {
+	    if (variable_cmp(VAR_RELNAME, cp)
+		&& variable_cmp(VAR_RELNAME, "none")
+		&& variable_cmp(VAR_RELNAME, "any") && !bogusCDOK) {
+		msgConfirm("Warning: The version of the FreeBSD CD currently in the drive\n"
+			   "(%s) does not match the version of the boot floppy\n"
+			   "(%s).\n\n"
+			   "If this is intentional, to avoid this message in the future\n"
+			   "please visit the Options editor to set the boot floppy version\n"
+			   "string to match that of the CD before selecting it as your\n"
+			   "installation media.", cp, variable_get(VAR_RELNAME));
 
-	    if (msgYesNo("Would you like to try and use this CDROM anyway?") != 0) {
-		unmount(mountpoint, MNT_FORCE);
-		cdromMounted = FALSE;
-		properties_free(cd_attr);
-		return FALSE;
+		if (msgYesNo("Would you like to try and use this CDROM anyway?") != 0) {
+		    unmount(mountpoint, MNT_FORCE);
+		    cdromMounted = FALSE;
+		    properties_free(cd_attr);
+		    return FALSE;
+		}
+		else
+		    bogusCDOK = TRUE;
 	    }
-	    else
-		bogusCDOK = TRUE;
+	    if ((cp = property_find(cd_attr, "CD_MACHINE_ARCH")) != NULL) {
+#ifdef __alpha__
+		if (strcmp(cp, "alpha")) {
+#else
+		if (strcmp(cp, "x86")) {
+#endif
+		    msgConfirm("Fatal: The FreeBSD install CD currently in the drive\n"
+			   "is for the %s architecture, not the machine you're using.\n\n"
+
+			   "Please use the correct installation CD for your machine type.", cp);
+
+		    unmount(mountpoint, MNT_FORCE);
+		    cdromMounted = FALSE;
+		    properties_free(cd_attr);
+		    return FALSE;
+		}
+	    }
 	}
     }
-    properties_free(cd_attr);
+    if (cd_attr)
+	properties_free(cd_attr);
     return TRUE;
 }
 
