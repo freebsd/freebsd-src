@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.23 1997/03/31 12:29:59 davidg Exp $
+ *	$Id: uipc_socket2.c,v 1.24 1997/04/27 20:00:44 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -964,6 +964,12 @@ struct pr_usrreqs pru_oldstyle = {
  */
 int
 pru_accept_notsupp(struct socket *so, struct mbuf *nam)
+{
+	return EOPNOTSUPP;
+}
+
+int
+pru_connect_notsupp(struct socket *so, struct mbuf *nam, struct proc *p)
 {
 	return EOPNOTSUPP;
 }
