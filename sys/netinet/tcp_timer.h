@@ -90,7 +90,13 @@
 #define	TCPTV_KEEPINTVL	( 75*hz)		/* default probe interval */
 #define	TCPTV_KEEPCNT	8			/* max probes before drop */
 
-#define	TCPTV_MIN	(  1*hz)		/* minimum allowable value */
+/*
+ * Minimum retransmit timer is 3 ticks, for algorithmic stability.
+ * The maximum is 64 seconds.  The prior minimum of 1*hz (1 second) badly
+ * breaks throughput on any networks faster then a modem that has minor
+ * (e.g. 1%) packet loss.
+ */
+#define	TCPTV_MIN	( 3 )			/* minimum allowable value */
 #define	TCPTV_REXMTMAX	( 64*hz)		/* max allowable REXMT value */
 
 #define TCPTV_TWTRUNC	8			/* RTO factor to truncate TW */
