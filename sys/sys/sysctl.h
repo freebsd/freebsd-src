@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.20 1995/02/20 19:42:40 guido Exp $
+ * $Id: sysctl.h,v 1.21 1995/03/16 18:16:26 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -135,7 +135,8 @@ struct ctlname {
 #define	KERN_BOOTFILE		26	/* string: name of booted kernel */
 #define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
 #define	KERN_MAXPROCPERUID 	28	/* int: max processes per uid */
-#define KERN_MAXID              29      /* number of valid kern ids */
+#define KERN_DUMPDEV		29	/* dev_t: device to dump on */
+#define KERN_MAXID              30      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -167,6 +168,7 @@ struct ctlname {
 	{ "bootfile", CTLTYPE_STRING }, \
 	{ "maxfilesperproc", CTLTYPE_INT }, \
 	{ "maxprocperuid", CTLTYPE_INT }, \
+	{ "dumpdev", CTLTYPE_STRUCT }, /* we lie; don't print as int */ \
 }
 
 /*
