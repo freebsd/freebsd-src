@@ -93,9 +93,22 @@ If set
 .Nm
 will print a table containing all relocations before symbol
 binding and relocation.
+.It Ev LD_LIBMAP
+A library replacement list in the same format as
+.Xr libmap.conf 5 .
+For convenience, the characters
+.Ql =
+and
+.Ql \&,
+can be used instead of a space and a newline.
+This variable is parsed after 
+.Xr libmap.conf 5 ,
+and will override its entries.
 .It Ev LD_LIBMAP_DISABLE
 If set, disables the use of
-.Xr libmap.conf 5 .
+.Xr libmap.conf 5 
+and
+.Ev LD_LIBMAP .
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
 for shared libraries.
