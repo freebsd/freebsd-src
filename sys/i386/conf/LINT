@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.520 1998/12/27 19:51:34 phk Exp $
+#	$Id: LINT,v 1.521 1998/12/27 21:46:55 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -177,6 +177,10 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 # Pentiums) from locking up when a LOCK CMPXCHG8B instruction is
 # executed.  This should be included for ALL kernels that won't run
 # on a Pentium.
+#
+# NO_MEMORY_HOLE is an optimisation for systems with AMD K6 processors
+# which indicates that the 15-16MB range is *definitely* not being 
+# occupied by an ISA memory hole.
 #
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
 # CPU_LOOP_ENand CPU_RSTK_EN should not be used becasue of CPU bugs.
