@@ -43,7 +43,7 @@
 .Nd convert and copy a file
 .Sh SYNOPSIS
 .Nm
-.Op operands ...
+.Op Ar operands ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -57,10 +57,11 @@ displays the number of complete and partial input and output blocks
 and truncated input records to the standard error output.
 .Pp
 The following operands are available:
+.\" XXX
 .Bl -tag -width of=file
-.It Cm bs= Ns Ar n
+.It Cm bs Ns = Ns Ar n
 Set both input and output block size to
-.Va n
+.Ar n
 bytes, superseding the
 .Cm ibs
 and
@@ -73,40 +74,40 @@ or
 .Cm sync
 are specified, then each input block is copied to the output as a
 single block without any aggregation of short blocks.
-.It Cm cbs= Ns Ar n
+.It Cm cbs Ns = Ns Ar n
 Set the conversion record size to
-.Va n
+.Ar n
 bytes.
 The conversion record size is required by the record oriented conversion
 values.
-.It Cm count= Ns Ar n
+.It Cm count Ns = Ns Ar n
 Copy only
-.Va n
+.Ar n
 input blocks.
-.It Cm files= Ns Ar n
+.It Cm files Ns = Ns Ar n
 Copy
-.Va n
+.Ar n
 input files before terminating.
 This operand is only applicable when the input device is a tape.
-.It Cm ibs= Ns Ar n
+.It Cm ibs Ns = Ns Ar n
 Set the input block size to
-.Va n
+.Ar n
 bytes instead of the default 512.
-.It Cm if= Ns Ar file
+.It Cm if Ns = Ns Ar file
 Read input from
 .Ar file
 instead of the standard input.
-.It Cm iseek= Ns Ar n
+.It Cm iseek Ns = Ns Ar n
 Seek on the input file
-.Va n
+.Ar n
 blocks.
 This is synonymous with
-.Cm skip= Ns Ar n .
-.It Cm obs= Ns Ar n
+.Cm skip Ns = Ns Ar n .
+.It Cm obs Ns = Ns Ar n
 Set the output block size to
-.Va n
+.Ar n
 bytes instead of the default 512.
-.It Cm of= Ns Ar file
+.It Cm of Ns = Ns Ar file
 Write output to
 .Ar file
 instead of the standard output.
@@ -117,15 +118,15 @@ If an initial portion of the output file is seeked past (see the
 .Cm oseek
 operand),
 the output file is truncated at that point.
-.It Cm oseek= Ns Ar n
+.It Cm oseek Ns = Ns Ar n
 Seek on the output file
-.Va n
+.Ar n
 blocks.
 This is synonymous with
-.Cm seek= Ns Ar n .
-.It Cm seek= Ns Ar n
+.Cm seek Ns = Ns Ar n .
+.It Cm seek Ns = Ns Ar n
 Seek
-.Va n
+.Ar n
 blocks from the beginning of the output before copying.
 On non-tape devices, an
 .Xr lseek 2
@@ -137,11 +138,11 @@ using the tape
 function calls.
 If the seek operation is past the end of file, space from the current
 end of file to the specified offset is filled with blocks of
-.Tn NUL
+.Dv NUL
 bytes.
-.It Cm skip= Ns Ar n
+.It Cm skip Ns = Ns Ar n
 Skip
-.Va n
+.Ar n
 blocks from the beginning of the input before copying.
 On input which supports seeks, an
 .Xr lseek 2
@@ -150,14 +151,11 @@ Otherwise, input data is read and discarded.
 For pipes, the correct number of bytes is read.
 For all other devices, the correct number of blocks is read without
 distinguishing between a partial or complete block being read.
-.It Xo
-.Cm conv=
-.Ns Cm value Ns Op \&, Cm value \&...
-.Xc
+.It Cm conv Ns = Ns Ar value Ns Op , Ns Ar value ...
 Where
 .Cm value
 is one of the symbols from the following list.
-.Bl -tag -width unblock
+.Bl -tag -width ".Cm unblock"
 .It Cm ascii , oldascii
 The same as the
 .Cm unblock
@@ -176,11 +174,12 @@ There are two conversion maps for
 .Tn ASCII .
 The value
 .Cm ascii
-specifies the recommended one which is compatible with System V.
+specifies the recommended one which is compatible with
+.At V .
 The value
 .Cm oldascii
 specifies the one used in historic
-.Tn AT&T
+.At
 and
 .No pre- Ns Bx 4.3 reno
 systems.
@@ -227,7 +226,7 @@ The values
 and
 .Cm oldibm
 are maps used in historic
-.Tn AT&T
+.At
 and
 .No pre- Ns Bx 4.3 reno
 systems.
@@ -242,7 +241,7 @@ If the
 .Cm sync
 conversion is also specified, any missing input data will be replaced
 with
-.Tn NUL
+.Dv NUL
 bytes (or with spaces if a block oriented conversion value was
 specified) and processed as a normal input buffer.
 If the
@@ -266,14 +265,14 @@ after conversion, this conversion forces the final output block
 to be the same size as preceding blocks for use on devices that require
 regularly sized blocks to be written.
 This option is incompatible with use of the
-.Cm bs= Ns Ar n
+.Cm bs Ns = Ns Ar n
 block size specification.
 .It Cm sparse
 If one or more output blocks would consist solely of
-.Tn NUL
+.Dv NUL
 bytes, try to seek the output file by the required space instead of
 filling them with
-.Tn NULs ,
+.Dv NUL Ns s ,
 resulting in a sparse file.
 .It Cm swab
 Swap every pair of input bytes.
@@ -283,7 +282,7 @@ ignored during swapping.
 Pad every input block to the input buffer size.
 Spaces are used for pad bytes if a block oriented conversion value is
 specified, otherwise
-.Tn NUL
+.Dv NUL
 bytes are used.
 .It Cm ucase
 Transform lowercase characters into uppercase characters.
@@ -300,10 +299,19 @@ appended.
 .Pp
 Where sizes are specified, a decimal, octal, or hexadecimal number of
 bytes is expected.
-If the number ends with a ``b'', ``k'', ``m'', ``g'',  or ``w'', the
+If the number ends with a
+.Dq Li b ,
+.Dq Li k ,
+.Dq Li m ,
+.Dq Li g ,
+or
+.Dq Li w ,
+the
 number is multiplied by 512, 1024 (1K), 1048576 (1M), 1073741824 (1G)
 or the number of bytes in an integer, respectively.
-Two or more numbers may be separated by an ``x'' to indicate a product.
+Two or more numbers may be separated by an
+.Dq Li x
+to indicate a product.
 .Pp
 When finished,
 .Nm
@@ -332,7 +340,9 @@ If
 .Nm
 receives a
 .Dv SIGINFO
-(see the ``status'' argument for
+(see the
+.Cm status
+argument for
 .Xr stty 1 )
 signal, the current input and output block counts will
 be written to the standard error output
@@ -369,5 +379,5 @@ operand and the
 and
 .Cm oldibm
 values are extensions to the
-.Tn POSIX
+\*[Px]
 standard.
