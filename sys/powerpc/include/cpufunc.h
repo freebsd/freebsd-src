@@ -51,16 +51,16 @@ breakpoint(void)
 /* CPU register mangling inlines */
 
 static __inline void
-mtmsr(unsigned int value)
+mtmsr(register_t value)
 {
 
 	__asm __volatile ("mtmsr %0" :: "r"(value));
 }
 
-static __inline unsigned int
+static __inline register_t
 mfmsr(void)
 {
-	unsigned int	value;
+	register_t	value;
 
 	__asm __volatile ("mfmsr %0" : "=r"(value));
 
@@ -68,20 +68,27 @@ mfmsr(void)
 }
 
 static __inline void
-mtdec(unsigned int value)
+mtdec(register_t value)
 {
 
 	__asm __volatile ("mtdec %0" :: "r"(value));
 }
 
-static __inline unsigned int
+static __inline register_t
 mfdec(void)
 {
-	unsigned int	value;
+	register_t	value;
 
 	__asm __volatile ("mfdec %0" : "=r"(value));
 
 	return (value);
+}
+
+static __inline void
+isync(void)
+{
+
+	__asm __volatile ("isync");
 }
 
 static __inline register_t
