@@ -91,7 +91,7 @@ struct cfdriver ohci_cd = {
 #ifdef OHCI_DEBUG
 #define DPRINTF(x)	if (ohcidebug) logprintf x
 #define DPRINTFN(n,x)	if (ohcidebug>(n)) logprintf x
-int ohcidebug = 0;
+int ohcidebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -360,8 +360,8 @@ ohci_detach(sc, flags)
 	if (rv != 0)
 		return (rv);
 
+#if defined(__NetBSD__)
 	powerhook_disestablish(sc->sc_powerhook);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 	shutdownhook_disestablish(sc->sc_shutdownhook);
 #endif
 	/* free data structures XXX */
@@ -417,6 +417,7 @@ ohci_alloc_std(sc)
 	usbd_status err;
 	int i, offs;
 	usb_dma_t dma;
+	int s;
 
 	if (sc->sc_freetds == NULL) {
 		DPRINTFN(2, ("ohci_alloc_std: allocating chunk\n"));
@@ -436,6 +437,11 @@ ohci_alloc_std(sc)
 	sc->sc_freetds = std->nexttd;
 	memset(&std->td, 0, sizeof(ohci_td_t));
 	std->nexttd = NULL;
+
+	s = splusb();
+	ohci_hash_add_td(sc, std);
+	splx(s);
+
 	return (std);
 }
 
@@ -444,6 +450,12 @@ ohci_free_std(sc, std)
 	ohci_softc_t *sc;
 	ohci_soft_td_t *std;
 {
+	int s;
+
+	s = splusb();
+	ohci_hash_rem_td(sc, std);
+	splx(s);
+
 	std->nexttd = sc->sc_freetds;
 	sc->sc_freetds = std;
 }
@@ -812,8 +824,8 @@ ohci_init(sc)
 	sc->sc_bus.methods = &ohci_bus_methods;
 	sc->sc_bus.pipe_size = sizeof(struct ohci_pipe);
 
+#if defined(__NetBSD__)
 	sc->sc_powerhook = powerhook_establish(ohci_power, sc);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 	sc->sc_shutdownhook = shutdownhook_establish(ohci_shutdown, sc);
 #endif
 
@@ -1156,7 +1168,7 @@ ohci_process_done(sc, done)
 	if (ohcidebug > 10) {
 		DPRINTF(("ohci_process_done: TD done:\n"));
 		for (std = sdone; std; std = std->dnext)
-			ohci_dump_td(std);
+			ohci_dump_td(sdone);
 	}
 #endif
 
@@ -1164,7 +1176,16 @@ ohci_process_done(sc, done)
 		xfer = std->xfer;
 		stdnext = std->dnext;
 		DPRINTFN(5, ("ohci_process_done: std=%p xfer=%p hcpriv=%p\n",
-				std, xfer, xfer->hcpriv));
+				std, xfer, (xfer? xfer->hcpriv:NULL)));
+		if (xfer == NULL || (std->flags & OHCI_TD_HANDLED)) {
+			/* xfer == NULL: There seems to be no xfer associated
+			 * with this TD. It is tailp that happened to end up on
+			 * the done queue.
+			 * flags & OHCI_TD_HANDLED: The TD has already been
+			 * handled by process_done and should not be done again.
+			 */
+			continue;
+		}
 		cc = OHCI_TD_GET_CC(LE(std->td.td_flags));
 		usb_untimeout(ohci_timeout, xfer, xfer->timo_handle);
 		if (xfer->status == USBD_CANCELLED ||
@@ -1173,7 +1194,7 @@ ohci_process_done(sc, done)
 				 xfer));
 			/* Handled by abort routine. */
 		} else if (cc == OHCI_CC_NO_ERROR) {
-			DPRINTF(("ohci_process_done: no error, xfer=%p\n",
+			DPRINTFN(15, ("ohci_process_done: no error, xfer=%p\n",
 				 xfer));
 			len = std->len;
 			if (std->td.td_cbp != 0)
@@ -1185,7 +1206,6 @@ ohci_process_done(sc, done)
 				xfer->status = USBD_NORMAL_COMPLETION;
 				usb_transfer_complete(xfer);
 			}
-			ohci_hash_rem_td(sc, std);
 			ohci_free_std(sc, std);
 		} else {
 			/*
@@ -1202,15 +1222,22 @@ ohci_process_done(sc, done)
 			  ohci_cc_strs[OHCI_TD_GET_CC(LE(std->td.td_flags))],
 			  xfer));
 
-			/* remove TDs */
-			for (p = std; p->xfer == xfer; p = n) {
-				n = p->nexttd;
-				ohci_hash_rem_td(sc, p);                        
-				ohci_free_std(sc, p);
+			/* Mark all the TDs in the done queue for the current
+			 * xfer as handled
+			 */
+			for (p = stdnext; p; p = p->dnext) {
+				if (p->xfer == xfer)
+					p->flags |= OHCI_TD_HANDLED;
 			}
 
-			/* clear halt */
+			/* remove TDs for the current xfer from the ED */
+			for (p = std; p->xfer == xfer; p = n) {
+				n = p->nexttd;
+				ohci_free_std(sc, p);
+			}
 			opipe->sed->ed.ed_headp = LE(p->physaddr);
+
+			/* XXX why is this being done? Why not OHCI_BLF too */
 			OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
 
 			if (cc == OHCI_CC_STALL)
@@ -1368,6 +1395,9 @@ ohci_waitintr(sc, xfer)
 
 	/* Timeout */
 	DPRINTF(("ohci_waitintr: timeout\n"));
+#ifdef OHCI_DEBUG
+	ohci_dumpregs(sc);
+#endif
 	xfer->status = USBD_TIMEOUT;
 	usb_transfer_complete(xfer);
 	/* XXX should free TD */
@@ -1491,10 +1521,6 @@ ohci_device_request(xfer)
 
 	/* Insert ED in schedule */
 	s = splusb();
-	ohci_hash_add_td(sc, setup);
-	if (len != 0)
-		ohci_hash_add_td(sc, data);
-	ohci_hash_add_td(sc, stat);
 	sed->ed.ed_tailp = LE(tail->physaddr);
 	opipe->tail.td = tail;
 	OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
@@ -1899,7 +1925,6 @@ ohci_abort_xfer_end(v)
 #endif
 	for (; p->xfer == xfer; p = n) {
 		n = p->nexttd;
-		ohci_hash_rem_td(sc, p);
 		ohci_free_std(sc, p);
 	}
 
