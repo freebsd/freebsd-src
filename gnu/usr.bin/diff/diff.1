@@ -141,6 +141,10 @@ Use
 .I format
 to output a line group containing differing lines from
 both files in if-then-else format.
+For more details on what can be specified in the
+.I format
+string, consult the info documentation of
+.I diff .
 .TP
 .B \-d
 Change the algorithm to perhaps find a smaller set of changes.  This makes
@@ -312,6 +316,9 @@ Use
 .I format
 to output a line taken from just the first file in
 if-then-else format.
+.TP
+.B \-p
+Show which C function each change is in.
 .TP
 .B \-P
 When comparing directories, if a file appears only in the second
