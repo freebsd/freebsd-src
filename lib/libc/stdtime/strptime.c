@@ -53,7 +53,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id$";
+	"$Id: strptime.c,v 1.2 1997/08/09 15:43:56 joerg Exp $";
 #endif
 
 #ifndef lint
@@ -87,8 +87,8 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 		c = *ptr++;
 
 		if (c != '%') {
-			if (isspace(c))
-				while (*buf != 0 && isspace(*buf))
+			if (isspace((unsigned char)c))
+				while (*buf != 0 && isspace((unsigned char)*buf))
 					buf++;
 			else if (c != *buf++)
 				return 0;
@@ -152,10 +152,10 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 			break;
 
 		case 'j':
-			if (!isdigit(*buf))
+			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit(*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
 			}
@@ -167,13 +167,13 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 
 		case 'M':
 		case 'S':
-			if (*buf == 0 || isspace(*buf))
+			if (*buf == 0 || isspace((unsigned char)*buf))
 				break;
 
-			if (!isdigit(*buf))
+			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit(*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
 			}
@@ -185,8 +185,8 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 			else
 				tm->tm_sec = i;
 
-			if (*buf != 0 && isspace(*buf))
-				while (*ptr != 0 && !isspace(*ptr))
+			if (*buf != 0 && isspace((unsigned char)*buf))
+				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
 			break;
 
@@ -194,10 +194,10 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 		case 'I':
 		case 'k':
 		case 'l':
-			if (!isdigit(*buf))
+			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit(*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
 			}
@@ -209,8 +209,8 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 
 			tm->tm_hour = i;
 
-			if (*buf != 0 && isspace(*buf))
-				while (*ptr != 0 && !isspace(*ptr))
+			if (*buf != 0 && isspace((unsigned char)*buf))
+				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
 			break;
 
@@ -261,10 +261,10 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 
 		case 'd':
 		case 'e':
-			if (!isdigit(*buf))
+			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit(*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
 			}
@@ -273,8 +273,8 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 
 			tm->tm_mday = i;
 
-			if (*buf != 0 && isspace(*buf))
-				while (*ptr != 0 && !isspace(*ptr))
+			if (*buf != 0 && isspace((unsigned char)*buf))
+				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
 			break;
 
@@ -302,10 +302,10 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 			break;
 
 		case 'm':
-			if (!isdigit(*buf))
+			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit(*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
 			}
@@ -314,20 +314,20 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 
 			tm->tm_mon = i - 1;
 
-			if (*buf != 0 && isspace(*buf))
-				while (*ptr != 0 && !isspace(*ptr))
+			if (*buf != 0 && isspace((unsigned char)*buf))
+				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
 			break;
 
 		case 'Y':
 		case 'y':
-			if (*buf == 0 || isspace(*buf))
+			if (*buf == 0 || isspace((unsigned char)*buf))
 				break;
 
-			if (!isdigit(*buf))
+			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit(*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
 			}
@@ -338,8 +338,8 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 
 			tm->tm_year = i;
 
-			if (*buf != 0 && isspace(*buf))
-				while (*ptr != 0 && !isspace(*ptr))
+			if (*buf != 0 && isspace((unsigned char)*buf))
+				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
 			break;
 		}
