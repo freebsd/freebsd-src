@@ -1,34 +1,36 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../common
-
-PROG= 		skiload
+PROG=		skiload
 NOMAN=
 NEWVERSWHAT=	"ia64 SKI boot" ${MACHINE_ARCH}
-BINDIR?=	/boot
 STRIP=		# We must not strip skiload at install time.
 
-SRCS=		conf.c main.c start.S vers.c
+SRCS=		acpi_stub.c bootinfo.c conf.c copy.c delay.c devicename.c \
+		efi_stub.c elf_freebsd.c exit.c main.c pal_stub.S sal_stub.c \
+		skiconsole.c skifs.c ssc.c start.S time.c vers.c
+
+CFLAGS+=	-DLOADER
+CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-I${.CURDIR}/../../efi/include
+CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
+LDFLAGS=	-Wl,-T${.CURDIR}/ldscript.ia64
 
 .if !defined(NOFORTH)
-# Enable BootForth
-BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
-CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/../../ficl
+CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_ARCH}
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+BOOT_FORTH=	yes
 .endif
 
-LIBSKI=		${.OBJDIR}/../libski/libski.a
-
-# Always add MI sources 
+# Always add MI sources (needs BOOT_FORTH)
 .PATH: ${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../common
 .include "${.CURDIR}/../../common/Makefile.inc"
 
-CFLAGS+= -I${.CURDIR}/../../common
-CFLAGS+= -I${.CURDIR}/../libski
-CFLAGS+= -DLOADER
-
-LDFLAGS=	-Wl,-T${.CURDIR}/ldscript.ia64
+DPADD=	${LIBFICL} ${LIBSTAND}
+LDADD=	${LIBFICL} -lstand
 
 CLEANFILES=	vers.c ${PROG}.help
 
@@ -40,8 +42,5 @@ ${PROG}.help: help.common
 	    > ${.TARGET}
 
 FILES=	${PROG}.help
-
-DPADD=	${LIBFICL} ${LIBSKI} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBSKI} -lstand
 
 .include <bsd.prog.mk>
