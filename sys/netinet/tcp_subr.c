@@ -412,7 +412,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 #endif /* INET6 */
 	ip = ipgen;
 
-	if (tp) {
+	if (tp != NULL) {
 		inp = tp->t_inpcb;
 		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
 		INP_INFO_WLOCK_ASSERT(&tcbinfo);
@@ -1318,7 +1318,7 @@ tcp_drop_syn_sent(inp, errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
-	if (tp && tp->t_state == TCPS_SYN_SENT) {
+	if (tp != NULL && tp->t_state == TCPS_SYN_SENT) {
 		tcp_drop(tp, errno);
 		return (struct inpcb *)0;
 	}
