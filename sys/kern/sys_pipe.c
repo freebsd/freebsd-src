@@ -63,6 +63,7 @@
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
+#include <sys/vnode.h>
 #include <sys/uio.h>
 
 #include <vm/vm.h>
@@ -253,7 +254,7 @@ pipeinit(cpipe)
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
 	cpipe->pipe_busy = 0;
-	getnanotime(&cpipe->pipe_ctime);
+	vfs_timestamp(&cpipe->pipe_ctime);
 	cpipe->pipe_atime = cpipe->pipe_ctime;
 	cpipe->pipe_mtime = cpipe->pipe_ctime;
 	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
@@ -439,7 +440,7 @@ pipe_read(fp, uio, cred, flags, p)
 	pipeunlock(rpipe);
 
 	if (error == 0)
-		getnanotime(&rpipe->pipe_atime);
+		vfs_timestamp(&rpipe->pipe_atime);
 unlocked_error:
 	--rpipe->pipe_busy;
 
@@ -944,7 +945,7 @@ pipe_write(fp, uio, cred, flags, p)
 		error = 0;
 
 	if (error == 0)
-		getnanotime(&wpipe->pipe_mtime);
+		vfs_timestamp(&wpipe->pipe_mtime);
 
 	/*
 	 * We have something to offer,
