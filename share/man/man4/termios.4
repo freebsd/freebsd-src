@@ -237,7 +237,8 @@ upon receiving the character.
 .Pp
 Two general kinds of input processing are available, determined by
 whether the terminal device file is in canonical mode or noncanonical
-mode. Additionally,
+mode.
+Additionally,
 input characters are processed according to the
 .Fa c_iflag
 and
@@ -924,10 +925,12 @@ is set, start/stop output control is enabled.  A received
 character suspends output and a received
 .Dv START
 character
-restarts output. If
+restarts output.
+If
 .Dv IXANY
 is also set, then any character may
-restart output. When
+restart output.
+When
 .Dv IXON
 is set,
 .Dv START

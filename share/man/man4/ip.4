@@ -103,7 +103,8 @@ header for
 .Dv SOCK_STREAM 
 and 
 .Dv SOCK_DGRAM 
-sockets. For example,
+sockets.
+For example,
 .Bd -literal
 int tos = IPTOS_LOWDELAY;       /* see <netinet/in.h> */
 setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
@@ -137,7 +138,8 @@ cmsg_type = IP_RECVDSTADDR
 .Pp
 .Dv IP_PORTRANGE 
 may be used to set the port range used for selecting a local port number
-on a socket with an unspecified (zero) port number. It has the following
+on a socket with an unspecified (zero) port number.
+It has the following
 possible values:
 .Bl -tag -width IP_PORTRANGE_DEFAULT
 .It Dv IP_PORTRANGE_DEFAULT

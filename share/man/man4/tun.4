@@ -72,7 +72,8 @@ is exclusive-open
 .Po
 it cannot be opened if it is already open
 .Pc
-and is restricted to the super-user. A
+and is restricted to the super-user.
+A
 .Fn read
 call will return an error
 .Pq Er EHOSTDOWN
@@ -97,7 +98,8 @@ to the network interface output routine
 .Pq Sq Li tunoutput .
 The destination address is in
 .Sq Li struct sockaddr
-format. The actual length of the prepended address is in the member
+format.
+The actual length of the prepended address is in the member
 .Sq Li sa_len .
 The packet data follows immediately.
 A

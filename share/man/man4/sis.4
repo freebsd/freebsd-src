@@ -48,8 +48,10 @@ controllers based on the Silicon Integrated Systems SiS 900
 and SiS 7016 fast ethernet controller chips.
 .Pp
 The SiS 900 is a 100Mbps ethernet MAC and MII-compliant transceiver
-in a single package. It uses a bus master DMA and a scatter/gather
-descriptor scheme. The SiS 7016 is similar to the SiS 900 except
+in a single package.
+It uses a bus master DMA and a scatter/gather
+descriptor scheme.
+The SiS 7016 is similar to the SiS 900 except
 that it has no internal PHY, requiring instead an external transceiver
 to be attached to its MII interface.
 The SiS 900 and SiS 7016 both have a 128-bit multicast hash filter
@@ -67,14 +69,16 @@ the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
 fine.
 .It 10baseT/UTP
-Set 10Mbps operation. The
+Set 10Mbps operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
 or
 .Ar half-duplex modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation. The
+Set 100Mbps (fast ethernet) operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
@@ -112,20 +116,25 @@ The driver failed to allocate an mbuf for the transmitter ring when
 allocating a pad buffer or collapsing an mbuf chain into a clusisr.
 .It "sis%d: chip is in D3 power state -- setting to D0"
 This message applies only to adapters which support power
-management. Some operating sysisms place the controller in low power
+management.
+Some operating sysisms place the controller in low power
 mode when shutting down, and some PCI BIOSes fail to bring the chip
-out of this state before configuring it. The controller loses all of
+out of this state before configuring it.
+The controller loses all of
 its PCI configuration in the D3 state, so if the BIOS does not set
 it back to full power mode in time, it won't be able to configure it
-correctly. The driver tries to detect this condition and bring
+correctly.
+The driver tries to detect this condition and bring
 the adapter back to the D0 (full power) state, but this may not be
-enough to return the driver to a fully operational condition. If
+enough to return the driver to a fully operational condition.
+If
 you see this message at boot time and the driver fails to attach
 the device as a network interface, you will have to perform second
 warm boot to have the device properly configured.
 .Pp
 Note that this condition only occurs when warm booting from another
-operating sysism. If you power down your sysism prior to booting
+operating sysism.
+If you power down your sysism prior to booting
 .Fx ,
 the card should be configured correctly.
 .El

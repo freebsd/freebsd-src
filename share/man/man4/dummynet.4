@@ -30,7 +30,8 @@ A dummynet
 is characterized by a bandwidth, delay, queue size, and loss
 rate, which can be configured with the
 .Nm ipfw
-program. Pipes are
+program.
+Pipes are
 numbered from 1 to 65534, and packets can be passed through multiple
 pipes depending on the ipfw configuration.
 .Pp
@@ -85,7 +86,8 @@ the ``pipe'' describing such limitations.
 .Pp
 Selected packets are first queued in a bounded size queue, from which
 they are extracted at the programmed rate and passed to a second queue
-where delay is simulated. At the output from the second queue packets
+where delay is simulated.
+At the output from the second queue packets
 are reinjected into the protocol stack at the same point they came
 from (i.e. ip_input(), ip_output(), bdg_forward() ).
 Depending on the setting of the sysctl variable
@@ -96,7 +98,8 @@ destination, or passed again through the
 rules, starting from the one after the matching rule.
 .Pp
 .Nm dummynet
-performs its task once per timer tick. The granularity of operation is
+performs its task once per timer tick.
+The granularity of operation is
 thus controlled by the kernel option
 .Bd -literal
     options HZ
@@ -104,9 +107,11 @@ thus controlled by the kernel option
 
 whose default value (100) means a granularity of 10ms.
 For an accurate simulation of high data rates it might be necessary to
-reduce the timer granularity to 1ms or less. Consider, however,
+reduce the timer granularity to 1ms or less.
+Consider, however,
 that some interfaces using programmed I/O may require a considerable
-time to output packets. So, reducing the granularity too much might
+time to output packets.
+So, reducing the granularity too much might
 actually cause ticks to be missed thus reducing the accuracy of
 operation.
 
@@ -177,6 +182,7 @@ dummynet.
 dummynet
 was initially implemented as a testing tool for TCP congestion control
 by Luigi Rizzo <luigi@iet.unipi.it>, as described on ACM Computer
-Communication Review, Jan.97 issue. Later it has been then modified
+Communication Review, Jan.97 issue.
+Later it has been then modified
 to work at the ip and bridging level, and integrated with the IPFW
 packet filter.

@@ -44,9 +44,12 @@ Aironet Communications 4500/4800 wireless network adapter driver
 The
 .Nm
 driver provides support for Aironet Communications 4500 and 4800
-wireless network adapters. This includes the ISA, PCI and PCMCIA
-varieties. The 4500 series adapters operate at 1 and 2Mbps while
-the 4800 series can operate at 1, 2, 5.5 and 11Mbps. The ISA, PCI
+wireless network adapters.
+This includes the ISA, PCI and PCMCIA
+varieties.
+The 4500 series adapters operate at 1 and 2Mbps while
+the 4800 series can operate at 1, 2, 5.5 and 11Mbps.
+The ISA, PCI
 and PCMCIA devices are all based on the same core PCMCIA modules
 and all have the same programming interface, however unlike the
 Lucent WaveLAN/IEEE cards, the ISA and PCI cards appear to the
@@ -56,23 +59,27 @@ support.
 The PCMCIA Aironet cards require pccard support, including the
 kernel pccard driver support and the
 .Xr pccardd 8
-daemon. ISA cards can either be configured to use ISA Plug and Play
+daemon.
+ISA cards can either be configured to use ISA Plug and Play
 or to use a particular I/O address and IRQ
 by properly setting the DIP switches on the board. (The default
 switch setting is for plug and play.) The
 .Nm
 driver has Plug and Play support and will work in either configuration,
 however when using a hard-wired I/O address and IRQ, the driver
-configuration and the NIC's switch settings must agree. PCI cards
+configuration and the NIC's switch settings must agree.
+PCI cards
 require no switch settings of any kind and will be automatically
 probed and attached.
 .Pp
 All host/device interaction with the Aironet cards is via programmed I/O.
 The Aironet devices support 802.11 and 802.3 frames, power management,
-BSS (infrastructure) and IBSS (ad-hoc) operation modes. The
+BSS (infrastructure) and IBSS (ad-hoc) operation modes.
+The
 .Nm
 driver encapsulates all IP and ARP traffic as 802.11 frames, however
-it can receive either 802.11 or 802.3 frames. Transmit speed is
+it can receive either 802.11 or 802.3 frames.
+Transmit speed is
 selectable between 1Mbps, 2Mbps, 5.5Mbps, 11Mbps or
 "auto" (the NIC automatically chooses the best speed).
 .Pp
@@ -81,7 +88,8 @@ By default, the
 driver configures the Aironet card for ad-hoc operation with an SSID
 of "ANY." In this mode,
 stations can communicate among each other without the aid of an access
-point. To join a service set, the driver must be set for BSS mode using
+point.
+To join a service set, the driver must be set for BSS mode using
 the
 .Xr ancontrol 8
 utility.

@@ -9,7 +9,8 @@
 .Nd Bridging support
 .Sh DESCRIPTION
 Starting from version 2.2.8, FreeBSD supports bridging on ethernet-type
-interfaces. This is achieved using the following option
+interfaces.
+This is achieved using the following option
 .Bd -literal
     options BRIDGE
 .Ed
@@ -28,10 +29,12 @@ Set to 1 to enable bridging, set to 0 to disable it
 
 Set to 1 to enable
 .Nm ipfw
-filtering on bridged packets. Note that
+filtering on bridged packets.
+Note that
 .Nm ipfw
 rules only apply
-to IP packets. Non-IP packets are subject to the default
+to IP packets.
+Non-IP packets are subject to the default
 .Nm ipfw
 rule
 .Pq number 65535
@@ -45,7 +48,8 @@ bridge.
 .Pp
 Care must be taken not to construct loops in the bridge topology.
 The kernel supports only a primitive form of loop detection, by disabling
-some interfaces when a loop is detected. No support for a daemon running the
+some interfaces when a loop is detected.
+No support for a daemon running the
 spanning tree algorithm is currently provided.
 .Pp
 With bridging active, interfaces are in promiscuous mode,

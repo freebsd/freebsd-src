@@ -107,7 +107,8 @@
 .Fn fpresetsticky "fp_except_t sticky"
 .Sh DESCRIPTION
 When a floating point exception is detected, the exception sticky flag is
-set and the exception mask is tested. If the mask is set, then a trap
+set and the exception mask is tested.
+If the mask is set, then a trap
 occurs.  These routines allow both setting the floating point exception
 masks, and  resetting the exception sticky flags after an exception is
 detected.  In addition, they allow setting the floating point rounding mode

@@ -61,7 +61,8 @@ As the
 .Tn SCSI
 adapter is probed during boot, the 
 .Tn SCSI
-bus is scanned for devices. Any devices found which answer as CDROM
+bus is scanned for devices.
+Any devices found which answer as CDROM
 (type 5) or WORM (type 4) type devices will be `attached' to the 
 .Nm
 driver.
@@ -370,11 +371,13 @@ The audio code in the
 .Nm
 driver only support
 .Tn SCSI-2
-standard audio commands. Because many 
+standard audio commands.
+Because many 
 .Tn CD-ROM
 manufacturers have not followed the standard, there are many
 .Tn CD-ROM
-drives for which audio will not work. Some work is planned to support
+drives for which audio will not work.
+Some work is planned to support
 some of the more common `broken' 
 .Tn CD-ROM
 drives; however, this is not yet under way.

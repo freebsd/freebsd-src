@@ -38,7 +38,8 @@ The
 .Xr ch
 driver provides support for a 
 .Em SCSI
-media changer. It allows many slots of media to be multiplexed between
+media changer.
+It allows many slots of media to be multiplexed between
 a number of drives.  The changer device may optionally be equipped
 with a bar code reader, which reads label informationen attached to
 the media.
@@ -48,7 +49,8 @@ before a SCSI changer can be configured.
 .Pp
 As the SCSI adapter is probed during boot, the 
 .Em SCSI
-bus is scanned for devices. Any devices found which answer as 'Changer'
+bus is scanned for devices.
+Any devices found which answer as 'Changer'
 type devices will be 'attached' to the 
 .Nm
 driver.
@@ -91,7 +93,8 @@ Data transfer element (drive).
 .Pp
 The following 
 .Xr ioctl 2
-calls apply to the changer. They are defined
+calls apply to the changer.
+They are defined
 in the header file
 .Aq Pa sys/chio.h .
 .Pp
