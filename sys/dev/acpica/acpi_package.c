@@ -123,3 +123,34 @@ acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *rid,
 
     return (0);
 }
+
+ACPI_HANDLE
+acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj)
+{
+    ACPI_HANDLE h;
+
+    if (obj == NULL)
+	return (NULL);
+
+    switch (obj->Type) {
+    case ACPI_TYPE_LOCAL_REFERENCE:
+    case ACPI_TYPE_ANY:
+	h = obj->Reference.Handle;
+	break;
+    case ACPI_TYPE_STRING:
+	/*
+	 * The String object usually contains a fully-qualified path, so
+	 * scope can be NULL.
+	 *
+	 * XXX This may not always be the case.
+	 */
+	if (ACPI_FAILURE(AcpiGetHandle(scope, obj->String.Pointer, &h)))
+	    h = NULL;
+	break;
+    default:
+	h = NULL;
+	break;
+    }
+
+    return (h);
+}
