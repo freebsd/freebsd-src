@@ -38,7 +38,7 @@
 .\"
 .Dd December 19, 1997
 .Dt LOCKF 3
-.Os NetBSD 1.4
+.Os
 .Sh NAME
 .Nm lockf
 .Nd record locking on files
@@ -179,12 +179,8 @@ locks may be safely used concurrently.
 .Pp
 Blocking on a section is interrupted by any signal.
 .Sh RETURN VALUES
-If successful, the
-.Fn lockf
-function returns 0.
-Otherwise, it returns -1, sets
-.Dv errno
-to indicate an error, and existing locks are not changed.
+.Rv -std lockf
+In the case of a failure, existing locks are not changed.
 .Sh ERRORS
 .Fn lockf
 will fail if:

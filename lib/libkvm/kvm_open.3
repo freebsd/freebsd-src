@@ -131,7 +131,9 @@ call.
 .Pp
 The
 .Fn kvm_openfiles
-function provides BSD style error reporting.
+function provides
+.Bx
+style error reporting.
 Here, error messages are not printed out by the library.
 Instead, the application obtains the error message
 corresponding to the most recent kvm library call using
@@ -174,7 +176,9 @@ function returns 0 on success and -1 on failure.
 .Sh BUGS
 There should not be two open calls.  The ill-defined error semantics
 of the Sun library and the desire to have a backward-compatible library
-for BSD left little choice.
+for
+.Bx
+left little choice.
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr kvm 3 ,

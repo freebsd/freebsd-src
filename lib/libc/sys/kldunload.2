@@ -27,7 +27,7 @@
 .\"
 .Dd March 3, 1999
 .Dt KLDUNLOAD 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm kldunload
 .Nd unload kld files
@@ -71,7 +71,9 @@ You attempted to unload a file linked by the kernel.
 .Xr kldload 2 ,
 .Xr kldnext 2 ,
 .Xr kldstat 2 ,
+.Xr kldsym 2 ,
 .Xr modfind 2 ,
+.Xr modfnext 2 ,
 .Xr modnext 2 ,
 .Xr modstat 2 ,
 .Xr kld 4 ,

@@ -10,7 +10,7 @@
 .\"
 .Dd February 11, 1999
 .Dt MDX 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm MDXInit ,
 .Nm MDXUpdate ,
@@ -99,7 +99,7 @@ When using
 or
 .Fn MDXData ,
 the
-.Ar buf
+.Fa buf
 argument can be a null pointer, in which case the returned string
 is allocated with
 .Xr malloc 3
@@ -107,7 +107,7 @@ and subsequently must be explicitly deallocated using
 .Xr free 3
 after use.
 If the
-.Ar buf
+.Fa buf
 argument is non-null it must point to at least 33 characters of buffer space.
 .Sh SEE ALSO
 .Xr md2 3 ,

@@ -34,7 +34,7 @@
 .\"
 .Dd February 15, 1995
 .Dt SEND 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm send ,
 .Nm sendto ,
@@ -108,7 +108,7 @@ The flag
 .Dv MSG_OOB
 is used to send
 .Dq out-of-band
-data on sockets that support this notion (e.g.
+data on sockets that support this notion (e.g.\&
 .Dv SOCK_STREAM ) ;
 the underlying protocol must also support
 .Dq out-of-band
@@ -186,7 +186,8 @@ doesn't necessarily block until the data has been transferred, it
 is possible to transfer an open file descriptor across an
 .Dv AF_UNIX
 domain socket
-.Pq see Xr recv 2 ,
+(see
+.Xr recv 2 ) ,
 then
 .Fn close
 it before it has actually been sent, the result being that the receiver

@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt FTIME 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm ftime
 .Nd get date and time
@@ -47,7 +47,8 @@
 .Fn ftime "struct timeb *tp"
 .Sh DESCRIPTION
 .Bf -symbolic
-This interface is obsoleted by gettimeofday(2).
+This interface is obsoleted by
+.Xr gettimeofday 2 .
 .Ef
 .Pp
 The

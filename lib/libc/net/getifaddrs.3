@@ -114,11 +114,13 @@ field references address family specific data.  For
 .Dv AF_LINK
 addresses it contains a pointer to the
 .Fa struct if_data
-.Pq as defined in include file Aq Pa net/if.h
+(as defined in include file
+.Aq Pa net/if.h )
 which contains various interface attributes and statistics.
 For all other address families, it contains a pointer to the
 .Fa struct ifa_data
-.Pq as defined in include file Aq Pa net/if.h
+(as defined in include file
+.Aq Pa net/if.h )
 which contains per-address interface statistics.
 .Pp
 The data returned by
@@ -161,4 +163,5 @@ be included before
 .Sh HISTORY
 The
 .Nm
-implementation first appeared in BSDI BSD/OS.
+implementation first appeared in BSDi
+.Bsx .

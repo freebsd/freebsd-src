@@ -78,13 +78,7 @@ with the correct machine context for vm86, and with the
 .Em PSL_VM
 bit set.  Control returns to the process upon delivery of a signal.
 .Sh RETURN VALUES
-Upon successful completion,
-.Fn i386_vm86
-will return the value of 0.
-Otherwise, a value of -1 is returned and the global
-variable
-.Va errno
-is set to indicate the error.
+.Rv -std i386_vm86
 .Sh ERRORS
 .Fn i386_vm86
 will fail if:

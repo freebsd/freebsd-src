@@ -34,7 +34,7 @@
 .\"
 .Dd April 19, 1994
 .Dt SIGVEC 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm sigvec
 .Nd software signal facilities
@@ -53,7 +53,8 @@ struct sigvec {
 .Fn sigvec "int sig" "struct sigvec *vec" "struct sigvec *ovec"
 .Sh DESCRIPTION
 .Bf -symbolic
-This interface is made obsolete by sigaction(2).
+This interface is made obsolete by
+.Xr sigaction 2 .
 .Ef
 .Pp
 The system defines a set of signals that may be delivered to a process.
@@ -255,10 +256,7 @@ flag is not available in
 .Bx 4.2 ,
 hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
-A 0 value indicated that the call succeeded.  A \-1 return value
-indicates an error occurred and
-.Va errno
-is set to indicated the reason.
+.Rv -std sigvec
 .Sh ERRORS
 .Fn Sigvec
 will fail and no new signal handler will be installed if one

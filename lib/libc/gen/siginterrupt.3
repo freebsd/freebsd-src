@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt SIGINTERRUPT 3
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm siginterrupt
 .Nd allow signals to interrupt system calls
@@ -99,8 +99,16 @@ system call that is not available in
 .Bx 4.2 ,
 hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
-A 0 value indicates that the call succeeded.
-A \-1 value indicates that an invalid signal number has been supplied.
+.Rv -std siginterrupt
+.Sh ERRORS
+The
+.Fn siginterrupt
+call fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa sig
+is not a valid signal number.
+.El
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr sigblock 2 ,

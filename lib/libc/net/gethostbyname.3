@@ -34,7 +34,7 @@
 .\"
 .Dd May 25, 1995
 .Dt GETHOSTBYNAME 3
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm gethostbyname ,
 .Nm gethostbyname2 ,
@@ -78,7 +78,7 @@ following structure describing an internet host
 referenced by name or by address, respectively.
 This structure contains either the information obtained from the name server,
 .Xr named 8 ,
-or broken-out fields from a line in 
+or broken-out fields from a line in
 .Pa /etc/hosts .
 If the local name server is not running these routines do a lookup in
 .Pa /etc/hosts .
@@ -205,7 +205,9 @@ Error return status from
 .Fn gethostbyname2
 and
 .Fn gethostbyaddr
-is indicated by return of a null pointer.
+is indicated by return of a
+.Dv NULL
+pointer.
 The external integer
 .Va h_errno
 may then be checked to see whether this is a temporary failure

@@ -34,10 +34,10 @@
 .\"
 .Dd June 4, 1993
 .Dt BIND 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm bind
-.Nd assign a local protocol address to a socket.
+.Nd assign a local protocol address to a socket
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -86,10 +86,7 @@ Before returning,
 unlocks
 .Fa s .
 .Sh RETURN VALUES
-If the bind is successful, a 0 value is returned.
-A return value of -1 indicates an error, which is
-further specified in the global
-.Va errno .
+.Rv -std bind
 .Sh ERRORS
 The
 .Fn bind

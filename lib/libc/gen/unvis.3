@@ -43,9 +43,9 @@
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <vis.h>
-.Ft int 
+.Ft int
 .Fn unvis "char *cp" "int c" "int *astate" "int flag"
-.Ft int 
+.Ft int
 .Fn strunvis "char *dst" "const char *src"
 .Sh DESCRIPTION
 The
@@ -58,7 +58,7 @@ by the
 .Xr vis 3
 function, back into
 the original form.  Unvis is called with successive characters in
-.Ar c 
+.Ar c
 until a valid
 sequence is recognized, at which time the decoded character is
 available at the character pointed to by
@@ -126,7 +126,9 @@ unknown state.  The decoder is placed into the starting state.
 .Pp
 When all bytes in the stream have been processed, call
 .Fn unvis
-one more time with flag set to
+one more time with
+.Ar flag
+set to
 .Dv UNVIS_END
 to extract any remaining character (the character passed in is ignored).
 .Pp

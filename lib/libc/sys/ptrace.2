@@ -4,7 +4,7 @@
 .\" This file is in the public domain.
 .Dd January 20, 1996
 .Dt PTRACE 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ptrace
 .Nd process tracing and debugging
@@ -23,10 +23,8 @@ process) to control another (the
 .Em traced
 process).  Most of the time, the traced process runs normally, but when
 it receives a signal
-.Po
-see
-.Xr sigaction 2
-.Pc ,
+(see
+.Xr sigaction 2 ) ,
 it stops.  The tracing process is expected to notice this via
 .Xr wait 2
 or the delivery of a
@@ -58,10 +56,8 @@ traced process stops, it cannot be made to continue except via
 When a process has used this request and calls
 .Xr execve 2
 or any of the routines built on it
-.Po
-such as
-.Xr execv 3
-.Pc ,
+(such as
+.Xr execv 3 ) ,
 it will stop before executing the first instruction of the new image.
 Also, any setuid or setgid bits on the executable being executed will
 be ignored.
@@ -136,9 +132,7 @@ The traced process continues execution.
 .Fa addr
 is an address specifying the place where execution is to be resumed (a
 new value for the program counter), or
-.Po
-.Vt caddr_t
-.Pc Ns 1
+.Po Vt caddr_t Pc Ns 1
 to indicate that execution is to pick up where it left off.
 .Fa data
 provides a signal number to be delivered to the traced process as it

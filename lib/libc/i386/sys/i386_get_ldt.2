@@ -34,7 +34,7 @@
 .\"
 .Dd September 20, 1993
 .Dt I386_GET_LDT 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm i386_get_ldt ,
 .Nm i386_set_ldt
@@ -56,11 +56,11 @@ LDT.
 will set a list of i386 descriptors for the current process in its
 LDT.
 Both routines accept a starting selector number
-.Fa start_sel
-, an array of memory that
+.Fa start_sel ,
+an array of memory that
 will contain the descriptors to be set or returned
-.Fa descs
-, and the number of entries to set or return
+.Fa descs ,
+and the number of entries to set or return
 .Fa num_sels .
 .Pp
 The argument

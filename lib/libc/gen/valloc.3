@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt VALLOC 3
-.Os BSD 3
+.Os
 .Sh NAME
 .Nm valloc
 .Nd aligned memory allocation function
@@ -46,7 +46,10 @@
 .Fn valloc "size_t size"
 .Sh DESCRIPTION
 .Bf -symbolic
-Valloc is obsoleted by the current version of malloc(3),
+The
+.Fn valloc
+function is obsoleted by the current version of
+.Xr malloc 3 ,
 which aligns page-sized and larger allocations.
 .Ef
 .Pp

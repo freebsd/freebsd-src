@@ -54,7 +54,7 @@ generates IPsec policy specification structure, namely
 and/or
 .Li struct sadb_x_ipsecrequest
 from human-readable policy specification.
-policy specification must be given as C string
+Policy specification must be given as C string
 .Fa policy
 and length
 .Fa len
@@ -110,7 +110,7 @@ means to consult to SPD defined by
 .It Ar direction Li bypass
 .Li bypass
 means to be bypassed the IPsec processing.
-.Pq packet will be transmitted in clear .
+(packet will be transmitted in clear).
 This is for privileged socket.
 .It Xo
 .Ar direction
@@ -167,7 +167,7 @@ is this node
 and
 .Ar src
 is the other node
-.Pq peer .
+(peer).
 If
 .Ar mode
 is
@@ -196,9 +196,9 @@ regarding the system default.
 means that a relevant SA can be used when available,
 since the kernel may perform IPsec operation against packets when possible.
 In this case, packets can be transmitted in clear
-.Pq when SA is not available ,
+(when SA is not available),
 or encrypted
-.Pq when SA is available .
+(when SA is available).
 .Li require
 means that a relevant SA is required,
 since the kernel must perform IPsec operation against packets.
@@ -241,7 +241,7 @@ Refer to
 for detail.
 .Pp
 Here are several examples
-.Pq long lines are wrapped for readability :
+(long lines are wrapped for readability):
 .Bd -literal -offset indent
 in discard
 out ipsec esp/transport//require
@@ -255,7 +255,7 @@ in ipsec ipcomp/transport//use
 returns a pointer to the allocated buffer of policy specification if successful; otherwise a NULL pointer is returned.
 .Fn ipsec_get_policylen
 returns with positive value
-.Pq meaning the buffer size
+(meaning the buffer size)
 on success, and negative value on errors.
 .Fn ipsec_dump_policy
 returns a pointer to dynamically allocated region on success,

@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt INFNAN 3
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm infnan
 .Nd signals invalid floating\-point operations on a
@@ -99,7 +99,7 @@ variable
 .Va errno ,
 and allows computation to resume.
 Alternatively, the Reserved Operand Fault Handler could be
-changed to respond by returning that plausible value, etc.
+changed to respond by returning that plausible value, etc.\&
 instead of aborting.
 .Pp
 In the table below, the first two columns show various
@@ -157,7 +157,7 @@ int	iarg ;
 .Sh SEE ALSO
 .Xr intro 2 ,
 .Xr math 3 ,
-.Xr signal 3 .
+.Xr signal 3
 .Pp
 .Er ERANGE
 and

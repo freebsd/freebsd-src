@@ -34,7 +34,7 @@
 .\"
 .Dd April 19, 1994
 .Dt EXP 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm exp ,
 .Nm expm1 ,
@@ -150,8 +150,9 @@ and
 .Fn pow
 detect if the computed value will overflow,
 set the global variable
-.Va errno to
-.Er RANGE
+.Va errno
+to
+.Er ERANGE
 and cause a reserved operand fault on a
 .Tn VAX
 or

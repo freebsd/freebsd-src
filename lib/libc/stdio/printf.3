@@ -40,16 +40,8 @@
 .Dt PRINTF 3
 .Os
 .Sh NAME
-.Nm printf ,
-.Nm fprintf ,
-.Nm sprintf ,
-.Nm snprintf ,
-.Nm asprintf ,
-.Nm vprintf ,
-.Nm vfprintf,
-.Nm vsprintf ,
-.Nm vsnprintf ,
-.Nm vasprintf
+.Nm printf , fprintf , sprintf , snprintf , asprintf ,
+.Nm vprintf , vfprintf, vsprintf , vsnprintf , vasprintf
 .Nd formatted output conversion
 .Sh LIBRARY
 .Lb libc
@@ -86,7 +78,7 @@ as described below.
 and
 .Fn vprintf
 write output to
-.Em stdout ,
+.Pa stdout ,
 the standard output stream;
 .Fn fprintf
 and
@@ -114,8 +106,7 @@ string that specifies how subsequent arguments
 .Xr stdarg 3 )
 are converted for output.
 .Pp
-These functions return
-the number of characters printed
+These functions return the number of characters printed
 (not including the trailing
 .Ql \e0
 used to end output to strings),
@@ -126,10 +117,8 @@ and
 which return the number of characters that would have been printed if the
 .Fa size
 were unlimited
-.Po
-again, not including the final
-.Ql \e0
-.Pc .
+(again, not including the final
+.Ql \e0 ) .
 .Pp
 .Fn Asprintf
 and
@@ -146,7 +135,9 @@ and
 .Fn vasprintf
 will return -1 and set
 .Fa ret
-to be a NULL pointer.
+to be a
+.Dv NULL
+pointer.
 .Pp
 .Fn Snprintf
 and
@@ -178,8 +169,9 @@ which are copied unchanged to the output stream;
 and conversion specifications, each of which results
 in fetching zero or more subsequent arguments.
 Each conversion specification is introduced by
-the character
-.Cm % .
+the
+.Cm %
+character.
 The arguments must correspond properly (after type promotion)
 with the conversion specifier.
 After the
@@ -189,7 +181,7 @@ the following appear in sequence:
 .It
 An optional field, consisting of a decimal digit string followed by a
 .Cm $ ,
-specifying the next argument to access .
+specifying the next argument to access.
 If this field is not provided, the argument following the last
 argument accessed will be used.
 Arguments are numbered starting at
@@ -203,16 +195,12 @@ Zero or more of the following flags:
 A
 .Cm #
 character
-specifying that the value should be converted to an ``alternate form''.
+specifying that the value should be converted to an
+.Dq alternate form .
 For
-.Cm c ,
-.Cm d ,
-.Cm i ,
-.Cm n ,
-.Cm p ,
-.Cm s ,
+.Cm c , d , i , n , p , s ,
 and
-.Cm u ,
+.Cm u
 conversions, this option has no effect.
 For
 .Cm o
@@ -231,12 +219,9 @@ for
 .Cm X
 conversions) prepended to it.
 For
-.Cm e ,
-.Cm E ,
-.Cm f ,
-.Cm g ,
+.Cm e , E , f , g ,
 and
-.Cm G ,
+.Cm G
 conversions, the result will always contain a decimal point, even if no
 digits follow it (normally, a decimal point appears in the results of
 those conversions only if a digit follows).
@@ -247,55 +232,46 @@ and
 conversions, trailing zeros are not removed from the result as they
 would otherwise be.
 .It
-A zero
-.Sq Cm \&0
+A
+.Cm 0
+(zero)
 character specifying zero padding.
 For all conversions except
 .Cm n ,
 the converted value is padded on the left with zeros rather than blanks.
 If a precision is given with a numeric conversion
-.Pf ( Cm d ,
-.Cm i ,
-.Cm o ,
-.Cm u ,
-.Cm i ,
-.Cm x ,
+.Cm ( d , i , o , u , i , x ,
 and
 .Cm X ) ,
 the
-.Sq Cm \&0
+.Cm 0
 flag is ignored.
 .It
 A negative field width flag
-.Sq Cm \-
+.Cm \-
 indicates the converted value is to be left adjusted on the field boundary.
 Except for
 .Cm n
 conversions, the converted value is padded on the right with blanks,
 rather than on the left with blanks or zeros.
 A
-.Sq Cm \-
+.Cm \-
 overrides a
-.Sq Cm \&0
+.Cm 0
 if both are given.
 .It
 A space, specifying that a blank should be left before a positive number
 produced by a signed conversion
-.Pf ( Cm d ,
-.Cm e ,
-.Cm E ,
-.Cm f ,
-.Cm g ,
-.Cm G ,
+.Cm ( d , e , E , f , g , G ,
 or
 .Cm i ) .
 .It
 A
-.Sq Cm +
+.Cm +
 character specifying that a sign always be placed before a
 number produced by a signed conversion.
 A
-.Sq Cm +
+.Cm +
 overrides a space if both are used.
 .El
 .It
@@ -306,20 +282,16 @@ flag has been given) to fill out
 the field width.
 .It
 An optional precision, in the form of a period
-.Sq Cm .\&
+.Cm \&.
 followed by an
-optional digit string.  If the digit string is omitted, the precision
-is taken as zero.  This gives the minimum number of digits to appear for
-.Cm d ,
-.Cm i ,
-.Cm o ,
-.Cm u ,
-.Cm x ,
+optional digit string.
+If the digit string is omitted, the precision is taken as zero.
+This gives the minimum number of digits to appear for
+.Cm d , i , o , u , x ,
 and
 .Cm X
 conversions, the number of digits to appear after the decimal-point for
-.Cm e ,
-.Cm E ,
+.Cm e , E ,
 and
 .Cm f
 conversions, the maximum number of significant digits for
@@ -334,94 +306,75 @@ conversions.
 The optional character
 .Cm h ,
 specifying that a following
-.Cm d ,
-.Cm i ,
-.Cm o ,
-.Cm u ,
-.Cm x ,
+.Cm d , i , o , u , x ,
 or
 .Cm X
 conversion corresponds to a
-.Em short int
+.Vt short int
 or
-.Em unsigned short int
+.Vt unsigned short int
 argument, or that a following
 .Cm n
 conversion corresponds to a pointer to a
-.Em short int
+.Vt short int
 argument.
 .It
 The optional character
 .Cm l
 (ell) specifying that a following
-.Cm d ,
-.Cm i ,
-.Cm o ,
-.Cm u ,
-.Cm x ,
+.Cm d , i , o , u , x ,
 or
 .Cm X
 conversion applies to a pointer to a
-.Em long int
+.Vt long int
 or
-.Em unsigned long int
+.Vt unsigned long int
 argument, or that a following
 .Cm n
 conversion corresponds to a pointer to a
-.Em long int
+.Vt long int
 argument.
 .It
 The optional characters
 .Cm ll
 (ell ell) specifying that a following
-.Cm d ,
-.Cm i ,
-.Cm o ,
-.Cm u ,
-.Cm x ,
+.Cm d , i , o , u , x ,
 or
 .Cm X
 conversion applies to a pointer to a
-.Em long long int
+.Vt long long int
 or
-.Em unsigned long long int
+.Vt unsigned long long int
 argument, or that a following
 .Cm n
 conversion corresponds to a pointer to a
-.Em long long int
+.Vt long long int
 argument.
 .It
 The optional character
 .Cm q ,
 specifying that a following
-.Cm d ,
-.Cm i ,
-.Cm o ,
-.Cm u ,
-.Cm x ,
+.Cm d , i , o , u , x ,
 or
 .Cm X
 conversion corresponds to a
-.Em quad int
+.Vt quad int
 or
-.Em unsigned quad int
+.Vt unsigned quad int
 argument, or that a following
 .Cm n
 conversion corresponds to a pointer to a
-.Em quad int
+.Vt quad int
 argument.
 .It
 The character
 .Cm L
 specifying that a following
-.Cm e ,
-.Cm E ,
-.Cm f ,
-.Cm g ,
+.Cm e , E , f , g ,
 or
 .Cm G
 conversion corresponds to a
-.Em long double
+.Vt long double
 argument.
 .It
 A character that specifies the type of conversion to be applied.
@@ -435,7 +388,7 @@ or an asterisk followed by one or more decimal digits and a
 instead of a
 digit string.
 In this case, an
-.Em int
+.Vt int
 argument supplies the field width or precision.
 A negative field width is treated as a left adjustment flag followed by a
 positive field width; a negative precision is treated as though it were
@@ -447,9 +400,9 @@ The conversion specifiers and their meanings are:
 .Bl -tag -width "diouxX"
 .It Cm diouxX
 The
-.Em int
+.Vt int
 (or appropriate variant) argument is converted to signed decimal
-.Pf ( Cm d
+.Cm ( d
 and
 .Cm i ) ,
 unsigned octal
@@ -457,10 +410,11 @@ unsigned octal
 unsigned decimal
 .Pq Cm u ,
 or unsigned hexadecimal
-.Pf ( Cm x
+.Cm ( x
 and
 .Cm X )
-notation.  The letters
+notation.
+The letters
 .Cm abcdef
 are used for
 .Cm x
@@ -474,22 +428,19 @@ appear; if the converted value requires fewer digits, it is padded on
 the left with zeros.
 .It Cm DOU
 The
-.Em long int
+.Vt long int
 argument is converted to signed decimal, unsigned octal, or unsigned
 decimal, as if the format had been
-.Cm ld ,
-.Cm lo ,
+.Cm ld , lo ,
 or
 .Cm lu
 respectively.
 These conversion characters are deprecated, and will eventually disappear.
 .It Cm eE
 The
-.Em double
+.Vt double
 argument is rounded and converted in the style
-.Sm off
-.Pf [\-]d Cm \&. No ddd Cm e No \\*(Pmdd
-.Sm on
+.Oo \- Oc Ns d Ns Cm \&. Ns ddd Ns Cm e Ns \\*[Pm]dd
 where there is one digit before the
 decimal-point character
 and the number of digits after it is equal to the precision;
@@ -507,11 +458,9 @@ The exponent always contains at least two digits; if the value is zero,
 the exponent is 00.
 .It Cm f
 The
-.Em double
+.Vt double
 argument is rounded and converted to decimal notation in the style
-.Sm off
-.Pf [-]ddd Cm \&. No ddd ,
-.Sm on
+.Oo \- Oc Ns ddd Ns Cm \&. Ns ddd ,
 where the number of digits after the decimal-point character
 is equal to the precision specification.
 If the precision is missing, it is taken as 6; if the precision is
@@ -519,7 +468,7 @@ explicitly zero, no decimal-point character appears.
 If a decimal point appears, at least one digit appears before it.
 .It Cm gG
 The
-.Em double
+.Vt double
 argument is converted in style
 .Cm f
 or
@@ -540,13 +489,13 @@ Trailing zeros are removed from the fractional part of the result; a
 decimal point appears only if it is followed by at least one digit.
 .It Cm c
 The
-.Em int
+.Vt int
 argument is converted to an
-.Em unsigned char ,
+.Vt unsigned char ,
 and the resulting character is written.
 .It Cm s
 The
-.Dq Em char *
+.Vt char *
 argument is expected to be a pointer to an array of character type (pointer
 to a string).
 Characters from the array are written up to (but not including)
@@ -562,7 +511,7 @@ the size of the array, the array must contain a terminating
 character.
 .It Cm p
 The
-.Dq Em void *
+.Vt void *
 pointer argument is printed in hexadecimal (as if by
 .Ql %#x
 or
@@ -570,7 +519,7 @@ or
 .It Cm n
 The number of characters written so far is stored into the
 integer indicated by the
-.Dq Em int *
+.Vt int *
 (or variant) pointer argument.
 No argument is converted.
 .It Cm %
@@ -586,13 +535,13 @@ is
 In no case does a non-existent or small field width cause truncation of
 a field; if the result of a conversion is wider than the field width, the
 field is expanded to contain the conversion result.
-.Pp
 .Sh EXAMPLES
-To print a date and time in the form `Sunday, July 3, 10:02',
+To print a date and time in the form
+.Dq Li "Sunday, July 3, 10:02" ,
 where
-.Em weekday
+.Fa weekday
 and
-.Em month
+.Fa month
 are pointers to strings:
 .Bd -literal -offset indent
 #include <stdio.h>
@@ -645,7 +594,9 @@ The functions
 .Fn asprintf
 and
 .Fn vasprintf
-first appeared in the GNU C library.
+first appeared in the
+.Tn GNU C
+library.
 These were implemented by
 .An Peter Wemm Aq peter@FreeBSD.org
 in
@@ -657,8 +608,7 @@ for
 .Ox 2.3 .
 .Sh BUGS
 The conversion formats
-.Cm \&%D ,
-.Cm \&%O ,
+.Cm \&%D , \&%O ,
 and
 .Cm %U
 are not standard and
@@ -666,10 +616,10 @@ are provided only for backward compatibility.
 The effect of padding the
 .Cm %p
 format with zeros (either by the
-.Sq Cm 0
+.Cm 0
 flag or by specifying a precision), and the benign effect (i.e., none)
 of the
-.Sq Cm #
+.Cm #
 flag on
 .Cm %n
 and

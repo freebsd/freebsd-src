@@ -27,7 +27,7 @@
 .\"
 .Dd September 22, 1995
 .Dt SEMOP 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm semop
 .Nd atomic array of operations on a semaphore set
@@ -163,11 +163,7 @@ for each semaphore is added to the semaphore's value.  This can
 be used to insure that a resource is released if a process terminates
 unexpectedly.
 .Sh RETURN VALUES
-On success,
-.Fn semop
-returns 0; otherwise, -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std semop
 .Sh ERRORS
 .Fn Semop
 will fail if:

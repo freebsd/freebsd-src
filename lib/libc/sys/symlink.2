@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt SYMLINK 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm symlink
 .Nd make symbolic link to a file
@@ -58,10 +58,7 @@ used in creating the symbolic link).
 Either name may be an arbitrary path name; the files need not
 be on the same file system.
 .Sh RETURN VALUES
-Upon successful completion, a zero value is returned.
-If an error occurs, the error code is stored in
-.Va errno
-and a -1 value is returned.
+.Rv -std symlink
 .Sh ERRORS
 The symbolic link succeeds unless:
 .Bl -tag -width Er

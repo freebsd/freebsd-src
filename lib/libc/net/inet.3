@@ -34,7 +34,7 @@
 .\"
 .Dd June 17, 1996
 .Dt INET 3
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm inet_aton ,
 .Nm inet_addr ,
@@ -147,7 +147,7 @@ respectively.
 All Internet addresses are returned in network
 order (bytes ordered from left to right).
 All network numbers and local address parts are
-returned as machine format integer values.
+returned as machine byte order integer values.
 .Sh INTERNET ADDRESSES
 Values specified using the
 .Ql .\&
@@ -239,10 +239,10 @@ The
 and
 .Fn inet_pton
 functions conform to
-.St -xns5.2d2.0 .
+.St -xns5.2 .
 Note that
 .Fn inet_pton
-does not accept 1-, 2-, or 3-part  dotted addresses; all four parts
+does not accept 1-, 2-, or 3-part dotted addresses; all four parts
 must be specified.
 This is a narrower input set than that accepted by
 .Fn inet_aton .

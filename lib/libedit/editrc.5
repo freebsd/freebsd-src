@@ -36,7 +36,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 11, 1997
-.Os BSD 4.4
+.Os
 .Dt EDITRC 5
 .Sh NAME
 .Nm editrc
@@ -156,10 +156,8 @@ can contain control characters of the form
 .Sm off
 .Sq No ^ Ar character
 .Sm on
-.Po
-e.g.
-.Sq ^A
-.Pc ,
+(e.g.\&
+.Sq ^A ) ,
 and the following backslashed escape sequences:
 .Pp
 .Bl -tag -compact -offset indent -width 4n
@@ -261,13 +259,9 @@ set of tty modes respectively; defaulting to
 Without other arguments,
 .Ic setty
 lists the modes in the chosen set which are fixed on
-.Po
-.Sq +mode
-.Pc
+.Pq Sq +mode
 or off
-.Po
-.Sq -mode
-.Pc .
+.Pq Sq -mode .
 .Fl a
 lists all tty modes in the chosen set regardless of the setting.
 With

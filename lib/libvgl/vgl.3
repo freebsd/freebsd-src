@@ -11,7 +11,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. The name of the author may not be used to endorse or promote products
-.\"    derived from this software withough specific prior written permission.
+.\"    derived from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,7 +27,7 @@
 .\" $FreeBSD$
 .Dd November 7, 1999
 .Dt VGL 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm VGLBitmapAllocateBits ,
 .Nm VGLBitmapCopy ,
@@ -402,9 +402,10 @@ must be
 Passing a in-memory bitmap to this function results in error.
 .Pp
 .Fn VGLBlankDisplay
-blank the display if the argment
+blank the display if the argument
 .Va blank
-!= 0. This can be done to shut off the screen during display updates that
+\*(Ne 0.
+This can be done to shut off the screen during display updates that
 the user should first see when it's done.
 .Ss Program termination and signal processing
 It is important to call
@@ -426,7 +427,7 @@ have a flag to indicate signal's delivery.
 Your signal handlers set this flag but do not terminate
 the program immediately.
 The main part of the program checks the flag to see if it is
-supporsed to terminate, and call
+supposed to terminate, and calls
 .Fn VGLEnd
 and
 .Xr exit 3

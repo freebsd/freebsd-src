@@ -25,7 +25,7 @@
 .\"
 .Dd March 12, 1998
 .Dt SCHED_YIELD 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm sched_yield
 .Nd yield processor
@@ -41,12 +41,7 @@ The
 function forces the running process to relinquish the processor until it
 again becomes the head of its process list.  It takes no arguments.
 .Sh RETURN VALUES
-The
-.Fn sched_yield
-function will return zero if it completes successfully, or it
-will return a value of -1 and set
-.Va errno
-to indicate the error.
+.Rv -std sched_yield
 .Sh ERRORS
 On failure
 .Va errno

@@ -72,9 +72,7 @@ MS_SYNC		Perform synchronous writes
 MS_INVALIDATE	Invalidate all cached data
 .Ed
 .Sh RETURN VALUES
-If any errors occur, -1 is returned and errno is set to indicate the
-error.
-Otherwise, a 0 value is returned.
+.Rv -std msync
 .Sh ERRORS
 .Fn msync
 will fail if:

@@ -57,10 +57,7 @@ Signals may be pending because they are currently masked,
 or transiently before delivery (although the latter case is not
 normally detectable).
 .Sh RETURN VALUES
-A 0 value indicated that the call succeeded.  A \-1 return value
-indicates an error occurred and
-.Va errno
-is set to indicated the reason.
+.Rv -std sigpending
 .Sh ERRORS
 .Fn sigpending
 will fail if:

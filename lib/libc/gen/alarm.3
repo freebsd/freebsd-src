@@ -34,7 +34,7 @@
 .\"
 .Dd April 19, 1994
 .Dt ALARM 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm alarm
 .Nd set signal timer alarm
@@ -46,7 +46,8 @@
 .Fn alarm "unsigned int seconds"
 .Sh DESCRIPTION
 .Bf -symbolic
-This interface is made obsolete by setitimer(2).
+This interface is made obsolete by
+.Xr setitimer 2 .
 .Ef
 .Pp
 The

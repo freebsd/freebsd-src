@@ -34,7 +34,7 @@
 .\"
 .Dd April 19, 1994
 .Dt KILL 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm kill
 .Nd send signal to a process
@@ -87,9 +87,12 @@ this is a variant of
 If the user has super-user privileges,
 the signal is sent to all processes excluding
 system processes
-.Pq with Dv P_SYSTEM flag set ,
+(with
+.Dv P_SYSTEM
+flag set),
 process with ID 1
-.Pq usually Xr init 8 ,
+(usually
+.Xr init 8 ) ,
 and the process sending the signal.
 If the user is not the super user, the signal is sent to all processes
 with the same uid as the user excluding the process sending the signal.
@@ -103,10 +106,7 @@ is equal to the absolute value of the process number.
 This is a variant of
 .Xr killpg 2 .
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std kill
 .Sh ERRORS
 .Fn Kill
 will fail and no signal will be sent if:

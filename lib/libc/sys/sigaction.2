@@ -211,9 +211,10 @@ If this bit is set, the handler is reset back to
 .Dv SIG_DFL
 at the moment the signal is delivered.
 .It Dv SA_SIGINFO
-If this bit is set, the handler function is assumed to be pointed to
-by the sa_sigaction member of struct sigaction and should match the
-prototype shown above or as below in
+If this bit is set, the handler function is assumed to be pointed to by the
+.Dv sa_sigaction
+member of struct sigaction and should match the prototype shown above or as
+below in
 .Sx EXAMPLES .
 This bit should not be set when assigning
 .Dv SIG_DFL
@@ -424,10 +425,7 @@ All functions not in the above lists are considered to be unsafe
 with respect to signals.  That is to say, the behaviour of such
 functions when called from a signal handler is undefined.
 .Sh RETURN VALUES
-A 0 value indicated that the call succeeded.  A \-1 return value
-indicates an error occurred and
-.Va errno
-is set to indicated the reason.
+.Rv -std sigaction
 .Sh EXAMPLES
 There are three possible prototypes the handler may match:
 .Bl -tag -offset indent -width short
@@ -451,7 +449,9 @@ member of
 Note that you should not assign SIG_DFL or SIG_IGN this way.
 .Pp
 If the SA_SIGINFO flag is not set, the handler function should match
-either the ANSI C or traditional BSD prototype and be pointed to by
+either the ANSI C or traditional
+.Bx
+prototype and be pointed to by
 the
 .Dv sa_handler
 member of
@@ -465,9 +465,13 @@ The
 member declaration in
 .Fx
 include files is that of ANSI C (as required by POSIX),
-so a function pointer of a BSD-style function needs to be casted to
+so a function pointer of a
+.Bx Ns -style
+function needs to be casted to
 compile without warning.
-The traditional BSD style is not portable and since its capabilities
+The traditional
+.Bx
+style is not portable and since its capabilities
 are a full subset of a SA_SIGINFO handler,
 its use is deprecated.
 .Pp
@@ -479,7 +483,9 @@ values from <signal.h>.
 .Pp
 The
 .Fa code
-argument of the BSD-style handler and the
+argument of the
+.Bx Ns -style
+handler and the
 .Dv si_code
 member of the
 .Dv info
@@ -493,7 +499,9 @@ values for SIGFPE.
 .Pp
 The
 .Fa scp
-argument to a BSD-style handler points to an instance of struct
+argument to a
+.Bx Ns -style
+handler points to an instance of struct
 sigcontext.
 .Pp
 The
@@ -546,7 +554,7 @@ as are the signals,
 and
 .Dv SIGINFO .
 Those signals are available on most
-.Tn BSD Ns \-derived
+.Bx Ns \-derived
 systems.
 The
 .Dv SA_NODEFER

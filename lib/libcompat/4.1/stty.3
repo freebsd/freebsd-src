@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt STTY 3
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm stty ,
 .Nm gtty
@@ -49,7 +49,8 @@
 .Fn gtty "int fd" "struct sgttyb *buf"
 .Sh DESCRIPTION
 .Bf -symbolic
-These interfaces are obsoleted by ioctl(2).
+These interfaces are obsoleted by
+.Xr ioctl 2 .
 .Ef
 .Pp
 The

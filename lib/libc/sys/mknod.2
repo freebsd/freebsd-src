@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt MKNOD 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm mknod
 .Nd make a special file node
@@ -64,10 +64,7 @@ is ignored.
 .Fn Mknod
 requires super-user privileges.
 .Sh RETURN VALUES
-Upon successful completion a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std mknod
 .Sh ERRORS
 .Fn Mknod
 will fail and the file will be not created if:
