@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.34 1997/12/05 18:58:13 bde Exp $
+ * $Id: malloc.h,v 1.35 1997/12/05 19:14:36 bde Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -112,8 +112,6 @@ struct kmembuckets {
 };
 
 #ifdef KERNEL
-
-#include <vm/vm_zone.h>
 
 #define	MINALLOCSIZE	(1 << MINBUCKET)
 #define BUCKETINDX(size) \
