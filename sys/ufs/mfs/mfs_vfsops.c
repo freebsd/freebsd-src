@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.19 1995/12/14 20:16:15 bde Exp $
+ * $Id: mfs_vfsops.c,v 1.20 1995/12/17 21:09:59 phk Exp $
  */
 
 #include <sys/param.h>
@@ -296,7 +296,8 @@ mfs_mount(mp, path, data, ndp, p)
 		mfsp->mfs_size = mfs_rootsize;
 		mfsp->mfs_vnode = rootvp;
 		mfsp->mfs_pid = p->p_pid;
-		mfsp->mfs_buflist = (struct buf *)0;
+		mfsp->mfs_active = 1;
+		TAILQ_INIT(&mfsp->buf_queue);
 
 		/*
 		 * Attempt mount
@@ -379,7 +380,8 @@ mfs_mount(mp, path, data, ndp, p)
 	mfsp->mfs_size = args.size;
 	mfsp->mfs_vnode = devvp;
 	mfsp->mfs_pid = p->p_pid;
-	mfsp->mfs_buflist = (struct buf *)0;
+	mfsp->mfs_active = 1;
+	TAILQ_INIT(&mfsp->buf_queue);
 
 	/*
 	 * Since this is a new mount, we want the names for
@@ -402,7 +404,7 @@ mfs_mount(mp, path, data, ndp, p)
 	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 
 	if (err = ffs_mountfs(devvp, mp, p)) {
-		mfsp->mfs_buflist = (struct buf *)-1;
+		mfsp->mfs_active = 0;
 		goto error_2;
 	}
 
@@ -453,9 +455,9 @@ mfs_start(mp, flags, p)
 	register int gotsig = 0;
 
 	base = mfsp->mfs_baseoff;
-	while (mfsp->mfs_buflist != (struct buf *)(-1)) {
-		while (bp = mfsp->mfs_buflist) {
-			mfsp->mfs_buflist = bp->b_actf;
+	while (mfsp->mfs_active) {
+		while (bp = TAILQ_FIRST(&mfsp->buf_queue)) {
+			TAILQ_REMOVE(&mfsp->buf_queue, bp, b_act);
 			mfs_doio(bp, base);
 			wakeup((caddr_t)bp);
 		}
