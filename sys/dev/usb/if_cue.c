@@ -116,11 +116,11 @@ Static void cue_setmulti(struct cue_softc *);
 Static u_int32_t cue_crc(caddr_t);
 Static void cue_reset(struct cue_softc *);
 
-Static int csr_read_1(struct cue_softc *, int);
-Static int csr_write_1(struct cue_softc *, int, int);
-Static int csr_read_2(struct cue_softc *, int);
+Static int cue_csr_read_1(struct cue_softc *, int);
+Static int cue_csr_write_1(struct cue_softc *, int, int);
+Static int cue_csr_read_2(struct cue_softc *, int);
 #ifdef notdef
-Static int csr_write_2(struct cue_softc *, int, int);
+Static int cue_csr_write_2(struct cue_softc *, int, int);
 #endif
 Static int cue_mem(struct cue_softc *, int, int, void *, int);
 Static int cue_getmac(struct cue_softc *, void *);
@@ -147,13 +147,13 @@ DRIVER_MODULE(if_cue, uhub, cue_driver, cue_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(if_cue, usb, 1, 1, 1);
 
 #define CUE_SETBIT(sc, reg, x)				\
-	csr_write_1(sc, reg, csr_read_1(sc, reg) | (x))
+	cue_csr_write_1(sc, reg, cue_csr_read_1(sc, reg) | (x))
 
 #define CUE_CLRBIT(sc, reg, x)				\
-	csr_write_1(sc, reg, csr_read_1(sc, reg) & ~(x))
+	cue_csr_write_1(sc, reg, cue_csr_read_1(sc, reg) & ~(x))
 
 Static int
-csr_read_1(struct cue_softc *sc, int reg)
+cue_csr_read_1(struct cue_softc *sc, int reg)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
@@ -182,7 +182,7 @@ csr_read_1(struct cue_softc *sc, int reg)
 }
 
 Static int
-csr_read_2(struct cue_softc *sc, int reg)
+cue_csr_read_2(struct cue_softc *sc, int reg)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
@@ -211,7 +211,7 @@ csr_read_2(struct cue_softc *sc, int reg)
 }
 
 Static int
-csr_write_1(struct cue_softc *sc, int reg, int val)
+cue_csr_write_1(struct cue_softc *sc, int reg, int val)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
@@ -240,7 +240,7 @@ csr_write_1(struct cue_softc *sc, int reg, int val)
 
 #ifdef notdef
 Static int
-csr_write_2(struct cue_softc *sc, int reg, int val)
+cue_csr_write_2(struct cue_softc *sc, int reg, int val)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
@@ -815,11 +815,11 @@ cue_tick(void *xsc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	ifp->if_collisions += csr_read_2(sc, CUE_TX_SINGLECOLL);
-	ifp->if_collisions += csr_read_2(sc, CUE_TX_MULTICOLL);
-	ifp->if_collisions += csr_read_2(sc, CUE_TX_EXCESSCOLL);
+	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_SINGLECOLL);
+	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_MULTICOLL);
+	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_EXCESSCOLL);
 
-	if (csr_read_2(sc, CUE_RX_FRAMEERR))
+	if (cue_csr_read_2(sc, CUE_RX_FRAMEERR))
 		ifp->if_ierrors++;
 
 	sc->cue_stat_ch = timeout(cue_tick, sc, hz);
@@ -934,10 +934,10 @@ cue_init(void *xsc)
 
 	/* Set MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		csr_write_1(sc, CUE_PAR0 - i, sc->arpcom.ac_enaddr[i]);
+		cue_csr_write_1(sc, CUE_PAR0 - i, sc->arpcom.ac_enaddr[i]);
 
 	/* Enable RX logic. */
-	csr_write_1(sc, CUE_ETHCTL, CUE_ETHCTL_RX_ON|CUE_ETHCTL_MCAST_ON);
+	cue_csr_write_1(sc, CUE_ETHCTL, CUE_ETHCTL_RX_ON|CUE_ETHCTL_MCAST_ON);
 
 	 /* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC) {
@@ -967,15 +967,15 @@ cue_init(void *xsc)
 	 * Set the number of RX and TX buffers that we want
 	 * to reserve inside the ASIC.
 	 */
-	csr_write_1(sc, CUE_RX_BUFPKTS, CUE_RX_FRAMES);
-	csr_write_1(sc, CUE_TX_BUFPKTS, CUE_TX_FRAMES);
+	cue_csr_write_1(sc, CUE_RX_BUFPKTS, CUE_RX_FRAMES);
+	cue_csr_write_1(sc, CUE_TX_BUFPKTS, CUE_TX_FRAMES);
 
 	/* Set advanced operation modes. */
-	csr_write_1(sc, CUE_ADVANCED_OPMODES,
+	cue_csr_write_1(sc, CUE_ADVANCED_OPMODES,
 	    CUE_AOP_EMBED_RXLEN|0x01); /* 1 wait state */
 
 	/* Program the LED operation. */
-	csr_write_1(sc, CUE_LEDCTL, CUE_LEDCTL_FOLLOW_LINK);
+	cue_csr_write_1(sc, CUE_LEDCTL, CUE_LEDCTL_FOLLOW_LINK);
 
 	/* Open RX and TX pipes. */
 	err = usbd_open_pipe(sc->cue_iface, sc->cue_ed[CUE_ENDPT_RX],
@@ -1104,7 +1104,7 @@ cue_stop(struct cue_softc *sc)
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
-	csr_write_1(sc, CUE_ETHCTL, 0);
+	cue_csr_write_1(sc, CUE_ETHCTL, 0);
 	cue_reset(sc);
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
 
