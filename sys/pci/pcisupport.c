@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: pcisupport.c,v 1.43 1997/02/22 09:44:13 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -87,18 +87,28 @@ struct condmsg {
 static char*
 generic_pci_bridge (pcici_t tag)
 {
-    char *descr;
+    char *descr, tmpbuf[120];
     unsigned classreg = pci_conf_read (tag, PCI_CLASS_REG);
 
     if ((classreg & PCI_CLASS_MASK) == PCI_CLASS_BRIDGE) {
 
 	unsigned id = pci_conf_read (tag, PCI_ID_REG);
 
-	descr = malloc (sizeof PPB_DESCR +1, M_DEVBUF, M_WAITOK);
-	if (descr) {
-	    sprintf (descr, PPB_DESCR, id & 0xffff, (id >> 16) & 0xffff, 
-			(classreg >> 16) & 0xff);
+	switch (classreg >> 16 & 0xff) {
+		case 0:	strcpy(tmpbuf, "Host->PCI"); break;
+		case 1:	strcpy(tmpbuf, "PCI->ISA"); break;
+		case 2:	strcpy(tmpbuf, "PCI->EISA"); break;
+		case 4:	strcpy(tmpbuf, "PCI->PCI"); break;
+		case 5:	strcpy(tmpbuf, "PCI->PCMCIA"); break;
+		case 7:	strcpy(tmpbuf, "PCI->CardBus"); break;
+		default: 
+			sprintf(tmpbuf, "PCI->0x%x", classreg>>16 & 0xff); 
+			break;
 	}
+	sprintf(tmpbuf+strlen(tmpbuf), " bridge (vendor=%04x device=%04x)",
+	    id & 0xffff, (id >> 16) & 0xffff);
+	descr = malloc (strlen(tmpbuf) +1, M_DEVBUF, M_WAITOK);
+	strcpy(descr, tmpbuf);
 	return descr;
     }
     return 0;
