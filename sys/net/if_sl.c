@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.20.4.3 1995/10/07 12:57:41 davidg Exp $
+ * $Id: if_sl.c,v 1.20.4.4 1996/06/24 22:04:21 gpalmer Exp $
  */
 
 /*
@@ -289,8 +289,8 @@ slopen(dev, tp)
 			 */
 			clist_alloc_cblocks(&tp->t_canq, 0, 0);
 			clist_alloc_cblocks(&tp->t_outq,
-					    sc->sc_if.if_mtu + SLIP_HIWAT,
-					    sc->sc_if.if_mtu + SLIP_HIWAT);
+			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
+			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
 			clist_alloc_cblocks(&tp->t_rawq, 0, 0);
 
 			s = splnet();
@@ -963,8 +963,8 @@ slioctl(ifp, cmd, data)
 			tp = sl_softc[ifp->if_unit].sc_ttyp;
 			if (tp != NULL)
 				clist_alloc_cblocks(&tp->t_outq,
-						    ifp->if_mtu + SLIP_HIWAT,
-						    ifp->if_mtu + SLIP_HIWAT);
+				    SLIP_HIWAT + 2 * ifp->if_mtu + 1,
+				    SLIP_HIWAT + 2 * ifp->if_mtu + 1);
 		}
 		break;
 
