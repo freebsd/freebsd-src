@@ -2,7 +2,7 @@
 
 <abstract>
   <para>This article gives some brief instructions on installing
-  &os; &release.current; for the &arch; architecture, with particular
+  &os;/&arch; &release.current;, with particular
   emphasis given to obtaining a &os; distribution.  Some notes on
   troubleshooting and frequently-asked questions are also given.</para>
 </abstract>
