@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.1, Wed Oct 26 16:09:46 MSK 1994
+ * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  */
 /*
  * Asynchronous channel mode -------------------------------------------------
@@ -382,6 +382,7 @@ typedef struct {
 	cx_opt_bisync_t bopt;           /* bisync mode options */
 	cx_opt_x21_t xopt;              /* x.21 mode options */
 	cx_soft_opt_t sopt;             /* software options and state flags */
+	char master[16];                /* master interface name or \0 */
 } cx_options_t;                         /* user settable options */
 
 typedef struct _chan_t {
@@ -389,6 +390,7 @@ typedef struct _chan_t {
 	unsigned char num;              /* channel number, 0..15 */
 	struct _board_t *board;		/* board pointer */
 	struct _chip_t *chip;		/* controller pointer */
+	struct _stat_t *stat;           /* statistics */
 	unsigned long rxbaud;		/* receiver speed */
 	unsigned long txbaud;		/* transmitter speed */
 	cx_chan_mode_t mode;            /* channel mode */
@@ -410,6 +412,8 @@ typedef struct _chan_t {
 #ifdef KERNEL
 	struct tty *ttyp;               /* tty structure pointer */
 	struct ifnet *ifp;              /* network interface data */
+	struct ifnet *master;           /* master interface, or ==ifp */
+	struct _chan_t *slaveq;         /* slave queue pointer, or NULL */
 	caddr_t bpf;                    /* packet filter data */
 	cx_soft_opt_t sopt;             /* software options and state flags */
 	cx_break_t brk;                 /* line break mode */
@@ -426,6 +430,20 @@ typedef struct _chip_t {
 	unsigned long oscfreq;		/* oscillator frequency in Hz */
 } cx_chip_t;
 
+typedef struct _stat_t {
+	unsigned char board;            /* adapter number, 0..2 */
+	unsigned char channel;          /* channel number, 0..15 */
+	unsigned long rintr;            /* receive interrupts */
+	unsigned long tintr;            /* transmit interrupts */
+	unsigned long mintr;            /* modem interrupts */
+	unsigned long ibytes;           /* input bytes */
+	unsigned long ipkts;            /* input packets */
+	unsigned long ierrs;            /* input errors */
+	unsigned long obytes;           /* output bytes */
+	unsigned long opkts;            /* output packets */
+	unsigned long oerrs;            /* output errors */
+} cx_stat_t;
+
 typedef struct _board_t {
 	unsigned short port;	/* base board port, 0..3f0 */
 	unsigned short num;     /* board number, 0..2 */
@@ -439,6 +457,7 @@ typedef struct _board_t {
 	unsigned short bcr1b;	/* BCR1b image */
 	cx_chip_t chip[NCHIP];  /* controller structures */
 	cx_chan_t chan[NCHAN];  /* channel structures */
+	cx_stat_t stat[NCHAN];  /* channel statistics */
 	char name[16];		/* board version name */
 	unsigned char nuniv;	/* number of universal channels */
 	unsigned char nsync;	/* number of sync. channels */
@@ -473,3 +492,4 @@ void cx_clock (long hz, long ba, int *clk, int *div);
 
 #define CXIOCGETMODE _IOWR('x', 1, cx_options_t)   /* get channel options */
 #define CXIOCSETMODE _IOW('x', 2, cx_options_t)    /* set channel options */
+#define CXIOCGETSTAT _IOWR('x', 3, cx_stat_t)      /* get channel stats */
