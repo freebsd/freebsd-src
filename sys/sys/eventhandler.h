@@ -88,10 +88,10 @@ do {									\
 			_en = TAILQ_NEXT(_ep, ee_link);			\
 			_t = (struct eventhandler_entry_ ## name *)_ep; \
 			_t->eh_func(_ep->ee_arg , ## args);		\
-	    _ep = _en;							\
+			_ep = _en;					\
+		}							\
+		EHE_UNLOCK(_el);					\
 	}								\
-	EHE_UNLOCK(_el);						\
-    }									\
 } while (0)
 
 #define EVENTHANDLER_FAST_REGISTER(name, func, arg, priority)		\
