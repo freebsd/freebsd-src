@@ -3447,13 +3447,8 @@ ohci_device_isoc_close(usbd_pipe_handle pipe)
 {
 	struct ohci_pipe *opipe = (struct ohci_pipe *)pipe;
 	ohci_softc_t *sc = (ohci_softc_t *)pipe->device->bus;
-	int s;
 
 	DPRINTF(("ohci_device_isoc_close: pipe=%p\n", pipe));
-
-	s = splusb();
-	ohci_rem_ed(opipe->sed, sc->sc_isoc_head);
-	splx(s);
 	ohci_close_pipe(pipe, sc->sc_isoc_head);
 #ifdef DIAGNOSTIC
 	opipe->tail.itd->isdone = 1;
