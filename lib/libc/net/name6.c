@@ -116,6 +116,8 @@ static struct	 hostent *_files_ghbyname(const char *name, int af, int *errp);
 static struct	 hostent *_files_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
 static void	 _files_shent(int stayopen);
 static void	 _files_ehent(void);
+static struct	 hostent *_nis_ghbyname(const char *name, int af, int *errp);
+static struct	 hostent *_nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
 static struct	 hostent *_dns_ghbyname(const char *name, int af, int *errp);
 static struct	 hostent *_dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
 static void	 _dns_shent(int stayopen);
@@ -184,6 +186,11 @@ _hostconf_init(void)
 			     ||  strcmp(p, "bind") == 0) {
 				_hostconf[n].byname = _dns_ghbyname;
 				_hostconf[n].byaddr = _dns_ghbyaddr;
+				n++;
+			}
+			else if (strcmp(p, "nis") == 0) {
+				_hostconf[n].byname = _nis_ghbyname;
+				_hostconf[n].byaddr = _nis_ghbyaddr;
 				n++;
 			}
 #ifdef ICMPNL
@@ -823,6 +830,38 @@ _files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	}
 	fclose(fp);
 	return hp;
+}
+
+/*
+ * NIS
+ *
+ * XXX actually a hack, these are INET4 specific.
+ */
+static struct hostent *
+_nis_ghbyname(const char *name, int af, int *errp)
+{
+	struct hostent *hp;
+
+	if (af == AF_INET) {
+		hp = _gethostbynisname(name, af);
+		if (hp != NULL)
+			hp = _hpcopy(hp, errp);
+	}
+	return (hp);
+	
+}
+
+static struct hostent *
+_nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
+{
+	struct hostent *hp = NULL;
+
+	if (af == AF_INET) {
+		hp = _gethostbynisaddr(addr, addrlen, af);
+		if (hp != NULL)
+			hp = _hpcopy(hp, errp);
+	}
+	return (hp);
 }
 
 #ifdef DEBUG
