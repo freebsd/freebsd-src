@@ -687,7 +687,7 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 	}
 	if (cmd->o.opcode == O_IP_SRC_SET || cmd->o.opcode == O_IP_DST_SET) {
 		u_int32_t x, *d;
-		int i;
+		int i, j;
 		char comma = '{';
 
 		x = cmd->o.arg1 - 1;
@@ -698,9 +698,22 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 		x = cmd->addr.s_addr = htonl(cmd->addr.s_addr);
 		x &= 0xff; /* base */
 		d = (u_int32_t *)&(cmd->mask);
+		/*
+		 * Print bits and ranges.
+		 * Locate first bit set (i), then locate first bit unset (j).
+		 * If we have 3+ consecutive bits set, then print them as a
+		 * range, otherwise only print the initial bit and rescan.
+		 */
 		for (i=0; i < cmd->o.arg1; i++)
-			if (d[ i/32] & (1<<(i & 31))) {
+			if (d[i/32] & (1<<(i & 31))) {
+				for (j=i+1; j < cmd->o.arg1; j++)
+					if (!(d[ j/32] & (1<<(j & 31))))
+						break;
 				printf("%c%d", comma, i+x);
+				if (j>i+2) { /* range has at least 3 elements */
+					printf("-%d", j-1+x);
+					i = j-1;
+				}
 				comma = ',';
 			}
 		printf("}");
@@ -1906,6 +1919,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		av = p+1;
 		low = cmd->addr.s_addr & 0xff;
 		high = low + cmd->o.arg1 - 1;
+		i = -1;	/* previous value in a range */
 		while (isdigit(*av)) {
 			char *s;
 			u_int16_t a = strtol(av, &s, 0);
@@ -1918,9 +1932,22 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 			    exit(0);
 			}
 			a -= low;
-			d[ a/32] |= 1<<(a & 31);
-			if (*s != ',')
-				break;
+			if (i == -1)	/* no previous in range */
+			    i = a;
+			else {		/* check that range is valid */
+			    if (i > a)
+				errx(EX_DATAERR, "invalid range %d-%d",
+					i+low, a+low);
+			    if (*s == '-')
+				errx(EX_DATAERR, "double '-' in range");
+			}
+			for (; i <= a; i++)
+			    d[i/32] |= 1<<(i & 31);
+			i = -1;
+			if (*s == '-')
+			    i = a;
+			else if (*s != ',')
+			    break;
 			av = s+1;
 		}
 		return;
