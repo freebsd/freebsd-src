@@ -1017,7 +1017,7 @@ options 	PSM_HOOKRESUME		#hook the system resume event, useful
 					#for some laptops
 options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
-# The video card driver.
+# Video card driver for VGA adapters.
 device		vga
 hint.vga.0.at="isa"
 
