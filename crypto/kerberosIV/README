@@ -1,0 +1,44 @@
+This is a severly hacked up version of Eric Young's eBones-p9 kerberos
+version. The DES library has been updated with his 3.23 version and
+numerous patches collected over the years have been applied to both
+the kerberos and DES sources, most notably the CMU patches for extended
+lifetimes that AFS uses. There is also support for AFS built into most
+programs. 
+
+The source has been changed to use ANSI C and POSIX to the largest
+possible extent. The code in util/et and appl/bsd have not been
+updated in this way though (they really need it).
+
+Telnet and telnetd are based on the telnet.95.10.23.NE.tar.Z. Kerberos
+authentication is the default and warnings are issued by telnetd if
+the telnet client does not turn on encryption.
+
+The r* programs in appl/bsd have been updated with newer sources from
+NetBSD and FreeBSD. NOTE: use of telnet is prefered to the use of
+rlogin which is a temporary hack and not an Internet standard (and has
+only been documented quite recently).  Telnet uses kerberos
+authentication to prevent the passing of cleartext passwords and is
+thus superior to rlogin.
+
+The distribution has been configured to primarily use kerberos
+authentication with a fallback to /etc/passwd passwords. This should
+make it easy to do a slow migration to kerberos.  OTP support is also
+included in login, popper, and ftpd.
+
+All programs in this distribution follow these conventions:
+
+/usr/athena/bin:	User programs
+/usr/athena/sbin:	Administrator programs
+/usr/athena/libexec:	Daemons
+/etc:			Configuration files
+/var/log:		Logfiles
+/var/kerberos:		Kerberos database and ACL files
+
+A W3-page is at http://www.pdc.kth.se/kth-krb/
+
+You can get some documentation from ftp://ftp.pdc.kth.se/pub/krb/doc.
+
+Please report bugs and problems to kth-krb-bugs@nada.kth.se
+
+There is a mailing list discussing kerberos at krb4@sics.se, send a
+message to majordomo@sics.se to subscribe.
