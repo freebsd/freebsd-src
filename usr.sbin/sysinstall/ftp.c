@@ -73,7 +73,7 @@ netDown(Device *dev)
 Boolean
 mediaInitFTP(Device *dev)
 {
-    int i, code;
+    int i, code, af;
     char *cp, *rel, *hostname, *dir;
     char *user, *login_name, password[80];
 
@@ -121,8 +121,9 @@ try:
 	user = pw ? pw->pw_name : "ftp";
 	sprintf(password, "%s@%s", user, variable_get(VAR_HOSTNAME));
     }
+    af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
     msgNotify("Logging in to %s@%s..", login_name, hostname);
-    if ((OpenConn = ftpLogin(hostname, login_name, password, FtpPort, isDebug(), &code)) == NULL) {
+    if ((OpenConn = ftpLoginAf(hostname, af, login_name, password, FtpPort, isDebug(), &code)) == NULL) {
 	msgConfirm("Couldn't open FTP connection to %s:\n  %s.", hostname, ftpErrString(code));
 	goto punt;
     }
