@@ -119,7 +119,11 @@ main(argc, argv)
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(argv[0], pbuf, &hints, &res);
 	if (error) {
-		errx(1, "%s: %s", argv[0], gai_strerror(error));
+		fprintf(stderr, "rip6query: %s: %s\n", argv[0],
+			gai_strerror(error));
+		if (error == EAI_SYSTEM)
+			errx(1, "%s", strerror(errno));
+		exit(1);
 		/*NOTREACHED*/
 	}
 	if (res->ai_next) {

@@ -434,6 +434,8 @@ main(argc, argv)
 	ret_ga = getaddrinfo(target, NULL, &hints, &res);
 	if (ret_ga) {
 		fprintf(stderr, "ping6: %s\n", gai_strerror(ret_ga));
+		if (ret_ga == EAI_SYSTEM)
+			errx(1, "%s", strerror(errno));
 		exit(1);
 	}
 	if (res->ai_canonname)
@@ -586,8 +588,12 @@ main(argc, argv)
 		for (hops = 0; hops < argc - 1; hops++) {
 			struct addrinfo *iaip;
 
-			if ((error = getaddrinfo(argv[hops], NULL, &hints, &iaip)))
-				errx(1, gai_strerror(error));
+			if ((error = getaddrinfo(argv[hops], NULL, &hints, &iaip))) {
+				fprintf(stderr, "ping6: %s\n", gai_strerror(error));
+				if (error == EAI_SYSTEM)
+					errx(1, strerror(errno));
+				exit(1);
+			}
 			if (SIN6(res->ai_addr)->sin6_family != AF_INET6)
 				errx(1,
 				     "bad addr family of an intermediate addr");
