@@ -420,6 +420,7 @@ dev/mii/lxtphy.c	optional miibus
 dev/mii/qsphy.c		optional miibus
 dev/mii/acphy.c		optional miibus
 dev/mii/miibus_if.m	optional miibus
+dev/mk48txx/mk48txx.c	optional mk48txx
 dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
 dev/mlx/mlx_pci.c	optional mlx
