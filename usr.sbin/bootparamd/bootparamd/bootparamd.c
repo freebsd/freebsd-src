@@ -9,7 +9,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: bootparamd.c,v 1.7 1997/09/04 11:49:24 charnier Exp $";
+	"$Id: bootparamd.c,v 1.8 1997/10/19 10:42:39 joerg Exp $";
 #endif /* not lint */
 
 #include <rpc/rpc.h>
@@ -38,7 +38,7 @@ static char askname[MAX_MACHINE_NAME];
 static char path[MAX_PATH_LEN];
 static char domain_name[MAX_MACHINE_NAME];
 
-int getthefile __P((char *, char *, char *));
+int getthefile __P((char *, char *, char *, int));
 int checkhost __P((char *, char *, int));
 
 bp_whoami_res *
@@ -128,7 +128,7 @@ bp_getfile_arg *getfile;
   strncpy(askname, he->h_name, sizeof(askname));
   askname[sizeof(askname)-1] = 0;
 
-  if (getthefile(askname, getfile->file_id,buffer)) {
+  if (getthefile(askname, getfile->file_id,buffer,sizeof(buffer))) {
     if ( (where = index(buffer,':')) ) {
       /* buffer is re-written to contain the name of the info of file */
       strncpy(hostname, buffer, where - buffer);
@@ -180,9 +180,10 @@ bp_getfile_arg *getfile;
       empty answer for the file "dump")   */
 
 int
-getthefile(askname,fileid,buffer)
+getthefile(askname,fileid,buffer,blen)
 char *askname;
 char *fileid, *buffer;
+int blen;
 {
   FILE *bpf;
   char  *where;
@@ -219,7 +220,8 @@ char *fileid, *buffer;
       if (strstr(result, fileid) == NULL) {
 	buffer[0] = '\0';
       } else {
-	sprintf(buffer,"%s",strchr(strstr(result,fileid), '=') + 1);
+	snprintf(buffer, blen,
+		"%s",strchr(strstr(result,fileid), '=') + 1);
 	if (strchr(buffer, ' ') != NULL)
 	  *(char *)(strchr(buffer, ' ')) = '\0';
       }
