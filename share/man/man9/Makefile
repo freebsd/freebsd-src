@@ -58,8 +58,8 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	style.9 suser.9 swi.9 sx.9 sysctl_add_oid.9 sysctl_ctx_init.9 \
 	taskqueue.9 time.9 timeout.9 tvtohz.9 \
 	ucred.9 uidinfo.9 uio.9 \
-	vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 vfs_unmountall.9 vget.9 \
-	vinvalbuf.9 \
+	vaccess.9 vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 \
+	vfs_unmountall.9 vget.9 vinvalbuf.9 \
 	vm_page_alloc.9 vm_page_cache.9 \
 	vm_page_copy.9 vm_page_deactivate.9 \
 	vm_page_flag.9 vm_page_free.9 vm_page_hold.9 \
