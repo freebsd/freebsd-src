@@ -247,5 +247,5 @@ package_extract(Device *dev, char *name, Boolean depended)
 	ret = DITEM_FAILURE;
     }
     signal(SIGPIPE, SIG_IGN);
-    return ret | DITEM_RESTORE;
+    return ret;
 }
