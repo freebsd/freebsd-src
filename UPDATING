@@ -6,6 +6,25 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20010117:
+	Linksys Fast Ethernet PCCARD cards supported by the ed driver
+	now require the addition of flag 0x80000 to their config line
+	in pccard.conf(5).  This flag is not optional.  These Linksys
+	cards will not be recognized without it.
+
+20010112:
+	Important new FreeBSD-version stuff: PAM support has been worked
+	in, partially from the "Unix" OpenSSH version.  This requires
+	adding the following in pam.conf:
+  
+	sshd    auth    sufficient      pam_skey.so
+	sshd    auth    required        pam_unix.so         try_first_pass
+	sshd    session required        pam_permit.so
+
+20010109:
+	ipfw interface changed.  Make sure that the userland and kernel match
+	or you won't have the firewall rules you think you do.
+
 20001120:
 	FreeBSD 4.2 RELEASE.
 
