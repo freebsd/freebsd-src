@@ -5,11 +5,42 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
+/*-
+ * Copyright (c) 2003-2005 McAfee, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Security Research Division of McAfee, Inc under DARPA/SPAWAR
+ * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
+ * program.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "opt_sysvipc.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -26,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/jail.h>
+#include <sys/mac.h>
 
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 
@@ -33,6 +65,11 @@ static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 #define DPRINTF(a)	printf a
 #else
 #define DPRINTF(a)
+#endif
+#ifdef MAC_DEBUG
+#define MPRINTF(a)      printf a
+#else
+#define MPRINTF(a)
 #endif
 
 static void seminit(void);
@@ -200,6 +237,9 @@ seminit(void)
 		sema[i].u.sem_base = 0;
 		sema[i].u.sem_perm.mode = 0;
 		sema[i].u.sem_perm.seq = 0;
+#ifdef MAC
+		mac_init_sysv_sema(&sema[i]);
+#endif
 	}
 	for (i = 0; i < seminfo.semmni; i++)
 		mtx_init(&sema_mtx[i], "semid", NULL, MTX_DEF);
@@ -222,6 +262,10 @@ semunload(void)
 		return (EBUSY);
 
 	EVENTHANDLER_DEREGISTER(process_exit, semexit_tag);
+#ifdef MAC
+	for (i = 0; i < seminfo.semmni; i++)
+		mac_destroy_sysv_sema(&sema[i]);
+#endif
 	free(sem, M_SEM);
 	free(sema, M_SEM);
 	free(semu, M_SEM);
@@ -536,6 +580,14 @@ __semctl(td, uap)
 		}
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
+#ifdef MAC
+		error = mac_check_sysv_semctl(cred, semakptr, cmd);
+		if (error != 0) {
+			MPRINTF(("mac_check_sysv_semctl returned %d\n",
+			    error));
+			goto done2;
+		}
+#endif
 		mtx_unlock(sema_mtxp);
 		error = copyout(&semakptr->u, real_arg.buf,
 		    sizeof(struct semid_ds));
@@ -551,6 +603,16 @@ __semctl(td, uap)
 
 	semakptr = &sema[semid];
 	sema_mtxp = &sema_mtx[semid];
+#ifdef MAC
+	mtx_lock(sema_mtxp);
+	error = mac_check_sysv_semctl(cred, semakptr, cmd);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_semctl returned %d\n", error));
+		mtx_unlock(sema_mtxp);
+		return (error);
+	}
+	mtx_unlock(sema_mtxp);
+#endif
 		
 	error = 0;
 	rval = 0;
@@ -573,6 +635,9 @@ __semctl(td, uap)
 				sema[i].u.sem_base -= semakptr->u.sem_nsems;
 		}
 		semakptr->u.sem_perm.mode = 0;
+#ifdef MAC
+		mac_cleanup_sysv_sema(semakptr);
+#endif
 		SEMUNDO_LOCK();
 		semundo_clear(semid, -1);
 		SEMUNDO_UNLOCK();
@@ -804,6 +869,14 @@ semget(td, uap)
 				error = EEXIST;
 				goto done2;
 			}
+#ifdef MAC
+			error = mac_check_sysv_semget(cred, &sema[semid]);
+			if (error != 0) {
+				MPRINTF(("mac_check_sysv_semget returned %d\n",
+				    error));
+				goto done2;
+			}
+#endif
 			goto found;
 		}
 	}
@@ -848,6 +921,9 @@ semget(td, uap)
 		semtot += nsems;
 		bzero(sema[semid].u.sem_base,
 		    sizeof(sema[semid].u.sem_base[0])*nsems);
+#ifdef MAC
+		mac_create_sysv_sema(cred, &sema[semid]);
+#endif
 		DPRINTF(("sembase = 0x%x, next = 0x%x\n",
 		    sema[semid].u.sem_base, &sem[semtot]));
 	} else {
@@ -954,6 +1030,13 @@ semop(td, uap)
 		DPRINTF(("error = %d from ipaccess\n", error));
 		goto done2;
 	}
+#ifdef MAC
+	error = mac_check_sysv_semop(td->td_ucred, semakptr, j);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_semop returned %d\n", error));
+		goto done2;
+	}
+#endif
 
 	/*
 	 * Loop trying to satisfy the vector of requests.
