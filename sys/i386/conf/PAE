@@ -46,7 +46,6 @@ nodevice	dpt
 nodevice	iir
 nodevice	mly
 
-nodevice	amr
 nodevice	ida
 nodevice	mlx
 nodevice	pst
