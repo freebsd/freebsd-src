@@ -34,7 +34,7 @@ The file
 .Nm
 contains descriptive information on bootstrapping the system. Through
 it you can specify the kernel to be booted, parameters to be passed to
-it, additional modules to be loaded, and generally set all variables
+it, and additional modules to be loaded; and generally set all variables
 described in
 .Xr loader 8 .
 .Pp
@@ -58,7 +58,7 @@ format was defined explicitly to resemble
 and can be sourced by
 .Xr sh 1 ,
 some settings are treated in a special fashion. Also, the
-behavior of some settings depends only on it's suffix.
+behavior of some settings is defined by the setting's suffix; the prefix identifies which module the setting controls.
 .Pp
 The general parsing rules are:
 .Bl -bullet
@@ -76,12 +76,12 @@ All settings have the following format:
 .Pp
 Unless it belongs to one of the classes of settings that receive special
 treatment, a setting will set the value of a
-.Xr loader 8 Ns 's
+.Xr loader 8
 environment variable. The settings that receive special
-treatment are listed below. The ones beginning with a
+treatment are listed below. Settings beginning with
 .Qq *
-define the modules to be loaded and
-may have any prefix. All such settings sharing a common
+below define the modules to be loaded and
+may have any prefix; the prefix identifies a module. All such settings sharing a common
 prefix refer to the same module.
 .Bl -tag -width Ar
 .It Ar exec
@@ -90,7 +90,7 @@ Immediately executes a
 command. This type of setting cannot be processed by programs other
 than
 .Xr loader 8 ,
-so it's use should be avoided. Multiple instances of it will be processed
+so its use should be avoided. Multiple instances of it will be processed
 independently.
 .It Ar loader_conf_files
 Defines additional configuration files to be processed right after the
@@ -101,12 +101,12 @@ modules will be loaded.
 .It Ar kernel_options
 Flags to be passed to the kernel.
 .It Ar password
-Provides a password to be asked by check-password before execution is
+Provides a password to be required by check-password before execution is
 allowed to continue.
 .It Ar verbose_loading
 If set to
 .Dq YES ,
-the modules' names will be displayed as they are loaded.
+module names will be displayed as they are loaded.
 .It Ar *_load
 If set to
 .Dq YES ,
@@ -143,7 +143,7 @@ If set to
 a bitmap will be loaded to be displayed on screen while booting.
 .It Va bitmap_name
 .Pq Dq /boot/splash.bmp
-Name of the bitmap to be loaded. Any other name can be used.
+Name of the bitmap to be loaded. Any valid bitmap path can be used.
 .It Va kernel
 .Pq Dq /kernel
 .It Va loader_conf_files
@@ -152,13 +152,13 @@ Name of the bitmap to be loaded. Any other name can be used.
 .Pq Dq NO
 If set to
 .Dq YES ,
-will load the splash screen module, making possible to display a bmp image
+will load the splash screen module, making it possible to display a bmp image
 on the screen while booting.
 .It Va splash_pcx_load
 .Pq Dq NO
 If set to
 .Dq YES ,
-will load the splash screen module, making possible to display a pcx image
+will load the splash screen module, making it possible to display a pcx image
 on the screen while booting.
 .It Va userconfig_script_load
 .Pq Dq NO
