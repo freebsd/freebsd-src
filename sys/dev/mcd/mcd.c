@@ -35,7 +35,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.7 1994/01/22 18:00:54 ats Exp $
+ *	$Id: mcd.c,v 1.8 1994/02/06 11:33:25 rgrimes Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -584,7 +584,7 @@ int mcd_probe(struct isa_device *dev)
 		DELAY (500);
 		junk = inb(port+MCD_DATA);	/* What is byte used for?!?!? */
 	
-		if (check = 'M') {
+		if (check == 'M') {
 #ifdef DEBUG
 		printf("Mitsumi drive detected\n");
 #endif
