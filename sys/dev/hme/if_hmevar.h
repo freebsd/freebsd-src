@@ -138,10 +138,15 @@ struct hme_softc {
 	int		sc_csum_features;
 
 	/* Ring descriptor */
-	struct hme_ring		sc_rb;
+	struct hme_ring	sc_rb;
 
-	int			sc_debug;
+	int		sc_debug;
+	struct mtx	sc_lock;
 };
+
+#define HME_LOCK(_sc)		mtx_lock(&(_sc)->sc_lock)
+#define HME_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_lock)
+#define HME_LOCK_ASSERT(_sc, _what)	mtx_assert(&(_sc)->sc_lock, (_what))
 
 extern devclass_t hme_devclass;
 
