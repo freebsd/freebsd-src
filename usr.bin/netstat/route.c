@@ -669,7 +669,7 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 			case IFT_ETHER:
 				if (sdl->sdl_alen == ETHER_ADDR_LEN) {
 					cp = ether_ntoa((struct ether_addr *)
-					    sdl->sdl_data + sdl->sdl_nlen);
+					    (sdl->sdl_data + sdl->sdl_nlen));
 					break;
 				}
 				/* FALLTHROUGH */
