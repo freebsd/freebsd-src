@@ -61,6 +61,8 @@
 
 struct wi_softc	{
 	struct ieee80211com	sc_ic;
+	int			(*sc_newstate)(struct ieee80211com *,
+					enum ieee80211_state, int);
 	device_t		sc_dev;
 #if __FreeBSD_version >= 500000
 	struct mtx		sc_mtx;
