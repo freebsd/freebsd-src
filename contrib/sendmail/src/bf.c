@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002, 2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -18,7 +18,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: bf.c,v 8.54.2.3 2003/09/03 19:58:26 ca Exp $")
+SM_RCSID("@(#)$Id: bf.c,v 8.60 2004/04/14 18:12:49 ca Exp $")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -701,7 +701,8 @@ sm_bfcommit(fp)
 
 		/* Clear umask as bf_filemode are the true perms */
 		omask = umask(0);
-		retval = OPEN(bfp->bf_filename, O_RDWR | O_CREAT | O_EXCL,
+		retval = OPEN(bfp->bf_filename,
+			      O_RDWR | O_CREAT | O_EXCL | QF_O_EXTRA,
 			      bfp->bf_filemode, bfp->bf_flags);
 		save_errno = errno;
 		(void) umask(omask);

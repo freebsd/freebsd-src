@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,10 +13,9 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.242.2.8 2003/07/08 01:16:35 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.254 2004/04/05 18:41:38 ca Exp $")
 
 static void	collecttimeout __P((time_t));
-static void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
 static SM_FILE_T *collect_dfopen __P((ENVELOPE *));
@@ -724,7 +723,9 @@ readerr:
 		finis(true, true, ExitStat);
 		/* NOTREACHED */
 	}
-	else if (SuperSafe != SAFE_REALLY)
+	else if (SuperSafe == SAFE_NO ||
+		 SuperSafe == SAFE_INTERACTIVE ||
+		 (SuperSafe == SAFE_REALLY_POSTMILTER && smtpmode))
 	{
 		/* skip next few clauses */
 		/* EMPTY */
@@ -743,7 +744,7 @@ readerr:
 			if (stat(dfile, &st) < 0)
 				st.st_size = -1;
 			errno = EEXIST;
-			syserr("@collect: bfcommit(%s): already on disk, size = %ld",
+			syserr("@collect: bfcommit(%s): already on disk, size=%ld",
 			       dfile, (long) st.st_size);
 			dfd = sm_io_getinfo(df, SM_IO_WHAT_FD, NULL);
 			if (dfd >= 0)
@@ -754,8 +755,14 @@ readerr:
 		flush_errors(true);
 		finis(save_errno != EEXIST, true, ExitStat);
 	}
-	else if ((afd = sm_io_getinfo(df, SM_IO_WHAT_FD, NULL)) >= 0 &&
-		 fsync(afd) < 0)
+	else if ((afd = sm_io_getinfo(df, SM_IO_WHAT_FD, NULL)) < 0)
+	{
+		dferror(df, "sm_io_getinfo", e);
+		flush_errors(true);
+		finis(true, true, ExitStat);
+		/* NOTREACHED */
+	}
+	else if (fsync(afd) < 0)
 	{
 		dferror(df, "fsync", e);
 		flush_errors(true);
@@ -873,7 +880,7 @@ readerr:
 	{
 		char *dfname = queuename(e, DATAFL_LETTER);
 		if ((e->e_dfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, dfname,
-					   SM_IO_RDONLY, NULL)) == NULL)
+					   SM_IO_RDONLY_B, NULL)) == NULL)
 		{
 			/* we haven't acked receipt yet, so just chuck this */
 			syserr("@Cannot reopen %s", dfname);
@@ -896,10 +903,6 @@ readerr:
 		e->e_msgpriority = e->e_msgsize
 				 - e->e_class * WkClassFact
 				 + e->e_nrcpts * WkRecipFact;
-		if (tTd(90, 1))
-			sm_syslog(LOG_INFO, e->e_id,
-				"collect: at end: msgsize=%ld, msgpriority=%ld",
-				e->e_msgsize, e->e_msgpriority);
 		markstats(e, (ADDRESS *) NULL, STATS_NORMAL);
 	}
 }
@@ -958,7 +961,7 @@ collecttimeout(timeout)
 **		Arranges for following output to go elsewhere.
 */
 
-static void
+void
 dferror(df, msg, e)
 	SM_FILE_T *volatile df;
 	char *msg;
@@ -989,7 +992,7 @@ dferror(df, msg, e)
 		    < 0)
 		  st.st_size = 0;
 		(void) sm_io_reopen(SmFtStdio, SM_TIME_DEFAULT, dfname,
-				    SM_IO_WRONLY, NULL, df);
+				    SM_IO_WRONLY_B, NULL, df);
 		if (st.st_size <= 0)
 			(void) sm_io_fprintf(df, SM_TIME_DEFAULT,
 				"\n*** Mail could not be accepted");

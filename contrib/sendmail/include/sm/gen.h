@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: gen.h,v 1.22 2002/04/03 00:40:42 ca Exp $
+ *	$Id: gen.h,v 1.23 2003/11/04 18:51:54 ca Exp $
  */
 
 /*
@@ -43,7 +43,7 @@
 # else /* SM_CONF_STDDEF_H */
 #  ifndef NULL
 #   define NULL	0
-#  endif
+#  endif /* ! NULL */
 #  define offsetof(type, member)	((size_t)(&((type *)0)->member))
 # endif /* SM_CONF_STDDEF_H */
 
@@ -58,7 +58,8 @@
     typedef int bool;
 #   define false	0
 #   define true		1
-#  endif
+#   define __bool_true_false_are_defined	1
+#  endif /* ! __cplusplus */
 # endif /* SM_CONF_STDBOOL_H */
 
 /*

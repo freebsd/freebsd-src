@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: rpool.h,v 1.15 2001/09/04 22:41:55 ca Exp $
+ *	$Id: rpool.h,v 1.16 2003/09/05 23:07:49 ca Exp $
  */
 
 /*
@@ -165,8 +165,12 @@ sm_rpool_malloc __P((
 	size_t _size));
 # endif /* SM_HEAP_CHECK */
 
+#if DO_NOT_USE_STRCPY
+extern char *sm_rpool_strdup_x __P((SM_RPOOL_T *rpool, const char *s));
+#else /* DO_NOT_USE_STRCPY */
 # define sm_rpool_strdup_x(rpool, str) \
 	strcpy(sm_rpool_malloc_x(rpool, strlen(str) + 1), str)
+#endif /* DO_NOT_USE_STRCPY */
 
 extern SM_RPOOL_ATTACH_T
 sm_rpool_attach_x __P((

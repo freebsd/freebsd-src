@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stab.c,v 8.86.4.1 2003/03/31 17:44:24 ca Exp $")
+SM_RCSID("@(#)$Id: stab.c,v 8.88 2003/05/21 15:36:30 ca Exp $")
 
 /*
 **  STAB -- manage the symbol table
@@ -172,6 +172,12 @@ stab(name, type, op)
 	  case ST_QUEUE:
 		len = sizeof s->s_quegrp;
 		break;
+
+#if SOCKETMAP
+	  case ST_SOCKETMAP:
+		len = sizeof s->s_socketmap;
+		break;
+#endif /* SOCKETMAP */
 
 	  default:
 		/*

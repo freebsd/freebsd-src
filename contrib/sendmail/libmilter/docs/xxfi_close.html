@@ -1,6 +1,9 @@
 <html>
 <head><title>xxfi_close</title></head>
 <body>
+<!--
+$Id: xxfi_close.html,v 1.10 2004/06/16 22:41:36 ca Exp $
+-->
 <h1>xxfi_close</h1>
 
 <table border="0" cellspacing=4 cellpadding=4>
@@ -43,6 +46,18 @@ The current connection is being closed.
 <th valign="top" align=left>NOTES</th> 
 <td>
 <ul>
+<li>xxfi_close may be called "out-of-order", i.e. before even the
+xxfi_connect is called.
+After a connection is established by the MTA to the filter,
+if the MTA decides this connection's traffic will be discarded
+(e.g. via an access_db result), no data will be passed to the
+filter from the MTA until the client closes down.
+At that time, xxfi_close is called.
+It can therefore be the only callback ever used for a given connection,
+and developers should anticipate this possibility when crafting their
+xxfi_close code.
+In particular, it is incorrect to assume the private context pointer
+will be something other than NULL in this callback.
 <li>xxfi_close is called on close even if the previous mail
 transaction was aborted.  
 <li>xxfi_close is responsible for freeing any resources allocated on a
@@ -56,7 +71,7 @@ currently ignored.
 
 <hr size="1">
 <font size="-1">
-Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000, 2003, 2004 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <br>
 By using this file, you agree to the terms and conditions set

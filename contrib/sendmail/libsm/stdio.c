@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: stdio.c,v 1.56.2.13 2003/09/04 01:18:08 ca Exp $")
+SM_RCSID("@(#)$Id: stdio.c,v 1.68 2004/03/03 19:20:29 ca Exp $")
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>

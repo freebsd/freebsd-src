@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,13 +9,70 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.64 2002/04/30 22:22:02 msk Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.72 2004/05/05 00:07:21 msk Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
+
+static int smfi_header __P((SMFICTX *, int, int, char *, char *));
 
 /* for smfi_set{ml}reply, let's be generous. 256/16 should be sufficient */
 #define MAXREPLYLEN	980	/* max. length of a reply string */
 #define MAXREPLIES	32	/* max. number of reply strings */
+
+/*
+**  SMFI_HEADER -- send a header to the MTA
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**		cmd -- Header modification command
+**		hdridx -- Header index
+**		headerf -- Header field name
+**		headerv -- Header field value
+**
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+static int
+smfi_header(ctx, cmd, hdridx, headerf, headerv)
+	SMFICTX *ctx;
+	int cmd;
+	int hdridx;
+	char *headerf;
+	char *headerv;
+{
+	size_t len, l1, l2, offset;
+	int r;
+	mi_int32 v;
+	char *buf;
+	struct timeval timeout;
+
+	if (headerf == NULL || *headerf == '\0' || headerv == NULL)
+		return MI_FAILURE;
+	timeout.tv_sec = ctx->ctx_timeout;
+	timeout.tv_usec = 0;
+	l1 = strlen(headerf) + 1;
+	l2 = strlen(headerv) + 1;
+	len = l1 + l2;
+	if (hdridx >= 0)
+		len += MILTER_LEN_BYTES;
+	buf = malloc(len);
+	if (buf == NULL)
+		return MI_FAILURE;
+	offset = 0;
+	if (hdridx >= 0)
+	{
+		v = htonl(hdridx);
+		(void) memcpy(&(buf[0]), (void *) &v, MILTER_LEN_BYTES);
+		offset += MILTER_LEN_BYTES;
+	}
+	(void) memcpy(buf + offset, headerf, l1);
+	(void) memcpy(buf + offset + l1, headerv, l2);
+	r = mi_wr_cmd(ctx->ctx_sd, &timeout, cmd, buf, len);
+	free(buf);
+	return r;
+}
 
 /*
 **  SMFI_ADDHEADER -- send a new header to the MTA
@@ -35,29 +92,36 @@ smfi_addheader(ctx, headerf, headerv)
 	char *headerf;
 	char *headerv;
 {
-	/* do we want to copy the stuff or have a special mi_wr_cmd call? */
-	size_t len, l1, l2;
-	int r;
-	char *buf;
-	struct timeval timeout;
-
-	if (headerf == NULL || *headerf == '\0' || headerv == NULL)
-		return MI_FAILURE;
 	if (!mi_sendok(ctx, SMFIF_ADDHDRS))
 		return MI_FAILURE;
-	timeout.tv_sec = ctx->ctx_timeout;
-	timeout.tv_usec = 0;
-	l1 = strlen(headerf);
-	l2 = strlen(headerv);
-	len = l1 + l2 + 2;
-	buf = malloc(len);
-	if (buf == NULL)
+
+	return smfi_header(ctx, SMFIR_ADDHEADER, -1, headerf, headerv);
+}
+
+/*
+**  SMFI_INSHEADER -- send a new header to the MTA (to be inserted)
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**  		hdridx -- index into header list where insertion should occur
+**		headerf -- Header field name
+**		headerv -- Header field value
+**
+**	Returns:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+int
+smfi_insheader(ctx, hdridx, headerf, headerv)
+	SMFICTX *ctx;
+	int hdridx;
+	char *headerf;
+	char *headerv;
+{
+	if (!mi_sendok(ctx, SMFIF_ADDHDRS) || hdridx < 0)
 		return MI_FAILURE;
-	(void) memcpy(buf, headerf, l1 + 1);
-	(void) memcpy(buf + l1 + 1, headerv, l2 + 1);
-	r = mi_wr_cmd(ctx->ctx_sd, &timeout, SMFIR_ADDHEADER, buf, len);
-	free(buf);
-	return r;
+
+	return smfi_header(ctx, SMFIR_INSHEADER, hdridx, headerf, headerv);
 }
 
 /*
@@ -80,36 +144,12 @@ smfi_chgheader(ctx, headerf, hdridx, headerv)
 	mi_int32 hdridx;
 	char *headerv;
 {
-	/* do we want to copy the stuff or have a special mi_wr_cmd call? */
-	size_t len, l1, l2;
-	int r;
-	mi_int32 v;
-	char *buf;
-	struct timeval timeout;
-
-	if (headerf == NULL || *headerf == '\0')
+	if (!mi_sendok(ctx, SMFIF_CHGHDRS) || hdridx < 0)
 		return MI_FAILURE;
-	if (hdridx < 0)
-		return MI_FAILURE;
-	if (!mi_sendok(ctx, SMFIF_CHGHDRS))
-		return MI_FAILURE;
-	timeout.tv_sec = ctx->ctx_timeout;
-	timeout.tv_usec = 0;
 	if (headerv == NULL)
 		headerv = "";
-	l1 = strlen(headerf);
-	l2 = strlen(headerv);
-	len = l1 + l2 + 2 + MILTER_LEN_BYTES;
-	buf = malloc(len);
-	if (buf == NULL)
-		return MI_FAILURE;
-	v = htonl(hdridx);
-	(void) memcpy(&(buf[0]), (void *) &v, MILTER_LEN_BYTES);
-	(void) memcpy(buf + MILTER_LEN_BYTES, headerf, l1 + 1);
-	(void) memcpy(buf + MILTER_LEN_BYTES + l1 + 1, headerv, l2 + 1);
-	r = mi_wr_cmd(ctx->ctx_sd, &timeout, SMFIR_CHGHEADER, buf, len);
-	free(buf);
-	return r;
+
+	return smfi_header(ctx, SMFIR_CHGHEADER, hdridx, headerf, headerv);
 }
 
 /*
@@ -214,7 +254,6 @@ smfi_replacebody(ctx, bodyp, bodylen)
 	return MI_SUCCESS;
 }
 
-#if _FFR_QUARANTINE
 /*
 **  SMFI_QUARANTINE -- quarantine an envelope
 **
@@ -251,7 +290,6 @@ smfi_quarantine(ctx, reason)
 	free(buf);
 	return r;
 }
-#endif /* _FFR_QUARANTINE */
 
 /*
 **  MYISENHSC -- check whether a string contains an enhanced status code
@@ -365,7 +403,6 @@ smfi_setreply(ctx, rcode, xcode, message)
 	return MI_SUCCESS;
 }
 
-#if _FFR_MULTILINE
 /*
 **  SMFI_SETMLREPLY -- set multiline reply code for the next reply to the MTA
 **
@@ -477,7 +514,6 @@ smfi_setmlreply(ctx, rcode, xcode, va_alist)
 	SM_VA_END(ap);
 	return MI_SUCCESS;
 }
-#endif /* _FFR_MULTILINE */
 
 /*
 **  SMFI_SETPRIV -- set private data
@@ -584,7 +620,6 @@ smfi_getsymval(ctx, symname)
 	return NULL;
 }
 
-#if _FFR_SMFI_PROGRESS
 /*
 **  SMFI_PROGRESS -- send "progress" message to the MTA to prevent premature
 **		     timeouts during long milter-side operations
@@ -610,4 +645,3 @@ smfi_progress(ctx)
 
 	return mi_wr_cmd(ctx->ctx_sd, &timeout, SMFIR_PROGRESS, NULL, 0);
 }
-#endif /* _FFR_SMFI_PROGRESS */

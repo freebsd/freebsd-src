@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.35.2.10 2003/06/26 16:36:49 ca Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.45 2004/01/19 19:32:08 ca Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
@@ -523,11 +523,14 @@ sleep(intvl)
 	SM_EVENT *ev;
 #if _FFR_SLEEP_USE_SELECT > 0
 	int r;
+# if _FFR_SLEEP_USE_SELECT > 0
+	struct timeval sm_io_to;
+# endif /* _FFR_SLEEP_USE_SELECT > 0 */
 #endif /* _FFR_SLEEP_USE_SELECT > 0 */
 #if SM_CONF_SETITIMER
 	struct timeval now, begin, diff;
 # if _FFR_SLEEP_USE_SELECT > 0
-	struct timeval sm_io_to, slpv;
+	struct timeval slpv;
 # endif /* _FFR_SLEEP_USE_SELECT > 0 */
 #else /*  SM_CONF_SETITIMER */
 	time_t begin, now;
@@ -596,7 +599,7 @@ sleep(intvl)
 		sm_io_to.tv_sec = intvl - (now - begin);
 		if (sm_io_to.tv_sec <= 0)
 			sm_io_to.tv_sec = 1;
-		sm_io_to.utv_sec = 0;
+		sm_io_to.tv_usec = 0;
 # endif /* _FFR_SLEEP_USE_SELECT > 0 */
 #endif /* SM_CONF_SETITIMER */
 #if _FFR_SLEEP_USE_SELECT > 0

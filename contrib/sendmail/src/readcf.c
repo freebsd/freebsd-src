@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.12 2003/10/07 17:45:28 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.641 2004/07/23 20:45:02 gshapiro Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -200,7 +200,8 @@ readcf(cfname, safe, e)
 			expand(&bp[1], exbuf, sizeof exbuf, e);
 			rwp->r_lhs = prescan(exbuf, '\t', pvpbuf,
 					     sizeof pvpbuf, NULL,
-					     ConfigLevel >= 9 ? TokTypeNoC : NULL);
+					     ConfigLevel >= 9 ? TokTypeNoC : NULL,
+					     true);
 			nfuzzy = 0;
 			if (rwp->r_lhs != NULL)
 			{
@@ -287,7 +288,8 @@ readcf(cfname, safe, e)
 			expand(q, exbuf, sizeof exbuf, e);
 			rwp->r_rhs = prescan(exbuf, '\t', pvpbuf,
 					     sizeof pvpbuf, NULL,
-					     ConfigLevel >= 9 ? TokTypeNoC : NULL);
+					     ConfigLevel >= 9 ? TokTypeNoC : NULL,
+					     true);
 			if (rwp->r_rhs != NULL)
 			{
 				register char **ap;
@@ -960,7 +962,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 
 			cl = "ldap";
 			n = sm_snprintf(buf, sizeof buf,
-					"-k (&(objectClass=sendmailMTAClass)(sendmailMTAClassName=%s)(|(sendmailMTACluster=%s)(sendmailMTAHost=%s))) -v sendmailMTAClassValue",
+					"-k (&(objectClass=sendmailMTAClass)(sendmailMTAClassName=%s)(|(sendmailMTACluster=%s)(sendmailMTAHost=%s))) -v sendmailMTAClassValue,sendmailMTAClassSearch:FILTER:sendmailMTAClass,sendmailMTAClassURL:URL:sendmailMTAClass",
 					mn, lc, jbuf);
 			if (n >= sizeof buf)
 			{
@@ -1185,6 +1187,8 @@ makemailer(line)
 	}
 	m->m_name = newstr(line);
 	m->m_qgrp = NOQGRP;
+	m->m_uid = NO_UID;
+	m->m_gid = NO_GID;
 
 	/* now scan through and assign info from the fields */
 	while (*p != '\0')
@@ -1793,17 +1797,14 @@ printrules()
 	{
 		if (RewriteRules[ruleset] == NULL)
 			continue;
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
-				     "\n----Rule Set %d:", ruleset);
+		sm_dprintf("\n----Rule Set %d:", ruleset);
 
 		for (rwp = RewriteRules[ruleset]; rwp != NULL; rwp = rwp->r_next)
 		{
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
-					     "\nLHS:");
-			printav(rwp->r_lhs);
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
-					     "RHS:");
-			printav(rwp->r_rhs);
+			sm_dprintf("\nLHS:");
+			printav(sm_debug_file(), rwp->r_lhs);
+			sm_dprintf("RHS:");
+			printav(sm_debug_file(), rwp->r_rhs);
 		}
 	}
 }
@@ -1811,6 +1812,7 @@ printrules()
 **  PRINTMAILER -- print mailer structure (for debugging)
 **
 **	Parameters:
+**		fp -- output file
 **		m -- the mailer to print
 **
 **	Returns:
@@ -1818,71 +1820,72 @@ printrules()
 */
 
 void
-printmailer(m)
+printmailer(fp, m)
+	SM_FILE_T *fp;
 	register MAILER *m;
 {
 	int j;
 
-	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+	(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 			     "mailer %d (%s): P=%s S=", m->m_mno, m->m_name,
 			     m->m_mailer);
 	if (RuleSetNames[m->m_se_rwset] == NULL)
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d/",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%d/",
 				     m->m_se_rwset);
 	else
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s/",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s/",
 				     RuleSetNames[m->m_se_rwset]);
 	if (RuleSetNames[m->m_sh_rwset] == NULL)
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d R=",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%d R=",
 				     m->m_sh_rwset);
 	else
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s R=",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s R=",
 				     RuleSetNames[m->m_sh_rwset]);
 	if (RuleSetNames[m->m_re_rwset] == NULL)
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d/",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%d/",
 				     m->m_re_rwset);
 	else
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s/",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s/",
 				     RuleSetNames[m->m_re_rwset]);
 	if (RuleSetNames[m->m_rh_rwset] == NULL)
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d ",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%d ",
 				     m->m_rh_rwset);
 	else
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s ",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s ",
 				     RuleSetNames[m->m_rh_rwset]);
-	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "M=%ld U=%d:%d F=",
+	(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "M=%ld U=%d:%d F=",
 			     m->m_maxsize, (int) m->m_uid, (int) m->m_gid);
 	for (j = '\0'; j <= '\177'; j++)
 		if (bitnset(j, m->m_flags))
-			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, j);
-	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " L=%d E=",
+			(void) sm_io_putc(fp, SM_TIME_DEFAULT, j);
+	(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, " L=%d E=",
 			     m->m_linelimit);
-	xputs(m->m_eol);
+	xputs(fp, m->m_eol);
 	if (m->m_defcharset != NULL)
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " C=%s",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, " C=%s",
 				     m->m_defcharset);
-	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " T=%s/%s/%s",
+	(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, " T=%s/%s/%s",
 			     m->m_mtatype == NULL
 				? "<undefined>" : m->m_mtatype,
 			     m->m_addrtype == NULL
 				? "<undefined>" : m->m_addrtype,
 			     m->m_diagtype == NULL
 				? "<undefined>" : m->m_diagtype);
-	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " r=%d", m->m_maxrcpt);
+	(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, " r=%d", m->m_maxrcpt);
 	if (m->m_argv != NULL)
 	{
 		char **a = m->m_argv;
 
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " A=");
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, " A=");
 		while (*a != NULL)
 		{
 			if (a != m->m_argv)
-				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 						     " ");
-			xputs(*a++);
+			xputs(fp, *a++);
 		}
 	}
-	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
+	(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "\n");
 }
 /*
 **  SETOPTION -- set global processing option
@@ -2103,10 +2106,6 @@ static struct optioninfo
 	{ "XscriptFileBufferSize",	O_XF_BUFSIZE,	OI_NONE	},
 #define O_LDAPDEFAULTSPEC	0xb2
 	{ "LDAPDefaultSpec",		O_LDAPDEFAULTSPEC,	OI_NONE	},
-#if _FFR_QUEUEDELAY
-# define O_QUEUEDELAY	0xb3
-	{ "QueueDelay",			O_QUEUEDELAY,	OI_NONE	},
-#endif /* _FFR_QUEUEDELAY */
 #define O_SRVCERTFILE	0xb4
 	{ "ServerCertFile",		O_SRVCERTFILE,	OI_NONE	},
 #define O_SRVKEYFILE	0xb5
@@ -2171,14 +2170,27 @@ static struct optioninfo
 # define O_SHMKEYFILE	0xd0
 	{ "SharedMemoryKeyFile",	O_SHMKEYFILE,	OI_NONE	},
 #endif /* _FFR_SELECT_SHM */
-#if _FFR_REJECT_LOG
-# define O_REJECTLOGINTERVAL	0xd1
+#define O_REJECTLOGINTERVAL	0xd1
 	{ "RejectLogInterval",	O_REJECTLOGINTERVAL,	OI_NONE	},
-#endif /* _FFR_REJECT_LOG */
-#if _FFR_REQ_DIR_FSYNC_OPT
-# define O_REQUIRES_DIR_FSYNC	0xd2
+#define O_REQUIRES_DIR_FSYNC	0xd2
 	{ "RequiresDirfsync",	O_REQUIRES_DIR_FSYNC,	OI_NONE	},
-#endif /* _FFR_REQ_DIR_FSYNC_OPT */
+#define O_CONNECTION_RATE_WINDOW_SIZE	0xd3
+	{ "ConnectionRateWindowSize", O_CONNECTION_RATE_WINDOW_SIZE, OI_NONE },
+#define O_CRLFILE	0xd4
+	{ "CRLFile",		O_CRLFILE,	OI_NONE	},
+#define O_FALLBACKSMARTHOST	0xd5
+	{ "FallbackSmartHost",		O_FALLBACKSMARTHOST,	OI_NONE	},
+#define O_SASLREALM	0xd6
+	{ "AuthRealm",		O_SASLREALM,	OI_NONE	},
+#if _FFR_CRLPATH
+# define O_CRLPATH	0xd7
+	{ "CRLPath",		O_CRLPATH,	OI_NONE	},
+#endif /* _FFR_CRLPATH */
+#if _FFR_HELONAME
+# define O_HELONAME 0xd8
+	{ "HeloName",   O_HELONAME,     OI_NONE },
+#endif /* _FFR_HELONAME */
+
 	{ NULL,				'\0',		OI_NONE	}
 };
 
@@ -2318,7 +2330,7 @@ setoption(opt, val, safe, sticky, e)
 			   "setoption %s (0x%x)%s%s=",
 			   OPTNAME, opt, subopt == NULL ? "" : ".",
 			   subopt == NULL ? "" : subopt);
-		xputs(val);
+		xputs(sm_debug_file(), val);
 	}
 
 	/*
@@ -2444,7 +2456,8 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case 'C':		/* checkpoint every N addresses */
-		CheckpointInterval = atoi(val);
+		if (safe || CheckpointInterval > atoi(val))
+			CheckpointInterval = atoi(val);
 		break;
 
 	  case 'd':		/* delivery mode */
@@ -2726,6 +2739,13 @@ setoption(opt, val, safe, sticky, e)
 	  case 's':		/* be super safe, even if expensive */
 		if (tolower(*val) == 'i')
 			SuperSafe = SAFE_INTERACTIVE;
+		else if (tolower(*val) == 'p')
+#if MILTER
+			SuperSafe = SAFE_REALLY_POSTMILTER;
+#else /* MILTER */
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				"Warning: SuperSafe=PostMilter requires Milter support (-DMILTER)\n");
+#endif /* MILTER */
 		else
 			SuperSafe = atobool(val) ? SAFE_REALLY : SAFE_NO;
 		break;
@@ -2802,7 +2822,7 @@ setoption(opt, val, safe, sticky, e)
 
 	  case 'V':		/* fallback MX host */
 		if (val[0] != '\0')
-			FallBackMX = newstr(val);
+			FallbackMX = newstr(val);
 		break;
 
 	  case 'v':		/* run in verbose mode */
@@ -2887,47 +2907,15 @@ setoption(opt, val, safe, sticky, e)
 			break;
 #endif /* _FFR_RHS */
 
+		  case 'n':	/* none */
+		  case 'N':
+			QueueSortOrder = QSO_NONE;
+			break;
+
 		  default:
 			syserr("Invalid queue sort order \"%s\"", val);
 		}
 		break;
-
-#if _FFR_QUEUEDELAY
-	  case O_QUEUEDELAY:	/* queue delay algorithm */
-		switch (*val)
-		{
-		  case 'e':	/* exponential */
-		  case 'E':
-			QueueAlg = QD_EXP;
-			QueueInitDelay = 10 MINUTES;
-			QueueMaxDelay = 2 HOURS;
-			p = strchr(val, '/');
-			if (p != NULL)
-			{
-				char *q;
-
-				*p++ = '\0';
-				q = strchr(p, '/');
-				if (q != NULL)
-					*q++ = '\0';
-				QueueInitDelay = convtime(p, 's');
-				if (q != NULL)
-				{
-					QueueMaxDelay = convtime(q, 's');
-				}
-			}
-			break;
-
-		  case 'l':	/* linear */
-		  case 'L':
-			QueueAlg = QD_LINEAR;
-			break;
-
-		  default:
-			syserr("Invalid queue delay algorithm \"%s\"", val);
-		}
-		break;
-#endif /* _FFR_QUEUEDELAY */
 
 	  case O_HOSTSFILE:	/* pathname of /etc/hosts file */
 		CANONIFY(val);
@@ -3408,6 +3396,15 @@ setoption(opt, val, safe, sticky, e)
 			AuthMechanisms = NULL;
 		break;
 
+	  case O_SASLREALM:
+		if (AuthRealm != NULL)
+			sm_free(AuthRealm);
+		if (*val != '\0')
+			AuthRealm = newstr(val);
+		else
+			AuthRealm = NULL;
+		break;
+
 	  case O_SASLOPTS:
 		while (val != NULL && *val != '\0')
 		{
@@ -3433,14 +3430,11 @@ setoption(opt, val, safe, sticky, e)
 				SASLOpts |= SASL_SEC_FORWARD_SECRECY;
 				break;
 
-# if _FFR_SASL_OPT_M
-/* to be activated in 8.13 */
 #  if SASL >= 20101
 			  case 'm':
 				SASLOpts |= SASL_SEC_MUTUAL_AUTH;
 				break;
 #  endif /* SASL >= 20101 */
-# endif /* _FFR_SASL_OPT_M */
 
 			  case 'p':
 				SASLOpts |= SASL_SEC_NOPLAINTEXT;
@@ -3478,6 +3472,7 @@ setoption(opt, val, safe, sticky, e)
 #else /* SASL */
 	  case O_SASLINFO:
 	  case O_SASLMECH:
+	  case O_SASLREALM:
 	  case O_SASLOPTS:
 	  case O_SASLBITS:
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
@@ -3507,6 +3502,27 @@ setoption(opt, val, safe, sticky, e)
 	  case O_CIPHERLIST:
 		SET_STRING_EXP(CipherList);
 # endif /* _FFR_TLS_1 */
+	  case O_CRLFILE:
+# if OPENSSL_VERSION_NUMBER > 0x00907000L
+		SET_STRING_EXP(CRLFile);
+# else /* OPENSSL_VERSION_NUMBER > 0x00907000L */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires at least OpenSSL 0.9.7\n",
+				     OPTNAME);
+		break;
+# endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
+
+# if _FFR_CRLPATH
+	  case O_CRLPATH:
+#  if OPENSSL_VERSION_NUMBER > 0x00907000L
+		SET_STRING_EXP(CRLPath);
+#  else /* OPENSSL_VERSION_NUMBER > 0x00907000L */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires at least OpenSSL 0.9.7\n",
+				     OPTNAME);
+		break;
+#  endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
+# endif /* _FFR_CRLPATH */
 
 	/*
 	**  XXX How about options per daemon/client instead of globally?
@@ -3575,6 +3591,10 @@ setoption(opt, val, safe, sticky, e)
 	  case O_DHPARAMS5:
 	  case O_CIPHERLIST:
 # endif /* _FFR_TLS_1 */
+	  case O_CRLFILE:
+# if _FFR_CRLPATH
+	  case O_CRLPATH:
+# endif /* _FFR_CRLPATH */
 	  case O_RANDFILE:
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "Warning: Option: %s requires TLS support\n",
@@ -3663,21 +3683,32 @@ setoption(opt, val, safe, sticky, e)
 		break;
 #endif /* _FFR_SOFT_BOUNCE */
 
-#if _FFR_REJECT_LOG
 	  case O_REJECTLOGINTERVAL:	/* time btwn log msgs while refusing */
 		RejectLogInterval = convtime(val, 'h');
 		break;
-#endif /* _FFR_REJECT_LOG */
 
-#if _FFR_REQ_DIR_FSYNC_OPT
 	  case O_REQUIRES_DIR_FSYNC:
-# if REQUIRES_DIR_FSYNC
+#if REQUIRES_DIR_FSYNC
 		RequiresDirfsync = atobool(val);
-# else /* REQUIRES_DIR_FSYNC */
+#else /* REQUIRES_DIR_FSYNC */
 		/* silently ignored... required for cf file option */
-# endif /* REQUIRES_DIR_FSYNC */
+#endif /* REQUIRES_DIR_FSYNC */
 		break;
-#endif /* _FFR_REQ_DIR_FSYNC_OPT */
+
+	  case O_CONNECTION_RATE_WINDOW_SIZE:
+		ConnectionRateWindowSize = convtime(val, 's');
+		break;
+
+	  case O_FALLBACKSMARTHOST:	/* fallback smart host */
+		if (val[0] != '\0')
+			FallbackSmartHost = newstr(val);
+		break;
+
+#if _FFR_HELONAME
+	  case O_HELONAME:
+	        HeloName = newstr(val);
+	        break;
+#endif /* _FFR_HELONAME */
 
 	  default:
 		if (tTd(37, 1))
@@ -4047,12 +4078,10 @@ static struct timeoutinfo
 	{ "starttls",			TO_STARTTLS			},
 #define TO_ACONNECT			0x23
 	{ "aconnect",			TO_ACONNECT			},
-#if _FFR_QUEUERETURN_DSN
-# define TO_QUEUEWARN_DSN		0x24
+#define TO_QUEUEWARN_DSN		0x24
 	{ "queuewarn.dsn",		TO_QUEUEWARN_DSN		},
-# define TO_QUEUERETURN_DSN		0x25
+#define TO_QUEUERETURN_DSN		0x25
 	{ "queuereturn.dsn",		TO_QUEUERETURN_DSN		},
-#endif /* _FFR_QUEUERETURN_DSN */
 	{ NULL,				0				},
 };
 
@@ -4171,9 +4200,7 @@ settimeout(name, val, sticky)
 		TimeOuts.to_q_warning[TOC_NORMAL] = toval;
 		TimeOuts.to_q_warning[TOC_URGENT] = toval;
 		TimeOuts.to_q_warning[TOC_NONURGENT] = toval;
-#if _FFR_QUEUERETURN_DSN
 		TimeOuts.to_q_warning[TOC_DSN] = toval;
-#endif /* _FFR_QUEUERETURN_DSN */
 		addopts = 2;
 		break;
 
@@ -4192,21 +4219,17 @@ settimeout(name, val, sticky)
 		TimeOuts.to_q_warning[TOC_NONURGENT] = toval;
 		break;
 
-#if _FFR_QUEUERETURN_DSN
 	  case TO_QUEUEWARN_DSN:
 		toval = convtime(val, 'h');
 		TimeOuts.to_q_warning[TOC_DSN] = toval;
 		break;
-#endif /* _FFR_QUEUERETURN_DSN */
 
 	  case TO_QUEUERETURN:
 		toval = convtime(val, 'd');
 		TimeOuts.to_q_return[TOC_NORMAL] = toval;
 		TimeOuts.to_q_return[TOC_URGENT] = toval;
 		TimeOuts.to_q_return[TOC_NONURGENT] = toval;
-#if _FFR_QUEUERETURN_DSN
 		TimeOuts.to_q_return[TOC_DSN] = toval;
-#endif /* _FFR_QUEUERETURN_DSN */
 		addopts = 2;
 		break;
 
@@ -4225,12 +4248,10 @@ settimeout(name, val, sticky)
 		TimeOuts.to_q_return[TOC_NONURGENT] = toval;
 		break;
 
-#if _FFR_QUEUERETURN_DSN
 	  case TO_QUEUERETURN_DSN:
 		toval = convtime(val, 'd');
 		TimeOuts.to_q_return[TOC_DSN] = toval;
 		break;
-#endif /* _FFR_QUEUERETURN_DSN */
 
 	  case TO_HOSTSTATUS:
 		MciInfoTimeout = toval;

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: config.h,v 1.44 2002/01/23 17:47:15 gshapiro Exp $
+ *	$Id: config.h,v 1.46 2003/12/10 03:19:06 gshapiro Exp $
  */
 
 /*
@@ -143,8 +143,12 @@
 #  define SM_CONF_TEST_LLONG	1
 # endif /* !SM_CONF_TEST_LLONG */
 
-/* Does LDAP library have ldap_memfree()? */
-# ifndef SM_CONF_LDAP_MEMFREE
+/* LDAP Checks */
+# if LDAPMAP
+#  include <ldap.h>
+
+/* Does the LDAP library have ldap_memfree()? */
+#  ifndef SM_CONF_LDAP_MEMFREE
 
 /*
 **  The new LDAP C API (draft-ietf-ldapext-ldap-c-api-04.txt) includes
@@ -152,11 +156,31 @@
 **  of 2004 to identify the API.
 */
 
-#  if USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004
-#   define SM_CONF_LDAP_MEMFREE	1
-#  else /* USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004 */
-#   define SM_CONF_LDAP_MEMFREE	0
-#  endif /* USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004 */
-# endif /* ! SM_CONF_LDAP_MEMFREE */
+#   if USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004
+#    define SM_CONF_LDAP_MEMFREE	1
+#   else /* USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004 */
+#    define SM_CONF_LDAP_MEMFREE	0
+#   endif /* USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004 */
+#  endif /* ! SM_CONF_LDAP_MEMFREE */
+
+/* Does the LDAP library have ldap_initialize()? */
+#  ifndef SM_CONF_LDAP_INITIALIZE
+
+/*
+**  Check for ldap_initialize() support for support for LDAP URI's with
+**  non-ldap:// schemes.
+*/
+
+/* OpenLDAP does it with LDAP_OPT_URI */
+#   ifdef LDAP_OPT_URI
+#    define SM_CONF_LDAP_INITIALIZE	1
+#   endif /* LDAP_OPT_URI */
+#  endif /* !SM_CONF_LDAP_INITIALIZE */
+# endif /* LDAPMAP */
+
+/* don't use strcpy() */
+# ifndef DO_NOT_USE_STRCPY
+#  define DO_NOT_USE_STRCPY	1
+# endif /* ! DO_NOT_USE_STRCPY */
 
 #endif /* ! SM_CONFIG_H */

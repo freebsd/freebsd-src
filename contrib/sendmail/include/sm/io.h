@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990
  * 	 The Regents of the University of California.  All rights reserved.
@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: io.h,v 1.23.2.2 2003/09/05 20:35:28 ca Exp $
+ *	$Id: io.h,v 1.24 2004/03/03 19:14:49 ca Exp $
  */
 
 /*-
@@ -34,15 +34,15 @@
 #define SM_IO_RDWRTR	6	/* read-write with truncation indicated */
 
 # define SM_IO_BINARY	0x0	/* binary mode: not used in Unix */
-#define SM_IS_BINARY(mode)	((mode) & SM_IO_BINARY != 0)
+#define SM_IS_BINARY(mode)	(((mode) & SM_IO_BINARY) != 0)
 #define SM_IO_MODE(mode)	((mode) & 0x0f)
 
-#define SM_IO_RDWR_B		(SM_IO_RDWR|SM_IO_BINARY)
-#define SM_IO_RDONLY_B		(SM_IO_RDONLY|SM_IO_BINARY)
-#define SM_IO_WRONLY_B		(SM_IO_WRONLY|SM_IO_BINARY)
-#define SM_IO_APPEND_B		(SM_IO_APPEND|SM_IO_BINARY)
+#define SM_IO_RDWR_B	(SM_IO_RDWR|SM_IO_BINARY)
+#define SM_IO_RDONLY_B	(SM_IO_RDONLY|SM_IO_BINARY)
+#define SM_IO_WRONLY_B	(SM_IO_WRONLY|SM_IO_BINARY)
+#define SM_IO_APPEND_B	(SM_IO_APPEND|SM_IO_BINARY)
 #define SM_IO_APPENDRW_B	(SM_IO_APPENDRW|SM_IO_BINARY)
-#define SM_IO_RDWRTR_B		(SM_IO_RDWRTR|SM_IO_BINARY)
+#define SM_IO_RDWRTR_B	(SM_IO_RDWRTR|SM_IO_BINARY)
 
 /* for sm_io_fseek, et al api's (exposed) */
 #define SM_IO_SEEK_SET	0

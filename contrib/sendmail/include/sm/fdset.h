@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: fdset.h,v 1.3.10.2 2002/12/10 04:02:25 ca Exp $
+ *	$Id: fdset.h,v 1.5 2002/12/10 19:48:19 ca Exp $
  */
 
 #ifndef	SM_FDSET_H

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: main.c,v 8.64.2.13 2003/10/20 22:27:13 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.79 2003/10/20 22:25:09 ca Exp $")
 
 #define _DEFINE	1
 #include "libmilter.h"
@@ -95,10 +95,9 @@ static char *conn = NULL;
 static int timeout = MI_TIMEOUT;
 static int backlog = MI_SOMAXCONN;
 
-#if _FFR_SMFI_OPENSOCKET
 /*
 **  SMFI_OPENSOCKET -- try the socket setup to make sure we'll be
-**		able to start up
+**		       able to start up
 **
 **	Parameters:
 **		rmsocket -- if true, instructs libmilter to attempt
@@ -118,7 +117,6 @@ smfi_opensocket(rmsocket)
 
 	return mi_opensocket(conn, backlog, dbg, rmsocket, smfi);
 }
-#endif /* _FFR_SMFI_OPENSOCKET */
 
 /*
 **  SMFI_SETDBG -- set debug level.
@@ -239,6 +237,7 @@ smfi_main()
 	/* Startup the listener */
 	if (mi_listener(conn, dbg, smfi, timeout, backlog) != MI_SUCCESS)
 		r = MI_FAILURE;
+
 	return r;
 }
 

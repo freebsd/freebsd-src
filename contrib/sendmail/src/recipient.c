@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: recipient.c,v 8.330.2.4 2003/10/06 20:43:29 ca Exp $")
+SM_RCSID("@(#)$Id: recipient.c,v 8.336 2004/07/23 20:45:02 gshapiro Exp $")
 
 static void	includetimeout __P((void));
 static ADDRESS	*self_reference __P((ADDRESS *));
@@ -183,7 +183,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 	if (tTd(25, 1))
 	{
 		sm_dprintf("sendto: %s\n   ctladdr=", list);
-		printaddr(ctladdr, false);
+		printaddr(sm_debug_file(), ctladdr, false);
 	}
 
 	/* heuristic to determine old versus new style addresses */
@@ -245,7 +245,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 					if (tTd(27, 5))
 					{
 						sm_dprintf("sendtolist: QSELFREF ");
-						printaddr(ctladdr, false);
+						printaddr(sm_debug_file(), ctladdr, false);
 					}
 					ctladdr->q_flags |= QSELFREF;
 				}
@@ -258,14 +258,14 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 					if (tTd(27, 5))
 					{
 						sm_dprintf("sendtolist: QSELFREF ");
-						printaddr(b, false);
+						printaddr(sm_debug_file(), b, false);
 					}
 					if (a != b)
 					{
 						if (tTd(27, 5))
 						{
 							sm_dprintf("sendtolist: QS_DONTSEND ");
-							printaddr(a, false);
+							printaddr(sm_debug_file(), a, false);
 						}
 						a->q_state = QS_DONTSEND;
 						b->q_flags |= a->q_flags & QNOTREMOTE;
@@ -403,7 +403,7 @@ removefromlist(list, sendq, e)
 					if (tTd(25, 5))
 					{
 						sm_dprintf("removefromlist: QS_REMOVED ");
-						printaddr(&a, false);
+						printaddr(sm_debug_file(), &a, false);
 					}
 					q->q_state = QS_REMOVED;
 					naddrs++;
@@ -476,7 +476,7 @@ recipient(new, sendq, aliaslevel, e)
 	if (tTd(26, 1))
 	{
 		sm_dprintf("\nrecipient (%d): ", aliaslevel);
-		printaddr(new, false);
+		printaddr(sm_debug_file(), new, false);
 	}
 
 	/* if this is primary, use it as original recipient */
@@ -727,7 +727,7 @@ recipient(new, sendq, aliaslevel, e)
 				{
 					sm_dprintf("%s in sendq: ",
 						   new->q_paddr);
-					printaddr(q, false);
+					printaddr(sm_debug_file(), q, false);
 				}
 				if (!bitset(QPRIMARY, q->q_flags))
 				{
@@ -800,7 +800,7 @@ recipient(new, sendq, aliaslevel, e)
 	if (tTd(29, 7))
 	{
 		sm_dprintf("at trylocaluser: ");
-		printaddr(new, false);
+		printaddr(sm_debug_file(), new, false);
 	}
 
 	if (!QS_IS_OK(new->q_state))
@@ -930,7 +930,7 @@ recipient(new, sendq, aliaslevel, e)
 	{
 		sm_dprintf("recipient: testing local?  cl=%d, rr5=%p\n\t",
 			   ConfigLevel, RewriteRules[5]);
-		printaddr(new, false);
+		printaddr(sm_debug_file(), new, false);
 	}
 	if (ConfigLevel >= 2 && RewriteRules[5] != NULL &&
 	    bitnset(M_TRYRULESET5, m->m_flags) &&
@@ -1028,11 +1028,11 @@ recipient(new, sendq, aliaslevel, e)
 	if (tTd(26, 8))
 	{
 		sm_dprintf("testselfdestruct: ");
-		printaddr(new, false);
+		printaddr(sm_debug_file(), new, false);
 		if (tTd(26, 10))
 		{
 			sm_dprintf("SENDQ:\n");
-			printaddr(*sendq, true);
+			printaddr(sm_debug_file(), *sendq, true);
 			sm_dprintf("----\n");
 		}
 	}
@@ -1309,9 +1309,20 @@ writable(filename, ctladdr, flags)
 	}
 	else if (FileMailer != NULL && !bitset(SFF_ROOTOK, flags))
 	{
-		euid = FileMailer->m_uid;
-		egid = FileMailer->m_gid;
-		user = NULL;
+		if (FileMailer->m_uid == NO_UID)
+		{
+			euid = DefUid;
+			user = DefUser;
+		}
+		else
+		{
+			euid = FileMailer->m_uid;
+			user = NULL;
+		}
+		if (FileMailer->m_gid == NO_GID)
+			egid = DefGid;
+		else
+			egid = FileMailer->m_gid;
 	}
 	else
 	{
@@ -1417,7 +1428,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	if (tTd(27, 14))
 	{
 		sm_dprintf("ctladdr ");
-		printaddr(ctladdr, false);
+		printaddr(sm_debug_file(), ctladdr, false);
 	}
 
 	if (tTd(27, 9))
@@ -1850,7 +1861,7 @@ resetuid:
 		if (tTd(27, 5))
 		{
 			sm_dprintf("include: QS_DONTSEND ");
-			printaddr(ctladdr, false);
+			printaddr(sm_debug_file(), ctladdr, false);
 		}
 		ctladdr->q_state = QS_DONTSEND;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.175 2001/12/28 22:44:01 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.176 2002/06/27 23:41:04 gshapiro Exp $")
 
 
 #include <sys/types.h>
@@ -56,13 +56,15 @@ static void
 usage(progname)
 	char *progname;
 {
-	/* XXX break the usage output into multiple lines? it's too long */
 	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-		"Usage: %s [-C cffile] [-N] [-c cachesize] [-d] [-e] [-f] [-l] [-o] [-r] [-s] [-t delimiter] [-u] [-v] type mapname\n",
-		progname);
-#if _FFR_COMMENT_CHAR
-	/* add -D comment-char */
-#endif /* _FFR_COMMENT_CHAR */
+		      "Usage: %s [-C cffile] [-N] [-c cachesize] [-D commentchar]\n",
+		      progname);
+	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+		      "       %*s [-d] [-e] [-f] [-l] [-o] [-r] [-s] [-t delimiter]\n",
+		      (int) strlen(progname), "");
+	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+		      "       %*s [-u] [-v] type mapname\n",
+		      (int) strlen(progname), "");
 	exit(EX_USAGE);
 }
 
@@ -161,11 +163,9 @@ main(argc, argv)
 			foldcase = false;
 			break;
 
-#if _FFR_COMMENT_CHAR
 		  case 'D':
 			comment = *optarg;
 			break;
-#endif /* _FFR_COMMENT_CHAR */
 
 		  case 'l':
 			smdb_print_available_types();

@@ -36,4 +36,29 @@ delivery agent without LMTP mode, use:
 
 in the .mc file.
 
-$Revision: 8.10 $, Last updated $Date: 2001/09/08 01:21:04 $
+Defining HASHSPOOL (-DHASHSPOOL) will build a mail.local which supports
+delivering to subdirectories of the mail spool, based on a hash of the
+username (i.e., a hash depth of 2 and a username of "user" will result in
+/var/spool/mail/u/s/user).  If the hash depth is greater than the length
+of the username, "_" will be used.  The necessary subdirectories must
+exist; mail.local will not create them.  Use the "-H" option to set the
+hash type and depth (like "-H u2" for a username hash two levels deep).
+
+The HASHSPOOL option also adds two other options: "-p path" to specify
+an alternate mail spool path (i.e., "-p /local/mail") and "-n" to specify
+that mail.local should not strip the @domain part of recipient addresses
+in LMTP mode.
+
+In addition to HASHSPOOL, defining HASHSPOOLMD5 and linking against
+libcrypto from OpenSSL like:
+
+	APPENDDEF(`conf_mail_local_ENVDEF', `-DHASHSPOOL -DHASHSPOOLMD5')
+	APPENDDEF(`conf_mail_local_LIBS', `-lcrypto')
+
+will offer an alternate hash, using a base64 encoding (changing / to _)
+of an MD5 hash of the username.  This results in a more balanced
+subdirectory tree.  The subdirectories will be named with A-Z, a-z, 0-9,
++, and _.  The hash type is "m", so use "-H m3" to get a three level MD5
+based hash.
+
+$Revision: 8.11 $, Last updated $Date: 2003/10/20 20:19:13 $

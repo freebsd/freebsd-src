@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
 .\"      All rights reserved.
 .\" Copyright (c) 1983, 1997 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1988, 1991, 1993
@@ -9,9 +9,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: sendmail.8,v 8.51.2.3 2003/12/01 17:02:00 ca Exp $
+.\"     $Id: sendmail.8,v 8.57 2003/12/01 17:02:41 ca Exp $
 .\"
-.TH SENDMAIL 8 "$Date: 2003/12/01 17:02:00 $"
+.TH SENDMAIL 8 "$Date: 2003/12/01 17:02:41 $"
 .SH NAME
 sendmail
 \- an electronic mail transport agent
@@ -152,6 +152,9 @@ Use alternate configuration file.
 .B Sendmail
 gives up any enhanced (set-user-ID or set-group-ID) privileges
 if an alternate configuration file is specified.
+.TP
+.BI "\-D " logfile
+Send debugging output to the indicated log file instead of stdout.
 .TP
 .BI \-d category . level...
 Set the debugging flag for
@@ -323,6 +326,13 @@ as a substring of the queue id or not when
 .I !
 is specified.
 .TP
+\fB\-q\fR[\fI!\fR]Q\fIsubstr\fR
+Limit processed jobs to quarantined jobs containing
+.I substr
+as a substring of the quarantine reason or not when
+.I !
+is specified.
+.TP
 \fB\-q\fR[\fI!\fR]R\fIsubstr\fR
 Limit processed jobs to those containing
 .I substr
@@ -336,6 +346,12 @@ Limit processed jobs to those containing
 as a substring of the sender or not when
 .I !
 is specified.
+.TP
+\fB\-Q\fR[reason]
+Quarantine a normal queue items with the given reason or
+unquarantine quarantined queue items if no reason is given.
+This should only be used with some sort of item matching using
+as described above.
 .TP
 .BI "\-R " return
 Set the amount of the message to be returned 

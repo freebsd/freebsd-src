@@ -1,6 +1,9 @@
 <html>
 <head><title>Milter API</title></head>
 <body>
+<!--
+$Id: api.html,v 1.18 2004/04/28 23:26:51 msk Exp $
+-->
 <h1>Milter API</h1>
 
 <h2>Contents</h2>
@@ -26,11 +29,19 @@ href="smfi_main.html">smfi_main</a>.
 <p>
 <table border="1" cellspacing=0 cellpadding=2><tr bgcolor="#dddddd"><th>Function</th><th>Description</th></tr>
 
+<tr><td><a href="smfi_opensocket.html">smfi_opensocket</a></td><td>Try to create the interface socket.</td></tr>
+
 <tr><td><a href="smfi_register.html">smfi_register</a></td><td>Register a filter.</td></tr>
 
 <tr><td><a href="smfi_setconn.html">smfi_setconn</a></td><td>Specify socket to use.</td></tr>
 
 <tr><td><a href="smfi_settimeout.html">smfi_settimeout</a></td><td>Set timeout.</td></tr>
+
+<tr><td><a href="smfi_setbacklog.html">smfi_setbacklog</a></td><td>Define the incoming <i>listen</i>(2) queue size.</td></tr>
+
+<tr><td><a href="smfi_setdbg.html">smfi_setdbg</a></td><td>Set the milter library debugging (tracing) level.</td></tr>
+
+<tr><td><a href="smfi_stop.html">smfi_stop</a></td><td>Cause an orderly shutdown.</td></tr>
 
 <tr><td><a href="smfi_main.html">smfi_main</a></td><td>Hand control to libmilter.</td></tr>
 
@@ -53,6 +64,9 @@ pointer.</td></tr>
 
 <tr><td><a href="smfi_setreply.html">smfi_setreply</a></td><td>Set the specific
 reply code to be used.</td></tr>
+
+<tr><td><a href="smfi_setmlreply.html">smfi_setmlreply</a></td><td>Set the
+specific multi-line reply to be used.</td></tr>
 
 </table>
 
@@ -85,6 +99,9 @@ the message.</td><td>SMFIF_ADDHDRS</td></tr>
 
 <tr><td><a href="smfi_chgheader.html">smfi_chgheader</a></td><td>Change or delete a header.</td><td>SMFIF_CHGHDRS</td></tr> 
 
+<tr><td><a href="smfi_insheader.html">smfi_insheader</a></td><td>Insert a
+header into the message.</td><td>SMFIF_ADDHDRS</td></tr> 
+
 <tr><td><a href="smfi_addrcpt.html">smfi_addrcpt</a></td><td>Add a recipient to
 the envelope.</td><td>SMFIF_ADDRCPT</td></tr>
 
@@ -96,7 +113,29 @@ body of the message.</td><td>SMFIF_CHGBODY</td></tr>
 
 </table>
 
-<h2>Callbacks</h2>
+<h2>Other Message Handling Functions</h2>
+
+The following functions provide special case handling instructions for
+milter or the MTA, without altering the content or status of the message.
+<b>They too may only be called in <a href="xxfi_eom.html">xxfi_eom</a></b>.
+All of these functions may invoke additional communication with the MTA.
+They will return either MI_SUCCESS or MI_FAILURE to indicate the status of
+the operation.
+
+<p>
+Note that the status returned indicates only whether or not the
+filter's message was successfully sent to the MTA, not whether or not
+the MTA performed the requested operation.
+
+<p>
+<table border="1" cellspacing=0 cellpadding=2><tr bgcolor="#dddddd"><th>Function</th><th>Description</th></tr>
+<tr><td><a href="smfi_progress.html">smfi_progress</a></td><td>Report operation in progress.</td></tr>
+
+<tr><td><a href="smfi_quarantine.html">smfi_quarantine</a></td><td>Quarantine a message.</td></tr>
+
+</table>
+
+<h2><a name="callbacks">Callbacks</a></h2>
 
 The filter should implement one or more of the following callbacks,
 which are registered via <a href="smfi_register.html">smfi_register</a>:
@@ -131,7 +170,7 @@ having the indicated meanings.  Any return other than one of the below
 values constitutes an error, and will cause sendmail to terminate its
 connection to the offending filter.
 
-<p><a name="conn-spec"></a>Milter distinguishes between recipient-,
+<p><a name="conn-spec">Milter</a> distinguishes between recipient-,
 message-, and connection-oriented routines.  Recipient-oriented
 callbacks may affect the processing of a single message recipient;
 message-oriented callbacks, a single message; connection-oriented

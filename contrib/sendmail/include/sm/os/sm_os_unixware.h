@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sm_os_unixware.h,v 1.7.2.1 2002/10/24 18:02:14 ca Exp $
+ *	$Id: sm_os_unixware.h,v 1.8 2002/10/24 18:04:54 ca Exp $
  */
 
 #define SM_OS_NAME	"unixware"

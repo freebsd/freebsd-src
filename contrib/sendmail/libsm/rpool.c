@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: rpool.c,v 1.24 2002/01/11 21:54:43 ca Exp $")
+SM_RCSID("@(#)$Id: rpool.c,v 1.27 2003/10/09 17:49:47 ca Exp $")
 
 /*
 **  resource pools
@@ -491,3 +491,31 @@ sm_rpool_attach_x(rpool, rfree, rcontext)
 	--rpool->sm_ravail;
 	return a;
 }
+
+#if DO_NOT_USE_STRCPY
+/*
+**  SM_RPOOL_STRDUP_X -- Create a copy of a C string
+**
+**	Parameters:
+**		rpool -- rpool to use.
+**		s -- the string to copy.
+**
+**	Returns:
+**		pointer to newly allocated string.
+*/
+
+char *
+sm_rpool_strdup_x(rpool, s)
+	SM_RPOOL_T *rpool;
+	const char *s;
+{
+	size_t l;
+	char *n;
+
+	l = strlen(s);
+	SM_ASSERT(l + 1 > l);
+	n = sm_rpool_malloc_x(rpool, l + 1);
+	sm_strlcpy(n, s, l + 1);
+	return n;
+}
+#endif /* DO_NOT_USE_STRCPY */

@@ -1,4 +1,4 @@
-# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988
@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.355.2.16 2004/01/08 21:54:55 ca Exp $
+#	$Id: README,v 8.384 2004/07/26 18:03:55 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -127,6 +127,8 @@ DNSMAP		DNS map support.  Requires NAMED_BIND.
 PH_MAP		PH map support.  You will need the libphclient library from
 		the nph package (http://www-dev.cites.uiuc.edu/ph/nph/).
 MAP_NSD		nsd map support (IRIX 6.5 and later).
+SOCKETMAP	Support for a trivial query protocol over UNIX domain or TCP
+		sockets. 
 
 >>>  NOTE WELL for NEWDB support: If you want to get ndbm support, for
 >>>  Berkeley DB versions under 2.0, it is CRITICAL that you remove
@@ -180,6 +182,15 @@ addresses, so "^[0-9]+$" would match this.  By using such a map in a
 check_* rule-set, you can block a certain range of addresses that would
 otherwise be considered valid.
 
+The socket map uses a simple request/reply protocol over TCP or
+UNIX domain sockets to query an external server. Both requests and
+replies are text based and encoded as netstrings.  The socket map
+uses the same syntax as milters the specify the remote endpoint,
+e.g.:
+
+Ksocket mySocketMap inet:12345@127.0.0.1
+
+See doc/op/op.me for details.
 
 +---------------+
 | COMPILE FLAGS |
@@ -287,6 +298,8 @@ HASURANDOMDEV	Define this if your system has /dev/urandom(4).
 HASSTRERROR	Define this if you have the libc strerror(3) function (which
 		should be declared in <errno.h>), and it should be used
 		instead of sys_errlist.
+HASCLOSEFROM	Define this if your system has closefrom(3).
+HASFDWALK	Define this if your system has fdwalk(3).
 SM_CONF_GETOPT	Define this as 0 if you need a reimplementation of getopt(3).
 		On some systems, getopt does very odd things if called
 		to scan the arguments twice.  This flag will ask sendmail
@@ -481,6 +494,11 @@ USE_DOUBLE_FORK By default this is on (1).  Set it to 0 to suppress the
 ALLOW_255	Do not convert (char)0xff to (char)0x7f in headers etc.
 		This can also be done at runtime with the command line
 		option -d82.101.
+NEEDINTERRNO	Set this if <errno.h> does not declare errno, i.e., if an
+		application needs to use
+		extern int errno;
+USE_TTYPATH	Set this to 1 to enable ErrorMode=write.
+USESYSCTL	Use sysctl(3) to determine the number of CPUs in a system.
 
 
 +-----------------------+
@@ -604,8 +622,11 @@ STARTTLS	Enables SMTP STARTTLS (RFC 2487).  This requires OpenSSL
 		See STARTTLS COMPILATION AND CONFIGURATION for further
 		information.
 TLS_NO_RSA	Turn off support for RSA algorithms in STARTTLS.
-MILTER		Turn on support for external filters using the Milter API.
-		See libmilter/README for more information.
+MILTER		Turn on support for external filters using the Milter API;
+		this option is set by default, to turn it off use
+			APPENDDEF(`conf_sendmail_ENVDEF', `-DMILTER')
+		in devtools/Site/site.config.m4 (see devtools/README).
+		See libmilter/README for more information about milter.
 REQUIRES_DIR_FSYNC	Turn on support for file systems that require to
 		call fsync() for a directory if the meta-data in it has
 		been changed.  This should be turned on at least for older
@@ -1303,12 +1324,12 @@ Linux
 	Something broke between versions 0.99.13 and 0.99.14 of Linux: the
 	flock() system call gives errors.  If you are running .14, you must
 	not use flock.  You can do this with -DHASFLOCK=0.  We have also
-	been getting complaints since version 2.4.X was released.  Unless
-	the bug is fixed before sendmail 8.13 is shipped, 8.13 will change
-	the default locking method to fcntl() for Linux kernel version 2.4
-	and later.  Be sure to update other sendmail related programs to
-	match locking techniques (some examples, besides makemap and
-	mail.local, include procmail, mailx, mutt, elm, etc).
+	been getting complaints since version 2.4.X was released.
+	sendmail 8.13 has changed the default locking method to fcntl()
+	for Linux kernel version 2.4 and later.  Be sure to update other
+	sendmail related programs to match locking techniques (some
+	examples, besides makemap and mail.local, include procmail, mailx,
+	mutt, elm, etc).
 
 	Around the inclusion of bind-4.9.3 & Linux libc-4.6.20, the
 	initialization of the _res structure changed.  If /etc/hosts.conf
@@ -1802,4 +1823,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.355.2.16 $, last update $Date: 2004/01/08 21:54:55 $ )
+(Version $Revision: 8.384 $, last update $Date: 2004/07/26 18:03:55 $ )

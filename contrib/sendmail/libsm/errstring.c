@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: errstring.c,v 1.12.2.4 2003/06/24 17:16:09 ca Exp $")
+SM_RCSID("@(#)$Id: errstring.c,v 1.19 2003/12/10 03:53:05 gshapiro Exp $")
 
 #include <errno.h>
 #include <stdio.h>	/* sys_errlist, on some platforms */
@@ -189,13 +189,84 @@ sm_errstring(errnum)
 
 	  case SMDBE_VERSION_MISMATCH:
 		return "Berkeley DB version mismatch between include file and library";
+
+#if LDAPMAP
+
+	/*
+	**  LDAP URL error messages.
+	*/
+
+	/* OpenLDAP errors */
+# ifdef LDAP_URL_ERR_MEM
+	  case E_LDAPURLBASE + LDAP_URL_ERR_MEM:
+		return "LDAP URL can't allocate memory space";
+# endif /* LDAP_URL_ERR_MEM */
+
+# ifdef LDAP_URL_ERR_PARAM
+	  case E_LDAPURLBASE + LDAP_URL_ERR_PARAM:
+		return "LDAP URL parameter is bad";
+# endif /* LDAP_URL_ERR_PARAM */
+
+# ifdef LDAP_URL_ERR_BADSCHEME
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADSCHEME:
+		return "LDAP URL doesn't begin with \"ldap[si]://\"";
+# endif /* LDAP_URL_ERR_BADSCHEME */
+
+# ifdef LDAP_URL_ERR_BADENCLOSURE
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADENCLOSURE:
+		return "LDAP URL is missing trailing \">\"";
+# endif /* LDAP_URL_ERR_BADENCLOSURE */
+
+# ifdef LDAP_URL_ERR_BADURL
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADURL:
+		return "LDAP URL is bad";
+# endif /* LDAP_URL_ERR_BADURL */
+
+# ifdef LDAP_URL_ERR_BADHOST
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADHOST:
+		return "LDAP URL host port is bad";
+# endif /* LDAP_URL_ERR_BADHOST */
+
+# ifdef LDAP_URL_ERR_BADATTRS
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADATTRS:
+		return "LDAP URL bad (or missing) attributes";
+# endif /* LDAP_URL_ERR_BADATTRS */
+
+# ifdef LDAP_URL_ERR_BADSCOPE
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADSCOPE:
+		return "LDAP URL scope string is invalid (or missing)";
+# endif /* LDAP_URL_ERR_BADSCOPE */
+
+# ifdef LDAP_URL_ERR_BADFILTER
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADFILTER:
+		return "LDAP URL bad or missing filter";
+# endif /* LDAP_URL_ERR_BADFILTER */
+
+# ifdef LDAP_URL_ERR_BADEXTS
+	  case E_LDAPURLBASE + LDAP_URL_ERR_BADEXTS:
+		return "LDAP URL bad or missing extensions";
+# endif /* LDAP_URL_ERR_BADEXTS */
+
+	/* Sun LDAP errors */
+# ifdef LDAP_URL_ERR_NOTLDAP
+	  case E_LDAPURLBASE + LDAP_URL_ERR_NOTLDAP:
+		return "LDAP URL doesn't begin with \"ldap://\"";
+# endif /* LDAP_URL_ERR_NOTLDAP */
+
+# ifdef LDAP_URL_ERR_NODN
+	  case E_LDAPURLBASE + LDAP_URL_ERR_NODN:
+		return "LDAP URL has no DN (required)";
+# endif /* LDAP_URL_ERR_NODN */
+
+#endif /* LDAPMAP */
 	}
+
+#if LDAPMAP
 
 	/*
 	**  LDAP error messages.
 	*/
 
-#if LDAPMAP
 	if (errnum >= E_LDAPBASE)
 		return ldap_err2string(errnum - E_LDAPBASE);
 #endif /* LDAPMAP */

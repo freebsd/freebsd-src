@@ -1,6 +1,9 @@
 <html>
 <head><title>A Sample Filter</title></head>
 <body>
+<!--
+$Id: sample.html,v 1.18 2004/02/27 00:49:28 msk Exp $
+-->
 <h1>A Sample Filter</h1>
 
 The following sample logs each message to a separate temporary file,
@@ -121,9 +124,10 @@ sfsistat
 	 SMFICTX *ctx;
 	 char **argv;
 {
+	int fd = -1;
+	int argc = 0;
 	struct mlfiPriv *priv = MLFIPRIV;
 	char *mailaddr = <a href="smfi_getsymval.html">smfi_getsymval</a>(ctx, "{mail_addr}");
-	int argc = 0;
 
 	/* open a file to store this message */
 	if ((priv-&gt;mlfi_fname = strdup("/tmp/msg.XXXXXX")) == NULL)
@@ -132,14 +136,15 @@ sfsistat
 		return SMFIS_TEMPFAIL;
 	}
 
-	if (mkstemp(priv-&gt;mlfi_fname) == -1)
+	if ((fd = mkstemp(priv-&gt;mlfi_fname)) == -1)
 	{
 		(void) mlfi_cleanup(ctx, FALSE);
 		return SMFIS_TEMPFAIL;
 	}
 
-	if ((priv-&gt;mlfi_fp = fopen(priv-&gt;mlfi_fname, "w+")) == NULL)
+	if ((priv-&gt;mlfi_fp = fdopen(fd, "w+")) == NULL)
 	{
+		(void) close(fd);
 		(void) mlfi_cleanup(ctx, FALSE);
 		return SMFIS_TEMPFAIL;
 	}
@@ -361,7 +366,8 @@ struct smfiDesc smfilter =
 {
 	"SampleFilter",	/* filter name */
 	SMFI_VERSION,	/* version code -- do not change */
-	SMFIF_ADDHDRS,	/* flags */
+	SMFIF_ADDHDRS|SMFIF_ADDRCPT,
+			/* flags */
 	<a href="xxfi_connect.html">mlfi_connect</a>,	/* connection info filter */
 	<a href="xxfi_helo.html">mlfi_helo</a>,	/* SMTP HELO command filter */
 	<a href="xxfi_envfrom.html">mlfi_envfrom</a>,	/* envelope sender filter */
@@ -488,7 +494,7 @@ main(argc, argv)
 </pre>
 <hr size="1">
 <font size="-1">
-Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000-2004 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <br>
 By using this file, you agree to the terms and conditions set

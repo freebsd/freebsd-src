@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: macro.c,v 8.86 2001/09/11 04:05:14 gshapiro Exp $")
+SM_RCSID("@(#)$Id: macro.c,v 8.88 2003/09/05 23:11:18 ca Exp $")
 
 #if MAXMACROID != (BITMAPBITS - 1)
 	ERROR Read the comment in conf.h
@@ -130,7 +130,7 @@ expand(s, buf, bufsize, e)
 	if (tTd(35, 24))
 	{
 		sm_dprintf("expand(");
-		xputs(s);
+		xputs(sm_debug_file(), s);
 		sm_dprintf(")\n");
 	}
 
@@ -223,7 +223,7 @@ expand(s, buf, bufsize, e)
 	if (tTd(35, 24))
 	{
 		sm_dprintf("expand ==> ");
-		xputs(xbuf);
+		xputs(sm_debug_file(), xbuf);
 		sm_dprintf("\n");
 	}
 
@@ -305,7 +305,7 @@ macdefine(mac, vclass, id, value)
 	{
 		sm_dprintf("%sdefine(%s as ",
 			mac->mac_table[id] == NULL ? "" : "re", macname(id));
-		xputs(value);
+		xputs(sm_debug_file(), value);
 		sm_dprintf(")\n");
 	}
 
@@ -325,7 +325,11 @@ macdefine(mac, vclass, id, value)
 		}
 		else
 		{
+#if SM_HEAP_CHECK
 			newvalue = sm_strdup_tagged_x(value, file, line, 0);
+#else /* SM_HEAP_CHECK */
+			newvalue = sm_strdup_x(value);
+#endif /* SM_HEAP_CHECK */
 			setbitn(id, mac->mac_allocated);
 		}
 		mac->mac_table[id] = newvalue;
@@ -377,7 +381,7 @@ macset(mac, i, value)
 	if (tTd(35, 9))
 	{
 		sm_dprintf("macset(%s as ", macname(i));
-		xputs(value);
+		xputs(sm_debug_file(), value);
 		sm_dprintf(")\n");
 	}
 	mac->mac_table[i] = value;
@@ -487,7 +491,7 @@ macid_parse(p, ep)
 	if (tTd(35, 14))
 	{
 		sm_dprintf("macid(");
-		xputs(p);
+		xputs(sm_debug_file(), p);
 		sm_dprintf(") => ");
 	}
 

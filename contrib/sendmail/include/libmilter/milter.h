@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: milter.h,v 8.37.2.3 2003/12/02 00:19:51 msk Exp $
+ *	$Id: milter.h,v 8.39 2003/12/02 00:21:42 msk Exp $
  */
 
 /*
@@ -25,11 +25,7 @@
 typedef pthread_t	sthread_t;
 typedef int		socket_t;
 
-#if _FFR_MILTER_MACROS_EOM
 # define MAX_MACROS_ENTRIES	5	/* max size of macro pointer array */
-#else /* _FFR_MILTER_MACROS_EOM */
-# define MAX_MACROS_ENTRIES	4	/* max size of macro pointer array */
-#endif /* _FFR_MILTER_MACROS_EOM */
 
 /*
 **  context for milter

@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: bdb.h,v 1.1.2.4 2003/03/06 16:27:38 ca Exp $
+ *	$Id: bdb.h,v 1.4 2003/03/06 16:30:05 ca Exp $
  */
 
 #ifndef	SM_BDB_H

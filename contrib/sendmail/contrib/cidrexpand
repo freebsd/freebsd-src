@@ -1,17 +1,13 @@
-#!/usr/local/bin/perl -w
+#!/usr/bin/perl -w
 
-# v 0.2-very-beta
+# $Id: cidrexpand,v 8.4 2002/11/22 21:13:14 ca Exp $
+#
+# v 0.4
 #
 # 17 July 2000 Derek J. Balling (dredd@megacity.org)
-#
-# The $SENDMAIL flag tells the code to lump networks in sendmail format
-# if applicable. If this flag is disabled, cidrexpand will literally create
-# a single line for each entry, which may or may not be what you want. :)
-# makes for a rather large hash table...
-#
+# 
 # Acts as a preparser on /etc/mail/access_db to allow you to use address/bit
-# notation. Caveat: the address portion MUST be the start address or your
-# results will NOT be what what you want.
+# notation. 
 #
 # If you have two overlapping CIDR blocks with conflicting actions
 # e.g.   10.2.3.128/25 REJECT and 10.2.3.143 ACCEPT
@@ -22,27 +18,35 @@
 #
 # Modifications
 # -------------
-#  5 Nov  2002 Richard Rognlie (richard@sendmail.com)
+# 26 Jul 2001 Derek Balling (dredd@megacity.org)
+#     Now uses Net::CIDR because it makes life a lot easier.
+#
+#  5 Nov 2002 Richard Rognlie (richard@sendmail.com)
 #     Added code to deal with the prefix tags that may now be included in
 #     the access_db
 #
 #     Added clarification in the notes for what to do if you have 
 #     exceptions to a larger CIDR block.
 #
-# usage:
+# usage: 
 #  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
 #
-# Report bugs to: dredd@megacity.org
 #
+# Report bugs to: <dredd@megacity.org>
+#
+
+
+use strict;
+use Net::CIDR;
 
 my $spaceregex = '\s+';
 
 while (my $arg = shift @ARGV)
 {
-     if ($arg eq '-t')
-     {
+    if ($arg eq '-t')
+    {
 	$spaceregex = shift;
-     }
+    }
 }
 
 use strict;
@@ -51,109 +55,40 @@ my $SENDMAIL = 1;
 
 while (<>)
 {
-     my ($prefix,$left,$right,$space);
+    my ($prefix,$left,$right,$space);
 
-     if (! /^(|\S\S*:)(\d+\.){3}\d+\/\d\d?$spaceregex.*/ )
-     {
+    if (! /^(|\S\S*:)(\d+\.){3}\d+\/\d\d?$spaceregex.*/ )
+    {
 	print;
-     }
-     else
-     {
+    }
+    else
+    {
 	($prefix,$left,$space,$right) = /^(|\S\S*:)((?:\d+\.){3}\d+\/\d\d?)($spaceregex)(.*)$/;
-
+	
 	my @new_lefts = expand_network($left);
 	foreach my $nl (@new_lefts)
 	{
 	    print "$prefix$nl$space$right\n";
 	}
-
-     }
+    }
 }
     
 sub expand_network
 {
-     my ($network,$mask) = split /\//, shift;
-     my @diffs = calc_changes($network,$mask);
-     my ($first,$second,$third,$fourth) = split /\./, $network;
-
-     my @rc = ();
-
-     for my $f ($first..($first+$diffs[0]))
-     {
-	if ( ( $SENDMAIL ) and ($diffs[1] == 255))
+    my $left_input = shift;
+    my @rc = ($left_input);
+    my ($network,$mask) = split /\//, $left_input;
+    if (defined $mask)
+    {
+	my @parts = split /\./, $network;
+	while ($#parts < 3)
 	{
-	    push @rc, "$f";
+	    push @parts, "0";
 	}
-	else
-	{
-	    for my $s ($second..($second+$diffs[1]))
-	    {
-		if ( ($SENDMAIL) and ($diffs[2] == 255) )
-		{
-		    push @rc,"$f\.$s";
-		}
-		else
-		{
-		    for my $t ($third..($third+$diffs[2]))
-		    {
-			if ( ($SENDMAIL) and ($diffs[3] == 255))
-			{
-			    push @rc, "$f\.$s\.$t";
-			}
-			else
-			{
-			    for my $fr ($fourth..($fourth+$diffs[3]))
-			    {
-				push @rc, "$f\.$s\.$t\.$fr";
-			    }
-			}
-		    }
-		}
-	    }
-	}
-     }
-     return @rc;
-}
-
-sub calc_changes
-{
-     my ($network,$mask) = @_;
-    
-     my @octs = split /\./, $network;
-    
-     my ($first,$second,$third,$fourth) = (0,0,0,0);
-    
-     my $power = 32 - $mask;
-    
-     if ($mask > 24)
-     {
-	$fourth = 2**$power - 1;
-     }
-     elsif ($mask > 16)
-     {
-	$fourth = 255;
-	$third = 2**($power-8) - 1;
-     }
-     elsif ($mask > 8)
-     {
-	$fourth = 255;
-	$third  = 255;
-	$second = 2**($power-16) - 1;
-     }
-     elsif ($mask > 0)
-     {
-	$fourth = 255;
-	$third = 255;
-	$second = 255;
-	$first = 2**($power-24) - 1;
-     }
-     elsif ($mask == 0)
-     {
-	$fourth = 255;
-	$third = 255;
-	$second = 255;
-	$first = 255;
-     }
-
-     return ($first,$second,$third,$fourth);
+	my $clean_input = join '.', @parts;
+	$clean_input .= "/$mask";
+	my @octets = Net::CIDR::cidr2octets($clean_input);
+	@rc = @octets;
+    }
+    return @rc;
 }

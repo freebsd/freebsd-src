@@ -9,9 +9,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: mailq.1,v 8.19.2.1 2002/09/26 23:03:39 gshapiro Exp $
+.\"     $Id: mailq.1,v 8.20 2002/06/27 22:47:34 gshapiro Exp $
 .\"
-.TH MAILQ 1 "$Date: 2002/09/26 23:03:39 $"
+.TH MAILQ 1 "$Date: 2002/06/27 22:47:34 $"
 .SH NAME
 mailq
 \- print the mail queue
@@ -55,10 +55,24 @@ Show the mail submission queue specified in
 instead of the MTA queue specified in
 .IR /etc/mail/sendmail.cf .
 .TP
+.B \-qL
+Show the "lost" items in the mail queue instead of the normal queue items.
+.TP
+.B \-qQ
+Show the quarantined items in the mail queue instead of the normal queue
+items.
+.TP
 \fB\-q\fR[\fI!\fR]I substr
 Limit processed jobs to those containing
 .I substr
 as a substring of the queue id or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]Q substr
+Limit processed jobs to quarantined jobs containing
+.I substr
+as a substring of the quarantine reason or not when
 .I !
 is specified.
 .TP

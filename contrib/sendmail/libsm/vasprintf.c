@@ -24,7 +24,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: vasprintf.c,v 1.26.2.1 2003/06/03 02:14:09 ca Exp $")
+SM_RCSID("@(#)$Id: vasprintf.c,v 1.27 2003/06/03 02:14:24 ca Exp $")
 #include <stdlib.h>
 #include <errno.h>
 #include <sm/io.h>

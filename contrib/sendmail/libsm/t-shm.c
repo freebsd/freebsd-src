@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: t-shm.c,v 1.18 2002/01/31 04:11:41 ca Exp $")
+SM_RCSID("@(#)$Id: t-shm.c,v 1.19 2004/04/20 23:14:21 ca Exp $")
 
 #include <stdio.h>
 
@@ -45,7 +45,7 @@ shminter(owner)
 	bool owner;
 {
 	int *shm, shmid;
-	int i, j, t;
+	int i, t;
 
 	shm = (int *) sm_shmstart(T_SHMKEY, SHMSIZE, 0, &shmid, owner);
 	if (shm == (int *) 0)
@@ -74,7 +74,6 @@ shminter(owner)
 			t = *shm;
 			for (i = 0; i < SHM_MAX; i++)
 			{
-				j += i;
 				++*shm;
 			}
 			if (*shm != SHM_MAX + t)

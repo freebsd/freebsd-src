@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000, 2001, 2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: debug.h,v 1.15 2001/03/08 03:23:07 ca Exp $
+ *	$Id: debug.h,v 1.16 2003/01/10 00:26:06 ca Exp $
  */
 
 /*
@@ -28,29 +28,26 @@ extern SM_FILE_T *
 sm_debug_file __P((void));
 
 extern void
-sm_debug_setfile __P((
-	SM_FILE_T *));
+sm_debug_setfile __P(( SM_FILE_T *));
 
 extern void PRINTFLIKE(1, 2)
-sm_dprintf __P((
-	char *_fmt,
-	...));
+sm_dprintf __P((char *_fmt, ...));
 
 extern void
 sm_dflush __P((void));
+
+extern void
+sm_debug_close __P((void));
 
 /*
 **  abstractions for setting and testing debug activation levels
 */
 
 extern void
-sm_debug_addsettings_x __P((
-	const char *));
+sm_debug_addsettings_x __P((const char *));
 
 extern void
-sm_debug_addsetting_x __P((
-	const char *,
-	int));
+sm_debug_addsetting_x __P((const char *, int));
 
 # define SM_DEBUG_UNKNOWN	((SM_ATOMIC_UINT_T)(-1))
 
@@ -123,13 +120,10 @@ struct sm_debug
 # endif /* SM_DEBUG_CHECK */
 
 extern bool
-sm_debug_loadactive __P((
-	SM_DEBUG_T *,
-	int));
+sm_debug_loadactive __P((SM_DEBUG_T *, int));
 
 extern int
-sm_debug_loadlevel __P((
-	SM_DEBUG_T *));
+sm_debug_loadlevel __P((SM_DEBUG_T *));
 
 # define SM_DEBUG_INITIALIZER(name, desc) { \
 		SmDebugMagic, \

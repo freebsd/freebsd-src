@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.91.2.5 2003/08/08 17:30:11 ca Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.98 2004/03/03 19:20:31 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <errno.h>
@@ -349,16 +349,16 @@ sfdcsasl(fin, fout, conn)
 		SM_TIME_FOREVER);
 	info.fp = *fin;
 	info.conn = conn;
-	newin = sm_io_open(&sasl_vector, SM_TIME_DEFAULT, &info, SM_IO_RDONLY,
-			   NULL);
+	newin = sm_io_open(&sasl_vector, SM_TIME_DEFAULT, &info,
+			SM_IO_RDONLY_B, NULL);
 
 	if (newin == NULL)
 		return -1;
 
 	info.fp = *fout;
 	info.conn = conn;
-	newout = sm_io_open(&sasl_vector, SM_TIME_DEFAULT, &info, SM_IO_WRONLY,
-			    NULL);
+	newout = sm_io_open(&sasl_vector, SM_TIME_DEFAULT, &info,
+			SM_IO_WRONLY_B, NULL);
 
 	if (newout == NULL)
 	{
@@ -750,13 +750,13 @@ sfdctls(fin, fout, con)
 		SM_TIME_FOREVER);
 	info.fp = *fin;
 	info.con = con;
-	tlsin = sm_io_open(&tls_vector, SM_TIME_DEFAULT, &info, SM_IO_RDONLY,
+	tlsin = sm_io_open(&tls_vector, SM_TIME_DEFAULT, &info, SM_IO_RDONLY_B,
 			   NULL);
 	if (tlsin == NULL)
 		return -1;
 
 	info.fp = *fout;
-	tlsout = sm_io_open(&tls_vector, SM_TIME_DEFAULT, &info, SM_IO_WRONLY,
+	tlsout = sm_io_open(&tls_vector, SM_TIME_DEFAULT, &info, SM_IO_WRONLY_B,
 			    NULL);
 	if (tlsout == NULL)
 	{

@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
 	The Regents of the University of California.  All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.137.2.2 2002/11/01 16:48:55 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.141 2002/11/01 16:49:40 ca Exp $")
 
 
 #include <ctype.h>
@@ -211,11 +211,9 @@ main(argc, argv)
 			initdb = true;
 			break;
 
-#if _FFR_RESPOND_ALL
 		  case 'j':
 			alwaysrespond = true;
 			break;
-#endif /* _FFR_RESPOND_ALL */
 
 		  case 'l':
 			list = true;		/* list the database */
@@ -225,11 +223,9 @@ main(argc, argv)
 			msgfilename = optarg;
 			break;
 
-#if _FFR_RETURN_ADDR
 		  case 'R':
 			returnaddr = optarg;
 			break;
-#endif /* _FFR_RETURN_ADDR */
 
 		  case 'r':
 			if (isascii(*optarg) && isdigit(*optarg))
@@ -1042,20 +1038,9 @@ sendmessage(myname, msgfn, sender)
 void
 usage()
 {
-	char *retusage = "";
-	char *respusage = "";
-
-#if _FFR_RETURN_ADDR
-	retusage = "[-R returnaddr] ";
-#endif /* _FFR_RETURN_ADDR */
-
-#if _FFR_RESPOND_ALL
-	respusage = "[-j] ";
-#endif /* _FFR_RESPOND_ALL */
-
 	msglog(LOG_NOTICE,
-	       "uid %u: usage: vacation [-a alias] [-C cfpath] [-d] [-f db] [-i] %s[-l] [-m msg] %s[-r interval] [-s sender] [-t time] [-U] [-x] [-z] login\n",
-	       getuid(), respusage, retusage);
+	       "uid %u: usage: vacation [-a alias] [-C cfpath] [-d] [-f db] [-i] [-j] [-l] [-m msg] [-R returnaddr] [-r interval] [-s sender] [-t time] [-U] [-x] [-z] login\n",
+	       getuid());
 	exit(EX_USAGE);
 }
 

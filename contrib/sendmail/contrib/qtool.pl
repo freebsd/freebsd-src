@@ -3,7 +3,7 @@
 ## Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 ##	All rights reserved.
 ##
-## $Id: qtool.pl,v 8.27 2002/01/29 21:55:49 ca Exp $
+## $Id: qtool.pl,v 8.28 2002/06/27 23:06:16 gshapiro Exp $
 ##
 use strict;
 use File::Basename;
@@ -485,7 +485,6 @@ sub parse
 		'E' => 'error_recipient',
 		'F' => 'flags',
 		'H' => 'parse_header',
-		'G' => 'queue_delay',
 		'I' => 'inode_number',
 		'K' => 'next_delivery_time',
 		'L' => 'content-length',

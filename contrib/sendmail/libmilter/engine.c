@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.109.2.8 2003/12/01 23:57:45 msk Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.119 2003/12/02 18:53:57 ca Exp $")
 
 #include "libmilter.h"
 
@@ -64,16 +64,10 @@ typedef struct cmdfct_t cmdfct;
 #define	CI_HELO		1
 #define	CI_MAIL		2
 #define CI_RCPT		3
-#if _FFR_MILTER_MACROS_EOM
-# define CI_EOM		4
-# if CI_EOM >= MAX_MACROS_ENTRIES
+#define CI_EOM		4
+#if CI_EOM >= MAX_MACROS_ENTRIES
 ERROR: do not compile with CI_EOM >= MAX_MACROS_ENTRIES
-# endif
-#else /* _FFR_MILTER_MACROS_EOM */
-# if CI_RCPT >= MAX_MACROS_ENTRIES
-ERROR: do not compile with CI_RCPT >= MAX_MACROS_ENTRIES
-# endif
-#endif /* _FFR_MILTER_MACROS_EOM */
+#endif
 
 /* function prototypes */
 static int	st_abortfct __P((genarg *));
@@ -86,6 +80,12 @@ static int	st_helo __P((genarg *));
 static int	st_header __P((genarg *));
 static int	st_sender __P((genarg *));
 static int	st_rcpt __P((genarg *));
+#if SMFI_VERSION > 2
+static int	st_unknown __P((genarg *));
+#endif /* SMFI_VERSION > 2 */
+#if SMFI_VERSION > 3
+static int	st_data __P((genarg *));
+#endif /* SMFI_VERSION > 3 */
 static int	st_eoh __P((genarg *));
 static int	st_quit __P((genarg *));
 static int	sendreply __P((sfsistat, socket_t, struct timeval *, SMFICTX_PTR));
@@ -102,13 +102,15 @@ static int	dec_arg2 __P((char *, size_t, char **, char **));
 #define ST_HELO	3	/* helo */
 #define ST_MAIL	4	/* mail from */
 #define ST_RCPT	5	/* rcpt to */
-#define ST_HDRS	6	/* headers */
-#define ST_EOHS	7	/* end of headers */
-#define ST_BODY	8	/* body */
-#define ST_ENDM	9	/* end of message */
-#define ST_QUIT	10	/* quit */
-#define ST_ABRT	11	/* abort */
-#define ST_LAST	ST_ABRT
+#define ST_DATA	6	/* data */
+#define ST_HDRS	7	/* headers */
+#define ST_EOHS	8	/* end of headers */
+#define ST_BODY	9	/* body */
+#define ST_ENDM	10	/* end of message */
+#define ST_QUIT	11	/* quit */
+#define ST_ABRT	12	/* abort */
+#define ST_UNKN 13	/* unknown SMTP command */
+#define ST_LAST	ST_UNKN	/* last valid state */
 #define ST_SKIP	15	/* not a state but required for the state table */
 
 /* in a mail transaction? must be before eom according to spec. */
@@ -125,19 +127,25 @@ static int	dec_arg2 __P((char *, size_t, char **, char **));
 
 #define MI_MASK(x)	(0x0001 << (x))	/* generate a bit "mask" for a state */
 #define NX_INIT	(MI_MASK(ST_OPTS))
-#define NX_OPTS	(MI_MASK(ST_CONN))
-#define NX_CONN	(MI_MASK(ST_HELO) | MI_MASK(ST_MAIL))
-#define NX_HELO	(MI_MASK(ST_HELO) | MI_MASK(ST_MAIL))
-#define NX_MAIL	(MI_MASK(ST_RCPT) | MI_MASK(ST_ABRT))
-#define NX_RCPT	(MI_MASK(ST_HDRS) | MI_MASK(ST_EOHS) | \
+#define NX_OPTS	(MI_MASK(ST_CONN) | MI_MASK(ST_UNKN))
+#define NX_CONN	(MI_MASK(ST_HELO) | MI_MASK(ST_MAIL) | MI_MASK(ST_UNKN))
+#define NX_HELO	(MI_MASK(ST_HELO) | MI_MASK(ST_MAIL) | MI_MASK(ST_UNKN))
+#define NX_MAIL	(MI_MASK(ST_RCPT) | MI_MASK(ST_ABRT) | MI_MASK(ST_UNKN))
+#define NX_RCPT	(MI_MASK(ST_HDRS) | MI_MASK(ST_EOHS) | MI_MASK(ST_DATA) | \
 		 MI_MASK(ST_BODY) | MI_MASK(ST_ENDM) | \
-		 MI_MASK(ST_RCPT) | MI_MASK(ST_ABRT))
+		 MI_MASK(ST_RCPT) | MI_MASK(ST_ABRT) | MI_MASK(ST_UNKN))
+#define NX_DATA	(MI_MASK(ST_EOHS) | MI_MASK(ST_HDRS) | MI_MASK(ST_ABRT))
 #define NX_HDRS	(MI_MASK(ST_EOHS) | MI_MASK(ST_HDRS) | MI_MASK(ST_ABRT))
 #define NX_EOHS	(MI_MASK(ST_BODY) | MI_MASK(ST_ENDM) | MI_MASK(ST_ABRT))
 #define NX_BODY	(MI_MASK(ST_ENDM) | MI_MASK(ST_BODY) | MI_MASK(ST_ABRT))
-#define NX_ENDM	(MI_MASK(ST_QUIT) | MI_MASK(ST_MAIL))
+#define NX_ENDM	(MI_MASK(ST_QUIT) | MI_MASK(ST_MAIL) | MI_MASK(ST_UNKN))
 #define NX_QUIT	0
 #define NX_ABRT	0
+#define NX_UNKN (MI_MASK(ST_HELO) | MI_MASK(ST_MAIL) | \
+		 MI_MASK(ST_RCPT) | MI_MASK(ST_ABRT) | \
+		 MI_MASK(ST_DATA) | \
+		 MI_MASK(ST_BODY) | MI_MASK(ST_UNKN) | \
+		 MI_MASK(ST_ABRT) | MI_MASK(ST_QUIT))
 #define NX_SKIP MI_MASK(ST_SKIP)
 
 static int next_states[] =
@@ -148,12 +156,14 @@ static int next_states[] =
 	NX_HELO,
 	NX_MAIL,
 	NX_RCPT,
+	NX_DATA,
 	NX_HDRS,
 	NX_EOHS,
 	NX_BODY,
 	NX_ENDM,
 	NX_QUIT,
-	NX_ABRT
+	NX_ABRT,
+	NX_UNKN
 };
 
 /* commands received by milter */
@@ -163,18 +173,20 @@ static cmdfct cmds[] =
 {SMFIC_MACRO,	CM_ARGV, ST_NONE,  CT_KEEP,	CI_NONE, st_macros	},
 {SMFIC_BODY,	CM_ARG1, ST_BODY,  CT_CONT,	CI_NONE, st_bodychunk	},
 {SMFIC_CONNECT,	CM_ARG2, ST_CONN,  CT_CONT,	CI_CONN, st_connectinfo	},
-#if _FFR_MILTER_MACROS_EOM
 {SMFIC_BODYEOB,	CM_ARG1, ST_ENDM,  CT_CONT,	CI_EOM,  st_bodyend	},
-#else /* _FFR_MILTER_MACROS_EOM */
-{SMFIC_BODYEOB,	CM_ARG1, ST_ENDM,  CT_CONT,	CI_NONE, st_bodyend	},
-#endif /* _FFR_MILTER_MACROS_EOM */
 {SMFIC_HELO,	CM_ARG1, ST_HELO,  CT_CONT,	CI_HELO, st_helo	},
 {SMFIC_HEADER,	CM_ARG2, ST_HDRS,  CT_CONT,	CI_NONE, st_header	},
 {SMFIC_MAIL,	CM_ARGV, ST_MAIL,  CT_CONT,	CI_MAIL, st_sender	},
 {SMFIC_OPTNEG,	CM_ARGO, ST_OPTS,  CT_CONT,	CI_NONE, st_optionneg	},
 {SMFIC_EOH,	CM_ARG0, ST_EOHS,  CT_CONT,	CI_NONE, st_eoh		},
 {SMFIC_QUIT,	CM_ARG0, ST_QUIT,  CT_END,	CI_NONE, st_quit	},
+#if SMFI_VERSION > 3
+{SMFIC_DATA,	CM_ARG0, ST_DATA,  CT_CONT,	CI_NONE, st_data	},
+#endif /* SMFI_VERSION > 3 */
 {SMFIC_RCPT,	CM_ARGV, ST_RCPT,  CT_IGNO,	CI_RCPT, st_rcpt	}
+#if SMFI_VERSION > 2
+,{SMFIC_UNKNOWN,CM_ARG1, ST_UNKN,  CT_IGNO,	CI_NONE, st_unknown	}
+#endif /* SMFI_VERSION > 2 */
 };
 
 /* additional (internal) reply codes */
@@ -698,6 +710,7 @@ st_connectinfo(g)
 	return (*fi_connect)(g->a_ctx, g->a_buf,
 			     family != SMFIA_UNKNOWN ? &sockaddr : NULL);
 }
+
 /*
 **  ST_EOH -- end of headers
 **
@@ -721,6 +734,33 @@ st_eoh(g)
 		return (*fi_eoh)(g->a_ctx);
 	return SMFIS_CONTINUE;
 }
+
+#if SMFI_VERSION > 3
+/*
+**  ST_DATA -- DATA command
+**
+**	Parameters:
+**		g -- generic argument structure
+**
+**	Returns:
+**		continue or filter-specified value
+*/
+
+static int
+st_data(g)
+	genarg *g;
+{
+	sfsistat (*fi_data) __P((SMFICTX *));
+
+	if (g == NULL)
+		return _SMFIS_ABORT;
+	if (g->a_ctx->ctx_smfi != NULL &&
+	    (fi_data = g->a_ctx->ctx_smfi->xxfi_data) != NULL)
+		return (*fi_data)(g->a_ctx);
+	return SMFIS_CONTINUE;
+}
+#endif /* SMFI_VERSION > 3 */
+
 /*
 **  ST_HELO -- helo/ehlo command
 **
@@ -826,6 +866,34 @@ st_rcpt(g)
 {
 	ARGV_FCT(fi_envrcpt, xxfi_envrcpt, CI_RCPT)
 }
+
+#if SMFI_VERSION > 2
+/*
+**  ST_UNKNOWN -- unrecognized or unimplemented command
+**
+**	Parameters:
+**		g -- generic argument structure
+**
+**	Returns:
+**		continue or filter-specified value
+*/
+
+static int
+st_unknown(g)
+	genarg *g;
+{
+	sfsistat (*fi_unknown) __P((SMFICTX *, char *));
+
+	if (g == NULL)
+		return _SMFIS_ABORT;
+	mi_clr_macros(g->a_ctx, g->a_idx + 1);
+	if (g->a_ctx->ctx_smfi != NULL &&
+	    (fi_unknown = g->a_ctx->ctx_smfi->xxfi_unknown) != NULL)
+		return (*fi_unknown)(g->a_ctx, g->a_buf);
+	return SMFIS_CONTINUE;
+}
+#endif /* SMFI_VERSION > 2 */
+
 /*
 **  ST_MACROS -- deal with macros received from the MTA
 **
@@ -864,11 +932,9 @@ st_macros(g)
 	  case SMFIC_RCPT:
 		i = CI_RCPT;
 		break;
-#if _FFR_MILTER_MACROS_EOM
 	  case SMFIC_BODYEOB:
 		i = CI_EOM;
 		break;
-#endif /* _FFR_MILTER_MACROS_EOM */
 	  default:
 		free(argv);
 		return _SMFIS_FAIL;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: err.c,v 8.189 2002/01/09 18:52:30 ca Exp $")
+SM_RCSID("@(#)$Id: err.c,v 8.191 2003/01/10 02:16:46 ca Exp $")
 
 #if LDAPMAP
 # include <lber.h>
@@ -238,7 +238,7 @@ syserr(fmt, va_alist)
 	  case ESTALE:
 #endif /* ESTALE */
 		printopenfds(true);
-		mci_dump_all(true);
+		mci_dump_all(smioout, true);
 		break;
 	}
 	if (panic)

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -16,6 +16,9 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
+##### built by ca@wiz.smi.sendmail.com on Fri Jul 30 11:06:26 PDT 2004
+##### in /extra/home/ca/sm-8.13.1/OpenSource/sendmail-8.13.1/cf/cf
+##### using ../ as configuration include directory
 #####
 ######################################################################
 #####
@@ -24,15 +27,15 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.108.2.6 2003/12/05 02:26:47 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.116 2004/01/28 22:02:22 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: submit.mc,v 8.6.2.7 2003/09/10 22:11:56 ca Exp $  #####
-#####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
+#####  $Id: submit.mc,v 8.13 2003/09/10 22:12:48 ca Exp $  #####
+#####  $Id: msp.m4,v 1.33 2004/02/09 22:32:38 ca Exp $  #####
 
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.649.2.30 2004/01/11 17:54:06 ca Exp $  #####
+#####  $Id: proto.m4,v 8.710 2004/07/27 17:32:48 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -111,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.12.11/Submit
+DZ8.13.1/Submit
 
 
 ###############
@@ -134,7 +137,7 @@ O AliasWait=10
 O MinFreeBlocks=100
 
 # maximum message size
-#O MaxMessageSize=1000000
+#O MaxMessageSize=0
 
 # substitution for space (blank) characters
 O BlankSub=.
@@ -277,19 +280,19 @@ O QueueDirectory=/var/spool/clientmqueue
 #O Timeout.quit=2m
 #O Timeout.misc=2m
 #O Timeout.command=1h
-O Timeout.ident=0
+#O Timeout.ident=5s
 #O Timeout.fileopen=60s
 #O Timeout.control=2m
 O Timeout.queuereturn=5d
 #O Timeout.queuereturn.normal=5d
 #O Timeout.queuereturn.urgent=2d
 #O Timeout.queuereturn.non-urgent=7d
-
+#O Timeout.queuereturn.dsn=5d
 O Timeout.queuewarn=4h
 #O Timeout.queuewarn.normal=4h
 #O Timeout.queuewarn.urgent=1h
 #O Timeout.queuewarn.non-urgent=12h
-
+#O Timeout.queuewarn.dsn=4h
 #O Timeout.hoststatus=30m
 #O Timeout.resolver.retrans=5s
 #O Timeout.resolver.retrans.first=5s
@@ -328,6 +331,9 @@ O TimeZoneSpec=
 # fallback MX host
 #O FallbackMXhost=fall.back.host.net
 
+# fallback smart host
+#O FallbackSmartHost=fall.back.host.net
+
 # if we are the best MX host for a site, try it directly instead of config err
 #O TryNullMXList=False
 
@@ -337,6 +343,9 @@ O TimeZoneSpec=
 # load average at which we refuse connections
 #O RefuseLA=12
 
+# log interval when refusing connections for this long
+#O RejectLogInterval=3h
+
 # load average at which we delay connections; 0 means no limit
 #O DelayLA=0
 
@@ -345,6 +354,9 @@ O TimeZoneSpec=
 
 # maximum number of new connections per second
 #O ConnectionRateThrottle=0
+
+# Width of the window 
+#O ConnectionRateWindowSize=60s
 
 # work recipient factor
 #O RecipientFactor=30000
@@ -418,11 +430,11 @@ O DontInitGroups=True
 O RunAsUser=smmsp
 
 # maximum number of recipients per SMTP envelope
-#O MaxRecipientsPerMessage=100
+#O MaxRecipientsPerMessage=0
 
 # limit the rate recipients per SMTP envelope are accepted
 # once the threshold number of recipients have been rejected
-#O BadRcptThrottle=20
+#O BadRcptThrottle=0
 
 # shall we get local names from our installed interfaces?
 O DontProbeInterfaces=True
@@ -440,7 +452,7 @@ O TrustedUser=smmsp
 #O ControlSocketName=/var/spool/mqueue/.control
 
 # Maximum MIME header length to protect MUAs
-#O MaxMimeHeaderLength=2048/1024
+#O MaxMimeHeaderLength=0/0
 
 # Maximum length of the sum of all headers
 #O MaxHeadersLength=32768
@@ -463,8 +475,14 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 # lookup type to find information about local mailboxes
 #O MailboxDatabase=pw
 
+# override compile time flag REQUIRES_DIR_FSYNC
+#O RequiresDirfsync=true
+
 # list of authentication mechanisms
 #O AuthMechanisms=EXTERNAL GSSAPI KERBEROS_V4 DIGEST-MD5 CRAM-MD5
+
+# Authentication realm
+#O AuthRealm
 
 # default authentication information for outgoing connections
 #O DefaultAuthInfo=/etc/mail/default-auth-info
@@ -494,6 +512,8 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 #O ClientCertFile
 # Client private key
 #O ClientKeyFile
+# File containing certificate revocation lists 
+#O CRLFile
 # DHParameters (only required if DSA/DH is used)
 #O DHParameters
 # Random data source (required for systems without /dev/urandom under OpenSSL)
@@ -944,6 +964,8 @@ R<$+> $*			$@ $2
 ###  check_relay -- check hostname/address on SMTP startup
 ######################################################################
 
+
+
 SLocal_check_relay
 Scheck_relay
 R$*			$: $1 $| $>"Local_check_relay" $1
@@ -1086,6 +1108,7 @@ R$+ < @ $* $=R >	$@ RELAY
 
 
 
+
 # check for local user (i.e. unqualified address)
 R$*			$: <?> $1
 R<?> $* < @ $+ >	$: <REMOTE> $1 < @ $2 >
@@ -1111,7 +1134,7 @@ R$=w			$@ RELAY		... and see if it is local
 
 # check client name: first: did it resolve?
 R$*			$: < $&{client_resolve} >
-R<TEMP>			$#TEMP $@ 4.7.1 $: "450 Relaying temporarily denied. Cannot resolve PTR record for " $&{client_addr}
+R<TEMP>			$#TEMP $@ 4.4.0 $: "450 Relaying temporarily denied. Cannot resolve PTR record for " $&{client_addr}
 R<FORGED>		$#error $@ 5.7.1 $: "550 Relaying denied. IP name possibly forged " $&{client_name}
 R<FAIL>			$#error $@ 5.7.1 $: "550 Relaying denied. IP name lookup failed " $&{client_name}
 R$*			$: <@> $&{client_name}
@@ -1151,6 +1174,28 @@ R$*			$#error $@ 5.7.1 $: "550 " $&{auth_authen} " not allowed to act as " $&{au
 ######################################################################
 SLocal_Relay_Auth
 
+######################################################################
+###  srv_features: which features to offer to a client?
+###	(done in server)
+######################################################################
+Ssrv_features
+
+
+######################################################################
+###  try_tls: try to use STARTTLS?
+###	(done in client)
+######################################################################
+Stry_tls
+
+
+######################################################################
+###  tls_rcpt: is connection with server "good" enough?
+###	(done in client, per recipient)
+###
+###	Parameters:
+###		$1: recipient
+######################################################################
+Stls_rcpt
 
 
 ######################################################################
@@ -1201,6 +1246,10 @@ SRelayTLS
 ###		$2: {server_addr}
 ######################################################################
 Sauthinfo
+
+
+
+
 
 
 
@@ -1374,3 +1423,30 @@ Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=
 		T=DNS/RFC822/SMTP,
 		A=TCP $h
 
+### submit.mc ###
+# divert(-1)
+# #
+# # Copyright (c) 2001-2003 Sendmail, Inc. and its suppliers.
+# #	All rights reserved.
+# #
+# # By using this file, you agree to the terms and conditions set
+# # forth in the LICENSE file which can be found at the top level of
+# # the sendmail distribution.
+# #
+# #
+# 
+# #
+# #  This is the prototype file for a set-group-ID sm-msp sendmail that
+# #  acts as a initial mail submission program.
+# #
+# 
+# divert(0)dnl
+# VERSIONID(`$Id: submit.mc,v 8.13 2003/09/10 22:12:48 ca Exp $')
+# define(`confCF_VERSION', `Submit')dnl
+# define(`__OSTYPE__',`')dnl dirty hack to keep proto.m4 from complaining
+# define(`_USE_DECNET_SYNTAX_', `1')dnl support DECnet
+# define(`confTIME_ZONE', `USE_TZ')dnl
+# define(`confDONT_INIT_GROUPS', `True')dnl
+# dnl
+# dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:::1]
+# FEATURE(`msp', `[127.0.0.1]')dnl

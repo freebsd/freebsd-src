@@ -1,6 +1,9 @@
 <html>
 <head><title>xxfi_connect</title></head>
 <body>
+<!--
+$Id: xxfi_connect.html,v 1.13 2003/10/29 22:54:16 msk Exp $
+-->
 <h1>xxfi_connect</h1>
 
 <table border="0" cellspacing=4 cellpadding=4>
@@ -78,7 +81,9 @@ is passed to smfi_register().
   <tr valign="top">
      <td>SMFIS_TEMPFAIL</td>
      <td>Reject all commands and messages from this client with a
-         temporary failure reply code. </td>
+         temporary failure reply code.  If also used in conjunction
+         with <tt>smfi_setreply()</tt> to set a reply whose SMTP
+         code is 421, the MTA will drop the connection immediately. </td>
   </tr>
   <tr valign="top">
      <td>SMFIS_REJECT</td>

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -304,7 +304,8 @@ define(`confMILTER_MACROS_CONNECT', ``j, _, {daemon_name}, {if_name}, {if_addr}'
 define(`confMILTER_MACROS_HELO', ``{tls_version}, {cipher}, {cipher_bits}, {cert_subject}, {cert_issuer}'')
 define(`confMILTER_MACROS_ENVFROM', ``i, {auth_type}, {auth_authen}, {auth_ssf}, {auth_author}, {mail_mailer}, {mail_host}, {mail_addr}'')
 define(`confMILTER_MACROS_ENVRCPT', ``{rcpt_mailer}, {rcpt_host}, {rcpt_addr}'')
+define(`confMILTER_MACROS_EOM', `{msg_id}')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.108.2.6 2003/12/05 02:26:47 ca Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.116 2004/01/28 22:02:22 ca Exp $')

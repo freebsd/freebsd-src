@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2001, 2003 Sendmail, Inc. and its suppliers.
 .\"	 All rights reserved.
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -8,9 +8,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: mail.local.8,v 8.23 2001/04/05 23:27:35 gshapiro Exp $
+.\"	$Id: mail.local.8,v 8.25 2003/10/20 20:26:51 ca Exp $
 .\"
-.TH MAIL.LOCAL 8 "$Date: 2001/04/05 23:27:35 $"
+.TH MAIL.LOCAL 8 "$Date: 2003/10/20 20:26:51 $"
 .SH NAME
 mail.local
 \- store mail in a mailbox
@@ -76,6 +76,29 @@ Same as \-f.
 .BI \-h " filename"
 Store incoming mail in \fIfilename\fR in the user's home directory instead
 of a system mail spool directory.
+.PP
+The next options are only available if
+.B mail.local
+has been compiled with -DHASHSPOOL.
+.TP
+.BI \-H " hashtypehashdepth"
+Select hashed mail directories.
+Valid hash types are
+.B u
+for user name and
+.B m
+for MD5 (requires compilation with -DHASHSPOOLMD5).
+Example:
+.BI \-H " u2"
+selects user name hashing with a hash depth of 2.
+Note: there must be no space between the hash type and the depth.
+.TP
+.BI \-p " path"
+Specify an alternate mail spool path.
+.TP
+.BI \-n
+Specify that the domain part of recipient addresses in LMTP mode
+should not be stripped.
 .PP
 Individual mail messages in the mailbox are delimited by an empty
 line followed by a line beginning with the string ``From ''.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,10 +13,34 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.363.2.10 2003/10/15 17:19:14 ca Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.382 2004/03/26 19:01:10 ca Exp $")
 
 #include <sysexits.h>
 #include <sm/xtrap.h>
+
+/*
+**  NEWSTR -- Create a copy of a C string
+**
+**	Parameters:
+**		s -- the string to copy.
+**
+**	Returns:
+**		pointer to newly allocated string.
+*/
+
+char *
+newstr(s)
+	const char *s;
+{
+	size_t l;
+	char *n;
+
+	l = strlen(s);
+	SM_ASSERT(l + 1 > l);
+	n = xalloc(l + 1);
+	sm_strlcpy(n, s, l + 1);
+	return n;
+}
 
 /*
 **  ADDQUOTES -- Adds quotes & quote bits to a string.
@@ -68,7 +92,6 @@ addquotes(s, rpool)
 	return r;
 }
 
-#if _FFR_STRIPBACKSL
 /*
 **  STRIPBACKSLASH -- Strip leading backslash from a string.
 **
@@ -97,7 +120,6 @@ stripbackslash(s)
 		c = *q++ = *p++;
 	} while (c != '\0');
 }
-#endif /* _FFR_STRIPBACKSL */
 
 /*
 **  RFC822_STRING -- Checks string for proper RFC822 string quoting.
@@ -540,48 +562,81 @@ copyqueue(addr, rpool)
 **
 **	Side Effects:
 **		writes pidfile, logs command line.
+**		keeps file open and locked to prevent overwrite of active file
 */
+
+static SM_FILE_T	*Pidf = NULL;
 
 void
 log_sendmail_pid(e)
 	ENVELOPE *e;
 {
 	long sff;
-	SM_FILE_T *pidf;
 	char pidpath[MAXPATHLEN];
 	extern char *CommandLineArgs;
 
 	/* write the pid to the log file for posterity */
-	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
+	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT|SFF_NBLOCK;
 	if (TrustedUid != 0 && RealUid == TrustedUid)
 		sff |= SFF_OPENASROOT;
 	expand(PidFile, pidpath, sizeof pidpath, e);
-	pidf = safefopen(pidpath, O_WRONLY|O_TRUNC, FileMode, sff);
-	if (pidf == NULL)
+	Pidf = safefopen(pidpath, O_WRONLY|O_TRUNC, FileMode, sff);
+	if (Pidf == NULL)
 	{
-		sm_syslog(LOG_ERR, NOQID, "unable to write %s: %s",
-			  pidpath, sm_errstring(errno));
+		if (errno == EWOULDBLOCK)
+			sm_syslog(LOG_ERR, NOQID,
+				  "unable to write pid to %s: file in use by another process",
+				  pidpath);
+		else
+			sm_syslog(LOG_ERR, NOQID,
+				  "unable to write pid to %s: %s",
+				  pidpath, sm_errstring(errno));
 	}
 	else
 	{
-		pid_t pid;
-
-		pid = getpid();
+		PidFilePid = getpid();
 
 		/* write the process id on line 1 */
-		(void) sm_io_fprintf(pidf, SM_TIME_DEFAULT, "%ld\n",
-				     (long) pid);
+		(void) sm_io_fprintf(Pidf, SM_TIME_DEFAULT, "%ld\n",
+				     (long) PidFilePid);
 
 		/* line 2 contains all command line flags */
-		(void) sm_io_fprintf(pidf, SM_TIME_DEFAULT, "%s\n",
+		(void) sm_io_fprintf(Pidf, SM_TIME_DEFAULT, "%s\n",
 				     CommandLineArgs);
 
-		/* flush and close */
-		(void) sm_io_close(pidf, SM_TIME_DEFAULT);
+		/* flush */
+		(void) sm_io_flush(Pidf, SM_TIME_DEFAULT);
+
+		/*
+		**  Leave pid file open until process ends
+		**  so it's not overwritten by another
+		**  process.
+		*/
 	}
 	if (LogLevel > 9)
 		sm_syslog(LOG_INFO, NOQID, "started as: %s", CommandLineArgs);
 }
+
+/*
+**  CLOSE_SENDMAIL_PID -- close sendmail pid file
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+*/
+
+void
+close_sendmail_pid()
+{
+	if (Pidf == NULL)
+		return;
+
+	(void) sm_io_close(Pidf, SM_TIME_DEFAULT);
+	Pidf = NULL;
+}
+
 /*
 **  SET_DELIVERY_MODE -- set and record the delivery mode
 **
@@ -638,6 +693,7 @@ set_op_mode(mode)
 **  PRINTAV -- print argument vector.
 **
 **	Parameters:
+**		fp -- output file pointer.
 **		av -- argument vector.
 **
 **	Returns:
@@ -648,7 +704,8 @@ set_op_mode(mode)
 */
 
 void
-printav(av)
+printav(fp, av)
+	SM_FILE_T *fp;
 	register char **av;
 {
 	while (*av != NULL)
@@ -656,15 +713,16 @@ printav(av)
 		if (tTd(0, 44))
 			sm_dprintf("\n\t%08lx=", (unsigned long) *av);
 		else
-			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, ' ');
-		xputs(*av++);
+			(void) sm_io_putc(fp, SM_TIME_DEFAULT, ' ');
+		xputs(fp, *av++);
 	}
-	(void) sm_io_putc(smioout, SM_TIME_DEFAULT, '\n');
+	(void) sm_io_putc(fp, SM_TIME_DEFAULT, '\n');
 }
 /*
 **  XPUTS -- put string doing control escapes.
 **
 **	Parameters:
+**		fp -- output file pointer.
 **		s -- string to put.
 **
 **	Returns:
@@ -675,7 +733,8 @@ printav(av)
 */
 
 void
-xputs(s)
+xputs(fp, s)
+	SM_FILE_T *fp;
 	register const char *s;
 {
 	register int c;
@@ -707,7 +766,7 @@ xputs(s)
 
 	if (s == NULL)
 	{
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s<null>%s",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s<null>%s",
 				     TermEscape.te_rv_on, TermEscape.te_rv_off);
 		return;
 	}
@@ -715,7 +774,7 @@ xputs(s)
 	{
 		if (shiftout)
 		{
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s",
 					     TermEscape.te_rv_off);
 			shiftout = false;
 		}
@@ -723,7 +782,7 @@ xputs(s)
 		{
 			if (c == MATCHREPL)
 			{
-				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 						     "%s$",
 						     TermEscape.te_rv_on);
 				shiftout = true;
@@ -734,26 +793,26 @@ xputs(s)
 			}
 			if (c == MACROEXPAND || c == MACRODEXPAND)
 			{
-				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 						     "%s$",
 						     TermEscape.te_rv_on);
 				if (c == MACRODEXPAND)
-					(void) sm_io_putc(smioout,
+					(void) sm_io_putc(fp,
 							  SM_TIME_DEFAULT, '&');
 				shiftout = true;
 				if (*s == '\0')
 					continue;
 				if (strchr("=~&?", *s) != NULL)
-					(void) sm_io_putc(smioout,
+					(void) sm_io_putc(fp,
 							  SM_TIME_DEFAULT,
 							  *s++);
 				if (bitset(0200, *s))
-					(void) sm_io_fprintf(smioout,
+					(void) sm_io_fprintf(fp,
 							     SM_TIME_DEFAULT,
 							     "{%s}",
 							     macname(bitidx(*s++)));
 				else
-					(void) sm_io_fprintf(smioout,
+					(void) sm_io_fprintf(fp,
 							     SM_TIME_DEFAULT,
 							     "%c",
 							     *s++);
@@ -763,7 +822,7 @@ xputs(s)
 			{
 				if (bitidx(mp->metaval) == c)
 				{
-					(void) sm_io_fprintf(smioout,
+					(void) sm_io_fprintf(fp,
 							     SM_TIME_DEFAULT,
 							     "%s$%c",
 							     TermEscape.te_rv_on,
@@ -775,12 +834,12 @@ xputs(s)
 			if (c == MATCHCLASS || c == MATCHNCLASS)
 			{
 				if (bitset(0200, *s))
-					(void) sm_io_fprintf(smioout,
+					(void) sm_io_fprintf(fp,
 							     SM_TIME_DEFAULT,
 							     "{%s}",
 							     macname(bitidx(*s++)));
 				else if (*s != '\0')
-					(void) sm_io_fprintf(smioout,
+					(void) sm_io_fprintf(fp,
 							     SM_TIME_DEFAULT,
 							     "%c",
 							     *s++);
@@ -789,7 +848,7 @@ xputs(s)
 				continue;
 
 			/* unrecognized meta character */
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%sM-",
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%sM-",
 					     TermEscape.te_rv_on);
 			shiftout = true;
 			c &= 0177;
@@ -797,7 +856,7 @@ xputs(s)
   printchar:
 		if (isprint(c))
 		{
-			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, c);
+			(void) sm_io_putc(fp, SM_TIME_DEFAULT, c);
 			continue;
 		}
 
@@ -818,25 +877,25 @@ xputs(s)
 		}
 		if (!shiftout)
 		{
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s",
 					     TermEscape.te_rv_on);
 			shiftout = true;
 		}
 		if (isprint(c))
 		{
-			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, '\\');
-			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, c);
+			(void) sm_io_putc(fp, SM_TIME_DEFAULT, '\\');
+			(void) sm_io_putc(fp, SM_TIME_DEFAULT, c);
 		}
 		else
 		{
-			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, '^');
-			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, c ^ 0100);
+			(void) sm_io_putc(fp, SM_TIME_DEFAULT, '^');
+			(void) sm_io_putc(fp, SM_TIME_DEFAULT, c ^ 0100);
 		}
 	}
 	if (shiftout)
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s",
 				     TermEscape.te_rv_off);
-	(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
+	(void) sm_io_flush(fp, SM_TIME_DEFAULT);
 }
 /*
 **  MAKELOWER -- Translate a line into lower case
@@ -1697,7 +1756,7 @@ printopenfds(logit)
 **		fd -- the file descriptor to dump.
 **		printclosed -- if set, print a notification even if
 **			it is closed; otherwise print nothing.
-**		logit -- if set, send output to syslog instead of stdout.
+**		logit -- if set, use sm_syslog instead of sm_dprintf()
 **
 **	Returns:
 **		none.
@@ -1877,7 +1936,7 @@ printit:
 		sm_syslog(LOG_DEBUG, CurEnv ? CurEnv->e_id : NULL,
 			  "%.800s", buf);
 	else
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s\n", buf);
+		sm_dprintf("%s\n", buf);
 }
 /*
 **  SHORTEN_HOSTNAME -- strip local domain information off of hostname.
@@ -1945,7 +2004,6 @@ prog_open(argv, pfd, e)
 	ENVELOPE *e;
 {
 	pid_t pid;
-	int i;
 	int save_errno;
 	int sff;
 	int ret;
@@ -2086,13 +2144,7 @@ prog_open(argv, pfd, e)
 			  argv[0], sm_errstring(ret));
 
 	/* arrange for all the files to be closed */
-	for (i = 3; i < DtableSize; i++)
-	{
-		register int j;
-
-		if ((j = fcntl(i, F_GETFD, 0)) != -1)
-			(void) fcntl(i, F_SETFD, j | FD_CLOEXEC);
-	}
+	sm_close_on_exec(STDERR_FILENO + 1, DtableSize);
 
 	/* now exec the process */
 	(void) execve(argv[0], (ARGV_T) argv, (ARGV_T) UserEnviron);
@@ -2469,23 +2521,25 @@ typedef struct procs	PROCS_T;
 
 struct procs
 {
-	pid_t	proc_pid;
-	char	*proc_task;
-	int	proc_type;
-	int	proc_count;
-	int	proc_other;
+	pid_t		proc_pid;
+	char		*proc_task;
+	int		proc_type;
+	int		proc_count;
+	int		proc_other;
+	SOCKADDR	proc_hostaddr;
 };
 
 static PROCS_T	*volatile ProcListVec = NULL;
 static int	ProcListSize = 0;
 
 void
-proc_list_add(pid, task, type, count, other)
+proc_list_add(pid, task, type, count, other, hostaddr)
 	pid_t pid;
 	char *task;
 	int type;
 	int count;
 	int other;
+	SOCKADDR *hostaddr;
 {
 	int i;
 
@@ -2537,6 +2591,11 @@ proc_list_add(pid, task, type, count, other)
 	ProcListVec[i].proc_type = type;
 	ProcListVec[i].proc_count = count;
 	ProcListVec[i].proc_other = other;
+	if (hostaddr != NULL)
+		ProcListVec[i].proc_hostaddr = *hostaddr;
+	else
+		memset(&ProcListVec[i].proc_hostaddr, 0,
+			sizeof(ProcListVec[i].proc_hostaddr));
 
 	/* if process adding itself, it's not a child */
 	if (pid != CurrentPid)
@@ -2773,4 +2832,48 @@ proc_list_signal(type, signal)
 		(void) sm_releasesignal(SIGALRM);
 	if (chldwasblocked == 0)
 		(void) sm_releasesignal(SIGCHLD);
+}
+
+/*
+**  COUNT_OPEN_CONNECTIONS
+**
+**	Parameters:
+**		hostaddr - ClientAddress
+**
+**	Returns:
+**		the number of open connections for this client
+**
+*/
+
+int
+count_open_connections(hostaddr)
+	SOCKADDR *hostaddr;
+{
+	int i, n;
+
+	if (hostaddr == NULL)
+		return 0;
+	n = 0;
+	for (i = 0; i < ProcListSize; i++)
+	{
+		if (ProcListVec[i].proc_pid == NO_PID)
+			continue;
+
+		if (hostaddr->sa.sa_family !=
+		    ProcListVec[i].proc_hostaddr.sa.sa_family)
+			continue;
+#if NETINET
+		if (hostaddr->sa.sa_family == AF_INET &&
+		    (hostaddr->sin.sin_addr.s_addr ==
+		     ProcListVec[i].proc_hostaddr.sin.sin_addr.s_addr))
+			n++;
+#endif /* NETINET */
+#if NETINET6
+		if (hostaddr->sa.sa_family == AF_INET6 &&
+		    IN6_ARE_ADDR_EQUAL(&(hostaddr->sin6.sin6_addr),
+				       &(ProcListVec[i].proc_hostaddr.sin6.sin6_addr)))
+			n++;
+#endif /* NETINET6 */
+	}
+	return n;
 }
