@@ -300,11 +300,13 @@ int vm_map_submap (vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
 int vm_map_madvise (vm_map_t, vm_offset_t, vm_offset_t, int);
 void vm_map_simplify_entry (vm_map_t, vm_map_entry_t);
 void vm_init2 (void);
-int vm_uiomove (vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *);
 void vm_freeze_copyopts (vm_object_t, vm_pindex_t, vm_pindex_t);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vmspace_swap_count (struct vmspace *vmspace);
 
+#ifdef ENABLE_VFS_IOOPT		/* Experimental support for zero-copy I/O */
+int vm_uiomove(vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *);
+#endif
 #endif				/* _KERNEL */
 #endif				/* _VM_MAP_ */
