@@ -2043,6 +2043,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	int error;
 	struct file *fp;
 
+	sysctl_wire_old_buffer(req, 0);
 	sx_slock(&filelist_lock);
 	if (!req->oldptr) {
 		/*
