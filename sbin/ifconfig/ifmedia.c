@@ -1,5 +1,5 @@
 /*	$NetBSD: ifconfig.c,v 1.34 1997/04/21 01:17:58 lukem Exp $	*/
-/*	$Id$ */
+/*	$Id: ifmedia.c,v 1.1 1997/05/04 06:22:27 peter Exp $ */
 
 /*
  * Copyright (c) 1997 Jason R. Thorpe.
@@ -170,10 +170,11 @@ media_status(s)
 }
 
 void
-setmedia(val, d, s)
+setmedia(val, d, s, afp)
 	const char *val;
 	int d;
 	int s;
+	const struct afswtch *afp;
 {
 	struct ifmediareq ifmr;
 	int first_type, subtype;
@@ -215,20 +216,22 @@ setmedia(val, d, s)
 }
 
 void
-setmediaopt(val, d, s)
+setmediaopt(val, d, s, afp)
 	const char *val;
 	int d;
 	int s;
+	const struct afswtch *afp;
 {
 
 	domediaopt(val, 0, s);
 }
 
 void
-unsetmediaopt(val, d, s)
+unsetmediaopt(val, d, s, afp)
 	const char *val;
 	int d;
 	int s;
+	const struct afswtch *afp;
 {
 
 	domediaopt(val, 1, s);
