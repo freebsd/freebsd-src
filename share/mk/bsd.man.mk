@@ -1,4 +1,49 @@
-#	$Id: bsd.man.mk,v 1.10 1996/04/09 23:10:19 wosch Exp $
+#	$Id: bsd.man.mk,v 1.11 1996/05/25 21:50:54 wosch Exp $
+#
+# The include file <bsd.man.mk> handles installing manual pages and 
+# their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
+# if it exists.
+#
+#
+# +++ variables +++
+#
+# DESTDIR	Change the tree where the man pages gets installed. [not set]
+#
+# MANDIR	Base path for manual installation. [${SHAREDIR}/man/man]
+#
+# MANOWN	Manual owner. [${SHAREOWN}]
+#
+# MANGRP	Manual group. [${SHAREGRP}]
+#
+# MANMODE	Manual mode. [${NOBINMODE}]
+#
+# MANSUBDIR	Subdirectory under the manual page section, i.e. "/i386"
+#		or "/tahoe" for machine specific manual pages.
+#
+# MAN${sect}	The manual pages to be installed. For sections see
+#		variable ${SECTIONS}
+#
+# _MANPAGES	List of all man pages to be installed.
+#		(``_MANPAGES=$MAN1 $MAN2 ... $MANn'')
+#
+# MCOMPRESS	Program to compress man pages. Output is to
+#		stdout. [gzip -c]
+#
+# MLINKS	List of manual page links (using a suffix). The
+#		linked-to file must come first, the linked file 
+#		second, and there may be multiple pairs. The files 
+#		are hard-linked.
+#
+# NOMANCOMPRESS	If you do not want unformatted manual pages to be 
+#		compressed when they are installed. [not set]
+#
+#
+# +++ targets +++
+#
+#	maninstall:
+#		Install the manual pages and their links.
+#
+
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
