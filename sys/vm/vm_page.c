@@ -508,7 +508,7 @@ vm_page_dirty(vm_page_t m)
  *	pindex is not found in the vm_object, returns a vm_page that is
  *	adjacent to the pindex, coming before or after it.
  */
-static vm_page_t
+vm_page_t
 vm_page_splay(vm_pindex_t pindex, vm_page_t root)
 {
 	struct vm_page dummy;
