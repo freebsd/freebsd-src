@@ -552,6 +552,7 @@ pass(passwd)
 {
 	char *salt, *xpasswd;
 	FILE *fd;
+	static char homedir[MAXPATHLEN];
 
 	if (logged_in || askpasswd == 0) {
 		reply(503, "Login with USER first.");
@@ -627,6 +628,12 @@ pass(passwd)
 		reply(550, "Can't set uid.");
 		goto bad;
 	}
+
+	/*
+	 * Set home directory so that use of ~ (tilde) works correctly.
+	 */
+	setenv("HOME", getcwd(homedir, MAXPATHLEN), 1);
+
 	/*
 	 * Display a login message, if it exists.
 	 * N.B. reply(230,) must follow the message.
