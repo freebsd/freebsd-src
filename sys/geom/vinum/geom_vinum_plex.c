@@ -67,7 +67,7 @@ gv_plex_orphan(struct g_consumer *cp)
 
 	p = gp->softc;
 	if (p != NULL) {
-		gv_kill_thread(p);
+		gv_kill_plex_thread(p);
 		p->geom = NULL;
 		p->provider = NULL;
 		p->consumer = NULL;
@@ -468,7 +468,7 @@ gv_plex_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	 * If this is a RAID5 plex, check if its worker thread is still active
 	 * and signal it to self destruct.
 	 */
-	gv_kill_thread(p);
+	gv_kill_plex_thread(p);
 	/* g_free(sc); */
 	g_wither_geom(gp, ENXIO);
 	return (0);

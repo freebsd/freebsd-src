@@ -817,7 +817,7 @@ gv_object_type(struct gv_softc *sc, char *name)
 }
 
 void
-gv_kill_thread(struct gv_plex *p)
+gv_kill_plex_thread(struct gv_plex *p)
 {
 	if ((p->org == GV_PLEX_RAID5) && (p->flags & GV_PLEX_THREAD_ACTIVE)) {
 		p->flags |= GV_PLEX_THREAD_DIE;
