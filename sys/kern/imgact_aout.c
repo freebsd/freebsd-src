@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.46 1999/02/19 14:25:34 luoqi Exp $
+ *	$Id: imgact_aout.c,v 1.47 1999/03/04 18:04:40 alc Exp $
  */
 
 #include <sys/param.h>
@@ -183,7 +183,7 @@ exec_aout_imgact(imgp)
 	vm_object_reference(object);
 
 	text_end = virtual_offset + a_out->a_text;
-	error = vm_map_insert(&vmspace->vm_map, object,
+	error = vm_map_insert(map, object,
 		file_offset,
 		virtual_offset, text_end,
 		VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
@@ -195,7 +195,7 @@ exec_aout_imgact(imgp)
 	data_end = text_end + a_out->a_data;
 	if (a_out->a_data) {
 		vm_object_reference(object);
-		error = vm_map_insert(&vmspace->vm_map, object,
+		error = vm_map_insert(map, object,
 			file_offset + a_out->a_text,
 			text_end, data_end,
 			VM_PROT_ALL, VM_PROT_ALL,
@@ -206,12 +206,12 @@ exec_aout_imgact(imgp)
 		}
 	}
 
-	pmap_object_init_pt(vmspace_pmap(vmspace), virtual_offset,
+	pmap_object_init_pt(vm_map_pmap(map), virtual_offset,
 		object, (vm_pindex_t) OFF_TO_IDX(file_offset),
 		a_out->a_text + a_out->a_data, 0);
 
 	if (bss_size) {
-		error = vm_map_insert(&vmspace->vm_map, NULL, 0,
+		error = vm_map_insert(map, NULL, 0,
 			data_end, data_end + bss_size,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error) {
