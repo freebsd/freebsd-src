@@ -305,7 +305,7 @@
       はテスト (やその他の目的) のために、人工的にマシンのメモリサイズ
       を減らすことに使えるようになりました。&merged;</para>
 
-    <para role="historic">カーネルコンフィギュレーションパラメータ
+    <para role="historic">カーネル設定パラメータ
       <varname>MAXTSIZ</varname>、<varname>DFLDSIZ</varname>、
       <varname>MAXDSIZ</varname>、<varname>DFLSSIZ</varname>、
       <varname>MAXSSIZ</varname>、<varname>SGROWSIZ</varname>
@@ -313,10 +313,12 @@
       (<varname>kern.maxtsiz</varname>、
       <varname>kern.maxdfldsiz</varname> など)。&merged;</para>
 
-    <para>&man.mutex.9; profiling code has been added, enabled by the
-      <literal>MUTEX_PROFILING</literal> kernel configuration option.
-      It enables the <varname>debug.mutex.prof.*</varname> hierarchy
-      of sysctl variables.</para>
+    <para>&man.mutex.9; にプロファイルのためのコードが追加されました。
+      これはカーネルコンフィグファイルに
+      <literal>MUTEX_PROFILING</literal>
+      を加えることにより有効になり、sysctl 変数
+      <varname>debug.mutex.prof.*</varname>
+      の設定が有効になります。</para>
 
     <para arch="i386,pc98" role="historic">SMP カーネルを設定するためのカーネルオプションである
       <literal>NCPU</literal>、<literal>NAPIC</literal>、
@@ -404,14 +406,14 @@
       counted against the size of the file to be sent, has been
       fixed. &merged;</para>
 
-    <para role="historic">&man.snp.4; デバイスは static ではなくなり、
+    <para role="historic">&man.snp.4; デバイスが
       モジュールとしてコンパイルできるようになりました。&merged;</para>
 
     <para arch="i386" role="historic">&man.spic.4; ドライバが追加されました。
       これは Sony 製ラップトップに搭載されているジョグダイアルデバイスへ
       アクセスを提供するものです。
-      &man.moused.8; support for this device has also been
-      added. &merged;</para>
+      &man.moused.8; も、このデバイスに対応しています。
+      &merged;</para>
 
     <para>&man.syscons.4; ドライバがキーボード操作によるペーストに対応しました。
       標準では <keycap>Shift</keycap>-<keycap>Insert</keycap>
@@ -442,11 +444,13 @@
         ホームページ</ulink>をご覧ください。
       HP ScanJet 4100C、5200C、6300C の動作が確認されています。&merged;</para>
 
-    <para>The &man.ucom.4; device driver has been added, to support USB
-      modems, serial devices, and other programs that need to look
-      like a tty.  The related &man.uplcom.4; and &man.uvscom.4; drivers provide specific
-      support for the Prolific PL-2303 serial adapter and the SUNTAC
-      Slipper U VS-10U, respectively. &merged;</para>
+    <para>USB モデムや USB シリアルデバイスなどを tty
+      のように見えるようにする
+      &man.ucom.4; ドライバが追加されました。
+      また、&man.uplcom.4;、&man.uvscom.4;
+      ドライバはそれぞれ、 Prolific PL-2303 シリアルアダプタと
+      SUNTAC Slipper U VS-10U に対応しています。
+      &merged;</para>
 
     <para>セキュリティを向上させるため、<literal>UCONSOLE</literal>
       カーネル設定オプションが削除されました。</para>
@@ -711,9 +715,10 @@
     <sect3>
       <title>ブートローダの変更</title>
 
-      <para arch="i386" role="historic"><filename>boot2</filename> now supports a
-	<option>-n</option> option to disallow boot interruption by
-	keypresses. &merged;</para>
+      <para arch="i386" role="historic"><filename>boot2</filename> に
+        <option>-n</option> オプションが追加されました。
+	これは、キーボード操作による起動の中断を禁止します。
+	&merged;</para>
 
       <para arch="i386" role="historic">新しい CDROM 用の <filename>cdboot</filename>
 	ブートストラップユーティリティは、El Torito ブータブル CDROM
@@ -901,8 +906,9 @@
         ハードウェア VLAN フィルタには対応していません。
         &merged;</para>
 
-      <para role="historic">The my driver, which supports the Myson Fast Ethernet and
-	Gigabit Ethernet adapters, has been added. &merged;</para>
+      <para role="historic">Myson ファストイーサネットアダプタ、
+	ギガビットイーサネットアダプタに対応する my ドライバが追加されました。
+	&merged;</para>
 
       <para role="historic">National Semiconductor DP83820 および DP83821
         ギガビットイーサネットコントローラチップをベースとした
@@ -1306,10 +1312,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">TCP 実装が、IP 層のブロードキャストアドレスに向けられたパケットを
 	正しく無視するようになりました。&merged;</para>
 
-      <para>TCP、UDP で使われる ephemeral port 範囲が 1024&ndash;5000 から
+      <para>TCP、UDP で使われるエフェメラルポート (ephemeral port) の範囲が 1024&ndash;5000 から
 	49152&ndash;65535 に変更されました。
 	これにより並列に出ていくことのできる接続/ストリームの数が増加します。
-      </para>
+	&merged;</para>
 
     <para>The &man.tcp.4; protocol's retransmission timer can now be
       manipulated with two sysctl variables,
@@ -1388,9 +1394,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">&man.ata.4; ドライバは Hardware Notes にも載っているように
 	様々な SiS チップセットに対応しました。&merged;</para>
 
-      <para role="historic">The &man.ata.4; driver now has support for creating,
-	deleting, querying, and rebuilding ATA RAIDs under control of
-	&man.atacontrol.8;. &merged;</para>
+      <para role="historic">&man.ata.4; ドライバが、&man.atacontrol.8; を使った
+	ATA RAID の生成、削除、クエリ、再構築に対応しました。&merged;</para>
 
       <para role="historic">ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました。
         &merged;</para>
@@ -2308,19 +2313,21 @@ hw.pcic.irq="0"</programlisting>
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>
       を参照してください。&merged;</para>
 
-    <para>Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
-      cookie (<quote>syncookie</quote>) implementations, which could
-      cause legitimate TCP/IP traffic to crash a machine, have been
-      fixed.  For a workaround and patches, see security advisory
+    <para>TCP SYN cache (<quote>syncache</quote>) と
+      SYN cookie (<quote>syncookie</quote>) の実装にあった、正規の TCP/IP
+      トラフィックによりマシンがクラッシュする可能性を持つバグが修正されました。
+      回避策と問題を解決するためのパッチはセキュリティ勧告
       <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.
-      &merged;</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>A routing table memory leak, which could allow a remote
-      attacker to exhaust the memory of a target machine, has been
-      fixed.  A workaround and patches can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.
+    <para>経路表においてメモリリークが発生する危険性があり、
+      リモートの攻撃者が対象マシンのメモリを枯渇させることができる可能性がありました。
+      現在、このバグは修正されています。
+      回避策と問題を解決するためのパッチはセキュリティ勧告
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>
+      をご覧ください。
       &merged;</para>
 
     <para>A bug with memory-mapped I/O, which could cause a system
@@ -2709,8 +2716,7 @@ hw.pcic.irq="0"</programlisting>
       ギガバイトという表現が新たに使用できるようになりました。
       &merged;</para>
 
-    <para>diskpart(8) has been declared obsolete, and has been
-      removed.</para>
+    <para>&man.diskpart.8; は廃止され、削除されました。</para>
 
     <para role="historic">&man.dmesg.8; へ、
       &man.syslogd.8; の記録および <filename>/dev/console</filename>
@@ -3094,8 +3100,8 @@ hw.pcic.irq="0"</programlisting>
       カーネルモジュールの検索パスの操作を簡単に行なうことができます。
       &merged;</para>
 
-    <para>&man.ktrdump.8;, a utility to dump the ktr trace buffer from
-      userland, has been added.</para>
+    <para>ユーザランドから ktr トレースバッファをダンプする
+      &man.ktrdump.8; ユーティリティが追加されました。</para>
 
     <para role="historic">&man.last.1; に <option>-d</option>
       オプションフラグが追加されました。
@@ -3454,13 +3460,12 @@ hw.pcic.irq="0"</programlisting>
       この変更によりいくらか性能が向上し、もう少しディスクスペースを
       消費するようになります。&merged;</para>
 
-    <para>A number of archaic features of &man.newfs.8; have been
-      removed; these implement tuning features that are essentially
-      useless on modern hard disks.  These features were controlled by
-      the <option>-O</option>, <option>-d</option>,
-      <option>-k</option>, <option>-l</option>, <option>-n</option>,
-      <option>-p</option>, <option>-r</option>, <option>-t</option>,
-      and <option>-x</option> flags.</para>
+    <para>最近のハードディスクでは有効に働かない古い機能の多くが、
+      &man.newfs.8; から削除されました。
+      <option>-O</option>、<option>-d</option>、
+      <option>-k</option>、<option>-l</option>、<option>-n</option>、
+      <option>-p</option>、<option>-r</option>、<option>-t</option>、
+      および <option>-x</option> フラグがそれに該当します。</para>
 
     <para>&man.newfs.8; now supports a <option>-O</option> flag to
       select the creation of UFS1 or UFS2 filesystems.</para>
@@ -4823,18 +4828,20 @@ hw.pcic.irq="0"</programlisting>
 	  <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
 	</para>
 
-	<para role="historic">Beginning with the import of
-	  <application>sendmail</application> 8.12.2, multiple
-	  <application>sendmail</application> daemons (some required
-	  to handle outgoing mail) are started by &man.rc.8;, even if
-	  the <varname>sendmail_enable</varname> variable is set to
-	  <literal>NO</literal>.  To completely disable
-	  <application>sendmail</application>,
-	  <varname>sendmail_enable</varname> must be set to
-	  <literal>NONE</literal>.  Alternatively, for systems using a
-	  different MTA, the <varname>mta_start_script</varname> variable can
-	  be used to point to a different startup script (more details
-	  can be found in &man.rc.sendmail.8;). &merged;</para>
+	<para role="historic">この
+	  <application>sendmail</application> 8.12.2 の更新にともない、
+	  複数の <application>sendmail</application> デーモン
+	  (外へ出ていくメールを扱うために必要なもの)
+	  は <varname>sendmail_enable</varname> 変数が
+	  <literal>NO</literal> に設定されている場合にも、
+	  &man.rc.8; によって起動されるようになりました。
+	  <application>sendmail</application> を完全に無効にするには、
+	  <varname>sendmail_enable</varname> を
+	  <varname>sendmail_enable</varname> に設定しなければなりません。
+	  また、別の MTA を利用するシステムでは
+	  <varname>mta_start_script</varname>
+	  変数を用いて異なる起動スクリプトを指定することが可能です。
+	  (詳細は &man.rc.sendmail.8; をご覧ください)。&merged;</para>
 
 	<para>By default, &man.rc.8; no longer enables
 	  <application>sendmail</application> for inbound SMTP
