@@ -1160,7 +1160,7 @@ sioopen(dev, flag, mode, p)
 		return (ENXIO);
 	if (mynor & CONTROL_MASK)
 		return (0);
-	tp = dev->si_tty_tty = com->tp = ttymalloc(com->tp);
+	tp = dev->si_tty = com->tp = ttymalloc(com->tp);
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
@@ -2431,7 +2431,7 @@ siodevtotty(dev)
 	unit = MINOR_TO_UNIT(mynor);
 	if ((u_int) unit >= NSIOTOT)
 		return (NULL);
-	return (dev->si_tty_tty);
+	return (dev->si_tty);
 }
 
 static int
