@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.20 1995/11/20 22:32:13 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.21 1995/11/20 22:51:01 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -296,11 +296,13 @@ Any entries with a &lt;XXX&gt; are under construction.
           This is, I believe, one of the most fundamental goals of Free
           Software and one that we enthusiastically support.
 
-          Our GNU code does make for some strings, which we dislike and
-          endevour to replace whenver possible, but at least those strings
-          are in the direction of greater, rather than lesser, "openness"
-          in how the code is shared and distributed and so is a string we
-          can reasonably live with.
+          That code in our source tree which falls under the GNU Public License
+          (GPL) or GNU Library Public License (GLPL) comes with slightly more
+          strings attached, though at least on the side of enforced
+          access rather than the usual opposite.  Due to the additional
+          complexities that can evolve in the commercial use of GPL software,
+          we do, however, endevor to replace such software with submissions
+          under the more relaxed BSD copyright whenever possible.
 
     <sect>
       <heading>Installation</heading>
