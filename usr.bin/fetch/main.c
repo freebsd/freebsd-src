@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.1.1.1.2.3 1996/06/25 22:19:08 jkh Exp $ */
+/* $Id: main.c,v 1.1.1.1.2.4 1996/07/05 00:25:31 jmz Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -203,8 +203,9 @@ ftpget ()
 	FILE *ftp, *fp;
 	char *cp, *lp;
 	int status, n;
-	ssize_t size, size0, seekloc;
+	ssize_t size, size0;
 	char ftp_pw[200];
+        int seekloc;
 	time_t t;
 	struct itimerval timer;
 
@@ -217,7 +218,7 @@ ftpget ()
 	}
 	if ((lp = getenv("FTP_LOGIN")) == NULL)
 	    lp = "anonymous";
-	ftp = ftpLogin(host, lp, ftp_pw, 0);
+	ftp = ftpLogin(host, lp, ftp_pw, 0, 0, NULL);
 	if (!ftp) 
 	    err(1, "Couldn't open FTP connection to %s.", host);
 
