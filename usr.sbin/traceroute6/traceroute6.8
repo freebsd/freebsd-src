@@ -30,7 +30,7 @@
 .\"
 .Dd May 17, 1998
 .Dt TRACEROUTE6 8
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm traceroute6
@@ -79,8 +79,9 @@ Specify the delay time between probes.
 .El
 .\"
 .Sh RETURN VALUES
-.Nm Traceroute6
-will exit with 0 on success, and non-zero on errors.
+The
+.Nm
+command will exit with 0 on success, and non-zero on errors.
 .\"
 .Sh SEE ALSO
 .Xr ping 8 ,
@@ -91,6 +92,6 @@ will exit with 0 on success, and non-zero on errors.
 The
 .Nm
 command first appeared in WIDE hydrangea IPv6 protocol stack kit.
-.\"
-.\" .Sh BUGS
-.\" (to be written)
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initialy integrated into
+.Fx 4.0
