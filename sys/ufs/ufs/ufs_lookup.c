@@ -310,7 +310,6 @@ searchloop:
 				}
 				dp->i_ino = ep->d_ino;
 				dp->i_reclen = ep->d_reclen;
-				brelse(bp);
 				goto found;
 			}
 		}
@@ -414,6 +413,7 @@ found:
 		dp->i_size = entryoffsetinblock + DIRSIZ(OFSFMT(vdp), ep);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
+	brelse(bp);
 
 	/*
 	 * Found component in pathname.
