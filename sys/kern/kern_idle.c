@@ -41,7 +41,9 @@ SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)
 static void idle_proc(void *dummy);
 
 /*
- * setup per-cpu idle process contexts
+ * Setup per-cpu idle process contexts.  The AP's shouldn't be running or
+ * accessing their idle processes at this point, so don't bother with
+ * locking.
  */
 static void
 idle_setup(void *dummy)
@@ -63,6 +65,8 @@ idle_setup(void *dummy)
 
 		gd->gd_idleproc->p_flag |= P_NOLOAD;
 		gd->gd_idleproc->p_stat = SRUN;
+		if (gd->gd_curproc == NULL)
+			gd->gd_curproc = gd->gd_idleproc;
 	}
 }
 
@@ -106,6 +110,7 @@ idle_proc(void *dummy)
 		}
 
 		mtx_lock_spin(&sched_lock);
+		curproc->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 	}
