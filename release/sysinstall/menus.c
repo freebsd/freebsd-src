@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.119 1997/02/22 14:12:05 peter Exp $
+ * $Id: menus.c,v 1.120 1997/03/08 12:57:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -257,6 +257,8 @@ DMenu MenuIndex = {
       { "Packages",		"The packages collection",		NULL, configPackages },
       { "Partition",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "PCNFSD",		"Run authentication server for PC-NFS.", dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
+      { "Register",		"Register yourself or company as a FreeBSD user.", dmenuVarCheck, configRegister, NULL, "registered" },
+      { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router" },
       { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
@@ -1059,7 +1061,7 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
       { "A HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },
-      { "B XFree86",	"Configure XFree86",
+      { "X XFree86",	"Configure XFree86",
 	NULL, configXFree86 },
       { "D Distributions", "Install additional distribution sets",
 	NULL, distExtractAll },
@@ -1067,7 +1069,9 @@ DMenu MenuConfigure = {
 	NULL, diskLabelEditor },
       { "Partition",	"The disk Partition Editor",
 	NULL, diskPartitionEditor },
-      { "Exit",		"Exit this menu (returning to previous)",
+      { "S Set Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
+      { "R Register",	"Register yourself or company as a FreeBSD user.", NULL, configRegister },
+      { "E Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
       { NULL } },
 };
