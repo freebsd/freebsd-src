@@ -65,7 +65,7 @@ void	map __P((char *, char *, char *, char *));
 void	onintr __P((int));
 void	oops __P((const char *, ...));
 void	pbnum __P((int));
-void	pbstr __P((char *));
+void    pbstr __P((unsigned char *));
 void	putback __P((int));
 void	remhash __P((char *, int));
 void	usage __P((void));
@@ -79,13 +79,13 @@ extern int fp; 			/* m4 call frame pointer */
 extern int ilevel;		/* input file stack pointer */
 extern int oindex;		/* diversion index. */
 extern int sp;			/* current m4 stack pointer */
-extern char *bp;		/* first available character */
-extern char buf[];		/* push-back buffer */
-extern char *bufbase;		/* buffer base for this ilevel */
-extern char *bbase[];		/* buffer base per ilevel */
+extern unsigned char *bp;       /* first available character */
+extern unsigned char buf[];     /* push-back buffer */
+extern unsigned char *bufbase;  /* buffer base for this ilevel */
+extern unsigned char *bbase[];  /* buffer base per ilevel */
 extern char ecommt;		/* end character for comment */
 extern char *endest;		/* end of string space */
-extern char *endpbb;		/* end of push-back buffer */
+extern unsigned char *endpbb;   /* end of push-back buffer */
 extern char *ep;		/* first free char in strspace */
 extern char lquote;		/* left quote character (`) */
 extern char *m4temp;		/* filename for diversions */

@@ -73,8 +73,10 @@ char *s2;
  */
 void
 putback(c)
-char c;
+int c;
 {
+	if (c == EOF)
+		c = 0;
 	if (bp < endpbb)
 		*bp++ = c;
 	else
@@ -88,10 +90,10 @@ char c;
  */
 void
 pbstr(s)
-register char *s;
+register unsigned char *s;
 {
-	register char *es;
-	register char *zp;
+	register unsigned char *es;
+	register unsigned char *zp;
 
 	es = s;
 	zp = bp;
