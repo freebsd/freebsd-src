@@ -483,6 +483,7 @@ VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE-530TX
+  AOpen/Acer ALN-320
 
 Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
 
