@@ -35,11 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/vnode.h>
 #include <sys/uio.h>
 
 #include <sys/kbio.h>
@@ -571,7 +571,7 @@ genkbdread(struct cdev *dev, struct uio *uio, int flag)
 		return (ENXIO);
 	}
 	while (sc->gkb_q.c_cc == 0) {
-		if (flag & IO_NDELAY) {
+		if (flag & O_NONBLOCK) {
 			splx(s);
 			return (EWOULDBLOCK);
 		}
