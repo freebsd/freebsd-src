@@ -150,6 +150,7 @@ static int stf_encapcheck(const struct mbuf *, int, int, void *);
 static struct in6_ifaddr *stf_getsrcifa6(struct ifnet *);
 static int stf_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
+static int isrfc1918addr(struct in_addr *);
 static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
 	struct ifnet *);
 static int stf_checkaddr6(struct stf_softc *, struct in6_addr *,
@@ -465,6 +466,22 @@ stf_output(ifp, m, dst, rt)
 }
 
 static int
+isrfc1918addr(in)
+	struct in_addr *in;
+{
+	/*
+	 * returns 1 if private address range:
+	 * 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+	 */
+	if ((ntohl(in->s_addr) & 0xff000000) >> 24 == 10 ||
+	    (ntohl(in->s_addr) & 0xfff00000) >> 16 == 172 * 256 + 16 ||
+	    (ntohl(in->s_addr) & 0xffff0000) >> 16 == 192 * 256 + 168)
+		return 1;
+
+	return 0;
+}
+
+static int
 stf_checkaddr4(sc, in, inifp)
 	struct stf_softc *sc;
 	struct in_addr *in;
@@ -482,6 +499,13 @@ stf_checkaddr4(sc, in, inifp)
 	case 0: case 127: case 255:
 		return -1;
 	}
+
+	/*
+	 * reject packets with private address range.
+	 * (requirement from RFC3056 section 2 1st paragraph)
+	 */
+	if (isrfc1918addr(in))
+		return -1;
 
 	/*
 	 * reject packets with broadcast
@@ -691,7 +715,8 @@ stf_ioctl(ifp, cmd, data)
 			break;
 		}
 		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-		if (IN6_IS_ADDR_6TO4(&sin6->sin6_addr)) {
+		if (IN6_IS_ADDR_6TO4(&sin6->sin6_addr) &&
+		    !isrfc1918addr(GET_V4(&sin6->sin6_addr))) {
 			ifa->ifa_rtrequest = stf_rtrequest;
 			ifp->if_flags |= IFF_UP;
 		} else
