@@ -31,6 +31,7 @@
 #   floppy.tree.exclude	files from floppy.tree/ which we do not need here.
 #   floppy.tree/	local additions to the floppy.tree
 #   floppy.tree.${site}/ same as above, site specific.
+#   mfs_tree/		local additions to the mfs_free
 
 #
 #--- The main entry point is at the end.
@@ -111,7 +112,8 @@ set_defaults() {
     c_startdir=`pwd`	# directory where we start
 			# used to lookup config and create BUILDDIR
 
-    c_boot1=/boot/boot1	# boot blocks (in case you want custom ones)
+    c_boot=/boot/boot	# boot blocks (in case you want custom ones)
+    c_boot1=/boot/boot1
     c_boot2=/boot/boot2
 
     c_reply=${c_reply:-`mktemp "/tmp/reply.XXXXXXXXXX"`}
@@ -532,11 +534,11 @@ create_mfs() {		# OK
     # installed so you have more space on the disk...
     # For small image sizes, use std disktypes
     if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -rw ${l_vndev} fd${MFS_SIZE} || fail $? mfs_disklabel
+	disklabel -w ${l_vndev} fd${MFS_SIZE} || fail $? mfs_disklabel
     else
-	disklabel -rw ${l_vndev} auto || fail $? mfs_disklabel
+	disklabel -w ${l_vndev} auto || fail $? mfs_disklabel
     fi
-    newfs -i ${mfs_inodes} -m 0 -p 0 -o space -f 512 -b 4096 \
+    newfs -i ${mfs_inodes} -m 0 -o space -f 512 -b 4096 \
 	/dev/${l_vndev}c > /dev/null
     mount /dev/${l_vndev}c ${c_mnt} || fail $? no_mount
     log "`df /dev/${l_vndev}c`"
@@ -790,11 +792,11 @@ fill_floppy_image() {
     init_fs_image ${BUILDDIR}/${c_img} ${blocks}
 
     log "Labeling floppy image"
-    b2=${BUILDDIR}/boot2 # modified boot2
-    perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${c_boot2} > ${b2}
+    b=${BUILDDIR}/boot # modified boot
+    perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${c_boot} > ${b}
 
     # create a disklabel ...
-    disklabel -Brw -b ${c_boot1} -s ${b2} ${l_vndev} auto || \
+    disklabel -Bw -b ${b} ${l_vndev} auto || \
 	fail $?  floppy_disklabel
 
     # and copy partition c: into partition a: using some sed magic
@@ -802,7 +804,7 @@ fill_floppy_image() {
 	disklabel -R ${l_vndev} /dev/stdin
 
     log "Newfs floppy image"
-    newfs -i ${fd_inodes} -m 0 -p 0 -o space -f 512 -b 4096 \
+    newfs -i ${fd_inodes} -m 0 -o space -f 512 -b 4096 \
 	     /dev/${l_vndev}a > /dev/null
 
     log "Mounting floppy image"
