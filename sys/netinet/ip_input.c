@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.8 1997/09/15 23:10:55 ache Exp $
+ * $Id: ip_input.c,v 1.50.2.9 1997/11/13 22:57:33 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -929,6 +929,8 @@ ip_dooptions(m)
 					code = ICMP_UNREACH_SRCFAIL;
 					goto bad;
 				}
+				if (!ip_dosourceroute)
+					goto nosourcerouting;
 				/*
 				 * Loose routing, and not at next destination
 				 * yet; nothing to do except forward.
@@ -946,8 +948,9 @@ ip_dooptions(m)
 
 			if (!ip_dosourceroute) {
 				char buf[4*sizeof "123"];
-				strcpy(buf, inet_ntoa(ip->ip_dst));
 
+nosourcerouting:
+				strcpy(buf, inet_ntoa(ip->ip_dst));
 				log(LOG_WARNING, 
 				    "attempted source route from %s to %s\n",
 				    inet_ntoa(ip->ip_src), buf);
