@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.18 1998/04/21 22:02:00 des Exp $";
+	"$Id: ls.c,v 1.19 1998/04/24 07:49:47 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -85,7 +85,6 @@ int f_kblocks;			/* print size in kilobytes */
 int f_listdir;			/* list actual directory, not contents */
 int f_listdot;			/* list files beginning with . */
 int f_longform;			/* long listing format */
-int f_newline;			/* if precede with newline */
 int f_nonprint;			/* show unprintables as ? */
 int f_nosort;			/* don't sort output */
 int f_octal;			/* show unprintables as \xxx */
@@ -96,7 +95,6 @@ int f_sectime;			/* print the real time for all files */
 int f_singlecol;		/* use single column output */
 int f_size;			/* list size in short listing */
 int f_statustime;		/* use time of last mode change */
-int f_dirname;			/* if precede with directory name */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
@@ -137,7 +135,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "?1ABCFLRTWabcdfgikloqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "?1ABCFHLPRTWabcdfgikloqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -172,9 +170,17 @@ main(argc, argv)
 		case 'F':
 			f_type = 1;
 			break;
+		case 'H':
+		        fts_options |= FTS_COMFOLLOW;
+			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
+			break;
+		case 'P':
+		        fts_options &= ~FTS_COMFOLLOW;
+			fts_options &= ~FTS_LOGICAL;
+			fts_options |= FTS_PHYSICAL;
 			break;
 		case 'R':
 			f_recursive = 1;
