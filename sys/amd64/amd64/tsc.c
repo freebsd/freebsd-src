@@ -54,6 +54,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/timetc.h>
 #include <sys/kernel.h>
 #ifndef SMP
 #include <sys/lock.h>
@@ -771,7 +772,7 @@ startrtclock()
 
 	set_timer_freq(timer_freq, hz);
 	i8254_timecounter.tc_frequency = timer_freq;
-	init_timecounter(&i8254_timecounter);
+	tc_init(&i8254_timecounter);
 
 #ifndef CLK_USE_TSC_CALIBRATION
 	if (tsc_freq != 0) {
@@ -821,7 +822,7 @@ startrtclock()
 
 	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;
-		init_timecounter(&tsc_timecounter);
+		tc_init(&tsc_timecounter);
 	}
 
 #endif /* !defined(SMP) */
@@ -844,7 +845,7 @@ inittodr(time_t base)
 		s = splclock();
 		ts.tv_sec = base;
 		ts.tv_nsec = 0;
-		set_timecounter(&ts);
+		tc_setclock(&ts);
 		splx(s);
 	}
 
@@ -895,7 +896,7 @@ inittodr(time_t base)
 		/* badly off, adjust it */
 		ts.tv_sec = sec;
 		ts.tv_nsec = 0;
-		set_timecounter(&ts);
+		tc_setclock(&ts);
 	}
 	splx(s);
 	return;
@@ -1157,7 +1158,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
 		i8254_timecounter.tc_frequency = freq;
-		update_timecounter(&i8254_timecounter);
+		tc_update(&i8254_timecounter);
 	}
 	return (error);
 }
@@ -1178,7 +1179,7 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
 		tsc_timecounter.tc_frequency = tsc_freq;
-		update_timecounter(&tsc_timecounter);
+		tc_update(&tsc_timecounter);
 	}
 	return (error);
 }
