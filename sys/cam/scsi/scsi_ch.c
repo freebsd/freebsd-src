@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.6 1998/11/22 23:44:47 ken Exp $
+ *      $Id: scsi_ch.c,v 1.7 1998/12/04 22:54:43 archie Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -851,7 +851,7 @@ chmove(struct cam_periph *periph, struct changer_move *cm)
 	 * Check the request against the changer's capabilities.
 	 */
 	if ((softc->sc_movemask[cm->cm_fromtype] & (1 << cm->cm_totype)) == 0)
-		return (EINVAL);
+		return (ENODEV);
 
 	/*
 	 * Calculate the source and destination elements.
@@ -909,7 +909,7 @@ chexchange(struct cam_periph *periph, struct changer_exchange *ce)
 	     (1 << ce->ce_fdsttype)) == 0) ||
 	    ((softc->sc_exchangemask[ce->ce_fdsttype] &
 	     (1 << ce->ce_sdsttype)) == 0))
-		return (EINVAL);
+		return (ENODEV);
 
 	/*
 	 * Calculate the source and destination elements.
