@@ -43,18 +43,18 @@ savers to the kernel.
 This driver is required if the splash bitmap image is to be loaded or
 any screen saver is to be used.
 .Sh SPLASH SCREEN
-You can load and display an arbitrary bitmap image file as welcome banner
+You can load and display an arbitrary bitmap image file as a welcome banner
 on the screen when the system is about to start.  This image will remain on
 the screen during kernel initialization process until the ``Login'' prompt
 appears on the screen or until a screen saver is loaded and initialized. 
 The image will also disappear if you hit any key, although this may not work
 immediately if the kernel is still probing devices.
 .Pp
-If you specify 
+If you specify the  
 .Fl c
 or
 .Fl v
-boot option when loading kernel, the splash image will not appear.
+boot option when loading the kernel, the splash image will not appear.
 However, it
 is still loaded and can be used as a screen saver later: see below.
 .Pp
@@ -104,7 +104,7 @@ If the monitor supports power saving mode, it will be turned off.
 .It Pa logo_saver.ko
 Animated graphical BSD Daemon.
 .It Pa rain_saver.ko
-Draws shower on the screen.
+Draws a shower on the screen.
 .It Pa snake_saver.ko
 Draws a snake of string.
 .It Pa star_saver.ko
