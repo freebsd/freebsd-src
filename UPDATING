@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040613:
+	ALTQ is now linked to the build. This breaks ABI for struct ifnet.
+	Make sure to recompile modules and any userland that makes use of
+	sizeof(struct ifnet). In order to get the altq headers in place run
+	make installincludes.
+
 20040607:
 	Splitting kern_thread.c into 2 files (adding kern_kse.c)
 	requires that you re-run config after updating your tree.
