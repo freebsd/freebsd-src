@@ -68,8 +68,9 @@ static int cd9660_unmount __P((struct mount *, int, struct proc *));
 static int cd9660_root __P((struct mount *, struct vnode **));
 static int cd9660_statfs __P((struct mount *, struct statfs *, struct proc *));
 static int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
-static int cd9660_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
-	    struct vnode **, int *, struct ucred **));
+static int cd9660_fhtovp __P((struct mount *, struct fid *, struct vnode **));
+static int cd9660_checkexp __P((struct mount *, struct sockaddr *,
+	    int *, struct ucred **));
 static int cd9660_vptofh __P((struct vnode *, struct fid *));
 
 static struct vfsops cd9660_vfsops = {
@@ -82,6 +83,7 @@ static struct vfsops cd9660_vfsops = {
 	vfs_stdsync,
 	cd9660_vget,
 	cd9660_fhtovp,
+	cd9660_checkexp,
 	cd9660_vptofh,
 	cd9660_init,
 };
@@ -620,18 +622,13 @@ struct ifid {
 
 /* ARGSUSED */
 int
-cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
+cd9660_fhtovp(mp, fhp, vpp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct sockaddr *nam;
 	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
 {
 	struct ifid *ifhp = (struct ifid *)fhp;
 	register struct iso_node *ip;
-	register struct netcred *np;
-	register struct iso_mnt *imp = VFSTOISOFS(mp);
 	struct vnode *nvp;
 	int error;
 	
@@ -640,13 +637,6 @@ cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	       ifhp->ifid_ino, ifhp->ifid_start);
 #endif
 	
-	/*
-	 * Get the export permission structure for this <mp, client> tuple.
-	 */
-	np = vfs_export_lookup(mp, &imp->im_export, nam);
-	if (np == NULL)
-		return (EACCES);
-
 	if ((error = VFS_VGET(mp, ifhp->ifid_ino, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
@@ -658,6 +648,28 @@ cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 		return (ESTALE);
 	}
 	*vpp = nvp;
+	return (0);
+}
+
+int
+cd9660_checkexp(mp, nam, exflagsp, credanonp)
+	struct mount *mp;
+	struct sockaddr *nam;
+	int *exflagsp;
+	struct ucred **credanonp;
+{
+	register struct netcred *np;
+	register struct iso_mnt *imp;
+
+	imp = VFSTOISOFS(mp);	
+
+	/*
+	 * Get the export permission structure for this <mp, client> tuple.
+	 */
+	np = vfs_export_lookup(mp, &imp->im_export, nam);
+	if (np == NULL)
+		return (EACCES);
+
 	*exflagsp = np->netc_exflags;
 	*credanonp = &np->netc_anon;
 	return (0);

@@ -57,8 +57,9 @@
 static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 
 static int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
-				   struct sockaddr *nam, struct vnode **vpp,
-				   int *exflagsp, struct ucred **credanonp));
+				   struct vnode **vpp));
+static int	nullfs_checkexp __P((struct mount *mp, struct sockaddr *nam,
+				    int *extflagsp, struct ucred **credanonp));
 static int	nullfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
 static int	nullfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
@@ -385,17 +386,25 @@ nullfs_vget(mp, ino, vpp)
 }
 
 static int
-nullfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
+nullfs_fhtovp(mp, fidp, vpp)
 	struct mount *mp;
 	struct fid *fidp;
-	struct sockaddr *nam;
 	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred**credanonp;
 {
 
-	return VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, nam, 
-			  vpp, exflagsp, credanonp);
+	return VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, vpp);
+}
+
+static int
+nullfs_checkexp(mp, nam, extflagsp, credanonp)
+	struct mount *mp;
+	struct sockaddr *nam;
+	int *extflagsp; 
+	struct ucred **credanonp;
+{
+
+	return VFS_CHECKEXP(MOUNTTONULLMOUNT(mp)->nullm_vfs, nam, 
+		extflagsp, credanonp);
 }
 
 static int
@@ -416,6 +425,7 @@ static struct vfsops null_vfsops = {
 	nullfs_sync,
 	nullfs_vget,
 	nullfs_fhtovp,
+	nullfs_checkexp,
 	nullfs_vptofh,
 	nullfs_init,
 };

@@ -37,6 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
+ *	$FreeBSD$
  */
 
 #include "opt_quota.h"
@@ -65,8 +66,7 @@
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 
-static int ext2_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
-	    struct vnode **, int *, struct ucred **));
+static int ext2_fhtovp __P((struct mount *, struct fid *, struct vnode **));
 static int ext2_flushfiles __P((struct mount *mp, int flags, struct proc *p));
 static int ext2_mount __P((struct mount *,
 	    char *, caddr_t, struct nameidata *, struct proc *));
@@ -92,6 +92,7 @@ static struct vfsops ext2fs_vfsops = {
 	ext2_sync,
 	ext2_vget,
 	ext2_fhtovp,
+	ufs_check_export,
 	ext2_vptofh,
 	ext2_init,
 };
@@ -1113,13 +1114,10 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
  *   those rights via. exflagsp and credanonp
  */
 static int
-ext2_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
+ext2_fhtovp(mp, fhp, vpp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct sockaddr *nam;
 	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
 {
 	register struct ufid *ufhp;
 	struct ext2_sb_info *fs;
@@ -1129,7 +1127,7 @@ ext2_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	if (ufhp->ufid_ino < ROOTINO ||
 	    ufhp->ufid_ino >= fs->s_groups_count * fs->s_es->s_inodes_per_group)
 		return (ESTALE);
-	return (ufs_check_export(mp, ufhp, nam, vpp, exflagsp, credanonp));
+	return (ufs_fhtovp(mp, ufhp, vpp));
 }
 
 /*

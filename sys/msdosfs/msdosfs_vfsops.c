@@ -75,8 +75,9 @@ static int	update_mp __P((struct mount *mp, struct msdosfs_args *argp));
 static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
 				  struct proc *p, struct msdosfs_args *argp));
 static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
-				    struct sockaddr *, struct vnode **, int *,
-				    struct ucred **));
+				    struct vnode **));
+static int	msdosfs_checkexp __P((struct mount *, struct sockaddr *, 
+				    int *, struct ucred **));
 static int	msdosfs_mount __P((struct mount *, char *, caddr_t,
 				   struct nameidata *, struct proc *));
 static int	msdosfs_root __P((struct mount *, struct vnode **));
@@ -915,29 +916,38 @@ loop:
 }
 
 static int
-msdosfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
+msdosfs_fhtovp(mp, fhp, vpp)
 	struct mount *mp;
 	struct fid *fhp;
-	struct sockaddr *nam;
 	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct defid *defhp = (struct defid *) fhp;
 	struct denode *dep;
-	struct netcred *np;
 	int error;
 
-	np = vfs_export_lookup(mp, &pmp->pm_export, nam);
-	if (np == NULL)
-		return (EACCES);
 	error = deget(pmp, defhp->defid_dirclust, defhp->defid_dirofs, &dep);
 	if (error) {
 		*vpp = NULLVP;
 		return (error);
 	}
 	*vpp = DETOV(dep);
+	return (0);
+}
+
+static int
+msdosfs_checkexp(mp, nam,  exflagsp, credanonp)
+	struct mount *mp;
+	struct sockaddr *nam;
+	int *exflagsp;
+	struct ucred **credanonp;
+{
+	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
+	struct netcred *np;
+
+	np = vfs_export_lookup(mp, &pmp->pm_export, nam);
+	if (np == NULL)
+		return (EACCES);
 	*exflagsp = np->netc_exflags;
 	*credanonp = &np->netc_anon;
 	return (0);
@@ -970,6 +980,7 @@ static struct vfsops msdosfs_vfsops = {
 	msdosfs_sync,
 	vfs_stdvget,
 	msdosfs_fhtovp,
+	msdosfs_checkexp,
 	msdosfs_vptofh,
 	msdosfs_init
 };

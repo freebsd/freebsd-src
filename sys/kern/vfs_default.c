@@ -580,12 +580,19 @@ vfs_stdvget (mp, ino, vpp)
 }
 
 int	
-vfs_stdfhtovp (mp, fhp, nam, vpp, exflagsp, credanonp)
+vfs_stdfhtovp (mp, fhp, vpp)
 	struct mount *mp;
 	struct fid *fhp;
-	struct sockaddr *nam;
 	struct vnode **vpp;
-	int *exflagsp;
+{
+	return (EOPNOTSUPP);
+}
+
+int 
+vfs_stdcheckexp (mp, nam, extflagsp, credanonp)
+	struct mount *mp;
+	struct sockaddr *nam;
+	int *extflagsp;
 	struct ucred **credanonp;
 {
 	return (EOPNOTSUPP);

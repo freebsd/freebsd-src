@@ -120,48 +120,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, gatherdelay_v3, CTLFLAG_RW, &nfsrvw_procrastinate
 
 /*
  * NFS server system calls
- * getfh() lives here too, but maybe should move to kern/vfs_syscalls.c
  */
-
-/*
- * Get file handle system call
- */
-#ifndef _SYS_SYSPROTO_H_
-struct getfh_args {
-	char	*fname;
-	fhandle_t *fhp;
-};
-#endif
-int
-getfh(p, uap)
-	struct proc *p;
-	register struct getfh_args *uap;
-{
-	register struct vnode *vp;
-	fhandle_t fh;
-	int error;
-	struct nameidata nd;
-
-	/*
-	 * Must be super user
-	 */
-	error = suser(p);
-	if(error)
-		return (error);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->fname, p);
-	error = namei(&nd);
-	if (error)
-		return (error);
-	vp = nd.ni_vp;
-	bzero((caddr_t)&fh, sizeof(fh));
-	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
-	error = VFS_VPTOFH(vp, &fh.fh_fid);
-	vput(vp);
-	if (error)
-		return (error);
-	error = copyout((caddr_t)&fh, (caddr_t)uap->fhp, sizeof (fh));
-	return (error);
-}
 
 #endif /* NFS_NOSERVER */
 /*

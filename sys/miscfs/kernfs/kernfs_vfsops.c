@@ -252,6 +252,7 @@ static struct vfsops kernfs_vfsops = {
 	vfs_stdsync,
 	vfs_stdvget,
 	vfs_stdfhtovp,
+	vfs_stdcheckexp,
 	vfs_stdvptofh,
 	vfs_stdinit,
 };
