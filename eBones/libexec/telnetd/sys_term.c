@@ -46,9 +46,9 @@ static char sccsid[] = "@(#)sys_term.c	8.4 (Berkeley) 5/30/95";
 # define PARENT_DOES_UTMP
 #endif
 
+int     utmp_len = MAXHOSTNAMELEN;
 #ifdef	NEWINIT
 #include <initreq.h>
-int	utmp_len = MAXHOSTNAMELEN;	/* sizeof(init_request.host) */
 #else	/* NEWINIT*/
 # ifdef	UTMPX
 # include <utmpx.h>
@@ -58,10 +58,17 @@ struct	utmpx wtmp;
 struct	utmp wtmp;
 # endif /* UTMPX */
 
-int	utmp_len = sizeof(wtmp.ut_host);
 # ifndef PARENT_DOES_UTMP
+#ifdef _PATH_WTMP
+char    wtmpf[] = _PATH_WTMP;
+#else
 char	wtmpf[]	= "/usr/adm/wtmp";
+#endif
+#ifdef _PATH_UTMP
+char    utmpf[] = _PATH_UTMP;
+#else
 char	utmpf[] = "/etc/utmp";
+#endif
 # else /* PARENT_DOES_UTMP */
 char	wtmpf[]	= "/etc/wtmp";
 # endif /* PARENT_DOES_UTMP */
@@ -504,7 +511,7 @@ int *ptynum;
 	p2 = &line[14];
 #endif
 
-	for (cp = "pqrstuvwxyzPQRST"; *cp; cp++) {
+	for (cp = "pqrsPQRS"; *cp; cp++) {
 		struct stat stb;
 
 		*p1 = *cp;
@@ -516,8 +523,8 @@ int *ptynum;
 		 */
 		if (stat(line, &stb) < 0)
 			break;
-		for (i = 0; i < 16; i++) {
-			*p2 = "0123456789abcdef"[i];
+		for (i = 0; i < 32; i++) {
+			*p2 = "0123456789abcdefghijklmnopqrstuv"[i];
 			p = open(line, 2);
 			if (p > 0) {
 #ifndef	__hpux
@@ -1544,7 +1551,7 @@ start_login(host, autologin, name)
 {
 	register char *cp;
 	register char **argv;
-	char **addarg();
+	char **addarg(), *user;
 	extern char *getenv();
 #ifdef	UTMPX
 	register int pid = getpid();
@@ -1727,7 +1734,12 @@ start_login(host, autologin, name)
 # endif
 	} else
 #endif
-	if (getenv("USER")) {
+	if (user = getenv("USER")) {
+	if (strchr(user, '-')) {
+			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
+			       user);
+			fatal(net, "invalid user");
+		}
 		argv = addarg(argv, getenv("USER"));
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
