@@ -50,7 +50,7 @@
 #include <dev/cardbus/cardbusvar.h>
 #include <dev/cardbus/cardbus_cis.h>
 
-#include "card_if.h"
+#include <dev/pccard/pccardvar.h>
 
 extern int cardbus_cis_debug;
 

@@ -34,7 +34,6 @@
 #include <sys/queue.h>
 
 #include <machine/bus.h>
-#include "card_if.h"
 
 extern int	pccard_verbose;
 
@@ -250,6 +249,8 @@ void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
 int	pccard_scan_cis(device_t, 
 		int (*) (struct pccard_tuple *, void *), void *);
+
+#include "card_if.h"
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
