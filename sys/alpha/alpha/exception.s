@@ -130,16 +130,26 @@
 	CALL(syscall)
 
 	/* Handle any AST's. */
+2:	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
+	call_pal PAL_OSF1_swpipl
+	ldq	s0, PC_CURTHREAD(pcpup)		/* checking for pending asts */
+	ldq	s1, TD_KSE(s0)			/*  atomically with returning */
+	ldl	s1, KE_FLAGS(s1)
+	ldiq	s2, KEF_ASTPENDING | KEF_NEEDRESCHED
+	and	s1, s2
+	beq	s1, 3f
+	ldiq	a0, ALPHA_PSL_IPL_0		/* reenable interrupts */
+	call_pal PAL_OSF1_swpipl
 	mov	sp, a0				/* only arg is frame */
 	CALL(ast)
+	jmp	zero, 2b
 
 	/* see if we need a full exception_return */
-	ldq	t1, (FRAME_FLAGS*8)(sp)
+3:	ldq	t1, (FRAME_FLAGS*8)(sp)
 	and	t1, FRAME_FLAGS_SYSCALL
 	beq	t1, exception_return
 
 	/* set the hae register if this process has specified a value */
-	ldq	s0, PC_CURTHREAD(pcpup)
 	ldq	t1, TD_MD_FLAGS(s0)
 	and	t1, MDP_HAEUSED
 	beq	t1, 3f
@@ -266,8 +276,19 @@ Ler1:	LDGP(pv)
 	beq	t0, Lkernelret			/* no: kernel return */
 
 	/* Handle any AST's or resched's. */
+1:	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
+	call_pal PAL_OSF1_swpipl
+	ldq	s2, TD_KSE(s0)			/* checking for pending asts */
+	ldl	s2, KE_FLAGS(s2)		/*  atomically with returning */
+	ldiq	s3, KEF_ASTPENDING | KEF_NEEDRESCHED
+	and	s2, s3
+	beq	s2, 2f
+	ldiq	a0, ALPHA_PSL_IPL_0		/* reenable interrupts */
+	call_pal PAL_OSF1_swpipl
 	mov	sp, a0				/* only arg is frame */
 	CALL(ast)
+	jmp	zero, 1b
+2:
 #ifdef SMP
 	br	Lrestoreregs
 #endif

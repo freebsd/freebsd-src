@@ -76,8 +76,14 @@ ASSYM(MTX_UNOWNED,	MTX_UNOWNED);
 
 ASSYM(TD_PROC,		offsetof(struct thread, td_proc));
 ASSYM(TD_PCB,		offsetof(struct thread, td_pcb));
+ASSYM(TD_KSE,		offsetof(struct thread, td_kse));
 ASSYM(TD_KSTACK,	offsetof(struct thread, td_kstack));
 ASSYM(TD_MD_FLAGS,	offsetof(struct thread, td_md.md_flags));
+
+ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
+
+ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
+ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 

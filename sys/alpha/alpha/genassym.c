@@ -81,6 +81,11 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_KSE, offsetof(struct thread, td_kse));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 
+ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
+
+ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
+ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
+
 ASSYM(TD_MD_FLAGS, offsetof(struct thread, td_md.md_flags));
 ASSYM(TD_MD_PCBPADDR, offsetof(struct thread, td_md.md_pcbpaddr));
 ASSYM(TD_MD_HAE, offsetof(struct thread, td_md.md_hae));
