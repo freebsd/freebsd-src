@@ -1,6 +1,7 @@
 /* Definitions of target machine for GNU compiler.
    Intel 386 (OSF/1 with OSF/rose) version.
-   Copyright (C) 1991, 1992, 1993, 1996, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1996, 1998, 1999, 2000
+   Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,9 +22,6 @@ Boston, MA 02111-1307, USA.  */
 
 #include "halfpic.h"
 #include "i386/gstabs.h"
-
-/* Get perform_* macros to build libgcc.a.  */
-#include "i386/perform.h"
 
 #define OSF_OS
 
@@ -58,18 +56,27 @@ Boston, MA 02111-1307, USA.  */
 
 #undef	SUBTARGET_SWITCHES
 #define SUBTARGET_SWITCHES						\
-     { "half-pic",		 MASK_HALF_PIC, "Emit half-PIC code" },			\
-     { "no-half-pic",		-MASK_HALF_PIC, "" }			\
-     { "debug-half-pic",	 MASK_HALF_PIC_DEBUG, 0 /* intentionally undoc */ },			\
-     { "debugb",		 MASK_HALF_PIC_DEBUG, 0 /* intentionally undoc */ },			\
-     { "elf",			 MASK_ELF, "Emit ELF object code" },				\
-     { "rose",			-MASK_ELF, "Emit ROSE object code" },				\
-     { "underscores",		-MASK_NO_UNDERSCORES, "Symbols have a leading underscore" },			\
-     { "no-underscores",	 MASK_NO_UNDERSCORES, "" },			\
-     { "large-align",		 MASK_LARGE_ALIGN, "Align to >word boundaries" },			\
-     { "no-large-align",	-MASK_LARGE_ALIGN, "" },			\
-     { "mcount",		-MASK_NO_MCOUNT, "Use mcount for profiling" },			\
-     { "mcount-ptr",		 MASK_NO_MCOUNT, "Use mcount_ptr for profiling" },			\
+     { "half-pic",		 MASK_HALF_PIC,				\
+       N_("Emit half-PIC code") },					\
+     { "no-half-pic",		-MASK_HALF_PIC, "" },			\
+     { "debug-half-pic",	 MASK_HALF_PIC_DEBUG,			\
+       0 /* intentionally undoc */ },					\
+     { "debugb",		 MASK_HALF_PIC_DEBUG,			\
+       0 /* intentionally undoc */ },					\
+     { "elf",			 MASK_ELF,				\
+       N_("Emit ELF object code") },					\
+     { "rose",			-MASK_ELF,				\
+       N_("Emit ROSE object code") },					\
+     { "underscores",		-MASK_NO_UNDERSCORES,			\
+       N_("Symbols have a leading underscore") },			\
+     { "no-underscores",	 MASK_NO_UNDERSCORES, "" },		\
+     { "large-align",		 MASK_LARGE_ALIGN,			\
+       N_("Align to >word boundaries") },				\
+     { "no-large-align",	-MASK_LARGE_ALIGN, "" },		\
+     { "mcount",		-MASK_NO_MCOUNT,			\
+       N_("Use mcount for profiling") },				\
+     { "mcount-ptr",		 MASK_NO_MCOUNT,			\
+       N_("Use mcount_ptr for profiling") },				\
      { "no-mcount",		 MASK_NO_MCOUNT, "" },
 
 /* OSF/rose uses stabs, not dwarf.  */
@@ -86,7 +93,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Change default predefines.  */
 #undef	CPP_PREDEFINES
-#define CPP_PREDEFINES "-DOSF -DOSF1 -Dunix -Asystem(xpg4)"
+#define CPP_PREDEFINES "-DOSF -DOSF1 -Dunix -Asystem=xpg4"
 
 #undef  CPP_SPEC
 #define CPP_SPEC "%(cpp_cpu) \
@@ -104,7 +111,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Turn on -pic-extern by default for OSF/rose, -fpic for ELF.  */
 #undef  CC1_SPEC
-#define CC1_SPEC "\
+#define CC1_SPEC "%(cc1_cpu) \
 %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
 %{!melf: %{!mrose: -mrose }} \
 %{melf: %{!munderscores: %{!mno-underscores: -mno-underscores }} \
@@ -169,24 +176,12 @@ Boston, MA 02111-1307, USA.  */
 /* Define this macro if the system header files support C++ as well
    as C.  This macro inhibits the usual method of using system header
    files in C++, which is to pretend that the file's contents are
-   enclosed in `extern "C" {...}'. */
+   enclosed in `extern "C" {...}'.  */
 #define NO_IMPLICIT_EXTERN_C
 
 /* Turn off long double being 96 bits.  */
 #undef LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE 64
-
-/* This macro generates the assembly code for function entry.
-   FILE is a stdio stream to output the code to.
-   SIZE is an int: how many units of temporary storage to allocate.
-   Refer to the array `regs_ever_live' to determine which registers
-   to save; `regs_ever_live[I]' is nonzero if register number I
-   is ever used in the function.  This macro is responsible for
-   knowing which registers should not be saved even if used.
-
-   We override it here to allow for the new profiling code to go before
-   the prologue and the old mcount code to go after the prologue (and
-   after %ebx has been set up for ELF shared library support).  */
 
 #define OSF_PROFILE_BEFORE_PROLOGUE					\
   (!TARGET_MCOUNT							\
@@ -195,56 +190,6 @@ Boston, MA 02111-1307, USA.  */
        || !frame_pointer_needed						\
        || (!current_function_uses_pic_offset_table			\
 	   && !current_function_uses_const_pool)))
-
-#undef	FUNCTION_PROLOGUE
-#define FUNCTION_PROLOGUE(FILE, SIZE)					\
-do									\
-  {									\
-    char *prefix = (TARGET_UNDERSCORES) ? "_" : "";			\
-    char *lprefix = LPREFIX;						\
-    int labelno = profile_label_no;					\
-									\
-    if (profile_flag && OSF_PROFILE_BEFORE_PROLOGUE)			\
-      {									\
-	if (!flag_pic && !HALF_PIC_P ())				\
-	  {								\
-	    fprintf (FILE, "\tmovl $%sP%d,%%edx\n", lprefix, labelno);	\
-	    fprintf (FILE, "\tcall *%s_mcount_ptr\n", prefix);		\
-	  }								\
-									\
-	else if (HALF_PIC_P ())						\
-	  {								\
-	    rtx symref;							\
-									\
-	    HALF_PIC_EXTERNAL ("_mcount_ptr");				\
-	    symref = HALF_PIC_PTR (gen_rtx (SYMBOL_REF, Pmode,		\
-					    "_mcount_ptr"));		\
-									\
-	    fprintf (FILE, "\tmovl $%sP%d,%%edx\n", lprefix, labelno);	\
-	    fprintf (FILE, "\tmovl %s%s,%%eax\n", prefix,		\
-		     XSTR (symref, 0));					\
-	    fprintf (FILE, "\tcall *(%%eax)\n");			\
-	  }								\
-									\
-	else								\
-	  {								\
-	    static int call_no = 0;					\
-									\
-	    fprintf (FILE, "\tcall %sPc%d\n", lprefix, call_no);	\
-	    fprintf (FILE, "%sPc%d:\tpopl %%eax\n", lprefix, call_no);	\
-	    fprintf (FILE, "\taddl $_GLOBAL_OFFSET_TABLE_+[.-%sPc%d],%%eax\n", \
-		     lprefix, call_no++);				\
-	    fprintf (FILE, "\tleal %sP%d@GOTOFF(%%eax),%%edx\n",	\
-		     lprefix, labelno);					\
-	    fprintf (FILE, "\tmovl %s_mcount_ptr@GOT(%%eax),%%eax\n",	\
-		     prefix);						\
-	    fprintf (FILE, "\tcall *(%%eax)\n");			\
-	  }								\
-      }									\
-									\
-    function_prologue (FILE, SIZE);					\
-  }									\
-while (0)
 
 /* A C statement or compound statement to output to FILE some assembler code to
    call the profiling subroutine `mcount'.  Before calling, the assembler code
@@ -256,7 +201,7 @@ while (0)
    The details of how the address should be passed to `mcount' are determined
    by your operating system environment, not by GNU CC.  To figure them out,
    compile a small program for profiling using the system's installed C
-   compiler and look at the assembler code that results. */
+   compiler and look at the assembler code that results.  */
 
 #undef  FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)				\
@@ -264,8 +209,8 @@ do									\
   {									\
     if (!OSF_PROFILE_BEFORE_PROLOGUE)					\
       {									\
-	char *prefix = (TARGET_UNDERSCORES) ? "_" : "";			\
-	char *lprefix = LPREFIX;					\
+	const char *const prefix = (TARGET_UNDERSCORES) ? "_" : "";	\
+	const char *const lprefix = LPREFIX;				\
 	int labelno = LABELNO;						\
 									\
 	/* Note that OSF/rose blew it in terms of calling mcount,	\
@@ -290,7 +235,7 @@ do									\
 	    rtx symdef;							\
 									\
 	    HALF_PIC_EXTERNAL ("mcount");				\
-	    symdef = HALF_PIC_PTR (gen_rtx (SYMBOL_REF, Pmode, "mcount")); \
+	    symdef = HALF_PIC_PTR (gen_rtx_SYMBOL_REF (Pmode, "mcount")); \
 	    fprintf (FILE, "\tmovl $%sP%d,%%edx\n", lprefix, labelno);	\
 	    fprintf (FILE, "\tcall *%s%s\n", prefix, XSTR (symdef, 0));	\
 	  }								\
@@ -349,8 +294,8 @@ while (0)
 
 #undef	ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(BUF,PREFIX,NUMBER)			\
-    sprintf ((BUF), "*%s%s%d", (TARGET_UNDERSCORES) ? "" : ".",		\
-	     (PREFIX), (NUMBER))
+    sprintf ((BUF), "*%s%s%ld", (TARGET_UNDERSCORES) ? "" : ".",	\
+	     (PREFIX), (long)(NUMBER))
 
 /* This is how to output an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.  */
@@ -360,7 +305,7 @@ while (0)
   fprintf (FILE, "%s%s%d:\n", (TARGET_UNDERSCORES) ? "" : ".",		\
 	   PREFIX, NUM)
 
-/* The prefix to add to user-visible assembler symbols. */
+/* The prefix to add to user-visible assembler symbols.  */
 
 /* target_flags is not accessible by the preprocessor */
 #undef USER_LABEL_PREFIX
@@ -374,7 +319,7 @@ while (0)
 
 /* This is how to output an element of a case-vector that is relative.
    This is only used for PIC code.  See comments by the `casesi' insn in
-   i386.md for an explanation of the expression this outputs. */
+   i386.md for an explanation of the expression this outputs.  */
 
 #undef ASM_OUTPUT_ADDR_DIFF_ELT
 #define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
@@ -384,7 +329,7 @@ while (0)
 #define ASM_OUTPUT_DEF(FILE,LABEL1,LABEL2)				\
 do									\
 {									\
-    fprintf ((FILE), "\t%s\t", SET_ASM_OP);				\
+    fprintf ((FILE), "%s", SET_ASM_OP);					\
     assemble_name (FILE, LABEL1);					\
     fprintf (FILE, ",");						\
     assemble_name (FILE, LABEL2);					\
@@ -501,7 +446,7 @@ while (0)
 
    You can also check the information stored in the `symbol_ref' in
    the definition of `GO_IF_LEGITIMATE_ADDRESS' or
-   `PRINT_OPERAND_ADDRESS'. */
+   `PRINT_OPERAND_ADDRESS'.  */
 
 #undef	ENCODE_SECTION_INFO
 #define ENCODE_SECTION_INFO(DECL)					\
@@ -561,7 +506,7 @@ while (0)
    and select that section.  */
 
 #undef	SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(MODE, RTX)					\
+#define SELECT_RTX_SECTION(MODE, RTX, ALIGN)				\
 do									\
   {									\
     if (MODE == Pmode && HALF_PIC_P () && HALF_PIC_ADDRESS_P (RTX))	\
@@ -572,7 +517,7 @@ do									\
 while (0)
 
 #undef	SELECT_SECTION
-#define SELECT_SECTION(DECL, RELOC)					\
+#define SELECT_SECTION(DECL, RELOC, ALIGN)				\
 {									\
   if (RELOC && HALF_PIC_P ())						\
     data_section ();							\
@@ -605,9 +550,9 @@ while (0)
    different pseudo-op names for these, they may be overridden in the
    file which includes this one.  */
 
-#define TYPE_ASM_OP	".type"
-#define SIZE_ASM_OP	".size"
-#define SET_ASM_OP	".set"
+#define TYPE_ASM_OP	"\t.type\t"
+#define SIZE_ASM_OP	"\t.size\t"
+#define SET_ASM_OP	"\t.set\t"
 
 /* This is how we tell the assembler that a symbol is weak.  */
 
@@ -641,7 +586,7 @@ do									     \
    HALF_PIC_DECLARE (NAME);						     \
    if (TARGET_ELF)							     \
      {									     \
-       fprintf (STREAM, "\t%s\t ", TYPE_ASM_OP);			     \
+       fprintf (STREAM, "%s", TYPE_ASM_OP);			 	    \
        assemble_name (STREAM, NAME);					     \
        putc (',', STREAM);						     \
        fprintf (STREAM, TYPE_OPERAND_FMT, "object");			     \
@@ -650,7 +595,7 @@ do									     \
        if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		     \
 	 {								     \
            size_directive_output = 1;					     \
-	   fprintf (STREAM, "\t%s\t ", SIZE_ASM_OP);			     \
+	   fprintf (STREAM, "%s", SIZE_ASM_OP);				     \
 	   assemble_name (STREAM, NAME);				     \
 	   fprintf (STREAM, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL))); \
 	 }								     \
@@ -666,20 +611,20 @@ while (0)
 
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)	 \
 do {									 \
-     char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);			 \
+     const char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);		 \
      if (TARGET_ELF							 \
 	 && !flag_inhibit_size_directive && DECL_SIZE (DECL)		 \
          && ! AT_END && TOP_LEVEL					 \
 	 && DECL_INITIAL (DECL) == error_mark_node			 \
 	 && !size_directive_output)					 \
        {								 \
-	 fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);			 \
+	 fprintf (FILE, "%s", SIZE_ASM_OP);				 \
 	 assemble_name (FILE, name);					 \
 	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL))); \
        }								 \
    } while (0)
 
-/* This is how to declare a function name. */
+/* This is how to declare a function name.  */
 
 #undef	ASM_DECLARE_FUNCTION_NAME
 #define ASM_DECLARE_FUNCTION_NAME(STREAM,NAME,DECL)			\
@@ -689,7 +634,7 @@ do									\
    HALF_PIC_DECLARE (NAME);						\
    if (TARGET_ELF)							\
      {									\
-       fprintf (STREAM, "\t%s\t ", TYPE_ASM_OP);			\
+       fprintf (STREAM, "%s", TYPE_ASM_OP);				\
        assemble_name (STREAM, NAME);					\
        putc (',', STREAM);						\
        fprintf (STREAM, TYPE_OPERAND_FMT, "function");			\
@@ -719,7 +664,7 @@ do									\
 	labelno++;							\
 	ASM_GENERATE_INTERNAL_LABEL (label, "Lfe", labelno);		\
 	ASM_OUTPUT_INTERNAL_LABEL (FILE, "Lfe", labelno);		\
-	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
+	fprintf (FILE, "%s", SIZE_ASM_OP);				\
 	assemble_name (FILE, (FNAME));					\
         fprintf (FILE, ",");						\
 	assemble_name (FILE, label);					\
@@ -730,116 +675,20 @@ do									\
   }									\
 while (0)
 
-/* Attach a special .ident directive to the end of the file to identify
-   the version of GCC which compiled this code.  The format of the
-   .ident string is patterned after the ones produced by native svr4
-   C compilers.  */
-
-#define IDENT_ASM_OP ".ident"
+#define IDENT_ASM_OP "\t.ident\t"
 
 /* Allow #sccs in preprocessor.  */
 
 #define SCCS_DIRECTIVE
 
 /* This says what to print at the end of the assembly file */
+#undef ASM_FILE_END
 #define ASM_FILE_END(STREAM)						\
 do									\
   {									\
     if (HALF_PIC_P ())							\
       HALF_PIC_FINISH (STREAM);						\
-									\
-    if (!flag_no_ident)							\
-      {									\
-	char *fstart = main_input_filename;				\
-	char *fname;							\
-									\
-	if (!fstart)							\
-	  fstart = "<no file>";						\
-									\
-	fname = fstart + strlen (fstart) - 1;				\
-	while (fname > fstart && *fname != '/')				\
-	  fname--;							\
-									\
-	if (*fname == '/')						\
-	  fname++;							\
-									\
-	fprintf ((STREAM), "\t%s\t\"GCC: (GNU) %s %s -O%d",		\
-		 IDENT_ASM_OP, version_string, fname, optimize);	\
-									\
-	if (write_symbols == PREFERRED_DEBUGGING_TYPE)			\
-	  fprintf ((STREAM), " -g%d", (int)debug_info_level);		\
-									\
-	else if (write_symbols == DBX_DEBUG)				\
-	  fprintf ((STREAM), " -gstabs%d", (int)debug_info_level);	\
-									\
-	else if (write_symbols == DWARF_DEBUG)				\
-	  fprintf ((STREAM), " -gdwarf%d", (int)debug_info_level);	\
-									\
-	else if (write_symbols != NO_DEBUG)				\
-	  fprintf ((STREAM), " -g??%d", (int)debug_info_level);		\
-									\
-	if (flag_omit_frame_pointer)					\
-	  fprintf ((STREAM), " -fomit-frame-pointer");			\
-									\
-	if (flag_strength_reduce)					\
-	  fprintf ((STREAM), " -fstrength-reduce");			\
-									\
-	if (flag_unroll_loops)						\
-	  fprintf ((STREAM), " -funroll-loops");			\
-									\
-	if (flag_schedule_insns)					\
-	  fprintf ((STREAM), " -fschedule-insns");			\
-									\
-	if (flag_schedule_insns_after_reload)				\
-	  fprintf ((STREAM), " -fschedule-insns2");			\
-									\
-	if (flag_force_mem)						\
-	  fprintf ((STREAM), " -fforce-mem");				\
-									\
-	if (flag_force_addr)						\
-	  fprintf ((STREAM), " -fforce-addr");				\
-									\
-	if (flag_inline_functions)					\
-	  fprintf ((STREAM), " -finline-functions");			\
-									\
-	if (flag_caller_saves)						\
-	  fprintf ((STREAM), " -fcaller-saves");			\
-									\
-	if (flag_pic)							\
-	  fprintf ((STREAM), (flag_pic > 1) ? " -fPIC" : " -fpic");	\
-									\
-	if (flag_inhibit_size_directive)				\
-	  fprintf ((STREAM), " -finhibit-size-directive");		\
-									\
-	if (flag_gnu_linker)						\
-	  fprintf ((STREAM), " -fgnu-linker");				\
-									\
-	if (profile_flag)						\
-	  fprintf ((STREAM), " -p");					\
-									\
-	if (profile_block_flag)						\
-	  fprintf ((STREAM), " -a");					\
-									\
-	if (TARGET_IEEE_FP)						\
-	  fprintf ((STREAM), " -mieee-fp");				\
-									\
-	if (TARGET_HALF_PIC)						\
-	  fprintf ((STREAM), " -mhalf-pic");				\
-									\
-	if (!TARGET_MOVE)						\
-	  fprintf ((STREAM), " -mno-move");				\
-									\
-	if (TARGET_386)							\
-	  fprintf ((STREAM), " -m386");					\
-									\
-	else if (TARGET_486)						\
-	  fprintf ((STREAM), " -m486");					\
-									\
-	else								\
-	  fprintf ((STREAM), " -munknown-machine");			\
-									\
-	fprintf ((STREAM), (TARGET_ELF) ? " -melf\"\n" : " -mrose\"\n"); \
-      }									\
+    ix86_asm_file_end (STREAM);						\
   }									\
 while (0)
 
@@ -850,65 +699,22 @@ while (0)
 #define REAL_NM_FILE_NAME	"/usr/ccs/gcc/bfd-nm"
 #define REAL_STRIP_FILE_NAME	"/usr/ccs/bin/strip"
 
-/* Use atexit for static constructors/destructors, instead of defining
-   our own exit function.  */
-#define HAVE_ATEXIT
-
 /* Define this macro meaning that gcc should find the library 'libgcc.a'
    by hand, rather than passing the argument '-lgcc' to tell the linker
    to do the search */
 #define LINK_LIBGCC_SPECIAL
 
-/* A C statement to output assembler commands which will identify the object
-  file as having been compile with GNU CC. We don't need or want this for
-  OSF1. GDB doesn't need it and kdb doesn't like it */
-#define ASM_IDENTIFY_GCC(FILE)
-
-/* Identify the front-end which produced this file.  To keep symbol
-   space down, and not confuse kdb, only do this if the language is
-   not C.  */
-
-#define ASM_IDENTIFY_LANGUAGE(STREAM)					\
-{									\
-  if (strcmp (lang_identify (), "c") != 0)				\
-    output_lang_identify (STREAM);					\
-}
-
-/* Generate calls to memcpy, etc., not bcopy, etc. */
+/* Generate calls to memcpy, etc., not bcopy, etc.  */
 #define TARGET_MEM_FUNCTIONS
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
    we want to retain compatibility with older gcc versions.  */
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
-/* Map i386 registers to the numbers dwarf expects.  Of course this is different
-   from what stabs expects.  */
-
-#define DWARF_DBX_REGISTER_NUMBER(n) \
-((n) == 0 ? 0 \
- : (n) == 1 ? 2 \
- : (n) == 2 ? 1 \
- : (n) == 3 ? 3 \
- : (n) == 4 ? 6 \
- : (n) == 5 ? 7 \
- : (n) == 6 ? 5 \
- : (n) == 7 ? 4 \
- : ((n) >= FIRST_STACK_REG && (n) <= LAST_STACK_REG) ? (n)+3 \
- : (-1))
-
-/* Now what stabs expects in the register.  */
-#define STABS_DBX_REGISTER_NUMBER(n) \
-((n) == 0 ? 0 : \
- (n) == 1 ? 2 : \
- (n) == 2 ? 1 : \
- (n) == 3 ? 3 : \
- (n) == 4 ? 6 : \
- (n) == 5 ? 7 : \
- (n) == 6 ? 4 : \
- (n) == 7 ? 5 : \
- (n) + 4)
+/* Map i386 registers to the numbers dwarf expects.  Of course this is
+   different from what stabs expects.  */
 
 #undef	DBX_REGISTER_NUMBER
-#define DBX_REGISTER_NUMBER(n) ((write_symbols == DWARF_DEBUG)		\
-				? DWARF_DBX_REGISTER_NUMBER(n)		\
-				: STABS_DBX_REGISTER_NUMBER(n))
+#define DBX_REGISTER_NUMBER(n)  ((write_symbols == DWARF_DEBUG)	\
+				 ? svr4_dbx_register_map[n]	\
+				 : dbx_register_map[n])

@@ -1,7 +1,8 @@
 /* This file contains the definitions and documentation for the
    additional tree codes used in the GNU C++ compiler (see tree.def
    for the standard codes).
-   Copyright (C) 1987, 1988, 1990, 1993, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1990, 1993, 1997, 1998,
+   1999, 2000, 2001 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -32,7 +33,7 @@ DEFTREECODE (OFFSET_REF, "offset_ref", 'r', 2)
 /* A pointer-to-member constant.  For a pointer-to-member constant
    `X::Y' The PTRMEM_CST_CLASS is the RECORD_TYPE for `X' and the
    PTRMEM_CST_MEMBER is the _DECL for `Y'.  */
-DEFTREECODE (PTRMEM_CST, "ptrmem_cst", 'c', 1)
+DEFTREECODE (PTRMEM_CST, "ptrmem_cst", 'c', 2)
 
 /* For NEW_EXPR, operand 0 is the placement list.
    Operand 1 is the new-declarator.
@@ -70,10 +71,9 @@ DEFTREECODE (AGGR_INIT_EXPR, "aggr_init_expr", 'e', 3)
    else it is NULL_TREE.  */
 DEFTREECODE (THROW_EXPR, "throw_expr", 'e', 1)
 
-/* Initialization of a vector, used in build_new.  Operand 0 is the target
-   of the initialization, operand 1 is the initializer, and operand 2 is
-   the number of elements.  */
-DEFTREECODE (VEC_INIT_EXPR, "vec_init_expr", 'e', 3)
+/* An empty class object.  The TREE_TYPE gives the class type.  We use
+   these to avoid actually creating instances of the empty classes.  */
+DEFTREECODE (EMPTY_CLASS_EXPR, "empty_class_expr", 'e', 0)
 
 /* Template definition.  The following fields have the specified uses,
    although there are other macros in cp-tree.h that should be used for
@@ -84,10 +84,10 @@ DEFTREECODE (VEC_INIT_EXPR, "vec_init_expr", 'e', 3)
 				only done for functions so far
    For class template:
         DECL_INITIAL            associated templates (methods &c)
-        DECL_RESULT             null
+        DECL_TEMPLATE_RESULT    null
    For non-class templates:
 	TREE_TYPE		type of object to be constructed
-        DECL_RESULT             decl for object to be created
+        DECL_TEMPLATE_RESULT    decl for object to be created
                                 (e.g., FUNCTION_DECL with tmpl parms used)
  */
 DEFTREECODE (TEMPLATE_DECL, "template_decl", 'd', 0)
@@ -126,22 +126,34 @@ DEFTREECODE (TEMPLATE_DECL, "template_decl", 'd', 0)
    the types of things; the ORIG_LEVEL is the level when we are
    worrying about instantiating things.  */
 DEFTREECODE (TEMPLATE_PARM_INDEX, "template_parm_index", 'x', 
-	     /* The addition of (sizeof(char*) - 1) in the next
-		expression is to ensure against the case where
-		sizeof(char*) does not evenly divide
-		sizeof(HOST_WIDE_INT).  */
-	     2 + ((3 * sizeof (HOST_WIDE_INT) + sizeof(char*) - 1)
-		  / sizeof (char*)))
+	     /* The addition of (sizeof(tree) - 1) in the next expression
+		is to handle the case when padding pushes us past an even
+		multiple of sizeof(tree).  */
+	     /* We used to try to calculate this using
+		1+3*sizeof(HOST_WIDE_INT), but that fails if alignment
+		makes it bigger.  */
+	     ((sizeof (template_parm_index) - sizeof (struct tree_common))
+	      + sizeof (tree) - 1)
+	     / sizeof (tree))
 
 /* Index into a template parameter list.  This parameter must be a type.
    The TYPE_FIELDS value will be a TEMPLATE_PARM_INDEX.  */
 DEFTREECODE (TEMPLATE_TYPE_PARM, "template_type_parm", 't', 0)
 
-/* Index into a template parameter list.  This parameter must be a type.
-   If it is used in signature of a template, TEMPLATE_INFO is NULL_TREE.
-   Otherwise it is used to declare a type like TT<int>.
-   The TYPE_FIELDS value will be a TEMPLATE_PARM_INDEX.  */
+/* Index into a template parameter list for template template parameters.
+   This parameter must be a type.  The TYPE_FIELDS value will be a 
+   TEMPLATE_PARM_INDEX.
+
+   It is used without template arguments like TT in C<TT>, 
+   TEMPLATE_TEMPLATE_PARM_TEMPLATE_INFO is NULL_TREE
+   and TYPE_NAME is a TEMPLATE_DECL.  */
 DEFTREECODE (TEMPLATE_TEMPLATE_PARM, "template_template_parm", 't', 0)
+
+/* Like TEMPLATE_TEMPLATE_PARM it is used with bound template arguments 
+   like TT<int>.
+   In this case, TEMPLATE_TEMPLATE_PARM_TEMPLATE_INFO contains the
+   template name and its bound arguments.  TYPE_NAME is a TYPE_DECL.  */
+DEFTREECODE (BOUND_TEMPLATE_TEMPLATE_PARM, "bound_template_template_parm", 't', 0)
 
 /* A type designated by `typename T::t'.  TYPE_CONTEXT is `T',
    TYPE_NAME is an IDENTIFIER_NODE for `t'.  If the type was named via
@@ -151,26 +163,24 @@ DEFTREECODE (TEMPLATE_TEMPLATE_PARM, "template_template_parm", 't', 0)
    of `T'.  */
 DEFTREECODE (TYPENAME_TYPE, "typename_type", 't', 0)
 
+/* For template template argument of the form `T::template C'.
+   TYPE_CONTEXT is `T', the template parameter dependent object.
+   TYPE_NAME is an IDENTIFIER_NODE for `C', the member class template.  */
+DEFTREECODE (UNBOUND_CLASS_TEMPLATE, "unbound_class_template", 't', 0)
+
 /* A type designated by `__typeof (expr)'.  TYPE_FIELDS is the
    expression in question.  */
 DEFTREECODE (TYPEOF_TYPE, "typeof_type", 't', 0)
-
-/* A thunk is a stub function.
-
-   Thunks are used to implement multiple inheritance:
-   At run-time, such a thunk subtracts THUNK_DELTA (an int, not a tree)
-   from the this pointer, and then jumps to DECL_INITIAL
-   (which is an ADDR_EXPR whose operand is a FUNCTION_DECL).
-
-   Other kinds of thunks may be defined later. */
-DEFTREECODE (THUNK_DECL, "thunk_decl", 'd', 0)
 
 /* A using declaration.  DECL_INITIAL contains the specified scope.  
    This is not an alias, but is later expanded into multiple aliases.  */
 DEFTREECODE (USING_DECL, "using_decl", 'd', 0)
 
+/* A using directive. The operand is USING_STMT_NAMESPACE. */     
+DEFTREECODE (USING_STMT, "using_directive", 'e', 1)
+
 /* An un-parsed default argument.  Looks like an IDENTIFIER_NODE.  */
-DEFTREECODE (DEFAULT_ARG, "default_arg", 'c', 2)
+DEFTREECODE (DEFAULT_ARG, "default_arg", 'x', 2)
 
 /* A template-id, like foo<int>.  The first operand is the template.
    The second is the TREE_LIST or TREE_VEC of explicitly specified
@@ -192,9 +202,6 @@ DEFTREECODE (OVERLOAD, "overload", 'x', 1)
    tree structure.  */
 DEFTREECODE (WRAPPER, "wrapper", 'x', 1)
 
-/* A node to remember a source position.  */
-DEFTREECODE (SRCLOC, "srcloc", 'x', 2)
-
 /* Used to represent deferred name lookup for dependent names while
    parsing a template declaration.  The first argument is an
    IDENTIFIER_NODE for the name in question.  The TREE_TYPE is
@@ -209,31 +216,39 @@ DEFTREECODE (REINTERPRET_CAST_EXPR, "reinterpret_cast_expr", '1', 1)
 DEFTREECODE (CONST_CAST_EXPR, "const_cast_expr", '1', 1)
 DEFTREECODE (STATIC_CAST_EXPR, "static_cast_expr", '1', 1)
 DEFTREECODE (DYNAMIC_CAST_EXPR, "dynamic_cast_expr", '1', 1)
-DEFTREECODE (SIZEOF_EXPR, "sizeof_expr", '1', 1)
-DEFTREECODE (ALIGNOF_EXPR, "alignof_expr", '1', 1)
-DEFTREECODE (ARROW_EXPR, "arrow_expr", 'e', 1)
 DEFTREECODE (DOTSTAR_EXPR, "dotstar_expr", 'e', 2)
 DEFTREECODE (TYPEID_EXPR, "typeid_expr", 'e', 1)
+DEFTREECODE (PSEUDO_DTOR_EXPR, "pseudo_dtor_expr", 'e', 3)
 
-DEFTREECODE (EXPR_STMT, "expr_stmt", 'e', 1)
-DEFTREECODE (COMPOUND_STMT, "compound_stmt", 'e', 1)
-DEFTREECODE (DECL_STMT, "decl_stmt", 'e', 3)
-DEFTREECODE (IF_STMT, "if_stmt", 'e', 3)
-DEFTREECODE (FOR_STMT, "for_stmt", 'e', 4)
-DEFTREECODE (WHILE_STMT, "while_stmt", 'e', 2)
-DEFTREECODE (DO_STMT, "do_stmt", 'e', 2)
-DEFTREECODE (RETURN_STMT, "return_stmt", 'e', 1)
-DEFTREECODE (BREAK_STMT, "break_stmt", 'e', 0)
-DEFTREECODE (CONTINUE_STMT, "continue_stmt", 'e', 0)
-DEFTREECODE (SWITCH_STMT, "switch_stmt", 'e', 2)
-DEFTREECODE (GOTO_STMT, "goto_stmt", 'e', 1)
-DEFTREECODE (ASM_STMT, "asm_stmt", 'e', 5)
-
+/* A SUBOBJECT statement marks the point at which a sub-object is
+   fully constructed.  After this point, the SUBOBJECT_CLEANUP must be
+   run if an exception is thrown before the end of the enclosing
+   function.  */
+DEFTREECODE (SUBOBJECT, "subobject", 'e', 1)
+/* An CTOR_STMT marks the beginning (if CTOR_BEGIN_P holds) or end of
+   a constructor (if CTOR_END_P) holds.  At the end of a constructor,
+   the cleanups associated with any SUBOBJECT_CLEANUPS need no longer
+   be run.  */
+DEFTREECODE (CTOR_STMT, "ctor_stmt", 'e', 0)
+/* A CLEANUP_STMT marks the point at which a declaration is fully
+   constructed.  If, after this point, the CLEANUP_DECL goes out of
+   scope, the CLEANUP_EXPR must be run.  */
+DEFTREECODE (CLEANUP_STMT, "cleanup_stmt", 'e', 2)
+/* CTOR_INITIALIZER is a placeholder in template code for a call to
+   setup_vtbl_pointer (and appears in all functions, not just ctors).  */
 DEFTREECODE (CTOR_INITIALIZER, "ctor_initializer", 'e', 2)
-DEFTREECODE (CASE_LABEL, "case_label", 'e', 2)
 DEFTREECODE (RETURN_INIT, "return_init", 'e', 2)
-DEFTREECODE (TRY_BLOCK, "try_stmt", 'e', 2)
-DEFTREECODE (HANDLER, "catch_stmt", 'e', 2)
+DEFTREECODE (TRY_BLOCK, "try_block", 'e', 2)
+DEFTREECODE (EH_SPEC_BLOCK, "eh_spec_block", 'e', 2)
+/* A HANDLER wraps a catch handler for the HANDLER_TYPE.  If this is
+   CATCH_ALL_TYPE, then the handler catches all types.  The declaration of
+   the catch variable is in HANDLER_PARMS, and the body block in
+   HANDLER_BODY.  */
+DEFTREECODE (HANDLER, "handler", 'e', 2)
+
+/* A MUST_NOT_THROW_EXPR wraps an expression that may not
+   throw, and must call terminate if it does.  */
+DEFTREECODE (MUST_NOT_THROW_EXPR, "must_not_throw_expr", 'e', 1)
 
 DEFTREECODE (TAG_DEFN, "tag_defn", 'e', 0)
 

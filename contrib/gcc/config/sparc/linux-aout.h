@@ -1,5 +1,5 @@
 /* Definitions for SPARC running Linux-based GNU systems with a.out.
-   Copyright (C) 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1999 Free Software Foundation, Inc.
    Contributed by Eddie C. Dost (ecd@skynet.be)
 
 This file is part of GNU CC.
@@ -19,24 +19,18 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include <aoutos.h>
-#include <sparc/sparc.h>
-
-/* Don't assume anything about the header files. */
+/* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
 
-#undef HAVE_ATEXIT
-#define HAVE_ATEXIT
-
 /* GNU/Linux uses ctype from glibc.a. I am not sure how complete it is.
-   For now, we play safe. It may change later. */
+   For now, we play safe. It may change later.  */
 
 #if 0
 #undef MULTIBYTE_CHARS
 #define MULTIBYTE_CHARS 1
 #endif
 
-/* We need that too. */
+/* We need that too.  */
 #define HANDLE_SYSV_PRAGMA
 
 #undef MD_EXEC_PREFIX
@@ -45,11 +39,7 @@ Boston, MA 02111-1307, USA.  */
 /* Output at beginning of assembler file.  */
 /* The .file command should always begin the output.  */
 #undef ASM_FILE_START
-#define ASM_FILE_START(FILE)                                            \
-  do {                                                                  \
-        output_file_directive (FILE, main_input_filename);              \
-        fprintf (FILE, "\t.version\t\"01.01\"\n");                      \
-  } while (0)
+#define ASM_FILE_START(FILE) output_file_directive (FILE, main_input_filename)
 
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC  "%{pg:gcrt0.o%s} %{!pg:%{p:gcrt0.o%s} %{!p:crt0.o%s}} %{static:-static}"
@@ -64,13 +54,15 @@ Boston, MA 02111-1307, USA.  */
 #define PTRDIFF_TYPE "int"
 
 #undef WCHAR_TYPE
-#define WCHAR_TYPE "long int"
+#define WCHAR_TYPE "int"
 
 #undef WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE BITS_PER_WORD
+#define WCHAR_TYPE_SIZE 32
+
+#undef MAX_WCHAR_TYPE_SIZE
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Dsparc -Dlinux -Asystem(unix) -Asystem(posix)"
+#define CPP_PREDEFINES "-Dunix -Dsparc -Dlinux -Asystem=unix -Asystem=posix"
 
 #undef CPP_SUBTARGET_SPEC
 #define CPP_SUBTARGET_SPEC \
@@ -78,6 +70,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler,
    and we want to retain compatibility with older gcc versions.  */
+#undef DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
 #undef LIB_SPEC
@@ -98,33 +91,8 @@ Boston, MA 02111-1307, USA.  */
 #define LINK_SPEC	"-m sparclinux"
 
 /* The sun bundled assembler doesn't accept -Yd, (and neither does gas).
-   It's safe to pass -s always, even if -g is not used. */
+   It's safe to pass -s always, even if -g is not used.  */
 #undef ASM_SPEC
 #define ASM_SPEC \
   "%{V} %{v:%{!V:-V}} %{n} %{T} %{Ym,*} %{Wa,*:%*} -s %{fpic:-K PIC} %{fPIC:-K PIC}"
-
-#if 0
-/* Define for support of TFmode long double and REAL_ARITHMETIC.
-   Sparc ABI says that long double is 4 words. GNU/Linux does not support
-   long double yet.  */
-#define LONG_DOUBLE_TYPE_SIZE 128
-#endif
 
-/* Override MACHINE_STATE_{SAVE,RESTORE} because we have special
-   traps available which can get and set the condition codes
-   reliably.  */
-#undef MACHINE_STATE_SAVE
-#define MACHINE_STATE_SAVE(ID)				\
-  unsigned long int ms_flags, ms_saveret;		\
-  asm volatile("ta	0x20\n\t"			\
-	       "mov	%%g1, %0\n\t"			\
-	       "mov	%%g2, %1\n\t"			\
-	       : "=r" (ms_flags), "=r" (ms_saveret));
-
-#undef MACHINE_STATE_RESTORE
-#define MACHINE_STATE_RESTORE(ID)			\
-  asm volatile("mov	%0, %%g1\n\t"			\
-	       "mov	%1, %%g2\n\t"			\
-	       "ta	0x21\n\t"			\
-	       : /* no outputs */			\
-	       : "r" (ms_flags), "r" (ms_saveret));

@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler, Citicorp/TTI Unicom PBD
    version (using GAS and COFF (encapsulated is unacceptable) )
-   Copyright (C) 1990, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1996, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,12 +19,11 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include "sparc/sparc.h"
 
 /* Names to predefine in the preprocessor for this target machine.  */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dsparc -DUnicomPBD -Dunix -D__GCC_NEW_VARARGS__ -Asystem(unix) -Acpu(sparc) -Amachine(sparc)"
+#define CPP_PREDEFINES "-Dsparc -DUnicomPBD -Dunix -D__GCC_NEW_VARARGS__ -Asystem=unix -Acpu=sparc -Amachine=sparc"
 
 /* We want DBX format for use with gdb under COFF.  */
 
@@ -77,7 +76,7 @@ Boston, MA 02111-1307, USA.  */
 /* similar to default, but allows for the table defined by ld with gcc.ifile. 
    nptrs is always 0.  So we need to instead check that __DTOR_LIST__[1] != 0.
    The old check is left in so that the same macro can be used if and when  
-   a future version of gas does support section directives. */
+   a future version of gas does support section directives.  */
 
 #define DO_GLOBAL_DTORS_BODY {int nptrs = *(int *)__DTOR_LIST__; int i; \
   if (nptrs == -1 || (__DTOR_LIST__[0] == 0 && __DTOR_LIST__[1] != 0))  \
@@ -102,7 +101,7 @@ Boston, MA 02111-1307, USA.  */
   }
  */
 
-/* The prefix to add to user-visible assembler symbols. */
+/* The prefix to add to user-visible assembler symbols.  */
 
 #undef USER_LABEL_PREFIX
 #define USER_LABEL_PREFIX ""
@@ -120,7 +119,7 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_GENERATE_INTERNAL_LABEL
 
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)                   \
-        sprintf (LABEL, "*.%s%d", PREFIX, NUM)
+        sprintf (LABEL, "*.%s%ld", PREFIX, (long)(NUM))
 
 
 /* This is how to output an internal numbered label where
@@ -146,11 +145,11 @@ Boston, MA 02111-1307, USA.  */
 
 /* This is needed for SunOS 4.0, and should not hurt for 3.2
    versions either.  */
-#undef ASM_OUTPUT_SOURCE_LINE(file, line) 
+#undef ASM_OUTPUT_SOURCE_LINE
 #define ASM_OUTPUT_SOURCE_LINE(file, line)		\
   { static int sym_lineno = 1;				\
     fprintf (file, ".stabn 68,0,%d,.LM%d\n.LM%d:\n",	\
 	     line, sym_lineno, sym_lineno);		\
     sym_lineno += 1; }
 
-#define ASM_INT_OP ".long "
+#define ASM_INT_OP "\t.long "

@@ -1,5 +1,6 @@
 /* Target definitions for GNU compiler for Sparc running System V.4
-   Copyright (C) 1991, 92, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1995, 1996, 1997, 1998, 2000
+   Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com).
 
 This file is part of GNU CC.
@@ -19,19 +20,9 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include "sparc/sparc.h"
-
-/* Undefine some symbols which are defined in "sparc.h" but which are
-   appropriate only for SunOS 4.x, and not for svr4.  */
-
-#undef WORD_SWITCH_TAKES_ARG
-#undef ASM_OUTPUT_SOURCE_LINE
-#undef SELECT_SECTION
-#undef ASM_DECLARE_FUNCTION_NAME
-#undef TEXT_SECTION_ASM_OP
-#undef DATA_SECTION_ASM_OP
-
-#include "svr4.h"
+#ifndef TARGET_VERSION
+#define TARGET_VERSION fprintf (stderr, " (sparc ELF)"); 
+#endif
 
 /* ??? Put back the SIZE_TYPE/PTRDIFF_TYPE definitions set by sparc.h.
    Why, exactly, is svr4.h messing with this?  Seems like the chip 
@@ -60,8 +51,9 @@ Boston, MA 02111-1307, USA.  */
 /* Provide a set of pre-definitions and pre-assertions appropriate for
    the Sparc running svr4.  __svr4__ is our extension.  */
 
+#undef  CPP_PREDEFINES
 #define CPP_PREDEFINES \
-"-Dsparc -Dunix -D__svr4__ -Asystem(unix) -Asystem(svr4)"
+"-Dsparc -Dunix -D__svr4__ -Asystem=unix -Asystem=svr4"
 
 /* The native assembler can't compute differences between symbols in different
    sections when generating pic code, so we must put jump tables in the
@@ -78,9 +70,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* Must use data section for relocatable constants when pic.  */
 #undef SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(MODE,RTX)		\
+#define SELECT_RTX_SECTION(MODE,RTX,ALIGN)	\
 {						\
-  if (flag_pic && symbolic_operand (RTX))	\
+  if (flag_pic && symbolic_operand ((RTX), (MODE))) \
     data_section ();				\
   else						\
     const_section ();				\
@@ -92,18 +84,11 @@ Boston, MA 02111-1307, USA.  */
    to keep the Sparc/svr4 assembler somewhat compatible with the Sparc/SunOS
    assembler.  */
 
-#define STRING_ASM_OP		".asciz"
-#define COMMON_ASM_OP		".common"
-#define SKIP_ASM_OP		".skip"
-#define UNALIGNED_DOUBLE_INT_ASM_OP ".uaxword"
-#define UNALIGNED_INT_ASM_OP	".uaword"
-#define UNALIGNED_SHORT_ASM_OP	".uahalf"
-#define PUSHSECTION_ASM_OP	".pushsection"
-#define POPSECTION_ASM_OP	".popsection"
-
-/* This is defined in sparc.h but is not used by svr4.h.  */
-#undef ASM_LONG
-#define ASM_LONG ".long"
+#define STRING_ASM_OP		"\t.asciz\t"
+#define COMMON_ASM_OP		"\t.common\t"
+#define SKIP_ASM_OP		"\t.skip\t"
+#define PUSHSECTION_ASM_OP	"\t.pushsection\t"
+#define POPSECTION_ASM_OP	"\t.popsection"
 
 /* This is the format used to print the second operand of a .type pseudo-op
    for the Sparc/svr4 assembler.  */
@@ -113,7 +98,7 @@ Boston, MA 02111-1307, USA.  */
 /* This is the format used to print a .pushsection pseudo-op (and its operand)
    for the Sparc/svr4 assembler.  */
 
-#define PUSHSECTION_FORMAT	"\t%s\t\"%s\"\n"
+#define PUSHSECTION_FORMAT	"%s\"%s\"\n"
 
 #undef ASM_OUTPUT_CASE_LABEL
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, JUMPTABLE)		\
@@ -155,12 +140,12 @@ do { ASM_OUTPUT_ALIGN ((FILE), Pmode == SImode ? 2 : 3);		\
    *not* to push the previous section name onto the assembler's
    section names stack (as we do often in dwarfout.c).  */
 
-#define TEXT_SECTION_ASM_OP	".section\t\".text\""
-#define DATA_SECTION_ASM_OP	".section\t\".data\""
-#define BSS_SECTION_ASM_OP	".section\t\".bss\""
-#define CONST_SECTION_ASM_OP	".section\t\".rodata\""
-#define INIT_SECTION_ASM_OP	".section\t\".init\""
-#define FINI_SECTION_ASM_OP	".section\t\".fini\""
+#define TEXT_SECTION_ASM_OP	"\t.section\t\".text\""
+#define DATA_SECTION_ASM_OP	"\t.section\t\".data\""
+#define BSS_SECTION_ASM_OP	"\t.section\t\".bss\""
+#define CONST_SECTION_ASM_OP	"\t.section\t\".rodata\""
+#define INIT_SECTION_ASM_OP	"\t.section\t\".init\""
+#define FINI_SECTION_ASM_OP	"\t.section\t\".fini\""
 
 /* Define the pseudo-ops used to switch to the .ctors and .dtors sections.
  
@@ -178,28 +163,13 @@ do { ASM_OUTPUT_ALIGN ((FILE), Pmode == SImode ? 2 : 3);		\
    via the SHF_WRITE attribute.)  */
  
 #undef CTORS_SECTION_ASM_OP
-#define CTORS_SECTION_ASM_OP    ".section\t\".ctors\",#alloc,#write"
+#define CTORS_SECTION_ASM_OP    "\t.section\t\".ctors\",#alloc,#write"
 #undef DTORS_SECTION_ASM_OP
-#define DTORS_SECTION_ASM_OP    ".section\t\".dtors\",#alloc,#write"
-#undef EH_FRAME_SECTION_ASM_OP
-#define EH_FRAME_SECTION_ASM_OP ".section\t\".eh_frame\",#alloc,#write"
+#define DTORS_SECTION_ASM_OP    "\t.section\t\".dtors\",#alloc,#write"
 
-/* A C statement to output something to the assembler file to switch to section
-   NAME for object DECL which is either a FUNCTION_DECL, a VAR_DECL or
-   NULL_TREE.  Some target formats do not support arbitrary sections.  Do not
-   define this macro in such cases.  */
-
-#undef	ASM_OUTPUT_SECTION_NAME	/* Override svr4.h's definition.  */
-#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME, RELOC) \
-do {									\
-  if ((DECL) && TREE_CODE (DECL) == FUNCTION_DECL)			\
-    fprintf (FILE, ".section\t\"%s\",#alloc,#execinstr\n",		\
-	                                      (NAME));		\
-  else if ((DECL) && DECL_READONLY_SECTION (DECL, RELOC))		\
-    fprintf (FILE, ".section\t\"%s\",#alloc\n", (NAME));		\
-  else									\
-    fprintf (FILE, ".section\t\"%s\",#alloc,#write\n", (NAME));		\
-} while (0)
+/* Switch into a generic section.  */
+#undef TARGET_ASM_NAMED_SECTION
+#define TARGET_ASM_NAMED_SECTION  sparc_elf_asm_named_section
 
 /* A C statement (sans semicolon) to output to the stdio stream
    FILE the assembler definition of uninitialized global DECL named

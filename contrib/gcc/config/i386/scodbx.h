@@ -31,8 +31,8 @@ Boston, MA 02111-1307, USA.  */
    opcode.  fucomp is only used when generating IEEE compliant code.
    So don't make TARGET_IEEE_FP default for SCO. */
 
-#undef TARGET_DEFAULT
-#define TARGET_DEFAULT (MASK_80387 | MASK_FLOAT_RETURNS)
+#undef TARGET_SUBTARGET_DEFAULT
+#define TARGET_SUBTARGET_DEFAULT (MASK_80387 | MASK_FLOAT_RETURNS)
 
 /* Use crt1.o as a startup file and crtn.o as a closing file.  */
 
@@ -50,10 +50,10 @@ Boston, MA 02111-1307, USA.  */
 /* Specify predefined symbols in preprocessor.  */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -DM_UNIX -DM_I386 -DM_COFF -DM_WORDSWAP -Asystem(svr3)"
+#define CPP_PREDEFINES "-Dunix -DM_UNIX -DM_I386 -DM_COFF -DM_WORDSWAP -Asystem=svr3"
 
 #undef CPP_SPEC
-#define CPP_SPEC " -Acpu(i386) -Amachine(i386) %{scointl:-DM_INTERNAT}"
+#define CPP_SPEC "%(cpp_cpu) %{scointl:-DM_INTERNAT}"
 
 /* This spec is used for telling cpp whether char is signed or not.  */
 
@@ -65,10 +65,6 @@ Boston, MA 02111-1307, USA.  */
 #define SIGNED_CHAR_SPEC \
  "%{!fsigned-char:-D__CHAR_UNSIGNED__ -D_CHAR_UNSIGNED}"
 #endif
-
-/* Use atexit for static destructors, instead of defining
-   our own exit function.  */
-#define HAVE_ATEXIT
 
 /* caller has to pop the extra argument passed to functions that return
    structures. */
@@ -83,10 +79,6 @@ Boston, MA 02111-1307, USA.  */
    : 0)
 /* On other 386 systems, the last line looks like this:
    : (aggregate_value_p (TREE_TYPE (FUNTYPE))) ? GET_MODE_SIZE (Pmode) : 0)  */
-
-/* Use periods rather than dollar signs in special g++ assembler names.  */
-
-#define NO_DOLLAR_IN_LABEL
 
 /* Handle #pragma pack. */
 #define HANDLE_SYSV_PRAGMA

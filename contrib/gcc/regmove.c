@@ -1,22 +1,23 @@
 /* Move registers around to reduce number of move instructions needed.
-   Copyright (C) 1987, 88, 89, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 
 /* This module looks for cases where matching constraints would force
@@ -27,23 +28,34 @@ Boston, MA 02111-1307, USA.  */
 #include "config.h"
 #include "system.h"
 #include "rtl.h" /* stdio.h must precede rtl.h for FFS.  */
+#include "tm_p.h"
 #include "insn-config.h"
 #include "recog.h"
 #include "output.h"
-#include "reload.h"
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "flags.h"
+#include "function.h"
 #include "expr.h"
-#include "insn-flags.h"
 #include "basic-block.h"
+#include "except.h"
 #include "toplev.h"
+#include "reload.h"
 
-static int optimize_reg_copy_1	PROTO((rtx, rtx, rtx));
-static void optimize_reg_copy_2	PROTO((rtx, rtx, rtx));
-static void optimize_reg_copy_3	PROTO((rtx, rtx, rtx));
-static rtx gen_add3_insn	PROTO((rtx, rtx, rtx));
-static void copy_src_to_dest	PROTO((rtx, rtx, rtx, int, int));
+
+/* Turn STACK_GROWS_DOWNWARD into a boolean.  */
+#ifdef STACK_GROWS_DOWNWARD
+#undef STACK_GROWS_DOWNWARD
+#define STACK_GROWS_DOWNWARD 1
+#else
+#define STACK_GROWS_DOWNWARD 0
+#endif
+
+static int perhaps_ends_bb_p	PARAMS ((rtx));
+static int optimize_reg_copy_1	PARAMS ((rtx, rtx, rtx));
+static void optimize_reg_copy_2	PARAMS ((rtx, rtx, rtx));
+static void optimize_reg_copy_3	PARAMS ((rtx, rtx, rtx));
+static void copy_src_to_dest	PARAMS ((rtx, rtx, rtx, int));
 static int *regmove_bb_head;
 
 struct match {
@@ -53,18 +65,20 @@ struct match {
   int early_clobber[MAX_RECOG_OPERANDS];
 };
 
-static rtx discover_flags_reg PROTO((void));
-static void mark_flags_life_zones PROTO((rtx));
-static void flags_set_1 PROTO((rtx, rtx));
+static rtx discover_flags_reg PARAMS ((void));
+static void mark_flags_life_zones PARAMS ((rtx));
+static void flags_set_1 PARAMS ((rtx, rtx, void *));
 
-static int try_auto_increment PROTO((rtx, rtx, rtx, rtx, HOST_WIDE_INT, int));
-static int find_matches PROTO((rtx, struct match *));
-static int fixup_match_1 PROTO((rtx, rtx, rtx, rtx, rtx, int, int, int, FILE *))
+static int try_auto_increment PARAMS ((rtx, rtx, rtx, rtx, HOST_WIDE_INT, int));
+static int find_matches PARAMS ((rtx, struct match *));
+static void replace_in_call_usage PARAMS ((rtx *, unsigned int, rtx, rtx));
+static int fixup_match_1 PARAMS ((rtx, rtx, rtx, rtx, rtx, int, int, int, FILE *))
 ;
-static int reg_is_remote_constant_p PROTO((rtx, rtx, rtx));
-static int stable_and_no_regs_but_for_p PROTO((rtx, rtx, rtx));
-static int regclass_compatible_p PROTO((int, int));
-static int loop_depth;
+static int reg_is_remote_constant_p PARAMS ((rtx, rtx, rtx));
+static int stable_and_no_regs_but_for_p PARAMS ((rtx, rtx, rtx));
+static int regclass_compatible_p PARAMS ((int, int));
+static int replacement_quality PARAMS ((rtx));
+static int fixup_match_2 PARAMS ((rtx, rtx, rtx, rtx, FILE *));
 
 /* Return non-zero if registers with CLASS1 and CLASS2 can be merged without
    causing too much register allocation problems.  */
@@ -78,24 +92,6 @@ regclass_compatible_p (class0, class1)
 	  || (reg_class_subset_p (class1, class0)
 	      && ! CLASS_LIKELY_SPILLED_P (class1)));
 }
-
-/* Generate and return an insn body to add r1 and c,
-   storing the result in r0.  */
-static rtx
-gen_add3_insn (r0, r1, c)
-     rtx r0, r1, c;
-{
-  int icode = (int) add_optab->handlers[(int) GET_MODE (r0)].insn_code;
-
-    if (icode == CODE_FOR_nothing
-      || ! (*insn_operand_predicate[icode][0]) (r0, insn_operand_mode[icode][0])
-      || ! (*insn_operand_predicate[icode][1]) (r1, insn_operand_mode[icode][1])
-      || ! (*insn_operand_predicate[icode][2]) (c, insn_operand_mode[icode][2]))
-    return NULL_RTX;
-
-  return (GEN_FCN (icode) (r0, r1, c));
-}
-
 
 /* INC_INSN is an instruction that adds INCREMENT to REG.
    Try to fold INC_INSN as a post/pre in/decrement into INSN.
@@ -115,7 +111,7 @@ try_auto_increment (insn, inc_insn, inc_insn_set, reg, increment, pre)
       /* Can't use the size of SET_SRC, we might have something like
 	 (sign_extend:SI (mem:QI ...  */
       rtx use = find_use_as_address (pset, reg, 0);
-      if (use != 0 && use != (rtx) 1)
+      if (use != 0 && use != (rtx) (size_t) 1)
 	{
 	  int size = GET_MODE_SIZE (GET_MODE (use));
 	  if (0
@@ -131,22 +127,28 @@ try_auto_increment (insn, inc_insn, inc_insn_set, reg, increment, pre)
 	    {
 	      if (inc_insn_set)
 		validate_change
-		  (inc_insn, 
+		  (inc_insn,
 		   &SET_SRC (inc_insn_set),
 		   XEXP (SET_SRC (inc_insn_set), 0), 1);
 	      validate_change (insn, &XEXP (use, 0),
 			       gen_rtx_fmt_e (inc_code, Pmode, reg), 1);
 	      if (apply_change_group ())
 		{
+		  /* If there is a REG_DEAD note on this insn, we must
+		     change this not to REG_UNUSED meaning that the register
+		     is set, but the value is dead.  Failure to do so will
+		     result in a sched1 abort -- when it recomputes lifetime
+		     information, the number of REG_DEAD notes will have
+		     changed.  */
+		  rtx note = find_reg_note (insn, REG_DEAD, reg);
+		  if (note)
+		    PUT_MODE (note, REG_UNUSED);
+
 		  REG_NOTES (insn)
 		    = gen_rtx_EXPR_LIST (REG_INC,
 					 reg, REG_NOTES (insn));
 		  if (! inc_insn_set)
-		    {
-		      PUT_CODE (inc_insn, NOTE);
-		      NOTE_LINE_NUMBER (inc_insn) = NOTE_INSN_DELETED;
-		      NOTE_SOURCE_FILE (inc_insn) = 0;
-		    }
+		    delete_insn (inc_insn);
 		  return 1;
 		}
 	    }
@@ -169,7 +171,7 @@ discover_flags_reg ()
   tmp = gen_rtx_REG (word_mode, 10000);
   tmp = gen_add3_insn (tmp, tmp, GEN_INT (2));
 
-  /* If we get something that isn't a simple set, or a 
+  /* If we get something that isn't a simple set, or a
      [(set ..) (clobber ..)], this whole function will go wrong.  */
   if (GET_CODE (tmp) == SET)
     return NULL_RTX;
@@ -202,7 +204,7 @@ discover_flags_reg ()
 /* It is a tedious task identifying when the flags register is live and
    when it is safe to optimize.  Since we process the instruction stream
    multiple times, locate and record these live zones by marking the
-   mode of the instructions -- 
+   mode of the instructions --
 
    QImode is used on the instruction at which the flags becomes live.
 
@@ -230,14 +232,14 @@ mark_flags_life_zones (flags)
   else if (flags != cc0_rtx)
     flags = pc_rtx;
 #endif
-    
+
   /* Simple cases first: if no flags, clear all modes.  If confusing,
      mark the entire function as being in a flags shadow.  */
   if (flags == NULL_RTX || flags == pc_rtx)
     {
       enum machine_mode mode = (flags ? HImode : VOIDmode);
       rtx insn;
-      for (insn = get_insns(); insn; insn = NEXT_INSN (insn))
+      for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
 	PUT_MODE (insn, mode);
       return;
     }
@@ -278,7 +280,7 @@ mark_flags_life_zones (flags)
 	     alive, death, birth.  This lets more important info
 	     overwrite the mode of lesser info.  */
 
-	  if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
+	  if (INSN_P (insn))
 	    {
 #ifdef HAVE_cc0
 	      /* In the cc0 case, death is not marked in reg notes,
@@ -295,7 +297,7 @@ mark_flags_life_zones (flags)
 	      /* In either case, birth is denoted simply by it's presence
 		 as the destination of a set.  */
 	      flags_set_1_set = 0;
-	      note_stores (PATTERN (insn), flags_set_1);
+	      note_stores (PATTERN (insn), flags_set_1, NULL);
 	      if (flags_set_1_set)
 		{
 		  live = 1;
@@ -315,8 +317,9 @@ mark_flags_life_zones (flags)
 /* A subroutine of mark_flags_life_zones, called through note_stores.  */
 
 static void
-flags_set_1 (x, pat)
+flags_set_1 (x, pat, data)
      rtx x, pat;
+     void *data ATTRIBUTE_UNUSED;
 {
   if (GET_CODE (pat) == SET
       && reg_overlap_mentioned_p (x, flags_set_1_rtx))
@@ -330,8 +333,8 @@ static int *regno_src_regno;
    the choice.  The main objective is to avoid using a register that is
    a candidate for tying to a hard register, since the output might in
    turn be a candidate to be tied to a different hard register.  */
-int
-replacement_quality(reg)
+static int
+replacement_quality (reg)
      rtx reg;
 {
   int src_regno;
@@ -360,13 +363,37 @@ replacement_quality(reg)
      when the registers get tied.  */
   return 2;
 }
+
+/* Return 1 if INSN might end a basic block.  */
 
+static int perhaps_ends_bb_p (insn)
+     rtx insn;
+{
+  switch (GET_CODE (insn))
+    {
+    case CODE_LABEL:
+    case JUMP_INSN:
+      /* These always end a basic block.  */
+      return 1;
+
+    case CALL_INSN:
+      /* A CALL_INSN might be the last insn of a basic block, if it is inside
+	 an EH region or if there are nonlocal gotos.  Note that this test is
+	 very conservative.  */
+      if (nonlocal_goto_handler_labels)
+	return 1;
+      /* FALLTHRU */
+    default:
+      return can_throw_internal (insn);
+    }
+}
+
 /* INSN is a copy from SRC to DEST, both registers, and SRC does not die
    in INSN.
 
    Search forward to see if SRC dies before either it or DEST is modified,
    but don't scan past the end of a basic block.  If so, we can replace SRC
-   with DEST and let SRC die in INSN. 
+   with DEST and let SRC die in INSN.
 
    This will reduce the number of registers live in that range and may enable
    DEST to be tied to SRC, thus often saving one register in addition to a
@@ -384,7 +411,7 @@ optimize_reg_copy_1 (insn, dest, src)
   int sregno = REGNO (src);
   int dregno = REGNO (dest);
 
-  /* We don't want to mess with hard regs if register classes are small. */
+  /* We don't want to mess with hard regs if register classes are small.  */
   if (sregno == dregno
       || (SMALL_REGISTER_CLASSES
 	  && (sregno < FIRST_PSEUDO_REGISTER
@@ -396,21 +423,11 @@ optimize_reg_copy_1 (insn, dest, src)
 
   for (p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
     {
-      if (GET_CODE (p) == CODE_LABEL || GET_CODE (p) == JUMP_INSN
-	  || (GET_CODE (p) == NOTE
-	      && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-		  || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-	break;
-
       /* ??? We can't scan past the end of a basic block without updating
-	 the register lifetime info (REG_DEAD/basic_block_live_at_start).
-	 A CALL_INSN might be the last insn of a basic block, if it is inside
-	 an EH region.  There is no easy way to tell, so we just always break
-	 when we see a CALL_INSN if flag_exceptions is nonzero.  */
-      if (flag_exceptions && GET_CODE (p) == CALL_INSN)
+	 the register lifetime info (REG_DEAD/basic_block_live_at_start).  */
+      if (perhaps_ends_bb_p (p))
 	break;
-
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+      else if (! INSN_P (p))
 	continue;
 
       if (reg_set_p (src, p) || reg_set_p (dest, p)
@@ -457,20 +474,7 @@ optimize_reg_copy_1 (insn, dest, src)
 			   && (sregno >= FIRST_PSEUDO_REGISTER
 			       || ! reg_overlap_mentioned_p (src,
 							     PATTERN (q))))
-		    {
-		      /* We assume that a register is used exactly once per
-			 insn in the REG_N_REFS updates below.  If this is not
-			 correct, no great harm is done.
-
-			 Since we do not know if we will change the lifetime of
-			 SREGNO or DREGNO, we must not update REG_LIVE_LENGTH
-			 or REG_N_CALLS_CROSSED at this time.   */
-		      if (sregno >= FIRST_PSEUDO_REGISTER)
-			REG_N_REFS (sregno) -= loop_depth;
-
-		      if (dregno >= FIRST_PSEUDO_REGISTER)
-			REG_N_REFS (dregno) += loop_depth;
-		    }
+		    ;
 		  else
 		    {
 		      validate_replace_rtx (dest, src, q);
@@ -534,6 +538,14 @@ optimize_reg_copy_1 (insn, dest, src)
 	      REG_NOTES (insn) = note;
 	    }
 
+	  /* DEST is also dead if INSN has a REG_UNUSED note for DEST.  */
+	  if (! dest_death
+	      && (dest_death = find_regno_note (insn, REG_UNUSED, dregno)))
+	    {
+	      PUT_REG_NOTE_KIND (dest_death, REG_DEAD);
+	      remove_note (insn, dest_death);
+	    }
+
 	  /* Put death note of DEST on P if we saw it die.  */
 	  if (dest_death)
 	    {
@@ -589,21 +601,11 @@ optimize_reg_copy_2 (insn, dest, src)
 
   for (p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
     {
-      if (GET_CODE (p) == CODE_LABEL || GET_CODE (p) == JUMP_INSN
-	  || (GET_CODE (p) == NOTE
-	      && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-		  || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-	break;
-
       /* ??? We can't scan past the end of a basic block without updating
-	 the register lifetime info (REG_DEAD/basic_block_live_at_start).
-	 A CALL_INSN might be the last insn of a basic block, if it is inside
-	 an EH region.  There is no easy way to tell, so we just always break
-	 when we see a CALL_INSN if flag_exceptions is nonzero.  */
-      if (flag_exceptions && GET_CODE (p) == CALL_INSN)
+	 the register lifetime info (REG_DEAD/basic_block_live_at_start).  */
+      if (perhaps_ends_bb_p (p))
 	break;
-
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+      else if (! INSN_P (p))
 	continue;
 
       set = single_set (p);
@@ -615,18 +617,10 @@ optimize_reg_copy_2 (insn, dest, src)
 
 	  /* Set to stop at next insn.  */
 	  for (q = insn; q != NEXT_INSN (p); q = NEXT_INSN (q))
-	    if (GET_RTX_CLASS (GET_CODE (q)) == 'i')
+	    if (INSN_P (q))
 	      {
 		if (reg_mentioned_p (dest, PATTERN (q)))
-		  {
-		    PATTERN (q) = replace_rtx (PATTERN (q), dest, src);
-
-		    /* We assume that a register is used exactly once per
-		       insn in the updates below.  If this is not correct,
-		       no great harm is done.  */
-		    REG_N_REFS (dregno) -= loop_depth;
-		    REG_N_REFS (sregno) += loop_depth;
-		  }
+		  PATTERN (q) = replace_rtx (PATTERN (q), dest, src);
 
 
 	      if (GET_CODE (q) == CALL_INSN)
@@ -672,27 +666,20 @@ optimize_reg_copy_3 (insn, dest, src)
       || ! find_reg_note (insn, REG_DEAD, src_reg)
       || REG_N_SETS (src_no) != 1)
     return;
-  for (p = PREV_INSN (insn); ! reg_set_p (src_reg, p); p = PREV_INSN (p))
-    {
-      if (GET_CODE (p) == CODE_LABEL || GET_CODE (p) == JUMP_INSN
-	  || (GET_CODE (p) == NOTE
-	      && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-		  || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-	return;
+  for (p = PREV_INSN (insn); p && ! reg_set_p (src_reg, p); p = PREV_INSN (p))
+    /* ??? We can't scan past the end of a basic block without updating
+       the register lifetime info (REG_DEAD/basic_block_live_at_start).  */
+    if (perhaps_ends_bb_p (p))
+      break;
 
-      /* ??? We can't scan past the end of a basic block without updating
-	 the register lifetime info (REG_DEAD/basic_block_live_at_start).
-	 A CALL_INSN might be the last insn of a basic block, if it is inside
-	 an EH region.  There is no easy way to tell, so we just always break
-	 when we see a CALL_INSN if flag_exceptions is nonzero.  */
-      if (flag_exceptions && GET_CODE (p) == CALL_INSN)
-	return;
+  if (! p)
+    return;
 
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
-	continue;
-    }
   if (! (set = single_set (p))
       || GET_CODE (SET_SRC (set)) != MEM
+      /* If there's a REG_EQUIV note, this must be an insn that loads an
+	 argument.  Prefer keeping the note over doing this optimization.  */
+      || find_reg_note (p, REG_EQUIV, NULL_RTX)
       || SET_DEST (set) != src_reg)
     return;
 
@@ -718,10 +705,10 @@ optimize_reg_copy_3 (insn, dest, src)
 
   /* Now walk forward making additional replacements.  We want to be able
      to undo all the changes if a later substitution fails.  */
-  subreg = gen_rtx_SUBREG (old_mode, src_reg, 0);
+  subreg = gen_lowpart_SUBREG (old_mode, src_reg);
   while (p = NEXT_INSN (p), p != insn)
     {
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+      if (! INSN_P (p))
 	continue;
 
       /* Make a tenative change.  */
@@ -737,6 +724,12 @@ optimize_reg_copy_3 (insn, dest, src)
       PUT_MODE (src_reg, old_mode);
       XEXP (src, 0) = src_reg;
     }
+  else
+    {
+      rtx note = find_reg_note (p, REG_EQUAL, NULL_RTX);
+      if (note)
+	remove_note (p, note);
+    }
 }
 
 
@@ -744,11 +737,10 @@ optimize_reg_copy_3 (insn, dest, src)
    instead moving the value to dest directly before the operation.  */
 
 static void
-copy_src_to_dest (insn, src, dest, loop_depth, old_max_uid)
+copy_src_to_dest (insn, src, dest, old_max_uid)
      rtx insn;
      rtx src;
      rtx dest;
-     int loop_depth;
      int old_max_uid;
 {
   rtx seq;
@@ -772,6 +764,7 @@ copy_src_to_dest (insn, src, dest, loop_depth, old_max_uid)
   if (GET_CODE (src) == REG
       && REG_LIVE_LENGTH (REGNO (src)) > 0
       && GET_CODE (dest) == REG
+      && !RTX_UNCHANGING_P (dest)
       && REG_LIVE_LENGTH (REGNO (dest)) > 0
       && (set = single_set (insn)) != NULL_RTX
       && !reg_mentioned_p (dest, SET_SRC (set))
@@ -833,8 +826,7 @@ copy_src_to_dest (insn, src, dest, loop_depth, old_max_uid)
 
       /* Update the various register tables.  */
       dest_regno = REGNO (dest);
-      REG_N_SETS (dest_regno) += loop_depth;
-      REG_N_REFS (dest_regno) += loop_depth;
+      REG_N_SETS (dest_regno) ++;
       REG_LIVE_LENGTH (dest_regno)++;
       if (REGNO_FIRST_UID (dest_regno) == insn_uid)
 	REGNO_FIRST_UID (dest_regno) = move_uid;
@@ -871,7 +863,7 @@ reg_is_remote_constant_p (reg, insn, first)
      rtx insn;
      rtx first;
 {
-  register rtx p;
+  rtx p;
 
   if (REG_N_SETS (REGNO (reg)) != 1)
     return 0;
@@ -897,7 +889,7 @@ reg_is_remote_constant_p (reg, insn, first)
     {
       rtx s;
 
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+      if (! INSN_P (p))
 	continue;
       s = single_set (p);
       if (s != 0
@@ -933,7 +925,7 @@ reg_is_remote_constant_p (reg, insn, first)
 /* cse disrupts preincrement / postdecrement squences when it finds a
    hard register as ultimate source, like the frame pointer.  */
 
-int
+static int
 fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
      rtx insn, dst, src, offset;
      FILE *regmove_dump_file;
@@ -953,22 +945,11 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
     {
       rtx pset;
 
-      if (GET_CODE (p) == CODE_LABEL
-          || GET_CODE (p) == JUMP_INSN
-          || (GET_CODE (p) == NOTE
-              && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-                  || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-        break;
-
       /* ??? We can't scan past the end of a basic block without updating
-	 the register lifetime info (REG_DEAD/basic_block_live_at_start).
-	 A CALL_INSN might be the last insn of a basic block, if it is inside
-	 an EH region.  There is no easy way to tell, so we just always break
-	 when we see a CALL_INSN if flag_exceptions is nonzero.  */
-      if (flag_exceptions && GET_CODE (p) == CALL_INSN)
+	 the register lifetime info (REG_DEAD/basic_block_live_at_start).  */
+      if (perhaps_ends_bb_p (p))
 	break;
-
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+      else if (! INSN_P (p))
         continue;
 
       if (find_regno_note (p, REG_DEAD, REGNO (dst)))
@@ -996,9 +977,6 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
 		  REG_N_CALLS_CROSSED (REGNO (dst)) += num_calls;
 		}
 
-	      REG_N_REFS (REGNO (dst)) += loop_depth;
-	      REG_N_REFS (REGNO (src)) -= loop_depth;
-
 	      if (regmove_dump_file)
 		fprintf (regmove_dump_file,
 			 "Fixed operand of insn %d.\n",
@@ -1008,12 +986,9 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
 	      for (p = PREV_INSN (insn); p; p = PREV_INSN (p))
 		{
 		  if (GET_CODE (p) == CODE_LABEL
-		      || GET_CODE (p) == JUMP_INSN
-		      || (GET_CODE (p) == NOTE
-			  && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-			      || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
+		      || GET_CODE (p) == JUMP_INSN)
 		    break;
-		  if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+		  if (! INSN_P (p))
 		    continue;
 		  if (reg_overlap_mentioned_p (dst, PATTERN (p)))
 		    {
@@ -1025,12 +1000,9 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
 	      for (p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
 		{
 		  if (GET_CODE (p) == CODE_LABEL
-		      || GET_CODE (p) == JUMP_INSN
-		      || (GET_CODE (p) == NOTE
-			  && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-			      || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
+		      || GET_CODE (p) == JUMP_INSN)
 		    break;
-		  if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+		  if (! INSN_P (p))
 		    continue;
 		  if (reg_overlap_mentioned_p (dst, PATTERN (p)))
 		    {
@@ -1071,6 +1043,12 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
   return 0;
 }
 
+/* Main entry for the register move optimization.
+   F is the first instruction.
+   NREGS is one plus the highest pseudo-reg number used in the instruction.
+   REGMOVE_DUMP_FILE is a stream for output of a trace of actions taken
+   (or 0 if none should be output).  */
+
 void
 regmove_optimize (f, nregs, regmove_dump_file)
      rtx f;
@@ -1084,26 +1062,29 @@ regmove_optimize (f, nregs, regmove_dump_file)
   int i;
   rtx copy_src, copy_dst;
 
+  /* ??? Hack.  Regmove doesn't examine the CFG, and gets mightily
+     confused by non-call exceptions ending blocks.  */
+  if (flag_non_call_exceptions)
+    return;
+
   /* Find out where a potential flags register is live, and so that we
      can supress some optimizations in those zones.  */
   mark_flags_life_zones (discover_flags_reg ());
 
-  regno_src_regno = (int *)alloca (sizeof *regno_src_regno * nregs);
+  regno_src_regno = (int *) xmalloc (sizeof *regno_src_regno * nregs);
   for (i = nregs; --i >= 0; ) regno_src_regno[i] = -1;
 
-  regmove_bb_head = (int *)alloca (sizeof (int) * (old_max_uid + 1));
+  regmove_bb_head = (int *) xmalloc (sizeof (int) * (old_max_uid + 1));
   for (i = old_max_uid; i >= 0; i--) regmove_bb_head[i] = -1;
   for (i = 0; i < n_basic_blocks; i++)
     regmove_bb_head[INSN_UID (BLOCK_HEAD (i))] = i;
 
   /* A forward/backward pass.  Replace output operands with input operands.  */
 
-  loop_depth = 1;
-
   for (pass = 0; pass <= 2; pass++)
     {
       if (! flag_regmove && pass >= flag_expensive_optimizations)
-	return;
+	goto done;
 
       if (regmove_dump_file)
 	fprintf (regmove_dump_file, "Starting %s pass...\n",
@@ -1115,14 +1096,6 @@ regmove_optimize (f, nregs, regmove_dump_file)
 	  rtx set;
 	  int op_no, match_no;
 
-	  if (GET_CODE (insn) == NOTE)
-	    {
-	      if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_BEG)
-		loop_depth++;
-	      else if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_END)
-		loop_depth--;
-	    }
-
 	  set = single_set (insn);
 	  if (! set)
 	    continue;
@@ -1131,12 +1104,12 @@ regmove_optimize (f, nregs, regmove_dump_file)
 	      && (GET_CODE (SET_SRC (set)) == SIGN_EXTEND
 		  || GET_CODE (SET_SRC (set)) == ZERO_EXTEND)
 	      && GET_CODE (XEXP (SET_SRC (set), 0)) == REG
-	      && GET_CODE (SET_DEST(set)) == REG)
+	      && GET_CODE (SET_DEST (set)) == REG)
 	    optimize_reg_copy_3 (insn, SET_DEST (set), SET_SRC (set));
 
 	  if (flag_expensive_optimizations && ! pass
 	      && GET_CODE (SET_SRC (set)) == REG
-	      && GET_CODE (SET_DEST(set)) == REG)
+	      && GET_CODE (SET_DEST (set)) == REG)
 	    {
 	      /* If this is a register-register copy where SRC is not dead,
 		 see if we can optimize it.  If this optimization succeeds,
@@ -1151,7 +1124,7 @@ regmove_optimize (f, nregs, regmove_dump_file)
 		  if (regno_src_regno[REGNO (SET_DEST (set))] < 0
 		      && SET_SRC (set) != SET_DEST (set))
 		    {
-		      int srcregno = REGNO (SET_SRC(set));
+		      int srcregno = REGNO (SET_SRC (set));
 		      if (regno_src_regno[srcregno] >= 0)
 			srcregno = regno_src_regno[srcregno];
 		      regno_src_regno[REGNO (SET_DEST (set))] = srcregno;
@@ -1161,7 +1134,6 @@ regmove_optimize (f, nregs, regmove_dump_file)
           if (! flag_regmove)
             continue;
 
-#ifdef REGISTER_CONSTRAINTS
 	  if (! find_matches (insn, &match))
 	    continue;
 
@@ -1172,7 +1144,7 @@ regmove_optimize (f, nregs, regmove_dump_file)
 	     If it dies there, then replace the dest in both operands with
 	     the source operand.  */
 
-	  for (op_no = 0; op_no < recog_n_operands; op_no++)
+	  for (op_no = 0; op_no < recog_data.n_operands; op_no++)
 	    {
 	      rtx src, dst, src_subreg;
 	      enum reg_class src_class, dst_class;
@@ -1183,8 +1155,8 @@ regmove_optimize (f, nregs, regmove_dump_file)
 	      if (match_no < 0)
 		continue;
 
-	      src = recog_operand[op_no];
-	      dst = recog_operand[match_no];
+	      src = recog_data.operand[op_no];
+	      dst = recog_data.operand[match_no];
 
 	      if (GET_CODE (src) != REG)
 		continue;
@@ -1196,7 +1168,7 @@ regmove_optimize (f, nregs, regmove_dump_file)
 		{
 		  src_subreg
 		    = gen_rtx_SUBREG (GET_MODE (SUBREG_REG (dst)),
-				      src, SUBREG_WORD (dst));
+				      src, SUBREG_BYTE (dst));
 		  dst = SUBREG_REG (dst);
 		}
 	      if (GET_CODE (dst) != REG
@@ -1220,29 +1192,35 @@ regmove_optimize (f, nregs, regmove_dump_file)
 		continue;
 
 	      if (match.early_clobber[match_no]
-		  && count_occurrences (PATTERN (insn), src) > 1)
+		  && count_occurrences (PATTERN (insn), src, 0) > 1)
 		continue;
 
 	      /* Make sure match_operand is the destination.  */
-	      if (recog_operand[match_no] != SET_DEST (set))
+	      if (recog_data.operand[match_no] != SET_DEST (set))
 		continue;
 
 	      /* If the operands already match, then there is nothing to do.  */
-	      /* But in the commutative case, we might find a better match.  */
-	      if (operands_match_p (src, dst)
-		  || (match.commutative[op_no] >= 0
-		      && operands_match_p (recog_operand[match.commutative
-							 [op_no]], dst)
-		      && (replacement_quality (recog_operand[match.commutative
-							     [op_no]])
-			  >= replacement_quality (src))))
+	      if (operands_match_p (src, dst))
 		continue;
+
+	      /* But in the commutative case, we might find a better match.  */
+	      if (match.commutative[op_no] >= 0)
+		{
+		  rtx comm = recog_data.operand[match.commutative[op_no]];
+		  if (operands_match_p (comm, dst)
+		      && (replacement_quality (comm)
+			  >= replacement_quality (src)))
+		    continue;
+		}
 
 	      src_class = reg_preferred_class (REGNO (src));
 	      dst_class = reg_preferred_class (REGNO (dst));
 	      if (! regclass_compatible_p (src_class, dst_class))
 		continue;
-	  
+
+	      if (GET_MODE (src) != GET_MODE (dst))
+		continue;
+
 	      if (fixup_match_1 (insn, set, src, src_subreg, dst, pass,
 				 op_no, match_no,
 				 regmove_dump_file))
@@ -1256,18 +1234,9 @@ regmove_optimize (f, nregs, regmove_dump_file)
   if (regmove_dump_file)
     fprintf (regmove_dump_file, "Starting backward pass...\n");
 
-  loop_depth = 1;
-
   for (insn = get_last_insn (); insn; insn = PREV_INSN (insn))
     {
-      if (GET_CODE (insn) == NOTE)
-	{
-	  if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_END)
-	    loop_depth++;
-	  else if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_BEG)
-	    loop_depth--;
-	}
-      if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
+      if (INSN_P (insn))
 	{
 	  int op_no, match_no;
 	  int success = 0;
@@ -1283,7 +1252,7 @@ regmove_optimize (f, nregs, regmove_dump_file)
 
 	  copy_src = NULL_RTX;
 	  copy_dst = NULL_RTX;
-	  for (op_no = 0; op_no < recog_n_operands; op_no++)
+	  for (op_no = 0; op_no < recog_data.n_operands; op_no++)
 	    {
 	      rtx set, p, src, dst;
 	      rtx src_note, dst_note;
@@ -1297,25 +1266,39 @@ regmove_optimize (f, nregs, regmove_dump_file)
 	      if (match_no < 0)
 		continue;
 
-	      dst = recog_operand[match_no];
-	      src = recog_operand[op_no];
+	      dst = recog_data.operand[match_no];
+	      src = recog_data.operand[op_no];
 
 	      if (GET_CODE (src) != REG)
 		continue;
 
 	      if (GET_CODE (dst) != REG
 		  || REGNO (dst) < FIRST_PSEUDO_REGISTER
-		  || REG_LIVE_LENGTH (REGNO (dst)) < 0)
+		  || REG_LIVE_LENGTH (REGNO (dst)) < 0
+		  || RTX_UNCHANGING_P (dst))
 		continue;
 
 	      /* If the operands already match, then there is nothing to do.  */
-	      if (operands_match_p (src, dst)
-		  || (match.commutative[op_no] >= 0
-		      && operands_match_p (recog_operand[match.commutative[op_no]], dst)))
+	      if (operands_match_p (src, dst))
 		continue;
+
+	      if (match.commutative[op_no] >= 0)
+		{
+		  rtx comm = recog_data.operand[match.commutative[op_no]];
+		  if (operands_match_p (comm, dst))
+		    continue;
+		}
 
 	      set = single_set (insn);
 	      if (! set)
+		continue;
+
+	      /* Note that single_set ignores parts of a parallel set for
+		 which one of the destinations is REG_UNUSED.  We can't
+		 handle that here, since we can wind up rewriting things
+		 such that a single register is set twice within a single
+		 parallel.  */
+	      if (reg_set_p (src, insn))
 		continue;
 
 	      /* match_no/dst must be a write-only operand, and
@@ -1325,11 +1308,11 @@ regmove_optimize (f, nregs, regmove_dump_file)
 		continue;
 
 	      if (match.early_clobber[match_no]
-		  && count_occurrences (PATTERN (insn), src) > 1)
+		  && count_occurrences (PATTERN (insn), src, 0) > 1)
 		continue;
 
 	      /* Make sure match_no is the destination.  */
-	      if (recog_operand[match_no] != SET_DEST (set))
+	      if (recog_data.operand[match_no] != SET_DEST (set))
 		continue;
 
 	      if (REGNO (src) < FIRST_PSEUDO_REGISTER)
@@ -1407,24 +1390,12 @@ regmove_optimize (f, nregs, regmove_dump_file)
 		{
 		  rtx pset;
 
-		  if (GET_CODE (p) == CODE_LABEL
-		      || GET_CODE (p) == JUMP_INSN
-		      || (GET_CODE (p) == NOTE
-			  && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-			      || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-		    break;
-
 		  /* ??? We can't scan past the end of a basic block without
 		     updating the register lifetime info
-		     (REG_DEAD/basic_block_live_at_start).
-		     A CALL_INSN might be the last insn of a basic block, if
-		     it is inside an EH region.  There is no easy way to tell,
-		     so we just always break when we see a CALL_INSN if
-		     flag_exceptions is nonzero.  */
-		  if (flag_exceptions && GET_CODE (p) == CALL_INSN)
+		     (REG_DEAD/basic_block_live_at_start).  */
+		  if (perhaps_ends_bb_p (p))
 		    break;
-
-		  if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+		  else if (! INSN_P (p))
 		    continue;
 
 		  length++;
@@ -1449,7 +1420,7 @@ regmove_optimize (f, nregs, regmove_dump_file)
 			      validate_replace_rtx (dst, src, insn);
 			      /* Now make sure the dst is right.  */
 			      validate_change (insn,
-					       recog_operand_loc[match_no],
+					       recog_data.operand_loc[match_no],
 					       dst, 0);
 			    }
 			}
@@ -1510,22 +1481,6 @@ regmove_optimize (f, nregs, regmove_dump_file)
 			REG_LIVE_LENGTH (srcno) = 2;
 		    }
 
-		  /* We assume that a register is used exactly once per
-		     insn in the updates above.  If this is not correct,
-		     no great harm is done.  */
-
-		  REG_N_REFS (dstno) += 2 * loop_depth;
-		  REG_N_REFS (srcno) -= 2 * loop_depth;
-
-                  /* If that was the only time src was set,
-                     and src was not live at the start of the
-                     function, we know that we have no more
-                     references to src; clear REG_N_REFS so it
-                     won't make reload do any work.  */
-                  if (REG_N_SETS (REGNO (src)) == 0
-                      && ! regno_uninitialized (REGNO (src)))
-                    REG_N_REFS (REGNO (src)) = 0;
-
 		  if (regmove_dump_file)
 		    fprintf (regmove_dump_file,
 			     "Fixed operand %d of insn %d matching operand %d.\n",
@@ -1538,12 +1493,10 @@ regmove_optimize (f, nregs, regmove_dump_file)
 	  /* If we weren't able to replace any of the alternatives, try an
 	     alternative appoach of copying the source to the destination.  */
 	  if (!success && copy_src != NULL_RTX)
-	    copy_src_to_dest (insn, copy_src, copy_dst, loop_depth,
-			      old_max_uid);
+	    copy_src_to_dest (insn, copy_src, copy_dst, old_max_uid);
 
 	}
     }
-#endif /* REGISTER_CONSTRAINTS */
 
   /* In fixup_match_1, some insns may have been inserted after basic block
      ends.  Fix that here.  */
@@ -1557,6 +1510,11 @@ regmove_optimize (f, nregs, regmove_dump_file)
 	new = next, next = NEXT_INSN (new);
       BLOCK_END (i) = new;
     }
+
+ done:
+  /* Clean up.  */
+  free (regno_src_regno);
+  free (regmove_bb_head);
 }
 
 /* Returns nonzero if INSN's pattern has matching constraints for any operand.
@@ -1581,16 +1539,16 @@ find_matches (insn, matchp)
   /* Must initialize this before main loop, because the code for
      the commutative case may set matches for operands other than
      the current one.  */
-  for (op_no = recog_n_operands; --op_no >= 0; )
+  for (op_no = recog_data.n_operands; --op_no >= 0; )
     matchp->with[op_no] = matchp->commutative[op_no] = -1;
 
-  for (op_no = 0; op_no < recog_n_operands; op_no++)
+  for (op_no = 0; op_no < recog_data.n_operands; op_no++)
     {
       const char *p;
       char c;
       int i = 0;
 
-      p = recog_constraints[op_no];
+      p = recog_data.constraints[op_no];
 
       likely_spilled[op_no] = 0;
       matchp->use[op_no] = READ;
@@ -1618,21 +1576,30 @@ find_matches (insn, matchp)
 	    matchp->commutative[op_no] = op_no + 1;
 	    matchp->commutative[op_no + 1] = op_no;
 	    break;
+
 	  case '0': case '1': case '2': case '3': case '4':
 	  case '5': case '6': case '7': case '8': case '9':
-	    c -= '0';
-	    if (c < op_no && likely_spilled[(unsigned char) c])
-	      break;
-	    matchp->with[op_no] = c;
-	    any_matches = 1;
-	    if (matchp->commutative[op_no] >= 0)
-	      matchp->with[matchp->commutative[op_no]] = c;
+	    {
+	      char *end;
+	      unsigned long match_ul = strtoul (p - 1, &end, 10);
+	      int match = match_ul;
+
+	      p = end;
+
+	      if (match < op_no && likely_spilled[match])
+		break;
+	      matchp->with[op_no] = match;
+	      any_matches = 1;
+	      if (matchp->commutative[op_no] >= 0)
+		matchp->with[matchp->commutative[op_no]] = match;
+	    }
 	    break;
+
 	  case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'h':
 	  case 'j': case 'k': case 'l': case 'p': case 'q': case 't': case 'u':
 	  case 'v': case 'w': case 'x': case 'y': case 'z': case 'A': case 'B':
 	  case 'C': case 'D': case 'W': case 'Y': case 'Z':
-	    if (CLASS_LIKELY_SPILLED_P (REG_CLASS_FROM_LETTER ((unsigned char)c)))
+	    if (CLASS_LIKELY_SPILLED_P (REG_CLASS_FROM_LETTER ((unsigned char) c)))
 	      likely_spilled[op_no] = 1;
 	    break;
 	  }
@@ -1640,12 +1607,52 @@ find_matches (insn, matchp)
   return any_matches;
 }
 
+/* Try to replace all occurrences of DST_REG with SRC in LOC, that is
+   assumed to be in INSN.  */
+
+static void
+replace_in_call_usage (loc, dst_reg, src, insn)
+     rtx *loc;
+     unsigned int dst_reg;
+     rtx src;
+     rtx insn;
+{
+  rtx x = *loc;
+  enum rtx_code code;
+  const char *fmt;
+  int i, j;
+
+  if (! x)
+    return;
+
+  code = GET_CODE (x);
+  if (code == REG)
+    {
+      if (REGNO (x) != dst_reg)
+	return;
+
+      validate_change (insn, loc, src, 1);
+
+      return;
+    }
+
+  /* Process each of our operands recursively.  */
+  fmt = GET_RTX_FORMAT (code);
+  for (i = 0; i < GET_RTX_LENGTH (code); i++, fmt++)
+    if (*fmt == 'e')
+      replace_in_call_usage (&XEXP (x, i), dst_reg, src, insn);
+    else if (*fmt == 'E')
+      for (j = 0; j < XVECLEN (x, i); j++)
+	replace_in_call_usage (& XVECEXP (x, i, j), dst_reg, src, insn);
+}
+
 /* Try to replace output operand DST in SET, with input operand SRC.  SET is
-   the only set in INSN.  INSN has just been recgnized and constrained.
+   the only set in INSN.  INSN has just been recognized and constrained.
    SRC is operand number OPERAND_NUMBER in INSN.
    DST is operand number MATCH_NUMBER in INSN.
    If BACKWARD is nonzero, we have been called in a backward pass.
    Return nonzero for success.  */
+
 static int
 fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 	       match_number, regmove_dump_file)
@@ -1658,10 +1665,10 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
   int success = 0;
   int num_calls = 0, s_num_calls = 0;
   enum rtx_code code = NOTE;
-  HOST_WIDE_INT insn_const, newconst;
+  HOST_WIDE_INT insn_const = 0, newconst;
   rtx overlap = 0; /* need to move insn ? */
-  rtx src_note = find_reg_note (insn, REG_DEAD, src), dst_note;
-  int length, s_length, true_loop_depth;
+  rtx src_note = find_reg_note (insn, REG_DEAD, src), dst_note = NULL_RTX;
+  int length, s_length;
 
   /* If SRC is marked as unchanging, we may not change it.
      ??? Maybe we could get better code by removing the unchanging bit
@@ -1711,21 +1718,15 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 
   for (length = s_length = 0, p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
     {
-      if (GET_CODE (p) == CODE_LABEL || GET_CODE (p) == JUMP_INSN
-	  || (GET_CODE (p) == NOTE
-	      && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-		  || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-	break;
+      if (GET_CODE (p) == CALL_INSN)
+	replace_in_call_usage (& CALL_INSN_FUNCTION_USAGE (p),
+			       REGNO (dst), src, p);
 
       /* ??? We can't scan past the end of a basic block without updating
-	 the register lifetime info (REG_DEAD/basic_block_live_at_start).
-	 A CALL_INSN might be the last insn of a basic block, if it is
-	 inside an EH region.  There is no easy way to tell, so we just
-	 always break when we see a CALL_INSN if flag_exceptions is nonzero.  */
-      if (flag_exceptions && GET_CODE (p) == CALL_INSN)
+	 the register lifetime info (REG_DEAD/basic_block_live_at_start).  */
+      if (perhaps_ends_bb_p (p))
 	break;
-
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
+      else if (! INSN_P (p))
 	continue;
 
       length++;
@@ -1742,10 +1743,17 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
       if ((dst_note = find_regno_note (p, REG_DEAD, REGNO (dst)))
 	  && (GET_MODE (XEXP (dst_note, 0)) == GET_MODE (dst)))
 	{
+	  /* If we would be moving INSN, check that we won't move it
+	     into the shadow of a live a live flags register.  */
+	  /* ??? We only try to move it in front of P, although
+		 we could move it anywhere between OVERLAP and P.  */
+	  if (overlap && GET_MODE (PREV_INSN (p)) != VOIDmode)
+	    break;
+
 	  if (! src_note)
 	    {
 	      rtx q;
-	      rtx set2;
+	      rtx set2 = NULL_RTX;
 
 	      /* If an optimization is done, the value of SRC while P
 		 is executed will be changed.  Check that this is OK.  */
@@ -1753,32 +1761,18 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 		break;
 	      for (q = p; q; q = NEXT_INSN (q))
 		{
-		  if (GET_CODE (q) == CODE_LABEL || GET_CODE (q) == JUMP_INSN
-		      || (GET_CODE (q) == NOTE
-			  && (NOTE_LINE_NUMBER (q) == NOTE_INSN_LOOP_BEG
-			      || NOTE_LINE_NUMBER (q) == NOTE_INSN_LOOP_END)))
-		    {
-		      q = 0;
-		      break;
-		    }
-
 		  /* ??? We can't scan past the end of a basic block without
 		     updating the register lifetime info
-		     (REG_DEAD/basic_block_live_at_start).
-		     A CALL_INSN might be the last insn of a basic block, if
-		     it is inside an EH region.  There is no easy way to tell,
-		     so we just always break when we see a CALL_INSN if
-		     flag_exceptions is nonzero.  */
-		  if (flag_exceptions && GET_CODE (q) == CALL_INSN)
+		     (REG_DEAD/basic_block_live_at_start).  */
+		  if (perhaps_ends_bb_p (q))
 		    {
 		      q = 0;
 		      break;
 		    }
-
-		  if (GET_RTX_CLASS (GET_CODE (q)) != 'i')
+		  else if (! INSN_P (q))
 		    continue;
-		  if (reg_overlap_mentioned_p (src, PATTERN (q))
-		      || reg_set_p (src, q))
+		  else if (reg_overlap_mentioned_p (src, PATTERN (q))
+			   || reg_set_p (src, q))
 		    break;
 		}
 	      if (q)
@@ -1823,8 +1817,9 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 		  /* Reject out of range shifts.  */
 		  if (code != PLUS
 		      && (newconst < 0
-			  || (newconst
-			      >= GET_MODE_BITSIZE (GET_MODE (SET_SRC (set2))))))
+			  || ((unsigned HOST_WIDE_INT) newconst
+			      >= (GET_MODE_BITSIZE (GET_MODE
+						    (SET_SRC (set2)))))))
 		    break;
 		  if (code == PLUS)
 		    {
@@ -1839,7 +1834,7 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 	      validate_change (q, &XEXP (SET_SRC (set2), 1),
 			       GEN_INT (newconst), 1);
 	    }
-	  validate_change (insn, recog_operand_loc[match_number], src, 1);
+	  validate_change (insn, recog_data.operand_loc[match_number], src, 1);
 	  if (validate_replace_rtx (dst, src_subreg, p))
 	    success = 1;
 	  break;
@@ -1849,8 +1844,11 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 	break;
       if (! src_note && reg_overlap_mentioned_p (src, PATTERN (p)))
 	{
-	  /* INSN was already checked to be movable when
-	     we found no REG_DEAD note for src on it.  */
+	  /* INSN was already checked to be movable wrt. the registers that it
+	     sets / uses when we found no REG_DEAD note for src on it, but it
+	     still might clobber the flags register.  We'll have to check that
+	     we won't insert it into the shadow of a live flags register when
+	     we finally know where we are to move it.  */
 	  overlap = p;
 	  src_note = find_reg_note (p, REG_DEAD, src);
 	}
@@ -1873,8 +1871,6 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
   if (! success)
     return 0;
 
-  true_loop_depth = backward ? 2 - loop_depth : loop_depth;
-
   /* Remove the death note for DST from P.  */
   remove_note (p, dst_note);
   if (code == MINUS)
@@ -1886,7 +1882,6 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 	post_inc = 0;
       validate_change (insn, &XEXP (SET_SRC (set), 1), GEN_INT (insn_const), 0);
       REG_N_SETS (REGNO (src))++;
-      REG_N_REFS (REGNO (src)) += true_loop_depth;
       REG_LIVE_LENGTH (REGNO (src))++;
     }
   if (overlap)
@@ -1905,12 +1900,11 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 	  rtx notes = REG_NOTES (insn);
 
 	  emit_insn_after_with_line_notes (pat, PREV_INSN (p), insn);
-	  PUT_CODE (insn, NOTE);
-	  NOTE_LINE_NUMBER (insn) = NOTE_INSN_DELETED;
-	  NOTE_SOURCE_FILE (insn) = 0;
+	  delete_insn (insn);
 	  /* emit_insn_after_with_line_notes has no
 	     return value, so search for the new insn.  */
-	  for (insn = p; PATTERN (insn) != pat; )
+	  insn = p;
+	  while (! INSN_P (insn) || PATTERN (insn) != pat)
 	    insn = PREV_INSN (insn);
 
 	  REG_NOTES (insn) = notes;
@@ -1923,37 +1917,24 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
   if (! overlap && (code == PLUS || code == MINUS))
     {
       rtx note = find_reg_note (insn, REG_EQUAL, NULL_RTX);
-      rtx q, set2;
+      rtx q, set2 = NULL_RTX;
       int num_calls2 = 0, s_length2 = 0;
 
       if (note && CONSTANT_P (XEXP (note, 0)))
 	{
-	  for (q = PREV_INSN (insn); q; q = PREV_INSN(q))
+	  for (q = PREV_INSN (insn); q; q = PREV_INSN (q))
 	    {
-	      if (GET_CODE (q) == CODE_LABEL || GET_CODE (q) == JUMP_INSN
-		  || (GET_CODE (q) == NOTE
-		      && (NOTE_LINE_NUMBER (q) == NOTE_INSN_LOOP_BEG
-			  || NOTE_LINE_NUMBER (q) == NOTE_INSN_LOOP_END)))
-		{
-		  q = 0;
-		  break;
-		}
-
 	      /* ??? We can't scan past the end of a basic block without
 		 updating the register lifetime info
-		 (REG_DEAD/basic_block_live_at_start).
-		 A CALL_INSN might be the last insn of a basic block, if
-		 it is inside an EH region.  There is no easy way to tell,
-		 so we just always break when we see a CALL_INSN if
-		 flag_exceptions is nonzero.  */
-	      if (flag_exceptions && GET_CODE (q) == CALL_INSN)
+		 (REG_DEAD/basic_block_live_at_start).  */
+	      if (perhaps_ends_bb_p (q))
 		{
 		  q = 0;
 		  break;
 		}
-
-	      if (GET_RTX_CLASS (GET_CODE (q)) != 'i')
+	      else if (! INSN_P (q))
 		continue;
+
 	      s_length2++;
 	      if (reg_set_p (src, q))
 		{
@@ -1971,12 +1952,9 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 	  if (q && set2 && SET_DEST (set2) == src && CONSTANT_P (SET_SRC (set2))
 	      && validate_change (insn, &SET_SRC (set), XEXP (note, 0), 0))
 	    {
-	      PUT_CODE (q, NOTE);
-	      NOTE_LINE_NUMBER (q) = NOTE_INSN_DELETED;
-	      NOTE_SOURCE_FILE (q) = 0;
+	      delete_insn (q);
 	      REG_N_SETS (REGNO (src))--;
 	      REG_N_CALLS_CROSSED (REGNO (src)) -= num_calls2;
-	      REG_N_REFS (REGNO (src)) -= true_loop_depth;
 	      REG_LIVE_LENGTH (REGNO (src)) -= s_length2;
 	      insn_const = 0;
 	    }
@@ -2006,29 +1984,20 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
       inc_dest = post_inc_set ? SET_DEST (post_inc_set) : src;
       for (q = post_inc; (q = NEXT_INSN (q)); )
 	{
-	  if (GET_CODE (q) == CODE_LABEL || GET_CODE (q) == JUMP_INSN
-	      || (GET_CODE (q) == NOTE
-		  && (NOTE_LINE_NUMBER (q) == NOTE_INSN_LOOP_BEG
-		      || NOTE_LINE_NUMBER (q) == NOTE_INSN_LOOP_END)))
-	    break;
-
 	  /* ??? We can't scan past the end of a basic block without updating
-	     the register lifetime info (REG_DEAD/basic_block_live_at_start).
-	     A CALL_INSN might be the last insn of a basic block, if it
-	     is inside an EH region.  There is no easy way to tell so we
-	     just always break when we see a CALL_INSN if flag_exceptions
-	     is nonzero.  */
-	  if (flag_exceptions && GET_CODE (q) == CALL_INSN)
+	     the register lifetime info
+	     (REG_DEAD/basic_block_live_at_start).  */
+	  if (perhaps_ends_bb_p (q))
 	    break;
-
-	  if (GET_RTX_CLASS (GET_CODE (q)) != 'i')
+	  else if (! INSN_P (q))
 	    continue;
-	  if (src != inc_dest && (reg_overlap_mentioned_p (src, PATTERN (q))
-				  || reg_set_p (src, q)))
+	  else if (src != inc_dest
+		   && (reg_overlap_mentioned_p (src, PATTERN (q))
+		       || reg_set_p (src, q)))
 	    break;
-	  if (reg_set_p (inc_dest, q))
+	  else if (reg_set_p (inc_dest, q))
 	    break;
-	  if (reg_overlap_mentioned_p (inc_dest, PATTERN (q)))
+	  else if (reg_overlap_mentioned_p (inc_dest, PATTERN (q)))
 	    {
 	      try_auto_increment (q, post_inc,
 				  post_inc_set, inc_dest, newconst, 1);
@@ -2036,6 +2005,7 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
 	    }
 	}
     }
+
   /* Move the death note for DST to INSN if it is used
      there.  */
   if (reg_overlap_mentioned_p (dst, PATTERN (insn)))
@@ -2070,23 +2040,6 @@ fixup_match_1 (insn, set, src, src_subreg, dst, backward, operand_number,
       if (REG_LIVE_LENGTH (REGNO (dst)) < 2)
 	REG_LIVE_LENGTH (REGNO (dst)) = 2;
     }
-
-  /* We assume that a register is used exactly once per
-      insn in the updates above.  If this is not correct,
-      no great harm is done.  */
-
-  REG_N_REFS (REGNO (src)) += 2 * true_loop_depth;
-  REG_N_REFS (REGNO (dst)) -= 2 * true_loop_depth;
-
-  /* If that was the only time dst was set,
-     and dst was not live at the start of the
-     function, we know that we have no more
-     references to dst; clear REG_N_REFS so it
-     won't make reload do any work.  */
-  if (REG_N_SETS (REGNO (dst)) == 0
-      && ! regno_uninitialized (REGNO (dst)))
-    REG_N_REFS (REGNO (dst)) = 0;
-
   if (regmove_dump_file)
     fprintf (regmove_dump_file,
 	     "Fixed operand %d of insn %d matching operand %d.\n",
@@ -2113,7 +2066,7 @@ stable_and_no_regs_but_for_p (x, src, dst)
     case '<': case '1': case 'c': case '2': case 'b': case '3':
       {
 	int i;
-	char *fmt = GET_RTX_FORMAT (code);
+	const char *fmt = GET_RTX_FORMAT (code);
 	for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
 	  if (fmt[i] == 'e'
 	      && ! stable_and_no_regs_but_for_p (XEXP (x, i), src, dst))
@@ -2133,58 +2086,411 @@ stable_and_no_regs_but_for_p (x, src, dst)
       return ! rtx_unstable_p (x);
     }
 }
+
+/* Track stack adjustments and stack memory references.  Attempt to
+   reduce the number of stack adjustments by back-propagating across
+   the memory references.
 
-/* Test if regmove seems profitable for this target.  Regmove is useful only
-   if some common patterns are two address, i.e. require matching constraints,
-   so we check that condition here.  */
+   This is intended primarily for use with targets that do not define
+   ACCUMULATE_OUTGOING_ARGS.  It is of significantly more value to
+   targets that define PREFERRED_STACK_BOUNDARY more aligned than
+   STACK_BOUNDARY (e.g. x86), or if not all registers can be pushed
+   (e.g. x86 fp regs) which would ordinarily have to be implemented
+   as a sub/mov pair due to restrictions in calls.c.
 
-int
-regmove_profitable_p ()
+   Propagation stops when any of the insns that need adjusting are
+   (a) no longer valid because we've exceeded their range, (b) a
+   non-trivial push instruction, or (c) a call instruction.
+
+   Restriction B is based on the assumption that push instructions
+   are smaller or faster.  If a port really wants to remove all
+   pushes, it should have defined ACCUMULATE_OUTGOING_ARGS.  The
+   one exception that is made is for an add immediately followed
+   by a push.  */
+
+/* This structure records stack memory references between stack adjusting
+   instructions.  */
+
+struct csa_memlist
 {
-#ifdef REGISTER_CONSTRAINTS
-  struct match match;
-  enum machine_mode mode;
-  optab tstoptab = add_optab;
-  do /* check add_optab and ashl_optab */
-    for (mode = GET_CLASS_NARROWEST_MODE (MODE_INT); mode != VOIDmode;
-	   mode = GET_MODE_WIDER_MODE (mode))
-	{
-	  int icode = (int) tstoptab->handlers[(int) mode].insn_code;
-	  rtx reg0, reg1, reg2, pat;
-	  int i;
-    
-	  if (GET_MODE_BITSIZE (mode) < 32 || icode == CODE_FOR_nothing)
-	    continue;
-	  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
-	    if (TEST_HARD_REG_BIT (reg_class_contents[GENERAL_REGS], i))
-	      break;
-	  if (i + 2 >= FIRST_PSEUDO_REGISTER)
-	    break;
-	  reg0 = gen_rtx_REG (insn_operand_mode[icode][0], i);
-	  reg1 = gen_rtx_REG (insn_operand_mode[icode][1], i + 1);
-	  reg2 = gen_rtx_REG (insn_operand_mode[icode][2], i + 2);
-	  if (! (*insn_operand_predicate[icode][0]) (reg0, VOIDmode)
-	      || ! (*insn_operand_predicate[icode][1]) (reg1, VOIDmode)
-	      || ! (*insn_operand_predicate[icode][2]) (reg2, VOIDmode))
-	    break;
-	  pat = GEN_FCN (icode) (reg0, reg1, reg2);
-	  if (! pat)
-	    continue;
-	  if (GET_CODE (pat) == SEQUENCE)
-	    pat = XVECEXP (pat, 0,  XVECLEN (pat, 0) - 1);
-	  else
-	    pat = make_insn_raw (pat);
-	  if (! single_set (pat)
-	      || GET_CODE (SET_SRC (single_set (pat))) != tstoptab->code)
-	    /* Unexpected complexity;  don't need to handle this unless
-	       we find a machine where this occurs and regmove should
-	       be enabled.  */
-	    break;
-	  if (find_matches (pat, &match))
-	    return 1;
-	  break;
-	}
-  while (tstoptab != ashl_optab && (tstoptab = ashl_optab, 1));
-#endif /* REGISTER_CONSTRAINTS */
+  HOST_WIDE_INT sp_offset;
+  rtx insn, *mem;
+  struct csa_memlist *next;
+};
+
+static int stack_memref_p		PARAMS ((rtx));
+static rtx single_set_for_csa		PARAMS ((rtx));
+static void free_csa_memlist		PARAMS ((struct csa_memlist *));
+static struct csa_memlist *record_one_stack_memref
+  PARAMS ((rtx, rtx *, struct csa_memlist *));
+static int try_apply_stack_adjustment
+  PARAMS ((rtx, struct csa_memlist *, HOST_WIDE_INT, HOST_WIDE_INT));
+static void combine_stack_adjustments_for_block PARAMS ((basic_block));
+static int record_stack_memrefs	PARAMS ((rtx *, void *));
+
+
+/* Main entry point for stack adjustment combination.  */
+
+void
+combine_stack_adjustments ()
+{
+  int i;
+
+  for (i = 0; i < n_basic_blocks; ++i)
+    combine_stack_adjustments_for_block (BASIC_BLOCK (i));
+}
+
+/* Recognize a MEM of the form (sp) or (plus sp const).  */
+
+static int
+stack_memref_p (x)
+     rtx x;
+{
+  if (GET_CODE (x) != MEM)
+    return 0;
+  x = XEXP (x, 0);
+
+  if (x == stack_pointer_rtx)
+    return 1;
+  if (GET_CODE (x) == PLUS
+      && XEXP (x, 0) == stack_pointer_rtx
+      && GET_CODE (XEXP (x, 1)) == CONST_INT)
+    return 1;
+
   return 0;
+}
+
+/* Recognize either normal single_set or the hack in i386.md for
+   tying fp and sp adjustments.  */
+
+static rtx
+single_set_for_csa (insn)
+     rtx insn;
+{
+  int i;
+  rtx tmp = single_set (insn);
+  if (tmp)
+    return tmp;
+
+  if (GET_CODE (insn) != INSN
+      || GET_CODE (PATTERN (insn)) != PARALLEL)
+    return NULL_RTX;
+
+  tmp = PATTERN (insn);
+  if (GET_CODE (XVECEXP (tmp, 0, 0)) != SET)
+    return NULL_RTX;
+
+  for (i = 1; i < XVECLEN (tmp, 0); ++i)
+    {
+      rtx this = XVECEXP (tmp, 0, i);
+
+      /* The special case is allowing a no-op set.  */
+      if (GET_CODE (this) == SET
+	  && SET_SRC (this) == SET_DEST (this))
+	;
+      else if (GET_CODE (this) != CLOBBER
+	       && GET_CODE (this) != USE)
+	return NULL_RTX;
+    }
+
+  return XVECEXP (tmp, 0, 0);
+}
+
+/* Free the list of csa_memlist nodes.  */
+
+static void
+free_csa_memlist (memlist)
+     struct csa_memlist *memlist;
+{
+  struct csa_memlist *next;
+  for (; memlist ; memlist = next)
+    {
+      next = memlist->next;
+      free (memlist);
+    }
+}
+
+/* Create a new csa_memlist node from the given memory reference.
+   It is already known that the memory is stack_memref_p.  */
+
+static struct csa_memlist *
+record_one_stack_memref (insn, mem, next_memlist)
+     rtx insn, *mem;
+     struct csa_memlist *next_memlist;
+{
+  struct csa_memlist *ml;
+
+  ml = (struct csa_memlist *) xmalloc (sizeof (*ml));
+
+  if (XEXP (*mem, 0) == stack_pointer_rtx)
+    ml->sp_offset = 0;
+  else
+    ml->sp_offset = INTVAL (XEXP (XEXP (*mem, 0), 1));
+
+  ml->insn = insn;
+  ml->mem = mem;
+  ml->next = next_memlist;
+
+  return ml;
+}
+
+/* Attempt to apply ADJUST to the stack adjusting insn INSN, as well
+   as each of the memories in MEMLIST.  Return true on success.  */
+
+static int
+try_apply_stack_adjustment (insn, memlist, new_adjust, delta)
+     rtx insn;
+     struct csa_memlist *memlist;
+     HOST_WIDE_INT new_adjust, delta;
+{
+  struct csa_memlist *ml;
+  rtx set;
+
+  set = single_set_for_csa (insn);
+  validate_change (insn, &XEXP (SET_SRC (set), 1), GEN_INT (new_adjust), 1);
+
+  for (ml = memlist; ml ; ml = ml->next)
+    validate_change
+      (ml->insn, ml->mem,
+       replace_equiv_address_nv (*ml->mem,
+				 plus_constant (stack_pointer_rtx,
+						ml->sp_offset - delta)), 1);
+
+  if (apply_change_group ())
+    {
+      /* Succeeded.  Update our knowledge of the memory references.  */
+      for (ml = memlist; ml ; ml = ml->next)
+	ml->sp_offset -= delta;
+
+      return 1;
+    }
+  else
+    return 0;
+}
+
+/* Called via for_each_rtx and used to record all stack memory references in
+   the insn and discard all other stack pointer references.  */
+struct record_stack_memrefs_data
+{
+  rtx insn;
+  struct csa_memlist *memlist;
+};
+
+static int
+record_stack_memrefs (xp, data)
+     rtx *xp;
+     void *data;
+{
+  rtx x = *xp;
+  struct record_stack_memrefs_data *d =
+    (struct record_stack_memrefs_data *) data;
+  if (!x)
+    return 0;
+  switch (GET_CODE (x))
+    {
+    case MEM:
+      if (!reg_mentioned_p (stack_pointer_rtx, x))
+	return -1;
+      /* We are not able to handle correctly all possible memrefs containing
+         stack pointer, so this check is necessary.  */
+      if (stack_memref_p (x))
+	{
+	  d->memlist = record_one_stack_memref (d->insn, xp, d->memlist);
+	  return -1;
+	}
+      return 1;
+    case REG:
+      /* ??? We want be able to handle non-memory stack pointer
+	 references later.  For now just discard all insns refering to
+	 stack pointer outside mem expressions.  We would probably
+	 want to teach validate_replace to simplify expressions first.
+
+	 We can't just compare with STACK_POINTER_RTX because the
+	 reference to the stack pointer might be in some other mode.
+	 In particular, an explict clobber in an asm statement will
+	 result in a QImode clober.  */
+      if (REGNO (x) == STACK_POINTER_REGNUM)
+	return 1;
+      break;
+    default:
+      break;
+    }
+  return 0;
+}
+
+/* Subroutine of combine_stack_adjustments, called for each basic block.  */
+
+static void
+combine_stack_adjustments_for_block (bb)
+     basic_block bb;
+{
+  HOST_WIDE_INT last_sp_adjust = 0;
+  rtx last_sp_set = NULL_RTX;
+  struct csa_memlist *memlist = NULL;
+  rtx pending_delete;
+  rtx insn, next;
+  struct record_stack_memrefs_data data;
+
+  for (insn = bb->head; ; insn = next)
+    {
+      rtx set;
+
+      pending_delete = NULL_RTX;
+      next = NEXT_INSN (insn);
+
+      if (! INSN_P (insn))
+	goto processed;
+
+      set = single_set_for_csa (insn);
+      if (set)
+	{
+	  rtx dest = SET_DEST (set);
+	  rtx src = SET_SRC (set);
+
+	  /* Find constant additions to the stack pointer.  */
+	  if (dest == stack_pointer_rtx
+	      && GET_CODE (src) == PLUS
+	      && XEXP (src, 0) == stack_pointer_rtx
+	      && GET_CODE (XEXP (src, 1)) == CONST_INT)
+	    {
+	      HOST_WIDE_INT this_adjust = INTVAL (XEXP (src, 1));
+
+	      /* If we've not seen an adjustment previously, record
+		 it now and continue.  */
+	      if (! last_sp_set)
+		{
+		  last_sp_set = insn;
+		  last_sp_adjust = this_adjust;
+		  goto processed;
+		}
+
+	      /* If not all recorded memrefs can be adjusted, or the
+		 adjustment is now too large for a constant addition,
+		 we cannot merge the two stack adjustments.
+
+		 Also we need to be carefull to not move stack pointer
+		 such that we create stack accesses outside the allocated
+		 area.  We can combine an allocation into the first insn,
+		 or a deallocation into the second insn.  We can not
+		 combine an allocation followed by a deallocation.
+
+		 The only somewhat frequent occurrence of the later is when
+		 a function allocates a stack frame but does not use it.
+		 For this case, we would need to analyze rtl stream to be
+		 sure that allocated area is really unused.  This means not
+		 only checking the memory references, but also all registers
+		 or global memory references possibly containing a stack
+		 frame address.
+
+		 Perhaps the best way to address this problem is to teach
+		 gcc not to allocate stack for objects never used.  */
+
+	      /* Combine an allocation into the first instruction.  */
+	      if (STACK_GROWS_DOWNWARD ? this_adjust <= 0 : this_adjust >= 0)
+		{
+		  if (try_apply_stack_adjustment (last_sp_set, memlist,
+						  last_sp_adjust + this_adjust,
+						  this_adjust))
+		    {
+		      /* It worked!  */
+		      pending_delete = insn;
+		      last_sp_adjust += this_adjust;
+		      goto processed;
+		    }
+		}
+
+	      /* Otherwise we have a deallocation.  Do not combine with
+		 a previous allocation.  Combine into the second insn.  */
+	      else if (STACK_GROWS_DOWNWARD
+		       ? last_sp_adjust >= 0 : last_sp_adjust <= 0)
+		{
+		  if (try_apply_stack_adjustment (insn, memlist,
+						  last_sp_adjust + this_adjust,
+						  -last_sp_adjust))
+		    {
+		      /* It worked!  */
+		      delete_insn (last_sp_set);
+		      last_sp_set = insn;
+		      last_sp_adjust += this_adjust;
+		      free_csa_memlist (memlist);
+		      memlist = NULL;
+		      goto processed;
+		    }
+		}
+
+	      /* Combination failed.  Restart processing from here.  */
+	      free_csa_memlist (memlist);
+	      memlist = NULL;
+	      last_sp_set = insn;
+	      last_sp_adjust = this_adjust;
+	      goto processed;
+	    }
+
+	  /* Find a predecrement of exactly the previous adjustment and
+	     turn it into a direct store.  Obviously we can't do this if
+	     there were any intervening uses of the stack pointer.  */
+	  if (memlist == NULL
+	      && GET_CODE (dest) == MEM
+	      && ((GET_CODE (XEXP (dest, 0)) == PRE_DEC
+		   && (last_sp_adjust
+		       == (HOST_WIDE_INT) GET_MODE_SIZE (GET_MODE (dest))))
+		  || (GET_CODE (XEXP (dest, 0)) == PRE_MODIFY
+		      && GET_CODE (XEXP (XEXP (dest, 0), 1)) == PLUS
+		      && XEXP (XEXP (XEXP (dest, 0), 1), 0) == stack_pointer_rtx
+		      && (GET_CODE (XEXP (XEXP (XEXP (dest, 0), 1), 1))
+		          == CONST_INT)
+		      && (INTVAL (XEXP (XEXP (XEXP (dest, 0), 1), 1))
+		          == -last_sp_adjust)))
+	      && XEXP (XEXP (dest, 0), 0) == stack_pointer_rtx
+	      && ! reg_mentioned_p (stack_pointer_rtx, src)
+	      && memory_address_p (GET_MODE (dest), stack_pointer_rtx)
+	      && validate_change (insn, &SET_DEST (set),
+				  replace_equiv_address (dest,
+							 stack_pointer_rtx),
+				  0))
+	    {
+	      if (last_sp_set == bb->head)
+		bb->head = NEXT_INSN (last_sp_set);
+	      delete_insn (last_sp_set);
+
+	      free_csa_memlist (memlist);
+	      memlist = NULL;
+	      last_sp_set = NULL_RTX;
+	      last_sp_adjust = 0;
+	      goto processed;
+	    }
+	}
+
+      data.insn = insn;
+      data.memlist = memlist;
+      if (GET_CODE (insn) != CALL_INSN && last_sp_set
+	  && !for_each_rtx (&PATTERN (insn), record_stack_memrefs, &data))
+	{
+	   memlist = data.memlist;
+	   goto processed;
+	}
+      memlist = data.memlist;
+
+      /* Otherwise, we were not able to process the instruction.
+	 Do not continue collecting data across such a one.  */
+      if (last_sp_set
+	  && (GET_CODE (insn) == CALL_INSN
+	      || reg_mentioned_p (stack_pointer_rtx, PATTERN (insn))))
+	{
+	  free_csa_memlist (memlist);
+	  memlist = NULL;
+	  last_sp_set = NULL_RTX;
+	  last_sp_adjust = 0;
+	}
+
+    processed:
+      if (insn == bb->end)
+	break;
+
+      if (pending_delete)
+	delete_insn (pending_delete);
+    }
+
+  if (pending_delete)
+    delete_insn (pending_delete);
 }

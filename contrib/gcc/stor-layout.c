@@ -1,60 +1,64 @@
 /* C-compiler utilities for types and variables storage layout
-   Copyright (C) 1987, 88, 92-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1992, 1993, 1994, 1995, 1996, 1996, 1998,
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 
 #include "config.h"
 #include "system.h"
-
 #include "tree.h"
 #include "rtl.h"
+#include "tm_p.h"
 #include "flags.h"
-#include "except.h"
 #include "function.h"
 #include "expr.h"
 #include "toplev.h"
+#include "ggc.h"
 
-#define CEIL(x,y) (((x) + (y) - 1) / (y))
+/* Set to one when set_sizetype has been called.  */
+static int sizetype_set;
+
+/* List of types created before set_sizetype has been called.  We do not
+   make this a GGC root since we want these nodes to be reclaimed.  */
+static tree early_type_list;
 
 /* Data type for the expressions representing sizes of data types.
    It is the first integer type laid out.  */
-
-struct sizetype_tab sizetype_tab;
-
-/* An integer constant with value 0 whose type is sizetype.  */
-
-tree size_zero_node;
-
-/* An integer constant with value 1 whose type is sizetype.  */
-
-tree size_one_node;
+tree sizetype_tab[(int) TYPE_KIND_LAST];
 
 /* If nonzero, this is an upper limit on alignment of structure fields.
    The value is measured in bits.  */
-int maximum_field_alignment;
+unsigned int maximum_field_alignment;
 
 /* If non-zero, the alignment of a bitstring or (power-)set value, in bits.
    May be overridden by front-ends.  */
-int set_alignment = 0;
+unsigned int set_alignment = 0;
 
-static tree layout_record	PROTO((tree));
-static void layout_union	PROTO((tree));
+/* Nonzero if all REFERENCE_TYPEs are internal and hence should be
+   allocated in Pmode, not ptr_mode.   Set only by internal_reference_types
+   called only by a front end.  */
+static int reference_types_internal = 0;
+
+static void finalize_record_size	PARAMS ((record_layout_info));
+static void finalize_type_size		PARAMS ((tree));
+static void place_union_field		PARAMS ((record_layout_info, tree));
+extern void debug_rli			PARAMS ((record_layout_info));
 
 /* SAVE_EXPRs for sizes of types and decls, waiting to be expanded.  */
 
@@ -65,6 +69,17 @@ static tree pending_sizes;
 
 int immediate_size_expand;
 
+/* Show that REFERENCE_TYPES are internal and should be Pmode.  Called only
+   by front end.  */
+
+void
+internal_reference_types ()
+{
+  reference_types_internal = 1;
+}
+
+/* Get a list of all the objects put on the pending sizes list.  */
+
 tree
 get_pending_sizes ()
 {
@@ -74,9 +89,44 @@ get_pending_sizes ()
   /* Put each SAVE_EXPR into the current function.  */
   for (t = chain; t; t = TREE_CHAIN (t))
     SAVE_EXPR_CONTEXT (TREE_VALUE (t)) = current_function_decl;
+
   pending_sizes = 0;
   return chain;
 }
+
+/* Return non-zero if EXPR is present on the pending sizes list.  */
+
+int
+is_pending_size (expr)
+     tree expr;
+{
+  tree t;
+
+  for (t = pending_sizes; t; t = TREE_CHAIN (t))
+    if (TREE_VALUE (t) == expr)
+      return 1;
+  return 0;
+}
+
+/* Add EXPR to the pending sizes list.  */
+
+void
+put_pending_size (expr)
+     tree expr;
+{
+  /* Strip any simple arithmetic from EXPR to see if it has an underlying
+     SAVE_EXPR.  */
+  while (TREE_CODE_CLASS (TREE_CODE (expr)) == '1'
+	 || (TREE_CODE_CLASS (TREE_CODE (expr)) == '2'
+	    && TREE_CONSTANT (TREE_OPERAND (expr, 1))))
+    expr = TREE_OPERAND (expr, 0);
+
+  if (TREE_CODE (expr) == SAVE_EXPR)
+    pending_sizes = tree_cons (NULL_TREE, expr, pending_sizes);
+}
+
+/* Put a chain of objects into the pending sizes list, which must be
+   empty.  */
 
 void
 put_pending_sizes (chain)
@@ -97,12 +147,24 @@ variable_size (size)
 {
   /* If the language-processor is to take responsibility for variable-sized
      items (e.g., languages which have elaboration procedures like Ada),
-     just return SIZE unchanged.  Likewise for self-referential sizes.  */
+     just return SIZE unchanged.  Likewise for self-referential sizes and
+     constant sizes.  */
   if (TREE_CONSTANT (size)
       || global_bindings_p () < 0 || contains_placeholder_p (size))
     return size;
 
   size = save_expr (size);
+
+  /* If an array with a variable number of elements is declared, and
+     the elements require destruction, we will emit a cleanup for the
+     array.  That cleanup is run both on normal exit from the block
+     and in the exception-handler for the block.  Normally, when code
+     is used in both ordinary code and in an exception handler it is
+     `unsaved', i.e., all SAVE_EXPRs are recalculated.  However, we do
+     not wish to do that here; the array-size is the same in both
+     places.  */
+  if (TREE_CODE (size) == SAVE_EXPR)
+    SAVE_EXPR_PERSISTENT_P (size) = 1;
 
   if (global_bindings_p ())
     {
@@ -111,16 +173,20 @@ variable_size (size)
       else
 	error ("variable-size type declared outside of any function");
 
-      return size_int (1);
+      return size_one_node;
     }
 
   if (immediate_size_expand)
     /* NULL_RTX is not defined; neither is the rtx type. 
        Also, we would like to pass const0_rtx here, but don't have it.  */
-    expand_expr (size, expand_expr (integer_zero_node, NULL_PTR, VOIDmode, 0),
+    expand_expr (size, expand_expr (integer_zero_node, NULL_RTX, VOIDmode, 0),
 		 VOIDmode, 0);
+  else if (cfun != 0 && cfun->x_dont_save_pending_sizes_p)
+    /* The front-end doesn't want us to keep a list of the expressions
+       that determine sizes for variable size objects.  */
+    ;
   else
-    pending_sizes = tree_cons (NULL_TREE, size, pending_sizes);
+    put_pending_size (size);
 
   return size;
 }
@@ -140,18 +206,36 @@ mode_for_size (size, class, limit)
      enum mode_class class;
      int limit;
 {
-  register enum machine_mode mode;
+  enum machine_mode mode;
 
-  if (limit && size > (unsigned int)(MAX_FIXED_MODE_SIZE))
+  if (limit && size > MAX_FIXED_MODE_SIZE)
     return BLKmode;
 
   /* Get the first mode which has this size, in the specified class.  */
   for (mode = GET_CLASS_NARROWEST_MODE (class); mode != VOIDmode;
        mode = GET_MODE_WIDER_MODE (mode))
-    if ((unsigned int)GET_MODE_BITSIZE (mode) == size)
+    if (GET_MODE_BITSIZE (mode) == size)
       return mode;
 
   return BLKmode;
+}
+
+/* Similar, except passed a tree node.  */
+
+enum machine_mode
+mode_for_size_tree (size, class, limit)
+     tree size;
+     enum mode_class class;
+     int limit;
+{
+  if (TREE_CODE (size) != INTEGER_CST
+      /* What we really want to say here is that the size can fit in a
+	 host integer, but we know there's no way we'd find a mode for
+	 this many bits, so there's no point in doing the precise test.  */
+      || compare_tree_int (size, 1000) > 0)
+    return BLKmode;
+  else
+    return mode_for_size (TREE_INT_CST_LOW (size), class, limit);
 }
 
 /* Similar, but never return BLKmode; return the narrowest mode that
@@ -162,13 +246,13 @@ smallest_mode_for_size (size, class)
      unsigned int size;
      enum mode_class class;
 {
-  register enum machine_mode mode;
+  enum machine_mode mode;
 
   /* Get the first mode which has at least this size, in the
      specified class.  */
   for (mode = GET_CLASS_NARROWEST_MODE (class); mode != VOIDmode;
        mode = GET_MODE_WIDER_MODE (mode))
-    if ((unsigned int)GET_MODE_BITSIZE (mode) >= size)
+    if (GET_MODE_BITSIZE (mode) >= size)
       return mode;
 
   abort ();
@@ -189,32 +273,48 @@ int_mode_for_mode (mode)
     case MODE_COMPLEX_INT:
     case MODE_COMPLEX_FLOAT:
     case MODE_FLOAT:
+    case MODE_VECTOR_INT:
+    case MODE_VECTOR_FLOAT:
       mode = mode_for_size (GET_MODE_BITSIZE (mode), MODE_INT, 0);
       break;
 
     case MODE_RANDOM:
       if (mode == BLKmode)
         break;
-      /* FALLTHRU */
+
+      /* ... fall through ...  */
 
     case MODE_CC:
     default:
-      abort();
+      abort ();
     }
 
   return mode;
 }
 
-/* Return the value of VALUE, rounded up to a multiple of DIVISOR.  */
+/* Return the value of VALUE, rounded up to a multiple of DIVISOR.
+   This can only be applied to objects of a sizetype.  */
 
 tree
 round_up (value, divisor)
      tree value;
      int divisor;
 {
-  return size_binop (MULT_EXPR,
-		     size_binop (CEIL_DIV_EXPR, value, size_int (divisor)),
-		     size_int (divisor));
+  tree arg = size_int_type (divisor, TREE_TYPE (value));
+
+  return size_binop (MULT_EXPR, size_binop (CEIL_DIV_EXPR, value, arg), arg);
+}
+
+/* Likewise, but round down.  */
+
+tree
+round_down (value, divisor)
+     tree value;
+     int divisor;
+{
+  tree arg = size_int_type (divisor, TREE_TYPE (value));
+
+  return size_binop (MULT_EXPR, size_binop (FLOOR_DIV_EXPR, value, arg), arg);
 }
 
 /* Set the size, mode and alignment of a ..._DECL node.
@@ -233,465 +333,980 @@ round_up (value, divisor)
 void
 layout_decl (decl, known_align)
      tree decl;
-     unsigned known_align;
+     unsigned int known_align;
 {
-  register tree type = TREE_TYPE (decl);
-  register enum tree_code code = TREE_CODE (decl);
-  int spec_size = DECL_FIELD_SIZE (decl);
+  tree type = TREE_TYPE (decl);
+  enum tree_code code = TREE_CODE (decl);
 
   if (code == CONST_DECL)
     return;
-
-  if (code != VAR_DECL && code != PARM_DECL && code != RESULT_DECL
-      && code != FIELD_DECL && code != TYPE_DECL)
+  else if (code != VAR_DECL && code != PARM_DECL && code != RESULT_DECL
+	   && code != TYPE_DECL && code != FIELD_DECL)
     abort ();
 
   if (type == error_mark_node)
-    {
-      type = void_type_node;
-      spec_size = 0;
-    }
+    type = void_type_node;
 
-  /* Usually the size and mode come from the data type without change.  */
+  /* Usually the size and mode come from the data type without change,
+     however, the front-end may set the explicit width of the field, so its
+     size may not be the same as the size of its type.  This happens with
+     bitfields, of course (an `int' bitfield may be only 2 bits, say), but it
+     also happens with other fields.  For example, the C++ front-end creates
+     zero-sized fields corresponding to empty base classes, and depends on
+     layout_type setting DECL_FIELD_BITPOS correctly for the field.  Set the
+     size in bytes from the size in bits.  If we have already set the mode,
+     don't set it again since we can be called twice for FIELD_DECLs.  */
 
-  DECL_MODE (decl) = TYPE_MODE (type);
   TREE_UNSIGNED (decl) = TREE_UNSIGNED (type);
+  if (DECL_MODE (decl) == VOIDmode)
+    DECL_MODE (decl) = TYPE_MODE (type);
+
   if (DECL_SIZE (decl) == 0)
-    DECL_SIZE (decl) = TYPE_SIZE (type);
-
-  if (code == FIELD_DECL && DECL_BIT_FIELD (decl))
     {
-      if (spec_size == 0 && DECL_NAME (decl) != 0)
-	abort ();
-
-      /* Size is specified number of bits.  */
-      DECL_SIZE (decl) = size_int (spec_size);
+      DECL_SIZE (decl) = TYPE_SIZE (type);
+      DECL_SIZE_UNIT (decl) = TYPE_SIZE_UNIT (type);
     }
+  else
+    DECL_SIZE_UNIT (decl)
+      = convert (sizetype, size_binop (CEIL_DIV_EXPR, DECL_SIZE (decl),
+				       bitsize_unit_node));
+
   /* Force alignment required for the data type.
      But if the decl itself wants greater alignment, don't override that.
      Likewise, if the decl is packed, don't override it.  */
-  else if (DECL_ALIGN (decl) == 0
-	   || (! DECL_PACKED (decl) &&  TYPE_ALIGN (type) > DECL_ALIGN (decl)))
-    DECL_ALIGN (decl) = TYPE_ALIGN (type);
+  if (! (code == FIELD_DECL && DECL_BIT_FIELD (decl))
+      && (DECL_ALIGN (decl) == 0
+	  || (! (code == FIELD_DECL && DECL_PACKED (decl))
+	      && TYPE_ALIGN (type) > DECL_ALIGN (decl))))
+    {	      
+      DECL_ALIGN (decl) = TYPE_ALIGN (type);
+      DECL_USER_ALIGN (decl) = 0;
+    }
 
-  /* See if we can use an ordinary integer mode for a bit-field.  */
-  /* Conditions are: a fixed size that is correct for another mode
-     and occupying a complete byte or bytes on proper boundary.  */
+  /* For fields, set the bit field type and update the alignment.  */
   if (code == FIELD_DECL)
     {
       DECL_BIT_FIELD_TYPE (decl) = DECL_BIT_FIELD (decl) ? type : 0;
       if (maximum_field_alignment != 0)
-	DECL_ALIGN (decl) = MIN (DECL_ALIGN (decl),
-				 (unsigned)maximum_field_alignment);
-      else if (DECL_PACKED (decl))
-	DECL_ALIGN (decl) = MIN (DECL_ALIGN (decl), BITS_PER_UNIT);
+	DECL_ALIGN (decl) = MIN (DECL_ALIGN (decl), maximum_field_alignment);
+
+      /* If the field is of variable size, we can't misalign it since we
+	 have no way to make a temporary to align the result.  But this
+	 isn't an issue if the decl is not addressable.  Likewise if it
+	 is of unknown size.  */
+      else if (DECL_PACKED (decl)
+	       && (DECL_NONADDRESSABLE_P (decl)
+		   || DECL_SIZE_UNIT (decl) == 0
+		   || TREE_CODE (DECL_SIZE_UNIT (decl)) == INTEGER_CST))
+	{
+	  DECL_ALIGN (decl) = MIN (DECL_ALIGN (decl), BITS_PER_UNIT);
+	  DECL_USER_ALIGN (decl) = 0;
+	}
     }
 
-  if (DECL_BIT_FIELD (decl)
+  /* See if we can use an ordinary integer mode for a bit-field. 
+     Conditions are: a fixed size that is correct for another mode
+     and occupying a complete byte or bytes on proper boundary.  */
+  if (code == FIELD_DECL && DECL_BIT_FIELD (decl)
       && TYPE_SIZE (type) != 0
       && TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
       && GET_MODE_CLASS (TYPE_MODE (type)) == MODE_INT)
     {
-      register enum machine_mode xmode
-	= mode_for_size (TREE_INT_CST_LOW (DECL_SIZE (decl)), MODE_INT, 1);
+      enum machine_mode xmode
+	= mode_for_size_tree (DECL_SIZE (decl), MODE_INT, 1);
 
-      if (xmode != BLKmode
-	  && known_align % GET_MODE_ALIGNMENT (xmode) == 0)
+      if (xmode != BLKmode && known_align >= GET_MODE_ALIGNMENT (xmode))
 	{
-	  DECL_ALIGN (decl) = MAX ((unsigned) GET_MODE_ALIGNMENT (xmode),
+	  DECL_ALIGN (decl) = MAX (GET_MODE_ALIGNMENT (xmode),
 				   DECL_ALIGN (decl));
 	  DECL_MODE (decl) = xmode;
-	  DECL_SIZE (decl) = size_int (GET_MODE_BITSIZE (xmode));
-	  /* This no longer needs to be accessed as a bit field.  */
 	  DECL_BIT_FIELD (decl) = 0;
 	}
     }
 
   /* Turn off DECL_BIT_FIELD if we won't need it set.  */
-  if (DECL_BIT_FIELD (decl) && TYPE_MODE (type) == BLKmode
-      && known_align % TYPE_ALIGN (type) == 0
-      && DECL_SIZE (decl) != 0
-      && (TREE_CODE (DECL_SIZE (decl)) != INTEGER_CST
-	  || (TREE_INT_CST_LOW (DECL_SIZE (decl)) % BITS_PER_UNIT) == 0)
-      && DECL_ALIGN (decl) >= TYPE_ALIGN (type))
+  if (code == FIELD_DECL && DECL_BIT_FIELD (decl)
+      && TYPE_MODE (type) == BLKmode && DECL_MODE (decl) == BLKmode
+      && known_align >= TYPE_ALIGN (type)
+      && DECL_ALIGN (decl) >= TYPE_ALIGN (type)
+      && DECL_SIZE_UNIT (decl) != 0)
     DECL_BIT_FIELD (decl) = 0;
 
   /* Evaluate nonconstant size only once, either now or as soon as safe.  */
   if (DECL_SIZE (decl) != 0 && TREE_CODE (DECL_SIZE (decl)) != INTEGER_CST)
     DECL_SIZE (decl) = variable_size (DECL_SIZE (decl));
+  if (DECL_SIZE_UNIT (decl) != 0
+      && TREE_CODE (DECL_SIZE_UNIT (decl)) != INTEGER_CST)
+    DECL_SIZE_UNIT (decl) = variable_size (DECL_SIZE_UNIT (decl));
+
+  /* If requested, warn about definitions of large data objects.  */
+  if (warn_larger_than
+      && (code == VAR_DECL || code == PARM_DECL)
+      && ! DECL_EXTERNAL (decl))
+    {
+      tree size = DECL_SIZE_UNIT (decl);
+
+      if (size != 0 && TREE_CODE (size) == INTEGER_CST
+	  && compare_tree_int (size, larger_than_size) > 0)
+	{
+	  unsigned int size_as_int = TREE_INT_CST_LOW (size);
+
+	  if (compare_tree_int (size, size_as_int) == 0)
+	    warning_with_decl (decl, "size of `%s' is %d bytes", size_as_int);
+	  else
+	    warning_with_decl (decl, "size of `%s' is larger than %d bytes",
+			       larger_than_size);
+	}
+    }
 }
 
-/* Lay out a RECORD_TYPE type (a C struct).
-   This means laying out the fields, determining their positions,
-   and computing the overall size and required alignment of the record.
-   Note that if you set the TYPE_ALIGN before calling this
-   then the struct is aligned to at least that boundary.
+/* Hook for a front-end function that can modify the record layout as needed
+   immediately before it is finalized.  */
 
-   If the type has basetypes, you must call layout_basetypes
-   before calling this function.
+void (*lang_adjust_rli) PARAMS ((record_layout_info)) = 0;
 
-   The return value is a list of static members of the record.
-   They still need to be laid out.  */
-
-static tree
-layout_record (rec)
-     tree rec;
+void
+set_lang_adjust_rli (f)
+     void (*f) PARAMS ((record_layout_info));
 {
-  register tree field;
-  unsigned record_align = MAX (BITS_PER_UNIT, TYPE_ALIGN (rec));
-  /* These must be laid out *after* the record is.  */
-  tree pending_statics = NULL_TREE;
-  /* Record size so far is CONST_SIZE + VAR_SIZE bits,
-     where CONST_SIZE is an integer
-     and VAR_SIZE is a tree expression.
-     If VAR_SIZE is null, the size is just CONST_SIZE.
-     Naturally we try to avoid using VAR_SIZE.  */
- register HOST_WIDE_INT const_size = 0;
-  register tree var_size = 0;
-  /* Once we start using VAR_SIZE, this is the maximum alignment
-     that we know VAR_SIZE has.  */
-  register int var_align = BITS_PER_UNIT;
+  lang_adjust_rli = f;
+}
+
+/* Begin laying out type T, which may be a RECORD_TYPE, UNION_TYPE, or
+   QUAL_UNION_TYPE.  Return a pointer to a struct record_layout_info which
+   is to be passed to all other layout functions for this record.  It is the
+   responsibility of the caller to call `free' for the storage returned. 
+   Note that garbage collection is not permitted until we finish laying
+   out the record.  */
+
+record_layout_info
+start_record_layout (t)
+     tree t;
+{
+  record_layout_info rli 
+    = (record_layout_info) xmalloc (sizeof (struct record_layout_info_s));
+
+  rli->t = t;
+
+  /* If the type has a minimum specified alignment (via an attribute
+     declaration, for example) use it -- otherwise, start with a
+     one-byte alignment.  */
+  rli->record_align = MAX (BITS_PER_UNIT, TYPE_ALIGN (t));
+  rli->unpacked_align = rli->unpadded_align = rli->record_align;
+  rli->offset_align = MAX (rli->record_align, BIGGEST_ALIGNMENT);
 
 #ifdef STRUCTURE_SIZE_BOUNDARY
   /* Packed structures don't need to have minimum size.  */
-  if (! TYPE_PACKED (rec))
-    record_align = MAX (record_align, STRUCTURE_SIZE_BOUNDARY);
+  if (! TYPE_PACKED (t))
+    rli->record_align = MAX (rli->record_align, STRUCTURE_SIZE_BOUNDARY);
 #endif
 
-  for (field = TYPE_FIELDS (rec); field; field = TREE_CHAIN (field))
+  rli->offset = size_zero_node;
+  rli->bitpos = bitsize_zero_node;
+  rli->pending_statics = 0;
+  rli->packed_maybe_necessary = 0;
+
+  return rli;
+}
+
+/* These four routines perform computations that convert between
+   the offset/bitpos forms and byte and bit offsets.  */
+
+tree
+bit_from_pos (offset, bitpos)
+     tree offset, bitpos;
+{
+  return size_binop (PLUS_EXPR, bitpos,
+		     size_binop (MULT_EXPR, convert (bitsizetype, offset),
+				 bitsize_unit_node));
+}
+
+tree
+byte_from_pos (offset, bitpos)
+     tree offset, bitpos;
+{
+  return size_binop (PLUS_EXPR, offset,
+		     convert (sizetype,
+			      size_binop (TRUNC_DIV_EXPR, bitpos,
+					  bitsize_unit_node)));
+}
+
+void
+pos_from_byte (poffset, pbitpos, off_align, pos)
+     tree *poffset, *pbitpos;
+     unsigned int off_align;
+     tree pos;
+{
+  *poffset
+    = size_binop (MULT_EXPR,
+		  convert (sizetype,
+			   size_binop (FLOOR_DIV_EXPR, pos,
+				       bitsize_int (off_align
+						    / BITS_PER_UNIT))),
+		  size_int (off_align / BITS_PER_UNIT));
+  *pbitpos = size_binop (MULT_EXPR,
+			 size_binop (FLOOR_MOD_EXPR, pos,
+				     bitsize_int (off_align / BITS_PER_UNIT)),
+			 bitsize_unit_node);
+}
+
+void
+pos_from_bit (poffset, pbitpos, off_align, pos)
+     tree *poffset, *pbitpos;
+     unsigned int off_align;
+     tree pos;
+{
+  *poffset = size_binop (MULT_EXPR,
+			 convert (sizetype,
+				  size_binop (FLOOR_DIV_EXPR, pos,
+					      bitsize_int (off_align))),
+			 size_int (off_align / BITS_PER_UNIT));
+  *pbitpos = size_binop (FLOOR_MOD_EXPR, pos, bitsize_int (off_align));
+}
+
+/* Given a pointer to bit and byte offsets and an offset alignment,
+   normalize the offsets so they are within the alignment.  */
+
+void
+normalize_offset (poffset, pbitpos, off_align)
+     tree *poffset, *pbitpos;
+     unsigned int off_align;
+{
+  /* If the bit position is now larger than it should be, adjust it
+     downwards.  */
+  if (compare_tree_int (*pbitpos, off_align) >= 0)
     {
-      register int known_align = var_size ? var_align : const_size;
-      register int desired_align = 0;
+      tree extra_aligns = size_binop (FLOOR_DIV_EXPR, *pbitpos,
+				      bitsize_int (off_align));
 
-      /* If FIELD is static, then treat it like a separate variable,
-	 not really like a structure field.
-	 If it is a FUNCTION_DECL, it's a method.
-	 In both cases, all we do is lay out the decl,
-	 and we do it *after* the record is laid out.  */
+      *poffset
+	= size_binop (PLUS_EXPR, *poffset,
+		      size_binop (MULT_EXPR, convert (sizetype, extra_aligns),
+				  size_int (off_align / BITS_PER_UNIT)));
+				
+      *pbitpos
+	= size_binop (FLOOR_MOD_EXPR, *pbitpos, bitsize_int (off_align));
+    }
+}
 
-      if (TREE_CODE (field) == VAR_DECL)
-	{
-	  pending_statics = tree_cons (NULL_TREE, field, pending_statics);
-	  continue;
-	}
-      /* Enumerators and enum types which are local to this class need not
-	 be laid out.  Likewise for initialized constant fields.  */
-      if (TREE_CODE (field) != FIELD_DECL)
-	continue;
+/* Print debugging information about the information in RLI.  */
 
-      /* Lay out the field so we know what alignment it needs.
-	 For a packed field, use the alignment as specified,
-	 disregarding what the type would want.  */
-      if (DECL_PACKED (field))
-	desired_align = DECL_ALIGN (field);
-      layout_decl (field, known_align);
-      if (! DECL_PACKED (field))
-	desired_align = DECL_ALIGN (field);
-      /* Some targets (i.e. VMS) limit struct field alignment
-	 to a lower boundary than alignment of variables.  */
+void
+debug_rli (rli)
+     record_layout_info rli;
+{
+  print_node_brief (stderr, "type", rli->t, 0);
+  print_node_brief (stderr, "\noffset", rli->offset, 0);
+  print_node_brief (stderr, " bitpos", rli->bitpos, 0);
+
+  fprintf (stderr, "\naligns: rec = %u, unpack = %u, unpad = %u, off = %u\n",
+	   rli->record_align, rli->unpacked_align, rli->unpadded_align,
+	   rli->offset_align);
+  if (rli->packed_maybe_necessary)
+    fprintf (stderr, "packed may be necessary\n");
+
+  if (rli->pending_statics)
+    {
+      fprintf (stderr, "pending statics:\n");
+      debug_tree (rli->pending_statics);
+    }
+}
+
+/* Given an RLI with a possibly-incremented BITPOS, adjust OFFSET and
+   BITPOS if necessary to keep BITPOS below OFFSET_ALIGN.  */
+
+void
+normalize_rli (rli)
+     record_layout_info rli;
+{
+  normalize_offset (&rli->offset, &rli->bitpos, rli->offset_align);
+}
+
+/* Returns the size in bytes allocated so far.  */
+
+tree
+rli_size_unit_so_far (rli)
+     record_layout_info rli;
+{
+  return byte_from_pos (rli->offset, rli->bitpos);
+}
+
+/* Returns the size in bits allocated so far.  */
+
+tree
+rli_size_so_far (rli)
+     record_layout_info rli;
+{
+  return bit_from_pos (rli->offset, rli->bitpos);
+}
+
+/* Called from place_field to handle unions.  */
+
+static void
+place_union_field (rli, field)
+     record_layout_info rli;
+     tree field;
+{
+  unsigned int desired_align;
+
+  layout_decl (field, 0);
+  
+  DECL_FIELD_OFFSET (field) = size_zero_node;
+  DECL_FIELD_BIT_OFFSET (field) = bitsize_zero_node;
+  SET_DECL_OFFSET_ALIGN (field, BIGGEST_ALIGNMENT);
+
+  desired_align = DECL_ALIGN (field);
+
 #ifdef BIGGEST_FIELD_ALIGNMENT
-      desired_align = MIN (desired_align, BIGGEST_FIELD_ALIGNMENT);
+  /* Some targets (i.e. i386) limit union field alignment
+     to a lower boundary than alignment of variables unless
+     it was overridden by attribute aligned.  */
+  if (! DECL_USER_ALIGN (field))
+    desired_align =
+      MIN (desired_align, (unsigned) BIGGEST_FIELD_ALIGNMENT);
 #endif
+
 #ifdef ADJUST_FIELD_ALIGN
-      desired_align = ADJUST_FIELD_ALIGN (field, desired_align);
+  desired_align = ADJUST_FIELD_ALIGN (field, desired_align);
 #endif
 
-      /* Record must have at least as much alignment as any field.
-	 Otherwise, the alignment of the field within the record
-	 is meaningless.  */
+  TYPE_USER_ALIGN (rli->t) |= DECL_USER_ALIGN (field);
 
-#ifndef PCC_BITFIELD_TYPE_MATTERS
-      record_align = MAX (record_align, desired_align);
-#else
-      if (PCC_BITFIELD_TYPE_MATTERS && TREE_TYPE (field) != error_mark_node
-	  && DECL_BIT_FIELD_TYPE (field)
-	  && ! integer_zerop (TYPE_SIZE (TREE_TYPE (field))))
-	{
-	  /* For these machines, a zero-length field does not
-	     affect the alignment of the structure as a whole.
-	     It does, however, affect the alignment of the next field
-	     within the structure.  */
-	  if (! integer_zerop (DECL_SIZE (field)))
-	    record_align = MAX ((int)record_align, desired_align);
-	  else if (! DECL_PACKED (field))
-	    desired_align = TYPE_ALIGN (TREE_TYPE (field));
-	  /* A named bit field of declared type `int'
-	     forces the entire structure to have `int' alignment.  */
-	  if (DECL_NAME (field) != 0)
-	    {
-	      int type_align = TYPE_ALIGN (TREE_TYPE (field));
-	      if (maximum_field_alignment != 0)
-		type_align = MIN (type_align, maximum_field_alignment);
-	      else if (DECL_PACKED (field))
-		type_align = MIN (type_align, BITS_PER_UNIT);
-
-	      record_align = MAX ((int)record_align, type_align);
-	    }
-	}
-      else
-	record_align = MAX ((int)record_align, desired_align);
-#endif
-
-      /* Does this field automatically have alignment it needs
-	 by virtue of the fields that precede it and the record's
-	 own alignment?  */
-
-      if (const_size % desired_align != 0
-	  || (var_align % desired_align != 0
-	      && var_size != 0))
-	{
-	  /* No, we need to skip space before this field.
-	     Bump the cumulative size to multiple of field alignment.  */
-
-	  if (var_size == 0
-	      || var_align % desired_align == 0)
-	    const_size
-	      = CEIL (const_size, desired_align) * desired_align;
-	  else
-	    {
-	      if (const_size > 0)
-		var_size = size_binop (PLUS_EXPR, var_size,
-				       bitsize_int (const_size, 0L));
-	      const_size = 0;
-	      var_size = round_up (var_size, desired_align);
-	      var_align = MIN (var_align, desired_align);
-	    }
-	}
+  /* Union must be at least as aligned as any field requires.  */
+  rli->record_align = MAX (rli->record_align, desired_align);
+  rli->unpadded_align = MAX (rli->unpadded_align, desired_align);
 
 #ifdef PCC_BITFIELD_TYPE_MATTERS
-      if (PCC_BITFIELD_TYPE_MATTERS
-	  && TREE_CODE (field) == FIELD_DECL
-	  && TREE_TYPE (field) != error_mark_node
-	  && DECL_BIT_FIELD_TYPE (field)
-	  && !DECL_PACKED (field)
-	  && maximum_field_alignment == 0
-	  && !integer_zerop (DECL_SIZE (field)))
-	{
-	  int type_align = TYPE_ALIGN (TREE_TYPE (field));
-	  register tree dsize = DECL_SIZE (field);
-	  int field_size = TREE_INT_CST_LOW (dsize);
-
-	  /* A bit field may not span more units of alignment of its type
-	     than its type itself.  Advance to next boundary if necessary.  */
-	  if (((const_size + field_size + type_align - 1) / type_align
-	       - const_size / type_align)
-	      > TREE_INT_CST_LOW (TYPE_SIZE (TREE_TYPE (field))) / type_align)
-	    const_size = CEIL (const_size, type_align) * type_align;
-	}
+  /* On the m88000, a bit field of declare type `int' forces the
+     entire union to have `int' alignment.  */
+  if (PCC_BITFIELD_TYPE_MATTERS && DECL_BIT_FIELD_TYPE (field))
+    {
+      rli->record_align = MAX (rli->record_align, 
+			       TYPE_ALIGN (TREE_TYPE (field)));
+      rli->unpadded_align = MAX (rli->unpadded_align,
+				 TYPE_ALIGN (TREE_TYPE (field)));
+    }
 #endif
 
-/* No existing machine description uses this parameter.
-   So I have made it in this aspect identical to PCC_BITFIELD_TYPE_MATTERS.  */
-#ifdef BITFIELD_NBYTES_LIMITED
-      if (BITFIELD_NBYTES_LIMITED
-	  && TREE_CODE (field) == FIELD_DECL
-	  && TREE_TYPE (field) != error_mark_node
-	  && DECL_BIT_FIELD_TYPE (field)
-	  && !DECL_PACKED (field)
-	  && !integer_zerop (DECL_SIZE (field)))
+  /* We assume the union's size will be a multiple of a byte so we don't
+     bother with BITPOS.  */
+  if (TREE_CODE (rli->t) == UNION_TYPE)
+    rli->offset = size_binop (MAX_EXPR, rli->offset, DECL_SIZE_UNIT (field));
+  else if (TREE_CODE (rli->t) == QUAL_UNION_TYPE)
+    rli->offset = fold (build (COND_EXPR, sizetype, 
+			       DECL_QUALIFIER (field),
+			       DECL_SIZE_UNIT (field), rli->offset));
+}
+
+/* RLI contains information about the layout of a RECORD_TYPE.  FIELD
+   is a FIELD_DECL to be added after those fields already present in
+   T.  (FIELD is not actually added to the TYPE_FIELDS list here;
+   callers that desire that behavior must manually perform that step.)  */
+
+void
+place_field (rli, field)
+     record_layout_info rli;
+     tree field;
+{
+  /* The alignment required for FIELD.  */
+  unsigned int desired_align;
+  /* The alignment FIELD would have if we just dropped it into the
+     record as it presently stands.  */
+  unsigned int known_align;
+  unsigned int actual_align;
+  unsigned int user_align;
+  /* The type of this field.  */
+  tree type = TREE_TYPE (field);
+ 
+  if (TREE_CODE (field) == ERROR_MARK || TREE_CODE (type) == ERROR_MARK)
+      return;
+
+  /* If FIELD is static, then treat it like a separate variable, not
+     really like a structure field.  If it is a FUNCTION_DECL, it's a
+     method.  In both cases, all we do is lay out the decl, and we do
+     it *after* the record is laid out.  */
+  if (TREE_CODE (field) == VAR_DECL)
+    {
+      rli->pending_statics = tree_cons (NULL_TREE, field,
+					rli->pending_statics);
+      return;
+    }
+
+  /* Enumerators and enum types which are local to this class need not
+     be laid out.  Likewise for initialized constant fields.  */
+  else if (TREE_CODE (field) != FIELD_DECL)
+    return;
+
+  /* Unions are laid out very differently than records, so split
+     that code off to another function.  */
+  else if (TREE_CODE (rli->t) != RECORD_TYPE)
+    {
+      place_union_field (rli, field);
+      return;
+    }
+
+  /* Work out the known alignment so far.  Note that A & (-A) is the
+     value of the least-significant bit in A that is one.  */
+  if (! integer_zerop (rli->bitpos))
+    known_align = (tree_low_cst (rli->bitpos, 1)
+		   & - tree_low_cst (rli->bitpos, 1));
+  else if (integer_zerop (rli->offset))
+    known_align = BIGGEST_ALIGNMENT;
+  else if (host_integerp (rli->offset, 1))
+    known_align = (BITS_PER_UNIT
+		   * (tree_low_cst (rli->offset, 1)
+		      & - tree_low_cst (rli->offset, 1)));
+  else
+    known_align = rli->offset_align;
+
+  /* Lay out the field so we know what alignment it needs.  For a
+     packed field, use the alignment as specified, disregarding what
+     the type would want.  */
+  desired_align = DECL_ALIGN (field);
+  user_align = DECL_USER_ALIGN (field);
+  layout_decl (field, known_align);
+  if (! DECL_PACKED (field))
+    {
+      desired_align = DECL_ALIGN (field);
+      user_align = DECL_USER_ALIGN (field);
+    }
+
+  /* Some targets (i.e. i386, VMS) limit struct field alignment
+     to a lower boundary than alignment of variables unless
+     it was overridden by attribute aligned.  */
+#ifdef BIGGEST_FIELD_ALIGNMENT
+  if (! user_align)
+    desired_align
+      = MIN (desired_align, (unsigned) BIGGEST_FIELD_ALIGNMENT);
+#endif
+
+#ifdef ADJUST_FIELD_ALIGN
+  desired_align = ADJUST_FIELD_ALIGN (field, desired_align);
+#endif
+
+  /* Record must have at least as much alignment as any field.
+     Otherwise, the alignment of the field within the record is
+     meaningless.  */
+#ifdef PCC_BITFIELD_TYPE_MATTERS
+  if (PCC_BITFIELD_TYPE_MATTERS && type != error_mark_node
+      && DECL_BIT_FIELD_TYPE (field)
+      && ! integer_zerop (TYPE_SIZE (type)))
+    {
+      /* For these machines, a zero-length field does not
+	 affect the alignment of the structure as a whole.
+	 It does, however, affect the alignment of the next field
+	 within the structure.  */
+      if (! integer_zerop (DECL_SIZE (field)))
+	rli->record_align = MAX (rli->record_align, desired_align);
+      else if (! DECL_PACKED (field))
+	desired_align = TYPE_ALIGN (type);
+
+      /* A named bit field of declared type `int'
+	 forces the entire structure to have `int' alignment.  */
+      if (DECL_NAME (field) != 0)
 	{
-	  int type_align = TYPE_ALIGN (TREE_TYPE (field));
-	  register tree dsize = DECL_SIZE (field);
-	  int field_size = TREE_INT_CST_LOW (dsize);
+	  unsigned int type_align = TYPE_ALIGN (type);
 
 	  if (maximum_field_alignment != 0)
 	    type_align = MIN (type_align, maximum_field_alignment);
-	  /* ??? This test is opposite the test in the containing if
-	     statement, so this code is unreachable currently.  */
 	  else if (DECL_PACKED (field))
 	    type_align = MIN (type_align, BITS_PER_UNIT);
 
-	  /* A bit field may not span the unit of alignment of its type.
-	     Advance to next boundary if necessary.  */
-	  /* ??? This code should match the code above for the
-	     PCC_BITFIELD_TYPE_MATTERS case.  */
-	  if (const_size / type_align
-	      != (const_size + field_size - 1) / type_align)
-	    const_size = CEIL (const_size, type_align) * type_align;
+	  rli->record_align = MAX (rli->record_align, type_align);
+	  rli->unpadded_align = MAX (rli->unpadded_align, DECL_ALIGN (field));
+	  if (warn_packed)
+	    rli->unpacked_align = MAX (rli->unpacked_align, TYPE_ALIGN (type));
 	}
+    }
+  else
 #endif
-
-      /* Size so far becomes the position of this field.  */
-
-      if (var_size && const_size)
-	DECL_FIELD_BITPOS (field)
-	  = size_binop (PLUS_EXPR, var_size, bitsize_int (const_size, 0L));
-      else if (var_size)
-	DECL_FIELD_BITPOS (field) = var_size;
-      else
-	{
-	  DECL_FIELD_BITPOS (field) = size_int (const_size);
-
-	  /* If this field ended up more aligned than we thought it
-	     would be (we approximate this by seeing if its position
-	     changed), lay out the field again; perhaps we can use an
-	     integral mode for it now.  */
-	  if (known_align != const_size)
-	    layout_decl (field, const_size);
-	}
-
-      /* Now add size of this field to the size of the record.  */
-
-      {
-        register tree dsize = DECL_SIZE (field);
-
-	/* This can happen when we have an invalid nested struct definition,
-	   such as struct j { struct j { int i; } }.  The error message is
-	   printed in finish_struct.  */
-	if (dsize == 0)
-	  /* Do nothing.  */;
-	else if (TREE_CODE (dsize) == INTEGER_CST
-		 && ! TREE_CONSTANT_OVERFLOW (dsize)
-		 && TREE_INT_CST_HIGH (dsize) == 0
-		 && TREE_INT_CST_LOW (dsize) + const_size >= const_size)
-	  /* Use const_size if there's no overflow.  */
-	  const_size += TREE_INT_CST_LOW (dsize);
-	else
-	  {
-	    if (var_size == 0)
-	      var_size = dsize;
-	    else
-	      var_size = size_binop (PLUS_EXPR, var_size, dsize);
-	  }
-      }
+    {
+      rli->record_align = MAX (rli->record_align, desired_align);
+      rli->unpacked_align = MAX (rli->unpacked_align, TYPE_ALIGN (type));
+      rli->unpadded_align = MAX (rli->unpadded_align, DECL_ALIGN (field));
     }
 
-  /* Work out the total size and alignment of the record
-     as one expression and store in the record type.
-     Round it up to a multiple of the record's alignment.  */
-
-  if (var_size == 0)
+  if (warn_packed && DECL_PACKED (field))
     {
-      TYPE_SIZE (rec) = size_int (const_size);
+      if (known_align > TYPE_ALIGN (type))
+	{
+	  if (TYPE_ALIGN (type) > desired_align)
+	    {
+	      if (STRICT_ALIGNMENT)
+		warning_with_decl (field, "packed attribute causes inefficient alignment for `%s'");
+	      else
+		warning_with_decl (field, "packed attribute is unnecessary for `%s'");
+	    }
+	}
+      else
+	rli->packed_maybe_necessary = 1;
+    }
+
+  /* Does this field automatically have alignment it needs by virtue
+     of the fields that precede it and the record's own alignment?  */
+  if (known_align < desired_align)
+    {
+      /* No, we need to skip space before this field.
+	 Bump the cumulative size to multiple of field alignment.  */
+
+      if (warn_padded)
+	warning_with_decl (field, "padding struct to align `%s'");
+
+      /* If the alignment is still within offset_align, just align
+	 the bit position.  */
+      if (desired_align < rli->offset_align)
+	rli->bitpos = round_up (rli->bitpos, desired_align);
+      else
+	{
+	  /* First adjust OFFSET by the partial bits, then align.  */
+	  rli->offset
+	    = size_binop (PLUS_EXPR, rli->offset,
+			  convert (sizetype,
+				   size_binop (CEIL_DIV_EXPR, rli->bitpos,
+					       bitsize_unit_node)));
+	  rli->bitpos = bitsize_zero_node;
+
+	  rli->offset = round_up (rli->offset, desired_align / BITS_PER_UNIT);
+	}
+
+      if (! TREE_CONSTANT (rli->offset))
+	rli->offset_align = desired_align;
+
+    }
+
+  /* Handle compatibility with PCC.  Note that if the record has any
+     variable-sized fields, we need not worry about compatibility.  */
+#ifdef PCC_BITFIELD_TYPE_MATTERS
+  if (PCC_BITFIELD_TYPE_MATTERS
+      && TREE_CODE (field) == FIELD_DECL
+      && type != error_mark_node
+      && DECL_BIT_FIELD (field)
+      && ! DECL_PACKED (field)
+      && maximum_field_alignment == 0
+      && ! integer_zerop (DECL_SIZE (field))
+      && host_integerp (DECL_SIZE (field), 1)
+      && host_integerp (rli->offset, 1)
+      && host_integerp (TYPE_SIZE (type), 1))
+    {
+      unsigned int type_align = TYPE_ALIGN (type);
+      tree dsize = DECL_SIZE (field);
+      HOST_WIDE_INT field_size = tree_low_cst (dsize, 1);
+      HOST_WIDE_INT offset = tree_low_cst (rli->offset, 0);
+      HOST_WIDE_INT bit_offset = tree_low_cst (rli->bitpos, 0);
+
+      /* A bit field may not span more units of alignment of its type
+	 than its type itself.  Advance to next boundary if necessary.  */
+      if ((((offset * BITS_PER_UNIT + bit_offset + field_size +
+	     type_align - 1)
+	    / type_align)
+	   - (offset * BITS_PER_UNIT + bit_offset) / type_align)
+	  > tree_low_cst (TYPE_SIZE (type), 1) / type_align)
+	rli->bitpos = round_up (rli->bitpos, type_align);
+    }
+#endif
+
+#ifdef BITFIELD_NBYTES_LIMITED
+  if (BITFIELD_NBYTES_LIMITED
+      && TREE_CODE (field) == FIELD_DECL
+      && type != error_mark_node
+      && DECL_BIT_FIELD_TYPE (field)
+      && ! DECL_PACKED (field)
+      && ! integer_zerop (DECL_SIZE (field))
+      && host_integerp (DECL_SIZE (field), 1)
+      && host_integerp (rli->offset, 1)
+      && host_integerp (TYPE_SIZE (type), 1))
+    {
+      unsigned int type_align = TYPE_ALIGN (type);
+      tree dsize = DECL_SIZE (field);
+      HOST_WIDE_INT field_size = tree_low_cst (dsize, 1);
+      HOST_WIDE_INT offset = tree_low_cst (rli->offset, 0);
+      HOST_WIDE_INT bit_offset = tree_low_cst (rli->bitpos, 0);
+
+      if (maximum_field_alignment != 0)
+	type_align = MIN (type_align, maximum_field_alignment);
+      /* ??? This test is opposite the test in the containing if
+	 statement, so this code is unreachable currently.  */
+      else if (DECL_PACKED (field))
+	type_align = MIN (type_align, BITS_PER_UNIT);
+
+      /* A bit field may not span the unit of alignment of its type.
+	 Advance to next boundary if necessary.  */
+      /* ??? This code should match the code above for the
+	 PCC_BITFIELD_TYPE_MATTERS case.  */
+      if ((offset * BITS_PER_UNIT + bit_offset) / type_align
+	  != ((offset * BITS_PER_UNIT + bit_offset + field_size - 1)
+	      / type_align))
+	rli->bitpos = round_up (rli->bitpos, type_align);
+    }
+#endif
+
+  /* Offset so far becomes the position of this field after normalizing.  */
+  normalize_rli (rli);
+  DECL_FIELD_OFFSET (field) = rli->offset;
+  DECL_FIELD_BIT_OFFSET (field) = rli->bitpos;
+  SET_DECL_OFFSET_ALIGN (field, rli->offset_align);
+
+  TYPE_USER_ALIGN (rli->t) |= user_align;
+
+  /* If this field ended up more aligned than we thought it would be (we
+     approximate this by seeing if its position changed), lay out the field
+     again; perhaps we can use an integral mode for it now.  */
+  if (! integer_zerop (DECL_FIELD_BIT_OFFSET (field)))
+    actual_align = (tree_low_cst (DECL_FIELD_BIT_OFFSET (field), 1)
+		    & - tree_low_cst (DECL_FIELD_BIT_OFFSET (field), 1));
+  else if (integer_zerop (DECL_FIELD_OFFSET (field)))
+    actual_align = BIGGEST_ALIGNMENT;
+  else if (host_integerp (DECL_FIELD_OFFSET (field), 1))
+    actual_align = (BITS_PER_UNIT
+		   * (tree_low_cst (DECL_FIELD_OFFSET (field), 1)
+		      & - tree_low_cst (DECL_FIELD_OFFSET (field), 1)));
+  else
+    actual_align = DECL_OFFSET_ALIGN (field);
+
+  if (known_align != actual_align)
+    layout_decl (field, actual_align);
+
+  /* Now add size of this field to the size of the record.  If the size is
+     not constant, treat the field as being a multiple of bytes and just
+     adjust the offset, resetting the bit position.  Otherwise, apportion the
+     size amongst the bit position and offset.  First handle the case of an
+     unspecified size, which can happen when we have an invalid nested struct
+     definition, such as struct j { struct j { int i; } }.  The error message
+     is printed in finish_struct.  */
+  if (DECL_SIZE (field) == 0)
+    /* Do nothing.  */;
+  else if (TREE_CODE (DECL_SIZE_UNIT (field)) != INTEGER_CST
+	   || TREE_CONSTANT_OVERFLOW (DECL_SIZE_UNIT (field)))
+    {
+      rli->offset
+	= size_binop (PLUS_EXPR, rli->offset,
+		      convert (sizetype,
+			       size_binop (CEIL_DIV_EXPR, rli->bitpos,
+					   bitsize_unit_node)));
+      rli->offset
+	= size_binop (PLUS_EXPR, rli->offset, DECL_SIZE_UNIT (field));
+      rli->bitpos = bitsize_zero_node;
+      rli->offset_align = MIN (rli->offset_align, DECL_ALIGN (field));
     }
   else
     {
-      if (const_size)
-	var_size
-	  = size_binop (PLUS_EXPR, var_size, bitsize_int (const_size, 0L));
-      TYPE_SIZE (rec) = var_size;
+      rli->bitpos = size_binop (PLUS_EXPR, rli->bitpos, DECL_SIZE (field));
+      normalize_rli (rli);
     }
+}
+
+/* Assuming that all the fields have been laid out, this function uses
+   RLI to compute the final TYPE_SIZE, TYPE_ALIGN, etc. for the type
+   inidicated by RLI.  */
+
+static void
+finalize_record_size (rli)
+     record_layout_info rli;
+{
+  tree unpadded_size, unpadded_size_unit;
+
+  /* Now we want just byte and bit offsets, so set the offset alignment
+     to be a byte and then normalize.  */
+  rli->offset_align = BITS_PER_UNIT;
+  normalize_rli (rli);
 
   /* Determine the desired alignment.  */
 #ifdef ROUND_TYPE_ALIGN
-  TYPE_ALIGN (rec) = ROUND_TYPE_ALIGN (rec, TYPE_ALIGN (rec), record_align);
+  TYPE_ALIGN (rli->t) = ROUND_TYPE_ALIGN (rli->t, TYPE_ALIGN (rli->t),
+					  rli->record_align);
 #else
-  TYPE_ALIGN (rec) = MAX (TYPE_ALIGN (rec), record_align);
+  TYPE_ALIGN (rli->t) = MAX (TYPE_ALIGN (rli->t), rli->record_align);
 #endif
+
+  /* Compute the size so far.  Be sure to allow for extra bits in the
+     size in bytes.  We have guaranteed above that it will be no more
+     than a single byte.  */
+  unpadded_size = rli_size_so_far (rli);
+  unpadded_size_unit = rli_size_unit_so_far (rli);
+  if (! integer_zerop (rli->bitpos))
+    unpadded_size_unit
+      = size_binop (PLUS_EXPR, unpadded_size_unit, size_one_node);
 
   /* Record the un-rounded size in the binfo node.  But first we check
      the size of TYPE_BINFO to make sure that BINFO_SIZE is available.  */
-  if (TYPE_BINFO (rec) && TREE_VEC_LENGTH (TYPE_BINFO (rec)) > 6)
-    TYPE_BINFO_SIZE (rec) = TYPE_SIZE (rec);
+  if (TYPE_BINFO (rli->t) && TREE_VEC_LENGTH (TYPE_BINFO (rli->t)) > 6)
+    {
+      TYPE_BINFO_SIZE (rli->t) = unpadded_size;
+      TYPE_BINFO_SIZE_UNIT (rli->t) = unpadded_size_unit;
+    }
+
+    /* Round the size up to be a multiple of the required alignment */
+#ifdef ROUND_TYPE_SIZE
+  TYPE_SIZE (rli->t) = ROUND_TYPE_SIZE (rli->t, unpadded_size,
+					TYPE_ALIGN (rli->t));
+  TYPE_SIZE_UNIT (rli->t)
+    = ROUND_TYPE_SIZE_UNIT (rli->t, unpadded_size_unit,
+			    TYPE_ALIGN (rli->t) / BITS_PER_UNIT);
+#else
+  TYPE_SIZE (rli->t) = round_up (unpadded_size, TYPE_ALIGN (rli->t));
+  TYPE_SIZE_UNIT (rli->t) = round_up (unpadded_size_unit,
+				      TYPE_ALIGN (rli->t) / BITS_PER_UNIT);
+#endif
+
+  if (warn_padded && TREE_CONSTANT (unpadded_size)
+      && simple_cst_equal (unpadded_size, TYPE_SIZE (rli->t)) == 0)
+    warning ("padding struct size to alignment boundary");
+  
+  if (warn_packed && TREE_CODE (rli->t) == RECORD_TYPE
+      && TYPE_PACKED (rli->t) && ! rli->packed_maybe_necessary
+      && TREE_CONSTANT (unpadded_size))
+    {
+      tree unpacked_size;
+
+#ifdef ROUND_TYPE_ALIGN
+      rli->unpacked_align
+	= ROUND_TYPE_ALIGN (rli->t, TYPE_ALIGN (rli->t), rli->unpacked_align);
+#else
+      rli->unpacked_align = MAX (TYPE_ALIGN (rli->t), rli->unpacked_align);
+#endif
 
 #ifdef ROUND_TYPE_SIZE
-  TYPE_SIZE (rec) = ROUND_TYPE_SIZE (rec, TYPE_SIZE (rec), TYPE_ALIGN (rec));
+      unpacked_size = ROUND_TYPE_SIZE (rli->t, TYPE_SIZE (rli->t),
+				       rli->unpacked_align);
 #else
-  /* Round the size up to be a multiple of the required alignment */
-  TYPE_SIZE (rec) = round_up (TYPE_SIZE (rec), TYPE_ALIGN (rec));
+      unpacked_size = round_up (TYPE_SIZE (rli->t), rli->unpacked_align);
 #endif
 
-  return pending_statics;
+      if (simple_cst_equal (unpacked_size, TYPE_SIZE (rli->t)))
+	{
+	  TYPE_PACKED (rli->t) = 0;
+
+	  if (TYPE_NAME (rli->t))
+	    {
+	      const char *name;
+
+	      if (TREE_CODE (TYPE_NAME (rli->t)) == IDENTIFIER_NODE)
+		name = IDENTIFIER_POINTER (TYPE_NAME (rli->t));
+	      else
+		name = IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (rli->t)));
+
+	      if (STRICT_ALIGNMENT)
+		warning ("packed attribute causes inefficient alignment for `%s'", name);
+	      else
+		warning ("packed attribute is unnecessary for `%s'", name);
+	    }
+	  else
+	    {
+	      if (STRICT_ALIGNMENT)
+		warning ("packed attribute causes inefficient alignment");
+	      else
+		warning ("packed attribute is unnecessary");
+	    }
+	}
+    }
 }
-
-/* Lay out a UNION_TYPE or QUAL_UNION_TYPE type.
-   Lay out all the fields, set their positions to zero,
-   and compute the size and alignment of the union (maximum of any field).
-   Note that if you set the TYPE_ALIGN before calling this
-   then the union align is aligned to at least that boundary.  */
 
-static void
-layout_union (rec)
-     tree rec;
+/* Compute the TYPE_MODE for the TYPE (which is a RECORD_TYPE).  */
+
+void
+compute_record_mode (type)
+     tree type;
 {
-  register tree field;
-  unsigned union_align = BITS_PER_UNIT;
+  tree field;
+  enum machine_mode mode = VOIDmode;
 
-  /* The size of the union, based on the fields scanned so far,
-     is max (CONST_SIZE, VAR_SIZE).
-     VAR_SIZE may be null; then CONST_SIZE by itself is the size.  */
-  register int const_size = 0;
-  register tree var_size = 0;
+  /* Most RECORD_TYPEs have BLKmode, so we start off assuming that.
+     However, if possible, we use a mode that fits in a register
+     instead, in order to allow for better optimization down the
+     line.  */
+  TYPE_MODE (type) = BLKmode;
 
-#ifdef STRUCTURE_SIZE_BOUNDARY
-  /* Packed structures don't need to have minimum size.  */
-  if (! TYPE_PACKED (rec))
-    union_align = STRUCTURE_SIZE_BOUNDARY;
-#endif
+  if (! host_integerp (TYPE_SIZE (type), 1))
+    return;
 
-  /* If this is a QUAL_UNION_TYPE, we want to process the fields in
-     the reverse order in building the COND_EXPR that denotes its
-     size.  We reverse them again later.  */
-  if (TREE_CODE (rec) == QUAL_UNION_TYPE)
-    TYPE_FIELDS (rec) = nreverse (TYPE_FIELDS (rec));
-
-  for (field = TYPE_FIELDS (rec); field; field = TREE_CHAIN (field))
+  /* A record which has any BLKmode members must itself be
+     BLKmode; it can't go in a register.  Unless the member is
+     BLKmode only because it isn't aligned.  */
+  for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
     {
-      /* Enums which are local to this class need not be laid out.  */
-      if (TREE_CODE (field) == CONST_DECL || TREE_CODE (field) == TYPE_DECL)
+      unsigned HOST_WIDE_INT bitpos;
+
+      if (TREE_CODE (field) != FIELD_DECL)
 	continue;
 
-      layout_decl (field, 0);
-      DECL_FIELD_BITPOS (field) = bitsize_int (0L, 0L);
+      if (TREE_CODE (TREE_TYPE (field)) == ERROR_MARK
+	  || (TYPE_MODE (TREE_TYPE (field)) == BLKmode
+	      && ! TYPE_NO_FORCE_BLK (TREE_TYPE (field)))
+	  || ! host_integerp (bit_position (field), 1)
+	  || DECL_SIZE (field) == 0
+	  || ! host_integerp (DECL_SIZE (field), 1))
+	return;
 
-      /* Union must be at least as aligned as any field requires.  */
+      bitpos = int_bit_position (field);
+	  
+      /* Must be BLKmode if any field crosses a word boundary,
+	 since extract_bit_field can't handle that in registers.  */
+      if (bitpos / BITS_PER_WORD
+	  != ((tree_low_cst (DECL_SIZE (field), 1) + bitpos - 1)
+	      / BITS_PER_WORD)
+	  /* But there is no problem if the field is entire words.  */
+	  && tree_low_cst (DECL_SIZE (field), 1) % BITS_PER_WORD != 0)
+	return;
 
-      union_align = MAX (union_align, DECL_ALIGN (field));
+      /* If this field is the whole struct, remember its mode so
+	 that, say, we can put a double in a class into a DF
+	 register instead of forcing it to live in the stack.  */
+      if (simple_cst_equal (TYPE_SIZE (type), DECL_SIZE (field)))
+	mode = DECL_MODE (field);
 
-#ifdef PCC_BITFIELD_TYPE_MATTERS
-      /* On the m88000, a bit field of declare type `int'
-	 forces the entire union to have `int' alignment.  */
-      if (PCC_BITFIELD_TYPE_MATTERS && DECL_BIT_FIELD_TYPE (field))
-	union_align = MAX (union_align, TYPE_ALIGN (TREE_TYPE (field)));
-#endif
+#ifdef MEMBER_TYPE_FORCES_BLK
+      /* With some targets, eg. c4x, it is sub-optimal
+	 to access an aligned BLKmode structure as a scalar.  */
 
-      if (TREE_CODE (rec) == UNION_TYPE)
-	{
-	  /* Set union_size to max (decl_size, union_size).
-	     There are more and less general ways to do this.
-	     Use only CONST_SIZE unless forced to use VAR_SIZE.  */
+      /* On ia64-*-hpux we need to ensure that we don't change the
+	 mode of a structure containing a single field or else we
+	 will pass it incorrectly.  Since a structure with a single
+	 field causes mode to get set above we can't allow the
+	 check for mode == VOIDmode in this case.  Perhaps
+	 MEMBER_TYPE_FORCES_BLK should be extended to include mode
+	 as an argument and the check could be put in there for c4x.  */
 
-	  if (TREE_CODE (DECL_SIZE (field)) == INTEGER_CST)
-	    const_size
-	      = MAX (const_size, TREE_INT_CST_LOW (DECL_SIZE (field)));
-	  else if (var_size == 0)
-	    var_size = DECL_SIZE (field);
-	  else
-	    var_size = size_binop (MAX_EXPR, var_size, DECL_SIZE (field));
-	}
-      else if (TREE_CODE (rec) == QUAL_UNION_TYPE)
-	var_size = fold (build (COND_EXPR, sizetype, DECL_QUALIFIER (field),
-				DECL_SIZE (field),
-				var_size ? var_size : bitsize_int (0L, 0L)));
-      }
+      if ((mode == VOIDmode || FUNCTION_ARG_REG_LITTLE_ENDIAN)
+	  && MEMBER_TYPE_FORCES_BLK (field))
+	return;
+#endif /* MEMBER_TYPE_FORCES_BLK  */
+    }
 
-  if (TREE_CODE (rec) == QUAL_UNION_TYPE)
-    TYPE_FIELDS (rec) = nreverse (TYPE_FIELDS (rec));
-
-  /* Determine the ultimate size of the union (in bytes).  */
-  if (NULL == var_size)
-    TYPE_SIZE (rec) = bitsize_int (CEIL (const_size, BITS_PER_UNIT)
-				   * BITS_PER_UNIT, 0L);
-  else if (const_size == 0)
-    TYPE_SIZE (rec) = var_size;
+  /* If we only have one real field; use its mode.  This only applies to
+     RECORD_TYPE.  This does not apply to unions.  */
+  if (TREE_CODE (type) == RECORD_TYPE && mode != VOIDmode)
+    TYPE_MODE (type) = mode;
   else
-    TYPE_SIZE (rec) = size_binop (MAX_EXPR, var_size,
-				  round_up (bitsize_int (const_size, 0L),
-					    BITS_PER_UNIT));
+    TYPE_MODE (type) = mode_for_size_tree (TYPE_SIZE (type), MODE_INT, 1);
 
-  /* Determine the desired alignment.  */
+  /* If structure's known alignment is less than what the scalar
+     mode would need, and it matters, then stick with BLKmode.  */
+  if (TYPE_MODE (type) != BLKmode
+      && STRICT_ALIGNMENT
+      && ! (TYPE_ALIGN (type) >= BIGGEST_ALIGNMENT
+	    || TYPE_ALIGN (type) >= GET_MODE_ALIGNMENT (TYPE_MODE (type))))
+    {
+      /* If this is the only reason this type is BLKmode, then
+	 don't force containing types to be BLKmode.  */
+      TYPE_NO_FORCE_BLK (type) = 1;
+      TYPE_MODE (type) = BLKmode;
+    }
+}
+
+/* Compute TYPE_SIZE and TYPE_ALIGN for TYPE, once it has been laid
+   out.  */
+
+static void
+finalize_type_size (type)
+     tree type;
+{
+  /* Normally, use the alignment corresponding to the mode chosen.
+     However, where strict alignment is not required, avoid
+     over-aligning structures, since most compilers do not do this
+     alignment.  */
+
+  if (TYPE_MODE (type) != BLKmode && TYPE_MODE (type) != VOIDmode
+      && (STRICT_ALIGNMENT
+	  || (TREE_CODE (type) != RECORD_TYPE && TREE_CODE (type) != UNION_TYPE
+	      && TREE_CODE (type) != QUAL_UNION_TYPE
+	      && TREE_CODE (type) != ARRAY_TYPE)))
+    {
+      TYPE_ALIGN (type) = GET_MODE_ALIGNMENT (TYPE_MODE (type));
+      TYPE_USER_ALIGN (type) = 0;
+    }
+
+  /* Do machine-dependent extra alignment.  */
 #ifdef ROUND_TYPE_ALIGN
-  TYPE_ALIGN (rec) = ROUND_TYPE_ALIGN (rec, TYPE_ALIGN (rec), union_align);
-#else
-  TYPE_ALIGN (rec) = MAX (TYPE_ALIGN (rec), union_align);
+  TYPE_ALIGN (type)
+    = ROUND_TYPE_ALIGN (type, TYPE_ALIGN (type), BITS_PER_UNIT);
 #endif
 
+  /* If we failed to find a simple way to calculate the unit size
+     of the type, find it by division.  */
+  if (TYPE_SIZE_UNIT (type) == 0 && TYPE_SIZE (type) != 0)
+    /* TYPE_SIZE (type) is computed in bitsizetype.  After the division, the
+       result will fit in sizetype.  We will get more efficient code using
+       sizetype, so we force a conversion.  */
+    TYPE_SIZE_UNIT (type)
+      = convert (sizetype,
+		 size_binop (FLOOR_DIV_EXPR, TYPE_SIZE (type),
+			     bitsize_unit_node));
+
+  if (TYPE_SIZE (type) != 0)
+    {
 #ifdef ROUND_TYPE_SIZE
-  TYPE_SIZE (rec) = ROUND_TYPE_SIZE (rec, TYPE_SIZE (rec), TYPE_ALIGN (rec));
+      TYPE_SIZE (type)
+	= ROUND_TYPE_SIZE (type, TYPE_SIZE (type), TYPE_ALIGN (type));
+      TYPE_SIZE_UNIT (type)
+	= ROUND_TYPE_SIZE_UNIT (type, TYPE_SIZE_UNIT (type),
+				TYPE_ALIGN (type) / BITS_PER_UNIT);
 #else
-  /* Round the size up to be a multiple of the required alignment */
-  TYPE_SIZE (rec) = round_up (TYPE_SIZE (rec), TYPE_ALIGN (rec));
+      TYPE_SIZE (type) = round_up (TYPE_SIZE (type), TYPE_ALIGN (type));
+      TYPE_SIZE_UNIT (type)
+	= round_up (TYPE_SIZE_UNIT (type), TYPE_ALIGN (type) / BITS_PER_UNIT);
 #endif
+    }
+
+  /* Evaluate nonconstant sizes only once, either now or as soon as safe.  */
+  if (TYPE_SIZE (type) != 0 && TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST)
+    TYPE_SIZE (type) = variable_size (TYPE_SIZE (type));
+  if (TYPE_SIZE_UNIT (type) != 0
+      && TREE_CODE (TYPE_SIZE_UNIT (type)) != INTEGER_CST)
+    TYPE_SIZE_UNIT (type) = variable_size (TYPE_SIZE_UNIT (type));
+
+  /* Also layout any other variants of the type.  */
+  if (TYPE_NEXT_VARIANT (type)
+      || type != TYPE_MAIN_VARIANT (type))
+    {
+      tree variant;
+      /* Record layout info of this variant.  */
+      tree size = TYPE_SIZE (type);
+      tree size_unit = TYPE_SIZE_UNIT (type);
+      unsigned int align = TYPE_ALIGN (type);
+      unsigned int user_align = TYPE_USER_ALIGN (type);
+      enum machine_mode mode = TYPE_MODE (type);
+
+      /* Copy it into all variants.  */
+      for (variant = TYPE_MAIN_VARIANT (type);
+	   variant != 0;
+	   variant = TYPE_NEXT_VARIANT (variant))
+	{
+	  TYPE_SIZE (variant) = size;
+	  TYPE_SIZE_UNIT (variant) = size_unit;
+	  TYPE_ALIGN (variant) = align;
+	  TYPE_USER_ALIGN (variant) = user_align;
+	  TYPE_MODE (variant) = mode;
+	}
+    }
+}
+
+/* Do all of the work required to layout the type indicated by RLI,
+   once the fields have been laid out.  This function will call `free'
+   for RLI.  */
+
+void
+finish_record_layout (rli)
+     record_layout_info rli;
+{
+  /* Compute the final size.  */
+  finalize_record_size (rli);
+
+  /* Compute the TYPE_MODE for the record.  */
+  compute_record_mode (rli->t);
+
+  /* Perform any last tweaks to the TYPE_SIZE, etc.  */
+  finalize_type_size (rli->t);
+
+  /* Lay out any static members.  This is done now because their type
+     may use the record's type.  */
+  while (rli->pending_statics)
+    {
+      layout_decl (TREE_VALUE (rli->pending_statics), 0);
+      rli->pending_statics = TREE_CHAIN (rli->pending_statics);
+    }
+
+  /* Clean up.  */
+  free (rli);
 }
 
 /* Calculate the mode, size, and alignment for TYPE.
@@ -708,25 +1323,12 @@ void
 layout_type (type)
      tree type;
 {
-  int old;
-  tree pending_statics;
-
   if (type == 0)
     abort ();
 
   /* Do nothing if type has been laid out before.  */
   if (TYPE_SIZE (type))
     return;
-
-  /* Make sure all nodes we allocate are not momentary;
-     they must last past the current statement.  */
-  old = suspend_momentary ();
-
-  /* Put all our nodes into the same obstack as the type.  Also,
-     make expressions saveable (this is a no-op for permanent types).  */
-
-  push_obstacks (TYPE_OBSTACK (type), TYPE_OBSTACK (type));
-  saveable_allocation ();
 
   switch (TREE_CODE (type))
     {
@@ -735,10 +1337,11 @@ layout_type (type)
 	 of the language-specific code.  */
       abort ();
 
-    case BOOLEAN_TYPE:  /* Used for Java, Pascal, and Chill. */
+    case BOOLEAN_TYPE:  /* Used for Java, Pascal, and Chill.  */
       if (TYPE_PRECISION (type) == 0)
-	TYPE_PRECISION (type) = 1; /* default to one byte/boolean. */
-      /* ... fall through ... */
+	TYPE_PRECISION (type) = 1; /* default to one byte/boolean.  */
+
+      /* ... fall through ...  */
 
     case INTEGER_TYPE:
     case ENUMERAL_TYPE:
@@ -749,13 +1352,13 @@ layout_type (type)
 
       TYPE_MODE (type) = smallest_mode_for_size (TYPE_PRECISION (type),
 						 MODE_INT);
-      TYPE_SIZE (type) = bitsize_int (GET_MODE_BITSIZE (TYPE_MODE (type)), 0L);
+      TYPE_SIZE (type) = bitsize_int (GET_MODE_BITSIZE (TYPE_MODE (type)));
       TYPE_SIZE_UNIT (type) = size_int (GET_MODE_SIZE (TYPE_MODE (type)));
       break;
 
     case REAL_TYPE:
       TYPE_MODE (type) = mode_for_size (TYPE_PRECISION (type), MODE_FLOAT, 0);
-      TYPE_SIZE (type) = bitsize_int (GET_MODE_BITSIZE (TYPE_MODE (type)), 0L);
+      TYPE_SIZE (type) = bitsize_int (GET_MODE_BITSIZE (TYPE_MODE (type)));
       TYPE_SIZE_UNIT (type) = size_int (GET_MODE_SIZE (TYPE_MODE (type)));
       break;
 
@@ -766,43 +1369,62 @@ layout_type (type)
 			 (TREE_CODE (TREE_TYPE (type)) == INTEGER_TYPE
 			  ? MODE_COMPLEX_INT : MODE_COMPLEX_FLOAT),
 			 0);
-      TYPE_SIZE (type) = bitsize_int (GET_MODE_BITSIZE (TYPE_MODE (type)), 0L);
+      TYPE_SIZE (type) = bitsize_int (GET_MODE_BITSIZE (TYPE_MODE (type)));
       TYPE_SIZE_UNIT (type) = size_int (GET_MODE_SIZE (TYPE_MODE (type)));
       break;
 
+    case VECTOR_TYPE:
+      {
+	tree subtype;
+
+	subtype = TREE_TYPE (type);
+	TREE_UNSIGNED (type) = TREE_UNSIGNED (subtype);
+	TYPE_SIZE (type) = bitsize_int (GET_MODE_BITSIZE (TYPE_MODE (type)));
+	TYPE_SIZE_UNIT (type) = size_int (GET_MODE_SIZE (TYPE_MODE (type)));
+      }
+      break;
+
     case VOID_TYPE:
-      TYPE_SIZE (type) = size_zero_node;
-      TYPE_SIZE_UNIT (type) = size_zero_node;
+      /* This is an incomplete type and so doesn't have a size.  */
       TYPE_ALIGN (type) = 1;
+      TYPE_USER_ALIGN (type) = 0;
       TYPE_MODE (type) = VOIDmode;
       break;
 
     case OFFSET_TYPE:
-      TYPE_SIZE (type) = bitsize_int (POINTER_SIZE, 0L);
+      TYPE_SIZE (type) = bitsize_int (POINTER_SIZE);
       TYPE_SIZE_UNIT (type) = size_int (POINTER_SIZE / BITS_PER_UNIT);
-      TYPE_MODE (type) = ptr_mode;
+      /* A pointer might be MODE_PARTIAL_INT,
+	 but ptrdiff_t must be integral.  */
+      TYPE_MODE (type) = mode_for_size (POINTER_SIZE, MODE_INT, 0);
       break;
 
     case FUNCTION_TYPE:
     case METHOD_TYPE:
       TYPE_MODE (type) = mode_for_size (2 * POINTER_SIZE, MODE_INT, 0);
-      TYPE_SIZE (type) = bitsize_int (2 * POINTER_SIZE, 0);
+      TYPE_SIZE (type) = bitsize_int (2 * POINTER_SIZE);
       TYPE_SIZE_UNIT (type) = size_int ((2 * POINTER_SIZE) / BITS_PER_UNIT);
       break;
 
     case POINTER_TYPE:
     case REFERENCE_TYPE:
-      TYPE_MODE (type) = ptr_mode;
-      TYPE_SIZE (type) = bitsize_int (POINTER_SIZE, 0L);
-      TYPE_SIZE_UNIT (type) = size_int (POINTER_SIZE / BITS_PER_UNIT);
-      TREE_UNSIGNED (type) = 1;
-      TYPE_PRECISION (type) = POINTER_SIZE;
+      {
+	int nbits = ((TREE_CODE (type) == REFERENCE_TYPE
+		      && reference_types_internal)
+		     ? GET_MODE_BITSIZE (Pmode) : POINTER_SIZE);
+
+	TYPE_MODE (type) = nbits == POINTER_SIZE ? ptr_mode : Pmode;
+	TYPE_SIZE (type) = bitsize_int (nbits);
+	TYPE_SIZE_UNIT (type) = size_int (nbits / BITS_PER_UNIT);
+	TREE_UNSIGNED (type) = 1;
+	TYPE_PRECISION (type) = nbits;
+      }
       break;
 
     case ARRAY_TYPE:
       {
-	register tree index = TYPE_DOMAIN (type);
-	register tree element = TREE_TYPE (type);
+	tree index = TYPE_DOMAIN (type);
+	tree element = TREE_TYPE (type);
 
 	build_pointer_type (element);
 
@@ -815,50 +1437,33 @@ layout_type (type)
 	    tree length;
 	    tree element_size;
 
-	    /* If UB is max (lb - 1, x), remove the MAX_EXPR since the
-	       test for negative below covers it.  */
-	    if (TREE_CODE (ub) == MAX_EXPR
-		&& TREE_CODE (TREE_OPERAND (ub, 0)) == MINUS_EXPR
-		&& integer_onep (TREE_OPERAND (TREE_OPERAND (ub, 0), 1))
-		&& operand_equal_p (TREE_OPERAND (TREE_OPERAND (ub, 0), 0),
-				    lb, 0))
-	      ub = TREE_OPERAND (ub, 1);
-	    else if (TREE_CODE (ub) == MAX_EXPR
-		     && TREE_CODE (TREE_OPERAND (ub, 1)) == MINUS_EXPR
-		     && integer_onep (TREE_OPERAND (TREE_OPERAND (ub, 1), 1))
-		     && operand_equal_p (TREE_OPERAND (TREE_OPERAND (ub, 1),
-						       0),
-					 lb, 0))
-	      ub = TREE_OPERAND (ub, 0);
-
 	    /* The initial subtraction should happen in the original type so
 	       that (possible) negative values are handled appropriately.  */
 	    length = size_binop (PLUS_EXPR, size_one_node,
-				 fold (build (MINUS_EXPR, TREE_TYPE (lb),
-					      ub, lb)));
-
-	    /* If neither bound is a constant and sizetype is signed, make
-	       sure the size is never negative.  We should really do this
-	       if *either* bound is non-constant, but this is the best
-	       compromise between C and Ada.  */
-	    if (! TREE_UNSIGNED (sizetype)
-		&& TREE_CODE (TYPE_MIN_VALUE (index)) != INTEGER_CST
-		&& TREE_CODE (TYPE_MAX_VALUE (index)) != INTEGER_CST)
-	      length = size_binop (MAX_EXPR, length, size_zero_node);
+				 convert (sizetype,
+					  fold (build (MINUS_EXPR,
+						       TREE_TYPE (lb),
+						       ub, lb))));
 
 	    /* Special handling for arrays of bits (for Chill).  */
 	    element_size = TYPE_SIZE (element);
-	    if (TYPE_PACKED (type) && INTEGRAL_TYPE_P (element))
+	    if (TYPE_PACKED (type) && INTEGRAL_TYPE_P (element)
+		&& (integer_zerop (TYPE_MAX_VALUE (element))
+		    || integer_onep (TYPE_MAX_VALUE (element)))
+		&& host_integerp (TYPE_MIN_VALUE (element), 1))
 	      {
-		HOST_WIDE_INT maxvalue, minvalue;
-		maxvalue = TREE_INT_CST_LOW (TYPE_MAX_VALUE (element));
-		minvalue = TREE_INT_CST_LOW (TYPE_MIN_VALUE (element));
+		HOST_WIDE_INT maxvalue
+		  = tree_low_cst (TYPE_MAX_VALUE (element), 1);
+		HOST_WIDE_INT minvalue
+		  = tree_low_cst (TYPE_MIN_VALUE (element), 1);
+
 		if (maxvalue - minvalue == 1
 		    && (maxvalue == 1 || maxvalue == 0))
 		  element_size = integer_one_node;
 	      }
 
-	    TYPE_SIZE (type) = size_binop (MULT_EXPR, element_size, length);
+	    TYPE_SIZE (type) = size_binop (MULT_EXPR, element_size,
+					   convert (bitsizetype, length));
 
 	    /* If we know the size of the element, calculate the total
 	       size directly, rather than do some division thing below.
@@ -868,12 +1473,9 @@ layout_type (type)
 	       Note that we can't do this in the case where the size of
 	       the elements is one bit since TYPE_SIZE_UNIT cannot be
 	       set correctly in that case.  */
-	    if (TYPE_SIZE_UNIT (element) != 0
-		&& element_size != integer_one_node)
-	      {
-	        TYPE_SIZE_UNIT (type)
-		  = size_binop (MULT_EXPR, TYPE_SIZE_UNIT (element), length);
-	      }
+	    if (TYPE_SIZE_UNIT (element) != 0 && ! integer_onep (element_size))
+	      TYPE_SIZE_UNIT (type)
+		= size_binop (MULT_EXPR, TYPE_SIZE_UNIT (element), length);
 	  }
 
 	/* Now round the alignment and size,
@@ -885,34 +1487,39 @@ layout_type (type)
 #else
 	TYPE_ALIGN (type) = MAX (TYPE_ALIGN (element), BITS_PER_UNIT);
 #endif
+	TYPE_USER_ALIGN (type) = TYPE_USER_ALIGN (element);
 
 #ifdef ROUND_TYPE_SIZE
 	if (TYPE_SIZE (type) != 0)
 	  {
-	    tree tmp;
-	    tmp = ROUND_TYPE_SIZE (type, TYPE_SIZE (type), TYPE_ALIGN (type));
+	    tree tmp
+	      = ROUND_TYPE_SIZE (type, TYPE_SIZE (type), TYPE_ALIGN (type));
+
 	    /* If the rounding changed the size of the type, remove any
 	       pre-calculated TYPE_SIZE_UNIT.  */
 	    if (simple_cst_equal (TYPE_SIZE (type), tmp) != 1)
 	      TYPE_SIZE_UNIT (type) = NULL;
+
 	    TYPE_SIZE (type) = tmp;
 	  }
 #endif
 
 	TYPE_MODE (type) = BLKmode;
 	if (TYPE_SIZE (type) != 0
-	    && TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
+#ifdef MEMBER_TYPE_FORCES_BLK
+	    && ! MEMBER_TYPE_FORCES_BLK (type)
+#endif
 	    /* BLKmode elements force BLKmode aggregate;
 	       else extract/store fields may lose.  */
 	    && (TYPE_MODE (TREE_TYPE (type)) != BLKmode
 		|| TYPE_NO_FORCE_BLK (TREE_TYPE (type))))
 	  {
 	    TYPE_MODE (type)
-	      = mode_for_size (TREE_INT_CST_LOW (TYPE_SIZE (type)),
-			       MODE_INT, 1);
+	      = mode_for_size_tree (TYPE_SIZE (type), MODE_INT, 1);
 
-	    if (STRICT_ALIGNMENT && TYPE_ALIGN (type) < BIGGEST_ALIGNMENT
-		&& (int)TYPE_ALIGN (type) < TREE_INT_CST_LOW (TYPE_SIZE (type))
+	    if (TYPE_MODE (type) != BLKmode
+		&& STRICT_ALIGNMENT && TYPE_ALIGN (type) < BIGGEST_ALIGNMENT
+		&& TYPE_ALIGN (type) < GET_MODE_ALIGNMENT (TYPE_MODE (type))
 		&& TYPE_MODE (type) != BLKmode)
 	      {
 		TYPE_NO_FORCE_BLK (type) = 1;
@@ -923,139 +1530,62 @@ layout_type (type)
       }
 
     case RECORD_TYPE:
-      pending_statics = layout_record (type);
-      TYPE_MODE (type) = BLKmode;
-      if (TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST)
-	{
-	  tree field;
-	  enum machine_mode mode = VOIDmode;
-
-	  /* A record which has any BLKmode members must itself be BLKmode;
-	     it can't go in a register.
-	     Unless the member is BLKmode only because it isn't aligned.  */
-	  for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
-	    {
-	      int bitpos;
-
-	      if (TREE_CODE (field) != FIELD_DECL)
-		continue;
-
-	      if (TYPE_MODE (TREE_TYPE (field)) == BLKmode
-		  && ! TYPE_NO_FORCE_BLK (TREE_TYPE (field)))
-		goto record_lose;
-
-	      if (TREE_CODE (DECL_FIELD_BITPOS (field)) != INTEGER_CST)
-		goto record_lose;
-
-	      bitpos = TREE_INT_CST_LOW (DECL_FIELD_BITPOS (field));
-
-	      /* Must be BLKmode if any field crosses a word boundary,
-		 since extract_bit_field can't handle that in registers.  */
-	      if (bitpos / BITS_PER_WORD
-		  != ((TREE_INT_CST_LOW (DECL_SIZE (field)) + bitpos - 1)
-		      / BITS_PER_WORD)
-		  /* But there is no problem if the field is entire words.  */
-		  && TREE_INT_CST_LOW (DECL_SIZE (field)) % BITS_PER_WORD != 0)
-		goto record_lose;
-
-	      /* If this field is the whole struct, remember its mode so
-		 that, say, we can put a double in a class into a DF
-		 register instead of forcing it to live in the stack.  */
-	      if (simple_cst_equal (TYPE_SIZE (type), DECL_SIZE (field)))
-		mode = DECL_MODE (field);
-	    }
-
-	  if (mode != VOIDmode)
-	    /* We only have one real field; use its mode.  */
-	    TYPE_MODE (type) = mode;
-	  else
-	    TYPE_MODE (type)
-	      = mode_for_size (TREE_INT_CST_LOW (TYPE_SIZE (type)),
-			       MODE_INT, 1);
-
-	  /* If structure's known alignment is less than
-	     what the scalar mode would need, and it matters,
-	     then stick with BLKmode.  */
-	  if (STRICT_ALIGNMENT
-	      && ! (TYPE_ALIGN (type) >= BIGGEST_ALIGNMENT
-		    || ((int)TYPE_ALIGN (type)
-			>= TREE_INT_CST_LOW (TYPE_SIZE (type)))))
-	    {
-	      if (TYPE_MODE (type) != BLKmode)
-		/* If this is the only reason this type is BLKmode,
-		   then don't force containing types to be BLKmode.  */
-		TYPE_NO_FORCE_BLK (type) = 1;
-	      TYPE_MODE (type) = BLKmode;
-	    }
-
-	record_lose: ;
-	}
-
-      /* Lay out any static members.  This is done now
-	 because their type may use the record's type.  */
-      while (pending_statics)
-	{
-	  layout_decl (TREE_VALUE (pending_statics), 0);
-	  pending_statics = TREE_CHAIN (pending_statics);
-	}
-      break;
-
     case UNION_TYPE:
     case QUAL_UNION_TYPE:
-      layout_union (type);
-      TYPE_MODE (type) = BLKmode;
-      if (TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
-	  /* If structure's known alignment is less than
-	     what the scalar mode would need, and it matters,
-	     then stick with BLKmode.  */
-	  && (! STRICT_ALIGNMENT
-	      || TYPE_ALIGN (type) >= BIGGEST_ALIGNMENT
-	      || (int)TYPE_ALIGN (type) >= TREE_INT_CST_LOW (TYPE_SIZE (type))))
-	{
-	  tree field;
-	  /* A union which has any BLKmode members must itself be BLKmode;
-	     it can't go in a register.
-	     Unless the member is BLKmode only because it isn't aligned.  */
-	  for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
-	    {
-	      if (TREE_CODE (field) != FIELD_DECL)
-		continue;
+      {
+	tree field;
+	record_layout_info rli;
 
-	      if (TYPE_MODE (TREE_TYPE (field)) == BLKmode
-		  && ! TYPE_NO_FORCE_BLK (TREE_TYPE (field)))
-		goto union_lose;
-	    }
+	/* Initialize the layout information.  */
+	rli = start_record_layout (type);
 
-	  TYPE_MODE (type)
-	    = mode_for_size (TREE_INT_CST_LOW (TYPE_SIZE (type)),
-			     MODE_INT, 1);
+	/* If this is a QUAL_UNION_TYPE, we want to process the fields
+	   in the reverse order in building the COND_EXPR that denotes
+	   its size.  We reverse them again later.  */
+	if (TREE_CODE (type) == QUAL_UNION_TYPE)
+	  TYPE_FIELDS (type) = nreverse (TYPE_FIELDS (type));
 
-	union_lose: ;
-	}
+	/* Place all the fields.  */
+	for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
+	  place_field (rli, field);
+
+	if (TREE_CODE (type) == QUAL_UNION_TYPE)
+	  TYPE_FIELDS (type) = nreverse (TYPE_FIELDS (type));
+
+	if (lang_adjust_rli)
+	  (*lang_adjust_rli) (rli);
+
+	/* Finish laying out the record.  */
+	finish_record_layout (rli);
+      }
       break;
 
-    case SET_TYPE:  /* Used by Chill and Pascal. */
+    case SET_TYPE:  /* Used by Chill and Pascal.  */
       if (TREE_CODE (TYPE_MAX_VALUE (TYPE_DOMAIN (type))) != INTEGER_CST
 	  || TREE_CODE (TYPE_MIN_VALUE (TYPE_DOMAIN (type))) != INTEGER_CST)
-	abort();
+	abort ();
       else
 	{
 #ifndef SET_WORD_SIZE
 #define SET_WORD_SIZE BITS_PER_WORD
 #endif
-	  int alignment = set_alignment ? set_alignment : SET_WORD_SIZE;
+	  unsigned int alignment
+	    = set_alignment ? set_alignment : SET_WORD_SIZE;
 	  int size_in_bits
 	    = (TREE_INT_CST_LOW (TYPE_MAX_VALUE (TYPE_DOMAIN (type)))
 	       - TREE_INT_CST_LOW (TYPE_MIN_VALUE (TYPE_DOMAIN (type))) + 1);
 	  int rounded_size
 	    = ((size_in_bits + alignment - 1) / alignment) * alignment;
-	  if (rounded_size > alignment)
+
+	  if (rounded_size > (int) alignment)
 	    TYPE_MODE (type) = BLKmode;
 	  else
 	    TYPE_MODE (type) = mode_for_size (alignment, MODE_INT, 1);
-	  TYPE_SIZE (type) = bitsize_int (rounded_size, 0L);
+
+	  TYPE_SIZE (type) = bitsize_int (rounded_size);
 	  TYPE_SIZE_UNIT (type) = size_int (rounded_size / BITS_PER_UNIT);
 	  TYPE_ALIGN (type) = alignment;
+	  TYPE_USER_ALIGN (type) = 0;
 	  TYPE_PRECISION (type) = size_in_bits;
 	}
       break;
@@ -1064,79 +1594,34 @@ layout_type (type)
       /* The size may vary in different languages, so the language front end
 	 should fill in the size.  */
       TYPE_ALIGN (type) = BIGGEST_ALIGNMENT;
+      TYPE_USER_ALIGN (type) = 0;
       TYPE_MODE  (type) = BLKmode;
       break;
 
     default:
       abort ();
-    } /* end switch */
-
-  /* Normally, use the alignment corresponding to the mode chosen.
-     However, where strict alignment is not required, avoid
-     over-aligning structures, since most compilers do not do this
-     alignment.  */
-
-  if (TYPE_MODE (type) != BLKmode && TYPE_MODE (type) != VOIDmode
-      && (STRICT_ALIGNMENT
-	  || (TREE_CODE (type) != RECORD_TYPE && TREE_CODE (type) != UNION_TYPE
-	      && TREE_CODE (type) != QUAL_UNION_TYPE
-	      && TREE_CODE (type) != ARRAY_TYPE)))
-    TYPE_ALIGN (type) = GET_MODE_ALIGNMENT (TYPE_MODE (type));
-
-  /* Do machine-dependent extra alignment.  */
-#ifdef ROUND_TYPE_ALIGN
-  TYPE_ALIGN (type)
-    = ROUND_TYPE_ALIGN (type, TYPE_ALIGN (type), BITS_PER_UNIT);
-#endif
-
-#ifdef ROUND_TYPE_SIZE
-  if (TYPE_SIZE (type) != 0)
-    TYPE_SIZE (type)
-      = ROUND_TYPE_SIZE (type, TYPE_SIZE (type), TYPE_ALIGN (type));
-#endif
-
-  /* Evaluate nonconstant size only once, either now or as soon as safe.  */
-  if (TYPE_SIZE (type) != 0 && TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST)
-    TYPE_SIZE (type) = variable_size (TYPE_SIZE (type));
-
-  /* If we failed to find a simple way to calculate the unit size
-     of the type above, find it by division.  */
-  if (TYPE_SIZE_UNIT (type) == 0 && TYPE_SIZE (type) != 0)
-    {
-      TYPE_SIZE_UNIT (type) = size_binop (FLOOR_DIV_EXPR, TYPE_SIZE (type),
-				          size_int (BITS_PER_UNIT));
     }
 
-  /* Once again evaluate only once, either now or as soon as safe.  */
-  if (TYPE_SIZE_UNIT (type) != 0
-      && TREE_CODE (TYPE_SIZE_UNIT (type)) != INTEGER_CST)
-    TYPE_SIZE_UNIT (type) = variable_size (TYPE_SIZE_UNIT (type));
+  /* Compute the final TYPE_SIZE, TYPE_ALIGN, etc. for TYPE.  For
+     records and unions, finish_record_layout already called this
+     function.  */
+  if (TREE_CODE (type) != RECORD_TYPE 
+      && TREE_CODE (type) != UNION_TYPE
+      && TREE_CODE (type) != QUAL_UNION_TYPE)
+    finalize_type_size (type);
 
-  /* Also layout any other variants of the type.  */
-  if (TYPE_NEXT_VARIANT (type)
-      || type != TYPE_MAIN_VARIANT (type))
-    {
-      tree variant;
-      /* Record layout info of this variant.  */
-      tree size = TYPE_SIZE (type);
-      tree size_unit = TYPE_SIZE_UNIT (type);
-      int align = TYPE_ALIGN (type);
-      enum machine_mode mode = TYPE_MODE (type);
+  /* If this type is created before sizetype has been permanently set,
+     record it so set_sizetype can fix it up.  */
+  if (! sizetype_set)
+    early_type_list = tree_cons (NULL_TREE, type, early_type_list);
 
-      /* Copy it into all variants.  */
-      for (variant = TYPE_MAIN_VARIANT (type);
-	   variant;
-	   variant = TYPE_NEXT_VARIANT (variant))
-	{
-	  TYPE_SIZE (variant) = size;
-	  TYPE_SIZE_UNIT (variant) = size_unit;
-	  TYPE_ALIGN (variant) = align;
-	  TYPE_MODE (variant) = mode;
-	}
-    }
-	
-  pop_obstacks ();
-  resume_momentary (old);
+  /* If an alias set has been set for this aggregate when it was incomplete,
+     force it into alias set 0.
+     This is too conservative, but we cannot call record_component_aliases
+     here because some frontends still change the aggregates after
+     layout_type.  */
+  if (AGGREGATE_TYPE_P (type) && TYPE_ALIAS_SET_KNOWN_P (type))
+    TYPE_ALIAS_SET (type) = 0;
 }
 
 /* Create and return a type for signed integers of PRECISION bits.  */
@@ -1145,42 +1630,11 @@ tree
 make_signed_type (precision)
      int precision;
 {
-  register tree type = make_node (INTEGER_TYPE);
+  tree type = make_node (INTEGER_TYPE);
 
   TYPE_PRECISION (type) = precision;
 
-  /* Create the extreme values based on the number of bits.  */
-
-  TYPE_MIN_VALUE (type)
-    = build_int_2 ((precision - HOST_BITS_PER_WIDE_INT > 0
-		    ? 0 : (HOST_WIDE_INT) (-1) << (precision - 1)),
-		   (((HOST_WIDE_INT) (-1)
-		     << (precision - HOST_BITS_PER_WIDE_INT - 1 > 0
-			 ? precision - HOST_BITS_PER_WIDE_INT - 1
-			 : 0))));
-  TYPE_MAX_VALUE (type)
-    = build_int_2 ((precision - HOST_BITS_PER_WIDE_INT > 0
-		    ? -1 : ((HOST_WIDE_INT) 1 << (precision - 1)) - 1),
-		   (precision - HOST_BITS_PER_WIDE_INT - 1 > 0
-		    ? (((HOST_WIDE_INT) 1
-			<< (precision - HOST_BITS_PER_WIDE_INT - 1))) - 1
-		    : 0));
-
-  /* Give this type's extreme values this type as their type.  */
-
-  TREE_TYPE (TYPE_MIN_VALUE (type)) = type;
-  TREE_TYPE (TYPE_MAX_VALUE (type)) = type;
-
-  /* The first type made with this or `make_unsigned_type'
-     is the type for size values.  */
-
-  if (sizetype == 0)
-    set_sizetype (type);
-
-  /* Lay out the type: set its alignment, size, etc.  */
-
-  layout_type (type);
-
+  fixup_signed_type (type);
   return type;
 }
 
@@ -1190,21 +1644,45 @@ tree
 make_unsigned_type (precision)
      int precision;
 {
-  register tree type = make_node (INTEGER_TYPE);
+  tree type = make_node (INTEGER_TYPE);
 
   TYPE_PRECISION (type) = precision;
 
-  /* The first type made with this or `make_signed_type'
-     is the type for size values.  */
-
-  if (sizetype == 0)
-    {
-      TREE_UNSIGNED (type) = 1;
-      set_sizetype (type);
-    }
-
   fixup_unsigned_type (type);
   return type;
+}
+
+/* Initialize sizetype and bitsizetype to a reasonable and temporary
+   value to enable integer types to be created.  */
+
+void
+initialize_sizetypes ()
+{
+  tree t = make_node (INTEGER_TYPE);
+
+  /* Set this so we do something reasonable for the build_int_2 calls
+     below.  */
+  integer_type_node = t;
+
+  TYPE_MODE (t) = SImode;
+  TYPE_ALIGN (t) = GET_MODE_ALIGNMENT (SImode);
+  TYPE_USER_ALIGN (t) = 0;
+  TYPE_SIZE (t) = build_int_2 (GET_MODE_BITSIZE (SImode), 0);
+  TYPE_SIZE_UNIT (t) = build_int_2 (GET_MODE_SIZE (SImode), 0);
+  TREE_UNSIGNED (t) = 1;
+  TYPE_PRECISION (t) = GET_MODE_BITSIZE (SImode);
+  TYPE_MIN_VALUE (t) = build_int_2 (0, 0);
+  TYPE_IS_SIZETYPE (t) = 1;
+
+  /* 1000 avoids problems with possible overflow and is certainly
+     larger than any size value we'd want to be storing.  */
+  TYPE_MAX_VALUE (t) = build_int_2 (1000, 0);
+
+  /* These two must be different nodes because of the caching done in
+     size_int_wide.  */
+  sizetype = t;
+  bitsizetype = copy_node (t);
+  integer_type_node = 0;
 }
 
 /* Set sizetype to TYPE, and initialize *sizetype accordingly.
@@ -1214,50 +1692,80 @@ void
 set_sizetype (type)
      tree type;
 {
-  int oprecision = TYPE_PRECISION (type), precision;
-
-  sizetype = type;
-
+  int oprecision = TYPE_PRECISION (type);
   /* The *bitsizetype types use a precision that avoids overflows when
-     calculating signed sizes / offsets in bits.
+     calculating signed sizes / offsets in bits.  However, when
+     cross-compiling from a 32 bit to a 64 bit host, we are limited to 64 bit
+     precision.  */
+  int precision = MIN (oprecision + BITS_PER_UNIT_LOG + 1,
+		       2 * HOST_BITS_PER_WIDE_INT);
+  unsigned int i;
+  tree t;
 
-     We are allocating bitsizetype once and change it in place when
-     we decide later that we want to change it.  This way, we avoid the
-     hassle of changing all the TYPE_SIZE (TREE_TYPE (sometype))
-     individually in each front end.  */
-  if (! bitsizetype)
-    bitsizetype = make_node (INTEGER_TYPE);
-  if (TYPE_NAME (sizetype) && ! TYPE_NAME (bitsizetype))
-    TYPE_NAME (bitsizetype) = TYPE_NAME (sizetype);
+  if (sizetype_set)
+    abort ();
 
-  precision = oprecision + BITS_PER_UNIT_LOG + 1;
-  /* However, when cross-compiling from a 32 bit to a 64 bit host,
-     we are limited to 64 bit precision.  */
-  if (precision > 2 * HOST_BITS_PER_WIDE_INT)
-    precision = 2 * HOST_BITS_PER_WIDE_INT;
+  /* Make copies of nodes since we'll be setting TYPE_IS_SIZETYPE.  */
+  sizetype = copy_node (type);
+  TYPE_DOMAIN (sizetype) = type;
+  TYPE_IS_SIZETYPE (sizetype) = 1;
+  bitsizetype = make_node (INTEGER_TYPE);
+  TYPE_NAME (bitsizetype) = TYPE_NAME (type);
   TYPE_PRECISION (bitsizetype) = precision;
+  TYPE_IS_SIZETYPE (bitsizetype) = 1;
+
   if (TREE_UNSIGNED (type))
     fixup_unsigned_type (bitsizetype);
   else
     fixup_signed_type (bitsizetype);
+
   layout_type (bitsizetype);
 
   if (TREE_UNSIGNED (type))
     {
       usizetype = sizetype;
       ubitsizetype = bitsizetype;
-      ssizetype = make_signed_type (oprecision);
-      sbitsizetype = make_signed_type (precision);
+      ssizetype = copy_node (make_signed_type (oprecision));
+      sbitsizetype = copy_node (make_signed_type (precision));
     }
   else
     {
       ssizetype = sizetype;
       sbitsizetype = bitsizetype;
-      usizetype = make_unsigned_type (oprecision);
-      ubitsizetype = make_unsigned_type (precision);
+      usizetype = copy_node (make_unsigned_type (oprecision));
+      ubitsizetype = copy_node (make_unsigned_type (precision));
     }
-}
 
+  TYPE_NAME (bitsizetype) = get_identifier ("bit_size_type");
+
+  /* Show is a sizetype, is a main type, and has no pointers to it.  */
+  for (i = 0; i < ARRAY_SIZE (sizetype_tab); i++)
+    {
+      TYPE_IS_SIZETYPE (sizetype_tab[i]) = 1;
+      TYPE_MAIN_VARIANT (sizetype_tab[i]) = sizetype_tab[i];
+      TYPE_NEXT_VARIANT (sizetype_tab[i]) = 0;
+      TYPE_POINTER_TO (sizetype_tab[i]) = 0;
+      TYPE_REFERENCE_TO (sizetype_tab[i]) = 0;
+    }
+
+  ggc_add_tree_root ((tree *) &sizetype_tab,
+		     sizeof sizetype_tab / sizeof (tree));
+
+  /* Go down each of the types we already made and set the proper type
+     for the sizes in them.  */
+  for (t = early_type_list; t != 0; t = TREE_CHAIN (t))
+    {
+      if (TREE_CODE (TREE_VALUE (t)) != INTEGER_TYPE)
+	abort ();
+
+      TREE_TYPE (TYPE_SIZE (TREE_VALUE (t))) = bitsizetype;
+      TREE_TYPE (TYPE_SIZE_UNIT (TREE_VALUE (t))) = sizetype;
+    }
+
+  early_type_list = 0;
+  sizetype_set = 1;
+}
+
 /* Set the extreme values of TYPE based on its precision in bits,
    then lay it out.  Used when make_signed_type won't do
    because the tree code is not INTEGER_TYPE.
@@ -1267,7 +1775,13 @@ void
 fixup_signed_type (type)
      tree type;
 {
-  register int precision = TYPE_PRECISION (type);
+  int precision = TYPE_PRECISION (type);
+
+  /* We can not represent properly constants greater then
+     2 * HOST_BITS_PER_WIDE_INT, still we need the types
+     as they are used by i386 vector extensions and friends.  */
+  if (precision > HOST_BITS_PER_WIDE_INT * 2)
+    precision = HOST_BITS_PER_WIDE_INT * 2;
 
   TYPE_MIN_VALUE (type)
     = build_int_2 ((precision - HOST_BITS_PER_WIDE_INT > 0
@@ -1288,7 +1802,6 @@ fixup_signed_type (type)
   TREE_TYPE (TYPE_MAX_VALUE (type)) = type;
 
   /* Lay out the type: set its alignment, size, etc.  */
-
   layout_type (type);
 }
 
@@ -1300,7 +1813,13 @@ void
 fixup_unsigned_type (type)
      tree type;
 {
-  register int precision = TYPE_PRECISION (type);
+  int precision = TYPE_PRECISION (type);
+
+  /* We can not represent properly constants greater then
+     2 * HOST_BITS_PER_WIDE_INT, still we need the types
+     as they are used by i386 vector extensions and friends.  */
+  if (precision > HOST_BITS_PER_WIDE_INT * 2)
+    precision = HOST_BITS_PER_WIDE_INT * 2;
 
   TYPE_MIN_VALUE (type) = build_int_2 (0, 0);
   TYPE_MAX_VALUE (type)
@@ -1315,7 +1834,6 @@ fixup_unsigned_type (type)
   TREE_TYPE (TYPE_MAX_VALUE (type)) = type;
 
   /* Lay out the type: set its alignment, size, etc.  */
-
   layout_type (type);
 }
 
@@ -1337,12 +1855,12 @@ fixup_unsigned_type (type)
 enum machine_mode
 get_best_mode (bitsize, bitpos, align, largest_mode, volatilep)
      int bitsize, bitpos;
-     int align;
+     unsigned int align;
      enum machine_mode largest_mode;
      int volatilep;
 {
   enum machine_mode mode;
-  int unit = 0;
+  unsigned int unit = 0;
 
   /* Find the narrowest integer mode that contains the bit field.  */
   for (mode = GET_CLASS_NARROWEST_MODE (MODE_INT); mode != VOIDmode;
@@ -1353,7 +1871,7 @@ get_best_mode (bitsize, bitpos, align, largest_mode, volatilep)
 	break;
     }
 
-  if (mode == MAX_MACHINE_MODE
+  if (mode == VOIDmode
       /* It is tempting to omit the following line
 	 if STRICT_ALIGNMENT is true.
 	 But that is incorrect, since if the bitfield uses part of 3 bytes
@@ -1387,29 +1905,11 @@ get_best_mode (bitsize, bitpos, align, largest_mode, volatilep)
 
   return mode;
 }
-
-/* Save all variables describing the current status into the structure *P.
-   This is used before starting a nested function.  */
+
+/* This function is run once to initialize stor-layout.c.  */
 
 void
-save_storage_status (p)
-     struct function *p ATTRIBUTE_UNUSED;
+init_stor_layout_once ()
 {
-#if 0  /* Need not save, since always 0 and non0 (resp.) within a function.  */
-  p->pending_sizes = pending_sizes;
-  p->immediate_size_expand = immediate_size_expand;
-#endif /* 0 */
-}
-
-/* Restore all variables describing the current status from the structure *P.
-   This is used after a nested function.  */
-
-void
-restore_storage_status (p)
-     struct function *p ATTRIBUTE_UNUSED;
-{
-#if 0
-  pending_sizes = p->pending_sizes;
-  immediate_size_expand = p->immediate_size_expand;
-#endif /* 0 */
+  ggc_add_tree_root (&pending_sizes, 1);
 }

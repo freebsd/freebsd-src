@@ -1,5 +1,5 @@
 /* Definitions for Sun assembler syntax for the Intel 80386.
-   Copyright (C) 1988, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1996, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -33,21 +33,21 @@ Boston, MA 02111-1307, USA.  */
 
 /* Assembler pseudos to introduce constants of various size.  */
 
-#define ASM_BYTE_OP "\t.byte"
-#define ASM_SHORT "\t.value"
-#define ASM_LONG "\t.long"
-#define ASM_DOUBLE "\t.double"
+#define ASM_SHORT "\t.value\t"
+#define ASM_LONG "\t.long\t"
+#define ASM_QUAD "\t.quad\t"  /* Should not be used for 32bit compilation.  */
+
 
 /* How to output an ASCII string constant.  */
 
-#define ASM_OUTPUT_ASCII(FILE, p, size) \
+#define ASM_OUTPUT_ASCII(FILE, PTR, SIZE) \
 do								\
-{ int i = 0; 							\
-  while (i < (size))						\
+{ size_t i = 0, limit = (SIZE); 				\
+  while (i < limit)						\
     { if (i%10 == 0) { if (i!=0) fprintf ((FILE), "\n");	\
-		       fprintf ((FILE), "%s ", ASM_BYTE_OP); }	\
+		       fputs ("\t.byte\t", (FILE)); }		\
       else fprintf ((FILE), ",");				\
-      fprintf ((FILE), "0x%x", ((p)[i++] & 0377)) ;}		\
+      fprintf ((FILE), "0x%x", ((PTR)[i++] & 0377)) ;}		\
       fprintf ((FILE), "\n");					\
 } while (0)
 
@@ -57,10 +57,9 @@ do								\
 #undef ASM_FILE_START
 #define ASM_FILE_START(FILE) \
   do {							\
-    extern char *version_string, *language_string;	\
     {							\
-      int len = strlen (main_input_filename);		\
-      char *na = main_input_filename + len;		\
+      const int len = strlen (main_input_filename);	\
+      const char *na = main_input_filename + len;	\
       char shorter[15];					\
       /* NA gets MAIN_INPUT_FILENAME sans directory names.  */\
       while (na > main_input_filename)			\
@@ -76,7 +75,7 @@ do								\
       fprintf (FILE, "\n");				\
     }							\
     fprintf (FILE, "\t.version\t\"%s %s\"\n",		\
-	     language_string, version_string);		\
+	     lang_hooks.name, version_string);		\
     if (optimize) ASM_FILE_START_1 (FILE);		\
   } while (0)
 
@@ -98,12 +97,12 @@ do								\
 /* Output before read-only data.  */
 
 #undef TEXT_SECTION_ASM_OP
-#define TEXT_SECTION_ASM_OP ".text"
+#define TEXT_SECTION_ASM_OP "\t.text"
 
 /* Output before writable data.  */
 
 #undef DATA_SECTION_ASM_OP
-#define DATA_SECTION_ASM_OP ".data"
+#define DATA_SECTION_ASM_OP "\t.data"
 
 /* Define the syntax of labels and symbol definitions/declarations.  */
 
@@ -129,9 +128,9 @@ do								\
    This is suitable for output with `assemble_name'.  */
 
 #define ASM_GENERATE_INTERNAL_LABEL(BUF,PREFIX,NUMBER)	\
-  sprintf ((BUF), "*.%s%d", (PREFIX), (NUMBER))
+  sprintf ((BUF), "*.%s%ld", (PREFIX), (long)(NUMBER))
 
-/* The prefix to add to user-visible assembler symbols. */
+/* The prefix to add to user-visible assembler symbols.  */
 
 #define USER_LABEL_PREFIX ""
 

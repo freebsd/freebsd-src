@@ -1,5 +1,5 @@
 /* info.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -55,21 +55,21 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Static objects accessed by functions in this module.	 */
 
-static const char *ffeinfo_basictype_string_[]
+static const char *const ffeinfo_basictype_string_[]
 =
 {
 #define FFEINFO_BASICTYPE(KWD,LNAM,SNAM) SNAM,
 #include "info-b.def"
 #undef FFEINFO_BASICTYPE
 };
-static const char *ffeinfo_kind_message_[]
+static const char *const ffeinfo_kind_message_[]
 =
 {
-#define FFEINFO_KIND(KWD,LNAM,SNAM) LNAM,
+#define FFEINFO_KIND(kwd,msgid,snam) msgid,
 #include "info-k.def"
 #undef FFEINFO_KIND
 };
-static const char *ffeinfo_kind_string_[]
+static const char *const ffeinfo_kind_string_[]
 =
 {
 #define FFEINFO_KIND(KWD,LNAM,SNAM) SNAM,
@@ -77,7 +77,7 @@ static const char *ffeinfo_kind_string_[]
 #undef FFEINFO_KIND
 };
 static ffeinfoBasictype ffeinfo_combine_[FFEINFO_basictype][FFEINFO_basictype];
-static const char *ffeinfo_kindtype_string_[]
+static const char *const ffeinfo_kindtype_string_[]
 =
 {
   "",
@@ -91,15 +91,14 @@ static const char *ffeinfo_kindtype_string_[]
   "8",
   "*",
 };
-static const char *ffeinfo_where_string_[]
+static const char *const ffeinfo_where_string_[]
 =
 {
 #define FFEINFO_WHERE(KWD,LNAM,SNAM) SNAM,
 #include "info-w.def"
 #undef FFEINFO_WHERE
 };
-static ffetype ffeinfo_types_[FFEINFO_basictype][FFEINFO_kindtype]
-  = { { NULL } };
+static ffetype ffeinfo_types_[FFEINFO_basictype][FFEINFO_kindtype];
 
 /* Static functions (internal). */
 

@@ -1,38 +1,32 @@
 /* Generate code from machine description to extract operands from insn as rtl.
-   Copyright (C) 1987, 91-93, 97-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1992, 1993, 1997, 1998,
+   1999, 2000 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 
 #include "hconfig.h"
 #include "system.h"
 #include "rtl.h"
-#include "obstack.h"
+#include "errors.h"
 #include "insn-config.h"
+#include "gensupport.h"
 
-static struct obstack obstack;
-struct obstack *rtl_obstack = &obstack;
-
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
-
-/* Names for patterns.  Need to allow linking with print-rtl.  */
-char **insn_name_ptr;
 
 /* This structure contains all the information needed to describe one
    set of extractions methods.  Each method may be used by more than 
@@ -65,6 +59,10 @@ struct code_ptr
 
 static struct extraction *extractions;
 
+/* Holds an array of names indexed by insn_code_number.  */
+static char **insn_name_ptr = 0;
+static int insn_name_ptr_size = 0;
+
 /* Number instruction patterns handled, starting at 0 for first one.  */
 
 static int insn_code_number;
@@ -95,20 +93,18 @@ static int dupnums[MAX_DUP_OPERANDS];
 
 static struct code_ptr *peepholes;
 
-static void gen_insn PROTO ((rtx));
-static void walk_rtx PROTO ((rtx, const char *));
-static void print_path PROTO ((char *));
-void fatal PVPROTO ((const char *, ...))
-  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
-void fancy_abort PROTO ((void)) ATTRIBUTE_NORETURN;
-
+static void gen_insn PARAMS ((rtx));
+static void walk_rtx PARAMS ((rtx, const char *));
+static void print_path PARAMS ((const char *));
+static void record_insn_name PARAMS ((int, const char *));
+
 static void
 gen_insn (insn)
      rtx insn;
 {
-  register int i;
-  register struct extraction *p;
-  register struct code_ptr *link;
+  int i;
+  struct extraction *p;
+  struct code_ptr *link;
 
   op_count = 0;
   dup_count = 0;
@@ -124,7 +120,7 @@ gen_insn (insn)
   else
     for (i = XVECLEN (insn, 1) - 1; i >= 0; i--)
       {
-	char *path = (char *) alloca (2);
+	char path[2];
 
 	path[0] = 'a' + i;
 	path[1] = 0;
@@ -187,10 +183,10 @@ walk_rtx (x, path)
      rtx x;
      const char *path;
 {
-  register RTX_CODE code;
-  register int i;
-  register int len;
-  register char *fmt;
+  RTX_CODE code;
+  int i;
+  int len;
+  const char *fmt;
   int depth = strlen (path);
   char *newpath;
 
@@ -225,7 +221,7 @@ walk_rtx (x, path)
       dupnums[dup_count] = XINT (x, 0);
       dup_count++;
       
-      newpath = (char *) alloca (depth + 2);
+      newpath = (char *) xmalloc (depth + 2);
       strcpy (newpath, path);
       newpath[depth + 1] = 0;
       
@@ -234,13 +230,14 @@ walk_rtx (x, path)
 	  newpath[depth] = '0' + i;
 	  walk_rtx (XVECEXP (x, 1, i), newpath);
         }
+      free (newpath);
       return;
       
     case MATCH_OPERATOR:
       oplocs[XINT (x, 0)] = xstrdup (path);
       op_count = MAX (op_count, XINT (x, 0) + 1);
 
-      newpath = (char *) alloca (depth + 2);
+      newpath = (char *) xmalloc (depth + 2);
       strcpy (newpath, path);
       newpath[depth + 1] = 0;
 
@@ -249,13 +246,14 @@ walk_rtx (x, path)
 	  newpath[depth] = '0' + i;
 	  walk_rtx (XVECEXP (x, 2, i), newpath);
 	}
+      free (newpath);
       return;
 
     case MATCH_PARALLEL:
       oplocs[XINT (x, 0)] = xstrdup (path);
       op_count = MAX (op_count, XINT (x, 0) + 1);
 
-      newpath = (char *) alloca (depth + 2);
+      newpath = (char *) xmalloc (depth + 2);
       strcpy (newpath, path);
       newpath[depth + 1] = 0;
 
@@ -264,6 +262,7 @@ walk_rtx (x, path)
 	  newpath[depth] = 'a' + i;
 	  walk_rtx (XVECEXP (x, 2, i), newpath);
 	}
+      free (newpath);
       return;
 
     case ADDRESS:
@@ -274,7 +273,7 @@ walk_rtx (x, path)
       break;
     }
 
-  newpath = (char *) alloca (depth + 2);
+  newpath = (char *) xmalloc (depth + 2);
   strcpy (newpath, path);
   newpath[depth + 1] = 0;
 
@@ -297,6 +296,7 @@ walk_rtx (x, path)
 	    }
 	}
     }
+  free (newpath);
 }
 
 /* Given a PATH, representing a path down the instruction's
@@ -305,10 +305,10 @@ walk_rtx (x, path)
 
 static void
 print_path (path)
-     char *path;
+     const char *path;
 {
-  register int len = strlen (path);
-  register int i;
+  int len = strlen (path);
+  int i;
 
   if (len == 0)
     {
@@ -323,9 +323,9 @@ print_path (path)
 
   for (i = len - 1; i >=0 ; i--)
     {
-      if (path[i] >= 'a' && path[i] <= 'z')
+      if (ISLOWER(path[i]))
 	printf ("XVECEXP (");
-      else if (path[i] >= '0' && path[i] <= '9')
+      else if (ISDIGIT(path[i]))
 	printf ("XEXP (");
       else
 	abort ();
@@ -335,105 +335,35 @@ print_path (path)
 
   for (i = 0; i < len; i++)
     {
-      if (path[i] >= 'a' && path[i] <= 'z')
+      if (ISLOWER(path[i]))
 	printf (", 0, %d)", path[i] - 'a');
-      else if (path[i] >= '0' && path[i] <= '9')
+      else if (ISDIGIT(path[i]))
 	printf (", %d)", path[i] - '0');
       else
 	abort ();
     }
 }
 
-PTR
-xmalloc (size)
-  size_t size;
-{
-  register PTR val = (PTR) malloc (size);
+extern int main PARAMS ((int, char **));
 
-  if (val == 0)
-    fatal ("virtual memory exhausted");
-  return val;
-}
-
-PTR
-xrealloc (old, size)
-  PTR old;
-  size_t size;
-{
-  register PTR ptr;
-  if (old)
-    ptr = (PTR) realloc (old, size);
-  else
-    ptr = (PTR) malloc (size);
-  if (!ptr)
-    fatal ("virtual memory exhausted");
-  return ptr;
-}
-
-void
-fatal VPROTO ((const char *format, ...))
-{
-#ifndef ANSI_PROTOTYPES
-  const char *format;
-#endif
-  va_list ap;
-
-  VA_START (ap, format);
-
-#ifndef ANSI_PROTOTYPES
-  format = va_arg (ap, const char *);
-#endif
-
-  fprintf (stderr, "genextract: ");
-  vfprintf (stderr, format, ap);
-  va_end (ap);
-  fprintf (stderr, "\n");
-  exit (FATAL_EXIT_CODE);
-}
-
-/* More 'friendly' abort that prints the line and file.
-   config.h can #define abort fancy_abort if you like that sort of thing.  */
-
-void
-fancy_abort ()
-{
-  fatal ("Internal gcc abort.");
-}
-
-char *
-xstrdup (input)
-  const char *input;
-{
-  register size_t len = strlen (input) + 1;
-  register char *output = xmalloc (len);
-  memcpy (output, input, len);
-  return output;
-}
-
 int
 main (argc, argv)
      int argc;
      char **argv;
 {
   rtx desc;
-  FILE *infile;
-  register int c, i;
+  int i;
   struct extraction *p;
   struct code_ptr *link;
+  const char *name;
 
-  obstack_init (rtl_obstack);
+  progname = "genextract";
 
   if (argc <= 1)
-    fatal ("No input file name.");
+    fatal ("no input file name");
 
-  infile = fopen (argv[1], "r");
-  if (infile == 0)
-    {
-      perror (argv[1]);
-      exit (FATAL_EXIT_CODE);
-    }
-
-  init_rtl ();
+  if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
+    return (FATAL_EXIT_CODE);
 
   /* Assign sequential codes to all entries in the machine description
      in parallel with the tables in insn-output.c.  */
@@ -457,8 +387,8 @@ from the machine description file `md'.  */\n\n");
   printf ("void\ninsn_extract (insn)\n");
   printf ("     rtx insn;\n");
   printf ("{\n");
-  printf ("  register rtx *ro = recog_operand;\n");
-  printf ("  register rtx **ro_loc = recog_operand_loc;\n");
+  printf ("  rtx *ro = recog_data.operand;\n");
+  printf ("  rtx **ro_loc = recog_data.operand_loc;\n");
   printf ("  rtx pat = PATTERN (insn);\n");
   printf ("  int i ATTRIBUTE_UNUSED;\n\n");
   printf ("  memset (ro, 0, sizeof (*ro) * MAX_RECOG_OPERANDS);\n");
@@ -472,16 +402,16 @@ from the machine description file `md'.  */\n\n");
 
   while (1)
     {
-      c = read_skip_spaces (infile);
-      if (c == EOF)
-	break;
-      ungetc (c, infile);
+      int line_no;
 
-      desc = read_rtx (infile);
-      if (GET_CODE (desc) == DEFINE_INSN)
+      desc = read_md_rtx (&line_no, &insn_code_number);
+      if (desc == NULL)
+	break;
+
+       if (GET_CODE (desc) == DEFINE_INSN)
 	{
+	  record_insn_name (insn_code_number, XSTR (desc, 0));
 	  gen_insn (desc);
-	  ++insn_code_number;
 	}
 
       else if (GET_CODE (desc) == DEFINE_PEEPHOLE)
@@ -492,12 +422,7 @@ from the machine description file `md'.  */\n\n");
 	  link->insn_code = insn_code_number;
 	  link->next = peepholes;
 	  peepholes = link;
-	  ++insn_code_number;
 	}
-
-      else if (GET_CODE (desc) == DEFINE_EXPAND
-	       || GET_CODE (desc) == DEFINE_SPLIT)
-	++insn_code_number;
     }
 
   /* Write out code to handle peepholes and the insn_codes that it should
@@ -509,9 +434,11 @@ from the machine description file `md'.  */\n\n");
 
       /* The vector in the insn says how many operands it has.
 	 And all it contains are operands.  In fact, the vector was
-	 created just for the sake of this function.  */
+	 created just for the sake of this function.  We need to set the
+	 location of the operands for sake of simplifications after
+	 extraction, like eliminating subregs.  */
       printf ("      for (i = XVECLEN (pat, 0) - 1; i >= 0; i--)\n");
-      printf ("          ro[i] = XVECEXP (pat, 0, i);\n");
+      printf ("          ro[i] = *(ro_loc[i] = &XVECEXP (pat, 0, i));\n");
       printf ("      break;\n\n");
     }
 
@@ -519,8 +446,15 @@ from the machine description file `md'.  */\n\n");
   for (p = extractions; p; p = p->next)
     {
       for (link = p->insns; link; link = link->next)
-	printf ("    case %d:\n", link->insn_code);
-
+	{
+	  i = link->insn_code;
+	  name = get_insn_name (i);
+	  if (name)
+	    printf ("    case %d:  /* %s */\n", i, name);
+	  else
+	    printf ("    case %d:\n", i);
+	}
+      
       for (i = 0; i < p->op_count; i++)
 	{
 	  if (p->oplocs[i] == 0)
@@ -538,10 +472,10 @@ from the machine description file `md'.  */\n\n");
 
       for (i = 0; i < p->dup_count; i++)
 	{
-	  printf ("      recog_dup_loc[%d] = &", i);
+	  printf ("      recog_data.dup_loc[%d] = &", i);
 	  print_path (p->duplocs[i]);
 	  printf (";\n");
-	  printf ("      recog_dup_num[%d] = %d;\n", i, p->dupnums[i]);
+	  printf ("      recog_data.dup_num[%d] = %d;\n", i, p->dupnums[i]);
 	}
 
       printf ("      break;\n\n");
@@ -555,7 +489,50 @@ from the machine description file `md'.  */\n\n");
   printf ("    }\n}\n");
 
   fflush (stdout);
-  exit (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
-  /* NOTREACHED */
-  return 0;
+  return (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
 }
+
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+const char *
+get_insn_name (code)
+     int code ATTRIBUTE_UNUSED;
+{
+  if (code < insn_name_ptr_size)
+    return insn_name_ptr[code];
+  else
+    return NULL;
+}
+
+static void
+record_insn_name (code, name)
+     int code;
+     const char *name;
+{
+  static const char *last_real_name = "insn";
+  static int last_real_code = 0;
+  char *new;
+
+  if (insn_name_ptr_size <= code)
+    {
+      int new_size;
+      new_size = (insn_name_ptr_size ? insn_name_ptr_size * 2 : 512);
+      insn_name_ptr =
+	(char **) xrealloc (insn_name_ptr, sizeof(char *) * new_size);
+      memset (insn_name_ptr + insn_name_ptr_size, 0, 
+	      sizeof(char *) * (new_size - insn_name_ptr_size));
+      insn_name_ptr_size = new_size;
+    }
+
+  if (!name || name[0] == '\0')
+    {
+      new = xmalloc (strlen (last_real_name) + 10);
+      sprintf (new, "%s+%d", last_real_name, code - last_real_code);
+    }
+  else
+    {
+      last_real_name = new = xstrdup (name);
+      last_real_code = code;
+    }
+  
+  insn_name_ptr[code] = new;
+}  

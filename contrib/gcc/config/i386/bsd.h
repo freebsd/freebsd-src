@@ -1,7 +1,7 @@
 /* Definitions for BSD assembler syntax for Intel 386
    (actually AT&T syntax for insns and operands,
    adapted to BSD conventions for symbol names and debugging.)
-   Copyright (C) 1988, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1996, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -40,10 +40,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* Assembler pseudos to introduce constants of various size.  */
 
-#define ASM_BYTE_OP "\t.byte"
-#define ASM_SHORT "\t.word"
-#define ASM_LONG "\t.long"
-#define ASM_DOUBLE "\t.double"
+#define ASM_SHORT "\t.word\t"
+#define ASM_LONG "\t.long\t"
+#define ASM_QUAD "\t.quad\t"  /* Should not be used for 32bit compilation.  */
 
 /* Output at beginning of assembler file.
    ??? I am skeptical of this -- RMS.  */
@@ -96,10 +95,10 @@ Boston, MA 02111-1307, USA.  */
 
 #ifdef NO_UNDERSCORES
 #define ASM_GENERATE_INTERNAL_LABEL(BUF,PREFIX,NUMBER)	\
-    sprintf ((BUF), "*.%s%d", (PREFIX), (NUMBER))
+    sprintf ((BUF), "*.%s%ld", (PREFIX), (long)(NUMBER))
 #else
 #define ASM_GENERATE_INTERNAL_LABEL(BUF,PREFIX,NUMBER)	\
-    sprintf ((BUF), "*%s%d", (PREFIX), (NUMBER))
+    sprintf ((BUF), "*%s%ld", (PREFIX), (long)(NUMBER))
 #endif
 
 /* This is how to output an internal numbered label where
@@ -113,7 +112,7 @@ Boston, MA 02111-1307, USA.  */
   fprintf (FILE, "%s%d:\n", PREFIX, NUM)
 #endif
 
-/* The prefix to add to user-visible assembler symbols. */
+/* The prefix to add to user-visible assembler symbols.  */
 
 #ifdef NO_UNDERSCORES
 #define USER_LABEL_PREFIX ""
