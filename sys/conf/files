@@ -681,6 +681,7 @@ kern/kern_shutdown.c	standard
 kern/kern_sig.c		standard
 kern/kern_subr.c	standard
 kern/kern_switch.c	standard
+kern/kern_sx.c		standard
 kern/kern_synch.c	standard
 kern/kern_syscalls.c	standard
 kern/kern_sysctl.c	standard
