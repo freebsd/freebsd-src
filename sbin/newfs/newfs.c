@@ -299,7 +299,7 @@ main(int argc, char *argv[])
 			fssize = mediasize / sectorsize;
 		else if (fssize > mediasize / sectorsize)
 			errx(1, "%s: maximum file system size is %jd",
-			    special, (off_t)(mediasize / sectorsize));
+			    special, (intmax_t)(mediasize / sectorsize));
 	}
 	pp = NULL;
 	lp = getdisklabel(special);
