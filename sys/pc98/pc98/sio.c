@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8.2.11 1998/01/03 05:53:12 kato Exp $
+ *	$Id: sio.c,v 1.8.2.12 1998/01/04 09:53:20 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -737,6 +737,7 @@ sioprobe(dev)
 	}
 
 #ifdef PC98
+	DELAY(10);
 	/*
 	 * If the port is i8251 UART (internal, B98_01)
 	 */
@@ -765,6 +766,7 @@ sioprobe(dev)
 			COM_INT_DISABLE
 			tmp = ( inb( iod.ctrl ) & ~(IEN_Rx|IEN_TxEMP|IEN_Tx));
 			outb( iod.ctrl, tmp|IEN_TxEMP );
+			DELAY(10);
 			ret = isa_irq_pending(dev) ? 4 : 0;
 			outb( iod.ctrl, tmp );
 			COM_INT_ENABLE
