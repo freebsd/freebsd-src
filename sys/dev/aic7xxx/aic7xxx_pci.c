@@ -3,7 +3,7 @@
  *      3940, 2940, aic7895, aic7890, aic7880,
  *	aic7870, aic7860 and aic7850 SCSI controllers
  *
- * Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000 Justin T. Gibbs
+ * Copyright (c) 1995-2000 Justin T. Gibbs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
