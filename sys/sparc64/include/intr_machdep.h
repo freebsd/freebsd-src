@@ -82,6 +82,6 @@ int	inthand_add(const char *name, int vec, void (*handler)(void *),
     void *arg, int flags, void **cookiep);
 int	inthand_remove(int vec, void *cookie);
 
-ih_func_t intr_dequeue;
+ih_func_t intr_fast;
 
 #endif
