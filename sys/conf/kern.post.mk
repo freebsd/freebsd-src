@@ -221,11 +221,11 @@ hints.o:	hints.c
 env.o:	env.c
 	${NORMAL_C}
 
-vnode_if.c: $S/kern/vnode_if.pl $S/kern/vnode_if.src
-	perl5 $S/kern/vnode_if.pl -c $S/kern/vnode_if.src
+vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
+	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
 
-vnode_if.h: $S/kern/vnode_if.pl $S/kern/vnode_if.src
-	perl5 $S/kern/vnode_if.pl -h $S/kern/vnode_if.src
+vnode_if.h: $S/tools/vnode_if.awk $S/kern/vnode_if.src
+	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -h
 
 vnode_if.o:
 	${NORMAL_C}

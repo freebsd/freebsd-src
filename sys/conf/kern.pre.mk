@@ -13,6 +13,7 @@ KODIR?=		/boot/${KERNEL}
 
 M=	${MACHINE_ARCH}
 
+AWK?=		awk
 NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
