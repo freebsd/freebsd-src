@@ -13,6 +13,7 @@ ln minigzip gunzip
 ln minigzip zcat
 ln sh -sh
 ln test [
+ln newfs mount_mfs
 
 libs -ll -ledit -lutil -lkvm -lmd -lcrypt -lftpio -lz -lnetgraph
 libs -ldialog -lncurses -lmytinfo -L/usr/src/release/libdisk/obj -ldisk -lipx
