@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.74 1995/04/22 22:44:30 dyson Exp $
+ *	$Id: wd.c,v 1.75 1995/04/24 04:32:31 dyson Exp $
  */
 
 /* TODO:
@@ -87,7 +87,7 @@
 #define TIMEOUT		10000
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
-#define	MAXTRANSFER	255	/* max size of transfer in sectors */ 
+#define	MAXTRANSFER	255	/* max size of transfer in sectors */
 				/* correct max is 256 but some controllers */
 				/* can't handle that in all cases */
 #define WDOPT_32BIT	0x8000
@@ -302,8 +302,8 @@ wdprobe(struct isa_device *dvp)
 	/*
 	 * drive(s) did not time out during diagnostic :
 	 * Get error status and check that both drives are OK.
-	 * Table 9-2 of ATA specs suggests that we must check for 
-	 * a value of 0x01 
+	 * Table 9-2 of ATA specs suggests that we must check for
+	 * a value of 0x01
 	 *
 	 * Strangely, some controllers will return a status of
 	 * 0x81 (drive 0 OK, drive 1 failure), and then when
@@ -313,7 +313,7 @@ wdprobe(struct isa_device *dvp)
 	du->dk_error = inb(du->dk_port + wd_error);
 	/* printf("Error : %x\n", du->dk_error); */
 	if(du->dk_error != 0x01) {
-		if(du->dk_error & 0x80) { /* drive 1 failure */ 
+		if(du->dk_error & 0x80) { /* drive 1 failure */
 
 			/* first set the DRV bit */
 			u_int sdh;
@@ -326,7 +326,7 @@ wdprobe(struct isa_device *dvp)
 				goto nodevice;
 
 			/* Get status for drive 1 */
-			du->dk_error = inb(du->dk_port + wd_error); 
+			du->dk_error = inb(du->dk_port + wd_error);
 			/* printf("Error (drv 1) : %x\n", du->dk_error); */
 
 			if(du->dk_error != 0x01)
@@ -334,7 +334,7 @@ wdprobe(struct isa_device *dvp)
 		} else	/* drive 0 fail */
 			goto nodevice;
 	}
-	
+
 
 	free(du, M_TEMP);
 	return (IO_WDCSIZE);
@@ -801,7 +801,7 @@ loop:
 		if( du->dk_currentiosize > count)
 			du->dk_currentiosize = count;
 	}
-		
+
 	if (du->dk_flags & DKFL_32BIT)
 		outsl(du->dk_port + wd_data,
 		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
@@ -918,7 +918,7 @@ oops:
 				multisize = du->dk_currentiosize * DEV_BSIZE;
 			}
 		}
-	
+
 		/* ready to receive data? */
 		if ((du->dk_status & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
 		    != (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
@@ -1343,7 +1343,7 @@ again:
 		 */
 		if( du->dk_flags & DKFL_32BIT)
 			goto failed;
-		
+
 		/* XXX need to check error status after final transfer. */
 		/*
 		 * Old drives don't support WDCC_READP.  Try a seek to 0.
@@ -1363,20 +1363,20 @@ again:
 
 		if (du->dk_unit == bootinfo.bi_n_bios_used) {
 			du->dk_dd.d_secsize = DEV_BSIZE;
-			du->dk_dd.d_nsectors = 
+			du->dk_dd.d_nsectors =
 			    bootinfo.bi_bios_geom[du->dk_unit] & 0xff;
-			du->dk_dd.d_ntracks = 
+			du->dk_dd.d_ntracks =
 			    ((bootinfo.bi_bios_geom[du->dk_unit] >> 8) & 0xff)
 			    + 1;
 			/* XXX Why 2 ? */
-			du->dk_dd.d_ncylinders = 
+			du->dk_dd.d_ncylinders =
 			    (bootinfo.bi_bios_geom[du->dk_unit] >> 16) + 2;
-			du->dk_dd.d_secpercyl = 
-			    du->dk_dd.d_ntracks * du->dk_dd.d_nsectors; 
-			du->dk_dd.d_secperunit = 
-			    du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders; 
+			du->dk_dd.d_secpercyl =
+			    du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
+			du->dk_dd.d_secperunit =
+			    du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
 #if 0
-			du->dk_dd.d_partitions[WDRAW].p_size = 
+			du->dk_dd.d_partitions[WDRAW].p_size =
 				du->dk_dd.d_secperunit;
 			du->dk_dd.d_type = DTYPE_ST506;
 			du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
@@ -1499,7 +1499,7 @@ failed:
 	 * find out the drives maximum multi-block transfer capability
 	 */
 	du->dk_multi = wp->wdp_nsecperint & 0xff;
-	
+
 	/*
 	 * The config option flags low 8 bits define the maximum multi-block
 	 * transfer size.  If the user wants the maximum that the drive
@@ -1586,7 +1586,7 @@ wdformat(struct buf *bp)
 
 	bp->b_flags |= B_FORMAT;
 	wdstrategy(bp);
-	/* 
+	/*
 	 * phk put this here, better that return(wdstrategy(bp));
 	 * XXX
 	 */
@@ -1699,7 +1699,7 @@ wddump(dev_t dev)
 			blkcnt = secpercyl - (blknum % secpercyl);
 		blknext = blknum + blkcnt;
 
-		/* 
+		/*
 		 * See if one of the sectors is in the bad sector list
 		 * (if we have one).  If the first sector is bad, then
 		 * reduce the transfer to this one bad sector; if another
