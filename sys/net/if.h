@@ -102,7 +102,10 @@ struct if_data {
 	u_long	ifi_iqdrops;		/* dropped on input, this interface */
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
 	u_long	ifi_hwassist;		/* HW offload capabilities */
-	u_long	ifi_unused;		/* XXX was ifi_xmittiming */
+	time_t	ifi_epoch;		/* time of attach or stat reset */
+#ifdef __alpha__
+	u_int	ifi_timepad;		/* time_t is int, not long on alpha */
+#endif
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
 
