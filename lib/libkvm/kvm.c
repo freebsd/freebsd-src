@@ -182,7 +182,7 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 	kd->argv = 0;
 
 	if (uf == 0)
-		uf = _PATH_UNIX;
+		uf = getbootfile();
 	else if (strlen(uf) >= MAXPATHLEN) {
 		_kvm_err(kd, kd->program, "exec file name too long");
 		goto failed;

@@ -36,6 +36,8 @@
 #ifndef _PATHS_H_
 #define	_PATHS_H_
 
+#include <sys/cdefs.h>
+
 /* Default search path. */
 #define	_PATH_DEFPATH	"/usr/bin:/bin"
 /* All standard utilities path. */
@@ -56,7 +58,7 @@
 #define	_PATH_SENDMAIL	"/usr/sbin/sendmail"
 #define	_PATH_SHELLS	"/etc/shells"
 #define	_PATH_TTY	"/dev/tty"
-#define	_PATH_UNIX	"/kernel"
+#define	_PATH_UNIX	"don't use _PATH_UNIX"
 #define	_PATH_VI	"/usr/bin/vi"
 
 /* Provide trailing slash, since mostly used for building pathnames. */
@@ -65,5 +67,10 @@
 #define	_PATH_VARDB	"/var/db/"
 #define	_PATH_VARRUN	"/var/run/"
 #define	_PATH_VARTMP	"/var/tmp/"
+
+/* How to get the correct name of the kernel. */
+__BEGIN_DECLS
+const char *getbootfile __P((void));
+__END_DECLS
 
 #endif /* !_PATHS_H_ */

@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)savecore.8	8.1 (Berkeley) 6/5/93
+.\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
-.Dd June 5, 1993
+.Dd September 23, 1994
 .Dt SAVECORE 8
 .Os BSD 4
 .Sh NAME
@@ -63,7 +64,8 @@ is insufficient disk space.
 .It Fl N
 Use
 .Ar system
-as the kernel instead of the default ``/kernel''.
+as the kernel instead of the running kernel (as determined from
+.Xr getbootfile 3 )
 .It Fl v
 Prints out some additional debugging information.
 .It Fl z
@@ -106,16 +108,11 @@ is meant to be called near the end of the initialization file
 .Pa /etc/rc
 (see
 .Xr rc 8 ) .
-.Sh FILES
-.Bl -tag -width /kernelxx -compact
-.It Pa /kernel
-current
-.Tn UNIX
-.El
 .Sh BUGS
 The minfree code does not consider the effect of compression.
 .Sh SEE ALSO
 .Xr compress 1 ,
+.Xr getbootfile 3 ,
 .Xr syslogd 8
 .Sh HISTORY
 The

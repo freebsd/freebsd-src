@@ -66,7 +66,7 @@ testdb()
 	if ((kd = open(_PATH_KMEM, O_RDONLY, 0)) < 0)
 		goto close;
 
-	uf = _PATH_UNIX;
+	uf = (char *)getbootfile();
 	if ((cp = rindex(uf, '/')) != 0)
 		uf = cp + 1;
 	(void) snprintf(dbname, sizeof(dbname), "%skvm_%s.db", _PATH_VARDB, uf);
