@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vidcontrol.c,v 1.18 1997/10/27 07:52:10 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -170,7 +170,8 @@ void
 load_font(char *type, char *filename)
 {
 	FILE	*fd = 0;
-	int	i, io, size;
+	int	i, size;
+	unsigned long io;
 	char	*name, *fontmap;
 	char	*prefix[]  = {"", "", FONT_PATH, FONT_PATH, NULL};
 	char	*postfix[] = {"", ".fnt", "", ".fnt"};
@@ -257,7 +258,7 @@ set_cursor_type(char *appearence)
 void
 video_mode(int argc, char **argv, int *index)
 {
-	int mode;
+	unsigned long mode;
 
 	if (*index < argc) {
 		if (!strcmp(argv[*index], "VGA_40x25"))
