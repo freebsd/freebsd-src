@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: BOOTFLP,v 1.1 1995/01/30 03:23:57 phk Exp $
+#	$Id: BOOTFLP,v 1.2 1995/02/21 13:42:57 jkh Exp $
 #
 
 machine		"i386"
@@ -15,6 +15,7 @@ options		MATH_EMULATE		#Support for x87 emulation
 options		FFS			#Berkeley Fast Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
+options		"SCSI_NCR_MAX_SYNC=0"	#Restrict NCR to asynch. transfers
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 
