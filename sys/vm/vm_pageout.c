@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.9 1996/06/27 05:46:44 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.10 1996/06/27 10:15:40 davidg Exp $
  */
 
 /*
@@ -162,7 +162,7 @@ vm_pageout_clean(m, sync)
 	    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_pageout_free_min)
 		return 0;
 
-	if ((!sync && m->hold_count != 0) ||
+	if ((!sync && m->hold_count != 0) || m->wire_count ||
 	    ((m->busy != 0) || (m->flags & PG_BUSY)))
 		return 0;
 
