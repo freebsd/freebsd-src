@@ -172,7 +172,7 @@ sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
     DEB(printf("<%s>%d : open\n", d->name, unit));
 
     if (d->flags & SND_F_BUSY) {
-	printf("<%s>%d open: device busy\n", d->name, unit);
+	DEB(printf("<%s>%d open: device busy\n", d->name, unit));
 	return EBUSY ;
     }
 
