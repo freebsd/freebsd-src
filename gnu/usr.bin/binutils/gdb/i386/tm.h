@@ -52,7 +52,7 @@ extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
 
 #undef SIGTRAMP_START
 #undef SIGTRAMP_END
-#define SIGTRAMP_START(pc)	0xcfbfdfd8
-#define SIGTRAMP_END(pc)	0xcfbfdff0
+#define SIGTRAMP_START(pc)	0xbfbfdfd8
+#define SIGTRAMP_END(pc)	0xbfbfdff0
 
 #endif  /* ifndef TM_FBSD_H */
