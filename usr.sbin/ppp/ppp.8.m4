@@ -4943,7 +4943,10 @@ Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.
 There is no default MRRU (Maximum Reconstructed Receive Unit) value.
 If no argument is given, multi-link mode is disabled.
-.It set mru Oo max Ns Oo imum Oc Oc Op Ar value
+.It set mru Xo
+.Op max Ns Op imum
+.Op Ar value
+.Xc
 The default MRU (Maximum Receive Unit) is 1500.
 If it is increased, the other side *may* increase its MTU.
 In theory there is no point in decreasing the MRU to below the default as the
@@ -4968,7 +4971,10 @@ If no argument is given, 1500 is assumed.
 A value must be given when
 .Dq maximum
 is specified.
-.It set mtu Oo max Ns Oo imum Oc Oc Op Ar value
+.It set mtu Xo
+.Op max Ns Op imum
+.Op Ar value
+.Xc
 The default MTU is 1500.
 At negotiation time,
 .Nm
