@@ -991,6 +991,9 @@ ndis_set_info(arg, oid, buf, buflen)
 	setfunc = sc->ndis_chars.nmc_setinfo_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 
+	if (adapter == NULL)
+		return(ENXIO);
+
 	rval = setfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
 
@@ -1272,6 +1275,7 @@ ndis_init_nic(arg)
 	if (status != NDIS_STATUS_SUCCESS) {
 		bzero((char *)&sc->ndis_chars,
 		    sizeof(ndis_miniport_characteristics));
+		sc->ndis_block.nmb_miniportadapterctx = NULL;
 		return(ENXIO);
 	}
 
@@ -1379,6 +1383,9 @@ ndis_get_info(arg, oid, buf, buflen)
 	sc = arg;
 	queryfunc = sc->ndis_chars.nmc_queryinfo_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
+
+	if (adapter == NULL)
+		return(ENXIO);
 
 	rval = queryfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
