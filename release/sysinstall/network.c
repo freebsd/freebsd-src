@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.11 1995/06/07 06:15:44 jkh Exp $
+ * $Id: network.c,v 1.6.2.12 1995/06/07 07:21:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,6 +68,8 @@ mediaInitNetwork(Device *dev)
 		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 		return FALSE;
 	    }
+	    networkInitialized = TRUE;
+	    return TRUE;
 	}
 	else {
 	    char *val;
@@ -108,8 +110,7 @@ mediaInitNetwork(Device *dev)
 
     rp = getenv(VAR_GATEWAY);
     if (!rp || *rp == '0')
-	msgConfirm("No gateway has been set. You will not be able to access hosts\n
-not on the local network\n");
+	msgConfirm("No gateway has been set. You may be unable to access hosts\nnot on your local network\n");
     else
 	vsystem("route add default %s", rp);
     networkInitialized = TRUE;
@@ -162,10 +163,13 @@ startPPP(Device *devp)
     Mkdir("/var/log", NULL);
     Mkdir("/var/spool/lock", NULL);
     Mkdir("/etc/ppp", NULL);
-    fd2 = open("/etc/ppp/ppp.linkup", O_CREAT);
-    if (fd2 != -1) {
-	fchmod(fd2, 0755);
-	close(fd2);
+    fp = fopen("/etc/ppp/ppp.linkup", "w");
+    if (fp != NULL) {
+        strcpy(netmask, getenv("netmask") ? getenv("netmask") : "0xffffffff");
+	fprintf(fp, "MYADDR:\n");
+        fprintf(fp, " add 0 %s %s\n", netmask, provider);
+	fchmod(fileno(fp), 0755);
+	fclose(fp);
     }
     fd2 = open("/etc/ppp/ppp.secret", O_CREAT);
     if (fd2 != -1) {
@@ -193,9 +197,6 @@ startPPP(Device *devp)
     else
 	strcpy(myaddr, "0");
     fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
-
-    strcpy(netmask, getenv("netmask") ? getenv("netmask") : "0xffffffff");
-    fprintf(fp, " add 0 %s %s\n", netmask, provider);
     fclose(fp);
 
     if (isDebug())

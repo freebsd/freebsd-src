@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.28 1995/06/07 06:50:05 jkh Exp $
+ * $Id: menus.c,v 1.41.2.29 1995/06/07 07:21:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -638,7 +638,7 @@ be at various stages.",
       { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
 	DMENU_SET_FLAG,	&OptFlags, OPT_NO_CONFIRM, 0, dmenuFlagCheck	},
       { "FTP userpass", "Specify username and password instead of anonymous",
-	DMENU_CALL, mediaSetFtpUserPass, 0, userPassCheck		},
+	DMENU_CALL, mediaSetFtpUserPass, 0, 0, userPassCheck		},
       { "Clear", "Clear All Option Flags",
 	DMENU_CALL,		clearFlags, 0, 0 },
       { "Exit", "Exit this menu (returning to previous)",
