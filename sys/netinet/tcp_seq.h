@@ -91,7 +91,7 @@ extern tcp_cc	tcp_ccgen;		/* global connection count */
  * number in the range [0-0x3ffff] that is hard to predict.
  */
 #ifndef tcp_random18
-#define	tcp_random18()	((random() >> 14) & 0x3ffff)
+#define	tcp_random18()	(arc4random() & 0x3ffff)
 #endif
 #define	TCP_ISSINCR	(122*1024 + tcp_random18())
 

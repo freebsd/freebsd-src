@@ -61,6 +61,7 @@ static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
 static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 
 /* Prototypes for non-quad routines. */
+u_int32_t	arc4random __P((void));
 int	 bcmp __P((const void *, const void *, size_t));
 #ifndef HAVE_INLINE_FFS
 int	 ffs __P((int));

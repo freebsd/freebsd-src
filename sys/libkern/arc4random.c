@@ -11,7 +11,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/random.h>
 #include <sys/libkern.h>
 
 #define	ARC4_MAXRUNS 64

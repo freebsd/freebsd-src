@@ -104,7 +104,7 @@ void
 tcp_init()
 {
 
-	tcp_iss = random();	/* wrong, but better than a constant */
+	tcp_iss = arc4random();	/* wrong, but better than a constant */
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
 	LIST_INIT(&tcb);
