@@ -266,7 +266,9 @@ elf_i386_is_local_label_name (abfd, name)
 /* The name of the dynamic interpreter.  This is put in the .interp
    section.  */
 
-#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
+#ifndef ELF_DYNAMIC_INTERPRETER
+#define ELF_DYNAMIC_INTERPRETER "/usr/lib/libc.so.1"
+#endif
 
 /* The size in bytes of an entry in the procedure linkage table.  */
 
@@ -1293,7 +1295,9 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 			     sections against symbols defined externally
 			     in shared libraries.  We can't do anything
 			     with them here.  */
-			  || (input_section->flags & SEC_DEBUGGING) != 0)))
+			  || ((input_section->flags & SEC_DEBUGGING) != 0
+			      && (h->elf_link_hash_flags
+				  & ELF_LINK_HASH_DEF_DYNAMIC) != 0))))
 		{
 		  /* In these cases, we don't need the relocation
                      value.  We check specially because in some
@@ -1315,14 +1319,17 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 	    }
 	  else if (h->root.type == bfd_link_hash_undefweak)
 	    relocation = 0;
-	  else if (info->shared && !info->symbolic && !info->no_undefined)
+	  else if (info->shared && !info->symbolic
+		   && !info->no_undefined
+		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
 	    relocation = 0;
 	  else
 	    {
 	      if (! ((*info->callbacks->undefined_symbol)
 		     (info, h->root.root.string, input_bfd,
 		      input_section, rel->r_offset,
-		      (!info->shared || info->no_undefined))))
+		      (!info->shared || info->no_undefined
+		       || ELF_ST_VISIBILITY (h->other)))))
 		return false;
 	      relocation = 0;
 	    }
