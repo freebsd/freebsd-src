@@ -972,10 +972,10 @@ configNFSServer(dialogMenuItem *self)
 		       "Press [ENTER] now to invoke an editor on /etc/exports\n");
 	    vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
 	    vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
-	    vsystem("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
+	    vsystem("echo '#and, /a to a network of privileged machines allowed to write on it as root.' >> /etc/exports");
 	    vsystem("echo '#/usr                huey louie dewie' >> /etc/exports");
 	    vsystem("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
-	    vsystem("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
+	    vsystem("echo '#/a      -maproot=0  -network 10.0.1.0 -mask 255.255.248.0' >> /etc/exports");
 	    vsystem("echo '#' >> /etc/exports");
 	    vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	    vsystem("echo >> /etc/exports");
