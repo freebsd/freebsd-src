@@ -1380,8 +1380,9 @@ bootpc_compose_query(struct bootpc_ifcontext *ifctx,
 		leasetime = htonl(300);
 		memcpy(vendp, &leasetime, 4);
 		vendp += 4;
+		break;
 	default:
-		;
+		break;
 	}
 	*vendp = TAG_END;
 
@@ -1444,9 +1445,6 @@ static unsigned char *
 bootpc_tag(struct bootpc_tagcontext *tctx,
     struct bootp_packet *bp, int len, int tag)
 {
-	unsigned char *j;
-	unsigned char *ej;
-
 	tctx->overload = 0;
 	tctx->badopt = 0;
 	tctx->badtag = 0;
@@ -1455,9 +1453,6 @@ bootpc_tag(struct bootpc_tagcontext *tctx,
 
 	if (bootpc_hascookie(bp) == 0)
 		return NULL;
-
-	j = &bp->vend[4];
-	ej = (unsigned char *) bp + len;
 
 	bootpc_tag_helper(tctx, &bp->vend[4],
 			  (unsigned char *) bp + len - &bp->vend[4], tag);
