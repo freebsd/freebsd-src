@@ -59,7 +59,8 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	PFIL_HOOKS		# pfil(9) framework
 
 # Debugging for use in -current
-options 	DDB			#Enable the kernel debugger
+options 	KDB			#Enable the kernel debugger
+options 	DDB			#Support DDB
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			#Enable checks to detect deadlocks and cycles
@@ -97,6 +98,8 @@ device		zs		# Zilog 8350 based serial ports
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
+device 		dc		# DEC/Intel 21143 and various workalikes
+device 		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
