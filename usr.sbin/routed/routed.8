@@ -256,7 +256,6 @@ the following format:
 .Cm metric
 .Ar value
 .Pf < Cm passive No \&|
-.Cm active No \&|
 .Cm external Ns >
 .Ed
 .Pp
@@ -287,8 +286,7 @@ is a metric indicating the hop count to the destination host
 or network.
 .Pp
 One of the keywords
-.Cm passive ,
-.Cm active
+.Cm passive
 or
 .Cm external
 indicates if the gateway should be treated as 
@@ -301,15 +299,6 @@ or whether the gateway is
 to the scope of the
 .Nm routed
 protocol.
-.Pp
-Internetwork routers that are directly attached to the Arpanet or Milnet
-should use the Exterior Gateway Protocol
-.Pq Tn EGP
-to gather routing information
-rather then using a static routing table of passive gateways.
-.Tn EGP
-is required in order to provide routes for local networks to the rest
-of the Internet system.
 .Sh FILES
 .Bl -tag -width /etc/gateways -compact
 .It Pa /etc/gateways
