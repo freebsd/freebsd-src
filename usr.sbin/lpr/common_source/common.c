@@ -82,14 +82,15 @@ getline(FILE *cfp)
 	register char *lp = line;
 	register int c;
 
-	while ((c = getc(cfp)) != '\n' && linel+1 < sizeof(line)) {
+	while ((c = getc(cfp)) != '\n' && (size_t)(linel+1) < sizeof(line)) {
 		if (c == EOF)
 			return(0);
 		if (c == '\t') {
 			do {
 				*lp++ = ' ';
 				linel++;
-			} while ((linel & 07) != 0 && linel+1 < sizeof(line));
+			} while ((linel & 07) != 0 && (size_t)(linel+1) <
+			    sizeof(line));
 			continue;
 		}
 		*lp++ = c;
@@ -109,10 +110,10 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 {
 	register struct dirent *d;
 	register struct jobqueue *q, **queue;
-	register int nitems;
+	size_t arraysz, nitems;
 	struct stat stbuf;
 	DIR *dirp;
-	int arraysz, statres;
+	int statres;
 
 	seteuid(euid);
 	if ((dirp = opendir(pp->spool_dir)) == NULL) {
@@ -257,9 +258,11 @@ lpd_gettime(struct timespec *tsp, char *strp, size_t strsize)
 {
 	struct timespec local_ts;
 	struct timeval btime;
-	char *destp;
 	char tempstr[TIMESTR_SIZE];
-	
+#ifdef STRFTIME_WRONG_z
+	char *destp;
+#endif
+
 	if (tsp == NULL)
 		tsp = &local_ts;
 
@@ -355,7 +358,8 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 {
 #define STATLINE_SIZE 1024
 	double trtime;
-	int remspace, statfile;
+	size_t remspace;
+	int statfile;
 	char thishost[MAXHOSTNAMELEN], statline[STATLINE_SIZE];
 	char *eostat;
 	const char *lprhost, *recvdev, *recvhost, *rectype;
@@ -364,7 +368,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	eostat = strchr(xStr, '\0');  \
 	remspace = eostat - xStr;     \
 } while(0)
-	
+
 	lpd_gettime(&pp->tr_done, NULL, (size_t)0);
 	trtime = DIFFTIME_TS(pp->tr_done, pp->tr_start);
 
@@ -473,9 +477,10 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 		snprintf(eostat, remspace, " user=%s", userid);
 		UPD_EOSTAT(statline);
 	}
-	snprintf(eostat, remspace, " secs=%#.2f bytes=%u", trtime, bytecnt);
+	snprintf(eostat, remspace, " secs=%#.2f bytes=%lu", trtime,
+	    (unsigned long)bytecnt);
 	UPD_EOSTAT(statline);
-	
+
 	/*
 	 * The bps field duplicates info from bytes and secs, so do
 	 * not bother to include it for very small files.
