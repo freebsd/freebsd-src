@@ -133,7 +133,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					printf("%s: start dependant\n",
 					       pnp_eisaformat(id));
 				}
-				if (ncfgs >= MAXDEP) {
+				if (ncfgs > MAXDEP) {
 					device_printf(parent, "too many dependant configs (%d)\n", MAXDEP);
 					scanning = 0;
 					break;
