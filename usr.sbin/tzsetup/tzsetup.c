@@ -378,12 +378,11 @@ make_menus(void)
 		if (cp->nzones < 0) {
 			cp->continent->nitems++;
 		} else {
-			for (zp = cp->zones.tqh_first; zp; 
-			     zp = zp->link.tqe_next) {
+			TAILQ_FOREACH(zp, &cp->zones, link) {
 				cont = zp->continent;
-				for (zp2 = cp->zones.tqh_first;
+				for (zp2 = TAILQ_FIRST(&cp->zones);
 				     zp2->continent != cont;
-				     zp2 = zp2->link.tqe_next)
+				     zp2 = TAILQ_NEXT(zp2, link))
 					;
 				if (zp2 == zp)
 					zp->continent->nitems++;
@@ -428,8 +427,7 @@ make_menus(void)
 			if (cp->submenu == 0)
 				errx(1, "malloc for submenu");
 			cp->nzones = 0;
-			for (zp = cp->zones.tqh_first; zp; 
-			     zp = zp->link.tqe_next) {
+			TAILQ_FOREACH(zp, &cp->zones, link) {
 				cont = zp->continent;
 				dmi = &cp->submenu[cp->nzones];
 				memset(dmi, 0, sizeof *dmi);
@@ -441,9 +439,9 @@ make_menus(void)
 				dmi->selected = 0;
 				dmi->data = zp;
 
-				for (zp2 = cp->zones.tqh_first;
+				for (zp2 = TAILQ_FIRST(&cp->zones);
 				     zp2->continent != cont;
-				     zp2 = zp2->link.tqe_next)
+				     zp2 = TAILQ_NEXT(zp2, link))
 					;
 				if (zp2 != zp)
 					continue;
