@@ -94,17 +94,16 @@ typedef unsigned char b_xflags_t;
  *		D - Protected by an dependency implementation specific lock
  */
 struct buf {
-	struct bio b_io;		/* "Builtin" I/O request. */
-#define	b_bcount	b_io.bio_bcount
-#define	b_caller1	b_io.bio_caller1
-#define	b_data		b_io.bio_data
-#define	b_error		b_io.bio_error
-#define	b_iocmd		b_io.bio_cmd
-#define	b_ioflags	b_io.bio_flags
-#define	b_iooffset	b_io.bio_offset
-#define	b_resid		b_io.bio_resid
 	struct bufobj	*b_bufobj;
-	unsigned		b_magic;
+	long		b_bcount;
+	void		*b_caller1;
+	caddr_t		b_data;
+	int		b_error;
+	uint8_t		b_iocmd;
+	uint8_t		b_ioflags;
+	off_t		b_iooffset;
+	long		b_resid;
+	unsigned	b_magic;
 #define B_MAGIC_BIO	0x10b10b10
 #define B_MAGIC_NFS	0x67238234
 	void	(*b_iodone)(struct buf *);
