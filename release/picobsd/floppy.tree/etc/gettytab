@@ -6,7 +6,6 @@ default:\
 P|Pc|Pc console:\
 	:ht:np:sp#115200:
 
-#
 # Fixed speed entries
 2|std.9600|9600-baud:\
 	:np:sp#9600:
@@ -19,7 +18,6 @@ std.57600|57600-baud:\
 std.115200|115200-baud:\
 	:np:sp#115200:
 
-#
 # Entry specifying explicit device settings.  See termios(4) and
 # /usr/include/termios.h, too.  The entry forces the tty into
 # CLOCAL mode (so no DCD is required), and uses Xon/Xoff flow control.

@@ -14,7 +14,6 @@
 #	-i 65536 - bytes of data per i-node
 #	(the default -i value will render you with a floppy wasting way
 #	too much space in i-node areas)
-#
 
 fd360:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#9:nc#40:\
@@ -84,4 +83,3 @@ zip100|zip 100:\
 	:pa#196608:oa#0:ba#4096:fa#512:\
 	:pb#196608:ob#0:bb#4096:fb#512:\
 	:pc#196608:oc#0:bc#4096:fc#512:
-

@@ -53,6 +53,9 @@ if [ "X${inetd_enable}" = X"YES" ]; then
 	echo "Starting inetd."; inetd ${inetd_flags}
 fi
 
+[ "X${sshd_enable}" = "XYES" ] && [ -f /stand/sshd ] && \
+	sshd -f /etc/sshd_config
+
 dev_mkdb
 
 echo ''
@@ -60,18 +63,5 @@ if [ "x$swapfile" = "xNO" ]; then
 	echo "WARNING: no swap partition!"
 	echo "Don't run too many programs at the same time..."
 fi
-echo ''
-echo ''
-echo '+----------- PicoBSD @VER@ (ISP) ---------------+'
-echo '|                                              |'
-echo '| Log in as "root" (password "setup").         |'
-echo '|                                              |'
-echo '| This version of PicoBSD is fully under       |'
-echo '| BSD license. For more details see            |'
-echo '| http://www.freebsd.org/~picobsd, or contact  |'
-echo '| the author.                                  |'
-echo '|                                              |'
-echo '|                     abial@freebsd.org        |'
-echo '|                                              |'
-echo '+----------------------------------------------+'
+cat /etc/motd
 exit 0
