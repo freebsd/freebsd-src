@@ -1033,10 +1033,15 @@ static void xl_reset(sc)
 	if (i == XL_TIMEOUT)
 		printf("xl%d: reset didn't complete\n", sc->xl_unit);
 
-	DELAY(100000);
-
 	/* Reset TX and RX. */
+	/* Note: the RX reset takes an absurd amount of time
+	 * on newer versions of the Tornado chips such as those
+	 * on the 3c905CX and newer 3c908C cards. We wait an
+	 * extra amount of time so that xl_wait() doesn't complain
+	 * and annoy the users.
+	 */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
+	DELAY(100000);
 	xl_wait(sc);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
