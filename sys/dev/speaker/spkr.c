@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.21 1995/12/08 11:15:21 julian Exp $
+ *    $Id: spkr.c,v 1.22 1995/12/08 23:20:48 phk Exp $
  */
 
 #include "speaker.h"
@@ -80,6 +80,13 @@ static struct cdevsw spkr_cdevsw =
 
 #define SPKRPRI PSOCK
 static char endtone, endrest;
+
+static void tone __P((unsigned int thz, unsigned int ticks));
+static void rest __P((int ticks));
+static void playinit __P((void));
+static void playtone __P((int pitch, int value, int sustain));
+static int abs __P((int n));
+static void playstring __P((char *cp, size_t slen));
 
 static void tone(thz, ticks)
 /* emit tone of frequency thz for given number of ticks */

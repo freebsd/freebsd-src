@@ -198,9 +198,8 @@
 #define TWPRI		(PZERO+8)	/* I don't know any better, so let's */
 					/* use the same as the line printer */
 
-static int twprobe();
-static int twattach();
-void twintr(int unit);
+static int twprobe(struct isa_device *idp);
+static int twattach(struct isa_device *idp);
 
 struct isa_driver twdriver = {
   twprobe, twattach, "tw"
@@ -251,13 +250,15 @@ static struct tw_sc {
 #endif
 } tw_sc[NTW];
 
-static void twdelay25();
+static void twdelay25(void);
 static void twdelayn(int n);
 static void twsetuptimes(int *a);
 static int wait_for_zero(struct tw_sc *sc);
 static int twgetbytes(struct tw_sc *sc, u_char *p, int cnt);
+static void twabortrcv(struct tw_sc *sc);
 static int twsend(struct tw_sc *sc, int h, int k, int cnt);
 static int next_zero(struct tw_sc *sc);
+static int twputpkt(struct tw_sc *sc, u_char *p);
 static int twchecktime(int target, int tol);
 
 /*

@@ -53,6 +53,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/mbuf.h>

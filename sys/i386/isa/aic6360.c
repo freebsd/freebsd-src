@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.15 1995/12/06 23:42:13 bde Exp $
+ * $Id: aic6360.c,v 1.16 1995/12/10 13:38:19 phk Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -690,15 +690,22 @@ int	aicintr         __P((struct aic_softc *));
 static void	aic_init        __P((struct aic_softc *));
 #endif
 static void	aic_done	__P((struct acb *));
+static void	aic_dataout	__P((struct aic_data *aic));
 #ifdef __FreeBSD__
+static void	aic_datain	__P((struct aic_data *aic));
 static int32	aic_scsi_cmd	__P((struct scsi_xfer *));
 static int	aic_poll	__P((int, struct acb *));
 #else
+static void	aic_datain	__P((struct aic_softc *aic));
 static int	aic_scsi_cmd    __P((struct scsi_xfer *));
 static int	aic_poll        __P((struct aic_softc *, struct acb *));
 #endif
 void	aic_add_timeout __P((struct acb *, int));
 void	aic_remove_timeout __P((struct acb *));
+static	void	aic6360_reset	__P((struct aic_data *aic));
+static	u_short	aicphase	__P((struct aic_data *aic));
+static	void	aic_msgin	__P((struct aic_data *aic));
+static	void	aic_msgout	__P((struct aic_data *aic));
 #ifdef __FreeBSD__
 static timeout_t aic_timeout;
 static void	aic_sched	__P((struct aic_data *));
@@ -710,9 +717,9 @@ static void	aic_sched       __P((struct aic_softc *));
 static void	aic_scsi_reset  __P((struct aic_softc *));
 #endif
 #if AIC_DEBUG
-void	aic_print_active_acb();
-void	aic_dump_driver();
-void	aic_dump6360();
+void	aic_print_active_acb	__P((void));
+void	aic_dump6360		__P((void));
+void	aic_dump_driver		__P((void));
 #endif
 
 /* Linkup to the rest of the kernel */

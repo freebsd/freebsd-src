@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.89 1995/12/05 13:01:33 davidg Exp $
+ *	$Id: if_ed.c,v 1.90 1995/12/10 13:38:37 phk Exp $
  */
 
 /*
@@ -92,7 +92,7 @@
 /*
  * ed_softc: per line info and status
  */
-static struct ed_softc {
+struct ed_softc {
 	struct arpcom arpcom;	/* ethernet common */
 
 	char   *type_str;	/* pointer to type string */
@@ -132,7 +132,9 @@ static struct ed_softc {
 	u_char  rec_page_stop;	/* last page of RX ring-buffer */
 	u_char  next_packet;	/* pointer to next unread RX packet */
 	struct	kern_devconf kdc; /* kernel configuration database info */
-}       ed_softc[NED];
+};
+
+static struct ed_softc ed_softc[NED];
 
 static int ed_attach		__P((struct isa_device *));
 static void ed_init		__P((struct ifnet *));
@@ -149,16 +151,21 @@ static int ed_probe_3Com	__P((struct isa_device *));
 static int ed_probe_Novell	__P((struct isa_device *));
 static int ed_probe_pccard	__P((struct isa_device *, u_char *));
 
-static void    ds_getmcaf();
+static void    ds_getmcaf __P((struct ed_softc *, u_long *));
 
-static void ed_get_packet(struct ed_softc *, char *, int /* u_short */ , int);
+static void ed_get_packet(struct ed_softc *, char *, /* u_short */ int, int);
 
-static inline void ed_rint();
-static inline void ed_xmit();
-static inline char *ed_ring_copy();
+static void	ed_rint __P((struct ed_softc *));
+static void	ed_xmit __P((struct ed_softc *));
+static char *	ed_ring_copy __P((struct ed_softc *, char *, char *,
+				  /* u_short */ int));
 
-static void    ed_pio_readmem(), ed_pio_writemem();
-static u_short ed_pio_write_mbufs();
+static void	ed_pio_readmem __P((struct ed_softc *, /* u_short */ int,
+				    unsigned char *, /* u_short */ int));
+static void	ed_pio_writemem __P((struct ed_softc *, char *,
+				     /* u_short */ int, /* u_short */ int));
+static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
+					/* u_short */ int));
 
 static void    ed_setrcr(struct ed_softc *);
 static u_long ds_crc(u_char *ep);
@@ -167,6 +174,7 @@ static u_long ds_crc(u_char *ep);
 #if NCRD > 0
 #include <sys/select.h>
 #include <pccard/card.h>
+#include <pccard/driver.h>
 #include <pccard/slot.h>
 /*
  *	PC-Card (PCMCIA) specific code.

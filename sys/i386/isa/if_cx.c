@@ -51,6 +51,9 @@ extern struct cdevsw cx_cdevsw;
 #include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
 
+/* XXX exported. */
+void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
+
 static int cxprobe __P((struct isa_device *id));
 static int cxattach __P((struct isa_device *id));
 static void cxput __P((cx_chan_t *c, char b));
