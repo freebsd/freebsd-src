@@ -61,7 +61,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#if __FreeBSD_version >= 500033
 #include <sys/endian.h>
+#endif
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
