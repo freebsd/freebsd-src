@@ -76,12 +76,12 @@ and process this entries only.
 Use
 .Ar name
 instead of
-.Pa whatis Ns .
+.Pa whatis .
 .It Fl o , Fl outfile Ar file
 Write all output to
 .Ar file
 instead of
-.Pa dirname/whatis Ns .
+.Pa dirname/whatis .
 .It Fl v , Fl verbose
 Issue more warnings
 (to stderr).
@@ -97,7 +97,7 @@ for a link.
 .Ic makewhatis $MANPATH
 .Pp
 Create whatis database for all directories in your
-.Pa $MANPATH Ns .
+.Pa $MANPATH .
 .Pp
 .Ic makewhatis -outfile /tmp/mywhatis /usr/local/man $HOME/man
 .Pp
@@ -106,18 +106,18 @@ Create whatis database
 Traverse directories
 .Pa /usr/local/man
 and
-.Pa $HOME/man Ns .
+.Pa $HOME/man .
 Don't create
 .Pa /usr/local/man/whatis
 or
-.Pa $HOME/man/whatis Ns .
+.Pa $HOME/man/whatis .
 .Pp
 .Ic makewhatis -name windex $HOME/man
 .Pp
 Create whatis database
 .Pa windex
 instead of
-.Pa whatis Ns .
+.Pa whatis .
 May be useful for Solaris.
 .Sh FILES
 .Bl -tag -width /etc/master.passwdxx -compact
