@@ -946,13 +946,32 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   return 1;
 }
 
+/* Fetch IP, netmask from IPCP */
+void
+radius_Account_Set_Ip(struct radacct *ac, struct in_addr *peer_ip,
+		      struct in_addr *netmask)
+{
+  ac->proto = PROTO_IPCP;
+  memcpy(&ac->ip.addr, peer_ip, sizeof(ac->ip.addr));
+  memcpy(&ac->ip.mask, netmask, sizeof(ac->ip.mask));
+}
+
+#ifndef NOINET6
+/* Fetch interface-id from IPV6CP */
+void
+radius_Account_Set_Ipv6(struct radacct *ac, u_char *ifid)
+{
+  ac->proto = PROTO_IPV6CP;
+  memcpy(&ac->ipv6.ifid, ifid, sizeof(ac->ipv6.ifid));
+}
+#endif
+
 /*
  * Send an accounting request to the RADIUS server
  */
 void
 radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
-               int acct_type, struct in_addr *peer_ip, struct in_addr *netmask,
-               struct pppThroughput *stats)
+               int acct_type, struct pppThroughput *stats)
 {
   struct timeval tv;
   int got;
@@ -1009,20 +1028,37 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     snprintf(ac->multi_session_id, sizeof ac->multi_session_id, "%s",
              dl->bundle->ncp.mp.active ?
              dl->bundle->ncp.mp.server.socket.sun_path : "");
-
-    /* Fetch IP, netmask from IPCP */
-    memcpy(&ac->ip, peer_ip, sizeof(ac->ip));
-    memcpy(&ac->mask, netmask, sizeof(ac->mask));
   };
 
   if (rad_put_string(r->cx.rad, RAD_USER_NAME, ac->user_name) != 0 ||
       rad_put_int(r->cx.rad, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||
-      rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0 ||
-      rad_put_addr(r->cx.rad, RAD_FRAMED_IP_ADDRESS, ac->ip) != 0 ||
-      rad_put_addr(r->cx.rad, RAD_FRAMED_IP_NETMASK, ac->mask) != 0) {
+      rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0) {
     log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);
     return;
+  }
+  switch (ac->proto) {
+  case PROTO_IPCP:
+    if (rad_put_addr(r->cx.rad, RAD_FRAMED_IP_ADDRESS, ac->ip.addr) != 0 ||
+	rad_put_addr(r->cx.rad, RAD_FRAMED_IP_NETMASK, ac->ip.mask) != 0) {
+      log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
+      rad_close(r->cx.rad);
+      return;
+    }
+    break;
+#ifndef NOINET6
+  case PROTO_IPV6CP:
+    if (rad_put_attr(r->cx.rad, RAD_FRAMED_INTERFACE_ID, ac->ipv6.ifid,
+		     sizeof(ac->ipv6.ifid)) != 0) {
+      log_Printf(LogERROR, "rad_put_attr: %s\n", rad_strerror(r->cx.rad));
+      rad_close(r->cx.rad);
+      return;
+    }
+    break;
+#endif
+  default:
+    /* We don't log any protocol specific information */
+    break;
   }
 
   if (gethostname(hostname, sizeof hostname) != 0)
