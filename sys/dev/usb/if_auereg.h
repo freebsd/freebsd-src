@@ -246,7 +246,11 @@ struct aue_softc {
 	int			aue_if_flags;
 	struct aue_cdata	aue_cdata;
 	struct callout_handle	aue_stat_ch;
+	struct mtx		aue_mtx;
 };
+
+#define	AUE_LOCK(_sc)		mtx_enter(&(_sc)->aue_mtx, MTX_DEF)
+#define	AUE_UNLOCK(_sc)		mtx_exit(&(_sc)->aue_mtx, MTX_DEF)
 
 #define AUE_TIMEOUT		1000
 #define ETHER_ALIGN		2

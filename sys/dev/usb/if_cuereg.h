@@ -179,4 +179,8 @@ struct cue_softc {
 	u_int16_t		cue_rxfilt;
 	struct cue_cdata	cue_cdata;
 	struct callout_handle	cue_stat_ch;
+	struct mtx		cue_mtx;
 };
+
+#define	CUE_LOCK(_sc)		mtx_enter(&(_sc)->cue_mtx, MTX_DEF)
+#define	CUE_UNLOCK(_sc)		mtx_exit(&(_sc)->cue_mtx, MTX_DEF)

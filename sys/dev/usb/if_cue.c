@@ -162,12 +162,11 @@ Static int csr_read_1(sc, reg)
 	usb_device_request_t	req;
 	usbd_status		err;
 	u_int8_t		val = 0;
-	int			s;
 
 	if (sc->cue_gone)
 		return(0);
 
-	s = splusb();
+	CUE_LOCK(sc);
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_READREG;
@@ -178,7 +177,7 @@ Static int csr_read_1(sc, reg)
 	err = usbd_do_request_flags(sc->cue_udev,
 	    &req, &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	if (err)
 		return(0);
@@ -193,12 +192,11 @@ Static int csr_read_2(sc, reg)
 	usb_device_request_t	req;
 	usbd_status		err;
 	u_int16_t		val = 0;
-	int			s;
 
 	if (sc->cue_gone)
 		return(0);
 
-	s = splusb();
+	CUE_LOCK(sc);
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_READREG;
@@ -209,7 +207,7 @@ Static int csr_read_2(sc, reg)
 	err = usbd_do_request_flags(sc->cue_udev,
 	    &req, &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	if (err)
 		return(0);
@@ -223,12 +221,11 @@ Static int csr_write_1(sc, reg, val)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
-	int			s;
 
 	if (sc->cue_gone)
 		return(0);
 
-	s = splusb();
+	CUE_LOCK(sc);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_WRITEREG;
@@ -239,7 +236,7 @@ Static int csr_write_1(sc, reg, val)
 	err = usbd_do_request_flags(sc->cue_udev,
 	    &req, &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	if (err)
 		return(-1);
@@ -254,12 +251,11 @@ Static int csr_write_2(sc, reg, val)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
-	int			s;
 
 	if (sc->cue_gone)
 		return(0);
 
-	s = splusb();
+	CUE_LOCK(sc);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_WRITEREG;
@@ -270,7 +266,7 @@ Static int csr_write_2(sc, reg, val)
 	err = usbd_do_request_flags(sc->cue_udev,
 	    &req, &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	if (err)
 		return(-1);
@@ -288,12 +284,11 @@ Static int cue_mem(sc, cmd, addr, buf, len)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
-	int			s;
 
 	if (sc->cue_gone)
 		return(0);
 
-	s = splusb();
+	CUE_LOCK(sc);
 
 	if (cmd == CUE_CMD_READSRAM)
 		req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -307,7 +302,7 @@ Static int cue_mem(sc, cmd, addr, buf, len)
 	err = usbd_do_request_flags(sc->cue_udev,
 	    &req, &buf, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	if (err)
 		return(-1);
@@ -321,12 +316,11 @@ Static int cue_getmac(sc, buf)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
-	int			s;
 
 	if (sc->cue_gone)
 		return(0);
 
-	s = splusb();
+	CUE_LOCK(sc);
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_GET_MACADDR;
@@ -337,7 +331,7 @@ Static int cue_getmac(sc, buf)
 	err = usbd_do_request_flags(sc->cue_udev,
 	    &req, buf, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	if (err) {
 		printf("cue%d: read MAC address failed\n", sc->cue_unit);
@@ -416,12 +410,9 @@ Static void cue_reset(sc)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
-	int			s;
 
 	if (sc->cue_gone)
 		return;
-
-	s = splusb();
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_RESET;
@@ -430,8 +421,6 @@ Static void cue_reset(sc)
 	USETW(req.wLength, 0);
 	err = usbd_do_request_flags(sc->cue_udev,
 	    &req, NULL, USBD_NO_TSLEEP, NULL);
-
-	splx(s);
 
 	if (err)
 		printf("cue%d: reset failed\n", sc->cue_unit);
@@ -472,14 +461,11 @@ USB_ATTACH(cue)
 {
 	USB_ATTACH_START(cue, sc, uaa);
 	char			devinfo[1024];
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
 	int			i;
-
-	s = splimp();
 
 	bzero(sc, sizeof(struct cue_softc));
 	sc->cue_iface = uaa->iface;
@@ -489,7 +475,6 @@ USB_ATTACH(cue)
 	if (usbd_set_config_no(sc->cue_udev, CUE_CONFIG_NO, 0)) {
 		printf("cue%d: getting interface handle failed\n",
 		    sc->cue_unit);
-		splx(s);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -505,7 +490,6 @@ USB_ATTACH(cue)
 		if (!ed) {
 			printf("cue%d: couldn't get ep %d\n",
 			    sc->cue_unit, i);
-			splx(s);
 			USB_ATTACH_ERROR_RETURN;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -519,6 +503,9 @@ USB_ATTACH(cue)
 			sc->cue_ed[CUE_ENDPT_INTR] = ed->bEndpointAddress;
 		}
 	}
+
+	mtx_init(&sc->cue_mtx, device_get_nameunit(self), MTX_DEF);
+	CUE_LOCK(sc);
 
 #ifdef notdef
 	/* Reset the adapter. */
@@ -561,7 +548,7 @@ USB_ATTACH(cue)
 	usb_register_netisr();
 	sc->cue_gone = 0;
 
-	splx(s);
+	CUE_UNLOCK(sc);
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
@@ -570,11 +557,9 @@ Static int cue_detach(dev)
 {
 	struct cue_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splusb();
 
 	sc = device_get_softc(dev);
+	CUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	sc->cue_gone = 1;
@@ -588,7 +573,8 @@ Static int cue_detach(dev)
 	if (sc->cue_ep[CUE_ENDPT_INTR] != NULL)
 		usbd_abort_pipe(sc->cue_ep[CUE_ENDPT_INTR]);
 
-	splx(s);
+	CUE_UNLOCK(sc);
+	mtx_destroy(&sc->cue_mtx);
 
 	return(0);
 }
@@ -688,10 +674,12 @@ Static void cue_rxstart(ifp)
 	struct cue_chain	*c;
 
 	sc = ifp->if_softc;
+	CUE_LOCK(sc);
 	c = &sc->cue_cdata.cue_rx_chain[sc->cue_cdata.cue_rx_prod];
 
 	if (cue_newbuf(sc, c, NULL) == ENOBUFS) {
 		ifp->if_ierrors++;
+		CUE_UNLOCK(sc);
 		return;
 	}
 
@@ -700,6 +688,7 @@ Static void cue_rxstart(ifp)
 	    c, mtod(c->cue_mbuf, char *), CUE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, cue_rxeof);
 	usbd_transfer(c->cue_xfer);
+	CUE_UNLOCK(sc);
 
 	return;
 }
@@ -722,14 +711,19 @@ Static void cue_rxeof(xfer, priv, status)
 
 	c = priv;
 	sc = c->cue_sc;
+	CUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_RUNNING))
+	if (!(ifp->if_flags & IFF_RUNNING)) {
+		CUE_UNLOCK(sc);
 		return;
+	}
 
 	if (status != USBD_NORMAL_COMPLETION) {
-		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
+		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
+			CUE_UNLOCK(sc);
 			return;
+		}
 		printf("cue%d: usb error on rx: %s\n", sc->cue_unit,
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
@@ -757,6 +751,7 @@ Static void cue_rxeof(xfer, priv, status)
 
 	/* Put the packet on the special USB input queue. */
 	usb_ether_input(m);
+	CUE_UNLOCK(sc);
 
 	return;
 done:
@@ -765,6 +760,7 @@ done:
 	    c, mtod(c->cue_mbuf, char *), CUE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, cue_rxeof);
 	usbd_transfer(c->cue_xfer);
+	CUE_UNLOCK(sc);
 
 	return;
 }
@@ -783,24 +779,22 @@ Static void cue_txeof(xfer, priv, status)
 	struct cue_chain	*c;
 	struct ifnet		*ifp;
 	usbd_status		err;
-	int			s;
-
-	s = splimp();
 
 	c = priv;
 	sc = c->cue_sc;
+	CUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
-			splx(s);
+			CUE_UNLOCK(sc);
 			return;
 		}
 		printf("cue%d: usb error on tx: %s\n", sc->cue_unit,
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->cue_ep[CUE_ENDPT_TX]);
-		splx(s);
+		CUE_UNLOCK(sc);
 		return;
 	}
 
@@ -819,7 +813,7 @@ Static void cue_txeof(xfer, priv, status)
 	else
 		ifp->if_opackets++;
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	return;
 }
@@ -829,16 +823,13 @@ Static void cue_tick(xsc)
 {
 	struct cue_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
 
-	if (sc == NULL) {
-		splx(s);
+	if (sc == NULL)
 		return;
-	}
+
+	CUE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -851,7 +842,7 @@ Static void cue_tick(xsc)
 
 	sc->cue_stat_ch = timeout(cue_tick, sc, hz);
 
-	splx(s);
+	CUE_UNLOCK(sc);
 
 	return;
 }
@@ -902,17 +893,23 @@ Static void cue_start(ifp)
 	struct mbuf		*m_head = NULL;
 
 	sc = ifp->if_softc;
+	CUE_LOCK(sc);
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		CUE_UNLOCK(sc);
 		return;
+	}
 
 	IF_DEQUEUE(&ifp->if_snd, m_head);
-	if (m_head == NULL)
+	if (m_head == NULL) {
+		CUE_UNLOCK(sc);
 		return;
+	}
 
 	if (cue_encap(sc, m_head, 0)) {
 		IF_PREPEND(&ifp->if_snd, m_head);
 		ifp->if_flags |= IFF_OACTIVE;
+		CUE_UNLOCK(sc);
 		return;
 	}
 
@@ -929,6 +926,7 @@ Static void cue_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+	CUE_UNLOCK(sc);
 
 	return;
 }
@@ -940,12 +938,12 @@ Static void cue_init(xsc)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct cue_chain	*c;
 	usbd_status		err;
-	int			i, s;
+	int			i;
 
 	if (ifp->if_flags & IFF_RUNNING)
 		return;
 
-	s = splimp();
+	CUE_LOCK(sc);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -971,14 +969,14 @@ Static void cue_init(xsc)
 	/* Init TX ring. */
 	if (cue_tx_list_init(sc) == ENOBUFS) {
 		printf("cue%d: tx list init failed\n", sc->cue_unit);
-		splx(s);
+		CUE_UNLOCK(sc);
 		return;
 	}
 
 	/* Init RX ring. */
 	if (cue_rx_list_init(sc) == ENOBUFS) {
 		printf("cue%d: rx list init failed\n", sc->cue_unit);
-		splx(s);
+		CUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1005,7 +1003,7 @@ Static void cue_init(xsc)
 	if (err) {
 		printf("cue%d: open rx pipe failed: %s\n",
 		    sc->cue_unit, usbd_errstr(err));
-		splx(s);
+		CUE_UNLOCK(sc);
 		return;
 	}
 	err = usbd_open_pipe(sc->cue_iface, sc->cue_ed[CUE_ENDPT_TX],
@@ -1013,7 +1011,7 @@ Static void cue_init(xsc)
 	if (err) {
 		printf("cue%d: open tx pipe failed: %s\n",
 		    sc->cue_unit, usbd_errstr(err));
-		splx(s);
+		CUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1029,7 +1027,7 @@ Static void cue_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
+	CUE_UNLOCK(sc);
 
 	sc->cue_stat_ch = timeout(cue_tick, sc, hz);
 
@@ -1042,9 +1040,9 @@ Static int cue_ioctl(ifp, command, data)
 	caddr_t			data;
 {
 	struct cue_softc	*sc = ifp->if_softc;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	CUE_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1083,7 +1081,7 @@ Static int cue_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	CUE_UNLOCK(sc);
 
 	return(error);
 }
@@ -1093,9 +1091,10 @@ Static void cue_watchdog(ifp)
 {
 	struct cue_softc	*sc;
 	struct cue_chain	*c;
-
 	usbd_status		stat;
+
 	sc = ifp->if_softc;
+	CUE_LOCK(sc);
 
 	ifp->if_oerrors++;
 	printf("cue%d: watchdog timeout\n", sc->cue_unit);
@@ -1106,6 +1105,7 @@ Static void cue_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		cue_start(ifp);
+	CUE_UNLOCK(sc);
 
 	return;
 }
@@ -1120,6 +1120,8 @@ Static void cue_stop(sc)
 	usbd_status		err;
 	struct ifnet		*ifp;
 	int			i;
+
+	CUE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
@@ -1204,6 +1206,7 @@ Static void cue_stop(sc)
 	}
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	CUE_UNLOCK(sc);
 
 	return;
 }
@@ -1219,8 +1222,10 @@ Static void cue_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	CUE_LOCK(sc);
 	cue_reset(sc);
 	cue_stop(sc);
+	CUE_UNLOCK(sc);
 
 	return;
 }
