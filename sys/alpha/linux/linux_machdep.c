@@ -33,6 +33,7 @@
 #include <sys/mount.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
+#include <sys/unistd.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -115,7 +116,62 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 int
 linux_clone(struct proc *p, struct linux_clone_args *args)
 {
-	return ENOSYS;
+	int error, ff = RFPROC;
+	struct proc *p2;
+	int exit_signal;
+	vm_offset_t start;
+	struct rfork_args rf_args;
+
+#ifdef DEBUG
+	if (args->flags & CLONE_PID)
+		printf("linux_clone(%ld): CLONE_PID not yet supported\n",
+		    (long)p->p_pid);
+	uprintf("linux_clone(%ld): invoked with flags 0x%x and stack %p\n",
+	    (long)p->p_pid, (unsigned int)args->flags,
+	    args->stack);
+#endif
+
+	if (!args->stack)
+		return (EINVAL);
+
+	exit_signal = args->flags & 0x000000ff;
+	if (exit_signal >= LINUX_NSIG)
+		return (EINVAL);
+
+/*	if (exit_signal <= LINUX_SIGTBLSZ)
+		exit_signal = linux_to_bsd_signal[_SIG_IDX(exit_signal)];
+*/
+	/* RFTHREAD probably not necessary here, but it shouldn't hurt */
+	ff |= RFTHREAD;
+
+	if (args->flags & CLONE_VM)
+		ff |= RFMEM;
+	if (args->flags & CLONE_SIGHAND)
+		ff |= RFSIGSHARE;
+	if (!(args->flags & CLONE_FILES))
+		ff |= RFFDG;
+
+	error = 0;
+	start = 0;
+
+	rf_args.flags = ff;
+	if ((error = rfork(p, &rf_args)) != 0)
+		return (error);
+
+	p2 = pfind(p->p_retval[0]);
+	if (p2 == 0)
+		return (ESRCH);
+
+	p2->p_sigparent = exit_signal;
+	p2->p_addr->u_pcb.pcb_hw.apcb_usp = (unsigned long)args->stack;
+
+#ifdef DEBUG
+	uprintf ("linux_clone(%ld): successful rfork to %ld, stack %p, sig = %d\n", 
+(long)p->p_pid, (long)p2->p_pid, args->stack, exit_signal);
+#endif
+
+	return (0);
+	
 }
 
 #define	STACK_SIZE  (2 * 1024 * 1024)
