@@ -35,7 +35,8 @@ afterinstall:
 MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
 	dialog.3 line_edit.3 dialog.3 strheight.3 \
 	dialog.3 strwidth.3 dialog.3 dialog_create_rc.3 \
-	dialog.3 dialog_yesno.3 dialog.3 dialog_prgbox.3 \
+	dialog.3 dialog_yesno.3 dialog.3 dialog_noyes.3 \
+	dialog.3 dialog_prgbox.3 \
 	dialog.3 dialog_textbox.3 dialog.3 dialog_menu.3 \
 	dialog.3 dialog_checklist.3 dialog.3 dialog_radiolist.3 \
 	dialog.3 dialog_inputbox.3 dialog.3 dialog_clear_norefresh.3 \
