@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.14 1996/08/20 19:57:23 wosch Exp $
+# $Id: adduser.perl,v 1.15 1996/08/27 20:04:34 wosch Exp $
 
 
 # read variables
@@ -116,10 +116,10 @@ sub shells_read {
 	}
     }
 
-# Allow /nonexistant and /bin/date as a valid shell for system utils
-    push(@list, "/nonexistant");
+# Allow /nonexistent and /bin/date as a valid shell for system utils
+    push(@list, "/nonexistent");
     push(@shellpref, "no");
-    $shell{"no"} = "/nonexistant";
+    $shell{"no"} = "/nonexistent";
 
     push(@list, "/bin/date");
     push(@shellpref, "date");
@@ -135,7 +135,7 @@ sub shells_add {
     return 1 unless $verbose;
 
     foreach $sh (@shellpref) {
-	# all knowned shells
+	# all known shells
 	if (!$shell{$sh}) {
 	    # shell $sh is not defined as login shell
 	    foreach $dir (@path) {
@@ -154,7 +154,7 @@ sub shells_add {
     &append_file($etc_shells, @list) if $#list >= 0;
 }
 
-# choise your favourite shell an return the shell
+# choose your favourite shell and return the shell
 sub shell_default {
     local($e,$i,$new_shell);
     local($sh);
@@ -217,7 +217,7 @@ sub home_partition_valid {
     }
 
     if (-e $h) {
-	warn "$h exist, but is it not a directory or symlink!\n"
+	warn "$h exists, but is not a directory or symlink!\n"
 	    unless -d $h || -l $h;
 	warn "$h is not writable!\n"
 	    unless -w $h;
@@ -247,10 +247,10 @@ sub passwd_read {
 	push(@passwd_backup, $_);
 	($p_username, $pw, $p_uid, $p_gid, $sh) = (split(/:/, $_))[0..3,9];
 
-	print "$p_username already exist with uid: $username{$p_username}!\n"
+	print "$p_username already exists with uid: $username{$p_username}!\n"
 	    if $username{$p_username} && $verbose;
 	$username{$p_username} = $p_uid;
-	print "User $p_username: uid $p_uid exist twice: $uid{$p_uid}\n"
+	print "User $p_username: uid $p_uid exists twice: $uid{$p_uid}\n"
 	    if $uid{$p_uid} && $verbose && $p_uid;    # don't warn for uid 0
 	print "User $p_username: illegal shell: ``$sh''\n"
 	    if ($verbose && $sh &&
@@ -275,10 +275,10 @@ sub group_read {
 	($g_groupname, $pw, $g_gid, $memb) = (split(/:/, $_))[0..3];
 
 	$groupmembers{$g_gid} = $memb;
-	warn "Groupname exist twice: $g_groupname:$g_gid ->  $g_groupname:$groupname{$g_groupname}\n"
+	warn "Groupname exists twice: $g_groupname:$g_gid ->  $g_groupname:$groupname{$g_groupname}\n"
 	    if $groupname{$g_groupname} && $verbose;
 	$groupname{$g_groupname} = $g_gid;
-	warn "Groupid exist twice:   $g_groupname:$g_gid -> $gid{$g_gid}:$g_gid\n"
+	warn "Groupid exists twice:   $g_groupname:$g_gid -> $gid{$g_gid}:$g_gid\n"
 	    if $gid{$g_gid} && $verbose;
 	$gid{$g_gid} = $g_groupname;
     }
@@ -568,7 +568,8 @@ sub new_users_group_update {
     }
 
     if ($new_groups || defined($groupname{$group_login}) ||
-	defined($gid{$groupname{$group_login}})) {
+	defined($gid{$groupname{$group_login}}) &&
+		$gid{$groupname{$group_login}} ne "+") {
 	# new user is member of some groups
 	# new login group is already in name space
 	rename($group, "$group.bak");
@@ -694,7 +695,7 @@ sub new_users {
 
 	    $cryptpwd = "";
 	    $cryptpwd = crypt($password, &salt) if $password ne "";
-	    # obskure perl bug
+	    # obscure perl bug
 	    $new_entry = "$name\:" . "$cryptpwd" .
 		"\:$u_id\:$g_id\::0:0:$fullname:$home/$name:$sh";
 	    &append_file($etc_passwd, "$new_entry");
@@ -735,7 +736,7 @@ sub batch {
 
     $cryptpwd = "";
     $cryptpwd = crypt($password, &salt) if $password ne "";
-    # obskure perl bug
+    # obscure perl bug
     $new_entry = "$name\:" . "$cryptpwd" .
 	"\:$u_id\:$g_id\::0:0:$fullname:$home/$name:$sh";
     &append_file($etc_passwd, "$new_entry");
@@ -855,7 +856,7 @@ sub parse_arguments {
 				   $sendmessage = 1; }
 	elsif (/^--?(batch)$/)	 {
 	    @batch = splice(@argv, 0, 4); $verbose = 0;
-	    die "batch: to few arguments\n" if $#batch < 0;
+	    die "batch: too few arguments\n" if $#batch < 0;
 	}
 	# see &config_read
 	elsif (/^--?(config_create)$/)	{ &create_conf; }
@@ -1167,7 +1168,7 @@ sub message_create {
 #
 # Message file for adduser(8)
 #   comment: ``#''
-#   defaultvariables: \$name, \$fullname, \$password
+#   default variables: \$name, \$fullname, \$password
 #   other variables:  see /etc/adduser.conf after
 #		     line  ``$do_not_delete''
 #
