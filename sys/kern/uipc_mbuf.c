@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: uipc_mbuf.c,v 1.3 1994/08/02 07:43:02 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -47,8 +47,6 @@
 #include <sys/protosw.h>
 
 #include <vm/vm.h>
-
-void	m_reclaim	__P(());
 
 extern	vm_map_t mb_map;
 struct	mbuf *mbutl;
@@ -215,7 +213,8 @@ m_freem(m)
 		return;
 	do {
 		MFREE(m, n);
-	} while (m = n);
+		m = n;
+	} while (m);
 }
 
 /*
@@ -455,8 +454,8 @@ m_adj(mp, req_len)
 			}
 			count -= m->m_len;
 		}
-		while (m = m->m_next)
-			m->m_len = 0;
+		while (m->m_next)
+			(m = m->m_next) ->m_len = 0;
 	}
 }
 

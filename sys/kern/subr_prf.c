@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.5 1994/08/27 16:14:27 davidg Exp $
+ * $Id: subr_prf.c,v 1.6 1994/09/28 19:22:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -270,12 +270,11 @@ void
 logpri(level)
 	int level;
 {
-	register int ch;
 	register char *p;
 
 	putchar('<', TOLOG, NULL);
-	for (p = ksprintn((u_long)level, 10, NULL); ch = *p--;)
-		putchar(ch, TOLOG, NULL);
+	for (p = ksprintn((u_long)level, 10, NULL); *p;)
+		putchar(*p--, TOLOG, NULL);
 	putchar('>', TOLOG, NULL);
 }
 
@@ -401,13 +400,14 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 'b':
 			ul = va_arg(ap, int);
 			p = va_arg(ap, char *);
-			for (q = ksprintn(ul, *p++, NULL); ch = *q--;)
-				putchar(ch, flags, tp);
+			for (q = ksprintn(ul, *p++, NULL); *q;)
+				putchar(*q--, flags, tp);
 
 			if (!ul)
 				break;
 
-			for (tmp = 0; n = *p++;) {
+			for (tmp = 0; *p;) {
+				n = *p++;
 				if (ul & (1 << (n - 1))) {
 					putchar(tmp ? ',' : '<', flags, tp);
 					for (; (n = *p) > ' '; ++p)
@@ -429,8 +429,8 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			break;
 		case 's':
 			p = va_arg(ap, char *);
-			while (ch = *p++)
-				putchar(ch, flags, tp);
+			while (*p)
+				putchar(*p++, flags, tp);
 			break;
 		case 'd':
 			ul = lflag ? va_arg(ap, long) : va_arg(ap, int);
@@ -462,8 +462,8 @@ number:			p = ksprintn(ul, base, &tmp);
 			if (width && (width -= tmp) > 0)
 				while (width--)
 					putchar(padc, flags, tp);
-			while (ch = *p--)
-				putchar(ch, flags, tp);
+			while (*p)
+				putchar(*p--, flags, tp);
 			break;
 		default:
 			putchar('%', flags, tp);
@@ -549,9 +549,8 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			break;
 		case 's':
 			p = va_arg(ap, char *);
-			while (*bp++ = *p++)
-				continue;
-			--bp;
+			while (*p)
+				*bp++ = *p++;
 			break;
 		case 'd':
 			ul = lflag ? va_arg(ap, long) : va_arg(ap, int);
@@ -575,8 +574,8 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 'x':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 16;
-number:			for (p = ksprintn(ul, base, NULL); ch = *p--;)
-				*bp++ = ch;
+number:			for (p = ksprintn(ul, base, NULL); *p;)
+				*bp++ = *p--;
 			break;
 		default:
 			*bp++ = '%';

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.6 1994/09/19 21:15:14 ache Exp $
+ * $Id: kern_xxx.c,v 1.7 1994/09/25 19:33:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
+#include <sys/signalvar.h>
 
 struct reboot_args {
 	int	opt;
