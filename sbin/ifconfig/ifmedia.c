@@ -190,28 +190,72 @@ media_status(int s)
 	free(media_list);
 }
 
-static void
-setmedia(const char *val, int d, int s, const struct afswtch *afp)
+static struct ifmediareq *
+getifmediastate(int s)
 {
-	struct ifmediareq ifmr;
-	int first_type, subtype;
+	static struct ifmediareq *ifmr = NULL;
+	int *mwords;
 
-	(void) memset(&ifmr, 0, sizeof(ifmr));
-	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
+	if (ifmr == NULL) {
+		ifmr = (struct ifmediareq *)malloc(sizeof(struct ifmediareq));
+		if (ifmr == NULL)
+			err(1, "malloc");
 
-	ifmr.ifm_count = 1;
-	ifmr.ifm_ulist = &first_type;
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+		(void) memset(ifmr, 0, sizeof(struct ifmediareq));
+		(void) strncpy(ifmr->ifm_name, name,
+		    sizeof(ifmr->ifm_name));
+
+		ifmr->ifm_count = 0;
+		ifmr->ifm_ulist = NULL;
+
 		/*
-		 * If we get E2BIG, the kernel is telling us
-		 * that there are more, so we can ignore it.
+		 * We must go through the motions of reading all
+		 * supported media because we need to know both
+		 * the current media type and the top-level type.
 		 */
-		if (errno != E2BIG)
+
+		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0) {
+			err(1, "SIOCGIFMEDIA");
+		}
+
+		if (ifmr->ifm_count == 0)
+			errx(1, "%s: no media types?", name);
+
+		mwords = (int *)malloc(ifmr->ifm_count * sizeof(int));
+		if (mwords == NULL)
+			err(1, "malloc");
+  
+		ifmr->ifm_ulist = mwords;
+		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0)
 			err(1, "SIOCGIFMEDIA");
 	}
 
-	if (ifmr.ifm_count == 0)
-		errx(1, "%s: no media types?", name);
+	return ifmr;
+}
+
+static void
+setifmediacallback(int s, void *arg)
+{
+	struct ifmediareq *ifmr = (struct ifmediareq *)arg;
+	static int did_it = 0;
+
+	if (!did_it) {
+		if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
+			err(1, "SIOCSIFMEDIA (media)");
+		free(ifmr->ifm_ulist);
+		free(ifmr);
+		did_it = 1;
+	}
+}
+
+static void
+setmedia(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifmediareq *ifmr;
+	int subtype;
+	
+
+	ifmr = getifmediastate(s);
 
 	/*
 	 * We are primarily concerned with the top-level type.
@@ -222,14 +266,18 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 	 * (I'm assuming that all supported media types for a given
 	 * interface will be the same top-level type..)
 	 */
-	subtype = get_media_subtype(IFM_TYPE(first_type), val);
+	subtype = get_media_subtype(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr.ifm_current & ~(IFM_NMASK|IFM_TMASK)) |
-	    IFM_TYPE(first_type) | subtype;
+	ifr.ifr_media = (ifmr->ifm_current & ~(IFM_NMASK|IFM_TMASK)) |
+	    IFM_TYPE(ifmr->ifm_ulist[0]) | subtype;
 
-	if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
-		err(1, "SIOCSIFMEDIA (media)");
+	if ((ifr.ifr_media & IFM_TMASK) == 0) {
+		ifr.ifr_media &= ~IFM_GMASK;
+	}
+
+	ifmr->ifm_current = ifr.ifr_media;
+	callback_register(setifmediacallback, (void *)ifmr);
 }
 
 static void
@@ -249,86 +297,40 @@ unsetmediaopt(const char *val, int d, int s, const struct afswtch *afp)
 static void
 domediaopt(const char *val, int clear, int s)
 {
-	struct ifmediareq ifmr;
-	int *mwords, options;
+	struct ifmediareq *ifmr;
+	int options;
 
-	(void) memset(&ifmr, 0, sizeof(ifmr));
-	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
+	ifmr = getifmediastate(s);
 
-	/*
-	 * We must go through the motions of reading all
-	 * supported media because we need to know both
-	 * the current media type and the top-level type.
-	 */
-
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
-		err(1, "SIOCGIFMEDIA");
-
-	if (ifmr.ifm_count == 0)
-		errx(1, "%s: no media types?", name);
-
-	mwords = (int *)malloc(ifmr.ifm_count * sizeof(int));
-	if (mwords == NULL)
-		err(1, "malloc");
-
-	ifmr.ifm_ulist = mwords;
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
-		err(1, "SIOCGIFMEDIA");
-
-	options = get_media_options(IFM_TYPE(mwords[0]), val);
-
-	free(mwords);
+	options = get_media_options(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_media = ifmr.ifm_current;
+	ifr.ifr_media = ifmr->ifm_current;
 	if (clear)
 		ifr.ifr_media &= ~options;
 	else
 		ifr.ifr_media |= options;
 
-	if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
-		err(1, "SIOCSIFMEDIA (mediaopt)");
+	ifmr->ifm_current = ifr.ifr_media;
+	callback_register(setifmediacallback, (void *)ifmr);
 }
 
 
 static void
 setmediamode(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct ifmediareq ifmr;
-	int *mwords, mode;
+	struct ifmediareq *ifmr;
+	int mode;
 
-	(void) memset(&ifmr, 0, sizeof(ifmr));
-	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
+	ifmr = getifmediastate(s);
 
-	/*
-	 * We must go through the motions of reading all
-	 * supported media because we need to know both
-	 * the current media type and the top-level type.
-	 */
-
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
-		err(1, "SIOCGIFMEDIA");
-
-	if (ifmr.ifm_count == 0)
-		errx(1, "%s: no media types?", name);
-
-	mwords = (int *)malloc(ifmr.ifm_count * sizeof(int));
-	if (mwords == NULL)
-		err(1, "malloc");
-
-	ifmr.ifm_ulist = mwords;
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
-		err(1, "SIOCGIFMEDIA");
-
-	mode = get_media_mode(IFM_TYPE(mwords[0]), val);
-
-	free(mwords);
+	mode = get_media_mode(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr.ifm_current & ~IFM_MMASK) | mode;
+	ifr.ifr_media = (ifmr->ifm_current & ~IFM_MMASK) | mode;
 
-	if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
-		err(1, "SIOCSIFMEDIA (mode)");
+	ifmr->ifm_current = ifr.ifr_media;
+	callback_register(setifmediacallback, (void *)ifmr);
 }
 
 /**********************************************************************
