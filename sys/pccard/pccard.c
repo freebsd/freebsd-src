@@ -189,8 +189,8 @@ disable_slot_to(void *argp)
 {
 	struct slot *slt = (struct slot *) argp;
 
-	disable_slot(slt);
 	slt->state = empty;
+	disable_slot(slt);
 	printf("pccard: card removed, slot %d\n", slt->slotnum);
 	pccard_remove_beep();
 	selwakeup(&slt->selp);
@@ -335,6 +335,7 @@ pccard_event(struct slot *slt, enum card_event event)
 		 *	data structures are not unlinked.
 		 */
 		if (slt->state == filled) {
+			slt->state = empty;
 			disable_slot_spl0(slt);
 		}
 		break;
