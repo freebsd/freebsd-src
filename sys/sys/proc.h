@@ -293,6 +293,11 @@ struct	proc {
 #define	P_OLDMASK	0x2000000 /* need to restore mask before pause */
 #define	P_ALTSTACK	0x4000000 /* have alternate signal stack */
 
+#define	P_CAN_SEE	1
+#define	P_CAN_KILL	2
+#define	P_CAN_SCHED	3
+#define	P_CAN_DEBUG	4
+
 /*
  * MOVE TO ucred.h?
  *
@@ -414,6 +419,7 @@ extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
 
 extern	u_long ps_arg_cache_limit;
 extern	int ps_argsopen;
+extern	int ps_showallprocs;
 
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
@@ -429,15 +435,18 @@ int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
 void	procinit __P((void));
-int	p_trespass __P((struct proc *p1, struct proc *p2));
+int	p_can __P((const struct proc *p1, const struct proc *p2, int operation,
+    int *privused));
+
 void	resetpriority __P((struct proc *));
 int	roundrobin_interval __P((void));
 void	schedclock __P((struct proc *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	sleepinit __P((void));
-int	suser __P((struct proc *));
-int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
+int	suser __P((const struct proc *));
+int	suser_xxx __P((const struct ucred *cred, const struct proc *proc,
+    int flag));
 void	remrunqueue __P((struct proc *));
 void	cpu_switch __P((struct proc *));
 void	unsleep __P((struct proc *));

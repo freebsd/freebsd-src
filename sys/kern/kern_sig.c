@@ -97,7 +97,7 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
  * Can process p, with pcred pc, send the signal sig to process q?
  */
 #define CANSIGNAL(p, q, sig) \
-	(!p_trespass(p, q) || \
+	(!p_can(p, q, P_CAN_KILL, NULL) || \
 	((sig) == SIGCONT && (q)->p_session == (p)->p_session))
 
 /*

@@ -137,7 +137,7 @@ procfs_open(ap)
 	p2 = PFIND(pfs->pfs_pid);
 	if (p2 == NULL)
 		return (ENOENT);
-	if (pfs->pfs_pid && !PRISON_CHECK(ap->a_p, p2))
+	if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL))
 		return (ENOENT);
 
 	switch (pfs->pfs_type) {
@@ -147,7 +147,7 @@ procfs_open(ap)
 			return (EBUSY);
 
 		p1 = ap->a_p;
-		if (p_trespass(p1, p2) &&
+		if (p_can(p1, p2, P_CAN_DEBUG, NULL) &&
 		    !procfs_kmemaccess(p1))
 			return (EPERM);
 
@@ -239,8 +239,11 @@ procfs_ioctl(ap)
 		return ENOTTY;
 	}
 
-	if (p_trespass(p, procp))
-		return EPERM;
+	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL))) {
+		if (error == ESRCH)
+			error = ENOENT;
+		return (error);
+	}
 
 	switch (ap->a_command) {
 	case PIOCBIS:
@@ -416,6 +419,9 @@ procfs_getattr(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == 0 || procp->p_cred == NULL ||
 		    procp->p_ucred == NULL)
+			return (ENOENT);
+
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
 			return (ENOENT);
 	}
 
@@ -612,16 +618,23 @@ procfs_access(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct proc *procp;
 	struct vattr *vap;
 	struct vattr vattr;
 	int error;
 
-	/*
-	 * If you're the super-user,
-	 * you always get access.
-	 */
-	if (ap->a_cred->cr_uid == 0)
-		return (0);
+	switch (pfs->pfs_type) {
+	case Proot:
+       	case Pcurproc:
+		break;
+	default:
+		procp = PFIND(pfs->pfs_pid);
+		if (procp == NULL)
+			return (ENOENT);
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
+			return (ENOENT);
+        }
 
 	vap = &vattr;
 	error = VOP_GETATTR(ap->a_vp, vap, ap->a_cred, ap->a_p);
@@ -674,7 +687,7 @@ procfs_lookup(ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
-	/* struct proc *curp = cnp->cn_proc; */
+	struct proc *curp = cnp->cn_proc;
 	struct proc_target *pt;
 	pid_t pid;
 	struct pfsnode *pfs;
@@ -683,7 +696,8 @@ procfs_lookup(ap)
 
 	*vpp = NULL;
 
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
+	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME ||
+	    cnp->cn_nameiop == CREATE)
 		return (EROFS);
 
 	if (cnp->cn_namelen == 1 && *pname == '.') {
@@ -708,6 +722,9 @@ procfs_lookup(ap)
 
 		p = PFIND(pid);
 		if (p == 0)
+			break;
+
+		if (p_can(curp, p, P_CAN_SEE, NULL))
 			break;
 
 		return (procfs_allocvp(dvp->v_mount, vpp, pid, Pproc));
@@ -803,7 +820,7 @@ procfs_readdir(ap)
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
 			break;
-		if (!PRISON_CHECK(curproc, p))
+		if (p_can(curproc, p, P_CAN_SEE, NULL))
 			break;
 
 		for (pt = &proc_targets[i];
@@ -838,7 +855,7 @@ procfs_readdir(ap)
 		int doingzomb = 0;
 #endif
 		int pcnt = 0;
-		volatile struct proc *p = allproc.lh_first;
+		struct proc *p = allproc.lh_first;
 
 		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
 			bzero((char *) dp, delen);
@@ -866,11 +883,11 @@ procfs_readdir(ap)
 					p = p->p_list.le_next;
 					if (!p)
 						goto done;
-					if (!PRISON_CHECK(curproc, p))
+					if (p_can(curproc, p, P_CAN_SEE, NULL))
 						continue;
 					pcnt++;
 				}
-				while (!PRISON_CHECK(curproc, p)) {
+				while (p_can(curproc, p, P_CAN_SEE, NULL)) {
 					p = p->p_list.le_next;
 					if (!p)
 						goto done;

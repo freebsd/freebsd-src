@@ -200,7 +200,7 @@ filt_procattach(struct knote *kn)
 	p = pfind(kn->kn_id);
 	if (p == NULL)
 		return (ESRCH);
-	if (! PRISON_CHECK(curproc, p))
+	if (p_can(curproc, p, P_CAN_SEE, NULL))
 		return (EACCES);
 
 	kn->kn_ptr.p_proc = p;
