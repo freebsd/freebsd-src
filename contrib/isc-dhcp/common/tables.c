@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: tables.c,v 1.51.2.4 2001/10/17 03:26:26 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n"
+"$Id: tables.c,v 1.51.2.5 2002/02/09 03:23:54 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n"
 "$FreeBSD$\n";
 #endif /* not lint */
 
@@ -1196,7 +1196,7 @@ void initialize_common_option_spaces()
 	nwip_universe.tag_size = 1;
 	nwip_universe.store_tag = putUChar;
 	nwip_universe.store_length = putUChar;
-	fqdn_universe.enc_opt = &dhcp_options [DHO_NWIP_SUBOPTIONS];
+	nwip_universe.enc_opt = &dhcp_options [DHO_NWIP_SUBOPTIONS];
 	nwip_universe.index = universe_count++;
 	universes [nwip_universe.index] = &nwip_universe;
 	option_new_hash (&nwip_universe.hash, 1, MDL);
