@@ -237,17 +237,6 @@ static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 	VNODEOP_SET(ext2fs_fifoop_opv_desc);
 #endif
 
-/*
- * Enabling cluster read/write operations.
- */
-static int	ext2_doclusterread = 1;
-static int	ext2_doclusterwrite = 1;
-SYSCTL_NODE(_vfs, MOUNT_EXT2FS, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
-SYSCTL_INT(_vfs_ext2fs, EXT2FS_CLUSTERREAD, doclusterread,
-		   CTLFLAG_RW, &ext2_doclusterread, 0, "");
-SYSCTL_INT(_vfs_ext2fs, EXT2FS_CLUSTERWRITE, doclusterwrite,
-		   CTLFLAG_RW, &ext2_doclusterwrite, 0, "");
-
 #include <gnu/ext2fs/ext2_readwrite.c>
 
 /*

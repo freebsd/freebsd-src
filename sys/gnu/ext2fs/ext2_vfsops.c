@@ -149,6 +149,10 @@ ext2_mountroot()
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = &ext2fs_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
+	if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERR)
+		mp->mnt_flag |= MNT_NOCLUSTERR;
+	if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERW)
+		mp->mnt_flag |= MNT_NOCLUSTERW;
 	if (error = ext2_mountfs(rootvp, mp, p)) {
 		bsd_free(mp, M_MOUNT);
 		return (error);
@@ -206,11 +210,17 @@ ext2_mount(mp, path, data, ndp, p)
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
+	 * Disallow clearing MNT_NOCLUSTERR and MNT_NOCLUSTERW flags,
+	 * if block device requests.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOUFS(mp);
 		fs = ump->um_e2fs;
 		error = 0;
+		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
+		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERW)
+			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if (fs->s_rd_only == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
@@ -255,9 +265,13 @@ ext2_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return (ENXIO);
 	}
-	if ((mp->mnt_flag & MNT_UPDATE) == 0)
+	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
+		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
+		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERW)
+			mp->mnt_flag |= MNT_NOCLUSTERW;
 		error = ext2_mountfs(devvp, mp, p);
-	else {
+	} else {
 		if (devvp != ump->um_devvp)
 			error = EINVAL;	/* needs translation */
 		else

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.18 1997/08/02 14:32:29 bde Exp $
+ * $Id: union_vfsops.c,v 1.19 1997/08/16 19:15:22 wollman Exp $
  */
 
 /*
@@ -101,6 +101,11 @@ union_mount(mp, path, data, ndp, p)
 #ifdef UNION_DIAGNOSTIC
 	printf("union_mount(mp = %x)\n", mp);
 #endif
+
+	/*
+	 * Disable clustered write, otherwise system becomes unstable.
+	 */
+	mp->mnt_flag |= MNT_NOCLUSTERW;
 
 	/*
 	 * Update is a no-op

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.54 1997/09/02 20:06:46 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.55 1997/09/07 16:20:59 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -44,6 +44,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/malloc.h>
@@ -155,9 +156,10 @@ ffs_mount( mp, path, data, ndp, p)
 			return (err);
 		}
 
-		/*
-		 * Attempt mount
-		 */
+		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
+		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERW)
+			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if( ( err = ffs_mountfs(rootvp, mp, p)) != 0) {
 			/* fs specific cleanup (if any)*/
 			goto error_1;
@@ -181,11 +183,17 @@ ffs_mount( mp, path, data, ndp, p)
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
+	 * Disallow clearing MNT_NOCLUSTERR and MNT_NOCLUSTERW flags,
+	 * if block device requests.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOUFS(mp);
 		fs = ump->um_fs;
 		err = 0;
+		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
+		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERW)
+			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if (fs->fs_ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
@@ -274,6 +282,11 @@ ffs_mount( mp, path, data, ndp, p)
 		 * NEW MOUNT
 		 ********************
 		 */
+
+		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
+		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERW)
+			mp->mnt_flag |= MNT_NOCLUSTERW;
 
 		/*
 		 * Since this is a new mount, we want the names for

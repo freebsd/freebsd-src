@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.45 1997/08/16 19:16:12 wollman Exp $
+ *	$Id: mount.h,v 1.46 1997/09/16 14:44:24 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -166,6 +166,8 @@ struct mount {
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
 #define	MNT_NOATIME	0x10000000	/* Disable update of file access times */
+#define	MNT_NOCLUSTERR	0x40000000	/* Disable cluster read */
+#define	MNT_NOCLUSTERW	0x80000000	/* Disable cluster read */
 
 /*
  * exported mount flags.
@@ -189,9 +191,10 @@ struct mount {
  * Mask of flags that are visible to statfs()
  */
 #define	MNT_VISFLAGMASK	(MNT_RDONLY|MNT_SYNCHRONOUS|MNT_NOEXEC|MNT_NOSUID| \
-			 MNT_NODEV|MNT_UNION|MNT_ASYNC|MNT_EXRDONLY|MNT_EXPORTED| \
-			 MNT_DEFEXPORTED|MNT_EXPORTANON|MNT_EXKERB|MNT_LOCAL| \
-			 MNT_USER|MNT_QUOTA|MNT_ROOTFS|MNT_NOATIME)
+			 MNT_NODEV|MNT_UNION|MNT_ASYNC|MNT_EXRDONLY| \
+			 MNT_EXPORTED|MNT_DEFEXPORTED|MNT_EXPORTANON| \
+			 MNT_EXKERB|MNT_LOCAL|MNT_USER|MNT_QUOTA|MNT_ROOTFS| \
+			 MNT_NOATIME|MNT_NOCLUSTERR|MNT_NOCLUSTERW)
 
 /*
  * External filesystem control flags.

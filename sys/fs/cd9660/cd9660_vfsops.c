@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.27 1997/08/16 19:15:00 wollman Exp $
+ * $Id: cd9660_vfsops.c,v 1.28 1997/09/07 16:20:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -183,9 +183,11 @@ cd9660_mount(mp, path, data, ndp, p)
 	int error;
 	struct iso_mnt *imp = 0;
 
-	if ((mp->mnt_flag & MNT_ROOTFS) != 0)
+	if ((mp->mnt_flag & MNT_ROOTFS) != 0) {
+		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
 		return (iso_mountroot(mp, p));
-
+	}
 	if ((error = copyin(data, (caddr_t)&args, sizeof (struct iso_args))))
 		return (error);
 
@@ -195,9 +197,13 @@ cd9660_mount(mp, path, data, ndp, p)
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
+	 * Disallow clearing MNT_NOCLUSTERR flag, if block device requests.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		imp = VFSTOISOFS(mp);
+		if (bdevsw[major(imp->im_devvp->v_rdev)]->d_flags &
+		    D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (args.fspec == 0)
 			return (vfs_export(mp, &imp->im_export, &args.export));
 	}
@@ -218,9 +224,11 @@ cd9660_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return ENXIO;
 	}
-	if ((mp->mnt_flag & MNT_UPDATE) == 0)
+	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
+		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
+			mp->mnt_flag |= MNT_NOCLUSTERR;
 		error = iso_mountfs(devvp, mp, p, &args);
-	else {
+	} else {
 		if (devvp != imp->im_devvp)
 			error = EINVAL;	/* needs translation */
 		else

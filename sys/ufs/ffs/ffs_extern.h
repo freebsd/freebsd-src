@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.15 1997/02/22 09:47:02 peter Exp $
+ * $Id: ffs_extern.h,v 1.16 1997/08/16 19:16:19 wollman Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -40,16 +40,14 @@
 /*
  * Sysctl values for the fast filesystem.
  */
-#define FFS_CLUSTERREAD		1	/* cluster reading enabled */
-#define FFS_CLUSTERWRITE	2	/* cluster writing enabled */
 #define FFS_REALLOCBLKS		3	/* block reallocation enabled */
 #define FFS_ASYNCFREE		4	/* asynchronous block freeing enabled */
 #define	FFS_MAXID		5	/* number of valid ffs ids */
 
 #define FFS_NAMES { \
 	{ 0, 0 }, \
-	{ "doclusterread", CTLTYPE_INT }, \
-	{ "doclusterwrite", CTLTYPE_INT }, \
+	{ 0, 0 }, \
+	{ 0, 0 }, \
 	{ "doreallocblks", CTLTYPE_INT }, \
 	{ "doasyncfree", CTLTYPE_INT }, \
 }
