@@ -63,7 +63,7 @@ lookup_file_by_inode (filepath)
     /* inodestr contains the hexadecimal representation of an
        inode, so it requires two bytes of text to represent
        each byte of the inode number. */
-    inodestr = (char *) xmalloc (2*sizeof(ino_t)*sizeof(char) + 1);
+    inodestr = (char *) xmalloc (2*sizeof(ino_t) + 1);
     if (stat (file, &sb) < 0)
     {
 	if (existence_error (errno))
@@ -85,7 +85,7 @@ lookup_file_by_inode (filepath)
     if (hp == NULL)
     {
 	hp = getnode ();
-	hp->type = UNKNOWN;
+	hp->type = NT_UNKNOWN;
 	hp->key = inodestr;
 	hp->data = (char *) getlist();
 	hp->delproc = dellist;
@@ -100,7 +100,7 @@ lookup_file_by_inode (filepath)
     if (p == NULL)
     {
 	p = getnode();
-	p->type = UNKNOWN;
+	p->type = NT_UNKNOWN;
 	p->key = xstrdup (filepath);
 	p->data = NULL;
 	(void) addnode ((List *) hp->data, p);
@@ -128,7 +128,7 @@ update_hardlink_info (file)
 	/* file is a relative pathname; assume it's from the current
 	   working directory. */
 	char *dir = xgetwd();
-	path = xmalloc (sizeof(char) * (strlen(dir) + strlen(file) + 2));
+	path = xmalloc (strlen(dir) + strlen(file) + 2);
 	sprintf (path, "%s/%s", dir, file);
 	free (dir);
     }
@@ -176,8 +176,7 @@ list_linked_files_on_disk (file)
     else
     {
 	char *dir = xgetwd();
-	path = (char *) xmalloc (sizeof(char) *
-				 (strlen(dir) + strlen(file) + 2));
+	path = (char *) xmalloc (strlen(dir) + strlen(file) + 2);
 	sprintf (path, "%s/%s", dir, file);
 	free (dir);
     }
@@ -193,7 +192,7 @@ list_linked_files_on_disk (file)
     /* inodestr contains the hexadecimal representation of an
        inode, so it requires two bytes of text to represent
        each byte of the inode number. */
-    inodestr = (char *) xmalloc (2*sizeof(ino_t)*sizeof(char) + 1);
+    inodestr = (char *) xmalloc (2*sizeof(ino_t) + 1);
     sprintf (inodestr, "%lx", (unsigned long) sb.st_ino);
 
     /* Make sure the files linked to this inode are sorted. */
@@ -280,7 +279,7 @@ find_checkedout_proc (node, data)
     /* Look at this file in the hardlist and see whether the checked_out
        field is 1, meaning that it has been checked out during this CVS run. */
     path = (char *)
-	xmalloc (sizeof(char) * (strlen (dir) + strlen (node->key) + 2));
+	xmalloc (strlen (dir) + strlen (node->key) + 2);
     sprintf (path, "%s/%s", dir, node->key);
     link = lookup_file_by_inode (path);
     free (path);

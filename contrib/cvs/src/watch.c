@@ -473,6 +473,7 @@ watchers_fileproc (callerdat, finfo)
 	cvs_output ("\n", 1);
     }
   out:;
+    free (them);
     return 0;
 }
 

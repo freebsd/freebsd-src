@@ -8,6 +8,8 @@ pathname of a shell which handles normal shell functions:
 
 	$ make SHELL=/bin/sh5 check
 
+Also note that you must be logged in as a regular user, not root.
+
 WARNING:  This test can take quite a while to run, esp. if your
 disks are slow or over-loaded.
 
@@ -16,13 +18,22 @@ If for some reason you want them to work in a different directory, you
 can set the TESTDIR environment variable to the desired location
 before running them.
 
-You will probably need GNU expr, which is part of the GNU sh-utils
-package.  This is just for running the tests; CVS itself doesn't
-require expr.
-
-With CVS 1.10 people also had trouble with the Solaris sort program
-not behaving the way that the testsuite expects (with Solaris, lines
-starting with tabs sort before blank lines).
+The tests use a number of tools (awk, expr, id, tr, etc.) that are not
+required for running CVS itself.  In most cases, the standard vendor-
+supplied versions of these tools work just fine, but there are some
+exceptions -- expr in particular is heavily used and many vendor
+versions are deficient in one way or another.  Note that some vendors
+provide multiple versions of tools (typically an ancient, traditional
+version and a new, standards-conforming version), so you may already
+have a usable version even if the default version isn't.  If you don't
+have a suitable tool, you can probably get one from the GNU Project (see
+http://www.gnu.org).  expr and id are both part of the GNU shellutils
+package, tr is part of the GNU textutils package, and awk is part of the
+GNU gawk package.  The test script tries to verify that the tools exist
+and are usable; if not, it tries to find the GNU versions and use them
+instead.  If it can't find the GNU versions either, it will print an
+error message and, depending on the severity of the deficiency, it may
+exit.
 
 If there is some unexpected output, that is a failure which can be
 somewhat hard to track down.  Finding out which test is producing the

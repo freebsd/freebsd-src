@@ -109,6 +109,7 @@ send_files PROTO((int argc, char **argv, int local, int aflag,
 #define SEND_BUILD_DIRS 1
 #define SEND_FORCE 2
 #define SEND_NO_CONTENTS 4
+#define BACKUP_MODIFIED_FILES 8
 
 /* Send an argument to the remote server.  */
 void

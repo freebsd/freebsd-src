@@ -22,6 +22,7 @@ General Public License for more details.  */
 #include <stdio.h>
 #include <assert.h>
 #include <errno.h>
+#include "getline.h"
 
 #if STDC_HEADERS
 #include <stdlib.h>
@@ -33,20 +34,25 @@ char *malloc (), *realloc ();
 #define MIN_CHUNK 64
 
 /* Read up to (and including) a TERMINATOR from STREAM into *LINEPTR
-   + OFFSET (and null-terminate it). *LINEPTR is a pointer returned from
-   malloc (or NULL), pointing to *N characters of space.  It is realloc'd
-   as necessary.  Return the number of characters read (not including the
-   null terminator), or -1 on error or EOF.  On a -1 return, the caller
-   should check feof(), if not then errno has been set to indicate
-   the error.  */
+   + OFFSET (and null-terminate it).  If LIMIT is non-negative, then
+   read no more than LIMIT chars.
+
+   *LINEPTR is a pointer returned from malloc (or NULL), pointing to
+   *N characters of space.  It is realloc'd as necessary.  
+
+   Return the number of characters read (not including the null
+   terminator), or -1 on error or EOF.  On a -1 return, the caller
+   should check feof(), if not then errno has been set to indicate the
+   error.  */
 
 int
-getstr (lineptr, n, stream, terminator, offset)
+getstr (lineptr, n, stream, terminator, offset, limit)
      char **lineptr;
      size_t *n;
      FILE *stream;
      char terminator;
      int offset;
+     int limit;
 {
   int nchars_avail;		/* Allocated but unused chars in *LINEPTR.  */
   char *read_pos;		/* Where we're reading into *LINEPTR. */
@@ -75,7 +81,19 @@ getstr (lineptr, n, stream, terminator, offset)
   for (;;)
     {
       int save_errno;
-      register int c = getc (stream);
+      register int c;
+
+      if (limit == 0)
+          break;
+      else
+      {
+          c = getc (stream);
+
+          /* If limit is negative, then we shouldn't pay attention to
+             it, so decrement only if positive. */
+          if (limit > 0)
+              limit--;
+      }
 
       save_errno = errno;
 
@@ -141,5 +159,15 @@ getline (lineptr, n, stream)
      size_t *n;
      FILE *stream;
 {
-  return getstr (lineptr, n, stream, '\n', 0);
+  return getstr (lineptr, n, stream, '\n', 0, GETLINE_NO_LIMIT);
+}
+
+int
+getline_safe (lineptr, n, stream, limit)
+     char **lineptr;
+     size_t *n;
+     FILE *stream;
+     int limit;
+{
+  return getstr (lineptr, n, stream, '\n', 0, limit);
 }
