@@ -94,6 +94,7 @@ static int	 child;		/* id of any filters */
 static int	 lfd;		/* lock file descriptor */
 static int	 ofd;		/* output filter file descriptor */
 static int	 ofilter;	/* id of output filter, if any */
+static int	 tfd = -1;	/* output filter temp file output */
 static int	 pfd;		/* prstatic inter file descriptor */
 static int	 pid;		/* pid of lpd process */
 static int	 prchild;	/* id of pr process */
@@ -109,8 +110,10 @@ static char	length[10] = "-l";	/* page length in lines */
 static char	logname[32];		/* user's login name */
 static char	pxlength[10] = "-y";	/* page length in pixels */
 static char	pxwidth[10] = "-x";	/* page width in pixels */
-static char	tempfile[] = "errsXXXXXX"; /* file name for filter output */
+static char	tempfile[] = "errsXXXXXX"; /* file name for filter errors */
 static char	width[10] = "-w";	/* page width in static characters */
+#define TFILENAME "fltXXXXXX"
+static char	tfile[] = TFILENAME;	/* file name for filter output */
 
 static void       abortpr __P((int));
 static void       banner __P((char *, char *));
@@ -127,7 +130,7 @@ static void       pstatus __P((const char *, ...));
 static char       response __P((void));
 static void       scan_out __P((int, char *, int));
 static char      *scnline __P((int, char *, int));
-static int        sendfile __P((int, char *));
+static int        sendfile __P((int, char *, char));
 static int        sendit __P((char *));
 static void       sendmail __P((char *, int));
 static void       setty __P((void));
@@ -777,14 +780,27 @@ sendit(file)
 			while (*cp >= '0' && *cp <= '9')
 				i = i * 10 + (*cp++ - '0');
 			fino = i;
-			continue;
-		}
-		if (line[0] >= 'a' && line[0] <= 'z') {
+		} else if (line[0] == 'H') {
+			strcpy(fromhost, line+1);
+			if (class[0] == '\0')
+				strncpy(class, line+1, sizeof(class)-1);
+		} else if (line[0] == 'P') {
+			strncpy(logname, line+1, sizeof(logname)-1);
+			if (RS) {			/* restricted */
+				if (getpwnam(logname) == NULL) {
+					sendmail(line+1, NOACCT);
+					err = ERROR;
+					break;
+				}
+			}
+		} else if (line[0] == 'I') {
+			strncpy(indent+2, line+1, sizeof(indent)-3);
+		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			strcpy(last, line);
 			while (i = getline(cfp))
 				if (strcmp(last, line))
 					break;
-			switch (sendfile('\3', last+1)) {
+			switch (sendfile('\3', last+1, *last)) {
 			case OK:
 				if (i)
 					goto again;
@@ -800,7 +816,7 @@ sendit(file)
 			break;
 		}
 	}
-	if (err == OK && sendfile('\2', file) > 0) {
+	if (err == OK && sendfile('\2', file, '\0') > 0) {
 		(void) fclose(cfp);
 		return(REPRINT);
 	}
@@ -824,14 +840,15 @@ sendit(file)
  * Return positive if we should try resending.
  */
 static int
-sendfile(type, file)
+sendfile(type, file, format)
 	int type;
 	char *file;
+	char format;
 {
 	register int f, i, amt;
 	struct stat stb;
 	char buf[BUFSIZ];
-	int sizerr, resp;
+	int sizerr, resp, closedpr;
 
 	if (lstat(file, &stb) < 0 || (f = open(file, O_RDONLY)) < 0)
 		return(ERROR);
@@ -843,12 +860,132 @@ sendfile(type, file)
 	if ((stb.st_mode & S_IFMT) == S_IFLNK && fstat(f, &stb) == 0 &&
 	    (stb.st_dev != fdev || stb.st_ino != fino))
 		return(ACCESS);
+
+	sizerr = 0;
+	closedpr = 0;
+	if (type == '\3') {
+		if (IF) {
+			/*
+			 * We're sending something with an ifilter, we have to
+			 * run the ifilter and store the output as a
+			 * temporary file (tfile)... the protocol requires us
+			 * to send the file size
+			 */
+			char *av[15];
+			int n;
+			int nfd;
+			int ifilter;
+			union wait status;
+
+			strcpy(tfile,TFILENAME);
+			if ((tfd = mkstemp(tfile)) == -1) {
+				syslog(LOG_ERR, "mkstemp: %m");
+				return(ERROR);
+			}
+			if ((av[0] = rindex(IF, '/')) == NULL)
+				av[0] = IF;
+			else
+				av[0]++;
+			if (format == 'l')
+				av[n=1] = "-c";
+			else
+				n = 0;
+			av[++n] = width;
+			av[++n] = length;
+			av[++n] = indent;
+			av[++n] = "-n";
+			av[++n] = logname;
+			av[++n] = "-h";
+			av[++n] = fromhost;
+			av[++n] = AF;
+			av[++n] = 0;
+			if ((ifilter = dofork(DORETURN)) == 0) {  /* child */
+				dup2(f, 0);
+				dup2(tfd, 1);
+				n = open(tempfile, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+				if (n >= 0)
+					dup2(n, 2);
+				closelog();
+				for (n = 3, nfd = getdtablesize(); n < nfd; n++)
+					(void) close(n);
+				execv(IF, av);
+				syslog(LOG_ERR, "cannot execv %s", IF);
+				exit(2);
+			}
+			(void) close(f);
+			if (ifilter < 0)
+				status.w_retcode = 100;
+			else
+				while ((pid = wait((int *)&status)) > 0 &&
+					pid != ifilter)
+					;
+			switch (status.w_retcode) {
+			case 0:
+				break;
+			case 1:
+				unlink(tfile);
+				return(REPRINT);
+			case 2:
+				unlink(tfile);
+				return(ERROR);
+			default:
+				syslog(LOG_WARNING, "%s: filter '%c' exited"
+					" (retcode=%d)",
+					printer, format, status.w_retcode);
+				unlink(tfile);
+				return(FILTERERR);
+			}
+			if (fstat(tfd, &stb) < 0)	/* the size of tfile */
+				return(ERROR);
+			f = tfd;
+			lseek(f,0,SEEK_SET);
+		} else if (ofilter) {
+			/*
+			 * We're sending something with an ofilter, we have to
+			 * store the output as a temporary file (tfile)... the
+			 * protocol requires us to send the file size
+			 */
+			int i;
+			for (i = 0; i < stb.st_size; i += BUFSIZ) {
+				amt = BUFSIZ;
+				if (i + amt > stb.st_size)
+					amt = stb.st_size - i;
+				if (sizerr == 0 && read(f, buf, amt) != amt) {
+					sizerr = 1;
+					break;
+				}
+				if (write(ofd, buf, amt) != amt) {
+					(void) close(f);
+					return(REPRINT);
+				}
+			}
+			close(ofd);
+			close(f);
+			while ((i = wait(NULL)) > 0 && i != ofilter)
+				;
+			ofilter = 0;
+			if (fstat(tfd, &stb) < 0) {	/* the size of tfile */
+				openpr();
+				return(ERROR);
+			}
+			f = tfd;
+			lseek(f,0,SEEK_SET);
+			closedpr = 1;
+		}
+	}
+
 	(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
 	amt = strlen(buf);
 	for (i = 0;  ; i++) {
 		if (write(pfd, buf, amt) != amt ||
 		    (resp = response()) < 0 || resp == '\1') {
 			(void) close(f);
+			if (tfd != -1 && type == '\3') {
+				tfd = -1;
+				unlink(tfile);
+				if (closedpr)
+					openpr();
+			}
 			return(REPRINT);
 		} else if (resp == '\0')
 			break;
@@ -861,7 +998,6 @@ sendfile(type, file)
 	}
 	if (i)
 		pstatus("sending to %s", RM);
-	sizerr = 0;
 	for (i = 0; i < stb.st_size; i += BUFSIZ) {
 		amt = BUFSIZ;
 		if (i + amt > stb.st_size)
@@ -870,22 +1006,36 @@ sendfile(type, file)
 			sizerr = 1;
 		if (write(pfd, buf, amt) != amt) {
 			(void) close(f);
+			if (tfd != -1 && type == '\3') {
+				tfd = -1;
+				unlink(tfile);
+				if (closedpr)
+					openpr();
+			}
 			return(REPRINT);
 		}
 	}
 
-
-
-
 	(void) close(f);
+	if (tfd != -1 && type == '\3') {
+		tfd = -1;
+		unlink(tfile);
+	}
 	if (sizerr) {
 		syslog(LOG_INFO, "%s: %s: changed size", printer, file);
 		/* tell recvjob to ignore this file */
 		(void) write(pfd, "\1", 1);
+		if (closedpr)
+			openpr();
 		return(ERROR);
 	}
-	if (write(pfd, "", 1) != 1 || response())
+	if (write(pfd, "", 1) != 1 || response()) {
+		if (closedpr)
+			openpr();
 		return(REPRINT);
+	}
+	if (closedpr)
+		openpr();
 	return(OK);
 }
 
@@ -1147,6 +1297,8 @@ abortpr(signo)
 		kill(ofilter, SIGCONT);
 	while (wait(NULL) > 0)
 		;
+	if (ofilter > 0 && tfd != -1)
+		unlink(tfile);
 	exit(0);
 }
 
@@ -1248,13 +1400,18 @@ openpr()
 	/*
 	 * Start up an output filter, if needed.
 	 */
-	if (!remote && OF) {
+	if (OF && !IF && !ofilter) {
 		int p[2];
 
 		pipe(p);
+		if (remote) {
+			strcpy(tfile,TFILENAME);
+			tfd = mkstemp(tfile);
+		}
 		if ((ofilter = dofork(DOABORT)) == 0) {	/* child */
 			dup2(p[0], 0);		/* pipe is std in */
-			dup2(pfd, 1);		/* printer is std out */
+			/* tfile/printer is stdout */
+			dup2(remote ? tfd : pfd, 1);
 			closelog();
 			for (i = 3, dtablesize = getdtablesize();
 			     i < dtablesize; i++)
