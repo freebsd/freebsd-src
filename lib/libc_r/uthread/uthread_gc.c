@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.6 1999/07/06 00:25:37 jasone Exp $
+ *	$Id: uthread_gc.c,v 1.7 1999/07/11 05:56:37 jasone Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *
@@ -140,7 +140,7 @@ _thread_gc(pthread_addr_t arg)
 						 * Default-size stack.  Cache
 						 * it:
 						 */
-						struct stack	* spare_stack;
+						struct stack	*spare_stack;
 
 						spare_stack
 						    = (pthread->stack
@@ -181,7 +181,7 @@ _thread_gc(pthread_addr_t arg)
 						 * Default-size stack.  Cache
 						 * it:
 						 */
-						struct stack	* spare_stack;
+						struct stack	*spare_stack;
 
 						spare_stack
 						    = (pthread->stack
