@@ -204,7 +204,7 @@ VOID
 
 
 /*
- * EFI platform varibles
+ * EFI platform variables
  */
 
 #define EFI_GLOBAL_VARIABLE     \
