@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.21 1995/03/18 07:03:51 rgrimes Exp $
+#	$Id: Makefile,v 1.22 1995/03/19 07:25:17 phk Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -18,7 +18,7 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	stab.h stddef.h stdio.h stdlib.h string.h strings.h struct.h \
 	sysexits.h tar.h time.h ttyent.h tzfile.h unistd.h utime.h \
 	utmp.h vis.h
-.if !defined(WANT_MSUN)
+.if defined(WANT_CSRG_LIBM)
 FILES+=	math.h
 .endif
 
