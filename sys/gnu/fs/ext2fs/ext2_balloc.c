@@ -168,7 +168,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		return(error);
 #if DIAGNOSTIC
 	if (num < 1)
-		panic ("ext2_balloc: ufs_bmaparray returned indirect block");
+		panic ("ext2_balloc: ufs_getlbns returned indirect block");
 #endif
 	/*
 	 * Fetch the first indirect block allocating if necessary.
