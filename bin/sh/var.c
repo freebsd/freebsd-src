@@ -531,10 +531,28 @@ exportcmd(int argc, char **argv)
 	struct var *vp;
 	char *name;
 	char *p;
+	char *cmdname;
+	int ch, values;
 	int flag = argv[0][0] == 'r'? VREADONLY : VEXPORT;
 
+	cmdname = argv[0];
+	optreset = optind = 1;
+	values = 0;
+	while ((ch = getopt(argc, argv, "p")) != -1) {
+		switch (ch) {
+		case 'p':
+			values = 1;
+			break;
+		case '?':
+		default:
+			error("unknown option: -%c", optopt);
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
 	listsetvar(cmdenviron);
-	if (argc > 1) {
+	if (argc != 0) {
 		while ((name = *argptr++) != NULL) {
 			if ((p = strchr(name, '=')) != NULL) {
 				p++;
@@ -559,8 +577,16 @@ found:;
 		for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
 			for (vp = *vpp ; vp ; vp = vp->next) {
 				if (vp->flags & flag) {
+					if (values) {
+						out1str(cmdname);
+						out1c(' ');
+					}
 					for (p = vp->text ; *p != '=' ; p++)
 						out1c(*p);
+					if (values && !(vp->flags & VUNSET)) {
+						out1c('=');
+						out1qstr(p + 1);
+					}
 					out1c('\n');
 				}
 			}
