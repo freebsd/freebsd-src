@@ -199,18 +199,12 @@ int	update_intr_masks __P((void));
 
 intrmask_t splq __P((intrmask_t mask));
 
-/* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */
 #define	INTR_FAST		0x00000001 /* fast interrupt handler */
 #define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
-
 struct intrec *inthand_add(const char *name, int irq, inthand2_t handler,
 			   void *arg, intrmask_t *maskptr, int flags);
 
 int inthand_remove(struct intrec *idesc);
-
-int register_intr __P((int intr, int device_id, u_int flags,
-		       ointhand2_t *handler, u_int *maskptr, int unit));
-int unregister_intr(int intr, ointhand2_t handler);
 
 #endif /* LOCORE */
 
