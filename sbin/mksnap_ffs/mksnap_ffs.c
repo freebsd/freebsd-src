@@ -51,14 +51,6 @@
 
 void usage(void);
 
-void
-usage()
-{
-
-	fprintf(stderr, "usage: mksnap_ffs mountpoint snapshot_name\n");
-	exit(EX_USAGE);
-}
-
 int
 main(int argc, char **argv)
 {
@@ -90,4 +82,12 @@ main(int argc, char **argv)
 		err(1, "Cannot chmod %s", args.fspec);
 
 	exit(EXIT_SUCCESS);
+}
+
+void
+usage()
+{
+
+	fprintf(stderr, "usage: mksnap_ffs mountpoint snapshot_name\n");
+	exit(EX_USAGE);
 }
