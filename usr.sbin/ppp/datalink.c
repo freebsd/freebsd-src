@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.17 1998/08/07 18:42:48 brian Exp $
+ *	$Id: datalink.c,v 1.18 1998/08/09 15:34:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -439,6 +439,7 @@ datalink_ComeDown(struct datalink *dl, int how)
     datalink_NewState(dl, DATALINK_READY);
   } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
     modem_Offline(dl->physical);
+    chat_Destroy(&dl->chat);
     if (dl->script.run && dl->state != DATALINK_OPENING) {
       datalink_NewState(dl, DATALINK_HANGUP);
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
