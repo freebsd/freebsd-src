@@ -87,14 +87,12 @@ MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
 		DEFINE=-DPERL_CORE
 
-PERL_THREADED?= no
-.if ${PERL_THREADED} == "yes"
+.if defined(PERL_THREADED) && ${PERL_THREADED} == "true"
 CFLAGS+=        -pthread
 THREAD=		threads-
 .endif
 
-PERL_DEBUGGING?=        no
-.if ${PERL_DEBUGGING} == "yes"
+.if defined(PERL_DEBUGGING) && ${PERL_DEBUGGING} == "true"
 CFLAGS+=        -DDEBUGGING
 .endif
 
