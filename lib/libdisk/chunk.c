@@ -255,7 +255,19 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 		}
 		break;
 	case p_pc98:
-		subtype = 0xc494;
+		switch (type) {
+		case freebsd:
+			subtype = 0xc494;
+			/* FALLTHROUGH */
+		case fat:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
+			break;
+		case part:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, freebsd);
+			break;
+		default:
+			return(-1);
+		}
 		break;
 	case p_sparc64:
 	case p_alpha:
@@ -286,7 +298,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 		if (platform == p_sparc64) {
 			offset = Prev_Cyl_Aligned(d, offset);
 			size = Next_Cyl_Aligned(d, size);
-		} else if (platform == p_i386) {
+		} else if (platform == p_i386 || platform == p_pc98) {
 			if (type != freebsd)
 				break;
 			if (!(flags & CHUNK_ALIGN))

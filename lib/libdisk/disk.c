@@ -266,7 +266,10 @@ Debug_Disk(struct disk *d)
 	printf("  bios_geom=%lu/%lu/%lu = %lu\n",
 		d->bios_cyl, d->bios_hd, d->bios_sect,
 		d->bios_cyl * d->bios_hd * d->bios_sect);
-#if   defined(__i386__)
+#if defined(PC98)
+	printf("  boot1=%p, boot2=%p, bootipl=%p, bootmenu=%p\n",
+		d->boot1, d->boot2, d->bootipl, d->bootmenu);
+#elif defined(__i386__)
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
 		d->boot1, d->boot2, d->bootmgr);
 #elif defined(__alpha__)
@@ -361,8 +364,14 @@ Disk_Names()
 	return disks;
 }
 
+#ifdef PC98
+void
+Set_Boot_Mgr(struct disk *d, const u_char *bootipl, const size_t bootipl_size,
+	const u_char *bootmenu, const size_t bootmenu_size)
+#else
 void
 Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
+#endif
 {
 #if !defined(__ia64__)
 #ifdef PC98
@@ -440,52 +449,82 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 	return 0;
 }
 
+#ifdef PC98
 const char *
 slice_type_name( int type, int subtype )
 {
+
 	switch (type) {
-		case 0:		return "whole";
-		case 1:		switch (subtype) {
-					case 1:		return "fat (12-bit)";
-					case 2:		return "XENIX /";
-					case 3:		return "XENIX /usr";
-					case 4:         return "fat (16-bit,<=32Mb)";
-					case 5:		return "extended DOS";
-					case 6:         return "fat (16-bit,>32Mb)";
-					case 7:         return "NTFS/HPFS/QNX";
-					case 8:         return "AIX bootable";
-					case 9:         return "AIX data";
-					case 10:	return "OS/2 bootmgr";
-					case 11:        return "fat (32-bit)";
-					case 12:        return "fat (32-bit,LBA)";
-					case 14:        return "fat (16-bit,>32Mb,LBA)";
-					case 15:        return "extended DOS, LBA";
-					case 18:        return "Compaq Diagnostic";
-					case 84:	return "OnTrack diskmgr";
-					case 100:	return "Netware 2.x";
-					case 101:	return "Netware 3.x";
-					case 115:	return "SCO UnixWare";
-					case 128:	return "Minix 1.1";
-					case 129:	return "Minix 1.5";
-					case 130:	return "linux_swap";
-					case 131:	return "ext2fs";
-					case 166:	return "OpenBSD FFS";	/* 0xA6 */
-					case 169:	return "NetBSD FFS";	/* 0xA9 */
-					case 182:	return "OpenBSD";		/* dedicated */
-					case 183:	return "bsd/os";
-					case 184:	return "bsd/os swap";
-					case 238:	return "EFI GPT";
-					case 239:	return "EFI Sys. Part.";
-					default:	return "unknown";
-				}
-		case 2:		return "fat";
-		case 3:		switch (subtype) {
-					case 165:	return "freebsd";
-					default:	return "unknown";
-				}
-		case 4:		return "extended";
-		case 5:		return "part";
-		case 6:		return "unused";
+	case 0:
+		return "whole";
+	case 2:
+		return "fat";
+	case 3:
+		switch (subtype) {
+		case 0xc494:	return "freebsd";
 		default:	return "unknown";
+		}
+	default:
+		return "unknown";
 	}
 }
+#else /* PC98 */
+const char *
+slice_type_name( int type, int subtype )
+{
+
+	switch (type) {
+	case 0:
+		return "whole";
+	case 1:
+		switch (subtype) {
+		case 1:		return "fat (12-bit)";
+		case 2:		return "XENIX /";
+		case 3:		return "XENIX /usr";
+		case 4:         return "fat (16-bit,<=32Mb)";
+		case 5:		return "extended DOS";
+		case 6:         return "fat (16-bit,>32Mb)";
+		case 7:         return "NTFS/HPFS/QNX";
+		case 8:         return "AIX bootable";
+		case 9:         return "AIX data";
+		case 10:	return "OS/2 bootmgr";
+		case 11:        return "fat (32-bit)";
+		case 12:        return "fat (32-bit,LBA)";
+		case 14:        return "fat (16-bit,>32Mb,LBA)";
+		case 15:        return "extended DOS, LBA";
+		case 18:        return "Compaq Diagnostic";
+		case 84:	return "OnTrack diskmgr";
+		case 100:	return "Netware 2.x";
+		case 101:	return "Netware 3.x";
+		case 115:	return "SCO UnixWare";
+		case 128:	return "Minix 1.1";
+		case 129:	return "Minix 1.5";
+		case 130:	return "linux_swap";
+		case 131:	return "ext2fs";
+		case 166:	return "OpenBSD FFS";	/* 0xA6 */
+		case 169:	return "NetBSD FFS";	/* 0xA9 */
+		case 182:	return "OpenBSD";	/* dedicated */
+		case 183:	return "bsd/os";
+		case 184:	return "bsd/os swap";
+		case 238:	return "EFI GPT";
+		case 239:	return "EFI Sys. Part.";
+		default:	return "unknown";
+		}
+	case 2:
+		return "fat";
+	case 3:
+		switch (subtype) {
+		case 165:	return "freebsd";
+		default:	return "unknown";
+		}
+	case 4:
+		return "extended";
+	case 5:
+		return "part";
+	case 6:
+		return "unused";
+	default:
+		return "unknown";
+	}
+}
+#endif /* PC98 */
