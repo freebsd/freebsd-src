@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.20 1997/03/25 10:04:50 kato Exp $
+ *	$Id: pc98.c,v 1.21 1997/03/29 02:43:49 kato Exp $
  */
 
 /*
@@ -106,11 +106,6 @@ inthand2_t *intr_handler[ICU_LEN];
 u_int	intr_mask[ICU_LEN];
 u_int*	intr_mptr[ICU_LEN];
 int	intr_unit[ICU_LEN];
-
-#ifdef DDB
-unsigned int ddb_inb __P((unsigned int addr));
-void ddb_outb __P((unsigned int addr, unsigned char dt));
-#endif
 
 static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
@@ -1146,15 +1141,3 @@ unregister_intr(intr, handler)
 	write_eflags(ef);
 	return (0);
 }
-
-#ifdef DDB
-unsigned int ddb_inb(unsigned int addr)
-{
-	return inb(addr);
-}
-
-void ddb_outb(unsigned int addr, unsigned char dt)
-{
-	outb(addr, dt);
-}
-#endif
