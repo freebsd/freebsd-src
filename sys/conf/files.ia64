@@ -75,7 +75,7 @@ ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
 ia64/ia64/clock.c		standard
 ia64/ia64/clock_if.m		standard
-ia64/ia64/context.s		standard
+ia64/ia64/context.S		standard
 ia64/ia64/critical.c		standard
 ia64/ia64/db_disasm.c		optional	ddb
 ia64/ia64/db_interface.c	optional	ddb
@@ -84,26 +84,26 @@ ia64/ia64/dump_machdep.c	standard
 ia64/ia64/efi.c			standard
 ia64/ia64/eficlock.c		standard
 ia64/ia64/elf_machdep.c		standard
-ia64/ia64/exception.s		standard
+ia64/ia64/exception.S		standard
 ia64/ia64/ia64-gdbstub.c	optional	ddb
 ia64/ia64/in_cksum.c		optional	inet
 ia64/ia64/interrupt.c		standard
-ia64/ia64/locore.s		standard	no-obj
+ia64/ia64/locore.S		standard	no-obj
 ia64/ia64/machdep.c		standard
 ia64/ia64/mca.c			standard
 ia64/ia64/mem.c			standard
 ia64/ia64/mp_machdep.c		optional	smp
 ia64/ia64/nexus.c		standard
-ia64/ia64/pal.s			standard
+ia64/ia64/pal.S			standard
 ia64/ia64/pmap.c		standard
 ia64/ia64/sal.c			standard
 ia64/ia64/sapic.c		standard
-ia64/ia64/setjmp.s		standard
+ia64/ia64/setjmp.S		standard
 ia64/ia64/ssc.c			optional	ski
 ia64/ia64/sscdisk.c		optional	ski
-ia64/ia64/support.s		standard
+ia64/ia64/support.S		standard
 ia64/ia64/sys_machdep.c		standard
-ia64/ia64/syscall.s		standard
+ia64/ia64/syscall.S		standard
 ia64/ia64/trap.c		standard
 ia64/ia64/unaligned.c		standard
 ia64/ia64/unwind.c		standard
