@@ -965,33 +965,6 @@ badopt:
 	}
 }
 
-
-void
-set_history(char *opt)
-{
-	int size;
-
-	size = atoi(opt);
-	if ((*opt == '\0') || size < 0) {
-		warnx("argument must be a positive number");
-		return;
-	}
-	if (ioctl(0, CONS_HISTORY, &size) == -1)
-		warn("setting history buffer size");
-}
-
-void
-clear_history()
-{
-
-#ifdef CONS_CLRHIST
-	if (ioctl(0, CONS_CLRHIST) == -1)
-		warn("clear history buffer");
-#else
-	warnx("clearing history not supported");
-#endif
-}
-
 static char
 *get_kbd_type_name(int type)
 {
@@ -1091,9 +1064,9 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-cdFKix] [-b duration.pitch | [quiet.]belltype]",
+"usage: kbdcontrol [-dFKix] [-b duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
-"                  [-h size] [-k device] [-L mapfile]");
+"                  [-k device] [-L mapfile]");
 	exit(1);
 }
 
@@ -1103,50 +1076,44 @@ main(int argc, char **argv)
 {
 	int		opt;
 
-	while((opt = getopt(argc, argv, "b:cdf:h:iKk:Fl:L:r:x")) != -1)
+	while((opt = getopt(argc, argv, "b:df:iKk:Fl:L:r:x")) != -1)
 		switch(opt) {
-			case 'b':
-				set_bell_values(optarg);
-				break;
-			case 'c':
-				clear_history();
-				break;
-			case 'd':
-				print_keymap();
-				break;
-			case 'l':
-				load_keymap(optarg, 0);
-				break;
-			case 'L':
-				load_keymap(optarg, 1);
-				break;
-			case 'f':
-				set_functionkey(optarg,
-					nextarg(argc, argv, &optind, 'f'));
-				break;
-			case 'F':
-				load_default_functionkeys();
-				break;
-			case 'h':
-				set_history(optarg);
-				break;
-			case 'i':
-				show_kbd_info();
-				break;
-			case 'K':
-				release_keyboard();
-				break;
-			case 'k':
-				set_keyboard(optarg);
-				break;
-			case 'r':
-				set_keyrates(optarg);
-				break;
-			case 'x':
-				hex = 1;
-				break;
-			default:
-				usage();
+		case 'b':
+			set_bell_values(optarg);
+			break;
+		case 'd':
+			print_keymap();
+			break;
+		case 'l':
+			load_keymap(optarg, 0);
+			break;
+		case 'L':
+			load_keymap(optarg, 1);
+			break;
+		case 'f':
+			set_functionkey(optarg,
+			    nextarg(argc, argv, &optind, 'f'));
+			break;
+		case 'F':
+			load_default_functionkeys();
+			break;
+		case 'i':
+			show_kbd_info();
+			break;
+		case 'K':
+			release_keyboard();
+			break;
+		case 'k':
+			set_keyboard(optarg);
+			break;
+		case 'r':
+			set_keyrates(optarg);
+			break;
+		case 'x':
+			hex = 1;
+			break;
+		default:
+			usage();
 		}
 	if ((optind != argc) || (argc == 1))
 		usage();
