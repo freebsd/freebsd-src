@@ -29,7 +29,13 @@
 #ifndef	_SYS_RANDOM_H_
 #define	_SYS_RANDOM_H_
 
+#ifdef _KERNEL
+
 u_int read_random(char *, u_int);
 void write_random(char *, u_int);
+
+void random_harvest(u_int64_t, u_int, u_int, u_int);
+
+#endif
 
 #endif /* _SYS_RANDOM_H_ */
