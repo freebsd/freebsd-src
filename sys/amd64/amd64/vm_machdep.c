@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.7 1993/11/25 01:31:02 wollman Exp $
+ *	$Id: vm_machdep.c,v 1.8 1993/12/19 00:50:10 wollman Exp $
  */
 
 #include "npx.h"
@@ -92,10 +92,11 @@ cpu_fork(p1, p2)
 	 * Wire top of address space of child to it's kstack.
 	 * First, fault in a page of pte's to map it.
 	 */
+#if 0
         addr = trunc_page((u_int)vtopte(kstack));
 	vm_map_pageable(&p2->p_vmspace->vm_map, addr, addr+NBPG, FALSE);
 	for (i=0; i < UPAGES; i++)
-		pmap_enter(&p2->p_vmspace->vm_pmap, (vm_offset_t)kstack+i*NBPG,
+		pmap_enter(&p2->p_vmspace->vm_pmap, kstack+i*NBPG,
 			   pmap_extract(kernel_pmap, ((int)p2->p_addr)+i*NBPG),
 			   /*
 			    * The user area has to be mapped writable because
@@ -105,6 +106,7 @@ cpu_fork(p1, p2)
 			    * by the segment limits.
 			    */
 			   VM_PROT_READ|VM_PROT_WRITE, TRUE);
+#endif
 	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
 
 	/*
@@ -169,6 +171,7 @@ cpu_exit(p)
 	npxexit(p);
 #endif	/* NNPX */
 	splclock();
+	curproc = 0;
 	swtch();
 	/* 
 	 * This is to shutup the compiler, and if swtch() failed I suppose
@@ -179,13 +182,15 @@ cpu_exit(p)
 }
 
 void
-cpu_wait(p)
-	struct proc *p; 
-{
+cpu_wait(p) struct proc *p; {
+/*	extern vm_map_t upages_map; */
+	extern char kstack[];
 
 	/* drop per-process resources */
-	vmspace_free(p->p_vmspace);
+ 	pmap_remove(vm_map_pmap(kernel_map), (vm_offset_t) p->p_addr,
+		((vm_offset_t) p->p_addr) + ctob(UPAGES));
 	kmem_free(kernel_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
+	vmspace_free(p->p_vmspace);
 }
 #endif
 
@@ -237,15 +242,14 @@ pagemove(from, to, size)
  * Convert kernel VA to physical address
  */
 u_long
-kvtop(addr)
-	register void *addr;
+kvtop(void *addr)
 {
 	vm_offset_t va;
 
 	va = pmap_extract(kernel_pmap, (vm_offset_t)addr);
 	if (va == 0)
 		panic("kvtop: zero page frame");
-	return((u_long)va);
+	return((int)va);
 }
 
 #ifdef notdef
@@ -287,6 +291,7 @@ probew(addr)
  * NB: assumes a physically contiguous kernel page table
  *     (makes life a LOT simpler).
  */
+int
 kernacc(addr, count, rw)
 	register u_int addr;
 	int count, rw;
@@ -316,6 +321,7 @@ kernacc(addr, count, rw)
 	return(1);
 }
 
+int
 useracc(addr, count, rw)
 	register u_int addr;
 	int count, rw;
@@ -413,7 +419,7 @@ vunmapbuf(bp)
 /*
  * Force reset the processor by invalidating the entire address space!
  */
-void				/* XXX should be __dead too */
+void
 cpu_reset() {
 
 	/* force a shutdown by unmapping entire address space ! */
@@ -422,5 +428,5 @@ cpu_reset() {
 	/* "good night, sweet prince .... <THUNK!>" */
 	tlbflush(); 
 	/* NOTREACHED */
-	while(1);		/* to fool compiler... */
+	while(1);
 }

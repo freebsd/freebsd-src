@@ -42,12 +42,13 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.6 1993/11/13 02:25:16 davidg Exp $
+ * 	$Id: pmap.h,v 1.7 1993/12/19 00:50:18 wollman Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
 #define	_PMAP_MACHINE_	1
 
+#include "vm/vm_prot.h"
 /*
  * 386 page table entry and page table directory
  * W.Jolitz, 8/89
@@ -121,8 +122,19 @@ typedef struct pte	pt_entry_t;	/* Mach page table entry */
  * NKPDE controls the virtual space of the kernel, what ever is left, minus
  * the alternate page table area is given to the user (NUPDE)
  */
-#define	NKPDE		7		/* number of kernel pde's */
-#define	NUPDE		(NPTEPG-NKPDE-1)/* number of user pde's */
+/*
+ * NKPDE controls the virtual space of the kernel, what ever is left is
+ * given to the user (NUPDE)
+ */
+#ifndef NKPT
+#define	NKPT			15	/* actual number of kernel pte's */
+#endif
+#ifndef NKPDE
+#define NKPDE			63	/* addressable number of kpte's */
+#endif
+
+#define	NUPDE		(NPTEPG-NKPDE)	/* number of user pde's */
+
 /*
  * The *PTDI values control the layout of virtual memory
  *
@@ -215,7 +227,7 @@ typedef struct pv_entry {
 	struct pv_entry	*pv_next;	/* next pv_entry */
 	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	int		pv_flags;	/* flags */
+	int		pv_wire;	/* wire count */
 } *pv_entry_t;
 
 #define	PV_ENTRY_NULL	((pv_entry_t) 0)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.10 1993/11/13 02:25:00 davidg Exp $
+ *	$Id: locore.s,v 1.11 1993/11/14 02:27:22 rgrimes Exp $
  */
 
 /*
@@ -132,7 +132,7 @@ _bde_exists:	.long	0
 #endif
 
 	.globl	tmpstk
-	.space 512
+	.space	0x1000
 tmpstk:
 
 
@@ -208,7 +208,7 @@ ENTRY(btext)
  * Virtual address space of kernel:
  *
  *	text | data | bss | [syms] | page dir | proc0 kernel stack | usr stk map | Sysmap
- *      pages:                          1         UPAGES (2)             1         NKPDE (7)
+ *      pages:                          1         UPAGES (2)             1         NKPT (7)
  */
 
 /* find end of kernel image */
@@ -227,29 +227,18 @@ ENTRY(btext)
 	stosb
 
 /*
- *    If we are loaded at 0x0 check to see if we have space for the
- * page dir/tables and stack area after the kernel and before the 640K
- * ISA memory hole.  If we do not have space relocate the page directory,
- * UPAGES, proc 0 stack, and page table pages to start at 1MB.  The value
- * that ends up in esi, which points to the kernel page directory, is
- * used by the rest of locore to build the tables.
- * esi + 1(page dir) + 2(UPAGES) + 1(p0stack) + NKPDE(number of kernel
+ * The value in esi is both the end of the kernel bss and a pointer to
+ * the kernel page directory, and is used by the rest of locore to build
+ * the tables.
+ * esi + 1(page dir) + 2(UPAGES) + 1(p0stack) + NKPT(number of kernel
  * page table pages) is then passed on the stack to init386(first) as
  * the value first. esi should ALWAYS be page aligned!!
  */
 	movl	%esi,%ecx			/* Get current first availiable address */
-	cmpl	$0x100000,%ecx			/* Lets see if we are already above 1MB */
-	jge	1f				/* yep, don't need to check for room */
-	addl	$((1+UPAGES+1+NKPDE)*NBPG),%ecx	/* XXX the 4 is for kstack */
-						/* space for kstack, PTD and PTE's */
-	cmpl	$(640*1024),%ecx		/* see if it fits in low memory */
-	jle	1f				/* yep, don't need to relocate it */
-	movl	$0x100000,%esi			/* won't fit, so start it at 1MB */
-1:
 
 /* clear pagetables, page directory, stack, etc... */
 	movl	%esi,%edi			/* base (page directory) */
-	movl	$((1+UPAGES+1+NKPDE)*NBPG),%ecx	/* amount to clear */
+	movl	$((1+UPAGES+1+NKPT)*NBPG),%ecx	/* amount to clear */
 	xorl	%eax,%eax			/* specify zero fill */
 	cld
 	rep
@@ -309,7 +298,7 @@ ENTRY(btext)
 
 /* now initialize the page dir, upages, p0stack PT, and page tables */
 
-	movl	$(1+UPAGES+1+NKPDE),%ecx	/* number of PTEs */
+	movl	$(1+UPAGES+1+NKPT),%ecx	/* number of PTEs */
 	movl	%esi,%eax			/* phys address of PTD */
 	andl	$PG_FRAME,%eax			/* convert to PFN, should be a NOP */
 	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
@@ -348,7 +337,7 @@ ENTRY(btext)
 	movl	%eax,(%esi)			/* which is where temp maps! */
 
 	/* initialize kernel pde's */
-	movl	$(NKPDE),%ecx			/* for this many PDEs */
+	movl	$(NKPT),%ecx			/* for this many PDEs */
 	lea	(KPTDI*PDESIZE)(%esi),%ebx	/* offset of pde for kernel */
 	fillkpt
 
@@ -468,7 +457,7 @@ reloc_gdt:
 	/*
 	 * Skip over the page tables and the kernel stack
 	 */
-	lea	((1+UPAGES+1+NKPDE)*NBPG)(%esi),%esi
+	lea	((1+UPAGES+1+NKPT)*NBPG)(%esi),%esi
 
 	pushl	%esi				/* value of first for init386(first) */
 	call	_init386			/* wire 386 chip for unix operation */
@@ -561,3 +550,4 @@ NON_GPROF_ENTRY(sigcode)
 	.globl	_szsigcode
 _szsigcode:
 	.long	_szsigcode-_sigcode
+
