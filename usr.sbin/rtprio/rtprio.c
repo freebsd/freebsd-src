@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1994 The Regents of the University of California.
+ * Copyright (c) 1994 David Greenman
+ * Copyright (c) 1994 Henrik Vestergaard Draboel (hvd@terry.ping.dk)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,16 +13,16 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ *	This product includes software developed by Henrik Vestergaard Draboel.
+ *	This product includes software developed by David Greenman.
+ * 4. Neither the names of the authors nor the names of contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,28 +30,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
-/* Copyright (c) 1994 Henrik Vestergaard Drabøl (hvd@terry.pping.dk) */
-
-#ifndef lint
-char copyright[] =
-"@(#) Copyright (c) 1989 The Regents of the University of California.\n\
- All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-/*static char sccsid[] = "from: @(#)rtprio.c	5.4 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id: rtprio.c,v 1.2 1993/11/23 00:02:23 jtc Exp $";
-#endif /* not lint */
-
-#include <sys/time.h>
-#include <stdio.h>
+#include <sys/param.h>
 #include <sys/rtprio.h>
-#include <locale.h>
-#include <errno.h>
-#include <err.h>
+#include <sys/errno.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -60,82 +48,95 @@ static void usage();
 
 int
 main(argc, argv)
-	int argc;
-	char **argv;
+	int     argc;
+	char  **argv;
 {
-	int nrtprio = RTPRIO_RTOFF;
-	int proc=0;
+	char   *p;
+	int     proc = 0;
+	struct rtprio rtp;
 
-	setlocale(LC_ALL, "");
-	errno = 0;
+	/* find basename */
+	if ((p = rindex(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		++p;
+
+	if (!strcmp(p, "rtprio"))
+		rtp.type = RTP_PRIO_REALTIME;
+	else if (!strcmp(p, "idprio"))
+		rtp.type = RTP_PRIO_IDLE;
 
 	switch (argc) {
-        case 2:
-	  proc = abs(atoi(argv[1]));
+	case 2:
+		proc = abs(atoi(argv[1]));	/* Should check if numeric
+						 * arg! */
 		/* FALLTHROUGH */
-
 	case 1:
-          nrtprio = rtprio(proc,RTPRIO_NOCHG);
-          fprintf(stderr,"rtprio: %d %s\n",
-            nrtprio,
-            nrtprio==RTPRIO_RTOFF?"(RTOFF)":"");
-          exit(nrtprio); 
-		/* NOTREACHED */
-          
-        default: {
-		switch (argv[1][0]) {
-		case '-':
-		  if (strcmp(argv[1],"-t")==0)
-		       nrtprio = RTPRIO_RTOFF;
-		     else 
-		       usage();
-  		  break;
-
-		case '0':case '1':case '2':case '3':case '4':
-		case '5':case '6':case '7':case '8':case '9':
-		  nrtprio = atoi (argv[1]);
-
-		  if (errno== ERANGE) usage();
-		  break;
-
+		if (rtprio(RTP_LOOKUP, proc, &rtp) != 0) {
+			perror(argv[0]);
+			exit (1);
+		}
+		printf("%s: ", p);
+		switch (rtp.type) {
+		case RTP_PRIO_REALTIME:
+			printf("realtime priority %d\n", rtp.prio);
+			break;
+		case RTP_PRIO_NORMAL:
+			printf("normal priority\n");
+			break;
+		case RTP_PRIO_IDLE:
+			printf("idle priority %d\n", rtp.prio);
+			break;
 		default:
-		  usage(); 
-		  break;
+			printf("invalid priority type %d\n", rtp.type);
+			break;
 		}
-		switch (argv[2][0]) {
-		case '-':
-		  proc = -atoi(argv[2]);
-
-  		break;
+		exit(0);
+	default:
+		if (argv[1][0] == '-' || isdigit(argv[1][0])) {
+			if (argv[1][0] == '-') {
+				if (strcmp(argv[1], "-t") == 0) {
+					rtp.type = RTP_PRIO_NORMAL;
+					rtp.prio = 0;
+				} else {
+					usage(p);
+					break;
+				}
+			} else {
+				rtp.prio = atoi(argv[1]);
+			}
+		} else {
+			usage(p);
+			break;
 		}
-      
-	errno = 0;
 
-        nrtprio = rtprio(proc, nrtprio);
+		if (argv[2][0] == '-')
+			proc = -atoi(argv[2]);
 
-	if (errno) {
-		err (1, "rtprio");
-		/* NOTREACHED */
+		if (rtprio(RTP_SET, proc, &rtp) != 0) {
+			perror(argv[0]);
+			exit (1);
+		}
+
+		if (proc == 0) {
+			execvp(argv[2], &argv[2]);
+			perror(argv[0]);
+			exit (1);
+		}
 	}
-
-	if (proc == 0) {
-          execvp(argv[2], &argv[2]);
-   	  err ((errno == ENOENT) ? 127 : 126, "%s", argv[2]);}
-	  /* NOTREACHED */
-	      }
-	}
-return(nrtprio);
+	exit (1);
 }
 
 static void
-usage()
+usage(basename)
+	char   *basename;
 {
-	(void)fprintf(stderr, "usage: rtprio\n");
-	(void)fprintf(stderr, "usage: rtprio [-] pid\n");
-	(void)fprintf(stderr, "usage: rtprio priority command [ args ] \n");
-	(void)fprintf(stderr, "usage: rtprio priority -pid \n");
-	(void)fprintf(stderr, "usage: rtprio -t command [ args ] \n");
-	(void)fprintf(stderr, "usage: rtprio -t -pid \n");
-	
+	(void) fprintf(stderr, "usage: %s\n", basename);
+	(void) fprintf(stderr, "usage: %s [-]pid\n", basename);
+	(void) fprintf(stderr, "usage: %s priority command [ args ] \n", basename);
+	(void) fprintf(stderr, "usage: %s priority -pid \n", basename);
+	(void) fprintf(stderr, "usage: %s -t command [ args ] \n", basename);
+	(void) fprintf(stderr, "usage: %s -t -pid \n", basename);
+
 	exit(-1);
 }

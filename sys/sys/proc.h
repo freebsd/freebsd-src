@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.7 1994/08/28 16:53:35 bde Exp $
+ * $Id: proc.h,v 1.8 1994/09/01 05:12:52 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -156,6 +156,7 @@ struct	proc {
 
 	struct 	sysentvec *p_sysent; /* System call dispatch information. */
 
+	struct	rtprio p_rtprio; /* realtime priority */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_thread
 	int	p_thread;	/* Id for this "thread"; Mach glue. XXX */
@@ -165,7 +166,6 @@ struct	proc {
 	u_short	p_xstat;	/* Exit status for wait; also stop signal. */
 	u_short	p_acflag;	/* Accounting flags. */
 	struct	rusage *p_ru;	/* Exit information. XXX */
-	u_long	p_rtprio;	/* realtime priority */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -248,6 +248,7 @@ extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 #define	NQS	32			/* 32 run queues. */
 extern struct prochd qs[];
 extern struct prochd rtqs[];
+extern struct prochd idqs[];
 extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
 struct	prochd {
 	struct	proc *ph_link;		/* Linked list of running processes. */

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.9 1994/09/18 20:39:50 wollman Exp $
+	$Id: syscalls.master,v 1.10 1994/09/28 22:44:47 wollman Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -219,7 +219,7 @@
 163	STD	2 BSD	setdomainname
 164	STD	1 BSD	uname
 165	STD	2 BSD	sysarch
-166	STD	2 BSD	rtprio
+166	STD	3 BSD	rtprio
 167	UNIMPL	0 NOHIDE nosys
 168	UNIMPL	0 NOHIDE nosys
 #ifdef SYSVSEM

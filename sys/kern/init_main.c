@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.10 1994/09/13 14:46:47 dfr Exp $
+ * $Id: init_main.c,v 1.11 1994/09/25 19:33:33 phk Exp $
  */
 
 #include <sys/param.h>
@@ -165,7 +165,8 @@ main(framep)
 	p->p_flag = P_INMEM | P_SYSTEM;
 	p->p_stat = SRUN;
 	p->p_nice = NZERO;
-	p->p_rtprio = RTPRIO_RTOFF;
+	p->p_rtprio.type = RTP_PRIO_NORMAL;
+	p->p_rtprio.prio = 0;
 
 	bcopy("swapper", p->p_comm, sizeof ("swapper"));
 
