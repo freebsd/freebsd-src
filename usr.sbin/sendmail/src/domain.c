@@ -522,7 +522,7 @@ cnameloop:
 				qtype == T_ANY ? "ANY" : qtype == T_A ? "A" :
 				qtype == T_MX ? "MX" : "???");
 		ret = res_querydomain(host, *dp, C_IN, qtype,
-				      &answer, sizeof(answer));
+				      (u_char *) &answer, sizeof(answer));
 		if (ret <= 0)
 		{
 			if (tTd(8, 7))

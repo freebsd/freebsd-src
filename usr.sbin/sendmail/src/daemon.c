@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.48 (Berkeley) 4/18/94 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.48.1.2 (Berkeley) 2/9/95 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.48 (Berkeley) 4/18/94 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.48.1.2 (Berkeley) 2/9/95 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -1122,9 +1122,11 @@ getauthinfo(fd)
 	while (isascii(*++p) && isspace(*p))
 		continue;
 
-	/* p now points to the authenticated name */
-	(void) sprintf(hbuf, "%s@%s",
-		p, RealHostName == NULL ? "localhost" : RealHostName);
+	/* p now points to the authenticated name -- copy carefully */
+	cleanstrcpy(hbuf, p, MAXNAME);
+	i = strlen(hbuf);
+	hbuf[i++] = '@';
+	strcpy(&hbuf[i], RealHostName == NULL ? "localhost" : RealHostName);
 	goto finish;
 
 closeident:
