@@ -200,7 +200,7 @@ struct _seqdev_info {
 /*
  * then ioctls and other stuff
  */
-#define NSEQ_MAX	64	/* Number of supported devices */
+#define NSEQ_MAX	16	/* Number of supported devices */
 
 /*
  * many variables should be reduced to a range. Here define a macro
