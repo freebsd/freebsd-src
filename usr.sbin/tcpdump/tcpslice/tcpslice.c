@@ -27,7 +27,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: tcpslice.c,v 1.6 1999/01/15 05:46:28 imp Exp $";
+	"$Id: tcpslice.c,v 1.7 1999/01/15 07:37:00 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -567,7 +567,7 @@ timestamp_to_string(struct timeval *timestamp)
 	switch ( timestamp_style )
 	    {
 	    case TIMESTAMP_RAW:
-		sprintf(buf, "%ld.%ld", timestamp->tv_sec, timestamp->tv_usec);
+		sprintf(buf, "%lu.%06lu", timestamp->tv_sec, timestamp->tv_usec);
 		break;
 
 	    case TIMESTAMP_READABLE:
@@ -578,6 +578,8 @@ timestamp_to_string(struct timeval *timestamp)
 
 	    case TIMESTAMP_PARSEABLE:
 		t = localtime((time_t *) &timestamp->tv_sec);
+		if (t->tm_year >= 100)
+			t->tm_year += 1900;
 		sprintf( buf, "%02dy%02dm%02dd%02dh%02dm%02ds%06ldu",
 			t->tm_year, t->tm_mon + 1, t->tm_mday, t->tm_hour,
 			t->tm_min, t->tm_sec, timestamp->tv_usec );
