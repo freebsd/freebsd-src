@@ -361,7 +361,7 @@ get_kcore_registers (regno)
   struct user *uaddr;
 
   /* find the pcb for the current process */
-  if (kvread (&cur_proc->p_addr, &uaddr))
+  if (cur_proc == NULL || kvread (&cur_proc->p_addr, &uaddr))
     error ("cannot read u area ptr for proc at %#x", cur_proc);
   if (read_pcb (core_kd, (CORE_ADDR)&uaddr->u_pcb) < 0)
     error ("cannot read pcb at %#x", &uaddr->u_pcb);
@@ -418,7 +418,7 @@ xfer_umem (memaddr, myaddr, len, write)
   int n;
   struct proc proc;
 
-  if (kvread (cur_proc, &proc))
+  if (cur_proc == NULL || kvread (cur_proc, &proc))
     error ("cannot read proc at %#x", cur_proc);
   n = kvm_uread (core_kd, &proc, memaddr, myaddr, len) ;
 
