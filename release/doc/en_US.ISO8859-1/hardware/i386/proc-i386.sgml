@@ -35,13 +35,19 @@
   may yield some clues.</para>
 
   <para>&os; will take advantage of HyperThreading (HTT) support on
-    CPUs that support this feature.  A kernel with the
-    <literal>SMP</literal> feature enabled will detect and start the
+    Intel CPUs that support this feature.  A kernel with the
+    <literal>options&nbsp;SMP</literal> feature enabled will automatically detect the
     additional logical processors.  The default &os; scheduler treats
     the logical processors the same as additional physical
     processors; in other words, no attempt is made to optimize
     scheduling decisions given the shared resources between logical
-    processors within the same CPU.</para>
+    processors within the same CPU.  Because this naive scheduling can
+    result in suboptimal performance, the logical CPUs are halted by
+    default at startup.  They can be enabled
+    with the <varname>machdep.hlt_logical_cpus</varname> sysctl
+    variable.  It is also possible to halt any CPU in the idle
+    loop with the <varname>machdep.hlt_cpus</varname> sysctl
+    variable.  The &man.smp.4; manual page has more details.</para>
 
   <para>&os; will generally run on i386-based laptops, albeit with
   varying levels of support for certain hardware features such as
