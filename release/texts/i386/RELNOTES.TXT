@@ -1,0 +1,514 @@
+                                 RELEASE NOTES
+                          FreeBSD Release 3.0-SNAP
+
+This is a 3.0-CURRENT release SNAPshot of FreeBSD, currently
+on its way to a follow-on release for 3.0 which was released
+on October 16th, 1998.
+
+Any installation failures or crashes should be reported by using the
+send-pr command (those preferring a WEB based interface can also see
+http://www.freebsd.org/send-pr.html).
+
+For information about FreeBSD and the layout of the 3.0-RELEASE
+directory (especially if you're installing from floppies!), see
+ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
+HARDWARE.TXT files.
+
+For the latest of these 3.0-current snapshots, you should always see:
+
+        ftp://current.freebsd.org/pub/FreeBSD
+
+If you wish to get the latest post-3.0-RELEASE technology.
+
+Table of contents:
+------------------
+1. What's new since 3.0-RELEASE
+   1.1 KERNEL CHANGES
+   1.2 SECURITY FIXES
+   1.3 USERLAND CHANGES
+
+2. Supported Configurations
+   2.1 Disk Controllers
+   2.2 Ethernet cards
+   2.3 ATM
+   2.4 Misc
+
+3. Obtaining FreeBSD
+   3.1 FTP/Mail
+   3.2 CDROM
+
+4. Upgrading from previous releases of FreeBSD
+
+5. Reporting problems, making suggestions, submitting code
+6. Acknowledgements
+
+
+1. What's new since 3.0-RELEASE
+---------------------------------
+All changes described here are unique to the 3.0 branch unless
+specifically marked as [MERGED] features.
+
+1.1. KERNEL CHANGES
+-------------------
+
+1.2. SECURITY FIXES
+-------------------
+
+1.3. USERLAND CHANGES
+---------------------
+
+2. Supported Configurations
+---------------------------
+FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
+based PC's, ranging from 386sx to Pentium class machines (though the
+386sx is not recommended).  Support for generic IDE or ESDI drive
+configurations, various SCSI controller, network and serial cards is
+also provided.
+
+What follows is a list of all peripherals currently known to work with
+FreeBSD.  Other configurations may also work, we have simply not as yet
+received confirmation of this.
+
+
+2.1. Disk Controllers
+---------------------
+WD1003 (any generic MFM/RLL)
+WD1007 (any generic IDE/ESDI)
+IDE
+ATA
+
+Adaptec 1535 ISA SCSI controllers
+Adaptec 154x series ISA SCSI controllers
+Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
+Adaptec 274X/284X/2920/2940/2950/3940/3950 (Narrow/Wide/Twin) series
+EISA/VLB/PCI SCSI controllers.
+Adaptec AIC7850, AIC7880, AIC789x, on-board SCSI controllers.
+
+AdvanSys SCSI controllers (all models).
+
+Buslogic 545S & 545c
+Buslogic 445S/445c VLB SCSI controller
+Buslogic 742A, 747S, 747c EISA SCSI controller.
+Buslogic 946c PCI SCSI controller
+Buslogic 956c PCI SCSI controller
+
+DPT SCSI/RAID controllers (most variants).
+
+SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
+controllers:
+        ASUS SC-200
+        Data Technology DTC3130 (all variants)
+        NCR cards (all)
+        Symbios cards (all)
+        Tekram DC390W, 390U and 390F
+        Tyan S1365
+
+
+QLogic SCSI and Fibre Channel controllers.
+
+DTC 3290 EISA SCSI controller in 1542 emulation mode.
+
+With all supported SCSI controllers, full support is provided for
+SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
+tape drives (including DAT and 8mm Exabyte), medium changers, processor
+target devices and CDROM drives.  WORM devices that support CDROM commands
+are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
+writing support is provided by cdrecord, which is in the ports tree.
+
+The following CD-ROM type systems are supported at this time:
+(cd)    SCSI interface (also includes ProAudio Spectrum and
+        SoundBlaster SCSI)
+(matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
+        interface (562/563 models)
+(scd)   Sony proprietary interface (all models)
+(wcd)   ATAPI IDE interface
+
+SCSI TAPE SUPPORT:
+
+  The CAM SCSI tape driver doesn't yet handle older (and many times broken)
+  tape drives very well.  If you've got an older SCSI-1 tape drive, like an
+  Exabyte 8200 or older QIC-type tape drive, it may not work properly with
+  the CAM tape driver.  This is obviously a known problem, and we're
+  working on it.
+
+  Newer tape drives that are mostly SCSI-2 compliant should work fine.
+  e.g., DAT (DDS-1, 2 and 3), DLT, and newer Exabyte 8mm drives should
+  work fine.
+
+  If you want to find out if your particular tape drive is supported, the
+  best way to find out is to try it!
+
+The following drivers were supported under the old SCSI subsystem, but are
+NOT YET supported under the new CAM SCSI subsystem:
+
+  Tekram DC390 and DC390T controllers (maybe other cards based on the
+  AMD 53c974 as well).
+
+  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+
+  UltraStor 14F, 24F and 34F SCSI controllers.
+
+  Seagate ST01/02 SCSI controllers.
+
+  Future Domain 8xx/950 series SCSI controllers.
+
+  WD7000 SCSI controller.
+
+  Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
+  Adaptec 152x series ISA SCSI controllers
+  Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
+  and SoundBlaster SCSI cards.
+
+  [ Note:  There is work-in-progress to port the AIC-6260/6360 and
+    UltraStor drivers to the new CAM SCSI framework, but no estimates on
+    when or if they will be completed. ]
+
+Unmaintained drivers, they might or might not work for your hardware:
+
+  Floppy tape interface (Colorado/Mountain/Insight)
+
+  (mcd)   Mitsumi proprietary CD-ROM interface (all models)
+
+2.2. Ethernet cards
+-------------------
+Allied-Telesis AT1700 and RE2000 cards
+
+AMD PCnet/PCI (79c970 & 53c974 or 79c974)
+
+SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
+WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
+based clones.  SMC Elite Ultra.  SMC Etherpower II.
+
+RealTek 8129/8139 fast ethernet NICs including the following:
+  Allied Telesyn AT2550
+  Genius GF100TXR (RTL8139)
+  NDC Communications NE100TX-E
+  OvisLink LEF-8129TX
+  OvisLink LEF-8139TX
+  Netronix Inc. EA-1210 NetEther 10/100
+  KTX-9130TX 10/100 Fast Ethernet
+
+Texas Instruments ThunderLAN PCI NICs, including the following:
+  Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
+  Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
+  Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
+  Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+
+DEC EtherWORKS III NICs (DE203, DE204, and DE205)
+DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
+DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
+DEC FDDI (DEFPA/DEFEA) NICs
+
+Fujitsu MB86960A/MB86965A
+
+HP PC Lan+ cards (model numbers: 27247B and 27252A).
+
+Intel EtherExpress 16
+Intel EtherExpress Pro/10
+Intel EtherExpress Pro/100B PCI Fast Ethernet
+
+Isolan AT 4141-0 (16 bit)
+Isolink 4110     (8 bit)
+
+Novell NE1000, NE2000, and NE2100 ethernet interface.
+
+3Com 3C501 cards
+
+3Com 3C503 Etherlink II
+
+3Com 3c505 Etherlink/+
+
+3Com 3C507 Etherlink 16/TP
+
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
+(Fast) Etherlink III / (Fast) Etherlink XL
+
+Toshiba ethernet cards
+
+Crystal Semiconductor CS89x0-based NICs, including:
+  IBM Etherjet ISA
+
+PCMCIA ethernet cards from IBM and National Semiconductor are also
+supported.
+
+Note that NO token ring cards are supported at this time as we're
+still waiting for someone to donate a driver for one of them.  Any
+takers?
+
+2.3 ATM
+-------
+
+   o ATM Host Interfaces
+        - FORE Systems, Inc. PCA-200E ATM PCI Adapters
+        - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
+
+   o ATM Signalling Protocols
+        - The ATM Forum UNI 3.1 signalling protocol
+        - The ATM Forum UNI 3.0 signalling protocol
+        - The ATM Forum ILMI address registration
+        - FORE Systems's proprietary SPANS signalling protocol
+        - Permanent Virtual Channels (PVCs)
+
+   o IETF "Classical IP and ARP over ATM" model
+        - RFC 1483, "Multiprotocol Encapsulation over ATM Adaptation Layer 5"
+        - RFC 1577, "Classical IP and ARP over ATM"
+        - RFC 1626, "Default IP MTU for use over ATM AAL5"
+        - RFC 1755, "ATM Signaling Support for IP over ATM"
+        - RFC 2225, "Classical IP and ARP over ATM"
+        - RFC 2334, "Server Cache Synchronization Protocol (SCSP)"
+        - Internet Draft draft-ietf-ion-scsp-atmarp-00.txt,
+                "A Distributed ATMARP Service Using SCSP"
+
+   o ATM Sockets interface
+
+2.4. Misc
+---------
+
+AST 4 port serial card using shared IRQ.
+
+ARNET 8 port serial card using shared IRQ.
+ARNET (now Digiboard) Sync 570/i high-speed serial.
+
+Boca BB1004 4-Port serial card (Modems NOT supported)
+Boca IOAT66 6-Port serial card (Modems supported)
+Boca BB1008 8-Port serial card (Modems NOT supported)
+Boca BB2016 16-Port serial card (Modems supported)
+
+Comtrol Rocketport card.
+
+Cyclades Cyclom-y Serial Board.
+
+STB 4 port card using shared IRQ.
+
+SDL Communications Riscom/8 Serial Board.
+SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
+
+Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
+ONboard 4/16 and Brumby.
+
+Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
+and Roland MPU-401 sound cards. (snd driver)
+
+Most ISA audio codecs manufactured by Crystal Semiconductors, OPTi, Creative
+Labs, Avance, Yamaha and ENSONIQ. (pcm driver)
+
+Connectix QuickCam
+Matrox Meteor Video frame grabber
+Creative Labs Video Spigot frame grabber
+Cortex1 frame grabber
+Hauppauge Wincast/TV boards (PCI)
+STB TV PCI
+Intel Smart Video Recorder III
+Various Frame grabbers based on Brooktree Bt848 chip.
+
+HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
+
+PS/2 mice
+
+Standard PC Joystick
+
+X-10 power controllers
+
+GPIB and Transputer drivers.
+
+Genius and Mustek hand scanners.
+
+Xilinx XC6200 based reconfigurable hardware cards compatible with
+the HOT1 from Virtual Computers (www.vcc.com)
+
+Support for Dave Mills experimental Loran-C receiver.
+
+FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
+
+3. Obtaining FreeBSD
+--------------------
+
+You may obtain FreeBSD in a variety of ways:
+
+3.1. FTP/Mail
+-------------
+
+You can ftp FreeBSD and any or all of its optional packages from
+`ftp.freebsd.org' - the official FreeBSD release site.
+
+For other locations that mirror the FreeBSD software see the file
+MIRROR.SITES.  Please ftp the distribution from the site closest (in
+networking terms) to you.  Additional mirror sites are always welcome!
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+become an official mirror site.
+
+If you do not have access to the Internet and electronic mail is your
+only recourse, then you may still fetch the files by sending mail to
+`ftpmail@ftpmail.vix.com' - putting the keyword "help" in your message
+to get more information on how to fetch files using this mechanism.
+Please do note, however, that this will end up sending many *tens of
+megabytes* through the mail and should only be employed as an absolute
+LAST resort!
+
+
+3.2. CDROM
+----------
+
+FreeBSD 3.0-RELEASE and 2.2.x-RELEASE CDs may be ordered on CDROM from:
+
+        Walnut Creek CDROM
+        4041 Pike Lane, Suite D
+        Concord CA  94520
+        1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
+
+Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
+Their current catalog can be obtained via ftp from:
+
+        ftp://ftp.cdrom.com/cdrom/catalog
+
+Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
+FreeBSD SNAPshot CDs, when available, are $39.95 or $14.95 with a
+FreeBSD-SNAP subscription (-RELEASE and -SNAP subscriptions are entirely
+separate).  With a subscription, you will automatically receive updates as
+they are released.  Your credit card will be billed when each disk is
+shipped and you may cancel your subscription at any time without further
+obligation.
+
+Shipping (per order not per disc) is $5 in the US, Canada or Mexico
+and $9.00 overseas.  They accept Visa, Mastercard, Discover, American
+Express or checks in U.S. Dollars and ship COD within the United
+States.  California residents please add 8.25% sales tax.
+
+Should you be dissatisfied for any reason, the CD comes with an
+unconditional return policy.
+
+
+4. Upgrading from previous releases of FreeBSD
+----------------------------------------------
+
+If you're upgrading from a previous release of FreeBSD, most likely
+it's 2.2.x or 2.1.x (in some lesser number of cases) and some of the
+following issues may affect you, depending of course on your chosen
+method of upgrading.  There are two popular ways of upgrading
+FreeBSD distributions:
+
+        o Using sources, via /usr/src
+        o Using sysinstall's (binary) upgrade option.
+
+In the case of using sources, there are simply two targets you need to
+be aware of: The standard ``world'' target, which will upgrade a 2.x
+system to 3.0, or the ``aout-to-elf'' target, which will both upgrade
+and convert the system to ELF binary format.
+In the case of using the binary upgrade option, the system will go
+straight to 3.0/ELF but also populate the /<basepath>/lib/aout
+directories for backwards compatibility with older binaries.
+
+In either case, going to ELF will mean that you'll have somewhat
+smaller binaries and access to a lot more compiler goodies which have
+been already been ported to other ELF environments (our older and
+somewhat crufty a.out format being largely unsupported by most other
+software projects), but on the downside you'll also have access to far
+fewer ports and packages since many of those have not been adapted to
+ELF yet.  This will occur in time, but those who wish to retain access
+to the greatest number of packages and 3rd-party binaries should
+probably stick with a.out.
+
+The kernel is also still in a.out format at this time so that older
+LKMs and library interfaces can continue to work, but a full
+transition to ELF will occur at some point after 3.0-RELEASE.  Those
+wishing to generate dynamic kernel components should therefore use the
+newer KLD mechanism rather than the older LKM format - the LKM format
+is not long for this world and will soon be unsupported!
+
+[ other important upgrading notes should go here]
+
+
+5. Reporting problems, making suggestions, submitting code.
+-----------------------------------------------------------
+Your suggestions, bug reports and contributions of code are always
+valued - please do not hesitate to report any problems you may find
+(preferably with a fix attached, if you can!).
+
+The preferred method to submit bug reports from a machine with
+Internet mail connectivity is to use the send-pr command or use the CGI
+script at http://www.freebsd.org/send-pr.html.  Bug reports
+will be dutifully filed by our faithful bugfiler program and you can
+be sure that we'll do our best to respond to all reported bugs as soon
+as possible.  Bugs filed in this way are also visible on our WEB site
+in the support section and are therefore valuable both as bug reports
+and as "signposts" for other users concerning potential problems to
+watch out for.
+
+If, for some reason, you are unable to use the send-pr command to
+submit a bug report, you can try to send it to:
+
+                freebsd-bugs@FreeBSD.org
+
+Note that send-pr itself is a shell script that should be easy to move
+even onto a totally different system.  We much prefer if you could use
+this interface, since it make it easier to keep track of the problem
+reports.  However, before submitting, please try to make sure whether
+the problem might have already been fixed since.
+
+
+Otherwise, for any questions or tech support issues, please send mail to:
+
+                freebsd-questions@FreeBSD.org
+
+
+Additionally, being a volunteer effort, we are always happy to have
+extra hands willing to help - there are already far more desired
+enhancements than we'll ever be able to manage by ourselves!  To
+contact us on technical matters, or with offers of help, please send
+mail to:
+
+                freebsd-hackers@FreeBSD.org
+
+
+Please note that these mailing lists can experience *significant*
+amounts of traffic and if you have slow or expensive mail access and
+are only interested in keeping up with significant FreeBSD events, you
+may find it preferable to subscribe instead to:
+
+                freebsd-announce@FreeBSD.org
+
+
+All of the mailing lists can be freely joined by anyone wishing
+to do so.  Send mail to MajorDomo@FreeBSD.org and include the keyword
+`help' on a line by itself somewhere in the body of the message.  This
+will give you more information on joining the various lists, accessing
+archives, etc.  There are a number of mailing lists targeted at
+special interest groups not mentioned here, so send mail to majordomo
+and ask about them!
+
+
+6. Acknowledgements
+-------------------
+
+FreeBSD represents the cumulative work of many dozens, if not
+hundreds, of individuals from around the world who have worked very
+hard to bring you this release.  For a complete list of FreeBSD
+project staffers, please see:
+
+        http://www.freebsd.org/handbook/staff.html
+
+or, if you've loaded the doc distribution:
+
+        file:/usr/share/doc/handbook/staff.html
+
+
+Special mention to:
+
+        The donors listed at http://www.freebsd.org/handbook/donors.html
+
+        Justin M. Seger <jseger@freebsd.org> for almost single-handedly
+        converting the ports collection to ELF.
+
+        Doug Rabson <dfr@freebsd.org> and John Birrell <jb@freebsd.org>
+        for making FreeBSD/alpha happen and to the NetBSD project for
+        substantial indirect aid.
+
+        Peter Wemm <peter@freebsd.org> for the new kernel module system
+        (with substantial aid from Doug Rabson).
+
+        And to the many thousands of FreeBSD users and testers all over the
+        world, without whom this release simply would not have been possible.
+
+We sincerely hope you enjoy this release of FreeBSD!
+
+                        The FreeBSD Project
