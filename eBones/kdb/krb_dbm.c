@@ -4,12 +4,12 @@
  * <Copyright.MIT>. 
  *
  *	from: krb_dbm.c,v 4.9 89/04/18 16:15:13 wesommer Exp $
- *	$Id: krb_dbm.c,v 1.2 1994/07/19 19:23:36 g89r4222 Exp $
+ *	$Id: krb_dbm.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_dbm.c,v 1.2 1994/07/19 19:23:36 g89r4222 Exp $";
+"$Id: krb_dbm.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
 #endif	lint
 
 #if defined(__FreeBSD__)
@@ -343,25 +343,39 @@ kerb_db_rename(from, to)
     char *from;
     char *to;
 {
+#ifndef __FreeBSD__
     char *fromdir = gen_dbsuffix (from, ".dir");
     char *todir = gen_dbsuffix (to, ".dir");
     char *frompag = gen_dbsuffix (from , ".pag");
     char *topag = gen_dbsuffix (to, ".pag");
+#else
+    char *fromdb = gen_dbsuffix (from, ".db");
+    char *todb = gen_dbsuffix (to, ".db");
+#endif
     char *fromok = gen_dbsuffix(from, ".ok");
     long trans = kerb_start_update(to);
     int ok;
     
+#ifndef __FreeBSD__
     if ((rename (fromdir, todir) == 0)
 	&& (rename (frompag, topag) == 0)) {
+#else
+    if (rename (fromdb, todb) == 0) {
+#endif
 	(void) unlink (fromok);
 	ok = 1;
     }
 
     free (fromok);
+#ifndef __FreeBSD__
     free (fromdir);
     free (todir);
     free (frompag);
     free (topag);
+#else
+    free(fromdb);
+    free(todb);
+#endif
     if (ok)
 	return kerb_end_update(to, trans);
     else
