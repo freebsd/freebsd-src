@@ -893,6 +893,7 @@ void	cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku);
 void	cpu_thread_clean(struct thread *);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
+void	cpu_thread_siginfo(int sig, u_long code, siginfo_t *si);
 void	kse_reassign(struct kse *ke);
 void	kse_link(struct kse *ke, struct ksegrp *kg);
 void	kse_unlink(struct kse *ke);
@@ -929,7 +930,6 @@ void	upcall_stash(struct kse_upcall *ke);
 void	thread_sanity_check(struct thread *td, char *);
 void	thread_stopped(struct proc *p);
 void	thread_switchout(struct thread *td);
-void	thread_siginfo(int sig, u_long code, siginfo_t *si);
 void	thr_exit1(void);
 #endif	/* _KERNEL */
 
