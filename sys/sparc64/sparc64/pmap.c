@@ -1626,7 +1626,7 @@ pmap_activate(struct thread *td)
 	KASSERT(context != -1, ("pmap_activate: steal context"));
 	KASSERT(pm->pm_active == 0, ("pmap_activate: pmap already active?"));
 
-	pm->pm_active |= 1 << PCPU_GET(cpuid);
+	pm->pm_active |= PCPU_GET(cpumask);
 
 	wrpr(pstate, 0, PSTATE_MMU);
 	__asm __volatile("mov %0, %%g7" : : "r" (tsb));

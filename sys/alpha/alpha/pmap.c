@@ -667,7 +667,7 @@ pmap_invalidate_page_action(void *arg)
 	vm_offset_t va = ((struct pmap_invalidate_page_arg *) arg)->va;
 #endif
 
-	if (pmap->pm_active & (1 << PCPU_GET(cpuid))) {
+	if (pmap->pm_active & PCPU_GET(cpumask)) {
 		ALPHA_TBIS(va);
 		alpha_pal_imb();		/* XXX overkill? */
 	} else {
@@ -688,7 +688,7 @@ pmap_invalidate_all_action(void *arg)
 	pmap_t pmap = (pmap_t) arg;
 #endif
 
-	if (pmap->pm_active & (1 << PCPU_GET(cpuid))) {
+	if (pmap->pm_active & PCPU_GET(cpumask)) {
 		ALPHA_TBIA();
 		alpha_pal_imb();		/* XXX overkill? */
 	} else
@@ -3246,7 +3246,7 @@ pmap_activate(struct thread *td)
 
 	if (pmap_active[PCPU_GET(cpuid)] && pmap != pmap_active[PCPU_GET(cpuid)]) {
 		atomic_clear_32(&pmap_active[PCPU_GET(cpuid)]->pm_active,
-				1 << PCPU_GET(cpuid));
+				PCPU_GET(cpumask));
 		pmap_active[PCPU_GET(cpuid)] = 0;
 	}
 
@@ -3257,7 +3257,7 @@ pmap_activate(struct thread *td)
 		pmap_get_asn(pmap);
 
 	pmap_active[PCPU_GET(cpuid)] = pmap;
-	atomic_set_32(&pmap->pm_active, 1 << PCPU_GET(cpuid));
+	atomic_set_32(&pmap->pm_active, PCPU_GET(cpumask));
 
 	td->td_pcb->pcb_hw.apcb_asn = pmap->pm_asn[PCPU_GET(cpuid)].asn;
 
@@ -3272,7 +3272,7 @@ pmap_deactivate(struct thread *td)
 	pmap_t pmap;
 
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	atomic_clear_32(&pmap->pm_active, 1 << PCPU_GET(cpuid));
+	atomic_clear_32(&pmap->pm_active, PCPU_GET(cpumask));
 	pmap_active[PCPU_GET(cpuid)] = 0;
 }
 

@@ -1992,7 +1992,7 @@ start_all_aps(u_int boot_addr)
 	}
 
 	/* build our map of 'other' CPUs */
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	/* fill in our (BSP) APIC version */
 	cpu_apic_versions[0] = lapic.version;
@@ -2268,7 +2268,7 @@ ap_init(void)
 	smp_cpus++;
 
 	/* Build our map of 'other' CPUs. */
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
