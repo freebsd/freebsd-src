@@ -231,3 +231,17 @@ decode_nfshandle(char *ev, u_char *fh)
 		}
 	}
 }
+
+#if !defined(BOOTP_NFSROOT)
+static void
+nfs_rootconf(void)
+{
+
+	nfs_setup_diskless();
+	if (nfs_diskless_valid)
+		rootdevnames[0] = "nfs:";
+}
+
+SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, nfs_rootconf, NULL)
+#endif
+
