@@ -51,8 +51,6 @@ void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 void	ipi_self(u_int ipi);
-void	forward_statclock(void);
-void	forward_hardclock(void);
 void 	ipi_bitmap_handler(struct clockframe frame);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
