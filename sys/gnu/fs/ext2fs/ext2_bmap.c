@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.23 1998/10/26 08:53:13 bde Exp $
+ * $Id: ufs_bmap.c,v 1.24 1998/10/27 11:47:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	mp = vp->v_mount;
 	ump = VFSTOUFS(mp);
 #ifdef DIAGNOSTIC
-	if (ap != NULL && nump == NULL || ap == NULL && nump != NULL)
+	if ((ap != NULL && nump == NULL) || (ap == NULL && nump != NULL))
 		panic("ufs_bmaparray: invalid arguments");
 #endif
 

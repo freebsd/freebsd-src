@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.8 1999/01/16 20:33:34 wpaul Exp $
+ *	$Id: if_ax.c,v 1.3 1999/01/16 20:40:52 wpaul Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.8 1999/01/16 20:33:34 wpaul Exp $";
+	"$Id: if_ax.c,v 1.3 1999/01/16 20:40:52 wpaul Exp $";
 #endif
 
 /*
@@ -1347,7 +1347,7 @@ static int ax_list_rx_init(sc)
 
 	for (i = 0; i < AX_RX_LIST_CNT; i++) {
 		cd->ax_rx_chain[i].ax_ptr =
-			(struct ax_desc *)&ld->ax_rx_list[i];
+			(volatile struct ax_desc *)&ld->ax_rx_list[i];
 		if (ax_newbuf(sc, &cd->ax_rx_chain[i]) == ENOBUFS)
 			return(ENOBUFS);
 		if (i == (AX_RX_LIST_CNT - 1)) {
@@ -2129,7 +2129,7 @@ static void ax_stop(sc)
 			sc->ax_cdata.ax_rx_chain[i].ax_mbuf = NULL;
 		}
 	}
-	bzero((char *)&sc->ax_ldata->ax_rx_list,
+	bzero((volatile char *)&sc->ax_ldata->ax_rx_list,
 		sizeof(sc->ax_ldata->ax_rx_list));
 
 	/*
@@ -2142,7 +2142,7 @@ static void ax_stop(sc)
 		}
 	}
 
-	bzero((char *)&sc->ax_ldata->ax_tx_list,
+	bzero((volatile char *)&sc->ax_ldata->ax_tx_list,
 		sizeof(sc->ax_ldata->ax_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.11 1999/01/17 20:25:14 peter Exp $
+ *  $Id: coda_fbsd.c,v 1.12 1999/01/27 20:09:17 dillon Exp $
  * 
  */
 
@@ -84,7 +84,7 @@ int     vcdebug = 1;
 #define VCDEBUG if (vcdebug) printf
 
 static int
-codadev_modevent(module_t mod, modeventtype_t type, void *data)
+codadev_modevent(module_t mod, int type, void *data)
 {
 	dev_t dev;
 #ifdef DEVFS

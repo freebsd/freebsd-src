@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.88 1999/01/26 04:54:38 peter Exp $
+**  $Id: pcisupport.c,v 1.89 1999/01/27 20:09:21 dillon Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -383,7 +383,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("NEC 003B PCI to PC-98 C-bus bridge");
 	};
 
-	if (descr = generic_pci_bridge(tag))
+	if ((descr = generic_pci_bridge(tag)) != NULL)
 		return descr;
 
 	return NULL;

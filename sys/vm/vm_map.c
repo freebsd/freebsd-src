@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.142 1999/01/24 06:04:52 dillon Exp $
+ * $Id: vm_map.c,v 1.143 1999/01/26 02:49:52 julian Exp $
  */
 
 /*
@@ -2279,7 +2279,7 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 		/*
 		 * Make a copy of the object.
 		 */
-		if (src_object = src_entry->object.vm_object) {
+		if ((src_object = src_entry->object.vm_object) != NULL) {
 
 			if ((src_object->handle == NULL) &&
 				(src_object->type == OBJT_DEFAULT ||
@@ -2993,7 +2993,7 @@ vm_freeze_copyopts(object, froma, toa)
 	if (object->shadow_count > object->ref_count)
 		panic("vm_freeze_copyopts: sc > rc");
 
-	while( robject = TAILQ_FIRST(&object->shadow_head)) {
+	while((robject = TAILQ_FIRST(&object->shadow_head)) != NULL) {
 		vm_pindex_t bo_pindex;
 		vm_page_t m_in, m_out;
 
@@ -3098,7 +3098,7 @@ DB_SHOW_COMMAND(map, vm_map_print)
 			db_iprintf(" prot=%x/%x/%s",
 			    entry->protection,
 			    entry->max_protection,
-			    inheritance_name[entry->inheritance]);
+			    inheritance_name[(int)(unsigned char)entry->inheritance]);
 			if (entry->wired_count != 0)
 				db_printf(", wired");
 		}

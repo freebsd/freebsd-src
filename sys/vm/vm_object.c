@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.140 1999/01/21 09:46:55 dillon Exp $
+ * $Id: vm_object.c,v 1.141 1999/01/24 01:01:38 dillon Exp $
  */
 
 /*
@@ -580,7 +580,7 @@ rescan:
 
 		maxf = 0;
 		for(i=1;i<vm_pageout_page_count;i++) {
-			if (tp = vm_page_lookup(object, pi + i)) {
+			if ((tp = vm_page_lookup(object, pi + i)) != NULL) {
 				if ((tp->flags & PG_BUSY) ||
 					(tp->flags & PG_CLEANCHK) == 0 ||
 					(tp->busy != 0))
@@ -605,7 +605,7 @@ rescan:
 		chkb = vm_pageout_page_count -  maxf;
 		if (chkb) {
 			for(i = 1; i < chkb;i++) {
-				if (tp = vm_page_lookup(object, pi - i)) {
+				if ((tp = vm_page_lookup(object, pi - i)) != NULL) {
 					if ((tp->flags & PG_BUSY) ||
 						(tp->flags & PG_CLEANCHK) == 0 ||
 						(tp->busy != 0))
@@ -1302,7 +1302,7 @@ vm_object_collapse(object)
 			backing_object->generation++;
 
 			new_backing_object = backing_object->backing_object;
-			if (object->backing_object = new_backing_object) {
+			if ((object->backing_object = new_backing_object) != NULL) {
 				vm_object_reference(new_backing_object);
 				TAILQ_INSERT_TAIL(&new_backing_object->shadow_head,
 				    object, shadow_list);
@@ -1550,7 +1550,7 @@ _vm_object_in_map(map, object, entry)
 			}
 			tmpe = tmpe->next;
 		}
-	} else if (obj = entry->object.vm_object) {
+	} else if ((obj = entry->object.vm_object) != NULL) {
 		for(; obj; obj=obj->backing_object)
 			if( obj == object) {
 				return 1;

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: subr_scanf.c,v 1.1 1999/01/15 00:03:39 msmith Exp $
+ * $Id: subr_scanf.c,v 1.2 1999/01/27 21:36:14 dillon Exp $
  * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
  */
 
@@ -639,7 +639,7 @@ doswitch:
  * alphabets and digits are each contiguous.
  */
 u_quad_t
-strtouq(const char *nptr, char **endptr, int base)
+strtouq(const char *nptr, const char **endptr, int base)
 {
 	const char *s = nptr;
 	u_quad_t acc;
@@ -708,7 +708,7 @@ strtouq(const char *nptr, char **endptr, int base)
  * alphabets and digits are each contiguous.
  */
 quad_t
-strtoq(const char *nptr, char **endptr, int base)
+strtoq(const char *nptr, const char **endptr, int base)
 {
 	const char *s;
 	u_quad_t acc;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.13 1999/01/27 21:49:56 dillon Exp $
+ *	$Id: link_elf.c,v 1.14 1999/01/27 23:45:39 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -931,7 +931,7 @@ static int
 link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym, linker_symval_t* symval)
 {
 	elf_file_t ef = lf->priv;
-	Elf_Sym* es = (Elf_Sym*) sym;
+	const Elf_Sym* es = (const Elf_Sym*) sym;
 
 	if (es >= ef->symtab && ((es - ef->symtab) < ef->nchains)) {
 	    symval->name = ef->strtab + es->st_name;

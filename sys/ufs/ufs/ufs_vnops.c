@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.104 1999/01/07 16:14:19 bde Exp $
+ * $Id: ufs_vnops.c,v 1.105 1999/01/21 08:29:09 dillon Exp $
  */
 
 #include "opt_quota.h"
@@ -310,7 +310,7 @@ ufs_access(ap)
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
 #ifdef QUOTA
-			if (error = getinoquota(ip))
+			if ((error = getinoquota(ip)) != 0)
 				return (error);
 #endif
 			break;
@@ -469,7 +469,7 @@ ufs_setattr(ap)
 	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if (error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred, p))
+		if ((error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred, p)) != 0)
 			return (error);
 	}
 	if (vap->va_size != VNOVAL) {
@@ -489,7 +489,7 @@ ufs_setattr(ap)
 		default:
 			break;
 		}
-		if (error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, p))
+		if ((error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, p)) != 0)
 			return (error);
 	}
 	ip = VTOI(vp);
@@ -592,7 +592,7 @@ ufs_chown(vp, uid, gid, cred, p)
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
 #ifdef QUOTA
-	if (error = getinoquota(ip))
+	if ((error = getinoquota(ip)) != 0)
 		return (error);
 	if (ouid == uid) {
 		dqrele(vp, ip->i_dquot[USRQUOTA]);
@@ -967,7 +967,7 @@ abortit:
 		vput(fvp);
 		return (error);
 	}
-	if (error = vn_lock(fvp, LK_EXCLUSIVE, p))
+	if ((error = vn_lock(fvp, LK_EXCLUSIVE, p)) != 0)
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
@@ -1015,7 +1015,7 @@ abortit:
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(fvp))
 		softdep_increase_linkcnt(ip);
-	if (error = UFS_UPDATE(fvp, !DOINGSOFTDEP(fvp))) {
+	if ((error = UFS_UPDATE(fvp, !DOINGSOFTDEP(fvp))) != 0) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
 	}
@@ -1817,7 +1817,7 @@ ufsspec_read(ap)
 	 * be accessed blindly here or in the other wrapper functions.
 	 */
 	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
+	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
 		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
@@ -1842,7 +1842,7 @@ ufsspec_write(ap)
 	resid = uio->uio_resid;
 	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
 	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
+	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -1891,7 +1891,7 @@ ufsfifo_read(ap)
 	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap);
 	ip = VTOI(ap->a_vp);
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
-	    (uio->uio_resid != resid || error == 0 && resid != 0))
+	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
 		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
 	return (error);
 }
@@ -1916,7 +1916,7 @@ ufsfifo_write(ap)
 	resid = uio->uio_resid;
 	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap);
 	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
+	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }

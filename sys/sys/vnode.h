@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.80 1999/01/20 14:49:12 eivind Exp $
+ * $Id: vnode.h,v 1.81 1999/01/27 21:50:00 dillon Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -492,8 +492,8 @@ void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
-void	vfs_add_vnodeops __P((void *));
-void	vfs_rm_vnodeops __P((void *));
+void	vfs_add_vnodeops __P((const void *));
+void	vfs_rm_vnodeops __P((const void *));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int 	vget __P((struct vnode *vp, int lockflag, struct proc *p));
 void 	vgone __P((struct vnode *vp));

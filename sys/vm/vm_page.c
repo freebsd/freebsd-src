@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.121 1999/01/24 06:00:31 dillon Exp $
+ *	$Id: vm_page.c,v 1.122 1999/01/24 07:06:52 dillon Exp $
  */
 
 /*
@@ -101,15 +101,15 @@ static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
 static volatile int vm_page_bucket_generation;
 
-struct pglist vm_page_queue_free[PQ_L2_SIZE] = {0};
-struct pglist vm_page_queue_zero[PQ_L2_SIZE] = {0};
+struct pglist vm_page_queue_free[PQ_L2_SIZE] = {{0}};
+struct pglist vm_page_queue_zero[PQ_L2_SIZE] = {{0}};
 struct pglist vm_page_queue_active = {0};
 struct pglist vm_page_queue_inactive = {0};
-struct pglist vm_page_queue_cache[PQ_L2_SIZE] = {0};
+struct pglist vm_page_queue_cache[PQ_L2_SIZE] = {{0}};
 
 static int no_queue=0;
 
-struct vpgqueues vm_page_queues[PQ_COUNT] = {0};
+struct vpgqueues vm_page_queues[PQ_COUNT] = {{0}};
 static int pqcnt[PQ_COUNT] = {0};
 
 static void
@@ -711,13 +711,13 @@ vm_page_list_find(basequeue, index)
 			hindex = index + ij;
 			if (hindex >= PQ_L2_SIZE)
 				hindex -= PQ_L2_SIZE;
-			if (m = TAILQ_FIRST(pq[hindex].pl))
+			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
 				return m;
 
 			hindex = index - ij;
 			if (hindex < 0)
 				hindex += PQ_L2_SIZE;
-			if (m = TAILQ_FIRST(pq[hindex].pl))
+			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
 				return m;
 		}
 	}
@@ -854,9 +854,9 @@ vm_page_select_free(object, pindex, prefqueue)
 
 	index = (pindex + object->pg_color) & PQ_L2_MASK;
 
-	if (m = TAILQ_FIRST(pq[index].pl))
+	if ((m = TAILQ_FIRST(pq[index].pl)) != NULL)
 		return m;
-	if (m = TAILQ_FIRST(pq[index + oqueuediff].pl))
+	if ((m = TAILQ_FIRST(pq[index + oqueuediff].pl)) != NULL)
 		return m;
 
 	for(j = 0; j < PQ_L1_SIZE; j++) {
@@ -868,17 +868,17 @@ vm_page_select_free(object, pindex, prefqueue)
 			hindex = index + ij;
 			if (hindex >= PQ_L2_SIZE)
 				hindex -= PQ_L2_SIZE;
-			if (m = TAILQ_FIRST(pq[hindex].pl)) 
+			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
 				return m;
-			if (m = TAILQ_FIRST(pq[hindex + oqueuediff].pl))
+			if ((m = TAILQ_FIRST(pq[hindex + oqueuediff].pl)) != NULL)
 				return m;
 
 			hindex = index - ij;
 			if (hindex < 0)
 				hindex += PQ_L2_SIZE;
-			if (m = TAILQ_FIRST(pq[hindex].pl)) 
+			if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
 				return m;
-			if (m = TAILQ_FIRST(pq[hindex + oqueuediff].pl))
+			if ((m = TAILQ_FIRST(pq[hindex + oqueuediff].pl)) != NULL)
 				return m;
 		}
 	}
@@ -886,13 +886,13 @@ vm_page_select_free(object, pindex, prefqueue)
 	hindex = index + PQ_L2_SIZE / 2;
 	if (hindex >= PQ_L2_SIZE)
 		hindex -= PQ_L2_SIZE;
-	if (m = TAILQ_FIRST(pq[hindex].pl))
+	if ((m = TAILQ_FIRST(pq[hindex].pl)) != NULL)
 		return m;
-	if (m = TAILQ_FIRST(pq[hindex+oqueuediff].pl))
+	if ((m = TAILQ_FIRST(pq[hindex+oqueuediff].pl)) != NULL)
 		return m;
 
 #else
-	if (m = TAILQ_FIRST(pq[0].pl))
+	if ((m = TAILQ_FIRST(pq[0].pl)) != NULL)
 		return m;
 	else
 		return TAILQ_FIRST(pq[oqueuediff].pl);

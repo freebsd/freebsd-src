@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.78 1998/10/31 15:31:26 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.79 1998/12/04 22:54:54 archie Exp $
  */
 
 #include <sys/param.h>
@@ -142,8 +142,8 @@ VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
  * server for a diskless/dataless machine. It is initialized below just
  * to ensure that it is allocated to initialized data (.data not .bss).
  */
-struct nfs_diskless nfs_diskless = { 0 };
-struct nfsv3_diskless nfsv3_diskless = { 0 };
+struct nfs_diskless nfs_diskless = { { 0 } };
+struct nfsv3_diskless nfsv3_diskless = { { 0 } };
 int nfs_diskless_valid = 0;
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD, 
@@ -490,8 +490,8 @@ nfs_mountroot(mp)
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
 	printf("NFS ROOT: %s\n",buf);
-	if (error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
-	    &nd->root_saddr, &nd->root_args, p, &vp, &mp)) {
+	if ((error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
+	    &nd->root_saddr, &nd->root_args, p, &vp, &mp)) != 0) {
 		if (swap_mp) {
 			mp->mnt_vfc->vfc_refcount--;
 			free(swap_mp, M_MOUNT);
@@ -516,8 +516,8 @@ nfs_mountroot(mp)
 			(l >> 24) & 0xff, (l >> 16) & 0xff,
 			(l >>  8) & 0xff, (l >>  0) & 0xff,nd->swap_hostnam);
 		printf("NFS SWAP: %s\n",buf);
-		if (error = nfs_mountdiskless(buf, "/swap", 0,
-		    &nd->swap_saddr, &nd->swap_args, p, &vp, &swap_mp))
+		if ((error = nfs_mountdiskless(buf, "/swap", 0,
+		    &nd->swap_saddr, &nd->swap_args, p, &vp, &swap_mp)) != 0)
 			return (error);
 		vfs_unbusy(swap_mp, p);
 
@@ -581,7 +581,7 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
 	nam = dup_sockaddr((struct sockaddr *)sin, 1);
-	if (error = mountnfs(args, mp, nam, which, path, vpp)) {
+	if ((error = mountnfs(args, mp, nam, which, path, vpp)) != 0) {
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, p);
