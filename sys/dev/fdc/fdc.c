@@ -1444,7 +1444,7 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 		return (0);
 
 	case FD_STYPE:                  /* set drive type */
-		if (!fflag & FWRITE)
+		if (!(fflag & FWRITE))
 			return (EPERM);
 		/*
 		 * Allow setting drive type temporarily iff
@@ -1467,7 +1467,7 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 		return (0);
 
 	case FD_SOPTS:			/* set drive options */
-		if (!fflag & FWRITE)
+		if (!(fflag & FWRITE))
 			return (EPERM);
 		fd->options = *(int *)data;
 		return (0);
@@ -1490,7 +1490,7 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 		return (0);
 
 	case FD_FORM:
-		if (!fflag & FWRITE)
+		if (!(fflag & FWRITE))
 			return (EPERM);
 		if (((struct fd_formb *)data)->format_version !=
 		    FD_FORMAT_VERSION)
