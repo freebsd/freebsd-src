@@ -133,8 +133,9 @@ which causes the output of
 to be evaluated and set by the current shell.
 .El
 .Pp
-The value of limitflags specified in the above contains one or more of the
-following options:
+The value of
+.Ar limitflags
+specified in the above contains one or more of the following options:
 .Pp
 .Bl -tag -width "-d [limit]"
 .It Fl C Ar class
@@ -228,6 +229,7 @@ allowed per UID can be viewed using the 'sysctl kern.maxprocperuid' command.
 The maximum number of processes that can be running simultaneously
 in the entire system is limited to the value given by
 the 'sysctl kern.maxproc' command.
+.El
 .Pp
 Valid values for
 .Ar limit
@@ -275,7 +277,7 @@ weeks.
 .It y
 365 day years.
 .El
-.Pp
+.Bl -tag -width indent
 .It Fl E
 The option
 .Sq Fl E
