@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 #endif /* __FOOCPU__ && __BAROS__ */
 
 #ifndef ZEROSIZEPTR
-#define ZEROSIZEPTR	((void *)(1 << (malloc_pageshift - 1)))
+#define ZEROSIZEPTR	((void *)(uintptr_t)(1 << (malloc_pageshift - 1)))
 #endif
 
 /*
