@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.9 1994/02/13 20:41:37 jkh Exp $	- library routines
+ * $Id: lib.c,v 1.10 1994/06/15 22:39:49 rich Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -302,7 +302,7 @@ symdef_library(fd, entry, member_length)
 			if (!(link_mode & FORCEARCHIVE) &&
 					!subfile_wanted_p(subentry)) {
 				if (subentry->symbols)
-				free(subentry->symbols);
+					free(subentry->symbols);
 				free(subentry);
 			} else {
 				/*
@@ -334,13 +334,13 @@ symdef_library(fd, entry, member_length)
 						symdef_base[j].ran_un.ran_strx = -1;
 				}
 
-			/*
+				/*
 				 * We'll read the strings again
 				 * if we need them.
-			 */
-			subentry->strings = 0;
+				 */
+				subentry->strings = 0;
+			}
 		}
-	}
 	}
 
 	free(symdef_data);
@@ -378,7 +378,7 @@ linear_library(fd, entry)
 		if (!(link_mode & FORCEARCHIVE) &&
 					!subfile_wanted_p(subentry)) {
 			if (subentry->symbols)
-			free(subentry->symbols);
+				free(subentry->symbols);
 			free(subentry);
 		} else {
 			read_entry_relocation(fd, subentry);
@@ -581,7 +581,7 @@ subfile_wanted_p(entry)
  */
 void
 read_shared_object(fd, entry)
-     struct file_entry *entry;
+	struct file_entry *entry;
 	int fd;
 {
 	struct _dynamic			dyn;
@@ -618,8 +618,8 @@ read_shared_object(fd, entry)
 
 	/* Read Section Dispatch Table (from data segment) */
 	if (lseek(fd,
-		text_offset(entry) + (long)dyn.d_un.d_sdt -
-			(DATA_START(entry->header) - N_DATOFF(entry->header)),
+	    text_offset(entry) + (long)dyn.d_un.d_sdt -
+		(DATA_START(entry->header) - N_DATOFF(entry->header)),
 	    L_SET) == (off_t)-1)
 		err(1, "%s: lseek", get_file_name(entry));
 	if (read(fd, &sdt, sizeof sdt) != sizeof sdt)
@@ -633,11 +633,11 @@ read_shared_object(fd, entry)
 		(has_nz ? sizeof(struct nzlist) : sizeof(struct nlist));
 	nzp = (struct nzlist *)(np = (struct nlist *)alloca (n));
 	entry->symbols = (struct localsymbol *)
-			xmalloc(entry->nsymbols * sizeof(struct localsymbol));
+		xmalloc(entry->nsymbols * sizeof(struct localsymbol));
 
 	if (lseek(fd,
 	    text_offset(entry) + (long)sdt.sdt_nzlist -
-			(TEXT_START(entry->header) - N_TXTOFF(entry->header)),
+		(TEXT_START(entry->header) - N_TXTOFF(entry->header)),
 	    L_SET) == (off_t)-1)
 		err(1, "%s: lseek", get_file_name(entry));
 	if (read(fd, (char *)nzp, n) != n)
@@ -670,7 +670,7 @@ read_shared_object(fd, entry)
 	entry->strings_offset = text_offset(entry) + sdt.sdt_strings;
 	if (lseek(fd,
 	    entry->strings_offset -
-			(TEXT_START(entry->header) - N_TXTOFF(entry->header)),
+		(TEXT_START(entry->header) - N_TXTOFF(entry->header)),
 	    L_SET) == (off_t)-1)
 		err(1, "%s: lseek", get_file_name(entry));
 	if (read(fd, entry->strings, n) != n)
@@ -696,6 +696,7 @@ read_shared_object(fd, entry)
 				xmalloc(sizeof(struct file_entry));
 			bzero(subentry, sizeof(struct file_entry));
 			subentry->superfile = entry;
+			subentry->flags = E_SECONDCLASS;
 
 			if (lseek(fd,
 			    offset - (TEXT_START(entry->header) -

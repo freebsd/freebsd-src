@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.6 1994/06/05 19:04:11 ats Exp $
+ *	$Id: ldconfig.c,v 1.7 1994/06/15 22:40:56 rich Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,8 @@
 #undef major
 #undef minor
 
-char				*progname;
+extern char			*__progname;
+
 static int			verbose;
 static int			nostd;
 static int			justread;
@@ -84,12 +85,6 @@ char	*argv[];
 {
 	int		i, c;
 	int		rval = 0;
-	extern int	optind;
-
-	if ((progname = strrchr(argv[0], '/')) == NULL)
-		progname = argv[0];
-	else
-		progname++;
 
 	while ((c = getopt(argc, argv, "rsv")) != EOF) {
 		switch (c) {
@@ -103,7 +98,8 @@ char	*argv[];
 			justread = 1;
 			break;
 		default:
-			fprintf(stderr, "Usage: %s [-r] [-s] [-v] [dir ...]\n", progname);
+			fprintf(stderr, "Usage: %s [-r][-s][-v][dir ...]\n",
+				__progname);
 			exit(1);
 			break;
 		}
@@ -368,7 +364,7 @@ listhints()
 	}
 
 	msize = PAGSIZ;
-	addr = mmap(0, msize, PROT_READ, MAP_FILE|MAP_COPY, fd, 0);
+	addr = mmap(0, msize, PROT_READ, MAP_COPY, fd, 0);
 
 	if (addr == (caddr_t)-1) {
 		perror(_PATH_LD_HINTS);
@@ -389,7 +385,7 @@ listhints()
 
 	if (hdr->hh_ehints > msize) {
 		if (mmap(addr+msize, hdr->hh_ehints - msize,
-				PROT_READ, MAP_FILE|MAP_COPY|MAP_FIXED,
+				PROT_READ, MAP_COPY|MAP_FIXED,
 				fd, msize) != (caddr_t)(addr+msize)) {
 
 			perror(_PATH_LD_HINTS);

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.9 1994/02/13 20:42:09 jkh Exp $
+ *	$Id: md.c,v 1.10 1994/06/15 22:40:44 rich Exp $
  */
 
 #include <sys/param.h>
@@ -228,7 +228,7 @@ long	*savep;
 
 #ifndef RTLD
 
-#ifdef FreeBSD
+#ifdef __FreeBSD__
 int	netzmagic;
 #endif
 
@@ -247,7 +247,7 @@ int		magic, flags;
 	else
 		N_SETMAGIC((*hp), magic, MID_I386, flags);
 #endif
-#ifdef FreeBSD
+#ifdef __FreeBSD__
 	if (oldmagic)
 		hp->a_midmag = magic;
 	else if (netzmagic)

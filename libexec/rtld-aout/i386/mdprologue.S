@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mdprologue.S,v 1.3 1993/12/10 10:16:00 jkh Exp $
+ *	$Id: mdprologue.S,v 1.4 1994/06/15 22:40:49 rich Exp $
  */
 
 /*
@@ -43,13 +43,10 @@
 /*
  *	_rtl(int version, struct crt_ldso *crtp)
  */
-#define FRAME	12			/* Size of stack frame */
-
 
 _rtl:					# crt0 calls us here
 	pushl	%ebp			# Allocate stack frame
 	movl	%esp, %ebp
-	subl	$FRAME, %esp
 	pushl	%ebx
 	call	1f			# PIC function prologue
 1:
@@ -68,9 +65,9 @@ _rtl:					# crt0 calls us here
 	call	%eax			# _rtld(version, crtp, DYNAMIC)
 	addl	$12,%esp		# pop arguments
 
-	movl	(-FRAME-4)(%ebp), %ebx	# restore %ebx
+	movl	-4(%ebp), %ebx		# restore %ebx
 	leave				# remove stack frame,
-	ret				# lets rock
+	ret				# let's rock
 
  # First call to a procedure generally comes through here for
  # binding.
@@ -96,7 +93,7 @@ _binder_entry:
 	ret
 
  # Special system call stubs which return real and effective user and group
- # ids.  Saves overhead of making separate calls for each.
+ # id's.  Saves overhead of making separate calls for each.
  # !! Relies on compatability option in BSD 4.three-and-a-half
 
 	.globl	_getreuid, _getregid

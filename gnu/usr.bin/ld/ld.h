@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.10 1994/02/13 20:41:34 jkh Exp $
+ *	$Id: ld.h,v 1.11 1994/06/15 22:39:46 rich Exp $
  */
 /*-
  * This code is derived from software copyrighted by the Free Software
@@ -31,10 +31,6 @@
 #define alloca __builtin_alloca
 #endif
 
-#ifdef __FreeBSD__
-#define FreeBSD
-#endif
-
 #include "md.h"
 #include "link.h"
 
@@ -49,7 +45,7 @@
 
 /* Define this to specify the default executable format.  */
 #ifndef DEFAULT_MAGIC
-#ifdef FreeBSD
+#ifdef __FreeBSD__
 #define DEFAULT_MAGIC QMAGIC
 extern int	netzmagic;
 #else
@@ -342,6 +338,7 @@ typedef struct localsymbol {
 #define LS_WRITE		2	/* Symbol goes in output symtable */
 #define LS_RENAME		4	/* xlat name to `<file>.<name>' */
 #define LS_GOTSLOTCLAIMED	8	/* This symbol has a GOT entry */
+#define LS_WARNING		16	/* Second part of a N_WARNING duo */
 } localsymbol_t;
 
 /* Symbol table */
@@ -368,7 +365,7 @@ typedef struct glosym {
 	int	symbolnum;	/* Symbol index in output symbol table */
 	int	rrs_symbolnum;	/* Symbol index in RRS symbol table */
 
-	struct nlist	*def_nlist;	/* The local symbol that gave this
+	localsymbol_t	*def_lsp;	/* The local symbol that gave this
 					   global symbol its definition */
 
 	char	defined;	/* Definition of this symbol */
@@ -428,7 +425,8 @@ extern int	multiple_def_count;
 extern int	common_defined_global_count;
 
 /* # of warning symbols encountered. */
-extern int	warning_count;
+extern int	warn_sym_count;
+extern int	list_warning_symbols;
 
 /*
  * Define a linked list of strings which define symbols which should be
@@ -523,6 +521,7 @@ struct file_entry {
 #define E_DYNAMIC		0x20	/* File is a shared object */
 #define E_SCRAPPED		0x40	/* Ignore this file */
 #define E_SYMBOLS_USED		0x80	/* Symbols from this entry were used */
+#define E_SECONDCLASS		0x100	/* Shared object is a subsidiary */
 };
 
 /*

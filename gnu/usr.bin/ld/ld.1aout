@@ -27,11 +27,11 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.7 1994/06/15 22:39:35 rich Exp $
+.\"	$Id: ld.1,v 1.8 1994/12/11 21:39:31 ats Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
-.Os FreeBSD 2.0
+.Os FreeBSD
 .Sh NAME
 .Nm ld
 .Nd link editor
@@ -48,6 +48,7 @@
 .Op Fl e Ar entry
 .Op Fl l Ar library-specifier
 .Op Fl L Ar library-search-path
+.Op Fl nostdlib
 .Op Fl o Ar filename
 .Op Fl T Ar address
 .Op Fl u Ar symbol
@@ -144,11 +145,20 @@ values assigned to (global) symbols in the output file.
 Produce a OMAGIC output file.
 .It Fl n
 Produce a NMAGIC output file.
+.It Fl nostdlib
+Do not search the built-in path
+.Po
+usually
+.Dq /usr/lib
+.Pc
+for
+.Ar -l
+specified libraries.
 .It Fl o Ar filename
 Specifies the name of the output file. Defaults to
 .Dq a.out.
 .It Fl Q
-Make a BSD/386 / FreeBSD 1.1 output file.  This is the default.
+Produce a QMAGIC (FreeBSD/BSDi-i386) output file.  This is the default.
 .It Fl r
 Produce relocatable object file, suitable for another pass through
 .Nm ld.
@@ -181,10 +191,10 @@ Trace the manipulations inflicted on
 .It Fl Z
 Make a 386BSD ZMAGIC output file.
 .It Fl z
-Make a NetBSD 0.9 ZMAGIC output file.
+Make a NetBSD ZMAGIC output file.
 .Sh FILES
 .Sh SEE ALSO
-.Xr ldconfig 1 ,
+.Xr ldconfig 8 ,
 .Xr link 5
 .Sh CAVEATS
 An entry point must now explicitly be given if the output is intended to be
