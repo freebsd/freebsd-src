@@ -58,31 +58,10 @@ static int idad_probe(device_t dev);
 static int idad_attach(device_t dev);
 static int idad_detach(device_t dev);
 
-static	d_open_t	idad_open;
-static	d_close_t	idad_close;
 static	d_strategy_t	idad_strategy;
 static	dumper_t	idad_dump;
 
-#define IDAD_CDEV_MAJOR	109
-
-static struct cdevsw id_cdevsw = {
-	/* open */	idad_open,
-	/* close */	idad_close,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	idad_strategy,
-	/* name */ 	"idad",
-	/* maj */	IDAD_CDEV_MAJOR,
-	/* dump */	idad_dump,
-	/* psize */ 	nopsize,
-	/* flags */	D_DISK,
-};
-
 static devclass_t	idad_devclass;
-static struct cdevsw 	idaddisk_cdevsw;
 
 static device_method_t idad_methods[] = {
 	DEVMETHOD(device_probe,		idad_probe),
@@ -99,41 +78,6 @@ static driver_t idad_driver = {
 
 DRIVER_MODULE(idad, ida, idad_driver, idad_devclass, 0, 0);
 
-static __inline struct idad_softc *
-idad_getsoftc(dev_t dev)
-{
-
-	return ((struct idad_softc *)dev->si_drv1);
-}
-
-static int
-idad_open(dev_t dev, int flags, int fmt, struct thread *td)
-{
-	struct idad_softc *drv;
-
-	drv = idad_getsoftc(dev);
-	if (drv == NULL)
-		return (ENXIO);
-
-	drv->disk.d_sectorsize = drv->secsize;
-	drv->disk.d_mediasize = (off_t)drv->secperunit * drv->secsize;
-	drv->disk.d_fwsectors = drv->sectors;
-	drv->disk.d_fwheads = drv->heads;
-
-	return (0);
-}
-
-static int
-idad_close(dev_t dev, int flags, int fmt, struct thread *td)
-{
-	struct idad_softc *drv;
-
-	drv = idad_getsoftc(dev);
-	if (drv == NULL)
-		return (ENXIO);
-	return (0);
-}
-
 /*
  * Read/write routine for a buffer.  Finds the proper unit, range checks
  * arguments, and schedules the transfer.  Does not wait for the transfer
@@ -146,7 +90,7 @@ idad_strategy(struct bio *bp)
 	struct idad_softc *drv;
 	int s;
 
-	drv = idad_getsoftc(bp->bio_dev);
+	drv = bp->bio_disk->d_drv1;
 	if (drv == NULL) {
     		bp->bio_error = EINVAL;
 		goto bad;
@@ -160,7 +104,6 @@ idad_strategy(struct bio *bp)
 		goto bad;
 	}
 
-	bp->bio_driver1 = drv;
 	s = splbio();
 	devstat_start_transaction(&drv->stats);
 	ida_submit_buf(drv->controller, bp);
@@ -187,7 +130,7 @@ idad_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 	struct disk *dp;
 
 	dp = arg;
-	drv = idad_getsoftc(dp->d_dev);
+	drv = dp->d_drv1;
 	if (drv == NULL)
 		return (ENXIO);
 
@@ -204,7 +147,9 @@ idad_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 void
 idad_intr(struct bio *bp)
 {
-	struct idad_softc *drv = (struct idad_softc *)bp->bio_driver1;
+	struct idad_softc *drv;
+
+	drv = bp->bio_disk->d_drv1;
 
 	if (bp->bio_flags & BIO_ERROR)
 		bp->bio_error = EIO;
@@ -228,7 +173,6 @@ idad_attach(device_t dev)
 	struct ida_drive_info dinfo;
 	struct idad_softc *drv;
 	device_t parent;
-	dev_t dsk;
 	int error;
 
 	drv = (struct idad_softc *)device_get_softc(dev);
@@ -263,11 +207,16 @@ idad_attach(device_t dev)
 	    DEVSTAT_TYPE_STORARRAY| DEVSTAT_TYPE_IF_OTHER,
 	    DEVSTAT_PRIORITY_ARRAY);
 
-	dsk = disk_create(drv->unit, &drv->disk, 0,
-	    &id_cdevsw, &idaddisk_cdevsw);
-
-	dsk->si_drv1 = drv;
-	dsk->si_iosize_max = DFLTPHYS;		/* XXX guess? */
+	drv->disk.d_strategy = idad_strategy;
+	drv->disk.d_name = "idad";
+	drv->disk.d_dump = idad_dump;
+	drv->disk.d_sectorsize = drv->secsize;
+	drv->disk.d_mediasize = (off_t)drv->secperunit * drv->secsize;
+	drv->disk.d_fwsectors = drv->sectors;
+	drv->disk.d_fwheads = drv->heads;
+	drv->disk.d_drv1 = drv;
+	drv->disk.d_maxsize = DFLTPHYS;		/* XXX guess? */
+	disk_create(drv->unit, &drv->disk, 0, NULL, NULL);
 
 	return (0);
 }
