@@ -1,12 +1,12 @@
-#	$Id: Makefile,v 1.5 1998/08/17 20:39:09 bde Exp $
+#	$Id: Makefile,v 1.6 1998/11/05 19:48:16 des Exp $
 
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
 .if !defined(DEBUG)
 CFLAGS+=	-DNDEBUG
 .endif
-SRCS=		fetch.c common.c ftp.c http.c file.c
-DPSRCS=		ftperr.c httperr.c
+SRCS=		fetch.c common.c ftp.c http.c file.c fetch_err.c
+DPSRCS=		ftperr.inc httperr.inc fetch_err.c fetch_err.h
 MAN3=		fetch.3
 CLEANFILES=	${DPSRCS}
 
@@ -15,36 +15,37 @@ SHLIB_MINOR=	0
 
 beforedepend: ${DPSRCS}
 
-beforeinstall:
+beforeinstall: fetch.h fetch_err.h
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch.h \
 		${DESTDIR}/usr/include
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch_err.h \
+		${DESTDIR}/usr/include
 
-ftperr.c: ftp.errors
-	@echo "static struct fetcherr _ftp_errlist[] = {" \ >>  ${.TARGET}
+ftperr.inc: ftp.errors
+	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
-	  | while read NUM STRING; do \
-	    echo "    { $${NUM}, \"$${STRING}\" },"; \
+	  | while read NUM CAT STRING; do \
+	    echo "    { $${NUM}, FETCH_$${CAT}, \"$${STRING}\" },"; \
 	  done >> ${.TARGET}
-	@echo "    { -1, \"Unknown FTP error\" }" >> ${.TARGET}
+	@echo "    { -1, FETCH_UNKNOWN, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
-	@echo "#define _ftp_errstring(n) _fetch_errstring(_ftp_errlist, n)" >> ${.TARGET}
-	@echo "#define _ftp_seterr(n) _fetch_seterr(_ftp_errlist, n)" >> ${.TARGET}
 
 
-httperr.c: http.errors
-	@echo "static struct fetcherr _http_errlist[] = {" \ >>  ${.TARGET}
+httperr.inc: http.errors
+	@echo "static struct fetcherr _http_errlist[] = {" > ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
-	  | while read NUM STRING; do \
-	    echo "    { $${NUM}, \"$${STRING}\" },"; \
+	  | while read NUM CAT STRING; do \
+	    echo "    { $${NUM}, FETCH_$${CAT}, \"$${STRING}\" },"; \
 	  done >> ${.TARGET}
-	@echo "    { -1, \"Unknown HTTP error\" }" >> ${.TARGET}
+	@echo "    { -1, FETCH_UNKNOWN, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
-	@echo "#define _http_errstring(n) _fetch_errstring(_http_errlist, n)" >> ${.TARGET}
-	@echo "#define _http_seterr(n) _fetch_seterr(_http_errlist, n)" >> ${.TARGET}
+
+fetch_err.c fetch_err.h: fetch_err.et
+	compile_et ${.ALLSRC}
 
 .include <bsd.lib.mk>
 
