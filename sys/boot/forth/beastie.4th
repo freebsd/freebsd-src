@@ -154,6 +154,12 @@ variable rebootkey
 set-current
 
 : beastie-start
+	s" beastie_disable" getenv
+	dup -1 <> if
+		s" YES" compare-insensitive 0= if
+			exit
+		then
+	then
 	beastie-menu
 	s" autoboot_delay" getenv
 	dup -1 = if
@@ -200,7 +206,11 @@ set-current
 			s" YES" s" boot_single" setenv
 			s" boot" evaluate
 		then
-		dup escapekey @ = if 2drop exit then
+		dup escapekey @ = if
+			2drop
+			s" NO" s" autoboot_delay" setenv
+			exit
+		then
 		rebootkey @ = if s" reboot" evaluate then
 	repeat
 ;
