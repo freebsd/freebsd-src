@@ -52,10 +52,6 @@
 #define	SL_MAGIC	0x1fc
 #define	SL_CKSUM	0x1fe
 
-#define	SL_LENGTH	0x200
-
-#define	SL_NPART	0x8
-
 #define	SDKP_CYLOFFSET	0
 #define	SDKP_NSECTORS	0x4
 #define	SDKP_SIZEOF	0x8
@@ -82,14 +78,14 @@ sunlabel_dec(void const *pp, struct sun_disklabel *sl)
 	sl->sl_acylinders = be16dec(p + SL_ACYLINDERS);
 	sl->sl_ntracks = be16dec(p + SL_NTRACKS);
 	sl->sl_nsectors = be16dec(p + SL_NSECTORS);
-	for (i = 0; i < SL_NPART; i++) {
+	for (i = 0; i < SUN_NPART; i++) {
 		sl->sl_part[i].sdkp_cyloffset = be32dec(p + SL_PART +
 		    (i * SDKP_SIZEOF) + SDKP_CYLOFFSET);
 		sl->sl_part[i].sdkp_nsectors = be32dec(p + SL_PART +
 		    (i * SDKP_SIZEOF) + SDKP_NSECTORS);
 	}
 	sl->sl_magic = be16dec(p + SL_MAGIC);
-	for (i = u = 0; i < SL_LENGTH; i += 2)
+	for (i = u = 0; i < SUN_SIZE; i += 2)
 		u ^= be16dec(p + i);
 	if (u == 0 && sl->sl_magic == SUN_DKMAGIC)
 		return (0);
@@ -118,14 +114,14 @@ sunlabel_enc(void *pp, struct sun_disklabel *sl)
 	be16enc(p + SL_ACYLINDERS, sl->sl_acylinders);
 	be16enc(p + SL_NTRACKS, sl->sl_ntracks);
 	be16enc(p + SL_NSECTORS, sl->sl_nsectors);
-	for (i = 0; i < SL_NPART; i++) {
+	for (i = 0; i < SUN_NPART; i++) {
 		be32enc(p + SL_PART + (i * SDKP_SIZEOF) + SDKP_CYLOFFSET,
 		    sl->sl_part[i].sdkp_cyloffset);
 		be32enc(p + SL_PART + (i * SDKP_SIZEOF) + SDKP_NSECTORS,
 		    sl->sl_part[i].sdkp_nsectors);
 	}
 	be16enc(p + SL_MAGIC, sl->sl_magic);
-	for (i = u = 0; i < SL_LENGTH; i += 2)
+	for (i = u = 0; i < SUN_SIZE; i += 2)
 		u ^= be16dec(p + i);
 	be16enc(p + SL_CKSUM, u);
 }
