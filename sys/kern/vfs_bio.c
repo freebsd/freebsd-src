@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.194 1999/01/21 08:29:05 dillon Exp $
+ * $Id: vfs_bio.c,v 1.195 1999/01/21 09:19:33 dillon Exp $
  */
 
 /*
@@ -577,7 +577,10 @@ brelse(struct buf * bp)
 	if (bp->b_flags & B_LOCKED)
 		bp->b_flags &= ~B_ERROR;
 
-	if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_FREEBUF)) ||
+	if ((bp->b_flags & (B_READ | B_ERROR)) == B_ERROR) {
+		bp->b_flags &= ~B_ERROR;
+		bdirty(bp);
+	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_FREEBUF)) ||
 	    (bp->b_bufsize <= 0)) {
 		bp->b_flags |= B_INVAL;
 		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_deallocate)
