@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.251 1998/02/11 15:02:40 yokota Exp $
+ *  $Id: syscons.c,v 1.252 1998/02/12 16:35:11 yokota Exp $
  */
 
 #include "sc.h"
@@ -352,8 +352,7 @@ draw_cursor_image(scr_stat *scp)
 	    cursor_image &= 0xff00;
 	    cursor_image |= DEAD_CHAR;
 	}
-    }
-    else {
+    } else {
 	cursor_image = (*(ptr) & 0x00ff) | *(scp->cursor_pos) & 0xff00;
 	scp->cursor_saveunder = cursor_image;
 	if (!(flags & BLINK_CURSOR)||((flags & BLINK_CURSOR)&&(blinkrate & 4))){
