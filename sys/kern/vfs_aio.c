@@ -1124,8 +1124,19 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 		}
 	}
 
-	/* Bring buffer into kernel space. */
-	vmapbuf(bp);
+	/*
+	 * Bring buffer into kernel space.
+	 *
+	 * Note that useracc() alone is not a 
+	 * sufficient test.  vmapbuf() can still fail
+	 * due to a smaller file mapped into a larger
+	 * area of VM, or if userland races against
+	 * vmapbuf() after the useracc() check.
+	 */
+	if (vmapbuf(bp) < 0) {
+		error = EFAULT;
+		goto doerror;
+	}
 
 	s = splbio();
 	aiocbe->bp = bp;

@@ -2179,9 +2179,14 @@ vm_map_remove(vm_map_t map, vm_offset_t start, vm_offset_t end)
 /*
  *	vm_map_check_protection:
  *
- *	Assert that the target map allows the specified
- *	privilege on the entire address region given.
- *	The entire region must be allocated.
+ *	Assert that the target map allows the specified privilege on the
+ *	entire address region given.  The entire region must be allocated.
+ *
+ *	WARNING!  This code does not and should not check whether the
+ *	contents of the region is accessible.  For example a smaller file
+ *	might be mapped into a larger address space.
+ *
+ *	NOTE!  This code is also called by munmap().
  */
 boolean_t
 vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,

@@ -499,7 +499,7 @@ void	vfs_bio_clrbuf(struct buf *);
 void	vfs_busy_pages(struct buf *, int clear_modify);
 void	vfs_unbusy_pages(struct buf *);
 void	vwakeup(struct buf *);
-void	vmapbuf(struct buf *);
+int	vmapbuf(struct buf *);
 void	vunmapbuf(struct buf *);
 void	relpbuf(struct buf *, int *);
 void	brelvp(struct buf *);
