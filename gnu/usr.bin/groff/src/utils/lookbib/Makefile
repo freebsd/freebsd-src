@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PROG=		lookbib
+PROG_CXX=	lookbib
 SRCS=		lookbib.cc
-DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM} ${LIBSTDCPLUSPLUS}
-LDADD=		${LIBBIB} ${LIBGROFF} -lm -lstdc++
+DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
+LDADD=		${LIBBIB} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}
 
 .include <bsd.prog.mk>
