@@ -2948,25 +2948,11 @@
 
     <para arch="i386,pc98">Accelerators based on
       the Hifn 7751, 7811, or 7951 chipsets (&man.hifn.4; driver)
-
-      <itemizedlist>
-        <listitem>
-	  <para>Invertex AEON</para>
-	</listitem>
-        <listitem>
-	  <para>Hifn 7751 reference board</para>
-	</listitem>
-        <listitem>
-	  <para>Global Technologies Group PowerCrypt and XL-Crypt</para>
-	</listitem>
-        <listitem>
-	  <para>NetSec 7751</para>
-	</listitem>
-        <listitem>
-	  <para>Soekris Engineering vpn1201 and vpn1211</para>
-	</listitem>
-      </itemizedlist>
      </para>
+
+    <para arch="i386,pc98">Accelerators based on the SafeNet
+      1141 or 1741 cryptographic accelerator chipsets (&man.safe.4;
+      driver)</para>
 
     <para arch="i386,pc98">Accelerators based on
       the Bluesteel 5501 or 5601 chipsets (&man.ubsec.4;
