@@ -41,11 +41,9 @@ struct ep_softc {
 	struct resource *iobase;
 	struct resource *irq;
 
-	bus_space_handle_t ep_bhandle;
-	bus_space_tag_t ep_btag;
+	bus_space_handle_t bst;
+	bus_space_tag_t bsh;
 	void *ep_intrhand;
-
-	int ep_io_addr;		/* i/o bus address	 */
 
 	u_short ep_connectors;	/* Connectors on this card. */
 	u_char ep_connector;	/* Configured connector. */
@@ -82,3 +80,22 @@ int ep_attach(struct ep_softc *);
 void ep_intr(void *);
 int get_e(struct ep_softc *, u_int16_t, u_int16_t *);
 int ep_get_macaddr(struct ep_softc *, u_char *);
+
+#define EP_READ_1(sc, off) (bus_space_read_1((sc)->bsh, (sc)->bst, off))
+#define EP_READ_2(sc, off) (bus_space_read_2((sc)->bsh, (sc)->bst, off))
+#define EP_WRITE_1(sc, off, val) \
+	bus_space_write_1(sc->bsh, sc->bst, off, val)
+#define EP_WRITE_2(sc, off, val) \
+	bus_space_write_2(sc->bsh, sc->bst, off, val)
+#define EP_WRITE_MULTI_1(sc, off, addr, count) \
+	bus_space_write_multi_1(sc->bsh, sc->bst, off, addr, count)
+#define EP_WRITE_MULTI_2(sc, off, addr, count) \
+	bus_space_write_multi_2(sc->bsh, sc->bst, off, addr, count)
+#define EP_WRITE_MULTI_4(sc, off, addr, count) \
+	bus_space_write_multi_4(sc->bsh, sc->bst, off, addr, count)
+#define EP_READ_MULTI_1(sc, off, addr, count) \
+	bus_space_read_multi_1(sc->bsh, sc->bst, off, addr, count)
+#define EP_READ_MULTI_2(sc, off, addr, count) \
+	bus_space_read_multi_2(sc->bsh, sc->bst, off, addr, count)
+#define EP_READ_MULTI_4(sc, off, addr, count) \
+	bus_space_read_multi_4(sc->bsh, sc->bst, off, addr, count)
