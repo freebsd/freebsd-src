@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.14 1997/04/08 02:07:24 hanai Exp $ -->
+<!-- $Id: handbook.sgml,v 1.15 1997/05/09 22:52:15 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.75 -->
 
@@ -68,7 +68,7 @@ postscript, HTML などの形式でダウンロードすることもできます.
 
 <!-- ************************************************************ -->
 
-    <part><heading>さあ始めよう</heading>
+    <part><heading>導入</heading>
 
     <chapt><heading>はじめに</heading>
 <p>FreeBSD は, Intel アーキテクチャ (x86) ベースの PC のための 
