@@ -1086,7 +1086,6 @@ kern/kern_fork.c	standard
 kern/kern_idle.c	standard
 kern/kern_intr.c	standard
 kern/kern_jail.c	standard
-kern/kern_thr.c		standard
 kern/kern_kse.c		standard
 kern/kern_kthread.c	standard
 kern/kern_ktr.c		optional ktr
@@ -1110,12 +1109,12 @@ kern/kern_sema.c	standard
 kern/kern_shutdown.c	standard
 kern/kern_sig.c		standard
 kern/kern_subr.c	standard
-kern/kern_switch.c	standard
 kern/kern_sx.c		standard
 kern/kern_synch.c	standard
 kern/kern_syscalls.c	standard
 kern/kern_sysctl.c	standard
 kern/kern_tc.c		standard
+kern/kern_thr.c		standard
 kern/kern_thread.c	standard
 kern/kern_time.c	standard
 kern/kern_timeout.c	standard
