@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.27 1998/04/06 11:37:17 phk Exp $
+ * $Id: ibcs2_misc.c,v 1.28 1998/08/17 17:53:12 bde Exp $
  */
 
 /*
@@ -55,7 +55,7 @@
  * handled here.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -65,25 +65,23 @@
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
-#include <sys/dirent.h>
+#include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
-#include <sys/sysproto.h>
-#include <sys/sysctl.h>		/* must be included after vm.h */
 
 #include <machine/cpu.h>
-#include <machine/psl.h>
 
 #include <i386/ibcs2/ibcs2_dirent.h>
 #include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_proto.h>
 #include <i386/ibcs2/ibcs2_unistd.h>
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_utime.h>
-#include <i386/ibcs2/ibcs2_proto.h>
 #include <i386/ibcs2/ibcs2_xenix.h>
-
 
 int
 ibcs2_ulimit(p, uap)
