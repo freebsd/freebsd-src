@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ipcs.1,v 1.5 1997/02/22 19:55:15 peter Exp $
+.\"	$Id: ipcs.1,v 1.6 1997/05/04 20:17:54 eivind Exp $
 .\"
 .Dd June 18, 1994
 .Dt "IPCS" 1
@@ -36,13 +36,13 @@
 .Nm ipcs
 .Nd report System V interprocess communication facilities status
 .Sh SYNOPSIS
-.Nm ipcs
+.Nm
 .Op Fl abcmopqstMQST
 .Op Fl C Ar system
 .Op Fl N Ar core
 .Sh DESCRIPTION
 The
-.Nm ipcs
+.Nm
 program provides information on System V interprocess communication
 (IPC) facilities on the system.
 .Pp
@@ -128,9 +128,9 @@ options are specified, information about all active IPC facilities is
 listed.
 .Sh RESTRICTIONS
 System data structures may change while
-.Nm ipcs
+.Nm
 is running; the output of
-.Nm ipcs
+.Nm
 is not guaranteed to be consistent.
 .Sh BUGS
 This manual page is woefully incomplete, because it does not
