@@ -6,13 +6,13 @@
  * Mellon University, makes this software available to CMU to distribute
  * or use in any manner that they see fit as long as this message is kept with
  * the software. For this reason TFS also grants any other persons or
- * organisations permission to use or modify this software.
+ * organizations permission to use or modify this software.
  *
  * TFS supplies this software to be publicly redistributed
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: btreg.h,v 1.1 1995/12/12 08:57:22 gibbs Exp $
+ *      $Id: btreg.h,v 1.3 1996/01/30 22:56:45 mpp Exp $
  */
 
 #ifndef _BTREG_H_

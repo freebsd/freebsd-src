@@ -3,7 +3,7 @@
  * SCSI controllers.  This is used to implement product specific
  * probe and attach routines.
  *
- * Copyright (c) 1994, 1995 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.10.2.5 1996/01/04 08:54:54 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.23 1996/03/31 03:15:31 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -90,7 +90,7 @@ typedef enum {
  * first 26 bytes of the structure need to be transfered to the card during
  * normal operation.  The remaining fields (next_waiting and host_scb) are
  * initialized the first time an SCB is allocated in get_scb().  The fields
- * starting at byte 32 are used for kernel level bookeeping.  
+ * starting at byte 32 are used for kernel level bookkeeping.  
  */
 struct scb {
 /* ------------    Begin hardware supported fields    ---------------- */
@@ -108,21 +108,14 @@ struct scb {
 					 */
 /*20*/	physaddr cmdpointer;
 /*24*/	u_char cmdlen;
-/*25*/	u_char RESERVED[2];		/* must be zero */
-#define SCB_PIO_TRANSFER_SIZE	26	/*
-					 * amount we need to upload/download
-					 * via rep in/outsb to perform
-					 * a request sense.  The second
-					 * RESERVED byte is initialized to
-					 * 0 in get_scb().
+#define SCB_PIO_TRANSFER_SIZE	25 	/* amount we need to upload/download
+					 * via PIO to initialize a transaction.
 					 */
-/*27*/	u_char next_waiting;		/* Used to thread SCBs awaiting
+/*25*/	u_char next_waiting;		/* Used to thread SCBs awaiting
 					 * selection
 					 */
-/*28*/	physaddr host_scb;
-#define	SCB_HARDWARE_SIZE	32
 /*-----------------end of hardware supported fields----------------*/
-	struct scb *next;	/* in free list */
+	SLIST_ENTRY(scb)	next;	/* in free list */
 	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */
 	int	flags;
 #define	SCB_FREE		0x00
@@ -131,6 +124,8 @@ struct scb {
 #define	SCB_DEVICE_RESET	0x04
 #define	SCB_IMMED		0x08
 #define	SCB_SENSE		0x10
+#define	SCB_TIMEDOUT		0x20
+#define	SCB_QUEUED_FOR_DONE	0x40
 	int	position;	/* Position in scbarray */
 	struct ahc_dma_seg ahc_dma[AHC_NSEG] __attribute__ ((packed));
 	struct scsi_sense sense_cmd;	/* SCSI command block */
@@ -142,11 +137,11 @@ struct ahc_data {
 	ahc_flag flags;
 	u_long	baseport;
 	struct	scb *scbarray[AHC_SCB_MAX]; /* Mirror boards scbarray */
-	struct	scb *free_scb;
+	SLIST_HEAD(, scb) free_scb;
 	int	our_id;			/* our scsi id */
 	int	our_id_b;		/* B channel scsi id */
 	int	vect;
-	struct	scb *immed_ecb;		/* an outstanding immediete command */
+	struct	scb *immed_ecb;		/* an outstanding immediate command */
 	struct	scsi_link sc_link;
 	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
 	u_short	needsdtr_orig;		/* Targets we initiate sync neg with */
@@ -160,8 +155,10 @@ struct ahc_data {
 	int	numscbs;
 	int	activescbs;
 	u_char	maxscbs;
+	u_char	qcntmask;
 	u_char	unpause;
 	u_char	pause;
+	u_char	in_timeout;
 };
 
 /* Different debugging levels used when AHC_DEBUG is defined */
@@ -175,38 +172,11 @@ struct ahc_data {
 
 extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
 
-/*
- * Since the sequencer can disable pausing in a critical section, we
- * must loop until it actually stops.
- * XXX Should add a timeout in here??
- */
-#define PAUSE_SEQUENCER(ahc)      \
-        outb(HCNTRL + ahc->baseport, ahc->pause);   \
-				\
-        while ((inb(HCNTRL + ahc->baseport) & PAUSE) == 0)             \
-                        ;
-
-#define UNPAUSE_SEQUENCER(ahc)    \
-        outb( HCNTRL + ahc->baseport, ahc->unpause )
-
-/*
- * Restart the sequencer program from address zero
- */
-#define RESTART_SEQUENCER(ahc)    \
-                do {                                    \
-                        outb( SEQCTL + ahc->baseport, SEQRESET|FASTMODE );    \
-                } while (inb(SEQADDR0 + ahc->baseport) != 0 &&   \
-			 inb(SEQADDR1 + ahc->baseport != 0));     \
-                                                        \
-                UNPAUSE_SEQUENCER(ahc);
-
-
 void ahc_reset __P((u_long iobase));
 struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
 void ahc_free __P((struct ahc_data *));
 int ahc_init __P((struct ahc_data *));
 int ahc_attach __P((struct ahc_data *));
-void ahc_eisa_intr __P((void *arg));
-int ahcintr __P((void *arg));
+void ahc_intr __P((void *arg));
 
 #endif  /* _AIC7XXX_H_ */
