@@ -63,8 +63,8 @@
 #include <sys/bus.h> 
 
 #if defined(APIC_IO)
-#include <machine/smp.h>
 #include <machine/smptests.h>			/** FAST_HI */
+#include <machine/smp.h>
 #include <machine/resource.h>
 #endif /* APIC_IO */
 #ifdef PC98
