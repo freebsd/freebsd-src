@@ -7,4 +7,7 @@ SRCS =	argmatch.c error.c getopt.c sighandle.c strippath.c stripslash.c yesno.c 
 
 CLEANFILES+= getdate.c
 
+install:
+	@echo -n
+
 .include <bsd.lib.mk>
