@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.40 1997/10/12 20:26:06 phk Exp $
+ * $Id: tty.h,v 1.41 1998/03/07 15:36:25 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -236,12 +236,12 @@ int	 putc __P((int c, struct clist *q));
 int	 q_to_b __P((struct clist *q, char *cp, int cc));
 int	 unputc __P((struct clist *q));
 
-int	ttcompat __P((struct tty *tp, int com, caddr_t data, int flag));
-int     ttsetcompat __P((struct tty *tp, int *com, caddr_t data, struct termios *term));
+int	ttcompat __P((struct tty *tp, u_long com, caddr_t data, int flag));
+int     ttsetcompat __P((struct tty *tp, u_long *com, caddr_t data, struct termios *term));
 
 void	 termioschars __P((struct termios *t));
 int	 tputchar __P((int c, struct tty *tp));
-int	 ttioctl __P((struct tty *tp, int com, void *data, int flag));
+int	 ttioctl __P((struct tty *tp, u_long com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
 void	 ttrstrt __P((void *tp));
 int	 ttypoll __P((struct tty *tp, int events, struct proc *p));

@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.42 1997/12/02 21:06:34 phk Exp $
+ * $Id: wt.c,v 1.43 1998/01/24 02:54:28 eivind Exp $
  *
  */
 
@@ -423,7 +423,7 @@ done:
  * ioctl (int fd, MTIOCTOP, struct mtop *buf)   -- do BSD-like op
  */
 int
-wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
+wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;

@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.30 1998/02/03 17:39:13 bde Exp $
+# $Id: makesyscalls.sh,v 1.31 1998/03/09 04:00:42 jb Exp $
 
 set -e
 
@@ -37,7 +37,7 @@ case $# in
 	;;
 esac
 
-if [ -f $2 ]; then
+if [ -n "$2" -a -f "$2" ]; then
 	. $2
 fi
 
@@ -112,6 +112,8 @@ s/\$//g
 		printf "#define\t%s\n\n", sysproto_h > sysarg
 		printf "#include <sys/signal.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
+		printf "#define PAD_(t) sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
+		printf "\t\t0 : sizeof(register_t) - sizeof(t)\n\n" > sysarg
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
 		printf "char *%s[] = {\n", namesname > sysnames
@@ -257,12 +259,13 @@ s/\$//g
 			if (argc != 0 && $2 != "NOARGS" && $2 != "NOPROTO") {
 				printf("struct\t%s {\n", argalias) > sysarg
 				for (i = 1; i <= argc; i++)
-					printf("\t%s %s;\n", argtype[i],
-					    argname[i]) > sysarg
+					printf("\t%s %s;\tchar %s_[PAD_(%s)];\n",
+					    argtype[i], argname[i],
+					    argname[i], argtype[i]) > sysarg
 				printf("};\n") > sysarg
 			}
 			else if($2 != "NOARGS" && $2 != "NOPROTO")
-				printf("struct\t%s {\n\tint dummy;\n};\n", \
+				printf("struct\t%s {\n\tregister_t dummy;\n};\n", \
 					argalias) > sysarg
 		}
 		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
@@ -307,12 +310,13 @@ s/\$//g
 		if (argc != 0 && $2 != "CPT_NOA") {
 			printf("struct\t%s {\n", argalias) > syscompat
 			for (i = 1; i <= argc; i++)
-				printf("\t%s %s;\n", argtype[i],
-				    argname[i]) > syscompat
+				printf("\t%s %s;\tchar %s_[PAD_(%s)];\n",
+				    argtype[i], argname[i],
+				    argname[i], argtype[i]) > syscompat
 			printf("};\n") > syscompat
 		}
 		else if($2 != "CPT_NOA")
-			printf("struct\t%s {\n\tint dummy;\n};\n", \
+			printf("struct\t%s {\n\tregister_t dummy;\n};\n", \
 				argalias) > sysarg
 		printf("%s\to%s __P((struct proc *, struct %s *));\n", \
 		    rettype, funcname, argalias) > syscompatdcl
@@ -369,8 +373,10 @@ s/\$//g
 		exit 1
 	}
 	END {
-		printf("\n#endif /* %s */\n", compat) > syscompatdcl
+		printf("\n#endif /* %s */\n\n", compat) > syscompatdcl
+		printf("#undef PAD_\n") > syscompatdcl
 		printf("\n#endif /* !%s */\n", sysproto_h) > syscompatdcl
+
 
 		printf("};\n") > sysent
 		printf("};\n") > sysnames

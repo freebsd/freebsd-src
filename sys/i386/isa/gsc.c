@@ -742,7 +742,7 @@ gscread  (dev_t dev, struct uio *uio, int ioflag)
  */
 
 static	int
-gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;

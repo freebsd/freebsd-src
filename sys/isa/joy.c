@@ -188,7 +188,7 @@ joyread (dev_t dev, struct uio *uio, int flag)
 }
 
 static	int
-joyioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+joyioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
     int unit = UNIT (dev);
     int i = joypart (dev);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.22 1997/12/21 16:35:10 bde Exp $
+ *	$Id: protosw.h,v 1.23 1998/02/01 20:08:37 bde Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -188,7 +188,7 @@ struct pr_usrreqs {
 	int	(*pru_connect) __P((struct socket *so, struct sockaddr *nam,
 				    struct proc *p));
 	int	(*pru_connect2) __P((struct socket *so1, struct socket *so2));
-	int	(*pru_control) __P((struct socket *so, int cmd, caddr_t data,
+	int	(*pru_control) __P((struct socket *so, u_long cmd, caddr_t data,
 				    struct ifnet *ifp, struct proc *p));
 	int	(*pru_detach) __P((struct socket *so));
 	int	(*pru_disconnect) __P((struct socket *so));
@@ -232,7 +232,7 @@ int	pru_accept_notsupp __P((struct socket *so, struct sockaddr **nam));
 int	pru_connect_notsupp __P((struct socket *so, struct sockaddr *nam,
 				 struct proc *p));
 int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
-int	pru_control_notsupp __P((struct socket *so, int cmd, caddr_t data,
+int	pru_control_notsupp __P((struct socket *so, u_long cmd, caddr_t data,
 				 struct ifnet *ifp, struct proc *p));
 int	pru_listen_notsupp __P((struct socket *so, struct proc *p));
 int	pru_rcvd_notsupp __P((struct socket *so, int flags));

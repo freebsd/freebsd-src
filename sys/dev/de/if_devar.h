@@ -1,5 +1,5 @@
 /*	$NetBSD: if_devar.h,v 1.26 1998/02/11 01:28:29 thorpej Exp $	*/
-/*	$Id: if_devar.h,v 1.4 1997/11/08 14:46:58 peter Exp $ */
+/*	$Id: if_devar.h,v 1.5 1998/03/08 16:54:00 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -913,7 +913,7 @@ static void tulip_softintr(void);
 
 #if defined(__FreeBSD__)
 typedef void ifnet_ret_t;
-typedef int ioctl_cmd_t;
+typedef u_long ioctl_cmd_t;
 #if defined(TULIP_HDR_DATA)
 static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
 #endif

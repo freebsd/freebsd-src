@@ -22,7 +22,7 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $Id: md5c.c,v 1.13 1998/04/15 17:46:21 bde Exp $
+ * $Id: md5c.c,v 1.14 1998/05/01 16:40:19 bde Exp $
  *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.
@@ -44,7 +44,7 @@
 #define memcpy(x,y,z)	bcopy(y, x, z)
 #endif
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__alpha__)
 #define Encode memcpy
 #define Decode memcpy
 #else /* __i386__ */

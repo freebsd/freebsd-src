@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.22 1997/11/17 04:00:32 ahasty Exp $
+ *  $Id: linux_ioctl.c,v 1.23 1997/12/15 06:09:11 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -455,7 +455,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
     struct linux_termio linux_termio;
     struct filedesc *fdp = p->p_fd;
     struct file *fp;
-    int (*func)(struct file *fp, int com, caddr_t data, struct proc *p);
+    int (*func)(struct file *fp, u_long com, caddr_t data, struct proc *p);
     int bsd_line, linux_line;
     int error;
 

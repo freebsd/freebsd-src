@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.18 1998/03/28 13:24:43 bde Exp $
+ * $Id: stallion.c,v 1.19 1998/04/15 17:45:50 bde Exp $
  */
 
 /*****************************************************************************/
@@ -963,7 +963,7 @@ STATIC int stlwrite(dev_t dev, struct uio *uiop, int flag)
 
 /*****************************************************************************/
 
-STATIC int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+STATIC int stlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct termios	*newtios, *localtios;
 	struct tty	*tp;

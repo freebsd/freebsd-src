@@ -39,7 +39,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: if_pppvar.h,v 1.11 1997/10/17 21:50:32 roberto Exp $
+ * $Id: if_pppvar.h,v 1.12 1997/10/18 00:46:10 peter Exp $
  */
 
 /*
@@ -102,7 +102,7 @@ extern struct ppp_softc ppp_softc[NPPP];
 
 struct	ppp_softc *pppalloc __P((pid_t pid));
 void	pppdealloc __P((struct ppp_softc *sc));
-int	pppioctl __P((struct ppp_softc *sc, int cmd, caddr_t data,
+int	pppioctl __P((struct ppp_softc *sc, u_long cmd, caddr_t data,
 		      int flag, struct proc *p));
 int	pppoutput __P((struct ifnet *ifp, struct mbuf *m0,
 		       struct sockaddr *dst, struct rtentry *rtp));

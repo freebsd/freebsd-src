@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.96 1997/12/02 21:06:25 phk Exp $
+ *	$Id: mcd.c,v 1.97 1998/01/24 02:54:22 eivind Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -506,7 +506,7 @@ static void mcd_start(int unit)
 	return;
 }
 
-int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
+int mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 {
 	struct mcd_data *cd;
 	int unit,part,retry,r;

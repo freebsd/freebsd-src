@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.34 1998/04/21 21:06:22 brian Exp $
+ *  dgb.c $Id: dgb.c,v 1.35 1998/04/21 21:06:56 brian Exp $
  *
  *  Digiboard driver.
  *
@@ -1567,7 +1567,7 @@ dgbpoll(unit_c)
 static	int
 dgbioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
-	int		cmd;
+	u_long		cmd;
 	caddr_t		data;
 	int		flag;
 	struct proc	*p;

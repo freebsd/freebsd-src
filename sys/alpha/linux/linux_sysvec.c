@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.28 1998/04/28 18:15:06 eivind Exp $
+ *  $Id: linux_sysvec.c,v 1.29 1998/05/07 00:42:25 eivind Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -56,9 +56,9 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 
-static int	linux_fixup __P((int **stack_base,
+static int	linux_fixup __P((long **stack_base,
 				 struct image_params *iparams));
-static int	elf_linux_fixup __P((int **stack_base,
+static int	elf_linux_fixup __P((long **stack_base,
 				     struct image_params *iparams));
 static void	linux_prepsyscall __P((struct trapframe *tf, int *args,
 				       u_int *code, caddr_t *params));
@@ -119,26 +119,26 @@ translate_traps(int signal, int trap_code)
 }
 
 static int
-linux_fixup(int **stack_base, struct image_params *imgp)
+linux_fixup(long **stack_base, struct image_params *imgp)
 {
-	int *argv, *envp;
+	long *argv, *envp;
 
 	argv = *stack_base;
 	envp = *stack_base + (imgp->argc + 1);
 	(*stack_base)--;
-	**stack_base = (int)envp;
+	**stack_base = (long)envp;
 	(*stack_base)--;
-	**stack_base = (int)argv;
+	**stack_base = (long)argv;
 	(*stack_base)--;
-	**stack_base = (int)imgp->argc;
+	**stack_base = (long)imgp->argc;
 	return 0;
 }
 
 static int
-elf_linux_fixup(int **stack_base, struct image_params *imgp)
+elf_linux_fixup(long **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
-	int *pos;
+	long *pos;
              
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
     
@@ -165,7 +165,7 @@ elf_linux_fixup(int **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
-	**stack_base = (int)imgp->argc;
+	**stack_base = (long)imgp->argc;
 	return 0;
 }
 
@@ -316,7 +316,7 @@ linux_sigreturn(p, args)
 	 * It is unsafe to keep track of it ourselves, in the event that a
 	 * program jumps out of a signal handler.
 	 */
-	scp = args->scp;
+	scp = SCARG(args,scp);
 	if (copyin((caddr_t)scp, &context, sizeof(*scp)) != 0)
 		return (EFAULT);
 

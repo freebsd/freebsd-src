@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.57 1997/12/16 17:40:34 eivind Exp $
+ *	$Id: if.c,v 1.58 1998/04/06 11:43:10 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -57,7 +57,7 @@
  * System initialization
  */
 
-static int ifconf __P((int, caddr_t));
+static int ifconf __P((u_long, caddr_t));
 static void ifinit __P((void *));
 static void if_qflush __P((struct ifqueue *));
 static void if_slowtimo __P((void *));
@@ -522,7 +522,7 @@ ifunit(name)
 int
 ifioctl(so, cmd, data, p)
 	struct socket *so;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	struct proc *p;
 {
@@ -768,7 +768,7 @@ ifpromisc(ifp, pswitch)
 /*ARGSUSED*/
 static int
 ifconf(cmd, data)
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 {
 	register struct ifconf *ifc = (struct ifconf *)data;

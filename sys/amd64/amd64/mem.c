@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.49 1998/01/24 02:54:13 eivind Exp $
+ *	$Id: mem.c,v 1.50 1998/03/12 09:14:18 bde Exp $
  */
 
 /*
@@ -405,7 +405,7 @@ memmmap(dev_t dev, int offset, int nprot)
 static int
 mmioctl(dev, cmd, cmdarg, flags, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t cmdarg;
 	int flags;
 	struct proc *p;

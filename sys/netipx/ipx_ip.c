@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.19 1998/01/08 23:41:56 eivind Exp $
+ * $Id: ipx_ip.c,v 1.20 1998/02/09 06:10:20 eivind Exp $
  */
 
 /*
@@ -79,7 +79,7 @@ static struct	ifnet_en *ipxip_list;
 
 static	struct ifnet_en *ipxipattach(void);
 static	int ipxip_free(struct ifnet *ifp);
-static	int ipxipioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static	int ipxipioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static	int ipxipoutput(struct ifnet *ifp, struct mbuf *m,
 			struct sockaddr *dst, struct rtentry *rt);
 static	void ipxip_rtchange(struct in_addr *dst);
@@ -128,7 +128,7 @@ ipxipattach()
 static int
 ipxipioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 {
 	int error = 0;

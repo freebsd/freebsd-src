@@ -295,7 +295,7 @@ int cxwrite (dev_t dev, struct uio *uio, int flag)
 	return ((*linesw[tp->t_line].l_write) (tp, uio, flag));
 }
 
-int cxioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	int unit = UNIT (dev);
 	cx_chan_t *c, *m;

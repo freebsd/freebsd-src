@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.28 1998/01/24 02:54:15 eivind Exp $
+ * $Id: asc.c,v 1.29 1998/03/28 10:32:59 bde Exp $
  */
 
 #include "asc.h"
@@ -831,7 +831,7 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
  ***/
 
 STATIC int
-ascioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
+ascioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
   int unit = UNIT(minor(dev));
   struct asc_unit *scu = unittab + unit;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.61 1998/04/19 23:32:26 julian Exp $
+ * $Id: spec_vnops.c,v 1.62 1998/05/21 07:47:49 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -431,7 +431,7 @@ spec_ioctl(ap)
 		    ap->a_fflag, ap->a_p));
 
 	case VBLK:
-		if (ap->a_command == 0 && (int)ap->a_data == B_TAPE)
+		if (ap->a_command == 0 && (long)ap->a_data == B_TAPE)
 			if ((bdevsw[major(dev)]->d_flags & D_TYPEMASK) ==
 			    D_TAPE)
 				return (0);

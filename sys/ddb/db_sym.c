@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.19 1997/06/30 23:49:16 bde Exp $
+ *	$Id: db_sym.c,v 1.20 1997/06/30 23:54:49 bde Exp $
  */
 
 /*
@@ -222,7 +222,7 @@ db_search_symbol( val, strategy, offp)
 {
 	register
 	unsigned int	diff;
-	unsigned int	newdiff;
+	size_t		newdiff;
 	register int	i;
 	db_sym_t	ret = DB_SYM_NULL, sym;
 
@@ -281,7 +281,7 @@ db_symbol_values(sym, namep, valuep)
  * not accept symbols whose value is "small" (and use plain hex).
  */
 
-unsigned int	db_maxoff = 0x10000;
+unsigned long	db_maxoff = 0x10000;
 
 void
 db_printsym(off, strategy)

@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.56 1998/04/06 11:43:10 phk Exp $ */
+/* $Id: if_ppp.c,v 1.57 1998/05/19 14:04:09 dg Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -129,7 +129,9 @@
 #include <net/if_pppvar.h>
 
 /* minimise diffs */
+#ifndef splsoftnet
 #define splsoftnet	splnet
+#endif
 
 #ifdef PPP_COMPRESS
 #define PACKETPTR	struct mbuf *
@@ -144,7 +146,7 @@ extern void	pppasyncattach __P((void *));
 static void	pppattach __P((void *));
 PSEUDO_SET(pppattach, if_ppp);
 
-static int	pppsioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
+static int	pppsioctl __P((struct ifnet *ifp, u_long cmd, caddr_t data));
 static void	pppintr __P((void));
 
 static void	ppp_requeue __P((struct ppp_softc *));
@@ -347,7 +349,7 @@ pppdealloc(sc)
 int
 pppioctl(sc, cmd, data, flag, p)
     struct ppp_softc *sc;
-    int cmd;
+    u_long cmd;
     caddr_t data;
     int flag;
     struct proc *p;
@@ -563,7 +565,7 @@ pppioctl(sc, cmd, data, flag, p)
 static int
 pppsioctl(ifp, cmd, data)
     register struct ifnet *ifp;
-    int cmd;
+    u_long cmd;
     caddr_t data;
 {
     struct proc *p = curproc;	/* XXX */

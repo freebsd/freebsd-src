@@ -18,7 +18,9 @@
 #  include <osreldate.h>
 #  define	ACTUALLY_LKM_NOT_KERNEL
 # else
-#  define __FreeBSD_version 300000	/* this will do as a hack */
+#  ifndef __FreeBSD_version
+#   define __FreeBSD_version 300000	/* this will do as a hack */
+#  endif
 # endif
 #endif
 #include <sys/systm.h>

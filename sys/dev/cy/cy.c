@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.61 1998/02/13 12:45:47 phk Exp $
+ *	$Id: cy.c,v 1.62 1998/03/18 20:52:28 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -1383,7 +1383,7 @@ siointr1(com)
 static int
 sioioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
-	int		cmd;
+	u_long		cmd;
 	caddr_t		data;
 	int		flag;
 	struct proc	*p;

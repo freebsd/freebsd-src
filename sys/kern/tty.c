@@ -38,7 +38,7 @@ static volatile int ttyverbose = 0;
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.102 1998/03/30 09:50:54 phk Exp $
+ * $Id: tty.c,v 1.103 1998/05/17 20:08:05 bde Exp $
  */
 
 /*-
@@ -695,7 +695,8 @@ ttyoutput(c, tp)
 int
 ttioctl(tp, cmd, data, flag)
 	register struct tty *tp;
-	int cmd, flag;
+	u_long cmd;
+	int flag;
 	void *data;
 {
 	register struct proc *p;

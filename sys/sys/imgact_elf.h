@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.h,v 1.5 1997/05/21 23:07:31 jdp Exp $
+ *	$Id: imgact_elf.h,v 1.6 1997/09/07 05:27:11 bde Exp $
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
@@ -36,6 +36,8 @@
 #ifdef KERNEL
 
 #define AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
+
+#if ELF_TARG_CLASS == ELFCLASS32
 
 /*
  * Structure used to pass infomation from the loader to the
@@ -64,6 +66,39 @@ typedef struct {
 
 int elf_insert_brand_entry __P((Elf32_Brandinfo *entry));
 int elf_remove_brand_entry __P((Elf32_Brandinfo *entry));
+
+#else
+
+/*
+ * Structure used to pass infomation from the loader to the
+ * stack fixup routine.
+ */
+typedef struct {
+	Elf64_Sword	execfd;
+	Elf64_Word	phdr;
+	Elf64_Word	phent;
+	Elf64_Word	phnum;
+	Elf64_Word	pagesz;
+	Elf64_Word	base;
+	Elf64_Word	flags;
+	Elf64_Word	entry;
+	Elf64_Word	trace;
+} Elf64_Auxargs;
+
+typedef struct {
+	char *brand;
+	char *emul_path;
+	char *interp_path;
+        struct sysentvec *sysvec;
+} Elf64_Brandinfo;
+
+#define MAX_BRANDS      8
+
+int elf_insert_brand_entry __P((Elf64_Brandinfo *entry));
+int elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
+
+#endif
+
 
 #endif /* KERNEL */
 

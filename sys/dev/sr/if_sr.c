@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.11 1998/01/30 19:49:54 jhay Exp $
+ * $Id: if_sr.c,v 1.12 1998/04/17 22:36:35 des Exp $
  */
 
 /*
@@ -273,7 +273,7 @@ void	srintr_hc(struct sr_hardc *hc);
 static int	srattach(struct sr_hardc *hc);
 static void	sr_xmit(struct sr_softc *sc);
 static void	srstart(struct ifnet *ifp);
-static int	srioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static int	srioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static void	srwatchdog(struct ifnet *ifp);
 static int	sr_packet_avail(struct sr_softc *sc, int *len, u_char *rxstat);
 static void	sr_copy_rxbuf(struct mbuf *m, struct sr_softc *sc, int len);
@@ -1243,7 +1243,7 @@ static int bug_splats[] = {0, 0, 0, 0, 0, 0, 0, 0};
 #endif
 
 static int
-srioctl(struct ifnet *ifp, int cmd, caddr_t data)
+srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int s, error, was_up, should_be_up;
 	struct sppp *sp = (struct sppp *)ifp;

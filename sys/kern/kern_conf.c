@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.22 1997/09/27 13:39:03 kato Exp $
+ * $Id: kern_conf.c,v 1.23 1997/11/22 08:35:37 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
 
@@ -211,4 +212,65 @@ bdevsw_add_generic(int bdev, int cdev, struct bdevsw *bdevsw)
 	cdevsw_add(&dev, bdevsw->d_cdev, NULL);
 	dev = makedev(bdev, 0);
 	bdevsw_add(&dev, bdevsw        , NULL);
+}
+
+int
+cdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
+{
+	struct cdevsw_module_data* data = (struct cdevsw_module_data*) arg;
+	int error;
+
+	switch (what) {
+	case MOD_LOAD:
+		if (error = cdevsw_add(&data->dev, data->cdevsw, NULL))
+			return error;
+		break;
+
+	case MOD_UNLOAD:
+		if (error = cdevsw_add(&data->dev, NULL, NULL))
+			return error;
+		break;
+	}
+
+	if (data->chainevh)
+		return data->chainevh(mod, what, data->chainarg);
+	else
+		return 0;
+}
+
+int
+bdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
+{
+	struct bdevsw_module_data* data = (struct bdevsw_module_data*) arg;
+	int error;
+
+	switch (what) {
+	case MOD_LOAD:
+		/*
+		 * XXX hack alert.
+		 */
+		if (isdisk(data->bdev, VBLK) && data->bdevsw->d_flags != D_DISK) {
+			printf("bdevsw_module_handler: adding D_DISK flag for device %d\n",
+			       major(data->bdev));
+			data->bdevsw->d_flags = D_DISK;
+		}
+		cdevsw_make(data->bdevsw);
+		if (error = cdevsw_add(&data->cdev, data->bdevsw->d_cdev, NULL))
+			return error;
+		if (error = bdevsw_add(&data->bdev, data->bdevsw, NULL))
+			return error;
+		break;
+
+	case MOD_UNLOAD:
+		if (error = cdevsw_add(&data->cdev, NULL, NULL))
+			return error;
+		if (error = cdevsw_add(&data->bdev, NULL, NULL))
+			return error;
+		break;
+	}
+
+	if (data->chainevh)
+		return data->chainevh(mod, what, data->chainarg);
+	else
+		return 0;
 }

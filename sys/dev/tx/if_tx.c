@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tx.c,v 1.9 1998/04/13 14:15:40 semenu Exp $
+ *	$Id: if_tx.c,v 1.10 1998/04/15 17:47:05 bde Exp $
  *
  */
 
@@ -106,7 +106,7 @@ DATA_SET ( pcidevice_set, txdevice );
 static int
 epic_ifioctl __P((
     register struct ifnet * ifp,
-    int command, caddr_t data))
+    u_long command, caddr_t data))
 {
 	epic_softc_t *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;

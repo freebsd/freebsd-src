@@ -309,7 +309,7 @@ SYSCTL_INT(_hw_bt848, OID_AUTO, card, CTLFLAG_RW, &bt848_card, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
 
-typedef int ioctl_cmd_t;
+typedef u_long ioctl_cmd_t;
 #endif  /* __FreeBSD__ */
 
 #ifdef __bsdi__

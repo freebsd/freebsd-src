@@ -395,7 +395,7 @@ snpdown(snp)
 static	int
 snpioctl(dev, cmd, data, flags, p)
 	dev_t           dev;
-	int             cmd;
+	u_long          cmd;
 	caddr_t         data;
 	int             flags;
 	struct proc    *p;

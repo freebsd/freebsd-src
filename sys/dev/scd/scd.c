@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.35 1998/01/24 02:54:24 eivind Exp $ */
+/* $Id: scd.c,v 1.36 1998/04/15 17:45:48 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -418,7 +418,7 @@ scd_start(int unit)
 }
 
 static	int
-scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
+scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 {
 	struct scd_data *cd;
 	int unit,part;

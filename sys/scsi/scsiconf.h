@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.59 1998/04/17 22:37:09 des Exp $
+ *	$Id: scsiconf.h,v 1.60 1998/05/24 04:52:31 julian Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -146,7 +146,7 @@ struct scsi_device
 /* 64*/ dev_t  (*setunit)(dev_t dev, int unit);
 /* 68*/ int (*dev_open)(dev_t dev, int flags, int fmt, struct proc *p,
          		struct scsi_link *sc_link);
-/* 72*/ int (*dev_ioctl)(dev_t dev, int cmd, caddr_t arg, int mode,
+/* 72*/ int (*dev_ioctl)(dev_t dev, u_long cmd, caddr_t arg, int mode,
          		struct proc *p, struct scsi_link *sc_link);
 /* 76*/ int (*dev_close)(dev_t dev, int flag, int fmt, struct proc *p,
          		struct scsi_link *sc_link);
@@ -178,7 +178,7 @@ void NAME##init(void) {							    \
 static int NAME##open(dev_t dev, int flags, int fmt, struct proc *p) {	    \
 	return scsi_open(dev, flags, fmt, p, &NAME##_switch);		    \
 }									    \
-static int NAME##ioctl(dev_t dev, int cmd, caddr_t addr,		    \
+static int NAME##ioctl(dev_t dev, u_long cmd, caddr_t addr,		    \
 			int flag, struct proc *p) {			    \
 	return scsi_ioctl(dev, cmd, addr, flag, p, &NAME##_switch);	    \
 }									    \
@@ -453,7 +453,7 @@ errval scsi_scsi_cmd __P(( struct scsi_link *, struct scsi_generic *,
 			u_int32_t, u_int32_t,
 			u_int32_t, struct buf *,
 			u_int32_t));
-int	scsi_do_ioctl __P((dev_t dev, int cmd, caddr_t addr, int mode,
+int	scsi_do_ioctl __P((dev_t dev, u_long cmd, caddr_t addr, int mode,
         struct proc *p, struct scsi_link *sc_link));
 
 struct scsi_link *scsi_link_get __P((int bus, int targ, int lun));

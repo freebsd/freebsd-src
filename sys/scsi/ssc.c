@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.17 1997/12/23 19:44:45 brian Exp $
+ * $Id: ssc.c,v 1.18 1998/01/24 02:54:52 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -100,7 +100,7 @@ sscclose(dev_t dev, int fflag, int type, struct proc *p)
 }
 
 static	int
-sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
+sscioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
 	if (cmd == SCIOCADDR)
 	{

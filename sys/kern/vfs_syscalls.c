@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.100 1998/05/07 04:58:23 msmith Exp $
+ * $Id: vfs_syscalls.c,v 1.101 1998/05/11 03:55:28 dyson Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1004,7 +1004,7 @@ mknod(p, uap)
 	register struct vnode *vp;
 	struct vattr vattr;
 	int error;
-	int whiteout;
+	int whiteout = 0;
 	struct nameidata nd;
 
 	error = suser(p->p_ucred, &p->p_acflag);

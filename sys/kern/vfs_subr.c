@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.152 1998/04/19 23:32:03 julian Exp $
+ * $Id: vfs_subr.c,v 1.153 1998/05/17 19:38:55 tegge Exp $
  */
 
 /*
@@ -241,6 +241,8 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	struct vfsconf *vfsp;
 	struct mount *mp;
 
+	if (fstypename == NULL)
+		return (ENODEV);
 	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
 		if (!strcmp(vfsp->vfc_name, fstypename))
 			break;

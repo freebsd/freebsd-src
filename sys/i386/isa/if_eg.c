@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.26 1998/01/08 23:40:47 eivind Exp $
+ * $Id: if_eg.c,v 1.27 1998/03/28 13:23:56 bde Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -104,7 +104,7 @@ static int egreadPCBready __P((struct eg_softc *sc));
 static int egwritePCB __P((struct eg_softc *sc));
 static int egreadPCB __P((struct eg_softc *sc));
 static void eginit __P((struct eg_softc *sc));
-static int egioctl (struct ifnet *, int, caddr_t);
+static int egioctl (struct ifnet *, u_long, caddr_t);
 static void egrecv(struct eg_softc *);
 static void egstart(struct ifnet *);
 static void egread __P((struct eg_softc *, caddr_t, int));
@@ -699,7 +699,7 @@ egget(sc, buf, totlen)
 static int
 egioctl(ifp, command, data)
 	register struct ifnet *ifp;
-	int command;
+	u_long command;
 	caddr_t data;
 {
 	struct eg_softc *sc = ifp->if_softc;

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.59 1998/04/20 15:21:02 nate Exp $
+ *	$Id: pccard.c,v 1.60 1998/05/05 13:21:08 kato Exp $
  */
 
 #include "opt_devfs.h"
@@ -864,7 +864,7 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
  *	descriptors, and assignment of drivers.
  */
 static	int
-crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
+crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
 	struct slot *slt = pccard_slots[minor(dev)];
 	struct mem_desc *mp;

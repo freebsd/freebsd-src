@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.36 1997/10/11 18:31:31 phk Exp $
+ *	$Id: in.c,v 1.37 1997/10/12 20:25:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -140,7 +140,7 @@ static int in_interfaces;	/* number of external internet interfaces */
 int
 in_control(so, cmd, data, ifp, p)
 	struct socket *so;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
 	struct proc *p;

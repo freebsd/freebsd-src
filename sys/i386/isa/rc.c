@@ -1090,7 +1090,8 @@ struct rc_softc         *rcb;
 static	int
 rcioctl(dev, cmd, data, flag, p)
 dev_t           dev;
-int             cmd, flag;
+u_long          cmd;
+int		flag;
 caddr_t         data;
 struct proc     *p;
 {
