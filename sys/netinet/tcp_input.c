@@ -101,7 +101,6 @@ struct tcphdr tcp_savetcp;
 MALLOC_DEFINE(M_TSEGQ, "tseg_qent", "TCP segment queue entry");
 
 static int	tcprexmtthresh = 3;
-tcp_seq	tcp_iss;
 tcp_cc	tcp_ccgen;
 
 struct	tcpstat tcpstat;
@@ -1123,7 +1122,7 @@ findpcb:
 		if (iss)
 			tp->iss = iss;
 		else {
-			tp->iss = tcp_new_isn();
+			tp->iss = tcp_new_isn(tp);
  		}
 		tp->irs = th->th_seq;
 		tcp_sendseqinit(tp);
@@ -1655,7 +1654,7 @@ trimthenstep6:
 			if (thflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
-				iss = tcp_new_isn();
+				iss = tcp_new_isn(tp);
 				tp = tcp_close(tp);
 				goto findpcb;
 			}
