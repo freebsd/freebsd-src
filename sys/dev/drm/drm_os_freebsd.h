@@ -294,11 +294,10 @@ for ( ret = 0 ; !ret && !(condition) ; ) {		\
 #define DRM_WRITEMEMORYBARRIER()	alpha_wmb();
 #define DRM_MEMORYBARRIER()		alpha_mb();
 #elif defined(__amd64__)
-#define DRM_READMEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
-#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
-#define DRM_MEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
+//#warning FIX-ME!!!
+#define DRM_READMEMORYBARRIER()		__asm __volatile("lfence" ::: "memory");
+#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("sfence" ::: "memory");
+#define DRM_MEMORYBARRIER()		__asm __volatile("mfence" ::: "memory");
 #endif
 
 #define PAGE_ALIGN(addr) round_page(addr)
