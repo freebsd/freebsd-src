@@ -183,23 +183,23 @@ static struct pccard_config_entry pccard_ndc_nd5100_func0_cfe0 = {
 };
 
 static struct pccard_cis_quirk pccard_cis_quirks[] = {
-	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556, PCCARD_CIS_INVALID, 
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556, PCMCIA_CIS_INVALID, 
 	  &pccard_3cxem556_func0, &pccard_3cxem556_func0_cfe0 },
-	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556, PCCARD_CIS_INVALID,
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556, PCMCIA_CIS_INVALID,
 	  &pccard_3cxem556_func1, &pccard_3cxem556_func1_cfe0 },
-	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556INT, PCCARD_CIS_INVALID, 
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556INT, PCMCIA_CIS_INVALID, 
 	  &pccard_3cxem556_func0, &pccard_3cxem556_func0_cfe0 },
-	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556INT, PCCARD_CIS_INVALID,
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556INT, PCMCIA_CIS_INVALID,
 	  &pccard_3cxem556_func1, &pccard_3cxem556_func1_cfe0 },
-	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CCFEM556BI,
-	  PCCARD_CIS_INVALID,
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CCFEM556BI,
+	  PCMCIA_CIS_INVALID,
 	  &pccard_3ccfem556bi_func0, &pccard_3ccfem556bi_func0_cfe0 },
-	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CCFEM556BI,
-	  PCCARD_CIS_INVALID,
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CCFEM556BI,
+	  PCMCIA_CIS_INVALID,
 	  &pccard_3ccfem556bi_func1, &pccard_3ccfem556bi_func1_cfe0 },
-	{ PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, PCCARD_CIS_SVEC_LANCARD,
+	{ PCMCIA_VENDOR_INVALID, PCMCIA_PRODUCT_INVALID, PCMCIA_CIS_SVEC_LANCARD,
 	  &pccard_sveclancard_func0, &pccard_sveclancard_func0_cfe0 },
-	{ PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, PCCARD_CIS_NDC_ND5100_E,
+	{ PCMCIA_VENDOR_INVALID, PCMCIA_PRODUCT_INVALID, PCMCIA_CIS_NDC_ND5100_E,
 	  &pccard_ndc_nd5100_func0, &pccard_ndc_nd5100_func0_cfe0 },
 };
 	
@@ -220,10 +220,10 @@ void pccard_check_cis_quirks(device_t dev)
 	for (i=0; i<n_pccard_cis_quirks; i++) {
 		if ((sc->card.manufacturer == pccard_cis_quirks[i].manufacturer) &&
 			(sc->card.product == pccard_cis_quirks[i].product) &&
-			(((sc->card.manufacturer != PCCARD_VENDOR_INVALID) &&
-			  (sc->card.product != PCCARD_PRODUCT_INVALID)) ||
-			 ((sc->card.manufacturer == PCCARD_VENDOR_INVALID) &&
-			  (sc->card.product == PCCARD_PRODUCT_INVALID) &&
+			(((sc->card.manufacturer != PCMCIA_VENDOR_INVALID) &&
+			  (sc->card.product != PCMCIA_PRODUCT_INVALID)) ||
+			 ((sc->card.manufacturer == PCMCIA_VENDOR_INVALID) &&
+			  (sc->card.product == PCMCIA_PRODUCT_INVALID) &&
 			  sc->card.cis1_info[0] &&
 			  (strcmp(sc->card.cis1_info[0],
 					  pccard_cis_quirks[i].cis1_info[0]) == 0) &&
