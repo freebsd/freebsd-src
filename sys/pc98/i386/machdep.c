@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.13 1997/09/26 09:48:45 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.14 1997/12/16 10:34:02 kato Exp $
  */
 
 #include "npx.h"
@@ -1256,16 +1256,18 @@ init386(first)
 				break;
 			default:
 #ifdef WB_CACHE
-				*(int *)CMAP1 = PG_V | PG_RW target_page;
+				*(int *)CMAP1 = PG_V | PG_RW | target_page;
 #else
 				*(int *)CMAP1 =
 				    PG_V | PG_RW | PG_N | target_page;
 #endif
 				break;
 			}
-		}
-#else	/* !PC98 */
+		} else {
+#endif /* PC98 */
 		*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
+#ifdef PC98
+		}
 #endif
 		invltlb();
 
