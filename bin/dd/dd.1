@@ -31,7 +31,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd January 13, 1994
+.Dd March 5, 2004
 .Dt DD 1
 .Os
 .Sh NAME
@@ -360,17 +360,21 @@ in the same format as the standard completion message and
 will exit.
 .Sh EXAMPLES
 Check that a disk drive contains no bad blocks:
-.Dl dd if=/dev/ad0 of=/dev/null bs=1m
+.Pp
+.Dl "dd if=/dev/ad0 of=/dev/null bs=1m"
 .Pp
 Do a refresh of a disk drive, in order to prevent presently
 recoverable read errors from progressing into unrecoverable read errors:
-.Dl dd if=/dev/ad0 of=/dev/ad0 bs=1m
 .Pp
-Remove parity bit from a file
-.Dl dd if=file conv=parnone of=file.txt
+.Dl "dd if=/dev/ad0 of=/dev/ad0 bs=1m"
+.Pp
+Remove parity bit from a file:
+.Pp
+.Dl "dd if=file conv=parnone of=file.txt"
 .Pp
 Check for (even) parity errors on a file:
-.Dl dd if=file conv=pareven | cmp -x - file
+.Pp
+.Dl "dd if=file conv=pareven | cmp -x - file"
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
