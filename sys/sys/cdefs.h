@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.13 1997/02/22 09:44:52 peter Exp $
+ * $Id: cdefs.h,v 1.14 1997/04/22 06:55:45 jdp Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -157,6 +157,21 @@
 	__asm__(".stabs msg,30,0,0,0");			\
 	__asm__(".stabs \"_/**/sym\",1,0,0,0")
 #endif
+#endif
+
+#define	__IDSTRING(name,string) \
+	static const char name[] __attribute__((__unused__)) = string
+
+#ifndef	__RCSID
+#define	__RCSID(s)	__IDSTRING(rcsid,s)
+#endif
+
+#ifndef	__RCSID_SOURCE
+#define	__RCSID_SOURCE(s) __IDSTRING(rcsid_source,s)
+#endif
+
+#ifndef	__COPYRIGHT
+#define	__COPYRIGHT(s)	__IDSTRING(copyright,s)
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */
