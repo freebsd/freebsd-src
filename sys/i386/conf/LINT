@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.368 1997/09/20 07:41:28 dyson Exp $
+#	$Id: LINT,v 1.369 1997/09/23 08:42:42 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -368,7 +368,6 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE sends
 # logged packets to the system logger.  IPFIREWALL_VERBOSE_LIMIT
 # limits the number of times a matching entry can be logged.
-<<<<<<< LINT
 #
 # WARNING:  IPFIREWALL defaults to a policy of "deny ip from any to any"
 # and if you do not add other rules during startup to allow access,
@@ -376,7 +375,7 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # in /etc/rc.conf when first enabling this feature, then refining the
 # firewall rules in /etc/rc.firewall after you've tested that the new kernel
 # feature works properly.
-=======
+#
 # IPFIREWALL_DEFAULT_TO_ACCEPT causes the default rule (at boot) to
 # allow everything.  Use with care, if a cracker can crash your
 # firewall machine, they can get to your protected machines.  However,
@@ -384,7 +383,6 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # they arise, then this may be for you.  Changing the default to 'allow'
 # means that you won't get stuck if the kernel and /sbin/ipfw binary get
 # out of sync.
->>>>>>> 1.364
 #
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
 #
