@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1999/05/02 15:29:44 markm Exp $
+# $Id: Makefile,v 1.18 1999/05/12 19:27:44 dt Exp $
 #
 
 PROG=	perl
@@ -29,7 +29,7 @@ NONXS_EXT=	Errno/pm_to_blib
 
 ${PROG}: linkfarm Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
-config_h.sh config.sh cflags.sh: linkfarm
+config_h.sh config.sh cflags.sh writemain.sh: linkfarm
 
 config.h: linkfarm config_h.sh config.sh
 	sh config_h.sh
