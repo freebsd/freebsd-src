@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kern_exec.c,v 1.61 1997/04/13 03:05:31 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
 
 #include <sys/user.h>
 
@@ -166,7 +167,10 @@ interpret:
 	 * Get the image header, which we define here as meaning the first
 	 * page of the executable.
 	 */
-	if (imgp->vp->v_mount && imgp->vp->v_mount->mnt_stat.f_iosize >= PAGE_SIZE) {
+	if (imgp->vp->v_object && imgp->vp->v_mount &&
+	    imgp->vp->v_mount->mnt_stat.f_iosize >= PAGE_SIZE &&
+	    imgp->vp->v_object->un_pager.vnp.vnp_size >=
+	    imgp->vp->v_mount->mnt_stat.f_iosize) {
 		/*
 		 * Get a buffer with (at least) the first page.
 		 */
@@ -174,6 +178,8 @@ interpret:
 		     p->p_ucred, &bp);
 		imgp->image_header = bp->b_data;
 	} else {
+		int resid;
+
 		/*
 		 * The filesystem block size is too small, so do this the hard
 		 * way. Malloc some space and read PAGE_SIZE worth of the image
@@ -181,7 +187,12 @@ interpret:
 		 */
 		imgp->image_header = malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 		error = vn_rdwr(UIO_READ, imgp->vp, (void *)imgp->image_header, PAGE_SIZE, 0,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, NULL, p);
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+		/*
+		 * Clear out any remaining junk.
+		 */
+		if (!error && resid)
+			bzero((char *)imgp->image_header + PAGE_SIZE - resid, resid);
 	}
 	VOP_UNLOCK(imgp->vp, 0, p);
 	if (error)
