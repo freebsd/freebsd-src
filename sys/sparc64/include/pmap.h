@@ -117,7 +117,7 @@ SYSCTL_DECL(_debug_pmap_stats);
 
 #define	PMAP_STATS_VAR(name) \
 	static long name; \
-	SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, name, CTLFLAG_RD, \
+	SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, name, CTLFLAG_RW, \
 	    &name, 0, "")
 
 #define	PMAP_STATS_INC(var) \
