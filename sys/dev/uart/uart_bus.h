@@ -172,7 +172,7 @@ extern char uart_driver_name[];
 
 int uart_bus_attach(device_t dev);
 int uart_bus_detach(device_t dev);
-int uart_bus_probe(device_t dev, int regshft, int rclk, int rid);
+int uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan);
 
 int uart_tty_attach(struct uart_softc *);
 int uart_tty_detach(struct uart_softc *);
