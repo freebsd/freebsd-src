@@ -51,8 +51,8 @@
 
 struct rawcb_list_head rawcb_list;
 
-static u_long	raw_sendspace = RAWSNDQ;
-static u_long	raw_recvspace = RAWRCVQ;
+const static u_long	raw_sendspace = RAWSNDQ;
+const static u_long	raw_recvspace = RAWRCVQ;
 
 /*
  * Allocate a control block and a nominal amount
