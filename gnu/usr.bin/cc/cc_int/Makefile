@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.14 1997/02/22 15:44:57 peter Exp $
 #
 .include "../Makefile.inc"
 
@@ -24,6 +24,6 @@ NOPIC=		YES
 install:
 	@true
 
-${OUT_OBJ}.o ${OUT_OBJ}.so:	${OUT_FILE}
+${OUT_OBJ}.o ${OUT_OBJ}.So:	${OUT_FILE}
 
 .include <bsd.lib.mk>
