@@ -48,7 +48,7 @@ static __inline struct pcpu *cpu_get_pcpu(device_t dev)
 
 /* Each driver's CPU frequency setting is exported in this format. */
 struct cf_setting {
-	int	freq;	/* Processor clock in Mhz or percent (in 100ths.) */
+	int	freq;	/* CPU clock in Mhz or 100ths of a percent. */
 	int	volts;	/* Voltage in mV. */
 	int	power;	/* Power consumed in mW. */
 	int	lat;	/* Transition latency in us. */
@@ -82,9 +82,18 @@ TAILQ_HEAD(cf_level_lst, cf_level);
  * frequency settings of 100, 200 and 300, 400 and a relative driver that
  * provides settings of 50%, 100%.  The cpufreq core would export frequency
  * levels of 50, 100, 150, 200, 300, 400.
+ *
+ * The "info only" flag signifies that settings returned by
+ * CPUFREQ_DRV_SETTINGS cannot be passed to the CPUFREQ_DRV_SET method and
+ * are only informational.  This is for some drivers that can return
+ * information about settings but rely on another machine-dependent driver
+ * for actually performing the frequency transition (e.g., ACPI performance
+ * states of type "functional fixed hardware.")
  */
+#define CPUFREQ_TYPE_MASK	0xffff
 #define CPUFREQ_TYPE_RELATIVE	(1<<0)
 #define CPUFREQ_TYPE_ABSOLUTE	(1<<1)
+#define CPUFREQ_FLAG_INFO_ONLY	(1<<16)
 
 /*
  * When setting a level, the caller indicates the priority of this request.
