@@ -2727,6 +2727,11 @@ g_mirror_rootwait(void)
 {
 
 	/*
+	 * HACK: Wait for GEOM, because g_mirror_rootwait() can be called,
+	 * HACK: before we get providers for tasting.
+	 */
+	tsleep(&g_mirror_class, PRIBIO, "mroot", hz * 3);
+	/*
 	 * Wait for mirrors in degraded state.
 	 */
 	for (;;) {
