@@ -70,7 +70,7 @@ the remainder of the input line). This is traditionally used
 in the pipe:
 .Bd -literal -offset indent
 .\" ncheck filesystem | sort +0n | quot -n filesystem
-ls -i | sed -e 's,^  *,,' | sort +0n | quot -n filesystem
+ls -i | sed -e 's,^  *,,' | sort -k 1n | quot -n filesystem
 .Ed
 .Pp
 to get a report of files and their owners.
