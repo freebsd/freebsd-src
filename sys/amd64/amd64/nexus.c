@@ -174,7 +174,7 @@ nexus_probe(device_t dev)
 			if (last == -1)
 				last = irq;
 		} else if (last != -1) {
-	    		if (rman_manage_region(&irq_rman, last, irq - 1) != 0)
+			if (rman_manage_region(&irq_rman, last, irq - 1) != 0)
 				panic("nexus_probe irq_rman add");
 			last = -1;
 		}
