@@ -148,7 +148,6 @@ CDROM_SET_1="${CDROM_SET_1} www/mozilla"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
 CDROM_SET_1="${CDROM_SET_1} www/netscape48-communicator"
-CDROM_SET_1="${CDROM_SET_1} www/netscape48-navigator"
 CDROM_SET_1="${CDROM_SET_1} www/opera"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
