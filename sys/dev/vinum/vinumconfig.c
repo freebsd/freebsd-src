@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.39 2003/05/04 05:22:46 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.41 2003/05/23 00:57:34 grog Exp $
  * $FreeBSD$
  */
 
@@ -106,7 +106,7 @@ throw_rude_remark(int error, char *msg,...)
 	} else {
 	    retval = kvprintf(msg, NULL, (void *) text, 10, ap);
 	    text[retval] = '\0';			    /* delimit */
-	    strcpy(ioctl_reply->msg, text);
+	    strlcpy(ioctl_reply->msg, text, sizeof(ioctl_reply->msg));
 	    ioctl_reply->error = error;			    /* first byte is the error number */
 	    Free(text);
 	}
@@ -477,7 +477,7 @@ get_empty_drive(void)
 }
 
 /*
- * Find the named drive in vinum_conf.drive, return a pointer
+ * Find the named drive in vinum_conf.drive,
  * return the index in vinum_conf.drive.
  * Don't mark the drive as allocated (XXX SMP)
  * If create != 0, create an entry if it doesn't exist
@@ -505,10 +505,9 @@ find_drive(const char *name, int create)
     driveno = get_empty_drive();
     drive = &DRIVE[driveno];
     if (name != NULL)
-	bcopy(name,					    /* put in its name */
-	    drive->label.name,
-	    min(sizeof(drive->label.name),
-		strlen(name)));
+	strlcpy(drive->label.name,			    /* put in its name */
+	    name,
+	    sizeof(drive->label.name));
     drive->state = drive_referenced;			    /* in use, nothing worthwhile there */
     return driveno;					    /* return the index */
 }
@@ -819,8 +818,6 @@ free_plex(int plexno)
 	Free(plex->sdnos);
     if (plex->lock)
 	Free(plex->lock);
-    if (isstriped(plex))
-	mtx_destroy(&plex->lockmtx);
     destroy_dev(plex->dev);
     bzero(plex, sizeof(struct plex));			    /* and clear it out */
     plex->state = plex_unallocated;
@@ -1042,10 +1039,11 @@ config_drive(int update)
 }
 
 /*
- * Handle a subdisk definition.  We store the information in the global variable
- * sd, so we don't need to allocate.
+ * Handle a subdisk definition.  We store the
+ * information in the global variable sd, so we
+ * don't need to allocate.
  *
- * If we find an error, print a message and return
+ * On error throw a message back to the caller.
  */
 void
 config_subdisk(int update)
@@ -1201,6 +1199,9 @@ config_subdisk(int update)
 	if (sd->driveno < 0)				    /* no current drive? */
 	    throw_rude_remark(EINVAL, "Subdisk %s is not associated with a drive", sd->name);
     }
+    if (DRIVE[sd->driveno].state != drive_up)
+	sd->state = sd_crashed;
+
     /*
      * This is tacky.  If something goes wrong
      * with the checks, we may end up losing drive
@@ -1225,11 +1226,13 @@ config_subdisk(int update)
 
 	/* Do we have a plex name? */
 	if (sdindex >= 0)				    /* we have a plex */
-	    strcpy(sd->name, PLEX[sd->plexno].name);	    /* take it from there */
+	    strlcpy(sd->name,				    /* take it from there */
+		PLEX[sd->plexno].name,
+		sizeof(sd->name));
 	else						    /* no way */
 	    throw_rude_remark(EINVAL, "Unnamed sd is not associated with a plex");
 	sprintf(sdsuffix, ".s%d", sdindex);		    /* form the suffix */
-	strcat(sd->name, sdsuffix);			    /* and add it to the name */
+	strlcat(sd->name, sdsuffix, sizeof(sd->name));	    /* and add it to the name */
     }
     /* do we have complete info for this subdisk? */
     if (sd->sectors < 0)
@@ -1434,19 +1437,20 @@ config_plex(int update)
 	char plexsuffix[8];				    /* form plex name suffix here */
 	/* Do we have a volume name? */
 	if (plex->volno >= 0)				    /* we have a volume */
-	    strcpy(plex->name,				    /* take it from there */
-		VOL[plex->volno].name);
+	    strlcpy(plex->name,				    /* take it from there */
+		VOL[plex->volno].name,
+		sizeof(plex->name));
 	else						    /* no way */
 	    throw_rude_remark(EINVAL, "Unnamed plex is not associated with a volume");
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
-	strcat(plex->name, plexsuffix);			    /* and add it to the name */
+	strlcat(plex->name, plexsuffix, sizeof(plex->name)); /* and add it to the name */
     }
     if (isstriped(plex)) {
 	plex->lock = (struct rangelock *)
 	    Malloc(PLEX_LOCKS * sizeof(struct rangelock));
 	CHECKALLOC(plex->lock, "vinum: Can't allocate lock table\n");
 	bzero((char *) plex->lock, PLEX_LOCKS * sizeof(struct rangelock));
-	mtx_init(&plex->lockmtx, plex->name, "plex", MTX_DEF);
+	plex->lockmtx = &plexmutex[plexno % PLEXMUTEXES];   /* use this mutex for locking */
     }
     /* Note the last plex we configured */
     current_plex = plexno;
@@ -2025,7 +2029,7 @@ update_plex_config(int plexno, int diskconfig)
 }
 
 void
-update_volume_config(int volno, int diskconfig)
+update_volume_config(int volno)
 {
     struct volume *vol = &VOL[volno];
     struct plex *plex;
@@ -2082,7 +2086,7 @@ updateconfig(int diskconfig)
 	if (VOL[volno].state > volume_uninit) {
 	    VOL[volno].flags &= ~VF_CONFIG_SETUPSTATE;	    /* no more setupstate */
 	    update_volume_state(volno);
-	    update_volume_config(volno, diskconfig);
+	    update_volume_config(volno);
 	}
     }
     save_config();
