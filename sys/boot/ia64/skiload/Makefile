@@ -24,7 +24,11 @@ LIBFICL=
 .endif
 
 LIBSTAND=	-lstand
+.if exists(${.OBJDIR}/../libski/libski.a)
+LIBSKI=		${.OBJDIR}/../libski/libski.a
+.else
 LIBSKI=		${.CURDIR}/../libski/libski.a
+.endif
 
 # Always add MI sources 
 .PATH: ${.CURDIR}/../../common
@@ -38,7 +42,7 @@ CFLAGS+= -I${.CURDIR}/../../.. -I.
 CFLAGS+= -I${.CURDIR}/../libski
 CFLAGS+= -DLOADER
 
-LDFLAGS=	-nostdlib -T ldscript.ia64
+LDFLAGS=	-nostdlib -T ${.CURDIR}/ldscript.ia64
 
 CLEANFILES+=	vers.c vers.o ${PROG}.list
 CLEANFILES+=	loader.help
