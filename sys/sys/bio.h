@@ -45,6 +45,10 @@
 #include <sys/queue.h>
 
 struct disk;
+struct bio;
+
+typedef void bio_task_t(struct bio *, void *);
+
 /*
  * The bio structure describes an I/O operation in the kernel.
  */
@@ -74,6 +78,9 @@ struct bio {
 	u_int	bio_inbed;		/* Children safely home by now */
 	struct bio *bio_parent;		/* Pointer to parent */
 	struct bintime bio_t0;		/* Time request started */
+
+	bio_task_t *bio_task;		/* Task_queue handler */
+	void	*bio_task_arg;		/* Argument to above */
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
@@ -132,6 +139,8 @@ void bioq_disksort(struct bio_queue_head *ap, struct bio *bp);
 #define bioqdisksort(foo, bar) bioq_disksort(foo, bar)
 void bioq_init(struct bio_queue_head *head);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
+
+void bio_taskqueue(struct bio *bp, bio_task_t *fund, void *arg);
 
 int	physio(dev_t dev, struct uio *uio, int ioflag);
 #define physread physio
