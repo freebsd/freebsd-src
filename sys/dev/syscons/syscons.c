@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.253 1998/02/12 20:52:24 phk Exp $
+ *  $Id: syscons.c,v 1.254 1998/02/12 22:05:05 phk Exp $
  */
 
 #include "sc.h"
@@ -382,8 +382,8 @@ static void
 remove_cursor_image(scr_stat *scp)
 {
     if (vesa_mode)
-	sc_bcopy(scp->scr_buf, scp->cursor_pos - scp->scr_buf, 
-	  scp->cursor_pos - scp->scr_buf, 0);
+	sc_bcopy(scp->scr_buf, scp->cursor_oldpos - scp->scr_buf, 
+	  scp->cursor_oldpos - scp->scr_buf, 0);
     else
 	*(Crtat + (scp->cursor_oldpos - scp->scr_buf)) = scp->cursor_saveunder;
 }
@@ -2270,11 +2270,9 @@ scrn_timer(void *arg)
     if (mono_time.tv_sec <= scrn_time_stamp + scrn_blank_time)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
-
     scp = cur_console;
     if (scrn_blanked <= 0)
 	scrn_update(scp, TRUE);
-
     /* should we activate the screen saver? */
     if ((scrn_blank_time != 0) 
 	    && (mono_time.tv_sec > scrn_time_stamp + scrn_blank_time))
@@ -4974,21 +4972,22 @@ sc_bcopy(u_short *p, int from, int to, int mark)
     if (!vesa_mode) {
 	generic_bcopy(p+from, Crtat+from, (to-from+1)*sizeof (u_short));
     } else if (vesa_mode == 0x102) {
-	u_char *d;
+	u_char *d, *e;
 	int i,j;
 
+	if (mark)
+		mark = 255;
+	d = (u_char *)Crtat;
+	d += 10 + 6*16*100 + (from%80) + 16*100*(from/80);
 	for (i = from ; i <= to ; i++) {
+	    e = d;
 	    for (j = 0 ; j < 16; j++) {
-		d = (u_char *)Crtat;
-		d += 10 + 6*16*100;
-		d += (i%80);
-		d += 16*100*(i/80);
-		d += 100*j;
-		if (mark)
-		    *d++ = 255^font_16[(p[i]&0xff)*16+j];
-		else
-		    *d++ = font_16[(p[i]&0xff)*16+j];
+	        *e = mark^font_16[(p[i]&0xff)*16+j];
+		e+=100;
 	    }
+	    d++;
+	    if ((i % 80) == 79)
+		d += 20 + 15*100;
 	}
     }
 }
