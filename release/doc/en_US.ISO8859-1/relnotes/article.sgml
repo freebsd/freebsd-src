@@ -973,6 +973,21 @@
       analogous to <filename>src/UPDATING</filename> for the base
       system.</para>
 
+    <para>The version number parsing code has been rewritten in the
+      system pkg tools, restoring compatibiliy with 4.x and
+      portupgrade.</para>
+
+    <para>The package tools can now match packages with relational
+      operators and csh-style {...} choices, e.g.:
+
+    <screen>&prompt.root; <userinput>pkg_info -I 'docbook>=3.0'</userinput></screen>
+
+      will list (all) docbook DTDs with at least version 3.0.
+      Additional command line options have also been added to aid
+      pattern matching.</para>
+
+    <para>The package tools have improved handling of corrupt package
+      databases.</para>
   </sect2>
 
   <sect2 id="releng">
