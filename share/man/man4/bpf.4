@@ -201,11 +201,11 @@ indicating no timeout.
 Returns the following structure of packet statistics:
 .Bd -literal
 struct bpf_stat {
-	u_int bs_recv;
-	u_int bs_drop;
+	u_int bs_recv;    /* number of packets received */
+	u_int bs_drop;    /* number of packets dropped */
 };
 .Ed
-
+.Pp
 The fields are:
 .Bl -hang -offset indent
 .It Li bs_recv
@@ -265,7 +265,7 @@ struct bpf_version {
         u_short bv_minor;
 };
 .Ed
-
+.Pp
 The current version numbers are given by
 .Dv BPF_MAJOR_VERSION
 and
@@ -281,10 +281,11 @@ The following structure is prepended to each packet returned by
 .Xr read 2 :
 .Bd -literal
 struct bpf_hdr {
-        struct timeval bh_tstamp; 
-        u_long bh_caplen;
-        u_long bh_datalen;
-        u_short bh_hdrlen;
+        struct timeval bh_tstamp;     /* time stamp */
+        u_long bh_caplen;             /* length of captured portion */
+        u_long bh_datalen;            /* original length of packet */
+        u_short bh_hdrlen;            /* length of bpf header (this struct
+					 plus alignment padding */
 };
 .Ed
 .Pp
@@ -365,7 +366,7 @@ struct bpf_insn {
 	u_short	code;
 	u_char 	jt;
 	u_char 	jf;
-	long k;
+	u_long k;
 };
 .Ed
 
