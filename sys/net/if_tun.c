@@ -194,7 +194,6 @@ tunclose(dev_t dev, int foo, int bar, struct proc *p)
 	if (ifp->if_flags & IFF_UP) {
 		s = splimp();
 		if_down(ifp);
-		microtime(&ifp->if_lastchange);
 		if (ifp->if_flags & IFF_RUNNING) {
 		    /* find internet addresses and delete routes */
 		    register struct ifaddr *ifa;
