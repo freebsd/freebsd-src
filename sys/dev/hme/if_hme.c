@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_vlan_var.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -149,6 +150,9 @@ MODULE_DEPEND(hme, miibus, 1, 1, 1);
 		    "more\n");						\
 	}								\
 } while(0)
+
+/* Support oversized VLAN frames. */
+#define HME_MAX_FRAMESIZE (ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN)
 
 int
 hme_config(struct hme_softc *sc)
@@ -310,6 +314,12 @@ hme_config(struct hme_softc *sc)
 
 	/* Attach the interface. */
 	ether_ifattach(ifp, sc->sc_arpcom.ac_enaddr);
+
+	/*
+	 * Tell the upper layer(s) we support long frames.
+	 */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	callout_init(&sc->sc_tick_ch, 0);
 	return (0);
@@ -676,7 +686,7 @@ hme_init(void *xsc)
 	HME_MAC_WRITE_4(sc, HME_MACI_FCCNT, 0);
 	HME_MAC_WRITE_4(sc, HME_MACI_EXCNT, 0);
 	HME_MAC_WRITE_4(sc, HME_MACI_LTCNT, 0);
-	HME_MAC_WRITE_4(sc, HME_MACI_TXSIZE, ETHER_MAX_LEN);
+	HME_MAC_WRITE_4(sc, HME_MACI_TXSIZE, HME_MAX_FRAMESIZE);
 
 	/* Load station MAC address */
 	ea = sc->sc_arpcom.ac_enaddr;
@@ -703,7 +713,7 @@ hme_init(void *xsc)
 	HME_ETX_WRITE_4(sc, HME_ETXI_RSIZE, HME_NTXDESC / 16 - 1);
 
 	HME_ERX_WRITE_4(sc, HME_ERXI_RING, sc->sc_rb.rb_rxddma);
-	HME_MAC_WRITE_4(sc, HME_MACI_RXSIZE, ETHER_MAX_LEN);
+	HME_MAC_WRITE_4(sc, HME_MACI_RXSIZE, HME_MAX_FRAMESIZE);
 
 	/* step 8. Global Configuration & Interrupt Mask */
 	HME_SEB_WRITE_4(sc, HME_SEBI_IMASK,
@@ -943,7 +953,7 @@ hme_read(struct hme_softc *sc, int ix, int len)
 	struct mbuf *m;
 
 	if (len <= sizeof(struct ether_header) ||
-	    len > ETHERMTU + sizeof(struct ether_header)) {
+	    len > HME_MAX_FRAMESIZE) {
 #ifdef HMEDEBUG
 		HME_WHINE(sc->sc_dev, "invalid packet size %d; dropping\n",
 		    len);
