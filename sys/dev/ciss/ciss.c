@@ -758,7 +758,7 @@ ciss_init_requests(struct ciss_softc *sc)
 	return(ENOMEM);
     }
     bus_dmamap_load(sc->ciss_command_dmat, sc->ciss_command_map, sc->ciss_command, 
-		    sizeof(struct ciss_command) * sc->ciss_max_requests,
+		    CISS_COMMAND_ALLOC_SIZE * sc->ciss_max_requests,
 		    ciss_command_map_helper, sc, 0);
     bzero(sc->ciss_command, CISS_COMMAND_ALLOC_SIZE * sc->ciss_max_requests);
 
