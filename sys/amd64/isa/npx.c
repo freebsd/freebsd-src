@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.18 1995/01/03 04:00:06 bde Exp $
+ *	$Id: npx.c,v 1.19 1995/02/17 19:38:13 bde Exp $
  */
 
 #include "npx.h"
@@ -233,7 +233,10 @@ npxprobe1(dvp)
 	 * IRQ13 and cleared the BUSY# latch early to handle them anyway.
 	 */
 	fninit();
-	fnop();			/* wait for fninit (fwait might hang) */
+	/*
+	 * Don't use fwait here because it might hang.
+	 * Don't use fnop here because it usually hangs if there is no FPU.
+	 */
 	DELAY(1000);		/* wait for any IRQ13 */
 #ifdef DIAGNOSTIC
 	if (npx_intrs_while_probing != 0)
