@@ -724,7 +724,7 @@ ia64_init(void)
 	msgbufp = (struct msgbuf *)pmap_steal_memory(MSGBUF_SIZE);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
-	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
+	proc_linkup(&proc0, &ksegrp0, &thread0);
 	/*
 	 * Init mapping for u page(s) for proc 0
 	 */

@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define kse td_sched
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
@@ -76,53 +78,82 @@ int realstathz;
 int tickincr = 1;
 
 /*
+ * The schedulable entity that can be given a context to run.
+ * A process may have several of these. Probably one per processor
+ * but posibly a few more. In this universe they are grouped
+ * with a KSEG that contains the priority and niceness
+ * for the group.
+ */
+struct kse {
+	TAILQ_ENTRY(kse) ke_kglist;	/* (*) Queue of threads in ke_ksegrp. */
+	TAILQ_ENTRY(kse) ke_kgrlist;	/* (*) Queue of threads in this state.*/
+	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
+	int		ke_flags;	/* (j) KEF_* flags. */
+	struct thread	*ke_thread;	/* (*) Active associated thread. */
+	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
+	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
+	char		ke_rqindex;	/* (j) Run queue index. */
+	enum {
+		KES_THREAD = 0x0,	/* slaved to thread state */
+		KES_ONRUNQ
+	} ke_state;			/* (j) thread sched specific status. */
+	int		ke_slptime;
+	int		ke_pinned;
+	int		ke_slice;
+	struct runq	*ke_runq;
+	u_char		ke_cpu;		/* CPU that we have affinity for. */
+	/* The following variables are only used for pctcpu calculation */
+	int		ke_ltick;	/* Last tick that we were running on */
+	int		ke_ftick;	/* First tick that we were running on */
+	int		ke_ticks;	/* Tick count */
+
+};
+
+
+#define td_kse td_sched
+#define	td_slptime		td_kse->ke_slptime
+#define ke_proc			ke_thread->td_proc
+#define ke_ksegrp		ke_thread->td_ksegrp
+
+/* flags kept in ke_flags */
+#define	KEF_SCHED0	0x00001	/* For scheduler-specific use. */
+#define	KEF_SCHED1	0x00002	/* For scheduler-specific use. */
+#define	KEF_SCHED2	0x00004	/* For scheduler-specific use. */
+#define	KEF_SCHED3	0x00008	/* For scheduler-specific use. */
+#define	KEF_DIDRUN	0x02000	/* Thread actually ran. */
+#define	KEF_EXIT	0x04000	/* Thread is being killed. */
+
+/*
  * These datastructures are allocated within their parent datastructure but
  * are scheduler specific.
  */
 
-struct ke_sched {
-	int		ske_slice;
-	struct runq	*ske_runq;
-	/* The following variables are only used for pctcpu calculation */
-	int		ske_ltick;	/* Last tick that we were running on */
-	int		ske_ftick;	/* First tick that we were running on */
-	int		ske_ticks;	/* Tick count */
-	/* CPU that we have affinity for. */
-	u_char		ske_cpu;
-};
-#define	ke_slice	ke_sched->ske_slice
-#define	ke_runq		ke_sched->ske_runq
-#define	ke_ltick	ke_sched->ske_ltick
-#define	ke_ftick	ke_sched->ske_ftick
-#define	ke_ticks	ke_sched->ske_ticks
-#define	ke_cpu		ke_sched->ske_cpu
 #define	ke_assign	ke_procq.tqe_next
 
-#define	KEF_ASSIGNED	KEF_SCHED0	/* KSE is being migrated. */
-#define	KEF_BOUND	KEF_SCHED1	/* KSE can not migrate. */
-#define	KEF_XFERABLE	KEF_SCHED2	/* KSE was added as transferable. */
-#define	KEF_HOLD	KEF_SCHED3	/* KSE is temporarily bound. */
+#define	KEF_ASSIGNED	KEF_SCHED0	/* Thread is being migrated. */
+#define	KEF_BOUND	KEF_SCHED1	/* Thread can not migrate. */
+#define	KEF_XFERABLE	KEF_SCHED2	/* Thread was added as transferable. */
+#define	KEF_HOLD	KEF_SCHED3	/* Thread is temporarily bound. */
 
 struct kg_sched {
+	struct thread	*skg_last_assigned; /* (j) Last thread assigned to */
+					   /* the system scheduler */
 	int	skg_slptime;		/* Number of ticks we vol. slept */
 	int	skg_runtime;		/* Number of ticks we were running */
+	int	skg_avail_opennings;	/* (j) Num unfilled slots in group.*/
+	int	skg_concurrency;	/* (j) Num threads requested in group.*/
+	int	skg_runq_threads;	/* (j) Num KSEs on runq. */
 };
-#define	kg_slptime	kg_sched->skg_slptime
-#define	kg_runtime	kg_sched->skg_runtime
+#define kg_last_assigned	kg_sched->skg_last_assigned
+#define kg_avail_opennings	kg_sched->skg_avail_opennings
+#define kg_concurrency		kg_sched->skg_concurrency
+#define kg_runq_threads		kg_sched->skg_runq_threads
+#define kg_runtime		kg_sched->skg_runtime
+#define kg_slptime		kg_sched->skg_slptime
 
-struct td_sched {
-	int	std_slptime;
-};
-#define	td_slptime	td_sched->std_slptime
 
-struct td_sched td_sched;
-struct ke_sched ke_sched;
-struct kg_sched kg_sched;
-
-struct ke_sched *kse0_sched = &ke_sched;
-struct kg_sched *ksegrp0_sched = &kg_sched;
-struct p_sched *proc0_sched = NULL;
-struct td_sched *thread0_sched = &td_sched;
+static struct kse kse0;
+static struct kg_sched kg_sched0;
 
 /*
  * The priority is primarily determined by the interactivity score.  Thus, we
@@ -177,7 +208,7 @@ struct td_sched *thread0_sched = &td_sched;
     (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((nice), SCHED_SLICE_NTHRESH))
 
 /*
- * This macro determines whether or not the kse belongs on the current or
+ * This macro determines whether or not the thread belongs on the current or
  * next run queue.
  */
 #define	SCHED_INTERACTIVE(kg)						\
@@ -260,6 +291,8 @@ static struct kseq	kseq_cpu;
 #define	KSEQ_CPU(x)	(&kseq_cpu)
 #endif
 
+static void	slot_fill(struct ksegrp *kg);
+static struct kse *sched_choose(void);		/* XXX Should be thread * */
 static void sched_add_internal(struct thread *td, int preemptive);
 static void sched_slice(struct kse *ke);
 static void sched_priority(struct ksegrp *kg);
@@ -1092,6 +1125,28 @@ sched_interact_score(struct ksegrp *kg)
 }
 
 /*
+ * Very early in the boot some setup of scheduler-specific
+ * parts of proc0 and of soem scheduler resources needs to be done.
+ * Called from:
+ *  proc0_init()
+ */
+void
+schedinit(void)
+{
+	/*
+	 * Set up the scheduler specific parts of proc0.
+	 */
+	ksegrp0.kg_sched = &kg_sched0;
+	proc0.p_sched = NULL; /* XXX */
+	thread0.td_kse = &kse0;
+	kse0.ke_thread = &thread0;
+	kse0.ke_oncpu = NOCPU; /* wrong.. can we use PCPU(cpuid) yet? */
+	kse0.ke_state = KES_THREAD;
+	kg_sched0.skg_concurrency = 1;
+	kg_sched0.skg_avail_opennings = 0; /* we are already running */
+}
+
+/*
  * This is only somewhat accurate since given many processes of the same
  * priority they will switch when their slices run out, which will be
  * at most SCHED_SLICE_MAX.
@@ -1164,12 +1219,20 @@ sched_switch(struct thread *td, struct thread *newtd)
 
 	ke = td->td_kse;
 
-	td->td_last_kse = ke;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_pflags &= ~TDP_OWEPREEMPT;
 
+	/*
+	 * If we bring in a thread, 
+	 * then account for it as if it had been added to the run queue and then chosen.
+	 */
+	if (newtd) {
+		newtd->td_ksegrp->kg_avail_opennings--;
+		newtd->td_kse->ke_flags |= KEF_DIDRUN;
+        	TD_SET_RUNNING(newtd);
+	}
 	/*
 	 * If the KSE has been assigned it may be in the process of switching
 	 * to the new cpu.  This is the case in sched_bind().
@@ -1177,24 +1240,29 @@ sched_switch(struct thread *td, struct thread *newtd)
 	if ((ke->ke_flags & KEF_ASSIGNED) == 0) {
 		if (td == PCPU_GET(idlethread)) {
 			TD_SET_CAN_RUN(td);
-		} else if (TD_IS_RUNNING(td)) {
-			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
-			/*
-			 * Don't allow the kse to migrate from a preemption.
-			 */
-			ke->ke_flags |= KEF_HOLD;
-			setrunqueue(td, SRQ_OURSELF|SRQ_YIELDING);
 		} else {
-			if (ke->ke_runq) {
+			/* We are ending our run so make our slot available again */
+			td->td_ksegrp->kg_avail_opennings++;
+			if (TD_IS_RUNNING(td)) {
 				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
-			} else if ((td->td_flags & TDF_IDLETD) == 0)
-				kdb_backtrace();
-			/*
-			 * We will not be on the run queue. So we must be
-			 * sleeping or similar.
-			 */
-			if (td->td_proc->p_flag & P_SA)
-				kse_reassign(ke);
+				/*
+				 * Don't allow the thread to migrate
+				 * from a preemption.
+				 */
+				ke->ke_flags |= KEF_HOLD;
+				setrunqueue(td, SRQ_OURSELF|SRQ_YIELDING);
+			} else {
+				if (ke->ke_runq) {
+					kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
+				} else if ((td->td_flags & TDF_IDLETD) == 0)
+					kdb_backtrace();
+				/*
+				 * We will not be on the run queue.
+				 * So we must be sleeping or similar.
+				 */
+				if (td->td_proc->p_flag & P_HADTHREADS)
+					slot_fill(td->td_ksegrp);
+			}
 		}
 	}
 	if (newtd != NULL) {
@@ -1225,7 +1293,8 @@ sched_nice(struct proc *p, int nice)
 	 */
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		if (kg->kg_pri_class == PRI_TIMESHARE) {
-			FOREACH_KSE_IN_GROUP(kg, ke) {
+			FOREACH_THREAD_IN_GROUP(kg, td) {
+				ke = td->td_kse;
 				if (ke->ke_runq == NULL)
 					continue;
 				kseq = KSEQ_CPU(ke->ke_cpu);
@@ -1250,8 +1319,8 @@ sched_sleep(struct thread *td)
 	td->td_slptime = ticks;
 	td->td_base_pri = td->td_priority;
 
-	CTR2(KTR_ULE, "sleep kse %p (tick: %d)",
-	    td->td_kse, td->td_slptime);
+	CTR2(KTR_ULE, "sleep thread %p (tick: %d)",
+	    td, td->td_slptime);
 }
 
 void
@@ -1277,10 +1346,8 @@ sched_wakeup(struct thread *td)
 			sched_interact_update(kg);
 		}
 		sched_priority(kg);
-		if (td->td_kse)
-			sched_slice(td->td_kse);
-		CTR2(KTR_ULE, "wakeup kse %p (%d ticks)",
-		    td->td_kse, hzticks);
+		sched_slice(td->td_kse);
+		CTR2(KTR_ULE, "wakeup thread %p (%d ticks)", td, hzticks);
 		td->td_slptime = 0;
 	}
 	setrunqueue(td, SRQ_BORING);
@@ -1291,37 +1358,20 @@ sched_wakeup(struct thread *td)
  * priority.
  */
 void
-sched_fork(struct thread *td, struct proc *p1)
+sched_fork(struct thread *td, struct thread *childtd)
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	p1->p_nice = td->td_proc->p_nice;
-	sched_fork_ksegrp(td, FIRST_KSEGRP_IN_PROC(p1));
-	sched_fork_kse(td, FIRST_KSE_IN_PROC(p1));
-	sched_fork_thread(td, FIRST_THREAD_IN_PROC(p1));
-}
-
-void
-sched_fork_kse(struct thread *td, struct kse *child)
-{
-	struct kse *ke = td->td_kse;
-
-	child->ke_slice = 1;	/* Attempt to quickly learn interactivity. */
-	child->ke_cpu = ke->ke_cpu;
-	child->ke_runq = NULL;
-
-	/* Grab our parents cpu estimation information. */
-	child->ke_ticks = ke->ke_ticks;
-	child->ke_ltick = ke->ke_ltick;
-	child->ke_ftick = ke->ke_ftick;
+	sched_fork_ksegrp(td, childtd->td_ksegrp);
+	sched_fork_thread(td, childtd);
 }
 
 void
 sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 {
 	struct ksegrp *kg = td->td_ksegrp;
-	PROC_LOCK_ASSERT(child->kg_proc, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED);
 
 	child->kg_slptime = kg->kg_slptime;
 	child->kg_runtime = kg->kg_runtime;
@@ -1338,6 +1388,20 @@ sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 void
 sched_fork_thread(struct thread *td, struct thread *child)
 {
+	struct kse *ke;
+	struct kse *ke2;
+
+	sched_newthread(child);
+	ke = td->td_kse;
+	ke2 = child->td_kse;
+	ke2->ke_slice = 1;	/* Attempt to quickly learn interactivity. */
+	ke2->ke_cpu = ke->ke_cpu;
+	ke2->ke_runq = NULL;
+
+	/* Grab our parents cpu estimation information. */
+	ke2->ke_ticks = ke->ke_ticks;
+	ke2->ke_ltick = ke->ke_ltick;
+	ke2->ke_ftick = ke->ke_ftick;
 }
 
 void
@@ -1345,6 +1409,7 @@ sched_class(struct ksegrp *kg, int class)
 {
 	struct kseq *kseq;
 	struct kse *ke;
+	struct thread *td;
 	int nclass;
 	int oclass;
 
@@ -1354,7 +1419,8 @@ sched_class(struct ksegrp *kg, int class)
 
 	nclass = PRI_BASE(class);
 	oclass = PRI_BASE(kg->kg_pri_class);
-	FOREACH_KSE_IN_GROUP(kg, ke) {
+	FOREACH_THREAD_IN_GROUP(kg, td) {
+		ke = td->td_kse;
 		if (ke->ke_state != KES_ONRUNQ &&
 		    ke->ke_state != KES_THREAD)
 			continue;
@@ -1392,19 +1458,15 @@ sched_class(struct ksegrp *kg, int class)
 
 /*
  * Return some of the child's priority and interactivity to the parent.
+ * Avoid using sched_exit_thread to avoid having to decide which
+ * thread in the parent gets the honour since it isn't used.
  */
 void
-sched_exit(struct proc *p, struct thread *td)
+sched_exit(struct proc *p, struct thread *childtd)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
-	sched_exit_kse(FIRST_KSE_IN_PROC(p), td);
-	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), td);
-}
-
-void
-sched_exit_kse(struct kse *ke, struct thread *td)
-{
-	kseq_load_rem(KSEQ_CPU(td->td_kse->ke_cpu), td->td_kse);
+	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), childtd);
+	kseq_load_rem(KSEQ_CPU(childtd->td_kse->ke_cpu), childtd->td_kse);
 }
 
 void
@@ -1416,8 +1478,9 @@ sched_exit_ksegrp(struct ksegrp *kg, struct thread *td)
 }
 
 void
-sched_exit_thread(struct thread *td, struct thread *child)
+sched_exit_thread(struct thread *td, struct thread *childtd)
 {
+	kseq_load_rem(KSEQ_CPU(childtd->td_kse->ke_cpu), childtd->td_kse);
 }
 
 void
@@ -1471,8 +1534,8 @@ sched_clock(struct thread *td)
 	if (td->td_flags & TDF_IDLETD)
 		return;
 
-	CTR4(KTR_ULE, "Tick kse %p (slice: %d, slptime: %d, runtime: %d)",
-	    ke, ke->ke_slice, kg->kg_slptime >> 10, kg->kg_runtime >> 10);
+	CTR4(KTR_ULE, "Tick thread %p (slice: %d, slptime: %d, runtime: %d)",
+	    td, ke->ke_slice, kg->kg_slptime >> 10, kg->kg_runtime >> 10);
 	/*
 	 * We only do slicing code for TIMESHARE ksegrps.
 	 */
@@ -1569,8 +1632,8 @@ restart:
 		ke->ke_state = KES_THREAD;
 
 		if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
-			CTR4(KTR_ULE, "Run kse %p from %p (slice: %d, pri: %d)",
-			    ke, ke->ke_runq, ke->ke_slice,
+			CTR4(KTR_ULE, "Run thread %p from %p (slice: %d, pri: %d)",
+			    ke->ke_thread, ke->ke_runq, ke->ke_slice,
 			    ke->ke_thread->td_priority);
 		}
 		return (ke);
@@ -1615,10 +1678,6 @@ sched_add_internal(struct thread *td, int preemptive)
 	if (ke->ke_flags & KEF_ASSIGNED)
 		return;
 	kseq = KSEQ_SELF();
-	KASSERT((ke->ke_thread != NULL),
-	    ("sched_add: No thread on KSE"));
-	KASSERT((ke->ke_thread->td_kse != NULL),
-	    ("sched_add: No KSE on thread"));
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("sched_add: kse %p (%s) already in run queue", ke,
 	    ke->ke_proc->p_comm));
@@ -1703,7 +1762,7 @@ sched_add_internal(struct thread *td, int preemptive)
 		curthread->td_flags |= TDF_NEEDRESCHED;
 	if (preemptive && maybe_preempt(td))
 		return;
-	ke->ke_ksegrp->kg_runq_kses++;
+	ke->ke_ksegrp->kg_runq_threads++;
 	ke->ke_state = KES_ONRUNQ;
 
 	kseq_runq_add(kseq, ke);
@@ -1730,7 +1789,7 @@ sched_rem(struct thread *td)
 	    ("sched_rem: KSE not on run queue"));
 
 	ke->ke_state = KES_THREAD;
-	ke->ke_ksegrp->kg_runq_kses--;
+	ke->ke_ksegrp->kg_runq_threads--;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 	kseq_runq_rem(kseq, ke);
 	kseq_load_rem(kseq, ke);
@@ -1783,7 +1842,7 @@ sched_bind(struct thread *td, int cpu)
 		return;
 	/* sched_rem without the runq_remove */
 	ke->ke_state = KES_THREAD;
-	ke->ke_ksegrp->kg_runq_kses--;
+	ke->ke_ksegrp->kg_runq_threads--;
 	kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 	kseq_notify(ke, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
@@ -1815,12 +1874,6 @@ sched_load(void)
 }
 
 int
-sched_sizeof_kse(void)
-{
-	return (sizeof(struct kse) + sizeof(struct ke_sched));
-}
-
-int
 sched_sizeof_ksegrp(void)
 {
 	return (sizeof(struct ksegrp) + sizeof(struct kg_sched));
@@ -1837,3 +1890,5 @@ sched_sizeof_thread(void)
 {
 	return (sizeof(struct thread) + sizeof(struct td_sched));
 }
+#define KERN_SWITCH_INCLUDE 1
+#include "kern/kern_switch.c"

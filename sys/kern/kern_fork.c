@@ -203,7 +203,6 @@ fork1(td, flags, pages, procp)
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
 	struct thread *td2;
-	struct kse *ke2;
 	struct ksegrp *kg2;
 	struct sigacts *newsigacts;
 	int error;
@@ -468,7 +467,6 @@ again:
 	 */
 	td2 = FIRST_THREAD_IN_PROC(p2);
 	kg2 = FIRST_KSEGRP_IN_PROC(p2);
-	ke2 = FIRST_KSE_IN_KSEGRP(kg2);
 
 	/* Allocate and switch to an alternate kstack if specified. */
 	if (pages != 0)
@@ -481,8 +479,6 @@ again:
 
 	bzero(&p2->p_startzero,
 	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
-	bzero(&ke2->ke_startzero,
-	    (unsigned) RANGEOF(struct kse, ke_startzero, ke_endzero));
 	bzero(&td2->td_startzero,
 	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
 	bzero(&kg2->kg_startzero,
@@ -498,11 +494,6 @@ again:
 
 	td2->td_sigstk = td->td_sigstk;
 
-	/* Set up the thread as an active thread (as if runnable). */
-	ke2->ke_state = KES_THREAD;
-	ke2->ke_thread = td2;
-	td2->td_kse = ke2;
-
 	/*
 	 * Duplicate sub-structures as needed.
 	 * Increase reference counts on shared objects.
@@ -517,7 +508,7 @@ again:
 	 * Allow the scheduler to adjust the priority of the child and
 	 * parent while we hold the sched_lock.
 	 */
-	sched_fork(td, p2);
+	sched_fork(td, td2);
 
 	mtx_unlock_spin(&sched_lock);
 	p2->p_ucred = crhold(td->td_ucred);
@@ -796,7 +787,7 @@ fork_exit(callout, arg, frame)
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	cpu_critical_fork_exit();
 	CTR4(KTR_PROC, "fork_exit: new thread %p (kse %p, pid %d, %s)",
-		td, td->td_kse, p->p_pid, p->p_comm);
+		td, td->td_sched, p->p_pid, p->p_comm);
 
 	/*
 	 * Processes normally resume in mi_switch() after being
