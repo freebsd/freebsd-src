@@ -686,12 +686,12 @@ not:
 .Pp
 Do not use
 .Ic \&!
-for tests unless it is a boolean, e.g.\& use
+for tests unless it is a boolean, e.g.\& use:
 .Bd -literal
 if (*p == '\e0')
 .Ed
 .Pp
-not
+not:
 .Bd -literal
 if (!*p)
 .Ed
@@ -732,7 +732,7 @@ function(a1, a2, fl, a4)
 Use ANSI function declarations unless you explicitly need K&R compatibility.
 Long parameter lists are wrapped with a normal four space indent.
 .Pp
-Variable numbers of arguments should look like this.
+Variable numbers of arguments should look like this:
 .Bd -literal
 #include <stdarg.h>
 
