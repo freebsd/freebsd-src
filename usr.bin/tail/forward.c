@@ -267,40 +267,46 @@ rlines(fp, off, sbp)
 	long off;
 	struct stat *sbp;
 {
-	off_t size;
-	char *p;
-	char *start;
+	struct mapinfo map;
+	off_t curoff, size;
+	int i;
 
 	if (!(size = sbp->st_size))
 		return;
+	map.start = NULL;
+	map.fd = fileno(fp);
+	map.mapoff = map.maxoff = size;
 
-	if (size > SIZE_T_MAX) {
-		errno = EFBIG;
-		ierr();
-		return;
-	}
-
-	if ((start = mmap(NULL, (size_t)size,
-	    PROT_READ, MAP_SHARED, fileno(fp), (off_t)0)) == MAP_FAILED) {
-		ierr();
-		return;
-	}
-
-	/* Last char is special, ignore whether newline or not. */
-	for (p = start + size - 1; --size;)
-		if (*--p == '\n' && !--off) {
-			++p;
-			break;
+	/*
+	 * Last char is special, ignore whether newline or not. Note that
+	 * size == 0 is dealt with above, and size == 1 sets curoff to -1.
+	 */
+	curoff = size - 2;
+	while (curoff >= 0) {
+		if (curoff < map.mapoff && maparound(&map, curoff) != 0) {
+			ierr();
+			return;
 		}
+		for (i = curoff - map.mapoff; i >= 0; i--)
+			if (map.start[i] == '\n' && --off == 0)
+				break;
+		/* `i' is either the map offset of a '\n', or -1. */
+		curoff = map.mapoff + i;
+		if (i >= 0)
+			break;
+	}
+	curoff++;
+	if (mapprint(&map, curoff, size - curoff) != 0) {
+		ierr();
+		exit(1);
+	}
 
 	/* Set the file pointer to reflect the length displayed. */
-	size = sbp->st_size - size;
-	WR(p, size);
-	if (fseek(fp, (long)sbp->st_size, SEEK_SET) == -1) {
+	if (fseeko(fp, sbp->st_size, SEEK_SET) == -1) {
 		ierr();
 		return;
 	}
-	if (munmap(start, (size_t)sbp->st_size)) {
+	if (map.start != NULL && munmap(map.start, map.maplen)) {
 		ierr();
 		return;
 	}
