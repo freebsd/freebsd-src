@@ -1578,8 +1578,8 @@ SetInterfaceAddr(struct cmdargs const *arg)
   }
 
   /* 0.0.0.0 means any address (0 bits) */
-  ncpaddr_getip4(&ncpaddr, &ncp->ipcp.my_ip);
   ncprange_getaddr(&ncp->ipcp.cfg.my_range, &ncpaddr);
+  ncpaddr_getip4(&ncpaddr, &ncp->ipcp.my_ip);
   if (ncp->ipcp.my_ip.s_addr == INADDR_ANY)
     ncprange_setwidth(&ncp->ipcp.cfg.my_range, 0);
   bundle_AdjustFilters(arg->bundle, &ncpaddr, NULL);
