@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.115 1998/03/05 21:45:48 tegge Exp $
+ *	$Id: clock.c,v 1.116 1998/03/14 03:11:50 tegge Exp $
  */
 
 /*
@@ -69,6 +69,10 @@
 #include <machine/ipl.h>
 #include <machine/limits.h>
 #include <machine/md_var.h>
+#if NAPM > 0
+#include <machine/apm_bios.h>
+#include <i386/apm/apm_setup.h>
+#endif
 #ifdef APIC_IO
 #include <machine/segments.h>
 #endif
@@ -689,13 +693,6 @@ startrtclock()
 	else
 		tsc_present = 0;
 
-#ifdef SMP
-	tsc_present = 0;
-#endif
-#if NAPM > 0
-	tsc_present = 0;
-#endif
-	
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
@@ -758,10 +755,36 @@ startrtclock()
 			printf("TSC clock: %u Hz (Method B)\n", tsc_freq);
 #endif
 	}
+
+#if !defined(SMP)
+	/*
+	 * We can not use the TSC in SMP mode, until we figure out a
+	 * cheap (impossible), reliable and precise (yeah right!)  way
+	 * to synchronize the TSCs of all the CPUs.
+	 * Curse Intel for leaving the counter out of the I/O APIC.
+	 */
+
+#if NAPM > 0
+	/*
+	 * We can not use the TSC if we found an APM bios.  Too many
+	 * of them lie about their ability&intention to fiddle the CPU
+	 * clock for us to rely on this.  Precise timekeeping on an
+	 * APM'ed machine is at best a fools pursuit anyway, since 
+	 * any and all of the time spent in various SMM code can't 
+	 * be reliably accounted for.  Reading the RTC is your only
+	 * source of reliable time info.  The i8254 looses too of course
+	 * but we need to have some kind of time...
+	 */
+	if (apm_version != APMINI_CANTFIND)
+		return;
+#endif /* NAPM > 0 */
+
 	if (tsc_present && tsc_freq != 0) {
 		tsc_timecounter[0].frequency = tsc_freq;
 		init_timecounter(tsc_timecounter);
 	}
+
+#endif /* !defined(SMP) */
 }
 
 /*
