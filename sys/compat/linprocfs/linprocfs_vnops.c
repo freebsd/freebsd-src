@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
  * Copyright (c) 1999 Pierre Beyssac
  * Copyright (c) 1993, 1995 Jan-Simon Pendry
@@ -80,33 +81,59 @@ static int	linprocfs_readdir __P((struct vop_readdir_args *));
 static int	linprocfs_readlink __P((struct vop_readlink_args *));
 static int	linprocfs_reclaim __P((struct vop_reclaim_args *));
 static int	linprocfs_setattr __P((struct vop_setattr_args *));
+static pid_t 	atopid __P((const char *, u_int));
 
-/*
- * This is a list of the valid names in the
- * process-specific sub-directories.  It is
- * used in linprocfs_lookup and linprocfs_readdir
- */
-static struct proc_target {
-	u_char	pt_type;
-	u_char	pt_namlen;
-	char	*pt_name;
-	pfstype	pt_pfstype;
-	int	(*pt_valid) __P((struct proc *p));
-} proc_targets[] = {
-#define N(s) sizeof(s)-1, s
-	/*	  name		type		validp */
-	{ DT_DIR, N("."),	Pproc,		NULL },
-	{ DT_DIR, N(".."),	Proot,		NULL },
-	{ DT_REG, N("cmdline"), Pcmdline,	NULL },
-	{ DT_LNK, N("exe"),	Pexe,		NULL },
-	{ DT_REG, N("mem"),	Pmem,		NULL },
-	{ DT_REG, N("stat"),	Pprocstat,	NULL },
-	{ DT_REG, N("status"),	Pprocstatus,	NULL },
-#undef N
+#define N(s) s, sizeof(s)-1
+#define A(s) linprocfs_ ## s
+#define D(s) (node_action_t *)(s)
+
+struct node_data net_dir[] = {
+	{ N("."),	VDIR, 0555, 0,    D(net_dir)		},
+	{ N(".."),	VDIR, 0555, 0,    D(root_dir)		},
+	{ N("dev"), 	VREG, 0444, 0,    A(donetdev)		},
+	{ N(""),	VNON, 0000, 0,    NULL			},
 };
-static const int nproc_targets = sizeof(proc_targets) / sizeof(proc_targets[0]);
 
-static pid_t atopid __P((const char *, u_int));
+struct node_data proc_dir[] = {
+	{ N("."),	VDIR, 0555, PDEP, D(proc_dir)		},
+	{ N(".."),	VDIR, 0555, 0,    D(root_dir)	 	},
+	{ N("cmdline"), VREG, 0444, PDEP, procfs_docmdline 	},
+	{ N("exe"),	VLNK, 0444, PDEP, A(doexelink) 		},
+	{ N("mem"),	VREG, 0600, PDEP, procfs_domem 		},
+	{ N("stat"),	VREG, 0444, PDEP, A(doprocstat) 	},
+	{ N("status"),	VREG, 0444, PDEP, A(doprocstatus) 	},
+	{ N(""),	VNON, 0000, 0,    NULL 			},
+};
+
+struct node_data root_dir[] = {
+	{ N("."),	VDIR, 0555, 0,    D(root_dir)		},
+	{ N(".."),	VDIR, 0555, 0,    NULL			},
+	{ N("cmdline"), VREG, 0444, 0,    A(docmdline)		},
+	{ N("cpuinfo"), VREG, 0444, 0,    A(docpuinfo)		},
+	{ N("devices"), VREG, 0444, 0,    A(dodevices)		},
+	{ N("meminfo"),	VREG, 0444, 0,    A(domeminfo)		},
+	{ N("net"),	VDIR, 0555, 0,    D(net_dir) 		},
+	{ N("self"),	VLNK, 0444, 0,    A(doselflink)		},
+	{ N("stat"),	VREG, 0444, 0,    A(dostat)		},
+	{ N("uptime"),	VREG, 0444, 0,    A(douptime)		},
+	{ N("version"),	VREG, 0444, 0,    A(doversion)		},
+	{ N(""),	VNON, 0000, 0,    NULL			},
+};
+
+#undef N
+#undef A
+
+static int vn2ft[] = {
+	DT_UNKNOWN,	/* VNON */
+	DT_REG,		/* VREG */
+	DT_DIR,		/* VDIR */
+	DT_BLK,		/* VBLK */
+	DT_CHR,		/* VCHR */
+	DT_LNK,		/* VLNK */
+	DT_SOCK,	/* VSOCK */
+	DT_FIFO,	/* VFIFO */
+	DT_UNKNOWN,	/* VBAD */
+};
 
 /*
  * set things up for doing i/o on
@@ -129,32 +156,28 @@ linprocfs_open(ap)
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
-	struct proc *p1, *p2;
+	struct node_data *nd = pfs->pfs_nd;
+	struct proc *p1, *p2 = NULL;
 
-	p2 = PFIND(pfs->pfs_pid);
-	if (p2 == NULL)
-		return (ENOENT);
-	if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL))
-		return (ENOENT);
+	if (nd->nd_flags & PDEP) {
+		p2 = PFIND(pfs->pfs_pid);
+		if (p2 == NULL)
+			return (ENOENT);
+		if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL))
+			return (ENOENT);
+	}
 
-	switch (pfs->pfs_type) {
-	case Pmem:
+	if (nd->nd_action == procfs_domem) {
 		if (((pfs->pfs_flags & FWRITE) && (ap->a_mode & O_EXCL)) ||
 		    ((pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE)))
 			return (EBUSY);
 
 		p1 = ap->a_p;
-		if (p_can(p1, p2, P_CAN_DEBUG, NULL) &&
-		    !procfs_kmemaccess(p1))
+		if (p_can(p1, p2, P_CAN_DEBUG, NULL) && !procfs_kmemaccess(p1))
 			return (EPERM);
 
 		if (ap->a_mode & FWRITE)
 			pfs->pfs_flags = ap->a_mode & (FWRITE|O_EXCL);
-
-		return (0);
-
-	default:
-		break;
 	}
 
 	return (0);
@@ -179,8 +202,7 @@ linprocfs_close(ap)
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
 	struct proc *p;
 
-	switch (pfs->pfs_type) {
-	case Pmem:
+	if (pfs->pfs_nd->nd_action == procfs_domem) {
 		if ((ap->a_fflag & FWRITE) && (pfs->pfs_flags & O_EXCL))
 			pfs->pfs_flags &= ~(FWRITE|O_EXCL);
 		/*
@@ -192,7 +214,7 @@ linprocfs_close(ap)
 		 * told to stop on an event, but then the requesting process
 		 * has gone away or forgotten about it.
 		 */
-		if ((ap->a_vp->v_usecount < 2) && (p = pfind(pfs->pfs_pid))) {
+		if ((ap->a_vp->v_usecount < 2) && (p = PFIND(pfs->pfs_pid))) {
 			PROC_LOCK(p);
 			if (!(p->p_pfsflags & PF_LINGER)) {
 				p->p_stops = 0;
@@ -202,9 +224,6 @@ linprocfs_close(ap)
 			} else
 				PROC_UNLOCK(p);
 		}
-		break;
-	default:
-		break;
 	}
 
 	return (0);
@@ -226,7 +245,7 @@ linprocfs_ioctl(ap)
 	unsigned char flags;
 
 	p = ap->a_p;
-	procp = pfind(pfs->pfs_pid);
+	procp = PFIND(pfs->pfs_pid);
 	if (procp == NULL)
 		return ENOTTY;
 
@@ -398,9 +417,10 @@ linprocfs_print(ap)
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct node_data *nd = pfs->pfs_nd;
 
-	printf("tag VT_PROCFS, type %d, pid %ld, mode %x, flags %lx\n",
-	    pfs->pfs_type, (long)pfs->pfs_pid, pfs->pfs_mode, pfs->pfs_flags);
+	printf("tag VT_PROCFS, name %s, pid %ld, mode %x, flags %lx\n",
+	    nd->nd_name, (long)pfs->pfs_pid, nd->nd_mode, pfs->pfs_flags);
 	return (0);
 }
 
@@ -433,21 +453,15 @@ linprocfs_getattr(ap)
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct node_data *nd = pfs->pfs_nd;
 	struct vattr *vap = ap->a_vap;
 	struct proc *procp;
-	int error;
 
 	/*
 	 * First make sure that the process and its credentials 
 	 * still exist.
 	 */
-	switch (pfs->pfs_type) {
-	case Proot:
-	case Pself:
-		procp = NULL;
-		break;
-
-	default:
+	if (nd->nd_flags & PDEP) {
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
@@ -459,21 +473,22 @@ linprocfs_getattr(ap)
 		PROC_UNLOCK(procp);
 		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
 			return (ENOENT);
+	} else {
+		procp = NULL;
 	}
-
-	error = 0;
 
 	/* start by zeroing out the attributes */
 	VATTR_NULL(vap);
 
 	/* next do all the common fields */
 	vap->va_type = ap->a_vp->v_type;
-	vap->va_mode = pfs->pfs_mode;
+	vap->va_mode = nd->nd_mode;
 	vap->va_fileid = pfs->pfs_fileno;
 	vap->va_flags = 0;
 	vap->va_blocksize = PAGE_SIZE;
 	vap->va_bytes = vap->va_size = 0;
 	vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
+	vap->va_nlink = 1;
 
 	/*
 	 * Make all times be current TOD.
@@ -487,23 +502,6 @@ linprocfs_getattr(ap)
 	vap->va_atime = vap->va_mtime = vap->va_ctime;
 
 	/*
-	 * If the process has exercised some setuid or setgid
-	 * privilege, then rip away read/write permission so
-	 * that only root can gain access.
-	 */
-	switch (pfs->pfs_type) {
-	case Pmem:
-		/* Retain group kmem readablity. */
-		PROC_LOCK(procp);
-		if (procp->p_flag & P_SUGID)
-			vap->va_mode &= ~(VREAD|VWRITE);
-		PROC_UNLOCK(procp);
-		break;
-	default:
-		break;
-	}
-
-	/*
 	 * now do the object specific fields
 	 *
 	 * The size could be set from struct reg, but it's hardly
@@ -512,91 +510,28 @@ linprocfs_getattr(ap)
 	 * becomes important then this function should break out into
 	 * a per-file stat function in the corresponding .c file.
 	 */
-
-	vap->va_nlink = 1;
 	if (procp) {
 		PROC_LOCK(procp);
 		vap->va_uid = procp->p_ucred->cr_uid;
 		vap->va_gid = procp->p_ucred->cr_gid;
 		PROC_UNLOCK(procp);
-	}
-
-	switch (pfs->pfs_type) {
-	case Proot:
-		/*
-		 * Set nlink to 1 to tell fts(3) we don't actually know.
-		 */
-		vap->va_nlink = 1;
+	} else {
 		vap->va_uid = 0;
 		vap->va_gid = 0;
-		vap->va_size = vap->va_bytes = DEV_BSIZE;
-		break;
-
-	case Pself: {
-		char buf[16];		/* should be enough */
-		vap->va_uid = 0;
-		vap->va_gid = 0;
-		vap->va_size = vap->va_bytes =
-		    snprintf(buf, sizeof(buf), "%ld", (long)curproc->p_pid);
-		break;
 	}
 
-	case Pproc:
-		vap->va_nlink = nproc_targets;
-		vap->va_size = vap->va_bytes = DEV_BSIZE;
-		break;
-
-	case Pexe: {
-		char *fullpath, *freepath;
-		error = textvp_fullpath(procp, &fullpath, &freepath);
-		if (error == 0) {
-			vap->va_size = strlen(fullpath);
-			free(freepath, M_TEMP);
-		} else {
-			vap->va_size = sizeof("unknown") - 1;
-			error = 0;
-		}
-		vap->va_bytes = vap->va_size;
-		break;
-	}
-
-	case Pmeminfo:
-	case Pcpuinfo:
-	case Pstat:
-	case Puptime:
-	case Pversion:
-		vap->va_bytes = vap->va_size = 0;
-		vap->va_uid = 0;
-		vap->va_gid = 0;
-		break;
-		
-	case Pmem:
-		/*
-		 * If we denied owner access earlier, then we have to
-		 * change the owner to root - otherwise 'ps' and friends
-		 * will break even though they are setgid kmem. *SIGH*
-		 */
+	/*
+	 * If the process has exercised some setuid or setgid
+	 * privilege, then change the owner to root.
+	 */
+	if (nd->nd_action == procfs_domem) {
 		PROC_LOCK(procp);
 		if (procp->p_flag & P_SUGID)
 			vap->va_uid = 0;
-		else
-			vap->va_uid = procp->p_ucred->cr_uid;
 		PROC_UNLOCK(procp);
-		vap->va_gid = KMEM_GROUP;
-		break;
-
-	case Pcmdline:
-	case Pprocstat:
-	case Pprocstatus:
-		vap->va_bytes = vap->va_size = 0;
-		/* uid, gid are already set */
-		break;
-
-	default:
-		panic("linprocfs_getattr");
 	}
 
-	return (error);
+	return (0);
 }
 
 static int
@@ -649,16 +584,7 @@ linprocfs_access(ap)
 	struct vattr vattr;
 	int error;
 
-	switch (pfs->pfs_type) {
-	case Proot:
-	case Pself:
-	case Pmeminfo:
-	case Pcpuinfo:
-	case Pstat:
-	case Puptime:
-	case Pversion:
-		break;
-	default:
+	if (pfs->pfs_nd->nd_flags & PDEP) {
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
@@ -697,16 +623,15 @@ linprocfs_lookup(ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
-	struct proc_target *pt;
+	struct node_data *nd;
 	pid_t pid;
 	struct pfsnode *pfs;
 	struct proc *p;
-	int i;
+	int error;
 
 	*vpp = NULL;
 
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME ||
-	    cnp->cn_nameiop == CREATE)
+	if (cnp->cn_nameiop != LOOKUP)
 		return (EROFS);
 
 	if (cnp->cn_namelen == 1 && *pname == '.') {
@@ -717,62 +642,46 @@ linprocfs_lookup(ap)
 	}
 
 	pfs = VTOPFS(dvp);
-	switch (pfs->pfs_type) {
-	case Proot:
-		if (cnp->cn_flags & ISDOTDOT)
+	nd = pfs->pfs_nd;
+	if (nd->nd_type != VDIR)
+		return (ENOTDIR);
+
+	if (cnp->cn_flags & ISDOTDOT) {
+		if (nd == root_dir)
 			return (EIO);
+		nd = (struct node_data *)nd[1].nd_action;
+		return (linprocfs_allocvp(dvp->v_mount, vpp, pfs->pfs_pid, nd));
+	}
 
-		if (CNEQ(cnp, "self", 4))
-			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Pself));
-		if (CNEQ(cnp, "meminfo", 7))
-			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Pmeminfo));
-		if (CNEQ(cnp, "cpuinfo", 7))
-			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Pcpuinfo));
-		if (CNEQ(cnp, "stat", 4))
-			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Pstat));
-		if (CNEQ(cnp, "uptime", 6))
-			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Puptime));
-		if (CNEQ(cnp, "version", 7))
-			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Pversion));
+	/* generic lookup */
+	for (nd = pfs->pfs_nd; nd->nd_type != VNON; nd++) {
+		if (cnp->cn_namelen != nd->nd_namlen ||
+		    memcmp(pname, nd->nd_name, nd->nd_namlen))
+			continue;
+		if (nd->nd_type == VDIR)
+			nd = (struct node_data *)nd->nd_action;
+		return (linprocfs_allocvp(dvp->v_mount, vpp, pfs->pfs_pid, nd));
+	}
 
+	error = ENOENT;
+
+	/* directory specific lookups */
+	if (pfs->pfs_nd == root_dir) {
 		pid = atopid(pname, cnp->cn_namelen);
 		if (pid == NO_PID)
-			break;
+			goto done;
 
 		p = PFIND(pid);
 		if (p == NULL)
-			break;
+			goto done;
 
 		if (p_can(curp, p, P_CAN_SEE, NULL))
-			break;
+			goto done;
 
-		return (linprocfs_allocvp(dvp->v_mount, vpp, pid, Pproc));
-
-	case Pproc:
-		if (cnp->cn_flags & ISDOTDOT)
-			return (linprocfs_root(dvp->v_mount, vpp));
-
-		p = PFIND(pfs->pfs_pid);
-		if (p == NULL)
-			break;
-
-		for (pt = proc_targets, i = 0; i < nproc_targets; pt++, i++) {
-			if (cnp->cn_namelen == pt->pt_namlen &&
-			    bcmp(pt->pt_name, pname, cnp->cn_namelen) == 0 &&
-			    (pt->pt_valid == NULL || (*pt->pt_valid)(p)))
-				goto found;
-		}
-		break;
-
-	found:
-		return (linprocfs_allocvp(dvp->v_mount, vpp, pfs->pfs_pid,
-		    pt->pt_pfstype));
-
-	default:
-		return (ENOTDIR);
+		error = linprocfs_allocvp(dvp->v_mount, vpp, pid, proc_dir);
 	}
-
-	return (cnp->cn_nameiop == LOOKUP ? ENOENT : EROFS);
+done:
+	return (error);
 }
 
 /*
@@ -807,16 +716,21 @@ linprocfs_readdir(ap)
 	struct dirent d;
 	struct dirent *dp = &d;
 	struct pfsnode *pfs;
-	int count, error, i, off;
+	struct node_data *nd;
+	struct proc *p;
+	int i, start, copied, error, off;
 	static u_int delen;
 
 	if (!delen) {
-
 		d.d_namlen = PROCFS_NAMELEN;
 		delen = GENERIC_DIRSIZ(&d);
 	}
 
 	pfs = VTOPFS(ap->a_vp);
+	nd = pfs->pfs_nd;
+
+	if (nd->nd_type != VDIR)
+		return (ENOTDIR);
 
 	off = (int)uio->uio_offset;
 	if (off != uio->uio_offset || off < 0 || 
@@ -824,164 +738,65 @@ linprocfs_readdir(ap)
 		return (EINVAL);
 
 	error = 0;
-	count = 0;
-	i = off / delen;
+	copied = 0;
+	start = off / delen;
 
-	switch (pfs->pfs_type) {
-	/*
-	 * this is for the process-specific sub-directories.
-	 * all that is needed to is copy out all the entries
-	 * from the procent[] table (top of this file).
-	 */
-	case Pproc: {
-		struct proc *p;
-		struct proc_target *pt;
-
+	if (nd->nd_flags & PDEP) {
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
-			break;
+			goto done;
 		if (p_can(curproc, p, P_CAN_SEE, NULL))
-			break;
+			goto done;
+	}
 
-		for (pt = &proc_targets[i];
-		     uio->uio_resid >= delen && i < nproc_targets; pt++, i++) {
-			if (pt->pt_valid && (*pt->pt_valid)(p) == 0)
-				continue;
+	/*
+	 * copy out static entries
+	 */
+	for (i = 0; i < start && nd->nd_type != VNON; nd++, i++);
+	for (; uio->uio_resid >= delen && nd->nd_type != VNON; nd++, copied++) {
 
-			dp->d_reclen = delen;
-			dp->d_fileno = PROCFS_FILENO(pfs->pfs_pid, pt->pt_pfstype);
-			dp->d_namlen = pt->pt_namlen;
-			bcopy(pt->pt_name, dp->d_name, pt->pt_namlen + 1);
-			dp->d_type = pt->pt_type;
+		dp->d_reclen = delen;
+		dp->d_fileno = PROCFS_FILENO(nd, pfs->pfs_pid);
+		dp->d_namlen = nd->nd_namlen;
+		memcpy(dp->d_name, nd->nd_name, nd->nd_namlen + 1);
+		dp->d_type = vn2ft[nd->nd_type];
 
-			if ((error = uiomove((caddr_t)dp, delen, uio)) != 0)
-				break;
-		}
-
-	    	break;
-	    }
+		error = uiomove((caddr_t)dp, delen, uio);
+		if (error)
+			goto done;
+	}
 
 	/*
 	 * this is for the root of the procfs filesystem
-	 * what is needed is a special entry for "self"
-	 * followed by an entry for each process on allproc
-#ifdef PROCFS_ZOMBIE
-	 * and zombproc.
-#endif
 	 */
-
-	case Proot: {
-#ifdef PROCFS_ZOMBIE
-		int doingzomb = 0;
-#endif
-		int pcnt = 0;
-		struct proc *p;
-
+	if (pfs->pfs_nd == root_dir) {
 		ALLPROC_LOCK(AP_SHARED);
 		p = LIST_FIRST(&allproc);
-		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
-			bzero((char *) dp, delen);
+		i = (nd - pfs->pfs_nd) / sizeof(*nd);
+
+		while (p && i < start) {
+			if (p_can(curproc, p, P_CAN_SEE, NULL) == 0)
+				i++;
+			p = LIST_NEXT(p, p_list);
+		}
+		for (; p && uio->uio_resid >= delen; p = LIST_NEXT(p, p_list)) {
+			if (p_can(curproc, p, P_CAN_SEE, NULL))
+				continue;
 			dp->d_reclen = delen;
+			dp->d_fileno = PROCFS_FILENO(proc_dir, p->p_pid);
+			dp->d_namlen = sprintf(dp->d_name, "%ld",
+			    (long)p->p_pid);
+			dp->d_type = DT_DIR;
 
-			switch (i) {
-			case 0:		/* `.' */
-			case 1:		/* `..' */
-				dp->d_fileno = PROCFS_FILENO(0, Proot);
-				dp->d_namlen = i + 1;
-				bcopy("..", dp->d_name, dp->d_namlen);
-				dp->d_name[i + 1] = '\0';
-				dp->d_type = DT_DIR;
+			error = uiomove((caddr_t)dp, delen, uio);
+			if (error) 
 				break;
-
-			case 2:
-				dp->d_fileno = PROCFS_FILENO(0, Pself);
-				dp->d_namlen = 4;
-				bcopy("self", dp->d_name, 5);
-				dp->d_type = DT_LNK;
-				break;
-
-			case 3:
-				dp->d_fileno = PROCFS_FILENO(0, Pmeminfo);
-				dp->d_namlen = 7;
-				bcopy("meminfo", dp->d_name, 8);
-				dp->d_type = DT_REG;
-				break;
-
-			case 4:
-				dp->d_fileno = PROCFS_FILENO(0, Pcpuinfo);
-				dp->d_namlen = 7;
-				bcopy("cpuinfo", dp->d_name, 8);
-				dp->d_type = DT_REG;
-				break;
-
-			case 5:
-				dp->d_fileno = PROCFS_FILENO(0, Pstat);
-				dp->d_namlen = 4;
-				bcopy("stat", dp->d_name, 5);
-				dp->d_type = DT_REG;
-				break;
-			    
-			case 6:
-				dp->d_fileno = PROCFS_FILENO(0, Puptime);
-				dp->d_namlen = 6;
-				bcopy("uptime", dp->d_name, 7);
-				dp->d_type = DT_REG;
-				break;
-
-			case 7:
-				dp->d_fileno = PROCFS_FILENO(0, Pversion);
-				dp->d_namlen = 7;
-				bcopy("version", dp->d_name, 8);
-				dp->d_type = DT_REG;
-				break;
-
-			default:
-				while (pcnt < i) {
-					p = LIST_NEXT(p, p_list);
-					if (p == NULL)
-						goto done;
-					if (p_can(curproc, p, P_CAN_SEE, NULL))
-						continue;
-					pcnt++;
-				}
-				while (p_can(curproc, p, P_CAN_SEE, NULL)) {
-					p = LIST_NEXT(p, p_list);
-					if (p == NULL)
-						goto done;
-				}
-				dp->d_fileno = PROCFS_FILENO(p->p_pid, Pproc);
-				dp->d_namlen = sprintf(dp->d_name, "%ld",
-				    (long)p->p_pid);
-				dp->d_type = DT_DIR;
-				p = LIST_NEXT(p, p_list);
-				break;
-			}
-
-			if ((error = uiomove((caddr_t)dp, delen, uio)) != 0)
-				break;
+			copied++;
 		}
-	done:
-
-#ifdef PROCFS_ZOMBIE
-		if (p == NULL && doingzomb == 0) {
-			doingzomb = 1;
-			p = LIST_FIRST(&zombproc);
-			goto again;
-		}
-#endif
-
 		ALLPROC_LOCK(AP_RELEASE);
-		break;
-
-	    }
-
-	default:
-		error = ENOTDIR;
-		break;
 	}
-
-	uio->uio_offset = i * delen;
-
+done:
+	uio->uio_offset += copied * delen;
 	return (error);
 }
 
@@ -992,49 +807,14 @@ static int
 linprocfs_readlink(ap)
 	struct vop_readlink_args *ap;
 {
-	char buf[16];		/* should be enough */
-	struct proc *procp;
-	struct vnode *vp = ap->a_vp;
-	struct pfsnode *pfs = VTOPFS(vp);
-	char *fullpath, *freepath;
-	int error, len;
+	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct node_data *nd = pfs->pfs_nd;
 
-	switch (pfs->pfs_type) {
-	case Pself:
-		if (pfs->pfs_fileno != PROCFS_FILENO(0, Pself))
-			return (EINVAL);
-
-		len = snprintf(buf, sizeof(buf), "%ld", (long)curproc->p_pid);
-
-		return (uiomove(buf, len, ap->a_uio));
-	/*
-	 * There _should_ be no way for an entire process to disappear
-	 * from under us...
-	 */
-	case Pexe:
-		procp = PFIND(pfs->pfs_pid);
-		if (procp != NULL)
-			PROC_LOCK(procp);
-		if (procp == NULL || procp->p_cred == NULL ||
-		    procp->p_ucred == NULL) {
-			if (procp != NULL)
-				PROC_UNLOCK(procp);
-			printf("linprocfs_readlink: pid %d disappeared\n",
-			    pfs->pfs_pid);
-			return (uiomove("unknown", sizeof("unknown") - 1,
-			    ap->a_uio));
-		}
-		PROC_UNLOCK(procp);
-		error = textvp_fullpath(procp, &fullpath, &freepath);
-		if (error != 0)
-			return (uiomove("unknown", sizeof("unknown") - 1,
-			    ap->a_uio));
-		error = uiomove(fullpath, strlen(fullpath), ap->a_uio);
-		free(freepath, M_TEMP);
-		return (error);
-	default:
+	/* sanity check */
+	if (nd->nd_type != VLNK)
 		return (EINVAL);
-	}
+
+	return (nd->nd_action(NULL, NULL, pfs, ap->a_uio));
 }
 
 /*
