@@ -833,7 +833,9 @@ select(td, uap)
 	PROC_LOCK(td->td_proc);
 retry:
 	ncoll = nselcoll;
+	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(td->td_proc);
 	error = selscan(td, ibits, obits, uap->nd);
 	PROC_LOCK(td->td_proc);
@@ -848,13 +850,16 @@ retry:
 			 * the process, test TDF_SELECT and rescan file descriptors if
 			 * necessary.
 			 */
+			mtx_lock_spin(&sched_lock);
 			if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
 				ncoll = nselcoll;
 				td->td_flags |= TDF_SELECT;
+				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(td->td_proc);
 				error = selscan(td, ibits, obits, uap->nd);
 				PROC_LOCK(td->td_proc);
-			}
+			} else
+				mtx_unlock_spin(&sched_lock);
 			goto done;
 		}
 		ttv = atv;
@@ -862,7 +867,9 @@ retry:
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
+	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
 
 	if (timo > 0)
 		error = cv_timedwait_sig(&selwait, &td->td_proc->p_mtx, timo);
@@ -873,7 +880,9 @@ retry:
 		goto retry;
 
 done:
+	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(td->td_proc);
 	selholddrop(td, hibits, hobits, uap->nd, 0);
 done_noproclock:
@@ -1049,7 +1058,9 @@ poll(td, uap)
 	PROC_LOCK(td->td_proc);
 retry:
 	ncoll = nselcoll;
+	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(td->td_proc);
 	error = pollscan(td, (struct pollfd *)bits, nfds);
 	PROC_LOCK(td->td_proc);
@@ -1064,13 +1075,16 @@ retry:
 			 * the process, test TDF_SELECT and rescan file descriptors if
 			 * necessary.
 			 */
+			mtx_lock_spin(&sched_lock);
 			if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
 				ncoll = nselcoll;
 				td->td_flags |= TDF_SELECT;
+				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(td->td_proc);
 				error = pollscan(td, (struct pollfd *)bits, nfds);
 				PROC_LOCK(td->td_proc);
-			}
+			} else
+				mtx_unlock_spin(&sched_lock);
 			goto done;
 		}
 		ttv = atv;
@@ -1078,7 +1092,9 @@ retry:
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
+	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
 	if (timo > 0)
 		error = cv_timedwait_sig(&selwait, &td->td_proc->p_mtx, timo);
 	else
@@ -1087,7 +1103,9 @@ retry:
 		goto retry;
 
 done:
+	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(td->td_proc);
 	pollholddrop(td, heldbits, nfds, 0);
 done_noproclock:
