@@ -37,12 +37,20 @@
 SYSCTL_DECL(_vfs_pfs);
 
 /*
+ * Vnode data
+ */
+struct pfs_vdata {
+	struct pfs_node	*pvd_pn;
+	pid_t		 pvd_pid;
+};
+
+/*
  * Vnode cache
  */
 void	 pfs_vncache_load	(void);
 void	 pfs_vncache_unload	(void);
 int	 pfs_vncache_alloc	(struct mount *, struct vnode **,
-				 struct pfs_node *);
+				 struct pfs_node *, pid_t pid);
 int	 pfs_vncache_free	(struct vnode *);
 
 /*
@@ -54,11 +62,5 @@ void	 pfs_fileno_init	(struct pfs_info *);
 void	 pfs_fileno_uninit	(struct pfs_info *);
 void	 pfs_fileno_alloc	(struct pfs_info *, struct pfs_node *);
 void	 pfs_fileno_free	(struct pfs_info *, struct pfs_node *);
-
-/*
- * Shadow manager
- */
-void	pfs_create_shadow	(struct pfs_info *, struct pfs_node *, pid_t);
-void	pfs_reap_shadows	(pid_t);
 
 #endif
