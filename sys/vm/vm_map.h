@@ -303,9 +303,6 @@ void vm_init2 (void);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vmspace_swap_count (struct vmspace *vmspace);
-
-#ifdef ENABLE_VFS_IOOPT		/* Experimental support for zero-copy I/O */
 int vm_uiomove(vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *);
-#endif
 #endif				/* _KERNEL */
 #endif				/* _VM_MAP_ */
