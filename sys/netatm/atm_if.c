@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_if.c,v 1.13 1998/07/23 21:43:55 root Exp $
+ *	@(#) $Id: atm_if.c,v 1.1 1998/09/15 08:22:57 phk Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_if.c,v 1.13 1998/07/23 21:43:55 root Exp $";
-#endif
-
 #include <netatm/kern_include.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_if.c,v 1.1 1998/09/15 08:22:57 phk Exp $");
+#endif
 
 
 #if (defined(BSD) && (BSD < 199506))

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.1 1998/09/15 08:22:55 phk Exp $
+ *	@(#) $Id: fore_load.c,v 1.2 1998/09/17 09:34:59 phk Exp $
  *
  */
 
@@ -35,21 +35,21 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: fore_load.c,v 1.1 1998/09/15 08:22:55 phk Exp $";
-#endif
-
 #include <dev/hfa/fore_include.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: fore_load.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+#endif
 
 
 /*
  * Local functions
  */
 static int	fore_start __P((void));
+#ifdef sun
 static int	fore_stop __P((void));
 static int	fore_doload __P((void));
 static int	fore_dounload __P((void));
-#ifdef sun
 static int	fore_identify __P((char *));
 static int	fore_attach __P((struct devinfo *));
 #endif
@@ -156,6 +156,8 @@ fore_start()
 }
 
 
+#ifdef sun
+
 /*
  * Halt driver processing 
  * 
@@ -240,8 +242,6 @@ fore_stop()
 	return (0);
 }
 
-
-#ifdef sun
 /*
  * Device identify routine
  * 
@@ -1143,8 +1143,8 @@ fore_unattach(fup)
 	struct dev_info		*devinfo_p = fup->fu_devinfo;
 	struct dev_reg		*dev_reg_p;
 	struct dev_intr		*dev_intr_p;
-#endif
 	int			i;
+#endif
 
 
 	/*
@@ -1359,6 +1359,7 @@ fore_reset(fup)
  *******************************************************************
  */
 
+#ifdef sun
 /*
  * Generic module load processing
  * 
@@ -1418,7 +1419,6 @@ fore_dounload()
 }
 
 
-#ifdef sun
 /*
  * Loadable driver description
  */

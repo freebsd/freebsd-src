@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_sigmgr_state.c,v 1.1 1998/09/15 08:23:12 phk Exp $
+ *	@(#) $Id: unisig_sigmgr_state.c,v 1.2 1998/09/17 09:35:02 phk Exp $
  *
  */
 
@@ -35,10 +35,6 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: unisig_sigmgr_state.c,v 1.1 1998/09/15 08:23:12 phk Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/uni.h>
@@ -49,6 +45,10 @@ static char *RCSid = "@(#) $Id: unisig_sigmgr_state.c,v 1.1 1998/09/15 08:23:12 
 #include <netatm/uni/unisig_decode.h>
 
 #include <netatm/uni/sscf_uni.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: unisig_sigmgr_state.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
+#endif
 
 
 /*

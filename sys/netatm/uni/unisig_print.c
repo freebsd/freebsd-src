@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_print.c,v 1.9 1998/08/26 23:29:23 mks Exp $
+ *	@(#) $Id: unisig_print.c,v 1.1 1998/09/15 08:23:12 phk Exp $
  *
  */
 
@@ -35,16 +35,16 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: unisig_print.c,v 1.9 1998/08/26 23:29:23 mks Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/unisig.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/unisig_msg.h>
 #include <netatm/uni/unisig_print.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: unisig_print.c,v 1.1 1998/09/15 08:23:12 phk Exp $");
+#endif
 
 
 /*

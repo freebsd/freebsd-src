@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_transmit.c,v 1.1 1998/09/15 08:22:53 phk Exp $
+ *	@(#) $Id: eni_transmit.c,v 1.2 1998/10/18 11:58:57 phk Exp $
  *
  */
 
@@ -36,15 +36,15 @@
  */
 
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: eni_transmit.c,v 1.1 1998/09/15 08:22:53 phk Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
 #include <dev/hea/eni_var.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: eni_transmit.c,v 1.2 1998/10/18 11:58:57 phk Exp $");
+#endif
 
 /*
  * Make a variable which controls printing of PDUs
