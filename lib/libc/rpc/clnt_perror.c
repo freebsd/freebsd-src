@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_perror.c 1.15 87/10/07 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_perror.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_perror.c,v 1.6 1996/12/30 14:19:34 peter Exp $";
+static char *rcsid = "$Id: clnt_perror.c,v 1.9 1997/05/28 05:05:04 wpaul Exp $";
 #endif
 
 /*
@@ -106,7 +106,7 @@ clnt_sperror(rpch, s)
 	case RPC_VERSMISMATCH:
 		(void) sprintf(str,
 			"; low version = %lu, high version = %lu\n",
-			e.re_vers.low, e.re_vers.high);
+			(u_long)e.re_vers.low, (u_long)e.re_vers.high);
 		break;
 
 	case RPC_AUTHERROR:
@@ -125,13 +125,13 @@ clnt_sperror(rpch, s)
 	case RPC_PROGVERSMISMATCH:
 		(void) sprintf(str,
 			"; low version = %lu, high version = %lu\n",
-			e.re_vers.low, e.re_vers.high);
+			(u_long)e.re_vers.low, (u_long)e.re_vers.high);
 		break;
 
 	default:	/* unknown */
 		(void) sprintf(str,
 			"; s1 = %lu, s2 = %lu\n",
-			e.re_lb.s1, e.re_lb.s2);
+			(long)e.re_lb.s1, (long)e.re_lb.s2);
 		break;
 	}
 	strstart[CLNT_PERROR_BUFLEN-2] = '\n';

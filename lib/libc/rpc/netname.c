@@ -101,7 +101,7 @@ user2netname(netname, uid, domain)
 	if (strlen(domain) + 1 + MAXIPRINT > MAXNETNAMELEN) {
 		return (0);
 	}
-	(void) sprintf(netname, "%s.%ld@%s", OPSYS, uid, domain);	
+	(void) sprintf(netname, "%s.%ld@%s", OPSYS, (u_long)uid, domain);	
 	return (1);
 }
 
