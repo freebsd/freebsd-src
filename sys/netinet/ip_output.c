@@ -465,7 +465,8 @@ sendit:
 		    hlen, ifp, &divert_cookie, &m, &rule, &dst);
                 /*
                  * On return we must do the following:
-                 * m == NULL         -> drop the pkt
+                 * m == NULL         -> drop the pkt (old interface, deprecated)
+                 * (off & 0x40000)   -> drop the pkt (new interface)
                  * 1<=off<= 0xffff   -> DIVERT
                  * (off & 0x10000)   -> send to a DUMMYNET pipe
                  * (off & 0x20000)   -> TEE the packet
@@ -477,9 +478,20 @@ sendit:
                  * unsupported rules), but better play safe and drop
                  * packets in case of doubt.
                  */
+		if (off & IP_FW_PORT_DENY_FLAG) { /* XXX new interface-denied */
+		    if (m)
+			m_freem(m);
+		    error = EACCES ;
+		    goto done;
+		}
 		if (!m) { /* firewall said to reject */
-			error = EACCES;
-			goto done;
+		    static int __debug=10;
+		    if (__debug >0) {
+			printf("firewall returns NULL, please update!\n");	
+			__debug-- ;
+		    }
+		    error = EACCES;
+		    goto done;
 		}
 		if (off == 0 && dst == old) /* common case */
 			goto pass ;
@@ -495,7 +507,7 @@ sendit:
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
 		    error = dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,
-				ifp, ro, dst, rule, flags);
+				ifp,ro,dst,rule, flags);
 		    goto done;
 		}
 #endif   
