@@ -2111,9 +2111,9 @@ hint.dgm.0.at="isa"
 hint.dgm.0.port="0x104"
 hint.dgm.0.maddr="0xd0000"
 device		digi
-hint.dgm.0.at="isa"
-hint.dgm.0.port="0x104"
-hint.dgm.0.maddr="0xd0000"
+hint.digi.0.at="isa"
+hint.digi.0.port="0x104"
+hint.digi.0.maddr="0xd0000"
 # BIOS & FEP/OS components of device digi.  Normally left as modules
 device		digi_CX
 device		digi_CX_PCI
