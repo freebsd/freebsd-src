@@ -85,8 +85,8 @@ typedef struct {
 	u_long setcnt;		/* set count */
 	u_long setalloc;	/* set allocated count */
 } INPUT;
-INPUT input1 = { NULL, 0, 0, 1, NULL, 0, 0, 0, },
-      input2 = { NULL, 0, 0, 2, NULL, 0, 0, 0, };
+INPUT input1 = { NULL, 0, 0, 1, NULL, 0, 0, 0, 0 },
+      input2 = { NULL, 0, 0, 2, NULL, 0, 0, 0, 0 };
 
 typedef struct {
 	u_long	filenum;	/* file number */
@@ -100,7 +100,8 @@ int joinout = 1;		/* show lines with matched join fields (-v) */
 int needsep;			/* need separator character */
 int spans = 1;			/* span multiple delimiters (-t) */
 char *empty;			/* empty field replacement string (-e) */
-char *tabchar = " \t";		/* delimiter characters (-t) */
+static char default_tabchar[] = " \t";
+char *tabchar = default_tabchar;/* delimiter characters (-t) */
 
 int  cmp(LINE *, u_long, LINE *, u_long);
 void fieldarg(char *);
@@ -374,7 +375,7 @@ void
 joinlines(F1, F2)
 	INPUT *F1, *F2;
 {
-	int cnt1, cnt2;
+	unsigned int cnt1, cnt2;
 
 	/*
 	 * Output the results of a join comparison.  The output may be from
@@ -396,7 +397,7 @@ outoneline(F, lp)
 	INPUT *F;
 	LINE *lp;
 {
-	int cnt;
+	unsigned int cnt;
 
 	/*
 	 * Output a single line from one of the files, according to the
@@ -405,7 +406,7 @@ outoneline(F, lp)
 	 */
 	if (olist)
 		for (cnt = 0; cnt < olistcnt; ++cnt) {
-			if (olist[cnt].filenum == F->number)
+			if (olist[cnt].filenum == (unsigned)F->number)
 				outfield(lp, olist[cnt].fieldno, 0);
 			else if (olist[cnt].filenum == 0)
 				outfield(lp, F->joinf, 0);
@@ -426,7 +427,7 @@ outtwoline(F1, lp1, F2, lp2)
 	INPUT *F1, *F2;
 	LINE *lp1, *lp2;
 {
-	int cnt;
+	unsigned int cnt;
 
 	/* Output a pair of lines according to the join list (if any). */
 	if (olist)
@@ -524,7 +525,7 @@ void
 obsolete(argv)
 	char **argv;
 {
-	int len;
+	unsigned int len;
 	char **p, *ap, *t;
 
 	while ((ap = *++argv) != NULL) {
