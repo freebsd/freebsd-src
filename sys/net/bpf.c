@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.11 1995/09/08 11:08:52 bde Exp $
+ * $Id: bpf.c,v 1.12 1995/09/20 20:48:29 wollman Exp $
  */
 
 #include "bpfilter.h"
@@ -192,10 +192,10 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	if ((unsigned)len > MCLBYTES)
 		return (EIO);
 
-	MGET(m, M_WAIT, MT_DATA);
+	MGETHDR(m, M_WAIT, MT_DATA);
 	if (m == 0)
 		return (ENOBUFS);
-	if (len > MLEN) {
+	if (len > MHLEN) {
 #if BSD >= 199103
 		MCLGET(m, M_WAIT);
 		if ((m->m_flags & M_EXT) == 0) {
@@ -207,7 +207,8 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 			goto bad;
 		}
 	}
-	m->m_len = len;
+	m->m_pkthdr.len = m->m_len = len;
+	m->m_pkthdr.rcvif = NULL;
 	*mp = m;
 	/*
 	 * Make room for link header.
@@ -1308,39 +1309,4 @@ bpfattach(driverp, ifp, dlt, hdrlen)
 	if (bootverbose)
 		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
-
-#if BSD >= 199103
-/* XXX This routine belongs in net/if.c. */
-/*
- * Set/clear promiscuous mode on interface ifp based on the truth value
- * of pswitch.  The calls are reference counted so that only the first
- * "on" request actually has an effect, as does the final "off" request.
- * Results are undefined if the "off" and "on" requests are not matched.
- */
-int
-ifpromisc(ifp, pswitch)
-	struct ifnet *ifp;
-	int pswitch;
-{
-	struct ifreq ifr;
-
-	if (pswitch) {
-		/*
-		 * If the device is not configured up, we cannot put it in
-		 * promiscuous mode.
-		 */
-		if ((ifp->if_flags & IFF_UP) == 0)
-			return (ENETDOWN);
-		if (ifp->if_pcount++ != 0)
-			return (0);
-		ifp->if_flags |= IFF_PROMISC;
-	} else {
-		if (--ifp->if_pcount > 0)
-			return (0);
-		ifp->if_flags &= ~IFF_PROMISC;
-	}
-	ifr.ifr_flags = ifp->if_flags;
-	return ((*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr));
-}
-#endif
 #endif
