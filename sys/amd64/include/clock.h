@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.26 1997/05/04 14:25:00 peter Exp $
+ *	$Id: clock.h,v 1.27 1997/05/05 09:34:33 peter Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -17,8 +17,8 @@
 
 #define CPU_THISTICKLEN(dflt) dflt
 
-#define	I586_CTR_COMULTIPLIER_SHIFT	20
-#define	I586_CTR_MULTIPLIER_SHIFT	32
+#define	TSC_COMULTIPLIER_SHIFT	20
+#define	TSC_MULTIPLIER_SHIFT	32
 
 #ifdef KERNEL
 /*
@@ -30,12 +30,12 @@ extern int	adjkerntz;
 extern int	disable_rtc_set;
 #if defined(I586_CPU) || defined(I686_CPU)
 #ifndef SMP
-extern u_int	i586_ctr_bias;
-extern u_int	i586_ctr_comultiplier;
+extern u_int	tsc_bias;
+extern u_int	tsc_comultiplier;
 #endif
-extern u_int	i586_ctr_freq;
+extern u_int	tsc_freq;
 #ifndef SMP
-extern u_int	i586_ctr_multiplier;
+extern u_int	tsc_multiplier;
 #endif
 #endif
 extern int	statclock_disable;
@@ -87,8 +87,8 @@ clock_latency(void)
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 /*
- * When we update `time', on i586's we also update `i586_ctr_bias'
- * atomically.  `i586_ctr_bias' is the best available approximation to
+ * When we update `time', on i586's we also update `tsc_bias'
+ * atomically.  `tsc_bias' is the best available approximation to
  * the value of the i586 counter (mod 2^32) at the time of the i8254
  * counter transition that caused the clock interrupt that caused the
  * update.  clock_latency() gives the time between the transition and
@@ -100,18 +100,18 @@ clock_latency(void)
 static __inline void
 cpu_clockupdate(volatile struct timeval *otime, struct timeval *ntime)
 {
-	if (i586_ctr_freq != 0) {
+	if (tsc_freq != 0) {
 		u_int i586_count;	/* truncated */
 		u_int i8254_count;
 
 		disable_intr();
 		i8254_count = clock_latency();
 		i586_count = rdtsc();
-		i586_ctr_bias = i586_count
+		tsc_bias = i586_count
 				- (u_int)
-				  (((unsigned long long)i586_ctr_comultiplier
+				  (((unsigned long long)tsc_comultiplier
 				    * i8254_count)
-				   >> I586_CTR_COMULTIPLIER_SHIFT);
+				   >> TSC_COMULTIPLIER_SHIFT);
 		*otime = *ntime;
 		enable_intr();
 	} else
