@@ -793,6 +793,8 @@ loop:
 		if (vp->v_mount != mp)	/* Paranoia */
 			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+		VI_LOCK(vp);
+		mtx_unlock(&mntvnode_mtx);
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (BUF_REFCNT(bp) == 0 &&
@@ -800,6 +802,8 @@ loop:
 				== (B_DELWRI | B_NEEDCOMMIT))
 				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
+		VI_UNLOCK(vp);
+		mtx_lock(&mntvnode_mtx);
 	}
 	mtx_unlock(&mntvnode_mtx);
 	splx(s);

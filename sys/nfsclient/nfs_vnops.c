@@ -1419,12 +1419,12 @@ nfs_remove(struct vop_remove_args *ap)
 #ifndef DIAGNOSTIC
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("nfs_remove: no name");
-	if (vp->v_usecount < 1)
+	if (vrefcnt(vp) < 1)
 		panic("nfs_remove: bad v_usecount");
 #endif
 	if (vp->v_type == VDIR)
 		error = EPERM;
-	else if (vp->v_usecount == 1 || (np->n_sillyrename &&
+	else if (vrefcnt(vp) == 1 || (np->n_sillyrename &&
 	    VOP_GETATTR(vp, &vattr, cnp->cn_cred, cnp->cn_thread) == 0 &&
 	    vattr.va_nlink > 1)) {
 		/*
@@ -1543,7 +1543,7 @@ nfs_rename(struct vop_rename_args *ap)
 	 * rename of the new file over it.
 	 * XXX Can't sillyrename a directory.
 	 */
-	if (tvp && tvp->v_usecount > 1 && !VTONFS(tvp)->n_sillyrename &&
+	if (tvp && vrefcnt(tvp) > 1 && !VTONFS(tvp)->n_sillyrename &&
 		tvp->v_type != VDIR && !nfs_sillyrename(tdvp, tvp, tcnp)) {
 		vput(tvp);
 		tvp = NULL;
@@ -2616,6 +2616,7 @@ again:
 		 * Count up how many buffers waiting for a commit.
 		 */
 		bveccount = 0;
+		VI_LOCK(vp);
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (BUF_REFCNT(bp) == 0 &&
@@ -2645,13 +2646,16 @@ again:
 			bvecsize = NFS_COMMITBVECSIZ;
 		}
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bvecpos >= bvecsize)
 				break;
+			VI_UNLOCK(vp);
 			if ((bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) !=
 			    (B_DELWRI | B_NEEDCOMMIT) ||
-			    BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+			    BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+				VI_LOCK(vp);
+				nbp = TAILQ_NEXT(bp, b_vnbufs);
 				continue;
+			}
 			bremfree(bp);
 			/*
 			 * Work out if all buffers are using the same cred
@@ -2671,6 +2675,7 @@ again:
 			bp->b_flags |= B_WRITEINPROG;
 			vfs_busy_pages(bp, 1);
 
+			VI_LOCK(vp);
 			/*
 			 * bp is protected by being locked, but nbp is not
 			 * and vfs_busy_pages() may sleep.  We have to
@@ -2695,6 +2700,7 @@ again:
 				endoff = toff;
 		}
 		splx(s);
+		VI_UNLOCK(vp);
 	}
 	if (bvecpos > 0) {
 		/*
@@ -2747,7 +2753,9 @@ again:
 				 * into bundirty(). XXX
 				 */
 				s = splbio();
+				VI_LOCK(vp);
 				vp->v_numoutput++;
+				VI_UNLOCK(vp);
 				bp->b_flags |= B_ASYNC;
 				bundirty(bp);
 				bp->b_flags &= ~B_DONE;
@@ -2764,11 +2772,15 @@ again:
 	 */
 loop:
 	s = splbio();
+	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		VI_UNLOCK(vp);
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			if (waitfor != MNT_WAIT || passone)
+			if (waitfor != MNT_WAIT || passone) {
+				VI_LOCK(vp);
 				continue;
+			}
 			error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL,
 			    "nfsfsync", slpflag, slptimeo);
 			splx(s);
@@ -2790,6 +2802,7 @@ loop:
 			panic("nfs_fsync: not dirty");
 		if ((passone || !commit) && (bp->b_flags & B_NEEDCOMMIT)) {
 			BUF_UNLOCK(bp);
+			VI_LOCK(vp);
 			continue;
 		}
 		bremfree(bp);
@@ -2804,10 +2817,10 @@ loop:
 	splx(s);
 	if (passone) {
 		passone = 0;
+		VI_UNLOCK(vp);
 		goto again;
 	}
 	if (waitfor == MNT_WAIT) {
-		VI_LOCK(vp);
 		while (vp->v_numoutput) {
 			vp->v_iflag |= VI_BWAIT;
 			error = msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
@@ -2824,11 +2837,12 @@ loop:
 			    }
 			}
 		}
-		VI_UNLOCK(vp);
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) && commit) {
+			VI_UNLOCK(vp);
 			goto loop;
 		}
 	}
+	VI_UNLOCK(vp);
 	if (np->n_flag & NWRITEERR) {
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;
@@ -2907,7 +2921,9 @@ nfs_writebp(struct buf *bp, int force, struct thread *td)
 	bp->b_ioflags &= ~BIO_ERROR;
 	bp->b_iocmd = BIO_WRITE;
 
+	VI_LOCK(bp->b_vp);
 	bp->b_vp->v_numoutput++;
+	VI_UNLOCK(bp->b_vp);
 	curthread->td_proc->p_stats->p_ru.ru_oublock++;
 	splx(s);
 
@@ -3045,7 +3061,7 @@ nfsspec_close(struct vop_close_args *ap)
 
 	if (np->n_flag & (NACC | NUPD)) {
 		np->n_flag |= NCHG;
-		if (vp->v_usecount == 1 &&
+		if (vrefcnt(vp) == 1 &&
 		    (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 			VATTR_NULL(&vattr);
 			if (np->n_flag & NACC)
@@ -3110,7 +3126,7 @@ nfsfifo_close(struct vop_close_args *ap)
 		if (np->n_flag & NUPD)
 			np->n_mtim = ts;
 		np->n_flag |= NCHG;
-		if (vp->v_usecount == 1 &&
+		if (vrefcnt(vp) == 1 &&
 		    (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 			VATTR_NULL(&vattr);
 			if (np->n_flag & NACC)
