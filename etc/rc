@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.7 1997/04/09 20:30:58 guido Exp $
+#	$Id: rc,v 1.104.2.8 1997/04/26 22:39:33 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -161,6 +161,10 @@ if [ "X${syslogd_enable}" = X"YES" ]; then
 
 	rm -f /var/run/log
 	echo 'Starting syslogd.';		syslogd ${syslogd_flags}
+fi
+
+if [ "X${tickadj_enable}" = X"YES" ]; then
+    echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
 fi
 
 if [ -n "$network_pass1_done" ]; then
