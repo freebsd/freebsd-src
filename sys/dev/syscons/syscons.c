@@ -872,7 +872,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	frbp = scp->vtb.vtb_buffer + scp->ysize * lsize + ptr->x *
 	       sizeof(u_int16_t);
 	/* Pointer to the last line of target buffer */
-	(vm_offset_t)outp += ptr->ysize * csize;
+	outp = (char *)outp + ptr->ysize * csize;
 	/* Pointer to the last line of history buffer */
 	if (scp->history != NULL)
 	    hstp = scp->history->vtb_buffer + sc_vtb_tail(scp->history) *
@@ -892,7 +892,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    }
 	    if (lnum < ptr->y)
 		continue;
-	    (vm_offset_t)outp -= csize;
+	    outp = (char *)outp - csize;
 	    retval = copyout((void *)frbp, outp, csize);
 	    if (retval != 0)
 		break;

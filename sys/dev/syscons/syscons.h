@@ -92,7 +92,7 @@
 #define SC_DRIVER_NAME	"sc"
 #define SC_VTY(dev)	minor(dev)
 #define SC_DEV(sc, vty)	((sc)->dev[(vty) - (sc)->first_vty])
-#define SC_STAT(dev)	((scr_stat *)(dev)->si_drv1)
+#define SC_STAT(dev)	(*((scr_stat **)&(dev)->si_drv1))
 
 /* printable chars */
 #ifndef PRINTABLE
