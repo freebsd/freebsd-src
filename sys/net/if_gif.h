@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: if_gif.h,v 1.13 2000/06/17 20:34:24 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -36,33 +37,46 @@
 #ifndef _NET_IF_GIF_H_
 #define _NET_IF_GIF_H_
 
+
+#if (defined(__FreeBSD__) && __FreeBSD__ >= 3) || defined(__NetBSD__)
+#if defined(_KERNEL) && !defined(_LKM)
+#include "opt_inet.h"
+#endif
+#endif
+
+#include <netinet/in.h>
+/* xxx sigh, why route have struct route instead of pointer? */
+
+struct encaptab;
+
 struct gif_softc {
-	struct	ifnet		gif_if;	   /* common area */
-	struct	sockaddr	*gif_psrc; /* Physical src addr */
-	struct	sockaddr	*gif_pdst; /* Physical dst addr */
+	struct ifnet	gif_if;	   /* common area - must be at the top */
+	struct sockaddr	*gif_psrc; /* Physical src addr */
+	struct sockaddr	*gif_pdst; /* Physical dst addr */
 	union {
-		struct	route  gifscr_ro;    /* xxx */
-		struct	route_in6 gifscr_ro6; /* xxx */
+		struct route  gifscr_ro;    /* xxx */
+#ifdef INET6
+		struct route_in6 gifscr_ro6; /* xxx */
+#endif
 	} gifsc_gifscr;
-	int	gif_flags;
+	int		gif_flags;
+	const struct encaptab *encap_cookie4;
+	const struct encaptab *encap_cookie6;
 };
 
-#define	gif_ro gifsc_gifscr.gifscr_ro
-#define	gif_ro6 gifsc_gifscr.gifscr_ro6
+#define gif_ro gifsc_gifscr.gifscr_ro
+#ifdef INET6
+#define gif_ro6 gifsc_gifscr.gifscr_ro6
+#endif
 
-#define	GIFF_INUSE	0x1	/* gif is in use */
-
-#define	GIF_MTU		(1280)	/* Default MTU */
+#define GIF_MTU		(1280)	/* Default MTU */
 #define	GIF_MTU_MIN	(1280)	/* Minimum MTU */
 #define	GIF_MTU_MAX	(8192)	/* Maximum MTU */
 
-extern int	ngif;
-extern struct	gif_softc *gif;
-
 /* Prototypes */
-void	gif_input __P((struct mbuf *, int, struct ifnet *));
-int	gif_output __P((struct ifnet *, struct mbuf *,
+void gif_input __P((struct mbuf *, int, struct ifnet *));
+int gif_output __P((struct ifnet *, struct mbuf *,
 		    struct sockaddr *, struct rtentry *));
-int	gif_ioctl __P((struct ifnet *, u_long, caddr_t));
+int gif_ioctl __P((struct ifnet *, u_long, caddr_t));
 
 #endif /* _NET_IF_GIF_H_ */

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ip_ecn.h,v 1.5 2000/03/27 04:58:38 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
@@ -26,8 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ip_ecn.h,v 1.2 1999/08/19 12:57:44 itojun Exp $
- * $FreeBSD$
  */
 /*
  * ECN consideration on tunnel ingress/egress operation.
@@ -38,6 +39,3 @@
 extern void ip6_ecn_ingress __P((int, u_int32_t *, u_int32_t *));
 extern void ip6_ecn_egress __P((int, u_int32_t *, u_int32_t *));
 #endif
-
-
-

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: net_osdep.c,v 1.4 2000/03/25 07:23:34 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -45,6 +46,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
+
 #include <net/net_osdep.h>
 
 const char *

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: esp.h,v 1.8 2000/07/02 13:23:33 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -34,7 +35,7 @@
  */
 
 #ifndef _NETINET6_ESP_H_
-#define	_NETINET6_ESP_H_
+#define _NETINET6_ESP_H_
 
 struct secasvar;
 
@@ -77,6 +78,7 @@ struct esp_algorithm {
 	int (*mature) __P((struct secasvar *));
 	int keymin;	/* in bits */
 	int keymax;	/* in bits */
+	const char *name;
 	int (*ivlen) __P((struct secasvar *));
 	int (*decrypt) __P((struct mbuf *, size_t,
 		struct secasvar *, struct esp_algorithm *, int));
@@ -89,9 +91,9 @@ extern struct esp_algorithm esp_algorithms[];
 
 /* crypt routines */
 extern int esp4_output __P((struct mbuf *, struct ipsecrequest *));
-extern void esp4_input __P((struct mbuf *, int, int));
+extern void esp4_input __P((struct mbuf *, ...));
 extern size_t esp_hdrsiz __P((struct ipsecrequest *));
-#endif
+#endif /*_KERNEL*/
 
 extern int esp_auth __P((struct mbuf *, size_t, size_t,
 	struct secasvar *, u_char *));

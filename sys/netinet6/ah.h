@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ah.h,v 1.10 2000/07/02 13:23:33 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -34,7 +35,7 @@
  */
 
 #ifndef _NETINET6_AH_H_
-#define	_NETINET6_AH_H_
+#define _NETINET6_AH_H_
 
 struct secasvar;
 
@@ -65,9 +66,9 @@ struct ah_algorithm {
 	int (*mature) __P((struct secasvar *));
 	int keymin;	/* in bits */
 	int keymax;	/* in bits */
-	void (*init) __P((struct ah_algorithm_state *, struct secasvar *));
-	void (*update) __P((struct ah_algorithm_state *, const caddr_t,
-			    size_t));
+	const char *name;
+	int (*init) __P((struct ah_algorithm_state *, struct secasvar *));
+	void (*update) __P((struct ah_algorithm_state *, caddr_t, size_t));
 	void (*result) __P((struct ah_algorithm_state *, caddr_t));
 };
 
@@ -80,10 +81,10 @@ extern struct ah_algorithm ah_algorithms[];
 extern int ah_hdrlen __P((struct secasvar *));
 
 extern size_t ah_hdrsiz __P((struct ipsecrequest *));
-extern void ah4_input __P((struct mbuf *, int, int));
+extern void ah4_input __P((struct mbuf *, ...));
 extern int ah4_output __P((struct mbuf *, struct ipsecrequest *));
-extern int ah4_calccksum __P((struct mbuf *, caddr_t,
-				struct ah_algorithm *, struct secasvar *));
-#endif
+extern int ah4_calccksum __P((struct mbuf *, caddr_t, size_t,
+	struct ah_algorithm *, struct secasvar *));
+#endif /*_KERNEL*/
 
 #endif /*_NETINET6_AH_H_*/

@@ -85,13 +85,17 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/ip6_mroute.h>
-#include <netinet6/icmp6.h>
+#include <netinet/icmp6.h>
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/nd6.h>
+#include <netinet6/ip6protosw.h>
+#ifdef ENABLE_DEFAULT_SCOPE
+#include <netinet6/scope6_var.h>
+#endif
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -207,6 +211,66 @@ rip6_input(mp, offp, proto)
 		ip6stat.ip6s_delivered--;
 	}
 	return IPPROTO_DONE;
+}
+
+void
+rip6_ctlinput(cmd, sa, d)
+	int cmd;
+	struct sockaddr *sa;
+	void *d;
+{
+	struct sockaddr_in6 sa6;
+	struct ip6_hdr *ip6;
+	struct mbuf *m;
+	int off = 0;
+	void (*notify) __P((struct inpcb *, int)) = in6_rtchange;
+
+	if (sa->sa_family != AF_INET6 ||
+	    sa->sa_len != sizeof(struct sockaddr_in6))
+		return;
+
+	if ((unsigned)cmd >= PRC_NCMDS)
+		return;
+	if (PRC_IS_REDIRECT(cmd))
+		notify = in6_rtchange, d = NULL;
+	else if (cmd == PRC_HOSTDEAD)
+		d = NULL;
+	else if (inet6ctlerrmap[cmd] == 0)
+		return;
+
+	/* if the parameter is from icmp6, decode it. */
+	if (d != NULL) {
+		struct ip6ctlparam *ip6cp = (struct ip6ctlparam *)d;
+		m = ip6cp->ip6c_m;
+		ip6 = ip6cp->ip6c_ip6;
+		off = ip6cp->ip6c_off;
+	} else {
+		m = NULL;
+		ip6 = NULL;
+	}
+
+	/* translate addresses into internal form */
+	sa6 = *(struct sockaddr_in6 *)sa;
+	if (IN6_IS_ADDR_LINKLOCAL(&sa6.sin6_addr) && m && m->m_pkthdr.rcvif)
+		sa6.sin6_addr.s6_addr16[1] = htons(m->m_pkthdr.rcvif->if_index);
+
+	if (ip6) {
+		/*
+		 * XXX: We assume that when IPV6 is non NULL,
+		 * M and OFF are valid.
+		 */
+		struct in6_addr s;
+
+		/* translate addresses into internal form */
+		memcpy(&s, &ip6->ip6_src, sizeof(s));
+		if (IN6_IS_ADDR_LINKLOCAL(&s))
+			s.s6_addr16[1] = htons(m->m_pkthdr.rcvif->if_index);
+
+		(void) in6_pcbnotify(&ripcb, (struct sockaddr *)&sa6,
+				     0, &s, 0, cmd, notify);
+	} else
+		(void) in6_pcbnotify(&ripcb, (struct sockaddr *)&sa6, 0,
+				     &zeroin6_addr, 0, cmd, notify);
 }
 
 /*
@@ -371,10 +435,10 @@ rip6_output(m, va_alist)
 	}
 
 #ifdef IPSEC
-	m->m_pkthdr.rcvif = (struct ifnet *)so;
+	ipsec_setsocket(m, so);
 #endif /*IPSEC*/
 
-	error = ip6_output(m, optp, &in6p->in6p_route, IPV6_SOCKINMRCVIF,
+	error = ip6_output(m, optp, &in6p->in6p_route, 0,
 			   in6p->in6p_moptions, &oifp);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
@@ -543,6 +607,11 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 
 	if (TAILQ_EMPTY(&ifnet) || addr->sin6_family != AF_INET6)
 		return EADDRNOTAVAIL;
+#ifdef ENABLE_DEFAULT_SCOPE
+	if (addr->sin6_scope_id == 0) {	/* not change if specified  */
+		addr->sin6_scope_id = scope6_addr2default(&addr->sin6_addr);
+	}
+#endif
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
 	    (ia = ifa_ifwithaddr((struct sockaddr *)addr)) == 0)
 		return EADDRNOTAVAIL;
@@ -563,6 +632,9 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct in6_addr *in6a = NULL;
 	int error = 0;
+#ifdef ENABLE_DEFAULT_SCOPE
+	struct sockaddr_in6 tmp;
+#endif
 
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
@@ -570,7 +642,14 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 		return EADDRNOTAVAIL;
 	if (addr->sin6_family != AF_INET6)
 		return EAFNOSUPPORT;
-
+#ifdef ENABLE_DEFAULT_SCOPE
+	if (addr->sin6_scope_id == 0) {	/* not change if specified  */
+		/* avoid overwrites */
+		tmp = *addr;
+		addr = &tmp;
+		addr->sin6_scope_id = scope6_addr2default(&addr->sin6_addr);
+	}
+#endif
 	/* Source address selection. XXX: need pcblookup? */
 	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
 			     inp->in6p_moptions, &inp->in6p_route,
@@ -598,6 +677,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct sockaddr_in6 tmp;
 	struct sockaddr_in6 *dst;
 
+	/* always copy sockaddr to avoid overwrites */
 	if (so->so_state & SS_ISCONNECTED) {
 		if (nam) {
 			m_freem(m);
@@ -615,8 +695,14 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			m_freem(m);
 			return ENOTCONN;
 		}
-		dst = (struct sockaddr_in6 *)nam;
+		tmp = *(struct sockaddr_in6 *)nam;
+		dst = &tmp;
 	}
+#ifdef ENABLE_DEFAULT_SCOPE
+	if (dst->sin6_scope_id == 0) {	/* not change if specified  */
+		dst->sin6_scope_id = scope6_addr2default(&dst->sin6_addr);
+	}
+#endif
 	return rip6_output(m, so, dst, control);
 }
 

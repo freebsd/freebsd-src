@@ -83,11 +83,6 @@
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netkey/key.h>
-#ifdef IPSEC_DEBUG
-#include <netkey/key_debug.h>
-#else
-#define KEYDEBUG(lev,arg)
-#endif
 #endif
 
 #include "faith.h"

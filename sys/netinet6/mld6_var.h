@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: mld6_var.h,v 1.4 2000/03/25 07:23:54 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -25,22 +28,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef _NETINET6_MLD6_VAR_H_
-#define	_NETINET6_MLD6_VAR_H_
+#define _NETINET6_MLD6_VAR_H_
 
 #ifdef _KERNEL
 
-#define	MLD6_RANDOM_DELAY(X) (random() % (X) + 1)
+#define MLD6_RANDOM_DELAY(X) (random() % (X) + 1)
 
 /*
  * States for MLD stop-listening processing
  */
-#define	MLD6_OTHERLISTENER			0
-#define	MLD6_IREPORTEDLAST			1
+#define MLD6_OTHERLISTENER			0
+#define MLD6_IREPORTEDLAST			1
 
 void	mld6_init __P((void));
 void	mld6_input __P((struct mbuf *, int));

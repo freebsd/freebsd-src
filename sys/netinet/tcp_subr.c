@@ -92,6 +92,9 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#ifdef INET6
+#include <netinet6/ipsec6.h>
+#endif
 #endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
@@ -441,14 +444,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
 #ifdef IPSEC
-	if (tp != NULL) {
-		m->m_pkthdr.rcvif = (struct ifnet *)tp->t_inpcb->inp_socket;
-		ipflags |=
-#ifdef INET6
-			isipv6 ? IPV6_SOCKINMRCVIF :
-#endif
-			IP_SOCKINMRCVIF;
-	}
+	ipsec_setsocket(m, tp ? tp->t_inpcb->inp_socket : NULL);
 #endif
 #ifdef INET6
 	if (isipv6) {

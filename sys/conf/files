@@ -512,6 +512,7 @@ kern/tty_subr.c		standard
 kern/tty_tty.c		standard
 kern/uipc_domain.c	standard
 kern/uipc_mbuf.c	standard
+kern/uipc_mbuf2.c	standard
 kern/uipc_proto.c	standard
 kern/uipc_socket.c	standard
 kern/uipc_socket2.c	standard
@@ -594,6 +595,7 @@ net/if_mib.c		standard
 net/if_ppp.c		optional ppp
 net/if_sl.c		optional sl
 net/if_spppsubr.c	optional sppp
+net/if_stf.c		optional stf
 net/if_tun.c		optional tun
 net/if_vlan.c		optional vlan
 net/net_osdep.c		standard
@@ -608,6 +610,7 @@ net/rtsock.c		standard
 net/slcompress.c	optional ppp
 net/slcompress.c	optional sl
 net/zlib.c		optional ppp_deflate
+net/zlib.c		optional ipsec
 netatalk/aarp.c		optional netatalk
 netatalk/at_control.c	optional netatalk
 netatalk/at_proto.c	optional netatalk
@@ -738,6 +741,8 @@ netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
 netinet/ip_ecn.c	optional inet
 netinet/ip_ecn.c	optional inet6
+netinet/ip_encap.c	optional inet
+netinet/ip_encap.c	optional inet6
 netinet/ip_divert.c	optional ipdivert
 netinet/ip_dummynet.c	optional dummynet
 netinet/ip_flow.c	optional inet
@@ -782,6 +787,10 @@ netinet6/in6_ifattach.c	optional inet6
 netinet6/ip6_input.c	optional inet6
 netinet6/ip6_mroute.c	optional inet6
 netinet6/ip6_output.c	optional inet6
+netinet6/in6_src.c	optional inet6
+netinet6/ipcomp_core.c	optional ipsec
+netinet6/ipcomp_input.c	optional ipsec
+netinet6/ipcomp_output.c	optional ipsec
 netinet6/in6_pcb.c	optional inet6
 netinet6/in6_prefix.c	optional inet6
 netinet6/in6_proto.c	optional inet6
@@ -792,6 +801,8 @@ netinet6/nd6_nbr.c	optional inet6
 netinet6/nd6_rtr.c	optional inet6
 netinet6/raw_ip6.c	optional inet6
 netinet6/route6.c	optional inet6
+netinet6/scope6.c	optional inet6
+netinet6/udp6_output.c	optional inet6
 netinet6/udp6_usrreq.c	optional inet6
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
@@ -805,6 +816,7 @@ netipx/ipx_usrreq.c	optional ipx
 netipx/spx_debug.c	optional ipx
 netipx/spx_usrreq.c	optional ipx
 netkey/key.c		optional ipsec
+netkey/keydb.c	optional ipsec
 netkey/key_debug.c	optional ipsec
 netkey/keysock.c	optional ipsec
 netnatm/natm.c		optional natm

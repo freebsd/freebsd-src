@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: bf_cbc_m.c,v 1.4 2000/06/14 10:41:16 itojun Exp $	*/
+
 /*
  * heavily modified to accept mbuf, by Jun-ichiro itojun Itoh
  * <itojun@itojun.org>, 1997.
@@ -58,21 +61,18 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 
 #include <crypto/blowfish/blowfish.h>
 #include <crypto/blowfish/bf_locl.h>
 
-#define	panic(x) {printf(x); return;}
+#define panic(x)	do { printf(x); return EINVAL; } while (0)
 
-void BF_cbc_encrypt_m(m0, skip, length, key, iv, mode)
+int BF_cbc_encrypt_m(m0, skip, length, key, iv, mode)
 	struct mbuf *m0;
 	int skip;
 	int length;
@@ -90,19 +90,19 @@ void BF_cbc_encrypt_m(m0, skip, length, key, iv, mode)
 	/* sanity checks */
 	if (m0->m_pkthdr.len < skip) {
 		printf("mbuf length < skip\n");
-		return;
+		return EINVAL;
 	}
 	if (m0->m_pkthdr.len < length) {
 		printf("mbuf length < encrypt length\n");
-		return;
+		return EINVAL;
 	}
 	if (m0->m_pkthdr.len < skip + length) {
 		printf("mbuf length < skip + encrypt length\n");
-		return;
+		return EINVAL;
 	}
 	if (length % 8) {
 		printf("length is not multiple of 8\n");
-		return;
+		return EINVAL;
 	}
 
 	m = m0;
@@ -156,7 +156,7 @@ void BF_cbc_encrypt_m(m0, skip, length, key, iv, mode)
 				while (in - &inbuf[0] < 8) {
 					if (!p)
 						panic("mbuf chain?\n");
-
+					
 					*in++ = *p++;
 					noff++;
 					if (noff < n->m_len)
@@ -338,4 +338,6 @@ void BF_cbc_encrypt_m(m0, skip, length, key, iv, mode)
 			length -= 8;
 		}
 	}
+
+	return 0;
 }

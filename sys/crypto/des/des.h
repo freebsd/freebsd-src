@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: des.h,v 1.4 2000/06/14 10:41:17 itojun Exp $	*/
+
 /* lib/des/des.h */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -43,12 +46,10 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #ifndef HEADER_DES_H
-#define	HEADER_DES_H
+#define HEADER_DES_H
 
 #ifdef  __cplusplus
 extern "C" {
@@ -57,7 +58,7 @@ extern "C" {
 /* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
  * %20 speed up (longs are 8 bytes, int's are 4). */
 #ifndef DES_LONG
-#define	DES_LONG unsigned long
+#define DES_LONG unsigned long
 #endif
 
 typedef unsigned char des_cblock[8];
@@ -70,54 +71,54 @@ typedef struct des_ks_struct
 		DES_LONG pad[2];
 		} ks;
 #undef _
-#define	_	ks._
+#define _	ks._
 	} des_key_schedule[16];
 
-#define	DES_KEY_SZ 	(sizeof(des_cblock))
-#define	DES_SCHEDULE_SZ (sizeof(des_key_schedule))
+#define DES_KEY_SZ 	(sizeof(des_cblock))
+#define DES_SCHEDULE_SZ (sizeof(des_key_schedule))
 
-#define	DES_ENCRYPT	1
-#define	DES_DECRYPT	0
+#define DES_ENCRYPT	1
+#define DES_DECRYPT	0
 
-#define	DES_CBC_MODE	0
-#define	DES_PCBC_MODE	1
+#define DES_CBC_MODE	0
+#define DES_PCBC_MODE	1
 
-#define	des_ecb2_encrypt(i,o,k1,k2,e) \
+#define des_ecb2_encrypt(i,o,k1,k2,e) \
 	des_ecb3_encrypt((i),(o),(k1),(k2),(k1),(e))
 
-#define	des_ede2_cbc_encrypt(i,o,l,k1,k2,iv,e) \
+#define des_ede2_cbc_encrypt(i,o,l,k1,k2,iv,e) \
 	des_ede3_cbc_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(e))
 
-#define	des_ede2_cfb64_encrypt(i,o,l,k1,k2,iv,n,e) \
+#define des_ede2_cfb64_encrypt(i,o,l,k1,k2,iv,n,e) \
 	des_ede3_cfb64_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(n),(e))
 
-#define	des_ede2_ofb64_encrypt(i,o,l,k1,k2,iv,n) \
+#define des_ede2_ofb64_encrypt(i,o,l,k1,k2,iv,n) \
 	des_ede3_ofb64_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(n))
 
-#define	C_Block des_cblock
-#define	Key_schedule des_key_schedule
+#define C_Block des_cblock
+#define Key_schedule des_key_schedule
 #ifdef KERBEROS
-#define	ENCRYPT DES_ENCRYPT
-#define	DECRYPT DES_DECRYPT
+#define ENCRYPT DES_ENCRYPT
+#define DECRYPT DES_DECRYPT
 #endif
-#define	KEY_SZ DES_KEY_SZ
-#define	string_to_key des_string_to_key
-#define	read_pw_string des_read_pw_string
-#define	random_key des_random_key
-#define	pcbc_encrypt des_pcbc_encrypt
-#define	set_key des_set_key
-#define	key_sched des_key_sched
-#define	ecb_encrypt des_ecb_encrypt
-#define	cbc_encrypt des_cbc_encrypt
-#define	ncbc_encrypt des_ncbc_encrypt
-#define	xcbc_encrypt des_xcbc_encrypt
-#define	cbc_cksum des_cbc_cksum
-#define	quad_cksum des_quad_cksum
+#define KEY_SZ DES_KEY_SZ
+#define string_to_key des_string_to_key
+#define read_pw_string des_read_pw_string
+#define random_key des_random_key
+#define pcbc_encrypt des_pcbc_encrypt
+#define set_key des_set_key
+#define key_sched des_key_sched
+#define ecb_encrypt des_ecb_encrypt
+#define cbc_encrypt des_cbc_encrypt
+#define ncbc_encrypt des_ncbc_encrypt
+#define xcbc_encrypt des_xcbc_encrypt
+#define cbc_cksum des_cbc_cksum
+#define quad_cksum des_quad_cksum
 
 /* For compatibility with the MIT lib - eay 20/05/92 */
 typedef des_key_schedule bit_64;
-#define	des_fixup_key_parity des_set_odd_parity
-#define	des_check_key_parity check_parity
+#define des_fixup_key_parity des_set_odd_parity
+#define des_check_key_parity check_parity
 
 extern int des_check_key;	/* defaults to false */
 extern int des_rw_mode;		/* defaults to DES_PCBC_MODE */
@@ -139,7 +140,7 @@ DES_LONG des_cbc_cksum(des_cblock *input,des_cblock *output,
 void des_cbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule schedule,des_cblock *ivec,int enc);
 */
-void des_cbc_encrypt(struct mbuf *, size_t, size_t,
+int des_cbc_encrypt(struct mbuf *, size_t, size_t,
 	des_key_schedule schedule,des_cblock *ivec, int enc);
 void des_ncbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule schedule,des_cblock *ivec,int enc);
@@ -149,7 +150,7 @@ void des_xcbc_encrypt(des_cblock *input,des_cblock *output,long length,
 void des_3cbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule sk1,des_key_schedule sk2,
 	des_cblock *ivec1,des_cblock *ivec2,int enc);
-extern void des_3cbc_process(struct mbuf *, size_t, size_t,
+extern int des_3cbc_process(struct mbuf *, size_t, size_t,
 	des_key_schedule *schedule, des_cblock *ivec, int mode);
 void des_cfb_encrypt(unsigned char *in,unsigned char *out,int numbits,
 	long length,des_key_schedule schedule,des_cblock *ivec,int enc);

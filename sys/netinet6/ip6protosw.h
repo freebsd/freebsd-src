@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ip6protosw.h,v 1.10 2000/03/29 22:51:25 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -26,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*	BSDI protosw.h,v 2.3 1996/10/11 16:02:40 pjd Exp	*/
@@ -74,23 +76,22 @@
  * All other definitions should refer to sys/protosw.h
  */
 
-struct	mbuf;
-struct	sockaddr;
-struct	socket;
-struct	sockopt;
-struct	domain;
-struct	proc;
-struct	ip6_hdr;
-struct	pr_usrreqs;
+struct mbuf;
+struct sockaddr;
+struct socket;
+struct domain;
+struct proc;
+struct ip6_hdr;
+struct pr_usrreqs;
 
 /*
  * argument type for the last arg of pr_ctlinput().
  * should be consulted only with AF_INET6 family.
  */
 struct ip6ctlparam {
-	struct	mbuf *ip6c_m;		/* start of mbuf chain */
-	struct	ip6_hdr *ip6c_ip6;	/* ip6 header of target packet */
-	int	ip6c_off;		/* offset of the target proto header */
+	struct mbuf *ip6c_m;		/* start of mbuf chain */
+	struct ip6_hdr *ip6c_ip6;	/* ip6 header of target packet */
+	int ip6c_off;			/* offset of the target proto header */
 };
 
 struct ip6protosw {

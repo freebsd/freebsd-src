@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: in6_gif.h,v 1.5 2000/04/14 08:36:03 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,21 +28,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef _NETINET6_IN6_GIF_H_
-#define	_NETINET6_IN6_GIF_H_
+#define _NETINET6_IN6_GIF_H_
 
-#define	GIF_HLIM	30
+#define GIF_HLIM	30
 
-struct	mbuf;
-struct	ifnet;
-struct	rtentry;
-
-int	in6_gif_input __P((struct mbuf **, int *, int));
-int	in6_gif_output __P((struct ifnet *, int, struct mbuf *,
-			    struct rtentry *));
+int in6_gif_input __P((struct mbuf **, int *, int));
+int in6_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
+int gif_encapcheck6 __P((const struct mbuf *, int, int, void *));
 
 #endif /*_NETINET6_IN6_GIF_H_*/

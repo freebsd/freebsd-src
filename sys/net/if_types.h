@@ -99,5 +99,6 @@
 #define	IFT_PROPMUX	0x36		/* Proprietary Multiplexing */
 #define	IFT_GIF		0x37
 #define	IFT_FAITH	0x38
+#define	IFT_STF		0x39
 
 #endif

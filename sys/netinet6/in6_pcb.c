@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: in6_pcb.c,v 1.8 2000/06/09 00:37:02 itojun Exp $	*/
+  
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -26,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
@@ -62,7 +64,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
  */
 
 #include "opt_ipsec.h"
@@ -90,7 +91,7 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #include <netinet/ip_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
@@ -105,11 +106,6 @@
 #include <netinet6/ipsec6.h>
 #include <netinet6/ah6.h>
 #include <netkey/key.h>
-#ifdef IPSEC_DEBUG
-#include <netkey/key_debug.h>
-#else
-#define	KEYDEBUG(lev,arg)
-#endif /* IPSEC_DEBUG */
 #endif /* IPSEC */
 
 struct	in6_addr zeroin6_addr;
@@ -121,12 +117,10 @@ in6_pcbbind(inp, nam, p)
 	struct proc *p;
 {
 	struct socket *so = inp->inp_socket;
-	unsigned short *lastport;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short	lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
-	int error;
 
 	if (!in6_ifaddr) /* XXX broken! */
 		return (EADDRNOTAVAIL);
@@ -144,36 +138,11 @@ in6_pcbbind(inp, nam, p)
 		if (nam->sa_family != AF_INET6)
 			return(EAFNOSUPPORT);
 
-		/*
-		 * If the scope of the destination is link-local, embed the
-		 * interface index in the address.
-		 */
-		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr)) {
-			/* XXX boundary check is assumed to be already done. */
-			/* XXX sin6_scope_id is weaker than advanced-api. */
-			struct in6_pktinfo *pi;
-			if (inp->in6p_outputopts &&
-			    (pi = inp->in6p_outputopts->ip6po_pktinfo) &&
-			    pi->ipi6_ifindex) {
-				sin6->sin6_addr.s6_addr16[1]
-					= htons(pi->ipi6_ifindex);
-			} else if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)
-				&& inp->in6p_moptions
-				&& inp->in6p_moptions->im6o_multicast_ifp) {
-				sin6->sin6_addr.s6_addr16[1] =
-					htons(inp->in6p_moptions->im6o_multicast_ifp->if_index);
-			} else if (sin6->sin6_scope_id) {
-				/* boundary check */
-				if (sin6->sin6_scope_id < 0
-				 || if_index < sin6->sin6_scope_id) {
-					return ENXIO;  /* XXX EINVAL? */
-				}
-				sin6->sin6_addr.s6_addr16[1]
-					= htons(sin6->sin6_scope_id & 0xffff);/*XXX*/
-				/* this must be cleared for ifa_ifwithaddr() */
-				sin6->sin6_scope_id = 0;
-			}
-		}
+		/* KAME hack: embed scopeid */
+		if (in6_embedscope(&sin6->sin6_addr, sin6, inp, NULL) != 0)
+			return EINVAL;
+		/* this must be cleared for ifa_ifwithaddr() */
+		sin6->sin6_scope_id = 0;
 
 		lport = sin6->sin6_port;
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
@@ -266,82 +235,17 @@ in6_pcbbind(inp, nam, p)
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
 	if (lport == 0) {
-		ushort first, last;
-		int count;
-
-		inp->inp_flags |= INP_ANONPORT;
-
-		if (inp->inp_flags & INP_HIGHPORT) {
-			first = ipport_hifirstauto;	/* sysctl */
-			last  = ipport_hilastauto;
-			lastport = &pcbinfo->lasthi;
-		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (p && (error = suser_xxx(0, p, PRISON_ROOT)))
-				return error;
-			first = ipport_lowfirstauto;	/* 1023 */
-			last  = ipport_lowlastauto;	/* 600 */
-			lastport = &pcbinfo->lastlow;
-		} else {
-			first = ipport_firstauto;	/* sysctl */
-			last  = ipport_lastauto;
-			lastport = &pcbinfo->lastport;
-		}
-		/*
-		 * Simple check to ensure all ports are not used up causing
-		 * a deadlock here.
-		 *
-		 * We split the two cases (up and down) so that the direction
-		 * is not being tested on each round of the loop.
-		 */
-		if (first > last) {
-			/*
-			 * counting down
-			 */
-			count = first - last;
-
-			do {
-				if (count-- < 0) {	/* completely used? */
-					/*
-					 * Undo any address bind that may have
-					 * occurred above.
-					 */
-					inp->in6p_laddr = in6addr_any;
-					return (EAGAIN);
-				}
-				--*lastport;
-				if (*lastport > first || *lastport < last)
-					*lastport = first;
-				lport = htons(*lastport);
-			} while (in6_pcblookup_local(pcbinfo,
-				 &inp->in6p_laddr, lport, wild));
-		} else {
-			/*
-			 * counting up
-			 */
-			count = last - first;
-
-			do {
-				if (count-- < 0) {	/* completely used? */
-					/*
-					 * Undo any address bind that may have
-					 * occurred above.
-					 */
-					inp->in6p_laddr = in6addr_any;
-					return (EAGAIN);
-				}
-				++*lastport;
-				if (*lastport < first || *lastport > last)
-					*lastport = first;
-				lport = htons(*lastport);
-			} while (in6_pcblookup_local(pcbinfo,
-				 &inp->in6p_laddr, lport, wild));
-		}
+		int e;
+		if ((e = in6_pcbsetport(&inp->in6p_laddr, inp, p)) != 0)
+			return(e);
 	}
-	inp->inp_lport = lport;
-	if (in_pcbinshash(inp) != 0) {
-		inp->in6p_laddr = in6addr_any;
-		inp->inp_lport = 0;
-		return (EAGAIN);
+	else {
+		inp->inp_lport = lport;
+		if (in_pcbinshash(inp) != 0) {
+			inp->in6p_laddr = in6addr_any;
+			inp->inp_lport = 0;
+			return (EAGAIN);
+		}
 	}
 	inp->in6p_flowinfo = sin6 ? sin6->sin6_flowinfo : 0;	/*XXX*/
 	return(0);
@@ -377,35 +281,9 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 	if (sin6->sin6_port == 0)
 		return (EADDRNOTAVAIL);
 
-	/*
-	 * If the scope of the destination is link-local, embed the interface
-	 * index in the address.
-	 */
-	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr)) {
-		/* XXX boundary check is assumed to be already done. */
-		/* XXX sin6_scope_id is weaker than advanced-api. */
-		if (inp->in6p_outputopts &&
-		    (pi = inp->in6p_outputopts->ip6po_pktinfo) &&
-		    pi->ipi6_ifindex) {
-			sin6->sin6_addr.s6_addr16[1] = htons(pi->ipi6_ifindex);
-			ifp = ifindex2ifnet[pi->ipi6_ifindex];
-		} else if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr) &&
-			 inp->in6p_moptions &&
-			 inp->in6p_moptions->im6o_multicast_ifp) {
-			sin6->sin6_addr.s6_addr16[1] =
-				htons(inp->in6p_moptions->im6o_multicast_ifp->if_index);
-			ifp = ifindex2ifnet[inp->in6p_moptions->im6o_multicast_ifp->if_index];
-		} else if (sin6->sin6_scope_id) {
-			/* boundary check */
-			if (sin6->sin6_scope_id < 0
-			 || if_index < sin6->sin6_scope_id) {
-				return ENXIO;  /* XXX EINVAL? */
-			}
-			sin6->sin6_addr.s6_addr16[1]
-				= htons(sin6->sin6_scope_id & 0xffff);/*XXX*/
-			ifp = ifindex2ifnet[sin6->sin6_scope_id];
-		}
-	}
+	/* KAME hack: embed scopeid */
+	if (in6_embedscope(&sin6->sin6_addr, sin6, inp, &ifp) != 0)
+		return EINVAL;
 
 	if (in6_ifaddr) {
 		/*
@@ -439,8 +317,6 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 
 	if (inp->in6p_route.ro_rt)
 		ifp = inp->in6p_route.ro_rt->rt_ifp;
-
-	inp->in6p_ip6_hlim = (u_int8_t)in6_selecthlim(inp, ifp);
 
 	return(0);
 }
@@ -499,6 +375,7 @@ in6_pcbconnect(inp, nam, p)
 	return (0);
 }
 
+#if 0
 /*
  * Return an IPv6 address, which is the most appropriate for given
  * destination and user specified options.
@@ -699,6 +576,7 @@ in6_selecthlim(in6p, ifp)
 	else
 		return(ip6_defhlim);
 }
+#endif
 
 void
 in6_pcbdisconnect(inp)
@@ -891,10 +769,11 @@ in6_pcbnotify(head, dst, fport_arg, laddr6, lport_arg, cmd, notify)
 	int cmd;
 	void (*notify) __P((struct inpcb *, int));
 {
-	struct inpcb *inp, *oinp;
+	struct inpcb *inp, *ninp;
 	struct in6_addr faddr6;
 	u_short	fport = fport_arg, lport = lport_arg;
 	int errno, s;
+	int do_rtchange = (notify == in6_rtchange);
 
 	if ((unsigned)cmd > PRC_NCMDS || dst->sa_family != AF_INET6)
 		return;
@@ -904,8 +783,9 @@ in6_pcbnotify(head, dst, fport_arg, laddr6, lport_arg, cmd, notify)
 
 	/*
 	 * Redirects go to all references to the destination,
-	 * and use in_rtchange to invalidate the route cache.
-	 * Dead host indications: notify all references to the destination.
+	 * and use in6_rtchange to invalidate the route cache.
+	 * Dead host indications: also use in6_rtchange to invalidate
+	 * the cache, and deliver the error to all the sockets.
 	 * Otherwise, if we have knowledge of the local port and address,
 	 * deliver only to that socket.
 	 */
@@ -913,29 +793,43 @@ in6_pcbnotify(head, dst, fport_arg, laddr6, lport_arg, cmd, notify)
 		fport = 0;
 		lport = 0;
 		bzero((caddr_t)laddr6, sizeof(*laddr6));
-		if (cmd != PRC_HOSTDEAD)
-			notify = in6_rtchange;
+
+		do_rtchange = 1;
 	}
 	errno = inet6ctlerrmap[cmd];
 	s = splnet();
-	for (inp = LIST_FIRST(head); inp != NULL;) {
-		if ((inp->inp_vflag & INP_IPV6) == 0) {
-			inp = LIST_NEXT(inp, inp_list);
+ 	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
+ 		ninp = LIST_NEXT(inp, inp_list);
+
+ 		if ((inp->inp_vflag & INP_IPV6) == NULL)
 			continue;
-		}
+
+ 		if (do_rtchange) {
+ 			/*
+ 			 * Since a non-connected PCB might have a cached route,
+ 			 * we always call in6_rtchange without matching
+ 			 * the PCB to the src/dst pair.
+ 			 *
+ 			 * XXX: we assume in6_rtchange does not free the PCB.
+ 			 */
+ 			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_route.ro_dst.sin6_addr,
+ 					       &faddr6))
+ 				in6_rtchange(inp, errno);
+
+ 			if (notify == in6_rtchange)
+ 				continue; /* there's nothing to do any more */
+  		}
+
 		if (!IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &faddr6) ||
 		   inp->inp_socket == 0 ||
 		   (lport && inp->inp_lport != lport) ||
 		   (!IN6_IS_ADDR_UNSPECIFIED(laddr6) &&
 		    !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr6)) ||
-		   (fport && inp->inp_fport != fport)) {
-			inp = LIST_NEXT(inp, inp_list);
+		    (fport && inp->inp_fport != fport))
 			continue;
-		}
-		oinp = inp;
-		inp = LIST_NEXT(inp, inp_list);
+
 		if (notify)
-			(*notify)(oinp, errno);
+ 			(*notify)(inp, errno);
 	}
 	splx(s);
 }
