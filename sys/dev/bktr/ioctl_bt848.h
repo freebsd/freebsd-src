@@ -15,8 +15,9 @@
 #define CHNLSET_JPNCABLE        6
 #define CHNLSET_XUSSR           7
 #define CHNLSET_AUSTRALIA       8
+#define CHNLSET_FRANCE          9
 #define CHNLSET_MIN	        CHNLSET_NABCST
-#define CHNLSET_MAX	        CHNLSET_AUSTRALIA
+#define CHNLSET_MAX	        CHNLSET_FRANCE
 
 
 /*
