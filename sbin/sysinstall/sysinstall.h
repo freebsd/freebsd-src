@@ -54,8 +54,9 @@ void	*Malloc __P((size_t size));
 char	*StrAlloc __P((char *str));
 void	Fatal __P((char *fmt, ...));
 void	AskAbort __P((char *fmt, ...));
-void	MountUfs __P((char *device, char *prefix, char *mountpoint, int do_mkdir));
+void	MountUfs __P((char *device, char *mountpoint, int do_mkdir,int flags));
 void	Mkdir __P((char *path));
+void	CopyFile __P((char *p1, char *p2));
 
 /* exec.c */
 int	exec __P((int magic, char *cmd, char *args, ...));
@@ -73,5 +74,14 @@ void	stage2 __P((void));
 /* stage3.c */
 void	stage3 __P((void));
 
+/* stage4.c */
+void	stage4 __P((void));
+
+/* stage5.c */
+void	stage5 __P((void));
+
 /* termcap.c */
 int	set_termcap __P((void));
+
+/* makedevs.c */
+int	makedevs __P((void));
