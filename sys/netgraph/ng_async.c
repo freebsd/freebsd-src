@@ -197,7 +197,7 @@ fail:
 		FREE(sc, M_NETGRAPH);
 		return (ENOMEM);
 	}
-	node->private = sc;
+	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
 	return (0);
 }
@@ -208,7 +208,7 @@ fail:
 static int
 nga_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	hook_p *hookp;
 
 	if (!strcmp(name, NG_ASYNC_HOOK_ASYNC)) {
@@ -217,7 +217,7 @@ nga_newhook(node_p node, hook_p hook, const char *name)
 		 * at a time can be allowed to travel in this direction.
 		 * Force Writer semantics.
 		 */
-		hook->flags |= HK_FORCE_WRITER;
+		NG_HOOK_FORCE_WRITER(hook);
 		hookp = &sc->async;
 	} else if (!strcmp(name, NG_ASYNC_HOOK_SYNC)) {
 		/*
@@ -228,8 +228,7 @@ nga_newhook(node_p node, hook_p hook, const char *name)
 		 * we might as well set it for the whole node
 		 * bit I haven;t done that (yet).
 		 */
-		hook->flags |= HK_FORCE_WRITER;
-		hookp = &sc->async;
+		NG_HOOK_FORCE_WRITER(hook);
 		hookp = &sc->sync;
 	} else {
 		return (EINVAL);
@@ -246,10 +245,7 @@ nga_newhook(node_p node, hook_p hook, const char *name)
 static int
 nga_rcvdata(hook_p hook, item_p item)
 {
-	const sc_p sc = hook->node->private;
-#ifdef	ITEM_DEBUG
-	meta_p meta = NGI_META(item);
-#endif
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if (hook == sc->sync)
 		return (nga_rcv_sync(sc, item));
@@ -264,12 +260,11 @@ nga_rcvdata(hook_p hook, item_p item)
 static int
 nga_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const sc_p sc = (sc_p) node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
 	
-
 	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_ASYNC_COOKIE:
@@ -347,14 +342,14 @@ done:
 static int
 nga_shutdown(node_p node)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 
 	FREE(sc->abuf, M_NETGRAPH);
 	FREE(sc->sbuf, M_NETGRAPH);
 	bzero(sc, sizeof(*sc));
 	FREE(sc, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -364,7 +359,7 @@ nga_shutdown(node_p node)
 static int
 nga_disconnect(hook_p hook)
 {
-	const sc_p sc = hook->node->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	hook_p *hookp;
 
 	if (hook == sc->async)
@@ -378,9 +373,9 @@ nga_disconnect(hook_p hook)
 	*hookp = NULL;
 	bzero(&sc->stats, sizeof(sc->stats));
 	sc->lasttime = 0;
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 
@@ -422,7 +417,7 @@ nga_rcv_sync(const sc_p sc, item_p item)
 
 	/* Check for bypass mode */
 	if (!sc->cfg.enabled) {
-		NG_FWD_DATA(error, item, sc->async );
+		NG_FWD_ITEM_HOOK(error, item, sc->async );
 		return (error);
 	}
 	NGI_GET_M(item, m);
@@ -510,7 +505,7 @@ nga_rcv_async(const sc_p sc, item_p item)
 	struct mbuf *m;
 
 	if (!sc->cfg.enabled) {
-		NG_FWD_DATA(error, item,  sc->sync);
+		NG_FWD_ITEM_HOOK(error, item,  sc->sync);
 		return (error);
 	}
 	NGI_GET_M(item, m);

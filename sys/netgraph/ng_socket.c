@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -15,7 +15,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -235,9 +235,38 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 	m_copydata(m, 0, len, (char *)msg);
 
+#ifdef TRACE_MESSAGES
+	do {								
+		item_p item;						
+		if ((item = ng_package_msg(msg)) == NULL) {		
+			(msg) = NULL;				
+			(error) = ENOMEM;				
+printf("err=%d\n",error);
+			break;						
+		}							
+		if (((error) = ng_address_path((pcbp->sockdata->node), (item),		
+					(path), (NULL))) == 0) {	
+printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
+item->el_dest->nd_ID,
+msg->header.typecookie,
+msg->header.cmd,
+msg->header.cmdstr,
+msg->header.flags,
+msg->header.token,
+item->el_dest->nd_type->name); 
+			SAVE_LINE(item);			
+			(error) = ng_snd_item((item), 0);		
+		}							
+else {
+printf("errx=%d\n",error);
+}
+		(msg) = NULL;						
+	} while (0);
+
+#else
 	/* The callee will free the msg when done. The path is our business. */
 	NG_SEND_MSG_PATH(error, pcbp->sockdata->node, msg, path, NULL);
-
+#endif
 release:
 	if (path != NULL)
 		FREE(path, M_NETGRAPH);
@@ -261,8 +290,9 @@ ngc_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 static int
 ngc_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
+printf(" program tried to connect control socket to remote node\n ");
 	/*
-	 * At this time refuse to do this.. it used to 
+	 * At this time refuse to do this.. it used to
 	 * do something but it was undocumented and not used.
 	 */
 	return (EINVAL);
@@ -318,7 +348,7 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	if ((sap == NULL)
 	|| ((len = sap->sg_len) <= 2)
 	|| (*sap->sg_data == '\0')) {
-		if (pcbp->sockdata->node->numhooks != 1) {
+		if (NG_NODE_NUMHOOKS(pcbp->sockdata->node) != 1) {
 			error = EDESTADDRREQ;
 			goto release;
 		}
@@ -326,7 +356,7 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		 * if exactly one hook exists, just use it.
 		 * Special case to allow write(2) to work on an ng_socket.
 		 */
-		hook = LIST_FIRST(&pcbp->sockdata->node->hooks);
+		hook = LIST_FIRST(&pcbp->sockdata->node->nd_hooks);
 	} else {
 		if (len > NG_HOOKLEN) {
 			error = EINVAL;
@@ -341,8 +371,8 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		hookname[len] = '\0';
 
 		/* Find the correct hook from 'hookname' */
-		LIST_FOREACH(hook, &pcbp->sockdata->node->hooks, hooks) {
-			if (strcmp(hookname, hook->name) == 0)
+		LIST_FOREACH(hook, &pcbp->sockdata->node->nd_hooks, hk_hooks) {
+			if (strcmp(hookname, NG_HOOK_NAME(hook)) == 0)
 				break;
 		}
 		if (hook == NULL)
@@ -391,14 +421,13 @@ ng_setsockaddr(struct socket *so, struct sockaddr **addr)
 	}
 
 	namelen = 0;		/* silence compiler ! */
-
-	if (pcbp->sockdata->node->name != NULL)
-		sg_len += namelen = strlen(pcbp->sockdata->node->name);
+	if ( NG_NODE_HAS_NAME(pcbp->sockdata->node))
+		sg_len += namelen = strlen(NG_NODE_NAME(pcbp->sockdata->node));
 
 	MALLOC(sg, struct sockaddr_ng *, sg_len, M_SONAME, M_WAITOK | M_ZERO);
 
-	if (pcbp->sockdata->node->name != NULL)
-		bcopy(pcbp->sockdata->node->name, sg->sg_data, namelen);
+	if (NG_NODE_HAS_NAME(pcbp->sockdata->node))
+		bcopy(NG_NODE_NAME(pcbp->sockdata->node), sg->sg_data, namelen);
 	splx(s);
 
 	sg->sg_len = sg_len;
@@ -440,7 +469,7 @@ ng_attach_cntl(struct socket *so)
 		ng_detach_common(pcbp, NG_CONTROL);
 		return (error);
 	}
-	privdata->node->private = privdata;
+	NG_NODE_SET_PRIVATE(privdata->node, privdata);
 
 	/* Link the pcb and the node private data */
 	privdata->ctlsock = pcbp;
@@ -612,16 +641,16 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 		return (error); /* item is freed on failure */
 
 	/*
-	 * Extract node from item and free item. Remember we now have 
+	 * Extract node from item and free item. Remember we now have
 	 * a reference on the node. The item holds it for us.
 	 * when we free the item we release the reference.
 	 */
 	farnode = item->el_dest; /* shortcut */
-	if (strcmp(farnode->type->name, NG_SOCKET_NODE_TYPE) != 0) {
+	if (strcmp(farnode->nd_type->name, NG_SOCKET_NODE_TYPE) != 0) {
 		NG_FREE_ITEM(item); /* drop the reference to the node */
 		return (EINVAL);
 	}
-	sockdata = farnode->private;
+	sockdata = NG_NODE_PRIVATE(farnode);
 	if (sockdata->datasock != NULL) {
 		NG_FREE_ITEM(item);	/* drop the reference to the node */
 		return (EADDRINUSE);
@@ -712,7 +741,7 @@ ngs_constructor(node_p nodep)
 static int
 ngs_newhook(node_p node, hook_p hook, const char *name)
 {
-	hook->private = node->private;
+	NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
 	return (0);
 }
 
@@ -723,7 +752,7 @@ ngs_newhook(node_p node, hook_p hook, const char *name)
 static int
 ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct ngsock *const sockdata = node->private;
+	struct ngsock *const sockdata = NG_NODE_PRIVATE(node);
 	struct ngpcb *const pcbp = sockdata->ctlsock;
 	struct sockaddr_ng *addr;
 	int addrlen;
@@ -741,6 +770,16 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
+#ifdef TRACE_MESSAGES
+printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
+retaddr,
+msg->header.typecookie,
+msg->header.cmd,
+msg->header.cmdstr,
+msg->header.flags,
+msg->header.token);
+
+#endif
 
 	if (msg->header.typecookie == NGM_SOCKET_COOKIE) {
 		switch (msg->header.cmd) {
@@ -783,7 +822,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ngs_rcvdata(hook_p hook, item_p item)
 {
-	struct ngsock *const sockdata = hook->node->private;
+	struct ngsock *const sockdata = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ngpcb *const pcbp = sockdata->datasock;
 	struct socket *so;
 	struct sockaddr_ng *addr;
@@ -801,11 +840,11 @@ ngs_rcvdata(hook_p hook, item_p item)
 	so = pcbp->ng_socket;
 
 	/* Get the return address into a sockaddr. */
-	addrlen = strlen(hook->name);	/* <= NG_HOOKLEN */
+	addrlen = strlen(NG_HOOK_NAME(hook));	/* <= NG_HOOKLEN */
 	addr = (struct sockaddr_ng *) addrbuf;
 	addr->sg_len = addrlen + 3;
 	addr->sg_family = AF_NETGRAPH;
-	bcopy(hook->name, addr->sg_data, addrlen);
+	bcopy(NG_HOOK_NAME(hook), addr->sg_data, addrlen);
 	addr->sg_data[addrlen] = '\0';
 
 	/* Try to tell the socket which hook it came in on */
@@ -827,12 +866,12 @@ ngs_rcvdata(hook_p hook, item_p item)
 static int
 ngs_disconnect(hook_p hook)
 {
-	struct ngsock *const sockdata = hook->node->private;
+	struct ngsock *const sockdata = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if ((sockdata->flags & NGS_FLAG_NOLINGER )
-	&& (hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0)) {
-		ng_rmnode_self(hook->node);
+	&& (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);
 }
@@ -845,7 +884,7 @@ ngs_disconnect(hook_p hook)
 static int
 ngs_shutdown(node_p node)
 {
-	struct ngsock *const sockdata = node->private;
+	struct ngsock *const sockdata = NG_NODE_PRIVATE(node);
 	struct ngpcb *const dpcbp = sockdata->datasock;
 	struct ngpcb *const pcbp = sockdata->ctlsock;
 
@@ -861,8 +900,8 @@ ngs_shutdown(node_p node)
 		sockdata->ctlsock = NULL;
 		sockdata->refs--;
 	}
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	FREE(sockdata, M_NETGRAPH);
 	return (0);
 }

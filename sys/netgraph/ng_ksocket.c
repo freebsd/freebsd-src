@@ -493,7 +493,7 @@ ng_ksocket_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Done */
 	return (0);
@@ -511,7 +511,7 @@ static int
 ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	char *s1, *s2, name[NG_HOOKLEN+1];
 	int family, type, protocol, error;
 
@@ -560,7 +560,7 @@ static int
 ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
@@ -774,8 +774,8 @@ static int
 ng_ksocket_rcvdata(hook_p hook, item_p item)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;
 	int error;
 	struct mbuf *m;
@@ -792,7 +792,7 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 static int
 ng_ksocket_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Close our socket (if any) */
 	if (priv->so != NULL) {
@@ -804,11 +804,10 @@ ng_ksocket_shutdown(node_p node)
 	}
 
 	/* Take down netgraph node */
-	node->flags |= NG_INVALID;
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);		/* let the node escape */
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);		/* let the node escape */
 	return (0);
 }
 
@@ -818,10 +817,10 @@ ng_ksocket_shutdown(node_p node)
 static int
 ng_ksocket_disconnect(hook_p hook)
 {
-	KASSERT(hook->node->numhooks == 0,
-	    ("%s: numhooks=%d?", __FUNCTION__, hook->node->numhooks));
-	if ((hook->node->flags & NG_INVALID) == 0)
-		ng_rmnode_self(hook->node);
+	KASSERT(NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0,
+	    ("%s: numhooks=%d?", __FUNCTION__, NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook))));
+	if (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 
@@ -836,7 +835,7 @@ static void
 ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 {
 	const node_p node = arg;
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
 	struct uio auio;
 	int s, flags, error;
@@ -844,7 +843,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 	s = splnet();
 
 	/* Sanity check */
-	if ((node->flags & NG_INVALID) != 0) {
+	if (NG_NODE_NOT_VALID(node)) {
 		splx(s);
 		return;
 	}

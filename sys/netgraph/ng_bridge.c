@@ -324,12 +324,12 @@ ng_bridge_constructor(node_p node)
 	 * When it's fixed the process SHOULD NOT SLEEP, spinlocks please!
 	 * (and atomic ops )
 	 */
-	node->flags |= NG_FORCE_WRITER;
-	node->private = priv;
+	NG_NODE_FORCE_WRITER(node);
+	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
 
 	/* Start timer by faking a timeout event */
-	node->refs++; /* XXX ????  because of the timeout?*/
+	NG_NODE_REF(node); /* because the timeout will drop a reference */
 	ng_bridge_timeout(node);
 	return (0);
 }
@@ -340,7 +340,7 @@ ng_bridge_constructor(node_p node)
 static	int
 ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Check for a link hook */
 	if (strncmp(name, NG_BRIDGE_HOOK_LINK_PREFIX,
@@ -362,7 +362,7 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 		if (priv->links[linkNum] == NULL)
 			return (ENOMEM);
 		priv->links[linkNum]->hook = hook;
-		LINK_NUM(hook) = linkNum;
+		NG_HOOK_SET_PRIVATE(hook, (void *)linkNum);
 		priv->numLinks++;
 		return (0);
 	}
@@ -377,7 +377,7 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -512,8 +512,8 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_bridge_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_bridge_host *host;
 	struct ng_bridge_link *link;
 	struct ether_header *eh;
@@ -525,7 +525,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 	NGI_GET_M(item, m);
 	/* Get link number */
-	linkNum = LINK_NUM(hook);
+	linkNum = (int)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum >= 0 && linkNum < NG_BRIDGE_MAX_LINKS,
 	    ("%s: linkNum=%u", __FUNCTION__, linkNum));
 	link = priv->links[linkNum];
@@ -600,7 +600,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 					log(LOG_WARNING, "ng_bridge: %s:"
 					    " loopback detected on %s%s\n",
 					    ng_bridge_nodename(node),
-					    hook->name, suffix);
+					    NG_HOOK_NAME(hook), suffix);
 				}
 
 				/* Mark link as linka non grata */
@@ -758,15 +758,15 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 static int
 ng_bridge_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	KASSERT(priv->numLinks == 0 && priv->numHosts == 0,
 	    ("%s: numLinks=%d numHosts=%d",
 	    __FUNCTION__, priv->numLinks, priv->numHosts));
 	FREE(priv->tab, M_NETGRAPH);
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -776,11 +776,11 @@ ng_bridge_shutdown(node_p node)
 static int
 ng_bridge_disconnect(hook_p hook)
 {
-	const priv_p priv = hook->node->private;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int linkNum;
 
 	/* Get link number */
-	linkNum = LINK_NUM(hook);
+	linkNum = (int)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum >= 0 && linkNum < NG_BRIDGE_MAX_LINKS,
 	    ("%s: linkNum=%u", __FUNCTION__, linkNum));
 
@@ -794,9 +794,10 @@ ng_bridge_disconnect(hook_p hook)
 	priv->numLinks--;
 
 	/* If no more hooks, go away */
-	if ((hook->node->numhooks == 0)
-	&& (( hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+		ng_rmnode_self(NG_HOOK_NODE(hook));
+	}
 	return (0);
 }
 
@@ -965,15 +966,15 @@ static void
 ng_bridge_timeout(void *arg)
 {
 	const node_p node = arg;
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int s, bucket;
 	int counter = 0;
 	int linkNum;
 
 	/* Avoid race condition with ng_bridge_shutdown() */
 	s = splnet();
-	if ((node->flags & NG_INVALID) != 0 || priv == NULL) {
-		ng_unref(node);
+	if ((NG_NODE_NOT_VALID(node)) || priv == NULL) {
+		NG_NODE_UNREF(node);
 		splx(s);
 		return;
 	}
@@ -1045,8 +1046,8 @@ ng_bridge_nodename(node_p node)
 {
 	static char name[NG_NODELEN+1];
 
-	if (node->name != NULL)
-		snprintf(name, sizeof(name), "%s", node->name);
+	if (NG_NODE_NAME(node) != NULL)
+		snprintf(name, sizeof(name), "%s", NG_NODE_NAME(node));
 	else
 		snprintf(name, sizeof(name), "[%x]", ng_node2ID(node));
 	return name;

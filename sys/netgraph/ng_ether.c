@@ -210,7 +210,7 @@ ng_ether_input(struct ifnet *ifp,
 	struct mbuf **mp, struct ether_header *eh)
 {
 	const node_p node = IFP2NG(ifp);
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* If "lower" hook not connected, let packet continue */
 	if (priv->lower == NULL || priv->lowerOrphan)
@@ -229,7 +229,7 @@ ng_ether_input_orphan(struct ifnet *ifp,
 	struct mbuf *m, struct ether_header *eh)
 {
 	const node_p node = IFP2NG(ifp);
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* If "orphan" hook not connected, let packet continue */
 	if (priv->lower == NULL || !priv->lowerOrphan) {
@@ -251,7 +251,7 @@ ng_ether_input_orphan(struct ifnet *ifp,
 static void
 ng_ether_input2(node_p node, struct mbuf **mp, struct ether_header *eh)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int error;
 
 	/* Glue Ethernet header back on */
@@ -271,7 +271,7 @@ static int
 ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 {
 	const node_p node = IFP2NG(ifp);
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int error = 0;
 
 	/* If "upper" hook not connected, let packet continue */
@@ -308,10 +308,10 @@ ng_ether_attach(struct ifnet *ifp)
 	if (priv == NULL) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
 		    __FUNCTION__, "allocate memory", name);
-		ng_unref(node);
+		NG_NODE_UNREF(node);
 		return;
 	}
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 	priv->ifp = ifp;
 	IFP2NG(ifp) = node;
 	priv->autoSrcAddr = 1;
@@ -336,13 +336,12 @@ ng_ether_detach(struct ifnet *ifp)
 	if (node == NULL)		/* no node (why not?), ignore */
 		return;
 	ng_rmnode_self(node);		/* break all links to other nodes */
-	node->flags |= NG_INVALID;
 	IFP2NG(ifp) = NULL;		/* detach node from interface */
-	priv = node->private;		/* free node private info */
+	priv = NG_NODE_PRIVATE(node);		/* free node private info */
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);			/* free node itself */
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);			/* free node itself */
 }
 
 /*
@@ -441,7 +440,7 @@ ng_ether_constructor(node_p node)
 static	int
 ng_ether_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	u_char orphan = priv->lowerOrphan;
 	hook_p *hookptr;
 
@@ -479,7 +478,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 static	int
 ng_ether_connect(hook_p hook)
 {
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 	return (0);
 }
 
@@ -489,7 +488,7 @@ ng_ether_connect(hook_p hook)
 static int
 ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -593,8 +592,8 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_ether_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
 	meta_p meta;
 
@@ -614,7 +613,7 @@ ng_ether_rcvdata(hook_p hook, item_p item)
 static int
 ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Make sure header is fully pulled up */
 	if (m->m_pkthdr.len < sizeof(struct ether_header)) {
@@ -646,7 +645,7 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 static int
 ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ether_header *eh;
 
 	/* Check length and pull off header */
@@ -681,13 +680,13 @@ static int
 ng_ether_shutdown(node_p node)
 {
 	char name[IFNAMSIZ + 1];
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (priv->promisc) {		/* disable promiscuous mode */
 		(void)ifpromisc(priv->ifp, 0);
 		priv->promisc = 0;
 	}
-	ng_unref(node);
+	NG_NODE_UNREF(node);
 	snprintf(name, sizeof(name), "%s%d", priv->ifp->if_name, priv->ifp->if_unit);
 	if (ng_make_node_common(&ng_ether_typestruct, &node) != 0) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
@@ -696,7 +695,7 @@ ng_ether_shutdown(node_p node)
 	}
 
 	/* Allocate private data */
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 	IFP2NG(priv->ifp) = node;
 	priv->autoSrcAddr = 1;		/* reset auto-src-addr flag */
 
@@ -714,7 +713,7 @@ ng_ether_shutdown(node_p node)
 static int
 ng_ether_disconnect(hook_p hook)
 {
-	const priv_p priv = hook->node->private;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if (hook == priv->upper)
 		priv->upper = NULL;
@@ -723,9 +722,9 @@ ng_ether_disconnect(hook_p hook)
 		priv->lowerOrphan = 0;
 	} else
 		panic("%s: weird hook", __FUNCTION__);
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);	/* reset node */
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));	/* reset node */
 	return (0);
 }
 

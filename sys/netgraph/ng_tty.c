@@ -233,13 +233,13 @@ ngt_open(dev_t dev, struct tty *tp)
 	if ((error = ng_name_node(sc->node, name))) {
 		log(LOG_ERR, "%s: node name exists?\n", name);
 		ngt_nodeop_ok = 1;
-		ng_unref(sc->node);
+		NG_NODE_UNREF(sc->node);
 		ngt_nodeop_ok = 0;
 		goto done;
 	}
 
 	/* Set back pointers */
-	sc->node->private = sc;
+	NG_NODE_SET_PRIVATE(sc->node, sc);
 	tp->t_sc = (caddr_t) sc;
 
 	/*
@@ -322,11 +322,11 @@ ngt_tioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		const node_p node = sc->node;
 
 		bzero(ni, sizeof(*ni));
-		if (node->name)
-			strncpy(ni->name, node->name, sizeof(ni->name) - 1);
-		strncpy(ni->type, node->type->name, sizeof(ni->type) - 1);
-		ni->id = (u_int32_t) node;
-		ni->hooks = node->numhooks;
+		if (NG_NODE_HAS_NAME(node))
+			strncpy(ni->name, NG_NODE_NAME(node), sizeof(ni->name) - 1);
+		strncpy(ni->type, node->nd_type->name, sizeof(ni->type) - 1);
+		ni->id = (u_int32_t) ng_node2ID(node);
+		ni->hooks = NG_NODE_NUMHOOKS(node);
 		break;
 	    }
 	default:
@@ -359,14 +359,14 @@ ngt_input(int c, struct tty *tp)
 	/* Check for error conditions */
 	if ((tp->t_state & TS_CONNECTED) == 0) {
 		if (sc->flags & FLG_DEBUG)
-			log(LOG_DEBUG, "%s: no carrier\n", node->name);
+			log(LOG_DEBUG, "%s: no carrier\n", NG_NODE_NAME(node));
 		ERROUT(0);
 	}
 	if (c & TTY_ERRORMASK) {
 		/* framing error or overrun on this char */
 		if (sc->flags & FLG_DEBUG)
 			log(LOG_DEBUG, "%s: line error %x\n",
-			    node->name, c & TTY_ERRORMASK);
+			    NG_NODE_NAME(node), c & TTY_ERRORMASK);
 		ERROUT(0);
 	}
 	c &= TTY_CHARMASK;
@@ -377,7 +377,7 @@ ngt_input(int c, struct tty *tp)
 		if (!m) {
 			if (sc->flags & FLG_DEBUG)
 				log(LOG_ERR,
-				    "%s: can't get mbuf\n", node->name);
+				    "%s: can't get mbuf\n", NG_NODE_NAME(node));
 			ERROUT(ENOBUFS);
 		}
 		m->m_len = m->m_pkthdr.len = 0;
@@ -504,7 +504,7 @@ ngt_constructor(node_p node)
 static int
 ngt_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	int s, error = 0;
 
 	if (strcmp(name, NG_TTY_HOOK))
@@ -525,7 +525,8 @@ done:
 static int
 ngt_connect(hook_p hook)
 {
-	hook->peer->flags |= HK_QUEUE|HK_FORCE_WRITER;
+	/*NG_HOOK_FORCE_WRITER(hook);
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));*/
 	return (0);
 }
 
@@ -535,7 +536,7 @@ ngt_connect(hook_p hook)
 static int
 ngt_disconnect(hook_p hook)
 {
-	const sc_p sc = hook->node->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int s;
 
 	s = spltty();
@@ -555,12 +556,12 @@ ngt_disconnect(hook_p hook)
 static int
 ngt_shutdown(node_p node)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 
 	if (!ngt_nodeop_ok)
 		return (EOPNOTSUPP);
-	node->private = NULL;
-	ng_unref(sc->node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(sc->node);
 	m_freem(sc->qhead);
 	m_freem(sc->m);
 	bzero(sc, sizeof(*sc));
@@ -575,7 +576,7 @@ ngt_shutdown(node_p node)
 static int
 ngt_rcvdata(hook_p hook, item_p item)
 {
-	const sc_p sc = hook->node->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int s, error = 0;
 	struct mbuf *m;
 
@@ -608,7 +609,7 @@ done:
 static int
 ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const sc_p sc = (sc_p) node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
