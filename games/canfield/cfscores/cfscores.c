@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 #include "pathnames.h"
 
 struct betinfo {
@@ -64,6 +65,9 @@ struct betinfo {
 
 int dbfd;
 
+void printuser __P((struct passwd *, int));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -109,6 +113,7 @@ main(argc, argv)
 /*
  * print out info for specified password entry
  */
+void
 printuser(pw, printfail)
 	struct passwd *pw;
 	int printfail;
