@@ -255,22 +255,17 @@ acd_init_lun(struct ata_device *atadev)
     return cdp;
 }
 
-/*
- * Handle dev_clone events, so that acd can be used as root device.
- */
 static void
 acd_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
-    struct acd_softc *cdp;
+    struct acd_softc *cdp = arg;
     char *p;
     int unit;
 
-    cdp = arg;
     if (*dev != NODEV)
 	return;
     if (!dev_stdclone(name, &p, "acd", &unit))
 	return;
-    /* Handle compatability slices. */
     if (*p != '\0' && strcmp(p, "a") != 0 && strcmp(p, "c") != 0)
 	return;
     if (unit == cdp->lun)
