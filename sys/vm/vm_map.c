@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.143 1999/01/26 02:49:52 julian Exp $
+ * $Id: vm_map.c,v 1.144 1999/01/28 00:57:57 dillon Exp $
  */
 
 /*
@@ -771,8 +771,9 @@ vm_map_growstack (struct proc *p, vm_offset_t addr)
 			new_stack_entry->avail_ssize = stack_entry->avail_ssize -
 							(new_stack_entry->end -
 							 new_stack_entry->start);
-			vm->vm_ssize += new_stack_entry->end -
-					new_stack_entry->start;
+			if (is_procstack)
+				vm->vm_ssize += new_stack_entry->end -
+						new_stack_entry->start;
 		}
 	}
 
