@@ -66,8 +66,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 #include <machine/clock.h>
 #if __FreeBSD_version >= 502000
 #include <dev/pci/pcivar.h>
@@ -227,11 +225,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #define IXGB_RXBUFFER_16384      16384
 
 #define IXGB_MAX_SCATTER           100
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)(va))
-#endif				/* __alpha__ */
 
 /*
  * ******************************************************************************
