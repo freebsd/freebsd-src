@@ -47,7 +47,7 @@
 
   <para>The &release.type; distribution to which these release notes
     apply represents the latest point along the &release.branch; development
-    branch since &release.branch; is created.  Some pre-built, binary
+    branch since &release.branch; was created.  Information regarding pre-built, binary
     &release.type; distributions along this branch
     can be found at <ulink url="&release.url;"></ulink>.</para>
 
@@ -57,7 +57,8 @@
 
   <para>The &release.type; distribution to which these release notes
     apply represents a point along the &release.branch; development
-    branch between &release.prev; and the future &release.next;.  Some
+    branch between &release.prev; and the future &release.next;.
+    Information regarding
     pre-built, binary &release.type; distributions along this branch
     can be found at <ulink url="&release.url;"></ulink>.</para>
 
@@ -280,6 +281,10 @@
 	some auxiliary I/O functions found on various SBus/EBus
 	&ultrasparc; models. &merged;</para>
 
+      <para arch="sparc64">The clkbrd driver has been added to support
+	the <literal>clock-board</literal> device frequently found on
+	Sun E<replaceable>xx</replaceable>00 servers.</para>
+
       <para>A framework for flexible processor speed control has been
 	added.  It provides methods for various drivers to control CPU
 	power utilization by adjusting the processor speed.  More
@@ -351,8 +356,9 @@
 
 	<para>The &man.ath.4; driver has been updated to split the
 	  transmit rate control algorithm into a separate module.
-	  Either <literal>device ath_rate_onoe</literal> or
-	  <literal>device ath_rate_amrr</literal> must be included in
+	  One of <literal>device ath_rate_onoe</literal>,
+	  <literal>device ath_rate_amrr</literal>, or
+	  <literal>device ath_rate_sample</literal> must be included in
 	  the kernel configuration when using the &man.ath.4;
 	  driver.</para>
 
@@ -387,6 +393,12 @@
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
 	  supports &windows;/x86-64 binaries on amd64
 	  systems. &merged;</para>
+
+	<para arch="i386,amd64">The nve driver, which supports the
+	  nVidia nForce MCP Networking Adapter, has been added.</para>
+
+	<para>The &man.re.4; driver now supports the &man.altq.4;
+	  framework.</para>
 
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;. &merged;</para>
@@ -664,7 +676,8 @@
       <function>ib<replaceable>foo</replaceable></function>
       API. &merged;</para>
 
-    <para>The default stack sizes in <filename>libpthread</filename>
+    <para>The default stack sizes in <filename>libpthread</filename>,
+      <filename>libthr</filename>,
       and <filename>libc_r</filename> have been increased.  On 32-bit
       platforms, the main thread receives a 2MB stack size by default,
       with other threads receiving a 1MB stack size by default.  On
@@ -841,7 +854,7 @@
 
     <para>The &man.tcpdrop.8; command, which closes a selected TCP
       connection, has been added.  It was obtained from
-      OpenBSD.</para>
+      OpenBSD. &merged;</para>
 
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
@@ -1015,7 +1028,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       3.3.2. &merged;</para>
 
     <para>The supported version of <application>Xorg</application> has
-      been updated from 6.7.0 to 6.8.1. &merged;</para>
+      been updated from 6.7.0 to 6.8.2. &merged;</para>
 
   </sect2>
 
