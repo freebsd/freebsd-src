@@ -62,12 +62,24 @@ to determine which filesystems to check.
 Only partitions in fstab that are mounted ``rw,'' ``rq'' or ``ro''
 and that have non-zero pass number are checked.
 Filesystems with pass number 1 (normally just the root filesystem)
-are checked one at a time.
-When pass 1 completes, all remaining filesystems are checked,
-running one process per disk drive.
+are always checked one at a time.
+.Pp
+If not in preen mode, the remaining entries are checked in order of
+increasing pass number one at a time.
+This is needed when interaction with fsck is required.
+.Pp
+In preen mode, after pass 1 completes, all remaining filesystems are checked,
+in pass number order running one process per disk drive in parallel for each
+pass number in increasing order.
+.Pp
+In other words:  In preen mode all pass 1 partitions are checked sequentially.
+Next all pass 2 partitions are checked in parallel, one process per disk drive.
+Next all pass 3 partitions are checked in parallel, one process per disk drive.
+etc.
+.Pp
 The disk drive containing each filesystem is inferred from the shortest prefix
 of the device name that ends in a digit; the remaining characters are assumed
-to be the partition and slice designator.
+to be the partition and slice designators.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -79,11 +91,6 @@ is compiled to support it.
 .It Fl f
 Force checking of filesystems, even when they are marked clean (for filesystems
 that support this).
-.It Fl l Ar maxparallel
-Limit the number of parallel checks to the number specified in
-the following argument. By default, the limit is the number of
-disks, running one process per disk. If a smaller limit is giv-
-en, the disks are checked round-robin, one filesystem at a time.
 .It Fl n
 Causes
 .Nm
