@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asm.h>
+#include <machine/asmacros.h>
 
-RCSID("$Id: s_ceil.S,v 1.2 1994/03/12 01:30:35 jtc Exp $")
+RCSID("$Id: s_ceil.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
 
 ENTRY(ceil)
 	pushl	%ebp
