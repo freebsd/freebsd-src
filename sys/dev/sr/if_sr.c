@@ -420,7 +420,8 @@ sr_attach(device_t device)
 		if_initname(ifp, device_get_name(device),
 		    device_get_unit(device));
 		ifp->if_mtu = PP_MTU;
-		ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+		ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST |
+		    IFF_NEEDSGIANT;
 		ifp->if_ioctl = srioctl;
 		ifp->if_start = srstart;
 		ifp->if_watchdog = srwatchdog;
