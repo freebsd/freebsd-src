@@ -193,21 +193,12 @@ introduction to what's going on under the hood.
 
 .SH OPIE COMPONENTS
 
-Included in the OPIE distribution are three OPIE client programs: 
-.IR opielogin (1),
-.IR opiesu (1), 
-and 
-.IR opieftpd (8). 
-These three programs are modified versions of the
-freely available 4.3BSD Net/2 versions of 
+The OPIE distribution has been incorporated into three standard client
+programs:
 .IR login (1), 
 .IR su (1), 
 and 
 .IR ftpd (8),
-respectively. Although most of the modifications actually done to them are so
-that they will work on as many machines as possible, they also have been
-modified to support OPIE for authentication. As you will see from the source, 
-it is not very difficult to add support for OPIE to other programs.
 .LP
 There are also three programs in the OPIE distribution that are specific to
 the OPIE system: 
@@ -306,14 +297,14 @@ because, by doing so, you are allowing any machine to read any of your windows
 or your keystrokes without you knowing it.
 
 .SH SEE ALSO
+.BR ftpd (8)
+.BR login (1),
 .BR opie (4),
 .BR opiekeys (5),
 .BR opieaccess (5),
 .BR opiekey (1),
 .BR opieinfo (1),
 .BR opiepasswd (1),
-.BR opielogin (1),
-.BR opieftpd (8)
 .sp
 Lamport, L. "Password Authentication with Insecure Communication",
 Communications of the ACM 24.11 (November 1981), pp. 770-772.
