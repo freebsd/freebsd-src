@@ -82,6 +82,9 @@ cal()
 	register char *p;
 	FILE *fp;
 	int ch;
+	int month;
+	int day;
+	int var;
 	char buf[2048 + 1];
 
 	if ((fp = opencal()) == NULL)
@@ -93,10 +96,18 @@ cal()
 			while ((ch = getchar()) != '\n' && ch != EOF);
 		if (buf[0] == '\0')
 			continue;
-		if (buf[0] != '\t')
-			printing = isnow(buf) ? 1 : 0;
-		if (printing)
-			(void)fprintf(fp, "%s\n", buf);
+		if (buf[0] != '\t') {
+			printing = isnow(buf, &month, &day, &var) ? 1 : 0;
+			if ((p = strchr(buf, '\t')) == NULL)
+				continue;
+			if (p > buf && p[-1] == '*')
+				var = 1;
+			if (printing)
+				(void)fprintf(fp, "%.2d/%.2d%c%s\n", month, 
+				    day, var ? '*' : ' ', p);
+		}
+		else if (printing)
+			fprintf(fp, "%s\n", buf);
 	}
 	closecal(fp);
 }

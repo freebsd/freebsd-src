@@ -85,7 +85,7 @@ settime(now)
 }
 
 /* convert Day[/Month][/Year] into unix time (since 1970)
- * Day: tow digits, Month: two digits, Year: digits
+ * Day: two digits, Month: two digits, Year: digits
  */
 time_t Mktime (date)
     char *date;
@@ -143,8 +143,11 @@ time_t Mktime (date)
  * along with the matched line.
  */
 int
-isnow(endp)
+isnow(endp, monthp, dayp, varp)
 	char *endp;
+	int	*monthp;
+	int	*dayp;
+	int	*varp;
 {
 	int day, flags, month, v1, v2;
 
@@ -207,6 +210,7 @@ isnow(endp)
 		if (flags & F_ISMONTH) {
 			day = v1;
 			month = v2;
+			*varp = 0;
 		} 
 
 		/* {Month} {Weekday,Day} ...  */
@@ -215,6 +219,7 @@ isnow(endp)
 			month = v1;
 			/* if no recognizable day, assume the first */
 			day = v2 ? v2 : 1;
+			*varp = 0;
 		}
 	}
 
@@ -227,6 +232,7 @@ isnow(endp)
 	    fprintf(stderr, "\nday: %d %s month %d\n", day, endp, month);
 #endif
 
+	    *varp = 1;
 	    /* variable weekday, SundayLast, MondayFirst ... */
 	    if (day < 0 || day >= 10) {
 
@@ -270,14 +276,25 @@ isnow(endp)
 	    /* wired */
 	    else {
 		day = tp->tm_mday + (((day - 1) - tp->tm_wday + 7) % 7);
+		*varp = 1;
 	    }
 	}
 	   
 #if DEBUG 
 	fprintf(stderr, "day2: yday %d %d\n", day, tp->tm_yday); 
 #endif
-	if (!(flags & F_EASTER))
+	if (!(flags & F_EASTER)) {
+	    *monthp = month;
+	    *dayp = day;
 	    day = cumdays[month] + day;
+	}
+	else {
+	    for (v1 = 0; day > cumdays[v1]; v1++)
+		;
+	    *monthp = v1 - 1;
+	    *dayp = day - cumdays[v1 - 1] - 1;
+	    *varp = 1;
+	}
 
 	/* if today or today + offset days */
 	if (day >= tp->tm_yday - f_dayBefore && 
