@@ -579,7 +579,7 @@ _ftp_default_port(void)
 {
     struct servent *se;
 	    
-    if ((se = getservbyname("ftp", "tcp")) != NULL)
+    if ((se = getservbyname(SCHEME_FTP, "tcp")) != NULL)
 	return ntohs(se->s_port);
     return FTP_DEFAULT_PORT;
 }
@@ -588,16 +588,16 @@ _ftp_default_port(void)
  * Log on to FTP server
  */
 static int
-_ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
+_ftp_connect(struct url *url, struct url *purl, char *flags)
 {
-    int cd, e, pp = 0, direct, verbose;
+    int cd, e, direct, verbose;
 #ifdef INET6
     int af = AF_UNSPEC;
 #else
     int af = AF_INET;
 #endif
-    char *p, *q;
     const char *logname;
+    char *user, *pwd;
     char localhost[MAXHOSTNAMELEN];
     char pbuf[MAXHOSTNAMELEN + MAXLOGNAME + 1];
 
@@ -608,43 +608,17 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
     else if ((flags && strchr(flags, '6')))
 	af = AF_INET6;
 
+    if (direct)
+	purl = NULL;
+    
     /* check for proxy */
-    if (!direct && (p = getenv("FTP_PROXY")) != NULL && *p) {
-	char c = 0;
-
-#ifdef INET6
-	if (*p != '[' || (q = strchr(p + 1, ']')) == NULL ||
-	    (*++q != '\0' && *q != ':'))
-#endif
-	    q = strchr(p, ':');
-	if (q != NULL && *q == ':') {
-	    if (strspn(q+1, "0123456789") != strlen(q+1) || strlen(q+1) > 5) {
-		/* XXX we should emit some kind of warning */
-	    }
-	    pp = atoi(q+1);
-	    if (pp < 1 || pp > 65535) {
-		/* XXX we should emit some kind of warning */
-	    }
-	}
-	if (!pp)
-	    pp = _ftp_default_port();
-	if (q) {
-#ifdef INET6
-	    if (q > p && *p == '[' && *(q - 1) == ']') {
-		p++;
-		q--;
-	    }
-#endif
-	    c = *q;
-	    *q = 0;
-	}
-	cd = _fetch_connect(p, pp, af, verbose);
-	if (q)
-	    *q = c;
+    if (purl) {
+	/* XXX proxy authentication! */
+	cd = _fetch_connect(purl->host, purl->port, af, verbose);
     } else {
 	/* no proxy, go straight to target */
-	cd = _fetch_connect(host, port, af, verbose);
-	p = NULL;
+	cd = _fetch_connect(url->host, url->port, af, verbose);
+	purl = NULL;
     }
 
     /* check connection */
@@ -656,19 +630,23 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
     /* expect welcome message */
     if ((e = _ftp_chkerr(cd)) != FTP_SERVICE_READY)
 	goto fouch;
+
+    /* XXX FTP_AUTH, and maybe .netrc */
     
     /* send user name and password */
+    user = url->user;
     if (!user || !*user)
 	user = FTP_ANONYMOUS_USER;
-    if (p && port == FTP_DEFAULT_PORT)
-	e = _ftp_cmd(cd, "USER %s@%s", user, host);
-    else if (p)
-	e = _ftp_cmd(cd, "USER %s@%s@%d", user, host, port);
+    if (purl && url->port == FTP_DEFAULT_PORT)
+	e = _ftp_cmd(cd, "USER %s@%s", url->user, url->host);
+    else if (purl)
+	e = _ftp_cmd(cd, "USER %s@%s@%d", url->user, url->host, url->port);
     else
-	e = _ftp_cmd(cd, "USER %s", user);
+	e = _ftp_cmd(cd, "USER %s", url->user);
     
     /* did the server request a password? */
     if (e == FTP_NEED_PASSWORD) {
+	pwd = url->pwd;
 	if (!pwd || !*pwd)
 	    pwd = getenv("FTP_PASSWORD");
 	if (!pwd || !*pwd) {
@@ -734,7 +712,7 @@ _ftp_isconnected(struct url *url)
  * Check the cache, reconnect if no luck
  */
 static int
-_ftp_cached_connect(struct url *url, char *flags)
+_ftp_cached_connect(struct url *url, struct url *purl, char *flags)
 {
     int e, cd;
 
@@ -748,32 +726,40 @@ _ftp_cached_connect(struct url *url, char *flags)
     if (_ftp_isconnected(url)) {
 	e = _ftp_cmd(cached_socket, "NOOP");
 	if (e == FTP_OK || e == FTP_SYNTAX_ERROR)
-	    cd = cached_socket;
+	    return cached_socket;
     }
 
     /* connect to server */
-    if (cd == -1) {
-	cd = _ftp_connect(url->host, url->port, url->user, url->pwd, flags);
-	if (cd == -1)
-	    return -1;
-	if (cached_socket)
-	    _ftp_disconnect(cached_socket);
-	cached_socket = cd;
-	memcpy(&cached_host, url, sizeof *url);
-    }
-
+    if ((cd = _ftp_connect(url, purl, flags)) == -1)
+	return -1;
+    if (cached_socket)
+	_ftp_disconnect(cached_socket);
+    cached_socket = cd;
+    memcpy(&cached_host, url, sizeof *url);
     return cd;
 }
 
 /*
- * Check to see if we should use an HTTP proxy instead
+ * Check the proxy settings
  */
-static int
-_ftp_use_http_proxy(void)
+static struct url *
+_ftp_get_proxy(void)
 {
+    struct url *purl;
     char *p;
-
-    return ((p = getenv("HTTP_PROXY")) && *p && !getenv("FTP_PROXY"));
+    
+    if (((p = getenv("FTP_PROXY")) || (p = getenv("HTTP_PROXY"))) &&
+	*p && (purl = fetchParseURL(p)) != NULL) {
+	if (!*purl->scheme)
+	    strcpy(purl->scheme, SCHEME_FTP);
+	if (!purl->port)
+	    purl->port = _ftp_default_port();
+	if (strcasecmp(purl->scheme, SCHEME_FTP) == 0 ||
+	    strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
+	    return purl;
+	fetchFreeURL(purl);
+    }
+    return NULL;
 }
 
 /*
@@ -782,13 +768,22 @@ _ftp_use_http_proxy(void)
 FILE *
 fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
 {
+    struct url *purl;
     int cd;
 
-    if (_ftp_use_http_proxy())
-	return fetchXGetHTTP(url, us, flags);
+    /* get the proxy URL, and check if we should use HTTP instead */
+    if (!strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
+	    return _http_request(url, "GET", us, purl, flags);
+    } else {
+	purl = NULL;
+    }
     
     /* connect to server */
-    if ((cd = _ftp_cached_connect(url, flags)) == NULL)
+    cd = _ftp_cached_connect(url, purl, flags);
+    if (purl)
+	fetchFreeURL(purl);
+    if (cd == NULL)
 	return NULL;
     
     /* change directory */
@@ -820,13 +815,23 @@ fetchGetFTP(struct url *url, char *flags)
 FILE *
 fetchPutFTP(struct url *url, char *flags)
 {
+    struct url *purl;
     int cd;
 
-    if (_ftp_use_http_proxy())
-	return fetchPutHTTP(url, flags);
+    /* get the proxy URL, and check if we should use HTTP instead */
+    if (!strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
+	    /* XXX HTTP PUT is not implemented, so try without the proxy */
+	    purl = NULL;
+    } else {
+	purl = NULL;
+    }
     
     /* connect to server */
-    if ((cd = _ftp_cached_connect(url, flags)) == NULL)
+    cd = _ftp_cached_connect(url, purl, flags);
+    if (purl)
+	fetchFreeURL(purl);
+    if (cd == NULL)
 	return NULL;
     
     /* change directory */
@@ -844,15 +849,30 @@ fetchPutFTP(struct url *url, char *flags)
 int
 fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 {
+    struct url *purl;
     int cd;
 
-    if (_ftp_use_http_proxy())
-	return fetchStatHTTP(url, us, flags);
+    /* get the proxy URL, and check if we should use HTTP instead */
+    if (!strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0) {
+	    FILE *f;
+
+	    if ((f = _http_request(url, "HEAD", us, purl, flags)) == NULL)
+		return -1;
+	    fclose(f);
+	    return 0;
+	}
+    } else {
+	purl = NULL;
+    }
     
     /* connect to server */
-    if ((cd = _ftp_cached_connect(url, flags)) == NULL)
-	return -1;
-
+    cd = _ftp_cached_connect(url, purl, flags);
+    if (purl)
+	fetchFreeURL(purl);
+    if (cd == NULL)
+	return NULL;
+    
     /* change directory */
     if (_ftp_cwd(cd, url->doc) == -1)
 	return -1;
@@ -868,9 +888,6 @@ extern void warnx(char *, ...);
 struct url_ent *
 fetchListFTP(struct url *url, char *flags)
 {
-    if (_ftp_use_http_proxy())
-	return fetchListHTTP(url, flags);
-    
     warnx("fetchListFTP(): not implemented");
     return NULL;
 }
