@@ -55,6 +55,7 @@
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 
@@ -2565,14 +2566,14 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 #ifdef DIAGNOSTIC
 	if (rp->rpr_msgin.dma_paddr & 3 || rp->rpr_msgin.dma_size & 3) {
-		panic("%s: rsapriv: invalid msgin %x(0x%x)",
+		panic("%s: rsapriv: invalid msgin %x(0x%jx)",
 		    device_get_nameunit(sc->sc_dev),
-		    rp->rpr_msgin.dma_paddr, rp->rpr_msgin.dma_size);
+		    rp->rpr_msgin.dma_paddr, (uintmax_t)rp->rpr_msgin.dma_size);
 	}
 	if (rp->rpr_msgout.dma_paddr & 3 || rp->rpr_msgout.dma_size & 3) {
-		panic("%s: rsapriv: invalid msgout %x(0x%x)",
+		panic("%s: rsapriv: invalid msgout %x(0x%jx)",
 		    device_get_nameunit(sc->sc_dev),
-		    rp->rpr_msgout.dma_paddr, rp->rpr_msgout.dma_size);
+		    rp->rpr_msgout.dma_paddr, (uintmax_t)rp->rpr_msgout.dma_size);
 	}
 #endif
 
