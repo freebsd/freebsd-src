@@ -19,12 +19,10 @@
  */
 
 #include <stand.h>
-#define	_KERNEL
 #include <sys/exec.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/linker.h>
-#include <sys/pcpu.h>
 
 #include <machine/asi.h>
 #include <machine/atomic.h>
