@@ -2438,7 +2438,7 @@ ttyinfo(tp)
 			    stmp);
 
 			/* Print user time. */
-			ttyprintf(tp, "%lld.%02ldu ",
+			ttyprintf(tp, "%ld.%02ldu ",
 			    utime.tv_sec, utime.tv_usec / 10000);
 
 			/* Print system time. */
