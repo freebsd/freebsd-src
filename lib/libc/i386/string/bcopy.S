@@ -2,7 +2,7 @@
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
- * This code is derived from software contributed to Berkeley by
+ * This code is derived from locore.s.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,27 +31,35 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: bcopy.S,v 1.2 1995/01/23 01:28:49 davidg Exp $
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$Id: bcopy.S,v 1.2 1995/01/23 01:28:49 davidg Exp $"
-#endif /* LIBC_RCS and not lint */
+#include <machine/asm.h>
 
-#include "DEFS.h"
+	RCSID("$NetBSD: bcopy.S,v 1.6 1996/11/12 00:50:06 jtc Exp $")
 
 	/*
 	 * (ov)bcopy (src,dst,cnt)
 	 *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
 	 */
 
+#ifdef MEMCOPY
+ENTRY(memcpy)
+#else
+#ifdef MEMMOVE
+ENTRY(memmove)
+#else
 ENTRY(bcopy)
+#endif
+#endif
 	pushl	%esi
 	pushl	%edi
+#if defined(MEMCOPY) || defined(MEMMOVE)
+	movl	12(%esp),%edi
+	movl	16(%esp),%esi
+#else
 	movl	12(%esp),%esi
 	movl	16(%esp),%edi
+#endif
 	movl	20(%esp),%ecx
 	movl	%edi,%eax
 	subl	%esi,%eax
@@ -65,16 +73,19 @@ ENTRY(bcopy)
 	andl	$3,%ecx		/* any bytes left? */
 	rep
 	movsb
+#if defined(MEMCOPY) || defined(MEMMOVE)
+	movl	12(%esp),%eax
+#endif
 	popl	%edi
 	popl	%esi
 	ret
 1:
 	addl	%ecx,%edi	/* copy backwards. */
 	addl	%ecx,%esi
+	std
+	andl	$3,%ecx		/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
-	andl	$3,%ecx		/* any fractional bytes? */
-	std
 	rep
 	movsb
 	movl	20(%esp),%ecx	/* copy remainder by words */
@@ -83,6 +94,9 @@ ENTRY(bcopy)
 	subl	$3,%edi
 	rep
 	movsl
+#if defined(MEMCOPY) || defined(MEMMOVE)
+	movl	12(%esp),%eax
+#endif
 	popl	%edi
 	popl	%esi
 	cld
