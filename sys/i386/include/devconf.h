@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.6 1994/11/02 23:44:11 se Exp $
+ *	$Id: devconf.h,v 1.7 1995/02/02 05:42:47 jkh Exp $
  */
 /*
  * devconf.h - machine-dependent device configuration table
@@ -68,6 +68,7 @@ struct machdep_devconf {
 
 #include <i386/isa/isa_device.h>
 #include <pci/pcireg.h>
+#include <pci/pcivar.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
