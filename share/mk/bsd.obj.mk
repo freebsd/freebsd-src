@@ -171,6 +171,6 @@ _SUBDIR: .USE
 		else \
 			cd ${.CURDIR}/$${entry}; \
 		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
+		${MAKE} ${.TARGET:S/realinstall/install/} DIRPRFX=${DIRPRFX}$$entry/); \
 	done
 .endif
