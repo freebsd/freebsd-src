@@ -1,4 +1,5 @@
 /*	$NetBSD: ohci.c,v 1.12 1998/11/30 21:39:20 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

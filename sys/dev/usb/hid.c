@@ -1,4 +1,5 @@
 /*	$NetBSD: hid.c,v 1.2 1998/07/24 20:57:46 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

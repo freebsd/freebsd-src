@@ -1,4 +1,5 @@
 /*	$NetBSD: ohcivar.h,v 1.3 1998/11/25 22:32:04 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
