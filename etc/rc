@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.186 1999/04/02 07:15:43 grog Exp $
+#	$Id: rc,v 1.187 1999/04/02 09:35:34 cracauer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -200,7 +200,8 @@ if [ "X${clear_tmp_enable}" = X"YES" ]; then
 	# prune quickly with one rm, then use find to clean up /tmp/[lq]*
 	# (not needed with mfs /tmp, but doesn't hurt there...)
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-		find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
+	    find -d . ! -name . ! -name lost+found ! -name quota.user \
+	    ! -name quota.group -exec rm -rf -- {} \;)
 
 fi
 
