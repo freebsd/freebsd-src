@@ -100,6 +100,7 @@ MALLOC_DEFINE(M_UDFSTABLE, "UDF s_table", "UDF sparing table");
 /* Zones */
 uma_zone_t udf_zone_trans = NULL;
 uma_zone_t udf_zone_node = NULL;
+uma_zone_t udf_zone_ds = NULL;
 
 static int udf_init(struct vfsconf *);
 static int udf_uninit(struct vfsconf *);
@@ -147,7 +148,11 @@ udf_init(struct vfsconf *foo)
 	udf_zone_node = uma_zcreate("UDF Node zone", sizeof(struct udf_node),
 	    NULL, NULL, NULL, NULL, 0, 0);
 
-	if ((udf_zone_node == NULL) || (udf_zone_trans == NULL)) {
+	udf_zone_ds = uma_zcreate("UDF Dirstream zone",
+	    sizeof(struct udf_dirstream), NULL, NULL, NULL, NULL, 0, 0);
+
+	if ((udf_zone_node == NULL) || (udf_zone_trans == NULL) ||
+	    (udf_zone_ds == NULL)) {
 		printf("Cannot create allocation zones.\n");
 		return (ENOMEM);
 	}
@@ -167,6 +172,11 @@ udf_uninit(struct vfsconf *foo)
 	if (udf_zone_node != NULL) {
 		uma_zdestroy(udf_zone_node);
 		udf_zone_node = NULL;
+	}
+
+	if (udf_zone_ds != NULL) {
+		uma_zdestroy(udf_zone_ds);
+		udf_zone_ds = NULL;
 	}
 
 	return (0);
