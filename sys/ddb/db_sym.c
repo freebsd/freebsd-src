@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.18 1997/02/22 09:28:29 peter Exp $
+ *	$Id: db_sym.c,v 1.19 1997/06/30 23:49:16 bde Exp $
  */
 
 /*
@@ -46,7 +46,7 @@
 static db_symtab_t	db_symtabs[MAXNOSYMTABS] = {{0,},};
 static int db_nsymtab = 0;
 
-static db_symtab_t	*db_last_symtab;
+static db_symtab_t	*db_last_symtab; /* where last symbol was found */
 
 static db_sym_t		db_lookup __P(( char *symstr));
 static char		*db_qualify __P((db_sym_t sym, char *symtabname));
@@ -178,11 +178,15 @@ db_lookup(symstr)
 }
 
 /*
+ * If TRUE, check across symbol tables for multiple occurrences
+ * of a name.  Might slow things down quite a bit.
+ */
+static volatile boolean_t db_qualify_ambiguous_names = FALSE;
+
+/*
  * Does this symbol name appear in more than one symbol table?
  * Used by db_symbol_values to decide whether to qualify a symbol.
  */
-static boolean_t db_qualify_ambiguous_names = FALSE;
-
 static boolean_t
 db_symbol_is_ambiguous(sym)
 	db_sym_t	sym;
