@@ -120,8 +120,8 @@ static void load(const char *);
 static int parse(char *);
 static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
-static int printf(const char *,...);
-static int putchar(int);
+static void printf(const char *,...);
+static void putchar(int);
 static uint32_t memsize(int);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
@@ -535,7 +535,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     return drvread(buf, dsk.start + lba, nblk);
 }
 
-static int
+static void
 printf(const char *fmt,...)
 {
     static const char digits[16] = "0123456789abcdef";
@@ -573,15 +573,15 @@ printf(const char *fmt,...)
 	putchar(c);
     }
     va_end(ap);
-    return 0;
+    return;
 }
 
-static int
+static void
 putchar(int c)
 {
     if (c == '\n')
 	xputc('\r');
-    return xputc(c);
+    xputc(c);
 }
 
 static uint32_t
