@@ -31,7 +31,7 @@
 #include "gripes.h"
 #include "version.h"
 
-#ifndef POSIX
+#ifdef POSIX
 #include <unistd.h>
 #else
 #ifndef R_OK
