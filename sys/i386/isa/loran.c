@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.15 1999/04/11 03:06:06 eivind Exp $
+ * $Id: loran.c,v 1.16 1999/04/28 10:52:39 dt Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -220,7 +220,7 @@ static int64_t vco_error;
 /**********************************************************************/
 
 static	int		loranprobe (struct isa_device *dvp);
-extern	void		init_tgc (void);
+static	void		init_tgc (void);
 static	int		loranattach (struct isa_device *isdp);
 static	void		loranenqueue (struct datapoint *);
 static	d_open_t	loranopen;
@@ -346,7 +346,7 @@ loranread(dev_t dev, struct uio * uio, int ioflag)
 		return(EIO);
 	}
 	if (TAILQ_EMPTY(&minors[idx])) 
-		tsleep ((caddr_t)&minors[idx], PZERO + 8 |PCATCH, "loranrd", hz*2);
+		tsleep ((caddr_t)&minors[idx], (PZERO + 8) |PCATCH, "loranrd", hz*2);
 	if (TAILQ_EMPTY(&minors[idx])) 
 		return(0);
 	this = TAILQ_FIRST(&minors[idx]);
