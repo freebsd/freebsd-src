@@ -39,7 +39,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm make
-.Op Fl eiknqrstv
+.Op Fl eiknqrst
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl f Ar makefile
@@ -47,6 +47,7 @@
 .Bk -words
 .Op Fl j Ar max_jobs
 .Ek
+.Op Fl V Ar variable
 .Op Ar variable=value
 .Op Ar target ...
 .Sh DESCRIPTION
@@ -74,7 +75,8 @@ and makefiles, please refer to
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl D Ar variable
-Define Ar variable
+Define
+.Ar variable
 to be 1, in the global context.
 .It Fl d Ar flags
 Turn on debugging, and specify which portions of
@@ -155,6 +157,16 @@ before each command line in the makefile.
 .It Fl t
 Rather than re-building a target as specified in the makefile, create it
 or update its modification time to make it appear up-to-date.
+.It Fl V Ar variable
+Print
+.Nm make Ns 's
+idea of the value of
+.Ar variable ,
+in the global context.
+Do not build any targets.
+Multiple instances of this option may be specified;
+the variables will be printed one per line,
+with a blank line for each null or undefined variable.
 .It Ar variable=value
 Set the value of the variable
 .Ar variable
