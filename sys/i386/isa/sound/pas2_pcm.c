@@ -373,11 +373,7 @@ pas_pcm_prepare_for_output (int dev, int bsize, int bcount)
 static struct audio_operations pas_pcm_operations =
 {
   "Pro Audio Spectrum",
-#if defined(__FreeBSD__)
-  0,		/* disable automode for now until we get this working right */
-#else
   DMA_AUTOMODE,
-#endif
   AFMT_U8 | AFMT_S16_LE,
   NULL,
   pas_pcm_open,
