@@ -1268,9 +1268,10 @@ ess1868_attach(u_long csn, u_long vend_id, char *name,
 /*
  * A driver for some SB16pnp and compatibles...
  *
- * Avance Asound 100 -- 0x01009305
- * Avance Logic ALS100+ -- 0x10019305
- * xxx               -- 0x2b008c0e
+ * Avance Asound 100               -- 0x01009305
+ * Avance Logic ALS100+            -- 0x10019305
+ * Avance Logic ASound Gold ALS120 -- 0x20019305
+ * xxx                             -- 0x2b008c0e
  *
  */
 
@@ -1308,6 +1309,8 @@ sb16pnp_probe(u_long csn, u_long vend_id)
         s = "Avance Asound 100" ;
     else if (vend_id == 0x10019305)
         s = "Avance Logic 100+" ; /* Vibra16X-class */
+    else if (vend_id == 0x20019305)
+        s = "Avance Logic ALS120" ; /* Vibra16X-class */
     if (s) {
 	struct pnp_cinfo d; 
 	read_pnp_parms(&d, 0); 
@@ -1345,7 +1348,8 @@ sb16pnp_attach(u_long csn, u_long vend_id, char *name,
     pcm_info[dev->id_unit] = tmp_d; /* pcm_info[] will be reinitialized after */
     snddev_last_probed->probe(dev); /* not really necessary but doesn't harm */
     
-    if (vend_id == 0x10019305 || vend_id == 0xf0008c0e) {
+    if (vend_id == 0x10019305 || vend_id == 0xf0008c0e
+                              || vend_id == 0x20019305) {
 	/*
 	 * XXX please add here the vend_id for other vibra16X cards...
 	 * And remember, must change tmp_d, not 
