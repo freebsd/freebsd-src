@@ -5,6 +5,8 @@ SUBDIR=	bugfiler comsat fingerd ftpd getNAME getty kpasswdd lfs_cleanerd \
 
 .if	${MACHINE} == "hp300"
 SUBDIR+=rbootd
+.elif	${MACHINE} == "i386"
+SUBDIR+=rbootd
 .elif	${MACHINE} == "luna68k"
 SUBDIR+=rbootd
 .endif
