@@ -71,11 +71,6 @@ CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
 CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
 CPIO_CPIO_DIRS=	var var/tmp
 
-DOS_FILES=	${COPYRIGHT}
-DOS_FILES+=	bin/ed
-DOS_FILES+=	usr/bin/cksum usr/bin/mt 
-DOS_FILES+=	sbin/ping sbin/shutdown sbin/st
-
 CRYPT_LIB=	lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
 CRYPT_SRCS+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
@@ -284,18 +279,6 @@ cpio-floppy:
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio-floppy \
 		>${RELEASEDIR}/floppies/cpio-floppy.gz
-
-dos-floppy:
-	mount -t pcfs /dev/${FLOPPY}a ${MOUNT}
-	(cd ${.CURDIR}/../; \
-		cp sys/i386/floppy/* ${MOUNT}; \
-		cp ${DOS_FILES} ${MOUNT})
-	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/dos-floppy \
-		bs=15b count=160
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/dos-floppy \
-		>${RELEASEDIR}/floppies/dos-floppy.gz
 
 bin-tarball:
 	(cd ${DESTDIR}; \
