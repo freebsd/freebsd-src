@@ -613,7 +613,8 @@ coda_nc_flush(dcstat)
 			}
 			vrele(CTOV(cncp->dcp)); 
 
-			if (CTOV(cncp->cp)->v_flag & VTEXT) {
+			ASSERT_VOP_LOCKED(CTOV(cnp->cp), "coda_nc_flush");
+			if (CTOV(cncp->cp)->v_vflag & VV_TEXT) {
 			    if (coda_vmflush(cncp->cp))
 				CODADEBUG(CODA_FLUSH, 
 					 myprintf(("coda_nc_flush: (%lx.%lx.%lx) busy\n", cncp->cp->c_fid.Volume, cncp->cp->c_fid.Vnode, cncp->cp->c_fid.Unique)); )

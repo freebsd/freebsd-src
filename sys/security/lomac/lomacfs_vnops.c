@@ -868,7 +868,7 @@ lomacfs_createvobject(
 	error = VOP_CREATEVOBJECT(lowervp, ap->a_cred, ap->a_td);
 	if (error)
 		return (error);
-	vp->v_flag |= VOBJBUF;
+	vp->v_vflag |= VV_OBJBUF;
 	return (error);
 }
 
@@ -884,7 +884,7 @@ lomacfs_destroyvobject(
 ) {
 	struct vnode *vp = ap->a_vp;
 
-	vp->v_flag &= ~VOBJBUF;
+	vp->v_vflag &= ~VV_OBJBUF;
 	return (0);
 }
 

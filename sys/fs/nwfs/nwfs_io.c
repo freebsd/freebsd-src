@@ -599,9 +599,13 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 /*	struct nwmount *nmp = VTONWFS(vp);*/
 	int error = 0, slpflag, slptimeo;
 
-	if (vp->v_flag & VXLOCK) {
+	VI_LOCK(vp);
+	if (vp->v_iflag & VI_XLOCK) {
+		VI_UNLOCK(vp);
 		return (0);
 	}
+	VI_UNLOCK(vp);
+
 	if (intrflg) {
 		slpflag = PCATCH;
 		slptimeo = 2 * hz;

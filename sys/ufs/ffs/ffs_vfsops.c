@@ -1001,7 +1001,8 @@ ffs_flushfiles(mp, flags, td)
 		 */
 	}
 #endif
-	if (ump->um_devvp->v_flag & VCOPYONWRITE) {
+	ASSERT_VOP_LOCKED(ump->um_devvp, "ffs_flushfiles");
+	if (ump->um_devvp->v_vflag & VV_COPYONWRITE) {
 		if ((error = vflush(mp, 0, SKIPSYSTEM | flags)) != 0)
 			return (error);
 		ffs_snapshot_unmount(mp);

@@ -632,8 +632,9 @@ msdosfs_unmount(mp, mntflags, td)
 		struct vnode *vp = pmp->pm_devvp;
 
 		printf("msdosfs_umount(): just before calling VOP_CLOSE()\n");
-		printf("flag %08lx, usecount %d, writecount %d, holdcnt %ld\n",
-		    vp->v_flag, vp->v_usecount, vp->v_writecount, vp->v_holdcnt);
+		printf("iflag %08lx, usecount %d, writecount %d, holdcnt %ld\n",
+		    vp->vi_flag, vp->v_usecount, vp->v_writecount,
+		    vp->v_holdcnt);
 		printf("id %lu, mount %p, op %p\n",
 		    vp->v_id, vp->v_mount, vp->v_op);
 		printf("freef %p, freeb %p, mount %p\n",

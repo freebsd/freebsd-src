@@ -125,11 +125,13 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * Prevent race condition when allocating the object. This
 	 * can happen with NFS vnodes since the nfsnode isn't locked.
 	 */
-	while (vp->v_flag & VOLOCK) {
-		vp->v_flag |= VOWANT;
-		tsleep(vp, PVM, "vnpobj", 0);
+	VI_LOCK(vp);
+	while (vp->v_iflag & VI_OLOCK) {
+		vp->v_iflag |= VI_OWANT;
+		msleep(vp, VI_MTX(vp), PVM, "vnpobj", 0);
 	}
-	vp->v_flag |= VOLOCK;
+	vp->v_iflag |= VI_OLOCK;
+	VI_UNLOCK(vp);
 
 	/*
 	 * If the object is being terminated, wait for it to
@@ -156,12 +158,14 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	} else {
 		object->ref_count++;
 	}
+	VI_LOCK(vp);
 	vp->v_usecount++;
-	vp->v_flag &= ~VOLOCK;
-	if (vp->v_flag & VOWANT) {
-		vp->v_flag &= ~VOWANT;
+	vp->v_iflag &= ~VI_OLOCK;
+	if (vp->v_iflag & VI_OWANT) {
+		vp->v_iflag &= ~VI_OWANT;
 		wakeup(vp);
 	}
+	VI_UNLOCK(vp);
 	mtx_unlock(&Giant);
 	return (object);
 }
@@ -180,8 +184,9 @@ vnode_pager_dealloc(object)
 
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
+	ASSERT_VOP_LOCKED(vp, "vnode_pager_dealloc");
 	vp->v_object = NULL;
-	vp->v_flag &= ~(VTEXT | VOBJBUF);
+	vp->v_vflag &= ~(VV_TEXT | VV_OBJBUF);
 }
 
 static boolean_t
@@ -204,9 +209,12 @@ vnode_pager_haspage(object, pindex, before, after)
 	 * If no vp or vp is doomed or marked transparent to VM, we do not
 	 * have the page.
 	 */
-	if ((vp == NULL) || (vp->v_flag & VDOOMED))
+	if (vp == NULL)
 		return FALSE;
 
+	mp_fixme("Unlocked iflags access");
+	if (vp->v_iflag & VI_DOOMED)
+		return FALSE;
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
 	 * not have the page.

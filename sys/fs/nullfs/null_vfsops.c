@@ -187,8 +187,9 @@ nullfs_mount(mp, ndp, td)
 	 * Keep a held reference to the root vnode.
 	 * It is vrele'd in nullfs_unmount.
 	 */
+	mp_fixme("Unlocked vflag access");
 	nullm_rootvp = vp;
-	nullm_rootvp->v_flag |= VROOT;
+	nullm_rootvp->v_vflag |= VV_ROOT;
 	xmp->nullm_rootvp = nullm_rootvp;
 	if (NULLVPTOLOWERVP(nullm_rootvp)->v_mount->mnt_flag & MNT_LOCAL)
 		mp->mnt_flag |= MNT_LOCAL;

@@ -505,7 +505,8 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		 * hack it to a regular file.
 		 */
 		vp->v_type = VREG;
-		vp->v_flag = 0;
+		vp->v_vflag = 0;
+		vp->v_iflag = 0;
 		VREF(vp);
 		swaponvp(td, vp, NODEV, nd->swap_nblks);
 	}
@@ -951,7 +952,7 @@ nfs_root(struct mount *mp, struct vnode **vpp)
 	vp = NFSTOV(np);
 	if (vp->v_type == VNON)
 	    vp->v_type = VDIR;
-	vp->v_flag = VROOT;
+	vp->v_vflag |= VV_ROOT;
 	*vpp = vp;
 	return (0);
 }

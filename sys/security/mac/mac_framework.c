@@ -978,8 +978,9 @@ mac_update_vnode_from_mount(struct vnode *vp, struct mount *mp)
 	MAC_PERFORM(update_vnode_from_mount, vp, &vp->v_label, mp,
 	    &mp->mnt_fslabel);
 
+	ASSERT_VOP_LOCKED(vp, "mac_update_vnode_from_mount");
 	if (mac_cache_fslabel_in_vnode)
-		vp->v_flag |= VCACHEDLABEL;
+		vp->v_vflag |= VV_CACHEDLABEL;
 }
 
 /*
@@ -1031,7 +1032,7 @@ vop_stdrefreshlabel_ea(struct vop_refreshlabel_args *ap)
 	if (error == 0)
 		error = mac_update_vnode_from_externalized(vp, &extmac);
 	if (error == 0)
-		vp->v_flag |= VCACHEDLABEL;
+		vp->v_vflag |= VV_CACHEDLABEL;
 	else {
 		struct vattr va;
 
@@ -1084,7 +1085,7 @@ vn_refreshlabel(struct vnode *vp, struct ucred *cred)
 		return (EBADF);
 	}
 
-	if (vp->v_flag & VCACHEDLABEL) {
+	if (vp->v_vflag & VV_CACHEDLABEL) {
 		mac_vnode_label_cache_hits++;
 		return (0);
 	} else
@@ -1124,6 +1125,7 @@ vop_stdcreatevnode_ea(struct vnode *dvp, struct vnode *tvp, struct ucred *cred)
 	struct mac extmac;
 	int error;
 
+	ASSERT_VOP_LOCKED(tvp, "vop_stdcreatevnode_ea");
 	if ((dvp->v_mount->mnt_flag & MNT_MULTILABEL) == 0) {
 		mac_update_vnode_from_mount(tvp, tvp->v_mount);
 	} else {
@@ -1156,7 +1158,7 @@ vop_stdcreatevnode_ea(struct vnode *dvp, struct vnode *tvp, struct ucred *cred)
 		    FREEBSD_MAC_EXTATTR_NAMESPACE, FREEBSD_MAC_EXTATTR_NAME,
 		    sizeof(extmac), (char *)&extmac, curthread);
 		if (error == 0)
-			tvp->v_flag |= VCACHEDLABEL;
+			tvp->v_vflag |= VV_CACHEDLABEL;
 		else {
 #if 0
 			/*
@@ -2771,7 +2773,7 @@ vop_stdsetlabel_ea(struct vop_setlabel_args *ap)
 
 	mac_relabel_vnode(ap->a_cred, vp, intlabel);
 
-	vp->v_flag |= VCACHEDLABEL;
+	vp->v_vflag |= VV_CACHEDLABEL;
 
 	return (0);
 }

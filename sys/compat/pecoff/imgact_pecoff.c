@@ -533,7 +533,8 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	imgp->auxarg_size = sizeof(struct pecoff_args);
 	imgp->interpreted = 0;
 
-	imgp->vp->v_flag |= VTEXT;
+	mp_fixme("Unlocked vflag access.");
+	imgp->vp->v_vflag |= VV_TEXT;
 	if (sh != NULL)
 		free(sh, M_TEMP);
 	return 0;

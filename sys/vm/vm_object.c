@@ -415,7 +415,8 @@ vm_object_vndeallocate(vm_object_t object)
 
 	object->ref_count--;
 	if (object->ref_count == 0) {
-		vp->v_flag &= ~VTEXT;
+		mp_fixme("Unlocked vflag access.");
+		vp->v_vflag &= ~VV_TEXT;
 #ifdef ENABLE_VFS_IOOPT
 		vm_object_clear_flag(object, OBJ_OPT);
 #endif
@@ -760,11 +761,10 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 		if (object->type == OBJT_VNODE &&
 		    (vp = (struct vnode *)object->handle) != NULL) {
-			if (vp->v_flag & VOBJDIRTY) {
-				mtx_lock(&vp->v_interlock);
-				vp->v_flag &= ~VOBJDIRTY;
-				mtx_unlock(&vp->v_interlock);
-			}
+			VI_LOCK(vp);
+			if (vp->v_iflag & VI_OBJDIRTY)
+				vp->v_iflag &= ~VI_OBJDIRTY;
+			VI_UNLOCK(vp);
 		}
 	}
 
@@ -1900,11 +1900,10 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	if (object->type == OBJT_VNODE &&
 	    (vp = (struct vnode *)object->handle) != NULL) {
-		if ((vp->v_flag & VOBJDIRTY) == 0) {
-			mtx_lock(&vp->v_interlock);
-			vp->v_flag |= VOBJDIRTY;
-			mtx_unlock(&vp->v_interlock);
-		}
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_OBJDIRTY) == 0)
+			vp->v_iflag |= VI_OBJDIRTY;
+		VI_UNLOCK(vp);
 	}
 }
 

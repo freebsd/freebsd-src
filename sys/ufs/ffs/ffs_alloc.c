@@ -928,7 +928,8 @@ ffs_dirpref(pip)
 	/*
 	 * Force allocation in another cg if creating a first level dir.
 	 */
-	if (ITOV(pip)->v_flag & VROOT) {
+	ASSERT_VOP_LOCKED(ITOV(pip), "ffs_dirpref");
+	if (ITOV(pip)->v_vflag & VV_ROOT) {
 		prefcg = arc4random() % fs->fs_ncg;
 		mincg = prefcg;
 		minndir = fs->fs_ipg;
@@ -1697,7 +1698,8 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
 		cgblkno = fsbtodb(fs, cgtod(fs, cg));
-		if ((devvp->v_flag & VCOPYONWRITE) &&
+		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree");
+		if ((devvp->v_vflag & VV_COPYONWRITE) &&
 		    ffs_snapblkfree(fs, devvp, bno, size, inum))
 			return;
 		VOP_FREEBLKS(devvp, fsbtodb(fs, bno), size);

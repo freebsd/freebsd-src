@@ -240,7 +240,8 @@ exec_aout_imgact(imgp)
 	imgp->proc->p_sysent = &aout_sysvec;
 
 	/* Indicate that this file should not be modified */
-	imgp->vp->v_flag |= VTEXT;
+	mp_fixme("Unlocked vflag access.");
+	imgp->vp->v_vflag |= VV_TEXT;
 
 	return (0);
 }

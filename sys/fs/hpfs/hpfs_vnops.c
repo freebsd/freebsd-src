@@ -107,10 +107,13 @@ loop:
 		(void) bwrite(bp);
 		goto loop;
 	}
+	VI_LOCK(vp);
 	while (vp->v_numoutput) {
-		vp->v_flag |= VBWAIT;
-		(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "hpfsn", 0);
+		vp->v_iflag |= VI_BWAIT;
+		msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp), PRIBIO + 1,
+		    "hpfsn", 0);
 	}
+	VI_UNLOCK(vp);
 #ifdef DIAGNOSTIC
 	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vprint("hpfs_fsync: dirty", vp);

@@ -351,7 +351,7 @@ linux_getcwd_common (lvp, rvp, bpp, bufp, limit, flags, td)
 		/*
 		 * step up if we're a covered vnode..
 		 */
-		while (lvp->v_flag & VROOT) {
+		while (lvp->v_vflag & VV_ROOT) {
 			struct vnode *tvp;
 
 			if (lvp == rvp)

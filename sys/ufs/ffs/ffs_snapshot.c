@@ -456,9 +456,12 @@ loop:
 		panic("ffs_snapshot: %d already on list", ip->i_number);
 	snaphead = &ip->i_devvp->v_rdev->si_snapshots;
 	TAILQ_INSERT_TAIL(snaphead, ip, i_nextsnap);
+
+	ASSERT_VOP_LOCKED(ip->i_devvp, "ffs_snapshot devvp");
 	ip->i_devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
-	ip->i_devvp->v_flag |= VCOPYONWRITE;
-	vp->v_flag |= VSYSTEM;
+	ip->i_devvp->v_vflag |= VV_COPYONWRITE;
+	ASSERT_VOP_LOCKED(vp, "ffs_snapshot vp");
+	vp->v_vflag |= VV_SYSTEM;
 out1:
 	/*
 	 * Resume operation on filesystem.
@@ -1225,9 +1228,10 @@ ffs_snapremove(vp)
 		devvp = ip->i_devvp;
 		TAILQ_REMOVE(&devvp->v_rdev->si_snapshots, ip, i_nextsnap);
 		ip->i_nextsnap.tqe_prev = 0;
+		ASSERT_VOP_LOCKED(devvp, "ffs_snapremove devvp");
 		if (TAILQ_FIRST(&devvp->v_rdev->si_snapshots) == 0) {
 			devvp->v_rdev->si_copyonwrite = 0;
-			devvp->v_flag &= ~VCOPYONWRITE;
+			devvp->v_vflag &= ~VV_COPYONWRITE;
 		}
 	}
 	/*
@@ -1537,9 +1541,10 @@ ffs_snapshot_mount(mp)
 			    ip->i_number);
 		else
 			TAILQ_INSERT_TAIL(snaphead, ip, i_nextsnap);
-		vp->v_flag |= VSYSTEM;
+		vp->v_vflag |= VV_SYSTEM;
 		ump->um_devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
-		ump->um_devvp->v_flag |= VCOPYONWRITE;
+		ASSERT_VOP_LOCKED(ump->um_devvp, "ffs_snapshot_mount");
+		ump->um_devvp->v_vflag |= VV_COPYONWRITE;
 		VOP_UNLOCK(vp, 0, td);
 	}
 }
@@ -1561,8 +1566,9 @@ ffs_snapshot_unmount(mp)
 		if (xp->i_effnlink > 0)
 			vrele(ITOV(xp));
 	}
+	ASSERT_VOP_LOCKED(ump->um_devvp, "ffs_snapshot_unmount");
 	ump->um_devvp->v_rdev->si_copyonwrite = 0;
-	ump->um_devvp->v_flag &= ~VCOPYONWRITE;
+	ump->um_devvp->v_vflag &= ~VV_COPYONWRITE;
 }
 
 /*

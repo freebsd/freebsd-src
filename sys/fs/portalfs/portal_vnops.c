@@ -229,7 +229,7 @@ portal_open(ap)
 	/*
 	 * Nothing to do when opening the root node.
 	 */
-	if (vp->v_flag & VROOT)
+	if (vp->v_vflag & VV_ROOT)
 		return (0);
 
 	/*
@@ -462,7 +462,7 @@ portal_getattr(ap)
 	/* vap->va_qbytes = 0; */
 	vap->va_bytes = 0;
 	/* vap->va_qsize = 0; */
-	if (vp->v_flag & VROOT) {
+	if (vp->v_vflag & VV_ROOT) {
 		vap->va_type = VDIR;
 		vap->va_mode = S_IRUSR|S_IWUSR|S_IXUSR|
 				S_IRGRP|S_IWGRP|S_IXGRP|
@@ -493,7 +493,7 @@ portal_setattr(ap)
 	/*
 	 * Can't mess with the root vnode
 	 */
-	if (ap->a_vp->v_flag & VROOT)
+	if (ap->a_vp->v_vflag & VV_ROOT)
 		return (EACCES);
 
 	if (ap->a_vap->va_flags != VNOVAL)

@@ -313,7 +313,7 @@ devfs_lookupx(ap)
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
 
-	if ((flags & ISDOTDOT) && (dvp->v_flag & VROOT))
+	if ((flags & ISDOTDOT) && (dvp->v_vflag & VV_ROOT))
 		return (EIO);
 
 	error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td);

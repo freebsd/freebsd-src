@@ -373,7 +373,7 @@ union_allocvp(vpp, mp, dvp, upperdvp, cnp, uppervp, lowervp, docache)
 			if (lowervp != NULLVP)
 				VREF(lowervp);
 		}
-		vflag = VROOT;
+		vflag = VV_ROOT;
 	}
 
 loop:
@@ -563,7 +563,8 @@ loop:
 	MALLOC((*vpp)->v_data, void *, sizeof(struct union_node),
 		M_TEMP, M_WAITOK);
 
-	(*vpp)->v_flag |= vflag;
+	ASSERT_VOP_LOCKED(*vpp, "union_allocvp");
+	(*vpp)->v_vflag |= vflag;
 	if (uppervp)
 		(*vpp)->v_type = uppervp->v_type;
 	else
