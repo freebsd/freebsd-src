@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.18 1996/12/13 21:28:54 wollman Exp $
+ *	$Id: in_var.h,v 1.19 1996/12/15 20:46:39 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -41,7 +41,7 @@
 
 /*
  * Interface address, Internet version.  One of these structures
- * is allocated for each interface with an Internet address.
+ * is allocated for each Internet address on an interface.
  * The ifaddr structure contains the protocol-independent part
  * of the structure and is assumed to be first.
  */
@@ -60,8 +60,6 @@ struct in_ifaddr {
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
-	LIST_HEAD(in_multihead, in_multi) ia_multiaddrs;
-					/* list of multicast addresses */
 };
 
 struct	in_aliasreq {
@@ -146,49 +144,51 @@ struct router_info {
 /*
  * Internet multicast address structure.  There is one of these for each IP
  * multicast group to which this host belongs on a given network interface.
- * They are kept in a linked list, rooted in the interface's in_ifaddr
- * structure.
+ * For every entry on the interface's if_multiaddrs list which represents
+ * an IP multicast group, there is one of these structures.  They are also
+ * kept on a system-wide list to make it easier to keep our legacy IGMP code
+ * compatible with the rest of the world (see IN_FIRST_MULTI et al, below).
  */
 struct in_multi {
-	LIST_ENTRY(in_multi) inm_entry; /* list glue */
-	struct	in_addr inm_addr;	/* IP multicast address */
+	LIST_ENTRY(in_multi) inm_link;	/* queue macro glue */
+	struct	in_addr inm_addr;	/* IP multicast address, convenience */
 	struct	ifnet *inm_ifp;		/* back pointer to ifnet */
-	struct	in_ifaddr *inm_ia;	/* back pointer to in_ifaddr */
-	u_int	inm_refcount;		/* no. membership claims by sockets */
+	struct	ifmultiaddr *inm_ifma;	/* back pointer to ifmultiaddr */
 	u_int	inm_timer;		/* IGMP membership report timer */
 	u_int	inm_state;		/*  state of the membership */
 	struct	router_info *inm_rti;	/* router info*/
 };
 
 #ifdef KERNEL
+extern LIST_HEAD(in_multihead, in_multi) in_multihead;
+
 /*
  * Structure used by macros below to remember position when stepping through
  * all of the in_multi records.
  */
 struct in_multistep {
-	struct in_ifaddr *i_ia;
 	struct in_multi *i_inm;
 };
 
 /*
  * Macro for looking up the in_multi record for a given IP multicast address
- * on a given interface.  If no matching record is found, "inm" returns NULL.
+ * on a given interface.  If no matching record is found, "inm" is set null.
  */
 #define IN_LOOKUP_MULTI(addr, ifp, inm) \
 	/* struct in_addr addr; */ \
 	/* struct ifnet *ifp; */ \
 	/* struct in_multi *inm; */ \
 do { \
-	register struct in_ifaddr *ia; \
+	register struct ifmultiaddr *ifma; \
 \
-	IFP_TO_IA((ifp), ia); \
-	if (ia == NULL) \
-		(inm) = NULL; \
-	else \
-		for ((inm) = ia->ia_multiaddrs.lh_first; \
-		    (inm) != NULL && (inm)->inm_addr.s_addr != (addr).s_addr; \
-		     (inm) = inm->inm_entry.le_next) \
-			 continue; \
+	for (ifma = (ifp)->if_multiaddrs.lh_first; ifma; \
+	     ifma = ifma->ifma_link.le_next) { \
+		if (ifma->ifma_addr->sa_family == AF_INET \
+		    && ((struct sockaddr_in *)ifma)->sin_addr.s_addr == \
+		    (addr).s_addr) \
+			break; \
+	} \
+	(inm) = ifma ? ifma->ifma_protospec : 0; \
 } while(0)
 
 /*
@@ -203,24 +203,14 @@ do { \
 	/* struct in_multi *inm; */ \
 do { \
 	if (((inm) = (step).i_inm) != NULL) \
-		(step).i_inm = (inm)->inm_entry.le_next; \
-	else \
-		while ((step).i_ia != NULL) { \
-			(inm) = (step).i_ia->ia_multiaddrs.lh_first; \
-			(step).i_ia = (step).i_ia->ia_link.tqe_next; \
-			if ((inm) != NULL) { \
-				(step).i_inm = (inm)->inm_entry.le_next; \
-				break; \
-			} \
-		} \
+		(step).i_inm = (step).i_inm->inm_link.le_next; \
 } while(0)
 
 #define IN_FIRST_MULTI(step, inm) \
 	/* struct in_multistep step; */ \
 	/* struct in_multi *inm; */ \
 do { \
-	(step).i_ia = in_ifaddrhead.tqh_first; \
-	(step).i_inm = NULL; \
+	(step).i_inm = in_multihead.lh_first; \
 	IN_NEXT_MULTI((step), (inm)); \
 } while(0)
 

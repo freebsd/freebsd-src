@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.22 1996/08/26 22:04:47 julian Exp $
+ * $Id: route.h,v 1.23 1996/10/09 18:35:10 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -203,6 +203,8 @@ struct rt_msghdr {
 #define RTM_NEWADDR	0xc	/* address being added to iface */
 #define RTM_DELADDR	0xd	/* address being removed from iface */
 #define RTM_IFINFO	0xe	/* iface going up/down etc. */
+#define	RTM_NEWMADDR	0xf	/* mcast group membership being added to if */
+#define	RTM_DELMADDR	0x10	/* mcast group membership being deleted */
 
 #define RTV_MTU		0x1	/* init or lock _mtu */
 #define RTV_HOPCOUNT	0x2	/* init or lock _hopcount */
@@ -262,10 +264,14 @@ extern struct route_cb route_cb;
 extern struct rtstat rtstat;
 extern struct radix_node_head *rt_tables[AF_MAX+1];
 
+/* forward declaration for rt_newmaddrmsg() */
+struct ifmultiaddr;
+
 void	 route_init __P((void));
 void	 rt_ifmsg __P((struct ifnet *));
 void	 rt_missmsg __P((int, struct rt_addrinfo *, int, int));
 void	 rt_newaddrmsg __P((int, struct ifaddr *, int, struct rtentry *));
+void	 rt_newmaddrmsg __P((int, struct ifmultiaddr *));
 int	 rt_setgate __P((struct rtentry *,
 	    struct sockaddr *, struct sockaddr *));
 void	 rtalloc __P((struct route *));

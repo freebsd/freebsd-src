@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.17 1996/09/06 23:08:53 phk Exp $
+ * $Id: if_pdq.c,v 1.18 1996/09/10 08:31:31 bde Exp $
  *
  */
 
@@ -287,17 +287,19 @@ pdq_os_addr_fill(
     size_t num_addrs)
 {
     pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
-    struct ether_multistep step;
-    struct ether_multi *enm;
+    struct ifmultiaddr *ifma;
 
-    ETHER_FIRST_MULTI(step, &sc->sc_ac, enm);
-    while (enm != NULL && num_addrs > 0) {
-	((u_short *) addr->lanaddr_bytes)[0] = ((u_short *) enm->enm_addrlo)[0];
-	((u_short *) addr->lanaddr_bytes)[1] = ((u_short *) enm->enm_addrlo)[1];
-	((u_short *) addr->lanaddr_bytes)[2] = ((u_short *) enm->enm_addrlo)[2];
-	ETHER_NEXT_MULTI(step, enm);
-	addr++;
-	num_addrs--;
+    for (ifma = sc->sc_if.if_multiaddrs.lh_first; ifma && num_addrs > 0;
+	 ifma = ifma->ifma_link.le_next) {
+	    char *mcaddr;
+	    if (ifma->ifma_addr->sa_family != AF_LINK)
+		    continue;
+	    mcaddr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+	    ((u_short *) addr->lanaddr_bytes)[0] = ((u_short *) mcaddr)[0];
+	    ((u_short *) addr->lanaddr_bytes)[1] = ((u_short *) mcaddr)[1];
+	    ((u_short *) addr->lanaddr_bytes)[2] = ((u_short *) mcaddr)[2];
+	    addr++;
+	    num_addrs--;
     }
 }
 
@@ -366,22 +368,14 @@ pdq_ifioctl(
 	}
 
 	case SIOCADDMULTI:
-	case SIOCDELMULTI: {
-	    /*
-	     * Update multicast listeners
-	     */
-	    if (cmd == SIOCADDMULTI)
-		error = ether_addmulti((struct ifreq *)data, &sc->sc_ac);
-	    else
-		error = ether_delmulti((struct ifreq *)data, &sc->sc_ac);
-
-	    if (error == ENETRESET) {
+	case SIOCDELMULTI:
+		/*
+		 * Update multicast listeners
+		 */
 		if (sc->sc_if.if_flags & IFF_RUNNING)
-		    pdq_run(sc->sc_pdq);
+			pdq_run(sc->sc_pdq);
 		error = 0;
-	    }
-	    break;
-	}
+		break;
 
 	default: {
 	    error = EINVAL;
@@ -411,6 +405,8 @@ pdq_ifattach(
     ifp->if_ioctl = pdq_ifioctl;
     ifp->if_output = fddi_output;
     ifp->if_start = pdq_ifstart;
+#warning "Implement fddi_resolvemulti!"
+/*    ifp->if_resolvemulti = ether_resolvemulti; XXX */
 
     if_attach(ifp);
     fddi_ifattach(ifp);

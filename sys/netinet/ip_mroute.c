@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.34 1996/07/12 17:22:32 fenner Exp $
+ * $Id: ip_mroute.c,v 1.35 1996/11/23 19:07:02 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -576,7 +576,7 @@ X_ip_mrouter_done()
 	    ((struct sockaddr_in *)&(ifr.ifr_addr))->sin_addr.s_addr
 								= INADDR_ANY;
 	    ifp = viftable[vifi].v_ifp;
-	    (*ifp->if_ioctl)(ifp, SIOCDELMULTI, (caddr_t)&ifr);
+	    if_allmulti(ifp, 0);
 	}
     }
     bzero((caddr_t)tbftable, sizeof(tbftable));
@@ -728,10 +728,8 @@ add_vif(vifcp)
 	    return EOPNOTSUPP;
 
 	/* Enable promiscuous reception of all IP multicasts from the if */
-	((struct sockaddr_in *)&(ifr.ifr_addr))->sin_family = AF_INET;
-	((struct sockaddr_in *)&(ifr.ifr_addr))->sin_addr.s_addr = INADDR_ANY;
 	s = splnet();
-	error = (*ifp->if_ioctl)(ifp, SIOCADDMULTI, (caddr_t)&ifr);
+	if_allmulti(ifp, 1);
 	splx(s);
 	if (error)
 	    return error;
@@ -800,7 +798,7 @@ del_vif(vifip)
 	((struct sockaddr_in *)&(ifr.ifr_addr))->sin_family = AF_INET;
 	((struct sockaddr_in *)&(ifr.ifr_addr))->sin_addr.s_addr = INADDR_ANY;
 	ifp = vifp->v_ifp;
-	(*ifp->if_ioctl)(ifp, SIOCDELMULTI, (caddr_t)&ifr);
+	if_allmulti(ifp, 0);
     }
 
     if (vifp == last_encap_vif) {
