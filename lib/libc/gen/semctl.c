@@ -37,9 +37,5 @@ int semctl(semid, semnum, cmd, va_alist)
 	}
 	va_end(ap);
 
-#ifdef	__NETBSD_SYSCALLS
 	return (__semctl(semid, semnum, cmd, semun_ptr));
-#else
-	return (semsys(0, semid, semnum, cmd, semun_ptr));
-#endif
 }
