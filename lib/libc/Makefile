@@ -1,16 +1,16 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
 # $FreeBSD$
 #
-# All library objects contain rcsid strings by default; they may be
+# All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
-# not contain these strings, delete -DLIBC_RCS and -DSYSLIBC_RCS
-# from CFLAGS below.  To remove these strings from just the system call
-# stubs, remove just -DSYSLIBC_RCS from CFLAGS.
+# not contain these strings, add -DSTRIP_FBSDID to CFLAGS below.
+# To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
+# (for system call stubs) to CFLAGS below.
 LIB=c
 SHLIB_MAJOR= 5
 SHLIB_MINOR= 0
-CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS -I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-DLIBC_MAJOR=${SHLIB_MAJOR}
+CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 AINC=	-I${.CURDIR}/${MACHINE_ARCH}
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=	yes
