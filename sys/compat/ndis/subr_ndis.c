@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
+#include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
@@ -1684,7 +1685,9 @@ __stdcall static uint32_t
 ndis_numpages(buf)
 	ndis_buffer		*buf;
 {
-	return(howmany(buf->nb_bytecount, PAGE_SIZE));
+	if (buf->nb_bytecount == 0)
+		return(1);
+	return(SPAN_PAGES(buf->nb_mappedsystemva, buf->nb_bytecount));
 }
 
 __stdcall static void
