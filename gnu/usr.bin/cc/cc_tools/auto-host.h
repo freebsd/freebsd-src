@@ -3,7 +3,7 @@
 #include <sys/param.h>
 
 /* auto-host.h.  Generated automatically by configure.  */
-/* config.in.  Generated automatically from configure.in by autoheader 2.13.  */
+/* config.in.  Generated automatically from configure.in by autoheader.  */
 
 /* Define if using alloca.c.  */
 /* #undef C_ALLOCA */
@@ -87,7 +87,7 @@
 /* #undef ssize_t */
 
 /* Define if cpp should also search $prefix/include.  */
-/* #define PREFIX_INCLUDE_DIR "NONE/include" */
+/* #undef PREFIX_INCLUDE_DIR */
 
 /* Define if you have the __argz_count function.  */
 /* #undef HAVE___ARGZ_COUNT */
@@ -97,6 +97,9 @@
 
 /* Define if you have the __argz_stringify function.  */
 /* #undef HAVE___ARGZ_STRINGIFY */
+
+/* Define if you have the alphasort function.  */
+#define HAVE_ALPHASORT 1
 
 /* Define if you have the atoll function.  */
 #if __FreeBSD_version >= 500027
@@ -117,7 +120,7 @@
 #define HAVE_DUP2 1
 
 /* Define if you have the feof_unlocked function.  */
-/* #undef HAVE_FEOF_UNLOCKED */
+#define HAVE_FEOF_UNLOCKED 1
 
 /* Define if you have the fgets_unlocked function.  */
 /* #undef HAVE_FGETS_UNLOCKED */
@@ -174,10 +177,13 @@
 #define HAVE_NL_LANGINFO 1
 
 /* Define if you have the putc_unlocked function.  */
-/* #undef HAVE_PUTC_UNLOCKED */
+#define HAVE_PUTC_UNLOCKED 1
 
 /* Define if you have the putenv function.  */
 #define HAVE_PUTENV 1
+
+/* Define if you have the scandir function.  */
+#define HAVE_SCANDIR 1
 
 /* Define if you have the setenv function.  */
 #define HAVE_SETENV 1
@@ -281,38 +287,6 @@
 /* Define to enable the use of a default assembler. */
 /* #undef DEFAULT_ASSEMBLER */
 
-#ifdef WANT_COMPILER_INVARIANTS
-//#warning WANT_COMPILER_INVARIANTS turned on
-
-/* Define if you want more run-time sanity checks.  This one gets a grab
-   bag of miscellaneous but relatively cheap checks. */
-#define ENABLE_CHECKING 1
-
-/* Define if you want all operations on trees (the basic data
-   structure of the front ends) to be checked for dynamic type safety
-   at runtime.  This is moderately expensive. */
-#define ENABLE_TREE_CHECKING 1
-
-/* Define if you want all operations on RTL (the basic data structure
-   of the optimizer and back end) to be checked for dynamic type safety
-   at runtime.  This is quite expensive. */
-#define ENABLE_RTL_CHECKING 1
-
-/* Define if you want the garbage collector to do object poisoning and
-   other memory allocation checks.  This is quite expensive. */
-#define ENABLE_GC_CHECKING 1
-
-/* Define if you want the garbage collector to operate in maximally
-   paranoid mode, validating the entire heap and collecting garbage at
-   every opportunity.  This is extremely expensive. */
-#define ENABLE_GC_ALWAYS_COLLECT 1
-
-#endif	/* WANT_COMPILER_INVARIANTS */
-
-/* Define if you want the C and C++ compilers to support multibyte
-   character sets for source code. */
-/* #undef MULTIBYTE_CHARS */
-
 /* Define if your compiler understands volatile. */
 #define HAVE_VOLATILE 1
 
@@ -326,7 +300,7 @@
 /* #undef HAVE___INT64 */
 
 /* Define if the `_Bool' type is built-in. */
-/* #undef HAVE__BOOL */
+#define HAVE__BOOL 1
 
 /* The number of bytes in type short */
 #define SIZEOF_SHORT 2
@@ -352,6 +326,53 @@
 
 /* Define if the host execution character set is EBCDIC. */
 /* #undef HOST_EBCDIC */
+
+#ifdef WANT_COMPILER_INVARIANTS
+//#warning WANT_COMPILER_INVARIANTS turned on
+
+/* Define if you want more run-time sanity checks.  This one gets a grab
+   bag of miscellaneous but relatively cheap checks. */
+#define ENABLE_CHECKING 1
+
+/* Define if you want all operations on trees (the basic data
+   structure of the front ends) to be checked for dynamic type safety
+   at runtime.  This is moderately expensive. */
+#define ENABLE_TREE_CHECKING 1
+
+/* Define if you want all operations on RTL (the basic data structure
+   of the optimizer and back end) to be checked for dynamic type safety
+   at runtime.  This is quite expensive. */
+#define ENABLE_RTL_CHECKING 1
+
+/* Define if you want RTL flag accesses to be checked against the RTL
+   codes that are supported for each access macro.  This is relatively
+   cheap. */
+#define ENABLE_RTL_FLAG_CHECKING 1
+
+/* Define if you want the garbage collector to do object poisoning and
+   other memory allocation checks.  This is quite expensive. */
+#define ENABLE_GC_CHECKING 1
+
+/* Define if you want the garbage collector to operate in maximally
+   paranoid mode, validating the entire heap and collecting garbage at
+   every opportunity.  This is extremely expensive. */
+#define ENABLE_GC_ALWAYS_COLLECT 1
+
+/* Define if you want to run subprograms and generated programs
+   through valgrind (a memory checker).  This is extremely expensive. */
+/* #undef ENABLE_VALGRIND_CHECKING */
+
+#endif	/* WANT_COMPILER_INVARIANTS */
+
+/* Define if you want to use __cxa_atexit, rather than atexit, to
+   register C++ destructors for local statics and global objects.
+   This is essential for fully standards-compliant handling of
+   destructors, but requires __cxa_atexit in libc. */
+/* #undef DEFAULT_USE_CXA_ATEXIT */
+
+/* Define if you want the C and C++ compilers to support multibyte
+   character sets for source code. */
+/* #undef MULTIBYTE_CHARS */
 
 /* Always define this when using the GNU C Library */
 /* #undef _GNU_SOURCE */
@@ -447,6 +468,9 @@
 #define HAVE_DECL_ERRNO 1
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
+#define HAVE_DECL_VASPRINTF 1
+
+/* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_MALLOC 1
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
@@ -476,6 +500,9 @@
 /* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_GETRUSAGE 1
 
+/* Define to `long' if <sys/resource.h> doesn't define. */
+/* #undef rlim_t */
+
 /* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_TIMES 1
 
@@ -484,6 +511,9 @@
 
 /* Define if <time.h> defines clock_t. */
 #define HAVE_CLOCK_T 1
+
+/* Define .init_array/.fini_array sections are available and working. */
+/* #undef HAVE_INITFINI_ARRAY */
 
 /* Define if host mkdir takes a single argument. */
 /* #undef MKDIR_TAKES_ONE_ARG */
@@ -502,7 +532,7 @@
 
 /* Define to 1 if translation of program messages to the user's native language
    is requested. */
-/* #define ENABLE_NLS 1 */
+/* #undef ENABLE_NLS */
 
 /* Define if you have the <libintl.h> header file. */
 /* #undef HAVE_LIBINTL_H */
@@ -512,7 +542,7 @@
 
 /* Define to use the libintl included with this package instead of any
    version in the system libraries. */
-/* #define USE_INCLUDED_LIBINTL 1 */
+/* #undef USE_INCLUDED_LIBINTL */
 
 /* Define to 1 if installation paths should be looked up in Windows32
    Registry. Ignored on non windows32 hosts. */
@@ -538,9 +568,10 @@
 /* #undef USE_AS_TRADITIONAL_FORMAT */
 
 /* Define if your assembler supports marking sections with SHF_MERGE flag. */
-/* XXX:DEO new; caused Peter IA-64 trouble until he adjusted
-   sys/boot/efi/libefi/arch/ia64/ldscript.ia64.  */
 #define HAVE_GAS_SHF_MERGE 1
+
+/* Define if your assembler supports thread-local storage. */
+#define HAVE_AS_TLS 1
 
 /* Define if your assembler supports explicit relocations. */
 /* #undef HAVE_AS_EXPLICIT_RELOCS */
@@ -554,8 +585,8 @@
 /* Define if your assembler and linker support unaligned PC relative relocs. */
 /* #undef HAVE_AS_SPARC_UA_PCREL */
 
-/* Define if the assembler supports 64bit sparc. */
-/* #undef AS_SPARC64_FLAG */
+/* Define if your assembler and linker support unaligned PC relative relocs against hidden symbols. */
+/* #undef HAVE_AS_SPARC_UA_PCREL_HIDDEN */
 
 /* Define if your assembler supports offsetable %lo(). */
 /* #undef HAVE_AS_OFFSETABLE_LO10 */
@@ -563,9 +594,12 @@
 /* Define true if the assembler supports '.long foo@GOTOFF'. */
 #define HAVE_AS_GOTOFF_IN_DATA 1
 
+/* Define if your assembler supports ltoffx and ldxmov relocations. */
+/* #undef HAVE_AS_LTOFFX_LDXMOV_RELOCS */
+
 /* Define if your assembler supports dwarf2 .file/.loc directives,
    and preserves file table indices exactly as given. */
-/* #undef HAVE_AS_DWARF2_DEBUG_LINE */
+#define HAVE_AS_DWARF2_DEBUG_LINE 1
 
 /* Define if your assembler supports the --gdwarf2 option. */
 #define HAVE_AS_GDWARF2_DEBUG_FLAG 1
@@ -573,11 +607,21 @@
 /* Define if your assembler supports the --gstabs option. */
 #define HAVE_AS_GSTABS_DEBUG_FLAG 1
 
+/* Define if your linker links a mix of read-only
+   and read-write sections into a read-write section. */
+#define HAVE_LD_RO_RW_SECTION_MIXING 1
+
 /* Define if your linker supports --eh-frame-hdr option. */
 #define HAVE_LD_EH_FRAME_HDR 1
 
+/* Define if your MIPS libgloss linker scripts consistently include STARTUP directives. */
+/* #undef HAVE_MIPS_LIBGLOSS_STARTUP_DIRECTIVES */
+
 /* Define 0/1 to force the choice for exception handling model. */
 /* #undef CONFIG_SJLJ_EXCEPTIONS */
+
+/* Define if gcc should use -lunwind. */
+/* #undef USE_LIBUNWIND_EXCEPTIONS */
 
 
 /* Bison unconditionally undefines `const' if neither `__STDC__' nor

@@ -41,6 +41,18 @@
 // Define if gthr-default.h exists (meaning that threading support is enabled).
 #define HAVE_GTHR_DEFAULT 1
 
+// Define if drand48 exists.
+#define HAVE_DRAND48 1
+
+// Define if getpagesize exists.
+#define HAVE_GETPAGESIZE 1
+
+// Define if setenv exists.
+#define HAVE_SETENV 1
+
+// Define if sigsetjmp exists.
+#define HAVE_SIGSETJMP 1
+
 // Define if mbstate_t exists in wchar.h.
 #define HAVE_MBSTATE_T 1
 
@@ -69,13 +81,13 @@
 #define HAVE___BUILTIN_LABS 1
 
 // Define if the compiler/host combination has __builtin_cos
-/* #undef HAVE___BUILTIN_COS */
+#define HAVE___BUILTIN_COS 1
 
 // Define if the compiler/host combination has __builtin_cosf
-/* #undef HAVE___BUILTIN_COSF */
+#define HAVE___BUILTIN_COSF 1
 
 // Define if the compiler/host combination has __builtin_cosl
-/* #undef HAVE___BUILTIN_COSL */
+#define HAVE___BUILTIN_COSL 1
 
 // Define if the compiler/host combination has __builtin_fabs
 #define HAVE___BUILTIN_FABS 1
@@ -87,13 +99,13 @@
 #define HAVE___BUILTIN_FABSL 1
 
 // Define if the compiler/host combination has __builtin_sin
-/* #undef HAVE___BUILTIN_SIN */
+#define HAVE___BUILTIN_SIN 1
 
 // Define if the compiler/host combination has __builtin_sinf
-/* #undef HAVE___BUILTIN_SINF */
+#define HAVE___BUILTIN_SINF 1
 
 // Define if the compiler/host combination has __builtin_sinl
-/* #undef HAVE___BUILTIN_SINL */
+#define HAVE___BUILTIN_SINL 1
 
 // Define if the compiler/host combination has __builtin_sqrt
 /* #undef HAVE___BUILTIN_SQRT */
@@ -103,6 +115,15 @@
 
 // Define if the compiler/host combination has __builtin_sqrtl
 /* #undef HAVE___BUILTIN_SQRTL */
+
+// Define if poll is available in <poll.h>.
+#define HAVE_POLL 1
+
+// Define if S_ISREG (Posix) is available in <sys/stat.h>.
+#define HAVE_S_ISREG 1
+
+// Define if S_IFREG is available in <sys/stat.h>.
+/* #undef HAVE_S_IFREG */
 
 // Define if LC_MESSAGES is available in <locale.h>.
 #define HAVE_LC_MESSAGES 1
@@ -734,6 +755,12 @@
 /* Define if you have the <string.h> header file.  */
 #define HAVE_STRING_H 1
 
+/* Define if you have the <sys/filio.h> header file.  */
+#define HAVE_SYS_FILIO_H 1
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#define HAVE_SYS_IOCTL_H 1
+
 /* Define if you have the <sys/isa_defs.h> header file.  */
 /* #undef HAVE_SYS_ISA_DEFS_H */
 
@@ -745,6 +772,9 @@
 
 /* Define if you have the <sys/stat.h> header file.  */
 #define HAVE_SYS_STAT_H 1
+
+/* Define if you have the <sys/time.h> header file.  */
+#define HAVE_SYS_TIME_H 1
 
 /* Define if you have the <sys/types.h> header file.  */
 #define HAVE_SYS_TYPES_H 1
@@ -765,7 +795,7 @@
 #define PACKAGE "libstdc++"
 
 /* Version number of package */
-#define VERSION "3.2.2"
+#define VERSION "3.3.1"
 
 /* Define if the compiler is configured for setjmp/longjmp exceptions. */
 /* #undef _GLIBCPP_SJLJ_EXCEPTIONS */
