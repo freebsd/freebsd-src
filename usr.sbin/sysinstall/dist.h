@@ -16,7 +16,8 @@
 #define DIST_XF86		0x0800
 #define DIST_DES		0x1000
 #define DIST_CATPAGES		0x2000
-#define DIST_ALL		0x3FFF
+#define DIST_PORTS		0x4000
+#define DIST_ALL		0x7FFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
