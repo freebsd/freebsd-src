@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)errno.h	8.5 (Berkeley) 1/21/94
- * $Id: errno.h,v 1.7 1997/02/22 09:45:10 peter Exp $
+ * $Id: errno.h,v 1.8 1997/12/06 11:28:06 bde Exp $
  */
 
 #ifndef _SYS_ERRNO_H_
@@ -165,7 +165,10 @@ extern int errno;			/* global error number */
 #define	EFTYPE		79		/* Inappropriate file type or format */
 #define	EAUTH		80		/* Authentication error */
 #define	ENEEDAUTH	81		/* Need authenticator */
-#define	ELAST		81		/* Must be equal largest errno */
+#define EIDRM           82              /* Identifier removed */
+#define ENOMSG          83              /* No message of desired type */
+#define	ELAST		83		/* Must be equal largest errno */
+
 #endif /* _POSIX_SOURCE */
 
 #ifdef KERNEL
