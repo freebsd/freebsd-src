@@ -37,6 +37,23 @@
 
 static int rcdata_mode;
 
+/* Whether we are supressing lines from cpp (including windows.h or
+   headers from your C sources may bring in externs and typedefs).
+   When active, we return IGNORED_TOKEN, which lets us ignore these
+   outside of resource constructs.  Thus, it isn't required to protect
+   all the non-preprocessor lines in your header files with #ifdef
+   RC_INVOKED.  It also means your RC file can't include other RC
+   files if they're named "*.h".  Sorry.  Name them *.rch or whatever.  */
+
+static int suppress_cpp_data;
+
+#define MAYBE_RETURN(x) return suppress_cpp_data ? IGNORED_TOKEN : (x)
+
+/* The first filename we detect in the cpp output.  We use this to
+   tell included files from the original file.  */
+
+static char *initial_fn;
+
 /* List of allocated strings.  */
 
 struct alloc_string
@@ -57,82 +74,82 @@ static char *get_string PARAMS ((int));
 
 %%
 
-"BEGIN"			{ return BEG; }
-"{"			{ return BEG; }
-"END"			{ return END; }
-"}"			{ return END; }
-"ACCELERATORS"		{ return ACCELERATORS; }
-"VIRTKEY"		{ return VIRTKEY; }
-"ASCII"			{ return ASCII; }
-"NOINVERT"		{ return NOINVERT; }
-"SHIFT"			{ return SHIFT; }
-"CONTROL"		{ return CONTROL; }
-"ALT"			{ return ALT; }
-"BITMAP"		{ return BITMAP; }
-"CURSOR"		{ return CURSOR; }
-"DIALOG"		{ return DIALOG; }
-"DIALOGEX"		{ return DIALOGEX; }
-"EXSTYLE"		{ return EXSTYLE; }
-"CAPTION"		{ return CAPTION; }
-"CLASS"			{ return CLASS; }
-"STYLE"			{ return STYLE; }
-"AUTO3STATE"		{ return AUTO3STATE; }
-"AUTOCHECKBOX"		{ return AUTOCHECKBOX; }
-"AUTORADIOBUTTON"	{ return AUTORADIOBUTTON; }
-"CHECKBOX"		{ return CHECKBOX; }
-"COMBOBOX"		{ return COMBOBOX; }
-"CTEXT"			{ return CTEXT; }
-"DEFPUSHBUTTON"		{ return DEFPUSHBUTTON; }
-"EDITTEXT"		{ return EDITTEXT; }
-"GROUPBOX"		{ return GROUPBOX; }
-"LISTBOX"		{ return LISTBOX; }
-"LTEXT"			{ return LTEXT; }
-"PUSHBOX"		{ return PUSHBOX; }
-"PUSHBUTTON"		{ return PUSHBUTTON; }
-"RADIOBUTTON"		{ return RADIOBUTTON; }
-"RTEXT"			{ return RTEXT; }
-"SCROLLBAR"		{ return SCROLLBAR; }
-"STATE3"		{ return STATE3; }
-"USERBUTTON"		{ return USERBUTTON; }
-"BEDIT"			{ return BEDIT; }
-"HEDIT"			{ return HEDIT; }
-"IEDIT"			{ return IEDIT; }
-"FONT"			{ return FONT; }
-"ICON"			{ return ICON; }
-"LANGUAGE"		{ return LANGUAGE; }
-"CHARACTERISTICS"	{ return CHARACTERISTICS; }
-"VERSION"		{ return VERSIONK; }
-"MENU"			{ return MENU; }
-"MENUEX"		{ return MENUEX; }
-"MENUITEM"		{ return MENUITEM; }
-"SEPARATOR"		{ return SEPARATOR; }
-"POPUP"			{ return POPUP; }
-"CHECKED"		{ return CHECKED; }
-"GRAYED"		{ return GRAYED; }
-"HELP"			{ return HELP; }
-"INACTIVE"		{ return INACTIVE; }
-"MENUBARBREAK"		{ return MENUBARBREAK; }
-"MENUBREAK"		{ return MENUBREAK; }
-"MESSAGETABLE"		{ return MESSAGETABLE; }
-"RCDATA"		{ return RCDATA; }
-"STRINGTABLE"		{ return STRINGTABLE; }
-"VERSIONINFO"		{ return VERSIONINFO; }
-"FILEVERSION"		{ return FILEVERSION; }
-"PRODUCTVERSION"	{ return PRODUCTVERSION; }
-"FILEFLAGSMASK"		{ return FILEFLAGSMASK; }
-"FILEFLAGS"		{ return FILEFLAGS; }
-"FILEOS"		{ return FILEOS; }
-"FILETYPE"		{ return FILETYPE; }
-"FILESUBTYPE"		{ return FILESUBTYPE; }
-"VALUE"			{ return VALUE; }
-"MOVEABLE"		{ return MOVEABLE; }
-"FIXED"			{ return FIXED; }
-"PURE"			{ return PURE; }
-"IMPURE"		{ return IMPURE; }
-"PRELOAD"		{ return PRELOAD; }
-"LOADONCALL"		{ return LOADONCALL; }
-"DISCARDABLE"		{ return DISCARDABLE; }
-"NOT"			{ return NOT; }
+"BEGIN"			{ MAYBE_RETURN (BEG); }
+"{"			{ MAYBE_RETURN (BEG); }
+"END"			{ MAYBE_RETURN (END); }
+"}"			{ MAYBE_RETURN (END); }
+"ACCELERATORS"		{ MAYBE_RETURN (ACCELERATORS); }
+"VIRTKEY"		{ MAYBE_RETURN (VIRTKEY); }
+"ASCII"			{ MAYBE_RETURN (ASCII); }
+"NOINVERT"		{ MAYBE_RETURN (NOINVERT); }
+"SHIFT"			{ MAYBE_RETURN (SHIFT); }
+"CONTROL"		{ MAYBE_RETURN (CONTROL); }
+"ALT"			{ MAYBE_RETURN (ALT); }
+"BITMAP"		{ MAYBE_RETURN (BITMAP); }
+"CURSOR"		{ MAYBE_RETURN (CURSOR); }
+"DIALOG"		{ MAYBE_RETURN (DIALOG); }
+"DIALOGEX"		{ MAYBE_RETURN (DIALOGEX); }
+"EXSTYLE"		{ MAYBE_RETURN (EXSTYLE); }
+"CAPTION"		{ MAYBE_RETURN (CAPTION); }
+"CLASS"			{ MAYBE_RETURN (CLASS); }
+"STYLE"			{ MAYBE_RETURN (STYLE); }
+"AUTO3STATE"		{ MAYBE_RETURN (AUTO3STATE); }
+"AUTOCHECKBOX"		{ MAYBE_RETURN (AUTOCHECKBOX); }
+"AUTORADIOBUTTON"	{ MAYBE_RETURN (AUTORADIOBUTTON); }
+"CHECKBOX"		{ MAYBE_RETURN (CHECKBOX); }
+"COMBOBOX"		{ MAYBE_RETURN (COMBOBOX); }
+"CTEXT"			{ MAYBE_RETURN (CTEXT); }
+"DEFPUSHBUTTON"		{ MAYBE_RETURN (DEFPUSHBUTTON); }
+"EDITTEXT"		{ MAYBE_RETURN (EDITTEXT); }
+"GROUPBOX"		{ MAYBE_RETURN (GROUPBOX); }
+"LISTBOX"		{ MAYBE_RETURN (LISTBOX); }
+"LTEXT"			{ MAYBE_RETURN (LTEXT); }
+"PUSHBOX"		{ MAYBE_RETURN (PUSHBOX); }
+"PUSHBUTTON"		{ MAYBE_RETURN (PUSHBUTTON); }
+"RADIOBUTTON"		{ MAYBE_RETURN (RADIOBUTTON); }
+"RTEXT"			{ MAYBE_RETURN (RTEXT); }
+"SCROLLBAR"		{ MAYBE_RETURN (SCROLLBAR); }
+"STATE3"		{ MAYBE_RETURN (STATE3); }
+"USERBUTTON"		{ MAYBE_RETURN (USERBUTTON); }
+"BEDIT"			{ MAYBE_RETURN (BEDIT); }
+"HEDIT"			{ MAYBE_RETURN (HEDIT); }
+"IEDIT"			{ MAYBE_RETURN (IEDIT); }
+"FONT"			{ MAYBE_RETURN (FONT); }
+"ICON"			{ MAYBE_RETURN (ICON); }
+"LANGUAGE"		{ MAYBE_RETURN (LANGUAGE); }
+"CHARACTERISTICS"	{ MAYBE_RETURN (CHARACTERISTICS); }
+"VERSION"		{ MAYBE_RETURN (VERSIONK); }
+"MENU"			{ MAYBE_RETURN (MENU); }
+"MENUEX"		{ MAYBE_RETURN (MENUEX); }
+"MENUITEM"		{ MAYBE_RETURN (MENUITEM); }
+"SEPARATOR"		{ MAYBE_RETURN (SEPARATOR); }
+"POPUP"			{ MAYBE_RETURN (POPUP); }
+"CHECKED"		{ MAYBE_RETURN (CHECKED); }
+"GRAYED"		{ MAYBE_RETURN (GRAYED); }
+"HELP"			{ MAYBE_RETURN (HELP); }
+"INACTIVE"		{ MAYBE_RETURN (INACTIVE); }
+"MENUBARBREAK"		{ MAYBE_RETURN (MENUBARBREAK); }
+"MENUBREAK"		{ MAYBE_RETURN (MENUBREAK); }
+"MESSAGETABLE"		{ MAYBE_RETURN (MESSAGETABLE); }
+"RCDATA"		{ MAYBE_RETURN (RCDATA); }
+"STRINGTABLE"		{ MAYBE_RETURN (STRINGTABLE); }
+"VERSIONINFO"		{ MAYBE_RETURN (VERSIONINFO); }
+"FILEVERSION"		{ MAYBE_RETURN (FILEVERSION); }
+"PRODUCTVERSION"	{ MAYBE_RETURN (PRODUCTVERSION); }
+"FILEFLAGSMASK"		{ MAYBE_RETURN (FILEFLAGSMASK); }
+"FILEFLAGS"		{ MAYBE_RETURN (FILEFLAGS); }
+"FILEOS"		{ MAYBE_RETURN (FILEOS); }
+"FILETYPE"		{ MAYBE_RETURN (FILETYPE); }
+"FILESUBTYPE"		{ MAYBE_RETURN (FILESUBTYPE); }
+"VALUE"			{ MAYBE_RETURN (VALUE); }
+"MOVEABLE"		{ MAYBE_RETURN (MOVEABLE); }
+"FIXED"			{ MAYBE_RETURN (FIXED); }
+"PURE"			{ MAYBE_RETURN (PURE); }
+"IMPURE"		{ MAYBE_RETURN (IMPURE); }
+"PRELOAD"		{ MAYBE_RETURN (PRELOAD); }
+"LOADONCALL"		{ MAYBE_RETURN (LOADONCALL); }
+"DISCARDABLE"		{ MAYBE_RETURN (DISCARDABLE); }
+"NOT"			{ MAYBE_RETURN (NOT); }
 
 "BLOCK"[ \t\n]*"\""[^\#\n]*"\"" {
 			  char *s, *send;
@@ -146,11 +163,11 @@ static char *get_string PARAMS ((int));
 			  if (strncmp (s, "StringFileInfo",
 				       sizeof "StringFileInfo" - 1) == 0
 			      && s + sizeof "StringFileInfo" - 1 == send)
-			    return BLOCKSTRINGFILEINFO;
+			    MAYBE_RETURN (BLOCKSTRINGFILEINFO);
 			  else if (strncmp (s, "VarFileInfo",
 					    sizeof "VarFileInfo" - 1) == 0
 				   && s + sizeof "VarFileInfo" - 1 == send)
-			    return BLOCKVARFILEINFO;
+			    MAYBE_RETURN (BLOCKVARFILEINFO);
 			  else
 			    {
 			      char *r;
@@ -159,7 +176,7 @@ static char *get_string PARAMS ((int));
 			      strncpy (r, s, send - s);
 			      r[send - s] = '\0';
 			      yylval.s = r;
-			      return BLOCK;
+			      MAYBE_RETURN (BLOCK);
 			    }
 			}
 
@@ -170,13 +187,13 @@ static char *get_string PARAMS ((int));
 [0-9][x0-9A-Fa-f]*L	{
 			  yylval.i.val = strtoul (yytext, 0, 0);
 			  yylval.i.dword = 1;
-			  return NUMBER;
+			  MAYBE_RETURN (NUMBER);
 			}
 
 [0-9][x0-9A-Fa-f]*	{
 			  yylval.i.val = strtoul (yytext, 0, 0);
 			  yylval.i.dword = 0;
-			  return NUMBER;
+			  MAYBE_RETURN (NUMBER);
 			}
 
 ("\""[^\"\n]*"\""[ \t]*)+ {
@@ -187,13 +204,13 @@ static char *get_string PARAMS ((int));
 			  if (! rcdata_mode)
 			    {
 			      yylval.s = s;
-			      return QUOTEDSTRING;
+			      MAYBE_RETURN (QUOTEDSTRING);
 			    }
 			  else
 			    {
 			      yylval.ss.length = length;
 			      yylval.ss.s = s;
-			      return SIZEDSTRING;
+			      MAYBE_RETURN (SIZEDSTRING);
 			    }
 			}
 
@@ -209,12 +226,12 @@ static char *get_string PARAMS ((int));
 			  s = get_string (strlen (yytext) + 1);
 			  strcpy (s, yytext);
 			  yylval.s = s;
-			  return STRING;
+			  MAYBE_RETURN (STRING);
 			}
 
 [\n]			{ ++rc_lineno; }
 [ \t\r]+		{ /* ignore whitespace */ }
-.			{ return *yytext; }
+.			{ MAYBE_RETURN (*yytext); }
 
 %%
 #ifndef yywrap
@@ -235,18 +252,18 @@ cpp_line (s)
   char *send, *fn;
 
   ++s;
-  while (isspace (*s))
+  while (isspace ((unsigned char) *s))
     ++s;
   
   line = strtol (s, &send, 0);
-  if (*send != '\0' && ! isspace (*send))
+  if (*send != '\0' && ! isspace ((unsigned char) *send))
     return;
 
   /* Subtract 1 because we are about to count the newline.  */
   rc_lineno = line - 1;
 
   s = send;
-  while (isspace (*s))
+  while (isspace ((unsigned char) *s))
     ++s;
 
   if (*s != '"')
@@ -263,6 +280,20 @@ cpp_line (s)
 
   free (rc_filename);
   rc_filename = fn;
+
+  if (!initial_fn)
+    {
+      initial_fn = xmalloc (strlen (fn) + 1);
+      strcpy(initial_fn, fn);
+    }
+
+  /* Allow the initial file, regardless of name.  Suppress all other
+     files if they end in ".h" (this allows included "*.rc") */
+  if (strcmp (initial_fn, fn) == 0
+      || strcmp (fn + strlen (fn) - 2, ".h") != 0)
+    suppress_cpp_data = 0;
+  else
+    suppress_cpp_data = 1;
 }
 
 /* Handle a quoted string.  The quotes are stripped.  A pair of quotes
@@ -392,8 +423,8 @@ handle_quotes (input, len)
       else
 	{
 	  ++t;
-	  assert (isspace (*t));
-	  while (isspace (*t))
+	  assert (isspace ((unsigned char) *t));
+	  while (isspace ((unsigned char) *t))
 	    ++t;
 	  if (*t == '\0')
 	    break;

@@ -35,11 +35,14 @@ extern char *input_line_pointer;/* -> char we are parsing now. */
 
 #define	LEX_NAME	(1)	/* may continue a name */
 #define LEX_BEGIN_NAME	(2)	/* may begin a name */
+#define LEX_END_NAME	(4)	/* ends a name */
 
 #define is_name_beginner(c) \
   ( lex_type[(unsigned char) (c)] & LEX_BEGIN_NAME )
 #define is_part_of_name(c) \
   ( lex_type[(unsigned char) (c)] & LEX_NAME       )
+#define is_name_ender(c) \
+  ( lex_type[(unsigned char) (c)] & LEX_END_NAME   )
 
 #ifndef is_a_char
 #define CHAR_MASK	(0xff)
@@ -102,13 +105,21 @@ extern void emit_leb128_expr PARAMS ((expressionS *, int));
 extern void equals PARAMS ((char *sym_name, int reassign));
 extern void float_cons PARAMS ((int float_type));
 extern void ignore_rest_of_line PARAMS ((void));
+extern void discard_rest_of_line PARAMS ((void));
 extern int output_leb128 PARAMS ((char *, valueT, int sign));
 extern void pseudo_set PARAMS ((symbolS * symbolP));
 extern void read_a_source_file PARAMS ((char *name));
 extern void read_begin PARAMS ((void));
 extern void read_print_statistics PARAMS ((FILE *));
 extern int sizeof_leb128 PARAMS ((valueT, int sign));
+extern void stabs_generate_asm_file PARAMS ((void));
 extern void stabs_generate_asm_lineno PARAMS ((void));
+extern void stabs_generate_asm_func PARAMS ((const char *, const char *));
+extern void stabs_generate_asm_endfunc PARAMS ((const char *, const char *));
+extern void do_repeat PARAMS((int,const char *,const char *));
+extern void end_repeat PARAMS((int));
+
+extern void generate_lineno_debug PARAMS ((void));
 
 extern void s_abort PARAMS ((int));
 extern void s_align_bytes PARAMS ((int arg));
@@ -119,12 +130,15 @@ extern void s_comm PARAMS ((int));
 extern void s_data PARAMS ((int));
 extern void s_desc PARAMS ((int));
 extern void s_else PARAMS ((int arg));
+extern void s_elseif PARAMS ((int arg));
 extern void s_end PARAMS ((int arg));
 extern void s_endif PARAMS ((int arg));
 extern void s_err PARAMS ((int));
 extern void s_fail PARAMS ((int));
 extern void s_fill PARAMS ((int));
 extern void s_float_space PARAMS ((int mult));
+extern void s_func PARAMS ((int));
+extern void do_s_func PARAMS ((int, const char *));
 extern void s_globl PARAMS ((int arg));
 extern void s_if PARAMS ((int arg));
 extern void s_ifc PARAMS ((int arg));

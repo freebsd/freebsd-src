@@ -1,5 +1,5 @@
 /* dlltool.h -- header file for dlltool
-   Copyright (C) 1997 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -27,7 +27,8 @@ extern void def_description PARAMS ((const char *));
 extern void def_exports
   PARAMS ((const char *, const char *, int, int, int, int));
 extern void def_heapsize PARAMS ((int, int));
-extern void def_import PARAMS ((const char *, const char *, const char *));
+extern void def_import
+  PARAMS ((const char *, const char *, const char *, const char *, int));
 extern void def_library PARAMS ((const char *, int));
 extern void def_name PARAMS ((const char *, int));
 extern void def_section PARAMS ((const char *, int));

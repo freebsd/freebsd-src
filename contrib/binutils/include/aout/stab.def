@@ -1,5 +1,6 @@
 /* Table of DBX symbol codes for the GNU system.
-   Copyright (C) 1988, 91, 92, 93, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1988, 91, 92, 93, 94, 95, 96, 1998
+   Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -135,6 +136,9 @@ __define_stab (N_ENDM, 0x62, "ENDM")
 
 __define_stab (N_SO, 0x64, "SO")
 
+/* SunPro F77:  Name of alias.  */
+__define_stab (N_ALIAS, 0x6c, "ALIAS")
+
 /* Automatic variable in the stack.  Value is offset from frame pointer.
    Also used for type descriptions.  */
 __define_stab (N_LSYM, 0x80, "LSYM")
@@ -239,7 +243,7 @@ __define_stab (N_LENG, 0xfe, "LENG")
 	| 50 EHDECL*| 52	| 54 CATCH  | 56        |
 	| 58        | 5A        | 5C        | 5E	|
 	| 60 SSYM   | 62 ENDM	| 64 SO	    | 66 	|
-	| 68 	    | 6A	| 6C	    | 6E	|
+	| 68 	    | 6A	| 6C ALIAS  | 6E	|
 	| 70	    | 72	| 74	    | 76	|
 	| 78	    | 7A	| 7C	    | 7E	|
 	| 80 LSYM   | 82 BINCL	| 84 SOL    | 86	|

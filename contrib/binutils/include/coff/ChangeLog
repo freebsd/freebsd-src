@@ -1,3 +1,107 @@
+2000-03-15  Kazu Hirata  <kazu@hxi.com>
+
+	* internal.h: Fix a typo in the comment for R_MOVL2.
+
+2000-02-28  Nick Clifton  <nickc@cygnus.com>
+
+	* mipspe.h (MIPS_PE_MAGIC): Define.
+	* sh.h (SH_PE_MAGIC): Define.
+
+2000-02-22  Nick Clifton  <nickc@cygnus.com>  DJ Delorie <dj@cygnus.com>
+
+	* sh.h: Add Windows CE definitions.
+	* arm.h: Add Windows CE definitions.
+	* mipspe.h: New file: Windows CE definitions for MIPS.
+	* pe.h: Add constants for ILF support.
+	
+2000-01-05  Nick Clifton  <nickc@cygnus.com>
+
+	* pe.h: Fix formatting of comments.
+	(IMAGE_FILE_AGGRESSIVE_WS_TRIM): Define.
+	(IMAGE_FILE_LARGE_ADDRESS_AWARE): Define.
+	(IMAGE_FILE_16BIT_MACHINE): Define.
+	(IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP): Define.
+	(IMAGE_FILE_UP_SYSTEM_ONLY): Define.
+	(IMAGE_FILE_MACHINE_UNKNOWN): Define.
+	(IMAGE_FILE_MACHINE_ALPHA): Define.
+	(IMAGE_FILE_MACHINE_ALPHA64): Define.
+	(IMAGE_FILE_MACHINE_I386): Define.
+	(IMAGE_FILE_MACHINE_IA64): Define.
+	(IMAGE_FILE_MACHINE_M68K): Define.
+	(IMAGE_FILE_MACHINE_MIPS16): Define.
+	(IMAGE_FILE_MACHINE_MIPSFPU): Define.
+	(IMAGE_FILE_MACHINE_MIPSFPU16): Define.
+	(IMAGE_FILE_MACHINE_POWERPC): Define.
+	(IMAGE_FILE_MACHINE_R3000): Define.
+	(IMAGE_FILE_MACHINE_R4000): Define.
+	(IMAGE_FILE_MACHINE_R10000): Define.
+	(IMAGE_FILE_MACHINE_SH3): Define.
+	(IMAGE_FILE_MACHINE_SH4): Define.
+	(IMAGE_FILE_MACHINE_THUMB): Define.
+
+1999-09-20  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* internal.h: Delete bogus R_PCLONG, duplicate R_RELBYTE and
+	R_RELWORD, and rewrite some R_* as decimal.
+
+1999-09-06  Donn Terry  <donn@interix.com>
+
+	* internal.h (DTYPE): Define.
+	* pe.h (struct external_PEI_filehdr): Rename from
+	external_PE_filehdr.  Define even if COFF_IMAGE_WITH_PE is not
+	defined.
+
+1999-07-17  Nick Clifton  <nickc@cygnus.com>
+
+	* arm.h (F_SOFT_FLOAT): Rename from F_SOFTFLOAT.
+
+1999-06-21  Philip Blundell  <pb@nexus.co.uk>
+
+	* arm.h (F_SOFTFLOAT): Define.
+
+1999-07-05  Nick Clifton  <nickc@cygnus.com>
+
+	* arm.h (F_ARM_5): Define.
+
+Wed Jun  2 18:08:18 1999  Richard Henderson  <rth@cygnus.com>
+
+	* internal.h (BEOS_EXE_IMAGE_BASE, BEOS_DLL_IMAGE_BASE): New.
+
+Mon May 17 13:35:35 1999  Stan Cox  <scox@cygnus.com>
+
+	* coff/arm.h (F_PIC, F_ARM_2, F_ARM_2a, F_ARM_3, F_ARM_3M,
+	F_ARM_4, F_ARM_4T, F_APCS26): Changed values to distinguish
+	F_ARM_2a, F_ARM_3M, F_ARM_4T.
+
+1999-05-15  Nick Clifton  <nickc@cygnus.com>
+
+	* mcore.h (IMAGE_REL_MCORE_RVA): Define.
+
+1999-04-21  Nick Clifton  <nickc@cygnus.com>
+
+	* mcore.h (GET_LINENO_LNNO): New macro.
+	(PUT_LINENO_LNNO): New macro.
+
+1999-04-08  Nick Clifton  <nickc@cygnus.com>
+
+	* mcore.h: New header file.  Defines for Motorola's MCore
+	processor. 
+
+Sun Dec  6 21:36:37 1998  Mark Elbrecht  <snowball3@usa.net>
+
+	* internal.h (C_WEAKEXT): Define.
+
+Wed Jan 27 13:35:35 1999  Stan Cox  <scox@cygnus.com>
+
+	* coff/arm.h (F_PIC_INT, F_ARM_2, F_ARM_3, F_ARM_4, F_APCS26):
+	Changed values to avoid clashing with IMAGE_FILE_* coff header
+	flag values.
+	
+Wed Apr  1 16:06:15 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* internal.h: Document numbers associated with Thumb symbol
+	types. 
+
 Fri Mar 27 17:16:57 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 	* internal.h (ISPTR, ISFCN, ISARY): Add casts to unsigned long.
@@ -5,6 +109,11 @@ Fri Mar 27 17:16:57 1998  Ian Lance Taylor  <ian@cygnus.com>
 Mon Feb  2 17:10:38 1998  Steve Haworth  <steve@pm.cse.rmit.EDU.AU>
 
 	* tic30.h: New file.
+
+Fri Dec 12 11:49:07 1997  Fred Fish  <fnf@cygnus.com>
+
+	* tic80.h (R_MPPCR15W): New relocation type, for 15 bit PC relative
+	offsets.
 
 Tue Dec  2 10:21:40 1997  Nick Clifton  <nickc@cygnus.com>
 
@@ -18,13 +127,31 @@ Sat Nov 22 15:10:14 1997  Nick Clifton  <nickc@cygnus.com>
 	* arm.h: Add bits to support PIC and APCS-FLOAT type binaries,
 	when implemented.
 
+Fri Oct  3 14:25:17 1997  Fred Fish  <fnf@cygnus.com>
+
+	* tic80.h (R_PPL16B): Make constant uppercase for consistency.
+
 Tue Jul 22 18:18:58 1997  Robert Hoehne <robert.hoehne@Mathematik.TU-Chemnitz.DE>
 
 	* go32exe.h: New file.
 
+Tue Jul  8 12:23:55 1997  Fred Fish  <fnf@cygnus.com>
+
+	* tic80.h (TIC80_TARGET_ID): Add define.
+	* internal.h (struct internal_filehdr): Add f_target_id field.
+
 Tue Jun  3 16:44:18 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* internal.h: Add storage classes for Thumb symbols
+
+Mon May 26 14:07:55 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* tic80.h (R_PPL16B): Correct value.
+
+Sat May  3 08:24:59 1997  Fred Fish  <fnf@cygnus.com>
+
+	* internal.h (C_UEXT, C_STATLAB, C_EXTLAB, C_SYSTEM):
+	New storage classes for TIc80.
 
 Fri Apr 18 11:52:55 1997  Niklas Hallqvist  <niklas@appli.se>
 
@@ -41,6 +168,14 @@ Mon Jan 27 13:34:30 1997  Ian Lance Taylor  <ian@cygnus.com>
 	* internal.h (R_IPRMED, R_OPTCALL, R_OPTCALLX): Move definitions
 	from here...
 	* i960.h (R_IPRMED, R_OPTCALL, R_OPTCALLX): ...to here.
+
+Wed Jan 22 20:10:47 1997  Fred Fish  <fnf@cygnus.com>
+
+	* tic80.h (TIC80MAGIC): Renamed to TIC80_AOUTHDR_MAGIC.
+
+Fri Dec 27 22:05:45 1996  Fred Fish  <fnf@cygnus.com>
+
+	* tic80.h: New file for TIc80 support.
 
 Thu Dec 19 16:18:11 1996  Ian Lance Taylor  <ian@cygnus.com>
 

@@ -8,7 +8,7 @@
 This chapter describes the internals of the assembler.  It is incomplete, but
 it may help a bit.
 
-This chapter was last modified on $Date: 1998/02/06 03:42:57 $.  It is not updated regularly, and it
+This chapter was last modified on $Date: 2000/03/26 14:47:33 $.  It is not updated regularly, and it
 may be out of date.
 
 @menu
@@ -115,9 +115,14 @@ This section describes some fundamental GAS data types.
 @cindex symbols, internal
 @cindex symbolS structure
 
-The definition for @code{struct symbol}, also known as @code{symbolS}, is
-located in @file{struc-symbol.h}.  Symbol structures contain the following
-fields:
+The definition for the symbol structure, @code{symbolS}, is located in
+@file{struc-symbol.h}.
+
+In general, the fields of this structure may not be referred to directly.
+Instead, you must use one of the accessor functions defined in @file{symbol.h}.
+These accessor functions should work for any GAS version.
+
+Symbol structures contain the following fields:
 
 @table @code
 @item sy_value
@@ -188,16 +193,10 @@ that name is defined in @file{obj-format.h}, this field is not defined.
 This processor-specific data is of type @code{TC_SYMFIELD_TYPE}.  If no macro
 by that name is defined in @file{targ-cpu.h}, this field is not defined.
 
-@item TARGET_SYMBOL_FIELDS
-If this macro is defined, it defines additional fields in the symbol structure.
-This macro is obsolete, and should be replaced when possible by uses of
-@code{OBJ_SYMFIELD_TYPE} and @code{TC_SYMFIELD_TYPE}.
 @end table
 
-There are a number of access routines used to extract the fields of a
-@code{symbolS} structure.  When possible, these routines should be used rather
-than referring to the fields directly.  These routines will work for any GAS
-version.
+Here is a description of the accessor functions.  These should be used rather
+than referring to the fields of @code{symbolS} directly.
 
 @table @code
 @item S_SET_VALUE
@@ -302,7 +301,135 @@ which it makes sense (primarily ELF).
 @cindex S_SET_SIZE
 Set the size of a symbol.  This is only defined for object file formats for
 which it makes sense (primarily ELF).
+
+@item symbol_get_value_expression
+@cindex symbol_get_value_expression
+Get a pointer to an @code{expressionS} structure which represents the value of
+the symbol as an expression.
+
+@item symbol_set_value_expression
+@cindex symbol_set_value_expression
+Set the value of a symbol to an expression.
+
+@item symbol_set_frag
+@cindex symbol_set_frag
+Set the frag where a symbol is defined.
+
+@item symbol_get_frag
+@cindex symbol_get_frag
+Get the frag where a symbol is defined.
+
+@item symbol_mark_used
+@cindex symbol_mark_used
+Mark a symbol as having been used in an expression.
+
+@item symbol_clear_used
+@cindex symbol_clear_used
+Clear the mark indicating that a symbol was used in an expression.
+
+@item symbol_used_p
+@cindex symbol_used_p
+Return whether a symbol was used in an expression.
+
+@item symbol_mark_used_in_reloc
+@cindex symbol_mark_used_in_reloc
+Mark a symbol as having been used by a relocation.
+
+@item symbol_clear_used_in_reloc
+@cindex symbol_clear_used_in_reloc
+Clear the mark indicating that a symbol was used in a relocation.
+
+@item symbol_used_in_reloc_p
+@cindex symbol_used_in_reloc_p
+Return whether a symbol was used in a relocation.
+
+@item symbol_mark_mri_common
+@cindex symbol_mark_mri_common
+Mark a symbol as an MRI common symbol.
+
+@item symbol_clear_mri_common
+@cindex symbol_clear_mri_common
+Clear the mark indicating that a symbol is an MRI common symbol.
+
+@item symbol_mri_common_p
+@cindex symbol_mri_common_p
+Return whether a symbol is an MRI common symbol.
+
+@item symbol_mark_written
+@cindex symbol_mark_written
+Mark a symbol as having been written.
+
+@item symbol_clear_written
+@cindex symbol_clear_written
+Clear the mark indicating that a symbol was written.
+
+@item symbol_written_p
+@cindex symbol_written_p
+Return whether a symbol was written.
+
+@item symbol_mark_resolved
+@cindex symbol_mark_resolved
+Mark a symbol as having been resolved.
+
+@item symbol_resolved_p
+@cindex symbol_resolved_p
+Return whether a symbol has been resolved.
+
+@item symbol_section_p
+@cindex symbol_section_p
+Return whether a symbol is a section symbol.
+
+@item symbol_equated_p
+@cindex symbol_equated_p
+Return whether a symbol is equated to another symbol.
+
+@item symbol_constant_p
+@cindex symbol_constant_p
+Return whether a symbol has a constant value, including being an offset within
+some frag.
+
+@item symbol_get_bfdsym
+@cindex symbol_get_bfdsym
+Return the BFD symbol associated with a symbol.
+
+@item symbol_set_bfdsym
+@cindex symbol_set_bfdsym
+Set the BFD symbol associated with a symbol.
+
+@item symbol_get_obj
+@cindex symbol_get_obj
+Return a pointer to the @code{OBJ_SYMFIELD_TYPE} field of a symbol.
+
+@item symbol_set_obj
+@cindex symbol_set_obj
+Set the @code{OBJ_SYMFIELD_TYPE} field of a symbol.
+
+@item symbol_get_tc
+@cindex symbol_get_tc
+Return a pointer to the @code{TC_SYMFIELD_TYPE} field of a symbol.
+
+@item symbol_set_tc
+@cindex symbol_set_tc
+Set the @code{TC_SYMFIELD_TYPE} field of a symbol.
+
 @end table
+
+When @code{BFD_ASSEMBLER} is defined, GAS attempts to store local
+symbols--symbols which will not be written to the output file--using a
+different structure, @code{struct local_symbol}.  This structure can only
+represent symbols whose value is an offset within a frag.
+
+Code outside of the symbol handler will always deal with @code{symbolS}
+structures and use the accessor functions.  The accessor functions correctly
+deal with local symbols.  @code{struct local_symbol} is much smaller than
+@code{symbolS} (which also automatically creates a bfd @code{asymbol}
+structure), so this saves space when assembling large files.
+
+The first field of @code{symbolS} is @code{bsym}, the pointer to the BFD
+symbol.  The first field of @code{struct local_symbol} is a pointer which is
+always set to NULL.  This is how the symbol accessor functions can distinguish
+local symbols from ordinary symbols.  The symbol accessor functions
+automatically convert a local symbol into an ordinary symbol when necessary.
 
 @node Expressions
 @subsection Expressions
@@ -768,6 +895,16 @@ comment.
 @cindex tc_comment_chars
 If this macro is defined, GAS will use it instead of @code{comment_chars}.
 
+@item tc_symbol_chars
+@cindex tc_symbol_chars
+If this macro is defined, it is a pointer to a null terminated list of
+characters which may appear in an operand.  GAS already assumes that all
+alphanumberic characters, and @samp{$}, @samp{.}, and @samp{_} may appear in an
+operand (see @samp{symbol_chars} in @file{app.c}).  This macro may be defined
+to treat additional characters as appearing in an operand.  This affects the
+way in which GAS removes whitespace before passing the string to
+@samp{md_assemble}.
+
 @item line_comment_chars
 @cindex line_comment_chars
 This is a null terminated @code{const char} array of characters which start a
@@ -776,8 +913,10 @@ comment when they appear at the start of a line.
 @item line_separator_chars
 @cindex line_separator_chars
 This is a null terminated @code{const char} array of characters which separate
-lines (the semicolon is such a character by default, and need not be listed in
-this array).
+lines (semicolon and newline are such characters by default, and need not be
+listed in this array).  Note that line_separator_chars do not separate lines
+if found in a comment, such as after a character in line_comment_chars or
+comment_chars.
 
 @item EXP_CHARS
 @cindex EXP_CHARS
@@ -795,13 +934,13 @@ Usually this includes @samp{r} and @samp{f}.
 
 @item LEX_AT
 @cindex LEX_AT
-You may define this macro to the lexical type of the @kbd{@}} character.  The
+You may define this macro to the lexical type of the @kbd{@@} character.  The
 default is zero.
 
 Lexical types are a combination of @code{LEX_NAME} and @code{LEX_BEGIN_NAME},
 both defined in @file{read.h}.  @code{LEX_NAME} indicates that the character
 may appear in a name.  @code{LEX_BEGIN_NAME} indicates that the character may
-appear at the beginning of a nem.
+appear at the beginning of a name.
 
 @item LEX_BR
 @cindex LEX_BR
@@ -822,6 +961,12 @@ default value it zero.
 @cindex LEX_DOLLAR
 You may define this macro to the lexical type of the @kbd{$} character.  The
 default value is @code{LEX_NAME | LEX_BEGIN_NAME}.
+
+@item NUMBERS_WITH_SUFFIX
+@cindex NUMBERS_WITH_SUFFIX
+When this macro is defined to be non-zero, the parser allows the radix of a
+constant to be indicated with a suffix.  Valid suffixes are binary (B), 
+octal (Q), and hexadecimal (H).  Case is not significant.
 
 @item SINGLE_QUOTE_STRINGS
 @cindex SINGLE_QUOTE_STRINGS
@@ -851,6 +996,11 @@ is a label, even if it does not have a colon.
 You may define this macro to control what GAS considers to be a label.  The
 default definition is to accept any name followed by a colon character.
 
+@item TC_START_LABEL_WITHOUT_COLON
+@cindex TC_START_LABEL_WITHOUT_COLON
+Same as TC_START_LABEL, but should be used instead of TC_START_LABEL when
+LABELS_WITHOUT_COLONS is defined. 
+
 @item NO_PSEUDO_DOT
 @cindex NO_PSEUDO_DOT
 If you define this macro, GAS will not require pseudo-ops to start with a
@@ -859,7 +1009,9 @@ If you define this macro, GAS will not require pseudo-ops to start with a
 @item TC_EQUAL_IN_INSN
 @cindex TC_EQUAL_IN_INSN
 If you define this macro, it should return nonzero if the instruction is
-permitted to contain an @kbd{=} character.  GAS will use this to decide if a
+permitted to contain an @kbd{=} character.  GAS will call it with two
+arguments, the character before the @kbd{=} character, and the value of
+@code{input_line_pointer} at that point.  GAS uses this macro to decide if a
 @kbd{=} is an assignment or an instruction.
 
 @item TC_EOL_IN_INSN
@@ -881,13 +1033,14 @@ creates a new symbol.  Typically this would be used to supply symbols whose
 name or value changes dynamically, possibly in a context sensitive way.
 Predefined symbols with fixed values, such as register names or condition
 codes, are typically entered directly into the symbol table when @code{md_begin}
-is called.
+is called.  One argument is passed, a @code{char *} for the symbol.
 
 @item md_operand
 @cindex md_operand
-GAS will call this function for any expression that can not be recognized.
-When the function is called, @code{input_line_pointer} will point to the start
-of the expression.
+GAS will call this function with one argument, an @code{expressionS}
+pointer, for any expression that can not be recognized.  When the function
+is called, @code{input_line_pointer} will point to the start of the
+expression.
 
 @item tc_unrecognized_line
 @cindex tc_unrecognized_line
@@ -905,6 +1058,16 @@ upon the number of bytes that the alignment will skip.
 @cindex HANDLE_ALIGN
 You may define this macro to do special handling for an alignment directive.
 GAS will call it at the end of the assembly.
+
+@item TC_IMPLICIT_LCOMM_ALIGNMENT (@var{size}, @var{p2var})
+@cindex TC_IMPLICIT_LCOMM_ALIGNMENT
+An @code{.lcomm} directive with no explicit alignment parameter will use this
+macro to set @var{p2var} to the alignment that a request for @var{size} bytes
+will have.  The alignment is expressed as a power of two.  If no alignment
+should take place, the macro definition should do nothing.  Some targets define
+a @code{.bss} directive that is also affected by this macro.  The default
+definition will set @var{p2var} to the truncated power of two of sizes up to
+eight bytes.
 
 @item md_flush_pending_output
 @cindex md_flush_pending_output
@@ -977,11 +1140,11 @@ relocation entry.
 @cindex md_create_long_jump
 If @code{WORKING_DOT_WORD} is defined, GAS will not do broken word processing
 (@pxref{Broken words}).  Otherwise, you should set @code{md_short_jump_size} to
-the size of a short jump (a jump that is just long enough to jump around a long
-jmp) and @code{md_long_jump_size} to the size of a long jump (a jump that can
-go anywhere in the function), You should define @code{md_create_short_jump} to
-create a short jump around a long jump, and define @code{md_create_long_jump}
-to create a long jump.
+the size of a short jump (a jump that is just long enough to jump around a
+number of long jumps) and @code{md_long_jump_size} to the size of a long jump
+(a jump that can go anywhere in the function).  You should define
+@code{md_create_short_jump} to create a short jump around a number of long
+jumps, and define @code{md_create_long_jump} to create a long jump.
 
 @item md_estimate_size_before_relax
 @cindex md_estimate_size_before_relax
@@ -1024,7 +1187,10 @@ It may also create any necessary relocations.
 @item md_apply_fix
 @cindex md_apply_fix
 GAS will call this for each fixup.  It should store the correct value in the
-object file.
+object file.  @code{fixup_segment} performs a generic overflow check on the
+@code{valueT *val} argument after @code{md_apply_fix} returns.  If the overflow
+check is relevant for the target machine, then @code{md_apply_fix} should
+modify @code{valueT *val}, typically to the value stored in the object file.
 
 @item TC_HANDLES_FX_DONE
 @cindex TC_HANDLES_FX_DONE
@@ -1076,7 +1242,43 @@ If you define this macro, GAS will call it each time a label is defined.
 @item md_section_align
 @cindex md_section_align
 GAS will call this function for each section at the end of the assembly, to
-permit the CPU backend to adjust the alignment of a section.
+permit the CPU backend to adjust the alignment of a section.  The function
+must take two arguments, a @code{segT} for the section and a @code{valueT}
+for the size of the section, and return a @code{valueT} for the rounded
+size.
+
+@item md_macro_start
+@cindex md_macro_start
+If defined, GAS will call this macro when it starts to include a macro
+expansion.  @code{macro_nest} indicates the current macro nesting level, which
+includes the one being expanded. 
+
+@item md_macro_info
+@cindex md_macro_info
+If defined, GAS will call this macro after the macro expansion has been
+included in the input and after parsing the macro arguments.  The single
+argument is a pointer to the macro processing's internal representation of the
+macro (macro_entry *), which includes expansion of the formal arguments.
+
+@item md_macro_end
+@cindex md_macro_end
+Complement to md_macro_start.  If defined, it is called when finished
+processing an inserted macro expansion, just before decrementing macro_nest. 
+
+@item DOUBLEBAR_PARALLEL
+@cindex DOUBLEBAR_PARALLEL
+Affects the preprocessor so that lines containing '||' don't have their
+whitespace stripped following the double bar.  This is useful for targets that
+implement parallel instructions.
+
+@item KEEP_WHITE_AROUND_COLON
+@cindex KEEP_WHITE_AROUND_COLON
+Normally, whitespace is compressed and removed when, in the presence of the
+colon, the adjoining tokens can be distinguished.  This option affects the
+preprocessor so that whitespace around colons is preserved.  This is useful
+when colons might be removed from the input after preprocessing but before
+assembling, so that adjoining tokens can still be distinguished if there is
+whitespace, or concatentated if there is not.
 
 @item tc_frob_section
 @cindex tc_frob_section
@@ -1234,6 +1436,13 @@ completed, but before the relocations have been generated.
 @item obj_frob_file_after_relocs
 If you define this macro, GAS will call it after the relocs have been
 generated.
+
+@item SET_SECTION_RELOCS (@var{sec}, @var{relocs}, @var{n})
+@cindex SET_SECTION_RELOCS
+If you define this, it will be called after the relocations have been set for
+the section @var{sec}.  The list of relocations is in @var{relocs}, and the
+number of relocations is in @var{n}.  This is only used with
+@code{BFD_ASSEMBLER}.
 @end table
 
 @node Emulations
