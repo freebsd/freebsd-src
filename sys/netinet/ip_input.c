@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.101 1998/09/10 08:56:40 dfr Exp $
+ * $Id: ip_input.c,v 1.102 1998/10/16 03:55:01 peter Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -750,7 +750,7 @@ ip_reass(m, fp, where)
 	 * if they are completely covered, dequeue them.
 	 */
 	for (; q != NULL && ip->ip_off + ip->ip_len > GETIP(q)->ip_off;
-	     p = q, q = nq) {
+	     q = nq) {
 		i = (ip->ip_off + ip->ip_len) -
 		    GETIP(q)->ip_off;
 		if (i < GETIP(q)->ip_len) {
