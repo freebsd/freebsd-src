@@ -26,12 +26,12 @@
  *
  *	i4b_util.c - layer 2 utility routines
  *	-------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 17:55:03 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -26,12 +26,12 @@
  *
  *	i4b_l2fsm.c - layer 2 FSM
  *	-------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 16:14:07 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

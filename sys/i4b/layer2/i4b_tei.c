@@ -26,12 +26,12 @@
  *
  *	i4b_tei.c - tei handling procedures
  *	-----------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 17:53:27 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
