@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.147 1996/12/29 05:51:35 jkh Exp $
+ * $Id: install.c,v 1.148 1997/01/06 11:10:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -254,6 +254,9 @@ installFixitCDROM(dialogMenuItem *self)
 {
     struct stat sb;
 
+    if (!RunningAsInit)
+	return DITEM_SUCCESS;
+
     variable_set2(SYSTEM_STATE, "fixit");
     (void)unlink("/mnt2");
     (void)rmdir("/mnt2");
@@ -269,6 +272,8 @@ installFixitCDROM(dialogMenuItem *self)
 	    if (msgYesNo("Unable to mount the CDROM - do you want to try again?") != 0)
 		return DITEM_FAILURE;
 	}
+	else
+	    break;
     }
 
     /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /cdrom, do
@@ -322,6 +327,9 @@ int
 installFixitFloppy(dialogMenuItem *self)
 {
     struct ufs_args args;
+
+    if (!RunningAsInit)
+	return DITEM_SUCCESS;
 
     variable_set2(SYSTEM_STATE, "fixit");
     memset(&args, 0, sizeof(args));
