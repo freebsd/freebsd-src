@@ -130,8 +130,8 @@ configure_final(dummy)
 
 	if (bootverbose) {
 #ifdef PC98
-		{
 		int i;
+
 		/*
 		 * Print out the BIOS's idea of the disk geometries.
 		 */
@@ -147,7 +147,7 @@ configure_final(dummy)
 			 * when the get-disk-geometry interrupt fails.  Skip
 			 * drives that have this geometry.
 			 */
-			if (bios_geom == 0x4f010f)
+			if (bios_geom == 0x4f020f)
 				continue;
 
 			printf(" %x:%08lx ", i, bios_geom);
@@ -161,7 +161,6 @@ configure_final(dummy)
 			       max_sector, max_sector);
 		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
-		}
 #endif
 
 		printf("Device configuration finished.\n");
