@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.23 1997/10/08 07:46:32 charnier Exp $	
+.\"	$Id: pkg_create.1,v 1.24 1998/03/23 08:27:14 charnier Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -38,6 +38,7 @@
 .Op Fl i Ar iscript
 .Op Fl k Ar dscript
 .Op Fl r Ar rscript
+.Op Fl s Ar srcdir
 .Op Fl t Ar template
 .Op Fl X Ar excludefile
 .Op Fl D Ar displayfile
@@ -129,6 +130,11 @@ to be the ``requirements'' procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 at installation/deinstallation time to determine whether or not
 installation/deinstallation should proceed.
+.It Fl s Ar srcdir
+.Ar srcdir
+will override the value of
+.Cm @cwd
+during package creation.
 .It Fl t Ar template
 Use
 .Ar template
