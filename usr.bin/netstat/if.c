@@ -80,14 +80,13 @@ static void sidewaysintpr (u_int, u_long);
 static void catchalarm (int);
 
 #ifdef INET6
-char *netname6 (struct sockaddr_in6 *, struct in6_addr *);
 static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 static int bdg_done;
 #endif
 
 /* print bridge statistics */
 void
-bdg_stats(u_long dummy __unused, char *name, int _af __unused)
+bdg_stats(u_long dummy __unused, const char *name, int af1 __unused)
 {
     int i;
     size_t slen ;
@@ -223,7 +222,7 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 #ifdef INET6
 		struct sockaddr_in6 *sin6;
 #endif
-		register char *cp;
+		char *cp;
 		int n, m;
 
 		network_layer = 0;
@@ -318,7 +317,7 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 				       netname6(&ifaddr.in6.ia_addr,
 						&ifaddr.in6.ia_prefixmask.sin6_addr));
 				printf("%-17.17s ",
-				    (char *)inet_ntop(AF_INET6,
+				    inet_ntop(AF_INET6,
 					&sin6->sin6_addr,
 					ntop_buf, sizeof(ntop_buf)));
 
@@ -516,13 +515,13 @@ u_char	signalled;			/* set if alarm goes off "early" */
  * XXX - should be rewritten to use ifmib(4).
  */
 static void
-sidewaysintpr(unsigned interval, u_long off)
+sidewaysintpr(unsigned interval1, u_long off)
 {
 	struct ifnet ifnet;
 	u_long firstifnet;
 	struct ifnethead ifnethead;
 	struct iftot *iftot, *ip, *ipn, *total, *sum, *interesting;
-	register int line;
+	int line;
 	int oldmask, first;
 	u_long interesting_off;
 
@@ -575,7 +574,7 @@ sidewaysintpr(unsigned interval, u_long off)
 
 	(void)signal(SIGALRM, catchalarm);
 	signalled = NO;
-	(void)alarm(interval);
+	(void)alarm(interval1);
 	first = 1;
 banner:
 	printf("%17s %14s %16s", "input",
@@ -664,7 +663,7 @@ loop:
 	}
 	sigsetmask(oldmask);
 	signalled = NO;
-	(void)alarm(interval);
+	(void)alarm(interval1);
 	line++;
 	first = 0;
 	if (line == 21)

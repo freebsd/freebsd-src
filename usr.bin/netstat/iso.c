@@ -115,7 +115,7 @@ extern void inetprint (struct in_addr *, int, char *);
  *	Dump esis stats
  */
 void
-esis_stats(u_long off, char *name, int af __unused)
+esis_stats(u_long off, const char *name, int af __unused)
 {
 	struct esis_stat esis_stat;
 
@@ -142,7 +142,7 @@ esis_stats(u_long off, char *name, int af __unused)
  * Dump clnp statistics structure.
  */
 void
-clnp_stats(u_long off, char *name, int af __unused)
+clnp_stats(u_long off, const char *name, int af __unused)
 {
 	struct clnp_stat clnp_stat;
 
@@ -175,7 +175,7 @@ clnp_stats(u_long off, char *name, int af __unused)
  * Dump CLTP statistics structure.
  */
 void
-cltp_stats(u_long off, char *name, int af __unused)
+cltp_stats(u_long off, const char *name, int af __unused)
 {
 	struct cltpstat cltpstat;
 
@@ -209,10 +209,10 @@ static	int first = 1;
  * -a (all) flag is specified.
  */
 void
-iso_protopr(u_long off, char *name, int af __unused)
+iso_protopr(u_long off, const char *name, int af __unused)
 {
 	struct isopcb cb;
-	register struct isopcb *prev, *next;
+	struct isopcb *prev, *next;
 
 	if (off == 0) {
 		printf("%s control block: symbol not in namelist\n", name);
@@ -293,7 +293,7 @@ iso_protopr1(u_long kern_addr, int istp)
 }
 
 void
-tp_protopr(u_long off, char *name, int af __unused)
+tp_protopr(u_long off, const char *name, int af __unused)
 {
 	extern char *tp_sstring[];
 	struct tp_ref *tpr, *tpr_base;
@@ -444,7 +444,7 @@ isonetprint(struct iso_addr *iso, char *sufx, u_short sufxlen, int islocal)
 
 #ifdef notdef
 static void
-x25_protopr(u_long off, char *name, int af __unused)
+x25_protopr(u_long off, const char *name, int af __unused)
 {
 	static char *xpcb_states[] = {
 		"CLOSED",
@@ -454,7 +454,7 @@ x25_protopr(u_long off, char *name, int af __unused)
 		"ACKWAIT",
 		"OPEN",
 	};
-	register struct isopcb *prev, *next;
+	struct isopcb *prev, *next;
 	struct x25_pcb xpcb;
 
 	if (off == 0) {
@@ -606,7 +606,7 @@ tprintstat(struct tp_stat *s, int indent)
 	fprintf(OUT,
 		"\t%*sM:L ( M mbuf chains of length L)\n", indent, " ");
 	{
-		register int j;
+		int j;
 
 		fprintf(OUT, "\t%*s%d: over 16\n", indent, " ",
 		s->ts_mb_len_distr[0]);
@@ -647,7 +647,7 @@ tprintstat(struct tp_stat *s, int indent)
 		"\t%*s%d tp 0 connection%s\n",  indent, " ",
 		s->ts_tp0_conn ,plural(s->ts_tp0_conn));
     {
-		register int j;
+		int j;
 		static char *name[]= {
 			"~LOCAL, PDN",
 			"~LOCAL,~PDN",
@@ -794,9 +794,9 @@ static char hexlist[] = "0123456789abcdef", obuf[128];
 static void
 hexprint(int n, char *buf, char *delim)
 {
-	register u_char *in = (u_char *)buf, *top = in + n;
-	register char *out = obuf;
-	register int i;
+	u_char *in = (u_char *)buf, *top = in + n;
+	char *out = obuf;
+	int i;
 
 	if (n == 0)
 		return;
