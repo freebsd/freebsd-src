@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: rcp.c,v 1.21 1998/10/09 06:31:45 markm Exp $";
+	"$Id: rcp.c,v 1.22 1999/04/25 10:36:00 dt Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -121,9 +121,8 @@ main(argc, argv)
 	char *argv[];
 {
 	struct servent *sp;
-	int ch, fflag, tflag;
+	int ch, fflag, i, tflag;
 	char *targ, *shell;
-	int i;
 #ifdef KERBEROS
 	char *k;
 #endif
@@ -131,14 +130,13 @@ main(argc, argv)
 	/*
 	 * Prepare for execing ourselves.
 	 */
-
 	argc_copy = argc + 1;
 	argv_copy = malloc((argc_copy + 1) * sizeof(*argv_copy));
 	if (argv_copy == NULL)
 		err(1, "malloc");
 	argv_copy[0] = argv[0];
 	argv_copy[1] = "-K";
-	for(i = 1; i < argc; ++i) {
+	for (i = 1; i < argc; ++i) {
 		argv_copy[i + 1] = strdup(argv[i]);
 		if (argv_copy[i + 1] == NULL)
 			errx(1, "strdup: out of memory");
@@ -824,6 +822,7 @@ kerberos(host, bp, locuser, user)
 			else if (errno == ENOENT)
 			    oldw("can't provide Kerberos authentication data");
 			execv(_PATH_RCP, argv_copy);
+			err(1, "execv: %s", _PATH_RCP);
 		}
 	} else {
 #ifdef CRYPT
