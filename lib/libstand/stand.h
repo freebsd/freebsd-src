@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.7 1998/10/06 19:23:57 msmith Exp $
+ *	$Id: stand.h,v 1.8 1998/10/19 09:08:40 dfr Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -137,6 +137,7 @@ struct devsw {
     int		(*dv_open)(struct open_file *f, ...);
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
+    void	(*dv_print)(int verbose);	/* print device information */
 };
 
 extern int errno;
