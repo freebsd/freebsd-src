@@ -358,7 +358,7 @@ fore_cmd_drain(fup)
 				/*
 				 * Copy PROM info into config areas
 				 */
-				KM_COPY(&fp->pr_mac[2],
+				bcopy(&fp->pr_mac[2],
 					&fup->fu_pif.pif_macaddr,
 					sizeof(struct mac_addr));
 				fup->fu_config.ac_macaddr = 
