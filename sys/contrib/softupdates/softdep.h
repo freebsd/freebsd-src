@@ -53,6 +53,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)softdep.h	9.5 (McKusick) 2/11/98
+ *	$Id:$
  */
 
 #include <sys/queue.h>
@@ -352,7 +353,7 @@ struct allocdirect {
 struct indirdep {
 	struct	worklist ir_list;	/* buffer holding indirect block */
 #	define	ir_state ir_list.wk_state /* indirect block pointer state */
-	ufs_daddr_t *ir_saveddata;	/* buffer cache contents */
+	caddr_t ir_saveddata;		/* buffer cache contents */
 	struct	buf *ir_savebp;		/* buffer holding safe copy */
 	struct	allocindirhd ir_donehd;	/* done waiting to update safecopy */
 	struct	allocindirhd ir_deplisthd; /* allocindir deps for this block */
