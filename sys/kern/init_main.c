@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.23 1995/05/04 08:21:24 davidg Exp $
+ * $Id: init_main.c,v 1.24 1995/05/14 02:59:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -94,7 +94,7 @@ struct	proc *initproc, *pageproc, *updateproc, *vmproc;
 int	cmask = CMASK;
 extern	struct user *proc0paddr;
 
-struct	vnode *rootvp, *swapdev_vp;
+struct	vnode *rootvp;
 int	boothowto;
 struct	timeval boottime;
 struct	timeval runtime;
