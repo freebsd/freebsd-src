@@ -217,9 +217,8 @@ struct pthread_attr {
 #define TIMESLICE_USEC				100000
 
 struct pthread_key {
-	pthread_mutex_t mutex;
-	long            access_lock;
-	long            count;
+	volatile long	access_lock;
+	volatile int	allocated;
 	void            (*destructor) ();
 };
 
