@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.73.2.1 1997/09/07 10:09:54 joerg Exp $
+ * $Id: st.c,v 1.73.2.2 1998/05/06 19:12:45 gibbs Exp $
  */
 
 /*
@@ -81,7 +81,7 @@ static errval	st_touch_tape __P((u_int32_t unit));
 static errval	st_write_filemarks __P((u_int32_t unit, int32_t number, u_int32_t flags));
 static errval	st_load __P((u_int32_t unit, u_int32_t type, u_int32_t flags));
 static errval	st_mode_select __P((u_int32_t unit, u_int32_t flags, \
-	struct tape_pages *page, u_int32_t pagelen));
+	struct tape_pages *page, u_int32_t pagelen, u_int32_t byte2));
 static errval	st_comp __P((u_int32_t unit, u_int32_t mode));
 static int32_t	st_chkeod __P((u_int32_t unit, boolean position, int32_t *nmarks,
 	u_int32_t flags));
@@ -579,7 +579,7 @@ st_mount_tape(dev, flags)
 			return errno;
 		}
 	}
-	if ( (errno = st_mode_select(unit, 0, NULL, 0)) ) {
+	if ( (errno = st_mode_select(unit, 0, NULL, 0, 0)) ) {
 		printf("st%ld: Cannot set selected mode", unit);
 		return errno;
 	}
@@ -1148,7 +1148,10 @@ try_new_value:
 	 * Check that the mode being asked for is aggreeable to the
 	 * drive. If not, put it back the way it was.
 	 */
-	if ( (errcode = st_mode_select(unit, 0, NULL, 0)) ) {	/* put back as it was */
+	if ( (errcode = st_mode_select(unit, 0, NULL, 0, 0)) ) {	
+		/*
+		 * put back as it was 
+		 */
 		printf("st%ld: Cannot set selected mode", unit);
 		st->density = hold_density;
 		st->blksiz = hold_blksiz;
@@ -1371,10 +1374,11 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
  * set it into the desire modes etc.
  */
 static	errval
-st_mode_select(unit, flags, page, pagelen)
+st_mode_select(unit, flags, page, pagelen, byte2)
 	u_int32_t unit, flags;
 	struct tape_pages *page;
 	u_int32_t pagelen;
+	u_int32_t byte2;
 {
 	u_int32_t dat_len;
 	struct scsi_mode_select scsi_cmd;
@@ -1407,6 +1411,7 @@ st_mode_select(unit, flags, page, pagelen)
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = MODE_SELECT;
 	scsi_cmd.length = dat_len;
+	scsi_cmd.byte2 = (u_char)byte2;
 	dat.header.blk_desc_len = sizeof(struct blk_desc);
 	dat.header.dev_spec |= SMH_DSP_BUFF_MODE_ON;
 	dat.blk_desc.density = st->density;
@@ -1475,7 +1480,12 @@ u_int32_t unit,mode;
 		printf("st%ld: bad value for compression mode\n",unit);
 		return EINVAL;
 	}
-	if ( (retval = st_mode_select(unit, 0, &page, pagesize)) )
+	/*
+	 * send ST_PAGE_CONFIGURATION page as SCSI-II command because it
+	 * is a SCSI-II structure.  This requires the PF bit (0x10) to be
+	 * set for byte2.
+	 */
+	if ( (retval = st_mode_select(unit, 0, &page, pagesize, 0x10)) )
 	{
 		printf("select returned an error of %d\n",retval);
 		return retval;
@@ -1934,7 +1944,7 @@ st_touch_tape(unit)
 		default:
 			readsiz = 1;
 			st->flags &= ~ST_FIXEDBLOCKS;
-		} if ( (errno = st_mode_select(unit, 0, NULL, 0)) ) {
+		} if ( (errno = st_mode_select(unit, 0, NULL, 0, 0)) ) {
 			goto bad;
 		}
 		st_read(unit, buf, readsiz, SCSI_SILENT);
