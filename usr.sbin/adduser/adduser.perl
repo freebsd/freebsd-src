@@ -235,7 +235,7 @@ sub passwd_read {
     local($p_username, $pw, $p_uid, $p_gid, $sh, %shlist);
 
     print "Check $etc_passwd\n" if $verbose;
-    open(P, "$etc_passwd") || die "$passwd: $!\n";
+    open(P, "$etc_passwd") || die "$etc_passwd: $!\n";
 
     while(<P>) {
 	chop;
