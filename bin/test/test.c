@@ -195,6 +195,8 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	gid_t	egid, gid;
+	uid_t	euid, uid;
 	int	i, res;
 	char	*p;
 	char	**nargv;
@@ -224,14 +226,20 @@ main(argc, argv)
 	}
 
 	/* XXX work around the absence of an eaccess(2) syscall */
-	(void)setgid(getegid());
-	(void)setuid(geteuid());
+	egid = getegid();
+	euid = geteuid();
+	gid = getgid();
+	uid = getuid();
+	(void)setregid(egid, gid);
+	(void)setreuid(euid, uid);
 
 	t_wp = &argv[1];
 	res = !oexpr(t_lex(*t_wp));
 
 	if (*t_wp != NULL && *++t_wp != NULL)
 		syntax(*t_wp, "unexpected operator");
+	(void)setregid(gid, egid);
+	(void)setreuid(uid, euid);
 
 	return res;
 }
