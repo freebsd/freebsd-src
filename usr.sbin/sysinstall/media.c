@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.13 1995/05/21 19:28:05 jkh Exp $
+ * $Id: media.c,v 1.14 1995/05/22 14:10:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -283,37 +283,15 @@ mediaSetFS(char *str)
     return 0;
 }
 
-int
-mediaOpen(char *parent, char *me)
-{
-    char distname[FILENAME_MAX];
-    int fd;
-
-    if (parent)
-	snprintf(distname, FILENAME_MAX, "%s%s", parent, me);
-    else
-	snprintf(distname, FILENAME_MAX, "%s/%s", me, me);
-    msgNotify("Attempting to open %s distribution", distname);
-    fd = (*mediaDevice->get)(distname);
-    return fd;
-}
-
-void
-mediaClose(void)
-{
-    if (mediaDevice->close)
-	(*mediaDevice->close)(mediaDevice);
-    mediaDevice = NULL;
-}
-
 Boolean
-mediaExtractDist(char *dir, int fd)
+mediaExtractDist(char *distname, char *dir, int fd)
 {
     int i, j, zpid, cpid, pfd[2];
 
     if (!dir)
 	dir = "/";
-    msgNotify("Extracting into %s directory..", dir);
+    msgWeHaveOutput("Extracting %s into %s directory..", distname, dir);
+
     Mkdir(dir, NULL);
     chdir(dir);
     pipe(pfd);
@@ -351,18 +329,17 @@ mediaExtractDist(char *dir, int fd)
     }
     close(pfd[0]);
     close(pfd[1]);
-    close(fd);
 
     i = waitpid(zpid, &j, 0);
-    if (i < 0 || _WSTATUS(j)) {
+    if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
 	dialog_clear();
-	msgConfirm("gunzip returned error status of %d!", _WSTATUS(j));
+	msgConfirm("wait for gunzip returned status of %d!", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
-    if (i < 0 || _WSTATUS(j)) {
+    if (i < 0 || WEXITSTATUS(j)) {
 	dialog_clear();
-	msgConfirm("cpio returned error status of %d!", _WSTATUS(j));
+	msgConfirm("cpio returned error status of %d!", WEXITSTATUS(j));
 	return FALSE;
     }
     return TRUE;

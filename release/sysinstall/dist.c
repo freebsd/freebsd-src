@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.15 1995/05/21 15:40:47 jkh Exp $
+ * $Id: dist.c,v 1.16 1995/05/22 14:10:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -216,35 +216,39 @@ distExtract(char *parent, Distribution *me)
     status = 0;
     if (mediaDevice->init)
 	if ((*mediaDevice->init)(mediaDevice) == FALSE)
-	     return 0;
+	    return 0;
     for (i = 0; me[i].my_name; i++) {
 	if (me[i].my_bit & *(me[i].my_mask)) {
 	    if (me[i].my_dist)
 		status = distExtract(me[i].my_name, me[i].my_dist);
 	    else {
-		fd = mediaOpen(parent, me[i].my_name);
+		char distname[FILENAME_MAX];
+
+		if (parent)
+		    snprintf(distname, FILENAME_MAX, "%s%s", parent, me[i].my_name);
+		else
+		    snprintf(distname, FILENAME_MAX, "%s/%s", me[i].my_name, me[i].my_name);
+		fd = (*mediaDevice->get)(distname);
 		if (fd != -1) {
-		    status = mediaExtractDist(me[i].my_dir, fd);
+		    status = mediaExtractDist(distname, me[i].my_dir, fd);
 		    close(fd);
 		}
 		else {
 		    if (getenv(NO_CONFIRMATION))
 			status = 0;
 		    else
-			status = !msgYesNo("Unable to transfer the %s%s distribution from %s.\nDo you want to retry this distribution later?", parent ? parent :
-"", me[i].my_name, mediaDevice->name);
+			status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", distname);
 		}
 	    }
 	    if (!status) {
-		/*
-		 * Extract was successful, remove ourselves from further
-		 * consideration
-		 */
+		/* Extract was successful, remove ourselves from further consideration */
 		*(me[i].my_mask) &= ~(me[i].my_bit);
 	    }
 	}
     }
-    mediaClose();
+    if (mediaDevice->close)
+	(*mediaDevice->close)(mediaDevice);
+    mediaDevice = NULL;
     return status;
 }
 
