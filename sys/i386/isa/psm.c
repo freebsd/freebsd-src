@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.27 1996/11/15 05:41:34 nate Exp $
+ * $Id: psm.c,v 1.28 1996/11/15 06:17:36 nate Exp $
  */
 
 /*
@@ -93,7 +93,7 @@
 /* #define PSM_NOCHECKSYNC	   if defined, don't check the header data byte */
 
 #ifndef PSM_ACCEL
-#define PSM_ACCEL	2	/* must be one or greater; acceleration will be
+#define PSM_ACCEL	0	/* must be one or greater; acceleration will be
 				 * disabled if zero */
 #endif
 
