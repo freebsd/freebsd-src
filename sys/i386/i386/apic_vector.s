@@ -82,9 +82,7 @@ IDTVEC(vec_name) ;							\
 	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
 	mov	%ax, %fs ;						\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
-	movl	PCPU(CURTHREAD), %ebx ;					\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
-	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
 	jz	2f ;							\
 	addl	$(32 * index),%eax ;					\
@@ -93,7 +91,6 @@ IDTVEC(vec_name) ;							\
 	pushl	%eax ;		/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
 	addl	$4, %esp ;	/* discard parameter */			\
-	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
 	jmp	doreti ;						\
 2:	movl	$-1, %eax ;	/* send a vector of -1 */		\
@@ -245,12 +242,9 @@ IDTVEC(hardclock)
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
 
-	movl	PCPU(CURTHREAD),%ebx
-	incl	TD_INTR_NESTING_LEVEL(%ebx)
 	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	forwarded_hardclock
 	addl	$4, %esp	/* XXX convert clockframe to trapframe */
-	decl	TD_INTR_NESTING_LEVEL(%ebx)
 	MEXITCOUNT
 	jmp	doreti
 
@@ -273,12 +267,9 @@ IDTVEC(statclock)
 
 	FAKE_MCOUNT(13*4(%esp))
 
-	movl	PCPU(CURTHREAD),%ebx
-	incl	TD_INTR_NESTING_LEVEL(%ebx)
 	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	forwarded_statclock
 	addl	$4, %esp	/* XXX convert clockframe to trapframe */
-	decl	TD_INTR_NESTING_LEVEL(%ebx)
 	MEXITCOUNT
 	jmp	doreti
 

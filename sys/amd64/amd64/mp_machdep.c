@@ -1047,12 +1047,16 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 void
 forwarded_statclock(struct clockframe frame)
 {
+	struct thread *td;
 
 	CTR0(KTR_SMP, "forwarded_statclock");
+	td = curthread;
+	td->td_intr_nesting_level++;
 	if (profprocs != 0)
 		profclock(&frame);
 	if (pscnt == psdiv)
 		statclock(&frame);
+	td->td_intr_nesting_level--;
 }
 
 void
@@ -1080,9 +1084,13 @@ forward_statclock(void)
 void
 forwarded_hardclock(struct clockframe frame)
 {
+	struct thread *td;
 
 	CTR0(KTR_SMP, "forwarded_hardclock");
+	td = curthread;
+	td->td_intr_nesting_level++;
 	hardclock_process(&frame);
+	td->td_intr_nesting_level--;
 }
 
 void 
