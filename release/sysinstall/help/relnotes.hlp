@@ -29,6 +29,9 @@ Caution:  Old utmp/wtmp files will NOT work with this change since
 the data records will be of the old size.  For a conversion utility
 to aid with this, see /usr/src/tools/3.0-upgrade.
 
+/etc/sysconfig now replaced by more compact /etc/rc.conf file
+(new since 2.2.1).
+
 Use the new if_multiaddrs list for multicast addresses rather than the
 previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
 abominable multi_kludge.
@@ -384,17 +387,7 @@ Additional FreeBSD helpers and beta testers:
 
 Special mention to:
 
-        Walnut Creek CDROM, without whose help (and continuing support)
-        this release would never have been possible.
-
-        Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
-        drive.
-
-        Chuck Robey for his donation of a floppy tape streamer for
-        testing.
-
-        Larry Altneu and Wilko Bulte for providing us with Wangtek
-        and Archive QIC-02 tape drives for testing and driver hacking.
+        The donors listed at http://www.freebsd.org/handbook/donors.html
 
 	CalWeb Internet Services for the loan of a P6/200 machine for
 	speedy package building.
