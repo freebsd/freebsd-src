@@ -340,17 +340,6 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
 	{
-		/*
-		 * PR:	kern/21139
-		 * DNES docs state on page 203 that this device only
-		 * supports 64 queued commands.  9gig and 18gig devices P/N
- 		 * DNES-318350 and DNES-309170.
-		 * Reported by: Tracey Camp <campt@miralink.com>
- 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "IBM", "DNES*","*" },
-		/*quirks*/0, /*mintags*/2,/*maxtags*/32
-	},
-	{
 		/* Broken tagged queuing drive */
 		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "iomega", "jaz*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
