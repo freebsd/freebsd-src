@@ -47,7 +47,7 @@ enum volumestate {
     /* present but unused.  Must be 0 */
 
     volume_uninit,
-    /* mentioned elsewhere but not defined */
+    /* mentioned elsewhere but not known to the configuration */
 
     volume_down,
 
@@ -228,7 +228,7 @@ enum drivestate {
     drive_unallocated,
     /* present but unused.  Must be 0 */
 
-    drive_uninit,
+    drive_referenced,
     /* just mentioned in some other config entry */
 
     drive_down,
