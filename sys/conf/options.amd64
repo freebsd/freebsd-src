@@ -32,6 +32,7 @@ SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
 SC_NO_SUSPEND_VTYSWITCH	opt_syscons.h
+DEV_SPLASH		opt_splash.h
 
 VGA_ALT_SEQACCESS	opt_vga.h
 VGA_DEBUG		opt_vga.h
@@ -39,9 +40,6 @@ VGA_NO_FONT_LOADING	opt_vga.h
 VGA_NO_MODE_CHANGE	opt_vga.h
 VGA_SLOW_IOACCESS	opt_vga.h
 VGA_WIDTH90		opt_vga.h
-
-VESA
-VESA_DEBUG		opt_vesa.h
 
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
 
@@ -55,3 +53,9 @@ KBDIO_DEBUG		opt_kbd.h
 # -------------------------------
 # EOF
 # -------------------------------
+HAMMER			opt_cpu.h
+PPC_PROBE_CHIPSET	opt_ppc.h
+PPC_DEBUG		opt_ppc.h
+PSM_HOOKRESUME		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
+PSM_DEBUG		opt_psm.h

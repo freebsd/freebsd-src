@@ -31,32 +31,84 @@ dev/syscons/syscons.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
 isa/atkbd_isa.c			optional	atkbd
 
-libkern/ffs.c			standard
+amd64/amd64/autoconf.c		standard
+amd64/amd64/busdma_machdep.c	standard
+amd64/amd64/critical.c		standard
+amd64/amd64/dump_machdep.c	standard
+amd64/amd64/elf_machdep.c	standard
+amd64/amd64/exception.s		standard
+amd64/amd64/identcpu.c		standard
+amd64/amd64/initcpu.c		standard
+amd64/amd64/legacy.c		standard
+amd64/amd64/locore.s		standard	no-obj
+amd64/amd64/machdep.c		standard
+amd64/amd64/mem.c		standard
+amd64/amd64/nexus.c		standard
+amd64/amd64/pmap.c		standard
+amd64/amd64/sigtramp.s		standard
+amd64/amd64/support.s		standard
+amd64/amd64/swtch.s		standard
+amd64/amd64/sys_machdep.c	standard
+amd64/amd64/trap.c		standard
+amd64/amd64/tsc.c		standard
+amd64/amd64/vm_machdep.c	standard
+amd64/amd64/in_cksum.c		optional inet
 
-x86_64/x86_64/autoconf.c	standard
-x86_64/x86_64/bios.c		standard
-x86_64/x86_64/bioscall.s	standard
-x86_64/x86_64/busdma_machdep.c	standard
-x86_64/x86_64/critical.c	standard
-x86_64/x86_64/dump_machdep.c	standard
-x86_64/x86_64/elf_machdep.c	standard
-x86_64/x86_64/exception.s	standard
-x86_64/x86_64/i686_mem.c	standard
-x86_64/x86_64/identcpu.c	standard
-x86_64/x86_64/initcpu.c		standard
-x86_64/x86_64/k6_mem.c		standard
-x86_64/x86_64/locore.s		standard	no-obj
-x86_64/x86_64/machdep.c		standard
-x86_64/x86_64/mem.c		standard
-x86_64/x86_64/nexus.c		standard
-x86_64/x86_64/pmap.c		standard
-x86_64/x86_64/support.s		standard
-x86_64/x86_64/swtch.s		standard
-x86_64/x86_64/sys_machdep.c	standard
-x86_64/x86_64/trap.c		standard
-x86_64/x86_64/vm86.c		standard
-x86_64/x86_64/vm_machdep.c	standard
+amd64/isa/clock.c		standard
+amd64/isa/intr_machdep.c	standard
+amd64/isa/isa.c			standard
+amd64/isa/isa_dma.c		standard
+amd64/isa/ithread.c		standard
+amd64/isa/npx.c			standard
 
-x86_64/isa/clock.c		standard
-x86_64/isa/intr_machdep.c	standard
-x86_64/isa/ithread.c		standard
+amd64/pci/pci_cfgreg.c		optional	pci
+amd64/pci/pci_bus.c		optional	pci
+
+
+
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+dev/fb/fb.c			optional	fb
+dev/fb/fb.c			optional	vga
+dev/fb/splash.c			optional	splash
+dev/fb/vga.c			optional	vga
+
+dev/kbd/atkbd.c			optional	atkbd
+dev/kbd/atkbdc.c		optional	atkbdc
+dev/kbd/kbd.c			optional	atkbd
+dev/kbd/kbd.c			optional	kbd
+dev/kbd/kbd.c			optional	sc
+dev/kbd/kbd.c			optional	ukbd
+dev/kbd/kbd.c			optional	vt
+
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scterm.c		optional	sc
+dev/syscons/scterm-dumb.c	optional	sc
+dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scvgarndr.c		optional	sc vga
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+dev/syscons/syscons.c		optional	sc
+dev/syscons/sysmouse.c		optional	sc
+geom/geom_bsd.c			standard
+geom/geom_bsd_enc.c		standard
+geom/geom_mbr.c			standard
+geom/geom_mbr_enc.c		standard
+
+#i386/isa/pmtimer.c		optional	pmtimer
+#
+isa/atkbd_isa.c			optional	atkbd
+isa/atkbdc_isa.c		optional	atkbdc
+isa/fd.c			optional	fdc
+isa/ppc.c			optional	ppc
+isa/psm.c			optional	psm
+isa/syscons_isa.c		optional	sc
+isa/vga_isa.c			optional	vga
+pci/agp_intel.c			optional	agp
+pci/agp_via.c			optional	agp
+pci/agp_sis.c			optional	agp
+pci/agp_ali.c			optional	agp
+pci/agp_amd.c			optional	agp
+pci/agp_i810.c			optional	agp
