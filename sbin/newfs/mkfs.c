@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include "newfs.h"
 
 /*
  * make file system for cylinder-group style file systems
@@ -76,69 +77,37 @@ static const char rcsid[] =
 #define MAXINOPB	(MAXBSIZE / sizeof(struct dinode))
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-/*
- * variables set up by front end.
- */
-extern int	Nflag;		/* run mkfs without writing file system */
-extern int	Oflag;		/* format as an 4.3BSD file system */
-extern int	Uflag;		/* enable soft updates for file system */
-extern int	fssize;		/* file system size */
-extern int	ntracks;	/* # tracks/cylinder */
-extern int	nsectors;	/* # sectors/track */
-extern int	nphyssectors;	/* # sectors/track including spares */
-extern int	secpercyl;	/* sectors per cylinder */
-extern int	sectorsize;	/* bytes/sector */
-extern int	realsectorsize;	/* bytes/sector in hardware*/
-extern int	rpm;		/* revolutions/minute of drive */
-extern int	interleave;	/* hardware sector interleave */
-extern int	trackskew;	/* sector 0 skew, per track */
-extern int	fsize;		/* fragment size */
-extern int	bsize;		/* block size */
-extern int	cpg;		/* cylinders/cylinder group */
-extern int	cpgflg;		/* cylinders/cylinder group flag was given */
-extern int	minfree;	/* free space threshold */
-extern int	opt;		/* optimization preference (space or time) */
-extern int	density;	/* number of bytes per inode */
-extern int	maxcontig;	/* max contiguous blocks to allocate */
-extern int	rotdelay;	/* rotational delay between blocks */
-extern int	maxbpg;		/* maximum blocks per file in a cyl group */
-extern int	nrpos;		/* # of distinguished rotational positions */
-extern int	bbsize;		/* boot block size */
-extern int	sbsize;		/* superblock size */
-extern int	avgfilesize;	/* expected average file size */
-extern int	avgfilesperdir;	/* expected number of files per directory */
-
-union {
+static union {
 	struct fs fs;
 	char pad[SBSIZE];
 } fsun;
 #define	sblock	fsun.fs
-struct	csum *fscs;
+static struct	csum *fscs;
 
-union {
+static union {
 	struct cg cg;
 	char pad[MAXBSIZE];
 } cgun;
 #define	acg	cgun.cg
 
-struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
+static struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
 
-int	fsi, fso;
-int     randinit;
-daddr_t	alloc();
-long	calcipg();
-static int charsperline();
-void clrblock (struct fs *, unsigned char *, int);
-void fsinit (time_t);
+static int fsi, fso;
+static int randinit;
+static daddr_t alloc(int size, int mode);
+static long calcipg(long cpg, long bpcg, off_t *usedbp);
+static int charsperline(void);
+static void clrblock (struct fs *, unsigned char *, int);
+static void fsinit (time_t);
 static int ilog2(int);
-void initcg (int, time_t);
-int isblock (struct fs *, unsigned char *, int);
-void iput (struct dinode *, ino_t);
-int makedir (struct direct *, int);
-void rdfs (daddr_t, int, char *);
-void setblock (struct fs *, unsigned char *, int);
-void wtfs (daddr_t, int, char *);
-void wtfsflush (void);
+static void initcg (int, time_t);
+static int isblock (struct fs *, unsigned char *, int);
+static void iput (struct dinode *, ino_t);
+static int makedir (struct direct *, int);
+static void rdfs (daddr_t, int, char *);
+static void setblock (struct fs *, unsigned char *, int);
+static void wtfs (daddr_t, int, char *);
+static void wtfsflush (void);
 
 void
 mkfs(struct partition *pp, char *fsys, int fi, int fo)
@@ -1216,7 +1185,7 @@ setblock(struct fs *fs, unsigned char *cp, int h)
  */
 
 static int
-charsperline()
+charsperline(void)
 {
 	int columns;
 	char *cp;
