@@ -1,4 +1,4 @@
-# $Id: secure-stable-supfile,v 1.2.2.3 1997/05/19 17:29:01 jdp Exp $
+# $Id: secure-stable-supfile,v 1.2.2.4 1997/09/03 20:43:39 jdp Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # source tree of the FreeBSD-stable international secure distribution.
@@ -50,6 +50,6 @@
 *default compress
 
 ## The international secure collections.
-src-contrib-crypto
+src-crypto
 src-eBones
 src-secure
