@@ -116,10 +116,10 @@ pci/agp_via.c			optional	agp
 #
 amd64/ia32/ia32_exception.S	optional	ia32
 amd64/ia32/ia32_signal.c	optional	ia32
+amd64/ia32/ia32_sigtramp.S	optional	ia32
 amd64/ia32/ia32_syscall.c	optional	ia32
 compat/freebsd32/freebsd32_misc.c	optional	ia32
 compat/freebsd32/freebsd32_syscalls.c	optional	ia32
 compat/freebsd32/freebsd32_sysent.c	optional	ia32
-compat/ia32/ia32_sigtramp.S	optional	ia32
 compat/ia32/ia32_sysvec.c	optional	ia32
 kern/imgact_elf32.c		optional	ia32
