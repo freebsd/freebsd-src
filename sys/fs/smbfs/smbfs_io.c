@@ -411,7 +411,7 @@ smbfs_getpages(ap)
 #ifdef SMBFS_RWGENERIC
 	return vop_stdgetpages(ap);
 #else
-	int i, error, nextoff, size, toff, npages, count;
+	int i, error, nextoff, size, toff, npages, count, reqpage;
 	struct uio uio;
 	struct iovec iov;
 	vm_offset_t kva;
@@ -422,29 +422,48 @@ smbfs_getpages(ap)
 	struct smbmount *smp;
 	struct smbnode *np;
 	struct smb_cred scred;
-	vm_page_t *pages;
+	vm_page_t *pages, m;
 
 	vp = ap->a_vp;
+	if (vp->v_object == NULL) {
+		printf("smbfs_getpages: called with non-merged cache vnode??\n");
+		return VM_PAGER_ERROR;
+	}
+
 	td = curthread;				/* XXX */
 	cred = td->td_ucred;		/* XXX */
 	np = VTOSMB(vp);
 	smp = VFSTOSMBFS(vp->v_mount);
 	pages = ap->a_m;
 	count = ap->a_count;
+	npages = btoc(count);
+	reqpage = ap->a_reqpage;
 
-	if (vp->v_object == NULL) {
-		printf("smbfs_getpages: called with non-merged cache vnode??\n");
-		return VM_PAGER_ERROR;
+	/*
+	 * If the requested page is partially valid, just return it and
+	 * allow the pager to zero-out the blanks.  Partially valid pages
+	 * can only occur at the file EOF.
+	 */
+	m = pages[reqpage];
+
+	if (m->valid != 0) {
+		/* handled by vm_fault now	  */
+		/* vm_page_zero_invalid(m, TRUE); */
+		for (i = 0; i < npages; ++i) {
+			if (i != reqpage)
+				vm_page_free(pages[i]);
+		}
+		return 0;
 	}
+
 	smb_makescred(&scred, td, cred);
 
 	bp = getpbuf(&smbfs_pbuf_freecnt);
 
-	npages = btoc(count);
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
 	cnt.v_vnodein++;
-	cnt.v_vnodepgsin += count;
+	cnt.v_vnodepgsin += npages;
 
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
@@ -464,7 +483,7 @@ smbfs_getpages(ap)
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
 		for (i = 0; i < npages; i++) {
-			if (ap->a_reqpage != i)
+			if (reqpage != i)
 				vm_page_free(pages[i]);
 		}
 		return VM_PAGER_ERROR;
@@ -480,14 +499,29 @@ smbfs_getpages(ap)
 		m->flags &= ~PG_ZERO;
 
 		if (nextoff <= size) {
+			/*
+			 * Read operation filled an entire page
+			 */
 			m->valid = VM_PAGE_BITS_ALL;
 			vm_page_undirty(m);
+		} else if (size > toff) {
+			/*
+			 * Read operation filled a partial page.
+			 */
+			m->valid = 0;
+			vm_page_set_validclean(m, 0, size - toff);
+			/* handled by vm_fault now	  */
+			/* vm_page_zero_invalid(m, TRUE); */
 		} else {
-			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_validclean(m, 0, nvalid);
+			/*
+			 * Read operation was short.  If no error occured
+			 * we may have hit a zero-fill section.   We simply
+			 * leave valid set to 0.
+			 */
+			;
 		}
 		
-		if (i != ap->a_reqpage) {
+		if (i != reqpage) {
 			/*
 			 * Whether or not to leave the page activated is up in
 			 * the air, but we should put the page on a page queue
