@@ -753,7 +753,6 @@ acpi_pci_link_route_irqs(device_t dev)
 static int
 acpi_pci_link_resume(device_t dev)
 {
-#if 0 /* XXX Disabled temporarily since this hangs resume. */
 	ACPI_STATUS status;
 
 	ACPI_SERIAL_BEGIN(pci_link);
@@ -762,7 +761,6 @@ acpi_pci_link_resume(device_t dev)
 	if (ACPI_FAILURE(status))
 		return (ENXIO);
 	else
-#endif
 		return (0);
 }
 
