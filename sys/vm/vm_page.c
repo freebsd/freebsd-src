@@ -1574,16 +1574,6 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	}
 }
 
-#if 0
-
-void
-vm_page_set_dirty(vm_page_t m, int base, int size)
-{
-	m->dirty |= vm_page_bits(base, size);
-}
-
-#endif
-
 void
 vm_page_clear_dirty(vm_page_t m, int base, int size)
 {
