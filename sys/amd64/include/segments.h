@@ -248,8 +248,6 @@ extern struct gate_descriptor *idt;
 extern union descriptor ldt[NLDT];
 
 void	lgdt(struct region_descriptor *rdp);
-void	lidt(struct region_descriptor *rdp);
-void	lldt(u_short sel);
 void	sdtossd(struct segment_descriptor *sdp,
 	    struct soft_segment_descriptor *ssdp);
 void	ssdtosd(struct soft_segment_descriptor *ssdp,

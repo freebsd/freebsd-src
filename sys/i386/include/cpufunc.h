@@ -46,6 +46,7 @@
 #include <machine/psl.h>
 
 struct thread;
+struct region_descriptor;
 
 __BEGIN_DECLS
 #define readb(va)	(*(volatile u_int8_t *) (va))
@@ -468,6 +469,27 @@ load_gs(u_int sel)
 	__asm __volatile("movl %0,%%gs" : : "rm" (sel));
 }
 
+/* void lidt(struct region_descriptor *addr); */
+static __inline void
+lidt(struct region_descriptor *addr)
+{
+	__asm __volatile("lidt (%0)" : : "r" (addr));
+}
+
+/* void lldt(u_short sel); */
+static __inline void
+lldt(u_short sel)
+{
+	__asm __volatile("lldt %0" : : "r" (sel));
+}
+
+/* void ltr(u_short sel); */
+static __inline void
+ltr(u_short sel)
+{
+	__asm __volatile("ltr %0" : : "r" (sel));
+}
+
 static __inline u_int
 rdr0(void)
 {
@@ -622,6 +644,10 @@ void	load_cr3(u_int cr3);
 void	load_cr4(u_int cr4);
 void	load_fs(u_int sel);
 void	load_gs(u_int sel);
+struct region_descriptor;
+void	lidt(struct region_descriptor *addr);
+void	lldt(u_short sel);
+void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);
 void	outsb(u_int port, void *addr, size_t cnt);
@@ -663,7 +689,6 @@ void	intr_restore(register_t ef);
 
 #endif	/* __GNUC__ */
 
-void	ltr(u_short sel);
 void    reset_dbregs(void);
 
 __END_DECLS
