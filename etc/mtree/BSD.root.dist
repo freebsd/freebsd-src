@@ -20,6 +20,8 @@ etc	type=dir
 	..
 	namedb	type=dir
 	..
+	uucp	type=dir uname=root gname=wheel mode=755
+	..
 ..
 
 mnt	type=dir
