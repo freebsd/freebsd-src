@@ -1,7 +1,7 @@
 .\" This file contains changes from the Open Software Foundation.
 .\"
 .\"	from: @(#)newsyslog.8
-.\"	$Id: newsyslog.8,v 1.12 1998/05/10 18:41:16 hoek Exp $
+.\"	$Id: newsyslog.8,v 1.13 1998/05/10 19:04:05 hoek Exp $
 .\"
 .\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
 .\" 
@@ -120,9 +120,15 @@ field is specified.
 .It Ar path_to_pid_file
 This optional field specifies
 the file name to read to find the daemon process id.  If this
-field is present, a SIGHUP is sent the process id contained in this
+field is present, a
+.Ar signal_number
+is sent the process id contained in this
 file.  This field must start with "/" in order to be recognized
 properly.
+.It Ar signal_number
+This optional field specifies
+the signal number will be sent to the daemon process. By default
+a SIGHUP will be sent.
 .El
 .Sh OPTIONS
 The following options can be used with newsyslog:
