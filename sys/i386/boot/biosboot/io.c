@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.14 1995/05/30 07:58:33 rgrimes Exp $
+ *	$Id: io.c,v 1.15 1995/06/25 14:02:53 joerg Exp $
  */
 
 #include "boot.h"
@@ -176,8 +176,12 @@ int
 gets(char *buf)
 {
 	int	i;
+#if TIMEOUT+0 > 0
+	int	j;
+#endif
 	char *ptr=buf;
 
+#if TIMEOUT+0 == 0
 #if BOOTWAIT
 	for (i = BOOTWAIT; i>0; delay1ms(),i--)
 #endif
@@ -194,6 +198,28 @@ gets(char *buf)
 				      default:
 					ptr++;
 				}
+#else /* TIMEOUT */
+#if BOOTWAIT == 0
+# error "TIMEOUT without BOOTWAIT"
+#endif
+	for (i = BOOTWAIT; i>0; delay1ms(),i--)
+		if ((loadflags & RB_SERIAL) ? serial_ischar() : ischar())
+			for (j = TIMEOUT; j>0; delay1ms(),j--)
+				if ((loadflags & RB_SERIAL) ?
+				    serial_ischar() : ischar())
+					switch(*ptr = getchar(ptr - buf) &
+					       0xff) {
+					       case '\n':
+					       case '\r':
+						       *ptr = '\0';
+						       return 1;
+					       case '\b':
+						       if (ptr > buf) ptr--;
+						       continue;
+					       default:
+						       ptr++;
+					}
+#endif /* !TIMEOUT */
 	return 0;
 }
 
