@@ -1,0 +1,74 @@
+.\" Copyright (c) 2001-2004 Ruslan Ermilov <ru@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"     %beginstrip%
+.
+.eo
+.
+.
+.ds doc-volume-operating-system FreeBSD
+.
+.\" FreeBSD .Lb values
+.ds doc-str-Lb-libarchive  Streaming Archive Library (libarchive, \-larchive)
+.ds doc-str-Lb-libbluetooth Bluetooth User Library (libbluetooth, \-lbluetooth)
+.ds doc-str-Lb-libc_r      Reentrant C\~Library (libc_r, \-lc_r)
+.ds doc-str-Lb-libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
+.ds doc-str-Lb-libcam      Common Access Method User Library (libcam, \-lcam)
+.ds doc-str-Lb-libcipher   FreeSec Crypt Library (libcipher, \-lcipher)
+.ds doc-str-Lb-libdevinfo  Device and Resource Information Utility Library (libdevinfo, \-ldevinfo)
+.ds doc-str-Lb-libdevstat  Device Statistics Library (libdevstat, \-ldevstat)
+.ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
+.ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
+.ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
+.ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
+.ds doc-str-Lb-libipx      IPX Address Conversion Support Library (libipx, \-lipx)
+.ds doc-str-Lb-libkiconv   Kernel side iconv library (libkiconv, \-lkiconv)
+.ds doc-str-Lb-libmd       Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
+.ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
+.ds doc-str-Lb-librpcsvc   RPC Service Library (librpcsvc, \-lrpcsvc)
+.ds doc-str-Lb-libsdp      Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
+.ds doc-str-Lb-libthr      1:1 Threading Library (libthr, \-lthr)
+.ds doc-str-Lb-libufs      UFS File System Access Library (libufs, \-lufs)
+.ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
+.ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
+.
+.\" Default .Os value
+.ds doc-default-operating-system FreeBSD\~5.3
+.
+.\" FreeBSD releases not found in doc-common
+.ds doc-operating-system-FreeBSD-4.11   4.11
+.ds doc-operating-system-FreeBSD-5.4    5.4
+.ds doc-operating-system-FreeBSD-6.0    6.0
+.
+.ec
+.
+.\" Locale support
+.if d doc-locale \{\
+.  ie "\*[doc-locale]"ru.KOI8-R" \
+.    mso mdoc/ru.KOI8-R
+.  el \{ .if "\*[doc-locale]"fr.ISO8859-1" \
+.    mso mdoc/fr.ISO8859-1
+.\}\}
