@@ -565,7 +565,7 @@ found:
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		error = VFS_VGET(pdp->v_mount, dp->i_ino,
-		    LK_EXCLUSIVE, &tdp);
+		    cnp->cn_lkflags, &tdp);
 		if (error) {
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);
@@ -575,7 +575,8 @@ found:
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		error = VFS_VGET(pdp->v_mount, dp->i_ino, LK_EXCLUSIVE, &tdp);
+		error = VFS_VGET(pdp->v_mount, dp->i_ino,
+		    cnp->cn_lkflags, &tdp);
 		if (error)
 			return (error);
 		*vpp = tdp;
