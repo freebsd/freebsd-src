@@ -244,6 +244,7 @@ CD_BOOT=		${CD}/bootonly
 .endif
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
+_MK?=			${CHROOTDIR}/mk
 
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
@@ -400,10 +401,10 @@ release rerelease:
 		rm foo; \
 	fi
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
-	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
-	echo "set -ex"				>> ${CHROOTDIR}/mk
-	echo "trap 'umount /dev || true' 0"	>> ${CHROOTDIR}/mk
-	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
+	echo "#!/bin/sh"			> ${_MK}
+	echo "set -ex"				>> ${_MK}
+	echo "trap 'umount /dev || true' 0"	>> ${_MK}
+	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${_MK}
 .for var in \
 	AUTO_KEYBOARD_DETECT \
 	BOOT_CONFIG \
@@ -435,34 +436,33 @@ release rerelease:
 	TARGET_ARCH \
 	WORLD_FLAGS
 .if defined(${var})
-	echo "export ${var}=\"${${var}}\""	>> ${CHROOTDIR}/mk
+	echo "export ${var}=\"${${var}}\""	>> ${_MK}
 .endif
 .endfor
 	# Don't remove this, or the build will fall over!
-	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
-	echo "export PATH=/bin:/usr/bin:/sbin:/usr/sbin:${LOCALDIR}"	>> ${CHROOTDIR}/mk
-	echo "export MANBUILDCAT=YES"		>> ${CHROOTDIR}/mk
+	echo "export RELEASEDIR=${_R}"		>> ${_MK}
+	echo "export PATH=/bin:/usr/bin:/sbin:/usr/sbin:${LOCALDIR}"	>> ${_MK}
+	echo "export MANBUILDCAT=YES"		>> ${_MK}
 	# NB: these may fail if the host is running w/o devfs
-	echo "umount /dev >/dev/null 2>&1 || true" >> ${CHROOTDIR}/mk
-	echo "mount -t devfs devfs /dev >/dev/null 2>&1 || true" \
-						>> ${CHROOTDIR}/mk
-	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
-	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
-	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
-	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
-	echo "fi"				>> ${CHROOTDIR}/mk
-	echo "if [ ! -f /tmp/.skip_ports ]; then" >> ${CHROOTDIR}/mk
-	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
-	echo "	cd /usr/ports"			>> ${CHROOTDIR}/mk
-	echo "	make ${PORTREADMES_FLAGS} readmes" >> ${CHROOTDIR}/mk
-	echo "	touch /tmp/.skip_ports"		>> ${CHROOTDIR}/mk
-	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
-	echo "fi"				>> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
-	echo "make obj"				>> ${CHROOTDIR}/mk
-	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
-	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
-	chmod 755 ${CHROOTDIR}/mk
+	echo "umount /dev >/dev/null 2>&1 || true" >> ${_MK}
+	echo "mount -t devfs devfs /dev >/dev/null 2>&1 || true"	>> ${_MK}
+	echo "if [ ! -f /tmp/.world_done ]; then" >> ${_MK}
+	echo "	cd /usr/src"			>> ${_MK}
+	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${_MK}
+	echo "	touch /tmp/.world_done"		>> ${_MK}
+	echo "fi"				>> ${_MK}
+	echo "if [ ! -f /tmp/.skip_ports ]; then" >> ${_MK}
+	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
+	echo "	cd /usr/ports"			>> ${_MK}
+	echo "	make ${PORTREADMES_FLAGS} readmes" >> ${_MK}
+	echo "	touch /tmp/.skip_ports"		>> ${_MK}
+	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
+	echo "fi"				>> ${_MK}
+	echo "cd /usr/src/release"		>> ${_MK}
+	echo "make obj"				>> ${_MK}
+	echo "make \$${_RELTARGET}"		>> ${_MK}
+	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
+	chmod 755 ${_MK}
 .if defined(NOPORTS) || defined(NOPORTREADMES)
 	touch ${CHROOTDIR}/tmp/.skip_ports
 .endif
