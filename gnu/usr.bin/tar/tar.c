@@ -187,6 +187,7 @@ struct option long_options[] =
 
   {"unlink", 0, &f_unlink, 1},
   {"fast-read", 0, &f_fast_read, 1},
+  {"norecurse", 0, 0, 'n'},
 
   {0, 0, 0, 0}
 };
@@ -313,7 +314,7 @@ options (argc, argv)
 
   /* Parse options */
   while ((c = getoldopt (argc, argv,
-	       "-01234567Ab:BcC:df:F:g:GhikK:lL:mMN:oOpPrRsStT:uvV:wWxX:zZ",
+	       "-01234567Ab:BcC:df:F:g:GhikK:lL:mMnN:oOpPrRsStT:uvV:wWxX:zZ",
 			 long_options, &ind)) != EOF)
     {
       switch (c)
@@ -535,6 +536,12 @@ options (argc, argv)
 	  f_multivol++;
 	  break;
 
+	case 'n':		/* don't recurse into subdirectories */
+	  if (f_oldarch)
+	    goto badopt;
+	  f_dironly++;
+	  break;
+
 	case 'N':		/* Only write files newer than X */
 	get_newer:
 	  f_new_files++;
@@ -547,7 +554,7 @@ options (argc, argv)
 	  break;
 
 	case 'o':		/* Generate old archive */
-	  if (f_gnudump /* || f_dironly */ )
+	  if (f_gnudump || f_dironly )
 	    goto badopt;
 	  f_oldarch++;
 	  break;
@@ -730,6 +737,7 @@ Other options:\n\
   fputs ("\
 -m, --modification-time	don't extract file modified time\n\
 -M, --multi-volume	create/list/extract multi-volume archive\n\
+-n, --norecurse		don't recurse into subdircectories\n\
 -N, --after-date DATE,\n\
     --newer DATE	only store files newer than DATE\n\
 -o, --old-archive,\n\
