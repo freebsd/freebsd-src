@@ -403,9 +403,6 @@ if (*av==NULL || !strncmp(*av,CH_AC,strlen(CH_AC))) {
 
 
 
-
-
-
 int get_num(str,tab)
 char 	*str;
 char	tab[][MAXSTR];
@@ -665,6 +662,10 @@ no_src_ports:
 		if (ir)
 			flags|=IP_FW_F_DRNG;
 	}
+
+	if (*(++av)==NULL) 
+		goto no_tail;
+
 no_dst_ports:
 	if (strncmp(*av,S_SEP3,strlen(S_SEP3))) {
 		show_usage();
