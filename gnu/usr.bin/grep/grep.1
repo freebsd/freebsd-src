@@ -597,31 +597,6 @@ front of the operand list and are treated as options.
 Also, \s-1POSIX.2\s0 requires that unrecognized options be diagnosed as
 \*(lqillegal\*(rq, but since they are not really against the law the default
 is to diagnose them as \*(lqinvalid\*(rq.
-.B POSIXLY_CORRECT
-also disables \fB_\fP\fIN\fP\fB_GNU_nonoption_argv_flags_\fP,
-described below.
-.TP
-\fB_\fP\fIN\fP\fB_GNU_nonoption_argv_flags_\fP
-(Here
-.I N
-is
-.BR grep 's
-numeric process ID.)  If the
-.IR i th
-character of this environment variable's value is
-.BR 1 ,
-do not consider the
-.IR i th
-operand of
-.B grep
-to be an option, even if it appears to be one.
-A shell can put this variable in the environment for each command it runs,
-specifying which operands are the results of file name wildcard
-expansion and therefore should not be treated as options.
-This behavior is available only with the \s-1GNU\s0 C library, and only
-when
-.B POSIXLY_CORRECT
-is not set.
 .SH DIAGNOSTICS
 Normally, exit status is 0 if matches were found,
 and 1 if no matches were found.  (The
