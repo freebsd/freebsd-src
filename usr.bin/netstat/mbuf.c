@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mbuf.c,v 1.12 1998/07/06 21:01:26 bde Exp $";
+	"$Id: mbuf.c,v 1.13 1998/08/18 13:36:47 jb Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -77,7 +77,9 @@ static struct mbtypes {
 #endif
 	{ MT_FTABLE,	"fragment reassembly queue headers" },	/* XXX */
 	{ MT_SONAME,	"socket names and addresses" },
+#ifdef MT_SOOPTS
 	{ MT_SOOPTS,	"socket options" },
+#endif
 #ifdef MT_RIGHTS
 	{ MT_RIGHTS,	"access rights" },
 #endif
