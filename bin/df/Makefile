@@ -8,6 +8,8 @@ BINMODE=2555
 
 MOUNT=	${.CURDIR}/../../sbin/mount
 CFLAGS+= -I${MOUNT}
+LDADD+= ${LIBM}
+DPADD+= ${LIBM}
 .PATH:	${MOUNT}
 
 .include <bsd.prog.mk>
