@@ -279,11 +279,10 @@ Boston, MA 02111-1307, USA.  */
       }									\
     else								\
       {									\
+	int alignbytes = ((ALIGN) + BITS_PER_UNIT - 1) / BITS_PER_UNIT;	\
 	int rounded = (SIZE);						\
-	if (rounded == 0) rounded = 1;					\
-	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
-	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
-		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
+	rounded += alignbytes - 1;					\
+	rounded = (rounded / alignbytes) * alignbytes;			\
 	fprintf ((FILE), "%s ", COMMON_ASM_OP);				\
 	assemble_name ((FILE), (NAME));					\
 	fprintf ((FILE), ",%u\n", (rounded));				\
