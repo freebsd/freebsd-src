@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.88 1994/09/28 22:51:54 wollman Exp $
+#	$Id: LINT,v 1.89 1994/09/28 22:57:24 wollman Exp $
 #
 
 machine		"i386"
@@ -61,6 +61,9 @@ options		USER_LDT		#allow user-level control of i386 ldt
 options		DSI_SOFT_MODEM		#code for DSI Softmodems
 options		DIAGNOSTIC
 options		MSDOSFS_DEBUG
+
+options		APM			#Advance Power Management support for laptops
+					#(Note: also need apm device)
 
 # See /sys/i386/doc/sound.doc for information about EXCLUDE options for
 #  the sound drivers.
@@ -126,6 +129,9 @@ device		uk0			#unknown scsi devices
 controller	isa0
 #This is a preliminary PCI bus ``device''
 device		pci0
+
+#Driver for Advaced Power Management (also need options APM)
+device		apm0	isa?
 
 # driver for the Adaptec 154x SCSI cards.
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
