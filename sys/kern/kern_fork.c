@@ -642,6 +642,15 @@ again:
 #endif
 
 	/*
+	 * If PF_FORK is set, the child process inherits the
+	 * procfs ioctl flags from its parent.
+	 */
+	if (p1->p_pfsflags & PF_FORK) {
+		p2->p_stops = p1->p_stops;
+		p2->p_pfsflags = p1->p_pfsflags;
+	}
+
+	/*
 	 * set priority of child to be that of parent
 	 * XXXKSE hey! copying the estcpu seems dodgy.. should split it..
 	 */
@@ -757,15 +766,6 @@ again:
 	while (p2->p_flag & P_PPWAIT)
 		msleep(p1, &p2->p_mtx, PWAIT, "ppwait", 0);
 	PROC_UNLOCK(p2);
-
-	/*
-	 * If PF_FORK is set, the child process inherits the
-	 * procfs ioctl flags from its parent.
-	 */
-	if (p1->p_pfsflags & PF_FORK) {
-		p2->p_stops = p1->p_stops;
-		p2->p_pfsflags = p1->p_pfsflags;
-	}
 
 	/*
 	 * Return child proc pointer to parent.
