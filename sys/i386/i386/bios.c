@@ -396,18 +396,16 @@ bios16(struct bios_args *args, char *fmt, ...)
 	 */
 	pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 	ptd = (pd_entry_t *)((u_int)IdlePTD + KERNBASE);
+	*pte = (vm86pa - PAGE_SIZE) | PG_RW | PG_V;
 	*ptd = vtophys(pte) | PG_RW | PG_V;
     } else {
 	/*
 	 * this is a user-level page table 
 	 */
 	pte = PTmap;
+	*pte = (vm86pa - PAGE_SIZE) | PG_RW | PG_V;
     }
-    /*
-     * install pointer to page 0.  we don't need to flush the tlb,
-     * since there should not be a previous mapping for page 0.
-     */
-    *pte = (vm86pa - PAGE_SIZE) | PG_RW | PG_V; 
+    pmap_invalidate_all(kernel_pmap);	/* XXX insurance for now */
 
     stack_top = stack;
     va_start(ap, fmt);
@@ -457,19 +455,21 @@ bios16(struct bios_args *args, char *fmt, ...)
     bioscall_vector.vec16.segment = GSEL(GBIOSCODE16_SEL, SEL_KPL);
 
     i = bios16_call(&args->r, stack_top);
-    
+
     if (pte == PTmap) {
 	*pte = 0;			/* remove entry */
+	/*
+	 * XXX only needs to be invlpg(0) but that doesn't work on the 386 
+	 */
+	pmap_invalidate_all(kernel_pmap);
     } else {
 	*ptd = 0;			/* remove page table */
+	/*
+	 * XXX only needs to be invlpg(0) but that doesn't work on the 386 
+	 */
+	pmap_invalidate_all(kernel_pmap);
 	free(pte, M_TEMP);		/* ... and free it */
     }
-
-    /*
-     * XXX only needs to be invlpg(0) but that doesn't work on the 386 
-     */
-    pmap_invalidate_all(kernel_pmap);
-
     return (i);
 }
 

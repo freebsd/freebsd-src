@@ -87,10 +87,12 @@
 #endif /* SMP */
 
 /*
- * Compiled KERNBASE location
+ * Compiled KERNBASE location and the kernel load address
  */
 	.globl	kernbase
 	.set	kernbase,KERNBASE
+	.globl	kernload
+	.set	kernload,KERNLOAD
 
 /*
  * Globals
@@ -731,9 +733,9 @@ over_symalloc:
 	je	no_kernend
 	movl	%edi,%esi
 no_kernend:
-	
-	addl	$PAGE_MASK,%esi
-	andl	$~PAGE_MASK,%esi
+
+	addl	$PDRMASK,%esi		/* Play conservative for now, and */
+	andl	$~PDRMASK,%esi		/*   ... wrap to next 4M. */
 	movl	%esi,R(KERNend)		/* save end of kernel */
 	movl	%esi,R(physfree)	/* next free page is at end of kernel */
 
@@ -783,16 +785,46 @@ no_kernend:
 	movl	%esi, R(SMPpt)		/* relocated to KVM space */
 #endif	/* SMP */
 
-/* Map read-only from zero to the end of the kernel text section */
+/* Map read-only from zero to the beginning of the kernel text section */
 	xorl	%eax, %eax
 	xorl	%edx,%edx
-	movl	$R(etext),%ecx
+	movl	$R(btext),%ecx
 	addl	$PAGE_MASK,%ecx
 	shrl	$PAGE_SHIFT,%ecx
 	fillkptphys(%edx)
 
-/* Map read-write, data, bss and symbols */
-	movl	$R(etext),%eax
+/*
+ * Enable PSE and PGE.
+ */
+#ifndef DISABLE_PSE
+	testl	$CPUID_PSE, R(cpu_feature)
+	jz	1f
+	movl	$PG_PS, R(pseflag)
+	movl	%cr4, %eax
+	orl	$CR4_PSE, %eax
+	movl	%eax, %cr4
+1:
+#endif
+#ifndef DISABLE_PG_G
+	testl	$CPUID_PGE, R(cpu_feature)
+	jz	2f
+	movl	$PG_G, R(pgeflag)
+	movl	%cr4, %eax
+	orl	$CR4_PGE, %eax
+	movl	%eax, %cr4
+2:
+#endif
+
+/*
+ * Write page tables for the kernel starting at btext and
+ * until the end.  Make sure to map read+write.  We do this even
+ * if we've enabled PSE above, we'll just switch the corresponding kernel
+ * PDEs before we turn on paging.
+ *
+ * XXX: We waste some pages here in the PSE case!  DON'T BLINDLY REMOVE
+ * THIS!  SMP needs the page table to be there to map the kernel P==V.
+ */
+	movl	$R(btext),%eax
 	addl	$PAGE_MASK, %eax
 	andl	$~PAGE_MASK, %eax
 	movl	$PG_RW,%edx
@@ -881,12 +913,33 @@ no_kernend:
 	movl	$NKPT, %ecx
 	fillkpt(R(IdlePTD), $PG_RW)
 
-/* install pde's for pt's */
+/*
+ * For the non-PSE case, install PDEs for PTs covering the kernel.
+ * For the PSE case, do the same, but clobber the ones corresponding
+ * to the kernel (from btext to KERNend) with 4M ('PS') PDEs immediately
+ * after.
+ */
 	movl	R(KPTphys), %eax
 	movl	$KPTDI, %ebx
 	movl	$NKPT, %ecx
 	fillkpt(R(IdlePTD), $PG_RW)
+	cmpl	$0,R(pseflag)
+	je	done_pde
 
+	movl	R(KERNend), %ecx
+	movl	$KERNLOAD, %eax
+	subl	%eax, %ecx
+	shrl	$PDRSHIFT, %ecx
+	movl	$(KPTDI+(KERNLOAD/(1 << PDRSHIFT))), %ebx
+	shll	$PDESHIFT, %ebx
+	addl	R(IdlePTD), %ebx
+	orl	$(PG_V|PG_RW|PG_PS), %eax
+1:	movl	%eax, (%ebx)
+	addl	$(1 << PDRSHIFT), %eax
+	addl	$PDESIZE, %ebx
+	loop	1b
+
+done_pde:
 /* install a pde recursively mapping page directory as a page table */
 	movl	R(IdlePTD), %eax
 	movl	$PTDPTDI, %ebx

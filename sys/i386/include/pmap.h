@@ -330,6 +330,8 @@ extern vm_paddr_t avail_start;
 extern vm_offset_t clean_eva;
 extern vm_offset_t clean_sva;
 extern vm_paddr_t phys_avail[];
+extern int pseflag;
+extern int pgeflag;
 extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
@@ -340,7 +342,7 @@ void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 pt_entry_t *pmap_pte_quick(pmap_t, vm_offset_t) __pure2;
-void	pmap_set_opt(void);
+void	pmap_set_pg(void);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
 void	pmap_invalidate_all(pmap_t);
