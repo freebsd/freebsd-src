@@ -44,8 +44,9 @@
 .Fl h
 .Op Fl f Ar netgroup_file
 .Sh DESCRIPTION
-.Nm Revnetgroup
-processes the contents of a file in
+The
+.Nm
+utility processes the contents of a file in
 .Xr netgroup 5
 format into what is called
 .Pa reverse netgroup
@@ -88,7 +89,7 @@ to process very large netgroup databases.
 .Pp
 The
 .Nm
-command prints its results on the standard output. It is usually called
+utility prints its results on the standard output. It is usually called
 only by
 .Pa /var/yp/Makefile
 when rebuilding the
@@ -97,7 +98,7 @@ netgroup maps.
 .Sh OPTIONS
 The
 .Nm
-command supports the following options:
+utility supports the following options:
 .Bl -tag -width indent
 .It Fl u
 Generate
@@ -116,7 +117,7 @@ flags must be specified.)
 .It Op Fl f Ar netgroup_file
 The
 .Nm
-command uses
+utility uses
 .Pa /etc/netgroup
 as its default input file. The
 .Fl f

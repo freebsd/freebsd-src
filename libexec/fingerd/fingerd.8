@@ -44,8 +44,9 @@
 .Op Fl l
 .Op Fl p Ar filename
 .Sh DESCRIPTION
-.Nm Fingerd
-is a simple protocol based on
+The
+.Nm
+utility is a simple protocol based on
 .%T RFC1196
 that provides an interface to the
 Name and Finger programs at several network sites.
@@ -56,8 +57,9 @@ There is no required format and the
 protocol consists mostly of specifying a single
 .Dq command line .
 .Pp
-.Nm Fingerd
-is started by
+The
+.Nm
+utility is started by
 .Xr inetd 8 ,
 which listens for
 .Tn TCP
@@ -67,13 +69,14 @@ terminated by a
 .Aq Tn CRLF
 which is passed to
 .Xr finger 1 .
-.Nm Fingerd
-closes its connections as soon as the output is finished.
+The
+.Nm
+utility closes its connections as soon as the output is finished.
 .Pp
 If the line is null (i.e. just a
 .Aq Tn CRLF
 is sent) then
-.Xr finger
+.Xr finger 1
 returns a
 .Dq default
 report that lists all people logged into
@@ -136,8 +139,9 @@ or an equally narrow-minded
 user program can result
 in meaningless attempts at option negotiation being sent to the
 server, which will foul up the command line interpretation.
-.Nm Fingerd
-should be taught to filter out
+The
+.Nm
+utility should be taught to filter out
 .Tn IAC Ns \'s
 and perhaps even respond
 negatively
@@ -146,5 +150,5 @@ to all option commands received.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.3 .

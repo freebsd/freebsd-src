@@ -38,7 +38,9 @@
 .Sh SYNOPSIS
 .Nm /usr/libexec/xtend
 .Sh DESCRIPTION
-.Nm Xtend
+The
+.Nm
+utility
 interfaces between user-level programs and the TW523 X-10 controller.
 It logs all packets received from the TW523, attempts to track the
 status of all X-10 devices, and accepts socket connections from user-level
@@ -51,8 +53,9 @@ its log file, where it subsequently records all X-10 activity and
 diagnostic messages.  It then begins processing packets received from
 the TW523 and accepting connections one at a time from clients
 wishing to issue X-10 commands.
-.Nm Xtend
-is started from
+The
+.Nm
+utility is started from
 .Pa /etc/rc.i386
 startup script if enabled in
 .Pa /etc/rc.conf
@@ -76,13 +79,16 @@ causes
 .Nm
 to abort the current client connection.
 .Pp
-.Nm Xtend
+The
+.Nm
+utility
 communicates with client processes by a simple protocol in which a one-line
 command is sent by the client, and is acknowledged by a one-line response
 from the daemon.
 .Pp
-.Nm Xtend
-understands four types of commands:
+The
+.Nm
+utility understands four types of commands:
 .Bl -tag -width "monitor H U
 .It Ic status Ar H U
 where
@@ -133,7 +139,9 @@ is returned if the maximum (currently 5) number of such clients was not
 exceeded, otherwise
 .Sy ERROR
 is returned.
-.Nm Xtend
+The
+.Nm
+utility
 then returns to its normal mode of accepting connections from clients.
 However, each subsequent change in the status of the specified device will
 cause
@@ -170,7 +178,9 @@ dump of device status
 There is currently no timeout on client socket connections, so a hung
 client program can prevent other clients from accessing the daemon.
 .Pp
-.Nm Xtend
+The
+.Nm
+utility
 does the best it can at trying to track device status, but there is
 usually no way it can tell when a device has been operated manually.
 This is due to the fact that most X-10 devices are not able to
