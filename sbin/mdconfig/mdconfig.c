@@ -60,6 +60,10 @@ main(int argc, char **argv)
 	int cmdline = 0;
 
 	bzero(&mdio, sizeof(mdio));
+	mdio.md_file = malloc(PATH_MAX);
+	if (mdio.md_file == NULL)
+		err(1, "could not allocate memory");
+	bzero(mdio.md_file, PATH_MAX);
 	for (;;) {
 		ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:x:y:");
 		if (ch == -1)
@@ -223,7 +227,7 @@ main(int argc, char **argv)
 		if (mdio.md_mediasize == 0)
 			errx(1, "must specify -s for -t malloc or -t swap");
 	if (cmdline == 2 && mdio.md_type == MD_VNODE)
-		if (mdio.md_file == NULL)
+		if (mdio.md_file[0] == '\0')
 			errx(1, "must specify -f for -t vnode");
 	if (action == LIST) {
 		if (mdio.md_options & MD_AUTOUNIT)
