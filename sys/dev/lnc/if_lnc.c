@@ -57,9 +57,6 @@
  *
  */
 
-#include "pci.h"
-#include "lnc.h"
-
 #include "opt_inet.h"
 
 /* Some defines that should really be in generic locations */
