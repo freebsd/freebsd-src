@@ -211,6 +211,7 @@ SUBDIR+=aac \
 	iir \
 	mly \
 	s3 \
+	smapi \
 	vesa
 	
 .elif ${MACHINE} == "pc98"
