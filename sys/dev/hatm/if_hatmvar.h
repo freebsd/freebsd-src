@@ -316,22 +316,20 @@ struct heirq {
 /*
  * This structure describes all information for a VCC open on the card.
  * The array of these structures is indexed by the compressed connection ID
- * (CID).
+ * (CID). This structure must begin with the atmio_vcc.
  */
 struct hevcc {
-	u_int		vflags;		/* private flags */
+	struct atmio_vcc param;		/* traffic parameters */
 	void *		rxhand;		/* NATM protocol block */
+	u_int		vflags;		/* private flags */
+	uint32_t	ipackets;
+	uint32_t	opackets;
+	uint32_t	ibytes;
+	uint32_t	obytes;
+
 	u_int		rc;		/* rate control group for CBR */
 	struct mbuf *	chain;		/* partial received PDU */
 	struct mbuf *	last;		/* last mbuf in chain */
-
-	/* from the OPEN_VCC ioctl */
-	struct atmio_vcc param;		/* traffic parameters */
-
-	uint32_t	ibytes;
-	uint32_t	ipackets;
-	uint32_t	obytes;
-	uint32_t	opackets;
 	u_int		ntpds;		/* number of active TPDs */
 };
 #define HE_VCC_OPEN		0x000f0000
