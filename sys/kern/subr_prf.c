@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/kernel.h>
@@ -333,10 +334,8 @@ putchar(int c, void *arg)
 	/* Don't use the tty code after a panic or while in ddb. */
 	if (panicstr)
 		consdirect = 1;
-#ifdef DDB
-	if (db_active)
+	if (kdb_active)
 		consdirect = 1;
-#endif
 	if (consdirect) {
 		if (c != '\0')
 			cnputc(c);
