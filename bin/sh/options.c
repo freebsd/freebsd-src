@@ -67,7 +67,7 @@ static const char rcsid[] =
 char *arg0;			/* value of $0 */
 struct shparam shellparam;	/* current positional parameters */
 char **argptr;			/* argument list for builtin commands */
-char *optarg;			/* set by nextopt (like getopt) */
+char *shoptarg;			/* set by nextopt (like getopt) */
 char *optptr;			/* used by nextopt */
 
 char *minusc;			/* argument to -c option */
@@ -539,7 +539,7 @@ nextopt(optstring)
 	if (*++q == ':') {
 		if (*p == '\0' && (p = *argptr++) == NULL)
 			error("No arg for -%c option", c);
-		optarg = p;
+		shoptarg = p;
 		p = NULL;
 	}
 	optptr = p;
