@@ -193,8 +193,7 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>CVS</application> has been updated to
-      1.11.1p1.</para>
+      <para></para>
 
     </sect3>
   </sect2>
@@ -305,6 +304,9 @@
       <sect4>
         <title>CVS</title>
       
+	<para><application>CVS</application> has been updated to
+	1.11.1p1.</para>
+
         <para>&man.cvs.1; now supports a <option>-T</option> option to
         update a sandbox's <filename>CVS/Template</filename> file from
         the repository.</para>
