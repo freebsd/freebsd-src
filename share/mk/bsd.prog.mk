@@ -104,7 +104,8 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
 .if !target(realinstall)
-realinstall:
+realinstall: _proginstall
+_proginstall:
 .if defined(PROG)
 .if defined(PROGNAME)
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
@@ -118,6 +119,8 @@ realinstall:
 	(cd ${DESTDIR}${ORIGBINDIR}; ln -fs dm ${PROG}; \
 	    chown -h ${BINOWN}:${ORIGBINGRP} ${PROG})
 .endif
+
+realinstall:
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -197,11 +200,12 @@ _FILESINS_${file:T}: ${file}
 .endfor
 .endif
 
+.if !defined(NOMAN)
+realinstall: maninstall
+.endif
+
 install: afterinstall
 afterinstall: realinstall
-.if !defined(NOMAN)
-afterinstall: maninstall
-.endif
 .endif
 
 .if !target(lint)
