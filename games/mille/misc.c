@@ -65,7 +65,8 @@ error(char *str, ...)
 
 	va_start(arg, str);
 	stdscr = Score;
-	mvprintw(ERR_Y, ERR_X, str, arg);
+	move(ERR_Y, ERR_X);
+	vw_printw(stdscr, str, arg);
 	va_end(arg);
 	clrtoeol();
 	putchar('\07');
