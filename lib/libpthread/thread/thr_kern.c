@@ -166,7 +166,18 @@ _thread_kern_sched(void)
 	case PS_SPINBLOCK:
 		/* Increment spinblock count. */
 		_spinblock_count++;
-		/*FALLTHROUGH*/
+
+		/* No timeouts for these states. */
+		curthread->wakeup_time.tv_sec = -1;
+		curthread->wakeup_time.tv_nsec = -1;
+
+		/* Restart the time slice. */
+		curthread->slice_usec = -1;
+
+		/* Insert into the work queue. */
+		PTHREAD_WORKQ_INSERT(curthread);
+		break;
+
 	case PS_DEADLOCK:
 	case PS_JOIN:
 	case PS_MUTEX_WAIT:
@@ -288,7 +299,9 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 					    access_lock == 0) {
 						PTHREAD_WAITQ_CLEARACTIVE();
 						PTHREAD_WORKQ_REMOVE(pthread);
-						PTHREAD_NEW_STATE(pthread,
+						PTHREAD_PRIOQ_INSERT_TAIL(
+						    pthread);
+						PTHREAD_SET_STATE(pthread,
 						    PS_RUNNING);
 						PTHREAD_WAITQ_SETACTIVE();
 
