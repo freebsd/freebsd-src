@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 126 $
+ *              $Revision: 128 $
  *
  ******************************************************************************/
 
@@ -189,7 +189,7 @@ AcpiNsRootInitialize (void)
         {
             DEBUG_PRINTP (ACPI_ERROR, 
                 ("Could not create predefined name %s, %s\n",
-                InitVal->Name, AcpiUtFormatException (Status)));
+                InitVal->Name, AcpiFormatException (Status)));
         }
 
         /*
@@ -237,7 +237,7 @@ AcpiNsRootInitialize (void)
                  * String.Pointers must be allocated buffers!
                  * (makes deletion simpler)
                  */
-                ObjDesc->String.Pointer = AcpiUtAllocate (
+                ObjDesc->String.Pointer = ACPI_MEM_ALLOCATE (
                                                 (ObjDesc->String.Length + 1));
                 if (!ObjDesc->String.Pointer)
                 {

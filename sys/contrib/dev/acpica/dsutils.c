@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 58 $
+ *              $Revision: 62 $
  *
  ******************************************************************************/
 
@@ -424,7 +424,7 @@ AcpiDsCreateOperand (
 
         /* Free the namestring created above */
 
-        AcpiUtFree (NameString);
+        ACPI_MEM_FREE (NameString);
 
         /*
          * The only case where we pass through (ignore) a NOT_FOUND
@@ -528,7 +528,7 @@ AcpiDsCreateOperand (
                  * a missing or null operand!
                  */
                 DEBUG_PRINTP (ACPI_ERROR, ("Missing or null operand, %s\n", 
-                    AcpiUtFormatException (Status)));
+                    AcpiFormatException (Status)));
                 return_ACPI_STATUS (Status);
             }
 
@@ -629,7 +629,7 @@ Cleanup:
     AcpiDsObjStackPopAndDelete (ArgCount, WalkState);
 
     DEBUG_PRINTP (ACPI_ERROR, ("While creating Arg %d - %s\n",
-        (ArgCount + 1), AcpiUtFormatException (Status)));
+        (ArgCount + 1), AcpiFormatException (Status)));
     return_ACPI_STATUS (Status);
 }
 
@@ -761,6 +761,7 @@ AcpiDsMapOpcodeToDataType (
             break;
 
         case AML_PACKAGE_OP:
+        case AML_VAR_PACKAGE_OP:
 
             DataType = ACPI_TYPE_PACKAGE;
             break;
@@ -786,13 +787,15 @@ AcpiDsMapOpcodeToDataType (
     case OPTYPE_DYADIC2:
     case OPTYPE_DYADIC2R:
     case OPTYPE_DYADIC2S:
-    case OPTYPE_INDEX:
-    case OPTYPE_MATCH:
+    case OPTYPE_TRIADIC:
+    case OPTYPE_QUADRADIC:
+    case OPTYPE_HEXADIC:
     case OPTYPE_RETURN:
 
         Flags = OP_HAS_RETURN_VALUE;
         DataType = ACPI_TYPE_ANY;
         break;
+
 
     case OPTYPE_METHOD_CALL:
 

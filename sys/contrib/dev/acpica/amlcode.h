@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 52 $
+ *       $Revision: 53 $
  *
  *****************************************************************************/
 
@@ -371,7 +371,6 @@
 #define OPTYPE_MONADIC1             6
 #define OPTYPE_DYADIC1              7
 
-
 /* Type 2 opcodes */
 
 #define OPTYPE_MONADIC2             8
@@ -379,18 +378,20 @@
 #define OPTYPE_DYADIC2              10
 #define OPTYPE_DYADIC2R             11
 #define OPTYPE_DYADIC2S             12
-#define OPTYPE_INDEX                13
-#define OPTYPE_MATCH                14
+
+/* Multi-operand (>=3) opcodes */
+
+#define OPTYPE_TRIADIC              13
+#define OPTYPE_QUADRADIC            14
+#define OPTYPE_HEXADIC              15
 
 /* Generic for an op that returns a value */
 
-#define OPTYPE_METHOD_CALL          15
-
+#define OPTYPE_METHOD_CALL          16
 
 /* Misc */
 
-#define OPTYPE_CREATE_FIELD         16
-#define OPTYPE_FATAL                17
+#define OPTYPE_CREATE_FIELD         17
 #define OPTYPE_CONTROL              18
 #define OPTYPE_RECONFIGURATION      19
 #define OPTYPE_NAMED_OBJECT         20

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utxface - External interfaces for "global" ACPI functions
- *              $Revision: 72 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -124,6 +124,7 @@
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acdebug.h"
+#include "acexcep.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -162,7 +163,7 @@ AcpiInitializeSubsystem (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("OSD failed to initialize, %s\n",
-            AcpiUtFormatException (Status)));
+            AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -172,7 +173,7 @@ AcpiInitializeSubsystem (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("Global mutex creation failure, %s\n",
-            AcpiUtFormatException (Status)));
+            AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -185,7 +186,7 @@ AcpiInitializeSubsystem (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("Namespace initialization failure, %s\n",
-            AcpiUtFormatException (Status)));
+            AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -330,6 +331,7 @@ AcpiEnableSubsystem (
         }
     }
 
+    AcpiGbl_StartupFlags |= ACPI_INITIALIZED_OK;
 
     return_ACPI_STATUS (Status);
 }
@@ -387,6 +389,34 @@ AcpiTerminate (void)
     AcpiOsTerminate ();
 
     return_ACPI_STATUS (AE_OK);
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiSubsystemStatus
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status of the ACPI subsystem
+ *
+ * DESCRIPTION: Other drivers that use the ACPI subsystem should call this
+ *              before making any other calls, to ensure the subsystem initial-
+ *              ized successfully.
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiSubsystemStatus (void)
+{
+    if (AcpiGbl_StartupFlags & ACPI_INITIALIZED_OK)
+    {
+        return (AE_OK);
+    }
+    else
+    {
+        return (AE_ERROR);
+    }
 }
 
 
@@ -497,126 +527,3 @@ AcpiGetSystemInfo (
 }
 
 
-/******************************************************************************
- *
- * FUNCTION:    AcpiFormatException
- *
- * PARAMETERS:  OutBuffer       - a pointer to a buffer to receive the
- *                                exception name
- *
- * RETURN:      Status          - the status of the call
- *
- * DESCRIPTION: This function translates an ACPI exception into an ASCII string.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiFormatException (
-    ACPI_STATUS             Exception,
-    ACPI_BUFFER             *OutBuffer)
-{
-    UINT32                  Length;
-    NATIVE_CHAR             *FormattedException;
-
-
-    FUNCTION_TRACE ("AcpiFormatException");
-
-
-    /*
-     *  Must have a valid buffer
-     */
-    if ((!OutBuffer)          ||
-        (!OutBuffer->Pointer))
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-
-    /* Convert the exception code (Handles bad exception codes) */
-
-    FormattedException = AcpiUtFormatException (Exception);
-
-    /*
-     * Get length of string and check if it will fit in caller's buffer
-     */
-
-    Length = STRLEN (FormattedException);
-    if (OutBuffer->Length < Length)
-    {
-        OutBuffer->Length = Length;
-        return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
-    }
-
-
-    /* Copy the string, all done */
-
-    STRCPY (OutBuffer->Pointer, FormattedException);
-
-    return_ACPI_STATUS (AE_OK);
-}
-
-
-/*****************************************************************************
- *
- * FUNCTION:    AcpiAllocate
- *
- * PARAMETERS:  Size                - Size of the allocation
- *
- * RETURN:      Address of the allocated memory on success, NULL on failure.
- *
- * DESCRIPTION: The subsystem's equivalent of malloc.
- *              External front-end to the Ut* memory manager
- *
- ****************************************************************************/
-
-void *
-AcpiAllocate (
-    UINT32                  Size)
-{
-
-    return (AcpiUtAllocate (Size));
-}
-
-
-/*****************************************************************************
- *
- * FUNCTION:    AcpiCallocate
- *
- * PARAMETERS:  Size                - Size of the allocation
- *
- * RETURN:      Address of the allocated memory on success, NULL on failure.
- *
- * DESCRIPTION: The subsystem's equivalent of calloc.
- *              External front-end to the Ut* memory manager
- *
- ****************************************************************************/
-
-void *
-AcpiCallocate (
-    UINT32                  Size)
-{
-
-    return (AcpiUtCallocate (Size));
-}
-
-
-/*****************************************************************************
- *
- * FUNCTION:    AcpiFree
- *
- * PARAMETERS:  Address             - Address of the memory to deallocate
- *
- * RETURN:      None
- *
- * DESCRIPTION: Frees the memory at Address
- *              External front-end to the Ut* memory manager
- *
- ****************************************************************************/
-
-void
-AcpiFree (
-    void                    *Address)
-{
-
-    AcpiUtFree (Address);
-}

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acoutput.h -- debug output
- *       $Revision: 78 $
+ *       $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -137,17 +137,18 @@
 #define ACPI_DEBUGGER               0x00000200
 #define ACPI_OS_SERVICES            0x00000400
 
-#define ACPI_BUS                    0x00001000
-#define ACPI_SYSTEM                 0x00002000
-#define ACPI_POWER                  0x00004000
-#define ACPI_EC                     0x00008000
-#define ACPI_AC_ADAPTER             0x00010000
-#define ACPI_BATTERY                0x00020000
-#define ACPI_BUTTON                 0x00040000
-#define ACPI_PROCESSOR              0x00080000
-#define ACPI_THERMAL                0x00100000
+#define ACPI_BUS                    0x00010000
+#define ACPI_SYSTEM                 0x00020000
+#define ACPI_POWER                  0x00040000
+#define ACPI_EC                     0x00080000
+#define ACPI_AC_ADAPTER             0x00100000
+#define ACPI_BATTERY                0x00200000
+#define ACPI_BUTTON                 0x00400000
+#define ACPI_PROCESSOR              0x00800000
+#define ACPI_THERMAL                0x01000000
+#define ACPI_FAN                    0x02000000
 
-#define ACPI_ALL_COMPONENTS         0x00FFFFFF
+#define ACPI_ALL_COMPONENTS         0x0FFFFFFF
 
 #define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 123 $
+ *       $Revision: 124 $
  *
  *****************************************************************************/
 
@@ -723,22 +723,7 @@ typedef struct acpi_parse_state
 
 
 /* PCI */
-
 #define PCI_ROOT_HID_STRING             "PNP0A03"
-#define PCI_ROOT_HID_VALUE              0x030AD041       /* EISAID("PNP0A03") */
-
-
-/* Sleep states */
-
-#define SLWA_DEBUG_LEVEL                4
-#define GTS_CALL                        0
-#define GTS_WAKE                        1
-
-/* Cx States */
-
-#define MAX_CX_STATE_LATENCY            0xFFFFFFFF
-#define MAX_CX_STATES                   4
-
 
 /*
  * The #define's and enum below establish an abstract way of identifying what

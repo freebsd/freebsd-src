@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 97 $
+ *              $Revision: 102 $
  *
  ******************************************************************************/
 
@@ -196,8 +196,9 @@ AcpiHwClearAcpiStatus (void)
 
     if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XPm1bEvtBlk.Address))
     {
-        AcpiOsOut16 ((ACPI_IO_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm1bEvtBlk.Address),
-            (UINT16) ALL_FIXED_STS_BITS);
+        AcpiOsWritePort ((ACPI_IO_ADDRESS) 
+            ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm1bEvtBlk.Address),
+            ALL_FIXED_STS_BITS, 16);
     }
 
     /* now clear the GPE Bits */
@@ -208,9 +209,9 @@ AcpiHwClearAcpiStatus (void)
 
         for (Index = 0; Index < GpeLength; Index++)
         {
-            AcpiOsOut8 ((ACPI_IO_ADDRESS) (
+            AcpiOsWritePort ((ACPI_IO_ADDRESS) (
                 ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) + Index),
-                (UINT8) 0xff);
+                    0xFF, 8);
         }
     }
 
@@ -220,9 +221,9 @@ AcpiHwClearAcpiStatus (void)
 
         for (Index = 0; Index < GpeLength; Index++)
         {
-            AcpiOsOut8 ((ACPI_IO_ADDRESS) (
+            AcpiOsWritePort ((ACPI_IO_ADDRESS) (
                 ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) + Index),
-                (UINT8) 0xff);
+                0xFF, 8);
         }
     }
 
@@ -709,7 +710,7 @@ AcpiHwRegisterRead (
     BOOLEAN                 UseLock,
     UINT32                  RegisterId)
 {
-    UINT32                  Value       = 0;
+    UINT32                  Value = 0;
     UINT32                  BankOffset;
 
 
@@ -786,12 +787,12 @@ AcpiHwRegisterRead (
 
     case SMI_CMD_BLOCK: /* 8bit */
 
-        Value = (UINT32) AcpiOsIn8 (AcpiGbl_FADT->SmiCmd);
+        AcpiOsReadPort (AcpiGbl_FADT->SmiCmd, &Value, 8);
         break;
 
 
     default:
-        Value = 0;
+        /* Value will be returned as 0 */
         break;
     }
 
@@ -915,7 +916,7 @@ AcpiHwRegisterWrite (
         /* For 2.0, SMI_CMD is always in IO space */
         /* TBD: what about 1.0? 0.71? */
 
-        AcpiOsOut8 (AcpiGbl_FADT->SmiCmd, (UINT8) Value);
+        AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, Value, 8);
         break;
 
 
@@ -957,8 +958,8 @@ AcpiHwLowLevelRead (
     UINT32                  Value = 0;
     ACPI_PHYSICAL_ADDRESS   MemAddress;
     ACPI_IO_ADDRESS         IoAddress;
-    UINT32                  PciRegister;
-    UINT32                  PciDevFunc;
+    ACPI_PCI_ID             PciId;
+    UINT16                  PciRegister;
 
 
     /*
@@ -983,18 +984,7 @@ AcpiHwLowLevelRead (
 
         MemAddress = (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
-        switch (Width)
-        {
-        case 8:
-            Value = AcpiOsMemIn8  (MemAddress);
-            break;
-        case 16:
-            Value = AcpiOsMemIn16 (MemAddress);
-            break;
-        case 32:
-            Value = AcpiOsMemIn32 (MemAddress);
-            break;
-        }
+        AcpiOsReadMemory (MemAddress, &Value, Width);
         break;
 
 
@@ -1002,38 +992,19 @@ AcpiHwLowLevelRead (
 
         IoAddress = (ACPI_IO_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
-        switch (Width)
-        {
-        case 8:
-            Value = AcpiOsIn8  (IoAddress);
-            break;
-        case 16:
-            Value = AcpiOsIn16 (IoAddress);
-            break;
-        case 32:
-            Value = AcpiOsIn32 (IoAddress);
-            break;
-        }
+        AcpiOsReadPort (IoAddress, &Value, Width);
         break;
 
 
     case ACPI_ADR_SPACE_PCI_CONFIG:
 
-        PciDevFunc  = ACPI_PCI_DEVFUN   (ACPI_GET_ADDRESS (Reg->Address));
-        PciRegister = ACPI_PCI_REGISTER (ACPI_GET_ADDRESS (Reg->Address)) + Offset;
+        PciId.Segment  = 0;
+        PciId.Bus      = 0;
+        PciId.Device   = ACPI_PCI_DEVICE (ACPI_GET_ADDRESS (Reg->Address));
+        PciId.Function = ACPI_PCI_FUNCTION (ACPI_GET_ADDRESS (Reg->Address));
+        PciRegister    = (UINT16) (ACPI_PCI_REGISTER (ACPI_GET_ADDRESS (Reg->Address)) + Offset);
 
-        switch (Width)
-        {
-        case 8:
-            AcpiOsReadPciCfgByte  (0, PciDevFunc, PciRegister, (UINT8 *) &Value);
-            break;
-        case 16:
-            AcpiOsReadPciCfgWord  (0, PciDevFunc, PciRegister, (UINT16 *) &Value);
-            break;
-        case 32:
-            AcpiOsReadPciCfgDword (0, PciDevFunc, PciRegister, (UINT32 *) &Value);
-            break;
-        }
+        AcpiOsReadPciConfiguration  (&PciId, PciRegister, &Value, Width);
         break;
     }
 
@@ -1066,8 +1037,8 @@ AcpiHwLowLevelWrite (
 {
     ACPI_PHYSICAL_ADDRESS   MemAddress;
     ACPI_IO_ADDRESS         IoAddress;
-    UINT32                  PciRegister;
-    UINT32                  PciDevFunc;
+    ACPI_PCI_ID             PciId;
+    UINT16                  PciRegister;
 
 
     /*
@@ -1092,18 +1063,7 @@ AcpiHwLowLevelWrite (
 
         MemAddress = (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
-        switch (Width)
-        {
-        case 8:
-            AcpiOsMemOut8  (MemAddress, (UINT8) Value);
-            break;
-        case 16:
-            AcpiOsMemOut16 (MemAddress, (UINT16) Value);
-            break;
-        case 32:
-            AcpiOsMemOut32 (MemAddress, (UINT32) Value);
-            break;
-        }
+        AcpiOsWriteMemory (MemAddress, Value, Width);
         break;
 
 
@@ -1111,38 +1071,19 @@ AcpiHwLowLevelWrite (
 
         IoAddress = (ACPI_IO_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
-        switch (Width)
-        {
-        case 8:
-            AcpiOsOut8  (IoAddress, (UINT8) Value);
-            break;
-        case 16:
-            AcpiOsOut16 (IoAddress, (UINT16) Value);
-            break;
-        case 32:
-            AcpiOsOut32 (IoAddress, (UINT32) Value);
-            break;
-        }
+        AcpiOsWritePort (IoAddress, Value, Width);
         break;
 
 
     case ACPI_ADR_SPACE_PCI_CONFIG:
 
-        PciDevFunc  = ACPI_PCI_DEVFUN   (ACPI_GET_ADDRESS (Reg->Address));
-        PciRegister = ACPI_PCI_REGISTER (ACPI_GET_ADDRESS (Reg->Address)) + Offset;
+        PciId.Segment  = 0;
+        PciId.Bus      = 0;
+        PciId.Device   = ACPI_PCI_DEVICE (ACPI_GET_ADDRESS (Reg->Address));
+        PciId.Function = ACPI_PCI_FUNCTION (ACPI_GET_ADDRESS (Reg->Address));
+        PciRegister    = (UINT16) (ACPI_PCI_REGISTER (ACPI_GET_ADDRESS (Reg->Address)) + Offset);
 
-        switch (Width)
-        {
-        case 8:
-            AcpiOsWritePciCfgByte  (0, PciDevFunc, PciRegister, (UINT8) Value);
-            break;
-        case 16:
-            AcpiOsWritePciCfgWord  (0, PciDevFunc, PciRegister, (UINT16) Value);
-            break;
-        case 32:
-            AcpiOsWritePciCfgDword (0, PciDevFunc, PciRegister, (UINT32) Value);
-            break;
-        }
+        AcpiOsWritePciConfiguration (&PciId, PciRegister, Value, Width);
         break;
     }
 }

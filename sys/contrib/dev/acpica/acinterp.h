@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 102 $
+ *       $Revision: 105 $
  *
  *****************************************************************************/
 
@@ -166,17 +166,21 @@ AcpiExExecuteMethod (
 
 ACPI_STATUS
 AcpiExConvertToInteger (
-    ACPI_OPERAND_OBJECT     **ObjDesc,
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     **ResultDesc,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExConvertToBuffer (
-    ACPI_OPERAND_OBJECT     **ObjDesc,
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     **ResultDesc,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExConvertToString (
-    ACPI_OPERAND_OBJECT     **ObjDesc,
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     **ResultDesc,
+    UINT32                  MaxLength,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
@@ -265,6 +269,18 @@ AcpiExWriteDataToField (
  */
 
 ACPI_STATUS
+AcpiExTriadic (
+    UINT16                  Opcode,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_OPERAND_OBJECT     **ReturnDesc);
+
+ACPI_STATUS
+AcpiExHexadic (
+    UINT16                  Opcode,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_OPERAND_OBJECT     **ReturnDesc);
+
+ACPI_STATUS
 AcpiExCreateBufferField (
     UINT8                   *AmlPtr,
     UINT32                  AmlLength,
@@ -275,20 +291,6 @@ ACPI_STATUS
 AcpiExReconfiguration (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState);
-
-ACPI_STATUS
-AcpiExFatal (
-    ACPI_WALK_STATE         *WalkState);
-
-ACPI_STATUS
-AcpiExIndex (
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
-
-ACPI_STATUS
-AcpiExMatch (
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
 
 ACPI_STATUS
 AcpiExCreateMutex (

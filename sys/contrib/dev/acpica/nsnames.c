@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 59 $
+ *              $Revision: 60 $
  *
  ******************************************************************************/
 
@@ -182,7 +182,7 @@ AcpiNsGetTablePathname (
 
     /* Allocate a buffer to be returned to caller */
 
-    NameBuffer = AcpiUtCallocate (Size + 1);
+    NameBuffer = ACPI_MEM_CALLOCATE (Size + 1);
     if (!NameBuffer)
     {
         REPORT_ERROR (("NsGetTablePathname: allocation failure\n"));
