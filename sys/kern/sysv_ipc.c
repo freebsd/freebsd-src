@@ -1,4 +1,4 @@
-/*	$Id: sysv_ipc.c,v 1.1 1994/09/13 14:46:55 dfr Exp $ */
+/*	$Id: sysv_ipc.c,v 1.2 1996/01/05 16:37:52 wollman Exp $ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*
@@ -36,8 +36,14 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/ipc.h>
 #include <sys/systm.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+
+#if defined(SYSVSEM) || defined(SYSVSHM) || defined(SYSVMSG)
 
 /*
  * Check for ipc permission
@@ -69,3 +75,224 @@ ipcperm(cred, perm, mode)
 		return (0);
 	return ((mode & perm->mode) == mode ? 0 : EACCES);
 }
+
+#endif /* defined(SYSVSEM) || defined(SYSVSHM) || defined(SYSVMSG) */
+
+
+#if !defined(SYSVSEM) || !defined(SYSVSHM) || !defined(SYSVMSG)
+
+static void sysv_nosys __P((struct proc *p, char *s));
+
+static void 
+sysv_nosys(p, s)
+	struct proc *p;
+	char *s;
+{
+	log(LOG_ERR, "cmd %s pid %d tried to use non-present %s\n",
+			p->p_comm, p->p_pid, s);
+}
+
+#if !defined(SYSVSEM)
+
+/*
+ * SYSVSEM stubs
+ */
+
+int
+semsys(p, uap, retval)
+	struct proc *p;
+	struct semsys_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSEM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+semconfig(p, uap, retval)
+	struct proc *p;
+	struct semconfig_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSEM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+__semctl(p, uap, retval)
+	struct proc *p;
+	register struct __semctl_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSEM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+semget(p, uap, retval)
+	struct proc *p;
+	register struct semget_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSEM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+semop(p, uap, retval)
+	struct proc *p;
+	register struct semop_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSEM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+/* called from kern_exit.c */
+void
+semexit(p)
+	struct proc *p;
+{
+	return;
+}
+
+#endif /* !defined(SYSVSEM) */
+
+
+#if !defined(SYSVMSG)
+
+/*
+ * SYSVMSG stubs
+ */
+
+int
+msgsys(p, uap, retval)
+	struct proc *p;
+	/* XXX actually varargs. */
+	struct msgsys_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVMSG");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+msgctl(p, uap, retval)
+	struct proc *p;
+	register struct msgctl_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVMSG");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+msgget(p, uap, retval)
+	struct proc *p;
+	register struct msgget_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVMSG");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+msgsnd(p, uap, retval)
+	struct proc *p;
+	register struct msgsnd_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVMSG");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+msgrcv(p, uap, retval)
+	struct proc *p;
+	register struct msgrcv_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVMSG");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+#endif /* !defined(SYSVMSG) */
+
+
+#if !defined(SYSVSHM)
+
+/*
+ * SYSVSHM stubs
+ */
+
+int
+shmdt(p, uap, retval)
+	struct proc *p;
+	struct shmdt_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSHM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+shmat(p, uap, retval)
+	struct proc *p;
+	struct shmat_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSHM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+shmctl(p, uap, retval)
+	struct proc *p;
+	struct shmctl_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSHM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+shmget(p, uap, retval)
+	struct proc *p;
+	struct shmget_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSHM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+int
+shmsys(p, uap, retval)
+	struct proc *p;
+	/* XXX actually varargs. */
+	struct shmsys_args *uap;
+	int *retval;
+{
+	sysv_nosys(p, "SYSVSHM");
+	return nosys(p, (struct nosys_args *)uap, retval);
+};
+
+/* called from kern_fork.c */
+void
+shmfork(p1, p2, isvfork)
+	struct proc *p1, *p2;
+	int isvfork;
+{
+	return;
+}
+
+/* called from kern_exit.c */
+void
+shmexit(p)
+	struct proc *p;
+{
+	return;
+}
+
+#endif /* !defined(SYSVSHM) */
+
+#endif /* !defined(SYSVSEM) || !defined(SYSVSHM) || !defined(SYSVMSG) */
