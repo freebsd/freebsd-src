@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_init.c	4.38 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id:";
+static char rcsid[] = "$Id: ns_init.c,v 8.7 1995/06/29 09:26:17 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -70,10 +70,13 @@ static char rcsid[] = "$Id:";
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "named.h"
 
 #undef nsaddr
+
+enum limit { Datasize };
 
 static void		zoneinit __P((struct zoneinfo *)),
 			get_forwarders __P((FILE *)),
@@ -81,9 +84,39 @@ static void		zoneinit __P((struct zoneinfo *)),
 #ifdef DEBUG
 			content_zone __P((int)),
 #endif
-			free_forwarders __P((void));
+			free_forwarders __P((void)),
+			ns_limit __P((const char *name, int value)),
+			ns_rlimit __P((const char *name, enum limit limit,
+				       long value)),
+			ns_option __P((const char *name));
 
 static struct zoneinfo	*find_zone __P((char *, int, int));
+
+/*
+ * Set new refresh time for zone.  Use a random number in the last half of
+ * the refresh limit; we want it to be substantially correct while still
+ * preventing slave synchronization.
+ */
+void
+ns_refreshtime(zp, timebase)
+	struct zoneinfo	*zp;
+	time_t		timebase;
+{
+	register time_t	half = ((zp->z_refresh + 1) / 2);
+
+	zp->z_time = timebase + half + (rand() % half);
+}
+
+/*
+ * Set new retry time for zone.
+ */
+void
+ns_retrytime(zp, timebase)
+	struct zoneinfo	*zp;
+	time_t		timebase;
+{
+	zp->z_time = timebase + zp->z_retry;
+}
 
 /*
  * Read boot file for configuration info.
@@ -114,6 +147,7 @@ ns_init(bootfile)
 		fcachetab = savehash((struct hashbuf *)NULL);
 		/* init zone data */
 		zones[0].z_type = Z_CACHE;
+		zones[0].z_origin = "";
         } else {
 		/* Mark previous zones as not yet found in boot file. */
 		for (zp = &zones[1]; zp < &zones[nzones]; zp++)
@@ -197,7 +231,7 @@ boot_read(bootfile)
 	struct stat f_time;
 	static int tmpnum = 0;		/* unique number for tmp zone files */
 #ifdef ALLOW_UPDATES
-	char *cp, *flag;
+	char *flag;
 #endif
 	int slineno;			/* Saved global line number. */
 	int i;
@@ -208,12 +242,17 @@ boot_read(bootfile)
 	}
 
 	slineno = lineno;
-	lineno = 0;
+	lineno = 1;
 
 	while (!feof(fp) && !ferror(fp)) {
-		if (!getword(buf, sizeof(buf), fp))
-			continue;
 		/* read named.boot keyword and process args */
+		if (!getword(buf, sizeof(buf), fp)) {
+			/*
+			 * This is a blank line, a commented line, or the
+			 * '\n' of the previous line.
+			 */
+			continue;
+		}
 		if (strcasecmp(buf, "directory") == 0) {
 			(void) getword(buf, sizeof(buf), fp);
 			if (chdir(buf) < 0) {
@@ -226,14 +265,21 @@ boot_read(bootfile)
 			get_netlist(fp, enettab, ALLOW_NETS, buf);
 			continue;
 		} else if (strcasecmp(buf, "max-fetch") == 0) {
-			max_xfers_running = getnum(fp, bootfile, 0);
+			max_xfers_running = getnum(fp, bootfile, GETNUM_NONE);
+			continue;
+		} else if (strcasecmp(buf, "limit") == 0) {
+			(void) getword(buf, sizeof(buf), fp);
+			ns_limit(buf, getnum(fp, bootfile, GETNUM_SCALED));
+			continue;
+		} else if (strcasecmp(buf, "options") == 0) {
+			while (getword(buf, sizeof(buf), fp))
+				ns_option(buf);
 			continue;
 		} else if (strcasecmp(buf, "forwarders") == 0) {
 			get_forwarders(fp);
 			continue;
 		} else if (strcasecmp(buf, "slave") == 0) {
 			forward_only++;
-			endline(fp);
 			continue;
 #ifdef BOGUSNS
 		} else if (strcasecmp(buf, "bogusns") == 0) {
@@ -250,20 +296,26 @@ boot_read(bootfile)
 		} else if (strcasecmp(buf, "domain") == 0) {
 			if (getword(buf, sizeof(buf), fp))
 				localdomain = savestr(buf);
-			endline(fp);
 			continue;
 #endif
 		} else if (strcasecmp(buf, "include") == 0) {
 			if (getword(buf, sizeof(buf), fp))
 				boot_read(buf);
-			endline(fp);
 			continue;
 		} else if (strncasecmp(buf, "cache", 5) == 0) {
 			type = Z_CACHE;
 			class = C_IN;
 #ifdef GEN_AXFR
-			if (class_p = strchr(buf, '/'))
+			if (class_p = strchr(buf, '/')) {
 				class = get_class(class_p+1);
+
+				if (class != C_IN) {
+					syslog(LOG_NOTICE,
+		   "cache directive with non-IN class is not supported (yet)");
+					endline(fp);
+					continue;
+				}
+			}
 #endif
 		} else if (strncasecmp(buf, "primary", 7) == 0) {
 			type = Z_PRIMARY;
@@ -289,8 +341,9 @@ boot_read(bootfile)
 #endif
 #endif
 		} else {
-			syslog(LOG_ERR, "%s: line %d: unknown field '%s'\n",
-				bootfile, lineno+1, buf);
+			syslog(LOG_NOTICE,
+			       "%s: line %d: unknown directive '%s'\n",
+			       bootfile, lineno, buf);
 			endline(fp);
 			continue;
 		}
@@ -299,22 +352,23 @@ boot_read(bootfile)
 		 * read zone origin
 		 */
 		if (!getword(obuf, sizeof(obuf), fp)) {
-			syslog(LOG_ERR, "%s: line %d: missing origin\n",
+			syslog(LOG_NOTICE, "%s: line %d: missing origin\n",
 			    bootfile, lineno);
 			continue;
 		}
 		i = strlen(obuf);
 		if ((obuf[i-1] == '.') && (i != 1))
-			syslog(LOG_ERR, "%s: line %d: zone \"%s\" has trailing dot\n",
-				bootfile, lineno, obuf);
+			syslog(LOG_INFO,
+			       "%s: line %d: zone \"%s\" has trailing dot\n",
+			       bootfile, lineno, obuf);
 		while ((--i >= 0) && (obuf[i] == '.'))
 			obuf[i] = '\0';
 		dprintf(1, (ddt, "zone origin %s", obuf[0]?obuf:"."));
 		/*
-		 * read source file or host address
+		 * Read source file or host address.
 		 */
 		if (!getword(buf, sizeof(buf), fp)) {
-			syslog(LOG_ERR, "%s: line %d: missing %s\n",
+			syslog(LOG_NOTICE, "%s: line %d: missing %s\n",
 				bootfile, lineno, 
 #ifdef STUBS
 			   (type == Z_SECONDARY || type == Z_STUB)
@@ -326,36 +380,33 @@ boot_read(bootfile)
 			continue;
 		}
 
-		/* check for previous instance of this zone (reload) */
+		/*
+		 * Check for previous instance of this zone (reload).
+		 */
 		if (!(zp = find_zone(obuf, type, class))) {
 			if (type == Z_CACHE) {
 				zp = &zones[0];
-				zp->z_origin = "";
 				goto gotcache;
 			}
 			for (zp = &zones[1]; zp < &zones[nzones]; zp++)
 				if (zp->z_type == Z_NIL)
 					goto gotzone;
 			/*
-			 * this code assumes that nzones never decreases
+			 * This code assumes that nzones never decreases.
 			 */
 			if (nzones % 64 == 0) {
 			    dprintf(1, (ddt,
 					"Reallocating zones structure\n"));
 			    /*
 			     * Realloc() not used since it might damage zones
-			     * if an error occurs
+			     * if an error occurs.
 			     */
 			    zp = (struct zoneinfo *)
 				malloc((64 + nzones)
 				       * sizeof(struct zoneinfo));
 			    if (zp == (struct zoneinfo *)0) {
-				    syslog(LOG_ERR,
+				    syslog(LOG_NOTICE,
 					   "no memory for more zones");
-				    dprintf(1, (ddt,
-						"Out of memory for new zones\n"
-						)
-					    );
 				    endline(fp);
 				    continue;
 			    }
@@ -384,16 +435,16 @@ boot_read(bootfile)
 #ifdef notyet
 				zp->z_refresh = atoi(buf);
 				if (zp->z_refresh <= 0) {
-					syslog(LOG_ERR,
+					syslog(LOG_NOTICE,
 				"%s: line %d: bad refresh time '%s', ignored\n",
 						bootfile, lineno, buf);
 					zp->z_refresh = 0;
 				} else if (cache_file == NULL)
 					cache_file = source;
 #else
-				syslog(LOG_WARNING,
-				"%s: line %d: cache refresh ignored\n",
-					bootfile, lineno);
+				syslog(LOG_NOTICE,
+				       "%s: line %d: cache refresh ignored\n",
+				       bootfile, lineno);
 #endif
 				endline(fp);
 			}
@@ -424,7 +475,7 @@ boot_read(bootfile)
 			}
 			zp->z_source = source;
 			dprintf(1, (ddt, "reloading zone\n"));
-			(void) db_load(zp->z_source, zp->z_origin, zp, 0);
+			(void) db_load(zp->z_source, zp->z_origin, zp, NULL);
 			break;
 
 		case Z_PRIMARY:
@@ -434,7 +485,7 @@ boot_read(bootfile)
 				endline(fp);
 				flag = buf;
 				while (flag) {
-				    cp = strchr(flag, ',');
+				    char *cp = strchr(flag, ',');
 				    if (cp)
 					*cp++ = 0;
 				    if (strcasecmp(flag, "dynamic") == 0)
@@ -442,7 +493,7 @@ boot_read(bootfile)
 				    else if (strcasecmp(flag, "addonly") == 0)
 					zp->z_flags |= Z_DYNADDONLY;
 				    else {
-					syslog(LOG_ERR,
+					syslog(LOG_NOTICE,
 					       "%s: line %d: bad flag '%s'\n",
 					       bootfile, lineno, flag);
 				    }
@@ -478,8 +529,11 @@ boot_read(bootfile)
 			}
                         zp->z_source = source;
 			zp->z_flags &= ~Z_AUTH;
+#ifdef PURGE_ZONE
+			purge_zone(zp->z_origin, hashtab, zp->z_class);
+#endif
 			dprintf(1, (ddt, "reloading zone\n"));
-			if (db_load(zp->z_source, zp->z_origin, zp, 0) == 0)
+			if (!db_load(zp->z_source, zp->z_origin, zp, NULL))
 				zp->z_flags |= Z_AUTH;
 #ifdef ALLOW_UPDATES
 			/* Guarantee calls to ns_maint() */
@@ -517,8 +571,8 @@ boot_read(bootfile)
 				 * We will always transfer this zone again
 				 * after a reload.
 				 */
-				sprintf(buf, "/%s/NsTmp%d.%d", _PATH_TMPDIR,
-					getpid(), tmpnum++);
+				sprintf(buf, "/%s/NsTmp%ld.%d", _PATH_TMPDIR,
+					(long)getpid(), tmpnum++);
 				source = savestr(buf);
 				zp->z_flags |= Z_TMP_FILE;
 			} else
@@ -565,16 +619,21 @@ boot_read(bootfile)
 			break;
 
 		}
-                zp->z_flags |= Z_FOUND;
+		if ((zp->z_flags & Z_FOUND) &&	/* already found? */
+		    (zp - zones) != DB_Z_CACHE)	/* cache never sets Z_FOUND */
+			syslog(LOG_NOTICE,
+			       "Zone \"%s\" declared more than once",
+			       zp->z_origin);
+		zp->z_flags |= Z_FOUND;
 		dprintf(1, (ddt, "zone[%d] type %d: '%s'",
 			    zp-zones, type,
 			    *(zp->z_origin) == '\0' ? "." : zp->z_origin));
 		if (zp->z_refresh && zp->z_time == 0)
-			zp->z_time = zp->z_refresh + tt.tv_sec;
+			ns_refreshtime(zp, tt.tv_sec);
 		if (zp->z_time <= tt.tv_sec)
 			needmaint = 1;
-		dprintf(1, (ddt, " z_time %d, z_refresh %d\n",
-			    zp->z_time, zp->z_refresh));
+		dprintf(1, (ddt, " z_time %lu, z_refresh %lu\n",
+			    (u_long)zp->z_time, (u_long)zp->z_refresh));
 	}
 	(void) my_fclose(fp);
 	lineno = slineno;
@@ -585,6 +644,7 @@ zoneinit(zp)
 	register struct zoneinfo *zp;
 {
 	struct stat sb;
+	int result;
 
 	/*
 	 * Try to load zone from backup file,
@@ -595,8 +655,12 @@ zoneinit(zp)
 	 */
 	if (!zp->z_source)
 		return;
-	if (stat(zp->z_source, &sb) == -1 ||
-	    db_load(zp->z_source, zp->z_origin, zp, 0) != 0) {
+	result = stat(zp->z_source, &sb);
+#ifdef PURGE_ZONE
+	if (result != -1)
+		purge_zone(zp->z_origin, hashtab, zp->z_class);
+#endif
+	if (result == -1 || db_load(zp->z_source, zp->z_origin, zp, NULL)) {
 		/*
 		 * Set zone to be refreshed immediately.
 		 */
@@ -710,14 +774,13 @@ get_forwarders(fp)
 			ftp->fwdaddr.sin_port = ns_port;
 			ftp->fwdaddr.sin_family = AF_INET;
 		} else {
-			syslog(LOG_ERR, "'%s' (ignored, NOT dotted quad)",
+			syslog(LOG_NOTICE, "'%s' (ignored, NOT dotted quad)",
 			       buf);
-			dprintf(1, (ddt, " (ignored, NOT dotted quad)"));
 			continue;	
 		}
 #ifdef FWD_LOOP
 		if (aIsUs(ftp->fwdaddr.sin_addr)) {
-			syslog(LOG_ERR,
+			syslog(LOG_NOTICE,
 			       "Forwarder '%s' ignored, my address",
 			       buf);
 			dprintf(1, (ddt, " (ignored, my address)"));
@@ -754,10 +817,10 @@ get_forwarders(fp)
 #ifdef DEBUG
 	if (debug > 2) {
 		for (ftp = fwdtab; ftp != NULL; ftp = ftp->next) {
-			fprintf(ddt,"ftp x%x [%s] next x%x\n",
-				ftp,
+			fprintf(ddt, "ftp x%lx [%s] next x%lx\n",
+				(u_long)ftp,
 				inet_ntoa(ftp->fwdaddr.sin_addr),
-				ftp->next);
+				(u_long)ftp->next);
 		}
 	}
 #endif
@@ -806,3 +869,79 @@ content_zone(end)
 	}
 }
 #endif
+
+static void
+ns_limit(name, value)
+	const char *name;
+	int value;
+{
+	if (!strcasecmp(name, "transfers-in")) {
+		max_xfers_running = value;
+	} else if (!strcasecmp(name, "transfers-per-ns")) {
+		max_xfers_per_ns = value;
+	} else if (!strcasecmp(name, "datasize")) {
+		ns_rlimit("datasize", Datasize, value);
+	} else {
+		syslog(LOG_ERR,
+		       "error: unrecognized limit in bootfile: \"%s\"",
+		       name);
+		exit(1);
+	}
+}
+
+static void
+ns_rlimit(name, limit, value)
+	const char *name;
+	enum limit limit;
+	long value;
+{
+#ifndef HAVE_GETRUSAGE
+# ifdef LINT
+	name; limit; value;
+# endif
+	syslog(LOG_WARNING, "warning: unimplemented limit in bootfile: \"%s\"",
+	       name);
+#else
+	struct rlimit limits;
+	int rlimit;
+
+	switch (limit) {
+	case Datasize:
+		rlimit = RLIMIT_DATA;
+		break;
+	default:
+		abort();
+	}
+	if (getrlimit(rlimit, &limits) < 0) {
+		syslog(LOG_WARNING, "getrlimit(%s): %m", name);
+		return;
+	}
+	limits.rlim_cur = value;
+	if (setrlimit(rlimit, &limits) < 0) {
+		syslog(LOG_WARNING, "setrlimit(%s, %ld): %m", name, value);
+		return;
+	}
+#endif
+}
+
+static void
+ns_option(name)
+	const char *name;
+{
+	if (!strcasecmp(name, "no-recursion")) {
+		NoRecurse = 1;
+	} else if (!strcasecmp(name, "query-log")) {
+		qrylog = 1;
+	} else if (!strcasecmp(name, "forward-only")) {
+		forward_only = 1;
+#ifndef INVQ
+	} else if (!strcasecmp(name, "fake-iquery")) {
+		fake_iquery = 1;
+#endif
+	} else {
+		syslog(LOG_ERR,
+		       "error: unrecognized option in bootfile: \"%s\"",
+		       name);
+		exit(1);
+	}
+}

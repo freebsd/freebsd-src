@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: ns_main.c,v 8.8 1995/06/29 09:26:17 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -76,17 +76,22 @@ char copyright[] =
 #if !defined(SYSV) && defined(XXX)
 #include <sys/wait.h>
 #endif /* !SYSV */
-#include <sys/time.h>
-#define TIME_H_INCLUDED
-#include <sys/resource.h>
 #if defined(__osf__)
-#define _SOCKADDR_LEN		/* XXX - should be in portability.h but that
+# define _SOCKADDR_LEN		/* XXX - should be in portability.h but that
 				 * would need to be included before socket.h
 				 */
 #endif
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#if defined(__osf__)
+# include <sys/mbuf.h>
+# include <net/route.h>
+#endif
+#if defined(_AIX)
+# include <sys/time.h>
+# define TIME_H_INCLUDED
+#endif
 #include <net/if.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
@@ -108,10 +113,13 @@ char copyright[] =
 #undef nsaddr
 
 				/* UDP receive, TCP send buffer size */
-static	const int		rbufsize = 8 * 1024;
+static	const int		rbufsize = 8 * 1024,
+				/* TCP send window size */
+				sbufsize = 16 * 1024;
 
 static	struct sockaddr_in	nsaddr;
-static	u_int16_t		local_ns_port;		/* our service port */
+static	u_int16_t		local_ns_port,		/* our service port */
+				nsid_state;
 static	fd_set			mask;			/* open descriptors */
 static	char			**Argv = NULL;
 static	char			*LastArg = NULL;	/* end of argv */
@@ -165,8 +173,12 @@ main(argc, argv, envp)
 	int rfd, size;
 	time_t lasttime, maxctime;
 	u_char buf[BUFSIZ];
+#ifdef POSIX_SIGNALS
+	struct sigaction sact;
+#else
 #ifndef SYSV
 	struct sigvec vec;
+#endif
 #endif
 	fd_set tmpmask;
 	struct timeval t, *tp;
@@ -183,6 +195,12 @@ main(argc, argv, envp)
 #endif
 
 	local_ns_port = ns_port = htons(NAMESERVER_PORT);
+
+	/* BSD has a better random number generator but it's not clear
+	 * that we need it here.
+	 */
+	gettime(&tt);
+	srand(((unsigned)getpid()) + (unsigned)tt.tv_usec);
 
 	/*
 	**  Save start and extent of argv for ns_setproctitle().
@@ -298,7 +316,7 @@ main(argc, argv, envp)
 	if (fp != NULL) {
 		(void) fgets(oldpid, sizeof(oldpid), fp);
 		(void) rewind(fp);
-		fprintf(fp, "%d\n", getpid());
+		fprintf(fp, "%ld\n", (long)getpid());
 		(void) my_fclose(fp);
 	}
 #else /*PID_FIX*/
@@ -317,6 +335,7 @@ main(argc, argv, envp)
 	nsaddr.sin_family = AF_INET;
 	nsaddr.sin_addr.s_addr = INADDR_ANY;
 	nsaddr.sin_port = local_ns_port;
+	nsid_init();
 
 	/*
 	** Open stream port.
@@ -329,7 +348,7 @@ main(argc, argv, envp)
 		if (setsockopt(vs, SOL_SOCKET, SO_REUSEADDR, (char *)&on,
 			sizeof(on)) != 0)
 		{
-			syslog(LOG_ERR, "setsockopt(vs, reuseaddr): %m");
+			syslog(LOG_NOTICE, "setsockopt(vs, reuseaddr): %m");
 			(void) my_close(vs);
 			continue;
 		}
@@ -338,7 +357,7 @@ main(argc, argv, envp)
 
 		if (errno != EADDRINUSE || n > 4) {
 			if (errno == EADDRINUSE) {
-				syslog(LOG_ERR,
+				syslog(LOG_NOTICE,
 				 "There may be a name server already running");
 				syslog(LOG_ERR, "exiting");
 			} else {
@@ -409,8 +428,20 @@ main(argc, argv, envp)
 #if defined(SIGXFSZ)
 	(void) signal(SIGXFSZ, onhup);	/* wierd DEC Hesiodism, harmless */
 #endif
+#if defined(POSIX_SIGNALS)
+	bzero((char *)&sact, sizeof(sact));
+	sact.sa_handler = maint_alarm;
+	sigemptyset(&sact.sa_mask);
+	sigaddset(&sact.sa_mask, SIGCHLD);
+	(void) sigaction(SIGALRM, &sact, (struct sigaction *)NULL);
+
+	sact.sa_handler = endxfer;
+	sigemptyset(&sact.sa_mask);
+	sigaddset(&sact.sa_mask, SIGALRM);
+	(void) sigaction(SIGCHLD, &sact, (struct sigaction *)NULL);
+#else 
 #if defined(SYSV)
-	(void) signal(SIGCLD, endxfer);
+	(void) signal(SIGCLD, (SIG_FN (*)()) endxfer);
 	(void) signal(SIGALRM, maint_alarm);
 #else
 	bzero((char *)&vec, sizeof(vec));
@@ -422,6 +453,7 @@ main(argc, argv, envp)
 	vec.sv_mask = sigmask(SIGALRM);
 	(void) sigvec(SIGCHLD, &vec, (struct sigvec *)NULL);
 #endif /* SYSV */
+#endif /* POSIX_SIGNALS */
 	(void) signal(SIGPIPE, SIG_IGN);
 #ifdef SIGSYS
 	(void) signal(SIGSYS, sigprof);
@@ -430,6 +462,11 @@ main(argc, argv, envp)
 #ifdef ALLOW_UPDATES
         /* Catch SIGTERM so we can dump the database upon shutdown if it
            has changed since it was last dumped/booted */
+        (void) signal(SIGTERM, onintr);
+#endif
+
+#ifdef XSTATS
+        /* Catch SIGTERM so we can write stats before exiting. */
         (void) signal(SIGTERM, onintr);
 #endif
 
@@ -488,7 +525,7 @@ main(argc, argv, envp)
 		(void) dup2(n, 2);
 		if (n > 2)
 			(void) my_close(n);
-#ifdef SYSV
+#if defined(SYSV) || defined(hpux)
 		setpgrp();
 #else
 		{
@@ -523,7 +560,7 @@ main(argc, argv, envp)
 	/* tuck my process id away again */
 	fp = fopen(PidFile, "w");
 	if (fp != NULL) {
-		fprintf(fp, "%d\n", getpid());
+		fprintf(fp, "%ld\n", (long)getpid());
 		(void) my_fclose(fp);
 	}
 #endif
@@ -533,7 +570,7 @@ main(argc, argv, envp)
 	nfds = getdtablesize();       /* get the number of file descriptors */
 	if (nfds > FD_SETSIZE) {
 		nfds = FD_SETSIZE;	/* Bulletproofing */
-		syslog(LOG_ERR, "Return from getdtablesize() > FD_SETSIZE");
+		syslog(LOG_NOTICE, "Return from getdtablesize() > FD_SETSIZE");
 	}
 	FD_ZERO(&mask);
 	FD_SET(vs, &mask);
@@ -563,6 +600,12 @@ main(argc, argv, envp)
                         exit(0);
                 }
 #endif /* ALLOW_UPDATES */
+#ifdef XSTATS
+                if (needToExit) {
+		  	ns_logstats();
+		  	exit(0);
+                }
+#endif /* XSTATS */
 		if (needreload) {
 			needreload = 0;
 			db_reload();
@@ -606,11 +649,9 @@ main(argc, argv, envp)
 			tp = NULL;
 		tmpmask = mask;
 		n = select(nfds, &tmpmask, (fd_set *)NULL, (fd_set *)NULL, tp);
-		if (n < 0) {
-			if (errno != EINTR) {
-				syslog(LOG_ERR, "select: %m");
-				sleep(60);
-			}
+		if (n < 0 && errno != EINTR) {
+			syslog(LOG_ERR, "select: %m");
+			sleep(60);
 		}
 		if (n <= 0)
 			continue;
@@ -619,28 +660,32 @@ main(argc, argv, envp)
 		     dqp != QDATAGRAM_NULL;
 		     dqp = dqp->dq_next) {
 		    if (FD_ISSET(dqp->dq_dfd, &tmpmask))
-		        for (udpcnt = 0; udpcnt < 25; udpcnt++) {  /*XXX*/
+		        for (udpcnt = 0; udpcnt < 42; udpcnt++) {  /*XXX*/
 			    from_len = sizeof(from_addr);
-			    if ((n = recvfrom(dqp->dq_dfd, buf, sizeof(buf), 0,
+			    if ((n = recvfrom(dqp->dq_dfd, (char *)buf, sizeof(buf), 0,
 				(struct sockaddr *)&from_addr, &from_len)) < 0)
 			    {
+#if defined(SPURIOUS_ECONNREFUSED)
+				if ((n < 0) && (errno == ECONNREFUSED))
+					break;
+#endif
 				if ((n < 0) && (errno == PORT_WOULDBLK))
 					break;
-				syslog(LOG_WARNING, "recvfrom: %m");
+				syslog(LOG_INFO, "recvfrom: %m");
 				break;
 			    }
 			    if (n == 0)
 				break;
 			    gettime(&tt);
 			    dprintf(1, (ddt,
-				 "\ndatagram from [%s].%d, fd %d, len %d; now %s",
+			     "\ndatagram from [%s].%d, fd %d, len %d; now %s",
 					inet_ntoa(from_addr.sin_addr),
 					ntohs(from_addr.sin_port),
 					dqp->dq_dfd, n,
-				        ctime(&tt.tv_sec)));
+				        ctimel(tt.tv_sec)));
 #ifdef DEBUG
 			    if (debug >= 10)
-				fp_query(buf, ddt);
+				fp_nquery(buf, n, ddt);
 #endif
 			    /*
 			     * Consult database to get the answer.
@@ -684,16 +729,16 @@ main(argc, argv, envp)
 				continue;
 			}
 			if (rfd < 0) {
-				syslog(LOG_WARNING, "accept: %m");
+				syslog(LOG_INFO, "accept: %m");
 				continue;
 			}
 			if ((n = fcntl(rfd, F_GETFL, 0)) < 0) {
-				syslog(LOG_ERR, "fcntl(rfd, F_GETFL): %m");
+				syslog(LOG_INFO, "fcntl(rfd, F_GETFL): %m");
 				(void) my_close(rfd);
 				continue;
 			}
 			if (fcntl(rfd, F_SETFL, n|PORT_NONBLOCK) != 0) {
-				syslog(LOG_ERR, "fcntl(rfd, NONBLOCK): %m");
+				syslog(LOG_INFO, "fcntl(rfd, NONBLOCK): %m");
 				(void) my_close(rfd);
 				continue;
 			}
@@ -701,7 +746,7 @@ main(argc, argv, envp)
 			len = sizeof ip_opts;
 			if (getsockopt(rfd, IPPROTO_IP, IP_OPTIONS,
 				       (char *)ip_opts, &len) < 0) {
-				syslog(LOG_ERR,
+				syslog(LOG_INFO,
 				       "getsockopt(rfd, IP_OPTIONS): %m");
 				(void) my_close(rfd);
 				continue;
@@ -711,23 +756,31 @@ main(argc, argv, envp)
 				if (!haveComplained((char*)
 						    from_addr.sin_addr.s_addr,
 						    "rcvd ip options")) {
-					syslog(LOG_NOTICE,
+					syslog(LOG_INFO,
 				      "rcvd IP_OPTIONS from [%s].%d (ignored)",
 					       inet_ntoa(from_addr.sin_addr),
 					       ntohs(from_addr.sin_port));
 				}
 				if (setsockopt(rfd, IPPROTO_IP, IP_OPTIONS,
 					       NULL, 0) < 0) {
-					syslog(LOG_ERR,
+					syslog(LOG_INFO,
 					       "setsockopt(!IP_OPTIONS): %m");
 					(void) my_close(rfd);
 					continue;
 				}
 			}
 #endif
+			if (setsockopt(rfd, SOL_SOCKET, SO_SNDBUF,
+				      (char*)&sbufsize, sizeof(sbufsize)) < 0){
+				syslog(LOG_INFO,
+					  "setsockopt(rfd, SO_SNDBUF, %d): %m",
+				       sbufsize);
+				(void) my_close(rfd);
+				continue;
+			}
 			if (setsockopt(rfd, SOL_SOCKET, SO_KEEPALIVE,
 				       (char *)&on, sizeof(on)) < 0) {
-				syslog(LOG_ERR,
+				syslog(LOG_INFO,
 				       "setsockopt(rfd, KEEPALIVE): %m");
 				(void) my_close(rfd);
 				continue;
@@ -749,20 +802,21 @@ main(argc, argv, envp)
 				    inet_ntoa(sp->s_from.sin_addr),
 				    ntohs(sp->s_from.sin_port), rfd));
 		}
-		if (streamq) {
-			dprintf(3, (ddt, "streamq = 0x%x\n",streamq));
-		}
+		if (streamq)
+			dprintf(3, (ddt, "streamq = 0x%lx\n",
+				    (u_long)streamq));
 		for (sp = streamq;  sp != QSTREAM_NULL;  sp = nextsp) {
 			nextsp = sp->s_next;
 			if (!FD_ISSET(sp->s_rfd, &tmpmask))
 				continue;
 			dprintf(5, (ddt,
-				    "sp x%x rfd %d size %d time %d next x%x\n",
-				    sp, sp->s_rfd, sp->s_size,
-				    sp->s_time, sp->s_next));
+				  "sp x%lx rfd %d size %d time %d next x%lx\n",
+				    (u_long)sp, sp->s_rfd, sp->s_size,
+				    sp->s_time, (u_long)sp->s_next));
 			dprintf(5, (ddt,
-				    "\tbufsize %d buf x%x bufp x%x\n",
-				    sp->s_bufsize, sp->s_buf, sp->s_bufp));
+				    "\tbufsize %d buf x%lx bufp x%lx\n",
+				    sp->s_bufsize,
+				    (u_long)sp->s_buf, (u_long)sp->s_bufp));
 			if (sp->s_size < 0) {
 				size = INT16SZ
 				    - (sp->s_bufp - (u_char *)&sp->s_tempsize);
@@ -830,7 +884,7 @@ main(argc, argv, envp)
 
 				hp = (HEADER *)sp->s_buf;
 				hp->qr = 1;
-				hp->ra = 1;
+				hp->ra = (NoRecurse == 0);
 				hp->ancount = 0;
 				hp->qdcount = 0;
 				hp->nscount = 0;
@@ -877,11 +931,11 @@ getnetconf()
 	struct ifreq ifreq, *ifr;
 	struct qdatagram *dqp;
 	static int first = 1;
-	char buf[BUFSIZ], *cp, *cplim;
+	char buf[32768], *cp, *cplim;
 	u_int32_t nm;
 	time_t my_generation = time(NULL);
 
-	ifc.ifc_len = sizeof(buf);
+	ifc.ifc_len = sizeof buf;
 	ifc.ifc_buf = buf;
 	if (ioctl(vs, SIOCGIFCONF, (char *)&ifc) < 0) {
 		syslog(LOG_ERR, "get interface configuration: %m - exiting");
@@ -894,7 +948,7 @@ getnetconf()
 #else
 #define my_size(p) (sizeof (p))
 #endif
-	cplim = buf + ifc.ifc_len; /*skip over if's with big ifr_addr's */
+	cplim = buf + ifc.ifc_len;    /* skip over if's with big ifr_addr's */
 	for (cp = buf;
 	     cp < cplim;
 	     cp += sizeof (ifr->ifr_name) + my_size(ifr->ifr_addr)) {
@@ -912,7 +966,7 @@ getnetconf()
 		 */
 #if !defined(BSD) || (BSD < 199103)
 		if (ioctl(vs, SIOCGIFADDR, (char *)&ifreq) < 0) {
-			syslog(LOG_ERR, "get interface addr: %m");
+			syslog(LOG_NOTICE, "get interface addr: %m");
 			continue;
 		}
 #endif
@@ -975,7 +1029,7 @@ getnetconf()
 				&ifreq.ifr_addr)->sin_addr;
 #ifdef SIOCGIFNETMASK
 		if (ioctl(vs, SIOCGIFNETMASK, (char *)&ifreq) < 0) {
-			syslog(LOG_ERR, "get netmask: %m");
+			syslog(LOG_NOTICE, "get netmask: %m");
 			ntp->mask = net_mask(ntp->my_addr);
 		} else
 			ntp->mask = ((struct sockaddr_in *)
@@ -985,7 +1039,7 @@ getnetconf()
 		ntp->mask = net_mask(ntp->my_addr);
 #endif
 		if (ioctl(vs, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
-			syslog(LOG_ERR, "get interface flags: %m");
+			syslog(LOG_NOTICE, "get interface flags: %m");
 			continue;
 		}
 #ifdef IFF_LOOPBACK
@@ -1005,7 +1059,7 @@ getnetconf()
 			continue;
 		} else if ((ifreq.ifr_flags & IFF_POINTOPOINT)) {
 			if (ioctl(vs, SIOCGIFDSTADDR, (char *)&ifreq) < 0) {
-				syslog(LOG_ERR, "get dst addr: %m");
+				syslog(LOG_NOTICE, "get dst addr: %m");
 				continue;
 			}
 			ntp->mask = 0xffffffff;
@@ -1037,7 +1091,7 @@ getnetconf()
 	 *
 	 * XXX - need to update enettab/elocal as well.
 	 */
-	dqflush(my_generation);
+	dqflush(my_generation);		/* With apologies to The Who. */
 
 	/*
 	 * Create separate qdatagram structure for socket
@@ -1107,9 +1161,10 @@ printnetinfo(ntp)
 	register struct netinfo *ntp;
 {
 	for ( ; ntp != NULL; ntp = ntp->next) {
-		fprintf(ddt,"addr x%lx mask x%lx", ntp->addr, ntp->mask);
-		fprintf(ddt," my_addr x%lx", ntp->my_addr.s_addr);
-		fprintf(ddt," %s\n", inet_ntoa(ntp->my_addr));
+		fprintf(ddt, "addr x%lx mask x%lx",
+			(u_long)ntp->addr, (u_long)ntp->mask);
+		fprintf(ddt, " my_addr x%lx", ntp->my_addr.s_addr);
+		fprintf(ddt, " %s\n", inet_ntoa(ntp->my_addr));
 	}
 }
 #endif
@@ -1133,12 +1188,12 @@ opensocket(dqp)
 	if (setsockopt(dqp->dq_dfd, SOL_SOCKET, SO_REUSEADDR,
 	    (char *)&on, sizeof(on)) != 0)
 	{
-		syslog(LOG_ERR, "setsockopt(dqp->dq_dfd, reuseaddr): %m");
+		syslog(LOG_NOTICE, "setsockopt(dqp->dq_dfd, reuseaddr): %m");
 		/* XXX press on regardless, this is not too serious. */
 	}
 #ifdef SO_RCVBUF
 	m = sizeof(n);
-	if ((getsockopt(dqp->dq_dfd, SOL_SOCKET, SO_RCVBUF, &n, &m) >= 0)
+	if ((getsockopt(dqp->dq_dfd, SOL_SOCKET, SO_RCVBUF, (char*)&n, &m) >= 0)
 	    && (m == sizeof(n))
 	    && (n < rbufsize)) {
 		(void) setsockopt(dqp->dq_dfd, SOL_SOCKET, SO_RCVBUF,
@@ -1146,10 +1201,10 @@ opensocket(dqp)
 	}
 #endif /* SO_RCVBUF */
 	if ((n = fcntl(dqp->dq_dfd, F_GETFL, 0)) < 0) {
-		syslog(LOG_ERR, "fcntl(dfd, F_GETFL): %m");
+		syslog(LOG_NOTICE, "fcntl(dfd, F_GETFL): %m");
 		/* XXX press on regardless, but this really is a problem. */
 	} else if (fcntl(dqp->dq_dfd, F_SETFL, n|PORT_NONBLOCK) != 0) {
-		syslog(LOG_ERR, "fcntl(dqp->dq_dfd, non-blocking): %m");
+		syslog(LOG_NOTICE, "fcntl(dqp->dq_dfd, non-blocking): %m");
 		/* XXX press on regardless, but this really is a problem. */
 	}
 	/*
@@ -1160,10 +1215,11 @@ opensocket(dqp)
 	 */
 	nsaddr.sin_addr = dqp->dq_addr;
 	if (bind(dqp->dq_dfd, (struct sockaddr *)&nsaddr, sizeof(nsaddr))) {
-		syslog(LOG_ERR, "bind(dfd=%d, [%s].%d): %m - exiting",
+		syslog(LOG_NOTICE, "bind(dfd=%d, [%s].%d): %m",
 			dqp->dq_dfd, inet_ntoa(nsaddr.sin_addr),
 			ntohs(nsaddr.sin_port));
 #if !defined(sun)
+		syslog(LOG_ERR, "exiting");
 		exit(1);
 #endif
 	}
@@ -1180,7 +1236,7 @@ onhup()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGHUP, onhup);
+	(void)signal(SIGHUP, (SIG_FN (*)())onhup);
 #endif /* SYSV */
 	needreload = 1;
 	errno = save_errno;
@@ -1197,7 +1253,7 @@ maint_alarm()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGALRM, maint_alarm);
+	(void)signal(SIGALRM, (SIG_FN (*)())maint_alarm);
 #endif /* SYSV */
 	needmaint = 1;
 	errno = save_errno;
@@ -1216,6 +1272,17 @@ onintr()
 }
 #endif /* ALLOW_UPDATES */
 
+#ifdef XSTATS
+/*
+ * Signal handler to write log information
+ */
+static SIG_FN
+onintr()
+{
+        needToExit = 1;
+}
+#endif /* XSTATS */
+
 /*
  * Signal handler to schedule a data base dump.  Do this instead of dumping the
  * data base immediately, to avoid seeing it in a possibly inconsistent state
@@ -1227,7 +1294,7 @@ setdumpflg()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGINT, setdumpflg);
+	(void)signal(SIGINT, (SIG_FN (*)())setdumpflg);
 #endif /* SYSV */
         needToDoadump = 1;
 	errno = save_errno;
@@ -1251,17 +1318,17 @@ setdebug(code)
 
 		ddt = freopen(debugfile, "w+", stderr);
 		if ( ddt == NULL) {
-			syslog(LOG_WARNING, "can't open debug file %s: %m",
-			    debugfile);
+			syslog(LOG_NOTICE, "can't open debug file %s: %m",
+			       debugfile);
 			debug = 0;
 		} else {
-#if defined(SYSV)
+#if defined(HAVE_SETVBUF)
 			setvbuf(ddt, NULL, _IOLBF, BUFSIZ);
 #else
 			setlinebuf(ddt);
 #endif
 			if ((n = fcntl(fileno(ddt), F_GETFL, 0)) < 0) {
-				syslog(LOG_WARNING,
+				syslog(LOG_INFO,
 				       "fcntl(ddt, F_GETFL): %m");
 			} else {
 				(void) fcntl(fileno(ddt), F_SETFL, n|O_APPEND);
@@ -1286,7 +1353,7 @@ setIncrDbgFlg()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGUSR1, setIncrDbgFlg);
+	(void)signal(SIGUSR1, (SIG_FN (*)())setIncrDbgFlg);
 #endif /* SYSV */
 #ifdef DEBUG
 	if (debug == 0) {
@@ -1310,7 +1377,7 @@ setNoDbgFlg()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGUSR2, setNoDbgFlg);
+	(void)signal(SIGUSR2, (SIG_FN (*)())setNoDbgFlg);
 #endif /* SYSV */
 	setdebug(0);
 	errno = save_errno;
@@ -1325,7 +1392,7 @@ setQrylogFlg()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGWINCH, setQrylogFlg);
+	(void)signal(SIGWINCH, (SIG_FN (*)())setQrylogFlg);
 #endif /* SYSV */
 	qrylog = !qrylog;
 	syslog(LOG_NOTICE, "query log %s\n", qrylog ?"on" :"off");
@@ -1341,7 +1408,7 @@ setstatsflg()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGIOT, setstatsflg);
+	(void)signal(SIGIOT, (SIG_FN (*)())setstatsflg);
 #endif /* SYSV */
 	needStatsDump = 1;
 	errno = save_errno;
@@ -1352,7 +1419,7 @@ setchkptflg()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGQUIT, setchkptflg);
+	(void)signal(SIGQUIT, (SIG_FN (*)())setchkptflg);
 #endif /* SYSV */
 	needToChkpt = 1;
 	errno = save_errno;
@@ -1371,7 +1438,7 @@ sigprof()
 {
 	int save_errno = errno;
 #if defined(SYSV)
-	(void)signal(SIGSYS, sigprof);
+	(void)signal(SIGSYS, (SIG_FN (*)())sigprof);
 #endif /* SYSV */
 	dprintf(1, (ddt, "sigprof()\n"));
 	if (fork() == 0)
@@ -1396,7 +1463,7 @@ sqadd()
 		syslog(LOG_ERR, "sqadd: calloc: %m");
 		return (QSTREAM_NULL);
 	}
-	dprintf(3, (ddt, "sqadd(x%x)\n", sqp));
+	dprintf(3, (ddt, "sqadd(x%lx)\n", (u_long)sqp));
 
 	sqp->s_next = streamq;
 	streamq = sqp;
@@ -1415,8 +1482,8 @@ sqrm(qp)
 {
 	register struct qstream *qsp;
 
-	dprintf(2, (ddt, "sqrm(%#x, %d ) rfcnt=%d\n",
-		    qp, qp->s_rfd, qp->s_refcnt));
+	dprintf(2, (ddt, "sqrm(%#lx, %d) rfcnt=%d\n",
+		    (u_long)qp, qp->s_rfd, qp->s_refcnt));
 
 	if (qp->s_bufsize != 0)
 		free(qp->s_buf);
@@ -1480,7 +1547,7 @@ dqflush(gen)
 			if (dqp->dq_addr.s_addr == INADDR_ANY ||
 			    dqp->dq_gen == gen)
 				continue;
-			syslog(LOG_CRIT, "interface [%s] missing; deleting",
+			syslog(LOG_NOTICE, "interface [%s] missing; deleting",
 			       inet_ntoa(dqp->dq_addr));
 		}
 		if (pqp != NULL)
@@ -1571,6 +1638,30 @@ net_mask(in)
 		return (htonl(IN_CLASSB_NET));
 	else
 		return (htonl(IN_CLASSC_NET));
+}
+
+/*
+ * These are here in case we ever want to get more clever, like perhaps
+ * using a bitmap to keep track of outstanding queries and a random
+ * allocation scheme to make it a little harder to predict them.  Note
+ * that the resolver will need the same protection so the cleverness
+ * should be put there rather than here; this is just an interface layer.
+ */
+
+void
+nsid_init()
+{
+	nsid_state = res_randomid();
+}
+
+u_int16_t
+nsid_next()
+{
+	if (nsid_state == 65535)
+		nsid_state = 0;
+	else
+		nsid_state++;
+	return (nsid_state);
 }
 
 #if defined(BSD43_BSD43_NFS)

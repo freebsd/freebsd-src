@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static char rcsid[] = "$Id: db_glue.c,v 4.9.1.12 1994/07/22 08:42:39 vixie Exp $";
+static char rcsid[] = "$Id: db_glue.c,v 8.7 1995/06/29 09:26:17 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -63,6 +63,7 @@ static char rcsid[] = "$Id: db_glue.c,v 4.9.1.12 1994/07/22 08:42:39 vixie Exp $
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <stdio.h>
 #include <syslog.h>
@@ -70,6 +71,7 @@ static char rcsid[] = "$Id: db_glue.c,v 4.9.1.12 1994/07/22 08:42:39 vixie Exp $
 #include <netdb.h>
 #include <resolv.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "named.h"
 
@@ -90,6 +92,37 @@ static const int (*unused_junk)__P((const u_char *, int, u_char *, int)) =
 	res_send;
 ;
 #endif
+
+/*XXX: sin_ntoa() should probably be in libc*/
+const char *
+sin_ntoa(sin)
+	const struct sockaddr_in *sin;
+{
+	static char ret[sizeof("[111.222.333.444].55555")];
+
+	if (!sin)
+		strcpy(ret, "[sin_ntoa(NULL)]");
+	else
+		sprintf(ret, "[%s].%u",
+			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+	return (ret);
+}
+
+/*
+ * XXX:	some day we'll make this a varargs function
+ */
+void
+panic(err, msg)
+	int err;
+	const char *msg;
+{
+	if (err == -1)
+		syslog(LOG_CRIT, "%s - ABORT", msg);
+	else
+		syslog(LOG_CRIT, "%s: %s - ABORT", msg, strerror(err));
+	signal(SIGIOT, SIG_DFL);
+	abort();
+}
 
 void
 buildservicelist()
@@ -283,19 +316,19 @@ servicename(port, proto)
 	return (ss->s_name);
 }
 
-int
+u_int
 db_getclev(origin)
-	char *origin;
+	const char *origin;
 {
-	int lev = 0;
-	dprintf(1, (ddt, "db_getclev of \"%s\"", origin));
+	u_int lev = 0;
+	dprintf(12, (ddt, "db_getclev of \"%s\"", origin));
 	if (origin && *origin)
 		lev++;
 	while (origin && (origin = strchr(origin, '.'))) {
 		origin++;
 		lev++;
 	}
-	dprintf(1, (ddt, " = %d\n", lev));
+	dprintf(12, (ddt, " = %d\n", lev));
 	return (lev);
 }
 
@@ -326,15 +359,17 @@ int
 my_close(fd)
 	int fd;
 {
-	int s = close(fd);
+	int s;
 
-	if (s < 0) {
-		syslog(LOG_ERR, "close(%d) failed: %m", fd);
-		dprintf(3, (ddt, "close(%d) failed: %s\n",
-			    fd, strerror(errno)));
-	} else {
+	do {
+		errno = 0;
+		s = close(fd);
+	} while (s < 0 && errno == EINTR);
+
+	if (s < 0 && errno != EBADF)
+		syslog(LOG_INFO, "close(%d) failed: %m", fd);
+	else
 		dprintf(3, (ddt, "close(%d) succeeded\n", fd));
-	}
 	return (s);
 }
 
@@ -348,10 +383,10 @@ struct map {
 };
 
 static struct map map_class[] = {
-	"in",	C_IN,
-	"chaos", C_CHAOS,
-	"hs",	C_HS,
-	NULL,	0,
+	{ "in",		C_IN },
+	{ "chaos",	C_CHAOS },
+	{ "hs",		C_HS },
+	{ NULL,		0 }
 };
 
 int
@@ -376,13 +411,10 @@ my_fclose(fp)
 	int fd = fileno(fp),
 	    s = fclose(fp);
 
-	if (s < 0) {
-		syslog(LOG_ERR, "fclose(%d) failed: %m", fd);
-		dprintf(3, (ddt, "fclose(%d) failed: %s\n",
-			    fd, strerror(errno)));
-	} else {
+	if (s < 0)
+		syslog(LOG_INFO, "fclose(%d) failed: %m", fd);
+	else
 		dprintf(3, (ddt, "fclose(%d) succeeded\n", fd));
-	}
 	return (s);
 }
 
@@ -391,17 +423,30 @@ my_fclose(fp)
  */
 char *
 savestr(str)
-	char *str;
+	const char *str;
 {
 	char *cp;
 
 	cp = (char *)malloc(strlen(str) + 1);
-	if (cp == NULL) {
-		syslog(LOG_ERR, "savestr: %m");
-		exit(1);
-	}
+	if (cp == NULL)
+		panic(errno, "savestr: malloc");
 	(void) strcpy(cp, str);
 	return (cp);
+}
+
+/*
+ * Uniform formatting of IP/UDP addresses.
+ */
+const char *
+inet_etoa(sin)
+	const struct sockaddr_in *sin;
+{
+	static char retbuf[sizeof("[xxx.xxx.xxx.xxx].xxxxx")];
+
+	(void) sprintf(retbuf, "[%s].%u",
+		       inet_ntoa(sin->sin_addr),
+		       ntohs(sin->sin_port));
+	return (retbuf);
 }
 
 int
@@ -438,8 +483,8 @@ rm_datum(dp, np, pdp)
 {
 	register struct databuf *ndp = dp->d_next;
 
-	dprintf(3, (ddt, "rm_datum(%x, %x, %x) -> %x\n",
-		    dp, np->n_data, pdp, ndp));
+	dprintf(3, (ddt, "rm_datum(%lx, %lx, %lx) -> %lx\n",
+		    (u_long)dp, (u_long)np->n_data, (u_long)pdp, (u_long)ndp));
 #ifdef INVQ
 	rminv(dp);
 #endif
@@ -483,13 +528,10 @@ rm_name(np, pp, pnp)
 	if ( (np->n_data && (msg = "data"))
 	  || (np->n_hash && (msg = "hash"))
 	    ) {
-		dprintf(1, (ddt,
-			    "rm_name(%x(%s)): non-nil %s pointer\n",
-			    np, np->n_dname?np->n_dname:"Nil", msg));
 		syslog(LOG_ERR,
-			"rm_name(%x(%s)): non-nil %s pointer\n",
-			np, np->n_dname?np->n_dname:"Nil", msg);
-		abort();
+		       "rm_name(%#lx(%s)): non-nil %s pointer\n",
+		       (u_long)np, np->n_dname?np->n_dname:"Nil", msg);
+		panic(-1, "rm_name");
 	}
 
 	/* unlink */
@@ -523,7 +565,7 @@ getname(np, buf, buflen)
 	while (np != NULL) {
 		if ((i = strlen(np->n_dname))+1 >= buflen) {
 			*cp = '\0';
-			syslog(LOG_ERR, "domain name too long: %s...\n", buf);
+			syslog(LOG_INFO, "domain name too long: %s...\n", buf);
 			strcpy(buf, "Name_Too_Long");
 			return;
 		}
@@ -613,21 +655,20 @@ saveinv()
 
 	ip = (struct invbuf *) malloc(sizeof(struct invbuf));
 	if (ip == NULL) {
-		syslog(LOG_ERR, "saveinv: %m");
+		syslog(LOG_ERR, "saveinv: malloc: %m");
 		exit(1);
 	}
 	ip->i_next = NULL;
 	bzero((char *)ip->i_dname, sizeof(ip->i_dname));
 	return (ip);
 }
-#endif /*INVQ*/
 
 /*
  * Compute hash value from data.
  */
 int
 dhash(dp, dlen)
-	u_char *dp;
+	register const u_char *dp;
 	int dlen;
 {
 	register u_char *cp;
@@ -638,9 +679,31 @@ dhash(dp, dlen)
 	if (n > 8)
 		n = 8;
 	hval = 0;
-	for (cp = dp; --n >= 0; ) {
+	while (--n >= 0) {
 		hval <<= 1;
-		hval += *cp++;
+		hval += *dp++;
+	}
+	return (hval % INVHASHSZ);
+}
+#endif /*INVQ*/
+
+/* int
+ * nhash(name)
+ *	compute hash for this name and return it; ignore case differences
+ */
+int
+nhash(name)
+	register const char *name;
+{
+	register u_char ch;
+	register unsigned hval;
+
+	hval = 0;
+	while ((ch = (u_char)*name++) != (u_char)'\0') {
+		if (isascii(ch) && isupper(ch))
+			ch = tolower(ch);
+		hval <<= 1;
+		hval += ch;
 	}
 	return (hval % INVHASHSZ);
 }
@@ -707,4 +770,423 @@ samedomain(a, b)
 	/* We use strncasecmp because we might be trying to
 	 * ignore trailing dots. */
 	return (strncasecmp(cp, b, lb)==0);
+}
+
+#ifdef LOC_RR
+/*
+ * routines to convert between on-the-wire RR format and zone file format.
+ * Does not contain conversion to/from decimal degrees; divide or multiply
+ * by 60*60*1000 for that.
+ */
+
+static unsigned int poweroften[10] = {1, 10, 100, 1000, 10000, 100000,
+				      1000000,10000000,100000000,1000000000};
+
+/* takes an XeY precision/size value, returns a string representation. */
+static const char *
+precsize_ntoa(prec)
+	u_int8_t prec;
+{
+	static char retbuf[sizeof("90000000.00")];
+	unsigned long val;
+	int mantissa, exponent;
+
+	mantissa = (int)((prec >> 4) & 0x0f) % 10;
+	exponent = (int)((prec >> 0) & 0x0f) % 10;
+
+	val = mantissa * poweroften[exponent];
+
+	(void) sprintf(retbuf,"%d.%.2d", val/100, val%100);
+	return (retbuf);
+}
+
+/* converts ascii size/precision X * 10**Y(cm) to 0xXY.  moves pointer. */
+static u_int8_t
+precsize_aton(strptr)
+	char **strptr;
+{
+	unsigned int mval = 0, cmval = 0;
+	u_int8_t retval = 0;
+	register char *cp;
+	register int exponent;
+	register int mantissa;
+
+	cp = *strptr;
+
+	while (isdigit(*cp))
+		mval = mval * 10 + (*cp++ - '0');
+
+	if (*cp == '.') {		/* centimeters */
+		cp++;
+		if (isdigit(*cp)) {
+			cmval = (*cp++ - '0') * 10;
+			if (isdigit(*cp)) {
+				cmval += (*cp++ - '0');
+			}
+		}
+	}
+	cmval = (mval * 100) + cmval;
+
+	for (exponent = 0; exponent < 9; exponent++)
+		if (cmval < poweroften[exponent+1])
+			break;
+
+	mantissa = cmval / poweroften[exponent];
+	if (mantissa > 9)
+		mantissa = 9;
+
+	retval = (mantissa << 4) | exponent;
+
+	*strptr = cp;
+
+	return (retval);
+}
+
+/* converts ascii lat/lon to unsigned encoded 32-bit number.  moves pointer. */
+static u_int32_t
+latlon2ul(latlonstrptr,which)
+	char **latlonstrptr;
+	int *which;
+{
+	register char *cp;
+	u_int32_t retval;
+	int deg = 0, min = 0, secs = 0, secsfrac = 0;
+
+	cp = *latlonstrptr;
+
+	while (isdigit(*cp))
+		deg = deg * 10 + (*cp++ - '0');
+
+	while (isspace(*cp))
+		cp++;
+
+	if (!(isdigit(*cp)))
+		goto fndhemi;
+
+	while (isdigit(*cp))
+		min = min * 10 + (*cp++ - '0');
+
+	while (isspace(*cp))
+		cp++;
+
+	if (!(isdigit(*cp)))
+		goto fndhemi;
+
+	while (isdigit(*cp))
+		secs = secs * 10 + (*cp++ - '0');
+
+	if (*cp == '.') {		/* decimal seconds */
+		cp++;
+		if (isdigit(*cp)) {
+			secsfrac = (*cp++ - '0') * 100;
+			if (isdigit(*cp)) {
+				secsfrac += (*cp++ - '0') * 10;
+				if (isdigit(*cp)) {
+					secsfrac += (*cp++ - '0');
+				}
+			}
+		}
+	}
+
+	while (!isspace(*cp))	/* if any trailing garbage */
+		cp++;
+
+	while (isspace(*cp))
+		cp++;
+
+ fndhemi:
+	switch (*cp) {
+	case 'N': case 'n':
+	case 'E': case 'e':
+		retval = ((unsigned)1<<31)
+			+ (((((deg * 60) + min) * 60) + secs) * 1000)
+			+ secsfrac;
+		break;
+	case 'S': case 's':
+	case 'W': case 'w':
+		retval = ((unsigned)1<<31)
+			- (((((deg * 60) + min) * 60) + secs) * 1000)
+			- secsfrac;
+		break;
+	default:
+		retval = 0;	/* invalid value -- indicates error */
+		break;
+	}
+
+	switch (*cp) {
+	case 'N': case 'n':
+	case 'S': case 's':
+		*which = 1;	/* latitude */
+		break;
+	case 'E': case 'e':
+	case 'W': case 'w':
+		*which = 2;	/* longitude */
+		break;
+	default:
+		*which = 0;	/* error */
+		break;
+	}
+
+	cp++;			/* skip the hemisphere */
+
+	while (!isspace(*cp))	/* if any trailing garbage */
+		cp++;
+
+	while (isspace(*cp))	/* move to next field */
+		cp++;
+
+	*latlonstrptr = cp;
+
+	return (retval);
+}
+
+/* converts a zone file representation in a string to an RDATA on-the-wire
+ * representation. */
+u_int32_t
+loc_aton(ascii, binary)
+	const char *ascii;
+	u_char *binary;
+{
+	const char *cp, *maxcp;
+	u_char *bcp;
+
+	u_int32_t latit = 0, longit = 0, alt = 0;
+	u_int32_t lltemp1 = 0, lltemp2 = 0;
+	int altmeters = 0, altfrac = 0, altsign = 1;
+	u_int8_t hp = 0x16;	/* default = 1e6 cm = 10000.00m = 10km */
+	u_int8_t vp = 0x13;	/* default = 1e3 cm = 10.00m */
+	u_int8_t siz = 0x12;	/* default = 1e2 cm = 1.00m */
+	int which1 = 0, which2 = 0;
+
+	cp = ascii;
+	maxcp = cp + strlen(ascii);
+
+	lltemp1 = latlon2ul(&cp, &which1);
+
+	lltemp2 = latlon2ul(&cp, &which2);
+
+	switch (which1 + which2) {
+	case 3:			/* 1 + 2, the only valid combination */
+		if ((which1 == 1) && (which2 == 2)) { /* normal case */
+			latit = lltemp1;
+			longit = lltemp2;
+		} else if ((which1 == 2) && (which2 == 1)) { /* reversed */
+			longit = lltemp1;
+			latit = lltemp2;
+		} else {	/* some kind of brokenness */
+			return 0;
+		}
+		break;
+	default:		/* we didn't get one of each */
+		return 0;
+	}
+
+	/* altitude */
+	if (*cp == '-') {
+		altsign = -1;
+		cp++;
+	}
+    
+	if (*cp == '+')
+		cp++;
+
+	while (isdigit(*cp))
+		altmeters = altmeters * 10 + (*cp++ - '0');
+
+	if (*cp == '.') {		/* decimal meters */
+		cp++;
+		if (isdigit(*cp)) {
+			altfrac = (*cp++ - '0') * 10;
+			if (isdigit(*cp)) {
+				altfrac += (*cp++ - '0');
+			}
+		}
+	}
+
+	alt = (10000000 + (altsign * (altmeters * 100 + altfrac)));
+
+	while (!isspace(*cp) && (cp < maxcp)) /* if trailing garbage or m */
+		cp++;
+
+	while (isspace(*cp) && (cp < maxcp))
+		cp++;
+
+	if (cp >= maxcp)
+		goto defaults;
+
+	siz = precsize_aton(&cp);
+	
+	while (!isspace(*cp) && (cp < maxcp))	/* if trailing garbage or m */
+		cp++;
+
+	while (isspace(*cp) && (cp < maxcp))
+		cp++;
+
+	if (cp >= maxcp)
+		goto defaults;
+
+	hp = precsize_aton(&cp);
+
+	while (!isspace(*cp) && (cp < maxcp))	/* if trailing garbage or m */
+		cp++;
+
+	while (isspace(*cp) && (cp < maxcp))
+		cp++;
+
+	if (cp >= maxcp)
+		goto defaults;
+
+	vp = precsize_aton(&cp);
+
+ defaults:
+
+	bcp = binary;
+	*bcp++ = (u_int8_t) 0;	/* version byte */
+	*bcp++ = siz;
+	*bcp++ = hp;
+	*bcp++ = vp;
+	PUTLONG(latit,bcp);
+	PUTLONG(longit,bcp);
+	PUTLONG(alt,bcp);
+    
+	return (16);		/* size of RR in octets */
+}
+
+/* takes an on-the-wire LOC RR and prints it in zone file (human readable)
+   format. */
+char *
+loc_ntoa(binary,ascii)
+	const u_char *binary;
+	char *ascii;
+{
+	char tmpbuf[255*3];
+
+	register char *cp;
+	register const u_char *rcp;
+
+	int latdeg, latmin, latsec, latsecfrac;
+	int longdeg, longmin, longsec, longsecfrac;
+	char northsouth, eastwest;
+	int altmeters, altfrac, altsign;
+
+	const int referencealt = 100000 * 100;
+
+	int32_t latval, longval, altval;
+	u_int32_t templ;
+	u_int8_t sizeval, hpval, vpval, versionval;
+    
+	char *sizestr, *hpstr, *vpstr;
+
+	rcp = binary;
+	if (ascii)
+		cp = ascii;
+	else {
+		ascii = tmpbuf;
+		cp = tmpbuf;
+	}
+
+	versionval = *rcp++;
+
+	if (versionval) {
+		sprintf(cp,"; error: unknown LOC RR version");
+		return (cp);
+	}
+
+	sizeval = *rcp++;
+
+	hpval = *rcp++;
+	vpval = *rcp++;
+
+	GETLONG(templ,rcp);
+	latval = (templ - ((unsigned)1<<31));
+
+	GETLONG(templ,rcp);
+	longval = (templ - ((unsigned)1<<31));
+
+	GETLONG(templ,rcp);
+	if (templ < referencealt) { /* below WGS 84 spheroid */
+		altval = referencealt - templ;
+		altsign = -1;
+	} else {
+		altval = templ - referencealt;
+		altsign = 1;
+	}
+
+	if (latval < 0) {
+		northsouth = 'S';
+		latval = -latval;
+	}
+	else
+		northsouth = 'N';
+
+	latsecfrac = latval % 1000;
+	latval = latval / 1000;
+	latsec = latval % 60;
+	latval = latval / 60;
+	latmin = latval % 60;
+	latval = latval / 60;
+	latdeg = latval;
+
+	if (longval < 0) {
+		eastwest = 'W';
+		longval = -longval;
+	}
+	else
+		eastwest = 'E';
+
+	longsecfrac = longval % 1000;
+	longval = longval / 1000;
+	longsec = longval % 60;
+	longval = longval / 60;
+	longmin = longval % 60;
+	longval = longval / 60;
+	longdeg = longval;
+
+	altfrac = altval % 100;
+	altmeters = (altval / 100) * altsign;
+
+	sizestr = savestr(precsize_ntoa(sizeval));
+	hpstr = savestr(precsize_ntoa(hpval));
+	vpstr = savestr(precsize_ntoa(vpval));
+
+	sprintf(cp,
+		"%d %.2d %.2d.%.3d %c %d %.2d %.2d.%.3d %c %d.%.2dm %sm %sm %sm",
+		latdeg, latmin, latsec, latsecfrac, northsouth,
+		longdeg, longmin, longsec, longsecfrac, eastwest,
+		altmeters, altfrac, sizestr, hpstr, vpstr);
+
+	free(sizestr);
+	free(hpstr);
+	free(vpstr);
+
+	return (cp);
+}
+
+#endif /* LOC_RR */
+
+/*
+ * Since the fields in a "struct timeval" are longs, and the argument to ctime
+ * is a pointer to a time_t (which might not be a long), here's a bridge.
+ */
+char *
+ctimel(l)
+	long l;
+{
+	time_t t = (time_t)l;
+
+	return (ctime(&t));
+}
+
+/*
+ * This is nec'y for systems that croak when deref'ing unaligned pointers.
+ * SPARC is an example.
+ */
+struct in_addr
+data_inaddr(data)
+	const u_char *data;
+{
+	struct in_addr ret;
+
+	bcopy((char *)data, (char *)&ret, INADDRSZ);
+	return (ret);
 }

@@ -55,8 +55,10 @@
 
 #include <sys/param.h>
 #include <syslog.h>
+
 #include "../conf/portability.h"
 #include "../conf/options.h"
+extern void panic __P((int, const char *));
 
 #ifdef DSTORAGE
 /*
@@ -83,7 +85,7 @@
  *	All rights reserved.
  */
 #ifndef lint
-static char RCSid[] = "$Id: storage.c,v 4.9.1.2 1993/09/08 00:01:17 vixie Exp $";
+static char RCSid[] = "$Id: storage.c,v 8.1 1994/12/15 06:24:14 vixie Exp $";
 #endif
 
 #undef malloc
@@ -110,8 +112,7 @@ unsigned int cnt;
 	ptr = malloc(cnt);
 
 	if( ptr==(char *)0 ) {
-		syslog(LOG_ERR, "rt_malloc: malloc failure");
-		abort();
+		panic(errno, "rt_malloc: malloc failure");
 	} else 	{
 		register struct memdebug *mp = rt_mdb;
 		for( ; mp < &rt_mdb[MDB_SIZE]; mp++ )  {
@@ -144,18 +145,14 @@ char *ptr;
 		if( mp->mdb_addr != ptr )  continue;
 		{
 			register int *ip = (int *)(ptr+mp->mdb_len-sizeof(int));
-			if( *ip != MDB_MAGIC )  {
-				syslog(LOG_ERR, "ERROR rt_free(x%x, %s) corrupted! x%x!=x%x\n", ptr, "???", *ip, MDB_MAGIC);
-				abort();
-			}
+			if( *ip != MDB_MAGIC )
+				panic(-1, "rt_free: corrupt magic");
 		}
 		mp->mdb_len = 0;	/* successful free */
 		goto ok;
 	}
-	syslog(LOG_ERR, "ERROR rt_free(x%x, %s) bad pointer!\n", ptr, "???");
-	abort();
-ok:	;
-
+	panic(-1, "rt_free: bad pointer");
+ ok:
 	*((int *)ptr) = -1;	/* zappo! */
 	free(ptr);
 }

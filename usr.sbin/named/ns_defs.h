@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 1.12 1994/07/23 23:23:56 vixie Exp $
+ *	$Id: ns_defs.h,v 8.2 1995/06/19 20:55:40 vixie Exp $
  */
 
 /*
@@ -95,7 +95,8 @@
 #define MAX_XFER_TIME	60*60*2	/* max seconds for an xfer */
 #define XFER_TIME_FUDGE	10	/* MAX_XFER_TIME fudge */
 #define MAX_XFERS_RUNNING 10	/* default max value of xfers_running */
-#define	MAX_XFERS_PERNS	2	/* max # of xfers per peer nameserver */
+#define	MAX_XFERS_PER_NS 2	/* max # of xfers per peer nameserver */
+#define	XFER_BUFSIZE	(16*1024) /* arbitrary but bigger than most MTU's */
 
 #define ALPHA    0.7	/* How much to preserve of old response time */
 #define	BETA	 1.2	/* How much to penalize response time on failure */
@@ -128,7 +129,20 @@ struct zoneinfo {
 #ifdef SECURE_ZONES
 	struct netinfo *secure_nets;	/* list of secure networks for zone */
 #endif	
+#ifdef BIND_NOTIFY
+	/* XXX - this will have to move to the name when we do !SOA notify */
+	struct notify	*z_notifylist;	/* list of servers we should notify */
+#endif
 };
+
+#ifdef BIND_NOTIFY
+struct notify {
+	struct in_addr	addr;		/* of server */
+	time_t		last;		/* when they asked */
+	struct notify	*next;
+	/* XXX - this will need a type field when we do !SOA notify */
+};
+#endif
 
 	/* zone types (z_type) */
 #define	Z_NIL		0		/* zone slot not in use */
@@ -205,7 +219,12 @@ struct qinfo {
 	struct zoneinfo	*q_zquery;	/* Zone query is about (Q_ZSERIAL) */
 #ifdef LAME_DELEGATION
 	char    q_domain[MAXDNAME];	/* domain for servers we are querying */
-#endif /* LAME_DELEGATION */
+#endif
+#ifdef BIND_NOTIFY
+	int		q_notifyzone;	/* zone which needs a sysnotify()
+					 * when the reply to this comes in.
+					 */
+#endif
 };
 
 	/* q_flags bits (8 bits) */
@@ -291,7 +310,12 @@ enum nameserStats {	nssRcvdQ,	/* sent us a query */
 			nssSentDupQ,	/* sent them a retry */
 			nssSentFail,	/* sent them a SERVFAIL */
 			nssSentFErr,	/* sent them a FORMERR */
-			nssSendtoErr,	/* error in sendto(2) */
+			nssSendtoErr,	/* error in sendto */
+#ifdef XSTATS
+			nssNotNsQ,      /* query received from remote port != ns_port */
+			nssSentNaAns,   /* sent them a non autoritative answer */
+			nssSentNXD,     /* sent them a negative response */
+#endif
 			nssLast };
 
 struct nameser {
@@ -346,11 +370,10 @@ typedef struct _to_validate TO_Validate;
 
 
 #ifdef DEBUG
-# define dprintf(lev, args) ((debug >= lev) && fprintf args)
+# define dprintf(lev, args) (ddt && (debug >= lev) && fprintf args)
 #else
 # define dprintf(lev, args)
 #endif
-
 
 #ifdef INIT
 	error "INIT already defined, check system include files"
