@@ -69,5 +69,6 @@ extern char sparc64_model[];
 #define	CPU_IMPL_ULTRASPARCIIe	0x13
 #define	CPU_IMPL_ULTRASPARCIII	0x14
 #define	CPU_IMPL_ULTRASPARCIIIp	0x15
+#define	CPU_IMPL_ULTRASPARCIIIi	0x16
 
 #endif /* !_MACHINE_VER_H_ */
