@@ -42,14 +42,22 @@
 .Lb libc
 .Sh SYNOPSIS
 .In signal.h
-.\" The following is Quite Ugly, but syntactically correct.
-.\" Don't try to
-.\" fix it.
-.Ft void \*(lp*
-.Fn signal "int sig" "void \*(lp*func\*(rp\*(lpint\*(rp\*(rp\*(rp\*(lpint"
+.\" XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
+.\" The prototype for signal(3) cannot be cleanly marked up in -mdoc
+.\" without the following lower-level tweak.
+.nr in-synopsis-section 0
 .Pp
+.Ft "void \*(lp*" Ns
+.Fo signal
+.Fa "int sig"
+.Fa "void \*(lp*func\*(rp\*(lpint\*(rp"
+.Fc Ns
+.Ft "\*(rp\*(lpint\*(rp" ;
+.Pp
+.nr in-synopsis-section 1
+.\" XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
 or in
-.Fx Ns 's
+.Fx Ap s
 equivalent but easier to read typedef'd version:
 .Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp" ;
 .Ft sig_t
