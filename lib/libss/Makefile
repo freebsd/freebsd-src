@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/01/19 22:28:35 wollman Exp $
+#	$Id: Makefile,v 1.2 1995/01/21 23:30:31 wollman Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -6,6 +6,11 @@ SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
 	std_rqs.c
 CFLAGS+= -I. -I${.CURDIR} -DPOSIX -DIN_LIBSS
 CLEANFILES+=	ss ss_err.c ss_err.h std_rqs.c
+.if exists(${.CURDIR}/../libcom_err/obj/.)
+LDADD+=	-L${.CURDIR}/../libcom_err/obj
+.else
+LDADD+=	-L${.CURDIR}/../libcom_err
+.endif
 LDADD+=	-lcom_err
 
 ss_err.h ss_err.c:	ss_err.et
@@ -25,8 +30,14 @@ beforeinstall:
 	    ${DESTDIR}/usr/include/ss/mit-sipb-copyright.h || \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 copyright.h \
 	    ${DESTDIR}/usr/include/ss/mit-sipb-copyright.h
-	-cd ${.OBJDIR}; cmp -s ss_err.h ${DESTDIR}/usr/include/ss/ss_err.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
-	    ${DESTDIR}/usr/include/ss
+	-cd ${.OBJDIR}; \
+	    if [ -f ss_err.h ]; then \
+		cmp -s ss_err.h ${DESTDIR}/usr/include/ss/ss_err.h || \
+		install -c -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
+		${DESTDIR}/usr/include/ss; \
+	    else \
+		true; \
+	    fi
 
 .include <bsd.lib.mk>
+
