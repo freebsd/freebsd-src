@@ -37,18 +37,15 @@ static char sccsid[] = "@(#)abort.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <unistd.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 void (*__cleanup)();
-
-/* XXX - why are these declarations here? */
-extern int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
-extern int	__sys_sigaction(int, const struct sigaction *,
-		    struct sigaction *);
 
 void
 abort()
@@ -68,8 +65,8 @@ abort()
 	 * any errors -- ISO C doesn't allow abort to return anyway.
 	 */
 	sigdelset(&act.sa_mask, SIGABRT);
-	(void)__sys_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
-	(void)kill(getpid(), SIGABRT);
+	(void)_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
+	(void)raise(SIGABRT);
 
 	/*
 	 * If SIGABRT was ignored, or caught and the handler returns, do
@@ -78,9 +75,9 @@ abort()
 	act.sa_handler = SIG_DFL;
 	act.sa_flags = 0;
 	sigfillset(&act.sa_mask);
-	(void)__sys_sigaction(SIGABRT, &act, NULL);
+	(void)_sigaction(SIGABRT, &act, NULL);
 	sigdelset(&act.sa_mask, SIGABRT);
-	(void)__sys_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
-	(void)kill(getpid(), SIGABRT);
+	(void)_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
+	(void)raise(SIGABRT);
 	exit(1);
 }
