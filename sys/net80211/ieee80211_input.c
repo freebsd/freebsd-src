@@ -714,6 +714,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ni->ni_esslen = ssid[1];
 			memset(ni->ni_essid, 0, sizeof(ni->ni_essid));
 			memcpy(ni->ni_essid, ssid + 2, ssid[1]);
+			allocbs = 1;
 		} else if (ssid[1] != 0 && isprobe) {
 			/*
 			 * Update ESSID at probe response to adopt hidden AP by
@@ -722,7 +723,9 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ni->ni_esslen = ssid[1];
 			memset(ni->ni_essid, 0, sizeof(ni->ni_essid));
 			memcpy(ni->ni_essid, ssid + 2, ssid[1]);
-		}
+			allocbs = 0;
+		} else
+			allocbs = 0;
 		IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
 		ni->ni_rssi = rssi;
 		ni->ni_rstamp = rstamp;
@@ -736,7 +739,29 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		ni->ni_erp = erp;
 		/* NB: must be after ni_chan is setup */
 		ieee80211_setup_rates(ic, ni, rates, xrates, IEEE80211_F_DOSORT);
-		ieee80211_unref_node(&ni);
+		/*
+		 * When scanning we record results (nodes) with a zero
+		 * refcnt.  Otherwise we want to hold the reference for
+		 * ibss neighbors so the nodes don't get released prematurely.
+		 * Anything else can be discarded (XXX and should be handled
+		 * above so we don't do so much work). 
+		 */
+		if (ic->ic_state == IEEE80211_S_SCAN)
+			ieee80211_unref_node(&ni);	/* NB: do not free */
+		else if (ic->ic_opmode == IEEE80211_M_IBSS &&
+		    allocbs && isprobe) {
+			/*
+			 * Fake an association so the driver can setup it's
+			 * private state.  The rate set has been setup above;
+			 * there is no handshake as in ap/station operation.
+			 */
+			if (ic->ic_newassoc)
+				(*ic->ic_newassoc)(ic, ni, 1);
+			/* NB: hold reference */
+		} else {
+			/* XXX optimize to avoid work done above */
+			ieee80211_free_node(ic, ni);
+		}
 		break;
 	}
 
