@@ -196,7 +196,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	 int fault_flags)
 {
 	vm_prot_t prot;
-	int result;
+	int is_first_object_locked, result;
 	boolean_t growstack, wired;
 	int map_generation;
 	vm_object_t next_object;
@@ -683,6 +683,7 @@ readrest:
 			 * dirty in the first object so that it will go out 
 			 * to swap when needed.
 			 */
+			is_first_object_locked = FALSE;
 			if (
 				/*
 				 * Only one shadow object
@@ -701,6 +702,7 @@ readrest:
 				 */
 				((fs.object->type == OBJT_DEFAULT) ||
 				 (fs.object->type == OBJT_SWAP)) &&
+			    (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object)) &&
 				/*
 				 * We don't chase down the shadow chain
 				 */
@@ -730,7 +732,8 @@ readrest:
 				 */
 				vm_page_copy(fs.m, fs.first_m);
 			}
-
+			if (is_first_object_locked)
+/*XXX*/				VM_OBJECT_UNLOCK(fs.first_object);
 			if (fs.m) {
 				/*
 				 * We no longer need the old page or object.
