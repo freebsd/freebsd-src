@@ -1248,24 +1248,21 @@ static void ParseOption (const char* option, const char* parms, int cmdLine)
 void ReadConfigFile (const char* fileName)
 {
 	FILE*	file;
-	char	buf[128];
+	char	*buf;
+	size_t	len;
 	char	*ptr, *p;
 	char*	option;
 
 	file = fopen (fileName, "r");
-	if (!file) {
+	if (!file)
+		err(1, "cannot open config file %s", fileName);
 
-		sprintf (buf, "Cannot open config file %s.\n", fileName);
-		Quit (buf);
-	}
-
-	while (fgets (buf, sizeof (buf), file)) {
-
-		ptr = strchr (buf, '\n');
-		if (!ptr)
-			errx (1, "config line too long: %s", buf);
-
-		*ptr = '\0';
+	while ((buf = fgetln(file, &len)) != NULL) {
+		if (buf[len - 1] == '\n')
+			buf[len - 1] = '\0';
+		else
+			errx(1, "config file format error: "
+				"last line should end with newline");
 
 /*
  * Check for comments, strip off trailing spaces.
