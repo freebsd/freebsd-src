@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gprof.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: gprof.c,v 1.4.6.1 1997/07/11 06:20:55 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -350,7 +350,8 @@ gettextspace( nfile )
     }
     textspace = (u_char *) malloc( xbuf.a_text );
     if ( textspace == 0 ) {
-	warnx("ran out room for %d bytes of text space: can't do -c" , xbuf.a_text );
+	warnx("ran out room for %d bytes of text space: can't do -c" ,
+		  xbuf.a_text );
 	return;
     }
     (void) fseek( nfile , N_TXTOFF( xbuf ) , 0 );
