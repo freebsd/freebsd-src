@@ -1,0 +1,104 @@
+.\"
+.\" Copyright (c) 2003 Takanori Watanabe.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+
+.Dd July 2, 2001
+.Dt ACPI_THERMAL 4
+.Os
+.Sh NAME
+.Nm acpi_thermal
+.Nd ACPI Thermal Management Support Subsystem
+.Sh SYNOPSIS
+.Cd "device acpi"
+.Pp
+.Sh DESCRIPTION
+The
+.Nm
+driver provides ACPI thermal handling feature as a part of
+ACPI module. This module has sysctl interface and devd notification
+interface. Sysctls export ACPI objects as is.
+The
+.Nm
+driver also activate active cooling system in accordance with appropriate
+acpi object.
+.Sh SYSCTLS
+.Bl -tag -width indent
+.It Va hw.acpi.thermal.tz%d.active
+Current active system running state.
+.It Va hw.acpi.thermal.tz%d.thermal_flags
+Current thermal zone status. This is bit-masked values.
+.It Va hw.acpi.thermal.tz%d.temperature
+exports _TMP object that means current temperature.
+.It Va hw.acpi.thermal.tz%d._PSV
+exports _PSV object that means the temperature to start 
+passive cooling by throtting down CPU etc..
+.It Va hw.acpi.thermal.tz%d._HOT
+exports _HOT object that means the temperature to 
+start critical suspend to disk 
+.It Va hw.acpi.thermal.tz%d._CRT
+exports _CRT object that means the temperature to 
+start critical shutdown.
+.It Va hw.acpi.thermal.tz%d._ACx
+exports _ACx objects that objects that means active 
+cooling start values. The earlier value means the strengest
+active cooling temperature.
+.El
+All temperature is represents as tenth of Kelvin. For example
+300.0K is represented as by the integer 3000. To convert to Centigrade,
+the formula is (x - 2731.5) / 10.
+.Sh NOTIFYS
+Notifies are passed as a string beginning with 
+"!system=ACPI subsystem=Thermal" the thermal zone instance
+is distingushed by ACPI object path in "type=" argument. The notify
+value is passed in "notify=" argument.
+
+.Bl -tag -width indent
+.It Va 0x80
+	Temperature change.
+.It Va 0x81
+	Trip point change.  
+.It Va 0x82
+	Device Lists change.  
+.El
+.Sh SEE ALSO
+.Xr acpi 4
+.Rs
+.%A "Compaq Computer Corporation"
+.%A "Intel Corporation"
+.%A "Microsoft Corporation"
+.%A "Phoenix Technologies Ltd."
+.%A "Toshiba Corporation"
+.%D August 25, 2003
+.%T "Advanced Configuration and Power Interface Specification"
+.%O http://acpi.info/spec.htm
+.Re
+.Sh AUTHORS
+.An Michael Smith
+.Pp
+This manual page was written by
+.Pp
+.An Takanori Watanabe
