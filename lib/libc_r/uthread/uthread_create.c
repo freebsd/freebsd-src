@@ -117,9 +117,15 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 			if (parent == NULL) {
 				/* Use the user start function: */
 #if	defined(__FreeBSD__)
+#if	defined(__alpha__)
+				new_thread->saved_jmp_buf[0]._jb[2] = (long) _thread_start;
+				new_thread->saved_jmp_buf[0]._jb[4 + R_RA] = 0;
+				new_thread->saved_jmp_buf[0]._jb[4 + R_T12] = (long) _thread_start;
+#else
 				new_thread->saved_jmp_buf[0]._jb[0] = (long) _thread_start;
+#endif
 #elif	defined(__NetBSD__)
-#if	defined(__alpha)
+#if	defined(__alpha__)
 				new_thread->saved_jmp_buf[2] = (long) _thread_start;
 				new_thread->saved_jmp_buf[4 + R_RA] = 0;
 				new_thread->saved_jmp_buf[4 + R_T12] = (long) _thread_start;
@@ -135,9 +141,15 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 				 * function: 
 				 */
 #if	defined(__FreeBSD__)
+#if	defined(__alpha__)
+				new_thread->saved_jmp_buf[0]._jb[2] = (long) _thread_start_sig_handler;
+				new_thread->saved_jmp_buf[0]._jb[4 + R_RA] = 0;
+				new_thread->saved_jmp_buf[0]._jb[4 + R_T12] = (long) _thread_start_sig_handler;
+#else
 				new_thread->saved_jmp_buf[0]._jb[0] = (int) _thread_start_sig_handler;
+#endif
 #elif	defined(__NetBSD__)
-#if	defined(__alpha)
+#if	defined(__alpha__)
 				new_thread->saved_jmp_buf[2] = (long) _thread_start_sig_handler;
 				new_thread->saved_jmp_buf[4 + R_RA] = 0;
 				new_thread->saved_jmp_buf[4 + R_T12] = (long) _thread_start_sig_handler;
@@ -151,9 +163,13 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 			/* The stack starts high and builds down: */
 #if	defined(__FreeBSD__)
+#if	defined(__alpha__)
+			new_thread->saved_jmp_buf[0]._jb[4 + R_SP] = (long) new_thread->stack + pattr->stacksize_attr - sizeof(double);
+#else
 			new_thread->saved_jmp_buf[0]._jb[2] = (int) (new_thread->stack + pattr->stacksize_attr - sizeof(double));
+#endif
 #elif	defined(__NetBSD__)
-#if	defined(__alpha)
+#if	defined(__alpha__)
 			new_thread->saved_jmp_buf[4 + R_SP] = (long) new_thread->stack + pattr->stacksize_attr - sizeof(double);
 #else
 			new_thread->saved_jmp_buf[2] = (long) new_thread->stack + pattr->stacksize_attr - sizeof(double);
