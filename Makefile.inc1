@@ -576,9 +576,6 @@ includes:
 	cd ${.CURDIR}/lib/libcalendar;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcam;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libdisk;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libncp;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libnetgraph;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libkvm;		${MAKE} beforeinstall
@@ -586,6 +583,9 @@ includes:
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
 .endif
+	cd ${.CURDIR}/lib/libncp;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libnetgraph;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpam/libpam;	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
