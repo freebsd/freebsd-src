@@ -828,8 +828,8 @@ spec_getpages(ap)
 	    "spec_getpages:(%s) I/O read failure: (error=%d) bp %p vp %p\n",
 			devtoname(bp->b_dev), error, bp, bp->b_vp);
 		printf(
-	    "               size: %d, resid: %ld, a_count: %d, valid: 0x%x\n",
-		    size, bp->b_resid, ap->a_count, m->valid);
+	    "               size: %d, resid: %ld, a_count: %d, valid: 0x%lx\n",
+		    size, bp->b_resid, ap->a_count, (u_long)m->valid);
 		printf(
 	    "               nread: %d, reqpage: %d, pindex: %lu, pcount: %d\n",
 		    nread, ap->a_reqpage, (u_long)m->pindex, pcount);
