@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.455 1999/01/11 00:54:00 jkh Exp $
+#	$Id: Makefile,v 1.456 1999/01/12 15:37:19 joerg Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -660,11 +660,11 @@ doMFSKERN:
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/* ${RD}/image.${FSIMAGE}/boot
 	@rm -f ${RD}/image.${FSIMAGE}/boot/netboot
-	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/boot.conf
-	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
-	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
-	@echo "@load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
-	@echo "@boot" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
+	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "@load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "@boot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
 .if defined(_MFSKERN)
