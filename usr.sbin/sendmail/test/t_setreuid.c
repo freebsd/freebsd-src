@@ -120,6 +120,7 @@ main()
 		exit(1);
 	}
 
+	printf("\nIt is safe to define HASSETREUID on this system\n");
 	exit(0);
 }
 

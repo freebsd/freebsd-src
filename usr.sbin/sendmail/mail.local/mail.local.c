@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.local.c	8.22 (Berkeley) 6/21/95";
+static char sccsid[] = "@(#)mail.local.c	8.30 (Berkeley) 10/9/96";
 #endif /* not lint */
 
 /*
@@ -63,16 +63,59 @@ static char sccsid[] = "@(#)mail.local.c	8.22 (Berkeley) 6/21/95";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef EX_OK
+# undef EX_OK		/* unistd.h may have another use for this */
+#endif
+#include <sysexits.h>
 #include <ctype.h>
 
 #if __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
+#endif
+
+#if (defined(sun) && defined(__svr4__)) || defined(__SVR4)
+# define USE_LOCKF	1
+# define USE_SETEUID	1
+# define _PATH_MAILDIR	"/var/mail"
+#endif
+
+#if defined(_AIX)
+# define USE_LOCKF	1
+# define USE_VSYSLOG	0
+#endif
+
+#if defined(ultrix)
+# define USE_VSYSLOG	0
+#endif
+
+#if defined(__osf__)
+# define USE_VSYSLOG	0
+#endif
+
+#if defined(NeXT)
+# include <libc.h>
+# define _PATH_MAILDIR	"/usr/spool/mail"
+# define __dead		/* empty */
+# define S_IRUSR	S_IREAD
+# define S_IWUSR	S_IWRITE
+#endif
+
+/*
+ * If you don't have flock, you could try using lockf instead.
+ */
+
+#ifdef USE_LOCKF
+# define flock(a, b)	lockf(a, b, 0)
+# define LOCK_EX	F_LOCK
+#endif
+
+#ifndef USE_VSYSLOG
+# define USE_VSYSLOG	1
 #endif
 
 #ifndef LOCK_EX
@@ -101,8 +144,12 @@ static char sccsid[] = "@(#)mail.local.c	8.22 (Berkeley) 6/21/95";
 
 #ifndef BSD4_4
 # define _BSD_VA_LIST_	va_list
+#endif
+
+#if !defined(BSD4_4) && !defined(linux)
 extern char	*strerror __P((int));
 extern int	snprintf __P((char *, int, const char *, ...));
+extern FILE	*fdopen __P((int, const char *));
 #endif
 
 /*
@@ -135,6 +182,8 @@ int		store __P((char *));
 void		usage __P((void));
 void		vwarn __P((const char *, _BSD_VA_LIST_));
 void		warn __P((const char *, ...));
+void		lockmbox __P((char *));
+void		unlockmbox __P((void));
 
 int
 main(argc, argv)
@@ -341,15 +390,16 @@ tryagain:
 		warn("%s: irregular file", path);
 		goto err0;
 	} else if (sb.st_uid != pw->pw_uid) {
+		eval = EX_CANTCREAT;
 		warn("%s: wrong ownership (%d)", path, sb.st_uid);
-		unlockmbox();
-		return;
+		goto err0;
 	} else {
 		mbfd = open(path, O_APPEND|O_WRONLY, 0);
 		if (mbfd != -1 &&
 		    (fstat(mbfd, &fsb) || fsb.st_nlink != 1 ||
 		    !S_ISREG(fsb.st_mode) || sb.st_dev != fsb.st_dev ||
 		    sb.st_ino != fsb.st_ino || sb.st_uid != fsb.st_uid)) {
+			eval = EX_CANTCREAT;
 			warn("%s: file changed after open", path);
 			goto err1;
 		}
@@ -449,6 +499,7 @@ err0:		unlockmbox();
 char	lockname[MAXPATHLEN];
 int	locked = 0;
 
+void
 lockmbox(path)
 	char *path;
 {
@@ -481,6 +532,7 @@ lockmbox(path)
 	}
 }
 
+void
 unlockmbox()
 {
 	if (!locked)
@@ -587,7 +639,7 @@ vwarn(fmt, ap)
 	(void)vfprintf(stderr, fmt, ap);
 	(void)fprintf(stderr, "\n");
 
-#if !defined(ultrix) && !defined(__osf__)
+#if USE_VSYSLOG
 	/* Log the message to syslog. */
 	vsyslog(LOG_ERR, fmt, ap);
 #else
@@ -693,9 +745,8 @@ e_to_sys(num)
 	}
 }
 
-#ifndef BSD4_4
+#if !defined(BSD4_4) && !defined(__osf__)
 
-# ifndef __osf__
 char *
 strerror(eno)
 	int eno;
@@ -709,7 +760,10 @@ strerror(eno)
 	(void) sprintf(ebuf, "Error %d", eno);
 	return ebuf;
 }
+
 # endif
+
+#if !defined(BSD4_4) && !defined(linux)
 
 # if __STDC__
 snprintf(char *buf, int bufsiz, const char *fmt, ...)

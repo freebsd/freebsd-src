@@ -43,7 +43,8 @@ divert(-1)
 #  to a name of your own choosing.
 #
 
-VERSIONID(`@(#)s2k-ultrix4.mc	8.3 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)s2k-ultrix4.mc	8.4 (Berkeley) 3/23/96')
 OSTYPE(ultrix4)dnl
 DOMAIN(S2K.Berkeley.EDU)dnl
 MAILER(local)dnl
