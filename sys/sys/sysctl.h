@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.31 1995/11/10 10:14:55 phk Exp $
+ * $Id: sysctl.h,v 1.32 1995/11/12 19:52:09 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -353,39 +353,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "tzname_max", CTLTYPE_INT }, \
 }
 
-/*
- * CTL_DEBUG definitions
- *
- * Second level identifier specifies which debug variable.
- * Third level identifier specifies which stucture component.
- */
-#define	CTL_DEBUG_NAME		0	/* string: variable name */
-#define	CTL_DEBUG_VALUE		1	/* int: variable value */
-#define	CTL_DEBUG_MAXID		20
-
-#ifdef	KERNEL
-#if	defined(DEBUG) || defined(DIAGNOSTIC)
-/*
- * CTL_DEBUG variables.
- *
- * These are declared as separate variables so that they can be
- * individually initialized at the location of their associated
- * variable. The loader prevents multiple use by issuing errors
- * if a variable is initialized in more than one place. They are
- * aggregated into an array in debug_sysctl(), so that it can
- * conveniently locate them when querried. If more debugging
- * variables are added, they must also be declared here and also
- * entered into the array.
- */
-struct ctldebug {
-	char	*debugname;	/* name of debugging variable */
-	int	*debugvar;	/* pointer to debugging variable */
-};
-extern struct ctldebug debug0, debug1, debug2, debug3, debug4;
-extern struct ctldebug debug5, debug6, debug7, debug8, debug9;
-extern struct ctldebug debug10, debug11, debug12, debug13, debug14;
-extern struct ctldebug debug15, debug16, debug17, debug18, debug19;
-#endif	/* DEBUG */
+#ifdef KERNEL
 
 extern char	cpu_model[];
 extern char	machine[];
@@ -409,8 +377,6 @@ sysctlfn dev_sysctl;
 sysctlfn fs_sysctl;
 sysctlfn hw_sysctl;
 sysctlfn net_sysctl;
-sysctlfn ntp_sysctl;
-sysctlfn vm_sysctl;
 
 int sysctl_int __P((void *, size_t *, void *, size_t, int *));
 int sysctl_rdint __P((void *, size_t *, void *, int));
