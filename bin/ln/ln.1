@@ -126,22 +126,22 @@ Hard links may not normally refer to directories and may not span file systems.
 A symbolic link contains the name of the file to
 which it is linked.
 The referenced file is used when an
-.Xr open  2
+.Xr open 2
 operation is performed on the link.
 A
-.Xr stat  2
+.Xr stat 2
 on a symbolic link will return the linked-to file; an
-.Xr lstat  2
+.Xr lstat 2
 must be done to obtain information about the link.
 The
-.Xr readlink  2
+.Xr readlink 2
 call may be used to read the contents of a symbolic link.
 Symbolic links may span file systems and may refer to directories.
 .Pp
 Given one or two arguments,
 .Nm
 creates a link to an existing file
-.Ar source_file  .
+.Ar source_file .
 If
 .Ar target_file
 is given, the link has that name;
@@ -150,7 +150,7 @@ may also be a directory in which to place the link;
 otherwise it is placed in the current directory.
 If only the directory is specified, the link will be made
 to the last component of
-.Ar source_file  .
+.Ar source_file .
 .Pp
 Given more than two arguments,
 .Nm
