@@ -1,4 +1,4 @@
-; $Id: TODO,v 1.10 1995/03/17 19:28:59 joerg Exp $
+; $Id: TODO,v 1.11 1995/04/05 13:16:30 jkh Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
@@ -146,16 +146,6 @@ through all nfs mounted file systems looking for locally mounted filesystems,
 this could be short circuited by using getmntinfo/statfs.  Note that you
 can not do this when following symlinks. }
 EMAIL:	<rgrimes, phk>
-CATS:	user
-GRADE:	INTERMEDIATE
-STATUS:	OPEN
-
-TASKID: 950316001
-TASK:	Make ps use infinite texwidth for redirected output
-DETAIL:	{ When you do a ps | grep foo, if foo is long and the screen width is
-shorter then grep never sees foo because ps truncates its output. It makes
-more sense for ps to do no truncation at all if its output is redirected. }
-EMAIL:	<paul>
 CATS:	user
 GRADE:	INTERMEDIATE
 STATUS:	OPEN
