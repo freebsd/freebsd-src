@@ -79,6 +79,7 @@ MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 exect.3 \
 MLINKS+=fpclassify.3 finite.3 fpclassify.3 finitef.3 \
 	fpclassify.3 isfinite.3 fpclassify.3 isinf.3 fpclassify.3 isnan.3 \
 	fpclassify.3 isnormal.3
+MLINKS+=frexp.3 frexpf.3 frexp.3 frexpl.3
 MLINKS+=fts.3 fts_children.3 fts.3 fts_close.3 fts.3 fts_open.3 \
 	fts.3 fts_read.3 fts.3 fts_set.3
 MLINKS+=ftw.3 nftw.3
@@ -110,6 +111,7 @@ MLINKS+=glob.3 globfree.3
 MLINKS+=isgreater.3 isgreaterequal.3 isgreater.3 isless.3 \
 	isgreater.3 islessequal.3 isgreater.3 islessgreater.3 \
 	isgreater.3 isunordered.3
+MLINKS+=ldexp.3 ldexpf.3 ldexp.3 ldexpl.3
 MLINKS+=makecontext.3 swapcontext.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
