@@ -5,6 +5,10 @@
 
 SRCS+= \
 	uthread_accept.c \
+	uthread_acl_delete_fd.c \
+	uthread_acl_get_fd.c \
+	uthread_acl_set_fd.c \
+	uthread_acl_aclcheck_fd.c \
 	uthread_aio_suspend.c \
 	uthread_attr_destroy.c \
 	uthread_attr_init.c \
@@ -26,6 +30,8 @@ SRCS+= \
 	uthread_autoinit.cc \
 	uthread_bind.c \
 	uthread_cancel.c \
+	uthread_cap_get_fd.c \
+	uthread_cap_set_fd.c \
 	uthread_clean.c \
 	uthread_close.c \
 	uthread_cond.c \
