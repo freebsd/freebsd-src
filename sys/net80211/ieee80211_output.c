@@ -284,7 +284,8 @@ ieee80211_getmbuf(int flags, int type, u_int pktlen)
 {
 	struct mbuf *m;
 
-	if (pktlen > MHLEN)
+	KASSERT(pktlen <= MCLBYTES, ("802.11 packet too large: %u", pktlen));
+	if (pktlen <= MHLEN)
 		MGETHDR(m, flags, type);
 	else
 		m = m_getcl(flags, type, M_PKTHDR);
