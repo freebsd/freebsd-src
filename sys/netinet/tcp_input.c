@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.54.2.10 1998/05/18 17:12:44 guido Exp $
+ *	$Id: tcp_input.c,v 1.54.2.11 1998/09/16 17:35:17 guido Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -82,6 +82,9 @@ SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats,
 static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
 	&log_in_vain, 0, "");
+static int no_local_slowstart = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, no_local_slowstart, CTLFLAG_RW,    
+	&no_local_slowstart, 0, "");
 
 u_long	tcp_now;
 struct inpcbhead tcb;
@@ -2187,8 +2190,9 @@ tcp_mss(tp, offer)
 	}
 	/*
 	 * Don't force slow-start on local network.
+	 * Make this depend on the sysctl variable below
 	 */
-	if (!in_localaddr(inp->inp_faddr))
+	if (!no_local_slowstart || !in_localaddr(inp->inp_faddr))
 		tp->snd_cwnd = mss;
 
 	if (rt->rt_rmx.rmx_ssthresh) {
