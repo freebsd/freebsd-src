@@ -1,13 +1,13 @@
    -----------------------------------------
-       FreeBSD 3.0  ---  SNAPSHOT Version              ,        ,
+       FreeBSD 3.0  ---  RELEASE Version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the latest 3.0 SNAPSHOT release of         /- _  `-/  '
-FreeBSD.  This is the latest in an ongoing series    (/\/ \ \   /\
-of code snapshots provided as a service to the       / /   | `    \
-FreeBSD development community.                       O O   ) /    |
-                                                     `-^--'`<     '
-                                                    (_.)  _  )   /
+This is FreeBSD 3.0-RELEASE, the first official       /- _  `-/  '
+release on the 3.0-current branch. This release      (/\/ \ \   /\
+contains a lot of new technology as well as our      / /   | `    \
+first non-x86 architecture port (to the ALPHA)       O O   ) /    |
+and promises to be an exciting start to what will    `-^--'`<     '
+hopefully be many follow-on releases.               (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
@@ -41,19 +41,19 @@ then 2.2.x is almost certainly your best bet.
 
 
 ROAD MAP:
-            Most files here are also in the Documentation 
+            Most files here are also in the Documentation
                     Menu of the boot floppy
 
   README.TXT    This file
 
   ABOUT.TXT     All about FreeBSD, including contact information
 
-  RELNOTES.TXT  Release Notes - what's new & different in this 
+  RELNOTES.TXT  Release Notes - what's new & different in this
                 release
 
   LAYOUT.TXT    Information about the layout of the release
                 directory. If you are installing from floppies,
-                it is especially important that you 
+                it is especially important that you
                 *read this section!*
 
   ERRATA.TXT    Any late-breaking errata information for this
@@ -65,7 +65,7 @@ ROAD MAP:
   HARDWARE.TXT  Information about the configuration of the
                 GENERIC kernel and supported hardware
 
-  INSTALL.TXT   How to make a new installation of FreeBSD 
+  INSTALL.TXT   How to make a new installation of FreeBSD
                 on your PC using the data you see here
 
   UPGRADE.TXT   How to upgrade an existing FreeBSD
@@ -83,9 +83,9 @@ o If you are upgrading from a previous FreeBSD version,
 o It is also important to check the ERRATA.TXT file for any
   late-breaking issues with this release. This file contains
   the latest information on upgrade, security or other problems
-  which an administrator should be aware of. 
+  which an administrator should be aware of.
 
-o Information regarding problems which arise after the CD 
+o Information regarding problems which arise after the CD
   is printed can be found at:
   ftp://ftp.freebsd.org/pub/FreeBSD/3.0-RELEASE/ERRATA.TXT
 
@@ -103,13 +103,13 @@ please install from:
 If you plan to run either -Stable or -Current you MUST be
 subscribed to the appropriate mailing list, either
 freebsd-stable or freebsd-current. For information on
-subscribing to either list (or both), send an e-mail to 
-majordomo@freebsd.org with the following in the body, not 
+subscribing to either list (or both), send an e-mail to
+majordomo@freebsd.org with the following in the body, not
 the subject of the letter as appropriate:
 
 subscribe freebsd-stable
 subscribe freebsd-current
 end
 
-We hope you enjoy using FreeBSD as much as we enjoyed 
+We hope you enjoy using FreeBSD as much as we enjoyed
 creating it!
