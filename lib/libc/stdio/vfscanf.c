@@ -103,18 +103,15 @@ static u_char *__sccl(char *, u_char *);
  * vfscanf
  */
 int
-__svfscanf(fp, fmt0, ap)
-	register FILE *fp;
-	char const *fmt0;
-	va_list ap;
+__svfscanf(FILE *fp, char const *fmt0, va_list ap)
 {
-	register u_char *fmt = (u_char *)fmt0;
-	register int c;		/* character from format, or conversion */
-	register size_t width;	/* field width, or 0 */
-	register char *p;	/* points into all kinds of strings */
-	register int n;		/* handy integer */
-	register int flags;	/* flags as defined above */
-	register char *p0;	/* saves original value of p when necessary */
+	u_char *fmt = (u_char *)fmt0;
+	int c;			/* character from format, or conversion */
+	size_t width;		/* field width, or 0 */
+	char *p;		/* points into all kinds of strings */
+	int n;			/* handy integer */
+	int flags;		/* flags as defined above */
+	char *p0;		/* saves original value of p when necessary */
 	int nassigned;		/* number of fields assigned */
 	int nconversions;	/* number of conversions */
 	int nread;		/* number of characters consumed from fp */

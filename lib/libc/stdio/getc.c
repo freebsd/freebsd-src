@@ -51,8 +51,7 @@ static const char rcsid[] =
 #undef getc
 
 int
-getc(fp)
-	register FILE *fp;
+getc(FILE *fp)
 {
 	int retval;
 	FLOCKFILE(fp);

@@ -57,11 +57,10 @@ static int __submore __P((FILE *));
  * are all at the end (stack-style).
  */
 static int
-__submore(fp)
-	register FILE *fp;
+__submore(FILE *fp)
 {
-	register int i;
-	register unsigned char *p;
+	int i;
+	unsigned char *p;
 
 	if (fp->_ub._base == fp->_ubuf) {
 		/*
@@ -90,9 +89,7 @@ __submore(fp)
 }
 
 int
-ungetc(c, fp)
-	int c;
-	register FILE *fp;
+ungetc(int c, FILE *fp)
 {
 	if (c == EOF)
 		return (EOF);
