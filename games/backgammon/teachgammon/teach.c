@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <string.h>
 #include <sys/types.h>
+#include <termcap.h>
 #include <unistd.h>
 #include <signal.h>
 #include "back.h"
@@ -63,8 +64,6 @@ extern char	*doubl[];
 extern char	*stragy[];
 extern char	*prog[];
 extern char	*lastch[];
-
-extern char	ospeed;			/* tty output speed for termlib */
 
 const char *const helpm[] = {
 	"\nEnter a space or newline to roll, or",
