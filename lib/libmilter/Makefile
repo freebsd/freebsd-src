@@ -6,8 +6,12 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libmilter ${SENDMAIL_DIR}/libsm
 
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
-CFLAGS+=-DNETINET6 -DNOT_SENDMAIL -Dsm_snprintf=snprintf
+CFLAGS+=-DNOT_SENDMAIL -Dsm_snprintf=snprintf
 CFLAGS+=-D_THREAD_SAFE
+
+.if !defined(NOINET6)
+CFLAGS+=-DNETINET6
+.endif
 
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}

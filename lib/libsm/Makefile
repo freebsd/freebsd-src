@@ -6,7 +6,11 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libsm
 
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
-CFLAGS+=-DNETINET6 -DNEWDB -DNIS -DMAP_REGEX -DNOT_SENDMAIL
+CFLAGS+=-DNEWDB -DNIS -DMAP_REGEX -DNOT_SENDMAIL
+
+.if !defined(NOINET6)
+CFLAGS+=-DNETINET6
+.endif
 
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
