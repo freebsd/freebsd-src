@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	kgdb
+PROG=	kgdb${GDB_SUFFIX}
 SRCS=	kthr.c main.c trgt.c trgt_${TARGET_ARCH}.c
 WARNS?=	2
 
