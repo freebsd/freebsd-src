@@ -35,27 +35,33 @@
 static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>			/* MAXPATHLEN */
+#include <fcntl.h>
 #include "externs.h"
 
+void
 restore()
 {
 	char *getenv();
 	char *home;
-	char home1[100];
+	char home1[MAXPATHLEN];
 	register int n;
 	int tmp;
 	register FILE *fp;
 
-	home = getenv("HOME");
-	strcpy(home1, home);
-	strcat(home1, "/Bstar");
+	if ( (home = getenv("HOME")) != NULL) 
+  	  sprintf(home1, "%.*s/Bstar", MAXPATHLEN - 7, home);
+	else return;
+
 	if ((fp = fopen(home1, "r")) == 0) {
 		perror(home1);
 		return;
 	}
 	fread(&WEIGHT, sizeof WEIGHT, 1, fp);
 	fread(&CUMBER, sizeof CUMBER, 1, fp);
-	fread(&clock, sizeof clock, 1, fp);
+	fread(&gclock, sizeof gclock, 1, fp);
 	fread(&tmp, sizeof tmp, 1, fp);
 	location = tmp ? dayfile : nightfile;
 	for (n = 1; n <= NUMOFROOMS; n++) {
@@ -68,7 +74,7 @@ restore()
 	fread(notes, sizeof notes, 1, fp);
 	fread(&direction, sizeof direction, 1, fp);
 	fread(&position, sizeof position, 1, fp);
-	fread(&time, sizeof time, 1, fp);
+	fread(&gtime, sizeof gtime, 1, fp);
 	fread(&fuel, sizeof fuel, 1, fp);
 	fread(&torps, sizeof torps, 1, fp);
 	fread(&carrying, sizeof carrying, 1, fp);
@@ -90,26 +96,51 @@ restore()
 	fread(&ego, sizeof ego, 1, fp);
 }
 
+void
 save()
 {
+	struct stat sbuf;
 	char *getenv();
 	char *home;
-	char home1[100];
+	char home1[MAXPATHLEN];
 	register int n;
-	int tmp;
+	int tmp, fd;
 	FILE *fp;
 
 	home = getenv("HOME");
-	strcpy(home1, home);
-	strcat(home1, "/Bstar");
-	if ((fp = fopen(home1, "w")) == 0) {
+	if (home == 0)
+		return;
+	sprintf(home1, "%.*s/Bstar", MAXPATHLEN - 7, home);
+
+	/* Try to open the file safely. */
+	if (stat(home1, &sbuf) < 0) {	  	
+		fd = open(home1, O_WRONLY|O_CREAT|O_EXCL);
+	        if (fd < 0) {
+          		fprintf(stderr, "Can't create %s\n", home1);
+           		return;
+	        }
+	} else {
+		if (sbuf.st_nlink > 1) {
+			fprintf(stderr, "No symlinks!\n");
+			return;
+		}
+
+		fd = open(home1, O_WRONLY|O_EXCL);
+		if (fd < 0) {
+			fprintf(stderr, "Can't open %s for writing\n", home1);
+			return;
+		}
+	}
+
+	if ((fp = fdopen(fd, "w")) == 0) {
 		perror(home1);
 		return;
 	}
+
 	printf("Saved in %s.\n", home1);
 	fwrite(&WEIGHT, sizeof WEIGHT, 1, fp);
 	fwrite(&CUMBER, sizeof CUMBER, 1, fp);
-	fwrite(&clock, sizeof clock, 1, fp);
+	fwrite(&gclock, sizeof gclock, 1, fp);
 	tmp = location == dayfile;
 	fwrite(&tmp, sizeof tmp, 1, fp);
 	for (n = 1; n <= NUMOFROOMS; n++) {
@@ -122,7 +153,7 @@ save()
 	fwrite(notes, sizeof notes, 1, fp);
 	fwrite(&direction, sizeof direction, 1, fp);
 	fwrite(&position, sizeof position, 1, fp);
-	fwrite(&time, sizeof time, 1, fp);
+	fwrite(&gtime, sizeof gtime, 1, fp);
 	fwrite(&fuel, sizeof fuel, 1, fp);
 	fwrite(&torps, sizeof torps, 1, fp);
 	fwrite(&carrying, sizeof carrying, 1, fp);

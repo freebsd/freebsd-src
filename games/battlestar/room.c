@@ -59,7 +59,7 @@ writedes()
 
 printobjs()
 {
-	register unsigned int *p = location[position].objects;
+	register int *p = location[position].objects;
 	register n;
 
 	printf("\n");

@@ -45,7 +45,7 @@ launch()
 			clearbit(location[position].objects,VIPER);
 			position = location[position].up;
 			notes[LAUNCHED] = 1;
-			time++;
+			gtime++;
 			fuel -= 4;
 			puts("You climb into the viper and prepare for launch.");
 			puts("With a touch of your thumb the turbo engines ignite, thrusting you back into\nyour seat.");
@@ -66,7 +66,7 @@ land()
 		position = location[position].down;
 		setbit(location[position].objects,VIPER);
 		fuel -= 2;
-		time++;
+		gtime++;
 		puts("You are down.");
 		return(1);
 	}
@@ -168,7 +168,7 @@ drive()
 		clearbit(location[position].objects,CAR);
 		setbit(location[position].objects,CRASH);
 		injuries[5] = injuries[6] = injuries[7] = injuries[8] = 1;
-		time += 15;
+		gtime += 15;
 		zzz();
 		return(0);
 	}
@@ -203,7 +203,7 @@ light()		/* synonyms = {strike, smoke} */
 {		/* for matches, cigars */
 	if (testbit(inven,MATCHES) && matchcount){
 		puts("Your match splutters to life.");
-		time++;
+		gtime++;
 		matchlight = 1;
 		matchcount--;
 		if (position == 217){

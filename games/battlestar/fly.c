@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)fly.c	8.1 (Berkeley) 5/31/93";
 int row, column;
 int dr = 0, dc = 0;
 char destroyed;
-int clock = 120;		/* time for all the flights in the game */
+int gclock = 120;		/* gtime for all the flights in the game */
 char cross = 0;
 sig_t oldsig;
 
@@ -166,7 +166,7 @@ visual()
 			endfly();
 			return(1);
 		}
-		if (clock <= 0){
+		if (gclock <= 0){
 			endfly();
 			die();
 		}
@@ -256,7 +256,7 @@ moveenemy()
 		row += (rnd(9) - 4) % (4 - abs(row - MIDR));
 		column += (rnd(9) - 4) % (4 - abs(column - MIDC));
 	}
-	clock--;
+	gclock--;
 	mvaddstr(oldr, oldc - 1, "   ");
 	if (cross)
 		target();
@@ -266,7 +266,7 @@ moveenemy()
 	move(LINES-1, 42);
 	printw("%3d", fuel);
 	move(LINES-1, 57);
-	printw("%3d", clock);
+	printw("%3d", gclock);
 	refresh();
 	signal(SIGALRM, moveenemy);
 	alarm(1);
