@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id: kzip.c,v 1.7 1997/02/22 19:55:31 peter Exp $
+ * $Id: kzip.c,v 1.8 1997/03/29 04:30:19 imp Exp $
  *
  */
 
@@ -93,7 +93,7 @@ main(int argc, char **argv)
 	}
 
 	size = hdr.a_text + hdr.a_data + hdr.a_bss;
-	entry = hdr.a_entry - 0xf0000000;	/* replace KZBASE */
+	entry = hdr.a_entry & 0x00FFFFFF;
 
 	lseek (fdi, 0, SEEK_SET);
 
