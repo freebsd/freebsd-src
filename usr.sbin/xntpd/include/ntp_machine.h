@@ -373,6 +373,7 @@ in this file.
 #if defined(SYS_44BSD)
 #define HAVE_SIGNALED_IO
 #define HAVE_LIBKVM
+#define HAVE_SYSCTL
 #define NTP_POSIX_SOURCE
 #define HAVE_BSD_NICE
 #define USE_PROTOTYPES
