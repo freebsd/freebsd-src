@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.2 1997/11/10 19:47:14 wpaul Exp $
+# $Id: Makefile.yp,v 1.18 1997/11/10 22:17:10 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -238,7 +238,7 @@ ypservers: $(YPSERVERS)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(YPSERVERS) | \
-	$(AWK) '{ if ($$1 != "" && $$1 != "#") print $$0"\t"$$0 }' $^ \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*") print $$0"\t"$$0 }' $^ \
 		| $(DBLOAD) -i $(YPSERVERS) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -253,7 +253,7 @@ ethers.byname: $(ETHERS)
 .else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(ETHERS) | \
-	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$2"\t"$$0 }' $^ | $(DBLOAD) -i $(ETHERS) \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -269,7 +269,7 @@ ethers.byaddr: $(ETHERS)
 .else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(ETHERS) | \
-	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$1"\t"$$0 }' $^ | $(DBLOAD) -i $(ETHERS) \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -286,7 +286,7 @@ bootparams: $(BOOTPARAMS)
 .else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(BOOTPARAMS) | \
-	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$0 }' $^ | $(DBLOAD) -i $(BOOTPARAMS) \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -303,7 +303,7 @@ netgroup: $(NETGROUP) netgroup.byhost netgroup.byuser
 .else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETGROUP) | \
-	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$0 }' $^ | $(DBLOAD) -i $(NETGROUP) \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -321,7 +321,7 @@ netgroup.byhost: $(NETGROUP)
 .else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETGROUP) | $(REVNETGROUP) -h -f $(NETGROUP) | \
-	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$0 }' $^ | $(DBLOAD) -i $(NETGROUP) \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -338,7 +338,7 @@ netgroup.byuser: $(NETGROUP)
 .else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETGROUP) | $(REVNETGROUP) -u -f $(NETGROUP) | \
-	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$0 }' $^ | $(DBLOAD) -i $(NETGROUP) \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -352,7 +352,7 @@ hosts.byname: $(HOSTS)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(HOSTS) | \
-	$(AWK) '/^[0-9]/ { for (n=2; n<=NF && $$n !~ "#"; n++) \
+	$(AWK) '/^[0-9]/ { for (n=2; n<=NF && $$n !~ "^#.*"; n++) \
 		print $$n"\t"$$0 }' $^ | $(DBLOAD) ${B} -i $(HOSTS)  \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -366,7 +366,7 @@ hosts.byaddr: $(HOSTS)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(HOSTS) | \
-	$(AWK) '$$1 !~ "#" { print $$1"\t"$$0 }' $^ \
+	$(AWK) '$$1 !~ "^#.*" { print $$1"\t"$$0 }' $^ \
 		| $(DBLOAD) ${B} -i $(HOSTS) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -380,8 +380,8 @@ networks.byname: $(NETWORKS)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETWORKS) | \
 	$(AWK) \
-	   '$$1 !~ "#"  { print $$1"\t"$$0; \
-			  for (n=3; n<=NF && $$n !~ "#"; n++) \
+	   '$$1 !~ "^#.*"  { print $$1"\t"$$0; \
+			  for (n=3; n<=NF && $$n !~ "^#.*"; n++) \
 			      print $$n"\t"$$0 \
 		}' $^ | $(DBLOAD) -i $(NETWORKS) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -394,7 +394,7 @@ networks.byaddr: $(NETWORKS)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETWORKS) | \
-	$(AWK) '$$1 !~ "#" { print $$2"\t"$$0 }' $^ \
+	$(AWK) '$$1 !~ "^#.*" { print $$2"\t"$$0 }' $^ \
 		| $(DBLOAD) -i $(NETWORKS) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -407,8 +407,8 @@ protocols.byname: $(PROTOCOLS)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(PROTOCOLS) | \
 	$(AWK) \
-	   '$$1 !~ "#"	{ print $$1"\t"$$0; \
-			  for (n=3; n<=NF && $$n !~ "#"; n++) \
+	   '$$1 !~ "^#.*"	{ print $$1"\t"$$0; \
+			  for (n=3; n<=NF && $$n !~ "^#.*"; n++) \
 			      print $$n"\t"$$0 \
 			}' $^ | $(DBLOAD) -i $(PROTOCOLS) \
 						-o $(YPMAPDIR)/$@ - $(TMP)
@@ -422,7 +422,7 @@ protocols.bynumber: $(PROTOCOLS)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(PROTOCOLS) | \
-	$(AWK) '$$1 !~ "#" { print $$2"\t"$$0 }' $^ \
+	$(AWK) '$$1 !~ "^#.*" { print $$2"\t"$$0 }' $^ \
 		| $(DBLOAD) -i $(PROTOCOLS) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -435,8 +435,8 @@ rpc.byname: $(RPC)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(RPC) | \
 	$(AWK) \
-	   '$$1 !~ "#"  { print $$1"\t"$$0; \
-			  for (n=3; n<=NF && $$n !~ "#"; n++) \
+	   '$$1 !~ "^#.*"  { print $$1"\t"$$0; \
+			  for (n=3; n<=NF && $$n !~ "^#.*"; n++) \
 			      print $$n"\t"$$0 \
 		}' $^ | $(DBLOAD) -i $(RPC) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
@@ -449,7 +449,7 @@ rpc.bynumber: $(RPC)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(RPC) | \
-	$(AWK) '$$1 !~ "#" { print $$2"\t"$$0 }' $^ \
+	$(AWK) '$$1 !~ "^#.*" { print $$2"\t"$$0 }' $^ \
 		| $(DBLOAD)  -i $(RPC) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -462,7 +462,7 @@ services.byname: $(SERVICES)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(SERVICES) | \
 	$(AWK) \
-	   '$$1 !~ "#"  { for (n=1; n<=NF && $$n !~ "#"; n++) { \
+	   '$$1 !~ "^#.*"  { for (n=1; n<=NF && $$n !~ "^#.*"; n++) { \
 			    if (index($$2,"udp")) { printf("%s/udp",$$n) } \
 			    else { printf("%s/tcp",$$n) }; print "\t"$$0 ; \
 			    if (n == 1) n = 2; \
@@ -481,7 +481,7 @@ publickey.byname: $(PUBLICKEY)
 .else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(PUBLICKEY) | \
-	$(AWK) '$$1 !~ "#" { print $$1"\t"$$2 }' $^ \
+	$(AWK) '$$1 !~ "^#.*" { print $$1"\t"$$2 }' $^ \
 		| $(DBLOAD)  -i $(PUBLICKEY) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -600,7 +600,7 @@ amd.host: $(AMDHOST)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(AMDHOST) | \
-	$(AWK) '$$1 !~ "#"  { \
+	$(AWK) '$$1 !~ "^#.*"  { \
 	  for (i = 1; i <= NF; i++) \
 	  if (i == NF) { \
 	    if (substr($$i, length($$i), 1) == "\\") \
