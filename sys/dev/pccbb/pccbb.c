@@ -848,20 +848,16 @@ pccbb_event_thread(void *arg)
 
 	/*
 	 * We take out Giant here because we drop it in tsleep
-	 * and need it for kthread_exit, which drops it
+	 * and need it for kthread_exit, which drops it.
 	 */
 	mtx_lock(&Giant);
 	sc->flags |= PCCBB_KTHREAD_RUNNING;
-	for(;;) {
+	while (1) {
 		/*
-		 * Wait until it has been 1s since the last time we
-		 * get an interrupt.
+		 * Check to see if we have anything first so that
+		 * if there's a card already inserted, we do the
+		 * right thing.
 		 */
-		tsleep (sc, PWAIT, "pccbbev", 0);
-		do {
-			err = tsleep (sc, PWAIT, "pccbbev", 1 * hz);
-		} while (err != EWOULDBLOCK &&
-		    (sc->flags & PCCBB_KTHREAD_DONE) == 0);
 		mtx_lock(&sc->mtx);
 		if (sc->flags & PCCBB_KTHREAD_DONE)
 			break;
@@ -872,10 +868,19 @@ pccbb_event_thread(void *arg)
 		else
 			pccbb_removal(sc);
 		mtx_unlock(&sc->mtx);
+		/*
+		 * Wait until it has been 1s since the last time we
+		 * get an interrupt.  We handle the rest of the interrupt
+		 * at the top of the loop.
+		 */
+		tsleep (sc, PWAIT, "pccbbev", 0);
+		do {
+			err = tsleep (sc, PWAIT, "pccbbev", 1 * hz);
+		} while (err != EWOULDBLOCK &&
+		    (sc->flags & PCCBB_KTHREAD_DONE) == 0);
 	}
 	mtx_unlock(&sc->mtx);
 	sc->flags &= ~PCCBB_KTHREAD_RUNNING;
-	wakeup(sc);
 	/*
 	 * XXX I think there's a race here.  If we wakeup in the other
 	 * thread before kthread_exit is called and this routine returns,
@@ -883,6 +888,7 @@ pccbb_event_thread(void *arg)
 	 * ourselves up for a panic.  Make sure that I check out
 	 * jhb's crash.c for a fix.
 	 */
+	wakeup(sc);
 	kthread_exit(0);
 }
 
