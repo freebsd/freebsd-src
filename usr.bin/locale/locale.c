@@ -311,6 +311,15 @@ list_locales(void)
 }
 
 /*
+ * qsort() helper function
+ */
+static int
+scmp(const void *s1, const void *s2)
+{
+	return strcmp(*(const char **)s1, *(const char **)s2);
+}
+
+/*
  * Output information about all available charmaps
  *
  * XXX this function is doing a task in hackish way, i.e. by scaning
@@ -354,16 +363,6 @@ list_charmaps(void)
 		printf("%s\n", charmaps->sl_str[i]);
 	}
 }
-
-/*
- * qsort() helper function
- */
-static int
-scmp(const void *s1, const void *s2)
-{
-	return strcmp(*(const char **)s1, *(const char **)s2);
-}
-
 
 /*
  * Retrieve sorted list of system locales (or user locales, if PATH_LOCALE
