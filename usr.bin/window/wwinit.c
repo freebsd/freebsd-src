@@ -184,6 +184,16 @@ wwinit()
 #endif
 		wwbaud = 38400;
 		break;
+#ifdef B57600
+	case B57600:
+		wwbaud = 57600;
+		break;
+#endif
+#ifdef B115200
+	case B115200:
+		wwbaud = 115200;
+		break;
+#endif
 	}
 
 	if (xxinit() < 0)
