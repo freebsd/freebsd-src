@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.92 1996/06/09 14:53:17 martin Exp $ -->
+<!-- $Id: contrib.sgml,v 1.93 1996/06/10 01:56:18 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -152,7 +152,7 @@
       <p>(in alphabetical order by first name):
 
 	<itemize>
-	  <item>ABRAYER Rewsirow &lt;pcs51674@asciinet.or.jp&gt;
+	  <item>ABURAYA Ryushirou &lt;pcs51674@asciinet.or.jp&gt;
 	  <item>Adam Glass &lt;glass@postgres.berkeley.edu&gt;
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
