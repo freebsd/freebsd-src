@@ -38,7 +38,6 @@
 #include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/disklabel.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
@@ -48,7 +47,6 @@
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
-#include <sys/disklabel.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>
