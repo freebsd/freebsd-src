@@ -26,9 +26,10 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd November 11, 2003
 .Os
-.Dt cr_seeotheruids 9
+.Dt CR_SEEOTHERUIDS 9
 .Sh NAME
 .Nm cr_seeotheruids
 .Nd determine visibility of objects given their user credentials
@@ -37,7 +38,7 @@
 .Fn cr_seeotheruids "struct ucred *u1" "struct ucred *u2"
 .Sh DESCRIPTION
 This function determines the visibility of objects in the
-kernel based on the real user ids in the credentials
+kernel based on the real user IDs in the credentials
 .Fa u1
 and
 .Fa u2
@@ -45,11 +46,11 @@ associated with them.
 .Pp
 The visibility of objects is influenced by the
 .Xr sysctl 8
-tunable
+variable
 .Va security.bsd.see_other_uids .
-If this tunable is non-zero, then all objects in the kernel
-are visible to each other irrespective of their user ids.
-If this tunable is zero, then the object with credentials
+If this variable is non-zero then all objects in the kernel
+are visible to each other irrespective of their user IDs.
+If this variable is zero then the object with credentials
 .Fa u2
 is visible to the object with credentials
 .Fa u1
@@ -59,11 +60,11 @@ is the super-user credential, or if
 .Fa u1
 and
 .Fa u2
-have the same real user id.
-.Sh SYSCTL TUNABLES
+have the same real user ID.
+.Sh SYSCTL VARIABLES
 .Bl -tag -width indent
 .It Va security.bsd.see_other_uids
-must be non-zero if objects with unprivileged credentials are to be
+Must be non-zero if objects with unprivileged credentials are to be
 able to see each other.
 .El
 .Sh RETURN VALUES
