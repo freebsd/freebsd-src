@@ -57,6 +57,12 @@ static u_int aic_isa_ports[] = { 0x340, 0x140 };
 #define	AIC_ISA_NUMPORTS (sizeof(aic_isa_ports) / sizeof(aic_isa_ports[0]))
 #define	AIC_ISA_PORTSIZE 0x20
 
+static struct isa_pnp_id aic_ids[] = {
+	{ 0x15309004, "Adaptec AHA-1530P" },
+	{ 0x15209004, "Adaptec AHA-1520P" },
+ 	{ 0 }
+};
+
 static int
 aic_isa_alloc_resources(device_t dev)
 {
@@ -124,7 +130,7 @@ aic_isa_probe(device_t dev)
 	u_int port, *ports;
 	u_int8_t porta;
 
-	if (isa_get_vendorid(dev))
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, aic_ids) == ENXIO)
 		return (ENXIO);
 
 	port = isa_get_port(dev);
