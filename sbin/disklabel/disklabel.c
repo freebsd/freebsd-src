@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.14 1998/06/08 06:41:47 charnier Exp $";
+	"$Id: disklabel.c,v 1.15 1998/06/28 18:59:04 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -1311,24 +1311,24 @@ getvirginlabel(void)
 	int f;
 
 	if (dkname[0] == '/') {
-		fprintf(stderr,
-		"\"auto\" requires the usage of a canonical disk name.\n");
+		warnx("\"auto\" requires the usage of a canonical disk name");
 		return (NULL);
 	}
 	(void)snprintf(namebuf, BBSIZE, "%sr%s", _PATH_DEV, dkname);
-	if ((f = open(namebuf, O_RDONLY, 0)) == -1) {
-		err(4, "open()");
+	if ((f = open(namebuf, O_RDONLY)) == -1) {
+		warn("cannot open %s", namebuf);
 		return (NULL);
 	}
 	if (ioctl(f, DIOCGDINFO, &lab) < 0) {
-		err(4, "ioctl DIOCGDINFO");
+		warn("ioctl DIOCGDINFO");
 		close(f);
 		return (NULL);
 	}
 	close(f);
+	lab.d_boot0 = NULL;
+	lab.d_boot1 = NULL;
 	return (&lab);
 }
-
 
 /*
  * If we are installing a boot program that doesn't fit in d_bbsize
