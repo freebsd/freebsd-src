@@ -58,6 +58,7 @@
 
 #ifdef BRIDGING
 #include <net/if_types.h> /* IFT_ETHER */
+#include <net/ethernet.h>
 #include <net/bridge.h>
 #endif
 
@@ -98,15 +99,19 @@ sock_ntop(const struct sockaddr *sa, size_t salen)
 
 	switch (sa->sa_family) {
 	case 255: {
-		struct sockaddr_in	*sin = (struct sockaddr_in *) sa;
 		u_long mask;
+		u_int index = 1 << 31;
+		u_short new_mask = 0;
 		int i;
 
 		i=0;
-		mask=ntohl(sin->sin_addr.s_addr);
+		mask = ntohl(((struct sockaddr_in *)sa)->sin_addr.s_addr);
 		
-		while(mask & (0x80000000>>i)) i++;
-		sprintf(str,"/%d",i);
+		while(mask & index) {
+			new_mask++;
+			index >>= 1;
+		}
+		sprintf(str,"/%hu", new_mask);
 		return(str);
 	}
         case AF_UNSPEC:
