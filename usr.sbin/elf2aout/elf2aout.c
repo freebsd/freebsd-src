@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/endian.h>
 #include <sys/elf64.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
