@@ -53,8 +53,13 @@ achieve zero-copy receive.  This driver is also machine-independent,
 so it will work on both the i386 and alpha platforms.  The lnc driver
 is still needed to support non-PCI cards.
 
+
 1.2. SECURITY FIXES
 -------------------
+
+rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
+/etc/inetd.conf.  This only affects new installations.
+
 
 1.3. USERLAND CHANGES
 ---------------------
