@@ -696,10 +696,6 @@ scd_probe(struct isa_device *dev)
 	static char namebuf[8+16+8+3];
 	char *s = namebuf;
 	int loop_count = 0;
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&scd_cdevsw);
 
 	scd_data[unit].flags = SCDPROBING;
 	scd_data[unit].iobase = dev->id_iobase;
