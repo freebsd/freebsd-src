@@ -32,19 +32,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id: stlstats.c,v 1.4 1997/02/22 16:13:50 peter Exp $
  */
 
 /*****************************************************************************/
 
-#include <stdio.h>
-#include <errno.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <time.h>
 #include <ncurses.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
@@ -56,7 +60,6 @@
 char	*version = "1.0.0";
 char	*defdevice = "/dev/staliomem0";
 
-char	*progname;
 char	*ctrldevice;
 int	ctrlfd;
 int	displaybrdnr = 0;
@@ -77,7 +80,7 @@ char	*line = "                                                                  
 /*
  *	Declare internal function prototypes here.
  */
-void	usage(void);
+static void	usage(void);
 void	useportdevice(char *devname);
 void	localexit(int nr);
 void	menuport();
@@ -91,15 +94,11 @@ void	clearallstats();
 
 /*****************************************************************************/
 
-void usage()
+static void usage()
 {
-	fprintf(stderr, "Usage: %s [-hVbpdc]\n\n", progname);
-	fprintf(stderr, "    -h   print this information\n");
-	fprintf(stderr, "    -V   show version information and exit\n");
-	fprintf(stderr, "    -b   display board\n");
-	fprintf(stderr, "    -p   display panel\n");
-	fprintf(stderr, "    -d   display port device stats\n");
-	fprintf(stderr, "    -c   specify control device to use\n");
+	fprintf(stderr, "%s\n%s\n",
+	"usage: stlstats [-hVi] [-c control-device] [-b board-number]",
+	"                [-p port-number] [-d port-device]");
 	exit(0);
 }
 
@@ -109,28 +108,19 @@ void useportdevice(char *devname)
 {
 	struct stat	statinfo;
 	int		portnr, portcnt;
-	int		i, fd;
+	int		i;
 
-	if (stat(devname, &statinfo) < 0) {
-		fprintf(stderr, "%s: port device %s does not exist\n",
-			progname, devname);
-		exit(1);
-	}
-	if ((statinfo.st_mode & S_IFMT) != S_IFCHR) {
-		fprintf(stderr, "%s: port device %s is not a char device\n",
-			progname, devname);
-		exit(1);
-	}
+	if (stat(devname, &statinfo) < 0)
+		errx(1, "port device %s does not exist", devname);
+	if ((statinfo.st_mode & S_IFMT) != S_IFCHR)
+		errx(1, "port device %s is not a char device", devname);
 
 	displaybrdnr = (statinfo.st_rdev & 0x00700000) >> 20;
 	portnr = (statinfo.st_rdev & 0x1f) |
 		((statinfo.st_rdev & 0x00010000) >> 11);
 	getbrdstats();
-	if (brdstats.ioaddr == 0) {
-		fprintf(stderr, "%s: device %s does not exist\n", progname,
-			devname);
-		exit(1);
-	}
+	if (brdstats.ioaddr == 0)
+		errx(1, "device %s does not exist", devname);
 
 	for (portcnt = 0, i = 0; (i < brdstats.nrpanels); i++) {
 		if ((portnr >= portcnt) &&
@@ -138,11 +128,8 @@ void useportdevice(char *devname)
 			break;
 		portcnt += brdstats.panels[i].nrports;
 	}
-	if (i >= brdstats.nrpanels) {
-		fprintf(stderr, "%s: device %s does not exist\n", progname,
-			devname);
-		exit(1);
-	}
+	if (i >= brdstats.nrpanels)
+		errx(1, "device %s does not exist", devname);
 	displaypanelnr = i;
 	displayportnr = portnr - portcnt;
 	if (displayportnr >= 16)
@@ -213,8 +200,7 @@ void getallstats()
 		stats[i].panel = displaypanelnr;
 		stats[i].port = i;
 		if (ioctl(ctrlfd, COM_GETPORTSTATS, &stats[i]) < 0) {
-			fprintf(stderr, "\n\r\nERROR: ioctl(COM_GETPORTSTATS) "
-				"failed, errno=%d\n\r\n", errno);
+			warn("ioctl(COM_GETPORTSTATS) failed");
 			localexit(1);
 		}
 	}
@@ -518,14 +504,13 @@ void main(int argc, char *argv[])
 	char		*portdev;
 
 	optind = 0;
-	progname = argv[0];
 	ctrldevice = defdevice;
 	useport = 0;
 
 	while ((c = getopt(argc, argv, "hvVb:p:d:c:")) != -1) {
 		switch (c) {
 		case 'V':
-			printf("%s version %s\n", progname, version);
+			printf("stlstats version %s\n", version);
 			exit(0);
 			break;
 		case 'h':
@@ -554,21 +539,12 @@ void main(int argc, char *argv[])
 /*
  *	Check that the control device exits and is a character device.
  */
-	if (stat(ctrldevice, &statinfo) < 0) {
-		fprintf(stderr, "%s: control device %s does not exist\n",
-			progname, ctrldevice);
-		exit(1);
-	}
-	if ((statinfo.st_mode & S_IFMT) != S_IFCHR) {
-		fprintf(stderr, "%s: control device %s is not a char device\n",
-			progname, ctrldevice);
-		exit(1);
-	}
-	if ((ctrlfd = open(ctrldevice, O_RDWR)) < 0) {
-		fprintf(stderr, "%s: open of %s failed, errno=%d\n", progname,
-			ctrldevice, errno);
-		exit(1);
-	}
+	if (stat(ctrldevice, &statinfo) < 0)
+		errx(1, "control device %s does not exist", ctrldevice);
+	if ((statinfo.st_mode & S_IFMT) != S_IFCHR)
+		errx(1, "control device %s is not a char device", ctrldevice);
+	if ((ctrlfd = open(ctrldevice, O_RDWR)) < 0)
+		errx(1, "open of %s failed", ctrldevice);
 
 /*
  *	Validate the panel number supplied by user. We do this now since we
