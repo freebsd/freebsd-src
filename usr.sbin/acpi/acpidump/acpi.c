@@ -747,7 +747,7 @@ write_dsdt(int fd, struct ACPIsdt *rsdt, struct ACPIsdt *dsdt)
 	write(fd, &sdt, SIZEOF_SDT_HDR);
 	write(fd, dsdt->body, dsdt->len - SIZEOF_SDT_HDR);
 
-	/* Write out any SSDTs (if present and the user requested this.) */
+	/* Write out any SSDTs (if present.) */
 	if (rsdt != NULL) {
 		ssdt = sdt_from_rsdt(rsdt, "SSDT", NULL);
 		while (ssdt != NULL) {
