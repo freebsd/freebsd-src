@@ -88,9 +88,9 @@
  **********************************************************************/
 
 #if !defined(I2O_UTILITY_HDR)
-#define I2O_UTILITY_HDR
+#define	I2O_UTILITY_HDR
 
-#define I2OUTIL_REV 1_5_4  /* I2OUtil header file revision string */
+#define	I2OUTIL_REV 1_5_4  /* I2OUtil header file revision string */
 
 #if ((defined(KERNEL) || defined(_KERNEL)) && defined(__FreeBSD__))
 # if (KERN_VERSION < 3)
