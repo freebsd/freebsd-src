@@ -24,16 +24,10 @@
 #
 # $FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
-
-.PATH:		${PAMDIR}/modules/pam_wheel
-
 LIB=		pam_wheel
 SHLIB_NAME=	pam_wheel.so
 SRCS=		pam_wheel.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>
+
+.PATH:		${PAMDIR}/modules/pam_wheel
