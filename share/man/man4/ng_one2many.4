@@ -134,11 +134,12 @@ struct ng_one2many_config {
 };
 .Ed
 .Pp
-Currently, the only valid setting for the
+Currently, the valid settings for the
 .Dv xmitAlg
-field is
-.Dv NG_ONE2MANY_XMIT_ROUNDROBIN ;
-this is also the default setting.
+field are
+.Dv NG_ONE2MANY_XMIT_ROUNDROBIN
+(default) or
+.Dv NG_ONE2MANY_XMIT_ALL .
 The only valid setting for
 .Dv failAlg
 is
