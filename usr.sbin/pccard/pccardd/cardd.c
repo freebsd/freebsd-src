@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.24 1998/02/04 20:19:39 guido Exp $";
+	"$Id: cardd.c,v 1.25 1998/02/27 08:19:23 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -35,7 +35,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#define EXTERN
 #include "cardd.h"
 
 static struct card_config *assign_driver(struct card *);
