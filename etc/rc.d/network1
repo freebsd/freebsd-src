@@ -61,6 +61,27 @@ END {
 ' <$nsswitch_conf >$host_conf
 }
 
+network_gif_setup() {
+	case ${gif_interfaces} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		for i in ${gif_interfaces}; do
+			eval peers=\$gifconfig_$i
+			case ${peers} in
+			'')
+				continue
+				;;
+			*)
+				ifconfig $i create >/dev/null 2>&1
+				ifconfig $i tunnel ${peers}
+				;;
+			esac
+		done
+		;;
+	esac
+}
+
 network_start()
 {
 	# set hostname, turn on network
@@ -97,10 +118,15 @@ network_start()
 		echo -n ' domain'
 	fi
 
+	echo '.'
+
 	# Attempt to create cloned interfaces.
 	for ifn in ${cloned_interfaces}; do
 		ifconfig ${ifn} create
 	done
+
+	# gifconfig
+	network_gif_setup
 
 	# Set up all the network interfaces, calling startup scripts if needed
 	#
@@ -175,107 +201,6 @@ network_start()
 		fi
 	done
 
-	
-
-	# Check $defaultroute, then /etc/mygate, for the name of my gateway
-	# host. That name must be in /etc/hosts.
-	#
-	if [ -z "$defaultroute" ] && [ -f /etc/mygate ]; then
-		defaultroute=`cat /etc/mygate`
-	fi
-	if [ -n "$defaultroute" ]; then
-		route add default $defaultroute
-	fi
-
-	# Check if each configured interface xxN has an $ifaliases_xxN variable
-	# associated, then configure additional IP addresses for that interface.
-	# The variable contains a list of "address netmask" pairs, with
-	# "netmask" set to "-" if the interface default netmask is to be used.
-	#
-	# Note that $ifaliases_xxN works only with certain configurations and
-	# considered not recommended.  Use /etc/ifconfig.xxN if possible.
-	# 
-	#
-	if [ -n "$configured_interfaces" ]; then
-		echo "Adding interface aliases:"
-		done_aliases_message=yes
-	fi
-	for int in $configured_interfaces; do
-		eval args=\$ifaliases_$int
-		if [ -n "$args" ]; then
-			set -- $args
-			while [ $# -ge 2 ]; do
-				addr=$1 ; net=$2 ; shift 2
-				if [ "$net" = "-" ]; then
-					# for compatibility only, obsolete
-					ifconfig $int inet alias $addr
-				else
-					ifconfig $int inet alias $addr \
-					    netmask $net
-				fi
-				# Use loopback, not the wire
-				route add $addr 127.0.0.1
-			done
-		fi
-	done
-
-	# /etc/ifaliases, if it exists, contains the names of additional IP
-	# addresses for each interface. It is formatted as a series of lines
-	# that contain
-	#	address interface netmask
-	#
-	# Note that /etc/ifaliases works only with certain cases only and its
-	# use is not recommended.  Use /etc/ifconfig.xxN instead.
-	#
-	#
-	if [ -f /etc/ifaliases ]; then
-		if [ "$done_aliases_message" != yes ]; then
-			echo "Adding interface aliases:"
-		fi
-		while read addr int net; do
-			if [ -z "$net" ]; then
-				# for compatibility only, obsolete
-				ifconfig $int inet alias $addr
-			else
-				ifconfig $int inet alias $addr netmask $net
-			fi
-			# use loopback, not the wire
-			route add $addr 127.0.0.1
-		done < /etc/ifaliases
-	fi
-
-	# IPv6 interface autoconfiguration.
-	#
-	if ifconfig lo0 inet6 >/dev/null 2>&1; then
-		# wait till DAD is completed. always invoke it in case
-		# if are configured manually by ifconfig
-		#
-		dadcount=`sysctl -n net.inet6.ip6.dad_count 2>/dev/null`
-		sleep $dadcount
-		sleep 1
-
-		if checkyesno rtsol; then
-			if [ "$ip6mode" = "autohost" ]; then
-				echo 'Sending router solicitation...'
-				rtsol $rtsol_flags
-			else
-				echo
-				warn \
-			    "ip6mode must be set to 'autohost' to use rtsol."
-			fi
-
-			# wait till DAD is completed, for global addresses
-			# configured by router advert message.
-			#
-			sleep $dadcount
-			sleep 1
-		fi
-	fi
-
-	# XXX this must die
-	if [ -s /etc/netstart.local ]; then
-		sh /etc/netstart.local start
-	fi
 	echo '.'
 
 	# Resync ipfilter
@@ -284,54 +209,14 @@ network_start()
 
 network_stop()
 {
-	echo "Stopping network."
-
-	# XXX this must die
-	if [ -s /etc/netstart.local ]; then
-		sh /etc/netstart.local stop
-	fi
-
-	echo "Deleting aliases."
-	if [ -f /etc/ifaliases ]; then
-		while read addr int net; do
-			ifconfig $int inet delete $addr
-		done < /etc/ifaliases
-	fi
-
-	for int in `ifconfig -lu`; do
-		eval args=\$ifaliases_$int
-		if [ -n "$args" ]; then
-			set -- $args
-			while [ $# -ge 2 ]; do
-				addr=$1 ; net=$2 ; shift 2
-				ifconfig $int inet delete $addr
-			done
-		fi
-	done
-
-	# down interfaces
-	#
-	echo -n 'Downing network interfaces:'
-	if [ "$net_interfaces" != NO ]; then
-		if checkyesno auto_ifconfig; then
-			tmp=`ifconfig -l`
-		else
-			tmp="$net_interfaces"
-		fi
-		for int in $tmp; do
-			eval args=\$ifconfig_$int
-			if [ -n "$args" ] || [ -f /etc/ifconfig.$int ]; then
-				echo -n " $int"
-				ifconfig $int down
-			fi
-		done
-		echo "."
-	fi
+	echo -n "Stopping network:"
 
 	# flush routes
 	#
+	echo -n " flush routes"
 	route -n flush
 
+	echo '.'
 }
 
 load_rc_config $name
