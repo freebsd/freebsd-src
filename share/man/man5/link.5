@@ -401,7 +401,7 @@ A dynamically linked binary contains a
 structure which can be located by means of the
 .Fa d_debug
 field in
-.Fa _dynamic.
+.Fa _dynamic .
 .Bd -literal -offset indent
 struct 	so_debug {
 	int	dd_version;
@@ -426,9 +426,10 @@ The address were a breakpoint will be set by the run-time linker to
 divert control to the debugger. This address is determined by the start-up
 module,
 .Em crt0.o,
-to be some convenient place before the call to _main.<.It Fa dd_bpt_shadow
+to be some convenient place before the call to _main.
+.It Fa dd_bpt_shadow
 Contains the original instruction that was at
-.Fa dd_bpt_addr.
+.Fa dd_bpt_addr .
 The debugger is expected to put this instruction back before continuing the
 program.
 .It Fa dd_cc
@@ -567,7 +568,7 @@ Index of the string representing the full path name of the library.
 The version numbers of the shared library.
 .It Fa hi_ndewey
 The number of valid entries in
-.Fa hi_dewey.
+.Fa hi_dewey .
 .It Fa hi_next
 Next bucket in case of hashing collisions.
 .El
