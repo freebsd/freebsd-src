@@ -53,22 +53,33 @@
 
 static int cfgmech;
 static int devmax;
-static int usebios;
 
 static int	pci_cfgintr_unique(struct PIR_entry *pe, int pin);
 static int	pci_cfgintr_linked(struct PIR_entry *pe, int pin);
 static int	pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int pin);
 static int	pci_cfgintr_virgin(struct PIR_entry *pe, int pin);
 
-static int	pcibios_cfgread(int bus, int slot, int func, int reg, int bytes);
-static void	pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
-static int	pcibios_cfgopen(void);
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcireg_cfgopen(void);
 
 static struct PIR_table	*pci_route_table;
 static int		pci_route_count;
+
+static u_int16_t
+pcibios_get_version(void)
+{
+    struct bios_regs args;
+
+    if (PCIbios.entry == 0)
+	return (0);
+    args.eax = PCIBIOS_BIOS_PRESENT;
+    if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL)))
+	return (0);
+    if (args.edx != 0x20494350)
+	return (0);
+    return (args.ebx & 0xffff);
+}
 
 /* 
  * Initialise access to PCI configuration space 
@@ -85,20 +96,15 @@ pci_cfgregopen(void)
     if (opened)
 	return(1);
 
-    if (pcibios_cfgopen() != 0) {
-	usebios = 1;
-    } else if (pcireg_cfgopen() != 0) {
-	usebios = 0;
-    } else {
+    if (pcireg_cfgopen() != 0)
 	return(0);
-    }
 
     /*
      * Look for the interrupt routing table.
      */
-    /* XXX use PCI BIOS if it's available */
-
-    if ((pt == NULL) && ((sigaddr = bios_sigsearch(0, "$PIR", 4, 16, 0)) != 0)) {
+    /* We use PCI BIOS's PIR table if it's available */
+    if (pcibios_get_version() >= 0x0210 && pt == NULL && 
+      (sigaddr = bios_sigsearch(0, "$PIR", 4, 16, 0)) != 0) {
 	pt = (struct PIR_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
 	for (cv = (u_int8_t *)pt, ck = 0, i = 0; i < (pt->pt_header.ph_length); i++) {
 	    ck += cv[i];
@@ -120,9 +126,7 @@ pci_cfgregopen(void)
 static u_int32_t
 pci_do_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
-    return(usebios ? 
-	   pcibios_cfgread(bus, slot, func, reg, bytes) : 
-	   pcireg_cfgread(bus, slot, func, reg, bytes));
+    return(pcireg_cfgread(bus, slot, func, reg, bytes));
 }
 
 u_int32_t
@@ -177,9 +181,7 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
-    return(usebios ? 
-	   pcibios_cfgwrite(bus, slot, func, reg, data, bytes) : 
-	   pcireg_cfgwrite(bus, slot, func, reg, data, bytes));
+    return(pcireg_cfgwrite(bus, slot, func, reg, data, bytes));
 }
 
 int
@@ -208,7 +210,15 @@ pci_cfgintr(int bus, int device, int pin)
     struct PIR_entry	*pe;
     int			i, irq;
     struct bios_regs	args;
+    u_int16_t		v;
     
+    v = pcibios_get_version();
+    if (v < 0x0210) {
+	printf(
+	  "pci_cfgintr: BIOS %x.%02x doesn't support interrupt routing\n",
+	  (v & 0xff00) >> 8, v & 0xff);
+	return (255);
+    }
     if ((bus < 0) || (bus > 255) || (device < 0) || (device > 255) ||
       (pin < 1) || (pin > 4))
 	return(255);
@@ -236,12 +246,14 @@ pci_cfgintr(int bus, int device, int pin)
 	args.eax = PCIBIOS_ROUTE_INTERRUPT;
 	args.ebx = (bus << 8) | (device << 3);
 	args.ecx = (irq << 8) | (0xa + pin - 1);	/* pin value is 0xa - 0xd */
-	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-
-	/*
-	 * XXX if it fails, we should try to smack the router hardware directly
-	 */
-
+	if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL))) {
+		/*
+		 * XXX if it fails, we should try to smack the router
+		 * hardware directly
+		 */
+	    printf("pci_cfgintr: ROUTE_INTERRUPT failed\n");
+	    return (255);
+	}
 	printf("pci_cfgintr: %d:%d INT%c routed to irq %d\n", 
 	       bus, device, 'A' + pin - 1, irq);
 	return(irq);
@@ -389,73 +401,6 @@ pci_cfgintr_virgin(struct PIR_entry *pe, int pin)
 	}
     }
     return(255);
-}
-
-
-/*
- * Config space access using BIOS functions 
- */
-static int
-pcibios_cfgread(int bus, int slot, int func, int reg, int bytes)
-{
-    struct bios_regs args;
-    u_int mask;
-
-    switch(bytes) {
-    case 1:
-	args.eax = PCIBIOS_READ_CONFIG_BYTE;
-	mask = 0xff;
-	break;
-    case 2:
-	args.eax = PCIBIOS_READ_CONFIG_WORD;
-	mask = 0xffff;
-	break;
-    case 4:
-	args.eax = PCIBIOS_READ_CONFIG_DWORD;
-	mask = 0xffffffff;
-	break;
-    default:
-	return(-1);
-    }
-    args.ebx = (bus << 8) | (slot << 3) | func;
-    args.edi = reg;
-    bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-    /* check call results? */
-    return(args.ecx & mask);
-}
-
-static void
-pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
-{
-    struct bios_regs args;
-
-    switch(bytes) {
-    case 1:
-	args.eax = PCIBIOS_WRITE_CONFIG_BYTE;
-	break;
-    case 2:
-	args.eax = PCIBIOS_WRITE_CONFIG_WORD;
-	break;
-    case 4:
-	args.eax = PCIBIOS_WRITE_CONFIG_DWORD;
-	break;
-    default:
-	return;
-    }
-    args.ebx = (bus << 8) | (slot << 3) | func;
-    args.ecx = data;
-    args.edi = reg;
-    bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-}
-
-/*
- * Determine whether there is a PCI BIOS present
- */
-static int
-pcibios_cfgopen(void)
-{
-    /* check for a found entrypoint */
-    return(PCIbios.entry != 0);
 }
 
 /* 
