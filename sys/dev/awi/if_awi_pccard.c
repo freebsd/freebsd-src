@@ -140,8 +140,17 @@ awi_pccard_attach(device_t dev)
 	}
 
 	psc->sc_mem_rid = 0;
+#if 1
+	/*
+	 * XXX: awi needs to access memory with 8bit,
+	 * but pccardd apparently maps memory with MDF_16BITS flag.
+	 * So memory mapped access is disabled and use IO port instead.
+	 */
+	psc->sc_mem_res = 0;
+#else
 	psc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
 	    &psc->sc_mem_rid, 0, ~0, 0x8000, RF_ACTIVE);
+#endif
 	if (psc->sc_mem_res) {
 		sc->sc_chip.sc_memt = rman_get_bustag(psc->sc_mem_res);
 		sc->sc_chip.sc_memh = rman_get_bushandle(psc->sc_mem_res);
