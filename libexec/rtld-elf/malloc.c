@@ -119,7 +119,6 @@ union	overhead {
  */
 #define	NBUCKETS 30
 static	union overhead *nextf[NBUCKETS];
-extern	char *sbrk();
 
 static	int pagesz;			/* page size */
 static	int pagebucket;			/* page size bucket */

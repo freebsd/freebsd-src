@@ -117,7 +117,7 @@ struct timeval;				/* select(2) */
 #endif
 int	 acct __P((const char *));
 int	 async_daemon __P((void));
-char	*brk __P((const char *));
+int	 brk __P((const void *));
 int	 chroot __P((const char *));
 size_t	 confstr __P((int, char *, size_t));
 char	*crypt __P((const char *, const char *));
@@ -182,7 +182,7 @@ pid_t	 rfork_thread __P((int, void *, int (*) __P((void *)), void *));
 int	 rresvport __P((int *));
 int	 rresvport_af __P((int *, int));
 int	 ruserok __P((const char *, int, const char *, const char *));
-char	*sbrk __P((int));
+void	*sbrk __P((intptr_t));
 int	 select __P((int, fd_set *, fd_set *, fd_set *, struct timeval *));
 int	 setdomainname __P((const char *, int));
 int	 setegid __P((gid_t));
