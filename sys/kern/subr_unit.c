@@ -216,6 +216,18 @@ new_unrhdr(u_int low, u_int high)
 	return (uh);
 }
 
+void
+delete_unrhdr(struct unrhdr *uh)
+{
+
+	KASSERT(uh->busy == 0, ("unrhdr has %u allocations", uh->busy));
+	
+	/* We should have a single un only */
+	delete_unr(uh, TAILQ_FIRST(&uh->head));
+	KASSERT(uh->alloc == 0, ("UNR memory leak in delete_unrhdr"));
+	Free(uh);
+}
+
 /*
  * See if a given unr should be collapsed with a neighbor
  */
@@ -567,7 +579,7 @@ int
 main(int argc __unused, const char **argv __unused)
 {
 	struct unrhdr *uh;
-	int i, x;
+	int i, x, m;
 	char a[NN];
 
 	uh = new_unrhdr(0, NN - 1);
@@ -577,7 +589,7 @@ main(int argc __unused, const char **argv __unused)
 	fprintf(stderr, "sizeof(struct unr) %d\n", sizeof (struct unr));
 	fprintf(stderr, "sizeof(struct unrhdr) %d\n", sizeof (struct unrhdr));
 	x = 1;
-	for (;;) {
+	for (m = 0; m < NN; m++) {
 		i = random() % NN;
 		if (a[i]) {
 			printf("F %u\n", i);
@@ -592,6 +604,11 @@ main(int argc __unused, const char **argv __unused)
 			print_unrhdr(uh);
 		check_unrhdr(uh, __LINE__);
 	}
+	for (i = 0; i < NN; i++)
+		if (a[i])
+			free_unr(uh, i);
+	print_unrhdr(uh);
+	delete_unrhdr(uh);
 	return (0);
 }
 #endif
