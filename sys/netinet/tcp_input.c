@@ -525,8 +525,8 @@ tcp_input(m, off0)
 	/*
 	 * Locate pcb for segment.
 	 */
-	 INP_INFO_WLOCK(&tcbinfo);
-	 headlocked = 1;
+	INP_INFO_WLOCK(&tcbinfo);
+	headlocked = 1;
 findpcb:
 	/* IPFIREWALL_FORWARD section */
 	if (next_hop != NULL && isipv6 == 0) {	/* IPv6 support is not yet */
@@ -574,14 +574,11 @@ findpcb:
 	}
 #endif
 #ifdef FAST_IPSEC
-#ifdef INET6
 	if (isipv6) {
 		if (inp != NULL && ipsec6_in_reject(m, inp)) {
 			goto drop;
 		}
-	} else
-#endif /* INET6 */
-	if (inp != NULL && ipsec4_in_reject(m, inp)) {
+	} else if (inp != NULL && ipsec4_in_reject(m, inp)) {
 		goto drop;
 	}
 #endif /*FAST_IPSEC*/
@@ -2053,13 +2050,11 @@ step6:
 		 * but if two URG's are pending at once, some out-of-band
 		 * data may creep in... ick.
 		 */
-		if (th->th_urp <= (u_long)tlen
-#ifdef SO_OOBINLINE
-		     && (so->so_options & SO_OOBINLINE) == 0
-#endif
-		     )
-			tcp_pulloutofband(so, th, m,
-				drop_hdrlen);	/* hdr drop is delayed */
+		if (th->th_urp <= (u_long)tlen &&
+		    !(so->so_options & SO_OOBINLINE)) {
+			/* hdr drop is delayed */
+			tcp_pulloutofband(so, th, m, drop_hdrlen);
+		}
 	} else {
 		/*
 		 * If no out of band data is expected,
