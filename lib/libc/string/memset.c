@@ -68,7 +68,9 @@ memset(dst0, c0, length)
 #endif
 {
 	register size_t t;
+#ifndef BZERO
 	register u_int c;
+#endif
 	register u_char *dst;
 
 	dst = dst0;

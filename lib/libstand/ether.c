@@ -137,7 +137,7 @@ char *
 ether_sprintf(ap)
         register u_char *ap;
 {
-	register i;
+	register int i;
 	static char etherbuf[18];
 	register char *cp = etherbuf;
 

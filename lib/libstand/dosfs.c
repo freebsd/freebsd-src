@@ -461,7 +461,7 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
             for (ent = 0; ent < DEPSEC; ent++) {
                 if (!*dir[ent].de.name)
                     return ENOENT;
-                if (*dir[ent].de.name != 0xe5)
+                if (*dir[ent].de.name != 0xe5) {
                     if ((dir[ent].de.attr & FA_MASK) == FA_XDE) {
                         x = dir[ent].xde.seq;
                         if (x & 0x40 || (x + 1 == xdn &&
@@ -493,6 +493,7 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
                             return 0;
                         }
                     }
+		}
                 xdn = 0;
             }
         }
@@ -572,7 +573,7 @@ fsize(DOS_FS *fs, DOS_DE *de)
    u_int c;
    int n;
 
-   if (!(size = cv4(de->size)) && de->attr & FA_DIR)
+   if (!(size = cv4(de->size)) && de->attr & FA_DIR) {
       if (!(c = cv2(de->clus)))
          size = fs->dirents * sizeof(DOS_DE);
       else {
@@ -580,6 +581,7 @@ fsize(DOS_FS *fs, DOS_DE *de)
             return n;
          size = blkbyt(fs, n);
       }
+   }
    return size;
 }
 

@@ -45,6 +45,6 @@ strcat(s, append)
 	char *save = s;
 
 	for (; *s; ++s);
-	while (*s++ = *append++);
+	while ((*s++ = *append++));
 	return(save);
 }

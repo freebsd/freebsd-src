@@ -45,6 +45,6 @@ strcpy(to, from)
 {
 	char *save = to;
 
-	for (; *to = *from; ++from, ++to);
+	for (; (*to = *from); ++from, ++to);
 	return(save);
 }
