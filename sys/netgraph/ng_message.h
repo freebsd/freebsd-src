@@ -115,6 +115,7 @@ struct ng_mesg {
 #define	NGM_TEXT_STATUS		11	/* (optional) get text status report */
 #define	NGM_BINARY2ASCII	12	/* convert struct ng_mesg to ascii */
 #define	NGM_ASCII2BINARY	13	/* convert ascii to struct ng_mesg */
+#define	NGM_TEXT_CONFIG		14	/* (optional) get/set text config */
 
 /* Structure used for NGM_MKPEER */
 struct ngm_mkpeer {
