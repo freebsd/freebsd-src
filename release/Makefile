@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.28 1997/03/11 07:17:52 jkh Exp $
+#	$Id: Makefile,v 1.246.2.29 1997/03/11 13:53:11 joerg Exp $
 #
 # How to roll a release:
 #
@@ -462,6 +462,7 @@ ftp.1:
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
+	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 
 #
 # --==## Setup a suitable cdrom-area ##==--
