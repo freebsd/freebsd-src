@@ -31,7 +31,7 @@
 #
 # [whew!]
 #
-# $Id: which.pl,v 1.3 1995/01/30 17:49:19 asami Exp $
+# $Id: which.pl,v 1.4 1995/01/30 22:21:29 jkh Exp $
 
 $all = 0;
 $silent = 0;
@@ -47,13 +47,18 @@ if ($ARGV[0] eq "-a") {
 }
 
 foreach $prog (@ARGV) {
-    foreach $e (@path) {
-        if (-x "$e/$prog") {
-	    print "$e/$prog\n" unless $silent;
+    if (-x "$prog") {
+	    print "$prog\n" unless $silent;
 	    $found = 1;
-	    last unless $all;
-        }
-    }
+	} else {
+	    foreach $e (@path) {
+		if (-x "$e/$prog") {
+		    print "$e/$prog\n" unless $silent;
+		    $found = 1;
+		    last unless $all;
+		}
+	    }
+	}
 }
 
 exit (!$found);
