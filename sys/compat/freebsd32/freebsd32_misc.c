@@ -398,7 +398,7 @@ freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 	caddr_t sg;
 	struct execve_args ap;
 	u_int32_t *p32, arg;
-	char **p;
+	char **p, *p64;
 	int count;
 
 	sg = stackgap_init();
@@ -421,7 +421,10 @@ freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
 				return error;
-			*p++ = PTRIN(arg);
+			p64 = PTRIN(arg);
+			error = copyout(&p64, p++, sizeof(p64));
+			if (error)
+				return error;
 		} while (arg != 0);
 	}
 	if (uap->envv) {
@@ -440,7 +443,10 @@ freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
 				return error;
-			*p++ = PTRIN(arg);
+			p64 = PTRIN(arg);
+			error = copyout(&p64, p++, sizeof(p64));
+			if (error)
+				return error;
 		} while (arg != 0);
 	}
 
