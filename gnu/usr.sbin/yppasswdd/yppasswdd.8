@@ -1,0 +1,92 @@
+.\"
+.\" Copyright 1994 Olaf Kirch, <okir@monad.swb.de>
+.\"
+.\" This program is covered by the GNU General Public License, version 2.
+.\" It is provided in the hope that it is useful. However, the author
+.\" disclaims ALL WARRANTIES, expressed or implied. See the GPL for details.
+.\"
+.TH YPPASSWDD 8 "12 December 1994" "" ""
+.SH NAME
+rpc.yppasswdd \- NIS password update server
+.SH SYNOPSIS
+.B "rpc.yppasswdd [-s]"
+.SH DESCRIPTION
+\fByppasswdd\fP is the RPC server that lets users change their passwords
+in the presence of NIS (a.k.a. YP). It must be run on the NIS master
+server for that NIS domain.
+.P
+When a \fByppasswd(1)\fP client contacts the server, it sends the old user
+password along with the new one. \fByppasswdd\fP will search the system's
+\fB/etc/passwd\fP file for the specified user name, verify that the
+given (old) password matches, and update the entry. If the user
+specified does not exist, or if the password, UID or GID doesn't match
+the information in the password file, the update request is rejected,
+and an error returned to the client.
+.P
+After updating the \fBpasswd\fP file and returning a success notification
+to the client, \fByppasswdd\fP executes the \fBpwupdate\fP script that
+updates the NIS server's \fBpasswd.*\fP maps. This script assumes all
+NIS maps are kept in directories named 
+.BI /var/yp/< nisdomain >
+that each contain a \fBMakefile\fP customized for that NIS domain.
+.SH OPTIONS
+The following options are available with \fByppasswdd\fP:
+.IP "\-s"
+When \fByppasswdd\fP is compiled with support for John\ F. Haugh's shadow
+library, this option makes the server use the password functions from the
+\fBlibshadow\fP library instead of the standard ones. See below for a 
+brief discussion of shadow support.
+.SH MISCELLANEOUS
+.SS Shadow Passwords
+Using Shadow passwords alongside NIS does not make too much sense, because
+the supposedly inaccesible passwords now become readable through a simple
+invocation of \fBypcat(8)\fP.
+.P
+Shadow support in \fByppasswdd\fP does not mean that it offers a very
+clever solution to this problem, it simply means that it can read and write
+password entries in \fB/etc/shadow\fP.  You still have to produce a normal
+NIS map to distribute password information to your NIS clients.
+The \fByp.pwupdate\fP script supplied with
+\fByppasswdd\fP creates a standard \fB/etc/passwd\fP file from
+\fP/etc/shadow\fP using \fBpwunconv(8)\fP and produces the NIS maps from
+that.
+.SS Logging
+\fByppasswdd\fP logs all password update requests to \fBsyslogd(8)\fP's
+auth facility. The logging information includes the originating host's
+IP address and the user name and UID contained in the request. The
+user-supplied password itself is not logged.
+.SS Security
+Unless I've screwed up completely (as I did with versions prior to
+version\ 0.5), \fByppasswdd\fP should be as secure or insecure as any
+program relying on simple password authentication.  If you feel that
+this is not enough, you may want to protect \fByppasswdd\fP from outside
+access by using the `securenets' feature of the new \fBportmap(8)\fP
+version\ 3.  Better still, use Kerberos.
+.SH COPYRIGHT
+\fByppasswdd\fP is copyright (C) Olaf Kirch. You can use and distribute it
+under the GNU General Public License Version 2. Note that it does \fInot\fP
+contain any code from the shadow password suite. This means that as long as
+you don't use shadow passwords, you won't be affected by the ``no commercial
+use'' policy of the shadow suite.
+.SH FILES
+\fB/usr/sbin/rpc.yppasswdd\fP
+.br
+\fB/usr/lib/yp/pwupdate\fP
+.br
+\fB/etc/passwd\fP
+.br
+\fB/etc/shadow\fP
+.SH SEE ALSO
+.IR passwd(5) ,
+.IR passwd(8) ,
+.IR portmap(8) ,
+.IR pwunconv(8) ,
+.IR yppasswd(1) ,
+.IR ypchsh(1) ,
+.IR ypchfn(1) ,
+.IR ypserv(8) ,
+.IR ypcat(8) .
+.SH AUTHOR
+Olaf Kirch, <okir@monad.swb.de>
+.br
+Charles Lopez, <tjarls@infm.ulst.ac.uk> (shadow support)
