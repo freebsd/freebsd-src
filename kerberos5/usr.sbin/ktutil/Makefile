@@ -46,10 +46,10 @@ MAN=		ktutil.8
 .PATH:	${KRB5DIR}/admin
 
 kadm5/private.h:	kadm5
-	cp ${KRB5DIR}/lib/kadm5/private.h ${.TARGET}
+	cat ${KRB5DIR}/lib/kadm5/private.h > ${.TARGET}
 
 kadm5/admin.h:	kadm5
-	cp ${KRB5DIR}/lib/kadm5/admin.h ${.TARGET}
+	cat ${KRB5DIR}/lib/kadm5/admin.h > ${.TARGET}
 
 kadm5/kadm5_err.h: kadm5 kadm5_err.h
 	cd ${.OBJDIR}/kadm5 && ln -sf ../kadm5_err.h
