@@ -53,6 +53,8 @@
 #define ARM_SET_TP		2
 #define ARM_GET_TP		3
 
+#define ARM_TP_ADDRESS		0xe0000000 /* Magic */
+
 struct arm_sync_icache_args {
 	uintptr_t	addr;		/* Virtual start address */
 	size_t		len;		/* Region size */

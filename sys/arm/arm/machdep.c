@@ -87,8 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/undefined.h>
 #include <machine/vmparam.h>
-
-#define MDROOT_ADDR 0xd0400000
+#include <machine/sysarch.h>
 
 uint32_t cpu_reset_address = 0;
 int cold = 1;
@@ -220,6 +219,9 @@ static void
 cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
+#ifndef ARM_CACHE_LOCK_ENABLE
+	vm_page_t m;
+#endif
 
 	vm_ksubmap_init(&kmi);
 	bufinit();
@@ -233,6 +235,13 @@ cpu_startup(void *dummy)
 	cpu_setup("");
 	identify_arm_cpu();
 	thread0.td_frame = (struct trapframe *)pcb->un_32.pcb32_sp - 1;
+#ifdef ARM_CACHE_LOCK_ENABLE
+	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
+	arm_lock_cache_line(ARM_TP_ADDRESS);
+#else
+	m = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
+	pmap_kenter_user(ARM_TP_ADDRESS, VM_PAGE_TO_PHYS(m));
+#endif
 	
 }
 
