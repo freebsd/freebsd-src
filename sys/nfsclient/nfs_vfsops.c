@@ -1024,6 +1024,9 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
  				return (error);
  		}
  		if (req->newptr != NULL) {
+			error = vfs_suser(mp, req->td);
+			if (error)
+				return (error);
  			error = SYSCTL_IN(req, &nmp->nm_tprintf_initial_delay,
  			    sizeof(nmp->nm_tprintf_initial_delay));
  			if (error)
