@@ -353,8 +353,7 @@ tcp_timer_keep(xtp)
 	tcpstat.tcps_keeptimeo++;
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
-	if ((always_keepalive ||
-	     tp->t_inpcb->inp_socket->so_options & SO_KEEPALIVE) &&
+	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
 		if ((ticks - tp->t_rcvtime) >= tcp_keepidle + tcp_maxidle)
 			goto dropit;
@@ -383,7 +382,7 @@ tcp_timer_keep(xtp)
 		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
 
 #ifdef TCPDEBUG
-	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
+	if (inp->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
