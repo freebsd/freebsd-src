@@ -457,6 +457,9 @@
 	<programlisting>ip verify unicast source reachable-via any</programlisting>
       </para>
 
+      <para>&man.ipfw.4; now supports lookup tables.  This feature is
+        useful for handling large sparse address sets. &merged;</para>
+
       <para>Some bugs in the IPsec implementation from the KAME
 	Project have been fixed.  These bugs were related to freeing
 	memory objects before all references to them were removed, and
@@ -835,6 +838,9 @@
     <para><application>awk</application> from Bell Labs has been
       updated from the 29 July 2003 release to the 7 February 2004
       release.</para>
+
+    <para><application>Binutils</application> have been updated to
+      a 23 May 2004 snapshot from the FSF 2.15 branch.</para>
 
     <para><application>CVS</application> has been updated from
       version 1.11.10 to version 1.11.15.</para>
