@@ -14,7 +14,7 @@
   009   '8'    '*'    nop    nop    184    170    nop    nop     O
   010   '9'    '('    nop    nop    185    168    nop    nop     O
   011   '0'    ')'    nop    nop    176    169    nop    nop     O
-  012   '-'    '_'    ns     ns     173    223    159    159     O
+  012   '-'    '_'    us     us     173    223    159    159     O
   013   '='    '+'    nop    nop    189    171    nop    nop     O
   014   bs     bs     del    del    136    136    255    255     O
   015   ht     btab   nop    nop    137    btab   nop    nop     O
@@ -142,7 +142,7 @@
   137   ';'    '8'    nop    nop    184    170    nop    nop     O
   138   '('    '9'    nop    nop    185    168    nop    nop     O
   139   ')'    '0'    nop    nop    176    169    nop    nop     O
-  140   '-'    '_'    ns     ns     173    223    159    159     O
+  140   '-'    '_'    us     us     173    223    159    159     O
   141   '='    '+'    nop    nop    189    171    nop    nop     O
   142   bs     bs     del    del    136    136    255    255     O
   143   ht     btab   nop    nop    137    btab   nop    nop     O
