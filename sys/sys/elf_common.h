@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf_common.h,v 1.2 1998/09/08 20:38:06 jdp Exp $
+ *      $Id: elf_common.h,v 1.3 1998/09/14 20:30:13 jdp Exp $
  */
 
 #ifndef _SYS_ELF_COMMON_H_
@@ -32,6 +32,21 @@
 /*
  * ELF definitions that are independent of architecture or word size.
  */
+
+/*
+ * Note header.  The ".note" section contains an array of notes.  Each
+ * begins with this header, aligned to a word boundary.  Immediately
+ * following the note header is n_namesz bytes of name, padded to the
+ * next word boundary.  Then comes n_descsz bytes of descriptor, again
+ * padded to a word boundary.  The values of n_namesz and n_descsz do
+ * not include the padding.
+ */
+
+typedef struct {
+	u_int32_t	n_namesz;	/* Length of name. */
+	u_int32_t	n_descsz;	/* Length of descriptor. */
+	u_int32_t	n_type;		/* Type of this note. */
+} Elf_Note;
 
 /* Indexes into the e_ident array. */
 #define EI_MAG0		0	/* Magic number, byte 0. */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf_generic.h,v 1.1 1998/08/16 03:03:38 jdp Exp $
+ *      $Id: elf_generic.h,v 1.2 1998/09/14 20:30:13 jdp Exp $
  */
 
 #ifndef _SYS_ELF_GENERIC_H_
@@ -64,7 +64,6 @@ __ElfType(Ehdr);
 __ElfType(Shdr);
 __ElfType(Phdr);
 __ElfType(Dyn);
-__ElfType(Note);
 __ElfType(Rel);
 __ElfType(Rela);
 __ElfType(Sym);
