@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.63 1998/05/31 17:27:47 peter Exp $
+ * $Id: nfs_serv.c,v 1.64 1998/05/31 17:54:18 peter Exp $
  */
 
 /*
@@ -2557,6 +2557,9 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	nqsrv_getl(vp, ND_READ);
 	if (v3) {
 		error = getret = VOP_GETATTR(vp, &at, cred, procp);
+		/*
+		 * XXX This check may be too strict for Solaris 2.5 clients.
+		 */
 		if (!error && toff && verf && verf != at.va_filerev)
 			error = NFSERR_BAD_COOKIE;
 	}
@@ -2815,6 +2818,9 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 		return (0);
 	}
 	error = getret = VOP_GETATTR(vp, &at, cred, procp);
+	/*
+	 * XXX This check may be too strict for Solaris 2.5 clients.
+	 */
 	if (!error && toff && verf && verf != at.va_filerev)
 		error = NFSERR_BAD_COOKIE;
 	if (!error) {
