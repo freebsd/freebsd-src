@@ -2066,9 +2066,6 @@ device		bktr
 device		cbb
 device		pccard
 device		cardbus
-#device		pcic		ISA attachment currently busted
-#hint.pcic.0.at="isa"
-#hint.pcic.1.at="isa"
 
 #
 # SMB bus
