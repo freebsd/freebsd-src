@@ -255,11 +255,11 @@ do_sigaction(p, sig, act, oact, old)
 		ps->ps_catchmask[_SIG_IDX(sig)] = act->sa_mask;
 		SIG_CANTMASK(ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (act->sa_flags & SA_SIGINFO) {
-			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
-			SIGADDSET(ps->ps_siginfo, sig);
-		} else {
 			ps->ps_sigact[_SIG_IDX(sig)] =
 			    (__sighandler_t *)act->sa_sigaction;
+			SIGADDSET(ps->ps_siginfo, sig);
+		} else {
+			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
 			SIGDELSET(ps->ps_siginfo, sig);
 		}
 		if (!(act->sa_flags & SA_RESTART))
@@ -289,8 +289,7 @@ do_sigaction(p, sig, act, oact, old)
 				p->p_procsig->ps_flag |= PS_NOCLDSTOP;
 			else
 				p->p_procsig->ps_flag &= ~PS_NOCLDSTOP;
-			if ((act->sa_flags & SA_NOCLDWAIT) ||
-			    ps->ps_sigact[_SIG_IDX(SIGCHLD)] == SIG_IGN) {
+			if (act->sa_flags & SA_NOCLDWAIT) {
 				/*
 				 * Paranoia: since SA_NOCLDWAIT is implemented
 				 * by reparenting the dying child to PID 1 (and
