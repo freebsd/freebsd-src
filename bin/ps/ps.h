@@ -69,7 +69,7 @@ typedef struct var {
 	 * to the generic output routine pvar (which prints simple elements
 	 * from the well known kinfo_proc structure).
 	 */
-	off_t	off;		/* offset in structure */
+	int	off;		/* offset in structure */
 	enum	type type;	/* type of element */
 	const char *fmt;	/* printf format */
 	short	dwidth;		/* dynamic printing width */
