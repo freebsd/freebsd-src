@@ -196,6 +196,7 @@ makefile(void)
 	(void) fclose(ofp);
 	moveifchanged(path("Makefile.new"), path("Makefile"));
 
+	/* XXX makefile() should make the Makefile, not hints.c. */
 	if (hints) {
 		ifp = fopen(hints, "r");
 		if (ifp == NULL)
@@ -206,6 +207,9 @@ makefile(void)
 	ofp = fopen(path("hints.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("hints.c.new"));
+	fprintf(ofp, "#include <sys/types.h>\n");
+	fprintf(ofp, "#include <sys/systm.h>\n");
+	fprintf(ofp, "\n");
 	fprintf(ofp, "int hintmode = %d;\n", hintmode);
 	fprintf(ofp, "char static_hints[] = {\n");
 	if (ifp) {
@@ -245,6 +249,7 @@ makefile(void)
 	fclose(ofp);
 	moveifchanged(path("hints.c.new"), path("hints.c"));
 
+	/* XXX makefile() should make the Makefile, not env.c. */
 	if (env) {
 		ifp = fopen(env, "r");
 		if (ifp == NULL)
@@ -255,6 +260,9 @@ makefile(void)
 	ofp = fopen(path("env.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("env.c.new"));
+	fprintf(ofp, "#include <sys/types.h>\n");
+	fprintf(ofp, "#include <sys/systm.h>\n");
+	fprintf(ofp, "\n");
 	fprintf(ofp, "int envmode = %d;\n", envmode);
 	fprintf(ofp, "char static_env[] = {\n");
 	if (ifp) {
