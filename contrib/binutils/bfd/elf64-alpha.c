@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define NO_COFF_SYMBOLS
 #define NO_COFF_LINENOS
 
-/* Get the ECOFF swapping routines.  Needed for the debug information. */
+/* Get the ECOFF swapping routines.  Needed for the debug information.  */
 #include "coff/internal.h"
 #include "coff/sym.h"
 #include "coff/symconst.h"
@@ -48,7 +48,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ECOFF_64
 #include "ecoffswap.h"
 
-static boolean elf64_alpha_mkobject PARAMS ((bfd *));
+static int alpha_elf_dynamic_symbol_p
+  PARAMS((struct elf_link_hash_entry *, struct bfd_link_info *));
 static struct bfd_hash_entry * elf64_alpha_link_hash_newfunc
   PARAMS((struct bfd_hash_entry *, struct bfd_hash_table *, const char *));
 static struct bfd_link_hash_table * elf64_alpha_bfd_link_hash_table_create
@@ -68,6 +69,8 @@ static reloc_howto_type * elf64_alpha_bfd_reloc_type_lookup
 static void elf64_alpha_info_to_howto
   PARAMS((bfd *, arelent *, Elf64_Internal_Rela *));
 
+static boolean elf64_alpha_mkobject
+  PARAMS((bfd *));
 static boolean elf64_alpha_object_p
   PARAMS((bfd *));
 static boolean elf64_alpha_section_from_shdr
@@ -131,7 +134,6 @@ static boolean elf64_alpha_merge_ind_symbols
   PARAMS((struct alpha_elf_link_hash_entry *, PTR));
 static Elf_Internal_Rela * elf64_alpha_find_reloc_at_ofs
   PARAMS ((Elf_Internal_Rela *, Elf_Internal_Rela *, bfd_vma, int));
-
 
 struct alpha_elf_link_hash_entry
 {
@@ -226,14 +228,35 @@ struct alpha_elf_link_hash_table
 
 /* Should we do dynamic things to this symbol?  */
 
-#define alpha_elf_dynamic_symbol_p(h, info) 				\
-  ((((info)->shared && !(info)->symbolic)				\
-    || (((h)->elf_link_hash_flags					\
-	 & (ELF_LINK_HASH_DEF_DYNAMIC | ELF_LINK_HASH_REF_REGULAR))	\
-        == (ELF_LINK_HASH_DEF_DYNAMIC | ELF_LINK_HASH_REF_REGULAR))	\
-    || (h)->root.type == bfd_link_hash_undefweak			\
-    || (h)->root.type == bfd_link_hash_defweak)				\
-   && (h)->dynindx != -1)
+static int
+alpha_elf_dynamic_symbol_p (h, info)
+     struct elf_link_hash_entry *h;
+     struct bfd_link_info *info;
+{
+  if (h == NULL)
+    return false;
+
+  while (h->root.type == bfd_link_hash_indirect
+	 || h->root.type == bfd_link_hash_warning)
+    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+
+  if (h->dynindx == -1)
+    return false;
+  if (ELF_ST_VISIBILITY (h->other) != STV_DEFAULT)
+    return false;
+
+  if (h->root.type == bfd_link_hash_undefweak
+      || h->root.type == bfd_link_hash_defweak)
+    return true;
+
+  if ((info->shared && !info->symbolic)
+      || ((h->elf_link_hash_flags
+	   & (ELF_LINK_HASH_DEF_DYNAMIC | ELF_LINK_HASH_REF_REGULAR))
+	  == (ELF_LINK_HASH_DEF_DYNAMIC | ELF_LINK_HASH_REF_REGULAR)))
+    return true;
+
+  return false;
+}
 
 /* Create an entry in a Alpha ELF linker hash table.  */
 
@@ -713,7 +736,7 @@ static reloc_howto_type elf64_alpha_howto_table[] =
 	 false),		/* pcrel_offset */
 
   /* The high bits of a 32-bit displacement to the starting address of the
-     current section (the relocation target is ignored); the low bits are 
+     current section (the relocation target is ignored); the low bits are
      supplied in the subsequent R_ALPHA_IMMED_LO32 relocs.  */
   /* XXX: Not implemented.  */
   HOWTO (R_ALPHA_IMMED_SCN_HI32,
@@ -764,7 +787,7 @@ static reloc_howto_type elf64_alpha_howto_table[] =
 	 0,			/* dst_mask */
 	 false),		/* pcrel_offset */
 
-  /* Misc ELF relocations. */
+  /* Misc ELF relocations.  */
 
   /* A dynamic relocation to copy the target into our .dynbss section.  */
   /* Not generated, as all Alpha objects use PIC, so it is not needed.  It
@@ -981,7 +1004,7 @@ static const struct elf_reloc_map elf64_alpha_reloc_map[] =
 
 /* The BFD_RELOC_ALPHA_USER_* relocations are used by the assembler to process
    the explicit !<reloc>!sequence relocations, and are mapped into the normal
-   relocations at the end of processing. */
+   relocations at the end of processing.  */
   {BFD_RELOC_ALPHA_USER_LITERAL,	R_ALPHA_LITERAL},
   {BFD_RELOC_ALPHA_USER_LITUSE_BASE,	R_ALPHA_LITUSE},
   {BFD_RELOC_ALPHA_USER_LITUSE_BYTOFF,	R_ALPHA_LITUSE},
@@ -1024,7 +1047,7 @@ elf64_alpha_info_to_howto (abfd, cache_ptr, dst)
   cache_ptr->howto = &elf64_alpha_howto_table[r_type];
 }
 
-/* These functions do relaxation for Alpha ELF. 
+/* These functions do relaxation for Alpha ELF.
 
    Currently I'm only handling what I can do with existing compiler
    and assembler support, which means no instructions are removed,
@@ -1064,11 +1087,11 @@ struct alpha_relax_info
 };
 
 static Elf_Internal_Rela * elf64_alpha_relax_with_lituse
-  PARAMS((struct alpha_relax_info *info, bfd_vma symval, 
+  PARAMS((struct alpha_relax_info *info, bfd_vma symval,
           Elf_Internal_Rela *irel, Elf_Internal_Rela *irelend));
 
 static boolean elf64_alpha_relax_without_lituse
-  PARAMS((struct alpha_relax_info *info, bfd_vma symval, 
+  PARAMS((struct alpha_relax_info *info, bfd_vma symval,
           Elf_Internal_Rela *irel));
 
 static bfd_vma elf64_alpha_relax_opt_call
@@ -1127,14 +1150,15 @@ elf64_alpha_relax_with_lituse (info, symval, irel, irelend)
 	flags |= 1 << urel->r_addend;
     }
 
-  /* A little preparation for the loop... */
+  /* A little preparation for the loop...  */
   disp = symval - info->gp;
-  fits16 = (disp >= -(bfd_signed_vma)0x8000 && disp < 0x8000);
-  fits32 = (disp >= -(bfd_signed_vma)0x80000000 && disp < 0x7fff8000);
 
   for (urel = irel+1, i = 0; i < count; ++i, ++urel)
     {
       unsigned int insn;
+      int insn_disp;
+      bfd_signed_vma xdisp;
+
       insn = bfd_get_32 (info->abfd, info->contents + urel->r_offset);
 
       switch (urel->r_addend)
@@ -1147,14 +1171,23 @@ elf64_alpha_relax_with_lituse (info, symval, irel, irelend)
 
 	case 1: /* MEM FORMAT */
 	  /* We can always optimize 16-bit displacements.  */
+
+	  /* Extract the displacement from the instruction, sign-extending
+	     it if necessary, then test whether it is within 16 or 32 bits
+	     displacement from GP.  */
+	  insn_disp = insn & 0x0000ffff;
+	  if (insn_disp & 0x00008000)
+	    insn_disp |= 0xffff0000;  /* Negative: sign-extend.  */
+
+	  xdisp = disp + insn_disp;
+	  fits16 = (xdisp >= - (bfd_signed_vma) 0x00008000 && xdisp < 0x00008000);
+	  fits32 = (xdisp >= - (bfd_signed_vma) 0x80000000 && xdisp < 0x7fff8000);
+
 	  if (fits16)
 	    {
-	      /* FIXME: sanity check the insn for mem format with
-		 zero addend.  */
-
-	      /* Take the op code and dest from this insn, take the base 
+	      /* Take the op code and dest from this insn, take the base
 		 register from the literal insn.  Leave the offset alone.  */
-	      insn = (insn & 0xffe00000) | (lit_insn & 0x001f0000);
+	      insn = (insn & 0xffe0ffff) | (lit_insn & 0x001f0000);
 	      urel->r_info = ELF64_R_INFO (ELF64_R_SYM (irel->r_info),
 					   R_ALPHA_GPRELLOW);
 	      urel->r_addend = irel->r_addend;
@@ -1167,8 +1200,7 @@ elf64_alpha_relax_with_lituse (info, symval, irel, irelend)
 	  /* If all mem+byte, we can optimize 32-bit mem displacements.  */
 	  else if (fits32 && !(flags & ~6))
 	    {
-	      /* FIXME: sanity check that lit insn Ra is mem insn Rb, and
-		 that mem_insn disp is zero.  */
+	      /* FIXME: sanity check that lit insn Ra is mem insn Rb.  */
 
 	      irel->r_info = ELF64_R_INFO (ELF64_R_SYM (irel->r_info),
 					   R_ALPHA_GPRELHIGH);
@@ -1217,12 +1249,12 @@ elf64_alpha_relax_with_lituse (info, symval, irel, irelend)
 	      {
 		Elf_Internal_Rela *xrel;
 
-		/* Preserve branch prediction call stack when possible. */
+		/* Preserve branch prediction call stack when possible.  */
 		if ((insn & INSN_JSR_MASK) == INSN_JSR)
 		  insn = (OP_BSR << 26) | (insn & 0x03e00000);
 		else
 		  insn = (OP_BR << 26) | (insn & 0x03e00000);
-		  
+
 		urel->r_info = ELF64_R_INFO (ELF64_R_SYM (irel->r_info),
 					     R_ALPHA_BRADDR);
 		urel->r_addend = irel->r_addend;
@@ -1236,7 +1268,7 @@ elf64_alpha_relax_with_lituse (info, symval, irel, irelend)
 
 		/* Kill any HINT reloc that might exist for this insn.  */
 		xrel = (elf64_alpha_find_reloc_at_ofs
-			(info->relocs, info->relend, urel->r_offset, 
+			(info->relocs, info->relend, urel->r_offset,
 			 R_ALPHA_HINT));
 		if (xrel)
 		  xrel->r_info = ELF64_R_INFO (0, R_ALPHA_NONE);
@@ -1251,7 +1283,7 @@ elf64_alpha_relax_with_lituse (info, symval, irel, irelend)
 	       This does depend on every place a gp could be reloaded will
 	       be, which currently happens for all code produced by gcc, but
 	       not necessarily by hand-coded assembly, or if sibling calls
-	       are enabled in gcc. 
+	       are enabled in gcc.
 
 	       Perhaps conditionalize this on a flag being set in the target
 	       object file's header, and have gcc set it?  */
@@ -1297,22 +1329,22 @@ elf64_alpha_relax_opt_call (info, symval)
 
   /* If the symbol is marked NOPV, we are being told the function never
      needs its procedure value.  */
-  if (info->other == STO_ALPHA_NOPV)
+  if ((info->other & STO_ALPHA_STD_GPLOAD) == STO_ALPHA_NOPV)
     return symval;
 
   /* If the symbol is marked STD_GP, we are being told the function does
-     a normal ldgp in the first two words.  */ 
-  else if (info->other == STO_ALPHA_STD_GPLOAD)
+     a normal ldgp in the first two words.  */
+  else if ((info->other & STO_ALPHA_STD_GPLOAD) == STO_ALPHA_STD_GPLOAD)
     ;
 
   /* Otherwise, we may be able to identify a GP load in the first two
      words, which we can then skip.  */
-  else 
+  else
     {
       Elf_Internal_Rela *tsec_relocs, *tsec_relend, *tsec_free, *gpdisp;
       bfd_vma ofs;
 
-      /* Load the relocations from the section that the target symbol is in. */
+      /* Load the relocations from the section that the target symbol is in.  */
       if (info->sec == info->tsec)
 	{
 	  tsec_relocs = info->relocs;
@@ -1334,7 +1366,7 @@ elf64_alpha_relax_opt_call (info, symval)
       /* Recover the symbol's offset within the section.  */
       ofs = (symval - info->tsec->output_section->vma
 	     - info->tsec->output_offset);
-  
+
       /* Look for a GPDISP reloc.  */
       gpdisp = (elf64_alpha_find_reloc_at_ofs
 		(tsec_relocs, tsec_relend, ofs, R_ALPHA_GPDISP));
@@ -1349,7 +1381,7 @@ elf64_alpha_relax_opt_call (info, symval)
         free (tsec_free);
     }
 
-  /* We've now determined that we can skip an initial gp load.  Verify 
+  /* We've now determined that we can skip an initial gp load.  Verify
      that the call and the target use the same gp.   */
   if (info->link_info->hash->creator != info->tsec->owner->xvec
       || info->gotobj != alpha_elf_tdata (info->tsec->owner)->gotobj)
@@ -1410,7 +1442,7 @@ elf64_alpha_relax_without_lituse (info, symval, irel)
 
      Any such memory load insn may be substituted by a load directly
      off the GP.  This allows the memory load insn to be issued before
-     the calculated GP register would otherwise be ready. 
+     the calculated GP register would otherwise be ready.
 
      Any such jsr insn can be replaced by a bsr if it is in range.
 
@@ -1462,7 +1494,7 @@ elf64_alpha_relax_section (abfd, sec, link_info, again)
   if (! link_info->keep_memory)
     free_relocs = internal_relocs;
 
-  memset(&info, 0, sizeof(info));
+  memset(&info, 0, sizeof (info));
   info.abfd = abfd;
   info.sec = sec;
   info.link_info = link_info;
@@ -1545,8 +1577,8 @@ elf64_alpha_relax_section (abfd, sec, link_info, again)
 	    info.tsec = bfd_abs_section_ptr;
 	  else if (isym.st_shndx == SHN_COMMON)
 	    info.tsec = bfd_com_section_ptr;
-	  else 
-	    continue;	/* who knows. */
+	  else
+	    continue;	/* who knows.  */
 
 	  info.h = NULL;
 	  info.other = isym.st_other;
@@ -1966,7 +1998,7 @@ elf64_alpha_read_ecoff_info (abfd, section, debug)
   char *ext_hdr = NULL;
 
   swap = get_elf_backend_data (abfd)->elf_backend_ecoff_debug_swap;
-  memset (debug, 0, sizeof(*debug));
+  memset (debug, 0, sizeof (*debug));
 
   ext_hdr = (char *) bfd_malloc ((size_t) swap->external_hdr_size);
   if (ext_hdr == NULL && swap->external_hdr_size != 0)
@@ -2076,6 +2108,12 @@ elf64_alpha_find_nearest_line (abfd, section, symbols, offset, filename_ptr,
      unsigned int *line_ptr;
 {
   asection *msec;
+
+  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
+				     filename_ptr, functionname_ptr,
+				     line_ptr, 0,
+				     &elf_tdata (abfd)->dwarf2_find_line_info))
+    return true;
 
   msec = bfd_get_section_by_name (abfd, ".mdebug");
   if (msec != NULL)
@@ -2543,7 +2581,8 @@ elf64_alpha_check_relocs (abfd, info, sec, relocs)
 		  sreloc = bfd_make_section (dynobj, rel_sec_name);
 		  if (sreloc == NULL
 		      || !bfd_set_section_flags (dynobj, sreloc,
-						 (SEC_ALLOC|SEC_LOAD
+						 ((sec->flags & (SEC_ALLOC
+								 | SEC_LOAD))
 						  | SEC_HAS_CONTENTS
 						  | SEC_IN_MEMORY
 						  | SEC_LINKER_CREATED
@@ -2559,7 +2598,7 @@ elf64_alpha_check_relocs (abfd, info, sec, relocs)
 		 don't know whether we'll actually need a dynamic relocation
 		 entry for this reloc.  So make a record of it.  Once we
 		 find out if this thing needs dynamic relocation we'll
-		 expand the relocation sections by the appropriate amount. */
+		 expand the relocation sections by the appropriate amount.  */
 
 	      struct alpha_elf_reloc_entry *rent;
 
@@ -3131,7 +3170,7 @@ elf64_alpha_calc_dynrel_sizes (h, info)
 	    || relent->rtype == R_ALPHA_REFQUAD)
 	  {
 	    relent->srel->_raw_size +=
-	      sizeof(Elf64_External_Rela) * relent->count;
+	      sizeof (Elf64_External_Rela) * relent->count;
 	  }
 
       dynobj = elf_hash_table(info)->dynobj;
@@ -3206,7 +3245,7 @@ elf64_alpha_size_dynamic_sections (output_bfd, info)
 	       i = alpha_elf_tdata(i)->got_link_next)
 	    count += alpha_elf_tdata(i)->n_local_got_entries;
 
-	  srel->_raw_size += count * sizeof(Elf64_External_Rela);
+	  srel->_raw_size += count * sizeof (Elf64_External_Rela);
 	}
     }
   /* else we're not dynamic and by definition we don't need such things.  */
@@ -3309,13 +3348,14 @@ elf64_alpha_size_dynamic_sections (output_bfd, info)
       if (! bfd_elf64_add_dynamic_entry (info, DT_RELA, 0)
 	  || ! bfd_elf64_add_dynamic_entry (info, DT_RELASZ, 0)
 	  || ! bfd_elf64_add_dynamic_entry (info, DT_RELAENT,
-					    sizeof(Elf64_External_Rela)))
+					    sizeof (Elf64_External_Rela)))
 	return false;
 
       if (reltext)
 	{
 	  if (! bfd_elf64_add_dynamic_entry (info, DT_TEXTREL, 0))
 	    return false;
+	  info->flags |= DF_TEXTREL;
 	}
     }
 
@@ -3398,7 +3438,7 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	     in which case we have to adjust according to where the
 	     section symbol winds up in the output section.  */
 
-	  /* The symbol associated with GPDISP and LITUSE is 
+	  /* The symbol associated with GPDISP and LITUSE is
 	     immaterial.  Only the addend is significant.  */
 	  if (r_type == R_ALPHA_GPDISP || r_type == R_ALPHA_LITUSE)
 	    continue;
@@ -3521,7 +3561,7 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	case R_ALPHA_OP_PSUB:
 	case R_ALPHA_OP_PRSHIFT:
 	  /* We hate these silly beasts.  */
-	  abort();
+	  abort ();
 
 	case R_ALPHA_LITERAL:
 	  {
@@ -3575,7 +3615,7 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 					       ((Elf64_External_Rela *)
 					        srelgot->contents)
 					       + srelgot->reloc_count++);
-		    BFD_ASSERT (sizeof(Elf64_External_Rela)
+		    BFD_ASSERT (sizeof (Elf64_External_Rela)
 				* srelgot->reloc_count
 				<= srelgot->_cooked_size);
 		  }
@@ -3680,7 +3720,7 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 				       ((Elf64_External_Rela *)
 					srel->contents)
 				       + srel->reloc_count++);
-	    BFD_ASSERT (sizeof(Elf64_External_Rela) * srel->reloc_count
+	    BFD_ASSERT (sizeof (Elf64_External_Rela) * srel->reloc_count
 			<= srel->_cooked_size);
 	  }
 	  goto default_reloc;
@@ -3833,7 +3873,7 @@ elf64_alpha_finish_dynamic_symbol (output_bfd, info, h, sym)
 					     ((Elf64_External_Rela *)
 					      srel->contents)
 					     + srel->reloc_count++);
-		  BFD_ASSERT (sizeof(Elf64_External_Rela) * srel->reloc_count
+		  BFD_ASSERT (sizeof (Elf64_External_Rela) * srel->reloc_count
 			      <= srel->_cooked_size);
 		}
 
@@ -3866,7 +3906,7 @@ elf64_alpha_finish_dynamic_symbol (output_bfd, info, h, sym)
 	  bfd_elf64_swap_reloca_out (output_bfd, &outrel,
 				     ((Elf64_External_Rela *)srel->contents
 				      + srel->reloc_count++));
-	  BFD_ASSERT (sizeof(Elf64_External_Rela) * srel->reloc_count
+	  BFD_ASSERT (sizeof (Elf64_External_Rela) * srel->reloc_count
 		      <= srel->_cooked_size);
 	}
     }
@@ -4284,7 +4324,6 @@ elf64_alpha_final_link (abfd, info)
 	    }
 #endif
 
-
 	  /* Build the external symbol information.  */
 	  einfo.abfd = abfd;
 	  einfo.info = info;
@@ -4604,7 +4643,7 @@ elf64_alpha_final_link (abfd, info)
 
 /* ECOFF swapping routines.  These are used when dealing with the
    .mdebug section, which is in the ECOFF debugging format.  Copied
-   from elf32-mips.c. */
+   from elf32-mips.c.  */
 static const struct ecoff_debug_swap
 elf64_alpha_ecoff_debug_swap =
 {
@@ -4647,6 +4686,36 @@ elf64_alpha_ecoff_debug_swap =
   elf64_alpha_read_ecoff_info
 };
 
+/* Use a non-standard hash bucket size of 8.  */
+
+const struct elf_size_info alpha_elf_size_info =
+{
+  sizeof (Elf64_External_Ehdr),
+  sizeof (Elf64_External_Phdr),
+  sizeof (Elf64_External_Shdr),
+  sizeof (Elf64_External_Rel),
+  sizeof (Elf64_External_Rela),
+  sizeof (Elf64_External_Sym),
+  sizeof (Elf64_External_Dyn),
+  sizeof (Elf_External_Note),
+  8,
+  1,
+  64, 8,
+  ELFCLASS64, EV_CURRENT,
+  bfd_elf64_write_out_phdrs,
+  bfd_elf64_write_shdrs_and_ehdr,
+  bfd_elf64_write_relocs,
+  bfd_elf64_swap_symbol_out,
+  bfd_elf64_slurp_reloc_table,
+  bfd_elf64_slurp_symbol_table,
+  bfd_elf64_swap_dyn_in,
+  bfd_elf64_swap_dyn_out,
+  NULL,
+  NULL,
+  NULL,
+  NULL
+};
+
 #define TARGET_LITTLE_SYM	bfd_elf64_alpha_vec
 #define TARGET_LITTLE_NAME	"elf64-alpha"
 #define ELF_ARCH		bfd_arch_alpha
@@ -4702,9 +4771,10 @@ elf64_alpha_ecoff_debug_swap =
 #define elf_backend_ecoff_debug_swap \
   &elf64_alpha_ecoff_debug_swap
 
-/*
- * A few constants that determine how the .plt section is set up.
- */
+#define elf_backend_size_info \
+  alpha_elf_size_info
+
+/* A few constants that determine how the .plt section is set up.  */
 #define elf_backend_want_got_plt 0
 #define elf_backend_plt_readonly 0
 #define elf_backend_want_plt_sym 1
