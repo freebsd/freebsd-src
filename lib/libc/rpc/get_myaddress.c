@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)get_myaddress.c 1.4 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)get_myaddress.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: get_myaddress.c,v 1.4 1996/06/08 22:54:51 jraynard Exp $";
+static char *rcsid = "$Id: get_myaddress.c,v 1.5 1996/11/22 23:37:08 pst Exp $";
 #endif
 
 /*
@@ -53,38 +53,45 @@ static char *rcsid = "$Id: get_myaddress.c,v 1.4 1996/06/08 22:54:51 jraynard Ex
 
 /*
  * don't use gethostbyname, which would invoke yellow pages
+ *
+ * Avoid loopback interfaces.  We return information from a loopback
+ * interface only if there are no other possible interfaces.
  */
-void get_myaddress(addr)
+int
+get_myaddress(addr)
 	struct sockaddr_in *addr;
 {
 	int s;
 	char buf[BUFSIZ];
 	struct ifconf ifc;
 	struct ifreq ifreq, *ifr, *end;
+	int loopback = 0, gotit = 0;
 
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-	    perror("get_myaddress: socket");
-	    exit(1);
+		return(-1);
 	}
 	ifc.ifc_len = sizeof (buf);
 	ifc.ifc_buf = buf;
 	if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0) {
-		perror("get_myaddress: ioctl (get interface configuration)");
-		exit(1);
+		close(s);
+		return(-1);
 	}
+again:
 	ifr = ifc.ifc_req;
 	end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
 
 	while (ifr < end) {
 		ifreq = *ifr;
 		if (ioctl(s, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
-			perror("get_myaddress: ioctl");
-			exit(1);
+			close(s);
+			return(-1);
 		}
 		if ((ifreq.ifr_flags & IFF_UP) &&
-		    ifr->ifr_addr.sa_family == AF_INET) {
+		    ifr->ifr_addr.sa_family == AF_INET &&
+		    (loopback == 1 && (ifreq.ifr_flags & IFF_LOOPBACK))) {
 			*addr = *((struct sockaddr_in *)&ifr->ifr_addr);
 			addr->sin_port = htons(PMAPPORT);
+			gotit = 1;
 			break;
 		}
 		if (ifr->ifr_addr.sa_len)
@@ -93,5 +100,10 @@ void get_myaddress(addr)
 			      sizeof(struct sockaddr));
 		ifr++;
 	}
+	if (gotit == 0 && loopback == 0) {
+		loopback = 1;
+		goto again;
+	}
 	(void) close(s);
+	return (0);
 }
