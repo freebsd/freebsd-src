@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tzsetup.c,v 1.2.2.2 1997/02/16 23:51:21 jkh Exp $
+ *	$Id: tzsetup.c,v 1.2.2.3 1997/03/10 20:35:46 jkh Exp $
  */
 
 /*
@@ -186,7 +186,7 @@ read_iso3166_table(void)
 		if (s[len - 1] != '\n')
 			errx(1, _PATH_ISO3166 ":%d: invalid format", lineno);
 		s[len - 1] = '\0';
-		if (s[0] == '#')
+		if (s[0] == '#' || strspn(s, " \t") == len - 1)
 			continue;
 
 		/* Isolate the two-letter code. */
