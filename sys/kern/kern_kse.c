@@ -976,6 +976,7 @@ thread_update_usr_ticks(struct thread *td, int user)
 void
 thread_alloc_spare(struct thread *td)
 {
+	struct thread *spare;
 
 	if (td->td_standin)
 		return;
