@@ -89,7 +89,7 @@ functions compute the exponential value of the given argument
 .Pp
 The
 .Fn expm1
-and the 
+and the
 .Fn expm1f
 functions compute the value exp(x)\-1 accurately even for tiny argument
 .Fa x .
@@ -98,7 +98,7 @@ The
 .Fn log
 and the
 .Fn logf
-functions compute the value of the natural logarithm of argument 
+functions compute the value of the natural logarithm of argument
 .Fa x .
 .Pp
 The
@@ -131,12 +131,12 @@ to the exponent
 .Fn log x ,
 .Fn expm1 x
 and
-.Fn log1p x 
-are accurate to within 
+.Fn log1p x
+are accurate to within
 an
 .Em ulp ,
 and
-.Fn log10 x 
+.Fn log10 x
 to within about 2
 .Em ulps ;
 an
@@ -268,10 +268,10 @@ infinite or \*(Na) before computing x**0 cannot care
 whether 0**0 = 1 or not.
 Any program that depends
 upon 0**0 to be invalid is dubious anyway since that
-expression's meaning and, if invalid, its consequences 
+expression's meaning and, if invalid, its consequences
 vary from one computer system to another.
 .It
-Some Algebra texts (e.g. Sigler's) define x**0 = 1 for 
+Some Algebra texts (e.g. Sigler's) define x**0 = 1 for
 all x, including x = 0.
 This is compatible with the convention that accepts a[0]
 as the value of polynomial
@@ -289,7 +289,7 @@ The reason for setting 0**0 = 1 anyway is this:
 If x(z) and y(z) are
 .Em any
 functions analytic (expandable
-in power series) in z around z = 0, and if there 
+in power series) in z around z = 0, and if there
 x(0) = y(0) = 0, then x(z)**y(z) \(-> 1 as z \(-> 0.
 .Ed
 .It

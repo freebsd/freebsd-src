@@ -111,7 +111,7 @@ Outputs packets as fast as they come back or one hundred times per second,
 whichever is more.
 For every
 .Tn ECHO_REQUEST
-sent a period 
+sent a period
 .Dq .\&
 is printed, while for every
 .Tn ECHO_REPLY
@@ -181,7 +181,7 @@ flag was required to display such errors, but
 displays all ICMP error messages.  On a busy machine, this output can
 be overbearing.  Without the
 .Fl Q
-flag, 
+flag,
 .Nm
 prints out any ICMP error messages caused by its own ECHO_REQUEST
 messages.
@@ -213,13 +213,13 @@ Bypass the normal routing tables and send directly to a host on an attached
 network.
 If the host is not on a directly-attached network, an error is returned.
 This option can be used to ping a local host through an interface
-that has no route through it 
+that has no route through it
 .Po
 e.g., after the interface was dropped by
 .Xr routed 8
 .Pc .
 .It Fl s Ar packetsize
-Specify the number of data bytes to be sent.  
+Specify the number of data bytes to be sent.
 The default is 56, which translates into 64
 .Tn ICMP
 data bytes when combined
@@ -252,7 +252,7 @@ When using
 .Nm
 for fault isolation, it should first be run on the local host, to verify
 that the local network interface is up and running.
-Then, hosts and gateways further and further away should be 
+Then, hosts and gateways further and further away should be
 .Dq pinged .
 Round-trip times and packet loss statistics are computed.
 If duplicate packets are received, they are not included in the packet
@@ -374,7 +374,7 @@ the
 field of
 .Tn ICMP ECHO_REQUEST
 packets to 255.
-This is why you will find you can 
+This is why you will find you can
 .Dq ping
 some hosts, but not reach them with
 .Xr telnet 1
@@ -400,7 +400,7 @@ In this case the
 value in the received packet will be 255 minus the
 number of routers in the round-trip path.
 .It
-Set it to 255; this is what current 
+Set it to 255; this is what current
 .Bx
 systems do.
 In this case the

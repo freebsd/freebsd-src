@@ -156,7 +156,7 @@ The ``name'' of the file referenced by the symbolic link named
 the value of the environment variable
 .Ev MALLOC_OPTIONS ,
 and the string pointed to by the global variable
-.Va _malloc_options 
+.Va _malloc_options
 will be interpreted, in that order, character by character as flags.
 .Pp
 Most flags are single letters,
@@ -209,7 +209,7 @@ Attempting to allocate zero bytes will return a
 .Dv NULL
 pointer instead of
 a valid pointer.
-(The default behavior is to make a minimal allocation and return a 
+(The default behavior is to make a minimal allocation and return a
 pointer to it.)
 This option is provided for System V compatibility.
 This option is incompatible with the
@@ -247,7 +247,7 @@ The
 and
 .Dq Z
 options are intended for testing and debugging.
-An application which changes its behavior when these options are used 
+An application which changes its behavior when these options are used
 is flawed.
 .Sh EXAMPLES
 To set a systemwide reduction of cache size, and to dump core whenever
@@ -324,8 +324,8 @@ done by a process.
 .Ed
 .Pp
 A side effect of this architecture is that many minor transgressions on
-the interface which would traditionally not be detected are in fact 
-detected.  As a result, programs that have been running happily for 
+the interface which would traditionally not be detected are in fact
+detected.  As a result, programs that have been running happily for
 years may suddenly start to complain loudly, when linked with this
 allocation implementation.
 .Pp
@@ -365,7 +365,7 @@ There are a number of allocation implementations available on the 'Net
 which focus on detecting and pinpointing problems by trading performance
 for extra sanity checks and detailed diagnostics.
 .Sh DIAGNOSTIC MESSAGES
-If 
+If
 .Fn malloc ,
 .Fn calloc ,
 .Fn realloc
@@ -461,8 +461,8 @@ functions conform to
 .St -isoC .
 .Sh HISTORY
 The present allocation implementation started out as a filesystem for a
-drum attached to a 20bit binary challenged computer which was built 
-with discrete germanium transistors.  It has since graduated to 
+drum attached to a 20bit binary challenged computer which was built
+with discrete germanium transistors.  It has since graduated to
 handle primary storage rather than secondary.
 It first appeared in its new shape and ability in
 .Fx 2.2 .

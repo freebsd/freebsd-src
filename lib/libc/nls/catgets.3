@@ -32,7 +32,7 @@
 .Os
 .Sh NAME
 .Nm catgets
-.Nd retrieve string from message catalog 
+.Nd retrieve string from message catalog
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -40,20 +40,20 @@
 .Ft char *
 .Fn catgets "nl_catd catd" "int set_id" "int msg_id" "const char *s"
 .Sh DESCRIPTION
-The 
-.Fn catgets 
+The
+.Fn catgets
 function attempts to retrieve message
 .Fa msg_id
 of set
 .Fa set_id
 from the message catalog referenced by the descriptor
 .Fa catd .
-The argument 
+The argument
 .Fa s
 points to a default message which is returned if the function
 is unable to retrieve the specified message.
 .Sh RETURN VALUES
-If the specified message was retrieved successfully, 
+If the specified message was retrieved successfully,
 .Fn catgets
 returns a pointer to an internal buffer containing the message string;
 otherwise it returns

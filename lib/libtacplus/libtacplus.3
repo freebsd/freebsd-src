@@ -258,7 +258,7 @@ initial authentication request.
 .Pp
 When it receives the CONTINUE packet, the server may again request
 more information by returning
-.Dv TAC_AUTHEN_STATUS_GETDATA , 
+.Dv TAC_AUTHEN_STATUS_GETDATA ,
 .Dv TAC_AUTHEN_STATUS_GETUSER ,
 or
 .Dv TAC_AUTHEN_STATUS_GETPASS .
@@ -272,7 +272,7 @@ can be retrieved by calling
 .Fn tac_strerror .
 The message text is overwritten on each new error for the given
 .Va struct tac_handle * .
-Thus the message must be copied if it is to be preserved through 
+Thus the message must be copied if it is to be preserved through
 subsequent library calls using the same handle.
 .Sh CLEANUP
 To free the resources used by the TACACS+ library, call
@@ -283,7 +283,7 @@ they detect an error, they return -1 and record an error message
 which can be retrieved using
 .Fn tac_strerror .
 .Pp
-.Bl -item -offset indent -compact 
+.Bl -item -offset indent -compact
 .It
 .Fn tac_add_server
 .It

@@ -70,9 +70,9 @@ the buffer associated with
 and modified on return to indicate the actual size of the
 address stored there.
 .Pp
-The 
+The
 .Fn recv
-call is normally used only on a 
+call is normally used only on a
 .Em connected
 socket (see
 .Xr connect 2 )
@@ -115,7 +115,7 @@ call may be used to determine when more data arrive.
 .Pp
 The
 .Fa flags
-argument to a recv call is formed by 
+argument to a recv call is formed by
 .Em or Ap ing
 one or more of the values:
 .Bl -column MSG_WAITALL -offset indent
@@ -142,7 +142,7 @@ or the next data to be received is of a different type than that returned.
 .Pp
 The
 .Fn recvmsg
-call uses a 
+call uses a
 .Fa msghdr
 structure to minimize the number of directly supplied parameters.
 This structure has the following form, as defined in

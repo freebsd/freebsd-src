@@ -125,7 +125,7 @@ version.
 .Fn checkversion
 checks the userland devstat version against the kernel devstat version.  If
 the two are identical, it returns zero.  Otherwise, it prints an
-appropriate error in 
+appropriate error in
 .Va devstat_errbuf
 and returns -1.
 .Pp
@@ -134,12 +134,12 @@ fetches the current list of devices and statistics into the supplied
 .Va statinfo
 structure.  The
 .Va statinfo
-structure can be found in 
+structure can be found in
 .Aq Pa devstat.h :
 .Bd -literal -offset indent
 struct statinfo {
 	long            cp_time[CPUSTATES];
-	long            tk_nin;  
+	long            tk_nin;
 	long            tk_nout;
 	struct devinfo  *dinfo;
 	struct timeval  busy_time;
@@ -205,10 +205,10 @@ variable.  The generation subelement of the
 structure contains the generation number from the
 .Va kern.devstat.all
 .Nm sysctl
-variable.  
+variable.
 The
 .Va numdevs
-subelement of the 
+subelement of the
 .Va devinfo
 structure contains the current
 number of devices registered with the kernel
@@ -228,11 +228,11 @@ from user input.
 .It performance
 If performance mode is enabled, devices will be sorted based on the
 .Va bytes
-field in the 
+field in the
 .Va device_selection
 structure passed in to
 .Fn selectdevs .
-The 
+The
 .Va bytes
 value currently must be maintained by the user.  In the future,
 this may be done for him in a
@@ -245,11 +245,11 @@ performance tracking code will honor those selections and will only sort
 among the selected devices.
 .It order in the devstat list
 If the selection mode is set to DS_SELECT_ADD, and if there are still less
-than 
+than
 .Va maxshowdevs
 devices selected,
 .Fn selectdevs
-will automatically select up to 
+will automatically select up to
 .Va maxshowdevs
 devices.
 .El
@@ -262,7 +262,7 @@ In add mode,
 .Fn selectdevs
 will select any unselected devices specified by name or matching pattern.
 It will also select more devices, in devstat list order, until the number
-of selected devices is equal to 
+of selected devices is equal to
 .Va maxshowdevs
 or until all devices are
 selected.
@@ -286,7 +286,7 @@ any devices other than those specified.
 .Pp
 In all selection modes,
 .Fn selectdevs
-will not select any more than 
+will not select any more than
 .Va maxshowdevs
 devices.  One exception to
 this is when you are in
@@ -300,26 +300,26 @@ device.  This may be the wrong behavior, and probably requires additional
 thought.
 .Pp
 .Fn selectdevs
-handles allocation and resizing of the 
+handles allocation and resizing of the
 .Va dev_select
 structure passed in
 by the client.
 .Fn selectdevs
-uses the 
+uses the
 .Va numdevs
-and 
+and
 .Va current_generation
 fields to track the
 current
 .Nm
-generation and number of devices.  If 
+generation and number of devices.  If
 .Va num_selections
 is not the same
-as 
+as
 .Va numdevs
-or if 
+or if
 .Va select_generation
-is not the same as 
+is not the same as
 .Va current_generation ,
 .Fn selectdevs
 will resize the selection list as necessary, and re-initialize the
@@ -342,7 +342,7 @@ Currently known match types include:
 .Bl -tag -width indent -compact
 .It device type:
 .Bl -tag -width 9n -compact
-.It da 
+.It da
 Direct Access devices
 .It sa
 Sequential Access devices
@@ -437,7 +437,7 @@ is NULL, the result will be the total number of transactions listed in
 .It total_blocks
 This is basically
 .Va total_bytes
-divided by the device blocksize.  If the device blocksize is listed as 
+divided by the device blocksize.  If the device blocksize is listed as
 .Sq 0 ,
 the device blocksize will default to 512 bytes.
 .It kb_per_transfer
@@ -461,7 +461,7 @@ provides an easy way to find the difference in seconds between two
 structures.  This is most commonly used in conjunction with the time
 recorded by the
 .Fn getdevs
-function (in struct 
+function (in struct
 .Va statinfo )
 each time it fetches the current
 .Nm

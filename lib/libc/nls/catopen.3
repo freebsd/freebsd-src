@@ -32,7 +32,7 @@
 .Os
 .Sh NAME
 .Nm catopen
-.Nd open message catalog 
+.Nd open message catalog
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -40,21 +40,21 @@
 .Ft nl_catd
 .Fn catopen "const char *name" "int oflag"
 .Sh DESCRIPTION
-The 
+The
 .Fn catopen
 function opens the message catalog specified by
-.Fa name 
+.Fa name
 and returns a message catalog descriptor.
 If
 .Fa name
 contains a
-.Sq / 
-then 
+.Sq /
+then
 .Fa name
-specifies the full pathname for the message catalog, otherwise the value 
+specifies the full pathname for the message catalog, otherwise the value
 of the environment variable
-.Ev NLSPATH 
-is used with 
+.Ev NLSPATH
+is used with
 the following substitutions:
 .Bl -tag -width XXX
 .It \&%N
@@ -86,7 +86,7 @@ environment variable or from the
 .Dv LC_MESSAGES
 category.
 .It \&%%
-A single % character. 
+A single % character.
 .El
 .Pp
 An empty string is substituted for undefined values.
@@ -124,11 +124,11 @@ until a successful call to one of the
 .Xr exec 3
 function.
 .Sh RETURN VALUES
-Upon successful completion, 
+Upon successful completion,
 .Fn catopen
 returns a message catalog descriptor.
 Otherwise, (nl_catd) -1 is returned and
-.Va errno 
+.Va errno
 is set to indicate the error.
 .Sh ERRORS
 .Bl -tag -width Er

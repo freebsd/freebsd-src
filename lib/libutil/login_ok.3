@@ -46,17 +46,17 @@ class capability entries in the login database,
 .Pp
 .Fn auth_ttyok
 checks to see if the named tty is available to users of a specific
-class, and is either in the 
+class, and is either in the
 .Em ttys.allow
 access list, and not in
-the 
+the
 .Em ttys.deny
 access list.
-An empty 
+An empty
 .Em ttys.allow
 list (or if no such capability exists for
 the give login class) logins via any tty device are allowed unless
-the 
+the
 .Em ttys.deny
 list exists and is non-empty, and the device or its
 tty group (see
@@ -67,7 +67,7 @@ name, a device name which includes a wildcard (e.g. ttyD* or cuaD*),
 or may name a ttygroup, when group=<name> tags have been assigned in
 .Pa /etc/ttys .
 Matching of ttys and ttygroups is case sensitive.
-Passing a 
+Passing a
 .Dv NULL
 or empty string as the
 .Ar tty
@@ -76,9 +76,9 @@ parameter causes the function to return a non-zero value.
 .Fn auth_hostok
 checks for any host restrictions for remote logins.
 The function checks on both a host name and IP address (given in its
-text form, typically n.n.n.n) against the 
+text form, typically n.n.n.n) against the
 .Em host.allow
-and 
+and
 .Em host.deny
 login class capabilities.
 As with ttys and their groups, wildcards and character classes may be
@@ -93,7 +93,7 @@ is in its canonical form.
 No hostname or address lookups are attempted.
 .Pp
 It is possible to call this function with either the hostname or
-the IP address missing (i.e. 
+the IP address missing (i.e.
 .Dv NULL )
 and matching will be performed
 only on the basis of the parameter given.
@@ -109,7 +109,7 @@ function checks to see that a given time value is within the
 login class capability and not within the
 .Em times.deny
 access lists.
-An empty or non-existent 
+An empty or non-existent
 .Em times.allow
 list allows access at any
 time, except if a given time is falls within a period in the
@@ -126,7 +126,7 @@ manual page.
 A non-zero return value from any of these functions indicates that
 login access is granted.
 A zero return value means either that the item being tested is not
-in the 
+in the
 .Em allow
 access list, or is within the
 .Em deny

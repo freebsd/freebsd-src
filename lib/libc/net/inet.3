@@ -53,7 +53,7 @@
 .Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/inet.h>
-.Ft int 
+.Ft int
 .Fn inet_aton "const char *cp" "struct in_addr *pin"
 .Ft in_addr_t
 .Fn inet_addr "const char *cp"
@@ -65,7 +65,7 @@
 .Fn inet_ntop "int af" "const void *src" "char *dst" "size_t size"
 .Ft int
 .Fn inet_pton "int af" "const char *src" "void *dst"
-.Ft struct in_addr 
+.Ft struct in_addr
 .Fn inet_makeaddr "in_addr_t net" "in_addr_t lna"
 .Ft in_addr_t
 .Fn inet_lnaof "struct in_addr in"
@@ -248,7 +248,7 @@ This is a narrower input set than that accepted by
 .Fn inet_aton .
 .Sh HISTORY
 These
-functions appeared in 
+functions appeared in
 .Bx 4.2 .
 .Sh BUGS
 The value

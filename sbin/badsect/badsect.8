@@ -63,7 +63,7 @@ currently requires the running of the standard
 formatter.
 Thus to deal with a newly bad block
 or on disks where the drivers
-do not support the bad-blocking standard 
+do not support the bad-blocking standard
 .Nm
 may be used to good effect.
 .Pp
@@ -88,7 +88,7 @@ and run
 on the file system.  The bad sectors should show up in two files
 or in the bad sector files and the free list.  Have
 .Xr fsck
-remove files containing the offending bad sectors, but 
+remove files containing the offending bad sectors, but
 .Em do not
 have it remove the
 .Pa BAD/ Ns Em nnnnn
@@ -103,11 +103,11 @@ works by giving the specified sector numbers in a
 system call,
 creating an illegal file whose first block address is the block containing
 bad sector and whose name is the bad sector number.
-When it is discovered by 
+When it is discovered by
 .Xr fsck 8
 it will ask
 .Dq Li "HOLD BAD BLOCK \&?" .
-A positive response will cause 
+A positive response will cause
 .Xr fsck 8
 to convert the inode to a regular file containing the bad block.
 .Sh SEE ALSO

@@ -185,7 +185,7 @@ If the
 flag is non-zero,
 this sets the option to send all queries to the name server using
 .Tn TCP
-and to retain the connection after each call to 
+and to retain the connection after each call to
 .Fn gethostbyname ,
 .Fn gethostbyname2
 or
@@ -240,7 +240,7 @@ if ((hp = gethostbyaddr((const char *)&ip,
 printf("name associated with %s is %s\en", ipstr, hp->h_name);
 .Ed
 .Sh DIAGNOSTICS
-Error return status from 
+Error return status from
 .Fn gethostbyname ,
 .Fn gethostbyname2
 and
@@ -277,8 +277,8 @@ A retry at some later time may succeed.
 Some unexpected server failure was encountered.
 This is a non-recoverable error.
 .It Dv NO_DATA
-The requested name is valid but does not have an IP address; 
-this is not a temporary error.  
+The requested name is valid but does not have an IP address;
+this is not a temporary error.
 This means that the name is known to the name server but there is no address
 associated with this name.
 Another type of request to the name server using this domain name
@@ -335,7 +335,7 @@ closes the file.
 .Sh HISTORY
 The
 .Fn herror
-function appeared in 
+function appeared in
 .Bx 4.3 .
 The
 .Fn endhostent ,

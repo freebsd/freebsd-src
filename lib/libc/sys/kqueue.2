@@ -60,7 +60,7 @@ The filter is also run when the user attempts to retrieve the kevent
 from the kqueue.
 If the filter indicates that the condition that triggered
 the event no longer holds, the kevent is removed from the kqueue and
-is not returned. 
+is not returned.
 .Pp
 Multiple events which trigger the filter do not result in multiple
 kevents being placed on the kqueue; instead, the filter will aggregate
@@ -85,17 +85,17 @@ is used to register events with the queue, and return any pending
 events to the user.
 .Fa changelist
 is a pointer to an array of
-.Va kevent 
+.Va kevent
 structures, as defined in
 .Aq Pa sys/event.h .
-All changes contained in the 
+All changes contained in the
 .Fa changelist
 are applied before any pending events are read from the queue.
 .Fa nchanges
 gives the size of
 .Fa changelist .
 .Fa eventlist
-is a pointer to an array of kevent structures. 
+is a pointer to an array of kevent structures.
 .Fa nevents
 determines the size of
 .Fa eventlist .
@@ -112,7 +112,7 @@ argument should be non-NULL, pointing to a zero-valued
 .Va timespec
 structure.  The same array may be used for the
 .Fa changelist
-and 
+and
 .Fa eventlist .
 .Pp
 .Fn EV_SET
@@ -149,7 +149,7 @@ Actions to perform on the event.
 .It fflags
 Filter-specific flags.
 .It data
-Filter-specific data value. 
+Filter-specific data value.
 .It udata
 Opaque user-defined value passed through the kernel unchanged.
 .El
@@ -172,8 +172,8 @@ Disable the event so
 .Fn kevent
 will not return it.  The filter itself is not disabled.
 .It EV_DELETE
-Removes the event from the kqueue.  Events which are attached to 
-file descriptors are automatically deleted on the last close of 
+Removes the event from the kqueue.  Events which are attached to
+file descriptors are automatically deleted on the last close of
 the descriptor.
 .It EV_ONESHOT
 Causes the event to return only the first occurrence of the filter
@@ -193,7 +193,7 @@ below.
 .El
 .Pp
 The predefined system filters are listed below.
-Arguments may be passed to and from the filter via the 
+Arguments may be passed to and from the filter via the
 .Va fflags
 and
 .Va data
@@ -218,9 +218,9 @@ subject to the
 .Dv SO_RCVLOWAT
 value of the socket buffer.
 This may be overridden with a per-filter low water mark at the
-time the filter is added by setting the 
-NOTE_LOWAT 
-flag in 
+time the filter is added by setting the
+NOTE_LOWAT
+flag in
 .Va fflags ,
 and specifying the new low water mark in
 .Va data .
@@ -231,7 +231,7 @@ contains the number of bytes in the socket buffer.
 If the read direction of the socket has shutdown, then the filter
 also sets EV_EOF in
 .Va flags ,
-and returns the socket error (if any) in 
+and returns the socket error (if any) in
 .Va fflags .
 It is possible for EOF to be returned (indicating the connection is gone)
 while there is still data pending in the socket buffer.
@@ -254,22 +254,22 @@ returning.
 .It EVFILT_WRITE
 Takes a descriptor as the identifier, and returns whenever
 it is possible to write to the descriptor.  For sockets, pipes
-and fifos, 
+and fifos,
 .Va data
 will contain the amount of space remaining in the write buffer.
 The filter will set EV_EOF when the reader disconnects, and for
 the fifo case, this may be cleared by use of EV_CLEAR.
 Note that this filter is not supported for vnodes.
 .Pp
-For sockets, the low water mark and socket error handling is 
+For sockets, the low water mark and socket error handling is
 identical to the EVFILT_READ case.
 .It EVFILT_AIO
 The sigevent portion of the AIO request is filled in, with
-.Va sigev_notify_kqueue 
+.Va sigev_notify_kqueue
 containing the descriptor of the kqueue that the event should
 be attached to,
 .Va sigev_value
-containing the udata value, and 
+containing the udata value, and
 .Va sigev_notify
 set to SIGEV_EVENT.
 When the aio_* function is called, the event will be registered
@@ -280,7 +280,7 @@ argument set to the
 returned by the aio_* function.
 The filter returns under the same conditions as aio_error.
 .Pp
-Alternatively, a kevent structure may be initialized, with 
+Alternatively, a kevent structure may be initialized, with
 .Va ident
 containing the descriptor of the kqueue, and the
 address of the kevent structure placed in the
@@ -288,7 +288,7 @@ address of the kevent structure placed in the
 field of the AIO request.  However, this approach will not work on
 architectures with 64-bit pointers, and should be considered depreciated.
 .It EVFILT_VNODE
-Takes a file descriptor as the identifier and the events to watch for in 
+Takes a file descriptor as the identifier and the events to watch for in
 .Va fflags ,
 and returns when one or more of the requested events occurs on the descriptor.
 The events to monitor are:
@@ -307,7 +307,7 @@ The link count on the file changed.
 .It NOTE_RENAME
 The file referenced by the descriptor was renamed.
 .It NOTE_REVOKE
-Access to the file was revoked via 
+Access to the file was revoked via
 .Xr revoke 2
 or the underlying fileystem was unmounted.
 .El
@@ -316,7 +316,7 @@ On return,
 .Va fflags
 contains the events which triggered the filter.
 .It EVFILT_PROC
-Takes the process ID to monitor as the identifier and the events to watch for 
+Takes the process ID to monitor as the identifier and the events to watch for
 in
 .Va fflags ,
 and returns when the process performs one or more of the requested events.
@@ -329,7 +329,7 @@ The process has exited.
 The process has called
 .Fn fork .
 .It NOTE_EXEC
-The process has executed a new process via 
+The process has executed a new process via
 .Xr execve 2
 or similar call.
 .It NOTE_TRACK
@@ -339,7 +339,7 @@ calls.  The parent process will return with NOTE_TRACK set in the
 .Va fflags
 field, while the child process will return with NOTE_CHILD set in
 .Va fflags
-and the parent PID in 
+and the parent PID in
 .Va data .
 .It NOTE_TRACKERR
 This flag is returned if the system was unable to attach an event to
@@ -354,7 +354,7 @@ Takes the signal number to monitor as the identifier and returns
 when the given signal is delivered to the process.
 This coexists with the
 .Fn signal
-and 
+and
 .Fn sigaction
 facilities, and has a lower precedence.  The filter will record
 all attempts to deliver a signal to a process, even if the signal has
@@ -416,9 +416,9 @@ function fails if:
 .It Bq Er EACCES
 The process does not have permission to register a filter.
 .It Bq Er EFAULT
-There was an error reading or writing the 
+There was an error reading or writing the
 .Va kevent
-structure. 
+structure.
 .It Bq Er EBADF
 The specified descriptor is invalid.
 .It Bq Er EINTR

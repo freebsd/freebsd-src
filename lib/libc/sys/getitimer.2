@@ -68,7 +68,7 @@ call sets a timer to the specified
 .Fa ovalue
 is non-nil).
 .Pp
-A timer value is defined by the 
+A timer value is defined by the
 .Fa itimerval
 structure:
 .Bd -literal -offset indent
@@ -80,13 +80,13 @@ struct itimerval {
 .Pp
 If
 .Fa it_value
-is non-zero, it indicates the time to the next timer expiration. 
+is non-zero, it indicates the time to the next timer expiration.
 If
 .Fa it_interval
-is non-zero, it specifies a value to be used in reloading 
+is non-zero, it specifies a value to be used in reloading
 .Fa it_value
 when the timer expires.
-Setting 
+Setting
 .Fa it_value
 to 0 disables a timer, regardless of the value of
 .Fa it_interval .

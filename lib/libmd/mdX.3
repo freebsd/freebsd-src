@@ -46,7 +46,7 @@
 The MDX functions calculate a 128-bit cryptographic checksum (digest)
 for any number of input bytes.  A cryptographic checksum is a one-way
 hash-function, that is, you cannot find (except by exhaustive search)
-the input corresponding to a particular output.  This net result is 
+the input corresponding to a particular output.  This net result is
 a ``fingerprint'' of the input-data, which doesn't disclose the actual
 input.
 .Pp
@@ -87,7 +87,7 @@ which converts the return value to a 33-character
 string which represents the 128 bits in hexadecimal.
 .Pp
 .Fn MDXFile
-calculates the digest of a file, and uses 
+calculates the digest of a file, and uses
 .Fn MDXEnd
 to return the result.
 If the file cannot be opened, a null pointer is returned.
@@ -118,7 +118,7 @@ When using
 .Fn MDXFile ,
 or
 .Fn MDXData ,
-the 
+the
 .Fa buf
 argument can be a null pointer, in which case the returned string
 is allocated with
@@ -126,7 +126,7 @@ is allocated with
 and subsequently must be explicitly deallocated using
 .Xr free 3
 after use.
-If the 
+If the
 .Fa buf
 argument is non-null it must point to at least 33 characters of buffer space.
 .Sh SEE ALSO
@@ -150,7 +150,7 @@ argument is non-null it must point to at least 33 characters of buffer space.
 .%O RFC 1321
 .Re
 .Rs
-.%A RSA Laboratories 
+.%A RSA Laboratories
 .%T Frequently Asked Questions About today's Cryptography
 .%O \&<http://www.rsa.com/rsalabs/faq/>
 .Re

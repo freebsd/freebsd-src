@@ -111,12 +111,12 @@ rely on the
 library calls to manage username and uid mapping, as well as the
 .Xr getgrent 3
 library calls to manage groupname and gid mapping.  These calls are not
-thread safe, and so transitively, neither are 
+thread safe, and so transitively, neither are
 .Fn acl_from_text
 and
 .Fn acl_to_text .
 These functions may also interfere with stateful
-calls associated with the 
+calls associated with the
 .Fn getpwent
 and
 .Fn getgrent

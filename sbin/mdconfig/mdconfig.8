@@ -50,7 +50,7 @@
 .Sh SYNOPSIS
 .Nm
 .Fl a
-.Fl t Ar type 
+.Fl t Ar type
 .Oo
 .Fl o
 .Oo Cm no Oc Ns Ar option
@@ -67,7 +67,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command configures and enables 
+command configures and enables
 .Xr md 4
 devices.
 .Pp
@@ -79,7 +79,7 @@ This will configure and attach a memory disk with the
 parameters specified and attach it to the system.
 .It Fl d
 Detach a memory disk from the system and release all resources.
-.It Fl t Ar type 
+.It Fl t Ar type
 Select the type of the memory disk.
 .Bl -tag -width "preload"
 .It Cm malloc
@@ -87,7 +87,7 @@ Storage for this type of memory disk is allocated with
 .Xr malloc 9 .
 This limits the size to the malloc bucket limit in the kernel.
 .It Cm vnode
-A file specified with 
+A file specified with
 .Fl f Ar file
 becomes the backingstore for this memory disk.
 .It Cm swap
@@ -182,7 +182,7 @@ first appeared in
 .Fx 5.0
 as a cleaner replacement for the
 .Xr vn 4
-and 
+and
 .Xr vnconfig 8
 combo.
 .Sh AUTHORS

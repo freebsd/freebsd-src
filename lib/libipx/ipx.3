@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <netipx/ipx.h>
-.Ft struct ipx_addr 
+.Ft struct ipx_addr
 .Fn ipx_addr "const char *cp"
 .Ft char *
 .Fn ipx_ntoa "struct ipx_addr ipx"
@@ -67,7 +67,7 @@ notation in common use:
 .Ed
 .Pp
 Trailing zero fields are suppressed, and each number is printed in hexadecimal,
-in a format suitable for input to 
+in a format suitable for input to
 .Fn ipx_addr .
 Any fields lacking super-decimal digits will have a
 trailing
@@ -116,7 +116,7 @@ The precursor
 .Fn ns_addr
 and
 .Fn ns_toa
-functions appeared in 
+functions appeared in
 .Bx 4.3 .
 .Sh BUGS
 The string returned by

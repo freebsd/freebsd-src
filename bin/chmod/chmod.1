@@ -113,42 +113,42 @@ one or more of the following values:
 .Pp
 .Bl -tag -width 6n -compact -offset indent
 .It Li 4000
-(the set-user-ID-on-execution bit) Executable files with this bit set 
+(the set-user-ID-on-execution bit) Executable files with this bit set
 will run with effective uid set to the uid of the file owner.
-Directories with the set-user-id bit set will force all files and 
-sub-directories created in them to be owned by the directory owner 
-and not by the uid of the creating process, if the underlying file 
-system supports this feature: see 
+Directories with the set-user-id bit set will force all files and
+sub-directories created in them to be owned by the directory owner
+and not by the uid of the creating process, if the underlying file
+system supports this feature: see
 .Xr chmod 2
-and the 
+and the
 .Ar suiddir
 option to
 .Xr mount 8 .
 .It Li 2000
-(the set-group-ID-on-execution bit)  Executable files with this bit set 
-will run with effective gid set to the gid of the file owner.  
+(the set-group-ID-on-execution bit)  Executable files with this bit set
+will run with effective gid set to the gid of the file owner.
 .It Li 1000
-(the sticky bit)  
+(the sticky bit)
 When set on a directory, unprivileged users can delete and rename
-only those files in the directory that are owned by them, regardless of 
+only those files in the directory that are owned by them, regardless of
 the permissions on the directory.  Under
 .Fx ,
-the sticky bit is 
-ignored for executable files and may only be set for directories (see 
+the sticky bit is
+ignored for executable files and may only be set for directories (see
 .Xr sticky 8 ) .
 .It Li 0400
 Allow read by owner.
 .It Li 0200
 Allow write by owner.
 .It Li 0100
-For files, allow execution by owner.  For directories, allow the owner to 
+For files, allow execution by owner.  For directories, allow the owner to
 search in the directory.
 .It Li 0040
 Allow read by group members.
 .It Li 0020
 Allow write by group members.
 .It Li 0010
-For files, allow execution by group members.  For directories, allow 
+For files, allow execution by group members.  For directories, allow
 group members to search in the directory.
 .It Li 0004
 Allow read by others.
@@ -159,9 +159,9 @@ For files, allow execution by others.  For directories allow others to
 search in the directory.
 .El
 .Pp
-For example, the absolute mode that permits read, write and execute by 
-the owner, read and execute by group members, read and execute by 
-others, and no set-uid or set-gid behaviour is 755 
+For example, the absolute mode that permits read, write and execute by
+the owner, read and execute by group members, read and execute by
+others, and no set-uid or set-gid behaviour is 755
 (400+200+100+040+010+004+001).
 .Pp
 The symbolic mode is described by the following grammar:

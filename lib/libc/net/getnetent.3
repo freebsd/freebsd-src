@@ -66,14 +66,14 @@ functions
 each return a pointer to an object with the
 following structure describing an internet network.
 This structure contains either the information obtained
-from the nameserver, 
+from the nameserver,
 .Xr named 8 ,
 broken-out fields of a line in the network data base
 .Pa /etc/networks ,
 or entries supplied by the
-.Xr yp 4 
+.Xr yp 4
 system.  The order of the lookups is controlled by the
-`networks' entry in 
+`networks' entry in
 .Xr nsswitch.conf 5 .
 .Pp
 .Bd -literal -offset indent
@@ -109,7 +109,7 @@ function
 opens and rewinds the file.  If the
 .Fa stayopen
 flag is non-zero,
-the net data base will not be closed after each call to 
+the net data base will not be closed after each call to
 .Fn getnetbyname
 or
 .Fn getnetbyaddr .
@@ -159,7 +159,7 @@ The
 .Fn setnetent ,
 and
 .Fn endnetent
-functions appeared in 
+functions appeared in
 .Bx 4.2 .
 .Sh BUGS
 The data space used by

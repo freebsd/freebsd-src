@@ -45,7 +45,7 @@ associated with the structure pointed to by
 .Pp
 .Fn aio_return
 should only be called once, to obtain the final status of an asynchronous
-I/O operation once 
+I/O operation once
 .Xr aio_error 2
 returns something other than
 .Er EINPROGRESS .
@@ -59,7 +59,7 @@ or
 On failure,
 .Fn aio_return
 returns
-.Dv -1 
+.Dv -1
 and sets
 .Dv errno
 to indicate the error condition.
