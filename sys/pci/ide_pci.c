@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.37 1999/07/21 02:28:35 peter Exp $
+ *	$Id: ide_pci.c,v 1.38 1999/07/22 19:45:33 julian Exp $
  */
 
 #include "wd.h"
@@ -189,16 +189,12 @@ extern struct isa_driver wdcdriver;
 /*
  * PRD_ALLOC_SIZE should be something that will not be allocated across a 64k
  * boundary.
- * DMA_PG_SZ is the size of the chunks that each DMA scatter gather element
- * represents. In some systems there can be reasons to make this smaller than
- * a pagesize (usually due to broken hardware).
  * PRD_MAX_SEGS is defined to be the maximum number of segments required for
  * a transfer on an IDE drive, for an xfer that is linear in virtual memory.
  * PRD_BUF_SIZE is the size of the buffer needed for a PRD table.
  */
 #define	PRD_ALLOC_SIZE		PAGE_SIZE
-#define DMA_PG_SZ		PAGE_SIZE
-#define PRD_MAX_SEGS		((256 * 512 / DMA_PG_SZ) + 1)
+#define PRD_MAX_SEGS		((256 * 512 / PAGE_SIZE) + 1)
 #define PRD_BUF_SIZE		PRD_MAX_SEGS * 8
 
 static void *prdbuf = 0;
@@ -1835,7 +1831,7 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 
 	/* Generate first PRD entry, which may be non-aligned. */
 
-	firstpage = DMA_PG_SZ - ((uintptr_t)vaddr & (DMA_PG_SZ - 1));
+	firstpage = PAGE_SIZE - ((uintptr_t)vaddr & PAGE_MASK);
 
 	prd_base = vtophys(vaddr);
 	prd_count = MIN(count,  firstpage);
@@ -1851,7 +1847,7 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 	 */
 	while (count) {
 		nbase = vtophys(vaddr);
-		ncount = MIN(count, DMA_PG_SZ);
+		ncount = MIN(count, PAGE_SIZE);
 		nend = nbase + ncount;
 
 		prd[i].prd_base = prd_base;
