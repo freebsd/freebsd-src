@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.15 1999/01/10 16:41:13 nsouch Exp $
+ * $FreeBSD$
  *
  */
 #include "ppc.h"

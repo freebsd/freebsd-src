@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.33 1998/09/04 23:03:04 luoqi Exp $
+ * $FreeBSD$
  */
 
 

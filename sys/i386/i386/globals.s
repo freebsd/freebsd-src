@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.8 1998/09/28 12:20:46 peter Exp $
+ * $FreeBSD$
  */
 
 #include "opt_vm86.h"

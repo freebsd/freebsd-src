@@ -2,7 +2,7 @@
 # LKM - verification kernel for LKMs.  This is not intended to be run
 # on any real hardware, only to make it possible to test-link LKMs.
 #
-#	$Id: LKM,v 1.2 1998/10/22 12:23:04 bde Exp $
+# $FreeBSD$
 #
 
 ##

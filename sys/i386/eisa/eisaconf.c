@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.36 1998/12/04 22:54:46 archie Exp $
+ * $FreeBSD$
  */
 
 #include "opt_eisa.h"

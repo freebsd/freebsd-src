@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.7 1998/09/06 22:41:40 tegge Exp $
+ * $FreeBSD$
  */
 
 #include "opt_vm86.h"

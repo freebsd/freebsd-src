@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.56 1999/07/04 14:35:23 wpaul Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.56 1999/07/04 14:35:23 wpaul Exp $";
+  "$FreeBSD$";
 #endif
 
 static struct wi_softc wi_softc[NWI];

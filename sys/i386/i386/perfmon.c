@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.17 1999/01/12 00:19:32 eivind Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.40 1998/07/13 09:53:02 bde Exp $ */
+/* $FreeBSD$ */
 
 /* Please send any comments to micke@dynas.se */
 

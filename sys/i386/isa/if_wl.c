@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.19 1998/12/09 03:30:51 eivind Exp $ */
+/* $FreeBSD$ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

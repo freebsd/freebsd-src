@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.7 1998/12/07 21:58:21 archie Exp $
+ * $FreeBSD$
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.7 1999/05/02 21:51:17 peter Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/param.h>

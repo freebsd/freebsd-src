@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.31 1998/11/15 15:33:50 bde Exp $
+ * $FreeBSD$
  */
 
 /*

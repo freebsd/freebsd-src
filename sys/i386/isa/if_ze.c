@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.55 1998/10/22 05:58:39 bde Exp $
+ * $FreeBSD$
  */
 
 /* XXX don't mix different PCCARD support code. */

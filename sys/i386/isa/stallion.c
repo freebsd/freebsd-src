@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.23 1998/10/22 05:58:40 bde Exp $
+ * $FreeBSD$
  */
 
 /*****************************************************************************/

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.110 1998/10/26 07:05:34 bde Exp $
+ * $FreeBSD$
  */
 
 /*
