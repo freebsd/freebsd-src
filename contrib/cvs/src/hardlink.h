@@ -21,13 +21,13 @@ struct hardlink_info
 {
     Ctype status;		/* as returned from Classify_File() */
     int checked_out;		/* has this file been checked out lately? */
-    char *links;		/* contents of `hardlinks' RCS field */
 };
 
 extern List *hardlist;
 extern char *working_dir;
 
-int cache_hardlinks_proc PROTO ((Node *, void *));
 Node *lookup_file_by_inode PROTO ((const char *));
 void update_hardlink_info PROTO ((const char *));
-char *list_files_linked_to PROTO ((const char *));
+List *list_linked_files_on_disk PROTO ((char *));
+int compare_linkage_lists PROTO ((List *, List *));
+int find_checkedout_proc PROTO ((Node *, void *));

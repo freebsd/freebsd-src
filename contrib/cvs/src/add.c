@@ -56,6 +56,9 @@ add (argc, argv)
     List *entries;
     Vers_TS *vers;
     struct saved_cwd cwd;
+    /* Nonzero if we found a slash, and are thus adding files in a
+       subdirectory.  */
+    int found_slash = 0;
 
     if (argc == 1 || argc == -1)
 	usage (add_usage);
@@ -108,6 +111,20 @@ add (argc, argv)
 	    error (0, 0, "cannot add special file `%s'; skipping", argv[i]);
 	    skip_file = 1;
 	}
+	else
+	{
+	    char *p;
+	    p = argv[i];
+	    while (*p != '\0')
+	    {
+		if (ISDIRSEP (*p))
+		{
+		    found_slash = 1;
+		    break;
+		}
+		++p;
+	    }
+	}
 
 	if (skip_file)
 	{
@@ -143,9 +160,16 @@ add (argc, argv)
 	if (options) send_arg(options);
 	option_with_arg ("-m", message);
 
-	repository = Name_Repository (NULL, NULL);
-	send_a_repository ("", repository, "");
-	free (repository);
+	/* If !found_slash, refrain from sending "Directory", for
+	   CVS 1.9 compatibility.  If we only tried to deal with servers
+	   which are at least CVS 1.9.26 or so, we wouldn't have to
+	   special-case this.  */
+	if (found_slash)
+	{
+	    repository = Name_Repository (NULL, NULL);
+	    send_a_repository ("", repository, "");
+	    free (repository);
+	}
 
 	for (i = 0; i < argc; ++i)
 	    /* FIXME: Does this erroneously call Create_Admin in error
@@ -194,7 +218,8 @@ add (argc, argv)
 		Create_Admin (p, argv[i], rcsdir, tag, date,
 			      nonbranch, 0);
 
-		send_a_repository ("", repository, update_dir);
+		if (found_slash)
+		    send_a_repository ("", repository, update_dir);
 
 		if (restore_cwd (&cwd, NULL))
 		    error_exit ();

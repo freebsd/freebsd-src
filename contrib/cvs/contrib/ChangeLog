@@ -1,3 +1,7 @@
+1998-05-11  W. Bradley Rubenstein
+
+	* log.pl: Check for errors from open and exec.
+
 Sat Feb 21 21:59:45 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 	* Makefile.in (clean): Change "/bin/rm" to "rm".

@@ -521,6 +521,26 @@ unedit_fileproc (callerdat, finfo)
 	if (node != NULL)
 	{
 	    entdata = (Entnode *) node->data;
+	    if (baserev == NULL)
+	    {
+		/* This can only happen if the CVS/Baserev file got
+		   corrupted.  We suspect it might be possible if the
+		   user interrupts CVS, although I haven't verified
+		   that.  */
+		error (0, 0, "%s not mentioned in %s", finfo->fullname,
+		       CVSADM_BASEREV);
+
+		/* Since we don't know what revision the file derives from,
+		   keeping it around would be asking for trouble.  */
+		if (unlink_file (finfo->file) < 0)
+		    error (0, errno, "cannot remove %s", finfo->fullname);
+
+		/* This is cheesy, in a sense; why shouldn't we do the
+		   update for the user?  However, doing that would require
+		   contacting the server, so maybe this is OK.  */
+		error (0, 0, "run update to complete the unedit");
+		return 0;
+	    }
 	    Register (finfo->entries, finfo->file, baserev, entdata->timestamp,
 		      entdata->options, entdata->tag, entdata->date,
 		      entdata->conflict);

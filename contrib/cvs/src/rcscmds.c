@@ -11,6 +11,8 @@
 
 #include "cvs.h"
 #include <assert.h>
+#include <stdio.h>
+#include "diffrun.h"
 
 /* This file, rcs.h, and rcs.c, together sometimes known as the "RCS
    library", are intended to define our interface to RCS files.
@@ -75,6 +77,11 @@ static void call_diff_setup PROTO ((const char *prog));
 static int call_diff PROTO ((char *out));
 static int call_diff3 PROTO ((char *out));
 
+static void call_diff_write_output PROTO((const char *, size_t));
+static void call_diff_flush_output PROTO((void));
+static void call_diff_write_stdout PROTO((const char *));
+static void call_diff_error PROTO((const char *, const char *, const char *));
+
 /* VARARGS */
 static void 
 call_diff_setup (prog)
@@ -132,51 +139,92 @@ call_diff_add_arg (s)
 	call_diff_argv[call_diff_argc] = (char *) 0;
 }
 
-/* diff_run is imported from libdiff.a. */
-extern int diff_run PROTO ((int argc, char **argv, char *out));
+/* Callback function for the diff library to write data to the output
+   file.  This is used when we are producing output to stdout.  */
+
+static void
+call_diff_write_output (text, len)
+    const char *text;
+    size_t len;
+{
+    cvs_output (text, len);
+}
+
+/* Call back function for the diff library to flush the output file.
+   This is used when we are producing output to stdout.  */
+
+static void
+call_diff_flush_output ()
+{
+    cvs_flushout ();
+}
+
+/* Call back function for the diff library to write to stdout.  */
+
+static void
+call_diff_write_stdout (text)
+    const char *text;
+{
+    cvs_output (text, 0);
+}
+
+/* Call back function for the diff library to write to stderr.  */
+
+static void
+call_diff_error (format, a1, a2)
+    const char *format;
+    const char *a1;
+    const char *a2;
+{
+    /* FIXME: Should we somehow indicate that this error is coming from
+       the diff library?  */
+    error (0, 0, format, a1, a2);
+}
+
+/* This set of callback functions is used if we are sending the diff
+   to stdout.  */
+
+static struct diff_callbacks call_diff_stdout_callbacks =
+{
+    call_diff_write_output,
+    call_diff_flush_output,
+    call_diff_write_stdout,
+    call_diff_error
+};
+
+/* This set of callback functions is used if we are sending the diff
+   to a file.  */
+
+static struct diff_callbacks call_diff_file_callbacks =
+{
+    (void (*) PROTO((const char *, size_t))) NULL,
+    (void (*) PROTO((void))) NULL,
+    call_diff_write_stdout,
+    call_diff_error
+};
 
 static int
 call_diff (out)
     char *out;
 {
-    /* Try to keep the out-of-order bugs at bay (protocol_pipe for cvs_output
-       with has "Index: foo" and such; stdout and/or stderr for diff's
-       output).  I think the only reason that this used to not be such
-       a problem is that the time spent on the fork() and exec() of diff
-       slowed us down enough to let the "Index:" make it through first.
-
-       The real fix, of course, will be to have the diff library do all
-       its output through callbacks (which CVS will supply as cvs_output
-       and cvs_outerr).  */
-    sleep (1);
-
     if (out == RUN_TTY)
-	return diff_run (call_diff_argc, call_diff_argv, NULL);
+	return diff_run (call_diff_argc, call_diff_argv, NULL,
+			 &call_diff_stdout_callbacks);
     else
-	return diff_run (call_diff_argc, call_diff_argv, out);
+	return diff_run (call_diff_argc, call_diff_argv, out,
+			 &call_diff_file_callbacks);
 }
-
-extern int diff3_run PROTO ((int argc, char **argv, char *out));
 
 static int
 call_diff3 (out)
     char *out;
 {
-    /* Try to keep the out-of-order bugs at bay (protocol_pipe for cvs_output
-       with has "Index: foo" and such; stdout and/or stderr for diff's
-       output).  I think the only reason that this used to not be such
-       a problem is that the time spent on the fork() and exec() of diff
-       slowed us down enough to let the "Index:" make it through first.
-
-       The real fix, of course, will be to have the diff library do all
-       its output through callbacks (which CVS will supply as cvs_output
-       and cvs_outerr).  */
-    sleep (1);
-
     if (out == RUN_TTY)
-	return diff3_run (call_diff_argc, call_diff_argv, NULL);
+	return diff3_run (call_diff_argc, call_diff_argv, NULL,
+			  &call_diff_stdout_callbacks);
     else
-	return diff3_run (call_diff_argc, call_diff_argv, out);
+	return diff3_run (call_diff_argc, call_diff_argv, out,
+			  &call_diff_file_callbacks);
 }
 
 

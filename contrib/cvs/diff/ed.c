@@ -1,5 +1,5 @@
 /* Output routines for ed-script format.
-   Copyright (C) 1988, 89, 91, 92, 93 Free Software Foundation, Inc.
+   Copyright (C) 1988, 89, 91, 92, 93, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -57,7 +57,7 @@ print_ed_hunk (hunk)
 
   /* Print out the line number header for this hunk */
   print_number_range (',', &files[0], f0, l0);
-  fprintf (outfile, "%c\n", change_letter (inserts, deletes));
+  printf_output ("%c\n", change_letter (inserts, deletes));
 
   /* Print new/changed lines from second file, if needed */
   if (inserts)
@@ -68,8 +68,8 @@ print_ed_hunk (hunk)
 	{
 	  /* Resume the insert, if we stopped.  */
 	  if (! inserting)
-	    fprintf (outfile, "%da\n",
-		     i - f1 + translate_line_number (&files[0], f0) - 1);
+	    printf_output ("%da\n",
+			   i - f1 + translate_line_number (&files[0], f0) - 1);
 	  inserting = 1;
 
 	  /* If the file's line is just a dot, it would confuse `ed'.
@@ -80,11 +80,11 @@ print_ed_hunk (hunk)
 	  if (files[1].linbuf[i][0] == '.'
 	      && files[1].linbuf[i][1] == '\n')
 	    {
-	      fprintf (outfile, "..\n");
-	      fprintf (outfile, ".\n");
+	      printf_output ("..\n");
+	      printf_output (".\n");
 	      /* Now change that double dot to the desired single dot.  */
-	      fprintf (outfile, "%ds/^\\.\\././\n",
-		       i - f1 + translate_line_number (&files[0], f0));
+	      printf_output ("%ds/^\\.\\././\n",
+			     i - f1 + translate_line_number (&files[0], f0));
 	      inserting = 0;
 	    }
 	  else
@@ -94,7 +94,7 @@ print_ed_hunk (hunk)
 
       /* End insert mode, if we are still in it.  */
       if (inserting)
-	fprintf (outfile, ".\n");
+	printf_output (".\n");
     }
 }
 
@@ -124,9 +124,9 @@ pr_forward_ed_hunk (hunk)
 
   begin_output ();
 
-  fprintf (outfile, "%c", change_letter (inserts, deletes));
+  printf_output ("%c", change_letter (inserts, deletes));
   print_number_range (' ', files, f0, l0);
-  fprintf (outfile, "\n");
+  printf_output ("\n");
 
   /* If deletion only, print just the number range.  */
 
@@ -139,7 +139,7 @@ pr_forward_ed_hunk (hunk)
   for (i = f1; i <= l1; i++)
     print_1_line ("", &files[1].linbuf[i]);
 
-  fprintf (outfile, ".\n");
+  printf_output (".\n");
 }
 
 /* Print in a format somewhat like ed commands
@@ -175,23 +175,23 @@ print_rcs_hunk (hunk)
 
   if (deletes)
     {
-      fprintf (outfile, "d");
+      printf_output ("d");
       /* For deletion, print just the starting line number from file 0
 	 and the number of lines deleted.  */
-      fprintf (outfile, "%d %d\n",
-	       tf0,
-	       (tl0 >= tf0 ? tl0 - tf0 + 1 : 1));	     
+      printf_output ("%d %d\n",
+		     tf0,
+		     (tl0 >= tf0 ? tl0 - tf0 + 1 : 1));	     
     }
 
   if (inserts)
     {
-      fprintf (outfile, "a");
+      printf_output ("a");
 
       /* Take last-line-number from file 0 and # lines from file 1.  */
       translate_range (&files[1], f1, l1, &tf1, &tl1);
-      fprintf (outfile, "%d %d\n",
-	       tl0,
-	       (tl1 >= tf1 ? tl1 - tf1 + 1 : 1));	     
+      printf_output ("%d %d\n",
+		     tl0,
+		     (tl1 >= tf1 ? tl1 - tf1 + 1 : 1));	     
 
       /* Print the inserted lines.  */
       for (i = f1; i <= l1; i++)

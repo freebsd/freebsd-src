@@ -1,5 +1,5 @@
 # Makefile for GNU DIFF
-# Copyright (C) 1988,1989,1991,1992,1993,1994,1997 Free Software Foundation, Inc.
+# Copyright (C) 1988,1989,1991,1992,1993,1994,1997,1998 Free Software Foundation, Inc.
 #
 # This file is part of GNU DIFF.
 #
@@ -43,7 +43,8 @@ SHELL = /bin/sh
 
 # The source files for all of the programs.
 SOURCES = diff.c diff3.c analyze.c cmpbuf.c cmpbuf.h io.c context.c ed.c \
-	normal.c ifdef.c util.c dir.c version.c diff.h side.c system.h
+	normal.c ifdef.c util.c dir.c version.c diff.h side.c system.h \
+	diffrun.h
 OBJECTS = diff.o diff3.o analyze.o cmpbuf.o dir.o io.o util.o \
 	context.o ed.o ifdef.o normal.o side.o version.o
 DISTFILES = $(SOURCES) ChangeLog build_diff.com Makefile.in
@@ -66,7 +67,7 @@ libdiff libdiff.a: $(OBJECTS)
 	$(AR) cr libdiff.a $(OBJECTS)
 	-$(RANLIB) libdiff.a
 
-$(OBJECTS): diff.h system.h
+$(OBJECTS): diff.h diffrun.h system.h
 analyze.o cmpbuf.o: cmpbuf.h
 
 util.o: util.c

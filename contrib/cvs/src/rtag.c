@@ -477,7 +477,7 @@ pretag_proc(repository, filter)
     run_arg (delete_flag ? "del" : force_tag_move ? "mov" : "add");
     run_arg (repository);
     walklist(tlist, pretag_list_proc, NULL);
-    return (run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY));
+    return (run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL));
 }
 
 static void

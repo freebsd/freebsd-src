@@ -41,6 +41,12 @@ int quiet = 0;
 int trace = 0;
 int noexec = 0;
 int logoff = 0;
+
+/* Set if we should be writing CVSADM directories at top level.  At
+   least for now we'll make the default be off (the CVS 1.9, not CVS
+   1.9.2, behavior). */
+int top_level_admin = 0;
+
 mode_t cvsumask = UMASK_DFLT;
 
 char *CurDir;
@@ -108,7 +114,7 @@ static const struct cmd
     { "rdiff",    "patch",    "pa",        patch },
     { "release",  "re",       "rel",       release },
     { "remove",   "rm",       "delete",    cvsremove },
-    { "status",   "st",       "stat",      status },
+    { "status",   "st",       "stat",      cvsstatus },
     { "rtag",     "rt",       "rfreeze",   rtag },
     { "tag",      "ta",       "freeze",    cvstag },
     { "unedit",   NULL,	      NULL,	   unedit },
@@ -281,6 +287,10 @@ lookup_command_attribute (cmd_name)
     }
 
 
+    /* The following commands do not use a checked-out working
+       directory.  We conservatively assume that everything else does.
+       Feel free to add to this list if you are _certain_ something
+       something doesn't use the WD. */
     if ((strcmp (cmd_name, "checkout") != 0) &&
         (strcmp (cmd_name, "init") != 0) &&
         (strcmp (cmd_name, "login") != 0) &&
@@ -296,8 +306,10 @@ lookup_command_attribute (cmd_name)
     /* The following commands do not modify the repository; we
        conservatively assume that everything else does.  Feel free to
        add to this list if you are _certain_ something is safe. */
-    if ((strcmp (cmd_name, "checkout") != 0) &&
+    if ((strcmp (cmd_name, "annotate") != 0) &&
+        (strcmp (cmd_name, "checkout") != 0) &&
         (strcmp (cmd_name, "diff") != 0) &&
+        (strcmp (cmd_name, "rdiff") != 0) &&
         (strcmp (cmd_name, "update") != 0) &&
         (strcmp (cmd_name, "history") != 0) &&
         (strcmp (cmd_name, "editors") != 0) &&
@@ -967,20 +979,37 @@ char *
 Make_Date (rawdate)
     char *rawdate;
 {
-    struct tm *ftm;
     time_t unixtime;
-    char date[MAXDATELEN];
-    char *ret;
 
     unixtime = get_date (rawdate, (struct timeb *) NULL);
     if (unixtime == (time_t) - 1)
 	error (1, 0, "Can't parse date/time: %s", rawdate);
+    return date_from_time_t (unixtime);
+}
+
+/* Convert a time_t to an RCS format date.  This is mainly for the
+   use of "cvs history", because the CVSROOT/history file contains
+   time_t format dates; most parts of CVS will want to avoid using
+   time_t's directly, and instead use RCS_datecmp, Make_Date, &c.
+   Assuming that the time_t is in GMT (as it generally should be),
+   then the result will be in GMT too.
+
+   Returns a newly malloc'd string.  */
+
+char *
+date_from_time_t (unixtime)
+    time_t unixtime;
+{
+    struct tm *ftm;
+    char date[MAXDATELEN];
+    char *ret;
 
     ftm = gmtime (&unixtime);
     if (ftm == NULL)
 	/* This is a system, like VMS, where the system clock is in local
 	   time.  Hopefully using localtime here matches the "zero timezone"
-	   hack I added to get_date.  */
+	   hack I added to get_date (get_date of course being the relevant
+	   issue for Make_Date, and for history.c too I think).  */
 	ftm = localtime (&unixtime);
 
     (void) sprintf (date, DATEFORM,
