@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $Id:$
+ * $Id: scsi.c,v 1.1.1.1 1995/01/24 12:10:11 dufault Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -358,7 +358,6 @@ int scsireq_decode_visit(scsireq_t *scsireq, char *fmt,
 void (*arg_put)(void *, int , void *, int, char *), void *puthook)
 {
 	va_list ap = (va_list)0;
-	va_start (ap, fmt);
 	return do_buff_decode(scsireq->databuf, (size_t)scsireq->datalen,
 	 arg_put, puthook, fmt, ap);
 }
