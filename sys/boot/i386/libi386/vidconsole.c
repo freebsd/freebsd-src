@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.7 1998/10/28 19:24:15 msmith Exp $
+ *	$Id: vidconsole.c,v 1.8 1998/10/31 02:53:12 msmith Exp $
  */
 
 #include <stand.h>
@@ -47,6 +47,28 @@ static int	vidc_getchar(void);
 static int	vidc_ischar(void);
 
 static int	vidc_started;
+
+#ifdef TERM_EMU
+void		end_term();
+void		bail_out(int c);
+void		vidc_term_emu(int c);
+void		get_pos(void);
+void		curs_move(int x, int y);
+void		write_char(int c, int fg, int bg);
+void		scroll_up(int rows, int fg, int bg);
+void		AB(void);
+void		AF(void);
+void		CD(void);
+void		CM(void);
+void		HO(void);
+void		ME(void);
+
+static int	args[2],argc,br;
+static int	fg,bg,dig;
+static int	fg_c,bg_c,curx,cury;
+static int	esc;
+#endif
+
 
 struct console vidconsole = {
     "vidconsole",
@@ -84,27 +106,379 @@ vidc_init(int arg)
     if (vidc_started && arg == 0)
 	return;
     vidc_started = 1;
+#ifdef TERM_EMU
+    /* Init terminal emulator */
+    end_term();
+    get_pos();
+    curs_move(curx,cury);
+    fg_c=7;
+    bg_c=0;
+#endif
     for(i = 0; i < 10 && vidc_ischar(); i++)
 	  (void)vidc_getchar();
     return(0);	/* XXX reinit? */
 }
 
 static void
-vidc_putchar(int c)
+vidc_rawputchar(int c)
 {
     int		i;
 
-    if (c == '\t') {
+    if(c == '\t')
 	/* lame tab expansion */
 	for (i = 0; i < 8; i++)
-	    vidc_putchar(' ');
-    } else {
+	    vidc_rawputchar(' ');
+    else {
+#ifndef TERM_EMU
+	v86.ctl = 0;
+    	v86.addr = 0x10;
+    	v86.eax = 0xe00 | c;
+    	v86.ebx = 0x7;
+    	v86int();
+#else
+	/* Emulate AH=0eh (teletype output) */
+	switch(c) {
+	case '\r':
+		curx=0;
+		curs_move(curx,cury);
+		return;
+	case '\n':
+		cury++;
+		if(cury>24) {
+			scroll_up(1,fg_c,bg_c);
+			cury--;
+		} else {
+			curs_move(curx,cury);
+		}
+		return;
+	case '\b':
+		if(curx>0) {
+			curx--;
+			curs_move(curx,cury);
+			write_char(' ',fg_c,bg_c);
+			return;
+		}
+		return;
+	default:
+		write_char(c,fg_c,bg_c);
+		curx++;
+		if(curx>79) {
+			curx=0;
+			cury++;
+		}
+		if(cury>24) {
+			curx=0;
+			scroll_up(1,fg_c,bg_c);
+			cury--;
+		}
+	}
+	curs_move(curx,cury);
+#endif
+    }
+}
+
+#ifdef TERM_EMU
+
+/* Get cursor position on the screen. Result is in edx. Sets
+ * curx and cury appropriately.
+ */
+void
+get_pos(void)
+{
+    v86.ctl = 0;
+    v86.addr = 0x10;
+    v86.eax = 0x0300;
+    v86.ebx = 0x0;
+    v86int();
+    curx=v86.edx & 0x00ff;
+    cury=(v86.edx & 0xff00)>>8;
+}
+
+/* Move cursor to x rows and y cols (0-based). */
+void
+curs_move(int x, int y)
+{
+    v86.ctl = 0;
+    v86.addr = 0x10;
+    v86.eax = 0x0200;
+    v86.ebx = 0x0;
+    v86.edx = ((0x00ff & y)<<8)+(0x00ff & x);
+    v86int();
+    curx=x;
+    cury=y;
+    /* If there is ctrl char at this position, cursor would be invisible.
+     * Make it a space instead.
+     */
+    v86.ctl=0;
+    v86.addr = 0x10;
+    v86.eax = 0x0800;
+    v86.ebx= 0x0;
+    v86int();
+#define isvisible(c)	(((c)>32) && ((c)<255))
+    if(!isvisible(v86.eax & 0x00ff)) {
+	write_char(' ',fg_c,bg_c);
+    }
+}
+
+/* Scroll up the whole window by a number of rows. If rows==0,
+ * clear the window. fg and bg are attributes for the new lines
+ * inserted in the window.
+ */
+void
+scroll_up(int rows, int fg, int bg)
+{
+	if(rows==0) rows=25;
 	v86.ctl = 0;
 	v86.addr = 0x10;
-	v86.eax = 0xe00 | c;
-	v86.ebx = 0x7;
+	v86.eax = 0x0600+(0x00ff & rows);
+	v86.ebx = (bg<<12)+(fg<<8);
+	v86.ecx = 0x0;
+	v86.edx = 0x184f;
 	v86int();
+}
+
+/* Write character and attribute at cursor position. */
+void
+write_char(int c, int fg, int bg)
+{
+	v86.ctl=0;
+    	v86.addr = 0x10;
+    	v86.eax = 0x0900+(0x00ff & c);
+	v86.ebx = (bg<<4)+fg;
+    	v86.ecx = 0x1;
+    	v86int();
+}
+
+/* Calculate power of 10 */
+int
+pow10(int i)
+{
+	int res=1;
+
+	while(i-->0) {
+		res*=10;
+	}
+	return res;
+}
+
+/**************************************************************/
+/*
+ * Screen manipulation functions. They use accumulated data in
+ * args[] and argc variables.
+ *
+ */
+
+/* Set background color */
+void
+AB(void){
+	bg_c=args[0];
+	end_term();
+}
+
+/* Set foreground color */
+void
+AF(void)
+{
+	fg_c=args[0];
+	end_term();
+}
+
+/* Clear display from current position to end of screen */
+void
+CD(void)
+{
+    get_pos();
+    v86.ctl = 0;
+    v86.addr = 0x10;
+    v86.eax = 0x0600;
+    v86.ebx = (bg_c<<4)+fg_c;
+    v86.ecx = v86.edx;
+    v86.edx = 0x184f;
+    v86int();
+    curx=0;
+    curs_move(curx,cury);
+    end_term();
+}
+
+/* Absolute cursor move to args[0] rows and args[1] columns
+ * (the coordinates are 1-based).
+ */
+void
+CM(void)
+{
+    if(args[0]>0) args[0]--;
+    if(args[1]>0) args[1]--;
+    curs_move(args[1],args[0]);
+    end_term();
+}
+
+/* Home cursor (left top corner) */
+void
+HO(void)
+{
+	argc=1;
+	args[0]=args[1]=1;
+	CM();
+}
+
+/* Exit attribute mode (reset fore/back-ground colors to defaults) */
+void
+ME(void)
+{
+	fg_c=7;
+	bg_c=0;
+	end_term();
+}
+
+/* Clear internal state of the terminal emulation code */
+void
+end_term(void)
+{
+	esc=0;
+	argc=-1;
+	fg=bg=br=0;
+	args[0]=args[1]=0;
+	dig=0;
+}
+
+/* Gracefully exit ESC-sequence processing in case of misunderstanding */
+void
+bail_out(int c)
+{
+	char buf[6],*ch;
+
+	if(esc) vidc_rawputchar('\033');
+	if(br) vidc_rawputchar('[');
+	if(argc>-1) {
+		sprintf(buf,"%d",args[0]);
+		ch=buf;
+		while(*ch) vidc_rawputchar(*ch++);
+		
+		if(argc>0) {
+			vidc_rawputchar(';');
+			sprintf(buf,"%d",args[1]);
+			ch=buf;
+			while(*ch) vidc_rawputchar(*ch++);
+		}
+	}
+	vidc_rawputchar(c);
+	end_term();
+}
+
+/* Emulate basic capabilities of cons25 terminal */
+void
+vidc_term_emu(int c)
+{
+
+    if(!esc) {
+	if(c=='\033') {
+	    esc=1;
+	} else {
+	    vidc_rawputchar(c);
+	}
+	return;
     }
+
+    /* Do ESC sequences processing */
+    switch(c) {
+    case '\033':
+	/* ESC in ESC sequence - error */
+	bail_out(c);
+	break;
+    case '[':
+	/* Check if it's first char after ESC */
+        if(argc<0) {
+            br=1;
+        } else {
+	    bail_out(c);
+        }
+	break;
+    case 'H':
+	/* Emulate \E[H (cursor home) and 
+	 * \E%d;%dH (cursor absolute move) */
+	if(br) {
+	    switch(argc) {
+	    case -1:
+		HO();
+		break;
+	    case 1:
+		if(fg) args[0]+=pow10(dig)*3;
+		if(bg) args[0]+=pow10(dig)*4;
+		CM();
+		break;
+	    default:
+		bail_out(c);
+	    }
+	} else bail_out(c);
+	break;
+    case 'J':
+	/* Emulate \EJ (clear to end of screen) */
+	if(br && argc<0) {
+	    CD();
+	} else bail_out(c);
+	break;
+    case ';':
+	/* perhaps args separator */
+	if(br && (argc>-1)) {
+	    argc++;
+	} else bail_out(c);
+	break;
+    case 'm':
+	/* Change char attributes */
+	if(br) {
+	    switch(argc) {
+	    case -1:
+		ME();
+		break;
+	    case 0:
+		if(fg) AF();
+		else AB();
+		break;
+	    default:
+		bail_out(c);
+	    }
+	} else bail_out(c);
+	break;
+    default:
+	if(isdigit(c)) {
+	    /* Carefully collect numeric arguments */
+	    /* XXX this is ugly. */
+	    if(br) {
+	        if(argc==-1) {
+	     	    argc=0;
+		    args[argc]=0;
+		    dig=0;
+		    /* in case we're in error... */
+		    if(c=='3') {
+			fg=1;
+			return;
+		    }
+		    if(c=='4') {
+			bg=1;
+			return;
+		    }
+	     	    args[argc]=(int)(c-'0');
+		    dig=1;
+	     	    args[argc+1]=0;
+	    	} else {
+		    args[argc]=args[argc]*10+(int)(c-'0');
+		    if(argc==0) dig++;
+	    	}
+	    } else bail_out(c);
+	} else bail_out(c);
+	break;
+    }
+}
+#endif
+
+static void
+vidc_putchar(int c)
+{
+#ifdef TERM_EMU
+    vidc_term_emu(c);
+#else
+    vidc_rawputchar(c);
+#endif
 }
 
 static int
@@ -154,7 +528,7 @@ static void
 delay7(void)
 {
     /* 
-     * I know this is broken, but no timer is avaiable yet at this stage...
+     * I know this is broken, but no timer is available yet at this stage...
      * See also comments in `delay1ms()'.
      */
     inb(IO_DUMMY); inb(IO_DUMMY);
