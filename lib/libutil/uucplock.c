@@ -39,9 +39,6 @@ static const char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 #include <sys/file.h>
 #include <dirent.h>
 #include <errno.h>
-#ifndef USE_PERROR
-#include <syslog.h>
-#endif
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -69,7 +66,7 @@ int uu_lock (char *ttyname)
 	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
 	int err;
 
-	(void)sprintf(tbuf, _PATH_UUCPLOCK LOCKFMT, ttyname);
+	(void)snprintf(tbuf, sizeof(tbuf), _PATH_UUCPLOCK LOCKFMT, ttyname);
 	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
 	if (fd < 0) {
 		/*
@@ -118,43 +115,41 @@ int uu_unlock (char *ttyname)
 {
 	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
 
-	(void)sprintf(tbuf, _PATH_UUCPLOCK LOCKFMT, ttyname);
+	(void)snprintf(tbuf, sizeof(tbuf), _PATH_UUCPLOCK LOCKFMT, ttyname);
 	return unlink(tbuf);
 }
 
 char *uu_lockerr (int uu_lockresult)
 {
 	static char errbuf[512];
-	int len;
 
 	switch (uu_lockresult) {
 		case UU_LOCK_INUSE:
-			return "";
+			return "device in use";
 		case UU_LOCK_OK:
-			return 0;
+			return "";
 		case UU_LOCK_OPEN_ERR:
-			strcpy(errbuf,"open error: ");
-			len = 12;
+			(void)snprintf(errbuf, sizeof(errbuf),
+				       "open error: %s", strerror(errno));
 			break;
 		case UU_LOCK_READ_ERR:
-			strcpy(errbuf,"read error: ");
-			len = 12;
+			(void)snprintf(errbuf, sizeof(errbuf),
+				       "read error: %s", strerror(errno));
 			break;
 		case UU_LOCK_SEEK_ERR:
-			strcpy(errbuf,"seek error: ");
-			len = 12;
+			(void)snprintf(errbuf, sizeof(errbuf),
+				       "seek error: %s", strerror(errno));
 			break;
 		case UU_LOCK_WRITE_ERR:
-			strcpy(errbuf,"write error: ");
-			len = 13;
+			(void)snprintf(errbuf, sizeof(errbuf),
+				       "write error: %s", strerror(errno));
 			break;
 		default:
-			strcpy(errbuf,"Undefined error: ");
-			len = 17;
+			(void)snprintf(errbuf, sizeof(errbuf),
+				       "undefined error: %s", strerror(errno));
 			break;
 	}
 
-	strncpy(errbuf+len,strerror(errno),sizeof(errbuf)-len-1);
 	return errbuf;
 }
 
