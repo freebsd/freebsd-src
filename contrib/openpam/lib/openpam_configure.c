@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_configure.c#2 $
+ * $P4: //depot/projects/openpam/lib/openpam_configure.c#3 $
  */
 
 #include <ctype.h>
@@ -257,7 +257,7 @@ int
 openpam_configure(pam_handle_t *pamh,
 	const char *service)
 {
-	pam_chain_t *other[PAM_NUM_CHAINS];
+	pam_chain_t *other[PAM_NUM_CHAINS] = { 0 };
 	int i, n, r;
 
 	/* try own configuration first */
