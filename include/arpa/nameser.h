@@ -55,8 +55,8 @@
  *	From Id: nameser.h,v 4.9.1.15 1994/07/19 22:51:24 vixie Exp
  */
 
-#ifndef _NAMESER_H_
-#define	_NAMESER_H_
+#ifndef _ARPA_NAMESER_H_
+#define	_ARPA_NAMESER_H_
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -72,7 +72,7 @@
  * is new enough to contain a certain feature.
  */
 
-#define	__BIND		19940417	/* interface version stamp */
+#define	__BIND		19950621	/* interface version stamp */
 
 /*
  * Define constants based on rfc883
@@ -94,24 +94,26 @@
 #define	NAMESERVER_PORT	53
 
 /*
- * Currently define	d opcodes
+ * Currently defined opcodes
  */
 #define	QUERY		0x0		/* standard query */
 #define	IQUERY		0x1		/* inverse query */
 #define	STATUS		0x2		/* nameserver status query */
-			/* 0x3		   reserved */
+/*#define xxx		0x3 */		/* 0x3 reserved */
+#define	NS_NOTIFY_OP	0x4		/* notify secondary of SOA change */
+#ifdef ALLOW_UPDATES
 	/* non standard - supports ALLOW_UPDATES stuff from Mike Schwartz */
-#define	UPDATEA		0x9		/* add resource record */
-#define	UPDATED		0xa		/* delete a specific resource record */
-#define	UPDATEDA	0xb		/* delete all named resource record */
-#define	UPDATEM		0xc		/* modify a specific resource record */
-#define	UPDATEMA	0xd		/* modify all named resource record */
-
-#define	ZONEINIT	0xe		/* initial zone transfer */
-#define	ZONEREF		0xf		/* incremental zone referesh */
+# define UPDATEA	0x9		/* add resource record */
+# define UPDATED	0xa		/* delete a specific resource record */
+# define UPDATEDA	0xb		/* delete all named resource record */
+# define UPDATEM	0xc		/* modify a specific resource record */
+# define UPDATEMA	0xd		/* modify all named resource record */
+# define ZONEINIT	0xe		/* initial zone transfer */
+# define ZONEREF	0xf		/* incremental zone referesh */
+#endif
 
 /*
- * Currently define	d response codes
+ * Currently defined response codes
  */
 #define	NOERROR		0		/* no error */
 #define	FORMERR		1		/* format error */
@@ -119,8 +121,10 @@
 #define	NXDOMAIN	3		/* non existent domain */
 #define	NOTIMP		4		/* not implemented */
 #define	REFUSED		5		/* query refused */
+#ifdef ALLOW_UPDATES
 	/* non standard */
-#define	NOCHANGE	0xf		/* update failed to change db */
+# define NOCHANGE	0xf		/* update failed to change db */
+#endif
 
 /*
  * Type values for resources and queries
@@ -129,7 +133,7 @@
 #define	T_NS		2		/* authoritative server */
 #define	T_MD		3		/* mail destination */
 #define	T_MF		4		/* mail forwarder */
-#define	T_CNAME		5		/* connonical name */
+#define T_CNAME		5		/* canonical name */
 #define	T_SOA		6		/* start of authority zone */
 #define	T_MB		7		/* mailbox domain name */
 #define	T_MG		8		/* mail group member */
@@ -148,12 +152,17 @@
 #define	T_RT		21		/* router */
 #define	T_NSAP		22		/* NSAP address */
 #define	T_NSAP_PTR	23		/* reverse NSAP lookup (deprecated) */
+#define	T_SIG		24		/* security signature */
+#define	T_KEY		25		/* security key */
+#define	T_PX		26		/* X.400 mail mapping */
+#define	T_GPOS		27		/* geographical position (withdrawn) */
+#define	T_AAAA		28		/* IP6 Address */
+#define	T_LOC		29		/* Location Information */
 	/* non standard */
 #define	T_UINFO		100		/* user (finger) information */
 #define	T_UID		101		/* user ID */
 #define	T_GID		102		/* group ID */
 #define	T_UNSPEC	103		/* Unspecified format (binary data) */
-#define	T_SA		200		/* shuffle address */
 	/* Query type values which do not appear in resource records */
 #define	T_AXFR		252		/* transfer zone of authority */
 #define	T_MAILB		253		/* transfer mailbox records */
@@ -197,8 +206,7 @@ typedef struct {
 	unsigned	rd: 1;		/* recursion desired */
 			/* fields in fourth byte */
 	unsigned	ra: 1;		/* recursion available */
-	unsigned	pr: 1;		/* primary server req'd (!standard) */
-	unsigned	unused :2;	/* unused bits (MBZ as of 4.9.3a3) */
+	unsigned	unused :3;	/* unused bits (MBZ as of 4.9.3a3) */
 	unsigned	rcode :4;	/* response code */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN || BYTE_ORDER == PDP_ENDIAN
@@ -210,8 +218,7 @@ typedef struct {
 	unsigned	qr :1;		/* response flag */
 			/* fields in fourth byte */
 	unsigned	rcode :4;	/* response code */
-	unsigned	unused :2;	/* unused bits (MBZ as of 4.9.3a3) */
-	unsigned	pr :1;		/* primary server req'd (!standard) */
+	unsigned	unused :3;	/* unused bits (MBZ as of 4.9.3a3) */
 	unsigned	ra :1;		/* recursion available */
 #endif
 			/* remaining bytes */
@@ -283,4 +290,4 @@ extern	u_int32_t	_getlong __P((const u_char *));
 	(cp) += INT32SZ; \
 }
 
-#endif /* !_NAMESER_H_ */
+#endif /* !_ARPA_NAMESER_H_ */

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_lookup.c	4.18 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_lookup.c,v 1.1.1.1 1994/09/22 19:46:13 pst Exp $";
+static char rcsid[] = "$Id: db_lookup.c,v 1.2 1995/05/30 03:48:40 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -79,13 +79,13 @@ static char rcsid[] = "$Id: db_lookup.c,v 1.1.1.1 1994/09/22 19:46:13 pst Exp $"
  */
 struct namebuf *
 nlookup(name, htpp, fname, insert)
-	char *name;
+	const char *name;
 	struct hashbuf **htpp;
-	char **fname;
+	const char **fname;
 	int insert;
 {
 	register struct namebuf *np;
-	register char *cp;
+	register const char *cp;
 	register int c;
 	register unsigned hval;
 	register struct hashbuf *htp;
@@ -117,8 +117,7 @@ nlookup(name, htpp, fname, insert)
 		hval <<= HASHSHIFT;
 		hval += (isupper(c) ? tolower(c) : c) & HASHMASK;
 	}
-	c = *--cp;
-	*cp = '\0';
+	cp--;
 	/*
 	 * Lookup this label in current hash table.
 	 */
@@ -126,9 +125,8 @@ nlookup(name, htpp, fname, insert)
 	     np != NULL;
 	     np = np->n_next) {
 		if (np->n_hashval == hval &&
-		    strcasecmp(name, np->n_dname) == 0) {
+		    strncasecmp(name, np->n_dname, cp - name) == 0) {
 			*fname = name;
-			*cp = c;
 			return (np);
 		}
 	}
@@ -143,14 +141,12 @@ nlookup(name, htpp, fname, insert)
 			if (np->n_dname[0] == '*'  && np->n_dname[1] == '\0' &&
 			    np->n_data && np->n_data->d_zone != 0) {
 				*fname = name;
-				*cp = c;
 				return (np);
 			}
 		}
-		*cp = c;
 		return (parent);
 	}
-	np = savename(name);
+	np = savename(name, cp - name);
 	np->n_parent = parent;
 	np->n_hashval = hval;
 	hval %= htp->h_size;
@@ -171,7 +167,6 @@ nlookup(name, htpp, fname, insert)
 		htp = *htpp;
 	}
 	*fname = name;
-	*cp = c;
 	return (np);
 }
 
@@ -186,8 +181,8 @@ match(dp, class, type)
 	register struct databuf *dp;
 	register int class, type;
 {
-	dprintf(5, (ddt, "match(0x%x, %d, %d) %d, %d\n",
-		    dp, class, type, dp->d_class, dp->d_type));
+	dprintf(5, (ddt, "match(0x%lx, %d, %d) %d, %d\n",
+		    (u_long)dp, class, type, dp->d_class, dp->d_type));
 	if (dp->d_class != class && class != C_ANY)
 		return (0);
 	if (dp->d_type != type && type != T_ANY)
