@@ -103,7 +103,7 @@ int lineno;			/* script line number */
 char *prompt;			/* command-line prompt */
 char *dps = "*";		/* default command-line prompt */
 
-char *usage = "usage: %s [-] [-sx] [-p string] [name]\n";
+const char usage[] = "usage: %s [-] [-sx] [-p string] [name]\n";
 
 /* ed: line editor */
 int
