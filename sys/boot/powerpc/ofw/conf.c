@@ -27,8 +27,9 @@
  */
 
 #include <stand.h>
-#include "libalpha/libalpha.h"
-#ifdef LOADER_NET_SUPPORT
+#include "libofw.h"
+
+#if defined(LOADER_NET_SUPPORT)
 #include "dev_net.h"
 #endif
 
@@ -44,16 +45,17 @@
 /* Exported for libstand */
 struct devsw *devsw[] = {
 #if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CDROM_SUPPORT)
-    &srmdisk,
+    &ofwdisk,
 #endif
-#ifdef LOADER_NET_SUPPORT
-    &netdev,
+#if defined(LOADER_NET_SUPPORT)
+    &ofwnet,
+  &ofwnet,
 #endif
     NULL
 };
 
 struct fs_ops *file_system[] = {
-#ifdef LOADER_DISK_SUPPORT
+#ifdef LOADER_UFS_SUPPORT
     &ufs_fsops,
 #endif
 #ifdef LOADER_CDROM_SUPPORT
@@ -69,22 +71,24 @@ struct fs_ops *file_system[] = {
     NULL
 };
 
-#ifdef LOADER_NET_SUPPORT
+extern struct netif_driver of_net;
+
 struct netif_driver *netif_drivers[] = {
-    &srmnet,
+#ifdef LOADER_NET_SUPPORT
+    &of_net,
+#endif
     NULL,
 };
-#endif
 
-/* Exported for alpha only */
+/* Exported for PowerPC only */
 /* 
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
-extern struct file_format alpha_elf;
+extern struct file_format powerpc_elf;
 
 struct file_format *file_formats[] = {
-    &alpha_elf,
+/*  &powerpc_elf,*/
     NULL
 };
 
@@ -94,9 +98,9 @@ struct file_format *file_formats[] = {
  * We don't prototype these in libalpha.h because they require
  * data structures from bootstrap.h as well.
  */
-extern struct console promconsole;
+extern struct console ofwconsole;
 
 struct console *consoles[] = {
-    &promconsole,
+    &ofwconsole,
     NULL
 };
