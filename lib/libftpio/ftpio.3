@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .Fd #include <ftpio.h>
 .Ft FILE *
-.Fn ftpLogin "char *host, char *user, char *passwd, int ftp_port"
+.Fn ftpLogin "char *host" "char *user" "char *passwd" "int ftp_port" "int verbose"
 .Ft int
 .Fn ftpChdir "FILE *stream, char *dirname"
 .Ft int
@@ -75,12 +75,13 @@ These functions implement a high-level library for managing FTP connections.
 .Fn ftpLogin
 attempts to log in using the supplied
 .Fa user ,
-.Fa passwd
-and
+.Fa passwd,
 .Fa ftp_port
-fields (if passed as 0,
+(if passed as 0,
 .Fa ftp_port
-defaults to the standard ftp port of 21).  If it is successful, a
+defaults to the standard ftp port of 21) and
+.Fa verbose
+fields.  If it is successful, a
 standard stream descriptor is returned which should be passed to
 subsequent FTP operations. On failure, NULL is returned and
 .Fn ftpErrno
