@@ -284,6 +284,15 @@ struct HPETbody {
 	u_int16_t	clock_tick __packed;
 } __packed;
 
+/* Embedded Controller Description Table */
+struct ECDTbody {
+	struct ACPIgas	ec_control;	/* Control register */
+	struct ACPIgas	ec_data;	/* Data register */
+	uint32_t	uid;		/* Same value as _UID in namespace */
+	uint8_t		gpe_bit;	/* GPE bit for the EC */
+	u_char		ec_id[1];	/* Variable length name string */
+} __packed;
+
 /* Find and map the RSD PTR structure and return it for parsing */
 struct ACPIsdt  *sdt_load_devmem(void);
 
