@@ -36,7 +36,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: ascmagic.c,v 1.1.1.3 1997/03/18 17:58:46 mpp Exp $";
+	"@(#)$Id: ascmagic.c,v 1.7 1997/03/18 19:37:17 mpp Exp $";
 #endif	/* lint */
 
 			/* an optimisation over plain strcmp() */
@@ -48,7 +48,7 @@ unsigned char *buf;
 int nbytes;	/* size actually read */
 {
 	int i, has_escapes = 0;
-	unsigned char *s;
+	char *s;
 	char nbuf[HOWMANY+1];	/* one extra for terminating '\0' */
 	char *token;
 	register struct names *p;
@@ -90,17 +90,20 @@ int nbytes;	/* size actually read */
 
 
 	/* Make sure we are dealing with ascii text before looking for tokens */
-	for (i = 0; i < nbytes; i++) {
-		if (!isascii(buf[i]))
+	for (i = 0; i < nbytes - 1; i++) {
+		if (!isascii(buf[i]) ||
+		    (iscntrl(buf[i]) && !isspace(buf[i]) &&
+		     buf[i] != '\b' && buf[i] != '\032' && buf[i] != '\033'
+		    )
+		   )
 			return 0;	/* not all ASCII */
 	}
 
 	/* look for tokens from names.h - this is expensive! */
 	/* make a copy of the buffer here because strtok() will destroy it */
-	s = (unsigned char*) memcpy(nbuf, buf, nbytes);
-	s[nbytes] = '\0';
-	has_escapes = (memchr(s, '\033', nbytes) != NULL);
-	while ((token = strtok((char *) s, " \t\n\r\f")) != NULL) {
+	s = strcpy(nbuf, buf);
+	has_escapes = (strchr(s, '\033') != NULL);
+	while ((token = strtok(s, " \t\n\r\f")) != NULL) {
 		s = NULL;	/* make strtok() keep on tokin' */
 		for (p = names; p < names + NNAMES; p++) {
 			if (STREQ(p->name, token)) {
