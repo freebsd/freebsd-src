@@ -67,7 +67,6 @@
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/callout.h>
-#include <sys/mbuf.h>
 #include <sys/msgbuf.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
@@ -1065,7 +1064,7 @@ setregs(p, entry, stack, ps_strings)
 	regs->tf_ebx = ps_strings;
 
 	/* reset %gs as well */
-	if (pcb == curpcb)
+	if (pcb == PCPU_GET(curpcb))
 		load_gs(_udatasel);
 	else
 		pcb->pcb_gs = _udatasel;
@@ -1081,7 +1080,7 @@ setregs(p, entry, stack, ps_strings)
                 pcb->pcb_dr3 = 0;
                 pcb->pcb_dr6 = 0;
                 pcb->pcb_dr7 = 0;
-                if (pcb == curpcb) {
+                if (pcb == PCPU_GET(curpcb)) {
 		        /*
 			 * Clear the debug registers on the running
 			 * CPU, otherwise they will end up affecting
@@ -2280,13 +2279,14 @@ init386(first)
 	initializecpu();	/* Initialize CPU registers */
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16;
-	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
+	PCPU_SET(common_tss.tss_esp0,
+	    (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16);
+	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	private_tss = 0;
-	tss_gdt = &gdt[GPROC0_SEL].sd;
-	common_tssd = *tss_gdt;
-	common_tss.tss_ioopt = (sizeof common_tss) << 16;
+	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
+	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
+	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
 	ltr(gsel_tss);
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
