@@ -863,16 +863,16 @@ amr_startio(struct amr_softc *sc)
 	driveno = amrd->amrd_drive - &sc->amr_drive[0];
 	blkcount = bp->b_bcount / AMR_BLKSIZE;
 
-	if ((bp->b_blkno + blkcount) > sc->amr_drive[driveno].al_size)
+	if ((bp->b_pblkno + blkcount) > sc->amr_drive[driveno].al_size)
 	    device_printf(sc->amr_dev, "I/O beyond end of unit (%u,%d > %u)\n", 
-			  bp->b_blkno, blkcount, sc->amr_drive[driveno].al_size);
+			  bp->b_pblkno, blkcount, sc->amr_drive[driveno].al_size);
 
 	/*
 	 * Build the I/O command.
 	 */
 	ac->ac_mailbox.mb_command = cmd;
 	ac->ac_mailbox.mb_blkcount = blkcount;
-	ac->ac_mailbox.mb_lba = bp->b_blkno;
+	ac->ac_mailbox.mb_lba = bp->b_pblkno;
 	ac->ac_mailbox.mb_physaddr = ac->ac_sgphys;
 	ac->ac_mailbox.mb_drive = driveno;
 	ac->ac_mailbox.mb_nsgelem = ac->ac_nsgent;
