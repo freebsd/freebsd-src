@@ -166,10 +166,11 @@ The quota table cannot be expanded.
 .It Bq Er EINVAL
 .Fa Cmd
 or the command type is invalid.
+In
 .Dv Q_GETQUOTA
-returns
-.Er EINVAL
-if quotas are not currently enabled for this filesystem.
+and
+.Dv Q_SETQUOTA ,
+quotas are not currently enabled for this filesystem.
 .It Bq Er EACCES
 In
 .Dv Q_QUOTAON ,
