@@ -53,6 +53,8 @@ following:
 .It
 Dell PowerEdge 2550 integrated BCM5700 NIC (10/100/1000baseTX)
 .It
+IBM x235 server integrated BCM5703x NIC (10/100/1000baseTX)
+.It
 Netgear GA302T (10/100/1000baseTX)
 .It
 SysKonnect SK-9D21 (10/100/1000baseTX)
@@ -78,12 +80,12 @@ fiber applications.
 Note however the device only supports a single
 speed in TBI mode.
 .Pp
-Most cards also use the Broadcom BCM5401 or BCM5411 10/100/1000
+Most BCM5700-based cards also use the Broadcom BCM5401 or BCM5411 10/100/1000
 copper gigabit transceivers,
 which support autonegotiation of 10, 100 and 1000mbps modes in
 full or half duplex.
 .Pp
-The BCM5700 also supports jumbo frames, which can be configured
+The BCM570x also supports jumbo frames, which can be configured
 via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
