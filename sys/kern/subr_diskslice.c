@@ -56,6 +56,7 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
+#include <sys/stdint.h>
 #include <sys/syslog.h>
 #include <sys/vnode.h>
 
@@ -224,19 +225,18 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 #endif
 
 	/* beyond partition? */
-	if (secno + nsec > endsecno) {
+	if ((uintmax_t)secno + nsec > endsecno) {
 		/* if exactly at end of disk, return an EOF */
 		if (secno == endsecno) {
 			bp->bio_resid = bp->bio_bcount;
 			return (0);
 		}
 		/* or truncate if part of it fits */
-		nsec = endsecno - secno;
-		if (nsec <= 0) {
+		if (secno > endsecno) {
 			bp->bio_error = EINVAL;
 			goto bad;
 		}
-		bp->bio_bcount = nsec * ssp->dss_secsize;
+		bp->bio_bcount = (endsecno - secno) * ssp->dss_secsize;
 	}
 
 	bp->bio_pblkno = sp->ds_offset + slicerel_secno;
