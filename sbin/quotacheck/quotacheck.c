@@ -52,6 +52,7 @@ static const char rcsid[] =
  * Fix up / report on disk quotas & usage
  */
 #include <sys/param.h>
+#include <sys/disklabel.h>
 #include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
