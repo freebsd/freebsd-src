@@ -55,7 +55,6 @@ struct ofwd_softc
 /*
  * Disk device bus interface.
  */
-static void	ofwd_identify(driver_t *, device_t);
 static int	ofwd_probe(device_t);
 static int	ofwd_attach(device_t);
 
@@ -141,11 +140,17 @@ static int
 ofwd_probe(device_t dev)
 {
 	char		*type;
+	char		fname[32];
+	phandle_t	node;
 
 	type = nexus_get_device_type(dev);
+	node = nexus_get_node(dev);
 
 	if (type == NULL || 
 	    (strcmp(type, "disk") != 0 && strcmp(type, "block") != 0))
+		return (ENXIO);
+
+	if (OF_getprop(node, "file", fname, sizeof(fname)) == -1)
 		return (ENXIO);
 
 	device_set_desc(dev, "OpenFirmware disk");
@@ -157,14 +162,15 @@ ofwd_attach(device_t dev)
 {
 	struct	ofwd_softc *sc;
 	char	path[128];
-	dev_t	dsk;
+	char	fname[32];
 
 	sc = device_get_softc(dev);
 	sc->ofwd_dev = dev;
 
 	bzero(path, 128);
 	OF_package_to_path(nexus_get_node(dev), path, 128);
-	device_printf(dev, "located at %s\n", path);
+	OF_getprop(nexus_get_node(dev), "file", fname, sizeof(fname));
+	device_printf(dev, "located at %s, file %s\n", path, fname);
 	sc->ofwd_instance = OF_open(path);
 	if (sc->ofwd_instance == -1) {
 		device_printf(dev, "could not create instance\n");
