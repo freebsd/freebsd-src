@@ -59,22 +59,18 @@ dnl NOTE: This can allow sites to use your server as a backup MX without
 dnl       your permission.
 dnl FEATURE(relay_based_on_MX)
 
+dnl DNS based black hole lists
+dnl --------------------------------
+dnl DNS based black hole lists come and up on a regular basis
+dnl do this file will not serve as a database of the available servers.
+dnl For that, visit http://dmoz.org/Computers/Internet/Abuse/Spam/Blacklists/
+
 dnl Uncomment to activate Realtime Blackhole List
 dnl information available at http://www.mail-abuse.com/
 dnl NOTE: This is a subscription service as of July 31, 2001
 dnl FEATURE(dnsbl)
-dnl Alternatively, you can provide your own rejection message for the RBL:
+dnl Alternatively, you can provide your own server and rejection message:
 dnl FEATURE(dnsbl, `blackholes.mail-abuse.org', `"550 Mail from " $&{client_addr} " rejected, see http://mail-abuse.org/cgi-bin/lookup?" $&{client_addr}')
-
-dnl Other DNS based black hole lists
-dnl --------------------------------
-dnl MAPS Relay Spam Stopper (RSS): http://mail-abuse.org/rss/
-dnl NOTE: This is a subscription service as of July 31, 2001
-dnl FEATURE(dnsbl, `relays.mail-abuse.org', `"550 Mail from " $&{client_addr} " rejected; see http://mail-abuse.org/cgi-bin/nph-rss?" $&{client_addr}')
-
-dnl MAPS Dial-up User List (DUL): http://maps.vix.com/dul/
-dnl NOTE: This is a subscription service as of July 31, 2001
-dnl FEATURE(dnsbl, `dialups.mail-abuse.org', `"550 Mail from dial-up rejected; see http://mail-abuse.org/dul/enduser.htm"')
 
 dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')
