@@ -843,11 +843,10 @@ ext2_statfs(mp, sbp, p)
 	struct proc *p;
 {
         unsigned long overhead;
-	unsigned long overhead_per_group;
-
 	register struct ufsmount *ump;
 	register struct ext2_sb_info *fs;
 	register struct ext2_super_block *es;
+	int i, nsb;
 
 	ump = VFSTOUFS(mp);
 	fs = ump->um_e2fs;
@@ -859,13 +858,18 @@ ext2_statfs(mp, sbp, p)
 	/*
 	 * Compute the overhead (FS structures)
 	 */
-	overhead_per_group = 1 /* super block */ +
-			     fs->s_db_per_group +
-			     1 /* block bitmap */ +
-			     1 /* inode bitmap */ +
-			     fs->s_itb_per_group;
+	if (es->s_feature_ro_compat & EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER) {
+		nsb = 0;
+		for (i = 0 ; i < fs->s_groups_count; i++)
+			if (ext2_group_sparse(i))
+				nsb++;
+	} else
+		nsb = fs->s_groups_count;
 	overhead = es->s_first_data_block + 
-		   fs->s_groups_count * overhead_per_group;
+	    /* Superblocks and block group descriptors: */
+	    nsb * (1 + fs->s_db_per_group) +
+	    /* Inode bitmap, block bitmap, and inode table: */
+	    fs->s_groups_count * (1 + 1 + fs->s_itb_per_group);
 
 	sbp->f_bsize = EXT2_FRAG_SIZE(fs);	
 	sbp->f_iosize = EXT2_BLOCK_SIZE(fs);
