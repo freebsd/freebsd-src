@@ -66,7 +66,7 @@
 
 #include <vm/vm_zone.h>
 
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 static int	procfs_access __P((struct vop_access_args *));
 static int	procfs_badop __P((void));

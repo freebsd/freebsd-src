@@ -51,7 +51,7 @@
 #include <sys/buf.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
-#include <miscfs/union/union.h>
+#include <fs/unionfs/union.h>
 
 #include <vm/vm.h>
 #include <vm/vnode_pager.h>

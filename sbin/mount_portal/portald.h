@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-#include <miscfs/portal/portal.h>
+#include <fs/portalfs/portal.h>
 
 /*
  * Meta-chars in an RE.  Paths in the config file containing

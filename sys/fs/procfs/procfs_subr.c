@@ -50,7 +50,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 static struct pfsnode *pfshead;
 static int pfsvplock;

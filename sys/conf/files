@@ -585,15 +585,44 @@ dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi card
 dev/wi/if_wi.c			optional wi pccard
 dev/xe/if_xe.c			optional xe card
-fs/devfs/devfs_vnops.c		standard
-fs/devfs/devfs_vfsops.c		standard
+fs/deadfs/dead_vnops.c	standard
 fs/devfs/devfs_devs.c		standard
+fs/devfs/devfs_vfsops.c		standard
+fs/devfs/devfs_vnops.c		standard
+fs/fdescfs/fdesc_vfsops.c	optional fdescfs
+fs/fdescfs/fdesc_vnops.c	optional fdescfs
+fs/fifofs/fifo_vnops.c	standard
+fs/hpfs/hpfs_alsubr.c		optional hpfs
+fs/hpfs/hpfs_hash.c		optional hpfs
+fs/hpfs/hpfs_lookup.c		optional hpfs
+fs/hpfs/hpfs_subr.c		optional hpfs
 fs/hpfs/hpfs_vfsops.c		optional hpfs
 fs/hpfs/hpfs_vnops.c		optional hpfs
-fs/hpfs/hpfs_hash.c		optional hpfs
-fs/hpfs/hpfs_subr.c		optional hpfs
-fs/hpfs/hpfs_lookup.c		optional hpfs
-fs/hpfs/hpfs_alsubr.c		optional hpfs
+fs/nullfs/null_subr.c	optional nullfs
+fs/nullfs/null_vfsops.c	optional nullfs
+fs/nullfs/null_vnops.c	optional nullfs
+fs/portalfs/portal_vfsops.c	optional portalfs
+fs/portalfs/portal_vnops.c	optional portalfs
+fs/procfs/procfs_ctl.c	optional procfs
+fs/procfs/procfs_dbregs.c	standard
+fs/procfs/procfs_fpregs.c	standard
+fs/procfs/procfs_map.c	optional procfs
+fs/procfs/procfs_mem.c	standard
+fs/procfs/procfs_note.c	optional procfs
+fs/procfs/procfs_regs.c	standard
+fs/procfs/procfs_rlimit.c	optional procfs
+fs/procfs/procfs_status.c	optional procfs
+fs/procfs/procfs_subr.c	optional procfs
+fs/procfs/procfs_type.c	optional procfs
+fs/procfs/procfs_vfsops.c	optional procfs
+fs/procfs/procfs_vnops.c	optional procfs
+fs/specfs/spec_vnops.c	standard
+fs/umapfs/umap_subr.c	optional umapfs
+fs/umapfs/umap_vfsops.c	optional umapfs
+fs/umapfs/umap_vnops.c	optional umapfs
+fs/unionfs/union_subr.c	optional unionfs
+fs/unionfs/union_vfsops.c	optional unionfs
+fs/unionfs/union_vnops.c	optional unionfs
 gnu/ext2fs/ext2_alloc.c		optional ext2fs
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
 gnu/ext2fs/ext2_inode.c		optional ext2fs
@@ -803,35 +832,6 @@ libkern/strtol.c	standard
 libkern/strtoq.c	standard
 libkern/strtoul.c	standard
 libkern/strtouq.c	standard
-miscfs/deadfs/dead_vnops.c	standard
-miscfs/fdesc/fdesc_vfsops.c	optional fdesc
-miscfs/fdesc/fdesc_vnops.c	optional fdesc
-miscfs/fifofs/fifo_vnops.c	standard
-miscfs/nullfs/null_subr.c	optional nullfs
-miscfs/nullfs/null_vfsops.c	optional nullfs
-miscfs/nullfs/null_vnops.c	optional nullfs
-miscfs/portal/portal_vfsops.c	optional portal
-miscfs/portal/portal_vnops.c	optional portal
-miscfs/procfs/procfs_ctl.c	optional procfs
-miscfs/procfs/procfs_dbregs.c	standard
-miscfs/procfs/procfs_fpregs.c	standard
-miscfs/procfs/procfs_map.c	optional procfs
-miscfs/procfs/procfs_mem.c	standard
-miscfs/procfs/procfs_note.c	optional procfs
-miscfs/procfs/procfs_regs.c	standard
-miscfs/procfs/procfs_rlimit.c	optional procfs
-miscfs/procfs/procfs_status.c	optional procfs
-miscfs/procfs/procfs_subr.c	optional procfs
-miscfs/procfs/procfs_type.c	optional procfs
-miscfs/procfs/procfs_vfsops.c	optional procfs
-miscfs/procfs/procfs_vnops.c	optional procfs
-miscfs/specfs/spec_vnops.c	standard
-miscfs/umapfs/umap_subr.c	optional umapfs
-miscfs/umapfs/umap_vfsops.c	optional umapfs
-miscfs/umapfs/umap_vnops.c	optional umapfs
-miscfs/union/union_subr.c	optional union
-miscfs/union/union_vfsops.c	optional union
-miscfs/union/union_vnops.c	optional union
 msdosfs/msdosfs_conv.c		optional msdosfs
 msdosfs/msdosfs_denode.c	optional msdosfs
 msdosfs/msdosfs_fat.c		optional msdosfs

@@ -54,7 +54,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
-#include <miscfs/nullfs/null.h>
+#include <fs/nullfs/null.h>
 
 static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 

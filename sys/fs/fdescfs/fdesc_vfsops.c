@@ -54,7 +54,7 @@
 #include <sys/socket.h>
 #include <sys/vnode.h>
 
-#include <miscfs/fdesc/fdesc.h>
+#include <fs/fdescfs/fdesc.h>
 
 static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 
