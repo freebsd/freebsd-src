@@ -297,6 +297,7 @@ while ((getline < srcfile) > 0) {
 		printh("}");
 		add_debug_post(name);
 		printh("\treturn (rc);\n}");
+		printh("typedef int "name"_t(struct "name"_args *);\n")
 	}
 
 	if (cfile) {
