@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.1 1997/07/19 03:13:15 smp Exp smp $
+ *	$Id: microtime.s,v 1.25 1997/07/19 04:00:32 fsmp Exp $
  */
 
 #include "opt_cpu.h"
@@ -40,7 +40,7 @@
 #include <machine/asmacros.h>
 
 #ifdef APIC_IO
-#include <machine/smptests.h>		/** APIC_PIN0_TIMER */
+#include <machine/smptests.h>		/** NEW STRATEGY, APIC_PIN0_TIMER */
 #endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
@@ -114,12 +114,21 @@ ENTRY(microtime)
 	movl	_timer0_max_count, %edx	/* prepare for 2 uses */
 
 #ifdef APIC_IO
+#ifdef NEW_STRATEGY
+
+	movl	_ipending, %eax
+	testl	%eax, _mask8254		/* is soft timer interrupt pending? */
+
+#else /** NEW_STRATEGY */
+
 #ifdef APIC_PIN0_TIMER
 	testl	$IRQ0, _ipending	/* is soft timer interrupt pending? */
 #else
 	movl	_ipending, %eax
 	testl	%eax, _mask8254		/* is soft timer interrupt pending? */
 #endif /* APIC_PIN0_TIMER */
+
+#endif /** NEW_STRATEGY */
 #else
 	testb	$IRQ0, _ipending	/* is soft timer interrupt pending? */
 #endif /* APIC_IO */
@@ -130,12 +139,21 @@ ENTRY(microtime)
 	jbe	1f
 
 #ifdef APIC_IO
+#ifdef NEW_STRATEGY
+
+	movl	lapic_irr1, %eax	/** XXX assumption: IRQ0-24 */
+	testl	%eax, _mask8254		/* is hard timer interrupt pending? */
+
+#else /** NEW_STRATEGY */
+
 #ifdef APIC_PIN0_TIMER
 	testl	$IRQ0, lapic_irr1
 #else
 	movl	lapic_irr1, %eax	/** XXX assumption: IRQ0-24 */
 	testl	%eax, _mask8254		/* is hard timer interrupt pending? */
 #endif /* APIC_PIN0_TIMER */
+
+#endif /** NEW_STRATEGY */
 #else
 	inb	$IO_ICU1, %al		/* read IRR in ICU */
 	testb	$IRQ0, %al		/* is hard timer interrupt pending? */

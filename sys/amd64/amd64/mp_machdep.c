@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.17 1997/07/20 17:43:20 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.18 1997/07/20 18:13:01 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -1065,12 +1065,14 @@ isa_apic_pin(int isa_irq)
 	int     intr;
 
 #if defined(SMP_TIMER_NC)
-#if defined(APIC_PIN0_TIMER)
+#if defined(NEW_STRATEGY) || defined(APIC_PIN0_TIMER)
+#error
 #error 'options SMP_TIMER_NC' no longer used, remove & reconfig.
+#error
 #else
 	if (isa_irq == 0)
 		return -1;
-#endif	/* APIC_PIN0_TIMER */
+#endif	/* NEW_STRATEGY || APIC_PIN0_TIMER */
 #endif	/* SMP_TIMER_NC */
 
 	for (intr = 0; intr < nintrs; ++intr) {		/* check each record */

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997, by Steve Passe
  * All rights reserved.
  *
@@ -22,15 +22,28 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.2 1997/07/19 02:28:29 fsmp Exp $
+ *	$Id: apic_ipl.s,v 1.2 1997/07/20 18:11:45 smp Exp smp $
  */
 
-#ifdef APIC_IO
-#include <machine/smptests.h>		/** APIC_PIN0_TIMER */
-#endif /* APIC_IO */
+
+#include <machine/smptests.h>		/** NEW_STRATEGY, APIC_PIN0_TIMER */
 
 	.data
 	ALIGN_DATA
+
+#ifdef NEW_STRATEGY
+
+/* this allows us to change the 8254 APIC pin# assignment */
+	.globl _Xintr8254
+_Xintr8254:
+	.long	_Xintr7
+
+/* used by this file, microtime.s and clock.c */
+	.globl _mask8254
+_mask8254:
+	.long	0
+
+#else /** NEW_STRATEGY */
 
 #ifndef APIC_PIN0_TIMER
 /* this allows us to change the 8254 APIC pin# assignment */
@@ -44,18 +57,7 @@ _mask8254:
 	.long	0
 #endif /* APIC_PIN0_TIMER */
 
-#ifdef DO_RTC_VEC
-/** XXX FIXME: remove me after several weeks of no problems */
-/* this allows us to change the RTC clock APIC pin# assignment */
-	.globl _XintrRTC
-_XintrRTC:
-	.long	_Xintr7
-
-/* used by this file and clock.c */
-	.globl _maskRTC
-_maskRTC:
-	.long	0
-#endif /* DO_RTC_VEC */
+#endif /** NEW_STRATEGY */
 
 /*  */
 	.globl _vec
@@ -82,6 +84,24 @@ _vec:
  * generic vector function for 8254 clock
  */
 	ALIGN_TEXT
+#ifdef NEW_STRATEGY
+
+	.globl	_vec8254
+_vec8254:
+	popl	%eax			/* return address */
+	pushfl
+	pushl	$KCSEL
+	pushl	%eax
+	cli
+	movl	_mask8254, %eax		/* lazy masking */
+	notl	%eax
+	andl	%eax, iactive
+	MEXITCOUNT
+	movl	_Xintr8254, %eax
+	jmp	%eax			/* XXX might need _Xfastintr# */
+
+#else /** NEW_STRATEGY */
+
 #ifdef APIC_PIN0_TIMER
 vec0:
 	popl	%eax			/* return address */
@@ -108,29 +128,13 @@ _vec8254:
 	jmp	%eax			/* XXX might need _Xfastintr# */
 #endif /* APIC_PIN0_TIMER */
 
+#endif /** NEW_STRATEGY */
+
 
 /*
  * generic vector function for RTC clock
  */
 	ALIGN_TEXT
-#ifdef DO_RTC_VEC
-
-	.globl	_vecRTC
-_vecRTC:
-	popl	%eax	
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	movl	_maskRTC,%eax		/* lazy masking */
-	notl	%eax
-	andl	%eax, iactive
-	MEXITCOUNT
-	movl	_XintrRTC, %eax
-	jmp	%eax			/* XXX might need _Xfastintr# */
-
-#else /* DO_RTC_VEC */
-
 vec8:
 	popl	%eax	
 	pushfl
@@ -140,9 +144,6 @@ vec8:
 	andl	$~IRQ_BIT(8), iactive ;	/* lazy masking */
 	MEXITCOUNT
 	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
-
-#endif /* DO_RTC_VEC */
-
 
 /*
  * The 'generic' vector stubs.
@@ -161,9 +162,17 @@ __CONCAT(vec,irq_num): ;						\
 	jmp	__CONCAT(_Xintr,irq_num)
 
 
+#ifdef NEW_STRATEGY
+
+	BUILD_VEC(0)
+
+#else /** NEW_STRATEGY */
+
 #ifndef APIC_PIN0_TIMER
 	BUILD_VEC(0)
 #endif /* APIC_PIN0_TIMER */
+
+#endif /** NEW_STRATEGY */
 	BUILD_VEC(1)
 	BUILD_VEC(2)
 	BUILD_VEC(3)
@@ -171,9 +180,7 @@ __CONCAT(vec,irq_num): ;						\
 	BUILD_VEC(5)
 	BUILD_VEC(6)
 	BUILD_VEC(7)
-#ifdef DO_RTC_VEC
-	BUILD_VEC(8)
-#endif /* DO__RTC_VEC */
+	/* IRQ8 is special case, done above */
 	BUILD_VEC(9)
 	BUILD_VEC(10)
 	BUILD_VEC(11)
