@@ -75,15 +75,17 @@ powerpc/powerpc/mp_machdep.c	optional smp
 powerpc/ofw/ofw_pci.c		optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci
 
-powerpc/powermac/uninorth.c	optional	powermac pci
-powerpc/powermac/macio.c	optional	powermac pci
+powerpc/powermac/ata_macio.c	optional	powermac ata
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
-powerpc/powermac/ata_macio.c	optional	powermac ata
-powerpc/powermac/pswitch.c	optional	pswitch powermac
+powerpc/powermac/macio.c	optional	powermac pci
+powerpc/powermac/openpic_macio.c optional	powermac pci
+powerpc/powermac/pswitch.c	optional	powermac pswitch
+powerpc/powermac/uninorth.c	optional	powermac pci
 
 powerpc/psim/iobus.c 		optional psim
 powerpc/psim/ata_iobus.c	optional ata psim
+powerpc/psim/openpic_iobus.c	optional psim
 powerpc/psim/sio_iobus.c	optional sio psim
 
 dev/zs/zs_macio.c		optional	powermac zs
