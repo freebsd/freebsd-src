@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: cksum.c,v 1.7 1997/11/09 05:35:26 obrien Exp $";
+	"$Id: cksum.c,v 1.8 1997/11/09 05:47:55 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -69,10 +69,10 @@ main(argc, argv)
 	char **argv;
 {
 	register int ch, fd, rval;
-	u_long len, val;
+	u_int32_t len, val;
 	char *fn, *p;
-	int (*cfncn) __P((int, unsigned long *, unsigned long *));
-	void (*pfncn) __P((char *, unsigned long, unsigned long));
+	int (*cfncn) __P((int, u_int32_t *, u_int32_t *));
+	void (*pfncn) __P((char *, u_int32_t, u_int32_t));
 
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];

@@ -36,11 +36,11 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	crc __P((int, unsigned long *, unsigned long *));
-void	pcrc __P((char *, unsigned long, unsigned long));
-void	psum1 __P((char *, unsigned long, unsigned long));
-void	psum2 __P((char *, unsigned long, unsigned long));
-int	csum1 __P((int, unsigned long *, unsigned long *));
-int	csum2 __P((int, unsigned long *, unsigned long *));
-int	crc32 __P((int, unsigned long *, unsigned long *));
+int	crc __P((int, u_int32_t *, u_int32_t *));
+void	pcrc __P((char *, u_int32_t, u_int32_t));
+void	psum1 __P((char *, u_int32_t, u_int32_t));
+void	psum2 __P((char *, u_int32_t, u_int32_t));
+int	csum1 __P((int, u_int32_t *, u_int32_t *));
+int	csum2 __P((int, u_int32_t *, u_int32_t *));
+int	crc32 __P((int, u_int32_t *, u_int32_t *));
 __END_DECLS
