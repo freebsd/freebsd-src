@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa_dma.c,v 1.2 1999/04/21 12:17:00 kato Exp $
+ *	$Id: isa_dma.c,v 1.3 1999/05/10 09:09:08 kato Exp $
  */
 
 /*
@@ -55,6 +55,9 @@
 #include <sys/systm.h>
 #include <sys/buf.h>		/* B_READ and B_RAW */
 #include <sys/malloc.h>
+#ifdef PC98
+#include <machine/md_var.h>
+#endif
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -288,6 +291,11 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	    dma_auto_mode &= ~(1 << chan);
 	}
 
+#ifdef PC98
+	if (need_pre_dma_flush)
+		wbinvd();		/* wbinvd (WB cache flush) */
+#endif
+
 #ifndef PC98
 	if ((chan & 4) == 0) {
 		/*
@@ -318,8 +326,13 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		outb(dmapageport[chan], phys>>16);
 
 		/* send count */
+#ifdef PC98
+		outb(waport + 2, --nbytes);
+		outb(waport + 2, nbytes>>8);
+#else
 		outb(waport + 1, --nbytes);
 		outb(waport + 1, nbytes>>8);
+#endif
 
 		/* unmask channel */
 		outb(DMA1_SMSK, chan);
@@ -365,6 +378,14 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 void
 isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {  
+#ifdef PC98
+	if (flags & B_READ) {
+		/* cache flush only after reading 92/12/9 by A.Kojima */
+		if (need_post_dma_flush)
+			invd();
+	}
+#endif
+
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dmadone: channel out of range");
