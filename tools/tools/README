@@ -41,7 +41,6 @@ mid	 	Create a Message-ID database for mailing lists.
 pciid		Generate src/share/misc/pci_vendors.
 portsinfo 	Generate list of new ports for last two weeks.
 prstats		Generate statistics about the PR database.
-raidtest	Tool for testing performance of storage devices.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 tinderbox	Sample script for nightly test builds.
 upgrade         Scripts used for upgrading an installed system.
