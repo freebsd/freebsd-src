@@ -71,7 +71,7 @@ extern int	_fwalk(int (*)(FILE *));
 extern int	__swsetup(FILE *);
 extern int	__sflags(const char *, int *);
 extern int	__ungetc(int, FILE *);
-extern wint_t	__ungetwc(wchar_t, FILE *);
+extern wint_t	__ungetwc(wint_t, FILE *);
 extern int	__vfprintf(FILE *, const char *, __va_list);
 extern int	__vfwprintf(FILE *, const wchar_t *, __va_list);
 
