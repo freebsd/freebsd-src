@@ -410,8 +410,18 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 		error = aha_cmd(aha, AOP_RETURN_EXT_BIOS_INFO, NULL,
 		    /*paramlen*/0, (u_char *)&extbios, sizeof(extbios),
 		    DEFAULT_CMD_TIMEOUT);
+		if (error != 0) {
+			printf("%s: AOP_RETURN_EXT_BIOS_INFO - Failed.",
+			    aha_name(aha));
+			return (error);
+		}
 		error = aha_cmd(aha, AOP_MBOX_IF_ENABLE, (uint8_t *)&extbios,
 		    /*paramlen*/2, NULL, 0, DEFAULT_CMD_TIMEOUT);
+		if (error != 0) {
+			printf("%s: AOP_MBOX_IF_ENABLE - Failed.",
+			    aha_name(aha));
+			return (error);
+		}
 	}
 	if (aha->boardid < 0x41)
 		printf("%s: Warning: aha-1542A won't likely work.\n",
@@ -1477,10 +1487,6 @@ ahareset(struct aha_softc* aha, int hard_reset)
 		return (ENXIO);
 	}
 
-	/* If we've allocated mailboxes, initialize them */
-	if (aha->init_level > 4)
-		ahainitmboxes(aha);
-
 	/* If we've attached to the XPT, tell it about the event */
 	if (aha->path != NULL)
 		xpt_async(AC_BUS_RESET, aha->path, NULL);
@@ -1495,6 +1501,11 @@ ahareset(struct aha_softc* aha, int hard_reset)
 		pending_accb->hccb.ahastat = AHASTAT_HA_SCSI_BUS_RESET;
 		ahadone(aha, pending_accb, AMBI_ERROR);
 	}
+
+	/* If we've allocated mailboxes, initialize them */
+	/* Must be done after we've aborted our queue, or aha_cmd fails */
+	if (aha->init_level > 4)
+		ahainitmboxes(aha);
 
 	return (0);
 }
@@ -1530,13 +1541,13 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 	 * while there are pending transactions.  Freeze our SIMQ
 	 * and wait for all completions to occur if necessary.
 	 */
-	timeout = 100000;
+	timeout = 10000;
 	s = splcam();
 	while (LIST_FIRST(&aha->pending_ccbs) != NULL && --timeout) {
 		/* Fire the interrupt handler in case interrupts are blocked */
 		aha_intr(aha);
 		splx(s);
-		DELAY(100);
+		DELAY(10);
 		s = splcam();
 	}
 	splx(s);
@@ -1840,6 +1851,7 @@ ahatimeout(void *arg)
 	struct aha_softc *aha;
 	int		 s;
 	uint32_t	paddr;
+	struct ccb_hdr *ccb_h;
 
 	accb = (struct aha_ccb *)arg;
 	ccb = accb->ccb;
@@ -1868,8 +1880,6 @@ ahatimeout(void *arg)
 	 * be reinstated when the recovery process ends.
 	 */
 	if ((accb->flags & ACCB_DEVICE_RESET) == 0) {
-		struct ccb_hdr *ccb_h;
-
 		if ((accb->flags & ACCB_RELEASE_SIMQ) == 0) {
 			xpt_freeze_simq(aha->sim, /*count*/1);
 			accb->flags |= ACCB_RELEASE_SIMQ;
