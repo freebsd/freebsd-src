@@ -106,9 +106,22 @@ SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, send, CTLFLAG_RW,
     &so_zero_copy_send, 0, "Enable zero copy send");
 #endif /* ZERO_COPY_SOCKETS */
 
+/*
+ * accept_mtx locks down per-socket fields relating to accept queues.  See
+ * socketvar.h for an annotation of the protected fields of struct socket.
+ */
 struct mtx accept_mtx;
 MTX_SYSINIT(accept_mtx, &accept_mtx, "accept", MTX_DEF);
 
+/*
+ * so_global_mtx protects so_gencnt, numopensockets, and the per-socket
+ * so_gencnt field.
+ *
+ * XXXRW: These variables might be better manipulated using atomic operations
+ * for improved efficiency.
+ */
+static struct mtx so_global_mtx;
+MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
 
 /*
  * Socket operation routines.
@@ -146,11 +159,12 @@ soalloc(int mflags)
 #endif
 		SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
 		SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
-		/* XXX race condition for reentrant kernel */
-		so->so_gencnt = ++so_gencnt;
 		/* sx_init(&so->so_sxlock, "socket sxlock"); */
 		TAILQ_INIT(&so->so_aiojobq);
+		mtx_lock(&so_global_mtx);
+		so->so_gencnt = ++so_gencnt;
 		++numopensockets;
+		mtx_unlock(&so_global_mtx);
 	}
 	return so;
 }
@@ -230,7 +244,9 @@ sodealloc(struct socket *so)
 {
 
 	KASSERT(so->so_count == 0, ("sodealloc(): so_count %d", so->so_count));
+	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
+	mtx_unlock(&so_global_mtx);
 	if (so->so_rcv.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
@@ -250,7 +266,15 @@ sodealloc(struct socket *so)
 	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
 	/* sx_destroy(&so->so_sxlock); */
 	uma_zfree(socket_zone, so);
+	/*
+	 * XXXRW: Seems like a shame to grab the mutex again down here, but
+	 * we don't want to decrement the socket count until after we free
+	 * the socket, and we can't increment the gencnt on the socket after
+	 * we free, it so...
+	 */
+	mtx_lock(&so_global_mtx);
 	--numopensockets;
+	mtx_unlock(&so_global_mtx);
 }
 
 int
