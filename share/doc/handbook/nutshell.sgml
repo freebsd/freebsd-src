@@ -1,4 +1,4 @@
-<!-- $Id: nutshell.sgml,v 1.5 1995/09/01 04:54:14 jfieber Exp $ -->
+<!-- $Id: nutshell.sgml,v 1.6 1995/09/17 10:56:37 davidg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>FreeBSD in a nutshell<label id="nutshell"></heading>
@@ -17,7 +17,7 @@
       <item><bf>Multiuser</bf> access means that many people can use a
 	FreeBSD system simultaneously for a variety of things.  System
 	peripherals such as printers and tape drives are also properly
-	shared between all users on the system.</item>
+	SHARED BETWEEN ALL users on the system.</item>
       <item>Complete <bf>TCP/IP networking</bf> including SLIP, PPP, NFS
 	and NIS support.  This means that your FreeBSD machine can
 	interoperate easily with other systems as well act as an enterprise
@@ -33,7 +33,7 @@
 	provides a graphical user interface (GUI) for the cost of a
 	common VGA card and monitor and comes with full sources.</item>
       <item><bf>Binary compatibility</bf> with many programs built for SCO,
-	BSDI, NetBSD, and 386BSD.</item>
+	BSDI, NetBSD, Linux and 386BSD.</item>
       <item>Hundreds of <bf>ready-to-run</bf> applications are
 	available from the
 	FreeBSD <bf>ports</bf> and <bf>packages</bf>
@@ -142,7 +142,7 @@
 	and easier to administer.</item>
       <item><bf>Software Development:</bf> The basic FreeBSD system
 	comes with a full compliment of development tools
-	included the renowned GNU C/C++ compiler and
+	including  the renowned GNU C/C++ compiler and
 	debugger. </item>
     </itemize>
 
