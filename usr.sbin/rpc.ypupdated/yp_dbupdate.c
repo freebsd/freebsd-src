@@ -55,7 +55,7 @@ static int yp_domake(map, domain)
 {
 	int pid;
 
-	switch((pid = fork())) {
+	switch ((pid = fork())) {
 	case 0:
 		execlp(MAP_UPDATE_PATH, MAP_UPDATE, map, domain, (char *)NULL);
 		yp_error("couldn't exec map update process: %s",
@@ -104,7 +104,7 @@ int ypmap_update(netname, map, op, keylen, keyval, datlen, datval)
 	data.data = datval;
 	data.size = datlen;
 
-	switch(op) {
+	switch (op) {
 	case YPOP_DELETE: /* delete this entry */
 		rval = yp_del_record(dbp, &key);
 		if (rval == YP_TRUE)

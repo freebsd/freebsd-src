@@ -102,25 +102,25 @@ bind_host(char *dom, struct sockaddr_in *lsin)
 	tv.tv_sec = 15;
 	tv.tv_usec = 0;
 	client = clntudp_create(lsin, YPBINDPROG, YPBINDVERS, tv, &sock);
-	if(client==NULL) {
+	if (client == NULL) {
 		warnx("can't clntudp_create: %s", yperr_string(YPERR_YPBIND));
-		return YPERR_YPBIND;
+		return (YPERR_YPBIND);
 	}
 
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	r = clnt_call(client, YPBINDPROC_DOMAIN,
 		xdr_domainname, &dom, xdr_ypbind_resp, &ypbr, tv);
-	if( r != RPC_SUCCESS) {
+	if (r != RPC_SUCCESS) {
 		warnx("can't clnt_call: %s", yperr_string(YPERR_YPBIND));
 		clnt_destroy(client);
-		return YPERR_YPBIND;
+		return (YPERR_YPBIND);
 	} else {
 		if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
 			warnx("can't yp_bind: reason: %s",
 				ypbinderr_string(ypbr.ypbind_resp_u.ypbind_error));
 			clnt_destroy(client);
-			return r;
+			return (r);
 		}
 	}
 	clnt_destroy(client);
@@ -132,7 +132,7 @@ bind_host(char *dom, struct sockaddr_in *lsin)
 		printf("%s\n", hent->h_name);
 	else
 		printf("%s\n", inet_ntoa(ss_addr));
-	return 0;
+	return (0);
 }
 
 int
@@ -148,10 +148,10 @@ main(int argc, char *argv[])
 	u_int i;
 
 	getmap = notrans = mode = 0;
-	while( (c=getopt(argc, argv, "xd:mt")) != -1)
-		switch(c) {
+	while ((c = getopt(argc, argv, "xd:mt")) != -1)
+		switch (c) {
 		case 'x':
-			for(i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			for (i = 0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 				printf("\"%s\" is an alias for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
@@ -169,30 +169,30 @@ main(int argc, char *argv[])
 			usage();
 		}
 
-	if(!domnam)
+	if (!domnam)
 		yp_get_default_domain(&domnam);
 
-	if(mode==0) {
-		switch(argc-optind) {
+	if (mode == 0) {
+		switch (argc-optind) {
 		case 0:
 			bzero(&lsin, sizeof lsin);
 			lsin.sin_family = AF_INET;
 			lsin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-			if(bind_host(domnam, &lsin))
+			if (bind_host(domnam, &lsin))
 				exit(ERR_NOBINDING);
 			break;
 		case 1:
 			bzero(&lsin, sizeof lsin);
 			lsin.sin_family = AF_INET;
-			if( (lsin.sin_addr.s_addr=inet_addr(argv[optind]))==-1) {
+			if ((lsin.sin_addr.s_addr = inet_addr(argv[optind])) == -1) {
 				hent = gethostbyname(argv[optind]);
-				if(!hent)
+				if (!hent)
 					errx(ERR_NOSUCHHOST, "host %s unknown", argv[optind]);
 				bcopy((char *)hent->h_addr_list[0],
 					(char *)&lsin.sin_addr, sizeof lsin.sin_addr);
 			}
-			if(bind_host(domnam, &lsin))
+			if (bind_host(domnam, &lsin))
 				exit(ERR_NOBINDING);
 			break;
 		default:
@@ -201,16 +201,16 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
-	if( argc-optind > 1)
+	if (argc-optind > 1)
 		usage();
 
-	if(argv[optind]) {
+	if (argv[optind]) {
 		map = argv[optind];
-		for(i=0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
-			if( strcmp(map, ypaliases[i].alias) == 0)
+		for (i = 0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			if (strcmp(map, ypaliases[i].alias) == 0)
 				map = ypaliases[i].name;
 		r = yp_master(domnam, map, &master);
-		switch(r) {
+		switch (r) {
 		case 0:
 			printf("%s\n", master);
 			free(master);
@@ -226,12 +226,12 @@ main(int argc, char *argv[])
 
 	ypml = NULL;
 	r = yp_maplist(domnam, &ypml);
-	switch(r) {
+	switch (r) {
 	case 0:
-		for(y=ypml; y; ) {
+		for (y = ypml; y;) {
 			ypml = y;
 			r = yp_master(domnam, ypml->map, &master);
-			switch(r) {
+			switch (r) {
 			case 0:
 				printf("%s %s\n", ypml->map, master);
 				free(master);

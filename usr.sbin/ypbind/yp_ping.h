@@ -1,1 +1,5 @@
-extern int __yp_ping __P(( struct in_addr *, int, char *, short * ));
+/*
+ * $FreeBSD$
+ */
+
+extern int __yp_ping(struct in_addr *, int, char *, short *);

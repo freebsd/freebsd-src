@@ -150,7 +150,7 @@ pw_mkdb(username)
 	/* Temporarily turn off SIGCHLD catching */
 	install_reaper(0);
 	if (!(pid = vfork())) {
-		if(!username) {
+		if (!username) {
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname,
 			    (char *)NULL);
 		} else {

@@ -136,7 +136,7 @@ unsigned int *ypu_insert_1_svc(args, svcreq)
 	static int res;
 	char *netname;
 	enum auth_stat astat;
-	
+
 	res = 0;
 
 	astat = yp_checkauth(svcreq);

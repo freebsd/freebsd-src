@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * NIS interface routines for chpass
- * 
+ *
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
@@ -41,7 +41,7 @@
 #ifdef YP
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>  
+#include <string.h>
 #include <netdb.h>
 #include <time.h>
 #include <sys/types.h>
@@ -307,8 +307,8 @@ int use_yp (user, uid, which)
 			copy_yp_pass(result, 0, resultlen);
 		}
 		/* Is the user in the NIS master.passwd map */
-		if (user_yp && !my_yp_match(server, yp_domain, which ? 
-			"master.passwd.byuid" : "master.passwd.byname",	
+		if (user_yp && !my_yp_match(server, yp_domain, which ?
+			"master.passwd.byuid" : "master.passwd.byname",
 		    user, strlen(user),
 		    &result, &resultlen)) {
 			*(char *)(result + resultlen) = '\0';
