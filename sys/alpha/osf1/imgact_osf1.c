@@ -96,12 +96,14 @@ exec_osf1_imgact(struct image_params *imgp)
         vm_offset_t  tsize;
 	struct nameidata *ndp;
 	Osf_Auxargs *osf_auxargs;
+	struct thread *td;
 
 	GIANT_REQUIRED;
 
 	execp = (const struct ecoff_exechdr*)imgp->image_header;
 	eap = &execp->a;
 	ndp = NULL;
+	td = FIRST_THREAD_IN_PROC(imgp->proc);
 
 /* check to make sure we have an alpha ecoff executable */
 	if (ECOFF_BADMAG(execp))
@@ -137,14 +139,15 @@ exec_osf1_imgact(struct image_params *imgp)
 		ndp = (struct nameidata *)malloc(sizeof(struct nameidata),
 		    M_TEMP, M_WAITOK);
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE,
-		    "/compat/osf1/sbin/loader",
-		    FIRST_THREAD_IN_PROC(imgp->proc));
+		    "/compat/osf1/sbin/loader", td);
 		error = namei(ndp);
 		if (error) {
 			uprintf("imgact_osf1: can't read /compat/osf1/sbin/loader\n");
 			free(imgp->auxargs, M_TEMP);
+			free(ndp, M_TEMP);
 			return(error);
-		} 
+		}
+		NDFREE(ndp, NDF_ONLY_PNBUF);
 		if (imgp->vp) {
 			vput(imgp->vp);
 		/* leaking in the nameizone ??? XXX */
@@ -192,7 +195,7 @@ exec_osf1_imgact(struct image_params *imgp)
 	    VM_PROT_READ|VM_PROT_EXECUTE, VM_PROT_ALL, MAP_FIXED|MAP_COPY,
 	    (caddr_t)imgp->vp, ECOFF_TXTOFF(execp)))) {
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
-		return error;
+		goto bail;
 	}
 	/* .. data .. */
 	if ((error = vm_mmap(&vmspace->vm_map, &daddr, dsize,
@@ -238,9 +241,9 @@ exec_osf1_imgact(struct image_params *imgp)
  bail:
 	free(imgp->auxargs, M_TEMP);
 	if (ndp) {
-		VOP_CLOSE(ndp->ni_vp, FREAD, imgp->proc->p_ucred,
-		    FIRST_THREAD_IN_PROC(imgp->proc));
+		VOP_CLOSE(ndp->ni_vp, FREAD, td->td_ucred, td);
 		vrele(ndp->ni_vp);
+		free(ndp, M_TEMP);
 	}
 	return(error);
 }
