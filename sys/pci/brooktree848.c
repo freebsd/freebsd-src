@@ -1,4 +1,4 @@
-/* BT848 1.40 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.41 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -274,13 +274,23 @@
                            for newer NTSC WinCastTV 404 with Bt878 chipset.
                            Tidied up PAL default in video_open()
 
-1.40       10 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+1.49       10 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
                            Added Capture Area ioctl - BT848[SG]CAPAREA.
                            Normally the full 640x480 (768x576 PAL) image
                            is grabbed. This ioctl allows a smaller area
                            from anywhere within the video image to be
                            grabbed, eg a 400x300 image from (50,10).
                            See restrictions in BT848SCAPAREA.
+
+1.50       31 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Renamed BT848[SG]CAPAREA to BT848_[SG]CAPAREA.
+                           Added PR kern/7177 for SECAM Video Highway Xtreme
+                           with single crystal PLL configuration
+                           submitted by Vsevolod Lobko <seva@alex-ua.com>.
+                           In kernel configuration file add
+                             options OVERRIDE_CARD=2
+                             options OVERRIDE_TUNER=11
+                             options BKTR_USE_PLL
 */
 
 #define DDB(x) x
@@ -532,7 +542,7 @@ static struct format_params format_params[] = {
 /* # define BT848_IFORM_F_PALN             (0x5) */
   { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },
 /* # define BT848_IFORM_F_SECAM            (0x6) */
-  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x00, BT848_IFORM_X_XT1 },
+  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },  
 /* # define BT848_IFORM_F_RSVD             (0x7) - ???? */
   { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT0 },
 };
@@ -635,6 +645,10 @@ static struct {
 /* PLL on a the Philips FR1236MK2 tuner */
 #define PHILIPS_FR1236_NTSC_WADDR      0xc2
 #define PHILIPS_FR1236_NTSC_RADDR      0xc3
+
+/* PLL on a the Philips FR1236MK2 tuner */
+#define PHILIPS_FR1236_SECAM_WADDR      0xc0
+#define PHILIPS_FR1236_SECAM_RADDR      0xc1
 
 /* PLL on a the Philips FR1216MK2 tuner,
    yes, the european version of the tuner is 1216 */
@@ -741,7 +755,8 @@ static struct {
 #define PHILIPS_PALI		8
 #define PHILIPS_FR1236_NTSC     9
 #define PHILIPS_FR1216_PAL	10
-#define Bt848_MAX_TUNER         11
+#define PHILIPS_FR1236_SECAM    11
+#define Bt848_MAX_TUNER         12
 
 /* XXX FIXME: this list is incomplete */
 
@@ -880,6 +895,17 @@ static const struct TUNER tuners[] = {
 	{ "Philips FR1216 PAL" ,		/* the 'name' */
 	   TTYPE_PAL,				/* input type */
   	   PHILIPS_FR1216_PAL_WADDR,		/* PLL write address */
+	   { TSA552x_FCONTROL,			/* control byte for PLL */
+	     TSA552x_FCONTROL,
+	     TSA552x_FCONTROL,
+	     TSA552x_RADIO },
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
+
+	/* PHILIPS_FR1236_SECAM */
+	{ "Philips FR1236 SECAM FM",		/* the 'name' */
+	   TTYPE_SECAM,				/* input type */
+  	   PHILIPS_FR1236_SECAM_WADDR,		/* PLL write address */
 	   { TSA552x_FCONTROL,			/* control byte for PLL */
 	     TSA552x_FCONTROL,
 	     TSA552x_FCONTROL,
@@ -1647,6 +1673,13 @@ video_open( bktr_ptr_t bktr )
 	bt848->adelay = format_params[bktr->format_params].adelay;
 	bt848->bdelay = format_params[bktr->format_params].bdelay;
 	frame_rate    = format_params[bktr->format_params].frame_rate;
+
+#ifdef BKTR_USE_PLL
+	bt848->tgctrl=0;
+	bt848->pll_f_lo=0xf9;
+	bt848->pll_f_hi=0xdc;
+	bt848->pll_f_xci=0x8e;
+#endif
 
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
 
@@ -2419,7 +2452,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 	/* end of METEORSETGEO */
 
-	/* FIXME. The Capture Area currently has the following restrictions
+	/* FIXME. The Capture Area currently has the following restrictions:
 	GENERAL
 	 y_offset may need to be even in interlaced modes
 	RGB24 - Interlaced mode
@@ -2436,7 +2469,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	 y_size must be greater than or equal to 2*METEORSETGEO height (rows)
 	*/
 
-	case BT848SCAPAREA: /* set capture area of each video frame */
+	case BT848_SCAPAREA: /* set capture area of each video frame */
 		/* can't change parameters while capturing */
 		if (bktr->flags & METEOR_CAP_MASK)
 			return( EBUSY );
@@ -2451,7 +2484,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		bktr->dma_prog_loaded = FALSE;
 		break;
    
-	case BT848GCAPAREA: /* get capture area of each video frame */
+	case BT848_GCAPAREA: /* get capture area of each video frame */
 		cap_area = (struct bktr_capture_area *) arg;
 		if (bktr->capture_area_enabled == FALSE) {
 			cap_area->x_offset = 0;
@@ -3822,6 +3855,14 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	bt848->o_vdelay_lo = temp & 0xff;
 
 	/* end of video params */
+
+#ifdef BKTR_USE_PLL
+	if (fp->iform_xtsel==BT848_IFORM_X_XT1) {
+		bt848->tgctrl=8; /* Select PLL mode */
+	} else {
+		bt848->tgctrl=0; /* Select Normal xtal 0/xtal 1 mode */
+	}
+#endif
 
 	/* capture control */
 	switch (i_flag) {
