@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.242 1997/12/07 08:09:19 yokota Exp $
+ *  $Id: syscons.c,v 1.243 1998/01/07 08:40:34 yokota Exp $
  */
 
 #include "sc.h"
@@ -3760,6 +3760,7 @@ next_code:
 	    case NEXT:
 		{
 		int next, this = get_scr_num();
+		accents = 0;
 		for (next = this+1; next != this; next = (next+1)%MAXCONS) {
 		    struct tty *tp = VIRTUAL_TTY(next);
 		    if (tp->t_state & TS_ISOPEN) {
@@ -3774,11 +3775,30 @@ next_code:
 		return(BKEY);
 	    default:
 		if (action >= F_ACC && action <= L_ACC) {
-		    accents = action - F_ACC + 1;
-		    if (accent_map.acc[accents - 1].accchar == 0) {
+		    /* turn it into an index */
+		    action -= F_ACC - 1;
+		    if ((action > accent_map.n_accs) 
+			|| (accent_map.acc[action - 1].accchar == 0)) {
+			/* 
+			 * The index is out of range or pointing to an 
+			 * empty entry.
+			 */
 			accents = 0;
 			do_bell(cur_console, BELL_PITCH, BELL_DURATION);
 		    }
+		    /* 
+		     * If the same accent key has been hit twice,
+		     * produce the accent char itself.
+		     */
+		    if (action == accents) {
+			action = accent_map.acc[accents - 1].accchar;
+			accents = 0;
+			if (metas)
+			    action |= MKEY;
+			return (action);
+		    }
+		    /* remember the index and wait for the next key stroke */
+		    accents = action; 
 		    break;
 		}
 		if (accents > 0) {
@@ -3801,6 +3821,10 @@ next_code:
 
 		acc = &accent_map.acc[accents - 1];
 		accents = 0;
+		/* 
+		 * If the accent key is followed by the space key,
+		 * produce the accent char itself.
+		 */
 		if (action == ' ') {
 		    action = acc->accchar;
 		    if (metas)
@@ -3808,7 +3832,7 @@ next_code:
 		    return (action);
 		}
 		for (i = 0; i < NUM_ACCENTCHARS; ++i) {
-		    if (acc->map[i][0] == 0)
+		    if (acc->map[i][0] == 0)	/* end of the map entry */
 			break;
 		    if (acc->map[i][0] == action) {
 			action = acc->map[i][1];
