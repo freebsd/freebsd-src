@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.115.2.6 1999/02/14 05:53:12 jkh Exp $
+ * $Id: config.c,v 1.115.2.7 1999/02/14 07:39:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -378,6 +378,7 @@ configRC_conf(void)
     FILE *rcSite;
     Variable *v;
     int write_header;
+    static int did_marker = 0;
 
     write_header = !file_readable("/etc/rc.conf");
     rcSite = fopen("/etc/rc.conf", "a");
@@ -391,6 +392,10 @@ configRC_conf(void)
     /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
 	if (v->dirty) {
+	    if (!did_marker) {
+		fprintf(rcSite, "# -- sysinstall generated deltas -- #\n");
+		did_marker = 1;
+	    }
 	    fprintf(rcSite, "%s=\"%s\"\n", v->name, v->value);
 	    v->dirty = 0;
 	}
