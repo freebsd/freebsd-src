@@ -221,11 +221,14 @@ case $i in
 all)
 	sh MAKEDEV std					# standard
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
-	sh MAKEDEV da0 da1 da2 da3 wd0 wd1 wd2 wd3	# bdev, ordinary disk
-	sh MAKEDEV wfd0					# bdev, LS-120 floppy
+	sh MAKEDEV da0 da1 da2 da3 			# bdev, SCSI disk
+	sh MAKEDEV ad0 ad1 ad2 ad3 			# bdev, ATA disk
+	sh MAKEDEV acd0 afd0 ast0			# bdev, ATAPI devices
+	sh MAKEDEV wd0 wd1 wd2 wd3			# bdev, OLD disk
+	sh MAKEDEV wcd0 wfd0 wst0			# bdev, OLD ATAPI devs
 	sh MAKEDEV vn0					# bdev, virtual disk
-	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
-	sh MAKEDEV ft0 sa0 wst0 wt0			# bdev, tape
+	sh MAKEDEV cd0 matcd0 mcd0 scd0			# bdev, cdrom
+	sh MAKEDEV ft0 sa0 wt0				# bdev, tape
 	sh MAKEDEV vty12				# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
 	sh MAKEDEV pty0					# cdev, pseudo tty
@@ -709,6 +712,9 @@ ast*)
 		mknod rast${unit} c $chr `expr $unit '*' 8 + 0`
 		chgrp operator rast${unit}
 		chmod 640 rast${unit}
+		mknod nrast${unit} c $chr `expr $unit '*' 8 + 1`
+		chgrp operator nrast${unit}
+		chmod 640 nrast${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
