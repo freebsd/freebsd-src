@@ -1,0 +1,226 @@
+#
+# NEWCARD -- efforts at porting newconfig pccard/cardbus code to newbus
+#
+# ***************
+# *** WARNING ***
+# ***************
+#
+# USE THIS CODE AT YOUR OWN RISK.  IT IS EXPERIMENTAL AND WILL LIKELY NOT
+# EVEN COMPILE FOR A WHILE.  YOU HAVE BEEN WARNED. -- imp
+#
+# For more information on this file, please read the handbook section on
+# Kernel Configuration Files:
+#
+#    http://www.freebsd.org/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.ORG/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ./LINT configuration file. If you are
+# in doubt as to the purpose or necessity of a line, check first in LINT.
+#
+# $FreeBSD$
+
+machine		i386
+cpu		I386_CPU
+cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
+ident		NEWCARD
+maxusers	32
+
+#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+options 	MATH_EMULATE		#Support for x87 emulation
+options 	INET			#InterNETworking
+options 	FFS			#Berkeley Fast Filesystem
+options 	FFS_ROOT		#FFS usable as root device [keep this!]
+options 	MFS			#Memory Filesystem
+options 	MFS_ROOT		#MFS usable as root device, "MFS" req'ed
+options 	NFS			#Network Filesystem
+options 	NFS_ROOT		#NFS usable as root device, "NFS" req'ed
+options 	MSDOSFS			#MSDOS Filesystem
+options 	CD9660			#ISO 9660 Filesystem
+options 	CD9660_ROOT		#CD-ROM usable as root. "CD9660" req'ed
+options 	PROCFS			#Process filesystem
+options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options 	SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
+options 	UCONSOLE		#Allow users to grab the console
+options 	USERCONFIG		#boot -c editor
+options 	VISUAL_USERCONFIG	#visual boot -c editor
+options 	KTRACE			#ktrace(1) syscall trace support
+options         SYSVSHM			#SYSV-style shared memory
+options         SYSVMSG			#SYSV-style message queues
+options         SYSVSEM			#SYSV-style semaphores
+
+# To make an SMP kernel, the next two are needed
+#options 	SMP			# Symmetric MultiProcessor Kernel
+#options 	APIC_IO			# Symmetric (APIC) I/O
+# Optionally these may need tweaked, (defaults shown):
+#options 	NCPU=2			# number of CPUs
+#options 	NBUS=4			# number of busses
+#options 	NAPIC=1			# number of IO APICs
+#options 	NINTR=24		# number of INTs
+
+controller	isa0
+controller	pnp0			# PnP support for ISA
+controller	eisa0
+controller	pci0
+controller	pccard0
+# controller	cardbus0
+
+# Floppy drives
+controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+disk		fd0	at fdc0 drive 0
+disk		fd1	at fdc0 drive 1
+
+# IDE controller and disks
+controller	wdc0	at isa? port IO_WD1 irq 14
+disk		wd0	at wdc0 drive 0
+disk		wd1	at wdc0 drive 1
+
+controller	wdc1	at isa? port IO_WD2 irq 15
+disk		wd2	at wdc1 drive 0
+disk		wd3	at wdc1 drive 1
+
+# ATAPI devices on wdc?
+device		wcd0		#IDE CD-ROM
+device		wfd0		#IDE Floppy (e.g. LS-120)
+device		wst0		#IDE Tape (e.g. Travan)
+
+# SCSI Controllers
+# A single entry for any of these controllers (ncr, ahb, ahc) is
+# sufficient for any number of installed devices.
+controller	ncr0		# NCR/Symbios Logic
+controller	ahb0		# EISA AHA1742 family
+controller	ahc0		# AHA2940 and onboard AIC7xxx devices
+controller	isp0		# Qlogic family
+controller      dpt0		# DPT Smartcache - See LINT for options!
+
+controller	adv0	at isa? port ? irq ?
+controller	adw0
+controller	bt0	at isa? port ? irq ?
+controller	aha0	at isa? port ? irq ?
+
+# SCSI peripherals
+# Only one of each of these is needed, they are dynamically allocated.
+controller	scbus0		# SCSI bus (required)
+device		da0		# Direct Access (disks)
+device		sa0		# Sequential Access (tape etc)
+device		cd0		# CD
+device		pass0		# Passthrough device (direct SCSI access)
+
+# Proprietary or custom CD-ROM Interfaces
+device		wt0	at isa? port 0x300 irq 5 drq 1
+device		mcd0	at isa? port 0x300 irq 10
+device		matcd0	at isa? port 0x230
+device		scd0	at isa? port 0x230
+
+# atkbdc0 controls both the keyboard and the PS/2 mouse
+controller	atkbdc0	at isa? port IO_KBD
+device		atkbd0	at atkbdc? irq 1
+device		psm0	at atkbdc? irq 12
+
+device		vga0	at isa? port ? conflicts
+
+# splash screen/screen saver
+pseudo-device	splash
+
+# syscons is the default console driver, resembling an SCO console
+device		sc0	at isa?
+
+# Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
+#device		vt0	at isa?
+#options 	XSERVER			# support for X server
+#options 	FAT_CURSOR		# start with block cursor
+# If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
+#options 	PCVT_SCANSET=2		# IBM keyboards are non-std
+
+# Floating point support - do not disable.
+device		npx0	at nexus? port IO_NPX irq 13
+
+# Power management support (see LINT for more options)
+device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
+
+# PCCARD (PCMCIA) support
+controller	pcicx0	at isa?
+controller	pcicx1	at isa?
+# controller	pccbb0
+
+# Serial (COM) ports
+device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
+device		sio1	at isa? port IO_COM2 irq 3
+device		sio2	at isa? disable port IO_COM3 irq 5
+device		sio3	at isa? disable port IO_COM4 irq 9
+
+# Parallel port
+device		ppc0	at isa? port? flags 0x40 irq 7
+controller	ppbus0		# Parallel port bus (required)
+device		lpt0		# Printer
+device		plip0		# TCP/IP over parallel
+device		ppi0		# Parallel port interface device
+#controller	vpo0		# Requires scbus and da0
+
+# MII bus support, required for some 10/100 NICs
+controller	miibus0
+
+# PCI Ethernet NICs.
+device		al0		# ADMtek AL981 (``Comet'')
+device		ax0		# ASIX AX88140A
+device		de0		# DEC/Intel DC21x4x (``Tulip'')
+device		dm0		# Davicom DM9100/DM9102
+device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
+device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
+device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device		rl0		# RealTek 8129/8139
+device		sf0		# Adaptec AIC-6915 (``Starfire'')
+device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste0		# Sundance ST201 (D-Link DFE-550TX)
+device		tl0		# Texas Instruments ThunderLAN
+device		tx0		# SMC 9432TX (83c170 ``EPIC'')
+device		vr0		# VIA Rhine, Rhine II
+device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
+device		wb0		# Winbond W89C840F
+device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+
+# ISA Ethernet NICs.
+# The probe order of these is presently determined by i386/isa/isa_compat.c.
+device		ed0	at isa? port 0x280 irq 10 iomem 0xd8000
+device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
+# NOTE: This removes the isa attachment so that the pccard unit numbers
+# come out right.
+device		ep0
+device		ex0	at isa? port? irq?
+device		fe0	at isa? port 0x300 irq ?
+device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
+device		lnc0	at isa? port 0x280 irq 10 drq 0
+device		cs0	at isa? port 0x300 irq ?
+# requires PCCARD (PCMCIA) support to be activated
+#device		xe0	at isa? port? irq ?
+
+# Pseudo devices - the number indicates how many units to allocated.
+pseudo-device	loop		# Network loopback
+pseudo-device	ether		# Ethernet support
+pseudo-device	sl	1	# Kernel SLIP
+pseudo-device	ppp	1	# Kernel PPP
+pseudo-device	tun		# Packet tunnel.
+pseudo-device	pty		# Pseudo-ttys (telnet etc)
+pseudo-device	gzip		# Exec gzipped a.out's
+
+# The `bpf' pseudo-device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+pseudo-device	bpf		#Berkeley packet filter
+
+# USB support
+#controller	uhci0		# UHCI PCI->USB interface
+#controller	ohci0		# OHCI PCI->USB interface
+#controller	usb0		# USB Bus (required)
+#device		ugen0		# Generic
+#device		uhid0		# "Human Interface Devices"
+#device		ukbd0		# Keyboard
+#device		ulpt0		# Printer
+#controller	umass0		# Disks/Mass storage - Requires scbus and da0
+#device		ums0		# Mouse
