@@ -40,11 +40,11 @@
 .Nd remote file copy
 .Sh SYNOPSIS
 .Nm
-.Op Fl Kpx
+.Op Fl 46Kpx
 .Op Fl k Ar realm
 .Ar file1 file2
 .Nm
-.Op Fl Kprx
+.Op Fl 46Kprx
 .Op Fl k Ar realm
 .Ar
 .Ar directory
@@ -63,6 +63,10 @@ or a `/' before any `:'s).
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl 4
+Use IPv4 addresses only.
+.It Fl 6
+Use IPv6 addresses only.
 .It Fl K
 Turn off all Kerberos authentication.
 .It Fl k

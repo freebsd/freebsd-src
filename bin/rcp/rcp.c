@@ -92,12 +92,12 @@ Key_schedule	schedule;
 extern	char	*krb_realmofhost();
 #ifdef CRYPT
 int	doencrypt = 0;
-#define	OPTIONS	"dfKk:prtx"
+#define	OPTIONS	"46dfKk:prtx"
 #else
-#define	OPTIONS	"dfKk:prt"
+#define	OPTIONS	"46dfKk:prt"
 #endif
 #else
-#define	OPTIONS "dfprt"
+#define	OPTIONS "46dfprt"
 #endif
 
 struct passwd *pwd;
@@ -105,6 +105,7 @@ u_short	port;
 uid_t	userid;
 int errs, rem;
 int pflag, iamremote, iamrecursive, targetshouldbedirectory;
+int family = PF_UNSPEC;
 
 static int argc_copy;
 static char **argv_copy;
@@ -154,6 +155,14 @@ main(int argc, char *argv[])
 	fflag = tflag = 0;
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch(ch) {			/* User-visible flags. */
+		case '4':
+			family = PF_INET;
+			break;
+
+		case '6':
+			family = PF_INET6;
+			break;
+
 		case 'K':
 #ifdef KERBEROS
 			use_kerberos = 0;
@@ -344,15 +353,18 @@ toremote(char *targ, int argc, char *argv[])
 					    tuser ? tuser : pwd->pw_name);
 				else
 #endif
-					rem = rcmd(&host, port, pwd->pw_name,
+					rem = rcmd_af(&host, port,
+					    pwd->pw_name,
 					    tuser ? tuser : pwd->pw_name,
-					    bp, 0);
+					    bp, 0, family);
 				if (rem < 0)
 					exit(1);
-				tos = IPTOS_THROUGHPUT;
-				if (setsockopt(rem, IPPROTO_IP, IP_TOS,
-				    &tos, sizeof(int)) < 0)
-					warn("TOS (ignored)");
+				if (family == PF_INET) {
+					tos = IPTOS_THROUGHPUT;
+					if (setsockopt(rem, IPPROTO_IP, IP_TOS,
+					    &tos, sizeof(int)) < 0)
+						warn("TOS (ignored)");
+				}
 				if (response() < 0)
 					exit(1);
 				(void)free(bp);
@@ -408,16 +420,20 @@ tolocal(int argc, char *argv[])
 		    use_kerberos ?
 			kerberos(&host, bp, pwd->pw_name, suser) :
 #endif
-			rcmd(&host, port, pwd->pw_name, suser, bp, 0);
+			rcmd_af(&host, port, pwd->pw_name, suser, bp, 0,
+			    family);
 		(void)free(bp);
 		if (rem < 0) {
 			++errs;
 			continue;
 		}
 		(void)seteuid(userid);
-		tos = IPTOS_THROUGHPUT;
-		if (setsockopt(rem, IPPROTO_IP, IP_TOS, &tos, sizeof(int)) < 0)
-			warn("TOS (ignored)");
+		if (family == PF_INET) {
+			tos = IPTOS_THROUGHPUT;
+			if (setsockopt(rem, IPPROTO_IP, IP_TOS, &tos,
+			    sizeof(int)) < 0)
+				warn("TOS (ignored)");
+		}
 		sink(1, argv + argc - 1);
 		(void)seteuid(0);
 		(void)close(rem);
@@ -834,7 +850,7 @@ kerberos(char **host, char *bp, char *locuser, char *user)
 			errx(1,
 			   "the -x option requires Kerberos authentication");
 #endif
-		rem = rcmd(host, port, locuser, user, bp, 0);
+		rem = rcmd_af(host, port, locuser, user, bp, 0, family);
 	}
 	return (rem);
 }
@@ -879,17 +895,17 @@ usage(void)
 #ifdef KERBEROS
 #ifdef CRYPT
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rcp [-Kpx] [-k realm] f1 f2",
-	    "       rcp [-Kprx] [-k realm] f1 ... fn directory");
+	    "usage: rcp [-46Kpx] [-k realm] f1 f2",
+	    "       rcp [-46Kprx] [-k realm] f1 ... fn directory");
 #else
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rcp [-Kp] [-k realm] f1 f2",
-	    "       rcp [-Kpr] [-k realm] f1 ... fn directory");
+	    "usage: rcp [-46Kp] [-k realm] f1 f2",
+	    "       rcp [-46Kpr] [-k realm] f1 ... fn directory");
 #endif
 #else
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rcp [-p] f1 f2",
-	    "       rcp [-pr] f1 ... fn directory");
+	    "usage: rcp [-46p] f1 f2",
+	    "       rcp [-46pr] f1 ... fn directory");
 #endif
 	exit(1);
 }
