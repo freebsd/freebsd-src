@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.17 1996/03/14 16:59:19 fenner Exp $
+ *	$Id: in_var.h,v 1.18 1996/12/13 21:28:54 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -56,7 +56,6 @@ struct in_ifaddr {
 	u_long	ia_subnetmask;		/* mask of subnet part */
 	struct	in_addr ia_netbroadcast; /* to recognize net broadcasts */
 	TAILQ_ENTRY(in_ifaddr) ia_link;	/* tailq macro glue */
-	struct	in_ifaddr *ia_next;	/* next in list of internet addresses */
 	struct	sockaddr_in ia_addr;	/* reserve space for interface name */
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
