@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.14 1998/10/21 20:07:04 msmith Exp $
+ *	$Id: bootstrap.h,v 1.15 1998/10/22 20:20:50 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -70,6 +70,15 @@ extern char	*unargv(int argc, char *argv[]);
 extern void	hexdump(caddr_t region, size_t len);
 extern size_t	strlenout(vm_offset_t str);
 extern char	*strdupout(vm_offset_t str);
+
+/*
+ * Disk block cache
+ */
+struct bcache_devdata
+{
+    int         (*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize);
+    void	*dv_devdata;
+};
 
 /*
  * Modular console support.
