@@ -52,6 +52,7 @@ my %INITIAL_CONFIG = (
     'DATE'	=> '',
     'ENV'	=> [],
     'HOSTNAME'	=> '',
+    'JOBS'	=> '',
     'LOGDIR'	=> '%%SANDBOX%%/logs',
     'OPTIONS'	=> [],
     'PATCH'	=> '',
@@ -251,6 +252,8 @@ sub tinderbox($$$) {
 	if ($CONFIG{'DATE'});
     push(@args, "--patch=" . expand('PATCH'))
 	if ($CONFIG{'PATCH'});
+    push(@args, "--jobs=" . expand('JOBS'))
+	if ($CONFIG{'JOBS'});
     push(@args, @{$CONFIG{'TARGETS'}});
     push(@args, @{$CONFIG{'ENV'}});
     push(@args, "CFLAGS=" . expand('CFLAGS'))
