@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/gdb_machdep.h>
 #include <machine/pcb.h>
 #include <machine/trap.h>
+#include <machine/frame.h>
+#include <machine/endian.h>
 
 #include <gdb/gdb.h>
 
@@ -45,6 +47,14 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 {
 
 	*regsz = gdb_cpu_regsz(regnum);
+
+	if (kdb_thread  == curthread) {
+		switch (regnum) {
+		case 0:	return (&kdb_frame->tf_eax);
+		case 1:	return (&kdb_frame->tf_ecx);
+		case 2:	return (&kdb_frame->tf_edx);
+		}
+	}
 	switch (regnum) {
 	case 3:  return (&kdb_thrctx->pcb_ebx);
 	case 4:  return (&kdb_thrctx->pcb_esp);
@@ -60,8 +70,12 @@ void
 gdb_cpu_setreg(int regnum, register_t val)
 {
 
+	val = __bswap32(val);
 	switch (regnum) {
-	case GDB_REG_PC: kdb_thrctx->pcb_eip = val; break;
+	case GDB_REG_PC:
+		kdb_thrctx->pcb_eip = val;
+		if (kdb_thread  == curthread)
+			kdb_frame->tf_eip = val;
 	}
 }
 
