@@ -2568,9 +2568,6 @@ nfs_strategy(struct vop_strategy_args *ap)
 	KASSERT(!(bp->b_flags & B_DONE), ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
 	KASSERT(BUF_REFCNT(bp) > 0, ("nfs_strategy: buffer %p not locked", bp));
 
-	if (bp->b_flags & B_PHYS)
-		panic("nfs physio");
-
 	if (bp->b_flags & B_ASYNC)
 		td = NULL;
 	else
@@ -2978,6 +2975,7 @@ nfs_writebp(struct buf *bp, int force, struct thread *td)
 	if (force)
 		bp->b_flags |= B_WRITEINPROG;
 	BUF_KERNPROC(bp);
+	bp->b_offset = dbtob(bp->b_blkno);
 	VOP_STRATEGY(bp->b_vp, bp);
 
 	if( (oldflags & B_ASYNC) == 0) {
