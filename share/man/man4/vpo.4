@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 1998
+.Dd December 14, 2004
 .Dt VPO 4
 .Os
 .Sh NAME
@@ -36,15 +36,23 @@
 For one or more SCSI busses:
 .Cd "device scbus"
 .Sh DESCRIPTION
-The primary purpose of the
+The
 .Nm
-driver is to provide access to the Adaptec AIC-7110 SCSI controller built
-in the Iomega ZIP drive.
-But it should also work with the Iomega Jaz Traveller
-parallel to SCSI interface.
+driver provide access to parallel port Iomage Zip and Jaz drives.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following parallel to SCSI interfaces:
 .Pp
-The driver has been extended to the ZIP+ drive which is based on the
-Iomega Matchmaker Parallel to SCSI interface.
+.Bl -bullet -compact
+.It
+Adaptec AIC-7110 Parallel to SCSI interface (built-in to Iomega ZIP
+drives)
+.It
+Iomega Jaz Traveller interface
+.It
+Iomega MatchMaker SCSI interface (built-in to Iomega ZIP+ drives)
+.El
 .Sh USAGE
 The driver should let you use a printer connected to the drive while
 transferring data.
