@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbhid.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdevs.h>
+#include "usbdevs.h"
 #include <dev/usb/usb_quirks.h>
 #include <dev/usb/hid.h>
 

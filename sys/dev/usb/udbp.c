@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usbhid.h>
 
-#include <dev/usb/usbdevs.h>
+#include "usbdevs.h"
 
 
 #include <netgraph/ng_message.h>
