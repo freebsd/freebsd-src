@@ -48,6 +48,8 @@ static const char rcsid[] =
 #include <err.h>
 #include "gprof.h"
 
+#define	UNITS_TO_CODE	(OFFSET_OF_CODE / sizeof(UNIT))
+
 static int valcmp(const void *, const void *);
 
 
