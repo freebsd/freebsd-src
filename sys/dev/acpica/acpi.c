@@ -1365,7 +1365,7 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    printf("ACPI power-off failed - timeout\n");
 	}
-    } else {
+    } else if (panicstr == NULL) {
 	printf("Shutting down ACPI\n");
 	AcpiTerminate();
     }
