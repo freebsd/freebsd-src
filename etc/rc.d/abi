@@ -5,6 +5,7 @@
 
 # PROVIDE: abi
 # REQUIRE: LOGIN
+# BEFORE:  securelevel
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr

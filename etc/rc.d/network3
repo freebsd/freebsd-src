@@ -5,6 +5,7 @@
 
 # PROVIDE: network3
 # REQUIRE: localdaemons
+# BEFORE:  securelevel
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr

@@ -5,6 +5,7 @@
 
 # PROVIDE: devfs
 # REQUIRE: LOGIN
+# BEFORE:  securelevel
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
