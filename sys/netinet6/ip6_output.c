@@ -1371,7 +1371,7 @@ ip6_getpmtu(ro_pmtu, ro, ifp, dst, mtup, alwaysfragp)
 		struct sockaddr_in6 *sa6_dst =
 		    (struct sockaddr_in6 *)&ro_pmtu->ro_dst;
 		if (ro_pmtu->ro_rt &&
-		    ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+		    ((ro_pmtu->ro_rt->rt_flags & RTF_UP) == 0 ||
 		     !IN6_ARE_ADDR_EQUAL(&sa6_dst->sin6_addr, dst))) {
 			RTFREE(ro_pmtu->ro_rt);
 			ro_pmtu->ro_rt = (struct rtentry *)NULL;
