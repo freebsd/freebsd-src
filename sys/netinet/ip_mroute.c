@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.49 1998/08/23 03:07:14 wollman Exp $
+ * $Id: ip_mroute.c,v 1.50 1998/12/07 21:58:41 archie Exp $
  */
 
 #include "opt_mrouting.h"
@@ -429,6 +429,7 @@ X_ip_mrouter_set(so, sopt)
 			error = add_mfc(&mfc);
 		else
 			error = del_mfc(&mfc);
+		break;
 
 	case MRT_ASSERT:
 		error = sooptcopyin(sopt, &optval, sizeof optval, 
@@ -436,6 +437,7 @@ X_ip_mrouter_set(so, sopt)
 		if (error)
 			break;
 		set_assert(optval);
+		break;
 
 	default:
 		error = EOPNOTSUPP;
