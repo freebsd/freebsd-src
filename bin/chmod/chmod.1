@@ -65,7 +65,8 @@ The options are as follows:
 If the
 .Fl R
 option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
+(Symbolic links encountered in the tree traversal are not followed by
+default.)
 .It Fl L
 If the
 .Fl R
@@ -81,11 +82,11 @@ instead of just the files themselves.
 Do not display a diagnostic message if
 .Nm
 could not modify the mode for
+.Va file .
 .It Fl v
 Cause
 .Nm
 to be verbose, showing files as the mode is modified.
-.Va file .
 .El
 .Pp
 Symbolic links do not have modes, so unless the
@@ -171,9 +172,8 @@ others, and no set-uid or set-gid behaviour is 755
 The symbolic mode is described by the following grammar:
 .Bd -literal -offset indent
 mode         ::= clause [, clause ...]
-clause       ::= [who ...] [action ...] last_action
+clause       ::= [who ...] [action ...] action
 action       ::= op [perm ...]
-last_action  ::= op [perm ...]
 who          ::= a | u | g | o
 op           ::= + | \- | =
 perm         ::= r | s | t | w | x | X | u | g | o
