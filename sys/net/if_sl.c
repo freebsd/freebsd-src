@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.54 1997/07/26 19:09:12 ache Exp $
+ * $Id: if_sl.c,v 1.55 1997/07/26 20:13:56 ache Exp $
  */
 
 /*
@@ -377,7 +377,8 @@ sltioctl(tp, cmd, data, flag, p)
 
 	case SLIOCSUNIT:
 		if (sc->sc_if.if_unit != *(u_int *)data) {
-			struct sl_softc *nc, tmpnc;
+			struct sl_softc *nc;
+			static struct sl_softc tmpnc; /* too large for stack */
 
 			for (nsl = NSL, nc = sl_softc; --nsl >= 0; nc++) {
 				if (   nc->sc_if.if_unit == *(u_int *)data
