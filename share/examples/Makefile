@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1995/12/11 03:03:24 peter Exp $
+#	$Id: Makefile,v 1.19 1996/01/21 17:57:25 bde Exp $
 #
 # Doing a make install builds /usr/share/examples
 
@@ -18,7 +18,7 @@ all clean cleandir depend lint tags:
 beforeinstall: ${SHARED}
 
 .for dir in ${DIRS}
-FILES!=	find ${dir} \( -name CVS -prune \) -o -type f -print
+FILES!=	find -L ${dir} \( -name CVS -prune \) -o -type f -print
 .for file in ${FILES}
 copies::
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 ${file} ${DDIR}/${file}
