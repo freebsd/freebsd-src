@@ -1,0 +1,154 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2004
+.Dt g_access 9
+.Os
+.Sh NAME
+.Nm g_access
+.Nd "control access count between given consumer and its provider"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft int
+.Fn g_access "struct g_consumer *cp" "int dcr" "int dcw" "int dce"
+.Sh DESCRIPTION
+The
+.Fn g_access
+function allows to open/change access to/close the provider which is
+attached to the given consumer
+.Fa cp .
+Arguments
+.Fa dcr ,
+.Fa dcw ,
+.Fa dce
+stand for read, write and exclusive access count change.
+Read and write access are self explanatory. Exclusive access count
+prevents others write access.
+Provider's access count is the sum of all attached consumers counts.
+After attaching to the provider with
+.Fn g_attach
+function, one have to use
+.Fn g_access
+function before starting I/O requests.
+.Sh RESTRICTIONS/CONDITIONS
+The consumer must be attached.
+.Pp
+Change cannot result in negative access count.
+.Pp
+No\-operation is not permitted
+.Fa ( dcr
+=
+.Fa dcw
+=
+.Fa dce
+=
+.Va 0 ) .
+.Pp
+Access method for provider's geom have to be defined (eg. gp->access).
+.Pp
+The topology lock must be held.
+.Sh RETURN VALUES
+.Fn g_attach
+returns the value 0 if successful; otherwise an error code is returned.
+.Sh ERRORS
+Possible errors:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The function is trying to open with exclusive access count, but provider
+is already open for writting.
+.It Bq Er EPERM
+The function is trying to open for write, but provider is already exclusively
+open.
+.El
+.Pp
+Any other error, than can be returned by provider's access method.
+.Sh EXAMPLES
+Create consumer, attach it to given provider, gain read access and read first
+sector.
+.Bd -literal -offset indent
+void
+some_function(struct g_geom *mygeom, struct g_provider *pp)
+{
+	struct g_consumer *cp;
+	void *ptr;
+	int error;
+
+	g_topology_assert();
+
+	/* Create new consumer on 'mygeom' geom. */
+	cp = g_new_consumer(mygeom);
+	if (cp == NULL)
+		return;
+	/* Attach newly created consumer to given provider. */
+	if (g_attach(cp, pp) != 0) {
+		g_destroy_consumer(cp);
+		return;
+	}
+	/* Open provider for reading through our consumer. */
+	error = g_access(cp, 1, 0, 0);
+	if (error != 0) {
+		printf("Cannot access provider: %s\\n", error);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		return;
+	}
+
+	/*
+	 * Don't hold toplogy lock while reading.
+	 */
+	g_topology_unlock();
+	ptr = g_read_data(cp, 0, pp->sectorsize, &error);
+	if (ptr == NULL)
+		printf("Error while reading: %d\\n", error);
+	/*
+	 * Do something useful with data.
+	 */
+	g_topology_lock();
+
+	/* Disconnect from provider (release access count). */
+	g_access(cp, -1, 0, 0);
+	/* Detach from provider. */
+	g_detach(cp);
+	/* Destroy consumer. */
+	g_destroy_consumer(cp);
+}
+.Ed
+.Sh SEE ALSO
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr geom 4 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
