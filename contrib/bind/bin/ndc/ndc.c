@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ndc.c,v 1.21 2001/12/19 23:16:23 marka Exp $";
+static const char rcsid[] = "$Id: ndc.c,v 1.22 2002/06/24 07:28:55 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -250,6 +250,179 @@ slashhelp(void) {
 	       "toggle silence (suppresses nonfatal errors)");
 }
 
+struct argv {
+	int argc;
+	char **argv;
+	int error;
+};
+
+static char hexdigits[] = "0123456789abcdef";
+
+static void
+getargs_closure(void *arg, const char *msg, int flags) {
+	struct argv *argv = arg;
+	int len;
+	int i;
+	const char *cp, *cp2;
+	char *tp, c;
+
+	UNUSED(flags);
+
+	if (argv->error)
+		return;
+
+	if (argv->argc == -1) {
+		i = atoi(msg + 4);
+		if (i < 1) {
+			argv->error = 1;
+			return;
+		}
+		argv->argc = i;
+		argv->argv = calloc((i+1), sizeof(char*));
+		return;
+	}
+	len = 0;
+	cp = msg + 4;
+	while (*cp != NULL) {
+		c = *cp;
+		if (c == '%') {
+			cp2 = strchr(hexdigits, cp[1]);
+			if (cp2 == NULL) {
+				argv->error = 1;
+				return;
+			}
+			c = (cp2-hexdigits) << 4;
+			cp2 = strchr(hexdigits, cp[2]);
+			if (cp2 == NULL) {
+				argv->error = 1;
+				return;
+			}
+			c += (cp2-hexdigits);
+			cp += 2;
+		}
+		if (!isalnum((unsigned)c)) {
+			switch (c) {
+			case '+': case '-': case '=': case '/': case '.':
+				break;
+			default:
+				len++;
+			}
+		}
+		len++;
+		cp++;
+	}
+	i = 0;
+	while (argv->argv[i] != NULL)
+		i++;
+	if (i >= argv->argc) {
+		argv->error = 1;
+		return;
+	}
+	argv->argv[i] = malloc(len + 1);
+	if (argv->argv[i] == NULL) {
+		argv->error = 1;
+		return;
+	}
+	cp = msg + 4;
+	tp = argv->argv[i];
+	while (*cp != NULL) {
+		c = *cp;
+		if (c == '%') {
+			cp2 = strchr(hexdigits, cp[1]);
+			if (cp2 == NULL) {
+				argv->error = 1;
+				return;
+			}
+			c = (cp2-hexdigits) << 4;
+			cp2 = strchr(hexdigits, cp[2]);
+			if (cp2 == NULL) {
+				argv->error = 1;
+				return;
+			}
+			c += (cp2-hexdigits);
+			cp += 2;
+		}
+		if (!isalnum((unsigned)c)) {
+			switch (c) {
+			case '+': case '-': case '=': case '/': case '.':
+				break;
+			default:
+				*tp = '\\';
+			}
+		}
+		*tp++ = c;
+		cp++;
+	}
+}
+
+static int
+get_args(char **restp) {
+	struct argv argv;
+	int len, i;
+	char *rest, *p;
+	int result = 1;
+
+	argv.argc = -1;
+	argv.argv = NULL;
+	argv.error = 0;
+
+	channel_loop("args", 1, getargs_closure, &argv);
+	if (argv.error) {
+		result = 0;
+		goto err;
+	}
+	len = 0;
+	for (i = 1 ; i < argv.argc && argv.argv[i] != NULL; i++)
+		len += strlen(argv.argv[i]) + 1;
+	rest = malloc(len);
+	if (rest == NULL) {
+		result = 0;
+		goto err;
+	}
+	p = rest;
+	for (i = 1 ; i < argv.argc && argv.argv[i] != NULL; i++) {
+		strcpy(p, argv.argv[i]);
+		p += strlen(argv.argv[i]);
+		*p++ = ' ';
+	}
+	if (p != rest)
+		p[-1] = '\0';
+	*restp = rest;
+
+ err:
+	if (argv.argv) {
+		for (i = 0 ; i < argv.argc && argv.argv[i] != NULL; i++)
+			free(argv.argv[i]);
+		free(argv.argv);
+	}
+	return (result);
+}
+
+static void
+exec_closure(void *arg, const char *msg, int flags) {
+	int *result = arg;
+	UNUSED(flags);
+	if (atoi(msg) == 250)
+		*result = 1;
+}
+
+static int
+try_exec(int local_quiet) {
+	int good = 0;
+	pid_t pid;
+
+	channel_loop("exec", 1, exec_closure, &good);
+
+	if (good) {
+		sleep(3);
+		if (!running(0, &pid))
+			error("name server has not restarted (yet?)");
+		else if (!local_quiet)
+			result("new pid is %ld", (long)pid);
+	}
+	return (good);
+}
+
 static int
 builtincmd(void) {
 	static const char spaces[] = " \t";
@@ -257,14 +430,18 @@ builtincmd(void) {
 	pid_t pid;
 	int save_quiet = quiet;
 	int len;
+	int freerest = 0;
 
 	quiet = 1;
 
 	len = strcspn(cmd, spaces);
 	rest = cmd + len;
-	if (*rest != '\0') {
-		rest++;
+	if (*rest != '\0')
 		rest += strspn(rest, spaces);
+	if (*rest == '\0' && !strncasecmp(cmd, "restart", len)) {
+		if (try_exec(save_quiet))
+			return (1);
+		freerest = get_args(&rest);
 	}
 	syscmd = malloc(strlen(named_path) + sizeof " " + strlen(rest));
 	if (syscmd == NULL)
@@ -274,6 +451,8 @@ builtincmd(void) {
 		strcat(syscmd, " ");
 		strcat(syscmd, rest);
 	}
+	if (freerest)
+		free(rest);
 	if (strncasecmp(cmd, "start", len) == 0) {
 		if (running(debug, &pid))
 			error("name server already running? (pid %ld)",
@@ -417,6 +596,7 @@ channel_loop(const char *cmdtext, int show, closure cl, void *ua) {
 	a.cl = cl;
 	a.ua = ua;
 	logger_show = show;
+	trace("command '%s'", cmdtext);
 	ctl = ctl_client(ev, client_addr, impute_addrlen(client_addr),
 			 (struct sockaddr *)&server,
 			 impute_addrlen((struct sockaddr *)&server),

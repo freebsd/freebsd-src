@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_main.c,v 8.157 2002/04/13 23:26:16 marka Exp $";
+static const char rcsid[] = "$Id: ns_main.c,v 8.160 2002/06/24 07:06:55 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -99,7 +99,9 @@ char copyright[] =
 #ifdef SVR4	/* XXX */
 # include <sys/sockio.h>
 #else
+#ifndef __hpux
 # include <sys/mbuf.h>
+#endif
 #endif
 
 #include <netinet/in.h>
@@ -174,7 +176,7 @@ static	u_int16_t               nsid_c1, nsid_c2, nsid_c3;
 static	u_int16_t               nsid_state2;
 static	int                     nsid_algorithm;
 
-static	int			needs = 0, needs_exit = 0;
+static	int			needs = 0, needs_exit = 0, needs_restart = 0;
 static	handler			handlers[main_need_num];
 static	void			savedg_waitfunc(evContext, void*, const void*);
 static	void			need_waitfunc(evContext, void *, const void *);
@@ -309,14 +311,7 @@ main(int argc, char *argv[]) {
 			break;
 
 		case 'w':
-			if (chdir(optarg) < 0) {
-				syslog(LOG_CRIT, bad_directory, optarg,
-				       strerror(errno));
-				fprintf(stderr, bad_directory, optarg,
-					strerror(errno));
-				fputc('\n', stderr);
-				exit(1);
-			}
+			working_dir = savestr(optarg, 1);
 			break;
 #ifdef QRYLOG
 		case 'q':
@@ -434,6 +429,19 @@ main(int argc, char *argv[]) {
 		chroot_dir = freestr(chroot_dir);
 #endif
 	}
+	/*
+	 * Set working directory.
+	 */
+	if (working_dir != NULL) {
+		if (chdir(working_dir) < 0) {
+			syslog(LOG_CRIT, bad_directory, working_dir,
+			       strerror(errno));
+			fprintf(stderr, bad_directory, working_dir,
+				strerror(errno));
+			fputc('\n', stderr);
+			exit(1);
+		}
+	}
 
 	/* Establish global event context. */
 	evCreate(&ev);
@@ -550,7 +558,10 @@ main(int argc, char *argv[]) {
 		else
 			INSIST_ERR(errno == EINTR);
 	}
-	ns_info(ns_log_default, "named shutting down");
+	if (needs_restart)
+		ns_info(ns_log_default, "named restarting");
+	else
+		ns_info(ns_log_default, "named shutting down");
 #ifdef BIND_UPDATE
 	dynamic_about_to_exit();
 #endif
@@ -563,8 +574,11 @@ main(int argc, char *argv[]) {
 	else
 		shutdown_configuration();
 
-	/* Cleanup for system-dependent stuff */
-	custom_shutdown();
+	if (needs_restart)
+		execvp(saved_argv[0], saved_argv);
+	else
+		/* Cleanup for system-dependent stuff */
+		custom_shutdown();
 	
 	return (0);
 }
@@ -2746,6 +2760,9 @@ deallocate_everything(void) {
 	if (chroot_dir != NULL)
 		freestr(chroot_dir);
 	chroot_dir = NULL;
+	if (working_dir != NULL)
+		freestr(working_dir);
+	working_dir = NULL;
 	if (nsid_pool != NULL)
 		memput(nsid_pool, 0x10000 * (sizeof(u_int16_t)));
 	nsid_pool = NULL;
@@ -2764,19 +2781,8 @@ deallocate_everything(void) {
 	
 static void
 ns_restart(void) {
-	ns_info(ns_log_default, "named restarting");
-#ifdef BIND_UPDATE
-	dynamic_about_to_exit();
-#endif
-	if (server_options && server_options->pid_filename)
-		(void)unlink(server_options->pid_filename);
-	ns_logstats(ev, NULL, evNowTime(), evConsTime(0, 0));
-	if (NS_OPTION_P(OPTION_DEALLOC_ON_EXIT))
-		deallocate_everything();
-	else
-		shutdown_configuration();
-	execvp(saved_argv[0], saved_argv);
-	abort();
+	needs_restart = 1;
+	needs_exit = 1;
 }
 
 static void

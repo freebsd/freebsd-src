@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_lexer.c,v 8.30 2002/04/25 05:27:08 marka Exp $";
+static const char rcsid[] = "$Id: ns_lexer.c,v 8.31 2002/05/24 03:05:03 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -251,6 +251,7 @@ static struct keyword keywords[] = {
 	{"directory", T_DIRECTORY}, 
 	{"dump-file", T_DUMP_FILE},
 	{"dynamic", T_DYNAMIC},
+	{"edns", T_EDNS},
 	{"explicit", T_EXPLICIT},
 	{"fail", T_FAIL},
 	{"fake-iquery", T_FAKE_IQUERY},

@@ -24,11 +24,13 @@
 	do { (list).head = NULL; (list).tail = NULL; } while (0)
 
 #define LINK(type) struct { type *prev, *next; }
-#define INIT_LINK(elt, link) \
+#define INIT_LINK_TYPE(elt, link, type) \
 	do { \
-		(elt)->link.prev = (void *)(-1); \
-		(elt)->link.next = (void *)(-1); \
+		(elt)->link.prev = (type *)(-1); \
+		(elt)->link.next = (type *)(-1); \
 	} while (0)
+#define INIT_LINK(elt, link) \
+	INIT_LINK_TYPE(elt, link, void)
 #define LINKED(elt, link) ((void *)((elt)->link.prev) != (void *)(-1))
 
 #define HEAD(list) ((list).head)
@@ -59,7 +61,7 @@
 		(list).tail = (elt); \
 	} while (0)
 
-#define UNLINK(list, elt, link) \
+#define UNLINK_TYPE(list, elt, link, type) \
 	do { \
 		INSIST(LINKED(elt, link));\
 		if ((elt)->link.next != NULL) \
@@ -70,8 +72,10 @@
 			(elt)->link.prev->link.next = (elt)->link.next; \
 		else \
 			(list).head = (elt)->link.next; \
-		INIT_LINK(elt, link); \
+		INIT_LINK_TYPE(elt, link, type); \
 	} while (0)
+#define UNLINK(list, elt, link) \
+	UNLINK_TYPE(list, elt, link, void)
 
 #define PREV(elt, link) ((elt)->link.prev)
 #define NEXT(elt, link) ((elt)->link.next)

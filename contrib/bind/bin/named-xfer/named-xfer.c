@@ -131,7 +131,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static const char rcsid[] = "$Id: named-xfer.c,v 8.120 2002/01/29 06:54:52 marka Exp $";
+static const char rcsid[] = "$Id: named-xfer.c,v 8.121 2002/06/26 03:27:22 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -751,6 +751,7 @@ main(int argc, char *argv[]) {
 	default:
 		result = XFER_FAIL;
 		/* fall through */
+	case XFER_REFUSED:
 	case XFER_TIMEOUT:
 	case XFER_FAIL:
 		(void) unlink(tmpname);
@@ -1068,6 +1069,7 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 	u_int32_t query_serial = serial_no;
 	int first_soa_printed;
 	struct in_addr z_axfr_src;
+	int refused = 0;
 
 #ifdef DEBUG
 	if (debug) {
@@ -1631,6 +1633,7 @@ receive:
 						       my_addr_text,
 						       inet_ntoa(sin.sin_addr),
 						       zp->z_origin);
+						refused = 1;
 					} else {
 						syslog(LOG_INFO,
 				  "[%s] record too short from [%s], zone %s\n",
@@ -1913,6 +1916,7 @@ axfr_response:
 						       my_addr_text,
 						       inet_ntoa(sin.sin_addr),
 						       zp->z_origin);
+						refused = 1;
 					} else {
 						syslog(LOG_INFO,
 				  "[%s] record too short from [%s], zone %s\n",
@@ -1952,6 +1956,8 @@ axfr_response:
 	}
 	if (!error)
 		return (XFER_TIMEOUT);
+	if (refused)
+		return (XFER_REFUSED);
 	return (XFER_FAIL);
 }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ctl.c,v 8.46 2001/12/19 11:53:48 marka Exp $";
+static const char rcsid[] = "$Id: ns_ctl.c,v 8.47 2002/06/24 07:11:07 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,8 @@ static void		verb_stop(struct ctl_sctx *, struct ctl_sess *,
 static void		verb_exec(struct ctl_sctx *, struct ctl_sess *,
 				  const struct ctl_verb *,
 				  const char *, u_int, const void *, void *);
+static void		exec_closure(struct ctl_sctx *, struct ctl_sess *,
+				     void *);
 static void		verb_reload(struct ctl_sctx *, struct ctl_sess *,
 				    const struct ctl_verb *,
 				    const char *, u_int, const void *, void *);
@@ -141,6 +143,9 @@ static void		verb_help(struct ctl_sctx *, struct ctl_sess *,
 static void		verb_quit(struct ctl_sctx *, struct ctl_sess *,
 				  const struct ctl_verb *,
 				  const char *, u_int, const void *, void *);
+static void		verb_args(struct ctl_sctx *, struct ctl_sess *,
+				  const struct ctl_verb *,
+				  const char *, u_int, const void *, void *);
 
 /* Private data. */
 
@@ -162,6 +167,7 @@ static struct ctl_verb verbs[] = {
 	{ "qrylog",	verb_querylog,	"qrylog"},
 	{ "help",	verb_help,	"help"},
 	{ "quit",	verb_quit,	"quit"},
+	{ "args",	verb_args,	"args"},
 	{ NULL,		NULL,		NULL}
 };
 
@@ -794,11 +800,23 @@ verb_exec(struct ctl_sctx *ctl, struct ctl_sess *sess,
 			   saved_argv[0], save);
 		ctl_response(sess, 502, save, 0, NULL, NULL, NULL,
 			     NULL, 0);
+	} else if (user_name != NULL || group_name != NULL) {
+		ctl_response(sess, 502,
+			     "can't exec as user or group was specified",
+			     0, NULL, NULL, NULL, NULL, 0);
 	} else {
-		ns_need(main_need_restart);
 		ctl_response(sess, 250, "Restart initiated.", 0, NULL,
-			     NULL, NULL, NULL, 0);
+			     exec_closure, NULL, NULL, 0);
 	}
+}
+
+static void
+exec_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
+
+	UNUSED(sctx);
+	UNUSED(sess);
+	UNUSED(uap);
+	ns_need(main_need_restart);
 }
 
 static void
@@ -1048,4 +1066,82 @@ verb_quit(struct ctl_sctx *ctl, struct ctl_sess *sess,
 
 	ctl_response(sess, 221, "End of control session.", CTL_EXIT, NULL,
 		     NULL, NULL, NULL, 0);
+}
+
+static char hex[] = "0123456789abcdef";
+
+struct pvt_args {
+	int	argc;
+	char            text[MAX_STR_LEN];
+};
+
+static void
+args_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
+	struct pvt_args *pvt = ctl_getcsctx(sess);
+
+	UNUSED(sctx);
+	UNUSED(uap);
+
+	memput(pvt, sizeof *pvt);
+	ctl_setcsctx(sess, NULL);
+}
+
+static void
+verb_args(struct ctl_sctx *ctl, struct ctl_sess *sess,
+	  const struct ctl_verb *verb, const char *rest,
+	  u_int respflags, const void *respctx, void *uctx)
+{
+	struct pvt_args *pvt = ctl_getcsctx(sess);
+	char *cp, *tp;
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
+	if (pvt == NULL) {
+		unsigned int i = 0;
+		pvt = memget(sizeof *pvt);
+		if (pvt == NULL) {
+			ctl_response(sess, 505, "(out of memory)",
+				     0, NULL, NULL, NULL, NULL, 0);
+			return;
+		}
+		pvt->argc = 0;
+		ctl_setcsctx(sess, pvt);
+
+		/* Send the arguement count. */
+		while (saved_argv[i] != NULL)
+			i++;
+		sprintf(pvt->text, "%u", i);
+		ctl_response(sess, 250, pvt->text, CTL_MORE,
+			     NULL, args_closure, NULL, NULL, 0);
+		return;
+	}
+
+	/*
+	 * Percent escape arguement.
+	 */
+	cp = saved_argv[pvt->argc++];
+	tp = pvt->text;
+	while (cp && *cp != NULL)
+		if (*cp == '%' || *cp == ' ' ||
+		    !isprint((unsigned char)*cp)) {
+			if (tp >= pvt->text + sizeof(pvt->text) - 4)
+				break;
+			*tp++ = '%';
+			*tp++ = hex[(*cp>>4)&0xf];
+			*tp++ = hex[(*cp++)&0xf];
+		} else {
+			if (tp >= pvt->text + sizeof(pvt->text) - 2)
+				break;
+			*tp++ = *cp++;
+		}
+	*tp = '\0';
+	
+	ctl_response(sess, 250, pvt->text, 
+		     saved_argv[pvt->argc] == NULL ? 0 : CTL_MORE,
+		     NULL, args_closure, NULL, NULL, 0);
 }

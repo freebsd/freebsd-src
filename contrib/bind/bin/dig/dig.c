@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: dig.c,v 8.54 2002/04/24 00:38:08 marka Exp $";
+static const char rcsid[] = "$Id: dig.c,v 8.57 2002/06/18 02:26:49 marka Exp $";
 #endif
 
 /*
@@ -245,6 +245,7 @@ static int		print_axfr(FILE *output, const u_char *msg,
 static struct timeval	difftv(struct timeval, struct timeval);
 static void		prnttime(struct timeval);
 static void		stackarg(char *, char **);
+static void		reverse6(char *, struct in6_addr *);
 
 /* Public. */
 
@@ -289,6 +290,8 @@ main(int argc, char **argv) {
 	int wait=0, delay;
 	int envset=0, envsave=0;
 	struct __res_state res_x, res_t;
+	int r;
+	struct in6_addr in6;
 
 	ns_tsig_key key;
 	char *keyfile = NULL, *keyname = NULL;
@@ -492,6 +495,11 @@ main(int argc, char **argv) {
 					}
 					if ((addrc = *++argv) == NULL) {
 						printf("; no arg for -x?\n");
+						break;
+					}
+					r = inet_pton(AF_INET6, addrc, &in6);
+					if (r > 0) {
+						reverse6(domain, &in6);
 						break;
 					}
 					addrend = addrc + strlen(addrc);
@@ -813,7 +821,7 @@ main(int argc, char **argv) {
 							  buf, sizeof(buf));
 						break;
 					case AF_INET6:
-						inet_ntop(AF_INET,
+						inet_ntop(AF_INET6,
 							  &u[0].sin6.sin6_addr,
 							  buf, sizeof(buf));
 						break;
@@ -1030,7 +1038,7 @@ where:	server,\n\
 	fputs("\
 notes:	defname and search don't work; use fully-qualified names.\n\
 	this is DiG version " VSTRING "\n\
-	$Id: dig.c,v 8.54 2002/04/24 00:38:08 marka Exp $\n\
+	$Id: dig.c,v 8.57 2002/06/18 02:26:49 marka Exp $\n\
 ", stderr);
 }
 
@@ -1774,4 +1782,25 @@ stackarg(char *l, char **y) {
 			*y = NULL;
 		}
 	}
+}
+
+static void
+reverse6(char *domain, struct in6_addr *in6) {
+	sprintf(domain, "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.ip6.arpa",
+		in6->s6_addr[15] & 0x0f, (in6->s6_addr[15] >> 4) & 0x0f,
+		in6->s6_addr[14] & 0x0f, (in6->s6_addr[14] >> 4) & 0x0f,
+		in6->s6_addr[13] & 0x0f, (in6->s6_addr[13] >> 4) & 0x0f,
+		in6->s6_addr[12] & 0x0f, (in6->s6_addr[12] >> 4) & 0x0f,
+		in6->s6_addr[11] & 0x0f, (in6->s6_addr[11] >> 4) & 0x0f,
+		in6->s6_addr[10] & 0x0f, (in6->s6_addr[10] >> 4) & 0x0f,
+		in6->s6_addr[9] & 0x0f, (in6->s6_addr[9] >> 4) & 0x0f,
+		in6->s6_addr[8] & 0x0f, (in6->s6_addr[8] >> 4) & 0x0f,
+		in6->s6_addr[7] & 0x0f, (in6->s6_addr[7] >> 4) & 0x0f,
+		in6->s6_addr[6] & 0x0f, (in6->s6_addr[6] >> 4) & 0x0f,
+		in6->s6_addr[5] & 0x0f, (in6->s6_addr[5] >> 4) & 0x0f,
+		in6->s6_addr[4] & 0x0f, (in6->s6_addr[4] >> 4) & 0x0f,
+		in6->s6_addr[6] & 0x0f, (in6->s6_addr[3] >> 4) & 0x0f,
+		in6->s6_addr[2] & 0x0f, (in6->s6_addr[2] >> 4) & 0x0f,
+		in6->s6_addr[1] & 0x0f, (in6->s6_addr[1] >> 4) & 0x0f,
+		in6->s6_addr[0] & 0x0f, (in6->s6_addr[0] >> 4) & 0x0f);
 }

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.118 2002/04/25 05:27:06 marka Exp $
+ *	$Id: ns_defs.h,v 8.121 2002/06/26 03:27:19 marka Exp $
  */
 
 /*
@@ -172,9 +172,8 @@ typedef enum need {
 	main_need_restart,	/* exec() needed. */
 	main_need_reap,		/* need to reap dead children. */
 	main_need_noexpired,	/* ns_reconfig() needed w/ noexpired set. */
-	main_need_num,		/* number of needs, used for array bound. */
-	main_need_tick,		/* tick every second to poll for cleanup (NT) */
-	main_need_tryxfer	/* attemt to start a zone transfer. */
+	main_need_tryxfer,	/* attemt to start a zone transfer. */
+	main_need_num		/* MUST BE LAST. */
 } main_need;
 
 	/* What global options are set? */
@@ -438,6 +437,7 @@ enum zonetype { z_nil, z_master, z_slave, z_hint, z_stub, z_forward,
 #define XFER_SUCCESSAXFR 4              /* named-xfr recived a xfr */
 #define XFER_SUCCESSIXFR 5              /* named-xfr recived a ixfr */
 #define XFER_SUCCESSAXFRIXFRFILE 6      /* named-xfr received AXFR for IXFR */
+#define XFER_REFUSED 7      		/* one master returned REFUSED */
 #define XFER_ISAXFR     -1              /* the last XFR is AXFR */
 #define XFER_ISIXFR     -2              /* the last XFR is IXFR */
 #define XFER_ISAXFRIXFR	-3		/* the last XFR is AXFR but we must create IXFR base */
@@ -835,6 +835,7 @@ typedef struct server_config {
 
 #define SERVER_INFO_BOGUS	0x01
 #define SERVER_INFO_SUPPORT_IXFR	0x02
+#define SERVER_INFO_EDNS	0x04
 
 typedef struct server_info {
 	struct in_addr address;

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.176 2002/04/17 07:10:10 marka Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.178 2002/06/27 03:09:19 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -288,7 +288,6 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	struct namebuf *np;
 	struct fwdinfo *fwd;
 	struct databuf *dp;
-	int forcecmsg = 0;
 	char *tname = NULL;
 	int sendto_errno = 0;
 	int has_tsig, oldqlen = 0;
@@ -298,6 +297,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	u_char sig[TSIG_SIG_SIZE];
 	time_t tsig_time;
 	DST_KEY *key;
+	int expect_cname;
 
 	nameserIncr(from.sin_addr, nssRcvdR);
 	nsp[0] = NULL;
@@ -924,6 +924,7 @@ tcp_retry:
 	} else
 		flushset = NULL;
 
+	expect_cname = 1;
 	for (i = 0; i < count; i++) {
 		struct databuf *dp;
 		int type;
@@ -955,6 +956,19 @@ tcp_retry:
 		type = dp->d_type;
 		if (i < ancount) {
 			/* Answer section. */
+			/*
+			 * Check for attempts to overflow the buffer in
+			 * getnameanswer.
+			 */
+			if (type == ns_t_cname && !expect_cname) {
+				ns_warning(ns_log_security,
+			     "late CNAME in answer section for %s %s from %s",
+					   *qname ? qname : ".", p_type(qtype),
+					   sin_ntoa(from));
+					   
+			} else if (type != ns_t_cname && type != ns_t_dname &&
+				   type != ns_t_sig)
+				expect_cname = 0;
 			if (externalcname || ns_samename(name, aname) != 1) {
 				if (!externalcname)
 					ns_info(ns_log_resp_checks,
@@ -1220,12 +1234,11 @@ tcp_retry:
 		cache_n_resp(msg, msglen, from, qp->q_name,
 			     qp->q_class, qp->q_type);
 
-		if (!qp->q_cmsglen) {
+		if (!qp->q_cmsglen && validanswer) {
 			ns_debug(ns_log_default, 3,
 				 "resp: leaving NO: auth = %d", hp->aa);
 			goto return_msg;
 		}
-		forcecmsg = 1;
 	}
 
 	/*

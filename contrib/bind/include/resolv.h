@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 8.45 2002/04/12 06:27:48 marka Exp $
+ *	$Id: resolv.h,v 8.48 2002/05/31 06:05:29 marka Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -156,7 +156,11 @@ struct __res_state_ext;
 struct __res_state {
 	int	retrans;	 	/* retransmition time interval */
 	int	retry;			/* number of times to retransmit */
+#ifdef sun
+	u_int	options;		/* option flags - see below. */
+#else
 	u_long	options;		/* option flags - see below. */
+#endif
 	int	nscount;		/* number of name servers */
 	struct sockaddr_in
 		nsaddr_list[MAXNS];	/* address of name server */
@@ -164,7 +168,11 @@ struct __res_state {
 	u_short	id;			/* current message id */
 	char	*dnsrch[MAXDNSRCH+1];	/* components of domain to search */
 	char	defdname[256];		/* default domain (deprecated) */
+#ifdef sun
+	u_int	pfcode;			/* RES_PRF_ flags - see below. */
+#else
 	u_long	pfcode;			/* RES_PRF_ flags - see below. */
+#endif
 	unsigned ndots:4;		/* threshold for initial abs. query */
 	unsigned nsort:4;		/* number of elements in sort_list[] */
 	char	unused[3];
@@ -177,9 +185,10 @@ struct __res_state {
 	int	res_h_errno;		/* last one set for this context */
 	int	_vcsock;		/* PRIVATE: for res_send VC i/o */
 	u_int	_flags;			/* PRIVATE: see below */
+	u_int	_pad;			/* make _u 64 bit aligned */
 	union {
 		/* On an 32-bit arch this means 512b total. */
-		char	pad[72 - 3*sizeof (int) - 2*sizeof (void *)];
+		char	pad[72 - 4*sizeof (int) - 2*sizeof (void *)];
 		struct {
 			u_int16_t		nscount;
 			u_int16_t		nstimes[MAXNS];	/* ms. */
@@ -245,6 +254,7 @@ union res_sockaddr_union {
 #define RES_USE_DNAME	0x10000000	/* use DNAME */
 #define RES_USE_A6	0x20000000	/* use A6 */
 #define RES_USE_EDNS0	0x40000000	/* use EDNS0 if configured */
+#define RES_NO_NIBBLE2	0x80000000	/* disable alternate nibble lookup */
 
 #define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
 
@@ -460,6 +470,7 @@ const char *	res_protocolname __P((int num));
 void		res_destroyprotolist __P((void));
 void		res_buildprotolist __P((void));
 const char *	res_get_nibblesuffix __P((res_state));
+const char *	res_get_nibblesuffix2 __P((res_state));
 const char *	res_get_bitstringsuffix __P((res_state));
 void		res_ndestroy __P((res_state));
 u_int16_t	res_nametoclass __P((const char *buf, int *success));

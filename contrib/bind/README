@@ -10,6 +10,11 @@ artifacts including BIND, INN, and DHCP.
 Note that BIND 8 is in "end-of-life", having been replaced by BIND 9.  See
 http://www.isc.org/ for more details.
 
+BIND 8.3.3 Highlights
+	Security Fix libbind. All applications linked against libbind
+	need to relinked.
+	'rndc restart' now preserves named's arguements
+
 BIND 8.3.2 Highlights
 	dig, nslookup, host and nsupdate have improved IPv6 support.
 

@@ -1895,6 +1895,7 @@ Any number of trusted keys can be specified.
 .Ss Syntax
 .Bd -literal
 server \fIip_addr\fR {
+  [ edns \fIyes_or_no\fR; ]
   [ bogus \fIyes_or_no\fR; ]
   [ support-ixfr \fIyes_or_no\fR; ]
   [ transfers \fInumber\fR; ]
@@ -1905,6 +1906,15 @@ server \fIip_addr\fR {
 .Ss Definition and Usage
 The server statement defines the characteristics to be
 associated with a remote name server.
+.Pp
+If you discover that a server does not support EDNS you can prevent
+named making EDNS queries to it by specifying
+.Ic edns
+.Ic no; .       
+The default value of 
+.Ic edns
+is 
+.Ic yes .
 .Pp
 If you discover that a server is giving out bad data, marking it as
 .Ic bogus

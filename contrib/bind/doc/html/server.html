@@ -13,6 +13,7 @@
 
 <PRE>
 server <VAR><A HREF="docdef.html">ip_addr</A></VAR> {
+  [ edns <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ bogus <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ support-ixfr <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ transfers <VAR><A HREF="docdef.html">number</A></VAR>; ]
@@ -27,6 +28,10 @@ server <VAR><A HREF="docdef.html">ip_addr</A></VAR> {
 
 <P>The server statement defines the characteristics to be
 associated with a remote name server.</P>
+
+<P>If you discover that a server does not support EDNS you can prevent
+named making EDNS queries to it by specifying <CODE>edns no;</CODE>.
+The default value of <CODE>edns</CODE> is <CODE>yes</CODE>.
 
 <P>If you discover that a server is giving out bad data, marking it as
 <CODE>bogus</CODE> will prevent further queries to it.  The default value of
@@ -69,7 +74,7 @@ required to be signed by this key.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: server.html,v 1.12 2001/08/10 05:12:29 marka Exp $
+Last Updated: $Id: server.html,v 1.13 2002/05/24 03:04:51 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>
