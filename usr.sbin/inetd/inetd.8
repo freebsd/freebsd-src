@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.4 1994/12/21 19:08:41 wollman Exp $
+.\"	$Id: inetd.8,v 1.5 1995/10/09 23:34:07 davidg Exp $
 .\"
 .Dd April 13, 1994
 .Dt INETD 8
@@ -322,6 +322,11 @@ rereads its configuration file when it receives a hangup signal,
 .Dv SIGHUP .
 Services may be added, deleted or modified when the configuration file
 is reread.
+Except when started in debugging mode,
+.Nm
+records its process ID in the file
+.Pa /var/run/inetd.pid
+to assist in reconfiguration.
 .Sh TCPMUX
 .Pp
 .Tn RFC 1078 
@@ -347,6 +352,18 @@ causes
 .Nm inetd
 to list TCPMUX services in
 .Pa inetd.conf .
+.Sh "FILES"
+.Bl -tag -width /var/run/inetd.pid -compact
+.It Pa /etc/inetd.conf
+configuration file.
+.It Pa /etc/rpc
+translation of service names to RPC program numbers.
+.It Pa /etc/services
+translation of service names to port numbers.
+.It Pa /var/run/inetd.pid
+the pid of the currently running
+.Nm inetd .
+.El
 .Sh "EXAMPLES"
 .Pp
 Here are several example service entries for the various types of services:
@@ -406,6 +423,8 @@ The user or group ID for the entry's
 .Em user
 is invalid.
 .Sh SEE ALSO
+.Xr rpc 5 ,
+.Xr services 5 ,
 .Xr comsat 8 ,
 .Xr fingerd 8 ,
 .Xr ftpd 8 ,
@@ -423,7 +442,8 @@ command appeared in
 .Bx 4.3 .
 TCPMUX is based on code and documentation by Mark Lottor.
 Support for
-.Em Sun-RPC 
+.Tn "ONC RPC"
 based services is modelled after that
 provided by
-.Em SunOS 4.1 .
+.Tn SunOS
+4.1.
