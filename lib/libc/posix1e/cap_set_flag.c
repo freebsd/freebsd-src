@@ -31,7 +31,10 @@
 
 #include <sys/types.h>
 #include "namespace.h"
+/* need capability.h macros */
+#define _CAPABILITY_NEEDMACROS
 #include <sys/capability.h>
+#undef _CAPABILITY_NEEDMACROS
 #include "un-namespace.h"
 #include <sys/errno.h>
 
