@@ -398,13 +398,13 @@ installation can continue over NFS or FTP.
         If you are installing from some other FTP site not listed in
         this menu, or you are having troubles getting your name server
         configured properly, you can also specify your own URL by
-        selecting the ``Other'' choice in that menu.  A URL can
+        selecting the ``URL'' choice in that menu.  A URL can
         contain a hostname or an IP address, so the following would
         work in the absence of a name server:
 
-                ftp://192.216.191.11/pub/FreeBSD/4.0-RELEASE
+                ftp://192.216.191.11/pub/FreeBSD
 
-        There are two FTP installation modes you can use:
+        There are three FTP installation modes you can use:
 
            o FTP:
 
@@ -420,9 +420,19 @@ installation can continue over NFS or FTP.
              the user to pass through firewalls that do not allow
              incoming connections on random port addresses.
 
-        NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
-        CONNECTIONS, WHERE A PROXY FTP SERVER IS LISTENING ON A
-        DIFFERENT PORT!
+           o FTP via an HTTP proxy:
+             This option instructs FreeBSD to use HTTP (like a web
+             browser) to connect to a proxy for all FTP operations.
+             The proxy will translate the requests and send them to
+             the FTP server.  This allows the user to pass through
+             firewalls that do not allow FTP at all, but offer an
+             HTTP proxy.  You must specify the hostname of the proxy
+             in addition to the FTP server.
+
+        NOTE: THERE IS ANOTHER TYPE OF FTP PROXY OTHER THAN HTTP PROXIES.
+        THIS TYPE IS VERY UNCOMMON, THOUGH.  IF YOU ARE NOT ABSOLUTELY
+        CERTAIN, YOU CAN ASSUME THAT YOU HAVE AN HTTP PROXY AS DESCRIBED
+        ABOVE.
 
         In such instances, you should specify the URL as something like:
 
