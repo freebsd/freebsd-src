@@ -367,7 +367,7 @@ acpi_ec_ecdt_probe(device_t parent)
     ACPI_STATUS	     status;
     device_t	     child;
     ACPI_HANDLE	     h;
-    int		     magic;
+    int		     glk, magic;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -404,12 +404,12 @@ acpi_ec_ecdt_probe(device_t parent)
 
     /*
      * Store values for the probe/attach routines to use.  Store the
-     * ECDT GPE bit and set the global lock flag (just to be safe).
-     * We'll determine whether we really want to use the global lock
-     * in a later call to attach.
+     * ECDT GPE bit and set the global lock flag according to _GLK.
      */
     acpi_set_private(child, &acpi_ec_devclass);
-    magic = DEV_GLK_FLAG;
+    magic = 0;
+    if (ACPI_SUCCESS(acpi_GetInteger(h, "_GLK", &glk)) && glk != 0)
+	magic = DEV_GLK_FLAG;
     DEV_SET_GPEBIT(magic, ecdt->gpe_bit);
     acpi_set_magic(child, magic);
 
@@ -437,12 +437,9 @@ acpi_ec_probe(device_t dev)
      * duplicate probe.
      */
     magic = acpi_get_magic(dev);
-    if (DEV_ECDT(dev)) {
-	snprintf(desc, sizeof(desc), "Embedded Controller: ECDT, GPE %#x, GLK",
-		 DEV_GET_GPEBIT(magic));
-	device_set_desc_copy(dev, desc);
+    if (DEV_ECDT(dev))
 	ret = 0;
-    } else if (acpi_MatchHid(dev, "PNP0C09")) {
+    else if (acpi_MatchHid(dev, "PNP0C09")) {
 	h = acpi_get_handle(dev);
 
 	/*
@@ -470,39 +467,27 @@ acpi_ec_probe(device_t dev)
 	}
 
 	/* Store the values we got from the namespace for attach. */
-	magic = glk != 0 ? DEV_GLK_FLAG : 0;
+	magic = (glk != 0) ? DEV_GLK_FLAG : 0;
 	DEV_SET_GPEBIT(magic, gpebit);
 	acpi_set_magic(dev, magic);
 
 	/*
 	 * Check for a duplicate probe.  This can happen when a probe
-	 * via ECDT succeeded already.  If there is a duplicate, override
-	 * its value for GLK in the peer's softc since the ECDT case
-	 * always enables the global lock to be safe.  Otherwise, just
-	 * continue on to attach.
+	 * via ECDT succeeded already.  If this is a duplicate, disable
+	 * this device.
 	 */
 	peer = devclass_get_device(acpi_ec_devclass, uid);
-	if (peer == NULL || !device_is_alive(peer)) {
-	    snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s",
-		     gpebit, glk != 0 ? ", GLK" : "");
-	    device_set_desc_copy(dev, desc);
+	if (peer == NULL || !device_is_alive(peer))
 	    ret = 0;
-	} else {
-	    struct acpi_ec_softc *sc;
+	else
+	    device_disable(dev);
+    }
 
-	    /*
-	     * Set the peer's sc->ec_glk with locks held so we won't
-	     * override it between another thread's lock/unlock calls.
-	     */
-	    sc = device_get_softc(peer);
-	    if (sc->ec_glk != glk) {
-		ACPI_VPRINT(peer, acpi_device_get_parent_softc(peer),
-		    "Changing GLK from %d to %d\n", sc->ec_glk, glk);
-		mtx_lock(&sc->ec_mtx);
-		sc->ec_glk = glk != 0 ? 1 : 0;
-		mtx_unlock(&sc->ec_mtx);
-	    }
-	}
+    if (ret == 0) {
+	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
+		 DEV_GET_GPEBIT(magic), (magic & DEV_GLK_FLAG) ? ", GLK" : "",
+		 DEV_ECDT(dev) ? ", ECDT" : "");
+	device_set_desc_copy(dev, desc);
     }
 
     return (ret);
