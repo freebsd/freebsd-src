@@ -77,6 +77,9 @@
 #elif __ns32k__
 #define PTRDIFF_IS_LONG		0
 #define SIZEOF_IS_ULONG		0
+#elif __powerpc__
+#define PTRDIFF_IS_LONG		0
+#define SIZEOF_IS_ULONG		0
 #elif __sparc__
 #define PTRDIFF_IS_LONG		0
 #define SIZEOF_IS_ULONG		0
