@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.39 1997/12/13 12:58:09 bde Exp $
+ * $Id: fifo_vnops.c,v 1.40 1997/12/13 13:49:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -189,6 +189,7 @@ fifo_open(ap)
 			return (error);
 		}
 		fip->fi_readers = fip->fi_writers = 0;
+		wso->so_snd.sb_lowat = PIPE_BUF;
 		rso->so_state |= SS_CANTRCVMORE;
 	}
 	if (ap->a_mode & FREAD) {
