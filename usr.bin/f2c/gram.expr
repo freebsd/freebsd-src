@@ -1,0 +1,142 @@
+funarglist:
+		{ $$ = 0; }
+	| funargs
+		{ $$ = revchain($1); }
+	;
+
+funargs:  expr
+		{ $$ = mkchain((char *)$1, CHNULL); }
+	| funargs SCOMMA expr
+		{ $$ = mkchain((char *)$3, $1); }
+	;
+
+
+expr:	  uexpr
+	| SLPAR expr SRPAR	{ $$ = $2; if ($$->tag == TPRIM)
+					$$->primblock.parenused = 1; }
+	| complex_const
+	;
+
+uexpr:	  lhs
+	| simple_const
+	| expr addop expr   %prec SPLUS
+		{ $$ = mkexpr($2, $1, $3); }
+	| expr SSTAR expr
+		{ $$ = mkexpr(OPSTAR, $1, $3); }
+	| expr SSLASH expr
+		{ $$ = mkexpr(OPSLASH, $1, $3); }
+	| expr SPOWER expr
+		{ $$ = mkexpr(OPPOWER, $1, $3); }
+	| addop expr  %prec SSTAR
+		{ if($1 == OPMINUS)
+			$$ = mkexpr(OPNEG, $2, ENULL);
+		  else 	$$ = $2;
+		}
+	| expr relop expr  %prec SEQ
+		{ $$ = mkexpr($2, $1, $3); }
+	| expr SEQV expr
+		{ NO66(".EQV. operator");
+		  $$ = mkexpr(OPEQV, $1,$3); }
+	| expr SNEQV expr
+		{ NO66(".NEQV. operator");
+		  $$ = mkexpr(OPNEQV, $1, $3); }
+	| expr SOR expr
+		{ $$ = mkexpr(OPOR, $1, $3); }
+	| expr SAND expr
+		{ $$ = mkexpr(OPAND, $1, $3); }
+	| SNOT expr
+		{ $$ = mkexpr(OPNOT, $2, ENULL); }
+	| expr SCONCAT expr
+		{ NO66("concatenation operator //");
+		  $$ = mkexpr(OPCONCAT, $1, $3); }
+	;
+
+addop:	  SPLUS		{ $$ = OPPLUS; }
+	| SMINUS	{ $$ = OPMINUS; }
+	;
+
+relop:	  SEQ	{ $$ = OPEQ; }
+	| SGT	{ $$ = OPGT; }
+	| SLT	{ $$ = OPLT; }
+	| SGE	{ $$ = OPGE; }
+	| SLE	{ $$ = OPLE; }
+	| SNE	{ $$ = OPNE; }
+	;
+
+lhs:	 name
+		{ $$ = mkprim($1, LBNULL, CHNULL); }
+	| name substring
+		{ NO66("substring operator :");
+		  $$ = mkprim($1, LBNULL, $2); }
+	| name SLPAR funarglist SRPAR
+		{ $$ = mkprim($1, mklist($3), CHNULL); }
+	| name SLPAR funarglist SRPAR substring
+		{ NO66("substring operator :");
+		  $$ = mkprim($1, mklist($3), $5); }
+	;
+
+substring:  SLPAR opt_expr SCOLON opt_expr SRPAR
+		{ $$ = mkchain((char *)$2, mkchain((char *)$4,CHNULL)); }
+	;
+
+opt_expr:
+		{ $$ = 0; }
+	| expr
+	;
+
+simple:	  name
+		{ if($1->vclass == CLPARAM)
+			$$ = (expptr) cpexpr(
+				( (struct Paramblock *) ($1) ) -> paramval);
+		}
+	| simple_const
+	;
+
+simple_const:   STRUE	{ $$ = mklogcon(1); }
+	| SFALSE	{ $$ = mklogcon(0); }
+	| SHOLLERITH  { $$ = mkstrcon(toklen, token); }
+	| SICON	= { $$ = mkintcon( convci(toklen, token) ); }
+	| SRCON	= { $$ = mkrealcon(tyreal, token); }
+	| SDCON	= { $$ = mkrealcon(TYDREAL, token); }
+	| bit_const
+	;
+
+complex_const:  SLPAR uexpr SCOMMA uexpr SRPAR
+		{ $$ = mkcxcon($2,$4); }
+	;
+
+bit_const:  SHEXCON
+		{ NOEXT("hex constant");
+		  $$ = mkbitcon(4, toklen, token); }
+	| SOCTCON
+		{ NOEXT("octal constant");
+		  $$ = mkbitcon(3, toklen, token); }
+	| SBITCON
+		{ NOEXT("binary constant");
+		  $$ = mkbitcon(1, toklen, token); }
+	;
+
+fexpr:	  unpar_fexpr
+	| SLPAR fexpr SRPAR
+		{ $$ = $2; }
+	;
+
+unpar_fexpr:	  lhs
+	| simple_const
+	| fexpr addop fexpr   %prec SPLUS
+		{ $$ = mkexpr($2, $1, $3); }
+	| fexpr SSTAR fexpr
+		{ $$ = mkexpr(OPSTAR, $1, $3); }
+	| fexpr SSLASH fexpr
+		{ $$ = mkexpr(OPSLASH, $1, $3); }
+	| fexpr SPOWER fexpr
+		{ $$ = mkexpr(OPPOWER, $1, $3); }
+	| addop fexpr  %prec SSTAR
+		{ if($1 == OPMINUS)
+			$$ = mkexpr(OPNEG, $2, ENULL);
+		  else	$$ = $2;
+		}
+	| fexpr SCONCAT fexpr
+		{ NO66("concatenation operator //");
+		  $$ = mkexpr(OPCONCAT, $1, $3); }
+	;
