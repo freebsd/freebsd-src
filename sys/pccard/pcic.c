@@ -49,6 +49,7 @@
 #include <isa/isavar.h>
 #include <dev/pcic/i82365reg.h>
 
+#include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
 /*
@@ -191,6 +192,10 @@ pcic_memory(struct slot *slt, int win)
 	struct mem_desc *mp = &slt->mem[win];
 	int reg = win * PCIC_MEMSIZE + PCIC_MEMBASE;
 
+	if (win < 0 || win >= slt->ctrl->maxmem) {
+		printf("Illegal PCIC MEMORY window request %d\n", win);
+		return (ENXIO);
+	}
 	if (mp->flags & MDF_ACTIVE) {
 		unsigned long sys_addr = (uintptr_t)(void *)mp->start >> 12;
 		/*
@@ -254,7 +259,8 @@ pcic_io(struct slot *slt, int win)
 		reg = PCIC_IO1;
 		break;
 	default:
-		panic("Illegal PCIC I/O window request!");
+		printf("Illegal PCIC I/O window request %d\n", win);
+		return (ENXIO);
 	}
 	if (ip->flags & IODF_ACTIVE) {
 		unsigned char x, ioctlv;
@@ -1244,14 +1250,17 @@ pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
 	case SYS_RES_MEMORY: {
 		struct mem_desc *mp = &devi->slt->mem[rid];
 		switch (value) {
-		case 0:
+		case PCCARD_A_MEM_COM:
 			mp->flags &= ~MDF_ATTR;
 			break;
-		case 1:
+		case PCCARD_A_MEM_ATTR:
 			mp->flags |= MDF_ATTR;
 			break;
-		case 2:
+		case PCCARD_A_MEM_8BIT:
 			mp->flags &= ~MDF_16BITS;
+			break;
+		case PCCARD_A_MEM_16BIT:
+			mp->flags |= MDF_16BITS;
 			break;
 		}
 		err = cinfo.mapmem(devi->slt, rid);
