@@ -340,7 +340,7 @@ case ${dumpdev} in
 	;;
 *)
 	if [ -e "${dumpdev}" -a -d /var/crash ]; then
-		dumpon ${dumpdev}
+		dumpon -v ${dumpdev}
 		echo -n checking for core dump...
 		savecore /var/crash
 	fi
