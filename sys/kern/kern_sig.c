@@ -1106,8 +1106,7 @@ osigsetmask(td, uap)
 
 /*
  * Suspend process until signal, providing mask to be set
- * in the meantime.  Note nonstandard calling convention:
- * libc stub passes mask, not pointer, to save a copyin.
+ * in the meantime. 
  ***** XXXKSE this doesn't make sense under KSE.
  ***** Do we suspend the thread or all threads in the process?
  ***** How do we suspend threads running NOW on another processor?
@@ -1161,6 +1160,10 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 }
 
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
+/*
+ * Compatibility sigsuspend call for old binaries.  Note nonstandard calling
+ * convention: libc stub passes mask, not pointer, to save a copyin.
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct osigsuspend_args {
 	osigset_t mask;
