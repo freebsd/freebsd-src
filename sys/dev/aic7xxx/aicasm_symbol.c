@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_symbol.c,v 1.1 1997/03/16 07:08:18 gibbs Exp $
+ *      $Id: aicasm_symbol.c,v 1.1.2.1 1997/09/03 04:25:20 gibbs Exp $
  */
 
 
@@ -92,6 +92,7 @@ symbol_delete(symbol)
 			free(symbol->info.minfo);
 		}
 		break;
+	case DOWNLOAD_CONST:
 	case CONST:
 		if (symbol->info.cinfo != NULL)
 			free(symbol->info.cinfo);
@@ -312,11 +313,13 @@ symtable_dump(ofile)
 	symlist_t registers;
 	symlist_t masks;
 	symlist_t constants;
+	symlist_t download_constants;
 	symlist_t aliases;
 
 	SLIST_INIT(&registers);
 	SLIST_INIT(&masks);
 	SLIST_INIT(&constants);
+	SLIST_INIT(&download_constants);
 	SLIST_INIT(&aliases);
 
 	if (symtable != NULL) {
@@ -344,9 +347,14 @@ symtable_dump(ofile)
 						    SYMLIST_INSERT_HEAD);
 				}
 				break;
+			case DOWNLOAD_CONST:
+				symlist_add(&download_constants, cursym,
+					    SYMLIST_INSERT_HEAD);
+				break;
 			case ALIAS:
 				symlist_add(&aliases, cursym,
 					    SYMLIST_INSERT_HEAD);
+				break;
 			default:
 				break;
 			}
@@ -441,6 +449,20 @@ symtable_dump(ofile)
 
 			curnode = constants.slh_first;
 			SLIST_REMOVE_HEAD(&constants, links);
+			fprintf(ofile, "#define\t%-8s\t0x%02x\n",
+				curnode->symbol->name,
+				curnode->symbol->info.cinfo->value);
+			free(curnode);
+		}
+
+		
+		fprintf(ofile, "\n\n/* Downloaded Constant Definitions */\n");
+
+		while (download_constants.slh_first != NULL) {
+			symbol_node_t *curnode;
+
+			curnode = download_constants.slh_first;
+			SLIST_REMOVE_HEAD(&download_constants, links);
 			fprintf(ofile, "#define\t%-8s\t0x%02x\n",
 				curnode->symbol->name,
 				curnode->symbol->info.cinfo->value);

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_scan.l,v 1.1.2.1 1997/03/16 19:01:28 gibbs Exp $
+ *      $Id: aicasm_scan.l,v 1.1.2.2 1997/09/03 04:25:18 gibbs Exp $
  */
 
 #include <limits.h>
@@ -65,6 +65,7 @@ SPACE		[ \t]+
 	/* Register/SCB/SRAM definition keywords */
 register		{ return T_REGISTER; }
 const			{ yylval.value = FALSE; return T_CONST; }
+download		{ return T_DOWNLOAD; }
 address			{ return T_ADDRESS; }
 access_mode		{ return T_ACCESS_MODE; }
 RW|RO|WO		{
