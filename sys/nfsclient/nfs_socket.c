@@ -1240,11 +1240,15 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 		return (0);
 
 	p = td->td_proc;
+	PROC_LOCK(p);
 	ksiginfo_to_sigset_t(p, &tmpset);
 	SIGSETNAND(tmpset, p->p_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
-	if (signal_queued(p, 0) && NFSINT_SIGMASK(tmpset))
+	if (signal_queued(p, 0) && NFSINT_SIGMASK(tmpset)) {
+		PROC_UNLOCK(p);
 		return (EINTR);
+	}
+	PROC_UNLOCK(p);
 
 	return (0);
 }
