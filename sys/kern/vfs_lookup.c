@@ -210,12 +210,6 @@ namei(ndp)
 			} else
 				cnp->cn_flags |= HASBUF;
 
-			if (vn_canvmio(ndp->ni_vp) == TRUE &&
-				(cnp->cn_nameiop != DELETE) &&
-				((cnp->cn_flags & (NOOBJ|LOCKLEAF)) ==
-				 LOCKLEAF))
-				VOP_CREATEVOBJECT(ndp->ni_vp, 
-				    ndp->ni_cnd.cn_cred, td);
 			if ((cnp->cn_flags & MPSAFE) == 0) {
 				VFS_UNLOCK_GIANT(vfslocked);
 			} else if (vfslocked)
@@ -799,10 +793,6 @@ relookup(dvp, vpp, cnp)
 	
 	if (!wantparent)
 		vrele(dvp);
-
-	if (vn_canvmio(dp) == TRUE &&
-		((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
-		VOP_CREATEVOBJECT(dp, cnp->cn_cred, td);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);
