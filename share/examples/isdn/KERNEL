@@ -7,7 +7,7 @@
 #	file and then edited (stripped down) to match your
 #	hardware configuration.
 #
-#	last edit-date: [Mon Dec 10 13:21:40 2001]
+#	last edit-date: [Sun Dec 16 17:13:57 2001]
 #
 # $FreeBSD$
 #
@@ -76,6 +76,6 @@ pseudo-device	"i4bipr"	4
 pseudo-device	"i4bisppp"	4
 
 # Netgraph interface
-options         NETGRAPH
-pseudo-device	"i4bing"	4
+#options         NETGRAPH
+#pseudo-device	"i4bing"	4
 
