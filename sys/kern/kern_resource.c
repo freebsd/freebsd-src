@@ -513,6 +513,7 @@ calcru(p, up, sp, ip)
 	int s;
 	struct timeval tv;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	/* XXX: why spl-protect ?  worst case is an off-by-one report */
 	s = splstatclock();
 	ut = p->p_uticks;
@@ -609,7 +610,9 @@ getrusage(p, uap)
 
 	case RUSAGE_SELF:
 		rup = &p->p_stats->p_ru;
+		mtx_enter(&sched_lock, MTX_SPIN);
 		calcru(p, &rup->ru_utime, &rup->ru_stime, NULL);
+		mtx_exit(&sched_lock, MTX_SPIN);
 		break;
 
 	case RUSAGE_CHILDREN:
