@@ -411,8 +411,11 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
-		if (error == EPIPE)
+		if (error == EPIPE) {
+			PROC_LOCK(p);
 			psignal(p, SIGPIPE);
+			PROC_UNLOCK(p);
+		}
 	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
@@ -504,8 +507,11 @@ writev(p, uap)
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
-		if (error == EPIPE)
+		if (error == EPIPE) {
+			PROC_LOCK(p);
 			psignal(p, SIGPIPE);
+			PROC_UNLOCK(p);
+		}
 	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE

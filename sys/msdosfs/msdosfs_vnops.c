@@ -654,7 +654,9 @@ msdosfs_write(ap)
 	if (p &&
 	    ((uoff_t)uio->uio_offset + uio->uio_resid >
 	    p->p_rlimit[RLIMIT_FSIZE].rlim_cur)) {
+		PROC_LOCK(p);
 		psignal(p, SIGXFSZ);
+		PROC_UNLOCK(p);
 		return (EFBIG);
 	}
 

@@ -366,7 +366,9 @@ uhid_intr(xfer, addr, status)
 	selwakeup(&sc->sc_rsel);
 	if (sc->sc_async != NULL) {
 		DPRINTFN(3, ("uhid_intr: sending SIGIO %p\n", sc->sc_async));
+		PROC_LOCK(sc->sc_async);
 		psignal(sc->sc_async, SIGIO);
+		PROC_UNLOCK(sc->sc_async);
 	}
 }
 

@@ -649,8 +649,11 @@ meteor_intr(void *arg)
 		 * If the user requested to be notified via signal,
 		 * let them know the field is complete.
 		 */
-		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK))
+		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK)) {
+			PROC_LOCK(mtr->proc);
 			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
+			PROC_UNLOCK(mtr->proc);
+		}
 	}
 	if (status & 0x2) {		/* odd field */
 		mtr->odd_fields_captured++;
@@ -663,8 +666,11 @@ meteor_intr(void *arg)
 		 * If the user requested to be notified via signal,
 		 * let them know the field is complete.
 		 */
-		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK))
+		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK)) {
+			PROC_LOCK(mtr->proc);
 			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
+			PROC_UNLOCK(mtr->proc);
+		}
 	}
 
 	/*
@@ -696,8 +702,11 @@ meteor_intr(void *arg)
 		 * If the user requested to be notified via signal,
 		 * let them know the frame is complete.
 		 */
-		if(mtr->proc && !(mtr->signal & METEOR_SIG_MODE_MASK))
+		if(mtr->proc && !(mtr->signal & METEOR_SIG_MODE_MASK)) {
+			PROC_LOCK(mtr->proc);
 			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
+			PROC_UNLOCK(mtr->proc);
+		}
 		/*
 		 * Reset the want flags if in continuous or
 		 * synchronous capture mode.
