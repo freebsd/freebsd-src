@@ -56,8 +56,12 @@ FreeBSD GENERIC kernel:
         Port    IRQ     DRQ     IOMem   Description
         ----    ---     ---     -----   ---------------------------------
 fdc0    3f0     6       2       n/a     Floppy disk controller
-wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
-wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
+ata0	170	14	n/a	n/a	ATA/ATAPI controller
+ata1	170	15	n/a	n/a	ATA/ATAPI controller
+atadisk0 n/a	n/a	n/a	n/a	ATA disk drives
+atapicd0 n/a	n/a	n/a	n/a	ATAPI CDROM drives
+atapifd0 n/a	n/a	n/a	n/a	ATAPI floppy drives
+atapist0 n/a	n/a	n/a	n/a	ATAPI tape drives
 
 adv0    n/a     n/a     n/a     n/a     AdvanSys Narrow SCSI controllers
 adw0    n/a     n/a     n/a     n/a     AdvanSys Wide SCSI controllers
@@ -326,6 +330,9 @@ IDE
 ATA
 WD1003 (any generic MFM/RLL - obsolete)
 WD1007 (any generic ESDI - obsolete)
+* Note: now that the wd driver has been replaced by the ata driver framework
+which does not have bad144 support the true MFM/RLL/ESDI drives/adapters 
+have become obsolete.
 
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
