@@ -169,7 +169,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_3COM, USB_PRODUCT_3COM_USR56K,
 	    0,
 	    "3Com",
-	    "U.S.Robotics 56000 Voice USB Modem",
+	    "U.S.Robotics Voice Faxmodem Pro",
 	},
 	{
 	    USB_VENDOR_KONICA, USB_PRODUCT_KONICA_CAMERA,
@@ -190,16 +190,16 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "J-6502 speakers",
 	},
 	{
-	    USB_VENDOR_VISION, USB_PRODUCT_VISION_CAMERA,
-	    0,
-	    "Vision",
-	    "VC6452V002 Camera",
-	},
-	{
 	    USB_VENDOR_AKS, USB_PRODUCT_AKS_USBHASP,
 	    0,
 	    "Aladdin Knowledge Systems",
 	    "USB-HASP 0.06",
+	},
+	{
+	    USB_VENDOR_VISION, USB_PRODUCT_VISION_CAMERA,
+	    0,
+	    "Vision",
+	    "VC6452V002 Camera",
 	},
 	{
 	    USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC1284,
@@ -232,6 +232,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "mouse 29UO",
 	},
 	{
+	    USB_VENDOR_ROCKFIRE, USB_PRODUCT_ROCKFIRE_GAMEPAD,
+	    0,
+	    "Rockfire",
+	    "gamepad 203USB",
+	},
+	{
 	    USB_VENDOR_IOMEGA, USB_PRODUCT_IOMEGA_ZIP100,
 	    0,
 	    "Iomega",
@@ -250,10 +256,10 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "M2452 keyboard",
 	},
 	{
-	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_M4848,
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_MOUSE1,
 	    0,
 	    "Logitech",
-	    "M4848 mouse",
+	    "mouse",
 	},
 	{
 	    USB_VENDOR_CHIC, USB_PRODUCT_CHIC_MOUSE1,
@@ -424,15 +430,15 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
-	    USB_VENDOR_VISION, 0,
-	    USB_KNOWNDEV_NOPROD,
-	    "Vision",
-	    NULL,
-	},
-	{
 	    USB_VENDOR_AKS, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Aladdin Knowledge Systems",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_VISION, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Vision",
 	    NULL,
 	},
 	{
@@ -457,6 +463,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_AGILER, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Agiler",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_ROCKFIRE, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Rockfire",
 	    NULL,
 	},
 	{
