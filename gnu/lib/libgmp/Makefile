@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.13 1997/08/21 15:51:51 bde Exp $
+# $Id: Makefile,v 1.14 1997/08/29 14:02:14 peter Exp $
 #
 
 LIB=	gmp
@@ -7,18 +7,38 @@ LIB=	gmp
 SUBDIR=	doc
 
 GMPDIR=	${.CURDIR}/../../../contrib/libgmp
-.PATH:	${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic
+.PATH:	${GMPDIR} ${GMPDIR}/mpn
 
-CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic -I${GMPDIR}/mpn/x86
+CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic
 
-MPN_SRC_C=	inlines.c cmp.c divmod_1.c divrem.c divrem_1.c dump.c \
-		mod_1.c mul.c mul_n.c random2.c sqrtrem.c get_str.c set_str.c \
-		scan0.c scan1.c popcount.c hamdist.c gcd_1.c pre_mod_1.c \
-		perfsqr.c bdivmod.c gcd.c gcdext.c mp_bases.c
+.if ${MACHINE_ARCH} == "alpha"
+.PATH:		${GMPDIR}/mpn/alpha ${GMPDIR}/mpn/generic
+
+CFLAGS+=	-I${GMPDIR}/mpn/alpha
+
+MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s udiv_qrnnd.S
+
+.elif ${MACHINE_ARCH} == "i386"
+.PATH:		${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic
+
+CFLAGS+=	-I${GMPDIR}/mpn/x86
 
 MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
 
-MPN_SRCS=	${MPN_SRC_C} ${MPN_SRC_ASM}
+.elif ${MACHINE_ARCH} == "m68k"
+.PATH:		${GMPDIR}/mpn/m68k ${GMPDIR}/mpn/generic
+
+CFLAGS+=	-I${GMPDIR}/mpn/m68k
+
+MPN_SRC_ASM=	add_n.S lshift.S rshift.S sub_n.S
+
+.endif
+
+MPN_SRC_C=	add_n.c addmul_1.c bdivmod.c cmp.c divmod_1.c divrem.c \
+		divrem_1.c dump.c gcd.c gcd_1.c gcdext.c get_str.c hamdist.c \
+		inlines.c lshift.c mod_1.c mul.c mul_1.c mul_n.c perfsqr.c \
+		popcount.c pre_mod_1.c random2.c rshift.c scan0.c scan1.c \
+		set_str.c sqrtrem.c mp_bases.c
 
 MPZ_SRCS=	mpz/init.c mpz/set.c mpz/set_ui.c mpz/set_si.c mpz/set_str.c \
 		mpz/set_d.c mpz/set_f.c mpz/set_q.c mpz/iset.c mpz/iset_ui.c \
@@ -63,7 +83,17 @@ MPQ_SRCS=	mpq/add.c mpq/canonicalize.c mpq/clear.c mpq/cmp.c \
 
 SRCS=	memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c mp_bpl.c \
 	extract-double.c insert-double.c \
-	${MPN_SRCS} ${MPZ_SRCS} ${MPF_SRCS} ${MPQ_SRCS}
+	${MPN_SRC_ASM}
+
+# Look though the generic C source for names that don't have assembly
+# source version.
+.for _src in ${MPN_SRC_C}
+.if (${MPN_SRC_ASM:R:M${_src:R}} == "")
+SRCS+=$(_src)
+.endif
+.endfor
+
+SRCS+=	${MPZ_SRCS} ${MPF_SRCS} ${MPQ_SRCS}
 
 .if defined(BINFORMAT) && ${BINFORMAT} == elf
 
@@ -107,6 +137,9 @@ beforeinstall:
 
 .S.o:
 	${CC} ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+
+.s.o:
+	${AS} ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.po:
 	${CC} -DPROF ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
