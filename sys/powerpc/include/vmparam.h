@@ -82,6 +82,12 @@
 #define	MAXSLP 		20
 
 /*
+ * Use the direct-mapped BAT registers for UMA small allocs. This
+ * takes pressure off the small amount of available KVA.
+ */
+#define UMA_MD_SMALL_ALLOC
+
+/*
  * Would like to have MAX addresses = 0, but this doesn't (currently) work
  */
 #define	VM_MIN_ADDRESS		((vm_offset_t)0)
