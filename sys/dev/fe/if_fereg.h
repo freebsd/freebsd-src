@@ -1,4 +1,7 @@
 /*
+ * Hardware specification of various 8696x based Ethernet cards.
+ * Contributed by M. Sekiguchi <seki@sysrap.cs.fujitsu.co.jp>
+ *
  * All Rights Reserved, Copyright (C) Fujitsu Limited 1995
  *
  * This software may be used, modified, copied, distributed, and sold,
@@ -21,12 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#define FE_REG_VERSION "if_fereg.h ver. 0.8"
-
-/*
- * Hardware specification of various 86960/86965 based Ethernet cards.
- * Contributed by M.S. <seki@sysrap.cs.fujitsu.co.jp>
- */
+/* $Id:$ */
 
 /*
  * Registers on FMV-180 series' ISA bus interface ASIC.
@@ -34,61 +32,68 @@
  * Doesn't it look silly, eh?  FIXME.
  */
 
-#define FE_FMV0		16	/* Hardware status.		*/
-#define FE_FMV1		17	/* Hardware type?  Always 0	*/
-#define FE_FMV2		18	/* Hardware configuration.	*/
-#define FE_FMV3		19	/* Hardware enable.		*/
+#define FE_FMV0		16	/* Card status register #0	*/
+#define FE_FMV1		17	/* Card status register #1	*/
+#define FE_FMV2		18	/* Card config register #0	*/
+#define FE_FMV3		19	/* Card config register #1	*/
 #define FE_FMV4		20	/* Station address #1		*/
 #define FE_FMV5		21	/* Station address #2		*/
 #define FE_FMV6		22	/* Station address #3		*/
 #define FE_FMV7		23	/* Station address #4		*/
 #define FE_FMV8		24	/* Station address #5		*/
 #define FE_FMV9		25	/* Station address #6		*/
-#define FE_FMV10	26	/* Unknown; to be set to 0.	*/
+#define FE_FMV10	26	/* Buffer RAM control register	*/
+#define FE_FMV11	27	/* Buffer RAM data register	*/
 
 /*
  * FMV-180 series' ASIC register values.
  */
 
-/* Magic value in FMV0 register.  */
-#define FE_FMV0_MAGIC_MASK	0x78
-#define FE_FMV0_MAGIC_VALUE	0x50
+/* FMV0: Card status register #0: Misc info?  */
+#define FE_FMV0_MEDIA	0x07	/* Supported physical media.	*/
+#define FE_FMV0_PRRDY	0x10	/* ???				*/
+#define FE_FMV0_PRERR	0x20	/* ???				*/
+#define FE_FMV0_ERRDY	0x40	/* ???				*/
+#define FE_FMV0_IREQ	0x80	/* ???				*/
 
-/* Model identification.  */
-#define FE_FMV0_MODEL		0x07
-#define FE_FMV0_MODEL_FMV181	0x05
-#define FE_FMV0_MODEL_FMV182	0x03
+#define FE_FMV0_MEDIUM_5	0x01	/* 10base5/Dsub		*/
+#define FE_FMV0_MEDIUM_2	0x02	/* 10base2/BNC		*/
+#define FE_FMV0_MEDIUM_T	0x04	/* 10baseT/RJ45		*/
 
-/* Card type ID?  Always 0?  */
-#define FE_FMV1_CARDID_MASK	0xFF
-#define FE_FMV1_CARDID_ID	0x00
+/* Card status register #1: Hardware revision.  */
+#define FE_FMV1_REV	0x0F	/* Card revision		*/
+#define FE_FMV1_UPPER	0xF0	/* Usage unknown		*/
 
-/* I/O port address assignment.  */
-#define FE_FMV2_ADDR		0x07
-#define FE_FMV2_ADDR_SHIFT	0
+/* Card config register #0: I/O port address assignment.  */
+#define FE_FMV2_IOS	0x07	/* I/O selection.		*/
+#define FE_FMV2_MES	0x38	/* ??? boot ROM?		*/
+#define FE_FMV2_IRS	0xC0	/* IRQ selection.		*/
 
-/* Boot ROM address assignment.  */
-#define FE_FMV2_ROM		0x38
-#define FE_FMV2_ROM_SHIFT	3
+#define FE_FMV2_IOS_SHIFT	0
+#define FE_FMV2_MES_SHIFT	3
+#define FE_FMV2_IRS_SHIFT	6
 
-/* IRQ assignment.  */
-#define FE_FMV2_IRQ		0xC0
-#define FE_FMV2_IRQ_SHIFT	6
-
-/* Hardware(?) enable flag.  */
-#define FE_FMV3_ENABLE_FLAG	0x80
-
-/* Extra bits in FMV3 register.  Always 0?  */
-#define FE_FMV3_EXTRA_MASK	0x7F
-#define FE_FMV3_EXTRA_VALUE	0x00
+/* Card config register #1: IRQ enable  */
+#define FE_FMV3_IRQENB	0x80	/* IRQ enable.			*/
 
 /*
- * EEPROM allocation of AT1700/RE2000.
+ * Register(?) specific to AT1700/RE2000.
  */
-#define FE_EEP_ATI_ADDR	8	/* Station address.  (8-13)	*/
-#define FE_EEP_ATI_TYPE	25	/* Hardware type?  FIXME.	*/
 
-#define FE_EEP_ATI_TYPE_HIGHIRQ 0x04	/* IRQ delivery? FIXME.	*/
+#define FE_ATI_RESET	0x1F	/* Write to reset the 86965.	*/
+
+/* EEPROM allocation (offsets) of AT1700/RE2000.  */
+#define FE_ATI_EEP_ADDR		0x08	/* Station address.  (8-13)	*/
+#define	FE_ATI_EEP_MEDIA	0x18	/* Media type.			*/
+#define	FE_ATI_EEP_MAGIC	0x19	/* XXX Magic.			*/
+#define FE_ATI_EEP_MODEL	0x1e	/* Hardware type.		*/
+#define	FE_ATI_EEP_REVISION	0x1f	/* Hardware revision.		*/
+
+/* Value for FE_ATI_EEP_MODEL.  */
+#define FE_ATI_MODEL_AT1700T	0x00
+#define FE_ATI_MODEL_AT1700BT	0x01
+#define FE_ATI_MODEL_AT1700FT	0x02
+#define FE_ATI_MODEL_AT1700AT	0x03
 
 /*
  * Registers on MBH10302.
@@ -104,3 +109,24 @@
 
 #define FE_MBH0_INTR_ENABLE	0x10	/* Enable interrupts.	*/
 #define FE_MBH0_INTR_DISABLE	0x00	/* Disable interrupts.	*/
+
+/*
+ * Registers on RE1000.  (*NOT* on RE1000 Plus.)
+ */
+
+/* IRQ configuration.  */
+#define	FE_RE1000_IRQCONF	0x10
+#define	FE_RE1000_IRQCONF_IRQ		0xf0
+#define	FE_RE1000_IRQCONF_IRQSHIFT	4
+
+/* MAC (station) address.  */
+#define	FE_RE1000_MAC0		0x11
+#define	FE_RE1000_MAC1		0x13
+#define	FE_RE1000_MAC2		0x15
+#define	FE_RE1000_MAC3		0x17
+#define	FE_RE1000_MAC4		0x19
+#define	FE_RE1000_MAC5		0x1B
+
+/* "Check sum" -- an xor of MAC0 through MAC5 */
+#define	FE_RE1000_MACCHK	0x1D
+
