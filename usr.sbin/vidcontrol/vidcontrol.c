@@ -72,11 +72,12 @@ struct 	vid_info info;
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-CdLPpx] [-b color] [-c appearance] [-f [size] file]",
 "                  [-g geometry] [-h size] [-i adapter | mode] [-l screen_map]",
-"                  [-m on | off] [-M char] [-r foreground background] [-s num]",
-"                  [-S on | off] [-t N | off] [mode] [foreground [background]] [show]");
+"                  [-M char] [-m on | off] [-r foreground background]",
+"                  [-S on | off] [-s number] [-t N | off] [mode]",
+"                  [foreground [background]] [show]");
 	exit(1);
 }
 
