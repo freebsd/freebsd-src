@@ -32,37 +32,54 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	swapon.o symlink.o sync.o umask.o unlink.o unmount.o \
 	utimes.o vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
 
+PASM=	${ASM:.o=.po}
+SASM=	${ASM:.o=.so}
+
 PSEUDO=	_exit.o _getlogin.o
+PPSEUDO=${PSEUDO:.o=.po}
+SPSEUDO=${PSEUDO:.o=.so}
 
 OBJS+=	${ASM} ${PSEUDO}
-POBJS+=	${ASM:.o=.po} ${PSEUDO:.o=.po}
-SOBJS+= ${ASM:.o=.so} ${PSEUDO:.o=.so}
+POBJS+=	${PASM} ${PPSEUDO}
+SOBJS+=	${SASM} ${SPSEUDO}
 CLEANFILES+=${ASM} ${PSEUDO} ${POBJS} ${SOBJS}
 
 ${ASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@echo creating ${.PREFIX}.o ${.PREFIX}.po ${.PREFIX}.so
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
+	@${ECHO} creating ${.PREFIX}.o
+	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
 	@mv a.out ${.PREFIX}.o
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
+
+${PASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
+	@${ECHO} creating ${.PREFIX}.po
+	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
 	@mv a.out ${.PREFIX}.po
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
+
+${SASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
+	@${ECHO} creating ${.PREFIX}.so
+	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
 
 ${PSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@echo creating ${.PREFIX}.o ${.PREFIX}.po ${.PREFIX}.so
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
+	@${ECHO} creating ${.PREFIX}.o
+	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
 	@mv a.out ${.PREFIX}.o
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
+
+${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
+	@${ECHO} creating ${.PREFIX}.po
+	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
 	@mv a.out ${.PREFIX}.po
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
+
+${SPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
+	@${ECHO} creating ${.PREFIX}.so
+	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
 
 MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
