@@ -1,9 +1,9 @@
-<!-- $Id: firewalls.sgml,v 1.3 1996/01/31 14:26:06 mpp Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.4 1996/01/31 19:02:57 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
 
-<p><em>Contributed by &a.gpalmer;.<newline>4th of October 1995</em>
+<p><em>Contributed by &a.gpalmer; and &a.alex;.</em>
 
 Firewalls are an area of increasing interest for people who are
 connected to the Internet, and are even finding applications on
@@ -96,7 +96,7 @@ can be set up so that you can limit which users can talk to which
 destination machine. Again, what facilities are available depends
 largely on what proxy software you choose.
 
-<sect1><heading>What does <tt>IPFW</tt> allow me to do?</heading>
+<sect1><heading>What does IPFW allow me to do?</heading>
 
 <p><tt>IPFW</tt>, the software supplied with FreeBSD, is a packet
 filtering and accounting system which resides in the kernel, and has a
@@ -117,7 +117,7 @@ incoming and outgoing connections. This is a special case of the more
 general use of <tt>IPFW</tt>, and the same commands and techniques
 should be used in this situation.
 
-<sect1><heading>Enabling <tt>IPFW</tt> on FreeBSD</heading>
+<sect1><heading>Enabling IPFW on FreeBSD</heading>
 
 <p>As the main part of the <tt>IPFW</tt> system lives in the kernel, you will
 need to add one or more options to your kernel configuration
@@ -137,35 +137,57 @@ packets through <tt>syslogd(8)</tt>. Without this option, even if you
 specify that packets should be logged in the filter rules, nothing
 will happen.
 
-<tag/options IPACCT/ Turns on the IP accounting facilities.
+<tag/options "IPFIREWALL_VERBOSE_LIMIT=10"/ Limits the number of
+packets logged through <tt>syslogd(8)</tt> on a per entry basis.
+You may wish to use this option in hostile environments in which
+you want to log firewall activity, but do not want to be open to
+a denial of serivce attack via syslog flooding.
+
+<p>When a chain entry reaches the packet limit specified, logging
+is turned off for that particular entry.  To resume logging, you
+will need to reset the associated counter using the <tt>ipfw(8)</tt>
+utility:
+
+<tscreen><verb>
+ipfw zero 4500
+</verb></tscreen>
+
+Where 4500 is the chain entry you wish to continue logging.
 
 </descrip>
 
-<sect1><heading>Configuring <tt>IPFW</tt></heading>
+Previous versions of FreeBSD contained an <tt>IPFIREWALL_ACCT</tt> 
+option.  This is now obsolete as the firewall code automatically 
+includes accounting facilities.
+
+<sect1><heading>Configuring IPFW</heading>
 
 <p>The configuration of the <tt>IPFW</tt> software is done through the
 <tt>ipfw(8)</tt> utility. The syntax for this command looks
 quite complicated, but it is relatively simple once you understand
 its structure.
 
-<p>There are currently two different command line formats for the
-utility, depending on what you are doing. The first form is used when
-adding/deleting entries from the firewall or accounting chains, or
-when clearing the counters for an entry on the accounting chain. The
-second form is used for more general actions, such as flushing the
-rule chains, listing the rule chains or setting the default policy.
+<p>There are currently four different command categories used by the
+utility: addition/deletion, listing, flushing, and clearing.
+Addition/deletion is used to build the rules that control how packets
+are accepted, rejected, and logged.  Listing is used to examine the
+contents of your rule set (otherwise known as the chain) and packet
+counters (accounting).  Flushing is used to remove all entries from
+the chain.  Clearing is used to zero out one or more accounting
+entries.
 
-<sect2><heading>Altering the <tt>IPFW</tt> rules</heading>
+<sect2><heading>Altering the IPFW rules</heading>
 
 <p>The syntax for this form of the command is:
 <tscreen>
-ipfw [-n] <em>command</em> <em>action</em> <em>protocol</em> <em>addresses</em>
+ipfw &lsqb;-N&rsqb; <em>command</em> &lsqb;index&rsqb; <em>action</em> 
+<em>protocol</em> <em>addresses</em> &lsqb;options&rsqb;
 </tscreen>
 
 <p>There is one valid flag when using this form of the command:
 
 <descrip>
-<tag/-n/Do not attempt to resolve given addresses.
+<tag/-N/Resolve addresses and service names.
 </descrip>
 
 The <em>command</em> given can be shortened to the shortest unique
@@ -173,69 +195,39 @@ form. The valid <em>commands</em> are:
 
 <descrip>
 
-<tag/addfirewall/Add an entry to the firewall rule list
+<tag/add/Add an entry to the firewall/accounting rule list
 
-<tag/delfirewall/Delete an entry from the firewall rule list
-
-<tag/addaccounting/Add an entry to the accounting rule list
-
-<tag/delaccounting/Delete an entry from the accounting rule list
-
-<tag/clraccounting/Clear the counters for an accounting rule entry.
+<tag/delete/Delete an entry from the firewall/accounting rule list
 
 </descrip>
 
-If no command is given, it will default <bf>addfirewall</bf> or
-<bf>addaccounting</bf> depending on the arguments given.
+Previous versions of <tt>IPFW</tt> used separate firewall and
+accounting entries.  The present version provides packet accounting
+with each firewall entry.
 
-<p>Currently, the firewall support in the kernel applies a set of
-weights to the rule being added. This means that the rules will
-<em>not</em> be evaluated in the order that they are given to the
-system. The weighting system is designed so that rules which are very
-specific are evaluated first, and rules which cover very large ranges
-are evaluated last. In other words, a rule which applies to a specific
-port on a specific host will have a higher priority than a rule which
-applies to that same port, but on a range of hosts, or that host on a
-range of ports.
+<p>If an <tt>index</tt> value is supplied, it used to place the entry
+at a specific point in the chain.  Otherwise, the entry is placed at
+the end of the chain at an index 100 greater than the last chain
+entry (this does not include the default policy, rule 65535, deny).
 
-<p>The weighting system is not perfect, however, and can lead to
-problems. The best way to see what order it has put your rules in is
-to use the <bf>list</bf> command, as that command lists the rules in
-the order that they are evaluated, not the order that they were fed to
-the system.
-
-<p>The <em>actions</em> available depend on which rule chain the
-entry is destined for. For the firewall chain, valid
-<em>actions</em> are:
+Valid <em>actions</em> are:
 
 <descrip>
 
-<tag/reject/Drop the packet, and send an ICMP HOST_UNREACHABLE or
-ICMP PORT_UNREACHABLE (as appropriate) packet to the source.
+<tag/reject/Drop the packet, and send an ICMP host or port
+unreachable (as appropriate) packet to the source.
 
-<tag/lreject/As <bf>reject</bf>, but also log the packet details.
+<tag/allow/Pass the packet on as normal.
 
-<tag/deny/Drop the packet.
+<tag/deny/Drop the packet.  The source is not notified via an ICMP
+message (thus it appears that the packet never arrived at the
+destination).
 
-<tag/ldeny/As <bf>deny</bf>, but also log the packet details.
+<tag/count/Update packet counters but do not allow/deny the packet
+based on this rule.  The search continues with the next chain entry.
 
-<tag/log/Log the packets details and pass it on as normal.
-
-<tag/accept/Pass the packet on as normal.
-
-<tag/pass/Synonym for <bf>accept</bf>.
-
-</descrip>
-
-For the accounting chain, valid <em>actions</em> are:
-
-<descrip>
-
-<tag/single/Count packets matching the address specifier.
-
-<tag/bidirectional/Count packets matching the address specifier, and
-also packets traveling in the opposite direction (i.e. those going
-from ``destination'' to ``source'').
+<tag/reject/Discard the packet, sending an ICMP host/port unreachable
+message back to the source.
 
 </descrip>
 
@@ -254,30 +246,22 @@ The <em>protocols</em> which can be specified are:
 
 <tag/udp/Matches UDP packets
 
-<tag/syn/Matches the TCP SYN (synchronization) packet used during TCP
-connection negotiation. You can use this to block ``incoming'' TCP
-connections, but allow ``outgoing'' TCP connections.
 </descrip>
 
 <p>The <em>address</em> specification is:
 <tscreen>
-&lsqb;<bf>from</bf> &lt;<em>address/mask</em>&gt;&lsqb;<em>port</em>&rsqb;&rsqb; &lsqb;<bf>to</bf>
- &lt;<em>address/mask</em>&gt;&lsqb;<em>port</em>&rsqb;&rsqb; &lsqb;<bf>via</bf> &lt;<em>interface</em>&gt;&rsqb;
+<bf>from</bf> &lt;<em>address/mask</em>&gt;&lsqb;<em>port</em>&rsqb; <bf>to</bf>
+ &lt;<em>address/mask</em>&gt;&lsqb;<em>port</em>&rsqb &lsqb;<bf>via</bf> &lt;<em>interface</em>&gt;&rsqb;
 </tscreen>
 
 <p>You can only specify <em>port</em> in conjunction with
-<em>protocols</em> which support ports (UDP, TCP and SYN).
-
-<p>The order of the <bf>from</bf>, <bf>to</bf>, and
-<bf>via</bf> keywords is unimportant. Any of them can be omitted,
-in which case a default entry for that keyword will be supplied which
-matches everything.
+<em>protocols</em> which support ports (UDP and TCP).
 
 <p>The <bf>via</bf> is optional and may specify the IP address or
 domain name of a local IP interface, or an interface name (e.g.
-<tt>ed0</tt>) to match only packets coming through this interface. The
-keyword <bf>via</bf> can be substituted by <bf>on</bf>, for
-readability reasons.
+<tt>ed0</tt>) to match only packets coming through this interface.
+Interface unit numbers can be specified with an optional wildcard.
+For example, <tt>ppp*</tt> would match all kernel PPP interfaces.
 
 <p>The syntax used to specify an <tt>&lt;address/mask&gt;</tt> is:
 <tscreen>
@@ -310,14 +294,50 @@ to specify either a single port or a list of ports, or
 <tscreen><verb>
 port:port
 </verb></tscreen>
-to specify a range of ports. The name of a service (from
-<em>/etc/services</em>) can be used instead of a numeric port value.
+to specify a range of ports.
 
-<sect2><heading>Listing/flushing the <tt>IPFW</tt> rules</heading>
+<p>The <em>options</em> available are:
+
+<descrip>
+
+<tag/frag/Matches if the packet is the first fragment of the datagram.
+
+<tag/in/Matches if the packet is on the way in.
+
+<tag/out/Matches if the packet is on the way out.
+
+<tag/ipoptions <em>spec</em>/Matches if the IP header contains the
+comma separated list of options specified in <em>spec</em>.  The
+supported list of IP options are: <bf>ssrr</bf> (strict source route),
+<bf>lsrr</bf> (loose source route), <bf>rr</bf> (record packet route),
+and <bf>ts</bf> (timestamp).  The absence of a particular option may
+be denoted with a leading '!'.
+
+<tag/established/Matches if the packet is part of an already established
+TCP connection (i.e. it has the RST or ACK bits set).
+
+<tag/setup/Matches if the packet is an attempt to establish a TCP connection
+(the SYN bit set is set but the ACK bit is not).
+
+<tag/tcpflags <em>flags</em>/Matches if the TCP header contains
+the comma separated list of <em>flags</em>.  The supported flags
+are <bf>fin</bf>, <bf>syn</bf>, <bf>rst</bf>, <bf>psh</bf>, <bf>ack</bf>,
+and <bf>urg</bf>.  The absence of a particular flag may be indicated
+by a leading '!'.
+
+<tag/icmptypes <em>types</em>/Matches if the ICMP type is present in
+the list <em>types</em>.  The list may be specified as any combination
+of ranges and/or individual types separated by commas.  Commonly used
+ICMP types are: <bf>0</bf> echo reply (ping reply), <bf>5</bf>
+redirect, and <bf>8</bf> echo request (ping request).
+
+</descrip>
+
+<sect2><heading>Listing the IPFW rules</heading>
 
 <p>The syntax for this form of the command is:
 <tscreen>
-ipfw &lsqb;-ans&rsqb; <em>command</em> &lsqb;<em>argument</em>&rsqb;
+ipfw &lsqb;-atN&rsqb; l
 </tscreen>
 
 <p>There are three valid flags when using this form of the command:
@@ -325,56 +345,39 @@ ipfw &lsqb;-ans&rsqb; <em>command</em> &lsqb;<em>argument</em>&rsqb;
 <descrip>
 
 <tag/-a/While listing, show counter values. This option is the only
-way to see accounting counters. Works only with <bf>-s</bf>.
+way to see accounting counters.
 
-<tag/-n/Do not attempt to resolve given addresses.
+<tag/-t/Display the last match times for each chain entry.  The time
+listing is incompatible with the input syntax used by the
+<tt>ipfw(8)</tt> utility.
 
-<tag/-s/Use short listing form. This should be used with <bf>-a</bf>
-to see accounting counters. The short form listing is incompatible
-with the input syntax used by the <tt>ipfw(8)</tt> utility.
-
-</descrip>
-
-The <em>command</em> given can be shortened to the shortest unique
-form. The valid <em>commands</em> are:
-
-<descrip>
-
-<tag/list/List the chain rule entries. Unless the <bf>-s</bf> flag is
-given, the format is compatible with the command line syntax.
-
-<tag/flush/Flush the chain rule entries.
-
-<tag/zero/Clear counters for the entire accounting chain.
-
-<tag/policy/Set or display the default policy for the firewall
-code. Without an argument, the current policy will be displayed.
+<tag/-N/Do not attempt to resolve given addresses.
 
 </descrip>
 
-The <bf>list</bf> and <bf>flush</bf> commands may optionally be passed
-an <em>argument</em> to specify which chain to flush. Valid arguments are:
+<sect2><heading>Flushing the IPFW rules</heading>
 
-<descrip>
+<p>The syntax for flushing the chain is:
+<tscreen>
+ipfw flush
+</tscreen>
 
-<tag/firewall/The packet filter chain.
+<p>This causes all entries in the firewall chain to be removed except
+the fixed default policy enforced by the kernel (index 65535).  Use
+caution when flushing rules, the default deny policy will leave your
+system cut off from the network until allow entries are added to the
+chain.
 
-<tag/accounting/The accounting chain.
+<sect2><heading>Clearing the IPFW packet counters</heading>
 
-</descrip>
+<p>The syntax for clearing one or more packet counters is:
+<tscreen>
+ipfw zero &lsqb;index&rsqb;
+</tscreen>
 
-<p>The <bf>policy</bf> command can be given one of two arguments:
-
-<descrip>
-
-<tag/accept/If a packet is not matched by any rule, pass it on.
-
-<tag/deny/If a packet is not matched by any rule, do not pass it on.
-
-</descrip>
-
-As usual, the arguments can be shortened to the shortest unique form
-(in this case, the first letter).
+<p>When used without an <em>index</em> argument, all packet counters
+are cleared.  If an <em>index</em> is supplied, the clearing operation
+only affects a specific chain entry.
 
 <sect1><heading>Example commands for ipfw</heading>
 
@@ -383,7 +386,7 @@ As usual, the arguments can be shortened to the shortest unique form
 <bf>nice.people.org</bf> by being forwarded by the router:
 
 <tscreen><verb>
-ipfw addf deny tcp from evil.hacker.org to nice.people.org telnet
+ipfw add deny tcp from evil.hacker.org to nice.people.org 23
 </verb></tscreen>
 
 <p>The next example denies and logs any TCP traffic from the entire
@@ -391,7 +394,7 @@ ipfw addf deny tcp from evil.hacker.org to nice.people.org telnet
 machine (any port).
 
 <tscreen><verb>
-ipfw addf ldeny tcp from evil.hacker.org/24 to nice.people.org
+ipfw add deny log tcp from evil.hacker.org/24 to nice.people.org
 </verb></tscreen>
 
 If you do not want people sending X sessions to your internal network
@@ -399,23 +402,27 @@ If you do not want people sending X sessions to your internal network
 filtering:
 
 <tscreen><verb>
-ipfw addf deny syn to my.org/28 6000
+ipfw add deny setup from any to my.org/28 6000
 </verb></tscreen>
 
 To allow access to the SUP server on <bf>sup.FreeBSD.ORG</bf>, use the
 following command:
 
 <tscreen><verb>
-ipfw addf accept syn to sup.FreeBSD.ORG supfilesrv
+ipfw addf accept syn to sup.FreeBSD.ORG 871
 </verb></tscreen>
 
 To see the accounting records:
 <tscreen><verb>
-ipfw -sa list accounting
+ipfw -a list
 </verb></tscreen>
 or in the short form
 <tscreen><verb>
-ipfw -sa l a
+ipfw -a l
+</verb></tscreen>
+You can also see the last time a chain entry was matched with
+<tscreen><verb>
+ipfw -at l
 </verb></tscreen>
 
 <sect1><heading>Building a packet filtering firewall</heading>
@@ -479,10 +486,11 @@ want to allow from the inside. Some general rules are:
 where most of the security sensitive services are, like finger, SMTP
 (mail) and telnet.
 
- <item>Block incoming SYN connections to ports between 1001 and 1024
-(this will allow internal users to rsh/rlogin to the outside). If you
-do not want to allow rsh/rlogin connections from the inside to the
-outside, then extend the above suggestion to cover ports 1-1024.
+ <item>Block incoming SYN (<bf>setup</bf>) connections to ports
+between 1001 and 1024 (this will allow internal users to rsh/rlogin to
+the outside). If you do not want to allow rsh/rlogin connections from
+the inside to the outside, then extend the above suggestion to cover
+ports 1-1024.
 
  <item>Block <bf>all</bf> incoming UDP traffic. There are very few
 useful services that travel over UDP, and what useful traffic there is
@@ -508,16 +516,6 @@ etc). It's probably a good idea to block those as well, as they
 normally fall outside the 1-1024 range specified above.
 
 </itemize>
-
-<p>Of course, if you want to make sure that no un-authorized traffic
-gets through the firewall, change the default policy to ``deny''. This
-will mean that any traffic which is allowed through has to be
-specified explicitly in an ``accept'' or ``allow'' filter rule. Which
-ports you allow through is again something that you will have to
-decide for yourself. If you do set the default policy to be deny, you
-will probably want to install proxy servers, as no traffic will be
-able to get OUT either unless you allow TCP SYN connections going form
-the inside out.
 
 <p>As I said above, these are only <em>guidelines</em>. You will have
 to decide what filter rules you want to use on your firewall
