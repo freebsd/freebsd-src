@@ -1211,12 +1211,12 @@ bad:
  * XXX By default, wimp out... note that a_offset is ignored (and always
  * XXX has been).
  */
-int
+static int
 ext2_getpages(ap)
 	struct vop_getpages_args *ap;
 {
-	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_reqpage);
+	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_reqpage));
 }
 
 /*
@@ -1225,10 +1225,10 @@ ext2_getpages(ap)
  * XXX By default, wimp out... note that a_offset is ignored (and always
  * XXX has been).
  */
-int
+static int
 ext2_putpages(ap)
 	struct vop_putpages_args *ap;
 {
-	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals);
+	return (vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_sync, ap->a_rtvals));
 }
