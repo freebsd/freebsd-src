@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.205 1996/09/27 13:38:02 peter Exp $
+ *	$Id: machdep.c,v 1.206 1996/09/28 22:37:33 dyson Exp $
  */
 
 #include "npx.h"
@@ -379,6 +379,10 @@ again:
 	callfree = callout;
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
+
+#if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
+	boothowto |= RB_CONFIG;
+#endif
 
         if (boothowto & RB_CONFIG) {
 #ifdef USERCONFIG

@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <nlist.h>
 #include <stdio.h>
-#include "uc_main.h"
 
 struct nlist    nl[] = {
     {"_isa_devtab_bio"},
@@ -35,12 +34,11 @@ main(int ac, char **av)
 	perror("nlist");
 	return 1;
     }
-    fprintf(stdout, "struct nlist nl[] = {\n");
+    printf("%d\n", sizeof(nl) / sizeof(struct nlist));
     for (i = 0; nl[i].n_name; i++) {
-	fprintf(stdout, "\t{ \"%s\", %d, %d, %d, %ld },\n",
-	nl[i].n_name, nl[i].n_type, nl[i].n_other,
-	nl[i].n_desc, nl[i].n_value);
+	printf("%s\n", nl[i].n_name);
+	printf("%d %d %d %ld\n",
+	       nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
     }
-    fprintf(stdout, "};\n");
     return 0;
 }
