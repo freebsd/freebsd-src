@@ -220,8 +220,10 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				      VM_PROT_ALL,
 				      MAP_COPY_ON_WRITE | MAP_PREFAULT);
 		vm_map_unlock(&vmspace->vm_map);
-		if (rv != KERN_SUCCESS)
+		if (rv != KERN_SUCCESS) {
+			vm_object_deallocate(object);
 			return EINVAL;
+		}
 
 		/* we can stop now if we've covered it all */
 		if (memsz == filsz)
