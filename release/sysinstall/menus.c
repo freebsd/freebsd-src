@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.101 1996/12/12 22:38:40 jkh Exp $
+ * $Id: menus.c,v 1.102 1996/12/29 05:28:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -229,8 +229,9 @@ DMenu MenuIndex = {
       { "Doc, Copyright",	"The distribution copyright notices.",	NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
       { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
+      { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
       { "Extract",		"Extract selected distributions from media.",		NULL, distExtractAll },
-      { "Fixit",		"Repair mode with fixit floppy.",	NULL, installFixitFloppy },
+      { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
       { "HTML Docs",		"The HTML documentation menu",		NULL, docBrowser },
@@ -295,7 +296,7 @@ DMenu MenuInitial = {
       { "5 Novice",	"Begin a novice installation (for beginners)",	NULL, installNovice },
       { "6 Express",	"Begin a quick installation (for the impatient)", NULL, installExpress },
       { "7 Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-      { "8 Fixit",	"Go into repair mode with a fixit floppy",	NULL, installFixitFloppy },
+      { "8 Fixit",	"Go into repair mode with CDROM or floppy, or start a shell.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "9 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
       { "c Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "0 Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
@@ -1283,3 +1284,22 @@ DMenu MenuUsermgmt = {
       { "Exit",		"Exit this menu (returning to previous)", NULL, dmenuExit },
       { NULL } },
 };
+
+DMenu MenuFixit = {
+    DMENU_NORMAL_TYPE,
+    "Please choose a fixit option",
+    "There are three ways of going into \"fixit\" mode:\n"
+    "- you can use the 2nd FreeBSD CDROM, in which case there will be\n"
+    "  full access to the complete set of FreeBSD commands and utilities,\n"
+    "- you can use the more limited (but perhaps customized) fixit floppy,\n"
+    "- or you can start an Emergency Holographic Shell now, which is\n"
+    "  limited to the subset of commands that is already available right now.",
+    "Press F1 for more detailed repair instructions",
+    "fixit",
+{ { "1 CDROM",	"Use the 2nd \"live\" CDROM from the distribution",	NULL, installFixitCDROM },
+  { "2 Floppy",	"Use a floppy generated from the fixit image",		NULL, installFixitFloppy },
+  { "3 Shell",	"Start an Emergency Holographic Shell",			NULL, installFixitHoloShell },
+  { NULL } },
+};
+
+
