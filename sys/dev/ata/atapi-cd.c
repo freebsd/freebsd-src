@@ -941,7 +941,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		    cdp->dummy = w->dummy;
 		}
 		/* set speed in KB/s (approximate) */
-		acd_set_speed(cdp, w->speed * 173);
+		acd_set_speed(cdp, w->speed * 177);
 	    }
 	    break;
 	}
@@ -1297,60 +1297,65 @@ acd_open_track(struct acd_softc *cdp, struct wormio_prepare_track *ptp)
     param.test_write = cdp->dummy ? 1 : 0;
     param.write_type = CDR_WTYPE_TRACK;
 
-    switch (ptp->audio) {
-/*    switch (data_type) { */
+    switch (ptp->track_type) {
 
-    case 0:
-/*    case CDR_DATA: */
+    case BLOCK_RAW:
+	if (ptp->preemp)
+	    param.track_mode = CDR_TMODE_AUDIO;
+	else
+	    param.track_mode = 0;
+	cdp->block_size = 2352;
+	param.data_block_type = CDR_DB_RAW;
+	param.session_format = CDR_SESS_CDROM;
+	break;
+
+    case BLOCK_MODE_1:
 	cdp->block_size = 2048;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_ROM_MODE1;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
-    default:
-/*    case CDR_AUDIO: */
-	cdp->block_size = 2352;
-	if (ptp->preemp)
-	    param.track_mode = CDR_TMODE_AUDIO;
-	else
-	    param.track_mode = 0;
-	param.data_block_type = CDR_DB_RAW;
-	param.session_format = CDR_SESS_CDROM;
-	break;
-
-/*
-    case CDR_MODE2:
+    case BLOCK_MODE_2:
+	cdp->block_size = 2336;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_ROM_MODE2;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
-    case CDR_XA1:
+    case BLOCK_MODE_2_FORM_1:
+	cdp->block_size = 2048;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_XA_MODE1;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
-    case CDR_XA2:
+    case BLOCK_MODE_2_FORM_1b:
+	cdp->block_size = 2056;
 	param.track_mode = CDR_TMODE_DATA;
 	param.data_block_type = CDR_DB_XA_MODE2_F1;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
-    case CDR_CDI:
+    case BLOCK_MODE_2_FORM_2:
+	cdp->block_size = 2324;
 	param.track_mode = CDR_TMODE_DATA;
-	param.data_block_type = CDR_DB_XA_MODE2_F1;
-	param.session_format = CDR_SESS_CDI;
+	param.data_block_type = CDR_DB_XA_MODE2_F2;
+	param.session_format = CDR_SESS_CDROM_XA;
+	break;
+
+    case BLOCK_MODE_2_FORM_2b:
+	cdp->block_size = 2332;
+	param.track_mode = CDR_TMODE_DATA;
+	param.data_block_type = CDR_DB_XA_MODE2_MIX;
+	param.session_format = CDR_SESS_CDROM_XA;
 	break;
     }
-*/
-    }
 
-#if 0
-    param.multi_session = CDR_MSES_MULTI;
+#if 1
+        param.multi_session = CDR_MSES_MULTI;
 #else
-    param.multi_session = CDR_MSES_NONE;
+        param.multi_session = CDR_MSES_NONE;
 #endif
     param.fp = 0;
     param.packet_size = 0;
