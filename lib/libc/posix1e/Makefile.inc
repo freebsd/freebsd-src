@@ -54,6 +54,7 @@ MAN+=	acl.3				\
 	mac_free.3			\
 	mac_is_present_np.3		\
 	mac_get.3			\
+	mac_prepare.3			\
 	mac_set.3			\
 	mac_text.3			\
 	posix1e.3
@@ -73,7 +74,12 @@ MLINKS+=acl_delete.3 acl_delete_def_file.3	\
 	extattr.3 extattr_string_to_namespace.3 \
 	mac_get.3 mac_get_fd.3			\
 	mac_get.3 mac_get_file.3		\
+	mac_get.3 mac_get_pid.3			\
 	mac_get.3 mac_get_proc.3		\
+	mac_prepare.3 mac_prepare_file_label.3	\
+	mac_prepare.3 mac_prepare_ifnet_label.3	\
+	mac_prepare.3 mac_prepare_process_label.3	\
+	mac_set.3 mac_set_link.3		\
 	mac_set.3 mac_set_fd.3			\
 	mac_set.3 mac_set_file.3		\
 	mac_set.3 mac_set_proc.3		\
