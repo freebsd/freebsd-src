@@ -49,7 +49,7 @@ static const char sccsid[] = "@(#)strfile.c   8.1 (Berkeley) 5/31/93";
 __FBSDID("$FreeBSD$");
 
 # include	<sys/param.h>
-# include	<arpa/inet.h>
+# include	<sys/endian.h>
 # include	<stdio.h>
 # include       <stdlib.h>
 # include	<ctype.h>
@@ -91,9 +91,9 @@ __FBSDID("$FreeBSD$");
 
 # define        ALLOC(ptr,sz) { \
 			if (ptr == NULL) \
-				ptr = malloc((unsigned int) (CHUNKSIZE * sizeof *ptr)); \
+				ptr = malloc(CHUNKSIZE * sizeof *ptr); \
 			else if (((sz) + 1) % CHUNKSIZE == 0) \
-				ptr = realloc((void *) ptr, ((unsigned int) ((sz) + CHUNKSIZE) * sizeof *ptr)); \
+				ptr = realloc(ptr, ((sz) + CHUNKSIZE) * sizeof *ptr); \
 			if (ptr == NULL) { \
 				fprintf(stderr, "out of space\n"); \
 				exit(1); \
@@ -106,7 +106,7 @@ __FBSDID("$FreeBSD$");
 
 typedef struct {
 	int	first;
-	long    pos;
+	off_t	pos;
 } STR;
 
 static char	*Infile		= NULL,		/* input file name */
@@ -119,9 +119,9 @@ static int	Oflag		= FALSE;	/* ordering flag */
 static int	Iflag		= FALSE;	/* ignore case flag */
 static int	Rflag		= FALSE;	/* randomize order flag */
 static int	Xflag		= FALSE;	/* set rotated bit */
-static long	Num_pts		= 0;		/* number of pointers/strings */
+static uint32_t	Num_pts		= 0;		/* number of pointers/strings */
 
-static long    *Seekpts;
+static off_t	*Seekpts;
 
 static FILE	*Sort_1, *Sort_2;		/* pointers for sorting */
 
@@ -129,7 +129,7 @@ static STRFILE	Tbl;				/* statistics table */
 
 static STR	*Firstch;			/* first chars of each string */
 
-static void	add_offset(FILE *, long);
+static void	add_offset(FILE *, off_t);
 static int	cmp_str(const void *, const void *);
 static int      stable_collate_range_cmp(int, int);
 static void	do_order(void);
@@ -150,9 +150,10 @@ int main(int ac, char *av[])
 {
 	char		*sp, dc;
 	FILE		*inf, *outf;
-	long		last_off, pos, *p;
-	unsigned long	length;
-	int		first, cnt;
+	off_t		last_off, pos, *p;
+	size_t		length;
+	int		first;
+	uint32_t	cnt;
 	char		*nsp;
 	STR		*fp;
 	static char		string[257];
@@ -178,24 +179,25 @@ int main(int ac, char *av[])
 	 */
 
 	Tbl.str_longlen = 0;
-	Tbl.str_shortlen = ~((unsigned long) 0);
+	Tbl.str_shortlen = 0xffffffff;
 	Tbl.str_delim = dc;
 	Tbl.str_version = VERSION;
 	first = Oflag;
-	add_offset(outf, ftell(inf));
+	add_offset(outf, ftello(inf));
 	last_off = 0;
 	do {
 		sp = fgets(string, 256, inf);
 		if (sp == NULL || (sp[0] == dc && sp[1] == '\n')) {
-			pos = ftell(inf);
-			length = pos - last_off - (sp ? strlen(sp) : 0);
+			pos = ftello(inf);
+			length = (size_t)(pos - last_off) -
+			    (sp != NULL ? strlen(sp) : 0);
 			last_off = pos;
-			if (!length)
+			if (length == 0)
 				continue;
 			add_offset(outf, pos);
-			if (Tbl.str_longlen < length)
+			if ((size_t)Tbl.str_longlen < length)
 				Tbl.str_longlen = length;
-			if (Tbl.str_shortlen > length)
+			if ((size_t)Tbl.str_shortlen > length)
 				Tbl.str_shortlen = length;
 			first = Oflag;
 		}
@@ -236,24 +238,24 @@ int main(int ac, char *av[])
 		if (Num_pts == 2)
 			puts("There was 1 string");
 		else
-			printf("There were %ld strings\n", Num_pts - 1);
-		printf("Longest string: %lu byte%s\n", Tbl.str_longlen,
+			printf("There were %u strings\n", Num_pts - 1);
+		printf("Longest string: %u byte%s\n", Tbl.str_longlen,
 		       Tbl.str_longlen == 1 ? "" : "s");
-		printf("Shortest string: %lu byte%s\n", Tbl.str_shortlen,
+		printf("Shortest string: %u byte%s\n", Tbl.str_shortlen,
 		       Tbl.str_shortlen == 1 ? "" : "s");
 	}
 
 	rewind(outf);
-	Tbl.str_version = htonl(Tbl.str_version);
-	Tbl.str_numstr = htonl(Tbl.str_numstr);
-	Tbl.str_longlen = htonl(Tbl.str_longlen);
-	Tbl.str_shortlen = htonl(Tbl.str_shortlen);
-	Tbl.str_flags = htonl(Tbl.str_flags);
+	Tbl.str_version = htobe32(Tbl.str_version);
+	Tbl.str_numstr = htobe32(Tbl.str_numstr);
+	Tbl.str_longlen = htobe32(Tbl.str_longlen);
+	Tbl.str_shortlen = htobe32(Tbl.str_shortlen);
+	Tbl.str_flags = htobe32(Tbl.str_flags);
 	(void) fwrite((char *) &Tbl, sizeof Tbl, 1, outf);
 	if (STORING_PTRS) {
 		for (p = Seekpts, cnt = Num_pts; cnt--; ++p)
-			*p = htonl(*p);
-		(void) fwrite((char *) Seekpts, sizeof *Seekpts, (int) Num_pts, outf);
+			*p = htobe64(*p);
+		(void) fwrite(Seekpts, sizeof *Seekpts, (size_t) Num_pts, outf);
 	}
 	(void) fclose(outf);
 	exit(0);
@@ -329,13 +331,13 @@ void usage()
  */
 void add_offset(fp, off)
 FILE	*fp;
-long    off;
+off_t	off;
 {
-	long net;
+	off_t beoff;
 
 	if (!STORING_PTRS) {
-		net = htonl(off);
-		fwrite(&net, 1, sizeof net, fp);
+		beoff = htobe64(off);
+		fwrite(&beoff, 1, sizeof beoff, fp);
 	} else {
 		ALLOC(Seekpts, Num_pts + 1);
 		Seekpts[Num_pts] = off;
@@ -349,13 +351,13 @@ long    off;
  */
 void do_order()
 {
-	int	i;
-	long   *lp;
+	uint32_t i;
+	off_t	*lp;
 	STR	*fp;
 
 	Sort_1 = fopen(Infile, "r");
 	Sort_2 = fopen(Infile, "r");
-	qsort((char *) Firstch, (int) Tbl.str_numstr, sizeof *Firstch, cmp_str);
+	qsort(Firstch, (size_t) Tbl.str_numstr, sizeof *Firstch, cmp_str);
 	i = Tbl.str_numstr;
 	lp = Seekpts;
 	fp = Firstch;
@@ -402,8 +404,8 @@ const void	*s1, *s2;
 	if ((r = stable_collate_range_cmp(c1, c2)) != 0)
 		return (r);
 
-	(void) fseek(Sort_1, p1->pos, 0);
-	(void) fseek(Sort_2, p2->pos, 0);
+	(void) fseeko(Sort_1, p1->pos, 0);
+	(void) fseeko(Sort_2, p2->pos, 0);
 
 	n1 = FALSE;
 	n2 = FALSE;
@@ -441,9 +443,9 @@ const void	*s1, *s2;
  */
 void randomize()
 {
-	int	cnt, i;
-	long   tmp;
-	long   *sp;
+	uint32_t cnt, i;
+	off_t	tmp;
+	off_t	*sp;
 
 	srandomdev();
 
