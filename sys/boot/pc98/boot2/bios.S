@@ -94,6 +94,26 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #ifndef CDBOOT
 
 /*
+ *  PC-9801/PC-9821 SCSI MO booting
+ *    2002/06/05-07/03 Kawanobe Koh <kawanobe@st.rim.or.jp>
+ *
+ */
+scsi_hd:
+	.code16
+	push	%cx
+	push	%ds
+	mov	%bl, %cl		/* UA */
+	and	$0x0F, %cl
+	xor	%ax, %ax
+	mov	%ax, %ds
+	mov	(0x0482), %al		/* SCSI HD equipment bits */
+	shr	%cl, %al
+	pop	%ds
+	pop	%cx
+	test	$1, %al
+	ret
+
+/*
  * biosread(dev, cyl, head, sec, nsec, offset)
  *	Read "nsec" sectors from disk to offset "offset" in boot segment
  * BIOS call "INT 0x1B Function 0xn6" to read sectors from disk into memory
@@ -118,54 +138,58 @@ ENTRY(biosread)
 	push	%esi
 	push	%edi
 
-	movb	0x14(%ebp), %dl		/* sector */
-	movb	0x10(%ebp), %dh		/* head */
-	movw	0x0c(%ebp), %cx		/* cylinder */
-	movb	0x08(%ebp), %al		/* DA/UA */
-	movb	$0x06, %ah
-	andb	$0xf0, %al
-	cmpb	$0x30, %al
-	jz	fd
-	cmpb	$0x90, %al
-	jnz	1f
-fd:
-	incb	%dl
-	movb	$0x02, %ch
-	movb	$0xd6, %ah
-1:
-	movb	0x08(%ebp), %al
-	movl	%eax, %ebx
+	mov	0x08(%ebp), %bl		/* (byte) DA/UA */
+	mov	0x0C(%ebp), %ecx	/* (word) cylinder */
+	mov	0x10(%ebp), %dh		/* (byte) head */
+	mov	0x14(%ebp), %dl		/* (byte) sector */
+	mov	0x18(%ebp), %esi	/* (byte) number of sectors */
+	mov	0x1C(%ebp), %edi	/* (word) destination offset */
 
 	/* prot_to_real will set %es to BOOTSEG */
 	call	EXT(prot_to_real)	/* enter real mode */
-	mov	%ebx, %eax
-	xor	%ebx, %ebx
-	addr32
-	movb	0x18(%ebp), %bl		/* number of sectors */
 	.code16
-	shl	$9, %ebx
-	push	%ebx
-	.code32
-	addr32
-	data32
-	mov	0x1c(%ebp), %ebx
-	.code16
-	mov	%ebx, %ebp
-	pop	%ebx
+	mov	$0x06, %bh		/* read data function */
+	mov	%bl, %al		/* DA */
+	and	$0xF0, %al
+	cmp	$0x30, %al		/* 1440KB FD */
+	jz	read_floppy
+	cmp	$0x90, %al		/* 1200KB FD */
+	jz	read_floppy
+	cmp	$0xA0, %al		/* SCSI HD or MO */
+	jnz	read_next
+	call	scsi_hd
+	jnz	read_next
+read_linear:
+	mov	%dh, %al		/* change to linear sector */
+	shl	$5, %al			/* multiply by 32 sector per track */
+	add	%dl, %al
+	xor	%dh, %dh		/* higher 16 bits into %dx */
+	mov	%ch, %dl
+	mov	%cl, %ch		/* lower 16 bits into %cx */
+	mov	%al, %cl
+	and	$0x7F, %bl		/* linear access DA/UA */
+	jmp	read_next
+read_floppy:
+	inc	%dx			/* sector address begins from one */
+	mov	$0x02, %ch		/* 512 bytes sector */
+	mov	$0xD6, %bh		/* MT MFM retry seek */
+read_next:
+	mov	%si, %ax		/* number of sectors */
+	shl	$9, %ax			/* multiply by 512 bytes */
+	xchg	%bx, %ax
+	mov	%di, %bp		/* destination offset */
+	int	$0x1B			/* disk bios call */
+	jc	read_end
+	xor	%ax, %ax
+read_end:
+	mov	%ax, %bx		/* save return value */
 
-	int	$0x1b
-	jc	1f
 	.code32
-	xor	%eax, %eax
-1:
-	/* save return value (actually movw %ax, %bx) */
-	mov	%eax, %ebx
-
 	data32
 	call	EXT(real_to_prot)	/* back to protected mode */
 
 	xor	%eax, %eax
-	movb	%bh, %al		/* return value in %ax */
+	mov	%bh, %al		/* return value in %eax */
 
 	pop	%edi
 	pop	%esi
@@ -360,46 +384,61 @@ ENTRY(get_diskinfo)
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx
-	push	%esi
-	push    %edi
 
-	movb	0x8(%ebp), %dl		/* diskinfo(drive #) */
+	mov	0x08(%ebp), %bl		/* (byte) DA/UA */
+
 	call	EXT(prot_to_real)	/* enter real mode */
 	.code16
+	mov	%bl, %al		/* DA */
+	and	$0xf0, %al
+	mov	$18, %dl		/* 1440KB FD sectors per track */
+	cmp	$0x30, %al
+	jz	floppy
+	mov	$15, %dl		/* 1200KB FD sectors per track */
+	cmp	$0x90, %al
+	jz	floppy
+	cmp	$0xA0, %al		/* SCSI HD or MO */
+	jnz	sense
+	call	scsi_hd
+	jnz	sense
 
-	movb	%dl, %al		/* ask for disk info */
-	andb	$0xf0, %al
-	cmpb	$0x30, %al
-	jz	fdd4
-	cmpb	$0x90, %al
-	jz	fdd
+	push	%ds			/* SCSI MO or CD ? */
+	xor	%ax, %ax
+	mov	%ax, %ds
+	and	$0x0F, %bx		/* UA */
+	shl	$2, %bx			/* parameter offset */
+	add	$0x0460, %bx
+	mov	(%bx), %al		/* SCSI equipment parameter[0] */
+	and	$0x1F, %al		/* peripheral device type */
+	cmp	$7, %al			/* SCSI MO */
+	jnz	good
+	add	$3, %bx
+	mov	(%bx), %al		/* SCSI equipment parameter[3] */
+	test	$0x30, %al		/* sector length from 256 to 2048 */
+	jnz	good
+	or	$0x10, %al		/* forced set 512 bytes sector */
+	mov	%al, (%bx)
+	mov	$0xA100, %dx		/* refered by C language */
+	mov	%dx, %ds
+	mov	%al, (%bx)
+good:
+	pop	%ds
 
-	movb	%dl, %al
-	movb	$0x84, %ah
-
+	mov	$0xFFFE, %cx		/* virtual 65535 cylinders setting */
+	mov	$0x0820, %dx		/* standard 8 heads and 32 sectors */
+	jmp	ok
+sense:
+	mov	$0x84, %ah		/* ask for disk info */
+	mov	%bl, %al
 	int	$0x1b
-
-	jnc	ok
+	jnc	ok			/* use %cx and %dx after */
 	/*
 	 * Urk.  Call failed.  It is not supported for floppies by old BIOS's.
 	 * Guess it's a 15-sector floppy.
 	 */
-fdd4:
-	movb	$18, %dl
-	jmp	1f
-fdd:
-	movb	$15, %dl		/* max sector */
-1:
-	subb	%ah, %ah		/* %ax = 0 */
-	movb	%al, %al
-	movb	%ah, %bh		/* %bh = 0 */
-	movb	$2, %bl			/* %bl	bits 0-3 = drive type,
-						bit    2 = 1.2M */
-	movb	$79, %ch		/* max track */
-	movb	$1, %cl			/* # floppy drives installed */
-	movb	$2, %dh			/* max head */
-	/* es:di = parameter table */
-	/* carry = 0 */
+floppy:
+	mov	$79, %cx		/* 80 cylinders 1200K and 1440K FD */
+	mov	$2, %dh			/* 2 heads as double side */
 ok:
 	.code32
 	data32
@@ -412,12 +451,9 @@ ok:
 	 *	 8 bit sector
 	 */
 	mov	%ecx, %eax
-	sall	$16,%eax		/* << 16 */
-	movb	%dh, %ah		/* max head */
-	movb	%dl, %al		/* max sector (and # sectors) */
+	sal	$16, %eax		/* max cylinder number from zero */
+	mov	%dx, %ax		/* number of heads and sectors */
 
-	pop	%edi
-	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret
