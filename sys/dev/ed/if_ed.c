@@ -1649,8 +1649,7 @@ ed_attach(sc, unit, flags)
 	/*
 	 * Print additional info when attached
 	 */
-	printf("%s%d: address %6D, ", ifp->if_name, ifp->if_unit, 
-		sc->arpcom.ac_enaddr, ":");
+	if_printf(ifp, "address %6D, ", sc->arpcom.ac_enaddr, ":");
 
 	if (sc->type_str && (*sc->type_str != 0))
 		printf("type %s ", sc->type_str);
@@ -2471,7 +2470,7 @@ edintr(arg)
 						sc->mibdata.dot3StatsInternalMacReceiveErrors++;
 					ifp->if_ierrors++;
 #ifdef ED_DEBUG
-					printf("ed%d: receive error %x\n", ifp->if_unit,
+					if_printf(ifp, "receive error %x\n",
 					       ed_nic_inb(sc, ED_P0_RSR));
 #endif
 				}
