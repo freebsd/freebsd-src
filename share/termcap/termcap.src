@@ -4170,6 +4170,12 @@ linux|Linux Console:\
 linux-m|Linux Console no color:\
 	:pa@:Co@:AF@:AB@:op@:\
 	:tc=linux:
+
+# Termcap for Top Gun Telnet and SSH on the Palm Pilot.
+# http://www.isaac.cs.berkeley.edu/pilot/tgtelnet.html
+pi|pilot|tgtelnet:am:xn:bs:co#39:li#16:cl=\Ec:cm=\Em%+ %+ :ho=\Em  :nw=\Em~ :\
+	:so=\Eb:se=\EB:bl=^g:cr=^m:do=^j:le=^h:kP=^k:kN=^l:
+
 #
 # END OF TERMCAP
 #  ------------------------
