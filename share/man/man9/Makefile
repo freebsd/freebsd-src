@@ -469,6 +469,22 @@ MLINKS+=taskqueue.9 TASKQUEUE_DEFINE.9
 MLINKS+=resource_int_value.9 resource_long_value.9
 MLINKS+=resource_int_value.9 resource_string_value.9
 
+MLINKS+=rman.9 rman_activate_resource.9
+MLINKS+=rman.9 rman_await_resource.9
+MLINKS+=rman.9 rman_deactivate_resource.9
+MLINKS+=rman.9 rman_fini.9 rman.9 rman_fini.9 rman.9 rman_init.9
+MLINKS+=rman.9 rman_manage_region.9
+MLINKS+=rman.9 rman_release_resource.9
+MLINKS+=rman.9 rman_reserve_resource.9
+MLINKS+=rman.9 rman_reserve_resource_bound.9
+MLINKS+=rman.9 rman_make_alignment_flags.9
+MLINKS+=rman.9 rman_get_start.9 rman.9 rman_get_end.9
+MLINKS+=rman.9 rman_get_size.9 rman.9 rman_get_flags.9
+MLINKS+=rman.9 rman_set_virtual.9 rman.9 rman_get_virtual.9
+MLINKS+=rman.9 rman_set_bustag.9 rman.9 rman_get_bustag.9
+MLINKS+=rman.9 rman_set_bushandle.9 rman.9 rman_get_bushandle.9
+MLINKS+=rman.9 rman_set_rid.9 rman.9 rman_get_rid.9
+
 MLINKS+=suser.9 suser_cred.9
 
 MLINKS+=sysctl_add_oid.9 sysctl_remove_oid.9
@@ -482,6 +498,8 @@ MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_ULONG.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_OPAQUE.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_PROC.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_CHILDREN.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_STATIC_CHILDREN.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_free.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_del.9
