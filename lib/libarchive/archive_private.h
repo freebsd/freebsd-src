@@ -54,12 +54,13 @@ struct archive {
 	size_t			 null_length;
 
 	/*
-	 * Used to limit reads of entry data.   Eventually, each reader
-	 * will be able to register it's own read_data routine and these
-	 * will move into the per-format data for the formats that use them.
+	 * Used by archive_read_data() to track blocks and copy
+	 * data to client buffers, filling gaps with zero bytes.
 	 */
-	off_t		  entry_bytes_remaining;
-	off_t		  entry_padding; /* Skip this much after entry data. */
+	const char	 *read_data_block;
+	off_t		  read_data_offset;
+	off_t		  read_data_output_offset;
+	size_t		  read_data_remaining;
 
 	uid_t		  user_uid;	/* UID of current user. */
 
@@ -151,6 +152,7 @@ struct archive {
 	struct archive_format_descriptor {
 		int	(*bid)(struct archive *);
 		int	(*read_header)(struct archive *, struct archive_entry *);
+		int	(*read_data)(struct archive *, const void **, size_t *, off_t *);
 		int	(*cleanup)(struct archive *);
 		void	 *format_data;	/* Format-specific data for readers. */
 	}	formats[4];
@@ -168,9 +170,8 @@ struct archive {
 	void	 *format_data;		/* Used by writers. */
 
 	/*
-	 * Pointers to format-specific functions.  On read, these are
-	 * initialized in the bid process.  On write, they're initialized by
-	 * archive_write_set_format_XXX() calls.
+	 * Pointers to format-specific functions for writing.  They're
+	 * initialized by archive_write_set_format_XXX() calls.
 	 */
 	int	(*format_init)(struct archive *); /* Only used on write. */
 	int	(*format_finish)(struct archive *);
@@ -220,6 +221,7 @@ int	__archive_read_register_format(struct archive *a,
 	    void *format_data,
 	    int (*bid)(struct archive *),
 	    int (*read_header)(struct archive *, struct archive_entry *),
+	    int (*read_data)(struct archive *, const void **, size_t *, off_t *),
 	    int (*cleanup)(struct archive *));
 
 int	__archive_read_register_compression(struct archive *a,
