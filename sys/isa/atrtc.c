@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.54 1996/03/31 04:05:36 bde Exp $
+ *	$Id: clock.c,v 1.55 1996/04/05 03:36:31 ache Exp $
  */
 
 /*
@@ -493,7 +493,7 @@ inittodr(time_t base)
 	/* sec now contains the	number of seconds, since Jan 1 1970,
 	   in the local	time zone */
 
-	sec += tz.tz_minuteswest * 60 +	wall_cmos_clock	? adjkerntz : 0;
+	sec += tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
 	s = splclock();
 	time.tv_sec = sec;
@@ -526,7 +526,7 @@ resettodr()
 
 	/* Calculate local time	to put in RTC */
 
-	tm -= tz.tz_minuteswest	* 60 + wall_cmos_clock ? adjkerntz : 0;
+	tm -= tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
 	writertc(RTC_SEC, bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
 	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
