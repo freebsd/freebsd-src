@@ -5,7 +5,7 @@ PROG=	ifmcstat
 MAN=	ifmcstat.8
 
 BINGRP=	kmem
-BINMODE=2555
+BINMODE=555
 LDADD=	-lkvm
 DPADD=	${LIBKVM}
 
