@@ -1,6 +1,6 @@
 /*
  * Grand digital clock for curses compatible terminals
- * Usage: gdc [-s] [n]   -- run for n seconds (default infinity)
+ * Usage: grdc [-s] [n]   -- run for n seconds (default infinity)
  * Flags: -s: scroll
  *
  * modified 10-18-89 for curses (jrl)
@@ -151,7 +151,7 @@ int n = 0;
 			clear();
 			refresh();
 			endwin();
-			fprintf(stderr, "gdc terminated by signal %d\n", sigtermed);
+			fprintf(stderr, "grdc terminated by signal %d\n", sigtermed);
 			exit(1);
 		}
 	} while(--n);
