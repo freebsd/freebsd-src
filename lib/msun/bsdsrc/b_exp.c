@@ -31,12 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef lint
 static char sccsid[] = "@(#)exp.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 /* EXP(X)
  * RETURN THE EXPONENTIAL OF X
