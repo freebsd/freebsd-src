@@ -91,8 +91,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	extern char *optarg;
 	u_int interval;
 	int clientOnly = -1;
 	int serverOnly = -1;

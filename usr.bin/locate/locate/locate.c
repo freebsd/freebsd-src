@@ -140,10 +140,6 @@ extern u_char   *tolower_word __P((u_char *));
 extern int	check_bigram_char __P((int));
 extern char 	*patprep __P((char *));
 
-extern char     *optarg;
-extern int      optind;
-
-
 int
 main(argc, argv)
         int argc;

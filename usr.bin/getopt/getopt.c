@@ -1,11 +1,12 @@
+/* $FreeBSD$ */
+
 #include <stdio.h>
+#include <unistd.h>
 
 main(argc, argv)
 int argc;
 char *argv[];
 {
-	extern int optind;
-	extern char *optarg;
 	int c;
 	int status = 0;
 
