@@ -203,7 +203,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 		return;
 
 	if (!pfunc) {
-		printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
+		printf("%-5.5s %5.5s %-11.11s %-17.17s %8.8s %5.5s",
 		       "Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 		if (bflag)
 			printf(" %10.10s","Ibytes");
@@ -268,9 +268,9 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 		drops = ifnet.if_snd.ifq_drops;
 
 		if (ifaddraddr == 0) {
-			printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
-			printf("%-13.13s ", "none");
-			printf("%-15.15s ", "none");
+			printf("%-5.5s %5lu ", name, ifnet.if_mtu);
+			printf("%-11.11s ", "none");
+			printf("%-17.17s ", "none");
 		} else {
 			if (kread(ifaddraddr, (char *)&ifaddr, sizeof ifaddr)) {
 				ifaddraddr = 0;
@@ -285,7 +285,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				    (u_long)TAILQ_NEXT(&ifaddr.ifa, ifa_link);
 				continue;
 			}
-			printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
+			printf("%-5.5s %5lu ", name, ifnet.if_mtu);
 			switch (sa->sa_family) {
 			case AF_UNSPEC:
 				printf("%-13.13s ", "none");
@@ -302,11 +302,11 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				printf("%-13.13s ", netname(in.s_addr,
 				    ifaddr.in.ia_subnetmask));
 #else
-				printf("%-13.13s ",
+				printf("%-11.11s ",
 				    netname(htonl(ifaddr.in.ia_subnet),
 				    ifaddr.in.ia_subnetmask));
 #endif
-				printf("%-15.15s ",
+				printf("%-17.17s ",
 				    routename(sin->sin_addr.s_addr));
 
 				network_layer = 1;
