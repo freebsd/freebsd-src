@@ -317,8 +317,9 @@ fwohci_pci_attach(device_t self)
 	 * Clear the bus reset event flag to start transactions even when
 	 * interrupt is disabled during the boot process.
 	 */
+	DELAY(250); /* 2 cycles */
 	s = splfw();
-	fwohci_intr((void *)sc);
+	fwohci_poll((void *)sc, 0, -1);
 	splx(s);
 
 	return 0;
