@@ -375,6 +375,7 @@ void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chty
 void draw_shadow(WINDOW *win, int y, int x, int height, int width)
 {
   int i,sx,sy;
+  WINDOW *newscr=win;
 
   if (has_colors()) {    /* Whether terminal supports color? */
     getbegyx(win,sy,sx);

@@ -155,6 +155,8 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
     waddstr(dialog, "(+)");
   }
 
+  display_helpline(dialog, height-1, width);
+
   x = width/2-11;
   y = height-2;
   print_button(dialog, "Cancel", y, x+14, FALSE);
@@ -360,6 +362,10 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
         return button;
       case ESC:
         break;
+    case KEY_F(1):
+    case '?':
+	display_helpfile();
+	break;
     }
   }
 

@@ -39,8 +39,17 @@
 #define ESC 27
 #define TAB 9
 #define BUF_SIZE (10*1024)
+
+#ifndef MIN
 #define MIN(x,y) (x < y ? x : y)
+#endif
+#ifndef MAX
 #define MAX(x,y) (x > y ? x : y)
+#endif
+
+#ifndef ctrl
+#define ctrl(a)          ((a) - 'a' + 1)
+#endif 
 
 #ifndef HAVE_NCURSES
 #ifndef ACS_ULCORNER
@@ -159,3 +168,5 @@ void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, i
 void print_button(WINDOW *win, unsigned char *label, int y, int x, int selected);
 FILE *raw_popen(const char *program, char * const *argv, const char *type);
 int raw_pclose(FILE *iop);
+void display_helpfile(void);
+void display_helpline(WINDOW *w, int y, int width);
