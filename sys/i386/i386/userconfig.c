@@ -6,9 +6,11 @@
  * Copyright (c) 1994 David Greenman
  * All rights reserved.
  *
+ * Many additional changes by Bruce Evans
+ *
  * This code is derived from software contributed by the 
  * University of California Berkeley, Jordan K. Hubbard,
- * David Greenman and Naffy, the Wonder Porpoise.
+ * David Greenman and Bruce Evans.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.24 1995/05/07 18:23:58 jkh Exp $
+ *      $Id: userconfig.c,v 1.25 1995/05/07 18:24:43 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -290,6 +292,10 @@ set_device_irq(CmdParm *parms)
     if (irq == 2) {
 	printf("Warning: Remapping IRQ 2 to IRQ 9 - see config(8)\n");
 	irq = 9;
+    }
+    else if (irq > 15) {
+	printf("An IRQ > 15 would be invalid.\n");
+	return 0;
     }
     parms[0].parm.dparm->id_irq = (irq < 16 ? 1 << irq : 0);
     save_dev(parms[0].parm.dparm);
