@@ -23,10 +23,10 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	pem/pem2.h pkcs12/pkcs12.h pkcs7/pkcs7.h rand/rand.h rc2/rc2.h \
 	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h rsa/rsa.h stack/safestack.h \
 	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
-	x509/x509_vfy.h x509v3/x509v3.h
+	x509/x509_vfy.h x509v3/x509v3.h symhacks.h objects/obj_mac.h md4/md4.h dso/dso.h conf/conf_api.h
 
 .if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
-HDRS+=	idea/idea.h
+HDRS+= idea/idea.h
 .endif
 
 .for h in ${HDRS}
