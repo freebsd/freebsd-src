@@ -670,28 +670,32 @@ g_bsd_callconfig(void *arg, int flag)
 /*
  * NB! curthread is user process which GCTL'ed.
  */
-static int
-g_bsd_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
+static void
+g_bsd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 {
 	u_char *label;
 	int error;
 	struct h0h0 h0h0;
+	struct g_geom *gp;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
 	struct g_bsd_softc *ms;
 
 	g_topology_assert();
+	gp = gctl_get_geom(req, mp, "geom");
+	if (gp == NULL)
+		return;
 	cp = LIST_FIRST(&gp->consumer);
 	gsp = gp->softc;
 	ms = gsp->softc;
 	if (!strcmp(verb, "read mbroffset")) {
-		error = gctl_set_param(req, "mbroffset",
+		gctl_set_param(req, "mbroffset",
 		    &ms->mbroffset, sizeof(ms->mbroffset));
-		return (error);
+		return;
 	} else if (!strcmp(verb, "write label")) {
 		label = gctl_get_paraml(req, "label", LABELSIZE);
 		if (label == NULL)
-			return (EINVAL);
+			return;
 		h0h0.gp = gp;
 		h0h0.ms = gsp->softc;
 		h0h0.label = label;
@@ -699,40 +703,36 @@ g_bsd_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 		/* XXX: Does this reference register with our selfdestruct code ? */
 		error = g_access_rel(cp, 1, 1, 1);
 		if (error) {
-			g_free(label);
-			return (error);
+			gctl_error(req, "could not access consumer");
+			return;
 		}
-		g_topology_unlock();
-		g_waitfor_event(g_bsd_callconfig, &h0h0, M_WAITOK, gp, NULL);
-		g_topology_lock();
+		g_bsd_callconfig(&h0h0, 0);
 		error = h0h0.error;
 		g_access_rel(cp, -1, -1, -1);
-		g_free(label);
 	} else if (!strcmp(verb, "write bootcode")) {
 		label = gctl_get_paraml(req, "bootcode", BBSIZE);
 		if (label == NULL)
-			return (EINVAL);
+			return;
 		/* XXX: Does this reference register with our selfdestruct code ? */
 		error = g_access_rel(cp, 1, 1, 1);
 		if (error) {
-			g_free(label);
-			return (error);
+			gctl_error(req, "could not access consumer");
+			return;
 		}
 		error = g_bsd_writelabel(gp, label);
 		g_access_rel(cp, -1, -1, -1);
-		g_free(label);
 	} else {
-		return (gctl_error(req, "Unknown verb parameter"));
+		gctl_error(req, "Unknown verb parameter");
 	}
 
-	return (error);
+	return;
 }
 
 /* Finally, register with GEOM infrastructure. */
 static struct g_class g_bsd_class = {
 	.name = BSD_CLASS_NAME,
 	.taste = g_bsd_taste,
-	.config_geom = g_bsd_config,
+	.ctlreq = g_bsd_config,
 };
 
 DECLARE_GEOM_CLASS(g_bsd_class, g_bsd);

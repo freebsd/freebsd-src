@@ -58,7 +58,6 @@
 #include <geom/geom_int.h>
 #define GCTL_TABLE 1
 #include <geom/geom_ctl.h>
-#include <geom/geom_ext.h>
 
 #include <machine/stdarg.h>
 
@@ -92,27 +91,25 @@ g_ctl_init(void)
 int
 gctl_error(struct gctl_req *req, const char *fmt, ...)
 {
-	int error;
 	va_list ap;
-	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	if (sb == NULL) {
-		error = copyout(fmt, req->error,
-			    imin(req->lerror, strlen(fmt) + 1));
-	} else {
-		va_start(ap, fmt);
-		sbuf_vprintf(sb, fmt, ap);
-		sbuf_finish(sb);
-		if (g_debugflags & G_F_CTLDUMP)
-			printf("gctl %p error \"%s\"\n", req, sbuf_data(sb));
-		error = copyout(sbuf_data(sb), req->error,
-		    imin(req->lerror, sbuf_len(sb) + 1));
-	}
-	if (!error)
-		error = EINVAL;
-	sbuf_delete(sb);
-	return (error);
+	if (req == NULL)
+		return (EINVAL);
+
+	/* We only record the first error */
+	if (req->nerror)
+		return (req->nerror);
+
+	va_start(ap, fmt);
+	sbuf_vprintf(req->serror, fmt, ap);
+	sbuf_finish(req->serror);
+	if (g_debugflags & G_F_CTLDUMP)
+		printf("gctl %p error \"%s\"\n", req, sbuf_data(req->serror));
+	req->nerror = copyout(sbuf_data(req->serror), req->error,
+	    imin(req->lerror, sbuf_len(req->serror) + 1));
+	if (!req->nerror)
+		req->nerror = EINVAL;
+	return (req->nerror);
 }
 
 /*
@@ -120,60 +117,51 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
  * XXX: this should really be a standard function in the kernel.
  */
 static void *
-geom_alloc_copyin(struct gctl_req *req, void *uaddr, size_t len, int *errp)
+geom_alloc_copyin(struct gctl_req *req, void *uaddr, size_t len)
 {
-	int error;
 	void *ptr;
 
 	ptr = g_malloc(len, M_WAITOK);
 	if (ptr == NULL)
-		error = ENOMEM;
+		req->nerror = ENOMEM;
 	else
-		error = copyin(uaddr, ptr, len);
-	if (!error)
+		req->nerror = copyin(uaddr, ptr, len);
+	if (!req->nerror)
 		return (ptr);
-	gctl_error(req, "no access to argument");
-	*errp = error;
 	if (ptr != NULL)
 		g_free(ptr);
 	return (NULL);
 }
 
-
-/*
- * XXX: This function is a nightmare.  It walks through the request and
- * XXX: makes sure that the various bits and pieces are there and copies
- * XXX: some of them into kernel memory to make things easier.
- * XXX: I really wish we had a standard marshalling layer somewhere.
- */
-
-static int
+static void
 gctl_copyin(struct gctl_req *req)
 {
-	int error, i, j;
+	int error, i;
 	struct gctl_req_arg *ap;
 	char *p;
 
-	error = 0;
-	ap = geom_alloc_copyin(req, req->arg, req->narg * sizeof(*ap), &error);
+	ap = geom_alloc_copyin(req, req->arg, req->narg * sizeof(*ap));
 	if (ap == NULL) {
-		gctl_error(req, "copyin() of arguments failed");
-		return (error);
+		req->nerror = ENOMEM;
+		req->arg = NULL;
+		return;
 	}
 
-	for (i = 0; !error && i < req->narg; i++) {
-		if (ap[i].len > 0 &&
-		    !useracc(ap[i].value, ap[i].len, 
-		    ap[i].flag & GCTL_PARAM_RW))
-			error = gctl_error(req, "no access to param data");
-		if (error)
-			break;
-		p = NULL;
+	/* Nothing have been copyin()'ed yet */
+	for (i = 0; i < req->narg; i++) {
+		ap[i].flag &= ~(GCTL_PARAM_NAMEKERNEL|GCTL_PARAM_VALUEKERNEL);
+		ap[i].flag &= ~GCTL_PARAM_CHANGED;
+		ap[i].kvalue = NULL;
+	}
+
+	error = 0;
+	for (i = 0; i < req->narg; i++) {
 		if (ap[i].nlen < 1 || ap[i].nlen > SPECNAMELEN) {
-			error = gctl_error(req, "wrong param name length");
+			error = gctl_error(req,
+			    "wrong param name length %d: %d", i, ap[i].nlen);
 			break;
 		}
-		p = geom_alloc_copyin(req, ap[i].name, ap[i].nlen, &error);
+		p = geom_alloc_copyin(req, ap[i].name, ap[i].nlen);
 		if (p == NULL)
 			break;
 		if (p[ap[i].nlen - 1] != '\0') {
@@ -182,17 +170,52 @@ gctl_copyin(struct gctl_req *req)
 			break;
 		}
 		ap[i].name = p;
-		ap[i].nlen = 0;
+		ap[i].flag |= GCTL_PARAM_NAMEKERNEL;
+		if (ap[i].len < 0) {
+			error = gctl_error(req, "negative param length");
+			break;
+		}
+		if (ap[i].len == 0) {
+			ap[i].kvalue = ap[i].value;
+			ap[i].flag |= GCTL_PARAM_VALUEKERNEL;
+			continue;
+		}
+		p = geom_alloc_copyin(req, ap[i].value, ap[i].len);
+		if (p == NULL)
+			break;
+		if ((ap[i].flag & GCTL_PARAM_ASCII) &&
+		    p[ap[i].len - 1] != '\0') {
+			error = gctl_error(req, "unterminated param value");
+			g_free(p);
+			break;
+		}
+		ap[i].kvalue = p;
+		ap[i].flag |= GCTL_PARAM_VALUEKERNEL;
 	}
-	if (!error) {
-		req->arg = ap;
-		return (0);
+	req->arg = ap;
+	return;
+}
+
+static void
+gctl_copyout(struct gctl_req *req)
+{
+	int error, i;
+	struct gctl_req_arg *ap;
+
+	if (req->nerror)
+		return;
+	error = 0;
+	ap = req->arg;
+	for (i = 0; i < req->narg; i++, ap++) {
+		if (!(ap->flag & GCTL_PARAM_CHANGED))
+			continue;
+		error = copyout(ap->kvalue, ap->value, ap->len);
+		if (!error)
+			continue;
+		req->nerror = error;
+		return;
 	}
-	for (j = 0; j < i; j++)
-		if (ap[j].nlen == 0 && ap[j].name != NULL)
-			g_free(ap[j].name);
-	g_free(ap);
-	return (error);
+	return;
 }
 
 static void
@@ -200,61 +223,60 @@ gctl_free(struct gctl_req *req)
 {
 	int i;
 
+	if (req->arg == NULL)
+		return;
 	for (i = 0; i < req->narg; i++) {
-		if (req->arg[i].nlen == 0 && req->arg[i].name != NULL)
+		if (req->arg[i].flag & GCTL_PARAM_NAMEKERNEL)
 			g_free(req->arg[i].name);
+		if ((req->arg[i].flag & GCTL_PARAM_VALUEKERNEL) &&
+		    req->arg[i].len > 0)
+			g_free(req->arg[i].kvalue);
 	}
 	g_free(req->arg);
+	sbuf_delete(req->serror);
 }
 
 static void
 gctl_dump(struct gctl_req *req)
 {
 	u_int i;
-	int j, error;
+	int j;
 	struct gctl_req_arg *ap;
-	void *p;
-	
 
-	printf("Dump of gctl %s request at %p:\n", req->reqt->name, req);
-	if (req->lerror > 0) {
-		p = geom_alloc_copyin(req, req->error, req->lerror, &error);
-		if (p != NULL) {
-			((char *)p)[req->lerror - 1] = '\0';
-			printf("  error:\t\"%s\"\n", (char *)p);
-			g_free(p);
-		}
+	printf("Dump of gctl request at %p:\n", req);
+	if (req->nerror > 0) {
+		printf("  nerror:\t%d\n", req->nerror);
+		if (sbuf_len(req->serror) > 0)
+			printf("  error:\t\"%s\"\n", sbuf_data(req->serror));
 	}
 	for (i = 0; i < req->narg; i++) {
 		ap = &req->arg[i];
-		printf("  param:\t\"%s\"", ap->name);
+		if (!(ap->flag & GCTL_PARAM_NAMEKERNEL))
+			printf("  param:\t%d@%p", ap->nlen, ap->name);
+		else
+			printf("  param:\t\"%s\"", ap->name);
 		printf(" [%s%s%d] = ",
 		    ap->flag & GCTL_PARAM_RD ? "R" : "",
 		    ap->flag & GCTL_PARAM_WR ? "W" : "",
 		    ap->len);
-		if (ap->flag & GCTL_PARAM_ASCII) {
-			p = geom_alloc_copyin(req, ap->value, ap->len, &error);
-			if (p != NULL) {
-				((char *)p)[ap->len - 1] = '\0';
-				printf("\"%s\"", (char *)p);
-			}
-			g_free(p);
+		if (!(ap->flag & GCTL_PARAM_VALUEKERNEL)) {
+			printf(" =@ %p", ap->value);
+		} else if (ap->flag & GCTL_PARAM_ASCII) {
+			printf("\"%s\"", (char *)ap->kvalue);
 		} else if (ap->len > 0) {
-			p = geom_alloc_copyin(req, ap->value, ap->len, &error);
 			for (j = 0; j < ap->len; j++)
-				printf(" %02x", ((u_char *)p)[j]);
-			g_free(p);
+				printf(" %02x", ((u_char *)ap->kvalue)[j]);
 		} else {
-			printf(" = %p", ap->value);
+			printf(" = %p", ap->kvalue);
 		}
 		printf("\n");
 	}
 }
 
-int
-gctl_set_param(struct gctl_req *req, const char *param, void *ptr, int len)
+void
+gctl_set_param(struct gctl_req *req, const char *param, void const *ptr, int len)
 {
-	int i, error;
+	int i;
 	struct gctl_req_arg *ap;
 
 	for (i = 0; i < req->narg; i++) {
@@ -263,23 +285,24 @@ gctl_set_param(struct gctl_req *req, const char *param, void *ptr, int len)
 			continue;
 		if (!(ap->flag & GCTL_PARAM_WR)) {
 			gctl_error(req, "No write access %s argument", param);
-			return (EINVAL);
+			return;
 		}
-		if (ap->len != len) {
+		if (ap->len < len) {
 			gctl_error(req, "Wrong length %s argument", param);
-			return (EINVAL);
+			return;
 		}
-		error = copyout(ptr, ap->value, len);
-		return (error);
+		bcopy(ptr, ap->kvalue, len);
+		ap->flag |= GCTL_PARAM_CHANGED;
+		return;
 	}
 	gctl_error(req, "Missing %s argument", param);
-	return (EINVAL);
+	return;
 }
 
 void *
 gctl_get_param(struct gctl_req *req, const char *param, int *len)
 {
-	int i, error, j;
+	int i;
 	void *p;
 	struct gctl_req_arg *ap;
 
@@ -289,17 +312,36 @@ gctl_get_param(struct gctl_req *req, const char *param, int *len)
 			continue;
 		if (!(ap->flag & GCTL_PARAM_RD))
 			continue;
-		if (ap->len > 0)
-			j = ap->len;
-		else
-			j = 0;
-		if (j != 0)
-			p = geom_alloc_copyin(req, ap->value, j, &error);
-			/* XXX: should not fail, tested prviously */
-		else
-			p = ap->value;
+		p = ap->kvalue;
 		if (len != NULL)
-			*len = j;
+			*len = ap->len;
+		return (p);
+	}
+	return (NULL);
+}
+
+char const *
+gctl_get_asciiparam(struct gctl_req *req, const char *param)
+{
+	int i;
+	char const *p;
+	struct gctl_req_arg *ap;
+
+	for (i = 0; i < req->narg; i++) {
+		ap = &req->arg[i];
+		if (strcmp(param, ap->name))
+			continue;
+		if (!(ap->flag & GCTL_PARAM_RD))
+			continue;
+		p = ap->kvalue;
+		if (ap->len < 1) {
+			gctl_error(req, "No length argument (%s)", param);
+			return (NULL);
+		}
+		if (p[ap->len - 1] != '\0') {
+			gctl_error(req, "Unterminated argument (%s)", param);
+			return (NULL);
+		}
 		return (p);
 	}
 	return (NULL);
@@ -315,193 +357,105 @@ gctl_get_paraml(struct gctl_req *req, const char *param, int len)
 	if (p == NULL)
 		gctl_error(req, "Missing %s argument", param);
 	else if (i != len) {
-		g_free(p);
 		p = NULL;
 		gctl_error(req, "Wrong length %s argument", param);
 	}
 	return (p);
 }
 
-static struct g_class*
-gctl_get_class(struct gctl_req *req)
+struct g_class *
+gctl_get_class(struct gctl_req *req, char const *arg)
 {
-	char *p;
-	int len;
+	char const *p;
 	struct g_class *cp;
 
-	p = gctl_get_param(req, "class", &len);
+	p = gctl_get_asciiparam(req, arg);
 	if (p == NULL)
 		return (NULL);
-	if (p[len - 1] != '\0') {
-		gctl_error(req, "Unterminated class name");
-		g_free(p);
-		return (NULL);
-	}
 	LIST_FOREACH(cp, &g_classes, class) {
-		if (!strcmp(p, cp->name)) {
-			g_free(p);
+		if (!strcmp(p, cp->name))
 			return (cp);
-		}
 	}
-	g_free(p);
 	gctl_error(req, "Class not found");
 	return (NULL);
 }
 
-static struct g_geom*
-gctl_get_geom(struct gctl_req *req, struct g_class *mpr)
+struct g_geom *
+gctl_get_geom(struct gctl_req *req, struct g_class *mpr, char const *arg)
 {
-	char *p;
-	int len;
+	char const *p;
 	struct g_class *mp;
 	struct g_geom *gp;
 
-	p = gctl_get_param(req, "geom", &len);
+	p = gctl_get_asciiparam(req, arg);
 	if (p == NULL)
 		return (NULL);
-	if (p[len - 1] != '\0') {
-		gctl_error(req, "Unterminated provider name");
-		g_free(p);
-		return (NULL);
-	}
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mpr != NULL && mpr != mp)
 			continue;
 		LIST_FOREACH(gp, &mp->geom, geom) {
-			if (!strcmp(p, gp->name)) {
-				g_free(p);
+			if (!strcmp(p, gp->name))
 				return (gp);
-			}
 		}
 	}
 	gctl_error(req, "Geom not found");
-	g_free(p);
 	return (NULL);
 }
 
-static struct g_provider*
-gctl_get_provider(struct gctl_req *req)
+struct g_provider *
+gctl_get_provider(struct gctl_req *req, char const *arg)
 {
-	char *p;
-	int len;
+	char const *p;
 	struct g_class *cp;
 	struct g_geom *gp;
 	struct g_provider *pp;
 
-	p = gctl_get_param(req, "provider", &len);
+	p = gctl_get_asciiparam(req, arg);
 	if (p == NULL)
 		return (NULL);
-	if (p[len - 1] != '\0') {
-		gctl_error(req, "Unterminated provider name");
-		g_free(p);
-		return (NULL);
-	}
 	LIST_FOREACH(cp, &g_classes, class) {
 		LIST_FOREACH(gp, &cp->geom, geom) {
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				if (!strcmp(p, pp->name)) {
-					g_free(p);
+				if (!strcmp(p, pp->name))
 					return (pp);
-				}
 			}
 		}
 	}
 	gctl_error(req, "Provider not found");
-	g_free(p);
 	return (NULL);
 }
 
-static int
-gctl_create_geom(struct gctl_req *req)
+static void
+g_ctl_req(void *arg, int flag __unused)
 {
 	struct g_class *mp;
-	struct g_provider *pp;
-	int error;
+	struct gctl_req *req;
+	char const *verb;
 
 	g_topology_assert();
-	mp = gctl_get_class(req);
+	req = arg;
+	mp = gctl_get_class(req, "class");
 	if (mp == NULL)
-		return (gctl_error(req, "Class not found"));
-	if (mp->create_geom == NULL)
-		return (gctl_error(req, "Class has no create_geom method"));
-	pp = gctl_get_provider(req);
-	error = mp->create_geom(req, mp, pp);
+		return;
+	verb = gctl_get_param(req, "verb", NULL);
+	if (mp->ctlreq == NULL)
+		gctl_error(req, "Class takes no requests");
+	else
+		mp->ctlreq(req, mp, verb);
 	g_topology_assert();
-	return (error);
 }
 
-static int
-gctl_destroy_geom(struct gctl_req *req)
-{
-	struct g_class *mp;
-	struct g_geom *gp;
-	int error;
 
-	g_topology_assert();
-	mp = gctl_get_class(req);
-	if (mp == NULL)
-		return (gctl_error(req, "Class not found"));
-	if (mp->destroy_geom == NULL)
-		return (gctl_error(req, "Class has no destroy_geom method"));
-	gp = gctl_get_geom(req, mp);
-	if (gp == NULL)
-		return (gctl_error(req, "Geom not specified"));
-	if (gp->class != mp)
-		return (gctl_error(req, "Geom not of specificed class"));
-	error = mp->destroy_geom(req, mp, gp);
-	g_topology_assert();
-	return (error);
-}
-
-static int
-gctl_config_geom(struct gctl_req *req)
-{
-	struct g_class *mp;
-	struct g_geom *gp;
-	char *verb;
-	int error, vlen;
-
-	g_topology_assert();
-	mp = gctl_get_class(req);
-	if (mp == NULL)
-		return (gctl_error(req, "Class not found"));
-	if (mp->config_geom == NULL)
-		return (gctl_error(req, "Class has no config_geom method"));
-	gp = gctl_get_geom(req, mp);
-	if (gp == NULL)
-		return (gctl_error(req, "Geom not specified"));
-	if (gp->class != mp)
-		return (gctl_error(req, "Geom not of specificed class"));
-	verb = gctl_get_param(req, "verb", &vlen);
-	if (verb == NULL)
-		return (gctl_error(req, "Missing verb parameter"));
-	if (vlen < 2) {
-		g_free(verb);
-		return (gctl_error(req, "Too short verb parameter"));
-	}
-	if (verb[vlen - 1] != '\0') {
-		g_free(verb);
-		return (gctl_error(req, "Unterminated verb parameter"));
-	}
-	error = mp->config_geom(req, gp, verb);
-	g_free(verb);
-	g_topology_assert();
-	return (error);
-}
-
-/*
- * Handle ioctl from libgeom::geom_ctl.c
- */
 static int
 g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	int error;
-	int i;
 	struct gctl_req *req;
 
 	req = (void *)data;
+	req->nerror = 0;
+	req->serror = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	/* It is an error if we cannot return an error text */
-	if (req->lerror < 1)
+	if (req->lerror < 2)
 		return (EINVAL);
 	if (!useracc(req->error, req->lerror, VM_PROT_WRITE))
 		return (EINVAL);
@@ -511,39 +465,19 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 		return (gctl_error(req,
 		    "kernel and libgeom version mismatch."));
 	
-	/* Check the request type */
-	for (i = 0; gcrt[i].request != GCTL_INVALID_REQUEST; i++)
-		if (gcrt[i].request == req->request)
-			break;
-	if (gcrt[i].request == GCTL_INVALID_REQUEST)
-		return (gctl_error(req, "invalid request"));
-	req->reqt = &gcrt[i];
-
 	/* Get things on board */
-	error = gctl_copyin(req);
-	if (error)
-		return (error);
+	gctl_copyin(req);
 
 	if (g_debugflags & G_F_CTLDUMP)
 		gctl_dump(req);
-	g_topology_lock();
-	switch (req->request) {
-	case GCTL_CREATE_GEOM:
-		error = gctl_create_geom(req);
-		break;
-	case GCTL_DESTROY_GEOM:
-		error = gctl_destroy_geom(req);
-		break;
-	case GCTL_CONFIG_GEOM:
-		error = gctl_config_geom(req);
-		break;
-	default:
-		error = gctl_error(req, "XXX: TBD");
-		break;
+
+	if (!req->nerror) {
+		g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
+		gctl_copyout(req);
 	}
+
 	gctl_free(req);
-	g_topology_unlock();
-	return (error);
+	return (req->nerror);
 }
 
 static int
@@ -553,12 +487,10 @@ g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 
 	switch(cmd) {
 	case GEOM_CTL:
-		DROP_GIANT();
 		error = g_ctl_ioctl_ctl(dev, cmd, data, fflag, td);
-		PICKUP_GIANT();
 		break;
 	default:
-		error = ENOTTY;
+		error = ENOIOCTL;
 		break;
 	}
 	return (error);

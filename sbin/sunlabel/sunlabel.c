@@ -352,20 +352,20 @@ write_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 	snprintf(path, sizeof(path), "%s%s", _PATH_DEV, disk);
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+		grq = gctl_get_handle();
+		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "class", -1, "SUN");
 		gctl_ro_param(grq, "geom", -1, disk);
-		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "label", sizeof buf, buf);
 		errstr = gctl_issue(grq);
 		if (errstr != NULL)
 			errx(1, "%s", errstr);
 		gctl_free(grq);
 		if (Bflag) {
-			grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+			grq = gctl_get_handle();
+			gctl_ro_param(grq, "verb", -1, "write bootcode");
 			gctl_ro_param(grq, "class", -1, "SUN");
 			gctl_ro_param(grq, "geom", -1, disk);
-			gctl_ro_param(grq, "verb", -1, "write bootcode");
 			gctl_ro_param(grq, "bootcode", sizeof boot, boot);
 			errstr = gctl_issue(grq);
 			if (errstr != NULL)
