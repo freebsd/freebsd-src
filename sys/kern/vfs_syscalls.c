@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.114 1999/01/27 21:49:58 dillon Exp $
+ * $Id: vfs_syscalls.c,v 1.115 1999/01/28 17:32:00 dillon Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -119,7 +119,19 @@ mount(p, uap)
 
 	if (usermount == 0 && (error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
-
+	/*
+	 * Do not allow NFS export by non-root users.
+	 */
+	if (SCARG(uap, flags) & MNT_EXPORTED) {
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error)
+			return (error);
+	}
+	/*
+	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
+	 */
+	if (suser(p->p_ucred, (u_short *)NULL)) 
+		SCARG(uap, flags) |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
 	 */
@@ -156,17 +168,6 @@ mount(p, uap)
 			vput(vp);
 			return (error);
 		}
-		/*
-		 * Do not allow NFS export by non-root users. Silently
-		 * enforce MNT_NOSUID and MNT_NODEV for non-root users.
-		 */
-		if (p->p_ucred->cr_uid != 0) {
-			if (SCARG(uap, flags) & MNT_EXPORTED) {
-				vput(vp);
-				return (EPERM);
-			}
-			SCARG(uap, flags) |= MNT_NOSUID | MNT_NODEV;
-		}
 		if (vfs_busy(mp, LK_NOWAIT, 0, p)) {
 			vput(vp);
 			return (EBUSY);
@@ -183,17 +184,6 @@ mount(p, uap)
 	     (error = suser(p->p_ucred, &p->p_acflag)))) {
 		vput(vp);
 		return (error);
-	}
-	/*
-	 * Do not allow NFS export by non-root users. Silently
-	 * enforce MNT_NOSUID and MNT_NODEV for non-root users.
-	 */
-	if (p->p_ucred->cr_uid != 0) {
-		if (SCARG(uap, flags) & MNT_EXPORTED) {
-			vput(vp);
-			return (EPERM);
-		}
-		SCARG(uap, flags) |= MNT_NOSUID | MNT_NODEV;
 	}
 	if ((error = vinvalbuf(vp, V_SAVE, p->p_ucred, p, 0, 0)) != 0)
 		return (error);
@@ -639,7 +629,7 @@ statfs(p, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (p->p_ucred->cr_uid != 0) {
+	if (suser(p->p_ucred, (u_short *)NULL)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -679,7 +669,7 @@ fstatfs(p, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (p->p_ucred->cr_uid != 0) {
+	if (suser(p->p_ucred, (u_short *)NULL)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
