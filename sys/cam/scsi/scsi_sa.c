@@ -402,7 +402,7 @@ static struct periph_driver sadriver =
 	TAILQ_HEAD_INITIALIZER(sadriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, sadriver);
+PERIPHDRIVER_DECLARE(sa, sadriver);
 
 /* For 2.2-stable support */
 #ifndef D_TAPE

@@ -107,7 +107,7 @@ static struct periph_driver passdriver =
 	TAILQ_HEAD_INITIALIZER(passdriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, passdriver);
+PERIPHDRIVER_DECLARE(pass, passdriver);
 
 static struct cdevsw pass_cdevsw = {
 	/* open */	passopen,

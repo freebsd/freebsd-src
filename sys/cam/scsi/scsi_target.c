@@ -228,7 +228,7 @@ static struct periph_driver targdriver =
 	TAILQ_HEAD_INITIALIZER(targdriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, targdriver);
+PERIPHDRIVER_DECLARE(targ, targdriver);
 
 static struct extend_array *targperiphs;
 static dev_t targ_ctl_dev;

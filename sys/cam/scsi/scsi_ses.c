@@ -173,7 +173,7 @@ static struct periph_driver sesdriver = {
 	TAILQ_HEAD_INITIALIZER(sesdriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, sesdriver);
+PERIPHDRIVER_DECLARE(ses, sesdriver);
 
 static struct cdevsw ses_cdevsw = 
 {

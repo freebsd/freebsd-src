@@ -209,7 +209,7 @@ static struct periph_driver chdriver =
 	TAILQ_HEAD_INITIALIZER(chdriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, chdriver);
+PERIPHDRIVER_DECLARE(ch, chdriver);
 
 static struct cdevsw ch_cdevsw = {
 	/* open */	chopen,

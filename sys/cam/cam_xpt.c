@@ -576,8 +576,8 @@ static struct periph_driver probe_driver =
 	TAILQ_HEAD_INITIALIZER(probe_driver.units)
 };
 
-DATA_SET(periphdriver_set, xpt_driver);
-DATA_SET(periphdriver_set, probe_driver);
+PERIPHDRIVER_DECLARE(xpt, xpt_driver);
+PERIPHDRIVER_DECLARE(probe, probe_driver);
 
 #define XPT_CDEV_MAJOR 104
 
@@ -1167,8 +1167,7 @@ ptstartover:
 		cur_generation = xsoftc.generation;
 
 		/* first find our driver in the list of drivers */
-		for (p_drv = (struct periph_driver **)periphdriver_set.ls_items;
-		     *p_drv != NULL; p_drv++)
+		for (p_drv = periph_drivers; *p_drv != NULL; p_drv++)
 			if (strcmp((*p_drv)->driver_name, name) == 0)
 				break;
 
@@ -2342,9 +2341,7 @@ xptplistperiphfunc(struct cam_periph *periph, void *arg)
 			 * peripheral driver linker set entry would cost
 			 * more in the long run than doing this quick lookup.
 			 */
-			for (pdrv =
-			     (struct periph_driver **)periphdriver_set.ls_items;
-			     *pdrv != NULL; pdrv++) {
+			for (pdrv = periph_drivers; *pdrv != NULL; pdrv++) {
 				if (strcmp((*pdrv)->driver_name,
 				    periph->periph_name) == 0)
 					break;
@@ -2546,8 +2543,7 @@ xptpdrvtraverse(struct periph_driver **start_pdrv,
 	 * change while the system is running), the list traversal should
 	 * be modified to work like the other traversal functions.
 	 */
-	for (pdrv = (start_pdrv ? start_pdrv :
-	     (struct periph_driver **)periphdriver_set.ls_items);
+	for (pdrv = (start_pdrv ? start_pdrv : periph_drivers);
 	     *pdrv != NULL; pdrv++) {
 		retval = tr_func(pdrv, arg);
 
@@ -6210,7 +6206,7 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 	if (busses_to_config == 0) {
 		/* Register all the peripheral drivers */
 		/* XXX This will have to change when we have loadable modules */
-		p_drv = (struct periph_driver **)periphdriver_set.ls_items;
+		p_drv = periph_drivers;
 		for (i = 0; p_drv[i] != NULL; i++) {
 			(*p_drv[i]->init)();
 		}
