@@ -203,8 +203,8 @@ typedef void (*sysinit_nfunc_t) __P((void *));
 typedef void (*sysinit_cfunc_t) __P((const void *));
 
 struct sysinit {
-	unsigned int	subsystem;		/* subsystem identifier*/
-	unsigned int	order;			/* init order within subsystem*/
+	enum sysinit_sub_id	subsystem;	/* subsystem identifier*/
+	enum sysinit_elem_order	order;		/* init order within subsystem*/
 	sysinit_cfunc_t func;			/* function		*/
 	const void	*udata;			/* multiplexer/argument */
 };
