@@ -152,6 +152,10 @@ int probe_sb(struct address_info *hw_config);
 long attach_adlib_card(long mem_start, struct address_info *hw_config);
 int probe_adlib(struct address_info *hw_config);
 
+/* from awe_wave.c */
+long attach_awe_obsolete(long mem_start, struct address_info *hw_config);
+int probe_awe_obsolete(struct address_info *hw_config);
+
 /*	From pas_card.c	*/
 long attach_pas_card(long mem_start, struct address_info *hw_config);
 int probe_pas(struct address_info *hw_config);
