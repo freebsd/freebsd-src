@@ -51,6 +51,7 @@ mly_describe_code(struct mly_code_lookup *table, u_int32_t code)
     return(table[i+1].string);
 }
 
+#if 0
 static struct mly_code_lookup mly_table_bustype[] = {
     {"SCSI",		0x00},
     {"FC-AL",		0x01},
@@ -58,6 +59,7 @@ static struct mly_code_lookup mly_table_bustype[] = {
     {NULL,		0},
     {"unknown bus",	0}
 };
+#endif
 
 static struct mly_code_lookup mly_table_controllertype[] = {
 #if 0	/* not supported by this driver */
@@ -286,6 +288,7 @@ static struct mly_code_lookup mly_table_device_type[] = {
     {"UNKNOWN",		0}
 };
 
+#if 0
 static struct mly_code_lookup mly_table_stripe_size[] = {
     {"NONE",		MLY_STRIPE_ZERO},
     {"512B",		MLY_STRIPE_512b},
@@ -317,3 +320,4 @@ static struct mly_code_lookup mly_table_cacheline_size[] = {
     {NULL, 0},
     {"unknown",		0}
 };
+#endif
