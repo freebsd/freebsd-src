@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.7 1997/07/08 23:42:28 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.14 1997/07/13 00:42:14 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -45,15 +45,11 @@
 #include <machine/mpapic.h>
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
-#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_CPUSTOP */
+#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_CPUSTOP _TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 
 #include <i386/i386/cons.h>	/* cngetc() */
-
-#if defined(TEST_CPUSTOP)
-void	db_printf __P((const char *fmt, ...));
-#endif  /* TEST_CPUSTOP */
 
 #if defined(APIC_IO)
 #include <machine/md_var.h>		/* setidt() */
@@ -434,14 +430,8 @@ bsp_apic_configure(void)
         temp &= ~APIC_LVT_M;		/* clear the mask */
         lapic.lvt_lint1 = temp;
 
-#if defined(TEST_CPUSTOP)
-	printf(">>> CPU%02d bsp_apic_configure() lint0: 0x%08x\n",
-	       cpuid, lapic.lvt_lint0);
-	printf(">>>                            lint1: 0x%08x\n",
-	       lapic.lvt_lint1);
-	printf(">>>                            TPR:   0x%08x\n", lapic.tpr);
-	printf(">>>                            SVR:   0x%08x\n", lapic.svr);
-#endif  /* TEST_CPUSTOP */
+	if (bootverbose)
+		apic_dump();
 }
 #endif  /* APIC_IO */
 
@@ -479,6 +469,7 @@ mp_enable(u_int boot_addr)
 		default_mp_table(x);
 
 #if defined(APIC_IO)
+
 	/* fill the LOGICAL io_apic_versions table */
 	for (apic = 0; apic < mp_napics; ++apic) {
 		ux = io_apic_read(apic, IOAPIC_VER);
@@ -490,6 +481,10 @@ mp_enable(u_int boot_addr)
 		if (io_apic_setup(apic) < 0)
 			panic("IO APIC setup failure");
 
+	/* install a 'Spurious INTerrupt' vector */
+	setidt(XSPURIOUSINT_OFFSET, Xspuriousint,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
 	/* install an inter-CPU IPI for TLB invalidation */
 	setidt(XINVLTLB_OFFSET, Xinvltlb,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -498,11 +493,14 @@ mp_enable(u_int boot_addr)
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif  /** TEST_CPUSTOP */
 
+#if defined(TEST_TEST1)
 	/* install a 'Spurious INTerrupt' vector */
-	setidt(XSPURIOUSINT_OFFSET, Xspuriousint,
+	setidt(XTEST1_OFFSET, Xtest1,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif  /* TEST_CPUSTOP */
+#endif  /** TEST_TEST1 */
+
 #endif	/* APIC_IO */
 
 	/* start each Application Processor */
@@ -1741,6 +1739,10 @@ invltlb(void)
 
 #if defined(TEST_CPUSTOP)
 
+#if defined(DEBUG_CPUSTOP)
+void	db_printf __P((const char *fmt, ...));
+#endif /* DEBUG_CPUSTOP */
+
 /*
  * When called the executing CPU will send an IPI to all other CPUs
  *  requesting that they halt execution.
@@ -1757,65 +1759,32 @@ invltlb(void)
  *
  * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
  *            from executing at same time.
-
  */
-extern int cshits[4];
-extern int lhits[4];
-extern int sihits;
 int
 stop_cpus( u_int map )
 {
-#if 1
-	int x, y;
-#endif
 	if (!smp_active)
 		return 0;
 
 	/* send IPI to all CPUs in map */
 #if defined(DEBUG_CPUSTOP)
-#if 0
-	POSTCODE(0xF0);
-#endif
 	db_printf("\nCPU%d stopping CPUs: 0x%08x\n", cpuid, map);
-	db_printf("b4 stop: cshits: %d, %d, mplock: 0x%08x, lhits: %d, %d, sihits: %d\n",
-		  cshits[0], cshits[1], mp_lock, lhits[0], lhits[1], sihits);
 #endif /* DEBUG_CPUSTOP */
 
 	stopped_cpus = 0;
-#if 0
+
+	/* send the Xcpustop IPI to all CPUs in map */
 	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
-#else
-	all_but_self_ipi(XCPUSTOP_OFFSET);
-#endif
 
 #if defined(DEBUG_CPUSTOP)
 	db_printf("  spin\n");
 #endif /* DEBUG_CPUSTOP */
 
-#if 0 /** */
-	y = 0;
-	while (stopped_cpus != map) {
-#if 0
+	while (stopped_cpus != map)
 		/* spin */ ;
-#else
-		POSTCODE_LO(stopped_cpus & 0x0f);
-#define MAX_SPIN 20000000
-		for ( x = 0; x < MAX_SPIN; ++x )
-			;
-		if (++y > 20) {
-			stopped_cpus = map;
-			break;
-		}
-		POSTCODE_LO(0x0f);
-		for ( x = 0; x < MAX_SPIN; ++x )
-			;
-#endif
-	}
-#endif /** 0 */
 
 #if defined(DEBUG_CPUSTOP)
-	db_printf("  spun\nstopped, sihits: %d\n", sihits);
-	cngetc();
+	db_printf("  spun\nstopped\n");
 #endif /* DEBUG_CPUSTOP */
 
 	return 1;
@@ -1842,30 +1811,20 @@ restart_cpus( u_int map )
 		return 0;
 
 #if defined(DEBUG_CPUSTOP)
-#if 0
-	POSTCODE(0x90);
-#endif
 	db_printf("\nCPU%d restarting CPUs: 0x%08x (0x%08x)\n",
 	       cpuid, map, stopped_cpus);
-	db_printf("b4 restart: cshits: %d, %d, mplock: 0x%08x, lhits: %d, %d, sihits: %d\n",
-		  cshits[0], cshits[1], mp_lock, lhits[0], lhits[1], sihits);
 #endif /* DEBUG_CPUSTOP */
 
 	started_cpus = map;		/* signal other cpus to restart */
 
-#if 0 /** */
 	while (started_cpus)		/* wait for each to clear its bit */
 		/* spin */ ;
-#endif /** 0 */
 
 #if defined(DEBUG_CPUSTOP)
-#if 0
-	POSTCODE(0xA0);
-#endif
 	db_printf(" restarted\n");
 #endif /* DEBUG_CPUSTOP */
 
 	return 1;
 }
 
-#endif  /* TEST_CPUSTOP */
+#endif  /** TEST_CPUSTOP */
