@@ -669,11 +669,11 @@ in_pcbdisconnect(inp)
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
 	in_pcbrehash(inp);
-	if (inp->inp_socket->so_state & SS_NOFDREF)
-		in_pcbdetach(inp);
 #ifdef IPSEC
 	ipsec_pcbdisconn(inp->inp_sp);
 #endif
+	if (inp->inp_socket->so_state & SS_NOFDREF)
+		in_pcbdetach(inp);
 }
 
 void
