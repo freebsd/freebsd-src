@@ -240,17 +240,25 @@ struct pccard_product {
 typedef int (*pccard_product_match_fn) (device_t dev,
     const struct pccard_product *ent, int vpfmatch);
 
-const struct pccard_product
-	*pccard_product_lookup(device_t dev, const struct pccard_product *tab,
-	    size_t ent_size, pccard_product_match_fn matchfn);
+#include "card_if.h"
+
+/*
+ * make this inline so that we don't have to worry about dangling references
+ * to it in the modules or the code.
+ */
+static __inline const struct pccard_product *
+pccard_product_lookup(device_t dev, const struct pccard_product *tab,
+    size_t ent_size, pccard_product_match_fn matchfn)
+{
+	return CARD_DO_PRODUCT_LOOKUP(device_get_parent(dev), dev,
+	    tab, ent_size, matchfn);
+}
 
 void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
 int	pccard_scan_cis(device_t, 
 		int (*) (struct pccard_tuple *, void *), void *);
-
-#include "card_if.h"
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
