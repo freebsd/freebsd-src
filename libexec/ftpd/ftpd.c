@@ -758,12 +758,12 @@ inithosts()
 			/* XXX: getaddrinfo() can't do alias check */
 			switch(hrp->hostinfo->ai_family) {
 			case AF_INET:
-				addr = &((struct sockaddr_in *)&hrp->hostinfo->ai_addr)->sin_addr;
-				addrsize = sizeof(struct sockaddr_in);
+				addr = &((struct sockaddr_in *)hrp->hostinfo->ai_addr)->sin_addr;
+				addrsize = sizeof(struct in_addr);
 				break;
 			case AF_INET6:
-				addr = &((struct sockaddr_in6 *)&hrp->hostinfo->ai_addr)->sin6_addr;
-				addrsize = sizeof(struct sockaddr_in6);
+				addr = &((struct sockaddr_in6 *)hrp->hostinfo->ai_addr)->sin6_addr;
+				addrsize = sizeof(struct in6_addr);
 				break;
 			default:
 				/* should not reach here */
