@@ -117,6 +117,9 @@ atkbdc_add_device(device_t dev, const char *name, int unit)
 	device_t	child;
 	int		t;
 
+	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
+		return;
+
 	kdev = malloc(sizeof(struct atkbdc_device), M_ATKBDDEV, M_NOWAIT);
 	if (!kdev)
 		return;
