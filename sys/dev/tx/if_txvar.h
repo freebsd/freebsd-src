@@ -107,7 +107,6 @@ typedef struct {
 	struct mii_softc 	*physc;
 	u_int32_t		phyid;
 	int			serinst;
-	void 			*pool;
 } epic_softc_t;
 
 struct epic_type {

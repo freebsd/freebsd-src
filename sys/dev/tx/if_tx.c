@@ -509,12 +509,11 @@ epic_freebsd_attach(dev)
 	}
 
 	/* Do OS independent part, including chip wakeup and reset */
-	if (epic_common_attach(sc)) {
-		device_printf(dev, "memory distribution error\n");
+	error = epic_common_attach(sc);
+	if (error) {
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
-		error = ENXIO;
 		goto fail;
 	}
 
@@ -582,7 +581,9 @@ epic_freebsd_detach(dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 
-	free(sc->pool, M_DEVBUF);
+	free(sc->tx_flist, M_DEVBUF);
+	free(sc->tx_desc, M_DEVBUF);
+	free(sc->rx_desc, M_DEVBUF);
 
 	splx(s);
 
@@ -756,28 +757,21 @@ epic_common_attach(sc)
 	epic_softc_t *sc;
 {
 	int i;
-	caddr_t pool;
 
-	i = sizeof(struct epic_frag_list)*TX_RING_SIZE +
-	    sizeof(struct epic_rx_desc)*RX_RING_SIZE + 
-	    sizeof(struct epic_tx_desc)*TX_RING_SIZE + PAGE_SIZE,
-	sc->pool = (epic_softc_t *) malloc(i, M_DEVBUF, M_NOWAIT | M_ZERO);
+	sc->tx_flist = malloc(sizeof(struct epic_frag_list)*TX_RING_SIZE,
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	sc->tx_desc = malloc(sizeof(struct epic_tx_desc)*TX_RING_SIZE,
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	sc->rx_desc = malloc(sizeof(struct epic_rx_desc)*RX_RING_SIZE,
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
 
-	if (sc->pool == NULL) {
-		printf(": can't allocate memory for buffers\n");
-		return -1;
+	if (sc->tx_flist == NULL || sc->tx_desc == NULL || sc->rx_desc == NULL){
+		device_printf(sc->dev, "Failed to malloc memory\n");
+		if (sc->tx_flist) free(sc->tx_flist, M_DEVBUF);
+		if (sc->tx_desc) free(sc->tx_desc, M_DEVBUF);
+		if (sc->rx_desc) free(sc->rx_desc, M_DEVBUF);
+		return (ENOMEM);
 	}
-
-	/* Align pool on PAGE_SIZE */
-	pool = (caddr_t)sc->pool;
-	pool = (caddr_t)((uintptr_t)(pool + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
-
-	/* Distribute memory */
-	sc->tx_flist = (void *)pool;
-	pool += sizeof(struct epic_frag_list)*TX_RING_SIZE;
-	sc->rx_desc = (void *)pool;
-	pool += sizeof(struct epic_rx_desc)*RX_RING_SIZE;
-	sc->tx_desc = (void *)pool;
 
 	/* Bring the chip out of low-power mode. */
 	CSR_WRITE_4( sc, GENCTL, GENCTL_SOFT_RESET);
