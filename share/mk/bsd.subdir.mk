@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.6 1995/01/14 07:51:10 jkh Exp $
+#	$Id: bsd.subdir.mk,v 1.7 1995/01/23 20:50:56 jkh Exp $
 
 .MAIN: all
 
@@ -59,7 +59,7 @@ afterdistribute:
 .endif
 .if !target(distribute)
 distribute: _SUBDIRUSE 
-	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${RELEASEDIR}/${DISTRIBUTION}
+	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${DISTRIBUTION}
 .endif
 
 .if !target(install)

@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.21 1995/01/30 07:20:01 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.22 1995/02/08 21:35:31 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -188,7 +188,7 @@ realinstall: beforeinstall
 DISTRIBUTION?=	bin
 .if !target(distribute)
 distribute:
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SHARED=copies
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
 .if !target(lint)
