@@ -3,17 +3,17 @@
 #	date: Fri Jul 16 22:24:17 1993
 #
 
-/set type=file owner=bin group=bin mode=0755
-bin	type=dir owner=bin group=bin mode=0755
+/set type=file uname=bin gname=bin mode=0755
+bin	type=dir uname=bin gname=bin mode=0755
 ..
 
-/set type=file owner=games group=bin mode=0700
-games	type=dir owner=bin mode=0755
-	hide	type=dir owner=games group=bin mode=0700
+/set type=file uname=games gname=bin mode=0700
+games	type=dir uname=bin mode=0755
+	hide	type=dir uname=games gname=bin mode=0700
 	..
 ..
 
-/set type=file owner=bin group=bin mode=0755
+/set type=file uname=bin gname=bin mode=0755
 include	type=dir
 	g++	type=dir
 		sys	type=dir
@@ -23,127 +23,127 @@ include	type=dir
 	..
 ..
 
-/set type=file owner=bin group=bin mode=0755
+/set type=file uname=bin gname=bin mode=0755
 lib	type=dir
 ..
 
-/set type=file owner=bin group=bin mode=0755
+/set type=file uname=bin gname=bin mode=0755
 libexec	type=dir
-	lpr	type=dir owner=bin group=bin mode=0755
+	lpr	type=dir uname=bin gname=bin mode=0755
 	..
-	uucp	type=dir owner=bin group=bin mode=0755
+	uucp	type=dir uname=bin gname=bin mode=0755
 	..
 ..
 
-local	type=dir owner=bin group=bin mode=0755
+local	type=dir uname=bin gname=bin mode=0755
 ..
 
-mdec	type=dir owner=bin group=bin mode=0755
+mdec	type=dir uname=bin gname=bin mode=0755
 ..
 
-obj	type=dir owner=bin group=bin mode=0755
+obj	type=dir uname=bin gname=bin mode=0755
 ..
 
-sbin	type=dir owner=bin group=bin mode=0755
+sbin	type=dir uname=bin gname=bin mode=0755
 ..
 
 share	type=dir
-	calendar	type=dir owner=bin group=bin mode=0755
+	calendar	type=dir uname=bin gname=bin mode=0755
 	..
 
-	dict		type=dir owner=bin group=bin mode=0755
+	dict		type=dir uname=bin gname=bin mode=0755
 	..
 
-	/set type=file owner=games group=bin mode=0755
-	games	type=dir owner=bin
-		atc	type=dir owner=games group=bin mode=0755
+	/set type=file uname=games gname=bin mode=0755
+	games	type=dir uname=bin
+		atc	type=dir uname=games gname=bin mode=0755
 		..
-		fortune	type=dir owner=games group=bin mode=0755
+		fortune	type=dir uname=games gname=bin mode=0755
 		..
-		larn	type=dir owner=games group=bin mode=0755
+		larn	type=dir uname=games gname=bin mode=0755
 		..
 	..
 
-	groff_font	type=dir owner=bin group=bin mode=0755
+	groff_font	type=dir uname=bin gname=bin mode=0755
 	..
 
-	/set type=file owner=bin group=bin mode=0755
+	/set type=file uname=bin gname=bin mode=0755
 	man	type=dir
-		cat1	type=dir owner=bin group=bin mode=0755
+		cat1	type=dir uname=bin gname=bin mode=0755
 		..
-		cat2	type=dir owner=bin group=bin mode=0755
+		cat2	type=dir uname=bin gname=bin mode=0755
 		..
-		cat3	type=dir owner=bin group=bin mode=0755
+		cat3	type=dir uname=bin gname=bin mode=0755
 		..
 		cat4	type=dir
-			i386	type=dir owner=bin group=bin mode=0755
+			i386	type=dir uname=bin gname=bin mode=0755
 			..
 		..
-		cat5	type=dir owner=bin group=bin mode=0755
+		cat5	type=dir uname=bin gname=bin mode=0755
 		..
-		cat6	type=dir owner=bin group=bin mode=0755
+		cat6	type=dir uname=bin gname=bin mode=0755
 		..
-		cat7	type=dir owner=bin group=bin mode=0755
+		cat7	type=dir uname=bin gname=bin mode=0755
 		..
 		cat8	type=dir
-			i386	type=dir owner=bin group=bin mode=0755
+			i386	type=dir uname=bin gname=bin mode=0755
 			..
 		..
-		man1	type=dir owner=bin group=bin mode=0755
+		man1	type=dir uname=bin gname=bin mode=0755
 		..
-		man2	type=dir owner=bin group=bin mode=0755
+		man2	type=dir uname=bin gname=bin mode=0755
 		..
-		man3	type=dir owner=bin group=bin mode=0755
+		man3	type=dir uname=bin gname=bin mode=0755
 		..
 		man4	type=dir
-			i386	type=dir owner=bin group=bin mode=0755
+			i386	type=dir uname=bin gname=bin mode=0755
 			..
 		..
-		man5	type=dir owner=bin group=bin mode=0755
+		man5	type=dir uname=bin gname=bin mode=0755
 		..
-		man6	type=dir owner=bin group=bin mode=0755
+		man6	type=dir uname=bin gname=bin mode=0755
 		..
-		man7	type=dir owner=bin group=bin mode=0755
+		man7	type=dir uname=bin gname=bin mode=0755
 		..
 		man8	type=dir
-			i386	type=dir owner=bin group=bin mode=0755
+			i386	type=dir uname=bin gname=bin mode=0755
 			..
 		..
 	..
-	me	type=dir owner=bin group=bin mode=0755
+	me	type=dir uname=bin gname=bin mode=0755
 	..
-	misc	type=dir owner=bin group=bin mode=0755
-		fonts	type=dir owner=bin group=bin mode=0755
+	misc	type=dir uname=bin gname=bin mode=0755
+		fonts	type=dir uname=bin gname=bin mode=0755
 		..
 	..
-	mk	type=dir owner=bin group=bin mode=0755
+	mk	type=dir uname=bin gname=bin mode=0755
 	..
-	skel	type=dir owner=bin group=bin mode=0755
+	skel	type=dir uname=bin gname=bin mode=0755
 	..
-	tabset	type=dir owner=bin group=bin mode=0755
+	tabset	type=dir uname=bin gname=bin mode=0755
 	..
-	tmac	type=dir owner=bin group=bin mode=0755
+	tmac	type=dir uname=bin gname=bin mode=0755
 	..
-	zoneinfo	type=dir owner=bin group=bin mode=0755
-		Australia	type=dir owner=bin group=bin mode=0555
+	zoneinfo	type=dir uname=bin gname=bin mode=0755
+		Australia	type=dir uname=bin gname=bin mode=0555
 		..
-		Brazil		type=dir owner=bin group=bin mode=0555
+		Brazil		type=dir uname=bin gname=bin mode=0555
 		..
-		Canada		type=dir owner=bin group=bin mode=0555
+		Canada		type=dir uname=bin gname=bin mode=0555
 		..
-		Chile		type=dir owner=bin group=bin mode=0555
+		Chile		type=dir uname=bin gname=bin mode=0555
 		..
-		Mexico		type=dir owner=bin group=bin mode=0555
+		Mexico		type=dir uname=bin gname=bin mode=0555
 		..
-		SystemV		type=dir owner=bin group=bin mode=0555
+		SystemV		type=dir uname=bin gname=bin mode=0555
 		..
-		US		type=dir owner=bin group=bin mode=0555
+		US		type=dir uname=bin gname=bin mode=0555
 		..
-		posix		type=dir owner=bin group=bin mode=0555
+		posix		type=dir uname=bin gname=bin mode=0555
 		..
-		right		type=dir owner=bin group=bin mode=0555
+		right		type=dir uname=bin gname=bin mode=0555
 		..
 	..
 ..
-src type=dir owner=bin group=bin mode=0755
+src type=dir uname=bin gname=bin mode=0755
 ..
