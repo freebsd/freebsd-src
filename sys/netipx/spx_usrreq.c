@@ -38,8 +38,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>

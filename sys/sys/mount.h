@@ -37,10 +37,17 @@
 #ifndef _SYS_MOUNT_H_
 #define _SYS_MOUNT_H_
 
+/*
+ * XXX - compatability until lockmgr() goes away or all the #includes are
+ * updated.
+ */
+#include <sys/lockmgr.h>
+
 #include <sys/ucred.h>
 #include <sys/queue.h>
 #ifdef _KERNEL
-#include <sys/lock.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #endif
 
 struct netcred;

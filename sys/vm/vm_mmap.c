@@ -49,8 +49,9 @@
 #include "opt_rlimit.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
@@ -65,7 +66,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>

@@ -39,8 +39,8 @@
 
 #ifdef _KERNEL
 #include <sys/condvar.h>	/* XXX */
-#include <sys/lock.h>		/* XXX */
-#include <sys/mutex.h>		/* XXX */
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #endif /* _KERNEL */
 
 /*

@@ -44,7 +44,6 @@
 #ifndef _SYS_CONF_H_
 #define	_SYS_CONF_H_
 
-#include <sys/queue.h>
 #include <sys/eventhandler.h>
 
 struct tty;

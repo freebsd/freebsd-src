@@ -41,18 +41,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/vmmeter.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
 #include <sys/interrupt.h>
 #include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
+#include <sys/vmmeter.h>
 
 #include <machine/reg.h>
 #include <machine/frame.h>

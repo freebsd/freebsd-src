@@ -37,20 +37,22 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/user.h>
+#include <sys/jail.h>
+
 #include <vm/vm.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 #include <vm/vm_zone.h>
-#include <sys/jail.h>
 
 static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");

@@ -39,8 +39,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/domain.h>
 #include <sys/file.h>			/* for struct knote */
 #include <sys/kernel.h>
@@ -56,6 +58,7 @@
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/jail.h>
+
 #include <vm/vm_zone.h>
 
 #include <machine/limits.h>

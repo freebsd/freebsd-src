@@ -47,12 +47,13 @@
 #include "opt_global.h"
 
 #include <sys/param.h>
-#include <sys/acct.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
+#include <sys/acct.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysproto.h>
 #include <sys/malloc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>

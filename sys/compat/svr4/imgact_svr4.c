@@ -34,14 +34,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>
 #include <sys/exec.h>
-#include <sys/mman.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>

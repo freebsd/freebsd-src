@@ -45,8 +45,10 @@
 #include "opt_rootdevname.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
@@ -55,12 +57,15 @@
 #include <sys/disklabel.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
-#include <paths.h>
+#include <sys/proc.h>
 
 #include "opt_ddb.h"
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
+
+#include <paths.h>
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 

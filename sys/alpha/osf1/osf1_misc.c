@@ -35,50 +35,48 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/proc.h>
-#include <sys/file.h>
-#include <sys/stat.h>
+#include <sys/bus.h>
+#include <sys/dkstat.h>
+#include <sys/exec.h>
+#include <sys/fcntl.h>
 #include <sys/filedesc.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/file.h>		/* Must come after sys/malloc.h */
 #include <sys/mman.h>
+#include <sys/module.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/reboot.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
+#include <sys/selinfo.h>
+#include <sys/pipe.h>		/* Must come after sys/selinfo.h */
 #include <sys/signal.h>
 #include <sys/signalvar.h>
-#include <sys/reboot.h>
-#include <sys/exec.h>
-#include <sys/vnode.h>
-#include <sys/socketvar.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
-#include <sys/resource.h>
-#include <sys/signalvar.h>
-#include <sys/fcntl.h>
 #include <sys/socket.h>
-#include <sys/pipe.h>
+#include <sys/socketvar.h>
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/systm.h>
+#include <sys/unistd.h>
+#include <sys/user.h>
+#include <sys/utsname.h>
+#include <sys/vnode.h>
+
+#include <alpha/osf1/exec_ecoff.h>
 #include <alpha/osf1/osf1_signal.h>
 #include <alpha/osf1/osf1_proto.h>
 #include <alpha/osf1/osf1_syscall.h>
 #include <alpha/osf1/osf1_util.h>
 #include <alpha/osf1/osf1.h>
-#include <sys/proc.h>
-#include <sys/module.h>
-#include <sys/bus.h>
-
-#include <vm/vm.h>
-#include <alpha/osf1/exec_ecoff.h>
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/resourcevar.h>
-#include <sys/exec.h>
-#include <sys/mman.h>
-#include <sys/imgact.h>
-
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/vnode.h>
-#include <sys/unistd.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -86,17 +84,10 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-#include <alpha/osf1/exec_ecoff.h>
 
-#include <sys/user.h>
 #include <machine/cpu.h>
 #include <machine/cpuconf.h>
 #include <machine/fpu.h>
-
-#include <sys/sysctl.h>
-#include <sys/utsname.h>
-#include <sys/dkstat.h>
-
 #include <machine/rpb.h>
 
 static void cvtstat2osf1 __P((struct stat *, struct osf1_stat *));

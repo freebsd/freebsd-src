@@ -44,17 +44,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
+#include <sys/domain.h>
 #include <sys/filedesc.h>
-#include <sys/file.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/file.h>		/* Must come after sys/malloc.h */
+#include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/protosw.h>
-#include <sys/domain.h>
+#include <sys/vnode.h>
+
 #include <miscfs/portal/portal.h>
 
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");

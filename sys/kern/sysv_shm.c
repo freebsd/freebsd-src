@@ -37,8 +37,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/sysctl.h>
 #include <sys/shm.h>
 #include <sys/proc.h>
@@ -47,11 +47,11 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/jail.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_map.h>

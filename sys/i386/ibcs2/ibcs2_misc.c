@@ -55,19 +55,20 @@
  * handled here.
  */
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/file.h>			/* Must come after sys/malloc.h */
+#include <sys/mutex.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/vnode.h>

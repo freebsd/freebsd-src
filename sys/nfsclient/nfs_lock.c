@@ -32,17 +32,19 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>		/* for hz */
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/lockf.h>		/* for hz */ /* Must come after sys/malloc.h */
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
+#include <sys/socket.h>
 #include <sys/socket.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/resourcevar.h>
-#include <sys/kernel.h>			/* for hz */
-#include <sys/lockf.h>			/* for hz */
 
 #include <net/if.h>
 

@@ -40,6 +40,7 @@
 #include <sys/ioccom.h>
 
 #include <sys/filio.h>
+#include <sys/lock.h>
 #include <sys/sockio.h>
 #include <sys/fcntl.h>
 #include <sys/tty.h>

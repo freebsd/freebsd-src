@@ -38,8 +38,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_LOCK_H_
-#define	_LOCK_H_
+#ifndef	_SYS_LOCKMGR_H_
+#define	_SYS_LOCKMGR_H_
 
 struct	mtx;
 
@@ -219,4 +219,4 @@ void	lockmgr_printinfo __P((struct lock *));
 int	lockstatus __P((struct lock *, struct proc *));
 int	lockcount __P((struct lock *));
 
-#endif /* !_LOCK_H_ */
+#endif /* !_SYS_LOCKMGR_H_ */

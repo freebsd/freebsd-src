@@ -28,11 +28,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
 #include <sys/acct.h>
@@ -51,7 +52,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>

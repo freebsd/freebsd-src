@@ -34,29 +34,29 @@
 #endif
 
 #include <sys/param.h>
-#include <sys/bus.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/cons.h>	/* cngetc() */
+#include <sys/dkstat.h>
+#ifdef GPROF 
+#include <sys/gmon.h>
+#endif
 #include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/sysctl.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
-#include <sys/dkstat.h>
-#include <sys/cons.h>	/* cngetc() */
+#include <sys/sysctl.h>
+#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#include <sys/lock.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
-#ifdef GPROF 
-#include <sys/gmon.h>
-#endif
 
 #include <machine/apic.h>
 #include <machine/atomic.h>

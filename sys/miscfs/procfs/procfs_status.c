@@ -42,18 +42,21 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
+#include <sys/exec.h>
 #include <sys/jail.h>
-#include <sys/vnode.h>
-#include <sys/tty.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <miscfs/procfs/procfs.h>
+#include <sys/tty.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
-#include <sys/exec.h>
+
+#include <miscfs/procfs/procfs.h>
 
 #define DOCHECK() do { if (ps >= psbuf+sizeof(psbuf)) goto bailout; } while (0)
 int

@@ -40,6 +40,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
 #include <sys/uio.h>
 
 #include <netncp/ncp.h>
