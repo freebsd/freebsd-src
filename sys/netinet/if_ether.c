@@ -142,13 +142,13 @@ arptimer(ignored_arg)
 	void *ignored_arg;
 {
 	int s = splnet();
-	register struct llinfo_arp *la = llinfo_arp.lh_first;
+	register struct llinfo_arp *la = LIST_FIRST(&llinfo_arp);
 	struct llinfo_arp *ola;
 
 	timeout(arptimer, (caddr_t)0, arpt_prune * hz);
 	while ((ola = la) != 0) {
 		register struct rtentry *rt = la->la_rt;
-		la = la->la_le.le_next;
+		la = LIST_NEXT(la, la_le);
 		if (rt->rt_expire && rt->rt_expire <= time_second)
 			arptfree(ola); /* timer has expired, clear */
 	}
