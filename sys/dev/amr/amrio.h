@@ -60,6 +60,7 @@
  */
 
 #include <sys/ioccom.h>
+#include <sys/param.h>
 
 /*
  * Fetch the driver's interface version.
@@ -107,3 +108,15 @@ struct amr_user_ioctl {
 
 #define AMR_IO_COMMAND	_IOWR('A', 0x201, struct amr_user_ioctl)
 
+#if defined(__amd64__) || defined(__ia64__)
+
+struct amr_user_ioctl32 {
+    unsigned char	au_cmd[32];	/* command text from userspace */
+    u_int32_t		au_buffer;	/* 32-bit pointer to uspace buf */
+    u_int32_t		au_length;	/* length of the uspace buffer */
+    int32_t		au_direction;	/* data transfer direction */
+    int32_t		au_status;	/* command status returned by adapter */
+};
+
+#	define AMR_IO_COMMAND32	_IOWR('A', 0x201, struct amr_user_ioctl32)
+#endif
