@@ -1694,7 +1694,7 @@ ntoskrnl_run_dpc(arg)
 	uint8_t			irql;
 
 	dpc = arg;
-	dpcfunc = (kdpc_func)dpc->k_deferedfunc;
+	dpcfunc = (__stdcall kdpc_func) dpc->k_deferedfunc;
 	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	dpcfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
 	ntoskrnl_lower_irql(irql);
