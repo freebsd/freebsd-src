@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12.2.10 1998/03/01 11:09:02 jraynard Exp $";
+	"$Id: syslogd.c,v 1.12.2.11 1998/03/09 13:56:07 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -81,7 +81,6 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
-#include <sys/msgbuf.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 #include <sys/un.h>
@@ -286,7 +285,7 @@ main(argc, argv)
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_in sin, frominet;
 	FILE *fp;
-	char *p, *hname, line[MSG_BSIZE + 1];
+	char *p, *hname, line[MAXLINE + 1];
 	struct timeval tv, *tvp;
 	pid_t ppid;
 
@@ -433,7 +432,7 @@ main(argc, argv)
 		}
 		dprintf("got a message (%d, %#x)\n", nfds, readfds);
 		if (readfds & klogm) {
-			i = read(fklog, line, sizeof(line) - 1);
+			i = read(fklog, line, MAXLINE - 1);
 			if (i > 0) {
 				line[i] = '\0';
 				printsys(line);

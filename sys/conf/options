@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18.2.11 1998/06/05 21:38:02 julian Exp $
+#	$Id: options,v 1.18.2.12 1998/06/23 21:33:18 peter Exp $
 
 # Format:
 # Option name	filename
@@ -111,6 +111,11 @@ DPT_HANDLE_TIMEOUTS      opt_dpt.h
 DPT_ALLOW_MEMIO          opt_dpt.h
 DPT_HINTR_CHECK_SOFTC    opt_dpt.h
 TCPDEBUG
+
+# Size of the kernel message buffer
+MSGBUF_SIZE		opt_msgbuf.h
+
+# Options for "kernel ppp" and pppd.
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h

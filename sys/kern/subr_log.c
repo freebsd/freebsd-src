@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.17 1996/03/27 19:45:28 bde Exp $
+ * $Id: subr_log.c,v 1.18 1996/07/09 16:51:11 wollman Exp $
  */
 
 /*
@@ -135,16 +135,16 @@ logread(dev, uio, flag)
 	while (uio->uio_resid > 0) {
 		l = mbp->msg_bufx - mbp->msg_bufr;
 		if (l < 0)
-			l = MSG_BSIZE - mbp->msg_bufr;
+			l = mbp->msg_size - mbp->msg_bufr;
 		l = min(l, uio->uio_resid);
 		if (l == 0)
 			break;
-		error = uiomove((caddr_t)&mbp->msg_bufc[mbp->msg_bufr],
-			(int)l, uio);
+		error = uiomove((caddr_t)msgbufp->msg_ptr + mbp->msg_bufr,
+		    (int)l, uio);
 		if (error)
 			break;
 		mbp->msg_bufr += l;
-		if (mbp->msg_bufr >= MSG_BSIZE)
+		if (mbp->msg_bufr >= mbp->msg_size)
 			mbp->msg_bufr = 0;
 	}
 	return (error);
@@ -213,7 +213,7 @@ logioctl(dev, com, data, flag, p)
 		l = msgbufp->msg_bufx - msgbufp->msg_bufr;
 		splx(s);
 		if (l < 0)
-			l += MSG_BSIZE;
+			l += msgbufp->msg_size;
 		*(int *)data = l;
 		break;
 

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.128.2.5 1997/04/23 02:20:06 davidg Exp $
+ *	$Id: pmap.c,v 1.128.2.6 1997/06/26 00:05:16 tegge Exp $
  */
 
 /*
@@ -72,6 +72,8 @@
 
 #define PMAP_LOCK 1
 #define PMAP_PVLIST 1
+
+#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -314,7 +316,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 * XXX msgbufmap is not used.
 	 */
 	SYSMAP(struct msgbuf *, msgbufmap, msgbufp,
-	       atop(round_page(sizeof(struct msgbuf))))
+	       atop(round_page(MSGBUF_SIZE)))
 
 	/*
 	 * ptemap is used for pmap_pte_quick
