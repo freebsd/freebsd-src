@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.134 1995/04/09 10:24:09 jkh Exp $
+# $Id: bsd.port.mk,v 1.135 1995/04/09 12:27:58 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -226,7 +226,7 @@ EXTRACT_BEFORE_ARGS?=   -xzf
 
 PKG_CMD?=		pkg_create
 .if !defined(PKG_ARGS)
-PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX}
+PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX} -P "`${MAKE} package-depends`"
 .if exists(${PKGDIR}/INSTALL)
 PKG_ARGS+=		-i ${PKGDIR}/INSTALL
 .endif
