@@ -176,21 +176,21 @@ one is not set in the other.
 .Pp
 The
 .Fn SIGSETOR
-macro ors the signals set in
+macro ORs the signals set in
 .Fa set2
 into
 .Fa set1 .
 .Pp
 The
 .Fn SIGSETAND
-macro ands the signals set in
+macro ANDs the signals set in
 .Fa set2
 into
 .Fa set1 .
 .Pp
 The
 .Fn SIGSETNAND
-macro nands the signals set in
+macro NANDs the signals set in
 .Fa set2
 into
 .Fa set1 .
@@ -230,14 +230,14 @@ macro clears the
 signal from
 .Fa set .
 .Fn SIG_CONTSIGMASK
-is call when a process is stopped.
+is called when a process is stopped.
 .Pp
 The
 .Fn SIGPENDING
 macro determines if the given process has any pending signals that are
 not masked.
 If the process has a pending signal and the process is currently being
-traced
+traced,
 .Fn SIGPENDING
 will return true even if the signal is masked.
 .Pp
@@ -245,13 +245,13 @@ The
 .Fn CURSIG
 function returns the signal number that should be delivered to
 .Fa p .
-If there are no signals pending zero is returned.
+If there are no signals pending, zero is returned.
 .Pp
 The
 .Fn execsigs
 function resets the signal set and signal stack of a process in preparation
 for an
-.Fn exec 2 .
+.Xr execve 2 .
 The lock for
 .Fa p
 must be held before
@@ -274,26 +274,31 @@ is always stopped.
 Stop signals are handled and cleared right away by
 .Fn issignal ,
 unless the process is a member of an orphaned process group and the stop
-signal originated from a tty.
-.Fa sched_lock
-may be acquired and released and if
-.Fa Giant
-is held it may be released and reacquired.
+signal originated from a TTY.
+The
+.Va sched_lock
+lock
+may be acquired and released, and if
+.Va Giant
+is held, it may be released and reacquired.
 .Fa p
 must be locked before
 .Fn issignal
 is called and may be released and reacquired during the call; as well,
-.Fa p's
+.Fa p
 parent's lock may be acquired and released.
 Default signal actions are not taken for system processes and init.
 .Pp
 The
 .Fn killproc
 function delivers
-.Dv SIGKILL to
+.Dv SIGKILL
+to
 .Fa p .
 .Fa why
-is logged as the reason "why" the process was killed.
+is logged as the reason
+.Em why
+the process was killed.
 .Pp
 The
 .Fn pgsigio
@@ -303,17 +308,17 @@ to the process or process group
 .Fa sigiop->sio_pgid .
 If
 .Fa checkctty
-is non-zero the signal is only delivered to processes in the process group
+is non-zero, the signal is only delivered to processes in the process group
 that have a controlling terminal.
 If
-.Va sigiop->sio_pgid
+.Fa sigiop->sio_pgid
 is for a process (> 0), the lock for
-.Va sigiop->sio_proc
+.Fa sigiop->sio_proc
 is acquired and released.
 If
-.Va sigiop->sio_pgid
+.Fa sigiop->sio_pgid
 is for a process group (< 0), the process group lock for
-.Va sigiop->sio_pgrp
+.Fa sigiop->sio_pgrp
 is acquired and released.
 .Fa sigio_lock
 is acquired and released.
@@ -342,14 +347,14 @@ The
 function causes the process that owns
 .Fa td
 to exit with a return value of signal number
-.Fa sig.
+.Fa sig .
 If required, the process will dump core.
 The lock for the process that owns
 .Fa td
 must be held before
 .Fn sigexit
 is called, and
-.Fa Giant
+.Va Giant
 will be acquired if it is not already held.
 .Pp
 The
@@ -369,7 +374,7 @@ The only process that
 .Fn siginit
 is ever called for
 is
-.Va proc0.
+.Va proc0 .
 .Pp
 The
 .Fn signotify
@@ -377,11 +382,11 @@ function flags that there are unmasked signals pending that
 .Fn ast
 should handle.
 The lock for
-.Pa p
+.Fa p
 must be held before
 .Fn signotify
 is called, and
-.Fa sched_lock
+.Va sched_lock
 is acquired and released.
 .Pp
 The
@@ -389,14 +394,15 @@ The
 function sends a signal that is the result of a trap to
 .Fa p .
 If the process is not being traced and the signal can be delivered
-immediately
+immediately,
 .Fn trapsignal
 will deliver it directly; otherwise,
 .Fn trapsignal
 will call
 .Xr psignal 9
 to cause the signal to be delivered.
-Giant is acquired and released, as is the lock for
+.Va Giant
+is acquired and released, as is the lock for
 .Fa p .
 .Sh RETURN VALUES
 The
@@ -407,7 +413,7 @@ The
 .Fn SIGSETNEQ ,
 and
 .Fn SIGPENDING
-macros all return non\-zero (true) if the condition they are checking
+macros all return non-zero (true) if the condition they are checking
 is found to be true; otherwise, zero (false) is returned.
 .Pp
 .Fn CURSIG
