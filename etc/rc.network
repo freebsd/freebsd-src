@@ -291,7 +291,7 @@ network_pass1() {
 	#
 	case ${ipfilter_active} in
 	[Yy][Ee][Ss])
-		${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
+		${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags} >/dev/null
 		;;
 	esac
 	unset ipfilter_active
