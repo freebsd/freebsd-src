@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: utility.c,v 1.5 1996/09/22 21:55:52 wosch Exp $
  */
 
 #ifndef lint
@@ -98,6 +98,7 @@ stilloob(s)
     do {
 	FD_ZERO(&excepts);
 	FD_SET(s, &excepts);
+	memset((char *)&timeout, 0, sizeof timeout);
 	value = select(s+1, (fd_set *)0, (fd_set *)0, &excepts, &timeout);
     } while ((value == -1) && (errno == EINTR));
 
