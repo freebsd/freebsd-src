@@ -738,10 +738,12 @@ fsinit(time_t utime)
 {
 	union dinode node;
 	struct group *grp;
+	int entries;
 
 	memset(&node, 0, sizeof node);
 	if ((grp = getgrnam("operator")) == NULL)
 		errx(35, "Cannot retrieve operator gid");
+	entries = (nflag) ? ROOTLINKCNT - 1: ROOTLINKCNT;
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		/*
 		 * initialize the node
@@ -753,27 +755,30 @@ fsinit(time_t utime)
 		 * create the root directory
 		 */
 		node.dp1.di_mode = IFDIR | UMASK;
-		node.dp1.di_nlink = ROOTLINKCNT;
-		node.dp1.di_size = makedir(root_dir, ROOTLINKCNT);
+		node.dp1.di_nlink = entries;
+		node.dp1.di_size = makedir(root_dir, entries);
 		node.dp1.di_db[0] = alloc(sblock.fs_fsize, node.dp1.di_mode);
 		node.dp1.di_blocks =
 		    btodb(fragroundup(&sblock, node.dp1.di_size));
 		wtfs(fsbtodb(&sblock, node.dp1.di_db[0]), sblock.fs_fsize,
 		    iobuf);
 		iput(&node, ROOTINO);
-		/*
-		 * create the .snap directory
-		 */
-		node.dp1.di_mode |= 020;
-		node.dp1.di_gid = grp->gr_gid;
-		node.dp1.di_nlink = SNAPLINKCNT;
-		node.dp1.di_size = makedir(snap_dir, SNAPLINKCNT);
-		node.dp1.di_db[0] = alloc(sblock.fs_fsize, node.dp1.di_mode);
-		node.dp1.di_blocks =
-		    btodb(fragroundup(&sblock, node.dp1.di_size));
-		wtfs(fsbtodb(&sblock, node.dp1.di_db[0]), sblock.fs_fsize,
-		    iobuf);
-		iput(&node, ROOTINO + 1);
+		if (!nflag) {
+			/*
+			 * create the .snap directory
+			 */
+			node.dp1.di_mode |= 020;
+			node.dp1.di_gid = grp->gr_gid;
+			node.dp1.di_nlink = SNAPLINKCNT;
+			node.dp1.di_size = makedir(snap_dir, SNAPLINKCNT);
+				node.dp1.di_db[0] =
+				    alloc(sblock.fs_fsize, node.dp1.di_mode);
+			node.dp1.di_blocks =
+			    btodb(fragroundup(&sblock, node.dp1.di_size));
+				wtfs(fsbtodb(&sblock, node.dp1.di_db[0]),
+				    sblock.fs_fsize, iobuf);
+			iput(&node, ROOTINO + 1);
+		}
 	} else {
 		/*
 		 * initialize the node
@@ -786,27 +791,30 @@ fsinit(time_t utime)
 		 * create the root directory
 		 */
 		node.dp2.di_mode = IFDIR | UMASK;
-		node.dp2.di_nlink = ROOTLINKCNT;
-		node.dp2.di_size = makedir(root_dir, ROOTLINKCNT);
+		node.dp2.di_nlink = entries;
+		node.dp2.di_size = makedir(root_dir, entries);
 		node.dp2.di_db[0] = alloc(sblock.fs_fsize, node.dp2.di_mode);
 		node.dp2.di_blocks =
 		    btodb(fragroundup(&sblock, node.dp2.di_size));
 		wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), sblock.fs_fsize,
 		    iobuf);
 		iput(&node, ROOTINO);
-		/*
-		 * create the .snap directory
-		 */
-		node.dp2.di_mode |= 020;
-		node.dp2.di_gid = grp->gr_gid;
-		node.dp2.di_nlink = SNAPLINKCNT;
-		node.dp2.di_size = makedir(snap_dir, SNAPLINKCNT);
-		node.dp2.di_db[0] = alloc(sblock.fs_fsize, node.dp2.di_mode);
-		node.dp2.di_blocks =
-		    btodb(fragroundup(&sblock, node.dp2.di_size));
-		wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), sblock.fs_fsize,
-		    iobuf);
-		iput(&node, ROOTINO + 1);
+		if (!nflag) {
+			/*
+			 * create the .snap directory
+			 */
+			node.dp2.di_mode |= 020;
+			node.dp2.di_gid = grp->gr_gid;
+			node.dp2.di_nlink = SNAPLINKCNT;
+			node.dp2.di_size = makedir(snap_dir, SNAPLINKCNT);
+				node.dp2.di_db[0] =
+				    alloc(sblock.fs_fsize, node.dp2.di_mode);
+			node.dp2.di_blocks =
+			    btodb(fragroundup(&sblock, node.dp2.di_size));
+				wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), 
+				    sblock.fs_fsize, iobuf);
+			iput(&node, ROOTINO + 1);
+		}
 	}
 }
 
