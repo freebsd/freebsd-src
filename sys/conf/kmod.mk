@@ -182,7 +182,6 @@ _ILINKS=@ machine
 all: objwarn ${PROG}
 
 beforedepend: ${_ILINKS}
-	@rm -f .depend
 
 # Ensure that the links exist without depending on it when it exists which
 # causes all the modules to be rebuilt when the directory pointed to changes.
