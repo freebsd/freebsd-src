@@ -39,7 +39,6 @@
 static char sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
 #endif
 #endif
-
 #include <sys/cdefs.h>
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -251,9 +250,9 @@ unused_rules()
 
     if (nunused) {
 	if (nunused == 1)
-	    warnx("%s: 1 rule never reduced", getprogname());
+	    warnx("1 rule never reduced");
 	else
-	    warnx("%s: %d rules never reduced", getprogname(), nunused);
+	    warnx("%d rules never reduced", nunused);
     }
 }
 
@@ -342,15 +341,15 @@ total_conflicts()
     if ((SRtotal != SRexpect) || RRtotal)
     {
 	    if (SRtotal == 1)
-	    warnx("%s: 1 shift/reduce conflict", getprogname());
+	    warnx("1 shift/reduce conflict");
 	    else if (SRtotal > 1)
-	    warnx("%s: %d shift/reduce conflicts", getprogname(), SRtotal);
+	    warnx("%d shift/reduce conflicts", SRtotal);
     }
 
     if (RRtotal == 1)
-	warnx("%s: 1 reduce/reduce conflict", getprogname());
+	warnx("1 reduce/reduce conflict");
     else if (RRtotal > 1)
-	warnx("%s: %d reduce/reduce conflicts", getprogname(), RRtotal);
+	warnx("%d reduce/reduce conflicts", RRtotal);
 }
 
 
