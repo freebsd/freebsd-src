@@ -151,7 +151,7 @@ main(int argc, char *argv[])
 
 	/*
 	 * If no nic host is specified determine the top level domain from
-	 * the query.  If the TLD is a number, query ARIN.  Otherwise, use 
+	 * the query.  If the TLD is a number, query ARIN.  Otherwise, use
 	 * TLD.whois-server.net.  If the domain does not contain '.', fall
 	 * back to NICHOST.
 	 */
@@ -202,7 +202,7 @@ choose_server(char *domain)
 	return (retval);
 }
 
-static struct addrinfo * 
+static struct addrinfo *
 gethostinfo(char const *host, int exit_on_error)
 {
 	struct addrinfo hints, *res;
@@ -220,7 +220,7 @@ gethostinfo(char const *host, int exit_on_error)
 		return (NULL);
 	}
 	return (res);
-} 
+}
 
 /*
  * Wrapper for asprintf(3) that exits on error.
