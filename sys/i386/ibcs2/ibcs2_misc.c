@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.28 1998/08/17 17:53:12 bde Exp $
+ * $Id: ibcs2_misc.c,v 1.29 1998/08/17 18:12:52 bde Exp $
  */
 
 /*
@@ -611,7 +611,7 @@ ibcs2_getgroups(p, uap)
 	struct ibcs2_getgroups_args *uap;
 {
 	int error, i;
-	ibcs2_gid_t *iset;
+	ibcs2_gid_t *iset = NULL;
 	struct getgroups_args sa;
 	gid_t *gp;
 	caddr_t sg = stackgap_init();
