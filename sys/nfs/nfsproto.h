@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsproto.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsproto.h,v 1.4 1994/08/21 06:50:13 paul Exp $
+ *	@(#)nfsproto.h	8.2 (Berkeley) 3/30/95
  */
 
 #ifndef _NFS_NFSPROTO_H_
 #define _NFS_NFSPROTO_H_
+
 
 /*
  * nfs definitions as per the Version 2 and 3 specs
