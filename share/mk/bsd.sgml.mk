@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.9 1996/09/29 18:21:16 jfieber Exp $
+#	$Id: bsd.sgml.mk,v 1.10 1996/10/01 23:44:03 jfieber Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -13,7 +13,7 @@
 # DISTRIBUTION	Name of distribution. [doc]
 #
 # FORMATS 	Indicates which output formats will be generated
-#		(ascii, html, latex, nroff). [ascii html]
+#		(ascii, html, latex, nroff). [html ascii]
 #
 # LPR		Printer command. [lpr]
 #
@@ -55,7 +55,7 @@
 # If FORMATS is empty, nothing will be built or installed.
 # Use SGMLOPTS to pass extra flags to sgmlfmt(1).
 
-FORMATS?=	ascii html
+FORMATS?=	html ascii
 SGMLFLAGS+=	${SGMLOPTS}
 
 VOLUME?=	${.CURDIR:T}
