@@ -101,7 +101,6 @@ void	flush_blanks __P((void));
 void	free_line __P((LINE *));
 int	main __P((int, char **));
 void	usage __P((void));
-void   *xmalloc __P((void *, size_t));
 
 CSET	last_set;		/* char_set of last char printed */
 LINE   *lines;
@@ -288,8 +287,9 @@ main(argc, argv)
 			int need;
 
 			need = l->l_lsize ? l->l_lsize * 2 : 90;
-			l->l_line = xmalloc(l->l_line,
-			    (unsigned)need * sizeof(CHAR));
+			if ((l->l_line = realloc(l->l_line,
+			    (unsigned)need * sizeof(CHAR))) == NULL)
+				err(1, (char *)NULL);
 			l->l_lsize = need;
 		}
 		c = &l->l_line[l->l_line_len++];
@@ -405,13 +405,15 @@ flush_line(l)
 		 */
 		if (l->l_lsize > sorted_size) {
 			sorted_size = l->l_lsize;
-			sorted = xmalloc(sorted,
-			    (unsigned)sizeof(CHAR) * sorted_size);
+			if ((sorted = realloc(sorted,
+			    (unsigned)sizeof(CHAR) * sorted_size)) == NULL)
+				err(1, (char *)NULL);
 		}
 		if (l->l_max_col >= count_size) {
 			count_size = l->l_max_col + 1;
-			count = xmalloc(count,
-			    (unsigned)sizeof(int) * count_size);
+			if ((count = realloc(count,
+			    (unsigned)sizeof(int) * count_size)) == NULL)
+				err(1, (char *)NULL);
 		}
 		memset(count, 0, sizeof(int) * l->l_max_col + 1);
 		for (i = nchars, c = l->l_line; --i >= 0; c++)
@@ -498,7 +500,8 @@ alloc_line()
 	int i;
 
 	if (!line_freelist) {
-		l = xmalloc(NULL, sizeof(LINE) * NALLOC);
+		if ((l = realloc(NULL, sizeof(LINE) * NALLOC)) == NULL)
+			err(1, (char *)NULL);
 		line_freelist = l;
 		for (i = 1; i < NALLOC; i++, l++)
 			l->l_next = l + 1;
@@ -518,17 +521,6 @@ free_line(l)
 
 	l->l_next = line_freelist;
 	line_freelist = l;
-}
-
-void *
-xmalloc(p, size)
-	void *p;
-	size_t size;
-{
-
-	if (!(p = realloc(p, size)))
-		err(1, (char *)NULL);
-	return (p);
 }
 
 void
