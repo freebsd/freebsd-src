@@ -449,7 +449,7 @@ mss_probe(device_t dev)
 		mss->io_rid = 0;
 		/* XXX verify this */
 		setres = 1;
-		ISA_SET_RESOURCE(device_get_parent(dev), dev, SYS_RES_IOPORT, mss->io_rid,
+		bus_set_resource(dev, SYS_RES_IOPORT, mss->io_rid,
     		         	0x530, 8);
 		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->io_rid,
 					  	0, ~0, 8, RF_ACTIVE);
@@ -866,7 +866,7 @@ mss_attach(device_t dev)
     	mss->drq1_rid = 0;
     	mss->drq2_rid = -1;
     	if (flags & DV_F_DUAL_DMA) {
-        	ISA_SET_RESOURCE(device_get_parent(dev), dev, SYS_RES_DRQ, 1,
+        	bus_set_resource(dev, SYS_RES_DRQ, 1,
     		         	 flags & DV_F_DRQ_MASK, 1);
 		mss->drq2_rid = 1;
     	}
