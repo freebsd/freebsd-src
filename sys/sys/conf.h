@@ -258,22 +258,10 @@ void ldisc_deregister(int);
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
-d_read_t	noread;
-d_write_t	nowrite;
-d_ioctl_t	noioctl;
-d_mmap_t	nommap;
-d_kqfilter_t	nokqfilter;
-#define	nostrategy	((d_strategy_t *)NULL)
-#define	nopoll	seltrue
-
-dumper_t	nodump;
 
 #define NUMCDEVSW 256
 
 #define	MAJOR_AUTO	0	/* XXX: Not GM */
-
-d_open_t	nullopen;
-d_close_t	nullclose;
 
 l_ioctl_t	l_nullioctl;
 l_read_t	l_noread;

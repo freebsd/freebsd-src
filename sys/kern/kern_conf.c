@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/vnode.h>
 #include <sys/queue.h>
+#include <sys/poll.h>
 #include <sys/ctype.h>
 #include <machine/stdarg.h>
 
@@ -68,7 +69,19 @@ static int ready_for_devs;
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
-/* Define a dead_cdevsw for use when devices leave unexpectedly. */
+int
+nullop(void)
+{
+
+	return (0);
+}
+
+int
+eopnotsupp(void)
+{
+
+	return (EOPNOTSUPP);
+}
 
 static int
 enxio(void)
@@ -76,13 +89,21 @@ enxio(void)
 	return (ENXIO);
 }
 
+static int
+enodev(void)
+{
+	return (ENODEV);
+}
+
+/* Define a dead_cdevsw for use when devices leave unexpectedly. */
+
 #define dead_open	(d_open_t *)enxio
 #define dead_close	(d_close_t *)enxio
 #define dead_read	(d_read_t *)enxio
 #define dead_write	(d_write_t *)enxio
 #define dead_ioctl	(d_ioctl_t *)enxio
-#define dead_poll	nopoll
-#define dead_mmap	nommap
+#define dead_poll	(d_poll_t *)enodev
+#define dead_mmap	(d_mmap_t *)enodev
 
 static void
 dead_strategy(struct bio *bp)
@@ -92,7 +113,6 @@ dead_strategy(struct bio *bp)
 }
 
 #define dead_dump	(dumper_t *)enxio
-
 #define dead_kqfilter	(d_kqfilter_t *)enxio
 
 static struct cdevsw dead_cdevsw = {
@@ -110,6 +130,47 @@ static struct cdevsw dead_cdevsw = {
 	.d_kqfilter =	dead_kqfilter
 };
 
+/* Default methods if driver does not specify method */
+
+#define null_open	(d_open_t *)nullop
+#define null_close	(d_close_t *)nullop
+#define no_read		(d_read_t *)enodev
+#define no_write	(d_write_t *)enodev
+#define no_ioctl	(d_ioctl_t *)enodev
+#define no_mmap		(d_mmap_t *)enodev
+
+static int
+no_kqfilter(dev_t dev __unused, struct knote *kn __unused)
+{
+
+	return (1);
+}
+
+static void
+no_strategy(struct bio *bp)
+{
+
+	biofinish(bp, NULL, ENODEV);
+}
+
+static int
+no_poll(dev_t dev __unused, int events, struct thread *td __unused)
+{
+	/*
+	 * Return true for read/write.  If the user asked for something
+	 * special, return POLLNVAL, so that clients have a way of
+	 * determining reliably whether or not the extended
+	 * functionality is present without hard-coding knowledge
+	 * of specific filesystem implementations.
+	 * Stay in sync with vop_nopoll().
+	 */
+	if (events & ~POLLSTANDARD)
+		return (POLLNVAL);
+
+	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
+}
+
+#define no_dump		(dumper_t *)enodev
 
 struct cdevsw *
 devsw(dev_t dev)
@@ -276,16 +337,16 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	KASSERT((minor & ~0xffff00ff) == 0,
 	    ("Invalid minor (0x%x) in make_dev", minor));
 
-	if (devsw->d_open == NULL)	devsw->d_open = nullopen;
-	if (devsw->d_close == NULL)	devsw->d_close = nullclose;
-	if (devsw->d_read == NULL)	devsw->d_read = noread;
-	if (devsw->d_write == NULL)	devsw->d_write = nowrite;
-	if (devsw->d_ioctl == NULL)	devsw->d_ioctl = noioctl;
-	if (devsw->d_poll == NULL)	devsw->d_poll = nopoll;
-	if (devsw->d_mmap == NULL)	devsw->d_mmap = nommap;
-	if (devsw->d_strategy == NULL)	devsw->d_strategy = nostrategy;
-	if (devsw->d_dump == NULL)	devsw->d_dump = nodump;
-	if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = nokqfilter;
+	if (devsw->d_open == NULL)	devsw->d_open = null_open;
+	if (devsw->d_close == NULL)	devsw->d_close = null_close;
+	if (devsw->d_read == NULL)	devsw->d_read = no_read;
+	if (devsw->d_write == NULL)	devsw->d_write = no_write;
+	if (devsw->d_ioctl == NULL)	devsw->d_ioctl = no_ioctl;
+	if (devsw->d_poll == NULL)	devsw->d_poll = no_poll;
+	if (devsw->d_mmap == NULL)	devsw->d_mmap = no_mmap;
+	if (devsw->d_strategy == NULL)	devsw->d_strategy = no_strategy;
+	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
+	if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = no_kqfilter;
 
 	if (devsw->d_maj == MAJOR_AUTO) {
 		for (i = NUMCDEVSW - 1; i > 0; i--)
