@@ -364,8 +364,9 @@ tftp(struct tftphdr *tp, int size)
 	int i, first = 1, has_options = 0, ecode;
 	struct formats *pf;
 	char *filename, *mode, *option, *ccp;
+	char fnbuf[MAXPATHLEN];
 
-	filename = cp = tp->th_stuff;
+	cp = tp->th_stuff;
 again:
 	while (cp < buf + size) {
 		if (*cp == '\0')
@@ -376,6 +377,14 @@ again:
 		nak(EBADOP);
 		exit(1);
 	}
+	i = cp - tp->th_stuff;
+	if (i >= sizeof(fnbuf)) {
+		nak(EBADOP);
+		exit(1);
+	}
+	memcpy(fnbuf, tp->th_stuff, i);
+	fnbuf[i] = '\0';
+	filename = fnbuf;
 	if (first) {
 		mode = ++cp;
 		first = 0;
