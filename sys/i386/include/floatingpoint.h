@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#) floatingpoint.h	1.0 (Berkeley) 9/23/93
- *	$Id$
+ *	$Id: floatingpoint.h,v 1.8 1997/02/22 09:34:37 peter Exp $
  */
 
 #ifndef _FLOATINGPOINT_H_
@@ -108,14 +108,14 @@ __fpsetreg(int _m, int _reg, int _fld, int _off)
 /*
  * SysV/386 FP control interface
  */
-#define fpgetround()	((__fpgetreg(FP_RND_REG) & FP_RND_FLD) >> FP_RND_OFF)
-#define fpsetround(m)	__fpsetreg((m), FP_RND_REG, FP_RND_FLD, FP_RND_OFF)
-#define fpgetprec()	((__fpgetreg(FP_PRC_REG) & FP_PRC_FLD) >> FP_PRC_OFF)
-#define fpsetprec(m)	__fpsetreg((m), FP_PRC_REG, FP_PRC_FLD, FP_PRC_OFF)
-#define fpgetmask()	((~__fpgetreg(FP_MSKS_REG) & FP_MSKS_FLD) >> FP_MSKS_OFF)
-#define fpsetmask(m)	__fpsetreg(~(m), FP_MSKS_REG, FP_MSKS_FLD, FP_MSKS_OFF)
-#define fpgetsticky()	((__fpgetreg(FP_STKY_REG) & FP_STKY_FLD) >> FP_STKY_OFF)
-#define fpresetsticky(m)	__fpsetreg(0, FP_STKY_REG, (m), FP_STKY_OFF)
+#define fpgetround()  ((fp_rnd_t) ((__fpgetreg(FP_RND_REG) & FP_RND_FLD) >> FP_RND_OFF))
+#define fpsetround(m) ((fp_rnd_t) __fpsetreg((m), FP_RND_REG, FP_RND_FLD, FP_RND_OFF))
+#define fpgetprec()   ((fp_prec_t) ((__fpgetreg(FP_PRC_REG) & FP_PRC_FLD) >> FP_PRC_OFF))
+#define fpsetprec(m)  ((fp_prec_t) __fpsetreg((m), FP_PRC_REG, FP_PRC_FLD, FP_PRC_OFF))
+#define fpgetmask()   ((fp_except_t) ((~__fpgetreg(FP_MSKS_REG) & FP_MSKS_FLD) >> FP_MSKS_OFF))
+#define fpsetmask(m)  ((fp_except_t) (__fpsetreg(~(m), FP_MSKS_REG, FP_MSKS_FLD, FP_MSKS_OFF)))
+#define fpgetsticky() ((fp_except_t) ((__fpgetreg(FP_STKY_REG) & FP_STKY_FLD) >> FP_STKY_OFF))
+#define fpresetsticky(m)      ((fp_except_t) __fpsetreg(0, FP_STKY_REG, (m), FP_STKY_OFF))
 #define fpsetsticky(m)	fpresetsticky(m)
 
 #endif /* !_FLOATINGPOINT_H_ */
