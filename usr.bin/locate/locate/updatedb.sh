@@ -26,7 +26,7 @@
 #
 # updatedb - update locate database for local mounted filesystems
 #
-# $Id: updatedb.sh,v 1.7 1997/02/22 19:55:49 peter Exp $
+# $Id: updatedb.sh,v 1.8 1997/12/13 18:18:12 sef Exp $
 
 LOCATE_CONFIG="/etc/locate.rc"
 if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then
@@ -34,21 +34,19 @@ if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then
 fi
 
 # The directory containing locate subprograms
-: ${LIBEXECDIR=/usr/libexec}; export LIBEXECDIR
-TMPDIR=${TMPDIR:-/tmp}; export TMPDIR
-if test X"$TMPDIR" = X -o ! -d "$TMPDIR"; then
-	TMPDIR=/tmp; export TMPDIR
-fi
+: ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
+: ${TMPDIR:=/tmp}; export TMPDIR
+test -d "$TMPDIR" || TMPDIR=/tmp
 
 PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 
 
-: ${mklocatedb=locate.mklocatedb}	 # make locate database program
-: ${FCODES=/var/db/locate.database}	 # the database
-: ${SEARCHPATHS="/"}		# directories to be put in the database
+: ${mklocatedb:=locate.mklocatedb}	 # make locate database program
+: ${FCODES:=/var/db/locate.database}	 # the database
+: ${SEARCHPATHS:="/"}		# directories to be put in the database
 : ${PRUNEPATHS="/tmp /usr/tmp /var/tmp"} # unwanted directories
-: ${FILESYSTEMS="ufs"}			 # allowed filesystems 
-: ${find=find}
+: ${FILESYSTEMS:="ufs"}			 # allowed filesystems 
+: ${find:=find}
 
 case X"$SEARCHPATHS" in 
 	X) echo "$0: empty variable SEARCHPATHS"; exit 1;; esac
