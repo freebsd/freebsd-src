@@ -844,11 +844,6 @@ swapout(p)
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
 	PROC_UNLOCK(p);
-	FOREACH_THREAD_IN_PROC (p, td) /* shouldn't be possible, but..... */
-		if (TD_ON_RUNQ(td)) {	/* XXXKSE */
-			panic("swapping out runnable process");
-			remrunqueue(td);	/* XXXKSE */
-		}
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
 	mtx_unlock_spin(&sched_lock);
