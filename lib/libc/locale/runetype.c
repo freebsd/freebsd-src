@@ -41,12 +41,22 @@ unsigned long
 ___runetype(c)
 	_BSD_RUNE_T_ c;
 {
+#ifdef XPG4
 	int x;
 	_RuneRange *rr = &_CurrentRuneLocale->runetype_ext;
 	_RuneEntry *re = rr->ranges;
+#endif
 
 	if (c == EOF)
 		return(0);
+	if (c < 0) {
+		if (c >= -128) /* signed char */
+			return(_CurrentRuneLocale->runetype[(unsigned char)c]);
+		else
+			return(0);
+	}
+
+#ifdef XPG4
 	for (x = 0; x < rr->nranges; ++x, ++re) {
 		if (c < re->min)
 			return(0L);
@@ -57,6 +67,7 @@ ___runetype(c)
 			    return(re->map);
 		}
 	}
+#endif
 	return(0L);
 }
 

@@ -47,6 +47,7 @@ extern int		_none_init __P((_RuneLocale *));
 #ifdef XPG4
 extern int		_UTF2_init __P((_RuneLocale *));
 extern int		_EUC_init __P((_RuneLocale *));
+extern int              _xpg4_setrunelocale __P((char *));
 #endif
 extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
 
