@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.13 1995/06/17 03:14:29 ache Exp $
+#     $Id: BSD.local.dist,v 1.14 1995/12/14 10:11:21 phk Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -32,6 +32,8 @@
         ..
         cat8            uname=man
         ..
+        cat9            uname=man
+        ..
         catl            uname=man
         ..
         man1
@@ -54,12 +56,12 @@
         ..
         manl
         ..
-        skel
-        ..
     ..
     sbin
     ..
     share
+        doc
+        ..
         nls
 	    C
 	    ..
@@ -113,6 +115,8 @@
             ..
 	    sv_SE.ISO_8859-1
             ..
+        ..
+        skel
         ..
     ..
 ..
