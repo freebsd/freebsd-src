@@ -111,6 +111,7 @@ static device_method_t acpi_pci_methods[] = {
 	/* XXX: We should override these two. */
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
+	DEVMETHOD(pci_assign_interrupt, pci_assign_interrupt_method),
 
 	{ 0, 0 }
 };
