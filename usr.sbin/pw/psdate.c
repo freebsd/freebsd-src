@@ -234,8 +234,8 @@ parse_date(time_t dt, char const * str)
 		 * Skip past any weekday prefix
 		 */
 		weekday(&str);
-		str = strncpy(tmp, str, sizeof tmp - 1);
-		tmp[sizeof tmp - 1] = '\0';
+		strlcpy(tmp, str, sizeof(tmp));
+		str = tmp;
 		T = localtime(&dt);
 
 		/*
@@ -275,19 +275,15 @@ parse_date(time_t dt, char const * str)
 			if ((q = strpbrk(p, " \t")) != NULL) {	/* Time first? */
 				int             l = q - str;
 
-				strncpy(timestr, str, l);
-				timestr[l] = '\0';
-				strncpy(datestr, q + 1, sizeof datestr);
-				datestr[sizeof datestr - 1] = '\0';
+				strlcpy(timestr, str, l + 1);
+				strlcpy(datestr, q + 1, sizeof(datestr));
 				parse_time(timestr, &T->tm_hour, &T->tm_min, &T->tm_sec);
 				parse_datesub(datestr, &T->tm_mday, &T->tm_mon, &T->tm_year);
 			} else if ((q = strrchr(tmp, ' ')) != NULL) {	/* Time last */
 				int             l = q - tmp;
 
-				strncpy(timestr, q + 1, sizeof timestr);
-				timestr[sizeof timestr - 1] = '\0';
-				strncpy(datestr, tmp, l);
-				datestr[l] = '\0';
+				strlcpy(timestr, q + 1, sizeof(timestr));
+				strlcpy(datestr, tmp, l + 1);
 			} else	/* Bail out */
 				return dt;
 			parse_time(timestr, &T->tm_hour, &T->tm_min, &T->tm_sec);
