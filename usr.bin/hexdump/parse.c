@@ -424,7 +424,7 @@ isint2:					switch(fu->bcnt) {
 	 * If, rep count is greater than 1, no trailing whitespace
 	 * gets output from the last iteration of the format unit.
 	 */
-	for (fu = fs->nextfu;; fu = fu->nextfu) {
+	for (fu = fs->nextfu; fu; fu = fu->nextfu) {
 		if (!fu->nextfu && fs->bcnt < blocksize &&
 		    !(fu->flags&F_SETREP) && fu->bcnt)
 			fu->reps += (blocksize - fs->bcnt) / fu->bcnt;
@@ -437,8 +437,6 @@ isint2:					switch(fu->bcnt) {
 			if (p2)
 				pr->nospace = p2;
 		}
-		if (!fu->nextfu)
-			break;
 	}
 #ifdef DEBUG
 	for (fu = fs->nextfu; fu; fu = fu->nextfu) {
