@@ -32,13 +32,13 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  *
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
@@ -47,7 +47,7 @@
 
 
 #ifndef CALLOUT_H
-#define	CALLOUT_H
+#define CALLOUT_H
 
 #include "defs.h"
 

@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -34,26 +32,27 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef INET6_H
-#define	INET6_H
+#define INET6_H
 #include "vif.h"
 
 extern int numerichost;
 
 extern int  inet6_equal __P((struct sockaddr_in6 *sa1,
-                     struct sockaddr_in6 *sa2));
+                     struct sockaddr_in6 *sa2)); 
 extern int  inet6_lessthan  __P((struct sockaddr_in6 *sa1,
                      struct sockaddr_in6 *sa2));
 extern int  inet6_localif_address __P((struct sockaddr_in6 *sa,
@@ -66,9 +65,10 @@ extern int  inet6_match_prefix __P((struct sockaddr_in6 *sa1,
 extern int  inet6_mask2plen    __P((struct in6_addr *mask));
 extern int  inet6_uvif2scopeid __P((struct sockaddr_in6 *sa, struct uvif *v));
 extern int  inet6_valid_host __P((struct sockaddr_in6 *addr));
+extern char *sa6_fmt  __P((struct sockaddr_in6 *sa6));
 extern char *inet6_fmt  __P((struct in6_addr *addr));
 extern char *ifindex2str    __P((int ifindex));
-extern char *net6name   __P((struct in6_addr *prefix,
+extern char *net6name   __P((struct in6_addr *prefix, 
                      struct in6_addr *mask));
 
 

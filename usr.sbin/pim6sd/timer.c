@@ -29,8 +29,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -38,15 +36,16 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -59,6 +58,7 @@
 #include "debug.h"
 #include "rp.h"
 #include "pim6_proto.h"
+#include "mld6.h"
 #include "mld6_proto.h"
 #include "route.h"
 #include "kern.h"
@@ -160,7 +160,7 @@ init_timers()
     srcentry_save.next = (srcentry_t *) NULL;
     memset(&srcentry_save.address, 0, sizeof(struct sockaddr_in6));
     srcentry_save.address.sin6_len   = sizeof(struct sockaddr_in6);
-    srcentry_save.address.sin6_family= AF_INET6;
+    srcentry_save.address.sin6_family= AF_INET6; 
     srcentry_save.mrtlink = (mrtentry_t *) NULL;
     srcentry_save.incoming = NO_VIF;
     srcentry_save.upstream = (pim_nbr_entry_t *) NULL;
@@ -173,7 +173,7 @@ init_timers()
     rpentry_save.next = (rpentry_t *) NULL;
     memset(&rpentry_save.address, 0, sizeof(struct sockaddr_in6));
     rpentry_save.address.sin6_len   = sizeof(struct sockaddr_in6);
-    rpentry_save.address.sin6_family= AF_INET6;
+    rpentry_save.address.sin6_family= AF_INET6; 
     rpentry_save.mrtlink = (mrtentry_t *) NULL;
     rpentry_save.incoming = NO_VIF;
     rpentry_save.upstream = (pim_nbr_entry_t *) NULL;
@@ -214,8 +214,23 @@ age_vifs()
     {
 	if (v->uv_flags & (VIFF_DISABLED | VIFF_DOWN | MIFF_REGISTER))
 	    continue;
-	/* Timeout neighbors */
 
+	/* Timeout the MLD querier (unless we re the querier) */
+	if ((v->uv_flags & VIFF_QUERIER) == 0 &&
+	    v->uv_querier) { /* this must be non-NULL, but check for safety. */
+	    IF_TIMEOUT(v->uv_querier->al_timer) {
+		v->uv_querier_timo++; /* count statistics */
+
+		/* act as a querier by myself */
+		v->uv_flags |= VIFF_QUERIER;
+		v->uv_querier->al_addr = v->uv_linklocal->pa_addr;
+		v->uv_querier->al_timer = MLD6_OTHER_QUERIER_PRESENT_INTERVAL;
+		time(&v->uv_querier->al_ctime); /* reset timestamp */
+		query_groups(v);
+	    }
+	}
+
+	/* Timeout neighbors */
 	for (curr_nbr = v->uv_pim_neighbors; curr_nbr != NULL;
 	     curr_nbr = next_nbr)
 	{
@@ -376,7 +391,7 @@ age_routes()
     for (cand_rp_ptr = cand_rp_list; cand_rp_ptr != (cand_rp_t *) NULL;
 	 cand_rp_ptr = cand_rp_ptr->next)
     {
-
+	
 	rpentry_ptr = cand_rp_ptr->rpentry;
 
 	/*
@@ -464,7 +479,7 @@ age_routes()
 		 * However, because the kernel cache/traffic info is of the
 		 * form (S,G), it is easier if we are simply collecting (S,G)
 		 * traffic all the time.
-		 *
+		 * 
 		 * For (*,*,RP) if the number of bytes received between the last
 		 * check and now exceeds some precalculated value (based on
 		 * interchecking period and datarate threshold AND if there
@@ -476,7 +491,7 @@ age_routes()
 		 * hence after a switch to the source-specific tree occurs, a
 		 * source with low datarate, but periodically sending will
 		 * keep the (S,G) states.
-		 *
+		 * 
 		 * If a source with kernel cache entry has been idle after the
 		 * last time a check of the datarate for the whole routing
 		 * table, then delete its kernel cache entry.
@@ -706,7 +721,7 @@ age_routes()
 						  &mrtentry_grp->oifs) == TRUE)
 				{
 #ifdef KERNEL_MFC_WC_G
-// TODO
+// TODO 
 				    if (kernel_cache_ptr->source
 					== IN6ADDR_ANY_N)
 				    {
@@ -877,7 +892,7 @@ age_routes()
 			    }
 			    else
 			    {
-
+	
 				/* iif info found */
 
 				if ((srcentry_save.incoming !=
@@ -956,7 +971,7 @@ age_routes()
 
 			    if (!(mrtentry_srcs->flags & MRTF_RP))
 				continue;
-
+	
 			     /* Forwarder initiated switch */
 
 			    did_switch_flag = FALSE;
@@ -1031,7 +1046,7 @@ age_routes()
 
 			if (src_action != PIM_ACTION_NOTHING)
 			    add_jp_entry(mrtentry_srcs->upstream,
-					 pim_join_prune_holdtime,
+					 pim_join_prune_holdtime, 
 					 &mrtentry_srcs->group->group,
 					 SINGLE_GRP_MSK6LEN,
 					 &mrtentry_srcs->source->address,

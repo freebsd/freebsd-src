@@ -1,6 +1,6 @@
 .\" Copyright (C) 1999 WIDE Project.
 .\" All rights reserved.
-.\"
+.\" 
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -12,7 +12,7 @@
 .\" 3. Neither the name of the project nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\"
+.\" 
 .\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,8 +25,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pim6sd.8,v 1.4 1999/12/16 05:38:06 jinmei Exp $
-.\" $FreeBSD$
+.\"	$Id: pim6sd.8,v 1.6 2000/05/18 16:11:46 itojun Exp $
+.\"	$FreeBSD$
 .\"
 .Dd June 10, 1999
 .Dt PIM6SD 8
@@ -56,8 +56,7 @@ By default,
 .Pa /etc/pim6sd.conf
 is used.
 .It Fl d
-Specify debug levels.
-If this option is specified without any arguments,
+Specify debug levels. If this option is specified without any arguments,
 all debug messages will be printed out.
 A subset of the messages to be printed out can be specified
 as arguments of the option.
@@ -72,12 +71,11 @@ Valid debug levels are
 and
 .Ic asserts.
 .It Fl f
-Do not become daemon, run in foreground.
-This option is for debugging
+Do not become daemon, run in foreground. This option is for debugging
 use.
 .El
 .Pp
-.Nm Pim6sd
+.Nm Pim6sd 
 automatically configures itself to forward on all multicast-capable
 interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
 the "loopback interface").
@@ -99,8 +97,7 @@ signal.
 The information includes a list of PIM neighbors,
 .Nm
 internal multicast routing table, and
-BSR and RP related information.
-Also, the program dumps its internal
+BSR and RP related information. Also, the program dumps its internal
 statistics to a file when it receives a SIGINFO signal.
 .Pp
 When
@@ -142,21 +139,21 @@ It is based on IPv4 PIM sparse-mode
 .Nm pimd
 developed at University of Southern California,
 which has also been derived from
-.Nm mrouted.
+.Nm mrouted .
 .Nm Mrouted
 is COPYRIGHT 1989 by The Board of Trustees of
 Leland Stanford Junior University.
-.Pp
-IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
-was initially integrated into
-.Fx 4.0
 .\"
 .Sh BUGS
 .Nm Pim6sd
 does not contain any unicast routing engine, so a unicast routing
-daemon needs to run on the system.
+daemon needs to run on the system. 
 .Pp
 The kernel unicast routing table is periodically polled by
 .Nm
 in order to follow changes of existing unicast routes.
 .\"
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0

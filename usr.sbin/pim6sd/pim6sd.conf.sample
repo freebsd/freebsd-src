@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 #The timer granularity.
-#More this value is small,more pim6sd will be accurate
+#More this value is small,more pim6sd will be accurate 
 #default if not specified : 5
 #BE SURE to have to same granularity on ALL routers,
 #otherwise....
@@ -37,7 +37,7 @@
 
 #syntax :  'data_timeout <number>'.
 # number is the time after which (S,G) state for a silent source will be deleted
-# default if not specified  : 210
+# default if not specified  : 210 
 
 #data_timeout 210;
 
@@ -56,22 +56,22 @@
 #probe_time 5;
 
 #syntax :  'assert_timeout <number>'.
-#this is the interval between the last time an Assert is received and the time at wich the
+#this is the interval between the last time an Assert is received and the time at wich the 
 #assert is timeout
 #default if not specified : 180
 
 #assert_timeout 180;
 
 #syntax : <cand_rp> <interface> <time> [time] <priority> [priority]
-#and time can't be <  10
-#you can just type cand_rp,
+#and time can't be <  10 
+#you can just type cand_rp, 
 #samples :
 #cand_rp;
 #cand_rp de0;
 #cand_rp ed0 priority 0 time 6;
 
 #syntax : <group_prefix> <multicast address>/<prefix length>
-#group_prefix ff06::15
+#group_prefix ff06::15 
 #default if not specified : ff00::/8
 #samples:
 #group_prefix ff1e::15/128;

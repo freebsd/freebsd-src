@@ -29,8 +29,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -38,15 +36,16 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 #include <syslog.h>
@@ -70,7 +69,7 @@ grpentry_t     *grplist;
  * Local functions definition
  */
 static srcentry_t *create_srcentry 	__P((struct sockaddr_in6 *source));
-static int search_srclist 			__P((struct sockaddr_in6 *source ,
+static int search_srclist 			__P((struct sockaddr_in6 *source ,	
      								srcentry_t ** sourceEntry));
 
 static int search_srcmrtlink 		__P((srcentry_t * srcentry_ptr,
@@ -705,7 +704,7 @@ search_grplist(group, groupEntry)
 
 	if (inet6_lessthan(&g->group, group))
 	    continue;
-	if (inet6_equal(&g->group, group))
+	if (inet6_equal(&g->group, group))	
 	{
 	    *groupEntry = g;
 	    return (TRUE);
@@ -741,7 +740,7 @@ create_srcentry(source)
      * Free the memory if there is error getting the iif and the next hop
      * (upstream) router.
      */
-
+  
      if (set_incoming(srcentry_ptr, PIM_IIF_SOURCE) == FALSE)
     {
 	free((char *) srcentry_ptr);
@@ -815,7 +814,7 @@ create_grpentry(group)
 
 /*
  * Return TRUE if the entry is found and then *mrtPtr is set to point to that
- * entry. Otherwise return FALSE and *mrtPtr points the the previous entry
+ * entry. Otherwise return FALSE and *mrtPtr points the previous entry
  * (or NULL if first in the chain.
  */
 static int
@@ -835,7 +834,7 @@ search_srcmrtlink(srcentry_ptr, group, mrtPtr)
 	 * The entries are ordered with the smaller group address first. The
 	 * addresses are in network order.
 	 */
-
+	
 	if (inet6_lessthan(&mrtentry_ptr->group->group, group))
 	    continue;
 	if (inet6_equal(&mrtentry_ptr->group->group, group))
@@ -852,7 +851,7 @@ search_srcmrtlink(srcentry_ptr, group, mrtPtr)
 
 /*
  * Return TRUE if the entry is found and then *mrtPtr is set to point to that
- * entry. Otherwise return FALSE and *mrtPtr points the the previous entry
+ * entry. Otherwise return FALSE and *mrtPtr points the previous entry
  * (or NULL if first in the chain.
  */
 static int
@@ -978,7 +977,7 @@ alloc_mrtentry(srcentry_ptr, grpentry_ptr)
     mrtentry_ptr->pmbr_addr.sin6_addr = in6addr_any;
     mrtentry_ptr->pmbr_addr.sin6_len = sizeof(struct sockaddr_in6);
     mrtentry_ptr->pmbr_addr.sin6_family = AF_INET6;
-
+	
 #ifdef RSRR
     mrtentry_ptr->rsrr_cache = (struct rsrr_cache *) NULL;
 #endif				/* RSRR */
@@ -1081,6 +1080,12 @@ create_mrtentry(srcentry_ptr, grpentry_ptr, flags)
 	insert_grpmrtlink(r_new, r_grp_insert, grpentry_ptr);
 	insert_srcmrtlink(r_new, r_src_insert, srcentry_ptr);
 	r_new->flags |= MRTF_SG;
+
+	IF_DEBUG(DEBUG_MFC)
+	    log(LOG_DEBUG, 0, "create SG entry, source %s, group %s",
+		inet6_fmt(&source->sin6_addr),
+		inet6_fmt(&group->sin6_addr));
+
 	return (r_new);
     }
 
