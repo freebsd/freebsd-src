@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ls.c,v 1.3 1994/09/24 02:55:54 davidg Exp $
  */
 
 #ifndef lint
@@ -114,8 +114,12 @@ main(argc, argv)
 		else
 			termwidth = win.ws_col;
 		f_column = f_nonprint = 1;
-	} else
+	} else {
 		f_singlecol = 1;
+		/* retrieve environment variable, in case of explicit -C */
+		if (p = getenv("COLUMNS"))
+			termwidth = atoi(p);
+	}
 
 	/* Root is -A automatically. */
 	if (!getuid())
