@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.114 1998/06/05 14:47:10 peter Exp $
+#	$Id: BSD.usr.dist,v 1.115 1998/06/13 19:26:38 jhay Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -323,6 +323,8 @@
 	    ..
 	    hr_HR.ISO_8859-2
             ..
+	    hu_HU.ISO_8859-2
+            ..
 	    is_IS.ISO_8859-1
             ..
 	    it_CH.ISO_8859-1
@@ -502,6 +504,8 @@
 	    fr_FR.ISO_8859-1
 	    ..
 	    hr_HR.ISO_8859-2
+            ..
+	    hu_HU.ISO_8859-2
             ..
 	    is_IS.ISO_8859-1
             ..
