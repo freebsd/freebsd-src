@@ -62,7 +62,7 @@ static	int	openfile	P((char *, int));
 static	void	writevar	P((int, unsigned long, int));
 static	void	readvar		P((int, unsigned long, int *));
 #ifndef NTP_POSIX_SOURCE
-extern	int	getopt		P((int, char **, char *));
+extern	int	getopt_l		P((int, char **, char *));
 #endif
 
 /*
@@ -94,7 +94,7 @@ char *argv[];
 	void writevar();
 
 	progname = argv[0];
-	while ((c = getopt(argc, argv, "a:Adkqpst:")) != EOF)
+	while ((c = getopt_l(argc, argv, "a:Adkqpst:")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
