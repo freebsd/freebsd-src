@@ -40,6 +40,10 @@
 #ifndef _UFS_UFS_QUOTA_H_
 #define	_UFS_UFS_QUOTA_H_
 
+#ifndef KERNEL
+#include <sys/queue.h>
+#endif
+
 /*
  * Definitions for disk quotas imposed on the average user
  * (big brother finally hits UNIX).
