@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fdisk.c,v 1.23 1998/07/06 06:44:36 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -192,7 +192,7 @@ struct part_type
 	,{0x75, "PCIX"}
 	,{0x80, "Minix 1.1 ... 1.4a"}
 	,{0x81, "Minix 1.4b ... 1.5.10"}
-	,{0x82, "Linux swap"}
+	,{0x82, "Linux swap or Solaris x86"}
 	,{0x83, "Linux filesystem"}
 	,{0x93, "Amoeba filesystem"}
 	,{0x94, "Amoeba bad block table"}
