@@ -1675,9 +1675,14 @@ dummynet_get(struct sockopt *sopt)
 	 */
 	bcopy(p, bp, sizeof( *p ) );
 	pipe_bp->delay = (pipe_bp->delay * 1000) / hz ;
-	pipe_bp->fs.flags_fs |= DN_IS_PIPE ;
-	/* cleanup pointers */
-	pipe_bp->next = NULL ;
+	/*
+	 * XXX the following is a hack based on ->next being the
+	 * first field in dn_pipe and dn_flow_set. The correct
+	 * solution would be to move the dn_flow_set to the beginning
+	 * of struct dn_pipe.
+	 */
+	pipe_bp->next = (struct dn_pipe *)DN_IS_PIPE ;
+	/* clean pointers */
 	pipe_bp->head = pipe_bp->tail = NULL ;
 	pipe_bp->fs.next = NULL ;
 	pipe_bp->fs.pipe = NULL ;
@@ -1689,8 +1694,8 @@ dummynet_get(struct sockopt *sopt)
     for (set = all_flow_sets ; set ; set = set->next ) {
 	struct dn_flow_set *fs_bp = (struct dn_flow_set *)bp ;
 	bcopy(set, bp, sizeof( *set ) );
-	fs_bp->flags_fs |= DN_IS_QUEUE ;
-	fs_bp->next = NULL ;
+	/* XXX same hack as above */
+	fs_bp->next = (struct dn_flow_set *)DN_IS_QUEUE ;
 	fs_bp->pipe = NULL ;
 	fs_bp->rq = NULL ;
 	bp += sizeof( *set ) ;
