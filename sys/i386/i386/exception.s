@@ -238,6 +238,9 @@ calltrap:
  * temporarily altered for the pushfl - an interrupt might come in
  * and clobber the saved cs/eip.
  */
+/*
+ * THis first callgate is used for the old a.out binaries
+ */
 	SUPERALIGN_TEXT
 IDTVEC(syscall)
 	pushfl				/* save eflags in tf_err for now */
@@ -269,7 +272,7 @@ IDTVEC(syscall)
 	jmp	_doreti
 
 /*
- * Call gate entry for Linux/NetBSD syscall (int 0x80)
+ * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
  */
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
