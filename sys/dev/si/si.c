@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.49 1996/07/26 16:55:37 peter Exp $
+ *	$Id: si.c,v 1.50 1996/08/03 00:21:44 peter Exp $
  */
 
 #ifndef lint
@@ -82,7 +82,9 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
  * and a (programmable - SIHOST2) interrupt at IRQ 11,12 or 15.
  */
 
-#define	POLL		/* turn on poller to generate buffer empty interrupt */
+#define	POLL		/* turn on poller to scan for lost interrupts */
+#define REALPOLL	/* on each poll, scan for work regardless */
+#define POLLHZ	(hz/10)	/* 10 times per second */
 #define SI_DEF_HWFLOW	/* turn on default CRTSCTS flow control */
 #define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
 #define INT_COUNT 25000	/* max of 125 ints per second */
@@ -230,8 +232,10 @@ static int si_default_cflag =	TTYDEF_CFLAG;
 
 #ifdef POLL
 static int si_pollrate;			/* in addition to irq */
+static int si_realpoll;			/* poll HW on timer */
 
 SYSCTL_INT(_machdep, OID_AUTO, si_pollrate, CTLFLAG_RW, &si_pollrate, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, si_realpoll, CTLFLAG_RW, &si_realpoll, 0, "");
 		 
 static int init_finished = 0;
 static void si_poll __P((void *));
@@ -288,7 +292,10 @@ siprobe(id)
 
 	si_registerdev(id);
 
-	si_pollrate = (hz / 10);	/* 10 per second */
+	si_pollrate = POLLHZ;		/* default 10 per second */
+#ifdef REALPOLL
+	si_realpoll = 1;		/* scan always */
+#endif
 
 	maddr = id->id_maddr;		/* virtual address... */
 	paddr = (caddr_t)vtophys(id->id_maddr);	/* physical address... */
@@ -1737,7 +1744,7 @@ si_poll(void *nothing)
 			}
 		}
 	}
-	if (lost)
+	if (lost || si_realpoll)
 		siintr(-1);	/* call intr with fake vector */
 out:
 	splx(oldspl);
