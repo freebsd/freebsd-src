@@ -96,11 +96,11 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 	struct iconv_xlat16 *dp = (struct iconv_xlat16*)d2p;
 	const char *src;
 	char *dst;
-	int ret = 0;
+	int nullin, ret = 0;
 	size_t in, on, ir, or, inlen;
 	uint32_t code;
 	u_char u, l;
-	u_int16_t c1, c2;
+	uint16_t c1, c2;
 
 	if (inbuf == NULL || *inbuf == NULL || outbuf == NULL || *outbuf == NULL)
 		return (0);
@@ -146,7 +146,8 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			}
 		}
 
-		if ((inlen == 1) && (code & XLAT16_ACCEPT_NULL_IN)) {
+		nullin = (code & XLAT16_ACCEPT_NULL_IN) ? 1 : 0;
+		if (inlen == 1 && nullin) {
 			/*
 			 * XLAT16_ACCEPT_NULL_IN requires inbuf has 2byte
 			 */
@@ -157,6 +158,14 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 		/*
 		 * now start translation
 		 */
+		if ((casetype == KICONV_FROM_LOWER && code & XLAT16_HAS_FROM_LOWER_CASE) ||
+		    (casetype == KICONV_FROM_UPPER && code & XLAT16_HAS_FROM_UPPER_CASE)) {
+			c2 = (u_char)(code >> 16);
+			c1 = c2 & 0x80 ? 0x100 : 0;
+			c2 = c2 & 0x80 ? c2 & 0x7f : c2;
+			code = dp->d_table[c1][c2];
+		}
+
 		u = (u_char)(code >> 8);
 		l = (u_char)code;
 
@@ -184,9 +193,6 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			if ((casetype == KICONV_LOWER && code & XLAT16_HAS_LOWER_CASE) ||
 			    (casetype == KICONV_UPPER && code & XLAT16_HAS_UPPER_CASE))
 				*dst++ = (u_char)(code >> 16);
-			else if ((casetype == KICONV_FROM_LOWER && code & XLAT16_HAS_FROM_LOWER_CASE) ||
-				 (casetype == KICONV_FROM_UPPER && code & XLAT16_HAS_FROM_UPPER_CASE))
-				*dst++ = dp->d_table[0][(u_char)(code >> 16)];
 			else
 				*dst++ = l;
 			or--;
@@ -197,8 +203,7 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			 * there is a case that inbuf char is a single
 			 * byte char while inlen == 2
 			 */
-			if ((u_char)*(src+1) == 0 &&
-			    (code & XLAT16_ACCEPT_NULL_IN) == 0 ) {
+			if ((u_char)*(src+1) == 0 && !nullin ) {
 				src++;
 				ir--;
 			} else {

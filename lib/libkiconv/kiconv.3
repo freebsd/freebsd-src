@@ -30,6 +30,7 @@
 .Os
 .Sh NAME
 .Nm kiconv_add_xlat16_cspair ,
+.Nm kiconv_add_xlat16_cspairs ,
 .Nm kiconv_add_xlat16_table
 .Nd Kernel side iconv library
 .Sh LIBRARY
@@ -41,6 +42,11 @@
 .Fa "const char *tocode"
 .Fa "const char *fromcode"
 .Fa "int flag"
+.Fc
+.Ft int
+.Fo kiconv_add_xlat16_cspairs
+.Fa "const char *foreigncode"
+.Fa "const char *localcode"
 .Fc
 .Ft int
 .Fo kiconv_add_xlat16_table
@@ -92,6 +98,17 @@ or toupper
 .Pp
 A tolower/toupper conversion is limited to single-byte characters.
 .Pp 
+.Fn kiconv_add_xlat16_cspairs
+defines two conversion tables which are from
+.Ar localcode
+to
+.Ar foreigncode
+and from
+.Ar foreigncode
+to
+.Ar localcode .
+This conversion tables also contain both of tolower and toupper tables.
+.Pp
 .Fn kiconv_add_xlat16_table
 defines a conversion table directly pointed by
 .Ar data
