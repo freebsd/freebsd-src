@@ -749,6 +749,7 @@ thread_suspend_check(int return_instead)
 		td->td_state = TDS_SUSPENDED;
 		TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
 		PROC_UNLOCK(p);
+		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
