@@ -210,6 +210,8 @@ static int
 feed_16to8_init(struct pcm_feeder *f)
 {
 	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_NOWAIT | M_ZERO);
+	if (f->data == NULL)
+		return ENOMEM;
 	return 0;
 }
 
@@ -319,6 +321,8 @@ static int
 feed_stereotomono8_init(struct pcm_feeder *f)
 {
 	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_NOWAIT | M_ZERO);
+	if (f->data == NULL)
+		return ENOMEM;
 	return 0;
 }
 
@@ -364,6 +368,8 @@ static int
 feed_stereotomono16_init(struct pcm_feeder *f)
 {
 	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_NOWAIT | M_ZERO);
+	if (f->data == NULL)
+		return ENOMEM;
 	return 0;
 }
 
