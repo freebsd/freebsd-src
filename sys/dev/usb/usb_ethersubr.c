@@ -63,6 +63,7 @@
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/netisr.h>
+#include <net/bpf.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ethersubr.h>
@@ -86,6 +87,7 @@ static void usbintr()
 {
 	struct ether_header	*eh;
 	struct mbuf		*m;
+	struct usb_qdat		*q;
 	struct ifnet		*ifp;
 	struct usb_ifent	*e;
 	int			s;
@@ -98,9 +100,32 @@ static void usbintr()
 		if (m == NULL)
 			break;
 		eh = mtod(m, struct ether_header *);
+		q = (struct usb_qdat *)m->m_pkthdr.rcvif;
+		ifp = q->ifp;
+		m->m_pkthdr.rcvif = ifp;
+		/*
+		 * Handle BPF listeners. Let the BPF user see the packet, but
+		 * don't pass it up to the ether_input() layer unless it's
+		 * a broadcast packet, multicast packet, matches our ethernet
+		 * address or the interface is in promiscuous mode.
+		 */
+		if (ifp->if_bpf) {
+			bpf_mtap(ifp, m);
+			if (ifp->if_flags & IFF_PROMISC &&
+			    (bcmp(eh->ether_dhost,
+			    ((struct arpcom *)ifp->if_softc)->ac_enaddr,
+			    ETHER_ADDR_LEN) && !(eh->ether_dhost[0] & 1))) {
+				m_freem(m);
+				goto done;
+                	}
+		}
+
 		m_adj(m, sizeof(struct ether_header));
-		ifp = m->m_pkthdr.rcvif;
 		ether_input(ifp, eh, m);
+done:
+
+		/* Re-arm the receiver */
+		(*q->if_rxstart)(ifp);
 		if (ifp->if_snd.ifq_head != NULL)
 			(*ifp->if_start)(ifp);
 	}
