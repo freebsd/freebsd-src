@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.29 1999/07/08 16:15:18 marcel Exp $
+ *	$Id: linux.h,v 1.30 1999/07/17 08:24:57 marcel Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -164,6 +164,20 @@ struct trapframe;
 #define LINUX_SIG_BLOCK		0
 #define LINUX_SIG_UNBLOCK	1
 #define LINUX_SIG_SETMASK	2
+
+/* resource limits */
+#define LINUX_RLIMIT_CPU        0
+#define LINUX_RLIMIT_FSIZE      1
+#define LINUX_RLIMIT_DATA       2
+#define LINUX_RLIMIT_STACK      3
+#define LINUX_RLIMIT_CORE       4
+#define LINUX_RLIMIT_RSS        5
+#define LINUX_RLIMIT_NPROC      6
+#define LINUX_RLIMIT_NOFILE     7
+#define LINUX_RLIMIT_MEMLOCK    8
+#define LINUX_RLIMIT_AS         9       /* address space limit */
+
+#define LINUX_RLIM_NLIMITS      10
 
 /* keyboard defines */
 #define LINUX_KIOCSOUND		0x4B2F
