@@ -1368,7 +1368,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>IPFilter</title>
 
 	<para><application>IPFilter</application> has been updated to
-	  3.4.26.</para>
+	  3.4.27. &merged;</para>
 
 	<para><application>IPFilter</application> now supports
 	  IPv6. &merged;</para>
@@ -1379,9 +1379,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>isdn4bsd</title>
 
 	<para><application>isdn4bsd</application> has been updated to
-	  version 1.0.1. &merged;</para>
+	  version 1.0.2.</para>
 
 	<para>The &man.ifpi.4; driver for supporting the AVM
+	  Fritz!Card PCI controller has been added. &merged;</para>
+
+	<para>The &man.ifpi2.4; driver for supporting the AVM
 	  Fritz!Card PCI version 2 controller has been added. &merged;</para>
 
 	<para>The &man.ihfc.4; driver for supporting Cologne Chip
@@ -1413,6 +1416,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<para>&man.isdnphone.8; now supports a <option>-k</option>
 	  option for sending messages via the keypad facility to a PBX
 	  or exchange office. &merged;</para>
+
+	<para><application>isdn4bsd</application> now supports Q.931
+	  subaddressing.</para>
+
       </sect4>
 
       <sect4 id="kame-kernel">
