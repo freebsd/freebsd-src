@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.21 1995/07/24 16:33:51 wollman Exp $
+ *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
+ *	$Id: raw_ip.c,v 1.22 1995/09/21 19:59:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -200,22 +200,22 @@ rip_ctloutput(op, so, level, optname, m)
 	switch (optname) {
 
 	case IP_HDRINCL:
-		if (op == PRCO_SETOPT || op == PRCO_GETOPT) {
+		error = 0;
+		if (op == PRCO_SETOPT) {
 			if (m == 0 || *m == 0 || (*m)->m_len < sizeof (int))
-				return (EINVAL);
-			if (op == PRCO_SETOPT) {
-				if (*mtod(*m, int *))
-					inp->inp_flags |= INP_HDRINCL;
-				else
-					inp->inp_flags &= ~INP_HDRINCL;
+				error = EINVAL;
+			else if (*mtod(*m, int *))
+				inp->inp_flags |= INP_HDRINCL;
+			else
+				inp->inp_flags &= ~INP_HDRINCL;
+			if (*m)
 				(void)m_free(*m);
-			} else {
-				(*m)->m_len = sizeof (int);
-				*mtod(*m, int *) = inp->inp_flags & INP_HDRINCL;
-			}
-			return (0);
+		} else {
+			*m = m_get(M_WAIT, MT_SOOPTS);
+			(*m)->m_len = sizeof (int);
+			*mtod(*m, int *) = inp->inp_flags & INP_HDRINCL;
 		}
-		break;
+		return (error);
 
 	case IP_FW_ADD:
 	case IP_FW_DEL:
