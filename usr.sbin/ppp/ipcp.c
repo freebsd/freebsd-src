@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.9.2.4 1997/05/10 01:24:36 brian Exp $
+ * $Id: ipcp.c,v 1.9.2.5 1997/05/10 15:39:29 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -137,7 +137,7 @@ ReportIpcpStatus()
      inet_ntoa(DefHisAddress.ipaddr), DefHisAddress.width);
   printf(" Negotiation: %s/%d\n",
      inet_ntoa(DefTriggerAddress.ipaddr), DefTriggerAddress.width);
-  return 0;
+  return 1;
 }
 
 void
