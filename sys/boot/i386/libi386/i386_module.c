@@ -49,7 +49,7 @@ i386_autoload(void)
 
     /* autoload ACPI support */
     /* XXX should be in 4th keyed off acpi_load */
-    if ((getenv("acpi_load") && !getenv("hint.acpi.0.disable"))) {
+    if ((getenv("acpi_load") && !getenv("hint.acpi.0.disabled"))) {
 	error = mod_load("acpi", NULL, 0, NULL);
 	if (error != 0)
 	    printf("ACPI autoload failed - %s\n", strerror(error));

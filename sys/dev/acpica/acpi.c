@@ -2118,6 +2118,11 @@ out:
 static void
 acpi_pm_register(void *arg)
 {
+	int	error;
+
+    if (!resource_int_value("acpi", 0, "disabled", &error) &&
+       (error != 0))
+		return;
 
 	power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
 }
