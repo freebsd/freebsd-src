@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: interp_forth.c,v 1.1 1998/11/04 00:29:01 msmith Exp $
  */
 
 #include <stand.h>
@@ -90,7 +90,7 @@ bf_init(void)
 {
     struct bootblk_command	**cmdp;
     
-    ficlInitSystem(10000);	/* XXX what's the argument here? */
+    ficlInitSystem(3000);	/* Default dictionary ~2000 cells */
     bf_vm = ficlNewVM();
 
     /* make all commands appear as Forth words */
