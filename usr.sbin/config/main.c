@@ -90,7 +90,8 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 		perror(PREFIX);
 		exit(2);
 	}
-	if (stat(p = path((char *)NULL), &buf)) {
+	p = path((char *)NULL);
+	if (stat(p, &buf)) {
 		if (mkdir(p, 0777)) {
 			perror(p);
 			exit(2);
@@ -99,6 +100,23 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 	else if ((buf.st_mode & S_IFMT) != S_IFDIR) {
 		fprintf(stderr, "config: %s isn't a directory.\n", p);
 		exit(2);
+	}
+	else {
+		char tmp[strlen(p) + 8];
+
+		fprintf(stderr, "Removing old directory %s:  ", p);
+		fflush(stderr);
+		sprintf(tmp, "rm -rf %s", p);
+		if (system(tmp)) {
+			fprintf(stderr, "Failed!\n");
+			perror(tmp);
+			exit(2);
+		}
+		fprintf(stderr, "Done.\n");
+		if (mkdir(p, 0777)) {
+			perror(p);
+			exit(2);
+		}
 	}
 
 	loadaddress = -1;
