@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: if_ppp.h,v 1.9 1997/08/19 14:10:45 peter Exp $
+ * $Id: if_ppp.h,v 1.10 1997/10/17 21:30:30 roberto Exp $
  */
 
 #ifndef _IF_PPP_H_
@@ -116,7 +116,7 @@ struct ifpppcstatsreq {
 #define PPPIOCGNPMODE	_IOWR('t', 76, struct npioctl) /* get NP mode */
 #define PPPIOCSNPMODE	_IOW('t', 75, struct npioctl)  /* set NP mode */
 #define PPPIOCGIDLE	_IOR('t', 74, struct ppp_idle) /* get idle time */
-#ifdef NBPFILTER
+#if NBPFILTER > 0
 #define PPPIOCSPASS	_IOW('t', 71, struct bpf_program) /* set pass filter */
 #define PPPIOCSACTIVE	_IOW('t', 70, struct bpf_program) /* set active filt */
 #endif /* NBPFILTER */
