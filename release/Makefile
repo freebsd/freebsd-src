@@ -56,9 +56,8 @@ OBJFORMAT?=		elf
 # in English only.
 ALLLANG=	yes
 DOCPORTS=	textproc/docproj
-DISTFILES?=	${.CURDIR}/../../ports/distfiles
 # Set this to wherever the distfiles required by ${DOCPORTS} live.
-DOCDISTFILES?=	${DISTFILES}
+DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
