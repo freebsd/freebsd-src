@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #define KTR_ULE	KTR_NFS
 
-#error "The SCHED_ULE scheduler is broken.  Please use SCHED_4BSD"
-
 /* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 /* XXX This is bogus compatability crap for ps */
 static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
@@ -81,18 +79,6 @@ SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
 int realstathz;
 int tickincr = 1;
 
-#ifdef PREEMPTION
-static void
-printf_caddr_t(void *data)
-{
-	printf("%s", (char *)data);
-}
-static char preempt_warning[] =
-    "WARNING: Kernel PREEMPTION is unstable under SCHED_ULE.\n"; 
-SYSINIT(preempt_warning, SI_SUB_COPYRIGHT, SI_ORDER_ANY, printf_caddr_t,
-    preempt_warning)
-#endif
-
 /*
  * The schedulable entity that can be given a context to run.
  * A process may have several of these. Probably one per processor
@@ -101,13 +87,10 @@ SYSINIT(preempt_warning, SI_SUB_COPYRIGHT, SI_ORDER_ANY, printf_caddr_t,
  * for the group.
  */
 struct kse {
-	TAILQ_ENTRY(kse) ke_kglist;	/* (*) Queue of threads in ke_ksegrp. */
-	TAILQ_ENTRY(kse) ke_kgrlist;	/* (*) Queue of threads in this state.*/
 	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
 	int		ke_flags;	/* (j) KEF_* flags. */
 	struct thread	*ke_thread;	/* (*) Active associated thread. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
-	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
 	char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
 		KES_THREAD = 0x0,	/* slaved to thread state */
@@ -135,6 +118,8 @@ struct kse {
 #define	KEF_SCHED1	0x00002	/* For scheduler-specific use. */
 #define	KEF_SCHED2	0x00004	/* For scheduler-specific use. */
 #define	KEF_SCHED3	0x00008	/* For scheduler-specific use. */
+#define	KEF_SCHED4	0x00010 
+#define	KEF_SCHED5	0x00020 
 #define	KEF_DIDRUN	0x02000	/* Thread actually ran. */
 #define	KEF_EXIT	0x04000	/* Thread is being killed. */
 
@@ -149,6 +134,8 @@ struct kse {
 #define	KEF_BOUND	KEF_SCHED1	/* Thread can not migrate. */
 #define	KEF_XFERABLE	KEF_SCHED2	/* Thread was added as transferable. */
 #define	KEF_HOLD	KEF_SCHED3	/* Thread is temporarily bound. */
+#define	KEF_REMOVED	KEF_SCHED4	/* Thread was removed while ASSIGNED */
+#define	KEF_PRIOELEV	KEF_SCHED5	/* Thread has had its prio elevated. */
 
 struct kg_sched {
 	struct thread	*skg_last_assigned; /* (j) Last thread assigned to */
@@ -157,12 +144,10 @@ struct kg_sched {
 	int	skg_runtime;		/* Number of ticks we were running */
 	int	skg_avail_opennings;	/* (j) Num unfilled slots in group.*/
 	int	skg_concurrency;	/* (j) Num threads requested in group.*/
-	int	skg_runq_threads;	/* (j) Num KSEs on runq. */
 };
 #define kg_last_assigned	kg_sched->skg_last_assigned
 #define kg_avail_opennings	kg_sched->skg_avail_opennings
 #define kg_concurrency		kg_sched->skg_concurrency
-#define kg_runq_threads		kg_sched->skg_runq_threads
 #define kg_runtime		kg_sched->skg_runtime
 #define kg_slptime		kg_sched->skg_slptime
 
@@ -250,8 +235,7 @@ static struct kg_sched kg_sched0;
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 #define	SCHED_CURR(kg, ke)						\
-    (ke->ke_thread->td_priority < kg->kg_user_pri ||			\
-    SCHED_INTERACTIVE(kg))
+    ((ke->ke_flags & KEF_PRIOELEV) || SCHED_INTERACTIVE(kg))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -714,6 +698,7 @@ kseq_assign(struct kseq *kseq)
 	for (; ke != NULL; ke = nke) {
 		nke = ke->ke_assign;
 		ke->ke_flags &= ~KEF_ASSIGNED;
+		SLOT_RELEASE(ke->ke_thread->td_ksegrp);
 		sched_add_internal(ke->ke_thread, 0);
 	}
 }
@@ -728,6 +713,7 @@ kseq_notify(struct kse *ke, int cpu)
 
 	ke->ke_cpu = cpu;
 	ke->ke_flags |= KEF_ASSIGNED;
+	SLOT_USE(ke->ke_thread->td_ksegrp);
 	prio = ke->ke_thread->td_priority;
 
 	kseq = KSEQ_CPU(cpu);
@@ -869,8 +855,9 @@ migrate:
 static struct kse *
 kseq_choose(struct kseq *kseq)
 {
-	struct kse *ke;
 	struct runq *swap;
+	struct kse *ke;
+	int nice;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	swap = NULL;
@@ -893,7 +880,9 @@ kseq_choose(struct kseq *kseq)
 		 * TIMESHARE kse group and its nice was too far out
 		 * of the range that receives slices. 
 		 */
-		if (ke->ke_slice == 0) {
+		nice = ke->ke_proc->p_nice + (0 - kseq->ksq_nicemin);
+		if (ke->ke_slice == 0 || (nice > SCHED_SLICE_NTHRESH &&
+		    ke->ke_proc->p_nice != 0)) {
 			runq_remove(ke->ke_runq, ke);
 			sched_slice(ke);
 			ke->ke_runq = kseq->ksq_next;
@@ -1050,6 +1039,11 @@ sched_slice(struct kse *ke)
 	kg = ke->ke_ksegrp;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 
+	if (ke->ke_flags & KEF_PRIOELEV) {
+		ke->ke_slice = SCHED_SLICE_MIN;
+		return;
+	}
+
 	/*
 	 * Rationale:
 	 * KSEs in interactive ksegs get a minimal slice so that we
@@ -1176,7 +1170,6 @@ schedinit(void)
 	ksegrp0.kg_sched = &kg_sched0;
 	thread0.td_sched = &kse0;
 	kse0.ke_thread = &thread0;
-	kse0.ke_oncpu = NOCPU; /* wrong.. can we use PCPU(cpuid) yet? */
 	kse0.ke_state = KES_THREAD;
 	kg_sched0.skg_concurrency = 1;
 	kg_sched0.skg_avail_opennings = 0; /* we are already running */
@@ -1228,13 +1221,15 @@ sched_prio(struct thread *td, u_char prio)
 		 * queue.  We still call adjustrunqueue below in case kse
 		 * needs to fix things up.
 		 */
-		if (prio < td->td_priority && ke &&
+		if (prio < td->td_priority && ke->ke_runq != NULL &&
 		    (ke->ke_flags & KEF_ASSIGNED) == 0 &&
 		    ke->ke_runq != KSEQ_CPU(ke->ke_cpu)->ksq_curr) {
 			runq_remove(ke->ke_runq, ke);
 			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
 			runq_add(ke->ke_runq, ke, 0);
 		}
+		if (prio < td->td_priority)
+			ke->ke_flags |= KEF_PRIOELEV;
 		/*
 		 * Hold this kse on this cpu so that sched_prio() doesn't
 		 * cause excessive migration.  We only want migration to
@@ -1635,12 +1630,21 @@ void
 sched_userret(struct thread *td)
 {
 	struct ksegrp *kg;
+	struct kse *ke;
 
 	kg = td->td_ksegrp;
+	ke = td->td_kse;
 	
-	if (td->td_priority != kg->kg_user_pri) {
+	if (td->td_priority != kg->kg_user_pri ||
+	    ke->ke_flags & KEF_PRIOELEV) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
+		if (ke->ke_flags & KEF_PRIOELEV) {
+			ke->ke_flags &= ~KEF_PRIOELEV;
+			sched_slice(ke);
+			if (ke->ke_slice == 0)
+				mi_switch(SW_INVOL, NULL);
+		}
 		mtx_unlock_spin(&sched_lock);
 	}
 }
@@ -1712,8 +1716,13 @@ sched_add_internal(struct thread *td, int preemptive)
 	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
-	if (ke->ke_flags & KEF_ASSIGNED)
+	if (ke->ke_flags & KEF_ASSIGNED) {
+		if (ke->ke_flags & KEF_REMOVED) {
+			SLOT_USE(ke->ke_ksegrp);
+			ke->ke_flags &= ~KEF_REMOVED;
+		}
 		return;
+	}
 	kseq = KSEQ_SELF();
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("sched_add: kse %p (%s) already in run queue", ke,
@@ -1800,7 +1809,6 @@ sched_add_internal(struct thread *td, int preemptive)
 	if (preemptive && maybe_preempt(td))
 		return;
 	SLOT_USE(td->td_ksegrp);
-	ke->ke_ksegrp->kg_runq_threads++;
 	ke->ke_state = KES_ONRUNQ;
 
 	kseq_runq_add(kseq, ke);
@@ -1813,6 +1821,7 @@ sched_rem(struct thread *td)
 	struct kseq *kseq;
 	struct kse *ke;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
 	/*
 	 * It is safe to just return here because sched_rem() is only ever
@@ -1820,15 +1829,16 @@ sched_rem(struct thread *td)
 	 * kse back on again.  In that case it'll be added with the correct
 	 * thread and priority when the caller drops the sched_lock.
 	 */
-	if (ke->ke_flags & KEF_ASSIGNED)
+	if (ke->ke_flags & KEF_ASSIGNED) {
+		SLOT_RELEASE(td->td_ksegrp);
+		ke->ke_flags |= KEF_REMOVED;
 		return;
-	mtx_assert(&sched_lock, MA_OWNED);
+	}
 	KASSERT((ke->ke_state == KES_ONRUNQ),
 	    ("sched_rem: KSE not on run queue"));
 
-	ke->ke_state = KES_THREAD;
 	SLOT_RELEASE(td->td_ksegrp);
-	ke->ke_ksegrp->kg_runq_threads--;
+	ke->ke_state = KES_THREAD;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 	kseq_runq_rem(kseq, ke);
 	kseq_load_rem(kseq, ke);
@@ -1881,7 +1891,6 @@ sched_bind(struct thread *td, int cpu)
 		return;
 	/* sched_rem without the runq_remove */
 	ke->ke_state = KES_THREAD;
-	ke->ke_ksegrp->kg_runq_threads--;
 	kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 	kseq_notify(ke, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
