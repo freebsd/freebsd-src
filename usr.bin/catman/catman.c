@@ -84,7 +84,7 @@ static const char *locale_device[] = {
 #define	BZ2_CMD		"bzip2"
 #define	BZ2_EXT		".bz2"
 #define	BZ2CAT_CMD	"bz"
-#define	GZ_CMD		"gzip -n"
+#define	GZ_CMD		"gzip"
 #define	GZ_EXT		".gz"
 #define	GZCAT_CMD	"z"
 enum Ziptype {NONE, BZIP, GZIP};
@@ -461,9 +461,11 @@ process_page(char *mandir, char *src, char *cat, enum Ziptype zipped)
 	}
 	snprintf(tmp_file, sizeof tmp_file, "%s.tmp", cat);
 	snprintf(cmd, sizeof cmd,
-	    "%scat %s | tbl | nroff -T%s -man | col | %s -c > %s.tmp",
+	    "%scat %s | tbl | nroff -T%s -man | col | %s > %s.tmp",
 	    zipped == BZIP ? BZ2CAT_CMD : zipped == GZIP ? GZCAT_CMD : "",
-	    src, nroff_device, zipped == GZIP ? GZ_CMD : BZ2_CMD, cat);
+	    src, nroff_device,
+	    zipped == BZIP ? BZ2_CMD : zipped == GZIP ? GZ_CMD : "cat",
+	    cat);
 	if (system(cmd) != 0)
 		err(1, "formatting pipeline");
 	if (rename(tmp_file, cat) < 0)
@@ -541,11 +543,11 @@ scan_section(char *mandir, char *section, char *cat_section)
 						"warning, %s is uncompressed\n",
 						page_path);
 				}
-				snprintf(cat_path, sizeof cat_path, "%s/%s%s",
-				    cat_section, page_name, GZ_EXT);
+				snprintf(cat_path, sizeof cat_path, "%s/%s",
+				    cat_section, page_name);
 				if (expected != NULL) {
 					asprintf(&expected[nexpected++],
-					    "%s%s", page_name, GZ_EXT);
+					    "%s", page_name);
 				}
 				process_page(mandir, page_path, cat_path, NONE);
 			}
