@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.17 1994/08/18 22:34:46 wollman Exp $
+ *	$Id: cpufunc.h,v 1.18 1994/08/23 11:57:19 paul Exp $
  */
 
 /*
@@ -70,16 +70,8 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
-/*
- * This roundabout method of returning a u_char helps stop gcc-1.40 from
- * generating unnecessary movzbl's.
- */
-#ifdef disable_for_gcc-2_6_0
-#define	inb(port)	((u_char) u_int_inb(port))
-#endif
-
-static inline u_int
-u_int_inb(u_int port)
+static inline u_char
+inb(u_int port)
 {
 	u_char	data;
 	/*
