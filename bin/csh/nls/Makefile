@@ -1,10 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= finnish french german italian spanish
-
-.if defined(WANT_KANJI)
-SUBDIR+= ja
-.endif
+SUBDIR= finnish french ja german italian spanish
 
 # We are not ready for greek yet
 #SUBDIR+= greek
