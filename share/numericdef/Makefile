@@ -30,8 +30,6 @@ LOCALES=	af_ZA.ISO8859-1 \
 		pt_BR.ISO8859-1 \
 		pt_PT.ISO8859-1 \
 		ro_RO.ISO8859-2 \
-		ru_RU.CP866 \
-		ru_RU.ISO8859-5 \
 		ru_RU.KOI8-R \
 		sk_SK.ISO8859-2 \
 		sl_SI.ISO8859-2 \
@@ -55,8 +53,8 @@ GB_LINKS=	en_AU en_NZ
 FR_LINKS=	fr_CA fr_CH
 DE_LINKS=	de_AT de_CH
 IT_LINKS=	it_CH
-
 BE_LINKS=	nl_BE
+RU_LINKS        ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5
 
 .SUFFIXES: .src .out
 
@@ -113,6 +111,10 @@ afterinstall:
 		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
 	ln -sf ../fr_BE.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+.endfor
+.for link in ${RU_LINKS}
+	ln -sf ../ru_RU.KOI8-R/LC_NUMERIC \
+		${LOCALEDIR}/${link}/LC_NUMERIC
 .endfor
 .for link in ${ASCIILINKS}
 	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
