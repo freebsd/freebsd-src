@@ -15,16 +15,10 @@ AFLAGS+=--defsym PC98=1
 
 CLEANFILES=${FILES}
 
-M4?=	m4
-
 BOOT_COMCONSOLE_PORT?=	0x238
 M4FLAGS+=-DSIOPRT=${BOOT_COMCONSOLE_PORT}
 
 kgzldr.o: ${OBJS}
 	${CC} ${LDFLAGS} -o ${.TARGET} ${OBJS}
-
-.s.o:
-	(cd ${.CURDIR}; ${M4} ${M4FLAGS} ../../i386/kgzldr/kgzldr.m4 ${.IMPSRC}) |\
-		${AS} ${AFLAGS} -o ${.TARGET}
 
 .include <bsd.prog.mk>
