@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rs.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -47,6 +51,7 @@ static char sccsid[] = "@(#)rs.c	8.1 (Berkeley) 6/6/93";
  *		BEWARE: lots of unfinished edges
  */
 
+#include <err.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,7 +93,6 @@ int	propgutter;
 char	isep = ' ', osep = ' ';
 int	owidth = 80, gutter = 2;
 
-void	  error __P((char *, char *));
 void	  getargs __P((int, char *[]));
 void	  getfile __P((void));
 int	  getline __P((void));
@@ -98,6 +102,7 @@ char	**getptrs __P((char **));
 void	  prepfile __P((void));
 void	  prints __P((char *, int));
 void	  putfile __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -222,14 +227,11 @@ prints(s, col)
 		putchar(osep);
 }
 
-void
-error(msg, s)
-	char *msg, *s;
+static void
+usage()
 {
-	fprintf(stderr, "rs:  ");
-	fprintf(stderr, msg, s);
 	fprintf(stderr,
-"\nUsage:  rs [ -[csCS][x][kKgGw][N]tTeEnyjhHm ] [ rows [ cols ] ]\n");
+		"usage: rs [-[csCS][x][kKgGw][N]tTeEnyjhHmz] [rows [cols]]\n");
 	exit(1);
 }
 
@@ -255,7 +257,8 @@ prepfile()
 	else if (orows == 0 && ocols == 0) {	/* decide rows and cols */
 		ocols = owidth / colw;
 		if (ocols == 0)
-			fprintf(stderr, "Display width %d is less than column width %d\n", owidth, colw);
+			warnx("display width %d is less than column width %d",
+					owidth, colw);
 		if (ocols > nelem)
 			ocols = nelem;
 		orows = nelem / ocols + (nelem % ocols ? 1 : 0);
@@ -275,7 +278,7 @@ prepfile()
 		nelem = lp - elem;
 	}
 	if (!(colwidths = (short *) malloc(ocols * sizeof(short))))
-		error("malloc:  No gutter space", "");
+		errx(1, "malloc");
 	if (flags & SQUEEZE) {
 		if (flags & TRANSPOSE)
 			for (ep = elem, i = 0; i < ocols; i++) {
@@ -316,8 +319,7 @@ prepfile()
 	if (n > nelem && (flags & RECYCLE))
 		nelem = n;
 	/*for (i = 0; i < ocols; i++)
-		fprintf(stderr, "%d ",colwidths[i]);
-	fprintf(stderr, "is colwidths, nelem %d\n", nelem);*/
+		warnx("%d is colwidths, nelem %d", colwidths[i], nelem);*/
 }
 
 #define	BSIZE	2048
@@ -344,7 +346,7 @@ getline()	/* get line; maintain curline, curlen; manage storage */
 		/*ww = endblock-curline; tt += ww;*/
 		/*printf("#wasted %d total %d\n",ww,tt);*/
 		if (!(curline = (char *) malloc(BSIZE)))
-			error("File too large", "");
+			errx(1, "file too large");
 		endblock = curline + BSIZE;
 		/*printf("#endb %d curline %d\n",endblock,curline);*/
 	}
@@ -364,10 +366,8 @@ getptrs(sp)
 
 	for (;;) {
 		allocsize += allocsize;
-		if (!(p = (char **) malloc(allocsize * sizeof(char *)))) {
-			perror("rs");
-			exit(1);
-		}
+		if (!(p = (char **) malloc(allocsize * sizeof(char *))))
+			errx(1, "malloc");
 		if ((endelem = p + allocsize - icols) <= p) {
 			free(p);
 			continue;
@@ -419,7 +419,7 @@ getargs(ac, av)
 			case 'w':		/* window width, default 80 */
 				p = getnum(&owidth, p, 0);
 				if (owidth <= 0)
-				error("Width must be a positive integer", "");
+					errx(1, "width must be a positive integer");
 				break;
 			case 'K':			/* skip N lines */
 				flags |= SKIPPRINT;
@@ -475,7 +475,7 @@ getargs(ac, av)
 				p = getlist(&ocbd, p);
 				break;
 			default:
-				error("Bad flag:  %.1s", p);
+				usage();
 			}
 	/*if (!osep)
 		osep = isep;*/
@@ -489,7 +489,7 @@ getargs(ac, av)
 	case 0:
 		break;
 	default:
-		error("Too many arguments.  What do you mean by `%s'?", av[3]);
+		errx(1, "too many arguments");
 	}
 }
 
@@ -503,7 +503,8 @@ getlist(list, p)
 
 	for (t = p + 1; *t; t++) {
 		if (!isdigit(*t))
-			error("Option %.1s requires a list of unsigned numbers separated by commas", t);
+			errx(1,
+	"option %.1s requires a list of unsigned numbers separated by commas", t);
 		count++;
 		while (*t && isdigit(*t))
 			t++;
@@ -511,7 +512,7 @@ getlist(list, p)
 			break;
 	}
 	if (!(*list = (short *) malloc(count * sizeof(short))))
-		error("No list space", "");
+		errx(1, "no list space");
 	count = 0;
 	for (t = p + 1; *t; t++) {
 		(*list)[count++] = atoi(t);
@@ -535,7 +536,7 @@ getnum(num, p, strict)	/* num = number p points to; if (strict) complain */
 
 	if (!isdigit(*++t)) {
 		if (strict || *t == '-' || *t == '+')
-			error("Option %.1s requires an unsigned integer", p);
+			errx(1, "option %.1s requires an unsigned integer", p);
 		*num = 0;
 		return(p);
 	}
