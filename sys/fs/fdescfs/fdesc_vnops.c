@@ -72,7 +72,6 @@ static vop_t **fdesc_vnodeop_p;
 static LIST_HEAD(fdhashhead, fdescnode) *fdhashtbl;
 static u_long fdhash;
 
-static int	fdesc_badop __P((void));
 static int	fdesc_getattr __P((struct vop_getattr_args *ap));
 static int	fdesc_inactive __P((struct vop_inactive_args *ap));
 static int	fdesc_lookup __P((struct vop_lookup_args *ap));
@@ -542,17 +541,6 @@ fdesc_print(ap)
 
 	printf("tag VT_NON, fdesc vnode\n");
 	return (0);
-}
-
-/*
- * /dev/fd "should never get here" operation
- */
-static int
-fdesc_badop()
-{
-
-	panic("fdesc: bad op");
-	/* NOTREACHED */
 }
 
 static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
