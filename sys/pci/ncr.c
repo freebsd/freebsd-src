@@ -3880,7 +3880,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		int segments;
 		u_int8_t nego;
 		u_int8_t idmsg;
-		u_int8_t qidx;
+		int qidx;
 		
 		tp = &np->target[ccb->ccb_h.target_id];
 		csio = &ccb->csio;
@@ -4154,7 +4154,8 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		*/
 
 		qidx = np->squeueput + 1;
-		if (qidx >= MAX_START) qidx=0;
+		if (qidx >= MAX_START)
+			qidx = 0;
 		np->squeue [qidx	 ] = NCB_SCRIPT_PHYS (np, idle);
 		np->squeue [np->squeueput] = CCB_PHYS (cp, phys);
 		np->squeueput = qidx;
