@@ -273,7 +273,7 @@ s/\$//g
 	    || $2 == "NOIMPL" || $2 == "NOSTD" {
 		parseline()
 		if ((!nosys || funcname != "nosys") && \
-		    (funcname != "lkmnosys")) {
+		    (funcname != "lkmnosys") && (funcname != "lkmressys")) {
 			if (argc != 0 && $2 != "NOARGS" && $2 != "NOPROTO") {
 				printf("struct\t%s {\n", argalias) > sysarg
 				for (i = 1; i <= argc; i++)
@@ -302,7 +302,7 @@ s/\$//g
 			printf("%s },", "nosys") > sysent
 			column = column + length("nosys") + 3
 		} else if ($2 == "NOSTD") {
-			printf("%s },", "lkmnosys") > sysent
+			printf("%s },", "lkmressys") > sysent
 			column = column + length("lkmnosys") + 3
 		} else {
 			printf("%s },", funcname) > sysent
