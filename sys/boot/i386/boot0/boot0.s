@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.2 1998/10/09 17:19:51 rnordier Exp $
+#	$Id: boot0.s,v 1.3 1998/10/10 14:03:03 rnordier Exp $
 
 # A 512-byte boot manager.
 
@@ -119,7 +119,6 @@ main.10:	cwtl 				# Option
 		movwir(0x301,_ax)		# Write sector
 		callwi(intx13)			#  to disk
 		popl %esi			# Restore
-		jc main.5			# If error
 main.11:	movwir(LOAD,_bx)		# Address for read
 		movwir(0x201,_ax)		# Read sector
 		callwi(intx13)			#  from disk
@@ -158,10 +157,21 @@ putchr:		pushl %ebx			# Save
 
 # Disk I/O
 
-intx13:		movb1r(0x1,_si_,_dh)		# Load head
+intx13:		cli				# Disable interrupts
+		movb1r(0x1,_si_,_dh)		# Load head
 		movw1r(0x2,_si_,_cx)		# Load cylinder:sector
 		o16				# Load
 		movw1r(0x8,_si_,_di)		#  offset
+		movwir(break,_si)		# Packet pointer
+		movbi0(0x10,_si_)		# Packet size
+		movbr1(_al,0x2,_si_)		# Block count
+		movwr1(_bx,0x4,_si_)		# Transfer
+		movws1(_es,0x6,_si_)		#  buffer
+		o16				# LBA
+		movwr1(_di,0x8,_si_)		#  address
+		sti				# Enable interrupts
+		tstbim(0x80,flags)		# Try for extensions?
+		jz intx13.2			# No
 		pushl %ecx			# Save
 		pushl %ebx			#  caller's
 		movwir(0x55aa,_bx)		# Magic
@@ -179,13 +189,6 @@ intx13.1:	popl %ebx			# Restore
 		popl %ecx			#  caller's
 		testb $0x40,%ah			# Use EDD?
 		jz intx13.2			# No
-		movwir(break,_si)		# Packet pointer
-		movbi0(0x10,_si_)		# Packet size
-		movbr1(_al,0x2,_si_)		# Block count
-		movwr1(_bx,0x4,_si_)		# Transfer
-		movws1(_es,0x6,_si_)		#  buffer
-		o16				# LBA
-		movwr1(_di,0x8,_si_)		#  address
 		xorb %al,%al			# Verify off
 intx13.2:	int $0x13			# BIOS: Disk I/O
 		ret				# To caller
@@ -221,10 +224,11 @@ os_linux:	.ascii "Linu"; .byte 'x'|0x80
 os_freebsd:	.ascii "Free"
 os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 
-		.org PRT_OFF-0x3,0x90
+		.org PRT_OFF-0x4,0x90
 
-opt:		.byte 0x1			# Option
-ticks:		.word 0xb6			# Delay
+opt:		.byte 0x0			# Option
+flags:		.byte FLAGS			# Flags
+ticks:		.word TICKS			# Delay
 
 partbl:		.fill 0x40,0x1,0x0		# Partition table
 		.word 0xaa55			# Magic number
