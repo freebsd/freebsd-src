@@ -25,18 +25,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: poll.h,v 1.2 1997/09/14 05:38:03 peter Exp $
+ *	$Id: poll.h,v 1.3 1997/12/15 03:09:48 wollman Exp $
  */
 
 #ifndef _SYS_POLL_H_
 #define	_SYS_POLL_H_
 
 /*
- * This file is intended to be compatable with the traditional poll.h
+ * This file is intended to be compatable with the traditional poll.h.
  */
 
 /*
- * This structure is passed as an array to poll(2)
+ * This structure is passed as an array to poll(2).
  */
 struct pollfd {
 	int	fd;		/* which file descriptor to poll */
@@ -83,19 +83,26 @@ struct pollfd {
 			 POLLWRBAND|POLLERR|POLLHUP|POLLNVAL)
 
 /*
- * Request that poll wait forever.
- * XXX this is in stropts.h in SYSV, and not #included by poll.h
+ * Request that poll() wait forever.
+ * XXX in SYSV, this is defined in stropts.h, which is not included
+ * by poll.h.
  */
-#define INFTIM (-1)
+#define	INFTIM		(-1)
 
-/* XXX: logically, this should be in <poll.h>, but SVR4 at least has it here */
 #ifndef KERNEL
+
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-/* XXX poll has "unsigned long" nfds on SVR4, not u_int as on the other BSD's */
-int	poll __P((struct pollfd *_pfd, u_int _nfds, int _timeout));
+/*
+ * XXX logically, poll() should be declared in <poll.h>, but SVR4 at
+ * least has it here in <sys/poll.h>.
+ * XXX poll() has "unsigned long" nfds on SVR4, not unsigned as on the
+ * other BSDs.
+ */
+int	poll __P((struct pollfd *_pfd, unsigned _nfds, int _timeout));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* !KERNEL */
+
 #endif /* !_SYS_POLL_H_ */
