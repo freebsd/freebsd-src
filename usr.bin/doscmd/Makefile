@@ -1,15 +1,13 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.3 1997/08/09 20:04:04 ache Exp $
+# $Id: Makefile,v 1.4 1997/08/12 16:08:02 ache Exp $
 
 PROG=	doscmd
 MAN1=   doscmd.1
-SRCS=	AsyncIO.c ParseBuffer.c \
-	bios.c callback.c cpu.c dos.c cmos.c config.c cwd.c debug.c disktab.c doscmd.c \
-	exe.c i386-pinsn.c int.c \
-	int10.c int13.c int14.c int16.c int17.c \
-	int1a.c int2f.c intff.c \
-	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c tty.c xms.c
+SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
+	cwd.c debug.c disktab.c doscmd.c exe.c i386-pinsn.c int.c int10.c \
+	int13.c int14.c int16.c int17.c int1a.c int2f.c intff.c mem.c mouse.c \
+	net.c port.c setver.c signal.c timer.c trace.c trap.c tty.c xms.c
 
 CLEANFILES=     doscmd.kernel crt0.o doscmd_loader.o instbsdi.exe
 

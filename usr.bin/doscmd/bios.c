@@ -29,7 +29,7 @@
  *
  *	BSDI bios.c,v 2.3 1996/04/08 19:32:19 bostic Exp
  *
- * $Id: bios.c,v 1.4 1996/09/22 15:42:47 miff Exp $
+ * $Id: bios.c,v 1.1 1997/08/09 01:42:33 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -137,7 +137,7 @@ int15(regcontext_t *REGS)
 	 */
 	break;
     case 0x88:
-	R_AX = 0;		/* memory past 1M */
+        get_raw_extmemory_info(REGS);
 	break;
     case 0xc0:	/* get configuration */
 	debug (D_TRAPS|0x15, "Get configuration\n", R_DX);
