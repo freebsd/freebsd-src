@@ -348,14 +348,16 @@ to check for new service requests to spawn new servers.
 Datagram servers which process all incoming datagrams
 on a socket and eventually time out are said to be
 .Dq single-threaded .
-.Xr Comsat 8 ,
+The
+.Xr comsat 8 ,
 .Pq Xr biff 1
 and
 .Xr talkd 8
-are both examples of the latter type of
+utilities are both examples of the latter type of
 datagram server.
-.Xr Tftpd 8
-is an example of a multi-threaded datagram server.
+The
+.Xr tftpd 8
+utility is an example of a multi-threaded datagram server.
 .Pp
 Servers using stream sockets generally are multi-threaded and
 use the
