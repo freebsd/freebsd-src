@@ -78,7 +78,7 @@ g_sunlabel_start(struct bio *bp)
 }
 
 static void
-g_sunlabel_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
+g_sunlabel_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct g_slicer *gsp;
 	struct g_sunlabel_softc *ms;
