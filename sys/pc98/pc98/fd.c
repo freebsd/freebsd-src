@@ -1899,26 +1899,29 @@ fdc_reset(fdc_p fdc)
 /*
  * FDC IO functions, take care of the main status register, timeout
  * in case the desired status bits are never set.
+ *
+ * These PIO loops initially start out with short delays between
+ * each iteration in the expectation that the required condition
+ * is usually met quickly, so it can be handled immediately.  After
+ * about 1 ms, stepping is increased to achieve a better timing
+ * accuracy in the calls to DELAY().
  */
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
-	int i, j = FDSTS_TIMEOUT;
-	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0) {
+	int i, j, step;
+
+	for (j = 0, step = 1;
+	    (i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM)) != (NE7_DIO|NE7_RQM) &&
+	    j < FDSTS_TIMEOUT;
+	    j += step) {
 		if (i == NE7_RQM)
 			return (fdc_err(fdc, "ready for output in input\n"));
-		/*
-		 * After (maybe) 1 msec of waiting, back off to larger
-		 * stepping to get the timing more accurate.
-		 */
-		if (FDSTS_TIMEOUT - j > 1000) {
-			DELAY(1000);
-			j -= 999;
-		} else
-			DELAY(1);
+		if (j == 1000)
+			step = 1000;
+		DELAY(step);
 	}
-	if (j <= 0)
+	if (j >= FDSTS_TIMEOUT)
 		return (fdc_err(fdc, bootverbose? "input ready timeout\n": 0));
 #ifdef	FDC_DEBUG
 	i = fddata_rd(fdc);
@@ -1936,36 +1939,19 @@ fd_in(struct fdc_data *fdc, int *ptr)
 int
 out_fdc(struct fdc_data *fdc, int x)
 {
-	int i;
+	int i, j, step;
 
-	/* Check that the direction bit is set */
-	i = FDSTS_TIMEOUT;
-	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0)
-		/*
-		 * After (maybe) 1 msec of waiting, back off to larger
-		 * stepping to get the timing more accurate.
-		 */
-		if (FDSTS_TIMEOUT - i > 1000) {
-			DELAY(1000);
-			i -= 999;
-		} else
-			DELAY(1);
-	if (i <= 0)
-		return (fdc_err(fdc, "direction bit not set\n"));
-
-	/* Check that the floppy controller is ready for a command */
-	i = FDSTS_TIMEOUT;
-	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0)
-		/*
-		 * After (maybe) 1 msec of waiting, back off to larger
-		 * stepping to get the timing more accurate.
-		 */
-		if (FDSTS_TIMEOUT - i > 1000) {
-			DELAY(1000);
-			i -= 999;
-		} else
-			DELAY(1);
-	if (i <= 0)
+	for (j = 0, step = 1;
+	    (i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM)) != NE7_RQM &&
+	    j < FDSTS_TIMEOUT;
+	    j += step) {
+		if (i == (NE7_DIO|NE7_RQM))
+			return (fdc_err(fdc, "ready for input in output\n"));
+		if (j == 1000)
+			step = 1000;
+		DELAY(step);
+	}
+	if (j >= FDSTS_TIMEOUT)
 		return (fdc_err(fdc, bootverbose? "output ready timeout\n": 0));
 
 	/* Send the command and return */
