@@ -2119,9 +2119,13 @@ going through the rule list.
 This may be fixed in a later version.
 .Pp
 Packets diverted to userland, and then reinserted by a userland process
-(such as
-.Xr natd 8 )
-will lose various packet attributes, including their source interface.
+may lose various packet attributes.
+The packet source interface name
+will be preserved if it is shorter than 8 bytes and the userland process
+saves and reuses the sockaddr_in
+(as does
+.Xr natd 8 ) ;
+otherwise, it may be lost.
 If a packet is reinserted in this manner, later rules may be incorrectly
 applied, making the order of
 .Cm divert
