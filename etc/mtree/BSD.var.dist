@@ -3,11 +3,11 @@
 #	date: Fri Jul 16 22:24:17 1993
 #
 
-/set type=dir owner=bin group=bin mode=0755
+/set type=dir uname=bin gname=bin mode=0755
 crash
 ..
 cron
-	tabs	owner=root group=wheel mode=0700
+	tabs	uname=root gname=wheel mode=0700
 	..
 ..
 db
@@ -25,16 +25,16 @@ run
 rwho
 ..
 spool
-	/set type=dir owner=bin group=daemon mode=0755
-	lock	owner=uucp
+	/set type=dir uname=bin gname=daemon mode=0755
+	lock	uname=uucp
 	..
 	lpd
 	..
-	mqueue	owner=root group=daemon
+	mqueue	uname=root gname=daemon
 	..
 	output
 	..
-	/set type=dir owner=uucp group=daemon mode=0755
+	/set type=dir uname=uucp gname=daemon mode=0755
 	uucp
 		.Preserve	
 		..
@@ -50,11 +50,11 @@ spool
 	uucppublic
 	..
 ..
-/set type=dir owner=bin group=bin mode=0755
+/set type=dir uname=bin gname=bin mode=0755
 tmp	mode=01777
 ..
 
-/set type=file owner=games group=bin mode=0755
+/set type=file uname=games gname=bin mode=0755
 games	type=dir
 	hackdir	type=dir
 	..
