@@ -415,7 +415,7 @@ struct air_phy_stat_rsp {
 /*
  * PF_ATM ioctls
  */
-#if defined(sun) && !defined(__GNUC__)
+#if !defined(__GNUC__)
 #define	AIOCCFG		_IOW(A, 128, struct atmcfgreq)	/* Configure i/f */
 #define	AIOCADD		_IOW(A, 129, struct atmaddreq)	/* Add (e.g. PVC) */
 #define	AIOCDEL		_IOW(A, 130, struct atmdelreq)	/* Delete */
