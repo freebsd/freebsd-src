@@ -31,7 +31,7 @@ To install DOS on a pseudo hard disk under doscmd:
     2)	Insert a floppy disk into the A: drive which is bootable to MS-DOS
 	and has the commands fdisk, format and sys on it.  You should also
 	copy the file redir.com onto the floppy by either mounting it
-	with the msdos file system type or by using mtools.
+	with the msdos filesystem type or by using mtools.
 
 		(i.e. mwrite redir.com a:)
 
