@@ -2703,6 +2703,9 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_RAID3_DEBUG(2, "Tasting %s.", pp->name);
+	/* Skip providers with 0 sectorsize. */
+	if (pp->sectorsize == 0)
+		return (NULL);
 
 	gp = g_new_geomf(mp, "raid3:taste");
 	/* This orphan function should be never called. */

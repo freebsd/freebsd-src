@@ -545,6 +545,9 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 
 	G_CONCAT_DEBUG(3, "Tasting %s.", pp->name);
+	/* Skip providers with 0 sectorsize. */
+	if (pp->sectorsize == 0)
+		return (NULL);
 
 	gp = g_new_geomf(mp, "concat:taste");
 	gp->start = g_concat_start;
