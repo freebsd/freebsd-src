@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.51 1995/07/21 14:41:43 bde Exp $
+ * $Id: tty.c,v 1.52 1995/07/21 16:30:51 bde Exp $
  */
 
 /*-
@@ -221,6 +221,9 @@ ttyopen(device, tp)
  * Handle close() on a tty line: flush and set to initial state,
  * bumping generation number so that pending read/write calls
  * can detect recycling of the tty.
+ * XXX our caller should have done `spltty(); l_close(); ttyclose();'
+ * and l_close() should have flushed, but we repeat the spltty() and
+ * the flush in case there are buggy callers.
  */
 int
 ttyclose(tp)
@@ -736,7 +739,9 @@ ttioctl(tp, cmd, data, flag)
 	case FIONBIO:			/* set/clear non-blocking i/o */
 		break;			/* XXX: delete. */
 	case FIONREAD:			/* get # bytes to read */
+		s = spltty();
 		*(int *)data = ttnread(tp);
+		splx(s);
 		break;
 	case TIOCEXCL:			/* set exclusive use of tty */
 		s = spltty();
@@ -909,7 +914,9 @@ ttioctl(tp, cmd, data, flag)
 			return (EPERM);
 		if (p->p_ucred->cr_uid && !isctty(p, tp))
 			return (EACCES);
+		s = spltty();
 		(*linesw[tp->t_line].l_rint)(*(u_char *)data, tp);
+		splx(s);
 		break;
 	case TIOCSTOP:			/* stop output, like ^S */
 		s = spltty();
@@ -945,7 +952,9 @@ ttioctl(tp, cmd, data, flag)
 		break;
 	}
 	case TIOCSTAT:			/* simulate control-T */
+		s = spltty();
 		ttyinfo(tp);
+		splx(s);
 		break;
 	case TIOCSWINSZ:		/* set window size */
 		if (bcmp((caddr_t)&tp->t_winsize, data,
@@ -1020,8 +1029,7 @@ ttselect(dev, rw, p)
 }
 
 /*
- * This is now exported to the cy driver as well; if you hack this code,
- * then be sure to keep /sys/i386/isa/cy.c properly advised! -jkh
+ * Must be called at spltty().
  */
 static int
 ttnread(tp)
