@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.96 1996/04/08 01:25:22 davidg Exp $
+ *	$Id: if_ed.c,v 1.97 1996/04/23 18:36:54 nate Exp $
  */
 
 /*
@@ -130,7 +130,9 @@ struct ed_softc {
 
 static struct ed_softc ed_softc[NED];
 
-static int ed_attach		__P((struct isa_device *));
+static int ed_attach		__P((struct ed_softc *, int, int));
+static int ed_attach_isa	__P((struct isa_device *));
+
 static void ed_init		__P((struct ifnet *));
 static int ed_ioctl		__P((struct ifnet *, int, caddr_t));
 static int ed_probe		__P((struct isa_device *));
@@ -143,7 +145,17 @@ static int ed_probe_generic8390	__P((struct ed_softc *));
 static int ed_probe_WD80x3	__P((struct isa_device *));
 static int ed_probe_3Com	__P((struct isa_device *));
 static int ed_probe_Novell	__P((struct isa_device *));
+static int ed_probe_Novell_generic __P((struct ed_softc *, int, int, int));
+
+#include "pci.h"
+#if NPCI > 0
+void *ed_attach_NE2000_pci	__P((int, int));
+#endif
+
+#include "crd.h"
+#if NCRD > 0
 static int ed_probe_pccard	__P((struct isa_device *, u_char *));
+#endif
 
 static void    ds_getmcaf __P((struct ed_softc *, u_long *));
 
@@ -164,7 +176,6 @@ static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
 static void    ed_setrcr(struct ed_softc *);
 static u_long ds_crc(u_char *ep);
 
-#include "crd.h"
 #if NCRD > 0
 #include <sys/select.h>
 #include <pccard/card.h>
@@ -225,7 +236,7 @@ edinit(struct pccard_dev *dp, int first)
 		sc->gone = 0;
 		if (ed_probe_pccard(&dp->isahd,dp->misc)==0)
 			return(ENXIO);
-		if (ed_attach(&dp->isahd)==0)
+		if (ed_attach_isa(&dp->isahd)==0)
 			return(ENXIO);
 	}
 	/*
@@ -271,14 +282,14 @@ edunload(struct pccard_dev *dp)
 static int
 card_intr(struct pccard_dev *dp)
 {
-	edintr(dp->isahd.id_unit);
+	edintr_sc(&ed_softc[dp->isahd.id_unit]);
 	return(1);
 }
 #endif /* NCRD > 0 */
 
 struct isa_driver eddriver = {
 	ed_probe,
-	ed_attach,
+	ed_attach_isa,
 	"ed",
 	1		/* We are ultra sensitive */
 };
@@ -1083,17 +1094,19 @@ ed_probe_3Com(isa_dev)
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
 static int
-ed_probe_Novell(isa_dev)
-	struct isa_device *isa_dev;
+ed_probe_Novell_generic(sc, port, unit, flags)
+	struct ed_softc *sc;
+	int port;
+	int unit;
+	int flags;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	u_int   memsize, n;
 	u_char  romdata[16], tmp;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
 
-	sc->asic_addr = isa_dev->id_iobase + ED_NOVELL_ASIC_OFFSET;
-	sc->nic_addr = isa_dev->id_iobase + ED_NOVELL_NIC_OFFSET;
+	sc->asic_addr = port + ED_NOVELL_ASIC_OFFSET;
+	sc->nic_addr = port + ED_NOVELL_NIC_OFFSET;
 
 	/* XXX - do Novell-specific probe here */
 
@@ -1132,7 +1145,6 @@ ed_probe_Novell(isa_dev)
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->mem_shared = 0;
 	sc->cr_proto = ED_CR_RD2;
-	isa_dev->id_maddr = 0;
 
 	/*
 	 * Test the ability to read and write to the NIC memory. This has the
@@ -1235,7 +1247,7 @@ ed_probe_Novell(isa_dev)
 		}
 
 		if (mstart == 0) {
-			printf("ed%d: Cannot find start of RAM.\n", isa_dev->id_unit);
+			printf("ed%d: Cannot find start of RAM.\n", unit);
 			return 0;
 		}
 		/* Search for the start of RAM. */
@@ -1257,10 +1269,10 @@ ed_probe_Novell(isa_dev)
 		}
 
 		if (msize == 0) {
-			printf("ed%d: Cannot find any RAM, start : %d, x = %d.\n", isa_dev->id_unit, mstart, x);
+			printf("ed%d: Cannot find any RAM, start : %d, x = %d.\n", unit, mstart, x);
 			return 0;
 		}
-		printf("ed%d: RAM start at %d, size : %d.\n", isa_dev->id_unit, mstart, msize);
+		printf("ed%d: RAM start at %d, size : %d.\n", unit, mstart, msize);
 
 		sc->mem_size = msize;
 		sc->mem_start = (char *) mstart;
@@ -1273,7 +1285,7 @@ ed_probe_Novell(isa_dev)
 	 * Use one xmit buffer if < 16k, two buffers otherwise (if not told
 	 * otherwise).
 	 */
-	if ((memsize < 16384) || (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING))
+	if ((memsize < 16384) || (flags & ED_FLAGS_NO_MULTI_BUFFERING))
 		sc->txb_cnt = 1;
 	else
 		sc->txb_cnt = 2;
@@ -1300,6 +1312,18 @@ ed_probe_Novell(isa_dev)
 	return (ED_NOVELL_IO_PORTS);
 }
 
+static int
+ed_probe_Novell(isa_dev)
+	struct isa_device *isa_dev;
+{
+	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+
+	isa_dev->id_maddr = 0;
+	return ed_probe_Novell_generic(sc, isa_dev->id_iobase, 
+				       isa_dev->id_unit, isa_dev->id_flags);
+}
+
+#if NCRD > 0
 
 /*
  * Probe and vendor-specific initialization routine for PCCARDs
@@ -1409,14 +1433,17 @@ ed_probe_pccard(isa_dev, ether)
 	return (ED_PC_IO_PORTS);
 }
 
+#endif /* NCRD > 0 */
+
 /*
  * Install interface into kernel networking data structures
  */
 static int
-ed_attach(isa_dev)
-	struct isa_device *isa_dev;
+ed_attach(sc, unit, flags)
+	struct ed_softc *sc;
+	int unit;
+	int flags;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	/*
@@ -1429,7 +1456,7 @@ ed_attach(isa_dev)
 		 * Initialize ifnet structure
 		 */
 		ifp->if_softc = sc;
-		ifp->if_unit = isa_dev->id_unit;
+		ifp->if_unit = unit;
 		ifp->if_name = "ed";
 		ifp->if_output = ether_output;
 		ifp->if_start = ed_start;
@@ -1442,7 +1469,7 @@ ed_attach(isa_dev)
 		 * tranceiver for AUI operation), based on compile-time 
 		 * config option.
 		 */
-		if (isa_dev->id_flags & ED_FLAGS_DISABLE_TRANCEIVER)
+		if (flags & ED_FLAGS_DISABLE_TRANCEIVER)
 			ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | 
 			    IFF_MULTICAST | IFF_ALTPHYS);
 		else
@@ -1461,7 +1488,7 @@ ed_attach(isa_dev)
 	/*
 	 * Print additional info when attached
 	 */
-	printf("ed%d: address %6D, ", isa_dev->id_unit, 
+	printf("%s%d: address %6D, ", ifp->if_name, ifp->if_unit, 
 		sc->arpcom.ac_enaddr, ":");
 
 	if (sc->type_str && (*sc->type_str != 0))
@@ -1482,6 +1509,38 @@ ed_attach(isa_dev)
 #endif
 	return 1;
 }
+
+static int
+ed_attach_isa(isa_dev)
+	struct isa_device *isa_dev;
+{
+	int unit = isa_dev->id_unit;
+	struct ed_softc *sc = &ed_softc[unit];
+	int flags = isa_dev->id_flags;
+
+	return ed_attach(sc, unit, flags);
+}
+
+#if NPCI > 0
+void *
+ed_attach_NE2000_pci(unit, port)
+	int unit;
+	int port;
+{
+	struct ed_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
+	int isa_flags = 0;
+
+	if (!sc)
+		return sc;
+
+	if (ed_probe_Novell_generic(sc, port, unit, isa_flags) == 0
+	    || ed_attach(sc, unit, isa_flags) == 0) {
+		free(sc, M_DEVBUF);
+		return NULL;
+	}
+	return sc;
+}
+#endif
 
 /*
  * Reset interface.
@@ -2040,10 +2099,9 @@ ed_rint(sc)
  * Ethernet interface interrupt processor
  */
 void
-edintr(unit)
-	int     unit;
+edintr_sc(sc)
+	struct ed_softc *sc;
 {
-	struct ed_softc *sc = &ed_softc[unit];
 	struct ifnet *ifp = (struct ifnet *)sc;
 	u_char  isr;
 
@@ -2247,6 +2305,13 @@ edintr(unit)
 			(void) inb(sc->nic_addr + ED_P0_CNTR2);
 		}
 	}
+}
+
+void 
+edintr(unit)
+	int unit;
+{
+	edintr_sc (&ed_softc[unit]);
 }
 
 /*
