@@ -30,8 +30,7 @@
 #
 # Tapes:
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
-#	st*	"NEW type scsi tapes" (old driver uses the
-#		block devices of the disks to get access)
+#	sa*	SCSI Sequential Access Devices
 #	ft*	QIC-40/QIC-80 3M cartridge tape (interfaced
 #		via the floppy disk controller)
 #
@@ -39,7 +38,7 @@
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	wfd*	"IDE floppy" disk drives (LS-120)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
-#	sd*	"SCSI disks"
+#	da*	"SCSI Direct Access Devices"
 #	cd*	"SCSI CD-ROM disks"
 #	mcd*	"Mitsumi CD-ROM disks"
 #	scd*	"Sony CD-ROM disks"
@@ -47,6 +46,7 @@
 #	wcd*	"IDE CD-ROM disks"
 #	vn*	"vnode disks"
 #	od*	"optical disks"
+#	fla*	"M-Systems DiskOnChip"
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -78,9 +78,9 @@
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ssc	The ``super scsi'' device
-#	uk*	"unknown" device (supports ioctl calls only)
 #	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
+#	pass*	CAM Passthrough device
 #
 # PC-CARD (previously called PCMCIA) support
 #	card*	PC-CARD slots
@@ -107,7 +107,8 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.165 1998/07/03 15:43:20 des Exp $
+#	$Id: MAKEDEV,v 1.2 1998/08/31 08:57:56 dfr Exp $
+#	from etc.i386 MAKEDEV,v 1.171 1998/09/15 10:21:35 gibbs Exp
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -178,9 +179,6 @@ dkcompatslice=0
 # Raw slice for disks
 dkrawslice=1
 
-# Control bit for SCSI
-scsictl=$((1 << 29))
-
 # Standard umasks
 disk_umask=037			# allow group operator to read disks
 tape_umask=017			# allow group operator to read/write tapes
@@ -191,12 +189,12 @@ case $i in
 all)
 	sh MAKEDEV std					# standard
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
-	sh MAKEDEV sd0 sd1 sd2 sd3 wd0 wd1 wd2 wd3	# bdev, ordinary disk
+	sh MAKEDEV da0 da1 da2 da3 wd0 wd1 wd2 wd3	# bdev, ordinary disk
 	sh MAKEDEV od0					# bdev, optical disk
 	sh MAKEDEV wfd0					# bdev, LS-120 floppy
 	sh MAKEDEV vn0					# bdev, virtual disk
 	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
-	sh MAKEDEV ft0 st0 wt0				# bdev, tape
+	sh MAKEDEV ft0 sa0 wt0 wst0			# bdev, tape
 	sh MAKEDEV vty4					# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
 	sh MAKEDEV pty0					# cdev, pseudo tty
@@ -207,6 +205,7 @@ all)
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm card0 card1			# cdev, laptop
+	sh MAKEDEV pass4 xpt2				# cdev, CAM
 	;;
 std)
 	mknod console	c 0 0;	chmod 600 console
@@ -266,17 +265,19 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
+od*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
-	od*s*) name=od; blk=20; chr=70;;
+	fla*s*) name=fla; blk=28; chr=101;;
+	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
-	wd*s*) name=wd; blk=0;  chr=3;;
+	da*s*) name=da; blk=4;  chr=13;;
 	vn*s*) name=vn; blk=15; chr=43;;
+	wd*s*) name=wd; blk=0;  chr=3;;
 	wfd*s*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	wfd*s*)
+	fla*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -435,17 +436,19 @@ ft*)
 	umask 77
 	;;
 
-od*|sd*|vn*|wd*|wfd*)
+sd*|od*|da*|vn*|wd*|wfd*|fla*)
 	umask $disk_umask
 	case $i in
-	od*) name=od; blk=20; chr=70;;
-	sd*) name=sd; blk=4;  chr=13;;
+	fla*) name=fla; blk=28; chr=101;;
+	sd*) name=sd; blk=4; chr=13;;
+	od*) name=od; blk=4; chr=13;;
+	da*) name=da; blk=4;  chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
 	wfd*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	wfd*)
+	fla*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
@@ -458,13 +461,6 @@ od*|sd*|vn*|wd*|wfd*)
 		do
 			sh MAKEDEV $name$unit$slicepartname
 		done
-		case $name in
-		od|sd)
-			minor=`dkminor 0 $unit 0 0`
-			mknod r${name}${unit}.ctl c $chr $(($minor | $scsictl))
-			chmod 600 r${name}${unit}.ctl
-			;;
-		esac
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -500,27 +496,6 @@ ssc*)
 	mknod ssc c 49 0
 	;;
 
-uk*)
-	unit=`expr $i : 'uk\(.*\)'`
-	mknod uk$unit c 31 $unit
-	;;
-
-worm*)
-	umask $disk_umask
-	unit=`expr $i : 'worm\(.*\)'`
-	if [ "X${unit}" = "X" ]; then
-		unit=0
-	fi
-	chr=62
-	blk=23
-	name=worm
-	mknod ${name}${unit} b $blk ${unit}
-	mknod r${name}${unit} c $chr ${unit}
-	chgrp operator ${name}${unit} r${name}${unit}
-	umask 077
-	mknod r${name}${unit}.ctl c $chr `expr $unit + $scsictl `
-	;;
-
 # SCSI processor type driver
 pt[0-9]*)
 	chr=61
@@ -531,9 +506,58 @@ pt[0-9]*)
 	fi
 	unit=`expr $unit + 1 - 1`
 	mknod ${name}${unit} c $chr $unit
-	mknod ${name}${unit}.ctl c $chr `expr $unit + $scsictl `
 	;;
 
+# SCSI target mode sample driver
+targ[0-9]*)
+	chr=65
+	name=targ
+	unit=`expr $i : 'targ\([0-9][0-9]*\)'`
+	if [ "X${unit}" = "X" ]; then
+		unit=0
+	fi
+	unit=`expr $unit + 1 - 1`
+	mknod ${name}${unit} c $chr $unit
+	;;
+
+# CAM transport layer device
+xpt*)
+	umask $disk_umask
+	# This major number is temporary
+	chr=104
+	name=xpt
+	units=`expr $i : 'xpt\(.*\)'`
+	if [ "X${units}" = "X" ]; then
+		units=1
+	fi
+	eval `echo ${chr} ${units} ${name} |awk \
+		'{ c=$1; n=$2; name=$3;} END {
+		for (i = 0; i < n; i++)
+			printf("rm -f %s%d r%s%d; mknod %s%d c %d %d; \
+				chgrp operator %s%d;", \
+				name, i, name, i, name, i, c, i, \
+				name, i); }'`
+	umask 077
+	;;
+# CAM passthrough device
+pass*|uk*)
+	umask $disk_umask
+	# This major number is temporary
+	chr=31
+	name=pass
+	units=`expr $i : 'pass\(.*\)'`
+	if [ "X${units}" = "X" ]; then
+		units=1
+	fi
+	eval `echo ${chr} ${units} ${name} |awk \
+		'{ c=$1; n=$2; name=$3;} END {
+		for (i = 0; i < n; i++)
+			printf("rm -f %s%d r%s%d; mknod %s%d c %d %d; \
+				chgrp operator %s%d;", \
+				name, i, name, i, name, i, c, i, \
+				name, i); }'`
+	umask 077
+	;;
 pty*)
 	class=`expr $i : 'pty\(.*\)'`
 	case $class in
@@ -566,7 +590,7 @@ pty*)
 	esac
 	;;
 
-st*)
+sa*)
 	umask $tape_umask
 	unit=`expr $i : '..\(.*\)'`
 	chr=14
@@ -575,22 +599,17 @@ st*)
 	0|1|2|3|4|5|6)
 		for mode in 0 1 2 3
 		do
-			mknod rst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 0`
-			mknod nrst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 1`
-			mknod erst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 2`
-			mknod st${unit}ctl.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 3`
-			chgrp operator	rst${unit}.${mode}\
-					nrst${unit}.${mode} \
-					erst${unit}.${mode} \
-					st${unit}ctl.${mode}
-			chmod 600	st${unit}ctl.${mode}
+			mknod rsa${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 0`
+			mknod nrsa${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 1`
+			mknod ersa${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 2`
+			chgrp operator	rsa${unit}.${mode}\
+					nrsa${unit}.${mode} \
+					ersa${unit}.${mode}
 		done
-		mknod rst${unit}.ctl c $chr `expr $unit '*' 16 + $scsictl `
-		chmod 600 rst${unit}.ctl
 
-		ln rst${unit}.0 rst${unit}
-		ln nrst${unit}.0 nrst${unit}
-		ln erst${unit}.0 erst${unit}
+		ln rsa${unit}.0 rsa${unit}
+		ln nrsa${unit}.0 nrsa${unit}
+		ln ersa${unit}.0 ersa${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
@@ -607,10 +626,8 @@ ch*)
 	esac
 	case $unit in
 	0|1|2|3|4|5|6)
-		mknod ${name}${unit}	c $chr `expr $unit '*' 16 + 0`
+		mknod ${name}${unit}	c $chr $unit
 		chgrp operator ${name}${unit}
-		mknod r${name}${unit}.ctl c $chr `expr $unit '*' 16 + $scsictl `
-		chmod 600 r${name}${unit}.ctl
 		;;
 	*)
 		echo bad unit for media changer in: $i
@@ -622,28 +639,33 @@ ch*)
 cd*|mcd*|scd*)
 	umask $disk_umask
 	case $i in
-	cd*) unit=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
-	mcd*) unit=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
-	scd*) unit=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
+	cd*) units=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
+	mcd*) units=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
+	scd*) units=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
 	esac
-	case $unit in
-	0|1|2|3|4|5|6)
-		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
-		mknod ${name}${unit}c	b $blk `expr $unit '*' 8 + 2`
-		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
-		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
-		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
-		case $name in
-		cd)
-			mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
-			chmod 600 r${name}${unit}.ctl
-			;;
-		esac
-		;;
-	*)
-		echo bad unit for disk in: $i
-		;;
-	esac
+	if [ "X${units}" = "X" -o ${units} -le 0 ]; then
+		units=1
+	fi
+	if [ "${units}" -le 31 ]; then
+		eval `echo ${chr} ${blk} ${units} ${name} |awk \
+			'{ c=$1; b=$2; n=$3; name=$4;} END{
+			for (i = 0; i < n; i++){
+				printf("rm -f %s%d* r%s%d*; \
+					mknod %s%da b %d %d; \
+					mknod %s%dc b %d %d; \
+					mknod r%s%da c %d %d; \
+					mknod r%s%dc c %d %d; \
+					chgrp operator %s%d* r%s%d*;",
+					name, i, name, i,
+					name, i, b, (i * 8),
+					name, i, b, (i * 8) + 2,
+					name, i, c, (i * 8),
+					name, i, c, (i * 8) + 2,
+					name, i, name, i); }}'`
+		
+	else
+		echo "$i is invalid -- can't have more than 32 cd devices"
+	fi
 	umask 77
 	;;
 
@@ -681,7 +703,7 @@ wcd*)
 	blk=19
 	chr=69
 	case $unit in
-	0|1|2|3)
+	0|1|2|3|4|5|6|7)
 		mknod wcd${unit}a  b $blk `expr $unit '*' 8 + 0`
 		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0`
 		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 2`
@@ -691,6 +713,20 @@ wcd*)
 		;;
 	*)
 		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+wst*)
+	umask 2 ;
+	unit=`expr $i : '...\(.*\)'`
+	chr=90
+	case $unit in
+	0|1|2|3)
+		mknod rwst${unit} c $chr `expr $unit '*' 8 + 0`
+		chgrp operator rwst${unit}
+		chmod 640 rwst${unit}
 		;;
 	esac
 	umask 77
@@ -878,6 +914,58 @@ cuaD?)
 	umask 77
 	;;
 
+ttyM*)
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f"
+	modulelist="a b c d"
+	major=101
+	card=`expr $i : 'tty.*\(.\)$'`
+	for unit in $modulelist
+	do
+		moduleminor=`ttyminor $unit`
+		moduleminor=`expr $moduleminor % 10 \* 16`
+		modulename=$unit
+
+		for unit in $portlist
+		do
+			minor=`ttyminor $unit`
+			minor=`expr $card \* 65536 + $minor + $moduleminor`
+			name=$card$modulename$unit
+			rm -f tty*M$name
+			mknod ttyM$name c $major $minor
+			mknod ttyiM$name c $major `expr $minor + 64`
+			mknod ttylM$name c $major `expr $minor + 128`
+			chown root.wheel tty*M$name
+		done
+	done
+	;;
+
+cuaM?)
+	umask 7
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f"
+	modulelist="a b c d"
+	major=101
+	card=`expr $i : 'cua.*\(.\)$'`
+	for unit in $modulelist
+	do
+		moduleminor=`ttyminor $unit`
+		moduleminor=`expr $moduleminor % 10 \* 16`
+		modulename=$unit
+
+		for unit in $portlist
+		do
+			minor=`ttyminor $unit`
+			minor=`expr $card \* 65536 + $minor + $moduleminor`
+			name=$card$modulename$unit
+			rm -f cua*M$name
+			mknod cuaM$name c $major `expr $minor + 262144`
+			mknod cuaiM$name c $major `expr $minor + 64 + 262144`
+			mknod cualM$name c $major `expr $minor + 128 + 262144`
+			chown uucp.dialer cua*M$name
+		done
+	done
+	umask 77
+	;;
+
 ttyR?)
 	major=81
 	BOARD=1; MINOR=65536; Rnum=0
@@ -973,15 +1061,13 @@ snd*)
 	snd_security_hole=0	# XXX
 	umask $snd_security_hole
 
-	if [ $unit = "0" ] ; then
-		ln -fs mixer$unit mixer
-		ln -fs sequencer$unit sequencer
-		ln -fs dsp$unit dsp
-		ln -fs audio$unit audio
-		ln -fs dspW$unit dspW
-		ln -fs music$unit music
-		ln -fs pss$unit pss
-	fi
+	ln -fs mixer$unit mixer
+	ln -fs sequencer$unit sequencer
+	ln -fs dsp$unit dsp
+	ln -fs audio$unit audio
+	ln -fs dspW$unit dspW
+	ln -fs music$unit music
+	ln -fs pss$unit pss
 
 	mknod mixer$unit	c $chr `expr $unit '*' 16 + 0`
 	mknod sequencer$unit	c $chr `expr $unit '*' 16 + 1`
