@@ -124,28 +124,25 @@ _thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context)
 	curthread->state = psd.psd_state;
 	curthread->flags = psd.psd_flags;
 
-	/* Check the threads previous state: */
-	if (psd.psd_state != PS_RUNNING) {
-		/*
-		 * Do a little cleanup handling for those threads in
-		 * queues before calling the signal handler.  Signals
-		 * for these threads are temporarily blocked until
-		 * after cleanup handling.
-		 */
-		switch (psd.psd_state) {
-		case PS_COND_WAIT:
-			_cond_wait_backout(curthread);
-			psd.psd_state = PS_RUNNING;
-			break;
+	/*
+	 * Do a little cleanup handling for those threads in
+	 * queues before calling the signal handler.  Signals
+	 * for these threads are temporarily blocked until
+	 * after cleanup handling.
+	 */
+	switch (psd.psd_state) {
+	case PS_COND_WAIT:
+		_cond_wait_backout(curthread);
+		psd.psd_state = PS_RUNNING;
+		break;
 
-		case PS_MUTEX_WAIT:
-			/* _mutex_lock_backout(curthread); XXXTHR */
-			psd.psd_state = PS_RUNNING;
-			break;
+	case PS_MUTEX_WAIT:
+		/* _mutex_lock_backout(curthread); XXXTHR */
+		psd.psd_state = PS_RUNNING;
+		break;
 
-		default:
-			break;
-		}
+	default:
+		break;
 	}
 
 	if (_thread_sigact[sig -1].sa_handler != NULL) {
