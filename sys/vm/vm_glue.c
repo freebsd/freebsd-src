@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.19 1995/04/16 12:56:15 davidg Exp $
+ * $Id: vm_glue.c,v 1.20 1995/05/30 08:16:01 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -283,7 +283,7 @@ vm_init_limits(p)
 	p->p_rlimit[RLIMIT_DATA].rlim_cur = DFLDSIZ;
 	p->p_rlimit[RLIMIT_DATA].rlim_max = MAXDSIZ;
 	/* limit the limit to no less than 2MB */
-	rss_limit = max(cnt.v_free_count / 2, 512);
+	rss_limit = max(cnt.v_free_count, 512);
 	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
