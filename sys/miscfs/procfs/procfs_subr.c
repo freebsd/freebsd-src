@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
+ *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
  * From:
  *	$Id: procfs_subr.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
@@ -85,18 +85,21 @@ procfs_allocvp(mp, vpp, pid, pfs_type)
 	long pid;
 	pfstype pfs_type;
 {
-	int error;
+	struct proc *p = curproc;	/* XXX */
 	struct pfsnode *pfs;
+	struct vnode *vp;
 	struct pfsnode **pp;
+	int error;
 
 loop:
 	for (pfs = pfshead; pfs != 0; pfs = pfs->pfs_next) {
+		vp = PFSTOV(pfs);
 		if (pfs->pfs_pid == pid &&
 		    pfs->pfs_type == pfs_type &&
-		    PFSTOV(pfs)->v_mount == mp) {
-			if (vget(pfs->pfs_vnode, 0))
+		    vp->v_mount == mp) {
+			if (vget(vp, 0, p))
 				goto loop;
-			*vpp = pfs->pfs_vnode;
+			*vpp = vp;
 			return (0);
 		}
 	}
@@ -112,18 +115,17 @@ loop:
 	}
 	pfsvplock |= PROCFS_LOCKED;
 
-	error = getnewvnode(VT_PROCFS, mp, procfs_vnodeop_p, vpp);
-	if (error)
+	if (error = getnewvnode(VT_PROCFS, mp, procfs_vnodeop_p, vpp))
 		goto out;
+	vp = *vpp;
 
-	MALLOC((*vpp)->v_data, void *, sizeof(struct pfsnode),
-		M_TEMP, M_WAITOK);
+	MALLOC(pfs, void *, sizeof(struct pfsnode), M_TEMP, M_WAITOK);
+	vp->v_data = pfs;
 
-	pfs = VTOPFS(*vpp);
 	pfs->pfs_next = 0;
 	pfs->pfs_pid = (pid_t) pid;
 	pfs->pfs_type = pfs_type;
-	pfs->pfs_vnode = *vpp;
+	pfs->pfs_vnode = vp;
 	pfs->pfs_flags = 0;
 	pfs->pfs_fileno = PROCFS_FILENO(pid, pfs_type);
 
@@ -132,46 +134,44 @@ loop:
 		pfs->pfs_mode = (VREAD|VEXEC) |
 				(VREAD|VEXEC) >> 3 |
 				(VREAD|VEXEC) >> 6;
+		vp->v_type = VDIR;
+		vp->v_flag = VROOT;
+		break;
+
+	case Pcurproc:	/* /proc/curproc = lr--r--r-- */
+		pfs->pfs_mode = (VREAD) |
+				(VREAD >> 3) |
+				(VREAD >> 6);
+		vp->v_type = VLNK;
 		break;
 
 	case Pproc:
 		pfs->pfs_mode = (VREAD|VEXEC) |
 				(VREAD|VEXEC) >> 3 |
 				(VREAD|VEXEC) >> 6;
+		vp->v_type = VDIR;
 		break;
 
 	case Pfile:
-		pfs->pfs_mode = (VREAD|VWRITE);
-		break;
-
 	case Pmem:
-		pfs->pfs_mode = (VREAD|VWRITE);
-		break;
-
 	case Pregs:
-		pfs->pfs_mode = (VREAD|VWRITE);
-		break;
-
 	case Pfpregs:
 		pfs->pfs_mode = (VREAD|VWRITE);
+		vp->v_type = VREG;
 		break;
 
 	case Pctl:
+	case Pnote:
+	case Pnotepg:
 		pfs->pfs_mode = (VWRITE);
+		vp->v_type = VREG;
 		break;
 
 	case Pstatus:
 		pfs->pfs_mode = (VREAD) |
 				(VREAD >> 3) |
 				(VREAD >> 6);
-		break;
-
-	case Pnote:
-		pfs->pfs_mode = (VWRITE);
-		break;
-
-	case Pnotepg:
-		pfs->pfs_mode = (VWRITE);
+		vp->v_type = VREG;
 		break;
 
 	default:
@@ -283,8 +283,7 @@ vfs_getuserstr(uio, buf, buflenp)
 		return (EMSGSIZE);
 	xlen = uio->uio_resid;
 
-	error = uiomove(buf, xlen, uio);
-	if (error)
+	if (error = uiomove(buf, xlen, uio))
 		return (error);
 
 	/* allow multiple writes without seeks */
@@ -306,6 +305,7 @@ vfs_findname(nm, buf, buflen)
 	char *buf;
 	int buflen;
 {
+
 	for (; nm->nm_name; nm++)
 		if (bcmp(buf, (char *) nm->nm_name, buflen+1) == 0)
 			return (nm);

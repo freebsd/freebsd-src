@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
+ *	@(#)fifo.h	8.6 (Berkeley) 5/21/95
  */
 
 #ifdef FIFO
@@ -50,8 +50,10 @@ int	fifo_close __P((struct vop_close_args *));
 #define fifo_setattr ((int (*) __P((struct  vop_setattr_args *)))fifo_ebadf)
 int	fifo_read __P((struct vop_read_args *));
 int	fifo_write __P((struct vop_write_args *));
+#define fifo_lease_check ((int (*) __P((struct  vop_lease_args *)))nullop)
 int	fifo_ioctl __P((struct vop_ioctl_args *));
 int	fifo_select __P((struct vop_select_args *));
+#define	fifo_revoke vop_revoke
 #define fifo_mmap ((int (*) __P((struct  vop_mmap_args *)))fifo_badop)
 #define fifo_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define fifo_seek ((int (*) __P((struct  vop_seek_args *)))fifo_badop)
@@ -64,14 +66,14 @@ int	fifo_select __P((struct vop_select_args *));
 #define fifo_readdir ((int (*) __P((struct  vop_readdir_args *)))fifo_badop)
 #define fifo_readlink ((int (*) __P((struct  vop_readlink_args *)))fifo_badop)
 #define fifo_abortop ((int (*) __P((struct  vop_abortop_args *)))fifo_badop)
-#define fifo_inactive ((int (*) __P((struct  vop_inactive_args *)))nullop)
+int	fifo_inactive __P((struct  vop_inactive_args *));
 #define fifo_reclaim ((int (*) __P((struct  vop_reclaim_args *)))nullop)
-int	fifo_lock __P((struct vop_lock_args *));
-int	fifo_unlock __P((struct vop_unlock_args *));
+#define fifo_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
+#define fifo_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
 int	fifo_bmap __P((struct vop_bmap_args *));
 #define fifo_strategy ((int (*) __P((struct  vop_strategy_args *)))fifo_badop)
 int	fifo_print __P((struct vop_print_args *));
-#define fifo_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
+#define fifo_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 int	fifo_pathconf __P((struct vop_pathconf_args *));
 int	fifo_advlock __P((struct vop_advlock_args *));
 #define fifo_blkatoff ((int (*) __P((struct  vop_blkatoff_args *)))fifo_badop)

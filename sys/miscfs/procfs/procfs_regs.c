@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_regs.c	8.3 (Berkeley) 1/27/94
+ *	@(#)procfs_regs.c	8.4 (Berkeley) 6/15/94
  *
  * From:
  *	$Id: procfs_regs.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
@@ -84,4 +84,12 @@ procfs_doregs(curp, p, pfs, uio)
 
 	uio->uio_offset = 0;
 	return (error);
+}
+
+int
+procfs_validregs(p)
+	struct proc *p;
+{
+
+	return ((p->p_flag & P_SYSTEM) == 0);
 }

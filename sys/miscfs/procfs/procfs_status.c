@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
+ *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
  *	$Id: procfs_status.c,v 3.1 1993/12/15 09:40:17 jsp Exp $
@@ -127,7 +127,7 @@ procfs_dostatus(curp, p, pfs, uio)
 
 	cr = p->p_ucred;
 
-	ps += sprintf(ps, " %d", cr->cr_uid, cr->cr_gid);
+	ps += sprintf(ps, " %d", cr->cr_uid);
 	for (i = 0; i < cr->cr_ngroups; i++)
 		ps += sprintf(ps, ",%d", cr->cr_groups[i]);
 	ps += sprintf(ps, "\n");
@@ -135,7 +135,7 @@ procfs_dostatus(curp, p, pfs, uio)
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
-	xlen = min(xlen, uio->uio_resid);
+	xlen = imin(xlen, uio->uio_resid);
 	if (xlen <= 0)
 		error = 0;
 	else

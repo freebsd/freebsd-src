@@ -1,10 +1,6 @@
 /*
- * Copyright (c) 1993 Jan-Simon Pendry
- * Copyright (c) 1993
+ * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Jan-Simon Pendry.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,63 +29,47 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)procfs_fpregs.c	8.2 (Berkeley) 6/15/94
- *
- * From:
- *	$Id: procfs_regs.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
  */
 
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
+#endif /* LIBC_SCCS and not lint */
+
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
-#include <machine/reg.h>
-#include <miscfs/procfs/procfs.h>
+#include <dirent.h>
 
-int
-procfs_dofpregs(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+/*
+ * get next entry in a directory.
+ */
+struct dirent *
+readdir(dirp)
+	register DIR *dirp;
 {
-	int error;
-	struct fpreg r;
-	char *kv;
-	int kl;
+	register struct dirent *dp;
 
-	kl = sizeof(r);
-	kv = (char *) &r;
-
-	kv += uio->uio_offset;
-	kl -= uio->uio_offset;
-	if (kl > uio->uio_resid)
-		kl = uio->uio_resid;
-
-	if (kl < 0)
-		error = EINVAL;
-	else
-		error = procfs_read_fpregs(p, &r);
-	if (error == 0)
-		error = uiomove(kv, kl, uio);
-	if (error == 0 && uio->uio_rw == UIO_WRITE) {
-		if (p->p_stat != SSTOP)
-			error = EBUSY;
-		else
-			error = procfs_write_fpregs(p, &r);
+	for (;;) {
+		if (dirp->dd_loc >= dirp->dd_size) {
+			if (dirp->dd_flags & __DTF_READALL)
+				return (NULL);
+			dirp->dd_loc = 0;
+		}
+		if (dirp->dd_loc == 0 && !(dirp->dd_flags & __DTF_READALL)) {
+			dirp->dd_size = getdirentries(dirp->dd_fd,
+			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
+			if (dirp->dd_size <= 0)
+				return (NULL);
+		}
+		dp = (struct dirent *)(dirp->dd_buf + dirp->dd_loc);
+		if ((int)dp & 03)	/* bogus pointer check */
+			return (NULL);
+		if (dp->d_reclen <= 0 ||
+		    dp->d_reclen > dirp->dd_len + 1 - dirp->dd_loc)
+			return (NULL);
+		dirp->dd_loc += dp->d_reclen;
+		if (dp->d_ino == 0)
+			continue;
+		if (dp->d_type == DT_WHT && (dirp->dd_flags & DTF_HIDEW))
+			continue;
+		return (dp);
 	}
-
-	uio->uio_offset = 0;
-	return (error);
-}
-
-int
-procfs_validfpregs(p)
-	struct proc *p;
-{
-
-	return ((p->p_flag & P_SYSTEM) == 0);
 }

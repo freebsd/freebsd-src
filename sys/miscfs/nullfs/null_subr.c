@@ -33,13 +33,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)null_subr.c	8.4 (Berkeley) 1/21/94
+ *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
  * $Id: lofs_subr.c,v 1.11 1992/05/30 10:05:43 jsp Exp jsp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/vnode.h>
@@ -50,7 +51,6 @@
 
 #define LOG2_SIZEVNODE 7		/* log2(sizeof struct vnode) */
 #define	NNULLNODECACHE 16
-#define	NULL_NHASH(vp) ((((u_long)vp)>>LOG2_SIZEVNODE) & (NNULLNODECACHE-1))
 
 /*
  * Null layer cache:
@@ -60,39 +60,21 @@
  * alias is removed the lower vnode is vrele'd.
  */
 
-/*
- * Cache head
- */
-struct null_node_cache {
-	struct null_node	*ac_forw;
-	struct null_node	*ac_back;
-};
-
-static struct null_node_cache null_node_cache[NNULLNODECACHE];
+#define	NULL_NHASH(vp) \
+	(&null_node_hashtbl[(((u_long)vp)>>LOG2_SIZEVNODE) & null_node_hash])
+LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
+u_long null_node_hash;
 
 /*
  * Initialise cache headers
  */
 nullfs_init()
 {
-	struct null_node_cache *ac;
+
 #ifdef NULLFS_DIAGNOSTIC
 	printf("nullfs_init\n");		/* printed during system boot */
 #endif
-
-	for (ac = null_node_cache; ac < null_node_cache + NNULLNODECACHE; ac++)
-		ac->ac_forw = ac->ac_back = (struct null_node *) ac;
-}
-
-/*
- * Compute hash list for given lower vnode
- */
-static struct null_node_cache *
-null_node_hash(lowervp)
-struct vnode *lowervp;
-{
-
-	return (&null_node_cache[NULL_NHASH(lowervp)]);
+	null_node_hashtbl = hashinit(NNULLNODECACHE, M_CACHE, &null_node_hash);
 }
 
 /*
@@ -103,7 +85,8 @@ null_node_find(mp, lowervp)
 	struct mount *mp;
 	struct vnode *lowervp;
 {
-	struct null_node_cache *hd;
+	struct proc *p = curproc;	/* XXX */
+	struct null_node_hashhead *hd;
 	struct null_node *a;
 	struct vnode *vp;
 
@@ -113,9 +96,9 @@ null_node_find(mp, lowervp)
 	 * the lower vnode.  If found, the increment the null_node
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
-	hd = null_node_hash(lowervp);
+	hd = NULL_NHASH(lowervp);
 loop:
-	for (a = hd->ac_forw; a != (struct null_node *) hd; a = a->null_forw) {
+	for (a = hd->lh_first; a != 0; a = a->null_hash.le_next) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
 			/*
@@ -123,7 +106,7 @@ loop:
 			 * stuff, but we don't want to lock
 			 * the lower node.
 			 */
-			if (vget(vp, 0)) {
+			if (vget(vp, 0, p)) {
 				printf ("null_node_find: vget failed.\n");
 				goto loop;
 			};
@@ -146,7 +129,7 @@ null_node_alloc(mp, lowervp, vpp)
 	struct vnode *lowervp;
 	struct vnode **vpp;
 {
-	struct null_node_cache *hd;
+	struct null_node_hashhead *hd;
 	struct null_node *xp;
 	struct vnode *othervp, *vp;
 	int error;
@@ -173,8 +156,8 @@ null_node_alloc(mp, lowervp, vpp)
 		return 0;
 	};
 	VREF(lowervp);   /* Extra VREF will be vrele'd in null_node_create */
-	hd = null_node_hash(lowervp);
-	insque(xp, hd);
+	hd = NULL_NHASH(lowervp);
+	LIST_INSERT_HEAD(hd, xp, null_hash);
 	return 0;
 }
 
@@ -227,9 +210,8 @@ null_node_create(mp, lowervp, newvpp)
 #ifdef DIAGNOSTIC
 	if (lowervp->v_usecount < 1) {
 		/* Should never happen... */
-		vprint ("null_node_create: alias ");
-		vprint ("null_node_create: lower ");
-		printf ("null_node_create: lower has 0 usecount.\n");
+		vprint ("null_node_create: alias ", aliasvp);
+		vprint ("null_node_create: lower ", lowervp);
 		panic ("null_node_create: lower has 0 usecount.");
 	};
 #endif
