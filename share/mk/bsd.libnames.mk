@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.9 1997/12/09 20:17:49 wosch Exp $
+#	$Id: bsd.libnames.mk,v 1.10 1997/12/15 20:30:38 helbig Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -42,6 +42,7 @@ LIBMD?=		${DESTDIR}/usr/lib/libmd.a
 LIBMP?=		${DESTDIR}/usr/lib/libmp.a
 LIBMYTINFO?=	${DESTDIR}/usr/lib/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}/usr/lib/libncurses.a
+LIBOBJC?=	${DESTDIR}/usr/lib/libobjc.a
 LIBOPIE?=	${DESTDIR}/usr/lib/libopie.a
 LIBPC?=		${DESTDIR}/usr/lib/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}/usr/lib/libpcap.a
