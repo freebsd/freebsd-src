@@ -213,7 +213,7 @@ pseudo-device	faith	1	# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
-pseudo-device	bpf		#Berkeley packet filter
+pseudo-device	bpf		# Berkeley packet filter
 
 # USB support
 #device		uhci		# UHCI PCI->USB interface
