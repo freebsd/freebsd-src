@@ -18,8 +18,7 @@ start_precmd="rtadvd_precmd"
 
 rtadvd_precmd()
 {
-	IS_GATEWAY="checkyesno ipv6_gateway_enable"
-	if ! ${IS_GATEWAY}; then
+	if ! checkyesno ipv6_gateway_enable ; then
 		warn \
 		  "${name} cannot be used on IPv6 host, only on an IPv6 router."
 		return 1

@@ -13,24 +13,19 @@
 
 arg=$1
 
-RCVAR_SERVER="nfs_server_enable"
-RCVAR_CLIENT="nfs_client_enable"
-RCVAR_STATD="rpc_statd_enable"
-RCVAR_LOCKD="rpc_lockd_enable"
-
-start_precmd='checkyesno ${RCVAR_SERVER} || checkyesno ${RCVAR_CLIENT} ||
-		[ -n "$rc_force" ]'
+start_precmd='checkyesno nfs_server_enable || checkyesno nfs_client_enable ||
+    [ -n "$rc_force" ]'
 stop_precmd=$start_precmd
 status_precmd=$start_precmd
 
 name="statd"
-rcvar=${RCVAR_STATD}
+rcvar=rpc_statd_enable
 command="/usr/sbin/rpc.${name}"
 load_rc_config $name
 run_rc_command "$arg"
 
 name="lockd"
-rcvar=${RCVAR_LOCKD}
+rcvar=rpc_lockd_enable
 command="/usr/sbin/rpc.${name}"
 load_rc_config $name
 run_rc_command "$arg"
