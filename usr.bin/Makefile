@@ -30,7 +30,6 @@ SUBDIR=	apply \
 	comm \
 	compile_et \
 	compress \
-	cpp \
 	ctags \
 	cut \
 	dirname \

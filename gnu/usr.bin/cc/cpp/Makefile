@@ -5,10 +5,10 @@
 .PATH: ${GCCDIR}
 
 PROG=	cpp
-SRCS=	cccp.c cexp.y obstack.c prefix.c version.c
-YFLAGS=
-BINDIR=	/usr/libexec
-MAN1=	cccp.1
-MLINKS=	cccp.1 cpp.1
+SRCS=	gcc.c cppspec.c # version.c
+NOMAN=	1
+
+DPADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
+LDADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
 
 .include <bsd.prog.mk>
