@@ -105,48 +105,47 @@ CLEANDIR=	cleandir
 SUP?=		cvsup
 SUPFLAGS?=	-g -L 2 -P -
 
-#
-# Define the location of the temporary installation directory. Note that
-# MAKEOBJDIRPREFIX normally isn't defined so if the current directory is
-# /usr/src, then the world temporary directory is /usr/obj/usr/src/tmp.
-#
-# During the transition from aout to elf format on i386, MAKEOBJDIRPREFIX
-# is set by the parent makefile (Makefile.inc0) to be /usr/obj/${OBJFORMAT}
-# in order to keep aout and elf format files apart.
-#
-.if defined(MAKEOBJDIRPREFIX)
-WORLDTMP=	${MAKEOBJDIRPREFIX}${.CURDIR}/tmp
-.else
-WORLDTMP=	/usr/obj${.CURDIR}/tmp
-.endif
-
+MAKEOBJDIRPREFIX?=	/usr/obj
+BUILD_ARCH!=	sysctl -n hw.machine_arch
+OBJTREE=	${MAKEOBJDIRPREFIX}/${MACHINE_ARCH}
+WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 STRICTTMPPATH=	${WORLDTMP}/bin:${WORLDTMP}/usr/bin
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
-BUILD_ARCH!=	sysctl -n hw.machine_arch
-
-BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
+# bootstrap/tools make
+BMAKEENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
+		DESTDIR=${WORLDTMP} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		TARGET_ARCH=${MACHINE_ARCH} \
 		MACHINE_ARCH=${BUILD_ARCH} \
 		PATH=${TMPPATH}
+BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO \
+		-DNO_FORTRAN -DNO_GDB -DNO_OBJC
 
-XMAKEENV=	COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
+CROSSENV=	COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		CFLAGS="-nostdinc ${CFLAGS}" \
-		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00503 \
-		PATH=${TMPPATH}
-
-# bootstrap make
-BMAKE=	${BMAKEENV} ${MAKE} DESTDIR=${WORLDTMP} -DNOMAN -DNOINFO \
-	-DNO_FORTRAN -DNO_GDB -DNO_OBJC
+		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503 \
+		MAKEOBJDIRPREFIX=${OBJTREE}
 
 # cross make used for compilation
-XMAKE=	${XMAKEENV} ${MAKE} DESTDIR=${WORLDTMP} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh"
+XMAKEENV=	${CROSSENV} \
+		DESTDIR=${WORLDTMP} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${TMPPATH}
+XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1
 
 # cross make used for final installation
-IXMAKE=	${XMAKEENV} ${MAKE}
+IMAKEENV=	${CROSSENV} \
+		DESTDIR=/usr1/release \
+		PATH=${STRICTTMPPATH}
+IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
+
+USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
+		usr/libexec/${OBJFORMAT} usr/share/misc
+
+INCDIRS=	arpa g++/std objc protocols readline rpc rpcsvc security ss
 
 #
 # buildworld
@@ -154,70 +153,67 @@ IXMAKE=	${XMAKEENV} ${MAKE}
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
-		usr/libexec/${OBJFORMAT} usr/share/misc
-
-INCDIRS=	arpa cam/scsi g++/std isofs/cd9660 machine msdosfs net \
-		netatalk netatm netgraph netinet netinet6 netipx netkey \
-		netncp netns nfs ntfs nwfs objc pccard posix4 protocols \
-		readline rpc rpcsvc security ss sys ufs/ffs ufs/mfs ufs/ufs vm
-
 buildworld:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Cleaning up the temporary build tree"
+	@echo ">>> Rebuilding the temporary build tree"
 	@echo "--------------------------------------------------------------"
+.if !defined(NOCLEAN)
 	rm -rf ${WORLDTMP}
+.endif
 .for _dir in ${USRDIRS}
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 .for _dir in ${INCDIRS}
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
+.if defined(NOCLEAN)
+	rm -f ${WORLDTMP}/sys
+.endif
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}/sys
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Rebuilding tools"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; ${BMAKE} tools
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
+	cd ${.CURDIR}; ${XMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 par-obj
+	cd ${.CURDIR}; ${XMAKE} par-obj
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding tools"
+	@echo ">>> Rebuilding ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 -DNOINFO -DNOMAN tools
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding ${DESTDIR}/usr/include"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 includes
+	cd ${.CURDIR}; ${XMAKE} includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 par-depend
+	cd ${.CURDIR}; ${XMAKE} par-depend
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 libraries
+	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN libraries
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building everything.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 all
+	cd ${.CURDIR}; ${XMAKE} all
 
 everything:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building everything.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 all
+	cd ${.CURDIR}; ${XMAKE} all
 
 #
 # installworld
@@ -225,7 +221,7 @@ everything:
 # Installs everything compiled by a 'buildworld'.
 #
 installworld:
-	cd ${.CURDIR}; ${IXMAKE} -f Makefile.inc1 reinstall
+	cd ${.CURDIR}; ${IMAKE} reinstall
 
 #
 # reinstall
@@ -298,12 +294,6 @@ most:
 	cd ${.CURDIR}/gnu/libexec;	${MAKE} all
 	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} all
 	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} all
-#.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/kerberosIV;	${MAKE} most
-#.endif
-#.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure;		${MAKE} most
-#.endif
 
 #
 # installmost
@@ -323,12 +313,6 @@ installmost:
 	cd ${.CURDIR}/gnu/libexec;	${MAKE} install
 	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} install
 	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} install
-#.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/kerberosIV;	${MAKE} installmost
-#.endif
-#.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure;		${MAKE} installmost
-#.endif
 
 #
 # ------------------------------------------------------------------------
@@ -344,15 +328,14 @@ installmost:
 #
 # tools - Build tools needed to run the actual build.
 #
-tools:
+tools::
 .for _tool in games/fortune/strfile gnu/usr.bin/binutils usr.bin/objformat \
     usr.bin/yacc gnu/usr.bin/bison gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
+		${MAKE} obj; \
 		${MAKE} depend; \
 		${MAKE} all; \
-		${MAKE} install; \
-		${MAKE} cleandir; \
-		${MAKE} obj
+		${MAKE} install
 .endfor
 
 #
