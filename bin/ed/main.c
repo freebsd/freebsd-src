@@ -37,7 +37,7 @@ static char * const copyright =
 static char * const rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: main.c,v 1.11 1997/08/07 21:33:43 steve Exp $";
+	"$Id: main.c,v 1.12 1997/10/08 14:47:56 eivind Exp $";
 #endif
 #endif /* not lint */
 
@@ -452,7 +452,7 @@ exec_command()
 
 	static pattern_t *pat = NULL;
 	static int sgflag = 0;
-	static int sgnum = 0;
+	static long sgnum = 0;
 
 	pattern_t *tpat;
 	char *fnp;
