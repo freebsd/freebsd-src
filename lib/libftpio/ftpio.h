@@ -2,6 +2,7 @@
 #define _FTP_H_INCLUDE
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <time.h>
 
 /*
@@ -20,7 +21,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.h,v 1.6 1996/08/03 11:58:54 jkh Exp $
+ * $Id: ftpio.h,v 1.7 1996/08/21 01:12:11 jkh Exp $
  */
 
 /* Internal housekeeping data structure for FTP sessions */
@@ -48,8 +49,8 @@ extern int	const ftpErrListLength;
 extern FILE	*ftpLogin(char *host, char *user, char *passwd, int port, int verbose);
 extern int	ftpChdir(FILE *fp, char *dir);
 extern int	ftpErrno(FILE *fp);
-extern size_t	ftpGetSize(FILE *fp, char *file);
-extern FILE	*ftpGet(FILE *fp, char *file, int *seekto);
+extern off_t	ftpGetSize(FILE *fp, char *file);
+extern FILE	*ftpGet(FILE *fp, char *file, off_t *seekto);
 extern FILE	*ftpPut(FILE *fp, char *file);
 extern int	ftpAscii(FILE *fp);
 extern int	ftpBinary(FILE *fp);
