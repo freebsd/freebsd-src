@@ -666,7 +666,7 @@ device		lpt1	at isa? port "IO_LPT3" tty irq 5 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 # Options for psm:
-options		PSM_NO_RESET		#don't reset mouse hardware (some laptops)
+options		PSM_CHECKSYNC		#checks the header byte for sync.
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 
@@ -980,7 +980,6 @@ controller	pcic1 at crd?
 #
 # See also:
 #  apm under `Miscellaneous hardware'
-#  options		PSM_NO_RESET  for the `psm' driver
 # above.
 
 # For older notebooks that signal a powerfail condition (external
