@@ -3,6 +3,7 @@
 # $FreeBSD$
 
 PROG=	slattach
+WARNS=	0
 MAN=	slattach.8
 MLINKS=	slattach.8 slip.8
 LDADD=	-lutil

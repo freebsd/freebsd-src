@@ -3,6 +3,7 @@
 
 PROG=	savecore
 SRCS=	savecore.c
+WARNS=	0
 MAN=	savecore.8
 
 DPADD+=	${LIBZ}

@@ -17,5 +17,6 @@ MAN=	growfs.8
 SRCS+=  debug.c
 CFLAGS+=-DFS_DEBUG
 .endif  
+WARNS=	0
 
 .include <bsd.prog.mk>      

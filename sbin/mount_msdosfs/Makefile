@@ -10,6 +10,8 @@ LDADD=	-lutil
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
+WARNS=	0
+
 .PATH:	${MOUNT}
 
 TABDIR= ${DESTDIR}${LIBDATADIR}/msdosfs

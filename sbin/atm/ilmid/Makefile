@@ -31,6 +31,7 @@ PROG=	ilmid
 MAN=	ilmid.8
 
 CFLAGS+=	-I${.CURDIR}/../../../sys
+WARNS=	0
 LDADD+=		-latm
 DPADD+=		${LIBATM}
 

@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	reboot
-WARNS?=	2
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 MAN=	reboot.8 boot_i386.8

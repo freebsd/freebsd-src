@@ -27,6 +27,7 @@
 #
 
 PROG=	kldstat
+WARNS=	0
 MAN=	kldstat.8
 
 .include <bsd.prog.mk>
