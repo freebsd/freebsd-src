@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.21 1996/09/03 22:52:26 bde Exp $
+ * $Id: kernel.h,v 1.22 1996/09/20 14:36:14 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -47,6 +47,7 @@
 
 /* Global variables for the kernel. */
 
+#ifdef KERNEL
 /* 1.1 */
 extern long hostid;
 extern char hostname[MAXHOSTNAMELEN];
@@ -72,6 +73,7 @@ extern int lbolt;			/* once a second sleep address */
 extern int tickdelta;
 extern long timedelta;
 
+#endif /* KERNEL */
 /*
  * The following macros are used to declare global sets of objects, which
  * are collected by the linker into a `struct linker_set' as defined below.
