@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.37 1995/05/20 14:05:28 jkh Exp $
+ * $Id: install.c,v 1.38 1995/05/20 15:47:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -277,7 +277,7 @@ cpio_extract(void)
  tryagain:
     while (CpioFD == -1) {
 	msgConfirm("Please Insert CPIO floppy in floppy drive 0");
-	CpioFD = open("/dev/rfd0", O_RDONLY);
+	CpioFD = open("/dev/rfd0", O_RDWR);
 	if (CpioFD >= 0)
 	    break;
 	msgDebug("Error on open of cpio floppy: %s (%d)\n", strerror(errno), errno);
