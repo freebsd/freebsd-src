@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.33 1995/05/11 19:26:15 rgrimes Exp $
+ *      $Id: aha1742.c,v 1.34 1995/05/30 08:01:07 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -270,7 +270,7 @@ int     ahbintr();
 int32   ahb_scsi_cmd();
 timeout_t ahb_timeout;
 void	ahb_done();
-struct	ecb *cheat;
+static	struct	ecb *cheat;
 void	ahb_free_ecb();
 void    ahbminphys();
 struct	ecb *ahb_ecb_phys_kv();
