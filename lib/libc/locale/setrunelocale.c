@@ -56,6 +56,7 @@ extern int		_UTF2_init(_RuneLocale *);
 extern int		_UTF8_init(_RuneLocale *);
 extern int		_EUC_init(_RuneLocale *);
 extern int		_GB18030_init(_RuneLocale *);
+extern int		_GB2312_init(_RuneLocale *);
 extern int		_GBK_init(_RuneLocale *);
 extern int		_BIG5_init(_RuneLocale *);
 extern int		_MSKanji_init(_RuneLocale *);
@@ -157,6 +158,8 @@ __setrunelocale(const char *encoding)
 		ret = _EUC_init(rl);
  	else if (strcmp(rl->encoding, "GB18030") == 0)
  		ret = _GB18030_init(rl);
+	else if (strcmp(rl->encoding, "GB2312") == 0)
+		ret = _GB2312_init(rl);
 	else if (strcmp(rl->encoding, "GBK") == 0)
 		ret = _GBK_init(rl);
 	else if (strcmp(rl->encoding, "BIG5") == 0)
