@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.52 1996/07/01 20:16:09 bde Exp $
+ *	$Id: cpufunc.h,v 1.53 1996/07/23 07:45:19 asami Exp $
  */
 
 /*
@@ -80,6 +80,17 @@ ffs(int mask)
 	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and 2.6.
 	 */
 	__asm __volatile("testl %0,%0; je 1f; bsfl %0,%0; incl %0; 1:"
+			 : "=r" (result) : "0" (mask));
+	return (result);
+}
+
+#define	HAVE_INLINE_FLS
+
+static __inline int
+fls(int mask)
+{
+	int	result;
+	__asm __volatile("testl %0,%0; je 1f; bsrl %0,%0; incl %0; 1:"
 			 : "=r" (result) : "0" (mask));
 	return (result);
 }
