@@ -78,7 +78,7 @@ struct isposinfo {
 #define	isp_name	isp_osinfo.name
 
 
-#define	MAXISPREQUEST	256
+#define	MAXISPREQUEST	64
 
 #define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
 
