@@ -547,6 +547,22 @@ for machine in $canon_build $canon_host $canon_target; do
 	a29k-*-*)			# Default a29k environment.
 		use_collect2=yes
 		;;
+	alpha-*-linuxecoff*)
+		tm_file=alpha/linux.h
+		tmake_file=alpha/t-linux
+		xmake_file=alpha/x-linux
+		fixincludes=Makefile.in
+		xm_file=alpha/xm-linux.h
+                gas=yes gnu_ld=yes
+		;;
+	alpha-*-linux*)
+		tm_file=alpha/elf.h
+		tmake_file=alpha/t-linux
+		xmake_file=alpha/x-linux
+		fixincludes=Makefile.in
+		xm_file=alpha/xm-linux.h
+                gas=yes gnu_ld=yes
+		;;
 	alpha-dec-osf[23456789]*)
 		tm_file=alpha/osf2.h
 		if [ x$stabs = xyes ]
@@ -974,9 +990,6 @@ for machine in $canon_build $canon_host $canon_target; do
 		cpu_type=i386
 		tm_file=i386/i386-coff.h
 		tmake_file=i386/t-i386bare
-		;;
-	i[345]86-*-gnu*)
-		cpu_type=i386	# GNU supports this CPU; rest done below.
 		;;
 	i[3456]86-*-isc*)		# 80386 running ISC system
 		cpu_type=i386
