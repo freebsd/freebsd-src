@@ -63,13 +63,13 @@ function t_spc(type)
 function printc(s) {print s > cfile;}
 function printh(s) {print s > hfile;}
 
-function add_debug_code(name, arg)
+function add_debug_code(name, arg, pos)
 {
-	if (lockdata[name, arg, "Entry"]) {
+	if (lockdata[name, arg, pos]) {
 		# Add assertions for locking
-		if (lockdata[name, arg, "Entry"] == "L")
+		if (lockdata[name, arg, pos] == "L")
 			printh("\tASSERT_VOP_LOCKED("arg", \""uname"\");");
-		else if (lockdata[name, arg, "Entry"] == "U")
+		else if (lockdata[name, arg, pos] == "U")
 			printh("\tASSERT_VOP_UNLOCKED("arg", \""uname"\");");
 		else if (0) {
 			# XXX More checks!
@@ -168,6 +168,8 @@ while ((getline < srcfile) > 0) {
 		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  || \
 		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/)
 			continue;
+		if ($3 == "vpp")
+			$3 = "*vpp";
 		lockdata["vop_" $2, $3, "Entry"] = $4;
 		lockdata["vop_" $2, $3, "OK"]    = $5;
 		lockdata["vop_" $2, $3, "Error"] = $6;			
@@ -254,9 +256,16 @@ while ((getline < srcfile) > 0) {
 		for (i = 0; i < numargs; ++i)
 			printh("\ta.a_" args[i] " = " args[i] ";");
 		for (i = 0; i < numargs; ++i)
-			add_debug_code(name, args[i]);
+			add_debug_code(name, args[i], "Entry");
 		add_debug_pre(name);
 		printh("\trc = VCALL(" args[0] ", VOFFSET(" name "), &a);");
+		printh("if (rc == 0) {");
+		for (i = 0; i < numargs; ++i)
+			add_debug_code(name, args[i], "OK");
+		printh("} else {");
+		for (i = 0; i < numargs; ++i)
+			add_debug_code(name, args[i], "Error");
+		printh("}");
 		add_debug_post(name);
 		printh("\treturn (rc);\n}");
 	}
