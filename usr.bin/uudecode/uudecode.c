@@ -193,7 +193,7 @@ decode2(flag)
 			err(1, "strdup()");
 	}
 	if (!oflag) {
-		outfile = strtok(NULL, " \r\n");
+		outfile = strtok(NULL, "\r\n");
 		if (outfile == NULL)
 			errx(1, "no filename in input file");
 	}
