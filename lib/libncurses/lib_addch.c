@@ -13,6 +13,31 @@
 #include "curses.priv.h"
 #include "unctrl.h"
 
+static inline chtype render_char(WINDOW *win, chtype ch)
+/* compute a rendition of the given char correct for the current context */
+{
+	if (TextOf(ch) == ' ')
+		ch = ch_or_attr(ch, win->_bkgd);
+	else if (!(ch & A_ATTRIBUTES))
+		ch = ch_or_attr(ch, (win->_bkgd & A_ATTRIBUTES));
+	TR(TRACE_VIRTPUT, ("bkg = %#lx -> ch = %#lx", win->_bkgd, ch));
+
+	return(ch);
+}
+
+chtype _nc_background(WINDOW *win)
+/* make render_char() visible while still allowing us to inline it below */
+{
+    return(render_char(win, BLANK));
+}
+
+chtype _nc_render(WINDOW *win, chtype ch)
+/* make render_char() visible while still allowing us to inline it below */
+{
+    chtype c = render_char(win,ch);
+    return (ch_or_attr(c,win->_attrs));
+}
+
 static int
 wladdch(WINDOW *win, chtype c, bool literal)
 {
@@ -54,13 +79,8 @@ chtype	ch = c;
 		/* FALL THROUGH */
         noctrl:
         	T(("win attr = %x", win->_attrs));
-		ch |= win->_attrs;
-
-		if (win->_line[y][x]&A_CHARTEXT == ' ')
-			ch |= win->_bkgd;
-		else
-			ch |= (win->_bkgd&A_ATTRIBUTES);
-		T(("bkg = %x -> ch = %x", win->_bkgd, ch));
+		ch = render_char(win, ch);
+		ch = ch_or_attr(ch,win->_attrs);
 
 		if (win->_line[y][x] != ch) {
 		    	if (win->_firstchar[y] == _NOCHANGE)

@@ -23,14 +23,26 @@
 int wbkgd(WINDOW *win, chtype ch)
 {
 int x, y;
+chtype old_bkgd = getbkgd(win);
+chtype new_bkgd = ch;
 
 	T(("wbkgd(%x, %x) called", win, ch));
-	for (y = 0; y <= win->_maxy; y++)
-		for (x = 0; x <= win->_maxx; x++)
-			if (win->_line[y][x]&A_CHARTEXT == ' ')
-				win->_line[y][x] |= ch;
+
+	if (TextOf(new_bkgd) == 0)
+		new_bkgd |= BLANK;
+	wbkgdset(win, new_bkgd);
+	wattrset(win, AttrOf(new_bkgd));
+
+	for (y = 0; y <= win->_maxy; y++) {
+		for (x = 0; x <= win->_maxx; x++) {
+			if (win->_line[y][x] == old_bkgd)
+				win->_line[y][x] = new_bkgd;
 			else
-				win->_line[y][x] |= (ch&A_ATTRIBUTES);
+				win->_line[y][x] =
+					TextOf(win->_line[y][x])
+					| AttrOf(new_bkgd);
+		}
+	}
 	touchwin(win);
 	return OK;
 }

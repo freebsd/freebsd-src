@@ -21,7 +21,7 @@ void scroll_window(WINDOW *win, int n, int regtop, int regbottom)
 int	line, i;
 chtype	*ptr, *temp;
 chtype  **saved;
-chtype	blank = ' ';
+chtype	blank = _nc_background(win);
 
     	saved = (chtype **)malloc(sizeof(chtype *) * abs(n));
 

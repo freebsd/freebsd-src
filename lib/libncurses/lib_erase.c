@@ -13,8 +13,6 @@
 #include "curses.priv.h"
 #include "terminfo.h"
 
-#define BLANK ' '
-
 int  werase(WINDOW	*win)
 {
 int	y;
@@ -33,7 +31,7 @@ int	minx;
 		    	maxx = sp;
 		    	if (minx == _NOCHANGE)
 					minx = sp - start;
-		    	*sp = BLANK;
+			*sp = _nc_background(win);
 	    	}
 
 	    	if (minx != _NOCHANGE) {
