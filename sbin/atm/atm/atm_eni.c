@@ -156,7 +156,7 @@ show_eni_stats(intf, argc, argv)
 	/*
 	 * Get vendor-specific statistics from the kernel
 	 */
-	UM_ZERO(&air, sizeof(air));
+	bzero(&air, sizeof(air));
 	air.air_opcode = AIOCS_INF_VST;
 	strcpy(air.air_vinfo_intf, intf);
 	buf_len = do_info_ioctl(&air, sizeof(struct air_vinfo_rsp) + 1024);
@@ -184,7 +184,7 @@ show_eni_stats(intf, argc, argv)
 	 */
 	if (buf_len < sizeof(struct air_vinfo_rsp) +
 			sizeof(Eni_stats)) {
-		UM_FREE(stats);
+		free(stats);
 		return;
 	}
 
@@ -206,7 +206,7 @@ show_eni_stats(intf, argc, argv)
 		break;
 	}
 
-	UM_FREE(stats);
+	free(stats);
 }
 
 

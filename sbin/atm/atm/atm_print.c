@@ -290,7 +290,7 @@ print_arp_info(ai)
 	/*
 	 * Decode the flags
 	 */
-	UM_ZERO(flags, sizeof(flags));
+	bzero(flags, sizeof(flags));
 	if (ai->aap_flags & ARPF_VALID) {
 		strcat(flags, "V");
 	}
@@ -313,7 +313,7 @@ print_arp_info(ai)
 	/*
 	 * Format the age
 	 */
-	UM_ZERO(age, sizeof(age));
+	bzero(age, sizeof(age));
 	if (!(ai->aap_flags & ARPF_VALID)) {
 		strcpy(age, "-");
 	} else {
@@ -511,7 +511,7 @@ print_intf_info(ni)
 	/*
 	 * Get the range of NIFs on the physical interface
 	 */
-	UM_ZERO(nif_names, sizeof(nif_names));
+	bzero(nif_names, sizeof(nif_names));
 	if (strlen(ni->anp_nif_pref) == 0) {
 		strcpy(nif_names, "-");
 	} else {
@@ -583,7 +583,7 @@ print_ip_vcc_info(ai)
 	/*
 	 * Decode VCC flags
 	 */
-	UM_ZERO(flags, sizeof(flags));
+	bzero(flags, sizeof(flags));
 	if (ai->aip_flags & IVF_PVC) {
 		strcat(flags, "P");
 	}
@@ -797,7 +797,7 @@ print_vcc_info(vi)
 	/*
 	 * Translate VCC direction
 	 */
-	UM_ZERO(dir_name, sizeof(dir_name));
+	bzero(dir_name, sizeof(dir_name));
 	if (vi->avp_type & VCC_IN)
 		strcat(dir_name, "In");
 	if (vi->avp_type & VCC_OUT)

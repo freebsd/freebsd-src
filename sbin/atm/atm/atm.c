@@ -565,7 +565,7 @@ pvc_add(argc, argv, cmdp)
 		fprintf(stderr, "%s: Illegal interface name\n", prog);
 		exit(1);
 	}
-	UM_ZERO(air.air_int_intf, sizeof(air.air_int_intf));
+	bzero(air.air_int_intf, sizeof(air.air_int_intf));
 	strcpy(air.air_int_intf, argv[0]);
 	buf_len = sizeof(struct air_int_rsp);
 	air.air_opcode = AIOCS_INF_INT;
@@ -737,7 +737,7 @@ arp_add(argc, argv, cmdp)
 	/*
 	 * Initialize add request structure
 	 */
-	UM_ZERO(&apr, sizeof(apr));
+	bzero(&apr, sizeof(apr));
 
 	/*
 	 * Get network interface name if one is present
@@ -751,7 +751,7 @@ arp_add(argc, argv, cmdp)
         /*
          * Get IP address of specified host name
          */
-	UM_ZERO(&host_ip, sizeof(host_ip));
+	bzero(&host_ip, sizeof(host_ip));
 	host_ip.sa.sa_family = AF_INET;
 	sin = get_ip_addr(argv[0]);
 	host_ip.sin.sin_addr.s_addr = sin->sin_addr.s_addr;
@@ -1004,7 +1004,7 @@ arp_dlt(argc, argv, cmdp)
 	/*
 	 * Set opcode
 	 */
-	UM_ZERO(&apr, sizeof(apr));
+	bzero(&apr, sizeof(apr));
 	apr.adr_opcode = AIOCS_DEL_ARP;
 
 	/*
@@ -1019,7 +1019,7 @@ arp_dlt(argc, argv, cmdp)
         /*
          * Get IP address of specified host name
          */
-	UM_ZERO(&host_addr, sizeof(host_addr));
+	bzero(&host_addr, sizeof(host_addr));
 	host_addr.sa.sa_family = AF_INET;
 	sin = get_ip_addr(argv[0]);
 	host_addr.sin.sin_addr.s_addr = sin->sin_addr.s_addr;
