@@ -60,6 +60,7 @@ also support-functions definitions
 
 : bootpath s" /boot/" ;
 : modulepath s" module_path" ;
+
 : saveenv ( addr len | 0 -1 -- addr' len | 0 -1 )
   dup -1 = if exit then
   dup allocate abort" Out of memory"
@@ -67,9 +68,11 @@ also support-functions definitions
   move
   2r>
 ;
+
 : freeenv ( addr len | 0 -1 )
   -1 = if drop else free abort" Freeing error" then
 ;
+
 : restoreenv  ( addr len | 0 -1 -- )
   dup -1 = if ( it wasn't set )
     2drop
@@ -81,28 +84,106 @@ also support-functions definitions
   then
 ;
 
-only forth also support-functions also builtins definitions
+: set-tempoptions  ( addrN lenN ... addr1 len1 N -- addr len 1 | 0 )
+  \ No options, set the default ones
+  dup 0= if
+    s" kernel_options" getenv dup -1 = if
+      drop
+    else
+      s" temp_options" setenv
+    then
+    exit
+  then
 
-: boot-conf  ( args 1 | 0 "args" -- flag )
+  \ Skip filename
+  2 pick
+  c@
+  [char] - <> if
+    swap >r swap >r
+    1 >r  \ Filename present
+    1 -   \ One less argument
+  else
+    0 >r  \ Filename not present
+  then
+
+  \ If no other arguments exist, use default options
+  ?dup 0= if
+    s" kernel_options" getenv dup -1 = if
+      drop
+    else
+      s" temp_options" setenv
+    then
+    \ Put filename back on the stack, if necessary
+    r> if r> r> 1 else 0 then
+    exit
+  then
+
+  \ Concatenate remaining arguments into a single string
+  >r strdup r>
+  1 ?do
+    \ Allocate new buffer
+    2over nip over + 1+
+    allocate if out_of_memory throw then
+    \ Copy old buffer over
+    0 2swap over >r strcat
+    \ Free old buffer
+    r> free if free_error throw then
+    \ Copy a space
+    s"  " strcat
+    \ Copy next string (do not free)
+    2swap strcat
+  loop
+
+  \ Set temp_options variable, free whatever memory that needs freeing
+  over >r
+  s" temp_options" setenv
+  r> free if free_error throw then
+
+  \ Put filename back on the stack, if necessary
+  r> if r> r> 1 else 0 then
+;
+
+: get-arguments ( -- addrN lenN ... addr1 len1 N )
+  0
+  begin
+    \ Get next word on the command line
+    parse-word
+  ?dup while
+    2>r ( push to the rstack, so we can retrieve in the correct order )
+    1+
+  repeat
+  drop ( empty string )
+  dup
+  begin
+    dup
+  while
+    2r> rot
+    >r rot r>
+    1 -
+  repeat
+  drop
+;
+
+also builtins
+
+: load-kernel ( addr len -- addr len error? )
+  s" temp_options" getenv dup -1 = if
+    drop 2dup 1
+  else
+    2over 2
+  then
+
+  1 load
+;
+
+: load-conf  ( args 1 | 0 "args" -- flag )
   0 1 unload drop
 
-  0= if ( interpreted )
-    \ Get next word on the command line
-    bl word count
-    ?dup 0= if ( there wasn't anything )
-      drop 0
-    else ( put in the number of strings )
-      1
-    then
-  then ( interpreted )
+  0= if ( interpreted ) get-arguments then
+  set-tempoptions
 
   if ( there are arguments )
-    \ Try to load the kernel
-    s" kernel_options" getenv dup -1 = if drop 2dup 1 else 2over 2 then
-
-    1 load if ( load command failed )
-      \ Remove garbage from the stack
-
+    load-kernel if ( load command failed )
       \ Set the environment variable module_path, and try loading
       \ the kernel again.
 
@@ -113,7 +194,7 @@ only forth also support-functions also builtins definitions
       2dup modulepath setenv
 
       \ Try to load the kernel
-      s" load ${kernel} ${kernel_options}" ['] evaluate catch
+      s" load ${kernel} ${temp_options}" ['] evaluate catch
       if ( load failed yet again )
 	\ Remove garbage from the stack
 	2drop
@@ -136,7 +217,7 @@ only forth also support-functions also builtins definitions
 	then
  
 	\ Now, once more, try to load the kernel
-	s" load ${kernel} ${kernel_options}" ['] evaluate catch
+	s" load ${kernel} ${temp_options}" ['] evaluate catch
 	if ( failed once more )
 	  2drop
 	  2r> restoreenv
@@ -152,8 +233,8 @@ only forth also support-functions also builtins definitions
       \ Load the remaining modules, if the kernel was loaded at all
       ['] load_modules catch if 2r> restoreenv 100 exit then
 
-      \ Call autoboot to perform the booting
-      0 1 autoboot
+      \ Return 0 to indicate success
+      0
 
       \ Keep new module_path
       2r> freeenv
@@ -164,7 +245,7 @@ only forth also support-functions also builtins definitions
     2drop ( discard command line arguments )
 
   else ( try just a straight-forward kernel load )
-    s" load ${kernel} ${kernel_options}" ['] evaluate catch
+    s" load ${kernel} ${temp_options}" ['] evaluate catch
     if ( kernel load failed ) 2drop 100 exit then
 
   then ( there are command line arguments )
@@ -172,11 +253,24 @@ only forth also support-functions also builtins definitions
   \ Load the remaining modules, if the kernel was loaded at all
   ['] load_modules catch if 100 exit then
 
-  \ Call autoboot to perform the booting
-  0 1 autoboot
+  \ Return 0 to indicate success
+  0
 ;
 
-also forth definitions
+only forth also support-functions also builtins definitions
+
+: boot
+  load-conf
+  ?dup 0= if 0 1 boot then
+;
+
+: boot-conf
+  load-conf
+  ?dup 0= if 0 1 autoboot then
+;
+
+also forth definitions also builtins
+builtin: boot
 builtin: boot-conf
 only forth definitions also support-functions
 
