@@ -5,7 +5,6 @@ KMOD=   if_sl
 SRCS=   if_sl.c slcompress.c opt_inet.h sl.h
 NOMAN=
 
-NBPF?=	1
 NSL?=		2
 PROTOS?=	-DINET
 
