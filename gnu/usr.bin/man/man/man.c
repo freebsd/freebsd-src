@@ -78,7 +78,8 @@ static char *pager;
 static char *machine;
 static char *manp;
 static char *manpathlist[MAXDIRS];
-static char *section;
+static char *shortsec;
+static char *longsec;
 static char *colon_sep_section_list;
 static char **section_list;
 static char *roff_directive;
@@ -145,6 +146,7 @@ main (argc, argv)
   int man ();
 
   prognam = mkprogname (argv[0]);
+  longsec = NULL;
 
   unsetenv("IFS");
 #ifdef __FreeBSD__
@@ -159,7 +161,7 @@ main (argc, argv)
 
   if (optind == argc - 1)
     {
-      tmp = is_section (argv[optind]);
+      tmp = is_section (argv[optind], manp);
 
       if (tmp != NULL)
 	gripe_no_name (tmp);
@@ -182,14 +184,14 @@ main (argc, argv)
        * See if this argument is a valid section name.  If not,
        * is_section returns NULL.
        */
-      tmp = is_section (nextarg);
+      tmp = is_section (nextarg, manp);
 
       if (tmp != NULL)
 	{
-	  section = tmp;
+	  shortsec = tmp;
 
 	  if (debug)
-	    fprintf (stderr, "\nsection: %s\n", section);
+	    fprintf (stderr, "\nsection: %s\n", shortsec);
 
 	  continue;
 	}
@@ -207,7 +209,7 @@ main (argc, argv)
 	  status = man (nextarg);
 
 	  if (status == 0)
-	    gripe_not_found (nextarg, section);
+	    gripe_not_found (nextarg, longsec);
 	}
     }
   return (status==0);         /* status==1 --> exit(0),
@@ -517,16 +519,55 @@ man_getopt (argc, argv)
  * named directories like .../man3f.  Yuk.
  */
 char *
-is_section (name)
-     register char *name;
+is_section (name, path)
+     char *name;
+     char *path;
 {
   register char **vs;
+  char *temp, *end, *loc;
+  char **plist;
+  int x;
 
   for (vs = section_list; *vs != NULL; vs++)
     if ((strcmp (*vs, name) == 0)
 	|| (isdigit ((unsigned char)name[0]) && strlen(name) == 1))
-      return strdup (name);
+      return (longsec = strdup (name));
 
+  plist = manpathlist;
+  if (isdigit ((unsigned char)name[0]))
+    {
+      while (*plist != NULL)
+	{
+	  asprintf(&temp, "%s/man%c/*", *plist, name[0]);
+	  plist++;
+
+	  x = 0;
+	  vs = glob_filename (temp);
+	  if ((int)vs == -1)
+	    {
+	      free (temp);
+	      return NULL;
+	    }
+	  for ( ; *vs != NULL; vs++)
+	    {
+	      end = strrchr (*vs, '/');
+	      if ((loc = strstr (end, name)) != NULL && loc - end > 2
+		  && *(loc-1) == '.'
+		  && (*(loc+strlen(name)) == '\0' || *(loc+strlen(name)) == '.'))
+		{
+		  x = 1;
+		  break;
+		}
+	    }
+	  free (temp);
+	  if (x == 1)
+	    {
+	      asprintf(&temp, "%c", name[0]);
+	      longsec = strdup (name);
+	      return (temp);
+	    }
+	}
+    }
   return NULL;
 }
 
@@ -657,26 +698,33 @@ convert_name (name, to_cat)
  * Note that globbing is only done when the section is unspecified.
  */
 char **
-glob_for_file (path, section, name, cat)
-     register char *path;
-     register char *section;
-     register char *name;
-     register int cat;
+glob_for_file (path, section, longsec, name, cat)
+     char *path;
+     char *section;
+     char *longsec;
+     char *name;
+     int cat;
 {
   char pathname[FILENAME_MAX];
   char **gf;
 
+  if (longsec == NULL)
+    longsec = section;
+
   if (cat)
-    snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%s*", path, section, name, section);
+    snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%s*", path, section,
+       name, longsec);
   else
-    snprintf (pathname, sizeof(pathname), "%s/man%s/%s.%s*", path, section, name, section);
+    snprintf (pathname, sizeof(pathname), "%s/man%s/%s.%s*", path, section,
+       name, longsec);
 
   if (debug)
     fprintf (stderr, "globbing %s\n", pathname);
 
   gf = glob_filename (pathname);
 
-  if ((gf == (char **) -1 || *gf == NULL) && isdigit ((unsigned char)*section))
+  if ((gf == (char **) -1 || *gf == NULL) && isdigit ((unsigned char)*section)
+      && strlen (longsec) == 1)
     {
       if (cat)
 	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%c*", path, section, name, *section);
@@ -685,7 +733,8 @@ glob_for_file (path, section, name, cat)
 
       gf = glob_filename (pathname);
     }
-  if ((gf == (char **) -1 || *gf == NULL) && isdigit ((unsigned char)*section))
+  if ((gf == (char **) -1 || *gf == NULL) && isdigit ((unsigned char)*section)
+      && strlen (longsec) == 1)
     {
       if (cat)
 	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.0*", path, section, name);
@@ -703,20 +752,21 @@ glob_for_file (path, section, name, cat)
  * globbing.
  */
 char **
-make_name (path, section, name, cat)
-     register char *path;
-     register char *section;
-     register char *name;
-     register int cat;
+make_name (path, section, longsec, name, cat)
+     char *path;
+     char *section;
+     char *longsec;
+     char *name;
+     int cat;
 {
   register int i = 0;
   static char *names[3];
   char buf[FILENAME_MAX];
 
   if (cat)
-    snprintf (buf, sizeof(buf), "%s/cat%s/%s.%s", path, section, name, section);
+    snprintf (buf, sizeof(buf), "%s/cat%s/%s.%s", path, section, name, longsec);
   else
-    snprintf (buf, sizeof(buf), "%s/man%s/%s.%s", path, section, name, section);
+    snprintf (buf, sizeof(buf), "%s/man%s/%s.%s", path, section, name, longsec);
 
   if (access (buf, R_OK) == 0)
     names[i++] = strdup (buf);
@@ -1420,11 +1470,12 @@ format_and_display (path, man_file, cat_file)
  * section.
  */
 int
-try_section (path, section, name, glob)
-     register char *path;
-     register char *section;
-     register char *name;
-     register int glob;
+try_section (path, section, longsec, name, glob)
+     char *path;
+     char *section;
+     char *longsec;
+     char *name;
+     int glob;
 {
   register int found = 0;
   register int to_cat;
@@ -1441,7 +1492,7 @@ try_section (path, section, name, glob)
 	{
 	  snprintf(buf, sizeof(buf), "%s/%s", machine, name);
 	  arch_search++;
-	  found = try_section (path, section, buf, glob);
+	  found = try_section (path, section, longsec, buf, glob);
 	  arch_search--;
 	  if (found && !findall)   /* only do this architecture... */
 	    return found;
@@ -1462,9 +1513,9 @@ try_section (path, section, name, glob)
    */
   cat = 0;
   if (glob)
-    names = glob_for_file (path, section, name, cat);
+    names = glob_for_file (path, section, longsec, name, cat);
   else
-    names = make_name (path, section, name, cat);
+    names = make_name (path, section, longsec, name, cat);
 
   if (names == (char **) -1 || *names == NULL)
     /*
@@ -1477,9 +1528,9 @@ try_section (path, section, name, glob)
 	{
 	  cat = 1;
 	  if (glob)
-	    names = glob_for_file (path, section, name, cat);
+	    names = glob_for_file (path, section, longsec, name, cat);
 	  else
-	    names = make_name (path, section, name, cat);
+	    names = make_name (path, section, longsec, name, cat);
 
 	  if (names != (char **) -1 && *names != NULL)
 	    {
@@ -1555,7 +1606,7 @@ man (name)
   found = 0;
 
   fflush (stdout);
-  if (section != NULL)
+  if (shortsec != NULL)
     {
       for (mp = manpathlist; *mp != NULL; mp++)
 	{
@@ -1572,27 +1623,27 @@ man (name)
 	      snprintf(buf, sizeof(buf), "%s/%s_%s.%s", *mp,
 		       locale_lang, locale_terr, locale_codeset);
 	      if (is_directory (buf) == 1)
-		l_found = try_section (buf, section, name, glob);
+		l_found = try_section (buf, shortsec, longsec, name, glob);
 	    }
 	    if (!l_found) {
 	      if (*locale_lang != '\0') {
 		snprintf(buf, sizeof(buf), "%s/%s.%s", *mp,
 			 locale_lang, locale_codeset);
 		if (is_directory (buf) == 1)
-		  l_found = try_section (buf, section, name, glob);
+		  l_found = try_section (buf, shortsec, longsec, name, glob);
 	      }
 	      if (!l_found && strcmp(locale_lang, "en") != 0) {
 		snprintf(buf, sizeof(buf), "%s/en.%s", *mp,
 			 locale_codeset);
 		if (is_directory (buf) == 1)
-		  l_found = try_section (buf, section, name, glob);
+		  l_found = try_section (buf, shortsec, longsec, name, glob);
 	      }
 	    }
 	    locale_opts = NULL;
 	  }
 	  if (!l_found) {
 #endif
-	  found += try_section (*mp, section, name, glob);
+	  found += try_section (*mp, shortsec, longsec, name, glob);
 #ifdef __FreeBSD__
 	  } else
 	    found += l_found;
@@ -1621,27 +1672,27 @@ man (name)
 		  snprintf(buf, sizeof(buf), "%s/%s_%s.%s", *mp,
 			   locale_lang, locale_terr, locale_codeset);
 		  if (is_directory (buf) == 1)
-		    l_found = try_section (buf, *sp, name, glob);
+		    l_found = try_section (buf, *sp, longsec, name, glob);
 		}
 		if (!l_found) {
 		  if (*locale_lang != '\0') {
 		    snprintf(buf, sizeof(buf), "%s/%s.%s", *mp,
 			     locale_lang, locale_codeset);
 		    if (is_directory (buf) == 1)
-		      l_found = try_section (buf, *sp, name, glob);
+		      l_found = try_section (buf, *sp, longsec, name, glob);
 		  }
 		  if (!l_found && strcmp(locale_lang, "en") != 0) {
 		    snprintf(buf, sizeof(buf), "%s/en.%s", *mp,
 			     locale_codeset);
 		    if (is_directory (buf) == 1)
-		      l_found = try_section (buf, *sp, name, glob);
+		      l_found = try_section (buf, *sp, longsec, name, glob);
 		  }
 		}
 		locale_opts = NULL;
 	      }
 	      if (!l_found) {
 #endif
-	      found += try_section (*mp, *sp, name, glob);
+	      found += try_section (*mp, *sp, longsec, name, glob);
 #ifdef __FreeBSD__
 	      } else
 		found += l_found;
