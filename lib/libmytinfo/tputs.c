@@ -36,17 +36,17 @@ static const char SCCSid[] = "@(#) mytinfo tputs.c 3.3 92/06/04 public domain, B
 #endif
 
 #ifdef USE_PROTOTYPES
-#define PUTCHAR(c) (outc == (int (*)(char)) 0 ? (putchar(c)):(*outc)(c))
+#define PUTCHAR(c) (outc == (int (*)(int)) NULL ? (putchar(c)):(*outc)(c))
 #else
-#define PUTCHAR(c) (outc == (int (*)()) 0 ? (putchar(c)):(*outc)(c))
+#define PUTCHAR(c) (outc == (int (*)()) NULL ? (putchar(c)):(*outc)(c))
 #endif
 
 int
 tputs(sp, count, outc)
-register char *sp;
+register const char *sp;
 int count;
 #ifdef USE_PROTOTYPES
-register int (*outc)(char);
+register int (*outc)(int);
 #else
 register int (*outc)();
 #endif
@@ -207,9 +207,9 @@ int
 putp(str)
 char *str; {
 #ifdef USE_PROTOTYPES
-	return(tputs(str, 1,(int (*)(char)) 0));
+	return(tputs(str, 1,(int (*)(int)) NULL));
 #else
-	return(tputs(str, 1,(int (*)()) 0));
+	return(tputs(str, 1,(int (*)()) NULL));
 #endif
 }
 
