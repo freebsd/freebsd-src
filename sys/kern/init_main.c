@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.21 1995/04/10 07:44:31 phk Exp $
+ * $Id: init_main.c,v 1.22 1995/04/23 04:13:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -203,6 +203,14 @@ main(framep)
 	    trunc_page(VM_MAX_ADDRESS), TRUE);
 	vmspace0.vm_map.pmap = &vmspace0.vm_pmap;
 	p->p_addr = proc0paddr;				/* XXX */
+
+	/*
+	 * proc0 needs to have a coherent frame base, too.
+	 * This probably makes the identical call for the init proc
+	 * that happens later unnecessary since it should inherit
+	 * it during the fork.
+	 */
+	cpu_set_init_frame(p, framep);			/* XXX! */
 
 	/*
 	 * We continue to place resource usage info and signal
