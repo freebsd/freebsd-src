@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.25.2.1 1997/03/03 14:57:06 bde Exp $
+#	$Id: Makefile,v 1.25.2.2 1997/04/30 03:13:33 msmith Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer -I${.CURDIR}
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
@@ -47,10 +47,8 @@ beforeinstall:
 		${DESTDIR}/usr/include
 
 realinstall:
-.for i in ${OBJS}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 $i \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
 		${DESTDIR}/usr/lib
-.endfor
 
 depend:	.depend
 
