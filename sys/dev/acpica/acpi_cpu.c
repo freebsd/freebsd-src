@@ -295,7 +295,8 @@ acpi_cpu_init_throttling(void *arg)
     /* set initial speed */
     acpi_cpu_power_profile(NULL);
     
-    printf("acpi_cpu: CPU throttling enabled, %d steps from 100%% to %d.%d%%\n", 
+    printf("acpi_cpu: CPU throttling available, %d steps "
+	   "from 100%% to %d.%d%%\n", 
 	   CPU_MAX_SPEED, CPU_SPEED_PRINTABLE(1));
 }
 
