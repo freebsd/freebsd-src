@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.33 1995/02/15 20:57:01 ache Exp $
+#	$Id: BSD.usr.dist,v 1.34 1995/03/18 08:30:31 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -12,22 +12,6 @@
     ..
 /set type=dir uname=bin gname=bin mode=0755
     include        
-        arpa           
-        ..
-        g++            
-        ..
-        kerberosIV     
-        ..
-        objc           
-        ..
-        protocols      
-        ..
-	readline
-	..
-        rpc            
-        ..
-	ss
-	..
     ..
     lib            
     ..
