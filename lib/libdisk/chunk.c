@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.8 1995/05/06 03:28:27 phk Exp $
+ * $Id: chunk.c,v 1.9 1995/05/07 01:25:22 jkh Exp $
  *
  */
 
@@ -18,7 +18,7 @@
 #include <err.h>
 #include "libdisk.h"
 
-#define new_chunk() memset(malloc(sizeof(struct chunk), 0, sizeof(struct chunk)))
+#define new_chunk() memset(malloc(sizeof(struct chunk)), 0, sizeof(struct chunk))
 
 /* Is c2 completely inside c1 ? */
 
