@@ -1,4 +1,4 @@
-/*	$Id: sysv_ipc.c,v 1.7 1997/11/06 19:29:22 phk Exp $ */
+/*	$Id: sysv_ipc.c,v 1.8 1997/11/18 12:52:10 bde Exp $ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*
@@ -41,6 +41,9 @@
 
 /*
  * Check for ipc permission
+ *
+ * XXX: Should pass proc argument so that we can pass 
+ * XXX: proc->p_acflag to suser()
  */
 
 int
@@ -50,7 +53,7 @@ ipcperm(cred, perm, mode)
 	int mode;
 {
 
-	if (cred->cr_uid == 0)
+	if (suser(cred, (u_short *)NULL))
 		return (0);
 
 	/* Check for user match. */
