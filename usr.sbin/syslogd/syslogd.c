@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.49 1999/05/02 17:44:16 dt Exp $";
+	"$Id: syslogd.c,v 1.50 1999/05/04 18:03:59 des Exp $";
 #endif /* not lint */
 
 /*
@@ -584,13 +584,13 @@ void
 readklog()
 {
 	char *p, *q, line[MAXLINE + 1];
-	int l, i;
+	int len, i;
 
-	l = 0;
+	len = 0;
 	for (;;) {
-		i = read(fklog, line + l, MAXLINE - 1 - l);
+		i = read(fklog, line + len, MAXLINE - 1 - len);
 		if (i > 0)
-			line[i + l] = '\0';
+			line[i + len] = '\0';
 		else if (i < 0 && errno != EINTR && errno != EAGAIN) {
 			logerror("klog");
 			fklog = -1;
@@ -602,15 +602,15 @@ readklog()
 			*q = '\0';
 			printsys(p);
 		}
-		l = strlen(p);
-		if (l >= MAXLINE - 1) {
+		len = strlen(p);
+		if (len >= MAXLINE - 1) {
 			printsys(p);
-			l = 0;
+			len = 0;
 		}
-		if (l > 0) 
-			memmove(line, p, l + 1);
+		if (len > 0) 
+			memmove(line, p, len + 1);
 	}
-	if (l > 0)
+	if (len > 0)
 		printsys(line);
 }
 
