@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.25 1995/10/29 15:32:31 phk Exp $
+ *	$Id: ip_fw.c,v 1.26 1995/11/14 20:34:10 phk Exp $
  */
 
 /*
@@ -71,6 +71,17 @@
 #define dprint_ip(a)
 #endif
 
+static int	add_entry __P((struct ip_fw **chainptr, struct ip_fw *frwl));
+static int	del_entry __P((struct ip_fw **chainptr, struct ip_fw *frwl));
+static struct ip_fw *
+		check_ipfw_struct __P(( struct mbuf *m));
+static int	clr_entry __P((struct ip_fw **chainptr, struct ip_fw *frwl));
+static void	free_fw_chain __P((struct ip_fw **chainptr));
+static int	ipopts_match __P((struct ip *ip, struct ip_fw *f));
+static int	port_match __P((u_short *portptr, int nports, u_short port,
+				int range_flag));
+static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
+static void	zero_fw_chain __P((struct ip_fw *chainptr));
 
 /*
  * Returns TRUE if the port is matched by the vector, FALSE otherwise

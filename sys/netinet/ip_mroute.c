@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.24 1995/10/29 15:32:35 phk Exp $
+ * $Id: ip_mroute.c,v 1.25 1995/11/14 20:34:16 phk Exp $
  */
 
 
@@ -38,6 +38,8 @@
 #include <netinet/ip_mroute.h>
 #include <netinet/udp.h>
 
+extern void	rsvp_input __P((struct mbuf *m, int iphlen));
+
 #ifndef NTOHL
 #if BYTE_ORDER != BIG_ENDIAN
 #define NTOHL(d) ((d) = ntohl((d)))
@@ -53,6 +55,17 @@
 #endif
 
 #ifndef MROUTING
+extern void	ipip_input __P((struct mbuf *m));
+extern u_long	_ip_mcast_src __P((int vifi));
+extern int	_ip_mforward __P((struct ip *ip, struct ifnet *ifp,
+				  struct mbuf *m, struct ip_moptions *imo));
+extern int	_ip_mrouter_done __P((void));
+extern int	_ip_mrouter_get __P((int cmd, struct socket *so,
+				     struct mbuf **m));
+extern int	_ip_mrouter_set __P((int cmd, struct socket *so,
+				     struct mbuf *m));
+extern int	_mrt_ioctl __P((int req, caddr_t data, struct proc *p));
+
 /*
  * Dummy routines and globals used when multicast routing is not compiled in.
  */
@@ -191,11 +204,14 @@ ip_rsvp_force_done(so)
  * except for netstat or debugging purposes.
  */
 #ifndef MROUTE_LKM
+extern void	ipip_input __P((struct mbuf *m, int iphlen));
 struct socket  *ip_mrouter  = NULL;
 struct mrtstat	mrtstat;
 
 int		ip_mrtproto = IGMP_DVMRP;    /* for netstat only */
 #else /* MROUTE_LKM */
+#error /* the function definition will have a syntax error */
+extern void	X_ipip_input __P((struct mbuf *m));
 extern struct mrtstat mrtstat;
 static int ip_mrtproto;
 #endif
@@ -266,6 +282,14 @@ static int have_encap_tunnel = 0;
 static u_long last_encap_src;
 static struct vif *last_encap_vif;
 
+static u_long	X_ip_mcast_src __P((int vifi));
+static int	X_ip_mforward __P((struct ip *ip, struct ifnet *ifp, struct mbuf *m, struct ip_moptions *imo));
+static int	X_ip_mrouter_done __P((void));
+static int	X_ip_mrouter_get __P((int cmd, struct socket *so, struct mbuf **m));
+static int	X_ip_mrouter_set __P((int cmd, struct socket *so, struct mbuf *m));
+static int	X_legal_vif_num __P((int vif));
+static int	X_mrt_ioctl __P((int cmd, caddr_t data));
+
 static int get_sg_cnt(struct sioc_sg_req *);
 static int get_vif_cnt(struct sioc_vif_req *);
 static int ip_mrouter_init(struct socket *, struct mbuf *);
@@ -273,6 +297,7 @@ static int add_vif(struct vifctl *);
 static int del_vif(vifi_t *);
 static int add_mfc(struct mfcctl *);
 static int del_mfc(struct mfcctl *);
+static int socket_send(struct socket *, struct mbuf *, struct sockaddr_in *);
 static int get_version(struct mbuf *);
 static int get_assert(struct mbuf *);
 static int set_assert(int *);
@@ -441,7 +466,7 @@ X_mrt_ioctl(cmd, data)
 }
 
 #ifndef MROUTE_LKM
-int (*mrt_ioctl)(int, caddr_t, struct proc *) = X_mrt_ioctl;
+int (*mrt_ioctl)(int, caddr_t) = X_mrt_ioctl;
 #endif
 
 /*

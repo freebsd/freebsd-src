@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.19 1995/10/05 20:08:39 wollman Exp $
+ * $Id: if_ether.c,v 1.20 1995/10/22 19:07:58 phk Exp $
  */
 
 /*
@@ -63,6 +63,8 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 
+extern int	arpioctl __P((int cmd, caddr_t data));
+
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
 #define SRP(s) ((struct sockaddr_inarp *)s)
@@ -91,6 +93,7 @@ static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
 static	void arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
 static	void arptfree __P((struct llinfo_arp *));
+static	void arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 static	void arptimer __P((void *));
 static	struct llinfo_arp *arplookup __P((u_long, int, int));
 static	void in_arpinput __P((struct mbuf *));
