@@ -58,8 +58,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/proc.h>
@@ -304,15 +306,23 @@ apecs_attach(device_t dev)
 static void
 apecs_disable_intr(int vector)
 {
-	int irq = (vector - 0x900) >> 4;
+	int irq;
+
+	irq = (vector - 0x900) >> 4;
+	mtx_lock_spin(&icu_lock);
 	platform.pci_intr_disable(irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void
 apecs_enable_intr(int vector)
 {
-	int irq = (vector - 0x900) >> 4;
+	int irq;
+
+	irq = (vector - 0x900) >> 4;
+	mtx_lock_spin(&icu_lock);
 	platform.pci_intr_enable(irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static int
@@ -342,7 +352,9 @@ apecs_setup_intr(device_t dev, device_t child,
 		return error;
 
 	/* Enable PCI interrupt */
+	mtx_lock_spin(&icu_lock);
 	platform.pci_intr_enable(irq->r_start);
+	mtx_unlock_spin(&icu_lock);
 
 	device_printf(child, "interrupting at APECS irq %d\n",
 		      (int) irq->r_start);

@@ -15,6 +15,7 @@
 #else
 #include <i386/isa/isa.h>
 #endif
+#include <i386/isa/intr_machdep.h>
 
 #define FAST_INTR_HANDLER_USES_ES 1
 #ifdef FAST_INTR_HANDLER_USES_ES

@@ -55,8 +55,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/proc.h>
@@ -460,6 +462,7 @@ t2_enable_vec(int vector)
 	hose = (vector >= 0xC00);
 	irq = (vector - 0x800) >> 4;
 
+	mtx_lock_spin(&icu_lock);
 	if (pci_int_type[hose]) {
 
 		/* Write the air register on the T3/T4 with the
@@ -481,6 +484,7 @@ t2_enable_vec(int vector)
 		/* Old style 8259 (Gack!!!) interrupts */
 		t2_8259_enable_mask(irq);
 	}
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void
@@ -492,6 +496,7 @@ t2_disable_vec(int vector)
 	hose = (vector >= 0xC00);
 	irq =  (vector - 0x800) >> 4;
 
+	mtx_lock_spin(&icu_lock);
 	if (pci_int_type[hose]) {
 
 		/* Write the air register on the T3/T4 wioth the
@@ -515,6 +520,7 @@ t2_disable_vec(int vector)
 		/* Old style 8259 (Gack!!!) interrupts */
 		t2_8259_disable_mask(irq);
 	}
+	mtx_unlock_spin(&icu_lock);
 }
 
 
@@ -590,12 +596,14 @@ t2_teardown_intr(device_t dev, device_t child,
 
 	t2_shadow_mask |= (1UL << mask);
 
+	mtx_lock_spin(&icu_lock);
 	if (mask <= 7)
 		outb(SLAVE0_ICU, t2_shadow_mask);
 	else if (mask <= 15)
 		outb(SLAVE1_ICU, t2_shadow_mask >> 8);
 	else 
 		outb(SLAVE2_ICU, t2_shadow_mask >> 16);
+	mtx_unlock_spin(&icu_lock);
 
 	alpha_teardown_intr(cookie);
 	return rman_deactivate_resource(irq);
@@ -607,7 +615,9 @@ static void
 t2_dispatch_intr(void *frame, unsigned long vector)
 {
 	alpha_dispatch_intr(frame, vector);
+	mtx_lock_spin(&icu_lock);
 	t2_eoi(vector);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void

@@ -126,7 +126,15 @@
 
 #endif /* SMP || APIC_IO */
 
-#ifndef	LOCORE
+#ifdef LOCORE
+
+/*
+ * Protects the IO APIC, 8259 PIC, imen, and apic_imen
+ */
+#define ICU_LOCK	MTX_LOCK_SPIN(icu_lock, 0)
+#define ICU_UNLOCK	MTX_UNLOCK_SPIN(icu_lock)
+
+#else /* LOCORE */
 
 /*
  * Type of the first (asm) part of an interrupt handler.
@@ -139,6 +147,7 @@ extern u_long *intr_countp[];	/* pointers into intrcnt[] */
 extern driver_intr_t *intr_handler[];	/* C entry points of intr handlers */
 extern struct ithd *ithds[];
 extern void *intr_unit[];	/* cookies to pass to intr handlers */
+extern struct mtx icu_lock;
 
 inthand_t
 	IDTVEC(fastintr0), IDTVEC(fastintr1),

@@ -289,14 +289,13 @@ isa_nmi(cd)
 void icu_reinit()
 {
 	int i;
-	u_int32_t eflags;
-	eflags = read_eflags();
-	disable_intr();
+
+	mtx_lock_spin(&icu_lock);
 	init_i8259();
 	for(i=0;i<ICU_LEN;i++)
 		if(intr_handler[i] != isa_strayintr)
 			INTREN(1<<i);
-	write_eflags(eflags);
+	mtx_unlock_spin(&icu_lock);
 }
 
 /*
@@ -312,7 +311,9 @@ isa_defaultirq()
 	/* icu vectors */
 	for (i = 0; i < ICU_LEN; i++)
 		icu_unset(i, (driver_intr_t *)NULL);
+	mtx_lock_spin(&icu_lock);
 	init_i8259();
+	mtx_unlock_spin(&icu_lock);
 }
 
 
@@ -406,8 +407,10 @@ isa_irq_pending()
 	u_char irr1;
 	u_char irr2;
 
+	mtx_lock_spin(&icu_lock);
 	irr1 = inb(IO_ICU1);
 	irr2 = inb(IO_ICU2);
+	mtx_unlock_spin(&icu_lock);
 	return ((irr2 << 8) | irr1);
 }
 #endif
@@ -473,7 +476,6 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 	int		vector;
 	u_int32_t	value;		/* the window register is 32 bits */
 #endif /* FAST_HI */
-	u_long	ef;
 
 #if defined(APIC_IO)
 	if ((u_int)intr >= ICU_LEN)	/* no 8259 SLAVE to ignore */
@@ -486,8 +488,7 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 		return (EBUSY);
 #endif
 
-	ef = read_eflags();
-	disable_intr();
+	mtx_lock_spin(&icu_lock);
 	intr_handler[intr] = handler;
 	intr_unit[intr] = arg;
 #ifdef FAST_HI
@@ -528,7 +529,7 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #endif /* FAST_HI */
 	INTREN(1 << intr);
-	write_eflags(ef);
+	mtx_unlock_spin(&icu_lock);
 	return (0);
 }
 
@@ -542,14 +543,12 @@ icu_unset(intr, handler)
 	int	intr;
 	driver_intr_t *handler;
 {
-	u_long	ef;
 
 	if ((u_int)intr >= ICU_LEN || handler != intr_handler[intr])
 		return (EINVAL);
 
+	mtx_lock_spin(&icu_lock);
 	INTRDIS(1 << intr);
-	ef = read_eflags();
-	disable_intr();
 	intr_countp[intr] = &intrcnt[1 + intr];
 	intr_handler[intr] = isa_strayintr;
 	intr_unit[intr] = &intr_unit[intr];
@@ -564,7 +563,7 @@ icu_unset(intr, handler)
 	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif /* FAST_HI */
-	write_eflags(ef);
+	mtx_unlock_spin(&icu_lock);
 	return (0);
 }
 
@@ -580,14 +579,18 @@ static void
 ithread_enable(int vector)
 {
 
+	mtx_lock_spin(&icu_lock);
 	INTREN(1 << vector);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void
 ithread_disable(int vector)
 {
 
+	mtx_lock_spin(&icu_lock);
 	INTRDIS(1 << vector);
+	mtx_unlock_spin(&icu_lock);
 }
 
 int

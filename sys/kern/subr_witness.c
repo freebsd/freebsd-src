@@ -215,10 +215,8 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * leaf locks
 	 */
+	{ "icu", &lock_class_mtx_spin },
 #ifdef SMP
-#ifdef __i386__
-	{ "imen", &lock_class_mtx_spin },
-#endif
 	{ "smp rendezvous", &lock_class_mtx_spin },
 #endif
 	{ "clk", &lock_class_mtx_spin },
