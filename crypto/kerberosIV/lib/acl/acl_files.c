@@ -22,7 +22,7 @@ or implied warranty.
 #include "config.h"
 #include "protos.h"
 
-RCSID("$Id: acl_files.c,v 1.10 1997/05/02 14:28:56 assar Exp $");
+RCSID("$Id: acl_files.c,v 1.13 1999/03/13 21:21:32 assar Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,67 +71,28 @@ RCSID("$Id: acl_files.c,v 1.10 1997/05/02 14:28:56 assar Exp $");
 
 #define COR(a,b) ((a!=NULL)?(a):(b))
 
-/* Canonicalize a principal name */
-/* If instance is missing, it becomes "" */
-/* If realm is missing, it becomes the local realm */
-/* Canonicalized form is put in canon, which must be big enough to hold
-   MAX_PRINCIPAL_SIZE characters */
+/*
+ * Canonicalize a principal name.
+ * If instance is missing, it becomes ""
+ * If realm is missing, it becomes the local realm
+ * Canonicalized form is put in canon, which must be big enough to
+ * hold MAX_PRINCIPAL_SIZE characters
+ *
+ */
+
 void
 acl_canonicalize_principal(char *principal, char *canon)
 {
-    char *dot, *atsign, *end;
-    int len;
-
-    dot = strchr(principal, INST_SEP);
-    atsign = strchr(principal, REALM_SEP);
-
-    /* Maybe we're done already */
-    if(dot != NULL && atsign != NULL) {
-	if(dot < atsign) {
-	    /* It's for real */
-	    /* Copy into canon */
-	    strncpy(canon, principal, MAX_PRINCIPAL_SIZE);
-	    canon[MAX_PRINCIPAL_SIZE-1] = '\0';
-	    return;
-	} else {
-	    /* Nope, it's part of the realm */
-	    dot = NULL;
-	}
+    krb_principal princ;
+    int ret;
+    ret = krb_parse_name(principal, &princ);
+    if(ret) { /* ? */
+	*canon = '\0';
+	return;
     }
-    
-    /* No such luck */
-    end = principal + strlen(principal);
-
-    /* Get the principal name */
-    len = min(ANAME_SZ, COR(dot, COR(atsign, end)) - principal);
-    strncpy(canon, principal, len);
-    canon += len;
-
-    /* Add INST_SEP */
-    *canon++ = INST_SEP;
-
-    /* Get the instance, if it exists */
-    if(dot != NULL) {
-	++dot;
-	len = min(INST_SZ, COR(atsign, end) - dot);
-	strncpy(canon, dot, len);
-	canon += len;
-    }
-
-    /* Add REALM_SEP */
-    *canon++ = REALM_SEP;
-
-    /* Get the realm, if it exists */
-    /* Otherwise, default to local realm */
-    if(atsign != NULL) {
-	++atsign;
-	len = min(REALM_SZ, end - atsign);
-	strncpy(canon, atsign, len);
-	canon += len;
-	*canon++ = '\0';
-    } else if(krb_get_lrealm(canon, 1) != KSUCCESS) {
-	strcpy(canon, KRB_REALM);
-    }
+    if(princ.realm[0] == '\0')
+	krb_get_lrealm(princ.realm, 1);
+    krb_unparse_name_r(&princ, canon);
 }
 	    
 /* Get a lock to modify acl_file */
@@ -256,12 +217,13 @@ acl_initialize(char *acl_file, int perm)
 /* Eliminate all whitespace character in buf */
 /* Modifies its argument */
 static void
- nuke_whitespace(char *buf)
+nuke_whitespace(char *buf)
 {
-    char *pin, *pout;
+    unsigned char *pin, *pout;
 
-    for(pin = pout = buf; *pin != '\0'; pin++)
-	if(!isspace(*pin)) *pout++ = *pin;
+    for(pin = pout = (unsigned char *)buf; *pin != '\0'; pin++)
+	if(!isspace(*pin))
+	    *pout++ = *pin;
     *pout = '\0';		/* Terminate the string */
 }
 
@@ -281,9 +243,15 @@ make_hash(int size)
 
     if(size < 1) size = 1;
     h = (struct hashtbl *) malloc(sizeof(struct hashtbl));
+    if (h == NULL)
+	return NULL;
     h->size = size;
     h->entries = 0;
     h->tbl = (char **) calloc(size, sizeof(char *));
+    if (h->tbl == NULL) {
+	free (h);
+	return NULL;
+    }
     return(h);
 }
 
@@ -339,8 +307,10 @@ add_hash(struct hashtbl *h, char *el)
     hv = hashval(el) % h->size;
     while(h->tbl[hv] != NULL && strcmp(h->tbl[hv], el)) hv = (hv+1) % h->size;
     s = strdup(el);
-    h->tbl[hv] = s;
-    h->entries++;
+    if (s != NULL) {
+	h->tbl[hv] = s;
+	h->entries++;
+    }
 }
 
 /* Returns nonzero if el is in h */
@@ -403,7 +373,7 @@ acl_load(char *name)
     }
 
     /* Set up the acl */
-    strcpy(acl_cache[i].filename, name);
+    strcpy_truncate(acl_cache[i].filename, name, LINESIZE);
     if((acl_cache[i].fd = open(name, O_RDONLY, 0)) < 0) return(-1);
     /* Force reload */
     acl_cache[i].acl = (struct hashtbl *) 0;

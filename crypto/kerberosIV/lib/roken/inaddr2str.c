@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: inaddr2str.c,v 1.6 1997/04/01 08:19:02 joda Exp $");
+RCSID("$Id: inaddr2str.c,v 1.10 1998/07/13 13:59:46 assar Exp $");
 #endif
 
 #include <stdlib.h>
@@ -52,6 +52,13 @@ RCSID("$Id: inaddr2str.c,v 1.6 1997/04/01 08:19:02 joda Exp $");
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+#ifdef HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
+#ifdef HAVE_NETINET6_IN6_H
+#include <netinet6/in6.h>
+#endif
+
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -69,20 +76,20 @@ void
 inaddr2str(struct in_addr addr, char *s, size_t len)
 {
   struct hostent *h;
-  char *p;
+  char **p;
 
-  h = gethostbyaddr ((const char *)&addr, sizeof(addr), AF_INET);
+  h = roken_gethostbyaddr ((const char *)&addr, sizeof(addr), AF_INET);
   if (h) {
-    h = gethostbyname (h->h_name);
+    h = roken_gethostbyname (h->h_name);
     if(h)
-      while ((p = *(h->h_addr_list)++))
-	if (memcmp (p, &addr, sizeof(addr)) == 0) {
-	  strncpy (s, h->h_name, len);
-	  s[len - 1] = '\0';
+      for(p = h->h_addr_list;
+	  *p;
+	  ++p)
+	if (memcmp (*p, &addr, sizeof(addr)) == 0) {
+	  strcpy_truncate (s, h->h_name, len);
 	  return;
 	}
   }
-  strncpy (s, inet_ntoa (addr), len);
-  s[len - 1] = '\0';
+  strcpy_truncate (s, inet_ntoa (addr), len);
   return;
 }

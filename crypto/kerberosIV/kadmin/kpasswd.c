@@ -25,7 +25,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kpasswd.c,v 1.25 1997/05/02 14:28:51 assar Exp $");
+RCSID("$Id: kpasswd.c,v 1.26 1998/06/09 19:24:54 joda Exp $");
 
 static void
 usage(int value)
@@ -70,7 +70,9 @@ main(int argc, char **argv)
 	    break;
 	case 'n':
 	    if (k_isname(optarg))
-		strncpy(principal.name, optarg, sizeof(principal.name) - 1);
+		strcpy_truncate(principal.name,
+				optarg,
+				sizeof(principal.name));
 	    else {
 		warnx("Bad name: %s", optarg);
 		usage(1);
@@ -78,9 +80,9 @@ main(int argc, char **argv)
 	    break;
 	case 'i':
 	    if (k_isinst(optarg))
-		strncpy(principal.instance,
-			optarg,
-			sizeof(principal.instance) - 1);
+		strcpy_truncate(principal.instance,
+				optarg,
+				sizeof(principal.instance));
 	    else {
 		warnx("Bad instance: %s", optarg);
 		usage(1);
@@ -88,7 +90,9 @@ main(int argc, char **argv)
 	    break;
 	case 'r':
 	    if (k_isrealm(optarg)) {
-		strncpy(principal.realm, optarg, sizeof(principal.realm) - 1);
+		strcpy_truncate(principal.realm,
+				optarg,
+				sizeof(principal.realm));
 		realm_given++; 
 	    } else {
 		warnx("Bad realm: %s", optarg);
@@ -112,14 +116,24 @@ main(int argc, char **argv)
     }
 
     if (use_default) {
-	strcpy(principal.name, default_principal.name);
-	strcpy(principal.instance, default_principal.instance);
-	strcpy(principal.realm, default_principal.realm);
+	strcpy_truncate(principal.name,
+			default_principal.name,
+			sizeof(principal.name));
+	strcpy_truncate(principal.instance,
+			default_principal.instance,
+			sizeof(principal.instance));
+	strcpy_truncate(principal.realm,
+			default_principal.realm,
+			sizeof(principal.realm));
     } else {
 	if (!principal.name[0])
-	    strcpy(principal.name, default_principal.name);
+	    strcpy_truncate(principal.name,
+			    default_principal.name,
+			    sizeof(principal.name));
 	if (!principal.realm[0])
-	    strcpy(principal.realm, default_principal.realm);
+	    strcpy_truncate(principal.realm,
+			    default_principal.realm,
+			    sizeof(principal.realm));
     }
 
     snprintf(tktstring, sizeof(tktstring),

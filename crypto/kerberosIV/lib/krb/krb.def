@@ -1,8 +1,4 @@
-LIBRARY	"krb"  BASE=0x07000000
-
-DESCRIPTION "Dynamic link library for kerberos version 4"
-VERSION 1.0
-
+LIBRARY	krb	BASE=0x07000000
 EXPORTS
 	krb_get_err_text
 	
@@ -13,11 +9,16 @@ EXPORTS
 	currCredIndex
 	nextFreeIndex
 	
-	k_flock
 	k_localtime
 	k_getsockinst
 	k_getportbyname
 	k_get_all_addrs
+	
+	krb_set_kdc_time_diff
+	krb_get_kdc_time_diff
+
+	krb_get_config_bool
+	krb_get_config_string
 
 	krb_equiv
 
@@ -55,6 +56,9 @@ EXPORTS
 	k_isname
 	k_isrealm
 	kname_parse
+	krb_parse_name
+	krb_unparse_name
+	krb_unparse_name_long
 	krb_create_ticket
 	krb_get_admhst
 	krb_get_cred

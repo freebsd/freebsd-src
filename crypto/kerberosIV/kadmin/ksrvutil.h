@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan 
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan 
  * (Royal Institute of Technology, Stockholm, Sweden).  
  * All rights reserved.
  * 
@@ -37,7 +37,7 @@
  */
 
 /*
- * $Id: ksrvutil.h,v 1.8 1997/04/01 03:58:55 assar Exp $
+ * $Id: ksrvutil.h,v 1.9 1998/01/16 19:01:31 joda Exp $
  *
  */
 
@@ -51,4 +51,5 @@ void safe_write(char *filename, int fd, void *buf, size_t len);
 int yn(char *string);
 int ny(char *string);
 
-void ksrvutil_get(int fd, char *filename, int argc, char **argv);
+void ksrvutil_get(int unique_filename, int fd, 
+		  char *filename, int argc, char **argv);

@@ -30,7 +30,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: ksrvutil.c,v 1.39 1997/05/02 14:28:52 assar Exp $");
+RCSID("$Id: ksrvutil.c,v 1.47 1999/06/29 18:53:58 bg Exp $");
 
 #include "ksrvutil.h"
 
@@ -86,7 +86,7 @@ copy_keyfile(char *keyfile, char *backup_keyfile)
 	try_again = FALSE;
 	if ((keyfile_fd = open(keyfile, O_RDONLY, 0)) < 0) {
 	    if (errno != ENOENT)
-	      err (1, "read %s", keyfile);
+	      err (1, "open %s", keyfile);
 	    else {
 		try_again = TRUE;
 		if ((keyfile_fd = 
@@ -105,7 +105,7 @@ copy_keyfile(char *keyfile, char *backup_keyfile)
     if ((backup_keyfile_fd = 
 	 open(backup_keyfile, O_WRONLY | O_TRUNC | O_CREAT, 
 	      keyfile_mode)) < 0)
-	err (1, "write %s", backup_keyfile);
+	err (1, "open %s", backup_keyfile);
     do {
 	if ((rcount = read(keyfile_fd, buf, sizeof(buf))) < 0)
 	    err (1, "read %s", keyfile);
@@ -184,7 +184,8 @@ int ny(char *string)
 }
 
 static void
-append_srvtab(char *filename, int fd, char *sname, char *sinst, char *srealm, unsigned char key_vno, unsigned char *key)
+append_srvtab(char *filename, int fd, char *sname, char *sinst, char *srealm,
+	      unsigned char key_vno, unsigned char *key)
 {
   /* Add one to append null */
     safe_write(filename, fd, sname, strlen(sname) + 1);
@@ -259,13 +260,14 @@ static void
 usage(void)
 {
     fprintf(stderr, "Usage: ksrvutil [-f keyfile] [-i] [-k] ");
-    fprintf(stderr, "[-p principal] [-r realm] ");
+    fprintf(stderr, "[-p principal] [-r realm] [-u]");
     fprintf(stderr, "[-c AFS cellname] ");
-    fprintf(stderr, "{list | change | add | get}\n");
-    fprintf(stderr, "   -i causes the program to ask for ");
-    fprintf(stderr, "confirmation before changing keys.\n");
-    fprintf(stderr, "   -k causes the key to printed for list or ");
-    fprintf(stderr, "change.\n");
+    fprintf(stderr, "{list | change | add | get | delete}\n");
+    fprintf(stderr, "   -i causes the program to ask for "
+	    "confirmation before changing keys.\n");
+    fprintf(stderr, "   -k causes the key to printed for list or change.\n");
+    fprintf(stderr, "   -u creates one keyfile for each principal "
+	    "(only used with `get')\n");
     exit(1);
 }
 
@@ -292,7 +294,9 @@ main(int argc, char **argv)
     int interactive = FALSE;
     int list = FALSE;
     int change = FALSE;
+    int unique_filename = FALSE;
     int add = FALSE;
+    int delete = FALSE;
     int get = FALSE;
     int key = FALSE;		/* do we show keys? */
     int arg_entered = FALSE;
@@ -318,101 +322,116 @@ main(int argc, char **argv)
 
     /* This is used only as a default for adding keys */
     if (krb_get_lrealm(local_realm, 1) != KSUCCESS)
-	strcpy(local_realm, KRB_REALM);
+	strcpy_truncate(local_realm,
+			KRB_REALM,
+			sizeof(local_realm));
     
-    while((c = getopt(argc, argv, "ikc:f:p:r:")) != EOF) {
-	 switch (c) {
-	      case 'i':
-	      interactive++;
-	      break;
-	      case 'k':
-	      key++;
-	      break;
-	      case 'c':
-	      strcpy(cellname, optarg);
-	      break;
-	      case 'f':
-	      strcpy(keyfile, optarg);
-	      break;
-	      case 'p':
-	      if((status = kname_parse (u_name, u_inst, u_realm, optarg)) !=
-		 KSUCCESS)
-		  errx (1, "principal %s: %s", optarg,
-			krb_get_err_text(status));
-	      break;
-	      case 'r':
-	      strcpy(u_realm, optarg);
-	      break;
-	      case '?':
-	      usage();
-	 }
+    while((c = getopt(argc, argv, "ikc:f:p:r:u")) != EOF) {
+	switch (c) {
+	case 'i':
+	    interactive++;
+	    break;
+	case 'k':
+	    key++;
+	    break;
+	case 'c':
+	    strcpy_truncate(cellname, optarg, sizeof(cellname));
+	    break;
+	case 'f':
+	    strcpy_truncate(keyfile, optarg, sizeof(keyfile));
+	    break;
+	case 'p':
+	    if((status = kname_parse (u_name, u_inst, u_realm, optarg)) !=
+	       KSUCCESS)
+		errx (1, "principal %s: %s", optarg,
+		      krb_get_err_text(status));
+	    break;
+	case 'r':
+	    strcpy_truncate(u_realm, optarg, sizeof(u_realm));
+	    break;
+	case 'u':
+	    unique_filename = 1;
+	    break;
+	case '?':
+	    usage();
+	}
     }
     if (optind >= argc)
-	 usage();
+	usage();
     if (*u_realm == '\0')
-	 strcpy (u_realm, local_realm);
+	 strcpy_truncate (u_realm, local_realm, sizeof(u_realm));
     if (strcmp(argv[optind], "list") == 0) {
-	 if (arg_entered)
-	      usage();
-	 else {
-	      arg_entered++;
-	      list++;
-	 }
+	if (arg_entered)
+	    usage();
+	else {
+	    arg_entered++;
+	    list++;
+	}
     }
     else if (strcmp(argv[optind], "change") == 0) {
-	 if (arg_entered)
-	      usage();
-	 else {
-	      arg_entered++;
-	      change++;
-	 }
+	if (arg_entered)
+	    usage();
+	else {
+	    arg_entered++;
+	    change++;
+	}
     }
     else if (strcmp(argv[optind], "add") == 0) {
-	 if (arg_entered)
-	      usage();
-	 else {
-	      arg_entered++;
-	      add++;
-	 }
+	if (arg_entered)
+	    usage();
+	else {
+	    arg_entered++;
+	    add++;
+	}
     }
     else if (strcmp(argv[optind], "get") == 0) {
-	 if (arg_entered)
-	      usage();
-	 else {
-	      arg_entered++;
-	      get++;
-	 }
+	if (arg_entered)
+	    usage();
+	else {
+	    arg_entered++;
+	    get++;
+	}
+    }
+    else if (strcmp(argv[optind], "delete") == 0) {
+	if (arg_entered)
+	    usage();
+	else {
+	    arg_entered++;
+	    delete++;
+	}
     }
     else
-	 usage();
+	usage();
     ++optind;
     
     if (!arg_entered)
 	usage();
 
+    if(unique_filename && !get)
+	warnx("`-u' flag is only used with `get'");
+
     if (!keyfile[0])
-	strcpy(keyfile, KEYFILE);
+	strcpy_truncate(keyfile, KEYFILE, sizeof(keyfile));
+
+    strcpy_truncate(work_keyfile, keyfile, sizeof(work_keyfile));
+    strcpy_truncate(backup_keyfile, keyfile, sizeof(backup_keyfile));
     
-    strcpy(work_keyfile, keyfile);
-    strcpy(backup_keyfile, keyfile);
-    
-    if (change || add || get) {
-	strcat(work_keyfile, ".work");
-	strcat(backup_keyfile, ".old");
-	
+    if (change || add || (get && !unique_filename) || delete) {
+	snprintf(work_keyfile, sizeof(work_keyfile), "%s.work", keyfile);
+	snprintf(backup_keyfile, sizeof(backup_keyfile), "%s.old", keyfile);
 	copy_keyfile(keyfile, backup_keyfile);
     }
     
-    if (add || get)
+    if (add || (get && !unique_filename))
 	copy_keyfile(backup_keyfile, work_keyfile);
 
     keyfile_mode = get_mode(keyfile);
 
-    if (change || list)
+    if (change || list || delete)
 	if ((backup_keyfile_fd = open(backup_keyfile, O_RDONLY, 0)) < 0)
 	    err (1, "open %s", backup_keyfile);
 
-    if (change) {
+    if (change || delete) {
 	if ((work_keyfile_fd = 
 	     open(work_keyfile, O_WRONLY | O_CREAT | O_TRUNC, 
 		  SRVTAB_MODE)) < 0)
@@ -423,13 +442,13 @@ main(int argc, char **argv)
 	     open(work_keyfile, O_APPEND | O_WRONLY, SRVTAB_MODE)) < 0)
 	    err (1, "open with append %s", work_keyfile );
     }
-    else if (get) {
+    else if (get && !unique_filename) {
 	if ((work_keyfile_fd =
 	     open(work_keyfile, O_RDWR | O_CREAT, SRVTAB_MODE)) < 0)
 	    err (1, "open for writing %s", work_keyfile);
     }
     
-    if (change || list) {
+    if (change || list || delete) {
 	while ((getst(backup_keyfile_fd, sname, SNAME_SZ) > 0) &&
 	       (getst(backup_keyfile_fd, sinst, INST_SZ) > 0) &&
 	       (getst(backup_keyfile_fd, srealm, REALM_SZ) > 0) &&
@@ -467,10 +486,8 @@ main(int argc, char **argv)
 		printf("; version %d\n", key_vno);
 		if (interactive)
 		    change_this_key = yn("Change this key?");
-		else if (change)
-		    change_this_key = 1;
 		else
-		    change_this_key = 0;
+		    change_this_key = 1;
 		
 		if (change_this_key)
 		    printf("Changing to version %d.\n", key_vno + 1);
@@ -539,6 +556,20 @@ main(int argc, char **argv)
 			}
 		    }
 		}
+	    } else if(delete) {
+		int delete_this_key;
+		printf("\nPrincipal: ");
+		print_name(sname, sinst, srealm);
+		printf("; version %d\n", key_vno);
+		delete_this_key = yn("Delete this key?");
+		
+		if (delete_this_key)
+		    printf("Deleting this key.\n");
+		
+		if (!delete_this_key) {
+		    append_srvtab(work_keyfile, work_keyfile_fd, 
+				  sname, sinst, srealm, key_vno, old_key);
+		}
 	    }
 	    memset(old_key, 0, sizeof(des_cblock));
 	    memset(new_key, 0, sizeof(des_cblock));
@@ -547,23 +578,30 @@ main(int argc, char **argv)
     else if (add) {
 	do {
 	    do {
+		char *p;
+
 		safe_read_stdin("Name: ", databuf, sizeof(databuf));
-		strncpy(sname, databuf, sizeof(sname) - 1);
-		if (strchr(sname, '.') != 0) {
-		  strcpy(sinst, strchr(sname, '.') + 1);
-		  *(strchr(sname, '.')) = 0;
+		p = strchr(databuf, '.');
+		if (p != NULL) {
+		    *p++ = '\0';
+		    strcpy_truncate (sname, databuf, sizeof(sname));
+		    strcpy_truncate (sinst, p, sizeof(sinst));
 		} else {
-		  safe_read_stdin("Instance: ", databuf, sizeof(databuf));
-		  strncpy(sinst, databuf, sizeof(sinst) - 1);
+		    strcpy_truncate (sname, databuf, sizeof(sname));
+		    safe_read_stdin("Instance: ", databuf, sizeof(databuf));
+		    strcpy_truncate (sinst, databuf, sizeof(databuf));
 		}
+
 		safe_read_stdin("Realm: ", databuf, sizeof(databuf));
-		strncpy(srealm, databuf, sizeof(srealm) - 1);
+		if (databuf[0] != '\0')
+		    strcpy_truncate (srealm, databuf, sizeof(srealm));
+		else
+		    strcpy_truncate (srealm, local_realm, sizeof(srealm));
+
 		safe_read_stdin("Version number: ", databuf, sizeof(databuf));
 		key_vno = atoi(databuf);
-		if (key_vno == 0)
-			key_vno = 1; /* Version numbers are never 0 */
 		if (!srealm[0])
-		    strcpy(srealm, local_realm);
+		    strcpy_truncate(srealm, local_realm, sizeof(srealm));
 		printf("New principal: ");
 		print_name(sname, sinst, srealm);
 		printf("; version %d\n", key_vno);
@@ -580,15 +618,15 @@ main(int argc, char **argv)
 	} while (yn("Would you like to add another key?"));
     }
     else if (get) {
-        ksrvutil_get(work_keyfile_fd, work_keyfile,
+        ksrvutil_get(unique_filename, work_keyfile_fd, work_keyfile,
 		     argc - optind, argv + optind);
     }
 
-    if (change || list) 
+    if (change || list || delete) 
 	if (close(backup_keyfile_fd) < 0)
 	    warn ("close %s", backup_keyfile);
     
-    if (change || add || get) {
+    if (change || add || (get && !unique_filename) || delete) {
 	if (close(work_keyfile_fd) < 0)
 	    err (1, "close %s", work_keyfile);
 	if (rename(work_keyfile, keyfile) < 0)

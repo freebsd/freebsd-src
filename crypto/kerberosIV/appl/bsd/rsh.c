@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rsh.c,v 1.35 1997/03/30 18:20:22 joda Exp $");
+RCSID("$Id: rsh.c,v 1.41 1999/06/17 18:49:18 assar Exp $");
 
 CREDENTIALS cred;
 Key_schedule schedule;
@@ -49,7 +49,7 @@ static void
 usage(void)
 {
     fprintf(stderr,
-	    "usage: rsh [-ndKx] [-k realm] [-l login] host [command]\n");
+	    "usage: rsh [-ndKx] [-k realm] [-p port] [-l login] host [command]\n");
     exit(1);
 }
 
@@ -63,11 +63,13 @@ copyargs(char **argv)
     cc = 0;
     for (ap = argv; *ap; ++ap)
 	cc += strlen(*ap) + 1;
-    if (!(args = malloc(cc))) 
+    args = malloc(cc);
+    if (args == NULL)
 	errx(1, "Out of memory.");
     for (p = args, ap = argv; *ap; ++ap) {
 	strcpy(p, *ap);
-	for (p = strcpy(p, *ap); *p; ++p);
+	while(*p)
+	    ++p;
 	if (ap[1])
 	    *p++ = ' ';
     }
@@ -92,7 +94,7 @@ talk(int nflag, sigset_t omask, int pid, int rem)
     int cc, wc;
     char *bp;
     fd_set readfrom, ready, rembits;
-    char buf[BUFSIZ];
+    char buf[DES_RW_MAXWRITE];
 
     if (pid == 0) {
 	if (nflag)
@@ -107,7 +109,7 @@ talk(int nflag, sigset_t omask, int pid, int rem)
 
     rewrite:	FD_ZERO(&rembits);
     FD_SET(rem, &rembits);
-    if (select(16, 0, &rembits, 0, 0) < 0) {
+    if (select(rem + 1, 0, &rembits, 0, 0) < 0) {
 	if (errno != EINTR) 
 	    err(1, "select");
 	goto rewrite;
@@ -142,7 +144,7 @@ talk(int nflag, sigset_t omask, int pid, int rem)
     FD_SET(rfd2, &readfrom);
     do {
 	ready = readfrom;
-	if (select(16, &ready, 0, 0, 0) < 0) {
+	if (select(max(rem,rfd2)+1, &ready, 0, 0, 0) < 0) {
 	    if (errno != EINTR)
 		err(1, "select");
 	    continue;
@@ -184,7 +186,7 @@ int
 main(int argc, char **argv)
 {
     struct passwd *pw;
-    int sv_port;
+    int sv_port, user_port = 0;
     sigset_t omask;
     int argoff, ch, dflag, nflag, nfork, one, pid, rem, uid;
     char *args, *host, *user, *local_user;
@@ -197,12 +199,12 @@ main(int argc, char **argv)
     set_progname(argv[0]);
 
     /* handle "rsh host flags" */
-    if (!host && argc > 2 && argv[1][0] != '-') {
+    if (argc > 2 && argv[1][0] != '-') {
 	host = argv[1];
 	argoff = 1;
     }
 
-#define	OPTIONS	"+8KLde:k:l:nwx"
+#define	OPTIONS	"+8KLde:k:l:np:wx"
     while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != EOF)
 	switch(ch) {
 	case 'K':
@@ -221,7 +223,7 @@ main(int argc, char **argv)
 	    break;
 	case 'k':
 	    dest_realm = dst_realm_buf;
-	    strncpy(dest_realm, optarg, REALM_SZ);
+	    strcpy_truncate(dest_realm, optarg, REALM_SZ);
 	    break;
 	case 'n':
 	    nflag = nfork = 1;
@@ -229,6 +231,15 @@ main(int argc, char **argv)
 	case 'x':
 	    doencrypt = 1;
 	    break;
+	case 'p': {
+	    char *endptr;
+
+	    user_port = strtol (optarg, &endptr, 0);
+	    if (user_port == 0 && optarg == endptr)
+		errx (1, "Bad port `%s'", optarg);
+	    user_port = htons(user_port);
+	    break;
+	}
 	case '?':
 	default:
 	    usage();
@@ -247,9 +258,6 @@ main(int argc, char **argv)
 	err(1, "can't exec %s", _PATH_RLOGIN);
     }
 
-    argc -= optind;
-    argv += optind;
-
 #ifndef __CYGWIN32__
     if (!(pw = k_getpwuid(uid = getuid())))
 	errx(1, "unknown user id.");
@@ -266,12 +274,15 @@ main(int argc, char **argv)
     if (doencrypt)
 	nfork = 0;
 
-    args = copyargs(argv);
+    args = copyargs(argv+optind);
 
-    sv_port=get_shell_port(use_kerberos, doencrypt);
+    if (user_port)
+	sv_port = user_port;
+    else
+	sv_port = get_shell_port(use_kerberos, doencrypt);
 
-try_connect:
     if (use_kerberos) {
+	setuid(getuid());
 	rem = KSUCCESS;
 	errno = 0;
 	if (dest_realm == NULL)
@@ -284,13 +295,27 @@ try_connect:
 	    rem = krcmd(&host, sv_port, user, args, &rfd2,
 			dest_realm);
 	if (rem < 0) {
+	    int i = 0;
+	    char **newargv;
+
 	    if (errno == ECONNREFUSED)
 		warning("remote host doesn't support Kerberos");
 	    if (errno == ENOENT)
 		warning("can't provide Kerberos auth data");
-	    use_kerberos = 0;
-	    sv_port=get_shell_port(use_kerberos, doencrypt);
-	    goto try_connect;
+	    newargv = malloc((argc + 2) * sizeof(*newargv));
+	    if (newargv == NULL)
+		err(1, "malloc");
+	    newargv[i] = argv[i];
+	    ++i;
+	    if (argv[i][0] != '-') {
+		newargv[i] = argv[i];
+		++i;
+	    }
+	    newargv[i++] = "-K";
+	    for(; i <= argc; ++i)
+		newargv[i] = argv[i - 1];
+	    newargv[argc + 1] = NULL;
+	    execv(_PATH_RSH, newargv);
 	}
     } else {
 	if (doencrypt)

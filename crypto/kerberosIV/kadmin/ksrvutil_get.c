@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -39,7 +39,7 @@
 #include "kadm_locl.h"
 #include "ksrvutil.h"
 
-RCSID("$Id: ksrvutil_get.c,v 1.32 1997/05/05 21:14:57 assar Exp $");
+RCSID("$Id: ksrvutil_get.c,v 1.38 1999/06/29 21:19:37 bg Exp $");
 
 #define BAD_PW 1
 #define GOOD_PW 0
@@ -48,7 +48,7 @@ RCSID("$Id: ksrvutil_get.c,v 1.32 1997/05/05 21:14:57 assar Exp $");
 #define PE_YES 1
 #define PE_UNSURE 2
 
-static char tktstring[128];
+static char tktstring[MaxPathLen];
 
 static int
 princ_exists(char *name, char *instance, char *realm)
@@ -92,8 +92,7 @@ get_admin_password(char *myname, char *myinst, char *myrealm)
     memset(&c, 0, sizeof(c));
     krb_get_cred(PWSERV_NAME, KADM_SINST, myrealm, &c);
     des_init_random_number_generator(&c.session);
-  }
-  else
+  } else
     status = KDC_PR_UNKNOWN;
   
   switch(status) {
@@ -122,8 +121,8 @@ static void
 srvtab_put_key (int fd, char *filename, char *name, char *inst, char *realm,
 		int8_t kvno, des_cblock key)
 {
-  char sname[ANAME_SZ];	/* name of service */
-  char sinst[INST_SZ];	/* instance of service */
+  char sname[ANAME_SZ];		/* name of service */
+  char sinst[INST_SZ];		/* instance of service */
   char srealm[REALM_SZ];	/* realm of service */
   int8_t skvno;
   des_cblock skey;
@@ -163,7 +162,10 @@ struct srv_ent{
 };
 
 static int
-key_to_key(char *user, char *instance, char *realm, void *arg,
+key_to_key(const char *user,
+	   char *instance,
+	   const char *realm,
+	   const void *arg,
 	   des_cblock *key)
 {
   memcpy(key, arg, sizeof(des_cblock));
@@ -171,92 +173,116 @@ key_to_key(char *user, char *instance, char *realm, void *arg,
 }
 
 static void
-get_srvtab_ent(int fd, char *filename, char *name, char *inst, char *realm)
+get_srvtab_ent(int unique_filename, int fd, char *filename, 
+	       char *name, char *inst, char *realm)
 {
-  char chname[128];
-  des_cblock newkey;
-  char old_tktfile[MaxPathLen], new_tktfile[MaxPathLen];
-  char garbage_name[ANAME_SZ];
-  char garbage_inst[ANAME_SZ];
-  CREDENTIALS c;
-  u_int8_t kvno;
-  Kadm_vals values;
-  int ret;
+    char chname[128];
+    des_cblock newkey;
+    char old_tktfile[MaxPathLen], new_tktfile[MaxPathLen];
+    char garbage_name[ANAME_SZ];
+    char garbage_inst[ANAME_SZ];
+    CREDENTIALS c;
+    u_int8_t kvno;
+    Kadm_vals values;
+    int ret;
 
-  strncpy(chname, krb_get_phost(inst), sizeof(chname));
-  if(strcmp(inst, chname))
-    fprintf(stderr, 
-	    "Warning: Are you sure `%s' should not be `%s'?\n",
-	    inst, chname);
+    strcpy_truncate(chname, krb_get_phost(inst), sizeof(chname));
+    if(strcmp(inst, chname))
+	fprintf(stderr, 
+		"Warning: Are you sure `%s' should not be `%s'?\n",
+		inst, chname);
     
-  memset(&values, 0, sizeof(values));
-  strcpy(values.name, name);
-  strcpy(values.instance, inst);
-  des_new_random_key(&newkey);
-  values.key_low = (newkey[0] << 24) | (newkey[1] << 16)
-    | (newkey[2] << 8) | (newkey[3] << 0);
-  values.key_high = (newkey[4] << 24) | (newkey[5] << 16)
-    | (newkey[6] << 8) | (newkey[7] << 0);
+    memset(&values, 0, sizeof(values));
+    strcpy_truncate(values.name, name, sizeof(values.name));
+    strcpy_truncate(values.instance, inst, sizeof(values.instance));
+    des_new_random_key(&newkey);
+    values.key_low = (newkey[0] << 24) | (newkey[1] << 16)
+	| (newkey[2] << 8) | (newkey[3] << 0);
+    values.key_high = (newkey[4] << 24) | (newkey[5] << 16)
+	| (newkey[6] << 8) | (newkey[7] << 0);
 
-  SET_FIELD(KADM_NAME,values.fields);
-  SET_FIELD(KADM_INST,values.fields);
-  SET_FIELD(KADM_DESKEY,values.fields);
+    SET_FIELD(KADM_NAME,values.fields);
+    SET_FIELD(KADM_INST,values.fields);
+    SET_FIELD(KADM_DESKEY,values.fields);
 
-  ret = kadm_mod(&values, &values);
-  if(ret == KADM_NOENTRY)
-    ret = kadm_add(&values);
-  if (ret != KSUCCESS) {
-    warnx ("Couldn't get srvtab entry for %s.%s: %s",
-	    name, inst, error_message(ret));
-    return;
-  }
+    ret = kadm_mod(&values, &values);
+    if(ret == KADM_NOENTRY)
+	ret = kadm_add(&values);
+    if (ret != KSUCCESS) {
+	warnx ("Couldn't get srvtab entry for %s.%s: %s",
+	       name, inst, error_message(ret));
+	return;
+    }
   
-  values.key_low = values.key_high = 0;
+    values.key_low = values.key_high = 0;
 
-  /* get the key version number */
+    /* get the key version number */
+    { 
+	int old = krb_use_admin_server(1);
 
-  strcpy(old_tktfile, tkt_string());
-  snprintf(new_tktfile, sizeof(new_tktfile),
-	   TKT_ROOT "_ksrvutil-get.%u",
-	   (unsigned)getpid());
-  krb_set_tkt_string(new_tktfile);
+	strcpy_truncate(old_tktfile, tkt_string(), sizeof(old_tktfile));
+	snprintf(new_tktfile, sizeof(new_tktfile),
+		 TKT_ROOT "_ksrvutil-get.%u",
+		 (unsigned)getpid());
+	krb_set_tkt_string(new_tktfile);
+      
+	ret = krb_get_in_tkt(name, inst, realm, name, inst,
+			     1, key_to_key, NULL, &newkey);
+	krb_use_admin_server(old);
+    }
+      
+    if (ret == KSUCCESS &&
+	(ret = tf_init(tkt_string(), R_TKT_FIL)) == KSUCCESS &&
+	(ret = tf_get_pname(garbage_name)) == KSUCCESS &&
+	(ret = tf_get_pinst(garbage_inst)) == KSUCCESS &&
+	(ret = tf_get_cred(&c)) == KSUCCESS)
+	kvno = c.kvno;
+    else {
+	warnx ("Could not find the cred in the ticket file");
+	return;
+    }
 
-  ret = krb_get_in_tkt(name, inst, realm, name, inst,
-		       1, key_to_key, NULL, &newkey);
-
-  if (ret == KSUCCESS &&
-      (ret = tf_init(tkt_string(), R_TKT_FIL)) == KSUCCESS &&
-      (ret = tf_get_pname(garbage_name)) == KSUCCESS &&
-      (ret = tf_get_pinst(garbage_inst)) == KSUCCESS &&
-      (ret = tf_get_cred(&c)) == KSUCCESS)
-    kvno = c.kvno;
-  else {
-    warnx ("Could not find the cred in the ticket file");
-    return;
-  }
-
-  tf_close();
-  krb_set_tkt_string(old_tktfile);
-  unlink(new_tktfile);
+    tf_close();
+    krb_set_tkt_string(old_tktfile);
+    unlink(new_tktfile);
     
-  if(ret != KSUCCESS) {
+    if(ret != KSUCCESS) {
+	memset(&newkey, 0, sizeof(newkey));
+	warnx ("Could not get a ticket for %s: %s\n",
+	       krb_unparse_name_long(name, inst, realm),
+	       krb_get_err_text(ret));
+	return;
+    }
+
+    /* Write the new key & c:o to the srvtab file */
+
+    if(unique_filename){
+	char *fn;
+	asprintf(&fn, "%s-%s", filename, 
+		 krb_unparse_name_long(name, inst, realm));
+	if(fn == NULL){
+	    warnx("Out of memory");
+	    leave(NULL, 1);
+	}
+	fd = open(fn, O_RDWR | O_CREAT | O_TRUNC, 0600); /* XXX flags, mode? */
+	if(fd < 0){
+	    warn("%s", fn);
+	    leave(NULL, 1);
+	}
+	srvtab_put_key (fd, fn, name, inst, realm, kvno, newkey);
+	close(fd);
+	fprintf (stderr, "Created %s\n", fn);
+	free(fn);
+    }else{
+	srvtab_put_key (fd, filename, name, inst, realm, kvno, newkey);
+	fprintf (stderr, "Added %s\n", 
+		 krb_unparse_name_long (name, inst, realm));
+    }
     memset(&newkey, 0, sizeof(newkey));
-    warnx ("Could not get a ticket for %s: %s\n",
-	   krb_unparse_name_long(name, inst, realm),
-	   krb_get_err_text(ret));
-    return;
-  }
-
-  /* Write the new key & c:o to the srvtab file */
-
-  srvtab_put_key (fd, filename, name, inst, realm, kvno, newkey);
-  memset(&newkey, 0, sizeof(newkey));
-
-  fprintf (stderr, "Added %s\n", krb_unparse_name_long (name, inst, realm));
 }
 
 static void
-ksrvutil_kadm(int fd, char *filename, struct srv_ent *p)
+ksrvutil_kadm(int unique_filename, int fd, char *filename, struct srv_ent *p)
 {
   int ret;
   CREDENTIALS c;
@@ -276,7 +302,8 @@ ksrvutil_kadm(int fd, char *filename, struct srv_ent *p)
     /*
      *  create ticket file and get admin tickets
      */
-    snprintf(tktstring, sizeof(tktstring), TKT_ROOT "_ksrvutil_%d", (int)getpid());
+    snprintf(tktstring, sizeof(tktstring),
+	     TKT_ROOT "_ksrvutil_%d", (int)getpid());
     krb_set_tkt_string(tktstring);
     destroyp = TRUE;
        
@@ -287,7 +314,7 @@ ksrvutil_kadm(int fd, char *filename, struct srv_ent *p)
     }
   }  
   for(;p;){
-    get_srvtab_ent(fd, filename, p->name, p->inst, p->realm);
+    get_srvtab_ent(unique_filename, fd, filename, p->name, p->inst, p->realm);
     p=p->next;
   }
   unlink(tktstring);
@@ -300,7 +327,7 @@ parseinput (char *result, size_t sz, char *val, char *def)
   int inq;
 
   if (val[0] == '\0') {
-    strncpy (result, def, sz-1);
+    strcpy_truncate (result, def, sz);
     return;
   }
   lim = result + sz - 1;
@@ -323,7 +350,7 @@ parseinput (char *result, size_t sz, char *val, char *def)
 }
 
 void
-ksrvutil_get(int fd, char *filename, int argc, char **argv)
+ksrvutil_get(int unique_filename, int fd, char *filename, int argc, char **argv)
 {
   char sname[ANAME_SZ];		/* name of service */
   char sinst[INST_SZ];		/* instance of service */
@@ -334,8 +361,10 @@ ksrvutil_get(int fd, char *filename, int argc, char **argv)
   struct srv_ent *head=NULL;
   int i;
 
-  k_gethostname(local_hostname, sizeof(local_hostname));
-  strcpy(local_hostname, krb_get_phost(local_hostname));
+  gethostname(local_hostname, sizeof(local_hostname));
+  strcpy_truncate(local_hostname,
+		  krb_get_phost(local_hostname),
+		  sizeof(local_hostname));
 
   if (argc)
     for(i=0; i < argc; ++i) {
@@ -346,7 +375,7 @@ ksrvutil_get(int fd, char *filename, int argc, char **argv)
 	leave(NULL,1);
       }
       p->next = head;
-      strcpy (p->realm, u_realm);
+      strcpy_truncate (p->realm, u_realm, sizeof(p->realm));
       if (kname_parse (p->name, p->inst, p->realm, argv[i]) !=
 	  KSUCCESS) {
 	warnx ("parse error on '%s'\n", argv[i]);
@@ -354,11 +383,11 @@ ksrvutil_get(int fd, char *filename, int argc, char **argv)
 	continue;
       }
       if (p->name[0] == '\0')
-	strcpy(p->name, "rcmd");
+	strcpy_truncate(p->name, "rcmd", sizeof(p->name));
       if (p->inst[0] == '\0')
-	strcpy(p->inst, local_hostname);
+	strcpy_truncate(p->inst, local_hostname, sizeof(p->inst));
       if (p->realm[0] == '\0')
-	strcpy(p->realm, u_realm);
+	strcpy_truncate(p->realm, u_realm, sizeof(p->realm));
       head = p;
     }
 
@@ -377,16 +406,20 @@ ksrvutil_get(int fd, char *filename, int argc, char **argv)
 
       if(yn("Is this correct?")){
 	struct srv_ent *p=(struct srv_ent*)malloc(sizeof(struct srv_ent));
+	if (p == NULL) {
+	    warnx ("out of memory in malloc");
+	    leave(NULL,1);
+	}
 	p->next=head;
 	head=p;
-	strcpy(p->name, sname);
-	strcpy(p->inst, sinst);
-	strcpy(p->realm, srealm);
+	strcpy_truncate(p->name, sname, sizeof(p->name));
+	strcpy_truncate(p->inst, sinst, sizeof(p->inst));
+	strcpy_truncate(p->realm, srealm, sizeof(p->realm));
       }
     }while(ny("Add more keys?"));
   
   
-  ksrvutil_kadm(fd, filename, head);
+  ksrvutil_kadm(unique_filename, fd, filename, head);
 
   {
     struct srv_ent *p=head, *q;

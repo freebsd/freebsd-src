@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -40,7 +40,7 @@
 
 #include "kprop.h"
 
-RCSID("$Id: kpropd.c,v 2.21 1997/05/02 17:52:13 assar Exp $");
+RCSID("$Id: kpropd.c,v 2.30 1999/03/11 20:29:14 bg Exp $");
 
 #ifndef SBINDIR
 #define SBINDIR "/usr/athena/sbin"
@@ -95,7 +95,8 @@ copy_data(int from, int to, des_cblock *session, des_key_schedule schedule)
 	    klog(L_KRB_PERR, "Premature end of data");
 	    return -1;
 	}
-	kerr = krb_rd_priv (buf, length, schedule, session, &master, &slave, &m);
+	kerr = krb_rd_priv (buf, length, schedule, session,
+			    &master, &slave, &m);
 	if(kerr != KSUCCESS){
 	    klog(L_KRB_PERR, "Kerberos error: %s", krb_get_err_text(kerr));
 	    return -1;
@@ -115,7 +116,6 @@ kprop(int s)
     KTEXT_ST ticket;
     AUTH_DAT ad;
     char sinst[INST_SZ];
-    char command[1024];
     des_key_schedule schedule;
     int mode;
     int kerr;
@@ -159,6 +159,19 @@ kprop(int s)
 	klog(L_KRB_PERR, "Kerberos error: %s", krb_get_err_text(kerr));
 	return 1;
     }
+
+    if(strcmp(ad.pname, KPROP_SERVICE_NAME) ||
+#if 0
+       strcmp(ad.pinst, /* XXX remote host */) ||
+#else
+       strcmp(ad.pinst, KRB_MASTER) ||
+#endif
+       strcmp(ad.prealm, realm)){
+	klog(L_KRB_PERR, "Connection from unauthorized client: %s", 
+	     krb_unparse_name_long(ad.pname, ad.pinst, ad.prealm));
+	return 1;
+    }
+
     des_set_key(&ad.session, schedule);
     
     lock = open(lockfile, O_WRONLY|O_CREAT, 0600);
@@ -166,7 +179,7 @@ kprop(int s)
 	klog(L_KRB_PERR, "Failed to open file: %s", strerror(errno));
 	return 1;
     }
-    if(k_flock(lock, K_LOCK_EX | K_LOCK_NB)){
+    if(flock(lock, LOCK_EX | LOCK_NB)){
 	close(lock);
 	klog(L_KRB_PERR, "Failed to lock file: %s", strerror(errno));
 	return 1;
@@ -183,15 +196,15 @@ kprop(int s)
 	return 1;
     }
     close(lock);
-    snprintf(command, sizeof(command),
-	     "%s %s %s %s", kdb_util, kdb_util_command, 
-	    lockfile, database);
-    if(system(command) == 0){
+    
+    if(simple_execlp(kdb_util, "kdb_util", kdb_util_command, 
+		     lockfile, database, NULL) != 0) {
+	klog(L_KRB_PERR, "*** Propagation failed ***");
+	return 1;
+    }else{
 	klog(L_KRB_PERR, "Propagation finished successfully");
 	return 0;
     }
-    klog(L_KRB_PERR, "*** Propagation failed ***");
-    return 1;
 }
 
 static int
@@ -279,7 +292,7 @@ main(int argc, char **argv)
 	    kdb_util = optarg;
 	    break;
 	case 'r':
-	    strcpy(realm, optarg);
+	    strcpy_truncate(realm, optarg, REALM_SZ);
 	    break;
 	case 's':
 	    srvtab = optarg;
@@ -292,6 +305,15 @@ main(int argc, char **argv)
 	    usage ();
 	    exit(1);
 	}
+    }
+    if (!interactive) {
+      /* Use logfile as stderr so we don't lose error messages. */
+      int fd = open(logfile, O_CREAT | O_WRONLY | O_APPEND, 0600);
+      if (fd == -1)
+	klog(L_KRB_PERR, "Can't open logfile %s: %s", logfile,strerror(errno));
+      else
+	dup2(fd, 2);
+      close(fd);
     }
     kset_logfile(logfile);
     if (interactive)

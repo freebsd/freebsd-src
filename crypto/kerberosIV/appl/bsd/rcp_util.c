@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rcp_util.c,v 1.7 1996/11/17 20:23:05 assar Exp $");
+RCSID("$Id: rcp_util.c,v 1.8 1998/09/28 11:45:21 joda Exp $");
 
 char *
 colon(char *cp)
@@ -73,25 +73,27 @@ bad:	warnx("%s: invalid user name", cp0);
 int
 susystem(char *s, int userid)
 {
-        RETSIGTYPE (*istat)(), (*qstat)();
-	int status;
-	pid_t pid;
+    RETSIGTYPE (*istat)(), (*qstat)();
+    int status;
+    pid_t pid;
 
-	pid = fork();
-	switch (pid) {
-	case -1:
-		return (127);
+    pid = fork();
+    switch (pid) {
+    case -1:
+	return (127);
 	
-	case 0:
-		setuid(userid);
-		execl(_PATH_BSHELL, "sh", "-c", s, NULL);
-		_exit(127);
-	}
-	istat = signal(SIGINT, SIG_IGN);
-	qstat = signal(SIGQUIT, SIG_IGN);
-	if (waitpid(pid, &status, 0) < 0)
-		status = -1;
-	signal(SIGINT, istat);
-	signal(SIGQUIT, qstat);
-	return (status);
+    case 0:
+	if(do_osfc2_magic(userid))
+	    exit(1);
+	setuid(userid);
+	execl(_PATH_BSHELL, "sh", "-c", s, NULL);
+	_exit(127);
+    }
+    istat = signal(SIGINT, SIG_IGN);
+    qstat = signal(SIGQUIT, SIG_IGN);
+    if (waitpid(pid, &status, 0) < 0)
+	status = -1;
+    signal(SIGINT, istat);
+    signal(SIGQUIT, qstat);
+    return (status);
 }

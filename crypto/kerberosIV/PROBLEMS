@@ -2,8 +2,8 @@
 Problems compiling Kerberos
 ===========================
 
-Many compilers require a switch to become ANSI compliant. Since kth-krb
-is written in ANSI C it is necessary to specify the name of the compiler
+Many compilers require a switch to become ANSI compliant. Since krb4 is
+written in ANSI C it is necessary to specify the name of the compiler
 to be used and the required switch to make it ANSI compliant. This is
 most easily done when running configure using the `env' command. For
 instance to build under HP-UX using the native compiler do:
@@ -31,8 +31,15 @@ verified to successfully compile the distribution:
 Linux problems
 --------------
 
+The libc functions gethostby*() under RedHat4.2 can sometimes cause
+core dumps. If you experience these problems make sure that the file
+`/etc/nsswitch.conf' contains a hosts entry no more complex than the
+line
+
+hosts: files dns
+
 Some systems have lost `/usr/include/ndbm.h' which is necessary to
-build kth-krb correctly. There is a `ndbm.h.Linux' right next to the
+build krb4 correctly. There is a `ndbm.h.Linux' right next to the
 source distribution.
 
 There has been reports of non-working `libdb' on some Linux
@@ -57,9 +64,34 @@ mean time use `telnetd'.
 AIX problems
 ------------
 
-`gcc' version 2.7.2.1 has a bug which makes it miscompile
+`gcc' version 2.7.2.* has a bug which makes it miscompile
 `appl/telnet/telnetd/sys_term.c' (and possibily `appl/bsd/forkpty.c'),
 if used with too much optimization.
+
+Some versions of the `xlc' preprocessor doesn't recognise the
+(undocumented) `-qnolm' option. If this option is passed to the
+preprocessor (like via the configuration file `/etc/ibmcxx.cfg',
+configure will fail.
+
+The solution is to remove this option from the configuration file,
+either globally, or for just the preprocessor:
+
+     $ cp /etc/ibmcxx.cfg /tmp
+     $ed /tmp/ibmcxx.cfg
+     8328
+     /nolm
+             options   = -D_AIX,-D_AIX32,-D_AIX41,-D_AIX43,-D_IBMR2,-D_POWER,-bpT:0x10000000,-bpD:0x20000000,-qnolm
+     s/,-qnolm//p
+             options   = -D_AIX,-D_AIX32,-D_AIX41,-D_AIX43,-D_IBMR2,-D_POWER,-bpT:0x10000000,-bpD:0x20000000
+     w
+     8321
+     q
+     $ env CC=xlc CPP="xlc -E -F/tmp/ibmcxx.cfg" configure
+
+There is a bug in AFS 3.4 version 5.38 for AIX 4.3 that causes the
+kernel to panic in some cases. There is a hack for this in `login', but
+other programs could be affected also. This seems to be fixed in
+version 5.55.
 
 C2 problems
 -----------

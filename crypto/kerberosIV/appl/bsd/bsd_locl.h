@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: bsd_locl.h,v 1.98 1997/05/25 01:14:17 assar Exp $ */
+/* $Id: bsd_locl.h,v 1.109.2.1 1999/07/22 03:13:49 assar Exp $ */
 
 #define LOGALL
 #define KERBEROS
@@ -49,7 +49,7 @@
 #endif
 
 /* Any better way to test NO_MOTD? */
-#if (SunOS == 5) || defined(__hpux)
+#if (SunOS >= 50) || defined(__hpux)
 #define NO_MOTD
 #endif
 
@@ -62,12 +62,19 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <setjmp.h>
+#include <limits.h>
 
 #include <stdarg.h>
 
 #include <errno.h>
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
 #endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -145,7 +152,7 @@
 #include <netdb.h>
 #endif
 
-#if defined(HAVE_SYS_IOCTL_H) && SunOS != 4
+#if defined(HAVE_SYS_IOCTL_H) && SunOS != 40
 #include <sys/ioctl.h>
 #endif
 #ifdef HAVE_SYS_IOCCOM_H
@@ -228,9 +235,9 @@
 
 #ifdef HAVE_UTMP_H
 #include <utmp.h>
-#endif
 #ifndef UT_NAMESIZE
 #define UT_NAMESIZE     sizeof(((struct utmp *)0)->ut_name)
+#endif
 #endif
 
 #ifdef HAVE_UTMPX_H
@@ -242,8 +249,13 @@
 #endif /* HAVE_USERPW_H */
 
 #ifdef HAVE_USERSEC_H
+struct aud_rec;
 #include <usersec.h>
 #endif /* HAVE_USERSEC_H */
+
+#ifdef HAVE_OSFC2
+#include "/usr/include/prot.h"
+#endif
 
 #ifndef PRIO_PROCESS
 #define PRIO_PROCESS 0
@@ -255,6 +267,9 @@
 
 #ifdef SOCKS
 #include <socks.h>
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
 #endif
 
 #include <des.h>
@@ -289,6 +304,9 @@ int susystem(char *s, int userid);
 int forkpty(int *amaster, char *name,
 	    struct termios *termp, struct winsize *winp);
 
+int forkpty_truncate(int *amaster, char *name, size_t name_sz,
+		     struct termios *termp, struct winsize *winp);
+
 #ifndef MODEMASK
 #define	MODEMASK	(S_ISUID|S_ISGID|S_ISTXT|S_IRWXU|S_IRWXG|S_IRWXO)
 #endif
@@ -310,11 +328,7 @@ extern char **environ;
 void sysv_newenv(int argc, char **argv, struct passwd *pwd,
 		 char *term, int pflag);
 
-int login_access(char *user, char *from);
-#ifndef HAVE_IRUSEROK
-int iruserok(u_int32_t raddr, int superuser, const char *ruser,
-	     const char *luser);
-#endif
+int login_access(struct passwd *user, char *from);
 void fatal(int f, const char *msg, int syserr);
 
 extern int LEFT_JUSTIFIED;
@@ -322,6 +336,10 @@ int des_enc_read(int fd,char *buf,int len,des_key_schedule sched,
 	des_cblock *iv);
 int des_enc_write(int fd,char *buf,int len,des_key_schedule sched,
 	des_cblock *iv);
+
+/* used in des_read and des_write */
+#define DES_RW_MAXWRITE	(1024*16)
+#define DES_RW_BSIZE	(DES_RW_MAXWRITE+4)
 
 void sysv_defaults(void);
 void utmp_login(char *tty, char *username, char *hostname);
@@ -342,11 +360,11 @@ void sleepexit (int);
 #ifndef _POSIX_VDISABLE
 #define _POSIX_VDISABLE 0
 #endif /* _POSIX_VDISABLE */
-#if SunOS == 4
+#if SunOS == 40
 #include <sys/ttold.h>
 #endif
 
-#if defined(_AIX)
+#if defined(HAVE_SYS_TERMIO_H) && !defined(HAVE_TERMIOS_H)
 #include <sys/termio.h>
 #endif
 
@@ -376,5 +394,9 @@ __attribute__ ((format (printf, 1, 2)))
 
 char *clean_ttyname (char *tty);
 char *make_id (char *tty);
+#ifdef HAVE_UTMP_H
 void prepare_utmp (struct utmp *utmp, char *tty, char *username,
 		   char *hostname);
+#endif
+
+int do_osfc2_magic(uid_t);

@@ -25,7 +25,7 @@ or implied warranty.
 
 #include "kdb_locl.h"
 
-RCSID("$Id: krb_cache.c,v 1.6 1997/05/02 10:27:53 joda Exp $");
+RCSID("$Id: krb_cache.c,v 1.7 1998/06/09 19:25:14 joda Exp $");
 
 #ifdef DEBUG
 extern int debug;
@@ -49,12 +49,10 @@ kerb_cache_init(void)
  */
 
 int
-kerb_cache_get_principal(char *serv, char *inst, Principal *principal, unsigned int max)
-                 		/* could have wild card */
-                 		/* could have wild card */
-                         
-                     		/* max number of name structs to return */
-
+kerb_cache_get_principal(char *serv, /* could have wild card */
+			 char *inst, /* could have wild card */
+			 Principal *principal,
+			 unsigned int max) /* max number of name structs to return */
 {
     int     found = 0;
 
@@ -86,11 +84,10 @@ kerb_cache_get_principal(char *serv, char *inst, Principal *principal, unsigned 
  */
 
 int
-kerb_cache_put_principal(Principal *principal, unsigned int max)
-                         
+kerb_cache_put_principal(Principal *principal,
+			 unsigned int max)
                      		/* max number of principal structs to
 				 * insert */
-
 {
     u_long  i;
     int     count = 0;
@@ -123,12 +120,10 @@ kerb_cache_put_principal(Principal *principal, unsigned int max)
  */
 
 int
-kerb_cache_get_dba(char *serv, char *inst, Dba *dba, unsigned int max)
-                 		/* could have wild card */
-                 		/* could have wild card */
-                
-                     		/* max number of name structs to return */
-
+kerb_cache_get_dba(char *serv,	/* could have wild card */
+		   char *inst,	/* could have wild card */
+		   Dba *dba,
+		   unsigned int max) /* max number of name structs to return */
 {
     int     found = 0;
 
@@ -159,10 +154,9 @@ kerb_cache_get_dba(char *serv, char *inst, Dba *dba, unsigned int max)
  */
 
 int
-kerb_cache_put_dba(Dba *dba, unsigned int max)
-                
+kerb_cache_put_dba(Dba *dba,
+		   unsigned int max)
                      		/* max number of dba structs to insert */
-
 {
     u_long  i;
     int     count = 0;

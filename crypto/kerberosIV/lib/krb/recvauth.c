@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: recvauth.c,v 1.17 1997/03/23 03:53:16 joda Exp $");
+RCSID("$Id: recvauth.c,v 1.19 1998/06/09 19:25:25 joda Exp $");
 
 /*
  * krb_recvauth() reads (and optionally responds to) a message sent
@@ -117,10 +117,12 @@ krb_recvauth(int32_t options,	/* bit-pattern of options */
     int32_t priv_len;
     u_char tmp_buf[MAX_KTXT_LEN+max(KRB_SENDAUTH_VLEN+1,21)];
 
-    /* read the protocol version number */
-    if (krb_net_read(fd, krb_vers, KRB_SENDAUTH_VLEN) != KRB_SENDAUTH_VLEN)
-	return(errno);
-    krb_vers[KRB_SENDAUTH_VLEN] = '\0';
+    if (!(options & KOPT_IGNORE_PROTOCOL)) {
+	/* read the protocol version number */
+	if (krb_net_read(fd, krb_vers, KRB_SENDAUTH_VLEN) != KRB_SENDAUTH_VLEN)
+	    return(errno);
+	krb_vers[KRB_SENDAUTH_VLEN] = '\0';
+    }
 
     /* read the application version string */
     if (krb_net_read(fd, version, KRB_SENDAUTH_VLEN) != KRB_SENDAUTH_VLEN)
@@ -168,7 +170,7 @@ krb_recvauth(int32_t options,	/* bit-pattern of options */
 	   for return to the client */
 	{ 
 	    unsigned char cs[4];
-	    krb_put_int(kdata->checksum + 1, cs, 4);
+	    krb_put_int(kdata->checksum + 1, cs, sizeof(cs), 4);
 #ifndef NOENCRYPTION
 	    des_key_sched(&kdata->session,schedule);
 #endif
@@ -181,7 +183,7 @@ krb_recvauth(int32_t options,	/* bit-pattern of options */
 				   faddr);
 	}
 	/* mk_priv will never fail */
-	priv_len += krb_put_int(priv_len, tmp_buf, 4);
+	priv_len += krb_put_int(priv_len, tmp_buf, 4, 4);
 	
 	if((cc = krb_net_write(fd, tmp_buf, priv_len)) != priv_len)
 	    return -1;

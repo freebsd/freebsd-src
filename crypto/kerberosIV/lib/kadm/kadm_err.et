@@ -1,5 +1,4 @@
-#	$Id: kadm_err.et,v 1.4 1996/06/12 08:01:34 bg Exp $
-#	$Author: bg $
+# $Id: kadm_err.et,v 1.5 1998/01/16 23:11:27 joda Exp $
 #
 # Copyright 1988 by the Massachusetts Institute of Technology.
 #
@@ -12,7 +11,7 @@
 
 # KADM_SUCCESS, as all success codes should be, is zero
 
-ec KADM_RCSID,		"$Id: kadm_err.et,v 1.4 1996/06/12 08:01:34 bg Exp $"
+ec KADM_RCSID,		"$Id: kadm_err.et,v 1.5 1998/01/16 23:11:27 joda Exp $"
 # /* Building and unbuilding the packet errors */
 ec KADM_NO_REALM,	"Cannot fetch local realm"
 ec KADM_NO_CRED,	"Unable to fetch credentials"
@@ -56,4 +55,11 @@ ec KADM_PW_MISMATCH,    "Cleartext password and DES key did not match"
 
 ec KADM_NOT_SERV_PRINC, "Invalid principal for change srvtab request"
 ec KADM_IMMUTABLE,	"Attempt do delete immutable principal"
+# password quality basically stolen from OV libkadm5
+index 64
+prefix KADM_PASS_Q
+ec NULL,		"Null passwords are not allowed"
+ec TOOSHORT,		"Password is too short"
+ec CLASS,		"Too few character classes in password"
+ec DICT,		"Password is in the password dictionary"
 end

@@ -15,12 +15,10 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: kdb_util.c,v 1.35 1997/05/07 00:57:45 assar Exp $");
+RCSID("$Id: kdb_util.c,v 1.40 1999/07/05 21:43:52 assar Exp $");
 
 static des_cblock master_key, new_master_key;
 static des_key_schedule master_key_schedule, new_master_key_schedule;
-
-#define zaptime(foo) memset((foo), 0, sizeof(*(foo)))
 
 /* cv_key is a procedure which takes a principle and changes its key, 
    either for a new method of encrypting the keys, or a new master key.
@@ -52,11 +50,10 @@ time_explode(char *cp)
     struct tm tp;
     int local;
 
-    zaptime(&tp);			/* clear out the struct */
+    memset(&tp, 0, sizeof(tp));	/* clear out the struct */
     
     if (strlen(cp) > 10) {		/* new format */
-	strncpy(wbuf, cp, 4);
-	wbuf[4] = 0;
+	strcpy_truncate(wbuf, cp, sizeof(wbuf));
 	tp.tm_year = atoi(wbuf) - 1900;
 	cp += 4;			/* step over the year */
 	local = 0;			/* GMT */
@@ -86,13 +83,13 @@ time_explode(char *cp)
     wbuf[1] = *cp++;
     tp.tm_min = atoi(wbuf);
 
-
     return(tm2time(tp, local));
 }
 
 static int
-dump_db_1(void *arg, Principal *principal)
-{	    /* replace null strings with "*" */
+dump_db_1(void *arg,
+	  Principal *principal)	/* replace null strings with "*" */
+{
     struct callback_args *a = (struct callback_args *)arg;
     
     if (principal->instance[0] == '\0') {
@@ -135,7 +132,7 @@ dump_db (char *db_file, FILE *output_file, void (*cv_key) (Principal *))
     a.cv_key = cv_key;
     a.output_file = output_file;
     
-    kerb_db_iterate ((k_iter_proc_t)dump_db_1, &a);
+    kerb_db_iterate (dump_db_1, &a);
     return fflush(output_file);
 }
 
@@ -198,14 +195,12 @@ static void
 load_db (char *db_file, FILE *input_file)
 {
     long *db;
-    int     temp1;
     int code;
     char *temp_db_file;
 
-    temp1 = strlen(db_file)+2;
-    temp_db_file = malloc (temp1);
-    strcpy(temp_db_file, db_file);
-    strcat(temp_db_file, "~");
+    asprintf (&temp_db_file, "%s~", db_file);
+    if(temp_db_file == NULL)
+	errx (1, "out of memory");
 
     /* Create the database */
     if ((code = kerb_db_create(temp_db_file)) != 0)
@@ -244,15 +239,20 @@ update_ok_file (char *file_name)
     /* handle slave locking/failure stuff */
     char *file_ok;
     int fd;
-    static char ok[]=".dump_ok";
 
-    asprintf (&file_ok, "%s%s", file_name, ok);
+    asprintf (&file_ok, "%s.dump_ok", file_name);
     if (file_ok == NULL)
       errx (1, "out of memory");
-    if ((fd = open(file_ok, O_WRONLY|O_CREAT|O_TRUNC, 0400)) < 0)
+    if ((fd = open(file_ok, O_WRONLY|O_CREAT|O_TRUNC, 0600)) < 0)
         err (1, "Error creating %s", file_ok);
     free(file_ok);
     close(fd);
+    /*
+     * Some versions of BSD don't update the mtime in the above open so
+     * we call utimes just in case.
+     */
+    if (utime(file_name, NULL) < 0)
+	err (1, "utime %s", file_name);
 }
 
 static void
@@ -271,10 +271,12 @@ convert_key_new_master (Principal *p)
     (p->key_version)++;
   } else {
     copy_to_key(&p->key_low, &p->key_high, key);
-    kdb_encrypt_key (&key, &key, &master_key, master_key_schedule, DES_DECRYPT);
+    kdb_encrypt_key (&key, &key, &master_key,
+		     master_key_schedule, DES_DECRYPT);
   }
 
-  kdb_encrypt_key (&key, &key, &new_master_key, new_master_key_schedule, DES_ENCRYPT);
+  kdb_encrypt_key (&key, &key, &new_master_key,
+		   new_master_key_schedule, DES_ENCRYPT);
 
   copy_from_key(key, &(p->key_low), &(p->key_high));
   memset(key, 0, sizeof (key));  /* a little paranoia ... */
@@ -319,9 +321,15 @@ convert_new_master_key (char *db_file, FILE *out)
 
   dump_db (db_file, out, convert_key_new_master);
   {
-    char fname[128];
-    snprintf(fname, sizeof(fname), "%s.new", MKEYFILE);
+    char *fname;
+
+    asprintf(&fname, "%s.new", MKEYFILE);
+    if(fname == NULL) {
+      clear_secrets();
+      errx(1, "malloc: failed");
+    }
     kdb_kstash(&new_master_key, fname);
+    free(fname);
   }
 #endif /* RANDOM_MKEY */
 }

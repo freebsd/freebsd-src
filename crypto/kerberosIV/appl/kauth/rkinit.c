@@ -38,7 +38,7 @@
 
 #include "kauth.h"
 
-RCSID("$Id: rkinit.c,v 1.19 1997/04/01 08:17:33 joda Exp $");
+RCSID("$Id: rkinit.c,v 1.21 1998/06/09 19:24:26 joda Exp $");
 
 static struct in_addr *
 getalladdrs (char *hostname, unsigned *count)
@@ -53,12 +53,7 @@ getalladdrs (char *hostname, unsigned *count)
     if (hostent == NULL) {
 	warnx ("gethostbyname '%s' failed: %s\n",
 	       hostname,
-#ifdef HAVE_H_ERRNO
-	       hstrerror(h_errno)
-#else
-	       "unknown error"
-#endif
-	       );
+	       hstrerror(h_errno));
 	return NULL;
     }
     maxaddr = 1;
@@ -126,7 +121,12 @@ doit_host (krb_principal *princ, int lifetime, char *locuser,
 	warnx ("%s: %s\n", hostname, krb_get_err_text(status));
 	return 1;
     }
-    inlen = pack_args (buf, princ, lifetime, locuser, tktfile);
+    inlen = pack_args (buf, sizeof(buf),
+		       princ, lifetime, locuser, tktfile);
+    if (inlen < 0) {
+	warn ("cannot marshall arguments to %s", hostname);
+	return 1;
+    }
 
     if (write_encrypted(s, buf, inlen, schedule, &cred.session,
 			&thisaddr, &thataddr) < 0) {

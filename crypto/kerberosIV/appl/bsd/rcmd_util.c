@@ -38,7 +38,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rcmd_util.c,v 1.15 1997/05/02 14:27:44 assar Exp $");
+RCSID("$Id: rcmd_util.c,v 1.17 1997/09/24 21:14:23 assar Exp $");
 
 int
 get_login_port(int kerberos, int encryption)
@@ -240,7 +240,7 @@ warning(const char *fmt, ...)
     if (strncmp(rstar_no_warn, "yes", 3) != 0) {
 	/* XXX */
 	fprintf(stderr, "%s: warning, using standard ", __progname);
-	warnx(fmt, args);
+	vwarnx(fmt, args);
     }
     va_end(args);
 }

@@ -1,0 +1,196 @@
+1999-08-18  Assar Westerlund  <assar@sics.se>
+
+	* ftp/cmds.c (getit): be more suspicious when parsing the result
+ 	of MDTM.  Do the comparison of timestamps correctly.
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* ftp/krb4.c (krb4_auth): type correctness
+
+1999-06-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c (sendrequest): lmode != rmode
+	
+1999-05-21  Assar Westerlund  <assar@sics.se>
+
+	* ftp/extern.h (sendrequest): update prototype
+
+	* ftp/cmds.c: update calls to sendrequest and recvrequest to send
+ 	"b" when appropriate
+
+	* ftp/ftp.c (sendrequest): add argument for mode to open file in.
+
+1999-05-08  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y: rename getline -> ftpd_getline
+
+	* ftp/main.c (makeargv): fill in unused slots with NULL
+
+Thu Apr  8 15:06:40 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/ftpd.c: remove definition of KRB_VERIFY_USER (moved to
+ 	config.h)
+
+Wed Apr  7 16:15:21 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftp/gssapi.c (gss_auth): call gss_display_status to get a sane
+ 	error message; return AUTH_{CONTINUE,ERROR}, where appropriate
+
+	* ftp/krb4.c: return AUTH_{CONTINUE,ERROR}, where appropriate
+
+	* ftp/security.c (sec_login): if mechanism returns AUTH_CONTINUE,
+ 	just continue with the next mechanism, this fixes the case of
+ 	having GSSAPI fail because of non-existant of expired tickets
+
+	* ftp/security.h: add AUTH_{OK,CONTINUE,ERROR}
+
+Thu Apr  1 16:59:04 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/Makefile.am: don't run check-local
+
+	* ftp/Makefile.am: don't run check-local
+
+Mon Mar 22 22:15:18 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (pass): fall-back for KRB_VERIFY_SECURE
+
+	* ftpd/ftpd.c (pass): 1 -> KRB_VERIFY_SECURE
+
+Thu Mar 18 12:07:09 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/Makefile.am: clean ftpcmd.c
+
+	* ftpd/ftpd_locl.h: remove krb5.h (breaks in ftpcmd.y)
+
+	* ftpd/ftpd.c: move include of krb5.h here
+
+	* ftpd/Makefile.am: include Makefile.am.common
+
+	* Makefile.am: include Makefile.am.common
+
+	* ftp/Makefile.am: include Makefile.am.common
+
+	* common/Makefile.am: include Makefile.am.common
+
+Tue Mar 16 22:28:37 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd_locl.h: add krb5.h to get heimdal_version
+
+	* ftpd/ftpd.c: krb_verify_user_multiple -> krb_verify_user
+
+Thu Mar 11 14:54:59 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftp/Makefile.in: WFLAGS
+
+	* ftp/ruserpass.c: add some if-braces
+
+Wed Mar 10 20:02:55 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/ftpd_locl.h: remove ifdef HAVE_FNMATCH
+
+Mon Mar  8 21:29:24 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/ftpd.c: re-add version in greeting message
+
+Mon Mar  1 10:49:38 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/logwtmp.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+
+Mon Feb 22 19:20:51 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* common/Makefile.in: remove glob
+
+Sat Feb 13 17:19:35 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (match): remove #ifdef HAVE_FNMATCH.  We have a
+ 	fnmatch implementation in roken and therefore always have it.
+
+	* ftp/ftp.c (copy_stream): initialize `werr'
+
+Wed Jan 13 23:52:57 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y: moved all check_login and check_login_no_guest to
+ 	the end of the rules to ensure we don't generate several
+ 	(independent) error messages.  once again, having a yacc-grammar
+ 	for FTP with embedded actions doesn't strike me as the most
+ 	optimal way of doing it.
+
+Tue Dec  1 14:44:29 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/Makefile.am: link with extra libs for aix
+
+Sun Nov 22 10:28:20 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (retrying): support on-the-fly decompression
+
+	* ftpd/Makefile.in (WFLAGS): set
+
+	* ftp/ruserpass.c (guess_domain): new function
+	(ruserpass): use it
+
+	* common/Makefile.in (WFLAGS): set
+
+	* Makefile.in (WFLAGS): set
+
+Sat Nov 21 23:13:03 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c: some more type correctness.
+
+	* ftp/gssapi.c (gss_adat): more braces to shut up warnings
+
+Wed Nov 18 21:47:55 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/main.c (main): new option `-p' for enable passive mode.
+
+Mon Nov  2 01:57:49 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c (getreply): remove extra `break'
+
+	* ftp/gssapi.c (gss_auth): fixo typo(copyo?)
+
+	* ftp/security.c (sec_login): fix loop and return value
+
+Tue Sep  1 16:56:42 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/cmds.c (quote1): fix % quoting bug
+
+Fri Aug 14 17:10:06 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/krb4.c: krb_put_int -> KRB_PUT_INT
+
+Tue Jun 30 18:07:15 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (auth): free `app_data'
+	(sec_end): only destroy if it was initialized
+
+Tue Jun  9 21:01:59 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/krb4.c: pass client address to krb_rd_req
+
+Sat May 16 00:02:07 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/Makefile.am: link with DBLIB
+
+Tue May 12 14:15:32 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/gssapi.c: Save client name for userok().
+
+	* ftpd/gss_userok.c: Userok for gssapi.
+
+Fri May  1 07:15:01 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c: unifdef -DHAVE_H_ERRNO
+
+Fri Mar 27 00:46:07 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* Make compile w/o krb4.
+
+Thu Mar 26 03:49:12 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/*, ftpd/*: Changes for new framework.
+
+	* ftp/gssapi.c: GSS-API backend for the new security framework.
+
+	* ftp/krb4.c: Updated for new framework.
+
+	* ftp/security.{c,h}: New unified security framework.

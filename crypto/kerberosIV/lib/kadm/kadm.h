@@ -1,5 +1,5 @@
 /*
- * $Id: kadm.h,v 1.12 1996/11/17 20:04:39 assar Exp $
+ * $Id: kadm.h,v 1.17 1998/10/23 14:25:55 joda Exp $
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
  *
@@ -66,19 +66,25 @@ typedef struct {		/* status of the server, i.e the parameters */
 /* Kadm_vals structure for passing db fields into the server routines */
 #define FLDSZ        4
 
-typedef struct {
-    u_int8_t       fields[FLDSZ];     /* The active fields in this struct */
-    char           name[ANAME_SZ];
-    char           instance[INST_SZ];
-    u_int32_t  key_low;
-    u_int32_t  key_high;
-    u_int32_t  exp_date;
-    u_int16_t attributes;
-    u_int8_t  max_life;
-} Kadm_vals;                    /* The basic values structure in Kadm */
+/* XXX enable new extended kadm fields */
+#define EXTENDED_KADM 1
 
-/* Kadm_vals structure for passing db fields into the server routines */
-#define FLDSZ        4
+typedef struct {
+    u_int8_t	fields[FLDSZ];     /* The active fields in this struct */
+    char	name[ANAME_SZ];
+    char	instance[INST_SZ];
+    u_int32_t	key_low;
+    u_int32_t	key_high;
+    u_int32_t	exp_date;
+    u_int16_t	attributes;
+    u_int8_t	max_life;
+#ifdef EXTENDED_KADM
+    u_int32_t	mod_date;
+    char	mod_name[ANAME_SZ];
+    char	mod_instance[INST_SZ];
+    u_int8_t	key_version;
+#endif
+} Kadm_vals;                    /* The basic values structure in Kadm */
 
 /* Need to define fields types here */
 #define KADM_NAME       31
@@ -87,6 +93,13 @@ typedef struct {
 #define KADM_ATTR       28
 #define KADM_MAXLIFE    27
 #define KADM_DESKEY     26
+
+#ifdef EXTENDED_KADM
+#define KADM_MODDATE	25
+#define KADM_MODNAME	24
+#define KADM_MODINST	23
+#define KADM_KVNO	22
+#endif
 
 /* To set a field entry f in a fields structure d */
 #define SET_FIELD(f,d)  (d[3-(f/8)]|=(1<<(f%8)))
@@ -131,13 +144,13 @@ int vals_to_stream __P((Kadm_vals *, u_char **));
 int kadm_init_link __P((char *, char *, char *));
 int kadm_change_pw __P((unsigned char *));
 int kadm_change_pw_plain __P((unsigned char *, char *, char**));
+int kadm_change_pw2 __P((unsigned char *, char *, char**));
 int kadm_mod __P((Kadm_vals *, Kadm_vals *));
 int kadm_get __P((Kadm_vals *, u_char *));
 int kadm_add __P((Kadm_vals *));
 int kadm_del __P((Kadm_vals *));
 void kadm_vals_to_prin __P((u_char *, Principal *, Kadm_vals *));
 void kadm_prin_to_vals __P((u_char *, Kadm_vals *, Principal *));
-
-
+int kadm_check_pw __P((const char*));
 
 #endif /* KADM_DEFS */
