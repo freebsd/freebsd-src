@@ -439,21 +439,27 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 }
 
 /*
+ * The verify_path function checks if a route to the src exists and
+ * if it is reachable via ifp (when provided).
+ * 
  * The 'verrevpath' option checks that the interface that an IP packet
  * arrives on is the same interface that traffic destined for the
- * packet's source address would be routed out of. This is a measure
- * to block forged packets. This is also commonly known as "anti-spoofing"
- * or Unicast Reverse Path Forwarding (Unicast RFP) in Cisco-ese. The
- * name of the knob is purposely reminisent of the Cisco IOS command,
+ * packet's source address would be routed out of.  The 'versrcreach'
+ * option just checks that the source address is reachable via any route
+ * (except default) in the routing table.  These two are a measure to block
+ * forged packets.  This is also commonly known as "anti-spoofing" or Unicast
+ * Reverse Path Forwarding (Unicast RFP) in Cisco-ese. The name of the knobs
+ * is purposely reminiscent of the Cisco IOS command,
  *
  *   ip verify unicast reverse-path
+ *   ip verify unicast source reachable-via any
  *
  * which implements the same functionality. But note that syntax is
  * misleading. The check may be performed on all IP packets whether unicast,
  * multicast, or broadcast.
  */
 static int
-verify_rev_path(struct in_addr src, struct ifnet *ifp)
+verify_path(struct in_addr src, struct ifnet *ifp)
 {
 	struct route ro;
 	struct sockaddr_in *dst;
@@ -468,10 +474,21 @@ verify_rev_path(struct in_addr src, struct ifnet *ifp)
 
 	if (ro.ro_rt == NULL)
 		return 0;
-	if ((ifp == NULL) || (ro.ro_rt->rt_ifp->if_index != ifp->if_index)) {
+
+	/* if ifp is provided, check for equality with rtentry */
+	if (ifp != NULL && ro.ro_rt->rt_ifp != ifp) {
 		RTFREE(ro.ro_rt);
 		return 0;
 	}
+
+	/* if no ifp provided, check if rtentry is not default route */
+	if (ifp == NULL &&
+	     satosin(rt_key(ro.ro_rt))->sin_addr.s_addr == INADDR_ANY) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
+
+	/* found valid route */
 	RTFREE(ro.ro_rt);
 	return 1;
 }
@@ -1911,7 +1928,13 @@ check_body:
 				/* Outgoing packets automatically pass/match */
 				match = ((oif != NULL) ||
 				    (m->m_pkthdr.rcvif == NULL) ||
-				    verify_rev_path(src_ip, m->m_pkthdr.rcvif));
+				    verify_path(src_ip, m->m_pkthdr.rcvif));
+				break;
+
+			case O_VERSRCREACH:
+				/* Outgoing packets automatically pass/match */
+				match = ((oif != NULL) ||
+				     verify_path(src_ip, NULL));
 				break;
 
 			case O_IPSEC:
@@ -2546,6 +2569,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_TCPOPTS:
 		case O_ESTAB:
 		case O_VERREVPATH:
+		case O_VERSRCREACH:
 		case O_IPSEC:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;

@@ -1230,7 +1230,23 @@ the Cisco IOS command:
 .Pp
 .Dl ip verify unicast reverse-path
 .Pp
-This option can be used to make anti-spoofing rules.
+This option can be used to make anti-spoofing rules to reject all
+packets with source addresses not from this interface.
+.It Cm versrcreach
+For incoming packets,
+a routing table lookup is done on the packet's source address.
+If a route to the source address exists, but not the default route,
+the packet matches.
+Otherwise the packet does not match.
+All outgoing packets match.
+.Pp
+The name and functionality of the option is intentionally similar to
+the Cisco IOS command:
+.Pp
+.Dl ip verify unicast source reachable-via any
+.Pp
+This option can be used to make anti-spoofing rules to reject all
+packets whose source address is unreachable.
 .El
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
