@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.10 1997/05/29 05:57:43 fsmp Exp $
+ * $Id: smp.h,v 1.3 1997/06/25 20:43:48 smp Exp smp $
  *
  */
 
@@ -64,11 +64,10 @@ u_int	mp_bootaddress		__P((u_int));
 int	mp_probe		__P((void));
 void	mp_start		__P((void));
 void	mp_announce		__P((void));
-int	get_isa_apic_irq	__P((int));
-u_int	get_isa_apic_mask	__P((u_int));
+u_int	isa_apic_mask		__P((u_int));
+int	isa_apic_pin		__P((int));
+int	pci_apic_pin		__P((int, int, int));
 int	undirect_isa_irq	__P((int));
-int	get_eisa_apic_irq	__P((int));
-int	get_pci_apic_irq	__P((int, int, int));
 int	undirect_pci_irq	__P((int));
 int	apic_bus_type		__P((int));
 int	apic_src_bus_id		__P((int, int));
