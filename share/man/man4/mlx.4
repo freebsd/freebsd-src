@@ -1,0 +1,46 @@
+.\"
+.\" Copyright (c) 2000 Jeroen Ruigrok van der Werven
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 23, 2000
+.Dt MLX 4
+.Os
+.Sh NAME
+.Nm mlx
+.Nd Mylex DAC960 SCSI driver
+.Sh SYNOPSIS
+.Cd device mlx
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Mylex DAC960 controllers with 3.x and
+4.x firmware.
+This includes the P, PL, PJ, PJ and PTL (AcceleRAID 250) models.
+.Pp
+Other AcceleRAID models might work, but have not been tested and
+are thus not guaranteed to work.
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr scsi 4
