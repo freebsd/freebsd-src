@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.24 1998/05/06 18:44:03 bde Exp $
+#	$Id: bsd.obj.mk,v 1.25 1998/06/04 15:31:55 peter Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.
@@ -136,7 +136,7 @@ clean: _SUBDIR
 checkdpadd: _SUBDIR
 .if (defined(DPADD) || defined(LDADD))
 checkdpadd:
-.if ${BINFORMAT} != aout
+.if ${OBJFORMAT} != aout
 	@ldadd=`echo \`for lib in ${DPADD} ; do \
 		echo $$lib | sed 's;^/usr/lib/lib\(.*\)\.a;-l\1;' ; \
 	done \`` ; \
