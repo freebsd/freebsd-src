@@ -117,7 +117,7 @@ ffs(int mask)
 	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and later
 	 * versions.
 	 */
-	 return (mask == 0 ? mask : bsfl((u_int)mask) + 1);
+	 return (mask == 0 ? mask : (int)bsfl((u_int)mask) + 1);
 }
 
 #define	HAVE_INLINE_FLS
@@ -125,7 +125,7 @@ ffs(int mask)
 static __inline int
 fls(int mask)
 {
-	return (mask == 0 ? mask : bsrl((u_int)mask) + 1);
+	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
 }
 
 #if __GNUC__ < 2
