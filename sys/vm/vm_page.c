@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.80 1997/09/01 03:17:23 bde Exp $
+ *	$Id: vm_page.c,v 1.81 1997/09/13 15:04:52 peter Exp $
  */
 
 /*
@@ -1251,7 +1251,7 @@ vm_page_test_dirty(m)
 void *
 contigmalloc1(size, type, flags, low, high, alignment, boundary, map)
 	unsigned long size;	/* should be size_t here and for malloc() */
-	int type;
+	struct malloc_type *type;
 	int flags;
 	unsigned long low;
 	unsigned long high;
@@ -1436,7 +1436,7 @@ again1:
 void *
 contigmalloc(size, type, flags, low, high, alignment, boundary)
 	unsigned long size;	/* should be size_t here and for malloc() */
-	int type;
+	struct malloc_type *type;
 	int flags;
 	unsigned long low;
 	unsigned long high;
