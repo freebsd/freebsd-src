@@ -59,44 +59,14 @@
 
 #define ACPI_FLUSH_CPU_CACHE()	wbinvd()
 
-#define asm         __asm
-/*! [Begin] no source code translation
- *
- * A brief explanation as GNU inline assembly is a bit hairy
- *  %0 is the output parameter in EAX ("=a")
- *  %1 and %2 are the input parameters in ECX ("c")
- *  and an immediate value ("i") respectively
- *  All actual register references are preceded with "%%" as in "%%edx"
- *  Immediate values in the assembly are preceded by "$" as in "$0x1"
- *  The final asm parameter are the operation altered non-output registers.
- */
+/* Section 5.2.9.1:  global lock acquire/release functions */
+extern int	acpi_acquire_global_lock(uint32_t *lock);
+extern int	acpi_release_global_lock(uint32_t *lock);
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-        asm("1:     movl %1,%%eax;" \
-            "movl   %%eax,%%edx;" \
-            "andl   %2,%%edx;" \
-            "btsl   $0x1,%%edx;" \
-            "adcl   $0x0,%%edx;" \
-            "lock;  cmpxchgl %%edx,%1;" \
-            "jnz    1b;" \
-            "cmpb   $0x3,%%dl;" \
-            "sbbl   %%eax,%%eax" \
-            : "=a" (Acq), "+m" (GLptr) : "i" (~1L) : "edx"); \
-    } while(0)
-
+		((Acq) = acpi_acquire_global_lock(GLptr))
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-        asm("1:     movl %1,%%eax;" \
-            "movl   %%eax,%%edx;" \
-            "andl   %2,%%edx;" \
-            "lock;  cmpxchgl %%edx,%1;" \
-            "jnz    1b;" \
-            "andl   $0x1,%%eax" \
-            : "=a" (Acq), "+m" (GLptr) : "i" (~3L) : "edx"); \
-    } while(0)
-
-
-/*! [End] no source code translation !*/
+		((Acq) = acpi_release_global_lock(GLptr))
+ 
 #endif /* _KERNEL */
 
 #define ACPI_MACHINE_WIDTH             64
