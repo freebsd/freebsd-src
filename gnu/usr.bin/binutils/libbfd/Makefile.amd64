@@ -13,9 +13,6 @@ SRCS+=	elf64-amd64-fbsd.c elf64-target.h elf64-gen.c elf64.c
 
 CLEANFILES+=	elf64-target.h
 
-elf64-target.h:	elfxx-target.h
-	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
-
 CLEANFILES+=	elf64-amd64-fbsd.c
 
 elf64-amd64-fbsd.c: ${.CURDIR}/elf-fbsd-brand.c ${SRCDIR}/bfd/elf64-x86-64.c

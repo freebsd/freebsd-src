@@ -14,5 +14,3 @@ VECS+=	i386pe_vec i386pei_vec
 .endif
 
 CLEANFILES+=	elf32-target.h
-elf32-target.h:	elfxx-target.h
-	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}

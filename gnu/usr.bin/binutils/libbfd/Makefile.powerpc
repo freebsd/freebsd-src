@@ -21,5 +21,3 @@ CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
 .endif
 
 CLEANFILES+=	elf32-target.h
-elf32-target.h: elfxx-target.h
-	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}
