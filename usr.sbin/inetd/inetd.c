@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.33 1998/05/11 12:11:59 bde Exp $";
+	"$Id: inetd.c,v 1.34 1998/05/14 20:26:16 guido Exp $";
 #endif /* not lint */
 
 /*
@@ -461,6 +461,9 @@ main(argc, argv, envp)
 				    if (errno != EINTR)
 					    syslog(LOG_WARNING,
 						"accept (for %s): %m",
+                                      if (sep->se_accept &&
+                                          sep->se_socktype == SOCK_STREAM)
+                                              close(ctrl);
 						sep->se_service);
 				    continue;
 			    }
