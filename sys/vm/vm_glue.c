@@ -322,6 +322,7 @@ vm_proc_swapin(struct proc *p)
 	int i;
 
 	upobj = p->p_upages_obj;
+	VM_OBJECT_LOCK(upobj);
 	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		if (m->valid != VM_PAGE_BITS_ALL) {
@@ -331,7 +332,6 @@ vm_proc_swapin(struct proc *p)
 		}
 		ma[i] = m;
 	}
-	VM_OBJECT_LOCK(upobj);
 	if (upobj->resident_page_count != UAREA_PAGES)
 		panic("vm_proc_swapin: lost pages from upobj");
 	vm_page_lock_queues();

@@ -777,9 +777,7 @@ exec_map_first_page(imgp)
 			}
 		}
 		initial_pagein = i;
-		VM_OBJECT_UNLOCK(object);	/* XXX */
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
-		VM_OBJECT_LOCK(object);		/* XXX */
 		ma[0] = vm_page_lookup(object, 0);
 		vm_page_lock_queues();
 		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) ||
