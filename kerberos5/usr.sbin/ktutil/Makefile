@@ -21,10 +21,10 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${KAFS5OBJDIR} -lkafs5 \
 		-L${ROKENOBJDIR} -lroken ${_krb4libs} \
 		-L${SLOBJDIR} -lsl -L${ASN1OBJDIR} -lasn1 \
 		-L${KADM5COBJDIR} -lkadm5clnt \
-		-ldes -lcrypt -lcom_err -lreadline
+		-lcrypto -lmd -lcrypt -lcom_err -lreadline
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBSL} ${LIBASN1} ${LIBKADM5CLNT} \
-		${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE}
+		${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE}
 MAN8=		ktutil.8
 
 .include <bsd.prog.mk>
