@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.41 1995/11/29 10:12:28 phk Exp $
+ *      $Id: aha1742.c,v 1.42 1995/12/06 23:52:35 bde Exp $
  */
 
 #include <sys/types.h>
@@ -32,6 +32,8 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/eisa/eisaconf.h>
 #else

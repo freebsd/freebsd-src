@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.44 1995/12/06 23:50:06 bde Exp $
+ *      $Id: bt742a.c,v 1.45 1995/12/07 09:13:48 peter Exp $
  */
 
 /*
@@ -50,6 +50,8 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
 #include <scsi/scsi_all.h>

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.56 1995/11/20 12:19:41 phk Exp $
+ * $Id: vm_object.c,v 1.57 1995/12/03 12:18:37 bde Exp $
  */
 
 /*
@@ -75,13 +75,21 @@
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 #ifdef DDB
 extern void	vm_object_check __P((void));

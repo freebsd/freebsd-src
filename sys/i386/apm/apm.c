@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.17 1995/11/29 10:47:13 julian Exp $
+ *	$Id: apm.c,v 1.18 1995/11/29 14:39:17 julian Exp $
  */
 
 #include "apm.h"
@@ -43,6 +43,8 @@
 #include <machine/segments.h>
 #include <machine/clock.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <sys/syslog.h>
 #include "apm_setup.h"
 #endif /* __FreeBSD__ */

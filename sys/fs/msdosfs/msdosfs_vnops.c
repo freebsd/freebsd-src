@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.28 1995/11/13 18:47:40 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.29 1995/12/03 16:42:02 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -65,6 +65,8 @@
 #include <sys/signalvar.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>

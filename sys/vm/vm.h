@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- * $Id: vm.h,v 1.6 1995/10/05 01:11:48 bde Exp $
+ * $Id: vm.h,v 1.7 1995/12/05 20:54:42 bde Exp $
  */
 
 #ifndef VM_H
 #define VM_H
 
 typedef char vm_inherit_t;	/* XXX: inheritance codes */
+typedef u_char vm_prot_t;	/* protection codes */
 
 union vm_map_object;
 typedef union vm_map_object vm_map_object_t;
@@ -59,39 +60,5 @@ typedef struct vm_object *vm_object_t;
 struct vm_page;
 typedef struct vm_page *vm_page_t;
 #endif
-
-#include <sys/vmmeter.h>
-#include <sys/queue.h>
-#include <vm/vm_param.h>
-#include <vm/lock.h>
-#include <vm/vm_prot.h>
-#include <vm/vm_inherit.h>
-#include <vm/vm_map.h>
-#include <vm/vm_object.h>
-#include <vm/pmap.h>
-#include <vm/vm_extern.h>
-
-/*
- * Shareable process virtual address space.
- * May eventually be merged with vm_map.
- * Several fields are temporary (text, data stuff).
- */
-struct vmspace {
-	struct vm_map vm_map;	/* VM address map */
-	struct pmap vm_pmap;	/* private physical map */
-	int vm_refcnt;		/* number of references */
-	caddr_t vm_shm;		/* SYS5 shared memory private data XXX */
-/* we copy from vm_startcopy to the end of the structure on fork */
-#define vm_startcopy vm_rssize
-	segsz_t vm_rssize;	/* current resident set size in pages */
-	segsz_t vm_swrss;	/* resident set size before last swap */
-	segsz_t vm_tsize;	/* text size (pages) XXX */
-	segsz_t vm_dsize;	/* data size (pages) XXX */
-	segsz_t vm_ssize;	/* stack size (pages) */
-	caddr_t vm_taddr;	/* user virtual address of text XXX */
-	caddr_t vm_daddr;	/* user virtual address of data XXX */
-	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-	caddr_t vm_minsaddr;	/* user VA at max stack growth */
-};
 
 #endif				/* VM_H */

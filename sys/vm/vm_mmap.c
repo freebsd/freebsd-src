@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.29 1995/11/12 06:43:24 bde Exp $
+ * $Id: vm_mmap.c,v 1.30 1995/12/03 12:18:35 bde Exp $
  */
 
 /*
@@ -55,13 +55,21 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/conf.h>
+#include <sys/vmmeter.h>
 
 #include <miscfs/specfs/specdev.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_inherit.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_prot.h>
+#include <vm/vm_extern.h>
 
 extern void	pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
 					 vm_object_t object, vm_offset_t offset,

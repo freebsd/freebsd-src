@@ -65,6 +65,8 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
 
 #include <pci.h>
 #if NPCI > 0

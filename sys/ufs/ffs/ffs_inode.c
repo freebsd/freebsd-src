@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.15 1995/08/16 13:16:58 davidg Exp $
+ * $Id: ffs_inode.c,v 1.16 1995/11/05 21:01:15 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,8 @@
 #include <sys/resourcevar.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

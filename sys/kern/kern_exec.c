@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.26 1995/11/12 06:42:53 bde Exp $
+ *	$Id: kern_exec.c,v 1.27 1995/11/13 10:45:22 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,13 @@
 #include <sys/shm.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 #include <machine/reg.h>
 

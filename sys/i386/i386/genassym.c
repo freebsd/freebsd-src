@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.28 1995/08/17 11:29:55 davidg Exp $
+ *	$Id: genassym.c,v 1.29 1995/12/03 18:35:17 bde Exp $
  */
 
 #include <stdio.h>
@@ -57,7 +57,12 @@
 #include <machine/reg.h>
 #include <machine/bootinfo.h>
 #include <sys/syscall.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <sys/user.h>
 #include <net/if.h>
 #include <netinet/in.h>

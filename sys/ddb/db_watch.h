@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.h,v 1.5 1995/11/24 13:53:03 bde Exp $
+ *	$Id: db_watch.h,v 1.6 1995/11/29 10:25:47 phk Exp $
  */
 
 /*
@@ -34,7 +34,6 @@
 #ifndef _DDB_DB_WATCH_H_
 #define	_DDB_DB_WATCH_H_
 
-#include <vm/vm_map.h>
 #include <machine/db_machdep.h>
 
 /*

@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.10 1995/10/23 04:28:59 dyson Exp $
+ *	$Id: procfs_mem.c,v 1.11 1995/12/03 14:54:35 bde Exp $
  */
 
 /*
@@ -53,8 +53,15 @@
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_extern.h>
 
 static int	procfs_rwmem __P((struct proc *p, struct uio *uio));
 

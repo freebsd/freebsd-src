@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.7 1995/11/29 14:39:06 julian Exp $
+ *  dgb.c $Id: dgb.c,v 1.8 1995/12/06 23:52:08 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -44,6 +44,8 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

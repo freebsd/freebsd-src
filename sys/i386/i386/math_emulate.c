@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.13 1995/06/14 05:06:51 bde Exp $
+ *	$Id: math_emulate.c,v 1.14 1995/10/29 15:29:56 phk Exp $
  */
 
 /*
@@ -43,10 +43,17 @@
 #include <machine/reg.h>
 
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/acct.h>
 #include <sys/kernel.h>
 #include <sys/signal.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <sys/user.h>
 
 #define __ALIGNED_TEMP_REAL 1
 #include "math_emu.h"

@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.39 1995/11/14 09:53:17 phk Exp $
+ *      $Id: ultra14f.c,v 1.40 1995/12/06 23:50:39 bde Exp $
  */
 
 #include <sys/types.h>
@@ -42,6 +42,8 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
 #endif /*KERNEL */

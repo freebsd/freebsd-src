@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_prot.h,v 1.3 1994/08/02 07:55:38 davidg Exp $
+ * $Id: vm_prot.h,v 1.4 1995/01/09 16:05:57 davidg Exp $
  */
 
 /*
@@ -70,14 +70,6 @@
 
 #ifndef	_VM_PROT_
 #define	_VM_PROT_
-
-/*
- *	Types defined:
- *
- *	vm_prot_t		VM protection values.
- */
-
-typedef u_char vm_prot_t;
 
 /*
  *	Protection values, defined as bits within the vm_prot_t type

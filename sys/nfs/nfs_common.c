@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.23 1995/08/24 10:17:35 dfr Exp $
+ * $Id: nfs_subs.c,v 1.24 1995/10/29 15:33:08 phk Exp $
  */
 
 /*
@@ -59,6 +59,9 @@
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 #include <vm/vnode_pager.h>
 
 #include <nfs/rpcv2.h>

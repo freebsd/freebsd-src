@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.40 1995/11/14 09:19:16 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.41 1995/11/18 11:35:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,9 @@
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 #include <sys/sysctl.h>
 
 static int change_dir	__P((struct nameidata *ndp, struct proc *p));

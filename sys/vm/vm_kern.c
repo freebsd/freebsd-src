@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.16 1995/09/03 20:40:39 dyson Exp $
+ * $Id: vm_kern.c,v 1.17 1995/11/13 10:53:38 davidg Exp $
  */
 
 /*
@@ -74,8 +74,16 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/queue.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>

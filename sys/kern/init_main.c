@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.33 1995/12/02 17:10:29 bde Exp $
+ * $Id: init_main.c,v 1.34 1995/12/04 16:48:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -66,15 +66,21 @@
 #include <sys/reboot.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
-#include <sys/user.h>
 #include <sys/sysproto.h>
+#include <sys/vmmeter.h>
 
 #include <ufs/ufs/quota.h>
 
 #include <machine/cpu.h>
 
 #include <vm/vm.h>
-#include <vm/vm_pageout.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <sys/user.h>
 
 extern struct linker_set	sysinit_set;	/* XXX */
 
