@@ -46,6 +46,7 @@ int	quiet, recover;
 unsigned char fillbyte = 0xf0;	/* "foo" */
 
 int	doread(int fd, FILE *of, const char *devname);
+int	doreadid(int fd, unsigned int numids, unsigned int trackno);
 void	printstatus(struct fdc_status *fdcsp);
 void	usage(void);
 
@@ -54,7 +55,8 @@ usage(void)
 {
 
 	errx(EX_USAGE,
-	     "usage: fdread [-qr] [-d device] [-f fillbyte] [-o file]");
+	     "usage: fdread [-qr] [-d device] [-f fillbyte]\n"
+	     "       fdread [-d device] -I numids [-t trackno]");
 }
 
 
@@ -62,13 +64,14 @@ int
 main(int argc, char **argv)
 {
 	int c, errs = 0;
+	unsigned int numids = 0, trackno = 0;
 	const char *fname = 0, *devname = "/dev/fd0";
 	char *cp;
 	FILE *of = stdout;
 	int fd;
 	unsigned long ul;
 
-	while ((c = getopt(argc, argv, "d:f:o:qr")) != -1)
+	while ((c = getopt(argc, argv, "d:f:I:o:qrt:")) != -1)
 		switch (c) {
 		case 'd':
 			devname = optarg;
@@ -89,6 +92,17 @@ main(int argc, char **argv)
 			fillbyte = ul & 0xff;
 			break;
 
+		case 'I':
+			ul = strtoul(optarg, &cp, 0);
+			if (*cp != '\0') {
+				fprintf(stderr,
+			"Bad argument %s to -I option; must be numeric\n",
+					optarg);
+				usage();
+			}
+			numids = ul;
+			break;
+
 		case 'o':
 			fname = optarg;
 			break;
@@ -101,6 +115,17 @@ main(int argc, char **argv)
 			recover++;
 			break;
 
+		case 't':
+			ul = strtoul(optarg, &cp, 0);
+			if (*cp != '\0') {
+				fprintf(stderr,
+			"Bad argument %s to -t option; must be numeric\n",
+					optarg);
+				usage();
+			}
+			trackno = ul;
+			break;
+
 		default:
 			errs++;
 		}
@@ -109,6 +134,14 @@ main(int argc, char **argv)
 
 	if (argc != 0 || errs)
 		usage();
+	/* check for mutually exclusive options */
+	if (numids) {
+		if (fname || quiet || recover)
+			usage();
+	} else {
+		if (trackno)
+			usage();
+	}
 
 	if (fname) {
 		if ((of = fopen(fname, "w")) == NULL)
@@ -118,7 +151,7 @@ main(int argc, char **argv)
 	if ((fd = open(devname, O_RDONLY)) == -1)
 		err(EX_OSERR, "cannot open device %s", devname);
 
-	return (doread(fd, of, devname));
+	return (numids? doreadid(fd, numids, trackno): doread(fd, of, devname));
 }
 
 int
@@ -302,4 +335,43 @@ printstatus(struct fdc_status *fdcsp)
 			strcpy(msgbuf, "no data (sector not found)");
 	}
 	fputs(msgbuf, stderr);
+}
+
+int
+doreadid(int fd, unsigned int numids, unsigned int trackno)
+{
+	int rv = 0, status, fdopts;
+	unsigned int i;
+	struct fdc_readid info;
+	struct fdc_status fdcs;
+	struct fd_type fdt;
+
+	if (ioctl(fd, FD_GTYPE, &fdt) == -1)
+		err(EX_OSERR, "ioctl(FD_GTYPE) failed -- not a floppy?");
+
+	fdopts = FDOPT_NOERRLOG;
+	if (ioctl(fd, FD_SOPTS, &fdopts) == -1)
+		err(EX_OSERR, "ioctl(FD_SOPTS, FDOPT_NOERRLOG)");
+
+	for (i = 0; i < numids; i++) {
+		info.cyl = trackno / fdt.heads;
+		info.head = fdt.heads > 1? trackno % fdt.heads: 0;
+		if ((status = ioctl(fd, FD_READID, &info)) == 0) {
+			printf("C = %d, H = %d, R = %d, N = %d\n",
+			       info.cyl, info.head, info.sec, info.secshift);
+		} else {
+			if (errno != EIO) {
+				perror("non-IO error");
+				return (EX_OSERR);
+			}
+			if (ioctl(fd, FD_GSTAT, &fdcs) == -1)
+				errx(EX_IOERR,
+				     "floppy IO error, but no FDC status");
+			printstatus(&fdcs);
+			putc('\n', stderr);
+			rv = EX_IOERR;
+		}
+	}
+
+	return (rv);
 }
