@@ -191,7 +191,6 @@ struct isposinfo {
 #define	MEMZERO			bzero
 #define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
 #define	SNPRINTF		snprintf
-#define	STRNCAT			strncat
 #define	USEC_DELAY		DELAY
 #define	USEC_SLEEP(isp, x)		\
 	if (isp->isp_osinfo.intsok)	\

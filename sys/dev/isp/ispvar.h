@@ -782,7 +782,6 @@ void isp_prt(struct ispsoftc *, int level, const char *, ...);
  *	MEMZERO(dst, src)			platform zeroing function
  *	MEMCPY(dst, src, count)			platform copying function
  *	SNPRINTF(buf, bufsize, fmt, ...)	snprintf
- *	STRNCAT(dstbuf, size, srcbuf)		strncat
  *	USEC_DELAY(usecs)			microsecond spindelay function
  *	USEC_SLEEP(isp, usecs)			microsecond sleep function
  *
