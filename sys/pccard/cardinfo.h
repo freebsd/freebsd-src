@@ -142,6 +142,9 @@ struct dev_desc {
 	int	iosize;		/* Length of I/O ports */
 	int	irqmask;	/* Interrupt number(s) to allocate */
 	int	flags;		/* Device flags */
+	u_int	manufacturer;	/* Manufacturer ID */
+	u_int	product;	/* Product ID */
+	u_int	prodext;	/* Product ID (extended) */
 	u_char	misc[128];	/* For any random info */
 };
 #define DEV_DESC_HAS_SIZE 1

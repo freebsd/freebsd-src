@@ -89,6 +89,9 @@ struct pccard_devinfo {
 	u_char	name[128];
 	int running;			/* Current state of driver */
 	u_char	misc[128];		/* For any random info */
+	u_int	manufacturer;		/* Manufacturer ID */
+	u_int	product;		/* Product ID */
+	u_int	prodext;		/* Product ID (extended) */
 	struct slot *slt;		/* Back pointer to slot */
 
 	struct resource_list resources;
