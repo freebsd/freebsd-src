@@ -14,8 +14,14 @@ o MSDOS FAT32 (Win95 long filename) support.
 
 Userland features:
 
+inetd(8) now allows rate-limiting for services.
+
+Many man pages and other docs updated and cleaned up.
+
 Security issues:
 
+popper and imap upgraded in ports collection to close some nasty security
+holes (see Bugtrax).
 
 2. Supported Configurations
 ---------------------------
