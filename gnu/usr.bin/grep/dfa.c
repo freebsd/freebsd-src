@@ -1364,9 +1364,7 @@ dfaparse (char const *s, size_t len, struct dfa *d)
   lasttok = END;
   laststart = 1;
   parens = 0;
-#if ENABLE_NLS
   hard_LC_COLLATE = hard_locale (LC_COLLATE);
-#endif
 #ifdef MBS_SUPPORT
   if (MB_CUR_MAX > 1)
     {
