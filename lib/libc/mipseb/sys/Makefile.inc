@@ -1,1 +1,1 @@
-.include "${.CURDIR}/mips/sys/Makefile.inc"
+.include "${.CURDIR}/../libc/mips/sys/Makefile.inc"
