@@ -223,7 +223,8 @@ pccard_attach_card(device_t dev)
 			pccard_ccr_read(pf, 0x0C), pccard_ccr_read(pf, 0x0E),
 			pccard_ccr_read(pf, 0x10), pccard_ccr_read(pf, 0x12)));
 		} else {
-			pccard_function_disable(pf);
+			if (pf->cfe != NULL)
+				pccard_function_disable(pf);
 		}
 	}
 	if (sc->sc_enabled_count == 0)
@@ -247,7 +248,8 @@ pccard_detach_card(device_t dev, int flags)
 
 		if (state == DS_ATTACHED || state == DS_BUSY)
 			device_detach(pf->dev);
-		pccard_function_disable(pf);
+		if (pf->cfe != NULL)
+			pccard_function_disable(pf);
 		pccard_function_free(pf);
 		if (pf->dev != NULL)
 			device_delete_child(dev, pf->dev);
@@ -1010,7 +1012,8 @@ pccard_driver_added(device_t dev, driver_t *driver)
 			pccard_ccr_read(pf, 0x0C), pccard_ccr_read(pf, 0x0E),
 			pccard_ccr_read(pf, 0x10), pccard_ccr_read(pf, 0x12)));
 		} else {
-			pccard_function_disable(pf);
+			if (pf->cfe != NULL)
+				pccard_function_disable(pf);
 		}
 	}
 	return;
