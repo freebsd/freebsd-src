@@ -270,3 +270,5 @@ extern const char *errmsg;
 extern long first_addr;
 extern int lineno;
 extern long second_addr;
+extern long u_addr_last;
+extern long u_current_addr;
