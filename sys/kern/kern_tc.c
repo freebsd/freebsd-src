@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.3 1994/08/02 07:41:54 davidg Exp $
+ * $Id: kern_clock.c,v 1.4 1994/08/18 22:34:58 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <vm/vm.h>
 
 #include <machine/cpu.h>
 
@@ -431,11 +432,28 @@ statclock(frame)
 #ifdef GPROF
 	register struct gmonparam *g;
 #endif
-	register struct proc *p;
+	register struct proc *p = curproc;
 	register int i;
 
+	if (p) {
+		struct pstats *pstats;
+		struct rusage *ru;
+		struct vmspace *vm;
+
+		/* bump the resource usage of integral space use */
+		if ((pstats = p->p_stats) && (ru = &pstats->p_ru) && (vm = p->p_vmspace)) {
+			ru->ru_ixrss += vm->vm_tsize * PAGE_SIZE / 1024;
+			ru->ru_idrss += vm->vm_dsize * PAGE_SIZE / 1024;
+			ru->ru_isrss += vm->vm_ssize * PAGE_SIZE / 1024;
+			if ((vm->vm_pmap.pm_stats.resident_count * PAGE_SIZE / 1024) >
+			    ru->ru_maxrss) {
+				ru->ru_maxrss =
+				    vm->vm_pmap.pm_stats.resident_count * PAGE_SIZE / 1024;
+			}
+        	}
+	}
+
 	if (CLKF_USERMODE(frame)) {
-		p = curproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
 		if (--pscnt > 0)
@@ -477,7 +495,6 @@ statclock(frame)
 		 * so that we know how much of its real time was spent
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
-		p = curproc;
 		if (CLKF_INTR(frame)) {
 			if (p != NULL)
 				p->p_iticks++;

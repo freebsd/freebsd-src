@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.55 1994/08/20 16:02:57 davidg Exp $
+ *	$Id: machdep.c,v 1.56 1994/08/24 11:45:19 sos Exp $
  */
 
 #include "npx.h"
@@ -1181,8 +1181,7 @@ init386(first)
 	lldt(_default_ldt);
 	currentldt = _default_ldt;
 
-#include "ddb.h"
-#if NDDB > 0
+#ifdef DDB
 	kdb_init();
 	if (boothowto & RB_KDB)
 		Debugger("Boot flags requested debugger");
@@ -1482,8 +1481,7 @@ set_regs (struct proc *p, struct reg *regs) {
 	return 0;
 }
 
-#include "ddb.h"
-#if NDDB <= 0
+#ifndef DDB
 void
 Debugger(const char *msg)
 {

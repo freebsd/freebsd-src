@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.5 1994/08/18 22:34:57 wollman Exp $
+ * $Id: init_main.c,v 1.6 1994/08/24 11:50:37 sos Exp $
  */
 
 #include <sys/param.h>
@@ -103,6 +103,10 @@ void __main() {}
  * This table is filled in by the linker with functions that need to be
  * called to initialize various pseudo-devices and whatnot.
  */
+
+static void dummyinit() {}
+TEXT_SET(pseudo_set, dummyinit);
+
 typedef void (*pseudo_func_t)(void);
 extern const struct linker_set pseudo_set;
 static const pseudo_func_t *pseudos =
