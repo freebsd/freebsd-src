@@ -578,6 +578,7 @@ netgraph/ng_echo.c	optional netgraph_echo
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
 netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
+netgraph/ng_ksocket.c	optional netgraph_ksocket
 netgraph/ng_lmi.c	optional netgraph_lmi
 netgraph/ng_ppp.c	optional netgraph_ppp
 netgraph/ng_pppoe.c	optional netgraph_pppoe
