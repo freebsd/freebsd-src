@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.84 1994/09/25 02:10:47 ache Exp $
+#	$Id: LINT,v 1.85 1994/09/26 16:15:05 jkh Exp $
 #
 
 machine		"i386"
@@ -59,6 +59,8 @@ options		IPMASKAGENT=1		#send reply to icmp mask requests
 options		TPCONS			#support X.25 network-layer service
 options		USER_LDT		#allow user-level control of i386 ldt
 options		DSI_SOFT_MODEM		#code for DSI Softmodems
+options		DIAGNOSTIC
+options		MSDOSFS_DEBUG
 
 # See /sys/i386/doc/sound.doc for information about EXCLUDE options for
 #  the sound drivers.
