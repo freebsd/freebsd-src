@@ -240,7 +240,7 @@ krb5_init(void)
    }
   
    if (!cleanup_registered) {
-      fatal_add_cleanup(krb4_cleanup_proc, NULL);
+      fatal_add_cleanup(krb5_cleanup_proc, NULL);
      cleanup_registered = 1;
    }
    return 0;
