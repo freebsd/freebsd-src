@@ -69,7 +69,7 @@ struct i387_struct {
 	int32_t	st_space[20];	/* 8*10 bytes for each FP-reg = 80 bytes */
 };
 
-#define I387 (*(struct i387_struct *)&(((struct pcb *)curproc->p_addr)->pcb_savefpu))
+#define I387 (*(struct i387_struct *)&(((struct pcb *)curproc->p_addr)->pcb_save.sv_87))
 #define SWD (*(struct swd *) &I387.swd)
 #define ROUNDING ((I387.cwd >> 10) & 3)
 #define PRECISION ((I387.cwd >> 8) & 3)

@@ -166,6 +166,8 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s).
 #
+# CPU_ENABLE_SSE enables SSE/MMX2 instructions support.
+#
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
 # CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
@@ -227,6 +229,7 @@ options 	CPU_BLUELIGHTNING_3X
 options 	CPU_BTB_EN
 options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
+options 	CPU_ENABLE_SSE
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_I486_ON_386
 options 	CPU_IORT

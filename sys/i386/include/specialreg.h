@@ -93,6 +93,8 @@
 #define	CPUID_PGE	0x2000
 #define	CPUID_MCA	0x4000
 #define	CPUID_CMOV	0x8000
+#define	CPUID_FXSR  0x01000000
+#define	CPUID_XMM   0x02000000
 
 /*
  * Model-specific registers for the i386 family

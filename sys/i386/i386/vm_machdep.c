@@ -142,7 +142,7 @@ cpu_fork(p1, p2, flags)
 #if NNPX > 0
 	/* Ensure that p1's pcb is up to date. */
 	if (npxproc == p1)
-		npxsave(&p1->p_addr->u_pcb.pcb_savefpu);
+		npxsave(&p1->p_addr->u_pcb.pcb_save);
 #endif
 
 	/* Copy p1's pcb. */

@@ -126,6 +126,10 @@ extern void panicifcpuunsupported(void);
 extern void initializecpu(void);
 
 static void cpu_startup __P((void *));
+#ifdef CPU_ENABLE_SSE
+static void set_fpregs_xmm __P((struct save87 *, struct savexmm *));
+static void fill_fpregs_xmm __P((struct savexmm *, struct save87 *));
+#endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
@@ -1378,7 +1382,7 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(syscall), IDTVEC(int0x80_syscall);
+	IDTVEC(xmm), IDTVEC(syscall), IDTVEC(int0x80_syscall);
 
 void
 sdtossd(sd, ssd)
@@ -1910,6 +1914,7 @@ init386(first)
 	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(18, &IDTVEC(mchk),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(19, &IDTVEC(xmm), SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
  	setidt(0x80, &IDTVEC(int0x80_syscall),
 			SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
 
@@ -2104,8 +2109,8 @@ int ptrace_write_u(p, off, data)
 		*(int*)((char *)p->p_addr + off) = data;
 		return (0);
 	}
-	min = offsetof(struct user, u_pcb) + offsetof(struct pcb, pcb_savefpu);
-	if (off >= min && off <= min + sizeof(struct save87) - sizeof(int)) {
+	min = offsetof(struct user, u_pcb) + offsetof(struct pcb, pcb_save);
+	if (off >= min && off <= min + sizeof(union savefpu) - sizeof(int)) {
 		*(int*)((char *)p->p_addr + off) = data;
 		return (0);
 	}
@@ -2173,12 +2178,73 @@ set_regs(p, regs)
 	return (0);
 }
 
+#ifdef CPU_ENABLE_SSE
+static void
+fill_fpregs_xmm(sv_xmm, sv_87)
+	struct savexmm *sv_xmm;
+	struct save87 *sv_87;
+{
+	register struct env87 *penv_87 = &sv_87->sv_env;
+	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
+	int i;
+
+	/* FPU control/status */
+	penv_87->en_cw = penv_xmm->en_cw;
+	penv_87->en_sw = penv_xmm->en_sw;
+	penv_87->en_tw = penv_xmm->en_tw;
+	penv_87->en_fip = penv_xmm->en_fip;
+	penv_87->en_fcs = penv_xmm->en_fcs;
+	penv_87->en_opcode = penv_xmm->en_opcode;
+	penv_87->en_foo = penv_xmm->en_foo;
+	penv_87->en_fos = penv_xmm->en_fos;
+
+	/* FPU registers */
+	for (i = 0; i < 8; ++i)
+		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
+
+	sv_87->sv_ex_sw = sv_xmm->sv_ex_sw;
+}
+
+static void
+set_fpregs_xmm(sv_87, sv_xmm)
+	struct save87 *sv_87;
+	struct savexmm *sv_xmm;
+{
+	register struct env87 *penv_87 = &sv_87->sv_env;
+	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
+	int i;
+
+	/* FPU control/status */
+	penv_xmm->en_cw = penv_87->en_cw;
+	penv_xmm->en_sw = penv_87->en_sw;
+	penv_xmm->en_tw = penv_87->en_tw;
+	penv_xmm->en_fip = penv_87->en_fip;
+	penv_xmm->en_fcs = penv_87->en_fcs;
+	penv_xmm->en_opcode = penv_87->en_opcode;
+	penv_xmm->en_foo = penv_87->en_foo;
+	penv_xmm->en_fos = penv_87->en_fos;
+
+	/* FPU registers */
+	for (i = 0; i < 8; ++i)
+		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
+
+	sv_xmm->sv_ex_sw = sv_87->sv_ex_sw;
+}
+#endif /* CPU_ENABLE_SSE */
+
 int
 fill_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-	bcopy(&p->p_addr->u_pcb.pcb_savefpu, fpregs, sizeof *fpregs);
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr) {
+		fill_fpregs_xmm(&p->p_addr->u_pcb.pcb_save.sv_xmm,
+						(struct save87 *)fpregs);
+		return (0);
+	}
+#endif /* CPU_ENABLE_SSE */
+	bcopy(&p->p_addr->u_pcb.pcb_save.sv_87, fpregs, sizeof *fpregs);
 	return (0);
 }
 
@@ -2187,7 +2253,14 @@ set_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-	bcopy(fpregs, &p->p_addr->u_pcb.pcb_savefpu, sizeof *fpregs);
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr) {
+		set_fpregs_xmm((struct save87 *)fpregs,
+					   &p->p_addr->u_pcb.pcb_save.sv_xmm);
+		return (0);
+	}
+#endif /* CPU_ENABLE_SSE */
+	bcopy(fpregs, &p->p_addr->u_pcb.pcb_save.sv_87, sizeof *fpregs);
 	return (0);
 }
 

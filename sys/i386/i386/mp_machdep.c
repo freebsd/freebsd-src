@@ -2263,6 +2263,8 @@ start_ap(int logical_cpu, u_int boot_addr)
  *
  * XXX: Needs to handshake and wait for completion before proceding.
  */
+extern void	enable_sse(void);
+
 void
 smp_invltlb(void)
 {
@@ -2417,6 +2419,9 @@ ap_init()
 
 	/* set up FPU state on the AP */
 	npxinit(__INITIAL_NPXCW__);
+
+	/* set up SSE registers */
+	enable_sse();
 
 	/* A quick check from sanity claus */
 	apic_id = (apic_id_to_logical[(lapic.id & 0x0f000000) >> 24]);
