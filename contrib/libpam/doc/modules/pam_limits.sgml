@@ -1,0 +1,196 @@
+<!--
+   $Id: pam_limits.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   
+   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+   from information compiled by Cristian Gafton (author of module)
+-->
+
+<sect1>The resource limits module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_limits/
+
+<tag><bf>Authors:</bf></tag>
+Cristian Gafton &lt;gafton@redhat.com&gt; <newline>
+Thanks are also due to Elliot Lee &lt;sopwith@redhat.com&gt;
+for his comments on improving this module.
+
+<tag><bf>Maintainer:</bf></tag>
+Cristian Gafton - 1996/11/20
+
+<tag><bf>Management groups provided:</bf></tag>
+session
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+requires an <tt>/etc/security/limits.conf</tt> file and kernel support
+for resource limits. Also uses the library, <tt/libpwdb/.
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+This module, through the <bf/Linux-PAM/ <em/open/-session hook, sets
+limits on the system resources that can be obtained in a
+user-session. Its actions are dictated more explicitly through the
+configuration file discussed below.
+
+<sect2>Session component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt/debug/; <tt>conf=/path/to/file.conf</tt>
+
+<tag><bf>Description:</bf></tag>
+
+Through the contents of the configuration file,
+<tt>/etc/security/limits.conf</tt>, resource limits are placed on
+users' sessions. Users of <tt/uid=0/ are not affected by this
+restriction.
+
+<p>
+The behavior of this module can be modified with the following
+arguments:
+<itemize>
+
+<item><tt/debug/ -
+verbose logging to <tt/syslog(3)/.
+
+<item><tt>conf=/path/to/file.conf</tt> -
+indicate an alternative <em/limits/ configuration file to the default.
+
+</itemize>
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+In order to use this module the system administrator must first create
+a <em/root-only-readable/ file (default is
+<tt>/etc/security/limits.conf</tt>).  This file describes the resource
+limits the superuser wishes to impose on users and groups. No limits
+are imposed on <tt/uid=0/ accounts.
+
+<p>
+Each line of the configuration file describes a limit for a user in
+the form:
+<tscreen>
+<verb>
+<domain>	<type>	<item>		<value>
+</verb>
+</tscreen>
+
+<p>
+The fields listed above should be filled as follows...<newline>
+<tt>&lt;domain&gt;</tt> can be:
+<itemize>
+<item> a username
+<item> a groupname, with <tt>@group</tt> syntax
+<item> the wild-card <tt/*/, for default entry
+</itemize>
+
+<p>
+<tt>&lt;type&gt;</tt> can have the two values:
+<itemize>
+
+<item> <tt/hard/ for enforcing <em/hard/ resource limits. These limits
+are set by the superuser and enforced by the Linux Kernel. The user
+cannot raise his requirement of system resources above such values.
+
+<item> <tt/soft/ for enforcing <em/soft/ resource limits. These limits
+are ones that the user can move up or down within the permitted range
+by any pre-exisiting <em/hard/ limits. The values specified with this
+token can be thought of as <em/default/ values, for normal system
+usage.
+
+</itemize>
+
+<p>
+<tt>&lt;item&gt;</tt> can be one of the following:
+<itemize>
+<item><tt/core/ - limits the core file size (KB)
+<item><tt/data/ - max data size (KB)
+<item><tt/fsize/ - maximum filesize (KB)
+<item><tt/memlock/ - max locked-in-memory address space (KB)
+<item><tt/nofile/ - max number of open files
+<item><tt/rss/ - max resident set size (KB)
+<item><tt/stack/ - max stack size (KB)
+<item><tt/cpu/ - max CPU time (MIN)
+<item><tt/nproc/ - max number of processes
+<item><tt/as/ - address space limit
+<item><tt/maxlogins/ - max number of logins for this user.
+</itemize>
+
+<p>
+To completely disable limits for a user (or a group), a single dash
+(-) will do (Example: ``<tt/bin -/'', ``<tt/@admin -/''). Please
+remember that individual limits have priority over group limits, so if
+you impose no limits for <tt/admin/ group, but one of the members in this
+group have a limits line, the user will have its limits set according
+to this line.
+
+<p>
+Also, please note that all limit settings are set <em/per login/.
+They are not global, nor are they permanent; existing only for the
+duration of the session.
+
+<p>
+In the <em/limits/ configuration file, the ``<tt/#/'' character
+introduces a comment - after which the rest of the line is ignored.
+
+<p>
+The <tt/pam_limits/ module does its best to report configuration
+problems found in its configuration file via <tt/syslog(3)/.
+
+<p>
+The following is an example configuration file:
+<tscreen>
+<verb>
+# EXAMPLE /etc/security/limits.conf file:
+# =======================================
+# <domain>	<type>	<item>		<value>
+*               soft    core            0
+*               hard    rss             10000
+@student        hard    nproc           20
+@faculty        soft    nproc           20
+@faculty        hard    nproc           50
+ftp             hard    nproc           0
+@student        -       maxlogins       4
+</verb>
+</tscreen>
+Note, the use of <tt/soft/ and <tt/hard/ limits for the same resource
+(see <tt/@faculty/) -- this establishes the <em/default/ and permitted
+<em/extreme/ level of resources that the user can can obtain in a
+given service-session.
+
+<p>
+For the services that need resources limits (login for example) put a
+the following line in <tt>/etc/pam.conf</tt> as the last line for that
+service (usually after the pam_unix session line:
+<tscreen>
+<verb>
+#
+# Resource limits imposed on login sessions via pam_limits
+#
+login   session    required     pam_limits.so
+</verb>
+</tscreen>
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

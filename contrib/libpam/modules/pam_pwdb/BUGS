@@ -1,0 +1,8 @@
+$Id: BUGS,v 1.2 1996/09/05 06:36:16 morgan Exp $
+
+$Log: BUGS,v $
+Revision 1.2  1996/09/05 06:36:16  morgan
+revised for .52 to be released
+
+
+As of Linux-PAM-0.52 this is new. No known bugs yet.

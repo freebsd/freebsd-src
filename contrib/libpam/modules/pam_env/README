@@ -1,0 +1,72 @@
+# $Date: 1997/04/05 06:42:35 $
+# $Author: morgan $
+# $Id: README,v 1.1 1997/04/05 06:42:35 morgan Exp $
+#
+# This is the configuration file for pam_env, a PAM module to load in 
+# a configurable list of environment variables for a 
+# 
+# The original idea for this came from Andrew G. Morgan ...
+#<quote>
+#   Mmm. Perhaps you might like to write a pam_env module that reads a
+#   default environment from a file? I can see that as REALLY
+#   useful... Note it would be an "auth" module that returns PAM_IGNORE
+#   for the auth part and sets the environment returning PAM_SUCCESS in
+#   the setcred function...
+#</quote>
+#
+# What I wanted was the REMOTEHOST variable set, purely for selfish
+# reasons, and AGM didn't want it added to the SimpleApps login
+# program (which is where I added the patch). So, my first concern is
+# that variable, from there there are numerous others that might/would
+# be useful to be set: NNTPSERVER, LESS, PATH, PAGER, MANPAGER .....
+#
+# Of course, these are a different kind of variable than REMOTEHOST in
+# that they are things that are likely to be configured by
+# administrators rather than set by logging in, how to treat them both
+# in the same config file?
+#
+# Here is my idea: 
+#
+# Each line starts with the variable name, there are then two possible
+# options for each variable DEFAULT and OVERRIDE. 
+# DEFAULT allows and administrator to set the value of the
+# variable  to some default value, if none is supplied then the empty
+# string is assumed. The OVERRIDE option tells pam_env that it should
+# enter in its value (overriding the default value) if there is one
+# to use. OVERRIDE is not used, "" is assumed and no override will be
+# done. 
+#
+# VARIABLE   [DEFAULT=[value]]  [OVERRIDE=[value]]
+#
+# (Possibly non-existent) environment variables may be used in values
+# using the ${string} syntax and (possibly non-existent) PAM_ITEMs may
+# be used in values using the @{string} syntax. Both the $ and @
+# characters can be backslash escaped to be used as literal values
+# values can be delimited with "", escaped " not supported.
+#
+#
+# First, some special variables
+#
+# Set the REMOTEHOST variable for any hosts that are remote, default
+# to "localhost" rather than not being set at all
+REMOTEHOST	DEFAULT=localhost OVERRIDE=@{PAM_RHOST}
+#
+# Set the DISPLAY variable if it seems reasonable 
+DISPLAY		DEFAULT=${REMOTEHOST}:0.0 OVERRIDE=${DISPLAY}
+#
+#
+#  Now some simple variables
+#
+PAGER		DEFAULT=less
+MANPAGER	DEFAULT=less
+LESS		DEFAULT="M q e h15 z23 b80"
+NNTPSERVER	DEFAULT=localhost
+PATH		DEFAULT=${HOME}/bin:/usr/local/bin:/bin\
+:/usr/bin:/usr/local/bin/X11:/usr/bin/X11
+#
+# silly examples of escaped variables, just to show how they work.
+#
+DOLLAR		DEFAULT=\$
+DOLLARDOLLAR	DEFAULT=	OVERRIDE=\$${DOLLAR}
+DOLLARPLUS	DEFAULT=\${REMOTEHOST}${REMOTEHOST}
+ATSIGN		DEFAULT=""	OVERRIDE=\@

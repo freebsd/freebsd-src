@@ -1,0 +1,178 @@
+#!/bin/sh
+#
+# [This file was lifted from an X distribution. There was no explicit
+# copyright in the file, but the following text was associated with it.
+# should anyone from the X Consortium wish to alter the following
+# text. Please email <morgan@parc.power.net> Thanks. ]
+#
+# --------------------------
+# The X Consortium maintains and distributes the X Window System and
+# related software and documentation in coordinated releases. A release
+# consists of two distinct parts:
+# 
+# 1) Specifications and Sample implementations of X Consortium
+# standards, and
+# 
+# 2) software and documentation contributed by the general X Consortium
+# community.
+# 
+# The timing and contents of a release are determined by the Consortium
+# staff based on the needs and desires of the Members and the advice of
+# the Advisory Board, tempered by the resource constraints of the
+# Consortium.
+# 
+# Members have access to all X Consortium produced software and
+# documentation prior to release to the public. Each Member can receive
+# pre-releases and public releases at no charge. In addition, Members
+# have access to software and documentation while it is under
+# development, and can periodically request snapshots of the development
+# system at no charge.
+# 
+# The X Consortium also maintains an electronic mail system for
+# reporting problems with X Consortium produced software and
+# documentation. Members have access to all bug reports, as well as all
+# software patches as they are incrementally developed by the Consortium
+# staff between releases.
+# 
+# In general, all materials included in X Consortium releases are
+# copyrighted and contain permission notices granting unrestricted use,
+# sales and redistribution rights provided that the copyrights and the
+# permission notices are left intact. All materials are provided "as
+# is," without express or implied warranty.
+# --------------------------
+#
+# This accepts bsd-style install arguments and makes the appropriate calls
+# to the System V install.
+#
+
+flags=""
+dst=""
+src=""
+dostrip=""
+owner=""
+mode=""
+
+while [ x$1 != x ]; do
+    case $1 in 
+	-c) shift
+	    continue;;
+
+	-m) flags="$flags $1 $2 "
+	    mode="$2"
+	    shift
+	    shift
+	    continue;;
+
+	-o) flags="$flags -u $2 "
+	    owner="$2"
+	    shift
+	    shift
+	    continue;;
+
+	-g) flags="$flags $1 $2 "
+	    shift
+	    shift
+	    continue;;
+
+	-s) dostrip="strip"
+	    shift
+	    continue;;
+
+	*)  if [ x$src = x ] 
+	    then
+		src=$1
+	    else
+		dst=$1
+	    fi
+	    shift
+	    continue;;
+    esac
+done
+
+case "$mode" in
+"")
+	;;
+*)
+	case "$owner" in
+	"")
+		flags="$flags -u root"
+		;;
+	esac
+	;;
+esac
+
+if [ x$src = x ] 
+then
+	echo "$0:  no input file specified"
+	exit 1
+fi
+
+if [ x$dst = x ] 
+then
+	echo "$0:  no destination specified"
+	exit 1
+fi
+
+
+# set up some variable to be used later
+
+rmcmd=""
+srcdir="."
+
+# if the destination isn't a directory we'll need to copy it first
+
+if [ ! -d $dst ]
+then
+	dstbase=`basename $dst`
+	cp $src /tmp/$dstbase
+	rmcmd="rm -f /tmp/$dstbase"
+	src=$dstbase
+	srcdir=/tmp
+	dst="`echo $dst | sed 's,^\(.*\)/.*$,\1,'`"
+	if [ x$dst = x ]
+	then
+		dst="."
+	fi
+fi
+
+
+# If the src file has a directory, copy it to /tmp to make install happy
+
+srcbase=`basename $src`
+
+if [ "$src" != "$srcbase" -a "$src" != "./$srcbase" ] 
+then
+	cp $src /tmp/$srcbase
+	src=$srcbase
+	srcdir=/tmp
+	rmcmd="rm -f /tmp/$srcbase"
+fi
+
+# do the actual install
+
+if [ -f /usr/sbin/install ]
+then
+	installcmd=/usr/sbin/install
+elif [ -f /etc/install ]
+then
+	installcmd=/etc/install
+else
+	installcmd=install
+fi
+
+# This rm is commented out because some people want to be able to
+# install through symbolic links.  Uncomment it if it offends you.
+rm -f $dst/$srcbase
+(cd $srcdir ; $installcmd -f $dst $flags $src)
+
+if [ x$dostrip = xstrip ]
+then
+	strip $dst/$srcbase
+fi
+
+# and clean up
+
+$rmcmd
+
+exit
+

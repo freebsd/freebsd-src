@@ -1,0 +1,32 @@
+# this file indicates the compiler and the various hardware/OS dependent
+# flags for installation. It also defines the various destinations of
+# installed files on the system.
+#
+# This file is the default version. Please look in .../defs/ for your
+# preferred OS/vendor.
+
+OS=linux
+ARCH=`uname -m | sed 's/^i?86/i386/'`
+CC=gcc
+INSTALL=install
+MKDIR=mkdir -p
+CFLAGS=-O7 -pipe -g
+ULIBS=#-lefence
+LD=ld
+LD_D=gcc -shared -Xlinker -x
+LD_L=$(LD) -x -shared 
+USESONAME=yes
+SOSWITCH=-soname
+NEEDSONAME=no
+LDCONFIG=/sbin/ldconfig
+AR=ar -cr
+RANLIB=ranlib
+FAKEROOT=
+PREFIX=/usr
+SUPLEMENTED=$(PREFIX)/sbin
+LIBDIR=$(PREFIX)/lib
+SECUREDIR=$(LIBDIR)/security
+INCLUDED=/usr/include/security
+CONFIGED=/etc
+SCONFIGED=/etc/security
+NSLLIB=-lnsl

@@ -1,0 +1,67 @@
+<!--
+   $Id: pam_warn.sgml,v 1.1 1996/11/30 20:59:32 morgan Exp $
+   
+   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+-->
+
+<sect1>Warning logger module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_warn/
+
+<tag><bf>Author:</bf></tag>
+Andrew G. Morgan &lt;morgan@parc.power.net&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Author.
+
+<tag><bf>Management groups provided:</bf></tag>
+authentication; password
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+
+<tag><bf>Network aware:</bf></tag>
+logs information about the remote user and host (if pam-items are known)
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+This module is principally for logging information about a
+proposed authentication or application to update a password.
+
+<sect2>Authentication+Password component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+
+<tag><bf>Description:</bf></tag>
+
+Log the service, terminal, user, remote user and remote host to
+<tt/syslog(3)/. The items are not probed for, but instead obtained
+from the standard pam-items.
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+an example is provided in the configuration file section <ref
+id="configuration" name="above">.
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->
