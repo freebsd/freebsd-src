@@ -35,7 +35,7 @@
 #define	BYTE_MSF	(1)
 
 typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
+typedef long		db_expr_t;
 
 struct db_regs {
 	u_long	dr_global[8];
