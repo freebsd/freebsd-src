@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.9 1994/10/11 23:16:27 wollman Exp $
+ * $Id: route.c,v 1.10 1994/11/02 04:41:25 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -349,6 +349,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
+	u_long prflags = 0UL;
 #define senderr(x) { error = x ; goto bad; }
 
 	if ((rnh = rt_tables[dst->sa_family]) == 0)
@@ -383,6 +384,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			senderr(EINVAL);
 		ifa = rt->rt_ifa;
 		flags = rt->rt_flags & ~RTF_CLONING;
+		prflags = rt->rt_prflags | RTPRF_WASCLONED;
 		gateway = rt->rt_gateway;
 		if ((netmask = rt->rt_genmask) == 0)
 			flags |= RTF_HOST;
@@ -405,6 +407,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			senderr(ENOBUFS);
 		Bzero(rt, sizeof(*rt));
 		rt->rt_flags = RTF_UP | flags;
+		rt->rt_prflags = prflags;
 		if (rt_setgate(rt, dst, gateway)) {
 			Free(rt);
 			senderr(ENOBUFS);
