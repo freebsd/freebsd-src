@@ -39,7 +39,7 @@
 #include "y.tab.h"
 
 int line_no = 1, save_no, fromsubs;
-u_char buf[STR_LEN], *ptr;
+u_char buf[80], *ptr;
 FILE *map_fp;
 YY_BUFFER_STATE main_buf, map_buf;
 #ifdef FLEX_DEBUG
