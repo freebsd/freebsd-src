@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.2 1995/03/25 18:15:12 jkh Exp $
+$Id: MIRROR.SITES,v 1.3 1995/04/26 14:56:57 torstenb Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -25,6 +25,9 @@ Germany		ftp://gil.physik.rwth-aachen.de/pub/FreeBSD
 
 Germany		ftp://ftp.uni-paderborn.de/freebsd
 		<ftp@uni-paderborn.de>
+
+Israel		ftp://orgchem.weizmann.ac.il/pub/FreeBSD
+		<serg@klara.weizmann.ac.il>
 
 Hong Kong	ftp://ftp.hk.super.net/pub/FreeBSD
 		<ftp-admin@HK.Super.NET>
