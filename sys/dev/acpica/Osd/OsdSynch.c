@@ -144,7 +144,7 @@ AcpiOsDeleteSemaphore (ACPI_HANDLE Handle)
  * use getmicrotime() to correctly adjust the timeout after being woken up.
  */
 ACPI_STATUS
-AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
+AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT16 Timeout)
 {
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
@@ -179,8 +179,8 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
     }
 #endif
 
-    /* a timeout of WAIT_FOREVER means "forever" */
-    if (Timeout == WAIT_FOREVER) {
+    /* a timeout of ACPI_WAIT_FOREVER means "forever" */
+    if (Timeout == ACPI_WAIT_FOREVER) {
 	tmo = 0;
 	timeouttv.tv_sec = ((0xffff/1000) + 1);	/* cf. ACPI spec */
 	timeouttv.tv_usec = 0;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 146 $
+ *       $Revision: 148 $
  *
  *****************************************************************************/
 
@@ -622,6 +622,10 @@ BOOLEAN
 AcpiUtValidInternalObject (
     void                    *Object);
 
+ACPI_OPERAND_OBJECT *
+AcpiUtCreateBufferObject (
+    ACPI_SIZE               BufferSize);
+
 
 /*
  * UtRefCnt - Object reference count management
@@ -727,6 +731,11 @@ AcpiUtDeleteObjectCache (
 /*
  * utmisc
  */
+
+void
+AcpiUtPrintString (
+    char                    *String,
+    UINT8                   MaxLength);
 
 ACPI_STATUS
 AcpiUtDivide (

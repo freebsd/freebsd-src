@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 46 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -431,6 +431,12 @@ AcpiEnterSleepState (
         /* Spin until we wake */
 
     } while (!InValue);
+
+    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_LOCK);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     return_ACPI_STATUS (AE_OK);
 }
