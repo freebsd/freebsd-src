@@ -41,6 +41,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: ssh.c,v 1.179 2002/06/12 01:09:52 markus Exp $");
+RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -242,7 +243,7 @@ main(int ac, char **av)
 	/* Get user data. */
 	pw = getpwuid(original_real_uid);
 	if (!pw) {
-		log("You don't exist, go away!");
+		log("unknown user %d", original_real_uid);
 		exit(1);
 	}
 	/* Take a copy of the returned structure. */
@@ -599,6 +600,23 @@ again:
 
 	if (options.hostname != NULL)
 		host = options.hostname;
+
+	/* Find canonic host name. */
+	if (strchr(host, '.') == 0) {
+		struct addrinfo hints;
+		struct addrinfo *ai = NULL;
+		int errgai;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = IPv4or6;
+		hints.ai_flags = AI_CANONNAME;
+		hints.ai_socktype = SOCK_STREAM;
+		errgai = getaddrinfo(host, NULL, &hints, &ai);
+		if (errgai == 0) {
+			if (ai->ai_canonname != NULL)
+				host = xstrdup(ai->ai_canonname);
+			freeaddrinfo(ai);
+		}
+	}
 
 	/* Disable rhosts authentication if not running as root. */
 #ifdef HAVE_CYGWIN
