@@ -969,13 +969,13 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 				if (sense_key != SSD_KEY_NO_SENSE) {
 					saved_ccb->ccb_h.status |=
 					    CAM_AUTOSNS_VALID;
+#if 0
 					xpt_print_path(saved_ccb->ccb_h.path);
 					printf("Recovered Sense\n");
-#if 0
 					scsi_sense_print(&saved_ccb->csio);
-#endif
 					cam_error_print(saved_ccb, CAM_ESF_ALL,
 							CAM_EPF_ALL);
+#endif
 					xpt_done_ccb = TRUE;
 				}
 			}
