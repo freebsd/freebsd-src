@@ -23,13 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kldload.c,v 1.1 1997/05/07 18:19:21 dfr Exp $
  */
 
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/linker.h>
+
+extern int optind;
 
 static char* progname;
 
