@@ -25,7 +25,8 @@ SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
 	libftpio libgnumalloc ${_libio} libipsec libipx libisc libkvm libmenu \
 	${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
-	libposix1e libresolv librpcsvc ${_libsmdb} ${_libsmutil} libss \
+	libposix1e libresolv librpcsvc ${_libsmb} ${_libsmdb} ${_libsmutil} \
+	libss \
 	libstand ${_libtelnet} libusb ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
@@ -50,6 +51,7 @@ _libsmutil=	libsmutil
 .if ${MACHINE_ARCH} == "i386"
 _compat=	compat
 _libncp=	libncp
+_libsmb=	libsmb
 _libvgl=	libvgl
 .endif
 
