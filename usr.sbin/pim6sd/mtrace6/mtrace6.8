@@ -26,11 +26,11 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	$Id: mtrace6.8,v 1.3 1999/09/12 17:03:18 jinmei Exp $
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd Sep 12, 1999
 .Dt MTRACE6 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm mtrace6
 .Nd print IPv6 multicast path from a source to
@@ -63,7 +63,7 @@ along the path, and then the response is returned to the requestor.
 .It Fl d Ar destination
 Specifies the multicast receiver that the query wants to trace.
 It is the host running
-.Nm mtrace6
+.Nm
 by default.
 .It Fl g Ar gateway
 Send the trace query via unicast directly to the multicast router
@@ -94,7 +94,7 @@ the path).
 .It Fl r Ar response_addr
 Specify the host that the trace response sends to.
 By default, the response will send to the host running
-.Nm mtrace6 .
+.Nm Ns .
 .It Fl w Ar waittime
 Set the time to wait for a trace response to
 .Ar waittime
@@ -102,9 +102,9 @@ seconds.
 The default is 3 seconds.
 .El
 .Sh SEE ALSO
+.Xr mtrace 8 ,
 .Xr pim6dd 8 ,
-.Xr pim6sd 8 ,
-.Xr mtrace 8
+.Xr pim6sd 8
 .Sh BUGS
 Multicast trace for IPv6 is experimental.
 MLD types for query and
@@ -116,5 +116,5 @@ specified by the
 option is currently meaningless.
 .Sh HISTORY
 The
-.Nm mtrace6
+.Nm
 command first appeared in WIDE/KAME IPv6 protocol stack kit.
