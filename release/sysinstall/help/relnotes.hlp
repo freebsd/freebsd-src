@@ -29,23 +29,13 @@ specifically marked as [MERGED] features.
 KERNEL CHANGES:
 
 o The Host ATM Research Platform ("HARP") software by Network
-  Computing Services, Inc. have been intergrated.
+  Computing Services, Inc. has been integrated into the system.
   See /usr/src/share/examples/atm for more info.
-
-o The code responsible for maintaining time of day have been
-  rewritten.  New features are:  true support for nanoseconds in
-  both kernel and userland, continuous rather than stepwise adjustment
-  by NTPD, support for synchronizing to high precision external time 
-  signals.
-
-o Support for the PPS API described in draft-mogul-pps-api-02.txt for
-  TTL rising edge inputs via the parallel printer port.
-  been added to the parallel printer 
-
-o The code from 4.4BSD-Lite2 has been (finally) merged.
 
 o The SMP (Symmetric MultiProcessing) branch has been merged.
   The kernel is mostly non-reentrant as yet, but work is under way.
+
+o The code from 4.4BSD-Lite2 has been (finally) merged.
 
 o Secure RPC is now supported (and usable with NFS et al).
 
@@ -63,6 +53,16 @@ o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
   The ed1 Ethernet device has been removed.  Use the Userconfig utility
   to change ed0's values to match your network card's settings.
   [MERGED: Both changes are in 2.2.6 and later releases on 2.2-STABLE branch]
+
+o The code responsible for maintaining time of day has been
+  rewritten.  New features are:  true support for nanoseconds in
+  both kernel and userland, continuous rather than stepwise adjustment
+  by NTPD and support for synchronizing to high precision external time 
+  signals.
+
+o Support for the PPS API described in draft-mogul-pps-api-02.txt for
+  TTL rising edge inputs via the parallel printer port has been added
+  to the printer driver.
 
 o Use the new if_multiaddrs list for multicast addresses rather than the
   previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
