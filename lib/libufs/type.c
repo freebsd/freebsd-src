@@ -51,16 +51,18 @@ ufs_disk_ctor(const char *name)
 {
 	struct uufsd *new;
 
-	DEBUG(NULL);
+	new = NULL;
+
+	ERROR(new, NULL);
 
 	new = malloc(sizeof(*new));
 	if (new == NULL) {
-		DEBUG(NULL);
+		ERROR(new, "unable to allocate memory for disk");
 		return NULL;
 	}
 
 	if (ufs_disk_fillout(new, name) == -1) {
-		DEBUG(NULL);
+		ERROR(new, "could not fill out disk");
 		free(new);
 		return NULL;
 	}
@@ -69,18 +71,26 @@ ufs_disk_ctor(const char *name)
 }
 
 void
-ufs_disk_dtor(struct uufsd **disk)
+ufs_disk_dtor(struct uufsd **diskp)
 {
-	DEBUG(NULL);
-	ufs_disk_close(*disk);
-	free(*disk);
-	*disk = NULL;
+	struct uufsd *disk;
+
+	if (diskp != NULL)
+		disk = *diskp;
+	else
+		return;
+
+	ERROR(disk, NULL);
+
+	ufs_disk_close(disk);
+	free(disk);
+	*diskp = NULL;
 }
 
 int
 ufs_disk_close(struct uufsd *disk)
 {
-	DEBUG(NULL);
+	ERROR(disk, NULL);
 	close(disk->d_fd);
 	if (disk->d_inoblock != NULL) {
 		free(disk->d_inoblock);
@@ -94,12 +104,11 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 {
 	int fd;
 
-	DEBUG(NULL);
+	ERROR(disk, NULL);
 
 	fd = open(name, O_RDONLY);
 	if (fd == -1) {
-		DEBUG("open");
-		disk->d_error = "failed to open disk for reading";
+		ERROR(disk, "failed to open disk for reading");
 		return -1;
 	}
 
@@ -113,7 +122,7 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 	disk->d_error = NULL;
 
 	if (sbread(disk) == -1) {
-		DEBUG(NULL);
+		ERROR(disk, "could not read superblock to fill out disk");
 		return -1;
 	}
 

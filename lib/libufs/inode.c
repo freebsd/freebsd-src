@@ -55,7 +55,7 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 	struct ufs2_dinode *dp2;
 	struct fs *fs;
 
-	DEBUG(NULL);
+	ERROR(disk, NULL);
 
 	fs = &disk->d_fs;
 	inoblock = disk->d_inoblock;
@@ -65,7 +65,7 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 	if (inoblock == NULL) {
 		inoblock = malloc(fs->fs_bsize);
 		if (inoblock == NULL) {
-			DEBUG(NULL);
+			ERROR(disk, "unable to allocate inode block");
 			return -1;
 		}
 		disk->d_inoblock = inoblock;
@@ -90,6 +90,6 @@ gotit:	switch (disk->d_ufs) {
 	default:
 		break;
 	}
-	DEBUG("unknown UFS filesystem");
+	ERROR(disk, "unknown UFS filesystem type");
 	return -1;
 }
