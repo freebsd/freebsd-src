@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkbad.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: dkbad.h,v 1.2 1994/08/02 07:52:50 davidg Exp $
  */
+
+#ifndef _SYS_DKBAD_H_
+#define _SYS_DKBAD_H_
 
 /*
  * Definitions needed to perform bad sector revectoring ala DEC STD 144.
@@ -67,3 +70,5 @@ struct dkbad {
 #define	SSE	1
 #define	BSE	2
 #define	CONT	3
+
+#endif

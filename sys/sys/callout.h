@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
- * $Id: callout.h,v 1.2 1994/08/02 07:52:40 davidg Exp $
+ * $Id: callout.h,v 1.3 1994/08/18 22:35:41 wollman Exp $
  */
+
+#ifndef _SYS_CALLOUT_H_
+#define _SYS_CALLOUT_H_
 
 struct callout {
 	struct	callout *c_next;		/* next callout in queue */
@@ -49,4 +52,6 @@ struct callout {
 #ifdef KERNEL
 extern struct	callout *callfree, *callout, calltodo;
 extern int	ncallout;
+#endif
+
 #endif

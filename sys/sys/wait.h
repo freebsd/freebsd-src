@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)wait.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: wait.h,v 1.2 1994/08/02 07:54:15 davidg Exp $
  */
+
+#ifndef _SYS_WAIT_H_
+#define _SYS_WAIT_H_
 
 /*
  * This file holds definitions relevent to the wait4 system call
@@ -154,4 +157,6 @@ pid_t	wait3 __P((int *, int, struct rusage *));
 pid_t	wait4 __P((pid_t, int *, int, struct rusage *));
 #endif
 __END_DECLS
+#endif
+
 #endif

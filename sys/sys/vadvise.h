@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vadvise.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: vadvise.h,v 1.2 1994/08/02 07:54:08 davidg Exp $
  */
+
+#ifndef _SYS_VADVISE_H_
+#define _SYS_VADVISE_H_
 
 /*
  * Parameters to vadvise() to tell system of particular paging
@@ -48,3 +51,5 @@
 #define	VA_ANOM		1
 #define	VA_SEQL		2
 #define	VA_FLUSH 	3
+
+#endif

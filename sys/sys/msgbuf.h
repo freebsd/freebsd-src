@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)msgbuf.h	8.1 (Berkeley) 6/2/93
- * $Id: msgbuf.h,v 1.2 1994/08/02 07:53:16 davidg Exp $
+ * $Id: msgbuf.h,v 1.3 1994/08/18 22:35:44 wollman Exp $
  */
+
+#ifndef _SYS_MSGBUF_H_
+#define _SYS_MSGBUF_H_
 
 #define	MSG_BSIZE	(4096 - 3 * sizeof(long))
 struct	msgbuf {
@@ -44,4 +47,6 @@ struct	msgbuf {
 };
 #ifdef KERNEL
 extern struct	msgbuf *msgbufp;
+#endif
+
 #endif

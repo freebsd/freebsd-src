@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.2 1994/08/02 07:53:12 davidg Exp $
+ * $Id: mbuf.h,v 1.3 1994/08/06 11:26:16 davidg Exp $
  */
+
+#ifndef _SYS_MALLOC_H_
+#define _SYS_MALLOC_H_
 
 #ifndef M_WAITOK
 #include <sys/malloc.h>
@@ -428,4 +431,6 @@ int mbtypes[] = {				/* XXX */
 #endif
 };
 #endif
+#endif
+
 #endif

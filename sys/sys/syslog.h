@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.2 1994/08/02 07:53:43 davidg Exp $
+ * $Id: syslog.h,v 1.3 1994/08/18 22:35:46 wollman Exp $
  */
+
+#ifndef _SYS_SYSLOG_H_
+#define _SYS_SYSLOG_H_
 
 #define	_PATH_LOG	"/dev/log"
 
@@ -188,3 +191,5 @@ void	vsyslog __P((int, const char *, _BSD_VA_LIST_));
 __END_DECLS
 
 #endif /* !KERNEL */
+
+#endif

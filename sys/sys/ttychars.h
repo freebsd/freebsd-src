@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttychars.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ttychars.h,v 1.2 1994/08/02 07:53:55 davidg Exp $
  */
+
+#ifndef _SYS_TTYCHARS_H_
+#define _SYS_TTYCHARS_H_
 
 /*
  * 4.3 COMPATIBILITY FILE
@@ -62,3 +65,5 @@ struct ttychars {
 #include <sys/ttydefaults.h>	/* to pick up character defaults */
 #endif
 #endif /* !_SYS_TTYCHARS_H_ */
+
+#endif

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: un.h,v 1.3 1994/08/02 07:54:03 davidg Exp $
  */
+
+#ifndef _SYS_UN_H_
+#define _SYS_UN_H_
 
 /*
  * Definitions for UNIX IPC domain.
@@ -47,4 +50,6 @@ struct	sockaddr_un {
 /* actual length of an initialized sockaddr_un */
 #define SUN_LEN(su) \
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
+#endif
+
 #endif

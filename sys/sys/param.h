@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: param.h,v 1.3 1994/08/02 07:53:19 davidg Exp $
  */
+
+#ifndef _SYS_PARAM_H_
+#define _SYS_PARAM_H_
 
 #define	BSD	199306		/* System version (year & month). */
 #define BSD4_3	1
@@ -215,3 +218,5 @@
  */
 #define	FSHIFT	11		/* bits to right of fixed binary point */
 #define FSCALE	(1<<FSHIFT)
+
+#endif

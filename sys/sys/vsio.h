@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vsio.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: vsio.h,v 1.2 1994/08/02 07:54:14 davidg Exp $
  */
+
+#ifndef _SYS_VSIO_H_
+#define _SYS_VSIO_H_
 
  /****************************************************************************
  *									    *
@@ -152,3 +155,5 @@ typedef struct _vsIoAddr {
 	vsBox	 mbox;			/* atomic read/write */
 } vsIoAddr;
 typedef vsIoAddr *vsIoAddrAddr;
+
+#endif

@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.5 1994/08/18 22:35:43 wollman Exp $
+ *	$Id: imgact.h,v 1.6 1994/08/19 11:45:29 davidg Exp $
  */
 
-#ifndef __h_imgact
-#define __h_imgact 1
+#ifndef _SYS_IMGACT_H_
+#define _SYS_IMGACT_H_
 
 #include <sys/proc.h>
 #include <sys/namei.h>
@@ -56,4 +56,4 @@ struct image_params {
 	char interpreter_name[64]; /* name of the interpreter */
 };
 
-#endif /* __h_imgact */
+#endif 
