@@ -40,7 +40,7 @@
 # arguments to the .It command, only the argument will be printed.
 
 # Usage:
-# mdoc2sgml [-l] [-d 0-6] [-a <archlist file>] manualpage [manualpage ...]
+# mdoc2sgml [-l] [-d 0-6] [-a <archlist file>] [-o <outputfile>] <manualpage> [<manualpage> ...]
 
 use strict;
 use Getopt::Std;
@@ -61,8 +61,8 @@ my @out_dev;   # Device entities
 
 # Getopt
 my %options = ();
-if (!getopts("a:d:l",\%options)) {
-    die("Invalid command line arguments\n");
+if (!getopts("a:d:lo:",\%options)) {
+    die("$!: Invalid command line arguments in ", __LINE__, "\n");
 }
 
 if (defined($options{d})) {
@@ -75,12 +75,25 @@ if (defined($options{l})) {
     $only_list_out = 1;
 }
 
+my $outputfile = $options{o};
+
 if ($debuglevel > 0) {
     # Don't do output buffering in debug mode.
     $| = 1;
 }
 
 load_archlist($archlist_file);
+
+if (defined($outputfile)) {
+    open(OLDOUT, ">&STDOUT") || die("$!: Could not open STDOUT in ", __LINE__, ".\n");
+    open(STDOUT, ">$outputfile") || die("$!: Could not open $outputfile in ", __LINE__, ".\n");
+}
+
+print <<EOT;
+<!--
+ These are automatically generated device lists for FreeBSD hardware notes.
+-->
+EOT
 
 if ($only_list_out) {
     # Print the default device preamble entities
@@ -89,16 +102,36 @@ if ($only_list_out) {
 }
 
 foreach my $page (@ARGV) {
+    if ($page !~ m/\.4$/) {
+        dlog(2, "Skipped $page (not *.4)");
+        next;
+    }
     dlog(2, "Parsing $page");
     parse($page);
 
-    print join("\n", @out_lines);
-    print "\n";
-    print join("\n", @out_dev);
-    print "\n";
+    if (@out_lines) {
+        print join("\n", @out_lines), "\n";
+    }
+    if (@out_dev) {
+        print join("\n", @out_dev), "\n";
+    }
 
     @out_lines = ();
     @out_dev = ();
+}
+
+if (defined($outputfile)) {
+    open(STDOUT, ">&OLDOUT") || die("$!: Could not open STDOUT in ", __LINE__, ".\n");
+    close(OLDOUT) || die("$!: Could not close OLDOUT in ", __LINE__, ".\n");
+}
+
+sub normalize (@) {
+    my @lines = @_;
+
+    foreach my $l (@lines) {
+        $l =~ s:([\x21-\x2f\x5b-\x60\x7b-\x7f]):sprintf("&\#\%d;", ord($1)):eg;
+    }
+    return (wantarray) ? @lines : join "", @lines;
 }
 
 sub parse {
@@ -112,7 +145,7 @@ sub parse {
     $mdocvars{parabuf} = "";
     $mdocvars{listtype} = "";
 
-    open(MANPAGE, "$manpage") || die();
+    open(MANPAGE, "$manpage") || die("$!: Could not open $manpage in ", __LINE__, ".\n");
     while(<MANPAGE>) {
 	chomp;
 	my $line = $_;
@@ -169,7 +202,7 @@ sub parse {
 		if ($mdocvars{parabuf} ne "") {
 		    add_listitem(\%mdocvars);
 		}
-		parabuf_addline(\%mdocvars, $1);
+		parabuf_addline(\%mdocvars, normalize($1));
 	    } elsif (/^Bl/) {
 		$mdocvars{isin_list} = 1;
 		flush_out(\%mdocvars);
@@ -199,21 +232,21 @@ sub parse {
 		my $txt = $1;
 		$txt =~ s/^(.+) ,$/$1,/;
 
-		parabuf_addline(\%mdocvars, $txt);
+		parabuf_addline(\%mdocvars, normalize($txt));
 	    } elsif (/^Xr (.+) (.+)/) {
 		# We need to check if the manual page exist to avoid
 		# breaking the doc build just because of a broken
 		# reference.
 		#parabuf_addline(\%mdocvars, "&man.$1.$2;");
-		parabuf_addline(\%mdocvars, "$1($2)");
+		parabuf_addline(\%mdocvars, normalize("$1($2)"));
 	    }
 	    # Ignore all other commands
 	} else {
 	    # This is then regular text
-	    parabuf_addline(\%mdocvars, $_);
+	    parabuf_addline(\%mdocvars, normalize($_));
 	}
     }
-    close(MANPAGE) || die("Could not close input manual page");
+    close(MANPAGE) || die("$!: Could not close $manpage in ", __LINE__, ".\n");
     if (! $found_hwlist) {
 	dlog(1, "Hardware list not found in $manpage");
     }
@@ -332,7 +365,7 @@ sub load_archlist {
 
     dlog(2, "Parsing archlist $file");
 
-    open(FILE, "$file") || die("Could not open archlist $file\n");
+    open(FILE, "$file") || die("$!: Could not open archlist $file in ", __LINE__, ".\n");
     while(<FILE>) {
 	chomp;
 	$lineno++;
