@@ -301,7 +301,7 @@ void *sm_notify_1_svc(stat_chge *arg, struct svc_req *req)
   struct timeval timeout = { 20, 0 };	/* 20 secs timeout		*/
   CLIENT *cli;
   static char dummy; 
-  status tx_arg;		/* arg sent to callback procedure	*/
+  sm_status tx_arg;		/* arg sent to callback procedure	*/
   MonList *lp;
   HostInfo *hp;
   pid_t pid;
@@ -340,7 +340,7 @@ void *sm_notify_1_svc(stat_chge *arg, struct svc_req *req)
     }
     else
     {
-      if (clnt_call(cli, lp->notifyProc, xdr_status, &tx_arg, xdr_void, &dummy,
+      if (clnt_call(cli, lp->notifyProc, xdr_sm_status, &tx_arg, xdr_void, &dummy,
         timeout) != RPC_SUCCESS)
       {
         syslog(LOG_ERR, "Failed to call rpc.statd client at host %s",

@@ -29,25 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 
 
 #include "sm_inter.h"
-
-/* These pieces are missing from the distributed sm_inter.x, which	*/
-/* omits the SM_NOTIFY procedure used between cooperating rpc.statd's	*/
-
-#define SM_NOTIFY ((u_long)6)
-extern void *sm_notify_1();
- 
-struct stat_chge
-{
-  char *mon_name;
-  int state;
-};
-typedef struct stat_chge stat_chge;
-bool_t xdr_stat_chge();
 
 /* ------------------------------------------------------------------------- */
 /*
