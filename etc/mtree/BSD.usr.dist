@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.154 1999/05/03 17:23:52 gpalmer Exp $
+#	$Id: BSD.usr.dist,v 1.155 1999/05/03 17:42:34 gpalmer Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -91,7 +91,11 @@
 				..
 				CORE
 				..
+				Data
+				..
 				IO
+				..
+				IPC
 				..
 				auto
 					B
