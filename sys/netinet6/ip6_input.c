@@ -171,7 +171,6 @@ ip6_init()
 {
 	struct ip6protosw *pr;
 	int i;
-	struct timeval tv;
 
 #ifdef DIAGNOSTIC
 	if (sizeof(struct protosw) != sizeof(struct ip6protosw))
@@ -203,10 +202,8 @@ ip6_init()
 	 * in many cases, random() here does NOT return random number
 	 * as initialization during bootstrap time occur in fixed order.
 	 */
-	microtime(&tv);
-	ip6_flow_seq = random() ^ tv.tv_usec;
-	microtime(&tv);
-	ip6_desync_factor = (random() ^ tv.tv_usec) % MAX_TEMP_DESYNC_FACTOR;
+	ip6_flow_seq = arc4random();
+	ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 }
 
 static void

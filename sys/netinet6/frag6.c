@@ -82,19 +82,11 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 void
 frag6_init()
 {
-#ifndef RANDOM_IP_ID
-	struct timeval tv;
-#endif
 
 	ip6_maxfragpackets = nmbclusters / 4;
 
 #ifndef RANDOM_IP_ID
-	/*
-	 * in many cases, random() here does NOT return random number
-	 * as initialization during bootstrap time occur in fixed order.
-	 */
-	microtime(&tv);
-	ip6_id = random() ^ tv.tv_usec;
+	ip6_id = arc4random();
 #endif
 	ip6q.ip6q_next = ip6q.ip6q_prev = &ip6q;
 }
