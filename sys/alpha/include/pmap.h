@@ -1,14 +1,10 @@
-/* $Id$ */
-/* From: NetBSD: pmap.old.h,v 1.16 1998/01/09 19:13:09 thorpej Exp */
-
-/* 
- * Copyright (c) 1987 Carnegie-Mellon University
- * Copyright (c) 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
+/*
+ * Copyright (c) 1991 Regents of the University of California.
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
- * Science Department.
+ * Science Department and William Jolitz of UUNET Technologies Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,103 +34,198 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pmap.h	8.1 (Berkeley) 6/10/93
+ * Derived from hp300 version by Mike Hibler, this version by William
+ * Jolitz uses a recursive map [a pde points to the page directory] to
+ * map the page tables using the pagetables themselves. This is done to
+ * reduce the impact on kernel virtual memory for lots of sparse address
+ * space, and to reduce the cost of memory to each process.
+ *
+ *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
+ *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
+ *	from: i386 pmap.h,v 1.54 1997/11/20 19:30:35 bde Exp
+ * 	$Id$
  */
 
-#ifndef	_PMAP_MACHINE_
-#define	_PMAP_MACHINE_
+#ifndef _MACHINE_PMAP_H_
+#define	_MACHINE_PMAP_H_
 
-#include <machine/pte.h>
-#include <machine/lock.h>
+/*
+ * Define meanings for a few software bits in the pte
+ */
+#define	PG_V		ALPHA_PTE_VALID
+#define	PG_FOR		ALPHA_PTE_FAULT_ON_READ
+#define	PG_FOW		ALPHA_PTE_FAULT_ON_WRITE
+#define	PG_FOE		ALPHA_PTE_FAULT_ON_EXECUTE
+#define	PG_ASM		ALPHA_PTE_ASM
+#define	PG_GH		ALPHA_PTE_GRANULARITY
+#define	PG_KRE		ALPHA_PTE_KR
+#define	PG_URE		ALPHA_PTE_UR
+#define	PG_KWE		ALPHA_PTE_KW
+#define	PG_UWE		ALPHA_PTE_UW
+#define	PG_PROT		ALPHA_PTE_PROT
+#define PG_SHIFT	32
 
-extern vm_offset_t       vtophys(vm_offset_t);
+#define PG_W		0x00010000 /* software wired */
+#define PG_MANAGED	0x00020000 /* software managed */
 
-#define	ALPHA_PAGE_SIZE	NBPG
-#define	ALPHA_SEG_SIZE	NBSEG
+/*
+ * Pte related macros
+ */
+#define VADDR(l1, l2, l3)	(((l1) << ALPHA_L1SHIFT)	\
+				 + ((l2) << ALPHA_L2SHIFT)	\
+				 + ((l3) << ALPHA_L3SHIFT)
 
-#define alpha_trunc_seg(x)	(((u_long)(x)) & ~(ALPHA_SEG_SIZE-1))
-#define alpha_round_seg(x)	alpha_trunc_seg((u_long)(x) + ALPHA_SEG_SIZE-1)
+#ifndef NKPT
+#define	NKPT			9	/* initial number of kernel page tables */
+#endif
+#define NKLEV2MAPS		255	/* max number of lev2 page tables */
+#define NKLEV3MAPS		(NKLEV2MAPS << ALPHA_PTSHIFT) /* max number of lev3 page tables */
 
-typedef	struct simplelock	simple_lock_data_t;
+/*
+ * The *PTDI values control the layout of virtual memory
+ *
+ * XXX This works for now, but I am not real happy with it, I'll fix it
+ * right after I fix locore.s and the magic 28K hole
+ *
+ * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
+ */
+#define PTLEV1I		(NPTEPG-1)	/* Lev0 entry that points to Lev0 */
+#define K0SEGLEV1I	(NPTEPG/2)
+#define K1SEGLEV1I	(K0SEGLEV1I+(NPTEPG/4))
+
+#define NUSERLEV2MAPS	(NPTEPG/2)
+#define NUSERLEV3MAPS	(NUSERLEV2MAPS << ALPHA_PTSHIFT)
+
+#ifndef LOCORE
+
+#include <sys/queue.h>
+
+typedef alpha_pt_entry_t pt_entry_t;
+
+#define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
+
+/*
+ * Address of current address space page table maps
+ */
+#ifdef KERNEL
+extern pt_entry_t PTmap[];	/* lev3 page tables */
+extern pt_entry_t PTlev2[];	/* lev2 page tables */
+extern pt_entry_t PTlev1[];	/* lev1 page table */
+extern pt_entry_t PTlev1pte;	/* pte that maps lev1 page table */
+#endif
+
+#ifdef KERNEL
+/*
+ * virtual address to page table entry and
+ * to physical address.
+ * Note: this work recursively, thus vtopte of a pte will give
+ * the corresponding lev1 that in turn maps it.
+ */
+#define	vtopte(va)	(PTmap + (alpha_btop(va) \
+				  & ((1 << 3*ALPHA_PTSHIFT)-1)))
+
+/*
+ *	Routine:	pmap_kextract
+ *	Function:
+ *		Extract the physical page address associated
+ *		kernel virtual address.
+ */
+static __inline vm_offset_t
+pmap_kextract(vm_offset_t va)
+{
+	vm_offset_t pa;
+	if (va >= ALPHA_K0SEG_BASE && va <= ALPHA_K0SEG_END)
+		pa = ALPHA_K0SEG_TO_PHYS(va);
+	else
+		pa = alpha_ptob(ALPHA_PTE_TO_PFN(*vtopte(va)))
+			| (va & PAGE_MASK);
+	return pa;
+}
+
+#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+
+#endif /* KERNEL */
 
 /*
  * Pmap stuff
  */
+struct	pv_entry;
+typedef struct {
+	int pv_list_count;
+	struct vm_page		*pv_vm_page;
+	int			pv_flags;
+	TAILQ_HEAD(,pv_entry)	pv_list;
+} pv_table_t;
+
+#define PV_TABLE_MOD		0x01 /* modified */
+#define PV_TABLE_REF		0x02 /* referenced */
+
 struct pmap {
-	pt_entry_t		*pm_ptab;	/* KVA of page table */
-	pt_entry_t		*pm_stab;	/* KVA of segment table */
-	pt_entry_t		pm_stpte;	/* PTE mapping STE */
-	short			pm_sref;	/* segment table ref count */
-	short			pm_count;	/* pmap reference count */
-	simple_lock_data_t	pm_lock;	/* lock on pmap */
+	pt_entry_t		*pm_lev1;	/* KVA of lev0map */
+	vm_object_t		pm_pteobj;	/* Container for pte's */
+	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
+	int			pm_count;	/* reference count */
+	int			pm_flags;	/* pmap flags */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
-	long			pm_ptpages;	/* more stats: PT pages */
+	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
 };
+
+#define pmap_resident_count(pmap) (pmap)->pm_stats.resident_count
+
+#define PM_FLAG_LOCKED	0x1
+#define PM_FLAG_WANTED	0x2
 
 typedef struct pmap	*pmap_t;
 
-extern struct pmap	kernel_pmap_store;
-
-#define pmap_kernel()	(&kernel_pmap_store)
-#define	active_pmap(pm) \
-	((pm) == pmap_kernel()	\
-	|| curproc == NULL	\
-	|| (pm) == curproc->p_vmspace->vm_map.pmap)
-#define	active_user_pmap(pm) \
-	(curproc && \
-	 (pm) != pmap_kernel() && (pm) == curproc->p_vmspace->vm_map.pmap)
+#ifdef KERNEL
+extern pmap_t		kernel_pmap;
+#endif
 
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
  */
 typedef struct pv_entry {
-	struct pv_entry	*pv_next;	/* next pv_entry */
-	struct pmap	*pv_pmap;	/* pmap where mapping lies */
+	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	pt_entry_t	*pv_ptpte;	/* non-zero if VA maps a PT page */
-	struct pmap	*pv_ptpmap;	/* if pv_ptpte, pmap for PT page */
-	int		pv_flags;	/* flags */
+	TAILQ_ENTRY(pv_entry)	pv_list;
+	TAILQ_ENTRY(pv_entry)	pv_plist;
+	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 
-#define PV_PTPAGE	0x01	/* header: entry maps a page table page */
+#define	PV_ENTRY_NULL	((pv_entry_t) 0)
 
-struct pv_page_info {
-	TAILQ_ENTRY(pv_page) pgi_list;
-	struct pv_entry *pgi_freelist;
-	int pgi_nfree;
-};
+#define	PV_CI		0x01	/* all entries must be cache inhibited */
+#define	PV_PTPAGE	0x02	/* entry maps a page table page */
 
-#define	NPVPPG ((NBPG - sizeof(struct pv_page_info)) / sizeof(struct pv_entry))
+#ifdef	KERNEL
 
-struct pv_page {
-	struct pv_page_info pvp_pgi;
-	struct pv_entry pvp_pv[NPVPPG];
-};
+extern caddr_t	CADDR1;
+extern pt_entry_t *CMAP1;
+extern vm_offset_t avail_end;
+extern vm_offset_t avail_start;
+extern vm_offset_t clean_eva;
+extern vm_offset_t clean_sva;
+extern vm_offset_t phys_avail[];
+extern char *ptvmmap;		/* poor name! */
+extern vm_offset_t virtual_avail;
+extern vm_offset_t virtual_end;
 
-/*
- * Physical page attributes.
- */
-typedef	int		pmap_attr_t;
-#define	PMAP_ATTR_MOD	0x01			/* modified */
-#define	PMAP_ATTR_REF	0x02			/* referenced */
+vm_offset_t pmap_steal_memory __P((vm_size_t));
+void	pmap_bootstrap __P((vm_offset_t, u_int));
+void	pmap_setdevram __P((unsigned long long basea, vm_offset_t sizea));
+int	pmap_uses_prom_console __P((void));
+pmap_t	pmap_kernel __P((void));
+void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
+unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
+vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
+void	pmap_set_opt	__P((unsigned *));
+void	pmap_set_opt_bsp	__P((void));
+void	pmap_deactivate __P((struct proc *p));
+void	pmap_emulate_reference __P((struct proc *p, vm_offset_t v, int user, int write));
 
-#ifdef _KERNEL
-#define	pmap_resident_count(pmap)	((pmap)->pm_stats.resident_count)
-#define	pmap_wired_count(pmap)		((pmap)->pm_stats.wired_count)
+#endif /* KERNEL */
 
-extern	pt_entry_t *Sysmap;
-extern	char *vmmap;			/* map for mem, dumps, etc. */
+#endif /* !LOCORE */
 
-#if defined(MACHINE_NEW_NONCONTIG)
-#define	PMAP_STEAL_MEMORY		/* enable pmap_steal_memory() */
-#endif
-
-/* Machine-specific functions. */
-void	pmap_bootstrap __P((vm_offset_t firstaddr, vm_offset_t ptaddr));
-void	pmap_emulate_reference __P((struct proc *p, vm_offset_t v,
-		int user, int write));
-void	pmap_unmap_prom __P((void));
-#endif /* _KERNEL */
-
-#endif /* _PMAP_MACHINE_ */
+#endif /* !_MACHINE_PMAP_H_ */

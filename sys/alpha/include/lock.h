@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.5 1997/12/15 02:18:27 tegge Exp $
+ *	$Id: lock.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $
  */
 
 
@@ -38,5 +38,9 @@ struct simplelock {
 	volatile int	lock_data;
 };
 
+#define	simple_lock_init(alp)
+#define	simple_lock(alp)
+#define	simple_lock_try(alp)	1
+#define	simple_unlock(alp)
 
 #endif /* !_MACHINE_LOCK_H_ */

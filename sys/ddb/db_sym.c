@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.20 1997/06/30 23:54:49 bde Exp $
+ *	$Id: db_sym.c,v 1.21 1998/06/07 17:09:38 dfr Exp $
  */
 
 /*
@@ -300,11 +300,11 @@ db_printsym(off, strategy)
 	if (name == 0)
 		value = off;
 	if (value >= DB_SMALL_VALUE_MIN && value <= DB_SMALL_VALUE_MAX) {
-		db_printf("%+#n", off);
+		db_printf("%+#ln", off);
 		return;
 	}
 	if (name == 0 || d >= db_maxoff) {
-		db_printf("%#n", off);
+		db_printf("%#ln", off);
 		return;
 	}
 	db_printf("%s", name);

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.18 1998/06/07 17:09:37 dfr Exp $
+ *	$Id: db_examine.c,v 1.19 1998/06/08 08:43:19 dfr Exp $
  */
 
 /*
@@ -257,7 +257,7 @@ db_search_cmd(dummy1, dummy2, dummy3, dummy4)
 	int		size;
 	db_expr_t	value;
 	db_expr_t	mask;
-	unsigned int	count;
+	db_expr_t	count;
 
 	t = db_read_token();
 	if (t == tSLASH) {

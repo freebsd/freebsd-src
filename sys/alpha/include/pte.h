@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: pte.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: pte.h,v 1.10 1997/09/02 19:07:22 thorpej Exp */
 
 /*
@@ -91,7 +91,7 @@ typedef	alpha_pt_entry_t	pt_entry_t;
 #define	vatopa(va) \
 	((PG_PFNUM(*kvtopte(va)) << PGSHIFT) | ((vm_offset_t)(va) & PGOFSET))
 
-#define	ALPHA_STSIZE		((u_long)NBPG)			/* 8k */
+#define	ALPHA_STSIZE		((u_long)PAGE_SIZE)		/* 8k */
 #define	ALPHA_MAX_PTSIZE	((u_long)(NPTEPG * NBPG))	/* 8M */
 
 #ifdef _KERNEL

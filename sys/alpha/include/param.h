@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.1 1998/01/10 10:13:15 jb Exp $ */
+/* $Id: param.h,v 1.2 1998/03/09 05:53:10 jb Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -70,25 +70,20 @@
 #define	ALIGN(p)		(((u_long)(p) + ALIGNBYTES) &~ ALIGNBYTES)
 #define ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
 
-#define	NBPG		(1 << ALPHA_PGSHIFT)		/* bytes/page */
-#define	PAGE_SIZE	NBPG
-#define	PGOFSET		(NBPG-1)			/* byte off. into pg */
-#define	PGSHIFT		ALPHA_PGSHIFT			/* LOG2(NBPG) */
-#define	NPTEPG		(1 << (PGSHIFT-PTESHIFT))	/* pte's/page */
-
-#define	SEGSHIFT	(PGSHIFT + (PGSHIFT-PTESHIFT))	/* LOG2(NBSEG) */
-#define	NBSEG		(1 << SEGSHIFT)			/* bytes/segment (8M) */
-#define	SEGOFSET	(NBSEG-1)			/* byte off. into seg */
+#define	PAGE_SIZE	(1 << ALPHA_PGSHIFT)		/* bytes/page */
+#define PAGE_SHIFT	ALPHA_PGSHIFT
+#define PAGE_MASK	(PAGE_SIZE-1)
+#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
 #define	KERNBASE	0xfffffc0000230000	/* start of kernel virtual */
 #define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
-#define	DEV_BSIZE	512
 #define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
-#define	BLKDEV_IOSIZE	2048
-#ifndef	MAXPHYS
-#define	MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
-#endif
+#define	DEV_BSIZE	(1<<DEV_BSHIFT)
+
+#define BLKDEV_IOSIZE	2048
+#define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
+#define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
 
 #define	CLSIZE		1
 #define	CLSIZELOG2	0
@@ -97,11 +92,11 @@
 #define	SSIZE		1		/* initial stack size/NBPG */
 #define	SINCR		1		/* increment of stack/NBPG */
 
-#define	UPAGES		2			/* pages of u-area */
-#define	USPACE		(UPAGES * NBPG)		/* total size of u-area */
+#define	UPAGES		2		/* pages of u-area */
+#define	USPACE		(UPAGES * PAGE_SIZE) /* total size of u-area */
 
 #ifndef MSGBUFSIZE
-#define MSGBUFSIZE	NBPG		/* default message buffer size */
+#define MSGBUFSIZE	PAGE_SIZE	/* default message buffer size */
 #endif
 
 /*
@@ -134,12 +129,12 @@
 #endif
 
 /* pages ("clicks") to disk blocks */
-#define	ctod(x)		((x) << (PGSHIFT - DEV_BSHIFT))
-#define	dtoc(x)		((x) >> (PGSHIFT - DEV_BSHIFT))
+#define	ctod(x)		((x) << (PAGE_SHIFT - DEV_BSHIFT))
+#define	dtoc(x)		((x) >> (PAGE_SHIFT - DEV_BSHIFT))
 
 /* pages to bytes */
-#define	ctob(x)		((x) << PGSHIFT)
-#define	btoc(x)		(((x) + PGOFSET) >> PGSHIFT)
+#define	ctob(x)		((x) << PAGE_SHIFT)
+#define	btoc(x)		(((x) + PAGE_MASK) >> PAGE_SHIFT)
 
 /* bytes to disk blocks */
 #define	btodb(x)	((x) >> DEV_BSHIFT)
@@ -156,10 +151,14 @@
 /*
  * Mach derived conversion macros
  */
-#define	alpha_round_page(x)	((((unsigned long)(x)) + NBPG - 1) & ~(NBPG-1))
-#define	alpha_trunc_page(x)	((unsigned long)(x) & ~(NBPG-1))
-#define	alpha_btop(x)		((unsigned long)(x) >> PGSHIFT)
-#define	alpha_ptob(x)		((unsigned long)(x) << PGSHIFT)
+#define	round_page(x)	((((unsigned long)(x)) + PAGE_MASK) & ~(PAGE_MASK))
+#define	trunc_page(x)	((unsigned long)(x) & ~(PAGE_MASK))
+
+#define atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
+#define ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
+
+#define	alpha_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
+#define	alpha_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #include <machine/intr.h>
 

@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: proc.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: proc.h,v 1.3 1997/04/06 08:47:36 cgd Exp */
 
 /*

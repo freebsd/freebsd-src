@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: cpu.h,v 1.1 1998/01/10 10:13:14 jb Exp $ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
 /*
@@ -53,12 +53,6 @@
 #include <machine/frame.h>
 
 /*
- * definitions of cpu-dependent requirements
- * referenced in generic code
- */
-#define	cpu_wait(p)			/* nothing */
-
-/*
  * Arguments to hardclock and gatherstats encapsulate the previous
  * machine state in an opaque clockframe.  One the Alpha, we use
  * what we push on an interrupt (a trapframe).
@@ -98,7 +92,7 @@ struct clockframe {
 
 #define	aston()		(astpending = 1)
 
-#ifdef _KERNEL
+#ifdef KERNEL
 u_int64_t astpending;		/* need to trap before returning to user mode */
 u_int64_t want_resched;		/* resched() was called */
 #endif
@@ -125,7 +119,7 @@ u_int64_t want_resched;		/* resched() was called */
 	{ "booted_kernel", CTLTYPE_STRING }, \
 }
 
-#ifdef _KERNEL
+#ifdef KERNEL
 
 struct pcb;
 struct proc;
@@ -133,7 +127,6 @@ struct reg;
 struct rpb;
 struct trapframe;
 
-extern int cold;
 extern struct proc *fpcurproc;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected, mc_received;
@@ -145,19 +138,19 @@ void	XentMM __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
 void	XentRestart __P((void));				/* MAGIC */
 void	XentSys __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
 void	XentUna __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
-void	alpha_init __P((u_long, u_long, u_long, u_long));
+void	alpha_init __P((u_long, u_long, u_long, u_long, u_long));
+int	alpha_pa_access __P((u_long));
 void	ast __P((struct trapframe *));
 int	badaddr	__P((void *, size_t));
 int	badaddr_read __P((void *, size_t, void *));
 void	child_return __P((struct proc *p));
-void	configure __P((void));
 u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
 void	do_sir __P((void));
 void	dumpconf __P((void));
 void	exception_return __P((void));				/* MAGIC */
 void	frametoreg __P((struct trapframe *, struct reg *));
 long	fswintrberr __P((void));				/* MAGIC */
-void	init_prom_interface __P((void));
+void	init_prom_interface __P((struct rpb*));
 void	interrupt
 	__P((unsigned long, unsigned long, unsigned long, struct trapframe *));
 void	machine_check
@@ -173,6 +166,7 @@ void	switch_trampoline __P((void));				/* MAGIC */
 void	syscall __P((u_int64_t, struct trapframe *));
 void	trap __P((unsigned long, unsigned long, unsigned long, unsigned long,
 	    struct trapframe *));
+void	cpu_set_fork_handler __P((struct proc *, void (*pc)(void *), void *));
 
 #endif /* _KERNEL */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.1 1997/05/07 16:05:45 dfr Exp $
+ *	$Id: module.h,v 1.2 1997/10/24 05:29:07 jmg Exp $
  */
 
 #ifndef _SYS_MODULE_H_
@@ -52,7 +52,8 @@ typedef struct moduledata {
 } moduledata_t;
 
 #define DECLARE_MODULE(name, data, sub, order) \
-SYSINIT(name##module, sub, order, module_register_init, &data)
+SYSINIT(name##module, sub, order, module_register_init, &data) \
+struct __hack
 
 void module_register_init(void *data);
 int module_register(const char *name, modeventhand_t callback, void *arg);
