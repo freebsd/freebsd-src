@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
@@ -133,6 +134,17 @@ cpu_fork(td1, p2, td2, flags)
 	td2->td_frame->tf_rdx = 1;
 
 	/*
+	 * If the parent process has the trap bit set (i.e. a debugger had
+	 * single stepped the process to the system call), we need to clear
+	 * the trap flag from the new frame unless the debugger had set PF_FORK
+	 * on the parent.  Otherwise, the child will receive a (likely
+	 * unexpected) SIGTRAP when it executes the first instruction after
+	 * returning  to userland.
+	 */
+	if ((p1->p_pfsflags & PF_FORK) == 0)
+		td2->td_frame->tf_rflags &= ~PSL_T;
+
+	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
@@ -185,13 +197,6 @@ cpu_set_fork_handler(td, func, arg)
 void
 cpu_exit(struct thread *td)
 {
-	struct pcb *pcb = td->td_pcb;
-
-	if (pcb->pcb_flags & PCB_DBREGS) {
-		/* disable all hardware breakpoints */
-		reset_dbregs();
-		pcb->pcb_flags &= ~PCB_DBREGS;
-	}
 }
 
 void
@@ -234,7 +239,7 @@ cpu_thread_setup(struct thread *td)
 
 /*
  * Initialize machine state (pcb and trap frame) for a new thread about to
- * upcall. Pu t enough state in the new thread's PCB to get it to go back 
+ * upcall. Put enough state in the new thread's PCB to get it to go back 
  * userret(), where we can intercept it again to set the return (upcall)
  * Address and stack, along with those from upcals that are from other sources
  * such as those generated in thread_userret() itself.
@@ -327,11 +332,6 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	td->td_frame->tf_rdi = (register_t)ku->ku_mailbox;
 }
 
-
-/*
- * Force reset the processor by invalidating the entire address space!
- */
-
 #ifdef SMP
 static void
 cpu_reset_proxy()
@@ -339,7 +339,7 @@ cpu_reset_proxy()
 
 	cpu_reset_proxy_active = 1;
 	while (cpu_reset_proxy_active == 1)
-		;	 /* Wait for other cpu to see that we've started */
+		;	/* Wait for other cpu to see that we've started */
 	stop_cpus((1<<cpu_reset_proxyid));
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
 	DELAY(1000000);
@@ -351,29 +351,16 @@ void
 cpu_reset()
 {
 #ifdef SMP
-	if (smp_active == 0) {
-		cpu_reset_real();
-		/* NOTREACHED */
-	} else {
+	u_int cnt, map;
 
-		u_int map;
-		int cnt;
-		printf("cpu_reset called on cpu#%d\n", PCPU_GET(cpuid));
-
-		map = PCPU_GET(other_cpus) & ~ stopped_cpus;
-
+	if (smp_active) {
+		map = PCPU_GET(other_cpus) & ~stopped_cpus;
 		if (map != 0) {
 			printf("cpu_reset: Stopping other CPUs\n");
-			stop_cpus(map);		/* Stop all other CPUs */
+			stop_cpus(map);
 		}
 
-		if (PCPU_GET(cpuid) == 0) {
-			DELAY(1000000);
-			cpu_reset_real();
-			/* NOTREACHED */
-		} else {
-			/* We are not BSP (CPU #0) */
-
+		if (PCPU_GET(cpuid) != 0) {
 			cpu_reset_proxyid = PCPU_GET(cpuid);
 			cpustop_restartfunc = cpu_reset_proxy;
 			cpu_reset_proxy_active = 0;
@@ -391,10 +378,12 @@ cpu_reset()
 			while (1);
 			/* NOTREACHED */
 		}
+
+		DELAY(1000000);
 	}
-#else
-	cpu_reset_real();
 #endif
+	cpu_reset_real();
+	/* NOTREACHED */
 }
 
 static void
@@ -403,15 +392,15 @@ cpu_reset_real()
 
 	/*
 	 * Attempt to do a CPU reset via the keyboard controller,
-	 * do not turn of the GateA20, as any machine that fails
+	 * do not turn off GateA20, as any machine that fails
 	 * to do the reset here would then end up in no man's land.
 	 */
-
 	outb(IO_KBD + 4, 0xFE);
 	DELAY(500000);	/* wait 0.5 sec to see if that did it */
 	printf("Keyboard reset did not work, attempting CPU shutdown\n");
 	DELAY(1000000);	/* wait 1 sec for printf to complete */
-	/* force a shutdown by unmapping entire address space ! */
+
+	/* Force a shutdown by unmapping entire address space. */
 	bzero((caddr_t)PML4map, PAGE_SIZE);
 
 	/* "good night, sweet prince .... <THUNK!>" */
