@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 
 DB *db;
 time_t now;
-int entries, lflag, mflag, pplan, sflag, oflag, Tflag;
+int entries, gflag, lflag, mflag, pplan, sflag, oflag, Tflag;
 int d_first = -1;
 char tbuf[1024];
 
@@ -107,8 +107,11 @@ option(argc, argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "lmpshoT")) != -1)
+	while ((ch = getopt(argc, argv, "glmpshoT")) != -1)
 		switch(ch) {
+		case 'g':
+			gflag = 1;
+			break;
 		case 'l':
 			lflag = 1;		/* long format */
 			break;
