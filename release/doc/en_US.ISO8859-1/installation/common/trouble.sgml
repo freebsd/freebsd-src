@@ -203,8 +203,10 @@
 	  from working.</para>
 	</question>
 	<answer>
-	  <para>Use the UserConfig utility (see
-          <filename>HARDWARE.TXT</filename>) and disable the probing
+	  <para>Set the hints
+          <quote>hint.mcd.0.disabled="1"</quote> and
+          <quote>hint.mcd.1.disabled="1"</quote>
+          in the third stage boot loader to disable the probing
           of the <devicename>mcd0</devicename> and
           <devicename>mcd1</devicename> devices.  Generally speaking,
           you should only leave the devices that you will be using
@@ -218,16 +220,17 @@
 	</question>
 	<answer>
 	  <para>Your card is probably on a different IRQ from what is
-	  specified in the kernel configuration.  The ed driver does
+	  specified in the <filename>/boot/device.hints</filename> file.  The ed driver does
 	  not use the `soft' configuration by default (values entered
 	  using EZSETUP in DOS), but it will use the software
-	  configuration if you specify <literal>?</literal> in the IRQ field of your
-	  kernel config file.</para>
+	  configuration if you specify <literal>-1</literal> in the hints
+          for the interface.</para>
 
 	  <para>Either move the jumper on the card to a hard
           configuration setting (altering the kernel settings if
-          necessary), or specify the IRQ as <literal>-1</literal> in UserConfig or <literal>?</literal> 
-          in your kernel config file.  This will tell the kernel to
+          necessary), or specify the IRQ as <literal>-1</literal>
+          by setting the hint <quote>hint.ed.0.irq="-1"</quote> 
+          This will tell the kernel to
           use the soft configuration.</para>
 
           <para>Another possibility is that your card is at IRQ 9,
@@ -244,9 +247,9 @@
 	<answer>
           <para>Older IBM laptops use a non-standard keyboard
           controller, so you must tell the keyboard driver (atkbd0) to
-          go into a special mode which works on the ThinkPads.  Change
-          the atkbd0 'Flags' to 0x4 in UserConfig and it should work
-          fine.  (Look in the Input Menu for 'Keyboard'.)</para>
+          go into a special mode which works on the ThinkPads.  Set the
+          hint <quote>hint.atkbd.0.flags="4"</quote> and it should work
+          fine.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -268,23 +271,8 @@
 	<answer>
 	  <para>This is a known problem, and will hopefully be fixed
 	  in the future.  In order to get your system installed at
-	  all, boot with the <option>-c</option> option into
-	  UserConfig, but <emphasis>don't</emphasis> use the pretty
-	  visual mode but the plain old CLI mode.  Type:</para>
-
-          <screen><userinput>eisa 12</userinput>
-<userinput>quit</userinput></screen>
-
-          <para>at the prompt.  (Instead of `quit', you might also
-          type `visual', and continue the rest of the configuration
-          session in visual mode.)  While it's recommended to compile
-          a custom kernel, dset now also understands to save
-          this value.</para>
-
-          <para>Refer to the FAQ topic 5.3 for an explanation of the
-          problem, and for how to continue.  Remember that you can
-          find the FAQ on your local system in /usr/share/doc/FAQ,
-          provided you have installed the `doc' distribution.</para>
+          all, set the hint <quote>hw.eisa_slots="12"</quote> in the
+          third stage loader.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -297,16 +285,7 @@
 	  <para>Your machine doesn't like the new
           <literal>i586_copyout</literal> and
           <literal>i586_copyin</literal> code for some reason.  To
-          disable this, boot the installation boot floppy and when it
-          comes to the very first menu (the choice to drop into kernel
-          UserConfig mode or not) choose the command-line interface
-          (<quote>expert mode</quote>) version and type the following
-          at it:</para>
-
-          <screen><userinput>flags npx0 1</userinput></screen>
-
-          <para>Then proceed normally to boot.  This will be saved
-          into your kernel, so you only need to do it once.</para>
+          disable this, set the hint <quote>hint.npx.0.flags="1"</quote></para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -328,8 +307,8 @@
 	  <para>With Compaq being always a little different from other
           systems, they do not announce their floppy drive in the CMOS
           RAM of an Aero notebook.  Therefore, the floppy disk driver
-          assumes there is no drive configured.  Go to the UserConfig
-          screen, and set the Flags value of the fdc0 device to 0x1.
+          assumes there is no drive configured.  Set the hint
+          <quote>hint.fdc.0.flags="1"</quote>
           This pretends the existence of the first floppy drive (as a
           1.44 MB drive) to the driver without asking the CMOS at
           all.</para>
