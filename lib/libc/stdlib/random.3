@@ -174,6 +174,7 @@ is called with less than 8 bytes of state information, or if
 detects that the state information has been garbled, error
 messages are printed on the standard error output.
 .Sh SEE ALSO
+.Xr arc4random 3 ,
 .Xr rand 3 ,
 .Xr srand 3 ,
 .Xr random 4
@@ -189,3 +190,6 @@ The historical implementation used to have a very weak seeding; the
 random sequence did not vary much with the seed.
 The current implementation employs a better pseudo-random number
 generator for the initial state calculation.
+.Pp
+Applications requiring cryptographic quality randomness should use
+.Xr arc4random 3 .
