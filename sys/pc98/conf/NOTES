@@ -500,6 +500,16 @@ hint.stg.0.port="0x140"
 hint.stg.0.port="11"
 
 #
+# SafeNet crypto driver: can be moved to the MI NOTES as soon as
+# it's tested on a big-endian machine
+#
+device		safe		# SafeNet 1141
+options		SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options		SAFE_RNDTEST	# enable rndtest support
+
+#####################################################################
+
+#
 # Miscellaneous hardware:
 #
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
