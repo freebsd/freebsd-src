@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.3 1998/07/05 12:10:10 dfr Exp $
+ *	$Id: autoconf.c,v 1.4 1998/07/12 16:07:05 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
+device_t isa_bus_device = 0;
 
 static void
 configure_start()
@@ -81,14 +82,14 @@ configure(void *dummy)
 
 	device_add_child(root_bus, platform.iobus, 0, 0);
 
-	/* XXX hack until I implement ISA */
-	if (!strcmp(platform.iobus, "cia"))
-	    device_add_child(root_bus, "mcclock", 0, 0);
-	/* XXX end hack */
-
 	root_bus_configure();
 
 	pci_configure();
+
+	/*
+	 * Probe ISA devices after everything.
+	 */
+	bus_generic_attach(isa_bus_device);
 
 	configure_finish();
 
