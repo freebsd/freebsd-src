@@ -307,8 +307,6 @@ static moduledata_t name##_mod = {					\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 
-int	cdevsw_add(struct cdevsw *_new);
-int	cdevsw_remove(struct cdevsw *_old);
 int	count_dev(dev_t _dev);
 void	destroy_dev(dev_t _dev);
 void	revoke_and_destroy_dev(dev_t _dev);
