@@ -32,13 +32,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #if 0
 #ifndef lint
 static char sccsid[] = "@(#)pr_comment.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "indent_globs.h"
@@ -136,7 +140,7 @@ pr_comment(void)
 		ps.com_col = 1 + !format_col1_comments;
 	}
 	else {
-	    register int target_col;
+	    int target_col;
 	    break_delim = 0;
 	    if (s_code != e_code)
 		target_col = count_spaces(compute_code_target(), s_code);

@@ -33,13 +33,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)args.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Argument scanning and profile reading code.  Default parameters are set
@@ -72,7 +73,7 @@ static const char rcsid[] =
 
 static void scan_profile(FILE *);
 
-char *option_source = "?";
+const char *option_source = "?";
 
 /*
  * N.B.: because of the way the table here is scanned, options whose names are
@@ -81,7 +82,7 @@ char *option_source = "?";
  * default value is the one actually assigned.
  */
 struct pro {
-    char       *p_name;		/* name, eg -bl, -cli */
+    const char *p_name;		/* name, e.g. -bl, -cli */
     int         p_type;		/* type (int, bool, special) */
     int         p_default;	/* the default value (if int) */
     int         p_special;	/* depends on type */
@@ -110,6 +111,7 @@ struct pro {
     {"eei", PRO_BOOL, false, ON, &extra_expression_indent},
     {"ei", PRO_BOOL, true, ON, &ps.else_if},
     {"fbc", PRO_FONT, 0, 0, (int *) &blkcomf},
+    {"fbs", PRO_BOOL, true, ON, &function_brace_split},
     {"fbx", PRO_FONT, 0, 0, (int *) &boxcomf},
     {"fb", PRO_FONT, 0, 0, (int *) &bodyf},
     {"fc1", PRO_BOOL, true, ON, &format_col1_comments},
@@ -120,6 +122,7 @@ struct pro {
     {"ip", PRO_BOOL, true, ON, &ps.indent_parameters},
     {"i", PRO_INT, 8, 0, &ps.ind_size},
     {"lc", PRO_INT, 0, 0, &block_comment_max_col},
+    {"ldi", PRO_INT, -1, 0, &ps.local_decl_indent},
     {"lp", PRO_BOOL, true, ON, &lineup_to_parens},
     {"l", PRO_INT, 78, 0, &max_col},
     {"nbacc", PRO_BOOL, false, OFF, &blanklines_around_conditional_compilation},
@@ -134,6 +137,7 @@ struct pro {
     {"ndj", PRO_BOOL, false, OFF, &ps.ljust_decl},
     {"neei", PRO_BOOL, false, OFF, &extra_expression_indent},
     {"nei", PRO_BOOL, true, OFF, &ps.else_if},
+    {"nfbs", PRO_BOOL, true, OFF, &function_brace_split},
     {"nfc1", PRO_BOOL, true, OFF, &format_col1_comments},
     {"nfcb", PRO_BOOL, true, OFF, &format_block_comments},
     {"nip", PRO_BOOL, true, OFF, &ps.indent_parameters},
@@ -144,6 +148,7 @@ struct pro {
     {"nps", PRO_BOOL, false, OFF, &pointer_as_binop},
     {"nsc", PRO_BOOL, true, OFF, &star_comment_cont},
     {"nsob", PRO_BOOL, false, OFF, &swallow_optional_blanklines},
+    {"nut", PRO_BOOL, true, OFF, &use_tabs},
     {"nv", PRO_BOOL, false, OFF, &verbose},
     {"pcs", PRO_BOOL, false, ON, &proc_calls_space},
     {"psl", PRO_BOOL, true, ON, &procnames_start_line},
@@ -152,6 +157,7 @@ struct pro {
     {"sob", PRO_BOOL, false, ON, &swallow_optional_blanklines},
     {"st", PRO_SPECIAL, 0, STDIN, 0},
     {"troff", PRO_BOOL, false, ON, &troff},
+    {"ut", PRO_BOOL, true, ON, &use_tabs},
     {"v", PRO_BOOL, false, ON, &verbose},
     /* whew! */
     {0, 0, 0, 0, 0}
@@ -164,7 +170,7 @@ struct pro {
 void
 set_profile(void)
 {
-    register FILE *f;
+    FILE *f;
     char        fname[BUFSIZ];
     static char prof[] = ".indent.pro";
 
@@ -181,14 +187,29 @@ set_profile(void)
 }
 
 static void
-scan_profile(register FILE *f)
+scan_profile(FILE *f)
 {
-    register int i;
-    register char *p;
+    int		comment, i;
+    char	*p;
     char        buf[BUFSIZ];
 
     while (1) {
-	for (p = buf; (i = getc(f)) != EOF && (*p = i) > ' '; ++p);
+	p = buf;
+	comment = 0;
+	while ((i = getc(f)) != EOF) {
+	    if (i == '*' && !comment && p > buf && p[-1] == '/') {
+		comment = p - buf;
+		*p++ = i;
+	    } else if (i == '/' && comment && p > buf && p[-1] == '*') {
+		p = buf + comment - 1;
+		comment = 0;
+	    } else if (isspace(i)) {
+		if (p > buf && !comment)
+		    break;
+	    } else {
+		*p++ = i;
+	    }
+	}
 	if (p != buf) {
 	    *p++ = 0;
 	    if (verbose)
@@ -200,10 +221,10 @@ scan_profile(register FILE *f)
     }
 }
 
-char	*param_start;
+const char	*param_start;
 
 static int
-eqin(char *s1, char *s2)
+eqin(const char *s1, const char *s2)
 {
     while (*s1) {
 	if (*s1++ != *s2++)
@@ -219,7 +240,7 @@ eqin(char *s1, char *s2)
 void
 set_defaults(void)
 {
-    register struct pro *p;
+    struct pro *p;
 
     /*
      * Because ps.case_indent is a float, we can't initialize it from the
@@ -234,7 +255,7 @@ set_defaults(void)
 void
 set_option(char *arg)
 {
-    register struct pro *p;
+    struct pro *p;
 
     arg++;			/* ignore leading "-" */
     for (p = pro; p->p_name; p++)
@@ -267,7 +288,9 @@ found:
 	    if (*param_start == 0)
 		goto need_param;
 	    {
-		register char *str = (char *) malloc(strlen(param_start) + 1);
+		char *str = (char *) malloc(strlen(param_start) + 1);
+		if (str == NULL)
+			err(1, NULL);
 		strcpy(str, param_start);
 		addkey(str, 4);
 	    }

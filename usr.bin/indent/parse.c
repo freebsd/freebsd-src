@@ -32,13 +32,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #if 0
 #ifndef lint
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include "indent_globs.h"
@@ -168,7 +170,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 	    ps.p_stack[ps.tos] = stmt;
 	}
 	else
-	    diag2(1, "Stmt nesting error.");
+	    diag2(1, "Statement nesting error");
 	break;
 
     case swstmt:		/* had switch (...) */
@@ -251,7 +253,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 static void
 reduce(void)
 {
-    register int i;
+    int i;
 
     for (;;) {			/* keep looping until there is nothing left to
 				 * reduce */

@@ -56,32 +56,40 @@ FILE       *output;		/* the output file */
 
 #define CHECK_SIZE_CODE \
 	if (e_code >= l_code) { \
-	    register int nsize = l_code-s_code+400; \
+	    int nsize = l_code-s_code+400; \
 	    codebuf = (char *) realloc(codebuf, nsize); \
+	    if (codebuf == NULL) \
+		err(1, NULL); \
 	    e_code = codebuf + (e_code-s_code) + 1; \
 	    l_code = codebuf + nsize - 5; \
 	    s_code = codebuf + 1; \
 	}
 #define CHECK_SIZE_COM \
 	if (e_com >= l_com) { \
-	    register int nsize = l_com-s_com+400; \
+	    int nsize = l_com-s_com+400; \
 	    combuf = (char *) realloc(combuf, nsize); \
+	    if (combuf == NULL) \
+		err(1, NULL); \
 	    e_com = combuf + (e_com-s_com) + 1; \
 	    l_com = combuf + nsize - 5; \
 	    s_com = combuf + 1; \
 	}
 #define CHECK_SIZE_LAB \
 	if (e_lab >= l_lab) { \
-	    register int nsize = l_lab-s_lab+400; \
+	    int nsize = l_lab-s_lab+400; \
 	    labbuf = (char *) realloc(labbuf, nsize); \
+	    if (labbuf == NULL) \
+		err(1, NULL); \
 	    e_lab = labbuf + (e_lab-s_lab) + 1; \
 	    l_lab = labbuf + nsize - 5; \
 	    s_lab = labbuf + 1; \
 	}
 #define CHECK_SIZE_TOKEN \
 	if (e_token >= l_token) { \
-	    register int nsize = l_token-s_token+400; \
+	    int nsize = l_token-s_token+400; \
 	    tokenbuf = (char *) realloc(tokenbuf, nsize); \
+	    if (tokenbuf == NULL) \
+		err(1, NULL); \
 	    e_token = tokenbuf + (e_token-s_token) + 1; \
 	    l_token = tokenbuf + nsize - 5; \
 	    s_token = tokenbuf + 1; \
@@ -185,12 +193,16 @@ int         blanklines_after_declarations_at_proctop;	/* This is vaguely
 							 * if there are no
 							 * declarations */
 int         block_comment_max_col;
-int         extra_expression_indent;	/* True if continuation lines from the
+int         extra_expression_indent;	/* true if continuation lines from the
 					 * expression part of "if(e)",
 					 * "while(e)", "for(e;e;e)" should be
 					 * indented an extra tab stop so that
 					 * they don't conflict with the code
 					 * that follows */
+int	    function_brace_split;	/* split function declaration and
+					 * brace onto separate lines */
+int	    use_tabs;			/* set true to use tabs for spacing,
+					 * false uses all spaces */
 
 /* -troff font state information */
 
@@ -199,7 +211,7 @@ struct fstate {
     char        size;
     int         allcaps:1;
 };
-char       *chfont();
+char       *chfont(struct fstate *, struct fstate *, char *);
 
 struct fstate
             keywordf,		/* keyword font */
@@ -241,7 +253,7 @@ struct parser_state {
     int         col_1;		/* set to true if the last token started in
 				 * column 1 */
     int         com_col;	/* this is the column in which the current
-				 * coment should start */
+				 * comment should start */
     int         com_ind;	/* the column in which comments to the right
 				 * of code should start */
     int         com_lines;	/* the number of lines with comments, set by
@@ -275,7 +287,7 @@ struct parser_state {
     int         p_l_follow;	/* used to remember how to indent following
 				 * statement */
     int         paren_level;	/* parenthesization level. used to indent
-				 * within stmts */
+				 * within statements */
     short       paren_indents[20];	/* column positions of each paren */
     int         pcase;		/* set to 1 if the current line label is a
 				 * case.  It is printed differently from a
@@ -295,6 +307,7 @@ struct parser_state {
     int         else_if;	/* True iff else if pairs should be handled
 				 * specially */
     int         decl_indent;	/* column to indent declared identifiers to */
+    int         local_decl_indent;	/* like decl_indent but for locals */
     int         its_a_keyword;
     int         sizeof_keyword;
     int         dumped_decl_indent;

@@ -36,10 +36,10 @@
 #if 0
 #ifndef lint
 static char sccsid[] = "@(#)lexi.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Here we have the token scanner for indent.  It scans off one token and puts
@@ -47,20 +47,20 @@ static const char rcsid[] =
  * of token scanned.
  */
 
+#include <err.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include "indent_globs.h"
 #include "indent_codes.h"
+#include "indent.h"
 
 #define alphanum 1
 #define opchar 3
 
-void fill_buffer(void);
-
 struct templ {
-    char       *rwd;
+    const char *rwd;
     int         rwcode;
 };
 
@@ -86,6 +86,8 @@ struct templ specials[1000] =
     {"global", 4},
     {"extern", 4},
     {"void", 4},
+    {"const", 4},
+    {"volatile", 4},
     {"goto", 0},
     {"return", 0},
     {"if", 5},
@@ -94,8 +96,6 @@ struct templ specials[1000] =
     {"else", 6},
     {"do", 6},
     {"sizeof", 7},
-    {"const", 9},
-    {"volatile", 9},
     {0, 0}
 };
 
@@ -149,10 +149,10 @@ lexi(void)
 	/*
 	 * we have a character or number
 	 */
-	register char *j;	/* used for searching thru list of
+	const char *j;		/* used for searching thru list of
 				 *
 				 * reserved words */
-	register struct templ *p;
+	struct templ *p;
 
 	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
 	    int         seendot = 0,
@@ -234,14 +234,18 @@ lexi(void)
 	}
 	ps.its_a_keyword = false;
 	ps.sizeof_keyword = false;
-	if (l_struct) {		/* if last token was 'struct', then this token
+	if (l_struct && !ps.p_l_follow) {
+				/* if last token was 'struct' and we're not
+				 * in parentheses, then this token
 				 * should be treated as a declaration */
 	    l_struct = false;
 	    last_code = ident;
 	    ps.last_u_d = true;
 	    return (decl);
 	}
-	ps.last_u_d = false;	/* Operator after indentifier is binary */
+	ps.last_u_d = l_struct;	/* Operator after identifier is binary
+				 * unless last token was 'struct' */
+	l_struct = false;
 	last_code = ident;	/* Remember that this is the code we will
 				 * return */
 
@@ -249,15 +253,15 @@ lexi(void)
 	 * This loop will check if the token is a keyword.
 	 */
 	for (p = specials; (j = p->rwd) != 0; p++) {
-	    register char *p = s_token;	/* point at scanned token */
-	    if (*j++ != *p++ || *j++ != *p++)
+	    const char *q = s_token;	/* point at scanned token */
+	    if (*j++ != *q++ || *j++ != *q++)
 		continue;	/* This test depends on the fact that
 				 * identifiers are always at least 1 character
 				 * long (ie. the first two bytes of the
 				 * identifier are always meaningful) */
-	    if (p[-1] == 0)
+	    if (q[-1] == 0)
 		break;		/* If its a one-character identifier */
-	    while (*p++ == *j)
+	    while (*q++ == *j)
 		if (*j++ == 0)
 		    goto found_keyword;	/* I wish that C had a multi-level
 					 * break... */
@@ -273,29 +277,17 @@ lexi(void)
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
-		if (ps.p_l_follow)
-			break;	/* inside parens: cast */
 		/*
-		 * Next time around, we may want to know that we have had a
+		 * Next time around, we will want to know that we have had a
 		 * 'struct'
 		 */
 		l_struct = true;
+		/* FALLTHROUGH */
 
-		/*
-		 * Fall through to test for a cast, function prototype or
-		 * sizeof().
-		 */
 	    case 4:		/* one of the declaration keywords */
 		if (ps.p_l_follow) {
-		    ps.cast_mask |= 1 << ps.p_l_follow;
-
-		    /*
-		     * Forget that we saw `struct' if we're in a sizeof().
-		     */
-		    if (ps.sizeof_mask)
-			l_struct = false;
-
-		    break;	/* inside parens: cast, prototype or sizeof() */
+		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.sizeof_mask;
+		    break;	/* inside parens: cast, param list or sizeof */
 		}
 		last_code = decl;
 		return (decl);
@@ -314,7 +306,7 @@ lexi(void)
 	    }			/* end of switch */
 	}			/* end of if (found_it) */
 	if (*buf_ptr == '(' && ps.tos <= 1 && ps.ind_level == 0) {
-	    register char *tp = buf_ptr;
+	    char *tp = buf_ptr;
 	    while (tp < buf_end)
 		if (*tp++ == ')' && (*tp == ';' || *tp == ','))
 		    goto not_proc;
@@ -361,7 +353,7 @@ lexi(void)
 	code = (had_eof ? 0 : newline);
 
 	/*
-	 * if data has been exausted, the newline is a dummy, and we should
+	 * if data has been exhausted, the newline is a dummy, and we should
 	 * return code to stop
 	 */
 	break;
@@ -587,7 +579,7 @@ stop_lit:
 void
 addkey(char *key, int val)
 {
-    register struct templ *p = specials;
+    struct templ *p = specials;
     while (p->rwd)
 	if (p->rwd[0] == key[0] && strcmp(p->rwd, key) == 0)
 	    return;

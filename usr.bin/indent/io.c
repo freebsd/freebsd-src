@@ -33,13 +33,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
@@ -60,7 +61,7 @@ dump_line(void)
 				 * prints the label section, followed by the
 				 * code section with the appropriate nesting
 				 * level, followed by any comments */
-    register int cur_col,
+    int cur_col,
                 target_col = 1;
     static int  not_first_line;
 
@@ -118,7 +119,7 @@ dump_line(void)
 	    cur_col = pad_output(1, compute_label_target());
 	    if (s_lab[0] == '#' && (strncmp(s_lab, "#else", 5) == 0
 				    || strncmp(s_lab, "#endif", 6) == 0)) {
-		register char *s = s_lab;
+		char *s = s_lab;
 		if (e_lab[-1] == '\n') e_lab--;
 		do putc(*s++, output);
 		while (s < e_lab && 'a' <= *s && *s<='z');
@@ -126,9 +127,9 @@ dump_line(void)
 		    s++;
 		if (s < e_lab)
 		    fprintf(output, s[0]=='/' && s[1]=='*' ? "\t%.*s" : "\t/* %.*s */",
-			    e_lab - s, s);
+			    (int)(e_lab - s), s);
 	    }
-	    else fprintf(output, "%.*s", e_lab - s_lab, s_lab);
+	    else fprintf(output, "%.*s", (int)(e_lab - s_lab), s_lab);
 	    cur_col = count_spaces(cur_col, s_lab);
 	}
 	else
@@ -137,7 +138,7 @@ dump_line(void)
 	ps.pcase = false;
 
 	if (s_code != e_code) {	/* print code section, if any */
-	    register char *p;
+	    char *p;
 
 	    if (comment_open) {
 		comment_open = 0;
@@ -145,7 +146,7 @@ dump_line(void)
 	    }
 	    target_col = compute_code_target();
 	    {
-		register    int i;
+		int i;
 
 		for (i = 0; i < ps.p_l_follow; i++)
 		    if (ps.paren_indents[i] >= 0)
@@ -162,7 +163,7 @@ dump_line(void)
 	if (s_com != e_com) {
 	    if (troff) {
 		int         all_here = 0;
-		register char *p;
+		char *p;
 
 		if (e_com[-1] == '/' && e_com[-2] == '*')
 		    e_com -= 2, all_here++;
@@ -188,7 +189,7 @@ dump_line(void)
 		    if ('a' <= *p && *p <= 'z')
 			*p = *p + 'A' - 'a';
 		    if (e_com - p < 50 && all_here == 2) {
-			register char *follow = p;
+			char *follow = p;
 			fprintf(output, "\n.nr C! \\w\1");
 			while (follow < e_com) {
 			    switch (*follow) {
@@ -218,8 +219,8 @@ dump_line(void)
 		}
 	    }
 	    else {		/* print comment, if any */
-		register    int target = ps.com_col;
-		register char *com_st = s_com;
+		int target = ps.com_col;
+		char *com_st = s_com;
 
 		target += ps.comment_delta;
 		while (*com_st == '\t')
@@ -290,14 +291,15 @@ inhibit_newline:
 int
 compute_code_target(void)
 {
-    register int target_col = ps.ind_size * ps.ind_level + 1;
+    int target_col = ps.ind_size * ps.ind_level + 1;
 
     if (ps.paren_level)
 	if (!lineup_to_parens)
-	    target_col += continuation_indent * ps.paren_level;
+	    target_col += continuation_indent
+		* (2 * continuation_indent == ps.ind_size ? 1 : ps.paren_level);
 	else {
-	    register int w;
-	    register int t = paren_target;
+	    int w;
+	    int t = paren_target;
 
 	    if ((w = count_spaces(t, s_code) - max_col) > 0
 		    && count_spaces(target_col, s_code) <= max_col) {
@@ -341,9 +343,9 @@ compute_label_target(void)
 void
 fill_buffer(void)
 {				/* this routine reads stuff from the input */
-    register char *p;
-    register int i;
-    register FILE *f = input;
+    char *p;
+    int i;
+    FILE *f = input;
 
     if (bp_save != 0) {		/* there is a partly filled input buffer left */
 	buf_ptr = bp_save;	/* dont read anything, just switch buffers */
@@ -355,11 +357,11 @@ fill_buffer(void)
     }
     for (p = in_buffer;;) {
 	if (p >= in_buffer_limit) {
-	    register int size = (in_buffer_limit - in_buffer) * 2 + 10;
-	    register int offset = p - in_buffer;
+	    int size = (in_buffer_limit - in_buffer) * 2 + 10;
+	    int offset = p - in_buffer;
 	    in_buffer = realloc(in_buffer, size);
-	    if (in_buffer == 0)
-		err(1, "input line too long");
+	    if (in_buffer == NULL)
+		errx(1, "input line too long");
 	    p = in_buffer + offset;
 	    in_buffer_limit = in_buffer + size - 2;
 	}
@@ -461,8 +463,8 @@ pad_output(int current, int target)
     /* current: the current column value */
     /* target: position we want it at */
 {
-    register int curr;		/* internal column pointer */
-    register int tcur;
+    int curr;		/* internal column pointer */
+    int tcur;
 
     if (troff)
 	fprintf(output, "\\h'|%dp'", (target - 1) * 7);
@@ -470,11 +472,13 @@ pad_output(int current, int target)
 	if (current >= target)
 	    return (current);	/* line is already long enough */
 	curr = current;
-	while ((tcur = ((curr - 1) & tabmask) + tabsize + 1) <= target) {
-	    putc('\t', output);
-	    curr = tcur;
-	}
-	while (curr++ < target)
+        if (use_tabs) {
+            while ((tcur = ((curr - 1) & tabmask) + tabsize + 1) <= target) {
+                putc('\t', output);
+                curr = tcur;
+            }
+        }
+        while (curr++ < target)
 	    putc(' ', output);	/* pad with final blanks */
     }
     return (target);
@@ -507,8 +511,8 @@ count_spaces(int current, char *buffer)
  * printing the text in buffer starting at column "current"
  */
 {
-    register char *buf;		/* used to look thru buffer */
-    register int cur;		/* current character counter */
+    char *buf;		/* used to look thru buffer */
+    int cur;		/* current character counter */
 
     cur = current;
 
@@ -539,7 +543,7 @@ count_spaces(int current, char *buffer)
 int	found_err;
 
 void
-diag4(int level, char *msg, int a, int b)
+diag4(int level, const char *msg, int a, int b)
 {
     if (level)
 	found_err = 1;
@@ -556,7 +560,7 @@ diag4(int level, char *msg, int a, int b)
 }
 
 void
-diag3(int level, char *msg, int a)
+diag3(int level, const char *msg, int a)
 {
     if (level)
 	found_err = 1;
@@ -573,7 +577,7 @@ diag3(int level, char *msg, int a)
 }
 
 void
-diag2(int level, char *msg)
+diag2(int level, const char *msg)
 {
     if (level)
 	found_err = 1;
@@ -627,9 +631,9 @@ chfont(struct fstate *of, struct fstate *nf, char *s)
 }
 
 void
-parsefont(struct fstate *f, char *s0)
+parsefont(struct fstate *f, const char *s0)
 {
-    register char *s = s0;
+    const char *s = s0;
     int         sizedelta = 0;
 
     bzero(f, sizeof *f);

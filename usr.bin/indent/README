@@ -1,3 +1,6 @@
+
+  $FreeBSD$
+
 This is the C indenter, it originally came from the University of Illinois
 via some distribution tape for PDP-11 Unix.  It has subsequently been
 hacked upon by James Gosling @ CMU.  It isn't very pretty, and really needs
@@ -45,7 +48,7 @@ version. David Willcox (the author) states that:
 | Time passed.  Some years later, indent showed up on one of the early
 | emacs distributions.
 | 
-| Later still, someone from UC Berlekey called the UofI and asked if
+| Later still, someone from UC Berkeley called the UofI and asked if
 | indent was in the public domain.  They wanted to include it in their
 | UNIX distributions, along with the emacs stuff.  I was no longer at the
 | UofI, but Rob Kolstad, who was, asked me about it.  I told him I didn't
@@ -67,7 +70,7 @@ version. David Willcox (the author) states that:
 | Berkeley's copyright probably should only cover their changes, and I
 | don't know their feelings about sending it out.  
 
-In any case, there appears to be noone at UofI to clarify/and change
+In any case, there appears to be none at UofI to clarify/and change
 that copyright, but I am confident (based on the statements of its
 author) that the code, as it stands with its copyright, is
 distributable, and will not cause any legal problems.
