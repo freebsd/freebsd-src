@@ -85,13 +85,21 @@
 #include <machine/in_cksum.h>
 #include <vm/vm_zone.h>
 
+static int tcp_syncookies = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
+    &tcp_syncookies, 0, 
+    "Use TCP SYN cookies if the syncache overflows");
+
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
-static int	 syncache_insert(struct syncache *, struct syncache_head *);
+static void	 syncache_insert(struct syncache *, struct syncache_head *);
 struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
 static int	 syncache_respond(struct syncache *, struct mbuf *);
 static struct 	 socket *syncache_socket(struct syncache *, struct socket *);
 static void	 syncache_timer(void *);
+static u_int32_t syncookie_generate(struct syncache *);
+static struct syncache *syncookie_lookup(struct in_conninfo *,
+		    struct tcphdr *, struct socket *);
 
 /*
  * Transmit the SYN,ACK fewer times than TCP_MAXRXTSHIFT specifies.
@@ -252,7 +260,7 @@ syncache_init(void)
 	    tcp_syncache.cache_limit, ZONE_INTERRUPT, 0);
 }
 
-static int
+static void
 syncache_insert(sc, sch)
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -270,6 +278,7 @@ syncache_insert(sc, sch)
 		 * The bucket is full, toss the oldest element.
 		 */
 		sc2 = TAILQ_FIRST(&sch->sch_bucket);
+		sc2->sc_tp->ts_recent = ticks;
 		syncache_drop(sc2, sch);
 		tcpstat.tcps_sc_bucketoverflow++;
 	} else if (tcp_syncache.cache_count >= tcp_syncache.cache_limit) {
@@ -284,6 +293,7 @@ syncache_insert(sc, sch)
 			if (sc2 != NULL)
 				break;
 		}
+		sc2->sc_tp->ts_recent = ticks;
 		syncache_drop(sc2, NULL);
 		tcpstat.tcps_sc_cacheoverflow++;
 	}
@@ -297,7 +307,6 @@ syncache_insert(sc, sch)
 	tcp_syncache.cache_count++;
 	tcpstat.tcps_sc_added++;
 	splx(s);
-	return (1);
 }
 
 static void
@@ -718,8 +727,24 @@ syncache_expand(inc, th, sop, m)
 	struct socket *so;
 
 	sc = syncache_lookup(inc, &sch);
-	if (sc == NULL)
-		return (0);
+	if (sc == NULL) {
+		/*
+		 * There is no syncache entry, so see if this ACK is 
+		 * a returning syncookie.  To do this, first:
+		 *  A. See if this socket has had a syncache entry dropped in
+		 *     the past.  We don't want to accept a bogus syncookie
+ 		 *     if we've never received a SYN.
+		 *  B. check that the syncookie is valid.  If it is, then
+		 *     cobble up a fake syncache entry, and return.
+		 */
+		if (!tcp_syncookies)
+			return (0);
+		sc = syncookie_lookup(inc, th, *sop);
+		if (sc == NULL)
+			return (0);
+		sch = NULL;
+		tcpstat.tcps_sc_recvcookie++;
+	}
 
 	/*
 	 * If seg contains an ACK, but not for our SYN/ACK, send a RST.
@@ -840,6 +865,7 @@ syncache_add(inc, to, th, sop, m)
 			if (sc != NULL)
 				break;
 		}
+		sc->sc_tp->ts_recent = ticks;
 		syncache_drop(sc, NULL);
 		splx(s);
 		tcpstat.tcps_sc_zonefail++;
@@ -874,7 +900,7 @@ syncache_add(inc, to, th, sop, m)
 		sc->sc_route.ro_rt = NULL;
 	}
 	sc->sc_irs = th->th_seq;
-	sc->sc_iss = arc4random();
+	sc->sc_iss = syncookie_generate(sc);
 
 	/* Initial receive window: clip sbspace to [0 .. TCP_MAXWIN] */
 	win = sbspace(&so->so_rcv);
@@ -967,16 +993,13 @@ syncache_add(inc, to, th, sop, m)
 	 * TAO test failed or there was no CC option,
 	 *    do a standard 3-way handshake.
 	 */
-	if (syncache_insert(sc, sch)) {
-		if (syncache_respond(sc, m) == 0) {
-			tcpstat.tcps_sndacks++;
-			tcpstat.tcps_sndtotal++;
-		} else {
-			syncache_drop(sc, sch);
-			tcpstat.tcps_sc_dropped++;
-		}
+	if (syncache_respond(sc, m) == 0) {
+		syncache_insert(sc, sch);
+		tcpstat.tcps_sndacks++;
+		tcpstat.tcps_sndtotal++;
 	} else {
 		syncache_free(sc);
+		tcpstat.tcps_sc_dropped++;
 	}
 	*sop = NULL;
 	return (1);
@@ -1158,4 +1181,160 @@ no_options:
 		error = ip_output(m, sc->sc_ipopts, &sc->sc_route, 0, NULL);
 	}
 	return (error);
+}
+
+/*
+ * cookie layers:
+ *
+ *	|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|
+ *	| peer iss                                                      |
+ *	| MD5(laddr,faddr,lport,fport,secret)             |. . . . . . .|
+ *	|                     0                       |(A)|             |
+ * (A): peer mss index
+ */
+
+/*
+ * The values below are chosen to minimize the size of the tcp_secret
+ * table, as well as providing roughly a 4 second lifetime for the cookie.
+ */
+
+#define SYNCOOKIE_HASHSHIFT	2	/* log2(# of 32bit words from hash) */
+#define SYNCOOKIE_WNDBITS	7	/* exposed bits for window indexing */
+#define SYNCOOKIE_TIMESHIFT	5	/* scale ticks to window time units */
+
+#define SYNCOOKIE_HASHMASK	((1 << SYNCOOKIE_HASHSHIFT) - 1)
+#define SYNCOOKIE_WNDMASK	((1 << SYNCOOKIE_WNDBITS) - 1)
+#define SYNCOOKIE_NSECRETS	(1 << (SYNCOOKIE_WNDBITS - SYNCOOKIE_HASHSHIFT))
+#define SYNCOOKIE_TIMEOUT \
+    (hz * (1 << SYNCOOKIE_WNDBITS) / (1 << SYNCOOKIE_TIMESHIFT))
+#define SYNCOOKIE_DATAMASK 	((3 << SYNCOOKIE_WNDBITS) | SYNCOOKIE_WNDMASK)
+
+static struct {
+	u_int32_t	ts_secbits;
+	u_int		ts_expire;
+} tcp_secret[SYNCOOKIE_NSECRETS];
+
+static int tcp_msstab[] = { 0, 536, 1460, 8960 };
+
+static MD5_CTX syn_ctx;
+
+#define MD5Add(v)	MD5Update(&syn_ctx, (u_char *)&v, sizeof(v))
+
+/*
+ * Consider the problem of a recreated (and retransmitted) cookie.  If the
+ * original SYN was accepted, the connection is established.  The second 
+ * SYN is inflight, and if it arrives with an ISN that falls within the 
+ * receive window, the connection is killed.  
+ *
+ * However, since cookies have other problems, this may not be worth
+ * worrying about.
+ */
+
+static u_int32_t
+syncookie_generate(struct syncache *sc)
+{
+	u_int32_t md5_buffer[4];
+	u_int32_t data;
+	int wnd, idx;
+
+	wnd = ((ticks << SYNCOOKIE_TIMESHIFT) / hz) & SYNCOOKIE_WNDMASK;
+	idx = wnd >> SYNCOOKIE_HASHSHIFT;
+	if (tcp_secret[idx].ts_expire < ticks) {
+		tcp_secret[idx].ts_secbits = arc4random();
+		tcp_secret[idx].ts_expire = ticks + SYNCOOKIE_TIMEOUT;
+	}
+	for (data = sizeof(tcp_msstab) / sizeof(int) - 1; data > 0; data--)
+		if (tcp_msstab[data] <= sc->sc_peer_mss)
+			break;
+	data = (data << SYNCOOKIE_WNDBITS) | wnd;
+	data ^= sc->sc_irs;				/* peer's iss */
+	MD5Init(&syn_ctx);
+#ifdef INET6
+	if (sc->sc_inc.inc_isipv6) {
+		MD5Add(sc->sc_inc.inc6_laddr);
+		MD5Add(sc->sc_inc.inc6_faddr);
+	} else
+#endif
+	{
+		MD5Add(sc->sc_inc.inc_laddr);
+		MD5Add(sc->sc_inc.inc_faddr);
+	}
+	MD5Add(sc->sc_inc.inc_lport);
+	MD5Add(sc->sc_inc.inc_fport);
+	MD5Add(tcp_secret[idx].ts_secbits);
+	MD5Final((u_char *)&md5_buffer, &syn_ctx);
+	data ^= (md5_buffer[wnd & SYNCOOKIE_HASHMASK] & ~SYNCOOKIE_WNDMASK);
+	return (data);
+}
+
+static struct syncache *
+syncookie_lookup(inc, th, so)
+	struct in_conninfo *inc;
+	struct tcphdr *th;
+	struct socket *so;
+{
+	u_int32_t md5_buffer[4];
+	struct syncache *sc;
+	u_int32_t data;
+	int wnd, idx;
+
+	data = (th->th_ack - 1) ^ (th->th_seq - 1);	/* remove ISS */
+	wnd = data & SYNCOOKIE_WNDMASK;
+	idx = wnd >> SYNCOOKIE_HASHSHIFT;
+	if (tcp_secret[idx].ts_expire < ticks ||
+	    sototcpcb(so)->ts_recent + SYNCOOKIE_TIMEOUT < ticks)
+		return (NULL);
+	MD5Init(&syn_ctx);
+#ifdef INET6
+	if (inc->inc_isipv6) {
+		MD5Add(inc->inc6_laddr);
+		MD5Add(inc->inc6_faddr);
+	} else
+#endif
+	{
+		MD5Add(inc->inc_laddr);
+		MD5Add(inc->inc_faddr);
+	}
+	MD5Add(inc->inc_lport);
+	MD5Add(inc->inc_fport);
+	MD5Add(tcp_secret[idx].ts_secbits);
+	MD5Final((u_char *)&md5_buffer, &syn_ctx);
+	data ^= md5_buffer[wnd & SYNCOOKIE_HASHMASK];
+	if ((data & ~SYNCOOKIE_DATAMASK) != 0)
+		return (NULL);
+	data = data >> SYNCOOKIE_WNDBITS;
+
+	sc = zalloc(tcp_syncache.zone);
+	if (sc == NULL)
+		return (NULL);
+	/*
+	 * Fill in the syncache values.
+	 * XXX duplicate code from syncache_add
+	 */
+	sc->sc_ipopts = NULL;
+	sc->sc_inc.inc_fport = inc->inc_fport;
+	sc->sc_inc.inc_lport = inc->inc_lport;
+#ifdef INET6
+	sc->sc_inc.inc_isipv6 = inc->inc_isipv6;
+	if (inc->inc_isipv6) {
+		sc->sc_inc.inc6_faddr = inc->inc6_faddr;
+		sc->sc_inc.inc6_laddr = inc->inc6_laddr;
+		sc->sc_route6.ro_rt = NULL;
+	} else
+#endif
+	{
+		sc->sc_inc.inc_faddr = inc->inc_faddr;
+		sc->sc_inc.inc_laddr = inc->inc_laddr;
+		sc->sc_route.ro_rt = NULL;
+	}
+	sc->sc_irs = th->th_seq - 1;
+	sc->sc_iss = th->th_ack - 1;
+	wnd = sbspace(&so->so_rcv);
+	wnd = imax(wnd, 0);
+	wnd = imin(wnd, TCP_MAXWIN);
+	sc->sc_wnd = wnd;
+	sc->sc_flags = 0;
+	sc->sc_rxtslot = 0;
+	sc->sc_peer_mss = tcp_msstab[data];
+	return (sc);
 }
