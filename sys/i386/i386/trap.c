@@ -286,9 +286,7 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
-			mtx_lock(&Giant);
 			i = trap_pfault(&frame, TRUE, eva);
-			mtx_unlock(&Giant);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2) {
 				/*
@@ -404,9 +402,7 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
-			mtx_lock(&Giant);
 			(void) trap_pfault(&frame, FALSE, eva);
-			mtx_unlock(&Giant);
 			goto out;
 
 		case T_DNA:
@@ -682,6 +678,7 @@ trap_pfault(frame, usermode, eva)
 		if (vm == NULL)
 			goto nogo;
 
+		mtx_lock(&Giant);
 		map = &vm->vm_map;
 
 		/*
@@ -719,6 +716,7 @@ trap_pfault(frame, usermode, eva)
 		if (usermode)
 			goto nogo;
 
+		mtx_lock(&Giant);
 		/*
 		 * Since we know that kernel virtual address addresses
 		 * always have pte pages mapped, we just have to fault
@@ -726,6 +724,7 @@ trap_pfault(frame, usermode, eva)
 		 */
 		rv = vm_fault(kernel_map, va, ftype, VM_FAULT_NORMAL);
 	}
+	mtx_unlock(&Giant);
 
 	if (rv == KERN_SUCCESS)
 		return (0);
@@ -799,6 +798,7 @@ trap_pfault(frame, usermode, eva)
 	else
 		ftype = VM_PROT_READ;
 
+	mtx_lock(&Giant);
 	if (map != kernel_map) {
 		/*
 		 * Keep swapout from messing with us during this
@@ -835,6 +835,7 @@ trap_pfault(frame, usermode, eva)
 		 */
 		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
+	mtx_unlock(&Giant);
 
 	if (rv == KERN_SUCCESS)
 		return (0);
