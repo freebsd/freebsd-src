@@ -52,4 +52,7 @@
 #define LIBGCC_SPEC \
  "%{!shared: \
     %{!pthread:libgcc.a%s} \
-    %{pthread:libgcc_r.a%s}}"
+    %{pthread:libgcc_r.a%s}} \
+  %{shared: \
+    %{!pthread:libgcc_pic.a%s} \
+    %{pthread:libgcc_r_pic.a%s}}"
