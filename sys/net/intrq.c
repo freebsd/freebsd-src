@@ -38,7 +38,7 @@
 #include <net/intrq.h>
 
 #ifdef __i386__
-#include <netatm/atm_if.h>
+#include <netatm/kern_include.h>	/* XXX overkill, fixme! */
 #endif
 
 /*
@@ -58,10 +58,10 @@ const int	ipxintrq_present;
 const int	natmintrq_present;
 const int	nsintrq_present;
 
-struct ifqueue	at1intrq;
-struct ifqueue	at2intrq;
+struct ifqueue	atintrq1;
+struct ifqueue	atintrq2;
 #ifdef NETISR_ATM
-struct ifqueue	atmintrq;
+struct ifqueue	atm_intrq;
 #endif
 struct ifqueue	ipintrq;
 struct ifqueue	ip6intrq;
@@ -83,7 +83,7 @@ static const struct {
 	{ AF_INET6, &ip6intrq, &ip6intrq_present, NETISR_IPV6 },
 	{ AF_IPX, &ipxintrq, &ipxintrq_present, NETISR_IPX },
 	{ AF_NATM, &natmintrq, &natmintrq_present, NETISR_NATM },
-	{ AF_APPLETALK, &at2intrq, &atintrq2_present, NETISR_ATALK },
+	{ AF_APPLETALK, &atintrq2, &atintrq2_present, NETISR_ATALK },
 	{ AF_NS, &nsintrq, &nsintrq_present, NETISR_NS }
 };
 
