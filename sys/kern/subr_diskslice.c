@@ -159,7 +159,6 @@ dscheck(bp, ssp)
 	daddr_t	secno;
 	daddr_t	slicerel_secno;
 	struct diskslice *sp;
-	int s;
 
 	blkno = bp->bio_blkno;
 	if (blkno < 0) {
