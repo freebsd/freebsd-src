@@ -829,6 +829,7 @@ ifconf(cmd, data)
 		    "%s%d", ifp->if_name, ifp->if_unit);
 		if(ifnlen + 1 > sizeof ifr.ifr_name) {
 			error = ENAMETOOLONG;
+			break;
 		} else {
 			strcpy(ifr.ifr_name, workbuf);
 		}
@@ -861,9 +862,11 @@ ifconf(cmd, data)
 						sizeof (ifr));
 				ifrp++;
 			} else {
-				space -= sa->sa_len - sizeof(*sa);
-				if (space < sizeof (ifr))
+				if (space < sizeof (ifr) + sa->sa_len -
+					    sizeof(*sa))
 					break;
+				space -= sa->sa_len - sizeof(*sa);
+
 				error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
 						sizeof (ifr.ifr_name));
 				if (error == 0)
