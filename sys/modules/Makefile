@@ -82,7 +82,7 @@ SUBDIR=	${_3dfx} \
 	hatm \
 	${_hfa} \
 	hifn \
-	${_hme} \
+	hme \
 	${_i2c} \
 	${_ibcs2} \
 	${_ichwd} \
@@ -421,7 +421,6 @@ _gem=		gem
 
 .if ${MACHINE_ARCH} == "sparc64"
 _gem=		gem
-_hme=		hme
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
