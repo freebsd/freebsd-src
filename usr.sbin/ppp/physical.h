@@ -83,7 +83,7 @@ struct physical {
     char *base;
   } name;
 
-  unsigned Utmp : 1;           /* Are we in utmp ? (move to ttydevice ?) */
+  time_t Utmp;                 /* Are we in utmp ? */
   pid_t session_owner;         /* HUP this when closing the link */
 
   struct device *handler;      /* device specific handler */
