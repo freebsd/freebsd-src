@@ -97,4 +97,12 @@ void kerberos5_reply P((Authenticator *, unsigned char *, int));
 int kerberos5_status P((Authenticator *, char *, int));
 void kerberos5_printsub P((unsigned char *, int, unsigned char *, int));
 #endif
+#ifdef SRA
+int sra_init P((Authenticator *, int));
+int sra_send P((Authenticator *));
+void sra_is P((Authenticator *, unsigned char *, int));
+void sra_reply P((Authenticator *, unsigned char *, int));
+int sra_status P((Authenticator *, char *, int));
+void sra_printsub P((unsigned char *, int, unsigned char *, int));
+#endif
 #endif
