@@ -72,7 +72,7 @@ main(argc, argv)
 		case 'a':
 			if (optarg[1] != '\0')
 				errx(1,
-				    "illegal magic character specification.");
+				    "illegal magic character specification");
 			magic = optarg[0];
 			break;
 		case 'd':
@@ -82,7 +82,7 @@ main(argc, argv)
 		case '5': case '6': case '7': case '8': case '9':
 			if (nargs != -1)
 				errx(1,
-				    "only one -# argument may be specified.");
+				    "only one -# argument may be specified");
 			nargs = optopt - '0';
 			break;
 		default:
@@ -232,6 +232,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: apply [-a magic] [-0123456789] command arguments ...\n");
+	"usage: apply [-a magic] [-d] [-0123456789] command arguments ...\n");
 	exit(1);
 }
