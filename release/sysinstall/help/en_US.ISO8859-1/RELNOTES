@@ -406,6 +406,10 @@ for SCO. Further testing is nessesary to complete this project. There
 is also work under way for ELF & XOUT loaders, and most of the svr4
 syscall wrappers have been written.
 
+FreeBSD also implements enough of its Linux compatibility that we
+can now run Linux DOOM!  See the ``xperimnt'' directory (on your local
+FTP server or CDROM) for full docs on how to set this up.
+
 Owner:                  Soren Schmidt (sos) & Sean Eric Fagan (sef)
 Sources involved:       sys/i386/ibcs2/* + misc kernel changes.
 
@@ -722,4 +726,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.4 1995/06/05 19:45:47 jkh Exp $
+$Id: RELNOTES,v 1.5 1995/06/06 01:21:36 jkh Exp $
