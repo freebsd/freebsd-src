@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.6 (Berkeley) 5/21/95
- * $Id: specdev.h,v 1.13 1997/10/15 13:23:21 phk Exp $
+ * $Id: specdev.h,v 1.14 1998/03/08 09:57:40 julian Exp $
  */
 
 /*
@@ -43,7 +43,8 @@ struct specinfo {
 	struct	vnode **si_hashchain;
 	struct	vnode *si_specnext;
 	struct	mount *si_mountpoint;
-	dev_t	si_rdev;
+	dev_t		si_rdev;
+	unsigned long	si_blksize; /* smallest IO unit */
 };
 /*
  * Exported shorthand
@@ -52,6 +53,7 @@ struct specinfo {
 #define v_hashchain v_specinfo->si_hashchain
 #define v_specnext v_specinfo->si_specnext
 #define v_specmountpoint v_specinfo->si_mountpoint
+#define v_blksize v_specinfo->si_blksize
 
 /*
  * Special device management

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.150 1998/04/16 03:31:26 peter Exp $
+ * $Id: vfs_subr.c,v 1.151 1998/04/18 06:26:16 peter Exp $
  */
 
 /*
@@ -71,6 +71,9 @@
 #include <vm/vm_zone.h>
 #include <sys/sysctl.h>
 
+#if defined(DEVFS)
+#include <sys/devfsext.h>
+#endif /* DEVFS */
 #include <miscfs/specfs/specdev.h>
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
@@ -1090,7 +1093,7 @@ reassignbuf(bp, newvp)
 	splx(s);
 }
 
-#ifndef DEVFS_ROOT
+#ifndef SLICE
 /*
  * Create a vnode for a block device.
  * Used for mounting the root file system.
@@ -1120,7 +1123,7 @@ bdevvp(dev, vpp)
 	*vpp = vp;
 	return (0);
 }
-#endif /* !DEVFS_ROOT */
+#endif	/* !SLICE */
 
 /*
  * Check to see if the new vnode represents a special device
@@ -1151,6 +1154,8 @@ loop:
 			continue;
 		/*
 		 * Alias, but not in use, so flush it out.
+		 * Only alias active device nodes.
+		 * Not sure why we don't re-use this like we do below.
 		 */
 		simple_lock(&vp->v_interlock);
 		if (vp->v_usecount == 0) {
@@ -1159,12 +1164,26 @@ loop:
 			goto loop;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
+			/*
+			 * It dissappeared, and we may have slept.
+			 * Restart from the beginning
+			 */
 			simple_unlock(&spechash_slock);
 			goto loop;
 		}
 		break;
 	}
+	/*
+	 * It would be a lot clearer what is going on here if
+	 * this had been expressed as:
+	 * if ( vp && (vp->v_tag == VT_NULL))
+	 * and the clauses had been swapped.
+	 */
 	if (vp == NULL || vp->v_tag != VT_NON) {
+		/*
+		 * Put the new vnode into the hash chain.
+		 * and if there was an alias, connect them.
+		 */
 		MALLOC(nvp->v_specinfo, struct specinfo *,
 		    sizeof(struct specinfo), M_VNODE, M_WAITOK);
 		nvp->v_rdev = nvp_rdev;
@@ -1180,6 +1199,12 @@ loop:
 		}
 		return (NULLVP);
 	}
+	/*
+	 * if ( vp && (vp->v_tag == VT_NULL))
+	 * We have a vnode alias, but it is a trashed.
+	 * Make it look like it's newley allocated. (by getnewvnode())
+	 * The caller should use this instead.
+	 */
 	simple_unlock(&spechash_slock);
 	VOP_UNLOCK(vp, 0, p);
 	simple_lock(&vp->v_interlock);

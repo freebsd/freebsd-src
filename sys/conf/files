@@ -53,6 +53,10 @@ dev/ppbus/ppbconf.c	optional ppbus
 dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
+dev/slice/slice_base.c	optional	slice 
+dev/slice/slice_device.c optional	slice 
+dev/slice/mbr.c		optional	slice 
+dev/slice/disklabel.c	optional	slice 
 dev/vn/vn.c		optional vn
 dev/vx/if_vx.c		optional vx  device-driver
 gnu/ext2fs/ext2_alloc.c		optional ext2fs

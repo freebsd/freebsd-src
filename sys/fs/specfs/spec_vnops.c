@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.59 1998/03/08 08:46:18 dyson Exp $
+ * $Id: spec_vnops.c,v 1.60 1998/03/08 09:57:36 julian Exp $
  */
 
 #include <sys/param.h>
@@ -761,8 +761,15 @@ spec_getpages(ap)
 	 * Round up physical size for real devices, use the
 	 * fundamental blocksize of the fs if possible.
 	 */
-	if (vp && vp->v_mount)
+	if (vp && vp->v_mount) {
+		if (vp->v_type != VBLK) {
+			vprint("Non VBLK", vp);
+		}
 		blksiz = vp->v_mount->mnt_stat.f_bsize;
+		if (blksiz < DEV_BSIZE) {
+			blksiz = DEV_BSIZE;
+		}
+	}
 	else
 		blksiz = DEV_BSIZE;
 	size = (ap->a_count + blksiz - 1) & ~(blksiz - 1);
