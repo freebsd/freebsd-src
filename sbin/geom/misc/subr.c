@@ -69,6 +69,70 @@ pathgen(const char *name, char *path, size_t size)
 		strlcpy(path, name, size);
 }
 
+/*
+ * Greatest Common Divisor.
+ */
+static unsigned
+gcd(unsigned a, unsigned b)
+{
+	u_int c;
+
+	while (b != 0) {
+		c = a;
+		a = b;
+		b = (c % b);
+	}
+	return (a);
+}
+
+/*
+ * Least Common Multiple.
+ */
+unsigned
+g_lcm(unsigned a, unsigned b)
+{
+
+	return ((a * b) / gcd(a, b));
+}
+
+off_t
+g_get_mediasize(const char *name)
+{
+	char path[MAXPATHLEN];
+	off_t mediasize;
+	int fd;
+
+	pathgen(name, path, sizeof(path));
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
+		return (0);
+	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) < 0) {
+		close(fd);
+		return (0);
+	}
+	close(fd);
+	return (mediasize);
+}
+
+unsigned
+g_get_sectorsize(const char *name)
+{
+	char path[MAXPATHLEN];
+	unsigned sectorsize;
+	int fd;
+
+	pathgen(name, path, sizeof(path));
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
+		return (0);
+	if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) < 0) {
+		close(fd);
+		return (0);
+	}
+	close(fd);
+	return (sectorsize);
+}
+
 int
 g_metadata_store(const char *name, u_char *md, size_t size)
 {
@@ -85,11 +149,13 @@ g_metadata_store(const char *name, u_char *md, size_t size)
 	fd = open(path, O_WRONLY);
 	if (fd == -1)
 		return (errno);
-	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) < 0) {
+	mediasize = g_get_mediasize(name);
+	if (mediasize == 0) {
 		error = errno;
 		goto out;
 	}
-	if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) < 0) {
+	sectorsize = g_get_sectorsize(name);
+	if (sectorsize == 0) {
 		error = errno;
 		goto out;
 	}
@@ -129,11 +195,13 @@ g_metadata_clear(const char *name, const char *magic)
 	fd = open(path, O_RDWR);
 	if (fd == -1)
 		return (errno);
-	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) < 0) {
+	mediasize = g_get_mediasize(name);
+	if (mediasize == 0) {
 		error = errno;
 		goto out;
 	}
-	if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) < 0) {
+	sectorsize = g_get_sectorsize(name);
+	if (sectorsize == 0) {
 		error = errno;
 		goto out;
 	}
