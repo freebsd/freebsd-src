@@ -1,4 +1,5 @@
 /*	$NetBSD: _setjmp.S,v 1.2 1996/10/17 03:08:03 cgd Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
@@ -87,10 +88,6 @@ END(_setjmp)
 
 LEAF(_longjmp, 2)
 	LDGP(pv)
-	ldq	t0, ((31 + 4) * 8)(a0)		/* magic in sc_regs[31] */
-	ldiq	t1, 0xacedbadd
-	cmpeq	t0, t1, t0
-	beq	t0, botch			/* If the magic was bad, punt */
 
 	ldq	ra, (2 * 8)(a0)			/* sc_pc = return address */
 	ldq	s0, (( 9 + 4) * 8)(a0)		/* saved bits of sc_regs */
@@ -116,8 +113,4 @@ LEAF(_longjmp, 2)
 	mov	a1, v0				/* return second arg */
 	RET
 
-botch:
-	CALL(longjmperror)
-	CALL(abort)
-	RET					/* "can't" get here... */
 END(_longjmp)
