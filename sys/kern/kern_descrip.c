@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.12 1995/10/21 08:38:09 davidg Exp $
+ * $Id: kern_descrip.c,v 1.13 1995/11/12 06:42:52 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/file.h>
@@ -980,3 +981,44 @@ dupfdopen(fdp, indx, dfd, mode, error)
 	}
 	/* NOTREACHED */
 }
+
+/*
+ * Get file structures.
+ */
+static int
+sysctl_kern_file SYSCTL_HANDLER_ARGS
+{
+	int error;
+	struct file *fp;
+
+	if (!req->oldptr) {
+		/*
+		 * overestimate by 10 files
+		 */
+		return (SYSCTL_OUT(req, 0, sizeof(filehead) + 
+				(nfiles + 10) * sizeof(struct file)));
+	}
+
+	error = SYSCTL_OUT(req, (caddr_t)&filehead, sizeof(filehead));
+	if (error)
+		return (error);
+
+	/*
+	 * followed by an array of file structures
+	 */
+	for (fp = filehead; fp != NULL; fp = fp->f_filef) {
+		error = SYSCTL_OUT(req, (caddr_t)fp, sizeof (struct file));
+		if (error)
+			return (error);
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_kern_file, "");
+
+SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
+	CTLFLAG_RD, &maxfilesperproc, 0, "");
+
+SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
+
