@@ -302,7 +302,7 @@ print_hid_device(hid_device_p hid_device, FILE *f)
 "device {\n"					\
 "	bdaddr			%s;\n"		\
 "	control_psm		0x%x;\n"	\
-"	interrupt_psm		0x%d;\n"	\
+"	interrupt_psm		0x%x;\n"	\
 "	reconnect_initiate	%s;\n"		\
 "	battery_power		%s;\n"		\
 "	normally_connectable	%s;\n"		\
