@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <stdlib.h>
 #include <syslog.h>
 #include <utmp.h>
 #ifdef XIDLE
