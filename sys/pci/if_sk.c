@@ -1501,6 +1501,7 @@ skc_attach(dev)
 {
 	struct sk_softc		*sc;
 	int			unit, error = 0, rid, *port;
+	uint8_t			skrs;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1561,9 +1562,10 @@ skc_attach(dev)
 	/* Read and save vital product data from EEPROM. */
 	sk_vpd_read(sc);
 
+	skrs = sk_win_read_1(sc, SK_EPROM0);
 	if (sc->sk_type == SK_GENESIS) {
 		/* Read and save RAM size and RAMbuffer offset */
-		switch(sk_win_read_1(sc, SK_EPROM0)) {
+		switch(skrs) {
 		case SK_RAMSIZE_512K_64:
 			sc->sk_ramsize = 0x80000;
 			sc->sk_rboff = SK_RBOFF_0;
@@ -1586,8 +1588,11 @@ skc_attach(dev)
 			error = ENXIO;
 			goto fail;
 		}
-	} else {
-		sc->sk_ramsize = 0x20000;
+	} else { /* SK_YUKON */
+		if (skrs == 0x00)
+			sc->sk_ramsize = 0x20000;
+		else
+			sc->sk_ramsize = skrs * (1<<12);
 		sc->sk_rboff = SK_RBOFF_0;
 	}
 
