@@ -253,6 +253,13 @@ case "${RERUN}" in
   #
   rm ${TEMPROOT}/etc/spwd.db ${TEMPROOT}/etc/passwd ${TEMPROOT}/etc/pwd.db
 
+  # Avoid comparing the motd if the user specifies it in .mergemasterrc
+  case "${IGNORE_MOTD}" in
+  '') ;;
+  *) rm ${TEMPROOT}/etc/motd
+     ;;
+  esac
+
   ;; # End of the "RERUN" test
 esac
 
@@ -607,6 +614,7 @@ for COMPFILE in `find . -type f -size +0`; do
   fi # Yes, the file still remains to be checked
 done # This is for the do way up there at the beginning of the comparison
 
+echo ''
 echo "*** Comparison complete"
 echo ''
 
