@@ -167,9 +167,8 @@ kern_execve(td, fname, argv, envv, mac_p)
 	int credential_changing;
 	int textset;
 #ifdef MAC
-	struct label interplabel;	/* label of the interpreted vnode */
-	struct label execlabel;		/* optional label argument */
-	int will_transition, interplabelvalid = 0;
+	struct label *interplabel = NULL;
+	int will_transition;
 #endif
 
 	imgp = &image_params;
@@ -222,7 +221,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	imgp->auxarg_size = 0;
 
 #ifdef MAC
-	error = mac_execve_enter(imgp, mac_p, &execlabel);
+	error = mac_execve_enter(imgp, mac_p);
 	if (error) {
 		mtx_lock(&Giant);
 		goto exec_fail;
@@ -336,9 +335,8 @@ interpret:
 		/* free name buffer and old vnode */
 		NDFREE(ndp, NDF_ONLY_PNBUF);
 #ifdef MAC
-		mac_init_vnode_label(&interplabel);
-		mac_copy_vnode_label(&ndp->ni_vp->v_label, &interplabel);
-		interplabelvalid = 1;
+		interplabel = mac_vnode_label_alloc();
+		mac_copy_vnode_label(ndp->ni_vp->v_label, interplabel);
 #endif
 		vput(ndp->ni_vp);
 		vm_object_deallocate(imgp->object);
@@ -452,7 +450,7 @@ interpret:
 	    attr.va_gid;
 #ifdef MAC
 	will_transition = mac_execve_will_transition(oldcred, imgp->vp,
-	    interplabelvalid ? &interplabel : NULL, imgp);
+	    interplabel, imgp);
 	credential_changing |= will_transition;
 #endif
 
@@ -502,7 +500,7 @@ interpret:
 #ifdef MAC
 		if (will_transition) {
 			mac_execve_transition(oldcred, newcred, imgp->vp,
-			    interplabelvalid ? &interplabel : NULL, imgp);
+			    interplabel, imgp);
 		}
 #endif
 		/*
@@ -654,8 +652,8 @@ exec_fail:
 		/* sorry, no more process anymore. exit gracefully */
 #ifdef MAC
 		mac_execve_exit(imgp);
-		if (interplabelvalid)
-			mac_destroy_vnode_label(&interplabel);
+		if (interplabel != NULL)
+			mac_vnode_label_free(interplabel);
 #endif
 		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
@@ -664,8 +662,8 @@ exec_fail:
 done2:
 #ifdef MAC
 	mac_execve_exit(imgp);
-	if (interplabelvalid)
-		mac_destroy_vnode_label(&interplabel);
+	if (interplabel != NULL)
+		mac_vnode_label_free(interplabel);
 #endif
 	mtx_unlock(&Giant);
 	return (error);

@@ -59,6 +59,7 @@ extern struct mac_policy_list_head	mac_policy_list;
 extern struct mac_policy_list_head	mac_static_policy_list;
 extern int				mac_late;
 extern int				mac_enforce_process;
+extern int				mac_enforce_sysv;
 extern int				mac_enforce_vm;
 #ifndef MAC_ALWAYS_LABEL_MBUF
 extern int				mac_labelmbufs;
@@ -88,6 +89,10 @@ void	mac_policy_list_busy(void);
 int	mac_policy_list_conditional_busy(void);
 void	mac_policy_list_unbusy(void);
 
+struct label	*mac_labelzone_alloc(int flags);
+void		 mac_labelzone_free(struct label *label);
+void		 mac_labelzone_init(void);
+
 void	mac_init_label(struct label *label);
 void	mac_destroy_label(struct label *label);
 int	mac_check_structmac_consistent(struct mac *mac);
@@ -98,19 +103,18 @@ int	mac_allocate_slot(void);
  * the namespaces, etc, should work for these, so for now, sort by
  * object type.
  */
+struct label	*mac_pipe_label_alloc(void);
+void		 mac_pipe_label_free(struct label *label);
+
 int	mac_check_cred_relabel(struct ucred *cred, struct label *newlabel);
-void	mac_destroy_cred_label(struct label *label);
-int	mac_externalize_cred_label(struct label *label, char *elements,
+int	mac_externalize_cred_label(struct label *label, char *elements, 
 	    char *outbuf, size_t outbuflen);
-void	mac_init_cred_label(struct label *label);
 int	mac_internalize_cred_label(struct label *label, char *string);
 void	mac_relabel_cred(struct ucred *cred, struct label *newlabel);
 
 void	mac_copy_pipe_label(struct label *src, struct label *dest);
-void	mac_destroy_pipe_label(struct label *label);
 int	mac_externalize_pipe_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
-void	mac_init_pipe_label(struct label *label);
 int	mac_internalize_pipe_label(struct label *label, char *string);
 
 int	mac_externalize_vnode_label(struct label *label, char *elements,

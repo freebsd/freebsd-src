@@ -41,7 +41,6 @@
 #include <sys/queue.h>
 #ifdef _KERNEL
 #include <sys/lockmgr.h>
-#include <sys/_label.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #endif
@@ -145,8 +144,8 @@ struct mount {
 	time_t		mnt_time;		/* last time written*/
 	int		mnt_iosize_max;		/* max size for clusters, etc */
 	struct netexport *mnt_export;		/* export list */
-	struct label	mnt_mntlabel;		/* MAC label for the mount */
-	struct label	mnt_fslabel;		/* MAC label for the fs */
+	struct label	*mnt_mntlabel;		/* MAC label for the mount */
+	struct label	*mnt_fslabel;		/* MAC label for the fs */
 	int		mnt_nvnodelistsize;	/* # of vnodes on this mount */
 };
 

@@ -134,21 +134,21 @@ static void
 mac_partition_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 {
 
-	SLOT(&cred_child->cr_label) = SLOT(&cred_parent->cr_label);
+	SLOT(cred_child->cr_label) = SLOT(cred_parent->cr_label);
 }
 
 static void
 mac_partition_create_proc0(struct ucred *cred)
 {
 
-	SLOT(&cred->cr_label) = 0;
+	SLOT(cred->cr_label) = 0;
 }
 
 static void
 mac_partition_create_proc1(struct ucred *cred)
 {
 
-	SLOT(&cred->cr_label) = 0;
+	SLOT(cred->cr_label) = 0;
 }
 
 static void
@@ -156,7 +156,7 @@ mac_partition_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 
 	if (SLOT(newlabel) != 0)
-		SLOT(&cred->cr_label) = SLOT(newlabel);
+		SLOT(cred->cr_label) = SLOT(newlabel);
 }
 
 static int
@@ -201,7 +201,7 @@ mac_partition_check_cred_visible(struct ucred *u1, struct ucred *u2)
 {
 	int error;
 
-	error = label_on_label(&u1->cr_label, &u2->cr_label);
+	error = label_on_label(u1->cr_label, u2->cr_label);
 
 	return (error == 0 ? 0 : ESRCH);
 }
@@ -211,7 +211,7 @@ mac_partition_check_proc_debug(struct ucred *cred, struct proc *proc)
 {
 	int error;
 
-	error = label_on_label(&cred->cr_label, &proc->p_ucred->cr_label);
+	error = label_on_label(cred->cr_label, proc->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -221,7 +221,7 @@ mac_partition_check_proc_sched(struct ucred *cred, struct proc *proc)
 {
 	int error;
 
-	error = label_on_label(&cred->cr_label, &proc->p_ucred->cr_label);
+	error = label_on_label(cred->cr_label, proc->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -232,7 +232,7 @@ mac_partition_check_proc_signal(struct ucred *cred, struct proc *proc,
 {
 	int error;
 
-	error = label_on_label(&cred->cr_label, &proc->p_ucred->cr_label);
+	error = label_on_label(cred->cr_label, proc->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -243,7 +243,7 @@ mac_partition_check_socket_visible(struct ucred *cred, struct socket *socket,
 {
 	int error;
 
-	error = label_on_label(&cred->cr_label, socketlabel);
+	error = label_on_label(cred->cr_label, socketlabel);
 
 	return (error ? ENOENT : 0);
 }
