@@ -35,7 +35,7 @@
 .\"	@(#)utf2.4	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2002
+.Dd October 30, 2002
 .Dt UTF8 5
 .Os
 .Sh NAME
@@ -99,15 +99,29 @@ accepts redundant, non-"shortest form" representations of characters.
 .Xr euc 4 ,
 .Xr utf2 4
 .Rs
+.%A "Rob Pike"
+.%A "Ken Thompson"
+.%T "Hello World"
+.%J "Proceedings of the Winter 1993 USENIX Technical Conference"
+.%Q "USENIX Association"
+.%D "January 1993"
+.Re
+.Rs
 .%A "F. Yergeau"
 .%T "UTF-8, a transformation format of ISO 10646"
 .%O "RFC 2279"
 .%D "January 1998"
 .Re
+.Rs
+.%Q "The Unicode Consortium"
+.%T "The Unicode Standard, Version 3.0"
+.%D "2000"
+.%O "as amended by the Unicode Standard Annex #27: Unicode 3.1 and by the Unicode Standard Annex #28: Unicode 3.2"
+.Re
 .Sh STANDARDS
 The
 .Nm
-encoding is compatible with RFC 2279.
+encoding is compatible with RFC 2279 and Unicode 3.2.
 .Sh BUGS
 Byte order marker (BOM) characters are neither added nor removed
 from UTF-8-encoded wide character
