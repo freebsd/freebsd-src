@@ -28,8 +28,8 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
-	libipx libisc libkiconv libmenu ${_libmilter} ${_libmp} ${_libncp} \
-	${_libngatm} libopie libpam libpanel libpcap \
+	libipx libisc libkiconv libmagic libmenu ${_libmilter} ${_libmp} \
+	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
 	${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
 	libugidfw ${_libusbhid} ${_libvgl} libwrap libxpg4 liby libz
