@@ -2691,6 +2691,48 @@ is set to
 these are the flags passed to the
 .Xr watchdogd 8
 daemon.
+.It Va performance_cx_lowest
+.Pq Vt str
+CPU idle state to use while on AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest power state available while
+.Dq Li HIGH
+indicates that the lowest latency state (less power savings) should be used.
+.It Va performance_throttle_state
+.Pq Vt str
+CPU throttling state to use while on AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest throttling state available while
+.Dq Li HIGH
+indicates that the highest performance state (less power savings) should be
+used.
+.It Va economy_throttle_state
+.Pq Vt str
+CPU throttling state to use when off AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest throttling state available while
+.Dq Li HIGH
+indicates that the highest performance state (less power savings) should be
+used.
+.It Va economy_cx_lowest
+.Pq Vt str
+CPU idle state to use when off AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest power state available while
+.Dq Li HIGH
+indicates that the lowest latency state (less power savings) should be used.
 .It Va jail_enable
 .Pq Vt bool
 If set to
