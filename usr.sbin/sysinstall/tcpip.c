@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.34 1996/04/07 03:52:36 jkh Exp $
+ * $Id: tcpip.c,v 1.35 1996/04/13 13:32:12 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -225,7 +225,7 @@ tcpInstallDevice(char *str)
 int
 tcpOpenDialog(Device *devp)
 {
-    WINDOW              *ds_win;
+    WINDOW              *ds_win, *save;
     ComposeObj          *obj = NULL;
     ComposeObj		*first, *last;
     int                 n=0, quit=FALSE, cancel=FALSE, ret;
@@ -234,6 +234,7 @@ tcpOpenDialog(Device *devp)
     char		help[FILENAME_MAX];
     char		title[80];
 
+    save = savescr();
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
     if (ds_win == 0)
@@ -505,8 +506,10 @@ tcpOpenDialog(Device *devp)
 	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
+	restorescr(save);
 	return DITEM_SUCCESS;
     }
+    restorescr(save);
     return DITEM_FAILURE;
 }
 

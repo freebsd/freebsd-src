@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.25 1996/04/07 03:52:26 jkh Exp $
+ * $Id: installFinal.c,v 1.26 1996/04/13 13:31:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -163,26 +163,20 @@ configSamba(dialogMenuItem *self)
 				else
 				    fprintf(fptr, "read only = yes\n\n");
 			    }
-			    else {
-				dialog_clear();
+			    else
 				msgConfirm("Invalid Share Name.");
-			    }
 			}
-			else {
-			    dialog_clear();
+			else
 			    msgConfirm("Directory does not exist.");
-			}
 		    }	/* end if (tptr)	 */
 		}	/* end for loop		 */
 	    }	/* end if (SAMBA_export) */
 	    fclose(fptr);
 	    vsystem("mv -f /tmp/smb.conf %s", SMB_CONF);
 	}
-	else {
-	    dialog_clear();
+	else
 	    msgConfirm("Unable to open temporary smb.conf file.\n"
 		       "Samba will have to be configured by hand.");
-	}
     }
     return i;
 }
@@ -194,7 +188,8 @@ configNFSServer(dialogMenuItem *self)
 
     /* If we're an NFS server, we need an exports file */
     if (!file_readable("/etc/exports")) {
-	dialog_clear();
+	WINDOW *w = savescr();
+
 	msgConfirm("Operating as an NFS server means that you must first configure\n"
 		   "an /etc/exports file to indicate which hosts are allowed certain\n"
 		   "kinds of access to your local file systems.\n"
@@ -208,9 +203,10 @@ configNFSServer(dialogMenuItem *self)
 	vsystem("echo '#' >> /etc/exports");
 	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	vsystem("echo >> /etc/exports");
-	dialog_clear();
 	sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
+	dialog_clear();
 	systemExecute(cmd);
+	restorescr(w);
     }
     variable_set2("nfs_server", "YES");
     return DITEM_SUCCESS;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.11 1996/03/21 09:30:09 jkh Exp $
+ * $Id: ftp_strat.c,v 1.12 1996/04/13 13:31:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,7 +63,6 @@ get_new_host(Device *dev, Boolean probe)
 	i = TRUE;
     else {
 	i = FALSE;
-	dialog_clear();
 	msgConfirm("The %s file failed to load from the FTP site you\n"
 		   "selected.  Please select another one from the FTP menu.", lastRequest ? lastRequest : "requested");
 	MenuMediaFTP.title = "Request failed - please select another site";
@@ -121,13 +120,11 @@ mediaInitFTP(Device *dev)
 	return FALSE;
 
     if (!ftp && (ftp = FtpInit()) == NULL) {
-	dialog_clear();
 	msgConfirm("FTP initialisation failed!");
 	return FALSE;
     }
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	dialog_clear();
 	msgConfirm("%s is not set!", VAR_FTP_PATH);
 	return FALSE;
     }
@@ -135,7 +132,6 @@ mediaInitFTP(Device *dev)
 	msgDebug("Attempting to open connection for URL: %s\n", cp);
     hostname = variable_get(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
-	dialog_clear();
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
 	return FALSE;
     }
@@ -158,7 +154,6 @@ mediaInitFTP(Device *dev)
     }
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	dialog_clear();
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		   "name server, gateway and network interface are correctly configured?", hostname);
 	netDevice->shutdown(netDevice);
@@ -181,10 +176,8 @@ retry:
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s", hostname);
-	else {
-	    dialog_clear();
+	else
 	    msgConfirm("Couldn't open FTP connection to %s", hostname);
-	}
 	if (ftpShouldAbort(dev, ++retries) || !get_new_host(dev, FALSE))
 	    return FALSE;
 	goto retry;

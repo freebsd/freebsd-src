@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.31 1996/04/07 03:52:32 jkh Exp $
+ * $Id: media.c,v 1.32 1996/04/13 13:31:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,7 +83,6 @@ mediaSetCDROM(dialogMenuItem *self)
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No CDROM devices found!  Please check that your system's\n"
 		   "configuration is correct and that the CDROM drive is of a supported\n"
 		   "type.  For more information, consult the hardware guide\n"
@@ -126,7 +125,6 @@ mediaSetFloppy(dialogMenuItem *self)
     devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No floppy devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
@@ -168,7 +166,6 @@ mediaSetDOS(dialogMenuItem *self)
     devs = deviceFind(NULL, DEVICE_TYPE_DOS);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
 	return DITEM_FAILURE;
     }
@@ -208,7 +205,6 @@ mediaSetTape(dialogMenuItem *self)
     devs = deviceFind(NULL, DEVICE_TYPE_TAPE);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No tape drive devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
@@ -254,14 +250,11 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp;
 
-    if (!(cp = variable_get(VAR_FTP_PATH))) {
-	if (!dmenuOpenSimple(&MenuMediaFTP))
-	    return DITEM_FAILURE;
-	else
-	    cp = variable_get(VAR_FTP_PATH);
-    }
+    if (!dmenuOpenSimple(&MenuMediaFTP))
+	return DITEM_FAILURE;
+    else
+	cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	dialog_clear();
 	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
 	return DITEM_FAILURE;
     }
@@ -278,7 +271,6 @@ mediaSetFTP(dialogMenuItem *self)
 	    return DITEM_FAILURE;
     }
     if (strncmp("ftp://", cp, 6)) {
-	dialog_clear();
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
 	return DITEM_FAILURE;
     }
@@ -315,21 +307,19 @@ int
 mediaSetUFS(dialogMenuItem *self)
 {
     static Device ufsDevice;
-    char *val;
+    char *cp;
 
-    if (!(val = variable_get(VAR_UFS_PATH))) {
-	val = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
-				 "containing the FreeBSD distribution files:");
-	if (!val)
-	    return DITEM_FAILURE;
-    }
+    cp = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
+			    "containing the FreeBSD distribution files:");
+    if (!cp)
+	return DITEM_FAILURE;
     strcpy(ufsDevice.name, "ufs");
     ufsDevice.type = DEVICE_TYPE_UFS;
     ufsDevice.init = dummyInit;
     ufsDevice.get = mediaGetUFS;
     ufsDevice.close = dummyClose;
     ufsDevice.shutdown = dummyShutdown;
-    ufsDevice.private = strdup(val);
+    ufsDevice.private = strdup(cp);
     mediaDevice = &ufsDevice;
     return DITEM_LEAVE_MENU;
 }
@@ -422,14 +412,12 @@ mediaExtractDistEnd(int zpid, int cpid)
 
     i = waitpid(zpid, &j, 0);
     if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
-	dialog_clear();
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
     if (i < 0 || WEXITSTATUS(j)) {
-	dialog_clear();
 	if (isDebug())
 	    msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
 	return FALSE;
@@ -488,14 +476,12 @@ mediaExtractDist(char *dir, int fd)
 
     i = waitpid(zpid, &j, 0);
     if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
-	dialog_clear();
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
     if (i < 0 || WEXITSTATUS(j)) {
-	dialog_clear();
 	if (isDebug())
 	    msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
 	return FALSE;
@@ -516,7 +502,6 @@ Boolean
 mediaVerify(void)
 {
     if (!mediaDevice) {
-	dialog_clear();
 	msgConfirm("Media type not set!  Please select a media type\n"
 		   "from the Installation menu before proceeding.");
 	return mediaGetType(NULL) == DITEM_SUCCESS;
@@ -531,7 +516,6 @@ mediaSetFtpOnError(dialogMenuItem *self)
     char *cp = variable_get(VAR_FTP_ONERROR);
 
     if (!cp) {
-	dialog_clear();
 	msgConfirm("FTP error handling is not set to anything!");
 	return DITEM_FAILURE;
     }
@@ -552,12 +536,10 @@ mediaSetFtpUserPass(dialogMenuItem *self)
 {
     char *pass;
 
-    dialog_clear();
     if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:"))
 	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
     else
 	pass = NULL;
-    dialog_clear();
     return pass ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
@@ -568,7 +550,6 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
     char *cp = variable_get(VAR_CPIO_VERBOSITY);
 
     if (!cp) {
-	dialog_clear();
 	msgConfirm("CPIO Verbosity is not set to anything!");
 	return DITEM_FAILURE;
     }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.22 1996/03/21 09:30:11 jkh Exp $
+ * $Id: index.c,v 1.23 1996/04/13 13:31:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -430,10 +430,12 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     PkgNodePtr kp;
     dialogMenuItem *nitems;
     Boolean hasPackages;
+    WINDOW *w;
 
     hasPackages = FALSE;
     nitems = NULL;
 
+    w = savescr();
     n = maxname = 0;
     /* Figure out if this menu is full of "leaves" or "branches" */
     for (kp = top->kids; kp && kp->name; kp = kp->next) {
@@ -447,8 +449,8 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	}
     }
     if (!n && plist) {
-	dialog_clear();
 	msgConfirm("The %s menu is empty.", top->name);
+	restorescr(w);
 	return DITEM_LEAVE_MENU;
     }
 
@@ -491,14 +493,14 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 		    pos = scroll = 0;
 		    index_menu(menu, plist, &pos, &scroll);
 		}
-		else {
+		else
 		    msgConfirm("Search string: %s yielded no hits.", cp);
-		}
 	    }
 	    continue;
 	}
 	dialog_clear();
 	items_free(nitems, &curr, &max);
+	restorescr(w);
 	return rval ? DITEM_FAILURE : DITEM_SUCCESS;
     }
 }
