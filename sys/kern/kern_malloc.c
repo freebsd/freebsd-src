@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.9 1995/03/11 22:28:16 davidg Exp $
+ * $Id: kern_malloc.c,v 1.10 1995/03/19 14:28:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -64,8 +64,8 @@ long addrmask[] = { 0,
  * The WEIRD_ADDR is used as known text to copy into free objects so
  * that modifications after frees can be detected.
  */
-#define WEIRD_ADDR	0xdeadbeef
-#define MAX_COPY	256
+#define WEIRD_ADDR	0xdeadc0de
+#define MAX_COPY	64
 
 /*
  * Normally the first word of the structure is used to hold the list
