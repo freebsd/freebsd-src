@@ -447,17 +447,6 @@ typedef struct {
 	SEGOFF16_t	buffer;		/* SEG:OFF to the packet buffer */
 } PACKED t_PXENV_UDP_WRITE;
 
-#define	PXENV_UDP_WRITE			0x0033
-typedef struct {
-	PXENV_STATUS_t	status;
-	IP4_t		ip;		/* dest ip addr */
-	IP4_t		gw;		/* ip gateway */
-	UDP_PORT_t	src_port;	/* source udp port */
-	UDP_PORT_t	dst_port;	/* destination udp port */
-	uint16_t	buffer_size;	/* Size of the packet buffer */
-	SEGOFF16_t	buffer;		/* SEG:OFF to the packet buffer */
-} PACKED t_PXENV_UDP_WRITE;
-
 #define	PXENV_UNLOAD_STACK		0x0070
 typedef struct {
 	PXENV_STATUS_t	Status;
