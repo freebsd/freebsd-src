@@ -62,15 +62,17 @@ Support has been added for direct access to NTFS filesystems.
 
 Driver support has been added for PCI gigabit ethernet adapters
 based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
-the Alteon AceNIC, 3Com 3c985 and Netgear GA620.
+the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
 
 Driver support has been added for IEEE 802.11 PCMCIA wireless network
 adapters based on the Lucent Hermes chipset, including the Lucent
 WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
-6Mbps Turbo adapters are supported.
+6Mbps Turbo adapters are supported. [MERGED]
 
 Driver support has been added for PCI fast ethernet cards based
-on the ADMtek Inc. AL981 Comet chipset.
+on the ADMtek Inc. AL981 Comet chipset. [MERGED]
+
+Support has been added for the Rise MP6 processor. [MERGED]
 
 1.2. SECURITY FIXES
 -------------------
