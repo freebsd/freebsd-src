@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)gettimeofday.2	8.2 (Berkeley) 5/26/95
+.\"     $Id$
 .\"
 .Dd May 26, 1995
 .Dt GETTIMEOFDAY 2
@@ -49,6 +50,7 @@
 Note: timezone is no longer used; this information is kept outside
 the kernel.
 .Ef
+.Pp
 The system's notion of the current Greenwich time and the current time
 zone is obtained with the
 .Fn gettimeofday
@@ -74,7 +76,7 @@ as:
 .Pp
 .Bd -literal
 struct timeval {
-	long	tv_sec;		/* seconds */
+	long	tv_sec;		/* seconds since Jan. 1, 1970 */
 	long	tv_usec;	/* and microseconds */
 };
 
