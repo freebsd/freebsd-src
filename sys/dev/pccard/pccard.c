@@ -213,6 +213,10 @@ pccard_detach_card(device_t dev, int flags)
 			continue;
 
 		pccard_function_disable(pf);
+		/*
+		 * XXX must also actually delete resources created by
+		 * pccard_function_init()
+		 */
 		if (pf->dev)
 			device_delete_child(dev, pf->dev);
 	}
@@ -940,7 +944,7 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 	}
 
 	if (rle != NULL) {
-		return bus_release_resource(dev, type, rle->rid, rle->res);
+		return bus_deactivate_resource(dev, type, rle->rid, rle->res);
 	}
 
 	return bus_generic_release_resource(dev, child, type, rid, r);
