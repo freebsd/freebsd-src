@@ -100,6 +100,7 @@ static const char rcsid[] =
 #include <machine/bat.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/reg.h>
 #include <machine/fpu.h>
 #include <machine/vmparam.h>
@@ -137,7 +138,7 @@ void		*ksym_start, *ksym_end;
 static void	cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-void		powerpc_init(u_int, u_int, u_int, char *);
+void		powerpc_init(u_int, u_int, u_int, void *);
 
 int		save_ofw_mapping(void);
 int		restore_ofw_mapping(void);
@@ -335,15 +336,41 @@ extern		ipkdblow, ipkdbsize;
 #endif
 
 void
-powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
+powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 {
 	struct		pcpu *pc;
-	vm_offset_t	off;
+	vm_offset_t	end, off;
+	void		*kmdp;
+
+	end = 0;
+	kmdp = NULL;
+
+	/*
+	 * Parse metadata if present and fetch parameters.  Must be done
+	 * before console is inited so cninit gets the right value of
+	 * boothowto.
+	 */
+	if (mdp != NULL) {
+		preload_metadata = mdp;
+		kmdp = preload_search_by_type("elf kernel");
+		if (kmdp != NULL) {
+			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+		}
+	}
 
 	/*
 	 * Initialize the console before printing anything.
 	 */
 	cninit();
+
+	/*
+	 * Complain if there is no metadata.
+	 */
+	if (mdp == NULL || kmdp == NULL) {
+		printf("powerpc_init: no loader metadata.\n");
+	}
 
 	/*
 	 * XXX: Initialize the interrupt tables.
