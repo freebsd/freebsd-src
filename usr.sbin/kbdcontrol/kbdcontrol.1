@@ -20,12 +20,13 @@
 .Nd a utility for manipulating the syscons console driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl dFx
+.Op Fl dFKix
 .Op Fl b Ar duration.pitch | Ar belltype
 .Op Fl r Ar delay.repeat | Ar speed
 .Op Fl l Ar keymap_file
 .Op Fl f Ar # Ar string
 .Op Fl h Ar size
+.Op Fl k Ar keyboard_device
 .Op Fl L Ar keymap_file
 .Sh DESCRIPTION
 The
@@ -51,9 +52,11 @@ If a
 .Ar belltype
 argument is specified, it may be one of 
 .Cm normal
-which set sound parameters back to normal values, or 
+which sets sound parameters back to normal values,
+.Cm off
+which disables the bell entirely, or
 .Cm visual
-which set the bell to visual mode, i.e. flashes the screen instead.
+which sets the bell to visual mode, i.e. flashes the screen instead.
 If 
 .Ar belltype
 is preceded by the word
@@ -104,6 +107,15 @@ Use hexadecimal numbers in keyboard map dump.
 Set history buffer size to
 .Ar size
 lines.
+.It Fl i
+Print brief information about the keyboard.
+.It Fl K
+Disconnect the keyboard from the console.
+You need to use the
+.Fl k
+option below to associate a keyboard with the console again.
+.It Fl k Ar keyboard_device
+Use the specified device as the console keyboard.
 .It Fl L Ar keymap_file
 Load keyboard map file from
 .Ar keymap_file
