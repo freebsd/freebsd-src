@@ -45,8 +45,10 @@
  * derived systems for which AF_INET6 is defined.
  */
 #ifndef AF_INET6
-#define AF_INET6	24
-#else
+#define AF_INET6	28
+#endif
+
+#ifdef SIN6_LEN
 #define HAS_INET6_STRUCTS
 #define HAVE_SA_LEN
 #endif
