@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-ditroff	5.8 (Berkeley) 8/5/91
+.\"	$FreeBSD$
 .\"
 .\" tmac.mdoc-ditroff
 .\"     %beginstrip%
@@ -64,7 +65,7 @@
 .ds nO \fR\s10
 .ds nT \s0
 .ds pA \fC\s10
-.ds Pu \fR{\ .\ ,\ :\ ;\ (\ )\ [\ ]\ \fR}
+.ds Pu \fR{\ .\ ,\ :\ ;\ ?\ (\ )\ [\ ]\ \fR}
 .ds rA \fR\s10
 .ds rT \f(CO\s10
 .ds sH \fB\s10
