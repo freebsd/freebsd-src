@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.22 1999/10/12 04:35:48 grog Exp grog $
+ * $Id: vinummemory.c,v 1.23 1999/12/27 04:04:19 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -88,6 +88,11 @@ LongJmp(jmp_buf buf, int retval)
     longjmp(buf, retval);
 }
 
+#else
+#define LongJmp longjmp					    /* just use the kernel function */
+#endif
+#endif
+
 /* find the base name of a path name */
 char *
 basename(char *file)
@@ -99,11 +104,6 @@ basename(char *file)
     else
 	return ++f;					    /* skip the / */
 }
-
-#else
-#define LongJmp longjmp					    /* just use the kernel function */
-#endif
-#endif
 
 void
 expand_table(void **table, int oldsize, int newsize)
@@ -216,7 +216,11 @@ FFree(void *mem, char *file, int line)
 	}
     }
     splx(s);
-    log(LOG_ERR, "Freeing unallocated data at 0x%08x from %s, line %d\n", (int) mem, file, line);
+    log(LOG_ERR,
+	"Freeing unallocated data at 0x%p from %s, line %d\n",
+	mem,
+	file,
+	line);
     Debugger("Free");
 }
 
