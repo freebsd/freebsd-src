@@ -231,6 +231,54 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 }
 
 /*
+ * This function writes the current label to disk, possibly updating
+ * the alpha SRM checksum.
+ */
+
+static int
+g_bsd_writelabel(struct g_geom *gp, u_char *bootcode)
+{
+	off_t secoff;
+	u_int secsize;
+	struct g_consumer *cp;
+	struct g_slicer *gsp;
+	struct g_bsd_softc *ms;
+	u_char *buf;
+	uint64_t sum;
+	int error, i;
+
+	gsp = gp->softc;
+	ms = gsp->softc;
+	cp = LIST_FIRST(&gp->consumer);
+	/* Get sector size, we need it to read data. */
+	secsize = cp->provider->sectorsize;
+	secoff = ms->labeloffset % secsize;
+	if (bootcode == NULL) {
+		buf = g_read_data(cp, ms->labeloffset - secoff, secsize, &error);
+		if (buf == NULL || error != 0)
+			return (error);
+		bcopy(ms->label, buf + secoff, sizeof(ms->label));
+	} else {
+		buf = bootcode;
+		bcopy(ms->label, buf + ms->labeloffset, sizeof(ms->label));
+	}
+	if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
+		sum = 0;
+		for (i = 0; i < 63; i++)
+			sum += le64dec(buf + i * 8);
+		le64enc(buf + 504, sum);
+	}
+	if (bootcode == NULL) {
+		error = g_write_data(cp, ms->labeloffset - secoff, buf, secsize);
+		g_free(buf);
+	} else {
+		error = g_write_data(cp, 0, bootcode, BBSIZE);
+	}
+	return(error);
+}
+
+
+/*
  * Implement certain ioctls to modify disklabels with.  This function
  * is called by the event handler thread with topology locked as result
  * of the g_post_event() in g_bsd_start().  It is not necessary to keep
@@ -246,12 +294,8 @@ g_bsd_ioctl(void *arg, int flag)
 	struct g_slicer *gsp;
 	struct g_bsd_softc *ms;
 	struct g_ioctl *gio;
-	struct g_consumer *cp;
-	u_char *buf, *label;
-	off_t secoff;
-	u_int secsize;
-	int error, i;
-	uint64_t sum;
+	u_char *label;
+	int error;
 
 	g_topology_assert();
 	bp = arg;
@@ -279,26 +323,7 @@ g_bsd_ioctl(void *arg, int flag)
 	}
 	
 	KASSERT(gio->cmd == DIOCWDINFO, ("Unknown ioctl in g_bsd_ioctl"));
-
-	cp = LIST_FIRST(&gp->consumer);
-	/* Get sector size, we need it to read data. */
-	secsize = cp->provider->sectorsize;
-	secoff = ms->labeloffset % secsize;
-	buf = g_read_data(cp, ms->labeloffset - secoff, secsize, &error);
-	if (buf == NULL || error != 0) {
-		g_io_deliver(bp, error);
-		return;
-	}
-	bcopy(ms->label, buf + secoff, sizeof(ms->label));
-	if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
-		sum = 0;
-		for (i = 0; i < 63; i++)
-			sum += le64dec(buf + i * 8);
-		le64enc(buf + 504, sum);
-	}
-	error = g_write_data(cp, ms->labeloffset - secoff, buf, secsize);
-	g_free(buf);
-	g_io_deliver(bp, error);
+	g_io_deliver(bp, g_bsd_writelabel(gp, NULL));
 }
 
 /*
@@ -641,10 +666,85 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	return (NULL);
 }
 
+struct h0h0 {
+	struct g_geom *gp;
+	struct g_bsd_softc *ms;
+	u_char *label;
+	int error;
+};
+
+static void
+g_bsd_callconfig(void *arg, int flag)
+{
+	struct h0h0 *hp;
+
+	hp = arg;
+	hp->error = g_bsd_modify(hp->gp, hp->label);
+	if (!hp->error)
+		hp->error = g_bsd_writelabel(hp->gp, NULL);
+}
+
+/*
+ * NB! curthread is user process which GCTL'ed.
+ */
+static int
+g_bsd_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
+{
+	u_char *label;
+	int error, i;
+	struct h0h0 h0h0;
+	struct g_slicer *gsp;
+	struct g_consumer *cp;
+
+	i = 0;
+	g_topology_assert();
+	cp = LIST_FIRST(&gp->consumer);
+	gsp = gp->softc;
+	if (!strcmp(verb, "write label")) {
+		label = gctl_get_paraml(req, "label", LABELSIZE);
+		if (label == NULL)
+			return (EINVAL);
+		h0h0.gp = gp;
+		h0h0.ms = gsp->softc;
+		h0h0.label = label;
+		h0h0.error = -1;
+		/* XXX: Does this reference register with our selfdestruct code ? */
+		error = g_access_rel(cp, 1, 1, 1);
+		if (error) {
+			g_free(label);
+			return (error);
+		}
+		g_topology_unlock();
+		g_waitfor_event(g_bsd_callconfig, &h0h0, M_WAITOK, gp, NULL);
+		g_topology_lock();
+		error = h0h0.error;
+		g_access_rel(cp, -1, -1, -1);
+		g_free(label);
+	} else if (!strcmp(verb, "write bootcode")) {
+		label = gctl_get_paraml(req, "bootcode", BBSIZE);
+		if (label == NULL)
+			return (EINVAL);
+		/* XXX: Does this reference register with our selfdestruct code ? */
+		error = g_access_rel(cp, 1, 1, 1);
+		if (error) {
+			g_free(label);
+			return (error);
+		}
+		error = g_bsd_writelabel(gp, label);
+		g_access_rel(cp, -1, -1, -1);
+		g_free(label);
+	} else {
+		return (gctl_error(req, "Unknown verb parameter"));
+	}
+
+	return (error);
+}
+
 /* Finally, register with GEOM infrastructure. */
 static struct g_class g_bsd_class = {
 	.name = BSD_CLASS_NAME,
 	.taste = g_bsd_taste,
+	.config_geom = g_bsd_config,
 	G_CLASS_INITIALIZER
 };
 
