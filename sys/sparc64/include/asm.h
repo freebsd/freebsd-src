@@ -70,19 +70,10 @@
 #define CNAME(csym)		csym
 #define HIDENAME(asmsym)	__CONCAT(.,asmsym)
 
-/* sys/sparc64/sparc64/ *.S have their own definitions. */
-#ifndef CCFSZ
-#define	CCFSZ	192	/* 0xc0 */
-#endif
-#ifndef	SPOFF
-#define	SPOFF	2047	/* 0x7ff */
-#endif
+#define	CCFSZ	192
+#define	SPOFF	2047
 
-#ifdef GPROF
 #define	_ALIGN_TEXT	.align 32
-#else
-#define	_ALIGN_TEXT	.p2align 4
-#endif
 
 #define _START_ENTRY \
 	.text ; \
