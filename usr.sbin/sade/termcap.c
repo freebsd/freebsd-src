@@ -50,11 +50,13 @@ set_termcap(void)
     else {
 	int i, on;
 
-	DebugFD = open("/dev/ttyv1", O_WRONLY);
-	on = 1;
-	i = ioctl(DebugFD, TIOCCONS, (char *)&on);
-	msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)\n", DebugFD, i, !i ? "success" : strerror(errno));
-	OnVTY = TRUE;
+	if (getpid() == 1) {
+	    DebugFD = open("/dev/ttyv1", O_WRONLY);
+	    on = 1;
+	    i = ioctl(DebugFD, TIOCCONS, (char *)&on);
+	    msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)\n", DebugFD, i, !i ? "success" : strerror(errno));
+	    OnVTY = TRUE;
+	}
 	if (ColorDisplay) {
 	    if (!term) {
 		if (setenv("TERM", "cons25", 1) < 0)

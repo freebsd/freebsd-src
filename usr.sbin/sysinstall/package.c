@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.28 1995/12/04 02:22:02 jkh Exp $
+ * $Id: package.c,v 1.29 1996/03/18 15:28:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,12 +56,12 @@ package_add(char *name)
 {
     if (!mediaVerify())
 	return RET_FAIL;
-    return package_extract(mediaDevice, name);
+    return package_extract(mediaDevice, name, FALSE);
 }
 
 /* Extract a package based on a namespec and a media device */
 int
-package_extract(Device *dev, char *name)
+package_extract(Device *dev, char *name, Boolean depended)
 {
     char path[511];
     int fd, ret;
@@ -83,7 +83,8 @@ package_extract(Device *dev, char *name)
 	return RET_FAIL;
     }
 
-    ret = RET_FAIL;
+    /* Be initially optimistic */
+    ret = RET_SUCCESS;
     /* Make a couple of paranoid locations for temp files to live if user specified none */
     if (!variable_get("PKG_TMPDIR")) {
 	Mkdir("/usr/tmp", NULL);
@@ -93,12 +94,13 @@ package_extract(Device *dev, char *name)
     }
 
     sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
-    msgNotify("Adding %s\nfrom %s", path, dev->name);
     fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
 	int i, tot, pfd[2];
 	pid_t pid;
 
+	dialog_clear();
+	msgNotify("Adding %s%s\nfrom %s", path, depended ? " (as a dependency)" : "", dev->name);
 	pipe(pfd);
 	pid = fork();
 	if (!pid) {
@@ -113,7 +115,6 @@ package_extract(Device *dev, char *name)
 	else {
 	    char buf[BUFSIZ];
 
-	    dialog_clear();
 	    tot = 0;
 	    while ((i = read(fd, buf, BUFSIZ)) > 0) {
 		write(pfd[1], buf, i);
@@ -124,7 +125,8 @@ package_extract(Device *dev, char *name)
 	    }
 	    close(fd);
 	    close(pfd[1]);
-	    dialog_clear();
+	    mvprintw(0, 0, "Package %s read successfully - waiting for pkg_add", name);
+	    refresh();
 	    i = waitpid(pid, &tot, 0);
 	    if (i < 0 || WEXITSTATUS(tot)) {
 		msgNotify("Add of package %s aborted due to some error -\n"
@@ -144,6 +146,7 @@ package_extract(Device *dev, char *name)
 	    msgConfirm("Unable to fetch package %s from selected media.\n"
 		       "No package add will be done.", name);
 	}
+	ret = RET_FAIL;
     }
     return ret;
 }
