@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.28 1999/03/10 09:04:18 obrien Exp $
+# $Id: Makefile.inc,v 1.26 1999/04/04 16:36:31 obrien Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -48,9 +48,8 @@ CFLAGS+=	-DHAIFA
 
 .if exists(${.OBJDIR}/../cc_tools)
 CFLAGS+=	-I${.OBJDIR}/../cc_tools
-.else
-CFLAGS+=	-I${.CURDIR}/../cc_tools
 .endif
+CFLAGS+=	-I${.CURDIR}/../cc_tools
 
 .if exists(${.OBJDIR}/../cc_int)
 LIBDESTDIR=	${.OBJDIR}/../cc_int
