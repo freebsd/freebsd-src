@@ -31,7 +31,7 @@
  */
 
 #include <dev/mpt/mpt_freebsd.h>
-#include <dev/mpt/mpt.h>
+
 #define MPT_MAX_TRYS 3
 #define MPT_MAX_WAIT 300000
 
@@ -39,24 +39,24 @@ static int maxwait_ack = 0;
 static int maxwait_int = 0;
 static int maxwait_state = 0;
 
-static __inline u_int32_t mpt_rd_db(struct mpt_softc *mpt);
-static __inline  u_int32_t mpt_rd_intr(struct mpt_softc *mpt);
+static __inline u_int32_t mpt_rd_db(mpt_softc_t *mpt);
+static __inline  u_int32_t mpt_rd_intr(mpt_softc_t *mpt);
 
 static __inline u_int32_t
-mpt_rd_db(struct mpt_softc *mpt)
+mpt_rd_db(mpt_softc_t *mpt)
 {
 	return mpt_read(mpt, MPT_OFFSET_DOORBELL);
 }
 
 static __inline u_int32_t
-mpt_rd_intr(struct mpt_softc *mpt)
+mpt_rd_intr(mpt_softc_t *mpt)
 {
 	return mpt_read(mpt, MPT_OFFSET_INTR_STATUS);
 }
 
 /* Busy wait for a door bell to be read by IOC */
 static int
-mpt_wait_db_ack(struct mpt_softc *mpt)
+mpt_wait_db_ack(mpt_softc_t *mpt)
 {
 	int i;
 	for (i=0; i < MPT_MAX_WAIT; i++) {
@@ -72,7 +72,7 @@ mpt_wait_db_ack(struct mpt_softc *mpt)
 
 /* Busy wait for a door bell interrupt */
 static int
-mpt_wait_db_int(struct mpt_softc *mpt)
+mpt_wait_db_int(mpt_softc_t *mpt)
 {
 	int i;
 	for (i=0; i < MPT_MAX_WAIT; i++) {
@@ -87,7 +87,7 @@ mpt_wait_db_int(struct mpt_softc *mpt)
 
 /* Wait for IOC to transition to a give state */
 void
-mpt_check_doorbell(struct mpt_softc *mpt)
+mpt_check_doorbell(mpt_softc_t *mpt)
 {
 	u_int32_t db = mpt_rd_db(mpt);
 	if (MPT_STATE(db) != MPT_DB_STATE_RUNNING) {
@@ -98,7 +98,7 @@ mpt_check_doorbell(struct mpt_softc *mpt)
 
 /* Wait for IOC to transition to a give state */
 static int
-mpt_wait_state(struct mpt_softc *mpt, enum DB_STATE_BITS state)
+mpt_wait_state(mpt_softc_t *mpt, enum DB_STATE_BITS state)
 {
 	int i;
 
@@ -116,7 +116,7 @@ mpt_wait_state(struct mpt_softc *mpt, enum DB_STATE_BITS state)
 
 /* Issue the reset COMMAND to the IOC */
 int
-mpt_soft_reset(struct mpt_softc *mpt)
+mpt_soft_reset(mpt_softc_t *mpt)
 {
 	if (mpt->verbose) {
 		device_printf(mpt->dev,"soft reset\n");
@@ -160,7 +160,7 @@ mpt_soft_reset(struct mpt_softc *mpt)
  * processors in the chip. 
  */
 void
-mpt_hard_reset(struct mpt_softc *mpt)
+mpt_hard_reset(mpt_softc_t *mpt)
 {
 	/* This extra read comes for the Linux source
 	 * released by LSI. It's function is undocumented!
@@ -204,7 +204,7 @@ mpt_hard_reset(struct mpt_softc *mpt)
  * fouls up the PCI configuration registers.
  */
 int
-mpt_reset(struct mpt_softc *mpt)
+mpt_reset(mpt_softc_t *mpt)
 {
 	int ret;
 
@@ -225,7 +225,7 @@ mpt_reset(struct mpt_softc *mpt)
 
 /* Return a command buffer to the free queue */
 void
-mpt_free_request(struct mpt_softc *mpt, request_t *req)
+mpt_free_request(mpt_softc_t *mpt, request_t *req)
 {
 	if (req == NULL || req != &mpt->requests[req->index]) {
 		panic("mpt_free_request bad req ptr\n");
@@ -238,7 +238,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 
 /* Get a command buffer from the free queue */
 request_t *
-mpt_get_request(struct mpt_softc *mpt)
+mpt_get_request(mpt_softc_t *mpt)
 {
 	request_t *req;
 	req = SLIST_FIRST(&mpt->request_free_list);
@@ -257,7 +257,7 @@ mpt_get_request(struct mpt_softc *mpt)
 
 /* Pass the command to the IOC */
 void
-mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
+mpt_send_cmd(mpt_softc_t *mpt, request_t *req)
 {
 	req->sequence = mpt->sequence++;
 	if (mpt->verbose > 1) {
@@ -285,14 +285,14 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
  * finished processing it.
  */
 void
-mpt_free_reply(struct mpt_softc *mpt, u_int32_t ptr)
+mpt_free_reply(mpt_softc_t *mpt, u_int32_t ptr)
 {
      mpt_write(mpt, MPT_OFFSET_REPLY_Q, ptr);
 }
 
 /* Get a reply from the IOC */
 u_int32_t
-mpt_pop_reply_queue(struct mpt_softc *mpt)
+mpt_pop_reply_queue(mpt_softc_t *mpt)
 {
      return mpt_read(mpt, MPT_OFFSET_REPLY_Q);
 }
@@ -304,7 +304,7 @@ mpt_pop_reply_queue(struct mpt_softc *mpt)
  * commands such as device/bus reset as specified by LSI.
  */
 int
-mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
+mpt_send_handshake_cmd(mpt_softc_t *mpt, size_t len, void *cmd)
 {
 	int i;
 	u_int32_t data, *data32;
@@ -365,7 +365,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 
 /* Get the response from the handshake register */
 int
-mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
+mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply)
 {
 	int left, reply_left;
 	u_int16_t *data16;
@@ -436,9 +436,8 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	return (0);
 }
 
-/* Get API statistics from the chip */
 static int
-mpt_get_iocfacts(struct mpt_softc *mpt, MSG_IOC_FACTS_REPLY *freplp)
+mpt_get_iocfacts(mpt_softc_t *mpt, MSG_IOC_FACTS_REPLY *freplp)
 {
 	MSG_IOC_FACTS f_req;
 	int error;
@@ -453,6 +452,23 @@ mpt_get_iocfacts(struct mpt_softc *mpt, MSG_IOC_FACTS_REPLY *freplp)
 	return (error);
 }
 
+static int
+mpt_get_portfacts(mpt_softc_t *mpt, MSG_PORT_FACTS_REPLY *freplp)
+{
+	MSG_PORT_FACTS f_req;
+	int error;
+	
+	/* XXX: Only getting PORT FACTS for Port 0 */
+	bzero(&f_req, sizeof f_req);
+	f_req.Function = MPI_FUNCTION_PORT_FACTS;
+	f_req.MsgContext =  0x12071943;
+	error = mpt_send_handshake_cmd(mpt, sizeof f_req, &f_req);
+	if (error)
+		return(error);
+	error = mpt_recv_handshake_reply(mpt, sizeof (*freplp), freplp);
+	return (error);
+}
+
 /*
  * Send the initialization request. This is where we specify how many
  * SCSI busses and how many devices per bus we wish to emulate.
@@ -460,7 +476,7 @@ mpt_get_iocfacts(struct mpt_softc *mpt, MSG_IOC_FACTS_REPLY *freplp)
  * frames from the IOC that we will be allocating.
  */
 static int
-mpt_send_ioc_init(struct mpt_softc *mpt, u_int32_t who)
+mpt_send_ioc_init(mpt_softc_t *mpt, u_int32_t who)
 {
 	int error = 0;
 	MSG_IOC_INIT init;
@@ -486,9 +502,446 @@ mpt_send_ioc_init(struct mpt_softc *mpt, u_int32_t who)
 	return (error);
 }
 
-/* Send the port enable to allow the IOC to join the FC loop */
+
+/*
+ * Utiltity routine to read configuration headers and pages
+ */
+
 static int
-mpt_send_port_enable(struct mpt_softc *mpt, int port)
+mpt_read_cfg_header(mpt_softc_t *, int, int, int, fCONFIG_PAGE_HEADER *);
+static int
+mpt_read_cfg_page(mpt_softc_t *, int, fCONFIG_PAGE_HEADER *);
+static int
+mpt_write_cfg_page(mpt_softc_t *, int, fCONFIG_PAGE_HEADER *);
+
+static int
+mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
+    int PageAddress, fCONFIG_PAGE_HEADER *rslt)
+{
+	int count;
+	request_t *req;
+	MSG_CONFIG *cfgp;
+	MSG_CONFIG_REPLY *reply;
+
+	req = mpt_get_request(mpt);
+
+	cfgp = req->req_vbuf;
+	bzero(cfgp, sizeof *cfgp);
+
+	cfgp->Action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfgp->Function = MPI_FUNCTION_CONFIG;
+	cfgp->Header.PageNumber = (U8) PageNumber;
+	cfgp->Header.PageType = (U8) PageType;
+	cfgp->PageAddress = PageAddress;
+	MPI_pSGE_SET_FLAGS(((SGE_SIMPLE32 *) &cfgp->PageBufferSGE),
+	    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
+	    MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_END_OF_LIST));
+	cfgp->MsgContext = req->index | 0x80000000;
+
+	mpt_check_doorbell(mpt);
+	mpt_send_cmd(mpt, req);
+	count = 0;
+	do {
+		DELAY(500);
+		mpt_intr(mpt);
+		if (++count == 1000) {
+			device_printf(mpt->dev, "read_cfg_header timed out\n");
+			return (-1);
+		}
+	} while (req->debug == REQ_ON_CHIP);
+
+	reply = (MSG_CONFIG_REPLY *) MPT_REPLY_PTOV(mpt, req->sequence);
+        if ((reply->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
+		device_printf(mpt->dev,
+		    "mpt_read_cfg_header: Config Info Status %x\n",
+		    reply->IOCStatus);
+		return (-1);
+	}
+	bcopy(&reply->Header, rslt, sizeof (fCONFIG_PAGE_HEADER));
+	mpt_free_reply(mpt, (req->sequence << 1));
+	mpt_free_request(mpt, req);
+	return (0);
+}
+
+#define	CFG_DATA_OFF	40
+
+static int
+mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
+{
+	int count;
+	request_t *req;
+	SGE_SIMPLE32 *se;
+	MSG_CONFIG *cfgp;
+	size_t amt;
+	MSG_CONFIG_REPLY *reply;
+
+	req = mpt_get_request(mpt);
+
+	cfgp = req->req_vbuf;
+ 	amt = (cfgp->Header.PageLength * sizeof (uint32_t));
+	bzero(cfgp, sizeof *cfgp);
+	cfgp->Action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+	cfgp->Function = MPI_FUNCTION_CONFIG;
+	cfgp->Header = *hdr;
+	cfgp->Header.PageType &= MPI_CONFIG_PAGETYPE_MASK;
+	cfgp->PageAddress = PageAddress;
+	se = (SGE_SIMPLE32 *) &cfgp->PageBufferSGE;
+	se->Address = req->req_pbuf + CFG_DATA_OFF;
+	MPI_pSGE_SET_LENGTH(se, amt);
+	MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
+	    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
+	    MPI_SGE_FLAGS_END_OF_LIST));
+
+	cfgp->MsgContext = req->index | 0x80000000;
+
+	mpt_check_doorbell(mpt);
+	mpt_send_cmd(mpt, req);
+	count = 0;
+	do {
+		DELAY(500);
+		mpt_intr(mpt);
+		if (++count == 1000) {
+			device_printf(mpt->dev, "read_cfg_page timed out\n");
+			return (-1);
+		}
+	} while (req->debug == REQ_ON_CHIP);
+
+	reply = (MSG_CONFIG_REPLY *) MPT_REPLY_PTOV(mpt, req->sequence);
+        if ((reply->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
+		device_printf(mpt->dev,
+		    "mpt_read_cfg_page: Config Info Status %x\n",
+		    reply->IOCStatus);
+		return (-1);
+	}
+	mpt_free_reply(mpt, (req->sequence << 1));
+	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+	    BUS_DMASYNC_POSTREAD);
+	if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
+	    cfgp->Header.PageNumber == 0) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_0);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
+	    cfgp->Header.PageNumber == 1) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_1);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
+	    cfgp->Header.PageNumber == 2) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_2);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
+	    cfgp->Header.PageNumber == 0) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_0);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
+	    cfgp->Header.PageNumber == 1) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_1);
+	}
+	bcopy(((caddr_t)req->req_vbuf)+CFG_DATA_OFF, hdr, amt);
+	mpt_free_request(mpt, req);
+	return (0);
+}
+
+static int
+mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
+{
+	int count, hdr_attr;
+	request_t *req;
+	SGE_SIMPLE32 *se;
+	MSG_CONFIG *cfgp;
+	size_t amt;
+	MSG_CONFIG_REPLY *reply;
+
+	req = mpt_get_request(mpt);
+
+	cfgp = req->req_vbuf;
+	bzero(cfgp, sizeof *cfgp);
+
+	hdr_attr = hdr->PageType & MPI_CONFIG_PAGEATTR_MASK;
+	if (hdr_attr != MPI_CONFIG_PAGEATTR_CHANGEABLE &&
+	    hdr_attr != MPI_CONFIG_PAGEATTR_PERSISTENT) {
+		device_printf(mpt->dev, "page type 0x%x not changeable\n",
+		    hdr->PageType & MPI_CONFIG_PAGETYPE_MASK);
+		return (-1);
+	}
+	hdr->PageType &= MPI_CONFIG_PAGETYPE_MASK;
+
+ 	amt = (cfgp->Header.PageLength * sizeof (uint32_t));
+	cfgp->Action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
+	cfgp->Function = MPI_FUNCTION_CONFIG;
+	cfgp->Header = *hdr;
+	cfgp->PageAddress = PageAddress;
+
+	se = (SGE_SIMPLE32 *) &cfgp->PageBufferSGE;
+	se->Address = req->req_pbuf + CFG_DATA_OFF;
+	MPI_pSGE_SET_LENGTH(se, amt);
+	MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
+	    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
+	    MPI_SGE_FLAGS_END_OF_LIST | MPI_SGE_FLAGS_HOST_TO_IOC));
+
+	cfgp->MsgContext = req->index | 0x80000000;
+
+	if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
+	    cfgp->Header.PageNumber == 0) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_0);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
+	    cfgp->Header.PageNumber == 1) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_1);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
+	    cfgp->Header.PageNumber == 2) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_2);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
+	    cfgp->Header.PageNumber == 0) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_0);
+	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
+	    cfgp->Header.PageNumber == 1) {
+		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_1);
+	}
+	bcopy(hdr, ((caddr_t)req->req_vbuf)+CFG_DATA_OFF, amt);
+
+	mpt_check_doorbell(mpt);
+	mpt_send_cmd(mpt, req);
+	count = 0;
+	do {
+		DELAY(500);
+		mpt_intr(mpt);
+		if (++count == 1000) {
+			hdr->PageType |= hdr_attr;
+			device_printf(mpt->dev,
+			    "mpt_write_cfg_page timed out\n");
+			return (-1);
+		}
+	} while (req->debug == REQ_ON_CHIP);
+
+	reply = (MSG_CONFIG_REPLY *) MPT_REPLY_PTOV(mpt, req->sequence);
+        if ((reply->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
+		device_printf(mpt->dev,
+		    "mpt_write_cfg_page: Config Info Status %x\n",
+		    reply->IOCStatus);
+		return (-1);
+	}
+	mpt_free_reply(mpt, (req->sequence << 1));
+
+	/*
+	 * Restore stripped out attributes
+	 */
+	hdr->PageType |= hdr_attr;
+	mpt_free_request(mpt, req);
+	return (0);
+}
+
+/*
+ * Read SCSI configuration information
+ */
+static int
+mpt_read_config_info_spi(mpt_softc_t *mpt)
+{
+	int rv, i;
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 0,
+	    0, &mpt->mpt_port_page0.Header);
+	if (rv) {
+		return (-1);
+	}
+	if (mpt->verbose > 1) {
+		device_printf(mpt->dev, "SPI Port Page 0 Header: %x %x %x %x\n",
+		    mpt->mpt_port_page0.Header.PageVersion,
+		    mpt->mpt_port_page0.Header.PageLength,
+		    mpt->mpt_port_page0.Header.PageNumber,
+		    mpt->mpt_port_page0.Header.PageType);
+	}
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 1,
+	    0, &mpt->mpt_port_page1.Header);
+	if (rv) {
+		return (-1);
+	}
+	if (mpt->verbose > 1) {
+		device_printf(mpt->dev, "SPI Port Page 1 Header: %x %x %x %x\n",
+		    mpt->mpt_port_page1.Header.PageVersion,
+		    mpt->mpt_port_page1.Header.PageLength,
+		    mpt->mpt_port_page1.Header.PageNumber,
+		    mpt->mpt_port_page1.Header.PageType);
+	}
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 2,
+	    0, &mpt->mpt_port_page2.Header);
+	if (rv) {
+		return (-1);
+	}
+
+	if (mpt->verbose > 1) {
+		device_printf(mpt->dev, "SPI Port Page 2 Header: %x %x %x %x\n",
+		    mpt->mpt_port_page1.Header.PageVersion,
+		    mpt->mpt_port_page1.Header.PageLength,
+		    mpt->mpt_port_page1.Header.PageNumber,
+		    mpt->mpt_port_page1.Header.PageType);
+	}
+
+	for (i = 0; i < 16; i++) {
+		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
+		    0, i, &mpt->mpt_dev_page0[i].Header);
+		if (rv) {
+			return (-1);
+		}
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev,
+			    "SPI Target %d Device Page 0 Header: %x %x %x %x\n",
+			    i, mpt->mpt_dev_page0[i].Header.PageVersion,
+			    mpt->mpt_dev_page0[i].Header.PageLength,
+			    mpt->mpt_dev_page0[i].Header.PageNumber,
+			    mpt->mpt_dev_page0[i].Header.PageType);
+		}
+		
+		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
+		    1, i, &mpt->mpt_dev_page1[i].Header);
+		if (rv) {
+			return (-1);
+		}
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev,
+			    "SPI Target %d Device Page 1 Header: %x %x %x %x\n",
+			    i, mpt->mpt_dev_page1[i].Header.PageVersion,
+			    mpt->mpt_dev_page1[i].Header.PageLength,
+			    mpt->mpt_dev_page1[i].Header.PageNumber,
+			    mpt->mpt_dev_page1[i].Header.PageType);
+		}
+	}
+
+	/*
+	 * At this point, we don't *have* to fail. As long as we have
+	 * valid config header information, we can (barely) lurch
+	 * along.
+	 */
+
+	rv = mpt_read_cfg_page(mpt, 0, &mpt->mpt_port_page0.Header);
+	if (rv) {
+		device_printf(mpt->dev, "failed to read SPI Port Page 0\n");
+	} else if (mpt->verbose > 1) {
+		device_printf(mpt->dev,
+		    "SPI Port Page 0: Capabilities %x PhysicalInterface %x\n",
+		    mpt->mpt_port_page0.Capabilities,
+		    mpt->mpt_port_page0.PhysicalInterface);
+	}
+
+	rv = mpt_read_cfg_page(mpt, 0, &mpt->mpt_port_page1.Header);
+	if (rv) {
+		device_printf(mpt->dev, "failed to read SPI Port Page 1\n");
+	} else if (mpt->verbose > 1) {
+		device_printf(mpt->dev,
+		    "SPI Port Page 1: Configuration %x OnBusTimerValue %x\n",
+		    mpt->mpt_port_page1.Configuration,
+		    mpt->mpt_port_page1.OnBusTimerValue);
+	}
+
+	rv = mpt_read_cfg_page(mpt, 0, &mpt->mpt_port_page2.Header);
+	if (rv) {
+		device_printf(mpt->dev, "failed to read SPI Port Page 2\n");
+	} else if (mpt->verbose > 1) {
+		device_printf(mpt->dev,
+		    "SPI Port Page 2: Flags %x Settings %x\n",
+		    mpt->mpt_port_page2.PortFlags,
+		    mpt->mpt_port_page2.PortSettings);
+		for (i = 0; i < 16; i++) {
+			device_printf(mpt->dev,
+		  	    "SPI Port Page 2 Tgt %d: timo %x SF %x Flags %x\n",
+			    i, mpt->mpt_port_page2.DeviceSettings[i].Timeout,
+			    mpt->mpt_port_page2.DeviceSettings[i].SyncFactor,
+			    mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags);
+		}
+	}
+
+	for (i = 0; i < 16; i++) {
+		rv = mpt_read_cfg_page(mpt, i, &mpt->mpt_dev_page0[i].Header);
+		if (rv) {
+			device_printf(mpt->dev,
+			    "cannot read SPI Tgt %d Device Page 0\n", i);
+			continue;
+		}
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev,
+			    "SPI Tgt %d Page 0: NParms %x Information %x\n",
+			    i, mpt->mpt_dev_page0[i].NegotiatedParameters,
+			    mpt->mpt_dev_page0[i].Information);
+		}
+		rv = mpt_read_cfg_page(mpt, i, &mpt->mpt_dev_page1[i].Header);
+		if (rv) {
+			device_printf(mpt->dev,
+			    "cannot read SPI Tgt %d Device Page 1\n", i);
+			continue;
+		}
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev,
+			    "SPI Tgt %d Page 1: RParms %x Configuration %x\n",
+			    i, mpt->mpt_dev_page1[i].RequestedParameters,
+			    mpt->mpt_dev_page1[i].Configuration);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Validate SPI configuration information.
+ *
+ * In particular, validate SPI Port Page 1.
+ */
+static int
+mpt_set_initial_config_spi(mpt_softc_t *mpt)
+{
+	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
+
+	if (mpt->mpt_port_page1.Configuration != pp1val) {
+		fCONFIG_PAGE_SCSI_PORT_1 tmp;
+		device_printf(mpt->dev,
+		    "SPI Port Page 1 Config value bad (%x)- should be %x\n",
+		    mpt->mpt_port_page1.Configuration, pp1val);
+		tmp = mpt->mpt_port_page1;
+		tmp.Configuration = pp1val;
+		if (mpt_write_cfg_page(mpt, 0, &tmp.Header)) {
+			return (-1);
+		}
+		if (mpt_read_cfg_page(mpt, 0, &tmp.Header)) {
+			return (-1);
+		}
+		if (tmp.Configuration != pp1val) {
+			device_printf(mpt->dev,
+			    "failed to reset SPI Port Page 1 Config value\n");
+			return (-1);
+		}
+		mpt->mpt_port_page1 = tmp;
+	}
+
+#if	1
+	i = i;
+#else
+	for (i = 0; i < 16; i++) {
+		fCONFIG_PAGE_SCSI_DEVICE_1 tmp;
+		tmp = mpt->mpt_dev_page1[i];
+		tmp.RequestedParameters = 0;
+		tmp.Configuration = 0;
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev,
+			    "Set Tgt %d SPI DevicePage 1 values to %x 0 %x\n",
+			    i, tmp.RequestedParameters, tmp.Configuration);
+		}
+		if (mpt_write_cfg_page(mpt, i, &tmp.Header)) {
+			return (-1);
+		}
+		if (mpt_read_cfg_page(mpt, i, &tmp.Header)) {
+			return (-1);
+		}
+		mpt->mpt_dev_page1[i] = tmp;
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev,
+		 	    "SPI Tgt %d Page 1: RParm %x Configuration %x\n", i,
+			    mpt->mpt_dev_page1[i].RequestedParameters,
+			    mpt->mpt_dev_page1[i].Configuration);
+		}
+	}
+#endif
+	return (0);
+}
+
+/*
+ * Enable IOC port
+ */
+static int
+mpt_send_port_enable(mpt_softc_t *mpt, int port)
 {
 	int count;
 	request_t *req;
@@ -529,7 +982,7 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
  * instead of the handshake register.
  */
 static int
-mpt_send_event_request(struct mpt_softc *mpt, int onoff)
+mpt_send_event_request(mpt_softc_t *mpt, int onoff)
 {
 	request_t *req;
 	MSG_EVENT_NOTIFY *enable_req;
@@ -557,7 +1010,7 @@ mpt_send_event_request(struct mpt_softc *mpt, int onoff)
  * Un-mask the interupts on the chip.
  */
 void
-mpt_enable_ints(struct mpt_softc *mpt)
+mpt_enable_ints(mpt_softc_t *mpt)
 {
 	/* Unmask every thing except door bell int */
 	mpt_write(mpt, MPT_OFFSET_INTR_MASK, MPT_INTR_DB_MASK);
@@ -567,7 +1020,7 @@ mpt_enable_ints(struct mpt_softc *mpt)
  * Mask the interupts on the chip.
  */
 void
-mpt_disable_ints(struct mpt_softc *mpt)
+mpt_disable_ints(mpt_softc_t *mpt)
 {
 	/* Mask all interrupts */
 	mpt_write(mpt, MPT_OFFSET_INTR_MASK, 
@@ -576,10 +1029,11 @@ mpt_disable_ints(struct mpt_softc *mpt)
 
 /* (Re)Initialize the chip for use */
 int
-mpt_init(struct mpt_softc *mpt, u_int32_t who)
+mpt_init(mpt_softc_t *mpt, u_int32_t who)
 {
         int try;
         MSG_IOC_FACTS_REPLY facts;
+        MSG_PORT_FACTS_REPLY pfp;
 	u_int32_t pptr;
         int val;
 
@@ -629,20 +1083,51 @@ mpt_init(struct mpt_softc *mpt, u_int32_t who)
 		if (mpt_get_iocfacts(mpt, &facts) != MPT_OK) {
 			device_printf(mpt->dev, "mpt_get_iocfacts failed\n");
 			continue;
-		} else if (mpt->verbose > 1) {
+		}
+
+		if (mpt->verbose > 1) {
 			device_printf(mpt->dev,
 			    "mpt_get_iocfacts: GlobalCredits=%d BlockSize=%u "
 			    "Request Frame Size %u\n", facts.GlobalCredits,
 			    facts.BlockSize, facts.RequestFrameSize);
 		}
 		mpt->mpt_global_credits = facts.GlobalCredits;
-		mpt->blk_size = facts.BlockSize;
 		mpt->request_frame_size = facts.RequestFrameSize;
+
+		if (mpt_get_portfacts(mpt, &pfp) != MPT_OK) {
+			device_printf(mpt->dev, "mpt_get_portfacts failed\n");
+			continue;
+		}
+
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev,
+			    "mpt_get_portfacts: Type %x PFlags %x IID %d\n",
+			    pfp.PortType, pfp.ProtocolFlags, pfp.PortSCSIID);
+		}
+
+		if (pfp.PortType != MPI_PORTFACTS_PORTTYPE_SCSI &&
+		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_FC) {
+			device_printf(mpt->dev, "Unsupported Port Type (%x)\n",
+			    pfp.PortType);
+			return (ENXIO);
+		}
+		if (!(pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR)) {
+			device_printf(mpt->dev, "initiator role unsupported\n");
+			return (ENXIO);
+		}
+		if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_FC) {
+			mpt->is_fc = 1;
+		} else {
+			mpt->is_fc = 0;
+		}
+		mpt->mpt_ini_id = pfp.PortSCSIID;
 
 		if (mpt_send_ioc_init(mpt, who) != MPT_OK) {
 			device_printf(mpt->dev, "mpt_send_ioc_init failed\n");
 			continue;
-		} else if (mpt->verbose > 1) {
+		}
+
+		if (mpt->verbose > 1) {
 			device_printf(mpt->dev, "mpt_send_ioc_init ok\n");
 		}
 
@@ -650,7 +1135,8 @@ mpt_init(struct mpt_softc *mpt, u_int32_t who)
 			device_printf(mpt->dev,
 			    "IOC failed to go to run state\n");
 			continue;
-		} else if (mpt->verbose > 1) {
+		}
+		if (mpt->verbose > 1) {
 			device_printf(mpt->dev, "IOC now at RUNSTATE\n");
 		}
 
@@ -667,12 +1153,35 @@ mpt_init(struct mpt_softc *mpt, u_int32_t who)
 				break;
 		}
 
+		/*
+		 * Enable asynchronous event reporting
+		 */
 		mpt_send_event_request(mpt, 1);
 
+
+		/*
+		 * Read set up initial configuration information
+		 * (SPI only for now)
+		 */
+
+		if (mpt->is_fc == 0) {
+			if (mpt_read_config_info_spi(mpt)) {
+				return (EIO);
+			}
+			if (mpt_set_initial_config_spi(mpt)) {
+				return (EIO);
+			}
+		}
+
+		/*
+		 * Now enable the port
+		 */
 		if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
 			device_printf(mpt->dev, "failed to enable port 0\n");
 			continue;
-		} else if (mpt->verbose > 1) {
+		}
+
+		if (mpt->verbose > 1) {
 			device_printf(mpt->dev, "enabled port 0\n");
 		}
 

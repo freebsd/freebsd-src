@@ -30,7 +30,7 @@
  * Additional Copyright (c) 2002 by Matthew Jacob under same license.
  */
 
-#include <dev/mpt/mpt.h>
+#include <dev/mpt/mpt_freebsd.h>
 
 struct Error_Map {
 	int 	 Error_Code;
@@ -324,7 +324,7 @@ mpt_print_ioc_facts(MSG_IOC_FACTS_REPLY *msg)
 	printf("\tFlags         %d\n",		msg->Flags);
 	printf("\tReplyQueueDepth %d\n",	msg->ReplyQueueDepth);
 	printf("\tReqFrameSize  0x%04x\n",	msg->RequestFrameSize);
-	printf("\tFW Version    0x%04x\n",	msg->FWVersion);
+	printf("\tFW Version    0x%08x\n",	msg->FWVersion.Word);
 	printf("\tProduct ID    0x%04x\n",	msg->ProductID);
 	printf("\tCredits       0x%04x\n",	msg->GlobalCredits);
 	printf("\tPorts         %d\n",		msg->NumberOfPorts);

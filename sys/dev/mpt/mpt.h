@@ -145,33 +145,24 @@ enum _MPT_DIAG_BITS {
 #define MPT_CONTEXT_REPLY (0x80000000)
 #define MPT_CONTEXT_MASK  (~0xE0000000)
 
-#include "dev/mpt/mpilib/mpi_type.h"
-#include "dev/mpt/mpilib/mpi.h"
-#include "dev/mpt/mpilib/mpi_cnfg.h"
-#include "dev/mpt/mpilib/mpi_fc.h"
-#include "dev/mpt/mpilib/mpi_init.h"
-#include "dev/mpt/mpilib/mpi_ioc.h"
-#include "dev/mpt/mpilib/mpi_lan.h"
-#include "dev/mpt/mpilib/mpi_targ.h"
-
 #ifdef _KERNEL
-int mpt_soft_reset(struct mpt_softc *mpt);
-void mpt_hard_reset(struct mpt_softc *mpt);
-int mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply);
+int mpt_soft_reset(mpt_softc_t *mpt);
+void mpt_hard_reset(mpt_softc_t *mpt);
+int mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply);
 
 
-void mpt_send_cmd(struct mpt_softc *mpt, request_t *req);
-void mpt_free_reply(struct mpt_softc *mpt, u_int32_t ptr);
-void mpt_enable_ints(struct mpt_softc *mpt);
-void mpt_disable_ints(struct mpt_softc *mpt);
-u_int32_t mpt_pop_reply_queue(struct mpt_softc *mpt);
-int mpt_init(struct mpt_softc *mpt, u_int32_t who);
-int mpt_reset(struct mpt_softc *mpt);
-int mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd);
-request_t * mpt_get_request(struct mpt_softc *mpt);
-void mpt_free_request(struct mpt_softc *mpt, request_t *req);
+void mpt_send_cmd(mpt_softc_t *mpt, request_t *req);
+void mpt_free_reply(mpt_softc_t *mpt, u_int32_t ptr);
+void mpt_enable_ints(mpt_softc_t *mpt);
+void mpt_disable_ints(mpt_softc_t *mpt);
+u_int32_t mpt_pop_reply_queue(mpt_softc_t *mpt);
+int mpt_init(mpt_softc_t *mpt, u_int32_t who);
+int mpt_reset(mpt_softc_t *mpt);
+int mpt_send_handshake_cmd(mpt_softc_t *mpt, size_t len, void *cmd);
+request_t * mpt_get_request(mpt_softc_t *mpt);
+void mpt_free_request(mpt_softc_t *mpt, request_t *req);
 int mpt_intr(void *dummy);
-void mpt_check_doorbell(struct mpt_softc* mpt);
+void mpt_check_doorbell(mpt_softc_t * mpt);
 
 /* mpt_debug.c functions */
 void mpt_print_reply(void *vmsg);
@@ -182,6 +173,5 @@ char *mpt_req_state(enum mpt_req_state state);
 void mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *msg);
 void mpt_print_config_request(void *vmsg);
 void mpt_print_request(void *vmsg);
-#endif /* _KERNEL */
-
+#endif
 #endif /* _MPT_H_ */
