@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.30 1994/10/19 01:59:06 wollman Exp $
+ *	$Id: isa.c,v 1.31 1994/10/19 21:57:51 bde Exp $
  */
 
 /*
@@ -105,6 +105,16 @@ u_long	*intr_countp[ICU_LEN];
 inthand2_t *intr_handler[ICU_LEN];
 u_int	intr_mask[ICU_LEN];
 int	intr_unit[ICU_LEN];
+
+struct kern_devconf kdc_isa0 = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"isa", 0, { MDDT_BUS, 0 },
+	0, 0, 0, BUS_EXTERNALLEN,
+	0,			/* no parent yet; parent should be CPU */
+	0,			/* no parentdata */
+	DC_BUSY,		/* busses are always busy */
+	"ISA or EISA bus"
+};
 
 static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
@@ -269,6 +279,8 @@ haveseen_isadev(dvp, checkbits)
 void
 isa_configure() {
 	struct isa_device *dvp;
+
+	dev_attach(&kdc_isa0);
 
 	splhigh();
 	enable_intr();

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.19 1994/09/28 20:16:45 se Exp $
+ * $Id: st.c,v 1.20 1994/10/19 00:09:47 wollman Exp $
  */
 
 /*
@@ -33,7 +33,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <fcntl.h>
+#include <sys/fcntl.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/malloc.h>
@@ -273,8 +273,12 @@ st_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 
 static struct kern_devconf kdc_st_template = {
 	0, 0, 0,		/* filled in by dev_attach */
-	"st", 0, { "scsi", MDDT_SCSI, 0 },
-	st_externalize, 0, st_goaway, SCSI_EXTERNALLEN
+	"st", 0, MDDC_SCSI,
+	st_externalize, 0, st_goaway, SCSI_EXTERNALLEN,
+	&kdc_scbus0,		/* XXX parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"SCSI tape drive"
 };
 
 static inline void

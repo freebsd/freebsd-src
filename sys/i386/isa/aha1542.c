@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.36 1994/10/10 01:12:23 phk Exp $
+ *      $Id: aha1542.c,v 1.37 1994/10/19 01:58:50 wollman Exp $
  */
 
 /*
@@ -347,8 +347,12 @@ struct isa_driver ahadriver =
 
 static struct kern_devconf kdc_aha[NAHA] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"aha", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"aha", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* host adapters are always busy */
+	"Adaptec 154x-series SCSI host adapter"
 } };
 
 static inline void
@@ -357,7 +361,7 @@ aha_registerdev(struct isa_device *id)
 	if(id->id_unit)
 		kdc_aha[id->id_unit] = kdc_aha[0];
 	kdc_aha[id->id_unit].kdc_unit = id->id_unit;
-	kdc_aha[id->id_unit].kdc_isa = id;
+	kdc_aha[id->id_unit].kdc_parentdata = id;
 	dev_attach(&kdc_aha[id->id_unit]);
 }
 

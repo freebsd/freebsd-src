@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.9 1994/10/19 00:09:44 wollman Exp $
+ *      $Id: ch.c,v 1.10 1994/10/21 01:19:20 wollman Exp $
  */
 
 #include	<sys/types.h>
@@ -94,8 +94,12 @@ ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 
 static struct kern_devconf kdc_ch_template = {
 	0, 0, 0,		/* filled in by dev_attach */
-	"ch", 0, { "scsi", MDDT_SCSI, 0 },
-	ch_externalize, 0, ch_goaway, SCSI_EXTERNALLEN
+	"ch", 0, MDDC_SCSI,
+	ch_externalize, 0, ch_goaway, SCSI_EXTERNALLEN,
+	&kdc_scbus0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"SCSI media changer"
 };
 
 static inline void

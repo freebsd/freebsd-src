@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.2 1994/10/19 01:58:55 wollman Exp $
+ *	$Id: ctx.c,v 1.3 1994/10/21 01:19:05 wollman Exp $
  */
 
 /*
@@ -156,8 +156,12 @@ struct ctx_soft_registers {
 
 static struct kern_devconf kdc_ctx[NCTX] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"ctx", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"ctx", 0, { MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"CORTEX-I frame grabber"
 } };
 
 static inline void

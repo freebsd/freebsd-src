@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.1 1994/10/16 03:52:59 wollman Exp $
+ *	$Id: devconf.h,v 1.2 1994/10/19 00:10:10 wollman Exp $
  */
 
 /*
@@ -37,14 +37,27 @@
 #include <machine/devconf.h>
 
 #define	MAXDEVNAME	32
+#define MAXDEVDESCR	64
+
+enum dc_state {
+	DC_UNKNOWN = 0,		/* don't know the state or driver doesn't support */
+	DC_UNCONFIGURED,	/* driver is present but not configured */
+	DC_IDLE,		/* driver supports state and is not in use */
+	DC_BUSY			/* driver supports state and is currently busy */
+};
 
 struct devconf {
-	char dc_name[MAXDEVNAME]; /* name of the device */
-	int dc_unit;		/* unit number of the device */
-	int dc_number;		/* device unique id */
-	struct machdep_devconf dc_md; /* machine-dependent stuff */
-	size_t dc_datalen;	/* length of data */
-	char dc_data[1];	/* variable-length data */
+	char dc_name[MAXDEVNAME]; 	/* name */
+	char dc_descr[MAXDEVDESCR];	/* description */
+	int dc_unit;			/* unit number */
+	int dc_number;			/* unique id */
+	char dc_pname[MAXDEVNAME]; 	/* name of the parent device */
+	int dc_punit;			/* unit number of the parent */
+	int dc_pnumber;			/* unique id of the parent */
+	struct machdep_devconf dc_md;	/* machine-dependent stuff */
+	enum dc_state dc_state;		/* state of the device (see above) */
+	size_t dc_datalen;		/* length of data */
+	char dc_data[1];		/* variable-length data */
 };
 
 #ifdef KERNEL
@@ -78,11 +91,15 @@ struct kern_devconf {
 	int kdc_number;				/* filled in by kern_devconf */
 	const char *kdc_name;			/* filled in by driver */
 	int kdc_unit;				/* filled in by driver */
-	struct machdep_devconf kdc_md; 		/* filled in by driver */
+	struct machdep_kdevconf kdc_md;		/* filled in by driver */
 	kdc_externalize_t kdc_externalize;	/* filled in by driver */
 	kdc_internalize_t kdc_internalize; 	/* filled in by driver */
 	kdc_goaway_t kdc_goaway;		/* filled in by driver */
 	size_t kdc_datalen;			/* filled in by driver */
+	struct kern_devconf *kdc_parent;	/* filled in by driver */
+	void *kdc_parentdata;			/* filled in by driver */
+	enum dc_state kdc_state; 		/* filled in by driver dynamically */
+	const char *kdc_description; 		/* filled in by driver; maybe dyn. */
 };
 
 int dev_attach(struct kern_devconf *);
@@ -97,7 +114,7 @@ int dev_goawayall(int);
 #define DEVCONF_NUMBER		0	/* get number of devices */
 #define DEVCONF_MAXID		1	/* number of items (not really) */
 
-#define CTL_DEVCONF_NAMES { \
+#define HW_DEVCONF_NAMES { \
 	{ "number", CTLTYPE_INT }, \
 }
 

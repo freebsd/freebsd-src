@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.35 1994/10/19 01:58:56 wollman Exp $
+ *	$Id: fd.c,v 1.36 1994/10/21 16:58:50 joerg Exp $
  *
  */
 
@@ -85,29 +85,50 @@ static int fd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
 /*
  * Templates for the kern_devconf structures used when we attach.
  */
-static struct kern_devconf kdc_fd_template = {
+static struct kern_devconf kdc_fd[NFD] = { {
 	0, 0, 0,		/* filled in by kern_devconf.c */
-	"fd", 0, { "fdc0", MDDT_DISK, 0 },
-	fd_externalize, 0, fd_goaway, DISK_EXTERNALLEN
-};
+	"fd", 0, { MDDT_DISK, 0 },
+	fd_externalize, 0, fd_goaway, DISK_EXTERNALLEN,
+	0,			/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* state */
+	"floppy disk"
+} };
 
-static struct kern_devconf kdc_fdc_template = {
+struct kern_devconf kdc_fdc[NFDC] = { {
 	0, 0, 0,		/* filled in by kern_devconf.c */
-	"fdc", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN
-};
+	"fdc", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN,
+	0,			/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* state */
+	"floppy disk/tape controller"
+} };
 
 static inline void
 fd_registerdev(int ctlr, int unit)
 {
-	struct kern_devconf *kdc;
+	if(unit != 0)
+		kdc_fd[unit] = kdc_fd[0];
 
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc) return;
-	*kdc = kdc_fd_template;
-	kdc->kdc_unit = unit;
-	sprintf(kdc->kdc_md.mddc_parent, "fdc%d", ctlr);
-	dev_attach(kdc);
+	kdc_fd[unit].kdc_unit = unit;
+	kdc_fd[unit].kdc_parent = &kdc_fdc[ctlr];
+	kdc_fd[unit].kdc_parentdata = 0;
+	dev_attach(&kdc_fd[unit]);
+}
+
+static inline void
+fdc_registerdev(struct isa_device *dvp)
+{
+	int unit = dvp->id_unit;
+
+	if(unit != 0)
+		kdc_fdc[unit] = kdc_fdc[0];
+
+	kdc_fdc[unit].kdc_unit = unit;
+	kdc_fdc[unit].kdc_parent = &kdc_isa0;
+	kdc_fdc[unit].kdc_parentdata = dvp;
+	dev_attach(&kdc_fdc[unit]);
 }
 
 static int
@@ -115,7 +136,6 @@ fdc_goaway(struct kern_devconf *kdc, int force)
 {
 	if(force) {
 		dev_detach(kdc);
-		FREE(kdc, M_TEMP);
 		return 0;
 	} else {
 		return EBUSY;	/* XXX fix */
@@ -126,7 +146,6 @@ static int
 fd_goaway(struct kern_devconf *kdc, int force)
 {
 	dev_detach(kdc);
-	FREE(kdc, M_TEMP);
 	return 0;
 }
 
@@ -372,15 +391,8 @@ fdattach(dev)
 	fd_p	fd;
 	int	fdsu, st0, i;
 	struct isa_device *fdup;
-	struct kern_devconf *kdc;
 
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc)
-		return 0;
-	*kdc = kdc_fdc_template;
-	kdc->kdc_unit = fdcu;
-	kdc->kdc_isa = dev;
-	dev_attach(kdc);
+	fdc_registerdev(dev);
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;

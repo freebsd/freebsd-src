@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.56 1994/10/19 21:38:19 bde Exp $
+ *	$Id: sio.c,v 1.57 1994/10/20 00:45:36 phk Exp $
  */
 
 #include "sio.h"
@@ -57,6 +57,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 
 #include <machine/clock.h>
 
@@ -526,6 +527,27 @@ sioprobe(dev)
 	return (result);
 }
 
+static struct kern_devconf kdc_sio[NSIO] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"sio", 0, { MDDT_ISA, 0, "tty" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"RS-232 serial port"
+} };
+
+static inline void
+sio_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_sio[id->id_unit] = kdc_sio[0];
+	kdc_sio[id->id_unit].kdc_unit = id->id_unit;
+	kdc_sio[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_sio[id->id_unit]);
+}
+
+
 static int
 sioattach(isdp)
 	struct isa_device	*isdp;
@@ -659,6 +681,8 @@ determined_type: ;
 	 }
 #endif /* COM_MULTIPORT */
 	printf("\n");
+
+	sio_registerdev(isdp);
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {

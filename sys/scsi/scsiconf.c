@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.10 1994/10/08 22:26:38 phk Exp $
+ *      $Id: scsiconf.c,v 1.11 1994/10/19 20:34:15 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -22,6 +22,8 @@
 #include <sys/systm.h>
 
 #include <sys/malloc.h>
+#include <sys/devconf.h>
+
 #include "st.h"
 #include "sd.h"
 #include "ch.h"
@@ -349,6 +351,24 @@ struct scsi_device probe_switch =
 int32 scsibus = 0x0;		/* This is the Nth scsibus we've seen */
 
 /*
+ * XXX
+ * This is BOGUS.
+ * We do this because it was easier than adding the requisite information
+ * to the scsi_link structure and modifying everything to use that.
+ * Someday, we will do just that, and users will be able to nail down their
+ * preferred SCSI ids.
+ */
+struct kern_devconf kdc_scbus0 = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"scbus", 0, MDDC_SCBUS,
+	0, 0, 0, 0,		/* no external data */
+	0,			/* no parent */
+	0,			/* no parentdata */
+	DC_BUSY,		/* busses are always busy */
+	"SCSI subsystem"
+};
+
+/*
  * The routine called by the adapter boards to get all their
  * devices configured in.
  */
@@ -356,6 +376,10 @@ void
 scsi_attachdevs(sc_link_proto)
 	struct scsi_link *sc_link_proto;
 {
+	static int timesthru = 0;
+	if(!timesthru++) {
+		dev_attach(&kdc_scbus0);
+	}
 
 	if(scsibus >= NSCBUS) {
 		printf("too many scsi busses, reconfigure the kernel\n");

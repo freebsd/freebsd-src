@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.1 1994/10/16 03:52:13 wollman Exp $
+ *	$Id: kern_devconf.c,v 1.3 1994/10/19 01:59:11 wollman Exp $
  */
 
 /*
@@ -103,11 +103,27 @@ static void
 make_devconf(struct kern_devconf *kdc, struct devconf *dc)
 {
 	strncpy(dc->dc_name, kdc->kdc_name, sizeof dc->dc_name);
-	dc->dc_name[sizeof dc->dc_name - 1] = '\0';
+	dc->dc_name[(sizeof dc->dc_name) - 1] = '\0';
 	dc->dc_unit = kdc->kdc_unit;
-	dc->dc_md = kdc->kdc_md;
 	dc->dc_number = kdc->kdc_number;
+
+	if(kdc->kdc_parent) {
+		strncpy(dc->dc_pname, kdc->kdc_parent->kdc_name, sizeof dc->dc_pname);
+		dc->dc_pname[(sizeof dc->dc_pname) - 1] = '\0';
+		dc->dc_punit = kdc->kdc_parent->kdc_unit;
+		dc->dc_pnumber = kdc->kdc_parent->kdc_number;
+	} else {
+		bzero(dc->dc_pname, sizeof dc->dc_pname);
+		dc->dc_punit = -1;
+		dc->dc_pnumber = -1;
+	}
+
+	MACHDEP_COPYDEV(dc, kdc);
+	dc->dc_state = kdc->kdc_state;
 	dc->dc_datalen = kdc->kdc_datalen;
+
+	strncpy(dc->dc_descr, kdc->kdc_description, sizeof dc->dc_descr);
+	dc->dc_descr[(sizeof dc->dc_descr) - 1] = '\0';
 }
 
 int
