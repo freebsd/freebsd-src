@@ -29,6 +29,10 @@
  * $FreeBSD$
  */
 
+#ifdef COMPILING_LINT
+#warning "The ar pci driver is broken and is not compiled with LINT"
+#else
+
 #include "ar.h"
 
 #include <sys/param.h>
@@ -119,3 +123,4 @@ ar_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 }
+#endif
