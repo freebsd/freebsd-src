@@ -176,4 +176,30 @@
 #define AGP_I830_GCC1_GMASIZE_64	0x01
 #define AGP_I830_GCC1_GMASIZE_128	0x00
 
+/*
+ * Config registers for 852GM/855GM/865G device 0
+ */
+#define AGP_I855_GCC1			0x52
+#define AGP_I855_GCC1_DEV2		0x08
+#define AGP_I855_GCC1_DEV2_ENABLED	0x00
+#define AGP_I855_GCC1_DEV2_DISABLED	0x08
+#define AGP_I855_GCC1_GMS		0x70
+#define AGP_I855_GCC1_GMS_STOLEN_0M	0x00
+#define AGP_I855_GCC1_GMS_STOLEN_1M	0x10
+#define AGP_I855_GCC1_GMS_STOLEN_4M	0x20
+#define AGP_I855_GCC1_GMS_STOLEN_8M	0x30
+#define AGP_I855_GCC1_GMS_STOLEN_16M	0x40
+#define AGP_I855_GCC1_GMS_STOLEN_32M	0x50
+
+/*
+ * 852GM/855GM variant identification
+ */
+#define AGP_I85X_CAPID			0x44
+#define AGP_I85X_VARIANT_MASK		0x7
+#define AGP_I85X_VARIANT_SHIFT		5
+#define AGP_I855_GME			0x0
+#define AGP_I855_GM			0x4
+#define AGP_I852_GME			0x2
+#define AGP_I852_GM			0x5
+
 #endif /* !_PCI_AGPREG_H_ */
