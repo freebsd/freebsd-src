@@ -46,7 +46,7 @@ static void usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
-	char buf[MAXPATHLEN];
+	char buf[PATH_MAX];
 	char *p;
 
 	if (argc == 2) {
