@@ -115,6 +115,9 @@ main(argc, argv)
 	int c;
 	int warn = 0;
 	char *path = NULL;
+	void *localhandle;
+	register SVCXPRT *transp;
+	struct netconfig *nconf = NULL;
 
 	__key_encryptsession_pk_LOCAL = &key_encrypt_pk_2_svc_prog;
 	__key_decryptsession_pk_LOCAL = &key_decrypt_pk_2_svc_prog;
@@ -153,11 +156,14 @@ main(argc, argv)
 	/*
 	 * Initialize
 	 */
-	(void) umask(066);	/* paranoia */
+	(void) umask(S_IXUSR|S_IXGRP|S_IXOTH);
 	if (geteuid() != 0)
 		errx(1, "keyserv must be run as root");
 	setmodulus(HEXMODULUS);
 	getrootkey(&masterkey, nflag);
+
+	rpcb_unset(KEY_PROG, KEY_VERS, NULL);
+	rpcb_unset(KEY_PROG, KEY_VERS2, NULL);
 
 	if (svc_create(keyprogram, KEY_PROG, KEY_VERS,
 		"netpath") == 0) {
@@ -173,9 +179,37 @@ main(argc, argv)
 		exit(1);
 	}
 
+	localhandle = setnetconfig();
+	while ((nconf = getnetconfig(localhandle)) != NULL) {
+		if (nconf->nc_protofmly != NULL &&
+		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+			break;
+	}
+
+	if (nconf == NULL)
+		errx(1, "getnetconfig: %s", nc_sperror());
+
+	unlink(KEYSERVSOCK);
+	rpcb_unset(CRYPT_PROG, CRYPT_VERS, nconf);
+	transp = svcunix_create(RPC_ANYSOCK, 0, 0, KEYSERVSOCK);
+	if (transp == NULL)
+		errx(1, "cannot create AF_LOCAL service");
+	if (!svc_reg(transp, KEY_PROG, KEY_VERS, keyprogram, nconf))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS, unix)");
+	if (!svc_reg(transp, KEY_PROG, KEY_VERS2, keyprogram, nconf))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS2, unix)");
+	if (!svc_reg(transp, CRYPT_PROG, CRYPT_VERS, crypt_prog_1, nconf))
+		errx(1, "unable to register (CRYPT_PROG, CRYPT_VERS, unix)");
+
+	endnetconfig(localhandle);
+
+	(void) umask(066);	/* paranoia */
+
 	if (!debugging) {
 		daemon(0,0);
 	}
+
+	signal(SIGPIPE, SIG_IGN);
 
 	svc_run();
 	abort();
