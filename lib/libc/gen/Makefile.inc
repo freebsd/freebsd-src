@@ -1,11 +1,11 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.12 1994/09/25 01:38:27 wollman Exp $
+#	$Id: Makefile.inc,v 1.13 1994/10/25 14:04:32 bde Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
 
-SRCS+=	alarm.c assert.c clock.c closedir.c confstr.c crypt.c ctermid.c \
-	daemon.c devname.c disklabel.c err.c errlst.c \
+SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
+	ctermid.c daemon.c devname.c disklabel.c err.c errlst.c \
 	exec.c fnmatch.c frexp.c fstab.c fts.c getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
@@ -36,7 +36,8 @@ errlst.o errlst.po:
 	rm -f errlst.s
 .endif
 
-MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/crypt.3 gen/ctermid.3 \
+MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
+	gen/crypt.3 gen/ctermid.3 \
 	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 gen/exec.3 \
 	gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 gen/getbootfile.3 \
 	gen/getcap.3 gen/getcwd.3 gen/getdiskbyname.3 gen/getfsent.3 \
@@ -53,6 +54,8 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/crypt.3 gen/ctermid.3 \
 	gen/times.3 gen/timezone.3 gen/ttyname.3 gen/tzset.3 gen/ualarm.3 \
 	gen/uname.3 gen/unvis.3 gen/usleep.3 gen/utime.3 gen/valloc.3 gen/vis.3
 
+MLINKS+=config_open.3 config_next.3 config_open.3 config_close.3 \
+	config_open.3 config_skip.3 
 MLINKS+=crypt.3 encrypt.3 crypt.3 setkey.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 readdir.3 directory.3 rewinddir.3 directory.3 seekdir.3 \
