@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: logwtmp.c,v 1.4 1997/08/13 20:42:18 steve Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -55,7 +55,9 @@ static const char rcsid[] =
 
 void
 logwtmp(line, name, host)
-	char *line, *name, *host;
+	const char *line;
+	const char *name;
+	const char *host;
 {
 	struct utmp ut;
 	struct stat buf;
