@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.103.2.6 1999/08/16 17:29:50 luigi Exp $
+ *	$Id: ip_fw.c,v 1.103.2.7 1999/08/16 19:16:25 luigi Exp $
  */
 
 /*
@@ -34,18 +34,21 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/ucred.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_pcb.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
 #ifdef DUMMYNET
-#include <net/route.h>
 #include <netinet/ip_dummynet.h>
 #endif
 #include <netinet/tcp.h>
@@ -53,6 +56,7 @@
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/udp.h>
+#include <netinet/udp_var.h>
 
 #include <netinet/if_ether.h> /* XXX ethertype_ip */
 
@@ -68,6 +72,8 @@ static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #else
 static int fw_verbose_limit = 0;
 #endif
+
+static u_int64_t counter;	/* counter for ipfw_report(NULL...) */
 
 #define	IPFW_DEFAULT_RULE	((u_int)(u_short)~0)
 
@@ -96,6 +102,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_lim
 static int	add_entry __P((struct ip_fw_head *chainptr, struct ip_fw *frwl));
 static int	del_entry __P((struct ip_fw_head *chainptr, u_short number));
 static int	zero_entry __P((struct ip_fw *));
+static int	resetlog_entry __P((struct ip_fw *));
 static int	check_ipfw_struct __P((struct ip_fw *m));
 static __inline int
 		iface_match __P((struct ifnet *ifp, union ip_fw_if *ifu,
@@ -292,14 +299,14 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct ifnet *rif, struct ifnet *oif)
 {
     if (ip) {
-	static u_int64_t counter;
 	struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
 	struct udphdr *const udp = (struct udphdr *) ((u_int32_t *) ip+ ip->ip_hl);
 	struct icmp *const icmp = (struct icmp *) ((u_int32_t *) ip + ip->ip_hl);
-	int count;
+	u_int64_t count;
 
 	count = f ? f->fw_pcnt : ++counter;
-	if (fw_verbose_limit != 0 && count > fw_verbose_limit)
+	if ((f == NULL && fw_verbose_limit != 0 && count > fw_verbose_limit) ||
+	    (f && f->fw_logamount != 0 && count > f->fw_loghighest))
 		return;
 
 	/* Print command name */
@@ -399,9 +406,11 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	if ((ip->ip_off & IP_OFFMASK)) 
 		printf(" Fragment = %d",ip->ip_off & IP_OFFMASK);
 	printf("\n");
-	if (fw_verbose_limit != 0 && count == fw_verbose_limit)
-		printf("ipfw: limit reached on rule #%d\n",
-		f ? f->fw_number : -1);
+	if ((f ? f->fw_logamount != 0 : 1) &&
+	    count == (f ? f->fw_loghighest : fw_verbose_limit))
+		printf("ipfw: limit %d reached on rule #%d\n",
+		    f ? f->fw_logamount : fw_verbose_limit,
+		    f ? f->fw_number : -1);
     }
 }
 
@@ -609,13 +618,14 @@ again:
 		if (f->fw_ipopt != f->fw_ipnopt && !ipopts_match(ip, f))
 			continue;
 
-		/* Check protocol; if wildcard, match */
-		if (f->fw_prot == IPPROTO_IP)
-			goto rnd_then_got_match;
-
-		/* If different, don't match */
-		if (ip->ip_p != f->fw_prot) 
-			continue;
+		/* Check protocol; if wildcard, and no [ug]id, match */
+		if (f->fw_prot == IPPROTO_IP) {
+			if (!(f->fw_flg & (IP_FW_F_UID|IP_FW_F_GID)))
+				goto rnd_then_got_match;
+		} else
+			/* If different, don't match */
+			if (ip->ip_p != f->fw_prot) 
+				continue;
 
 /*
  * here, pip==NULL for bridged pkts -- they include the ethernet
@@ -635,6 +645,88 @@ again:
 			    }                                           \
 			} while (0)
 
+		/* Protocol specific checks for uid only */
+		if (f->fw_flg & (IP_FW_F_UID|IP_FW_F_GID)) {
+		    switch (ip->ip_p) {
+		    case IPPROTO_TCP:
+			{
+			    struct tcphdr *tcp;
+			    struct inpcb *P;
+
+			    if (offset == 1)	/* cf. RFC 1858 */
+				    goto bogusfrag;
+			    if (offset != 0)
+				    continue;
+
+			    PULLUP_TO(hlen + 14);
+			    tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
+
+			    if (oif)
+				P = in_pcblookup_hash(&tcbinfo, ip->ip_dst,
+				   tcp->th_dport, ip->ip_src, tcp->th_sport, 0);
+			    else
+				P = in_pcblookup_hash(&tcbinfo, ip->ip_src,
+				   tcp->th_sport, ip->ip_dst, tcp->th_dport, 0);
+
+			    if (P && P->inp_socket && P->inp_socket->so_cred) {
+				if (f->fw_flg & IP_FW_F_UID) {
+					if (P->inp_socket->so_cred->p_ruid !=
+					    f->fw_uid)
+						continue;
+				} else if (!groupmember(f->fw_gid,
+					    P->inp_socket->so_cred->pc_ucred))
+						continue;
+			    } else continue;
+
+			    break;
+			}
+
+		    case IPPROTO_UDP:
+			{
+			    struct udphdr *udp;
+			    struct inpcb *P;
+
+			    if (offset != 0)
+				continue;
+
+			    PULLUP_TO(hlen + 4);
+			    udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
+
+			    if (oif)
+				P = in_pcblookup_hash(&udbinfo, ip->ip_dst,
+				   udp->uh_dport, ip->ip_src, udp->uh_sport, 1);
+			    else
+				P = in_pcblookup_hash(&udbinfo, ip->ip_src,
+				   udp->uh_sport, ip->ip_dst, udp->uh_dport, 1);
+
+			    if (P && P->inp_socket && P->inp_socket->so_cred) {
+				if (f->fw_flg & IP_FW_F_UID) {
+					if (P->inp_socket->so_cred->p_ruid !=
+					    f->fw_uid)
+						continue;
+				} else if (!groupmember(f->fw_gid,
+					    P->inp_socket->so_cred->pc_ucred))
+						continue;
+			    } else continue;
+
+			    break;
+			}
+
+			default:
+				continue;
+/*
+ * XXX Shouldn't GCC be allowing two bogusfrag labels if they're both inside
+ * separate blocks? Hmm.... It seems it's got incorrect behavior here.
+ */
+#if 0
+bogusfrag:
+				if (fw_verbose)
+					ipfw_report(NULL, ip, rif, oif);
+				goto dropit;
+#endif
+			}
+		}
+		    
 		/* Protocol specific checks */
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -986,6 +1078,7 @@ zero_entry(struct ip_fw *frwl)
 		s = splnet();
 		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain)) {
 			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
+			fcp->rule->fw_loghighest = fcp->rule->fw_logamount;
 			fcp->rule->timestamp = 0;
 		}
 		splx(s);
@@ -1003,6 +1096,8 @@ zero_entry(struct ip_fw *frwl)
 				s = splnet();
 				while (fcp && frwl->fw_number == fcp->rule->fw_number) {
 					fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
+					fcp->rule->fw_loghighest =
+					    fcp->rule->fw_logamount;
 					fcp->rule->timestamp = 0;
 					fcp = LIST_NEXT(fcp, chain);
 				}
@@ -1019,6 +1114,56 @@ zero_entry(struct ip_fw *frwl)
 			printf("ipfw: Entry %d cleared.\n", frwl->fw_number);
 		else
 			printf("ipfw: Accounting cleared.\n");
+	}
+
+	return (0);
+}
+
+static int
+resetlog_entry(struct ip_fw *frwl)
+{
+	struct ip_fw_chain *fcp;
+	int s, cleared;
+
+	if (frwl == 0) {
+		s = splnet();
+		counter = 0;
+		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain))
+			fcp->rule->fw_loghighest = fcp->rule->fw_pcnt +
+			    fcp->rule->fw_logamount;
+		splx(s);
+	}
+	else {
+		cleared = 0;
+
+		/*
+		 *	It's possible to insert multiple chain entries with the
+		 *	same number, so we don't stop after finding the first
+		 *	match if zeroing a specific entry.
+		 */
+		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain))
+			if (frwl->fw_number == fcp->rule->fw_number) {
+				s = splnet();
+				while (fcp && frwl->fw_number == fcp->rule->fw_number) {
+					fcp->rule->fw_loghighest =
+					    fcp->rule->fw_pcnt +
+					    fcp->rule->fw_logamount;
+					fcp = LIST_NEXT(fcp, chain);
+				}
+				splx(s);
+				cleared = 1;
+				break;
+			}
+		if (!cleared)	/* we didn't find any matching rules */
+			return (EINVAL);
+	}
+
+	if (fw_verbose) {
+		if (frwl)
+			printf("ipfw: Entry %d logging count reset.\n",
+			    frwl->fw_number);
+		else
+			printf("ipfw: All logging counts cleared.\n");
 	}
 
 	return (0);
@@ -1138,6 +1283,8 @@ check_ipfw_struct(struct ip_fw *frwl)
 #ifdef IPFIREWALL_FORWARD
 	case IP_FW_F_FWD:
 #endif
+	case IP_FW_F_UID:
+	case IP_FW_F_GID:
 		break;
 	default:
 		dprintf(("%s invalid command\n", err_prefix));
@@ -1155,8 +1302,12 @@ ip_fw_ctl(struct sockopt *sopt)
 	struct ip_fw_chain *fcp;
 	struct ip_fw frwl, *bp , *buf;
 
-	/* Disallow sets in really-really secure mode. */
-	if (sopt->sopt_dir == SOPT_SET && securelevel >= 3)
+	/*
+	 * Disallow sets in really-really secure mode, but still allow
+	 * the logging counters to be reset.
+	 */
+	if (sopt->sopt_dir == SOPT_SET && securelevel >= 3 &&
+	    sopt->sopt_name != IP_FW_RESETLOG)
 			return (EPERM);
 	error = 0;
 
@@ -1236,6 +1387,17 @@ ip_fw_ctl(struct sockopt *sopt)
 		}
 		break;
 
+	case IP_FW_RESETLOG:
+		if (sopt->sopt_val != 0) {
+			error = sooptcopyin(sopt, &frwl, sizeof frwl,
+					    sizeof frwl);
+			if (error || (error = resetlog_entry(&frwl)))
+				break;
+		} else {
+			error = resetlog_entry(0);
+		}
+		break;
+
 	default:
 		printf("ip_fw_ctl invalid option %d\n", sopt->sopt_name);
 		error = EINVAL ;
@@ -1289,7 +1451,7 @@ ip_fw_init(void)
 	if (fw_verbose_limit == 0)
 		printf("unlimited logging\n");
 	else
-		printf("logging limited to %d packets/entry\n",
+		printf("logging limited to %d packets/entry by default\n",
 		    fw_verbose_limit);
 #endif
 }
