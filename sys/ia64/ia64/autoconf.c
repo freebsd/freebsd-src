@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include "opt_bootp.h"
 #include "opt_isa.h"
 #include "opt_nfs.h"
 #include "opt_nfsroot.h"
@@ -53,7 +54,9 @@
 static void	configure(void *);
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
+#ifdef BOOTP
 void bootpc_init(void);
+#endif
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
@@ -96,18 +99,18 @@ configure(void *dummy)
 void
 cpu_rootconf()
 {
-	char	*cp;
-
-	if ((cp = getenv("bootp")) != NULL) {
-        	bootpc_init();
-		freeenv(cp);
-		cp = NULL;
-	}
 #if defined(NFSCLIENT) && defined(NFS_ROOT)
-	if (nfs_diskless_valid || (cp = getenv("bootp.nfsroot")) != NULL)
-		rootdevnames[0] = "nfs:";
-	if (cp != NULL)
-		freeenv(cp);
+	int	order = 0;
+#endif
+
+#ifdef BOOTP
+	bootpc_init();
+#endif
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
+#if !defined(BOOTP_NFSROOT)
+	if (nfs_diskless_valid)
+#endif
+		rootdevnames[order++] = "nfs:";
 #endif
 }
 SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)

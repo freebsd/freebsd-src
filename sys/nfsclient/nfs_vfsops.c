@@ -35,6 +35,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bootp.h"
 #include "opt_nfsroot.h"
 
 #include <sys/param.h>
@@ -388,23 +389,16 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
-	char *cp;
 	int error, i;
 	u_long l;
 	char buf[128];
 
 	GIANT_REQUIRED;		/* XXX until socket locking done */
 
-	if ((cp = getenv("bootp")) != NULL) {
-		freeenv(cp);
-		if ((cp = getenv("bootp.nfsroot")) != NULL) {
-			freeenv(cp);
-			bootpc_init();		/* get nfs_diskless filled in */
-		}
-	}
-#if defined(NFS_ROOT)
-	if (cp == NULL)
-		nfs_setup_diskless();
+#if defined(BOOTP_NFSROOT) && defined(BOOTP)
+	bootpc_init();		/* use bootp to get nfs_diskless filled in */
+#elif defined(NFS_ROOT)
+	nfs_setup_diskless();
 #endif
 
 	if (nfs_diskless_valid == 0)

@@ -1573,8 +1573,8 @@ netsmb/smb_trantcp.c		optional netsmb
 netsmb/smb_usr.c		optional netsmb
 nfs/nfs_common.c		optional nfsclient
 nfs/nfs_common.c		optional nfsserver
-nfsclient/bootp_subr.c		standard
-nfsclient/krpc_subr.c		optional nfsclient
+nfsclient/bootp_subr.c		optional bootp nfsclient
+nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
 nfsclient/nfs_diskless.c	optional nfsclient nfs_root
 nfsclient/nfs_node.c		optional nfsclient
