@@ -266,7 +266,7 @@ ip_init()
  * the most recently used route ? it is cleared in in_addroute()
  * when a new route is successfully created.
  */
-static struct	route ipforward_rt;
+struct	route ipforward_rt;
 static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
 /*
