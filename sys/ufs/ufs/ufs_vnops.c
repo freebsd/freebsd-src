@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.118 1999/08/13 10:10:12 phk Exp $
+ * $Id: ufs_vnops.c,v 1.119 1999/08/13 10:56:02 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -138,26 +138,31 @@ ufs_itimes(vp)
 	struct vnode *vp;
 {
 	struct inode *ip;
-	time_t tv_sec;
+	struct timespec ts;
 
 	ip = VTOI(vp);
 	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
 		return;
 	if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		tv_sec = time_second;
+		vfs_timestamp(&ts);
 		if ((vp->v_type == VBLK || vp->v_type == VCHR) &&
 		    !DOINGSOFTDEP(vp))
 			ip->i_flag |= IN_LAZYMOD;
 		else
 			ip->i_flag |= IN_MODIFIED;
-		if (ip->i_flag & IN_ACCESS)
-			ip->i_atime = tv_sec;
+		if (ip->i_flag & IN_ACCESS) {
+			ip->i_atime = ts.tv_sec;
+			ip->i_atimensec = ts.tv_nsec;
+		}
 		if (ip->i_flag & IN_UPDATE) {
-			ip->i_mtime = tv_sec;
+			ip->i_mtime = ts.tv_sec;
+			ip->i_mtimensec = ts.tv_nsec;
 			ip->i_modrev++;
 		}
-		if (ip->i_flag & IN_CHANGE)
-			ip->i_ctime = tv_sec;
+		if (ip->i_flag & IN_CHANGE) {
+			ip->i_ctime = ts.tv_sec;
+			ip->i_ctimensec = ts.tv_nsec;
+		}
 	}
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
 }
@@ -500,10 +505,14 @@ ufs_setattr(ap)
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		ufs_itimes(vp);
-		if (vap->va_atime.tv_sec != VNOVAL)
+		if (vap->va_atime.tv_sec != VNOVAL) {
 			ip->i_atime = vap->va_atime.tv_sec;
-		if (vap->va_mtime.tv_sec != VNOVAL)
+			ip->i_atimensec = vap->va_atime.tv_nsec;
+		}
+		if (vap->va_mtime.tv_sec != VNOVAL) {
 			ip->i_mtime = vap->va_mtime.tv_sec;
+			ip->i_mtimensec = vap->va_mtime.tv_nsec;
+		}
 		error = UFS_UPDATE(vp, 0);
 		if (error)
 			return (error);
