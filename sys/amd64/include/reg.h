@@ -80,6 +80,7 @@ struct fpreg {
 	unsigned long	fpr_env[4];
 	unsigned char	fpr_acc[8][16];
 	unsigned char	fpr_xacc[16][16];
+	unsigned long	fpr_spare[12];
 };
 
 struct dbreg {
