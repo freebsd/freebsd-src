@@ -208,12 +208,11 @@ Static int csr_read_1(sc, reg)
 	usb_device_request_t	req;
 	usbd_status		err;
 	u_int8_t		val = 0;
-	int			s;
 
 	if (sc->aue_gone)
 		return(0);
 
-	s = splusb();
+	AUE_LOCK(sc);
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = AUE_UR_READREG;
@@ -224,7 +223,7 @@ Static int csr_read_1(sc, reg)
 	err = usbd_do_request_flags(sc->aue_udev, &req,
 	    &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	AUE_UNLOCK(sc);
 
 	if (err)
 		return(0);
@@ -239,12 +238,11 @@ Static int csr_read_2(sc, reg)
 	usb_device_request_t	req;
 	usbd_status		err;
 	u_int16_t		val = 0;
-	int			s;
 
 	if (sc->aue_gone)
 		return(0);
 
-	s = splusb();
+	AUE_LOCK(sc);
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = AUE_UR_READREG;
@@ -255,7 +253,7 @@ Static int csr_read_2(sc, reg)
 	err = usbd_do_request_flags(sc->aue_udev, &req,
 	    &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	AUE_UNLOCK(sc);
 
 	if (err)
 		return(0);
@@ -269,12 +267,11 @@ Static int csr_write_1(sc, reg, val)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
-	int			s;
 
 	if (sc->aue_gone)
 		return(0);
 
-	s = splusb();
+	AUE_LOCK(sc);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = AUE_UR_WRITEREG;
@@ -285,7 +282,7 @@ Static int csr_write_1(sc, reg, val)
 	err = usbd_do_request_flags(sc->aue_udev, &req,
 	    &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	AUE_UNLOCK(sc);
 
 	if (err)
 		return(-1);
@@ -299,12 +296,11 @@ Static int csr_write_2(sc, reg, val)
 {
 	usb_device_request_t	req;
 	usbd_status		err;
-	int			s;
 
 	if (sc->aue_gone)
 		return(0);
 
-	s = splusb();
+	AUE_LOCK(sc);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = AUE_UR_WRITEREG;
@@ -315,7 +311,7 @@ Static int csr_write_2(sc, reg, val)
 	err = usbd_do_request_flags(sc->aue_udev, &req,
 	    &val, USBD_NO_TSLEEP, NULL);
 
-	splx(s);
+	AUE_UNLOCK(sc);
 
 	if (err)
 		return(-1);
@@ -631,15 +627,12 @@ USB_ATTACH(aue)
 {
 	USB_ATTACH_START(aue, sc, uaa);
 	char			devinfo[1024];
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
 	int			i;
 	struct aue_type		*t;
-
-	s = splimp();
 
 	bzero(sc, sizeof(struct aue_softc));
 	sc->aue_iface = uaa->iface;
@@ -649,7 +642,6 @@ USB_ATTACH(aue)
 	if (usbd_set_config_no(sc->aue_udev, AUE_CONFIG_NO, 0)) {
 		printf("aue%d: getting interface handle failed\n",
 		    sc->aue_unit);
-		splx(s);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -675,7 +667,6 @@ USB_ATTACH(aue)
 		if (!ed) {
 			printf("aue%d: couldn't get ep %d\n",
 			    sc->aue_unit, i);
-			splx(s);
 			USB_ATTACH_ERROR_RETURN;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -689,6 +680,9 @@ USB_ATTACH(aue)
 			sc->aue_ed[AUE_ENDPT_INTR] = ed->bEndpointAddress;
 		}
 	}
+
+	mtx_init(&sc->aue_mtx, device_get_nameunit(self), MTX_DEF);
+	AUE_LOCK(sc);
 
 	/* Reset the adapter. */
 	aue_reset(sc);
@@ -735,7 +729,8 @@ USB_ATTACH(aue)
 	if (mii_phy_probe(self, &sc->aue_miibus,
 	    aue_ifmedia_upd, aue_ifmedia_sts)) {
 		printf("aue%d: MII without any PHY!\n", sc->aue_unit);
-		splx(s);
+		AUE_UNLOCK(sc);
+		mtx_destroy(&sc->aue_mtx);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -750,7 +745,7 @@ USB_ATTACH(aue)
 	usb_register_netisr();
 	sc->aue_gone = 0;
 
-	splx(s);
+	AUE_UNLOCK(sc);
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
@@ -759,11 +754,9 @@ Static int aue_detach(dev)
 {
 	struct aue_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splusb();
 
 	sc = device_get_softc(dev);
+	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	sc->aue_gone = 1;
@@ -778,7 +771,9 @@ Static int aue_detach(dev)
 	if (sc->aue_ep[AUE_ENDPT_INTR] != NULL)
 		usbd_abort_pipe(sc->aue_ep[AUE_ENDPT_INTR]);
 #endif
-	splx(s);
+
+	AUE_UNLOCK(sc);
+	mtx_destroy(&sc->aue_mtx);
 
 	return(0);
 }
@@ -880,28 +875,26 @@ Static void aue_intr(xfer, priv, status)
 	struct aue_softc	*sc;
 	struct ifnet		*ifp;
 	struct aue_intrpkt	*p;
-	int			s;
-
-	s = splimp();
 
 	sc = priv;
+	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	if (!(ifp->if_flags & IFF_RUNNING)) {
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
-			splx(s);
+			AUE_UNLOCK(sc);
 			return;
 		}
 		printf("aue%d: usb error on intr: %s\n", sc->aue_unit,
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->aue_ep[AUE_ENDPT_RX]);
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -913,7 +906,7 @@ Static void aue_intr(xfer, priv, status)
 	if (p->aue_txstat0 & (AUE_TXSTAT0_LATECOLL & AUE_TXSTAT0_EXCESSCOLL))
 		ifp->if_collisions++;
 
-	splx(s);
+	AUE_UNLOCK(sc);
 	return;
 }
 #endif
@@ -925,10 +918,12 @@ Static void aue_rxstart(ifp)
 	struct aue_chain	*c;
 
 	sc = ifp->if_softc;
+	AUE_LOCK(sc);
 	c = &sc->aue_cdata.aue_rx_chain[sc->aue_cdata.aue_rx_prod];
 
 	if (aue_newbuf(sc, c, NULL) == ENOBUFS) {
 		ifp->if_ierrors++;
+		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -938,6 +933,7 @@ Static void aue_rxstart(ifp)
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(c->aue_xfer);
 
+	AUE_UNLOCK(sc);
 	return;
 }
 
@@ -959,14 +955,21 @@ Static void aue_rxeof(xfer, priv, status)
 
 	c = priv;
 	sc = c->aue_sc;
+	if (sc->aue_gone)
+		return;
+	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_RUNNING))
+	if (!(ifp->if_flags & IFF_RUNNING)) {
+		AUE_UNLOCK(sc);
 		return;
+	}
 
 	if (status != USBD_NORMAL_COMPLETION) {
-		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
+		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
+			AUE_UNLOCK(sc);
 			return;
+		}
 		printf("aue%d: usb error on rx: %s\n", sc->aue_unit,
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
@@ -1001,7 +1004,7 @@ Static void aue_rxeof(xfer, priv, status)
 
 	/* Put the packet on the special USB input queue. */
 	usb_ether_input(m);
-
+	AUE_UNLOCK(sc);
 	return;
 done:
 
@@ -1011,6 +1014,7 @@ done:
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(xfer);
 
+	AUE_UNLOCK(sc);
 	return;
 }
 
@@ -1028,24 +1032,22 @@ Static void aue_txeof(xfer, priv, status)
 	struct aue_chain	*c;
 	struct ifnet		*ifp;
 	usbd_status		err;
-	int			s;
-
-	s = splimp();
 
 	c = priv;
 	sc = c->aue_sc;
+	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
-			splx(s);
+			AUE_UNLOCK(sc);
 			return;
 		}
 		printf("aue%d: usb error on tx: %s\n", sc->aue_unit,
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->aue_ep[AUE_ENDPT_TX]);
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1064,7 +1066,7 @@ Static void aue_txeof(xfer, priv, status)
 	else
 		ifp->if_opackets++;
 
-	splx(s);
+	AUE_UNLOCK(sc);
 
 	return;
 }
@@ -1075,21 +1077,18 @@ Static void aue_tick(xsc)
 	struct aue_softc	*sc;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
 
-	if (sc == NULL) {
-		splx(s);
+	if (sc == NULL)
 		return;
-	}
+
+	AUE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->aue_miibus);
 	if (mii == NULL) {
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1105,7 +1104,7 @@ Static void aue_tick(xsc)
 
 	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
 
-	splx(s);
+	AUE_UNLOCK(sc);
 
 	return;
 }
@@ -1162,20 +1161,28 @@ Static void aue_start(ifp)
 	struct mbuf		*m_head = NULL;
 
 	sc = ifp->if_softc;
+	AUE_LOCK(sc);
 
-	if (!sc->aue_link)
+	if (!sc->aue_link) {
+		AUE_UNLOCK(sc);
 		return;
+	}
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		AUE_UNLOCK(sc);
 		return;
+	}
 
 	IF_DEQUEUE(&ifp->if_snd, m_head);
-	if (m_head == NULL)
+	if (m_head == NULL) {
+		AUE_UNLOCK(sc);
 		return;
+	}
 
 	if (aue_encap(sc, m_head, 0)) {
 		IF_PREPEND(&ifp->if_snd, m_head);
 		ifp->if_flags |= IFF_OACTIVE;
+		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1192,6 +1199,7 @@ Static void aue_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+	AUE_UNLOCK(sc);
 
 	return;
 }
@@ -1204,12 +1212,14 @@ Static void aue_init(xsc)
 	struct mii_data		*mii;
 	struct aue_chain	*c;
 	usbd_status		err;
-	int			i, s;
+	int			i;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	AUE_LOCK(sc);
+
+	if (ifp->if_flags & IFF_RUNNING) {
+		AUE_UNLOCK(sc);
 		return;
-
-	s = splimp();
+	}
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1232,14 +1242,14 @@ Static void aue_init(xsc)
 	/* Init TX ring. */
 	if (aue_tx_list_init(sc) == ENOBUFS) {
 		printf("aue%d: tx list init failed\n", sc->aue_unit);
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 
 	/* Init RX ring. */
 	if (aue_rx_list_init(sc) == ENOBUFS) {
 		printf("aue%d: rx list init failed\n", sc->aue_unit);
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1262,7 +1272,7 @@ Static void aue_init(xsc)
 	if (err) {
 		printf("aue%d: open rx pipe failed: %s\n",
 		    sc->aue_unit, usbd_errstr(err));
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 	err = usbd_open_pipe(sc->aue_iface, sc->aue_ed[AUE_ENDPT_TX],
@@ -1270,7 +1280,7 @@ Static void aue_init(xsc)
 	if (err) {
 		printf("aue%d: open tx pipe failed: %s\n",
 		    sc->aue_unit, usbd_errstr(err));
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1282,7 +1292,7 @@ Static void aue_init(xsc)
 	if (err) {
 		printf("aue%d: open intr pipe failed: %s\n",
 		    sc->aue_unit, usbd_errstr(err));
-		splx(s);
+		AUE_UNLOCK(sc);
 		return;
 	}
 #endif
@@ -1299,9 +1309,9 @@ Static void aue_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
+
+	AUE_UNLOCK(sc);
 
 	return;
 }
@@ -1358,9 +1368,9 @@ Static int aue_ioctl(ifp, command, data)
 	struct aue_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	AUE_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1402,7 +1412,7 @@ Static int aue_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	AUE_UNLOCK(sc);
 
 	return(error);
 }
@@ -1415,6 +1425,7 @@ Static void aue_watchdog(ifp)
 	usbd_status		stat;
 
 	sc = ifp->if_softc;
+	AUE_LOCK(sc);
 
 	ifp->if_oerrors++;
 	printf("aue%d: watchdog timeout\n", sc->aue_unit);
@@ -1425,7 +1436,7 @@ Static void aue_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		aue_start(ifp);
-
+	AUE_UNLOCK(sc);
 	return;
 }
 
@@ -1440,6 +1451,7 @@ Static void aue_stop(sc)
 	struct ifnet		*ifp;
 	int			i;
 
+	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
@@ -1533,6 +1545,7 @@ Static void aue_stop(sc)
 	sc->aue_link = 0;
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	AUE_UNLOCK(sc);
 
 	return;
 }
@@ -1547,9 +1560,11 @@ Static void aue_shutdown(dev)
 	struct aue_softc	*sc;
 
 	sc = device_get_softc(dev);
-
+	sc->aue_gone++;
+	AUE_LOCK(sc);
 	aue_reset(sc);
 	aue_stop(sc);
+	AUE_UNLOCK(sc);
 
 	return;
 }

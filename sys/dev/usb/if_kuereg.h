@@ -170,4 +170,8 @@ struct kue_softc {
 	u_int16_t		kue_rxfilt;
 	u_int8_t		*kue_mcfilters;
 	struct kue_cdata	kue_cdata;
+	struct mtx		kue_mtx;
 };
+
+#define	KUE_LOCK(_sc)		mtx_enter(&(_sc)->kue_mtx, MTX_DEF)
+#define	KUE_UNLOCK(_sc)		mtx_exit(&(_sc)->kue_mtx, MTX_DEF)
