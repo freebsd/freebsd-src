@@ -164,7 +164,7 @@ nexus_probe(device_t dev)
 	irq_rman.rm_start = 0;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
-	irq_rman.rm_end = 63;
+	irq_rman.rm_end = 255;
 	if (rman_init(&irq_rman)
 	    || rman_manage_region(&irq_rman,
 				  irq_rman.rm_start, irq_rman.rm_end))
