@@ -128,13 +128,6 @@
 	call_pal PAL_OSF1_tbi
 	call_pal PAL_imb
 
-	/*
-	 * Construct a fake trap frame, so execve() can work normally.
-	 * Note that setregs() is responsible for setting its contents
-	 * to 'reasonable' values.
-	 */
-	lda	sp,-288(sp)	/* space for struct trapframe */
-	mov	sp, a0				/* arg is frame ptr */
 	CALL(mi_startup)			/* go to mi_startup()! */
 
 	/* NOTREACHED */
