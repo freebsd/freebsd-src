@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1994/09/08 02:51:37 wollman Exp $
 
 PROG=	mtrace
 
@@ -15,6 +15,8 @@ DPADD+=		$S/common/libmrouted.a
 .endif
 
 SRCS=	mtrace.c
-NOMAN=
+MAN8=	${.CURDIR}/../mtrace.8
+BINOWN=	root
+BINMODE=4755
 
 .include <bsd.prog.mk>
