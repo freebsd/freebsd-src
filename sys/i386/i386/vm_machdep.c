@@ -121,6 +121,9 @@ cpu_fork(p1, p2, flags)
 	int flags;
 {
 	struct pcb *pcb2;
+#ifdef DEV_NPX
+	int savecrit;
+#endif
 
 	if ((flags & RFPROC) == 0) {
 		if ((flags & RFMEM) == 0) {
@@ -137,10 +140,14 @@ cpu_fork(p1, p2, flags)
 		return;
 	}
 
-#ifdef DEV_NPX
 	/* Ensure that p1's pcb is up to date. */
+#ifdef DEV_NPX
+	if (p1 == curproc)
+		p1->p_addr->u_pcb.pcb_gs = rgs();
+	savecrit = critical_enter();
 	if (PCPU_GET(npxproc) == p1)
 		npxsave(&p1->p_addr->u_pcb.pcb_savefpu);
+	critical_exit(savecrit);
 #endif
 
 	/* Copy p1's pcb. */
@@ -150,7 +157,7 @@ cpu_fork(p1, p2, flags)
 	/*
 	 * Create a new fresh stack for the new process.
 	 * Copy the trap frame for the return to user mode as if from a
-	 * syscall.  This copies the user mode register values.
+	 * syscall.  This copies most of the user mode register values.
 	 */
 	p2->p_md.md_regs = (struct trapframe *)
 			   ((int)p2->p_addr + UPAGES * PAGE_SIZE - 16) - 1;
@@ -171,11 +178,14 @@ cpu_fork(p1, p2, flags)
 	pcb2->pcb_esp = (int)p2->p_md.md_regs - sizeof(void *);
 	pcb2->pcb_ebx = (int)p2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
-	/*
+	/*-
+	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_ldt:	duplicated below, if necessary.
 	 * pcb2->pcb_savefpu:	cloned above.
-	 * pcb2->pcb_flags:	cloned above (always 0 here?).
+	 * pcb2->pcb_flags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
+	 * pcb2->pcb_gs:	cloned above.
+	 * pcb2->pcb_ext:	cleared below.
 	 */
 
 	/*
