@@ -92,6 +92,14 @@
 #define EXCLUDE_UART6850
 #endif
 
+#ifdef PC98
+#include "pcm.h"
+#if NPCM == 0 && !defined(EXCLUDE_PCM86)
+#define EXCLUDE_PCM86
+#endif
+#endif
+
+
 /* nothing but a sequencer (Adlib/OPL) ? */
 #if NGUS == 0 && NSB == 0 && NSBMIDI == 0 && NPAS == 0 && NMPU == 0 && \
     NUART == 0 && NMSS == 0
@@ -99,7 +107,9 @@
 #define EXCLUDE_MIDI
 #endif
 #ifndef EXCLUDE_AUDIO
+#if !defined(PC98) || defined(EXCLUDE_PCM86) && defined(EXCLUDE_MSS)
 #define EXCLUDE_AUDIO
+#endif
 #endif
 #endif
 
@@ -111,6 +121,8 @@
 #define EXCLUDE_SEQUENCER
 #endif
 #ifndef EXCLUDE_AUDIO
+#if !defined(PC98) || defined(EXCLUDE_PCM86) && defined(EXCLUDE_MSS)
 #define EXCLUDE_AUDIO
+#endif
 #endif
 #endif

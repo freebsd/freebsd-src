@@ -249,6 +249,12 @@ int pss_ioctl (int dev, struct fileinfo *file,
 int pss_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long pss_init(long mem_start);
 
+#ifdef PC98
+/*	From pcm86.c */
+int probe_pcm86(struct address_info *hw_config);
+long attach_pcm86(long mem_start, struct address_info *hw_config);
+#endif PC98
+
 /* From aedsp16.c */
 int InitAEDSP16_SBPRO(struct address_info *hw_config);
 int InitAEDSP16_MSS(struct address_info *hw_config);

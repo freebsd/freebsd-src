@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.11 1996/10/23 07:25:30 asami Exp $
+ *  $Id: syscons.c,v 1.12 1996/10/29 08:36:27 asami Exp $
  */
 
 #include "sc.h"
@@ -69,8 +69,8 @@
 #define KANJI
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
-#include <pc98/pc98/timerreg.h>
-#include <pc98/pc98/kbdtables.h>
+#include <i386/isa/timerreg.h>
+#include <i386/isa/kbdtables.h>
 #include <pc98/pc98/syscons.h>
 #else
 #include <i386/isa/isa.h>
@@ -122,8 +122,7 @@ static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 static  int     	flags = 0;
 static  char        	init_done = COLD;
-static  u_short		buffer[ROW*COL];
-static	char		in_debugger = FALSE;
+static  u_short		sc_buffer[ROW*COL];
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
 static  char        	blink_in_progress = FALSE;
@@ -180,7 +179,6 @@ struct  tty         	*sccons[MAXCONS+2];
 #define MOUSE_TTY 	&sccons[MAXCONS+1]
 static struct tty     	sccons[MAXCONS+2];
 #endif
-
 #define SC_MOUSE 	128
 #define SC_CONSOLE	255
 #ifdef PC98
@@ -210,7 +208,9 @@ static int scprobe(struct isa_device *dev);
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
-static u_int scgetc(int noblock);
+static u_int scgetc(u_int flags);
+#define SCGETC_CN	1
+#define SCGETC_NONBLOCK	2
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
@@ -252,7 +252,7 @@ static void toggle_splash_screen(scr_stat *scp);
 #endif
 
 struct  isa_driver scdriver = {
-	scprobe, scattach, "sc", 1
+    scprobe, scattach, "sc", 1
 };
 
 static	d_open_t	scopen;
@@ -499,8 +499,10 @@ scattach(struct isa_device *dev)
     scp->atr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 				     M_DEVBUF, M_NOWAIT);
 #endif
-    /* copy screen to buffer */
-    bcopyw(buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+
+    /* copy temporary buffer to final buffer */
+    bcopyw(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+
 #ifdef PC98
     bcopyw(Atrat, scp->atr_buf, scp->xsize * scp->ysize * sizeof(u_short));
 #endif
@@ -697,7 +699,7 @@ scintr(int unit)
 	mark_all(cur_console);
     }
 
-    c = scgetc(1);
+    c = scgetc(SCGETC_NONBLOCK);
 
     cur_tty = VIRTUAL_TTY(get_scr_num());
     if (!(cur_tty->t_state & TS_ISOPEN))
@@ -1347,7 +1349,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     case KIOCSOUND:     	/* make tone (*data) hz */
 	if (scp == cur_console) {
 	    if (*(int*)data) {
-		int pitch = TIMER_FREQ/(*(int*)data);
+		int pitch = timer_freq / *(int*)data;
 
 #ifdef PC98
 		/* enable counter 1 */
@@ -1602,10 +1604,8 @@ sccnputc(dev_t dev, int c)
 
     scp->term = kernel_console;
     current_default = &kernel_default;
-    if ((scp->scr_buf == buffer || in_debugger) &&
-	!(scp->status & UNKNOWN_MODE)) {
+    if (!(scp->status & UNKNOWN_MODE))
 	remove_cursor_image(scp);
-    }
     buf[0] = c;
     ansi_put(scp, buf, 1);
     kernel_console = scp->term;
@@ -1633,7 +1633,7 @@ int
 sccngetc(dev_t dev)
 {
     int s = spltty();       /* block scintr while we poll */
-    int c = scgetc(0);
+    int c = scgetc(SCGETC_CN);
     splx(s);
     return(c);
 }
@@ -1644,7 +1644,7 @@ sccncheckc(dev_t dev)
     int c, s;
 
     s = spltty();
-    c = scgetc(1);
+    c = scgetc(SCGETC_CN | SCGETC_NONBLOCK);
     splx(s);
     return(c == NOKEY ? -1 : c);	/* c == -1 can't happen */
 }
@@ -1680,6 +1680,7 @@ scrn_timer()
     /* should we just return ? */
     if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
 	timeout((timeout_func_t)scrn_timer, 0, hz/10);
+	splx(s);
 	return;
     }
 
@@ -3009,10 +3010,8 @@ scinit(void)
 #ifdef AUTO_CLOCK
 	if (pc98_machine_type & M_8M) {
 	    BELL_PITCH = 1339;
-	    TIMER_FREQ = 1996800L;
 	} else {
 	    BELL_PITCH = 1678;
-	    TIMER_FREQ = 2457600L;
 	}
 #endif /* AUTO_CLOCK */
 	outb(0x62, 0xd);
@@ -3079,8 +3078,13 @@ scinit(void)
     current_default = &user_default;
     console[0] = &main_console;
     init_scp(console[0]);
-    console[0]->scr_buf = console[0]->mouse_pos = buffer;
-    console[0]->cursor_pos = console[0]->cursor_oldpos = buffer + hw_cursor;
+
+    /* copy screen to temporary buffer */
+    bcopyw(Crtat, sc_buffer,
+	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
+
+    console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
+    console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
 #ifdef PC98
     console[0]->atr_buf = Atrat;
     console[0]->cursor_atr = Atrat + hw_cursor;
@@ -3265,12 +3269,13 @@ history_down_line(scr_stat *scp)
 }
 
 /*
- * scgetc(noblock) - get character from keyboard.
- * If noblock = 0 wait until a key is pressed.
- * Else return NOKEY.
+ * scgetc(flags) - get character from keyboard.
+ * If flags & SCGETC_CN, then avoid harmful side effects.
+ * If flags & SCGETC_NONBLOCK, then wait until a key is pressed, else
+ * return NOKEY if there is nothing there.
  */
 static u_int
-scgetc(int noblock)
+scgetc(u_int flags)
 {
     u_char scancode, keycode;
     u_int state, action;
@@ -3286,17 +3291,18 @@ next_code:
     {
 	kbd_wait();
 	scancode = inb(KB_DATA);
-    } else if (noblock)
+    } else if (flags & SCGETC_NONBLOCK)
 #else
 	scancode = inb(KB_DATA);
-    else if (noblock)
+    else if (flags & SCGETC_NONBLOCK)
 #endif
 	return(NOKEY);
     else
 	goto next_code;
 
     /* do the /dev/random device a favour */
-    add_keyboard_randomness(scancode);
+    if (!(flags & SCGETC_CN))
+	add_keyboard_randomness(scancode);
 
     if (cur_console->status & KBD_RAW_MODE)
 	return scancode;
@@ -3731,9 +3737,7 @@ next_code:
 		if (cur_console->smode.mode == VT_AUTO &&
 		    console[0]->smode.mode == VT_AUTO)
 		    switch_scr(cur_console, 0);
-		in_debugger = TRUE;
 		Debugger("manual escape to debugger");
-		in_debugger = FALSE;
 		return(NOKEY);
 #else
 		printf("No debugger in kernel\n");

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pcm86.c,v 2.4 1996/01/24 19:53:34 abtk Exp $
+ * $Id: pcm86.c,v 1.2 1996/09/12 11:11:16 asami Exp $
  */
 
 /*
@@ -36,7 +36,7 @@
  */
 
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 

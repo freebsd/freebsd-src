@@ -33,11 +33,7 @@
  *      Code added for MV ProSonic/Jazz 16 in 16 bit mode
  */
 
-#ifdef PC98
-#include <pc98/pc98/sound/sound_config.h>
-#else
 #include <i386/isa/sound/sound_config.h>
-#endif
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB)
 
