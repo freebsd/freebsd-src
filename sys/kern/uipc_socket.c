@@ -1538,6 +1538,11 @@ sopoll(struct socket *so, int events, struct ucred *cred, struct thread *td)
 		if (soreadable(so))
 			revents |= events & (POLLIN | POLLRDNORM);
 
+	if (events & POLLINIGNEOF)
+		if (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat ||
+		    !TAILQ_EMPTY(&so->so_comp) || so->so_error)
+			revents |= POLLINIGNEOF;
+
 	if (events & (POLLOUT | POLLWRNORM))
 		if (sowriteable(so))
 			revents |= events & (POLLOUT | POLLWRNORM);
@@ -1547,7 +1552,9 @@ sopoll(struct socket *so, int events, struct ucred *cred, struct thread *td)
 			revents |= events & (POLLPRI | POLLRDBAND);
 
 	if (revents == 0) {
-		if (events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
+		if (events &
+		    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM |
+		     POLLRDBAND)) {
 			selrecord(td, &so->so_rcv.sb_sel);
 			so->so_rcv.sb_flags |= SB_SEL;
 		}

@@ -202,6 +202,7 @@ fifo_open(ap)
 		}
 		fip->fi_readers = fip->fi_writers = 0;
 		wso->so_snd.sb_lowat = PIPE_BUF;
+		rso->so_state |= SS_CANTRCVMORE;
 	}
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
@@ -286,11 +287,6 @@ fifo_read(ap)
 	VOP_UNLOCK(ap->a_vp, 0, td);
 	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
 	    (struct mbuf **)0, (int *)0);
-	/*
-	 * Clear EOF indication after first such return.
-	 */
-	if (uio->uio_resid == startresid)
-		rso->so_state &= ~SS_CANTRCVMORE;
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (ap->a_ioflag & IO_NDELAY)
 		rso->so_state &= ~SS_NBIO;
@@ -461,18 +457,40 @@ fifo_poll(ap)
 	} */ *ap;
 {
 	struct file filetmp;
-	int revents = 0;
+	int events, revents = 0;
 
-	if (ap->a_events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
+	events = ap->a_events &
+	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
+	if (events) {
+		/*
+		 * Tell socket poll to ignore EOF so that we block if
+		 * there is no writer (and no data).
+		 */
+		if (events & (POLLIN | POLLRDNORM)) {
+			events &= ~(POLLIN | POLLRDNORM);
+			events |= POLLINIGNEOF;
+		}
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
 		if (filetmp.f_data)
-			revents |= soo_poll(&filetmp, ap->a_events, ap->a_cred,
+			revents |= soo_poll(&filetmp, events, ap->a_cred,
 			    ap->a_td);
+		/*
+		 * If POLLIN or POLLRDNORM was requested and POLLINIGNEOF was
+		 * not then convert POLLINIGNEOF back to POLLIN.
+		 */
+		events = ap->a_events & (POLLIN | POLLRDNORM | POLLINIGNEOF);
+		if ((events & (POLLIN | POLLRDNORM)) &&
+		    !(events & POLLINIGNEOF) &&
+		    (revents & POLLINIGNEOF)) {
+			revents &= ~POLLINIGNEOF;
+			revents |= (events & (POLLIN | POLLRDNORM));
+		}
 	}
-	if (ap->a_events & (POLLOUT | POLLWRNORM | POLLWRBAND)) {
+	events = ap->a_events & (POLLOUT | POLLWRNORM | POLLWRBAND);
+	if (events) {
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_writesock;
 		if (filetmp.f_data)
-			revents |= soo_poll(&filetmp, ap->a_events, ap->a_cred,
+			revents |= soo_poll(&filetmp, events, ap->a_cred,
 			    ap->a_td);
 	}
 	return (revents);
