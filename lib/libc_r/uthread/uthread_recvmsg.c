@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_recvmsg, recvmsg);
+__weak_reference(__recvmsg, recvmsg);
 
 ssize_t
 _recvmsg(int fd, struct msghdr *msg, int flags)
@@ -71,5 +71,17 @@ _recvmsg(int fd, struct msghdr *msg, int flags)
 		}
 		_FD_UNLOCK(fd, FD_READ);
 	}
+	return (ret);
+}
+
+ssize_t
+__recvmsg(int fd, struct msghdr *msg, int flags)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _recvmsg(fd, msg, flags);
+	_thread_leave_cancellation_point();
+
 	return (ret);
 }

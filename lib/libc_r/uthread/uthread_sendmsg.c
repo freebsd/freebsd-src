@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_sendmsg, sendmsg);
+__weak_reference(__sendmsg, sendmsg);
 
 ssize_t
 _sendmsg(int fd, const struct msghdr *msg, int flags)
@@ -70,5 +70,17 @@ _sendmsg(int fd, const struct msghdr *msg, int flags)
 		}
 		_FD_UNLOCK(fd, FD_WRITE);
 	}
+	return (ret);
+}
+
+ssize_t
+__sendmsg(int fd, const struct msghdr *msg, int flags)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _sendmsg(fd, msg, flags);
+	_thread_leave_cancellation_point();
+
 	return (ret);
 }
