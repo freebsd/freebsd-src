@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.10 1997/10/12 20:26:33 phk Exp $
+ * $Id: vm_zone.c,v 1.11 1997/12/05 19:55:52 bde Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	int totsize;
 
 	if ((z->zflags & ZONE_BOOT) == 0) {
-		z->zsize = (size + 32 - 1) & ~(32 - 1);
+		z->zsize = (size + ZONE_ROUNDING - 1) & ~(ZONE_ROUNDING - 1);
 		simple_lock_init(&z->zlock);
 		z->zfreecnt = 0;
 		z->ztotal = 0;
@@ -366,6 +366,11 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	char tmpbuf[128];
 	char tmpname[14];
 
+	sprintf(tmpbuf, "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n");
+	error = SYSCTL_OUT(req, tmpbuf, strlen(tmpbuf));
+	if (error)
+		return (error);
+
 	for (curzone = zlist; curzone; curzone = nextzone) {
 		int i;
 		int len;
@@ -387,8 +392,8 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 		}
 
 		sprintf(tmpbuf + offset,
-			"%s limit=%8.8u, used=%6.6u, free=%6.6u, requests=%8.8u\n",
-			tmpname, curzone->zmax,
+			"%s %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
+			tmpname, curzone->zsize, curzone->zmax,
 			(curzone->ztotal - curzone->zfreecnt),
 			curzone->zfreecnt, curzone->znalloc);
 
