@@ -1310,7 +1310,7 @@ mlx_pause_done(struct mlx_command *mc)
 		      command == MLX_CMD_STOPCHANNEL ? "pause" : "resume", mlx_diagnose_command(mc));
     } else if (command == MLX_CMD_STOPCHANNEL) {
 	device_printf(sc->mlx_dev, "channel %d pausing for %ld seconds\n", 
-		      channel, sc->mlx_pause.mp_howlong - time_second);
+		      channel, (long)(sc->mlx_pause.mp_howlong - time_second));
     } else {
 	device_printf(sc->mlx_dev, "channel %d resuming\n", channel);
     }
