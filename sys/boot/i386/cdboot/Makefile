@@ -1,12 +1,11 @@
 # $FreeBSD$
 
-PROG=	${BOOT}
-INTERNALPROG=
-FILES=	${BOOT}
+PROG=	cdboot
+STRIP=
+BINMODE=${NOBINMODE}
 NOMAN=
-SRCS=	${BOOT}.s
+SRCS=	${PROG}.s
 
-BOOT=	cdboot
 ORG=	0x7c00
 
 LDFLAGS=-N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
