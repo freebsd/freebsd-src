@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.135
+        Original revision: 1.136
 -->
 
 <sect1 id="support">
@@ -82,7 +82,7 @@
 	  <para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
 	</listitem>
 	<listitem>
-	  <para>nVidia nForce ATA100</para>
+	  <para>nVidia nForce ATA100, nForce2 ATA133</para>
         </listitem>
         <listitem>
           <para>Promise ATA100 OEM チップ (pdc20265)</para>
@@ -100,16 +100,16 @@
           <para>ServerWorks ROSB4 ATA33</para>
         </listitem>
         <listitem>
-	  <para>ServerWorks CSB5 ATA66/ATA100</para>
+	  <para>ServerWorks CSB5, CSB6 ATA66/ATA100</para>
 	</listitem>
 	<listitem>
 	  <para>Sil 0680 UDMA6</para>
 	</listitem>
 	<listitem>
-          <para>SiS 530, 540, 620</para>
+          <para>SiS 530, 540, 550, 620</para>
         </listitem>
         <listitem>
-	  <para>SiS 630, 633, 635, 645, 730, 733, 735, 740, 745, 750</para>
+	  <para>SiS 630, 630S, 633, 635, 640, 645, 645DX, 648, 650, 651, 652, 655, 658, 730, 733, 735, 740, 745, 746, 748, 750, 751, 752, 755</para>
         </listitem>
         <listitem>
           <para>SiS 5591 ATA100</para>
@@ -205,7 +205,7 @@
       </itemizedlist>
     </para>
     
-    <para arch="i386">Adaptec 2100S/32x0S/34x0S SCSI RAID
+    <para arch="i386">Adaptec 21x0S/32x0S/34x0S SCSI RAID
       コントローラ (&man.asr.4; ドライバ)</para>
     
     <para arch="i386">Adaptec 2000S/2005S Zero-Channel RAID コントローラ
@@ -221,6 +221,12 @@
 	</listitem>
 	<listitem>
 	  <para>Adaptec AAC-364</para>
+	</listitem>
+	<listitem>
+	  <para>Adaptec RAID 2120S</para>
+	</listitem>
+	<listitem>
+	  <para>Adaptec RAID 2200S</para>
 	</listitem>
 	<listitem>
 	  <para>Adaptec SCSI RAID 5400S</para>
@@ -852,7 +858,7 @@
        PCI SCSI ホストアダプタ (&man.trm.4; ドライバ)
       <itemizedlist>
 	<listitem>
-	  <para>Tekram DC395U/UW/F</para>
+	  <para>Tekram DC395U/UW/U2W/F</para>
 	</listitem>
 	<listitem>
 	  <para>Tekram DC315U</para>
@@ -1421,7 +1427,8 @@
     </para>
 
     <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>,
-      VT86C100A <quote>Rhine II</quote> Fast Ethernet NIC (&man.vr.4; ドライバ)
+      VT86C100A <quote>Rhine II</quote>,
+      VT86C105/VT86C105M <quote>Rhine III</quote> Fast Ethernet NIC (&man.vr.4; ドライバ)
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>AOpen/Acer ALN-320</para>
