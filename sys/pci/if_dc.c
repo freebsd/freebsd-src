@@ -2875,6 +2875,11 @@ static void dc_init(xsc)
 		CSR_WRITE_4(sc, DC_BUSCTL, 0);
 	else
 		CSR_WRITE_4(sc, DC_BUSCTL, DC_BUSCTL_MRME|DC_BUSCTL_MRLE);
+	/*
+	 * Evenly share the bus between receive and transmit process.
+	 */
+	if (DC_IS_INTEL(sc))
+		DC_SETBIT(sc, DC_BUSCTL, DC_BUSCTL_ARBITRATION);
 	if (DC_IS_DAVICOM(sc) || DC_IS_INTEL(sc)) {
 		DC_SETBIT(sc, DC_BUSCTL, DC_BURSTLEN_USECA);
 	} else {
