@@ -186,20 +186,42 @@ extern int isp_debug;
 #define	XS_SNS_IS_VALID(ccb) ((ccb)->ccb_h.status |= CAM_AUTOSNS_VALID)
 #define	XS_IS_SNS_VALID(ccb) (((ccb)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 
-#define	XS_INITERR(ccb)		\
-	(ccb)->ccb_h.status &= ~CAM_STATUS_MASK, \
-	(ccb)->ccb_h.status |= CAM_REQ_INPROG, \
-	(ccb)->ccb_h.spriv_field0 = CAM_REQ_INPROG
-#define	XS_SETERR(ccb, v)	(ccb)->ccb_h.spriv_field0 = v
-#define	XS_ERR(ccb)		(ccb)->ccb_h.spriv_field0
+#define	ISP_SPRIV_ERRSET	0x1
+#define	ISP_SPRIV_INWDOG	0x2
+#define	ISP_SPRIV_GRACE		0x4
+#define	ISP_SPRIV_DONE		0x8
+
+#define	XS_CMD_S_WDOG(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_INWDOG
+#define	XS_CMD_C_WDOG(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_INWDOG
+#define	XS_CMD_WDOG_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_INWDOG)
+
+#define	XS_CMD_S_GRACE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_GRACE
+#define	XS_CMD_C_GRACE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_GRACE
+#define	XS_CMD_GRACE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_GRACE)
+
+#define	XS_CMD_S_DONE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_DONE
+#define	XS_CMD_C_DONE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_DONE
+#define	XS_CMD_DONE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_DONE)
+
+#define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
+
+
+#define	XS_SETERR(ccb, v)	(ccb)->ccb_h.status &= ~CAM_STATUS_MASK, \
+				(ccb)->ccb_h.status |= v, \
+				(ccb)->ccb_h.spriv_field0 |= ISP_SPRIV_ERRSET
+
+#define	XS_INITERR(ccb)		XS_SETERR(ccb, CAM_REQ_INPROG), \
+				XS_CMD_S_CLEAR(ccb)
+
+#define	XS_ERR(ccb)		((ccb)->ccb_h.status & CAM_STATUS_MASK)
+
 #define	XS_NOERR(ccb)		\
-	((ccb)->ccb_h.spriv_field0 == CAM_REQ_INPROG)
+	(((ccb)->ccb_h.spriv_field0 & ISP_SPRIV_ERRSET) == 0 || \
+	 ((ccb)->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
+
+#define	XS_CMD_DONE		isp_done
 
 extern void isp_done(struct ccb_scsiio *);
-#define	XS_CMD_DONE(sccb)	isp_done(sccb)
-
-#define	XS_IS_CMD_DONE(ccb)	\
-	(((ccb)->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG)
 
 /*
  * Can we tag?
@@ -217,7 +239,6 @@ extern void isp_done(struct ccb_scsiio *);
 #define	CMD_EAGAIN		1
 #define	CMD_QUEUED		2
 #define	CMD_RQLATER		3
-#define	STOP_WATCHDOG(f, s)
 
 extern void isp_attach(struct ispsoftc *);
 extern void isp_uninit(struct ispsoftc *);
