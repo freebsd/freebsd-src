@@ -529,27 +529,27 @@ card "PCMCIA  " "56K V.90 Fax Modem (LK)  "
 
 # SunDisk Flash ATA
 # (OEM: Epson Flash Packer)
-#card "SunDisk" "SDP5"
-#	config	0x3 "wdc1" ?
-#	insert	echo Sundisk Flash ATA inserted
-#	remove	echo Sundisk Flash ATA removed
+card "SunDisk" "SDP5"
+	config	0x3 "ata1" ?
+	insert	echo Sundisk Flash ATA inserted
+	remove	echo Sundisk Flash ATA removed
 
-#card "SunDisk" "SDP"
-#	config  0x3 "wdc1" ?
-#	insert  echo SunDisk Flash ATA Inserted
-#	remove  echo SunDisk Flash ATA Removed
+card "SunDisk" "SDP"
+	config  0x3 "ata1" ?
+	insert  echo SunDisk Flash ATA Inserted
+	remove  echo SunDisk Flash ATA Removed
 
 # Midori Elec Fast Flash
-#card "Midori Elec." "FAST FLASH"
-#	config  0x3  "wdc1" ?
-#	insert  echo Midori Elec Fast FLASH inserted
-#	remove  echo Midori Elec Fast FLASH removed
+card "Midori Elec." "FAST FLASH"
+	config  0x3  "ata1" ?
+	insert  echo Midori Elec Fast FLASH inserted
+	remove  echo Midori Elec Fast FLASH removed
 
 # Maxtor 131MB Type III HDD
-#card "Maxtor" "MXL131"
-#	config  0x03 "wdc1" ?
-#	insert	echo Maxtor 131MB HDD inserted
-#	remove	echo Maxtor 131MB HDD removed
+card "Maxtor" "MXL131"
+	config  0x03 "ata1" ?
+	insert	echo Maxtor 131MB HDD inserted
+	remove	echo Maxtor 131MB HDD removed
 
 # Adaptec SlimSCSI (also included with Sony CD-ROM players)
 card "Adaptec, Inc." "APA-1460 SCSI Host Adapter"
@@ -628,8 +628,11 @@ card "AmbiCom Inc" "AMB8002T"
 	remove /sbin/ifconfig ed0 delete
 
 # 3Com OfficeConnect 3CXSH572BT
+#This had auto, so the config slot might be wrong.  Replace it by the
+#one that pccardc dumpcis tells you is default.
+#
 card "3Com" "OfficeConnect 572B"
-        config  auto "ep0" any 0x1
+        config  0x1 "ep0" ? 0x1
         insert  logger -s 3Com 3CXSH572BT inserted
         insert  /etc/pccard_ether $device
         remove  logger -s 3Com 3CXSH572BT removed
