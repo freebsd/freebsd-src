@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pppd.h,v 1.9 1997/08/19 17:52:46 peter Exp $
+ * $Id: pppd.h,v 1.10 1997/10/10 06:02:57 peter Exp $
  */
 
 /*
@@ -86,6 +86,7 @@ extern int	nodetach;	/* Don't detach from controlling tty */
 extern char	*connector;	/* Script to establish physical link */
 extern char	*disconnector;	/* Script to disestablish physical link */
 extern char	*welcomer;	/* Script to welcome client after connection */
+extern int	max_con_attempts;/* Maximum number of times to try dialing */
 extern int	maxconnect;	/* Maximum connect time (seconds) */
 extern char	user[];		/* Our name for authenticating ourselves */
 extern char	passwd[];	/* Password for PAP */

@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.3
-.\" $Id: pppd.8,v 1.14 1997/08/19 17:52:46 peter Exp $
+.\" $Id: pppd.8,v 1.15 1997/10/10 06:30:08 peter Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -90,6 +90,11 @@ Use the executable or shell command specified by \fIscript\fR to set
 up the serial line.  This script would typically use the chat(8)
 program to dial the modem and start the remote ppp session.  This
 option is privileged if the \fInoauth\fR option is used.
+.TP
+.B connect-max-attempts \fI<n>
+Attempt dial-out connection to remote system no more than specified number
+of times (default = 1).  If the connection is not made, pppd will exit.
+Requires that \fBpersist\fR has been specified.
 .TP
 .B crtscts
 Use hardware flow control (i.e. RTS/CTS) to control the flow of data

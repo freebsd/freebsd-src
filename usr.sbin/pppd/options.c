@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.14 1997/08/22 15:50:09 peter Exp $";
+static char rcsid[] = "$Id: options.c,v 1.15 1997/10/10 06:02:56 peter Exp $";
 #endif
 
 #include <ctype.h>
@@ -90,6 +90,7 @@ int	nodetach = 0;		/* Don't detach from controlling tty */
 char	*connector = NULL;	/* Script to establish physical link */
 char	*disconnector = NULL;	/* Script to disestablish physical link */
 char	*welcomer = NULL;	/* Script to run after phys link estab. */
+int	max_con_attempts = 0;	/* Maximum connect tries in non-demand mode */
 int	maxconnect = 0;		/* Maximum connect time */
 char	user[MAXNAMELEN];	/* Username for PAP */
 char	passwd[MAXSECRETLEN];	/* Password for PAP */
@@ -165,6 +166,7 @@ static int nopcomp __P((char **));
 static int setconnector __P((char **));
 static int setdisconnector __P((char **));
 static int setwelcomer __P((char **));
+static int setmaxcon __P((char **));
 static int setmaxconnect __P((char **));
 static int setdomain __P((char **));
 static int setnetmask __P((char **));
@@ -303,6 +305,7 @@ static struct cmd {
     {"connect", 1, setconnector}, /* A program to set up a connection */
     {"disconnect", 1, setdisconnector},	/* program to disconnect serial dev. */
     {"welcome", 1, setwelcomer},/* Script to welcome client */
+    {"connect-max-attempts", 1, setmaxcon},  /* maximum # connect attempts */
     {"maxconnect", 1, setmaxconnect},  /* specify a maximum connect time */
     {"crtscts", 0, setcrtscts},	/* set h/w flow control */
     {"nocrtscts", 0, setnocrtscts}, /* clear h/w flow control */
@@ -1529,6 +1532,13 @@ setwelcomer(argv)
     welcomer_info.source = option_source;
 
     return (1);
+}
+
+static int
+setmaxcon(argv)
+    char **argv;
+{
+    return int_option(*argv, &max_con_attempts);
 }
 
 /*
