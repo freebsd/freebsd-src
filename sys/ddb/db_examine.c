@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.24 1998/07/08 10:53:47 bde Exp $
+ *	$Id: db_examine.c,v 1.25 1999/05/13 06:07:43 bde Exp $
  */
 
 /*
@@ -122,40 +122,40 @@ db_examine(addr, fmt, count)
 			    case 'r':	/* signed, current radix */
 				value = db_get_value(addr, size, TRUE);
 				addr += size;
-				db_printf("%+-*r", width, value);
+				db_printf("%+-*lr", width, (long)value);
 				break;
 			    case 'x':	/* unsigned hex */
 				value = db_get_value(addr, size, FALSE);
 				addr += size;
-				db_printf("%-*x", width, value);
+				db_printf("%-*lx", width, (long)value);
 				break;
 			    case 'z':	/* signed hex */
 				value = db_get_value(addr, size, TRUE);
 				addr += size;
-				db_printf("%-*z", width, value);
+				db_printf("%-*lz", width, (long)value);
 				break;
 			    case 'd':	/* signed decimal */
 				value = db_get_value(addr, size, TRUE);
 				addr += size;
-				db_printf("%-*d", width, value);
+				db_printf("%-*ld", width, (long)value);
 				break;
 			    case 'u':	/* unsigned decimal */
 				value = db_get_value(addr, size, FALSE);
 				addr += size;
-				db_printf("%-*u", width, value);
+				db_printf("%-*lu", width, (long)value);
 				break;
 			    case 'o':	/* unsigned octal */
 				value = db_get_value(addr, size, FALSE);
 				addr += size;
-				db_printf("%-*o", width, value);
+				db_printf("%-*lo", width, (long)value);
 				break;
 			    case 'c':	/* character */
 				value = db_get_value(addr, 1, FALSE);
 				addr += 1;
 				if (value >= ' ' && value <= '~')
-				    db_printf("%c", value);
+				    db_printf("%c", (int)value);
 				else
-				    db_printf("\\%03o", value);
+				    db_printf("\\%03o", (int)value);
 				break;
 			    case 's':	/* null-terminated string */
 				for (;;) {
@@ -164,9 +164,9 @@ db_examine(addr, fmt, count)
 				    if (value == 0)
 					break;
 				    if (value >= ' ' && value <= '~')
-					db_printf("%c", value);
+					db_printf("%c", (int)value);
 				    else
-					db_printf("\\%03o", value);
+					db_printf("\\%03o", (int)value);
 				}
 				break;
 			    case 'i':	/* instruction */
@@ -230,9 +230,9 @@ db_print_cmd(addr, have_addr, count, modif)
 	    case 'c':
 		value = addr & 0xFF;
 		if (value >= ' ' && value <= '~')
-		    db_printf("%c", value);
+		    db_printf("%c", (int)value);
 		else
-		    db_printf("\\%03o", value);
+		    db_printf("\\%03o", (int)value);
 		break;
 	}
 	db_printf("\n");

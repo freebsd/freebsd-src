@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_write_cmd.c,v 1.10 1997/06/14 11:52:37 bde Exp $
+ *	$Id: db_write_cmd.c,v 1.11 1998/07/08 10:53:52 bde Exp $
  */
 
 /*
@@ -78,7 +78,7 @@ db_write_cmd(address, have_addr, count, modif)
 	while (db_expression(&new_value)) {
 	    old_value = db_get_value(addr, size, FALSE);
 	    db_printsym(addr, DB_STGY_ANY);
-	    db_printf("\t\t%#8r\t=\t%#8r\n", old_value, new_value);
+	    db_printf("\t\t%#8lr\t=\t%#8lr\n", (long)old_value,(long)new_value);
 	    db_put_value(addr, size, new_value);
 	    addr += size;
 

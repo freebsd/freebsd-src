@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.23 1998/07/08 10:53:49 bde Exp $
+ *	$Id: db_print.c,v 1.24 1999/01/27 23:45:37 dillon Exp $
  */
 
 /*
@@ -59,7 +59,7 @@ db_show_regs(dummy1, dummy2, dummy3, dummy4)
 		offset != value) {
 		db_printf("\t%s", name);
 		if (offset != 0)
-		    db_printf("+%+#r", offset);
+		    db_printf("+%+#lr", (long)offset);
 	    }
 	    db_printf("\n");
 	}

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.30 1999/05/07 23:08:23 mckusick Exp $
+ *	$Id: db_command.c,v 1.31 1999/05/09 10:51:03 phk Exp $
  */
 
 /*
@@ -532,7 +532,7 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 
 	retval = (*func)(args[0], args[1], args[2], args[3], args[4],
 			 args[5], args[6], args[7], args[8], args[9] );
-	db_printf("%#r\n", retval);
+	db_printf("%#lr\n", (long)retval);
 }
 
 /* Enter GDB remote protocol debugger on the next trap. */
