@@ -1,4 +1,3 @@
-#define STAR_SAVER
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -40,13 +39,13 @@
  *
  * 	virtual consoles, SYSV ioctl's, ANSI emulation 
  *
- *	@(#)syscons.c	0.2b 930531
+ *	@(#)syscons.c	0.2d 930908
  * Derived from:
  *	@(#)pccons.c	5.11 (Berkeley) 5/21/91
- *
- * Further changes 29 July 93 by Jordan Hubbard - provide full pccons and
- * FreeBSD compatability.
  */
+
+#define STAR_SAVER
+#define FAT_CURSOR
 
 #include "param.h"
 #include "conf.h"
@@ -107,15 +106,15 @@
 /* defines related to hardware addresses */
 #define	MONO_BASE	0x3B4			/* crt controller base mono */
 #define	COLOR_BASE	0x3D4			/* crt controller base color */
-#define ATC		0x3C0			/* attribute controller */
-#define TSIDX		0x3C4			/* timing sequencer idx */
-#define TSREG		0x3C5			/* timing sequencer data */
-#define PIXMASK		0x3C6			/* pixel write mask */
-#define PALRADR		0x3C7			/* palette read address */
-#define PALWADR		0x3C8			/* palette write address */
-#define PALDATA		0x3C9			/* palette data register */
-#define GDCIDX		0x3CE			/* graph data controller idx */
-#define GDCREG		0x3CF			/* graph data controller data */
+#define ATC		IO_VGA+0x00		/* attribute controller */
+#define TSIDX		IO_VGA+0x04		/* timing sequencer idx */
+#define TSREG		IO_VGA+0x05		/* timing sequencer data */
+#define PIXMASK		IO_VGA+0x06		/* pixel write mask */
+#define PALRADR		IO_VGA+0x07		/* palette read address */
+#define PALWADR		IO_VGA+0x08		/* palette write address */
+#define PALDATA		IO_VGA+0x09		/* palette data register */
+#define GDCIDX		IO_VGA+0x0E		/* graph data controller idx */
+#define GDCREG		IO_VGA+0x0F		/* graph data controller data */
 
 typedef struct term_stat {
 	int 		esc;			/* processing escape sequence */
@@ -312,7 +311,12 @@ int pcattach(struct isa_device *dev)
 	else
 		printf("\n");
 	if (crtc_vga) {
+#ifdef	FAT_CURSOR
+                start = 0;
+                end = 18;
+#else
 		get_cursor_shape(&start, &end);
+#endif
 		save_palette();
 		load_font(0, 16, font_8x16);
 		load_font(1, 8, font_8x8);
@@ -344,6 +348,10 @@ int pcattach(struct isa_device *dev)
 		}
 	}
 	/* get cursor going */
+#ifdef	FAT_CURSOR
+        cursor_shape(cons_scr_stat[0].cursor_start,
+                     cons_scr_stat[0].cursor_end);
+#endif
 	cursor_pos();
 }
 
@@ -864,15 +872,14 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		saved_console = -1;
 		return 0;
 
-	 case CONSOLE_X_BELL:
+	 case CONSOLE_X_BELL:	/* more compatibility */
                 /*
                  * if set, data is a pointer to a length 2 array of
                  * integers. data[0] is the pitch in Hz and data[1]
                  * is the duration in msec.
                  */
                 if (data)
-		    sysbeep(1187500/ ((int*)data)[0],
-			    ((int*)data)[1] * hz/ 3000);
+		    sysbeep(XTALSPEED/((int*)data)[0], ((int*)data)[1]*hz/3000);
                 else
 		    sysbeep(0x31b, hz/4);
                 return 0;
@@ -1079,7 +1086,7 @@ void scrn_saver(int test)
 
 void scrn_saver(int test)
 {
-	const char	saves[] = {"386BSD"};
+	const char	saves[] = {"FreeBSD"};
 	static u_char	*savs[sizeof(saves)-1];
 	static int	dirx, diry;
 	int		f;
@@ -1772,7 +1779,7 @@ static void ansi_put(scr_stat *scp, u_char c)
 
 void consinit(void)
 {
-	u_short *cp = Crtat + (CGA_BUF-MONO_BUF)/sizeof(u_short), was;
+	u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/sizeof(u_short), was;
 	unsigned cursorat;
 	int i;
 
@@ -1958,7 +1965,11 @@ next_code:
 	case 0x60:		/* 0xE0 prefix */
 		esc_flag = 0;
 		switch (code) {
+		case 0x1c:	/* right enter key */
+			code = 0x59;
+			break;
 		case 0x1d:	/* right ctrl key */
+			code = 0x5a;
 			break;
 		case 0x35:	/* keypad divide key */
 			code = 0x5b;
