@@ -120,8 +120,6 @@ static int 		pnpmss_attach(device_t dev);
 
 static driver_intr_t 	opti931_intr;
 
-static devclass_t pcm_devclass;
-
 static u_int32_t mss_fmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,

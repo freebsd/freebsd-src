@@ -32,7 +32,7 @@
  * The ALS4000 is a effectively an SB16 with a PCI interface.
  *
  * This driver derives from ALS4000a.PDF, Bart Hartgers alsa driver, and
- * SB16 register descriptions.  
+ * SB16 register descriptions.
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -91,7 +91,7 @@ static struct pcmchan_caps als_caps = { 4000, 48000, als_format, 0 };
 /* ------------------------------------------------------------------------- */
 /* Register Utilities */
 
-static u_int32_t 
+static u_int32_t
 als_gcr_rd(struct sc_info *sc, int index)
 {
 	bus_space_write_1(sc->st, sc->sh, ALS_GCR_INDEX, index);
@@ -144,9 +144,9 @@ als_esp_wr(struct sc_info *sc, u_int8_t data)
 		DELAY(20);
 	} while (--tries != 0);
 
-	if (tries == 0) 
+	if (tries == 0)
 		device_printf(sc->dev, "als_esp_wr timeout");
-	
+
 	bus_space_write_1(sc->st, sc->sh, ALS_ESP_WR_DATA, data);
 }
 
@@ -165,15 +165,15 @@ als_esp_reset(struct sc_info *sc)
 		u = bus_space_read_1(sc->st, sc->sh, ALS_ESP_RD_STATUS8);
 		if (u & 0x80) {
 			v = bus_space_read_1(sc->st, sc->sh, ALS_ESP_RD_DATA);
-			if (v == 0xaa) 
+			if (v == 0xaa)
 				return 0;
-			else 
+			else
 				break;
 		}
 		DELAY(20);
 	} while (--tries != 0);
 
-	if (tries == 0) 
+	if (tries == 0)
 		device_printf(sc->dev, "als_esp_reset timeout");
 	return 1;
 }
@@ -189,7 +189,7 @@ als_ack_read(struct sc_info *sc, u_int8_t addr)
 /* Common pcm channel implementation */
 
 static void *
-alschan_init(kobj_t obj, void *devinfo, 
+alschan_init(kobj_t obj, void *devinfo,
 	     struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct	sc_info	*sc = devinfo;
@@ -216,7 +216,7 @@ alschan_init(kobj_t obj, void *devinfo,
 }
 
 static int
-alschan_setformat(kobj_t obj, void *data, u_int32_t format) 
+alschan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct	sc_chinfo *ch = data;
 
@@ -231,7 +231,7 @@ alschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	struct  sc_info *sc = ch->parent;
 
 	other = (ch->dir == PCMDIR_PLAY) ? &sc->rch : &sc->pch;
-	
+
 	/* Deny request if other dma channel is active */
 	if (other->dma_active) {
 		ch->speed = other->speed;
@@ -283,7 +283,7 @@ als_set_speed(struct sc_chinfo *ch)
 		als_esp_wr(sc, ch->speed >> 8);
 		als_esp_wr(sc, ch->speed & 0xff);
 	} else {
-		DEB(printf("speed locked at %d (tried %d)\n", 
+		DEB(printf("speed locked at %d (tried %d)\n",
 			   other->speed, ch->speed));
 	}
 }
@@ -317,7 +317,7 @@ als_get_playback_command(u_int32_t format)
 			return &playback_cmds[i];
 		}
 	}
-	DEB(printf("als_get_playback_command: invalid format 0x%08x\n", 
+	DEB(printf("als_get_playback_command: invalid format 0x%08x\n",
 		   format));
 	return &playback_cmds[0];
 }
@@ -349,7 +349,7 @@ als_playback_start(struct sc_chinfo *ch)
 	als_esp_wr(sc, p->format_val);
 	als_esp_wr(sc, count & 0xff);
 	als_esp_wr(sc, count >> 8);
-	
+
 	ch->dma_active = 1;
 }
 
@@ -404,13 +404,13 @@ static u_int8_t
 als_get_fifo_format(struct sc_info *sc, u_int32_t format)
 {
 	switch (format) {
-	case AFMT_U8: 
+	case AFMT_U8:
 		return ALS_FIFO1_8BIT;
-	case AFMT_U8 | AFMT_STEREO: 
+	case AFMT_U8 | AFMT_STEREO:
 		return ALS_FIFO1_8BIT | ALS_FIFO1_STEREO;
-	case AFMT_S16_LE: 
+	case AFMT_S16_LE:
 		return ALS_FIFO1_SIGNED;
-	case AFMT_S16_LE | AFMT_STEREO: 
+	case AFMT_S16_LE | AFMT_STEREO:
 		return ALS_FIFO1_SIGNED | ALS_FIFO1_STEREO;
 	}
 	device_printf(sc->dev, "format not found: 0x%08x\n", format);
@@ -517,7 +517,7 @@ struct sb16props {
 };
 
 static int
-alsmix_init(struct snd_mixer *m) 
+alsmix_init(struct snd_mixer *m)
 {
 	u_int32_t i, v;
 
@@ -528,7 +528,7 @@ alsmix_init(struct snd_mixer *m)
 
 	for (i = v = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (amt[i].iselect) v |= 1 << i;
-	}	
+	}
 	mix_setrecdevs(m, v);
 	return 0;
 }
@@ -545,7 +545,7 @@ alsmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	l = (left * mask / 100) & mask;
 	v = als_mix_rd(sc, amt[dev].lreg) & ~mask;
 	als_mix_wr(sc, amt[dev].lreg, l | v);
-	
+
 	if (amt[dev].rreg) {
 		r = (right * mask / 100) & mask;
 		v = als_mix_rd(sc, amt[dev].rreg) & ~mask;
@@ -553,7 +553,7 @@ alsmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	} else {
 		r = 0;
 	}
-	
+
 	/* Zero gain does not mute channel from output, but this does. */
 	v = als_mix_rd(sc, SB16_OMASK);
 	if (l == 0 && r == 0) {
@@ -599,15 +599,15 @@ als_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
 	u_int8_t intr, sb_status;
-	
+
 	intr = als_intr_rd(sc);
-	
+
 	if (intr & 0x80)
 		chn_intr(sc->pch.channel);
-	
+
 	if (intr & 0x40)
 		chn_intr(sc->rch.channel);
-	
+
 	/* ACK interrupt in PCI core */
 	als_intr_wr(sc, intr);
 
@@ -623,7 +623,7 @@ als_intr(void *p)
 	if (sb_status & ALS_IRQ_CR1E)
 		als_ack_read(sc, ALS_CR1E_ACK_PORT);
 	return;
-}	
+}
 
 /* ------------------------------------------------------------------------- */
 /* H/W initialization */
@@ -641,10 +641,10 @@ als_init(struct sc_info *sc)
 	/* Enable write on DMA_SETUP register */
 	v = als_mix_rd(sc, ALS_SB16_CONFIG);
 	als_mix_wr(sc, ALS_SB16_CONFIG, v | 0x80);
-	
+
 	/* Select DMA0 */
 	als_mix_wr(sc, ALS_SB16_DMA_SETUP, 0x01);
-	
+
 	/* Disable write on DMA_SETUP register */
 	als_mix_wr(sc, ALS_SB16_CONFIG, v & 0x7f);
 
@@ -725,7 +725,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 		goto bad;
 	}
 
-	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, als_intr, 
+	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, als_intr,
 			   sc, &sc->ih)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto bad;
@@ -736,7 +736,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 			       /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/ALS_BUFFER_SIZE, 
+			       /*maxsize*/ALS_BUFFER_SIZE,
 			       /*nsegments*/1, /*maxsegz*/0x3ffff,
 			       /*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
@@ -854,11 +854,11 @@ static int
 als_pci_resume(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
-	
+
 	if (als_init(sc) != 0) {
 		device_printf(dev, "unable to reinitialize the card\n");
 		return ENXIO;
-	}	
+	}
 
 	if (mixer_reinit(dev) != 0) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
@@ -890,8 +890,6 @@ static driver_t als_driver = {
 	als_methods,
 	sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(snd_als, pci, als_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_als, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);

@@ -591,7 +591,7 @@ nm_pci_probe(device_t dev)
 				return ENXIO;
 			}
 
-			if ((nm_rd(sc, NM_MIXER_PRESENCE, 2) & 
+			if ((nm_rd(sc, NM_MIXER_PRESENCE, 2) &
 				NM_PRESENCE_MASK) != NM_PRESENCE_VALUE) {
 				i = 0;	/* non-ac97 card, but not listed */
 				DEB(device_printf(dev, "subdev = 0x%x - badcard?\n",
@@ -745,8 +745,6 @@ static driver_t nm_driver = {
 	nm_methods,
 	sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(snd_neomagic, pci, nm_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_neomagic, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);

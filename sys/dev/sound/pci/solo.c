@@ -115,8 +115,6 @@ static int ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t c
 static int ess_dmapos(struct ess_info *sc, int ch);
 static int ess_dmatrigger(struct ess_info *sc, int ch, int go);
 
-static devclass_t pcm_devclass;
-
 /*
  * Common code for the midi and pcm functions
  *

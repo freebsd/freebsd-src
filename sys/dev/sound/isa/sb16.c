@@ -105,8 +105,6 @@ static int sb_reset_dsp(struct sb_info *sb);
 
 static void sb_intr(void *arg);
 
-static devclass_t pcm_devclass;
-
 /*
  * Common code for the midi and pcm functions
  *
