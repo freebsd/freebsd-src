@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.15 1995/07/13 08:47:44 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.16 1995/07/16 10:12:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -159,8 +159,7 @@ retry:
 			error = VOP_GETATTR(vp, vap, cred, p);
 			if (error)
 				goto bad;
-			if (vnode_pager_alloc(vp, vap->va_size, 0, 0) == NULL)
-				panic("vn_open: failed to allocate object");
+			(void) vnode_pager_alloc(vp, vap->va_size, 0, 0);
 			vp->v_flag |= VVMIO;
 		} else {
 			vm_object_t object;
