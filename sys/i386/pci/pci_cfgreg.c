@@ -169,7 +169,8 @@ pci_cfgregopen(void)
 			     i < (pt->pt_header.ph_length); i++) {
 				ck += cv[i];
 			}
-			if (ck == 0) {
+			if (ck == 0 && pt->pt_header.ph_length >
+			    sizeof(struct PIR_header)) {
 				pci_route_table = pt;
 				pci_route_count = (pt->pt_header.ph_length -
 				    sizeof(struct PIR_header)) / 
