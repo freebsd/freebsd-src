@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.5 2000/08/24 07:01:12 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.6 2000/11/25 03:42:06 peter Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.97 2000/07/26 07:24:15 onoe Exp $ */
 
@@ -184,6 +184,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    0,
 	    "Motorola Corporation",
 	    "Motorola Personal Messenger 100C CDPD Modem"	},
+	},
+	{
+	    PCCARD_VENDOR_KINGSTON, PCCARD_PRODUCT_KINGSTON_KNE2,
+	    PCCARD_CIS_KINGSTON_KNE2,
+	    0,
+	    "Kingston",
+	    "Kingston KNE-PC2 Ethernet"	},
 	},
 	{
 	    PCCARD_VENDOR_FUJITSU, PCCARD_PRODUCT_FUJITSU_LA501,
@@ -1016,6 +1023,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    PCCARD_KNOWNDEV_NOPROD,
 	    PCCARD_CIS_INVALID,
 	    "Compaq",
+	    NULL,
+	},
+	{
+	    PCCARD_VENDOR_KINGSTON, 0,
+	    PCCARD_KNOWNDEV_NOPROD,
+	    PCCARD_CIS_INVALID,
+	    "Kingston",
 	    NULL,
 	},
 	{
