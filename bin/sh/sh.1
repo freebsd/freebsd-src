@@ -1817,7 +1817,7 @@ for commands and tracked aliases
 the complete pathname of the command is printed.
 .It Xo
 .Ic ulimit
-.Op Fl HSabcdflmnust
+.Op Fl HSabcdflmnstuv
 .Op Ar limit
 .Xc
 Set or display resource limits (see
@@ -1878,6 +1878,8 @@ The maximal size of the stack segment, in kilobytes.
 The maximal amount of CPU time to be used by each process, in seconds.
 .It Fl u Ar userproc
 The maximal number of simultaneous processes for this user ID.
+.It Fl v Ar virtualmem
+The maximal virtual size of a process, in kilobytes.
 .El
 .It Ic umask Op Ar mask
 Set the file creation mask (see
