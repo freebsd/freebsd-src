@@ -32,10 +32,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <unistd.h>
 #include <string.h>
 #include <sysexits.h>
-#include "collate.h"
 #include "common.h"
 #include "y.tab.h"
 
