@@ -6,7 +6,7 @@
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/1/93
 #
-# $FreeBSD$
+# $Id$
 
 PROG=	registerd
 SRCS=	registerd.c

@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: netread.c,v 4.1 88/11/15 16:47:21 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

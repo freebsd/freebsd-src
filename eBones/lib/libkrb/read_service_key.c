@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: _service_key.c,v 4.10 90/03/10 19:06:56 jon Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

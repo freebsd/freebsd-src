@@ -6,13 +6,13 @@
  * Miscellaneous debug printing utilities
  *
  *	from: util.c,v 4.8 89/01/17 22:02:08 wesommer Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

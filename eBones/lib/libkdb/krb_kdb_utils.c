@@ -10,13 +10,13 @@
  * Jon Rochlis, MIT Telecom, March 1988
  *
  *	from: krb_kdb_utils.c,v 4.1 89/07/26 11:01:12 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

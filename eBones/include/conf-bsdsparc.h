@@ -6,7 +6,7 @@
  * Machine-type definitions: SPARC with BSD Unix, e.g. SUN-4
  *
  *	from: conf-bsdsparc.h,v 4.0 89/06/02 13:04:06 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define BITS32

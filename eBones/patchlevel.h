@@ -1,5 +1,5 @@
 /*-
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define PATCHLEVEL	9

@@ -7,13 +7,13 @@
  * Written by Bill Sommerfeld, MIT Project Athena.
  *
  *	from: klist.c,v 4.15 89/08/30 11:19:16 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

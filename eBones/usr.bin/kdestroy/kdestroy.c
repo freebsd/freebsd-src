@@ -10,13 +10,13 @@
  *   -f[orce]	- no message printed at all
  *
  *	from: kdestroy.c,v 4.5 88/03/18 15:16:02 steiner Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: extract_ticket.c,v 4.6 88/10/07 06:08:15 shanzer Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

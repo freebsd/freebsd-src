@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: kstash.c,v 4.0 89/01/23 09:45:43 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

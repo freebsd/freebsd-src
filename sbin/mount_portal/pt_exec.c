@@ -36,7 +36,7 @@
  *
  *	@(#)pt_exec.c	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <stdio.h>

@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: k_gethostname.c,v 4.1 88/12/01 14:04:42 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

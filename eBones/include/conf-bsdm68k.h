@@ -6,7 +6,7 @@
  * Machine-type definitions: 68000 with BSD Unix, e.g. SUN
  *
  *	from: conf-bsdm68k.h,v 4.0 88/11/29 11:46:58 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define BITS32
