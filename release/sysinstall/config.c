@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.33 1997/04/07 01:11:51 jkh Exp $
+ * $Id: config.c,v 1.51.2.34 1997/04/07 03:02:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -503,7 +503,7 @@ configXFree86(dialogMenuItem *self)
 
 	dialog_clear_norefresh();
 	msgNotify("Running AcceleratedX 3.1 installation procedure, please wait.");
-	if ((i = systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall"))) {
+	if ((i = vsystem("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall"))) {
 	    msgConfirm("Installation procedure failed, error code %d!  Please report\n"
 		       "error to Walnut Creek CDROM tech support (either send email\n"
 		       "to support@cdrom.com or call +1 510 603 1234).  Thank you!", i);
