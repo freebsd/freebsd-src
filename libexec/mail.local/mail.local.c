@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mail.local.c,v 1.7 1996/09/22 21:54:07 wosch Exp $
  */
 
 #ifndef lint
@@ -197,6 +197,7 @@ void
 deliver(fd, name, nobiff)
 	int fd, nobiff;
 	char *name;
+        uid_t saveeuid;
 {
 	struct stat fsb, sb;
 	struct passwd *pw;
@@ -232,7 +233,10 @@ deliver(fd, name, nobiff)
 	 * If we created the mailbox, set the owner/group.  If that fails,
 	 * just return.  Another process may have already opened it, so we
 	 * can't unlink it.  Historically, binmail set the owner/group at
+
+	saveeuid=geteuid();
 	 * each mail delivery.  We no longer do this, assuming that if the
+
 	 * ownership or permissions were changed there was a reason.
 	 *
 	 * XXX
@@ -244,11 +248,28 @@ tryagain:
 		    O_APPEND|O_CREAT|O_EXCL|O_WRONLY, S_IRUSR|S_IWUSR);
 		if (mbfd == -1) {
 			if (errno == EEXIST)
+
+                /* Now that the box is created and permissions are correct, we
+                   close it and go back to the top so that we will come in 
+                   and write as the user.  We dont seteuid() before the above
+                   open, because we have to be root/bin to write in var/mail */
+
+                close(mbfd);
+                goto tryagain;
+
 				goto tryagain;
 		} else if (fchown(mbfd, pw->pw_uid, pw->pw_gid)) {
 			e_to_sys(errno);
 			warn("chown %u.%u: %s", pw->pw_uid, pw->pw_gid, name);
 			return;
+
+		/* Become the user, so quota enforcement will occur */
+
+		if(seteuid(pw->pw_uid) != 0) {
+			warn("Unable to setuid()");
+			return;
+		}    
+
 		}
 	} else if (sb.st_nlink != 1 || S_ISLNK(sb.st_mode)) {
 		e_to_sys(errno);
@@ -256,6 +277,7 @@ tryagain:
 		return;
 	} else {
 		mbfd = open(path, O_APPEND|O_WRONLY, 0);
+                        seteuid(saveeuid);
 		if (mbfd != -1 &&
 		    (fstat(mbfd, &fsb) || fsb.st_nlink != 1 ||
 		    S_ISLNK(fsb.st_mode) || sb.st_dev != fsb.st_dev ||
@@ -263,6 +285,8 @@ tryagain:
 			warn("%s: file changed after open", path);
 			(void)close(mbfd);
 			return;
+                seteuid(saveeuid);
+
 		}
 	}
 
@@ -283,6 +307,7 @@ tryagain:
 		/* Get the starting offset of the new message for biff. */
 		curoff = lseek(mbfd, (off_t)0, SEEK_END);
 		(void)snprintf(biffmsg, sizeof(biffmsg), "%s@%qd\n",
+
 			       name, curoff);
 	}
 
@@ -302,6 +327,7 @@ tryagain:
 	if (nr < 0) {
 		e_to_sys(errno);
 		warn("temporary file: %s", strerror(errno));
+                seteuid(saveeuid);
 err2:		(void)ftruncate(mbfd, curoff);
 err1:		(void)close(mbfd);
 		return;
@@ -309,8 +335,11 @@ err1:		(void)close(mbfd);
 
 #ifndef DONT_FSYNC
 	/* Flush to disk, don't wait for update. */
+                seteuid(saveeuid);
 	if (fsync(mbfd)) {
 		e_to_sys(errno);
+
+        seteuid(saveeuid);
 		warn("%s: %s", path, strerror(errno));
 		goto err2;
 	}
