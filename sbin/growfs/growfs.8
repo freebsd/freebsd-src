@@ -53,23 +53,24 @@
 extends the
 .Xr newfs 8
 program.
-Before running
+Before starting
 .Nm
 the disk must be labeled to a bigger size using
 .Xr disklabel 8 .
-If you are using volumes you must grow them using
+If you are using volumes you must enlarge them by using
 .Xr vinum 8 .
 .Nm
 extends the size of the file system on the specified special file.
 Currently
 .Nm
-can only grow unmounted file systems.
-Do not try growing a mounted file system, your system may panic and you will
+can only enlarge unmounted file systems.
+Do not try enlarging a mounted file system, your system may panic and you will
 not be able to use the file system any longer.
-Most of the options you have used with
+Most of the
 .Xr newfs 8
-once can not be changed.
-In fact you can only increase the size of the file system.
+options can not be changed by
+.Nm .
+In fact, you can only increase the size of the file system.
 Use
 .Xr tunefs 8
 for other changes.
@@ -77,69 +78,95 @@ for other changes.
 The following options are available:
 .Bl -tag -width indent
 .It Fl N
-Cause the new file system parameters to be printed out without actually growing
-the file system.
+.Dq Test mode .
+Causes the new file system parameters to be printed out without actually
+enlarging the file system.
 .It Fl y
 .Dq Expert mode .
-Normally
+Usally
 .Nm
-will ask you, if you took a backup of your data before and will do some tests
-if
+will ask you if you took a backup of your data before and will do some tests
+whether
 .Ar special
-is currently mounted or if there are any active snapshots on the filesystem
-specified.
+is currently mounted or whether there are any active snapshots on the file
+system specified.
 This will be suppressed.
 So use this option with great care!
 .It Fl s Ar size
-The
+Determines the
 .Ar size
-of the file system after growing in sectors.
+of the file system after enlarging in sectors.
 This value defaults to the size of the raw partition specified in
 .Ar special
 (in other words,
 .Nm
-will grow the file system to the size of the entire partition).
+will enlarge the file system to the size of the entire partition).
 .El
 .Sh EXAMPLES
 .Dl growfs -s 4194304 /dev/vinum/testvol
 .Pp
-will grow
+will enlarge
 .Pa /dev/vinum/testvol
 up to 2GB if there is enough space in
 .Pa /dev/vinum/testvol .
 .Sh BUGS
-In some cases on
-.Fx
-3.x it is possible, that
 .Nm
-did not recognize exactly, if the file system is mounted or not and
-exits with an error message, then use
+works starting with
+.Fx
+3.x.
+There may be cases on
+.Fx
+3.x only, when
+.Nm
+does not recognize exactly, whether the file system is mounted or not and
+exits with an error message.
+Then please use
 .Nm
 .Fl y
 if you are sure, that the file system is not mounted.
 It is also recommended to always use
 .Xr fsck 8
-after growing just to be on the safe side.
+after enlarging (just to be on the safe side).
 .Pp
-Pay attention, as in certain cases we have to change the location of an file
-system internal structure which had never been moved before.
-Almost everything works perfect with this relocated structure except the
-.Xr fsck 8
-utility.
-There is a patch available for
-.Xr fsck 8 .
-For growing above certain limits it is essential to have some free blocks
+For enlarging beyond certain limits, it is essential to have some free blocks
 available in the first cylinder group.
-To avoid the relocation of that structure it is currently recommended to use
+If that space is not available in the first cylinder group, a critical data
+structure has to be relocated into one of the new available cylinder groups.
+On
+.Fx
+3.x this will cause problems with
+.Xr fsck 8
+afterwards.
+So
+.Xr fsck 8
+needs to be patched if you want to use
+.Nm
+for
+.Fx
+3.x.
+This patch is already integrated in
+.Fx
+starting with
+.Fx 4.4 .
+To avoid an unexpected relocation of that structure it is possible to use
 .Nm ffsinfo
 .Fl c Ar 0
-on the first cylinder group and check that
+on the first cylinder group to verify that
 .Em nbfree
 in the CYLINDER SUMMARY (internal cs) of the CYLINDER GROUP
 .Em cgr0
 has enough blocks.
-As a rule of thumb for default filesystem parameters a block is needed for
-every 2 GB of total filesystem size.
+As a rule of thumb for default file system parameters one block is needed for
+every 2 GB of total file system size.
+.Pp
+Normally
+.Nm
+writes this critical structure to disk and reads it again later for doing more
+updates.
+This read operation will provide unexpected data, when using
+.Fl N .
+Therefore, this part can not really be simulated and will be skiped in test
+mode.
 .Sh SEE ALSO
 .Xr disklabel 8 ,
 .Xr dumpfs 8 ,

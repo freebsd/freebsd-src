@@ -36,7 +36,6 @@
  * SUCH DAMAGE.
  *
  * $TSHeader: src/sbin/growfs/growfs.c,v 1.5 2000/12/12 19:31:00 tomsoft Exp $
- * $FreeBSD$
  *
  */
 
@@ -956,6 +955,9 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 
 	/*
 	 * Read original cylinder group from disk, and make a copy.
+	 * XXX	If Nflag is set in some very rare cases we now miss
+	 *	some changes done in updjcg by reading the unmodified
+	 *	block from disk.
 	 */
 	rdfs(fsbtodb(&osblock, cgtod(&osblock, ocscg)),
 	    (size_t)osblock.fs_cgsize, (void *)&aocg, fsi);
@@ -1135,6 +1137,18 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 		sblock.fs_csaddr=cgdmin(&sblock, osblock.fs_ncg);
 		ncscg=dtog(&sblock, sblock.fs_csaddr);
 		cs=fscs+ncscg;
+
+
+		/*
+		 * If Nflag is specified, we would now read random data instead
+		 * of an empty cg structure from disk. So we can't simulate that
+		 * part for now.
+		 */
+		if(Nflag) {
+			DBG_PRINT0("nscg update skipped\n");
+			DBG_LEAVE;
+			return;
+		}
 
 		/*
 		 * Read the future cylinder group containing the cylinder
