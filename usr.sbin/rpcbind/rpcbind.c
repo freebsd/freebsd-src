@@ -254,7 +254,8 @@ init_transport(struct netconfig *nconf)
 	 */
 	if (nconf->nc_semantics != NC_TPI_CLTS) {
 		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
-			syslog(LOG_ERR, "cannot create socket for %s", nconf->nc_netid);
+			syslog(LOG_ERR, "cannot create socket for %s",
+			    nconf->nc_netid);
 			return (1);
 		}
 	}
@@ -311,24 +312,27 @@ init_transport(struct netconfig *nconf)
 			 * XXX - using RPC library internal functions.
 			 */
 			if ((fd = __rpc_nconf2fd(nconf)) < 0) {
-				syslog(LOG_ERR, "cannot create socket for %s", nconf->nc_netid);
+				syslog(LOG_ERR, "cannot create socket for %s",
+				    nconf->nc_netid);
 				return (1);
 			}
 			switch (hints.ai_family) {
 			case AF_INET:
-				if (inet_pton(AF_INET, hosts[nhostsbak], host_addr) == 1) {
+				if (inet_pton(AF_INET, hosts[nhostsbak],
+				    host_addr) == 1) {
 					hints.ai_flags &= AI_NUMERICHOST;
 				} else {
 					/*
 					 * Skip if we have a AF_INET6 adress
 					 */
-					if (inet_pton(AF_INET6, hosts[nhostsbak],
-					    host_addr) == 1)
+					if (inet_pton(AF_INET6,
+					    hosts[nhostsbak], host_addr) == 1)
 						continue;
 				}
 				break;
 			case AF_INET6:
-				if (inet_pton(AF_INET6, hosts[nhostsbak], host_addr) == 1) {
+				if (inet_pton(AF_INET6, hosts[nhostsbak],
+				    host_addr) == 1) {
 					hints.ai_flags &= AI_NUMERICHOST;
 				} else {
 					/*
@@ -340,7 +344,8 @@ init_transport(struct netconfig *nconf)
 				}
 				if (setsockopt(fd, IPPROTO_IPV6,
                                     IPV6_V6ONLY, &on, sizeof on) < 0) {
-                                        syslog(LOG_ERR, "can't set v6-only binding for "
+                                        syslog(LOG_ERR,
+					    "can't set v6-only binding for "
                                             "udp6 socket: %m");
 					continue;
 				}
@@ -357,7 +362,8 @@ init_transport(struct netconfig *nconf)
 
 			if ((aicode = getaddrinfo(hosts[nhostsbak],
 			    servname, &hints, &res)) != 0) {
-				syslog(LOG_ERR, "cannot get local address for %s: %s",
+				syslog(LOG_ERR,
+				    "cannot get local address for %s: %s",
 				    nconf->nc_netid, gai_strerror(aicode));
 				continue;
 			}
@@ -379,7 +385,8 @@ init_transport(struct netconfig *nconf)
 			taddr.addr.len = taddr.addr.maxlen = addrlen;
 			taddr.addr.buf = malloc(addrlen);
 			if (taddr.addr.buf == NULL) {
-				syslog(LOG_ERR, "cannot allocate memory for %s address",
+				syslog(LOG_ERR,
+				    "cannot allocate memory for %s address",
 				    nconf->nc_netid);
 				if (res != NULL)
 					freeaddrinfo(res);
@@ -388,14 +395,18 @@ init_transport(struct netconfig *nconf)
 			memcpy(taddr.addr.buf, sa, addrlen);
 #ifdef ND_DEBUG
 			if (debugging) {
-				/* for debugging print out our universal address */
+				/*
+				 * for debugging print out our universal
+				 * address
+				 */
 				char *uaddr;
 				struct netbuf nb;
 
 				nb.buf = sa;
 				nb.len = nb.maxlen = sa->sa_len;
 				uaddr = taddr2uaddr(nconf, &nb);
-				(void) fprintf(stderr, "rpcbind : my address is %s\n", uaddr);
+				(void) fprintf(stderr,
+				    "rpcbind : my address is %s\n", uaddr);
 				(void) free(uaddr);
 			}
 #endif
@@ -403,7 +414,8 @@ init_transport(struct netconfig *nconf)
 			if (nconf->nc_semantics != NC_TPI_CLTS)
 				listen(fd, SOMAXCONN);
 
-			my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, 0, 0);
+			my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr,
+			    0, 0);
 			if (my_xprt == (SVCXPRT *)NULL) {
 				syslog(LOG_ERR, "%s: could not create service",
 					nconf->nc_netid);
@@ -414,8 +426,10 @@ init_transport(struct netconfig *nconf)
 			return 1;
 	} else {
 		if (strcmp(nconf->nc_netid, "unix") != 0) {
-			if ((aicode = getaddrinfo(NULL, servname, &hints, &res)) != 0) {
-				syslog(LOG_ERR, "cannot get local address for %s: %s",
+			if ((aicode = getaddrinfo(NULL, servname, &hints, &res))
+			    != 0) {
+				syslog(LOG_ERR,
+				    "cannot get local address for %s: %s",
 				    nconf->nc_netid, gai_strerror(aicode));
 				return 1;
 			}
@@ -451,7 +465,8 @@ init_transport(struct netconfig *nconf)
 			nb.buf = sa;
 			nb.len = nb.maxlen = sa->sa_len;
 			uaddr = taddr2uaddr(nconf, &nb);
-			(void) fprintf(stderr, "rpcbind : my address is %s\n", uaddr);
+			(void) fprintf(stderr, "rpcbind : my address is %s\n",
+			    uaddr);
 			(void) free(uaddr);
 		}
 #endif
