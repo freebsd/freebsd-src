@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netstat.h	8.2 (Berkeley) 1/4/94
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -104,6 +105,8 @@ void	nserr_stats __P((u_long, char *));
 
 void	atalkprotopr __P((u_long, char *));
 void	ddp_stats __P((u_long, char *));
+
+void	netgraphprotopr __P((u_long, char *));
 
 void	intpr __P((int, u_long));
 

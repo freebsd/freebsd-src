@@ -67,6 +67,7 @@
 #define	NETISR_ISDN	26		/* same as AF_E164 */
 #define	NETISR_PPP	27		/* PPP soft interrupt */
 #define	NETISR_NATM	29		/* same as AF_NATM */
+#define	NETISR_NETGRAPH	31		/* same as AF_NETGRAPH */
 
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 

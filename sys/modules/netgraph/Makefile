@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
+# $Whistle: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
 # $FreeBSD$
 
 SUBDIR=	async cisco echo frame_relay hole iface lmi netgraph ppp rfc1490 \

@@ -38,6 +38,7 @@
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #include "opt_bdg.h"
+#include "opt_netgraph.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -116,6 +117,43 @@ static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **,
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) do { error = (e); goto bad;} while (0)
 #define IFP2AC(IFP) ((struct arpcom *)IFP)
+
+#ifdef NETGRAPH
+#include <netgraph/ng_ether.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/netgraph.h>
+
+static	void	ngether_init(void* ignored);
+static void	ngether_send(struct arpcom *ac,
+			struct ether_header *eh, struct mbuf *m);
+static	int	ngether_constructor(node_p *nodep);
+static	int	ngether_rcvmsg(node_p node, struct ng_mesg *msg,
+			const char *retaddr, struct ng_mesg **resp);
+static	int	ngether_rmnode(node_p node);
+static	int	ngether_newhook(node_p node, hook_p hook, const char *name);
+/*static	hook_p	ngether_findhook(node_p node, char *name);*/
+static	int	ngether_connect(hook_p hook);	/* already PARTLY linked */
+static	int	ngether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
+static	int	ngether_disconnect(hook_p hook);	/* notify on disconnect */
+
+static struct ng_type typestruct = {
+	NG_VERSION,
+	NG_ETHER_NODE_TYPE,
+	NULL,
+	ngether_constructor,
+	ngether_rcvmsg,
+	ngether_rmnode,
+	ngether_newhook,
+	NULL,
+	ngether_connect,
+	ngether_rcvdata,
+	ngether_rcvdata,
+	ngether_disconnect 
+};
+
+#define AC2NG(AC) ((node_p)((AC)->ac_ng))
+#define NGEF_DIVERT NGF_TYPE1	/* all packets sent to netgraph */
+#endif /* NETGRAPH */
 
 /*
  * Ethernet output routine.
@@ -456,6 +494,16 @@ ether_input(ifp, eh, m)
 
 	ether_type = ntohs(eh->ether_type);
 
+#ifdef	NETGRAPH
+	{
+		struct arpcom *ac = IFP2AC(ifp);
+		if (AC2NG(ac) && (AC2NG(ac)->flags & NGEF_DIVERT)) {
+			ngether_send(ac, eh, m);
+			return;
+		}
+	}
+#endif	/* NETGRAPH */
+		
 #if NVLAN > 0
 	if (ether_type == vlan_proto) {
 		if (vlan_input(eh, m) < 0)
@@ -640,11 +688,19 @@ ether_input(ifp, eh, m)
 #endif /* LLC */
 		dropanyway:
 		default:
+#ifdef	NETGRAPH
+			ngether_send(IFP2AC(ifp), eh, m);
+#else	/* NETGRAPH */
 			m_freem(m);
+#endif	/* NETGRAPH */
 			return;
 		}
 #else /* ISO || LLC || NETATALK */
+#ifdef	NETGRAPH
+	    ngether_send(IFP2AC(ifp), eh, m);
+#else	/* NETGRAPH */
 	    m_freem(m);
+#endif	/* NETGRAPH */
 	    return;
 #endif /* ISO || LLC || NETATALK */
 	}
@@ -844,3 +900,296 @@ ether_resolvemulti(ifp, llsa, sa)
 		return EAFNOSUPPORT;
 	}
 }
+
+#ifdef	NETGRAPH
+
+/***********************************************************************
+ * This section contains the methods for the Netgraph interface
+ ***********************************************************************/
+/* It's Ascii-art time!
+ * The ifnet is the first part of the arpcom which must be
+ * the first part of the device's softc.. yuk.
+ *
+ *      +--------------------------+-----+---------+
+ *      |   struct ifnet (*ifp)    |     |         |
+ *      |                          |     |         |
+ *      +--------------------------+     |         |
+ *   +--|[ac_ng]     struct arpcom (*ac) |         |
+ *   |  +--------------------------------+         |
+ *   |  |   struct softc (*ifp->if_softc) (device) |
+ *   |  +------------------------------------------+
+ *   |               ^
+ * AC2NG()           |
+ *   |               v
+ *   |       +----------------------+
+ *   |       |   [private] [flags]  |
+ *   +------>| struct ng_node       |
+ *           |    [hooks]           | ** we only allow one hook
+ *           +----------------------+
+ *                   ^
+ *                   |
+ *                   v
+ *           +-------------+
+ *           |    [node]   |
+ *           |    hook     |
+ *           |    [private]|-- *unused*
+ *           +-------------+
+ */
+
+/*
+ * called during interface attaching
+ */
+static void
+ngether_init(void *ifpvoid)
+{
+	struct	ifnet *ifp = ifpvoid;
+	struct arpcom *ac = IFP2AC(ifp);
+	static int	ngether_done_init;
+	char	namebuf[32];
+	node_p node;
+
+	/*
+	 * we have found a node, make sure our 'type' is availabe.
+	 */
+	if (ngether_done_init == 0) {
+		if (ng_newtype(&typestruct)) {
+			printf("ngether install failed\n");
+			return;
+		}
+		ngether_done_init = 1;
+	}
+	if (ng_make_node_common(&typestruct, &node) != 0)
+		return;
+	ac->ac_ng = node;
+	node->private = ifp;
+	sprintf(namebuf, "%s%d", ifp->if_name, ifp->if_unit);
+	ng_name_node(AC2NG(ac), namebuf);
+}
+
+/*
+ * It is not possible or allowable to create a node of this type.
+ * If the hardware exists, it will already have created it.
+ */
+static	int
+ngether_constructor(node_p *nodep)
+{
+	return (EINVAL);
+}
+
+/*
+ * Give our ok for a hook to be added...
+ * 
+ * Allow one hook at a time (rawdata). 
+ * It can eiteh rdivert everything or only unclaimed packets.
+ */
+static	int
+ngether_newhook(node_p node, hook_p hook, const char *name)
+{
+
+	/* check if there is already a hook */
+	if (LIST_FIRST(&(node->hooks)))
+		return(EISCONN);
+	/*
+	 * Check for which mode hook we want.
+	 */
+	if (strcmp(name, NG_ETHER_HOOK_ORPHAN) != 0) {
+		if (strcmp(name, NG_ETHER_HOOK_DIVERT) != 0) {
+			return (EINVAL);
+		}
+		node->flags |= NGEF_DIVERT;
+	} else {
+		node->flags &= ~NGEF_DIVERT;
+	}
+	return (0);
+}
+
+/*
+ * incoming messages.
+ * Just respond to the generic TEXT_STATUS message
+ */
+static	int
+ngether_rcvmsg(node_p node,
+	struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp)
+{
+	struct ifnet	*ifp;
+	int error = 0;
+
+	ifp = node->private;
+	switch (msg->header.typecookie) {
+	    case	NGM_ETHER_COOKIE: 
+		error = EINVAL;
+		break;
+	    case	NGM_GENERIC_COOKIE: 
+		switch(msg->header.cmd) {
+		    case NGM_TEXT_STATUS: {
+			    char	*arg;
+			    int pos = 0;
+			    int resplen = sizeof(struct ng_mesg) + 512;
+			    MALLOC(*resp, struct ng_mesg *, resplen,
+					M_NETGRAPH, M_NOWAIT);
+			    if (*resp == NULL) { 
+				error = ENOMEM;
+				break;
+			    }       
+			    bzero(*resp, resplen);
+			    arg = (*resp)->data;
+
+			    /*
+			     * Put in the throughput information.
+			     */
+			    pos = sprintf(arg, "%ld bytes in, %ld bytes out\n",
+			    ifp->if_ibytes, ifp->if_obytes);
+			    pos += sprintf(arg + pos,
+				"%ld output errors\n",
+			    	ifp->if_oerrors);
+			    pos += sprintf(arg + pos,
+				"ierrors = %ld\n",
+			    	ifp->if_ierrors);
+
+			    (*resp)->header.version = NG_VERSION;
+			    (*resp)->header.arglen = strlen(arg) + 1;
+			    (*resp)->header.token = msg->header.token;
+			    (*resp)->header.typecookie = NGM_ETHER_COOKIE;
+			    (*resp)->header.cmd = msg->header.cmd;
+			    strncpy((*resp)->header.cmdstr, "status",
+					NG_CMDSTRLEN);
+			}
+			break;
+	    	    default:
+		 	error = EINVAL;
+		 	break;
+		    }
+		break;
+	    default:
+		error = EINVAL;
+		break;
+	}
+	free(msg, M_NETGRAPH);
+	return (error);
+}
+
+/*
+ * Receive a completed ethernet packet.
+ * Queue it for output.
+ */
+static	int
+ngether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+{
+	struct ifnet *ifp;
+	int	error = 0;
+	int	s;
+	struct ether_header *eh;
+	
+	ifp = hook->node->private;
+
+	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+		senderr(ENETDOWN);
+	/*
+	 * If a simplex interface, and the packet is being sent to our
+	 * Ethernet address or a broadcast address, loopback a copy.
+	 * XXX To make a simplex device behave exactly like a duplex
+	 * device, we should copy in the case of sending to our own
+	 * ethernet address (thus letting the original actually appear
+	 * on the wire). However, we don't do that here for security
+	 * reasons and compatibility with the original behavior.
+	 */
+	if (ifp->if_flags & IFF_SIMPLEX) {
+		eh = mtod(m, struct ether_header *);
+		if (m->m_flags & M_BCAST) {
+			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+
+			ng_queue_data(hook, n, meta);
+		} else if (bcmp(eh->ether_dhost,
+		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
+			ng_queue_data(hook, m, meta);
+			return (0);	/* XXX */
+		}
+	}
+	s = splimp();
+	/*
+	 * Queue message on interface, and start output if interface
+	 * not yet active.
+	 * XXX if we lookead at the priority in the meta data we could
+	 * queue high priority items at the head.
+	 */
+	if (IF_QFULL(&ifp->if_snd)) {
+		IF_DROP(&ifp->if_snd);
+		splx(s);
+		senderr(ENOBUFS);
+	}
+	IF_ENQUEUE(&ifp->if_snd, m);
+	if ((ifp->if_flags & IFF_OACTIVE) == 0)
+		(*ifp->if_start)(ifp);
+	splx(s);
+	ifp->if_obytes += m->m_pkthdr.len;
+	if (m->m_flags & M_MCAST)
+		ifp->if_omcasts++;
+	return (error);
+
+bad:
+	NG_FREE_DATA(m, meta);
+	return (error);
+}
+
+/*
+ * pass an mbuf out to the connected hook
+ */
+static void
+ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
+{
+	node_p node = AC2NG(ac);
+	struct ether_header *eh2;
+
+	if (node && LIST_FIRST(&(node->hooks))) {
+		M_PREPEND(m, sizeof(*eh), M_DONTWAIT);
+		if (m == 0)
+			return;
+		eh2 = mtod(m, struct ether_header *);
+		/*
+		 * Possibly 'eh' already points
+		 * to the right place.
+		 */
+		if (eh2 != eh)
+	 		bcopy(eh, eh2, sizeof(*eh));
+		ng_queue_data(LIST_FIRST(&(node->hooks)), m, NULL);
+	} else {
+		m_freem(m);
+	}
+}
+/*
+ * do local shutdown processing..
+ * This node will refuse to go away, unless the hardware says to..
+ * don't unref the node, or remove our name. just clear our links up.
+ */
+static	int
+ngether_rmnode(node_p node)
+{
+	ng_cutlinks(node);
+	node->flags &= ~NG_INVALID; /* bounce back to life */
+	return (0);
+}
+
+/* already linked */
+static	int
+ngether_connect(hook_p hook)
+{
+	/* be really amiable and just say "YUP that's OK by me! " */
+	return (0);
+}
+
+/*
+ * notify on hook disconnection (destruction)
+ *
+ * For this type, removal of the last lins no effect. The interface can run 
+ * independently.
+ * Since we have no per-hook information, this is rather simple.
+ */
+static	int
+ngether_disconnect(hook_p hook)
+{
+	hook->node->flags &= ~NGEF_DIVERT;
+	return (0);
+}
+#endif /* NETGRAPH */
+
+/********************************** END *************************************/

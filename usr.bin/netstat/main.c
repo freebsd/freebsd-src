@@ -52,6 +52,8 @@ static const char rcsid[] =
 
 #include <netinet/in.h>
 
+#include <netgraph/ng_socket.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -121,6 +123,8 @@ static struct nlist nl[] = {
 	{ "_ddpstat"},
 #define N_DDPCB		26
 	{ "_ddpcb"},
+#define N_NGSOCKS	27
+	{ "_ngsocklist"},
 	{ "" },
 };
 
@@ -154,6 +158,15 @@ struct protox {
 struct protox atalkprotox[] = {
 	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
 	  ddp_stats,	"ddp" },
+	{ -1,		-1,		0,	0,
+	  0,		0 }
+};
+
+struct protox netgraphprotox[] = {
+	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
+	  NULL,		"ctrl" },
+	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
+	  NULL,		"data" },
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
@@ -218,7 +231,7 @@ main(argc, argv)
 	char *argv[];
 {
 	register struct protoent *p;
-	register struct protox *tp;	/* for printing cblocks & stats */
+	register struct protox *tp = NULL;  /* for printing cblocks & stats */
 	int ch;
 
 	af = AF_UNSPEC;
@@ -251,6 +264,9 @@ main(argc, argv)
 				af = AF_UNIX;
 			else if (strcmp(optarg, "atalk") == 0)
 				af = AF_APPLETALK;
+			else if (strcmp(optarg, "ng") == 0
+			    || strcmp(optarg, "netgraph") == 0)
+				af = AF_NETGRAPH;
 #ifdef ISO
 			else if (strcmp(optarg, "iso") == 0)
 				af = AF_ISO;
@@ -417,6 +433,9 @@ main(argc, argv)
 	}
 	if (af == AF_APPLETALK || af == AF_UNSPEC)
 		for (tp = atalkprotox; tp->pr_name; tp++)
+			printproto(tp, tp->pr_name);
+	if (af == AF_NETGRAPH || af == AF_UNSPEC)
+		for (tp = netgraphprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #ifdef NS
 	if (af == AF_NS || af == AF_UNSPEC)
