@@ -6,6 +6,50 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+This is for the 4.3 release branch.  All entries since 4.3 are an
+itemized list of commits to this branch, numbered from the beginning.
+By this count, we're at 4.3.0p9.
+
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
+
+20010723:	p9	FreeBSD-SA-01:49 (part 2)
+	Fix a different overflow with output_data and netflush in
+	telnetd.  Make sure that you have both this update and the
+	previous one.
+
+20010721:	p8	FreeBSD-SA-01:49 (part 1)
+	Fix buffer overflow in telnetd.
+
+20010719:	p7
+	Add PRNG security patch from openssl to prevent guessing of
+	internal state.
+
+20010717:	p6
+	Fix ipfw "me" definition.
+
+20010710:	p5	FreeBSD-SA-01:42
+	Don't share signal handlers from rfork after exec.
+
+20010708:	p4	FreeBSD-SA-01:48
+	Fix possible tcpdump buffer overflow.
+
+20010704:	p3
+	Unbreak paranoid host checking in tcp_wrappers.
+
+20010601:	p2	FreeBSD-SA-01:40 (part 2)
+	Fix a second instance of chdir with fts_safe_changedir().
+
+20010530:	p1	FreeBSD-SA-01:40 (part 1)
+	Fix to stat after chdir .. in fts to make sure we wind up where
+	we think we should.
+
+20010421:
+	FreeBSD 4.3 RELEASE
+
 20010202:
 	The KERNEL variable for buildkernel and installkernel has been
 	deprecated in favor of KERNCONF.  make kernel now combines these
