@@ -1,5 +1,5 @@
 # Makefile
-# $FreeBSD$
+# $Id$
 
 PROG=	bootpgw
 NOMAN=  true

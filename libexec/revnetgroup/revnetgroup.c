@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <stdio.h>
@@ -46,7 +46,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$Id$";
 #endif
 
 /* Default location of netgroup file. */

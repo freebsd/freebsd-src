@@ -28,7 +28,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 #endif /* not lint */
 
 #include <unistd.h>
