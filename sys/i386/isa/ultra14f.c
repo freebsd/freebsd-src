@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.44 1996/01/07 19:22:39 gibbs Exp $
+ *      $Id: ultra14f.c,v 1.45 1996/01/15 16:15:27 phk Exp $
  */
 
 #include <sys/types.h>
@@ -269,7 +269,7 @@ static struct uha_data {
 } *uhadata[NUHA];
 
 static int	uha_abort __P((struct uha_data *uha, struct mscp *mscp));
-static u_int32	uha_adapter_info __P((int unit));
+static u_int32_t	uha_adapter_info __P((int unit));
 static int	uha_attach __P((struct isa_device *dev));
 static void	uha_done __P((struct uha_data *uha, struct mscp *mscp));
 static void	uha_free_mscp __P((struct uha_data *uha, struct mscp *mscp,
@@ -287,7 +287,7 @@ static void	uha_print_active_mscp __P((struct uha_data *uha));
 static void	uha_print_mscp __P((struct mscp *mscp));
 #endif
 static int	uhaprobe __P((struct isa_device *dev));
-static int32	uha_scsi_cmd __P((struct scsi_xfer *xs));
+static int32_t	uha_scsi_cmd __P((struct scsi_xfer *xs));
 static void	uha_send_mbox __P((struct uha_data *uha, struct mscp *mscp));
 static timeout_t
 		uha_timeout;
@@ -583,7 +583,7 @@ uha_attach(dev)
  * Return some information to the caller about
  * the adapter and it's capabilities
  */
-u_int32
+u_int32_t
 uha_adapter_info(unit)
 	int     unit;
 {
@@ -1073,7 +1073,7 @@ uhaminphys(bp)
  * start a scsi operation given the command and the data address.  Also
  * needs the unit, target and lu.
  */
-static int32
+static int32_t
 uha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
