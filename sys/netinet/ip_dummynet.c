@@ -143,7 +143,7 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, search_steps,
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
 	    CTLFLAG_RW, &pipe_expire, 0, "Expire queue if empty");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, max_chain_len,
-	    CTLFLAG_RW, &dn_max_ratio, 0, 
+	    CTLFLAG_RW, &dn_max_ratio, 0,
 	"Max ratio between dynamic queues and buckets");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_lookup_depth,
 	CTLFLAG_RD, &red_lookup_depth, 0, "Depth of RED lookup table");
@@ -196,14 +196,14 @@ rt_unref(struct rtentry *rt)
 
 static int
 heap_init(struct dn_heap *h, int new_size)
-{       
+{
     struct dn_heap_entry *p;
 
     if (h->size >= new_size ) {
 	printf("heap_init, Bogus call, have %d want %d\n",
 		h->size, new_size);
 	return 0 ;
-    }   
+    }
     new_size = (new_size + HEAP_INCREMENT ) & ~HEAP_INCREMENT ;
     p = malloc(new_size * sizeof(*p), M_DUMMYNET, M_NOWAIT);
     if (p == NULL) {
@@ -240,7 +240,7 @@ heap_init(struct dn_heap *h, int new_size)
 	    *((int *)((char *)(heap->p[node].object) + heap->offset)) = -1 ;
 static int
 heap_insert(struct dn_heap *h, dn_key key1, void *p)
-{   
+{
     int son = h->elements ;
 
     if (p == NULL)	/* data already there, set starting point */
@@ -259,7 +259,7 @@ heap_insert(struct dn_heap *h, dn_key key1, void *p)
 	struct dn_heap_entry tmp  ;
 
 	if (DN_KEY_LT( h->p[father].key, h->p[son].key ) )
-	    break ; /* found right position */ 
+	    break ; /* found right position */
 	/* son smaller than father, swap and repeat */
 	HEAP_SWAP(h->p[son], h->p[father], tmp) ;
 	SET_OFFSET(h, son);
@@ -274,7 +274,7 @@ heap_insert(struct dn_heap *h, dn_key key1, void *p)
  */
 static void
 heap_extract(struct dn_heap *h, void *obj)
-{  
+{
     int child, father, max = h->elements - 1 ;
 
     if (max < 0) {
@@ -301,7 +301,7 @@ heap_extract(struct dn_heap *h, void *obj)
 	SET_OFFSET(h, father);
 	father = child ;
 	child = HEAP_LEFT(child) ;   /* left child for next loop */
-    }   
+    }
     h->elements-- ;
     if (father != max) {
 	/*
@@ -310,7 +310,7 @@ heap_extract(struct dn_heap *h, void *obj)
 	h->p[father] = h->p[max] ;
 	heap_insert(h, father, NULL); /* this one cannot fail */
     }
-}           
+}
 
 #if 0
 /*
@@ -607,8 +607,8 @@ ready_event_wfq(struct dn_pipe *p)
     while ( p->numbytes >=0 && (sch->elements>0 || neh->elements >0) ) {
 	if (sch->elements > 0) { /* have some eligible pkts to send out */
 	    struct dn_flow_queue *q = sch->p[0].object ;
-	    struct dn_pkt *pkt = q->head;  
-	    struct dn_flow_set *fs = q->fs;   
+	    struct dn_pkt *pkt = q->head;
+	    struct dn_flow_set *fs = q->fs;
 	    u_int64_t len = pkt->dn_m->m_pkthdr.len;
 	    int len_scaled = p->bandwidth ? len*8*hz : 0 ;
 
@@ -749,7 +749,7 @@ dummynet(void * __unused unused)
     splx(s);
     dn_timeout = timeout(dummynet, NULL, 1);
 }
- 
+
 /*
  * called by an interface when tx_rdy occurs.
  */
@@ -917,20 +917,20 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 {
     /*
      * RED algorithm
-     * 
+     *
      * RED calculates the average queue size (avg) using a low-pass filter
      * with an exponential weighted (w_q) moving average:
      * 	avg  <-  (1-w_q) * avg + w_q * q_size
      * where q_size is the queue length (measured in bytes or * packets).
-     * 
+     *
      * If q_size == 0, we compute the idle time for the link, and set
      *	avg = (1 - w_q)^(idle/s)
      * where s is the time needed for transmitting a medium-sized packet.
-     * 
+     *
      * Now, if avg < min_th the packet is enqueued.
      * If avg > max_th the packet is dropped. Otherwise, the packet is
      * dropped with probability P function of avg.
-     * 
+     *
      */
 
     int64_t p_b = 0;
@@ -1068,7 +1068,7 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
  * dst		destination address, only used by ip_output
  * rule		matching rule, in case of multiple passes
  * flags	flags from the caller, only used in ip_output
- * 
+ *
  */
 static int
 dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
@@ -1180,7 +1180,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 	 * Fixed-rate queue: just insert into the ready_heap.
 	 */
 	dn_key t = 0 ;
-	if (pipe->bandwidth) 
+	if (pipe->bandwidth)
 	    t = SET_TICKS(pkt, q, pipe);
 	q->sched_time = curr_time ;
 	if (t == 0)	/* must process it now */
@@ -1334,7 +1334,7 @@ dummynet_flush()
     flush_pipe_ptrs(NULL);
     /* prevent future matches... */
     p = all_pipes ;
-    all_pipes = NULL ; 
+    all_pipes = NULL ;
     fs = all_flow_sets ;
     all_flow_sets = NULL ;
     /* and free heaps so we don't have unwanted events */
@@ -1354,7 +1354,7 @@ dummynet_flush()
     for ( ; p ; ) {
 	purge_pipe(p);
 	curr_p = p ;
-	p = p->next ;	
+	p = p->next ;
 	free(curr_p, M_DUMMYNET);
     }
 }
@@ -1405,7 +1405,7 @@ dn_rule_delete(void *r)
  * setup RED parameters
  */
 static int
-config_red(struct dn_flow_set *p, struct dn_flow_set * x) 
+config_red(struct dn_flow_set *p, struct dn_flow_set * x)
 {
     int i;
 
@@ -1505,7 +1505,7 @@ set_fs_parms(struct dn_flow_set *x, struct dn_flow_set *src)
  * setup pipe or queue parameters.
  */
 
-static int 
+static int
 config_pipe(struct dn_pipe *p)
 {
     int s ;
@@ -1680,7 +1680,7 @@ dummynet_drain()
 /*
  * Fully delete a pipe or a queue, cleaning up associated info.
  */
-static int 
+static int
 delete_pipe(struct dn_pipe *p)
 {
     int s ;
