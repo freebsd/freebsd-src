@@ -147,7 +147,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 't':
-	    strcpy(PlayPen, optarg);
+	    strncpy(PlayPen, optarg, sizeof(PlayPen));
 	    break;
 
 	case 'x':
