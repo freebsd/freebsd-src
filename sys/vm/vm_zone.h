@@ -19,7 +19,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id$
+ * $Id: vm_zone.h,v 1.2 1997/08/05 22:24:31 dyson Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
@@ -41,12 +41,15 @@ typedef struct vm_zone {
 	vm_offset_t				zkva;			/* Base kva of zone */
 	int						zpagecount;		/* Total # of allocated pages */
 	int						zpagemax;		/* Max address space */
+	int						zmax;			/* Max number of entries allocated */
+	int						ztotal;			/* Total entries allocated now */
 	int						zsize;			/* size of each entry */
 	int						zalloc;			/* hint for # of pages to alloc */
 	int						zflags;			/* flags for zone */
 	int						zallocflag;		/* flag for allocation */
 	struct	vm_object		*zobj;			/* object to hold zone */
 	char					*zname;			/* name for diags */
+	struct	vm_zone			*znext;			/* list of zones for sysctl */
 } *vm_zone_t;
 
 

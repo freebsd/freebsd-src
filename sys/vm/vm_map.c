@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.83 1997/08/05 22:24:28 dyson Exp $
+ * $Id: vm_map.c,v 1.84 1997/08/05 23:03:23 dyson Exp $
  */
 
 /*
@@ -208,11 +208,11 @@ vmspace_alloc(min, max, pageable)
 void
 vm_init2(void) {
 	zinitna(kmapentzone, &kmapentobj,
-		NULL, 0, 4096, ZONE_INTERRUPT, 4);
+		NULL, 0, cnt.v_page_count / 4, ZONE_INTERRUPT, 4);
 	zinitna(mapentzone, &mapentobj,
 		NULL, 0, 0, 0, 4);
 	zinitna(mapzone, &mapobj,
-		NULL, 0, 0, 0, 4);
+		NULL, 0, 0, 0, 1);
 	pmap_init2();
 }
 
