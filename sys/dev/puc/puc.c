@@ -128,6 +128,10 @@ puc_port_bar_index(struct puc_softc *sc, int bar)
 		if (sc->sc_bar_mappings[i].bar == bar)
 			return (i);
 	}
+	if (i == PUC_MAX_BAR) {
+		printf("%s: out of bars!\n", __func__);
+		return (-1);
+	}
 	sc->sc_bar_mappings[i].bar = bar;
 	sc->sc_bar_mappings[i].used = 1;
 	return (i);
@@ -215,7 +219,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		rid = sc->sc_desc.ports[i].bar;
 		bidx = puc_port_bar_index(sc, rid);
 
-		if (sc->sc_bar_mappings[bidx].res != NULL)
+		if (bidx < 0 || sc->sc_bar_mappings[bidx].res != NULL)
 			continue;
 
 		type = (sc->sc_desc.ports[i].flags & PUC_FLAGS_MEMORY)
@@ -261,7 +265,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
 		rid = sc->sc_desc.ports[i].bar;
 		bidx = puc_port_bar_index(sc, rid);
-		if (sc->sc_bar_mappings[bidx].res == NULL)
+		if (bidx < 0 || sc->sc_bar_mappings[bidx].res == NULL)
 			continue;
 
 		switch (sc->sc_desc.ports[i].type & ~PUC_PORT_SUBTYPE_MASK) {
