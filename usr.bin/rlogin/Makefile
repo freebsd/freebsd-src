@@ -9,6 +9,7 @@ SRCS+=	krcmd.c kcmd.c
 DPADD=	${LIBKRB} ${LIBDES}
 CFLAGS+=-DKERBEROS -DCRYPT
 LDADD=	-lkrb -ldes
+DISTRIBUTION=	krb
 .endif
 
 BINOWN=	root

@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id$
+# $Id: Makefile,v 1.4 1994/09/29 13:05:44 csgr Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c
@@ -16,6 +16,7 @@ SRCS+=	krb_passwd.c
 CFLAGS+=-DKERBEROS
 LDADD+=-lkrb -ldes
 DPADD=	${LIBKRB} ${LIBDES}
+DISTRIBUTION=	krb
 .endif
 
 
