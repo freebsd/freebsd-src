@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: expand.c,v 1.10 1996/09/10 02:42:30 peter Exp $
  */
 
 #ifndef lint
@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #include <unistd.h>
 #include <pwd.h>
 #include <stdlib.h>
-#include <locale.h>
+#include <limits.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -108,6 +108,24 @@ STATIC struct strlist *expsort __P((struct strlist *));
 STATIC struct strlist *msort __P((struct strlist *, int));
 STATIC int pmatch __P((char *, char *));
 STATIC char *cvtnum __P((int, char *));
+STATIC int collate_range_cmp __P((int, int));
+
+STATIC int collate_range_cmp (c1, c2)
+	int c1, c2;
+{
+	static char s1[2], s2[2];
+	int ret;
+
+	c1 &= UCHAR_MAX;
+	c2 &= UCHAR_MAX;
+	if (c1 == c2)
+		return (0);
+	s1[0] = c1;
+	s2[0] = c2;
+	if ((ret = strcoll(s1, s2)) != 0)
+		return (ret);
+	return (c1 - c2);
+}
 
 /*
  * Expand shell variables and backquotes inside a here document.
