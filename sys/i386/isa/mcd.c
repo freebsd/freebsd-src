@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.72 1996/02/27 18:53:50 ache Exp $
+ *	$Id: mcd.c,v 1.73 1996/02/27 19:08:39 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -91,16 +91,15 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define RAW_PART        2
 
 /* flags */
-#define MCDOPEN		0x0001	/* device opened */
-#define MCDVALID	0x0002	/* parameters loaded */
-#define MCDINIT		0x0004	/* device is init'd */
-#define MCDNEWMODEL     0x0008  /* device is new model */
-#define MCDLABEL	0x0010	/* label is read */
-#define	MCDPROBING	0x0020	/* probing */
-#define	MCDREADRAW	0x0040	/* read raw mode (2352 bytes) */
-#define	MCDVOLINFO	0x0080	/* already read volinfo */
-#define	MCDTOC		0x0100	/* already read toc */
-#define	MCDMBXBSY	0x0200	/* local mbx is busy */
+#define MCDVALID        0x0001  /* parameters loaded */
+#define MCDINIT         0x0002  /* device is init'd */
+#define MCDNEWMODEL     0x0004  /* device is new model */
+#define MCDLABEL        0x0008  /* label is read */
+#define MCDPROBING      0x0010  /* probing */
+#define MCDREADRAW      0x0020  /* read raw mode (2352 bytes) */
+#define MCDVOLINFO      0x0040  /* already read volinfo */
+#define MCDTOC          0x0080  /* already read toc */
+#define MCDMBXBSY       0x0100  /* local mbx is busy */
 
 /* status */
 #define	MCDAUDIOBSY	MCD_ST_AUDIOBSY		/* playing audio */
@@ -355,6 +354,8 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	    && major(dev) == CDEV_MAJOR && part == RAW_PART
 	   ) {
 		cd->openflags |= (1<<part);
+		if (phys)
+			cd->partflags[part] |= MCDREADRAW;
 		kdc_mcd[unit].kdc_state = DC_BUSY;
 		return 0;
 	}
@@ -374,6 +375,8 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (mcdsize(dev) < 0) {
 		if (major(dev) == CDEV_MAJOR && part == RAW_PART) {
 			cd->openflags |= (1<<part);
+			if (phys)
+				cd->partflags[part] |= MCDREADRAW;
 			kdc_mcd[unit].kdc_state = DC_BUSY;
 			return 0;
 		}
@@ -391,9 +394,8 @@ MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 	if (part == RAW_PART ||
 		(part < cd->dlabel.d_npartitions &&
 		cd->dlabel.d_partitions[part].p_fstype != FS_UNUSED)) {
-		cd->partflags[part] |= MCDOPEN;
 		cd->openflags |= (1<<part);
-		if (part == RAW_PART && phys != 0)
+		if (part == RAW_PART && phys)
 			cd->partflags[part] |= MCDREADRAW;
 		kdc_mcd[unit].kdc_state = DC_BUSY;
 		(void) mcd_lock_door(unit, MCD_LK_LOCK);
@@ -417,19 +419,15 @@ int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	cd = mcd_data + unit;
 	part = mcd_part(dev);
 
-	if (!(cd->flags & MCDINIT))
+	if (!(cd->flags & MCDINIT) || !(cd->openflags & (1<<part)))
 		return ENXIO;
 
-	kdc_mcd[unit].kdc_state = DC_IDLE;
-	(void) mcd_lock_door(unit, MCD_LK_UNLOCK);
-
-	if (!(cd->flags & MCDVALID))
-		return 0;
-
-	/* close channel */
-	cd->partflags[part] &= ~(MCDOPEN|MCDREADRAW);
-	cd->openflags &= ~(1<<part);
 	MCD_TRACE("close: partition=%d\n", part);
+
+	(void) mcd_lock_door(unit, MCD_LK_UNLOCK);
+	cd->openflags &= ~(1<<part);
+	cd->partflags[part] &= ~MCDREADRAW;
+	kdc_mcd[unit].kdc_state = DC_IDLE;
 
 	return 0;
 }
@@ -616,7 +614,6 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 			return ENXIO;
 		cd->flags |= MCDVALID;
 		mcd_getdisklabel(unit);
-		cd->partflags[part] |= MCDOPEN;
 		if (mcd_phys(dev))
 			cd->partflags[part] |= MCDREADRAW;
 		(void) mcd_lock_door(unit, MCD_LK_LOCK);
