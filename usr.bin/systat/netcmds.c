@@ -253,7 +253,7 @@ showports()
 
 	for (p = ports; p < ports+nports; p++) {
 		sp = getservbyport(p->port,
-		    protos == TCP|UDP ? 0 : protos == TCP ? "tcp" : "udp");
+		    protos == (TCP|UDP) ? 0 : protos == TCP ? "tcp" : "udp");
 		if (!p->onoff)
 			addch('!');
 		if (sp)

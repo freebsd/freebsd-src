@@ -66,6 +66,7 @@ static char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/param.h>
 #include <sys/dkstat.h>
+#include <sys/sysctl.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -110,7 +111,7 @@ closeiostat(w)
 int
 initiostat()
 {
-	if (num_devices = getnumdevs() < 0)
+	if ((num_devices = getnumdevs()) < 0)
 		return(0);
 
 	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));

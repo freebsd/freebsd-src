@@ -8,7 +8,5 @@ SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c \
 	vmstat.c
 DPADD=	${LIBCURSES} ${LIBM} ${LIBKVM} ${LIBDEVSTAT}
 LDADD=	-lcurses -lm -lkvm -ldevstat
-BINGRP=	kmem
-BINMODE=2555
 
 .include <bsd.prog.mk>
