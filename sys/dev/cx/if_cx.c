@@ -450,7 +450,7 @@ static void cx_identify (driver_t *driver, device_t dev)
 		 * devices, but we don't have a choise
 		 */
 		for (i = 0; (iobase = porttab [i]) != 0; i++) {
-			if (!cx_is_free_res (dev, 1, SYS_RES_IOPORT,
+			if (!cx_is_free_res (dev, 0, SYS_RES_IOPORT,
 			    iobase, iobase + NPORT, NPORT))
 				continue;
 			if (cx_probe_board (iobase, -1, -1) == 0)
@@ -487,7 +487,7 @@ static void cx_identify (driver_t *driver, device_t dev)
 			for (i = 0; porttab [i] != 0; i++) {
 				if (porttab [i] != iobase)
 					continue;
-				if (!cx_is_free_res (devices[k], 1, SYS_RES_IOPORT,
+				if (!cx_is_free_res (devices[k], 0, SYS_RES_IOPORT,
 				    iobase, iobase + NPORT, NPORT))
 					continue;
 				if (cx_probe_board (iobase, -1, -1) == 0)
@@ -515,7 +515,7 @@ static void cx_identify (driver_t *driver, device_t dev)
 				if (porttab [i] == -1) {
 					continue;
 				}
-				if (!cx_is_free_res (devices[k], 1, SYS_RES_IOPORT,
+				if (!cx_is_free_res (devices[k], 0, SYS_RES_IOPORT,
 				    iobase, iobase + NPORT, NPORT))
 					continue;
 				if (cx_probe_board (iobase, -1, -1) == 0)
@@ -554,7 +554,7 @@ static int cx_probe (device_t dev)
 		return ENXIO;
 	}
 
-	if (!cx_is_free_res (dev, 1, SYS_RES_IOPORT,
+	if (!cx_is_free_res (dev, 0, SYS_RES_IOPORT,
 	    iobase, iobase + NPORT, NPORT)) {
 		printf ("cx%d: Resource IOPORT isn't free %lx\n", unit, iobase);
 		return ENXIO;
@@ -686,7 +686,7 @@ static int cx_attach (device_t dev)
 	
 	if (bus_get_resource (dev, SYS_RES_DRQ, 0, &drq, &rescount) != 0) {
 		for (i = 0; (drq = dmatab [i]) != 0; i++) {
-			if (!cx_is_free_res (dev, 1, SYS_RES_DRQ,
+			if (!cx_is_free_res (dev, 0, SYS_RES_DRQ,
 			    drq, drq + 1, 1))
 				continue;
 			bus_set_resource (dev, SYS_RES_DRQ, 0, drq, 1);
@@ -713,7 +713,7 @@ static int cx_attach (device_t dev)
 	
 	if (bus_get_resource (dev, SYS_RES_IRQ, 0, &irq, &rescount) != 0) {
 		for (i = 0; (irq = irqtab [i]) != 0; i++) {
-			if (!cx_is_free_res (dev, 1, SYS_RES_IRQ,
+			if (!cx_is_free_res (dev, 0, SYS_RES_IRQ,
 			    irq, irq + 1, 1))
 				continue;
 			bus_set_resource (dev, SYS_RES_IRQ, 0, irq, 1);
