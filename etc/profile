@@ -1,0 +1,9 @@
+# System-wide .profile file for sh(1).
+# Uncomment this to give you the default 4.2 behavior, where disk 
+# information is shown in K-Blocks
+# BLOCKSIZE=K; export BLOCKSIZE
+# Uncomment this line if you want to setup your 8-bit locale at program
+# startup automatically
+# ENABLE_STARTUP_LOCALE=; export ENABLE_STARTUP_LOCALE
+# Uncomment this line to activate russian locale
+# LANG=ru_SU.KOI8-R; export LANG
