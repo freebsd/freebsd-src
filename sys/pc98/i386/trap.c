@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.14 1997/03/22 18:54:37 kato Exp $
+ *	$Id: trap.c,v 1.15 1997/04/06 11:49:46 kato Exp $
  */
 
 /*
@@ -813,9 +813,9 @@ dblfault_handler()
 
 	if (pcb != NULL) {
 		printf("\nFatal double fault:\n");
-		printf("eip = 0x%x\n", pcb->pcb_tss.tss_eip);
-		printf("esp = 0x%x\n", pcb->pcb_tss.tss_esp);
-		printf("ebp = 0x%x\n", pcb->pcb_tss.tss_ebp);
+		printf("eip = 0x%x\n", pcb->pcb_eip);
+		printf("esp = 0x%x\n", pcb->pcb_esp);
+		printf("ebp = 0x%x\n", pcb->pcb_ebp);
 	}
 
 	panic("double fault");
@@ -986,5 +986,24 @@ bad:
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, rval[0]);
+#endif
+}
+
+/*
+ * Simplified back end of syscall(), used when returning from fork()
+ * directly into user mode.
+ */
+void
+fork_return(p, frame)
+	struct proc *p;
+	struct trapframe frame;
+{
+	frame.tf_eax = 0;		/* Child returns zero */
+	frame.tf_eflags &= ~PSL_C;	/* success */
+
+	userret(p, &frame, 0);
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSRET))
+		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
 #endif
 }
