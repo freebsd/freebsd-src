@@ -94,7 +94,7 @@ static dialogMenuItem continents[] = {
 	{ "9", "Indian Ocean", 0, continent_country_menu, 0, &indian },
 	{ "0", "Pacific Ocean", 0, continent_country_menu, 0, &pacific }
 };
-#define NCONTINENTS ((sizeof continents)/(sizeof continents[0]))
+#define NCONTINENTS (int)((sizeof continents)/(sizeof continents[0]))
 #define OCEANP(x) ((x) == 3 || (x) == 5 || (x) == 8 || (x) == 9)
 
 static int
