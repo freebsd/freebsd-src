@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.54 1998/08/15 22:42:20 bde Exp $
+ * $Id: kern_lkm.c,v 1.55 1998/09/05 17:13:27 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -615,8 +615,7 @@ _lkm_vfs(lkmtp, cmd)
 	struct sysctl_oid **oidpp;
 	struct vfsconf *vfc = args->lkm_vfsconf;
 	struct vfsconf *vfsp, *prev_vfsp;
-	int i, maxtypenum;
-	int err = 0;
+	int error, i, maxtypenum;
 
 	switch(cmd) {
 	case LKM_E_LOAD:
@@ -683,6 +682,12 @@ _lkm_vfs(lkmtp, cmd)
 			return EBUSY;
 		}
 
+		if (vfc->vfc_vfsops->vfs_uninit != NULL) {
+			error = (*vfc->vfc_vfsops->vfs_uninit)(vfsp);
+			if (error)
+				return (error);
+		}
+
 		prev_vfsp->vfc_next = vfsp->vfc_next;
 
 		if (vfsp->vfc_vfsops->vfs_oid != NULL) {
@@ -712,7 +717,7 @@ _lkm_vfs(lkmtp, cmd)
 	case LKM_E_STAT:	/* no special handling... */
 		break;
 	}
-	return(err);
+	return (0);
 }
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.63 1998/06/21 12:50:12 bde Exp $
+ * $Id: nfs_subs.c,v 1.64 1998/09/05 15:17:33 bde Exp $
  */
 
 /*
@@ -110,7 +110,16 @@ struct nqtimerhead nqtimerhead;
 struct nqfhhashhead *nqfhhashtbl;
 u_long nqfhhash;
 
+static void (*nfs_prev_lease_updatetime) __P((int));
+static int nfs_prev_nfssvc_sy_narg;
+static sy_call_t *nfs_prev_nfssvc_sy_call;
+
 #ifndef NFS_NOSERVER
+
+static vop_t *nfs_prev_vop_lease_check;
+static int nfs_prev_getfh_sy_narg;
+static sy_call_t *nfs_prev_getfh_sy_call;
+
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
  */
@@ -1161,23 +1170,47 @@ nfs_init(vfsp)
 
 	nfs_timer(0);
 
-
 	/*
 	 * Set up lease_check and lease_updatetime so that other parts
 	 * of the system can call us, if we are loadable.
 	 */
 #ifndef NFS_NOSERVER
+	nfs_prev_vop_lease_check = default_vnodeop_p[VOFFSET(vop_lease)];
 	default_vnodeop_p[VOFFSET(vop_lease)] = (vop_t *)nqnfs_vop_lease_check;
 #endif
+	nfs_prev_lease_updatetime = lease_updatetime;
 	lease_updatetime = nfs_lease_updatetime;
-	vfsp->vfc_refcount++; /* make us non-unloadable */
+	nfs_prev_nfssvc_sy_narg = sysent[SYS_nfssvc].sy_narg;
 	sysent[SYS_nfssvc].sy_narg = 2;
+	nfs_prev_nfssvc_sy_call = sysent[SYS_nfssvc].sy_call;
 	sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
 #ifndef NFS_NOSERVER
+	nfs_prev_getfh_sy_narg = sysent[SYS_getfh].sy_narg;
 	sysent[SYS_getfh].sy_narg = 2;
+	nfs_prev_getfh_sy_call = sysent[SYS_getfh].sy_call;
 	sysent[SYS_getfh].sy_call = (sy_call_t *)getfh;
 #endif
 
+	return (0);
+}
+
+int
+nfs_uninit(vfsp)
+	struct vfsconf *vfsp;
+{
+
+	untimeout(nfs_timer, (void *)NULL, nfs_timer_handle);
+	nfs_mount_type = -1;
+#ifndef NFS_NOSERVER
+	default_vnodeop_p[VOFFSET(vop_lease)] = nfs_prev_vop_lease_check;
+#endif
+	lease_updatetime = nfs_prev_lease_updatetime;
+	sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
+	sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
+#ifndef NFS_NOSERVER
+	sysent[SYS_getfh].sy_narg = nfs_prev_getfh_sy_narg;
+	sysent[SYS_getfh].sy_call = nfs_prev_getfh_sy_call;
+#endif
 	return (0);
 }
 
