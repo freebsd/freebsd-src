@@ -621,9 +621,22 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 				   * steal from other lists.
 				   */
 					m = mb_alloc_wait(mb_list, type);
-				} else
+				} else {
+					/*
+					 * no way to indent this code decently
+					 * with 8-space tabs.
+					 */
+					static int last_report;
 					/* XXX: No consistency. */
 					mbstat.m_drops++;
+					if (ticks < last_report ||
+					   (ticks - last_report) >= hz) {
+						last_report = ticks;
+						printf(
+"mb_alloc for type %d failed, consider increase mbuf value.\n", type);
+					}
+
+				}
 			}
 		}
 	}
