@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.255 1998/02/13 11:31:34 phk Exp $
+ *  $Id: syscons.c,v 1.256 1998/02/13 17:54:53 phk Exp $
  */
 
 #include "sc.h"
@@ -158,7 +158,7 @@ static  const u_int     n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 static  int     	delayed_next_scr = FALSE;
 static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
 	int     	scrn_blanked = 0;       /* screen saver active flag */
-static  long       	scrn_time_stamp;
+static  struct timeval 	scrn_time_stamp;
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 	char        	*video_mode_ptr = NULL;
@@ -1030,7 +1030,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
             return EINVAL;
 	scrn_blank_time = *(int *)data;
 	if (scrn_blank_time == 0)
-	    scrn_time_stamp = mono_time.tv_sec;
+	    getmicroruntime(&scrn_time_stamp);
 	return 0;
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
@@ -1385,7 +1385,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return EINVAL;
 	}
 	/* make screensaver happy */
-	scrn_time_stamp = mono_time.tv_sec;
+	getmicroruntime(&scrn_time_stamp);
 	return 0;
     }
 
@@ -2228,6 +2228,7 @@ get_scr_num()
 static void
 scrn_timer(void *arg)
 {
+    struct timeval tv;
     scr_stat *scp = cur_console;
     int s;
 
@@ -2269,9 +2270,10 @@ scrn_timer(void *arg)
     }
 
     /* should we stop the screen saver? */
+    getmicroruntime(&tv);
     if (panicstr)
-	scrn_time_stamp = mono_time.tv_sec;
-    if (mono_time.tv_sec <= scrn_time_stamp + scrn_blank_time)
+	scrn_time_stamp = tv;
+    if (tv.tv_sec <= scrn_time_stamp.tv_sec + scrn_blank_time)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
     scp = cur_console;
@@ -2279,7 +2281,7 @@ scrn_timer(void *arg)
 	scrn_update(scp, TRUE);
     /* should we activate the screen saver? */
     if ((scrn_blank_time != 0) 
-	    && (mono_time.tv_sec > scrn_time_stamp + scrn_blank_time))
+	    && (tv.tv_sec > scrn_time_stamp.tv_sec + scrn_blank_time))
 	(*current_saver)(TRUE);
 
     timeout(scrn_timer, NULL, hz / 25);
@@ -2387,7 +2389,7 @@ static void
 stop_scrn_saver(void (*saver)(int))
 {
     (*saver)(FALSE);
-    scrn_time_stamp = mono_time.tv_sec;
+    getmicroruntime(&scrn_time_stamp);
     mark_all(cur_console);
 }
 
@@ -3038,7 +3040,7 @@ ansi_put(scr_stat *scp, u_char *buf, int len)
 
     /* make screensaver happy */
     if (scp == cur_console)
-	scrn_time_stamp = mono_time.tv_sec;
+	getmicroruntime(&scrn_time_stamp);
 
     write_in_progress++;
 outloop:
@@ -3488,7 +3490,7 @@ next_code:
 
     /* make screensaver happy */
     if (!(scancode & 0x80))
-	scrn_time_stamp = mono_time.tv_sec;
+	getmicroruntime(&scrn_time_stamp);
 
     if (!(flags & SCGETC_CN)) {
 	/* do the /dev/random device a favour */

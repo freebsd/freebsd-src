@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.47 1997/10/27 17:19:20 bde Exp $
+ *	$Id: exception.s,v 1.48 1998/03/23 19:52:23 jlemon Exp $
  */
 
 #include "npx.h"
@@ -343,8 +343,10 @@ IDTVEC(int0x80_syscall)
 
 ENTRY(fork_trampoline)
 	call	_spl0
-	pushl	$_runtime
-	call	_microtime
+	movl	_curproc,%eax
+	addl	$P_RUNTIME,%eax
+	pushl	%eax
+	call	_getmicroruntime
 	popl	%eax
 
 	/*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.32 1998/02/09 06:09:24 eivind Exp $
+ * $Id: kern_resource.c,v 1.33 1998/03/04 10:25:52 dufault Exp $
  */
 
 #include "opt_compat.h"
@@ -491,6 +491,7 @@ calcru(p, up, sp, ip)
 	int s;
 	struct timeval tv;
 
+	/* XXX: why spl-protect ?  worst case is an off-by-one report */
 	s = splstatclock();
 	st = p->p_sticks;
 	ut = p->p_uticks;
@@ -505,23 +506,25 @@ calcru(p, up, sp, ip)
 
 	sec = p->p_rtime.tv_sec;
 	usec = p->p_rtime.tv_usec;
-	if (p == curproc) { /* XXX what if it's running on another cpu?? */
+#ifdef SMP
+	if (p->p_oncpu != 0xff) {
+#else
+	if (p == curproc) {
+#endif
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
 		 * quantum, which is much greater than the sampling error.
 		 */
-		microtime(&tv);
-		sec += tv.tv_sec - runtime.tv_sec;
-		usec += tv.tv_usec - runtime.tv_usec;
+		microruntime(&tv);
+		sec += tv.tv_sec - p->p_runtime.tv_sec;
+		usec += tv.tv_usec - p->p_runtime.tv_usec;
 	}
 	totusec = (quad_t)sec * 1000000 + usec;
 	if (totusec < 0) {
-#ifndef SMP	/* sigh, microtime and fork/exit madness here */
 		/* XXX no %qd in kernel.  Truncate. */
 		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
 		       (long)totusec, p->p_pid, p->p_comm);
-#endif
 		totusec = 0;
 	}
 	u = totusec;

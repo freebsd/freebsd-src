@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.34 1998/03/30 09:50:29 phk Exp $
+ * $Id: sys_generic.c,v 1.35 1998/04/02 07:22:17 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -538,8 +538,8 @@ select(p, uap)
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
-	struct timeval atv;
-	int s, ncoll, error, timo, term;
+	struct timeval atv, rtv, ttv;
+	int s, ncoll, error, timo;
 	u_int nbufbytes, ncpbytes, nfdbits;
 
 	if (uap->nd < 0)
@@ -600,21 +600,29 @@ select(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		term = ticks + tvtohz(&atv);
-	} else
-		term = 0;
+		getmicroruntime(&rtv);
+		timevaladd(&atv, &rtv);
+	} else {
+		atv.tv_sec = 0;
+		atv.tv_usec = 0;
+	}
+	timo = 0;
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
 	error = selscan(p, ibits, obits, uap->nd);
 	if (error || p->p_retval[0])
 		goto done;
-	s = splhigh();
-	if (term && term <= ticks) {
-		splx(s);
-		goto done;
+	if (atv.tv_sec) {
+		getmicroruntime(&rtv);
+		if (timevalcmp(&rtv, &atv, >=)) 
+			goto done;
+		ttv = atv;
+		timevalsub(&ttv, &rtv);
+		timo = ttv.tv_sec > 24 * 60 * 60 ?
+		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
-	timo = term ? term - ticks : 0;
+	s = splhigh();
 	if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
 		splx(s);
 		goto retry;
@@ -701,8 +709,8 @@ poll(p, uap)
 {
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
-	struct timeval atv;
-	int s, ncoll, error = 0, timo, term;
+	struct timeval atv, rtv, ttv;
+	int s, ncoll, error = 0, timo;
 	size_t ni;
 
 	if (SCARG(uap, nfds) > p->p_fd->fd_nfiles) {
@@ -724,21 +732,29 @@ poll(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		term = ticks + tvtohz(&atv);
-	} else
-		term = 0;
+		getmicroruntime(&rtv);
+		timevaladd(&atv, &rtv);
+	} else {
+		atv.tv_sec = 0;
+		atv.tv_usec = 0;
+	}
+	timo = 0;
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
 	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds));
 	if (error || p->p_retval[0])
 		goto done;
+	if (atv.tv_sec) {
+		getmicroruntime(&rtv);
+		if (timevalcmp(&rtv, &atv, >=))
+			goto done;
+		ttv = atv;
+		timevalsub(&ttv, &rtv);
+		timo = ttv.tv_sec > 24 * 60 * 60 ?
+		    24 * 60 * 60 * hz : tvtohz(&ttv);
+	} 
 	s = splhigh(); 
-	if (term && term <= ticks) {
-		splx(s);
-		goto done;
-	}
-	timo = term ? term - ticks : 0;
 	if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
 		splx(s);
 		goto retry;

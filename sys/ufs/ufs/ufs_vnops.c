@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.80 1998/03/26 20:54:05 phk Exp $
+ * $Id: ufs_vnops.c,v 1.81 1998/03/30 09:56:37 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -1965,6 +1965,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 {
 	struct inode *ip;
 	struct vnode *vp, *nvp;
+	struct timeval tv;
 
 	vp = *vpp;
 	ip = VTOI(vp);
@@ -2003,8 +2004,9 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	/*
 	 * Initialize modrev times
 	 */
-	SETHIGH(ip->i_modrev, mono_time.tv_sec);
-	SETLOW(ip->i_modrev, mono_time.tv_usec * 4294);
+	getmicroruntime(&tv);
+	SETHIGH(ip->i_modrev, tv.tv_sec);
+	SETLOW(ip->i_modrev, tv.tv_usec * 4294);
 	*vpp = vp;
 	return (0);
 }
