@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.65 1997/12/14 12:31:44 kato Exp $
+ *	$Id: machdep.c,v 1.66 1997/12/16 10:22:49 kato Exp $
  */
 
 #include "apm.h"
@@ -47,6 +47,7 @@
 #include "opt_perfmon.h"
 #include "opt_smp.h"
 #include "opt_sysvipc.h"
+#include "opt_user_ldt.h"
 #include "opt_userconfig.h"
 #include "opt_vm86.h"
 
