@@ -237,8 +237,8 @@ typedef struct fore_unit	Fore_unit;
 #define	fu_vcc		fu_cmn.cu_vcc
 #define	fu_intrpri	fu_cmn.cu_intrpri
 #define	fu_savepri	fu_cmn.cu_savepri
-#define	fu_vcc_pool	fu_cmn.cu_vcc_pool
-#define	fu_nif_pool	fu_cmn.cu_nif_pool
+#define	fu_vcc_zone	fu_cmn.cu_vcc_zone
+#define	fu_nif_zone	fu_cmn.cu_nif_zone
 #define	fu_ioctl	fu_cmn.cu_ioctl
 #define	fu_instvcc	fu_cmn.cu_instvcc
 #define	fu_openvcc	fu_cmn.cu_openvcc

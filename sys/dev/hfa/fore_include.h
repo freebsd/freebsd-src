@@ -101,8 +101,8 @@ extern Fore_device	fore_devices[];
 extern Fore_unit	*fore_units[];
 extern int		fore_nunits;
 extern struct stack_defn	*fore_services;
-extern struct sp_info	fore_nif_pool;
-extern struct sp_info	fore_vcc_pool;
+extern uma_zone_t	fore_nif_zone;
+extern uma_zone_t	fore_vcc_zone;
 extern struct atm_time	fore_timer;
 
 #endif	/* _FORE_INCLUDE_H */

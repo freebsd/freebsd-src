@@ -57,6 +57,8 @@
 #include <dev/hfa/fore_stats.h>
 #include <dev/hfa/fore_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -104,20 +106,8 @@ struct stack_defn	*fore_services = &fore_svaal0;
 /*
  * Storage pools
  */
-struct sp_info fore_nif_pool = {
-	"fore nif pool",		/* si_name */
-	sizeof(struct atm_nif),		/* si_blksiz */
-	5,				/* si_blkcnt */
-	52				/* si_maxallow */
-};
-
-struct sp_info fore_vcc_pool = {
-	"fore vcc pool",		/* si_name */
-	sizeof(Fore_vcc),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
-
+uma_zone_t	fore_nif_zone;
+uma_zone_t	fore_vcc_zone;
 
 /*
  * Watchdog timer

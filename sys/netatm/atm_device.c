@@ -170,8 +170,9 @@ atm_dev_inst(ssp, cvcp)
 	/*
 	 * Allocate a VCC control block
 	 */
-	if ( ( cvp = (Cmn_vcc *)atm_allocate(cup->cu_vcc_pool) ) == NULL )
-		return ( ENOMEM );
+	cvp = uma_zalloc(cup->cu_vcc_zone, M_WAITOK);
+	if (cvp == NULL)
+		return (ENOMEM);
 	
 	cvp->cv_state = CVS_INST;
 	cvp->cv_toku = (*ssp)->sd_toku;
@@ -183,7 +184,7 @@ atm_dev_inst(ssp, cvcp)
 	 */
 	err = (*cup->cu_instvcc)(cup, cvp);
 	if (err) {
-		atm_free((caddr_t)cvp);
+		uma_zfree(cup->cu_vcc_zone, cvp);
 		return (err);
 	}
 
@@ -351,7 +352,7 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 		/*
 		 * Free VCC resources
 		 */
-		(void) atm_free((caddr_t)cvp);
+		uma_zfree(cup->cu_vcc_zone, cvp);
 		break;
 		}
 

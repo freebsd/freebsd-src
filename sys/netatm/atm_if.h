@@ -148,6 +148,9 @@ typedef struct atm_config	Atm_config;
 
 
 #ifdef _KERNEL
+
+#include <vm/uma.h>
+
 /*
  * Common structure used to define each physical ATM device interface.
  * This structure will (normally) be embedded at the top of each driver's 
@@ -261,8 +264,8 @@ struct cmn_unit {
 	u_int		cu_intrpri;	/* Highest unit interrupt priority */
 	int		cu_savepri;	/* Saved priority for locking device */
 
-	struct sp_info	*cu_vcc_pool;	/* Device VCC pool */
-	struct sp_info	*cu_nif_pool;	/* Device NIF pool */
+	uma_zone_t	cu_vcc_zone;	/* Device VCC zone */
+	uma_zone_t	cu_nif_zone;	/* Device NIF zone */
 
 	int		(*cu_ioctl)	/* Interface ioctl handler */
 				(int, caddr_t, caddr_t);

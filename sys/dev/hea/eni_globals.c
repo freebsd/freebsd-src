@@ -53,6 +53,8 @@
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -98,17 +100,5 @@ struct stack_defn	*eni_services = &eni_svaal0;
 /*
  * Storage pools
  */
-struct sp_info eni_nif_pool = {
-	"eni nif pool",			/* si_name */
-	sizeof(struct atm_nif),		/* si_blksiz */
-	5,				/* si_blkcnt */
-	52				/* si_maxallow */
-};
-
-struct sp_info eni_vcc_pool = {
-	"eni vcc pool",			/* si_name */
-	sizeof(Eni_vcc),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
-
+uma_zone_t	eni_nif_zone;
+uma_zone_t	eni_vcc_zone;
