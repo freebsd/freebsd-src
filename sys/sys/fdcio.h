@@ -77,7 +77,8 @@ struct fd_type {
 	int	steptrac;		/* steps per cylinder        */
 	int	trans;			/* transfer speed code       */
 	int	heads;			/* number of heads	     */
-	int     intleave;               /* interleave factor         */
+	int     f_gap;                  /* format gap len            */
+	int     f_inter;                /* format interleave factor  */
 };
 
 #define FD_FORM   _IOW('F', 61, struct fd_formb) /* format a track */
