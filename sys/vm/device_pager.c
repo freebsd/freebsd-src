@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.18 1995/12/13 15:13:54 julian Exp $
+ * $Id: device_pager.c,v 1.19 1995/12/14 09:54:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -128,7 +128,7 @@ dev_pager_alloc(handle, size, prot, foff)
 	 *
 	 * XXX assumes VM_PROT_* == PROT_*
 	 */
-	npages = atop(round_page(size));
+	npages = size;
 	for (off = foff; npages--; off += PAGE_SIZE)
 		if ((*mapfunc) (dev, off, (int) prot) == -1)
 			return (NULL);
@@ -152,7 +152,7 @@ dev_pager_alloc(handle, size, prot, foff)
 		 * Allocate object and associate it with the pager.
 		 */
 		object = vm_object_allocate(OBJT_DEVICE,
-			OFF_TO_IDX(foff + size));
+			OFF_TO_IDX(foff) + size);
 		object->handle = handle;
 		TAILQ_INIT(&object->un_pager.devp.devp_pglist);
 		TAILQ_INSERT_TAIL(&dev_pager_object_list, object, pager_object_list);
@@ -161,8 +161,8 @@ dev_pager_alloc(handle, size, prot, foff)
 		 * Gain a reference to the object.
 		 */
 		vm_object_reference(object);
-		if (OFF_TO_IDX(foff + size) > object->size)
-			object->size = OFF_TO_IDX(foff + size);
+		if (OFF_TO_IDX(foff) + size > object->size)
+			object->size = OFF_TO_IDX(foff) + size;
 	}
 
 	dev_pager_alloc_lock = 0;
@@ -279,7 +279,7 @@ dev_pager_getfake(paddr)
 	m->valid = VM_PAGE_BITS_ALL;
 	m->dirty = 0;
 	m->busy = 0;
-	m->bmapped = 0;
+	m->queue = PQ_NONE;
 
 	m->wire_count = 1;
 	m->phys_addr = paddr;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.25 1995/12/11 04:57:20 dyson Exp $
+ * $Id: buf.h,v 1.26 1995/12/28 23:34:28 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -207,6 +207,7 @@ int	bwrite __P((struct buf *));
 void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	brelse __P((struct buf *));
+void	bqrelse __P((struct buf *));
 int	vfs_bio_awrite __P((struct buf *));
 struct buf *     getpbuf __P((void));
 struct buf *incore __P((struct vnode *, daddr_t));

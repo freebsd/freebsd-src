@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.18 1995/12/11 04:57:37 dyson Exp $
+ * $Id: ffs_inode.c,v 1.19 1996/01/05 18:31:48 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -220,6 +220,7 @@ ffs_truncate(ap)
 		aflags = B_CLRBUF;
 		if (ap->a_flags & IO_SYNC)
 			aflags |= B_SYNC;
+		vnode_pager_setsize(ovp, length);
 		error = ffs_balloc(oip, lbn, offset + 1, ap->a_cred,
 		    &bp, aflags);
 		if (error)
@@ -231,7 +232,6 @@ ffs_truncate(ap)
 			bdwrite(bp);
 		else
 			bawrite(bp);
-		vnode_pager_setsize(ovp, length);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (VOP_UPDATE(ovp, &tv, &tv, 1));
 	}
@@ -290,7 +290,7 @@ ffs_truncate(ap)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	error = VOP_UPDATE(ovp, &tv, &tv, 0);
+	error = VOP_UPDATE(ovp, &tv, &tv, ((length > 0) ? 0 : 1));
 	if (error)
 		allerror = error;
 	/*

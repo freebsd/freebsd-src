@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.19 1995/12/10 14:52:09 bde Exp $
+ * $Id: vm_kern.c,v 1.20 1995/12/11 04:58:09 dyson Exp $
  */
 
 /*
@@ -118,7 +118,7 @@ kmem_alloc_pageable(map, size)
 	size = round_page(size);
 	addr = vm_map_min(map);
 	result = vm_map_find(map, NULL, (vm_offset_t) 0,
-	    &addr, size, TRUE);
+	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (result != KERN_SUCCESS) {
 		return (0);
 	}
@@ -157,7 +157,8 @@ kmem_alloc(map, size)
 	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kernel_object);
-	vm_map_insert(map, kernel_object, offset, addr, addr + size);
+	vm_map_insert(map, kernel_object, offset, addr, addr + size,
+		VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
 
 	/*
@@ -182,8 +183,7 @@ kmem_alloc(map, size)
 		vm_page_t mem;
 
 		while ((mem = vm_page_alloc(kernel_object,
-			OFF_TO_IDX(offset + i),
-			(VM_ALLOC_NORMAL|VM_ALLOC_ZERO))) == NULL) {
+			OFF_TO_IDX(offset + i), VM_ALLOC_ZERO)) == NULL) {
 			VM_WAIT;
 		}
 		if ((mem->flags & PG_ZERO) == 0)
@@ -249,7 +249,7 @@ kmem_suballoc(parent, min, max, size, pageable)
 
 	*min = (vm_offset_t) vm_map_min(parent);
 	ret = vm_map_find(parent, NULL, (vm_offset_t) 0,
-	    min, size, TRUE);
+	    min, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (ret != KERN_SUCCESS) {
 		printf("kmem_suballoc: bad status return of %d.\n", ret);
 		panic("kmem_suballoc");
@@ -316,7 +316,8 @@ kmem_malloc(map, size, waitflag)
 	}
 	offset = addr - vm_map_min(kmem_map);
 	vm_object_reference(kmem_object);
-	vm_map_insert(map, kmem_object, offset, addr, addr + size);
+	vm_map_insert(map, kmem_object, offset, addr, addr + size,
+		VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	/*
 	 * If we can wait, just mark the range as wired (will fault pages as
@@ -376,6 +377,7 @@ kmem_malloc(map, size, waitflag)
 	 */
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
+		vm_page_wire(m);
 		pmap_kenter(addr + i, VM_PAGE_TO_PHYS(m));
 	}
 	vm_map_unlock(map);
@@ -416,7 +418,7 @@ kmem_alloc_wait(map, size)
 		vm_map_unlock(map);
 		tsleep(map, PVM, "kmaw", 0);
 	}
-	vm_map_insert(map, NULL, (vm_offset_t) 0, addr, addr + size);
+	vm_map_insert(map, NULL, (vm_offset_t) 0, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
 	return (addr);
 }
@@ -456,7 +458,7 @@ kmem_init(start, end)
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	kernel_map = m;
 	(void) vm_map_insert(m, NULL, (vm_offset_t) 0,
-	    VM_MIN_KERNEL_ADDRESS, start);
+	    VM_MIN_KERNEL_ADDRESS, start, VM_PROT_ALL, VM_PROT_ALL, 0);
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
 }

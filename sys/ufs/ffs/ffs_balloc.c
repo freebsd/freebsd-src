@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.4 (Berkeley) 9/23/93
- * $Id: ffs_balloc.c,v 1.8 1995/05/28 04:32:23 davidg Exp $
+ * $Id: ffs_balloc.c,v 1.9 1995/05/30 08:14:59 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -210,7 +210,7 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 			break;
 		i += 1;
 		if (nb != 0) {
-			brelse(bp);
+			bqrelse(bp);
 			continue;
 		}
 		if (pref == 0)

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.20 1995/12/11 04:56:00 dyson Exp $
+ *	$Id: imgact_aout.c,v 1.21 1995/12/15 02:57:40 peter Exp $
  */
 
 #include <sys/param.h>
@@ -148,15 +148,15 @@ exec_aout_imgact(imgp)
 	exec_new_vmspace(imgp);
 
 	/*
-	 * Map text read/execute
+	 * Map text/data read/execute
 	 */
 	vmaddr = virtual_offset;
 	error =
 	    vm_mmap(&vmspace->vm_map,			/* map */
 		&vmaddr,				/* address */
-		a_out->a_text,				/* size */
+		a_out->a_text + a_out->a_data,		/* size */
 		VM_PROT_READ | VM_PROT_EXECUTE,		/* protection */
-		VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,	/* max protection */
+		VM_PROT_ALL,				/* max protection */
 		MAP_PRIVATE | MAP_FIXED,		/* flags */
 		(caddr_t)imgp->vp,			/* vnode */
 		file_offset);				/* offset */
@@ -164,20 +164,13 @@ exec_aout_imgact(imgp)
 		return (error);
 
 	/*
-	 * Map data read/write (if text is 0, assume text is in data area
-	 *	[Bill's screwball mode])
+	 * allow writing of data
 	 */
-	vmaddr = virtual_offset + a_out->a_text;
-	error =
-	    vm_mmap(&vmspace->vm_map,
-		&vmaddr,
-		a_out->a_data,
-		VM_PROT_READ | VM_PROT_WRITE | (a_out->a_text ? 0 : VM_PROT_EXECUTE),
-		VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
-		(caddr_t) imgp->vp,
-		file_offset + a_out->a_text);
-	if (error)
-		return (error);
+	vm_map_protect(&vmspace->vm_map,
+		vmaddr + a_out->a_text,
+		vmaddr + a_out->a_text + a_out->a_data,
+		VM_PROT_ALL,
+		FALSE);
 
 	if (bss_size != 0) {
 		/*
@@ -186,7 +179,7 @@ exec_aout_imgact(imgp)
 		 *	instruction of the same name.
 		 */
 		vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
-		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, bss_size, FALSE);
+		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error)
 			return (error);
 	}

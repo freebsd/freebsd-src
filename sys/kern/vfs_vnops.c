@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.21 1995/12/11 04:56:13 dyson Exp $
+ * $Id: vfs_vnops.c,v 1.22 1995/12/17 21:23:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -476,12 +476,12 @@ vn_vmio_open(vp, p, cred)
 	/*
 	 * this is here for VMIO support
 	 */
-	if (vp->v_type == VREG || vp->v_type == VBLK) {
+	if (vp->v_type == VREG /* || vp->v_type == VBLK */) {
 retry:
 		if ((vp->v_flag & VVMIO) == 0) {
 			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
 				return error;
-			(void) vnode_pager_alloc(vp, vat.va_size, 0, 0);
+			(void) vnode_pager_alloc(vp, OFF_TO_IDX(round_page(vat.va_size)), 0, 0);
 			vp->v_flag |= VVMIO;
 		} else {
 			vm_object_t object;

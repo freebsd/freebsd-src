@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.57 1995/12/14 09:54:52 phk Exp $
+ * $Id: swap_pager.c,v 1.58 1995/12/17 07:19:55 bde Exp $
  */
 
 /*
@@ -302,13 +302,13 @@ swap_pager_alloc(handle, size, prot, offset)
 			 * rip support of "named anonymous regions" out altogether.
 			 */
 			object = vm_object_allocate(OBJT_SWAP,
-				OFF_TO_IDX(offset+ PAGE_SIZE - 1 + size));
+				OFF_TO_IDX(offset + PAGE_SIZE - 1) + size);
 			object->handle = handle;
 			(void) swap_pager_swp_alloc(object, M_WAITOK);
 		}
 	} else {
 		object = vm_object_allocate(OBJT_SWAP,
-			OFF_TO_IDX(offset + PAGE_SIZE - 1 + size));
+			OFF_TO_IDX(offset + PAGE_SIZE - 1) + size);
 		(void) swap_pager_swp_alloc(object, M_WAITOK);
 	}
 
@@ -1266,6 +1266,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
 		s = splbio();
 		if (curproc == pageproc) {
+retryfree:
 			/*
 			 * pageout daemon needs a swap control block
 			 */
@@ -1273,33 +1274,42 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			/*
 			 * if it does not get one within a short time, then
 			 * there is a potential deadlock, so we go-on trying
-			 * to free pages.
+			 * to free pages.  It is important to block here as opposed
+			 * to returning, thereby allowing the pageout daemon to continue.
+			 * It is likely that pageout daemon will start suboptimally
+			 * reclaiming vnode backed pages if we don't block.  Since the
+			 * I/O subsystem is probably already fully utilized, might as
+			 * well wait.
 			 */
-			tsleep(&swap_pager_free, PVM, "swpfre", hz/10);
-			swap_pager_sync();
-			if (swap_pager_free.tqh_first == NULL ||
+			if (tsleep(&swap_pager_free, PVM, "swpfre", hz/5)) {
+				swap_pager_sync();
+				if (swap_pager_free.tqh_first == NULL ||
+					swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
+					swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+					splx(s);
+					return VM_PAGER_AGAIN;
+				}
+			} else {
+			/*
+			 * we make sure that pageouts aren't taking up all of
+			 * the free swap control blocks.
+			 */
+				swap_pager_sync();
+				if (swap_pager_free.tqh_first == NULL ||
+					swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
+					swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+					goto retryfree;
+				}
+			}
+		} else {
+			pagedaemon_wakeup();
+			while (swap_pager_free.tqh_first == NULL ||
 				swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
 				swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
-				splx(s);
-				return VM_PAGER_AGAIN;
-			}
-		} else
-			pagedaemon_wakeup();
-		while (swap_pager_free.tqh_first == NULL ||
-			swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
-			swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
-			if (curproc == pageproc) {
-			    swap_pager_needflags |= SWAP_FREE_NEEDED_BY_PAGEOUT;
-			    if((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_reserved)
-					wakeup(&cnt.v_free_count);
-			}
-
-			swap_pager_needflags |= SWAP_FREE_NEEDED;
-			tsleep(&swap_pager_free, PVM, "swpfre", 0);
-			if (curproc == pageproc)
-				swap_pager_sync();
-			else
+				swap_pager_needflags |= SWAP_FREE_NEEDED;
+				tsleep(&swap_pager_free, PVM, "swpfre", 0);
 				pagedaemon_wakeup();
+			}
 		}
 		splx(s);
 	}
@@ -1436,7 +1446,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 				 * optimization, if a page has been read
 				 * during the pageout process, we activate it.
 				 */
-				if ((m[i]->flags & PG_ACTIVE) == 0 &&
+				if ((m[i]->queue != PQ_ACTIVE) &&
 				    ((m[i]->flags & (PG_WANTED|PG_REFERENCED)) ||
 				    pmap_is_referenced(VM_PAGE_TO_PHYS(m[i])))) {
 					vm_page_activate(m[i]);
@@ -1542,7 +1552,7 @@ swap_pager_finish(spc)
 		for (i = 0; i < spc->spc_count; i++) {
 			pmap_clear_modify(VM_PAGE_TO_PHYS(spc->spc_m[i]));
 			spc->spc_m[i]->dirty = 0;
-			if ((spc->spc_m[i]->flags & PG_ACTIVE) == 0 &&
+			if ((spc->spc_m[i]->queue != PQ_ACTIVE) &&
 			    ((spc->spc_m[i]->flags & PG_WANTED) || pmap_is_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
 				vm_page_activate(spc->spc_m[i]);
 		}

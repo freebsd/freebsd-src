@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.62 1995/12/11 04:58:28 dyson Exp $
+ * $Id: vm_pageout.c,v 1.63 1995/12/14 09:55:09 phk Exp $
  */
 
 /*
@@ -234,13 +234,13 @@ vm_pageout_clean(m, sync)
 			}
 			p = vm_page_lookup(object, pindex + i);
 			if (p) {
-				if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy) {
+				if ((p->queue == PQ_CACHE) || (p->flags & PG_BUSY) || p->busy) {
 					forward_okay = FALSE;
 					goto do_backward;
 				}
 				vm_page_test_dirty(p);
 				if ((p->dirty & p->valid) != 0 &&
-				    ((p->flags & PG_INACTIVE) ||
+				    ((p->queue == PQ_INACTIVE) ||
 				     (sync == VM_PAGEOUT_FORCE)) &&
 				    (p->wire_count == 0) &&
 				    (p->hold_count == 0)) {
@@ -268,13 +268,13 @@ do_backward:
 			}
 			p = vm_page_lookup(object, pindex - i);
 			if (p) {
-				if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy) {
+				if ((p->queue == PQ_CACHE) || (p->flags & PG_BUSY) || p->busy) {
 					backward_okay = FALSE;
 					continue;
 				}
 				vm_page_test_dirty(p);
 				if ((p->dirty & p->valid) != 0 &&
-				    ((p->flags & PG_INACTIVE) ||
+				    ((p->queue == PQ_INACTIVE) ||
 				     (sync == VM_PAGEOUT_FORCE)) &&
 				    (p->wire_count == 0) &&
 				    (p->hold_count == 0)) {
@@ -348,7 +348,7 @@ vm_pageout_flush(mc, count, sync)
 			 * page so it doesn't clog the inactive list.  (We
 			 * will try paging out it again later).
 			 */
-			if (mt->flags & PG_INACTIVE)
+			if (mt->queue == PQ_INACTIVE)
 				vm_page_activate(mt);
 			break;
 		case VM_PAGER_AGAIN:
@@ -364,13 +364,6 @@ vm_pageout_flush(mc, count, sync)
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
-			if ((mt->flags & (PG_REFERENCED|PG_WANTED)) ||
-			    pmap_is_referenced(VM_PAGE_TO_PHYS(mt))) {
-				pmap_clear_reference(VM_PAGE_TO_PHYS(mt));
-				mt->flags &= ~PG_REFERENCED;
-				if (mt->flags & PG_INACTIVE)
-					vm_page_activate(mt);
-			}
 			PAGE_WAKEUP(mt);
 		}
 	}
@@ -427,6 +420,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 		if (p->wire_count != 0 ||
 		    p->hold_count != 0 ||
 		    p->busy != 0 ||
+		    (p->flags & PG_BUSY) ||
 		    !pmap_page_exists(vm_map_pmap(map), VM_PAGE_TO_PHYS(p))) {
 			p = next;
 			continue;
@@ -435,9 +429,9 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 		 * if a page is active, not wired and is in the processes
 		 * pmap, then deactivate the page.
 		 */
-		if ((p->flags & (PG_ACTIVE | PG_BUSY)) == PG_ACTIVE) {
+		if (p->queue == PQ_ACTIVE) {
 			if (!pmap_is_referenced(VM_PAGE_TO_PHYS(p)) &&
-			    (p->flags & (PG_REFERENCED|PG_WANTED)) == 0) {
+			    (p->flags & PG_REFERENCED) == 0) {
 				p->act_count -= min(p->act_count, ACT_DECLINE);
 				/*
 				 * if the page act_count is zero -- then we
@@ -461,7 +455,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 				/*
 				 * see if we are done yet
 				 */
-				if (p->flags & PG_INACTIVE) {
+				if (p->queue == PQ_INACTIVE) {
 					--count;
 					++dcount;
 					if (count <= 0 &&
@@ -481,14 +475,13 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 				TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
 			}
-		} else if ((p->flags & (PG_INACTIVE | PG_BUSY)) == PG_INACTIVE) {
+		} else if (p->queue == PQ_INACTIVE) {
 			vm_page_protect(p, VM_PROT_NONE);
 		}
 		p = next;
 	}
 	return dcount;
 }
-
 
 /*
  * deactivate some number of pages in a map, try to do it fairly, but
@@ -584,7 +577,7 @@ rescan1:
 		next = m->pageq.tqe_next;
 
 #if defined(VM_DIAGNOSE)
-		if ((m->flags & PG_INACTIVE) == 0) {
+		if (m->queue != PQ_INACTIVE) {
 			printf("vm_pageout_scan: page not inactive?\n");
 			break;
 		}
@@ -593,12 +586,17 @@ rescan1:
 		/*
 		 * dont mess with busy pages
 		 */
-		if (m->hold_count || m->busy || (m->flags & PG_BUSY)) {
+		if (m->busy || (m->flags & PG_BUSY)) {
+			m = next;
+			continue;
+		}
+		if (m->hold_count) {
 			TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 			m = next;
 			continue;
 		}
+
 		if (((m->flags & PG_REFERENCED) == 0) &&
 		    pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
 			m->flags |= PG_REFERENCED;
@@ -607,7 +605,7 @@ rescan1:
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 		}
-		if ((m->flags & (PG_REFERENCED|PG_WANTED)) != 0) {
+		if ((m->flags & PG_REFERENCED) != 0) {
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			vm_page_activate(m);
@@ -617,21 +615,18 @@ rescan1:
 			continue;
 		}
 
-		vm_page_test_dirty(m);
 		if (m->dirty == 0) {
-			if (m->bmapped == 0) {
-				if (m->valid == 0) {
-					pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
-					vm_page_free(m);
-					cnt.v_dfree++;
-				} else {
-					vm_page_cache(m);
-				}
-				++pages_freed;
-			} else {
-				m = next;
-				continue;
-			}
+			vm_page_test_dirty(m);
+		} else if (m->dirty != 0)
+			m->dirty = VM_PAGE_BITS_ALL;
+		if (m->valid == 0) {
+			vm_page_protect(m, VM_PROT_NONE);
+			vm_page_free(m);
+			cnt.v_dfree++;
+			++pages_freed;
+		} else if (m->dirty == 0) {
+			vm_page_cache(m);
+			++pages_freed;
 		} else if (maxlaunder > 0) {
 			int written;
 			struct vnode *vp = NULL;
@@ -671,7 +666,7 @@ rescan1:
 			 * if the next page has been re-activated, start
 			 * scanning again
 			 */
-			if ((next->flags & PG_INACTIVE) == 0) {
+			if (next->queue != PQ_INACTIVE) {
 				vm_pager_sync();
 				goto rescan1;
 			}
@@ -697,7 +692,8 @@ rescan1:
 	maxscan = MAXSCAN;
 	pcount = cnt.v_active_count;
 	m = vm_page_queue_active.tqh_first;
-	while ((m != NULL) && (maxscan > 0) && (pcount-- > 0) && (page_shortage > 0)) {
+	while ((m != NULL) && (maxscan > 0) &&
+		(pcount-- > 0) && (page_shortage > 0)) {
 
 		cnt.v_pdpages++;
 		next = m->pageq.tqe_next;
@@ -711,13 +707,11 @@ rescan1:
 			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 			m = next;
-			/* printf("busy: s: %d, f: 0x%x, h: %d\n",
-				m->busy, m->flags, m->hold_count); */
 			continue;
 		}
 		if (m->object->ref_count &&
-			((m->flags & (PG_REFERENCED|PG_WANTED)) ||
-			pmap_is_referenced(VM_PAGE_TO_PHYS(m)))) {
+			((m->flags & PG_REFERENCED) ||
+			pmap_is_referenced(VM_PAGE_TO_PHYS(m))) ) {
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			m->flags &= ~PG_REFERENCED;
 			if (m->act_count < ACT_MAX) {
@@ -737,7 +731,7 @@ rescan1:
 				if (m->object->ref_count == 0) {
 					--page_shortage;
 					vm_page_test_dirty(m);
-					if ((m->bmapped == 0) && (m->dirty == 0) ) {
+					if (m->dirty == 0) {
 						m->act_count = 0;
 						vm_page_cache(m);
 					} else {
@@ -773,7 +767,8 @@ rescan1:
 	 * in a writeable object, wakeup the sync daemon.  And kick swapout
 	 * if we did not get enough free pages.
 	 */
-	if ((cnt.v_cache_count + cnt.v_free_count) < cnt.v_free_target) {
+	if ((cnt.v_cache_count + cnt.v_free_count) <
+		(cnt.v_free_target + cnt.v_cache_min) ) {
 		if (vnodes_skipped &&
 		    (cnt.v_cache_count + cnt.v_free_count) < cnt.v_free_min) {
 			if (!vfs_update_wakeup) {

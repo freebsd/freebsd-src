@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.25 1996/01/04 20:28:46 wollman Exp $
+ * $Id: kern_exit.c,v 1.26 1996/01/08 04:30:44 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -413,6 +413,12 @@ loop:
 			(void)chgproccnt(p->p_cred->p_ruid, -1);
 
 			/*
+			 * Release reference to text vnode
+			 */
+			if (p->p_textvp)
+				vrele(p->p_textvp);
+
+			/*
 			 * Free up credentials.
 			 */
 			if (--p->p_cred->p_refcnt == 0) {
@@ -420,12 +426,6 @@ loop:
 				FREE(p->p_cred, M_SUBPROC);
 				p->p_cred = NULL;
 			}
-
-			/*
-			 * Release reference to text vnode
-			 */
-			if (p->p_textvp)
-				vrele(p->p_textvp);
 
 			/*
 			 * Finally finished with old proc entry.
