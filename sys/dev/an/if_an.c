@@ -2832,6 +2832,26 @@ an_shutdown(dev)
 	return;
 }
 
+void
+an_resume(dev)
+	device_t		dev;
+{
+	struct an_softc		*sc;
+	struct ifnet		*ifp;
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	an_reset(sc);
+	if (sc->mpi350)
+		an_init_mpi350_desc(sc);	
+	an_init(sc);
+
+	if (ifp->if_flags & IFF_UP)
+		an_start(ifp);
+
+	return;
+}
+
 #ifdef ANCACHE
 /* Aironet signal strength cache code.
  * store signal/noise/quality on per MAC src basis in
