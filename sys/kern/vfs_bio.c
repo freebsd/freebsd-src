@@ -3522,7 +3522,7 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 void
 vfs_bio_clrbuf(struct buf *bp) 
 {
-	int i, mask = 0;
+	int i, j, mask = 0;
 	caddr_t sa, ea;
 
 	GIANT_REQUIRED;
@@ -3533,9 +3533,10 @@ vfs_bio_clrbuf(struct buf *bp)
 		VM_OBJECT_LOCK(bp->b_object);
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 		    (bp->b_offset & PAGE_MASK) == 0) {
+			if (bp->b_pages[0] == bogus_page)
+				goto unlock;
 			mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;
-			if (bp->b_pages[0] != bogus_page)
-				VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
+			VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
 			if ((bp->b_pages[0]->valid & mask) == mask)
 				goto unlock;
 			if (((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
@@ -3547,14 +3548,15 @@ vfs_bio_clrbuf(struct buf *bp)
 		}
 		ea = sa = bp->b_data;
 		for(i=0;i<bp->b_npages;i++,sa=ea) {
-			int j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
+			if (bp->b_pages[i] == bogus_page)
+				continue;
+			j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
 			ea = (caddr_t)trunc_page((vm_offset_t)sa + PAGE_SIZE);
 			ea = (caddr_t)(vm_offset_t)ulmin(
 			    (u_long)(vm_offset_t)ea,
 			    (u_long)(vm_offset_t)bp->b_data + bp->b_bufsize);
 			mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
-			if (bp->b_pages[i] != bogus_page)
-				VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
+			VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
 			if ((bp->b_pages[i]->valid & mask) == mask)
 				continue;
 			if ((bp->b_pages[i]->valid & mask) == 0) {
