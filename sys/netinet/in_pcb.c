@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.18 1996/03/11 15:13:13 davidg Exp $
+ *	$Id: in_pcb.c,v 1.19 1996/05/31 05:11:22 peter Exp $
  */
 
 #include <sys/param.h>
@@ -61,28 +61,56 @@
 
 struct	in_addr zeroin_addr;
 
+static void	 in_pcbinshash __P((struct inpcb *));
+static void	 in_rtchange __P((struct inpcb *, int));
+
 /*
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
  */
+static int ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
+static int ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
 static int ipport_firstauto = IPPORT_RESERVED;		/* 1024 */
 static int ipport_lastauto  = IPPORT_USERRESERVED;	/* 5000 */
 static int ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 40000 */
 static int ipport_hilastauto  = IPPORT_HILASTAUTO;	/* 44999 */
 
+#define RANGECHK(var, min, max) \
+	if ((var) < (min)) { (var) = (min); } \
+	else if ((var) > (max)) { (var) = (max); }
+
+static int
+sysctl_net_ipport_check SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp,
+		oidp->oid_arg1, oidp->oid_arg2, req);
+	if (!error) {
+		RANGECHK(ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
+		RANGECHK(ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
+		RANGECHK(ipport_firstauto, IPPORT_RESERVED, USHRT_MAX);
+		RANGECHK(ipport_lastauto, IPPORT_RESERVED, USHRT_MAX);
+		RANGECHK(ipport_hifirstauto, IPPORT_RESERVED, USHRT_MAX);
+		RANGECHK(ipport_hilastauto, IPPORT_RESERVED, USHRT_MAX);
+	}
+	return error;
+}
+
+#undef RANGECHK
+
 SYSCTL_NODE(_net_inet_ip, IPPROTO_IP, portrange, CTLFLAG_RW, 0, "IP Ports");
 
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, first, CTLFLAG_RW,
-	   &ipport_firstauto, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, last, CTLFLAG_RW,
-	   &ipport_lastauto, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, hifirst, CTLFLAG_RW,
-	   &ipport_hifirstauto, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, hilast, CTLFLAG_RW,
-	   &ipport_hilastauto, 0, "");
-
-static void	 in_pcbinshash __P((struct inpcb *));
-static void	 in_rtchange __P((struct inpcb *, int));
+SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, lowfirst, CTLTYPE_INT|CTLFLAG_RW,
+	   &ipport_lowfirstauto, 0, &sysctl_net_ipport_check, "I", "");
+SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, lowlast, CTLTYPE_INT|CTLFLAG_RW,
+	   &ipport_lowlastauto, 0, &sysctl_net_ipport_check, "I", "");
+SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, first, CTLTYPE_INT|CTLFLAG_RW,
+	   &ipport_firstauto, 0, &sysctl_net_ipport_check, "I", "");
+SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, last, CTLTYPE_INT|CTLFLAG_RW,
+	   &ipport_lastauto, 0, &sysctl_net_ipport_check, "I", "");
+SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hifirst, CTLTYPE_INT|CTLFLAG_RW,
+	   &ipport_hifirstauto, 0, &sysctl_net_ipport_check, "I", "");
+SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
+	   &ipport_hilastauto, 0, &sysctl_net_ipport_check, "I", "");
 
 int
 in_pcballoc(so, pcbinfo)
@@ -180,9 +208,8 @@ in_pcbbind(inp, nam)
 		} else if (inp->inp_flags & INP_LOWPORT) {
 			if (error = suser(p->p_ucred, &p->p_acflag))
 				return (EACCES);
-			first = IPPORT_RESERVED - 1;	/* 1023 */
-			last  = IPPORT_RESERVED / 2;	/* traditional - 512 */
-			*lastport = first;		/* restart each time */
+			first = ipport_lowfirstauto;	/* 1023 */
+			last  = ipport_lowlastauto;	/* 600 */
 		} else {
 			first = ipport_firstauto;	/* sysctl */
 			last  = ipport_lastauto;
