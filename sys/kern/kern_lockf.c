@@ -82,6 +82,10 @@ static int	 lf_getlock(struct lockf *, struct flock *);
 static int	 lf_setlock(struct lockf *);
 static void	 lf_split(struct lockf *, struct lockf *);
 static void	 lf_wakelock(struct lockf *);
+#ifdef LOCKF_DEBUG
+static void	 lf_print(char *, struct lockf *);
+static void	 lf_printlist(char *, struct lockf *);
+#endif
 
 /*
  * Advisory record locking support
@@ -103,6 +107,7 @@ lf_advlock(ap, head, size)
 	off_t start, end, oadd;
 	int error;
 
+	mtx_lock(&Giant);
 	/*
 	 * Convert the flock structure into a start and end.
 	 */
@@ -119,29 +124,40 @@ lf_advlock(ap, head, size)
 
 	case SEEK_END:
 		if (size > OFF_MAX ||
-		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start))
-			return (EOVERFLOW);
+		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start)) {
+			error = EOVERFLOW;
+			goto out;
+		}
 		start = size + fl->l_start;
 		break;
 
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
-	if (start < 0)
-		return (EINVAL);
+	if (start < 0) {
+		error = EINVAL;
+		goto out;
+	}
 	if (fl->l_len < 0) {
-		if (start == 0)
-			return (EINVAL);
+		if (start == 0) {
+			error = EINVAL;
+			goto out;
+		}
 		end = start - 1;
 		start += fl->l_len;
-		if (start < 0)
-			return (EINVAL);
+		if (start < 0) {
+			error = EINVAL;
+			goto out;
+		}
 	} else if (fl->l_len == 0)
 		end = -1;
 	else {
 		oadd = fl->l_len - 1;
-		if (oadd > OFF_MAX - start)
-			return (EOVERFLOW);
+		if (oadd > OFF_MAX - start) {
+			error = EOVERFLOW;
+			goto out;
+		}
 		end = start + oadd;
 	}
 	/*
@@ -150,7 +166,8 @@ lf_advlock(ap, head, size)
 	if (*head == (struct lockf *)0) {
 		if (ap->a_op != F_SETLK) {
 			fl->l_type = F_UNLCK;
-			return (0);
+			error = 0;
+			goto out;
 		}
 	}
 	/*
@@ -177,23 +194,28 @@ lf_advlock(ap, head, size)
 	 */
 	switch(ap->a_op) {
 	case F_SETLK:
-		return (lf_setlock(lock));
+		error = lf_setlock(lock);
+		goto out;
 
 	case F_UNLCK:
 		error = lf_clearlock(lock);
 		FREE(lock, M_LOCKF);
-		return (error);
+		goto out;
 
 	case F_GETLK:
 		error = lf_getlock(lock, fl);
 		FREE(lock, M_LOCKF);
-		return (error);
+		goto out;
 
 	default:
 		free(lock, M_LOCKF);
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
 	/* NOTREACHED */
+out:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -760,7 +782,7 @@ lf_wakelock(listhead)
 /*
  * Print out a lock.
  */
-void
+static void
 lf_print(tag, lock)
 	char *tag;
 	register struct lockf *lock;
@@ -792,7 +814,7 @@ lf_print(tag, lock)
 		printf("\n");
 }
 
-void
+static void
 lf_printlist(tag, lock)
 	char *tag;
 	struct lockf *lock;

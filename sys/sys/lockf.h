@@ -70,9 +70,4 @@ struct lockf {
 
 int	 lf_advlock(struct vop_advlock_args *, struct lockf **, u_quad_t);
 
-#ifdef LOCKF_DEBUG
-void	lf_print(char *, struct lockf *);
-void	lf_printlist(char *, struct lockf *);
-#endif
-
 #endif /* !_SYS_LOCKF_H_ */
