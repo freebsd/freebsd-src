@@ -74,7 +74,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	/*
 	 * Unlock the garbage collector mutex, now that the garbage collector
-	 * can't be:
+	 * can't be run:
 	 */
 	if (pthread_mutex_unlock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
@@ -128,10 +128,10 @@ pthread_join(pthread_t pthread, void **thread_return)
 			_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 		}
 
- 		/*
+		/*
 		 * The thread return value and error are set by the thread we're
 		 * joining to when it exits or detaches:
- 		 */
+		 */
 		ret = curthread->join_status.error;
 		if ((ret == 0) && (thread_return != NULL))
 			*thread_return = curthread->join_status.ret;
