@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -469,6 +470,16 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
 	return ENOENT;
 }
 
+SYSCTL_DECL(_hw_pci);
+
+static int legacy_host_mem_start = 0x80000000;
+/* No TUNABLE_ULONG :-( */
+TUNABLE_INT("hw.pci.host_mem_start", &legacy_host_mem_start);
+SYSCTL_INT(_hw_pci, OID_AUTO, host_mem_start, CTLFLAG_RDTUN,
+    &legacy_host_mem_start, 0x80000000,
+    "Limit the host bridge memory to being above this address.  Must be\n\
+set at boot via a tunable.");
+
 static struct resource *
 legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -481,9 +492,12 @@ legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
      * found to do it.  This is typically only used on older laptops
      * that don't have pci busses behind pci bridge, so assuming > 32MB
      * is liekly OK.
+     *
+     * However, this can cause problems for other chipsets, so we make
+     * this tunable by hw.pci.host_mem_start.
      */
     if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
-	start = 0xfe000000;
+	start = legacy_host_mem_start;
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
 }
