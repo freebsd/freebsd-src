@@ -37,7 +37,7 @@
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
  * $FreeBSD$
  */
-#include "apm.h"
+
 #include "opt_atalk.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
