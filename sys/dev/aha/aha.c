@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.6 1998/10/01 04:53:55 imp Exp $
+ *      $Id: aha.c,v 1.7 1998/10/02 04:37:48 imp Exp $
  */
 
 #include <sys/param.h>
@@ -1709,6 +1709,7 @@ ahamapsgs(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 ahapoll(struct cam_sim *sim)
 {
+	aha_intr(cam_sim_softc(sim));
 }
 
 void
