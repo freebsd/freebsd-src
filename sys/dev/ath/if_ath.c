@@ -777,20 +777,10 @@ ath_start(struct ifnet *ifp)
 			bpf_mtap(ic->ic_rawbpf, m);
 
 		if (sc->sc_drvbpf) {
-			struct mbuf *mb;
-
-			MGETHDR(mb, M_DONTWAIT, m->m_type);
-			if (mb != NULL) {
-				sc->sc_tx_th.wt_rate =
-					ni->ni_rates.rs_rates[ni->ni_txrate];
-
-				mb->m_next = m;
-				mb->m_data = (caddr_t)&sc->sc_tx_th;
-				mb->m_len = sizeof(sc->sc_tx_th);
-				mb->m_pkthdr.len += mb->m_len;
-				bpf_mtap(sc->sc_drvbpf, mb);
-				m_free(mb);
-			}
+			sc->sc_tx_th.wt_rate =
+				ni->ni_rates.rs_rates[ni->ni_txrate];
+			bpf_mtap2(sc->sc_drvbpf,
+				&sc->sc_tx_th, sizeof(sc->sc_tx_th), m);
 		}
 
 		if (ath_tx_start(sc, ni, bf, m)) {
@@ -1711,27 +1701,14 @@ ath_rx_proc(void *arg, int npending)
 		m->m_pkthdr.len = m->m_len = len;
 
 		if (sc->sc_drvbpf) {
-			struct mbuf *mb;
+			sc->sc_rx_th.wr_rate =
+				sc->sc_hwmap[ds->ds_rxstat.rs_rate];
+			sc->sc_rx_th.wr_antsignal = ds->ds_rxstat.rs_rssi;
+			sc->sc_rx_th.wr_antenna = ds->ds_rxstat.rs_antenna;
+			/* XXX TSF */
 
-			/* XXX pre-allocate space when setting up recv's */
-			MGETHDR(mb, M_DONTWAIT, m->m_type);
-			if (mb != NULL) {
-				sc->sc_rx_th.wr_rate =
-					sc->sc_hwmap[ds->ds_rxstat.rs_rate];
-				sc->sc_rx_th.wr_antsignal =
-					ds->ds_rxstat.rs_rssi;
-				sc->sc_rx_th.wr_antenna =
-					ds->ds_rxstat.rs_antenna;
-				/* XXX TSF */
-
-				(void) m_dup_pkthdr(mb, m, M_DONTWAIT);
-				mb->m_next = m;
-				mb->m_data = (caddr_t)&sc->sc_rx_th;
-				mb->m_len = sizeof(sc->sc_rx_th);
-				mb->m_pkthdr.len += mb->m_len;
-				bpf_mtap(sc->sc_drvbpf, mb);
-				m_free(mb);
-			}
+			bpf_mtap2(sc->sc_drvbpf,
+				&sc->sc_rx_th, sizeof(sc->sc_rx_th), m);
 		}
 
 		m_adj(m, -IEEE80211_CRC_LEN);

@@ -252,22 +252,14 @@ if_simloop(ifp, m, af, hlen)
 
 	/* Let BPF see incoming packet */
 	if (ifp->if_bpf) {
-		struct mbuf m0, *n = m;
-
 		if (ifp->if_bpf->bif_dlt == DLT_NULL) {
+			u_int32_t af1 = af;	/* XXX beware sizeof(af) != 4 */
 			/*
-			 * We need to prepend the address family as
-			 * a four byte field.  Cons up a dummy header
-			 * to pacify bpf.  This is safe because bpf
-			 * will only read from the mbuf (i.e., it won't
-			 * try to free it or keep a pointer a to it).
+			 * We need to prepend the address family.
 			 */
-			m0.m_next = m;
-			m0.m_len = 4;
-			m0.m_data = (char *)&af;
-			n = &m0;
-		}
-		BPF_MTAP(ifp, n);
+			bpf_mtap2(ifp->if_bpf, &af1, sizeof(af1), m);
+		} else
+			bpf_mtap(ifp->if_bpf, m);
 	}
 
 	/* Strip away media header */

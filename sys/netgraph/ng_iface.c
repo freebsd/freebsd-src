@@ -485,16 +485,10 @@ ng_iface_start(struct ifnet *ifp)
 static void
 ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 {
-	int32_t family4 = (int32_t)family;
-	struct mbuf m0;
-
 	KASSERT(family != AF_UNSPEC, ("%s: family=AF_UNSPEC", __func__));
 	if (ifp->if_bpf != NULL) {
-		bzero(&m0, sizeof(m0));
-		m0.m_next = m;
-		m0.m_len = sizeof(family4);
-		m0.m_data = (char *)&family4;
-		BPF_MTAP(ifp, &m0);
+		int32_t family4 = (int32_t)family;
+		bpf_mtap2(ifp->if_bpf, &family4, sizeof(family4), m);
 	}
 }
 
