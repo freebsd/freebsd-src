@@ -1,0 +1,339 @@
+.\" Copyright (c) 1985, 1995 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted provided
+.\" that: (1) source distributions retain this entire copyright notice and
+.\" comment, and (2) distributions including binaries display the following
+.\" acknowledgement:  ``This product includes software developed by the
+.\" University of California, Berkeley and its contributors'' in the
+.\" documentation or other materials provided with the distribution and in
+.\" all advertising materials mentioning features or use of this software.
+.\" Neither the name of the University nor the names of its contributors may
+.\" be used to endorse or promote products derived from this software without
+.\" specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\"	@(#)resolver.3	6.5 (Berkeley) 6/23/90
+.\"	$Id: resolver.3,v 8.4 1996/05/09 05:59:10 vixie Exp $
+.\"
+.TH RESOLVER 3 "December 11, 1995
+.UC 4
+.SH NAME
+res_query, res_search, res_mkquery, res_send, res_init, dn_comp, dn_expand \- resolver routines
+.SH SYNOPSIS
+.B #include <sys/types.h>
+.br
+.B #include <netinet/in.h>
+.br
+.B #include <arpa/nameser.h>
+.br
+.B #include <resolv.h>
+.PP
+.B "res_query(dname, class, type, answer, anslen)"
+.br
+.B const char *dname;
+.br
+.B int class, type;
+.br
+.B u_char *answer;
+.br
+.B int anslen;
+.PP
+.B "res_search(dname, class, type, answer, anslen)"
+.br
+.B const char *dname;
+.br
+.B int class, type;
+.br
+.B u_char *answer;
+.br
+.B int anslen;
+.PP
+.B "res_mkquery(op, dname, class, type, data, datalen, newrr, buf, buflen)"
+.br
+.B int op;
+.br
+.B const char *dname;
+.br
+.B int class, type;
+.br
+.B const char *data;
+.br
+.B int datalen;
+.br
+.B struct rrec *newrr;
+.br
+.B u_char *buf;
+.br
+.B int buflen;
+.PP
+.B res_send(msg, msglen, answer, anslen)
+.br
+.B const u_char *msg;
+.br
+.B int msglen;
+.br
+.B u_char *answer;
+.br
+.B int anslen;
+.PP
+.B res_init()
+.PP
+.B dn_comp(exp_dn, comp_dn, length, dnptrs, lastdnptr)
+.br
+.B const char *exp_dn;
+.br
+.B u_char *comp_dn;
+.br
+.B int length;
+.br
+.B u_char **dnptrs, **lastdnptr;
+.PP
+.B dn_expand(msg, eomorig, comp_dn, exp_dn, length)
+.br
+.B const u_char *msg, *eomorig, *comp_dn;
+.br
+.B char *exp_dn;
+.br
+.B int  length;
+.PP
+.B herror(const char *s)
+.PP
+.B hstrerror(int err)
+.SH DESCRIPTION
+These routines are used for making, sending and interpreting
+query and reply messages with Internet domain name servers.
+.PP
+Global configuration and state information that is used by the
+resolver routines is kept in the structure
+.IR _res .
+Most of the values have reasonable defaults and can be ignored.
+Options
+stored in
+.I _res.options
+are defined in
+.I resolv.h
+and are as follows.
+Options are stored as a simple bit mask containing the bitwise ``or''
+of the options enabled.
+.IP RES_INIT
+True if the initial name server address and default domain name are
+initialized (i.e.,
+.I res_init
+has been called).
+.IP RES_DEBUG
+Print debugging messages.
+.IP RES_AAONLY
+Accept authoritative answers only.
+With this option,
+.I res_send
+should continue until it finds an authoritative answer or finds an error.
+Currently this is not implemented.
+.IP RES_USEVC
+Use TCP connections for queries instead of UDP datagrams.
+.IP RES_STAYOPEN
+Used with RES_USEVC to keep the TCP connection open between
+queries.
+This is useful only in programs that regularly do many queries.
+UDP should be the normal mode used.
+.IP RES_IGNTC
+Unused currently (ignore truncation errors, i.e., don't retry with TCP).
+.IP RES_RECURSE
+Set the recursion-desired bit in queries.
+This is the default.
+(\c
+.I res_send
+does not do iterative queries and expects the name server
+to handle recursion.)
+.IP RES_DEFNAMES
+If set,
+.I res_search
+will append the default domain name to single-component names
+(those that do not contain a dot).
+This option is enabled by default.
+.IP RES_DNSRCH
+If this option is set,
+.I res_search
+will search for host names in the current domain and in parent domains; see
+.IR hostname (7).
+This is used by the standard host lookup routine
+.IR gethostbyname (3).
+This option is enabled by default.
+.IP RES_NOALIASES
+This option turns off the user level aliasing feature controlled by
+the HOSTALIASES environment variable.  Network daemons should set this option.
+.PP
+The
+.I res_init
+routine
+reads the configuration file (if any; see
+.IR resolver (5))
+to get the default domain name,
+search list and
+the Internet address of the local name server(s).
+If no server is configured, the host running
+the resolver is tried.
+The current domain name is defined by the hostname
+if not specified in the configuration file;
+it can be overridden by the environment variable LOCALDOMAIN.
+This environment variable may contain several blank-separated
+tokens if you wish to override the
+.I "search list"
+on a per-process basis.  This is similar to the
+.I search
+command in the configuration file.
+Another environment variable (``RES_OPTIONS'') can be set to
+override certain internal resolver options which are otherwise
+set by changing fields in the
+.I _res
+structure or are inherited from the configuration file's
+.I options
+command.  The syntax of the ``RES_OPTIONS'' environment variable
+is explained in
+.IR resolver (5).
+Initialization normally occurs on the first call
+to one of the other resolver routines.
+.PP
+The
+.I res_query
+function provides an interface to the server query mechanism.
+It constructs a query, sends it to the local server,
+awaits a response, and makes preliminary checks on the reply.
+The query requests information of the specified
+.I type
+and
+.I class
+for the specified fully-qualified domain name
+.I dname .
+The reply message is left in the
+.I answer
+buffer with length
+.I anslen
+supplied by the caller.
+.PP
+The
+.I res_search
+routine makes a query and awaits a response like
+.IR res_query ,
+but in addition, it implements the default and search rules
+controlled by the RES_DEFNAMES and RES_DNSRCH options.
+It returns the first successful reply.
+.PP
+The remaining routines are lower-level routines used by
+.IR res_query .
+The
+.I res_mkquery
+function
+constructs a standard query message and places it in
+.IR buf .
+It returns the size of the query, or \-1 if the query is
+larger than
+.IR buflen .
+The query type
+.I op
+is usually QUERY, but can be any of the query types defined in
+.IR <arpa/nameser.h> .
+The domain name for the query is given by
+.IR dname .
+.I Newrr
+is currently unused but is intended for making update messages.
+.PP
+The
+.I res_send
+routine
+sends a pre-formatted query and returns an answer.
+It will call
+.I res_init
+if RES_INIT is not set, send the query to the local name server, and
+handle timeouts and retries.
+The length of the reply message is returned, or
+\-1 if there were errors.
+.PP
+The
+.I dn_comp
+function
+compresses the domain name
+.I exp_dn
+and stores it in
+.IR comp_dn .
+The size of the compressed name is returned or \-1 if there were errors.
+The size of the array pointed to by
+.I comp_dn
+is given by
+.IR length .
+The compression uses
+an array of pointers
+.I dnptrs
+to previously-compressed names in the current message.
+The first pointer points to
+to the beginning of the message and the list ends with NULL.
+The limit to the array is specified by
+.IR lastdnptr .
+A side effect of
+.I dn_comp
+is to update the list of pointers for
+labels inserted into the message
+as the name is compressed.
+If
+.I dnptr
+is NULL, names are not compressed.
+If
+.I lastdnptr
+is NULL, the list of labels is not updated.
+.PP
+The
+.I dn_expand
+entry
+expands the compressed domain name
+.I comp_dn
+to a full domain name
+The compressed name is contained in a query or reply message;
+.I msg
+is a pointer to the beginning of the message.
+The uncompressed name is placed in the buffer indicated by
+.I exp_dn
+which is of size
+.IR length .
+The size of compressed name is returned or \-1 if there was an error.
+.PP
+The external variable
+.B h_errno
+is set whenever an error occurs during resolver operation.  The following
+definitions are given in
+.BR <netdb.h> :
+.PP
+.nf
+#define NETDB_INTERNAL -1  /* see errno */
+#define NETDB_SUCCESS  0   /* no problem */
+#define HOST_NOT_FOUND 1   /* Authoritative Answer Host not found */
+#define TRY_AGAIN      2   /* Non-Authoritive not found, or SERVFAIL */
+#define NO_RECOVERY    3   /* Nonrecoverable: FORMERR, REFUSED, NOTIMP */
+#define NO_DATA        4   /* Valid name, no data for requested type */
+.ft R
+.ad
+.fi
+.PP
+The
+.B herror
+function writes a message to the diagnostic output consisting of the string
+parameter
+.BR s ,
+the constant string ": ", and a message corresponding to the value of
+.BR h_errno .
+.PP
+The
+.B hstrerror
+function returns a string which is the message text corresponding to the
+value of the
+.B err
+parameter.
+.SH FILES
+/etc/resolv.conf	see resolver(5)
+.SH "SEE ALSO"
+gethostbyname(3), named(8), resolver(5), hostname(7),
+.br
+RFC1032, RFC1033, RFC1034, RFC1035, RFC974, 
+.br
+SMM:11 Name Server Operations Guide for BIND
