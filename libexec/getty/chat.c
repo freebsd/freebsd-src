@@ -39,6 +39,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 
+#include "gettytab.h"
 #include "extern.h"
 
 #define	PAUSE_CH		(unsigned char)'\xff'   /* pause kludge */

@@ -67,8 +67,8 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
-#include "extern.h"
 #include "gettytab.h"
+#include "extern.h"
 #include "pathnames.h"
 
 /*
