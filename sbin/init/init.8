@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id: init.8,v 1.14 1999/06/16 20:01:18 ru Exp $
+.\"	$Id: init.8,v 1.15 1999/06/18 09:08:08 ru Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -287,12 +287,7 @@ If, at bootstrap time, the
 process cannot be located, the system will panic with the message
 .Dq "panic: init died (signal %d, exit %d)" .
 .Pp
-The second synopsis form is only available if
-.Nm
-was compiled with the
-.Em COMPAT_SYSV_INIT
-option.
-In this case,
+If run as a user process as shown in the second synopsis line,
 .Nm
 will emulate
 .At V
