@@ -11,6 +11,7 @@
 .if !defined(NO_WARNS)
 . if defined(WARNS)
 .  if ${WARNS} > 0
+CFLAGS		+=	-Wsystem-headers
 .   if !defined(NO_WERROR)
 CFLAGS		+=	-Werror
 .   endif
