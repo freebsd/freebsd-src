@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lomacio.h,v 1.4 2001/09/26 21:18:00 bfeldman Exp $
+ * $FreeBSD$
  */
 #ifndef LOMACIO_H
 #define LOMACIO_H

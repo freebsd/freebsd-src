@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_lkm.c,v 1.26 2001/11/14 16:30:17 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

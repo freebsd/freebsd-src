@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_plm.h,v 1.4 2001/09/20 17:47:46 bfeldman Exp $
+ * $FreeBSD$
  */
 #ifndef KERNEL_PLM_H
 #define KERNEL_PLM_H

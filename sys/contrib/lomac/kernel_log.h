@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_log.h,v 1.5 2001/09/20 21:29:21 tfraser Exp $
+ * $FreeBSD$
  */
 
 #ifndef _KERNEL_LOG_H_

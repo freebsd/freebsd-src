@@ -40,7 +40,6 @@
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
  * $FreeBSD$
- * $Id: kernel_mmap.c,v 1.12 2001/10/17 15:34:29 bfeldman Exp $
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: policy_plm.h,v 1.20 2001/11/15 20:55:05 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #ifndef	LOMAC_PLM_H

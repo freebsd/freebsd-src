@@ -31,7 +31,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kernel_pipe.h,v 1.1 2001/09/20 21:29:21 tfraser Exp $
+ * $FreeBSD$
  *
  * Public interface to kernel_pipe.c, the part of the LOMAC kernel
  * interface that takes control of operations on unnamed pipes.
