@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 */
 
 #ifndef lint
-static char id[] = "@(#)$Id: smdb2.c,v 8.53.2.1.2.5 2000/10/26 00:39:56 geir Exp $";
+static char id[] = "@(#)$Id: smdb2.c,v 8.53.2.1.2.7 2001/02/14 04:07:24 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <fcntl.h>
@@ -359,9 +359,12 @@ int
 smdb2_cursor_close(cursor)
 	SMDB_CURSOR *cursor;
 {
+	int ret;
 	DBC *dbc = (DBC *) cursor->smdbc_impl;
 
-	return db2_error_to_smdb(dbc->c_close(dbc));
+	ret = db2_error_to_smdb(dbc->c_close(dbc));
+	free(cursor);
+	return ret;
 }
 
 int

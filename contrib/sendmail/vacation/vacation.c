@@ -13,7 +13,7 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n\
@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: vacation.c,v 8.68.4.15 2000/11/27 22:17:27 ca Exp $";
+static char id[] = "@(#)$Id: vacation.c,v 8.68.4.16 2001/02/14 05:02:21 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <ctype.h>
