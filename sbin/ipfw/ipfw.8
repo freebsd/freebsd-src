@@ -62,27 +62,9 @@ and the
 traffic shaper in
 .Fx .
 .Pp
-Each incoming or outgoing packet is passed through the
-.Nm
-rules.
-The number of times a packet is processed by
-.Nm
-varies \(em basically,
-.Nm
-is invoked every time the kernel functions
-.Fn ip_input ,
-.Fn ip_output
-and
-.Fn bdg_forward
-are invoked.
-This means that packets are processed once for connections having
-only one endpoint on the local host, twice for connections with
-both endpoints on the local host, or for packet routed by the host
-(acting as a gateway), and once for packets bridged by the host
-(acting as a bridge).
-.Pp
 A firewall configuration is made of a list of numbered rules,
-which is scanned for each packet until a match is found and
+which is scanned for each incoming or outgoing IP packet
+until a match is found and
 the relevant action is performed.
 Depending on the action and certain system settings, packets
 can be reinjected into the firewall at the rule after the
@@ -1341,6 +1323,22 @@ on a net with per-host limits, rather than per-network limits:
 .Dl "ipfw add pipe 2 ip from any to 192.168.2.0/24 in"
 .Dl "ipfw pipe 1 config mask src-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
 .Dl "ipfw pipe 2 config mask dst-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
+.Sh IMPLEMENTATION NOTES
+The number of times a packet is processed by
+.Nm
+varies \(em basically,
+.Nm
+is invoked every time the kernel functions
+.Fn ip_input ,
+.Fn ip_output
+and
+.Fn bdg_forward
+are invoked.
+This means that packets are processed once for connections having
+only one endpoint on the local host, twice for connections with
+both endpoints on the local host, or for packet routed by the host
+(acting as a gateway), and once for packets bridged by the host
+(acting as a bridge).
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr m4 1 ,
