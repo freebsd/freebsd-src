@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.41 2003/04/28 06:15:36 grog Exp grog $
+ * $Id: vinum.c,v 1.42 2003/05/04 05:25:14 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -198,8 +198,11 @@ free_vinum(int cleardrive)
     int i;
     int drives_allocated = vinum_conf.drives_allocated;
 
-    EVENTHANDLER_DEREGISTER(dev_clone, dev_clone_tag);
-
+    while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
+	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
+	queue_daemon_request(daemonrq_return, (union daemoninfo) 0); /* stop the daemon */
+	tsleep(&vinumclose, PUSER, "vstop", 1);		    /* and wait for it */
+    }
     if (DRIVE != NULL) {
 	if (cleardrive) {				    /* remove the vinum config */
 	    for (i = 0; i < drives_allocated; i++)
@@ -209,11 +212,6 @@ free_vinum(int cleardrive)
 		free_drive(&DRIVE[i]);			    /* close files and things */
 	}
 	Free(DRIVE);
-    }
-    while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
-	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
-	queue_daemon_request(daemonrq_return, (union daemoninfo) 0); /* stop the daemon */
-	tsleep(&vinumclose, PUSER, "vstop", 1);		    /* and wait for it */
     }
     if (SD != NULL) {
 	for (i = 0; i < vinum_conf.subdisks_allocated; i++) {
@@ -244,6 +242,7 @@ free_vinum(int cleardrive)
     }
     bzero(&vinum_conf, sizeof(vinum_conf));
     vinum_conf.version = VINUMVERSION;			    /* reinstate version number */
+    EVENTHANDLER_DEREGISTER(dev_clone, dev_clone_tag);
 }
 
 STATIC int
