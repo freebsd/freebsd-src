@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: wrreg.c,v 1.9 1997/11/18 21:08:08 nate Exp $";
+	"$Id: wrreg.c,v 1.10 1999/02/05 16:00:16 kuriyama Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -68,6 +68,6 @@ wrreg_main(argc, argv)
 	r.reg = reg;
 	r.value = value;
 	if (ioctl(fd, PIOCSREG, &r))
-		warn("ioctl");
+		err(1, "ioctl (PIOCSREG)");
 	return 0;
 }
