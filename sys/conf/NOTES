@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.396 1998/01/26 06:33:48 julian Exp $
+#	$Id: LINT,v 1.397 1998/01/30 11:32:34 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1365,11 +1365,18 @@ options		CLUSTERDEBUG
 options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
+options		"DEBUG_1284"
 options		DEVFS_ROOT
+#options	DISABLE_PSE
 options		"EXT2FS"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
+# broken:
+#options		IPFILTER
+# broken:
+#options		KEY
 options		LOCKF_DEBUG
+options		LOUTB
 options		KBD_MAXRETRY=4
 options		KBD_MAXWAIT=6
 options		KBD_RESETDELAY=201
@@ -1380,8 +1387,22 @@ options		MSGSEG=2049
 options		MSGSSZ=16
 options		MSGTQL=41
 options		NBUF=512
+options		NETATALKDEBUG
 options		NMBCLUSTERS=1024
 options		NPX_DEBUG
+options		NULLFS_DIAGNOSTIC
+options		PANIC_REBOOT_WAIT_TIME=16
+options		"PCVT_24LINESDEF"
+options		PCVT_CTRL_ALT_DEL
+options		PCVT_EMU_MOUSE
+options		PCVT_FREEBSD=211
+options		PCVT_META_ESC
+options		PCVT_NSCREENS=9
+options		PCVT_PRETTYSCRNS
+options		PCVT_SCANSET=2
+options		PCVT_SCREENSAVER
+options		PCVT_USEKBDSEC
+options		"PCVT_VT220KEYB"
 options		PSM_DEBUG=1
 options		"SCSI_2_DEF"
 options		SCSI_DELAY=8	# Be pessimistic about Joe SCSI device
@@ -1406,8 +1427,8 @@ options		SHMMNI=33
 options		SHMSEG=9
 options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
+#options		SUIDDIR
 options		SPX_HACK
-options		TSC_GUPROF
 
 # The 'dpt' driver provides hardware RAID-{0,1,5} support, multi-initiator I/O
 # See sys/dev/dpt for debugging and other subtle options.
