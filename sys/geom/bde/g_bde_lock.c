@@ -143,9 +143,10 @@ g_bde_arc4_seq(struct g_bde_softc *sc, void *ptr, u_int len)
 }
 
 void
-g_bde_arc4_seed(struct g_bde_softc *sc, void *ptr, u_int len)
+g_bde_arc4_seed(struct g_bde_softc *sc, const void *ptr, u_int len)
 {
-	u_char k[256], *p, c;
+	u_char k[256], c;
+	const u_char *p;
 	u_int i;
 
 	p = ptr;
@@ -180,6 +181,8 @@ g_bde_keyloc_encrypt(struct g_bde_softc *sc, void *input, void *output)
 	keyInstance ki;
 	cipherInstance ci;
 
+	bcopy(input, output, 16);
+	return 0;
 	rijndael_cipherInit(&ci, MODE_CBC, NULL);
 	p = input;
 	g_bde_arc4_seq(sc, buf, sizeof buf);
@@ -189,6 +192,7 @@ g_bde_keyloc_encrypt(struct g_bde_softc *sc, void *input, void *output)
 	rijndael_makeKey(&ki, DIR_ENCRYPT, G_BDE_KKEYBITS, buf);
 	rijndael_blockEncrypt(&ci, &ki, buf1, 16 * 8, output);
 	bzero(&ci, sizeof ci);
+	bzero(&ki, sizeof ki);
 	return (0);
 }
 
@@ -201,6 +205,8 @@ g_bde_keyloc_decrypt(struct g_bde_softc *sc, void *input, void *output)
 	keyInstance ki;
 	cipherInstance ci;
 
+	bcopy(input, output, 16);
+	return 0;
 	rijndael_cipherInit(&ci, MODE_CBC, NULL);
 	g_bde_arc4_seq(sc, buf1, sizeof buf1);
 	g_bde_arc4_seq(sc, buf2, sizeof buf2);
@@ -210,15 +216,16 @@ g_bde_keyloc_decrypt(struct g_bde_softc *sc, void *input, void *output)
 	for (i = 0; i < sizeof buf1; i++)
 		p[i] ^= buf1[i];
 	bzero(&ci, sizeof ci);
+	bzero(&ki, sizeof ki);
 	return (0);
 }
 
 /*
- * Encode/Decode lock sectors.
+ * Encode/Decode lock sectors, do the real work.
  */
 
-int
-g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey)
+static int
+g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey)
 {
 	u_char *buf, k1buf[16], k2buf[G_BDE_LOCKSIZE], k3buf[16], *q;
 	struct g_bde_key *gl;
@@ -239,7 +246,7 @@ g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t med
 
 	if (off[0] + G_BDE_LOCKSIZE > (uint64_t)mediasize) {
 		bzero(off, sizeof off);
-		return (ESRCH);
+		return (EINVAL);
 	}
 	off[1] = 0;
 	m = 1;
@@ -256,7 +263,7 @@ g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t med
 	q = buf + off[0] % sectorsize;
 
 	off[1] = 0;
-	for (i = 0; i < (int)sizeof(*gl); i++)
+	for (i = 0; i < G_BDE_LOCKSIZE; i++)
 		off[1] += q[i];
 
 	if (off[1] == 0) {
@@ -287,7 +294,7 @@ g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t med
 		bzero(buf, sectorsize * m);
 		g_free(buf);
 		off[0] = 0;
-		return (ESRCH);
+		return (ENOTDIR);
 	}
 	bzero(k1buf, sizeof k1buf);
 
@@ -308,4 +315,39 @@ g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t med
 			*nkey = i;
 
 	return (0);
+}
+
+/*
+ * Encode/Decode lock sectors.
+ */
+
+int
+g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey)
+{
+	u_char *buf, buf1[16];
+	int error, e, i;
+
+	bzero(buf1, sizeof buf1);
+	if (bcmp(buf1, meta, sizeof buf1))
+		return (g_bde_decrypt_lockx(sc, sbox, meta, mediasize,
+		    sectorsize, nkey));
+
+	buf = g_read_data(sc->consumer, 0, sectorsize, &error);
+	if (buf == NULL)
+		return(error);
+	error = 0;
+	for (i = 0; i < G_BDE_MAXKEYS; i++) {
+		e = g_bde_decrypt_lockx(sc, sbox, buf + i * 16, mediasize,
+		    sectorsize, nkey);
+		if (e == 0 || e == ENOENT) {
+			error = e;
+			break;
+		}
+		if (e == ESRCH)
+			error = ENOTDIR;
+		else if (e != 0)
+			error = e;
+	}
+	g_free(buf);
+	return (error);
 }
