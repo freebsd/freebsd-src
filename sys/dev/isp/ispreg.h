@@ -1,14 +1,13 @@
-/* $Id: ispreg.h,v 1.6 1999/02/09 01:09:35 mjacob Exp $ */
-/* release_03_16_99 */
+/* $Id: ispreg.h,v 1.7 1999/03/17 05:04:39 mjacob Exp $ */
+/* release_03_25_99 */
 /*
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.
  *
- *---------------------------------------
- * Copyright (c) 1997 by Matthew Jacob
+ * Copyright (c) 1997, 1998, 1999 by Matthew Jacob
  * NASA/Ames Research Center
  * All rights reserved.
- *---------------------------------------
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -159,7 +158,7 @@
 #define	BIU_PCI1080_CONF1_SXP		0x0100	/* SXP bank select */
 #define	BIU_PCI1080_CONF1_DMA		0x0300	/* DMA bank select */
 
- /* ISP2100 Bus Control/Status Register */
+/* ISP2100 Bus Control/Status Register */
 
 #define	BIU2100_ICSR_REGBSEL		0x30	/* RW: register bank select */
 #define		BIU2100_RISC_REGS	(0 << 4)	/* RISC Regs */
@@ -503,6 +502,18 @@
 #define	SXP_PINS_DIFF_TARGET		0x0002	/* Enable SXP target mode */
 #define	SXP_PINS_DIFF_INITIATOR		0x0001	/* Enable SXP initiator mode */
 
+/* 1080 only */
+#define	SXP_PINS_LVD_MODE		0x1000
+#define	SXP_PINS_HVD_MODE		0x0800
+#define	SXP_PINS_SE_MODE		0x0400
+
+/* The above have to be put together with the DIFFM pin to make sense */
+#define	ISP1080_LVD_MODE		(SXP_PINS_LVD_MODE)
+#define	ISP1080_HVD_MODE		(SXP_PINS_HVD_MODE|SXP_PINS_DIFF_MODE)
+#define	ISP1080_SE_MODE			(SXP_PINS_SE_MODE)
+#define	ISP1080_MODE_MASK	\
+    (SXP_PINS_LVD_MODE|SXP_PINS_HVD_MODE|SXP_PINS_SE_MODE|SXP_PINS_DIFF_MODE)
+
 /*
  * RISC and Host Command and Control Block Register Offsets
  */
@@ -604,8 +615,8 @@
  */
 
 #define	ISP_NVRAM_SIZE	128
- 
-#define	ISPBSMX(c, byte, shift, mask)		\
+
+#define	ISPBSMX(c, byte, shift, mask)	\
 	(((c)[(byte)] >> (shift)) & (mask))
 
 #define	ISP_NVRAM_VERSION(c)			(c)[4]
@@ -677,7 +688,7 @@
 #define	ISP2100_NVRAM_RETRY_COUNT(c)		(c)[16]
 #define	ISP2100_NVRAM_RETRY_DELAY(c)		(c)[17]
 
-#define	ISP2100_NVRAM_NODE_NAME(c)	( \
+#define	ISP2100_NVRAM_NODE_NAME(c)	(\
 		(((u_int64_t)(c)[18]) << 56) | \
 		(((u_int64_t)(c)[19]) << 48) | \
 		(((u_int64_t)(c)[20]) << 40) | \
@@ -696,7 +707,7 @@
 #define	ISP2100_NVRAM_DISABLE_CODELOAD(c)	ISPBSMX(c, 70, 4, 0x01)
 #define	ISP2100_NVRAM_SET_CACHELINESZ(c)	ISPBSMX(c, 70, 5, 0x01)
 
-#define	ISP2100_NVRAM_BOOT_NODE_NAME(c)	( \
+#define	ISP2100_NVRAM_BOOT_NODE_NAME(c)	(\
 		(((u_int64_t)(c)[72]) << 56) | \
 		(((u_int64_t)(c)[73]) << 48) | \
 		(((u_int64_t)(c)[74]) << 40) | \
