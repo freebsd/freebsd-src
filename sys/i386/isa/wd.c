@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.167 1998/05/11 15:30:43 sos Exp $
+ *	$Id: wd.c,v 1.168 1998/06/07 17:11:05 dfr Exp $
  */
 
 /* TODO:
@@ -2775,7 +2775,7 @@ wdsclose(void *private, int flags, int mode, struct proc *p)
 #endif /* 0 */
 
 static int
-wdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+wdsioctl( void *private, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	register struct disk *du = private;
 #ifdef notyet
