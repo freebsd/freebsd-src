@@ -170,7 +170,7 @@ acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (ACPI_FAILURE(acpi_EvaluateInteger(handle, "_ADR", &address)))
+	if (ACPI_FAILURE(acpi_GetInteger(handle, "_ADR", &address)))
 		return_ACPI_STATUS(AE_OK);
 	slot = address >> 16;
 	func = address & 0xffff;

@@ -166,7 +166,7 @@ AcpiOsWritePciConfiguration (
 }
 
 /* XXX should use acpivar.h but too many include dependencies */
-extern ACPI_STATUS acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int
+extern ACPI_STATUS acpi_GetInteger(ACPI_HANDLE handle, char *path, int
     *number);
 
 /*
@@ -183,7 +183,7 @@ acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
     /* Try to get the _BBN object of the root, otherwise assume it is 0 */
     bus = 0;
     if (root == curr) {
-        if (ACPI_FAILURE(acpi_EvaluateInteger(root, "_BBN", &bus)) &&
+        if (ACPI_FAILURE(acpi_GetInteger(root, "_BBN", &bus)) &&
           bootverbose)
             printf("acpi_bus_number: root bus has no _BBN, assuming 0\n");
 	return (bus);
@@ -200,7 +200,7 @@ acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
         return (bus);
     }
     /* Get the parent's slot and function */
-    if (ACPI_FAILURE(acpi_EvaluateInteger(parent, "_ADR", &adr))) {
+    if (ACPI_FAILURE(acpi_GetInteger(parent, "_ADR", &adr))) {
         printf("acpi_bus_number: can't get _ADR\n");
         return (bus);
     }
@@ -243,7 +243,7 @@ AcpiOsDerivePciId (
     /* Try to read _BBN for bus number if we're at the root */
     bus = 0;
     if (rhandle == chandle) {
-        if (ACPI_FAILURE(acpi_EvaluateInteger(rhandle, "_BBN", &bus)) &&
+        if (ACPI_FAILURE(acpi_GetInteger(rhandle, "_BBN", &bus)) &&
           bootverbose)
             printf("AcpiOsDerivePciId: root bus has no _BBN, assuming 0\n");
     }
