@@ -502,7 +502,7 @@ vop_bwrite {
 };
 
 #
-#% getacl	vp	= = =
+#% getacl	vp	L L L
 #
 vop_getacl {
 	IN struct vnode *vp;
