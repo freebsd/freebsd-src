@@ -9,6 +9,7 @@
 .Op Fl i
 .Op Fl u
 .Op Fl a
+.Op Fl b
 .Op Fl 1234
 .Op Ar disk
 .Bl -tag -width time
@@ -65,6 +66,11 @@ unless
 is given.
 .It Fl a
 Change the active partition only.  Ignored if
+.Fl f
+is given.
+.It Fl b
+Reinitialize the boot code contained in sector 0 of the disk.  Ignored
+if
 .Fl f
 is given.
 .It Fl 1234
