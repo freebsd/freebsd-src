@@ -139,9 +139,54 @@ vm_offset_t phys_avail[100];
 
 void mi_startup(void);		/* XXX should be in a MI header */
 
-static void identifycpu(void);
-
 struct kva_md_info kmi;
+
+static void
+identifycpu(void)
+{
+	char vendor[17];
+	u_int64_t t;
+	int number, revision, model, family, archrev;
+	u_int64_t features;
+
+	/*
+	 * Assumes little-endian.
+	 */
+	*(u_int64_t *) &vendor[0] = ia64_get_cpuid(0);
+	*(u_int64_t *) &vendor[8] = ia64_get_cpuid(1);
+	vendor[16] = '\0';
+
+	t = ia64_get_cpuid(3);
+	number = (t >> 0) & 0xff;
+	revision = (t >> 8) & 0xff;
+	model = (t >> 16) & 0xff;
+	family = (t >> 24) & 0xff;
+	archrev = (t >> 32) & 0xff;
+
+	if (family == 0x7)
+		strcpy(cpu_model, "Itanium");
+	else if (family == 0x1f)
+		strcpy(cpu_model, "Itanium 2");	/* McKinley */
+	else
+		snprintf(cpu_model, sizeof(cpu_model), "Family=%d", family);
+
+	features = ia64_get_cpuid(4);
+
+	printf("CPU: %s", cpu_model);
+	if (processor_frequency)
+		printf(" (%ld.%02ld-Mhz)\n",
+		       (processor_frequency + 4999) / 1000000,
+		       ((processor_frequency + 4999) / 10000) % 100);
+	else
+		printf("\n");
+	printf("  Origin = \"%s\"  Model = %d  Revision = %d\n",
+	       vendor, model, revision);
+	printf("  Features = 0x%b\n", (u_int32_t) features,
+	    "\020"
+	    "\001LB"	/* long branch (brl) instruction. */
+	    "\002SD"	/* Spontaneous deferral. */
+	    "\003AO"	/* 16-byte atomic operations (ld, st, cmpxchg). */ );
+}
 
 static void
 cpu_startup(dummy)
@@ -202,6 +247,27 @@ cpu_startup(dummy)
 }
 
 void
+cpu_boot(int howto)
+{
+
+	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
+}
+
+void
+cpu_halt(void)
+{
+
+	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
+}
+
+void
+cpu_reset()
+{
+
+	cpu_boot(0);
+}
+
+void
 cpu_switch(struct thread *old, struct thread *new)
 {
 	struct pcb *oldpcb, *newpcb;
@@ -256,53 +322,6 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	KASSERT(size >= pcpusz + sizeof(struct pcb),
 	    ("%s: too small an allocation for pcpu", __func__));
 	pcpu->pc_pcb = (struct pcb *)((char*)pcpu + pcpusz);
-}
-
-static void
-identifycpu(void)
-{
-	char vendor[17];
-	u_int64_t t;
-	int number, revision, model, family, archrev;
-	u_int64_t features;
-
-	/*
-	 * Assumes little-endian.
-	 */
-	*(u_int64_t *) &vendor[0] = ia64_get_cpuid(0);
-	*(u_int64_t *) &vendor[8] = ia64_get_cpuid(1);
-	vendor[16] = '\0';
-
-	t = ia64_get_cpuid(3);
-	number = (t >> 0) & 0xff;
-	revision = (t >> 8) & 0xff;
-	model = (t >> 16) & 0xff;
-	family = (t >> 24) & 0xff;
-	archrev = (t >> 32) & 0xff;
-
-	if (family == 0x7)
-		strcpy(cpu_model, "Itanium");
-	else if (family == 0x1f)
-		strcpy(cpu_model, "Itanium 2");	/* McKinley */
-	else
-		snprintf(cpu_model, sizeof(cpu_model), "Family=%d", family);
-
-	features = ia64_get_cpuid(4);
-
-	printf("CPU: %s", cpu_model);
-	if (processor_frequency)
-		printf(" (%ld.%02ld-Mhz)\n",
-		       (processor_frequency + 4999) / 1000000,
-		       ((processor_frequency + 4999) / 10000) % 100);
-	else
-		printf("\n");
-	printf("  Origin = \"%s\"  Model = %d  Revision = %d\n",
-	       vendor, model, revision);
-	printf("  Features = 0x%b\n", (u_int32_t) features,
-	    "\020"
-	    "\001LB"	/* long branch (brl) instruction. */
-	    "\002SD"	/* Spontaneous deferral. */
-	    "\003AO"	/* 16-byte atomic operations (ld, st, cmpxchg). */ );
 }
 
 void
@@ -1148,26 +1167,6 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 		suword((caddr_t)mc->mc_special.ifa, mc->mc_special.isr);
 
 	return (0);
-}
-
-/*
- * Machine dependent boot() routine
- */
-void
-cpu_boot(int howto)
-{
-
-	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
-}
-
-/*
- * Shutdown the CPU as much as possible
- */
-void
-cpu_halt(void)
-{
-
-	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
 }
 
 /*
