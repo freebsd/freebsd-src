@@ -319,7 +319,7 @@ struct mbstat {
 /*
  * Network buffer allocation API
  *
- * The rest of it is defined in kern/subr_mbuf.c
+ * The rest of it is defined in kern/kern_mbuf.c
  */
 
 extern uma_zone_t	zone_mbuf;
