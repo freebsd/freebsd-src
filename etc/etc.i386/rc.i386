@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.18.2.5 1997/05/27 07:13:40 jkh Exp $
+#	$Id: rc.i386,v 1.18.2.6 1997/06/02 10:00:18 markm Exp $
 #	Do i386 specific processing
 #
 
@@ -109,7 +109,7 @@ echo '.'
 if [ "X${rand_irqs}" != X"NO" ] ; then
 	echo -n 'entropy IRQs:'
 	for irq in ${rand_irqs}; do
-		echo -n " ${irq}" && rndcontrol -q ${irq}
+		echo -n " ${irq}" && rndcontrol -q -s ${irq}
 	done
 	echo '.'
 fi
