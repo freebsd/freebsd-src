@@ -87,12 +87,15 @@ clock_if.h			standard				\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"clock_if.h"
-alpha/tlsb/tlsb.c		optional	tlsb
-alpha/tlsb/gbus.c		optional	gbus
-alpha/tlsb/kftxx.c		optional	kft
-alpha/tlsb/mcclock_tlsb.c	optional	gbus
-alpha/tlsb/zs_tlsb.c		optional	gbus
-alpha/tlsb/dwlpx.c		optional	dwlpx
+alpha/tlsb/tlsb.c		optional	dec_kn8ae
+alpha/tlsb/tlsbmem.c		optional	dec_kn8ae
+alpha/tlsb/tlsbcpu.c		optional	dec_kn8ae
+alpha/tlsb/gbus.c		optional	dec_kn8ae
+alpha/tlsb/kftxx.c		optional	dec_kn8ae
+alpha/tlsb/mcclock_tlsb.c	optional	dec_kn8ae
+alpha/tlsb/zs_tlsb.c		optional	dec_kn8ae
+alpha/tlsb/dwlpx.c		optional	dec_kn8ae
+alpha/pci/dwlpx_pci.c		optional	dec_kn8ae
 alpha/tc/tcasic.c		optional	dec_3000_300
 alpha/tc/tcasic.c		optional	dec_3000_500
 alpha/tc/tc.c			optional	dec_3000_300
