@@ -66,6 +66,14 @@ Miscellaneous bug fixes and enhancements have also been made. [4.1.1]
 Support for Fujitsu MB86960A/MB86965A based Ethernet PC-Cards is back.
 [4.1.1]
 
+The asr(4) driver, which provides support for the Adaptec SCSI RAID
+controller family, as well as the DPT SmartRAID V and VI families, has
+been added. [4.1.1]
+
+The i386 boot loader now has support for a "nullconsole" console type,
+for use on systems with neither a video console nor a serial
+port. [4.1.1]
+
 The pcn(4) driver, which supports the AMD PCnet/FAST, PCnet/FAST+,
 PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA adapters, has been
 added.  Although these cards are already supported by the lnc(4)
@@ -135,6 +143,11 @@ The umodem(4) driver for USB modems. Supported so far is only the
 1.2. SECURITY FIXES
 -------------------
 
+sysinstall(8) now allows the user to select one of three "security
+profiles" at install-time.  These profiles enable different levels of
+system security by enabling or disabling various system services in
+rc.conf(5) on new installs. [4.1.1]
+
 Many string-handling library calls were fixed to reduce the
 possibility of buffer overflow-related exploits.
 
@@ -203,6 +216,22 @@ interface.  [4.1.1]
 bktr(4) driver update to 2.1.5.  New tuner types have been added, and
 improvememts to the KLD module and to memory allocation have been
 made. [4.1.1]
+
+setproctitle(3) has been moved from libutil to libc. [4.1.1]
+
+sed(1) now takes a -E option for extended regular expression
+support. [4.1.1]
+
+ln(1) now takes an -i option to request user configuration before
+overwriting an existing file. [4.1.1]
+
+Version numbers of installed packages have a new (backward-compatible)
+syntax, which supports the "PORTREVISION" and "PORTEPOCH" variables in
+ports collection makefiles.  These changes help keep track of changes
+in the ports collection entries such as security patches or
+FreeBSD-specific updates, which aren't reflected in the original,
+third-party software distributions.  pkg_version(1) can now compare
+these new-style version numbers. [4.1.1]
 
 tcpdump(1) has received some updates and bugfixes.
 
