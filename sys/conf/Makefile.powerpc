@@ -47,9 +47,6 @@ COPTS+= -msoft-float
 
 %CLEAN
 
-locore.o: $S/$M/$M/locore.S assym.s
-	${NORMAL_S}
-
 %RULES
 
 .include "$S/conf/kern.post.mk"
