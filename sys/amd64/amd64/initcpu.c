@@ -565,13 +565,13 @@ initializecpu(void)
 				init_mendocino();
 				break;
 			}
-			enable_sse();
 		}
 		break;
 #endif
 	default:
 		break;
 	}
+	enable_sse();
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*
