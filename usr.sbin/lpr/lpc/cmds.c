@@ -66,6 +66,8 @@ static char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/28/95";
 #include "extern.h"
 #include "pathnames.h"
 
+extern uid_t	uid, euid;
+
 static void	abortpr __P((int));
 static void	cleanpr __P((void));
 static void	disablepr __P((void));
@@ -102,7 +104,8 @@ doabort(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			abortpr(1);
@@ -135,13 +138,14 @@ abortpr(dis)
 		SD = _PATH_DEFSPOOL;
 	if (cgetstr(bp, "lo", &LO) == -1)
 		LO = DEFLOCK;
-	(void) sprintf(line, "%s/%s", SD, LO);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, LO);
 	printf("%s:\n", printer);
 
 	/*
 	 * Turn on the owner execute bit of the lock file to disable printing.
 	 */
 	if (dis) {
+		seteuid(euid);
 		if (stat(line, &stbuf) >= 0) {
 			if (chmod(line, (stbuf.st_mode & 0777) | 0100) < 0)
 				printf("\tcannot disable printing\n");
@@ -158,10 +162,10 @@ abortpr(dis)
 				printf("\tprinting disabled\n");
 				printf("\tno daemon to abort\n");
 			}
-			return;
+			goto out;
 		} else {
 			printf("\tcannot stat lock file\n");
-			return;
+			goto out;
 		}
 	}
 	/*
@@ -169,18 +173,23 @@ abortpr(dis)
 	 */
 	if ((fp = fopen(line, "r")) == NULL) {
 		printf("\tcannot open lock file\n");
-		return;
+		goto out;
 	}
 	if (!getline(fp) || flock(fileno(fp), LOCK_SH|LOCK_NB) == 0) {
 		(void) fclose(fp);	/* unlocks as well */
 		printf("\tno daemon to abort\n");
-		return;
+		goto out;
 	}
 	(void) fclose(fp);
-	if (kill(pid = atoi(line), SIGTERM) < 0)
-		printf("\tWarning: daemon (pid %d) not killed\n", pid);
-	else
+	if (kill(pid = atoi(line), SIGTERM) < 0) {
+		if (errno == ESRCH)
+			printf("\tno daemon to abort\n");
+		else
+			printf("\tWarning: daemon (pid %d) not killed\n", pid);
+	} else
 		printf("\tdaemon (pid %d) killed\n", pid);
+out:
+	seteuid(uid);
 }
 
 /*
@@ -305,11 +314,13 @@ cleanpr()
 		SD = _PATH_DEFSPOOL;
 	printf("%s:\n", printer);
 
-	for (lp = line, cp = SD; (*lp++ = *cp++); )
+	for (lp = line, cp = SD; (lp - line) < sizeof(line) && (*lp++ = *cp++);)
 		;
 	lp[-1] = '/';
 
+	seteuid(euid);
 	nitems = scandir(SD, &queue, doselect, sortq);
+	seteuid(uid);
 	if (nitems < 0) {
 		printf("\tcannot examine spool directory\n");
 		return;
@@ -345,15 +356,17 @@ cleanpr()
 		}
      	} while (++i < nitems);
 }
-
+ 
 static void
 unlinkf(name)
 	char	*name;
 {
+	seteuid(euid);
 	if (unlink(name) < 0)
 		printf("\tcannot remove %s\n", name);
 	else
 		printf("\tremoved %s\n", name);
+	seteuid(uid);
 }
 
 /*
@@ -408,18 +421,20 @@ enablepr()
 		SD = _PATH_DEFSPOOL;
 	if (cgetstr(bp, "lo", &LO) == -1)
 		LO = DEFLOCK;
-	(void) sprintf(line, "%s/%s", SD, LO);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, LO);
 	printf("%s:\n", printer);
 
 	/*
 	 * Turn off the group execute bit of the lock file to enable queuing.
 	 */
+	seteuid(euid);
 	if (stat(line, &stbuf) >= 0) {
 		if (chmod(line, stbuf.st_mode & 0767) < 0)
 			printf("\tcannot enable queuing\n");
 		else
 			printf("\tqueuing enabled\n");
 	}
+	seteuid(uid);
 }
 
 /*
@@ -475,11 +490,12 @@ disablepr()
 		SD = _PATH_DEFSPOOL;
 	if (cgetstr(bp, "lo", &LO) == -1)
 		LO = DEFLOCK;
-	(void) sprintf(line, "%s/%s", SD, LO);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, LO);
 	printf("%s:\n", printer);
 	/*
 	 * Turn on the group execute bit of the lock file to disable queuing.
 	 */
+	seteuid(euid);
 	if (stat(line, &stbuf) >= 0) {
 		if (chmod(line, (stbuf.st_mode & 0777) | 010) < 0)
 			printf("\tcannot disable queuing\n");
@@ -492,9 +508,9 @@ disablepr()
 			(void) close(fd);
 			printf("\tqueuing disabled\n");
 		}
-		return;
 	} else
 		printf("\tcannot stat lock file\n");
+	seteuid(uid);
 }
 
 /*
@@ -560,7 +576,8 @@ putmsg(argc, argv)
 	 * Turn on the group execute bit of the lock file to disable queuing and
 	 * turn on the owner execute bit of the lock file to disable printing.
 	 */
-	(void) sprintf(line, "%s/%s", SD, LO);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, LO);
+	seteuid(euid);
 	if (stat(line, &stbuf) >= 0) {
 		if (chmod(line, (stbuf.st_mode & 0777) | 0110) < 0)
 			printf("\tcannot disable queuing\n");
@@ -573,18 +590,21 @@ putmsg(argc, argv)
 			(void) close(fd);
 			printf("\tprinter and queuing disabled\n");
 		}
+		seteuid(uid);
 		return;
 	} else
 		printf("\tcannot stat lock file\n");
 	/*
 	 * Write the message into the status file.
 	 */
-	(void) sprintf(line, "%s/%s", SD, ST);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, ST);
 	fd = open(line, O_WRONLY|O_CREAT, 0664);
 	if (fd < 0 || flock(fd, LOCK_EX) < 0) {
 		printf("\tcannot create status file\n");
+		seteuid(uid);
 		return;
 	}
+	seteuid(uid);
 	(void) ftruncate(fd, 0);
 	if (argc <= 0) {
 		(void) write(fd, "\n", 1);
@@ -713,12 +733,13 @@ startpr(enable)
 		SD = _PATH_DEFSPOOL;
 	if (cgetstr(bp, "lo", &LO) == -1)
 		LO = DEFLOCK;
-	(void) sprintf(line, "%s/%s", SD, LO);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, LO);
 	printf("%s:\n", printer);
 
 	/*
 	 * Turn off the owner execute bit of the lock file to enable printing.
 	 */
+	seteuid(euid);
 	if (enable && stat(line, &stbuf) >= 0) {
 		if (chmod(line, stbuf.st_mode & (enable==2 ? 0666 : 0677)) < 0)
 			printf("\tcannot enable printing\n");
@@ -729,6 +750,7 @@ startpr(enable)
 		printf("\tcouldn't start daemon\n");
 	else
 		printf("\tdaemon started\n");
+	seteuid(uid);
 }
 
 /*
@@ -890,12 +912,13 @@ stoppr()
 		SD = _PATH_DEFSPOOL;
 	if (cgetstr(bp, "lo", &LO) == -1)
 		LO = DEFLOCK;
-	(void) sprintf(line, "%s/%s", SD, LO);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, LO);
 	printf("%s:\n", printer);
 
 	/*
 	 * Turn on the owner execute bit of the lock file to disable printing.
 	 */
+	seteuid(euid);
 	if (stat(line, &stbuf) >= 0) {
 		if (chmod(line, (stbuf.st_mode & 0777) | 0100) < 0)
 			printf("\tcannot disable printing\n");
@@ -913,6 +936,7 @@ stoppr()
 		}
 	} else
 		printf("\tcannot stat lock file\n");
+	seteuid(uid);
 }
 
 struct	queue **queue;
@@ -954,10 +978,12 @@ topq(argc, argv)
 		LO = DEFLOCK;
 	printf("%s:\n", printer);
 
+	seteuid(euid);
 	if (chdir(SD) < 0) {
 		printf("\tcannot chdir to %s\n", SD);
-		return;
+		goto out;
 	}
+	seteuid(uid);
 	nitems = getq(&queue);
 	if (nitems == 0)
 		return;
@@ -981,9 +1007,13 @@ topq(argc, argv)
 	 * Turn on the public execute bit of the lock file to
 	 * get lpd to rebuild the queue after the current job.
 	 */
+	seteuid(euid);
 	if (changed && stat(LO, &stbuf) >= 0)
 		(void) chmod(LO, (stbuf.st_mode & 0777) | 01);
-}
+
+out:
+	seteuid(uid);
+} 
 
 /*
  * Reposition the job by changing the modification time of
@@ -994,10 +1024,14 @@ touch(q)
 	struct queue *q;
 {
 	struct timeval tvp[2];
+	int ret;
 
 	tvp[0].tv_sec = tvp[1].tv_sec = --mtime;
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
-	return(utimes(q->q_name, tvp));
+	seteuid(euid);
+	ret = utimes(q->q_name, tvp);
+	seteuid(uid);
+	return (ret);
 }
 
 /*
@@ -1054,7 +1088,10 @@ doarg(job)
 	 * Process item consisting of owner's name (example: henry).
 	 */
 	for (qq = queue + nitems; --qq >= queue; ) {
-		if ((fp = fopen((*qq)->q_name, "r")) == NULL)
+		seteuid(euid);
+		fp = fopen((*qq)->q_name, "r");
+		seteuid(uid);
+		if (fp == NULL)
 			continue;
 		while (getline(fp) > 0)
 			if (line[0] == 'P')
