@@ -506,7 +506,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 #
 # Miscellaneous hardware:
 #
-# mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
@@ -578,10 +577,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 # The NDGBPORTS option specifies the number of ports controlled by the
 # dgb(4) driver.  The default value is 16 ports per device.
 
-device		mcd	1
-hint.mcd.0.at="isa"
-hint.mcd.0.port="0x300"
-hint.mcd.0.irq="10"
 # for the Sony CDU31/33A CDROM
 device		scd	1
 hint.scd.0.at="isa"
