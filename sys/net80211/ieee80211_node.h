@@ -62,6 +62,7 @@ struct ieee80211_node {
 	TAILQ_ENTRY(ieee80211_node)	ni_list;
 	LIST_ENTRY(ieee80211_node)	ni_hash;
 	u_int			ni_refcnt;
+	u_int			ni_scangen;	/* gen# for timeout scan */
 
 	/* hardware */
 	u_int32_t		ni_rstamp;	/* recv timestamp */

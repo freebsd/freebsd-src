@@ -92,6 +92,7 @@ ieee80211_node_attach(struct ifnet *ifp)
 	ic->ic_node_free = ieee80211_node_free;
 	ic->ic_node_copy = ieee80211_node_copy;
 	ic->ic_node_getrssi = ieee80211_node_getrssi;
+	ic->ic_scangen = 1;
 }
 
 void
@@ -541,29 +542,47 @@ ieee80211_free_allnodes(struct ieee80211com *ic)
 	mtx_unlock(&ic->ic_nodelock);
 }
 
+/*
+ * Timeout inactive nodes.  Note that we cannot hold the node
+ * lock while sending a frame as this would lead to a LOR.
+ * Instead we use a generation number to mark nodes that we've
+ * scanned and drop the lock and restart a scan if we have to
+ * time out a node.  Since we are single-threaded by virtue of
+ * controlling the inactivity timer we can be sure this will
+ * process each node only once.
+ */
 void
 ieee80211_timeout_nodes(struct ieee80211com *ic)
 {
-	struct ieee80211_node *ni, *nextbs;
+	struct ieee80211_node *ni;
+	u_int gen = ic->ic_scangen++;		/* NB: ok 'cuz single-threaded*/
 
+restart:
 	mtx_lock(&ic->ic_nodelock);
-	for (ni = TAILQ_FIRST(&ic->ic_node); ni != NULL;) {
+	TAILQ_FOREACH(ni, &ic->ic_node, ni_list) {
+		if (ni->ni_scangen == gen)	/* previously handled */
+			continue;
+		ni->ni_scangen = gen;
 		if (++ni->ni_inact > IEEE80211_INACT_MAX) {
 			IEEE80211_DPRINTF(("station %s timed out "
 			    "due to inactivity (%u secs)\n",
 			    ether_sprintf(ni->ni_macaddr),
 			    ni->ni_inact));
-			nextbs = TAILQ_NEXT(ni, ni_list);
 			/*
 			 * Send a deauthenticate frame.
+			 *
+			 * Drop the node lock before sending the
+			 * deauthentication frame in case the driver takes     
+			 * a lock, as this will result in a LOR between the     
+			 * node lock and the driver lock.
 			 */
+			mtx_unlock(&ic->ic_nodelock);
 			IEEE80211_SEND_MGMT(ic, ni,
 			    IEEE80211_FC0_SUBTYPE_DEAUTH,
 			    IEEE80211_REASON_AUTH_EXPIRE);
 			ieee80211_free_node(ic, ni);
-			ni = nextbs;
-		} else
-			ni = TAILQ_NEXT(ni, ni_list);
+			goto restart;
+		}
 	}
 	if (!TAILQ_EMPTY(&ic->ic_node))
 		ic->ic_inact_timer = IEEE80211_INACT_WAIT;
