@@ -97,6 +97,9 @@ int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 int	ipport_reservedhigh = IPPORT_RESERVED - 1;	/* 1023 */
 int	ipport_reservedlow = 0;
 
+/* Shall we allocate ephemeral ports in random order? */
+int	ipport_randomized = 1;
+
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
@@ -138,6 +141,8 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedhigh,
 	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedhigh, 0, "");
 SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedlow,
 	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedlow, 0, "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized,
+	   CTLFLAG_RW, &ipport_randomized, 0, "");
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -377,7 +382,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 	if (*lportp != 0)
 		lport = *lportp;
 	if (lport == 0) {
-		u_short first, last, old;
+		u_short first, last;
 		int count, loopcount;
 
 		if (laddr.s_addr != INADDR_ANY)
@@ -406,27 +411,17 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 		 * We split the two cases (up and down) so that the direction
 		 * is not being tested on each round of the loop.
 		 */
-		loopcount = old = 0;
-portloop:
+		loopcount = 0;
 		if (first > last) {
 			/*
 			 * counting down
 			 */
-			if (loopcount == 0) {	/* only do this once */
-				old = first;
-				first -= (arc4random() % (first - last));
-			}
+			if (ipport_randomized)
+				*lastport = first - (arc4random() % (first - last));
 			count = first - last;
-			*lastport = first;		/* restart each time */
 			do {
-				if (count-- < 0) {	/* completely used? */
-					if (loopcount == 0) {
-						last = old;
-						loopcount++;
-						goto portloop;
-					}
+				if (count-- < 0)	/* completely used? */
 					return (EADDRNOTAVAIL);
-				}
 				--*lastport;
 				if (*lastport > first || *lastport < last)
 					*lastport = first;
@@ -437,21 +432,12 @@ portloop:
 			/*
 			 * counting up
 			 */
-			if (loopcount == 0) {	/* only do this once. */
-				old = first;
-				first += (arc4random() % (last - first));
-			}
+			if (ipport_randomized)
+				*lastport = first + (arc4random() % (last - first));
 			count = last - first;
-			*lastport = first;		/* restart each time */
 			do {
-				if (count-- < 0) {	/* completely used? */
-					if (loopcount == 0) {
-						first = old;
-						loopcount++;
-						goto portloop;
-					}
+				if (count-- < 0)	/* completely used? */
 					return (EADDRNOTAVAIL);
-				}
 				++*lastport;
 				if (*lastport < first || *lastport > last)
 					*lastport = first;
