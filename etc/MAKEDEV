@@ -44,7 +44,6 @@
 #	fd*	floppy disk drives (3 1/2", 5 1/4")
 #	fla*	M-Systems DiskOnChip
 #	idad*	Compaq Smart-2 RAID arrays
-#	matcd*	Matsushita (Panasonic) CD-ROM disks
 #	mcd*	Mitsumi CD-ROM disks
 #	md*	Memory (or malloc) disk
 #	mlx*	Mylex DAC960 RAID controllers
@@ -314,7 +313,7 @@ all)
 	sh $0 acd0 acd0t0 afd0 ast0			# ATAPI devices
 	sh $0 wd0 wd1 wd2 wd3				# OLD disk
 	sh $0 wcd0 wfd0 wst0				# OLD ATAPI devs
-	sh $0 cd0 matcd0 mcd0 scd0			# cdrom
+	sh $0 cd0 mcd0 scd0				# cdrom
 	sh $0 sa0 wt0					# tape
 	sh $0 vty12					# virtual tty
 	sh $0 cuaa0 cuaa1 cuaa2 cuaa3			# serial tty
@@ -850,36 +849,6 @@ acd*|cd*|mcd*|scd*)
 	else
 		echo "$i is invalid -- can't have more than 32 cd devices"
 	fi
-	umask 77
-	;;
-
-matcd*)
-	umask 2
-	case $i in
-	matcd*) unit=`expr $i : '.....\(.*\)'`; name=matcd; chr=46;;
-	esac
-	case $unit in
-	0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15)
-		mknod ${name}${unit}a	c $chr $(($unit * 8 + 0)) \
-		    root:operator
-		mknod ${name}${unit}c   c $chr $(($unit * 8 + 2)) \
-		    root:operator
-		ln -f ${name}${unit}a r${name}${unit}a
-		ln -f ${name}${unit}c r${name}${unit}c
-		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
-
-		mknod ${name}${unit}la  c $chr $(($unit * 8 + 128)) \
-		    root:operator
-		mknod ${name}${unit}lc  c $chr $(($unit * 8 + 130)) \
-		    root:operator
-		ln -f ${name}${unit}la r${name}${unit}la
-		ln -f ${name}${unit}lc r${name}${unit}lc
-		chmod 640 ${name}${unit}l[a-h] r${name}${unit}l[a-h]
-		;;
-	*)
-		echo bad unit for disk in: $i
-		;;
-	esac
 	umask 77
 	;;
 
