@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.15 1995/12/10 19:44:52 bde Exp $ */
+/* $Id: scd.c,v 1.16 1995/12/10 20:10:23 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -153,8 +153,6 @@ static struct scd_data {
 } scd_data[NSCD];
 
 /* prototypes */
-static	int	bcd2bin(bcd_t b);
-static	bcd_t	bin2bcd(int b);
 static	void	hsg2msf(int hsg, bcd_t *msf);
 static	int	msf2hsg(bcd_t *msf);
 
@@ -1088,18 +1086,6 @@ harderr:
 changed:
 	printf("scd%d: media changed\n", unit);
 	goto harderr;
-}
-
-static int
-bcd2bin(bcd_t b)
-{
-	return (b >> 4) * 10 + (b & 15);
-}
-
-static bcd_t
-bin2bcd(int b)
-{
-	return ((b / 10) << 4) | (b % 10);
 }
 
 static void

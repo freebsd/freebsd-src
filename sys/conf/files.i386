@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.122 1995/12/29 15:28:46 bde Exp $
+#	$Id: files.i386,v 1.123 1996/01/03 06:26:15 gibbs Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -194,6 +194,7 @@ i386/linux/linux_sysent.c	optional	linux
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
 	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h aic7xxx_seq.h"
 i386/scsi/bt.c			optional	bt	device-driver
+libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/inet_ntoa.c		standard
 libkern/mcount.c		optional	profiling-routine
