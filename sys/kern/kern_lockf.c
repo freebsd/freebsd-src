@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.5 1995/12/14 08:31:26 phk Exp $
+ * $Id: kern_lockf.c,v 1.6 1996/09/03 14:21:52 bde Exp $
  */
 
 #include <sys/param.h>
@@ -93,15 +93,6 @@ lf_advlock(ap, head, size)
 	int error;
 
 	/*
-	 * Avoid the common case of unlocking when inode has no locks.
-	 */
-	if (*head == (struct lockf *)0) {
-		if (ap->a_op != F_SETLK) {
-			fl->l_type = F_UNLCK;
-			return (0);
-		}
-	}
-	/*
 	 * Convert the flock structure into a start and end.
 	 */
 	switch (fl->l_whence) {
@@ -126,8 +117,20 @@ lf_advlock(ap, head, size)
 		return (EINVAL);
 	if (fl->l_len == 0)
 		end = -1;
-	else
+	else {
 		end = start + fl->l_len - 1;
+		if (end < start)
+			return (EINVAL);
+	}
+	/*
+	 * Avoid the common case of unlocking when inode has no locks.
+	 */
+	if (*head == (struct lockf *)0) {
+		if (ap->a_op != F_SETLK) {
+			fl->l_type = F_UNLCK;
+			return (0);
+		}
+	}
 	/*
 	 * Create the lockf structure
 	 */
