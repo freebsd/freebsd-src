@@ -361,54 +361,9 @@ begin:
 	call	_init386			/* wire 386 chip for unix operation */
 	popl	%esi
 
-	.globl	__ucodesel,__udatasel
-
-	pushl	$0				/* unused */
-	pushl	__udatasel			/* ss */
-	pushl	$0				/* esp - filled in by execve() */
-	pushl	$PSL_USER			/* eflags (IOPL 0, int enab) */
-	pushl	__ucodesel			/* cs */
-	pushl	$0				/* eip - filled in by execve() */
-	subl	$(13*4),%esp			/* space for rest of registers */
-
-	pushl	%esp				/* call main with frame pointer */
 	call	_mi_startup			/* autoconfiguration, mountroot etc */
 
 	hlt		/* never returns to here */
-
-/*
- * When starting init, call this to configure the process for user
- * mode.  This will be inherited by other processes.
- */
-NON_GPROF_ENTRY(prepare_usermode)
-	/*
-	 * Now we've run main() and determined what cpu-type we are, we can
-	 * enable write protection and alignment checking on i486 cpus and
-	 * above.
-	 */
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	cmpl    $CPUCLASS_386,_cpu_class
-	je	1f
-	movl	%cr0,%eax			/* get control word */
-	orl	$CR0_WP|CR0_AM,%eax		/* enable i486 features */
-	movl	%eax,%cr0			/* and do it */
-1:
-#endif
-	/*
-	 * on return from main(), we are process 1
-	 * set up address space and stack so that we can 'return' to user mode
-	 */
-	movl	__ucodesel,%eax
-	movl	__udatasel,%ecx
-
-#if 0	/* ds/es/fs are in trap frame */
-	mov	%cx,%ds
-	mov	%cx,%es
-	mov	%cx,%fs
-#endif
-	mov	%cx,%gs				/* and ds to gs */
-	ret					/* goto user! */
-
 
 /*
  * Signal trampoline, copied to top of user stack
