@@ -59,6 +59,7 @@ infrastructure in FreeBSD:
 	etc/rc
 	etc/sendmail/Makefile
 	etc/sendmail/freebsd.mc
+	etc/sendmail/freebsd.submit.mc
 	etc/sendmail/freefall.mc
 	etc/sendmail/rc.sendmail
 	lib/Makefile
