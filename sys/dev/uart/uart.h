@@ -36,6 +36,7 @@
  * other timing related computations.
  */
 struct uart_bas {
+	bus_addr_t iobase;
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
 	u_int	regshft;
