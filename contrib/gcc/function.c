@@ -1,5 +1,6 @@
 /* Expands front end tree to back end RTL for GNU C-Compiler
-   Copyright (C) 1987, 88, 89, 91-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+   1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -1430,7 +1431,16 @@ free_temps_for_rtl_expr (t)
 
   for (p = temp_slots; p; p = p->next)
     if (p->rtl_expr == t)
-      p->in_use = 0;
+      {
+	/* If this slot is below the current TEMP_SLOT_LEVEL, then it
+	   needs to be preserved.  This can happen if a temporary in
+	   the RTL_EXPR was addressed; preserve_temp_slots will move
+	   the temporary into a higher level.   */
+	if (temp_slot_level <= p->level)
+	  p->in_use = 0;
+	else
+	  p->rtl_expr = NULL_TREE;
+      }
 
   combine_temp_slots ();
 }
@@ -3214,13 +3224,7 @@ purge_addressof_1 (loc, insn, force, store, ht)
 
 		  /* Make sure to unshare any shared rtl that store_bit_field
 		     might have created.  */
-		  for (p = get_insns(); p; p = NEXT_INSN (p))
-		    {
-		      reset_used_flags (PATTERN (p));
-		      reset_used_flags (REG_NOTES (p));
-		      reset_used_flags (LOG_LINKS (p));
-		    }
-		  unshare_all_rtl (get_insns ());
+		  unshare_all_rtl_again (get_insns ());
 
 		  seq = gen_sequence ();
 		  end_sequence ();
@@ -3472,6 +3476,20 @@ purge_addressof (insns)
   hash_table_free (&ht);
   purge_bitfield_addressof_replacements = 0;
   purge_addressof_replacements = 0;
+
+  /* REGs are shared.  purge_addressof will destructively replace a REG
+     with a MEM, which creates shared MEMs.
+
+     Unfortunately, the children of put_reg_into_stack assume that MEMs
+     referring to the same stack slot are shared (fixup_var_refs and
+     the associated hash table code).
+
+     So, we have to do another unsharing pass after we have flushed any
+     REGs that had their address taken into the stack.
+
+     It may be worth tracking whether or not we converted any REGs into
+     MEMs to avoid this overhead when it is not needed.  */
+  unshare_all_rtl_again (get_insns ());
 }
 
 /* Pass through the INSNS of function FNDECL and convert virtual register

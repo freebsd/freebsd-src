@@ -1,5 +1,6 @@
 /* Reload pseudo regs into hard regs for insns that require hard regs.
-   Copyright (C) 1987, 88, 89, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997,
+   1998, 1999, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -420,9 +421,13 @@ static void clear_reload_reg_in_use	PROTO((int, int, enum reload_type,
 					       enum machine_mode));
 static int reload_reg_free_p		PROTO((int, int, enum reload_type));
 static int reload_reg_free_for_value_p	PROTO((int, int, enum reload_type, rtx, rtx, int, int));
+static int free_for_value_p		PROTO((int, enum machine_mode, int,
+					       enum reload_type, rtx, rtx,
+					       int, int));
 static int reload_reg_reaches_end_p	PROTO((int, int, enum reload_type));
 static int allocate_reload_reg		PROTO((struct insn_chain *, int, int,
 					       int));
+static int conflicts_with_override	PROTO((rtx));
 static void choose_reload_regs		PROTO((struct insn_chain *));
 static void merge_assigned_reloads	PROTO((rtx));
 static void emit_reload_insns		PROTO((struct insn_chain *));
@@ -4518,7 +4523,10 @@ forget_old_reloads_1 (x, ignored)
 	   reload reg in the current instruction.  */
 	if (n_reloads == 0
 	    || ! TEST_HARD_REG_BIT (reg_is_output_reload, regno + i))
-	  CLEAR_HARD_REG_BIT (reg_reloaded_valid, regno + i);
+	  {
+	    CLEAR_HARD_REG_BIT (reg_reloaded_valid, regno + i);
+	    spill_reg_store[regno + i] = 0;
+	  }
     }
 
   /* Since value of X has changed,
@@ -4577,6 +4585,8 @@ reload_reg_class_lower (r1p, r2p)
 /* The following HARD_REG_SETs indicate when each hard register is
    used for a reload of various parts of the current insn.  */
 
+/* If reg is unavailable for all reloads.  */
+static HARD_REG_SET reload_reg_unavailable;
 /* If reg is in use as a reload reg for a RELOAD_OTHER reload.  */
 static HARD_REG_SET reload_reg_used;
 /* If reg is in use for a RELOAD_FOR_INPUT_ADDRESS reload for operand I.  */
@@ -4799,8 +4809,8 @@ reload_reg_free_p (regno, opnum, type)
 {
   int i;
 
-  /* In use for a RELOAD_OTHER means it's not available for anything.  */
-  if (TEST_HARD_REG_BIT (reload_reg_used, regno))
+  if (TEST_HARD_REG_BIT (reload_reg_used, regno)
+      || TEST_HARD_REG_BIT (reload_reg_unavailable, regno))
     return 0;
 
   switch (type)
@@ -5133,7 +5143,7 @@ reloads_conflict (r1, r2)
       return (r2_type == RELOAD_FOR_INSN || r2_type == RELOAD_FOR_OUTPUT
 	      || ((r2_type == RELOAD_FOR_OUTPUT_ADDRESS
 		   || r2_type == RELOAD_FOR_OUTADDR_ADDRESS)
-		  && r2_opnum >= r1_opnum));
+		  && r2_opnum <= r1_opnum));
 
     case RELOAD_FOR_INSN:
       return (r2_type == RELOAD_FOR_INPUT || r2_type == RELOAD_FOR_OUTPUT
@@ -5171,25 +5181,8 @@ rtx reload_override_in[MAX_RELOADS];
    or -1 if we did not need a register for this reload.  */
 int reload_spill_index[MAX_RELOADS];
 
-/* Return 1 if the value in reload reg REGNO, as used by a reload
-   needed for the part of the insn specified by OPNUM and TYPE,
-   may be used to load VALUE into it.
+/* Subroutine of free_for_value_p, used to check a single register.  */
 
-   Other read-only reloads with the same value do not conflict
-   unless OUT is non-zero and these other reloads have to live while
-   output reloads live.
-   If OUT is CONST0_RTX, this is a special case: it means that the
-   test should not be for using register REGNO as reload register, but
-   for copying from register REGNO into the reload register.
-
-   RELOADNUM is the number of the reload we want to load this value for;
-   a reload does not conflict with itself.
-
-   When IGNORE_ADDRESS_RELOADS is set, we can not have conflicts with
-   reloads that load an address for the very reload we are considering.
-
-   The caller has to make sure that there is no conflict with the return
-   register.  */
 static int
 reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
                              ignore_address_reloads)
@@ -5201,6 +5194,10 @@ reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
      int ignore_address_reloads;
 {
   int time1;
+  /* Set if we see an input reload that must not share its reload register
+     with any new earlyclobber, but might otherwise share the reload
+     register with an output or input-output reload.  */
+  int check_earlyclobber = 0;
   int i;
   int copy = 0;
 
@@ -5208,7 +5205,7 @@ reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
      available as spill registers, including hard registers that are
      earlyclobbered in asms.  As a temporary measure, reject anything
      in reload_reg_used.  */
-  if (TEST_HARD_REG_BIT (reload_reg_used, regno))
+  if (TEST_HARD_REG_BIT (reload_reg_unavailable, regno))
     return 0;
 
   if (out == const0_rtx)
@@ -5235,7 +5232,8 @@ reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
   switch (type)
     {
     case RELOAD_FOR_OTHER_ADDRESS:
-      time1 = 0;
+      /* RELOAD_FOR_OTHER_ADDRESS conflicts with RELOAD_OTHER reloads.  */
+      time1 = copy ? 0 : 1;
       break;
     case RELOAD_OTHER:
       time1 = copy ? 1 : MAX_RECOG_OPERANDS * 5 + 5;
@@ -5327,6 +5325,7 @@ reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
 		  break;
 		case RELOAD_FOR_INPUT:
 		  time2 = reload_opnum[i] * 4 + 4;
+		  check_earlyclobber = 1;
 		  break;
 		/* reload_opnum[i] * 4 + 4 <= (MAX_RECOG_OPERAND - 1) * 4 + 4
 		   == MAX_RECOG_OPERAND * 4  */
@@ -5339,6 +5338,7 @@ reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
 		  break;
 		case RELOAD_FOR_OPERAND_ADDRESS:
 		  time2 = MAX_RECOG_OPERANDS * 4 + 2;
+		  check_earlyclobber = 1;
 		  break;
 		case RELOAD_FOR_INSN:
 		  time2 = MAX_RECOG_OPERANDS * 4 + 3;
@@ -5367,6 +5367,9 @@ reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
 		  if (! reload_in[i] || rtx_equal_p (reload_in[i], value))
 		    {
 		      time2 = MAX_RECOG_OPERANDS * 4 + 4;
+		      /* Earlyclobbered outputs must conflict with inputs.  */
+		      if (earlyclobber_operand_p (reload_out[i]))
+			time2 = MAX_RECOG_OPERANDS * 4 + 3;
 		      break;
 		    }
 		  time2 = 1;
@@ -5389,7 +5392,69 @@ reload_reg_free_for_value_p (regno, opnum, type, value, out, reloadnum,
 	    }
 	}
     }
+
+  /* Earlyclobbered outputs must conflict with inputs.  */
+  if (check_earlyclobber && out && earlyclobber_operand_p (out))
+    return 0;
+
   return 1;
+}
+
+/* Return 1 if the value in reload reg REGNO, as used by a reload
+   needed for the part of the insn specified by OPNUM and TYPE,
+   may be used to load VALUE into it.
+
+   MODE is the mode in which the register is used, this is needed to
+   determine how many hard regs to test.
+
+   Other read-only reloads with the same value do not conflict
+   unless OUT is non-zero and these other reloads have to live while
+   output reloads live.
+   If OUT is CONST0_RTX, this is a special case: it means that the
+   test should not be for using register REGNO as reload register, but
+   for copying from register REGNO into the reload register.
+
+   RELOADNUM is the number of the reload we want to load this value for;
+   a reload does not conflict with itself.
+
+   When IGNORE_ADDRESS_RELOADS is set, we can not have conflicts with
+   reloads that load an address for the very reload we are considering.
+
+   The caller has to make sure that there is no conflict with the return
+   register.  */
+
+static int
+free_for_value_p (regno, mode, opnum, type, value, out, reloadnum,
+		  ignore_address_reloads)
+     int regno;
+     enum machine_mode mode;
+     int opnum;
+     enum reload_type type;
+     rtx value, out;
+     int reloadnum;
+     int ignore_address_reloads;
+{
+  int nregs = HARD_REGNO_NREGS (regno, mode);
+  while (nregs-- > 0)
+    if (! reload_reg_free_for_value_p (regno + nregs, opnum, type, value, out,
+				       reloadnum, ignore_address_reloads))
+      return 0;
+  return 1;
+}
+
+/* Determine whether the reload reg X overlaps any rtx'es used for
+   overriding inheritance.  Return nonzero if so.  */
+
+static int
+conflicts_with_override (x)
+     rtx x;
+{
+  int i;
+  for (i = 0; i < n_reloads; i++)
+    if (reload_override_in[i]
+	&& reg_overlap_mentioned_p (x, reload_override_in[i]))
+      return 1;
+  return 0;
 }
 
 /* Find a spill register to use as a reload register for reload R.
@@ -5472,11 +5537,10 @@ allocate_reload_reg (chain, r, last_reload, noerror)
 		      /* We check reload_reg_used to make sure we
 			 don't clobber the return register.  */
 		   && ! TEST_HARD_REG_BIT (reload_reg_used, regnum)
-		   && reload_reg_free_for_value_p (regnum,
-						  reload_opnum[r],
-						  reload_when_needed[r],
-						  reload_in[r],
-						  reload_out[r], r, 1)))
+		   && free_for_value_p (regnum, reload_mode[r],
+					reload_opnum[r],
+					reload_when_needed[r],
+					reload_in[r], reload_out[r], r, 1)))
 	      && TEST_HARD_REG_BIT (reg_class_contents[class], regnum)
 	      && HARD_REGNO_MODE_OK (regnum, reload_mode[r])
 	      /* Look first for regs to share, then for unshared.  But
@@ -5669,7 +5733,7 @@ choose_reload_regs (chain)
       CLEAR_HARD_REG_SET (reload_reg_used_in_outaddr_addr[i]);
     }
 
-  IOR_COMPL_HARD_REG_SET (reload_reg_used, chain->used_spill_regs);
+  COMPL_HARD_REG_SET (reload_reg_unavailable, chain->used_spill_regs);
   
 #if 0  /* Not needed, now that we can always retry without inheritance.  */
   /* See if we have more mandatory reloads than spill regs.
@@ -5931,10 +5995,9 @@ choose_reload_regs (chain)
 		      && (reload_nregs[r] == max_group_size
 			  || ! TEST_HARD_REG_BIT (reg_class_contents[(int) group_class],
 						  i))
-		      && reload_reg_free_for_value_p (i, reload_opnum[r],
-						      reload_when_needed[r],
-						      reload_in[r],
-						      const0_rtx, r, 1))
+		      && free_for_value_p (i, reload_mode[r], reload_opnum[r],
+					   reload_when_needed[r], reload_in[r],
+					   const0_rtx, r, 1))
 		    {
 		      /* If a group is needed, verify that all the subsequent
 			 registers still have their values intact.  */
@@ -5968,9 +6031,11 @@ choose_reload_regs (chain)
 			      break;
 
 			  if (i1 != n_earlyclobbers
-			      || ! (reload_reg_free_for_value_p
-				    (i, reload_opnum[r], reload_when_needed[r],
-				     reload_in[r], reload_out[r], r, 1))
+			      || ! (free_for_value_p (i, reload_mode[r],
+						      reload_opnum[r],
+						      reload_when_needed[r],
+						      reload_in[r],
+						      reload_out[r], r, 1))
 			      /* Don't use it if we'd clobber a pseudo reg.  */
 			      || (TEST_HARD_REG_BIT (reg_used_in_insn, i)
 				  && reload_out[r]
@@ -5992,9 +6057,12 @@ choose_reload_regs (chain)
 				  && rtx_equal_p (reload_out[r],
 						  reload_reg_rtx[r])))
 			    {
-			      reload_override_in[r] = last_reg;
-			      reload_inheritance_insn[r]
-				= reg_reloaded_insn[i];
+			      if (! reload_optional[r])
+				{
+				  reload_override_in[r] = last_reg;
+				  reload_inheritance_insn[r]
+				    = reg_reloaded_insn[i];
+				}
 			    }
 			  else
 			    {
@@ -6072,10 +6140,11 @@ choose_reload_regs (chain)
 		 and of the desired class.  */
 	      if (equiv != 0
 		  && ((TEST_HARD_REG_BIT (reload_reg_used_at_all, regno)
-		       && ! reload_reg_free_for_value_p (regno, reload_opnum[r],
-							 reload_when_needed[r],
-							 reload_in[r],
-							 reload_out[r], r, 1))
+		       && ! free_for_value_p (regno, reload_mode[r],
+					      reload_opnum[r],
+					      reload_when_needed[r],
+					      reload_in[r], reload_out[r], r,
+					      1))
 		      || ! TEST_HARD_REG_BIT (reg_class_contents[(int) reload_reg_class[r]],
 					      regno)))
 		equiv = 0;
@@ -6093,7 +6162,8 @@ choose_reload_regs (chain)
 		  if (reg_overlap_mentioned_for_reload_p (equiv,
 							  reload_earlyclobbers[i]))
 		    {
-		      reload_override_in[r] = equiv;
+		      if (! reload_optional[r])
+			reload_override_in[r] = equiv;
 		      equiv = 0;
 		      break;
 		    }
@@ -6104,7 +6174,8 @@ choose_reload_regs (chain)
 		 In particular, we then can't use EQUIV for a
 		 RELOAD_FOR_OUTPUT_ADDRESS reload.  */
 
-	      if (equiv != 0 && regno_clobbered_p (regno, insn))
+	      if (equiv != 0 && regno_clobbered_p (regno, insn,
+						   reload_mode[r], 0))
 		{
 		  switch (reload_when_needed[r])
 		    {
@@ -6116,13 +6187,32 @@ choose_reload_regs (chain)
 		    case RELOAD_OTHER:
 		    case RELOAD_FOR_INPUT:
 		    case RELOAD_FOR_OPERAND_ADDRESS:
-		      reload_override_in[r] = equiv;
+		      if (! reload_optional[r])
+			reload_override_in[r] = equiv;
 		      /* Fall through. */
 		    default:
 		      equiv = 0;
 		      break;
 		    }
 		}
+	      else if (regno_clobbered_p (regno, insn, reload_mode[r], 1))
+		switch (reload_when_needed[r])
+		  {
+		  case RELOAD_FOR_OTHER_ADDRESS:
+		  case RELOAD_FOR_INPADDR_ADDRESS:
+		  case RELOAD_FOR_INPUT_ADDRESS:
+		  case RELOAD_FOR_OPADDR_ADDR:
+		  case RELOAD_FOR_OPERAND_ADDRESS:
+		  case RELOAD_FOR_INPUT:
+		    break;
+		  case RELOAD_OTHER:
+		    if (! reload_optional[r])
+		      reload_override_in[r] = equiv;
+		    /* Fall through.  */
+		  default:
+		    equiv = 0;
+		    break;
+		  }
 
 	      /* If we found an equivalent reg, say no code need be generated
 		 to load it, and use it as our reload reg.  */
@@ -6283,13 +6373,12 @@ choose_reload_regs (chain)
 	    check_reg = reload_override_in[r];
 	  else
 	    continue;
-	  if (! reload_reg_free_for_value_p (true_regnum (check_reg),
-	    				     reload_opnum[r],
-	    				     reload_when_needed[r],
-	    				     reload_in[r],
-	    				     (reload_inherited[r]
-					      ? reload_out[r] : const0_rtx),
-					     r, 1))
+	  if (! free_for_value_p (true_regnum (check_reg), reload_mode[r],
+				  reload_opnum[r], reload_when_needed[r],
+				  reload_in[r],
+				  (reload_inherited[r]
+				   ? reload_out[r] : const0_rtx),
+				  r, 1))
 	    {
 	      if (pass)
 		continue;
@@ -6646,10 +6735,10 @@ emit_reload_insns (chain)
 
 	      /* Don't use OLDEQUIV if any other reload changes it at an
 		 earlier stage of this insn or at this stage.  */
-	      if (! reload_reg_free_for_value_p (regno, reload_opnum[j],
-						 reload_when_needed[j],
-						 reload_in[j], const0_rtx, j,
-						 0))
+	      if (! free_for_value_p (regno, reload_mode[j],
+				      reload_opnum[j],
+				      reload_when_needed[j],
+				      reload_in[j], const0_rtx, j, 0))
 		oldequiv = 0;
 
 	      /* If it is no cheaper to copy from OLDEQUIV into the
@@ -6799,11 +6888,10 @@ emit_reload_insns (chain)
 		   && dead_or_set_p (insn, old)
 		   /* This is unsafe if some other reload
 		      uses the same reg first.  */
-		   && reload_reg_free_for_value_p (REGNO (reloadreg),
-						   reload_opnum[j],
-						   reload_when_needed[j], 
-						   old, reload_out[j],
-						   j, 0))
+		   && ! conflicts_with_override (reloadreg)
+		   && free_for_value_p (REGNO (reloadreg), reload_mode[j],
+					reload_opnum[j], reload_when_needed[j],
+					old, reload_out[j], j, 0))
 	    {
 	      rtx temp = PREV_INSN (insn);
 	      while (temp && GET_CODE (temp) == NOTE)
@@ -7112,7 +7200,8 @@ emit_reload_insns (chain)
 	    /* We don't need to test full validity of last_regno for
 	       inherit here; we only want to know if the store actually
 	       matches the pseudo.  */
-	    if (reg_reloaded_contents[last_regno] == pseudo_no
+	    if (TEST_HARD_REG_BIT (reg_reloaded_valid, last_regno)
+		&& reg_reloaded_contents[last_regno] == pseudo_no
 		&& spill_reg_store[last_regno]
 		&& rtx_equal_p (pseudo, spill_reg_stored_to[last_regno]))
 	      delete_output_reload (insn, j, last_regno);
@@ -7288,7 +7377,7 @@ emit_reload_insns (chain)
 		  || !(set = single_set (insn))
 		  || rtx_equal_p (old, SET_DEST (set))
 		  || !reg_mentioned_p (old, SET_SRC (set))
-		  || !regno_clobbered_p (REGNO (old), insn))
+		  || !regno_clobbered_p (REGNO (old), insn, reload_mode[j], 0))
 		gen_reload (old, reloadreg, reload_opnum[j],
 			    reload_when_needed[j]);
 	    }
