@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: sysv_shm.c,v 1.1 1994/09/13 14:47:03 dfr Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -61,8 +61,9 @@
  * per proc array of 'struct shmmap_state'
  */
 
+int	oshmctl();
 int	shmat(), shmctl(), shmdt(), shmget();
-int	(*shmcalls[])() = { shmat, shmctl, shmdt, shmget };
+int	(*shmcalls[])() = { shmat, oshmctl, shmdt, shmget, shmctl };
  
 #define	SHMSEG_FREE     	0x0200
 #define	SHMSEG_REMOVED  	0x0400
@@ -251,10 +252,68 @@ shmat(p, uap, retval)
 	return 0;
 }
 
+struct oshmid_ds {
+	struct	ipc_perm shm_perm;	/* operation perms */
+	int	shm_segsz;		/* size of segment (bytes) */
+	ushort	shm_cpid;		/* pid, creator */
+	ushort	shm_lpid;		/* pid, last operation */
+	short	shm_nattch;		/* no. of current attaches */
+	time_t	shm_atime;		/* last attach time */
+	time_t	shm_dtime;		/* last detach time */
+	time_t	shm_ctime;		/* last change time */
+	void	*shm_handle;		/* internal handle for shm segment */
+};
+
+struct oshmctl_args {
+	int shmid;
+	int cmd;
+	struct oshmid_ds *ubuf;
+};
+
+int
+oshmctl(p, uap, retval)
+	struct proc *p;
+	struct oshmctl_args *uap;
+	int *retval;
+{
+#ifdef COMPAT_43
+	int error, segnum;
+	struct ucred *cred = p->p_ucred;
+	struct shmid_ds *shmseg;
+	struct oshmid_ds outbuf;
+
+	shmseg = shm_find_segment_by_shmid(uap->shmid);
+	if (shmseg == NULL)
+		return EINVAL;
+	switch (uap->cmd) {
+	case IPC_STAT:
+		if (error = ipcperm(cred, &shmseg->shm_perm, IPC_R))
+			return error;
+		outbuf.shm_perm = shmseg->shm_perm;
+		outbuf.shm_segsz = shmseg->shm_segsz;
+		outbuf.shm_cpid = shmseg->shm_cpid;
+		outbuf.shm_lpid = shmseg->shm_lpid;
+		outbuf.shm_nattch = shmseg->shm_nattch;
+		outbuf.shm_atime = shmseg->shm_atime;
+		outbuf.shm_dtime = shmseg->shm_dtime;
+		outbuf.shm_ctime = shmseg->shm_ctime;
+		outbuf.shm_handle = shmseg->shm_internal;
+		if (error = copyout((caddr_t)&outbuf, uap->ubuf, sizeof(outbuf)))
+			return error;
+		break;
+	default:
+		return shmctl(p, uap, retval);
+	}
+	return 0;
+#else
+	return EINVAL;
+#endif
+}	
+
 struct shmctl_args {
 	int shmid;
 	int cmd;
-	struct shmat_ds *ubuf;
+	struct shmid_ds *ubuf;
 };
 int
 shmctl(p, uap, retval)
