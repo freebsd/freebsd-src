@@ -50,6 +50,7 @@ driver
 .Op Fl o Ar mount-options
 .Op Fl p Ar permissions
 .Op Fl s Ar size
+.Op Fl v Ar version
 .Op Fl w Ar user : Ns Ar group
 .Ar md-device
 .Ar mount-point
@@ -69,6 +70,7 @@ driver
 .Op Fl O Ar optimization
 .Op Fl o Ar mount-options
 .Op Fl s Ar size
+.Op Fl v Ar version
 .Ar md-device
 .Ar mount-point
 .Sh DESCRIPTION
@@ -222,6 +224,15 @@ for compatibility.
 It is only really useful to negate the
 .Fl S
 flag, should such a need occur.
+.It Fl v Ar version
+Specify the UFS version number for use on the file system; it may be
+either
+.Dv 1
+or
+.Dv 2 .
+The default is derived from the default of the
+.Xr newfs 8
+command.
 .It Fl w Ar user : Ns Ar group
 Set the owner and group to
 .Ar user
