@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.16 1997/09/15 05:52:04 rgrimes Exp $
+#	$Id: Makefile,v 1.109.2.17 1997/09/15 17:39:31 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -250,7 +250,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding /usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} includes
+	cd ${.CURDIR} && SHARED=symlinks ${BMAKE} includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding tools needed to build the libraries"
@@ -440,7 +440,7 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include &&		${MAKE} all installhdrs symlinks
+	cd ${.CURDIR}/include &&		${MAKE} all install
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
