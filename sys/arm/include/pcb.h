@@ -94,7 +94,7 @@ struct md_coredump {
 void	makectx(struct trapframe *tf, struct pcb *pcb);
 
 #ifdef _KERNEL
-extern struct pcb *curpcb;
+
 void    savectx(struct pcb *);
 #endif	/* _KERNEL */
 
