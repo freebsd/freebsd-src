@@ -19,3 +19,5 @@ INCLUDES=	${KRB4DIR}/lib/kadm/kadm.h ${KADMOBJDIR}/kadm_err.h
 .include <bsd.lib.mk>
 
 .PATH:		${KRB4DIR}/lib/kadm
+
+CLEANFILES+=	protos.h

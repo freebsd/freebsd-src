@@ -20,3 +20,5 @@ INCLUDES=	${KRB4DIR}/lib/acl/acl.h
 .include <bsd.lib.mk>
 
 .PATH:		${KRB4DIR}/lib/acl
+
+CLEANFILES+=	protos.h
