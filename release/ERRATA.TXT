@@ -2,10 +2,14 @@ This file contains post-release ERRATA for 3.0 and should always
 be considered the definitive place to look *first* before reporting
 a problem with this release.  This file will also be periodically
 updated as new issues are reported so even if you've checked this
-file recently, check it again before filing a bug report.  Any
-changes to this file are also automatically emailed to:
+file recently, check it again before filing a bug report.
+The latest revision of this file can be viewed at:
 
-	freebsd-stable@freebsd.org
+        http://www.freebsd.org/releases/3.0/errata.html
+
+Any changes to this file are also automatically emailed to:
+
+	freebsd-current@freebsd.org
 
 For 3.0 security advisories, see:
 
