@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1997/12/17 15:11:41 bde Exp $
+#	$Id: Makefile,v 1.20 1998/01/26 04:21:52 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -12,7 +12,8 @@ MAN5=	cvs.5
 
 SRCS=	add.c admin.c buffer.c checkin.c checkout.c classify.c client.c \
 	commit.c create_adm.c cvsrc.c diff.c edit.c entries.c error.c \
-	expand_path.c fileattr.c filesubr.c find_names.c hash.c history.c \
+	expand_path.c fileattr.c filesubr.c find_names.c \
+	hardlink.c hash.c history.c \
 	ignore.c import.c lock.c log.c login.c logmsg.c main.c mkmodules.c \
 	modules.c myndbm.c no_diff.c parseinfo.c patch.c rcs.c rcscmds.c \
 	recurse.c release.c remove.c repos.c root.c rtag.c run.c scramble.c \
