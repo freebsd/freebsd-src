@@ -352,9 +352,10 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			pam_error(pamh, "Mismatch; try again, EOF to quit.");
 		}
 		PAM_LOG("Got new password");
-		if (retval != PAM_SUCCESS)
+		if (retval != PAM_SUCCESS) {
 			PAM_VERBOSE_ERROR("Unable to get new password");
-		return (retval);
+			return (retval);
+		}
 
 		pwd->pw_change = 0;
 		lc = login_getclass(NULL);
