@@ -117,6 +117,7 @@ int	panicstr;		        /* flag: dump was caused by panic */
 char	vers[1024];			/* version of kernel that crashed */
 
 int	clear, compress, force, verbose;	/* flags */
+int	keep;			/* keep dump on device */
 
 void	 check_kmem __P((void));
 int	 check_space __P((void));
@@ -145,7 +146,7 @@ main(argc, argv)
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "cdfN:vz")) != -1)
+	while ((ch = getopt(argc, argv, "dfkN:vz")) != -1)
 		switch(ch) {
 		case 'c':
 			clear = 1;
@@ -156,6 +157,9 @@ main(argc, argv)
 			break;
 		case 'f':
 			force = 1;
+			break;
+		case 'k':
+			keep = 1;
 			break;
 		case 'N':
 			kernel = optarg;
@@ -203,19 +207,20 @@ main(argc, argv)
 
 	save_core();
 
-	clear_dump();
+	if (!keep)
+		clear_dump();
+	
 	exit(0);
 }
 
 void
 kmem_setup()
 {
-	FILE *fp;
 	int kmem, i;
 	const char *dump_sys;
-	int mib[2];
 	size_t len;
 	long kdumplo;		/* block number where dump starts on dumpdev */
+	char *p;
 
 	/*
 	 * Some names we need for the currently running system, others for
@@ -244,10 +249,8 @@ kmem_setup()
 			exit(1);
 		}
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_DUMPDEV;
 	len = sizeof dumpdev;
-	if (sysctl(mib, 2, &dumpdev, &len, NULL, 0) == -1) {
+	if (sysctlbyname("kern.dumpdev", &dumpdev, &len, NULL, 0) == -1) {
 		syslog(LOG_ERR, "sysctl: kern.dumpdev: %m");
 		exit(1);
 	}
@@ -267,17 +270,17 @@ kmem_setup()
 	(void)Read(kmem, &dumpmag, sizeof(dumpmag));
 	find_dev(dumpdev);
 	dumpfd = Open(ddname, O_RDWR);
-	fp = fdopen(kmem, "r");
-	if (fp == NULL) {
-		syslog(LOG_ERR, "%s: fdopen: %m", _PATH_KMEM);
-		exit(1);
-	}
 	if (kernel)
 		return;
-	(void)fseek(fp, (off_t)current_nl[X_VERSION].n_value, L_SET);
-	(void)fgets(vers, sizeof(vers), fp);
 
-	/* Don't fclose(fp), we use dumpfd later. */
+	lseek(kmem, (off_t)current_nl[X_VERSION].n_value, SEEK_SET);
+	Read(kmem, vers, sizeof(vers));
+	vers[sizeof(vers) - 1] = '\0';
+	p = strchr(vers, '\n');
+	if (p)
+		p[1] = '\0';
+
+	/* Don't fclose(fp), we use kmem later. */
 }
 
 void
@@ -339,6 +342,8 @@ dump_exists()
 }
 
 char buf[1024 * 1024];
+#define BLOCKSIZE (1<<12)
+#define BLOCKMASK (~(BLOCKSIZE-1))
 
 /*
  * Save the core dump.
@@ -348,6 +353,7 @@ save_core()
 {
 	register FILE *fp;
 	register int bounds, ifd, nr, nw;
+	int hs, he;		/* start and end of hole */
 	char path[MAXPATHLEN];
 	mode_t oumask;
 
@@ -405,7 +411,42 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 				syslog(LOG_ERR, "%s: %m", ddname);
 			goto err2;
 		}
-		nw = fwrite(buf, 1, nr, fp);
+		for (nw = 0; nw < nr; nw = he) {
+			/* find a contiguous block of zeroes */
+			for (hs = nw; hs < nr; hs += BLOCKSIZE) {
+				for (he = hs; he < nr && buf[he] == 0; ++he)
+					/* nothing */ ;
+
+				/* is the hole long enough to matter? */
+				if (he >= hs + BLOCKSIZE)
+					break;
+			}
+			
+			/* back down to a block boundary */
+			he &= BLOCKMASK;
+
+			/*
+			 * 1) Don't go beyond the end of the buffer.
+			 * 2) If the end of the buffer is less than
+			 *    BLOCKSIZE bytes away, we're at the end
+			 *    of the file, so just grab what's left.
+			 */
+			if (hs + BLOCKSIZE > nr)
+				hs = he = nr;
+			
+			/*
+			 * At this point, we have a partial ordering:
+			 *     nw <= hs <= he <= nr
+			 * If hs > nw, buf[nw..hs] contains non-zero data.
+			 * If he > hs, buf[hs..he] is all zeroes.
+			 */
+			if (hs > nw)
+				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
+					break;
+			if (he > hs)
+				if (fseek(fp, he - hs, SEEK_CUR) == -1)
+					break;
+		}
 		if (nw != nr) {
 			syslog(LOG_ERR, "%s: %m", path);
 err2:			syslog(LOG_WARNING,
