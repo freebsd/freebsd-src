@@ -135,9 +135,10 @@ ${H:C/-.*$//}.h:
 	    ${.TARGET}
 .endfor
 
-gdbversion.c: version.in
+GDB_VERSION=	"5.2.1 (FreeBSD)"
+gdbversion.c:
 	@echo '#include "version.h"'				> ${.TARGET}
-	@echo 'const char version[] = "'"`sed q ${.ALLSRC}`"'";'>>${.TARGET}
+	@echo 'const char version[] = ${GDB_VERSION};'	>>${.TARGET}
 	@echo 'const char host_name[] = "${MACHINE_ARCH}-undermydesk-freebsd";'	>>${.TARGET}
 	@echo 'const char target_name[] = "${TARGET_ARCH}-undermydesk-freebsd";'	>>${.TARGET}
 
