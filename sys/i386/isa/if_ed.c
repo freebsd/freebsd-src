@@ -20,12 +20,18 @@
  */
 
 /*
- * $Id: if_ed.c,v 2.3 93/09/29 15:10:16 davidg Exp Locker: davidg $
+ * $Id: if_ed.c,v 2.4 93/09/29 21:24:30 davidg Exp Locker: davidg $
  */
 
 /*
  * Modification history
  *
+ * Revision 2.4  93/09/29  21:24:30  davidg
+ * Added software NIC reset in NE probe to work around a problem
+ * with some NE boards where the 8390 doesn't reset properly on
+ * power-up. Remove initialization of IMR/ISR in the NE probe
+ * because this is inherent in the reset.
+ * 
  * Revision 2.3  93/09/29  15:10:16  davidg
  * credit Charles Hannum
  * 
@@ -803,8 +809,11 @@ ed_probe_Novell(isa_dev)
 	DELAY(5000);
 #endif
 
-	outb(sc->nic_addr + ED_P0_IMR, 0);
-	outb(sc->nic_addr + ED_P0_ISR, 0xff);
+	/*
+	 * This is needed because some NE clones apparently don't reset the
+	 *	NIC properly (or the NIC chip doesn't reset fully on power-up)
+	 */
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
 
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->mem_shared = 0;
