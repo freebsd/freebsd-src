@@ -78,7 +78,6 @@
  */
 
 #include "opt_inet.h"
-#include <net/bpf.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -103,6 +102,7 @@
 #ifdef INET
 #include <netinet/in.h>
 #endif
+#include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
@@ -226,7 +226,7 @@ am7990_config(sc)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-	bpfattach(&ifp->if_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	switch (sc->sc_memsize) {
 	case 8192:
@@ -563,7 +563,7 @@ am7990_read(sc, boff, len)
 	 * If so, hand off the raw packet to BPF.
 	 */
 	if (ifp->if_bpf) {
-		bpf_mtap(ifp->if_bpf, m);
+		bpf_mtap(ifp, m);
 
 #ifndef LANCE_REVC_BUG
 		/*
@@ -919,7 +919,7 @@ am7990_start(ifp)
 		 * before we commit it to the wire.
 		 */
 		if (ifp->if_bpf)
-			bpf_mtap(ifp->if_bpf, m);
+			bpf_mtap(ifp, m);
 
 		/*
 		 * Copy the mbuf chain into the transmit buffer.
