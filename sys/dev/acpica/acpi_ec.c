@@ -152,7 +152,7 @@
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_EC
-MODULE_NAME("EC")
+ACPI_MODULE_NAME("EC")
 
 /*
  * EC_COMMAND:
@@ -239,6 +239,7 @@ struct acpi_ec_softc {
     bus_space_handle_t	ec_csr_handle;
 
     int			ec_locked;
+    int			ec_lockhandle;
     int			ec_pendquery;
     int			ec_csrvalue;
 };
@@ -250,8 +251,8 @@ EcLock(struct acpi_ec_softc *sc)
 {
     ACPI_STATUS	status;
 
-    status = AcpiAcquireGlobalLock();
-    if (status == AE_OK)
+    /* XXX WAIT_FOREVER is probably a bad idea, what is a better time? */
+    if (ACPI_SUCCESS(status = AcpiAcquireGlobalLock(WAIT_FOREVER, &sc->ec_lockhandle)))
 	(sc)->ec_locked = 1;
 
     return(status);
@@ -261,7 +262,7 @@ static __inline void
 EcUnlock(struct acpi_ec_softc *sc)
 {
     (sc)->ec_locked = 0; 
-    AcpiReleaseGlobalLock();
+    AcpiReleaseGlobalLock(sc->ec_lockhandle);
 }
 
 static __inline int
@@ -321,7 +322,7 @@ DRIVER_MODULE(acpi_ec, acpi, acpi_ec_driver, acpi_ec_devclass, 0, 0);
 static void
 acpi_ec_identify(driver_t driver, device_t bus)
 {
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /* XXX implement - need an ACPI 2.0 system to test this */
 
@@ -356,7 +357,8 @@ acpi_ec_attach(device_t dev)
     struct acpi_ec_softc	*sc;
     ACPI_STATUS			Status;
     int errval = 0;
-    FUNCTION_TRACE(__func__);
+
+    ACPI_FUNCTION_TRACE(__func__);
 
     /*
      * Fetch/initialise softc
@@ -396,7 +398,7 @@ acpi_ec_attach(device_t dev)
      * status (SCI).
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE\n"));
-    if ((Status = acpi_EvaluateInteger(sc->ec_handle, "_GPE", &sc->ec_gpebit)) != AE_OK) {
+    if (ACPI_FAILURE(Status = acpi_EvaluateInteger(sc->ec_handle, "_GPE", &sc->ec_gpebit))) {
 	device_printf(dev, "can't evaluate _GPE - %s\n", AcpiFormatException(Status));
 	errval =ENXIO;
 	goto out;
@@ -410,8 +412,10 @@ acpi_ec_attach(device_t dev)
      * events we cause while performing a transaction (e.g. IBE/OBF) get 
      * cleared before re-enabling the GPE.
      */
-    if ((Status = AcpiInstallGpeHandler(sc->ec_gpebit, ACPI_EVENT_LEVEL_TRIGGERED | ACPI_EVENT_EDGE_TRIGGERED, 
-					EcGpeHandler, sc)) != AE_OK) {
+    if (ACPI_FAILURE(Status = AcpiInstallGpeHandler(sc->ec_gpebit,
+						    ACPI_EVENT_LEVEL_TRIGGERED |
+						    ACPI_EVENT_EDGE_TRIGGERED, 
+						    EcGpeHandler, sc))) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
 	errval = ENXIO;
@@ -422,8 +426,11 @@ acpi_ec_attach(device_t dev)
      * Install address space handler
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching address space handler\n"));
-    if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC, 
-						 EcSpaceHandler, EcSpaceSetup, sc)) != AE_OK) {
+    if (ACPI_FAILURE(Status = AcpiInstallAddressSpaceHandler(sc->ec_handle,
+							     ACPI_ADR_SPACE_EC,
+							     EcSpaceHandler,
+							     EcSpaceSetup,
+							     sc))) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
 	panic("very suck");
@@ -450,7 +457,7 @@ EcGpeQueryHandler(void *Context)
     ACPI_STATUS			Status;
     char			qxx[5];
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     for (;;) {
 
@@ -476,7 +483,7 @@ EcGpeQueryHandler(void *Context)
 	/*
 	 * If we failed to get anything from the EC, give up
 	 */
-	if (Status != AE_OK) {
+	if (ACPI_FAILURE(Status)) {
 	    ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 		"GPE query failed - %s\n", AcpiFormatException(Status));
 	    break;
@@ -491,16 +498,16 @@ EcGpeQueryHandler(void *Context)
 	/*
 	 * Ignore spurious query requests.
 	 */
-	if (Status != AE_OK && (Data != 0 || Status != AE_NOT_FOUND)) {
+	if (ACPI_FAILURE(Status) && (Data != 0 || Status != AE_NOT_FOUND)) {
 	    ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    	"evaluation of GPE query method %s failed - %s\n", 
 			qxx, AcpiFormatException(Status));
 	}
     }
         /* I know I request Level trigger cleanup */
-    if(AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
+    if (ACPI_FAILURE(AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE)))
 	    printf("EcGpeQueryHandler:ClearEvent Failed\n");
-    if(AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0) != AE_OK)
+    if (ACPI_FAILURE(AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0)))
 	    printf("EcGpeQueryHandler:EnableEvent Failed\n");
     return_VOID;
 }
@@ -529,8 +536,8 @@ EcGpeHandler(void *Context)
 	}
     }else{
 	/* Queue GpeQuery Handler */
-	if (AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
-				    EcGpeQueryHandler,Context) != AE_OK){
+	if (ACPI_FAILURE(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
+				    EcGpeQueryHandler,Context))) {
 	    printf("QueryHandler Queuing Failed\n");
 	}
     }
@@ -541,7 +548,7 @@ static ACPI_STATUS
 EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context, void **RegionContext)
 {
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /*
      * Just pass the context through, there's nothing to do here.
@@ -560,7 +567,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, ACP
     EC_REQUEST			EcRequest;
     int				i;
 
-    FUNCTION_TRACE_U32(__func__, (UINT32)Address);
+    ACPI_FUNCTION_TRACE_U32(__func__, (UINT32)Address);
 
     if ((Address > 0xFF) || (width % 8 != 0) || (Value == NULL) || (Context == NULL))
         return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -590,7 +597,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, ACP
 	    EcRequest.Data = 0;
 	else
 	    EcRequest.Data = (UINT8)((*Value) >> i);
-	if ((Status = EcTransaction(sc, &EcRequest)) != AE_OK)
+	if (ACPI_FAILURE(Status = EcTransaction(sc, &EcRequest)))
 	    break;
         (*Value) |= (ACPI_INTEGER)EcRequest.Data << i;
 	if (++EcRequest.Address == 0)
@@ -608,7 +615,7 @@ EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
     EC_STATUS	EcStatus;
     int		i;
 
-    FUNCTION_TRACE_U32(__func__, (UINT32)Event);
+    ACPI_FUNCTION_TRACE_U32(__func__, (UINT32)Event);
 
     /* XXX this should test whether interrupts are available some other way */
     if(cold)
@@ -693,17 +700,16 @@ EcQuery(struct acpi_ec_softc *sc, UINT8 *Data)
 {
     ACPI_STATUS	Status;
 
-    if ((Status = EcLock(sc)) != AE_OK)
+    if (ACPI_FAILURE(Status = EcLock(sc)))
 	return(Status);
 
     EC_SET_CSR(sc, EC_COMMAND_QUERY);
-    Status = EcWaitEvent(sc, EC_EVENT_OUTPUT_BUFFER_FULL);
-    if (Status == AE_OK)
+    if (ACPI_SUCCESS(Status = EcWaitEvent(sc, EC_EVENT_OUTPUT_BUFFER_FULL)))
 	*Data = EC_GET_DATA(sc);
 
     EcUnlock(sc);
 
-    if (Status != AE_OK)
+    if (ACPI_FAILURE(Status))
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "timeout waiting for EC to respond to EC_COMMAND_QUERY\n");
     return(Status);
@@ -717,7 +723,7 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
     /*
      * Lock the EC
      */
-    if ((Status = EcLock(sc)) != AE_OK)
+    if (ACPI_FAILURE(Status = EcLock(sc)))
 	return(Status);
 
     /*
@@ -752,16 +758,16 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
      * immediately after we re-enabling it.
      */
     if (sc->ec_pendquery){
-	    if(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
-		EcGpeQueryHandler, sc) != AE_OK)
-		    printf("Pend Query Queuing Failed\n");
-	    sc->ec_pendquery = 0;
+	if (ACPI_FAILURE(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
+						 EcGpeQueryHandler, sc)))
+	    printf("Pend Query Queuing Failed\n");
+	sc->ec_pendquery = 0;
     }
 
-    if (AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
+    if (ACPI_FAILURE(AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE)))
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "EcRequest: Unable to clear the EC GPE.\n");
-    if (AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0) != AE_OK)
+    if (ACPI_FAILURE(AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0)))
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "EcRequest: Unable to re-enable the EC GPE.\n");
 
@@ -781,14 +787,14 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     /*EcBurstEnable(EmbeddedController);*/
 
     EC_SET_CSR(sc, EC_COMMAND_READ);
-    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if (ACPI_FAILURE(Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY))) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "EcRead: Failed waiting for EC to process read command.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, Address);
-    if ((Status = EcWaitEventIntr(sc, EC_EVENT_OUTPUT_BUFFER_FULL)) != AE_OK) {
+    if (ACPI_FAILURE(Status = EcWaitEventIntr(sc, EC_EVENT_OUTPUT_BUFFER_FULL))) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "EcRead: Failed waiting for EC to send data.\n");
 	return(Status);
@@ -813,21 +819,21 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     /*EcBurstEnable(EmbeddedController);*/
 
     EC_SET_CSR(sc, EC_COMMAND_WRITE);
-    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if (ACPI_FAILURE(Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY))) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "EcWrite: Failed waiting for EC to process write command.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, Address);
-    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if (ACPI_FAILURE(Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY))) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "EcRead: Failed waiting for EC to process address.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, *Data);
-    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if (ACPI_FAILURE(Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY))) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 	    "EcWrite: Failed waiting for EC to process data.\n");
 	return(Status);
