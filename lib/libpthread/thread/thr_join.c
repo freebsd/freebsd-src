@@ -42,6 +42,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 {
 	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
+	pthread_t thread;
  
 	_thread_enter_cancellation_point();
 
@@ -60,24 +61,63 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	}
 
 	/*
-	 * Find the thread in the list of active threads or in the
-	 * list of dead threads:
+	 * Lock the garbage collector mutex to ensure that the garbage
+	 * collector is not using the dead thread list.
 	 */
-	if ((_find_thread(pthread) != 0) && (_find_dead_thread(pthread) != 0))
+	if (pthread_mutex_lock(&_gc_mutex) != 0)
+		PANIC("Cannot lock gc mutex");
+
+	/*
+	 * Defer signals to protect the thread list from access
+	 * by the signal handler:
+	 */
+	_thread_kern_sig_defer();
+
+	/*
+	 * Unlock the garbage collector mutex, now that the garbage collector
+	 * can't be run:
+	 */
+	if (pthread_mutex_unlock(&_gc_mutex) != 0)
+		PANIC("Cannot lock gc mutex");
+
+	/*
+	 * Search for the specified thread in the list of active threads.  This
+	 * is done manually here rather than calling _find_thread() because
+	 * the searches in _thread_list and _dead_list (as well as setting up
+	 * join/detach state) have to be done atomically.
+	 */
+	TAILQ_FOREACH(thread, &_thread_list, tle) {
+		if (thread == pthread)
+			break;
+	}
+	if (thread == NULL) {
+		/*
+		 * Search for the specified thread in the list of dead threads:
+		 */
+		TAILQ_FOREACH(thread, &_dead_list, dle) {
+			if (thread == pthread)
+				break;
+		}
+	}
+
+	/* Check if the thread was not found or has been detached: */
+	if (thread == NULL ||
+	    ((pthread->attr.flags & PTHREAD_DETACHED) != 0)) {
+		/* Undefer and handle pending signals, yielding if necessary: */
+		_thread_kern_sig_undefer();
+
 		/* Return an error: */
 		ret = ESRCH;
 
-	/* Check if this thread has been detached: */
-	else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0)
-		/* Return an error: */
-		ret = ESRCH;
+	} else if (pthread->joiner != NULL) {
+		/* Undefer and handle pending signals, yielding if necessary: */
+		_thread_kern_sig_undefer();
 
-	else if (pthread->joiner != NULL)
 		/* Multiple joiners are not supported. */
 		ret = ENOTSUP;
 
 	/* Check if the thread is not dead: */
-	else if (pthread->state != PS_DEAD) {
+	} else if (pthread->state != PS_DEAD) {
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = curthread;
 
@@ -103,13 +143,11 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			*thread_return = pthread->ret;
 		}
 
-		/*
-		 * Make the thread collectable by the garbage collector.  There
-		 * is a race here with the garbage collector if multiple threads
-		 * try to join the thread, but the behavior of multiple joiners
-		 * is undefined, so don't bother protecting against the race.
-		 */
+		/* Make the thread collectable by the garbage collector. */
 		pthread->attr.flags |= PTHREAD_DETACHED;
+
+		/* Undefer and handle pending signals, yielding if necessary: */
+		_thread_kern_sig_undefer();
 	}
 
 	_thread_leave_cancellation_point();
