@@ -28,8 +28,9 @@
 #
 # If console is marked "insecure", then init will ask for the root password
 # when going to single-user mode.
+console	none				unknown	off secure
 #
-console	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
 ttyv1	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv2	"/usr/libexec/getty Pc"		cons25	on  secure
@@ -41,7 +42,7 @@ ttyv7	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
-ttyd0	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyd0	"/usr/libexec/getty std.9600"	vt100	on secure
 ttyd1	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd2	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd3	"/usr/libexec/getty std.9600"	dialup	off secure
