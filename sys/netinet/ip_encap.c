@@ -40,7 +40,8 @@
  *	RFC2473 IPv6 generic packet tunnelling
  *	RFC2529 6over4 tunnel
  *	mobile-ip6 (uses RFC2473)
- *	6to4 tunnel
+ *	RFC3056 6to4 tunnel
+ *	isatap tunnel
  * Here's a list of protocol that want protocol #4:
  *	RFC1853 IPv4-in-IPv4 tunnelling
  *	RFC2003 IPv4 encapsulation within IPv4

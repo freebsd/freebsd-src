@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ah_output.c,v 1.30 2001/02/21 00:50:53 itojun Exp $	*/
+/*	$KAME: ah_output.c,v 1.31 2001/07/26 06:53:15 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -151,9 +151,9 @@ ah4_output(m, isr)
 	u_int32_t spi;
 	u_char *ahdrpos;
 	u_char *ahsumpos = NULL;
-	size_t hlen = 0;	/*IP header+option in bytes*/
-	size_t plen = 0;	/*AH payload size in bytes*/
-	size_t ahlen = 0;	/*plen + sizeof(ah)*/
+	size_t hlen = 0;	/* IP header+option in bytes */
+	size_t plen = 0;	/* AH payload size in bytes */
+	size_t ahlen = 0;	/* plen + sizeof(ah) */
 	struct ip *ip;
 	struct in_addr dst;
 	struct in_addr *finaldst;
@@ -189,11 +189,11 @@ ah4_output(m, isr)
 	 */
 	if (sav->flags & SADB_X_EXT_OLD) {
 		/* RFC 1826 */
-		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1); /*XXX pad to 8byte?*/
+		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1); /* XXX pad to 8byte? */
 		ahlen = plen + sizeof(struct ah);
 	} else {
 		/* RFC 2402 */
-		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1); /*XXX pad to 8byte?*/
+		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1); /* XXX pad to 8byte? */
 		ahlen = plen + sizeof(struct newah);
 	}
 
@@ -230,7 +230,7 @@ ah4_output(m, isr)
 		ahdrpos = mtod(m->m_next, u_char *);
 	}
 
-	ip = mtod(m, struct ip *);	/*just to be sure*/
+	ip = mtod(m, struct ip *);	/* just to be sure */
 
 	/*
 	 * initialize AH.
@@ -315,7 +315,7 @@ ah4_output(m, isr)
 	}
 
 	if (finaldst) {
-		ip = mtod(m, struct ip *);	/*just to make sure*/
+		ip = mtod(m, struct ip *);	/* just to make sure */
 		ip->ip_dst.s_addr = dst.s_addr;
 	}
 	ipsecstat.out_success++;
@@ -339,11 +339,11 @@ ah_hdrlen(sav)
 		return 0;
 	if (sav->flags & SADB_X_EXT_OLD) {
 		/* RFC 1826 */
-		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1);	/*XXX pad to 8byte?*/
+		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1);	/* XXX pad to 8byte? */
 		ahlen = plen + sizeof(struct ah);
 	} else {
 		/* RFC 2402 */
-		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1);	/*XXX pad to 8byte?*/
+		plen = ((*algo->sumsiz)(sav) + 3) & ~(4 - 1);	/* XXX pad to 8byte? */
 		ahlen = plen + sizeof(struct newah);
 	}
 
@@ -367,7 +367,7 @@ ah6_output(m, nexthdrp, md, isr)
 	const struct ah_algorithm *algo;
 	u_int32_t spi;
 	u_char *ahsumpos = NULL;
-	size_t plen;	/*AH payload size in bytes*/
+	size_t plen;	/* AH payload size in bytes */
 	int error = 0;
 	int ahlen;
 	struct ip6_hdr *ip6;

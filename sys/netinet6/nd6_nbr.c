@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: nd6_nbr.c,v 1.64 2001/05/17 03:48:30 itojun Exp $	*/
+/*	$KAME: nd6_nbr.c,v 1.86 2002/01/21 02:33:04 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -133,11 +133,11 @@ nd6_ns_input(m, off, icmp6len)
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6)) {
 		/* dst has to be solicited node multicast address. */
 		if (daddr6.s6_addr16[0] == IPV6_ADDR_INT16_MLL
-		    /*don't check ifindex portion*/
+		    /* don't check ifindex portion */
 		    && daddr6.s6_addr32[1] == 0
 		    && daddr6.s6_addr32[2] == IPV6_ADDR_INT32_ONE
 		    && daddr6.s6_addr8[12] == 0xff) {
-			; /*good*/
+			; /* good */
 		} else {
 			nd6log((LOG_INFO, "nd6_ns_input: bad DAD packet "
 				"(wrong ip6 dst)\n"));
@@ -163,7 +163,7 @@ nd6_ns_input(m, off, icmp6len)
 	}
 
 	if (ndopts.nd_opts_src_lladdr) {
-		lladdr = (char *)(ndopts.nd_opts_src_lladdr +1);
+		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1);
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 	
@@ -252,9 +252,9 @@ nd6_ns_input(m, off, icmp6len)
 	}
 
 	if (IN6_ARE_ADDR_EQUAL(&myaddr6, &saddr6)) {
-		log(LOG_INFO,
-		    "nd6_ns_input: duplicate IP6 address %s\n",
-		    ip6_sprintf(&saddr6));
+		nd6log((LOG_INFO,
+			"nd6_ns_input: duplicate IP6 address %s\n",
+			ip6_sprintf(&saddr6)));
 		goto freeit;
 	}
 
@@ -383,7 +383,7 @@ nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
 
 	icmp6len = sizeof(*nd_ns);
 	m->m_pkthdr.len = m->m_len = sizeof(*ip6) + icmp6len;
-	m->m_data += max_linkhdr;	/*or MH_ALIGN() equivalent?*/
+	m->m_data += max_linkhdr;	/* or MH_ALIGN() equivalent? */
 
 	/* fill neighbor solicitation packet */
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -433,7 +433,7 @@ nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
 		 * - saddr6 belongs to the outgoing interface.
 		 * Otherwise, we perform a scope-wise match.
 		 */
-		struct ip6_hdr *hip6;		/*hold ip6*/
+		struct ip6_hdr *hip6;		/* hold ip6 */
 		struct in6_addr *saddr6;
 
 		if (ln && ln->ln_hold) {
@@ -450,7 +450,7 @@ nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
 		else {
 			ia = in6_ifawithifp(ifp, &ip6->ip6_dst);
 			if (ia == NULL) {
-				m_freem(m);	/*XXX*/
+				m_freem(m);
 				return;
 			}
 			ip6->ip6_src = ia->ia_addr.sin6_addr;
@@ -622,7 +622,7 @@ nd6_na_input(m, off, icmp6len)
 		goto freeit;
 	}
 
-	/* Just for safety, maybe unnecessery. */
+	/* Just for safety, maybe unnecessary. */
 	if (ifa) {
 		log(LOG_ERR,
 		    "nd6_na_input: duplicate IP6 address %s\n",
@@ -767,6 +767,13 @@ nd6_na_input(m, off, icmp6len)
 			int s;
 
 			in6 = &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr;
+
+			/*
+			 * Lock to protect the default router list.
+			 * XXX: this might be unnecessary, since this function
+			 * is only called under the network software interrupt
+			 * context.  However, we keep it just for safety.  
+			 */
 			s = splnet();
 			dr = defrouter_lookup(in6, rt->rt_ifp);
 			if (dr)
@@ -789,7 +796,7 @@ nd6_na_input(m, off, icmp6len)
 	ln->ln_asked = 0;
 	if (ln->ln_hold) {
 		/*
-		 * we assume ifp is not a p2p here, so just set the 2nd
+		 * we assume ifp is not a loopback here, so just set the 2nd
 		 * argument as the 1st one.
 		 */
 		nd6_output(ifp, ifp, ln->ln_hold,
@@ -865,7 +872,7 @@ nd6_na_output(ifp, daddr6, taddr6, flags, tlladdr, sdl0)
 
 	icmp6len = sizeof(*nd_na);
 	m->m_pkthdr.len = m->m_len = sizeof(struct ip6_hdr) + icmp6len;
-	m->m_data += max_linkhdr;	/*or MH_ALIGN() equivalent?*/
+	m->m_data += max_linkhdr;	/* or MH_ALIGN() equivalent? */
 
 	/* fill neighbor advertisement packet */
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -1095,11 +1102,11 @@ nd6_dad_start(ifa, tick)
 	 * (re)initialization.
 	 */
 	dp->dad_ifa = ifa;
-	IFAREF(ifa);	/*just for safety*/
+	IFAREF(ifa);	/* just for safety */
 	dp->dad_count = ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
-	if (!tick) {
+	if (tick == NULL) {
 		nd6_dad_ns_output(dp, ifa);
 		nd6_dad_starttimer(dp, 
 		    nd_ifinfo[ifa->ifa_ifp->if_index].retrans * hz / 1000);
@@ -1148,7 +1155,7 @@ nd6_dad_timer(ifa)
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct dadq *dp;
 
-	s = splnet();		/*XXX*/
+	s = splnet();		/* XXX */
 
 	/* Sanity check */
 	if (ia == NULL) {
@@ -1213,7 +1220,7 @@ nd6_dad_timer(ifa)
 		}
 
 		if (dp->dad_ns_icount) {
-#if 0 /*heuristics*/
+#if 0 /* heuristics */
 			/*
 			 * if
 			 * - we have sent many(?) DAD NS, and

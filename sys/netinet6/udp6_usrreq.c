@@ -104,7 +104,7 @@
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netinet6/ipsec6.h>
-#endif /*IPSEC*/
+#endif /* IPSEC */
 
 /*
  * UDP protocol inplementation.
@@ -218,7 +218,7 @@ udp6_input(mp, offp, proto)
 		init_sin6(&udp_in6, m); /* general init */
 		udp_in6.sin6_port = uh->uh_sport;
 		/*
-		 * KAME note: usually we drop udphdr from mbuf here.
+		 * KAME note: traditionally we dropped udpiphdr from mbuf here.
 		 * We need udphdr for IPsec processing so we do that later.
 		 */
 
@@ -257,7 +257,7 @@ udp6_input(mp, offp, proto)
 					ipsec6stat.in_polvio++;
 					/* do not inject data into pcb */
 				else
-#endif /*IPSEC*/
+#endif /* IPSEC */
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					/*
 					 * KAME NOTE: do not
@@ -316,7 +316,7 @@ udp6_input(mp, offp, proto)
 			ipsec6stat.in_polvio++;
 			goto bad;
 		}
-#endif /*IPSEC*/
+#endif /* IPSEC */
 		if (last->in6p_flags & IN6P_CONTROLOPTS
 		    || last->in6p_socket->so_options & SO_TIMESTAMP)
 			ip6_savecontrol(last, &opts, ip6, m);
@@ -364,7 +364,7 @@ udp6_input(mp, offp, proto)
 		ipsec6stat.in_polvio++;
 		goto bad;
 	}
-#endif /*IPSEC*/
+#endif /* IPSEC */
 
 	/*
 	 * Construct sockaddr format source address.
@@ -615,7 +615,6 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 			return error;
 		}
 	}
-
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 		return EISCONN;
 	s = splnet();

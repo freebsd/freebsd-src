@@ -106,7 +106,7 @@
 #ifdef INET6
 #include <netinet6/ipsec6.h>
 #endif
-#endif /*IPSEC*/
+#endif /* IPSEC */
 
 #include <net/net_osdep.h>
 
@@ -296,7 +296,7 @@ udp6_output(in6p, m, addr6, control, p)
 			error = ENOBUFS;
 			goto release;
 		}
-#endif /*IPSEC*/
+#endif /* IPSEC */
 		error = ip6_output(m, in6p->in6p_outputopts, &in6p->in6p_route,
 		    flags, in6p->in6p_moptions, NULL);
 		break;

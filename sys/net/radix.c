@@ -673,7 +673,7 @@ on2:
 			mmask = m->rm_leaf->rn_mask;
 			if (tt->rn_flags & RNF_NORMAL) {
 			    log(LOG_ERR,
-			        "Non-unique normal route, mask not entered");
+			        "Non-unique normal route, mask not entered\n");
 				return tt;
 			}
 		} else

@@ -120,7 +120,7 @@ ip6_forward(m, srcrt)
 		m_freem(m);
 		return;
 	}
-#endif /*IPSEC*/
+#endif /* IPSEC */
 
 	/*
 	 * Do not forward packets to multicast destination (should be handled
@@ -270,7 +270,7 @@ ip6_forward(m, srcrt)
 			break;
 		default:
 			printf("ip6_output (ipsec): error code %d\n", error);
-			/*fall through*/
+			/* fall through */
 		case ENOENT:
 			/* don't show these error codes to the user */
 			break;
@@ -346,7 +346,7 @@ ip6_forward(m, srcrt)
 	 * for the reason that the destination is beyond the scope of the
 	 * source address, discard the packet and return an icmp6 destination
 	 * unreachable error with Code 2 (beyond scope of source address).
-	 * [draft-ietf-ipngwg-icmp-v3-00.txt, Section 3.1]
+	 * [draft-ietf-ipngwg-icmp-v3-02.txt, Section 3.1]
 	 */
 	if (in6_addr2scopeid(m->m_pkthdr.rcvif, &ip6->ip6_src) !=
 	    in6_addr2scopeid(rt->rt_ifp, &ip6->ip6_src)) {
@@ -537,7 +537,6 @@ ip6_forward(m, srcrt)
 	}
 	if (mcopy == NULL)
 		return;
-
 	switch (error) {
 	case 0:
 #if 1

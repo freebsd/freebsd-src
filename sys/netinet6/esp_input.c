@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: esp_input.c,v 1.55 2001/03/23 08:08:47 itojun Exp $	*/
+/*	$KAME: esp_input.c,v 1.62 2002/01/07 11:39:57 kjc Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -207,7 +207,7 @@ esp4_input(m, va_alist)
 	 * check for sequence number.
 	 */
 	if (ipsec_chkreplay(ntohl(((struct newesp *)esp)->esp_seq), sav))
-		; /*okey*/
+		; /* okey */
 	else {
 		ipsecstat.in_espreplay++;
 		ipseclog((LOG_WARNING,
@@ -338,7 +338,7 @@ noreplaycheck:
 	taillen = esptail.esp_padlen + sizeof(esptail);
 
 	if (m->m_pkthdr.len < taillen
-	 || m->m_pkthdr.len - taillen < hlen) {	/*?*/
+	 || m->m_pkthdr.len - taillen < hlen) {	/* ? */
 		ipseclog((LOG_WARNING,
 		    "bad pad length in IPv4 ESP input: %s %s\n",
 		    ipsec4_logpacketstr(ip, spi), ipsec_logsastr(sav)));
@@ -387,14 +387,6 @@ noreplaycheck:
 			goto bad;
 		}
 
-#if 0 /* XXX should call ipfw rather than ipsec_in_reject, shouldn't it ? */
-		/* drop it if it does not match the default policy */
-		if (ipsec4_in_reject(m, NULL)) {
-			ipsecstat.in_polvio++;
-			goto bad;
-		}
-#endif
-
 		key_sa_recordxfer(sav, m);
 		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0 ||
 		    ipsec_addhist(m, IPPROTO_IPV4, 0) != 0) {
@@ -410,7 +402,7 @@ noreplaycheck:
 		}
 		IF_ENQUEUE(&ipintrq, m);
 		m = NULL;
-		schednetisr(NETISR_IP); /*can be skipped but to make sure*/
+		schednetisr(NETISR_IP); /* can be skipped but to make sure */
 		splx(s);
 		nxt = IPPROTO_DONE;
 	} else {
@@ -574,7 +566,7 @@ esp6_input(mp, offp, proto)
 	 * check for sequence number.
 	 */
 	if (ipsec_chkreplay(ntohl(((struct newesp *)esp)->esp_seq), sav))
-		; /*okey*/
+		; /* okey */
 	else {
 		ipsec6stat.in_espreplay++;
 		ipseclog((LOG_WARNING,
@@ -659,7 +651,7 @@ noreplaycheck:
 	}
 
 #ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, off, esplen + ivlen, IPPROTO_DONE);	/*XXX*/
+	IP6_EXTHDR_CHECK(m, off, esplen + ivlen, IPPROTO_DONE);	/* XXX */
 #else
 	IP6_EXTHDR_GET(esp, struct esp *, m, off, esplen + ivlen);
 	if (esp == NULL) {
@@ -668,7 +660,7 @@ noreplaycheck:
 		goto bad;
 	}
 #endif
-	ip6 = mtod(m, struct ip6_hdr *);	/*set it again just in case*/
+	ip6 = mtod(m, struct ip6_hdr *);	/* set it again just in case */
 
 	/*
 	 * pre-compute and cache intermediate key
@@ -704,7 +696,7 @@ noreplaycheck:
 	taillen = esptail.esp_padlen + sizeof(esptail);
 
 	if (m->m_pkthdr.len < taillen
-	 || m->m_pkthdr.len - taillen < sizeof(struct ip6_hdr)) {	/*?*/
+	 || m->m_pkthdr.len - taillen < sizeof(struct ip6_hdr)) {	/* ? */
 		ipseclog((LOG_WARNING,
 		    "bad pad length in IPv6 ESP input: %s %s\n",
 		    ipsec6_logpacketstr(ip6, spi), ipsec_logsastr(sav)));
@@ -726,7 +718,7 @@ noreplaycheck:
 		 * XXX more sanity checks
 		 * XXX relationship with gif?
 		 */
-		u_int32_t flowinfo;	/*net endian*/
+		u_int32_t flowinfo;	/* net endian */
 		flowinfo = ip6->ip6_flow;
 		m_adj(m, off + esplen + ivlen);
 		if (m->m_len < sizeof(*ip6)) {
@@ -757,14 +749,6 @@ noreplaycheck:
 			goto bad;
 		}
 
-#if 0 /* XXX should call ipfw rather than ipsec_in_reject, shouldn't it ? */
-		/* drop it if it does not match the default policy */
-		if (ipsec6_in_reject(m, NULL)) {
-			ipsec6stat.in_polvio++;
-			goto bad;
-		}
-#endif
-
 		key_sa_recordxfer(sav, m);
 		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0 || 
 		    ipsec_addhist(m, IPPROTO_IPV6, 0) != 0) {
@@ -780,7 +764,7 @@ noreplaycheck:
 		}
 		IF_ENQUEUE(&ip6intrq, m);
 		m = NULL;
-		schednetisr(NETISR_IPV6); /*can be skipped but to make sure*/
+		schednetisr(NETISR_IPV6); /* can be skipped but to make sure */
 		splx(s);
 		nxt = IPPROTO_DONE;
 	} else {
