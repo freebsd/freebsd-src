@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.47 1995/08/18 11:26:16 jkh Exp $
+#	$Id: GENERIC,v 1.48 1995/10/25 16:43:00 jkh Exp $
 #
 
 machine		"i386"
@@ -60,6 +60,8 @@ controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 controller	scbus0
 
 device		sd0
+
+device		od0
 
 device		st0
 
