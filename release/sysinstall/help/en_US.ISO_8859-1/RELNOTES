@@ -707,12 +707,12 @@ Special mention to:
         And everyone at Montana State University for their initial support.
 
 
-Jordan would also like to give special mention to Poul-Henning Kamp
-and Gary Palmer, both of whom put in long hours helping him to
-construct the new installation utility.  Poul, being a proud new
-father, was especially pressed for time yet somehow managed to put in
-significant amount of effort anyway and this release could not have
-happened without him.  Thank you both!
+Jordan would also like to give special thanks to Poul-Henning Kamp and
+Gary Palmer, both of whom put in long hours helping him to construct
+the new installation utility.  Poul, being a proud new father, was
+especially pressed for time and yet somehow managed to put in
+a significant amount of effort anyway.  This release could not have
+happened without him!  Thank you both!
 
 Thanks also to everyone else who helped, especially those not
 mentioned, and we sincerely hope you enjoy this release of FreeBSD!
@@ -720,4 +720,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.7 1995/05/28 19:49:57 jkh Exp $
+$Id: RELNOTES,v 1.1 1995/05/31 05:24:23 jkh Exp $
