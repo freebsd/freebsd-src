@@ -644,7 +644,7 @@ static int
 sb_attach(device_t dev)
 {
     	struct sb_info *sb;
-    	int flags = isa_get_flags(dev);
+    	int flags = device_get_flags(dev);
 
     	if (flags & DV_F_DUAL_DMA) {
         	ISA_SET_RESOURCE(device_get_parent(dev), dev, SYS_RES_DRQ, 1,

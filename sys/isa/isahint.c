@@ -76,7 +76,7 @@ isahint_add_device(device_t parent, const char *name, int unit)
 		ISA_SET_RESOURCE(parent, child, SYS_RES_DRQ, 0, start, 1);
 
 	if (resource_int_value(name, unit, "flags", &t) == 0)
-		isa_set_flags(child, t);
+		device_set_flags(child, t);
 
 	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
 		device_disable(child);

@@ -126,7 +126,7 @@ isavga_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Generic ISA VGA");
-	error = vga_probe_unit(device_get_unit(dev), &adp, isa_get_flags(dev));
+	error = vga_probe_unit(device_get_unit(dev), &adp, device_get_flags(dev));
 	if (error == 0) {
 		bus = device_get_parent(dev);
 		ISA_SET_RESOURCE(bus, dev, SYS_RES_IOPORT, 0,
@@ -163,7 +163,7 @@ isavga_attach(device_t dev)
 	mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 				 0, ~0, 0, RF_ACTIVE | RF_SHAREABLE);
 
-	error = vga_attach_unit(unit, sc, isa_get_flags(dev));
+	error = vga_attach_unit(unit, sc, device_get_flags(dev));
 	if (error)
 		return error;
 
