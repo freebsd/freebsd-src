@@ -55,11 +55,13 @@ __FBSDID("$FreeBSD$");
 static char tabstr[TABCOUNT+1] = "\t\t\t\t\t";
 
 static char tbl_hdr[] = "struct rpcgen_table %s_table[] = {\n";
-static char tbl_end[] = "};\n";
+static char tbl_end[] = "\n};\n";
 
-static char null_entry[] = "\n\t(char *(*)())0,\n\
+static char null_entry[] = "\n\t{\n\
+ \tNULL,\n\
  \t(xdrproc_t) xdr_void,\t\t\t0,\n\
- \t(xdrproc_t) xdr_void,\t\t\t0,\n";
+ \t(xdrproc_t) xdr_void,\t\t\t0,\n\
+ \t}";
 
 
 static char tbl_nproc[] = "int %s_nproc =\n\tsizeof(%s_table)/sizeof(%s_table[0]);\n\n";
@@ -119,7 +121,7 @@ write_table(def)
 				}
 				expected = current + 1;
 			}
-			f_print(fout, "\n\t(char *(*)())RPCGEN_ACTION(");
+			f_print(fout, ",\n\n\t{\n\tRPCGEN_ACTION(");
 
 			/* routine to invoke */
 			if( Cflag && !newstyle )
@@ -140,6 +142,7 @@ write_table(def)
 				  proc->args.decls->decl.type );
 			/* result info */
 			printit(proc->res_prefix, proc->res_type);
+			f_print(fout, "\t}");
 		}
 
 		/* print the table trailer */
@@ -157,7 +160,7 @@ printit(prefix, type)
 	int tabs;
 
 
- 	len = fprintf(fout, "\txdr_%s,", stringfix(type));
+ 	len = fprintf(fout, "\t(xdrproc_t) xdr_%s,", stringfix(type));
 	/* account for leading tab expansion */
 	len += TABSIZE - 1;
 	/* round up to tabs required */
@@ -167,7 +170,7 @@ printit(prefix, type)
 	if (streq(type, "void")) {
 		f_print(fout, "0");
 	} else {
-		f_print(fout, "sizeof ( ");
+		f_print(fout, " sizeof ( ");
 		/* XXX: should "follow" be 1 ??? */
 		ptype(prefix, type, 0);
 		f_print(fout, ")");
