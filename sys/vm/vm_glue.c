@@ -222,12 +222,6 @@ vm_proc_new(struct proc *p)
 	u_int i;
 
 	/*
-	 * Allocate object for the upage.
-	 */
-	upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
-	p->p_upages_obj = upobj;
-
-	/*
 	 * Get a kernel virtual address for the U area for this process.
 	 */
 	up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
@@ -235,20 +229,23 @@ vm_proc_new(struct proc *p)
 		panic("vm_proc_new: upage allocation failed");
 	p->p_uarea = (struct user *)up;
 
+	/*
+	 * Allocate object and page(s) for the U area.
+	 */
+	upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
+	p->p_upages_obj = upobj;
+	VM_OBJECT_LOCK(upobj);
 	for (i = 0; i < UAREA_PAGES; i++) {
-		/*
-		 * Get a uarea page.
-		 */
 		m = vm_page_grab(upobj, i,
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
 
 		vm_page_lock_queues();
 		vm_page_wakeup(m);
-		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(upobj);
 
 	/*
 	 * Enter the pages into the kernel address space.
