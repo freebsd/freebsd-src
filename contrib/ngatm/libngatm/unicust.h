@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/libunimsg/unicust.h,v 1.4 2003/09/19 13:10:35 hbb Exp $
+ * $Begemot: libunimsg/libngatm/unicust.h,v 1.4 2003/09/19 13:10:35 hbb Exp $
  *
  * Customisation of signalling source to user space.
  */
