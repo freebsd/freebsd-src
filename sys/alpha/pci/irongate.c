@@ -36,6 +36,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>

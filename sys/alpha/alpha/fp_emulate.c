@@ -32,6 +32,7 @@
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
