@@ -104,6 +104,28 @@ static struct pcn_type pcn_devs[] = {
 	{ 0, 0, NULL }
 };
 
+static struct pcn_chipid {
+	u_int32_t	id;
+	char *		name;
+} pcn_chipid[] = {
+	{ Am79C960,	"Am79C960" },
+	{ Am79C961,	"Am79C961" },
+	{ Am79C961A,	"Am79C961A" },
+	{ Am79C965,	"Am79C965" },
+	{ Am79C970,	"Am79C970" },
+	{ Am79C970A,	"Am79C970A" },
+	{ Am79C971,	"Am79C971" },
+	{ Am79C972,	"Am79C972" },
+	{ Am79C973,	"Am79C973" },
+	{ Am79C978,	"Am79C978" },
+	{ Am79C975,	"Am79C975" },
+	{ Am79C976,	"Am79C976" },
+	{ 0, NULL },
+};
+
+static char *    pcn_chipid_name(u_int32_t);
+static u_int32_t pcn_chip_id	(device_t);
+
 static u_int32_t pcn_csr_read	(struct pcn_softc *, int);
 static u_int16_t pcn_csr_read16	(struct pcn_softc *, int);
 static u_int16_t pcn_bcr_read16	(struct pcn_softc *, int);
@@ -373,6 +395,72 @@ pcn_reset(sc)
         return;
 }
 
+static char *
+pcn_chipid_name	(u_int32_t id)
+{
+	struct pcn_chipid *p = pcn_chipid;
+
+	while (p->name) {
+		if (id == p->id)
+			return (p->name);
+		p++;
+	}
+	return ("Unknown");
+}
+
+static u_int32_t
+pcn_chip_id (device_t dev)
+{
+	struct pcn_softc	*sc;
+	u_int32_t		chip_id;
+
+	sc = device_get_softc(dev);
+	/*
+	 * Note: we can *NOT* put the chip into
+	 * 32-bit mode yet. The lnc driver will only
+	 * work in 16-bit mode, and once the chip
+	 * goes into 32-bit mode, the only way to
+	 * get it out again is with a hardware reset.
+	 * So if pcn_probe() is called before the
+	 * lnc driver's probe routine, the chip will
+	 * be locked into 32-bit operation and the lnc
+	 * driver will be unable to attach to it.
+	 * Note II: if the chip happens to already
+	 * be in 32-bit mode, we still need to check
+	 * the chip ID, but first we have to detect
+	 * 32-bit mode using only 16-bit operations.
+	 * The safest way to do this is to read the
+	 * PCI subsystem ID from BCR23/24 and compare
+	 * that with the value read from PCI config
+	 * space.
+	 */
+	chip_id = pcn_bcr_read16(sc, PCN_BCR_PCISUBSYSID);
+	chip_id <<= 16;
+	chip_id |= pcn_bcr_read16(sc, PCN_BCR_PCISUBVENID);
+	/*
+	 * Note III: the test for 0x10001000 is a hack to
+	 * pacify VMware, who's pseudo-PCnet interface is
+	 * broken. Reading the subsystem register from PCI
+	 * config space yields 0x00000000 while reading the
+	 * same value from I/O space yields 0x10001000. It's
+	 * not supposed to be that way.
+	 */
+	if (chip_id == pci_read_config(dev,
+	    PCIR_SUBVEND_0, 4) || chip_id == 0x10001000) {
+		/* We're in 16-bit mode. */
+		chip_id = pcn_csr_read16(sc, PCN_CSR_CHIPID1);
+		chip_id <<= 16;
+		chip_id |= pcn_csr_read16(sc, PCN_CSR_CHIPID0);
+	} else {
+		/* We're in 32-bit mode. */
+		chip_id = pcn_csr_read(sc, PCN_CSR_CHIPID1);
+		chip_id <<= 16;
+		chip_id |= pcn_csr_read(sc, PCN_CSR_CHIPID0);
+	}
+
+	return (chip_id);
+}
+
 /*
  * Probe for an AMD chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
@@ -410,48 +498,7 @@ pcn_probe(dev)
 			    device_get_nameunit(dev), MTX_NETWORK_LOCK,
 			    MTX_DEF);
 			PCN_LOCK(sc);
-			/*
-			 * Note: we can *NOT* put the chip into
-			 * 32-bit mode yet. The lnc driver will only
-			 * work in 16-bit mode, and once the chip
-			 * goes into 32-bit mode, the only way to
-			 * get it out again is with a hardware reset.
-			 * So if pcn_probe() is called before the
-			 * lnc driver's probe routine, the chip will
-			 * be locked into 32-bit operation and the lnc
-			 * driver will be unable to attach to it.
-			 * Note II: if the chip happens to already
-			 * be in 32-bit mode, we still need to check
-			 * the chip ID, but first we have to detect
-			 * 32-bit mode using only 16-bit operations.
-			 * The safest way to do this is to read the
-			 * PCI subsystem ID from BCR23/24 and compare
-			 * that with the value read from PCI config
-			 * space.
-			 */
-			chip_id = pcn_bcr_read16(sc, PCN_BCR_PCISUBSYSID);
-			chip_id <<= 16;
-			chip_id |= pcn_bcr_read16(sc, PCN_BCR_PCISUBVENID);
-			/*
-			 * Note III: the test for 0x10001000 is a hack to
-			 * pacify VMware, who's pseudo-PCnet interface is
-			 * broken. Reading the subsystem register from PCI
-			 * config space yields 0x00000000 while reading the
-			 * same value from I/O space yields 0x10001000. It's
-			 * not supposed to be that way.
-			 */
-			if (chip_id == pci_read_config(dev,
-			    PCIR_SUBVEND_0, 4) || chip_id == 0x10001000) {
-				/* We're in 16-bit mode. */
-				chip_id = pcn_csr_read16(sc, PCN_CSR_CHIPID1);
-				chip_id <<= 16;
-				chip_id |= pcn_csr_read16(sc, PCN_CSR_CHIPID0);
-			} else {
-				/* We're in 32-bit mode. */
-				chip_id = pcn_csr_read(sc, PCN_CSR_CHIPID1);
-				chip_id <<= 16;
-				chip_id |= pcn_csr_read(sc, PCN_CSR_CHIPID0);
-			}
+			chip_id = pcn_chip_id(dev);
 			bus_release_resource(dev, PCN_RES,
 			    PCN_RID, sc->pcn_res);
 			PCN_UNLOCK(sc);
@@ -501,6 +548,11 @@ pcn_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
+
+	/* Retrieve the chip ID */
+	sc->pcn_type = (pcn_chip_id(dev) >> 12) & PART_MASK;
+	device_printf(dev, "Chip ID %04x (%s)\n",
+		sc->pcn_type, pcn_chipid_name(sc->pcn_type));
 
 	rid = PCN_RID;
 	sc->pcn_res = bus_alloc_resource_any(dev, PCN_RES, &rid, RF_ACTIVE);
