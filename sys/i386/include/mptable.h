@@ -2216,7 +2216,7 @@ smp_invltlb(void)
 {
 #if defined(APIC_IO)
 	if (smp_started && invltlb_ok)
-		smp_ipi_all_but_self(IPI_INVLTLB);
+		ipi_all_but_self(IPI_INVLTLB);
 #endif  /* APIC_IO */
 }
 
@@ -2490,7 +2490,7 @@ forward_statclock(int pscnt)
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
-		smp_ipi_selected(map, IPI_CHECKSTATE);
+		ipi_selected(map, IPI_CHECKSTATE);
 
 	i = 0;
 	while (checkstate_probed_cpus != map) {
@@ -2520,7 +2520,7 @@ forward_statclock(int pscnt)
 	}
 	if (map != 0) {
 		checkstate_need_ast |= map;
-		smp_ipi_selected(map, IPI_AST);
+		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -2566,7 +2566,7 @@ forward_hardclock(int pscnt)
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
-		smp_ipi_selected(map, IPI_CHECKSTATE);
+		ipi_selected(map, IPI_CHECKSTATE);
 	
 	i = 0;
 	while (checkstate_probed_cpus != map) {
@@ -2614,7 +2614,7 @@ forward_hardclock(int pscnt)
 	}
 	if (map != 0) {
 		checkstate_need_ast |= map;
-		smp_ipi_selected(map, IPI_AST);
+		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -2666,7 +2666,7 @@ forward_signal(struct proc *p)
 			return;
 		map = (1<<id);
 		checkstate_need_ast |= map;
-		smp_ipi_selected(map, IPI_AST);
+		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -2702,9 +2702,9 @@ forward_roundrobin(void)
 	resched_cpus |= PCPU_GET(other_cpus);
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 #if 1
-	smp_ipi_selected(map, IPI_AST);
+	ipi_selected(map, IPI_AST);
 #else
-	smp_ipi_all_but_self(IPI_AST);
+	ipi_all_but_self(IPI_AST);
 #endif
 	i = 0;
 	while ((checkstate_need_ast & map) != 0) {
@@ -2746,7 +2746,7 @@ stop_cpus(u_int map)
 		return 0;
 
 	/* send the Xcpustop IPI to all CPUs in map */
-	smp_ipi_selected(map, IPI_STOP);
+	ipi_selected(map, IPI_STOP);
 	
 	while (count++ < 100000 && (stopped_cpus & map) != map)
 		/* spin */ ;
@@ -2872,7 +2872,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	/*
 	 * signal other processors, which will enter the IPI with interrupts off
 	 */
-	smp_ipi_all_but_self(IPI_RENDEZVOUS);
+	ipi_all_but_self(IPI_RENDEZVOUS);
 
 	/* call executor function */
 	smp_rendezvous_action();
@@ -2885,7 +2885,7 @@ smp_rendezvous(void (* setup_func)(void *),
  * send an IPI to a set of cpus.
  */
 void
-smp_ipi_selected(u_int32_t cpus, u_int ipi)
+ipi_selected(u_int32_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, __func__ ": cpus: %x ipi: %x", cpus, ipi);
@@ -2896,7 +2896,7 @@ smp_ipi_selected(u_int32_t cpus, u_int ipi)
  * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
  */
 void
-smp_ipi_all(u_int ipi)
+ipi_all(u_int ipi)
 {
 
 	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
@@ -2907,7 +2907,7 @@ smp_ipi_all(u_int ipi)
  * send an IPI to all CPUs EXCEPT myself
  */
 void
-smp_ipi_all_but_self(u_int ipi)
+ipi_all_but_self(u_int ipi)
 {
 
 	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
@@ -2918,7 +2918,7 @@ smp_ipi_all_but_self(u_int ipi)
  * send an IPI to myself
  */
 void
-smp_ipi_self(u_int ipi)
+ipi_self(u_int ipi)
 {
 
 	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
