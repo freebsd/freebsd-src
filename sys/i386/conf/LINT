@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.404 1998/02/11 15:36:46 jkh Exp $
+#	$Id: LINT,v 1.405 1998/02/11 17:37:55 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1375,6 +1375,10 @@ options		BOOTP_COMPAT	# Workaround for broken bootp daemons.
 # An obsolete option to test kern_opt.c.
 #
 options		GATEWAY
+
+# If you want to disable loadable kernel modules (LKM), you
+# might want to use this option.
+options		NO_LKM
 
 # More undocumented options for linting.
 
