@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: uucplock.3,v 1.5 1997/04/02 05:52:22 mpp Exp $
+.\" $Id: uucplock.3,v 1.5.2.1 1997/05/11 08:52:08 davidn Exp $
 .\" "
 .Dd March 30, 1997
 .Os
@@ -37,10 +37,10 @@
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft int
-.Fn uu_lock "char *ttyname"
+.Fn uu_lock "const char *ttyname"
 .Ft int
-.Fn uu_unlock "char *ttyname"
-.Ft char *
+.Fn uu_unlock "const char *ttyname"
+.Ft const char *
 .Fn uu_lockerr "int uu_lockresult"
 .Pp
 Link with
