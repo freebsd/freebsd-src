@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- *	$Id: extern.h,v 1.5 1997/02/22 14:04:59 peter Exp $
+ *	$Id: extern.h,v 1.6 1997/04/29 05:26:04 jkh Exp $
  */
 
 struct kinfo;
@@ -75,9 +75,6 @@ void	 started __P((KINFO *, VARENT *));
 void	 state __P((KINFO *, VARENT *));
 void	 tdev __P((KINFO *, VARENT *));
 void	 tname __P((KINFO *, VARENT *));
-#ifndef NEWVM
-void	 trss __P((KINFO *, VARENT *));
-#endif
 void	 tsize __P((KINFO *, VARENT *));
 void	 ucomm __P((KINFO *, VARENT *));
 void	 uname __P((KINFO *, VARENT *));
