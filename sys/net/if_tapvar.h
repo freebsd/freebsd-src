@@ -44,8 +44,6 @@
 struct tap_softc {
 	struct arpcom	arpcom;			/* ethernet common data      */
 #define tap_if		arpcom.ac_if
-	struct resource	*tap_unit;		/* unit                      */
-
 	u_short		tap_flags;		/* misc flags                */
 #define	TAP_OPEN	(1 << 0)
 #define	TAP_INITED	(1 << 1)
