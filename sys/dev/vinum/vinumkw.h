@@ -36,10 +36,6 @@
  * $Id: vinumkw.h,v 1.12 1999/03/02 02:22:56 grog Exp grog $
  */
 
-#ifdef KERNEL
-#include "opt_vinum.h"
-#endif
-
 /*
  * Command keywords that vinum knows.  These include both user-level
  * and kernel-level stuff 
