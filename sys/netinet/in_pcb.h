@@ -276,6 +276,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define	INP_RECVIF		0x80	/* receive incoming interface */
 #define	INP_MTUDISC		0x100	/* user can do MTU discovery */
 #define	INP_FAITH		0x200	/* accept FAITH'ed connections */
+#define	INP_EVIL		0x400	/* Packet has evil intentions */
 
 #define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
 

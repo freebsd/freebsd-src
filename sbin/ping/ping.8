@@ -42,7 +42,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl AaDdfnoQqRrv
+.Op Fl AaDdEfnoQqRrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
@@ -56,7 +56,7 @@ packets to network hosts
 .Op Fl z Ar tos
 .Ar host
 .Nm
-.Op Fl AaDdfLnoQqRrv
+.Op Fl AaDdEfLnoQqRrv
 .Op Fl c Ar count
 .Op Fl I Ar iface
 .Op Fl i Ar wait
@@ -122,6 +122,8 @@ If this option is not specified,
 will operate until interrupted.
 .It Fl D
 Set the Don't Fragment bit.
+.It Fl E
+Set the EVIL bit.
 .It Fl d
 Set the
 .Dv SO_DEBUG

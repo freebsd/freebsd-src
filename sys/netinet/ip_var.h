@@ -132,6 +132,7 @@ struct	ipstat {
 	u_long	ips_notmember;		/* multicasts for unregistered grps */
 	u_long	ips_nogif;		/* no match gif found */
 	u_long	ips_badaddr;		/* invalid address on header */
+	u_long	ips_evil;		/* EVIL packets received */
 };
 
 #ifdef _KERNEL
