@@ -6,9 +6,10 @@ I4BETCPROG=	answer		\
 		tell		\
 		tell-record
 
-I4BETCFILE=	isdnd.rates.D	\
-		isdnd.rates.F	\
-		isdnd.rc.sample	\
+I4BETCFILE=	isdnd.rates.D		\
+		isdnd.rates.F		\
+		isdnd.rates.UK.BT	\
+		isdnd.rc.sample		\
 		isdntel.alias.sample
 
 install:
