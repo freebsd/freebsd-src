@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <fnmatch.h>
 #include <fts.h>
 #include <libutil.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,6 +89,8 @@ main(int argc, char *argv[])
 	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, hflag, ch, notused, rval;
 	char 		**save;
 	static char	dot[] = ".";
+
+	setlocale(LC_ALL, "");
 
 	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag = 0;
 
