@@ -52,9 +52,7 @@
 
 #include "debug.h"
 #include "rtld.h"
-#ifdef WITH_LIBMAP
 #include "libmap.h"
-#endif
 
 #define END_SYM		"_end"
 #define PATH_RTLD	"/libexec/ld-elf.so.1"
@@ -340,10 +338,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
     sym_zero.st_shndx = SHN_UNDEF;
 
-#ifdef WITH_LIBMAP
     if (!libmap_disable)
         libmap_disable = (bool)lm_init();
-#endif
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
@@ -824,10 +820,8 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	return xstrdup(xname);
     }
 
-#ifdef WITH_LIBMAP
     if (libmap_disable || (refobj == NULL) ||
 	(name = lm_find(refobj->path, xname)) == NULL)
-#endif
 	name = (char *)xname;
 
     dbg(" Searching for \"%s\"", name);
@@ -1464,10 +1458,8 @@ rtld_exit(void)
 	obj->refcount = 0;
     objlist_call_fini(&list_fini);
     /* No need to remove the items from the list, since we are exiting. */
-#ifdef WITH_LIBMAP
     if (!libmap_disable)
         lm_fini();
-#endif
 }
 
 static void *
