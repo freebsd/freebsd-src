@@ -14,7 +14,7 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id$
+ * $Id: if_spppsubr.c,v 1.12 1996/06/10 23:17:45 gpalmer Exp $
  */
 #undef DEBUG
 
@@ -1084,11 +1084,9 @@ sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
 		*(short*)data = ifp->if_mtu;
 		break;
 #endif
-#ifdef MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
-#endif
 	}
 	return (0);
 }
