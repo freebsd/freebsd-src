@@ -37,30 +37,33 @@ static int menu_width, tag_x, item_x;
  */
 int
 dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height,
-	    int item_no, void *it, unsigned char *result, int *ch, int *sc)
+	    int cnt, void *it, unsigned char *result, int *ch, int *sc)
 {
     int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-	l, k, scroll = 0, max_choice, redraw_menu = FALSE;
+	l, k, scroll = 0, max_choice, item_no, redraw_menu = FALSE;
     char okButton, cancelButton;
     WINDOW *dialog, *menu;
-    unsigned char **items;
+    unsigned char **items = NULL;
     dialogMenuItem *ditems;
     
+draw:
     if (ch)  /* restore menu item info */
 	choice = *ch;
     if (sc)
 	scroll = *sc;
     
     /* If item_no is a positive integer, use old item specification format */
-    if (item_no >= 0) {
+    if (cnt >= 0) {
 	items = it;
 	ditems = NULL;
+	item_no = cnt;
     }
     /* It's the new specification format - fake the rest of the code out */
     else {
-	item_no = abs(item_no);
+	item_no = abs(cnt);
 	ditems = it;
-	items = (unsigned char **)alloca((item_no * 2) * sizeof(unsigned char *));
+	if (!items)
+	    items = (unsigned char **)alloca((item_no * 2) * sizeof(unsigned char *));
 	
 	/* Initializes status */
 	for (i = 0; i < item_no; i++) {
@@ -99,7 +102,6 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     x = DialogX ? DialogX : (COLS - width)/2;
     y = DialogY ? DialogY : (LINES - height)/2;
     
-draw:
 #ifdef HAVE_NCURSES
     if (use_shadow)
 	draw_shadow(stdscr, y, x, height, width);
