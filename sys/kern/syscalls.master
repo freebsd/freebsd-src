@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.60 1999/08/04 20:04:25 jkh Exp $
+	$Id: syscalls.master,v 1.61 1999/08/05 08:18:45 jkh Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -6,7 +6,8 @@
 
 ; Columns: number type nargs namespc name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
-;	type	one of STD, OBSOL, UNIMPL, COMPAT
+;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
+;		NODEF, NOARGS, NOPROTO, NOIMPL
 ;	namespc one of POSIX, BSD, NOHIDE
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
