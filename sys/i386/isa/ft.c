@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.27.2.1 1996/11/28 21:57:17 phk Exp $
+ *  $Id: ft.c,v 1.27.2.2 1997/01/09 12:51:33 phk Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -82,9 +82,13 @@
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
+#ifdef PC98
+#include <pc98/pc98/fdreg.h>
+#else
 #include <i386/isa/fdreg.h>
-#include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
+#endif
+#include <i386/isa/fdc.h>
 #include <i386/isa/ftreg.h>
 
 extern int ftintr __P((ftu_t ftu));
@@ -1507,9 +1511,17 @@ tape_recal(ftu_t ftu, int totape)
 
   DPRT(("tape_recal start\n"));
 
+#ifdef PC98
+  outb(0xbe, FDP_FDDEXC | FDP_PORTEXC);
+#endif
   out_fdc(fdcu, NE7CMD_SPECIFY);
+#ifdef PC98
+  out_fdc(fdcu, (totape) ? 0xEF : 0xCF);
+  out_fdc(fdcu, 0x02);
+#else
   out_fdc(fdcu, (totape) ? 0xAD : 0xDF);
   out_fdc(fdcu, 0x02);
+#endif
 
   s = splbio();
   out_fdc(fdcu, NE7CMD_RECAL);
@@ -1523,8 +1535,13 @@ tape_recal(ftu_t ftu, int totape)
   splx(s);
 
   out_fdc(fdcu, NE7CMD_SPECIFY);
+#ifdef PC98
+  out_fdc(fdcu, (totape) ? 0xEF : 0xCF);
+  out_fdc(fdcu, 0x02);
+#else
   out_fdc(fdcu, (totape) ? 0xFD : 0xDF);
   out_fdc(fdcu, 0x02);
+#endif
 
   DPRT(("tape_recal end\n"));
   return(0);
@@ -1652,21 +1669,31 @@ tape_start(ftu_t ftu, int motor)
   ft_p	ft = ft_data[ftu];
   fdc_p	fdc = ft->fdc;
   int s, mbits;
+#ifndef PC98
   static int mbmotor[] = { FDO_MOEN0, FDO_MOEN1, FDO_MOEN2, FDO_MOEN3 };
+#endif
 
   s = splbio();
   DPRT(("tape_start start\n"));
 
   /* reset, dma disable */
+#ifdef PC98
+  outb(fdc->baseport+FDOUT, FDO_RST | FDO_FRY | FDO_AIE | FDO_MTON);
+#else
   outb(fdc->baseport+FDOUT, 0x00);
+#endif
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   /* raise reset, enable DMA, motor on if needed */
+#ifdef PC98
+  outb(fdc->baseport+FDOUT, FDO_DMAE | FDO_MTON);
+#else
   mbits = ftu & 3;
   if (motor && ftu < 4)
 	mbits |= mbmotor[ftu];
 
   outb(fdc->baseport+FDOUT, FDO_FRST | FDO_FDMAEN | mbits);
+#endif
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   splx(s);
@@ -1674,8 +1701,10 @@ tape_start(ftu_t ftu, int motor)
   tape_recal(ftu, 1);
 
   /* set transfer speed */
+#ifndef PC98
   outb(fdc->baseport+FDCTL, FDC_500KBPS);
   DELAY(10);
+#endif
 
   DPRT(("tape_start end\n"));
 }
@@ -1697,18 +1726,28 @@ tape_end(ftu_t ftu)
   s = splbio();
 
   /* reset, dma disable */
+#ifdef PC98
+  outb(fdc->baseport+FDOUT, FDO_RST | FDO_FRY | FDO_AIE | FDO_MTON);
+#else
   outb(fdc->baseport+FDOUT, 0x00);
+#endif
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   /* raise reset, enable DMA */
+#ifdef PC98
+  outb(fdc->baseport+FDOUT, FDO_DMAE | FDO_MTON);
+#else
   outb(fdc->baseport+FDOUT, FDO_FRST | FDO_FDMAEN);
+#endif
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   splx(s);
 
   /* set transfer speed */
+#ifndef PC98
   outb(fdc->baseport+FDCTL, FDC_500KBPS);
   DELAY(10);
+#endif
   fdc->flags &= ~FDC_TAPE_BUSY;
 
   DPRT(("tape_end end\n"));
