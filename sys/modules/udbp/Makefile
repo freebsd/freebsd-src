@@ -7,6 +7,6 @@ MAINTAINER=	n_hibma@freebsd.org
 KMOD=	udbp
 SRCS=	bus_if.h device_if.h \
 	opt_usb.h \
-	udbp.c
+	udbp.c usbdevs.h
 
 .include <bsd.kmod.mk>
