@@ -188,6 +188,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905C-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_TORNADO_10_100BT_920B,
 		"3Com 3c920B-EMB Integrated Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_TORNADO_10_100BT_920B_WNM,
+		"3Com 3c920B-EMB-WNM Integrated Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_TORNADO_10_100BT_SERV,
@@ -1172,6 +1174,7 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 	case TC_DEVICEID_HURRICANE_656B:	/* 3c656B */
 	case TC_DEVICEID_TORNADO_656C:		/* 3c656C */
 	case TC_DEVICEID_TORNADO_10_100BT_920B:	/* 3c920B-EMB */
+	case TC_DEVICEID_TORNADO_10_100BT_920B_WNM:	/* 3c920B-EMB-WNM */
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
@@ -1269,7 +1272,8 @@ xl_attach(device_t dev)
 	    did == TC_DEVICEID_HURRICANE_656B)
 		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR |
 		    XL_FLAG_INVERT_LED_PWR;
-	if (did == TC_DEVICEID_TORNADO_10_100BT_920B)
+	if (did == TC_DEVICEID_TORNADO_10_100BT_920B ||
+	    did == TC_DEVICEID_TORNADO_10_100BT_920B_WNM)
 		sc->xl_flags |= XL_FLAG_PHYOK;
 
 	switch (did) {
