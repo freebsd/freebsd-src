@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.31 1998/03/14 21:14:31 ache Exp $
+ * $Id: disk.c,v 1.32 1998/03/20 23:43:04 jkh Exp $
  *
  */
 
@@ -372,9 +372,11 @@ slice_type_name( int type, int subtype )
 					case 12:        return "fat (32-bit,LBA)";
 					case 14:        return "fat (16-bit,>32Mb,LBA)";
 					case 15:        return "extended DOS, LBA";
+					case 18:        return "Compaq Diagnostic";
 					case 84:	return "OnTrack diskmgr";
 					case 100:	return "Netware 2.x";
 					case 101:	return "Netware 3.x";
+					case 115:	return "SCO UnixWare";
 					case 128:	return "Minix 1.1";
 					case 129:	return "Minix 1.5";
 					case 130:	return "linux_swap";
