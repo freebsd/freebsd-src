@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.5 1995/09/27 00:46:24 jmz Exp $ -->
+<!-- $Id: porting.sgml,v 1.6 1995/10/03 07:11:51 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Porting applications<label id="porting"></heading>
@@ -120,23 +120,23 @@
 	<p>The minimal <tt>Makefile</tt> would look something like this:
 
 <tscreen><verb>
-# New ports collection makefile for:	oneko
-# Version required:	1.1b
-# Date created:		5 December 1994
-# Whom:			asami
-#
-# $Id: porting.sgml,v 1.5 1995/09/27 00:46:24 jmz Exp $
-#
-
-DISTNAME=	oneko-1.1b
-CATEGORIES+=	games
-MASTER_SITES=	ftp://ftp.cs.columbia.edu/archives/X11R5/contrib/
-
-MAINTAINER=	asami@FreeBSD.ORG
-
-USE_IMAKE=	yes
-
-.include <bsd.port.mk>
+ # New ports collection makefile for:	oneko
+ # Version required:	1.1b
+ # Date created:		5 December 1994
+ # Whom:			asami
+ #
+ # $Id: porting.sgml,v 1.6 1995/10/03 07:11:51 asami Exp $
+ #
+ 
+ DISTNAME=	oneko-1.1b
+ CATEGORIES+=	games
+ MASTER_SITES=	ftp://ftp.cs.columbia.edu/archives/X11R5/contrib/
+ 
+ MAINTAINER=	asami@FreeBSD.ORG
+ 
+ USE_IMAKE=	yes
+ 
+ .include <bsd.port.mk>
 </verb></tscreen>
 
       <p>See if you can figure it out.  Don't worry about the contents
@@ -725,11 +725,11 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  user can set in <tt>/etc/make.conf</tt> to disable man page
 	  compression.  Here's an example:
 <tscreen><verb>
-post-install:
-	strip ${PREFIX}/bin/xdl
-.if !defined(NOMANCOMPRESS)
-	gzip -9nf ${PREFIX}/man/man1/xdl.1
-.endif
+ post-install:
+	 strip ${PREFIX}/bin/xdl
+ .if !defined(NOMANCOMPRESS)
+	 gzip -9nf ${PREFIX}/man/man1/xdl.1
+ .endif
 </verb></tscreen>
 
 	<p>Use the <tt>file</tt> command on the installed executable
@@ -874,75 +874,75 @@ lib/libtcl.so.7.3
 	important information is easy to locate.
 
 <tscreen><verb>
-[the header...just to make it easier for us to identify the ports]
-# New ports collection makefile for:	xdvi
-# Version required:	2.2 [things like "1.5alpha" are fine here too]
-# Date created:		26 May 1995
-[this is the person who did the original port to FreeBSD, in particular, the
- person who wrote this Makefile]
-# Whom:			Satoshi Asami <asami@FreeBSD.ORG>
-#
-# $Id: porting.sgml,v 1.5 1995/09/27 00:46:24 jmz Exp $
-[ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
- it is committed to our repository]
-#
-
-[section to describe the package itself and main ftp site - DISTNAME
- is always first, followed by PKGNAME (if necessary), CATEGORIES,
- KEYWORDs (if necessary) and then MASTER_SITES, and optionally
- EXTRACT_SUFX or DISTFILES]
-DISTNAME=	xdvi
-PKGNAME=	xdvi-pl18
-CATEGORIES+=	printing
-[don't forget the trailing slash ("/")!]
-MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
-[set this if the source is not in the standard ".tar.gz" form]
-EXTRACT_SUFX=	.tar.Z
-
-[section for distributed patches -- can be empty]
-PATCH_SITES=	ftp://ftp.sra.co.jp/pub/X11/japanese/
-PATCHFILES=	xdvi-18.patch1.gz xdvi-18.patch2.gz
-
-[maintainer; *mandatory*!  This is the person (preferably with commit
- privileges) who a user can contact for questions and bug reports - this
- person should be the porter or someone who can forward questions to the
- original porter reasonably promptly.  If you really don't want to have your
- address here, set it to "ports@FreeBSD.ORG".]
-MAINTAINER=	asami@FreeBSD.ORG
-
-[dependencies -- can be empty]
-RUN_DEPENDS=	gs:${PORTSDIR}/print/ghostscript
-LIB_DEPENDS=	Xpm\\.4\\.:${PORTSDIR}/graphics/xpm
-
-[this section is for other standard bsd.port.mk variables that don't belong to
- any of the above]
-[If it extracts to a directory other than ${DISTNAME}...]
-WRKSRC=		${WRKDIR}/xdvi-new
-[If it asks questions during configure, build, install...]
-IS_INTERACTIVE=	yes
-[If it requires "configure" in the distributed source directory to be run...]
-HAS_CONFIGURE=	yes
-[If it requires GNU make, not /usr/bin/make, to build...]
-USE_GMAKE=	yes
-[If it is an X application and requires "xmkmf -a" to be run...]
-USE_IMAKE=	yes
-[et cetera.]
-
-[non-standard variables to be used in the rules below]
-MY_FAVORITE_RESPONSE=	"yeah, right"
-
-[then the special rules, in the order they are called]
-pre-fetch:
-	i go fetch something, yeah
-
-post-patch:
-	i need to do something after patch, great
-
-pre-install:
-	and then some more stuff before installing, wow
-
-[and then the epilogue]
-.include <bsd.port.mk>
+ [the header...just to make it easier for us to identify the ports]
+ # New ports collection makefile for:	xdvi
+ # Version required:	2.2 [things like "1.5alpha" are fine here too]
+ # Date created:		26 May 1995
+ [this is the person who did the original port to FreeBSD, in particular, the
+  person who wrote this Makefile]
+ # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
+ #
+ # $Id: porting.sgml,v 1.6 1995/10/03 07:11:51 asami Exp $
+ [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
+  it is committed to our repository]
+ #
+ 
+ [section to describe the package itself and main ftp site - DISTNAME
+  is always first, followed by PKGNAME (if necessary), CATEGORIES,
+  KEYWORDs (if necessary) and then MASTER_SITES, and optionally
+  EXTRACT_SUFX or DISTFILES]
+ DISTNAME=	xdvi
+ PKGNAME=	xdvi-pl18
+ CATEGORIES+=	printing
+ [don't forget the trailing slash ("/")!]
+ MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
+ [set this if the source is not in the standard ".tar.gz" form]
+ EXTRACT_SUFX=	.tar.Z
+ 
+ [section for distributed patches -- can be empty]
+ PATCH_SITES=	ftp://ftp.sra.co.jp/pub/X11/japanese/
+ PATCHFILES=	xdvi-18.patch1.gz xdvi-18.patch2.gz
+ 
+ [maintainer; *mandatory*!  This is the person (preferably with commit
+  privileges) who a user can contact for questions and bug reports - this
+  person should be the porter or someone who can forward questions to the
+  original porter reasonably promptly.  If you really don't want to have your
+  address here, set it to "ports@FreeBSD.ORG".]
+ MAINTAINER=	asami@FreeBSD.ORG
+ 
+ [dependencies -- can be empty]
+ RUN_DEPENDS=	gs:${PORTSDIR}/print/ghostscript
+ LIB_DEPENDS=	Xpm\\.4\\.:${PORTSDIR}/graphics/xpm
+ 
+ [this section is for other standard bsd.port.mk variables that don't belong to
+  any of the above]
+ [If it extracts to a directory other than ${DISTNAME}...]
+ WRKSRC=		${WRKDIR}/xdvi-new
+ [If it asks questions during configure, build, install...]
+ IS_INTERACTIVE=	yes
+ [If it requires "configure" in the distributed source directory to be run...]
+ HAS_CONFIGURE=	yes
+ [If it requires GNU make, not /usr/bin/make, to build...]
+ USE_GMAKE=	yes
+ [If it is an X application and requires "xmkmf -a" to be run...]
+ USE_IMAKE=	yes
+ [et cetera.]
+ 
+ [non-standard variables to be used in the rules below]
+ MY_FAVORITE_RESPONSE=	"yeah, right"
+ 
+ [then the special rules, in the order they are called]
+ pre-fetch:
+	 i go fetch something, yeah
+ 
+ post-patch:
+	 i need to do something after patch, great
+ 
+ pre-install:
+	 and then some more stuff before installing, wow
+ 
+ [and then the epilogue]
+ .include <bsd.port.mk>
 </verb></tscreen>
 
     <sect1>

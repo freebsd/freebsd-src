@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.4 1995/09/05 21:07:15 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.5 1995/09/27 00:46:28 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -15,7 +15,7 @@
 -->
     <sect><heading>SCSI<label id="scsi"></heading>
 
-      <p><em>&copy; 1995, &a.wilko;.<newline>3 September 1995.</em>
+      <p><em>Copyright &copy; 1995, &a.wilko;.<newline>3 September 1995.</em>
 
         SCSI is an acronym for Small Computer Systems Interface.  It is an
         ANSI standard that has become one of the leading I/O buses in the
@@ -163,7 +163,7 @@
             0 Volts (indeed, TTL levels) and are relative to a COMMON
             ground reference. A singled ended 8 bit SCSI bus has
             approximately 25 ground lines, who are all tied to a single
-            'rail' on all devices. A standard single ended bus has a
+            `rail' on all devices. A standard single ended bus has a
             maximum length of 6 meters. If the same bus is used with
             fast-SCSI devices, the maximum length allowed drops to 3
             meters. Fast-SCSI means that instead of 5Mbytes/sec the bus
