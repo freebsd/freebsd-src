@@ -1,5 +1,3 @@
-/*	$OpenBSD: deattack.c,v 1.13 2001/03/01 02:45:10 deraadt Exp $	*/
-
 /*
  * Cryptographic attack detector for ssh - source code
  *
@@ -20,11 +18,14 @@
  */
 
 #include "includes.h"
+RCSID("$OpenBSD: deattack.c,v 1.18 2002/03/04 17:27:39 stevesk Exp $");
+
 #include "deattack.h"
 #include "log.h"
 #include "crc32.h"
 #include "getput.h"
 #include "xmalloc.h"
+#include "deattack.h"
 
 /* SSH Constants */
 #define SSH_MAXBLOCKS	(32 * 1024)
@@ -36,7 +37,7 @@
 #define HASH_FACTOR(x)	((x)*3/2)
 #define HASH_UNUSEDCHAR	(0xff)
 #define HASH_UNUSED	(0xffff)
-#define HASH_IV     	(0xfffe)
+#define HASH_IV		(0xfffe)
 
 #define HASH_MINBLOCKS	(7*SSH_BLOCKSIZE)
 
@@ -46,8 +47,7 @@
 
 #define CMP(a, b)	(memcmp(a, b, SSH_BLOCKSIZE))
 
-
-void
+static void
 crc_update(u_int32_t *a, u_int32_t b)
 {
 	b ^= *a;
@@ -55,7 +55,7 @@ crc_update(u_int32_t *a, u_int32_t b)
 }
 
 /* detect if a block is used in a particular pattern */
-int
+static int
 check_crc(u_char *S, u_char *buf, u_int32_t len,
 	  u_char *IV)
 {
@@ -86,9 +86,9 @@ detect_attack(u_char *buf, u_int32_t len, u_char *IV)
 {
 	static u_int16_t *h = (u_int16_t *) NULL;
 	static u_int32_t n = HASH_MINSIZE / HASH_ENTRYSIZE;
-	register u_int32_t i, j;
+	u_int32_t i, j;
 	u_int32_t l;
-	register u_char *c;
+	u_char *c;
 	u_char *d;
 
 	if (len > (SSH_MAXBLOCKS * SSH_BLOCKSIZE) ||
@@ -135,7 +135,7 @@ detect_attack(u_char *buf, u_int32_t len, u_char *IV)
 
 	for (c = buf, j = 0; c < (buf + len); c += SSH_BLOCKSIZE, j++) {
 		for (i = HASH(c) & (n - 1); h[i] != HASH_UNUSED;
-		     i = (i + 1) & (n - 1)) {
+		    i = (i + 1) & (n - 1)) {
 			if (h[i] == HASH_IV) {
 				if (!CMP(c, IV)) {
 					if (check_crc(c, buf, len, IV))

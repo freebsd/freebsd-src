@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: mac.c,v 1.2 2001/04/05 10:42:51 markus Exp $");
+RCSID("$OpenBSD: mac.c,v 1.4 2002/01/25 22:07:40 markus Exp $");
 
 #include <openssl/hmac.h>
 
@@ -56,7 +56,7 @@ mac_init(Mac *mac, char *name)
 		if (strcmp(name, macs[i].name) == 0) {
 			if (mac != NULL) {
 				mac->md = (*macs[i].mdfunc)();
-				mac->key_len = mac->mac_len = mac->md->md_size;
+				mac->key_len = mac->mac_len = EVP_MD_size(mac->md);
 				if (macs[i].truncatebits != 0)
 					mac->mac_len = macs[i].truncatebits/8;
 			}
@@ -99,7 +99,7 @@ mac_valid(const char *names)
 		return (0);
 	maclist = cp = xstrdup(names);
 	for ((p = strsep(&cp, MAC_SEP)); p && *p != '\0';
-	     (p = strsep(&cp, MAC_SEP))) {
+	    (p = strsep(&cp, MAC_SEP))) {
 		if (mac_init(NULL, p) < 0) {
 			debug("bad mac %s [%s]", p, names);
 			xfree(maclist);

@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readconf.c,v 1.76 2001/04/17 10:53:25 markus Exp $");
+RCSID("$OpenBSD: readconf.c,v 1.95 2002/02/04 12:15:25 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -96,11 +96,14 @@ typedef enum {
 	oForwardAgent, oForwardX11, oGatewayPorts, oRhostsAuthentication,
 	oPasswordAuthentication, oRSAAuthentication, oFallBackToRsh, oUseRsh,
 	oChallengeResponseAuthentication, oXAuthLocation,
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 	oKerberosAuthentication,
-#endif /* KRB4 */
+#endif
+#if defined(AFS) || defined(KRB5)
+	oKerberosTgtPassing,
+#endif
 #ifdef AFS
-	oKerberosTgtPassing, oAFSTokenPassing,
+	oAFSTokenPassing,
 #endif
 	oIdentityFile, oHostName, oPort, oCipher, oRemoteForward, oLocalForward,
 	oUser, oHost, oEscapeChar, oRhostsRSAAuthentication, oProxyCommand,
@@ -111,7 +114,8 @@ typedef enum {
 	oGlobalKnownHostsFile2, oUserKnownHostsFile2, oPubkeyAuthentication,
 	oKbdInteractiveAuthentication, oKbdInteractiveDevices, oHostKeyAlias,
 	oDynamicForward, oPreferredAuthentications, oHostbasedAuthentication,
-	oHostKeyAlgorithms
+	oHostKeyAlgorithms, oBindAddress, oSmartcardDevice,
+	oClearAllForwardings, oNoHostAuthenticationForLocalhost
 } OpCodes;
 
 /* Textual representations of the tokens. */
@@ -137,11 +141,13 @@ static struct {
 	{ "challengeresponseauthentication", oChallengeResponseAuthentication },
 	{ "skeyauthentication", oChallengeResponseAuthentication }, /* alias */
 	{ "tisauthentication", oChallengeResponseAuthentication },  /* alias */
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 	{ "kerberosauthentication", oKerberosAuthentication },
-#endif /* KRB4 */
-#ifdef AFS
+#endif
+#if defined(AFS) || defined(KRB5)
 	{ "kerberostgtpassing", oKerberosTgtPassing },
+#endif
+#ifdef AFS
 	{ "afstokenpassing", oAFSTokenPassing },
 #endif
 	{ "fallbacktorsh", oFallBackToRsh },
@@ -162,9 +168,9 @@ static struct {
 	{ "host", oHost },
 	{ "escapechar", oEscapeChar },
 	{ "globalknownhostsfile", oGlobalKnownHostsFile },
-	{ "userknownhostsfile", oUserKnownHostsFile },
+	{ "userknownhostsfile", oUserKnownHostsFile },		/* obsolete */
 	{ "globalknownhostsfile2", oGlobalKnownHostsFile2 },
-	{ "userknownhostsfile2", oUserKnownHostsFile2 },
+	{ "userknownhostsfile2", oUserKnownHostsFile2 },	/* obsolete */
 	{ "connectionattempts", oConnectionAttempts },
 	{ "batchmode", oBatchMode },
 	{ "checkhostip", oCheckHostIP },
@@ -177,7 +183,11 @@ static struct {
 	{ "dynamicforward", oDynamicForward },
 	{ "preferredauthentications", oPreferredAuthentications },
 	{ "hostkeyalgorithms", oHostKeyAlgorithms },
-	{ NULL, 0 }
+	{ "bindaddress", oBindAddress },
+	{ "smartcarddevice", oSmartcardDevice },
+	{ "clearallforwardings", oClearAllForwardings },
+	{ "nohostauthenticationforlocalhost", oNoHostAuthenticationForLocalhost },
+	{ NULL, oBadOption }
 };
 
 /*
@@ -213,11 +223,24 @@ add_remote_forward(Options *options, u_short port, const char *host,
 	Forward *fwd;
 	if (options->num_remote_forwards >= SSH_MAX_FORWARDS_PER_DIRECTION)
 		fatal("Too many remote forwards (max %d).",
-		      SSH_MAX_FORWARDS_PER_DIRECTION);
+		    SSH_MAX_FORWARDS_PER_DIRECTION);
 	fwd = &options->remote_forwards[options->num_remote_forwards++];
 	fwd->port = port;
 	fwd->host = xstrdup(host);
 	fwd->host_port = host_port;
+}
+
+static void
+clear_forwardings(Options *options)
+{
+	int i;
+
+	for (i = 0; i < options->num_local_forwards; i++)
+		xfree(options->local_forwards[i].host);
+	options->num_local_forwards = 0;
+	for (i = 0; i < options->num_remote_forwards; i++)
+		xfree(options->remote_forwards[i].host);
+	options->num_remote_forwards = 0;
 }
 
 /*
@@ -251,6 +274,7 @@ process_config_line(Options *options, const char *host,
 	char buf[256], *s, *string, **charptr, *endofnumber, *keyword, *arg;
 	int opcode, *intptr, value;
 	u_short fwd_port, fwd_host_port;
+	char sfwd_host_port[6];
 
 	s = line;
 	/* Get the keyword. (Each line is supposed to begin with a keyword). */
@@ -330,25 +354,23 @@ parse_flag:
 		goto parse_flag;
 
 	case oChallengeResponseAuthentication:
-		intptr = &options->challenge_reponse_authentication;
+		intptr = &options->challenge_response_authentication;
 		goto parse_flag;
-
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 	case oKerberosAuthentication:
 		intptr = &options->kerberos_authentication;
 		goto parse_flag;
-#endif /* KRB4 */
-
-#ifdef AFS
+#endif
+#if defined(AFS) || defined(KRB5)
 	case oKerberosTgtPassing:
 		intptr = &options->kerberos_tgt_passing;
 		goto parse_flag;
-
+#endif
+#ifdef AFS
 	case oAFSTokenPassing:
 		intptr = &options->afs_token_passing;
 		goto parse_flag;
 #endif
-
 	case oFallBackToRsh:
 		intptr = &options->fallback_to_rsh;
 		goto parse_flag;
@@ -370,7 +392,7 @@ parse_flag:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing yes/no/ask argument.",
-			      filename, linenum);
+			    filename, linenum);
 		value = 0;	/* To avoid compiler warning... */
 		if (strcmp(arg, "yes") == 0 || strcmp(arg, "true") == 0)
 			value = 1;
@@ -392,6 +414,10 @@ parse_flag:
 		intptr = &options->keepalives;
 		goto parse_flag;
 
+	case oNoHostAuthenticationForLocalhost:
+		intptr = &options->no_host_authentication_for_localhost;
+		goto parse_flag;
+
 	case oNumberOfPasswordPrompts:
 		intptr = &options->number_of_password_prompts;
 		goto parse_int;
@@ -408,7 +434,7 @@ parse_flag:
 			intptr = &options->num_identity_files;
 			if (*intptr >= SSH_MAX_IDENTITY_FILES)
 				fatal("%.200s line %d: Too many identity files specified (max %d).",
-				      filename, linenum, SSH_MAX_IDENTITY_FILES);
+				    filename, linenum, SSH_MAX_IDENTITY_FILES);
 			charptr =  &options->identity_files[*intptr];
 			*charptr = xstrdup(arg);
 			*intptr = *intptr + 1;
@@ -457,6 +483,14 @@ parse_string:
 		charptr = &options->preferred_authentications;
 		goto parse_string;
 
+	case oBindAddress:
+		charptr = &options->bind_address;
+		goto parse_string;
+
+	case oSmartcardDevice:
+		charptr = &options->smartcard_device;
+		goto parse_string;
+
 	case oProxyCommand:
 		charptr = &options->proxy_command;
 		string = xstrdup("");
@@ -500,7 +534,7 @@ parse_int:
 		value = cipher_number(arg);
 		if (value == -1)
 			fatal("%.200s line %d: Bad cipher '%s'.",
-			      filename, linenum, arg ? arg : "<NONE>");
+			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && *intptr == -1)
 			*intptr = value;
 		break;
@@ -511,7 +545,7 @@ parse_int:
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
 		if (!ciphers_valid(arg))
 			fatal("%.200s line %d: Bad SSH2 cipher spec '%s'.",
-			      filename, linenum, arg ? arg : "<NONE>");
+			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && options->ciphers == NULL)
 			options->ciphers = xstrdup(arg);
 		break;
@@ -522,7 +556,7 @@ parse_int:
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
 		if (!mac_valid(arg))
 			fatal("%.200s line %d: Bad SSH2 Mac spec '%s'.",
-			      filename, linenum, arg ? arg : "<NONE>");
+			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && options->macs == NULL)
 			options->macs = xstrdup(arg);
 		break;
@@ -533,7 +567,7 @@ parse_int:
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
 		if (!key_names_valid2(arg))
 			fatal("%.200s line %d: Bad protocol 2 host key algorithms '%s'.",
-			      filename, linenum, arg ? arg : "<NONE>");
+			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && options->hostkeyalgorithms == NULL)
 			options->hostkeyalgorithms = xstrdup(arg);
 		break;
@@ -546,7 +580,7 @@ parse_int:
 		value = proto_spec(arg);
 		if (value == SSH_PROTO_UNKNOWN)
 			fatal("%.200s line %d: Bad protocol spec '%s'.",
-			      filename, linenum, arg ? arg : "<NONE>");
+			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && *intptr == SSH_PROTO_UNKNOWN)
 			*intptr = value;
 		break;
@@ -555,49 +589,41 @@ parse_int:
 		intptr = (int *) &options->log_level;
 		arg = strdelim(&s);
 		value = log_level_number(arg);
-		if (value == (LogLevel) - 1)
+		if (value == SYSLOG_LEVEL_NOT_SET)
 			fatal("%.200s line %d: unsupported log level '%s'",
-			      filename, linenum, arg ? arg : "<NONE>");
-		if (*activep && (LogLevel) * intptr == -1)
+			    filename, linenum, arg ? arg : "<NONE>");
+		if (*activep && (LogLevel) *intptr == SYSLOG_LEVEL_NOT_SET)
 			*intptr = (LogLevel) value;
 		break;
 
+	case oLocalForward:
 	case oRemoteForward:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
-			fatal("%.200s line %d: Missing argument.", filename, linenum);
-		fwd_port = a2port(arg);
-		if (fwd_port == 0)
-			fatal("%.200s line %d: Badly formatted port number.",
-			      filename, linenum);
+			fatal("%.200s line %d: Missing port argument.",
+			    filename, linenum);
+		if ((fwd_port = a2port(arg)) == 0)
+			fatal("%.200s line %d: Bad listen port.",
+			    filename, linenum);
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing second argument.",
-			      filename, linenum);
-		if (sscanf(arg, "%255[^:]:%hu", buf, &fwd_host_port) != 2)
-			fatal("%.200s line %d: Badly formatted host:port.",
-			      filename, linenum);
-		if (*activep)
-			add_remote_forward(options, fwd_port, buf, fwd_host_port);
-		break;
-
-	case oLocalForward:
-		arg = strdelim(&s);
-		if (!arg || *arg == '\0')
-			fatal("%.200s line %d: Missing argument.", filename, linenum);
-		fwd_port = a2port(arg);
-		if (fwd_port == 0)
-			fatal("%.200s line %d: Badly formatted port number.",
-			      filename, linenum);
-		arg = strdelim(&s);
-		if (!arg || *arg == '\0')
-			fatal("%.200s line %d: Missing second argument.",
-			      filename, linenum);
-		if (sscanf(arg, "%255[^:]:%hu", buf, &fwd_host_port) != 2)
-			fatal("%.200s line %d: Badly formatted host:port.",
-			      filename, linenum);
-		if (*activep)
-			add_local_forward(options, fwd_port, buf, fwd_host_port);
+			    filename, linenum);
+		if (sscanf(arg, "%255[^:]:%5[0-9]", buf, sfwd_host_port) != 2 &&
+		    sscanf(arg, "%255[^/]/%5[0-9]", buf, sfwd_host_port) != 2)
+			fatal("%.200s line %d: Bad forwarding specification.",
+			    filename, linenum);
+		if ((fwd_host_port = a2port(sfwd_host_port)) == 0)
+			fatal("%.200s line %d: Bad forwarding port.",
+			    filename, linenum);
+		if (*activep) {
+			if (opcode == oLocalForward)
+				add_local_forward(options, fwd_port, buf,
+				    fwd_host_port);
+			else if (opcode == oRemoteForward)
+				add_remote_forward(options, fwd_port, buf,
+				    fwd_host_port);
+		}
 		break;
 
 	case oDynamicForward:
@@ -609,8 +635,13 @@ parse_int:
 		if (fwd_port == 0)
 			fatal("%.200s line %d: Badly formatted port number.",
 			    filename, linenum);
-		add_local_forward(options, fwd_port, "socks4", 0);
+		if (*activep)
+			add_local_forward(options, fwd_port, "socks4", 0);
 		break;
+
+	case oClearAllForwardings:
+		intptr = &options->clear_forwardings;
+		goto parse_flag;
 
 	case oHost:
 		*activep = 0;
@@ -634,10 +665,10 @@ parse_int:
 		else if (strlen(arg) == 1)
 			value = (u_char) arg[0];
 		else if (strcmp(arg, "none") == 0)
-			value = -2;
+			value = SSH_ESCAPECHAR_NONE;
 		else {
 			fatal("%.200s line %d: Bad escape character.",
-			      filename, linenum);
+			    filename, linenum);
 			/* NOTREACHED */
 			value = 0;	/* Avoid compiler warning. */
 		}
@@ -652,7 +683,7 @@ parse_int:
 	/* Check that there is no garbage at end of line. */
 	if ((arg = strdelim(&s)) != NULL && *arg != '\0') {
 		fatal("%.200s line %d: garbage at end of line; \"%.200s\".",
-		      filename, linenum, arg);
+		     filename, linenum, arg);
 	}
 	return 0;
 }
@@ -661,10 +692,10 @@ parse_int:
 /*
  * Reads the config file and modifies the options accordingly.  Options
  * should already be initialized before this call.  This never returns if
- * there is an error.  If the file does not exist, this returns immediately.
+ * there is an error.  If the file does not exist, this returns 0.
  */
 
-void
+int
 read_config_file(const char *filename, const char *host, Options *options)
 {
 	FILE *f;
@@ -675,7 +706,7 @@ read_config_file(const char *filename, const char *host, Options *options)
 	/* Open the file. */
 	f = fopen(filename, "r");
 	if (!f)
-		return;
+		return 0;
 
 	debug("Reading configuration data %.200s", filename);
 
@@ -694,7 +725,8 @@ read_config_file(const char *filename, const char *host, Options *options)
 	fclose(f);
 	if (bad_options > 0)
 		fatal("%s: terminating, %d bad configuration options",
-		      filename, bad_options);
+		    filename, bad_options);
+	return 1;
 }
 
 /*
@@ -716,12 +748,14 @@ initialize_options(Options * options)
 	options->rhosts_authentication = -1;
 	options->rsa_authentication = -1;
 	options->pubkey_authentication = -1;
-	options->challenge_reponse_authentication = -1;
-#ifdef KRB4
+	options->challenge_response_authentication = -1;
+#if defined(KRB4) || defined(KRB5)
 	options->kerberos_authentication = -1;
 #endif
-#ifdef AFS
+#if defined(AFS) || defined(KRB5)
 	options->kerberos_tgt_passing = -1;
+#endif
+#ifdef AFS
 	options->afs_token_passing = -1;
 #endif
 	options->password_authentication = -1;
@@ -757,8 +791,12 @@ initialize_options(Options * options)
 	options->user_hostfile2 = NULL;
 	options->num_local_forwards = 0;
 	options->num_remote_forwards = 0;
-	options->log_level = (LogLevel) - 1;
+	options->clear_forwardings = -1;
+	options->log_level = SYSLOG_LEVEL_NOT_SET;
 	options->preferred_authentications = NULL;
+	options->bind_address = NULL;
+	options->smartcard_device = NULL;
+	options->no_host_authentication_for_localhost = - 1;
 }
 
 /*
@@ -775,10 +813,8 @@ fill_default_options(Options * options)
 		options->forward_agent = 0;
 	if (options->forward_x11 == -1)
 		options->forward_x11 = 0;
-#ifdef XAUTH_PATH
 	if (options->xauth_location == NULL)
-		options->xauth_location = XAUTH_PATH;
-#endif /* XAUTH_PATH */
+		options->xauth_location = _PATH_XAUTH;
 	if (options->gateway_ports == -1)
 		options->gateway_ports = 0;
 	if (options->use_privileged_port == -1)
@@ -789,18 +825,20 @@ fill_default_options(Options * options)
 		options->rsa_authentication = 1;
 	if (options->pubkey_authentication == -1)
 		options->pubkey_authentication = 1;
-	if (options->challenge_reponse_authentication == -1)
-		options->challenge_reponse_authentication = 0;
-#ifdef KRB4
+	if (options->challenge_response_authentication == -1)
+		options->challenge_response_authentication = 1;
+#if defined(KRB4) || defined(KRB5)
 	if (options->kerberos_authentication == -1)
 		options->kerberos_authentication = 1;
-#endif /* KRB4 */
-#ifdef AFS
+#endif
+#if defined(AFS) || defined(KRB5)
 	if (options->kerberos_tgt_passing == -1)
 		options->kerberos_tgt_passing = 1;
+#endif
+#ifdef AFS
 	if (options->afs_token_passing == -1)
 		options->afs_token_passing = 1;
-#endif /* AFS */
+#endif
 	if (options->password_authentication == -1)
 		options->password_authentication = 1;
 	if (options->kbd_interactive_authentication == -1)
@@ -828,7 +866,7 @@ fill_default_options(Options * options)
 	if (options->port == -1)
 		options->port = 0;	/* Filled in ssh_connect. */
 	if (options->connection_attempts == -1)
-		options->connection_attempts = 4;
+		options->connection_attempts = 1;
 	if (options->number_of_password_prompts == -1)
 		options->number_of_password_prompts = 3;
 	/* Selected in ssh_login(). */
@@ -871,8 +909,12 @@ fill_default_options(Options * options)
 		options->system_hostfile2 = _PATH_SSH_SYSTEM_HOSTFILE2;
 	if (options->user_hostfile2 == NULL)
 		options->user_hostfile2 = _PATH_SSH_USER_HOSTFILE2;
-	if (options->log_level == (LogLevel) - 1)
+	if (options->log_level == SYSLOG_LEVEL_NOT_SET)
 		options->log_level = SYSLOG_LEVEL_INFO;
+	if (options->clear_forwardings == 1)
+		clear_forwardings(options);
+	if (options->no_host_authentication_for_localhost == - 1)
+		options->no_host_authentication_for_localhost = 0;
 	/* options->proxy_command should not be set by default */
 	/* options->user will be set in the main program if appropriate */
 	/* options->hostname will be set in the main program if appropriate */

@@ -1,4 +1,4 @@
-/*	$OpenBSD: log.h,v 1.2 2001/01/29 01:58:16 niklas Exp $	*/
+/*	$OpenBSD: log.h,v 1.6 2002/02/22 12:20:34 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -27,7 +27,8 @@ typedef enum {
 	SYSLOG_FACILITY_LOCAL4,
 	SYSLOG_FACILITY_LOCAL5,
 	SYSLOG_FACILITY_LOCAL6,
-	SYSLOG_FACILITY_LOCAL7
+	SYSLOG_FACILITY_LOCAL7,
+	SYSLOG_FACILITY_NOT_SET = -1,
 }       SyslogFacility;
 
 typedef enum {
@@ -38,38 +39,27 @@ typedef enum {
 	SYSLOG_LEVEL_VERBOSE,
 	SYSLOG_LEVEL_DEBUG1,
 	SYSLOG_LEVEL_DEBUG2,
-	SYSLOG_LEVEL_DEBUG3
+	SYSLOG_LEVEL_DEBUG3,
+	SYSLOG_LEVEL_NOT_SET = -1,
 }       LogLevel;
-/* Initializes logging. */
-void    log_init(char *av0, LogLevel level, SyslogFacility facility, int on_stderr);
 
-/* Logging implementation, depending on server or client */
-void    do_log(LogLevel level, const char *fmt, va_list args);
+void     log_init(char *, LogLevel, SyslogFacility, int);
 
-/* name to facility/level */
-SyslogFacility log_facility_number(char *name);
-LogLevel log_level_number(char *name);
+SyslogFacility	log_facility_number(char *);
+LogLevel log_level_number(char *);
 
-/* Output a message to syslog or stderr */
-void    fatal(const char *fmt,...) __attribute__((format(printf, 1, 2)));
-void    error(const char *fmt,...) __attribute__((format(printf, 1, 2)));
-void    log(const char *fmt,...) __attribute__((format(printf, 1, 2)));
-void    verbose(const char *fmt,...) __attribute__((format(printf, 1, 2)));
-void    debug(const char *fmt,...) __attribute__((format(printf, 1, 2)));
-void    debug2(const char *fmt,...) __attribute__((format(printf, 1, 2)));
-void    debug3(const char *fmt,...) __attribute__((format(printf, 1, 2)));
+void     fatal(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     error(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     log(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     verbose(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     debug(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     debug2(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     debug3(const char *, ...) __attribute__((format(printf, 1, 2)));
 
-/* same as fatal() but w/o logging */
-void    fatal_cleanup(void);
+void     fatal_cleanup(void);
+void     fatal_add_cleanup(void (*) (void *), void *);
+void     fatal_remove_cleanup(void (*) (void *), void *);
 
-/*
- * Registers a cleanup function to be called by fatal()/fatal_cleanup()
- * before exiting. It is permissible to call fatal_remove_cleanup for the
- * function itself from the function.
- */
-void    fatal_add_cleanup(void (*proc) (void *context), void *context);
-
-/* Removes a cleanup function to be called at fatal(). */
-void    fatal_remove_cleanup(void (*proc) (void *context), void *context);
+void	 do_log(LogLevel, const char *, va_list);
 
 #endif

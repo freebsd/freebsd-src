@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kex.c,v 1.33 2001/04/05 10:42:50 markus Exp $");
+RCSID("$OpenBSD: kex.c,v 1.47 2002/02/28 15:46:33 markus Exp $");
 
 #include <openssl/crypto.h>
 
@@ -43,11 +43,12 @@ RCSID("$OpenBSD: kex.c,v 1.33 2001/04/05 10:42:50 markus Exp $");
 
 #define KEX_COOKIE_LEN	16
 
-void	kex_kexinit_finish(Kex *kex);
-void	kex_choose_conf(Kex *k);
+/* prototype */
+static void kex_kexinit_finish(Kex *);
+static void kex_choose_conf(Kex *);
 
 /* put algorithm proposal into buffer */
-void
+static void
 kex_prop2buf(Buffer *b, char *proposal[PROPOSAL_MAX])
 {
 	u_int32_t rand = 0;
@@ -67,7 +68,7 @@ kex_prop2buf(Buffer *b, char *proposal[PROPOSAL_MAX])
 }
 
 /* parse buffer and return algorithm proposal */
-char **
+static char **
 kex_buf2prop(Buffer *raw)
 {
 	Buffer b;
@@ -95,7 +96,7 @@ kex_buf2prop(Buffer *raw)
 	return proposal;
 }
 
-void
+static void
 kex_prop_free(char **proposal)
 {
 	int i;
@@ -105,28 +106,24 @@ kex_prop_free(char **proposal)
 	xfree(proposal);
 }
 
-void
-kex_protocol_error(int type, int plen, void *ctxt)
+static void
+kex_protocol_error(int type, u_int32_t seq, void *ctxt)
 {
-	error("Hm, kex protocol error: type %d plen %d", type, plen);
+	error("Hm, kex protocol error: type %d seq %u", type, seq);
 }
 
-void
-kex_clear_dispatch(void)
+static void
+kex_reset_dispatch(void)
 {
-	int i;
-
-	/* Numbers 30-49 are used for kex packets */
-	for (i = 30; i <= 49; i++)
-		dispatch_set(i, &kex_protocol_error);
+	dispatch_range(SSH2_MSG_TRANSPORT_MIN,
+	    SSH2_MSG_TRANSPORT_MAX, &kex_protocol_error);
+	dispatch_set(SSH2_MSG_KEXINIT, &kex_input_kexinit);
 }
 
 void
 kex_finish(Kex *kex)
 {
-	int plen;
-
-	kex_clear_dispatch();
+	kex_reset_dispatch();
 
 	packet_start(SSH2_MSG_NEWKEYS);
 	packet_send();
@@ -134,7 +131,8 @@ kex_finish(Kex *kex)
 	debug("SSH2_MSG_NEWKEYS sent");
 
 	debug("waiting for SSH2_MSG_NEWKEYS");
-	packet_read_expect(&plen, SSH2_MSG_NEWKEYS);
+	packet_read_expect(SSH2_MSG_NEWKEYS);
+	packet_check_eom();
 	debug("SSH2_MSG_NEWKEYS received");
 
 	kex->done = 1;
@@ -165,7 +163,7 @@ kex_send_kexinit(Kex *kex)
 }
 
 void
-kex_input_kexinit(int type, int plen, void *ctxt)
+kex_input_kexinit(int type, u_int32_t seq, void *ctxt)
 {
 	char *ptr;
 	int dlen;
@@ -186,7 +184,7 @@ kex_input_kexinit(int type, int plen, void *ctxt)
 		xfree(packet_get_string(NULL));
 	packet_get_char();
 	packet_get_int();
-	packet_done();
+	packet_check_eom();
 
 	kex_kexinit_finish(kex);
 }
@@ -204,13 +202,12 @@ kex_setup(char *proposal[PROPOSAL_MAX])
 	kex->done = 0;
 
 	kex_send_kexinit(kex);					/* we start */
-	kex_clear_dispatch();
-	dispatch_set(SSH2_MSG_KEXINIT, &kex_input_kexinit);
+	kex_reset_dispatch();
 
 	return kex;
 }
 
-void
+static void
 kex_kexinit_finish(Kex *kex)
 {
 	if (!(kex->flags & KEX_INIT_SENT))
@@ -218,7 +215,7 @@ kex_kexinit_finish(Kex *kex)
 
 	kex_choose_conf(kex);
 
-	switch(kex->kex_type) {
+	switch (kex->kex_type) {
 	case DH_GRP1_SHA1:
 		kexdh(kex);
 		break;
@@ -230,21 +227,22 @@ kex_kexinit_finish(Kex *kex)
 	}
 }
 
-void
+static void
 choose_enc(Enc *enc, char *client, char *server)
 {
 	char *name = match_list(client, server, NULL);
 	if (name == NULL)
 		fatal("no matching cipher found: client %s server %s", client, server);
-	enc->cipher = cipher_by_name(name);
-	if (enc->cipher == NULL)
+	if ((enc->cipher = cipher_by_name(name)) == NULL)
 		fatal("matching cipher is not supported: %s", name);
 	enc->name = name;
 	enc->enabled = 0;
 	enc->iv = NULL;
 	enc->key = NULL;
+	enc->key_len = cipher_keylen(enc->cipher);
+	enc->block_size = cipher_blocksize(enc->cipher);
 }
-void
+static void
 choose_mac(Mac *mac, char *client, char *server)
 {
 	char *name = match_list(client, server, NULL);
@@ -259,7 +257,7 @@ choose_mac(Mac *mac, char *client, char *server)
 	mac->key = NULL;
 	mac->enabled = 0;
 }
-void
+static void
 choose_comp(Comp *comp, char *client, char *server)
 {
 	char *name = match_list(client, server, NULL);
@@ -274,7 +272,7 @@ choose_comp(Comp *comp, char *client, char *server)
 	}
 	comp->name = name;
 }
-void
+static void
 choose_kex(Kex *k, char *client, char *server)
 {
 	k->name = match_list(client, server, NULL);
@@ -287,7 +285,7 @@ choose_kex(Kex *k, char *client, char *server)
 	} else
 		fatal("bad kex alg %s", k->name);
 }
-void
+static void
 choose_hostkeyalg(Kex *k, char *client, char *server)
 {
 	char *hostkeyalg = match_list(client, server, NULL);
@@ -299,7 +297,7 @@ choose_hostkeyalg(Kex *k, char *client, char *server)
 	xfree(hostkeyalg);
 }
 
-void
+static void
 kex_choose_conf(Kex *kex)
 {
 	Newkeys *newkeys;
@@ -345,10 +343,10 @@ kex_choose_conf(Kex *kex)
 	need = 0;
 	for (mode = 0; mode < MODE_MAX; mode++) {
 		newkeys = kex->newkeys[mode];
-		if (need < newkeys->enc.cipher->key_len)
-			need = newkeys->enc.cipher->key_len;
-		if (need < newkeys->enc.cipher->block_size)
-			need = newkeys->enc.cipher->block_size;
+		if (need < newkeys->enc.key_len)
+			need = newkeys->enc.key_len;
+		if (need < newkeys->enc.block_size)
+			need = newkeys->enc.block_size;
 		if (need < newkeys->mac.key_len)
 			need = newkeys->mac.key_len;
 	}
@@ -359,15 +357,15 @@ kex_choose_conf(Kex *kex)
 	kex_prop_free(peer);
 }
 
-u_char *
+static u_char *
 derive_key(Kex *kex, int id, int need, u_char *hash, BIGNUM *shared_secret)
 {
 	Buffer b;
-	EVP_MD *evp_md = EVP_sha1();
+	const EVP_MD *evp_md = EVP_sha1();
 	EVP_MD_CTX md;
 	char c = id;
 	int have;
-	int mdsz = evp_md->md_size;
+	int mdsz = EVP_MD_size(evp_md);
 	u_char *digest = xmalloc(roundup(need, mdsz));
 
 	buffer_init(&b);
@@ -375,7 +373,8 @@ derive_key(Kex *kex, int id, int need, u_char *hash, BIGNUM *shared_secret)
 
 	/* K1 = HASH(K || H || "A" || session_id) */
 	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, buffer_ptr(&b), buffer_len(&b));
+	if (!(datafellows & SSH_BUG_DERIVEKEY))
+		EVP_DigestUpdate(&md, buffer_ptr(&b), buffer_len(&b));
 	EVP_DigestUpdate(&md, hash, mdsz);
 	EVP_DigestUpdate(&md, &c, 1);
 	EVP_DigestUpdate(&md, kex->session_id, kex->session_id_len);
@@ -388,7 +387,8 @@ derive_key(Kex *kex, int id, int need, u_char *hash, BIGNUM *shared_secret)
 	 */
 	for (have = mdsz; need > have; have += mdsz) {
 		EVP_DigestInit(&md, evp_md);
-		EVP_DigestUpdate(&md, buffer_ptr(&b), buffer_len(&b));
+		if (!(datafellows & SSH_BUG_DERIVEKEY))
+			EVP_DigestUpdate(&md, buffer_ptr(&b), buffer_len(&b));
 		EVP_DigestUpdate(&md, hash, mdsz);
 		EVP_DigestUpdate(&md, digest, have);
 		EVP_DigestFinal(&md, digest + have, NULL);
@@ -441,7 +441,7 @@ dump_digest(char *msg, u_char *digest, int len)
 	int i;
 
 	fprintf(stderr, "%s\n", msg);
-	for (i = 0; i< len; i++){
+	for (i = 0; i< len; i++) {
 		fprintf(stderr, "%02x", digest[i]);
 		if (i%32 == 31)
 			fprintf(stderr, "\n");

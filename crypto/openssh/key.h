@@ -1,7 +1,7 @@
-/*	$OpenBSD: key.h,v 1.12 2001/04/17 10:53:24 markus Exp $	*/
+/*	$OpenBSD: key.h,v 1.18 2002/02/24 19:14:59 markus Exp $	*/
 
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,41 +44,37 @@ enum fp_rep {
 	SSH_FP_HEX,
 	SSH_FP_BUBBLEBABBLE
 };
+
+/* key is stored in external hardware */
+#define KEY_FLAG_EXT		0x0001
+
 struct Key {
-	int	type;
+	int	 type;
+	int	 flags;
 	RSA	*rsa;
 	DSA	*dsa;
 };
 
-Key	*key_new(int type);
-Key	*key_new_private(int type);
-void	key_free(Key *k);
-int	key_equal(Key *a, Key *b);
-char	*key_fingerprint(Key *k, enum fp_type dgst_type, enum fp_rep dgst_rep);
-char	*key_type(Key *k);
-int	key_write(Key *key, FILE *f);
-int	key_read(Key *key, char **cpp);
-u_int	key_size(Key *k);
+Key	*key_new(int);
+Key	*key_new_private(int);
+void	 key_free(Key *);
+int	 key_equal(Key *, Key *);
+char	*key_fingerprint(Key *, enum fp_type, enum fp_rep);
+char	*key_type(Key *);
+int	 key_write(Key *, FILE *);
+int	 key_read(Key *, char **);
+u_int	 key_size(Key *);
 
-Key	*key_generate(int type, u_int bits);
-Key	*key_from_private(Key *k);
-int	key_type_from_name(char *name);
+Key	*key_generate(int, u_int);
+Key	*key_from_private(Key *);
+int	 key_type_from_name(char *);
 
-Key	*key_from_blob(char *blob, int blen);
-int	key_to_blob(Key *key, u_char **blobp, u_int *lenp);
-char	*key_ssh_name(Key *k);
-int	key_names_valid2(const char *names);
+Key	*key_from_blob(u_char *, int);
+int	 key_to_blob(Key *, u_char **, u_int *);
+char	*key_ssh_name(Key *);
+int	 key_names_valid2(const char *);
 
-int
-key_sign(
-    Key *key,
-    u_char **sigp, int *lenp,
-    u_char *data, int datalen);
-
-int
-key_verify(
-    Key *key,
-    u_char *signature, int signaturelen,
-    u_char *data, int datalen);
+int	 key_sign(Key *, u_char **, u_int *, u_char *, u_int);
+int	 key_verify(Key *, u_char *, u_int, u_char *, u_int);
 
 #endif
