@@ -28,7 +28,7 @@
  *	i4b_tina_dd.c - i4b Stollman Tina-dd control device driver
  *	----------------------------------------------------------
  *
- *	$Id: i4b_tina_dd.c,v 1.1 1998/12/27 21:46:53 phk Exp $
+ *	$Id: i4b_tina_dd.c,v 1.2 1999/01/12 11:05:03 eivind Exp $
  *
  *	last edit-date: [Sat Dec  5 18:41:38 1998]
  *
@@ -90,17 +90,33 @@ static	d_close_t	tinaclose;
 static	d_ioctl_t	tinaioctl;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 static d_poll_t		tinapoll;
+#define POLLFIELD	tinapoll
+#else
+#define POLLFIELD	noselect
 #endif
 
 #define CDEV_MAJOR 54
-static struct cdevsw tina_cdevsw = 
-	{ tinaopen,	tinaclose,	noread,		nowrite,
-	  tinaioctl,	nostop,		nullreset,	nodevtotty,
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	  tinapoll,	nommap,		NULL,	"tina", NULL,	-1 };
-#else
-	  noselect,	nommap,		NULL,	"tina", NULL,	-1 };
-#endif
+static struct cdevsw tina_cdevsw = {
+	/* open */	tinaopen,
+	/* close */	tinaclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	tinaioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	POLLFIELD,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"tina",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static void setupaddr(unsigned short iobase, unsigned int addr);
 static void readblock(unsigned short iobase, unsigned int addr,
@@ -185,11 +201,8 @@ tinaintr(int unit)
 static void
 tinainit(void *unused)
 {
-    dev_t dev;
-    
-    dev = makedev(CDEV_MAJOR, 0);
 
-    cdevsw_add(&dev, &tina_cdevsw, NULL);
+    cdevsw_add(&tina_cdevsw);
 }
 
 SYSINIT(tinadev, SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, &tinainit, NULL);
