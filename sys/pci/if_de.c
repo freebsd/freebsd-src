@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.28.2.1 1995/06/02 10:44:24 davidg Exp $
+ * $Id: if_de.c,v 1.29 1995/06/11 19:31:49 rgrimes Exp $
  *
  */
 
@@ -802,7 +802,7 @@ tulip_start(
     tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(ifp->if_unit);
     struct ifqueue * const ifq = &ifp->if_snd;
     tulip_ringinfo_t * const ri = &sc->tulip_txinfo;
-    struct mbuf *m, *m0;
+    struct mbuf *m, *m0, *next_m0;
 
     if ((ifp->if_flags & IFF_RUNNING) == 0)
 	return;
@@ -878,13 +878,14 @@ tulip_start(
 	    caddr_t addr = mtod(m0, caddr_t);
 	    unsigned clsize = CLBYTES - (((u_long) addr) & (CLBYTES-1));
 
+	    next_m0 = m0->m_next;
 	    while (len > 0) {
 		unsigned slen = min(len, clsize);
 
 		segcnt++;
 		if (segcnt > TULIP_MAX_TXSEG) {
 		    recopy = 1;
-		    m0 = NULL; /* to break out of outside loop */
+		    next_m0 = NULL; /* to break out of outside loop */
 		    break;
 		}
 		if (segcnt & 1) {
@@ -916,7 +917,7 @@ tulip_start(
 		addr += slen;
 		clsize = CLBYTES;
 	    }
-	} while ((m0 != NULL) && ((m0 = m0->m_next) != NULL));
+	} while ((m0 = next_m0) != NULL);
 
 	/*
 	 * The packet exceeds the number of transmit buffer
