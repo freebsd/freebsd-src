@@ -16,6 +16,6 @@ options		= --verbose
 targets		= update, world, generic, lint
 
 # Reporting
-sender		= Tinderbox <des+tinderbox@freebsd.org>
-recipient	= des+%%arch%%-%%branch%%@freebsd.org
+sender		= FreeBSD Tinderbox <tinderbox@freebsd.org>
+recipient	= %%sender%%
 subject		= [%%COMMENT%%] failure on %%arch%%/%%machine%%
