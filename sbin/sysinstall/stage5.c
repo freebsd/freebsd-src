@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage5.c,v 1.5 1994/11/02 09:05:49 jkh Exp $
+ * $Id: stage5.c,v 1.7 1994/11/03 00:30:27 ache Exp $
  *
  */
 
@@ -25,21 +25,27 @@
 #include "sysinstall.h"
 
 static unsigned char msg[] = "
-You are now done with the first phase of the installation.  We will,
-for now, dump you rather unceremoniously into a shell where you can
-then ftp, SLIP, DOS floppy or carrier pigeon the bindist over.  This
-will NOT be so unfriendly in the BETA installation, and will lead
-instead to a menu offering you various helpful ways of getting the
-bindist.  This is all we had time for in the ALPHA, however.  Sorry!
-Thank you for your patience!";
+You are now done with the second phase of the installation.  At this point,
+FreeBSD is on your hard disk and now we need to go on to the 3rd level
+installation, which is to ftp, SLIP, DOS floppy, parallel port or carrier
+pigeon the bindist over.  Select OK to proceed with this phase, or CANCEL
+to simply drop into the shell.";
 
 void
 stage5()
 {
-	dialog_msgbox(TITLE, msg, strheight(msg) + 4, strwidth(msg) + 4, 1);
+	int exec_sh = 0;
+
+	if (!dialog_yesno("End of stage 2", msg,
+			  strheight(msg) + 4, strwidth(msg) + 4))
+		exec_sh = 1;
 	end_dialog();
 	dialog_active=0;
 	setenv("PATH","/stand",1);
-	for(;;)
-		exec (2,"/stand/sh","/stand/-sh", 0);
+	for(;;) {
+		if (exec_sh)
+			exec (2,"/stand/sh","/stand/-sh", 0);
+		else
+			exec (2,"/stand/bininst","/stand/-bininst", 0);
+	}
 }
