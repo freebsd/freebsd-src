@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.204 1998/07/07 05:37:34 bde Exp $
+#	$Id: Makefile,v 1.205 1998/07/07 09:59:48 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -366,7 +366,7 @@ reinstall:
 	@echo " Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} install
-.if ${MACHINE_ARCH} == "i386"
+.if !defined(MACHINE_ARCH) || ${MACHINE_ARCH} == "i386"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Re-scanning the shared libraries.."
@@ -601,7 +601,7 @@ includes:
 #
 # Declare tools if they are not required on all architectures.
 #
-.if ${MACHINE_ARCH} == "i386"
+.if !defined(MACHINE_ARCH) || ${MACHINE_ARCH} == "i386"
 # aout tools:
 _aout_ar	= usr.bin/ar
 _aout_as	= gnu/usr.bin/as
