@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: pr_time.c,v 1.10 1997/08/26 06:59:34 charnier Exp $";
+	"$Id: pr_time.c,v 1.11 1997/12/28 17:50:10 alex Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -88,6 +88,7 @@ pr_attime(started, now)
 /*
  * pr_idle --
  *	Display the idle time.
+ *	Returns number of excess characters that were used for long idle time.
  */
 int
 pr_idle(idle)
@@ -97,8 +98,10 @@ pr_idle(idle)
 	if (idle >= 36 * 3600) {
 		int days = idle / 86400;
 		(void)printf(" %dday%s ", days, days > 1 ? "s" : " " );
+		if (days >= 100)
+			return (2);
 		if (days >= 10)
-			return(1);
+			return (1);
 	}
 
 	/* If idle more than an hour, print as HH:MM. */
@@ -113,5 +116,5 @@ pr_idle(idle)
 	else
 		(void)printf("    %2d ", (int)(idle / 60));
 
-	return(0); /* not idle longer than 9 days */
+	return (0); /* not idle longer than 9 days */
 }
