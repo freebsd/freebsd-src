@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: print.c,v 1.7 1998/01/28 07:36:25 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -66,7 +66,7 @@ struct magic *m;
 		       (m->type >= 0 && m->type < SZOF(typ)) ?
 				typ[(unsigned char) m->type] :
 				"*bad*");
-	if (m->mask != ~0L)
+	if (m->mask != ~((uint32) 0))
 		(void) fprintf(stderr, " & %.8x", m->mask);
 
 	(void) fprintf(stderr, ",%c", m->reln);
