@@ -339,7 +339,6 @@ struct thread {
 #define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
-#define	TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
@@ -348,12 +347,14 @@ struct thread {
 #define	TDF_OWEUPC	0x008000 /* Owe thread an addupc() call at next AST. */
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
+#define	TDF_SA		0x040000 /* A scheduler activation based thread */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 /* "private" flags kept in td_pflags */
 #define	TDP_OLDMASK	0x0001 /* Need to restore mask after suspend. */
 #define	TDP_INKTR	0x0002 /* Thread is currently in KTR code. */
 #define	TDP_INKTRACE	0x0004 /* Thread is currently in KTRACE code. */
+#define	TDP_UPCALLING	0x0008 /* This thread is doing an upcall. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
 #define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */
