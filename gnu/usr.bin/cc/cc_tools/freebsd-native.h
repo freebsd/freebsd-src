@@ -8,7 +8,6 @@
 #define FREEBSD_NATIVE 1
 
 #undef SYSTEM_INCLUDE_DIR		/* We don't need one for now. */
-#undef GCC_INCLUDE_DIR			/* We don't need one for now. */
 #undef TOOL_INCLUDE_DIR			/* We don't need one for now. */
 #undef LOCAL_INCLUDE_DIR		/* We don't wish to support one. */
 
@@ -27,18 +26,14 @@
    programs: /usr/libexec/<OBJFORMAT>/:STANDARD_EXEC_PREFIX:MD_EXEC_PREFIX
    libraries: MD_EXEC_PREFIX:MD_STARTFILE_PREFIX:STANDARD_STARTFILE_PREFIX
 */
-#undef STANDARD_EXEC_PREFIX
-#undef TOOLDIR_BASE_PREFIX		/* Old??  This is not documented. */
-#undef MD_EXEC_PREFIX
-
+#undef  TOOLDIR_BASE_PREFIX		/* Old??  This is not documented. */
+#undef  MD_EXEC_PREFIX			/* We don't want one. */
 #define STANDARD_EXEC_PREFIX		PREFIX"/libexec/"
 
 /* Under FreeBSD, the normal location of the various *crt*.o files is the
    /usr/lib directory.  */
 
-#undef STANDARD_STARTFILE_PREFIX
-#undef MD_STARTFILE_PREFIX		/* We don't need one for now. */
-
+#undef  MD_STARTFILE_PREFIX		/* We don't need one for now. */
 #define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
 
 /* FreeBSD is 4.4BSD derived */
