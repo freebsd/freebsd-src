@@ -2865,6 +2865,14 @@ unionread:
 	auio.uio_resid = SCARG(uap, count);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
+#ifdef MAC
+	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	if (error) {
+		VOP_UNLOCK(vp, 0, td);
+		fdrop(fp, td);
+		return (error);
+	}
+#endif
 #	if (BYTE_ORDER != LITTLE_ENDIAN)
 		if (vp->v_mount->mnt_maxsymlinklen <= 0) {
 			error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag,
@@ -3000,7 +3008,12 @@ unionread:
 	/* vn_lock(vp, LK_SHARED | LK_RETRY, td); */
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
-	error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL);
+#ifdef MAC
+	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	if (error == 0)
+#endif
+		error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL,
+		    NULL);
 	fp->f_offset = auio.uio_offset;
 	VOP_UNLOCK(vp, 0, td);
 	if (error) {
