@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/awk -f
 
 #
 # Copyright (c) 1992, 1993
@@ -37,319 +37,263 @@
 #
 # Script to produce VFS front-end sugar.
 #
-# usage: vnode_if.pl srcfile
-#	(where srcfile is currently /sys/kern/vnode_if.src)
+# usage: vnode_if.awk <srcfile> [-c | -h]
+#	(where <srcfile> is currently /sys/kern/vnode_if.src)
 #
 
-use strict;
+function usage()
+{
+	print "usage: vnode_if.awk <srcfile> [-c|-h]";
+	exit 1;
+}
 
-my %lockdata;
+function die(msg, what)
+{
+	printf msg "\n", what > "/dev/stderr";
+	exit 1;
+}
 
-my $cfile = 0;
-my $hfile = 0;
-my $srcfile;
+function t_spc(type)
+{
+	# Append a space if the type is not a pointer
+	return (type ~ /\*$/) ? type : type " ";
+}
+
+# These are just for convenience ...
+function printc(s) {print s > cfile;}
+function printh(s) {print s > hfile;}
+
+function add_debug_code(name, arg)
+{
+	if (debug_all_vfs_locks && lockdata[name, arg, "Entry"]) {
+		# Add assertions for locking
+		if (lockdata[name, arg, "Entry"] == "L")
+			printh("\tASSERT_VOP_LOCKED("arg", \""uname"\");");
+		else if (lockdata[name, arg, "Entry"] == "U")
+			printh("\tASSERT_VOP_UNLOCKED("arg", \""uname"\");");
+		else if (0) {
+			# XXX More checks!
+		}
+	}
+}
+
+function find_arg_with_type (type)
+{
+	for (jj = 0; jj < numargs; jj++) {
+		if (types[jj] == type) {
+			return "VOPARG_OFFSETOF(struct " \
+			    name "_args,a_" args[jj] ")";
+		}
+	}
+
+	return "VDESC_NO_OFFSET";
+}
+
+BEGIN{
 
 # Process the command line
-#
-while (my $arg = shift @ARGV) {
-    if ($arg eq '-c') {
-	$cfile = 1;
-    } elsif ($arg eq '-h') {
-	$hfile = 1;
-    } elsif ($arg eq '-ch' || $arg eq '-hc') {
-	$cfile = 1;
-	$hfile = 1;
-    } elsif ($arg =~ m/\.src$/) {
-	$srcfile = $arg;
-    } else {
-	print "usage: vnode_if.pl [-c] [-h] srcfile\n";
-	exit(1);
-    }
+for (i = 1; i < ARGC; i++) {
+	arg = ARGV[i];
+	if (arg !~ /^-[ch]+$/ && arg !~ /\.src$/)
+		usage();
+	if (arg ~ /^-.*c/)
+		cfile = "vnode_if.c";
+	if (arg ~ /^-.*h/)
+		hfile = "vnode_if.h";
+	if (arg ~ /\.src$/)
+		srcfile = arg;
 }
-if (!$cfile and !$hfile) {
-    exit(0);		# nothing asked for..
-}
+ARGC = 1;
 
-# Names of the created files.
-my $CFILE='vnode_if.c';
-my $HEADER='vnode_if.h';
+if (!cfile && !hfile)
+	exit 0;
 
-open(SRC,     "<$srcfile")   || die "Unable to open input file";
+if (!srcfile)
+	usage();
 
-if ($hfile) {
-    open(HEADER, ">$HEADER") || die "Unable to create $HEADER";
-    # Print out header information for vnode_if.h.
-    print HEADER <<'END_OF_LEADING_COMMENT'
-/*
- * This file is produced automatically.
- * Do not modify anything in here by hand.
- *
- * Created from $FreeBSD$
- */
+debug_all_vfs_locks = (ENVIRON["DEBUG_ALL_VFS_LOCKS"] ~ /[Yy][Ee][Ss]/);
 
-extern struct vnodeop_desc vop_default_desc;
-END_OF_LEADING_COMMENT
-    ;
-}
+common_head = \
+    "/*\n" \
+    " * This file is produced automatically.\n" \
+    " * Do not modify anything in here by hand.\n" \
+    " *\n" \
+    " * Created from $FreeBSD$\n" \
+    " */\n" \
+    "\n";
 
-if ($cfile) {
-    open(CFILE,   ">$CFILE") || die "Unable to create $CFILE";
-    # Print out header information for vnode_if.c.
-    print CFILE <<'END_OF_LEADING_COMMENT'
-/*
- * This file is produced automatically.
- * Do not modify anything in here by hand.
- *
- * Created from $FreeBSD$
- */
+if (hfile)
+	printh(common_head "extern struct vnodeop_desc vop_default_desc;");
 
-#include <sys/param.h>
-#include <sys/vnode.h>
-
-struct vnodeop_desc vop_default_desc = {
-	1,			/* special case, vop_default => 1 */
-	"default",
-	0,
-	NULL,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	NULL,
-};
-
-END_OF_LEADING_COMMENT
-    ;
+if (cfile) {
+	printc(common_head \
+	    "#include <sys/param.h>\n" \
+	    "#include <sys/vnode.h>\n" \
+	    "\n" \
+	    "struct vnodeop_desc vop_default_desc = {\n" \
+	    "	1,\t\t\t/* special case, vop_default => 1 */\n" \
+	    "	\"default\",\n" \
+	    "	0,\n" \
+	    "	NULL,\n" \
+	    "	VDESC_NO_OFFSET,\n" \
+	    "	VDESC_NO_OFFSET,\n" \
+	    "	VDESC_NO_OFFSET,\n" \
+	    "	VDESC_NO_OFFSET,\n" \
+	    "	NULL,\n" \
+	    "};\n");
 }
 
-my %a;
-my %dirs;
-my %reles;
-my %types;
-my %args;
-my $numargs;
-my $name;
-
-line: while (<SRC>) {
-    chop;	# strip record separator
-    my @Fld = split ' ';
-    if (@Fld == 0) {
-	next line;
-    }
-    if (/^#/) {
-	if (!/^#%\s+([a-z]+)\s+([a-z]+)\s+(.)\s(.)\s(.)/) {
-	    next;
-	}
-	if (!defined($lockdata{"vop_$1"})) {
-	    $lockdata{"vop_$1"} = {};
-	}
-	$lockdata{"vop_$1"}->{$2} = {
-	    'Entry' => $3,
-	    'OK'    => $4,
-	    'Error' => $5,
-	};
-	next;
-    }
-
-    # Get the function name.
-    $name = $Fld[0];
-    my $uname = uc($name);
-    my $ln;
-    # Get the function arguments.
-    for ($numargs = 0; ; ++$numargs) {
-	if ($ln = <SRC>) {
-	    chomp;
-	} else {
-	    die "Unable to read through the arguments for \"$name\"";
-	}
-	if ($ln =~ /^\};/) {
-	    last;
-	}
-        # For the header file
-	$a{$numargs} = $ln;
-
-        # The rest of this loop is for the C file
-	# Delete comments, if any.
-	$ln =~ s/\/\*.*\*\///g;
-
-	# Delete leading/trailing space.
-	$ln =~ s/^\s*(.*?)\s*$/$1/;
-
-	# Pick off direction.
-	my $dir;
-	if ($ln =~ s/^INOUT\s+//) {
-	    $dir = 'INOUT';
-	} elsif ($ln =~ s/^IN\s+//) {
-	    $dir = 'IN';
-	} elsif ($ln =~ s/^OUT\s+//) {
-	    $dir = 'OUT';
-	} else {
-	     die "No IN/OUT direction for \"$ln\".";
-	}
-	my $rele;
-	if ($ln =~ s/^WILLRELE\s+//) {
-	    $rele = 'WILLRELE';
-	} else {
-	    $rele = 'WONTRELE';
+while ((getline < srcfile) > 0) {
+	if (NF == 0)
+		continue;
+	if ($1 ~ /^#/) {
+		if (NF != 6  ||  $1 != "#%"  || \
+		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  || \
+		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/)
+			continue;
+		lockdata["vop_" $2, $3, "Entry"] = $4;
+		lockdata["vop_" $2, $3, "OK"]    = $5;
+		lockdata["vop_" $2, $3, "Error"] = $6;			
+		continue;
 	}
 
-	# kill trailing ;
-	if ($ln !~ s/;$//) {
-	    die("Missing end-of-line ; in \"$ln\".");
-	}
-
-	# pick off variable name
-	if ($ln !~ s/([A-Za-z0-9_]+)$//) {
-	    die("Missing var name \"a_foo\" in \"$ln\".");
-	}
-	my $arg = $1;
-
-	# what is left must be type
-	# (put clean it up some)
-	my $type = $ln;
-	# condense whitespace
-	$type =~ s/\s+/ /g;
-	$type =~ s/^\s*(.*?)\s*$/$1/;
-
-	$dirs{$numargs} = $dir;
-	$reles{$numargs} = $rele;
-	$types{$numargs} = $type;
-	$args{$numargs} = $arg;
-    }
-
-    if ($hfile) {
-	# Print out the vop_F_args structure.
-	print HEADER "struct ${name}_args {\n\tstruct vnodeop_desc *a_desc;\n";
-	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
-	    $a{$c2} =~ /^\s*(INOUT|OUT|IN)(\s+WILLRELE)?\s+(.*?)\s+(\**)(\S*\;)/;
-	    print HEADER "\t$3 $4a_$5\n", 
-	}
-	print HEADER "};\n";
-
-	# Print out extern declaration.
-	print HEADER "extern struct vnodeop_desc ${name}_desc;\n";
-
-	# Print out function.
-	print HEADER "static __inline int ${uname}(\n";
-	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
-	    $a{$c2} =~ /^\s*(INOUT|OUT|IN)(\s+WILLRELE)?\s+(.*?)\s+(\**\S*)\;/;
-	    print HEADER "\t$3 $4" .
-		($c2 < $numargs-1 ? "," : ")") . "\n";
-	}
-	print HEADER "{\n\tstruct ${name}_args a;\n";
-	print HEADER "\tint rc;\n";
-	print HEADER "\ta.a_desc = VDESC(${name});\n";
-	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
-	    $a{$c2} =~ /(\**)([^;\s]*)([^\s]*)$/;
-	    print HEADER "\ta.a_$2 = $2$3\n", 
-	}
-	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
-	    if (!exists($args{$c2})) {
-		die "Internal error";
-	    }
-	    if (exists($lockdata{$name}) &&
-		exists($lockdata{$name}->{$args{$c2}})) {
-		if (defined($ENV{'DEBUG_ALL_VFS_LOCKS'}) && 
-			$ENV{'DEBUG_ALL_VFS_LOCKS'} =~ /yes/i) {
-		    # Add assertions for locking
-		    if ($lockdata{$name}->{$args{$c2}}->{Entry} eq "L") {
-			print HEADER
-			    "\tASSERT_VOP_LOCKED($args{$c2}, \"$uname\");\n";
-		    } elsif ($lockdata{$name}->{$args{$c2}}->{Entry} eq "U") {
-			print HEADER
-			    "\tASSERT_VOP_UNLOCKED($args{$c2}, \"$uname\");\n";
-		    } elsif (0) {
-			# XXX More checks!
-		    }
+	# Get the function name.
+	name = $1;
+	uname = toupper(name);
+	# Get the function arguments.
+	for (numargs = 0; ; ++numargs) {
+		if ((getline < srcfile) <= 0) {
+			die("Unable to read through the arguments for \"%s\"",
+			    name);
 		}
-	    }
+		if ($1 ~ /^\};/)
+			break;
+
+		# Delete comments, if any.
+		gsub (/\/\*.*\*\//, "");
+
+		# Condense whitespace and delete leading/trailing space.
+		gsub(/[[:space:]]+/, " ");
+		sub(/^ /, "");
+		sub(/ $/, "");
+
+		# Pick off direction.
+		if ($1 != "INOUT" && $1 != "IN" && $1 != "OUT")
+			die("No IN/OUT direction for \"%s\".", $0);
+		dirs[numargs] = $1;
+		sub(/^[A-Z]* /, "");
+
+		if ((reles[numargs] = $1) == "WILLRELE")
+			sub(/^[A-Z]* /, "");
+		else
+			reles[numargs] = "WONTRELE";
+
+		# kill trailing ;
+		if (sub(/;$/, "") < 1)
+			die("Missing end-of-line ; in \"%s\".", $0);
+
+		# pick off variable name
+		if ((argp = match($0, /[A-Za-z0-9_]+$/)) < 1)
+			die("Missing var name \"a_foo\" in \"%s\".", $0);
+		args[numargs] = substr($0, argp);
+		$0 = substr($0, 1, argp - 1);
+
+		# what is left must be type
+		# remove trailing space (if any)
+		sub(/ $/, "");
+		types[numargs] = $0;
 	}
-	$a{0} =~ /\s\**([^;\s]*);/;
-	print HEADER "\trc = VCALL($1, VOFFSET(${name}), &a);\n";
-	print HEADER "\treturn (rc);\n";
-	print HEADER "}\n";
-    }
 
+	if (hfile) {
+		# Print out the vop_F_args structure.
+		printh("struct "name"_args {\n\tstruct vnodeop_desc *a_desc;");
+		for (i = 0; i < numargs; ++i)
+			printh("\t" t_spc(types[i]) "a_" args[i] ";");
+		printh("};");
 
-    if ($cfile) {
-	# Print out the vop_F_vp_offsets structure.  This all depends
-	# on naming conventions and nothing else.
-	printf CFILE "static int %s_vp_offsets[] = {\n", $name;
-	# as a side effect, figure out the releflags
-	my $releflags = '';
-	my $vpnum = 0;
-	for (my $i = 0; $i < $numargs; $i++) {
-	    if ($types{$i} eq 'struct vnode *') {
-		printf CFILE "\tVOPARG_OFFSETOF(struct %s_args,a_%s),\n", 
-		$name, $args{$i};
-		if ($reles{$i} eq 'WILLRELE') {
-		    $releflags = $releflags . '|VDESC_VP' . $vpnum . '_WILLRELE';
+		# Print out extern declaration.
+		printh("extern struct vnodeop_desc " name "_desc;");
+
+		# Print out function.
+		printh("static __inline int " uname "(");
+		for (i = 0; i < numargs; ++i) {
+			printh("\t" t_spc(types[i]) args[i] \
+			    (i < numargs - 1 ? "," : ")"));
+		}
+		printh("{\n\tstruct " name "_args a;");
+		printh("\tint rc;");
+		printh("\ta.a_desc = VDESC(" name ");");
+		for (i = 0; i < numargs; ++i)
+			printh("\ta.a_" args[i] " = " args[i] ";");
+		for (i = 0; i < numargs; ++i)
+			add_debug_code(name, args[i]);
+		printh("\trc = VCALL(" args[0] ", VOFFSET(" name "), &a);");
+		printh("\treturn (rc);\n}");
+	}
+
+	if (cfile) {
+		# Print out the vop_F_vp_offsets structure.  This all depends
+		# on naming conventions and nothing else.
+		printc("static int " name "_vp_offsets[] = {");
+		# as a side effect, figure out the releflags
+		releflags = "";
+		vpnum = 0;
+		for (i = 0; i < numargs; i++) {
+			if (types[i] == "struct vnode *") {
+				printc("\tVOPARG_OFFSETOF(struct " name \
+				    "_args,a_" args[i] "),");
+				if (reles[i] == "WILLRELE") {
+					releflags = releflags \
+					    "|VDESC_VP" vpnum "_WILLRELE";
+				}
+				vpnum++;
+			}
 		}
 
-		$vpnum++;
-	    }
-	}
+		sub(/^\|/, "", releflags);
+		printc("\tVDESC_NO_OFFSET");
+		printc("};");
 
-	$releflags =~ s/^\|//;
-	print CFILE "\tVDESC_NO_OFFSET\n";
-	print CFILE "};\n";
+		# Print out the vnodeop_desc structure.
+		printc("struct vnodeop_desc " name "_desc = {");
+		# offset
+		printc("\t0,");
+		# printable name
+		printc("\t\"" name "\",");
+		# flags
+		vppwillrele = "";
+		for (i = 0; i < numargs; i++) {
+			if (types[i] == "struct vnode **" && \
+			    reles[i] == "WILLRELE") {
+				vppwillrele = "|VDESC_VPP_WILLRELE";
+			}
+		}
 
-	# Print out the vnodeop_desc structure.
-	print CFILE "struct vnodeop_desc ${name}_desc = {\n";
-	# offset
-	print CFILE "\t0,\n";
-	# printable name
-	printf CFILE "\t\"%s\",\n", $name;
-	# flags
-	my $vppwillrele = '';
-	for (my $i = 0; $i < $numargs; $i++) {
-	    if ($types{$i} eq 'struct vnode **' && 
-		($reles{$i} eq 'WILLRELE')) {
-		$vppwillrele = '|VDESC_VPP_WILLRELE';
-	    }
-	}
+		if (!releflags)
+			releflags = "0";
+		printc("\t" releflags vppwillrele ",");
 
-	if ($releflags eq '') {
-	    printf CFILE "\t0%s,\n", $vppwillrele;
+		# vp offsets
+		printc("\t" name "_vp_offsets,");
+		# vpp (if any)
+		printc("\t" find_arg_with_type("struct vnode **") ",");
+		# cred (if any)
+		printc("\t" find_arg_with_type("struct ucred *") ",");
+		# thread (if any)
+		printc("\t" find_arg_with_type("struct thread *") ",");
+		# componentname
+		printc("\t" find_arg_with_type("struct componentname *") ",");
+		# transport layer information
+		printc("\tNULL,\n};\n");
 	}
-	else {
-	    printf CFILE "\t%s%s,\n", $releflags, $vppwillrele;
-	}
-
-	# vp offsets
-	printf CFILE "\t%s_vp_offsets,\n", $name;
-	# vpp (if any)
-	printf CFILE "\t%s,\n", &find_arg_with_type('struct vnode **');
-	# cred (if any)
-	printf CFILE "\t%s,\n", &find_arg_with_type('struct ucred *');
-	# thread (if any)
-	printf CFILE "\t%s,\n", &find_arg_with_type('struct thread *');
-	# componentname
-	printf CFILE "\t%s,\n", &find_arg_with_type('struct componentname *');
-	# transport layer information
-	print CFILE "\tNULL,\n};\n\n";
-    }
 }
  
-if ($hfile) {
-    close(HEADER) || die "Unable to close $HEADER";
-}
-if ($cfile) {
-    close(CFILE)  || die "Unable to close $CFILE";
-}
-close(SRC) || die;
+if (hfile)
+	close(hfile);
+if (cfile)
+	close(cfile);
+close(srcfile);
 
 exit 0;
 
-sub find_arg_with_type {
-    my $type = shift;
-    my $i;
-
-    for ($i=0; $i < $numargs; $i++) {
-	if ($types{$i} eq $type) {
-	    return "VOPARG_OFFSETOF(struct ${name}_args,a_" . $args{$i} . ")";
-	}
-    }
-
-    return "VDESC_NO_OFFSET";
 }
