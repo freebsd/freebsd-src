@@ -2397,7 +2397,7 @@ help(int argc, char *argv[])
 		printf("Commands may be abbreviated.  Commands are:\n\n");
 		for (c = cmdtab; c->name; c++)
 			if (c->help) {
-				printf("%-*s\t%s\n", HELPINDENT, c->name,
+				printf("%-*s\t%s\n", (int)HELPINDENT, c->name,
 								    c->help);
 			}
 		return 0;
