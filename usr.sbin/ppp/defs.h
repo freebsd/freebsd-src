@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.23 1997/10/26 12:42:10 brian Exp $
+ * $Id: defs.h,v 1.24 1997/11/09 14:18:37 brian Exp $
  *
  *	TODO:
  */
@@ -62,6 +62,9 @@
 #define	MODE_ALIAS	32	/* Packet aliasing (masquerading) */
 #define MODE_BACKGROUND 64	/* Background mode. */
 
+#define MODE_DAEMON (2|4|8|16|64)
+#define MODE_OUTGOING_DAEMON (2|8|16|64)
+
 #define	EX_SIG		-1
 #define	EX_NORMAL	0
 #define	EX_START	1
@@ -83,6 +86,7 @@ extern int modem;
 extern int tun_in;
 extern int tun_out;
 extern int netfd;
-extern char *dstsystem;
 
+extern void SetLabel(const char *);
+extern const char *GetLabel(void);
 extern void randinit(void);
