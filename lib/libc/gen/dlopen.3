@@ -123,6 +123,13 @@ Symbols in this shared object and its DAG of needed objects will be
 available for resolving undefined references only from other objects
 in the same DAG.  This is the default, but it may be specified
 explicitly with this flag.
+.It Dv RTLD_TRACE
+When set, causes dynamic linker to exit after loading all objects
+needed by this shared object and printing a summary which includes
+the absolute pathnames of all objects, to standard output.
+With this flag
+.Fn dlopen
+will return to the caller only in the case of error.
 .El
 .Pp
 If

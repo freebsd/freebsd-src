@@ -45,6 +45,7 @@
 #define RTLD_MODEMASK	0x3
 #define RTLD_GLOBAL	0x100	/* Make symbols globally available */
 #define RTLD_LOCAL	0	/* Opposite of RTLD_GLOBAL, and the default */
+#define RTLD_TRACE	0x200	/* Trace loaded objects and exit */
 
 /*
  * Special handle arguments for dlsym().
