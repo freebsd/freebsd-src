@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.1 1998/06/10 10:52:49 dfr Exp $
+ *	$Id: ipl_funcs.c,v 1.2 1998/06/11 11:51:26 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -31,6 +31,8 @@
 #include <machine/ipl.h>
 #include <machine/cpu.h>
 #include <net/netisr.h>
+
+unsigned int bio_imask;		/* XXX */
 
 unsigned int netisr;
 void	(*netisrs[32]) __P((void));
