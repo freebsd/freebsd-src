@@ -131,6 +131,8 @@ struct vm_map_entry {
 
 #define MAP_ENTRY_BEHAV_MASK		0x00C0
 
+#define MAP_ENTRY_IN_TRANSITION		0x0100	/* entry being changed */
+#define MAP_ENTRY_NEEDS_WAKEUP		0x0200	/* waiters in transition */
 #define MAP_ENTRY_NOCOREDUMP		0x0400	/* don't include in a core */
 
 #ifdef	_KERNEL
@@ -316,6 +318,8 @@ void vm_map_simplify_entry (vm_map_t, vm_map_entry_t);
 void vm_init2 (void);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
+int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    boolean_t user_unwire);
 int vmspace_swap_count (struct vmspace *vmspace);
 int vm_uiomove(vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *);
 #endif				/* _KERNEL */
