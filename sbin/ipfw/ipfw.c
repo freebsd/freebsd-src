@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.62 1998/12/07 05:54:37 archie Exp $
+ * $Id: ipfw.c,v 1.63 1998/12/14 18:43:03 luigi Exp $
  *
  */
 
@@ -1386,6 +1386,9 @@ ipfw_main(ac,av)
                 ac-- ;
                 av++ ;
         }
+	if (!ac) {
+		show_usage("pipe requires arguments");
+	}
         /* allow argument swapping */
         if (ac > 1 && *av[0]>='0' && *av[0]<='9') {
                 char *p = av[0] ;
