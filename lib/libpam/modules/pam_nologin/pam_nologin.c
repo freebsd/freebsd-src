@@ -57,8 +57,10 @@ __FBSDID("$FreeBSD$");
 
 #define	NOLOGIN	"/var/run/nologin"
 
+static char nologin_def[] = NOLOGIN;
+
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
 {
 	login_cap_t *lc;
 	struct options options;
@@ -79,7 +81,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("Got user: %s", user);
 
 	lc = login_getclass(NULL);
-	nologin = login_getcapstr(lc, "nologin", NOLOGIN, NOLOGIN);
+	nologin = login_getcapstr(lc, "nologin", nologin_def, nologin_def);
 	login_close(lc);
 	lc = NULL;
 
@@ -117,7 +119,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -129,7 +131,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
 {
 	struct options options;
 
@@ -141,7 +143,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -153,7 +155,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -165,7 +167,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
