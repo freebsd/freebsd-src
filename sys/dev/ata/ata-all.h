@@ -25,11 +25,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-all.h,v 1.3 1999/03/01 21:03:15 sos Exp sos $
+ *	$Id: ata-all.h,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
 /* ATA register defines */
-
 #define ATA_DATA			0x00	/* data register */
 #define	ATA_ERROR			0x01	/* (R) error register */
 #define ATA_PRECOMP			0x01	/* (W) precompensation */
@@ -153,9 +152,7 @@ struct ata_params {
     int16_t	securelevel;
 };
 
-/*
- * Structure describing an ATA device
- */
+/* Structure describing an ATA device */
 struct ata_softc {
     u_int32_t			unit;		/* this instance's number */
     u_int32_t			ioaddr;		/* port addr */
@@ -178,10 +175,6 @@ struct ata_softc {
     struct ata_params		*ata_parm[2];	/* ata device params */
     TAILQ_HEAD(, atapi_request) atapi_queue;    /* head of ATAPI queue */
     struct atapi_params		*atapi_parm[2];	/* atapi device params */
-
-#ifdef DEVFS
-    static void *devfs_token;
-#endif
 };
 
 struct ata_request {

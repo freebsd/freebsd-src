@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.5 1999/03/01 21:03:15 sos Exp sos $
+ *	$Id: atapi-tape.c,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
 #include "ata.h"
@@ -41,6 +41,7 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/mtio.h>
+#include <sys/disklabel.h>
 #include <sys/devicestat.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -50,21 +51,21 @@
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-tape.h>
 
-static  d_open_t    astopen;
-static	d_read_t    astread;
-static	d_write_t   astwrite;
-static  d_close_t   astclose;
-static  d_ioctl_t   astioctl;
-static  d_strategy_t    aststrategy;
+static  d_open_t	astopen;
+static  d_close_t	astclose;
+static	d_read_t	astread;
+static	d_write_t	astwrite;
+static  d_ioctl_t	astioctl;
+static  d_strategy_t	aststrategy;
 
 #define CDEV_MAJOR 90
 #define BDEV_MAJOR 24
 
 static struct cdevsw ast_cdevsw = {
-	  astopen,	astclose,	astread,	astwrite,
-	  astioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		aststrategy,	"ast",
-	  NULL,	-1 };
+    astopen,	astclose,	astread,	astwrite,
+    astioctl,	nostop,		nullreset,	nodevtotty,
+    seltrue,	nommap,		aststrategy,	"ast",
+    NULL,	-1 };
 
 static u_int32_t ast_total = 0;
 
@@ -123,12 +124,11 @@ astattach(struct atapi_softc *atp)
                       DEVSTAT_NO_ORDERED_TAGS,
                       DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
                       0x178);
- 
-
 #ifdef DEVFS
-    t->cdevs = devfs_add_devswf(&ast_cdevsw, 0, DV_CHR, UID_ROOT, GID_OPERATOR,
-				0640, "rast%d", t->lun);
-#endif /* DEVFS */
+    stp->cdevs_token = devfs_add_devswf(&ast_cdevsw, dkmakeminor(stp->lun, 0,0),
+					DV_CHR, UID_ROOT, GID_OPERATOR, 0640, 
+					"rast%d", stp->lun);
+#endif
     return 0;
 }
 
@@ -209,14 +209,14 @@ ast_describe(struct ast_softc *stp)
     printf("\n");
 }
 
-int
+static int32_t
 astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = UNIT(dev);
     struct ast_softc *stp;
 
     if (lun >= astnlun || !(stp = asttab[lun])) 
-        return(ENXIO);
+        return ENXIO;
     if (stp->flags == F_OPEN)
         return EBUSY;
     if (ast_sense(stp))
@@ -225,17 +225,17 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     stp->flags &= ~(F_DATA_WRITTEN | F_FM_WRITTEN);
     stp->flags |= F_OPEN;
     ast_total = 0;
-    return(0);
+    return 0;
 }
 
-int32_t 
+static int32_t 
 astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = UNIT(dev);
     struct ast_softc *stp;
 
     if (lun >= astnlun || !(stp = asttab[lun]))      
-        return(ENXIO);
+        return ENXIO;
 
     /* Flush buffers, some drives fail here, but they should report ctl = 0 */
     if (stp->cap.ctl && (stp->flags & F_DATA_WRITTEN))
@@ -254,111 +254,22 @@ astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	printf("ast%d: %ud total bytes transferred\n", stp->lun, ast_total);
 #endif
     stp->flags &= ~F_CTL_WARN;
-    return(0);
+    return 0;
 }
 
-static int
+static int32_t
 astread(dev_t dev, struct uio *uio, int32_t ioflag)
 {
-	return (physio(aststrategy, NULL, dev, 1, minphys, uio));
+	return physio(aststrategy, NULL, dev, 1, minphys, uio);
 }
 
-static int
+static int32_t
 astwrite(dev_t dev, struct uio *uio, int32_t ioflag)
 {
-	return (physio(aststrategy, NULL, dev, 0, minphys, uio));
+	return physio(aststrategy, NULL, dev, 0, minphys, uio);
 }
 
-void 
-aststrategy(struct buf *bp)
-{
-    int32_t lun = UNIT(bp->b_dev);
-    struct ast_softc *stp = asttab[lun];
-    int32_t x;
-
-    /* If it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-        bp->b_resid = 0;
-        biodone(bp);
-        return;
-    }
-
-    /* Check for != blocksize requests */
-    if (bp->b_bcount % stp->blksize) {
-        printf("ast%d: bad request, must be multiple of %d\n",
-	       lun, stp->blksize);
-        bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
-        biodone(bp);
-        return;
-    }
-    if (bp->b_bcount > stp->blksize * stp->cap.ctl) {  
-	if ((stp->flags & F_CTL_WARN) == 0) {
-            printf("ast%d: WARNING: CTL exceeded %ld>%d\n", 
-		    lun, bp->b_bcount, stp->blksize * stp->cap.ctl);
-	    stp->flags |= F_CTL_WARN;
-	}
-    }
-
-    x = splbio();
-    ast_total += bp->b_bcount;
-    bufq_insert_tail(&stp->buf_queue, bp);
-    ast_start(stp);
-    splx(x);
-}
-
-static void 
-ast_start(struct ast_softc *stp)
-{
-    struct buf *bp = bufq_first(&stp->buf_queue);
-    u_long blkcount;
-    int8_t ccb[16];
-    
-    if (!bp)
-        return;
-    bzero(ccb, sizeof(ccb));
-    bufq_remove(&stp->buf_queue, bp);
-    blkcount = bp->b_bcount / stp->blksize;
-    if (bp->b_flags & B_READ) {
-        ccb[0] = ATAPI_TAPE_READ_CMD;
-    } else {
-        ccb[0] = ATAPI_TAPE_WRITE_CMD;
-	stp->flags |= F_DATA_WRITTEN;
-    }
-    ccb[1] = 1;
-    ccb[2] = blkcount>>16;
-    ccb[3] = blkcount>>8;
-    ccb[4] = blkcount;
-
-    devstat_start_transaction(&stp->stats);
-
-    atapi_queue_cmd(stp->atp, ccb, bp->b_data, bp->b_bcount, 
-		    (bp->b_flags & B_READ) ? A_READ : 0, ast_done, stp, bp);
-}
-
-static void 
-ast_done(struct atapi_request *request)
-{
-    struct buf *bp = request->bp;
-    struct ast_softc *stp = request->driver;
-
-    devstat_end_transaction(&stp->stats, bp->b_bcount-request->bytecount,
-                            DEVSTAT_TAG_NONE,
-                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
- 
-    if (request->result) {
-	printf("ast_done: ");
-        atapi_error(request->device, request->result);
-        bp->b_error = EIO;
-        bp->b_flags |= B_ERROR;
-    }
-    else
-	bp->b_resid = request->bytecount;
-    biodone(bp);
-    ast_start(stp);
-}
-
-int32_t 
+static int32_t 
 astioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
     int32_t lun = UNIT(dev);
@@ -444,12 +355,100 @@ astioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             return error;
         }
     default:
-        return(ENOTTY);
+        return ENOTTY;
     }
-    return(error);
+    return error;
 }
 
-static int
+static void 
+aststrategy(struct buf *bp)
+{
+    int32_t lun = UNIT(bp->b_dev);
+    struct ast_softc *stp = asttab[lun];
+    int32_t x;
+
+    /* If it's a null transfer, return immediatly. */
+    if (bp->b_bcount == 0) {
+        bp->b_resid = 0;
+        biodone(bp);
+        return;
+    }
+
+    /* Check for != blocksize requests */
+    if (bp->b_bcount % stp->blksize) {
+        printf("ast%d: bad request, must be multiple of %d\n",
+	       lun, stp->blksize);
+        bp->b_error = EIO;
+	bp->b_flags |= B_ERROR;
+        biodone(bp);
+        return;
+    }
+    if (bp->b_bcount > stp->blksize * stp->cap.ctl) {  
+	if ((stp->flags & F_CTL_WARN) == 0) {
+            printf("ast%d: WARNING: CTL exceeded %ld>%d\n", 
+		    lun, bp->b_bcount, stp->blksize * stp->cap.ctl);
+	    stp->flags |= F_CTL_WARN;
+	}
+    }
+
+    x = splbio();
+    ast_total += bp->b_bcount;
+    bufq_insert_tail(&stp->buf_queue, bp);
+    ast_start(stp);
+    splx(x);
+}
+
+static void 
+ast_start(struct ast_softc *stp)
+{
+    struct buf *bp = bufq_first(&stp->buf_queue);
+    u_int32_t blkcount;
+    int8_t ccb[16];
+    
+    if (!bp)
+        return;
+    bzero(ccb, sizeof(ccb));
+    bufq_remove(&stp->buf_queue, bp);
+    blkcount = bp->b_bcount / stp->blksize;
+    if (bp->b_flags & B_READ) {
+        ccb[0] = ATAPI_TAPE_READ_CMD;
+    } else {
+        ccb[0] = ATAPI_TAPE_WRITE_CMD;
+	stp->flags |= F_DATA_WRITTEN;
+    }
+    ccb[1] = 1;
+    ccb[2] = blkcount>>16;
+    ccb[3] = blkcount>>8;
+    ccb[4] = blkcount;
+
+    devstat_start_transaction(&stp->stats);
+
+    atapi_queue_cmd(stp->atp, ccb, bp->b_data, bp->b_bcount, 
+		    (bp->b_flags & B_READ) ? A_READ : 0, ast_done, stp, bp);
+}
+
+static void 
+ast_done(struct atapi_request *request)
+{
+    struct buf *bp = request->bp;
+    struct ast_softc *stp = request->driver;
+
+    devstat_end_transaction(&stp->stats, bp->b_bcount-request->bytecount,
+                            DEVSTAT_TAG_NONE,
+                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
+ 
+    if (request->result) {
+        atapi_error(request->device, request->result);
+        bp->b_error = EIO;
+        bp->b_flags |= B_ERROR;
+    }
+    else
+	bp->b_resid = request->bytecount;
+    biodone(bp);
+    ast_start(stp);
+}
+
+static int32_t
 ast_space_cmd(struct ast_softc *stp, u_int8_t function, u_int32_t count)
 {
     int32_t error;
@@ -463,14 +462,13 @@ ast_space_cmd(struct ast_softc *stp, u_int8_t function, u_int32_t count)
     ccb[4] = count;
 
     if ((error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL))){
-	printf("ast_space_cmd: ");
         atapi_error(stp->atp, error);
         return EIO;
     }
     return 0;
 }
 
-static int
+static int32_t
 ast_write_filemark(struct ast_softc *stp, u_int8_t function)
 {
     int32_t error;
@@ -487,14 +485,13 @@ ast_write_filemark(struct ast_softc *stp, u_int8_t function)
     ccb[4] = function;
 
     if ((error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL))){
-	printf("ast_write_filemark: ");
         atapi_error(stp->atp, error);
         return EIO;
     }
     return 0;
 }
 
-static int
+static int32_t
 ast_load_unload(struct ast_softc *stp, u_int8_t function)
 {
     int32_t error;
@@ -505,14 +502,13 @@ ast_load_unload(struct ast_softc *stp, u_int8_t function)
     ccb[4] = function;
 
     if ((error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL))){
-	printf("ast_load_unload: ");
         atapi_error(stp->atp, error);
         return EIO;
     }
     return 0;
 }
 
-static int
+static int32_t
 ast_erase(struct ast_softc *stp)
 {
     int32_t error;
@@ -526,14 +522,13 @@ ast_erase(struct ast_softc *stp)
     ccb[1] = 3;
 
     if ((error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL))){
-	printf("ast_erase: ");
         atapi_error(stp->atp, error);
         return EIO;
     }
     return 0;
 }
 
-static int
+static int32_t
 ast_rewind(struct ast_softc *stp)
 {
     int32_t error;
@@ -543,7 +538,6 @@ ast_rewind(struct ast_softc *stp)
     ccb[0] = ATAPI_TAPE_REWIND;
 
     if ((error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL))){
-	printf("ast_rewind: ");
         atapi_error(stp->atp, error);
         return EIO;
     }

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.14 1999/03/01 21:03:15 sos Exp sos $
+ *	$Id: ata-disk.c,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
 #include "ata.h"
@@ -58,8 +58,8 @@
 
 static d_open_t		adopen;
 static d_close_t	adclose;
-static d_write_t	adwrite;
 static d_read_t		adread;
+static d_write_t	adwrite;
 static d_ioctl_t	adioctl;
 static d_strategy_t	adstrategy;
 static d_psize_t	adpsize;
@@ -95,7 +95,7 @@ static void
 ad_attach(void *notused)
 {
     struct ad_softc *adp;
-    int32_t ctlr, dev;
+    int32_t ctlr, dev, secsperint;
     int8_t model_buf[40+1];
     int8_t revision_buf[8+1];
 
@@ -103,6 +103,9 @@ ad_attach(void *notused)
     for (ctlr=0; ctlr<MAXATA && atadevices[ctlr]; ctlr++) {
 	for (dev=0; dev<2; dev++) {
 	    if (atadevices[ctlr]->ata_parm[dev]) {
+#ifdef ATA_STATIC_ID
+		adnlun = dev + ctlr * 2;   
+#endif
     		adp = adtab[adnlun];
     		if (adp)
         	    printf("ad%d: unit already attached\n", adnlun);
@@ -113,20 +116,23 @@ ad_attach(void *notused)
 	        adp->controller = atadevices[ctlr];
 	        adp->ata_parm = atadevices[ctlr]->ata_parm[dev];
 		adp->unit = (dev == 0) ? ATA_MASTER : ATA_SLAVE;
+		adp->lun = adnlun;
 		adp->cylinders = adp->ata_parm->cylinders;
 		adp->heads = adp->ata_parm->heads;
 		adp->sectors = adp->ata_parm->sectors;
 		adp->total_secs = adp->ata_parm->lbasize;
+                if (!adp->total_secs)  
+                    adp->total_secs = adp->cylinders*adp->heads*adp->sectors;   
+                if (adp->cylinders == 16383)  
+                    adp->cylinders = adp->total_secs/(adp->heads*adp->sectors);
 
 		/* support multiple sectors / interrupt ? */
-		if (ad_command(adp, ATA_C_SET_MULTI, 0, 0, 0, 16))
-		    adp->transfersize = DEV_BSIZE;
-		else {
-		    if (ata_wait(adp->controller, ATA_S_DRDY) < 0)
-		        adp->transfersize = DEV_BSIZE;
-		    else
-			adp->transfersize = 16*DEV_BSIZE;
-		}
+		adp->transfersize = DEV_BSIZE;
+		secsperint = min(adp->ata_parm->nsecperint, 16);
+		if (!ad_command(adp, ATA_C_SET_MULTI, 0, 0, 0, secsperint) &&
+		    ata_wait(adp->controller, ATA_S_DRDY) >= 0)
+		    adp->transfersize *= secsperint;
+
 	        bpack(adp->ata_parm->model, model_buf, sizeof(model_buf));
 		bpack(adp->ata_parm->revision, revision_buf, 
 		      sizeof(revision_buf));
@@ -152,6 +158,18 @@ ad_attach(void *notused)
 				  DEVSTAT_NO_ORDERED_TAGS,
                                   DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 				  0x180);
+#ifdef DEVFS
+    		adp->cdevs_token = devfs_add_devswf(&ad_cdevsw, 
+						    dkmakeminor(adp->lun, 0, 0),
+						    DV_CHR, 
+						    UID_ROOT, GID_OPERATOR,
+						    0640, "rad%d", adp->lun);
+    		adp->bdevs_token = devfs_add_devswf(&ad_cdevsw,
+					 	    dkmakeminor(adp->lun, 0, 0),
+						    DV_BLK, 
+						    UID_ROOT, GID_OPERATOR,
+						    0640, "ad%d", adp->lun);
+#endif
 		bufq_init(&adp->queue);
 	        adtab[adnlun++] = adp;
             }
@@ -245,17 +263,6 @@ adioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
     return ENOTTY;
 }
 
-static int32_t
-adpsize(dev_t dev)
-{
-    struct ad_softc *adp;
-    int32_t lun = UNIT(dev);
-
-    if (lun >= adnlun || !(adp = adtab[lun]))
-        return -1;
-    return (dssize(dev, &adp->slices, adopen, adclose));
-}
-
 static void 
 adstrategy(struct buf *bp)
 {
@@ -299,6 +306,17 @@ done:
     s = splbio();   
     biodone(bp);
     splx(s);
+}
+
+static int32_t
+adpsize(dev_t dev)
+{
+    struct ad_softc *adp;
+    int32_t lun = UNIT(dev);
+
+    if (lun >= adnlun || !(adp = adtab[lun]))
+        return -1;
+    return dssize(dev, &adp->slices, adopen, adclose);
 }
 
 static void 
@@ -434,14 +452,14 @@ ad_interrupt(struct buf *bp)
     if (adp->controller->status & (ATA_S_ERROR | ATA_S_CORR)) {
 oops:
 	printf("ad%d: status=%02x error=%02x\n", 
-	       adp->unit, adp->controller->status, adp->controller->error);
+	       adp->lun, adp->controller->status, adp->controller->error);
 	if (adp->controller->status & ATA_S_ERROR) {
-       	    printf("ad_interrupt: hard error"); 
+       	    printf("ad_interrupt: hard error\n"); 
             bp->b_error = EIO;
             bp->b_flags |= B_ERROR;
 	}
 	if (adp->controller->status & ATA_S_CORR)
-       	    printf("ad_interrupt: soft ECC"); 
+       	    printf("ad_interrupt: soft ECC\n"); 
     }
     /* if this was a read operation, get the data */
     if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ) && adp->active) {
