@@ -28,8 +28,10 @@ ${MANP}: ${.CURDIR}/whatis.man
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
 	${.CURDIR}/whatis.man > ${MANP}
 
-install: ${TARG} ${MANP}
+install: ${TARG} maninstall
 	install -c -o bin -g bin -m 555 ${TARG} /usr/bin
+
+maninstall: ${MANP}
 	install -c -o bin -g bin -m 444 ${MANP} /usr/share/man/man1
 
 .include "../Makefile.inc"
