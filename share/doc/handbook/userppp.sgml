@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.8 1996/05/31 02:51:24 mpp Exp $ -->
+<!-- $Id: userppp.sgml,v 1.9 1996/10/05 18:36:22 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -291,7 +291,7 @@ x.x.x.x:
 <sect1><heading>PPP and Dynamic IP configuration</heading>
 
 <!-- XXX -->
- <p>If you service provider does not assign static IP numbers,
+ <p>If your service provider does not assign static IP numbers,
    <tt>ppp</tt> can be configured to negotiate the local address.  This is
    done by specifying 0 as the local IP address:
 <tscreen><verb>
