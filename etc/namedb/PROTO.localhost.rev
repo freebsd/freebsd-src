@@ -1,5 +1,5 @@
 ;	From: @(#)localhost.rev	5.1 (Berkeley) 6/30/90
-;	$Id$
+;	$Id: PROTO.localhost.rev,v 1.3 1997/02/23 09:21:09 peter Exp $
 ;
 ; This file is automatically edited by the `make-localhost' script in
 ; the /etc/namedb directory.
@@ -8,7 +8,7 @@
 @	IN	SOA	@host@. root.@host@.  (
 				@date@	; Serial
 				3600	; Refresh
-				300	; Retry
+				900	; Retry
 				3600000	; Expire
 				3600 )	; Minimum
 	IN	NS	@host@.
