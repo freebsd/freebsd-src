@@ -1101,15 +1101,23 @@ mac_init_ipq(struct ipq *ipq)
 int
 mac_init_mbuf(struct mbuf *m, int flag)
 {
+	int error;
+
 	KASSERT(m->m_flags & M_PKTHDR, ("mac_init_mbuf on non-header mbuf"));
 
 	mac_init_label(&m->m_pkthdr.label);
 
-	MAC_PERFORM(init_mbuf_label, &m->m_pkthdr.label, flag);
+	MAC_CHECK(init_mbuf_label, &m->m_pkthdr.label, flag);
+	if (error) {
+		MAC_PERFORM(destroy_mbuf_label, &m->m_pkthdr.label);
+		mac_destroy_label(&m->m_pkthdr.label);
+	}
+
 #ifdef MAC_DEBUG
-	atomic_add_int(&nmacmbufs, 1);
+	if (error == 0)
+		atomic_add_int(&nmacmbufs, 1);
 #endif
-	return (0);
+	return (error);
 }
 
 void
