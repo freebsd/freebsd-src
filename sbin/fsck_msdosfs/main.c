@@ -85,7 +85,7 @@ main(argc, argv)
 			break;
 		case 'F':
 			/* We can never run in background */
-			exit(8);
+			exit(5);
 			break;
 		case 'n':
 			alwaysno = 1;
