@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.37 1998/05/31 18:06:07 peter Exp $
+ * $Id: nfs_socket.c,v 1.38 1998/05/31 18:08:09 peter Exp $
  */
 
 /*
@@ -369,6 +369,19 @@ nfs_disconnect(nmp)
 		soshutdown(so, 2);
 		soclose(so);
 	}
+}
+
+void   
+nfs_safedisconnect(nmp)
+	struct nfsmount *nmp;
+{
+	struct nfsreq dummyreq; 
+
+	bzero(&dummyreq, sizeof(dummyreq));
+	dummyreq.r_nmp = nmp;
+	nfs_rcvlock(&dummyreq);
+	nfs_disconnect(nmp);
+	nfs_rcvunlock(&nmp->nm_flag, &nmp->nm_state);
 }
 
 /*
