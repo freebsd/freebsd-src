@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.38 1998/10/31 15:31:24 peter Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.39 1998/12/07 21:58:35 archie Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -459,7 +459,6 @@ mountmsdosfs(devvp, mp, p, argp)
 		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
 #endif
 			error = EINVAL;
-			printf("mountmsdosfs(): bad signature\n");
 			goto error_exit;
 		}
 #ifndef __FreeBSD__
@@ -498,7 +497,6 @@ mountmsdosfs(devvp, mp, p, argp)
 			|| !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 63) {
 #endif
 			error = EINVAL;
-			printf("mountmsdosfs(): bad bpb\n");
 			goto error_exit;
 		}
 #ifndef __FreeBSD__
