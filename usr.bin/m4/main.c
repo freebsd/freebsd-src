@@ -204,6 +204,8 @@ main(int argc, char *argv[])
 			for (p = optarg; *p; p++)
 				if (*p == '=')
 					break;
+			if (p == optarg)
+				errx(1, "null variable cannot be defined");
 			if (*p)
 				*p++ = EOS;
 			dodefine(optarg, p);
