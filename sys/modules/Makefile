@@ -28,6 +28,7 @@ SUBDIR=	accf_data \
 	if_stf \
 	if_tap \
 	if_tun \
+	if_vlan \
 	ip6fw \
 	ipfilter \
 	ipfw \
