@@ -646,7 +646,7 @@ configXDesktop(dialogMenuItem *self)
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
 	    ret = package_add("sawfish");
 	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("sawfish"))
-		write_root_xprofile("gnome-session &\nexec sawfish");
+		write_root_xprofile("exec gnome-session\n");
 	}
     }
     else if (!strcmp(desk, "enlightenment")) {
