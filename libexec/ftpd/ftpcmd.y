@@ -78,6 +78,7 @@ extern	union sockunion data_dest, his_addr;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;
+extern	char *homedir;
 extern 	int paranoid;
 extern	int logging;
 extern	int type;
@@ -535,10 +536,7 @@ cmd
 	| CWD check_login CRLF
 		{
 			if ($2) {
-				if (guest)
-					cwd("/");
-				else
-					cwd(pw->pw_dir);
+				cwd(homedir);
 			}
 		}
 	| CWD check_login SP pathname CRLF

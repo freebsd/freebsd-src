@@ -401,6 +401,17 @@ The server performs a
 to the home directory of the
 .Dq ftp
 user.
+As a special case if the
+.Dq ftp
+user's home directory pathname contains the
+.Dq \&/./
+separator,
+.Nm
+uses its left-hand side as the name of the directory to do
+.Xr chroot 2
+to, and its right-hand side to change the current directory to afterwards.
+A typical example for this case would be
+.Pa /usr/local/ftp/./pub .
 In order that system security is not breached, it is recommended
 that the
 .Dq ftp
