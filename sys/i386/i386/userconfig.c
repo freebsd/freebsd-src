@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.15 1994/11/14 03:22:28 bde Exp $
+ *      $Id: userconfig.c,v 1.16 1994/11/27 13:43:37 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -87,10 +87,13 @@ static int list_devices(CmdParm *);
 static int set_device_ioaddr(CmdParm *);
 static int set_device_irq(CmdParm *);
 static int set_device_drq(CmdParm *);
+static int set_device_iosize(CmdParm *);
 static int set_device_mem(CmdParm *);
 static int set_device_flags(CmdParm *);
 static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
+static int device_attach(CmdParm *);
+static int device_probe(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
 
@@ -115,16 +118,19 @@ static CmdParm dev_parms[] = {
 
 static Cmd CmdList[] = {
     { "?", 	helpfunc, 		NULL },		/* ? (help)	*/
+    { "a",	device_attach,		dev_parms },	/* attach dev */
     { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
     { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
     { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
-    { "io",	set_device_mem,		addr_parms },	/* iomem dev addr */
+    { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
+    { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
     { "l",	list_devices,		NULL },		/* ls, list	*/
-    { "p",	set_device_ioaddr,	int_parms },	/* port dev addr */
+    { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
+    { "pr",	device_probe,		dev_parms },	/* probe dev */
     { "q", 	quitfunc, 		NULL },		/* quit		*/
     { NULL,	NULL,			NULL },
 };
@@ -283,6 +289,13 @@ set_device_drq(CmdParm *parms)
 }
 
 static int
+set_device_iosize(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_msize = parms[1].parm.iparm;
+    return 0;
+}
+
+static int
 set_device_mem(CmdParm *parms)
 {
     parms[0].parm.dparm->id_maddr = parms[1].parm.aparm;
@@ -311,6 +324,26 @@ set_device_disable(CmdParm *parms)
 }
 
 static int
+device_attach(CmdParm *parms)
+{
+    int status;
+
+    status = (*(parms[0].parm.dparm->id_driver->attach))(parms[0].parm.dparm);
+    printf("attach returned status of 0x%x\n", status);
+    return 0;
+}
+
+static int
+device_probe(CmdParm *parms)
+{
+    int status;
+
+    status = (*(parms[0].parm.dparm->id_driver->probe))(parms[0].parm.dparm);
+    printf("probe returned status of 0x%x\n", status);
+    return 0;
+}
+
+static int
 quitfunc(CmdParm *parms)
 {
     return 1;
@@ -321,13 +354,16 @@ helpfunc(CmdParm *parms)
 {
     printf("Command\t\t\tDescription\n");
     printf("-------\t\t\t-----------\n");
+    printf("attach <devname>\tReturn results of device attach\n");
     printf("ls\t\t\tList currently configured devices\n");
     printf("port <devname> <addr>\tSet device port (i/o address)\n");
     printf("irq <devname> <number>\tSet device irq\n");
     printf("drq <devname> <number>\tSet device drq\n");
     printf("iomem <devname> <addr>\tSet device maddr (memory address)\n");
+    printf("iosize <devname> <size>\tSet device memory size\n");
     printf("flags <devname> <mask>\tSet device flags\n");
     printf("enable <devname>\tEnable device\n");
+    printf("probe <devname>\t\tReturn results of device probe\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
     printf("help\t\t\tThis message\n\n");
@@ -350,7 +386,7 @@ lsdevtab(struct isa_device *dt)
 	}
 	if (lineno == 0) {
 		printf(
-"Device   port       irq   drq   iomem      unit  flags      enabled\n");
+"Device   port       irq   drq   iomem   iosize   unit  flags      enabled\n");
 		++lineno;
 	}
 	/*
@@ -365,14 +401,15 @@ lsdevtab(struct isa_device *dt)
 	sprintf(line + 20, "%d", ffs(dt->id_irq) - 1);
 	sprintf(line + 26, "%d", dt->id_drq);
 	sprintf(line + 32, "0x%x", dt->id_maddr);
+	sprintf(line + 40, "%d", dt->id_msize);
 	/* Missing: id_msize (0 at start, useful if we can get here later). */
 	/* Missing: id_intr (useful if we could show it by name). */
 	/* Display only: id_unit. */
-	sprintf(line + 43, "%d", dt->id_unit);
-	sprintf(line + 49, "0x%x", dt->id_flags);
+	sprintf(line + 49, "%d", dt->id_unit);
+	sprintf(line + 55, "0x%x", dt->id_flags);
 	/* Missing: id_scsiid, id_alive, id_ri_flags, id_reconfig (0 now...) */
-	sprintf(line + 60, "%s", dt->id_enabled ? "Yes" : "No");
-	for (i = 0; i < 60; ++i)
+	sprintf(line + 66, "%s", dt->id_enabled ? "Yes" : "No");
+	for (i = 0; i < 66; ++i)
 		if (line[i] == '\0')
 			line[i] = ' ';
 	printf("%s\n", line);
