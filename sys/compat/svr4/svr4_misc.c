@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
@@ -164,17 +165,18 @@ svr4_sys_execv(td, uap)
 	struct thread *td;
 	struct svr4_sys_execv_args *uap;
 {
-	struct execve_args ap;
-	caddr_t sg;
+	struct image_args eargs;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, uap->path, &path);
 
-	ap.fname = uap->path;
-	ap.argv = uap->argp;
-	ap.envv = NULL;
-
-	return execve(td, &ap);
+	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp, NULL);
+	free(path, M_TEMP);
+	if (error == 0)
+		error = kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 int
@@ -182,17 +184,19 @@ svr4_sys_execve(td, uap)
 	struct thread *td;
 	struct svr4_sys_execve_args *uap;
 {
-	struct execve_args ap;
-	caddr_t sg;
+	struct image_args eargs;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, uap->path, &path);
 
-	ap.fname = uap->path;
-	ap.argv = uap->argp;
-	ap.envv = uap->envp;
-
-	return execve(td, &ap);
+	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
+	    uap->envp);
+	free(path, M_TEMP);
+	if (error == 0)
+		error = kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 int
@@ -638,22 +642,17 @@ svr4_mknod(td, retval, path, mode, dev)
 	svr4_mode_t mode;
 	svr4_dev_t dev;
 {
-	caddr_t sg = stackgap_init();
+	char *newpath;
+	int error;
 
-	CHECKALTEXIST(td, &sg, path);
+	CHECKALTEXIST(td, path, &newpath);
 
-	if (S_ISFIFO(mode)) {
-		struct mkfifo_args ap;
-		ap.path = path;
-		ap.mode = mode;
-		return mkfifo(td, &ap);
-	} else {
-		struct mknod_args ap;
-		ap.path = path;
-		ap.mode = mode;
-		ap.dev = dev;
-		return mknod(td, &ap);
-	}
+	if (S_ISFIFO(mode))
+		error = kern_mkfifo(td, newpath, UIO_SYSSPACE, mode);
+	else
+		error = kern_mknod(td, newpath, UIO_SYSSPACE, mode, dev);
+	free(newpath, M_TEMP);
+	return (error);
 }
 
 
@@ -1433,25 +1432,18 @@ svr4_sys_statvfs(td, uap)
 	struct thread *td;
 	struct svr4_sys_statvfs_args *uap;
 {
-	struct statfs_args	fs_args;
-	caddr_t sg = stackgap_init();
-	struct statfs *fs = stackgap_alloc(&sg, sizeof(struct statfs));
-	struct statfs bfs;
 	struct svr4_statvfs sfs;
+	struct statfs bfs;
+	char *path;
 	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	fs_args.path = uap->path;
-	fs_args.buf = fs;
+	CHECKALTEXIST(td, uap->path, &path);
 
-	if ((error = statfs(td, &fs_args)) != 0)
-		return error;
-
-	if ((error = copyin(fs, &bfs, sizeof(bfs))) != 0)
-		return error;
-
+	error = kern_statfs(td, path, UIO_SYSSPACE, &bfs);
+	free(path, M_TEMP);
+	if (error)
+		return (error);
 	bsd_statfs_to_svr4_statvfs(&bfs, &sfs);
-
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
@@ -1461,24 +1453,14 @@ svr4_sys_fstatvfs(td, uap)
 	struct thread *td;
 	struct svr4_sys_fstatvfs_args *uap;
 {
-	struct fstatfs_args	fs_args;
-	caddr_t sg = stackgap_init();
-	struct statfs *fs = stackgap_alloc(&sg, sizeof(struct statfs));
-	struct statfs bfs;
 	struct svr4_statvfs sfs;
+	struct statfs bfs;
 	int error;
 
-	fs_args.fd = uap->fd;
-	fs_args.buf = fs;
-
-	if ((error = fstatfs(td, &fs_args)) != 0)
-		return error;
-
-	if ((error = copyin(fs, &bfs, sizeof(bfs))) != 0)
-		return error;
-
+	error = kern_fstatfs(td, uap->fd, &bfs);
+	if (error)
+		return (error);
 	bsd_statfs_to_svr4_statvfs(&bfs, &sfs);
-
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
@@ -1488,25 +1470,18 @@ svr4_sys_statvfs64(td, uap)
 	struct thread *td;
 	struct svr4_sys_statvfs64_args *uap;
 {
-	struct statfs_args	fs_args;
-	caddr_t sg = stackgap_init();
-	struct statfs *fs = stackgap_alloc(&sg, sizeof(struct statfs));
-	struct statfs bfs;
 	struct svr4_statvfs64 sfs;
+	struct statfs bfs;
+	char *path;
 	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	fs_args.path = uap->path;
-	fs_args.buf = fs;
+	CHECKALTEXIST(td, uap->path, &path);
 
-	if ((error = statfs(td, &fs_args)) != 0)
-		return error;
-
-	if ((error = copyin(fs, &bfs, sizeof(bfs))) != 0)
-		return error;
-
+	error = kern_statfs(td, path, UIO_SYSSPACE, &bfs);
+	free(path, M_TEMP);
+	if (error)
+		return (error);
 	bsd_statfs_to_svr4_statvfs64(&bfs, &sfs);
-
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
@@ -1516,24 +1491,14 @@ svr4_sys_fstatvfs64(td, uap)
 	struct thread *td;
 	struct svr4_sys_fstatvfs64_args *uap;
 {
-	struct fstatfs_args	fs_args;
-	caddr_t sg = stackgap_init();
-	struct statfs *fs = stackgap_alloc(&sg, sizeof(struct statfs));
-	struct statfs bfs;
 	struct svr4_statvfs64 sfs;
+	struct statfs bfs;
 	int error;
 
-	fs_args.fd = uap->fd;
-	fs_args.buf = fs;
-
-	if ((error = fstatfs(td, &fs_args)) != 0)
-		return error;
-
-	if ((error = copyin(fs, &bfs, sizeof(bfs))) != 0)
-		return error;
-
+	error = kern_fstatfs(td, uap->fd, &bfs);
+	if (error)
+		return (error);
 	bsd_statfs_to_svr4_statvfs64(&bfs, &sfs);
-
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
@@ -1542,28 +1507,19 @@ svr4_sys_alarm(td, uap)
 	struct thread *td;
 	struct svr4_sys_alarm_args *uap;
 {
+        struct itimerval itv, oitv;
 	int error;
-        struct itimerval *itp, *oitp;
-	struct setitimer_args sa;
-	caddr_t sg = stackgap_init();
 
-        itp = stackgap_alloc(&sg, sizeof(*itp));
-	oitp = stackgap_alloc(&sg, sizeof(*oitp));
-        timevalclear(&itp->it_interval);
-        itp->it_value.tv_sec = uap->sec;
-        itp->it_value.tv_usec = 0;
-
-	sa.which = ITIMER_REAL;
-	sa.itv = itp;
-	sa.oitv = oitp;
-        error = setitimer(td, &sa);
+	timevalclear(&itv.it_interval);
+	itv.it_value.tv_sec = uap->sec;
+	itv.it_value.tv_usec = 0;
+	error = kern_setitimer(td, ITIMER_REAL, &itv, &oitv);
 	if (error)
-		return error;
-        if (oitp->it_value.tv_usec)
-                oitp->it_value.tv_sec++;
-        td->td_retval[0] = oitp->it_value.tv_sec;
-        return 0;
-
+		return (error);
+	if (oitv.it_value.tv_usec != 0)
+		oitv.it_value.tv_sec++;
+	td->td_retval[0] = oitv.it_value.tv_sec;
+	return (0);
 }
 
 int

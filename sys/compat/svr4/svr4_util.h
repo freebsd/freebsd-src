@@ -39,6 +39,7 @@
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/cdefs.h>
+#include <sys/uio.h>
 
 #ifdef DEBUG_SVR4
 #define DPRINTF(a)	uprintf a;
@@ -70,21 +71,18 @@ stackgap_alloc(sgp, sz)
 	return p;
 }
 
-extern const char svr4_emul_path[];
-int svr4_emul_find(struct thread *, caddr_t *, const char *, char *,
-			char **, int);
+int	svr4_emul_find(struct thread *, char *, enum uio_seg, char **, int);
 
-#define CHECKALT(p, sgp, path, i)					\
+#define CHECKALT(td, upath, pathp, i)					\
 	do {								\
 		int _error;						\
 									\
-		_error = svr4_emul_find(p, sgp, svr4_emul_path, path,	\
-                    &path, i);						\
-		if (_error == EFAULT)					\
+		_error = svr4_emul_find(td, upath, UIO_USERSPACE, pathp, i); \
+		if (*(pathp) == NULL)					\
 			return (_error);				\
 	} while (0)
 
-#define CHECKALTEXIST(p, sgp, path) CHECKALT(p, sgp, path, 0)
-#define CHECKALTCREAT(p, sgp, path) CHECKALT(p, sgp, path, 1)
+#define CHECKALTEXIST(td, upath, pathp) CHECKALT(td, upath, pathp, 0)
+#define CHECKALTCREAT(td, upath, pathp) CHECKALT(td, upath, pathp, 1)
 
 #endif /* !_SVR4_UTIL_H_ */
