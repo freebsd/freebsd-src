@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.80 1997/04/28 10:31:14 jkh Exp $
+ * $Id: system.c,v 1.81 1997/05/27 18:56:03 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -69,16 +69,37 @@ systemInitialize(int argc, char **argv)
 
     /* Are we running as init? */
     if (getpid() == 1) {
+	int fd, type;
+
+	RunningAsInit = 1;
 	setsid();
 	close(0);
-	if (open("/dev/ttyv0", O_RDWR) < 0)
-	    open("/dev/console", O_RDWR);
+	fd = open("/dev/ttyv0", O_RDWR);
+	if (fd == -1)
+	    fd = open("/dev/console", O_RDWR);	/* fallback */
 	else
 	    OnVTY = TRUE;
+	/*
+	 * To make _sure_ we're on a VTY and don't have /dev/console switched
+	 * away to a serial port or something, attempt to set the cursor appearance.
+	 */
+	type = 0;	/* normal */
+	if (OnVTY) {
+	    int fd2;
+
+	    if ((fd2 = open("/dev/console", O_RDWR)) != -1) {
+		if (ioctl(fd2, CONS_CURSORTYPE, &type) == -1) {
+		    OnVTY = FALSE;
+		    close(fd); close(fd2);
+		    open("/dev/console", O_RDWR);
+		}
+		else
+		    close(fd2);
+	    }
+	}
 	close(1); dup(0);
 	close(2); dup(0);
-	printf("%s running as init\n", argv[0]);
-	RunningAsInit = 1;
+	printf("%s running as init on %s\n", argv[0], OnVTY ? "vty0" : "serial console");
 	i = ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
