@@ -1,0 +1,145 @@
+.\"
+.\" Copyright (c) 2000 Michael Smith
+.\" Copyright (c) 2000 BSDi
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 10, 2000
+.Dt TWE 4
+.Os
+.Sh NAME
+.Nm twe
+.Nd 3ware Escalade ATA RAID adapter driver
+.Sh SYNOPSIS
+.Cd device pci
+.Cd device twe
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Escalade 3W-5x00 series of ATA RAID
+controllers.  These devices support 2, 4 or 8 ATA disk drives and provide
+RAID0 (striping) and RAID1 (mirroring) functionality.  
+.Sh DIAGNOSTICS
+Controller initialisation phase:
+.Bl -diag
+.It twe%d: microcontroller not ready
+.El
+.Pp
+The controller's onboard CPU is not reporting that it is ready; this may be
+due to either a board or system failure.  Initialisation has failed.
+.Bl -diag
+.It twe%d: no attention interrupt
+.It twe%d: can't drain AEN queue
+.It twe%d: reset not reported
+.It twe%d: controller errors detected
+.It twe%d: can't drain response queue
+.It twe%d: reset %d failed, trying again
+.El
+.Pp
+The controller is not responding correctly to the driver's attempts to reset
+and initialise it.  This process is retried several times.
+.Bl -diag
+.It twe%d: can't initialise controller, giving up
+.El
+.Pp
+Several attempts to reset and initialise the controller have failed;
+initialisation has failed and the driver will not attach to this controller.
+.Pp
+Driver initialisation/shutdown phase:
+.Bl -diag
+.It twe%d: register window not available
+.It twe%d: can't allocate register window
+.It twe%d: can't allocate parent DMA tag
+.It twe%d: can't allocate interrupt
+.It twe%d: can't set up interrupt
+.It twe%d: can't establish configuration hook
+.El
+.Pp
+A resource allocation error occurred while initialising the driver;
+initialisation has failed and the driver will not attach to this
+controller.
+.Bl -diag
+.It twe%d: can't detect attached units
+.El
+.Pp
+Fetching the list of attached units failed; initialisation has failed.
+.Bl -diag
+.It twe%d: error fetching capacity for unit %d
+.It twe%d: device_add_child failed
+.It twe%d: bus_generic_attach returned %d
+.El
+.Pp
+Creation of the disk devices failed; attachment of one or more units may have
+been aborted.
+.Bl -diag
+.It twe%d: command failed - 0x%x
+.It twe%d: command failed - controller wedged
+.El
+.Pp
+A command was reported as failed by the controller, or could not be delivered to
+the controller.
+.Bl -diag
+.It twe%d: host interrupt
+.El
+.Pp
+The controller has signalled a host interrupt.  This serves an unknown purpose
+and is ignored.
+.Bl -diag
+.It twe%d: command interrupt
+.El
+.Pp
+The controller has signalled a command interrupt.  This is not used, and will
+be disabled.
+.Bl -diag
+.It twe%d: error polling for signalled AENs
+.El
+.Pp
+The controller has reported that one or more status messages are ready for the
+driver, but attempting to fetch one of these has returned an error.
+.Bl -diag
+.It twe%d: AEN queue overflow, lost AEN <%s>
+.El
+.Pp
+A status message was retrieved from the controller, but there is no more room
+to queue it in the driver.  The message is lost.
+.Bl -diag
+.It twe%d: missing expected status bits %s
+.It twe%d: unexpected status bits %s
+.El
+.Pp
+A check of the controller's status bits indicates an unexpected condition.
+.Sh BUGS
+Much of the controller's status cannot currently be interpreted due to
+lack of information from 3ware.
+.Pp
+The controller cannot handle I/O transfers that are not aligned to a 512-byte
+boundary.  In order to support raw device access from user-space, the driver will
+perform alignment fixup on non-aligned data.  This process is inefficient, and
+thus in order to obtain best performance user-space applications accessing the 
+device should do so with aligned buffers.
+.Sh AUTHORS
+The 
+.Nm
+driver and manpage were written by
+.An Michael Smith
+.Aq msmith@FreeBSD.org .
