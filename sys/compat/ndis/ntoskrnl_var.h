@@ -428,7 +428,9 @@ typedef struct general_lookaside general_lookaside;
 
 struct npaged_lookaside_list {
 	general_lookaside	nll_l;
+#ifdef __i386__
 	kspin_lock		nll_obsoletelock;
+#endif
 };
 
 typedef struct npaged_lookaside_list npaged_lookaside_list;
@@ -654,7 +656,7 @@ typedef struct devobj_extension devobj_extension;
 #define IRP_MN_MOUNT_VOLUME             0x01
 #define IRP_MN_VERIFY_VOLUME            0x02
 #define IRP_MN_LOAD_FILE_SYSTEM         0x03
-#define IRP_MN_TRACK_LINK               0x04    // To be obsoleted soon
+#define IRP_MN_TRACK_LINK               0x04
 #define IRP_MN_KERNEL_CALL              0x04
 
 #define IRP_MN_LOCK                     0x01
