@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypserv.8,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
+.\"	$Id: ypserv.8,v 1.2 1996/02/26 02:17:18 wpaul Exp $
 .\"
 .Dd February 4, 1995
 .Dt YPSERV 8
@@ -40,7 +40,6 @@
 .Nm ypserv
 .Op Fl n
 .Op Fl d
-.Op Fl k
 .Op Fl p Ar path
 .Sh DESCRIPTION
 .Nm NIS
@@ -239,6 +238,25 @@ Note: while both of these access control mechanisms provide some
 security, they, like the privileged port test, are both vulnerable
 to ``IP spoofing'' attacks.
 .Pp
+.Ss NIS v1 compatibility
+This version of
+.Nm ypserv
+has some support for serving NIS v1 clients. FreeBSD's NIS
+implementation only uses the NIS v2 protocol, however other implementations
+include support for the vi protocol for backwards compatibility
+with older systems. The
+.Xr ypbind 8
+daemons supplied with these systems will try to establish a binding
+to an NIS v1
+server even though they may never actually need it (and they may
+persist in broadcasting in search of one even after they receive a
+response from a v2 server). Note that while
+support for normal client calls is provided, this version of
+.Nm ypserv
+does not handle v1 map transfer requests; consequently, it can not
+be used as a master or slave in conjunction with older NIS servers that
+only support the v1 protocol. Fortunately, there probably aren't any
+such servers still in use today.
 .Ss NIS servers that are also NIS clients
 Care must be taken when running
 .Nm ypserv
@@ -304,20 +322,6 @@ often take a fair amount of time to complete and are therefore handled
 in subprocesses, allowing the parent server process to go on handling
 other requests.) This makes it easier to trace the server with
 a debugging tool.
-.It Fl k
-This flag is provided for compatibility with SunOS 4. The
-.Xr ypbind 8
-command in SunOS 4 apparently expects to obtain a response from an
-NIS v1 server. Starting
-.Xr ypserv 8
-with the
-.Fl k
-flag causes it to register itself as an NIS v1 server and
-respond to YPPROC_DOMAIN_NONACK requests. Note carefully: this is
-merely a kludge (hence the 'k') to pacify SunOS 4's
-.Xr ypbind 8
-command: attempts to make the server actually handle NIS v1 queries
-will undoubtedly fail quite miserably.
 .It Fl p Ar path
 Normally,
 .Nm ypserv
@@ -351,4 +355,4 @@ Bill Paul <wpaul@ctr.columbia.edu>
 .Sh HISTORY
 This version of
 .Nm ypserv
-first appeared in FreeBSD 2.1.
+first appeared in FreeBSD 2.2.

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.2 1995/12/23 21:35:32 wpaul Exp $
+ *	$Id: yp_main.c,v 1.1 1996/02/25 19:29:34 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static char rcsid[] = "$Id: yp_main.c,v 1.2 1995/12/23 21:35:32 wpaul Exp $";
+static char rcsid[] = "$Id: yp_main.c,v 1.1 1996/02/25 19:29:34 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -76,6 +76,7 @@ static int _rpcfdtype;
 #define	_SERVED 1
 #define	_SERVING 2
 
+extern void ypprog_1 __P((struct svc_req, register SVCXPRT));
 extern void ypprog_2 __P((struct svc_req, register SVCXPRT));
 extern int _rpc_dtablesize __P((void));
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
@@ -83,7 +84,6 @@ char *progname = "ypserv";
 char *yp_dir = _PATH_YP;
 int debug = 0;
 int do_dns = 0;
-int sunos_4_kludge = 0;
 
 static
 void _msgout(char* msg)
@@ -138,8 +138,7 @@ yp_svc_run()
 static void unregister()
 {
 	(void) pmap_unset(YPPROG, YPVERS);
-	if (sunos_4_kludge)
-		(void) pmap_unset(YPPROG, 1);
+	(void) pmap_unset(YPPROG, YPOLDVERS);
 }
 
 static void reaper(sig)
@@ -163,7 +162,7 @@ static void reaper(sig)
 
 static void usage()
 {
-	fprintf(stderr, "Usage: %s [-h] [-d] [-n] [-k] [-p path]\n", progname);
+	fprintf(stderr, "Usage: %s [-h] [-d] [-n] [-p path]\n", progname);
 	exit(1);
 }
 
@@ -208,16 +207,13 @@ main(argc, argv)
 	int asize = sizeof (saddr);
 	int ch;
 
-	while ((ch = getopt(argc, argv, "hdnkp:")) != EOF) {
+	while ((ch = getopt(argc, argv, "hdnp:")) != EOF) {
 		switch(ch) {
 		case 'd':
 			debug = ypdb_debug = 1;
 			break;
 		case 'n':
 			do_dns = 1;
-			break;
-		case 'k':
-			sunos_4_kludge = 1;
 			break;
 		case 'p':
 			yp_dir = optarg;
@@ -252,22 +248,7 @@ main(argc, argv)
 		}
 		sock = RPC_ANYSOCK;
 		(void) pmap_unset(YPPROG, YPVERS);
-		if (sunos_4_kludge)
-			(void) pmap_unset(YPPROG, 1);
-	}
-
-	if (sunos_4_kludge && ((_rpcfdtype == 0)||(_rpcfdtype == SOCK_DGRAM))) {
-		transp = svcudp_create(sock);
-		if (transp == NULL) {
-			_msgout("cannot create udp service.");
-			exit(1);
-		}
-		if (!_rpcpmstart)
-			proto = IPPROTO_UDP;
-		if (!svc_register(transp, YPPROG, 1, ypprog_2, proto)) {
-			_msgout("unable to register (YPPROG, OLDYPVERS, udp).");
-			exit(1);
-		}
+		(void) pmap_unset(YPPROG, 1);
 	}
 
 	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_DGRAM)) {
@@ -278,6 +259,10 @@ main(argc, argv)
 		}
 		if (!_rpcpmstart)
 			proto = IPPROTO_UDP;
+		if (!svc_register(transp, YPPROG, YPOLDVERS, ypprog_1, proto)) {
+			_msgout("unable to register (YPPROG, YPOLDVERS, udp).");
+			exit(1);
+		}
 		if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, proto)) {
 			_msgout("unable to register (YPPROG, YPVERS, udp).");
 			exit(1);
@@ -292,6 +277,10 @@ main(argc, argv)
 		}
 		if (!_rpcpmstart)
 			proto = IPPROTO_TCP;
+		if (!svc_register(transp, YPPROG, YPOLDVERS, ypprog_1, proto)) {
+			_msgout("unable to register (YPPROG, YPOLDVERS, tcp).");
+			exit(1);
+		}
 		if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, proto)) {
 			_msgout("unable to register (YPPROG, YPVERS, tcp).");
 			exit(1);

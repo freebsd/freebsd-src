@@ -49,12 +49,27 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.3 1996/02/24 22:01:41 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_access.c,v 1.1 1996/02/25 19:27:59 wpaul Exp $";
 #endif
 
 extern int debug;
 
-char *yp_procs[] = {	"ypproc_null" ,
+			/* NIS v1 */
+char *yp_procs[] = {	"ypoldproc_null",
+			"ypoldproc_domain",
+			"ypoldproc_domain_nonack",
+			"ypoldproc_match",
+			"ypoldproc_first",
+			"ypoldproc_next",
+			"ypoldproc_poll",
+			"ypoldproc_push",
+			"ypoldproc_get",
+			"badproc1", /* placeholder */
+			"badproc2", /* placeholder */
+			"badproc3", /* placeholder */
+
+			/* NIS v2 */
+			"ypproc_null" ,
 			"ypproc_domain",
 			"ypproc_domain_nonack",
 			"ypproc_match",
@@ -67,6 +82,7 @@ char *yp_procs[] = {	"ypproc_null" ,
 			"ypproc_order",
 			"ypproc_maplist"
 		   };
+
 
 #ifdef TCP_WRAPPER
 void load_securenets()
@@ -200,15 +216,16 @@ int yp_access(map, rqstp)
 #ifndef TCP_WRAPPER
 	struct securenet *tmp;
 #endif
+	char *yp_procedure = NULL;
+
+	yp_procedure = rqstp->rq_prog == YPPASSWDPROG ? "yppasswdprog_update" :
+			yp_procs[rqstp->rq_proc + (12 * (rqstp->rq_vers - 1))];
 
 	rqhost = svc_getcaller(rqstp->rq_xprt);
 
 	if (debug) {
-		yp_error("Procedure %s called from %s:%d",
-			/* Hack to allow rpc.yppasswdd to use this routine */
-			rqstp->rq_prog == YPPASSWDPROG ?
-			"yppasswdproc_update" :
-			yp_procs[rqstp->rq_proc], inet_ntoa(rqhost->sin_addr),
+		yp_error("Procedure %s called from %s:%d", yp_procedure,
+			inet_ntoa(rqhost->sin_addr),
 			ntohs(rqhost->sin_port));
 		if (map != NULL)
 			yp_error("Client is referencing map \"%s\".", map);
@@ -244,9 +261,7 @@ int yp_access(map, rqstp)
 			yp_error("connect from %s:%d to procedure %s refused",
 					inet_ntoa(rqhost->sin_addr),
 					ntohs(rqhost->sin_port),
-					rqstp->rq_prog == YPPASSWDPROG ?
-					"yppasswdproc_update" :
-					yp_procs[rqstp->rq_proc]);
+					yp_procedure);
 			oldaddr = rqhost->sin_addr.s_addr;
 		}
 		return(1);
