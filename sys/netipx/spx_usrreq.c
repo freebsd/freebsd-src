@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.4 1995/11/04 09:03:43 julian Exp $
+ * $Id: spx_usrreq.c,v 1.5 1995/11/24 11:43:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
