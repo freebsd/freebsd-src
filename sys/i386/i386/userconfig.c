@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.121 1999/01/08 21:00:26 abial Exp $
+ **      $Id: userconfig.c,v 1.122 1999/01/09 18:12:05 wpaul Exp $
  **/
 
 /**
@@ -2516,7 +2516,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.121 1999/01/08 21:00:26 abial Exp $
+ *      $Id: userconfig.c,v 1.122 1999/01/09 18:12:05 wpaul Exp $
  */
 
 #include "scbus.h"
@@ -2607,10 +2607,12 @@ static CmdParm dev_parms[] = {
     { -1, {} },
 };
 
+#if NPNP > 0
 static CmdParm string_arg[] = {
     { PARM_STRING, {} },
     { -1, {} },
 };
+#endif
 
 #if NEISA > 0
 static CmdParm int_arg[] = {
