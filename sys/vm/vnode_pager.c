@@ -694,8 +694,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * clean up and return.  Otherwise we have to re-read the
 	 * media.
 	 */
+	VM_OBJECT_LOCK(object);
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
-		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		for (i = 0; i < count; i++)
 			if (i != reqpage)
@@ -705,6 +705,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		return VM_PAGER_OK;
 	}
 	m[reqpage]->valid = 0;
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * here on direct device I/O
