@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25.2.5 1997/04/26 23:39:30 davidn Exp $
+ *	$Id: ftpd.c,v 1.25.2.6 1997/04/27 08:19:50 davidn Exp $
  */
 
 #if 0
@@ -148,7 +148,23 @@ off_t	byte_count;
 #endif
 int	defumask = CMASK;		/* default umask value */
 char	tmpline[7];
+#ifdef VIRTUAL_HOSTING
+char	*hostname;
+char	*ftpuser;
+
+static struct ftphost {
+	struct ftphost	*next;
+	struct in_addr	hostaddr;
+	char		*hostname;
+	char		*anonuser;
+	char		*statfile;
+	char		*welcome;
+	char		*loginmsg;
+} *thishost, *firsthost;
+
+#else
 char	hostname[MAXHOSTNAMELEN];
+#endif
 char	remotehost[MAXHOSTNAMELEN];
 char	*ident = NULL;
 
@@ -211,6 +227,10 @@ char	addr_string[20];	/* XXX */
 			cmd, (*(file) == '/') ? "" : curdir(), file, cnt); \
 	}
 
+#ifdef VIRTUAL_HOSTING
+static void	 inithosts __P((void));
+static void	selecthost __P((struct in_addr *));
+#endif
 static void	 ack __P((char *));
 static void	 myoob __P((int));
 static int	 checkuser __P((char *, char *));
@@ -338,6 +358,9 @@ main(argc, argv, envp)
 		}
 	}
 
+#ifdef VIRTUAL_HOSTING
+	inithosts();
+#endif
 	(void) freopen(_PATH_DEVNULL, "w", stderr);
 
 	/*
@@ -447,6 +470,10 @@ main(argc, argv, envp)
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
 		exit(1);
 	}
+#ifdef VIRTUAL_HOSTING
+	/* select our identity from virtual host table */
+	selecthost(&ctrl_addr.sin_addr);
+#endif
 #ifdef IP_TOS
 	tos = IPTOS_LOWDELAY;
 	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof(int)) < 0)
@@ -490,7 +517,11 @@ main(argc, argv, envp)
 		reply(530, "System not available.");
 		exit(0);
 	}
+#ifdef VIRTUAL_HOSTING
+	if ((fd = fopen(thishost->welcome, "r")) != NULL) {
+#else
 	if ((fd = fopen(_PATH_FTPWELCOME, "r")) != NULL) {
+#endif
 		while (fgets(line, sizeof(line), fd) != NULL) {
 			if ((cp = strchr(line, '\n')) != NULL)
 				*cp = '\0';
@@ -500,7 +531,9 @@ main(argc, argv, envp)
 		(void) fclose(fd);
 		/* reply(220,) must follow */
 	}
+#ifndef VIRTUAL_HOSTING
 	(void) gethostname(hostname, sizeof(hostname));
+#endif
 	reply(220, "%s FTP server (%s) ready.", hostname, version);
 	(void) setjmp(errcatch);
 	for (;;)
@@ -517,6 +550,147 @@ lostconn(signo)
 		syslog(LOG_DEBUG, "lost connection");
 	dologout(-1);
 }
+
+#ifdef VIRTUAL_HOSTING
+/*
+ * read in virtual host tables (if they exist)
+ */
+
+static void
+inithosts()
+{
+	FILE *fp;
+	char *cp;
+	struct hostent *hp;
+	struct ftphost *hrp, *lhrp;
+	char line[1024];
+
+	/*
+	 * Fill in the default host information
+	 */
+	if (gethostname(line, sizeof(line)) < 0)
+		line[0] = '\0';
+	if ((hrp = malloc(sizeof(struct ftphost))) == NULL ||
+	    (hrp->hostname = strdup(line)) == NULL)
+		fatal("Ran out of memory.");
+	memset(&hrp->hostaddr, 0, sizeof hrp->hostaddr);
+	if ((hp = gethostbyname(hrp->hostname)) != NULL)
+		(void) memcpy(&hrp->hostaddr,
+			      hp->h_addr_list[0],
+			      sizeof(hrp->hostaddr));
+	hrp->statfile = _PATH_FTPDSTATFILE;
+	hrp->welcome  = _PATH_FTPWELCOME;
+	hrp->loginmsg = _PATH_FTPLOGINMESG;
+	hrp->anonuser = "ftp";
+	hrp->next = NULL;
+	thishost = firsthost = lhrp = hrp;
+	if ((fp = fopen(_PATH_FTPHOSTS, "r")) != NULL) {
+		while (fgets(line, sizeof(line), fp) != NULL) {
+			int	i;
+
+			if ((cp = strchr(line, '\n')) == NULL) {
+				/* ignore long lines */
+				while (fgets(line, sizeof(line), fp) != NULL &&
+					strchr(line, '\n') == NULL)
+					;
+				continue;
+			}
+			*cp = '\0';
+			cp = strtok(line, " \t");
+			/* skip comments and empty lines */
+			if (cp == NULL || line[0] == '#')
+				continue;
+			/* first, try a standard gethostbyname() */
+			if ((hp = gethostbyname(cp)) == NULL)
+				continue;
+			for (hrp = firsthost; hrp != NULL; hrp = hrp->next) {
+				if (memcmp(&hrp->hostaddr,
+					   hp->h_addr_list[0],
+					   sizeof(hrp->hostaddr)) == 0)
+					break;
+			}
+			if (hrp == NULL) {
+				if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
+					continue;
+				/* defaults */
+				hrp->statfile = _PATH_FTPDSTATFILE;
+				hrp->welcome  = _PATH_FTPWELCOME;
+				hrp->loginmsg = _PATH_FTPLOGINMESG;
+				hrp->anonuser = "ftp";
+				hrp->next     = NULL;
+				lhrp->next = hrp;
+				lhrp = hrp;
+			}
+			(void) memcpy(&hrp->hostaddr,
+				      hp->h_addr_list[0],
+				      sizeof(hrp->hostaddr));
+			/*
+			 * determine hostname to use.
+			 * force defined name if it is a valid alias
+			 * otherwise fallback to primary hostname
+			 */
+			if ((hp = gethostbyaddr((char*)&hrp->hostaddr,
+						sizeof(hrp->hostaddr),
+						AF_INET)) != NULL) {
+				if (strcmp(cp, hp->h_name) != 0) {
+					if (hp->h_aliases == NULL)
+						cp = hp->h_name;
+					else {
+						i = 0;
+						while (hp->h_aliases[i] &&
+						       strcmp(cp, hp->h_aliases[i]) != 0)
+							++i;
+						if (hp->h_aliases[i] == NULL)
+							cp = hp->h_name;
+					}
+				}
+			}
+			hrp->hostname = strdup(cp);
+			/* ok, now we now peel off the rest */
+			i = 0;
+			while (i < 4 && (cp = strtok(NULL, " \t")) != NULL) {
+				if (*cp != '-' && (cp = strdup(cp)) != NULL) {
+					switch (i) {
+					case 0:	/* anon user permissions */
+						hrp->anonuser = cp;
+						break;
+					case 1: /* statistics file */
+						hrp->statfile = cp;
+						break;
+					case 2: /* welcome message */
+						hrp->welcome  = cp;
+						break;
+					case 3: /* login message */
+						hrp->loginmsg = cp;
+						break;
+					}
+				}
+				++i;
+			}
+		}
+		(void) fclose(fp);
+	}
+}
+
+static void
+selecthost(a)
+	struct in_addr *a;
+{
+	struct ftphost	*hrp;
+
+	hrp = thishost = firsthost;	/* default */
+	while (hrp != NULL) {
+		if (memcmp(a, &hrp->hostaddr, sizeof(hrp->hostaddr)) == 0) {
+			thishost = hrp;
+			break;
+		}
+		hrp = hrp->next;
+	}
+	/* setup static variables as appropriate */
+	hostname = thishost->hostname;
+	ftpuser = thishost->anonuser;
+}
+#endif
 
 /*
  * Helper function for sgetpwnam().
@@ -603,7 +777,11 @@ user(name)
 		if (checkuser(_PATH_FTPUSERS, "ftp") ||
 		    checkuser(_PATH_FTPUSERS, "anonymous"))
 			reply(530, "User %s access denied.", name);
+#ifdef VIRTUAL_HOSTING
+		else if ((pw = sgetpwnam(thishost->anonuser)) != NULL) {
+#else
 		else if ((pw = sgetpwnam("ftp")) != NULL) {
+#endif
 			guest = 1;
 			askpasswd = 1;
 			reply(331,
@@ -783,7 +961,11 @@ skip:
 	logged_in = 1;
 
 	if (guest && stats && statfd < 0)
+#ifdef VIRTUAL_HOSTING
+		if ((statfd = open(thishost->statfile, O_WRONLY|O_APPEND)) < 0)
+#else
 		if ((statfd = open(_PATH_FTPDSTATFILE, O_WRONLY|O_APPEND)) < 0)
+#endif
 			stats = 0;
 
 	dochroot = checkuser(_PATH_FTPCHROOT, pw->pw_name);
@@ -825,7 +1007,11 @@ skip:
 	 * Display a login message, if it exists.
 	 * N.B. reply(230,) must follow the message.
 	 */
+#ifdef VIRTUAL_HOSTING
+	if ((fd = fopen(thishost->loginmsg, "r")) != NULL) {
+#else
 	if ((fd = fopen(_PATH_FTPLOGINMESG, "r")) != NULL) {
+#endif
 		char *cp, line[LINE_MAX];
 
 		while (fgets(line, sizeof(line), fd) != NULL) {
@@ -845,10 +1031,18 @@ skip:
 
 		reply(230, "Guest login ok, access restrictions apply.");
 #ifdef SETPROCTITLE
-		snprintf(proctitle, sizeof(proctitle),
-		    "%s: anonymous/%.*s", remotehost,
-		    sizeof(proctitle) - sizeof(remotehost) -
-		    sizeof(": anonymous/"), passwd);
+#ifdef VIRTUAL_HOSTING
+		if (thishost != firsthost)
+			snprintf(proctitle, sizeof(proctitle),
+				 "%s: anonymous(%s)/%.*s", remotehost, hostname,
+				 sizeof(proctitle) - sizeof(remotehost) -
+				 sizeof(": anonymous/"), passwd);
+		else
+#endif
+			snprintf(proctitle, sizeof(proctitle),
+				 "%s: anonymous/%.*s", remotehost,
+				 sizeof(proctitle) - sizeof(remotehost) -
+				 sizeof(": anonymous/"), passwd);
 		setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 		if (logging)
@@ -858,7 +1052,7 @@ skip:
 		reply(230, "User %s logged in.", pw->pw_name);
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
-		    "%s: %s", remotehost, pw->pw_name);
+			 "%s: %s", remotehost, pw->pw_name);
 		setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 		if (logging)
@@ -1649,12 +1843,26 @@ dolog(sin)
 		(void) strncpy(remotehost, inet_ntoa(sin->sin_addr),
 		    sizeof(remotehost));
 #ifdef SETPROCTITLE
-	snprintf(proctitle, sizeof(proctitle), "%s: connected", remotehost);
+#ifdef VIRTUAL_HOSTING
+	if (thishost != firsthost)
+		snprintf(proctitle, sizeof(proctitle), "%s: connected (to %s)",
+			 remotehost, hostname);
+	else
+#endif
+		snprintf(proctitle, sizeof(proctitle), "%s: connected",
+			 remotehost);
 	setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 
-	if (logging)
-		syslog(LOG_INFO, "connection from %s", remotehost);
+	if (logging) {
+#ifdef VIRTUAL_HOSTING
+		if (thishost != firsthost)
+			syslog(LOG_INFO, "connection from %s (to %s)",
+			       remotehost, hostname);
+		else
+#endif
+			syslog(LOG_INFO, "connection from %s", remotehost);
+	}
 }
 
 /*
