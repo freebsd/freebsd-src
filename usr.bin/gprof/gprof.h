@@ -65,11 +65,6 @@
 
 
     /*
-     *	who am i, for error messages.
-     */
-char	*whoami;
-
-    /*
      * booleans
      */
 typedef int	bool;

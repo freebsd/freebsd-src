@@ -32,18 +32,21 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)gprof.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include "gprof.h"
-
-char	*whoami = "gprof";
 
     /*
      *	things which get -E excluded by default.
@@ -83,8 +86,7 @@ main(argc, argv)
 #if defined(vax) || defined(tahoe)
 	    cflag = TRUE;
 #else
-	    fprintf(stderr, "gprof: -c isn't supported on this architecture yet\n");
-	    exit(1);
+	    errx(1, "-c isn't supported on this architecture yet");
 #endif
 	    break;
 	case 'd':
@@ -95,7 +97,7 @@ main(argc, argv)
 #	    ifdef DEBUG
 		printf("[main] debug = %d\n", debug);
 #	    else not DEBUG
-		printf("%s: -d ignored\n", whoami);
+		printf("gprof: -d ignored\n");
 #	    endif DEBUG
 	    break;
 	case 'E':
@@ -237,7 +239,7 @@ getnfile()
     }
     fread(&xbuf, 1, sizeof(xbuf), nfile);
     if (N_BADMAG(xbuf)) {
-	fprintf(stderr, "%s: %s: bad format\n", whoami , a_outname );
+	warnx("%s: bad format", a_outname );
 	done();
     }
     getstrtab(nfile);
@@ -262,19 +264,16 @@ getstrtab(nfile)
 
     fseek(nfile, (long)(N_SYMOFF(xbuf) + xbuf.a_syms), 0);
     if (fread(&ssiz, sizeof (ssiz), 1, nfile) == 0) {
-	fprintf(stderr, "%s: %s: no string table (old format?)\n" ,
-		whoami , a_outname );
+	warnx("%s: no string table (old format?)" , a_outname );
 	done();
     }
     strtab = calloc(ssiz, 1);
     if (strtab == NULL) {
-	fprintf(stderr, "%s: %s: no room for %d bytes of string table\n",
-		whoami , a_outname , ssiz);
+	warnx("%s: no room for %d bytes of string table", a_outname , ssiz);
 	done();
     }
     if (fread(strtab+sizeof(ssiz), ssiz-sizeof(ssiz), 1, nfile) != 1) {
-	fprintf(stderr, "%s: %s: error reading string table\n",
-		whoami , a_outname );
+	warnx("%s: error reading string table", a_outname );
 	done();
     }
 }
@@ -300,14 +299,13 @@ getsymtab(nfile)
 	nname++;
     }
     if (nname == 0) {
-	fprintf(stderr, "%s: %s: no symbols\n", whoami , a_outname );
+	warnx("%s: no symbols", a_outname );
 	done();
     }
     askfor = nname + 1;
     nl = (nltype *) calloc( askfor , sizeof(nltype) );
     if (nl == 0) {
-	fprintf(stderr, "%s: No room for %d bytes of symbol table\n",
-		whoami, askfor * sizeof(nltype) );
+	warnx("no room for %d bytes of symbol table", askfor * sizeof(nltype) );
 	done();
     }
 
@@ -352,15 +350,12 @@ gettextspace( nfile )
     }
     textspace = (u_char *) malloc( xbuf.a_text );
     if ( textspace == 0 ) {
-	fprintf( stderr , "%s: ran out room for %d bytes of text space:  " ,
-			whoami , xbuf.a_text );
-	fprintf( stderr , "can't do -c\n" );
+	warnx("ran out room for %d bytes of text space: can't do -c" , xbuf.a_text );
 	return;
     }
     (void) fseek( nfile , N_TXTOFF( xbuf ) , 0 );
     if ( fread( textspace , 1 , xbuf.a_text , nfile ) != xbuf.a_text ) {
-	fprintf( stderr , "%s: couldn't read text space:  " , whoami );
-	fprintf( stderr , "can't do -c\n" );
+	warnx("couldn't read text space: can't do -c");
 	free( textspace );
 	textspace = 0;
 	return;
@@ -415,7 +410,7 @@ openpfile(filename)
     fread(&tmp, sizeof(struct gmonhdr), 1, pfile);
     if ( s_highpc != 0 && ( tmp.lpc != gmonhdr.lpc ||
 	 tmp.hpc != gmonhdr.hpc || tmp.ncnt != gmonhdr.ncnt ) ) {
-	fprintf(stderr, "%s: incompatible with first gmon file\n", filename);
+	warnx("%s: incompatible with first gmon file", filename);
 	done();
     }
     gmonhdr = tmp;
@@ -556,8 +551,7 @@ readsamples(pfile)
     if (samples == 0) {
 	samples = (UNIT *) calloc(sampbytes, sizeof (UNIT));
 	if (samples == 0) {
-	    fprintf( stderr , "%s: No room for %d sample pc's\n",
-		whoami , sampbytes / sizeof (UNIT));
+	    warnx("no room for %d sample pc's", sampbytes / sizeof (UNIT));
 	    done();
 	}
     }
@@ -568,9 +562,7 @@ readsamples(pfile)
 	samples[i] += sample;
     }
     if (i != nsamples) {
-	fprintf(stderr,
-	    "%s: unexpected EOF after reading %d/%d samples\n",
-		whoami , --i , nsamples );
+	warnx("unexpected EOF after reading %d/%d samples", --i , nsamples );
 	done();
     }
 }
