@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.2 1994/01/11 19:01:23 nate Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.1 1994/08/08 01:03:58 wollman Exp $";
 #endif
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ struct ypbind_setdom *argp;
 CLIENT *clnt;
 {
 	struct sockaddr_in *fromsin, bindsin;
-	char res;
+	static char res;
 
 	bzero((char *)&res, sizeof(res));
 	fromsin = svc_getcaller(transp);
