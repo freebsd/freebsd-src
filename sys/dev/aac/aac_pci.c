@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
+ * Copyright (c) Adaptec, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,7 +106,7 @@ struct aac_ident
     {0, 0, 0, 0, 0, 0}
 };
 
-/********************************************************************************
+/******************************************************************************
  * Determine whether this is one of our supported adapters.
  */
 static int
@@ -127,7 +129,7 @@ aac_pci_probe(device_t dev)
     return(ENXIO);
 }
 
-/********************************************************************************
+/******************************************************************************
  * Allocate resources for our device, set up the bus interface.
  */
 static int
@@ -169,8 +171,9 @@ aac_pci_attach(device_t dev)
      * Allocate the PCI register window.
      */
     sc->aac_regs_rid = 0x10;	/* first base address register */
-    if ((sc->aac_regs_resource = bus_alloc_resource(sc->aac_dev, SYS_RES_MEMORY, &sc->aac_regs_rid, 
-						    0, ~0, 1, RF_ACTIVE)) == NULL) {
+    if ((sc->aac_regs_resource = bus_alloc_resource(sc->aac_dev, SYS_RES_MEMORY,
+				 &sc->aac_regs_rid, 0, ~0, 1,
+				 RF_ACTIVE)) == NULL) {
 	device_printf(sc->aac_dev, "couldn't allocate register window\n");
 	goto out;
     }
@@ -181,12 +184,14 @@ aac_pci_attach(device_t dev)
      * Allocate and connect our interrupt.
      */
     sc->aac_irq_rid = 0;
-    if ((sc->aac_irq = bus_alloc_resource(sc->aac_dev, SYS_RES_IRQ, &sc->aac_irq_rid, 
-					  0, ~0, 1, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+    if ((sc->aac_irq = bus_alloc_resource(sc->aac_dev, SYS_RES_IRQ,
+		       &sc->aac_irq_rid, 0, ~0, 1,
+		       RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 	device_printf(sc->aac_dev, "can't allocate interrupt\n");
 	goto out;
     }
-    if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY,  aac_intr, sc, &sc->aac_intr)) {
+    if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY,
+		       aac_intr, sc, &sc->aac_intr)) {
 	device_printf(sc->aac_dev, "can't set up interrupt\n");
 	goto out;
     }
@@ -200,7 +205,7 @@ aac_pci_attach(device_t dev)
      * Note that some of these controllers are 64-bit capable.
      */
     if (bus_dma_tag_create(NULL, 			/* parent */
-			   1, 0, 			/* alignment, boundary */
+			   1, 0, 			/* algnmnt, boundary */
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
@@ -216,7 +221,7 @@ aac_pci_attach(device_t dev)
      * Create DMA tag for mapping buffers into controller-addressable space.
      */
     if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
-			   1, 0, 			/* alignment, boundary */
+			   1, 0, 			/* algnmnt, boundary */
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
@@ -231,21 +236,23 @@ aac_pci_attach(device_t dev)
     /*
      * Create DMA tag for mapping FIBs into controller-addressable space..
      */
-    if (bus_dma_tag_create(sc->aac_parent_dmat, 			/* parent */
-			   1, 0, 					/* alignment, boundary */
-			   BUS_SPACE_MAXADDR,				/* lowaddr */
-			   BUS_SPACE_MAXADDR, 				/* highaddr */
-			   NULL, NULL, 					/* filter, filterarg */
-			   AAC_FIB_COUNT * sizeof(struct aac_fib), 1,	/* maxsize, nsegments */
-			   BUS_SPACE_MAXSIZE_32BIT,			/* maxsegsize */
-			   0,						/* flags */
+    if (bus_dma_tag_create(sc->aac_parent_dmat,		/* parent */
+			   1, 0, 			/* algnmnt, boundary */
+			   BUS_SPACE_MAXADDR,		/* lowaddr */
+			   BUS_SPACE_MAXADDR, 		/* highaddr */
+			   NULL, NULL, 			/* filter, filterarg */
+			   AAC_FIB_COUNT *
+			   sizeof(struct aac_fib), 1,	/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+			   0,				/* flags */
 			   &sc->aac_fib_dmat)) {
 	device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");
 	goto out;
     }
 
     /* 
-     * Detect the hardware interface version, set up the bus interface indirection.
+     * Detect the hardware interface version, set up the bus interface
+     * indirection.
      */
     sc->aac_hwif = AAC_HWIF_UNKNOWN;
     for (i = 0; aac_identifiers[i].vendor != 0; i++) {
