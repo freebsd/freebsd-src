@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.22 1997/07/01 06:13:51 jkh Exp $";
+static const char rcsid[] =
+	"$Id: plist.c,v 1.23 1997/09/02 08:48:47 jkh Exp $";
 #endif
 
 /*
@@ -23,7 +24,7 @@ static const char *rcsid = "$Id: plist.c,v 1.22 1997/07/01 06:13:51 jkh Exp $";
  */
 
 #include "lib.h"
-#include <errno.h>
+#include <err.h>
 #include <md5.h>
 
 /* Add an item to a packing list */
@@ -250,7 +251,7 @@ read_plist(Package *pkg, FILE *fp)
 	if (pline[0] == CMD_CHAR) {
 	    cmd = plist_cmd(pline + 1, &cp);
 	    if (cmd == FAIL)
-		barf("Bad command '%s'", pline);
+		cleanup(0), errx(2, "bad command '%s'", pline);
 	    if (*cp == '\0')
 		cp = NULL;
 	}
@@ -334,7 +335,8 @@ write_plist(Package *pkg, FILE *fp)
 	    break;
 
 	default:
-	    barf("Unknown command type %d (%s)\n", plist->type, plist->name);
+	    cleanup(0);
+	    errx(2, "unknown command type %d (%s)", plist->type, plist->name);
 	    break;
 	}
 	plist = plist->next;
@@ -378,7 +380,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    if (Verbose)
 		printf("Execute `%s'\n", tmp);
 	    if (!Fake && system(tmp)) {
-		whinge("unexec command for `%s' failed.", tmp);
+		warnx("unexec command for `%s' failed", tmp);
 		fail = FAIL;
 	    }
 	    break;
@@ -387,8 +389,8 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    last_file = p->name;
 	    sprintf(tmp, "%s/%s", Where, p->name);
 	    if (isdir(tmp)) {
-		whinge("Attempting to delete directory `%s' as a file\n"
-		       "This packing list is incorrect - ignoring delete request.\n", tmp);
+		warnx("attempting to delete directory `%s' as a file\n"
+	   "this packing list is incorrect - ignoring delete request", tmp);
 	    }
 	    else {
 		if (p->next && p->next->type == PLIST_COMMENT && !strncmp(p->next->name, "MD5:", 4)) {
@@ -418,7 +420,8 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 			if (make_preserve_name(tmp2, FILENAME_MAX, name, tmp)) {
 			    if (fexists(tmp2)) {
 				if (rename(tmp2, tmp))
-				    whinge("preserve:  Unable to restore %s as %s, errno = %d", tmp2, tmp, errno);
+				   warn("preserve: unable to restore %s as %s",
+					tmp2, tmp);
 			    }
 			}
 		    }
@@ -429,14 +432,14 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	case PLIST_DIR_RM:
 	    sprintf(tmp, "%s/%s", Where, p->name);
 	    if (!isdir(tmp)) {
-		whinge("Attempting to delete file `%s' as a directory\n"
-		       "This packing list is incorrect - ignoring delete request.\n", tmp);
+		warnx("attempting to delete file `%s' as a directory\n"
+	"this packing list is incorrect - ignoring delete request", tmp);
 	    }
 	    else {
 		if (Verbose)
 		    printf("Delete directory %s\n", tmp);
 		if (!Fake && delete_hierarchy(tmp, ign_err, FALSE)) {
-		    whinge("Unable to completely remove directory '%s'", tmp);
+		    warnx("unable to completely remove directory '%s'", tmp);
 		    fail = FAIL;
 		}
 	    }
@@ -464,7 +467,8 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
     cp1 = cp2 = dir;
     if (!fexists(dir)) {
 	if (!ign_err)
-	    whinge("%s `%s' doesn't really exist.", isdir(dir) ? "Directory" : "File", dir);
+	    warnx("%s `%s' doesn't really exist",
+		isdir(dir) ? "directory" : "file", dir);
 	return !ign_err;
     }
     else if (nukedirs) {
@@ -489,7 +493,7 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 	    return 0;
 	if (RMDIR(dir) && !ign_err)
 	    if (!fexists(dir))
-		whinge("Directory `%s' doesn't really exist.", dir);
+		warnx("directory `%s' doesn't really exist", dir);
 	    else
 		return 1;
 	/* back up the pathname one component */

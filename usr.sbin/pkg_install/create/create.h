@@ -1,4 +1,4 @@
-/* $Id: create.h,v 1.11 1997/02/22 16:09:24 peter Exp $ */
+/* $Id: create.h,v 1.12 1997/06/06 12:19:11 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -40,7 +40,6 @@ extern int	Dereference;
 extern int	PlistOnly;
 
 void		check_list(char *, Package *);
-void		usage(const char *, const char *, ...);
 int		pkg_perform(char **);
 void		copy_plist(char *, Package *);
 
