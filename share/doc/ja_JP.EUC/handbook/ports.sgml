@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: ports.sgml,v 1.1.1.1 1996/11/15 05:14:40 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.17 -->
+<!-- Original revision: 1.18 -->
 
 <sect><heading>ports コレクション <label id="ports"></heading>
 
@@ -466,8 +466,8 @@ PLIST - プログラムのインストール時に作成される, すべてのファイルのリスト.
 <item> 忘れてしまう. これはほとんどの場合最も簡単な方法です. 
    ports のプログラムのうち必要不可欠な物はごくわずかです. 
 
-<item> FTP サイトコンパイル済みのパッケージを入手する. 
-   マスターパッケージコレクションは FreeBSD の FTP サイト
+<item> FTP サイトからコンパイル済みのパッケージを入手する. 
+   マスターパッケージコレクションは FreeBSD の FTP サイトの
    <htmlurl url="ftp://ftp.FreeBSD.org/pub/FreeBSD/packages/" 
    name="パッケージディレクトリ"> に置いてありますが, 
    まずあなたの近くのローカルミラーサイトを確認してください! 
@@ -475,8 +475,8 @@ PLIST - プログラムのインストール時に作成される, すべてのファイルのリスト.
    ソースからコンパイルに挑戦するよりパッケージを使ったほうが, 
    (ほとんど全部が) ずっと確実に動作するでしょうし, 
    より手っ取り早い方法でもあります. 
-   プログラムをシステムにインストールするには, <tt>pkg_add(1)</tt> または, 
-   <tt>pkg_manage(1)</tt> を使ってください. 
+   プログラムをシステムにインストールするには, <tt>pkg_add(1)</tt> 
+を使ってください. 
 
 </enum>
 
