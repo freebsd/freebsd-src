@@ -1201,7 +1201,6 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 			}
 			nextIndex = index + 1;
 			*off += len + len2;
-gotIndex:
 		} else {			/* a structure field */
 			const struct ng_parse_struct_field *field = NULL;
 			const struct ng_parse_struct_info *si = type->info;
@@ -1230,6 +1229,7 @@ gotIndex:
 			}
 			*off += len;
 		}
+gotIndex:
 
 		/* Check array index */
 		if (index >= num) {
