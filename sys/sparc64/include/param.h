@@ -114,53 +114,12 @@
 #define PAGE_SIZE_MAX	PAGE_SIZE_4M
 #define PAGE_MASK_MAX	PAGE_MASK_4M
 
-#define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
-#define DEV_BSIZE	(1<<DEV_BSHIFT)
-
-#ifndef BLKDEV_IOSIZE
-#define BLKDEV_IOSIZE	PAGE_SIZE	/* default block device I/O size */
-#endif
-#define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
-#define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
-#define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
-
 #define KSTACK_PAGES		4	/* pages of kernel stack (with pcb) */
 #define UAREA_PAGES		1	/* pages of user area */
 #define PCPU_PAGES		1
 
 #define KSTACK_GUARD 		/* compile in kstack guard page */
 #define KSTACK_GUARD_PAGES	1
-
-/*
- * Constants related to network buffer management.
- * MCLBYTES must be no larger than PAGE_SIZE.
- */
-#ifndef	MSIZE
-#define MSIZE		256		/* size of an mbuf */
-#endif	/* MSIZE */
-
-#ifndef	MCLSHIFT
-#define MCLSHIFT	11		/* convert bytes to mbuf clusters */
-#endif	/* MCLSHIFT */
-#define MCLBYTES	(1 << MCLSHIFT)	/* size of an mbuf cluster */
-
-/*
- * Some macros for units conversion
- */
-
-/* clicks to bytes */
-#define ctob(x)	((unsigned long)(x)<<PAGE_SHIFT)
-
-/* bytes to clicks */
-#define btoc(x)	(((unsigned long)(x)+PAGE_MASK)>>PAGE_SHIFT)
-
-/* bytes to disk blocks */
-#define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
-	(daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT)
-
-/* disk blocks to bytes */
-#define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
-	(off_t)((unsigned long)(db) << DEV_BSHIFT)
 
 /*
  * Mach derived conversion macros
