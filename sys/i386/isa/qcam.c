@@ -230,10 +230,10 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	switch (cmd) {
 	case QC_GET:
-		return qcam_ioctl_get(qs, info) ? 0 : EINVAL;
+		return qcam_ioctl_get(qs, info) ? EINVAL : 0;
 
 	case QC_SET:
-		return qcam_ioctl_set(qs, info) ? 0 : EINVAL;
+		return qcam_ioctl_set(qs, info) ? EINVAL : 0;
 
 	default:
 		return(ENOTTY);
