@@ -78,9 +78,11 @@ ncv	i386,pc98
 nge	i386,pc98,amd64
 nsp	i386,pc98
 ohci	i386,pc98,alpha,ia64,amd64
+re	i386,pc98,alpha,sparc64,amd64
 rl	i386,pc98,alpha,sparc64,amd64
 rue	i386,pc98,amd64
 sf	i386,pc98,alpha,amd64
+sis	i386,pc98,alpha,amd64
 sk	i386,pc98,alpha,amd64
 snc	pc98
 snd_ad1816	i386,amd64
