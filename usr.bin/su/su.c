@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$Id: su.c,v 1.15 1997/01/13 06:39:19 davidn Exp $";
+	"$Id: su.c,v 1.17 1997/01/14 09:24:09 davidn Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -223,7 +223,8 @@ main(argc, argv)
 #endif
 		{
 			/* only allow those in group zero to su to root. */
-			if (pwd->pw_uid == 0 && (gr = getgrgid((gid_t)0)))
+			if (pwd->pw_uid == 0 && (gr = getgrgid((gid_t)0)) &&
+			    gr->gr_mem && *(gr->gr_mem))
 				for (g = gr->gr_mem;; ++g) {
 					if (!*g)
 						errx(1,

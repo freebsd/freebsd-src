@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: su.1,v 1.7 1997/02/22 19:57:15 peter Exp $
 .\"
 .\" this is for hilit19's braindeadness: "
 .Dd April 18, 1994
@@ -149,12 +149,13 @@ option as understood by most shells.  Note that
 usually expects a single argument only; you have to quote it when
 passing multiple words.
 .Pp
-Only users in group 0 (normally
+Only users listed in group 0 (normally
 .Dq wheel )
 can
 .Nm su
 to
-.Dq root .
+.Dq root ,
+unless this group is empty.
 .Pp
 By default (unless the prompt is reset by a startup file) the super-user
 prompt is set to
