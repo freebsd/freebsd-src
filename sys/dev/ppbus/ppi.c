@@ -258,7 +258,7 @@ ppiintr(void *arg)
 		break;
 	default:
 #ifdef DEBUG_1284
-		printf("?%d", ppb_1284_get_state(ppbus);
+		printf("?%d", ppb_1284_get_state(ppbus));
 #endif
 		ppb_1284_set_state(ppbus, PPB_FORWARD_IDLE);
 		ppb_set_mode(ppbus, PPB_COMPATIBLE);
