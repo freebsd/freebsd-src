@@ -739,11 +739,10 @@ read_len:
 						TIMEVAL_TO_TIMESPEC(&ctv, &ts);
 						goto wait;
 					}
-				} else {
-					Perror(stderr, "kevent", errno);
-					res_close();
-					goto next_ns;
 				}
+				Perror(stderr, "kevent", errno);
+				res_close();
+				goto next_ns;
 			}
 
 			if (n == 0) {
