@@ -500,7 +500,6 @@ archive_write_pax_header(struct archive *a,
 	if (!need_extension && p != NULL  &&  *p != '\0')
 		need_extension = 1;
 
-
 	/* If there are non-trivial ACL entries, we need an extension. */
 	if (!need_extension && archive_entry_acl_count(entry_original,
 		ARCHIVE_ENTRY_ACL_TYPE_ACCESS) > 0)
@@ -595,9 +594,33 @@ archive_write_pax_header(struct archive *a,
 	if (hardlink != NULL)
 		archive_entry_set_size(entry_main, 0);
 
-	/* Format 'ustar' header for main entry. */
-	/* We don't care if this returns an error. */
-	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1);
+	/* Format 'ustar' header for main entry.
+	 *
+	 * The trouble with file size: If the reader can't understand
+	 * the file size, they may not be able to locate the next
+	 * entry and the rest of the archive is toast.  Pax-compliant
+	 * readers are supposed to ignore the file size in the main
+	 * header, so the question becomes how to maximize portability
+	 * for readers that don't support pax attribute extensions.
+	 * For maximum compatibility, I permit numeric extensions in
+	 * the main header so that the file size stored will always be
+	 * correct, even if it's in a format that only some
+	 * implementations understand.  The technique used here is:
+	 *
+	 *  a) If possible, follow the standard exactly.  This handles
+	 *  files up to 8 gigabytes minus 1.
+	 *
+	 *  b) If that fails, try octal but omit the field terminator.
+	 *  That handles files up to 64 gigabytes minus 1.
+	 *
+	 *  c) Otherwise, use base-256 extensions.  That handles files
+	 *  up to 2^63 in this implementation, with the potential to
+	 *  go up to 2^94.  That should hold us for a while. ;-)
+	 *
+	 * The non-strict formatter uses similar logic for other
+	 * numeric fields, though they're less critical.
+	 */
+	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0);
 
 	/* If we built any extended attributes, write that entry first. */
 	ret = 0;
@@ -624,7 +647,7 @@ archive_write_pax_header(struct archive *a,
 		    archive_entry_gname(entry_main));
 
 		ret = __archive_write_format_header_ustar(a, paxbuff,
-		    pax_attr_entry, 'x');
+		    pax_attr_entry, 'x', 1);
 
 		archive_entry_free(pax_attr_entry);
 		archive_string_free(&pax_entry_name);
