@@ -52,7 +52,7 @@ set-current
     repeat
 
     \ now unstack the locals
-    0 do 
+    0 ?do 
 	    ?2loc if (2local) else (local) endif 
 	loop   \ ( )
 
