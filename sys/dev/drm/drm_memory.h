@@ -59,6 +59,11 @@ void *DRM(alloc)(size_t size, int area)
 	return malloc(size, DRM(M_DRM), M_NOWAIT);
 }
 
+void *DRM(calloc)(size_t nmemb, size_t size, int area)
+{
+	return malloc(size * nmemb, DRM(M_DRM), M_NOWAIT | M_ZERO);
+}
+
 void *DRM(realloc)(void *oldpt, size_t oldsize, size_t size, int area)
 {
 	void *pt;

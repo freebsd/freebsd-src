@@ -1,4 +1,4 @@
-/* radeon_mem.c -- Simple agp/fb memory manager for radeon -*- linux-c -*-
+/* radeon_mem.c -- Simple GART/fb memory manager for radeon -*- linux-c -*-
  *
  * Copyright (C) The Weather Channel, Inc.  2002.  All Rights Reserved.
  * 
@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "dev/drm/radeon_drm.h"
 #include "dev/drm/radeon_drv.h"
 
-/* Very simple allocator for agp memory, working on a static range
+/* Very simple allocator for GART memory, working on a static range
  * already mapped into each client's address space.  
  */
 
@@ -216,8 +216,8 @@ static struct mem_block **get_heap( drm_radeon_private_t *dev_priv,
 				   int region )
 {
 	switch( region ) {
-	case RADEON_MEM_REGION_AGP:
- 		return &dev_priv->agp_heap; 
+	case RADEON_MEM_REGION_GART:
+ 		return &dev_priv->gart_heap; 
 	case RADEON_MEM_REGION_FB:
 		return &dev_priv->fb_heap;
 	default:

@@ -283,6 +283,11 @@ int DRM(addctx)( DRM_IOCTL_ARGS )
 		return DRM_ERR(ENOMEM);
 	}
 
+#ifdef DRIVER_CTX_CTOR
+	if ( ctx.handle != DRM_KERNEL_CONTEXT )
+		DRIVER_CTX_CTOR(ctx.handle); /* XXX: also pass dev ? */
+#endif
+
 	DRM_COPY_TO_USER_IOCTL( (drm_ctx_t *)data, ctx, sizeof(ctx) );
 
 	return 0;
@@ -341,6 +346,9 @@ int DRM(rmctx)( DRM_IOCTL_ARGS )
 
 	DRM_DEBUG( "%d\n", ctx.handle );
 	if ( ctx.handle != DRM_KERNEL_CONTEXT ) {
+#ifdef DRIVER_CTX_DTOR
+		DRIVER_CTX_DTOR(ctx.handle); /* XXX: also pass dev ? */
+#endif
 		DRM(ctxbitmap_free)( dev, ctx.handle );
 	}
 

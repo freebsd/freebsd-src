@@ -70,11 +70,11 @@
  * 1.5 - Add r200 packets to cmdbuf ioctl
  *     - Add r200 function to init ioctl
  *     - Add 'scalar2' instruction to cmdbuf
- * 1.6 - Add static agp memory manager
+ * 1.6 - Add static GART memory manager
  *       Add irq handler (won't be turned on unless X server knows to)
  *       Add irq ioctls and irq_active getparam.
  *       Add wait command for cmdbuf ioctl
- *       Add agp offset query for getparam
+ *       Add GART offset query for getparam
  * 1.7 - Add support for cube map registers: R200_PP_CUBIC_FACES_[0..5]
  *       and R200_PP_CUBIC_OFFSET_F1_[0..5].
  *       Added packets R200_EMIT_PP_CUBIC_FACES_[0..5] and
@@ -115,7 +115,7 @@
 
 /* When a client dies:
  *    - Check for and clean up flipped page state
- *    - Free any alloced agp memory.
+ *    - Free any alloced GART memory.
  *
  * DRM infrastructure takes care of reclaiming dma buffers.
  */
@@ -126,7 +126,7 @@ do {									\
 		if ( dev_priv->page_flipping ) {			\
 			radeon_do_cleanup_pageflip( dev );		\
 		}							\
-                radeon_mem_release( filp, dev_priv->agp_heap );		\
+                radeon_mem_release( filp, dev_priv->gart_heap );	\
                 radeon_mem_release( filp, dev_priv->fb_heap );		\
 	}								\
 } while (0)

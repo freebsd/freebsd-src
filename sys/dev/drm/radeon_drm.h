@@ -216,11 +216,11 @@ typedef union {
 
 #define RADEON_NR_SAREA_CLIPRECTS	12
 
-/* There are 2 heaps (local/AGP).  Each region within a heap is a
+/* There are 2 heaps (local/GART).  Each region within a heap is a
  * minimum of 64k, and there are at most 64 of them per heap.
  */
 #define RADEON_LOCAL_TEX_HEAP		0
-#define RADEON_AGP_TEX_HEAP		1
+#define RADEON_GART_TEX_HEAP		1
 #define RADEON_NR_TEX_HEAPS		2
 #define RADEON_NR_TEX_REGIONS		64
 #define RADEON_LOG_TEX_GRANULARITY	16
@@ -402,7 +402,7 @@ typedef struct drm_radeon_init {
 	unsigned long sarea_priv_offset;
 	int is_pci;
 	int cp_mode;
-	int agp_size;
+	int gart_size;
 	int ring_size;
 	int usec_timeout;
 
@@ -417,7 +417,7 @@ typedef struct drm_radeon_init {
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
-	unsigned long agp_textures_offset;
+	unsigned long gart_textures_offset;
 } drm_radeon_init_t;
 
 typedef struct drm_radeon_cp_stop {
@@ -527,18 +527,18 @@ typedef struct drm_radeon_indirect {
 /* 1.3: An ioctl to get parameters that aren't available to the 3d
  * client any other way.  
  */
-#define RADEON_PARAM_AGP_BUFFER_OFFSET     1 /* card offset of 1st agp buffer */
+#define RADEON_PARAM_GART_BUFFER_OFFSET    1 /* card offset of 1st GART buffer */
 #define RADEON_PARAM_LAST_FRAME            2
 #define RADEON_PARAM_LAST_DISPATCH         3
 #define RADEON_PARAM_LAST_CLEAR            4
 /* Added with DRM version 1.6. */
 #define RADEON_PARAM_IRQ_NR                5
-#define RADEON_PARAM_AGP_BASE              6 /* card offset of agp base */
+#define RADEON_PARAM_GART_BASE             6 /* card offset of GART base */
 /* Added with DRM version 1.8. */
 #define RADEON_PARAM_REGISTER_HANDLE       7 /* for drmMap() */
 #define RADEON_PARAM_STATUS_HANDLE         8
 #define RADEON_PARAM_SAREA_HANDLE          9
-#define RADEON_PARAM_AGP_TEX_HANDLE        10
+#define RADEON_PARAM_GART_TEX_HANDLE       10
 
 typedef struct drm_radeon_getparam {
 	int param;
@@ -547,14 +547,14 @@ typedef struct drm_radeon_getparam {
 
 /* 1.6: Set up a memory manager for regions of shared memory:
  */
-#define RADEON_MEM_REGION_AGP 1
-#define RADEON_MEM_REGION_FB  2
+#define RADEON_MEM_REGION_GART 1
+#define RADEON_MEM_REGION_FB   2
 
 typedef struct drm_radeon_mem_alloc {
 	int region;
 	int alignment;
 	int size;
-	int *region_offset;	/* offset from start of fb or agp */
+	int *region_offset;	/* offset from start of fb or GART */
 } drm_radeon_mem_alloc_t;
 
 typedef struct drm_radeon_mem_free {

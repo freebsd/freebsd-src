@@ -895,7 +895,7 @@ static void radeon_cp_dispatch_vertex( drm_device_t *dev,
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
-	int offset = dev_priv->agp_buffers_offset + buf->offset + prim->start;
+	int offset = dev_priv->gart_buffers_offset + buf->offset + prim->start;
 	int numverts = (int)prim->numverts;
 	int nbox = sarea_priv->nbox;
 	int i = 0;
@@ -968,7 +968,7 @@ static void radeon_cp_dispatch_indirect( drm_device_t *dev,
 		   buf->idx, start, end );
 
 	if ( start != end ) {
-		int offset = (dev_priv->agp_buffers_offset
+		int offset = (dev_priv->gart_buffers_offset
 			      + buf->offset + start);
 		int dwords = (end - start + 3) / sizeof(u32);
 
@@ -1001,7 +1001,7 @@ static void radeon_cp_dispatch_indices( drm_device_t *dev,
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
-	int offset = dev_priv->agp_buffers_offset + prim->offset;
+	int offset = dev_priv->gart_buffers_offset + prim->offset;
 	u32 *data;
 	int dwords;
 	int i = 0;
@@ -2161,8 +2161,8 @@ int radeon_cp_getparam( DRM_IOCTL_ARGS )
 	DRM_DEBUG( "pid=%d\n", DRM_CURRENTPID );
 
 	switch( param.param ) {
-	case RADEON_PARAM_AGP_BUFFER_OFFSET:
-		value = dev_priv->agp_buffers_offset;
+	case RADEON_PARAM_GART_BUFFER_OFFSET:
+		value = dev_priv->gart_buffers_offset;
 		break;
 	case RADEON_PARAM_LAST_FRAME:
 		dev_priv->stats.last_frame_reads++;
@@ -2178,8 +2178,8 @@ int radeon_cp_getparam( DRM_IOCTL_ARGS )
 	case RADEON_PARAM_IRQ_NR:
 		value = dev->irq;
 		break;
-	case RADEON_PARAM_AGP_BASE:
-		value = dev_priv->agp_vm_start;
+	case RADEON_PARAM_GART_BASE:
+		value = dev_priv->gart_vm_start;
 		break;
 	case RADEON_PARAM_REGISTER_HANDLE:
 		value = dev_priv->mmio_offset;
@@ -2191,8 +2191,8 @@ int radeon_cp_getparam( DRM_IOCTL_ARGS )
 		/* The lock is the first dword in the sarea. */
 		value = (int)dev->lock.hw_lock; 
 		break;	
-	case RADEON_PARAM_AGP_TEX_HANDLE:
-		value = dev_priv->agp_textures_offset;
+	case RADEON_PARAM_GART_TEX_HANDLE:
+		value = dev_priv->gart_textures_offset;
 		break;
 	default:
 		return DRM_ERR(EINVAL);
