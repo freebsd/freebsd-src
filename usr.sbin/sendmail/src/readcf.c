@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.174 (Berkeley) 10/9/96";
+static char sccsid[] = "@(#)readcf.c	8.176 (Berkeley) 11/10/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -715,7 +715,7 @@ fileclass(class, filename, fmt, safe, optional)
 {
 	FILE *f;
 	int sff;
-	int pid;
+	pid_t pid;
 	register char *p;
 	char buf[MAXLINE];
 
@@ -1024,6 +1024,10 @@ makemailer(line)
 
 				m->m_uid = strtol(p, &q, 0);
 				p = q;
+				while (isascii(*p) && isspace(*p))
+					p++;
+				if (*p != '\0')
+					p++;
 			}
 			while (isascii(*p) && isspace(*p))
 				p++;

@@ -36,9 +36,9 @@
 
 #ifndef lint
 #ifdef QUEUE
-static char sccsid[] = "@(#)queue.c	8.125 (Berkeley) 10/12/96 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.131 (Berkeley) 11/8/96 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.125 (Berkeley) 10/12/96 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.131 (Berkeley) 11/8/96 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -296,40 +296,45 @@ queueup(e, announce)
 	printctladdr(NULL, NULL);
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QQUEUEUP, q->q_flags) ||
-		    !bitset(QDONTSEND|QBADADDR|QSENT, q->q_flags))
+		if (bitset(QDONTSEND|QBADADDR|QSENT, q->q_flags))
 		{
-			printctladdr(q, tfp);
-			if (q->q_orcpt != NULL)
-				fprintf(tfp, "Q%s\n",
-					denlstring(q->q_orcpt, TRUE, FALSE));
-			putc('R', tfp);
-			if (bitset(QPRIMARY, q->q_flags))
-				putc('P', tfp);
-			if (bitset(QHASNOTIFY, q->q_flags))
-				putc('N', tfp);
-			if (bitset(QPINGONSUCCESS, q->q_flags))
-				putc('S', tfp);
-			if (bitset(QPINGONFAILURE, q->q_flags))
-				putc('F', tfp);
-			if (bitset(QPINGONDELAY, q->q_flags))
-				putc('D', tfp);
-			putc(':', tfp);
-			fprintf(tfp, "%s\n", denlstring(q->q_paddr, TRUE, FALSE));
-			if (announce)
-			{
-				e->e_to = q->q_paddr;
-				message("queued");
-				if (LogLevel > 8)
-					logdelivery(q->q_mailer, NULL, "queued",
-						    NULL, (time_t) 0, e);
-				e->e_to = NULL;
-			}
-			if (tTd(40, 1))
-			{
-				printf("queueing ");
-				printaddr(q, FALSE);
-			}
+#if XDEBUG
+			if (bitset(QQUEUEUP, q->q_flags))
+				syslog(LOG_DEBUG, "%s: q_flags = %x",
+					e->e_id, q->q_flags);
+#endif
+			continue;
+		}
+		printctladdr(q, tfp);
+		if (q->q_orcpt != NULL)
+			fprintf(tfp, "Q%s\n",
+				denlstring(q->q_orcpt, TRUE, FALSE));
+		putc('R', tfp);
+		if (bitset(QPRIMARY, q->q_flags))
+			putc('P', tfp);
+		if (bitset(QHASNOTIFY, q->q_flags))
+			putc('N', tfp);
+		if (bitset(QPINGONSUCCESS, q->q_flags))
+			putc('S', tfp);
+		if (bitset(QPINGONFAILURE, q->q_flags))
+			putc('F', tfp);
+		if (bitset(QPINGONDELAY, q->q_flags))
+			putc('D', tfp);
+		putc(':', tfp);
+		fprintf(tfp, "%s\n", denlstring(q->q_paddr, TRUE, FALSE));
+		if (announce)
+		{
+			e->e_to = q->q_paddr;
+			message("queued");
+			if (LogLevel > 8)
+				logdelivery(q->q_mailer, NULL, "queued",
+					    NULL, (time_t) 0, e);
+			e->e_to = NULL;
+		}
+		if (tTd(40, 1))
+		{
+			printf("queueing ");
+			printaddr(q, FALSE);
 		}
 	}
 
@@ -574,7 +579,7 @@ runqueue(forkflag)
 
 	if (forkflag)
 	{
-		int pid;
+		pid_t pid;
 		extern void intsig();
 #ifdef SIGCHLD
 		extern void reapchild();
@@ -624,6 +629,15 @@ runqueue(forkflag)
 
 	/* force it to run expensive jobs */
 	NoConnect = FALSE;
+
+	/* drop privileges */
+	if (geteuid() == (uid_t) 0)
+	{
+		if (RunAsGid != (gid_t) 0)
+			(void) setgid(RunAsGid);
+		if (RunAsUid != (uid_t) 0)
+			(void) setuid(RunAsUid);
+	}
 
 	/*
 	**  Create ourselves an envelope
@@ -1387,6 +1401,7 @@ readqf(e)
 	struct stat st;
 	char *bp;
 	int qfver = 0;
+	long hdrsize = 0;
 	register char *p;
 	char *orcpt = NULL;
 	bool nomore = FALSE;
@@ -1579,6 +1594,7 @@ readqf(e)
 
 		  case 'H':		/* header */
 			(void) chompheader(&bp[1], FALSE, NULL, e);
+			hdrsize += strlen(&bp[1]);
 			break;
 
 		  case 'M':		/* message */
@@ -1611,6 +1627,26 @@ readqf(e)
 
 		  case 'N':		/* number of delivery attempts */
 			e->e_ntries = atoi(&buf[1]);
+
+			/* if this has been tried recently, let it be */
+			if (e->e_ntries > 0 &&
+			    (curtime() - e->e_dtime) < MinQueueAge)
+			{
+				char *howlong = pintvl(curtime() - e->e_dtime, TRUE);
+				extern void unlockqueue();
+
+				if (Verbose || tTd(40, 8))
+					printf("%s: too young (%s)\n",
+						e->e_id, howlong);
+#ifdef LOG
+				if (LogLevel > 19)
+					syslog(LOG_DEBUG, "%s: too young (%s)",
+						e->e_id, howlong);
+#endif
+				e->e_id = NULL;
+				unlockqueue(e);
+				return FALSE;
+			}
 			break;
 
 		  case 'P':		/* message priority */
@@ -1694,25 +1730,6 @@ readqf(e)
 		return TRUE;
 	}
 
-	/* if this has been tried recently, let it be */
-	if (e->e_ntries > 0 && (curtime() - e->e_dtime) < MinQueueAge)
-	{
-		char *howlong = pintvl(curtime() - e->e_dtime, TRUE);
-		extern void unlockqueue();
-
-		if (Verbose || tTd(40, 8))
-			printf("%s: too young (%s)\n",
-				e->e_id, howlong);
-#ifdef LOG
-		if (LogLevel > 19)
-			syslog(LOG_DEBUG, "%s: too young (%s)",
-				e->e_id, howlong);
-#endif
-		e->e_id = NULL;
-		unlockqueue(e);
-		return FALSE;
-	}
-
 	/*
 	**  Arrange to read the data file.
 	*/
@@ -1728,7 +1745,7 @@ readqf(e)
 		e->e_flags |= EF_HAS_DF;
 		if (fstat(fileno(e->e_dfp), &st) >= 0)
 		{
-			e->e_msgsize = st.st_size;
+			e->e_msgsize = st.st_size + hdrsize;
 			e->e_dfdev = st.st_dev;
 			e->e_dfino = st.st_ino;
 		}
@@ -1971,7 +1988,7 @@ queuename(e, type)
 	register ENVELOPE *e;
 	int type;
 {
-	static int pid = -1;
+	static pid_t pid = -1;
 	static char c0;
 	static char c1;
 	static char c2;

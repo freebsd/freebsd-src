@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.211 (Berkeley) 10/12/96";
+static char sccsid[] = "@(#)main.c	8.215 (Berkeley) 11/16/96";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -387,12 +387,18 @@ main(argc, argv, envp)
 	OpMode = MD_DELIVER;
 	FullName = getextenv("NAME");
 
+	/*
+	**  Initialize name server if it is going to be used.
+	*/
+
 #if NAMED_BIND
-	if (tTd(8, 8))
-	{
+	if (!bitset(RES_INIT, _res.options))
 		res_init();
+	if (tTd(8, 8))
 		_res.options |= RES_DEBUG;
-	}
+# ifdef RES_NOALIASES
+	_res.options |= RES_NOALIASES;
+# endif
 #endif
 
 	errno = 0;
@@ -513,15 +519,7 @@ main(argc, argv, envp)
 			{
 			  case MD_DAEMON:
 			  case MD_FGDAEMON:
-# ifdef DAEMON
-				if (RealUid != 0)
-				{
-					usrerr("Permission denied");
-					exit(EX_USAGE);
-				}
-				vendor_daemon_setup(CurEnv);
-				/* fall through ... */
-# else
+# ifndef DAEMON
 				usrerr("Daemon mode not implemented");
 				ExitStat = EX_USAGE;
 				break;
@@ -534,8 +532,6 @@ main(argc, argv, envp)
 # endif /* SMTP */
 
 			  case MD_INITALIAS:
-				/* fall through ... */
-
 			  case MD_DELIVER:
 			  case MD_VERIFY:
 			  case MD_TEST:
@@ -845,18 +841,6 @@ main(argc, argv, envp)
 	}
 
 	/*
-	**  Initialize name server if it is going to be used.
-	*/
-
-#if NAMED_BIND
-	if (UseNameServer && !bitset(RES_INIT, _res.options))
-		res_init();
-# ifdef RES_NOALIASES
-	_res.options |= RES_NOALIASES;
-# endif
-#endif
-
-	/*
 	**  Do more command line checking -- these are things that
 	**  have to modify the results of reading the config file.
 	*/
@@ -897,8 +881,8 @@ main(argc, argv, envp)
 	/* check for sane configuration level */
 	if (ConfigLevel > MAXCONFIGLEVEL)
 	{
-		syserr("Warning: .cf version level (%d) exceeds program functionality (%d)",
-			ConfigLevel, MAXCONFIGLEVEL);
+		syserr("Warning: .cf version level (%d) exceeds sendmail version %s functionality (%d)",
+			ConfigLevel, Version, MAXCONFIGLEVEL);
 	}
 
 	/* need MCI cache to have persistence */
@@ -931,6 +915,19 @@ main(argc, argv, envp)
 		/* fall through ... */
 
 	  case MD_DAEMON:
+		/* check for permissions */
+		if (RealUid != 0)
+		{
+#ifdef LOG
+			if (LogLevel > 1)
+				syslog(LOG_ALERT, "user %d attempted to run daemon",
+					RealUid);
+#endif
+			usrerr("Permission denied");
+			exit(EX_USAGE);
+		}
+		vendor_daemon_setup(CurEnv);
+
 		/* remove things that don't make sense in daemon mode */
 		FullName = NULL;
 		GrabTo = FALSE;
@@ -1964,6 +1961,15 @@ sighup()
 		syslog(LOG_INFO, "restarting %s on signal", SaveArgv[0]);
 #endif
 	releasesignal(SIGHUP);
+	if (setgid(RealGid) < 0 || setuid(RealUid) < 0)
+	{
+#ifdef LOG
+		if (LogLevel > 0)
+			syslog(LOG_ALERT, "could not set[ug]id(%d, %d): %m",
+				RealUid, RealGid);
+#endif
+		exit(EX_OSERR);
+	}
 	execv(SaveArgv[0], (ARGV_T) SaveArgv);
 #ifdef LOG
 	if (LogLevel > 0)

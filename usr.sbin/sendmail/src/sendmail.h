@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.206 (Berkeley) 10/17/96
+ *	@(#)sendmail.h	8.209 (Berkeley) 11/8/96
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.206		10/17/96";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.209		11/8/96";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -275,6 +275,7 @@ struct mailer
 # define M_HASPWENT	'w'	/* check for /etc/passwd entry */
 		/*	'x'	   CF: include Full-Name: */
 # define M_XDOT		'X'	/* use hidden-dot algorithm */
+# define M_LMTP		'z'	/* run Local Mail Transport Protocol */
 # define M_NOMX		'0'	/* turn off MX lookups */
 # define M_EBCDIC	'3'	/* extend Q-P encoding for EBCDIC */
 # define M_TRYRULESET5	'5'	/* use ruleset 5 after local aliasing */
@@ -310,7 +311,7 @@ MCI
 	long		mci_maxsize;	/* max size this server will accept */
 	FILE		*mci_in;	/* input side of connection */
 	FILE		*mci_out;	/* output side of connection */
-	int		mci_pid;	/* process id of subordinate proc */
+	pid_t		mci_pid;	/* process id of subordinate proc */
 	char		*mci_phase;	/* SMTP phase string */
 	struct mailer	*mci_mailer;	/* ptr to the mailer for this conn */
 	char		*mci_host;	/* host name */
@@ -1095,7 +1096,7 @@ EXTERN gid_t	RealGid;	/* real gid of caller */
 EXTERN uid_t	DefUid;		/* default uid to run as */
 EXTERN gid_t	DefGid;		/* default gid to run as */
 EXTERN char	*DefUser;	/* default user to run as (from DefUid) */
-EXTERN int	OldUmask;	/* umask when sendmail starts up */
+EXTERN MODE_T	OldUmask;	/* umask when sendmail starts up */
 EXTERN int	Errors;		/* set if errors (local to single pass) */
 EXTERN int	ExitStat;	/* exit status code */
 EXTERN int	LineNumber;	/* line number in current input */
@@ -1303,7 +1304,7 @@ extern void	inittimeouts __P((char *));
 extern void	logdelivery __P((MAILER *, MCI *, const char *, ADDRESS *, time_t, ENVELOPE *));
 extern void	giveresponse __P((int, MAILER *, MCI *, ADDRESS *, time_t, ENVELOPE *));
 extern void	buildfname __P((char *, char *, char *, int));
-extern void	mci_setstat __P((MCI *, char *, char *));
+extern void	mci_setstat __P((MCI *, int, char *, char *));
 extern char	*smtptodsn __P((int));
 extern int	rscheck __P((char *, char *, char *, ENVELOPE *e));
 extern void	mime7to8 __P((MCI *, HDR *, ENVELOPE *));

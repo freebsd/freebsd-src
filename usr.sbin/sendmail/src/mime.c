@@ -36,7 +36,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.48 (Berkeley) 10/18/96";
+static char sccsid[] = "@(#)mime.c	8.49 (Berkeley) 10/30/96";
 #endif /* not lint */
 
 /*
@@ -932,8 +932,22 @@ isboundary(line, boundaries)
 **		none.
 */
 
-extern void	mime_from64 __P((u_char *, u_char *, int));
 extern int	mime_fromqp __P((u_char *, u_char **, int, int));
+
+static char index_64[128] =
+{
+	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,62, -1,-1,-1,63,
+	52,53,54,55, 56,57,58,59, 60,61,-1,-1, -1,-1,-1,-1,
+	-1, 0, 1, 2,  3, 4, 5, 6,  7, 8, 9,10, 11,12,13,14,
+	15,16,17,18, 19,20,21,22, 23,24,25,-1, -1,-1,-1,-1,
+	-1,26,27,28, 29,30,31,32, 33,34,35,36, 37,38,39,40,
+	41,42,43,44, 45,46,47,48, 49,50,51,-1, -1,-1,-1,-1
+};
+
+#define CHAR64(c)  (((c) < 0 || (c) > 127) ? -1 : index_64[(c)])
+
 
 void
 mime7to8(mci, header, e)
@@ -996,28 +1010,81 @@ mime7to8(mci, header, e)
 
 	if (strcasecmp(cte, "base64") == 0)
 	{
-		fbufp = fbuf;
-		while (fgets(buf, sizeof buf, e->e_dfp) != NULL)
-		{
-			obufp = obuf;
-			mime_from64((u_char *) buf, obuf, MAXLINE);
-			while ((ch = *obufp++) != '\0')
-			{
-				*fbufp++ = ch;
-				if (ch == '\n' || fbufp >= &fbuf[MAXLINE])
-				{
-					*fbufp = '\0';
-					putline((char *) fbuf, mci);
-					fbufp = fbuf;
-				}
-			}
+		int nchar = 0;
+		int c1, c2, c3, c4;
 
-			/* force out partial last line */
-			if (fbufp > fbuf)
+		fbufp = fbuf;
+		while ((c1 = fgetc(e->e_dfp)) != EOF)
+		{
+			if (isascii(c1) && isspace(c1))
+				continue;
+
+			do
 			{
+				c2 = fgetc(e->e_dfp);
+			} while (isascii(c2) && isspace(c2));
+			if (c2 == EOF)
+				break;
+
+			do
+			{
+				c3 = fgetc(e->e_dfp);
+			} while (isascii(c3) && isspace(c3));
+			if (c3 == EOF)
+				break;
+
+			do
+			{
+				c4 = fgetc(e->e_dfp);
+			} while (isascii(c4) && isspace(c4));
+			if (c4 == EOF)
+				break;
+
+			if (c1 == '=' || c2 == '=')
+				continue;
+			c1 = CHAR64(c1);
+			c2 = CHAR64(c2);
+
+			*fbufp = (c1 << 2) | ((c2 & 0x30) >> 4);
+			if (*fbufp++ == '\n' || fbuf >= &fbuf[MAXLINE])
+			{
+				if (*--fbufp != '\n' || *--fbufp != '\r')
+					fbufp++;
 				*fbufp = '\0';
 				putline((char *) fbuf, mci);
+				fbufp = fbuf;
 			}
+			if (c3 == '=')
+				continue;
+			c3 = CHAR64(c3);
+			*fbufp = ((c2 & 0x0f) << 4) | ((c3 & 0x3c) >> 2);
+			if (*fbufp++ == '\n' || fbuf >= &fbuf[MAXLINE])
+			{
+				if (*--fbufp != '\n' || *--fbufp != '\r')
+					fbufp++;
+				*fbufp = '\0';
+				putline((char *) fbuf, mci);
+				fbufp = fbuf;
+			}
+			if (c4 == '=')
+				continue;
+			c4 = CHAR64(c4);
+			*fbufp = ((c3 & 0x03) << 6) | c4;
+			if (*fbufp++ == '\n' || fbuf >= &fbuf[MAXLINE])
+			{
+				if (*--fbufp != '\n' || *--fbufp != '\r')
+					fbufp++;
+				*fbufp = '\0';
+				putline((char *) fbuf, mci);
+				fbufp = fbuf;
+			}
+		}
+
+		/* force out partial last line */
+		if (fbufp > fbuf)
+		{
+			*fbufp = '\0';
+			putline((char *) fbuf, mci);
 		}
 	}
 	else
@@ -1113,89 +1180,5 @@ mime_fromqp(infile, outfile, state, maxlen)
 	return 1;
 }
 
-static char index_64[128] =
-{
-	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,62, -1,-1,-1,63,
-	52,53,54,55, 56,57,58,59, 60,61,-1,-1, -1,-1,-1,-1,
-	-1, 0, 1, 2,  3, 4, 5, 6,  7, 8, 9,10, 11,12,13,14,
-	15,16,17,18, 19,20,21,22, 23,24,25,-1, -1,-1,-1,-1,
-	-1,26,27,28, 29,30,31,32, 33,34,35,36, 37,38,39,40,
-	41,42,43,44, 45,46,47,48, 49,50,51,-1, -1,-1,-1,-1
-};
-
-#define CHAR64(c)  (((c) < 0 || (c) > 127) ? -1 : index_64[(c)])
-
-void
-mime_from64(infile, outfile, maxlen)
-	u_char *infile;
-	u_char *outfile;
-	int maxlen;
-{
-	int nchar = 0;
-	int c1, c2, c3, c4;
-
-	while ((c1 = *infile++) != '\0')
-	{
-		if (isascii(c1) && isspace(c1))
-			continue;
-
-		do
-		{
-			c2 = *infile++;
-		} while (isascii(c2) && isspace(c2));
-		if (c2 == '\0')
-			break;
-
-		do
-		{
-			c3 = *infile++;
-		} while (isascii(c3) && isspace(c3));
-		if (c3 == '\0')
-			break;
-
-		do
-		{
-			c4 = *infile++;
-		} while (isascii(c4) && isspace(c4));
-		if (c4 == '\0')
-			break;
-
-		if (c1 == '=' || c2 == '=')
-		{
-			continue;
-		}
-		c1 = CHAR64(c1);
-		c2 = CHAR64(c2);
-
-		if (++nchar > maxlen)
-			break;
-
-		*outfile++ = (c1 << 2) | ((c2 & 0x30) >> 4);
-
-		if (c3 != '=')
-		{
-			c3 = CHAR64(c3);
-
-			if (++nchar > maxlen)
-				break;
-
-			*outfile++ = ((c2 & 0x0f) << 4) | ((c3 & 0x3c) >> 2);
-			if (c4 != '=')
-			{
-				c4 = CHAR64(c4);
-
-				if (++nchar > maxlen)
-					break;
-
-				*outfile++ = ((c3 & 0x03) << 6) | c4;
-			}
-		}
-	}
-
-	*outfile = '\0';
-	return;
-}
 
 #endif /* MIME7TO8 */
