@@ -171,9 +171,9 @@ Other ratios are possible, but are not recommended,
 and may produce unpredictable results.
 .It Fl c Ar #cylinders/group
 The number of cylinders per cylinder group in a file system.  The default
-is to put as many cylinders in a cylinder group as possible. The maximum
-value is dependent on a number of other parameters, in particular the block
-size.
+is to compute the maximum allowed by the other parameters.  This value is
+dependent on a number of other parameters, in particular the block size
+and the number of bytes per inode.
 .It Fl d Ar rotdelay
 This parameter once specified the minimum time in milliseconds required to
 initiate another disk transfer on the same cylinder.  It was used in determining
@@ -345,12 +345,12 @@ See the
 man page for possible options and their meanings.
 .El
 .Sh EXAMPLES
-.Dl newfs -b 16384 -f 2048 /dev/ad3s1a
+.Dl newfs /dev/ad3s1a
 .Pp
 Creates a new ufs file system on
 .Pa ad3s1a .
 .Nm
-will use a block size of 16384 bytes, a fragement size of 2048 bytes
+will use a block size of 16384 bytes, a fragment size of 2048 bytes
 and the largest possible number of cylinders per group.
 These values tend to produce better performance for most applications
 than the historical defaults
@@ -370,13 +370,6 @@ options
 .Ar nodev ,
 and
 .Ar nosymfollow .
-.Sh BUGS
-The boot code of
-.Fx
-assumes that the file system that carries the
-kernel has blocks of 8 kilobytes and fragments of 1 kilobyte.
-You will
-not be able to boot from a file system that uses another size.
 .Sh SEE ALSO
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
