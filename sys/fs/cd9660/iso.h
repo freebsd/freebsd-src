@@ -226,6 +226,9 @@ struct iso_mnt {
 	struct cdev *im_dev;
 	struct vnode *im_devvp;
 
+	struct g_consumer *im_cp;
+	struct bufobj *im_bo;
+
 	int logical_block_size;
 	int im_bshift;
 	int im_bmask;

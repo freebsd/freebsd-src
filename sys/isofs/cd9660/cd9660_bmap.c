@@ -70,7 +70,7 @@ cd9660_bmap(ap)
 	 * to physical mapping is requested.
 	 */
 	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ip->i_devvp;
+		*ap->a_vpp = ip->i_mnt->im_devvp;
 	if (ap->a_bnp == NULL)
 		return (0);
 

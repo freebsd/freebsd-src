@@ -716,6 +716,7 @@ cd9660_strategy(ap)
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip;
+	struct bufobj *bo;
 
 	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
@@ -730,10 +731,9 @@ cd9660_strategy(ap)
 		bufdone(bp);
 		return (0);
 	}
-	vp = ip->i_devvp;
-	bp->b_dev = vp->v_rdev;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	VOP_SPECSTRATEGY(vp, bp);
+	bo = ip->i_mnt->im_bo;
+	bo->bo_ops->bop_strategy(bo, bp);
 	return (0);
 }
 
