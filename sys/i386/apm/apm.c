@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.34 1996/03/19 04:49:13 nate Exp $
+ *	$Id: apm.c,v 1.35 1996/03/19 16:48:38 nate Exp $
  */
 
 #include "apm.h"
@@ -52,13 +52,14 @@ static void apm_resume __P((void));
 
 /* static data */
 struct apm_softc {
-	int	initialized, active, halt_cpu;
+	int	initialized, active;
+	int	always_halt_cpu, slow_idle_cpu;
+	int	disabled, disengaged;
 	u_int	minorversion, majorversion;
 	u_int	cs32_base, cs16_base, ds_base;
 	u_int	cs_limit, ds_limit;
 	u_int	cs_entry;
 	u_int	intversion;
-	int	idle_cpu, disabled, disengaged;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
 	void 	*sc_devfs_token;
@@ -499,14 +500,12 @@ apm_cpu_idle(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (sc->idle_cpu) {
-		if (sc->active) {
-			u_long eax, ebx, ecx;
+	if (sc->active) {
+		u_long eax, ebx, ecx;
 
-			eax = (APM_BIOS <<8) | APM_CPUIDLE;
-			ecx = ebx = 0;
-			apm_int(&eax, &ebx, &ecx);
-		}
+		eax = (APM_BIOS <<8) | APM_CPUIDLE;
+		ecx = ebx = 0;
+		apm_int(&eax, &ebx, &ecx);
 	}
 	/*
 	 * Some APM implementation halts CPU in BIOS, whenever
@@ -518,7 +517,7 @@ apm_cpu_idle(void)
 	 * "hlt" operation from swtch() and managed it under
 	 * APM driver.
 	 */
-	if (!sc->active || sc->halt_cpu) {
+	if (!sc->active || sc->always_halt_cpu) {
 		__asm("hlt");	/* wait for interrupt */
 	}
 }
@@ -529,10 +528,15 @@ apm_cpu_busy(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (sc->idle_cpu && sc->active) {
+	/*
+	 * The APM specification says this is only necessary if your BIOS
+	 * slows down the processor in the idle task, otherwise it's not
+	 * necessary.
+	 */
+	if (sc->slow_idle_cpu && sc->active) {
 		u_long eax, ebx, ecx;
 
-		eax = (APM_BIOS <<8) | APM_CPUIDLE;
+		eax = (APM_BIOS <<8) | APM_CPUBUSY;
 		ecx = ebx = 0;
 		apm_int(&eax, &ebx, &ecx);
 	}
@@ -587,7 +591,7 @@ static void
 apm_halt_cpu(struct apm_softc *sc)
 {
 	if (sc->initialized) {
-		sc->halt_cpu = 1;
+		sc->always_halt_cpu = 1;
 	}
 }
 
@@ -596,7 +600,7 @@ static void
 apm_not_halt_cpu(struct apm_softc *sc)
 {
 	if (sc->initialized) {
-		sc->halt_cpu = 0;
+		sc->always_halt_cpu = 0;
 	}
 }
 
@@ -721,8 +725,10 @@ apmattach(struct isa_device *dvp)
 	sc->ds_limit = apm_ds_limit;
 	sc->cs_entry = apm_cs_entry;
 
-	sc->halt_cpu = 1;
-	sc->idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
+	/* Always call HLT in idle loop */
+	sc->always_halt_cpu = 1;
+
+	sc->slow_idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
 	sc->disabled = ((apm_flags & APM_DISABLED) != 0);
 	sc->disengaged = ((apm_flags & APM_DISENGAGED) != 0);
 
@@ -732,7 +738,7 @@ apmattach(struct isa_device *dvp)
 	printf("apm: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
 		sc->cs32_base, sc->cs16_base, sc->ds_base);
 	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-		sc->cs_entry, is_enabled(sc->idle_cpu),
+		sc->cs_entry, is_enabled(sc->slow_idle_cpu),
 		is_enabled(!sc->disabled));
 	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
@@ -764,7 +770,7 @@ apmattach(struct isa_device *dvp)
 
 	printf(" found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
-	printf("apm: Idling CPU %s\n", is_enabled(sc->idle_cpu));
+	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
 
 	/* enable power management */
 	if (sc->disabled) {
