@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2001
+.Dd December 14, 2004
 .Dt PST 4
 .Os
 .Sh NAME
@@ -39,6 +39,11 @@ It supports (in hardware) RAID levels 0, 1, 0+1, 3, 5 and JBOD on up to
 6 ATA disk drives, including automatic rebuild and hotswap, and supports
 signalling disk status on LEDs on Promise Superswap disk enclosures.
 The Supertrak line of controllers does not support non-disk devices.
+.Sh HARDWARE
+The
+.Nm
+driver supports the Promise Supertrak SX6000 ATA hardware RAID
+controller.
 .Sh NOTES
 The
 .Nm
