@@ -101,7 +101,7 @@ SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
 SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 
-static MALLOC_DEFINE(M_VLAN, "vlan", "802.1Q Virtual LAN Interface");
+static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
 static LIST_HEAD(, ifvlan) ifv_list;
 
 /*
@@ -110,7 +110,7 @@ static LIST_HEAD(, ifvlan) ifv_list;
  * more than necessary.
  */
 static struct mtx ifv_mtx;
-#define	VLAN_LOCK_INIT()	mtx_init(&ifv_mtx, "vlan", NULL, MTX_DEF)
+#define	VLAN_LOCK_INIT()	mtx_init(&ifv_mtx, VLANNAME, NULL, MTX_DEF)
 #define	VLAN_LOCK_DESTROY()	mtx_destroy(&ifv_mtx)
 #define	VLAN_LOCK_ASSERT()	mtx_assert(&ifv_mtx, MA_OWNED)
 #define	VLAN_LOCK()	mtx_lock(&ifv_mtx)
@@ -126,7 +126,7 @@ static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
 
-struct if_clone vlan_cloner = IF_CLONE_INITIALIZER("vlan",
+struct if_clone vlan_cloner = IF_CLONE_INITIALIZER(VLANNAME,
     vlan_clone_create, vlan_clone_destroy, 0, IF_MAXUNIT);
 
 /*
@@ -250,7 +250,7 @@ vlan_clone_create(struct if_clone *ifc, int unit)
 	SLIST_INIT(&ifv->vlan_mc_listhead);
 
 	ifp->if_softc = ifv;
-	ifp->if_name = "vlan";
+	ifp->if_name = VLANNAME;
 	ifp->if_unit = unit;
 	/* NB: flags are not set here */
 	ifp->if_linkmib = &ifv->ifv_mib;
