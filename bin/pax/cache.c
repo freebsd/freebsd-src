@@ -230,7 +230,7 @@ name_uid(uid, frc)
 		++pwopn;
 	}
 	if (ptr == NULL)
-		ptr = (UIDC *)malloc(sizeof(UIDC));
+		ptr = uidtb[uid % UID_SZ] = (UIDC *)malloc(sizeof(UIDC));
 
 	if ((pw = getpwuid(uid)) == NULL) {
 		/*
@@ -308,7 +308,7 @@ name_gid(gid, frc)
 		++gropn;
 	}
 	if (ptr == NULL)
-		ptr = (GIDC *)malloc(sizeof(GIDC));
+		ptr = gidtb[gid % GID_SZ] = (GIDC *)malloc(sizeof(GIDC));
 
 	if ((gr = getgrgid(gid)) == NULL) {
 		/*
