@@ -25,7 +25,6 @@ CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-msoft-float
 .endif
 
-
 # standalone components and stuff we have modified locally
 SRCS+=	__main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
@@ -36,7 +35,8 @@ SRCS+=	strcasecmp.c
 
 # string functions from libc
 .PATH:	${.CURDIR}/../libc/string
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
+	${MACHINE_ARCH} == "sparc64"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
         memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
@@ -108,9 +108,12 @@ SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
 SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 .endif
 
+.if ${MACHINE_ARCH} != "sparc64"
 # _setjmp/_longjmp
 .PATH:	${.CURDIR}/${MACHINE_ARCH}
 SRCS+=	_setjmp.S
+.endif
+
 # really only required for i386
 CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
 
