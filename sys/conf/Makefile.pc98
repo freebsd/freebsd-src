@@ -234,23 +234,23 @@ reinstall reinstall.debug: modules-reinstall
 
 modules:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj all
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} obj all
 
 modules-depend:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj depend
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} obj depend
 
 modules-clean:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} clean
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} clean
 
 modules-cleandepend:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} cleandepend
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} cleandepend
 
 modules-cleandir:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} cleandir
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} cleandir
 
 modules-tags:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} tags
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} tags
 
 modules-install modules-install.debug:
 .if !defined(NO_MODULES_OLD)
@@ -259,10 +259,10 @@ modules-install modules-install.debug:
 		cp -p ${DESTDIR}/modules/* ${DESTDIR}/modules.old; \
 	fi;
 .endif
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} install
 
 modules-reinstall modules-reinstall.debug:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules MACHINE=pc98 ${MAKE} install
 
 config.o:
 	${NORMAL_C}
