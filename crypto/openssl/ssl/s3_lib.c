@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -129,7 +129,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_RSA_NULL_MD5,
 	SSL3_CK_RSA_NULL_MD5,
 	SSL_kRSA|SSL_aRSA|SSL_eNULL |SSL_MD5|SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_STRONG_NONE,
 	0,
 	0,
 	0,
@@ -142,7 +142,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_RSA_NULL_SHA,
 	SSL3_CK_RSA_NULL_SHA,
 	SSL_kRSA|SSL_aRSA|SSL_eNULL |SSL_SHA1|SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_STRONG_NONE,
 	0,
 	0,
 	0,
@@ -170,7 +170,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_ADH_RC4_128_MD5,
 	SSL3_CK_ADH_RC4_128_MD5,
 	SSL_kEDH |SSL_aNULL|SSL_RC4  |SSL_MD5 |SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_MEDIUM,
 	0,
 	128,
 	128,
@@ -196,7 +196,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_ADH_DES_64_CBC_SHA,
 	SSL3_CK_ADH_DES_64_CBC_SHA,
 	SSL_kEDH |SSL_aNULL|SSL_DES  |SSL_SHA1|SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_LOW,
 	0,
 	56,
 	56,
@@ -209,7 +209,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_ADH_DES_192_CBC_SHA,
 	SSL3_CK_ADH_DES_192_CBC_SHA,
 	SSL_kEDH |SSL_aNULL|SSL_3DES |SSL_SHA1|SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_HIGH,
 	0,
 	168,
 	168,
@@ -490,7 +490,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_FZA_DMS_NULL_SHA,
 	SSL3_CK_FZA_DMS_NULL_SHA,
 	SSL_kFZA|SSL_aFZA |SSL_eNULL |SSL_SHA1|SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_STRONG_NONE,
 	0,
 	0,
 	0,
@@ -504,7 +504,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_FZA_DMS_FZA_SHA,
 	SSL3_CK_FZA_DMS_FZA_SHA,
 	SSL_kFZA|SSL_aFZA |SSL_eFZA |SSL_SHA1|SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_STRONG_NONE,
 	0,
 	0,
 	0,
@@ -518,7 +518,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL3_TXT_FZA_DMS_RC4_SHA,
 	SSL3_CK_FZA_DMS_RC4_SHA,
 	SSL_kFZA|SSL_aFZA |SSL_RC4  |SSL_SHA1|SSL_SSLV3,
-	SSL_NOT_EXP,
+	SSL_NOT_EXP|SSL_MEDIUM,
 	0,
 	128,
 	128,
@@ -612,7 +612,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	    TLS1_TXT_DHE_DSS_WITH_RC4_128_SHA,
 	    TLS1_CK_DHE_DSS_WITH_RC4_128_SHA,
 	    SSL_kEDH|SSL_aDSS|SSL_RC4|SSL_SHA|SSL_TLSV1,
-	    SSL_NOT_EXP,
+	    SSL_NOT_EXP|SSL_MEDIUM,
 	    0,
 	    128,
 	    128,
@@ -693,6 +693,9 @@ SSL_CIPHER *ssl3_get_cipher(unsigned int u)
 
 int ssl3_pending(SSL *s)
 	{
+	if (s->rstate == SSL_ST_READ_BODY)
+		return 0;
+	
 	return (s->s3->rrec.type == SSL3_RT_APPLICATION_DATA) ? s->s3->rrec.length : 0;
 	}
 
@@ -737,6 +740,7 @@ void ssl3_free(SSL *s)
 void ssl3_clear(SSL *s)
 	{
 	unsigned char *rp,*wp;
+	size_t rlen, wlen;
 
 	ssl3_cleanup_key_block(s);
 	if (s->s3->tmp.ca_names != NULL)
@@ -752,12 +756,16 @@ void ssl3_clear(SSL *s)
 		DH_free(s->s3->tmp.dh);
 #endif
 
-	rp=s->s3->rbuf.buf;
-	wp=s->s3->wbuf.buf;
+	rp = s->s3->rbuf.buf;
+	wp = s->s3->wbuf.buf;
+	rlen = s->s3->rbuf_len;
+	wlen = s->s3->wbuf_len;
 
 	memset(s->s3,0,sizeof *s->s3);
-	if (rp != NULL) s->s3->rbuf.buf=rp;
-	if (wp != NULL) s->s3->wbuf.buf=wp;
+	s->s3->rbuf.buf = rp;
+	s->s3->wbuf.buf = wp;
+	s->s3->rbuf_len = rlen;
+	s->s3->wbuf_len = wlen;
 
 	ssl_free_wbio_buffer(s);
 
@@ -1312,13 +1320,12 @@ static int ssl3_read_internal(SSL *s, void *buf, int len, int peek)
 	if (s->s3->renegotiate) ssl3_renegotiate_check(s);
 	s->s3->in_read_app_data=1;
 	ret=ssl3_read_bytes(s,SSL3_RT_APPLICATION_DATA,buf,len,peek);
-	if ((ret == -1) && (s->s3->in_read_app_data == 0))
+	if ((ret == -1) && (s->s3->in_read_app_data == 2))
 		{
 		/* ssl3_read_bytes decided to call s->handshake_func, which
 		 * called ssl3_read_bytes to read handshake data.
 		 * However, ssl3_read_bytes actually found application data
-		 * and thinks that application data makes sense here (signalled
-		 * by resetting 'in_read_app_data', strangely); so disable
+		 * and thinks that application data makes sense here; so disable
 		 * handshake processing and try to read application data again. */
 		s->in_handshake++;
 		ret=ssl3_read_bytes(s,SSL3_RT_APPLICATION_DATA,buf,len,peek);

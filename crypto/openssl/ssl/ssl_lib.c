@@ -85,12 +85,17 @@ OPENSSL_GLOBAL SSL3_ENC_METHOD ssl3_undef_enc_method={
 
 int SSL_clear(SSL *s)
 	{
-	int state;
 
 	if (s->method == NULL)
 		{
 		SSLerr(SSL_F_SSL_CLEAR,SSL_R_NO_METHOD_SPECIFIED);
 		return(0);
+		}
+
+	if (ssl_clear_bad_session(s))
+		{
+		SSL_SESSION_free(s->session);
+		s->session=NULL;
 		}
 
 	s->error=0;
@@ -110,7 +115,6 @@ int SSL_clear(SSL *s)
 		}
 #endif
 
-	state=s->state; /* Keep to check if we throw away the session-id */
 	s->type=0;
 
 	s->state=SSL_ST_BEFORE|((s->server)?SSL_ST_ACCEPT:SSL_ST_CONNECT);
@@ -131,18 +135,12 @@ int SSL_clear(SSL *s)
 
 	ssl_clear_cipher_ctx(s);
 
-	if (ssl_clear_bad_session(s))
-		{
-		SSL_SESSION_free(s->session);
-		s->session=NULL;
-		}
-
 	s->first_packet=0;
 
 #if 1
 	/* Check to see if we were changed into a different method, if
 	 * so, revert back if we are not doing session-id reuse. */
-	if ((s->session == NULL) && (s->method != s->ctx->method))
+	if (!s->in_handshake && (s->session == NULL) && (s->method != s->ctx->method))
 		{
 		s->method->ssl_free(s);
 		s->method=s->ctx->method;
@@ -411,10 +409,27 @@ BIO *SSL_get_wbio(SSL *s)
 
 int SSL_get_fd(SSL *s)
 	{
+	return(SSL_get_rfd(s));
+	}
+
+int SSL_get_rfd(SSL *s)
+	{
 	int ret= -1;
 	BIO *b,*r;
 
 	b=SSL_get_rbio(s);
+	r=BIO_find_type(b,BIO_TYPE_DESCRIPTOR);
+	if (r != NULL)
+		BIO_get_fd(r,&ret);
+	return(ret);
+	}
+
+int SSL_get_wfd(SSL *s)
+	{
+	int ret= -1;
+	BIO *b,*r;
+
+	b=SSL_get_wbio(s);
 	r=BIO_find_type(b,BIO_TYPE_DESCRIPTOR);
 	if (r != NULL)
 		BIO_get_fd(r,&ret);
@@ -778,7 +793,10 @@ int SSL_shutdown(SSL *s)
 
 int SSL_renegotiate(SSL *s)
 	{
-	s->new_session=1;
+	if (s->new_session == 0)
+		{
+		s->new_session=1;
+		}
 	return(s->method->ssl_renegotiate(s));
 	}
 
@@ -1276,8 +1294,6 @@ void SSL_CTX_set_verify(SSL_CTX *ctx,int mode,int (*cb)(int, X509_STORE_CTX *))
 	{
 	ctx->verify_mode=mode;
 	ctx->default_verify_callback=cb;
-	/* This needs cleaning up EAY EAY EAY */
-	X509_STORE_set_verify_cb_func(ctx->cert_store,cb);
 	}
 
 void SSL_CTX_set_verify_depth(SSL_CTX *ctx,int depth)
@@ -1454,9 +1470,10 @@ void ssl_update_cache(SSL *s,int mode)
 	 * and it would be rather hard to do anyway :-) */
 	if (s->session->session_id_length == 0) return;
 
-	if ((s->ctx->session_cache_mode & mode)
-		&& (!s->hit)
-		&& SSL_CTX_add_session(s->ctx,s->session)
+	i=s->ctx->session_cache_mode;
+	if ((i & mode) && (!s->hit)
+		&& ((i & SSL_SESS_CACHE_NO_INTERNAL_LOOKUP)
+		    || SSL_CTX_add_session(s->ctx,s->session))
 		&& (s->ctx->new_session_cb != NULL))
 		{
 		CRYPTO_add(&s->session->references,1,CRYPTO_LOCK_SSL_SESSION);
@@ -1465,7 +1482,6 @@ void ssl_update_cache(SSL *s,int mode)
 		}
 
 	/* auto flush every 255 connections */
-	i=s->ctx->session_cache_mode;
 	if ((!(i & SSL_SESS_CACHE_NO_AUTO_CLEAR)) &&
 		((i & mode) == mode))
 		{
