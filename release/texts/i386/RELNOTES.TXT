@@ -80,7 +80,7 @@ The cs(4) driver has been updated.
 bridge(4) and dummynet(4) have received some enhancements and bug fixes.
 
 The ahc(4) driver has been updated.  Among various improvements are
-improved compatability with chips in "RAID Port" mode and systems with
+improved compatibility with chips in "RAID Port" mode and systems with
 AAA and ARO cards installed, as well as performance improvements.
 
 The cd(4) driver now has support for write operations.  This allows
@@ -134,7 +134,7 @@ When sound modules are built, one can now load all the drivers and
 infrastructure by "kldload snd".
 
 Some signal-handling fixes for Linux have been added, which improves
-compatability with signal-intensive programs running under Linux
+compatibility with signal-intensive programs running under Linux
 emulation.
 
 The ISO-9660 filesystem now has a hook that supports a loadable
