@@ -603,7 +603,7 @@ usage()
 {
 	extern char *__progname;
 	static const char common[] =
-	    "[-dpvlyn] [-T fstype:fsoptions] [-t fstype]";
+	    "[-BFdpvlyn] [-T fstype:fsoptions] [-t fstype]";
 
 	(void)fprintf(stderr, "Usage: %s %s [special|node]...\n",
 	    __progname, common);

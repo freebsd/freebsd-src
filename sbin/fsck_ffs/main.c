@@ -510,7 +510,7 @@ usage()
         extern char *__progname;
 
         (void) fprintf(stderr,
-            "Usage: %s [-dfnpy] [-B be|le] [-b block] [-c level] [-m mode] "
+            "Usage: %s [-BFpfny] [-b block] [-c level] [-m mode] "
                         "filesystem ...\n",
             __progname);
         exit(1);
