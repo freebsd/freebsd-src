@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *
@@ -29,6 +30,7 @@ public char *	progname;
 public int	quitting;
 public int	secure;
 public int	dohelp;
+public int	more_mode = 0;
 
 #if LOGFILE
 public int	logfile = -1;
@@ -60,6 +62,7 @@ main(argc, argv)
 {
 	IFILE ifile;
 	char *s;
+	extern char *__progname;
 
 #ifdef __EMX__
 	_response(&argc, &argv);
@@ -99,6 +102,9 @@ main(argc, argv)
 	 * Process command line arguments and LESS environment arguments.
 	 * Command line arguments override environment arguments.
 	 */
+	if (strcmp(__progname, "more") == 0)
+		more_mode = 1;
+
 	is_tty = isatty(1);
 	get_term();
 	init_cmds();
@@ -106,7 +112,16 @@ main(argc, argv)
 	init_charset();
 	init_line();
 	init_option();
-	s = lgetenv("LESS");
+	
+	if (more_mode) {
+		scan_option("-E");
+		scan_option("-m");
+		scan_option("-G");
+		scan_option("-f");
+		s = lgetenv("MORE");
+	} else {
+		s = lgetenv("LESS");
+	}
 	if (s != NULL)
 		scan_option(save(s));
 
@@ -197,7 +212,7 @@ main(argc, argv)
 		quit(QUIT_OK);
 	}
 
-	if (missing_cap && !know_dumb)
+	if (missing_cap && !know_dumb && !more_mode)
 		error("WARNING: terminal is not fully functional", NULL_PARG);
 	init_mark();
 	raw_mode(1);
