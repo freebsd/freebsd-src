@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.227.2.61 1998/11/14 09:46:12 asami Exp $
+#	$Id: bsd.port.mk,v 1.227.2.62 1998/11/20 04:01:39 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -565,7 +565,7 @@ LIB_DEPENDS+=	X11.6:${PORTSDIR}/x11/XFree86
 .endif
 
 .if defined(USE_QT)
-LIB_DEPENDS+=	qt.1:${PORTSDIR}/x11-toolkits/qt140
+LIB_DEPENDS+=	qt.1:${PORTSDIR}/x11-toolkits/qt141
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
