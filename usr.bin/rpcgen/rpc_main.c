@@ -84,9 +84,7 @@ static void s_output __P(( int, char **, char *, char *, int, char *, int, int )
 #define	DONT_EXTEND	0		/* alias for FALSE */
 
 #define	SVR4_CPP "/usr/ccs/lib/cpp"
-#ifdef __FreeBSD__
-#define	SUNOS_CPP "/usr/libexec/cpp"
-#elif defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #define SUNOS_CPP "/usr/bin/cpp"
 #else
 #define	SUNOS_CPP "/usr/lib/cpp"
