@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.23 1995/05/21 15:40:52 jkh Exp $
+ * $Id: menus.c,v 1.24 1995/05/21 18:24:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,13 +197,16 @@ choice.  Also note that not all sites carry every possible distribution!\n\
 Distributions other than the basic user set are only guaranteed to be\n\
 available from the Primary site.\n\n\
 If the first site selected doesn't respond, try one of the alternates.\n\
-You may also wish to investigate the Ftp options menu in case of trouble.",
+You may also wish to investigate the Ftp options menu in case of trouble.\n\
+To specify a URL not in this list, chose \"other\".",
     "Select a site that's close!",
     "install.hlp",
     { { "Primary Site",  "ftp.freebsd.org",
 	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Secondary Site", "freefall.cdrom.com",
 	DMENU_SET_VARIABLE, (void *)"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0		},
+      { "Other", "Specify another ftp site by URL (e.g. ftp://some.site/pub/FreeBSD/..)",
+	DMENU_SET_VARIABLE, (void *)"ftp=other", 0, 0								},
       { "Australia", "ftp.physics.usyd.edu.au",
 	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "Finland", "nic.funet.fi",
@@ -326,9 +329,9 @@ type of system in question.  If you would prefer to pick and choose\n\
 the list of distributions yourself, simply select \"custom\".",
     "Press F1 for more information on the various distributions",
     "dist_types.hlp",
-    { { "Developer", "Full sources, binaries and doc but no games [48MB]",
+    { { "Developer", "Full sources, binaries and doc but no games [171MB]",
 	DMENU_CALL, (void *)distSetDeveloper, 0, 0	},
-      { "X-Developer", "Same as above, but includes XFree86 [73MB]",
+      { "X-Developer", "Same as above, but includes XFree86 [196MB]",
 	DMENU_CALL, (void *)distSetXDeveloper, 0, 0	},
       { "User", "Average user - binaries and doc but no sources [19MB]",
 	DMENU_CALL, (void *)distSetUser, 0, 0		},
@@ -336,7 +339,7 @@ the list of distributions yourself, simply select \"custom\".",
 	DMENU_CALL, (void *)distSetXUser, 0, 0		},
       { "Minimal", "The smallest configuration possible [15MB]",
 	DMENU_CALL, (void *)distSetMinimum, 0, 0	},
-      { "Everything", "All sources, binaries and XFree86 binaries [80MB]",
+      { "Everything", "All sources, binaries and XFree86 binaries [203MB]",
 	DMENU_CALL, (void *)distSetEverything, 0, 0	},
       { "Custom", "Specify your own distribution set [?]",
 	DMENU_SUBMENU, (void *)&MenuDistributions, 0, 0	},
@@ -351,7 +354,7 @@ of the most generally useful distributions are already checked, and\n\
 selecting OK at this stage will chose them as defaults.",
     "Press F1 for a more complete description of these distributions.",
     "distribution_types.hlp",
-    { { "*bin", "Binary base distribution (required) [15MB]",
+    { { "*bin", "Binary base distribution (required) [36MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_BIN, 0		},
       { "commercial", "Commercial demos and shareware [10MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_COMMERCIAL, 0	},
@@ -361,17 +364,17 @@ selecting OK at this stage will chose them as defaults.",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_COMPAT20, 0	},
       { "DES", "DES encryption code and sources [.3MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_DES, 0		},
-      { "dict", "Spelling checker disctionary files [1.3MB]",
+      { "dict", "Spelling checker disctionary files [4.2MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_DICT, 0		},
-      { "games", "Games and other amusements (non-commercial) [2.8MB]",
+      { "games", "Games and other amusements (non-commercial) [6.4MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_GAMES, 0		},
-      { "info", "GNU info files [1.2MB]",
+      { "info", "GNU info files [4.1MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_INFO, 0		},
-      { "*man", "System manual pages - strongly recommended [2.8MB]",
+      { "*man", "System manual pages - strongly recommended [3.3MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_MANPAGES, 0	},
-      { "proflibs", "Profiled versions of the libraries [.9MB]",
+      { "proflibs", "Profiled versions of the libraries [3.3MB]",
 	DMENU_SET_FLAG, (void *)&Dists, DIST_PROFLIBS, 0	},
-      { "src", "Sources for everything but DES [25MB]",
+      { "src", "Sources for everything but DES [120MB]",
 	DMENU_CALL, (void *)distSetSrc, 0			},
       { "XFree86", "The XFree86 3.1.1L distribution [?]",
 	DMENU_SUBMENU, (void *)&MenuXF86, 0			},
@@ -641,7 +644,7 @@ an existing one, select \"standard\".  If you would prefer your master\n\
 boot record to be untouched, then select \"none\".",
     "Press F1 to read the installation guide",
     "install.hlp",
-    { { "BootMgr", "Install the FreeBSD Boot Manager (\"Booteasy\")", /* B */
+    { { "*BootMgr", "Install the FreeBSD Boot Manager (\"Booteasy\")", /* B */
 	DMENU_SET_VARIABLE, (void *)"bootManager=bteasy", 0, 0	},
       { "Standard", "Use a standard MBR (no boot manager)",	/* S */
 	DMENU_SET_VARIABLE, (void *)"bootManager=mbr", 0, 0	},

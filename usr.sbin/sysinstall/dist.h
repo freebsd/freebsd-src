@@ -46,7 +46,7 @@
 #define DIST_SRC_UBIN		0x1000
 #define DIST_SRC_USBIN		0x2000
 #define DIST_SRC_XF86		0x4000
-#define DIST_SRC_ALL		0xFFFF
+#define DIST_SRC_ALL		0x3FFF	/* Don't include XFree86 source by default */
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001
