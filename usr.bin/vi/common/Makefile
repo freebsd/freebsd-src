@@ -6,6 +6,7 @@ VIEW=	nview
 PROG=	nvi
 LINKS=	${BINDIR}/${VI} ${BINDIR}/${EX} ${BINDIR}/${VI} ${BINDIR}/${VIEW}
 LINKS+= ${BINDIR}/${VI} ${BINDIR}/vi ${BINDIR}/${EX} ${BINDIR}/ex
+LINKS+= ${BINDIR}/${VI} ${BINDIR}/view
 MAN1=	${.CURDIR}/../USD.doc/vi.man/vi.1
 
 CFLAGS+=-I. -I${.CURDIR}
