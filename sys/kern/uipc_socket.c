@@ -265,6 +265,11 @@ solisten(so, backlog, td)
 {
 	int s, error;
 
+	/*
+	 * XXXRW: Ordering issue here -- perhaps we need to set
+	 * SO_ACCEPTCONN before the call to pru_listen()?
+	 * XXXRW: General atomic test-and-set concerns here also.
+	 */
 	s = splnet();
 	if (so->so_state & (SS_ISCONNECTED | SS_ISCONNECTING |
 			    SS_ISDISCONNECTING)) {
