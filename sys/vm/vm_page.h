@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.64 1999/07/31 18:31:00 alc Exp $
+ * $Id: vm_page.h,v 1.65 1999/08/12 21:16:53 alc Exp $
  */
 
 /*
@@ -193,12 +193,12 @@ struct vm_page {
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
 
-#define PQ_NONE 0
-#define PQ_FREE	1
-#define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
-#define PQ_ACTIVE (2 + 1*PQ_L2_SIZE)
-#define PQ_CACHE (3 + 1*PQ_L2_SIZE)
-#define PQ_COUNT (3 + 2*PQ_L2_SIZE)
+#define PQ_NONE		PQ_COUNT
+#define PQ_FREE		0
+#define PQ_INACTIVE	PQ_L2_SIZE
+#define PQ_ACTIVE	(1 +   PQ_L2_SIZE)
+#define PQ_CACHE	(2 +   PQ_L2_SIZE)
+#define PQ_COUNT	(2 + 2*PQ_L2_SIZE)
 
 extern struct vpgqueues {
 	struct pglist *pl;
