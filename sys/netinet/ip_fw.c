@@ -83,10 +83,15 @@ MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, &fw_debug, 0, "");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW, &fw_one_pass, 0, "");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw_verbose, 0, "");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_limit, 0, "");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW,
+    &fw_debug, 0, "Enable printing of debug ip_fw statements");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW,
+    &fw_one_pass, 0,
+    "Only do a single pass through ipfw when using divert(4)/dummynet(4)");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW,
+    &fw_verbose, 0, "Log matches to ipfw rules");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
+    &fw_verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
 #endif
 
 #define dprintf(a)	if (!fw_debug); else printf a
@@ -110,7 +115,7 @@ static __inline int
 static int	ipopts_match __P((struct ip *ip, struct ip_fw *f));
 static __inline int
 		port_match __P((u_short *portptr, int nports, u_short port,
-				int range_flag));
+				int range_flag, int mask));
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
 static void	ipfw_report __P((struct ip_fw *f, struct ip *ip,
@@ -130,10 +135,16 @@ static char err_prefix[] = "ip_fw_ctl:";
  * Returns 1 if the port is matched by the vector, 0 otherwise
  */
 static __inline int 
-port_match(u_short *portptr, int nports, u_short port, int range_flag)
+port_match(u_short *portptr, int nports, u_short port, int range_flag, int mask)
 {
 	if (!nports)
 		return 1;
+	if (mask) {
+		if ( 0 == ((portptr[0] ^ port) & portptr[1]) )
+			return 1;
+		nports -= 2;
+		portptr += 2;
+	}
 	if (range_flag) {
 		if (portptr[0] <= port && port <= portptr[1]) {
 			return 1;
@@ -448,6 +459,7 @@ lookup_next_rule(struct ip_fw_chain *me)
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
  *	*cookie Skip up to the first rule past this rule number;
+ *		upon return, non-zero port number for divert or tee
  *	*m	The packet; we set to NULL when/if we nuke it.
  *	*flow_id pointer to the last matching rule (in/out)
  *	*next_hop socket we are forwarding to (in/out).
@@ -457,7 +469,13 @@ lookup_next_rule(struct ip_fw_chain *me)
  *	0	The packet is to be accepted and routed normally OR
  *      	the packet was denied/rejected and has been dropped;
  *		in the latter case, *m is equal to NULL upon return.
- *	port	Divert the packet to port.
+ *	port	Divert the packet to port, with these caveats:
+ *
+ *		- If IP_FW_PORT_TEE_FLAG is set, tee the packet instead
+ *		  of diverting it (ie, 'ipfw tee').
+ *
+ *		- If IP_FW_PORT_DYNT_FLAG is set, interpret the lower
+ *		  16 bits as a dummynet pipe number instead of diverting
  */
 
 static int 
@@ -471,8 +489,32 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ip *ip = NULL ;
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	u_short offset = 0 ;
-	u_short src_port, dst_port;
-	u_int16_t skipto = *cookie;
+	u_short src_port = 0, dst_port = 0;
+	struct in_addr src_ip, dst_ip; /* XXX */
+	u_int8_t proto= 0 ; /* XXX */
+	u_int16_t skipto ;
+
+	/* Grab and reset cookie */
+	skipto = *cookie;
+	*cookie = 0;
+
+/*
+ * here, pip==NULL for bridged pkts -- they include the ethernet
+ * header so i have to adjust lengths accordingly
+ */
+#define PULLUP_TO(l)	do {                                            \
+			    int len = (pip ? (l) : (l) + 14 ) ;		\
+			    if ((*m)->m_len < (len) ) {                 \
+				if ( (*m = m_pullup(*m, (len))) == 0)   \
+				    goto bogusfrag;                     \
+				ip = mtod(*m, struct ip *);             \
+				if (pip)                                \
+				    *pip = ip ;                         \
+				else                                    \
+				    ip = (struct ip *)((char *)ip + 14);\
+				offset = (ip->ip_off & IP_OFFMASK);     \
+			    }                                           \
+			} while (0)
 
 	if (pip) { /* normal ip packet */
 	    ip = *pip;
@@ -501,39 +543,96 @@ non_ip:         ip = NULL ;
 	    }
 	}
 
-	if (*flow_id) {
-	    if (fw_one_pass)
-		return 0 ; /* accept if passed first test */
+	/*
+	 * collect parameters into local variables for faster matching.
+	 */
+	if (ip) {
+	    struct tcphdr *tcp;
+	    struct udphdr *udp;
+
+	    dst_ip = ip->ip_dst ;
+	    src_ip = ip->ip_src ;
+	    proto = ip->ip_p ;
 	    /*
-	     * pkt has already been tagged. Look for the next rule
-	     * to restart processing
+	     * warning - if offset != 0, port values are bogus.
+	     * Not a problem for ipfw, but could be for dummynet.
+	     */
+	    switch (proto) {
+	    case IPPROTO_TCP :
+		PULLUP_TO(hlen + 14);
+		tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
+		dst_port = tcp->th_dport ;
+		src_port = tcp->th_sport ;
+		break ;
+
+	    case IPPROTO_UDP :
+		PULLUP_TO(hlen + 4);
+		udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
+		dst_port = udp->uh_dport ;
+		src_port = udp->uh_sport ;
+		break ;
+
+	    case IPPROTO_ICMP:
+		PULLUP_TO(hlen + 2);
+		break ;
+
+	    default :
+		src_port = dst_port = 0 ;
+	    }
+#undef PULLUP_TO
+#ifdef DUMMYNET
+	    dn_last_pkt.src_ip = ntohl(src_ip.s_addr) ;
+	    dn_last_pkt.dst_ip = ntohl(dst_ip.s_addr) ;
+	    dn_last_pkt.proto = proto ;
+	    dn_last_pkt.src_port = ntohs(src_port) ;
+	    dn_last_pkt.dst_port = ntohs(dst_port) ;
+#endif
+	}
+
+	if (*flow_id) {
+	    /* Accept if passed first test */
+	    if (fw_one_pass)
+		return 0 ;
+	    /*
+	     * Packet has already been tagged. Look for the next rule
+	     * to restart processing.
 	     */
 	    chain = LIST_NEXT( *flow_id, chain);
 
 	    if ( (chain = (*flow_id)->rule->next_rule_ptr) == NULL )
 		chain = (*flow_id)->rule->next_rule_ptr =
 			lookup_next_rule(*flow_id) ;
-		if (! chain) goto dropit;
+	    if (chain == NULL)
+		goto dropit;
 	} else {
 	/*
-	 * Go down the chain, looking for enlightment
-	 * If we've been asked to start at a given rule immediatly, do so.
+	     * Go down the chain, looking for enlightment.
+	     * If we've been asked to start at a given rule, do so.
 	 */
 	chain = LIST_FIRST(&ip_fw_chain);
-	if ( skipto ) {
+	    if ( skipto != 0 ) {
 		if (skipto >= IPFW_DEFAULT_RULE)
 			goto dropit;
-		while (chain && (chain->rule->fw_number <= skipto)) {
+		while (chain && chain->rule->fw_number <= skipto)
 			chain = LIST_NEXT(chain, chain);
-		}
-		if (! chain) goto dropit;
+		if ( chain == NULL )
+		    goto dropit;
 	}
 	}
-	*cookie = 0;
+
+#if 0	/* stateful ipfw */
+	hash packet, lookup into dynamic session ids.
+	If found, set rule to the parent rule, update timers,
+	and goto rnd_then_got_match. rule != NULL means that this is
+	a match of a dynamic rule.
+#endif	/* stateful ipfw */
+
 	for (; chain; chain = LIST_NEXT(chain, chain)) {
 		register struct ip_fw * f ;
 again:
 		f = chain->rule;
+		if (f->fw_number == IPFW_DEFAULT_RULE)
+		    goto got_match ;
 
 		if (oif) {
 			/* Check direction outbound */
@@ -550,12 +649,6 @@ again:
 		     * after this, only goto got_match or continue
 		     */
 		    struct ether_header *eh = mtod(*m, struct ether_header *);
-
-		    /*
-		     * make default rule always match or we have a panic
-		     */
-		    if (f->fw_number == IPFW_DEFAULT_RULE)
-			goto got_match ;
 		    /*
 		     * temporary hack: 
 		     *   udp from 0.0.0.0 means this rule applies.
@@ -584,12 +677,12 @@ again:
 			continue;
 
 		/* If src-addr doesn't match, not this rule. */
-		if (((f->fw_flg & IP_FW_F_INVSRC) != 0) ^ ((ip->ip_src.s_addr
+		if (((f->fw_flg & IP_FW_F_INVSRC) != 0) ^ ((src_ip.s_addr
 		    & f->fw_smsk.s_addr) != f->fw_src.s_addr))
 			continue;
 
 		/* If dest-addr doesn't match, not this rule. */
-		if (((f->fw_flg & IP_FW_F_INVDST) != 0) ^ ((ip->ip_dst.s_addr
+		if (((f->fw_flg & IP_FW_F_INVDST) != 0) ^ ((dst_ip.s_addr
 		    & f->fw_dmsk.s_addr) != f->fw_dst.s_addr))
 			continue;
 
@@ -624,33 +717,14 @@ again:
 				goto rnd_then_got_match;
 		} else
 			/* If different, don't match */
-			if (ip->ip_p != f->fw_prot) 
+			if (proto != f->fw_prot) 
 				continue;
-
-/*
- * here, pip==NULL for bridged pkts -- they include the ethernet
- * header so i have to adjust lengths accordingly
- */
-#define PULLUP_TO(l)	do {                                            \
-			    int len = (pip ? l : l + 14 ) ;             \
-			    if ((*m)->m_len < (len) ) {                 \
-				if ( (*m = m_pullup(*m, (len))) == 0)   \
-				    goto bogusfrag;                     \
-				ip = mtod(*m, struct ip *);             \
-				if (pip)                                \
-				    *pip = ip ;                         \
-				else                                    \
-				    ip = (struct ip *)((int)ip + 14);   \
-				offset = (ip->ip_off & IP_OFFMASK);     \
-			    }                                           \
-			} while (0)
 
 		/* Protocol specific checks for uid only */
 		if (f->fw_flg & (IP_FW_F_UID|IP_FW_F_GID)) {
-		    switch (ip->ip_p) {
+		    switch (proto) {
 		    case IPPROTO_TCP:
 			{
-			    struct tcphdr *tcp;
 			    struct inpcb *P;
 
 			    if (offset == 1)	/* cf. RFC 1858 */
@@ -658,15 +732,12 @@ again:
 			    if (offset != 0)
 				    continue;
 
-			    PULLUP_TO(hlen + 14);
-			    tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
-
 			    if (oif)
-				P = in_pcblookup_hash(&tcbinfo, ip->ip_dst,
-				   tcp->th_dport, ip->ip_src, tcp->th_sport, 0);
+				P = in_pcblookup_hash(&tcbinfo, dst_ip,
+				   dst_port, src_ip, src_port, 0);
 			    else
-				P = in_pcblookup_hash(&tcbinfo, ip->ip_src,
-				   tcp->th_sport, ip->ip_dst, tcp->th_dport, 0);
+				P = in_pcblookup_hash(&tcbinfo, src_ip,
+				   src_port, dst_ip, dst_port, 0);
 
 			    if (P && P->inp_socket && P->inp_socket->so_cred) {
 				if (f->fw_flg & IP_FW_F_UID) {
@@ -683,21 +754,17 @@ again:
 
 		    case IPPROTO_UDP:
 			{
-			    struct udphdr *udp;
 			    struct inpcb *P;
 
 			    if (offset != 0)
 				continue;
 
-			    PULLUP_TO(hlen + 4);
-			    udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
-
 			    if (oif)
-				P = in_pcblookup_hash(&udbinfo, ip->ip_dst,
-				   udp->uh_dport, ip->ip_src, udp->uh_sport, 1);
+				P = in_pcblookup_hash(&udbinfo, dst_ip,
+				   dst_port, src_ip, src_port, 1);
 			    else
-				P = in_pcblookup_hash(&udbinfo, ip->ip_src,
-				   udp->uh_sport, ip->ip_dst, udp->uh_dport, 1);
+				P = in_pcblookup_hash(&udbinfo, src_ip,
+				   src_port, dst_ip, dst_port, 1);
 
 			    if (P && P->inp_socket && P->inp_socket->so_cred) {
 				if (f->fw_flg & IP_FW_F_UID) {
@@ -714,21 +781,11 @@ again:
 
 			default:
 				continue;
-/*
- * XXX Shouldn't GCC be allowing two bogusfrag labels if they're both inside
- * separate blocks? Hmm.... It seems it's got incorrect behavior here.
- */
-#if 0
-bogusfrag:
-				if (fw_verbose)
-					ipfw_report(NULL, ip, rif, oif);
-				goto dropit;
-#endif
 			}
 		}
 		    
 		/* Protocol specific checks */
-		switch (ip->ip_p) {
+		switch (proto) {
 		case IPPROTO_TCP:
 		    {
 			struct tcphdr *tcp;
@@ -747,19 +804,13 @@ bogusfrag:
 
 				break;
 			}
-			PULLUP_TO(hlen + 14);
 			tcp = (struct tcphdr *) ((u_int32_t *)ip + ip->ip_hl);
 			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
 				continue;
-			src_port = ntohs(tcp->th_sport);
-			dst_port = ntohs(tcp->th_dport);
 			goto check_ports;
 		    }
 
 		case IPPROTO_UDP:
-		    {
-			struct udphdr *udp;
-
 			if (offset != 0) {
 				/*
 				 * Port specification is unavailable -- if this
@@ -771,21 +822,18 @@ bogusfrag:
 
 				break;
 			}
-			PULLUP_TO(hlen + 4);
-			udp = (struct udphdr *) ((u_int32_t *)ip + ip->ip_hl);
-			src_port = ntohs(udp->uh_sport);
-			dst_port = ntohs(udp->uh_dport);
 check_ports:
 			if (!port_match(&f->fw_uar.fw_pts[0],
-			    IP_FW_GETNSRCP(f), src_port,
-			    f->fw_flg & IP_FW_F_SRNG))
+			    IP_FW_GETNSRCP(f), ntohs(src_port),
+			    f->fw_flg & IP_FW_F_SRNG,
+			    f->fw_flg & IP_FW_F_SMSK))
 				continue;
 			if (!port_match(&f->fw_uar.fw_pts[IP_FW_GETNSRCP(f)],
-			    IP_FW_GETNDSTP(f), dst_port,
-			    f->fw_flg & IP_FW_F_DRNG)) 
+			    IP_FW_GETNDSTP(f), ntohs(dst_port),
+			    f->fw_flg & IP_FW_F_DRNG,
+			    f->fw_flg & IP_FW_F_DMSK)) 
 				continue;
 			break;
-		    }
 
 		case IPPROTO_ICMP:
 		    {
@@ -793,18 +841,20 @@ check_ports:
 
 			if (offset != 0)	/* Type isn't valid */
 				break;
-			PULLUP_TO(hlen + 2);
 			icmp = (struct icmp *) ((u_int32_t *)ip + ip->ip_hl);
 			if (!icmptype_match(icmp, f))
 				continue;
 			break;
 		    }
-#undef PULLUP_TO
+
+		default:
+			break;
 
 bogusfrag:
 			if (fw_verbose)
 				ipfw_report(NULL, ip, rif, oif);
 			goto dropit;
+
 		}
 
 rnd_then_got_match:
@@ -823,6 +873,16 @@ got_match:
 		/* Log to console if desired */
 		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose)
 			ipfw_report(f, ip, rif, oif);
+
+#if 0	/* stateful ipfw */
+	if this is not a dynamic match and we have keep-state,
+	install a new dynamic entry if needed. It uses proto,
+	swap ip and ports.
+		if (rule && f->fw_flg & IP_FW_F_KEEP_S) {
+			f = rule ;
+			install_state();
+		}
+#endif	/* stateful ipfw */
 
 		/* Take appropriate action */
 		switch (f->fw_flg & IP_FW_F_COMMAND) {
@@ -854,7 +914,7 @@ got_match:
 			goto again ;
 #ifdef DUMMYNET
 		case IP_FW_F_PIPE:
-			return(f->fw_pipe_nr | 0x10000 );
+			return(f->fw_pipe_nr | IP_FW_PORT_DYNT_FLAG );
 #endif
 #ifdef IPFIREWALL_FORWARD
 		case IP_FW_F_FWD:
@@ -938,7 +998,6 @@ dropit:
 	/*
 	 * Finally, drop the packet.
 	 */
-	/* *cookie = 0; */ /* XXX is this necessary ? */
 	if (*m) {
 		m_freem(*m);
 		*m = NULL;

@@ -166,9 +166,6 @@ ip_fw_ctl_t *ip_fw_ctl_ptr;
 ip_dn_ctl_t *ip_dn_ctl_ptr;
 #endif
 
-/* IP Network Address Translation (NAT) hooks */ 
-ip_nat_t *ip_nat_ptr;
-ip_nat_ctl_t *ip_nat_ctl_ptr;
 #endif
 
 #if defined(IPFILTER_LKM) || defined(IPFILTER)
@@ -445,12 +442,6 @@ iphack:
 	}
 pass:
 
-        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN)) {
-#ifdef IPFIREWALL_FORWARD
-		ip_fw_fwd_addr = NULL;
-#endif
-		return;
-	}
 #endif	/* !COMPAT_IPFW */
 
 	/*

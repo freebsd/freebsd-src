@@ -257,12 +257,6 @@ rip_ctloutput(so, sopt)
 				error = ip_fw_ctl_ptr(sopt);
 			break;
 
-		case IP_NAT:
-			if (ip_nat_ctl_ptr == 0)
-				error = ENOPROTOOPT;
-			else
-				error = ip_nat_ctl_ptr(sopt);
-			break;
 #ifdef DUMMYNET
 		case IP_DUMMYNET_GET:
 			if (ip_dn_ctl_ptr == NULL)
@@ -315,12 +309,6 @@ rip_ctloutput(so, sopt)
 				error = ip_fw_ctl_ptr(sopt);
 			break;
 
-		case IP_NAT:
-			if (ip_nat_ctl_ptr == 0)
-				error = ENOPROTOOPT;
-			else
-				error = ip_nat_ctl_ptr(sopt);
-			break;
 #ifdef DUMMYNET
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:

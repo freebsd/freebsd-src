@@ -75,10 +75,12 @@ struct ip_fw {
 	struct sockaddr_in fu_fwd_ip;
     } fw_un;
     u_char fw_prot;			/* IP protocol */
-    u_char fw_nports;			/* N'of src ports and # of dst ports */
-					/* in ports array (dst ports follow */
-					/* src ports; max of 10 ports in all; */
-					/* count of 0 means match all ports) */
+	/*
+	 * N'of src ports and # of dst ports in ports array (dst ports
+	 * follow src ports; max of 10 ports in all; count of 0 means
+	 * match all ports)
+	 */
+    u_char fw_nports;
     void *pipe_ptr;                    /* Pipe ptr in case of dummynet pipe */
     void *next_rule_ptr ;              /* next rule in case of match */
     uid_t fw_uid;			/* uid to match */
@@ -169,8 +171,11 @@ struct ip_fw_chain {
 #define IP_FW_F_GID	0x00400000	/* filter by gid			*/
 
 #define IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match		*/
+#define IP_FW_F_SMSK	0x01000000	/* src-port + mask 			*/
+#define IP_FW_F_DMSK	0x02000000	/* dst-port + mask 			*/
+#define IP_FW_F_KEEP_S	0x04000000	/* keep state	 			*/
 
-#define IP_FW_F_MASK	0x00FFFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_MASK	0x03FFFFFF	/* All possible flag bits mask		*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
@@ -210,6 +215,9 @@ struct ip_fw_chain {
  */
 #ifdef KERNEL
 
+#define	IP_FW_PORT_DYNT_FLAG	0x10000
+#define	IP_FW_PORT_TEE_FLAG	0x20000
+
 /*
  * Function definitions.
  */
@@ -223,14 +231,6 @@ typedef	int ip_fw_chk_t __P((struct ip **, int, struct ifnet *, u_int16_t *,
 typedef	int ip_fw_ctl_t __P((struct sockopt *));
 extern	ip_fw_chk_t *ip_fw_chk_ptr;
 extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
-
-/* IP NAT hooks */
-typedef	int ip_nat_t __P((struct ip **, struct mbuf **, struct ifnet *, int));
-typedef	int ip_nat_ctl_t __P((struct sockopt *));
-extern	ip_nat_t *ip_nat_ptr;
-extern	ip_nat_ctl_t *ip_nat_ctl_ptr;
-#define	IP_NAT_IN	0x00000001
-#define	IP_NAT_OUT	0x00000002
 
 #endif /* KERNEL */
 

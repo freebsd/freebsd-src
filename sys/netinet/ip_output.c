@@ -153,17 +153,19 @@ ip_output(m0, opt, ro, flags, imo)
             /*
              * the packet was already tagged, so part of the
              * processing was already done, and we need to go down.
-             * opt, flags and imo have already been used, and now
-             * they are used to hold ifp, dst and NULL, respectively.
+             * Get parameters from the header.
              */
             rule = (struct ip_fw_chain *)(m->m_data) ;
+            opt = NULL ;
+	    ro = & ( ((struct dn_pkt *)m)->ro ) ;
+            flags = 0 ; /* XXX is this correct ? */
+	    imo = NULL ;
+            dst = ((struct dn_pkt *)m)->dn_dst ;
+	    ifp = ((struct dn_pkt *)m)->ifp ;
+
             m0 = m = m->m_next ;
             ip = mtod(m, struct ip *);
-            dst = (struct sockaddr_in *)flags;
-            ifp = (struct ifnet *)opt;
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
-            opt = NULL ;
-            flags = 0 ; /* XXX is this correct ? */
             goto sendit;
         } else
             rule = NULL ;
@@ -423,11 +425,6 @@ sendit:
 #endif
 
 #ifdef COMPAT_IPFW
-        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, ifp, IP_NAT_OUT)) {
-		error = EACCES; 
-		goto done;
-	}
-
 	/*
 	 * Check with the firewall...
 	 */
