@@ -96,7 +96,7 @@ extern int getchar __P((void));
 	extern u_short *Crtat;
 #endif /* PCVT_NETBSD */
 
-unsigned	__debug = 0; /*0xffe */;
+unsigned	__debug = 0; /*0xffe */
 static		__color;
 static		nrow;
 
