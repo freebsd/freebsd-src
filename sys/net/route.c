@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.11 1994/11/03 01:04:30 wollman Exp $
+ * $Id: route.c,v 1.13 1994/12/13 23:07:03 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -350,6 +350,8 @@ ifa_ifwithroute(flags, dst, gateway)
 
 #define ROUNDUP(a) (a>0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 
+static void rt_fixfamily(struct rtentry *rt);
+
 int
 rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	int req, flags;
@@ -377,6 +379,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			panic ("rtrequest delete");
 		rt = (struct rtentry *)rn;
 		rt->rt_flags &= ~RTF_UP;
+		rt_fixfamily(rt);
 		if (rt->rt_gwroute) {
 			rt = rt->rt_gwroute; RTFREE(rt);
 			(rt = (struct rtentry *)rn)->rt_gwroute = 0;
@@ -443,6 +446,12 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		rt->rt_ifp = ifa->ifa_ifp;
 		if (req == RTM_RESOLVE)
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
+		if ((req == RTM_RESOLVE) 
+		    && ((*ret_nrt)->rt_flags & RTF_PRCLONING)) {
+			rt->rt_parent = (*ret_nrt);
+			rt->rt_nextchild = (*ret_nrt)->rt_nextchild;
+			(*ret_nrt)->rt_nextchild = rt;
+		}
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
 		if (ret_nrt) {
@@ -454,6 +463,50 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 bad:
 	splx(s);
 	return (error);
+}
+
+/*
+ * Called from rtrequest(RTM_DELETE, ...) to fix up the route's ``family''
+ * (i.e., the routes related to it by the operation of cloning).  This
+ * involves deleting the entire chain of descendants (in the case of a parent
+ * route being deleted), or removing this route from the chain (in the case
+ * of a child route being deleted).
+ */
+static void
+rt_fixfamily(struct rtentry *rt0)
+{
+	struct rtentry *rt, *lrt, *nrt;
+
+	if(rt = rt0->rt_parent) {
+		if(rt->rt_flags & RTF_CHAINDELETE)
+			return;	/* relax, it will all be done for us */
+
+		/* So what if it takes linear time? */
+		do {
+			lrt = rt;
+			rt = rt->rt_nextchild;
+		} while(rt && rt != rt0);
+		lrt->rt_nextchild = rt0->rt_nextchild;
+	} else if((rt = rt0)->rt_nextchild) {
+		lrt = rt;
+		rt->rt_flags |= RTF_CHAINDELETE;
+
+		rt = rt->rt_nextchild;
+
+		while(rt) {
+			nrt = rt->rt_nextchild;
+			/*
+			 * There might be some value to open-coding this
+			 * rtrequest call, but I am not yet convinced of
+			 * the value of this.
+			 */
+			rtrequest(RTM_DELETE, rt_key(rt), 
+				  (struct sockaddr *)0, rt_mask(rt),
+				  rt->rt_flags, (struct rtentry **)0);
+			rt = nrt;
+		}
+		lrt->rt_flags &= ~RTF_CHAINDELETE;
+	}
 }
 
 int
@@ -572,5 +625,4 @@ rtinit(ifa, cmd, flags)
 		}
 		rt_newaddrmsg(cmd, ifa, error, nrt);
 	}
-	return (error);
-}
+	return (e
