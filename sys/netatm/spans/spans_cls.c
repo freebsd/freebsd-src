@@ -99,7 +99,9 @@ static void	spanscls_cpcs_data(void *, KBuffer *);
 static void	spanscls_connected(void *);
 static void	spanscls_cleared(void *, struct t_atm_cause *);
 static caddr_t	spanscls_getname(void *);
+#ifdef DIAGNOSTIC
 static void	spanscls_pdu_print(struct spanscls *, KBuffer *, char *);
+#endif
 
 /*
  * Local variables
@@ -842,7 +844,7 @@ spanscls_getname(tok)
 	return ("SPANSCLS");
 }
 
-
+#ifdef DIAGNOSTIC
 /*
  * Print a SPANS CLS PDU
  * 
@@ -866,4 +868,4 @@ spanscls_pdu_print(clp, m, msg)
 	snprintf(buf, sizeof(buf), "spanscls %s:\n", msg);
 	atm_pdu_print(m, buf);
 }
-
+#endif
