@@ -8,9 +8,9 @@
  * 1.11	needed		ucom has an "info" attach message - use it
  * 1.12 not needed	rcsids
  * 1.13 already merged	extra arg to usbd_do_request_flags
- * 1.14 needed		sony and palm support
- * 1.15 needed		sony clie
- * 1.16 merged		trailing whites
+ * 1.14 already merged	sony and palm support
+ * 1.15 already merged	sony clie
+ * 1.16 already merged	trailing whites
  */
 
 /*
@@ -125,7 +125,6 @@ struct uvisor_connection_info {
 };
 #define UVISOR_CONNECTION_INFO_SIZE 18
 
-
 /* struct uvisor_connection_info.connection[x].port defines: */
 #define UVISOR_ENDPOINT_1		0x01
 #define UVISOR_ENDPOINT_2		0x02
@@ -137,12 +136,19 @@ struct uvisor_connection_info {
 #define UVISOR_FUNCTION_CONSOLE		0x03
 #define UVISOR_FUNCTION_REMOTE_FILE_SYS	0x04
 
+/*
+ * Unknown PalmOS stuff.
+ */
+#define UVISOR_GET_PALM_INFORMATION		0x04
+#define UVISOR_GET_PALM_INFORMATION_LEN		0x14
+
 
 #define UVISORIBUFSIZE 1024
 #define UVISOROBUFSIZE 1024
 
 struct uvisor_softc {
 	struct ucom_softc	sc_ucom;
+	u_int16_t		sc_flags;
 };
 
 Static usbd_status uvisor_init(struct uvisor_softc *);
@@ -182,6 +188,22 @@ DRIVER_MODULE(uvisor, uhub, uvisor_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(uvisor, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(uvisor, UVISOR_MODVER);
 
+struct uvisor_type {
+	struct usb_devno	uv_dev;
+	u_int16_t		uv_flags;
+#define PALM4	0x0001
+};
+static const struct uvisor_type uvisor_devs[] = {
+	{{ USB_VENDOR_HANDSPRING, USB_PRODUCT_HANDSPRING_VISOR }, 0 },
+	{{ USB_VENDOR_PALM, USB_PRODUCT_PALM_M500 }, PALM4 },
+	{{ USB_VENDOR_PALM, USB_PRODUCT_PALM_M505 }, PALM4 },
+	{{ USB_VENDOR_PALM, USB_PRODUCT_PALM_M125 }, PALM4 },
+	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_40 }, PALM4 },
+	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_41 }, 0 },
+/*	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_25 }, PALM4 },*/
+};
+#define uvisor_lookup(v, p) ((const struct uvisor_type *)usb_lookup(uvisor_devs, v, p))
+
 
 USB_MATCH(uvisor)
 {
@@ -193,11 +215,8 @@ USB_MATCH(uvisor)
 	DPRINTFN(20,("uvisor: vendor=0x%x, product=0x%x\n",
 		     uaa->vendor, uaa->product));
 
-	if (uaa->vendor == USB_VENDOR_HANDSPRING &&
-	    uaa->product == USB_PRODUCT_HANDSPRING_VISOR)
-		return (UMATCH_VENDOR_PRODUCT);
-
-	return (UMATCH_NONE);
+	return (uvisor_lookup(uaa->vendor, uaa->product) != NULL ?
+		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
 
 USB_ATTACH(uvisor)
@@ -246,6 +265,8 @@ USB_ATTACH(uvisor)
 	}
 
 	printf("%s: %s\n", devname, devinfo);
+
+	sc->sc_flags = uvisor_lookup(uaa->vendor, uaa->product)->uv_flags;
 
 	id = usbd_get_interface_descriptor(iface);
 
@@ -362,6 +383,7 @@ uvisor_init(struct uvisor_softc *sc)
 	struct uvisor_connection_info coninfo;
 	int actlen;
 	uWord avail;
+	char buffer[256];
 
 	DPRINTF(("uvisor_init: getting connection info\n"));
 	req.bmRequestType = UT_READ_VENDOR_ENDPOINT;
@@ -406,6 +428,26 @@ uvisor_init(struct uvisor_softc *sc)
 		}
 	}
 #endif
+
+	if (sc->sc_flags & PALM4) {
+		/* Palm OS 4.0 Hack */
+		req.bmRequestType = UT_READ_VENDOR_ENDPOINT;
+		req.bRequest = UVISOR_GET_PALM_INFORMATION;
+		USETW(req.wValue, 0);
+		USETW(req.wIndex, 0);
+		USETW(req.wLength, UVISOR_GET_PALM_INFORMATION_LEN);
+		err = usbd_do_request(sc->sc_ucom.sc_udev, &req, buffer);
+		if (err)
+			return (err);
+		req.bmRequestType = UT_READ_VENDOR_ENDPOINT;
+		req.bRequest = UVISOR_GET_PALM_INFORMATION;
+		USETW(req.wValue, 0);
+		USETW(req.wIndex, 0);
+		USETW(req.wLength, UVISOR_GET_PALM_INFORMATION_LEN);
+		err = usbd_do_request(sc->sc_ucom.sc_udev, &req, buffer);
+		if (err)
+			return (err);
+	}
 
 	DPRINTF(("uvisor_init: getting available bytes\n"));
 	req.bmRequestType = UT_READ_VENDOR_ENDPOINT;
