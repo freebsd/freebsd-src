@@ -36,7 +36,7 @@
       a &os; 4-STABLE whose presence can be disruptive, but are not
       removed by a binary upgrade.  One notable example is that an old
       <filename>/usr/include/g++</filename> directory will cause C++
-      programs to compile incorrectly (or not at all).<para>
+      programs to compile incorrectly (or not at all).</para>
     
     <para>These upgrade instructions are provided for the use of users
       upgrading from relatively recent &os; &release.branch;
@@ -218,6 +218,6 @@
     <para><filename>/usr/src/UPDATING</filename> contains important
     information on updating a &os; system from source code.  It lists
     various issues resulting from changes in &os; that may affect an
-    upgrade.<para>
+    upgrade.</para>
   </sect2>
 </sect1>  
