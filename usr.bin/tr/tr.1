@@ -58,7 +58,7 @@
 .Ar string1 string2
 .Sh DESCRIPTION
 The
-.Nm tr
+.Nm
 utility copies the standard input to the standard output with substitution
 or deletion of selected characters.
 .Pp
@@ -225,7 +225,7 @@ it's interpreted as a decimal value.
 .El
 .Pp
 The
-.Nm tr
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh EXAMPLES
 The following examples are shown as given to the shell:
@@ -261,13 +261,13 @@ represent the three characters ``a'', ``-'' and ``z'' will have to be
 rewritten as ``a\e-z''.
 .Pp
 The
-.Nm tr
+.Nm
 utility has historically not permitted the manipulation of NUL bytes in
 its input and, additionally, stripped NUL's from its input stream.
 This implementation has removed this behavior as a bug.
 .Pp
 The
-.Nm tr
+.Nm
 utility has historically been extremely forgiving of syntax errors,
 for example, the
 .Fl c
@@ -277,7 +277,7 @@ options were ignored unless two strings were specified.
 This implementation will not permit illegal syntax.
 .Sh STANDARDS
 The
-.Nm tr
+.Nm
 utility is expected to be
 .St -p1003.2
 compatible.
