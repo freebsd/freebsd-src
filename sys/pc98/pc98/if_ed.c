@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.48 1998/06/08 08:55:43 kato Exp $
+ *	$Id: if_ed.c,v 1.49 1998/06/17 16:29:27 kato Exp $
  */
 
 /*
@@ -74,7 +74,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
