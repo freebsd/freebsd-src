@@ -945,7 +945,7 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
 			make kernel-depend && \
-			make ${KERNEL_FLAGS} ${KERNEL_KO} && \
+			make -DNO_WERROR ${KERNEL_FLAGS} ${KERNEL_KO} && \
 			make kernel-reinstall DESTDIR=${RD}/kernels && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
@@ -955,7 +955,7 @@ doMODULES:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
 			make modules-depend && \
-			make ${KERNEL_FLAGS} modules && \
+			make -DNO_WERROR ${KERNEL_FLAGS} modules && \
 			make modules-reinstall DESTDIR=${RD}/kernels && \
 
 doSTDKERNEL:
@@ -963,7 +963,7 @@ doSTDKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
 			make depend && \
-			make ${KERNEL_FLAGS} KERNEL=${KERNEL} && \
+			make -DNO_WERROR ${KERNEL_FLAGS} KERNEL=${KERNEL} && \
 			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels install && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
