@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id: db_machdep.h,v 1.2 1993/10/16 14:39:10 rgrimes Exp $
+ *	$Id: db_machdep.h,v 1.3 1993/11/07 17:42:50 wollman Exp $
  */
 
 #ifndef	_I386_DB_MACHDEP_H_
@@ -33,7 +33,6 @@
  * Machine-dependent defines for new kernel debugger.
  */
 
-
 /* #include <mach/i386/vm_types.h> */
 /* #include <mach/i386/vm_param.h> */
 #include <vm/vm_prot.h>
@@ -41,14 +40,13 @@
 #include <vm/vm_inherit.h>
 #include <vm/lock.h>
 /* #include <i386/thread.h> */		/* for thread_status */
-#include <machine/frame.h>	/* for struct trapframe */
+#include <machine/frame.h>		/* for struct trapframe */
 /* #include <i386/eflags.h> */
-#include <machine/eflags.h>		/* from Mach... */
+#include <machine/psl.h>
 /* #include <i386/trap.h> */
 #include <machine/trap.h>
 
 #define i386_saved_state trapframe
-/* end of mangling */
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	int		db_expr_t;	/* expression - signed */
@@ -65,12 +63,12 @@ extern db_regs_t	ddb_regs;	/* register state */
 
 #define	FIXUP_PC_AFTER_BREAK	ddb_regs.tf_eip -= 1;
 
-#define	db_clear_single_step(regs)	((regs)->tf_eflags &= ~EFL_TF)
-#define	db_set_single_step(regs)	((regs)->tf_eflags |=  EFL_TF)
+#define	db_clear_single_step(regs)	((regs)->tf_eflags &= ~PSL_T)
+#define	db_set_single_step(regs)	((regs)->tf_eflags |=  PSL_T)
 
 /* #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_INT3) */
 /* #define IS_WATCHPOINT_TRAP(type, code)	((type) == T_WATCHPOINT) */
-/* using the 386bsd values, rather than the Mach ones: */
+/* using the FreeBSD values, rather than the Mach ones: */
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
 #define IS_WATCHPOINT_TRAP(type, code)	((type) == T_KDBTRAP)
 
