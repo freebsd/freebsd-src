@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.h#6 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#13 $
  *
  * $FreeBSD$
  */
@@ -94,6 +94,11 @@ struct scb_platform_data;
 	(tcl & (AHC_NUM_LUNS - 1))
 #define BUILD_TCL(scsiid, lun) \
 	((lun) | (((scsiid) & TID) << 4))
+
+#ifndef	AHC_TARGET_MODE
+#undef	AHC_TMODE_ENABLE
+#define	AHC_TMODE_ENABLE 0
+#endif
 
 /**************************** Driver Constants ********************************/
 /*
