@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 char *delim;
 int delimcnt;
 
-void parallel(char **);
-void sequential(char **);
+int parallel(char **);
+int sequential(char **);
 int tr(char *);
 static void usage(void);
 
@@ -72,7 +72,7 @@ char tab[] = "\t";
 int
 main(int argc, char *argv[])
 {
-	int ch, seq;
+	int ch, rval, seq;
 
 	seq = 0;
 	while ((ch = getopt(argc, argv, "d:s")) != -1)
@@ -98,10 +98,10 @@ main(int argc, char *argv[])
 	}
 
 	if (seq)
-		sequential(argv);
+		rval = sequential(argv);
 	else
-		parallel(argv);
-	exit(0);
+		rval = parallel(argv);
+	exit(rval);
 }
 
 typedef struct _list {
@@ -111,7 +111,7 @@ typedef struct _list {
 	char *name;
 } LIST;
 
-void
+int
 parallel(char **argv)
 {
 	LIST *lp;
@@ -175,21 +175,25 @@ parallel(char **argv)
 		if (output)
 			putchar('\n');
 	}
+
+	return (0);
 }
 
-void
+int
 sequential(char **argv)
 {
 	FILE *fp;
-	int cnt;
+	int cnt, failed;
 	char ch, *p, *dp;
 	char buf[_POSIX2_LINE_MAX + 1];
 
+	failed = 0;
 	for (; (p = *argv); ++argv) {
 		if (p[0] == '-' && !p[1])
 			fp = stdin;
 		else if (!(fp = fopen(p, "r"))) {
 			warn("%s", p);
+			failed = 1;
 			continue;
 		}
 		if (fgets(buf, sizeof(buf), fp)) {
@@ -212,6 +216,8 @@ sequential(char **argv)
 		if (fp != stdin)
 			(void)fclose(fp);
 	}
+
+	return (failed != 0);
 }
 
 int
