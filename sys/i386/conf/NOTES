@@ -1919,6 +1919,7 @@ hint.pca.0.port="0x040"
 # rp: Comtrol Rocketport(ISA) - single card
 # tw: TW-523 power line interface for use with X-10 home control products
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
+# spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 # stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
 
@@ -1981,6 +1982,18 @@ hint.pca.0.port="0x040"
 #  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
 #  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
 #  The cards can use an IRQ of 11, 12 or 15.
+
+# Notes on the Sony Programmable I/O controller
+#  This is a temporary driver that should someday be replaced by something
+#  that hooks into the ACPI layer. The device is hooked to the PIIX4's
+#  General Device 10 decoder, which means you have to fiddle with PCI
+#  registers to map it in, even though it is otherwise treated here as
+#  an ISA device. At the moment, the driver polls, although the device
+#  is capable of generating interrupts. It largely undocumented.
+#  The port location in the hint is where you WANT the device to be
+#  mapped. 0x10a0 seems to be traditional. At the moment the jogdial
+#  is the only thing truly supported, but aparently a fair percentage
+#  of the Vaio extra features are controlled by this device.
 
 # Notes on the Stallion stl and stli drivers:
 #  See src/i386/isa/README.stl for complete instructions.
@@ -2079,6 +2092,9 @@ hint.asc.0.at="isa"
 hint.asc.0.port="0x3EB"
 hint.asc.0.drq="3"
 hint.asc.0.irq="10"
+device		spic
+hint.spic.0.at="isa"
+hint.spic.0.port="0x10a0"
 device		stl
 hint.stl.0.at="isa"
 hint.stl.0.port="0x2a0"
