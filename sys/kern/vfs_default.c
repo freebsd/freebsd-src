@@ -366,32 +366,8 @@ vop_stddestroyvobject(ap)
 		struct vnode *vp;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	vm_object_t obj = vp->v_object;
 
-	if (obj == NULL)
-		return (0);
-	VM_OBJECT_LOCK(obj);
-	if (obj->ref_count == 0) {
-		/*
-		 * vclean() may be called twice. The first time
-		 * removes the primary reference to the object,
-		 * the second time goes one further and is a
-		 * special-case to terminate the object.
-		 *
-		 * don't double-terminate the object
-		 */
-		if ((obj->flags & OBJ_DEAD) == 0)
-			vm_object_terminate(obj);
-		else
-			VM_OBJECT_UNLOCK(obj);
-	} else {
-		/*
-		 * Woe to the process that tries to page now :-).
-		 */
-		vm_pager_deallocate(obj);
-		VM_OBJECT_UNLOCK(obj);
-	}
+	vnode_destroy_vobject(ap->a_vp);
 	return (0);
 }
 
