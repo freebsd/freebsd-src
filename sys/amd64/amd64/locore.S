@@ -374,6 +374,12 @@ begin:
 	movl	IdlePTD,%esi
 	movl	%esi,PCB_CR3(%eax)
 
+	testl	$CPUID_PGE, R(cpu_feature)
+	jz	1f
+	movl	%cr4, %eax
+	orl	$CR4_PGE, %eax
+	movl	%eax, %cr4
+1:
 	pushl	physfree			/* value of first for init386(first) */
 	call	init386				/* wire 386 chip for unix operation */
 
@@ -718,13 +724,6 @@ trycpuid:	/* Use the `cpuid' instruction. */
  */
 
 create_pagetables:
-
-	testl	$CPUID_PGE, R(cpu_feature)
-	jz	1f
-	movl	%cr4, %eax
-	orl	$CR4_PGE, %eax
-	movl	%eax, %cr4
-1:
 
 /* Find end of kernel image (rounded up to a page boundary). */
 	movl	$R(_end),%esi
