@@ -172,8 +172,8 @@ static int IfaceDeleteCommand(struct cmdargs const *);
 static int IfaceClearCommand(struct cmdargs const *);
 static int SetProcTitle(struct cmdargs const *);
 #ifndef NONAT
-static int AliasEnable(struct cmdargs const *);
-static int AliasOption(struct cmdargs const *);
+static int NatEnable(struct cmdargs const *);
+static int NatOption(struct cmdargs const *);
 #endif
 
 static const char *
@@ -582,36 +582,37 @@ ResolvCommand(struct cmdargs const *arg)
 }
 
 #ifndef NONAT
-static struct cmdtab const AliasCommands[] =
+static struct cmdtab const NatCommands[] =
 {
   {"addr", NULL, nat_RedirectAddr, LOCAL_AUTH,
    "static address translation", "nat addr [addr_local addr_alias]"},
-  {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
+  {"deny_incoming", NULL, NatOption, LOCAL_AUTH,
    "stop incoming connections", "nat deny_incoming yes|no",
    (const void *) PKT_ALIAS_DENY_INCOMING},
-  {"enable", NULL, AliasEnable, LOCAL_AUTH,
+  {"enable", NULL, NatEnable, LOCAL_AUTH,
    "enable NAT", "nat enable yes|no"},
-  {"log", NULL, AliasOption, LOCAL_AUTH,
+  {"log", NULL, NatOption, LOCAL_AUTH,
    "log NAT link creation", "nat log yes|no",
    (const void *) PKT_ALIAS_LOG},
   {"port", NULL, nat_RedirectPort, LOCAL_AUTH, "port redirection",
    "nat port proto localaddr:port[-port] aliasport[-aliasport]"},
-  {"pptp", NULL, nat_Pptp, LOCAL_AUTH,
-   "Set the PPTP address", "nat pptp IP"},
+  {"pptp", NULL, nat_Pptp, LOCAL_AUTH, "Set the PPTP address", "nat pptp IP"},
   {"proxy", NULL, nat_ProxyRule, LOCAL_AUTH,
    "proxy control", "nat proxy server host[:port] ..."},
-  {"same_ports", NULL, AliasOption, LOCAL_AUTH,
+  {"same_ports", NULL, NatOption, LOCAL_AUTH,
    "try to leave port numbers unchanged", "nat same_ports yes|no",
    (const void *) PKT_ALIAS_SAME_PORTS},
-  {"unregistered_only", NULL, AliasOption, LOCAL_AUTH,
+  {"target", NULL, nat_SetTarget, LOCAL_AUTH,
+   "Default address for incoming connections", "nat target addr" },
+  {"unregistered_only", NULL, NatOption, LOCAL_AUTH,
    "translate unregistered (private) IP address space only",
    "nat unregistered_only yes|no",
    (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
-  {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
+  {"use_sockets", NULL, NatOption, LOCAL_AUTH,
    "allocate host sockets", "nat use_sockets yes|no",
    (const void *) PKT_ALIAS_USE_SOCKETS},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-   "Display this message", "nat help|? [command]", AliasCommands},
+   "Display this message", "nat help|? [command]", NatCommands},
   {NULL, NULL, NULL},
 };
 #endif
@@ -688,7 +689,7 @@ static struct cmdtab const Commands[] = {
   "Load settings", "load [system ...]"},
 #ifndef NONAT
   {"nat", "alias", RunListCommand, LOCAL_AUTH,
-  "NAT control", "nat option yes|no", AliasCommands},
+  "NAT control", "nat option yes|no", NatCommands},
 #endif
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Open an FSM", "open! [lcp|ccp|ipcp]", (void *)1},
@@ -1456,15 +1457,15 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_AUTHNAME:
     switch (bundle_Phase(arg->bundle)) {
+      default:
+        log_Printf(LogWARN, "Altering authname while at phase %s\n",
+                   bundle_PhaseName(arg->bundle));
+        /* drop through */
       case PHASE_DEAD:
       case PHASE_ESTABLISH:
         strncpy(arg->bundle->cfg.auth.name, argp,
                 sizeof arg->bundle->cfg.auth.name - 1);
         arg->bundle->cfg.auth.name[sizeof arg->bundle->cfg.auth.name-1] = '\0';
-        break;
-      default:
-        err = "set authname: Only available at phase DEAD/ESTABLISH\n";
-        log_Printf(LogWARN, err);
         break;
     }
     break;
@@ -2129,7 +2130,7 @@ DeleteCommand(struct cmdargs const *arg)
 
 #ifndef NONAT
 static int
-AliasEnable(struct cmdargs const *arg)
+NatEnable(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
@@ -2152,7 +2153,7 @@ AliasEnable(struct cmdargs const *arg)
 
 
 static int
-AliasOption(struct cmdargs const *arg)
+NatOption(struct cmdargs const *arg)
 {
   long param = (long)arg->cmd->args;
 

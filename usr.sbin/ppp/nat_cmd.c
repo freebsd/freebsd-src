@@ -50,6 +50,7 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ip.h"
 #include "bundle.h"
 
 
@@ -338,6 +339,30 @@ nat_Pptp(struct cmdargs const *arg)
   return 0;
 }
 
+int
+nat_SetTarget(struct cmdargs const *arg)
+{
+  struct in_addr addr;
+
+  if (arg->argc == arg->argn) {
+    addr.s_addr = INADDR_NONE;
+    PacketAliasSetTarget(addr);
+    return 0;
+  }
+
+  if (arg->argc != arg->argn + 1)
+    return -1;
+
+  addr = GetIpAddr(arg->argv[arg->argn]);
+  if (addr.s_addr == INADDR_NONE) {
+    log_Printf(LogWARN, "%s: invalid address\n", arg->argv[arg->argn]);
+    return 1;
+  }
+
+  PacketAliasSetTarget(addr);
+  return 0;
+}
+
 static struct mbuf *
 nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
@@ -423,8 +448,17 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
                  nfrags, gfrags);
       break;
 
+    case PKT_ALIAS_IGNORED:
+      if (log_IsKept(LogTCPIP)) {
+        log_Printf(LogTCPIP, "NAT engine ignored data:\n");
+        PacketCheck(bundle, (char *)pip, ntohs(pip->ip_len), NULL);
+      }
+      m_freem(bp);
+      bp = NULL;
+      break;
+
     default:
-      log_Printf(LogWARN, "nat_LayerPull: Dropped a packet....\n");
+      log_Printf(LogWARN, "nat_LayerPull: Dropped a packet (%d)....\n", ret);
       m_freem(bp);
       bp = NULL;
       break;

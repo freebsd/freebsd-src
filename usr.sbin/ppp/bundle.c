@@ -160,16 +160,25 @@ bundle_LayerStart(void *v, struct fsm *fp)
 }
 
 
-static void
+void
 bundle_Notify(struct bundle *bundle, char c)
 {
   if (bundle->notify.fd != -1) {
-    if (write(bundle->notify.fd, &c, 1) == 1)
-      log_Printf(LogPHASE, "Parent notified of success.\n");
+    int ret;
+
+    ret = write(bundle->notify.fd, &c, 1);
+    if (c != EX_REDIAL && c != EX_RECONNECT) {
+      if (ret == 1)
+        log_Printf(LogCHAT, "Parent notified of %s\n",
+                   c == EX_NORMAL ? "success" : "failure");
+      else
+        log_Printf(LogERROR, "Failed to notify parent of success\n");
+      close(bundle->notify.fd);
+      bundle->notify.fd = -1;
+    } else if (ret == 1)
+      log_Printf(LogCHAT, "Parent notified of %s\n", ex_desc(c));
     else
-      log_Printf(LogPHASE, "Failed to notify parent of success.\n");
-    close(bundle->notify.fd);
-    bundle->notify.fd = -1;
+      log_Printf(LogERROR, "Failed to notify parent of %s\n", ex_desc(c));
   }
 }
 
@@ -272,6 +281,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
    * If it's our last NCP, stop the autoload timer
    * If it's an LCP, adjust our phys_type.open value and any timers.
    * If it's an LCP and we're in multilink mode, adjust our tun
+   * If it's the last LCP, down all NCPs
    * speed and make sure our minimum sequence number is adjusted.
    */
 
@@ -282,16 +292,22 @@ bundle_LayerDown(void *v, struct fsm *fp)
     bundle->upat = 0;
     mp_StopAutoloadTimer(&bundle->ncp.mp);
   } else if (fp->proto == PROTO_LCP) {
+    struct datalink *dl;
+    struct datalink *lost;
+    int others_active;
+
     bundle_LinksRemoved(bundle);  /* adjust timers & phys_type values */
+
+    lost = NULL;
+    others_active = 0;
+    for (dl = bundle->links; dl; dl = dl->next) {
+      if (fp == &dl->physical->link.lcp.fsm)
+        lost = dl;
+      else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
+        others_active++;
+    }
+
     if (bundle->ncp.mp.active) {
-      struct datalink *dl;
-      struct datalink *lost;
-
-      lost = NULL;
-      for (dl = bundle->links; dl; dl = dl->next)
-        if (fp == &dl->physical->link.lcp.fsm)
-          lost = dl;
-
       bundle_CalculateBandwidth(bundle);
 
       if (lost)
@@ -300,6 +316,10 @@ bundle_LayerDown(void *v, struct fsm *fp)
         log_Printf(LogALERT, "Oops, lost an unrecognised datalink (%s) !\n",
                    fp->link->name);
     }
+
+    if (!others_active)
+      /* Down the NCPs.  We don't expect to get fsm_Close()d ourself ! */
+      fsm2initial(&bundle->ncp.ipcp.fsm);
   }
 }
 
@@ -308,7 +328,6 @@ bundle_LayerFinish(void *v, struct fsm *fp)
 {
   /* The given fsm is now down (fp cannot be NULL)
    *
-   * If it's the last LCP, fsm_Down all NCPs
    * If it's the last NCP, fsm_Close all LCPs
    */
 
@@ -319,19 +338,9 @@ bundle_LayerFinish(void *v, struct fsm *fp)
     if (bundle_Phase(bundle) != PHASE_DEAD)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, CLOSE_STAYDOWN);
+      if (dl->state == DATALINK_OPEN)
+        datalink_Close(dl, CLOSE_STAYDOWN);
     fsm2initial(fp);
-  } else if (fp->proto == PROTO_LCP) {
-    int others_active;
-
-    others_active = 0;
-    for (dl = bundle->links; dl; dl = dl->next)
-      if (fp != &dl->physical->link.lcp.fsm &&
-          dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
-        others_active++;
-
-    if (!others_active)
-      fsm2initial(&bundle->ncp.ipcp.fsm);
   }
 }
 
@@ -1219,7 +1228,7 @@ bundle_IdleTimeout(void *v)
 {
   struct bundle *bundle = (struct bundle *)v;
 
-  log_Printf(LogPHASE, "Idle timer expired.\n");
+  log_Printf(LogPHASE, "Idle timer expired\n");
   bundle_StopIdleTimer(bundle);
   bundle_Close(bundle, NULL, CLOSE_STAYDOWN);
 }
@@ -1642,7 +1651,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
         log_Printf(LogDEBUG, "Received confirmation from pid %d\n",
                    (int)newpid);
         if (lock && (res = ID0uu_lock_txfr(lock, newpid)) != UU_LOCK_OK)
-            log_Printf(LogPHASE, "uu_lock_txfr: %s\n", uu_lockerr(res));
+            log_Printf(LogERROR, "uu_lock_txfr: %s\n", uu_lockerr(res));
 
         log_Printf(LogDEBUG, "Transmitting link (%d bytes)\n", expect);
         if ((got = writev(reply[0], iov + 1, niov - 1)) != expect) {
@@ -1780,7 +1789,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           close(fds[0]);
           setsid();
           bundle_ChangedPID(bundle);
-          log_Printf(LogPHASE, "%d -> %d: %s session control\n",
+          log_Printf(LogDEBUG, "%d -> %d: %s session control\n",
                      (int)orig, (int)getpid(),
                      holdsession ? "Passed" : "Dropped");
           timer_InitService(0);		/* Start the Timer Service */

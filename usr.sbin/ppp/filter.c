@@ -106,13 +106,14 @@ ParseAddr(struct ipcp *ipcp, const char *data,
     *paddr = ipcp->ns.dns[0];
   else if (ipcp && strncasecmp(data, "DNS1", len) == 0)
     *paddr = ipcp->ns.dns[1];
-  else if (len > 15)
-    log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", data);
   else {
-    char s[16];
+    char *s;
+
+    s = (char *)alloca(len + 1);
     strncpy(s, data, len);
     s[len] = '\0';
-    if (inet_aton(s, paddr) == 0) {
+    *paddr = GetIpAddr(s);
+    if (paddr->s_addr == INADDR_NONE) {
       log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", s);
       return 0;
     }
