@@ -83,6 +83,9 @@ __FBSDID("$FreeBSD$");
 #define FTP_CONTROL_PORT_NUMBER 21
 #define MAX_MESSAGE_SIZE	128
 
+/* FTP protocol flags. */
+#define WAIT_CRLF		0x01
+
 enum ftp_message_type {
     FTP_PORT_COMMAND,
     FTP_EPRT_COMMAND,
@@ -106,7 +109,7 @@ struct ip *pip,	  /* IP packet to examine/patch */
 struct alias_link *link, /* The link to go through (aliased port) */
 int maxpacketsize  /* The maximum size this packet can grow to (including headers) */)
 {
-    int hlen, tlen, dlen;
+    int hlen, tlen, dlen, pflags;
     char *sptr;
     struct tcphdr *tc;
     int ftp_message_type;
@@ -125,7 +128,8 @@ int maxpacketsize  /* The maximum size this packet can grow to (including header
  * Check that data length is not too long and previous message was
  * properly terminated with CRLF.
  */
-    if (dlen <= MAX_MESSAGE_SIZE && GetLastLineCrlfTermed(link)) {
+    pflags = GetProtocolFlags(link);
+    if (dlen <= MAX_MESSAGE_SIZE && !(pflags & WAIT_CRLF)) {
 	ftp_message_type = FTP_UNKNOWN_MESSAGE;
 
 	if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER) {
@@ -157,8 +161,11 @@ int maxpacketsize  /* The maximum size this packet can grow to (including header
     if (dlen) {                  /* only if there's data */
       sptr = (char *) pip; 	 /* start over at beginning */
       tlen = ntohs(pip->ip_len); /* recalc tlen, pkt may have grown */
-      SetLastLineCrlfTermed(link,
-			    (sptr[tlen-2] == '\r') && (sptr[tlen-1] == '\n'));
+      if (sptr[tlen-2] == '\r' && sptr[tlen-1] == '\n')
+	pflags &= ~WAIT_CRLF;
+      else
+	pflags |= WAIT_CRLF;
+      SetProtocolFlags(link, pflags);
     }
 }
 

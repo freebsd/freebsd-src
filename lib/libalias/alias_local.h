@@ -170,8 +170,8 @@ int	 GetDeltaSeqOut(struct ip *_pip, struct alias_link *_link);
 void	 AddSeq(struct ip *_pip, struct alias_link *_link, int _delta);
 void	 SetExpire(struct alias_link *_link, int _expire);
 void	 ClearCheckNewLink(void);
-void	 SetLastLineCrlfTermed(struct alias_link *_link, int _yes);
-int	 GetLastLineCrlfTermed(struct alias_link *_link);
+void	 SetProtocolFlags(struct alias_link *_link, int _pflags);
+int	 GetProtocolFlags(struct alias_link *_link);
 void	 SetDestCallId(struct alias_link *_link, u_int16_t _cid);
 #ifndef NO_FW_PUNCH
 void	 PunchFWHole(struct alias_link *_link);

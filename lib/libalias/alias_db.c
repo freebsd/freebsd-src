@@ -305,6 +305,7 @@ struct alias_link                /* Main data structure */
 #define LINK_PPTP                     (IPPROTO_MAX + 4)
 
     int flags;                   /* indicates special characteristics   */
+    int pflags;                  /* protocol-specific flags */
 
 /* flag bits */
 #define LINK_UNKNOWN_DEST_PORT     0x01
@@ -312,7 +313,6 @@ struct alias_link                /* Main data structure */
 #define LINK_PERMANENT             0x04
 #define LINK_PARTIALLY_SPECIFIED   0x03 /* logical-or of first two bits */
 #define LINK_UNFIREWALLED          0x08
-#define LINK_LAST_LINE_CRLF_TERMED 0x10
 
     int timestamp;               /* Time link was last accessed         */
     int expire_time;             /* Expire time for link                */
@@ -1017,6 +1017,7 @@ AddLink(struct in_addr  src_addr,
         link->link_type         = link_type;
         link->sockfd            = -1;
         link->flags             = 0;
+        link->pflags            = 0;
         link->timestamp         = timeStamp;
 
     /* Expiration time */
@@ -1855,7 +1856,7 @@ FindAliasAddress(struct in_addr original_addr)
     GetOriginalPort(), GetAliasPort()
     SetAckModified(), GetAckModified()
     GetDeltaAckIn(), GetDeltaSeqOut(), AddSeq()
-    SetLastLineCrlfTermed(), GetLastLineCrlfTermed()
+    SetProtocolFlags(), GetProtocolFlags()
     SetDestCallId()
 */
 
@@ -2223,20 +2224,17 @@ ClearCheckNewLink(void)
 }
 
 void
-SetLastLineCrlfTermed(struct alias_link *link, int yes)
+SetProtocolFlags(struct alias_link *link, int pflags)
 {
 
-    if (yes)
-	link->flags |= LINK_LAST_LINE_CRLF_TERMED;
-    else
-	link->flags &= ~LINK_LAST_LINE_CRLF_TERMED;
+    link->pflags = pflags;;
 }
 
 int
-GetLastLineCrlfTermed(struct alias_link *link)
+GetProtocolFlags(struct alias_link *link)
 {
 
-    return (link->flags & LINK_LAST_LINE_CRLF_TERMED);
+    return (link->pflags);
 }
 
 void
