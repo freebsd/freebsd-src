@@ -90,6 +90,13 @@ int scsi_device_attach(struct scsi_link *sc_link)
 #endif
 
 	printf("%s%d: %s ", device->name, sc_link->dev_unit, device->desc);
+	/*
+	 * XXX some SCSI adapter drivers print out things while the
+	 * device-specific attach routine is running. The result is
+	 * something of a mess. This hack at least keeps it so each
+	 * line will begin with foodev0:.
+	 */
+	sc_print_init();
 
 	dev = scsi_dev_lookup(device->open);
 
@@ -100,6 +107,7 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	errcode = (device->attach) ? (*(device->attach))(sc_link) : 0;
 
 	printf("\n");
+	sc_print_finish();
 
 	if (errcode == 0)
 		sc_link->flags |= device->link_flags;

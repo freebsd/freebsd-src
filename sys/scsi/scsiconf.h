@@ -472,6 +472,7 @@ u_int32_t	scsi_2btou __P((u_char *));
 
 void sc_print_addr __P((struct scsi_link *));
 void sc_print_start __P((struct scsi_link *));
+void sc_print_init __P((void));
 void sc_print_finish __P((void));
 
 #ifndef SCSIDEBUG
