@@ -86,6 +86,9 @@ Then, there's a blank line, and the user include files.
 .Ed
 .Pp
 Macros are capitalized, parenthesized, and should avoid side-effects.
+Put a single tab character betwen the 
+.Ql #define
+and the macro name.  
 If they are an inline expansion of a function, the function is defined
 all in lowercase, the macro has the same name all in uppercase.  If the
 macro needs more than a single line, use braces.  Right-justify the
@@ -467,7 +470,7 @@ Use
 not fputs/puts/putchar/whatever; it's faster and usually cleaner, not
 to mention avoiding stupid bugs.
 .Pp
-Usage statements should look like the manual pages.  Options w/o
+Usage statements should look like the manual pages synopsis.  Options w/o
 operands come first, in alphabetical order inside a single set of
 braces, followed by options with operands, in alphabetical order,
 each in braces, followed by required arguments in the order they
@@ -479,8 +482,8 @@ and multiple options/arguments which are specified together are
 placed in a single set of braces.
 .Pp
 .Bd -ragged -offset 0.3i
-"usage: f [-ade] [-b b_arg] [-m m_arg] req1 req2 [opt1 [opt2]]\en"
-"usage: f [-a | -b] [-c [-de] [-n number]]\en"
+"usage: f [-aDde] [-b b_arg] [-m m_arg] req1 req2 [opt1 [opt2]]\en"
+"usage: f [-a | -b] [-c [-dEe] [-n number]]\en"
 .Ed
 .Bd -literal -offset 0i
 	(void)fprintf(stderr, "usage: f [-ab]\en");
