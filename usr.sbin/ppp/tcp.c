@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -164,33 +165,43 @@ tcp_Create(struct physical *p)
 
   if (p->fd >= 0) {
     /* See if we're a tcp socket */
-    int type, sz, err;
+    struct stat st;
 
-    sz = sizeof type;
-    if ((err = getsockopt(p->fd, SOL_SOCKET, SO_TYPE, &type, &sz)) == 0 &&
-        sz == sizeof type && type == SOCK_STREAM) {
-      struct sockaddr_in sock;
-      struct sockaddr *sockp = (struct sockaddr *)&sock;
+    if (fstat(p->fd, &st) != -1 && (st.st_mode & S_IFSOCK)) {
+      int type, sz;
 
-      if (*p->name.full == '\0') {
-        sz = sizeof sock;
-        if (getpeername(p->fd, sockp, &sz) != 0 ||
-            sz != sizeof(struct sockaddr_in) || sock.sin_family != AF_INET) {
-          log_Printf(LogDEBUG, "%s: Link is SOCK_STREAM, but not inet\n",
-                     p->link.name);
-          return NULL;
-        }
-
-        log_Printf(LogPHASE, "%s: Link is a tcp socket\n", p->link.name);
-
-        snprintf(p->name.full, sizeof p->name.full, "%s:%d/tcp",
-                 inet_ntoa(sock.sin_addr), ntohs(sock.sin_port));
-        p->name.base = p->name.full;
+      sz = sizeof type;
+      if (getsockopt(p->fd, SOL_SOCKET, SO_TYPE, &type, &sz) == -1) {
+        log_Printf(LogPHASE, "%s: Link is a closed socket !\n", p->link.name);
+        close(p->fd);
+        p->fd = -1;
+        return NULL;
       }
-      physical_SetupStack(p, tcpdevice.name, PHYSICAL_FORCE_ASYNC);
-      if (p->cfg.cd.necessity != CD_DEFAULT)
-        log_Printf(LogWARN, "Carrier settings ignored\n");
-      return &tcpdevice;
+
+      if (sz == sizeof type && type == SOCK_STREAM) {
+        struct sockaddr_in sock;
+        struct sockaddr *sockp = (struct sockaddr *)&sock;
+
+        if (*p->name.full == '\0') {
+          sz = sizeof sock;
+          if (getpeername(p->fd, sockp, &sz) != 0 ||
+              sz != sizeof(struct sockaddr_in) || sock.sin_family != AF_INET) {
+            log_Printf(LogDEBUG, "%s: Link is SOCK_STREAM, but not inet\n",
+                       p->link.name);
+            return NULL;
+          }
+
+          log_Printf(LogPHASE, "%s: Link is a tcp socket\n", p->link.name);
+
+          snprintf(p->name.full, sizeof p->name.full, "%s:%d/tcp",
+                   inet_ntoa(sock.sin_addr), ntohs(sock.sin_port));
+          p->name.base = p->name.full;
+        }
+        physical_SetupStack(p, tcpdevice.name, PHYSICAL_FORCE_ASYNC);
+        if (p->cfg.cd.necessity != CD_DEFAULT)
+          log_Printf(LogWARN, "Carrier settings ignored\n");
+        return &tcpdevice;
+      }
     }
   }
 
