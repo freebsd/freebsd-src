@@ -693,6 +693,10 @@ div_modevent(module_t mod, int type, void *unused)
 		 * Module ipdivert can only be unloaded if no sockets are
 		 * connected.  Maybe this can be changed later to forcefully
 		 * disconnect any open sockets.
+		 *
+		 * XXXRW: Note that there is a slight race here, as a socket
+		 * could be opened between when we test and when we
+		 * unregister.
 		 */
 		INP_INFO_RLOCK(&divcbinfo);
 		n = divcbinfo.ipi_count;
