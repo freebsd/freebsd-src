@@ -54,7 +54,6 @@ DUMMY(get_kernel_syms);
 DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
-DUMMY(getsid);
 DUMMY(vm86);
 DUMMY(query_module);
 DUMMY(nfsservctl);
