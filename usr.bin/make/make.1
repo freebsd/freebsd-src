@@ -618,16 +618,15 @@ The colon may be escaped with a backslash
 .No \&/ Op Cm 1g
 .Xc
 .Sm on
-The
-.Cm C
-modifier is just like the
-.Cm S
-modifier except that the old and new strings, instead of being
-simple strings, are an extended regular expression (see
+Modify each word of the value,
+substituting every match of the extended regular expression
+.Ar pattern
+(see
 .Xr re_format 7 )
-and an
+with the
 .Xr ed 1 Ns \-style
-replacement string.
+.Ar replacement
+string.
 Normally, the first occurrence of the pattern in
 each word of the value is changed.
 The
