@@ -75,8 +75,6 @@
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>
 
-#include <netinet/ipprotosw.h>
-
 #include <sys/socketvar.h>
 
 #include <netinet/ip_fw.h>
@@ -153,7 +151,7 @@ static int	ipprintfs = 0;
 #endif
 
 extern	struct domain inetdomain;
-extern	struct ipprotosw inetsw[];
+extern	struct protosw inetsw[];
 u_char	ip_protox[IPPROTO_MAX];
 static int	ipqmaxlen = IFQ_MAXLEN;
 struct	in_ifaddrhead in_ifaddrhead; /* first inet address */
@@ -236,17 +234,17 @@ static void	ipintr __P((void));
 void
 ip_init()
 {
-	register struct ipprotosw *pr;
+	register struct protosw *pr;
 	register int i;
 
 	TAILQ_INIT(&in_ifaddrhead);
-	pr = (struct ipprotosw *)pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
+	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == 0)
 		panic("ip_init");
 	for (i = 0; i < IPPROTO_MAX; i++)
 		ip_protox[i] = pr - inetsw;
-	for (pr = (struct ipprotosw *)inetdomain.dom_protosw;
-	    pr < (struct ipprotosw *)inetdomain.dom_protoswNPROTOSW; pr++)
+	for (pr = inetdomain.dom_protosw;
+	    pr < inetdomain.dom_protoswNPROTOSW; pr++)
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip_protox[pr->pr_protocol] = pr - inetsw;
@@ -819,9 +817,9 @@ found:
 	 */
 	ipstat.ips_delivered++;
     {
-	int off = hlen, nh = ip->ip_p;
+	int off = hlen;
 
-	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, off, nh);
+	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, off);
 #ifdef	IPFIREWALL_FORWARD
 	ip_fw_fwd_addr = NULL;	/* tcp needed it */
 #endif

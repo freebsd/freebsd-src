@@ -177,10 +177,10 @@ u_int16_t
 int	 rip_ctloutput __P((struct socket *, struct sockopt *));
 void	 rip_ctlinput __P((int, struct sockaddr *, void *));
 void	 rip_init __P((void));
-void	 rip_input __P((struct mbuf *, int, int));
+void	 rip_input __P((struct mbuf *, int));
 int	 rip_output __P((struct mbuf *, struct socket *, u_long));
-void	ipip_input __P((struct mbuf *, int, int));
-void	rsvp_input __P((struct mbuf *, int, int));
+void	ipip_input __P((struct mbuf *, int));
+void	rsvp_input __P((struct mbuf *, int));
 int	ip_rsvp_init __P((struct socket *));
 int	ip_rsvp_done __P((void));
 int	ip_rsvp_vif_init __P((struct socket *, struct sockopt *));
@@ -189,7 +189,7 @@ void	ip_rsvp_force_done __P((struct socket *));
 
 #ifdef IPDIVERT
 void	div_init __P((void));
-void	div_input __P((struct mbuf *, int, int));
+void	div_input __P((struct mbuf *, int));
 void	divert_packet __P((struct mbuf *, int, int));
 extern struct pr_usrreqs div_usrreqs;
 extern u_int16_t ip_divert_cookie;

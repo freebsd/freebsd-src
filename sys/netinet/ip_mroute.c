@@ -37,7 +37,6 @@
 #include <netinet/igmp.h>
 #include <netinet/ip_encap.h>
 #include <netinet/ip_mroute.h>
-#include <netinet/ipprotosw.h>
 #include <netinet/udp.h>
 #include <machine/in_cksum.h>
 
@@ -108,10 +107,9 @@ _mrt_ioctl(int req, caddr_t data)
 int (*mrt_ioctl)(int, caddr_t) = _mrt_ioctl;
 
 void
-rsvp_input(m, off, proto)		/* XXX must fixup manually */
+rsvp_input(m, off)		/* XXX must fixup manually */
 	struct mbuf *m;
 	int off;
-	int proto;
 {
     /* Can still get packets with rsvp_on = 0 if there is a local member
      * of the group to which the RSVP packet is addressed.  But in this
@@ -125,15 +123,15 @@ rsvp_input(m, off, proto)		/* XXX must fixup manually */
     if (ip_rsvpd != NULL) {
 	if (rsvpdebug)
 	    printf("rsvp_input: Sending packet up old-style socket\n");
-	rip_input(m, off, proto);
+	rip_input(m, off);
 	return;
     }
     /* Drop the packet */
     m_freem(m);
 }
 
-void ipip_input(struct mbuf *m, int off, int proto) { /* XXX must fixup manually */
-	rip_input(m, off, proto);
+void ipip_input(struct mbuf *m, int off) { /* XXX must fixup manually */
+	rip_input(m, off);
 }
 
 int (*legal_vif_num)(int) = 0;
@@ -708,7 +706,7 @@ mroute_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
  * claimed).
  */
 static void
-mroute_encap_input(struct mbuf *m, int off, int proto)
+mroute_encap_input(struct mbuf *m, int off)
 {
     struct ip *ip = mtod(m, struct ip *);
     int hlen = ip->ip_hl << 2;
@@ -732,7 +730,7 @@ mroute_encap_input(struct mbuf *m, int off, int proto)
 }
 
 extern struct domain inetdomain;
-static struct ipprotosw mroute_encap_protosw =
+static struct protosw mroute_encap_protosw =
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
   mroute_encap_input,	0,	0,		rip_ctloutput,
   0,
@@ -2108,10 +2106,9 @@ ip_rsvp_force_done(so)
 }
 
 void
-rsvp_input(m, off, proto)
+rsvp_input(m, off)
 	struct mbuf *m;
 	int off;
-	int proto;
 {
     int vifi;
     register struct ip *ip = mtod(m, struct ip *);
@@ -2156,7 +2153,7 @@ rsvp_input(m, off, proto)
 	if (ip_rsvpd != NULL) {
 	    if (rsvpdebug)
 		printf("rsvp_input: Sending packet up old-style socket\n");
-	    rip_input(m, off, proto);  /* xxx */
+	    rip_input(m, off);  /* xxx */
 	} else {
 	    if (rsvpdebug && vifi == numvifs)
 		printf("rsvp_input: Can't find vif for packet.\n");

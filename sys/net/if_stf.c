@@ -98,7 +98,6 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ipprotosw.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
 
@@ -134,7 +133,7 @@ static MALLOC_DEFINE(M_STF, "stf", "6to4 Tunnel Interface");
 static int ip_stf_ttl = 40;
 
 extern  struct domain inetdomain;
-struct ipprotosw in_stf_protosw =
+struct protosw in_stf_protosw =
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
   in_stf_input, rip_output,	0,		rip_ctloutput,
   0,
@@ -550,7 +549,7 @@ in_stf_input(m, va_alist)
 
 	va_start(ap, m);
 	off = va_arg(ap, int);
-	proto = va_arg(ap, int);
+	proto = mtod(m, struct ip *)->ip_p;
 	va_end(ap);
 
 	if (proto != IPPROTO_IPV6) {

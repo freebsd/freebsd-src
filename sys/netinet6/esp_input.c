@@ -97,8 +97,7 @@
 		? sizeof(struct newesp) : sizeof(struct esp))
 
 #ifdef INET
-#include <netinet/ipprotosw.h>
-extern struct ipprotosw inetsw[];
+extern struct protosw inetsw[];
 
 void
 #if __STDC__
@@ -125,7 +124,7 @@ esp4_input(m, va_alist)
 
 	va_start(ap, m);
 	off = va_arg(ap, int);
-	proto = va_arg(ap, int);
+	proto = mtod(m, struct ip *)->ip_p;
 	va_end(ap);
 
 	/* sanity check for alignment. */
@@ -445,7 +444,7 @@ noreplaycheck:
 				ipsecstat.in_polvio++;
 				goto bad;
 			}
-			(*inetsw[ip_protox[nxt]].pr_input)(m, off, nxt);
+			(*inetsw[ip_protox[nxt]].pr_input)(m, off);
 		} else
 			m_freem(m);
 		m = NULL;
