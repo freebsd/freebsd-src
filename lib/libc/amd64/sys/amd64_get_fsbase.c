@@ -29,11 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/sysarch.h>
 
-extern int sysarch(int op, char *parms);
-
 int
 amd64_get_fsbase(void **addr)
 {
 
-	return (sysarch(AMD64_GET_FSBASE, (char *)addr));
+	return (sysarch(AMD64_GET_FSBASE, addr));
 }

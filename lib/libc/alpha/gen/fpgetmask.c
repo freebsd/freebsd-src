@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <ieeefp.h>
 #include <machine/sysarch.h>
 
-extern int sysarch(int op, char *parms);
-
 struct params {
         u_int64_t mask;
 };
@@ -49,6 +47,6 @@ fpgetmask()
 {
         struct params p;
 
-	sysarch(ALPHA_GET_FPMASK, (char *) &p);
+	sysarch(ALPHA_GET_FPMASK, &p);
 	return((fp_except_t) p.mask);
 }

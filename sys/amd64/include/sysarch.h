@@ -50,9 +50,10 @@
 
 __BEGIN_DECLS
 int amd64_get_fsbase(void **);
-int amd64_set_fsbase(void *);
 int amd64_get_gsbase(void **);
+int amd64_set_fsbase(void *);
 int amd64_set_gsbase(void *);
+int sysarch(int, void *);
 __END_DECLS
 #endif
 
