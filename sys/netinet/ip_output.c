@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.19 1995/05/30 08:09:49 rgrimes Exp $
+ * $Id: ip_output.c,v 1.23 1995/07/26 18:05:13 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -188,15 +188,20 @@ ip_output(m0, opt, ro, flags, imo)
 			ip->ip_ttl = imo->imo_multicast_ttl;
 			if (imo->imo_multicast_ifp != NULL)
 				ifp = imo->imo_multicast_ifp;
+			if (imo->imo_multicast_vif != -1)
+				ip->ip_src.s_addr =
+				    ip_mcast_src(imo->imo_multicast_vif);
 		} else
 			ip->ip_ttl = IP_DEFAULT_MULTICAST_TTL;
 		/*
 		 * Confirm that the outgoing interface supports multicast.
 		 */
-		if ((ifp->if_flags & IFF_MULTICAST) == 0) {
-			ipstat.ips_noroute++;
-			error = ENETUNREACH;
-			goto bad;
+		if ((imo == NULL) || (imo->imo_multicast_vif == -1)) {
+			if ((ifp->if_flags & IFF_MULTICAST) == 0) {
+				ipstat.ips_noroute++;
+				error = ENETUNREACH;
+				goto bad;
+			}
 		}
 		/*
 		 * If source address not specified yet, use address
@@ -242,7 +247,7 @@ ip_output(m0, opt, ro, flags, imo)
 				 * is multicast and not just sent down one link
 				 * as prescribed by rsvpd.
 				 */
-				if (ip_rsvpd == NULL)
+				if (!rsvp_on)
 				  imo = NULL;
 				if (ip_mforward(ip, ifp, m, imo) != 0) {
 					m_freem(m);
@@ -805,7 +810,7 @@ ip_setmoptions(optname, imop, m)
 			return (ENOBUFS);
 		*imop = imo;
 		imo->imo_multicast_ifp = NULL;
-		imo->imo_multicast_vif = 0;
+		imo->imo_multicast_vif = -1;
 		imo->imo_multicast_ttl = IP_DEFAULT_MULTICAST_TTL;
 		imo->imo_multicast_loop = IP_DEFAULT_MULTICAST_LOOP;
 		imo->imo_num_memberships = 0;
@@ -823,7 +828,7 @@ ip_setmoptions(optname, imop, m)
 			break;
 		}
 		i = *(mtod(m, int *));
-		if (!legal_vif_num(i)) {
+		if (!legal_vif_num(i) && (i != -1)) {
 			error = EINVAL;
 			break;
 		}
@@ -907,7 +912,7 @@ ip_setmoptions(optname, imop, m)
 		 * the route to the given multicast address.
 		 */
 		if (mreq->imr_interface.s_addr == INADDR_ANY) {
-			ro.ro_rt = NULL;
+			bzero((caddr_t)&ro, sizeof(ro));
 			dst = (struct sockaddr_in *)&ro.ro_dst;
 			dst->sin_len = sizeof(*dst);
 			dst->sin_family = AF_INET;
@@ -1036,7 +1041,7 @@ ip_setmoptions(optname, imop, m)
 	 * If all options have default values, no need to keep the mbuf.
 	 */
 	if (imo->imo_multicast_ifp == NULL &&
-	    imo->imo_multicast_vif == 0 &&
+	    imo->imo_multicast_vif == -1 &&
 	    imo->imo_multicast_ttl == IP_DEFAULT_MULTICAST_TTL &&
 	    imo->imo_multicast_loop == IP_DEFAULT_MULTICAST_LOOP &&
 	    imo->imo_num_memberships == 0) {
@@ -1065,11 +1070,11 @@ ip_getmoptions(optname, imo, mp)
 
 	switch (optname) {
 
-	case IP_MULTICAST_VIF:
+	case IP_MULTICAST_VIF: 
 		if (imo != NULL)
 			*(mtod(*mp, int *)) = imo->imo_multicast_vif;
 		else
-			*(mtod(*mp, int *)) = 7890;
+			*(mtod(*mp, int *)) = -1;
 		(*mp)->m_len = sizeof(int);
 		return(0);
 
