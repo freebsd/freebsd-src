@@ -3,7 +3,7 @@
 # script to edit and save some config file(s)
 thefiles=$*
 pwd=`pwd`
-set `df /` ; dev="/dev/$8"
+dev="/dev/fd0c"
 echo "Updating content on ${dev}: "
 mount ${dev} /mnt
 if [ "X$?" != "X0" ] ; then
