@@ -1969,9 +1969,9 @@ ndis_wait_event(event, msecs)
 	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
 
 	if (td->td_proc->p_flag & P_KTHREAD)
-		error = tsleep(td, PPAUSE|PCATCH, "ndiswe", tvtohz(&tv));
-	else
 		error = kthread_suspend(td->td_proc, tvtohz(&tv));
+	else
+		error = tsleep(td, PPAUSE|PCATCH, "ndiswe", tvtohz(&tv));
 
 	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
 
