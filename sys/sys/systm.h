@@ -112,8 +112,10 @@ void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
+#if 0
 extern uint32_t crc32_tab[];
 uint32_t crc32(const void *buf, size_t size);
+#endif
 void	init_param1 __P((void));
 void	init_param2 __P((int physpages));
 void	tablefull __P((const char *));
