@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.129
+        Original revision: 1.135
 -->
 
 <sect1 id="support">
@@ -2168,9 +2168,16 @@
 
   <sect2>
     <title>ATM インタフェース</title>
-    <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p ATM PCI アダプタ (hea ドライバ)</para>
-    <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM PCI アダプタ (hfa ドライバ)</para>
-    <para arch="i386,pc98">&os; の ATM サポートは、次のシグナリングプロトコルに対応しています。
+
+    <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p
+      ATM PCI アダプタ (hea ドライバ)</para>
+
+    <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM
+      PCI アダプタ (hfa ドライバ)</para>
+
+    <para arch="i386,pc98">&os; の ATM サポートは、
+      次のシグナリングプロトコルに対応しています。
+
       <itemizedlist>
         <listitem>
 	  <para>The ATM Forum UNI 3.1 signaling protocol</para>
@@ -2726,8 +2733,10 @@
       </note>
 
   </sect2>
+
   <sect2>
     <title>オーディオデバイス</title>
+
     <para arch="i386">Advance (&man.sbc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2738,6 +2747,7 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">CMedia サウンドチップ
       <itemizedlist>
         <listitem>
@@ -2745,6 +2755,7 @@
         </listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">Crystal Semiconductor (&man.csa.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2755,6 +2766,7 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">ENSONIQ (&man.pcm.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2762,6 +2774,7 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386,alpha">ESS
       <itemizedlist>
         <listitem>
@@ -2783,7 +2796,9 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">ForteMedia fm801</para>
+
     <para arch="i386">Gravis (&man.gusc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2794,12 +2809,18 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">Intel 443MX, 810, 815, 815E 内蔵のサウンドデバイス
       (&man.pcm.4; ドライバ)</para>
+
     <para arch="i386,alpha">MSS/WSS 互換 DSP (&man.pcm.4; ドライバ)</para>
+
     <para arch="i386">NeoMagic 256AV/ZX (&man.pcm.4; ドライバ)</para>
+
     <para arch="i386">OPTi 931/82C931 (&man.pcm.4; ドライバ)</para>
+
     <para arch="i386">S3 Sonicvibes</para>
+
     <para arch="i386,alpha">Creative Technologies SoundBlaster シリーズ (&man.sbc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2822,8 +2843,14 @@
 	</listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">Creative Technologies Sound Blaster Live! シリーズ
+      (emu10k1 ドライバ)</para>
+
     <para arch="i386">Trident 4DWave DX/NX (&man.pcm.4; ドライバ)</para>
+
     <para arch="i386">VIA Technologies VT82C686A</para>
+
     <para arch="i386">Yamaha
       <itemizedlist>
         <listitem>
@@ -2834,6 +2861,7 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="pc98">NEC PC-9801-73, 86 およびその互換品 (nss ドライバ)
       <itemizedlist>
         <listitem>
@@ -2844,11 +2872,16 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="pc98">NEC X-MATE, CanBe, ValueStar internal (mss ドライバ)</para>
+
+    <para arch="pc98">NEC X-MATE, CanBe, ValueStar 内蔵 (mss ドライバ)</para>
+
     <para arch="pc98">Creative Technologies SoundBlaster(98) (&man.sb.4;
-    ドライバ)</para>
+      ドライバ)</para>
+
     <para arch="pc98">I-O DATA CD-BOX (&man.sb.4; ドライバ)</para>
+
     <para arch="pc98">ビープ音を使ったソフトウェア PCM (pca ドライバ)</para>
+
     <para arch="pc98">MPU-401 および互換インタフェース (mpu ドライバ)
       <itemizedlist>
         <listitem>
@@ -2856,11 +2889,14 @@
         </listitem>
       </itemizedlist>
     </para>
+
     <para arch="pc98">SoundBlaster(98) のジョイスティックポート (&man.joy.4
-    ドライバ)</para>
+      ドライバ)</para>
   </sect2>
+
   <sect2>
     <title>カメラおよびビデオキャプチャデバイス</title>
+
     <para arch="i386,pc98">Brooktree Bt848/849/878/879 ベースのフレームグラバ
       (&man.bktr.4; ドライバ)
       <itemizedlist>
@@ -3333,10 +3369,16 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha"><quote>PC 標準</quote> のパラレルポート (&man.ppc.4; ドライバ)</para>
-    <para arch="pc98"><quote>PC-9821 標準</quote>のパラレルポート (&man.ppc.4; ドライバ)</para>
+    <para arch="i386,alpha"><quote>PC 標準</quote> のパラレルポート
+      (&man.ppc.4; ドライバ)</para>
+
+    <para arch="pc98"><quote>PC-9821 標準</quote>のパラレルポート
+      (&man.ppc.4; ドライバ)</para>
 
     <para arch="i386">PC 互換のジョイスティック (&man.joy.4; ドライバ)</para>
+
+    <para arch="pc98">SoundBlaster(98) のジョイスティックポート (&man.joy.4
+      ドライバ)</para>
 
     <para arch="i386,pc98">PHS データ通信カード/PCCARD
       <itemizedlist>
