@@ -419,8 +419,8 @@ uio_yield()
 	int s;
 
 	p = curproc;
-	p->p_priority = p->p_usrpri;
 	s = splhigh();
+	p->p_priority = p->p_usrpri;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nivcsw++;
 	mi_switch();
