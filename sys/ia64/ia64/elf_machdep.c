@@ -59,8 +59,8 @@ struct sysentvec elf64_freebsd_sysvec = {
 	NULL,
 	__elfN(freebsd_fixup),
 	sendsig,
-	sigcode,
-	&szsigcode,
+	NULL,		/* sigcode */
+	NULL,		/* &szsigcode */
 	NULL,
 	"FreeBSD ELF64",
 	__elfN(coredump),
@@ -262,7 +262,7 @@ elf_cpu_load_file(linker_file_t lf)
 
 		if (ph->p_type == PT_IA_64_UNWIND) {
 			vaddr = ph->p_vaddr + reloc;
-			ia64_add_unwind_table((vm_offset_t)lf->address, vaddr,
+			unw_table_add((vm_offset_t)lf->address, vaddr,
 			    vaddr + ph->p_memsz);
 		}
 		++ph;
@@ -275,6 +275,6 @@ int
 elf_cpu_unload_file(linker_file_t lf)
 {
 
-	ia64_delete_unwind_table((vm_offset_t)lf->address);
+	unw_table_remove((vm_offset_t)lf->address);
 	return (0);
 }

@@ -29,87 +29,18 @@
 #ifndef _MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
-#include <machine/reg.h>
+#include <machine/_regset.h>
 
 /*
  * Software trap, exception, and syscall frame.
  */
 struct trapframe {
-	u_int64_t		tf_flags;
+	uint64_t		tf_length;
+	uint64_t		tf_flags;
 #define FRAME_SYSCALL		1	/* syscalls use a partial trapframe */
-
-	u_int64_t		tf_cr_iip;
-	u_int64_t		tf_cr_ipsr;
-	u_int64_t		tf_cr_isr;
-	u_int64_t		tf_cr_ifa;
-	u_int64_t		tf_pr;
-	u_int64_t		tf_ar_rsc;
-	u_int64_t		tf_ar_pfs;
-	u_int64_t		tf_cr_ifs;
-	u_int64_t		tf_ar_bspstore;
-	u_int64_t		tf_ar_rnat;
-	u_int64_t		tf_ndirty;
-	u_int64_t		tf_ar_unat;
-	u_int64_t		tf_ar_ccv;
-	u_int64_t		tf_ar_fpsr;
-	u_int64_t		tf_ar_lc;
-	u_int64_t		tf_ar_ec;
-
-	u_int64_t		tf_b[8];
-
-	u_int64_t		tf_r[31];	/* don't need to save r0 */
-#define FRAME_R1		0
-#define FRAME_R2		1
-#define FRAME_R3		2
-#define FRAME_R4		3
-#define FRAME_R5		4
-#define FRAME_R6		5
-#define FRAME_R7		6
-#define FRAME_R8		7
-#define FRAME_R9		8
-#define FRAME_R10		9
-#define FRAME_R11		10
-#define FRAME_R12		11
-#define FRAME_R13		12
-#define FRAME_R14		13
-#define FRAME_R15		14
-#define FRAME_R16		15
-#define FRAME_R17		16
-#define FRAME_R18		17
-#define FRAME_R19		18
-#define FRAME_R20		19
-#define FRAME_R21		20
-#define FRAME_R22		21
-#define FRAME_R23		22
-#define FRAME_R24		23
-#define FRAME_R25		24
-#define FRAME_R26		25
-#define FRAME_R27		26
-#define FRAME_R28		27
-#define FRAME_R29		28
-#define FRAME_R30		29
-#define FRAME_R31		30
-
-#define FRAME_GP		FRAME_R1
-#define FRAME_SP		FRAME_R12
-#define FRAME_TP		FRAME_R13
-
-	/*
-	 * We rely on the compiler to save/restore f2-f5 and
-	 * f16-f31. We also tell the compiler to avoid f32-f127
-	 * completely so we don't worry about them at all.
-	 */
-	struct ia64_fpreg	tf_f[10];
-#define FRAME_F6		0
-#define FRAME_F7		1
-#define FRAME_F8		2
-#define FRAME_F9		3
-#define FRAME_F10		4
-#define FRAME_F11		5
-#define FRAME_F12		6
-#define FRAME_F13		7
-#define FRAME_F14		8
-#define FRAME_F15		9
+	struct _special		tf_special;
+	struct _caller_saved	tf_scratch;
+	struct _caller_saved_fp	tf_scratch_fp;
 };
 
 #endif /* _MACHINE_FRAME_H_ */

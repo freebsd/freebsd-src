@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Doug Rabson
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -29,72 +30,44 @@
 #ifndef _MACHINE_PCB_H_
 #define _MACHINE_PCB_H_
 
+#include <machine/_regset.h>
+
 /*
  * PCB: process control block
  */
+struct pmap;
 struct pcb {
-	uint64_t		pcb_sp;
-	uint64_t		pcb_ar_unat;
-	uint64_t		pcb_rp;
-	uint64_t		pcb_pr;
-	struct ia64_fpreg	pcb_f[20];
-#define	PCB_F2		0
-#define	PCB_F3		1
-#define	PCB_F4		2
-#define	PCB_F5		3
-#define	PCB_F16		4
-#define	PCB_F17		5
-#define	PCB_F18		6
-#define	PCB_F19		7
-#define	PCB_F20		8
-#define	PCB_F21		9
-#define	PCB_F22		10
-#define	PCB_F23		11
-#define	PCB_F24		12
-#define	PCB_F25		13
-#define	PCB_F26		14
-#define	PCB_F27		15
-#define	PCB_F28		16
-#define	PCB_F29		17
-#define	PCB_F30		18
-#define	PCB_F31		19
-	uint64_t		pcb_r[4];
-#define	PCB_R4		0
-#define	PCB_R5		1
-#define	PCB_R6		2
-#define	PCB_R7		3
-	uint64_t		pcb_unat47;
-	uint64_t		pcb_b[5];
-#define	PCB_B1		0
-#define	PCB_B2		1
-#define	PCB_B3		2
-#define	PCB_B4		3
-#define	PCB_B5		4
-	uint64_t		pcb_ar_bsp;
-	uint64_t		pcb_ar_pfs;
-	uint64_t		pcb_ar_rnat;
-	uint64_t		pcb_ar_lc;
-
-	uint64_t		pcb_current_pmap;
-
-	uint64_t		pcb_ar_fcr;
-	uint64_t		pcb_ar_eflag;
-	uint64_t		pcb_ar_csd;
-	uint64_t		pcb_ar_ssd;
-	uint64_t		pcb_ar_fsr;
-	uint64_t		pcb_ar_fir;
-	uint64_t		pcb_ar_fdr;
-
-	/* Aligned! */
-	struct ia64_fpreg	pcb_highfp[96];	/* f32-f127 */
+	struct _special		pcb_special;
+	struct _callee_saved	pcb_preserved;
+	struct _callee_saved_fp	pcb_preserved_fp;
+	struct _high_fp		pcb_high_fp;
+	struct pcpu		*pcb_fpcpu;
+	struct pmap 		*pcb_current_pmap;
 
 	uint64_t		pcb_onfault;	/* for copy faults */
 	uint64_t		pcb_accessaddr;	/* for [fs]uswintr */
+
+#if IA32
+	uint64_t		pcb_ia32_cflg;
+	uint64_t		pcb_ia32_eflag;
+	uint64_t		pcb_ia32_fcr;
+	uint64_t		pcb_ia32_fdr;
+	uint64_t		pcb_ia32_fir;
+	uint64_t		pcb_ia32_fsr;
+#endif
 };
 
 #ifdef _KERNEL
-void restorectx(struct pcb *);
-void savectx(struct pcb *);
+
+#define	savectx(p)	swapctx(p, NULL)
+void restorectx(struct pcb *) __dead2;
+int swapctx(struct pcb *old, struct pcb *new);
+
+#if IA32
+void ia32_restorectx(struct pcb *);
+void ia32_savectx(struct pcb *);
+#endif
+
 #endif
 
 #endif /* _MACHINE_PCB_H_ */

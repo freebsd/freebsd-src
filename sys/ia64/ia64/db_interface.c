@@ -51,7 +51,6 @@
 #include <vm/vm.h>
 
 #include <machine/inst.h>
-#include <machine/rse.h>
 #include <machine/db_machdep.h>
 #include <machine/mutex.h>
 
@@ -70,73 +69,61 @@ extern void	gdb_handle_exception(db_regs_t *, int);
 int	db_active;
 db_regs_t ddb_regs;
 
-static u_int64_t zero;
 static int db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op);
-static int db_get_pc_reg(struct db_variable *vp, db_expr_t *valuep, int op);
+static int db_get_ip_reg(struct db_variable *vp, db_expr_t *valuep, int op);
 
 struct db_variable db_regs[] = {
 	/* Misc control/app registers */
-#define DB_MISC_REGS	15	/* make sure this is correct */
+#define DB_MISC_REGS	13	/* make sure this is correct */
 
-	{"pc",		(db_expr_t*) 0,				db_get_pc_reg},
-	{"ip",		(db_expr_t*) &ddb_regs.tf_cr_iip,	FCN_NULL},
-	{"psr",		(db_expr_t*) &ddb_regs.tf_cr_ipsr,	FCN_NULL},
-	{"cr.isr",	(db_expr_t*) &ddb_regs.tf_cr_isr,	FCN_NULL},
-	{"cr.ifa",	(db_expr_t*) &ddb_regs.tf_cr_ifa,	FCN_NULL},
-	{"pr",		(db_expr_t*) &ddb_regs.tf_pr,		FCN_NULL},
-	{"ar.rsc",	(db_expr_t*) &ddb_regs.tf_ar_rsc,	FCN_NULL},
-	{"ar.pfs",	(db_expr_t*) &ddb_regs.tf_ar_pfs,	FCN_NULL},
-	{"cr.ifs",	(db_expr_t*) &ddb_regs.tf_cr_ifs,	FCN_NULL},
-	{"ar.bspstore",	(db_expr_t*) &ddb_regs.tf_ar_bspstore,	FCN_NULL},
-	{"ar.rnat",	(db_expr_t*) &ddb_regs.tf_ar_rnat,	FCN_NULL},
-	{"ndirty",	(db_expr_t*) &ddb_regs.tf_ndirty,	FCN_NULL},
-	{"ar.unat",	(db_expr_t*) &ddb_regs.tf_ar_unat,	FCN_NULL},
-	{"ar.ccv",	(db_expr_t*) &ddb_regs.tf_ar_ccv,	FCN_NULL},
-	{"ar.fpsr",	(db_expr_t*) &ddb_regs.tf_ar_fpsr,	FCN_NULL},
+	{"ip",		NULL,			db_get_ip_reg},
+	{"psr",		(db_expr_t*) &ddb_regs.tf_special.psr,	FCN_NULL},
+	{"cr.isr",	(db_expr_t*) &ddb_regs.tf_special.isr,	FCN_NULL},
+	{"cr.ifa",	(db_expr_t*) &ddb_regs.tf_special.ifa,	FCN_NULL},
+	{"pr",		(db_expr_t*) &ddb_regs.tf_special.pr,	FCN_NULL},
+	{"ar.rsc",	(db_expr_t*) &ddb_regs.tf_special.rsc,	FCN_NULL},
+	{"ar.pfs",	(db_expr_t*) &ddb_regs.tf_special.pfs,	FCN_NULL},
+	{"cr.ifs",	(db_expr_t*) &ddb_regs.tf_special.cfm,	FCN_NULL},
+	{"ar.bspstore",	(db_expr_t*) &ddb_regs.tf_special.bspstore, FCN_NULL},
+	{"ndirty",	(db_expr_t*) &ddb_regs.tf_special.ndirty, FCN_NULL},
+	{"ar.rnat",	(db_expr_t*) &ddb_regs.tf_special.rnat,	FCN_NULL},
+	{"ar.unat",	(db_expr_t*) &ddb_regs.tf_special.unat,	FCN_NULL},
+	{"ar.fpsr",	(db_expr_t*) &ddb_regs.tf_special.fpsr,	FCN_NULL},
 
 	/* Branch registers */
-	{"rp",		(db_expr_t*) &ddb_regs.tf_b[0],		FCN_NULL},
-	{"b1",		(db_expr_t*) &ddb_regs.tf_b[1],		FCN_NULL},
-	{"b2",		(db_expr_t*) &ddb_regs.tf_b[2],		FCN_NULL},
-	{"b3",		(db_expr_t*) &ddb_regs.tf_b[3],		FCN_NULL},
-	{"b4",		(db_expr_t*) &ddb_regs.tf_b[4],		FCN_NULL},
-	{"b5",		(db_expr_t*) &ddb_regs.tf_b[5],		FCN_NULL},
-	{"b6",		(db_expr_t*) &ddb_regs.tf_b[6],		FCN_NULL},
-	{"b7",		(db_expr_t*) &ddb_regs.tf_b[7],		FCN_NULL},
+	{"rp",		(db_expr_t*) &ddb_regs.tf_special.rp,	FCN_NULL},
+	/* b1, b2, b3, b4, b5 are preserved */
+	{"b6",		(db_expr_t*) &ddb_regs.tf_scratch.br6,	FCN_NULL},
+	{"b7",		(db_expr_t*) &ddb_regs.tf_scratch.br7,	FCN_NULL},
 
 	/* Static registers */
-	{"r0",		(db_expr_t*) &zero,			FCN_NULL},
-	{"gp",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R1],	FCN_NULL},
-	{"r2",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R2],	FCN_NULL},
-	{"r3",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R3],	FCN_NULL},
-	{"r4",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R4],	FCN_NULL},
-	{"r5",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R5],	FCN_NULL},
-	{"r6",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R6],	FCN_NULL},
-	{"r7",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R7],	FCN_NULL},
-	{"r8",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R8],	FCN_NULL},
-	{"r9",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R9],	FCN_NULL},
-	{"r10",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R10],	FCN_NULL},
-	{"r11",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R11],	FCN_NULL},
-	{"sp",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R12],	FCN_NULL},
-	{"r13",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R13],	FCN_NULL},
-	{"r14",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R14],	FCN_NULL},
-	{"r15",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R15],	FCN_NULL},
-	{"r16",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R16],	FCN_NULL},
-	{"r17",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R17],	FCN_NULL},
-	{"r18",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R18],	FCN_NULL},
-	{"r19",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R19],	FCN_NULL},
-	{"r20",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R20],	FCN_NULL},
-	{"r21",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R21],	FCN_NULL},
-	{"r22",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R22],	FCN_NULL},
-	{"r23",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R23],	FCN_NULL},
-	{"r24",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R24],	FCN_NULL},
-	{"r25",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R25],	FCN_NULL},
-	{"r26",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R26],	FCN_NULL},
-	{"r27",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R27],	FCN_NULL},
-	{"r28",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R28],	FCN_NULL},
-	{"r29",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R29],	FCN_NULL},
-	{"r30",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R30],	FCN_NULL},
-	{"r31",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R31],	FCN_NULL},
+	{"gp",		(db_expr_t*) &ddb_regs.tf_special.gp,	FCN_NULL},
+	{"r2",		(db_expr_t*) &ddb_regs.tf_scratch.gr2,	FCN_NULL},
+	{"r3",		(db_expr_t*) &ddb_regs.tf_scratch.gr3,	FCN_NULL},
+	{"r8",		(db_expr_t*) &ddb_regs.tf_scratch.gr8,	FCN_NULL},
+	{"r9",		(db_expr_t*) &ddb_regs.tf_scratch.gr9,	FCN_NULL},
+	{"r10",		(db_expr_t*) &ddb_regs.tf_scratch.gr10,	FCN_NULL},
+	{"r11",		(db_expr_t*) &ddb_regs.tf_scratch.gr11,	FCN_NULL},
+	{"sp",		(db_expr_t*) &ddb_regs.tf_special.sp,	FCN_NULL},
+	{"tp",		(db_expr_t*) &ddb_regs.tf_special.tp,	FCN_NULL},
+	{"r14",		(db_expr_t*) &ddb_regs.tf_scratch.gr14,	FCN_NULL},
+	{"r15",		(db_expr_t*) &ddb_regs.tf_scratch.gr15,	FCN_NULL},
+	{"r16",		(db_expr_t*) &ddb_regs.tf_scratch.gr16,	FCN_NULL},
+	{"r17",		(db_expr_t*) &ddb_regs.tf_scratch.gr17,	FCN_NULL},
+	{"r18",		(db_expr_t*) &ddb_regs.tf_scratch.gr18,	FCN_NULL},
+	{"r19",		(db_expr_t*) &ddb_regs.tf_scratch.gr19,	FCN_NULL},
+	{"r20",		(db_expr_t*) &ddb_regs.tf_scratch.gr20,	FCN_NULL},
+	{"r21",		(db_expr_t*) &ddb_regs.tf_scratch.gr21,	FCN_NULL},
+	{"r22",		(db_expr_t*) &ddb_regs.tf_scratch.gr22,	FCN_NULL},
+	{"r23",		(db_expr_t*) &ddb_regs.tf_scratch.gr23,	FCN_NULL},
+	{"r24",		(db_expr_t*) &ddb_regs.tf_scratch.gr24,	FCN_NULL},
+	{"r25",		(db_expr_t*) &ddb_regs.tf_scratch.gr25,	FCN_NULL},
+	{"r26",		(db_expr_t*) &ddb_regs.tf_scratch.gr26,	FCN_NULL},
+	{"r27",		(db_expr_t*) &ddb_regs.tf_scratch.gr27,	FCN_NULL},
+	{"r28",		(db_expr_t*) &ddb_regs.tf_scratch.gr28,	FCN_NULL},
+	{"r29",		(db_expr_t*) &ddb_regs.tf_scratch.gr29,	FCN_NULL},
+	{"r30",		(db_expr_t*) &ddb_regs.tf_scratch.gr30,	FCN_NULL},
+	{"r31",		(db_expr_t*) &ddb_regs.tf_scratch.gr31,	FCN_NULL},
 
 	/* Stacked registers */
 	{"r32",		(db_expr_t*) 32,	db_get_rse_reg},
@@ -241,28 +228,32 @@ struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 static int
 db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 {
-	int sof = ddb_regs.tf_cr_ifs & 0x7f;
-	int regno = (db_expr_t) vp->valuep;
-	u_int64_t *bsp = (u_int64_t *) (ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
 	u_int64_t *reg;
+	uint64_t bsp;
+	int nats, regno, sof;
 
-	if (regno - 32 >= sof) {
-		if (op == DB_VAR_GET)
-			*valuep = 0xdeadbeefdeadbeef;
-	} else {
-		bsp = ia64_rse_previous_frame(bsp, sof);
-		reg = ia64_rse_register_address(bsp, regno);
+	bsp = ddb_regs.tf_special.bspstore + ddb_regs.tf_special.ndirty;
+	regno = (db_expr_t)vp->valuep - 32;
+	sof = (int)(ddb_regs.tf_special.cfm & 0x7f);
+	nats = (sof - regno + 63 - ((int)(bsp >> 3) & 0x3f)) / 63;
+
+	reg = (void*)(bsp - ((sof - regno + nats) << 3));
+
+	if (regno < sof) {
 		if (op == DB_VAR_GET)
 			*valuep = *reg;
 		else
 			*reg = *valuep;
+	} else {
+		if (op == DB_VAR_GET)
+			*valuep = 0xdeadbeefdeadbeef;
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
-db_get_pc_reg(struct db_variable *vp, db_expr_t *valuep, int op)
+db_get_ip_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 {
 	/* Read only */
 	if (op == DB_VAR_GET)
@@ -353,8 +344,8 @@ kdb_trap(int vector, struct trapframe *regs)
 	/*
 	 * XXX pretend that registers outside the current frame don't exist.
 	 */
-	db_eregs = db_regs + DB_MISC_REGS + 8 + 32
-		+ (ddb_regs.tf_cr_ifs & 0x7f);
+	db_eregs = db_regs + DB_MISC_REGS + 3 + 27 +
+	    (ddb_regs.tf_special.cfm & 0x7f);
 
 	__asm __volatile("flushrs"); /* so we can look at them */
 
@@ -412,13 +403,13 @@ db_read_bytes(addr, size, data)
 	register size_t	size;
 	register char	*data;
 {
-	register char	*src;
 
 	db_nofault = &db_jmpbuf;
 
-	src = (char *)addr;
-	while (size-- > 0)
-		*data++ = *src++;
+	if (addr < VM_MAX_ADDRESS)
+		copyin((char *)addr, data, size);
+	else
+		bcopy((char *)addr, data, size);
 
 	db_nofault = 0;
 }
@@ -432,13 +423,13 @@ db_write_bytes(addr, size, data)
 	register size_t	size;
 	register char	*data;
 {
-	register char	*dst;
 
 	db_nofault = &db_jmpbuf;
 
-	dst = (char *)addr;
-	while (size-- > 0)
-		*dst++ = *data++;
+	if (addr < VM_MAX_ADDRESS)
+		copyout(data, (char *)addr, size);
+	else
+		bcopy(data, (char *)addr, size);
 
 	db_nofault = 0;
 }
@@ -455,30 +446,36 @@ db_register_value(regs, regno)
 	db_regs_t *regs;
 	int regno;
 {
-
-	if (regno > 127 || regno < 0) {
-		db_printf(" **** STRANGE REGISTER NUMBER %d **** ", regno);
-		return (0);
-	}
+	uint64_t *rsp;
+	uint64_t bsp;
+	int nats, sof;
 
 	if (regno == 0)
 		return (0);
+	if (regno == 1)
+		return (regs->tf_special.gp);
+	if (regno >= 2 && regno <= 3)
+		return ((&regs->tf_scratch.gr2)[regno - 2]);
+	if (regno >= 8 && regno <= 11)
+		return ((&regs->tf_scratch.gr8)[regno - 8]);
+	if (regno == 12)
+		return (regs->tf_special.sp);
+	if (regno == 13)
+		return (regs->tf_special.tp);
+	if (regno >= 14 && regno <= 31)
+		return ((&regs->tf_scratch.gr14)[regno - 14]);
 
-	if (regno < 32) {
-		return (regs->tf_r[regno - 1]);
-	} else {
-		int sof = ddb_regs.tf_cr_ifs & 0x7f;
-		u_int64_t *bsp = (u_int64_t *) (ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
-		u_int64_t *reg;
-
-		if (regno - 32 >= sof) {
-			return 0xdeadbeefdeadbeef;
-		} else {
-			bsp = ia64_rse_previous_frame(bsp, sof);
-			reg = ia64_rse_register_address(bsp, regno);
-			return *reg;
-		}
+	sof = (int)(regs->tf_special.cfm & 0x7f);
+	if (regno >= 32 && regno < sof + 32) {
+		bsp = regs->tf_special.bspstore + regs->tf_special.ndirty;
+		regno -= 32;
+		nats = (sof - regno + 63 - ((int)(bsp >> 3) & 0x3f)) / 63;
+		rsp = (void*)(bsp - ((sof - regno + nats) << 3));
+		return (*rsp);
 	}
+
+	db_printf(" **** STRANGE REGISTER NUMBER %d **** ", regno);
+	return (0);
 }
 
 void
@@ -539,10 +536,10 @@ db_skip_breakpoint(void)
 	/*
 	 * Skip past the break instruction.
 	 */
-	ddb_regs.tf_cr_ipsr += IA64_PSR_RI_1;
-	if ((ddb_regs.tf_cr_ipsr & IA64_PSR_RI) > IA64_PSR_RI_2) {
-		ddb_regs.tf_cr_ipsr &= ~IA64_PSR_RI;
-		ddb_regs.tf_cr_iip += 16;
+	ddb_regs.tf_special.psr += IA64_PSR_RI_1;
+	if ((ddb_regs.tf_special.psr & IA64_PSR_RI) > IA64_PSR_RI_2) {
+		ddb_regs.tf_special.psr &= ~IA64_PSR_RI;
+		ddb_regs.tf_special.iip += 16;
 	}
 }
 

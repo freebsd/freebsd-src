@@ -51,25 +51,9 @@ typedef long	sig_atomic_t;
 #endif
 
 #if __XSI_VISIBLE
-/*
- * Minimum signal stack size. The current signal frame
- * for IA-64 is 2656 bytes large.
- */
+/* Minimum signal stack size. */
 #define MINSIGSTKSZ     (3072 * 4)
 #endif
-
-#if __BSD_VISIBLE
-#ifndef _IA64_FPREG_DEFINED
-
-struct ia64_fpreg {
-	unsigned long	fpr_bits[2];
-} __aligned(16);
-
-#define _IA64_FPREG_DEFINED
-
-#endif
-#endif
-
 
 /*
  * Information pushed on stack when a signal is delivered.
@@ -77,36 +61,25 @@ struct ia64_fpreg {
  * execution of the signal handler.  It is also made available
  * to the handler to allow it to restore state properly if
  * a non-standard exit is performed.
- *
- * Note that sc_regs[] and sc_fpregs[]+sc_fpcr are inline
- * representations of 'struct reg' and 'struct fpreg', respectively.
  */
 
 #if __BSD_VISIBLE
+#include <machine/_regset.h>
+
 /*
  * The sequence of the fields should match those in
  * mcontext_t. Keep them in sync!
  */
 struct sigcontext {
-	struct __sigset	sc_mask;		/* signal mask to restore */
-	unsigned long	sc_onstack;
-	unsigned long	sc_flags;
-	unsigned long	sc_nat;
-	unsigned long	sc_sp;
-	unsigned long	sc_ip;
-	unsigned long	sc_cfm;
-	unsigned long	sc_um;
-	unsigned long	sc_ar_rsc;
-	unsigned long	sc_ar_bsp;
-	unsigned long	sc_ar_rnat;
-	unsigned long	sc_ar_ccv;
-	unsigned long	sc_ar_unat;
-	unsigned long	sc_ar_fpsr;
-	unsigned long	sc_ar_pfs;
-	unsigned long	sc_pr;
-	unsigned long	sc_br[8];
-	unsigned long	sc_gr[32];
-	struct ia64_fpreg sc_fr[128];
+	struct __sigset		sc_mask;	/* signal mask to restore */
+	unsigned long		sc_onstack;
+	unsigned long		sc_flags;
+	struct _special		sc_special;
+	struct _callee_saved	sc_preserved;
+	struct _callee_saved_fp	sc_preserved_fp;
+	struct _caller_saved	sc_scratch;
+	struct _caller_saved_fp	sc_scratch_fp;
+	struct _high_fp		sc_high_fp;
 };
 #endif /* __BSD_VISIBLE */
 

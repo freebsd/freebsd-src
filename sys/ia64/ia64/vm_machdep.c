@@ -127,170 +127,67 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(td1, p2, td2, flags)
-	register struct thread *td1;
-	register struct proc *p2;
-	register struct thread *td2;
-	int flags;
+cpu_fork(struct thread *td1, struct proc *p2 __unused, struct thread *td2,
+    int flags)
 {
-	struct proc *p1;
-	struct trapframe *p2tf;
-	u_int64_t bspstore, *p1bs, *p2bs, rnatloc, rnat;
+	char *stackp;
 
 	KASSERT(td1 == curthread || td1 == &thread0,
-	    ("cpu_fork: p1 not curproc and not proc0"));
+	    ("cpu_fork: td1 not curthread and not thread0"));
 
 	if ((flags & RFPROC) == 0)
 		return;
 
-	p1 = td1->td_proc;
-	td2->td_pcb = (struct pcb *)
-	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	td2->td_md.md_flags = td1->td_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
+	/*
+	 * Save the preserved registers and the high FP registers in the
+	 * PCB if we're the parent (ie td1 == curthread) so that we have
+	 * a valid PCB. This also causes a RSE flush. We don't have to
+	 * do that otherwise, because there wouldn't be anything important
+	 * to save.
+	 */
+	if (td1 == curthread) {
+		if (savectx(td1->td_pcb) != 0)
+			panic("unexpected return from savectx()");
+		ia64_highfp_save(td1);
+	}
 
 	/*
-	 * Copy floating point state from the FP chip to the PCB
-	 * if this process has state stored there.
+	 * create the child's kernel stack and backing store. We basicly
+	 * create an image of the parent's stack and backing store and
+	 * adjust where necessary.
 	 */
-	ia64_fpstate_save(td1, 0);
+	stackp = (char *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE);
 
-	/*
-	 * Copy pcb and stack from proc p1 to p2.  We do this as
-	 * cheaply as possible, copying only the active part of the
-	 * stack.  The stack and pcb need to agree. Make sure that the 
-	 * new process has FEN disabled.
-	 */
+	stackp -= sizeof(struct pcb);
+	td2->td_pcb = (struct pcb *)stackp;
 	bcopy(td1->td_pcb, td2->td_pcb, sizeof(struct pcb));
 
-	/*
-	 * Set the floating point state.
-	 */
-#if 0
-	if ((td2->td_pcb->pcb_fp_control & IEEE_INHERIT) == 0) {
-		td2->td_pcb->pcb_fp_control = 0;
-		td2->td_pcb->pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
-						   | FPCR_INVD | FPCR_DZED
-						   | FPCR_OVFD | FPCR_INED
-						   | FPCR_UNFD);
-	}
-#endif
-
-	/*
-	 * Arrange for a non-local goto when the new process
-	 * is started, to resume here, returning nonzero from setjmp.
-	 */
-#ifdef DIAGNOSTIC
-	if (td1 == curthread)
-		ia64_fpstate_check(td1);
-#endif
-
-	/*
-	 * create the child's kernel stack, from scratch.
-	 *
-	 * Pick a stack pointer, leaving room for a trapframe;
-	 * copy trapframe from parent so return to user mode
-	 * will be to right address, with correct registers. Clear the
-	 * high-fp enable for the new process so that it is forced to
-	 * load its state from the pcb.
-	 */
-	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
+	stackp -= sizeof(struct trapframe);
+	td2->td_frame = (struct trapframe *)stackp;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
-	td2->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
+	td2->td_frame->tf_length = sizeof(struct trapframe);
 
-	/*
-	 * Set up return-value registers as fork() libc stub expects.
-	 */
-	p2tf = td2->td_frame;
-	if (p2tf->tf_cr_ipsr & IA64_PSR_IS) {
-		p2tf->tf_r[FRAME_R8] = 0; /* child returns zero (eax) */
-		p2tf->tf_r[FRAME_R10] = 1; /* is child (edx) */
-		td2->td_pcb->pcb_ar_eflag &= ~PSL_C; /* no error */
+	bcopy((void*)td1->td_kstack, (void*)td2->td_kstack,
+	    td2->td_frame->tf_special.ndirty);
+
+	/* Set-up the return values as expected by the fork() libc stub. */
+	if (td2->td_frame->tf_special.psr & IA64_PSR_IS) {
+		td2->td_frame->tf_scratch.gr8 = 0;
+		td2->td_frame->tf_scratch.gr10 = 1;
 	} else {
-		p2tf->tf_r[FRAME_R8] = 0; /* child's pid (linux) 	*/
-		p2tf->tf_r[FRAME_R9] = 1; /* is child (FreeBSD) 	*/
-		p2tf->tf_r[FRAME_R10] = 0; /* no error	 		*/
+		td2->td_frame->tf_scratch.gr8 = 0;
+		td2->td_frame->tf_scratch.gr9 = 1;
+		td2->td_frame->tf_scratch.gr10 = 0;
 	}
 
-	/*
-	 * Turn off RSE for a moment and work out our current
-	 * ar.bspstore. This assumes that td1==curthread. Also
-	 * flush dirty regs to ensure that the user's stacked
-	 * regs are written out to backing store.
-	 *
-	 * We could cope with td1!=curthread by digging values
-	 * out of its PCB but I don't see the point since
-	 * current usage only allows &thread0 when creating kernel
-	 * threads and &thread0 doesn't have any dirty regs.
-	 */
+	td2->td_pcb->pcb_special.bspstore = td2->td_kstack +
+	    td2->td_frame->tf_special.ndirty;
+	td2->td_pcb->pcb_special.pfs = 0;
+	td2->td_pcb->pcb_current_pmap = vmspace_pmap(td2->td_proc->p_vmspace);
 
-	p1bs = (u_int64_t *)td1->td_kstack;
-	p2bs = (u_int64_t *)td2->td_kstack;
-
-	if (td1 == curthread) {
-		__asm __volatile("mov ar.rsc=0;;");
-		__asm __volatile("flushrs;;" ::: "memory");
-		__asm __volatile("mov %0=ar.bspstore" : "=r"(bspstore));
-	} else {
-		bspstore = (u_int64_t) p1bs;
-	}
-
-	/*
-	 * Copy enough of td1's backing store to include all
-	 * the user's stacked regs.
-	 */
-	bcopy(p1bs, p2bs, td1->td_frame->tf_ndirty);
-	/*
-	 * To calculate the ar.rnat for td2, we need to decide
-	 * if td1's ar.bspstore has advanced past the place
-	 * where the last ar.rnat which covers the user's
-	 * saved registers would be placed. If so, we read
-	 * that one from memory, otherwise we take td1's
-	 * current ar.rnat. If we are simply spawning a new kthread
-	 * from &thread0 we don't care about ar.rnat.
-	 */
-	if (td1 == curthread) {
-		rnatloc = (u_int64_t)p1bs + td1->td_frame->tf_ndirty;
-		rnatloc |= 0x1f8;
-		if (bspstore > rnatloc)
-			rnat = *(u_int64_t *) rnatloc;
-		else
-			__asm __volatile("mov %0=ar.rnat;;" : "=r"(rnat));
-
-		/*
-		 * Switch the RSE back on.
-		 */
-		__asm __volatile("mov ar.rsc=3;;");
-	} else {
-		rnat = 0;
-	}
-	
-	/*
-	 * Setup the child's pcb so that its ar.bspstore
-	 * starts just above the region which we copied. This
-	 * should work since the child will normally return
-	 * straight into exception_restore. Also initialise its
-	 * pmap to the containing proc's vmspace.
-	 */
-	td2->td_pcb->pcb_ar_bsp = (u_int64_t)p2bs + td1->td_frame->tf_ndirty;
-	td2->td_pcb->pcb_ar_rnat = rnat;
-	td2->td_pcb->pcb_ar_pfs = 0;
-	td2->td_pcb->pcb_current_pmap = (u_int64_t)
-		vmspace_pmap(td2->td_proc->p_vmspace);
-
-	/*
-	 * Arrange for continuation at fork_return(), which
-	 * will return to exception_restore().  Note that the
-	 * child process doesn't stay in the kernel for long!
-	 *
-	 * The extra 16 bytes subtracted from sp is part of the ia64
-	 * ABI - a function can assume that the 16 bytes above sp are
-	 * available as scratch space.
-	 */
-	td2->td_pcb->pcb_sp = (u_int64_t)p2tf - 16;	
-	td2->td_pcb->pcb_r[PCB_R4] = (u_int64_t)fork_return;
-	td2->td_pcb->pcb_r[PCB_R5] = FDESC_FUNC(exception_restore);
-	td2->td_pcb->pcb_r[PCB_R6] = (u_int64_t)td2;
-	td2->td_pcb->pcb_rp = FDESC_FUNC(fork_trampoline);
+	td2->td_pcb->pcb_special.sp = (uintptr_t)stackp - 16;
+	td2->td_pcb->pcb_special.rp = FDESC_FUNC(fork_trampoline);
+	cpu_set_fork_handler(td2, (void (*)(void*))fork_return, td2);
 }
 
 /*
@@ -305,8 +202,8 @@ cpu_set_fork_handler(td, func, arg)
 	void (*func)(void *);
 	void *arg;
 {
-	td->td_pcb->pcb_r[PCB_R4] = (u_int64_t) func;
-	td->td_pcb->pcb_r[PCB_R6] = (u_int64_t) arg;
+	td->td_frame->tf_scratch.gr2 = (u_int64_t)func;
+	td->td_frame->tf_scratch.gr3 = (u_int64_t)arg;
 }
 
 /*
@@ -315,11 +212,11 @@ cpu_set_fork_handler(td, func, arg)
  * When the proc is reaped, cpu_wait() will gc the VM state.
  */
 void
-cpu_exit(td)
-	register struct thread *td;
+cpu_exit(struct thread *td)
 {
 
-	ia64_fpstate_drop(td);
+	/* Throw away the high FP registers. */
+	ia64_highfp_drop(td);
 }
 
 void

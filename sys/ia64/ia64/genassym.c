@@ -37,8 +37,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ia32.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
@@ -65,87 +63,57 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-#ifdef IA32
-ASSYM(IA32, IA32);
-#endif
-
-ASSYM(PC_CURTHREAD,	offsetof(struct pcpu, pc_curthread));
-ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));
-ASSYM(PC_FPCURTHREAD,	offsetof(struct pcpu, pc_fpcurthread));
-ASSYM(PC_CURPCB,	offsetof(struct pcpu, pc_curpcb));
-ASSYM(PC_CPUID,		offsetof(struct pcpu, pc_cpuid));
-ASSYM(PC_CURRENT_PMAP,	offsetof(struct pcpu, pc_current_pmap));
-
-ASSYM(MTX_LOCK,		offsetof(struct mtx, mtx_lock));
-ASSYM(MTX_RECURSE,	offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_UNOWNED,	MTX_UNOWNED);
-
-ASSYM(TD_PROC,		offsetof(struct thread, td_proc));
-ASSYM(TD_PCB,		offsetof(struct thread, td_pcb));
-ASSYM(TD_KSTACK,	offsetof(struct thread, td_kstack));
-ASSYM(TD_MD_FLAGS,	offsetof(struct thread, td_md.md_flags));
-
-ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
-
-ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
-ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
-
-ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
-
-ASSYM(FRAME_SYSCALL,	FRAME_SYSCALL);
-
-ASSYM(TF_CR_IPSR,	offsetof(struct trapframe, tf_cr_ipsr));
-ASSYM(TF_CR_IFS,	offsetof(struct trapframe, tf_cr_ifs));
-ASSYM(TF_NDIRTY,	offsetof(struct trapframe, tf_ndirty));
-ASSYM(TF_AR_FPSR,	offsetof(struct trapframe, tf_ar_fpsr));
-ASSYM(TF_B,		offsetof(struct trapframe, tf_b));
-ASSYM(TF_R,		offsetof(struct trapframe, tf_r));
-ASSYM(TF_R_R1,		offsetof(struct trapframe, tf_r[FRAME_R1]));
-ASSYM(TF_R_R2,		offsetof(struct trapframe, tf_r[FRAME_R2]));
-ASSYM(TF_R_R3,		offsetof(struct trapframe, tf_r[FRAME_R3]));
-ASSYM(TF_R_R4,		offsetof(struct trapframe, tf_r[FRAME_R4]));
-ASSYM(TF_R_R5,		offsetof(struct trapframe, tf_r[FRAME_R5]));
-ASSYM(TF_R_R6,		offsetof(struct trapframe, tf_r[FRAME_R6]));
-ASSYM(TF_R_R7,		offsetof(struct trapframe, tf_r[FRAME_R7]));
-ASSYM(TF_R_R8,		offsetof(struct trapframe, tf_r[FRAME_R8]));
-ASSYM(TF_R_R9,		offsetof(struct trapframe, tf_r[FRAME_R9]));
-ASSYM(TF_R_R10,		offsetof(struct trapframe, tf_r[FRAME_R10]));
-ASSYM(TF_R_R11,		offsetof(struct trapframe, tf_r[FRAME_R11]));
-ASSYM(TF_R_SP,		offsetof(struct trapframe, tf_r[FRAME_SP]));
-ASSYM(TF_R_R13,		offsetof(struct trapframe, tf_r[FRAME_R13]));
-ASSYM(TF_R_R14,		offsetof(struct trapframe, tf_r[FRAME_R14]));
-ASSYM(TF_R_R15,		offsetof(struct trapframe, tf_r[FRAME_R15]));
-ASSYM(TF_F,		offsetof(struct trapframe, tf_f));
-
-ASSYM(PCB_CURRENT_PMAP,	offsetof(struct pcb, pcb_current_pmap));
-ASSYM(PCB_ONFAULT,	offsetof(struct pcb, pcb_onfault));
-ASSYM(PCB_RP,		offsetof(struct pcb, pcb_rp));
-ASSYM(PCB_UNAT47,	offsetof(struct pcb, pcb_unat47));
-
-ASSYM(UC_MCONTEXT_MC_AR_BSP,  offsetof(ucontext_t, uc_mcontext.mc_ar_bsp));
-ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));
-
-ASSYM(EFAULT,		EFAULT);
-ASSYM(ENAMETOOLONG,	ENAMETOOLONG);
-
-ASSYM(PAGE_SHIFT,	PAGE_SHIFT); 
-ASSYM(PAGE_SIZE,	PAGE_SIZE);
-ASSYM(KSTACK_PAGES,	KSTACK_PAGES);
-
-ASSYM(SIZEOF_TRAPFRAME,	sizeof(struct trapframe));
-ASSYM(SIZEOF_PCB,	sizeof(struct pcb));
-
 ASSYM(DT_NULL,		DT_NULL);
 ASSYM(DT_RELA,		DT_RELA);
+ASSYM(DT_RELAENT,	DT_RELAENT);
 ASSYM(DT_RELASZ,	DT_RELASZ);
 ASSYM(DT_SYMTAB,	DT_SYMTAB);
 ASSYM(DT_SYMENT,	DT_SYMENT);
-ASSYM(DT_RELAENT,	DT_RELAENT);
-ASSYM(R_IA64_NONE,	R_IA64_NONE);
+
+ASSYM(EFAULT,		EFAULT);
+ASSYM(ENAMETOOLONG,	ENAMETOOLONG);
+ASSYM(ERESTART,		ERESTART);
+
+ASSYM(FRAME_SYSCALL,	FRAME_SYSCALL);
+
+ASSYM(KSTACK_PAGES,	KSTACK_PAGES);
+
+ASSYM(MC_PRESERVED,	offsetof(mcontext_t, mc_preserved));
+ASSYM(MC_PRESERVED_FP,	offsetof(mcontext_t, mc_preserved_fp));
+ASSYM(MC_SPECIAL,	offsetof(mcontext_t, mc_special));
+ASSYM(MC_SPECIAL_BSPSTORE, offsetof(mcontext_t, mc_special.bspstore));
+ASSYM(MC_SPECIAL_RNAT,	offsetof(mcontext_t, mc_special.rnat));
+
+ASSYM(PAGE_SHIFT,	PAGE_SHIFT);
+ASSYM(PAGE_SIZE,	PAGE_SIZE);
+
+ASSYM(PC_CPUID,		offsetof(struct pcpu, pc_cpuid));
+ASSYM(PC_CURRENT_PMAP,	offsetof(struct pcpu, pc_current_pmap));
+ASSYM(PC_CURTHREAD,	offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));
+
+ASSYM(PCB_CURRENT_PMAP,	offsetof(struct pcb, pcb_current_pmap));
+ASSYM(PCB_ONFAULT,	offsetof(struct pcb, pcb_onfault));
+ASSYM(PCB_SPECIAL_RP,	offsetof(struct pcb, pcb_special.rp));
+
 ASSYM(R_IA64_DIR64LSB,	R_IA64_DIR64LSB);
 ASSYM(R_IA64_FPTR64LSB,	R_IA64_FPTR64LSB);
+ASSYM(R_IA64_NONE,	R_IA64_NONE);
 ASSYM(R_IA64_REL64LSB,	R_IA64_REL64LSB);
 
-ASSYM(PAL_PTCE_INFO,	PAL_PTCE_INFO);
-ASSYM(PAL_FREQ_RATIOS,	PAL_FREQ_RATIOS);
-ASSYM(PAL_VM_SUMMARY,	PAL_VM_SUMMARY);
+ASSYM(SIZEOF_PCB,	sizeof(struct pcb));
+ASSYM(SIZEOF_SPECIAL,	sizeof(struct _special));
+ASSYM(SIZEOF_TRAPFRAME,	sizeof(struct trapframe));
+
+ASSYM(TD_FLAGS,		offsetof(struct thread, td_flags));
+ASSYM(TD_KSTACK,	offsetof(struct thread, td_kstack));
+ASSYM(TD_PCB,		offsetof(struct thread, td_pcb));
+
+ASSYM(TDF_ASTPENDING,	TDF_ASTPENDING);
+ASSYM(TDF_NEEDRESCHED,	TDF_NEEDRESCHED);
+
+ASSYM(TF_SPECIAL_NDIRTY, offsetof(struct trapframe, tf_special.ndirty));
+
+ASSYM(UC_MCONTEXT,	offsetof(ucontext_t, uc_mcontext));
+
+ASSYM(VM_MAX_ADDRESS,	VM_MAX_ADDRESS);

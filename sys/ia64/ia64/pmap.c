@@ -121,8 +121,12 @@
 
 #include <sys/user.h>
 
+#include <machine/cpu.h>
 #include <machine/pal.h>
 #include <machine/md_var.h>
+
+/* XXX move to a header. */
+extern u_int64_t ia64_gateway_page[];
 
 MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 
@@ -201,7 +205,7 @@ vm_offset_t vhpt_base, vhpt_size;
  * ia64_lptes. This gives us up to 2Gb of kernel virtual space.
  */
 static int nkpt;
-static struct ia64_lpte **kptdir;
+struct ia64_lpte **ia64_kptdir;
 #define KPTE_DIR_INDEX(va) \
 	((va >> (2*PAGE_SHIFT-5)) & ((1<<(PAGE_SHIFT-3))-1))
 #define KPTE_PTE_INDEX(va) \
@@ -369,12 +373,13 @@ pmap_bootstrap()
 	/*
 	 * Allocate some memory for initial kernel 'page tables'.
 	 */
-	kptdir = (struct ia64_lpte **) pmap_steal_memory(PAGE_SIZE);
+	ia64_kptdir = (void *)pmap_steal_memory(PAGE_SIZE);
 	for (i = 0; i < NKPT; i++) {
-		kptdir[i] = (struct ia64_lpte *) pmap_steal_memory(PAGE_SIZE);
+		ia64_kptdir[i] = (void*)pmap_steal_memory(PAGE_SIZE);
 	}
 	nkpt = NKPT;
-	kernel_vm_end = NKPT * PAGE_SIZE * NKPTEPG + VM_MIN_KERNEL_ADDRESS;
+	kernel_vm_end = NKPT * PAGE_SIZE * NKPTEPG + VM_MIN_KERNEL_ADDRESS -
+	    VM_GATEWAY_SIZE;
 
 	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i+2]; i+= 2) ;
@@ -497,6 +502,8 @@ pmap_bootstrap()
 	 * Clear out any random TLB entries left over from booting.
 	 */
 	pmap_invalidate_all(kernel_pmap);
+
+	map_gateway_page();
 }
 
 void *
@@ -754,27 +761,14 @@ pmap_track_modified(vm_offset_t va)
 void
 pmap_new_thread(struct thread *td, int pages)
 {
-	vm_offset_t *ks;
 
 	/* Bounds check */
 	if (pages <= 1)
 		pages = KSTACK_PAGES;
 	else if (pages > KSTACK_MAX_PAGES)
 		pages = KSTACK_MAX_PAGES;
-
-	/*
-	 * Use contigmalloc for user area so that we can use a region
-	 * 7 address for it which makes it impossible to accidentally
-	 * lose when recording a trapframe.
-	 */
-	ks = contigmalloc(pages * PAGE_SIZE, M_PMAP, M_WAITOK, 0ul,
-	    256*1024*1024 - 1, PAGE_SIZE, 256*1024*1024);
-	if (ks == NULL)
-		panic("pmap_new_thread: could not contigmalloc %d pages\n",
-		    pages);
-
-	td->td_md.md_kstackvirt = ks;
-	td->td_kstack = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)ks));
+	td->td_kstack = (vm_offset_t)malloc(pages * PAGE_SIZE, M_PMAP,
+	    M_WAITOK);
 	td->td_kstack_pages = pages;
 }
 
@@ -785,12 +779,10 @@ pmap_new_thread(struct thread *td, int pages)
 void
 pmap_dispose_thread(struct thread *td)
 {
-	int pages;
 
-	pages = td->td_kstack_pages;
-	contigfree(td->td_md.md_kstackvirt, pages * PAGE_SIZE, M_PMAP);
-	td->td_md.md_kstackvirt = NULL;
+	free((void*)td->td_kstack, M_PMAP);
 	td->td_kstack = 0;
+	td->td_kstack_pages = 0;
 }
 
 /*
@@ -800,16 +792,9 @@ void
 pmap_new_altkstack(struct thread *td, int pages)
 {
 
-	/*
-	 * Shuffle the original stack. Save the virtual kstack address
-	 * instead of the physical address because 1) we can derive the
-	 * physical address from the virtual address and 2) we need the
-	 * virtual address in pmap_dispose_thread.
-	 */
+	td->td_altkstack = td->td_kstack;
 	td->td_altkstack_obj = td->td_kstack_obj;
-	td->td_altkstack = (vm_offset_t)td->td_md.md_kstackvirt;
 	td->td_altkstack_pages = td->td_kstack_pages;
-
 	pmap_new_thread(td, pages);
 }
 
@@ -818,13 +803,7 @@ pmap_dispose_altkstack(struct thread *td)
 {
 
 	pmap_dispose_thread(td);
-
-	/*
-	 * Restore the original kstack. Note that td_altkstack holds the
-	 * virtual kstack address of the previous kstack.
-	 */
-	td->td_md.md_kstackvirt = (void*)td->td_altkstack;
-	td->td_kstack = IA64_PHYS_TO_RR7(ia64_tpa(td->td_altkstack));
+	td->td_kstack = td->td_altkstack;
 	td->td_kstack_obj = td->td_altkstack_obj;
 	td->td_kstack_pages = td->td_altkstack_pages;
 	td->td_altkstack = 0;
@@ -938,7 +917,7 @@ pmap_growkernel(vm_offset_t addr)
 		ptepage = (struct ia64_lpte *)
 		    IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
 		bzero(ptepage, PAGE_SIZE);
-		kptdir[KPTE_DIR_INDEX(kernel_vm_end)] = ptepage;
+		ia64_kptdir[KPTE_DIR_INDEX(kernel_vm_end)] = ptepage;
 
 		nkpt++;
 		kernel_vm_end += PAGE_SIZE * NKPTEPG;
@@ -1210,7 +1189,7 @@ pmap_find_kpte(vm_offset_t va)
 		("kernel mapping 0x%lx not in region 5", va));
 	KASSERT(IA64_RR_MASK(va) < (nkpt * PAGE_SIZE * NKPTEPG),
 		("kernel mapping 0x%lx out of range", va));
-	return &kptdir[KPTE_DIR_INDEX(va)][KPTE_PTE_INDEX(va)];
+	return (&ia64_kptdir[KPTE_DIR_INDEX(va)][KPTE_PTE_INDEX(va)]);
 }
 
 /*
@@ -1355,12 +1334,18 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
+	vm_offset_t gwpage;
 
 	KASSERT(va >= IA64_RR_BASE(5), ("Must be kernel VA"));
 
 	/* Regions 6 and 7 are direct mapped. */
 	if (va >= IA64_RR_BASE(6))
 		return (IA64_RR_MASK(va));
+
+	/* EPC gateway page? */
+	gwpage = (vm_offset_t)ia64_get_k5();
+	if (va >= gwpage && va < gwpage + VM_GATEWAY_SIZE)
+		return (IA64_RR_MASK((vm_offset_t)ia64_gateway_page));
 
 	/* Bail out if the virtual address is beyond our limits. */
 	if (IA64_RR_MASK(va) >= nkpt * PAGE_SIZE * NKPTEPG)

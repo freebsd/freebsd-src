@@ -32,10 +32,16 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-SYSCALL(pipe)
-	.regstk	1,0,0,0
-	st4	[in0]=ret0,4 ;;
-	st4	[in0]=ret1
-	mov	ret0=0
+ENTRY(__sys_pipe, 1)
+	WEAK_ALIAS(pipe, __sys_pipe)
+	WEAK_ALIAS(_pipe, __sys_pipe)
+	st8		[sp]=r32
+	CALLSYS_ERROR(pipe)
+	ld8		r14=[sp]
+	;;
+	st4		[r14]=ret0,4
+	;;
+	st4		[r14]=ret1
+	mov		ret0=0
 	br.ret.sptk.few rp
-END(pipe)
+END(__sys_pipe)

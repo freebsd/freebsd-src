@@ -29,37 +29,18 @@
 #ifndef _MACHINE_REG_H_
 #define _MACHINE_REG_H_
 
-#ifndef _IA64_FPREG_DEFINED
-
-struct ia64_fpreg {
-	uint64_t	fpr_bits[2];
-} __aligned(16);
-
-#define _IA64_FPREG_DEFINED
-
-#endif
+#include <machine/_regset.h>
 
 struct reg {
-	uint64_t	r_gr[128];
-	uint64_t	r_br[8];
-	uint64_t	r_cfm;
-	uint64_t	r_ip;		/* Bits 0-3 encode the slot number */
-	uint64_t	r_pr;
-	uint64_t	r_psr;		/* User mask */
-	uint64_t	r_ar_rsc;
-	uint64_t	r_ar_bsp;
-	uint64_t	r_ar_bspstore;
-	uint64_t	r_ar_rnat;
-	uint64_t	r_ar_ccv;
-	uint64_t	r_ar_unat;
-	uint64_t	r_ar_fpsr;
-	uint64_t	r_ar_pfs;
-	uint64_t	r_ar_lc;
-	uint64_t	r_ar_ec;
+	struct _special		r_special;
+	struct _callee_saved	r_preserved;
+	struct _caller_saved	r_scratch;
 };
 
 struct fpreg {
-	struct ia64_fpreg fpr_regs[128];
+	struct _callee_saved_fp	fpr_preserved;
+	struct _caller_saved_fp	fpr_scratch;
+	struct _high_fp		fpr_high;
 };
 
 struct dbreg {
@@ -68,15 +49,9 @@ struct dbreg {
 };
 
 #ifdef _KERNEL
-
 struct thread;
 
-void	restorehighfp(struct ia64_fpreg *);
-void	savehighfp(struct ia64_fpreg *);
-
-/*
- * XXX these interfaces are MI, so they should be declared in a MI place.
- */
+/* XXX these interfaces are MI, so they should be declared in a MI place. */
 int	fill_regs(struct thread *, struct reg *);
 int	set_regs(struct thread *, struct reg *);
 int	fill_fpregs(struct thread *, struct fpreg *);

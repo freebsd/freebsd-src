@@ -31,35 +31,19 @@
 #ifndef _MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
-#define IA64_MC_FLAG_ONSTACK		0
-#define IA64_MC_FLAG_IN_SYSCALL		1
-#define IA64_MC_FLAG_FPH_VALID		2
+#include <machine/_regset.h>
 
 typedef struct __mcontext {
-	/*
-	 * These fields must match the definition
-	 * of struct sigcontext. That way we can support
-	 * struct sigcontext and ucontext_t at the same
-	 * time.
-	 */
-	long	mc_onstack;		/* XXX - sigcontext compat. */
-	unsigned long	mc_flags;
-	unsigned long	mc_nat;
-	unsigned long	mc_sp;
-	unsigned long	mc_ip;
-	unsigned long	mc_cfm;
-	unsigned long	mc_um;
-	unsigned long	mc_ar_rsc;
-	unsigned long	mc_ar_bsp;
-	unsigned long	mc_ar_rnat;
-	unsigned long	mc_ar_ccv;
-	unsigned long	mc_ar_unat;
-	unsigned long	mc_ar_fpsr;
-	unsigned long	mc_ar_pfs;
-	unsigned long	mc_pr;
-	unsigned long	mc_br[8];
-	unsigned long	mc_gr[32];
-	struct ia64_fpreg mc_fr[128];
+	uint64_t		mc_flags;
+#define	IA64_MC_FLAGS_SCRATCH_VALID	1
+#define	IA64_MC_FLAGS_HIGHFP_VALID	2
+	uint64_t		_reserved_;
+	struct _special		mc_special;
+	struct _callee_saved	mc_preserved;
+	struct _callee_saved_fp	mc_preserved_fp;
+	struct _caller_saved	mc_scratch;
+	struct _caller_saved_fp	mc_scratch_fp;
+	struct _high_fp		mc_high_fp;
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
