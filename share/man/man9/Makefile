@@ -13,7 +13,7 @@ MAN9=	CONDSPLASSERT.9 DELAY.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	VOP_STRATEGY.9 \
 	accf_data.9 accf_http.9 at_exit.9 at_fork.9 atomic.9 \
 	bios.9 boot.9 buf.9 \
-	cd.9 copy.9 \
+	cd.9 condvar.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 \
 	fetch.9 \
@@ -77,6 +77,17 @@ MLINKS+=atomic.9 atomic_subtract.9
 MLINKS+=atomic.9 atomic_store.9
 MLINKS+=at_exit.9 rm_at_exit.9
 MLINKS+=at_fork.9 rm_at_fork.9
+MLINKS+=condvar.9 cv_init.9
+MLINKS+=condvar.9 cv_destroy.9
+MLINKS+=condvar.9 cv_wait.9
+MLINKS+=condvar.9 cv_wait_sig.9
+MLINKS+=condvar.9 cv_timedwait.9
+MLINKS+=condvar.9 cv_timedwait_sig.9
+MLINKS+=condvar.9 cv_signal.9
+MLINKS+=condvar.9 cv_broadcast.9
+MLINKS+=condvar.9 cv_waitq_remove.9
+MLINKS+=condvar.9 cv_waitq_empty.9
+MLINKS+=condvar.9 cv_wmesg.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
 MLINKS+=devfs_link.9 devfs_makelink.9
 MLINKS+=devstat.9 devicestat.9 devstat.9 devstat_add_entry.9 
