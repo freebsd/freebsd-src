@@ -170,8 +170,7 @@ vslock(addr, len)
 	u_int len;
 {
 	GIANT_REQUIRED;
-	vm_map_pageable(&curproc->p_vmspace->vm_map,
-	    trunc_page((vm_offset_t)addr),
+	vm_map_wire(&curproc->p_vmspace->vm_map, trunc_page((vm_offset_t)addr),
 	    round_page((vm_offset_t)addr + len), FALSE);
 }
 
@@ -181,9 +180,9 @@ vsunlock(addr, len)
 	u_int len;
 {
 	GIANT_REQUIRED;
-	vm_map_pageable(&curproc->p_vmspace->vm_map,
+	vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr),
-	    round_page((vm_offset_t)addr + len), TRUE);
+	    round_page((vm_offset_t)addr + len), FALSE);
 }
 
 /*
