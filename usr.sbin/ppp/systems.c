@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: systems.c,v 1.3 1995/02/26 12:17:59 amurai Exp $
  * 
  *  TODO:
  */
@@ -47,15 +47,8 @@ static void
 SetUserId()
 {
   if (!usermode) {
-#ifdef __FreeBSD__
-    setruid(euid);
-    seteuid(uid);
-    setrgid(egid);
-    setegid(gid);
-#else
     setreuid(euid, uid);
     setregid(egid, gid);
-#endif
     usermode = 1;
   }
 }
@@ -64,15 +57,8 @@ static void
 SetPppId()
 {
   if (usermode) {
-#ifdef __FreeBSD__
-    setruid(uid);
-    seteuid(euid);
-    setrgid(gid);
-    setegid(egid);
-#else
     setreuid(uid, euid);
     setregid(gid, egid);
-#endif
     usermode = 0;
   }
 }
