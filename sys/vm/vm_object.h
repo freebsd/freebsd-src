@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.16 1995/03/22 12:24:11 davidg Exp $
+ * $Id: vm_object.h,v 1.17 1995/04/09 06:03:51 davidg Exp $
  */
 
 /*
@@ -115,10 +115,10 @@ struct vm_object {
 #define	OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define	OBJ_WRITEABLE	0x0080	/* object has been made writeable */
 
-TAILQ_HEAD(vm_object_hash_head, vm_object_hash_entry);
+LIST_HEAD(vm_object_hash_head, vm_object_hash_entry);
 
 struct vm_object_hash_entry {
-	TAILQ_ENTRY(vm_object_hash_entry) hash_links;	/* hash chain links */
+	LIST_ENTRY(vm_object_hash_entry) hash_links;	/* hash chain links */
 	vm_object_t object;		/* object represened */
 };
 
