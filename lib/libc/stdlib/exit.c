@@ -61,17 +61,12 @@ void
 exit(status)
 	int status;
 {
-	struct atexit *p;
-	int n;
-
 	/* Ensure that the auto-initialization routine is linked in: */
 	extern int _thread_autoinit_dummy_decl;
 
 	_thread_autoinit_dummy_decl = 1;
 
-	for (p = __atexit; p; p = p->next)
-		for (n = p->ind; --n >= 0;)
-			(*p->fns[n])();
+	__cxa_finalize(NULL);
 	if (__cleanup)
 		(*__cleanup)();
 	_exit(status);
