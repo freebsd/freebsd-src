@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.26.2.7 1997/01/29 01:11:22 jkh Exp $
+ * $Id: cdrom.c,v 1.26.2.8 1998/07/21 05:15:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,12 +85,15 @@ mediaInitCDROM(Device *dev)
 	}
 	cdromMounted = TRUE;
     }
+    else
+	cdromMounted = TRUE;
 
     if (!file_readable(string_concat(mountpoint, "/cdrom.inf")) && !bogusCDOK) {
 	if (msgYesNo("Warning: The CD currently in the drive is either not a FreeBSD\n"
 		     "CD or it is an older (pre 2.1.5) FreeBSD CD which does not\n"
 		     "have a version number on it.  Do you wish to use this CD anyway?") != 0) {
 	    unmount(mountpoint, MNT_FORCE);
+	    cdromMounted = FALSE;
 	    return FALSE;
 	}
 	else {
