@@ -2501,11 +2501,7 @@ ipfw_ctl(struct sockopt *sopt)
 		for (rule = layer3_chain; rule ; rule = rule->next) {
 			int i = RULESIZE(rule);
 			bcopy(rule, bp, i);
-			/*
-			 * abuse 'next_rule' to store the set_disable word
-			 */
-			(u_int32_t)(((struct ip_fw *)bp)->next_rule) =
-				set_disable;
+			((struct ip_fw *)bp)->set_disable = set_disable;
 			bp = (struct ip_fw *)((char *)bp + i);
 		}
 		if (ipfw_dyn_v) {
@@ -2517,7 +2513,7 @@ ipfw_ctl(struct sockopt *sopt)
 				for ( p = ipfw_dyn_v[i] ; p != NULL ;
 				    p = p->next, dst++ ) {
 					bcopy(p, dst, sizeof *p);
-					(int)dst->rule = p->rule->rulenum ;
+					dst->rulenum = p->rule->rulenum;
 					/*
 					 * store a non-null value in "next".
 					 * The userland code will interpret a

@@ -811,7 +811,7 @@ show_ipfw(struct ip_fw *rule)
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
 	int or_block = 0;	/* we are in an or block */
 
-	u_int32_t set_disable = (u_int32_t)(rule->next_rule);
+	u_int32_t set_disable = rule->set_disable;
 
 	if (set_disable & (1 << rule->set)) { /* disabled */
 		if (!show_sets)
@@ -1198,7 +1198,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d)
 	}
 
 	printf("%05d %10qu %10qu (%ds)",
-	    (int)(d->rule), d->pcnt, d->bcnt, d->expire);
+	    d->rulenum, d->pcnt, d->bcnt, d->expire);
 	switch (d->dyn_type) {
 	case O_LIMIT_PARENT:
 		printf(" PARENT %d", d->count);
@@ -1432,7 +1432,7 @@ sets_handler(int ac, char *av[])
 			err(EX_OSERR, "malloc");
 		if (getsockopt(s, IPPROTO_IP, IP_FW_GET, data, &nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
-		set_disable = (u_int32_t)(((struct ip_fw *)data)->next_rule);
+		set_disable = ((struct ip_fw *)data)->set_disable;
 
 		for (i = 0, msg = "disable" ; i < 31; i++)
 			if (  (set_disable & (1<<i))) {
@@ -1618,9 +1618,9 @@ list(int ac, char *av[])
 				/* already warned */
 				continue;
 			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-				if ((int)(d->rule) > rnum)
+				if (d->rulenum > rnum)
 					break;
-				if ((int)(d->rule) == rnum)
+				if (d->rulenum == rnum)
 					show_dyn_ipfw(d);
 			}
 		}
