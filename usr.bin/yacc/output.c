@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: output.c,v 1.7 1997/02/22 19:58:00 peter Exp $
  */
 
 #ifndef lint
@@ -945,7 +945,8 @@ output_debug()
     ++outline;
     fprintf(code_file, "#define YYFINAL %d\n", final_state);
     outline += 3;
-    fprintf(code_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n#endif\n",
+    fprintf(code_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n"
+	    "#elif YYDEBUG\n#include <stdio.h>\n#endif\n",
 	    tflag);
     if (rflag)
 	fprintf(output_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n#endif\n",
@@ -970,7 +971,8 @@ output_debug()
     symnam[0] = "end-of-file";
 
     if (!rflag) ++outline;
-    fprintf(output_file, "#if YYDEBUG\nchar *%sname[] = {", symbol_prefix);
+	fprintf(output_file, "#if YYDEBUG\n"
+	    "const char * const %sname[] = {", symbol_prefix);
     j = 80;
     for (i = 0; i <= max; ++i)
     {
