@@ -55,7 +55,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/quota.h>
