@@ -1746,6 +1746,15 @@ fxp_init(void *xsc)
 	/*
 	 * Enable interrupts.
 	 */
+#ifdef DEVICE_POLLING
+	/*
+	 * ... but only do that if we are not polling. And because (presumably)
+	 * the default is interrupts on, we need to disable them explicitly!
+	 */
+	if ( ifp->if_ipending & IFF_POLLING )
+		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
+	else
+#endif /* DEVICE_POLLING */
 	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
 	splx(s);
 
