@@ -31,7 +31,6 @@ MAN=	acpi_toshiba.4 \
 	pnp.4 \
 	pnpbios.4 \
 	ray.4 \
-	rdp.4 \
 	sbni.4 \
 	scd.4 \
 	smapi.4 \
