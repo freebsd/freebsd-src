@@ -68,14 +68,14 @@ typedef struct timespec  svr4_timestruc_t;
 #define svr4_omakedev(x,y)    ((svr4_o_dev_t)((((x) << 8) & 0x7f00) | \
 					      (((y) << 0) & 0x00ff)))
 
-#define svr4_to_bsd_odev_t(d) makedev(svr4_omajor(d), svr4_ominor(d))
+#define svr4_to_bsd_odev_t(d) makeudev(svr4_omajor(d), svr4_ominor(d))
 #define bsd_to_svr4_odev_t(d) svr4_omakedev(umajor(d), uminor(d))
 
 #define svr4_major(x)         ((int32_t)((((x) & 0xfffc0000) >> 18)))
 #define svr4_minor(x)         ((int32_t)((((x) & 0x0003ffff) >> 0)))
 #define svr4_makedev(x,y)     ((svr4_dev_t)((((x) << 18) & 0xfffc0000) | \
 					    (((y) << 0) & 0x0003ffff)))
-#define svr4_to_bsd_dev_t(d)  makedev(svr4_major(d), svr4_minor(d))
+#define svr4_to_bsd_dev_t(d)  makeudev(svr4_major(d), svr4_minor(d))
 #define bsd_to_svr4_dev_t(d)  svr4_makedev(umajor(d), uminor(d))
 
 #endif /* !_SVR4_TYPES_H_ */
