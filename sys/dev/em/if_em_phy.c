@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001 Intel Corporation 
+  Copyright (c) 2001-2002 Intel Corporation 
   All rights reserved. 
   
   Redistribution and use in source and binary forms of the Software, with or 
@@ -234,7 +234,7 @@ em_phy_force_speed_duplex(struct em_shared_adapter *shared)
     /* Read the MII Control Register. */
     mii_ctrl_reg = em_read_phy_reg(shared, PHY_CTRL);
 
-    /* We need to disable Autoneg in order to force link and duplex. */
+    /* We need to disable autoneg in order to force link and duplex. */
 
     mii_ctrl_reg &= ~MII_CR_AUTO_NEG_EN;
 
@@ -337,11 +337,11 @@ em_phy_force_speed_duplex(struct em_shared_adapter *shared)
      * the default.
      */
     if(shared->wait_autoneg_complete) {
-        /* We will wait for AutoNeg to complete. */
+        /* We will wait for autoneg to complete. */
         DEBUGOUT("Waiting for forced speed/duplex link.\n");
         mii_status_reg = 0;
 
-        /* We will wait for AutoNeg to complete or 4.5 seconds to expire. */
+        /* We will wait for autoneg to complete or 4.5 seconds to expire. */
         for(i = PHY_FORCE_TIME; i > 0; i--) {
             /* Read the MII Status Register and wait for Auto-Neg
              * Complete bit to be set.
@@ -414,8 +414,6 @@ em_read_phy_reg(struct em_shared_adapter *shared,
     uint32_t data = 0;
     uint32_t command = 0;
 
-    DEBUGFUNC("em_read_phy_reg");
-
     ASSERT(reg_addr <= MAX_PHY_REG_ADDRESS);
 
     if(shared->mac_type > em_82543) {
@@ -428,7 +426,6 @@ em_read_phy_reg(struct em_shared_adapter *shared,
                    (shared->phy_addr << E1000_MDIC_PHY_SHIFT) | 
                    (E1000_MDIC_OP_READ));
 
-        DEBUGOUT1("Writing 0x%X to MDIC\n", command);
         E1000_WRITE_REG(shared, MDIC, command);
 
         /* Check every 10 usec to see if the read completed.  The read
@@ -440,7 +437,6 @@ em_read_phy_reg(struct em_shared_adapter *shared,
 
             data = E1000_READ_REG(shared, MDIC);
 
-            DEBUGOUT1("Read 0x%X from MDIC\n", data);
             if(data & E1000_MDIC_READY)
                 break;
         }
@@ -587,30 +583,30 @@ em_phy_hw_reset(struct em_shared_adapter *shared)
         /* Read the Extended Device Control Register, assert the
          * PHY_RESET_DIR bit.  Then clock it out to the PHY.
          */
-        ctrl_ext_reg = E1000_READ_REG(shared, CTRLEXT);
+        ctrl_ext_reg = E1000_READ_REG(shared, CTRL_EXT);
 
         ctrl_ext_reg |= E1000_CTRL_PHY_RESET_DIR4;
 
-        E1000_WRITE_REG(shared, CTRLEXT, ctrl_ext_reg);
+        E1000_WRITE_REG(shared, CTRL_EXT, ctrl_ext_reg);
 
         msec_delay(20);
 
         /* Set the reset bit in the device control register and clock
          * it out to the PHY.
          */
-        ctrl_ext_reg = E1000_READ_REG(shared, CTRLEXT);
+        ctrl_ext_reg = E1000_READ_REG(shared, CTRL_EXT);
 
         ctrl_ext_reg &= ~E1000_CTRL_PHY_RESET4;
 
-        E1000_WRITE_REG(shared, CTRLEXT, ctrl_ext_reg);
+        E1000_WRITE_REG(shared, CTRL_EXT, ctrl_ext_reg);
 
         msec_delay(20);
 
-        ctrl_ext_reg = E1000_READ_REG(shared, CTRLEXT);
+        ctrl_ext_reg = E1000_READ_REG(shared, CTRL_EXT);
 
         ctrl_ext_reg |= E1000_CTRL_PHY_RESET4;
 
-        E1000_WRITE_REG(shared, CTRLEXT, ctrl_ext_reg);
+        E1000_WRITE_REG(shared, CTRL_EXT, ctrl_ext_reg);
 
         msec_delay(20);
     }
@@ -696,7 +692,7 @@ em_phy_setup(struct em_shared_adapter *shared,
      * on the PHY to take it out of reset.
      */
     if(shared->mac_type >= em_82544) {
-        ctrl_reg |= (E1000_CTRL_ASDE | E1000_CTRL_SLU);
+        ctrl_reg |= E1000_CTRL_SLU;
         E1000_WRITE_REG(shared, CTRL, ctrl_reg);
     } else {
         ctrl_reg |= (E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX | E1000_CTRL_SLU);
@@ -768,7 +764,7 @@ em_phy_setup(struct em_shared_adapter *shared,
     /* Read the MII Auto-Neg Advertisement Register (Address 4). */
     mii_autoneg_adv_reg = em_read_phy_reg(shared, PHY_AUTONEG_ADV);
 
-    /* Shift left to put 10T-Half bit in bit 0
+    /* Shift right to put 10T-Half bit in bit 0
      * Isolate the four bits for 100/10 Full/Half.
      */ 
     autoneg_hw_setting = (mii_autoneg_adv_reg >> 5) & 0xF;
@@ -892,13 +888,11 @@ em_phy_setup(struct em_shared_adapter *shared,
      *      depending on value parsed from forced_speed_duplex.
      */
 
-    /* Is AutoNeg enabled?  This is enabled by default or by software
-     * override.  If so,
-     * call PhySetupAutoNegAdvertisement routine to parse the
-     * autoneg_advertised and fc options.
-     * If AutoNeg is NOT enabled, then the user should have provided
-     * a Speed/Duplex override.  If so, then call the
-     * PhyForceSpeedAndDuplex to parse and set this up.  Otherwise,
+    /* Is autoneg enabled?  This is enabled by default or by software override.
+     * If so, call em_phy_setup_autoneg routine to parse the
+     * autoneg_advertised and fc options. If autoneg is NOT enabled, then the
+     * user should have provided a speed/duplex override.  If so, then call
+     * em_phy_force_speed_duplex to parse and set this up.  Otherwise,
      * we are in an error situation and need to bail.
      */
     if(shared->autoneg) {
@@ -1057,8 +1051,7 @@ em_phy_setup_autoneg(struct em_shared_adapter *shared)
      * setup the PHY advertisement registers accordingly.  If
      * auto-negotiation is enabled, then software will have to set the
      * "PAUSE" bits to the correct value in the Auto-Negotiation
-     * Advertisement Register (PHY_AUTONEG_ADVERTISEMENT) and re-start
-     * auto-negotiation.
+     * Advertisement Register (PHY_AUTONEG_ADV) and re-start auto-negotiation.
      *
      * The possible values of the "fc" parameter are:
      *      0:  Flow control is completely disabled
@@ -1291,7 +1284,7 @@ em_display_mii(struct em_shared_adapter *shared)
 
     DEBUGFUNC("em_display_mii");
 
-    DEBUGOUT1("adapter Base Address = %p\n", shared->hw_addr);
+    DEBUGOUT1("adapter Base Address = %x\n", shared->hw_addr);
 
     /* This will read each PHY Reg address and display its contents. */
 
@@ -1389,7 +1382,8 @@ em_detect_gig_phy(struct em_shared_adapter *shared)
 
     if(shared->phy_id == M88E1000_12_PHY_ID ||
        shared->phy_id == M88E1000_14_PHY_ID ||
-       shared->phy_id == M88E1000_I_PHY_ID) {
+       shared->phy_id == M88E1000_I_PHY_ID  ||
+       shared->phy_id == M88E1011_I_PHY_ID) {
 
         DEBUGOUT2("phy_id 0x%x detected at address 0x%x\n",
                   shared->phy_id, shared->phy_addr);
@@ -1428,11 +1422,11 @@ em_wait_autoneg(struct em_shared_adapter *shared)
 
     DEBUGFUNC("em_wait_autoneg");
 
-    /* We will wait for AutoNeg to complete. */
+    /* We will wait for autoneg to complete. */
     DEBUGOUT("Waiting for Auto-Neg to complete.\n");
     mii_status_reg = 0;
 
-    /* We will wait for AutoNeg to complete or 4.5 seconds to expire. */
+    /* We will wait for autoneg to complete or 4.5 seconds to expire. */
 
     for(i = PHY_AUTO_NEG_TIME; i > 0; i--) {
         /* Read the MII Status Register and wait for Auto-Neg
@@ -1462,7 +1456,7 @@ boolean_t
 em_phy_get_info(struct em_shared_adapter *shared,
                    struct em_phy_info *phy_status_info)
 {
-    uint16_t phy_mii_shatus_reg;
+    uint16_t phy_mii_status_reg;
     uint16_t phy_specific_ctrl_reg;
     uint16_t phy_specific_status_reg;
     uint16_t phy_specific_ext_ctrl_reg;
@@ -1485,9 +1479,9 @@ em_phy_get_info(struct em_shared_adapter *shared,
     /* PHY info only valid for LINK UP.  Read MII status reg 
      * back-to-back to get link status.
      */
-    phy_mii_shatus_reg = em_read_phy_reg(shared, PHY_STATUS);
-    phy_mii_shatus_reg = em_read_phy_reg(shared, PHY_STATUS);
-    if((phy_mii_shatus_reg & MII_SR_LINK_STATUS) != MII_SR_LINK_STATUS)
+    phy_mii_status_reg = em_read_phy_reg(shared, PHY_STATUS);
+    phy_mii_status_reg = em_read_phy_reg(shared, PHY_STATUS);
+    if((phy_mii_status_reg & MII_SR_LINK_STATUS) != MII_SR_LINK_STATUS)
         return FALSE;
 
     /* Read various PHY registers to get the PHY info. */
