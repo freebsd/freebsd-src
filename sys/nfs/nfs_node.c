@@ -45,6 +45,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/fnv_hash.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm_zone.h>
 
@@ -60,6 +61,84 @@ static u_long nfsnodehash;
 
 #define TRUE	1
 #define	FALSE	0
+
+/*
+ * Grab an atomic snapshot of the nfsnode hash chain lengths
+ */
+SYSCTL_DECL(_debug_hashstat);
+static int
+sysctl_debug_hashstat_rawnfsnode(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct nfsnodehashhead *nnpp;
+	struct nfsnode *nnp;
+	int n_nfsnode;
+	int count;
+
+	n_nfsnode = nfsnodehash + 1;	/* nfsnodehash = max index, not count */
+	if (!req->oldptr)
+		return SYSCTL_OUT(req, 0, n_nfsnode * sizeof(int));
+
+	/* Scan hash tables for applicable entries */
+	for (nnpp = nfsnodehashtbl; n_nfsnode > 0; n_nfsnode--, nnpp++) {
+		count = 0;
+		LIST_FOREACH(nnp, nnpp, n_hash) {
+			count++;
+		}
+		error = SYSCTL_OUT(req, (caddr_t)&count, sizeof(count));
+		if (error)
+			return (error);
+	}
+	return (0);
+}
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnfsnode, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_debug_hashstat_rawnfsnode, "S,int", "nfsnode chain lengths");
+
+static int
+sysctl_debug_hashstat_nfsnode(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct nfsnodehashhead *nnpp;
+	struct nfsnode *nnp;
+	int n_nfsnode;
+	int count, maxlength, used, pct;
+
+	if (!req->oldptr)
+		return SYSCTL_OUT(req, 0, 4 * sizeof(int));
+
+	n_nfsnode = nfsnodehash + 1;	/* nfsnodehash = max index, not count */
+	used = 0;
+	maxlength = 0;
+
+	/* Scan hash tables for applicable entries */
+	for (nnpp = nfsnodehashtbl; n_nfsnode > 0; n_nfsnode--, nnpp++) {
+		count = 0;
+		LIST_FOREACH(nnp, nnpp, n_hash) {
+			count++;
+		}
+		if (count)
+			used++;
+		if (maxlength < count)
+			maxlength = count;
+	}
+	n_nfsnode = nfsnodehash + 1;
+	pct = (used * 100 * 100) / n_nfsnode;
+	error = SYSCTL_OUT(req, (caddr_t)&n_nfsnode, sizeof(n_nfsnode));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, (caddr_t)&used, sizeof(used));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, (caddr_t)&maxlength, sizeof(maxlength));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, (caddr_t)&pct, sizeof(pct));
+	if (error)
+		return (error);
+	return (0);
+}
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, nfsnode, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_debug_hashstat_nfsnode, "I", "nfsnode chain lengths");
 
 /*
  * Initialize hash links for nfsnodes
