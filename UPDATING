@@ -5,6 +5,10 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010512:
+	DEVFS is now opt out, not opt in.  Barring major problems, this
+	will be the only way to go starting July 1.
+
 20010423:
 	old fsck and new kernel interactions appear to have been fixed.
 
