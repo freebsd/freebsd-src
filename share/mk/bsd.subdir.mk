@@ -1,15 +1,7 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.7 1995/01/23 20:50:56 jkh Exp $
+#	$Id: bsd.subdir.mk,v 1.8 1995/02/25 20:51:14 phk Exp $
 
 .MAIN: all
-
-.if !defined(DEBUG_FLAGS)
-STRIP?=	-s
-.endif
-
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	555
 
 _SUBDIRUSE: .USE
 	@for entry in ${SUBDIR}; do \
@@ -33,34 +25,12 @@ ${SUBDIR}::
 	fi; \
 	${MAKE} all
 
-.if !target(all)
-all: _SUBDIRUSE
-.endif
 
-.if !target(clean)
-clean: _SUBDIRUSE
+.for __target in all clean cleandir obj depend maninstall lint tags 
+.if !target(__target)
+${__target}: _SUBDIRUSE
 .endif
-
-.if !target(cleandir)
-cleandir: _SUBDIRUSE
-.endif
-
-.if !target(depend)
-depend: _SUBDIRUSE
-.endif
-
-.if !target (maninstall)
-maninstall: _SUBDIRUSE
-.endif
-
-DISTRIBUTION?=	bin
-.if !target(afterdistribute)
-afterdistribute:
-.endif
-.if !target(distribute)
-distribute: _SUBDIRUSE 
-	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${DISTRIBUTION}
-.endif
+.endfor
 
 .if !target(install)
 .if !target(beforeinstall)
@@ -74,14 +44,11 @@ afterinstall: realinstall
 realinstall: beforeinstall _SUBDIRUSE
 .endif
 
-.if !target(lint)
-lint: _SUBDIRUSE
+DISTRIBUTION?=	bin
+.if !target(afterdistribute)
+afterdistribute:
 .endif
-
-.if !target(obj)
-obj: _SUBDIRUSE
-.endif
-
-.if !target(tags)
-tags: _SUBDIRUSE
+.if !target(distribute)
+distribute: _SUBDIRUSE 
+	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${DISTRIBUTION}
 .endif
