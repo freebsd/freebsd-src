@@ -83,6 +83,7 @@ GEOM_MIRROR	opt_geom.h
 GEOM_NOP	opt_geom.h
 GEOM_PC98	opt_geom.h
 GEOM_RAID3	opt_geom.h
+GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
 GEOM_UZIP	opt_geom.h
