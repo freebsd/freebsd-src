@@ -53,6 +53,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include "bus_if.h"
+#include <sys/sysctl.h>
 #endif
 
 #include <machine/bus.h>
@@ -64,10 +65,13 @@
 
 #define UHUB_INTR_INTERVAL 255	/* ms */
 
-#ifdef UHUB_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uhubdebug) logprintf x
 #define DPRINTFN(n,x)	if (uhubdebug>(n)) logprintf x
-int	uhubdebug;
+static int	uhubdebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB uhub");
+SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW,
+	&uhubdebug, 0, "uhub debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

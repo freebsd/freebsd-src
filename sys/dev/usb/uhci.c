@@ -65,6 +65,7 @@
 #endif
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/endian.h>
@@ -92,10 +93,13 @@ struct cfdriver uhci_cd = {
 };
 #endif
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uhcidebug) printf x
 #define DPRINTFN(n,x)	if (uhcidebug>(n)) printf x
-int uhcidebug = 1;
+int uhcidebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW,
+	   &uhcidebug, 0, "uhci debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -242,7 +246,7 @@ Static usbd_status	uhci_device_setintr(uhci_softc_t *sc,
 Static void		uhci_device_clear_toggle(usbd_pipe_handle pipe);
 Static void		uhci_noop(usbd_pipe_handle pipe);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 Static void		uhci_dumpregs(uhci_softc_t *);
 Static void		uhci_dump_qhs(uhci_soft_qh_t *);
 Static void		uhci_dump_qh(uhci_soft_qh_t *);
@@ -347,7 +351,7 @@ uhci_init(uhci_softc_t *sc)
 
 	DPRINTFN(1,("uhci_init: start\n"));
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 2)
 		uhci_dumpregs(sc);
 #endif
@@ -557,7 +561,7 @@ uhci_power(int why, void *v)
 		 sc, why, sc->sc_suspend, cmd));
 
 	if (why != PWR_RESUME) {
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 2)
 			uhci_dumpregs(sc);
 #endif
@@ -602,7 +606,7 @@ uhci_power(int why, void *v)
 		if (sc->sc_has_timo != NULL)
 			usb_timeout(uhci_timo, sc->sc_has_timo, 
 				    sc->sc_ival, sc->sc_has_timo->timo_handle);
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 2)
 			uhci_dumpregs(sc);
 #endif
@@ -610,7 +614,7 @@ uhci_power(int why, void *v)
 	splx(s);
 }
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 Static void
 uhci_dumpregs(uhci_softc_t *sc)
 {
@@ -848,7 +852,7 @@ uhci_remove_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 
 	DPRINTFN(10, ("uhci_remove_ctrl: sqh=%p\n", sqh));
 	for (pqh = sc->sc_ctl_start; pqh->hlink != sqh; pqh=pqh->hlink)
-#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
+#if defined(DIAGNOSTIC) || defined(USB_DEBUG)		
 		if (LE(pqh->qh.qh_hlink) & UHCI_PTR_T) {
 			printf("uhci_remove_ctrl: QH not found\n");
 			return;
@@ -889,7 +893,7 @@ uhci_remove_bulk(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 
 	DPRINTFN(10, ("uhci_remove_bulk: sqh=%p\n", sqh));
 	for (pqh = sc->sc_bulk_start; pqh->hlink != sqh; pqh = pqh->hlink)
-#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
+#if defined(DIAGNOSTIC) || defined(USB_DEBUG)		
 		if (LE(pqh->qh.qh_hlink) & UHCI_PTR_T) {
 			printf("uhci_remove_bulk: QH not found\n");
 			return;
@@ -927,7 +931,7 @@ uhci_intr(void *arg)
 		return(0);
 	}
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 15) {
 		DPRINTF(("%s: uhci_intr\n", USBDEVNAME(sc->sc_bus.bdev)));
 		uhci_dumpregs(sc);
@@ -1094,7 +1098,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		n = xfer->hcprivint;
 		for (i = 0; i < nframes; i++) {
 			std = stds[n];
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 			if (uhcidebug > 5) {
 				DPRINTFN(-1,("uhci_idone: isoc TD %d\n", i));
 				uhci_dump_td(std);
@@ -1113,7 +1117,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		return;
 	}
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	DPRINTFN(10, ("uhci_idone: ii=%p, xfer=%p, pipe=%p ready\n",
 		      ii, xfer, upipe));
 	if (uhcidebug > 10)
@@ -1169,7 +1173,7 @@ uhci_timeout(void *addr)
 
 	DPRINTF(("uhci_timeout: ii=%p\n", ii));
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10)
 		uhci_dump_tds(ii->stdstart);
 #endif
@@ -1527,7 +1531,7 @@ uhci_device_bulk_start(usbd_xfer_handle xfer)
 		return (err);
 	dataend->td.td_status |= LE(UHCI_TD_IOC);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 8) {
 		DPRINTF(("uhci_device_bulk_transfer: data(1)\n"));
 		uhci_dump_tds(data);
@@ -1562,7 +1566,7 @@ uhci_device_bulk_start(usbd_xfer_handle xfer)
 	}
 	splx(s);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_bulk_transfer: data(2)\n"));
 		uhci_dump_tds(data);
@@ -1726,7 +1730,7 @@ uhci_device_intr_start(usbd_xfer_handle xfer)
 		return (err);
 	dataend->td.td_status |= LE(UHCI_TD_IOC);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_intr_transfer: data(1)\n"));
 		uhci_dump_tds(data);
@@ -1758,7 +1762,7 @@ uhci_device_intr_start(usbd_xfer_handle xfer)
 	}
 	splx(s);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_intr_transfer: data(2)\n"));
 		uhci_dump_tds(data);
@@ -1899,7 +1903,7 @@ uhci_device_request(usbd_xfer_handle xfer)
 		            UHCI_TD_IN (0, endpt, addr, 1));
 	stat->td.td_buffer = LE(0);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_request: before transfer\n"));
 		uhci_dump_tds(setup);
@@ -1927,7 +1931,7 @@ uhci_device_request(usbd_xfer_handle xfer)
 	s = splusb();
 	uhci_add_ctrl(sc, sqh);
 	LIST_INSERT_HEAD(&sc->sc_intrhead, ii, list);
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 12) {
 		uhci_soft_td_t *std;
 		uhci_soft_qh_t *xqh;
@@ -2041,7 +2045,7 @@ uhci_device_isoc_enter(usbd_xfer_handle xfer)
 		std->td.td_status = status;
 		std->td.td_token &= LE(~UHCI_TD_MAXLEN_MASK);
 		std->td.td_token |= LE(UHCI_TD_SET_MAXLEN(len));
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 5) {
 			DPRINTFN(5,("uhci_device_isoc_enter: TD %d\n", i));
 			uhci_dump_td(std);
@@ -2272,7 +2276,7 @@ uhci_device_intr_done(usbd_xfer_handle xfer)
 				     &xfer->dmabuf, &data, &dataend);
 		dataend->td.td_status |= LE(UHCI_TD_IOC);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 10) {
 			DPRINTF(("uhci_device_intr_done: data(1)\n"));
 			uhci_dump_tds(data);
@@ -2368,7 +2372,7 @@ uhci_remove_intr(uhci_softc_t *sc, int n, uhci_soft_qh_t *sqh)
 	DPRINTFN(4, ("uhci_remove_intr: n=%d sqh=%p\n", n, sqh));
 
 	for (pqh = vf->hqh; pqh->hlink != sqh; pqh = pqh->hlink)
-#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
+#if defined(DIAGNOSTIC) || defined(USB_DEBUG)		
 		if (LE(pqh->qh.qh_hlink) & UHCI_PTR_T) {
 			DPRINTF(("uhci_remove_intr: QH not found\n"));
 			return;

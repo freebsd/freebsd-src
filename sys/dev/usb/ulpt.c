@@ -59,6 +59,7 @@
 #include <sys/conf.h>
 #include <sys/vnode.h>
 #include <sys/syslog.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -70,10 +71,13 @@
 #define	LPTPRI		(PZERO+8)
 #define	ULPT_BSIZE	16384
 
-#ifdef ULPT_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (ulptdebug) logprintf x
 #define DPRINTFN(n,x)	if (ulptdebug>(n)) logprintf x
 int	ulptdebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, ulpt, CTLFLAG_RW, 0, "USB ulpt");
+SYSCTL_INT(_hw_usb_ulpt, OID_AUTO, debug, CTLFLAG_RW,
+	   &ulptdebug, 0, "ulpt debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -404,7 +408,7 @@ ulptopen(dev, flag, mode, p)
 	sc->sc_flags = flags;
 	DPRINTF(("ulptopen: flags=0x%x\n", (unsigned)flags));
 
-#if defined(ULPT_DEBUG) && defined(__FreeBSD__)
+#if defined(USB_DEBUG) && defined(__FreeBSD__)
 	/* Ignoring these flags might not be a good idea */
 	if ((flags & ~ULPT_NOPRIME) != 0)
 		printf("ulptopen: flags ignored: %b\n", flags,

@@ -63,6 +63,7 @@
 #include <sys/select.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -84,14 +85,21 @@ MALLOC_DEFINE(M_USBHC, "USBHC", "USB host controller");
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usb_quirks.h>
 
+/* Define this unconditionally in case a kernel module is loaded that
+ * has been compiled with debugging options.
+ */
+SYSCTL_NODE(_hw, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
+
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 int	usbdebug = 0;
-#ifdef UHCI_DEBUG
+SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RW,
+	   &usbdebug, 0, "usb debug level");
+#ifdef USB_DEBUG
 extern int uhcidebug;
 #endif
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 extern int ohcidebug;
 #endif
 /* 
@@ -445,12 +453,8 @@ usbioctl(devt, cmd, data, flag, p)
 #ifdef USB_DEBUG
 	case USB_SETDEBUG:
 		usbdebug  = ((*(int *)data) & 0x000000ff);
-#ifdef UHCI_DEBUG
 		uhcidebug = ((*(int *)data) & 0x0000ff00) >> 8;
-#endif
-#ifdef OHCI_DEBUG
 		ohcidebug = ((*(int *)data) & 0x00ff0000) >> 16;
-#endif
 		break;
 #endif
 	case USB_REQUEST:

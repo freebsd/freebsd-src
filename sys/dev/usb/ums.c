@@ -55,6 +55,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -67,10 +68,13 @@
 
 #include <machine/mouse.h>
 
-#ifdef UMS_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (umsdebug) logprintf x
 #define DPRINTFN(n,x)	if (umsdebug>(n)) logprintf x
-int	umsdebug = 1;
+int	umsdebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
+SYSCTL_INT(_hw_usb_ums, OID_AUTO, debug, CTLFLAG_RW,
+	   &umsdebug, 0, "ums debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -302,7 +306,7 @@ USB_ATTACH(ums)
 	sc->sc_disconnected = 0;
 	free(desc, M_TEMP);
 
-#ifdef UMS_DEBUG
+#ifdef USB_DEBUG
 	DPRINTF(("ums_attach: sc=%p\n", sc));
 	DPRINTF(("ums_attach: X\t%d/%d\n", 
 		 sc->sc_loc_x.pos, sc->sc_loc_x.size));
