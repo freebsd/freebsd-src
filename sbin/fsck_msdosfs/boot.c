@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: boot.c,v 1.5 1997/10/17 11:19:23 ws Exp $");
+__RCSID("$NetBSD: boot.c,v 1.9 2003/07/24 19:25:46 ws Exp $");
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
@@ -159,10 +159,14 @@ readboot(dosfs, boot)
 			perror("could not read backup bootblock");
 			return FSFATAL;
 		}
-		if (memcmp(block, backup, DOSBOOTBLOCKSIZE)) {
+		backup[65] = block[65];				/* XXX */
+		if (memcmp(block + 11, backup + 11, 79)) {
 			/* Correct?					XXX */
 			pfatal("backup doesn't compare to primary bootblock");
-			return FSFATAL;
+			if (alwaysno)
+				pfatal("\n");
+			else
+				return FSFATAL;
 		}
 		/* Check backup FSInfo?					XXX */
 	}
@@ -261,7 +265,7 @@ writefsinfo(dosfs, boot)
 	 * correctly, it has to be fixed pretty often.
 	 *
 	 * Therefor, we handle the FSINFO block only informally,
-	 * fixing it if neccessary, but otherwise ignoring the
+	 * fixing it if necessary, but otherwise ignoring the
 	 * fact that it was incorrect.
 	 */
 	return 0;
