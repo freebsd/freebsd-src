@@ -4,6 +4,10 @@
 # stdio sources
 .PATH: ${.CURDIR}/../libc/stdio
 
+.if WANT_COMPAT4_STDIO
+CFLAGS+=-DCOMPAT4_STDIO
+.endif
+
 SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c \
 	fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c fgetws.c \
 	fileno.c findfp.c flags.c fopen.c fprintf.c fpurge.c fputc.c fputs.c \
