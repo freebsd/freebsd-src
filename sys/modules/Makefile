@@ -63,7 +63,6 @@ SUBDIR=	accf_data \
 	nwfs \
 	portal \
 	procfs \
-	pst \
 	rl \
 	rp \
 	rue \
@@ -143,6 +142,7 @@ SUBDIR+=aac \
 	asr \
 	ciss \
 	mly \
+	pst \
 	vesa
 
 .elif ${MACHINE} == "pc98"
