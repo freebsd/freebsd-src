@@ -720,18 +720,19 @@ g_bde_start1(struct bio *bp)
 	mtx_lock(&sc->worklist_mutex);
 	for(done = 0; done < bp->bio_length; ) {
 		wp = g_bde_new_work(sc);
-		if (wp == NULL) {
-			g_io_deliver(bp, ENOMEM);
-			mtx_unlock(&sc->worklist_mutex);
-			return;
+		if (wp != NULL) {
+			wp->bp = bp;
+			wp->offset = bp->bio_offset + done;
+			wp->data = bp->bio_data + done;
+			wp->length = bp->bio_length - done;
+			g_bde_map_sector(wp);
+			done += wp->length;
+			g_bde_start2(wp);
 		}
-		wp->bp = bp;
-		wp->offset = bp->bio_offset + done;
-		wp->data = bp->bio_data + done;
-		wp->length = bp->bio_length - done;
-		g_bde_map_sector(wp);
-		done += wp->length;
-		g_bde_start2(wp);
+		if (wp == NULL || bp->bio_error != 0) {
+			g_bde_contribute(bp, bp->bio_length - done, ENOMEM);
+			break;
+		}
 	}
 	mtx_unlock(&sc->worklist_mutex);
 	return;
