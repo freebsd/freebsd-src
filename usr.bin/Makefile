@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.104 1998/08/17 07:37:55 gpalmer Exp $
+#	$Id: Makefile,v 1.105 1998/08/18 12:55:32 jb Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -12,8 +12,8 @@ SUBDIR=	apply at banner basename biff c89 calendar \
 	dirname du ee env error expand \
 	f2c false fetch file file2c \
 	find finger fmt fold fpr from fsplit ftp gencat getopt \
-	global head hexdump id indent ipcrm ipcs \
-	join jot key keyinfo keyinit keylogin keylogout killall kzip \
+	global head hexdump id indent ipcrm ipcs join jot \ 
+	kdump key keyinfo keyinit keylogin keylogout killall ktrace kzip \
 	lam last lastcomm leave lex limits locate lock lockf logger login \
 	logname look lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale \
 	mkstr mktemp mk_cmds more msgs ncal netstat newkey nfsstat nice nohup \
@@ -36,8 +36,7 @@ SUBDIR+=telnet
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar brandelf dig dnsquery fstat gcore gprof gprof4 host \
-	kdump ktrace ldd modstat mt nm \
-	ranlib sasc size strings strip systat truss vmstat
+	ldd modstat mt nm ranlib sasc size strings strip systat truss vmstat
 .if ${BINFORMAT} == aout
 SUBDIR+=doscmd
 .endif
