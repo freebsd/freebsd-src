@@ -164,7 +164,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	nmp->nm_so = NULL;
 	saddr = nmp->nm_nam;
 	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
-		nmp->nm_soproto, nmp->nm_cred, td);
+		nmp->nm_soproto, nmp->nm_mountp->mnt_cred, td);
 	if (error)
 		goto bad;
 	so = nmp->nm_so;
