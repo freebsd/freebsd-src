@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.1.1.1 1998/09/12 04:29:23 rnordier Exp $
+#	$Id: btx.s,v 1.2 1998/09/13 13:27:03 rnordier Exp $
 
 #
 # Memory layout.
@@ -51,6 +51,11 @@
 		.set TSS_SS0,0x8		# PL 0 SS
 		.set TSS_ESP1,0xc		# PL 1 ESP
 		.set TSS_MAP,0x66		# I/O bit map base
+#
+# System calls.
+#
+		.set SYS_EXIT,0x0		# Exit
+		.set SYS_EXEC,0x1		# Exec
 #
 # V86 constants.
 #
@@ -717,7 +722,27 @@ intusr.5:	movl %eax,%ecx			# XXX Save
 #
 # System Call.
 #
-intx30: 	jmp exit			# Just exit for now
+intx30: 	cmpl $SYS_EXEC,%eax		# Exec system call?
+		jne intx30.1			# No
+		pushl %ss			# Set up
+		popl %es			#  all
+		pushl %es			#  segment
+		popl %ds			#  registers
+		pushl %ds			#  for the
+		popl %fs			#  program
+		pushl %fs			#  we're
+		popl %gs			#  invoking
+		movl $MEM_USR,%eax		# User base address
+		addl 0xc(%esp,1),%eax		# Change to user
+		leal 0x4(%eax),%esp		#  stack
+		movl %cr0,%eax			# Turn
+		andl $~0x80000000,%eax		#  off
+		movl %eax,%cr0			#  paging
+		xorl %eax,%eax			# Flush
+		movl %eax,%cr3			#  TLB
+		popl %eax			# Call
+		call *%eax			#  program
+intx30.1:	jmp exit			# Just exit
 #
 # Dump structure [EBX] to [EDI], using format string [ESI].
 #
