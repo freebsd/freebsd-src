@@ -202,6 +202,8 @@ loginlist()
 			bcopy(user.ut_name, name, UT_NAMESIZE);
 			if ((pw = getpwnam(name)) == NULL)
 				continue;
+			if (hide(pw))
+				continue;
 			pn = enter_person(pw);
 		}
 		enter_where(&user, pn);
@@ -252,18 +254,21 @@ userlist(argc, argv)
 	 */
 	if (mflag)
 		for (p = argv; *p; ++p)
-			if (pw = getpwnam(*p))
+			if ((pw = getpwnam(*p)) && !hide(pw))
 				enter_person(pw);
 			else
 				(void)fprintf(stderr,
 				    "finger: %s: no such user\n", *p);
 	else {
-		while (pw = getpwent())
+		while (pw = getpwent()) {
+			if (hide (pw))
+				continue;
 			for (p = argv, ip = used; *p; ++p, ++ip)
 				if (match(pw, *p)) {
 					enter_person(pw);
 					*ip = 1;
 				}
+		}
 		for (p = argv, ip = used; *p; ++p, ++ip)
 			if (!*ip)
 				(void)fprintf(stderr,
