@@ -250,7 +250,7 @@ Objid	Objids[] = {
 	{{  9, 43, 6, 1, 4, 1,  353, 2, 7, 1 }},
 #define	MY_OBJID	11
 	{{  7, 43, 6, 1, 4, 1, 9999, 1 }},
-#define	SETPFX_OBJID	12
+#define	SETPFX_OBJID	12	/* ATM Forum says 1=valid, 2=invalid, not 0! */
 	{{ 12, 43, 6, 1, 4, 1,  353, 2, 7, 1, 1,  3, 0 }},
 #define	ENTERPRISE_OBJID 13
 	{{  8, 43, 6, 1, 4, 1,    3, 1, 1 }},
@@ -258,6 +258,8 @@ Objid	Objids[] = {
 	{{ 10, 43, 6, 1, 4, 1,  353, 2, 1, 4, 0 }},
 #define	ATMF_SYSID	15
 	{{ 12, 43, 6, 1, 4, 1,  353, 2, 1, 1, 1, 8, 0 }},
+#define	MADGE_OBJECT1	16	/* I don't have a clue ... -RH */
+	{{  9, 43, 6, 1, 4, 1,  353, 2, 7, 99 }},
 };
 
 #define	NUM_OIDS	(sizeof(Objids)/sizeof(Objid))
@@ -283,6 +285,14 @@ enum ilmi_states {
 	ILMI_INIT,			/* Ensure that switch has reset */
 	ILMI_REG,			/* Looking for SET message */
 	ILMI_RUNNING			/* Normal processing */
+};
+
+static char *ILMI_State[] = {
+	"UNKNOWN",
+	"COLDSTART",
+	"INIT",
+	"REG",
+	"RUNNING"
 };
 
 /*
