@@ -17,6 +17,10 @@ CFLAGS+=-DUSE_VLANS
 SRCS+=	ifieee80211.c
 CFLAGS+=-DUSE_IEEE80211
 
+#comment out to exclude MAC support
+SRCS+=	ifmac.c
+CFLAGS+=-DUSE_MAC
+
 MAN=	ifconfig.8
 
 .if defined(RELEASE_CRUNCH)
