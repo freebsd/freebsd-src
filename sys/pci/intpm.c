@@ -58,6 +58,7 @@ static struct _pcsid
 } pci_ids[] =
 {
 	{ 0x71138086,"Intel 82371AB Power management controller"},
+	{ 0x719b8086,"Intel 82443MX Power management controller"},
 #if 0
 	/* Not a good idea yet, this stops isab0 functioning */
 	{ 0x02001166,"ServerWorks OSB4 PCI to ISA Bridge"},
