@@ -104,41 +104,41 @@ __END_DECLS
 
 #if defined(_USE_CTYPE_INLINE_)
 static __inline int
-__istype(_BSD_RUNE_T_ c, unsigned long f)
+__istype(_BSD_RUNE_T_ __c, unsigned long __f)
 {
-	if (c < 0)
-		c = (unsigned char) c;
-	return((((c & _CRMASK) ? ___runetype(c) :
-	    _CurrentRuneLocale->runetype[c]) & f) ? 1 : 0);
+	if (__c < 0)
+		__c = (unsigned char) __c;
+	return((((__c & _CRMASK) ? ___runetype(__c) :
+	    _CurrentRuneLocale->runetype[__c]) & __f) ? 1 : 0);
 }
 
 static __inline int
-__isctype(_BSD_RUNE_T_ c, unsigned long f)
+__isctype(_BSD_RUNE_T_ __c, unsigned long __f)
 {
-	if (c < 0)
-		c = (unsigned char) c;
-	return((((c & _CRMASK) ? 0 :
-	    _DefaultRuneLocale.runetype[c]) & f) ? 1 : 0);
+	if (__c < 0)
+		__c = (unsigned char) __c;
+	return((((__c & _CRMASK) ? 0 :
+	    _DefaultRuneLocale.runetype[__c]) & __f) ? 1 : 0);
 }
 
 /* _ANSI_LIBRARY is defined by lib/libc/gen/isctype.c. */
 #if !defined(_ANSI_LIBRARY)
 static __inline _BSD_RUNE_T_
-toupper(_BSD_RUNE_T_ c)
+toupper(_BSD_RUNE_T_ __c)
 {
-	if (c < 0)
-		c = (unsigned char) c;
-	return((c & _CRMASK) ?
-	    ___toupper(c) : _CurrentRuneLocale->mapupper[c]);
+	if (__c < 0)
+		__c = (unsigned char) __c;
+	return((__c & _CRMASK) ?
+	    ___toupper(__c) : _CurrentRuneLocale->mapupper[__c]);
 }
 
 static __inline _BSD_RUNE_T_
-tolower(_BSD_RUNE_T_ c)
+tolower(_BSD_RUNE_T_ __c)
 {
-	if (c < 0)
-		c = (unsigned char) c;
-	return((c & _CRMASK) ?
-	    ___tolower(c) : _CurrentRuneLocale->maplower[c]);
+	if (__c < 0)
+		__c = (unsigned char) __c;
+	return((__c & _CRMASK) ?
+	    ___tolower(__c) : _CurrentRuneLocale->maplower[__c]);
 }
 #endif /* !_ANSI_LIBRARY */
 
