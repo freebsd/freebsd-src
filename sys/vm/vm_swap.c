@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.5 1994/09/11 03:55:39 davidg Exp $
+ * $Id: vm_swap.c,v 1.6 1994/09/25 22:31:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -70,8 +70,6 @@ vm_offset_t swapbkva;		/* swap buffers kva */
 void
 swapinit()
 {
-	register int i;
-	register struct buf *sp = swbuf;
 	register struct proc *p = &proc0;	/* XXX */
 	struct swdevt *swp;
 	int error;
@@ -144,8 +142,10 @@ swapinit()
 	 */
 	if (nswap == 0)
 		printf("WARNING: no swap space found\n");
-	else if (error = swfree(p, 0)) {
-		printf("WARNING: no swap on boot device - use swapon\n");
+	else {
+		error = swfree(p, 0);
+		if (error)
+			printf("WARNING: no swap on boot device - use swapon\n");
 	}
 }
 
@@ -238,7 +238,8 @@ swstrategy(bp)
 	}
 	VHOLD(sp->sw_vp);
 	if ((bp->b_flags & B_READ) == 0) {
-		if (vp = bp->b_vp) {
+		vp = bp->b_vp;
+		if (vp) {
 			vp->v_numoutput--;
 			if ((vp->v_flag & VBWAIT) && vp->v_numoutput <= 0) {
 				vp->v_flag &= ~VBWAIT;
@@ -274,10 +275,12 @@ swapon(p, uap, retval)
 	int error;
 	struct nameidata nd;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp->v_type != VBLK) {
@@ -296,7 +299,8 @@ swapon(p, uap, retval)
 				return (EBUSY);
 			}
 			sp->sw_vp = vp;
-			if (error = swfree(p, sp - swdevt)) {
+			error = swfree(p, sp - swdevt);
+			if (error) {
 				vrele(vp);
 				return (error);
 			}
@@ -338,7 +342,8 @@ swfree(p, index)
 
 	sp = &swdevt[index];
 	vp = sp->sw_vp;
-	if (error = VOP_OPEN(vp, FREAD|FWRITE, p->p_ucred, p))
+	error = VOP_OPEN(vp, FREAD|FWRITE, p->p_ucred, p);
+	if (error)
 		return (error);
 	sp->sw_flags |= SW_FREED;
 	nblks = sp->sw_nblks;

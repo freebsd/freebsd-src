@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.8 1994/09/27 20:45:24 davidg Exp $
+ *	$Id: vm_page.c,v 1.9 1994/09/27 20:49:02 davidg Exp $
  */
 
 /*
@@ -151,7 +151,6 @@ vm_page_startup(starta, enda, vaddr)
 	vm_offset_t		pa;
 	int nblocks;
 	vm_offset_t		first_managed_page;
-	int			size;
 
 	extern	vm_offset_t	kentry_data;
 	extern	vm_size_t	kentry_data_size;

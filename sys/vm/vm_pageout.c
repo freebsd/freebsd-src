@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.14 1994/10/05 09:02:53 davidg Exp $
+ * $Id: vm_pageout.c,v 1.15 1994/10/07 07:23:04 phk Exp $
  */
 
 /*
@@ -81,6 +81,7 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/swap_pager.h>
 
 extern vm_map_t kmem_map;
 int	vm_pages_needed;		/* Event on which pageout daemon sleeps */
