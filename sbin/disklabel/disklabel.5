@@ -511,19 +511,19 @@ dkunit(dev_t dev)
 struct	buf;
 struct	buf_queue_head;
 
-int	bounds_check_with_label __P((struct buf *bp, struct disklabel *lp,
-				     int wlabel));
-void	diskerr __P((struct buf *bp, char *what, int pri, int blkdone,
-		     struct disklabel *lp));
-void	disksort __P((struct buf *ap, struct buf *bp));
-u_int	dkcksum __P((struct disklabel *lp));
-char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
-void	bufqdisksort __P((struct buf_queue_head *ap, struct buf *bp));
-int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
-			  u_long openmask));
-int	writedisklabel __P((dev_t dev, struct disklabel *lp));
+int	bounds_check_with_label(struct buf *bp, struct disklabel *lp,
+				int wlabel);
+void	diskerr(struct buf *bp, char *what, int pri, int blkdone,
+		struct disklabel *lp);
+void	disksort(struct buf *ap, struct buf *bp);
+u_int	dkcksum struct disklabel *lp);
+char	*readdisklabel(dev_t dev, struct disklabel *lp);
+void	bufqdisksort(struct buf_queue_head *ap, struct buf *bp);
+int	setdisklabel(struct disklabel *olp, struct disklabel *nlp,
+		     u_long openmask);
+int	writedisklabel(dev_t dev, struct disklabel *lp);
 #ifdef __alpha__
-void	alpha_fix_srm_checksum __P((struct buf *bp));
+void	alpha_fix_srm_checksum(struct buf *bp);
 #endif
 
 #endif /* _KERNEL */
@@ -532,7 +532,7 @@ void	alpha_fix_srm_checksum __P((struct buf *bp));
 
 #ifndef _KERNEL
 __BEGIN_DECLS
-struct disklabel *getdiskbyname __P((const char *));
+struct disklabel *getdiskbyname(const char *);
 __END_DECLS
 #endif
 
