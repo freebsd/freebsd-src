@@ -122,7 +122,6 @@ SUBDIR=	apply \
 	passwd \
 	paste \
 	pathchk \
-	perl \
 	pr \
 	printenv \
 	printf \
@@ -215,6 +214,10 @@ SUBDIR+=dig \
 	dnskeygen \
 	dnsquery \
 	host
+.endif
+
+.if !defined(NO_PERL)
+SUBDIR+=perl
 .endif
 
 .if !defined(NO_SENDMAIL)
