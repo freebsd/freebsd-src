@@ -54,6 +54,7 @@
 #include "chap_ms.h"
 #include "proto.h"
 #include "mppe.h"
+#include "ua.h"
 
 /*
  * Documentation:
@@ -190,7 +191,7 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
   }
 
   /* Set MPPE packet prefix */
-  *(u_short *)rp = htons(prefix);
+  ua_htons(&prefix, rp);
 
   /* Save encrypted protocol number */
   nproto = htons(*proto);
@@ -364,10 +365,11 @@ static const char *
 MPPEDispOpts(struct lcp_opt *o)
 {
   static char buf[70];
-  u_int32_t val = ntohl(*(u_int32_t *)o->data);
+  u_int32_t val;
   char ch;
   int len;
 
+  ua_ntohl(o->data, &val);
   snprintf(buf, sizeof buf, "value 0x%08x ", (unsigned)val);
   len = strlen(buf);
   if (!(val & MPPE_OPT_BITMASK)) {
@@ -457,18 +459,19 @@ MPPE_ConfigVal(const struct ccp_config *cfg)
 static void
 MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  u_int32_t *p = (u_int32_t *)o->data;
+  u_int32_t mval;
 
   o->len = 6;
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
                " MPPE is available only with CHAP81 authentication\n");
-    *p = htonl(0x0);
+    ua_htonl(0x0, o->data);
     return;
   }
 
-  *p = htonl(MPPE_ConfigVal(cfg));
+  mval = MPPE_ConfigVal(cfg);
+  ua_htonl(&mval, o->data);
 }
 
 /*
@@ -477,9 +480,9 @@ MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 static int
 MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  u_int32_t *p = (u_int32_t *)o->data;
-  u_int32_t peer = ntohl(*p);
-  u_int32_t mval;
+  u_int32_t mval, peer;
+
+  ua_ntohl(o->data, &peer);
 
   if (!MPPE_MasterKeyValid)
     /* Treat their NAK as a REJ */
@@ -504,7 +507,7 @@ MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
     mval |= (peer & MPPE_OPT_STATELESS);
   }
 
-  *p = htonl(mval);
+  ua_htonl(&mval, o->data);
 
   return MODE_ACK;
 }
@@ -515,14 +518,14 @@ MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 static int
 MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  u_int32_t *p = (u_int32_t *)(o->data);
-  u_int32_t peer = ntohl(*p);
-  u_int32_t mval;
+  u_int32_t mval, peer;
   int res = MODE_ACK;
 
+  ua_ntohl(o->data, &peer);
   if (!MPPE_MasterKeyValid) {
-    if (*p != 0x0) {
-      *p = 0x0;
+    if (peer != 0) {
+      peer = 0;
+      ua_htonl(&peer, o->data);
       return MODE_NAK;
     } else
       return MODE_ACK;
@@ -552,7 +555,7 @@ MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
 
   /* If we've got a configured number of keybits - the peer must use that */
   if (cfg->mppe.keybits) {
-    *p = htonl(mval);
+    ua_htonl(&mval, o->data);
     return peer == mval ? res : MODE_NAK;
   }
 
@@ -576,7 +579,7 @@ MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
     mval |= MPPE_OPT_40BIT;
   else
     mval |= MPPE_OPT_128BIT;
-  *p = htonl(mval);
+  ua_htonl(&mval, o->data);
 
   return res;
 }
@@ -588,7 +591,7 @@ MPPE_InitState(struct lcp_opt *o)
   u_int32_t val;
 
   if ((mp = calloc(1, sizeof *mp)) != NULL) {
-    val = ntohl(*(u_int32_t *)o->data);
+    ua_ntohl(o->data, &val);
 
     switch (val & MPPE_OPT_BITMASK) {
     case MPPE_OPT_128BIT:
