@@ -67,29 +67,31 @@ done
 
 cd ${COMPILEDIR}/${KERNELNAME}
 
-MOD_OBJS=`find modules -name \*.ko`
+MOD_OBJS=`find modules -name \*.o`
 
-nm -gon `echo *.o $MOD_OBJS      \
-	| tr ' ' '\012'					\
-	| egrep -v '(aicasm|genassym)'`			\
-	| tr : ' ' | awk '
+for i in *.o $MOD_OBJS
+do
+	nm -gon $i
+done | sed '
+/aicasm.*:/d
+/genassym.*:/d
+s/.*\///
+s/:/ /
+' |  awk '
 NF > 1	{
-	if (length($2) == 8) {
-		$2 = $3
-		$3 = $4
-	}
 	if ($2 == "t") 
 		next
 	if ($2 == "F")
 		next
-	nm[$3]++
 	if ($2 == "U") {
 		ref[$3]=ref[$3]" "$1
-	} else if ($2 == "T" || $2 == "D" || $2 == "A" || $2 == "R") {
-		if (def[$3] != "")
-			def[$3]=def[$3]" "$1
+		nm[$3]++
+	} else if ($3 == "D" || $3 == "T" || $3 == "B" || $3 == "R" || $3 == "A") {
+		if (def[$4] != "")
+			def[$4]=def[$4]" "$1
 		else
-			def[$3]=$1
+			def[$4]=$1
+		nm[$4]++
 	} else if ($2 == "?") {
 		if (def[$3] == "S")
 			i++
@@ -98,6 +100,7 @@ NF > 1	{
 		else
 			def[$3]="S"
 		ref[$3]=ref[$3]" "$1
+		nm[$3]++
 	} else if ($2 == "C") {
 		if (def[$3] == $2)
 			i++
@@ -105,6 +108,7 @@ NF > 1	{
 			def[$3]=$1
 		else
 			ref[$3]=ref[$3]" "$1
+		nm[$3]++
 	} else {
 		print ">>>",$0
 	}
@@ -119,17 +123,17 @@ END	{
 	if ($2 == "{S}")
 		$2 = "<Linker set>"
 	if (length($3) == 0) {
-		printf "%-30s %3d %s\n\tUNREF\n",$1,0, $2
+		printf "%-31s %d %s\tUNREF\n",$1,0, $2
 		N1++
 	} else if ($2 == "{}") {
-		printf "%-30s %3d {UNDEF}\n",$1, NF-2
+		printf "%-31s %d {UNDEF}\n",$1, NF-2
 		N2++
 	} else {
-		printf "%-30s %3d %s",$1,NF-2,$2
+		printf "%-31s %d %s",$1,NF-2,$2
 		p = 80;
 		for (i = 3 ; i <= NF; i++) {
-			if (p+length ($i)+1 > 78) {
-				printf "\n\t%s", $i
+			if (p+length ($i)+1 > 48) {
+				printf "\n\t\t\t\t\t%s", $i
 				p = 7;
 			} else {
 				printf " %s", $i
