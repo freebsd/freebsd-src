@@ -102,7 +102,7 @@ exec_osf1_imgact(struct image_params *imgp)
 
 /* check to make sure we have an alpha ecoff executable */
 	if (ECOFF_BADMAG(execp))
-		return ENOEXEC;
+		return -1;
 
 /* verfify it an OSF/1 exectutable */
 	if (eap->magic != ECOFF_ZMAGIC) {
