@@ -1039,7 +1039,7 @@ rpcclnt_reply(myrep, td)
 		if (*tl != rpc_reply) {
 			rpcstats.rpcinvalid++;
 			m_freem(mrep);
-	rpcmout:
+rpcmout:
 			if (myrep->r_flags & R_GETONEREP)
 				RPC_RETURN(0);
 			continue;
@@ -1212,7 +1212,8 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 		if (rpc->rc_soflags & PR_CONNREQUIRED)
 			error = rpcclnt_sndlock(&rpc->rc_flag, task);
 		if (!error) {
-			error = rpcclnt_send(rpc->rc_so, rpc->rc_name, m_copym(m, 0, M_COPYALL, M_TRYWAIT),
+			error = rpcclnt_send(rpc->rc_so, rpc->rc_name,
+					     m_copym(m, 0, M_COPYALL, M_TRYWAIT),
 					     task);
 			if (rpc->rc_soflags & PR_CONNREQUIRED)
 				rpcclnt_sndunlock(&rpc->rc_flag);
@@ -1292,63 +1293,68 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 		case RPC_MISMATCH:
 			rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
 			reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl++);
-			reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl);
+			reply->stat.mismatch_info.high = fxdr_unsigned(u_int32_t, *tl);
+			error = EOPNOTSUPP;
 			break;
 		case RPC_AUTHERR:
 			rpcm_dissect(tl, u_int32_t *, RPCX_UNSIGNED);
 			reply->stat.autherr = fxdr_unsigned(u_int32_t, *tl);
+			error = EACCES;
 			break;
 		default:
 			error = EBADRPC;
-			goto rpcmout;
 			break;
 		}
-		RPC_RETURN(0);
-	} else if (reply->stat.type == RPC_MSGACCEPTED) {
-		rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
-
-		reply->verf_md = md;
-		reply->verf_dpos = dpos;
-
-		reply->verf_type = fxdr_unsigned(u_int32_t, *tl++);
-		reply->verf_size = fxdr_unsigned(u_int32_t, *tl);
-
-		if (reply->verf_size != 0)
-			rpcm_adv(rpcm_rndup(reply->verf_size));
-
-		rpcm_dissect(tl, u_int32_t *, RPCX_UNSIGNED);
-		reply->stat.status = fxdr_unsigned(u_int32_t, *tl);
-
-		if (reply->stat.status == RPC_SUCCESS) {
-			if ((uint32_t)(dpos - mtod(md, caddr_t)) >= md->m_len) {
-				RPCDEBUG("where is the next mbuf?");
-				RPCDEBUG("%d -> %d", (int)(dpos - mtod(md, caddr_t)), md->m_len);
-				if (md->m_next == NULL) {
-					error = EBADRPC;
-					goto rpcmout;
-				} else {
-					reply->result_md = md->m_next;
-					reply->result_dpos = mtod(reply->result_md, caddr_t);
-				}
-			} else {
-				reply->result_md = md;
-				reply->result_dpos = dpos;
-			}
-		} else if (reply->stat.status == RPC_PROGMISMATCH) {
-			rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
-			reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl++);
-			reply->stat.mismatch_info.high = fxdr_unsigned(u_int32_t, *tl);
-		} else if (reply->stat.status > 5) {
-			error = EBADRPC;
-			goto rpcmout;
-		}
-		RPC_RETURN(0);
-	} else {
+		goto rpcmout;
+	} else if (reply->stat.type != RPC_MSGACCEPTED) {
 		error = EBADRPC;
+  		goto rpcmout;
+  	}
+
+	rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
+
+	reply->verf_md = md;
+	reply->verf_dpos = dpos;
+
+	reply->verf_type = fxdr_unsigned(u_int32_t, *tl++);
+	reply->verf_size = fxdr_unsigned(u_int32_t, *tl);
+
+	if (reply->verf_size != 0)
+		rpcm_adv(rpcm_rndup(reply->verf_size));
+
+	rpcm_dissect(tl, u_int32_t *, RPCX_UNSIGNED);
+	reply->stat.status = fxdr_unsigned(u_int32_t, *tl);
+
+	if (reply->stat.status == RPC_SUCCESS) {
+		if ((uint32_t)(dpos - mtod(md, caddr_t)) >= md->m_len) {
+			RPCDEBUG("where is the next mbuf?");
+			RPCDEBUG("%d -> %d",
+			    (int)(dpos - mtod(md, caddr_t)), md->m_len);
+			if (md->m_next == NULL) {
+				error = EBADRPC;
+				goto rpcmout;
+			} else {
+				reply->result_md = md->m_next;
+				reply->result_dpos = mtod(reply->result_md,
+				    caddr_t);
+			}
+		} else {
+			reply->result_md = md;
+			reply->result_dpos = dpos;
+		}
+	} else if (reply->stat.status == RPC_PROGMISMATCH) {
+		rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
+		reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl++);
+		reply->stat.mismatch_info.high = fxdr_unsigned(u_int32_t, *tl);
+		error = EOPNOTSUPP;
+		goto rpcmout;
+	} else {
+		error = EPROTONOSUPPORT;
+		goto rpcmout;
 	}
+	error = 0;
 
 rpcmout:
-	RPCDEBUG("request returning error %d", error);
 	RPC_RETURN(error);
 }
 
