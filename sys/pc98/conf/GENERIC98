@@ -228,7 +228,7 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 #
 # DP8390 NIC
 #
-# ed0: generic driver
+# ed0: generic driver/EtherEZ98
 # ed1: LANEED LD-BDN
 # ed2: EGY-98
 # ed3: LGY-98
@@ -239,6 +239,7 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ed8: C-NET(98)
 # ed9: C-NET(98)E/L
 # ed10: EC/EP-98X
+# ed11: SIU-98-D
 #
 # MB86960A NIC
 #
@@ -248,6 +249,7 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # FE_8BIT_SUPPORT is needed to support LAC-98
 #
 device ed0 at isa? port 0x00d0 net irq 6
+#device ed0 at isa? port 0x10d0 net irq 6 iomem 0xc8000	# SMC EtherEZ98
 device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
 device ed1 at isa? port 0x00d8 net irq 6 flags 0x200000
 device ed3 at isa? port 0x00d0 net irq 6 flags 0x400000
@@ -258,6 +260,7 @@ device ed6 at isa? port 0x0770 net irq 6 flags 0x800000
 device ed9 at isa? port 0x03d0 net irq 6 flags 0xb00000
 device ed8 at isa? port 0xa3d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
 device ed10 at isa? port 0x00d0 net irq 3 flags 0xd10000
+device ed11 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 32768 flags 0x610000
 device ep0 at isa? port 0x40d0 net irq 3
 device fe0 at isa? port 0x00d0 net irq 3
 device fe1 at isa? port 0x73d0 net irq 5
