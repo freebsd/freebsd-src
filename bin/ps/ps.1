@@ -30,16 +30,16 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
-.\"	$Id: ps.1,v 1.15 1997/12/05 07:35:31 dyson Exp $
+.\"	$Id: ps.1,v 1.16 1998/02/18 22:49:58 dima Exp $
 .\"
 .Dd April 18, 1994
 .Dt PS 1
 .Os BSD 4
 .Sh NAME
-.Nm \&ps
+.Nm ps
 .Nd process status
 .Sh SYNOPSIS
-.Nm \&ps
+.Nm ps
 .Op Fl aCcefhjlmrSTuvwx
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -52,7 +52,7 @@
 .Nm ps
 .Op Fl L
 .Sh DESCRIPTION
-.Nm \&Ps
+.Nm Ps
 displays a header line followed by lines containing information about your
 processes that have controlling terminals.
 This information is sorted by controlling terminal, then by process
@@ -105,13 +105,13 @@ and command.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
-.Dq Pa /dev/kmem .
+.Pa /dev/kmem .
 .It Fl m
 Sort by memory usage, instead of by process
 .Tn ID .
 .It Fl N
 Extract the name list from the specified system instead of the default
-.Dq Pa /kernel .
+.Pa /kernel .
 .It Fl O
 Add the information associated with the space or comma separated list
 of keywords specified, after the process
@@ -165,14 +165,14 @@ option.
 .It Fl W
 Extract swap information from the specified file instead of the
 default
-.Dq Pa /dev/drum .
+.Pa /dev/drum .
 .It Fl w
 Use 132 columns to display information, instead of the default which
 is your window size.
 If the
 .Fl w
 option is specified more than once,
-.Nm \&ps
+.Nm
 will use as many columns as necessary without regard for your window size.
 .It Fl x
 Display information about processes without controlling terminals.
@@ -308,7 +308,7 @@ The process is being traced or debugged.
 .It tt
 An abbreviation for the pathname of the controlling terminal, if any.
 The abbreviation consists of the two letters following
-.Dq Pa /dev/tty ,
+.Pa /dev/tty ,
 or, for the console, ``co''.
 This is followed by a ``-'' if the process can no longer reach that
 controlling terminal (i.e., it has been revoked).
@@ -323,7 +323,7 @@ When printing using the command keyword, a process that has exited and
 has a parent that has not yet waited for the process (in other words, a zombie)
 is listed as ``<defunct>'', and a process which is blocked while trying
 to exit is listed as ``<exiting>''.
-.Nm \&Ps
+.Nm Ps
 makes an educated guess as to the file name and arguments given when the
 process was created by examining memory or the swap area.
 The method is inherently somewhat unreliable and in any event a process
@@ -502,6 +502,6 @@ the mount point of
 .Xr pstat 8
 .Sh BUGS
 Since
-.Nm \&ps
+.Nm
 cannot run faster than the system and is run as any other scheduled
 process, the information it displays can never be exact.
