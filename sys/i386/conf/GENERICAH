@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.19 1993/12/19 00:49:48 wollman Exp $
+#	$Id: GENERICAH,v 1.20 1994/01/04 20:10:30 nate Exp $
 #
 
 machine		"i386"
@@ -24,7 +24,7 @@ options		UCONSOLE		#X Console support
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
 #options	GATEWAY			#Host is a Gateway (forwards packets)
 
-config		"386bsd"	root on wd0 swap on wd0 and sd0
+config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
 controller	isa0
 
