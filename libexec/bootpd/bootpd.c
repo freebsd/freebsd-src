@@ -1292,10 +1292,10 @@ dovend_rfc1048(bp, hp, bootsize)
 				p += len;
 			}
 
-			if (msgsz > sizeof(*bp)) {
+			if (msgsz > sizeof(*bp) + BP_MSG_OVERHEAD) {
 				if (debug > 1)
 					report(LOG_INFO, "request has DHCP msglen=%d", msgsz);
-				pktlen = msgsz;
+				pktlen = msgsz - BP_MSG_OVERHEAD;
 			}
 		}
 	}
