@@ -19,7 +19,7 @@ acpi_wakecode.bin: acpi_wakecode.o
 	objcopy -S -O binary acpi_wakecode.o acpi_wakecode.bin
 
 acpi_wakecode.h: acpi_wakecode.bin acpi_wakecode.o
-	perl ${MAKESRCPATH}/genwakecode.pl > acpi_wakecode.h
+	sh ${MAKESRCPATH}/genwakecode.sh > acpi_wakecode.h
 
 .include <bsd.prog.mk>
 
