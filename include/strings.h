@@ -42,9 +42,11 @@ int	 bcmp(const void *, const void *, size_t);	/* LEGACY */
 void	 bcopy(const void *, void *, size_t);		/* LEGACY */
 void	 bzero(void *, size_t);				/* LEGACY */
 int	 ffs(int);
+#ifdef __BSD_VISIBLE
 int	 ffsl(long);
 int	 fls(int);
 int	 flsl(long);
+#endif
 char	*index(const char *, int);			/* LEGACY */
 char	*rindex(const char *, int);			/* LEGACY */
 int	 strcasecmp(const char *, const char *);
