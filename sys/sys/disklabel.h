@@ -431,6 +431,9 @@ struct dos_partition {
     |    TYPE     |UNIT_2 | SLICE   |  MAJOR?       |  UNIT   |PART |
     -----------------------------------------------------------------
 */
+
+#define DKMAXUNIT 0x1ff		/* Highest disk unit number */
+
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
 				(((unit) & 0x1f) << 3) | (part))
