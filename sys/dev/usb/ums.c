@@ -592,7 +592,7 @@ ums_enable(v)
 	sc->qhead = sc->qtail = 0;
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
-	sc->status.dx = sc->status.dy = sc->status.dz = /* sc->status.dt */ = 0;
+	sc->status.dx = sc->status.dy = sc->status.dz /* = sc->status.dt */ = 0;
 
 	callout_handle_init((struct callout_handle *)&sc->callout_handle);
 
