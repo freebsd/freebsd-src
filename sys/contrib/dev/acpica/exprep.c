@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 115 $
+ *              $Revision: 118 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,6 @@
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
-#include "acparser.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -149,16 +148,15 @@ AcpiExDecodeFieldAccess (
     UINT32                  *ReturnByteAlignment)
 {
     UINT32                  Access;
-    UINT32                  Length;
     UINT8                   ByteAlignment;
     UINT8                   BitLength;
+/*    UINT32                  Length; */
 
 
     ACPI_FUNCTION_NAME ("ExDecodeFieldAccess");
 
 
     Access = (FieldFlags & AML_FIELD_ACCESS_TYPE_MASK);
-    Length = ObjDesc->CommonField.BitLength;
 
     switch (Access)
     {
@@ -178,6 +176,8 @@ AcpiExDecodeFieldAccess (
          */
 
         /* Use the length to set the access type */
+
+        Length = ObjDesc->CommonField.BitLength;
 
         if (Length <= 8)
         {
@@ -233,12 +233,12 @@ AcpiExDecodeFieldAccess (
         /* Invalid field access type */
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Unknown field access type %x\n",
+            "Unknown field access type %X\n",
             Access));
         return (0);
     }
 
-    if (ObjDesc->Common.Type == ACPI_TYPE_BUFFER_FIELD)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_BUFFER_FIELD)
     {
         /*
          * BufferField access can be on any byte boundary, so the
@@ -518,6 +518,10 @@ AcpiExPrepFieldValue (
             ObjDesc->IndexField.IndexObj,
             ObjDesc->IndexField.DataObj));
         break;
+
+    default:
+        /* No other types should get here */
+        break;
     }
 
     /*
@@ -528,7 +532,7 @@ AcpiExPrepFieldValue (
                     AcpiNsGetType (Info->FieldNode));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "set NamedObj %p (%4.4s) val = %p\n",
-            Info->FieldNode, (char *) &(Info->FieldNode->Name), ObjDesc));
+            Info->FieldNode, Info->FieldNode->Name.Ascii, ObjDesc));
 
     /* Remove local reference to the object */
 

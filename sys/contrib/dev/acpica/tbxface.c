@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 52 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -119,7 +119,6 @@
 
 #include "acpi.h"
 #include "acnamesp.h"
-#include "acinterp.h"
 #include "actables.h"
 
 
@@ -186,7 +185,7 @@ AcpiLoadTables (void)
 
     /* Now get the rest of the tables */
 
-    Status = AcpiTbGetAllTables (NumberOfTables, NULL);
+    Status = AcpiTbGetAllTables (NumberOfTables);
     if (ACPI_FAILURE (Status))
     {
         ACPI_REPORT_ERROR (("AcpiLoadTables: Error getting required tables (DSDT/FADT/FACS): %s\n",
@@ -264,7 +263,7 @@ AcpiLoadTable (
 
     /* Install the new table into the local data structures */
 
-    Status = AcpiTbInstallTable (NULL, &TableInfo);
+    Status = AcpiTbInstallTable (&TableInfo);
     if (ACPI_FAILURE (Status))
     {
         /* Free table allocated by AcpiTbGetTable */
@@ -298,7 +297,7 @@ AcpiLoadTable (
     {
         /* Uninstall table and free the buffer */
 
-        AcpiTbUninstallTable (TableInfo.InstalledDesc);
+        (void) AcpiTbUninstallTable (TableInfo.InstalledDesc);
     }
 
     return_ACPI_STATUS (Status);
@@ -466,7 +465,7 @@ AcpiGetTable (
 {
     ACPI_TABLE_HEADER       *TblPtr;
     ACPI_STATUS             Status;
-    UINT32                  TableLength;
+    ACPI_SIZE               TableLength;
 
 
     ACPI_FUNCTION_TRACE ("AcpiGetTable");
@@ -523,7 +522,7 @@ AcpiGetTable (
     }
     else
     {
-        TableLength = TblPtr->Length;
+        TableLength = (ACPI_SIZE) TblPtr->Length;
     }
 
     /* Validate/Allocate/Clear caller buffer */

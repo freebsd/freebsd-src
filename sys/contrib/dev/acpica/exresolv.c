@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 109 $
+ *              $Revision: 114 $
  *
  *****************************************************************************/
 
@@ -119,12 +119,8 @@
 
 #include "acpi.h"
 #include "amlcode.h"
-#include "acparser.h"
 #include "acdispat.h"
 #include "acinterp.h"
-#include "acnamesp.h"
-#include "actables.h"
-#include "acevents.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -168,7 +164,7 @@ AcpiExResolveToValue (
      * 1) A valid ACPI_OPERAND_OBJECT, or
      * 2) A ACPI_NAMESPACE_NODE (NamedObj)
      */
-    if (ACPI_GET_DESCRIPTOR_TYPE (*StackPtr) == ACPI_DESC_TYPE_INTERNAL)
+    if (ACPI_GET_DESCRIPTOR_TYPE (*StackPtr) == ACPI_DESC_TYPE_OPERAND)
     {
         Status = AcpiExResolveObjectToValue (StackPtr, WalkState);
         if (ACPI_FAILURE (Status))
@@ -183,7 +179,8 @@ AcpiExResolveToValue (
      */
     if (ACPI_GET_DESCRIPTOR_TYPE (*StackPtr) == ACPI_DESC_TYPE_NAMED)
     {
-        Status = AcpiExResolveNodeToValue ((ACPI_NAMESPACE_NODE **) StackPtr,
+        Status = AcpiExResolveNodeToValue (
+                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, StackPtr),
                         WalkState);
         if (ACPI_FAILURE (Status))
         {
@@ -230,7 +227,7 @@ AcpiExResolveObjectToValue (
 
     /* This is an ACPI_OPERAND_OBJECT  */
 
-    switch (StackDesc->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (StackDesc))
     {
     case INTERNAL_TYPE_REFERENCE:
 
@@ -281,54 +278,6 @@ AcpiExResolveObjectToValue (
                 StackDesc->Reference.Offset, ObjDesc));
             break;
 
-        /*
-         * For constants, we must change the reference/constant object
-         * to a real integer object
-         */
-        case AML_ZERO_OP:
-        case AML_ONE_OP:
-        case AML_ONES_OP:
-        case AML_REVISION_OP:
-
-            /* Create a new integer object */
-
-            ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
-            if (!ObjDesc)
-            {
-                return_ACPI_STATUS (AE_NO_MEMORY);
-            }
-
-            switch (Opcode)
-            {
-            case AML_ZERO_OP:
-                ObjDesc->Integer.Value = 0;
-                break;
-
-            case AML_ONE_OP:
-                ObjDesc->Integer.Value = 1;
-                break;
-
-            case AML_ONES_OP:
-                ObjDesc->Integer.Value = ACPI_INTEGER_MAX;
-
-                /* Truncate value if we are executing from a 32-bit ACPI table */
-
-                AcpiExTruncateFor32bitTable (ObjDesc, WalkState);
-                break;
-
-            case AML_REVISION_OP:
-                ObjDesc->Integer.Value = ACPI_CA_SUPPORT_LEVEL;
-                break;
-            }
-
-            /*
-             * Remove a reference from the original reference object
-             * and put the new object in its place
-             */
-            AcpiUtRemoveReference (StackDesc);
-            *StackPtr = ObjDesc;
-            break;
-
 
         case AML_INDEX_OP:
 
@@ -341,6 +290,7 @@ AcpiExResolveObjectToValue (
 
 
             case ACPI_TYPE_PACKAGE:
+
                 ObjDesc = *StackDesc->Reference.Where;
                 if (ObjDesc)
                 {
@@ -366,7 +316,9 @@ AcpiExResolveObjectToValue (
                 }
                 break;
 
+
             default:
+
                 /* Invalid reference object */
 
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -386,14 +338,12 @@ AcpiExResolveObjectToValue (
 
         default:
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Reference object subtype %02X in %p\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Reference opcode %X in %p\n",
                 Opcode, StackDesc));
             Status = AE_AML_INTERNAL;
             break;
-
-        }   /* switch (Opcode) */
-
-        break; /* case INTERNAL_TYPE_REFERENCE */
+        }
+        break;
 
 
     case ACPI_TYPE_BUFFER:
@@ -417,7 +367,7 @@ AcpiExResolveObjectToValue (
     case INTERNAL_TYPE_INDEX_FIELD:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "FieldRead SourceDesc=%p Type=%X\n",
-            StackDesc, StackDesc->Common.Type));
+            StackDesc, ACPI_GET_OBJECT_TYPE (StackDesc)));
 
         Status = AcpiExReadDataFromField (WalkState, StackDesc, &ObjDesc);
         *StackPtr = (void *) ObjDesc;

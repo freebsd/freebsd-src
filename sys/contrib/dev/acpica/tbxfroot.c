@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbxfroot - Find the root ACPI table (RSDT)
- *              $Revision: 61 $
+ *              $Revision: 63 $
  *
  *****************************************************************************/
 
@@ -218,8 +218,8 @@ AcpiGetFirmwareTable (
     ACPI_TABLE_HEADER       *RsdtPtr = NULL;
     ACPI_TABLE_HEADER       *TablePtr;
     ACPI_STATUS             Status;
-    UINT32                  RsdtSize = 0;
-    UINT32                  TableSize;
+    ACPI_SIZE               RsdtSize = 0;
+    ACPI_SIZE               TableSize;
     UINT32                  TableCount;
     UINT32                  i;
     UINT32                  j;
@@ -290,15 +290,15 @@ AcpiGetFirmwareTable (
         }
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "RSDP located at %p, RSDT physical=%8.8X%8.8X \n",
-        AcpiGbl_RSDP,
-        ACPI_HIDWORD (AcpiGbl_RSDP->RsdtPhysicalAddress),
-        ACPI_LODWORD (AcpiGbl_RSDP->RsdtPhysicalAddress)));
-
     /* Get the RSDT and validate it */
 
     AcpiTbGetRsdtAddress (&Address);
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "RSDP located at %p, RSDT physical=%8.8X%8.8X \n",
+        AcpiGbl_RSDP,
+        ACPI_HIDWORD (Address.Pointer.Value),
+        ACPI_LODWORD (Address.Pointer.Value)));
 
     Status = AcpiTbGetTablePointer (&Address, Flags, &RsdtSize, &RsdtPtr);
     if (ACPI_FAILURE (Status))
@@ -385,7 +385,7 @@ Cleanup:
 
 /* TBD: Move to a new file */
 
-#ifndef _IA16
+#if ACPI_MACHINE_WIDTH != 16
 
 /*******************************************************************************
  *
@@ -536,7 +536,7 @@ AcpiTbFindRsdp (
             /* Found it, return the physical address */
 
             PhysAddr = LO_RSDP_WINDOW_BASE;
-            PhysAddr += (MemRover - TablePtr);
+            PhysAddr += ACPI_PTR_DIFF (MemRover,TablePtr);
 
             TableInfo->PhysicalAddress = PhysAddr;
             return_ACPI_STATUS (AE_OK);
@@ -560,7 +560,7 @@ AcpiTbFindRsdp (
             /* Found it, return the physical address */
 
             PhysAddr = HI_RSDP_WINDOW_BASE;
-            PhysAddr += (MemRover - TablePtr);
+            PhysAddr += ACPI_PTR_DIFF (MemRover, TablePtr);
 
             TableInfo->PhysicalAddress = PhysAddr;
             return_ACPI_STATUS (AE_OK);

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 89 $
+ *              $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -118,12 +118,10 @@
 #define __EXCREATE_C__
 
 #include "acpi.h"
-#include "acparser.h"
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acevents.h"
-#include "acdispat.h"
 #include "actables.h"
 
 
@@ -135,8 +133,7 @@
  *
  * FUNCTION:    AcpiExCreateAlias
  *
- * PARAMETERS:  WalkState            - Current state, contains List of
- *                                      operands for the opcode
+ * PARAMETERS:  WalkState            - Current state, contains operands
  *
  * RETURN:      Status
  *
@@ -331,7 +328,7 @@ AcpiExCreateRegion (
 
     /* Get the Node from the object stack  */
 
-    Node = WalkState->Op->Node;
+    Node = WalkState->Op->Common.Node;
 
     /*
      * If the region object is already attached to this node,
@@ -423,7 +420,7 @@ AcpiExCreateTableRegion (
 
     /* Get the Node from the object stack  */
 
-    Node = WalkState->Op->Node;
+    Node = WalkState->Op->Common.Node;
 
     /*
      * If the region object is already attached to this node,
@@ -501,9 +498,7 @@ Cleanup:
  *
  * FUNCTION:    AcpiExCreateProcessor
  *
- * PARAMETERS:  Op              - Op containing the Processor definition and
- *                                args
- *              ProcessorNode   - Parent Node for the processor object
+ * PARAMETERS:  WalkState           - Current state
  *
  * RETURN:      Status
  *
@@ -557,9 +552,7 @@ AcpiExCreateProcessor (
  *
  * FUNCTION:    AcpiExCreatePowerResource
  *
- * PARAMETERS:  Op              - Op containing the PowerResource definition
- *                                and args
- *              PowerNode       - Parent Node for the power object
+ * PARAMETERS:  WalkState           - Current state
  *
  * RETURN:      Status
  *
@@ -613,8 +606,7 @@ AcpiExCreatePowerResource (
  *
  * PARAMETERS:  AmlStart        - First byte of the method's AML
  *              AmlLength       - AML byte count for this method
- *              MethodFlags     - AML method flag byte
- *              Method          - Method Node
+ *              WalkState       - Current state
  *
  * RETURN:      Status
  *

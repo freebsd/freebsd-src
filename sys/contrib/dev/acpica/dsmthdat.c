@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 59 $
+ *              $Revision: 62 $
  *
  ******************************************************************************/
 
@@ -117,9 +117,7 @@
 #define __DSMTHDAT_C__
 
 #include "acpi.h"
-#include "acparser.h"
 #include "acdispat.h"
-#include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 
@@ -149,7 +147,7 @@
  *
  ******************************************************************************/
 
-ACPI_STATUS
+void
 AcpiDsMethodDataInit (
     ACPI_WALK_STATE         *WalkState)
 {
@@ -184,7 +182,7 @@ AcpiDsMethodDataInit (
         WalkState->LocalVariables[i].Flags         = ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
     }
 
-    return_ACPI_STATUS (AE_OK);
+    return_VOID;
 }
 
 
@@ -194,14 +192,14 @@ AcpiDsMethodDataInit (
  *
  * PARAMETERS:  WalkState           - Current walk state object
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Delete method locals and arguments.  Arguments are only
  *              deleted if this method was called from another method.
  *
  ******************************************************************************/
 
-ACPI_STATUS
+void
 AcpiDsMethodDataDeleteAll (
     ACPI_WALK_STATE         *WalkState)
 {
@@ -223,7 +221,7 @@ AcpiDsMethodDataDeleteAll (
             /* Detach object (if present) and remove a reference */
 
             AcpiNsDetachObject (&WalkState->LocalVariables[Index]);
-       }
+        }
     }
 
     /* Detach the arguments */
@@ -241,7 +239,7 @@ AcpiDsMethodDataDeleteAll (
         }
     }
 
-    return_ACPI_STATUS (AE_OK);
+    return_VOID;
 }
 
 
@@ -463,7 +461,7 @@ AcpiDsMethodDataGetType (
 
     /* Get the object type */
 
-    return_VALUE (Object->Common.Type);
+    return_VALUE (ACPI_GET_OBJECT_TYPE (Object));
 }
 
 
@@ -546,6 +544,9 @@ AcpiDsMethodDataGetValue (
                 Index, Node));
 
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_LOCAL);
+
+        default:
+            return_ACPI_STATUS (AE_AML_INTERNAL);
         }
     }
 
@@ -568,14 +569,14 @@ AcpiDsMethodDataGetValue (
  *              Index               - Which localVar or argument to delete
  *              WalkState           - Current walk state object
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Delete the entry at Opcode:Index on the method stack.  Inserts
  *              a null into the stack slot after the object is deleted.
  *
  ******************************************************************************/
 
-ACPI_STATUS
+void
 AcpiDsMethodDataDeleteValue (
     UINT16                  Opcode,
     UINT32                  Index,
@@ -594,7 +595,7 @@ AcpiDsMethodDataDeleteValue (
     Status = AcpiDsMethodDataGetNode (Opcode, Index, WalkState, &Node);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        return_VOID;
     }
 
     /* Get the associated object */
@@ -609,7 +610,7 @@ AcpiDsMethodDataDeleteValue (
     Node->Object = NULL;
 
     if ((Object) &&
-        (ACPI_GET_DESCRIPTOR_TYPE (Object) == ACPI_DESC_TYPE_INTERNAL))
+        (ACPI_GET_DESCRIPTOR_TYPE (Object) == ACPI_DESC_TYPE_OPERAND))
     {
         /*
          * There is a valid object.
@@ -619,7 +620,7 @@ AcpiDsMethodDataDeleteValue (
         AcpiUtRemoveReference (Object);
     }
 
-    return_ACPI_STATUS (AE_OK);
+    return_VOID;
 }
 
 
@@ -719,7 +720,7 @@ AcpiDsStoreObjectToLocal (
              * (perform the indirect store)
              */
             Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) CurrentObjDesc,
-                            ObjDesc, ObjDesc->Common.Type);
+                            ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc));
             return_ACPI_STATUS (Status);
         }
 

@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 90 $
+ *              $Revision: 91 $
  *
  *****************************************************************************/
 
@@ -118,12 +118,7 @@
 #define __NSXFNAME_C__
 
 #include "acpi.h"
-#include "acinterp.h"
 #include "acnamesp.h"
-#include "amlcode.h"
-#include "acparser.h"
-#include "acdispat.h"
-#include "acevents.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE
@@ -290,7 +285,7 @@ AcpiGetName (
 
     /* Just copy the ACPI name from the Node and zero terminate it */
 
-    ACPI_STRNCPY (Buffer->Pointer, (NATIVE_CHAR *) &Node->Name,
+    ACPI_STRNCPY (Buffer->Pointer, Node->Name.Ascii,
                 ACPI_NAME_SIZE);
     ((NATIVE_CHAR *) Buffer->Pointer) [ACPI_NAME_SIZE] = 0;
     Status = AE_OK;

@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 83 $
+ *              $Revision: 86 $
  *
  ******************************************************************************/
 
@@ -117,8 +117,6 @@
  *****************************************************************************/
 
 #include "acpi.h"
-#include "acnamesp.h"
-#include "achware.h"
 #include "acevents.h"
 
 
@@ -145,6 +143,8 @@ AcpiEvSciHandler (
     void                    *Context)
 {
     UINT32                  InterruptHandled = ACPI_INTERRUPT_NOT_HANDLED;
+    UINT32                  Value;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE("EvSciHandler");
@@ -154,7 +154,13 @@ AcpiEvSciHandler (
      * Make sure that ACPI is enabled by checking SCI_EN.  Note that we are
      * required to treat the SCI interrupt as sharable, level, active low.
      */
-    if (!AcpiHwBitRegisterRead (ACPI_BITREG_SCI_ENABLE, ACPI_MTX_DO_NOT_LOCK))
+    Status = AcpiGetRegister (ACPI_BITREG_SCI_ENABLE, &Value, ACPI_MTX_DO_NOT_LOCK);
+    if (ACPI_FAILURE (Status))
+    {
+        return (ACPI_INTERRUPT_NOT_HANDLED);
+    }
+
+    if (!Value)
     {
         /* ACPI is not enabled;  this interrupt cannot be for us */
 
@@ -228,15 +234,18 @@ AcpiEvInstallSciHandler (void)
 ACPI_STATUS
 AcpiEvRemoveSciHandler (void)
 {
+    ACPI_STATUS             Status;
+
+
     ACPI_FUNCTION_TRACE ("EvRemoveSciHandler");
 
 
     /* Just let the OS remove the handler and disable the level */
 
-    AcpiOsRemoveInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
+    Status = AcpiOsRemoveInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
                                     AcpiEvSciHandler);
 
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (Status);
 }
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 51 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -118,7 +118,6 @@
 
 #include "acpi.h"
 #include "actables.h"
-#include "acinterp.h"
 
 
 #define _COMPONENT          ACPI_TABLES
@@ -187,7 +186,7 @@ AcpiTbHandleToObject (
  *             name
  *          3) Table must be readable for length specified in the header
  *          4) Table checksum must be valid (with the exception of the FACS
- *              which has no checksum for some odd reason)
+ *              which has no checksum because it contains variable fields)
  *
  ******************************************************************************/
 
@@ -212,7 +211,7 @@ AcpiTbValidateTableHeader (
 
     /* Ensure that the signature is 4 ASCII characters */
 
-    ACPI_MOVE_UNALIGNED32_TO_32 (&Signature, &TableHeader->Signature);
+    ACPI_MOVE_UNALIGNED32_TO_32 (&Signature, TableHeader->Signature);
     if (!AcpiUtValidAcpiName (Signature))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -260,11 +259,11 @@ AcpiTbValidateTableHeader (
 ACPI_STATUS
 AcpiTbMapAcpiTable (
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
-    UINT32                  *Size,
+    ACPI_SIZE               *Size,
     ACPI_TABLE_HEADER       **LogicalAddress)
 {
     ACPI_TABLE_HEADER       *Table;
-    UINT32                  TableSize = *Size;
+    ACPI_SIZE               TableSize = *Size;
     ACPI_STATUS             Status = AE_OK;
 
 
@@ -286,24 +285,29 @@ AcpiTbMapAcpiTable (
 
         /* Extract the full table length before we delete the mapping */
 
-        TableSize = Table->Length;
+        TableSize = (ACPI_SIZE) Table->Length;
 
+#if 0
+/* We don't want to validate the header here.  */
         /*
          * Validate the header and delete the mapping.
          * We will create a mapping for the full table below.
          */
         Status = AcpiTbValidateTableHeader (Table);
+#endif
 
         /* Always unmap the memory for the header */
 
         AcpiOsUnmapMemory (Table, sizeof (ACPI_TABLE_HEADER));
 
+#if 0
         /* Exit if header invalid */
 
         if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
+#endif
     }
 
     /* Map the physical memory for the correct length */
@@ -358,7 +362,7 @@ AcpiTbVerifyTableChecksum (
     if (Checksum)
     {
         ACPI_REPORT_WARNING (("Invalid checksum (%X) in table %4.4s\n",
-            Checksum, (char *) &TableHeader->Signature));
+            Checksum, TableHeader->Signature));
 
         Status = AE_BAD_CHECKSUM;
     }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments
- *              $Revision: 105 $
+ *              $Revision: 108 $
  *
  *****************************************************************************/
 
@@ -119,11 +119,9 @@
 
 #include "acpi.h"
 #include "acparser.h"
-#include "acnamesp.h"
 #include "acinterp.h"
 #include "acevents.h"
 #include "amlcode.h"
-#include "acdispat.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -405,7 +403,7 @@ AcpiExOpcode_2A_1T_1R (
          * guaranteed to be either Integer/String/Buffer by the operand
          * resolution mechanism above.
          */
-        switch (Operand[0]->Common.Type)
+        switch (ACPI_GET_OBJECT_TYPE (Operand[0]))
         {
         case ACPI_TYPE_INTEGER:
             Status = AcpiExConvertToInteger (Operand[1], &Operand[1], WalkState);
@@ -466,7 +464,7 @@ AcpiExOpcode_2A_1T_1R (
         /*
          * At this point, the Source operand is either a Package or a Buffer
          */
-        if (Operand[0]->Common.Type == ACPI_TYPE_PACKAGE)
+        if (ACPI_GET_OBJECT_TYPE (Operand[0]) == ACPI_TYPE_PACKAGE)
         {
             /* Object to be indexed is a Package */
 
@@ -477,11 +475,11 @@ AcpiExOpcode_2A_1T_1R (
                 goto Cleanup;
             }
 
-            if ((Operand[2]->Common.Type == INTERNAL_TYPE_REFERENCE) &&
-                (Operand[2]->Reference.Opcode == AML_ZERO_OP))
+            if ((ACPI_GET_OBJECT_TYPE (Operand[2]) == ACPI_TYPE_INTEGER) &&
+                (Operand[2]->Common.Flags & AOPOBJ_AML_CONSTANT))
             {
                 /*
-                 * There is no actual result descriptor (the ZeroOp Result
+                 * There is no actual result descriptor (the ZeroOp/Constant Result
                  * descriptor is a placeholder), so just delete the placeholder and
                  * return a reference to the package element
                  */
@@ -496,7 +494,7 @@ AcpiExOpcode_2A_1T_1R (
                  */
                 TempDesc                         = Operand[0]->Package.Elements [Index];
                 ReturnDesc->Reference.Opcode     = AML_INDEX_OP;
-                ReturnDesc->Reference.TargetType = TempDesc->Common.Type;
+                ReturnDesc->Reference.TargetType = ACPI_GET_OBJECT_TYPE (TempDesc);
                 ReturnDesc->Reference.Object     = TempDesc;
 
                 Status = AcpiExStore (ReturnDesc, Operand[2], WalkState);

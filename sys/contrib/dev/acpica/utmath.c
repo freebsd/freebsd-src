@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmath - Integer math support routines
- *              $Revision: 10 $
+ *              $Revision: 11 $
  *
  ******************************************************************************/
 
@@ -293,7 +293,7 @@ AcpiUtDivide (
          */
         Partial1      = Quotient.Part.Lo * Divisor.Part.Hi;
         Partial2.Full = (ACPI_INTEGER) Quotient.Part.Lo * Divisor.Part.Lo;
-        Partial3.Full = Partial2.Part.Hi + Partial1;
+        Partial3.Full = (ACPI_INTEGER) Partial2.Part.Hi + Partial1;
 
         Remainder.Part.Hi = Partial3.Part.Lo;
         Remainder.Part.Lo = Partial2.Part.Lo;
@@ -318,8 +318,8 @@ AcpiUtDivide (
             }
 
             Remainder.Full    = Remainder.Full - Dividend.Full;
-            Remainder.Part.Hi = -((INT32) Remainder.Part.Hi);
-            Remainder.Part.Lo = -((INT32) Remainder.Part.Lo);
+            Remainder.Part.Hi = (UINT32) -((INT32) Remainder.Part.Hi);
+            Remainder.Part.Lo = (UINT32) -((INT32) Remainder.Part.Lo);
 
             if (Remainder.Part.Lo)
             {

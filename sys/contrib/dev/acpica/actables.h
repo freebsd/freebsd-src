@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actables.h - ACPI table management
- *       $Revision: 36 $
+ *       $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -154,6 +154,15 @@ AcpiTbGetTableCount (
  * tbget - Table "get" routines
  */
 
+void
+AcpiTbTableOverride (
+    ACPI_TABLE_DESC         *TableInfo);
+
+ACPI_STATUS
+AcpiTbGetTableWithOverride (
+    ACPI_POINTER            *Address,
+    ACPI_TABLE_DESC         *TableInfo);
+
 ACPI_STATUS
 AcpiTbGetTablePtr (
     ACPI_TABLE_TYPE         TableType,
@@ -181,7 +190,7 @@ ACPI_STATUS
 AcpiTbGetTablePointer (
     ACPI_POINTER            *Address,
     UINT32                  Flags,
-    UINT32                  *Size,
+    ACPI_SIZE               *Size,
     ACPI_TABLE_HEADER       **TablePtr);
 
 /*
@@ -190,8 +199,7 @@ AcpiTbGetTablePointer (
 
 ACPI_STATUS
 AcpiTbGetAllTables (
-    UINT32                  NumberOfTables,
-    ACPI_TABLE_HEADER       *BufferPtr);
+    UINT32                  NumberOfTables);
 
 
 /*
@@ -200,7 +208,6 @@ AcpiTbGetAllTables (
 
 ACPI_STATUS
 AcpiTbInstallTable (
-    ACPI_TABLE_HEADER       *TablePtr,
     ACPI_TABLE_DESC         *TableInfo);
 
 ACPI_STATUS
@@ -210,7 +217,6 @@ AcpiTbMatchSignature (
 
 ACPI_STATUS
 AcpiTbRecognizeTable (
-    ACPI_TABLE_HEADER       *TablePtr,
     ACPI_TABLE_DESC         *TableInfo);
 
 ACPI_STATUS
@@ -277,7 +283,7 @@ AcpiTbFindTable (
 ACPI_STATUS
 AcpiTbMapAcpiTable (
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
-    UINT32                  *Size,
+    ACPI_SIZE               *Size,
     ACPI_TABLE_HEADER       **LogicalAddress);
 
 ACPI_STATUS

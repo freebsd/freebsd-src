@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 67 $
+ *              $Revision: 78 $
  *
  ******************************************************************************/
 
@@ -118,16 +118,88 @@
 #define __UTMISC_C__
 
 #include "acpi.h"
-#include "acevents.h"
-#include "achware.h"
 #include "acnamesp.h"
-#include "acinterp.h"
 #include "amlcode.h"
-#include "acdebug.h"
+#include "acinterp.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utmisc")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtDwordByteSwap
+ *
+ * PARAMETERS:  Value           - Value to be converted
+ *
+ * DESCRIPTION: Convert a 32-bit value to big-endian (swap the bytes)
+ *
+ ******************************************************************************/
+
+UINT32
+AcpiUtDwordByteSwap (
+    UINT32                  Value)
+{
+    union
+    {
+        UINT32              Value;
+        UINT8               Bytes[4];
+    } Out;
+
+    union
+    {
+        UINT32              Value;
+        UINT8               Bytes[4];
+    } In;
+
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    In.Value = Value;
+
+    Out.Bytes[0] = In.Bytes[3];
+    Out.Bytes[1] = In.Bytes[2];
+    Out.Bytes[2] = In.Bytes[1];
+    Out.Bytes[3] = In.Bytes[0];
+
+    return (Out.Value);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtSetIntegerWidth
+ *
+ * PARAMETERS:  Revision            From DSDT header
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Set the global integer bit width based upon the revision
+ *              of the DSDT.  For Revision 1 and 0, Integers are 32 bits.
+ *              For Revision 2 and above, Integers are 64 bits.  Yes, this
+ *              makes a difference.
+ *
+ ******************************************************************************/
+
+void
+AcpiUtSetIntegerWidth (
+    UINT8                   Revision)
+{
+
+    if (Revision <= 1)
+    {
+        AcpiGbl_IntegerBitWidth  = 32;
+        AcpiGbl_IntegerByteWidth = 4;
+    }
+    else
+    {
+        AcpiGbl_IntegerBitWidth  = 64;
+        AcpiGbl_IntegerByteWidth = 8;
+    }
+}
+
 
 
 #ifdef ACPI_DEBUG
@@ -243,6 +315,169 @@ AcpiUtValidAcpiCharacter (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiUtStrtoul64
+ *
+ * PARAMETERS:  String          - Null terminated string
+ *              Terminater      - Where a pointer to the terminating byte is returned
+ *              Base            - Radix of the string
+ *
+ * RETURN:      Converted value
+ *
+ * DESCRIPTION: Convert a string into an unsigned value.
+ *
+ ******************************************************************************/
+#define NEGATIVE    1
+#define POSITIVE    0
+
+ACPI_STATUS
+AcpiUtStrtoul64 (
+    NATIVE_CHAR             *String,
+    UINT32                  Base,
+    ACPI_INTEGER            *RetInteger)
+{
+    UINT32                  Index;
+    ACPI_INTEGER            ReturnValue = 0;
+    ACPI_STATUS             Status = AE_OK;
+    ACPI_INTEGER            Dividend;
+    ACPI_INTEGER            Quotient;
+
+
+    *RetInteger = 0;
+
+    switch (Base)
+    {
+    case 0:
+    case 8:
+    case 10:
+    case 16:
+        break;
+
+    default:
+        /*
+         * The specified Base parameter is not in the domain of
+         * this function:
+         */
+        return (AE_BAD_PARAMETER);
+    }
+
+    /*
+     * skip over any white space in the buffer:
+     */
+    while (ACPI_IS_SPACE (*String) || *String == '\t')
+    {
+        ++String;
+    }
+
+    /*
+     * If the input parameter Base is zero, then we need to
+     * determine if it is octal, decimal, or hexadecimal:
+     */
+    if (Base == 0)
+    {
+        if (*String == '0')
+        {
+            if (ACPI_TOLOWER (*(++String)) == 'x')
+            {
+                Base = 16;
+                ++String;
+            }
+            else
+            {
+                Base = 8;
+            }
+        }
+        else
+        {
+            Base = 10;
+        }
+    }
+
+    /*
+     * For octal and hexadecimal bases, skip over the leading
+     * 0 or 0x, if they are present.
+     */
+    if (Base == 8 && *String == '0')
+    {
+        String++;
+    }
+
+    if (Base == 16 &&
+        *String == '0' &&
+        ACPI_TOLOWER (*(++String)) == 'x')
+    {
+        String++;
+    }
+
+    /* Main loop: convert the string to an unsigned long */
+
+    while (*String)
+    {
+        if (ACPI_IS_DIGIT (*String))
+        {
+            Index = ((UINT8) *String) - '0';
+        }
+        else
+        {
+            Index = (UINT8) ACPI_TOUPPER (*String);
+            if (ACPI_IS_UPPER ((char) Index))
+            {
+                Index = Index - 'A' + 10;
+            }
+            else
+            {
+                goto ErrorExit;
+            }
+        }
+
+        if (Index >= Base)
+        {
+            goto ErrorExit;
+        }
+
+        /* Check to see if value is out of range: */
+
+        Dividend = ACPI_INTEGER_MAX - (ACPI_INTEGER) Index;
+        (void) AcpiUtShortDivide (&Dividend, Base, &Quotient, NULL);
+        if (ReturnValue > Quotient)
+        {
+            goto ErrorExit;
+        }
+
+        ReturnValue *= Base;
+        ReturnValue += Index;
+        ++String;
+    }
+
+    *RetInteger = ReturnValue;
+    return (Status);
+
+
+ErrorExit:
+    switch (Base)
+    {
+    case 8:
+        Status = AE_BAD_OCTAL_CONSTANT;
+        break;
+
+    case 10:
+        Status = AE_BAD_DECIMAL_CONSTANT;
+        break;
+
+    case 16:
+        Status = AE_BAD_HEX_CONSTANT;
+        break;
+
+    default:
+        /* Base validated above */
+        break;
+    }
+
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiUtStrupr
  *
  * PARAMETERS:  SrcString       - The source string to convert to
@@ -341,7 +576,7 @@ AcpiUtMutexTerminate (
      */
     for (i = 0; i < NUM_MTX; i++)
     {
-        AcpiUtDeleteMutex (i);
+        (void) AcpiUtDeleteMutex (i);
     }
 
     return_VOID;
@@ -1015,116 +1250,6 @@ AcpiUtDeleteGenericStateCache (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtResolveReference
- *
- * PARAMETERS:  ACPI_PKG_CALLBACK
- *
- * RETURN:      Status          - the status of the call
- *
- * DESCRIPTION: Resolve a reference object to an actual value
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiUtResolveReference (
-    UINT8                   ObjectType,
-    ACPI_OPERAND_OBJECT     *SourceObject,
-    ACPI_GENERIC_STATE      *State,
-    void                    *Context)
-{
-    ACPI_PKG_INFO           *Info = (ACPI_PKG_INFO *) Context;
-
-
-    switch (ObjectType)
-    {
-    case ACPI_COPY_TYPE_SIMPLE:
-
-        /*
-         * Simple object - check for a reference
-         */
-        if (SourceObject->Common.Type == INTERNAL_TYPE_REFERENCE)
-        {
-            switch (SourceObject->Reference.Opcode)
-            {
-            case AML_ZERO_OP:
-
-                SourceObject->Common.Type  = ACPI_TYPE_INTEGER;
-                SourceObject->Integer.Value = 0;
-                break;
-
-            case AML_ONE_OP:
-
-                SourceObject->Common.Type  = ACPI_TYPE_INTEGER;
-                SourceObject->Integer.Value = 1;
-                break;
-
-            case AML_ONES_OP:
-
-                SourceObject->Common.Type  = ACPI_TYPE_INTEGER;
-                SourceObject->Integer.Value = ACPI_INTEGER_MAX;
-                break;
-            }
-        }
-        break;
-
-
-    case ACPI_COPY_TYPE_PACKAGE:
-
-        /* Package object - nothing much to do here, let the walk handle it */
-
-        Info->NumPackages++;
-        State->Pkg.ThisTargetObj = NULL;
-        break;
-    }
-
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtResolvePackageReferences
- *
- * PARAMETERS:  ObjDesc         - The Package object on which to resolve refs
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Walk through a package and turn internal references into values
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiUtResolvePackageReferences (
-    ACPI_OPERAND_OBJECT     *ObjDesc)
-{
-    ACPI_PKG_INFO           Info;
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE ("UtResolvePackageReferences");
-
-
-    if (ObjDesc->Common.Type != ACPI_TYPE_PACKAGE)
-    {
-        /* The object must be a package */
-
-        ACPI_REPORT_ERROR (("Expecting a Package object\n"));
-        return_ACPI_STATUS (AE_TYPE);
-    }
-
-    Info.Length      = 0;
-    Info.ObjectSpace = 0;
-    Info.NumPackages = 1;
-
-    Status = AcpiUtWalkPackageTree (ObjDesc, NULL,
-                            AcpiUtResolveReference, &Info);
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiUtWalkPackageTree
  *
  * PARAMETERS:  ObjDesc         - The Package object on which to resolve refs
@@ -1173,8 +1298,8 @@ AcpiUtWalkPackageTree (
          *    case below.
          */
         if ((!ThisSourceObj) ||
-            (ACPI_GET_DESCRIPTOR_TYPE (ThisSourceObj) != ACPI_DESC_TYPE_INTERNAL) ||
-            (ThisSourceObj->Common.Type != ACPI_TYPE_PACKAGE))
+            (ACPI_GET_DESCRIPTOR_TYPE (ThisSourceObj) != ACPI_DESC_TYPE_OPERAND) ||
+            (ACPI_GET_OBJECT_TYPE (ThisSourceObj) != ACPI_TYPE_PACKAGE))
         {
             Status = WalkCallback (ACPI_COPY_TYPE_SIMPLE, ThisSourceObj,
                                     State, Context);

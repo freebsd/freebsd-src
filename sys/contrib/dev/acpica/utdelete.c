@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 88 $
+ *              $Revision: 91 $
  *
  ******************************************************************************/
 
@@ -119,8 +119,6 @@
 #include "acpi.h"
 #include "acinterp.h"
 #include "acnamesp.h"
-#include "actables.h"
-#include "acparser.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utdelete")
@@ -160,7 +158,7 @@ AcpiUtDeleteInternalObj (
      * Must delete or free any pointers within the object that are not
      * actual ACPI objects (for example, a raw buffer pointer).
      */
-    switch (Object->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (Object))
     {
     case ACPI_TYPE_STRING:
 
@@ -209,7 +207,7 @@ AcpiUtDeleteInternalObj (
             Object, Object->Mutex.Semaphore));
 
         AcpiExUnlinkMutex (Object);
-        AcpiOsDeleteSemaphore (Object->Mutex.Semaphore);
+        (void) AcpiOsDeleteSemaphore (Object->Mutex.Semaphore);
         break;
 
 
@@ -218,7 +216,7 @@ AcpiUtDeleteInternalObj (
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "***** Event %p, Semaphore %p\n",
             Object, Object->Event.Semaphore));
 
-        AcpiOsDeleteSemaphore (Object->Event.Semaphore);
+        (void) AcpiOsDeleteSemaphore (Object->Event.Semaphore);
         Object->Event.Semaphore = NULL;
         break;
 
@@ -231,7 +229,7 @@ AcpiUtDeleteInternalObj (
 
         if (Object->Method.Semaphore)
         {
-            AcpiOsDeleteSemaphore (Object->Method.Semaphore);
+            (void) AcpiOsDeleteSemaphore (Object->Method.Semaphore);
             Object->Method.Semaphore = NULL;
         }
         break;
@@ -292,7 +290,7 @@ AcpiUtDeleteInternalObj (
     /* Now the object can be safely deleted */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Deleting Object %p [%s]\n",
-            Object, AcpiUtGetTypeName (Object->Common.Type)));
+            Object, AcpiUtGetObjectTypeName (Object)));
 
     AcpiUtDeleteObjectDesc (Object);
     return_VOID;
@@ -305,14 +303,14 @@ AcpiUtDeleteInternalObj (
  *
  * PARAMETERS:  *ObjList        - Pointer to the list to be deleted
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      None
  *
  * DESCRIPTION: This function deletes an internal object list, including both
  *              simple objects and package objects
  *
  ******************************************************************************/
 
-ACPI_STATUS
+void
 AcpiUtDeleteInternalObjectList (
     ACPI_OPERAND_OBJECT     **ObjList)
 {
@@ -332,7 +330,7 @@ AcpiUtDeleteInternalObjectList (
     /* Free the combined parameter pointer list and object array */
 
     ACPI_MEM_FREE (ObjList);
-    return_ACPI_STATUS (AE_OK);
+    return_VOID;
 }
 
 
@@ -402,7 +400,7 @@ AcpiUtUpdateRefCount (
                 Object, NewCount));
         }
 
-        if (Object->Common.Type == ACPI_TYPE_METHOD)
+        if (ACPI_GET_OBJECT_TYPE (Object) == ACPI_TYPE_METHOD)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Method Obj %p Refs=%X, [Decremented]\n",
                 Object, NewCount));
@@ -516,7 +514,7 @@ AcpiUtUpdateObjectReference (
          * All sub-objects must have their reference count incremented also.
          * Different object types have different subobjects.
          */
-        switch (Object->Common.Type)
+        switch (ACPI_GET_OBJECT_TYPE (Object))
         {
         case ACPI_TYPE_DEVICE:
 
@@ -524,7 +522,7 @@ AcpiUtUpdateObjectReference (
                                                      Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                goto ErrorExit;
             }
 
             AcpiUtUpdateRefCount (Object->Device.SysHandler, Action);
@@ -564,7 +562,7 @@ AcpiUtUpdateObjectReference (
                             Object->Package.Elements[i], Action, &StateList);
                 if (ACPI_FAILURE (Status))
                 {
-                    return_ACPI_STATUS (Status);
+                    goto ErrorExit;
                 }
             }
             break;
@@ -574,10 +572,9 @@ AcpiUtUpdateObjectReference (
 
             Status = AcpiUtCreateUpdateStateAndPush (
                         Object->BufferField.BufferObj, Action, &StateList);
-
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                goto ErrorExit;
             }
             break;
 
@@ -588,7 +585,7 @@ AcpiUtUpdateObjectReference (
                         Object->Field.RegionObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                goto ErrorExit;
             }
            break;
 
@@ -599,14 +596,14 @@ AcpiUtUpdateObjectReference (
                         Object->BankField.BankObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                goto ErrorExit;
             }
 
             Status = AcpiUtCreateUpdateStateAndPush (
                         Object->BankField.RegionObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                goto ErrorExit;
             }
             break;
 
@@ -617,20 +614,21 @@ AcpiUtUpdateObjectReference (
                         Object->IndexField.IndexObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                goto ErrorExit;
             }
 
             Status = AcpiUtCreateUpdateStateAndPush (
                         Object->IndexField.DataObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                goto ErrorExit;
             }
             break;
 
 
         case ACPI_TYPE_REGION:
         case INTERNAL_TYPE_REFERENCE:
+        default:
 
             /* No subobjects */
             break;
@@ -649,6 +647,14 @@ AcpiUtUpdateObjectReference (
     }
 
     return_ACPI_STATUS (AE_OK);
+
+
+ErrorExit:
+
+    ACPI_REPORT_ERROR (("Could not update object reference count, %s\n",
+        AcpiFormatException (Status)));
+
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -684,7 +690,7 @@ AcpiUtAddReference (
     /*
      * We have a valid ACPI internal object, now increment the reference count
      */
-    AcpiUtUpdateObjectReference  (Object, REF_INCREMENT);
+    (void) AcpiUtUpdateObjectReference  (Object, REF_INCREMENT);
     return_VOID;
 }
 
@@ -736,7 +742,7 @@ AcpiUtRemoveReference (
      * if the reference count becomes 0.  (Must also decrement the ref count
      * of all subobjects!)
      */
-    AcpiUtUpdateObjectReference  (Object, REF_DECREMENT);
+    (void) AcpiUtUpdateObjectReference  (Object, REF_DECREMENT);
     return_VOID;
 }
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 110 $
+ *       $Revision: 112 $
  *
  *****************************************************************************/
 
@@ -147,7 +147,7 @@
 
 /* Values for flag byte above */
 
-#define AOPOBJ_RESERVED             0x01
+#define AOPOBJ_AML_CONSTANT         0x01
 #define AOPOBJ_STATIC_POINTER       0x02
 #define AOPOBJ_DATA_VALID           0x04
 #define AOPOBJ_OBJECT_INITIALIZED   0x08
@@ -579,5 +579,46 @@ typedef union acpi_operand_obj
     ACPI_OBJECT_CACHE_LIST      Cache;
 
 } ACPI_OPERAND_OBJECT;
+
+
+
+
+
+/******************************************************************************
+ *
+ * ACPI_DESCRIPTOR - objects that share a common descriptor identifier
+ *
+ *****************************************************************************/
+
+
+/* Object descriptor types */
+
+#define ACPI_DESC_TYPE_CACHED           0x11    /* Used only when object is cached */
+#define ACPI_DESC_TYPE_STATE            0x20
+#define ACPI_DESC_TYPE_STATE_UPDATE     0x21
+#define ACPI_DESC_TYPE_STATE_PACKAGE    0x22
+#define ACPI_DESC_TYPE_STATE_CONTROL    0x23
+#define ACPI_DESC_TYPE_STATE_RPSCOPE    0x24
+#define ACPI_DESC_TYPE_STATE_PSCOPE     0x25
+#define ACPI_DESC_TYPE_STATE_WSCOPE     0x26
+#define ACPI_DESC_TYPE_STATE_RESULT     0x27
+#define ACPI_DESC_TYPE_STATE_NOTIFY     0x28
+#define ACPI_DESC_TYPE_STATE_THREAD     0x29
+#define ACPI_DESC_TYPE_WALK             0x44
+#define ACPI_DESC_TYPE_PARSER           0x66
+#define ACPI_DESC_TYPE_OPERAND          0x88
+#define ACPI_DESC_TYPE_NAMED            0xAA
+
+
+
+typedef union acpi_desc
+{
+    UINT8                       DescriptorId;         /* To differentiate various internal objs */\
+    ACPI_OPERAND_OBJECT         Object;
+    ACPI_NAMESPACE_NODE         Node;
+    ACPI_PARSE_OBJECT           Op;
+
+} ACPI_DESCRIPTOR;
+
 
 #endif /* _ACOBJECT_H */
