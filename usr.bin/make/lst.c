@@ -44,9 +44,8 @@
 #include "make.h"
 #include "util.h"
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_Append --
+/**
+ * Lst_Append
  *	Create a new node and add it to the given list after the given node.
  *
  * Arguments:
@@ -59,38 +58,35 @@
  *	field of the List will be altered if ln is the last node in the
  *	list. lastPtr and firstPtr will alter if the list was empty and
  *	ln was NULL.
- *
- *-----------------------------------------------------------------------
  */
 void
 Lst_Append(Lst *list, LstNode *ln, void *d)
 {
-    LstNode *nLNode;
+	LstNode *nLNode;
 
-    nLNode = emalloc(sizeof(*nLNode));
-    nLNode->datum = d;
+	nLNode = emalloc(sizeof(*nLNode));
+	nLNode->datum = d;
 
-    if (ln == NULL) {
-	nLNode->nextPtr = nLNode->prevPtr = NULL;
-	list->firstPtr = list->lastPtr = nLNode;
-    } else {
-	nLNode->prevPtr = ln;
-	nLNode->nextPtr = ln->nextPtr;
+	if (ln == NULL) {
+		nLNode->nextPtr = nLNode->prevPtr = NULL;
+		list->firstPtr = list->lastPtr = nLNode;
+	} else {
+		nLNode->prevPtr = ln;
+		nLNode->nextPtr = ln->nextPtr;
 
-	ln->nextPtr = nLNode;
-	if (nLNode->nextPtr != NULL) {
-	    nLNode->nextPtr->prevPtr = nLNode;
+		ln->nextPtr = nLNode;
+		if (nLNode->nextPtr != NULL) {
+			nLNode->nextPtr->prevPtr = nLNode;
+		}
+
+		if (ln == list->lastPtr) {
+			list->lastPtr = nLNode;
+		}
 	}
-
-	if (ln == list->lastPtr) {
-	    list->lastPtr = nLNode;
-	}
-    }
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_Concat --
+/**
+ * Lst_Concat
  *	Concatenate two lists. New elements are created to hold the data
  *	elements, if specified, but the elements themselves are not copied.
  *	If the elements should be duplicated to avoid confusion with another
@@ -107,74 +103,72 @@ Lst_Append(Lst *list, LstNode *ln, void *d)
  *
  * Side Effects:
  *	New elements are created and appended the the first list.
- *-----------------------------------------------------------------------
  */
 void
 Lst_Concat(Lst *list1, Lst *list2, int flags)
 {
-    LstNode *ln;	/* original LstNode */
-    LstNode *nln;	/* new LstNode */
-    LstNode *last;	/* the last element in the list. Keeps
+	LstNode	*ln;	/* original LstNode */
+	LstNode	*nln;	/* new LstNode */
+	LstNode	*last;	/* the last element in the list. Keeps
 			 * bookkeeping until the end */
 
-    if (list2->firstPtr == NULL)
-	return;
+	if (list2->firstPtr == NULL)
+		return;
 
-    if (flags == LST_CONCLINK) {
-	/*
-	 * Link the first element of the second list to the last element of the
-	 * first list. If the first list isn't empty, we then link the
-	 * last element of the list to the first element of the second list
-	 * The last element of the second list, if it exists, then becomes
-	 * the last element of the first list.
-	 */
-	list2->firstPtr->prevPtr = list1->lastPtr;
-	if (list1->lastPtr != NULL)
-	    list1->lastPtr->nextPtr = list2->firstPtr;
-	else
-	    list1->firstPtr = list2->firstPtr;
-	list1->lastPtr = list2->lastPtr;
+	if (flags == LST_CONCLINK) {
+		/*
+		 * Link the first element of the second list to the last
+		 * element of the first list. If the first list isn't empty,
+		 * we then link the last element of the list to the first
+		 * element of the second list. The last element of the second
+		 * list, if it exists, then becomes the last element of the
+		 * first list.
+		 */
+		list2->firstPtr->prevPtr = list1->lastPtr;
+		if (list1->lastPtr != NULL)
+			list1->lastPtr->nextPtr = list2->firstPtr;
+		else
+			list1->firstPtr = list2->firstPtr;
+		list1->lastPtr = list2->lastPtr;
 
-	Lst_Init(list2);
-    } else {
-	/*
-	 * The loop simply goes through the entire
-	 * second list creating new LstNodes and filling in the nextPtr, and
-	 * prevPtr to fit into list1 and its datum field from the
-	 * datum field of the corresponding element in list2. The 'last' node
-	 * follows the last of the new nodes along until the entire list2 has
-	 * been appended. Only then does the bookkeeping catch up with the
-	 * changes. During the first iteration of the loop, if 'last' is NULL,
-	 * the first list must have been empty so the newly-created node is
-	 * made the first node of the list.
-	 */
-	for (last = list1->lastPtr, ln = list2->firstPtr;
-	     ln != NULL;
-	     ln = ln->nextPtr)
-	{
-	    nln = emalloc(sizeof(*nln));
-	    nln->datum = ln->datum;
-	    if (last != NULL) {
-		last->nextPtr = nln;
-	    } else {
-		list1->firstPtr = nln;
-	    }
-	    nln->prevPtr = last;
-	    last = nln;
+		Lst_Init(list2);
+	} else {
+		/*
+		 * The loop simply goes through the entire second list creating
+		 * new LstNodes and filling in the nextPtr, and prevPtr to fit
+		 * into list1 and its datum field from the datum field of the
+		 * corresponding element in list2. The 'last' node follows the
+		 * last of the new nodes along until the entire list2 has been
+		 * appended. Only then does the bookkeeping catch up with the
+		 * changes. During the first iteration of the loop, if 'last'
+		 * is NULL, the first list must have been empty so the
+		 * newly-created node is made the first node of the list.
+		 */
+		for (last = list1->lastPtr, ln = list2->firstPtr;
+		    ln != NULL;
+		    ln = ln->nextPtr) {
+			nln = emalloc(sizeof(*nln));
+			nln->datum = ln->datum;
+			if (last != NULL) {
+				last->nextPtr = nln;
+			} else {
+				list1->firstPtr = nln;
+			}
+			nln->prevPtr = last;
+			last = nln;
+		}
+
+		/*
+		 * Finish bookkeeping. The last new element becomes the last
+		 * element of list one.
+		 */
+		list1->lastPtr = last;
+		last->nextPtr = NULL;
 	}
-
-	/*
-	 * Finish bookkeeping. The last new element becomes the last element
-	 * of list one.
-	 */
-	list1->lastPtr = last;
-	last->nextPtr = NULL;
-    }
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_DeQueue --
+/**
+ * Lst_DeQueue
  *	Remove and return the datum at the head of the given list.
  *
  * Results:
@@ -183,66 +177,57 @@ Lst_Concat(Lst *list1, Lst *list2, int flags)
  *
  * Side Effects:
  *	The head node is removed from the list.
- *
- *-----------------------------------------------------------------------
  */
 void *
 Lst_DeQueue(Lst *l)
 {
-    void *rd;
-    LstNode *tln;
+	void *rd;
+	LstNode *tln;
 
-    tln = Lst_First(l);
-    if (tln == NULL) {
-	return (NULL);
-    }
+	tln = Lst_First(l);
+	if (tln == NULL) {
+		return (NULL);
+	}
 
-    rd = tln->datum;
-    Lst_Remove(l, tln);
-    return (rd);
+	rd = tln->datum;
+	Lst_Remove(l, tln);
+	return (rd);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_Destroy --
+/**
+ * Lst_Destroy
  *	Destroy a list and free all its resources. If the freeProc is
  *	given, it is called with the datum from each node in turn before
  *	the node is freed.
  *
- * Results:
- *	None.
- *
  * Side Effects:
  *	The given list is freed in its entirety.
- *
- *-----------------------------------------------------------------------
  */
 void
 Lst_Destroy(Lst *list, FreeProc *freeProc)
 {
-    LstNode *ln;
+	LstNode *ln;
 
-    if (list->firstPtr == NULL)
-	return;
+	if (list->firstPtr == NULL)
+		return;
 
-    if (freeProc != NOFREE) {
-	while ((ln = list->firstPtr) != NULL) {
-	    list->firstPtr = ln->nextPtr;
-	    (*freeProc)(ln->datum);
-	    free(ln);
+	if (freeProc != NOFREE) {
+		while ((ln = list->firstPtr) != NULL) {
+			list->firstPtr = ln->nextPtr;
+			(*freeProc)(ln->datum);
+			free(ln);
+		}
+	} else {
+		while ((ln = list->firstPtr) != NULL) {
+			list->firstPtr = ln->nextPtr;
+			free(ln);
+		}
 	}
-    } else {
-	while ((ln = list->firstPtr) != NULL) {
-	    list->firstPtr = ln->nextPtr;
-	    free(ln);
-	}
-    }
-    list->lastPtr = NULL;
+	list->lastPtr = NULL;
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_Duplicate --
+/**
+ * Lst_Duplicate
  *	Duplicate an entire list. If a function to copy a void * is
  *	given, the individual client elements will be duplicated as well.
  *
@@ -250,27 +235,24 @@ Lst_Destroy(Lst *list, FreeProc *freeProc)
  *	dst	the destination list (initialized)
  *	src	the list to duplicate
  *	copyProc A function to duplicate each void
- *
- *-----------------------------------------------------------------------
  */
 void
 Lst_Duplicate(Lst *dst, Lst *src, DuplicateProc *copyProc)
 {
-    LstNode *ln;
+	LstNode *ln;
 
-    ln = src->firstPtr;
-    while (ln != NULL) {
-	if (copyProc != NOCOPY)
-	    Lst_AtEnd(dst, (*copyProc)(ln->datum));
-	else
-	    Lst_AtEnd(dst, ln->datum);
-	ln = ln->nextPtr;
-    }
+	ln = src->firstPtr;
+	while (ln != NULL) {
+		if (copyProc != NOCOPY)
+			Lst_AtEnd(dst, (*copyProc)(ln->datum));
+		else
+			Lst_AtEnd(dst, ln->datum);
+		ln = ln->nextPtr;
+	}
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_Insert --
+/**
+ * Lst_Insert
  *	Insert a new node with the given piece of data before the given
  *	node in the given list.
  *
@@ -282,58 +264,55 @@ Lst_Duplicate(Lst *dst, Lst *src, DuplicateProc *copyProc)
  * Side Effects:
  *	the firstPtr field will be changed if ln is the first node in the
  *	list.
- *
- *-----------------------------------------------------------------------
  */
 void
 Lst_Insert(Lst *list, LstNode *ln, void *d)
 {
-    LstNode *nLNode;	/* new lnode for d */
+	LstNode *nLNode;	/* new lnode for d */
 
-    nLNode = emalloc(sizeof(*nLNode));
-    nLNode->datum = d;
+	nLNode = emalloc(sizeof(*nLNode));
+	nLNode->datum = d;
 
-    if (ln == NULL) {
-	nLNode->prevPtr = nLNode->nextPtr = NULL;
-	list->firstPtr = list->lastPtr = nLNode;
-    } else {
-	nLNode->prevPtr = ln->prevPtr;
-	nLNode->nextPtr = ln;
+	if (ln == NULL) {
+		nLNode->prevPtr = nLNode->nextPtr = NULL;
+		list->firstPtr = list->lastPtr = nLNode;
+	} else {
+		nLNode->prevPtr = ln->prevPtr;
+		nLNode->nextPtr = ln;
 
-	if (nLNode->prevPtr != NULL) {
-	    nLNode->prevPtr->nextPtr = nLNode;
+		if (nLNode->prevPtr != NULL) {
+			nLNode->prevPtr->nextPtr = nLNode;
+		}
+		ln->prevPtr = nLNode;
+
+		if (ln == list->firstPtr) {
+			list->firstPtr = nLNode;
+		}
 	}
-	ln->prevPtr = nLNode;
-
-	if (ln == list->firstPtr) {
-	    list->firstPtr = nLNode;
-	}
-    }
 }
 
 LstNode *
 Lst_Member(Lst *list, void *d)
 {
-    LstNode *lNode;
+	LstNode *lNode;
 
-    lNode = list->firstPtr;
-    if (lNode == NULL) {
-	return (NULL);
-    }
-
-    do {
-	if (lNode->datum == d) {
-	    return (lNode);
+	lNode = list->firstPtr;
+	if (lNode == NULL) {
+		return (NULL);
 	}
-	lNode = lNode->nextPtr;
-    } while (lNode != NULL && lNode != list->firstPtr);
 
-    return (NULL);
+	do {
+		if (lNode->datum == d) {
+			return (lNode);
+		}
+		lNode = lNode->nextPtr;
+	} while (lNode != NULL && lNode != list->firstPtr);
+
+	return (NULL);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_Remove --
+/**
+ * Lst_Remove
  *	Remove the given node from the given list.
  *
  * Results:
@@ -343,32 +322,30 @@ Lst_Member(Lst *list, void *d)
  *	The list's firstPtr will be set to NULL if ln is the last
  *	node on the list. firsPtr and lastPtr will be altered if ln is
  *	either the first or last node, respectively, on the list.
- *
- *-----------------------------------------------------------------------
  */
 void
 Lst_Remove(Lst *list, LstNode *ln)
 {
-    /*
-     * unlink it from the list
-     */
-    if (ln->nextPtr != NULL)
-	/* unlink from the backward chain */
-	ln->nextPtr->prevPtr = ln->prevPtr;
-    else
-	/* this was the last element */
-	list->lastPtr = ln->prevPtr;
+	/*
+	 * unlink it from the list
+	 */
+	if (ln->nextPtr != NULL)
+		/* unlink from the backward chain */
+		ln->nextPtr->prevPtr = ln->prevPtr;
+	else
+		/* this was the last element */
+		list->lastPtr = ln->prevPtr;
 
-    if (ln->prevPtr != NULL)
-	/* unlink from the forward chain */
-	ln->prevPtr->nextPtr = ln->nextPtr;
-    else
-	/* this was the first element */
-	list->firstPtr = ln->nextPtr;
+	if (ln->prevPtr != NULL)
+		/* unlink from the forward chain */
+		ln->prevPtr->nextPtr = ln->nextPtr;
+	else
+		/* this was the first element */
+		list->firstPtr = ln->nextPtr;
 
-    /*
-     * note that the datum is unmolested. The caller must free it as
-     * necessary and as expected.
-     */
-    free(ln);
+	/*
+	 * note that the datum is unmolested. The caller must free it as
+	 * necessary and as expected.
+	 */
+	free(ln);
 }
