@@ -1304,6 +1304,7 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 # an: Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
 #     PCI and ISA varieties.
 # xe: Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller.
+# ray: Raytheon Raylink 802.11 wireless NICs, OEM as Webgear Aviator 2.4GHz
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133
 #       (no options needed)
 #
@@ -1328,6 +1329,7 @@ options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300
 device xe
+device ray
 
 device oltr0 at isa?
 
