@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.3 2000/10/03 18:31:47 wpaul Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.4 2001/04/21 16:13:28 mjacob Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -69,6 +69,7 @@
 #define	MII_OUI_SIS	0x00e006	/* Silicon Integrated Systems */
 #define	MII_OUI_TI	0x080028	/* Texas Instruments */
 #define	MII_OUI_XAQTI	0x00e0ae	/* XaQti Corp. */
+#define	MII_OUI_MARVELL	0x005043	/* Marvell Semiconductor */
 
 /* in the 79c873, AMD uses another OUI (which matches Davicom!) */
 #define	MII_OUI_xxAMD	0x00606e	/* Advanced Micro Devices */
@@ -158,3 +159,7 @@
 /* XaQti Corp. PHYs. */
 #define	MII_MODEL_XAQTI_XMACII	0x0000
 #define	MII_STR_XAQTI_XMACII	"XaQti Corp. XMAC II gigabit interface"
+
+/* Marvell Semiconductor PHYs */
+#define	MII_MODEL_MARVELL_E1000	0x0000
+#define	MII_STR_MARVELL_E1000	"Marvell Semiconductor 88E1000* gigabit PHY"

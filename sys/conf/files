@@ -203,6 +203,7 @@ dev/mii/ukphy_subr.c	optional miibus
 dev/mii/amphy.c		optional miibus
 dev/mii/brgphy.c	optional miibus
 dev/mii/dcphy.c		optional miibus
+dev/mii/e1000phy.c	optional miibus
 dev/mii/exphy.c		optional miibus
 dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
