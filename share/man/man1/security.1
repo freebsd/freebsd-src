@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)security.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: security.1,v 1.1 1998/12/19 09:33:03 dillon Exp $
+.\"	$Id: security.1,v 1.2 1998/12/20 19:49:43 dillon Exp $
 .\"
 .Dd December 30, 1993
 .Dt SECURITY 1
@@ -381,10 +381,34 @@ and to run the daemon (sendmail -bd) separate from the queue-runs
 at a much lower interval, such as -q1m, but be sure to specify a reasonable
 MaxDaemonChildren option for that sendmail to prevent cascade failures.
 .Pp
+Syslogd can be attacked directly and it is strongly recommended that you use
+the -s option whenever possible, and the -a option otherwise.
+.Pp
 You should also be fairly careful
 with connect-back services such as tcpwrapper's reverse-identd, which can 
 be attacked directly.  You generally do not want to use the reverse-ident
 feature of tcpwrappers for this reason.
+.Pp
+It is a very good idea to protect internal services from external access
+by firewalling them off at your border routers.  The idea here is to prevent
+saturation attacks from outside your LAN, not so much to protect internal 
+services from root network-based root hacks.  Always configure an exclusive
+firewall, i.e. 'firewall everything *except* ports A, B, C, D, and M-Z'.   This
+way you can firewall off all of your low ports except for certain specific
+services such as named (if you are primary for a zone), ntalkd, sendmail,
+and other internet-accessible services.
+If you try to configure the firewall the other
+way - as an inclusive or permissive firewall, there is a good chance that you
+will forget to 'close' a couple of services or that you will add a new internal
+service and forget to update the firewall.  You can still open up the 
+high-numbered port range on the firewall to allow permissive-like operation
+without compromising your low ports.  Also take note that FreeBSD allows you to
+control the range of port numbers used for dynamic binding via the various
+net.inet.ip.portrange sysctl's (sysctl -a | fgrep portrange), which can also
+ease the complexity of your firewall's configuration.  I usually use a normal
+first/last range of 4000 to 5000, and a hiport range of 49152 to 65535, then
+block everything under 4000 off in my firewall ( except for certain specific
+internet-accessible ports, of course ).
 .Pp
 Another common DOS attack is called a springboard attack - to attack a server
 in a manner that causes the server to generate responses which then overload
