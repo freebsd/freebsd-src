@@ -46,6 +46,7 @@
 #include "opt_devfs.h"
 
 #include <sys/param.h>
+#include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -372,8 +373,10 @@ proc0_init(dummy)
 	for (i = 0; i < sizeof(p->p_rlimit)/sizeof(p->p_rlimit[0]); i++)
 		limit0.pl_rlimit[i].rlim_cur =
 		    limit0.pl_rlimit[i].rlim_max = RLIM_INFINITY;
-	limit0.pl_rlimit[RLIMIT_NOFILE].rlim_cur = NOFILE;
-	limit0.pl_rlimit[RLIMIT_NPROC].rlim_cur = MAXUPRC;
+	limit0.pl_rlimit[RLIMIT_NOFILE].rlim_cur =
+	    limit0.pl_rlimit[RLIMIT_NOFILE].rlim_max = maxfiles;
+	limit0.pl_rlimit[RLIMIT_NPROC].rlim_cur =
+	    limit0.pl_rlimit[RLIMIT_NPROC].rlim_max = maxproc;
 	i = ptoa(cnt.v_free_count);
 	limit0.pl_rlimit[RLIMIT_RSS].rlim_max = i;
 	limit0.pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
