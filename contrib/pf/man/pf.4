@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pf.4,v 1.37 2003/08/28 09:41:22 jmc Exp $
+.\"	$OpenBSD: pf.4,v 1.48 2004/03/27 17:15:30 henning Exp $
 .\"
 .\" Copyright (C) 2001, Kjell Wooding.  All rights reserved.
 .\"
@@ -33,7 +33,7 @@
 .Nm pf
 .Nd packet filter
 .Sh SYNOPSIS
-.Cd "pseudo-device pf 1"
+.Cd "pseudo-device pf"
 .Sh DESCRIPTION
 Packet filtering takes place in the kernel.
 A pseudo-device,
@@ -72,11 +72,7 @@ Stops the packet filter.
 Starts the ALTQ bandwidth control system.
 .It Dv DIOCSTOPALTQ
 Stops the ALTQ bandwidth control system.
-.It Dv DIOCBEGINADDRS  Fa "u_int32_t"
-Clears the buffer address pool
-and returns a ticket for subsequent DIOCADDADDR, DIOCADDRULE and
-DIOCCHANGERULE calls.
-.It Dv DIOCADDADDR     Fa "struct pfioc_pooladdr"
+.It Dv DIOCBEGINADDRS  Fa "struct pfioc_pooladdr"
 .Bd -literal
 struct pfioc_pooladdr {
 	u_int32_t		action;
@@ -92,16 +88,17 @@ struct pfioc_pooladdr {
 };
 .Ed
 .Pp
+Clears the buffer address pool
+and returns a
+.Va ticket
+for subsequent DIOCADDADDR, DIOCADDRULE and DIOCCHANGERULE calls.
+.It Dv DIOCADDADDR     Fa "struct pfioc_pooladdr"
+.Pp
 Adds pool address
 .Va addr
 to the buffer address pool to be used in the following
 DIOCADDRULE or DIOCCHANGERULE call.
 All other members of the structure are ignored.
-.It Dv DIOCBEGINRULES  Fa "u_int32_t"
-Clears the inactive ruleset for the type of rule indicated by
-.Va rule.action
-and returns a ticket for subsequent
-DIOCADDRULE and DIOCCOMMITRULES calls.
 .It Dv DIOCADDRULE     Fa "struct pfioc_rule"
 .Bd -literal
 struct pfioc_rule {
@@ -120,7 +117,7 @@ Adds
 at the end of the inactive ruleset.
 Requires
 .Va ticket
-obtained through preceding DIOCBEGINRULES call, and
+obtained through preceding DIOCXBEGIN call, and
 .Va pool_ticket
 obtained through DIOCBEGINADDRS call.
 DIOCADDADDR must also be called if any pool addresses are required.
@@ -133,26 +130,16 @@ names indicate the anchor and ruleset in which to append the rule.
 and
 .Va action
 are ignored.
-.It Dv DIOCCOMMITRULES Fa "u_int32_t"
-Switch inactive to active filter ruleset.
-Requires
-.Va ticket .
-.It Dv DIOCBEGINALTQS  Fa "u_int32_t"
-Clears the inactive list of queues and returns a ticket for subsequent
-DIOCADDALTQ and DIOCCOMMITALTQS calls.
 .It Dv DIOCADDALTQ     Fa "struct pfioc_altq"
 Adds
 .Bd -literal
 struct pfioc_altq {
+	u_int32_t	action;
 	u_int32_t	ticket;
 	u_int32_t	nr;
 	struct pf_altq   altq;
 };
 .Ed
-.It Dv DIOCCOMMITALTQS Fa "u_int32_t"
-Switch inactive to active list of queues.
-Requires
-.Va ticket .
 .It Dv DIOCGETRULES    Fa "struct pfioc_rule"
 Returns
 .Va ticket
@@ -224,8 +211,6 @@ of length
 .Va nbytes
 for the queue specified by
 .Va nr .
-.It Dv DIOCCLRSTATES
-Clears the state table.
 .It Dv DIOCADDSTATE    Fa "struct pfioc_state"
 Adds a state entry.
 .It Dv DIOCGETSTATE    Fa "struct pfioc_state"
@@ -246,8 +231,16 @@ struct pfioc_state_kill {
 	int			psk_proto;
 	struct pf_rule_addr	psk_src;
 	struct pf_rule_addr	psk_dst;
+	char			psk_ifname[IFNAMSIZ];
 };
 .Ed
+.It Dv DIOCCLRSTATES  Fa "struct pfioc_state_kill"
+Clears all states.
+It works like
+.Dv DIOCKILLSTATES ,
+but ignores the psk_af, psk_proto, psk_src and psk_dst fields of the
+.Fa pfioc_state_kill
+structure.
 .It Dv DIOCSETSTATUSIF Fa "struct pfioc_if"
 .Bd -literal
 struct pfioc_if {
@@ -259,14 +252,19 @@ Specifies the interface for which statistics are accumulated.
 .It Dv DIOCGETSTATUS   Fa "struct pf_status"
 .Bd -literal
 struct pf_status {
-	u_int64_t	 counters[PFRES_MAX];
-	u_int64_t	 fcounters[FCNT_MAX];
-	u_int64_t	 pcounters[2][2][3];
-	u_int64_t	 bcounters[2][2];
-	u_int32_t	 running;
-	u_int32_t	 states;
-	u_int32_t	 since;
-	u_int32_t	 debug;
+	u_int64_t	counters[PFRES_MAX];
+	u_int64_t	fcounters[FCNT_MAX];
+	u_int64_t	scounters[SCNT_MAX];
+	u_int64_t	pcounters[2][2][3];
+	u_int64_t	bcounters[2][2];
+	u_int64_t	stateid;
+	u_int32_t	running;
+	u_int32_t	states;
+	u_int32_t	src_nodes;
+	u_int32_t	since;
+	u_int32_t	debug;
+	u_int32_t	hostid;
+	char		ifname[IFNAMSIZ];
 };
 .Ed
 .Pp
@@ -285,7 +283,7 @@ struct pfioc_natlook {
 	u_int16_t	 dport;
 	u_int16_t	 rsport;
 	u_int16_t	 rdport;
-	u_int8_t	 af;
+	sa_family_t	 af;
 	u_int8_t	 proto;
 	u_int8_t	 direction;
 };
@@ -525,19 +523,6 @@ or deleted by the kernel.
 Yes, tables can be deleted if one removes the
 .Va persist
 flag of an unreferenced table.
-.It Dv DIOCRINABEGIN Fa "struct pfioc_table"
-Starts a transaction with the inactive set of tables.
-Cleans up any leftover from a previously aborted transaction, and returns
-a new ticket.
-On exit, pfrio_ndel contains the number of leftover table deleted, and
-pfrio_ticket contains a valid ticket to use for the following two IOCTLs.
-.It Dv DIOCRINACOMMIT Fa "struct pfioc_table"
-Commit the inactive set of tables into the active set.
-While copying the addresses, do a best effort to keep statistics for
-addresses present before and after the commit.
-On entry, io->pfrio_ticket takes a valid ticket.
-On exit, io->pfrio_nadd and io->pfrio_nchange contain the number of tables
-added and altered by the commit operation.
 .It Dv DIOCRINADEFINE Fa "struct pfioc_table"
 Defines a table in the inactive set.
 On entry, pfrio_table contains the table id and pfrio_buffer[pfrio_size]
@@ -546,6 +531,46 @@ A valid ticket must also be supplied to pfrio_ticket.
 On exit, pfrio_nadd contains 0 if the table was already defined in the
 inactive list, or 1 if a new table has been created.
 pfrio_naddr contains the number of addresses effectively put in the table.
+.It Dv DIOCXBEGIN Fa "struct pfioc_trans"
+.Bd -literal
+#define PF_RULESET_ALTQ         (PF_RULESET_MAX)
+#define PF_RULESET_TABLE        (PF_RULESET_MAX+1)
+struct pfioc_trans {
+        int              size;  /* number of elements */
+        int              esize; /* size of each element in bytes */
+        struct pfioc_trans_e {
+                int             rs_num;
+                char            anchor[PF_ANCHOR_NAME_SIZE];
+                char            ruleset[PF_RULESET_NAME_SIZE];
+                u_int32_t       ticket;
+        }               *array;
+};
+.Ed
+.Pp
+Clears all the inactive rulesets specified in the
+.Fa "struct pfioc_trans_e"
+array.
+For each ruleset, a ticket is returned for subsequent "add rule" IOCTLs,
+as well as for the
+.Dv DIOCXCOMMIT
+and
+.Dv DIOCXROLLBACK
+calls.
+.It Dv DIOCXCOMMIT Fa "struct pfioc_trans"
+Atomically switch a vector of inactive rulesets to the active rulesets.
+Implemented as a standard 2-phase commit, which will either fail for all
+rulesets or completely succeed.
+All tickets need to be valid.
+Returns
+.Dv EBUSY
+if a concurrent process is trying to update some of the same rulesets
+concurrently.
+.It Dv DIOCXROLLBACK Fa "struct pfioc_trans"
+Clean up the kernel by undoing all changes that have taken place on the
+inactive rulesets since the last
+.Dv DIOCXBEGIN .
+.Dv DIOCXROLLBACK
+will silently ignore rulesets for which the ticket is invalid.
 .It Dv DIOCFPFLUSH
 Flush the passive OS fingerprint table.
 .It Dv DIOCFPADD Fa "struct pf_osfp_ioctl"
@@ -623,6 +648,115 @@ The rest of the structure members will come back filled.
 Get the whole list by repeatedly incrementing the
 .Va fp_getnum
 number until the ioctl returns EBUSY.
+.It Dv DIOCGETSRCNODES Fa "struct pfioc_src_nodes"
+.Bd -literal
+struct pfioc_src_nodes {
+        int     psn_len;
+        union {
+                caddr_t          psu_buf;
+                struct pf_src_node      *psu_src_nodes;
+        } psn_u;
+#define psn_buf         psn_u.psu_buf
+#define psn_src_nodes   psn_u.psu_src_nodes
+};
+.Ed
+.Pp
+Get the list of source nodes kept by the
+.Ar sticky-address
+and
+.Ar source-track
+options.
+The ioctl must be called once with
+.Va psn_len
+set to 0.
+If the ioctl returns without error,
+.Va psn_len
+will be set to the size of the buffer required to hold all the
+.Va pf_src_node
+structures held in the table.
+A buffer of this size should then be allocated, and a pointer to this buffer
+placed in
+.Va psn_buf .
+The ioctl must then be called again to fill this buffer with the actual
+source node data.
+After the ioctl call
+.Va psn_len
+will be set to the length of the buffer actually used.
+.It Dv DIOCCLRSRCNODES Fa "struct pfioc_table"
+Clear the tree of source tracking nodes.
+.It Dv DIOCIGETIFACES Fa "struct pfioc_iface"
+Gets the list of interfaces and interface drivers known to
+.Nm .
+All the IOCTLs that manipulate interfaces
+use the same structure described below:
+.Bd -literal
+struct pfioc_iface {
+        char                     pfiio_name[IFNAMSIZ];
+        void                    *pfiio_buffer;
+        int                      pfiio_esize;
+        int                      pfiio_size;
+        int                      pfiio_nzero;
+        int                      pfiio_flags;
+};
+
+#define PFI_FLAG_GROUP     0x0001  /* gets groups of interfaces */
+#define PFI_FLAG_INSTANCE  0x0002  /* gets single interfaces */
+#define PFI_FLAG_ALLMASK   0x0003
+.Ed
+.Pp
+If not empty,
+.Va pfiio_name
+can be used to restrict the search to a specific interface or driver.
+.Va pfiio_buffer[pfiio_size]
+is the user-supplied buffer for returning the data.
+On entry,
+.Va pfiio_size
+represents the number of
+.Va pfi_if
+entries that can fit into the buffer.
+The kernel will replace this value by the real number of entries it wants
+to return.
+.Va pfiio_esize
+should be set to sizeof(struct pfi_if).
+.Va pfiio_flags
+should be set to
+.Dv PFI_FLAG_GROUP , PFI_FLAG_INSTANCE ,
+or both to tell the kernel to return a group of interfaces
+(drivers, like "fxp"), real interface instances (like "fxp1") or both.
+The data is returned in the
+.Va pfi_if
+structure described below:
+.Bd -literal
+struct pfi_if {
+        char                             pfif_name[IFNAMSIZ];
+        u_int64_t                        pfif_packets[2][2][2];
+        u_int64_t                        pfif_bytes[2][2][2];
+        u_int64_t                        pfif_addcnt;
+        u_int64_t                        pfif_delcnt;
+        long                             pfif_tzero;
+        int                              pfif_states;
+        int                              pfif_rules;
+        int                              pfif_flags;
+};
+
+#define PFI_IFLAG_GROUP         0x0001  /* group of interfaces */
+#define PFI_IFLAG_INSTANCE      0x0002  /* single instance */
+#define PFI_IFLAG_CLONABLE      0x0010  /* clonable group */
+#define PFI_IFLAG_DYNAMIC       0x0020  /* dynamic group */
+#define PFI_IFLAG_ATTACHED      0x0040  /* interface attached */
+#define PFI_IFLAG_REFERENCED    0x0080  /* referenced by rules */
+.Ed
+.It Dv DIOCICLRISTATS Fa "struct pfioc_iface"
+Clear the statistics counters of one or more interfaces.
+.Va pfiio_name
+and
+.Va pfrio_flags
+can be used to select which interfaces need to be cleared.
+The filtering process is the same as for
+.Dv DIOCIGETIFACES .
+.Va pfiio_nzero
+will be set by the kernel to the number of interfaces and drivers
+that have been cleared.
 .El
 .Sh EXAMPLES
 The following example demonstrates how to use the DIOCNATLOOK command

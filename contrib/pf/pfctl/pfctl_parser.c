@@ -1,7 +1,8 @@
-/*	$OpenBSD: pfctl_parser.c,v 1.175 2003/09/18 20:27:58 cedric Exp $ */
+/*	$OpenBSD: pfctl_parser.c,v 1.194 2004/03/15 15:25:44 dhartmei Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
+ * Copyright (c) 2002,2003 Henning Brauer
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +32,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -192,6 +194,7 @@ const struct pf_timeout pf_timeouts[] = {
 	{ "interval",		PFTM_INTERVAL },
 	{ "adaptive.start",	PFTM_ADAPTIVE_START },
 	{ "adaptive.end",	PFTM_ADAPTIVE_END },
+	{ "src.track",		PFTM_SRC_NODE },
 	{ NULL,			0 }
 };
 
@@ -251,7 +254,7 @@ geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 		}
 	} else {
 		for (i=0; i < (sizeof (icmp6_code) /
-		   sizeof(icmp6_code[0])); i++) {
+		    sizeof(icmp6_code[0])); i++) {
 			if (type == icmp6_code[i].type &&
 			    code == icmp6_code[i].code)
 				return (&icmp6_code[i]);
@@ -458,23 +461,27 @@ print_pool(struct pf_pool *pool, u_int16_t p1, u_int16_t p2,
 		printf(" round-robin");
 		break;
 	}
+	if (pool->opts & PF_POOL_STICKYADDR)
+		printf(" sticky-address");
 	if (id == PF_NAT && p1 == 0 && p2 == 0)
 		printf(" static-port");
 }
 
 const char	*pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
 const char	*pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
+const char	*pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
 
 void
-print_status(struct pf_status *s)
+print_status(struct pf_status *s, int opts)
 {
-	char	statline[80];
+	char	statline[80], *running;
 	time_t	runtime;
 	int	i;
 
 	runtime = time(NULL) - s->since;
+	running = s->running ? "Enabled" : "Disabled";
 
-	if (s->running) {
+	if (s->since) {
 		unsigned	sec, min, hrs, day = runtime;
 
 		sec = day % 60;
@@ -484,54 +491,74 @@ print_status(struct pf_status *s)
 		hrs = day % 24;
 		day /= 24;
 		snprintf(statline, sizeof(statline),
-		    "Status: Enabled for %u days %.2u:%.2u:%.2u",
-		    day, hrs, min, sec);
+		    "Status: %s for %u days %.2u:%.2u:%.2u",
+		    running, day, hrs, min, sec);
 	} else
-		snprintf(statline, sizeof(statline), "Status: Disabled");
+		snprintf(statline, sizeof(statline), "Status: %s", running);
 	printf("%-44s", statline);
 	switch (s->debug) {
-	case 0:
+	case PF_DEBUG_NONE:
 		printf("%15s\n\n", "Debug: None");
 		break;
-	case 1:
+	case PF_DEBUG_URGENT:
 		printf("%15s\n\n", "Debug: Urgent");
 		break;
-	case 2:
+	case PF_DEBUG_MISC:
 		printf("%15s\n\n", "Debug: Misc");
 		break;
+	case PF_DEBUG_NOISY:
+		printf("%15s\n\n", "Debug: Loud");
+		break;
 	}
+	printf("Hostid: 0x%08x\n\n", ntohl(s->hostid));
 	if (s->ifname[0] != 0) {
 		printf("Interface Stats for %-16s %5s %16s\n",
 		    s->ifname, "IPv4", "IPv6");
 		printf("  %-25s %14llu %16llu\n", "Bytes In",
-		    s->bcounters[0][0], s->bcounters[1][0]);
+		    (unsigned long long)s->bcounters[0][0],
+		    (unsigned long long)s->bcounters[1][0]);
 		printf("  %-25s %14llu %16llu\n", "Bytes Out",
-		    s->bcounters[0][1], s->bcounters[1][1]);
+		    (unsigned long long)s->bcounters[0][1],
+		    (unsigned long long)s->bcounters[1][1]);
 		printf("  Packets In\n");
 		printf("    %-23s %14llu %16llu\n", "Passed",
-		    s->pcounters[0][0][PF_PASS],
-		    s->pcounters[1][0][PF_PASS]);
+		    (unsigned long long)s->pcounters[0][0][PF_PASS],
+		    (unsigned long long)s->pcounters[1][0][PF_PASS]);
 		printf("    %-23s %14llu %16llu\n", "Blocked",
-		    s->pcounters[0][0][PF_DROP],
-		    s->pcounters[1][0][PF_DROP]);
+		    (unsigned long long)s->pcounters[0][0][PF_DROP],
+		    (unsigned long long)s->pcounters[1][0][PF_DROP]);
 		printf("  Packets Out\n");
 		printf("    %-23s %14llu %16llu\n", "Passed",
-		    s->pcounters[0][1][PF_PASS],
-		    s->pcounters[1][1][PF_PASS]);
+		    (unsigned long long)s->pcounters[0][1][PF_PASS],
+		    (unsigned long long)s->pcounters[1][1][PF_PASS]);
 		printf("    %-23s %14llu %16llu\n\n", "Blocked",
-		    s->pcounters[0][1][PF_DROP],
-		    s->pcounters[1][1][PF_DROP]);
+		    (unsigned long long)s->pcounters[0][1][PF_DROP],
+		    (unsigned long long)s->pcounters[1][1][PF_DROP]);
 	}
 	printf("%-27s %14s %16s\n", "State Table", "Total", "Rate");
 	printf("  %-25s %14u %14s\n", "current entries", s->states, "");
 	for (i = 0; i < FCNT_MAX; i++) {
-		printf("  %-25s %14llu", pf_fcounters[i],
+		printf("  %-25s %14llu ", pf_fcounters[i],
 			    (unsigned long long)s->fcounters[i]);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)s->fcounters[i] / (double)runtime);
 		else
 			printf("%14s\n", "");
+	}
+	if (opts & PF_OPT_VERBOSE) {
+		printf("Source Tracking Table\n");
+		printf("  %-25s %14u %14s\n", "current entries",
+		    s->src_nodes, "");
+		for (i = 0; i < SCNT_MAX; i++) {
+			printf("  %-25s %14lld ", pf_scounters[i],
+				    s->scounters[i]);
+			if (runtime > 0)
+				printf("%14.1f/s\n",
+				    (double)s->scounters[i] / (double)runtime);
+			else
+				printf("%14s\n", "");
+		}
 	}
 	printf("Counters\n");
 	for (i = 0; i < PFRES_MAX; i++) {
@@ -542,6 +569,57 @@ print_status(struct pf_status *s)
 			    (double)s->counters[i] / (double)runtime);
 		else
 			printf("%14s\n", "");
+	}
+}
+
+void
+print_src_node(struct pf_src_node *sn, int opts)
+{
+	struct pf_addr_wrap aw;
+	int min, sec;
+
+	memset(&aw, 0, sizeof(aw));
+	if (sn->af == AF_INET)
+		aw.v.a.mask.addr32[0] = 0xffffffff;
+	else
+		memset(&aw.v.a.mask, 0xff, sizeof(aw.v.a.mask));
+
+	aw.v.a.addr = sn->addr;
+	print_addr(&aw, sn->af, opts & PF_OPT_VERBOSE2);
+	printf(" -> ");
+	aw.v.a.addr = sn->raddr;
+	print_addr(&aw, sn->af, opts & PF_OPT_VERBOSE2);
+	printf(" (%d states)\n", sn->states);
+	if (opts & PF_OPT_VERBOSE) {
+		sec = sn->creation % 60;
+		sn->creation /= 60;
+		min = sn->creation % 60;
+		sn->creation /= 60;
+		printf("   age %.2u:%.2u:%.2u", sn->creation, min, sec);
+		if (sn->states == 0) {
+			sec = sn->expire % 60;
+			sn->expire /= 60;
+			min = sn->expire % 60;
+			sn->expire /= 60;
+			printf(", expires in %.2u:%.2u:%.2u",
+			    sn->expire, min, sec);
+		}
+		printf(", %u pkts, %u bytes", sn->packets, sn->bytes);
+		switch (sn->ruletype) {
+		case PF_NAT:
+			if (sn->rule.nr != -1)
+				printf(", nat rule %u", sn->rule.nr);
+			break;
+		case PF_RDR:
+			if (sn->rule.nr != -1)
+				printf(", rdr rule %u", sn->rule.nr);
+			break;
+		case PF_PASS:
+			if (sn->rule.nr != -1)
+				printf(", filter rule %u", sn->rule.nr);
+			break;
+		}
+		printf("\n");
 	}
 }
 
@@ -582,7 +660,7 @@ print_rule(struct pf_rule *r, int verbose)
 			ic6 = geticmpcodebynumber(r->return_icmp6 >> 8,
 			    r->return_icmp6 & 255, AF_INET6);
 
-			switch(r->af) {
+			switch (r->af) {
 			case AF_INET:
 				printf(" return-icmp");
 				if (ic == NULL)
@@ -701,7 +779,13 @@ print_rule(struct pf_rule *r, int verbose)
 	else if (r->keep_state == PF_STATE_SYNPROXY)
 		printf(" synproxy state");
 	opts = 0;
-	if (r->max_states)
+	if (r->max_states || r->max_src_nodes || r->max_src_states)
+		opts = 1;
+	if (r->rule_flag & PFRULE_NOSYNC)
+		opts = 1;
+	if (r->rule_flag & PFRULE_SRCTRACK)
+		opts = 1;
+	if (r->rule_flag & (PFRULE_IFBOUND | PFRULE_GRBOUND))
 		opts = 1;
 	for (i = 0; !opts && i < PFTM_MAX; ++i)
 		if (r->timeout[i])
@@ -710,6 +794,46 @@ print_rule(struct pf_rule *r, int verbose)
 		printf(" (");
 		if (r->max_states) {
 			printf("max %u", r->max_states);
+			opts = 0;
+		}
+		if (r->rule_flag & PFRULE_NOSYNC) {
+			if (!opts)
+				printf(", ");
+			printf("no-sync");
+			opts = 0;
+		}
+		if (r->rule_flag & PFRULE_SRCTRACK) {
+			if (!opts)
+				printf(", ");
+			printf("source-track");
+			if (r->rule_flag & PFRULE_RULESRCTRACK)
+				printf(" rule");
+			else
+				printf(" global");
+			opts = 0;
+		}
+		if (r->max_src_states) {
+			if (!opts)
+				printf(", ");
+			printf("max-src-states %u", r->max_src_states);
+			opts = 0;
+		}
+		if (r->max_src_nodes) {
+			if (!opts)
+				printf(", ");
+			printf("max-src-nodes %u", r->max_src_nodes);
+			opts = 0;
+		}
+		if (r->rule_flag & PFRULE_IFBOUND) {
+			if (!opts)
+				printf(", ");
+			printf("if-bound");
+			opts = 0;
+		}
+		if (r->rule_flag & PFRULE_GRBOUND) {
+			if (!opts)
+				printf(", ");
+			printf("group-bound");
 			opts = 0;
 		}
 		for (i = 0; i < PFTM_MAX; ++i)
@@ -879,6 +1003,8 @@ ifa_load(void)
 {
 	struct ifaddrs		*ifap, *ifa;
 	struct node_host	*n = NULL, *h = NULL;
+	struct pfr_buffer	 b;
+	struct pfi_if		*p;
 
 	if (getifaddrs(&ifap) < 0)
 		err(1, "getifaddrs");
@@ -897,7 +1023,8 @@ ifa_load(void)
 		if (n->af == AF_INET6 &&
 		    IN6_IS_ADDR_LINKLOCAL(&((struct sockaddr_in6 *)
 		    ifa->ifa_addr)->sin6_addr) &&
-		    ((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_scope_id == 0) {
+		    ((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_scope_id ==
+		    0) {
 			struct sockaddr_in6	*sin6;
 
 			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
@@ -919,6 +1046,10 @@ ifa_load(void)
 				memcpy(&n->bcast, &((struct sockaddr_in *)
 				    ifa->ifa_broadaddr)->sin_addr.s_addr,
 				    sizeof(struct in_addr));
+			if (ifa->ifa_dstaddr != NULL)
+				memcpy(&n->peer, &((struct sockaddr_in *)
+				    ifa->ifa_dstaddr)->sin_addr.s_addr,
+				    sizeof(struct in_addr));
 		} else if (n->af == AF_INET6) {
 			memcpy(&n->addr.v.a.addr, &((struct sockaddr_in6 *)
 			    ifa->ifa_addr)->sin6_addr.s6_addr,
@@ -929,6 +1060,10 @@ ifa_load(void)
 			if (ifa->ifa_broadaddr != NULL)
 				memcpy(&n->bcast, &((struct sockaddr_in6 *)
 				    ifa->ifa_broadaddr)->sin6_addr.s6_addr,
+				    sizeof(struct in6_addr));
+			if (ifa->ifa_dstaddr != NULL)
+				 memcpy(&n->peer, &((struct sockaddr_in6 *)
+				    ifa->ifa_dstaddr)->sin6_addr.s6_addr,
 				    sizeof(struct in6_addr));
 			n->ifindex = ((struct sockaddr_in6 *)
 			    ifa->ifa_addr)->sin6_scope_id;
@@ -944,15 +1079,58 @@ ifa_load(void)
 			h->tail = n;
 		}
 	}
+
+	/* add interface groups, including clonable and dynamic stuff */
+	bzero(&b, sizeof(b));
+	b.pfrb_type = PFRB_IFACES;
+	for (;;) {
+		if (pfr_buf_grow(&b, b.pfrb_size))
+			err(1, "ifa_load: pfr_buf_grow");
+		b.pfrb_size = b.pfrb_msize;
+		if (pfi_get_ifaces(NULL, b.pfrb_caddr, &b.pfrb_size,
+		    PFI_FLAG_GROUP))
+			err(1, "ifa_load: pfi_get_ifaces");
+		if (b.pfrb_size <= b.pfrb_msize)
+			break;
+	}
+	PFRB_FOREACH(p, &b) {
+		n = calloc(1, sizeof(struct node_host));
+		if (n == NULL)
+			err(1, "address: calloc");
+		n->af = AF_LINK;
+		n->ifa_flags = PF_IFA_FLAG_GROUP;
+		if (p->pfif_flags & PFI_IFLAG_DYNAMIC)
+			n->ifa_flags |= PF_IFA_FLAG_DYNAMIC;
+		if (p->pfif_flags & PFI_IFLAG_CLONABLE)
+			n->ifa_flags |= PF_IFA_FLAG_CLONABLE;
+		if (!strcmp(p->pfif_name, "lo"))
+			n->ifa_flags |= IFF_LOOPBACK;
+		if ((n->ifname = strdup(p->pfif_name)) == NULL)
+			err(1, "ifa_load: strdup");
+		n->next = NULL;
+		n->tail = n;
+		if (h == NULL)
+			h = n;
+		else {
+			h->tail->next = n;
+			h->tail = n;
+		}
+	}
+
 	iftab = h;
 	freeifaddrs(ifap);
 }
 
 struct node_host *
-ifa_exists(const char *ifa_name)
+ifa_exists(const char *ifa_name, int group_ok)
 {
 	struct node_host	*n;
+	char			*p, buf[IFNAMSIZ];
+	int			 group;
 
+	group = !isdigit(ifa_name[strlen(ifa_name) - 1]);
+	if (group && !group_ok)
+		return (NULL);
 	if (iftab == NULL)
 		ifa_load();
 
@@ -960,14 +1138,28 @@ ifa_exists(const char *ifa_name)
 		if (n->af == AF_LINK && !strncmp(n->ifname, ifa_name, IFNAMSIZ))
 			return (n);
 	}
+	if (!group) {
+		/* look for clonable and/or dynamic interface */
+		strlcpy(buf, ifa_name, sizeof(buf));
+		for (p = buf + strlen(buf) - 1; p > buf && isdigit(*p); p--)
+			*p = '\0';
+		for (n = iftab; n != NULL; n = n->next)
+			if (n->af == AF_LINK &&
+			    !strncmp(n->ifname, buf, IFNAMSIZ))
+				break;
+		if (n != NULL && n->ifa_flags &
+		    (PF_IFA_FLAG_DYNAMIC | PF_IFA_FLAG_CLONABLE))
+			return (n);	/* XXX */
+	}
 	return (NULL);
 }
 
 struct node_host *
-ifa_lookup(const char *ifa_name, enum pfctl_iflookup_mode mode)
+ifa_lookup(const char *ifa_name, int flags)
 {
 	struct node_host	*p = NULL, *h = NULL, *n = NULL;
-	int			 return_all = 0;
+	int			 return_all = 0, got4 = 0, got6 = 0;
+	const char		 *last_if = NULL;
 
 	if (!strncmp(ifa_name, "self", IFNAMSIZ))
 		return_all = 1;
@@ -977,23 +1169,44 @@ ifa_lookup(const char *ifa_name, enum pfctl_iflookup_mode mode)
 
 	for (p = iftab; p; p = p->next) {
 		if (!((p->af == AF_INET || p->af == AF_INET6) &&
-		    (!strncmp(p->ifname, ifa_name, IFNAMSIZ) || return_all)))
+		    (!strncmp(p->ifname, ifa_name, strlen(ifa_name)) ||
+		    return_all)))
 			continue;
-		if (mode == PFCTL_IFLOOKUP_BCAST && p->af != AF_INET)
+		if ((flags & PFI_AFLAG_BROADCAST) && p->af != AF_INET)
 			continue;
-		if (mode == PFCTL_IFLOOKUP_NET && p->ifindex > 0)
+		if ((flags & PFI_AFLAG_BROADCAST) &&
+		    !(p->ifa_flags & IFF_BROADCAST))
 			continue;
+		if ((flags & PFI_AFLAG_PEER) &&
+		    !(p->ifa_flags & IFF_POINTOPOINT))
+			continue;
+		if ((flags & PFI_AFLAG_NETWORK) && p->ifindex > 0)
+			continue;
+		if (last_if == NULL || strcmp(last_if, p->ifname))
+			got4 = got6 = 0;
+		last_if = p->ifname;
+		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET && got4)
+			continue;
+		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET6 && got6)
+			continue;
+		if (p->af == AF_INET)
+			got4 = 1;
+		else
+			got6 = 1;
 		n = calloc(1, sizeof(struct node_host));
 		if (n == NULL)
 			err(1, "address: calloc");
 		n->af = p->af;
-		if (mode == PFCTL_IFLOOKUP_BCAST)
+		if (flags & PFI_AFLAG_BROADCAST)
 			memcpy(&n->addr.v.a.addr, &p->bcast,
+			    sizeof(struct pf_addr));
+		else if (flags & PFI_AFLAG_PEER)
+			memcpy(&n->addr.v.a.addr, &p->peer,
 			    sizeof(struct pf_addr));
 		else
 			memcpy(&n->addr.v.a.addr, &p->addr.v.a.addr,
 			    sizeof(struct pf_addr));
-		if (mode == PFCTL_IFLOOKUP_NET)
+		if (flags & PFI_AFLAG_NETWORK)
 			set_ipmask(n, unmask(&p->addr.v.a.mask, n->af));
 		else {
 			if (n->af == AF_INET) {
@@ -1017,9 +1230,6 @@ ifa_lookup(const char *ifa_name, enum pfctl_iflookup_mode mode)
 			h->tail->next = n;
 			h->tail = n;
 		}
-	}
-	if (h == NULL && mode == PFCTL_IFLOOKUP_HOST) {
-		fprintf(stderr, "no IP address found for %s\n", ifa_name);
 	}
 	return (h);
 }
@@ -1078,29 +1288,39 @@ host_if(const char *s, int mask)
 {
 	struct node_host	*n, *h = NULL;
 	char			*p, *ps;
-	int			 mode = PFCTL_IFLOOKUP_HOST;
+	int			 flags = 0;
 
-	if ((p = strrchr(s, ':')) != NULL &&
-	    (!strcmp(p+1, "network") || !strcmp(p+1, "broadcast"))) {
+	if ((ps = strdup(s)) == NULL)
+		err(1, "host_if: strdup");
+	while ((p = strrchr(ps, ':')) != NULL) {
 		if (!strcmp(p+1, "network"))
-			mode = PFCTL_IFLOOKUP_NET;
-		if (!strcmp(p+1, "broadcast"))
-			mode = PFCTL_IFLOOKUP_BCAST;
-		if (mask > -1) {
-			fprintf(stderr, "network or broadcast lookup, but "
-			    "extra netmask given\n");
+			flags |= PFI_AFLAG_NETWORK;
+		else if (!strcmp(p+1, "broadcast"))
+			flags |= PFI_AFLAG_BROADCAST;
+		else if (!strcmp(p+1, "peer"))
+			flags |= PFI_AFLAG_PEER;
+		else if (!strcmp(p+1, "0"))
+			flags |= PFI_AFLAG_NOALIAS;
+		else {
+			free(ps);
 			return (NULL);
 		}
-		if ((ps = malloc(strlen(s) - strlen(p) + 1)) == NULL)
-			err(1, "host: malloc");
-		strlcpy(ps, s, strlen(s) - strlen(p) + 1);
-	} else
-		if ((ps = strdup(s)) == NULL)
-			err(1, "host_if: strdup");
-
-	if (ifa_exists(ps) || !strncmp(ps, "self", IFNAMSIZ)) {
+		*p = '\0';
+	}
+	if (flags & (flags - 1) & PFI_AFLAG_MODEMASK) { /* Yep! */
+		fprintf(stderr, "illegal combination of interface modifiers\n");
+		free(ps);
+		return (NULL);
+	}
+	if ((flags & (PFI_AFLAG_NETWORK|PFI_AFLAG_BROADCAST)) && mask > -1) {
+		fprintf(stderr, "network or broadcast lookup, but "
+		    "extra netmask given\n");
+		free(ps);
+		return (NULL);
+	}
+	if (ifa_exists(ps, 1) || !strncmp(ps, "self", IFNAMSIZ)) {
 		/* interface with this name exists */
-		h = ifa_lookup(ps, mode);
+		h = ifa_lookup(ps, flags);
 		for (n = h; n != NULL && mask > -1; n = n->next)
 			set_ipmask(n, mask);
 	}
@@ -1114,20 +1334,26 @@ host_v4(const char *s, int mask)
 {
 	struct node_host	*h = NULL;
 	struct in_addr		 ina;
-	int			 bits;
+	int			 bits = 32;
 
 	memset(&ina, 0, sizeof(struct in_addr));
-	if ((bits = inet_net_pton(AF_INET, s, &ina, sizeof(ina))) > -1) {
-		h = calloc(1, sizeof(struct node_host));
-		if (h == NULL)
-			err(1, "address: calloc");
-		h->ifname = NULL;
-		h->af = AF_INET;
-		h->addr.v.a.addr.addr32[0] = ina.s_addr;
-		set_ipmask(h, bits);
-		h->next = NULL;
-		h->tail = h;
+	if (strrchr(s, '/') != NULL) {
+		if ((bits = inet_net_pton(AF_INET, s, &ina, sizeof(ina))) == -1)
+			return (NULL);
+	} else {
+		if (inet_pton(AF_INET, s, &ina) != 1)
+			return (NULL);
 	}
+
+	h = calloc(1, sizeof(struct node_host));
+	if (h == NULL)
+		err(1, "address: calloc");
+	h->ifname = NULL;
+	h->af = AF_INET;
+	h->addr.v.a.addr.addr32[0] = ina.s_addr;
+	set_ipmask(h, bits);
+	h->next = NULL;
+	h->tail = h;
 
 	return (h);
 }
@@ -1167,12 +1393,20 @@ host_dns(const char *s, int v4mask, int v6mask)
 {
 	struct addrinfo		 hints, *res0, *res;
 	struct node_host	*n, *h = NULL;
-	int			 error;
+	int			 error, noalias = 0;
+	int			 got4 = 0, got6 = 0;
+	char			*p, *ps;
 
+	if ((ps = strdup(s)) == NULL)
+		err(1, "host_if: strdup");
+	if ((p = strrchr(ps, ':')) != NULL && !strcmp(p, ":0")) {
+		noalias = 1;
+		*p = '\0';
+	}
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM; /* DUMMY */
-	error = getaddrinfo(s, NULL, &hints, &res0);
+	error = getaddrinfo(ps, NULL, &hints, &res0);
 	if (error)
 		return (h);
 
@@ -1180,6 +1414,17 @@ host_dns(const char *s, int v4mask, int v6mask)
 		if (res->ai_family != AF_INET &&
 		    res->ai_family != AF_INET6)
 			continue;
+		if (noalias) {
+			if (res->ai_family == AF_INET) {
+				if (got4)
+					continue;
+				got4 = 1;
+			} else {
+				if (got6)
+					continue;
+				got6 = 1;
+			}
+		}
 		n = calloc(1, sizeof(struct node_host));
 		if (n == NULL)
 			err(1, "host_dns: calloc");
@@ -1211,6 +1456,7 @@ host_dns(const char *s, int v4mask, int v6mask)
 		}
 	}
 	freeaddrinfo(res0);
+	free(ps);
 
 	return (h);
 }
@@ -1283,4 +1529,46 @@ append_addr_host(struct pfr_buffer *b, struct node_host *n, int test, int not)
 	} while ((n = n->next) != NULL);
 
 	return (0);
+}
+
+int
+pfctl_add_trans(struct pfr_buffer *buf, int rs_num, const char *anchor,
+    const char *ruleset)
+{
+	struct pfioc_trans_e trans;
+
+	bzero(&trans, sizeof(trans));
+	trans.rs_num = rs_num;
+	if (strlcpy(trans.anchor, anchor,
+	    sizeof(trans.anchor)) >= sizeof(trans.anchor) ||
+	    strlcpy(trans.ruleset, ruleset,
+	    sizeof(trans.ruleset)) >= sizeof(trans.ruleset))
+		errx(1, "pfctl_add_trans: strlcpy");
+
+	return pfr_buf_add(buf, &trans);
+}
+
+u_int32_t
+pfctl_get_ticket(struct pfr_buffer *buf, int rs_num, const char *anchor,
+    const char *ruleset)
+{
+	struct pfioc_trans_e *p;
+
+	PFRB_FOREACH(p, buf)
+		if (rs_num == p->rs_num && !strcmp(anchor, p->anchor) &&
+		    !strcmp(ruleset, p->ruleset))
+			return (p->ticket);
+	errx(1, "pfr_get_ticket: assertion failed");
+}
+
+int
+pfctl_trans(int dev, struct pfr_buffer *buf, u_long cmd, int from)
+{
+	struct pfioc_trans trans;
+
+	bzero(&trans, sizeof(trans));
+	trans.size = buf->pfrb_size - from;
+	trans.esize = sizeof(struct pfioc_trans_e);
+	trans.array = ((struct pfioc_trans_e *)buf->pfrb_caddr) + from;
+	return ioctl(dev, cmd, &trans);
 }

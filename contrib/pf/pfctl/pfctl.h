@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl.h,v 1.25 2003/08/29 21:47:36 cedric Exp $ */
+/*	$OpenBSD: pfctl.h,v 1.33 2004/02/19 21:37:01 cedric Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -33,7 +33,8 @@
 #ifndef _PFCTL_H_
 #define _PFCTL_H_
 
-enum {	PFRB_TABLES = 1, PFRB_TSTATS, PFRB_ADDRS, PFRB_ASTATS, PFRB_MAX };
+enum {	PFRB_TABLES = 1, PFRB_TSTATS, PFRB_ADDRS, PFRB_ASTATS,
+	PFRB_IFACES, PFRB_TRANS, PFRB_MAX };
 struct pfr_buffer {
 	int	 pfrb_type;	/* type of content, see enum above */
 	int	 pfrb_size;	/* number of objects in buffer */
@@ -57,7 +58,7 @@ int	 pfr_clr_addrs(struct pfr_table *, int *, int);
 int	 pfr_add_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
 int	 pfr_del_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
 int	 pfr_set_addrs(struct pfr_table *, struct pfr_addr *, int, int *,
-	     int *, int *, int *, int);
+	    int *, int *, int *, int);
 int	 pfr_get_addrs(struct pfr_table *, struct pfr_addr *, int *, int);
 int	 pfr_get_astats(struct pfr_table *, struct pfr_astats *, int *, int);
 int	 pfr_clr_astats(struct pfr_table *, struct pfr_addr *, int, int *, int);
@@ -74,13 +75,17 @@ int	 pfr_buf_grow(struct pfr_buffer *, int);
 int	 pfr_buf_load(struct pfr_buffer *, char *, int,
 	    int (*)(struct pfr_buffer *, char *, int));
 char	*pfr_strerror(int);
+int	 pfi_get_ifaces(const char *, struct pfi_if *, int *, int);
+int	 pfi_clr_istats(const char *, int *, int);
 
+void	 pfctl_print_title(char *);
 int	 pfctl_clear_tables(const char *, const char *, int);
 int	 pfctl_show_tables(const char *, const char *, int);
 int	 pfctl_command_tables(int, char *[], char *, const char *, char *,
 	    const char *, const char *, int);
-int	 pfctl_show_altq(int, int, int);
+int	 pfctl_show_altq(int, const char *, int, int);
 void	 warn_namespace_collision(const char *);
+int	 pfctl_show_ifaces(const char *, int);
 
 #ifndef DEFAULT_PRIORITY
 #define DEFAULT_PRIORITY	1
@@ -111,5 +116,9 @@ void	 print_state(struct pf_state *, int);
 int	 unmask(struct pf_addr *, sa_family_t);
 
 int	 pfctl_cmdline_symset(char *);
+int	 pfctl_add_trans(struct pfr_buffer *, int, const char *, const char *);
+u_int32_t
+	 pfctl_get_ticket(struct pfr_buffer *, int, const char *, const char *);
+int	 pfctl_trans(int, struct pfr_buffer *, u_long, int);
 
 #endif /* _PFCTL_H_ */

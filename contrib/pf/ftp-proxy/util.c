@@ -1,4 +1,4 @@
-/*	$OpenBSD: util.c,v 1.16 2003/06/28 01:04:57 deraadt Exp $ */
+/*	$OpenBSD: util.c,v 1.18 2004/01/22 16:10:30 beck Exp $ */
 
 /*
  * Copyright (c) 1996-2001
@@ -58,6 +58,7 @@
 
 int Debug_Level;
 int Use_Rdns;
+in_addr_t Bind_Addr = INADDR_NONE;
 
 void		debuglog(int debug_level, const char *fmt, ...);
 
@@ -77,7 +78,8 @@ get_proxy_env(int connected_fd, struct sockaddr_in *real_server_sa_ptr,
     struct sockaddr_in *client_sa_ptr)
 {
 	struct pfioc_natlook natlook;
-	int slen, fd;
+	socklen_t slen;
+	int fd;
 
 	slen = sizeof(*real_server_sa_ptr);
 	if (getsockname(connected_fd, (struct sockaddr *)real_server_sa_ptr,
@@ -257,10 +259,13 @@ get_backchannel_socket(int type, int min_port, int max_port, int start_port,
 
 		bzero(&sa, sizeof sa);
 		sa.sin_family = AF_INET;
-		if (sap == NULL)
-			sa.sin_addr.s_addr = INADDR_ANY;
+		if (Bind_Addr == INADDR_NONE)
+			if (sap == NULL)
+				sa.sin_addr.s_addr = INADDR_ANY;
+			else
+				sa.sin_addr.s_addr = sap->sin_addr.s_addr;
 		else
-			sa.sin_addr.s_addr = sap->sin_addr.s_addr;
+			sa.sin_addr.s_addr = Bind_Addr;
 
 		/*
 		 * Indicate that we want to reuse a port if it happens that the

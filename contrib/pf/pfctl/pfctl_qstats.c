@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_qstats.c,v 1.24 2003/07/31 09:46:08 kjc Exp $ */
+/*	$OpenBSD: pfctl_qstats.c,v 1.29 2004/03/15 15:25:44 dhartmei Exp $ */
 
 /*
  * Copyright (c) Henning Brauer <henning@openbsd.org>
@@ -81,24 +81,36 @@ void			 pfctl_print_altq_nodestat(int,
 void			 update_avg(struct pf_altq_node *);
 
 int
-pfctl_show_altq(int dev, int opts, int verbose2)
+pfctl_show_altq(int dev, const char *iface, int opts, int verbose2)
 {
 	struct pf_altq_node	*root = NULL, *node;
+	int			 nodes, dotitle = (opts & PF_OPT_SHOWALL);
 
-	if (pfctl_update_qstats(dev, &root))
+
+	if ((nodes = pfctl_update_qstats(dev, &root)) < 0)
 		return (-1);
 
-	for (node = root; node != NULL; node = node->next)
+	for (node = root; node != NULL; node = node->next) {
+		if (iface != NULL && strcmp(node->altq.ifname, iface))
+			continue;
+		if (dotitle) {
+			pfctl_print_title("ALTQ:");
+			dotitle = 0;
+		}
 		pfctl_print_altq_node(dev, node, 0, opts);
+	}
 
 	while (verbose2) {
 		printf("\n");
 		fflush(stdout);
 		sleep(STAT_INTERVAL);
-		if (pfctl_update_qstats(dev, &root))
+		if (pfctl_update_qstats(dev, &root) == -1)
 			return (-1);
-		for (node = root; node != NULL; node = node->next)
+		for (node = root; node != NULL; node = node->next) {
+			if (iface != NULL && strcmp(node->altq.ifname, iface))
+				continue;
 			pfctl_print_altq_node(dev, node, 0, opts);
+		}
 	}
 	pfctl_free_altq_node(root);
 	return (0);
@@ -155,7 +167,7 @@ pfctl_update_qstats(int dev, struct pf_altq_node **root)
 			}
 		}
 	}
-	return (0);
+	return (mnr);
 }
 
 void
@@ -245,12 +257,13 @@ pfctl_print_altq_node(int dev, const struct pf_altq_node *node, unsigned level,
 		pfctl_print_altq_nodestat(dev, node);
 
 	if (opts & PF_OPT_DEBUG)
-		printf("  [ qid=%u ifname=%s ifbandwidth=%s ]\n", node->altq.qid,
-		    node->altq.ifname, rate2str((double)(node->altq.ifbandwidth)));
+		printf("  [ qid=%u ifname=%s ifbandwidth=%s ]\n",
+		    node->altq.qid, node->altq.ifname,
+		    rate2str((double)(node->altq.ifbandwidth)));
 
 	for (child = node->children; child != NULL;
 	    child = child->next)
-		pfctl_print_altq_node(dev, child, level+1, opts);
+		pfctl_print_altq_node(dev, child, level + 1, opts);
 }
 
 void
@@ -277,10 +290,10 @@ print_cbqstats(struct queue_stats cur)
 {
 	printf("  [ pkts: %10llu  bytes: %10llu  "
 	    "dropped pkts: %6llu bytes: %6llu ]\n",
-	    cur.data.cbq_stats.xmit_cnt.packets,
-	    cur.data.cbq_stats.xmit_cnt.bytes,
-	    cur.data.cbq_stats.drop_cnt.packets,
-	    cur.data.cbq_stats.drop_cnt.bytes);
+	    (unsigned long long)cur.data.cbq_stats.xmit_cnt.packets,
+	    (unsigned long long)cur.data.cbq_stats.xmit_cnt.bytes,
+	    (unsigned long long)cur.data.cbq_stats.drop_cnt.packets,
+	    (unsigned long long)cur.data.cbq_stats.drop_cnt.bytes);
 	printf("  [ qlength: %3d/%3d  borrows: %6u  suspends: %6u ]\n",
 	    cur.data.cbq_stats.qcnt, cur.data.cbq_stats.qmax,
 	    cur.data.cbq_stats.borrows, cur.data.cbq_stats.delays);
@@ -298,10 +311,10 @@ print_priqstats(struct queue_stats cur)
 {
 	printf("  [ pkts: %10llu  bytes: %10llu  "
 	    "dropped pkts: %6llu bytes: %6llu ]\n",
-	    cur.data.priq_stats.xmitcnt.packets,
-	    cur.data.priq_stats.xmitcnt.bytes,
-	    cur.data.priq_stats.dropcnt.packets,
-	    cur.data.priq_stats.dropcnt.bytes);
+	    (unsigned long long)cur.data.priq_stats.xmitcnt.packets,
+	    (unsigned long long)cur.data.priq_stats.xmitcnt.bytes,
+	    (unsigned long long)cur.data.priq_stats.dropcnt.packets,
+	    (unsigned long long)cur.data.priq_stats.dropcnt.bytes);
 	printf("  [ qlength: %3d/%3d ]\n",
 	    cur.data.priq_stats.qlength, cur.data.priq_stats.qlimit);
 
@@ -318,10 +331,10 @@ print_hfscstats(struct queue_stats cur)
 {
 	printf("  [ pkts: %10llu  bytes: %10llu  "
 	    "dropped pkts: %6llu bytes: %6llu ]\n",
-	    cur.data.hfsc_stats.xmit_cnt.packets,
-	    cur.data.hfsc_stats.xmit_cnt.bytes,
-	    cur.data.hfsc_stats.drop_cnt.packets,
-	    cur.data.hfsc_stats.drop_cnt.bytes);
+	    (unsigned long long)cur.data.hfsc_stats.xmit_cnt.packets,
+	    (unsigned long long)cur.data.hfsc_stats.xmit_cnt.bytes,
+	    (unsigned long long)cur.data.hfsc_stats.drop_cnt.packets,
+	    (unsigned long long)cur.data.hfsc_stats.drop_cnt.bytes);
 	printf("  [ qlength: %3d/%3d ]\n",
 	    cur.data.hfsc_stats.qlength, cur.data.hfsc_stats.qlimit);
 

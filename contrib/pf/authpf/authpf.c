@@ -1,4 +1,4 @@
-/*	$OpenBSD: authpf.c,v 1.68 2003/08/21 19:13:23 frantzen Exp $	*/
+/*	$OpenBSD: authpf.c,v 1.75 2004/01/29 01:55:10 deraadt Exp $	*/
 
 /*
  * Copyright (C) 1998 - 2002 Bob Beck (beck@openbsd.org).
@@ -46,6 +46,7 @@
 #include <unistd.h>
 
 #include <pfctl_parser.h>
+#include <pfctl.h>
 
 #include "pathnames.h"
 
@@ -91,12 +92,6 @@ main(int argc, char *argv[])
 	char		*cp;
 	uid_t		 uid;
 
-	if ((n = snprintf(rulesetname, sizeof(rulesetname), "%ld",
-	    (long)getpid())) < 0 || n >= sizeof(rulesetname)) {
-		syslog(LOG_ERR, "pid too large for ruleset name");
-		exit(1);
-	}
-
 	config = fopen(PATH_CONFFILE, "r");
 
 	if ((cp = getenv("SSH_TTY")) == NULL) {
@@ -124,7 +119,6 @@ main(int argc, char *argv[])
 		    "cannot determine IP from SSH_CLIENT %s", ipsrc);
 		exit(1);
 	}
-
 	/* open the pf device */
 	dev = open(PATH_DEVFILE, O_RDWR);
 	if (dev == -1) {
@@ -152,6 +146,18 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "username too long: %s", pw->pw_name);
 		goto die;
 	}
+
+	if ((n = snprintf(rulesetname, sizeof(rulesetname), "%s(%ld)",
+	    luser, (long)getpid())) < 0 || n >= sizeof(rulesetname)) {
+		syslog(LOG_INFO, "%s(%ld) too large, ruleset name will be %ld",
+		    luser, (long)getpid(), (long)getpid());
+		if ((n = snprintf(rulesetname, sizeof(rulesetname), "%ld",
+		    (long)getpid())) < 0 || n >= sizeof(rulesetname)) {
+			syslog(LOG_ERR, "pid too large for ruleset name");
+			goto die;
+		}
+	}
+
 
 	/* Make our entry in /var/authpf as /var/authpf/ipaddr */
 	n = snprintf(pidfile, sizeof(pidfile), "%s/%s", PATH_PIDFILE, ipsrc);
@@ -235,15 +241,22 @@ main(int argc, char *argv[])
 	seteuid(getuid());
 	setuid(getuid());
 
-	if (!check_luser(PATH_BAN_DIR, luser) || !allowed_luser(luser))
-		do_death(0);
-
 	openlog("authpf", LOG_PID | LOG_NDELAY, LOG_DAEMON);
-	if (config == NULL || read_config(config))
-		do_death(0);
 
-	if (remove_stale_rulesets())
+	if (!check_luser(PATH_BAN_DIR, luser) || !allowed_luser(luser)) {
+		syslog(LOG_INFO, "user %s prohibited", luser);
 		do_death(0);
+	}
+
+	if (config == NULL || read_config(config)) {
+		syslog(LOG_INFO, "bad or nonexistent %s", PATH_CONFFILE);
+		do_death(0);
+	}
+
+	if (remove_stale_rulesets()) {
+		syslog(LOG_INFO, "error removing stale rulesets");
+		do_death(0);
+	}
 
 	/* We appear to be making headway, so actually mark our pid */
 	rewind(pidfp);
@@ -253,7 +266,7 @@ main(int argc, char *argv[])
 
 	if (change_filter(1, luser, ipsrc) == -1) {
 		printf("Unable to modify filters\r\n");
-		do_death(1);
+		do_death(0);
 	}
 
 	signal(SIGTERM, need_death);
@@ -536,15 +549,20 @@ remove_stale_rulesets(void)
 	mnr = prs.nr;
 	nr = 0;
 	while (nr < mnr) {
-		char	*s;
+		char	*s, *t;
 		pid_t	 pid;
 
 		prs.nr = nr;
 		if (ioctl(dev, DIOCGETRULESET, &prs))
 			return (1);
 		errno = 0;
-		pid = strtoul(prs.name, &s, 10);
-		if (!prs.name[0] || errno || *s)
+		if ((t = strchr(prs.name, '(')) == NULL)
+			t = prs.name;
+		else
+			t++;
+		pid = strtoul(t, &s, 10);
+		if (!prs.name[0] || errno ||
+		    (*s && (t == prs.name || *s != ')')))
 			return (1);
 		if (kill(pid, 0) && errno != EPERM) {
 			int i;
@@ -576,14 +594,11 @@ change_filter(int add, const char *luser, const char *ipsrc)
 {
 	char			 fn[MAXPATHLEN];
 	FILE			*f = NULL;
-	const int		 action[PF_RULESET_MAX] = { PF_SCRUB,
-				    PF_PASS, PF_NAT, PF_BINAT, PF_RDR };
 	struct pfctl		 pf;
-	struct pfioc_rule	 pr[PF_RULESET_MAX];
+	struct pfr_buffer	 t;
 	int			 i;
 
-	if (luser == NULL || !luser[0] || strlen(luser) >=
-	    PF_RULESET_NAME_SIZE || ipsrc == NULL || !ipsrc[0]) {
+	if (luser == NULL || !luser[0] || ipsrc == NULL || !ipsrc[0]) {
 		syslog(LOG_ERR, "invalid luser/ipsrc");
 		goto error;
 	}
@@ -615,18 +630,18 @@ change_filter(int add, const char *luser, const char *ipsrc)
 		syslog(LOG_ERR, "unable to load kernel's OS fingerprints");
 		goto error;
 	}
-
+	bzero(&t, sizeof(t));
+	t.pfrb_type = PFRB_TRANS;
 	memset(&pf, 0, sizeof(pf));
 	for (i = 0; i < PF_RULESET_MAX; ++i) {
-		memset(&pr[i], 0, sizeof(pr[i]));
-		pr[i].rule.action = action[i];
-		strlcpy(pr[i].anchor, anchorname, sizeof(pr[i].anchor));
-		strlcpy(pr[i].ruleset, rulesetname, sizeof(pr[i].ruleset));
-		if (ioctl(dev, DIOCBEGINRULES, &pr[i])) {
-			syslog(LOG_ERR, "DIOCBEGINRULES %m");
+		if (pfctl_add_trans(&t, i, anchorname, rulesetname)) {
+			syslog(LOG_ERR, "pfctl_add_trans %m");
 			goto error;
 		}
-		pf.prule[i] = &pr[i];
+	}
+	if (pfctl_trans(dev, &t, DIOCXBEGIN, 0)) {
+		syslog(LOG_ERR, "DIOCXBEGIN (%s) %m", add?"add":"remove");
+		goto error;
 	}
 
 	if (add) {
@@ -637,6 +652,10 @@ change_filter(int add, const char *luser, const char *ipsrc)
 		}
 
 		pf.dev = dev;
+		pf.trans = &t;
+		pf.anchor = anchorname;
+		pf.ruleset = rulesetname;
+
 		infile = fn;
 		if (parse_rules(f, &pf) < 0) {
 			syslog(LOG_ERR, "syntax error in rule file: "
@@ -649,16 +668,10 @@ change_filter(int add, const char *luser, const char *ipsrc)
 		f = NULL;
 	}
 
-	for (i = 0; i < PF_RULESET_MAX; ++i)
-		/*
-		 * ignore EINVAL on removal, it means the anchor was
-		 * already automatically removed by the kernel.
-		 */
-		if (ioctl(dev, DIOCCOMMITRULES, &pr[i]) &&
-		    (add || errno != EINVAL)) {
-			syslog(LOG_ERR, "DIOCCOMMITRULES %m");
-			goto error;
-		}
+	if (pfctl_trans(dev, &t, DIOCXCOMMIT, 0)) {
+		syslog(LOG_ERR, "DIOCXCOMMIT (%s) %m", add?"add":"remove");
+		goto error;
+	}
 
 	if (add) {
 		gettimeofday(&Tstart, NULL);
@@ -673,6 +686,8 @@ change_filter(int add, const char *luser, const char *ipsrc)
 error:
 	if (f != NULL)
 		fclose(f);
+	if (pfctl_trans(dev, &t, DIOCXROLLBACK, 0))
+		syslog(LOG_ERR, "DIOCXROLLBACK (%s) %m", add?"add":"remove");
 
 	infile = NULL;
 	return (-1);
@@ -748,37 +763,44 @@ do_death(int active)
 int
 pfctl_add_rule(struct pfctl *pf, struct pf_rule *r)
 {
-	struct pfioc_rule	*pr;
+	u_int8_t		rs_num;
+	struct pfioc_rule	pr;
 
 	switch (r->action) {
 	case PF_PASS:
 	case PF_DROP:
-		pr = pf->prule[PF_RULESET_FILTER];
+		rs_num = PF_RULESET_FILTER;
 		break;
 	case PF_SCRUB:
-		pr = pf->prule[PF_RULESET_SCRUB];
+		rs_num = PF_RULESET_SCRUB;
 		break;
 	case PF_NAT:
 	case PF_NONAT:
-		pr = pf->prule[PF_RULESET_NAT];
+		rs_num = PF_RULESET_NAT;
 		break;
 	case PF_RDR:
 	case PF_NORDR:
-		pr = pf->prule[PF_RULESET_RDR];
+		rs_num = PF_RULESET_RDR;
 		break;
 	case PF_BINAT:
 	case PF_NOBINAT:
-		pr = pf->prule[PF_RULESET_BINAT];
+		rs_num = PF_RULESET_BINAT;
 		break;
 	default:
 		syslog(LOG_ERR, "invalid rule action %d", r->action);
 		return (1);
 	}
+
+	bzero(&pr, sizeof(pr));
+	strlcpy(pr.anchor, pf->anchor, sizeof(pr.anchor));
+	strlcpy(pr.ruleset, pf->ruleset, sizeof(pr.ruleset));
 	if (pfctl_add_pool(pf, &r->rpool, r->af))
 		return (1);
-	pr->pool_ticket = pf->paddr.ticket;
-	memcpy(&pr->rule, r, sizeof(pr->rule));
-	if (ioctl(pf->dev, DIOCADDRULE, pr)) {
+	pr.ticket = pfctl_get_ticket(pf->trans, rs_num, pf->anchor,
+	    pf->ruleset);
+	pr.pool_ticket = pf->paddr.ticket;
+	memcpy(&pr.rule, r, sizeof(pr.rule));
+	if (ioctl(pf->dev, DIOCADDRULE, &pr)) {
 		syslog(LOG_ERR, "DIOCADDRULE %m");
 		return (1);
 	}
@@ -839,6 +861,13 @@ pfctl_set_logif(struct pfctl *pf, char *ifname)
 }
 
 int
+pfctl_set_hostid(struct pfctl *pf, u_int32_t hostid)
+{
+	fprintf(stderr, "set hostid not supported in authpf\n");
+	return (1);
+}
+
+int
 pfctl_set_timeout(struct pfctl *pf, const char *opt, int seconds, int quiet)
 {
 	fprintf(stderr, "set timeout not supported in authpf\n");
@@ -853,6 +882,13 @@ pfctl_set_limit(struct pfctl *pf, const char *opt, unsigned int limit)
 }
 
 int
+pfctl_set_debug(struct pfctl *pf, char *d)
+{
+	fprintf(stderr, "set debug not supported in authpf\n");
+	return (1);
+}
+
+int
 pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
     const char *ruleset, struct pfr_buffer *ab, u_int32_t ticket)
 {
@@ -862,10 +898,14 @@ pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
 
 int
 pfctl_rules(int dev, char *filename, int opts, char *anchorname,
-    char *rulesetname)
+    char *rulesetname, struct pfr_buffer *t)
 {
 	/* never called, no anchors inside anchors, but we need the stub */
 	fprintf(stderr, "load anchor not supported from authpf\n");
 	return (1);
 }
 
+void
+pfctl_print_title(char *title)
+{
+}
