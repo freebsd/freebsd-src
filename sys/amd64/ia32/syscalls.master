@@ -595,3 +595,7 @@
 422	UNIMPL	BSD	setcontext
 423	UNIMPL	BSD	swapcontext
 424	UNIMPL	BSD	swapoff
+425	UNIMPL	BSD	__acl_get_link
+426	UNIMPL	BSD	__acl_set_link
+427	UNIMPL	BSD	__acl_delete_link
+428	UNIMPL	BSD	__acl_aclcheck_link
