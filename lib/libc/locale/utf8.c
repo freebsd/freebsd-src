@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins
+ * Copyright (c) 2002, 2003 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,37 +27,46 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <rune.h>
+#include <errno.h>
+#include <runetype.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <wchar.h>
 
-rune_t	_UTF8_sgetrune(const char *, size_t, char const **);
-int	_UTF8_sputrune(rune_t, char *, size_t, char **);
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+size_t  _UTF8_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+	    mbstate_t * __restrict);
+size_t  _UTF8_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int
 _UTF8_init(_RuneLocale *rl)
 {
 
-	rl->sgetrune = _UTF8_sgetrune;
-	rl->sputrune = _UTF8_sputrune;
+	__mbrtowc = _UTF8_mbrtowc;
+	__wcrtomb = _UTF8_wcrtomb;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 6;
 
 	return (0);
 }
 
-rune_t
-_UTF8_sgetrune(const char *string, size_t n, const char **result)
+size_t
+_UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+    mbstate_t * __restrict ps __unused)
 {
-	int ch, len, mask;
-	rune_t lbound, wch;
+	int ch, i, len, mask;
+	wchar_t lbound, wch;
 
-	if (n < 1) {
-		if (result != NULL)
-			*result = string;
-		return (_INVALID_RUNE);
-	}
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (0);
+	if (n == 0)
+		/* Incomplete multibyte sequence */
+		return ((size_t)-2);
 
 	/*
 	 * Determine the number of octets that make up this character from
@@ -70,7 +79,7 @@ _UTF8_sgetrune(const char *string, size_t n, const char **result)
 	 * character. This enforces a 1-to-1 mapping between character
 	 * codes and their multibyte representations.
 	 */
-	ch = (unsigned char)*string;
+	ch = (unsigned char)*s;
 	if ((ch & 0x80) == 0) {
 		mask = 0x7f;
 		len = 1;
@@ -99,54 +108,54 @@ _UTF8_sgetrune(const char *string, size_t n, const char **result)
 		/*
 		 * Malformed input; input is not UTF-8.
 		 */
-		if (result != NULL)
-			*result = string + 1;
-		return (_INVALID_RUNE);
+		errno = EILSEQ;
+		return ((size_t)-1);
 	}
 
-	if (n < len) {
-		/*
-		 * Truncated or partial input.
-		 */
-		if (result != NULL)
-			*result = string;
-		return (_INVALID_RUNE);
-	}
+	if (n < (size_t)len)
+		/* Incomplete multibyte sequence */
+		return ((size_t)-2);
 
 	/*
 	 * Decode the octet sequence representing the character in chunks
 	 * of 6 bits, most significant first.
 	 */
-	wch = (unsigned char)*string++ & mask;
-	while (--len != 0) {
-		if ((*string & 0xc0) != 0x80) {
+	wch = (unsigned char)*s++ & mask;
+	i = len;
+	while (--i != 0) {
+		if ((*s & 0xc0) != 0x80) {
 			/*
 			 * Malformed input; bad characters in the middle
 			 * of a character.
 			 */
-			wch = _INVALID_RUNE;
-			if (result != NULL)
-				*result = string + 1;
-			return (_INVALID_RUNE);
+			errno = EILSEQ;
+			return ((size_t)-1);
 		}
 		wch <<= 6;
-		wch |= *string++ & 0x3f;
+		wch |= *s++ & 0x3f;
 	}
-	if (wch != _INVALID_RUNE && wch < lbound)
+	if (wch < lbound) {
 		/*
 		 * Malformed input; redundant encoding.
 		 */
-		wch = _INVALID_RUNE;
-	if (result != NULL)
-		*result = string;
-	return (wch);
+		errno = EILSEQ;
+		return ((size_t)-1);
+	}
+	if (pwc != NULL)
+		*pwc = wch;
+	return (wch == L'\0' ? 0 : i);
 }
 
-int
-_UTF8_sputrune(rune_t c, char *string, size_t n, char **result)
+size_t
+_UTF8_wcrtomb(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps __unused)
 {
 	unsigned char lead;
 	int i, len;
+
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (1);
 
 	/*
 	 * Determine the number of octets needed to represent this character.
@@ -154,51 +163,40 @@ _UTF8_sputrune(rune_t c, char *string, size_t n, char **result)
 	 * first few bits of the first octet, which contains the information
 	 * about the sequence length.
 	 */
-	if ((c & ~0x7f) == 0) {
+	if ((wc & ~0x7f) == 0) {
 		lead = 0;
 		len = 1;
-	} else if ((c & ~0x7ff) == 0) {
+	} else if ((wc & ~0x7ff) == 0) {
 		lead = 0xc0;
 		len = 2;
-	} else if ((c & ~0xffff) == 0) {
+	} else if ((wc & ~0xffff) == 0) {
 		lead = 0xe0;
 		len = 3;
-	} else if ((c & ~0x1fffff) == 0) {
+	} else if ((wc & ~0x1fffff) == 0) {
 		lead = 0xf0;
 		len = 4;
-	} else if ((c & ~0x3ffffff) == 0) {
+	} else if ((wc & ~0x3ffffff) == 0) {
 		lead = 0xf8;
 		len = 5;
-	} else if ((c & ~0x7fffffff) == 0) {
+	} else if ((wc & ~0x7fffffff) == 0) {
 		lead = 0xfc;
 		len = 6;
 	} else {
-		/*
-		 * Wide character code is out of range.
-		 */
-		if (result != NULL)
-			*result = NULL;
-		return (0);
+		errno = EILSEQ;
+		return ((size_t)-1);
 	}
 
-	if (n < len) {
-		if (result != NULL)
-			*result = NULL;
-	} else {
-		/*
-		 * Output the octets representing the character in chunks
-		 * of 6 bits, least significant last. The first octet is
-		 * a special case because it contains the sequence length
-		 * information.
-		 */
-		for (i = len - 1; i > 0; i--) {
-			string[i] = (c & 0x3f) | 0x80;
-			c >>= 6;
-		}
-		*string = (c & 0xff) | lead;
-		if (result != NULL)
-			*result = string + len;
+	/*
+	 * Output the octets representing the character in chunks
+	 * of 6 bits, least significant last. The first octet is
+	 * a special case because it contains the sequence length
+	 * information.
+	 */
+	for (i = len - 1; i > 0; i--) {
+		s[i] = (wc & 0x3f) | 0x80;
+		wc >>= 6;
 	}
+	*s = (wc & 0xff) | lead;
 
 	return (len);
 }
