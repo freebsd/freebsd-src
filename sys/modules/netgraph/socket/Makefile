@@ -4,6 +4,5 @@
 KMOD=		ng_socket
 SRCS= 		ng_socket.c
 MAN8=		ng_socket.8
-KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>
