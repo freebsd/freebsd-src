@@ -297,7 +297,7 @@ i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	warning "COMPAT_SVR4 is broken and usage is, until fixed, not recommended"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
 #
-# isdn4bsd, needed for isic | iwic | ifpi | ihfc | ifpnp | itjc
+# isdn4bsd, needed for isic | iwic | ifpi | ifpi2 | ihfc | ifpnp | itjc
 #
 i4b/layer1/i4b_l1dmux.c         	optional        isic
 i4b/layer1/i4b_l1lib.c          	optional        isic
@@ -305,6 +305,8 @@ i4b/layer1/i4b_l1dmux.c         	optional        iwic
 i4b/layer1/i4b_l1lib.c          	optional        iwic
 i4b/layer1/i4b_l1dmux.c         	optional        ifpi
 i4b/layer1/i4b_l1lib.c          	optional        ifpi
+i4b/layer1/i4b_l1dmux.c         	optional        ifpi2
+i4b/layer1/i4b_l1lib.c          	optional        ifpi2
 i4b/layer1/i4b_l1dmux.c         	optional        ihfc
 i4b/layer1/i4b_l1lib.c          	optional        ihfc
 i4b/layer1/i4b_l1dmux.c         	optional        ifpnp
@@ -353,6 +355,13 @@ i4b/layer1/ifpi/i4b_ifpi_pci.c		count		ifpi
 i4b/layer1/ifpi/i4b_ifpi_isac.c		optional	ifpi
 i4b/layer1/ifpi/i4b_ifpi_l1.c		optional	ifpi
 i4b/layer1/ifpi/i4b_ifpi_l1fsm.c	optional	ifpi
+#
+# isdn4bsd, ifpi2
+#
+i4b/layer1/ifpi2/i4b_ifpi2_pci.c	count		ifpi2
+i4b/layer1/ifpi2/i4b_ifpi2_isacsx.c	optional	ifpi2
+i4b/layer1/ifpi2/i4b_ifpi2_l1.c		optional	ifpi2
+i4b/layer1/ifpi2/i4b_ifpi2_l1fsm.c	optional	ifpi2
 #
 # isdn4bsd, ifpnp
 #
