@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/lib/Makefile#13 $
+# $P4: //depot/projects/openpam/lib/Makefile#14 $
 #
 
 LIB		 = pam
@@ -45,6 +45,7 @@ CFLAGS		+= -DLIB_MAJ=${SHLIB_MAJOR}
 
 SRCS		 =
 SRCS		+= openpam_borrow_cred.c
+SRCS		+= openpam_configure.c
 SRCS		+= openpam_dispatch.c
 SRCS		+= openpam_dynamic.c
 SRCS		+= openpam_findenv.c

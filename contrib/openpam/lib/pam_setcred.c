@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_setcred.c#8 $
+ * $P4: //depot/projects/openpam/lib/pam_setcred.c#9 $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,10 @@ pam_setcred(pam_handle_t *pamh,
 	int flags)
 {
 
+	if (flags & ~(PAM_SILENT|PAM_ESTABLISH_CRED|PAM_DELETE_CRED|
+		PAM_REINITIALIZE_CRED|PAM_REFRESH_CRED))
+		return (PAM_SYMBOL_ERR);
+	/* XXX enforce exclusivity */
 	return (openpam_dispatch(pamh, PAM_SM_SETCRED, flags));
 }
 
@@ -61,18 +65,27 @@ pam_setcred(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_setcred
  *	!PAM_IGNORE
+ *	PAM_SYMBOL_ERR
  */
 
 /**
  * The =pam_setcred function manages the application's credentials.
- * The operation to perform is specified by the =flags argument:
  *
- *	PAM_ESTABLISH_CRED:
+ * The =flags argument is the binary or of zero or more of the following
+ * values:
+ *
+ *	=PAM_SILENT:
+ *		Do not emit any messages.
+ *	=PAM_ESTABLISH_CRED:
  *		Establish the credentials of the target user.
- *	PAM_DELETE_CRED:
+ *	=PAM_DELETE_CRED:
  *		Revoke all established credentials.
- *	PAM_REINITIALIZE_CRED:
+ *	=PAM_REINITIALIZE_CRED:
  *		Fully reinitialise credentials.
- *	PAM_REFRESH_CRED:
+ *	=PAM_REFRESH_CRED:
  *		Refresh credentials.
+ *
+ * The latter four are mutually exclusive.
+ *
+ * If any other bits are set, =pam_setcred will return =PAM_SYMBOL_ERR.
  */

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_close_session.c#7 $
+ * $P4: //depot/projects/openpam/lib/pam_close_session.c#8 $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,8 @@ pam_close_session(pam_handle_t *pamh,
 	int flags)
 {
 
+	if (flags & ~(PAM_SILENT))
+		return (PAM_SYMBOL_ERR);
 	return (openpam_dispatch(pamh, PAM_SM_CLOSE_SESSION, flags));
 }
 
@@ -61,4 +63,19 @@ pam_close_session(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_close_session
  *	!PAM_IGNORE
+ *	PAM_SYMBOL_ERR
+ */
+
+/**
+ * The =pam_close_session function tears down the user session previously
+ * set up by =pam_open_session.
+ *
+ * The =flags argument is the binary or of zero or more of the following
+ * values:
+ *
+ *	=PAM_SILENT:
+ *		Do not emit any messages.
+ *
+ * If any other bits are set, =pam_close_session will return
+ * =PAM_SYMBOL_ERR.
  */
