@@ -92,7 +92,7 @@ periphdriver_register(void *data)
 	newdrivers = malloc(sizeof(*newdrivers) * ndrivers, M_TEMP, M_WAITOK);
 	if (periph_drivers)
 		bcopy(periph_drivers, newdrivers,
-		      sizeof(*newdrivers) * ndrivers);
+		      sizeof(*newdrivers) * nperiph_drivers);
 	newdrivers[nperiph_drivers] = (struct periph_driver *)data;
 	newdrivers[nperiph_drivers + 1] = NULL;
 	old = periph_drivers;
