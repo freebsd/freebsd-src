@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.85 2000/04/01 09:27:35 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.88 2000/04/25 14:28:13 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1420,6 +1420,7 @@ ohci_rhsc(ohci_softc_t *sc, usbd_xfer_handle xfer)
 	m = min(sc->sc_noport, xfer->length * 8 - 1);
 	memset(p, 0, xfer->length);
 	for (i = 1; i <= m; i++) {
+		/* Pick out CHANGE bits from the status reg. */
 		if (OREAD4(sc, OHCI_RH_PORT_STATUS(i)) >> 16)
 			p[i/8] |= 1 << (i%8);
 	}
