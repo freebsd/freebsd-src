@@ -182,14 +182,10 @@ vslock(addr, len)
 }
 
 void
-vsunlock(addr, len, dirtied)
+vsunlock(addr, len)
 	caddr_t addr;
 	u_int len;
-	int dirtied;
 {
-#ifdef	lint
-	dirtied++;
-#endif	/* lint */
 	vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page((vm_offset_t)addr),
 	    round_page((vm_offset_t)addr + len), TRUE);
 }
