@@ -1197,7 +1197,8 @@ X_ip_mforward(ip, ifp, m, imo)
 	if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
 	    vifp = viftable + vifi;
 	    printf("Sending IPPROTO_RSVP from %lx to %lx on vif %d (%s%s%d)\n",
-		ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr), vifi,
+		(long)ntohl(ip->ip_src.s_addr), (long)ntohl(ip->ip_dst.s_addr),
+		vifi,
 		(vifp->v_flags & VIFF_TUNNEL) ? "tunnel on " : "",
 		vifp->v_ifp->if_name, vifp->v_ifp->if_unit);
 	}
@@ -1205,7 +1206,7 @@ X_ip_mforward(ip, ifp, m, imo)
     }
     if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
 	printf("Warning: IPPROTO_RSVP from %lx to %lx without vif option\n",
-	    ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr));
+	    (long)ntohl(ip->ip_src.s_addr), (long)ntohl(ip->ip_dst.s_addr));
 	if(!imo)
 		printf("In fact, no options were specified at all\n");
     }
