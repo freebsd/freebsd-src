@@ -1147,6 +1147,13 @@ bpf_tap(bp, pkt, pktlen)
 	struct bpf_d *d;
 	u_int slen;
 
+	/*
+	 * Lockless read to avoid cost of locking the interface if there are
+	 * no descriptors attached.
+	 */
+	if (bp->bif_dlist == NULL)
+		return;
+
 	BPFIF_LOCK(bp);
 	for (d = bp->bif_dlist; d != NULL; d = d->bd_next) {
 		BPFD_LOCK(d);
@@ -1201,6 +1208,13 @@ bpf_mtap(bp, m)
 	struct bpf_d *d;
 	u_int pktlen, slen;
 
+	/*
+	 * Lockless read to avoid cost of locking the interface if there are
+	 * no descriptors attached.
+	 */
+	if (bp->bif_dlist == NULL)
+		return;
+
 	pktlen = m_length(m, NULL);
 	if (pktlen == m->m_len) {
 		bpf_tap(bp, mtod(m, u_char *), pktlen);
@@ -1239,6 +1253,13 @@ bpf_mtap2(bp, data, dlen, m)
 	struct mbuf mb;
 	struct bpf_d *d;
 	u_int pktlen, slen;
+
+	/*
+	 * Lockless read to avoid cost of locking the interface if there are
+	 * no descriptors attached.
+	 */
+	if (bp->bif_dlist == NULL)
+		return;
 
 	pktlen = m_length(m, NULL);
 	/*
