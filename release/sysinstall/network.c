@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.23 1996/12/11 09:35:03 jkh Exp $
+ * $Id: network.c,v 1.24 1996/12/12 08:23:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -251,6 +251,9 @@ startPPP(Device *devp)
 	return 0;
     }
 
+    if (isDebug())
+	msgDebug("About to start PPP on device %s @ %s baud.  Provider = %s\n", devp->devname, speed, provider);
+
     if (!Fake && !(pid = fork())) {
 	int i, fd;
 	struct termios foo;
@@ -260,10 +263,11 @@ startPPP(Device *devp)
 	    close(i);
 
 	/* We're going over to VTY2 */
-	DebugFD = fd = open("/dev/ttyv2", O_RDWR);
+	fd = open("/dev/ttyv2", O_RDWR);
 	ioctl(0, TIOCSCTTY, &fd);
 	dup2(0, 1);
 	dup2(0, 2);
+	DebugFD = 2;
 	if (login_tty(fd) == -1)
 	    msgDebug("ppp: Can't set the controlling terminal.\n");
 	signal(SIGTTOU, SIG_IGN);
