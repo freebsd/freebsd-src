@@ -24,10 +24,8 @@ else
 		echo "Automatic file system check changed the root file system"
 		echo "The system must halt for these corrections to take effect"
 		echo
-		echo "Halting... press return after the system has halted to"
-		echo "boot from the hard disk again."
-		halt
-		echo "halt failed... help!"
+		reboot
+		echo "reboot failed... help!"
 		exit 1
 		;;
 	8)
