@@ -248,8 +248,20 @@ __stdcall static void ndis_map_file(ndis_status *, void **, ndis_handle);
 __stdcall static void ndis_unmap_file(ndis_handle);
 __stdcall static void ndis_close_file(ndis_handle);
 __stdcall static u_int8_t ndis_cpu_cnt(void);
+__stdcall static void ndis_ind_statusdone(ndis_handle);
+__stdcall static void ndis_ind_status(ndis_handle, ndis_status,
+        void *, uint32_t);
 __stdcall static void dummy(void);
 
+/*
+ * Some really old drivers do not properly check the return value
+ * from NdisAllocatePacket() and NdisAllocateBuffer() and will
+ * sometimes allocate few more buffers/packets that they originally
+ * requested when they created the pool. To prevent this from being
+ * a problem, we allocate a few extra buffers/packets beyond what
+ * the driver asks for. This #define controls how many.
+ */
+#define NDIS_POOL_EXTRA		16
 
 int
 ndis_libinit()
@@ -1441,7 +1453,8 @@ ndis_alloc_packetpool(status, pool, descnum, protrsvdlen)
 	ndis_packet		*cur;
 	int			i;
 
-	*pool = malloc(sizeof(ndis_packet) * (descnum + 1),
+	*pool = malloc(sizeof(ndis_packet) *
+	    ((descnum + NDIS_POOL_EXTRA) + 1),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	if (pool == NULL) {
@@ -1451,7 +1464,7 @@ ndis_alloc_packetpool(status, pool, descnum, protrsvdlen)
 
 	cur = (ndis_packet *)*pool;
 	cur->np_private.npp_flags = 0x1; /* mark the head of the list */
-	for (i = 0; i < descnum; i++) {
+	for (i = 0; i < (descnum + NDIS_POOL_EXTRA); i++) {
 		cur->np_private.npp_head = (ndis_handle)(cur + 1);
 		cur++;
 	}
@@ -1623,7 +1636,8 @@ ndis_alloc_bufpool(status, pool, descnum)
 	ndis_buffer		*cur;
 	int			i;
 
-	*pool = malloc(sizeof(ndis_buffer) * (descnum + 1),
+	*pool = malloc(sizeof(ndis_buffer) *
+	    ((descnum + NDIS_POOL_EXTRA) + 1),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	if (pool == NULL) {
@@ -1633,7 +1647,7 @@ ndis_alloc_bufpool(status, pool, descnum)
 
 	cur = (ndis_buffer *)*pool;
 	cur->nb_flags = 0x1; /* mark the head of the list */
-	for (i = 0; i < descnum; i++) {
+	for (i = 0; i < (descnum + NDIS_POOL_EXTRA); i++) {
 		cur->nb_next = cur + 1;
 		cur++;
 	}
@@ -1877,7 +1891,6 @@ ndis_assign_pcirsrc(adapter, slot, list)
 	block = (ndis_miniport_block *)adapter;
 	*list = block->nmb_rlist;
 
-	device_printf (block->nmb_dev, "assign PCI resources...\n");
 	return (NDIS_STATUS_SUCCESS);
 }
 
@@ -2166,6 +2179,7 @@ ndis_init_string(dst, src)
 	ndis_unicode_string	*u;
 
 	u = dst;
+	u->nus_buf = NULL;
 	if (ndis_ascii_to_unicode(src, &u->nus_buf))
 		return;
 	u->nus_len = u->nus_maxlen = strlen(src) * 2;
@@ -2340,6 +2354,41 @@ ndis_cpu_cnt()
 #endif
 };
 
+typedef void (*ndis_statusdone_handler)(ndis_handle);
+typedef void (*ndis_status_handler)(ndis_handle, ndis_status,
+        void *, uint32_t);
+
+__stdcall static void
+ndis_ind_statusdone(adapter)
+	ndis_handle		adapter;
+{
+	ndis_miniport_block	*block;
+	__stdcall ndis_statusdone_handler	statusdonefunc;
+
+	block = (ndis_miniport_block *)adapter;
+	statusdonefunc = block->nmb_statusdone_func;
+
+	statusdonefunc(adapter);
+	return;
+}
+
+__stdcall static void
+ndis_ind_status(adapter, status, sbuf, slen)
+	ndis_handle		adapter;
+	ndis_status		status;
+	void			*sbuf;
+	uint32_t		slen;
+{
+	ndis_miniport_block	*block;
+	__stdcall ndis_status_handler	statusfunc;
+
+	block = (ndis_miniport_block *)adapter;
+	statusfunc = block->nmb_status_func;
+
+	statusfunc(adapter, status, sbuf, slen);
+	return;
+}
+
 __stdcall static void
 dummy()
 {
@@ -2348,6 +2397,8 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisMIndicateStatusComplete", (FUNC)ndis_ind_statusdone },
+	{ "NdisMIndicateStatus",	(FUNC)ndis_ind_status },
 	{ "NdisSystemProcessorCount",	(FUNC)ndis_cpu_cnt },
 	{ "NdisUnchainBufferAtBack",	(FUNC)ndis_unchain_tailbuf, },
 	{ "NdisGetFirstBufferFromPacket", (FUNC)ndis_firstbuf },
