@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.26 1995/11/03 12:02:44 jkh Exp $
+ * $Id: options.c,v 1.27 1995/11/06 12:49:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@ varCheck(Option opt)
     if (opt.aux)
 	cp = variable_get((char *)opt.aux);
     if (!cp)
-	return "<not set>";
+	return "<default setting>";
     return cp;
 }
 
@@ -60,7 +60,7 @@ varCheck(Option opt)
 static char *
 resetLogo(char *str)
 {
-    return "[WHAP!]";
+    return "[RESET!]";
 }
 
 static char *
@@ -97,7 +97,7 @@ mediaCheck(Option opt)
 	    return "<unknown>";
 	}
     }
-    return "<unset>";
+    return "<not yet set>";
 }
 
 #define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks:"
