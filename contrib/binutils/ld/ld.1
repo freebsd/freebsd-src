@@ -132,7 +132,7 @@
 .\" ========================================================================
 .\"
 .IX Title "LD 1"
-.TH LD 1 "2002-05-11" "binutils-2.12.1" "GNU Development Tools"
+.TH LD 1 "2002-08-05" "binutils-2.12.91" "GNU Development Tools"
 .UC
 .SH "NAME"
 ld \- Using \s-1LD\s0, the \s-1GNU\s0 linker
@@ -178,7 +178,7 @@ object files on a standard, supported Unix system.  On such a system, to
 link a file \f(CW\*(C`hello.o\*(C'\fR:
 .PP
 .Vb 1
-\&        ld -o I<output> /lib/crt0.o hello.o -lc
+\&        ld -o <output> /lib/crt0.o hello.o -lc
 .Ve
 This tells \fBld\fR to produce a file called \fIoutput\fR as the
 result of linking the file \f(CW\*(C`/lib/crt0.o\*(C'\fR with \f(CW\*(C`hello.o\*(C'\fR and
@@ -740,6 +740,7 @@ of this object will ignore any default library search paths.
 \&\f(CW\*(C`now\*(C'\fR marks the object with the non-lazy runtime binding.
 \&\f(CW\*(C`origin\*(C'\fR marks the object may contain \f(CW$ORIGIN\fR.
 \&\f(CW\*(C`defs\*(C'\fR disallows undefined symbols.
+\&\f(CW\*(C`muldefs\*(C'\fR allows multiple definitions.
 \&\f(CW\*(C`combreloc\*(C'\fR combines multiple reloc sections and sorts them
 to make dynamic symbol lookup caching possible.
 \&\f(CW\*(C`nocombreloc\*(C'\fR disables multiple reloc sections combining.
@@ -939,6 +940,15 @@ while linking a large executable.
 Normally when creating a non-symbolic shared library, undefined symbols
 are allowed and left to be resolved by the runtime loader.  These options
 disallows such undefined symbols.
+.IP "\fB\-\-allow\-multiple\-definition\fR" 4
+.IX Item "--allow-multiple-definition"
+.PD 0
+.IP "\fB\-z muldefs\fR" 4
+.IX Item "-z muldefs"
+.PD
+Normally when a symbol is defined multiple times, the linker will
+report a fatal error. These options allow multiple definitions and the
+first definition will be used.
 .IP "\fB\-\-allow\-shlib\-undefined\fR" 4
 .IX Item "--allow-shlib-undefined"
 Allow undefined symbols in shared objects even  when \-\-no\-undefined is
@@ -1235,9 +1245,9 @@ Turning a common symbol into a reference, because there is already a
 definition for the symbol.
 .Sp
 .Vb 3
-\&        I<file>(I<section>): warning: common of `I<symbol>'
+\&        <file>(<section>): warning: common of `<symbol>'
 \&           overridden by definition
-\&        I<file>(I<section>): warning: defined here
+\&        <file>(<section>): warning: defined here
 .Ve
 .IP "2." 4
 Turning a common symbol into a reference, because a later definition for
@@ -1245,25 +1255,25 @@ the symbol is encountered.  This is the same as the previous case,
 except that the symbols are encountered in a different order.
 .Sp
 .Vb 3
-\&        I<file>(I<section>): warning: definition of `I<symbol>'
+\&        <file>(<section>): warning: definition of `<symbol>'
 \&           overriding common
-\&        I<file>(I<section>): warning: common is here
+\&        <file>(<section>): warning: common is here
 .Ve
 .IP "3." 4
 Merging a common symbol with a previous same-sized common symbol.
 .Sp
 .Vb 3
-\&        I<file>(I<section>): warning: multiple common
-\&           of `I<symbol>'
-\&        I<file>(I<section>): warning: previous common is here
+\&        <file>(<section>): warning: multiple common
+\&           of `<symbol>'
+\&        <file>(<section>): warning: previous common is here
 .Ve
 .IP "4." 4
 Merging a common symbol with a previous larger common symbol.
 .Sp
 .Vb 3
-\&        I<file>(I<section>): warning: common of `I<symbol>'
+\&        <file>(<section>): warning: common of `<symbol>'
 \&           overridden by larger common
-\&        I<file>(I<section>): warning: larger common is here
+\&        <file>(<section>): warning: larger common is here
 .Ve
 .IP "5." 4
 Merging a common symbol with a previous smaller common symbol.  This is
@@ -1271,9 +1281,9 @@ the same as the previous case, except that the symbols are
 encountered in a different order.
 .Sp
 .Vb 3
-\&        I<file>(I<section>): warning: common of `I<symbol>'
+\&        <file>(<section>): warning: common of `<symbol>'
 \&           overriding smaller common
-\&        I<file>(I<section>): warning: smaller common is here
+\&        <file>(<section>): warning: smaller common is here
 .Ve
 .RE
 .RS 4
@@ -1440,6 +1450,13 @@ These cygwin-excludes are: \f(CW\*(C`_cygwin_dll_entry@12\*(C'\fR,
 .IX Item "--exclude-symbols symbol,symbol,..."
 Specifies a list of symbols which should not be automatically
 exported.  The symbol names may be delimited by commas or colons.
+.IP "\fB\-\-exclude\-libs\fR \fIlib\fR\fB,\fR\fIlib\fR\fB,...\fR" 4
+.IX Item "--exclude-libs lib,lib,..."
+Specifies a list of archive libraries from which symbols should not be automatically
+exported. The library names may be delimited by commas or colons.  Specifying
+\&\f(CW\*(C`\-\-exclude\-libs ALL\*(C'\fR excludes symbols in all archive libraries from
+automatic export. Symbols explicitly listed in a .def file are still exported,
+regardless of this option. 
 .IP "\fB\-\-file\-alignment\fR" 4
 .IX Item "--file-alignment"
 Specify the file alignment.  Sections in the file will always begin at
