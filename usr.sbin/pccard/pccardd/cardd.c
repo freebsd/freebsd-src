@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.20 1997/10/28 17:51:25 nate Exp $";
+	"$Id: cardd.c,v 1.21 1997/11/19 02:31:37 nate Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -216,8 +216,10 @@ slot_change(struct slot *sp)
 		logerr("ioctl (PIOCGSTATE)");
 		return;
 	}
+#ifdef DEBUG
 	if (state.state == sp->state)
-		return;
+		logmsg("State same as before, continuing anyway");
+#endif
 	sp->state = state.state;
 	switch (sp->state) {
 	case empty:
