@@ -67,7 +67,7 @@
 #define	_VM_MAP_
 
 #include <sys/lock.h>
-#include <sys/lockmgr.h>
+#include <sys/sx.h>
 #include <sys/_mutex.h>
 
 /*
@@ -164,7 +164,7 @@ vm_map_entry_behavior(vm_map_entry_t entry)
  */
 struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
-	struct lock lock;		/* Lock for map data */
+	struct sx lock;			/* Lock for map data */
 	struct mtx system_mtx;
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */

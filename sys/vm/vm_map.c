@@ -197,7 +197,7 @@ vm_map_zfini(void *mem, int size)
 
 	map = (vm_map_t)mem;
 	mtx_destroy(&map->system_mtx);
-	lockdestroy(&map->lock);
+	sx_destroy(&map->lock);
 }
 
 static void
@@ -210,7 +210,7 @@ vm_map_zinit(void *mem, int size)
 	map->size = 0;
 	map->infork = 0;
 	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
+	sx_init(&map->lock, "user map");
 }
 
 #ifdef INVARIANTS
@@ -354,14 +354,11 @@ vmspace_exitfree(struct proc *p)
 void
 _vm_map_lock(vm_map_t map, const char *file, int line)
 {
-	int error;
 
 	if (map->system_map)
 		_mtx_lock_flags(&map->system_mtx, 0, file, line);
-	else {
-		error = lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread);
-		KASSERT(error == 0, ("%s: failed to get lock", __func__));
-	}
+	else
+		_sx_xlock(&map->lock, file, line);
 	map->timestamp++;
 }
 
@@ -372,20 +369,17 @@ _vm_map_unlock(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
 	else
-		lockmgr(&map->lock, LK_RELEASE, NULL, curthread);
+		_sx_xunlock(&map->lock, file, line);
 }
 
 void
 _vm_map_lock_read(vm_map_t map, const char *file, int line)
 {
-	int error;
 
 	if (map->system_map)
 		_mtx_lock_flags(&map->system_mtx, 0, file, line);
-	else {
-		error = lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread);
-		KASSERT(error == 0, ("%s: failed to get lock", __func__));
-	}
+	else
+		_sx_xlock(&map->lock, file, line);
 }
 
 void
@@ -395,7 +389,7 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
 	else
-		lockmgr(&map->lock, LK_RELEASE, NULL, curthread);
+		_sx_xunlock(&map->lock, file, line);
 }
 
 int
@@ -405,7 +399,7 @@ _vm_map_trylock(vm_map_t map, const char *file, int line)
 
 	error = map->system_map ?
 	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL, curthread);
+	    !_sx_try_xlock(&map->lock, file, line);
 	if (error == 0)
 		map->timestamp++;
 	return (error == 0);
@@ -418,7 +412,7 @@ _vm_map_trylock_read(vm_map_t map, const char *file, int line)
 
 	error = map->system_map ?
 	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL, curthread);
+	    !_sx_try_xlock(&map->lock, file, line);
 	return (error == 0);
 }
 
@@ -426,13 +420,12 @@ int
 _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 {
 
-	if (map->system_map) {
 #ifdef INVARIANTS
+	if (map->system_map) {
 		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
 	} else
-		KASSERT(lockstatus(&map->lock, curthread) == LK_EXCLUSIVE,
-		    ("%s: lock not held", __func__));
+		_sx_assert(&map->lock, SX_XLOCKED, file, line);
+#endif
 	map->timestamp++;
 	return (0);
 }
@@ -441,13 +434,12 @@ void
 _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
-	if (map->system_map) {
 #ifdef INVARIANTS
+	if (map->system_map) {
 		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
 	} else
-		KASSERT(lockstatus(&map->lock, curthread) == LK_EXCLUSIVE,
-		    ("%s: lock not held", __func__));
+		_sx_assert(&map->lock, SX_XLOCKED, file, line);
+#endif
 }
 
 /*
@@ -535,7 +527,7 @@ vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
 	_vm_map_init(map, min, max);
 	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
+	sx_init(&map->lock, "user map");
 }
 
 /*
