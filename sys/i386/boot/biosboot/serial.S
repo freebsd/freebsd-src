@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.1 1994/12/18 20:12:08 joerg Exp $
+ *	$Id: serial.S,v 1.1 1995/01/20 07:48:27 wpaul Exp $
  */
 
 /*
@@ -128,6 +128,7 @@ ENTRY(serial_getc)
 	sub	$5, %edx	# RX buffer reg
 	inb	%dx, %al	# fetch (first) character
 
+	and	$0x7F, %eax	# remove any parity bits we get
 	cmp	$0x7F, %eax	# make DEL...
 	jne	2f
 	mov	$0x08, %eax	# look like BS
