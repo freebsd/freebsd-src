@@ -506,11 +506,7 @@ elf_i386_grok_psinfo (abfd, note)
 /* The name of the dynamic interpreter.  This is put in the .interp
    section.  */
 
-
-#ifndef ELF_DYNAMIC_INTERPRETER
 #define ELF_DYNAMIC_INTERPRETER "/usr/lib/libc.so.1"
-#endif
-
 
 /* The size in bytes of an entry in the procedure linkage table.  */
 
@@ -2622,36 +2618,40 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 		  BFD_ASSERT (rel->r_offset >= 1);
 		  val = bfd_get_8 (input_bfd, contents + rel->r_offset - 1);
 		  BFD_ASSERT (rel->r_offset + 4 <= input_section->_raw_size);
-		  if (val != 0xa1)
-		    {
-		      BFD_ASSERT (rel->r_offset >= 2);
-		      type = bfd_get_8 (input_bfd, contents + rel->r_offset - 2);
-		    }
 		  if (val == 0xa1)
 		    {
 		      /* movl foo, %eax.  */
-		      bfd_put_8 (output_bfd, 0xb8, contents + rel->r_offset - 2);
-		    }
-		  else if (type == 0x8b)
-		    {
-		      /* movl */
-		      BFD_ASSERT ((val & 0xc7) == 0x05);
-		      bfd_put_8 (output_bfd, 0xc7,
-				 contents + rel->r_offset - 2);
-		      bfd_put_8 (output_bfd, 0xc0 | ((val >> 3) & 7),
-				 contents + rel->r_offset - 1);
-		    }
-		  else if (type == 0x03)
-		    {
-		      /* addl */
-		      BFD_ASSERT ((val & 0xc7) == 0x05);
-		      bfd_put_8 (output_bfd, 0x81,
-				 contents + rel->r_offset - 2);
-		      bfd_put_8 (output_bfd, 0xc0 | ((val >> 3) & 7),
-				 contents + rel->r_offset - 1);
+		      bfd_put_8 (output_bfd, 0xb8, contents + rel->r_offset - 1);
 		    }
 		  else
-		    BFD_FAIL ();
+		    {
+		      BFD_ASSERT (rel->r_offset >= 2);
+		      type = bfd_get_8 (input_bfd, contents + rel->r_offset - 2);
+		      switch (type)
+		        {
+			case 0x8b:
+			  /* movl */
+			  BFD_ASSERT ((val & 0xc7) == 0x05);
+			  bfd_put_8 (output_bfd, 0xc7,
+				     contents + rel->r_offset - 2);
+			  bfd_put_8 (output_bfd,
+				     0xc0 | ((val >> 3) & 7),
+				     contents + rel->r_offset - 1);
+			  break;
+			case 0x03:
+			  /* addl */
+			  BFD_ASSERT ((val & 0xc7) == 0x05);
+			  bfd_put_8 (output_bfd, 0x81,
+				     contents + rel->r_offset - 2);
+			  bfd_put_8 (output_bfd,
+				     0xc0 | ((val >> 3) & 7),
+				     contents + rel->r_offset - 1);
+			  break;
+			default:
+			  BFD_FAIL ();
+			  break;
+		        }
+		    }
 		  bfd_put_32 (output_bfd, -tpoff (info, relocation),
 			      contents + rel->r_offset);
 		  continue;
@@ -3390,6 +3390,4 @@ elf_i386_finish_dynamic_sections (output_bfd, info)
 #define elf_backend_relocate_section	      elf_i386_relocate_section
 #define elf_backend_size_dynamic_sections     elf_i386_size_dynamic_sections
 
-#ifndef ELF32_I386_C_INCLUDED
 #include "elf32-target.h"
-#endif
