@@ -288,16 +288,20 @@ tc_init(struct timecounter *tc)
 {
 	unsigned u;
 
-	if (tc->tc_quality >= 0 || bootverbose)
+	u = tc->tc_frequency / tc->tc_counter_mask;
+	if (u > hz && tc->tc_quality >= 0) {
+		tc->tc_quality = -2000;
+		if (bootverbose) {
+			printf("Timecounter \"%s\" frequency %ju Hz",
+			    tc->tc_name, (intmax_t)tc->tc_frequency);
+			printf(" -- Insufficient hz, needs at least %u\n", u);
+		}
+	} else if (tc->tc_quality >= 0 || bootverbose) {
 		printf("Timecounter \"%s\" frequency %ju Hz quality %d",
 		    tc->tc_name, (intmax_t)tc->tc_frequency,
 		    tc->tc_quality);
-
-	u = tc->tc_frequency / tc->tc_counter_mask;
-	if (u > hz) {
-		printf(" -- Insufficient hz, needs at least %u\n", u);
-		return;
 	}
+
 	printf("\n");
 	tc->tc_next = timecounters;
 	timecounters = tc;
