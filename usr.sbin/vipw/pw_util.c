@@ -244,21 +244,13 @@ pw_prompt(void)
 void
 pw_error(const char *name, int error, int eval)
 {
-#ifdef YP
-	extern int _use_yp;
-#endif /* YP */
 	if (error) {
 		if (name != NULL)
 			warn("%s", name);
 		else
 			warn(NULL);
 	}
-#ifdef YP
-	if (_use_yp)
-		warnx("NIS information unchanged");
-	else
-#endif /* YP */
-	warnx("%s: unchanged", masterpasswd);
+	warnx("password information unchanged");
 	(void)unlink(tempname);
 	exit(eval);
 }
