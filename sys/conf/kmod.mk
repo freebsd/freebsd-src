@@ -9,8 +9,6 @@
 #
 # CLEANFILES	Additional files to remove for the clean and cleandir targets.
 #
-# DISTRIBUTION  Name of distribution. [bin]
-#
 # KMOD          The name of the kernel module to build.
 #
 # KMODDIR	Base path for kernel modules (see kld(4)). [/boot/kernel]
@@ -266,14 +264,6 @@ realinstall:
 install: afterinstall
 afterinstall: realinstall
 realinstall: beforeinstall
-.endif
-
-DISTRIBUTION?=	bin
-.if !target(distribute)
-distribute:
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
 .endif
 
 .if !target(load)
