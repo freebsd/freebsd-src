@@ -39,7 +39,7 @@ typedef struct {
 	enum { EOS, INFINITE, NORMAL, RANGE, SEQUENCE, SET } state;
 	int	 cnt;			/* character count */
 	int	 lastch;		/* last character */
-	int	equiv[2];		/* equivalence set */
+	int	equiv[NCHARS];		/* equivalence set */
 	int	*set;			/* set of characters */
 	char	*str;			/* user's string */
 } STR;
