@@ -6,7 +6,7 @@ MANDIR=		../share/man/man
 PROG=		hcsecd
 MAN8=		hcsecd.8
 WARNS?=		1
-CFLAGS+=	-g -I${.CURDIR}/../../../sys/netgraph/bluetooth/include
+CFLAGS+=	-g -I${.CURDIR} -I${.CURDIR}/../../../sys/netgraph/bluetooth/include
 SRCS=		hcsecd.c lexer.l parser.y
 
 .include <bsd.prog.mk>
