@@ -422,9 +422,9 @@ and message, e.g. "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
 .Bl -tag -width FTP_PASSIVE_MODE
 .It Ev FTP_PASSIVE_MODE
-The FTP code selects passive mode by default.
-To force active mode FTP, set this variable to
-.Ql no .
+If set to anything but
+.Ql no ,
+forces the FTP code to use passive mode.
 .It Ev FTP_PASSWORD
 Default FTP password if the remote server requests one and none was
 provided in the URL.
