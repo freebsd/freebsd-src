@@ -2008,7 +2008,8 @@
 
     <para arch="i386,pc98,alpha">Gigabit Ethernet NICs based on the
     Intel 82542 and 82543 controller chips (&man.gx.4; and &man.em.4;
-    drivers), plus NICs supported by the Intel 82540EM and 82544
+    drivers), plus NICs supported by the Intel 82540EM, 82544,
+    82545EM, and 82546EB
     controller chips (&man.em.4; driver only)
       <itemizedlist>
 	<listitem>
