@@ -861,7 +861,7 @@ put_fdisk_data
 echo
 echo -n "Labelling disk..."
 echo y | 
-/sbin/disklabel -w -r -B ${drivename}d $name
+/sbin/disklabel -w -r -B ${drivename}c $name
 # >/dev/null 2>&1
 echo	" done."
 
@@ -1012,6 +1012,12 @@ echo "exit 1"
 ) >etc/rc
 echo "done."
 
+if [ "$hname" != "" ]; then /sbin/umount /dev/${drivename}h ; fi
+if [ "$gname" != "" ]; then /sbin/umount /dev/${drivename}g ; fi
+if [ "$fname" != "" ]; then /sbin/umount /dev/${drivename}f ; fi
+if [ "$ename" != "" ]; then /sbin/umount /dev/${drivename}e ; fi
+/sbin/umount /mnt
+
 sync
 
 echo
@@ -1033,4 +1039,4 @@ echo
 echo	"Okay, that's all for now.  I'm halting ..."
 
 sync;sync;sync;sync
-exit 1
+halt

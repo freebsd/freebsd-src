@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.87 1994/10/15 07:55:36 phk Exp $
+#	$Id: Makefile,v 1.88 1994/10/16 20:38:21 phk Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -9,7 +9,7 @@ BIN1=	aliases csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.access motd myname netstart \
 	networks phones printcap profile protocols rc rc.local remote \
-	security services shells skey.access \
+	security services shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc
@@ -558,11 +558,11 @@ distrib-dirs:
 	# XXX This will currently error out if you have a procfs mounted,
 	# unmount it to get past this problem until procfs is fixed.
 	#
-	mtree -deu -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -deu -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -deu -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
+	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
+	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
+	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 .if defined(MAKE_LOCAL)
-	mtree -deu -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
+	mtree -deU -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
@@ -575,6 +575,6 @@ release:	release-dirs distribution crunch extract kcopy-kernels \
 release-dirs:
 	chflags -R noschg ${RELEASEDIR}/
 	rm -rf ${RELEASEDIR}/*
-	mtree -d -u -f ${.CURDIR}/mtree/BSD.release.dist -p ${RELEASEDIR}
+	mtree -d -U -f ${.CURDIR}/mtree/BSD.release.dist -p ${RELEASEDIR}
 
 .include <bsd.prog.mk>
