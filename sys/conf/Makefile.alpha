@@ -309,12 +309,12 @@ reinstall reinstall.debug: modules-reinstall
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
 
 modules:
-	find ${.CURDIR}/$S/modules -type d -a ! -name CVS \
+	find $S/modules -type d -a ! -name CVS \
 		| sed -e "s|$S/modules|modules|g" | xargs mkdir -p ; \
 	    cd $S/modules ; env ${MKMODULESENV} ${MAKE} all
 
 modules-depend:
-	find ${.CURDIR}/$S/modules -type d -a ! -name CVS \
+	find $S/modules -type d -a ! -name CVS \
 		| sed -e "s|$S/modules|modules|g" | xargs mkdir -p ; \
 	    cd $S/modules ; env ${MKMODULESENV} ${MAKE} depend
 
