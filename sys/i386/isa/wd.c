@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.11 1993/10/16 13:46:31 rgrimes Exp $
+ *	$Id: wd.c,v 1.23 1994/02/01 05:55:21 nate Exp $
  */
 
 /* TODO:
@@ -1364,7 +1364,7 @@ wddump(dev_t dev)
 	extern caddr_t CADDR1;
 
 	/* Toss any characters present prior to dump. */
-	while (sgetc(1) & 0xff)	/* EWS: A hack to work with syscons */
+	while (sgetc(1))
 		;
 
 	/* Check for acceptable device. */
