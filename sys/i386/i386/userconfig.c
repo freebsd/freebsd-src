@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.109 1998/09/16 19:23:49 msmith Exp $
+ **      $Id: userconfig.c,v 1.110 1998/09/25 09:04:24 jkh Exp $
  **/
 
 /**
@@ -169,7 +169,7 @@ getchar(void)
 
 #ifdef VISUAL_USERCONFIG
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
-				     isa_devtab_null, NULL };
+				     isa_devtab_cam, isa_devtab_null, NULL };
 
 typedef struct
 {
@@ -2385,7 +2385,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.109 1998/09/16 19:23:49 msmith Exp $
+ *      $Id: userconfig.c,v 1.110 1998/09/25 09:04:24 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2651,6 +2651,7 @@ list_devices(CmdParm *parms)
     if (lsdevtab(&isa_devtab_bio[0])) return 0;
     if (lsdevtab(&isa_devtab_tty[0])) return 0;
     if (lsdevtab(&isa_devtab_net[0])) return 0;
+    if (lsdevtab(&isa_devtab_cam[0])) return 0;
     if (lsdevtab(&isa_devtab_null[0])) return 0;
 #if NPNP > 0
     if (lspnp()) return 0;
@@ -3147,6 +3148,8 @@ find_device(char *devname, int unit)
     if ((ret = search_devtable(&isa_devtab_tty[0], devname, unit)) != NULL)
         return ret;
     if ((ret = search_devtable(&isa_devtab_net[0], devname, unit)) != NULL)
+        return ret;
+    if ((ret = search_devtable(&isa_devtab_cam[0], devname, unit)) != NULL)
         return ret;
     if ((ret = search_devtable(&isa_devtab_null[0], devname, unit)) != NULL)
         return ret;
