@@ -18,20 +18,20 @@ cpu		"EV5"
 ident		GENERIC
 maxusers	10
 
-options		"DEC_KN8AE"
-options		SIMOS
-options		INET			#InterNETworking
-options		FFS			#Berkeley Fast Filesystem
-options		NFSCLIENT		#Network Filesystem Client
-options		NFSSERVER		#Network Filesystem Server
-options		MSDOSFS			#MSDOS Filesystem
-options		"CD9660"		#ISO 9660 Filesystem
-options		NFS_ROOT		#NFS usable as root device
+options 	"DEC_KN8AE"
+options 	SIMOS
+options 	INET			#InterNETworking
+options 	FFS			#Berkeley Fast Filesystem
+options 	NFSCLIENT		#Network Filesystem Client
+options 	NFSSERVER		#Network Filesystem Server
+options 	MSDOSFS			#MSDOS Filesystem
+options 	"CD9660"		#ISO 9660 Filesystem
+options 	NFS_ROOT		#NFS usable as root device
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
-options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
-options		SCSI_DELAY=100		#Be pessimistic about Joe SCSI device
-options		UCONSOLE		#Allow users to grab the console
+options 	"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options 	SCSI_DELAY=100		#Be pessimistic about Joe SCSI device
+options 	UCONSOLE		#Allow users to grab the console
 
 config		kernel
 
@@ -61,10 +61,10 @@ device		gzip		# Exec gzipped a.out's
 # KTRACE enables the system-call tracing facility ktrace(2).
 # This adds 4 KB bloat to your kernel, and slightly increases
 # the costs of each syscall.
-options		KTRACE		#kernel tracing
+options 	KTRACE		#kernel tracing
 
 # This provides support for System V shared memory.
 #
-options		SYSVSHM
+options 	SYSVSHM
 
-options		DDB
+options 	DDB
