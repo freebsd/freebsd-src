@@ -143,7 +143,6 @@ loop:
 	fd->fd_vnode = *vpp;
 	fd->fd_type = ftype;
 	fd->fd_fd = -1;
-	fd->fd_link = 0;
 	fd->fd_ix = ix;
 	LIST_INSERT_HEAD(fc, fd, fd_hash);
 
@@ -408,10 +407,6 @@ fdesc_setattr(ap)
 	case DTYPE_FIFO:
 	case DTYPE_PIPE:
 	case DTYPE_VNODE:
-		error = VOP_SETATTR((struct vnode *) fp->f_data, ap->a_vap,
-		    ap->a_cred, ap->a_p);
-		break;
-
 	case DTYPE_SOCKET:
 	case DTYPE_KQUEUE:
 		if (vap->va_flags != VNOVAL)
