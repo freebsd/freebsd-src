@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.86 1996/04/25 18:00:28 jkh Exp $
+ * $Id: install.c,v 1.87 1996/04/28 00:37:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -518,7 +518,7 @@ installFixup(dialogMenuItem *self)
 
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
-	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
+	    if (system("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
 	    }
@@ -719,7 +719,7 @@ installFilesystems(dialogMenuItem *self)
 
     msgNotify("Copying initial device files..");
     /* Copy the boot floppy's dev files */
-    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio -pdumv /mnt")) {
+    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
 	msgConfirm("Couldn't clone the /dev files!");
 	return DITEM_FAILURE;
     }
@@ -759,14 +759,14 @@ copySelf(void)
     int i;
 
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
-    i = vsystem("find -x /stand | cpio -pdumv /mnt");
+    i = vsystem("find -x /stand | cpio %s -pdum /mnt", cpioVerbosity());
     if (i) {
 	msgConfirm("Copy returned error status of %d!", i);
 	return FALSE;
     }
 
     /* Copy the /etc files into their rightful place */
-    if (vsystem("cd /mnt/stand; find etc | cpio -pdumv /mnt")) {
+    if (vsystem("cd /mnt/stand; find etc | cpio %s -pdum /mnt", cpioVerbosity())) {
 	msgConfirm("Couldn't copy up the /etc files!");
 	return TRUE;
     }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.11 1996/04/13 13:31:19 jkh Exp $
+ * $Id: anonFTP.c,v 1.12 1996/04/23 01:29:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -429,9 +429,8 @@ configAnonFTP(dialogMenuItem *self)
     
     /*** If HomeDir does not exist, create it ***/
     
-    if (!directory_exists(tconf.homedir)) {
+    if (!directory_exists(tconf.homedir))
 	vsystem("mkdir -p %s", tconf.homedir);
-    }
     
     if (directory_exists(tconf.homedir)) {
 	msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
@@ -447,7 +446,7 @@ configAnonFTP(dialogMenuItem *self)
 	if (createFtpUser() == DITEM_SUCCESS) {
 	    msgNotify("Copying password information for anon FTP.");
 	    vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
-	    vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd",tconf.homedir, tconf.homedir);
+	    vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd", tconf.homedir, tconf.homedir);
 	    vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
 	    vsystem("chown -R %s.%s %s/pub", FTP_NAME, tconf.group, tconf.homedir);
 	}

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.52 1996/04/25 17:31:27 jkh Exp $
+ * $Id: system.c,v 1.53 1996/04/26 18:19:38 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -192,7 +192,7 @@ vsystem(char *fmt, ...)
     char *cmd;
     int i;
 
-    cmd = (char *)malloc(FILENAME_MAX);
+    cmd = (char *)alloca(FILENAME_MAX);
     cmd[0] = '\0';
     va_start(args, fmt);
     vsnprintf(cmd, FILENAME_MAX, fmt, args);
@@ -228,7 +228,6 @@ vsystem(char *fmt, ...)
 	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
 	if (isDebug())
 	    msgDebug("Command `%s' returns status of %d\n", cmd, i);
-        free(cmd);
     }
     return i;
 }
