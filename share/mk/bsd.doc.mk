@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.19 1995/03/10 08:54:41 rgrimes Exp $
+#	$Id: bsd.doc.mk,v 1.20 1995/07/26 13:51:44 wollman Exp $
 
 PRINTER?=	ps
 
@@ -39,10 +39,10 @@ TRFALGS+=	-R
 
 .if defined(NODOCCOMPRESS)
 DFILE=	${DOC}.${PRINTER}
-GZIP=	cat
+GZIPCMD=	cat
 .else
 DFILE=	${DOC}.${PRINTER}.gz
-GZIP=	gzip -c
+GZIPCMD=	gzip -c
 .endif
 
 PAGES?=		1-
@@ -61,7 +61,7 @@ print: ${DFILE}
 .if defined(NODOCCOMPRESS)
 	lpr -P${PRINTER} ${DFILE}
 .else
-	${GZIP} -d ${DFILE} | lpr -P${PRINTER}
+	${GZIPCMD} -d ${DFILE} | lpr -P${PRINTER}
 .endif
 .endif
 
@@ -129,11 +129,11 @@ SRCDIR?=	${.CURDIR}
 
 .if !target(${DFILE})
 ${DFILE}:	${SRCS}
-	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIP} > ${.TARGET}
+	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIPCMD} > ${.TARGET}
 .else
 .if !defined(NODOCCOMPRESS)
 ${DFILE}:	${DOC}.${PRINTER}
-	${GZIP} ${DOC}.${PRINTER} > ${.TARGET}
+	${GZIPCMD} ${DOC}.${PRINTER} > ${.TARGET}
 .endif
 .endif
 
