@@ -1,0 +1,52 @@
+To get the NTP distribution via anonymous CVS:
+
+    % cvs -d :pserver:anoncvs@www.ntp.org:/cvs/ntp login
+
+the password is: anoncvs
+
+    % rm -rf ntp
+    % cvs -d :pserver:anoncvs@www.ntp.org:/cvs/ntp co ntp
+
+after which the "ntp_update" script in the top-level of the tree should
+keep things in synch and properly timestamped.
+
+PLEASE NOTE:
+
+	When obtaining the NTP distribution directly via CVS instead of
+	using "ntp_update", the files are installed in an arbitrary
+	order.
+
+	When you run "make", this may cause some of the generated files
+	to be reconstructed.
+
+	If you do not have the right verison of automake and autoconf,
+	these files will be regenerated incorrectly.
+
+	In this case, you can "fix" your distribution by running:
+
+			     ntp_update -C
+
+	which will force any local changes to your NTP files to be
+	discarded and replaced with the versions in the repository.
+
+	If "ntp_update -C" does not work  just remove the "broken"
+	files (probably Makefile.in files) and re-run ntp_udate.
+
+There are some mailing lists for the NTP CVS distribution.  For more
+information, send a message to <majordomo@ntp.org> with the word "lists"
+in the body of the message.
+
+If you get NTP via CVS, you MAY need to build the release using GNU make
+and gcc.
+
+You can then "make dist" to build a release tarball that does not require
+GNU make or gcc.
+
+The reason GNU make and gcc may be required is because the repository
+version of NTP does not have the make dependencies built-in.  These
+dependencies are created dynamically, and this dynamic process may
+require GNU make and gcc.
+
+I'm told that the version of automake we are now using does not require
+GNU make or gcc for the dependency tracking, but I haven't tested this
+yet.

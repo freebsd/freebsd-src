@@ -1,0 +1,762 @@
+# -*- text -*-
+
+*** Notes specific to am-utils version 6.0.2:
+
+- safe map reloads: when a map needs to be reloaded, it is reloaded into a
+  temporary copy first.  Only if the reload was completely successful, Amd
+  discards the old map and uses the new one.  Otherwise Amd continues to use
+  the old maps.  This should help a lot with transient NIS problems.
+
+- amq -f now also forces a (safe) map reload, but only if the timestamp on
+  the maps was updated.
+
+- two new selector variables: ${vendor} and ${full_os}, which are the same
+  as the output seen in "amd -v".
+
+- documentation fixes and updates
+
+- updated or minor new ports:
+	i386-unknown-freebsdelf3.3
+
+- support 'ignore' flags (automntfs) in bsdi-4.1
+
+- bugs fixed:
+	expn.pl uses correct sockaddr_in() not, pack()
+	make sure configure --enable-*args take an argument
+	don't busy-loop trying to rebind to ldap servers
+	use vsnprintf, not vsprintf (security)
+
+*** Notes specific to am-utils version 6.0.1:
+
+- updated or minor new ports:
+	i386-pc-bsdi4.0.1
+	i386-unknown-freebsdelf3.0
+	i386-unknown-freebsdelf3.1
+	i386-unknown-freebsdelf3.2
+	i386-unknown-freebsdelf4.0
+	i386-unknown-netbsd1.4
+	i386-unknown-openbsd2.5
+	powerpc-unknown-linux-gnu
+
+- automount2amd added, a new script to convert Sun automount maps to Amd maps
+
+- new map function netgrpd(ARG), same as netgrp() but matches FQHN
+
+- 'ignore' is a generic mount option
+
+- hesiod info service isup() function to check if service is up
+
+- more Y2K fixes (see README.y2k for the full story)
+
+- using alloca.c on systems that don't have it (hpux9 with /bin/cc)
+
+- configure script reduced in size by using M4/sh loops instead of repeated
+  entries
+
+- documentation updates
+
+- too many bugs fixed to list here:
+	'addopts' option works with 'remopts' as well as 'opts'
+	AIX can perform NFS V.3 mounts explicitly
+	NIS is_up fixed, especially for NIS+ running in compatibility mode
+	amd -v incorrectly listing file systems that don't really work
+	amd's own mounts use reserved ports if possible
+	browsable directories works for Linux 2.3 (NFS cookies)
+	bsd44 systems check for isofs flags
+	bsd44 systems check for new options: norrio, gens, and extatt
+	buildall works better on Ultrix's /bin/sh
+	compile and build on Linux kernels 2.2 and newer
+	compile and build on RedHat Linux 6.0 (glibc 2.1)
+	compile and build on Solaris 7 (with or without vendor LDAP)
+	completely eliminate all of amd's amq -M code, when not enabled
+	correctly interpret failure code of unmount of type:=program
+	don't create autofs listener service unless used
+	don't list or process amq's -M option unless feature was turned on
+	don't turn on/off noconn option if it was already in that state
+	ldap info service: don't strcmp null strings
+	lostaltmail correctly sets struct sockaddr_in
+	make sure Linux systems have configured kernel headers
+	test for bsize/namlen fields in nfs_args (linux mount versions 2/3)
+	turn off broken NFS V.3 support for HPUX
+	use getifaddrs() on bsd44 systems makes wire.c more reliable
+	use matching NFS rsize/wsize on Linux 2.0 and 2.[123] kernels.
+	verify that RPC requests come from reserved, privileged local ports
+	warn when Linux kernel headers mismatch with running kernel
+	pawd works for type:=nfsl too
+
+*** Notes specific to am-utils version 6.0:
+
+- updated or minor new ports:
+	hppa2.0w-hp-hpux11.00,
+	i386-pc-bsdi4.0
+	i386-unknown-freebsd2.2.8
+	i386-unknown-netbsd1.3.3
+	i386-unknown-openbsd2.4
+	mips-sgi-irix6.5
+	powerpc-ibm-aix4.3.1.0
+	i386-unknown-freebsd3.0 now supports nfs v.3
+
+- ctl-amd and ctl-hlfsd now compatible with RedHat's chkconfig utility
+
+- ctl-amd stop will now wait until amd is down
+
+- libamu.so completely self contained --- does not export any symbols which
+  must be defined by the process linking with it.  This is so shared
+  libraries could be supported on systems that have restrictive shared
+  libraries.
+
+- use latest autoconf, automake, and libtool (off of cygnus' CVS server) to
+  support shared libraries on many more platforms.
+
+- posix code cleanups
+
+- bugs fixed:
+	case insensitive host match in type:=nfsl
+	correct swapped args to kill(2)
+	try to avoid a race condition b/t mounting and unmounting
+	yp_all support is found in libnsl in RH-5.1 systems
+
+*** Notes specific to am-utils version 6.0b1:
+
+- updated or minor new ports:
+	- *-pc-linux-gnu (glibc2 systems such as RedHat 5.1)
+	- sparc-sun-solaris2.7
+	- i386-pc-solaris2.7
+	- i386-unknown-freebsd3.0 (official release, post 4.4lite port)
+	- sparc64-unknown-linux-gnu (RH 5.1 on Sun Sparc Ultra)
+
+- bugs fixed:
+	- major memory leak in processing of /defaults
+	- core dump if map_type given in amd.conf doesn't exist
+	- memory leak in replacement yp_all
+	- don't access uninitialized memory in DU 4.0
+	- other smaller bugs, see ChangeLog
+
+*** Notes specific to am-utils version 6.0a16:
+
+- new ports:
+	hppa1.0-hp-hpux11.00 (works, not NFS V.3 due to missing headers)
+	mips-dec-ultrix4.3 (working, unverified)
+
+- new minor ports:
+	i386-pc-bsdi3.1
+	i386-unknown-netbsd1.3.1
+	alpha-dec-osf2.1
+
+- new options addopt:=ARG will "smartly" add and override options specified
+in opts:=
+
+- new amd.conf options:
+	pid_file: specifies the file to store the PID
+	hesiod_base: specifies the base for the Hesiod service
+	unmount_on_exit: if 'yes' will attempt to unmount all file systems
+		when amd exits.
+
+- amd.conf file is parsed after all other command line options.  If no
+options specified at all, then use /etc/amd.conf by default.
+
+- some variables' values are now compared case-insensitive as per specs,
+such as host names, domain names, and more.
+
+- NIS service uses a new isup() function to detect if the service is up
+before using it.  Used to ensure amd doesn't clear the existing maps before
+reloading them, unless the remote info service is working.
+
+- new cdfs mount options: rrip, noversion, defperm, nodefperm (OSF)
+
+- support efs/xfs separately on irix
+
+- new -D info trace option to turn on info specific debugging, such as
+RES_DEBUG for hesiod services.
+
+- document updates and fixes
+
+- new file MIRRORS lists official mirror sites (also in am-utils home page)
+
+- new file BUGS lists known amd/OS bugs
+
+- source restructuring: rename all Amd file-systems' sources to amfs_ARG.c
+such that it matches the type:=ARG as well.  Free names afs/dfs for Andrew
+F/S and Distributed F/S.
+
+- checkpoint config.guess several times during the long configure, so that
+if it is aborted midway, the bulk of the features discovered will be re-read
+from the config.cache file.
+
+- more systems support shared libraries (libtool 1.2)
+
+- using automake 1.3 + more fixes
+
+- bugs fixed:
+	use dynamic buffer for list of interfaces, not fixed size
+	output of amd -H duplicated if >2 interfaces
+	-D mem for hlfsd not on by default (so it will daemonize)
+	linux looks for ext2fs before ufs
+	CDFS looks for 'isofs' mount type as well
+	compile on Solaris 2.6 with /opt/SUNWspro/bin/cc
+	various additional fixes which gcc 2.8.x reported
+	print syslog help string based on what's supported
+	correctly ignore loopback interface on SunOS 3.x
+	don't use -lucb for strcasecmp
+	hlfsd's dump file securely written in /usr/tmp/hlfsd.dump.XXXXXX
+	inherit NFS V.3 mounts correctly
+	write pid file securely
+
+*** Notes specific to am-utils version 6.0a15:
+
+- new ports:
+	alpha-unknown-linux-gnu: works
+	i386-unknown-netbsd1.3: fully working
+	*-sun-sunos3: compiles, not tested
+
+- updated ports:
+	m68k-next-nextstep3: cleaner compile, works.
+
+- new file system type nfsl (NFS Link).  Uses nfs if file system is remote,
+and link if it is local (based on if $rhost equals the host name).
+
+- support for Solaris cachefs.  Requires setting fs, rfs, and a new variable
+cachedir.  See documentation for explanation, examples, and caveats.
+
+- support negated selector functions such as !exists(/foo/bar)
+
+- wire, network, netnumber, in_network() selectors now match against all
+locally attached networks (by either name or number), not just the first two
+interfaces.
+
+- new program pawd (and man page for it) --- Print Automounter Working
+Directory, to print the proper pathname of the cwd or any other pathname,
+adjusted for automounter paths, while avoiding mount points.
+
+- two new switches to amq: -U will force using UDP only; -T will force using
+only TCP to communicate with amd.  If neither (or both) are specified, amq
+will try TCP first, and if that failed, will try UDP.
+
+- support syslog facilities, using "amd -l syslog:facility".  Old behavior
+when using only -l syslog is to use the LOG_DAEMON facility.
+
+- you may specify browsable_dirs=full, to get a listing of all entries
+(other than /default), including those with '*' wildcard and '/'
+characters.
+
+- amd -D trace now also includes as much of struct nfs_args as can be
+displayed.  Useful in figuring out what the kernel really gets during a
+mount(2), as opposed to what the /etc/mnttab file says.  -D trace also
+traces the xdr_* functions.
+
+- support for versions of shared libamu version.  upped version from 0.0.0
+to 1.0.0.  each am-utils release that will change the library will also
+update its version.
+
+- amd/ops_TEMPLATE.c: a new template file for those brave enough to try and
+implement a new amd file system.  Includes comments and other info useful
+for developers.
+
+- if localconfig.h exists in the current directory during the run of
+configure, it is included in all am-utils sources.  This allows courageous
+developers to make certain modifications during compilations, and especially
+turn off undesired features (not very recommended).
+
+- documentation types and updates for all new features, ports, etc.
+
+- bugs fixed:
+	support NFS mount options grpid and maxgrps
+	nextstep: set NFS success code to 0 (NFS_OK), not 1 (EPERM)
+	bsdi2: set NFS success code to 0 (NFS_OK), not 1 (EPERM)
+	set NFS V.3 mount table names to "nfs" if vers/proto exist
+	use mkstemp() if possible (more secure)
+	ctl-amd looks for amd.conf in ${prefix}/etc after /etc
+	hpux: use "ignore" mount table type
+	openbsd2.2: turn off "noconn" mount option, so only connected used
+	fixed memory leak in hlfsd (don't setpwent after endpwent)
+	all NFS3 systems should have proto/vers mount/amd options
+	DEBUG_MEM compiles and prints something more useful
+	uninit_mntfs(): free() mf_private *after* it is used
+	browsable_readdir: fewer bytes sent back to kernel for each chunk
+	mount_toplvl: don't free() an automatic variable!
+	amd should chdir() to / before daemonzing (for core dumps etc)
+	cdfs should be called 'cdfs' not whatever the mnttab type is
+	amd -v: don't print "FS:" list twice when >=2 net interfaces
+
+*** Notes specific to am-utils version 6.0a14:
+
+- updated ports:
+	powerpc-ibm-aix4.2.1.0: NFS V.3 works
+
+- minor new ports:
+	sparc-sun-sunos4.1.3C
+	m68k-sun-sunos4.1.1 (sun3)
+	mips-sgi-irix5.2
+
+- new option to amd, -O ARG, will override the operating systems *name* with
+ARG.  Corrected documentation for amd -o ARG --- it overrides the operating
+system *version* and not the name as the docs incorrectly stated.
+
+- logging now behave more like syslog: will not print repeated strings, but
+rather a count such as "last message repeated N times".  (N will not exceed
+100.)
+
+- restructured the code which deals with the numerous possible fields and
+flags that are set in struct nfs_args.  That code was moved to libamu as
+the functions compute_nfs_args() and compute_automounter_nfs_args().
+
+- bugs fixed:
+	mnttab name ufs/cdfs/pcfs/etc filesystems corrected
+	use pmap_ping for amq (a must for secure portmappers, bsdi2/3)
+	test for xfs (irix) as a disk-based filesystem
+	set correct nfs_prot headers for Solaris 2.5
+	removed stale code from lostaltmail.in
+	lostaltmail will look for conf file in multiple locations
+	assorted documentation corrections
+	amq does not print "get_secure_amd_client" if run as root
+
+*** Notes specific to am-utils version 6.0a13:
+
+- new in_network(ARG) nomadic selector, true if ARG is the name (or number)
+of any of this host's network interfaces.
+
+- removed variables primnetname, primnetnum, subsnetname, and subsnetnum.
+(Kept "wire" and its alias "network", and "netnumber".)
+
+- include am-utils.dvi and am-utils.ps in distribution.
+
+- hlfsd supports new option -P ARG, for reading password map off of file
+ARG.  Allows you to use the hlfs redirector using paths other than user's
+home directories.
+
+- use a replacement yp_all for some systems (irix) known to have a broken
+one which leaks a file descriptor each time called.
+
+- if remote NFS server is down or does not support portmap, downgrade
+machine to NFS V.2 and retry again later.
+
+- bugs:
+	don't redefine yywrap on systems using a modified flex
+	use correct "ignore" mnttab/mount option on hpux for df(1)
+	use nfs_args' fsname field (hpux) to avoid syncer/mount(1) problems
+	don't add ops_ufs.o twice to Makefile's $(OBJS)
+	don't fail if autofs listener fails to initialize
+	hlfsd should test if run as root after usage() and getopt
+
+- minor code cleanups for netbsd
+
+- html docs now in http://www.cs.columbia.edu/~ezk/am-utils/
+
+- added README file in binaries ftp directory
+
+*** Notes specific to am-utils version 6.0a12:
+
+- minor or updated/broken ports fixed:
+	hppa1.1-hp-hpux10.10:	compiles, untested (probably works).
+	hppa1.1-hp-hpux9.05:	compiles, untested (probably works).
+	hppa1.1-hp-hpux9.07:	compiles, untested (probably works).
+	m68k-hp-hpux9.00:	compiles, untested (probably works).
+	rs6000-ibm-aix4.1.4.0:	compiles, untested.
+	sparc-sun-solaris2.6:	works w/ NFS V.3.
+	sparc-sun-sunos4.1.4:	compiles, untested (probably works).
+
+- new ports:
+	powerpc-ibm-aix4.2.1.0:	compiles w/ NFS V.3, untested.
+
+- wire-test also checks for combinations of NFS protocol/version from the
+client to a remote (or local) host.
+
+- conf/mtab/mtab_file.c: use flock() to lock the file, and fcntl() if
+flock() is not available.  (Used to prefer fcntl() over flock().)
+
+- bug fixes:
+	tli get_nfs_version() gets into an infinite loop
+	tli get_nfs_version() should time out faster
+	sockets get_nfs_version() should work w/ secure portmappers
+	ESTALE returned for NFS mounts for SunOS 4.x fixed
+	do not exceed HOSTNAMESZ for nfs_args.hostname (get ENAMETOOLONG)
+	properly initialize some mntent_t fields (fsck, freq, mnt_time)
+	properly initialize some pcfs_args fields (mask, uid, gid)
+	properly initialize some cdfs_args fields (ssector)
+
+*** Notes specific to am-utils version 6.0a11:
+
+- bug fixes:
+	amd could not NFS mount v.2 servers from v.3 clients
+	hlfsd will only use first occurrence of home dir for same uid
+
+*** Notes specific to am-utils version 6.0a10:
+
+- MAJOR DOCUMENTATION UPDATE! (first time in 6 years)
+
+- new ports:
+	m68k-next-nextstep3: configures, compiles, not tested.
+
+- preliminary autofs support.  See README.autofs for details.
+
+- new amd.conf [global] yes/no keywords:
+	show_statfs_entries:	shows number of entries for df(1)
+	fully_qualified_hosts:	use FQHN for NFS/RPC authentication
+
+- detect down remote hosts faster
+
+- log output of "amd -v" at startup
+
+- removed $osver override for solaris: now it is 2.5.1, not 5.5.1
+
+- buildall will use gmake first if available
+
+- bugs fixed:
+	amd core dumped when remote host was down
+	allow up to 1024 entries back from readdir()
+	amd.conf works even if only [global] option defined
+	avoid using bad memcmp() implementations
+	fixed meaning of plock [global] option (was reversed)
+	hlfsd infinite loop unless compiled with --enable-debug
+	NIS code works with NIS+ servers in NIS compatibility mode
+	reset tag fields in amd.conf so they don't carry to other entries
+
+*** Notes specific to am-utils version 6.0a9:
+
+- new ports:
+	sparc-sun-solaris2.4:
+		 configures/compiles, and runs (no NFS V3)
+	i386-unknown-openbsd2.1:
+		configures/compiles, runs (NFS V3)
+
+- updated ports:
+	i486-ncr-sysv4.3.03: configures/compiles, not tested
+
+- Multiple amd support: new amd.conf [global] key "portmap_program" can be
+used to specify an alternate RPC program number for amd to un/register.
+Allowed numbers range from 300019 to 300029.  A matching new option for amq:
+-P prognum, will use an alternate program number to contact.
+
+- man pages:
+	amd.conf.5	new
+	mk-amd-map.8	new
+	amd.8		updated
+	amq.8		updated
+	(other man pages required minor updates)
+
+- shared libraries support expanded.  Using GNU libtool-1.0.  You can build
+a shared version of libamu, and link with it accordingly, by specifying
+--enable-shared to configure.  Default is --enable-static --disable-shared,
+and you can mix and match.  See "INSTALL" file for listing of systems on
+which shared libraries seem to build and work fine.
+
+- new option: amq -p, will return the PID of the running amd (local or
+remote).  Uses a new RPC message.  Useful especially in "ctl-amd stop".
+
+- new configure script options --enable-ldflags, for specifying -L flags.
+The older --enable-libs is to be used only for -l options.
+
+- two new LDAP map options for amd.conf: ldap_cache_seconds and
+ldap_cache_maxmem.
+
+- new script, am-eject from Debian linux's version of amd-upl102.
+
+- additional passwd map support using var[0-3], from Debian folks.
+
+- hesiod code cleanup.  works for hesiod 1.3 as well as 3.0.
+
+- removed defunct -h option from amd.
+
+- started using automake-1.2.  This fixed several bugs that caused some
+versions of yacc/lex and non-GNU make to fail.
+
+- bug fixes:
+	amd/hlfsd mounts should be hidden from df(1)
+	use "noconn" option for nfs mounts (multi-homed hosts)
+	don't use connected sockets on linux before 1.3.10 (from Debian)
+	better checks for [gn]dbm
+	forbid excessive retries after timeouts (from Debian)
+	readdir(): don't skip over map entries with prefix, and include it
+	more assorted linux fixes from Debian folks
+	lofs mount on svr4 was broken
+	find default value of $karch from uname() not $arch
+	hlfsd failed to mount itself on some little-endians
+
+
+*** Notes specific to am-utils version 6.0a8:
+
+- new ports:
+	i386-unknown-netbsd1.2.1: configures/compiles (with NFS V.3), works,
+				  but some OS stability problems exist.
+
+- updated ports:
+	hppa1.1-hp-hpux9.01:
+			now tested and working
+	rs6000-ibm-aix3.2 and rs6000-ibm-aix3.2.5:
+			now tested and working
+
+- fixed browsable directories (readdir) code.
+
+- better methods to find amd/hlfsd pid to kill in ctl-{amd,hlfsd}
+
+- "ignore/auto" mount types fixed for irix, sunos, and others, so "df" does not
+show amd mounts by default (but GNU df -a does).
+
+- each time amd is built, a new "build" version is incremented.  See amd -v.
+
+- man page for fsinfo added
+
+- empty fillers for new file (bsd44) systems: nullfs, unionfs, umapfs.
+
+- when amd is not running, or portmapper is down, make amq timeout faster (5
+sec) than system default, usually 4-5 minutes.
+
+- bug fixes:
+	hlfsd mount got "protocol not supported"
+	first regular map in amd.conf didn't inherit global options
+	make "bad" versions of lex still work with amd/conf_parse.l
+	check for 'nodev' option, not 'nondev'
+	typo in "ro" option, and fillers to ac{reg,dir}{min,max} and others
+	amd.conf parsing done before switching default log/debug options
+	allow doubly-quoted values in amd.conf
+	hesiod-reload code cleanup
+
+- assorted code cleanup
+
+
+*** Notes specific to am-utils version 6.0a7:
+
+- new ports:
+	i386-unknown-freebsd3.0:
+			fully functional with NFS V.3
+	sparc-sun-solaris2.3:
+			fully functional (should work for 2.4)
+	sparc-unknown-netbsd1.2E:
+			configures/compiles (with NFS V.3), untested
+
+- updated ports:
+	i386-pc-bsdi3.0:
+			NFS V.3 works
+			look for hesiod in libc
+	mips-sgi-irix5.3:
+			fully functional with NFS V.3
+
+- LDAP support!  New [global] amd.conf options ldap_base and ldap_hostports.
+Also includes a new script amd2ldif to convert amd maps into plain text LDAP
+object files.
+
+- the following amd.conf variables: browsable_dirs, map_options, map_type,
+mount_type, and search_path --- can now be specified in [global] as well as
+the map entry itself.  That way you can declare them only once in [global],
+and override them as needed per map.
+
+- option "cluster" added to [global] (HPUX clusters ala "amd -C").
+
+- assorted info_hesiod map fixes and cleanup.  removed HESIOD_RELOAD code.
+
+- added netgrp(name) function to amd map syntax to see if current host is in
+the <name> netgroup.
+
+- removed unused option "amd -m".
+
+- filled in "tasks" file with todo items.
+
+- filled "COPYING" file with legal stuff.
+
+- cleanup: all global variables are now in one big structure (struct
+amu_global_options) that's easy to identify and enhance.  Also migrated
+several flags that used be an integer each into one unsigned integer that's
+used as a bit-flag.
+
+- big fixes:
+	xdr_mountres3 should compile only if has NFS V3
+	lex/yacc macros show full pathname (to tell if correct one runs)
+	misc fixes/cleanup
+
+
+*** Notes specific to am-utils version 6.0a6:
+
+- amd configuration file!
+
+See scripts/amd.conf-sample for help and some explanation.  This new conf
+file allows for the following new features:
+
+	default selectors can be turned on/off globally.
+	browsable_dirs/readdir() support can be turned on per map.
+	search paths for file type maps.
+	can force the map type to file, nis, ndbm, etc. rather than default
+		to looking at all of them.
+	tag each map for "amd -T tag", useful for grouping maps.
+	can override $os and others (so if you don't like "sunos5" default
+		naming, set os=sos5 and it will work with your old maps).
+	and more goodies...
+
+- enable-default-selectors: No longer turned on by the configure script or
+optionally compiled.  Code made dynamic and can be turned on or off from the
+amd.conf file.  This code is off by default, and must be turned on by
+amd.conf's [global] section.
+
+- new ports:
+	mips-sgi-irix5.3:	configure/compile, not tested
+	i486-ncr-sysv4.3.03:	configure/compile, not tested
+
+- updated ports:
+	alpha-dec-osf4.0:	major code redone
+	sparc-sun-sunos4.1.3:	fixed and working
+	mips-sgi-irix6.2:	tested with gcc and "cc -32 -Wl,-woff,84"
+	mips-sgi-irix6.4:	tested with gcc and "cc -32 -Wl,-woff,84"
+
+- better NFS3 port, including more support for proto= and vers=, and
+automatic determination of proto/vers combination.
+
+- conf/nfs_prot/nfs_prot_*.h: all of the NFS protocol header files had to be
+redone, because of the osf4 port.  OSF used very different names for these,
+and they conflicted with am-utils'.  The only solution was to more or less
+conform to OSF4's naming, and change all the others.
+
+- ctl-amd script:
+	improved to look for amd.conf in $prefix/etc and /etc
+	better methods for finding the pid of amd to kill
+
+- autoconf support for LDAP.  amd/info_ldap.c needs to be written.
+
+- wire-test also reports the local IP address.  Some systems have multiple,
+buggy version of get_myaddress(), esp. SunOS and Irix.  Note that Solaris
+x86 has a buggy htonl().
+
+- amd -H prints usage.
+
+- bugs fixed:
+	minor TLI problem in fwd_socket
+	mount options properly comma delimited
+	LIBS is set only to the right set of libraries to include
+	selectors-on-default code ignored last selector ent in /defaults
+	assorted code cleanups
+
+
+*** Notes specific to am-utils version 6.0a5:
+
+- NFS Version 3 support!!!
+
+	Works on Solaris 2.5.1.
+	Minimal testing done on Irix 6.
+	Compiles cleanly on DU-4.0 but no tests performed.
+
+Will fall back to V2 mounts when V3 is not available.  Will also use TCP if
+possible, UDP otherwise.
+
+- Ports to new platforms:
+
+	alpha-dec-osf4.0		(not tested)
+	i386-pc-bsdi3.0			(tested and working)
+	i386-unknown-freebsd2.2.1	(tested and working)
+	sparc-unknown-linux-gnu		(tested and working)
+
+- New scripts added:
+
+	amd2sun:	convert amd maps to Sun automount maps
+	ctl-amd:	script to start/stop/restart amd
+	ctl-hlfsd:	script to start/stop/restart hlfsd
+	expn:		expand mail alias (used by hlfsd)
+	lostaltmail:	redeliver "lost" mail redirected by hlfsd
+	lostaltmail.conf-sample:	sample conf file for lostaltmail
+	wait4amd:	run a command once amd is up on a host
+	wait4amd2die:	wait for an amd process to die before returning
+
+- "amd -v" now includes more info and "amq -v" lists all of it.
+
+- new parser for linux specific mount options.
+
+- Main bugs fixed:
+
+	"new toplvl readdir" bug caused amd to dump core
+	handler for SIGCHLD didn't check for all possible children
+	hlfsd leaking file descriptors when home file system was full
+	cdfs/pcfs mounts should not timeout by default
+	hesiod domain names should be compared in case-insensitive manner
+	several printfs in amq were missing \n
+
+
+*** Notes specific to am-utils version 6.0a4:
+
+- amd services both TCP and UDP amq requests.  This will help because of the
+limited UDP message size.
+
+- "amq -M" code is disabled by default because it is insecure.  It is
+rarely used.  Users who wish to use it should run
+"configure --enable-amq-mount".
+
+
+*** Notes specific to am-utils version 6.0a3:
+
+- New tested ports (configures, compiles, and runs):
+
+	i386-unknown-freebsd2.2
+
+- New ports (configures and compiles correctly, not tested):
+
+	rs6000-ibm-aix3.2.5
+	rs6000-ibm-aix4.1.5.0
+
+- More am-utils programs ported to all existing platforms: hlfsd, fsinfo,
+mk-amd-map, and fixmount.
+
+- Shared libraries: a new configure option --enable-shared will build a
+shared libamu.so, link applications with it, and use it.  Reduces binary
+sizes by 20-30%.  This is the first step towards loadable modules, as many
+changes had to be done to be able to compile and use PIC code.  This is code
+that obviously needs to be generalized to be able to build shared libraries
+on many other platforms.  It was only tested on Solaris 5.5.1.
+
+- the file INSTALL contains the latest compatibility table of which
+platforms am-utils configures, compiles and runs on.
+
+- Trimmed down the size of the configure script.  Some tests that are not
+used anywhere were removed.
+
+
+*** Notes specific to am-utils version 6.0a2:
+
+- New ports (configures and compiles correctly, not tested):
+
+	i386-pc-bsdi2.1
+	hppa1.1-hp-hpux9.01
+	hppa1.1-hp-hpux10.20
+
+- new configure options:
+
+	--enable-cppflags[=ARG]
+		configure/compile with ARG (-I) preprocessor flags
+	--enable-libs[=ARG]
+		configure/compile with ARG (-L/-l) library flags
+
+- filesystem, mount table entries, and mount type tests can now look in
+/lib/modules and /proc/filesystems for statically/dyadically loadable kernel
+modules (linux)
+
+- prefer vfat over msdos/pc/etc filesystem for PCFS.
+
+- moved all fixed headers to include/am_defs.  Left only #define/#undef
+entries in aux/acconfig.h.
+
+- make more sense of systems that have full, partial, or no NFS protocol
+headers.
+
+- minor fixes for NetBSD (untested platform).
+
+- hesiod map fixed.
+
+- buildall -D: new option to run even stricter developer options.
+
+- lots of other bugs fixed (see ChangeLog).
+
+
+*** Notes specific to am-utils version 6.0a1:
+
+I have it configure and build correctly for the following systems:
+
+	i386-pc-solaris2.5.1
+	i386-unknown-freebsd2.1.0
+	mips-sgi-irix6.2
+	sparc-sun-solaris2.5.1
+	sparc-sun-sunos4.1.3
+
+Amq, wire-test, and "amd -v" work on all of the above.  A real running amd
+was only tested and confirmed working on
+
+	i386-pc-solaris2.5.1
+	sparc-sun-solaris2.5.1
+
+Many things are still missing: options, features, etc.  But for now, let's
+concentrate on getting the basic functionality working on the more popular
+systems.

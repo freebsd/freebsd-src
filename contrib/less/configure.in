@@ -1,0 +1,314 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(forwback.c)
+AC_CONFIG_HEADER(defines.h)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_ISC_POSIX
+AC_PROG_GCC_TRADITIONAL
+AC_PROG_INSTALL
+
+dnl Checks for libraries.
+AC_CHECK_LIB(xcurses, initscr, [have_xcurses=yes], [have_xcurses=no])
+AC_CHECK_LIB(ncurses, initscr, [have_ncurses=yes], [have_ncurses=no])
+AC_CHECK_LIB(curses, initscr, [have_curses=yes], [have_curses=no])
+AC_CHECK_LIB(termcap, tgetent, [have_termcap=yes], [have_termcap=no])
+AC_CHECK_LIB(termlib, tgetent, [have_termlib=yes], [have_termlib=no])
+dnl Regular expressions (regcmp) are in -lgen on Solaris 2,
+dnl and in -lintl on SCO Unix.
+AC_CHECK_LIB(gen, regcmp)
+AC_CHECK_LIB(intl, regcmp)
+AC_CHECK_LIB(PW, regcmp)
+dnl Checks for terminal libraries
+
+AC_MSG_CHECKING(for working terminal libraries)
+TERMLIBS=
+
+dnl Check for systems where curses is broken.
+curses_broken=0
+if test x`uname -s` = "xHP-UX" >/dev/null 2>&1; then
+if test x`uname -r` = "xB.11.00" >/dev/null 2>&1; then
+   curses_broken=1
+fi
+fi
+
+if test $curses_broken = 0; then
+dnl -- Try xcurses.
+if test "x$TERMLIBS" = x; then
+  if test $have_xcurses = yes; then
+    TERMLIBS="-lxcurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+dnl -- Try ncurses.
+if test "x$TERMLIBS" = x; then
+  if test $have_ncurses = yes; then
+    TERMLIBS="-lncurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+dnl -- Try curses.
+if test "x$TERMLIBS" = x; then
+  if test $have_curses = yes; then
+    TERMLIBS="-lcurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+dnl -- Try curses & termcap.
+if test "x$TERMLIBS" = x; then
+  if test $have_curses = yes; then
+  if test $have_termcap = yes; then
+    TERMLIBS="-lcurses -ltermcap"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+  fi
+fi
+fi
+
+dnl -- Try termcap.
+if test "x$TERMLIBS" = x; then
+  if test $have_termcap = yes; then
+    TERMLIBS="-ltermcap"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+dnl -- Try termlib.
+if test "x$TERMLIBS" = x; then
+  if test $have_termlib = yes; then
+    TERMLIBS="-lcurses -ltermlib"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+if test "x$TERMLIBS" = x; then
+  AC_MSG_RESULT(Cannot find terminal libraries - configure failed)
+  exit 1
+fi
+AC_MSG_RESULT(using $TERMLIBS)
+LIBS="$LIBS $TERMLIBS"
+
+
+dnl Checks for header files.
+AC_CHECK_HEADERS(ctype.h errno.h fcntl.h limits.h stdio.h stdlib.h string.h termcap.h termio.h termios.h time.h unistd.h values.h sys/ioctl.h sys/stream.h sys/ptem.h)
+
+dnl Checks for identifiers.
+AC_TYPE_OFF_T
+AC_MSG_CHECKING(for void)
+AC_TRY_COMPILE(, [void *foo = 0;], 
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_VOID)], [AC_MSG_RESULT(no)])
+AC_MSG_CHECKING(for const)
+AC_TRY_COMPILE(, [const int foo = 0;], 
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_CONST)], [AC_MSG_RESULT(no)])
+AC_MSG_CHECKING(for time_t)
+AC_TRY_COMPILE([#include <time.h>], [time_t t = 0;],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIME_T)], [AC_MSG_RESULT(no)])
+
+dnl Checks for functions and external variables.
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(memcpy popen _setjmp sigprocmask sigsetmask stat strchr strstr system)
+
+dnl Some systems have termios.h but not the corresponding functions.
+AC_CHECK_FUNC(tcgetattr, AC_DEFINE(HAVE_TERMIOS_FUNCS))
+
+AC_MSG_CHECKING(for fileno)
+AC_TRY_LINK([
+#if HAVE_STDIO_H
+#include <stdio.h>
+#endif], [static int x; x = fileno(stdin);],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_FILENO)], [AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for strerror)
+AC_TRY_LINK([
+#if HAVE_STDIO_H
+#include <stdio.h>
+#endif
+#if HAVE_STRING_H
+#include <string.h>
+#endif
+#if HAVE_ERRNO_H
+#include <errno.h>
+#endif], [static char *x; x = strerror(0);],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_STRERROR)], [AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for sys_errlist)
+AC_TRY_LINK(, [extern char *sys_errlist[]; static char **x; x = sys_errlist;], 
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_SYS_ERRLIST)], [AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for sigset_t)
+AC_TRY_LINK([
+#include <signal.h>
+], [sigset_t s; s = 0;],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_SIGSET_T)], [AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for sigemptyset)
+AC_TRY_LINK([
+#include <signal.h>
+], [sigset_t s; sigemptyset(&s);],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_SIGEMPTYSET)], [AC_MSG_RESULT(no)])
+
+have_errno=no
+AC_MSG_CHECKING(for errno)
+AC_TRY_LINK([
+#if HAVE_ERRNO_H
+#include <errno.h>
+#endif], [static int x; x = errno;], 
+  [AC_MSG_RESULT(yes - in errno.h); AC_DEFINE(HAVE_ERRNO) have_errno=yes])
+if test $have_errno = no; then
+AC_TRY_LINK([
+#if HAVE_ERRNO_H
+#include <errno.h>
+#endif], [extern int errno; static int x; x = errno;], 
+  [AC_MSG_RESULT(yes - must define); AC_DEFINE(HAVE_ERRNO) AC_DEFINE(MUST_DEFINE_ERRNO)],
+  [AC_MSG_RESULT(no)])
+fi
+
+AC_MSG_CHECKING(for locale)
+AC_TRY_LINK([#include <locale.h>
+#include <ctype.h>], [setlocale(LC_CTYPE,""); isprint(0); iscntrl(0);],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_LOCALE)], [AC_MSG_RESULT(no)])
+AC_MSG_CHECKING(for ctype functions)
+AC_TRY_LINK([
+#if HAVE_CTYPE_H
+#include <ctype.h>
+#endif], [static int x; x = isupper(x); x = tolower(x); x = toupper(x);],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_UPPER_LOWER)], [AC_MSG_RESULT(no)])
+
+dnl Checks for external variable ospeed in the termcap library.
+have_ospeed=no
+AC_MSG_CHECKING(termcap for ospeed)
+AC_TRY_LINK([
+#include <sys/types.h>
+#if HAVE_TERMIOS_H
+#include <termios.h>
+#endif
+#if HAVE_TERMCAP_H
+#include <termcap.h>
+#endif], [ospeed = 0;],
+[AC_MSG_RESULT(yes - in termcap.h); AC_DEFINE(HAVE_OSPEED) have_ospeed=yes])
+if test $have_ospeed = no; then
+AC_TRY_LINK(, [extern short ospeed; ospeed = 0;], 
+  [AC_MSG_RESULT(yes - must define); AC_DEFINE(HAVE_OSPEED) AC_DEFINE(MUST_DEFINE_OSPEED)],
+  [AC_MSG_RESULT(no)])
+fi
+
+dnl Checks for regular expression functions.
+have_regex=no
+have_posix_regex=unknown
+AC_MSG_CHECKING(for regcomp)
+
+WANT_REGEX=auto
+AC_ARG_WITH(regex,
+  [  --with-regex={auto,pcre,posix,regcmp,re_comp,regcomp,regcomp-local}  Select a regular expression library  [auto]],
+  WANT_REGEX="$withval")
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = posix; then
+dnl Some versions of Solaris have a regcomp() function, but it doesn't work!
+dnl So we run a test program.  If we're cross-compiling, do it the old way.
+AC_TRY_RUN([
+#include <sys/types.h>
+#include <regex.h>
+main() { regex_t r; regmatch_t rm; char *text = "xabcy";
+if (regcomp(&r, "abc", 0)) exit(1);
+if (regexec(&r, text, 1, &rm, 0)) exit(1);
+#ifndef __WATCOMC__
+if (rm.rm_so != 1) exit(1); /* check for correct offset */
+#else
+if (rm.rm_sp != text + 1) exit(1); /* check for correct offset */
+#endif
+exit(0); }],
+  have_posix_regex=yes, have_posix_regex=no, have_posix_regex=unknown)
+if test $have_posix_regex = yes; then
+  AC_MSG_RESULT(using POSIX regcomp)
+  AC_DEFINE(HAVE_POSIX_REGCOMP)
+  have_regex=yes
+elif test $have_posix_regex = unknown; then
+  AC_TRY_LINK([
+#include <sys/types.h>
+#include <regex.h>],
+  [regex_t *r; regfree(r);],
+  AC_MSG_RESULT(using POSIX regcomp)
+  AC_DEFINE(HAVE_POSIX_REGCOMP) have_regex=yes)
+else
+  AC_MSG_RESULT(no)
+fi
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = pcre; then
+AC_CHECK_LIB(pcre, pcre_compile, 
+[AC_MSG_RESULT(using pcre); AC_DEFINE(HAVE_PCRE) LIBS="$LIBS -lpcre" have_regex=yes], [])
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = regcmp; then
+AC_CHECK_FUNC(regcmp, 
+AC_MSG_RESULT(using regcmp); AC_DEFINE(HAVE_REGCMP) have_regex=yes)
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = regcomp; then
+AC_TRY_LINK([
+#include "regexp.h"], [regcomp("");],
+AC_MSG_RESULT(using V8 regcomp); AC_DEFINE(HAVE_V8_REGCOMP) have_regex=yes)
+fi
+fi
+
+if test $have_regex = no && test -f ${srcdir}/regexp.c; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = regcomp-local; then
+AC_MSG_RESULT(using V8 regcomp -- local source); AC_DEFINE(HAVE_V8_REGCOMP) AC_DEFINE(HAVE_REGEXEC2) REGEX_O='regexp.$(O)' AC_SUBST(REGEX_O) have_regex=yes
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = re_comp; then
+AC_MSG_RESULT(using re_comp); AC_CHECK_FUNC(re_comp, AC_DEFINE(HAVE_RE_COMP) have_regex=yes)
+fi
+fi
+
+if test $have_regex = no; then
+AC_MSG_RESULT(cannot find regular expression library); AC_DEFINE(NO_REGEX)
+fi
+
+AC_ARG_WITH(editor,
+  [  --with-editor=PROGRAM   use PROGRAM as the default editor [vi]],
+  AC_DEFINE_UNQUOTED(EDIT_PGM, "$withval"))
+
+AC_OUTPUT(Makefile)

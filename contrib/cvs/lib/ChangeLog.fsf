@@ -1,0 +1,90 @@
+Thu Sep 15 00:18:26 1994  david d `zoo' zuhn  <zoo@monad.armadillo.com>
+
+	* system.h: remove a bunch of "extern int " declarations of system
+	  functions (could conflict with vendor header files, and didn't
+	  do anything *too* useful to begin with).
+
+	* Makefile.in: update getdate.y message (now has 10 s/r conflicts)
+
+Wed Sep 14 22:12:21 1994  david d `zoo' zuhn  <zoo@monad.armadillo.com>
+
+	* strerror.c: more complete, from the Cygnus libiberty package
+
+	* error.c (strerror): removed, functionality is in strerror.c
+
+	* cvs.h: remove duplicate prototype for Reader_Lock
+	* history.c: printf argument mismatch
+	  (Both fixes thanks to J.T. Conklin (jtc@cygnus.com)
+
+Sat Jul 30 13:50:11 1994  david d `zoo' zuhn  (zoo@monad.armadillo.com)
+
+	* getopt1.c, getopt.c, getopt.h, getdate.y: latest versions from FSF
+
+Wed Jul 13 22:11:17 1994  david d `zoo' zuhn  (zoo@monad.armadillo.com)
+
+	* system.h: don't set PATH_MAX to pathconf(), since PATH_MAX is
+	  used to size arrays.  (thanks to kingdon@cygnus.com)
+
+	* getopt1.c: remove #ifdef __STDC__ around const usages (which
+	  isn't correct and weren't complete)
+
+Wed Apr 20 14:57:16 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* getopt.h: Prevent multiple inclusion.
+
+Tue Jan 25 17:34:42 1994  david d zuhn  (zoo@monad.armadillo.com)
+
+	* Makefile.in: make sure that no blank lines are in the $(OBJECTS)
+          list (from Brad Figg)
+
+Mon Jan 24 12:27:13 1994  david d zuhn  (zoo@monad.armadillo.com)
+
+	* system.h: remove alloca checks (added to src/cvs.h); revamped
+	  the MAXPATHLEN and PATH_MAX tests (from Brad Figg
+	  <bradf@wv.MENTORG.COM>); handle index,rindex,bcmp,bzero better
+	  (don't redefine if already defined); added S_IWRITE, S_IWGRP,
+	  S_IWOTH definitions (header file reorganization)
+
+	* strippath.c: use strchr, not index
+
+	* getopt1.c: match prototypes when __STDC__ compiler (lint fixes)
+
+        * getdate.c: alloca checks for when using bison
+
+	* Makefile.in: added CC and YACC definitions; use YACC not BISON;
+	  better getdate.c tests (also from Brad Figg)
+
+Sat Dec 18 00:55:43 1993  david d zuhn  (zoo@monad.armadillo.com)
+
+	* Makefile.in (VPATH): don't use $(srcdir), but @srcdir@ instead
+
+	* memmove.c: new file, implements memmove in terms of bcopy
+
+	* wait.h: include <sys/wait.h> if HAVE_SYS_WAIT_H, not if POSIX
+
+Thu Sep  9 18:02:11 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+	* system.h: only #undef PATH_MAX if not on an Alpha.  The #undef
+	causes problems with the Alpha C compiler.
+
+Thu Apr  8 12:39:56 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* system.h: Removed several incorrect declarations which fail
+	on Solaris.
+
+Wed Jan 20 17:57:24 1993  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* system.h: add externs for sun4 so that gcc -Wall becomes useful
+	  again.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
+Sat Dec 28 02:42:06 1991  K. Richard Pixley  (rich at cygnus.com)
+
+	* mkdir.c, rename.c: change fork() to vfork().
+
+

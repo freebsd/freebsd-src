@@ -1,0 +1,59 @@
+.\" $Id: krb5-config.1,v 1.3 2000/12/01 04:59:53 assar Exp $
+.\"
+.Dd November 30, 2000
+.Dt KRB5-CONFIG 1
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5-config
+.Nd "give information on how to link code against Heimdal libraries"
+.Sh SYNOPSIS
+.Nm
+.Op Fl -prefix Ns Op = Ns Ar dir
+.Op Fl -exec-prefix Ns Op = Ns Ar dir
+.Op Fl -libs
+.Op Fl -cflags
+.Op Ar libraries
+.Sh DESCRIPTION
+.Nm
+tells the application programmer what special flags to use to compile
+and link programs against the libraries installed by Heimdal.
+.Pp
+Options supported:
+.Bl -tag -width Ds
+.It Fl -prefix Ns Op = Ns Ar dir
+Print the prefix if no
+.Ar dir
+is specified, otherwise set prefix to
+.Ar dir .
+.It Fl -exec-prefix Ns Op = Ns Ar dir
+Print the exec-prefix if no
+.Ar dir
+is specified, otherwise set exec-prefix to
+.Ar dir .
+.It Fl -libs
+Output the set of libraries that should be linked against.
+.It Fl -cflags
+Output the set of flags to give to the C compiler when using the
+Heimdal libraries.
+.El
+.Pp
+By default
+.Nm
+will output the set of flags and libraries to be used by a normal
+program using the krb5 API.  The user can also supply a library to be
+used, the supported ones are:
+.Bl -tag -width Ds
+.It krb5
+(the default)
+.It gssapi
+use the krb5 gssapi mechanism
+.It kadm-client
+use the client-side kadmin libraries
+.It kadm-server
+use the server-side kadmin libraries
+.El
+.Sh SEE ALSO
+.Xr cc 1
+.Sh HISTORY
+.Nm
+appeared in Heimdal 0.3d.

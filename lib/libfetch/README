@@ -1,0 +1,10 @@
+This is the new fetch(3) library, which is to replace the ftpio(3)
+library and provide a new, unified backend for all fetch(1),
+pkg_add(1) and sysinstall(8).
+
+Note that this is very much work in progress. It compiles (with a few
+warnings), but there is much left to be implemented. Comments, patches
+etc. of all kinds are welcome, but please don't commit anything
+without talking to me first.
+
+		-- Dag-Erling C. Smørgrav (des@FreeBSD.org)

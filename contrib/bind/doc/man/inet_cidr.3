@@ -1,0 +1,94 @@
+.\" $Id: inet_cidr.3,v 8.2 1999/01/08 18:54:24 vixie Exp $
+.\"
+.\"Copyright (c) 1998,1999 by Internet Software Consortium
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd October 19, 1998
+.Dt INET_CIDR @LIB_NETWORK_EXT_U@ 
+.Os BSD 4
+.Sh NAME
+.Nm inet_cidr_ntop ,
+.Nm inet_cidr_pton
+.Nd network translation routines
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/socket.h>
+.Fd #include <netinet/in.h>
+.Fd #include <arpa/inet.h>
+.Fn inet_cidr_ntop "int af" "const void *src" "int bits" "char *dst" "size_t size"
+.Fn inet_cidr_pton "int af" "const char *src" "void *dst" "int *bits"
+.Sh DESCRIPTION
+These routines are used for converting addresses to and from network and
+presentation forms with CIDR (Classless Inter-Domain Routing) representation,
+embedded net mask.
+.Pp
+.Bd -literal
+		130.155.16.1/20
+.Ed
+.\"		::ffff:130.155.16.1/116
+.Pp
+.Fn inet_cidr_ntop
+converts an address from network to presentation format.
+.Pp
+.Ft af
+describes the type of address that is being passed in
+.Ft src. 
+.\"Currently defined types are AF_INET and AF_INET6.
+Currently only AF_INET is supported.
+.Pp
+.Ft src
+is an address in network byte order, its length is determined from
+.Ft af.
+.Pp
+.Ft bits
+specifies the number of bits in the netmask unless it is -1 in which case
+the CIDR representation is omitted.
+.Pp
+.Ft dst
+is a caller supplied buffer of at least
+.Ft size
+bytes.
+.Pp
+.Fn inet_cidr_ntop
+returns 
+.Ft dst
+on success or NULL.
+Check errno for reason.
+.Pp
+.Fn inet_cidr_pton
+converts and address from presentation format, with optional CIDR
+reperesentation, to network format.
+The resulting address is zero filled if there were insufficint bits in
+.Ft src.
+.Pp
+.Ft af
+describes the type of address that is being passed in via 
+.Ft src
+and determines the size of 
+.Ft dst.
+.Pp
+.Ft src
+is an address in presentation format.
+.Pp
+.Ft bits
+returns the number of bits in the netmask or -1 if a CIDR representation was
+not supplied.
+.Pp
+.Fn inet_cidr_pton
+returns 0 on succces or -1 on error.
+Check errno for reason.
+ENOENT indicates an invalid netmask.
+.Sh SEE ALSO
+.Xr intro 2

@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+KLDMOD=	true

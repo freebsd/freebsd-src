@@ -1,0 +1,7 @@
+# Host: Intel 386 running 386BSD
+
+XM_FILE= xm-i386bsd.h
+XDEPFILES= 
+
+NAT_FILE= nm-i386bsd.h
+NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o core-aout.o i386b-nat.o

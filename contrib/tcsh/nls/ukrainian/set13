@@ -1,0 +1,13 @@
+$ $Id: set13,v 1.1 2000/11/11 23:03:42 christos Exp $
+$ sh.exec.c
+$set 13 
+1 hash=%-4d dir=%-2d prog=%s\n
+2 %d hash buckets of %d bits each\n
+3 debug mask = 0x%08x\n
+4 %d попадань, %d промах╕в, %d%%\n
+5 %S: shell built-in command.\n
+6 %S: Command not found.\n
+7 where: / in command makes no sense\n
+8 %S is aliased to 
+9 %S is a shell built-in\n
+10 hash miss: 

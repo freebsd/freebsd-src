@@ -1,0 +1,101 @@
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short months names
+#
+jan
+fév
+mar
+avr
+mai
+jui
+jul
+aoû
+sep
+oct
+nov
+déc
+#
+# Long months names
+#
+janvier
+février
+mars
+avril
+mai
+juin
+juillet
+août
+septembre
+octobre
+novembre
+décembre
+#
+# Short weekdays names
+#
+Dim
+Lun
+Mar
+Mer
+Jeu
+Ven
+Sam
+#
+# Long weekdays names
+#
+Dimanche
+Lundi
+Mardi
+Mercredi
+Jeudi
+Vendredi
+Samedi
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%d.%m.%y
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+  
+#
+# pm
+#
+pm
+#
+# date_fmt
+#
+%a %e %b %Y %X %Z
+#
+# Long months names (alternative)
+#
+janvier
+février
+mars
+avril
+mai
+juin
+juillet
+août
+septembre
+octobre
+novembre
+décembre
+#
+# Ef_fmt
+#
+%e %b
+#
+# EF_fmt
+#
+%e %B

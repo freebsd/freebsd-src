@@ -1,0 +1,15 @@
+$ $Id: set26,v 1.1 2000/11/11 23:03:44 christos Exp $
+$ tc.who.c
+$set 26 
+1 cannot stat %s.  Please "unset watch".\n
+2 %s cannot be opened.  Please "unset watch".\n
+3 BUG! last element is not whotail!\n
+4 backward: 
+5 BUG! first element is not whohead!\n
+6 new: %s/%s\n
+7 %n has %a %l from %m.
+8 %n has %a %l.
+9 logged on
+10 logged off
+11 replaced %s on
+12 local

@@ -1,0 +1,233 @@
+.\" Copyright (c) 1997 Junichi Satoh
+.\"   All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY FreeBSD, Inc. AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL FreeBSD, Inc.  OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 1998
+.Dt WFD 4 i386
+.Os
+.Sh NAME
+.Nm wfd
+.Nd ATAPI floppy driver (LS-120 floppy driver)
+.Sh SYNOPSIS
+.Cd options ATAPI
+.Cd options ATAPI_STATIC
+.Cd device wfd
+.Pp
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for
+.Em ATAPI
+floppy disks, typically LS-120 style 120mb/1.4mb floppy drives.
+In general the interfaces are similar to those described by
+.Xr wd 4 .
+.Pp
+As the IDE controllers are probed during boot, the
+.Em IDE
+buses are scanned for devices.
+Any devices found which answered as
+.Sq Em Floppy
+and
+.Sq Em removable
+type device will be attached to the
+.Nm
+driver.
+The first device found will be attached as
+.Em wfd0
+and the next,
+.Em wfd1 ,
+and so on.
+.Pp
+When used with a LS-120 drive, this driver will read/write the following
+types of floppy disk:
+.Bl -tag -width 1.25MB -compact
+.It 120mb
+.It 1.44mb
+.It 1.25mb (PC-9801 series format)
+.It 1.2mb
+.It 720kb
+.El
+.Sh PARTITIONING
+The
+.Nm
+driver allows the disk to have two levels of partitioning.
+One layer, called the
+.Dq slice layer ,
+is used to separate the
+.Fx
+areas of the disk from areas used by other operating systems.
+The second layer is the native
+.Bx 4.4
+partitioning scheme,
+.Xr disklabel 5 ,
+which is used to subdivide the
+.Fx
+slices into areas for individual filesystems.
+For more information, see
+.Xr fdisk 8
+and
+.Xr disklabel 8 ,
+respectively.
+.Pp
+If an uninitialized disk is opened, the slice table will be
+initialized with a fictitious
+.Fx
+slice spanning the entire disk.  Similarly, if an uninitialized
+(or
+.No non- Ns Fx )
+slice is opened, its disklabel will be initialized with parameters
+returned by the drive and a single
+.Sq Li c
+partition encompassing the entire slice.
+.Sh EXAMPLES
+Making LS-120/ZIP disks can be a bit more complicated than usual depending
+upon whether or not you chose to use the slice code or not.
+LS-120 floppies are typically considered floppy devices and do not carry
+a slice table.  On the other hand, Zip disks, which use the same driver,
+are considered hard disks by the vendor, so for compatibility, you should
+use a slice table.
+.Pp
+The driver will handle either type of disk with or without a slice
+table,  but for compatibility, you should generally create disks
+that follow the vendor's behavior.
+.Pp
+To create a UFS LS-120 disk (no slice table),
+First, make sure there is no slice table on the disk):
+.Dl # dd if=/dev/zero of=/dev/wfd0 count=16
+.Pp
+Next, disklabel the disk:
+.Dl # disklabel -rw wfd0 fd120m
+.Pp
+Then newfs as usual:
+.Dl # newfs /dev/rwfd0a
+.Pp
+To create a standard 1.44mb floppy in a LS-120 drive, do the same
+procedure, but use
+.Ar fd1440
+as the disk layout when using the
+.Nm disklabel
+command.
+.Sh KERNEL CONFIGURATION
+Only one
+.Nm
+device is necessary in the config file; data structures are dynamically
+allocated as disks are found on the
+.Tn IDE
+buses.
+.Sh NOTES
+This driver is attached to the
+.Xr wdc 4
+IDE/ATAPI disk controller driver.  It will not work unless
+IDE controllers have been configured and enabled in the kernel.
+.Sh BUGS
+Floppy formatting is not yet supported.
+.Pp
+This driver is still a beta version.
+If you have problems, please report them to
+.Aq bugs@FreeBSD.org
+and the author.
+.Sh FILES
+.Bl -tag -width /dev/rwfdXXXXX -compact
+.It Pa /dev/rwfd Ns Ar u
+raw mode
+.Tn ATAPI
+floppy
+.Ar u ,
+accessed as an unpartitioned device
+.Sm off
+.It Pa /dev/wfd Ar u Pa s Ar n
+.Sm on
+block mode
+.Tn ATAPI
+floppy disk unit
+.Ar u ,
+slice
+.Ar n ,
+accessed as an unpartitioned device
+.Sm off
+.It Pa /dev/rwfd Ar u Pa s Ar n
+.Sm on
+raw mode
+.Tn ATAPI
+floppy disk unit
+.Ar u ,
+slice
+.Ar n ,
+accessed as an unpartitioned device
+.It Pa /dev/wfd Ns Ar u Ns Ar p
+block mode
+.Tn ATAPI
+floppy disk unit
+.Ar u ,
+first
+.Fx
+slice, partition
+.Ar p
+.It Pa /dev/rwfd Ns Ar u Ns Ar p
+raw mode
+.Tn ATAPI
+floppy disk unit
+.Ar u ,
+first
+.Fx
+slice, partition
+.Ar p
+.Sm off
+.It Pa /dev/wfd Ar u Pa s Ar n Ar p
+.Sm on
+block mode
+.Tn ATAPI
+floppy disk unit
+.Ar u ,
+.Ar n Ns th
+slice, partition
+.Ar p
+.Sm off
+.It Pa /dev/rwfd Ar u Pa s Ar n Ar p
+.Sm on
+raw mode
+.Tn ATAPI
+floppy disk unit
+.Ar u ,
+.Ar n Ns th
+slice, partition
+.Ar p
+.El
+.Sh SEE ALSO
+.Xr wcd 4 ,
+.Xr wd 4 ,
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8
+.Sh AUTHORS
+.An "Junichi Satoh" Aq junichi@jp.FreeBSD.org
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 2.2.6 .

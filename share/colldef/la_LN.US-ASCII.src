@@ -1,0 +1,6 @@
+# ASCII
+#
+# $FreeBSD$
+#
+order \
+	\x00;...;\xff

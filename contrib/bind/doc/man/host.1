@@ -1,0 +1,333 @@
+.\" ++Copyright++ 1993
+.\" -
+.\" Copyright (c) 1993
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\" $Id: host.1,v 8.4 2000/02/29 03:50:47 vixie Exp $
+.\" $FreeBSD$
+.\"
+.Dd December 15, 1994
+.Dt HOST @CMD_EXT_U@
+.Os BSD 4
+.Sh NAME
+.Nm host 
+.Nd look up host names using domain server
+.Sh SYNOPSIS 
+.Nm host 
+.Op Fl adlrwv
+.Op Fl c Ar class
+.Op Fl t Ar querytype
+.Ar host 
+.Op Ar server 
+.Sh DESCRIPTION 
+.Ic Host
+looks for information about Internet hosts.  It gets this information
+from a set of interconnected servers that are spread across the
+country.  By default, it simply converts between host names and
+Internet addresses.  However, with the 
+.Dq Fl t 
+or 
+.Dq Fl a 
+options, it can be used
+to find all of the information about this host that is maintained
+by the domain server.
+.Pp
+The arguments can be either host names or host numbers.  The program
+first attempts to interpret them as host numbers.  If this fails,
+it will treat them as host names.  A host number consists of
+four decimal numbers separated by dots, e.g. 128.6.4.194
+A host name consists of names separated by dots, e.g. topaz.rutgers.edu.  
+Unless the name ends in a dot, the local domain
+is automatically tacked on the end.  Thus, a Rutgers user can say
+.Pp
+.D1 Ic host topaz 
+.Pp
+and it will actually look up "topaz.rutgers.edu".
+If this fails, the name is tried unchanged (in this case, "topaz").
+This same convention is used for mail and other network utilities.
+The actual suffix to tack on the end is obtained
+by looking at the results of a 
+.Xr hostname @CMD_EXT@
+call, and using everything
+starting at the first dot.  (See below for a description of
+.Sx CUSTOMIZING HOST NAME LOOKUP . )
+.Pp
+The first argument is the host name you want to look up.
+If this is a number, an 
+.Dq inverse query 
+is done, i.e. the domain
+system looks in a separate set of databases used to convert numbers
+to names.
+.Pp
+The second argument is optional.  It
+allows you to specify a particular server to query.  If you don't
+specify this argument, the default server (normally the local machine)
+is used.
+.Pp
+If a name is specified, you may see output of three different kinds.
+Here is an example that shows all of them:
+.Pp
+.D1 Ic % host sun4
+.Dl sun4.rutgers.edu is a nickname for ATHOS.RUTGERS.EDU
+.Dl ATHOS.RUTGERS.EDU has address 128.6.5.46
+.Dl ATHOS.RUTGERS.EDU has address 128.6.4.4
+.Dl ATHOS.RUTGERS.EDU mail is handled by ARAMIS.RUTGERS.EDU
+.Pp
+The user has typed the command 
+.Dq Ic host sun4 .  
+The first line indicates that the name 
+.Dq Li sun4.rutgers.edu 
+is actually a nickname.  The official host name is 
+.Dq Li ATHOS.RUTGERS.EDU .  
+The next two lines show the
+address.  If a system has more than one network interface, there
+will be a separate address for each.  The last line indicates
+that 
+.Li ATHOS.RUTGERS.EDU 
+does not receive its own mail.  Mail for
+it is taken by 
+.Li ARAMIS.RUTGERS.EDU .  
+There may be more than one
+such line, since some systems have more than one other system
+that will handle mail for them.  Technically, every system that
+can receive mail is supposed to have an entry of this kind.  If
+the system receives its own mail, there should be an entry
+the mentions the system itself; for example,
+.Pp
+.D1 Li XXX mail is handled by XXX 
+.Pp
+However, many systems that receive
+their own mail do not bother to mention that fact.  If a system
+has a 
+.Dq Li mail is handled by 
+entry, but no address, this indicates
+that it is not really part of the Internet, but a system that is
+on the network will forward mail to it.  Systems on Usenet, Bitnet,
+and a number of other networks have entries of this kind.
+.Sh OPTIONS
+There are a number of options that can be used before the
+host name.  Most of these options are meaningful only to the
+staff who have to maintain the domain database.
+.Bl -tag -width Fl
+.It Fl a 
+.Dq all ;
+this is equivalent to 
+.Dq Fl v Fl t Cm any .
+.It Fl c Ar class
+The 
+.Ar class
+to look for non-Internet data.
+.It Fl d
+Turn on debugging.  Network transactions are shown in detail.
+.It Fl l
+List a complete domain; e.g.:
+.Pp
+.D1 Ic host -l rutgers.edu
+.Pp
+will give a listing of all hosts in the rutgers.edu domain.  The 
+.Dq Fl t
+option is used to filter what information is presented, as you 
+would expect.  The default is address information, which also
+include PTR and NS records.  The command
+.Pp
+.D1 Ic host -l -v -t any rutgers.edu
+.Pp
+will give a complete download of the zone data for rutgers.edu,
+in the official master file format.  (However the SOA record is
+listed twice, for arcane reasons.)  
+.Pp
+.Sy NOTE: 
+.Dq Fl l 
+is implemented by
+doing a complete zone transfer and then filtering out the information
+that you have asked for.  This command should be used only if it
+is absolutely necessary.
+.It Fl r
+Turn off recursion in the request.
+This means that the name server will return only data it has in
+its own database.  It will not ask other servers for more 
+information.
+.It Fl d
+Turn on debugging.  Network transactions are shown in detail.
+.It Fl s
+Chase signatures back to parent key (DNSSEC).
+.It Fl t Ar querytype
+Allows you to specify a particular 
+.Ar querytype 
+of information
+to be looked up.  The arguments are defined in the man page for
+.Xr @INDOT@named @SYS_OPS_EXT@ .
+Currently-supported types include: 
+.Dq Cm a , 
+.Dq Cm ns , 
+.Dq Cm md , 
+.Dq Cm mf , 
+.Dq Cm cname ,
+.Dq Cm soa , 
+.Dq Cm mb , 
+.Dq Cm mg , 
+.Dq Cm mr , 
+.Dq Cm null , 
+.Dq Cm wks , 
+.Dq Cm ptr , 
+.Dq Cm hinfo , 
+.Dq Cm minfo , 
+.Dq Cm mx , 
+.Dq Cm uinfo ,
+.Dq Cm uid , 
+.Dq Cm gid , 
+.Dq Cm unspec .  
+Additionally, the wildcard, which may be written
+as either 
+.Dq Cm any 
+or 
+.Dq Cm * ,
+can be used to specify any (all) of the above types.  
+Types must be given in lower case.
+Note that the default is to look first for 
+.Dq Cm a , 
+and then 
+.Dq Cm mx , 
+except that if the verbose option is turned on, the default is only 
+.Dq Cm a .
+The
+.Dq Fl t
+option is particularly useful for filtering information returned by 
+.Ic host ;
+see the explanation of the
+.Dq Fl l
+option, below, for more information.
+.It Fl a 
+.Dq all ;
+this is equivalent to 
+.Dq Fl v Fl t Cm any .
+.It Fl l
+List a complete domain; e.g.:
+.Pp
+.D1 Ic host -l rutgers.edu
+.Pp
+will give a listing of all hosts in the rutgers.edu domain.  The 
+.Dq Fl t
+option is used to filter what information is presented, as you 
+would expect.  The default is address information, which also
+include PTR and NS records.  The command
+.Pp
+.D1 Ic host -l -v -t any rutgers.edu
+.Pp
+will give a complete download of the zone data for rutgers.edu,
+in the official master file format.  (However the SOA record is
+listed twice, for arcane reasons.)  
+.Pp
+.Sy NOTE: 
+.Dq Fl l 
+is implemented by
+doing a complete zone transfer and then filtering out the information
+the you have asked for.  This command should be used only if it
+is absolutely necessary.
+.El
+.Sh CUSTOMIZING HOST NAME LOOKUP
+In general, if the name supplied by the user does not
+have any dots in it, a default domain is appended to the end.
+This domain can be defined in 
+.Pa /etc/resolv.conf , 
+but is normally derived
+by taking the local hostname after its first dot.  The user can override
+this, and specify a different default domain, using the environment
+variable
+.Ev LOCALDOMAIN .
+In addition, the user can supply his own abbreviations for host names.
+They should be in a file consisting of one line per abbreviation.
+Each line contains an abbreviation, a space, and then the full
+host name.  The name file must be contained in the 
+.Ev HOSTALIASES 
+environment variable.
+.Sh ENVIRONMENT
+.Bl -tag -width "/etc/resolv.conf  " -compress
+.It Ev HOSTALIASES
+Name of file containing
+.Pq Ar host alias , full hostname
+pairs.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/resolv.conf  " -compress
+.It Pa /etc/resolv.conf 
+See
+.Xr resolver @FORMAT_EXT@ .
+.It Ev HOSTALIASES
+Name of file containing
+.Pq Ar host alias , full hostname
+pairs.
+.El
+.Sh SEE ALSO
+.Xr @INDOT@named  @SYS_OPS_EXT@ , 
+.Xr resolver @FORMAT_EXT@ .
+.Sh BUGS
+Unexpected effects can happen when you type a name that is not
+part of the local domain.  Please always keep in mind the
+fact that the local domain name is tacked onto the end of every
+name, unless it ends in a dot.  Only if this fails is the name
+used unchanged.
+.Pp
+The 
+.Dq Fl l 
+option only tries the first name server listed for the
+domain that you have requested.  If this server is dead, you
+may need to specify a server manually. E.g., to get a listing
+of foo.edu, you could try 
+.Pp
+.D1 Ic host -t ns foo.edu 
+.Pp
+to get a list of all the name servers for foo.edu, and then try 
+.Pp
+.D1 Ic host -l foo.edu xxx
+.Pp
+for all 
+.Dq Ic xxx 
+on the list of name servers, until you find one that works.

@@ -1,0 +1,34 @@
+#!./perl
+
+$pat = 'S n C4 x8';
+$inet = 2;
+$echo = 7;
+$smtp = 25;
+$nntp = 119;
+$test = 2345;
+
+$SIG{'INT'} = 'dokill';
+
+$this = pack($pat,$inet,0,   128,149,13,43);
+$that = pack($pat,$inet,$test,127,0,0,1);
+
+if (socket(S,2,1,6)) { print "socket ok\n"; } else { die $!; }
+if (bind(S,$this)) { print "bind ok\n"; } else { die $!; }
+if (connect(S,$that)) { print "connect ok\n"; } else { die $!; }
+
+select(S); $| = 1; select(stdout);
+
+if ($child = fork) {
+    while (<STDIN>) {
+	print S;
+    }
+    sleep 3;
+    do dokill();
+}
+else {
+    while (<S>) {
+	print;
+    }
+}
+
+sub dokill { kill 9,$child if $child; }

@@ -1,0 +1,225 @@
+.\" Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+.\"	All rights reserved.
+.\" Copyright (c) 1985, 1987, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"	$Id: vacation.1,v 8.11.4.8 2001/07/20 04:19:38 gshapiro Exp $
+.\"
+.\" $FreeBSD$
+.\"
+.TH VACATION 1 "$Date: 2001/07/20 04:19:38 $"
+.SH NAME
+vacation
+\- return ``I am not here'' indication
+.SH SYNOPSIS
+.B vacation
+.RB [ \-i ]
+.RB [ \-I ]
+.RB [ \-r 
+.IR interval ]
+.RB [ \-x ]
+.RB [ \-a
+.IR alias ]
+.RB [ \-d ]
+.RB [ \-f
+.IR database ]
+.RB [ \-l ]
+.RB [ \-m
+.IR message ]
+.RB [ \-s
+.IR address ]
+.RB [ \-t
+.IR time ]
+.RB [ \-z ]
+.I login
+.SH DESCRIPTION
+.B Vacation
+returns a message to the sender of a message telling them that you
+are currently not reading your mail.  The intended use is in a
+.I .forward
+file.  For example, your
+.I .forward
+file might have:
+.IP
+\eeric, "|/usr/bin/vacation -a allman eric"
+.PP
+which would send messages to you (assuming your login name was eric) and
+reply to any messages for
+``eric''
+or
+``allman''.
+.PP
+Available options:
+.TP
+.BI \-a " alias"
+Handle messages for
+.I alias
+in the same manner as those received for the user's
+login name.
+.TP
+.B \-d
+Send error/debug messages to stdout instead of syslog.
+Otherwise, fatal errors, such as calling
+.B vacation
+with incorrect arguments, or with non-existent
+.IR login s,
+are logged in the system log file, using
+syslog(8).
+.TP
+.BI \-f " filename"
+Use
+.I filename
+as name of the database instead of
+.IR ~/.vacation.db .
+Unless the
+.I filename
+starts with / it is relative to ~.
+.TP
+.B \-i
+Initialize the vacation database files.  It should be used
+before you modify your
+.I .forward
+file.
+.TP
+.B \-I
+Same as
+.B \-i
+(for backwards compatibility).
+.TP
+.B \-l
+List the content of the vacation database file including the address
+and the associated time of the last auto-response to that address.
+.TP
+.BI \-m " filename"
+Use
+.I filename
+as name of the file containing the message to send instead of
+.IR ~/.vacation.msg .
+Unless the
+.I filename
+starts with / it is relative to ~.
+.TP
+.BI \-r " interval"
+Set the reply interval to
+.I interval
+days.  The default is one week.
+An interval of ``0'' or
+``infinite''
+(actually, any non-numeric character) will never send more than
+one reply.
+.TP
+.BI \-s " address"
+Use
+.I address
+instead of the incoming message sender address on the
+.I From 
+line as the recipient for the vacation message.
+.TP
+.BI \-t " time"
+Ignored, available only for compatibility with Sun's
+vacation program.
+.TP
+.B \-x
+reads an exclusion list from stdin (one address per line).
+Mails coming from an address
+in this exclusion list won't get a reply by
+.BR vacation .
+It is possible to exclude complete domains by specifying
+``@domain''
+as element of the exclusion list.
+.TP
+.B \-z
+Set the sender of the vacation message to
+``<>''
+instead of the user.
+This probably violates the RFCs since vacation messages are
+not required by a standards-track RFC to have a null reverse-path.
+.PP
+No message will be sent unless
+.I login
+(or an
+.I alias
+supplied using the
+.B \-a
+option) is part of either the
+``To:''
+or
+``Cc:''
+headers of the mail.
+No messages from
+``???-REQUEST'',
+``???-RELAY'',
+``???-OWNER'',
+``OWNER-???'',
+``Postmaster'',
+``UUCP'',
+``MAILER'',
+or
+``MAILER-DAEMON''
+will be replied to (where these strings are
+case insensitive) nor is a notification sent if a
+``Precedence: bulk''
+or
+``Precedence: junk''
+line is included in the mail headers.
+The people who have sent you messages are maintained as a
+db(3)
+database in the file
+.I .vacation.db
+in your home directory.
+.PP
+.B Vacation
+expects a file
+.IR .vacation.msg ,
+in your home directory, containing a message to be sent back to each
+sender.  It should be an entire message (including headers).  For
+example, it might contain:
+.IP
+.nf
+From: eric@CS.Berkeley.EDU (Eric Allman)
+Subject: I am on vacation
+Delivered-By-The-Graces-Of: The Vacation program
+Precedence: bulk
+
+I am on vacation until July 22.  If you have something urgent,
+please contact Keith Bostic <bostic@CS.Berkeley.EDU>.
+--eric
+.fi 
+.PP
+.B Vacation
+reads the first line from the standard input for a
+UNIX
+``From''
+line to determine the sender.
+Sendmail(8)
+includes this
+``From''
+line automatically.
+.PP
+Fatal errors, such as calling
+.B vacation
+with incorrect arguments, or with non-existent
+.IR login s,
+are logged in the system log file, using
+syslog(8).
+.SH FILES
+.TP 1.8i
+~/.vacation.db
+default database file
+.TP
+~/.vacation.msg
+default message to send
+.SH SEE ALSO
+sendmail(8),
+syslog(8)
+.SH HISTORY
+The
+.B vacation
+command appeared in
+4.3BSD.

@@ -1,0 +1,56 @@
+#!/bin/sh
+# $FreeBSD$
+### Special setup for PicoBSD ###
+mount -a -t nonfs
+reply=y
+while [ "$reply" != "n" ]; do
+  echo -n "Do you have an additional floppy? [yn] "
+  read reply
+  if [ "$reply" = "y" ]; then
+    cd /
+    tar xzvf /dev/fd0
+  fi
+done
+if [ -f /etc/rc.conf ]; then
+    . /etc/rc.conf
+fi
+rm -f /var/run/*
+if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
+	echo "Adding $swapfile as additional swap."
+	vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
+fi
+# configure serial devices
+if [ -f /etc/rc.serial ]; then
+	. /etc/rc.serial
+fi
+# start up the initial network configuration.
+if [ -f /etc/rc.network ]; then
+	. /etc/rc.network
+	network_pass1
+fi
+mount -a -t nfs
+chmod 666 /dev/tty[pqrsPQRS]*
+# clean up left-over files
+(cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
+if [ -n "$network_pass1_done" ]; then
+    network_pass2
+fi
+if [ -n "$network_pass2_done" ]; then
+    network_pass3
+fi
+if [ "X${inetd_enable}" = X"YES" ]; then
+	echo "Starting inetd."; inetd ${inetd_flags}
+fi
+
+dev_mkdb
+
+echo ''
+if [ "x$swapfile" = "xNO" ]; then
+	echo "WARNING: no swap partition!"
+	echo "Don't run too many programs at the same time..."
+fi
+# Only one /tmp
+ln -s /tmp /var
+
+# This needs to be in /sbin, but /sbin is magic.
+mv /etc/dhclient-script /sbin

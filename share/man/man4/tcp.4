@@ -1,0 +1,366 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd February 14, 1995
+.Dt TCP 4
+.Os
+.Sh NAME
+.Nm tcp
+.Nd Internet Transmission Control Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.Ft int
+.Fn socket AF_INET SOCK_STREAM 0
+.Sh DESCRIPTION
+The
+.Tn TCP
+protocol provides reliable, flow-controlled, two-way
+transmission of data.  It is a byte-stream protocol used to
+support the
+.Dv SOCK_STREAM
+abstraction.  TCP uses the standard
+Internet address format and, in addition, provides a per-host
+collection of
+.Dq port addresses .
+Thus, each address is composed
+of an Internet address specifying the host and network, with
+a specific
+.Tn TCP
+port on the host identifying the peer entity.
+.Pp
+Sockets utilizing the tcp protocol are either
+.Dq active
+or
+.Dq passive .
+Active sockets initiate connections to passive
+sockets.  By default
+.Tn TCP
+sockets are created active; to create a
+passive socket the
+.Xr listen 2
+system call must be used
+after binding the socket with the
+.Xr bind 2
+system call.  Only
+passive sockets may use the
+.Xr accept 2
+call to accept incoming connections.  Only active sockets may
+use the
+.Xr connect 2
+call to initiate connections.
+.Tn TCP
+also supports a more datagram-like mode, called Transaction
+.Tn TCP ,
+which is described in
+.Xr ttcp 4 .
+.Pp
+Passive sockets may
+.Dq underspecify
+their location to match
+incoming connection requests from multiple networks.  This
+technique, termed
+.Dq wildcard addressing ,
+allows a single
+server to provide service to clients on multiple networks.
+To create a socket which listens on all networks, the Internet
+address
+.Dv INADDR_ANY
+must be bound.  The
+.Tn TCP
+port may still be specified
+at this time; if the port is not specified the system will assign one.
+Once a connection has been established the socket's address is
+fixed by the peer entity's location.   The address assigned the
+socket is the address associated with the network interface
+through which packets are being transmitted and received.  Normally
+this address corresponds to the peer entity's network.
+.Pp
+.Tn TCP
+supports a number of socket options which can be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 :
+.Bl -tag -width TCP_NODELAYx
+.It Dv TCP_NODELAY
+Under most circumstances,
+.Tn TCP
+sends data when it is presented;
+when outstanding data has not yet been acknowledged, it gathers
+small amounts of output to be sent in a single packet once
+an acknowledgement is received.
+For a small number of clients, such as window systems
+that send a stream of mouse events which receive no replies,
+this packetization may cause significant delays.
+The boolean option
+.Dv TCP_NODELAY
+defeats this algorithm.
+.It Dv TCP_MAXSEG
+By default, a sender\- and receiver-TCP
+will negotiate among themselves to determine the maximum segment size
+to be used for each connection.  The
+.Dv TCP_MAXSEG
+option allows the user to determine the result of this negotiation,
+and to reduce it if desired.
+.It Dv TCP_NOOPT
+.Tn TCP
+usually sends a number of options in each packet, corresponding to
+various
+.Tn TCP
+extensions which are provided in this implementation.  The boolean
+option
+.Dv TCP_NOOPT
+is provided to disable
+.Tn TCP
+option use on a per-connection basis.
+.It Dv TCP_NOPUSH
+By convention, the sender-TCP
+will set the
+.Dq push
+bit and begin transmission immediately (if permitted) at the end of
+every user call to
+.Xr write 2
+or
+.Xr writev 2 .
+The
+.Dv TCP_NOPUSH
+option is provided to allow servers to easily make use of Transaction
+TCP (see
+.Xr ttcp 4 ) .
+When the option is set to a non-zero value,
+.Tn TCP
+will delay sending any data at all until either the socket is closed,
+or the internal send buffer is filled.
+.El
+.Pp
+The option level for the
+.Xr setsockopt 2
+call is the protocol number for
+.Tn TCP ,
+available from
+.Xr getprotobyname 3 ,
+or
+.Dv IPPROTO_TCP .
+All options are declared in
+.Aq Pa netinet/tcp.h .
+.Pp
+Options at the
+.Tn IP
+transport level may be used with
+.Tn TCP ;
+see
+.Xr ip 4 .
+Incoming connection requests that are source-routed are noted,
+and the reverse source route is used in responding.
+.Sh MIB VARIABLES
+The
+.Nm
+protocol implements a number of variables in the
+.Li net.inet
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -tag -width TCPCTL_DO_RFC1644
+.It Dv TCPCTL_DO_RFC1323
+.Pq tcp.rfc1323
+Implement the window scaling and timestamp options of RFC 1323
+(default true).
+.It Dv TCPCTL_DO_RFC1644
+.Pq tcp.rfc1644
+Implement Transaction
+.Tn TCP ,
+as described in RFC 1644.
+.It Dv TCPCTL_MSSDFLT
+.Pq tcp.mssdflt
+The default value used for the maximum segment size
+.Pq Dq MSS
+when no advice to the contrary is received from MSS negotiation.
+.It Dv TCPCTL_SENDSPACE
+.Pq tcp.sendspace
+Maximum TCP send window.
+.It Dv TCPCTL_RECVSPACE
+.Pq tcp.recvspace
+Maximum TCP receive window.
+.It tcp.log_in_vain
+Log any connection attempts to ports where there is not a socket
+accepting connections.
+.It tcp.slowstart_flightsize
+The number of packets allowed to be in-flight during the
+.Tn TCP
+slow-start phase on a non-local network.
+.It tcp.local_slowstart_flightsize
+The number of packets allowed to be in-flight during the
+.Tn TCP
+slow-start phase to local machines in the same subnet.
+.It tcp.msl
+The Maximum Segment Lifetime for a packet.
+.It tcp.keepinit
+Timeout for new, non-established TCP connections.
+.It tcp.keepidle
+Amount of time the connection should be idle before keepalive
+probes (if enabled) are sent.
+.It tcp.keepintvl
+The interval between keepalive probes sent to remote machines.
+After
+.Dv TCPTV_KEEPCNT
+(default 8) probes are sent, with no response, the connection is dropped.
+.It tcp.always_keepalive
+Assume that
+.Dv SO_KEEPALIVE
+is set on all
+.Tn TCP
+connections, the kernel will
+periodically send a packet to the remote host to verify the connection
+is still up.
+.It tcp.icmp_may_rst
+Certain
+.Tn ICMP
+unreachable messages may abort connections in
+.Tn SYN-SENT
+state.
+.It tcp.do_tcpdrain
+Flush packets in the
+.Tn TCP
+reassembly queue if the system is low on mbufs.
+.\"
+.\" This option should go away and become the default.
+.\"
+.It tcp.tcp_lq_overflow
+If a connection is dropped due to a listen queue overflow, delete the
+cloned route associated with the connection if it does not have any
+prior information.
+.It tcp.blackhole
+If enabled, disable sending of RST when a connection is attempted
+to a port where there is not a socket accepting connections.
+See
+.Xr blackhole 4 .
+.It tcp.delayed_ack
+Delay ACK to try and piggyback it onto a data packet.
+.It tcp.delacktime
+Maximum amount of time before a delayed ACK is sent.
+.It tcp.newreno
+Enable TCP NewReno Fast Recovery algorithm,
+as described in RFC 2582.
+.It tcp.path_mtu_discovery
+Enable Path MTU Discovery
+.It tcp.tcbhashsize
+Size of the
+.Tn TCP
+control-block hashtable
+(read-only).
+This may be tuned using the kernel option
+.Dv TCBHASHSIZE
+or by setting
+.Va net.inet.tcp.tcbhashsize
+in the
+.Xr loader 8 .
+.It tcp.pcbcount
+Number of active process control blocks
+(read-only).
+.It tcp.strict_rfc1948
+Enable strict RFC 1948 (Defending Against Sequence Number Attacks)
+compliance.
+Setting this variable to a non-zero value will disable reseeding and
+will disable the use of randomized initial sequence numbers in favor
+of MD5-generated initial sequence numbers.
+.It tcp.isn_reseed_interval
+The interval (in seconds) specifying how often the secret data used in
+RFC 1948 initial sequence number calculations should be reseeded.
+By default, this variable is set to zero, indicating that
+no reseeding will occur.
+Reseeding should not be necessary, and will break
+.Dv TIME_WAIT
+recycling for a few minutes.
+.El
+.Sh ERRORS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width Er
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one;
+.It Bq Er ENOBUFS
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er ETIMEDOUT
+when a connection was dropped
+due to excessive retransmissions;
+.It Bq Er ECONNRESET
+when the remote peer
+forces the connection to be closed;
+.It Bq Er ECONNREFUSED
+when the remote
+peer actively refuses connection establishment (usually because
+no process is listening to the port);
+.It Bq Er EADDRINUSE
+when an attempt
+is made to create a socket with a port which has already been
+allocated;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a
+socket with a network address for which no network interface
+exists.
+.It Bq Er EAFNOSUPPORT
+when an attempt is made to bind or connect a socket to a multicast
+address.
+.El
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr socket 2 ,
+.Xr sysctl 3 ,
+.Xr blackhole 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr ip 4 ,
+.Xr ttcp 4
+.Rs
+.%A V. Jacobson
+.%A R. Braden
+.%A D. Borman
+.%T "TCP Extensions for High Performance"
+.%O RFC 1323
+.Re
+.Rs
+.%A R. Braden
+.%T "T/TCP \- TCP Extensions for Transactions"
+.%O RFC 1644
+.Re
+.Sh HISTORY
+The
+.Nm
+protocol appeared in
+.Bx 4.2 .
+The RFC 1323 extensions for window scaling and timestamps were added
+in
+.Bx 4.4 .

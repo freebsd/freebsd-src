@@ -1,0 +1,25 @@
+.\" Copyright (c) 1997 Kungliga Tekniska Högskolan
+.\" $Id: krb5_free_principal.3,v 1.2 2001/01/26 22:43:22 assar Exp $
+.Dd August 8, 1997
+.Dt KRB5_FREE_PRINCIPAL 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_free_principal
+.Nd principal free function
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft void
+.Fn krb5_free_principal "krb5_context context" "krb5_principal principal"
+.Sh DESCRIPTION
+The 
+.Fn krb5_free_principal
+will free a principal that has been created with
+.Fn krb5_build_principal ,
+.Fn krb5_parse_name ,
+or with some other function. 
+.Sh SEE ALSO
+.Xr krb5_425_conv_principal 3 ,
+.Xr krb5_build_principal 3 ,
+.Xr krb5_parse_name 3 ,
+.Xr krb5_sname_to_principal 3 ,
+.Xr krb5_unparse_name 3

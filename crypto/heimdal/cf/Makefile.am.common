@@ -1,0 +1,178 @@
+# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+
+AUTOMAKE_OPTIONS = foreign no-dependencies
+
+SUFFIXES = .et .h
+
+INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
+
+AM_CFLAGS += $(WFLAGS)
+
+CP	= cp
+
+COMPILE_ET = $(top_builddir)/lib/com_err/compile_et
+
+## set build_HEADERZ to headers that should just be installed in build tree
+
+buildinclude = $(top_builddir)/include
+
+## these aren't detected by automake
+LIB_XauReadAuth		= @LIB_XauReadAuth@
+LIB_crypt		= @LIB_crypt@
+LIB_dbm_firstkey	= @LIB_dbm_firstkey@
+LIB_dbopen		= @LIB_dbopen@
+LIB_dlopen		= @LIB_dlopen@
+LIB_dn_expand		= @LIB_dn_expand@
+LIB_el_init		= @LIB_el_init@
+LIB_getattr		= @LIB_getattr@
+LIB_gethostbyname	= @LIB_gethostbyname@
+LIB_getpwent_r		= @LIB_getpwent_r@
+LIB_getpwnam_r		= @LIB_getpwnam_r@
+LIB_getsockopt		= @LIB_getsockopt@
+LIB_logout		= @LIB_logout@
+LIB_logwtmp		= @LIB_logwtmp@
+LIB_odm_initialize	= @LIB_odm_initialize@
+LIB_pidfile		= @LIB_pidfile@
+LIB_readline		= @LIB_readline@
+LIB_res_search		= @LIB_res_search@
+LIB_setpcred		= @LIB_setpcred@
+LIB_setsockopt		= @LIB_setsockopt@
+LIB_socket		= @LIB_socket@
+LIB_syslog		= @LIB_syslog@
+LIB_tgetent		= @LIB_tgetent@
+
+LIBS			= @LIBS@
+
+HESIODLIB = @HESIODLIB@
+HESIODINCLUDE = @HESIODINCLUDE@
+INCLUDE_hesiod = @INCLUDE_hesiod@
+LIB_hesiod = @LIB_hesiod@
+
+INCLUDE_krb4 = @INCLUDE_krb4@
+LIB_krb4 = @LIB_krb4@
+
+INCLUDE_openldap = @INCLUDE_openldap@
+LIB_openldap = @LIB_openldap@
+
+INCLUDE_readline = @INCLUDE_readline@
+LIB_readline = @LIB_readline@
+
+LEXLIB = @LEXLIB@
+
+install-suid-programs:
+	@foo='$(bin_SUIDS)'; \
+	for file in $$foo; do \
+	x=$(DESTDIR)$(bindir)/$$file; \
+	if chown 0:0 $$x && chmod u+s $$x; then :; else \
+	echo "*"; \
+	echo "* Failed to install $$x setuid root"; \
+	echo "*"; \
+	fi; done
+
+install-exec-hook: install-suid-programs
+
+install-build-headers:: $(include_HEADERS) $(build_HEADERZ)
+	@foo='$(include_HEADERS) $(build_HEADERZ)'; \
+	for f in $$foo; do \
+		f=`basename $$f`; \
+		if test -f "$(srcdir)/$$f"; then file="$(srcdir)/$$f"; \
+		else file="$$f"; fi; \
+		if cmp -s  $$file $(buildinclude)/$$f 2> /dev/null ; then \
+		: ; else \
+			echo " $(CP) $$file $(buildinclude)/$$f"; \
+			$(CP) $$file $(buildinclude)/$$f; \
+		fi ; \
+	done
+
+all-local: install-build-headers
+
+SUFFIXES += .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8
+
+NROFF_MAN = groff -mandoc -Tascii
+#NROFF_MAN = nroff -man
+.1.cat1:
+	$(NROFF_MAN) $< > $@
+.3.cat3:
+	$(NROFF_MAN) $< > $@
+.5.cat5:
+	$(NROFF_MAN) $< > $@
+.8.cat8:
+	$(NROFF_MAN) $< > $@
+
+## MAINTAINERCLEANFILES += 
+
+dist-cat1-mans:
+	@foo='$(man1_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.1) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat1/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat3-mans:
+	@foo='$(man3_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.3) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat3/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat5-mans:
+	@foo='$(man5_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.5) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat5/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat8-mans:
+	@foo='$(man8_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.8) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat8/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
+
+install-cat-mans:
+	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
+
+install-data-local: install-cat-mans
+
+
+.et.h:
+	$(COMPILE_ET) $<
+.et.c:
+	$(COMPILE_ET) $<
+
+if KRB4
+LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+endif
+
+if KRB5
+LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
+LIB_gssapi = $(top_builddir)/lib/gssapi/libgssapi.la
+endif
+

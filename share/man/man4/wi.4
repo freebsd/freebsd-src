@@ -1,0 +1,105 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 21, 1999
+.Dt WI 4
+.Os
+.Sh NAME
+.Nm wi
+.Nd Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA driver
+.Sh SYNOPSIS
+.Cd "device wi"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for WaveLAN/IEEE PCCARD adapters (also known
+as WaveLAN II cards). Note that while Lucent sells both ISA and PCMCIA
+WaveLAN/IEEE devices, the ISA product is actually a PCMCIA card in an
+ISA to PCMCIA bridge adapter.
+Consequently, the
+.Nm
+driver is required for both the ISA and PCMCIA NICs.
+Both the original
+2Mbps WaveLAN/IEEE cards and the newer 6Mbps WaveLAN/IEEE Turbo
+adapters are supported.
+.Pp
+The core of the WaveLAN/IEEE is the Lucent Hermes controller.
+All
+host/device interaction is via programmed I/O with the Hermes.
+The
+Hermes supports 802.11 and 802.3 frames, power management, BSS, WDS
+and ad-hoc operation modes.
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames, however
+it can receive either 802.11 or 802.3 frames.
+Transmit speed is
+selectable between 1Mbps fixed, 2Mbps fixed or 2Mbps with auto fallback.
+For WaveLAN/IEEE Turbo adapters, speeds up to 6Mbps are available.
+.Pp
+By default, the
+.Nm
+driver configures the WaveLAN card for BSS operation.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "wi%d: init failed"
+The WaveLAN failed to come ready after an initialization command was
+issued.
+.It "wi%d: failed to allocate %d bytes on NIC"
+The driver was unable to allocate memory for transmit frames in the
+NIC's on-board RAM.
+.It "wi%d: device timeout"
+The WaveLAN failed to generate an interrupt to acknowledge a transmit
+command.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr wicontrol 8
+.Rs
+.%T HCF Light programming specification
+.%O http://www.wavelan.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq wpaul@ctr.columbia.edu .

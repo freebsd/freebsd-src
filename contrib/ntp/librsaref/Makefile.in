@@ -1,0 +1,406 @@
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_HEADER = $(INSTALL_DATA)
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+
+build_alias = @build_alias@
+build_triplet = @build@
+host_alias = @host_alias@
+host_triplet = @host@
+target_alias = @target_alias@
+target_triplet = @target@
+
+@SET_MAKE@
+AMDEP = @AMDEP@
+AMTAR = @AMTAR@
+AUTOKEY = @AUTOKEY@
+AWK = @AWK@
+CC = @CC@
+CFLAGS = @CFLAGS@
+CHUTEST = @CHUTEST@
+CLKTEST = @CLKTEST@
+CPP = @CPP@
+DCFD = @DCFD@
+DEPDIR = @DEPDIR@
+EF_LIBS = @EF_LIBS@
+EF_PROGS = @EF_PROGS@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
+LDFLAGS = @LDFLAGS@
+LIBPARSE = @LIBPARSE@
+LIBRSAREF = @LIBRSAREF@
+LN_S = @LN_S@
+MAKEINFO = @MAKEINFO@
+MAKE_ADJTIMED = @MAKE_ADJTIMED@
+MAKE_CHECK_Y2K = @MAKE_CHECK_Y2K@
+MAKE_LIBPARSE = @MAKE_LIBPARSE@
+MAKE_LIBPARSE_KERNEL = @MAKE_LIBPARSE_KERNEL@
+MAKE_LIBRSAREF = @MAKE_LIBRSAREF@
+MAKE_NTPTIME = @MAKE_NTPTIME@
+MAKE_NTP_GENKEYS = @MAKE_NTP_GENKEYS@
+MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
+MAKE_TICKADJ = @MAKE_TICKADJ@
+MAKE_TIMETRIM = @MAKE_TIMETRIM@
+OPENSSL = @OPENSSL@
+OPENSSL_INC = @OPENSSL_INC@
+OPENSSL_LIB = @OPENSSL_LIB@
+PACKAGE = @PACKAGE@
+PATH_PERL = @PATH_PERL@
+PATH_SH = @PATH_SH@
+PROPDELAY = @PROPDELAY@
+RANLIB = @RANLIB@
+RSADIR = @RSADIR@
+RSAOBJS = @RSAOBJS@
+RSAREF = @RSAREF@
+RSASRCS = @RSASRCS@
+STRIP = @STRIP@
+TESTDCF = @TESTDCF@
+U = @U@
+VERSION = @VERSION@
+_am_include = @_am_include@
+install_sh = @install_sh@
+
+#AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
+#AUTOMAKE_OPTIONS = ../util/ansi2knr
+
+
+noinst_LIBRARIES = @MAKE_LIBRSAREF@
+EXTRA_LIBRARIES = librsaref.a
+CLEANFILES = $(EXTRA_LIBRARIES)
+
+# NOTES:
+# don't use RSAREF's global.h - we use ours.
+
+nodist_librsaref_a_SOURCES = \
+	desc.c \
+	md2c.c \
+	md5c.c \
+	nn.c \
+	prime.c \
+	r_dh.c \
+	r_encode.c \
+	r_enhanc.c \
+	r_keygen.c \
+	r_random.c \
+	r_stdlib.c \
+	rsa.c \
+	des.h \
+	md2.h \
+	md5.h \
+	nn.h \
+	prime.h \
+	r_random.h \
+	rsa.h \
+	rsaref.h @RSASRCS@
+
+
+librsaref_a_LIBADD = @RSAOBJS@
+librsaref_a_DEPENDENCIES = $(librsaref_a_LIBADD)
+
+BUILT_SOURCES = $(nodist_librsaref_a_SOURCES)
+INCLUDES = -I$(top_srcdir)/include
+ETAGS_ARGS = Makefile.am
+
+DISTCLEANFILES = $(nodist_librsaref_a_SOURCES) stamp-rsaref
+EXEEXT =
+OBJEXT = o
+subdir = librsaref
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = $(top_builddir)/config.h
+CONFIG_CLEAN_FILES =
+LIBRARIES = $(noinst_LIBRARIES)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I$(top_builddir)
+CPPFLAGS = @CPPFLAGS@
+LIBS = @LIBS@
+librsaref_a_AR = $(AR) cru
+nodist_librsaref_a_OBJECTS = desc.$(OBJEXT) md2c.$(OBJEXT) \
+md5c.$(OBJEXT) nn.$(OBJEXT) prime.$(OBJEXT) r_dh.$(OBJEXT) \
+r_encode.$(OBJEXT) r_enhanc.$(OBJEXT) r_keygen.$(OBJEXT) \
+r_random.$(OBJEXT) r_stdlib.$(OBJEXT) rsa.$(OBJEXT)
+librsaref_a_OBJECTS = $(nodist_librsaref_a_OBJECTS)
+AR = ar
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+DIST_SOURCES =
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+@AMDEP@DEP_FILES = $(DEPDIR)/desc.Po $(DEPDIR)/md2c.Po $(DEPDIR)/md5c.Po \
+@AMDEP@ $(DEPDIR)/nn.Po $(DEPDIR)/prime.Po $(DEPDIR)/r_dh.Po \
+@AMDEP@ $(DEPDIR)/r_encode.Po $(DEPDIR)/r_enhanc.Po \
+@AMDEP@ $(DEPDIR)/r_keygen.Po $(DEPDIR)/r_random.Po \
+@AMDEP@ $(DEPDIR)/r_stdlib.Po $(DEPDIR)/rsa.Po
+DIST_COMMON = Makefile.am Makefile.in
+
+SOURCES = $(nodist_librsaref_a_SOURCES)
+OBJECTS = $(nodist_librsaref_a_OBJECTS)
+
+all: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-am
+
+.SUFFIXES:
+.SUFFIXES: .c .h .o .obj
+
+$(srcdir)/Makefile.in: Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  librsaref/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+
+mostlyclean-compile:
+	-rm -f *.$(OBJEXT) core *.core
+
+distclean-compile:
+	-rm -f *.tab.c
+
+librsaref.a: $(librsaref_a_OBJECTS) $(librsaref_a_DEPENDENCIES)
+	-rm -f librsaref.a
+	$(librsaref_a_AR) librsaref.a $(librsaref_a_OBJECTS) $(librsaref_a_LIBADD)
+	$(RANLIB) librsaref.a
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	mkid -fID $$unique $(LISP)
+
+TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
+
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
+
+distclean-tags:
+	-rm -f TAGS ID
+
+@AMDEP@@_am_include@ $(DEPDIR)/desc.Po
+@AMDEP@@_am_include@ $(DEPDIR)/md2c.Po
+@AMDEP@@_am_include@ $(DEPDIR)/md5c.Po
+@AMDEP@@_am_include@ $(DEPDIR)/nn.Po
+@AMDEP@@_am_include@ $(DEPDIR)/prime.Po
+@AMDEP@@_am_include@ $(DEPDIR)/r_dh.Po
+@AMDEP@@_am_include@ $(DEPDIR)/r_encode.Po
+@AMDEP@@_am_include@ $(DEPDIR)/r_enhanc.Po
+@AMDEP@@_am_include@ $(DEPDIR)/r_keygen.Po
+@AMDEP@@_am_include@ $(DEPDIR)/r_random.Po
+@AMDEP@@_am_include@ $(DEPDIR)/r_stdlib.Po
+@AMDEP@@_am_include@ $(DEPDIR)/rsa.Po
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+@AMDEP@CCDEPMODE = @CCDEPMODE@
+
+.c.o:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
+
+.c.obj:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `cygpath -w $<`
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
+check-am: all-am
+check: check-am
+all-am: Makefile $(LIBRARIES)
+
+installdirs:
+
+install: install-am
+install-exec: install-exec-am
+install-data: install-data-am
+uninstall: uninstall-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
+
+mostlyclean-generic:
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
+
+maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f Makefile.in
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+clean: clean-am
+
+clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
+
+distclean: distclean-am
+
+distclean-am: clean-am distclean-compile distclean-depend \
+	distclean-generic distclean-tags
+
+dvi:
+
+dvi-am:
+
+info:
+
+info-am:
+
+install-data-am:
+
+install-exec-am:
+
+install-info:
+
+install-man:
+
+installcheck-am:
+
+maintainer-clean: maintainer-clean-am
+
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-compile mostlyclean-generic
+
+.PHONY: all all-am check check-am clean clean-generic \
+	clean-noinstLIBRARIES distclean distclean-compile \
+	distclean-depend distclean-generic distclean-tags distdir dvi \
+	dvi-am info info-am install install-am install-data \
+	install-data-am install-exec install-exec-am install-info \
+	install-man install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic tags \
+	uninstall uninstall-am
+
+
+#EXTRA_DIST = 
+
+$(nodist_librsaref_a_SOURCES): stamp-rsaref
+
+stamp-rsaref:
+	@rm -f stamp-rsaref stamp-rsarefT
+	@echo timestamp > stamp-rsarefT 2> /dev/null
+	for i in $(nodist_librsaref_a_SOURCES); do \
+	    case "@MAKE_LIBRSAREF@" in \
+	     '') touch $$i ;; \
+	     *) case "$$i" in \
+		 *.h) r_dst=$(srcdir)/$$i ;; \
+		 *)   r_dst=$$i ;; \
+		esac ; \
+	 	cmp -s $${r_dst} $(srcdir)/../@RSADIR@/source/$$i 2>/dev/null \
+			|| cp $(srcdir)/../@RSADIR@/source/$$i $${r_dst} ;; \
+	    esac ; \
+	done
+	@echo timestamp > stamp-rsarefT 2> /dev/null
+	@mv stamp-rsarefT stamp-rsaref
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

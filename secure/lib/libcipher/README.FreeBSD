@@ -1,0 +1,6 @@
+$FreeBSD$
+
+This is FreeSec package for NetBSD,  unchanged for
+FreeBSD, except for the Makefile.
+
+The other stuff in libcrypt will be added in stages!

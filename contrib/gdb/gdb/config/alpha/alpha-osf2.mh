@@ -1,0 +1,5 @@
+# Host: Little-endian Alpha running OSF/1-2.x using procfs
+XDEPFILES= 
+XM_FILE= xm-alphaosf.h
+NAT_FILE= nm-osf2.h
+NATDEPFILES= infptrace.o inftarg.o corelow.o alpha-nat.o fork-child.o osfsolib.o procfs.o
