@@ -16,7 +16,7 @@
  *		rlist_alloc(&swapmap, 100, &loc); obtain 100 sectors from swap
  *
  *	from: unknown?
- *	$Id$
+ *	$Id: rlist.h,v 1.4 1993/10/16 17:17:32 rgrimes Exp $
  */
 
 #ifndef _SYS_RLIST_H_
@@ -36,6 +36,6 @@ extern rlist_destroy __P((struct rlist **));
 
 
 /* heads of lists */
-struct rlist *swapmap;
+extern struct rlist *swapmap;
 
 #endif	/* _SYS_RLIST_H_ */

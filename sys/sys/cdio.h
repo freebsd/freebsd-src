@@ -1,11 +1,11 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id$
+ *	$Id: cdio.h,v 1.3 1993/10/16 17:16:25 rgrimes Exp $
  */
 /* Shared between kernel & process */
-#ifndef SYS_CDIO_H
-#define SYS_CDIO_H
+#ifndef _SYS_CDIO_H_
+#define _SYS_CDIO_H_
 
 struct cd_toc_entry {
 	u_char	:8;
@@ -154,6 +154,4 @@ struct ioc_play_msf
 };
 #define	CDIOCPLAYMSF	_IOW('c',25,struct ioc_play_msf)
 
-
-
-#endif /* SYS_CDIO_H */
+#endif /* _SYS_CDIO_H_ */
