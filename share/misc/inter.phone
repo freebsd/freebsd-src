@@ -1,6 +1,6 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
-#	$Id$
+#	$Id: inter.phone,v 1.9 1997/01/03 11:37:28 wosch Exp $
 #
 7:095:Moscow:Russia
 20:2:Cairo:Egypt, Arab Rep. of
@@ -283,7 +283,7 @@
 92:51:Islamabad:Pakistan
 94:1:Colombo Central:Sri Lanka, Dem. Soc. Rep. of
 94:8:Kandy:Sri Lanka, Dem. Soc. Rep. of
-95:::Burma
+95:::Myanmar
 98:21:Teheran:Iran
 98:31:Esfahan:Iran
 98:41:Tabriz:Iran
@@ -446,7 +446,7 @@
 852:5:Ma Wan:Hong Kong
 852:5:Peng Chau:Hong Kong
 853:::Macao
-855:::Kampuchea
+855:::Cambodia
 856:::Lao
 880:2:Dhaka:Bangladesh, People's Rep. of
 886:2:Taipei:Taiwan, Rep. of China
@@ -485,20 +485,4 @@
 977:::Nepal
 994:::Azerbaijan
 995:::Georgia
-1246:::Barbados
-1441:::Bermuda
-1809:::Anguilla
-1809:::Antigua
-1809:::Bahamas
-1809:::British Virgin Islands
-1809:::Cayman Islands
-1809:::Dominican Republic
-1809:::Grenada
-1809:::Jamaica
-1809:::Montserrat
-1809:::St. Kitts & Nevis
-1809:::St. Lucia
-1809:::St. Vincent
-1809:::Trinidad & Tobago
-1809:::Turks Islands
 5399:::Guantanamo Bay (U.S. Naval Base)
