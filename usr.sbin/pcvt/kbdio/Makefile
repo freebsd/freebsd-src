@@ -25,7 +25,7 @@ LDADD=	-lm -ly -ll
 NOMAN=
 NOSHARED=	no shared linkage
 
-CFLAGS+= -I${.CURDIR}/obj -I${.CURDIR} #-g
+CFLAGS+= -I${.OBJDIR} -I${.CURDIR} #-g
 
 CLEANFILES+= kbdio.c lex.c lex.yy.c y.tab.[ch]
 CLEANFILES+= y.output	# comment file from bison

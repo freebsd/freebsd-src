@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1994/09/13 22:02:46 wollman Exp $
+#	$Id: Makefile,v 1.8 1995/11/16 02:00:38 gpalmer Exp $
 
 NOBIN=
 CLEANFILES+=	yearistype
@@ -17,8 +17,8 @@ POSIXRULES=	America/New_York
 TZFILES+=	backward
 .endif
 
-.if exists(${.CURDIR}/obj/.)
-YEARISTYPE=${.CURDIR}/obj/yearistype
+.if exists(${.OBJDIR}/yearistype)
+YEARISTYPE=${.OBJDIR}/yearistype
 .else
 YEARISTYPE=${.CURDIR}/yearistype
 .endif

@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.3 1996/04/22 23:31:39 wosch Exp $
+#	$Id: bsd.obj.mk,v 1.4 1996/05/27 23:05:54 wosch Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -6,26 +6,19 @@
 #
 # +++ variables +++
 #
-# BSDSRCDIR	The real path to the system sources, so that 'make obj'
-#		will work correctly. [/usr/src]
-#
-# BSDOBJDIR	The real path to the system 'obj' tree, so that 'make obj'
-#		will work correctly. [/usr/obj]
-#
 # CLEANFILES	Additional files to remove for the clean and cleandir targets.
 #
-# MAKEOBJDIR 	A file name to the directory where the targets 
-#		are built. Note: MAKEOBJDIR is an *enviroment* variable
+# MAKEOBJDIR 	Specify somewhere other than /usr/obj to root the object
+#		tree. Note: MAKEOBJDIR is an *enviroment* variable
 #		and does work proper only if set as enviroment variable,
 #		not as global or command line variable! [obj]
 #
-#		E.g. use `env MAKEOBJDIR=obj-amd make'
+#		E.g. use `env MAKEOBJDIR=/somewhere/obj make'
 #
-# NOOBJ		Do not create 'obj' directory if defined. [not set]
+# NOOBJ		Do not create build directory in object tree.
 #
-# NOOBJLINK	Create 'obj' directory in current directory instead
-#		a symbolic link to the 'obj' tree if defined. [not set]
-#
+# OBJLINK	Create a symbolic link from ${.TARGETOBJDIR} to ${.CURDIR}/obj
+#		Note:  This BREAKS the read-only src tree rule!
 #
 # +++ targets +++
 #
@@ -33,67 +26,77 @@
 #		remove a.out Errs errs mklog ${CLEANFILES} 
 #
 #	cleandir:
-#		remove all of the files removed by the target clean, 
-#		cleandepend (see bsd.dep.mk) and 'obj' directory.
+#		remove the build directory (and all its contents) created by obj
 #
 #	obj:
-#		create 'obj' directory.
+#		create build directory.
 #
-
-
-.if defined(MAKEOBJDIR) && !empty(MAKEOBJDIR)
-__objdir = ${MAKEOBJDIR}
-.else
-
-.if defined(MACHINE) && !empty(MACHINE)
-__objdir = obj 			# obj.${MACHINE}
-.else
-__objdir = obj
-.endif
-.endif
 
 
 .if !target(obj)
 .if defined(NOOBJ)
 obj:
 .else
-
-obj:	_SUBDIRUSE cleanobj
-.if defined(NOOBJLINK)
-	mkdir ${.CURDIR}/${__objdir}
+.if !defined(OBJLINK)
+obj:	_SUBDIR
+	@if ! test -d ${.TARGETOBJDIR}; then \
+		mkdir -p ${.TARGETOBJDIR}; \
+		if ! test -d ${.TARGETOBJDIR}; then \
+			${ECHO} "Unable to create ${.TARGETOBJDIR}."; \
+			exit 1; \
+		fi; \
+		${ECHO} "${.TARGETOBJDIR} created for ${.CURDIR}"; \
+	fi
 .else
-	@if test -d ${BSDOBJDIR}; then 			\
-		cd ${.CURDIR}; here=${.CURDIR}; 	\
-		dest=${BSDOBJDIR}`echo $$here |         \
-			sed "s,^${BSDSRCDIR},,"`/${__objdir}; \
-		${ECHO} "$$here/${__objdir} -> $$dest"; \
-		ln -s $$dest ${__objdir}; 		\
-		if test ! -d $$dest; then 		\
-			mkdir -p $$dest; 		\
-		fi; 					\
-	else 						\
-		${ECHO} "obj tree \"${BSDOBJDIR}\" does not exist."; \
+obj:	_SUBDIR
+	@if ! test -d ${.TARGETOBJDIR}; then \
+		mkdir -p ${.TARGETOBJDIR}; \
+		if ! test -d ${.TARGETOBJDIR}; then \
+			${ECHO} "Unable to create ${.TARGETOBJDIR}."; \
+			exit 1; \
+		fi; \
+		ln -fs ${.TARGETOBJDIR} ${.CURDIR}/obj; \
+		${ECHO} "${.CURDIR} -> ${.TARGETOBJDIR}"; \
 	fi
 .endif
 .endif
 .endif
 
+.if !target(objlink)
+objlink: _SUBDIR
+	@if test -d ${.TARGETOBJDIR}; then \
+		ln -fs ${.TARGETOBJDIR} ${.CURDIR}/obj; \
+	else \
+		echo "No ${.TARGETOBJDIR} to link to - do a make obj."; \
+	fi
+.endif
+
 #
 # cleanup
 #
-cleanobj: 
-	rm -f -r ${.CURDIR}/${__objdir}
+cleanobj:
+	@if [ -d ${.TARGETOBJDIR} ]; then \
+		rm -rf ${.TARGETOBJDIR}; \
+	else \
+		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
+	fi
+.if defined(OBJLINK)
+	@if [ -h ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
+.endif
 
+.if !target(cleanfiles)
 cleanfiles:
 	rm -f a.out Errs errs mklog ${CLEANFILES} 
+.endif
 
 # see bsd.dep.mk
 .if !target(cleandepend)
 cleandepend:
+	@rm -f .depend
 .endif
 
 .if !target(clean)
-clean: _SUBDIRUSE cleanfiles
+clean: cleanfiles _SUBDIR
 .endif
 
-cleandir: _SUBDIRUSE cleanfiles cleandepend cleanobj
+cleandir: cleanobj _SUBDIR

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1996/02/06 19:03:56 pst Exp $
+# $Id: Makefile,v 1.3 1996/02/06 19:04:41 pst Exp $
 
 PROG=	supfilesrv
 SRCS=	supfilesrv.c
@@ -9,8 +9,8 @@ LIBSRC=	${.CURDIR}/../lib
 COPTS+=	-DVAR_TMP -DHAS_DAEMON -I${.CURDIR} -I${LIBSRC}
 COPTS+=	-DRENAMELOG=\"/var/log/sup.rename\"
 
-.if exists(${LIBSRC}/obj/.)
-LIBOBJ=	${LIBSRC}/obj
+.if exists(${.OBJDIR}/../lib)
+LIBOBJ=	${.OBJDIR}/../lib
 .else
 LIBOBJ=	${LIBSRC}
 .endif

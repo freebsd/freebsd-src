@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/06/13 18:05:16 wollman Exp $
+#	$Id: Makefile,v 1.3 1995/07/08 22:36:06 ats Exp $
 
 PROG=	mrouted
 
@@ -6,9 +6,9 @@ S=	${.CURDIR}/..
 .PATH:	$S
 CFLAGS+=	-I$S
 LDADD+=	-lmrouted
-.if exists($S/common/obj)
-LDDESTDIR+=	-L$S/common/obj
-DPADD+= 	$S/common/obj/libmrouted.a
+.if exists(${.OBJDIR}/../common)
+LDDESTDIR+=	-L${.OBJDIR}/../common
+DPADD+= 	${.OBJDIR}/../common/libmrouted.a
 .else
 LDDESTDIR+=	-L$S/common
 DPADD+=		$S/common/libmrouted.a
