@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.6 1996/07/25 14:06:55 wosch Exp $
+# $Id: INDEX.keymaps,v 1.7 1996/07/30 22:30:09 wosch Exp $
 #
 # database for kbdmap(8) 
 #
@@ -29,6 +29,8 @@ FONT:en:cp437-8x16.fnt
 FONT:de,fr,da,no,sv:iso-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
 # 
+be.iso.kbd:en:Belgian ISO-8859-1
+be.iso.kbd:de:Belgisch ISO-8859-1
 
 br275.iso.kbd:en:Brazilian 275 keyboard ISO-8859-1
 br275.iso.kbd:de:Brasilianische Tastatur 275 ISO-8859-1
@@ -97,12 +99,12 @@ swedish.cp850.kbd:en:Swedish Codepage 850
 swedish.cp850.kbd:de:Schwedisch Codeseite 850
 swedish.cp850.kbd:fr:Suédois Code page 850
 
-uk.iso.kbd:en:United Kingdom of ... ISO-8859-1
-uk.iso.kbd:de:Vereinigtes Königreich von GB und Nordirland ISO-8859-1
+uk.iso.kbd:en:United Kingdom ISO-8859-1
+uk.iso.kbd:de:Vereinigtes Königreich ISO-8859-1
 uk.iso.kbd:fr:Royaume Uni ISO-8859-1
 
-uk.cp850.kbd:en:United Kingdom of ... Codepage 850
-uk.cp850.kbd:de:Vereinigtes Königreich von GB und Nordirland Codeseite 850
+uk.cp850.kbd:en:United Kingdom Codepage 850
+uk.cp850.kbd:de:Vereinigtes Königreich Codeseite 850
 uk.cp850.kbd:fr:Royaume Uni Code page 850
 
 us.iso.kbd:en:United States of America ISO-8859-1
