@@ -35,18 +35,18 @@
 .Os FreeBSD
 .Sh NAME
 .Nm ed
-.Nd high performance ethernet device driver
+.Nd ethernet device driver
 .Sh SYNOPSIS
-.Cd "device ed0 at isa? port 0x280 irq 10 iomem 0xd8000"
-.Cd "device ed1 at isa? port 0x300 irq 5 flags 0x4 iosiz 16384 iomem 0xd8000"
+.Cd "device ed"
 .Sh DESCRIPTION
 The
 .Nm ed
-driver provides support for 8 and 16bit ISA ethernet cards that are based on
+driver provides support for 8 and 16bit ethernet cards that are based on
 the National Semiconductor DS8390 and similar NICs manufactured by other companies.
 .Pp
-It supports all 80x3 series ISA ethernet cards manufactured by Western Digital and SMC,
-the SMC Ultra, the 3Com 3c503, the Novell NE1000/NE2000, and HP PC Lan+.
+It supports all 80x3 series ethernet cards manufactured by Western Digital and SMC,
+the SMC Ultra, the 3Com 3c503, the Novell NE1000/NE2000 and compatible cards, and the HP PC Lan+.
+ISA, PCI and PC Card devices are supported.
 .Pp
 The
 .Nm
