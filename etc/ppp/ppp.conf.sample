@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.2 1997/03/02 14:56:49 joerg Exp $
+# $Id: ppp.conf.sample,v 1.5.2.3 1997/03/17 00:29:48 jmg Exp $
 #
 #################################################################
 
@@ -106,6 +106,34 @@ pmdemand:
  delete ALL
  add 0 0 HISADDR
  set openmode active
+
+# Examples to connect using a null-modem cable from one machine to another.
+# The important thing here is to get the lqr packets going properly.
+# We disable them on the client side and enable them on the server side.
+# Without them enabled on the server side, we can't tell if the line's
+# dropped - there should always be carrier on a direct connection.
+# Here, the server sends lqr's every 10 seconds and quits if three in a
+# row fail.
+#
+# Make sure you don't have "deny lqr" in your default: on the client !
+#
+direct-client:
+ set dial ""
+ set line /dev/cuaa0
+ set sp 115200
+ disable lqr
+ set timeout 900
+ set debug Phase
+ set login "TIMEOUT 5 -\\r-login:-\\r-login: ppp word: ppp HELLO"
+ set ifaddr 10.0.4.2 10.0.4.1
+ add 10.0.4.2 0 127.0.0.1
+ 
+direct-server:
+ set timeout 900 10 3
+ set debug Phase LQM
+ enable lqr
+ set ifaddr 10.0.4.1 10.0.4.2
+ add 10.0.4.1 0 127.0.0.1
 
 # Example to validate incoming user with CHAP
 #  Invoke as ``ppp -direct users'' from login script. User's system name
