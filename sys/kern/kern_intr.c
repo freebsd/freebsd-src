@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.9 1997/08/02 14:31:27 bde Exp $
+ * $Id: kern_intr.c,v 1.4 1997/08/21 06:36:02 smp Exp smp $
  *
  */
 
@@ -78,7 +78,7 @@ intr_mux(void *arg)
 	while (p != NULL) {
 		int oldspl = splq(p->mask);
 		/* inthand2_t should take (void*) argument */
-		p->handler(p->argument);
+		p->handler((int)p->argument);
 		splx(oldspl);
 		p = p->next;
 	}
@@ -189,7 +189,7 @@ add_intrdesc(intrec *idesc)
 			      idesc->maskptr, idesc->flags) != 0)
 			return (-1);
 
-		update_intrname(irq, idesc->devdata);
+		update_intrname(irq, (int)idesc->devdata);
 		/* keep reference */
 		intreclist_head[irq] = idesc;
 	} else {
@@ -209,7 +209,7 @@ add_intrdesc(intrec *idesc)
 			 * handler by shared interrupt multiplexer function
 			 */
 			icu_unset(irq, head->handler);
-			if (icu_setup(irq, intr_mux, head, 0, 0) != 0)
+			if (icu_setup(irq, (inthand2_t*)intr_mux, head, 0, 0) != 0)
 				return (-1);
 			if (bootverbose)
 				printf("\tusing shared irq%d.\n", irq);
@@ -301,14 +301,14 @@ intr_disconnect(intrec *idesc)
 		intrmask_t oldspl = splq(1 << irq);
 
 		/* we want to remove the list head, which was known to intr_mux */
-		icu_unset(irq, intr_mux);
+		icu_unset(irq, (inthand2_t*)intr_mux);
 
 		/* check whether the new list head is the only element on list */
 		head = intreclist_head[irq];
 		if (head != NULL) {
 			if (head->next != NULL) {
 				/* install the multiplex handler with new list head as argument */
-				errcode = icu_setup(irq, intr_mux, head, 0, 0);
+				errcode = icu_setup(irq, (inthand2_t*)intr_mux, head, 0, 0);
 				if (errcode == 0)
 					update_intrname(irq, -1);
 			} else {
@@ -317,7 +317,7 @@ intr_disconnect(intrec *idesc)
 						    head->argument,
 						    head->maskptr, head->flags);
 				if (errcode == 0)
-					update_intrname(irq, head->devdata);
+					update_intrname(irq, (int)head->devdata);
 			}
 		}
 		splx(oldspl);
