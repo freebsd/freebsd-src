@@ -2744,14 +2744,10 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 	if (fvp == tdvp)
 		error = EINVAL;
 	/*
-	 * If source is the same as the destination (that is the
-	 * same inode number with the same name in the same directory),
-	 * then there is nothing to do.
+	 * If the source is the same as the destination (that is, if they
+	 * are links to the same vnode), then there is nothing to do.
 	 */
-	if (fvp == tvp && fromnd.ni_dvp == tdvp &&
-	    fromnd.ni_cnd.cn_namelen == tond.ni_cnd.cn_namelen &&
-	    !bcmp(fromnd.ni_cnd.cn_nameptr, tond.ni_cnd.cn_nameptr,
-	      fromnd.ni_cnd.cn_namelen))
+	if (fvp == tvp)
 		error = -1;
 out:
 	if (!error) {
