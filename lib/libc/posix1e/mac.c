@@ -366,7 +366,6 @@ mac_prepare_type(struct mac **mac, const char *name)
 
 	for (ld = LIST_FIRST(&label_default_head); ld != NULL;
 	    ld = LIST_NEXT(ld, ld_entries)) {
-		printf("%s\n", ld->ld_name);
 		if (strcmp(name, ld->ld_name) == 0)
 			return (mac_prepare(mac, ld->ld_labels));
 	}
