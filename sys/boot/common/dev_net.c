@@ -1,5 +1,5 @@
 /*	
- * $Id: dev_net.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ * $Id: dev_net.c,v 1.2 1998/08/22 10:31:01 dfr Exp $
  * From: $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
  */
 
@@ -67,7 +67,6 @@
 #include <stand.h>
 #include <net.h>
 #include <netif.h>
-#include <nfs.h>
 #include <bootparam.h>
 
 #include "dev_net.h"
