@@ -136,7 +136,6 @@ WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
 
 # POSIX kernel options
-P1003_1B			opt_posix.h
 _KPOSIX_PRIORITY_SCHEDULING	opt_posix.h
 P1003_1B_SEMAPHORES		opt_posix.h
 
