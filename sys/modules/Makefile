@@ -177,6 +177,7 @@ SUBDIR+=3dfx \
 	gnufpu \
 	hea \
 	hfa \
+	i2c \
 	ibcs2 \
 	ie \
 	linprocfs \
