@@ -312,7 +312,6 @@ extern watchdog_tickle_fn	wdog_tickler;
  */
 int	msleep(void *chan, struct mtx *mtx, int pri, const char *wmesg,
 	    int timo);
-void	abortsleep(struct thread *td);
 #define	tsleep(chan, pri, wmesg, timo)	msleep(chan, NULL, pri, wmesg, timo)
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);

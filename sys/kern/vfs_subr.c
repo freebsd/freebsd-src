@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/sleepqueue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -1598,13 +1599,7 @@ speedup_syncer()
 	int ret = 0;
 
 	td = FIRST_THREAD_IN_PROC(updateproc);
-	mtx_lock_spin(&sched_lock);
-	if (td->td_wchan == &lbolt) {
-		unsleep(td);
-		TD_CLR_SLEEPING(td);
-		setrunnable(td);
-	}
-	mtx_unlock_spin(&sched_lock);
+	sleepq_remove(td, &lbolt);
 	mtx_lock(&sync_mtx);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;

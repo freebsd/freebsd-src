@@ -126,20 +126,8 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 
 	if (p->p_flag & P_SA) 
 		db_printf( "   thread %p ksegrp %p ", td, td->td_ksegrp);
-	if (TD_ON_SLEEPQ(td)) {
-		if (td->td_flags & TDF_CVWAITQ)
-			if (TD_IS_SLEEPING(td))
-				db_printf("[CV]");
-			else
-				db_printf("[CVQ");
-		else
-			if (TD_IS_SLEEPING(td))
-				db_printf("[SLP]");
-			else
-				db_printf("[SLPQ");
-		db_printf("%s %p]", td->td_wmesg,
-		    (void *)td->td_wchan);
-	}
+	if (TD_ON_SLEEPQ(td))
+		db_printf("[SLPQ %s %p]", td->td_wmesg, (void *)td->td_wchan);
 	switch (td->td_state) {
 	case TDS_INHIBITED:
 		if (TD_ON_LOCK(td)) {
@@ -147,11 +135,9 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 			    td->td_lockname,
 			    (void *)td->td_blocked);
 		}
-#if 0 /* covered above */
 		if (TD_IS_SLEEPING(td)) {
 			db_printf("[SLP]");
 		}  
-#endif
 		if (TD_IS_SWAPPED(td)) {
 			db_printf("[SWAP]");
 		}
