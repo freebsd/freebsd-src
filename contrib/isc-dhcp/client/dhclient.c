@@ -307,6 +307,8 @@ static void usage (appname)
 
 void cleanup ()
 {
+	/* Make sure the pidfile is gone. */
+	unlink (path_dhclient_pid);
 }
 
 /* Individual States:
