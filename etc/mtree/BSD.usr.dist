@@ -193,7 +193,7 @@
     ..
     local
     ..
-    obj nochange
+    obj             nochange
     ..
     sbin
     ..
@@ -485,7 +485,7 @@
             ..
             de_DE.ISO_8859-1
             ..
-	    el_GR.ISO_8859-7
+            el_GR.ISO_8859-7
             ..
             en_AU.DIS_8859-15
             ..
@@ -585,8 +585,8 @@
             ..
             ru_RU.CP866
             ..
-	    ru_RU.ISO_8859-5
-	    ..
+            ru_RU.ISO_8859-5
+            ..
             ru_RU.KOI8-R
             ..
             sl_SI.ISO_8859-2
@@ -605,7 +605,7 @@
             ..
         ..
         man
-/set type=dir uname=man gname=wheel mode=0755
+/set uname=man
             cat1
             ..
             cat1aout
@@ -655,7 +655,7 @@
                 ..
                 catn
                 ..
-/set type=dir uname=root gname=wheel mode=0755
+/set uname=root
                 man1
                 ..
                 man2
@@ -743,7 +743,7 @@
             ..
             de_DE.ISO_8859-1
             ..
-	    el_GR.ISO_8859-7
+            el_GR.ISO_8859-7
             ..
             en_AU.DIS_8859-15
             ..
@@ -845,8 +845,8 @@
             ..
             sv_SE.ISO_8859-1
             ..
-	    tr_TR.ISO_8859-9
-	    ..
+            tr_TR.ISO_8859-9
+            ..
             uk_UA.KOI8-U
             ..
             zh_CN.EUC
@@ -927,6 +927,6 @@
             ..
         ..
     ..
-    src             mode=0755 nochange
+    src             nochange
     ..
 ..
