@@ -8,11 +8,16 @@ dialog \- display dialog boxes from shell scripts
 .br
 .B dialog
 [
-.B \-\-title
-.I title
+.BI "\-\-title " title
 ]
 [
 .B \-\-clear
+]
+[
+.BI "\-\-hline " line
+]
+[
+.BI "\-\-hfile " file
 ]
 .B box-options
 .SH DESCRIPTION
@@ -22,8 +27,8 @@ display messages using dialog boxes from a shell script. Currently,
 these types of dialog boxes are implemented: 
 .LP
 .BR yes/no " box," " menu" " box," " input" " box,"
-.BR message " box," " text" " box," " info" " box, and"
-.BR checklist " box."
+.BR message " box," " text" " box," " info" " box,"
+.BR checklist " box and" " program" " box."
 .SH OPTIONS
 .TP
 .B \-\-clear
@@ -40,6 +45,16 @@ by
 Specifies a
 .I title
 string to be displayed at the top of the dialog box.
+.TP
+.BI \-\-hline " line"
+Specifies a
+.I line
+string to be displayed at the bottom of the dialog box.
+.TP
+.BI \-\-hfile " file"
+Specifies a
+.I file
+to be displayed by pressing ? or F1.
 .TP
 .B Box Options
 .TP
@@ -139,6 +154,10 @@ exits, the
 .I tag
 of the chosen menu entry will be printed on
 .IR stderr "."
+.TP
+.BI \-\-prgbox " command height width"
+.RB A " program" " box lets you display output of command in"
+dialog box.
 .IP "\fB\-\-checklist \fItext height width list-height \fR[ \fItag item status \fR] \fI..."
 .RB "A " checklist " box is similar to a " menu " box in that there are"
 multiple entries presented in the form of a menu. Instead of choosing
