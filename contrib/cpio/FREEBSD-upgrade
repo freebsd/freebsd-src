@@ -3,7 +3,7 @@ GNU cpio 2.4.2
 
 	removed files:
 		INSTALL         cpio.info       mkdir.c
-		Makefile.in     cpio.texi       mkinstalldirs
+		Makefile.in                     mkinstalldirs
 		argmatch.c      fnmatch.c       mt.1
 		bcopy.c         fnmatch.h       mt.c
 		configure       install-sh      rmt.c
