@@ -173,8 +173,6 @@ static char *pnp_classes[] = {
  * search_token()
  *
  * Search the first occurence of a token within a string
- *
- * XXX should use strxxx() calls
  */
 static char *
 search_token(char *str, int slen, char *token)
@@ -186,21 +184,15 @@ search_token(char *str, int slen, char *token)
 
 	if (slen == UNKNOWN_LENGTH)
 		/* get string's length */
-		for (slen = 0, p = str; *p != '\0'; p++)
-			slen ++;
+		slen = strlen(str);
 
 	/* get token's length */
-	for (tlen = 0, p = token; *p != '\0'; p++)
-		tlen ++;
-
+	tlen = strlen(token);
 	if (tlen == 0)
 		return (str);
 
 	for (i = 0; i <= slen-tlen; i++) {
-		for (j = 0; j < tlen; j++)
-			if (str[i+j] != token[j])
-				break;
-		if (j == tlen)
+		if (strncmp(str + i, token, tlen) == 0)
 			return (&str[i]);
 	}
 
