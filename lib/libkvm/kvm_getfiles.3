@@ -44,9 +44,10 @@
 .Nd survey open files
 .Sh SYNOPSIS
 .Fd #include <kvm.h>
-.Fd #define KERNEL
+.Fd #include <sys/types.h>
+.Fd #define _KERNEL
 .Fd #include <sys/file.h>
-.Fd #undef KERNEL
+.Fd #undef _KERNEL
 .\" .Fa kvm_t *kd
 .br
 .Ft char *
