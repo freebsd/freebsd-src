@@ -63,6 +63,8 @@
 #define	PCI_PRODUCT_HIFN_6500	0x0006		/* 6500 */
 #define	PCI_PRODUCT_HIFN_7811	0x0007		/* 7811 */
 #define	PCI_PRODUCT_HIFN_7951	0x0012		/* 7951 */
+#define	PCI_PRODUCT_HIFN_7955	0x0020		/* 7954/7955 */
+#define	PCI_PRODUCT_HIFN_7956	0x001d		/* 7956 */
 
 #define	PCI_VENDOR_INVERTEX	0x14e1		/* Invertex */
 #define	PCI_PRODUCT_INVERTEX_AEON 0x0005	/* AEON */
@@ -210,6 +212,7 @@ typedef struct hifn_desc {
 #define	HIFN_1_DMA_CSR		0x40	/* DMA Status and Control */
 #define	HIFN_1_DMA_IER		0x44	/* DMA Interrupt Enable */
 #define	HIFN_1_DMA_CNFG		0x48	/* DMA Configuration */
+#define	HIFN_1_PLL		0x4c	/* 7955/7956: PLL config */
 #define	HIFN_1_7811_RNGENA	0x60	/* 7811: rng enable */
 #define	HIFN_1_7811_RNGCFG	0x64	/* 7811: rng config */
 #define	HIFN_1_7811_RNGDAT	0x68	/* 7811: rng data */
@@ -369,6 +372,11 @@ typedef struct hifn_desc {
 #define	HIFN_UNLOCK_SECRET1	0xf4
 #define	HIFN_UNLOCK_SECRET2	0xfc
 
+/*
+ * PLL config register 
+ */
+#define	HIFN_PLL_7956		0x00001d18	/* 7956 PLL config value */ 
+
 /*********************************************************************
  * Structs for board commands 
  *
@@ -408,7 +416,8 @@ typedef struct hifn_crypt_command {
 #define	HIFN_CRYPT_CMD_ALG_DES		0x0000		/*   DES */
 #define	HIFN_CRYPT_CMD_ALG_3DES		0x0001		/*   3DES */
 #define	HIFN_CRYPT_CMD_ALG_RC4		0x0002		/*   RC4 */
-#define	HIFN_CRYPT_CMD_MODE_MASK	0x0018		/* DES mode: */
+#define	HIFN_CRYPT_CMD_ALG_AES		0x0003		/*   AES */
+#define	HIFN_CRYPT_CMD_MODE_MASK	0x0018		/* Encrypt mode: */
 #define	HIFN_CRYPT_CMD_MODE_ECB		0x0000		/*   ECB */
 #define	HIFN_CRYPT_CMD_MODE_CBC		0x0008		/*   CBC */
 #define	HIFN_CRYPT_CMD_MODE_CFB		0x0010		/*   CFB */
@@ -419,6 +428,11 @@ typedef struct hifn_crypt_command {
 
 #define	HIFN_CRYPT_CMD_SRCLEN_M		0xc000
 #define	HIFN_CRYPT_CMD_SRCLEN_S		14
+
+#define	HIFN_CRYPT_CMD_KSZ_MASK		0x0600		/* AES key size: */
+#define	HIFN_CRYPT_CMD_KSZ_128		0x0000		/*   128 bit */
+#define	HIFN_CRYPT_CMD_KSZ_192		0x0200		/*   192 bit */
+#define	HIFN_CRYPT_CMD_KSZ_256		0x0400		/*   256 bit */
 
 /*
  * Structure to help build up the command data structure.
