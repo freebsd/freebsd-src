@@ -146,6 +146,8 @@ static int protection_codes[8];
 
 static struct pmap kernel_pmap_store;
 pmap_t kernel_pmap;
+LIST_HEAD(pmaplist, pmap);
+struct pmaplist allpmaps;
 
 vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
@@ -312,6 +314,8 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap->pm_count = 1;
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
+	LIST_INIT(&allpmaps);
+	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
 	nkpt = NKPT;
 
 	/*
@@ -1093,6 +1097,7 @@ pmap_pinit0(pmap)
 	pmap->pm_ptphint = NULL;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
 }
 
 /*
@@ -1136,6 +1141,10 @@ pmap_pinit(pmap)
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_pdir, PAGE_SIZE);
 
+	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+	/* Wire in kernel global address entries. */
+	/* XXX copies current process, does not fill in MPPTDI */
+	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
 #ifdef SMP
 	pmap->pm_pdir[MPPTDI] = PTD[MPPTDI];
 #endif
@@ -1161,8 +1170,7 @@ void
 pmap_pinit2(pmap)
 	struct pmap *pmap;
 {
-	/* XXX copies current process, does not fill in MPPTDI */
-	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
+	/* XXX: Remove this stub when no longer called */
 }
 
 static int
@@ -1359,6 +1367,7 @@ pmap_release(pmap)
 #endif
 	
 	ptdpg = NULL;
+	LIST_REMOVE(pmap, pm_list);
 retry:
 	curgeneration = object->generation;
 	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = n) {
@@ -1384,7 +1393,6 @@ retry:
 void
 pmap_growkernel(vm_offset_t addr)
 {
-	struct proc *p;
 	struct pmap *pmap;
 	int s;
 	vm_offset_t ptppaddr;
@@ -1422,13 +1430,9 @@ pmap_growkernel(vm_offset_t addr)
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(PTD, kernel_vm_end) = newpdir;
 
-		LIST_FOREACH(p, &allproc, p_list) {
-			if (p->p_vmspace) {
-				pmap = vmspace_pmap(p->p_vmspace);
-				*pmap_pde(pmap, kernel_vm_end) = newpdir;
-			}
+		LIST_FOREACH(pmap, &allpmaps, pm_list) {
+			*pmap_pde(pmap, kernel_vm_end) = newpdir;
 		}
-		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 	}
 	splx(s);
