@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.30.4.2 1995/10/28 10:11:40 davidg Exp $
+ * $Id: vfs_subr.c,v 1.30.4.3 1996/08/15 17:08:20 davidg Exp $
  */
 
 /*
@@ -1398,7 +1398,7 @@ vfs_hang_addrlist(mp, nep, argp)
 		saddr->sa_len = argp->ex_addrlen;
 	if (argp->ex_masklen) {
 		smask = (struct sockaddr *) ((caddr_t) saddr + argp->ex_addrlen);
-		error = copyin(argp->ex_addr, (caddr_t) smask, argp->ex_masklen);
+		error = copyin(argp->ex_mask, (caddr_t) smask, argp->ex_masklen);
 		if (error)
 			goto out;
 		if (smask->sa_len > argp->ex_masklen)
