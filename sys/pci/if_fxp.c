@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.14 1996/09/06 23:08:52 phk Exp $
+ *	$Id: if_fxp.c,v 1.15 1996/09/18 16:18:05 davidg Exp $
  */
 
 /*
@@ -150,6 +150,13 @@ static struct pci_device fxp_device = {
 	fxp_shutdown
 };
 DATA_SET(pcidevice_set, fxp_device);
+
+/*
+ * Set initial transmit threshold at 64 (512 bytes). This is
+ * increased by 64 (512 bytes) at a time, to maximum of 192
+ * (1536 bytes), if an underrun occurs.
+ */
+static int tx_threshold = 64;
 
 /*
  * Number of transmit control blocks. This determines the number
@@ -491,7 +498,7 @@ tbdinit:
 	txp->cb_status = 0;
 	txp->cb_command =
 	    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
-	txp->tx_threshold = 128;	/* bytes*8 = 1024 */
+	txp->tx_threshold = tx_threshold;
 	txp->mb_head = mb_head;
 	
 	/*
@@ -678,6 +685,15 @@ fxp_stats_update(arg)
 	    sp->rx_overrun_errors +
 	    sp->rx_shortframes;
 	/*
+	 * If any transmit underruns occured, bump up the transmit
+	 * threshold by another 512 bytes (64 * 8).
+	 */
+	if (sp->tx_underruns) {
+		ifp->if_oerrors += sp->tx_underruns;
+		if (tx_threshold < 192)
+			tx_threshold += 64;
+	}
+	/*
 	 * If there is no pending command, start another stats
 	 * dump. Otherwise punt for now.
 	 */
@@ -696,6 +712,7 @@ fxp_stats_update(arg)
 		 * next timer event to update them.
 		 */
 		sp->tx_good = 0;
+		sp->tx_underruns = 0;
 		sp->tx_total_collisions = 0;
 
 		sp->rx_good = 0;
