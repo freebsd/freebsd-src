@@ -33,10 +33,11 @@
 #define _MACHINE_MUTEX_H_
 
 #ifndef LOCORE
+#include <sys/queue.h>
 
+#ifdef _KERNEL
 #include <sys/ktr.h>
 #include <sys/proc.h>	/* Needed for curproc. */
-#include <sys/queue.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/globaldata.h>
@@ -76,6 +77,8 @@
 #define	MTX_CONTESTED	0x02		/* (non-spin) lock contested */
 #define	MTX_FLAGMASK	~(MTX_RECURSE | MTX_CONTESTED)
 #define MTX_UNOWNED	0x8		/* Cookie for free mutex */
+
+#endif	/* _KERNEL */
 
 /*
  * Sleep/spin mutex
