@@ -218,6 +218,8 @@ ata_pci_match(device_t dev)
 	case 0x03:
 	case 0x04:
 	    return "HighPoint HPT370 ATA100 controller";
+	case 0x05:
+	    return "HighPoint HPT372 ATA133 controller";
 	default:
 	    return "Unknown revision HighPoint ATA controller";
 	}
@@ -321,16 +323,17 @@ ata_pci_attach(device_t dev)
 
     case 0x00041103: /* HighPoint */
 	switch (pci_get_revid(dev)) {
-	case 0x00:
+	case 0x00:	/* HPT 366 */
 	case 0x01:
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
 	    		     (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
 	    break;
 
-	case 0x02:
-	case 0x03:
+	case 0x02:	/* HPT 368 */
+	case 0x03:	/* HPT 370 */
 	case 0x04:
+	case 0x05:	/* HPT 372 */
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
 	    		     (pci_read_config(dev, 0x51, 1) & ~0x02), 1);
@@ -421,7 +424,7 @@ ata_pci_intr(struct ata_softc *scp)
      * that we know this channel generated.
      */
     switch (scp->chiptype) {
-    case 0x00041103:    /* HighPoint HPT366/368/370 */
+    case 0x00041103:    /* HighPoint HPT366/368/370/372 */
 	if (((dmastat = ata_dmastatus(scp)) &
 	    (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) != ATA_BMSTAT_INTERRUPT)
 	    return 1;

@@ -839,7 +839,22 @@ via_82c586:
 	scp->mode[ATA_DEV(device)] = ATA_PIO0 + apiomode;
 	return;
     
-    case 0x00041103:	/* HighPoint HPT366/368/370 controllers */
+    case 0x00041103:	/* HighPoint HPT366/368/370/372 controllers */
+	if (!ATAPI_DEVICE(scp, device) &&
+	    udmamode >= 6 && pci_get_revid(parent) >= 0x05 &&
+	    !(pci_read_config(parent, 0x5a, 1) & (scp->channel ? 0x01:0x02))) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
+				ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting UDMA6 on HighPoint chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		hpt_timing(scp, devno, ATA_UDMA6);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA6;
+		return;
+	    }
+	}
 	if (!ATAPI_DEVICE(scp, device) &&
 	    udmamode >=5 && pci_get_revid(parent) >= 0x03 &&
 	    !(pci_read_config(parent, 0x5a, 1) & (scp->channel ? 0x01:0x02))) {
@@ -1107,8 +1122,24 @@ hpt_timing(struct ata_softc *scp, int devno, int mode)
 {
     device_t parent = device_get_parent(scp->dev);
     u_int32_t timing;
-
-    if (pci_get_revid(parent) >= 0x03) {	/* HPT370 */
+    if (pci_get_revid(parent) >= 0x05) {	/* HPT372 */
+	switch (mode) {
+	case ATA_PIO0:  timing = 0x0d029d5e; break;
+	case ATA_PIO1:  timing = 0x0d029d26; break;
+	case ATA_PIO2:  timing = 0x0c829ca6; break;
+	case ATA_PIO3:  timing = 0x0c829c84; break;
+	case ATA_PIO4:  timing = 0x0c829c62; break;
+	case ATA_WDMA2: timing = 0x2c829262; break;
+	case ATA_UDMA2:	timing = 0x1c91dc62; break;
+	case ATA_UDMA4:	timing = 0x1c8ddc62; break;
+	case ATA_UDMA5:	timing = 0x1c6ddc62; break;
+	case ATA_UDMA6:	timing = 0x1c81dc62; break;
+	default:	timing = 0x0d029d5e;
+	}
+	pci_write_config(parent, 0x40 + (devno << 2) , timing, 4);
+	pci_write_config(parent, 0x5b, 0x20, 1);
+    }
+    else if (pci_get_revid(parent) >= 0x03) {	/* HPT370 */
 	switch (mode) {
 	case ATA_PIO0:	timing = 0x06914e57; break;
 	case ATA_PIO1:	timing = 0x06914e43; break;
