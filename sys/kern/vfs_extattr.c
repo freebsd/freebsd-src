@@ -450,20 +450,17 @@ chroot_refuse_vdir_fds(fdp)
 	struct file *fp;
 	int fd;
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
 		fp = fget_locked(fdp, fd);
 		if (fp == NULL)
 			continue;
 		if (fp->f_type == DTYPE_VNODE) {
 			vp = (struct vnode *)fp->f_data;
-			if (vp->v_type == VDIR) {
-				FILEDESC_UNLOCK(fdp);
+			if (vp->v_type == VDIR)
 				return (EPERM);
-			}
 		}
 	}
-	FILEDESC_UNLOCK(fdp);
 	return (0);
 }
 
@@ -504,21 +501,18 @@ chroot(td, uap)
 	error = suser_cred(td->td_ucred, PRISON_ROOT);
 	if (error)
 		return (error);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
+	    SCARG(uap, path), td);
+	mtx_lock(&Giant);
+	if ((error = change_dir(&nd, td)) != 0)
+		goto error;
 	FILEDESC_LOCK(fdp);
 	if (chroot_allow_open_directories == 0 ||
 	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode)) {
-		FILEDESC_UNLOCK(fdp);
 		error = chroot_refuse_vdir_fds(fdp);
-	} else
-		FILEDESC_UNLOCK(fdp);
-	if (error)
-		return (error);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), td);
-	if ((error = change_dir(&nd, td)) != 0)
-		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	FILEDESC_LOCK(fdp);
+		if (error)
+			goto error_unlock;
+	}
 	vp = fdp->fd_rdir;
 	fdp->fd_rdir = nd.ni_vp;
 	if (!fdp->fd_jdir) {
@@ -526,8 +520,16 @@ chroot(td, uap)
                 VREF(fdp->fd_jdir);
 	}
 	FILEDESC_UNLOCK(fdp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(vp);
+	mtx_unlock(&Giant);
 	return (0);
+error_unlock:
+	FILEDESC_UNLOCK(fdp);
+error:
+	mtx_unlock(&Giant);
+	NDFREE(&nd, 0);
+	return (error);
 }
 
 /*
