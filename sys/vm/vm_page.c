@@ -1617,6 +1617,7 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 {
 	int bits;
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	bits = vm_page_bits(base, size);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->valid &= ~bits;
