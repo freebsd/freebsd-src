@@ -592,7 +592,8 @@ ukbd_enable_intr(keyboard_t *kbd, int on, usbd_intr_t *func)
 					USBD_SHORT_XFER_OK,
 					&state->ks_intrpipe, kbd,
 					&state->ks_ndata, 
-					sizeof(state->ks_ndata), func);
+					sizeof(state->ks_ndata), func,
+					USBD_DEFAULT_INTERVAL);
 		if (err)
 			return (EIO);
 	} else {

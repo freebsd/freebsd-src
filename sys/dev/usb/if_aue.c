@@ -203,6 +203,9 @@ static int csr_read_1(sc, reg)
 	u_int8_t		val = 0;
 	int			s;
 
+	if (sc->aue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -211,7 +214,8 @@ static int csr_read_1(sc, reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -230,6 +234,9 @@ static int csr_read_2(sc, reg)
 	u_int16_t		val = 0;
 	int			s;
 
+	if (sc->aue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -238,7 +245,8 @@ static int csr_read_2(sc, reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -256,6 +264,9 @@ static int csr_write_1(sc, reg, val)
 	usbd_status		err;
 	int			s;
 
+	if (sc->aue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -264,7 +275,8 @@ static int csr_write_1(sc, reg, val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -282,6 +294,9 @@ static int csr_write_2(sc, reg, val)
 	usbd_status		err;
 	int			s;
 
+	if (sc->aue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -290,7 +305,8 @@ static int csr_write_2(sc, reg, val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -713,6 +729,7 @@ USB_ATTACH(aue)
 	callout_handle_init(&sc->aue_stat_ch);
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	usb_register_netisr();
+	sc->aue_gone = 0;
 
 	splx(s);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -730,6 +747,7 @@ static int aue_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
+	sc->aue_gone = 1;
 	untimeout(aue_tick, sc, sc->aue_stat_ch);
 	if_detach(ifp);
 
@@ -872,7 +890,7 @@ static void aue_intr(xfer, priv, status)
 	if (p->aue_txstat0)
 		ifp->if_oerrors++;
 
-	if (p->aue_txstat0 & (AUE_TXSTAT0_LATECOLL | AUE_TXSTAT0_EXCESSCOLL))
+	if (p->aue_txstat0 & (AUE_TXSTAT0_LATECOLL & AUE_TXSTAT0_EXCESSCOLL))
 		ifp->if_collisions++;
 
 	splx(s);
@@ -971,7 +989,7 @@ static void aue_rxeof(xfer, priv, status)
 	 * split transfer. We really need a more reliable way
 	 * to detect this.
 	 */
-	if (r.aue_pktlen != total_len && total_len == AUE_CUTOFF) {
+	if (r.aue_pktlen != AUE_CUTOFF && total_len == AUE_CUTOFF) {
 		c->aue_accum = AUE_CUTOFF;
 		usbd_setup_xfer(xfer, sc->aue_ep[AUE_ENDPT_RX],
 		    c, mtod(c->aue_mbuf, char *) + AUE_CUTOFF,
@@ -1120,15 +1138,7 @@ static int aue_encap(sc, m, idx)
 	m_copydata(m, 0, m->m_pkthdr.len, c->aue_buf + 2);
 	c->aue_mbuf = m;
 
-	/*
-	 * XXX I don't understand why, but transfers that
-	 * are exactly a multiple of 64 bytes in size don't
-	 * work. I'm not sure why. If we detect such a
-	 * transfer, we pad it out by one extra byte.
-	 */
 	total_len = m->m_pkthdr.len + 2;
-	if (!(total_len % 64))
-		total_len++;
 
 	/*
 	 * The ADMtek documentation says that the packet length is
@@ -1140,7 +1150,8 @@ static int aue_encap(sc, m, idx)
 	c->aue_buf[1] = (u_int8_t)(m->m_pkthdr.len >> 8);
 
 	usbd_setup_xfer(c->aue_xfer, sc->aue_ep[AUE_ENDPT_TX],
-	    c, c->aue_buf, total_len, 0, 10000, aue_txeof);
+	    c, c->aue_buf, total_len, USBD_FORCE_SHORT_XFER,
+	    10000, aue_txeof);
 
 	/* Transmit */
 	err = usbd_transfer(c->aue_xfer);
@@ -1274,7 +1285,8 @@ static void aue_init(xsc)
 
 	err = usbd_open_pipe_intr(sc->aue_iface, sc->aue_ed[AUE_ENDPT_INTR],
 	    USBD_SHORT_XFER_OK, &sc->aue_ep[AUE_ENDPT_INTR], sc,
-	    sc->aue_cdata.aue_ibuf, AUE_INTR_PKTLEN, aue_intr);
+	    sc->aue_cdata.aue_ibuf, AUE_INTR_PKTLEN, aue_intr,
+	    AUE_INTR_INTERVAL);
 	if (err) {
 		printf("aue%d: open intr pipe failed: %s\n",
 		    sc->aue_unit, usbd_errstr(err));
@@ -1412,16 +1424,7 @@ static void aue_watchdog(ifp)
 	ifp->if_oerrors++;
 	printf("aue%d: watchdog timeout\n", sc->aue_unit);
 
-	/*
-	 * The polling business is a kludge to avoid allowing the
-	 * USB code to call tsleep() in usbd_delay_ms(), which will
-	 * kill us since the watchdog routine is invoked from
-	 * interrupt context.
-	 */
-	sc->aue_udev->bus->use_polling++;
-	aue_stop(sc);
 	aue_init(sc);
-	sc->aue_udev->bus->use_polling--;
 
 	if (ifp->if_snd.ifq_head != NULL)
 		aue_start(ifp);

@@ -88,7 +88,6 @@
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdevs.h>
-#include <dev/usb/usb_quirks.h>
 #include <dev/usb/usb_ethersubr.h>
 
 #include <dev/usb/if_kuereg.h>
@@ -104,14 +103,14 @@ static const char rcsid[] =
  */
 static struct kue_type kue_devs[] = {
 	{ USB_VENDOR_AOX, USB_PRODUCT_AOX_USB101 },
-	{ USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET },
+	{ USB_VENDOR_ADS, USB_PRODUCT_ADS_UBS10BT },
 	{ USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC10T },
 	{ USB_VENDOR_NETGEAR, USB_PRODUCT_NETGEAR_EA101 },
 	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET },
 	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET2 },
 	{ USB_VENDOR_ENTREGA, USB_PRODUCT_ENTREGA_E45 },
 	{ USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250 },
-	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_USB_T },
+	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_ETHER_USB_T },
 	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650C },
 	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2102USB },
 	{ 0, 0 }
@@ -187,7 +186,7 @@ static usbd_status kue_do_request(dev, req, data)
 
 	xfer = usbd_alloc_xfer(dev);
 	usbd_setup_default_xfer(xfer, dev, 0, 500000, req,
-	    data, UGETW(req->wLength), USBD_SHORT_XFER_OK, 0);
+	    data, UGETW(req->wLength), USBD_SHORT_XFER_OK|USBD_NO_TSLEEP, 0);
 	err = usbd_sync_transfer(xfer);
 	usbd_free_xfer(xfer);
 	return(err);
@@ -202,6 +201,9 @@ static usbd_status kue_setword(sc, breq, word)
 	usb_device_request_t	req;
 	usbd_status		err;
 	int			s;
+
+	if (sc->kue_gone)
+		return(USBD_NORMAL_COMPLETION);
 
 	dev = sc->kue_udev;
 
@@ -236,6 +238,9 @@ static usbd_status kue_ctl(sc, rw, breq, val, data, len)
 
 	dev = sc->kue_udev;
 
+	if (sc->kue_gone)
+		return(USBD_NORMAL_COMPLETION);
+
 	s = splusb();
 
 	if (rw == KUE_CTL_WRITE)
@@ -264,14 +269,6 @@ static int kue_load_fw(sc)
 
 	dd = &sc->kue_udev->ddesc;
 	hwrev = UGETW(dd->bcdDevice);
-
-	/*
-	 * Force the revision code and rescan the quirks
-	 * database: the adapter will return a different
-	 * revision code if the firmware is already running.
-	 */
-	USETW(dd->bcdDevice, 0x002);
-	sc->kue_udev->quirks = usbd_find_quirk(dd);
 
 	/*
 	 * First, check if we even need to load the firmware.
@@ -505,6 +502,7 @@ USB_ATTACH(kue)
 	ether_ifattach(ifp);
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	usb_register_netisr();
+	sc->kue_gone = 0;
 
 	splx(s);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -521,6 +519,8 @@ static int kue_detach(dev)
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
+
+	sc->kue_gone = 1;
 
 	if (ifp != NULL)
 		if_detach(ifp);
@@ -1002,16 +1002,7 @@ static void kue_watchdog(ifp)
 	ifp->if_oerrors++;
 	printf("kue%d: watchdog timeout\n", sc->kue_unit);
 
-	/*
-	 * The polling business is a kludge to avoid allowing the
-	 * USB code to call tsleep() in usbd_delay_ms(), which will
-	 * kill us since the watchdog routine is invoked from
-	 * interrupt context.
-	 */
-	sc->kue_udev->bus->use_polling++;
-	kue_stop(sc);
 	kue_init(sc);
-	sc->kue_udev->bus->use_polling--;
 
 	if (ifp->if_snd.ifq_head != NULL)
 		kue_start(ifp);
