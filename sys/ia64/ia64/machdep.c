@@ -367,7 +367,7 @@ ia64_init()
 	vm_offset_t kernstart, kernend;
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
 	char *p;
-	EFI_MEMORY_DESCRIPTOR *mdp;
+	EFI_MEMORY_DESCRIPTOR *md, *mdp;
 	int mdcount, i;
 
 	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
@@ -384,13 +384,6 @@ ia64_init()
 	 */
 
 	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-	/* OUTPUT NOW ALLOWED */
-
-	/*
 	 * Gross and disgusting hack. The bootinfo is written into
 	 * memory at a fixed address.
 	 */
@@ -400,6 +393,49 @@ ia64_init()
 		bzero(&bootinfo, sizeof(bootinfo));
 		bootinfo.bi_kernend = (vm_offset_t) round_page(_end);
 	}
+
+	/*
+	 * Look for the I/O ports first - we need them for console
+	 * probing.
+	 */
+	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
+	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
+	if (!md) {
+		static EFI_MEMORY_DESCRIPTOR ski_md[2];
+		/*
+		 * XXX hack for ski. In reality, the loader will probably ask
+		 * EFI and pass the results to us. Possibly, we will call EFI
+		 * directly.
+		 */
+		ski_md[0].Type = EfiConventionalMemory;
+		ski_md[0].PhysicalStart = 2L*1024*1024;
+		ski_md[0].VirtualStart = 0;
+		ski_md[0].NumberOfPages = (64L*1024*1024)>>12;
+		ski_md[0].Attribute = EFI_MEMORY_WB;
+
+		ski_md[1].Type = EfiMemoryMappedIOPortSpace;
+		ski_md[1].PhysicalStart = 0xffffc000000;
+		ski_md[1].VirtualStart = 0;
+		ski_md[1].NumberOfPages = (64L*1024*1024)>>12;
+		ski_md[1].Attribute = EFI_MEMORY_UC;
+	
+		md = ski_md;
+		mdcount = 2;
+	}
+
+	for (i = 0, mdp = md; i < mdcount; i++,
+		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
+		if (mdp->Type == EfiMemoryMappedIOPortSpace) {
+			ia64_port_base = IA64_PHYS_TO_RR6(mdp->PhysicalStart);
+		}
+	}
+
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+
+	/* OUTPUT NOW ALLOWED */
 
 	/*
 	 * Find the beginning and end of the kernel.
@@ -435,31 +471,6 @@ ia64_init()
 	 * Find out how much memory is available, by looking at
 	 * the memory descriptors.
 	 */
-	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
-	mdp = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-
-	if (!mdp) {
-		static EFI_MEMORY_DESCRIPTOR ski_md[2];
-		/*
-		 * XXX hack for ski. In reality, the loader will probably ask
-		 * EFI and pass the results to us. Possibly, we will call EFI
-		 * directly.
-		 */
-		ski_md[0].Type = EfiConventionalMemory;
-		ski_md[0].PhysicalStart = 2L*1024*1024;
-		ski_md[0].VirtualStart = 0;
-		ski_md[0].NumberOfPages = (64L*1024*1024)>>12;
-		ski_md[0].Attribute = EFI_MEMORY_WB;
-
-		ski_md[1].Type = EfiConventionalMemory;
-		ski_md[1].PhysicalStart = 4096L*1024*1024;
-		ski_md[1].VirtualStart = 0;
-		ski_md[1].NumberOfPages = (32L*1024*1024)>>12;
-		ski_md[1].Attribute = EFI_MEMORY_WB;
-	
-		mdp = ski_md;
-		mdcount = 1;		/* ignore the high memory for now */
-	}
 
 #define DEBUG_MD
 #ifdef DEBUG_MD
@@ -467,33 +478,31 @@ ia64_init()
 #endif
 
 	phys_avail_cnt = 0;
-	for (i = 0; i < mdcount; i++,
+	for (i = 0, mdp = md; i < mdcount; i++,
 		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
+		size_t size;
 #ifdef DEBUG_MD
 		printf("MD %d: type %d pa 0x%lx cnt 0x%lx\n", i,
 		       mdp->Type,
 		       mdp->PhysicalStart,
 		       mdp->NumberOfPages);
 #endif
-		totalphysmem += mdp->NumberOfPages;
-
-		if (mdp->Type == EfiMemoryMappedIOPortSpace) {
-			ia64_port_base = IA64_PHYS_TO_RR6(mdp->PhysicalStart);
-		}
-		
+		size = mdp->NumberOfPages * 4096;
 		if (mdp->Type != EfiConventionalMemory) {
-			resvmem += mdp->NumberOfPages;
+			resvmem += ia64_btop(size);
 			continue;
 		}
+
+		totalphysmem += ia64_btop(size);
 
 		/*
 		 * We have a memory descriptors available for system
 		 * software use.  We must determine if this cluster
 		 * holds the kernel.
 		 */
-		physmem += mdp->NumberOfPages;
-		pfn0 = atop(mdp->PhysicalStart);
-		pfn1 = pfn0 + mdp->NumberOfPages;
+		physmem += ia64_btop(size);
+		pfn0 = ia64_btop(mdp->PhysicalStart);
+		pfn1 = pfn0 + ia64_btop(size);
 		if (pfn0 <= kernendpfn && kernstartpfn <= pfn1) {
 			/*
 			 * Must compute the location of the kernel
