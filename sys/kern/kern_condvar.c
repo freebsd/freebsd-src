@@ -153,7 +153,6 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	td = curthread;
 	p = td->td_proc;
-	rval = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
@@ -180,32 +179,21 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	 * thread or if our thread is marked as interrupted.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (p->p_flag & P_SA || p->p_numthreads > 1) {
-		if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td)
-			rval = EINTR;
-		else if (td->td_flags & TDF_INTERRUPT)
-			rval = td->td_intrval;
-		if (rval != 0) {
-			mtx_unlock_spin(&sched_lock);
-			sleepq_release(cvp);
-			return (rval);
-		}
-	}
+	rval = thread_sleep_check(td);
 	mtx_unlock_spin(&sched_lock);
+	if (rval != 0) {
+		sleepq_release(cvp);
+		return (rval);
+	}
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
+	    SLEEPQ_INTERRUPTIBLE);
 	sig = sleepq_catch_signals(cvp);
-	if (sig == 0 && !TD_ON_SLEEPQ(td)) {
-		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_SINTR;
-		mtx_unlock_spin(&sched_lock);
-		sleepq_wait(cvp);
-	} else       
-		rval = sleepq_wait_sig(cvp);
+	rval = sleepq_wait_sig(cvp);
 	if (rval == 0)
 		rval = sleepq_calc_signal_retval(sig);
 
@@ -320,33 +308,22 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	 * thread or if our thread is marked as interrupted.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (p->p_flag & P_SA || p->p_numthreads > 1) {
-		if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td)
-			rval = EINTR;
-		else if (td->td_flags & TDF_INTERRUPT)
-			rval = td->td_intrval;
-		if (rval != 0) {
-			mtx_unlock_spin(&sched_lock);
-			sleepq_release(cvp);
-			return (rval);
-		}
-	}
+	rval = thread_sleep_check(td);
 	mtx_unlock_spin(&sched_lock);
+	if (rval != 0) {
+		sleepq_release(cvp);
+		return (rval);
+	}
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
+	    SLEEPQ_INTERRUPTIBLE);
 	sleepq_set_timeout(cvp, timo);
 	sig = sleepq_catch_signals(cvp);
-	if (sig == 0 && !TD_ON_SLEEPQ(td)) {
-		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_SINTR;
-		mtx_unlock_spin(&sched_lock);
-		rval = sleepq_timedwait(cvp);
-	} else       
-		rval = sleepq_timedwait_sig(cvp, sig != 0);
+	rval = sleepq_timedwait_sig(cvp, sig != 0);
 	if (rval == 0)
 		rval = sleepq_calc_signal_retval(sig);
 

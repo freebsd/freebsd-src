@@ -952,6 +952,7 @@ void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 int	thread_single(int how);
 void	thread_single_end(void);
+int	thread_sleep_check(struct thread *td);
 void	thread_stash(struct thread *td);
 int	thread_suspend_check(int how);
 void	thread_suspend_one(struct thread *td);

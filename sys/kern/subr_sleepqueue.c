@@ -113,7 +113,7 @@ struct sleepqueue {
 	LIST_ENTRY(sleepqueue) sq_hash;		/* (c) Chain and free list. */
 	LIST_HEAD(, sleepqueue) sq_free;	/* (c) Free queues. */
 	void	*sq_wchan;			/* (c) Wait channel. */
-	int	sq_flags;			/* (c) Flags. */
+	int	sq_type;			/* (c) Queue type. */
 #ifdef INVARIANTS
 	struct mtx *sq_lock;			/* (c) Associated lock. */
 #endif
@@ -279,7 +279,7 @@ sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
 #ifdef INVARIANTS
 		sq->sq_lock = lock;
 #endif
-		sq->sq_flags = flags;
+		sq->sq_type = flags & SLEEPQ_TYPE;
 		TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_slpq);
 	} else {
 		MPASS(wchan == sq->sq_wchan);
@@ -297,6 +297,8 @@ sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
 	mtx_lock_spin(&sched_lock);
 	td->td_wchan = wchan;
 	td->td_wmesg = wmesg;
+	if (flags & SLEEPQ_INTERRUPTIBLE)
+		td->td_flags |= TDF_SINTR;
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -345,10 +347,8 @@ sleepq_catch_signals(void *wchan)
 	    (void *)td, (long)p->p_pid, p->p_comm);
 
 	/* Mark thread as being in an interruptible sleep. */
-	mtx_lock_spin(&sched_lock);
+	MPASS(td->td_flags & TDF_SINTR);
 	MPASS(TD_ON_SLEEPQ(td));
-	td->td_flags |= TDF_SINTR;
-	mtx_unlock_spin(&sched_lock);
 	sleepq_release(wchan);
 
 	/* See if there are any pending signals for this thread. */
@@ -364,15 +364,20 @@ sleepq_catch_signals(void *wchan)
 
 	/*
 	 * If there were pending signals and this thread is still on
-	 * the sleep queue, remove it from the sleep queue.
+	 * the sleep queue, remove it from the sleep queue.  If the
+	 * thread was removed from the sleep queue while we were blocked
+	 * above, then clear TDF_SINTR before returning.
 	 */
 	sq = sleepq_lookup(wchan);
 	mtx_lock_spin(&sched_lock);
 	if (TD_ON_SLEEPQ(td) && (sig != 0 || do_upcall != 0)) {
 		mtx_unlock_spin(&sched_lock);
 		sleepq_remove_thread(sq, td);
-	} else
+	} else {
+		if (!TD_ON_SLEEPQ(td) && sig == 0)
+			td->td_flags &= ~TDF_SINTR;
 		mtx_unlock_spin(&sched_lock);
+	}
 	return (sig);
 }
 
@@ -465,6 +470,13 @@ sleepq_check_signals(void)
 	mtx_assert(&sched_lock, MA_OWNED);
 	td = curthread;
 
+	/*
+	 * If TDF_SINTR is clear, then we were awakened while executing
+	 * sleepq_catch_signals().
+	 */
+	if (!(td->td_flags & TDF_SINTR))
+		return (0);
+
 	/* We are no longer in an interruptible sleep. */
 	td->td_flags &= ~TDF_SINTR;
 
@@ -513,6 +525,7 @@ void
 sleepq_wait(void *wchan)
 {
 
+	MPASS(!(curthread->td_flags & TDF_SINTR));
 	sleepq_switch(wchan);
 	mtx_unlock_spin(&sched_lock);
 }
@@ -541,6 +554,7 @@ sleepq_timedwait(void *wchan)
 {
 	int rval;
 
+	MPASS(!(curthread->td_flags & TDF_SINTR));
 	sleepq_switch(wchan);
 	rval = sleepq_check_timeout();
 	mtx_unlock_spin(&sched_lock);
@@ -649,7 +663,7 @@ sleepq_signal(void *wchan, int flags, int pri)
 		sleepq_release(wchan);
 		return;
 	}
-	KASSERT(sq->sq_flags == flags,
+	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 	/* XXX: Do for all sleep queues eventually. */
 	if (flags & SLEEPQ_CONDVAR)
@@ -679,7 +693,7 @@ sleepq_broadcast(void *wchan, int flags, int pri)
 		sleepq_release(wchan);
 		return;
 	}
-	KASSERT(sq->sq_flags == flags,
+	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 	/* XXX: Do for all sleep queues eventually. */
 	if (flags & SLEEPQ_CONDVAR)
