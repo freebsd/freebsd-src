@@ -385,7 +385,7 @@ ah_keyed_sha1_loop(state, addr, len)
 		panic("ah_keyed_sha1_loop: what?");
 	ctxt = (SHA1_CTX *)state->foo;
 
-	SHA1Update(ctxt, (caddr_t)addr, (size_t)len);
+	SHA1Update(ctxt, (u_int8_t *)addr, (size_t)len);
 }
 
 static void
@@ -579,7 +579,7 @@ ah_hmac_sha1_init(state, sav)
 	/* compress the key if necessery */
 	if (64 < _KEYLEN(state->sav->key_auth)) {
 		SHA1Init(ctxt);
-		SHA1Update(ctxt, _KEYBUF(state->sav->key_auth),
+		SHA1Update(ctxt, (u_int8_t *)_KEYBUF(state->sav->key_auth),
 			_KEYLEN(state->sav->key_auth));
 		SHA1Final(&tk[0], ctxt);
 		key = &tk[0];
@@ -616,7 +616,7 @@ ah_hmac_sha1_loop(state, addr, len)
 		panic("ah_hmac_sha1_loop: what?");
 
 	ctxt = (SHA1_CTX *)(((u_char *)state->foo) + 128);
-	SHA1Update(ctxt, (caddr_t)addr, (size_t)len);
+	SHA1Update(ctxt, (u_int8_t *)addr, (size_t)len);
 }
 
 static void
@@ -640,7 +640,7 @@ ah_hmac_sha1_result(state, addr)
 
 	SHA1Init(ctxt);
 	SHA1Update(ctxt, opad, 64);
-	SHA1Update(ctxt, (caddr_t)&digest[0], sizeof(digest));
+	SHA1Update(ctxt, (u_int8_t *)&digest[0], sizeof(digest));
 	SHA1Final((caddr_t)&digest[0], ctxt);
 
 	bcopy(&digest[0], (void *)addr, HMACSIZE);
