@@ -187,7 +187,7 @@ timevaldiff(struct timeval *tv1, struct timeval *tv2) {
 	int carry;
 
 	carry = tv1->tv_usec > tv2->tv_usec;
-	diff.tv_sec = tv2->tv_sec - tv1->tv_sec - (carry ? 0 : 1);
+	diff.tv_sec = tv2->tv_sec - tv1->tv_sec - (carry ? 1 : 0);
 	diff.tv_usec = tv2->tv_usec - tv1->tv_usec + (carry ? 1000000 : 0);
 
 	return diff;
