@@ -138,10 +138,10 @@ MODULE_DEPEND(hme, miibus, 1, 1, 1);
 
 #define	HME_SPC_READ_4(spc, sc, offs) \
 	bus_space_read_4((sc)->sc_ ## spc ## t, (sc)->sc_ ## spc ## h, \
-	    (sc)->sc_ ## spc ## o + (offs))
+	    (offs))
 #define	HME_SPC_WRITE_4(spc, sc, offs, v) \
 	bus_space_write_4((sc)->sc_ ## spc ## t, (sc)->sc_ ## spc ## h, \
-	    (sc)->sc_ ## spc ## o + (offs), (v))
+	    (offs), (v))
 
 #define	HME_SEB_READ_4(sc, offs)	HME_SPC_READ_4(seb, (sc), (offs))
 #define	HME_SEB_WRITE_4(sc, offs, v)	HME_SPC_WRITE_4(seb, (sc), (offs), (v))
