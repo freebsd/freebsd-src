@@ -25,10 +25,10 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libncurses libradius librpcsvc libsbuf libtacplus libutil libypclnt \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
-	libedit libfetch libform libftpio ${_libgnumalloc} ${_libio} libipsec \
+	libedit libfetch libform libftpio ${_libio} libipsec \
 	libipx libisc libmenu ${_libmilter} ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
-	${_libresolv} ${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
+	${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
 	libstand ${_libtelnet} libusbhid ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
@@ -37,11 +37,6 @@ _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
 _csu=csu/${MACHINE_ARCH}
 .else
 _csu=csu
-.endif
-
-.if ${OBJFORMAT} == "aout" && ${MACHINE_ARCH} == "i386"
-_libgnumalloc=	libgnumalloc
-_libresolv=	libresolv
 .endif
 
 .if !defined(NOLIBC_R) && ${MACHINE_ARCH} != ia64
