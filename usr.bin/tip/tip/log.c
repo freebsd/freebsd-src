@@ -32,11 +32,16 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)log.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "tipconf.h"
 #include "tip.h"
+#include <err.h>
 
 #if ACULOG
 static	FILE *flog = NULL;
@@ -45,6 +50,7 @@ static	FILE *flog = NULL;
  * Log file maintenance routines
  */
 
+void
 logent(group, num, acu, message)
 	char *group, *num, *acu, *message;
 {
@@ -55,7 +61,7 @@ logent(group, num, acu, message)
 	if (flog == NULL)
 		return;
 	if (flock(fileno(flog), LOCK_EX) < 0) {
-		perror("tip: flock");
+		warn("flock");
 		return;
 	}
 	if ((user = getlogin()) == NOSTR)
@@ -78,6 +84,7 @@ logent(group, num, acu, message)
 	(void) flock(fileno(flog), LOCK_UN);
 }
 
+void
 loginit()
 {
 	flog = fopen(value(LOG), "a");

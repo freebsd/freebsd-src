@@ -32,11 +32,16 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)hunt.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "tipconf.h"
 #include "tip.h"
+#include <err.h>
 
 extern char *getremote();
 extern char *rindex();
@@ -51,6 +56,7 @@ dead()
 	longjmp(deadline, 1);
 }
 
+int
 hunt(name)
 	char *name;
 {
@@ -58,7 +64,7 @@ hunt(name)
 	sig_t f;
 
 	f = signal(SIGALRM, dead);
-	while (cp = getremote(name)) {
+	while ((cp = getremote(name))) {
 		deadfl = 0;
 		uucplock = rindex(cp, '/')+1;
 		if (uu_lock(uucplock) < 0)
@@ -78,7 +84,7 @@ hunt(name)
 		}
 		alarm(0);
 		if (FD < 0) {
-			perror(cp);
+			warn("%s", cp);
 			deadfl = 1;
 		}
 		if (!deadfl) {

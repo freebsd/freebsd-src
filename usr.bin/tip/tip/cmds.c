@@ -32,13 +32,20 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "tipconf.h"
 #include "tip.h"
 #include "pathnames.h"
 
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <err.h>
 #include <stdio.h>
 
 /*
@@ -56,6 +63,27 @@ static char *argv[10];		/* argument vector for take and put */
 void	timeout();		/* timeout function called on alarm */
 void	stopsnd();		/* SIGINT handler during file transfers */
 void	intcopy();		/* interrupt routine for file transfers */
+int anyof __P((char *, char *));
+void suspend __P((char));
+void genbrk __P((void));
+void tandem __P((char *));
+void variable __P((void));
+void prtime __P((char *, time_t));
+int args __P((char *, char **));
+void execute __P((char *));
+void finish __P((void));
+void tipabort __P((char *));
+void chdirectory __P((void));
+void shell __P((void));
+void send __P((char));
+void cu_put __P((char));
+void transmit __P((FILE *, char *, char *));
+void sendfile __P((char));
+void pipefile __P((void));
+void transfer __P((char *, int, char *));
+void xfer __P((char *, int, char *));
+void cu_take __P((char));
+void getfl __P((char));
 
 void
 usedefchars ()
@@ -99,6 +127,7 @@ flush_remote ()
  * FTP - remote ==> local
  *  get a file from the remote host
  */
+void
 getfl(c)
 	char c;
 {
@@ -129,6 +158,7 @@ getfl(c)
 /*
  * Cu-like take command
  */
+void
 cu_take(cc)
 	char cc;
 {
@@ -154,6 +184,7 @@ cu_take(cc)
 
 extern jmp_buf intbuf;
 
+void
 xfer(buf, fd, eofchars)
 	char *buf, *eofchars;
 {
@@ -168,12 +199,12 @@ xfer(buf, fd, eofchars)
 	v = boolean(value(VERBOSE));
 
 	if ((ff = fdopen (fd, "w")) == NULL) {
-		perror("file open");
+		warn("file open");
 		return;
 	}
 	if ((cnt = number(value(FRAMESIZE))) != BUFSIZ)
 		if (setvbuf(ff, NULL, _IOFBF, cnt) != 0) {
-			perror("file allocation");
+			warn("file allocation");
 			(void)fclose(ff);
 			return;
 		}
@@ -240,12 +271,12 @@ static	jmp_buf intbuf;
  * Bulk transfer routine --
  *  used by getfl(), cu_take(), and pipefile()
  */
+void
 transfer(buf, fd, eofchars)
 	char *buf, *eofchars;
 {
 	register int ct;
-	char c, buffer[BUFSIZ];
-	register char *p = buffer;
+	char c;
 	register int cnt, eof, v;
 	time_t start;
 	sig_t f;
@@ -255,12 +286,12 @@ transfer(buf, fd, eofchars)
 	v = boolean(value(VERBOSE));
 
 	if ((ff = fdopen (fd, "w")) == NULL) {
-		perror("file open");
+		warn("file open");
 		return;
 	}
 	if ((cnt = number(value(FRAMESIZE))) != BUFSIZ)
 		if (setvbuf(ff, NULL, _IOFBF, cnt) != 0) {
-			perror("file allocation");
+			warn("file allocation");
 			(void)fclose(ff);
 			return;
 		}
@@ -309,6 +340,7 @@ transfer(buf, fd, eofchars)
  * FTP - remote ==> local process
  *   send remote input to local process via pipe
  */
+void
 pipefile()
 {
 	int cpid, pdes[2];
@@ -368,6 +400,7 @@ stopsnd()
  *  send local file to remote host
  *  terminate transmission with pseudo EOF sequence
  */
+void
 sendfile(cc)
 	char cc;
 {
@@ -400,6 +433,7 @@ sendfile(cc)
  * Bulk transfer routine to remote host --
  *   used by sendfile() and cu_put()
  */
+void
 transmit(fd, eofchars, command)
 	FILE *fd;
 	char *eofchars, *command;
@@ -495,6 +529,7 @@ out:
 /*
  * Cu-like put command
  */
+void
 cu_put(cc)
 	char cc;
 {
@@ -528,6 +563,7 @@ cu_put(cc)
  * FTP - send single character
  *  wait for echo & handle timeout
  */
+void
 send(c)
 	char c;
 {
@@ -572,6 +608,7 @@ timeout()
  * Stolen from consh() -- puts a remote file on the output of a local command.
  *	Identical to consh() except for where stdout goes.
  */
+void
 pipeout(c)
 {
 	char buf[256];
@@ -675,6 +712,7 @@ tiplink (char *cmd, unsigned int flags)
  *  1 <-> remote tty out
  *  2 <-> local tty out
  */
+void
 consh(c)
 {
 	char buf[256];
@@ -688,17 +726,17 @@ consh(c)
 /*
  * Escape to local shell
  */
+void
 shell()
 {
 	int shpid, status;
-	extern char **environ;
 	char *cp;
 
 	printf("[sh]\r\n");
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 	unraw();
-	if (shpid = fork()) {
+	if ((shpid = fork())) {
 		while (shpid != wait(&status));
 		raw();
 		printf("\r\n!\r\n");
@@ -723,6 +761,7 @@ shell()
  * TIPIN portion of scripting
  *   initiate the conversation with TIPOUT
  */
+void
 setscript()
 {
 	char c;
@@ -745,6 +784,7 @@ setscript()
  * Change current working directory of
  *   local portion of tip
  */
+void
 chdirectory()
 {
 	char dirname[80];
@@ -760,6 +800,7 @@ chdirectory()
 	printf("!\r\n");
 }
 
+void
 tipabort(msg)
 	char *msg;
 {
@@ -775,6 +816,7 @@ tipabort(msg)
 	exit(0);
 }
 
+void
 finish()
 {
 	char *abortmsg = NOSTR, *dismsg;
@@ -798,6 +840,7 @@ intcopy()
 	longjmp(intbuf, 1);
 }
 
+void
 execute(s)
 	char *s;
 {
@@ -811,6 +854,7 @@ execute(s)
 	execl(value(SHELL), cp, "-c", s, 0);
 }
 
+int
 args(buf, a)
 	char *buf, *a[];
 {
@@ -835,6 +879,7 @@ args(buf, a)
 	return(n);
 }
 
+void
 prtime(s, a)
 	char *s;
 	time_t a;
@@ -848,12 +893,13 @@ prtime(s, a)
 	}
 	printf("%s", s);
 	while (--i >= 0)
-		if (nums[i] || i == 0 && nums[1] == 0 && nums[2] == 0)
+		if (nums[i] || (i == 0 && nums[1] == 0 && nums[2] == 0))
 			printf("%d %s%c ", nums[i], sep[i],
 				nums[i] == 1 ? '\0' : 's');
 	printf("\r\n!\r\n");
 }
 
+void
 variable()
 {
 	char	buf[256];
@@ -893,13 +939,14 @@ variable()
  	}
 	if (vtable[PARITY].v_access&CHANGED) {
 		vtable[PARITY].v_access &= ~CHANGED;
-		setparity();
+		setparity(value(PARITY));
 	}
 }
 
 /*
  * Turn tandem mode on or off for remote tty.
  */
+void
 tandem(option)
 	char *option;
 {
@@ -935,6 +982,7 @@ tandem(option)
 /*
  * Send a break.
  */
+void
 genbrk()
 {
 
@@ -946,6 +994,7 @@ genbrk()
 /*
  * Suspend tip
  */
+void
 suspend(c)
 	char c;
 {
@@ -965,15 +1014,15 @@ expand(name)
 {
 	static char xname[BUFSIZ];
 	char cmdbuf[BUFSIZ];
-	register int pid, l, rc;
+	register int pid, l;
 	register char *cp, *Shell;
-	int s, pivec[2], (*sigint)();
+	int s, pivec[2] /*, (*sigint)()*/;
 
 	if (!anyof(name, "~{[*?$`'\"\\"))
 		return(name);
 	/* sigint = signal(SIGINT, SIG_IGN); */
 	if (pipe(pivec) < 0) {
-		perror("pipe");
+		warn("pipe");
 		/* signal(SIGINT, sigint) */
 		return(name);
 	}
@@ -992,7 +1041,7 @@ expand(name)
 		_exit(1);
 	}
 	if (pid == -1) {
-		perror("fork");
+		warn("fork");
 		close(pivec[0]);
 		close(pivec[1]);
 		return(NOSTR);
@@ -1008,7 +1057,7 @@ expand(name)
 		return(NOSTR);
 	}
 	if (l < 0) {
-		perror("read");
+		warn("read");
 		return(NOSTR);
 	}
 	if (l == 0) {
@@ -1030,12 +1079,13 @@ expand(name)
  * Are any of the characters in the two strings the same?
  */
 
+int
 anyof(s1, s2)
 	register char *s1, *s2;
 {
 	register int c;
 
-	while (c = *s1++)
+	while ((c = *s1++))
 		if (any(c, s2))
 			return(1);
 	return(0);
