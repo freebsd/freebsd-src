@@ -2052,17 +2052,7 @@ void
 uma_large_free(uma_slab_t slab)
 {
 	vsetobj((vm_offset_t)slab->us_data, kmem_object);
-	/*
-	 * XXX: We get a lock order reversal if we don't have Giant:
-	 * vm_map_remove (locks system map) -> vm_map_delete ->
-	 *    vm_map_entry_unwire -> vm_fault_unwire -> mtx_lock(&Giant)
-	 */
-	if (!mtx_owned(&Giant)) {
-		mtx_lock(&Giant);
-		page_free(slab->us_data, slab->us_size, slab->us_flags);
-		mtx_unlock(&Giant);
-	} else
-		page_free(slab->us_data, slab->us_size, slab->us_flags);
+	page_free(slab->us_data, slab->us_size, slab->us_flags);
 	uma_zfree_internal(slabzone, slab, NULL, 0);
 }
 
