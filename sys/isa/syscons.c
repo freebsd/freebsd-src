@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.129 1995/11/20 12:13:32 phk Exp $
+ *  $Id: syscons.c,v 1.130 1995/11/24 14:56:00 bde Exp $
  */
 
 #include "sc.h"
@@ -157,6 +157,35 @@ static	struct cdevsw	scdevsw = {
 	scioctl,	nullstop,	noreset,	scdevtotty,
 	ttselect,	scmmap,		nostrategy,
 };
+
+/*
+ * Calculate hardware attributes word using logical attributes mask and
+ * hardware colors
+ */
+
+static int
+mask2attr(struct term_stat *term)
+{
+    int attr, mask = term->attr_mask;
+
+    if (mask & REVERSE_ATTR) {
+	attr = ((mask & BACKGROUND_CHANGED) ?
+		((term->cur_color & 0xF000) >> 4) :
+		(term->rev_color & 0x0F00)) |
+	       ((mask & FOREGROUND_CHANGED) ?
+		((term->cur_color & 0x0F00) << 4) :
+		(term->rev_color & 0xF000));
+    } else
+	attr = term->cur_color;
+
+    /* XXX: underline mapping for Hercules adapter can be better */
+    if (mask & (BOLD_ATTR | UNDERLINE_ATTR))
+	attr ^= 0x0800;
+    if (mask & BLINK_ATTR)
+	attr ^= 0x8000;
+
+    return attr;
+}
 
 int
 scprobe(struct isa_device *dev)
@@ -657,10 +686,10 @@ set_mouse_pos:
 	    ptr->mv_row = scp->ypos;
 	    ptr->mv_csz = scp->xsize;
 	    ptr->mv_rsz = scp->ysize;
-	    ptr->mv_norm.fore = (scp->term.std_attr & 0x0f00)>>8;
-	    ptr->mv_norm.back = (scp->term.std_attr & 0xf000)>>12;
-	    ptr->mv_rev.fore = (scp->term.rev_attr & 0x0f00)>>8;
-	    ptr->mv_rev.back = (scp->term.rev_attr & 0xf000)>>12;
+	    ptr->mv_norm.fore = (scp->term.std_color & 0x0f00)>>8;
+	    ptr->mv_norm.back = (scp->term.std_color & 0xf000)>>12;
+	    ptr->mv_rev.fore = (scp->term.rev_color & 0x0f00)>>8;
+	    ptr->mv_rev.back = (scp->term.rev_color & 0xf000)>>12;
 	    ptr->mv_grfc.fore = 0;      /* not supported */
 	    ptr->mv_grfc.back = 0;      /* not supported */
 	    ptr->mv_ovscan = scp->border;
@@ -1237,7 +1266,7 @@ static void
 clear_screen(scr_stat *scp)
 {
     move_crsr(scp, 0, 0);
-    fillw(scp->term.cur_attr | scr_map[0x20], scp->scr_buf,
+    fillw(scp->term.cur_color | scr_map[0x20], scp->scr_buf,
 	  scp->xsize * scp->ysize);
     mark_all(scp);
 }
@@ -1368,7 +1397,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    else {
 		bcopyw(scp->scr_buf, scp->scr_buf + scp->xsize,
 		       (scp->ysize - 1) * scp->xsize * sizeof(u_short));
-		fillw(scp->term.cur_attr | scr_map[0x20],
+		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->scr_buf, scp->xsize);
     		mark_all(scp);
 	    }
@@ -1457,14 +1486,14 @@ scan_esc(scr_stat *scp, u_char c)
 		n = scp->term.param[0];
 	    switch (n) {
 	    case 0: /* clear form cursor to end of display */
-		fillw(scp->term.cur_attr | scr_map[0x20],
+		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->cursor_pos,
 		      scp->scr_buf + scp->xsize * scp->ysize - scp->cursor_pos);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
     		mark_for_update(scp, scp->xsize * scp->ysize);
 		break;
 	    case 1: /* clear from beginning of display to cursor */
-		fillw(scp->term.cur_attr | scr_map[0x20],
+		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->scr_buf,
 		      scp->cursor_pos - scp->scr_buf);
     		mark_for_update(scp, 0);
@@ -1483,7 +1512,7 @@ scan_esc(scr_stat *scp, u_char c)
 		n = scp->term.param[0];
 	    switch (n) {
 	    case 0: /* clear form cursor to end of line */
-		fillw(scp->term.cur_attr | scr_map[0x20],
+		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->cursor_pos,
 		      scp->xsize - scp->xpos);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
@@ -1491,14 +1520,14 @@ scan_esc(scr_stat *scp, u_char c)
 				scp->xsize - scp->xpos);
 		break;
 	    case 1: /* clear from beginning of line to cursor */
-		fillw(scp->term.cur_attr|scr_map[0x20],
+		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->cursor_pos - (scp->xsize - scp->xpos),
 		      (scp->xsize - scp->xpos) + 1);
     		mark_for_update(scp, scp->ypos * scp->xsize);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 		break;
 	    case 2: /* clear entire line */
-		fillw(scp->term.cur_attr|scr_map[0x20],
+		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->cursor_pos - (scp->xsize - scp->xpos),
 		      scp->xsize);
     		mark_for_update(scp, scp->ypos * scp->xsize);
@@ -1515,7 +1544,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    dst = src + n * scp->xsize;
 	    count = scp->ysize - (scp->ypos + n);
 	    bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
-	    fillw(scp->term.cur_attr | scr_map[0x20], src,
+	    fillw(scp->term.cur_color | scr_map[0x20], src,
 		  n * scp->xsize);
 	    mark_for_update(scp, scp->ypos * scp->xsize);
 	    mark_for_update(scp, scp->xsize * scp->ysize);
@@ -1530,7 +1559,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    count = scp->ysize - (scp->ypos + n);
 	    bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
 	    src = dst + count * scp->xsize;
-	    fillw(scp->term.cur_attr | scr_map[0x20], src,
+	    fillw(scp->term.cur_color | scr_map[0x20], src,
 		  n * scp->xsize);
 	    mark_for_update(scp, scp->ypos * scp->xsize);
 	    mark_for_update(scp, scp->xsize * scp->ysize);
@@ -1545,7 +1574,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    count = scp->xsize - (scp->xpos + n);
 	    bcopyw(src, dst, count * sizeof(u_short));
 	    src = dst + count;
-	    fillw(scp->term.cur_attr | scr_map[0x20], src, n);
+	    fillw(scp->term.cur_color | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count);
 	    break;
@@ -1558,7 +1587,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    dst = src + n;
 	    count = scp->xsize - (scp->xpos + n);
 	    bcopyw(src, dst, count * sizeof(u_short));
-	    fillw(scp->term.cur_attr | scr_map[0x20], src, n);
+	    fillw(scp->term.cur_color | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count);
 	    break;
@@ -1570,7 +1599,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    bcopyw(scp->scr_buf + (scp->xsize * n),
 		   scp->scr_buf,
 		   scp->xsize * (scp->ysize - n) * sizeof(u_short));
-	    fillw(scp->term.cur_attr | scr_map[0x20],
+	    fillw(scp->term.cur_color | scr_map[0x20],
 		  scp->scr_buf + scp->xsize * (scp->ysize - n),
 		  scp->xsize * n);
     	    mark_all(scp);
@@ -1584,7 +1613,7 @@ scan_esc(scr_stat *scp, u_char c)
 		  scp->scr_buf + (scp->xsize * n),
 		  scp->xsize * (scp->ysize - n) *
 		  sizeof(u_short));
-	    fillw(scp->term.cur_attr | scr_map[0x20],
+	    fillw(scp->term.cur_color | scr_map[0x20],
 		  scp->scr_buf, scp->xsize * n);
     	    mark_all(scp);
 	    break;
@@ -1593,7 +1622,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    n = scp->term.param[0]; if (n < 1)  n = 1;
 	    if (n > scp->xsize - scp->xpos)
 		n = scp->xsize - scp->xpos;
-	    fillw(scp->term.cur_attr | scr_map[0x20],
+	    fillw(scp->term.cur_color | scr_map[0x20],
 		  scp->scr_buf + scp->xpos +
 		  ((scp->xsize*scp->ypos) * sizeof(u_short)), n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
@@ -1633,40 +1662,49 @@ scan_esc(scr_stat *scp, u_char c)
 
 	case 'm':   /* change attribute */
 	    if (scp->term.num_param == 0) {
-		scp->term.cur_attr = scp->term.std_attr;
+		scp->term.attr_mask = NORMAL_ATTR;
+		scp->term.cur_attr =
+		    scp->term.cur_color = scp->term.std_color;
 		break;
 	    }
 	    for (i = 0; i < scp->term.num_param; i++) {
 		switch (n = scp->term.param[i]) {
 		case 0: /* back to normal */
-		    scp->term.cur_attr = scp->term.std_attr;
+		    scp->term.attr_mask = NORMAL_ATTR;
+		    scp->term.cur_attr =
+			scp->term.cur_color = scp->term.std_color;
 		    break;
-		case 1: /* highlight (bold) */
-		    scp->term.cur_attr &= 0xFF00;
-		    scp->term.cur_attr |= 0x0800;
+		case 1: /* bold */
+		    scp->term.attr_mask |= BOLD_ATTR;
+		    scp->term.cur_attr = mask2attr(&scp->term);
 		    break;
-		case 4: /* highlight (underline) */
-		    scp->term.cur_attr &= 0xFF00;
-		    scp->term.cur_attr |= 0x0800;
+		case 4: /* underline */
+		    scp->term.attr_mask |= UNDERLINE_ATTR;
+		    scp->term.cur_attr = mask2attr(&scp->term);
 		    break;
 		case 5: /* blink */
-		    scp->term.cur_attr &= 0xFF00;
-		    scp->term.cur_attr |= 0x8000;
+		    scp->term.attr_mask |= BLINK_ATTR;
+		    scp->term.cur_attr = mask2attr(&scp->term);
 		    break;
 		case 7: /* reverse video */
-		    scp->term.cur_attr = scp->term.rev_attr;
+		    scp->term.attr_mask |= REVERSE_ATTR;
+		    scp->term.cur_attr = mask2attr(&scp->term);
 		    break;
 		case 30: case 31: /* set fg color */
 		case 32: case 33: case 34:
 		case 35: case 36: case 37:
-		    scp->term.cur_attr =
-			(scp->term.cur_attr&0xF8FF) | (ansi_col[(n-30)&7]<<8);
+		    scp->term.attr_mask |= FOREGROUND_CHANGED;
+		    scp->term.cur_color =
+			(scp->term.cur_color&0xF000) | (ansi_col[(n-30)&7]<<8);
+		    scp->term.cur_attr = mask2attr(&scp->term);
 		    break;
 		case 40: case 41: /* set bg color */
 		case 42: case 43: case 44:
 		case 45: case 46: case 47:
-		    scp->term.cur_attr =
-			(scp->term.cur_attr&0x8FFF) | (ansi_col[(n-40)&7]<<12);
+		    scp->term.attr_mask |= BACKGROUND_CHANGED;
+		    scp->term.cur_color =
+			(scp->term.cur_color&0x0F00) | (ansi_col[(n-40)&7]<<12);
+		    scp->term.cur_attr = mask2attr(&scp->term);
 		    break;
 		}
 	    }
@@ -1679,37 +1717,48 @@ scan_esc(scr_stat *scp, u_char c)
 		n = scp->term.param[0];
 	    switch (n) {
 	    case 0:     /* reset attributes */
-		scp->term.cur_attr = scp->term.std_attr =
-		    current_default->std_attr;
-		scp->term.rev_attr = current_default->rev_attr;
+		scp->term.attr_mask = NORMAL_ATTR;
+		scp->term.cur_attr =
+		    scp->term.cur_color = scp->term.std_color =
+		    current_default->std_color;
+		scp->term.rev_color = current_default->rev_color;
 		break;
 	    case 1:     /* set ansi background */
-		scp->term.cur_attr = scp->term.std_attr =
-		    (scp->term.std_attr & 0x0F00) |
+		scp->term.attr_mask &= ~BACKGROUND_CHANGED;
+		scp->term.cur_color = scp->term.std_color =
+		    (scp->term.std_color & 0x0F00) |
 		    (ansi_col[(scp->term.param[1])&0x0F]<<12);
+		scp->term.cur_attr = mask2attr(&scp->term);
 		break;
 	    case 2:     /* set ansi foreground */
-		scp->term.cur_attr = scp->term.std_attr =
-		    (scp->term.std_attr & 0xF000) |
+		scp->term.attr_mask &= ~FOREGROUND_CHANGED;
+		scp->term.cur_color = scp->term.std_color =
+		    (scp->term.std_color & 0xF000) |
 		    (ansi_col[(scp->term.param[1])&0x0F]<<8);
+		scp->term.cur_attr = mask2attr(&scp->term);
 		break;
 	    case 3:     /* set ansi attribute directly */
-		scp->term.cur_attr = scp->term.std_attr =
+		scp->term.attr_mask &= ~(FOREGROUND_CHANGED|BACKGROUND_CHANGED);
+		scp->term.cur_color = scp->term.std_color =
 		    (scp->term.param[1]&0xFF)<<8;
+		scp->term.cur_attr = mask2attr(&scp->term);
 		break;
 	    case 5:     /* set ansi reverse video background */
-		scp->term.rev_attr =
-		    (scp->term.rev_attr & 0x0F00) |
+		scp->term.rev_color =
+		    (scp->term.rev_color & 0x0F00) |
 		    (ansi_col[(scp->term.param[1])&0x0F]<<12);
+		scp->term.cur_attr = mask2attr(&scp->term);
 		break;
 	    case 6:     /* set ansi reverse video foreground */
-		scp->term.rev_attr =
-		    (scp->term.rev_attr & 0xF000) |
+		scp->term.rev_color =
+		    (scp->term.rev_color & 0xF000) |
 		    (ansi_col[(scp->term.param[1])&0x0F]<<8);
+		scp->term.cur_attr = mask2attr(&scp->term);
 		break;
 	    case 7:     /* set ansi reverse video directly */
-		scp->term.rev_attr =
+		scp->term.rev_color =
 		    (scp->term.param[1]&0xFF)<<8;
+		scp->term.cur_attr = mask2attr(&scp->term);
 		break;
 	    }
 	    break;
@@ -1776,31 +1825,41 @@ scan_esc(scr_stat *scp, u_char c)
 	    break;
 
 	case 'F':   /* set ansi foreground */
-	    if (scp->term.num_param == 1)
-		scp->term.cur_attr = scp->term.std_attr =
-		    (scp->term.std_attr & 0xF000)
+	    if (scp->term.num_param == 1) {
+		scp->term.attr_mask &= ~FOREGROUND_CHANGED;
+		scp->term.cur_color = scp->term.std_color =
+		    (scp->term.std_color & 0xF000)
 		    | ((scp->term.param[0] & 0x0F) << 8);
+		scp->term.cur_attr = mask2attr(&scp->term);
+	    }
 	    break;
 
 	case 'G':   /* set ansi background */
-	    if (scp->term.num_param == 1)
-		scp->term.cur_attr = scp->term.std_attr =
-		    (scp->term.std_attr & 0x0F00)
+	    if (scp->term.num_param == 1) {
+		scp->term.attr_mask &= ~BACKGROUND_CHANGED;
+		scp->term.cur_color = scp->term.std_color =
+		    (scp->term.std_color & 0x0F00)
 		    | ((scp->term.param[0] & 0x0F) << 12);
+		scp->term.cur_attr = mask2attr(&scp->term);
+	    }
 	    break;
 
 	case 'H':   /* set ansi reverse video foreground */
-	    if (scp->term.num_param == 1)
-		scp->term.rev_attr =
-		    (scp->term.rev_attr & 0xF000)
+	    if (scp->term.num_param == 1) {
+		scp->term.rev_color =
+		    (scp->term.rev_color & 0xF000)
 		    | ((scp->term.param[0] & 0x0F) << 8);
+		scp->term.cur_attr = mask2attr(&scp->term);
+	    }
 	    break;
 
 	case 'I':   /* set ansi reverse video background */
-	    if (scp->term.num_param == 1)
-		scp->term.rev_attr =
-		    (scp->term.rev_attr & 0x0F00)
+	    if (scp->term.num_param == 1) {
+		scp->term.rev_color =
+		    (scp->term.rev_color & 0x0F00)
 		    | ((scp->term.param[0] & 0x0F) << 12);
+		scp->term.cur_attr = mask2attr(&scp->term);
+	    }
 	    break;
 	}
     }
@@ -1956,7 +2015,7 @@ outloop:
 	}
 	bcopyw(scp->scr_buf + scp->xsize, scp->scr_buf,
 	       scp->xsize * (scp->ysize - 1) * sizeof(u_short));
-	fillw(scp->term.cur_attr | scr_map[0x20],
+	fillw(scp->term.cur_color | scr_map[0x20],
 	      scp->scr_buf + scp->xsize * (scp->ysize - 1),
 	      scp->xsize);
 	scp->cursor_pos -= scp->xsize;
@@ -2052,9 +2111,11 @@ scinit(void)
     for (i=1; i<MAXCONS; i++)
 	console[i] = NULL;
     kernel_console.esc = 0;
-    kernel_console.std_attr = kernel_default.std_attr;
-    kernel_console.rev_attr = kernel_default.rev_attr;
-    kernel_console.cur_attr = kernel_default.std_attr;
+    kernel_console.attr_mask = NORMAL_ATTR;
+    kernel_console.cur_attr =
+	kernel_console.cur_color = kernel_console.std_color =
+	kernel_default.std_color;
+    kernel_console.rev_color = kernel_default.rev_color;
     /* initialize mapscrn array to a one to one map */
     for (i=0; i<sizeof(scr_map); i++)
 	scr_map[i] = i;
@@ -2090,9 +2151,11 @@ init_scp(scr_stat *scp)
     scp->start = COL * ROW;
     scp->end = 0;
     scp->term.esc = 0;
-    scp->term.std_attr = current_default->std_attr;
-    scp->term.rev_attr = current_default->rev_attr;
-    scp->term.cur_attr = scp->term.std_attr;
+    scp->term.attr_mask = NORMAL_ATTR;
+    scp->term.cur_attr =
+	scp->term.cur_color = scp->term.std_color =
+	current_default->std_color;
+    scp->term.rev_color = current_default->rev_color;
     scp->border = BG_BLACK;
     scp->cursor_start = *(char *)pa_to_va(0x461);
     scp->cursor_end = *(char *)pa_to_va(0x460);
@@ -3092,10 +3155,10 @@ blink_screen(scr_stat *scp)
 {
     if (blink_in_progress > 1) {
 	if (blink_in_progress & 1)
-	    fillw(kernel_default.std_attr | scr_map[0x20],
+	    fillw(kernel_default.std_color | scr_map[0x20],
 		  Crtat, scp->xsize * scp->ysize);
 	else
-	    fillw(kernel_default.rev_attr | scr_map[0x20],
+	    fillw(kernel_default.rev_color | scr_map[0x20],
 		  Crtat, scp->xsize * scp->ysize);
 	blink_in_progress--;
 	timeout((timeout_func_t)blink_screen, scp, hz/10);

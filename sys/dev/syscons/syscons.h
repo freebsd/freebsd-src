@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.11 1995/09/10 21:35:13 bde Exp $
+ *	$Id: syscons.h,v 1.12 1995/11/04 17:07:52 bde Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -68,6 +68,15 @@
 #define VISUAL_BELL	0x00001
 #define BLINK_CURSOR	0x00002
 #define CHAR_CURSOR	0x00004
+
+/* attribute flags */
+#define NORMAL_ATTR             0x00
+#define BLINK_ATTR              0x01
+#define BOLD_ATTR               0x02
+#define UNDERLINE_ATTR          0x04
+#define REVERSE_ATTR            0x08
+#define FOREGROUND_CHANGED      0x10
+#define BACKGROUND_CHANGED      0x20
 
 /* video hardware memory addresses */
 #define VIDEOMEM	0x000A0000
@@ -119,9 +128,11 @@ typedef struct term_stat {
 	int 		num_param;		/* # of parameters to ESC */
 	int	 	last_param;		/* last parameter # */
 	int 		param[MAX_ESC_PAR];	/* contains ESC parameters */
-	int 		cur_attr;		/* current attributes */
-	int 		std_attr;		/* normal attributes */
-	int 		rev_attr;		/* reverse attributes */
+	int             cur_attr;               /* current hardware attributes word */
+	int             attr_mask;              /* current logical attributes mask */
+	int             cur_color;              /* current hardware color */
+	int             std_color;              /* normal hardware color */
+	int             rev_color;              /* reverse hardware color */
 } term_stat;
 
 typedef struct scr_stat {
@@ -161,8 +172,8 @@ typedef struct scr_stat {
 } scr_stat;
 
 typedef struct default_attr {
-	int             std_attr;               /* normal attributes */
-	int 		rev_attr;		/* reverse attributes */
+	int             std_color;              /* normal hardware color */
+	int             rev_color;              /* reverse hardware color */
 } default_attr;
 
 /* function prototypes */
