@@ -932,7 +932,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 	if (sc->cred != NULL)
 		crfree(sc->cred);
 	if (sc->object != NULL) {
-		vm_pager_deallocate(sc->object);
+		vm_object_deallocate(sc->object);
 	}
 	if (sc->indir)
 		destroy_indir(sc, sc->indir);
@@ -990,7 +990,7 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 	sc->flags = mdio->md_options & MD_FORCE;
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
-			vm_pager_deallocate(sc->object);
+			vm_object_deallocate(sc->object);
 			sc->object = NULL;
 			mddestroy(sc, td);
 			return (EDOM);
