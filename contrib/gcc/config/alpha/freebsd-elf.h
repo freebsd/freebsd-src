@@ -41,25 +41,19 @@
   %{shared:-shared}						\
   %{!shared:							\
     -dc -dp							\
-    %{!nostdlib:%{!r*:%{!e*:-e __start}}}			\
+    %{!nostdlib:%{!r*:%{!e*:-e _start}}}			\
     %{!static:							\
       %{rdynamic:-export-dynamic}				\
-      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld.elf_so}} \
+      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
     %{static:-static}}"
 
-/* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add
-   the crtbegin.o file (see crtstuff.c) which provides part of the
-   support for getting C++ file-scope static object constructed
-   before entering `main'. */
+/* Provide a STARTFILE_SPEC for FreeBSD that is compatible with the
+   non-aout version used on i386. */
    
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC \
- "%{!shared: \
-     %{pg:gcrt0.o%s} \
-     %{!pg: \
-	%{p:gcrt0.o%s} \
-	%{!p:crt0.o%s}}} \
-   %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+ "%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}} \
+    crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
 
 /* Provide a ENDFILE_SPEC appropriate for FreeBSD.  Here we tack on
    the file which provides part of the support for getting C++
