@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.16 1998/08/03 11:33:22 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.17 1998/08/06 09:44:23 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -850,6 +850,7 @@ badopt:
 		rate.rep = n;
 	}
 
+	rate.pad = 0;
 	if (ioctl(0, KDSETRAD, rate) < 0)
 		warn("setting keyboard rate");
 }
