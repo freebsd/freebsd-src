@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Benno Rice
+ * Copyright (c) 2000-2001 Benno Rice
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,8 @@
 static int	ofwn_probe(struct netif *, void *);
 static int	ofwn_match(struct netif *, void *);
 static void	ofwn_init(struct iodesc *, void *);
-static int	ofwn_get(struct iodesc *, void *, int, time_t);
-static int	ofwn_put(struct iodesc *, void *, int);
+static int	ofwn_get(struct iodesc *, void *, size_t, time_t);
+static int	ofwn_put(struct iodesc *, void *, size_t);
 static void	ofwn_end(struct netif *);
 
 extern struct netif_stats	ofwn_stats[];
@@ -89,7 +89,7 @@ ofwn_probe(struct netif *nif, void *machdep_hint)
 }
 
 static int
-ofwn_put(struct iodesc *desc, void *pkt, int len)
+ofwn_put(struct iodesc *desc, void *pkt, size_t len)
 {
 	struct ether_header	*eh;
 	size_t			sendlen;
@@ -126,7 +126,7 @@ ofwn_put(struct iodesc *desc, void *pkt, int len)
 }
 
 static int
-ofwn_get(struct iodesc *desc, void *pkt, int len, time_t timeout)
+ofwn_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 {
 	time_t	t;
 	int	length;
@@ -196,8 +196,10 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 
 	printf("boot: ethernet address: %s\n", ether_sprintf(desc->myea));
 
-	if ((netinstance = OF_open(path)) == -1)
+	if ((netinstance = OF_open(path)) == -1) {
+		printf("Could not open network device.\n");
 		goto punt;
+	}
 
 #if defined(NETIF_DEBUG)
 	printf("ofwn_init: OpenFirmware instance handle: %08x\n", netinstance);
@@ -218,7 +220,7 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 punt:
 	printf("\n");
 	printf("Could not boot from %s.\n", path);
-	OF_exit();
+	OF_enter();
 }
 
 static void

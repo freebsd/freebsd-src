@@ -67,6 +67,8 @@
 typedef	int	ihandle_t;
 typedef int	phandle_t;
 
+extern phandle_t	chosen;
+
 /*
  * This isn't actually an OpenFirmware function, but it seemed like the right
  * place for it to go.
