@@ -3,19 +3,37 @@
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
-SUBDIR= colldef dict examples man me misc mk mklocale monetdef \
-	msgdef numericdef skel syscons tabset termcap timedef zoneinfo
-
-.if !defined(NO_SHAREDOCS)
-SUBDIR+= doc
-.endif
+SUBDIR=	colldef \
+	dict \
+	${_doc} \
+	examples \
+	${_isdn} \
+	man \
+	me \
+	misc \
+	mk \
+	mklocale \
+	monetdef \
+	msgdef \
+	numericdef \
+	${_sendmail} \
+	skel \
+	syscons \
+	tabset \
+	termcap \
+	timedef \
+	zoneinfo
 
 .if !defined(NO_I4B)
-SUBDIR+= isdn
+_isdn=		isdn
 .endif
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+= sendmail
+_sendmail=	 sendmail
+.endif
+
+.if !defined(NO_SHAREDOCS)
+_doc=		doc
 .endif
 
 .include <bsd.subdir.mk>

@@ -11,13 +11,31 @@
 # the tree:
 # 11.adb
 
-SUBDIR=	 title contents 
-SUBDIR+=  01.cacm 02.implement 03.iosys 04.uprog 05.sysman 06.Clang 12.make 
-SUBDIR+=  13.rcs 15.yacc 16.lex 17.m4 18.gprof 20.ipctut 21.ipc
+SUBDIR=	title \
+	contents \
+	01.cacm \
+	02.implement \
+	03.iosys \
+	04.uprog \
+	05.sysman \
+	06.Clang \
+	12.make \
+	13.rcs \
+	15.yacc \
+	16.lex \
+	17.m4 \
+	18.gprof \
+	20.ipctut \
+	21.ipc
 
 # The following modules don't appear in the O'Reilly book, but
 # are in the 4.4BSD distribution.
-SUBDIR+= 22.rpcgen 23.rpc 24.xdr 25.xdrrfc 26.rpcrfc 27.nfsrpc
-SUBDIR+= 28.cvs
+SUBDIR+=22.rpcgen \
+	23.rpc \
+	24.xdr \
+	25.xdrrfc \
+	26.rpcrfc \
+	27.nfsrpc \
+	28.cvs
 
 .include <bsd.subdir.mk>
