@@ -681,7 +681,6 @@ options 	SOFTUPDATES
 
 # Directory hashing improves the speed of operations on very large
 # directories at the expense of some memory.
-# Warning: this is experimental code!
 options		UFS_DIRHASH
 
 # Make space in the kernel for a root filesystem on a md device.
