@@ -9,6 +9,7 @@ bsdtar_SOURCES=				\
 		bsdtar_platform.h	\
 		fts.c			\
 		fts.h			\
+		getdate.y		\
 		matching.c		\
 		read.c			\
 		util.c			\
@@ -16,3 +17,5 @@ bsdtar_SOURCES=				\
 bsdtar_LDADD=	-larchive -lbz2 -lz
 
 dist_man_MANS=	bsdtar.1
+
+DISTCLEANFILES=	getdate.c getdate.h
