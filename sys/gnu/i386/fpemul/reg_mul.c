@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: reg_mul.c,v 1.6 1997/02/22 09:29:23 peter Exp $
  *
  */
 
@@ -64,10 +64,7 @@
  | The destination may be any FPU_REG, including one of the source FPU_REGs. |
  +---------------------------------------------------------------------------*/
 
-#include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/reg_constant.h>
-#include <gnu/i386/fpemul/fpu_emu.h>
-#include <gnu/i386/fpemul/fpu_system.h>
 
 
 /* This routine must be called with non-empty source registers */

@@ -56,13 +56,11 @@
  * W. Metzenthen   June 1994.
  *
  *
- *   $Id$
+ *   $Id: poly_2xm1.c,v 1.6 1997/02/22 09:29:14 peter Exp $
  *
  */
 
-#include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/reg_constant.h>
-#include <gnu/i386/fpemul/fpu_emu.h>
 
 
 

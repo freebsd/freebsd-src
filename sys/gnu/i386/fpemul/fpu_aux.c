@@ -56,12 +56,15 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: fpu_aux.c,v 1.7 1997/02/22 09:29:04 peter Exp $
  *
  */
 
 
 #include <sys/param.h>
+#ifdef DEBUG
+#include <sys/systm.h>		/* for printf() in EXCEPTION() */
+#endif
 #include <sys/proc.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>

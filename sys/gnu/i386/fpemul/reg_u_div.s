@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *      $Id: reg_u_div.s,v 1.6 1997/02/22 09:29:26 peter Exp $
+ *      $Id: reg_u_div.s,v 1.7 1997/04/22 06:54:53 jdp Exp $
  *
  */
 
@@ -70,9 +70,7 @@
  |  Does not compute the destination exponent, but does adjust it.           |
  +---------------------------------------------------------------------------*/
 
-#include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/fpu_asm.h>
-#include <gnu/i386/fpemul/control_w.h>
 
 
 /* #define	dSIGL(x)	(x) */

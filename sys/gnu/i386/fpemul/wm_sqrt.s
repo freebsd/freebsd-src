@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: wm_sqrt.s,v 1.6 1997/02/22 09:29:30 peter Exp $
+ *     $Id: wm_sqrt.s,v 1.7 1997/04/22 06:54:57 jdp Exp $
  *
  */
 
@@ -77,7 +77,6 @@
  |  The guess is kept in %esi:%edi                                           |
  +---------------------------------------------------------------------------*/
 
-#include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/fpu_asm.h>
 
 

@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id$
+ *  $Id: fpu_entry.c,v 1.11 1997/02/22 09:29:06 peter Exp $
  *
  */
 
@@ -86,7 +86,6 @@
 #include <gnu/i386/fpemul/fpu_emu.h>
 #include <gnu/i386/fpemul/fpu_system.h>
 #include <gnu/i386/fpemul/exception.h>
-#include <gnu/i386/fpemul/control_w.h>
 #include <gnu/i386/fpemul/status_w.h>
 
 
