@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.75 1997/02/22 09:48:06 peter Exp $
+ * $Id: swap_pager.c,v 1.76 1997/08/25 22:15:17 bde Exp $
  */
 
 /*
@@ -1027,7 +1027,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	s = splbio();
 	while ((bp->b_flags & B_DONE) == 0) {
 		if (tsleep(bp, PVM, "swread", hz*20)) {
-			printf("swap_pager: indefinite wait buffer: device: %d, blkno: %d, size: %d\n",
+			printf("swap_pager: indefinite wait buffer: device: %#x, blkno: %d, size: %d\n",
 				bp->b_dev, bp->b_blkno, bp->b_bcount);
 		}
 	}
