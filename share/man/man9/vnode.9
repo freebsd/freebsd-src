@@ -28,7 +28,7 @@
 .\"
 .\" $Id: vnode.9,v 1.7 1998/09/28 23:36:35 eivind Exp $
 .\"
-.Dd July 24, 1996
+.Dd June 30, 1999
 .Os
 .Dt VNODE 9
 .Sh NAME
@@ -52,49 +52,69 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
 enum vtagtype	{
 	VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
 	VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS,
-	VT_UNION, VT_MSDOSFS, VT_DEVFS
+	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS, VT_CODA, VT_NTFS
 };
 
 /*
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
-LIST_HEAD(buflists, buf);
+TAILQ_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
+struct namecache;
 
+/*
+ * Reading or writing any of these items requires holding the appropriate lock.
+ * v_freelist is locked by the global vnode_free_list simple lock.
+ * v_mntvnodes is locked by the global mntvnodes simple lock.
+ * v_flag, v_usecount, v_holdcount and v_writecount are
+ *    locked by the v_interlock simple lock.
+ * v_pollinfo is locked by the lock contained inside it.
+ */
 struct vnode {
-	u_long	v_flag;			/* vnode flags (see below) */
-	int	v_usecount;		/* reference count of users */
-	int	v_writecount;		/* reference count of writers */
-	int	v_holdcnt;		/* page & buffer references */
-	daddr_t	v_lastr;		/* last read (read-ahead) */
-	u_long	v_id;			/* capability identifier */
-	struct	mount *v_mount;		/* ptr to vfs we are in */
-	vop_t	**v_op;			/* vnode operations vector */
-	TAILQ_ENTRY(vnode) v_freelist;	/* vnode freelist */
-	LIST_ENTRY(vnode) v_mntvnodes;	/* vnodes for mount point */
-	struct	buflists v_cleanblkhd;	/* clean blocklist head */
-	struct	buflists v_dirtyblkhd;	/* dirty blocklist head */
-	long	v_numoutput;		/* num of writes in progress */
-	enum	vtype v_type;		/* vnode type */
+	u_long	v_flag;				/* vnode flags (see below) */
+	int	v_usecount;			/* reference count of users */
+	int	v_writecount;			/* reference count of writers */
+	int	v_holdcnt;			/* page & buffer references */
+	daddr_t	v_lastr;			/* last read (read-ahead) */
+	u_long	v_id;				/* capability identifier */
+	struct	mount *v_mount;			/* ptr to vfs we are in */
+	vop_t	**v_op;				/* vnode operations vector */
+	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
+	LIST_ENTRY(vnode) v_mntvnodes;		/* vnodes for mount point */
+	struct	buflists v_cleanblkhd;		/* clean blocklist head */
+	struct	buflists v_dirtyblkhd;		/* dirty blocklist head */
+	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */
+	long	v_numoutput;			/* num of writes in progress */
+	enum	vtype v_type;			/* vnode type */
 	union {
 		struct mount	*vu_mountedhere;/* ptr to mounted vfs (VDIR) */
 		struct socket	*vu_socket;	/* unix ipc (VSOCK) */
 		struct specinfo	*vu_specinfo;	/* device (VCHR, VBLK) */
 		struct fifoinfo	*vu_fifoinfo;	/* fifo (VFIFO) */
 	} v_un;
-	struct	nqlease *v_lease;	/* Soft reference to lease */
-	daddr_t	v_lastw;		/* last write (write cluster) */
-	daddr_t	v_cstart;		/* start block of cluster */
-	daddr_t	v_lasta;		/* last allocation */
-	int	v_clen;			/* length of current cluster */
-	int	v_ralen;		/* Read-ahead length */
-	int	v_usage;		/* Vnode usage counter */
-	daddr_t	v_maxra;		/* last readahead block */
-	void	*v_object;		/* Place to store VM object */
-	enum	vtagtype v_tag;		/* type of underlying data */
-	void 	*v_data;		/* private data for fs */
+	struct	nqlease *v_lease;		/* Soft reference to lease */
+	daddr_t	v_lastw;			/* last write (write cluster) */
+	daddr_t	v_cstart;			/* start block of cluster */
+	daddr_t	v_lasta;			/* last allocation */
+	int	v_clen;				/* length of current cluster */
+	int	v_maxio;			/* maximum I/O cluster size */
+	struct vm_object *v_object;		/* Place to store VM object */
+	struct	simplelock v_interlock;		/* lock on usecount and flag */
+	struct	lock *v_vnlock;			/* used for non-locking fs's */
+	enum	vtagtype v_tag;			/* type of underlying data */
+	void 	*v_data;			/* private data for fs */
+	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
+	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
+	struct	vnode *v_dd;			/* .. vnode */
+	u_long	v_ddid;				/* .. capability identifier */
+	struct	{
+		struct	simplelock vpi_lock;	/* lock to protect below */
+		struct	selinfo vpi_selinfo;	/* identity of poller(s) */
+		short	vpi_events;		/* what they are looking for */
+		short	vpi_revents;		/* what has happened */
+	} v_pollinfo;
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
@@ -104,24 +124,25 @@ struct vnode {
 /*
  * Vnode flags.
  */
-#define	VROOT	0x00001	/* root of its file system */
-#define	VTEXT	0x00002	/* vnode is a pure text prototype */
-#define	VSYSTEM	0x00004	/* vnode being used by kernel */
-#define	VOLOCK	0x00008	/* vnode is locked waiting for an object */
-#define	VOWANT	0x00010	/* a process is waiting for VOLOCK */
-#define	VXLOCK	0x00100	/* vnode is locked to change underlying type */
-#define	VXWANT	0x00200	/* process is waiting for vnode */
-#define	VBWAIT	0x00400	/* waiting for output to complete */
+#define	VROOT		0x00001	/* root of its file system */
+#define	VTEXT		0x00002	/* vnode is a pure text prototype */
+#define	VSYSTEM		0x00004	/* vnode being used by kernel */
+#define	VISTTY		0x00008	/* vnode represents a tty */
+#define	VXLOCK		0x00100	/* vnode is locked to change underlying type */
+#define	VXWANT		0x00200	/* process is waiting for vnode */
+#define	VBWAIT		0x00400	/* waiting for output to complete */
 #define	VALIASED	0x00800	/* vnode has an alias */
-#define	VDIROP	0x01000	/* LFS: vnode is involved in a directory op */
-#define	VVMIO	0x02000	/* VMIO flag */
-#define	VNINACT	0x04000	/* LFS: skip ufs_inactive() in lfs_vunref */
-#define	VAGE	0x08000	/* Insert vnode at head of free list */
-#define VOLOCK	0x10000	/* vnode is locked waiting for an object */
-#define VOWANT	0x20000	/* a process is waiting for VOLOCK */
-#define VDOOMED	0x40000	/* This vnode is being recycled */
-#define VFREE	0x80000	/* This vnode is on the freelist */
-
+#define	VDIROP		0x01000	/* LFS: vnode is involved in a directory op */
+#define	VOBJBUF		0x02000	/* Allocate buffers in VM object */
+#define	VNINACT		0x04000	/* LFS: skip ufs_inactive() in lfs_vunref */
+#define	VAGE		0x08000	/* Insert vnode at head of free list */
+#define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
+#define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
+#define	VDOOMED		0x40000	/* This vnode is being recycled */
+#define	VFREE		0x80000	/* This vnode is on the freelist */
+#define	VTBFREE		0x100000 /* This vnode is on the to-be-freelist */
+#define	VONWORKLST	0x200000 /* On syncer work-list */
+#define	VMOUNT		0x400000 /* Mount in progress */
 
 .Ed
 .Sh DESCRIPTION
