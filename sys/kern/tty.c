@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id$
+ * $Id: tty.c,v 1.5 1994/08/02 07:42:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -649,6 +649,7 @@ ttioctl(tp, cmd, data, flag)
 #ifdef notdef
 	case  TIOCSPGRP:
 #endif
+	case  TIOCSTAT:
 	case  TIOCSTI:
 	case  TIOCSWINSZ:
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -887,6 +888,9 @@ ttioctl(tp, cmd, data, flag)
 		tp->t_pgrp = pgrp;
 		break;
 	}
+	case TIOCSTAT:			/* simulate control-T */
+		ttyinfo(tp);
+		break;
 	case TIOCSWINSZ:		/* set window size */
 		if (bcmp((caddr_t)&tp->t_winsize, data,
 		    sizeof (struct winsize))) {
