@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.84 1994/12/17 20:50:43 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.85 1994/12/17 21:29:38 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -425,7 +425,7 @@ ${CONFIGURE_COOKIE}:
 		sh ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
-	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
+	@(cd ${WRKSRC}; CC=${CC} ./configure ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
 .if defined(USE_GMAKE)
