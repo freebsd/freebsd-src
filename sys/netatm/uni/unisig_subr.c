@@ -116,7 +116,7 @@ unisig_cause_attr_from_user(aap, cause)
 	aap->cause.v.coding_standard = T_ATM_ITU_CODING;
 	aap->cause.v.location = T_ATM_LOC_USER;
 	aap->cause.v.cause_value = cause;
-	KM_ZERO(aap->cause.v.diagnostics,
+	bzero(aap->cause.v.diagnostics,
 			sizeof(aap->cause.v.diagnostics));
 }
 
@@ -144,8 +144,8 @@ unisig_cause_attr_from_ie(aap, iep)
 	aap->cause.v.coding_standard = iep->ie_coding;
 	aap->cause.v.location = iep->ie_caus_loc;
 	aap->cause.v.cause_value = iep->ie_caus_cause;
-	KM_ZERO(aap->cause.v.diagnostics, sizeof(aap->cause.v.diagnostics));
-	KM_COPY(iep->ie_caus_diagnostic, aap->cause.v.diagnostics,
+	bzero(aap->cause.v.diagnostics, sizeof(aap->cause.v.diagnostics));
+	bcopy(iep->ie_caus_diagnostic, aap->cause.v.diagnostics,
 		MIN(sizeof(aap->cause.v.diagnostics), iep->ie_caus_diag_len));
 }
 
@@ -668,20 +668,20 @@ unisig_save_attrs(usp, msg, ap)
 		ap->bhli.v.ID_type = msg->msg_ie_bhli->ie_bhli_type;
 		switch(ap->bhli.v.ID_type) {
 		case T_ATM_ISO_APP_ID:
-			KM_COPY(msg->msg_ie_bhli->ie_bhli_info,
+			bcopy(msg->msg_ie_bhli->ie_bhli_info,
 					ap->bhli.v.ID.ISO_ID,
 					sizeof(ap->bhli.v.ID.ISO_ID));
 			break;
 		case T_ATM_USER_APP_ID:
-			KM_COPY(msg->msg_ie_bhli->ie_bhli_info,
+			bcopy(msg->msg_ie_bhli->ie_bhli_info,
 					ap->bhli.v.ID.user_defined_ID,
 					sizeof(ap->bhli.v.ID.user_defined_ID));
 			break;
 		case T_ATM_VENDOR_APP_ID:
-			KM_COPY(msg->msg_ie_bhli->ie_bhli_info,
+			bcopy(msg->msg_ie_bhli->ie_bhli_info,
 					ap->bhli.v.ID.vendor_ID.OUI,
 					sizeof(ap->bhli.v.ID.vendor_ID.OUI));
-			KM_COPY(&msg->msg_ie_bhli->ie_bhli_info[sizeof(ap->bhli.v.ID.vendor_ID.OUI)-1],
+			bcopy(&msg->msg_ie_bhli->ie_bhli_info[sizeof(ap->bhli.v.ID.vendor_ID.OUI)-1],
 					ap->bhli.v.ID.vendor_ID.app_ID,
 					sizeof(ap->bhli.v.ID.vendor_ID.app_ID));
 			break;
@@ -754,10 +754,10 @@ unisig_save_attrs(usp, msg, ap)
 					msg->msg_ie_blli->ie_blli_l3_id;
 			if (msg->msg_ie_blli->ie_blli_l3_ipi ==
 					UNI_IE_BLLI_L3IPI_SNAP) {
-				KM_COPY(msg->msg_ie_blli->ie_blli_l3_oui,
+				bcopy(msg->msg_ie_blli->ie_blli_l3_oui,
 						ap->blli.v.layer_3_protocol.ID.SNAP_ID.OUI,
 						sizeof(ap->blli.v.layer_3_protocol.ID.SNAP_ID.OUI));
-				KM_COPY(msg->msg_ie_blli->ie_blli_l3_pid,
+				bcopy(msg->msg_ie_blli->ie_blli_l3_pid,
 						ap->blli.v.layer_3_protocol.ID.SNAP_ID.PID,
 						sizeof(ap->blli.v.layer_3_protocol.ID.SNAP_ID.PID));
 			} else {
@@ -835,7 +835,7 @@ unisig_save_attrs(usp, msg, ap)
 		ap->transit.v.length = 
 				MIN(msg->msg_ie_trnt->ie_trnt_id_len,
 				sizeof(ap->transit.v.network_id));
-		KM_COPY(msg->msg_ie_trnt->ie_trnt_id,
+		bcopy(msg->msg_ie_trnt->ie_trnt_id,
 				ap->transit.v.network_id,
 				ap->transit.v.length);
 	}
@@ -851,10 +851,10 @@ unisig_save_attrs(usp, msg, ap)
 				msg->msg_ie_caus->ie_caus_loc;
 		ap->cause.v.cause_value = 
 				msg->msg_ie_caus->ie_caus_cause;
-		KM_ZERO(ap->cause.v.diagnostics,
+		bzero(ap->cause.v.diagnostics,
 				sizeof(ap->cause.v.diagnostics));
 #ifdef NOTDEF
-		KM_COPY(msg->msg_ie_caus->ie_caus_diagnostic,
+		bcopy(msg->msg_ie_caus->ie_caus_diagnostic,
 				ap->transit.v.diagnostics,
 				MIN(sizeof(ap->transit.v.diagnostics),
 				msg->msg_ie_caus->ie_caus_diag_len));
@@ -903,7 +903,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_aalp_absent,
+		bcopy(&ie_aalp_absent,
 				&msg->msg_ie_aalp->ie_u.ie_aalp,
 				sizeof(ie_aalp_absent));
 		msg->msg_ie_aalp->ie_ident = UNI_IE_AALP;
@@ -961,7 +961,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_clrt_absent,
+		bcopy(&ie_clrt_absent,
 				&msg->msg_ie_clrt->ie_u.ie_clrt,
 				sizeof(ie_clrt_absent));
 		msg->msg_ie_clrt->ie_ident = UNI_IE_CLRT;
@@ -1018,7 +1018,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_bbcp_absent,
+		bcopy(&ie_bbcp_absent,
 				&msg->msg_ie_bbcp->ie_u.ie_bbcp,
 				sizeof(ie_bbcp_absent));
 		msg->msg_ie_bbcp->ie_ident = UNI_IE_BBCP;
@@ -1046,27 +1046,27 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_bhli_absent,
+		bcopy(&ie_bhli_absent,
 				&msg->msg_ie_bhli->ie_u.ie_bhli,
 				sizeof(ie_bhli_absent));
 		msg->msg_ie_bhli->ie_ident = UNI_IE_BHLI;
 		msg->msg_ie_bhli->ie_bhli_type = ap->bhli.v.ID_type;
 		switch (ap->bhli.v.ID_type) {
 		case T_ATM_ISO_APP_ID:
-			KM_COPY(ap->bhli.v.ID.ISO_ID,
+			bcopy(ap->bhli.v.ID.ISO_ID,
 					msg->msg_ie_bhli->ie_bhli_info,
 					sizeof(ap->bhli.v.ID.ISO_ID));
 			break;
 		case T_ATM_USER_APP_ID:
-			KM_COPY(ap->bhli.v.ID.user_defined_ID,
+			bcopy(ap->bhli.v.ID.user_defined_ID,
 					msg->msg_ie_bhli->ie_bhli_info,
 					sizeof(ap->bhli.v.ID.user_defined_ID));
 			break;
 		case T_ATM_VENDOR_APP_ID:
-			KM_COPY(ap->bhli.v.ID.vendor_ID.OUI,
+			bcopy(ap->bhli.v.ID.vendor_ID.OUI,
 					msg->msg_ie_bhli->ie_bhli_info,
 					sizeof(ap->bhli.v.ID.vendor_ID.OUI));
-			KM_COPY(ap->bhli.v.ID.vendor_ID.app_ID,
+			bcopy(ap->bhli.v.ID.vendor_ID.app_ID,
 					&msg->msg_ie_bhli->ie_bhli_info[sizeof(ap->bhli.v.ID.vendor_ID.OUI)-1],
 					sizeof(ap->bhli.v.ID.vendor_ID.app_ID));
 			break;
@@ -1086,7 +1086,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_blli_absent,
+		bcopy(&ie_blli_absent,
 				&msg->msg_ie_blli->ie_u.ie_blli,
 				sizeof(ie_blli_absent));
 		msg->msg_ie_blli->ie_ident = UNI_IE_BLLI;
@@ -1132,10 +1132,10 @@ unisig_set_attrs(usp, msg, ap)
 						UNI_IE_BLLI_L3P_ISO9577;
 				msg->msg_ie_blli->ie_blli_l3_ipi =
 						UNI_IE_BLLI_L3IPI_SNAP;
-				KM_COPY(ap->blli.v.layer_3_protocol.ID.SNAP_ID.OUI,
+				bcopy(ap->blli.v.layer_3_protocol.ID.SNAP_ID.OUI,
 						msg->msg_ie_blli->ie_blli_l3_oui,
 						sizeof(msg->msg_ie_blli->ie_blli_l3_oui));
-				KM_COPY(ap->blli.v.layer_3_protocol.ID.SNAP_ID.PID,
+				bcopy(ap->blli.v.layer_3_protocol.ID.SNAP_ID.PID,
 						msg->msg_ie_blli->ie_blli_l3_pid,
 						sizeof(msg->msg_ie_blli->ie_blli_l3_pid));
 				break;
@@ -1171,7 +1171,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_cdad_absent,
+		bcopy(&ie_cdad_absent,
 				&msg->msg_ie_cdad->ie_u.ie_cdad,
 				sizeof(ie_cdad_absent));
 		msg->msg_ie_cdad->ie_ident = UNI_IE_CDAD;
@@ -1187,7 +1187,7 @@ unisig_set_attrs(usp, msg, ap)
 					goto done;
 				}
 			}
-			KM_COPY(&ie_cdsa_absent,
+			bcopy(&ie_cdsa_absent,
 					&msg->msg_ie_cdsa->ie_u.ie_cdsa,
 					sizeof(ie_cdsa_absent));
 			msg->msg_ie_cdsa->ie_ident = UNI_IE_CDSA;
@@ -1209,7 +1209,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_cgad_absent,
+		bcopy(&ie_cgad_absent,
 				&msg->msg_ie_cgad->ie_u.ie_cgad,
 				sizeof(ie_cgad_absent));
 		msg->msg_ie_cgsa->ie_ident = UNI_IE_CGSA;
@@ -1226,7 +1226,7 @@ unisig_set_attrs(usp, msg, ap)
 					goto done;
 				}
 			}
-			KM_COPY(&ie_cgsa_absent,
+			bcopy(&ie_cgsa_absent,
 					&msg->msg_ie_cgsa->ie_u.ie_cgsa,
 					sizeof(ie_cgsa_absent));
 			msg->msg_ie_cgsa->ie_ident = UNI_IE_CGSA;
@@ -1247,7 +1247,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_qosp_absent,
+		bcopy(&ie_qosp_absent,
 				&msg->msg_ie_qosp->ie_u.ie_qosp,
 				sizeof(ie_qosp_absent));
 		msg->msg_ie_qosp->ie_ident = UNI_IE_QOSP;
@@ -1279,7 +1279,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_trnt_absent,
+		bcopy(&ie_trnt_absent,
 				&msg->msg_ie_trnt->ie_u.ie_trnt,
 				sizeof(ie_trnt_absent));
 		msg->msg_ie_trnt->ie_ident = UNI_IE_TRNT;
@@ -1287,7 +1287,7 @@ unisig_set_attrs(usp, msg, ap)
 				UNI_IE_TRNT_IDT_NATL;
 		msg->msg_ie_trnt->ie_trnt_id_plan =
 				UNI_IE_TRNT_IDP_CIC;
-		KM_COPY(ap->transit.v.network_id,
+		bcopy(ap->transit.v.network_id,
 				msg->msg_ie_trnt->ie_trnt_id,
 				ap->transit.v.length);
 	}
@@ -1304,7 +1304,7 @@ unisig_set_attrs(usp, msg, ap)
 				goto done;
 			}
 		}
-		KM_COPY(&ie_caus_absent,
+		bcopy(&ie_caus_absent,
 				&msg->msg_ie_caus->ie_u.ie_caus,
 				sizeof(ie_caus_absent));
 		msg->msg_ie_caus->ie_ident = UNI_IE_CAUS;

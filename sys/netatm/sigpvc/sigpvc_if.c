@@ -250,13 +250,11 @@ sigpvc_attach(smp, pip)
 	/*
 	 * Allocate sigpvc protocol instance control block
 	 */
-	pvp = (struct sigpvc *)
-		KM_ALLOC(sizeof(struct sigpvc), M_DEVBUF, M_NOWAIT);
+	pvp = malloc(sizeof(struct sigpvc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (pvp == NULL) {
 		err = ENOMEM;
 		goto done;
 	}
-	KM_ZERO(pvp, sizeof(struct sigpvc));
 
 	/*
 	 * Link instance into manager's chain
@@ -282,7 +280,7 @@ done:
 		if (pvp) {
 			UNLINK((struct siginst *)pvp, struct siginst, 
 				smp->sm_prinst, si_next);
-			KM_FREE(pvp, sizeof(struct sigpvc), M_DEVBUF);
+			free(pvp, M_DEVBUF);
 		}
 	}
 
@@ -350,7 +348,7 @@ sigpvc_detach(pip)
 		pip->pif_siginst = NULL;
 		UNLINK((struct siginst *)pvp, struct siginst, smp->sm_prinst, 
 				si_next);
-		KM_FREE(pvp, sizeof(struct sigpvc), M_DEVBUF);
+		free(pvp, M_DEVBUF);
 	} else {
 
 		/*
@@ -526,7 +524,7 @@ sigpvc_free(vcp)
 		pip->pif_siginst = NULL;
 		UNLINK((struct siginst *)pvp, struct siginst, smp->sm_prinst, 
 				si_next);
-		KM_FREE(pvp, sizeof(struct sigpvc), M_DEVBUF);
+		free(pvp, M_DEVBUF);
 	}
 
 	return (0);
@@ -639,7 +637,7 @@ sigpvc_ioctl(code, data, arg1)
 				avr.avp_encaps = cop->co_mpx;
 			else
 				avr.avp_encaps = 0;
-			KM_ZERO(avr.avp_owners, sizeof(avr.avp_owners));
+			bzero(avr.avp_owners, sizeof(avr.avp_owners));
 			for (i = 0; cop && i < sizeof(avr.avp_owners);
 					cop = cop->co_next,
 					i += T_ATM_APP_NAME_LEN+1) {

@@ -503,7 +503,7 @@ atm_create_stack(cvp, tlp, upf)
 	/*
 	 * Setup owner service definition
 	 */
-	KM_ZERO((caddr_t)&usd, sizeof(struct stack_defn));
+	bzero((caddr_t)&usd, sizeof(struct stack_defn));
 	usd.sd_upper = upf;
 	usd.sd_toku = cvp;
 	svs.si_srvc[0] = &usd;

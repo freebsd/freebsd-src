@@ -58,43 +58,6 @@
 
 
 /*
- * Kernel memory management
- *
- * KM_ALLOC(size, type, flags)
- *			Returns an allocated kernel memory chunk of size bytes.
- * KM_FREE(addr, size, type)
- *			Free a kernel memory chunk of size bytes.
- * KM_CMP(b1, b2, len)
- *			Compares len bytes of data from b1 against b2.
- * KM_COPY(from, to, len)
- *			Copies len bytes of data from from to to.
- * KM_ZERO(addr, len)
- *			Zeros len bytes of data from addr.
- *
- */
-#ifdef _KERNEL
-#if (defined(BSD) && (BSD >= 199103))
-#include <sys/malloc.h>
-#define	KM_ALLOC(size, type, flags)	malloc((size), (type), (flags))
-#define	KM_FREE(addr, size, type)	free((addr), (type))
-#elif defined(sun)
-#include <sys/kmem_alloc.h>
-#define	KM_ALLOC(size, type, flags)	kmem_alloc(size)
-#define	KM_FREE(addr, size, type)	kmem_free((addr), (size))
-#endif
-
-#if defined(BSD)
-#define	KM_CMP(b1, b2, len)		bcmp((void *)(b1), (void *)(b2),\
-						(len))
-#define	KM_COPY(from, to, len)		bcopy((const void *)(from), (void *)(to),\
-						(len))
-#define	KM_ZERO(addr, len)		bzero((void *)(addr), (len))
-#endif
-#define	XM_COPY(f, t, l)	KM_COPY((f), (t), (l))
-
-#else
-
-/*
  * User-space memory management
  *
  * UM_ALLOC(size)	Returns an allocated kernel memory chunk of size bytes.
@@ -115,11 +78,7 @@
 #define	UM_FREE(addr)		free((char *)(addr))
 #define	UM_COPY(from, to, len)	bcopy((char *)(from), (char *)(to), (len))
 #define	UM_ZERO(addr, len)	bzero((char *)(addr), (len))
-
 #endif
-#define	XM_COPY(f, t, l)	UM_COPY((f), (t), (l))
-
-#endif	/* _KERNEL */
 
 
 #ifdef _KERNEL

@@ -285,7 +285,7 @@ unisig_addr_print(p)
 	/*
 	 * Clear the print buffer
 	 */
-	KM_ZERO(strbuff, sizeof(strbuff));
+	bzero(strbuff, sizeof(strbuff));
 
 	/*
 	 * Select appropriate printing format

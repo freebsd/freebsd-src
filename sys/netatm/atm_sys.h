@@ -79,7 +79,7 @@
 {									\
 	(a2)->address_format = (a1)->address_format;			\
 	(a2)->address_length = (a1)->address_length;			\
-	XM_COPY((caddr_t)(a1)->address, (caddr_t)(a2)->address,		\
+	bcopy((caddr_t)(a1)->address, (caddr_t)(a2)->address,		\
 		(a1)->address_length);					\
 }
 
@@ -89,11 +89,11 @@
 	(a2)->address_length = (a1)->address_length;			\
 	if (((a1)->address_format == T_ATM_ENDSYS_ADDR) || 		\
 	    ((a1)->address_format == T_ATM_NSAP_ADDR)) {		\
-		XM_COPY((caddr_t)(a1)->address, (caddr_t)(a2)->address,	\
+		bcopy((caddr_t)(a1)->address, (caddr_t)(a2)->address,	\
 			(a1)->address_length - 1);			\
 		((struct atm_addr_nsap *)(a2)->address)->aan_sel = (s1);\
 	} else {							\
-		XM_COPY((caddr_t)(a1)->address, (caddr_t)(a2)->address,	\
+		bcopy((caddr_t)(a1)->address, (caddr_t)(a2)->address,	\
 			(a1)->address_length);				\
 	}								\
 }

@@ -572,9 +572,9 @@ spansarp_request(sap)
 	ahp->ah_pln = sizeof(struct in_addr);
 	ahp->ah_op = htons(ARP_REQUEST);
 	spans_addr_copy(spp->sp_addr.address, &ahp->ah_sha);
-	KM_COPY(&(IA_SIN(inp->inf_addr)->sin_addr), ahp->ah_spa,
+	bcopy(&(IA_SIN(inp->inf_addr)->sin_addr), ahp->ah_spa,
 		sizeof(struct in_addr));
-	KM_COPY(&sap->sa_dstip, ahp->ah_tpa, sizeof(struct in_addr));
+	bcopy(&sap->sa_dstip, ahp->ah_tpa, sizeof(struct in_addr));
 
 	/*
 	 * Now, send the pdu via the CLS service
@@ -630,9 +630,9 @@ spansarp_input(clp, m)
 	KB_DATASTART(m, chp, struct spanscls_hdr *);
 	ahp = (struct spansarp_hdr *)(chp + 1);
 
-	KM_COPY(ahp->ah_spa, &in_src, sizeof(struct in_addr));
-	KM_COPY(ahp->ah_tpa, &in_targ, sizeof(struct in_addr));
-	KM_COPY(&(IA_SIN(inp->inf_addr)->sin_addr), &in_me,
+	bcopy(ahp->ah_spa, &in_src, sizeof(struct in_addr));
+	bcopy(ahp->ah_tpa, &in_targ, sizeof(struct in_addr));
+	bcopy(&(IA_SIN(inp->inf_addr)->sin_addr), &in_me,
 		sizeof(struct in_addr));
 
 	/*
@@ -746,8 +746,8 @@ chkop:
 	ahp->ah_op = htons(ARP_REPLY);
 	spans_addr_copy(&ahp->ah_sha, &ahp->ah_tha);
 	spans_addr_copy(spp->sp_addr.address, &ahp->ah_sha);
-	KM_COPY(ahp->ah_spa, ahp->ah_tpa, sizeof(struct in_addr));
-	KM_COPY(&in_me, ahp->ah_spa, sizeof(struct in_addr));
+	bcopy(ahp->ah_spa, ahp->ah_tpa, sizeof(struct in_addr));
+	bcopy(&in_me, ahp->ah_spa, sizeof(struct in_addr));
 
 	err = atm_cm_cpcs_data(clp->cls_conn, m);
 	if (err)

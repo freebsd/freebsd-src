@@ -1089,7 +1089,7 @@ usf_dec_ie_aalp(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_aalp_absent, &ie->ie_u.ie_aalp,
+	bcopy(&ie_aalp_absent, &ie->ie_u.ie_aalp,
 			sizeof(ie_aalp_absent));
 
 	/*
@@ -1237,7 +1237,7 @@ usf_dec_ie_clrt(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_clrt_absent, &ie->ie_u.ie_clrt,
+	bcopy(&ie_clrt_absent, &ie->ie_u.ie_clrt,
 			sizeof(ie_clrt_absent));
 
 	/*
@@ -1271,7 +1271,7 @@ usf_dec_ie_bbcp(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_bbcp_absent, &ie->ie_u.ie_bbcp,
+	bcopy(&ie_bbcp_absent, &ie->ie_u.ie_bbcp,
 			sizeof(ie_bbcp_absent));
 
 	/*
@@ -1335,7 +1335,7 @@ usf_dec_ie_bhli(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_bhli_absent, &ie->ie_u.ie_bhli,
+	bcopy(&ie_bhli_absent, &ie->ie_u.ie_bhli,
 			sizeof(ie_bhli_absent));
 
 	/*
@@ -1429,7 +1429,7 @@ usf_dec_ie_blli(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_blli_absent, &ie->ie_u.ie_blli,
+	bcopy(&ie_blli_absent, &ie->ie_u.ie_blli,
 			sizeof(ie_blli_absent));
 
 	/*
@@ -1616,7 +1616,7 @@ usf_dec_ie_clst(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_clst_absent, &ie->ie_u.ie_clst,
+	bcopy(&ie_clst_absent, &ie->ie_u.ie_clst,
 			sizeof(ie_clst_absent));
 
 	rc = usf_byte(usf, &c);
@@ -1651,7 +1651,7 @@ usf_dec_ie_cdad(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_cdad_absent, &ie->ie_u.ie_cdad,
+	bcopy(&ie_cdad_absent, &ie->ie_u.ie_cdad,
 			sizeof(ie_cdad_absent));
 
 	/*
@@ -1720,7 +1720,7 @@ usf_dec_ie_cdsa(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_cdsa_absent, &ie->ie_u.ie_cdsa,
+	bcopy(&ie_cdsa_absent, &ie->ie_u.ie_cdsa,
 			sizeof(ie_cdsa_absent));
 
 	/*
@@ -1783,7 +1783,7 @@ usf_dec_ie_cgad(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_cgad_absent, &ie->ie_u.ie_cgad,
+	bcopy(&ie_cgad_absent, &ie->ie_u.ie_cgad,
 			sizeof(ie_cgad_absent));
 
 	/*
@@ -1868,7 +1868,7 @@ usf_dec_ie_cgsa(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_cgsa_absent, &ie->ie_u.ie_cgsa,
+	bcopy(&ie_cgsa_absent, &ie->ie_u.ie_cgsa,
 			sizeof(ie_cgsa_absent));
 
 	/*
@@ -1931,7 +1931,7 @@ usf_dec_ie_caus(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_caus_absent, &ie->ie_u.ie_caus,
+	bcopy(&ie_caus_absent, &ie->ie_u.ie_caus,
 			sizeof(ie_caus_absent));
 
 	/*
@@ -1988,7 +1988,7 @@ usf_dec_ie_cnid(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_cnid_absent, &ie->ie_u.ie_cnid,
+	bcopy(&ie_cnid_absent, &ie->ie_u.ie_cnid,
 			sizeof(ie_cnid_absent));
 
 	rc = usf_ext(usf, &i);
@@ -2028,7 +2028,7 @@ usf_dec_ie_qosp(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_qosp_absent, &ie->ie_u.ie_qosp,
+	bcopy(&ie_qosp_absent, &ie->ie_u.ie_qosp,
 			sizeof(ie_qosp_absent));
 
 	/*
@@ -2070,7 +2070,7 @@ usf_dec_ie_brpi(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_brpi_absent, &ie->ie_u.ie_brpi,
+	bcopy(&ie_brpi_absent, &ie->ie_u.ie_brpi,
 			sizeof(ie_brpi_absent));
 
 	/*
@@ -2109,7 +2109,7 @@ usf_dec_ie_rsti(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_rsti_absent, &ie->ie_u.ie_rsti,
+	bcopy(&ie_rsti_absent, &ie->ie_u.ie_rsti,
 			sizeof(ie_rsti_absent));
 
 	/*
@@ -2148,7 +2148,7 @@ usf_dec_ie_bsdc(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_bsdc_absent, &ie->ie_u.ie_bsdc,
+	bcopy(&ie_bsdc_absent, &ie->ie_u.ie_bsdc,
 			sizeof(ie_bsdc_absent));
 
 	/*
@@ -2193,7 +2193,7 @@ usf_dec_ie_trnt(usf, ie)
 	/*
 	 * Clear the IE
 	 */
-	KM_COPY(&ie_trnt_absent, &ie->ie_u.ie_trnt,
+	bcopy(&ie_trnt_absent, &ie->ie_u.ie_trnt,
 			sizeof(ie_trnt_absent));
 
 	/*

@@ -438,7 +438,7 @@ spans_addr_print(p)
 	/*
 	 * Clear the returned string
 	 */
-	KM_ZERO(strbuff, sizeof(strbuff));
+	bzero(strbuff, sizeof(strbuff));
 
 	/*
 	 * Get address into integers
