@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.61 1996/06/25 08:37:54 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.62 1996/06/30 13:06:50 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -166,6 +166,8 @@
             meteor
             ..
 	    perfmon
+	    ..
+	    removeuser
 	    ..
 	    slattach
 	    ..
