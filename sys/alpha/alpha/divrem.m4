@@ -56,7 +56,7 @@ ifelse(S, `true', `define(NEG, `t4')')
 
 #include <machine/asm.h>
 
-LEAF(NAME, 0)					/* XXX */
+NESTED(NAME, 0, 0, t9, 0, 0)			/* Get the right ra */
 	lda	sp, -64(sp)
 	stq	BIT, 0(sp)
 	stq	I, 8(sp)
