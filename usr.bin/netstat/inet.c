@@ -219,7 +219,7 @@ protopr(proto, name, af)
 			if (Aflag)
 				printf("%-8.8s ", "Socket");
 			if (Lflag)
-				printf("%-14.14s %-21.21s\n",
+				printf("%-14.14s %-22.22s\n",
 					"Listen", "Local Address");
 			else
 				printf(Aflag ?
@@ -245,15 +245,22 @@ protopr(proto, name, af)
 				printf("%-14.14s ", buf);
 			} else
 				continue;
-		else
-			printf("%-3.3s%s%s %6ld %6ld ", name,
-			       (inp->inp_vflag & INP_IPV4) ? "4" : "",
+		else {
+			const u_char *vchar;
+
 #ifdef INET6
-			       (inp->inp_vflag & INP_IPV6) ? "6" :
+			if ((inp->inp_vflag & INP_IPV6) != 0)
+				vchar = ((inp->inp_vflag & INP_IPV4) != 0)
+					? "46" : "6 ";
+			else
 #endif
-			       "",
+			vchar = ((inp->inp_vflag & INP_IPV4) != 0)
+					? "4 " : "  ";
+
+			printf("%-3.3s%-2.2s %6ld %6ld  ", name, vchar,
 			       so->so_rcv.sb_cc,
 			       so->so_snd.sb_cc);
+		}
 		if (nflag) {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
@@ -801,7 +808,7 @@ inetprint(in, port, proto,numeric)
 	else
 		sprintf(cp, "%d", ntohs((u_short)port));
 	width = Aflag ? 18 : 22;
-	printf(" %-*.*s", width, width, line);
+	printf("%-*.*s ", width, width, line);
 }
 
 /*
