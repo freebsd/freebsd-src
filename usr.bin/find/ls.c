@@ -45,6 +45,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <langinfo.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -86,23 +87,25 @@ static void
 printtime(ftime)
 	time_t ftime;
 {
-	int i;
 	char longstring[80];
+	static time_t now;
+	const char *format;
+	static int d_first = -1;
 
-	strftime(longstring, sizeof(longstring), "%c", localtime(&ftime));
-	for (i = 4; i < 11; ++i)
-		(void)putchar(longstring[i]);
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+	if (now == 0)
+		now = time(NULL);
 
 #define	SIXMONTHS	((365 / 2) * 86400)
-	if (ftime + SIXMONTHS > time((time_t *)NULL))
-		for (i = 11; i < 16; ++i)
-			(void)putchar(longstring[i]);
-	else {
-		(void)putchar(' ');
-		for (i = 20; i < 24; ++i)
-			(void)putchar(longstring[i]);
-	}
-	(void)putchar(' ');
+	if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
+		/* mmm dd hh:mm || dd mmm hh:mm */
+		format = d_first ? "%e %b %R " : "%b %e %R ";
+	else
+		/* mmm dd  yyyy || dd mmm  yyyy */
+		format = d_first ? "%e %b  %Y " : "%b %e  %Y ";
+	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
+	fputs(longstring, stdout);
 }
 
 static void
