@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.580
+    Original revision: 1.582
 -->
 
 <articleinfo>
@@ -245,12 +245,37 @@
     <para>&man.locale.1; ユーティリティが再実装され、POSIX
       標準に準拠しました。</para>
 
+    <para>&man.mount.nwfs.8;, &man.mount.portalfs.8;,
+      &man.mount.smbfs.8; ユーティリティが
+      <filename>/sbin</filename> から <filename>/usr/sbin</filename>
+      に移動しました。</para>
+
     <para>ゲストログインに対応する
       &man.pam.guest.8; PAM モジュールが追加されました。
       これは pam_ftp(8) モジュールを置き換えるものです。</para>
 
     <para>&man.ps.1; に、各プロセスのカーネルスレッドを表示する
       <option>-H</option> オプションが追加されました。</para>
+
+    <para><filename>/bin</filename> および
+      <filename>/sbin</filename> にあった多くのユーティリティは、
+      静的リンクされたクランチバイナリ (crunched binary) として
+      <filename>/rescue</filename> にも置かれるようになりました。
+      このディレクトリの目的は &man.sysinstall.8; でインストールされる
+      <filename>/stand</filename> ディレクトリと同じようなものですが、
+      <filename>/rescue</filename> にはより多くのプログラムが置かれ、
+      buildworld/installworld の操作で更新されるようになっています。
+      詳しくは、&man.rescue.7; をご覧ください。
+
+      <note>
+        <para>クロスビルドに影響があるため、現在
+        <filename>/rescue</filename> はデフォルトで無効になっています。
+        このディレクトリは、Makefile 変数 <varname>RESCUE</varname> を設定して
+        buildworld/installworld の操作を行なわないと、
+        インストールされません。</para>
+      </note>
+
+      </para>
   </sect2>
 
   <sect2 id="contrib">
@@ -260,7 +285,7 @@
       から、バージョン 8.3.6 に更新されました。</para>
 
     <para><application>lukemftp</application> がバージョン
-      1.6beta2 から、NetBSD の 2003 年 6 月 15
+      1.6beta2 から、NetBSD の 2003 年 6 月 30
       日時点のスナップショットに更新されました。</para>
 
     <para><application>OpenPAM</application> が

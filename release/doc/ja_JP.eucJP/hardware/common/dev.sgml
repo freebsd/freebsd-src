@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.162
+        Original revision: 1.163
 -->
 
 <sect1 id="support">
@@ -2345,7 +2345,7 @@
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
       ISA/radio LAN カード (&man.wl.4; ドライバ)</para>
 
-    <para arch="i386,pc98">Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA および ISA,
+    <para arch="i386,pc98">Lucent Technologies WaveLAN/IEEE 802.11b PCMCIA および ISA,
       標準速 (2Mbps) および高速 (6Mbps) 無線ネットワークアダプタとその互換品
       (&man.wi.4; ドライバ)
       <note>
@@ -2468,7 +2468,7 @@
       </itemizedlist>
     </para>
     
-    <para arch="i386,pc98">Aironet 802.11 無線アダプタ (&man.an.4; ドライバ)
+    <para arch="i386,pc98">Aironet 802.11b 無線アダプタ (&man.an.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Aironet 4500/4800 シリーズ
@@ -2500,7 +2500,7 @@
     </para>
 
     <para arch="i386,pc98">AMD Am79C930 および Harris (Intersil)
-      ベースの 802.11 カード (awi ドライバ)
+      ベースの 802.11b カード (awi ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>BayStack 650 および 660</para>
@@ -2524,6 +2524,20 @@
 	  <para>ZoomAir 4000</para>
 	</listitem>
       </itemizedlist>
+
+    <para arch="i386">Atheros AR5210, AR5211, AR5212 ベースの
+      802.11a/b/g ネットワークインタフェース (&man.ath.4; ドライバ)
+      <itemizedlist>
+	<listitem>
+          <para>D-Link DWL-AB650, DWL-AG520, DWL-AG650</para>
+	</listitem>
+	<listitem>
+          <para>Linksys WMP55AG, WPC51AB, WPC55AG</para>
+	</listitem>
+	<listitem>
+          <para>Netgear WAB501, WAG511</para>
+ 	</listitem>
+       </itemizedlist>
     </para>
 
     <para arch="i386">DEC <quote>Tulip</quote> Fast Ethernet コントローラ
