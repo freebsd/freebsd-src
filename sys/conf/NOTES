@@ -27,7 +27,7 @@
 # order.  All device and option lines must be described by a comment that
 # doesn't just expand the device or option name.  Use only a concise
 # comment on the same line if possible.  Very detailed descriptions of
-# devices and subsystems belong in manpages.
+# devices and subsystems belong in man pages.
 #
 # A space followed by a tab separates 'options' from an option name.  Two
 # spaces followed by a tab separate 'device' from a device name.  Comments
@@ -189,7 +189,7 @@ options 	WITNESS_DDB
 options 	WITNESS_SKIPSPIN
 
 # MUTEX_PROFILING - Profiling mutual exclusion locks (mutexes).  See
-# the MUTEX_PROFILING(9) manual page for details.
+# MUTEX_PROFILING(9) for details.
 options 	MUTEX_PROFILING
 
 
@@ -570,8 +570,8 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # from traceroute and similar tools.
 #
 # PFIL_HOOKS enables an abtraction layer which is meant to be used in
-# network code where filtering is required.  See the pfil(9) man page.
-# This option is required by the IPFILTER option and the PF device.
+# network code where filtering is required.  See pfil(9).  This option is
+# required by the IPFILTER option and the PF device.
 #
 # TCPDEBUG enables code which keeps traces of the TCP state machine
 # for sockets with the SO_DEBUG option set, which can then be examined
@@ -597,8 +597,7 @@ options 	TCPDEBUG
 
 # The MBUF_STRESS_TEST option enables options which create
 # various random failures / extreme cases related to mbuf
-# functions.  See the mbuf(9) manpage for a list of available
-# test cases.
+# functions.  See mbuf(9) for a list of available test cases.
 options 	MBUF_STRESS_TEST
 
 # RANDOM_IP_ID causes the ID field in IP packets to be randomized
@@ -626,10 +625,10 @@ options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
 # 'device cryptodev' as it depends on the non-KAME IPSEC SADB code.
 #options 	TCP_SIGNATURE		#include support for RFC 2385
 
-# DUMMYNET enables the "dummynet" bandwidth limiter. You need
-# IPFIREWALL as well. See the dummynet(4) and ipfw(8) manpages for more info.
-# When you run DUMMYNET it is advisable to also have "options HZ=1000"
-# to achieve a smoother scheduling of the traffic.
+# DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
+# as well.  See dummynet(4) and ipfw(8) for more info.  When you run
+# DUMMYNET it is advisable to also have "options HZ=1000" to achieve a
+# smoother scheduling of the traffic.
 #
 # BRIDGE enables bridging between ethernet cards -- see bridge(4).
 # You can use IPFIREWALL and DUMMYNET together with bridging.
@@ -1272,15 +1271,14 @@ options		AHC_DEBUG
 # Aic7xxx driver debugging options. See sys/dev/aic7xxx/aic7xxx.h
 options		AHC_DEBUG_OPTS
 
-# Print register bitfields in debug output.  Adds ~128k to driver.
-# See the ahc(4) manpage
+# Print register bitfields in debug output.  Adds ~128k to driver
+# See ahc(4).
 options		AHC_REG_PRETTY_PRINT
 
 # Compile in aic79xx debugging code.
 options 	AHD_DEBUG
 
-# Aic79xx driver debugging options.  Adds ~215k to driver.
-# See the ahd(4) manpage
+# Aic79xx driver debugging options.  Adds ~215k to driver.  See ahd(4).
 options 	AHD_DEBUG_OPTS=0xFFFFFFFF
 
 # Print human-readable register definitions when debugging
@@ -1764,8 +1762,7 @@ options 	LIBMBPOOL		#needed by patm, iatm
 #
 # This has support for a large number of new audio cards, based on
 # CS423x, OPTi931, Yamaha OPL-SAx, and also for SB16, GusPnP.
-# For more information about this driver and supported cards,
-# see the pcm.4 man page.
+# For more information about this driver and supported cards, see pcm(4).
 #
 # The flags of the device tells the device a bit more info about the
 # device that normally is obtained through the PnP interface.
