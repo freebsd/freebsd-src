@@ -90,9 +90,9 @@ int server;
 		str_data[3] = TELQUAL_IS;
 
 	user = (char *)malloc(256);
-	xuser = (char *)malloc(512);
+	xuser = (char *)malloc(513);
 	pass = (char *)malloc(256);
-	xpass = (char *)malloc(512);
+	xpass = (char *)malloc(513);
 
 	if (user == NULL || xuser == NULL || pass == NULL || xpass ==
 	NULL)
@@ -158,6 +158,8 @@ int cnt;
 
 	case SRA_USER:
 		/* decode KAB(u) */
+		if (cnt > 512) /* Attempted buffer overflow */
+			break;
 		memcpy(xuser,data,cnt);
 		xuser[cnt] = '\0';
 		pk_decode(xuser,user,&ck);
@@ -167,6 +169,8 @@ int cnt;
 		break;
 
 	case SRA_PASS:
+		if (cnt > 512) /* Attempted buffer overflow */
+			break;
 		/* decode KAB(P) */
 		memcpy(xpass,data,cnt);
 		xpass[cnt] = '\0';
