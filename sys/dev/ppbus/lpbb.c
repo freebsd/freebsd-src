@@ -54,52 +54,24 @@
 
 #include "iicbb_if.h"
 
-struct lpbb_softc {
-	int dummy;
-};
-
 static int lpbb_detect(device_t dev);
 
-static int lpbb_probe(device_t);
-static int lpbb_attach(device_t);
+static void
+lpbb_identify(driver_t *driver, device_t parent)
+{
 
-static int lpbb_callback(device_t, int, caddr_t *);
-static void lpbb_setlines(device_t, int, int);
-static int lpbb_getdataline(device_t);
-static int lpbb_reset(device_t, u_char, u_char, u_char *);
-
-static devclass_t lpbb_devclass;
-
-static device_method_t lpbb_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		lpbb_probe),
-	DEVMETHOD(device_attach,	lpbb_attach),
-
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-
-	/* iicbb interface */
-	DEVMETHOD(iicbb_callback,	lpbb_callback),
-	DEVMETHOD(iicbb_setlines,	lpbb_setlines),
-	DEVMETHOD(iicbb_getdataline,	lpbb_getdataline),
-	DEVMETHOD(iicbb_reset,		lpbb_reset),
-
-	{ 0, 0 }
-};
-
-static driver_t lpbb_driver = {
-	"lpbb",
-	lpbb_methods,
-	sizeof(struct lpbb_softc),
-};
+	BUS_ADD_CHILD(parent, 0, "lpbb", 0);
+}
 
 static int
 lpbb_probe(device_t dev)
 {
-	device_set_desc(dev, "Parallel I2C bit-banging interface");
 
+	/* Perhaps call this during identify instead? */
 	if (!lpbb_detect(dev))
 		return (ENXIO);
+
+	device_set_desc(dev, "Parallel I2C bit-banging interface");
 
 	return (0);
 }
@@ -233,5 +205,31 @@ lpbb_getdataline(device_t dev)
 
 	return (getSDA(ppbus));
 }
+
+static devclass_t lpbb_devclass;
+
+static device_method_t lpbb_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_identify,	lpbb_identify),
+	DEVMETHOD(device_probe,		lpbb_probe),
+	DEVMETHOD(device_attach,	lpbb_attach),
+
+	/* bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+
+	/* iicbb interface */
+	DEVMETHOD(iicbb_callback,	lpbb_callback),
+	DEVMETHOD(iicbb_setlines,	lpbb_setlines),
+	DEVMETHOD(iicbb_getdataline,	lpbb_getdataline),
+	DEVMETHOD(iicbb_reset,		lpbb_reset),
+
+	{ 0, 0 }
+};
+
+static driver_t lpbb_driver = {
+	"lpbb",
+	lpbb_methods,
+	1,
+};
 
 DRIVER_MODULE(lpbb, ppbus, lpbb_driver, lpbb_devclass, 0, 0);

@@ -60,11 +60,6 @@
  * Updated for ppbus by Nicolas Souchu
  * [Mon Jul 28 1997]
  */
-#include "lpt.h"
-
-#if NLPT > 0
-
-#ifdef _KERNEL
 
 #include "opt_lpt.h"
 
@@ -84,7 +79,6 @@
 #include <sys/rman.h>
 
 #include <machine/lpt.h>
-#endif
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
@@ -156,27 +150,11 @@ static int	lpt_detect(device_t dev);
 #define UNITODEVICE(unit) \
 	(devclass_get_device(lpt_devclass, (unit)))
 
-static int lpt_probe(device_t dev);
-static int lpt_attach(device_t dev);
-
 static void lptintr(device_t dev);
 static void lpt_intr(void *arg);	/* without spls */
 
 static devclass_t lpt_devclass;
 
-static device_method_t lpt_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		lpt_probe),
-	DEVMETHOD(device_attach,	lpt_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t lpt_driver = {
-	"lpt",
-	lpt_methods,
-	sizeof(struct lpt_data),
-};
 
 /* bits for state */
 #define	OPEN		(1<<0)	/* device is open */
@@ -365,6 +343,13 @@ end_probe:
 	return (status);
 }
 
+static void
+lpt_identify(driver_t *driver, device_t parent)
+{
+
+	BUS_ADD_CHILD(parent, 0, LPT_NAME, 0);
+}
+
 /*
  * lpt_probe()
  */
@@ -372,11 +357,7 @@ static int
 lpt_probe(device_t dev)
 {
 	struct lpt_data *sc;
-	static int once;
 	
-	if (!once++)
-		cdevsw_add(&lpt_cdevsw);
-
 	sc = DEVTOSOFTC(dev);
 	bzero(sc, sizeof(struct lpt_data));
 
@@ -972,7 +953,19 @@ lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return(error);
 }
 
+static device_method_t lpt_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_identify,	lpt_identify),
+	DEVMETHOD(device_probe,		lpt_probe),
+	DEVMETHOD(device_attach,	lpt_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t lpt_driver = {
+	LPT_NAME,
+	lpt_methods,
+	sizeof(struct lpt_data),
+};
+
 DRIVER_MODULE(lpt, ppbus, lpt_driver, lpt_devclass, 0, 0);
-
-#endif
-

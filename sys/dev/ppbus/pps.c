@@ -43,8 +43,6 @@ struct pps_data {
 	void *intr_cookie;		/* interrupt registration cookie */
 };
 
-static int	ppsprobe(device_t dev);
-static int	ppsattach(device_t dev);
 static void	ppsintr(void *arg);
 
 #define DEVTOSOFTC(dev) \
@@ -55,20 +53,6 @@ static void	ppsintr(void *arg);
 	(devclass_get_device(pps_devclass, (unit)))
 
 static devclass_t pps_devclass;
-
-static device_method_t pps_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		ppsprobe),
-	DEVMETHOD(device_attach,	ppsattach),
-
-	{ 0, 0 }
-};
-
-static driver_t pps_driver = {
-	PPS_NAME,
-	pps_methods,
-	sizeof(struct pps_data),
-};
 
 static	d_open_t	ppsopen;
 static	d_close_t	ppsclose;
@@ -92,16 +76,19 @@ static struct cdevsw pps_cdevsw = {
 	/* bmaj */	-1
 };
 
+static void
+ppsidentify(driver_t *driver, device_t parent)
+{
+
+	BUS_ADD_CHILD(parent, 0, PPS_NAME, 0);
+}
+
 static int
 ppsprobe(device_t ppsdev)
 {
 	struct pps_data *sc;
-	static int once;
 	dev_t dev;
 	int unit;
-
-	if (!once++)
-		cdevsw_add(&pps_cdevsw);
 
 	sc = DEVTOSOFTC(ppsdev);
 	bzero(sc, sizeof(struct pps_data));
@@ -216,4 +203,18 @@ ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (pps_ioctl(cmd, data, &sc->pps));
 }
 
+static device_method_t pps_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_identify,	ppsidentify),
+	DEVMETHOD(device_probe,		ppsprobe),
+	DEVMETHOD(device_attach,	ppsattach),
+
+	{ 0, 0 }
+};
+
+static driver_t pps_driver = {
+	PPS_NAME,
+	pps_methods,
+	sizeof(struct pps_data),
+};
 DRIVER_MODULE(pps, ppbus, pps_driver, pps_devclass, 0, 0);
