@@ -523,7 +523,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	 * It is unsafe to keep track of it ourselves, in the event that a
 	 * program jumps out of a signal handler.
 	 */
-	if (copyin((caddr_t)args->sfp, &frame, sizeof(frame)) != 0)
+	if (copyin(args->sfp, &frame, sizeof(frame)) != 0)
 		return (EFAULT);
 
 	/*
@@ -619,7 +619,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 * It is unsafe to keep track of it ourselves, in the event that a
 	 * program jumps out of a signal handler.
 	 */
-	if (copyin((caddr_t)args->ucp, &uc, sizeof(uc)) != 0)
+	if (copyin(args->ucp, &uc, sizeof(uc)) != 0)
 		return (EFAULT);
 
 	context = &uc.uc_mcontext;

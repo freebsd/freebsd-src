@@ -153,7 +153,7 @@ linux_ipc(struct thread *td, struct linux_ipc_args *args)
 		a.semid = args->arg1;
 		a.semnum = args->arg2;
 		a.cmd = args->arg3;
-		error = copyin((caddr_t)args->ptr, &a.arg, sizeof(a.arg));
+		error = copyin(args->ptr, &a.arg, sizeof(a.arg));
 		if (error)
 			return (error);
 		return (linux_semctl(td, &a));
@@ -179,7 +179,7 @@ linux_ipc(struct thread *td, struct linux_ipc_args *args)
 
 			if (args->ptr == NULL)
 				return (EINVAL);
-			error = copyin((caddr_t)args->ptr, &tmp, sizeof(tmp));
+			error = copyin(args->ptr, &tmp, sizeof(tmp));
 			if (error)
 				return (error);
 			a.msgp = tmp.msgp;
@@ -255,7 +255,7 @@ linux_old_select(struct thread *td, struct linux_old_select_args *args)
 		printf(ARGS(old_select, "%p"), args->ptr);
 #endif
 
-	error = copyin((caddr_t)args->ptr, &linux_args, sizeof(linux_args));
+	error = copyin(args->ptr, &linux_args, sizeof(linux_args));
 	if (error)
 		return (error);
 
@@ -416,7 +416,7 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 	int error;
 	struct l_mmap_argv linux_args;
 
-	error = copyin((caddr_t)args->ptr, &linux_args, sizeof(linux_args));
+	error = copyin(args->ptr, &linux_args, sizeof(linux_args));
 	if (error)
 		return (error);
 
@@ -683,8 +683,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 #endif
 
 	if (args->nsa != NULL) {
-		error = copyin((caddr_t)args->nsa, &osa,
-		    sizeof(l_osigaction_t));
+		error = copyin(args->nsa, &osa, sizeof(l_osigaction_t));
 		if (error)
 			return (error);
 		act.lsa_handler = osa.lsa_handler;
@@ -702,8 +701,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		osa.lsa_flags = oact.lsa_flags;
 		osa.lsa_restorer = oact.lsa_restorer;
 		osa.lsa_mask = oact.lsa_mask.__bits[0];
-		error = copyout(&osa, (caddr_t)args->osa,
-		    sizeof(l_osigaction_t));
+		error = copyout(&osa, args->osa, sizeof(l_osigaction_t));
 	}
 
 	return (error);

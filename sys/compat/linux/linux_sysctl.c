@@ -85,7 +85,7 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	l_int *mib;
 	int error, i;
 
-	error = copyin((caddr_t)args->args, &la, sizeof(la));
+	error = copyin(args->args, &la, sizeof(la));
 	if (error)
 		return (error);
 

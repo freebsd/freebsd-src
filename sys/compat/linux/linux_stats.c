@@ -269,8 +269,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs.f_namelen = MAXNAMLEN;
-	return copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
-	    sizeof(linux_statfs));
+	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
 int
@@ -314,8 +313,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs.f_namelen = MAXNAMLEN;
-	error = copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
-	    sizeof(linux_statfs));
+	error = copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 	fdrop(fp, td);
 	return error;
 }

@@ -116,7 +116,7 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 
 	MALLOC(kosa, struct osockaddr *, alloclen, mtype, M_WAITOK);
 
-	if ((error = copyin(osa, (caddr_t) kosa, *osalen)))
+	if ((error = copyin(osa, kosa, *osalen)))
 		goto out;
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
@@ -365,7 +365,7 @@ linux_sa_put(struct osockaddr *osa)
 	 * Only read/write the osockaddr family part, the rest is
 	 * not changed.
 	 */
-	error = copyin((caddr_t) osa, (caddr_t) &sa, sizeof(sa.sa_family));
+	error = copyin(osa, &sa, sizeof(sa.sa_family));
 	if (error)
 		return (error);
 
@@ -1002,7 +1002,7 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
 
-	error = copyin(linux_args.msg, (caddr_t) &msg, sizeof(msg));
+	error = copyin(linux_args.msg, &msg, sizeof(msg));
 	if (error)
 		return (error);
 
@@ -1085,7 +1085,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	if (error)
 		return (error);
 
-	error = copyin((caddr_t)linux_args.msg, (caddr_t)&msg, sizeof(msg));
+	error = copyin(linux_args.msg, &msg, sizeof(msg));
 	if (error)
 		return (error);
 	if (msg.msg_name && msg.msg_namelen > 2)
