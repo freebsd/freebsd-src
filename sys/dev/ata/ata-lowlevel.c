@@ -295,7 +295,7 @@ ata_generic_transaction(struct ata_request *request)
     }
 
     /* request finish here */
-    if (request->flags & ATA_R_DMA && ch->dma->flags & ATA_DMA_LOADED)
+    if (ch->dma && ch->dma->flags & ATA_DMA_LOADED)
 	ch->dma->unload(ch);
     return ATA_OP_FINISHED;
 }
