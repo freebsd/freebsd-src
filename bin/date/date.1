@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.11 1997/02/22 14:02:31 peter Exp $
+.\"	$Id: date.1,v 1.12 1997/04/16 05:59:20 danny Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -48,7 +48,8 @@
 .Op Fl t Ar minutes_west
 .Op Fl nu
 .Op Cm + Ns Ar format
-.Op [yy[mm[dd[hh]]]]mm[\&.ss]
+.Op Fl DWMY Ar [+|-]val
+.Op [[[[yy]mm]dd]hh]mm[\&.ss]
 .Sh DESCRIPTION
 .Nm
 displays the current date and time when invoked without arguments.
@@ -97,6 +98,27 @@ by future calls to
 Display or set the date in
 .Tn UCT
 (universal) time.
+.It Fl DWMY
+Adjust the month day, week day, month or year according to
+.Ar val .
+If
+.Ar val
+is preceeded with a plus or minus sign, the date is adjusted forwards
+or backwards according to the remaining string, otherwise the relevent
+part of the date is set.  The date can be adjusted as many times as
+required using these flags.  Flags are processed in the order given.
+.Pp
+Month days are in the range 1-31, week days are in the range 0-6
+(sun-sat), months are in the range 1-12 (jan-dec) and years are in
+the range 80-38 or 1980-2038.
+.Pp
+The week day or month may be specified using a name rather than a
+number.  If a name is used with the plus (or minus) sign, the date
+will be put forwards (or backwards) to the next (previous) date that
+matches the given week day or month.  This will not adjust the date
+if the given week day or month is the same as the current one.
+.Pp
+Refer to the examples below for further details.
 .El
 .Pp
 An operand with a leading plus (``+'') sign signals a user-defined format
@@ -147,6 +169,40 @@ will display:
 DATE: 11/21/87
 TIME: 13:36:16
 .Ed
+.Pp
+The command:
+.Bd -literal -offset indent
+date -M1 -Y+1
+.Ed
+.Pp
+will display:
+.Bd -literal -offset indent
+Sun Jan  4 03:15:24 GMT 1998
+.Ed
+.Pp
+(where it is currently Mon Aug  4 04:15:24 BST 1997).
+.Pp
+The command:
+.Bd -literal -offset indent
+date -D1 -M3 -Y0 -D-1
+.Ed
+.Pp
+will display the last day of February in the year 2000:
+.Bd -literal -offset indent
+Tue Feb 29 03:18:00 GMT 2000
+.Ed
+.Pp
+The command:
+.Bd -literal -offset indent
+date -D1 -M+1 -D-1 -W-fri
+.Ed
+.Pp
+will display the last friday of the month:
+.Bd -literal -offset indent
+Fri Aug 29 04:31:11 BST 1997
+.Ed
+.Pp
+(where it is currently Mon Aug  4 04:31:11 BST 1997).
 .Pp
 The command:
 .Bd -literal -offset indent
