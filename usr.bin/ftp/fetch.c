@@ -98,7 +98,7 @@ url_get(origline, proxyenv)
 	int i, out, isftpurl;
 	char *port;
 	volatile int s;
-	size_t len;
+	ssize_t len;
 	char c, *cp, *ep, *http_buffer, *portnum, *path, buf[4096];
 	const char *savefile;
 	char *line, *proxy, *host;
