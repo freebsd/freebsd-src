@@ -179,14 +179,7 @@ _thread_suspend(pthread_t pthread, struct timespec *abstime)
 	struct timespec remaining;
 	struct timespec *ts;
 	siginfo_t info;
-	sigset_t set;
 	int error;
-
-	/*
-	 * Catch SIGTHR.
-	 */
-	SIGFILLSET(set);
-	SIGDELSET(set, SIGTHR);
 
 	/*
 	 * Compute the remainder of the run time.
@@ -204,9 +197,7 @@ _thread_suspend(pthread_t pthread, struct timespec *abstime)
 	} else
 		ts = NULL;
 
-	error = sigtimedwait(&set, &info, ts);
-	if (error == -1)
-		error = errno;
-
+	error = sigtimedwait(&_thread_suspend_sigset, &info, ts);
+	error = (error == -1) ? errno : 0;
 	return (error);
 }
