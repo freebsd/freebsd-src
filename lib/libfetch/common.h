@@ -36,11 +36,13 @@
 #define FTP_DEFAULT_PROXY_PORT	21
 #define HTTP_DEFAULT_PROXY_PORT	3128
 
+#ifdef WITH_SSL
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#endif
 
 /* Connection */
 typedef struct fetchconn conn_t;
@@ -50,10 +52,12 @@ struct fetchconn {
 	size_t		 bufsize;	/* buffer size */
 	size_t		 buflen;	/* length of buffer contents */
 	int		 err;		/* last protocol reply code */
+#ifdef WITH_SSL
 	SSL		*ssl;		/* SSL handle */
 	SSL_CTX		*ssl_ctx;	/* SSL context */
 	X509		*ssl_cert;	/* server certificate */
 	SSL_METHOD	*ssl_meth;	/* SSL method */
+#endif
 };
 
 /* Structure used for error message lists */
