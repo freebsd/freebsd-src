@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login.conf.5,v 1.8 1997/02/22 15:08:16 peter Exp $
+.\" $Id: login.conf.5,v 1.9 1997/05/22 07:02:01 tg Exp $
 .\"
 .Dd November 22, 1996
 .Dt LOGIN.CONF 5
@@ -217,6 +217,8 @@ disallowed.
 in the class may use for access.
 .It tty.deny	list		List of ttys and ttygroups which users
 in the class may not use for access.
+.It prog.deny	list		List of programs which users in the class
+may not run.  Support for this option must be built into each program.
 .El
 .Pp
 These fields are intended to be used by
