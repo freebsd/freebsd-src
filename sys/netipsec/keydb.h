@@ -37,6 +37,8 @@
 
 #include <netipsec/key_var.h>
 
+#ifndef _SOCKADDR_UNION_DEFINED
+#define	_SOCKADDR_UNION_DEFINED
 /*
  * The union of all possible address formats we handle.
  */
@@ -45,6 +47,7 @@ union sockaddr_union {
 	struct sockaddr_in	sin;
 	struct sockaddr_in6	sin6;
 };
+#endif /* _SOCKADDR_UNION_DEFINED */
 
 /* Security Assocciation Index */
 /* NOTE: Ensure to be same address family */
