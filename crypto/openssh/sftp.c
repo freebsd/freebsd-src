@@ -16,7 +16,7 @@
 
 #include "includes.h"
 
-RCSID("$OpenBSD: sftp.c,v 1.45 2004/03/03 09:31:20 djm Exp $");
+RCSID("$OpenBSD: sftp.c,v 1.56 2004/07/11 17:48:47 deraadt Exp $");
 
 #include "buffer.h"
 #include "xmalloc.h"
@@ -46,21 +46,32 @@ static pid_t sshpid = -1;
 /* This is set to 0 if the progressmeter is not desired. */
 int showprogress = 1;
 
+/* SIGINT received during command processing */
+volatile sig_atomic_t interrupted = 0;
+
+/* I wish qsort() took a separate ctx for the comparison function...*/
+int sort_flag;
+
 int remote_glob(struct sftp_conn *, const char *, int,
     int (*)(const char *, int), glob_t *); /* proto for sftp-glob.c */
 
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 
 /* Separators for interactive commands */
 #define WHITESPACE " \t\r\n"
 
-/* Define what type of ls view (0 - multi-column) */
-#define LONG_VIEW 1		/* Full view ala ls -l */
-#define SHORT_VIEW 2		/* Single row view ala ls -1 */
+/* ls flags */
+#define LS_LONG_VIEW	0x01	/* Full view ala ls -l */
+#define LS_SHORT_VIEW	0x02	/* Single row view ala ls -1 */
+#define LS_NUMERIC_VIEW	0x04	/* Long view with numeric uid/gid */
+#define LS_NAME_SORT	0x08	/* Sort by name (default) */
+#define LS_TIME_SORT	0x10	/* Sort by mtime */
+#define LS_SIZE_SORT	0x20	/* Sort by file size */
+#define LS_REVERSE_SORT	0x40	/* Reverse sort order */
+#define LS_SHOW_ALL	0x80	/* Don't skip filenames starting with '.' */
+
+#define VIEW_FLAGS	(LS_LONG_VIEW|LS_SHORT_VIEW|LS_NUMERIC_VIEW)
+#define SORT_FLAGS	(LS_NAME_SORT|LS_TIME_SORT|LS_SIZE_SORT)
 
 /* Commands for interactive mode */
 #define I_CHDIR		1
@@ -129,6 +140,24 @@ static const struct CMD cmds[] = {
 };
 
 int interactive_loop(int fd_in, int fd_out, char *file1, char *file2);
+
+static void
+killchild(int signo)
+{
+	if (sshpid > 1)
+		kill(sshpid, SIGTERM);
+
+	_exit(1);
+}
+
+static void
+cmd_interrupt(int signo)
+{
+	const char msg[] = "\rInterrupt  \n";
+
+	write(STDERR_FILENO, msg, sizeof(msg) - 1);
+	interrupted = 1;
+}
 
 static void
 help(void)
@@ -254,13 +283,13 @@ path_append(char *p1, char *p2)
 static char *
 make_absolute(char *p, char *pwd)
 {
-	char *abs;
+	char *abs_str;
 
 	/* Derelativise */
 	if (p && p[0] != '/') {
-		abs = path_append(pwd, p);
+		abs_str = path_append(pwd, p);
 		xfree(p);
-		return(abs);
+		return(abs_str);
 	} else
 		return(p);
 }
@@ -313,15 +342,41 @@ parse_ls_flags(const char **cpp, int *lflag)
 {
 	const char *cp = *cpp;
 
+	/* Defaults */
+	*lflag = LS_NAME_SORT;
+
 	/* Check for flags */
 	if (cp++[0] == '-') {
 		for(; strchr(WHITESPACE, *cp) == NULL; cp++) {
 			switch (*cp) {
 			case 'l':
-				*lflag = LONG_VIEW;
+				*lflag &= ~VIEW_FLAGS;
+				*lflag |= LS_LONG_VIEW;
 				break;
 			case '1':
-				*lflag = SHORT_VIEW;
+				*lflag &= ~VIEW_FLAGS;
+				*lflag |= LS_SHORT_VIEW;
+				break;
+			case 'n':
+				*lflag &= ~VIEW_FLAGS;
+				*lflag |= LS_NUMERIC_VIEW|LS_LONG_VIEW;
+				break;
+			case 'S':
+				*lflag &= ~SORT_FLAGS;
+				*lflag |= LS_SIZE_SORT;
+				break;
+			case 't':
+				*lflag &= ~SORT_FLAGS;
+				*lflag |= LS_TIME_SORT;
+				break;
+			case 'r':
+				*lflag |= LS_REVERSE_SORT;
+				break;
+			case 'f':
+				*lflag &= ~SORT_FLAGS;
+				break;
+			case 'a':
+				*lflag |= LS_SHOW_ALL;
 				break;
 			default:
 				error("Invalid flag -%c", *cp);
@@ -369,7 +424,7 @@ get_pathname(const char **cpp, char **path)
 				i++;
 				if (cp[i] != '\'' && cp[i] != '\"' &&
 				    cp[i] != '\\') {
-					error("Bad escaped character '\%c'",
+					error("Bad escaped character '\\%c'",
 					    cp[i]);
 					goto fail;
 				}
@@ -465,7 +520,7 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 		goto out;
 	}
 
-	for (i = 0; g.gl_pathv[i]; i++) {
+	for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 		if (infer_path(g.gl_pathv[i], &tmp)) {
 			err = -1;
 			goto out;
@@ -534,7 +589,7 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 		goto out;
 	}
 
-	for (i = 0; g.gl_pathv[i]; i++) {
+	for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 		if (!is_reg(g.gl_pathv[i])) {
 			error("skipping non-regular file %s",
 			    g.gl_pathv[i]);
@@ -582,8 +637,17 @@ sdirent_comp(const void *aa, const void *bb)
 {
 	SFTP_DIRENT *a = *(SFTP_DIRENT **)aa;
 	SFTP_DIRENT *b = *(SFTP_DIRENT **)bb;
+	int rmul = sort_flag & LS_REVERSE_SORT ? -1 : 1;
 
-	return (strcmp(a->filename, b->filename));
+#define NCMP(a,b) (a == b ? 0 : (a < b ? 1 : -1))
+	if (sort_flag & LS_NAME_SORT)
+		return (rmul * strcmp(a->filename, b->filename));
+	else if (sort_flag & LS_TIME_SORT)
+		return (rmul * NCMP(a->a.mtime, b->a.mtime));
+	else if (sort_flag & LS_SIZE_SORT)
+		return (rmul * NCMP(a->a.size, b->a.size));
+
+	fatal("Unknown ls sort type");
 }
 
 /* sftp ls.1 replacement for directories */
@@ -596,14 +660,16 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 	if ((n = do_readdir(conn, path, &d)) != 0)
 		return (n);
 
-	if (!(lflag & SHORT_VIEW)) {
+	if (!(lflag & LS_SHORT_VIEW)) {
 		int m = 0, width = 80;
 		struct winsize ws;
 		char *tmp;
 
 		/* Count entries for sort and find longest filename */
-		for (n = 0; d[n] != NULL; n++)
-			m = MAX(m, strlen(d[n]->filename));
+		for (n = 0; d[n] != NULL; n++) {
+			if (d[n]->filename[0] != '.' || (lflag & LS_SHOW_ALL))
+				m = MAX(m, strlen(d[n]->filename));
+		}
 
 		/* Add any subpath that also needs to be counted */
 		tmp = path_strip(path, strip_path);
@@ -619,24 +685,33 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 		colspace = MIN(colspace, width);
 	}
 
-	qsort(d, n, sizeof(*d), sdirent_comp);
+	if (lflag & SORT_FLAGS) {
+		sort_flag = lflag & (SORT_FLAGS|LS_REVERSE_SORT);
+		qsort(d, n, sizeof(*d), sdirent_comp);
+	}
 
-	for (n = 0; d[n] != NULL; n++) {
+	for (n = 0; d[n] != NULL && !interrupted; n++) {
 		char *tmp, *fname;
+
+		if (d[n]->filename[0] == '.' && !(lflag & LS_SHOW_ALL))
+			continue;
 
 		tmp = path_append(path, d[n]->filename);
 		fname = path_strip(tmp, strip_path);
 		xfree(tmp);
 
-		if (lflag & LONG_VIEW) {
-			char *lname;
-			struct stat sb;
+		if (lflag & LS_LONG_VIEW) {
+			if (lflag & LS_NUMERIC_VIEW) {
+				char *lname;
+				struct stat sb;
 
-			memset(&sb, 0, sizeof(sb));
-			attrib_to_stat(&d[n]->a, &sb);
-			lname = ls_file(fname, &sb, 1);
-			printf("%s\n", lname);
-			xfree(lname);
+				memset(&sb, 0, sizeof(sb));
+				attrib_to_stat(&d[n]->a, &sb);
+				lname = ls_file(fname, &sb, 1);
+				printf("%s\n", lname);
+				xfree(lname);
+			} else
+				printf("%s\n", d[n]->longname);
 		} else {
 			printf("%-*s", colspace, fname);
 			if (c >= columns) {
@@ -649,7 +724,7 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 		xfree(fname);
 	}
 
-	if (!(lflag & LONG_VIEW) && (c != 1))
+	if (!(lflag & LS_LONG_VIEW) && (c != 1))
 		printf("\n");
 
 	free_sftp_dirents(d);
@@ -673,6 +748,9 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 		return (-1);
 	}
 
+	if (interrupted)
+		goto out;
+
 	/*
 	 * If the glob returns a single match, which is the same as the
 	 * input glob, and it is a directory, then just list its contents
@@ -690,7 +768,7 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 		}
 	}
 
-	if (!(lflag & SHORT_VIEW)) {
+	if (!(lflag & LS_SHORT_VIEW)) {
 		int m = 0, width = 80;
 		struct winsize ws;
 
@@ -706,12 +784,12 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 		colspace = width / columns;
 	}
 
-	for (i = 0; g.gl_pathv[i]; i++) {
+	for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 		char *fname;
 
 		fname = path_strip(g.gl_pathv[i], strip_path);
 
-		if (lflag & LONG_VIEW) {
+		if (lflag & LS_LONG_VIEW) {
 			char *lname;
 			struct stat sb;
 
@@ -740,9 +818,10 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 		xfree(fname);
 	}
 
-	if (!(lflag & LONG_VIEW) && (c != 1))
+	if (!(lflag & LS_LONG_VIEW) && (c != 1))
 		printf("\n");
 
+ out:
 	if (g.gl_pathc)
 		globfree(&g);
 
@@ -952,7 +1031,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	case I_RM:
 		path1 = make_absolute(path1, *pwd);
 		remote_glob(conn, path1, GLOB_NOCHECK, NULL, &g);
-		for (i = 0; g.gl_pathv[i]; i++) {
+		for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 			printf("Removing %s\n", g.gl_pathv[i]);
 			err = do_rm(conn, g.gl_pathv[i]);
 			if (err != 0 && err_abort)
@@ -1041,7 +1120,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		a.flags |= SSH2_FILEXFER_ATTR_PERMISSIONS;
 		a.perm = n_arg;
 		remote_glob(conn, path1, GLOB_NOCHECK, NULL, &g);
-		for (i = 0; g.gl_pathv[i]; i++) {
+		for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 			printf("Changing mode on %s\n", g.gl_pathv[i]);
 			err = do_setstat(conn, g.gl_pathv[i], &a);
 			if (err != 0 && err_abort)
@@ -1052,7 +1131,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	case I_CHGRP:
 		path1 = make_absolute(path1, *pwd);
 		remote_glob(conn, path1, GLOB_NOCHECK, NULL, &g);
-		for (i = 0; g.gl_pathv[i]; i++) {
+		for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 			if (!(aa = do_stat(conn, g.gl_pathv[i], 0))) {
 				if (err != 0 && err_abort)
 					break;
@@ -1180,6 +1259,8 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 	for (;;) {
 		char *cp;
 
+		signal(SIGINT, SIG_IGN);
+
 		printf("sftp> ");
 
 		/* XXX: use libedit */
@@ -1195,6 +1276,10 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 		if (cp)
 			*cp = '\0';
 
+		/* Handle user interrupts gracefully during commands */
+		interrupted = 0;
+		signal(SIGINT, cmd_interrupt);
+
 		err = parse_dispatch_command(conn, cmd, &pwd, batchmode);
 		if (err != 0)
 			break;
@@ -1203,15 +1288,6 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 
 	/* err == 1 signifies normal "quit" exit */
 	return (err >= 0 ? 0 : -1);
-}
-
-static void
-killchild(int signo)
-{
-	if (sshpid > 1)
-		kill(sshpid, signo);
-
-	_exit(1);
 }
 
 static void
@@ -1243,15 +1319,23 @@ connect_to_server(char *path, char **args, int *in, int *out)
 		if ((dup2(c_in, STDIN_FILENO) == -1) ||
 		    (dup2(c_out, STDOUT_FILENO) == -1)) {
 			fprintf(stderr, "dup2: %s\n", strerror(errno));
-			exit(1);
+			_exit(1);
 		}
 		close(*in);
 		close(*out);
 		close(c_in);
 		close(c_out);
-		execv(path, args);
+
+		/*
+		 * The underlying ssh is in the same process group, so we must
+		 * ignore SIGINT if we want to gracefully abort commands,
+		 * otherwise the signal will make it to the ssh process and
+		 * kill it too
+		 */
+		signal(SIGINT, SIG_IGN);
+		execvp(path, args);
 		fprintf(stderr, "exec: %s: %s\n", path, strerror(errno));
-		exit(1);
+		_exit(1);
 	}
 
 	signal(SIGTERM, killchild);
@@ -1280,7 +1364,7 @@ int
 main(int argc, char **argv)
 {
 	int in, out, ch, err;
-	char *host, *userhost, *cp, *file2;
+	char *host, *userhost, *cp, *file2 = NULL;
 	int debug_level = 0, sshver = 2;
 	char *file1 = NULL, *sftp_server = NULL;
 	char *ssh_program = _PATH_SSH_PROGRAM, *sftp_direct = NULL;
@@ -1331,7 +1415,7 @@ main(int argc, char **argv)
 				fatal("Batch file already specified.");
 
 			/* Allow "-" as stdin */
-			if (strcmp(optarg, "-") != 0 && 
+			if (strcmp(optarg, "-") != 0 &&
 			   (infile = fopen(optarg, "r")) == NULL)
 				fatal("%s (%s).", strerror(errno), optarg);
 			showprogress = 0;

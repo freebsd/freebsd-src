@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.38 2003/09/23 20:17:11 markus Exp $");
+RCSID("$OpenBSD: canohost.c,v 1.41 2004/07/21 11:51:29 djm Exp $");
 
 #include "packet.h"
 #include "xmalloc.h"
@@ -28,7 +28,7 @@ static void ipv64_normalise_mapped(struct sockaddr_storage *, socklen_t *);
  */
 
 static char *
-get_remote_hostname(int socket, int use_dns)
+get_remote_hostname(int sock, int use_dns)
 {
 	struct sockaddr_storage from;
 	int i;
@@ -39,13 +39,13 @@ get_remote_hostname(int socket, int use_dns)
 	/* Get IP address of client. */
 	fromlen = sizeof(from);
 	memset(&from, 0, sizeof(from));
-	if (getpeername(socket, (struct sockaddr *)&from, &fromlen) < 0) {
+	if (getpeername(sock, (struct sockaddr *)&from, &fromlen) < 0) {
 		debug("getpeername failed: %.100s", strerror(errno));
 		cleanup_exit(255);
 	}
 
 	if (from.ss_family == AF_INET)
-		check_ip_options(socket, ntop);
+		check_ip_options(sock, ntop);
 
 	ipv64_normalise_mapped(&from, &fromlen);
 
@@ -138,7 +138,7 @@ get_remote_hostname(int socket, int use_dns)
  */
 /* IPv4 only */
 static void
-check_ip_options(int socket, char *ipaddr)
+check_ip_options(int sock, char *ipaddr)
 {
 #ifdef IP_OPTIONS
 	u_char options[200];
@@ -152,7 +152,7 @@ check_ip_options(int socket, char *ipaddr)
 	else
 		ipproto = IPPROTO_IP;
 	option_size = sizeof(options);
-	if (getsockopt(socket, ipproto, IP_OPTIONS, options,
+	if (getsockopt(sock, ipproto, IP_OPTIONS, options,
 	    &option_size) >= 0 && option_size != 0) {
 		text[0] = '\0';
 		for (i = 0; i < option_size; i++)
@@ -227,7 +227,7 @@ get_canonical_hostname(int use_dns)
  * The returned string must be freed.
  */
 static char *
-get_socket_address(int socket, int remote, int flags)
+get_socket_address(int sock, int remote, int flags)
 {
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
@@ -238,11 +238,11 @@ get_socket_address(int socket, int remote, int flags)
 	memset(&addr, 0, sizeof(addr));
 
 	if (remote) {
-		if (getpeername(socket, (struct sockaddr *)&addr, &addrlen)
+		if (getpeername(sock, (struct sockaddr *)&addr, &addrlen)
 		    < 0)
 			return NULL;
 	} else {
-		if (getsockname(socket, (struct sockaddr *)&addr, &addrlen)
+		if (getsockname(sock, (struct sockaddr *)&addr, &addrlen)
 		    < 0)
 			return NULL;
 	}
@@ -261,29 +261,29 @@ get_socket_address(int socket, int remote, int flags)
 }
 
 char *
-get_peer_ipaddr(int socket)
+get_peer_ipaddr(int sock)
 {
 	char *p;
 
-	if ((p = get_socket_address(socket, 1, NI_NUMERICHOST)) != NULL)
+	if ((p = get_socket_address(sock, 1, NI_NUMERICHOST)) != NULL)
 		return p;
 	return xstrdup("UNKNOWN");
 }
 
 char *
-get_local_ipaddr(int socket)
+get_local_ipaddr(int sock)
 {
 	char *p;
 
-	if ((p = get_socket_address(socket, 0, NI_NUMERICHOST)) != NULL)
+	if ((p = get_socket_address(sock, 0, NI_NUMERICHOST)) != NULL)
 		return p;
 	return xstrdup("UNKNOWN");
 }
 
 char *
-get_local_name(int socket)
+get_local_name(int sock)
 {
-	return get_socket_address(socket, 0, NI_NAMEREQD);
+	return get_socket_address(sock, 0, NI_NAMEREQD);
 }
 
 /*
@@ -382,7 +382,13 @@ get_peer_port(int sock)
 int
 get_remote_port(void)
 {
-	return get_port(0);
+	static int port = -1;
+
+	/* Cache to avoid getpeername() on a dead connection */
+	if (port == -1)
+		port = get_port(0);
+
+	return port;
 }
 
 int

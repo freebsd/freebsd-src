@@ -1,4 +1,4 @@
-/*	$OpenBSD: dns.c,v 1.9 2003/11/21 11:57:03 djm Exp $	*/
+/*	$OpenBSD: dns.c,v 1.10 2004/06/21 17:36:31 avsm Exp $	*/
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -43,7 +43,7 @@
 #include "uuencode.h"
 
 extern char *__progname;
-RCSID("$OpenBSD: dns.c,v 1.9 2003/11/21 11:57:03 djm Exp $");
+RCSID("$OpenBSD: dns.c,v 1.10 2004/06/21 17:36:31 avsm Exp $");
 
 #ifndef LWRES
 static const char *errset_text[] = {
@@ -56,9 +56,9 @@ static const char *errset_text[] = {
 };
 
 static const char *
-dns_result_totext(unsigned int error)
+dns_result_totext(unsigned int res)
 {
-	switch (error) {
+	switch (res) {
 	case ERRSET_SUCCESS:
 		return errset_text[ERRSET_SUCCESS];
 	case ERRSET_NOMEMORY:

@@ -29,8 +29,10 @@ for c in $ciphers; do
 	fi
 done
 
-if ! ${SSH} -oCiphers=acss@openssh.org 2>&1 | grep "Bad SSH2 cipher" >/dev/null
+if ${SSH} -oCiphers=acss@openssh.org 2>&1 | grep "Bad SSH2 cipher" >/dev/null
 then
+	:
+else
 
 echo "Ciphers acss@openssh.org" >> $OBJ/sshd_proxy
 c=acss@openssh.org

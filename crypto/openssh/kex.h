@@ -1,4 +1,4 @@
-/*	$OpenBSD: kex.h,v 1.33 2003/02/16 17:09:57 markus Exp $	*/
+/*	$OpenBSD: kex.h,v 1.35 2004/06/13 12:53:24 djm Exp $	*/
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -32,6 +32,7 @@
 #include "key.h"
 
 #define	KEX_DH1		"diffie-hellman-group1-sha1"
+#define	KEX_DH14	"diffie-hellman-group14-sha1"
 #define	KEX_DHGEX	"diffie-hellman-group-exchange-sha1"
 
 enum kex_init_proposals {
@@ -56,6 +57,7 @@ enum kex_modes {
 
 enum kex_exchange {
 	KEX_DH_GRP1_SHA1,
+	KEX_DH_GRP14_SHA1,
 	KEX_DH_GEX_SHA1,
 	KEX_MAX
 };
@@ -136,6 +138,9 @@ kex_dh_hash(char *, char *, char *, int, char *, int, u_char *, int,
 u_char *
 kexgex_hash(char *, char *, char *, int, char *, int, u_char *, int,
     int, int, int, BIGNUM *, BIGNUM *, BIGNUM *, BIGNUM *, BIGNUM *);
+
+void
+derive_ssh1_session_id(BIGNUM *, BIGNUM *, u_int8_t[8], u_int8_t[16]);
 
 #if defined(DEBUG_KEX) || defined(DEBUG_KEXDH)
 void	dump_digest(char *, u_char *, int);

@@ -1,4 +1,4 @@
-/*	$OpenBSD: log.h,v 1.10 2003/09/23 20:17:11 markus Exp $	*/
+/*	$OpenBSD: log.h,v 1.11 2004/06/21 22:02:58 djm Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -53,7 +53,7 @@ void     log_init(char *, LogLevel, SyslogFacility, int);
 SyslogFacility	log_facility_number(char *);
 LogLevel log_level_number(char *);
 
-void     fatal(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     fatal(const char *, ...) __dead __attribute__((format(printf, 1, 2)));
 void     error(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     logit(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     verbose(const char *, ...) __attribute__((format(printf, 1, 2)));
@@ -62,5 +62,5 @@ void     debug2(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     debug3(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 void	 do_log(LogLevel, const char *, va_list);
-void	 cleanup_exit(int);
+void	 cleanup_exit(int) __dead;
 #endif

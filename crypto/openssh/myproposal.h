@@ -1,4 +1,4 @@
-/*	$OpenBSD: myproposal.h,v 1.15 2003/05/17 04:27:52 markus Exp $	*/
+/*	$OpenBSD: myproposal.h,v 1.16 2004/06/13 12:53:24 djm Exp $	*/
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -23,7 +23,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#define KEX_DEFAULT_KEX		"diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1"
+#define KEX_DEFAULT_KEX		"diffie-hellman-group-exchange-sha1," \
+	"diffie-hellman-group14-sha1," \
+	"diffie-hellman-group1-sha1"
 #define	KEX_DEFAULT_PK_ALG	"ssh-rsa,ssh-dss"
 #define	KEX_DEFAULT_ENCRYPT \
 	"aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour," \

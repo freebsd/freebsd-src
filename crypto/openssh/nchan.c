@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: nchan.c,v 1.49 2003/08/29 10:04:36 markus Exp $");
+RCSID("$OpenBSD: nchan.c,v 1.51 2004/07/11 17:48:47 deraadt Exp $");
 
 #include "ssh1.h"
 #include "ssh2.h"
@@ -42,15 +42,15 @@ RCSID("$OpenBSD: nchan.c,v 1.49 2003/08/29 10:04:36 markus Exp $");
  * tear down of channels:
  *
  * 1.3:	strict request-ack-protocol:
- * 	CLOSE	->
- * 		<-  CLOSE_CONFIRM
+ *	CLOSE	->
+ *		<-  CLOSE_CONFIRM
  *
  * 1.5:	uses variations of:
- * 	IEOF	->
- * 		<-  OCLOSE
- * 		<-  IEOF
- * 	OCLOSE	->
- * 	i.e. both sides have to close the channel
+ *	IEOF	->
+ *		<-  OCLOSE
+ *		<-  IEOF
+ *	OCLOSE	->
+ *	i.e. both sides have to close the channel
  *
  * 2.0: the EOF messages are optional
  *
@@ -395,7 +395,7 @@ chan_mark_dead(Channel *c)
 }
 
 int
-chan_is_dead(Channel *c, int send)
+chan_is_dead(Channel *c, int do_send)
 {
 	if (c->type == SSH_CHANNEL_ZOMBIE) {
 		debug2("channel %d: zombie", c->self);
@@ -416,7 +416,7 @@ chan_is_dead(Channel *c, int send)
 		return 0;
 	}
 	if (!(c->flags & CHAN_CLOSE_SENT)) {
-		if (send) {
+		if (do_send) {
 			chan_send_close2(c);
 		} else {
 			/* channel would be dead if we sent a close */
