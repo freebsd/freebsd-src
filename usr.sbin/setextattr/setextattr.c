@@ -52,7 +52,6 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct iovec    iov_buf;
 	int	error, attrnamespace;
 
 	if (argc != 5)
@@ -64,10 +63,8 @@ main(int argc, char *argv[])
 		return (-1);
 	}
 
-	iov_buf.iov_base = argv[4];
-	iov_buf.iov_len = strlen(argv[4]);
-
-	error = extattr_set_file(argv[3], attrnamespace, argv[2], &iov_buf, 1);
+	error = extattr_set_file(argv[3], attrnamespace, argv[2], argv[4],
+	    strlen(argv[4]));
 	if (error == -1) {
 		perror(argv[3]);
 		return (-1);
