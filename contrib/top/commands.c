@@ -76,8 +76,12 @@ I       - same as 'i'\n\
 k       - kill processes; send a signal to a list of processes\n\
 n or #  - change number of processes to display\n", stdout);
 #ifdef ORDER
-	fputs("\
+	if (displaymode == DISP_CPU)
+		fputs("\
 o       - specify sort order (pri, size, res, cpu, time)\n", stdout);
+	else
+		fputs("\
+o       - specify sort order (read, write, fault, total)\n", stdout);
 #endif
 	fputs("\
 r       - renice a process\n\
