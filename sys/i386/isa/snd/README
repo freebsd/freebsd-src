@@ -1,0 +1,78 @@
+            --- A new  FreeBSD sound driver ---
+            by Luigi Rizzo (luigi@iet.unipi.it)
+
+
+This is an experimental version of the sound driver for FreeBSD.
+I have almost completely rewritten the main parts of the code,
+starting from the Voxware 3.5-alpha release with patches from
+Amancio Hasty. The only file which is largely similar to the original
+ones is "soundcard.h" (for compatibility reasons, since it contains
+the definition of all the ioctls).
+
+Visit http://www.iet.unipi.it/~luigi/FreeBSD.html for the latest
+information on the drivers.  There you can obtain the latest source
+package that includes documentation on the design of the driver.
+
+
+CARD SUPPORT INFORMATION:
+
+For PnP cards, I also include the vendor_id and serial numbers of
+cards I have encountered.
+
+CS4236: PnP id 0x3642630e
+
+    works like a charm. All modes, including full duplex, supported in
+    MSS mode.
+
+CS4237: PnP id 0x3742630e
+
+    I had early reports of success with this board, which is almost
+    the same as the CS4236.
+
+CS4232: PnP id 0x3242630e
+
+    this chip is reported as broken in the OSS documentation. As a
+    matter of fact, on my Intel Zappa motherboard, I have problems in
+    make it use the secondary DMA channel. I have it working in
+    half duplex (both capture and playback) in SB3.2 emulation,
+    and working in playback mode in MSS emulation.
+
+OPTi931: PnP id 0x3109143e
+
+    The data sheets of this chip are very cryptic. I have it working
+    in full duplex in all modes _except_ capture of uLAW/ALAW data.
+    I am strongly convinced of a bug in the chip. I have sent email
+    to OPTI but got no reply so far.  In SB emulation mode the
+    driver does not work yet (maybe I do not initialize it the
+    right way).
+
+    Another bug seems to affect full duplex operation -- it appears
+    that at times DMA transfer are requested but not counted by
+    the device. In normal DMA mode this causes deadlocks.  The only
+    solution I have found is to fetch the count from the ISA DMA
+    registers, but this does not seem to work very well either.
+
+SB16 PnP: PnP id 0xXX008c0e
+
+    There are many such cards (plain SB16 PnP, AWE32, AWE64, Vibra16,
+    etc. all differing in the PnP id (and with different synthesis
+    devices, which we do not support anyways).
+
+    Since 970903 the driver supports them all, both capture and
+    playback, 8 and 16 bits.
+
+GusPnP: PnP id 0x0100561e
+
+    I have code to recognize the board as MSS, but have not tested it
+    since I don't own the board. Hopefully someone will test it soon.
+
+OPTI925: PnP id 0x2509143e
+
+    there is code to recognize it as a SB clone. I have reports that
+    it probes ok, but not sure if it works.
+
+OPTI930:
+
+    should work as an MSS clone, but support for it is not implemented
+    yet.
+
