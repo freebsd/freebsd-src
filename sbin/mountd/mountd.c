@@ -125,7 +125,7 @@ struct exportlist {
 
 struct netmsk {
 	struct sockaddr_storage nt_net;
-	u_int32_t	nt_mask;
+	struct sockaddr_storage nt_mask;
 	char		*nt_name;
 };
 
@@ -165,6 +165,7 @@ void	add_dlist __P((struct dirlist **, struct dirlist *,
 void	add_mlist __P((char *, char *));
 int	check_dirpath __P((char *));
 int	check_options __P((struct dirlist *));
+int	checkmask(struct sockaddr *sa);
 int	chk_host __P((struct dirlist *, struct sockaddr *, int *, int *));
 void	del_mlist(char *hostp, char *dirp);
 struct dirlist *dirp_search __P((struct dirlist *, char *));
@@ -189,11 +190,15 @@ struct grouplist *get_grp __P((void));
 void	hang_dirp __P((struct dirlist *, struct grouplist *,
 				struct exportlist *, int));
 void	huphandler(int sig);
+int	makemask(struct sockaddr_storage *ssp, int bitlen);
 void	mntsrv __P((struct svc_req *, SVCXPRT *));
 void	nextfield __P((char **, char **));
 void	out_of_mem __P((void));
 void	parsecred __P((char *, struct xucred *));
 int	put_exlist __P((struct dirlist *, XDR *, struct dirlist *, int *));
+void	*sa_rawaddr(struct sockaddr *sa, int *nbytes);
+int	sacmp(struct sockaddr *sa1, struct sockaddr *sa2,
+    struct sockaddr *samask);
 int	scan_tree __P((struct dirlist *, struct sockaddr *));
 static void usage __P((void));
 int	xdr_dir __P((XDR *, char *));
@@ -201,12 +206,6 @@ int	xdr_explist __P((XDR *, caddr_t));
 int	xdr_fhs __P((XDR *, caddr_t));
 int	xdr_mlist __P((XDR *, caddr_t));
 void	terminate __P((int));
-
-static int bitcmp __P((void *, void *, int));
-static int netpartcmp __P((struct sockaddr *, struct sockaddr *, int));
-static int sacmp __P((struct sockaddr *, struct sockaddr *));
-static int allones __P((struct sockaddr_storage *, int));
-static int countones __P((struct sockaddr *));
 
 struct exportlist *exphead;
 struct mountlist *mlhead;
@@ -234,13 +233,14 @@ static const int ninumeric = NI_NUMERICHOST;
 #endif
 
 int mountdlockfd;
-/* Bits for above */
+/* Bits for opt_flags above */
 #define	OP_MAPROOT	0x01
 #define	OP_MAPALL	0x02
 #define	OP_KERB		0x04
 #define	OP_MASK		0x08
 #define	OP_NET		0x10
 #define	OP_ALLDIRS	0x40
+#define	OP_HAVEMASK	0x80	/* A mask was specified or inferred. */
 #define OP_MASKLEN	0x200
 
 #ifdef DEBUG
@@ -1116,6 +1116,7 @@ get_exportlist()
 		 * host(s) on the same line.
 		 */
 		} else if ((opt_flags & OP_NET) && tgrp->gr_next) {
+			syslog(LOG_ERR, "network/host conflict");
 			getexp_err(ep, tgrp);
 			goto nextline;
 
@@ -1397,47 +1398,6 @@ dirp_search(dp, dirp)
 }
 
 /*
- * Some helper functions for netmasks. They all assume masks in network
- * order (big endian).
- */
-static int
-bitcmp(void *dst, void *src, int bitlen)
-{
-	int i;
-	u_int8_t *p1 = dst, *p2 = src;
-	u_int8_t bitmask;
-	int bytelen, bitsleft;
-
-	bytelen = bitlen / 8;
-	bitsleft = bitlen % 8;
-
-	if (debug) {
-		printf("comparing:\n");
-		for (i = 0; i < (bitsleft ? bytelen + 1 : bytelen); i++)
-			printf("%02x", p1[i]);
-		printf("\n");
-		for (i = 0; i < (bitsleft ? bytelen + 1 : bytelen); i++)
-			printf("%02x", p2[i]);
-		printf("\n");
-	}
-
-	for (i = 0; i < bytelen; i++) {
-		if (*p1 != *p2)
-			return 1;
-		p1++;
-		p2++;
-	}
-
-	for (i = 0; i < bitsleft; i++) {
-		bitmask = 1 << (7 - i);
-		if ((*p1 & bitmask) != (*p2 & bitmask))
-			return 1;
-	}
-
-	return 0;
-}
-
-/*
  * Scan for a host match in a directory tree.
  */
 int
@@ -1461,22 +1421,23 @@ chk_host(dp, saddr, defsetp, hostsetp)
 			case GT_HOST:
 				ai = grp->gr_ptr.gt_addrinfo;
 				for (; ai; ai = ai->ai_next) {
-					if (!sacmp(ai->ai_addr, saddr)) {
+					if (!sacmp(ai->ai_addr, saddr, NULL)) {
 						*hostsetp =
 						    (hp->ht_flag | DP_HOSTSET);
 						return (1);
 					}
 				}
-			    break;
+				break;
 			case GT_NET:
-				if (!netpartcmp(saddr,
-				    (struct sockaddr *) &grp->gr_ptr.gt_net.nt_net,
-				     grp->gr_ptr.gt_net.nt_mask)) {
+				if (!sacmp(saddr, (struct sockaddr *)
+				    &grp->gr_ptr.gt_net.nt_net,
+				    (struct sockaddr *)
+				    &grp->gr_ptr.gt_net.nt_mask)) {
 					*hostsetp = (hp->ht_flag | DP_HOSTSET);
 					return (1);
 				}
-			    break;
-			};
+				break;
+			}
 			hp = hp->ht_next;
 		}
 	}
@@ -1582,7 +1543,7 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 			*exflagsp |= MNT_EXKERB;
 			opt_flags |= OP_KERB;
 		} else if (cpoptarg && (!strcmp(cpopt, "mask") ||
-			!strcmp(cpopt, "m"))) {
+		    !strcmp(cpopt, "m"))) {
 			if (get_net(cpoptarg, &grp->gr_ptr.gt_net, 1)) {
 				syslog(LOG_ERR, "bad mask: %s", cpoptarg);
 				return (1);
@@ -1683,7 +1644,7 @@ get_host(cp, grp, tgrp)
 				continue;
 			for (tai = checkgrp->gr_ptr.gt_addrinfo; tai != NULL;
 			    tai = tai->ai_next) {
-				if (sacmp(tai->ai_addr, ai->ai_addr) != 0)
+				if (sacmp(tai->ai_addr, ai->ai_addr, NULL) != 0)
 					continue;
 				if (debug)
 					fprintf(stderr,
@@ -1773,8 +1734,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	int dirplen;
 	struct statfs *fsb;
 {
-	struct sockaddr_storage ss;
 	struct addrinfo *ai;
+	struct export_args *eap;
 	char *cp = NULL;
 	int done;
 	char savedc = '\0';
@@ -1782,17 +1743,18 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		struct ufs_args ua;
 		struct iso_args ia;
 		struct mfs_args ma;
-#ifdef __NetBSD__
 		struct msdosfs_args da;
-		struct adosfs_args aa;
-#endif
 		struct ntfs_args na;
 	} args;
 
+	bzero(&args, sizeof args);
+	/* XXX, we assume that all xx_args look like ufs_args. */
 	args.ua.fspec = 0;
-	args.ua.export.ex_flags = exflags;
-	args.ua.export.ex_anon = *anoncrp;
-	args.ua.export.ex_indexfile = ep->ex_indexfile;
+	eap = &args.ua.export;
+
+	eap->ex_flags = exflags;
+	eap->ex_anon = *anoncrp;
+	eap->ex_indexfile = ep->ex_indexfile;
 	if (grp->gr_type == GT_HOST)
 		ai = grp->gr_ptr.gt_addrinfo;
 	else
@@ -1803,35 +1765,26 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		case GT_HOST:
 			if (ai->ai_addr->sa_family == AF_INET6 && have_v6 == 0)
 				goto skip;
-			args.ua.export.ex_addr = ai->ai_addr;
-			args.ua.export.ex_addrlen = ai->ai_addrlen;
-			args.ua.export.ex_masklen = 0;
+			eap->ex_addr = ai->ai_addr;
+			eap->ex_addrlen = ai->ai_addrlen;
+			eap->ex_masklen = 0;
 			break;
 		case GT_NET:
-			args.ua.export.ex_addr = (struct sockaddr *)
-			    &grp->gr_ptr.gt_net.nt_net;
-			if (args.ua.export.ex_addr->sa_family == AF_INET6 &&
+			if (grp->gr_ptr.gt_net.nt_net.ss_family == AF_INET6 &&
 			    have_v6 == 0)
 				goto skip;
-			args.ua.export.ex_addrlen =
-			    args.ua.export.ex_addr->sa_len;
-			memset(&ss, 0, sizeof ss);
-			ss.ss_family = args.ua.export.ex_addr->sa_family;
-			ss.ss_len = args.ua.export.ex_addr->sa_len;
-			if (allones(&ss, grp->gr_ptr.gt_net.nt_mask) != 0) {
-				syslog(LOG_ERR, "Bad network flag");
-				if (cp)
-					*cp = savedc;
-				return (1);
-			}
-			args.ua.export.ex_mask = (struct sockaddr *)&ss;
-			args.ua.export.ex_masklen = ss.ss_len;
+			eap->ex_addr =
+			    (struct sockaddr *)&grp->gr_ptr.gt_net.nt_net;
+			eap->ex_addrlen = args.ua.export.ex_addr->sa_len;
+			eap->ex_mask =
+			    (struct sockaddr *)&grp->gr_ptr.gt_net.nt_mask;
+			eap->ex_masklen = args.ua.export.ex_mask->sa_len;
 			break;
 		case GT_DEFAULT:
-			args.ua.export.ex_addr = NULL;
-			args.ua.export.ex_addrlen = 0;
-			args.ua.export.ex_mask = NULL;
-			args.ua.export.ex_masklen = 0;
+			eap->ex_addr = NULL;
+			eap->ex_addrlen = 0;
+			eap->ex_mask = NULL;
+			eap->ex_masklen = 0;
 			break;
 		case GT_IGNORE:
 			return(0);
@@ -1896,6 +1849,8 @@ skip:
 
 /*
  * Translate a net address.
+ *
+ * If `maskflg' is nonzero, then `cp' is a netmask, not a network address.
  */
 int
 get_net(cp, net, maskflg)
@@ -1905,12 +1860,11 @@ get_net(cp, net, maskflg)
 {
 	struct netent *np;
 	char *name, *p, *prefp;
-	struct sockaddr_in sin, *sinp;
+	struct sockaddr_in sin;
 	struct sockaddr *sa;
 	struct addrinfo hints, *ai = NULL;
 	char netname[NI_MAXHOST];
 	long preflen;
-	int ecode;
 
 	p = prefp = NULL;
 	if ((opt_flags & OP_MASKLEN) && !maskflg) {
@@ -1920,80 +1874,97 @@ get_net(cp, net, maskflg)
 	}
 
 	if ((np = getnetbyname(cp)) != NULL) {
+		bzero(&sin, sizeof sin);
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof sin;
 		sin.sin_addr = inet_makeaddr(np->n_net, 0);
 		sa = (struct sockaddr *)&sin;
-	} else if (isdigit(*cp)) {
+	} else if (isxdigit(*cp) || *cp == ':') {
 		memset(&hints, 0, sizeof hints);
-		hints.ai_family = AF_UNSPEC;
+		/* Ensure the mask and the network have the same family. */
+		if (maskflg && (opt_flags & OP_NET))
+			hints.ai_family = net->nt_net.ss_family;
+		else if (!maskflg && (opt_flags & OP_HAVEMASK))
+			hints.ai_family = net->nt_mask.ss_family;
+		else
+			hints.ai_family = AF_UNSPEC;
 		hints.ai_flags = AI_NUMERICHOST;
-		if (getaddrinfo(cp, NULL, &hints, &ai) != 0) {
+		if (getaddrinfo(cp, NULL, &hints, &ai) != 0)
+			goto fail;
+		if (ai->ai_family == AF_INET) {
 			/*
-			 * If getaddrinfo() failed, try the inet4 network
-			 * notation with less than 3 dots.
+			 * The address in `cp' is really a network address, so
+			 * use inet_network() to re-interpret this correctly.
+			 * e.g. "127.1" means 127.1.0.0, not 127.0.0.1.
 			 */
+			bzero(&sin, sizeof sin);
 			sin.sin_family = AF_INET;
 			sin.sin_len = sizeof sin;
-			sin.sin_addr = inet_makeaddr(inet_network(cp),0);
+			sin.sin_addr = inet_makeaddr(inet_network(cp), 0);
 			if (debug)
-				fprintf(stderr, "get_net: v4 addr %x\n",
-				    sin.sin_addr.s_addr);
+				fprintf(stderr, "get_net: v4 addr %s\n",
+				    inet_ntoa(sin.sin_addr));
 			sa = (struct sockaddr *)&sin;
 		} else
 			sa = ai->ai_addr;
-	} else if (isxdigit(*cp) || *cp == ':') {
-		memset(&hints, 0, sizeof hints);
-		hints.ai_family = AF_UNSPEC;
-		hints.ai_flags = AI_NUMERICHOST;
-		if (getaddrinfo(cp, NULL, &hints, &ai) == 0)
-			sa = ai->ai_addr;
-		else
-			goto fail;
 	} else
 		goto fail;
 
-	ecode = getnameinfo(sa, sa->sa_len, netname, sizeof netname,
-	    NULL, 0, ninumeric);
-	if (ecode != 0)
-		goto fail;
+	if (maskflg) {
+		/* The specified sockaddr is a mask. */
+		if (checkmask(sa) != 0)
+			goto fail;
+		bcopy(sa, &net->nt_mask, sa->sa_len);
+		opt_flags |= OP_HAVEMASK;
+	} else {
+		/* The specified sockaddr is a network address. */
+		bcopy(sa, &net->nt_net, sa->sa_len);
 
-	if (maskflg)
-		net->nt_mask = countones(sa);
-	else {
+		/* Get a network name for the export list. */
+		if (np) {
+			name = np->n_name;
+		} else if (getnameinfo(sa, sa->sa_len, netname, sizeof netname,
+		   NULL, 0, ninumeric) == 0) {
+			name = netname;
+		} else {
+			goto fail;
+		}
+		if ((net->nt_name = strdup(name)) == NULL)
+			out_of_mem();
+
+		/*
+		 * Extract a mask from either a "/<masklen>" suffix, or
+		 * from the class of an IPv4 address.
+		 */
 		if (opt_flags & OP_MASKLEN) {
 			preflen = strtol(prefp, NULL, 10);
-			if (preflen == LONG_MIN && errno == ERANGE)
+			if (preflen < 0L || preflen == LONG_MAX)
 				goto fail;
-			net->nt_mask = (int)preflen;
+			bcopy(sa, &net->nt_mask, sa->sa_len);
+			if (makemask(&net->nt_mask, (int)preflen) != 0)
+				goto fail;
+			opt_flags |= OP_HAVEMASK;
 			*p = '/';
-		}
+		} else if (sa->sa_family == AF_INET &&
+		    (opt_flags & OP_MASK) == 0) {
+			in_addr_t addr;
 
-		if (np)
-			name = np->n_name;
-		else {
-			if (getnameinfo(sa, sa->sa_len, netname, sizeof netname,
-			   NULL, 0, ninumeric) != 0)
-				strlcpy(netname, "?", sizeof(netname));
-			name = netname;
-		}
-		net->nt_name = strdup(name);
-		memcpy(&net->nt_net, sa, sa->sa_len);
-	}
+			addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
+			if (IN_CLASSA(addr))
+				preflen = 8;
+			else if (IN_CLASSB(addr))
+				preflen = 16;
+			else if (IN_CLASSC(addr))
+				preflen = 24;
+			else if (IN_CLASSD(addr))
+				preflen = 28;
+			else
+				preflen = 32;	/* XXX */
 
-	if (!maskflg && sa->sa_family == AF_INET &&
-	    !(opt_flags & (OP_MASK|OP_MASKLEN))) {
-		sinp = (struct sockaddr_in *)sa;
-		if (IN_CLASSA(sinp->sin_addr.s_addr))
-			net->nt_mask = 8;
-		else if (IN_CLASSB(sinp->sin_addr.s_addr))
-			net->nt_mask = 16;
-		else if (IN_CLASSC(sinp->sin_addr.s_addr))
-			net->nt_mask = 24;
-		else if (IN_CLASSD(sinp->sin_addr.s_addr))
-			net->nt_mask = 28;
-		else
-			net->nt_mask = 32;       /* XXX */
+			bcopy(sa, &net->nt_mask, sa->sa_len);
+			makemask(&net->nt_mask, (int)preflen);
+			opt_flags |= OP_HAVEMASK;
+		}
 	}
 
 	if (ai)
@@ -2306,8 +2277,16 @@ check_options(dp)
 	    return (1);
 	}
 	if ((opt_flags & OP_MASK) && (opt_flags & OP_NET) == 0) {
-	    syslog(LOG_ERR, "-mask requires -net");
-	    return (1);
+		syslog(LOG_ERR, "-mask requires -network");
+		return (1);
+	}
+	if ((opt_flags & OP_NET) && (opt_flags & OP_HAVEMASK) == 0) {
+		syslog(LOG_ERR, "-network requires mask specification");
+		return (1);
+	}
+	if ((opt_flags & OP_MASK) && (opt_flags & OP_MASKLEN)) {
+		syslog(LOG_ERR, "-mask and /masklen are mutually exclusive");
+		return (1);
 	}
 	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
 	    syslog(LOG_ERR, "-alldirs has multiple directories");
@@ -2342,137 +2321,122 @@ check_dirpath(dirp)
 	return (ret);
 }
 
-static int
-netpartcmp(struct sockaddr *s1, struct sockaddr *s2, int bitlen)
+/*
+ * Make a netmask according to the specified prefix length. The ss_family
+ * and other non-address fields must be initialised before calling this.
+ */
+int
+makemask(struct sockaddr_storage *ssp, int bitlen)
 {
-	void *src, *dst;
+	u_char *p;
+	int bits, i, len;
 
-	if (s1->sa_family != s2->sa_family)
-		return 1;
+	if ((p = sa_rawaddr((struct sockaddr *)ssp, &len)) == NULL)
+		return (-1);
+	if (bitlen > len * NBBY)
+		return (-1);
 
-	switch (s1->sa_family) {
-	case AF_INET:
-		src = &((struct sockaddr_in *)s1)->sin_addr;
-		dst = &((struct sockaddr_in *)s2)->sin_addr;
-		if (bitlen > sizeof(((struct sockaddr_in *)s1)->sin_addr) * 8)
-			return 1;
-		break;
-	case AF_INET6:
-		src = &((struct sockaddr_in6 *)s1)->sin6_addr;
-		dst = &((struct sockaddr_in6 *)s2)->sin6_addr;
-		if (((struct sockaddr_in6 *)s1)->sin6_scope_id !=
-		   ((struct sockaddr_in6 *)s2)->sin6_scope_id)
-			return 1;
-		if (bitlen > sizeof(((struct sockaddr_in6 *)s1)->sin6_addr) * 8)
-			return 1;
-		break;
-	default:
-		return 1;
+	for (i = 0; i < len; i++) {
+		bits = (bitlen > NBBY) ? NBBY : bitlen;
+		*p++ = (1 << bits) - 1;
+		bitlen -= bits;
 	}
-
-	return bitcmp(src, dst, bitlen);
-}
-
-static int
-allones(struct sockaddr_storage *ssp, int bitlen)
-{
-	u_int8_t *p;
-	int bytelen, bitsleft, i;
-	int zerolen;
-
-	switch (ssp->ss_family) {
-	case AF_INET:
-		p = (u_int8_t *)&((struct sockaddr_in *)ssp)->sin_addr;
-		zerolen = sizeof (((struct sockaddr_in *)ssp)->sin_addr);
-		break;
-	case AF_INET6:
-		p = (u_int8_t *)&((struct sockaddr_in6 *)ssp)->sin6_addr;
-		zerolen = sizeof (((struct sockaddr_in6 *)ssp)->sin6_addr);
-	break;
-	default:
-		return -1;
-	}
-
-	memset(p, 0, zerolen);
-
-	bytelen = bitlen / 8;
-	bitsleft = bitlen % 8;
-
-	if (bytelen > zerolen)
-		return -1;
-
-	for (i = 0; i < bytelen; i++)
-		*p++ = 0xff;
-
-	for (i = 0; i < bitsleft; i++)
-		*p |= 1 << (7 - i);
-
 	return 0;
 }
 
-static int
-countones(struct sockaddr *sa)
+/*
+ * Check that the sockaddr is a valid netmask. Returns 0 if the mask
+ * is acceptable (i.e. of the form 1...10....0).
+ */
+int
+checkmask(struct sockaddr *sa)
 {
-	void *mask;
-	int i, bits = 0, bytelen;
-	u_int8_t *p;
+	u_char *mask;
+	int i, len;
+
+	if ((mask = sa_rawaddr(sa, &len)) == NULL)
+		return (-1);
+
+	for (i = 0; i < len; i++)
+		if (mask[i] != 0xff)
+			break;
+	if (i < len) {
+		if (~mask[i] & (u_char)(~mask[i] + 1))
+			return (-1);
+		i++;
+	}
+	for (; i < len; i++)
+		if (mask[i] != 0)
+			return (-1);
+	return (0);
+}
+
+/*
+ * Compare two sockaddrs according to a specified mask. Return zero if
+ * `sa1' matches `sa2' when filtered by the netmask in `samask'.
+ * If samask is NULL, perform a full comparision.
+ */
+int
+sacmp(struct sockaddr *sa1, struct sockaddr *sa2, struct sockaddr *samask)
+{
+	unsigned char *p1, *p2, *mask;
+	int len, i;
+
+	if (sa1->sa_family != sa2->sa_family ||
+	    (p1 = sa_rawaddr(sa1, &len)) == NULL ||
+	    (p2 = sa_rawaddr(sa2, NULL)) == NULL)
+		return (1);
+
+	switch (sa1->sa_family) {
+	case AF_INET6:
+		if (((struct sockaddr_in6 *)sa1)->sin6_scope_id !=
+		    ((struct sockaddr_in6 *)sa2)->sin6_scope_id)
+			return (1);
+		break;
+	}
+
+	/* Simple binary comparison if no mask specified. */
+	if (samask == NULL)
+		return (memcmp(p1, p2, len));
+
+	/* Set up the mask, and do a mask-based comparison. */
+	if (sa1->sa_family != samask->sa_family ||
+	    (mask = sa_rawaddr(samask, NULL)) == NULL)
+		return (1);
+
+	for (i = 0; i < len; i++)
+		if ((p1[i] & mask[i]) != (p2[i] & mask[i]))
+			return (1);
+	return (0);
+}
+
+/*
+ * Return a pointer to the part of the sockaddr that contains the
+ * raw address, and set *nbytes to its length in bytes. Returns
+ * NULL if the address family is unknown.
+ */
+void *
+sa_rawaddr(struct sockaddr *sa, int *nbytes) {
+	void *p;
+	int len;
 
 	switch (sa->sa_family) {
 	case AF_INET:
-		mask = (u_int8_t *)&((struct sockaddr_in *)sa)->sin_addr;
-		bytelen = 4;
+		len = sizeof(((struct sockaddr_in *)sa)->sin_addr);
+		p = &((struct sockaddr_in *)sa)->sin_addr;
 		break;
 	case AF_INET6:
-		mask = (u_int8_t *)&((struct sockaddr_in6 *)sa)->sin6_addr;
-		bytelen = 16;
+		len = sizeof(((struct sockaddr_in6 *)sa)->sin6_addr);
+		p = &((struct sockaddr_in6 *)sa)->sin6_addr;
 		break;
 	default:
-		return 0;
+		p = NULL;
+		len = 0;
 	}
 
-	p = mask;
-
-	for (i = 0; i < bytelen; i++, p++) {
-		if (*p != 0xff) {
-			for (bits = 0; bits < 8; bits++) {
-				if (!(*p & (1 << (7 - bits))))
-					break;
-			}
-			break;
-		}
-	}
-
-	return (i * 8 + bits);
-}
-
-static int
-sacmp(struct sockaddr *sa1, struct sockaddr *sa2)
-{
-	void *p1, *p2;
-	int len;
-
-	if (sa1->sa_family != sa2->sa_family)
-		return 1;
-
-	switch (sa1->sa_family) {
-	case AF_INET:
-		p1 = &((struct sockaddr_in *)sa1)->sin_addr;
-		p2 = &((struct sockaddr_in *)sa2)->sin_addr;
-		len = 4;
-		break;
-	case AF_INET6:
-		p1 = &((struct sockaddr_in6 *)sa1)->sin6_addr;
-		p2 = &((struct sockaddr_in6 *)sa2)->sin6_addr;
-		len = 16;
-		if (((struct sockaddr_in6 *)sa1)->sin6_scope_id !=
-		    ((struct sockaddr_in6 *)sa2)->sin6_scope_id)
-			return 1;
-		break;
-	default:
-		return 1;
-	}
-
-	return memcmp(p1, p2, len);
+	if (nbytes != NULL)
+		*nbytes = len;
+	return (p);
 }
 
 void
