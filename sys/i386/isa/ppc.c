@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppc.c,v 1.1 1997/08/14 14:01:35 msmith Exp $
  *
  */
 #include "ppc.h"
@@ -32,14 +32,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/buf.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/uio.h>
-#include <sys/syslog.h>
 
 #include <machine/clock.h>
 
@@ -47,7 +41,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
 #include <dev/ppbus/ppbconf.h>

@@ -36,29 +36,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
 #include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
-#include <sys/dkstat.h>
-#include <sys/file.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
-#ifdef DEVFS
-#include  <sys/devfsext.h>
-#endif
 
-#include <machine/clock.h>
-
-#include <i386/isa/icu.h>
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
-#include <pci.h>
-#include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
 #define ROCKET_C
