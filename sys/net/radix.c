@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)radix.c	8.4 (Berkeley) 11/2/94
+ *	@(#)radix.c	8.5 (Berkeley) 5/19/95
  * $FreeBSD$
  */
 
@@ -587,6 +587,9 @@ rn_addroute(v_arg, n_arg, head, treenodes)
 		 * in a masklist -- most specific to least specific.
 		 * This may require the unfortunate nuisance of relocating
 		 * the head of the list.
+		 *
+		 * We also reverse, or doubly link the list through the
+		 * parent pointer.
 		 */
 		if (tt == saved_tt) {
 			struct	radix_node *xx = x;
@@ -772,8 +775,8 @@ on1:
 	dupedkey = saved_tt->rn_dupedkey;
 	if (dupedkey) {
 		/*
-		 * at this point, tt is the deletion target and saved_tt
-		 * is the head of the dupekey chain
+		 * Here, tt is the deletion target and
+		 * saved_tt is the head of the dupekey chain.
 		 */
 		if (tt == saved_tt) {
 			/* remove from head of chain */
