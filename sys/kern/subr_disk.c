@@ -48,7 +48,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	}
 
 	printf("Creating DISK %s%d\n", cdevsw->d_name, unit);
-	dev = make_dev(cdevsw, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
+	dev = make_dev(proto, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
 	    0, 0, 0, "r%s%d", cdevsw->d_name, unit);
 
 	dev->si_disk = dp;
