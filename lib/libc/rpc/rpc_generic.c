@@ -688,6 +688,8 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 	}
 
 	ret = (struct netbuf *)malloc(sizeof *ret);
+	if (ret == NULL)
+		goto out;
 	
 	switch (af) {
 	case AF_INET:
@@ -715,7 +717,7 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = htons(port);
 		if (inet_pton(AF_INET6, addrstr, &sin6->sin6_addr) <= 0) {
-			free(sin);
+			free(sin6);
 			free(ret);
 			ret = NULL;
 			goto out;
