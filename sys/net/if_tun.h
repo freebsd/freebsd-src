@@ -36,9 +36,6 @@ struct tun_softc {
 	int	tun_pgrp;		/* the process group - if any */
 	struct	selinfo	tun_rsel;	/* read select */
 	struct	selinfo	tun_wsel;	/* write select (not used) */
-#if NBPFILTER > 0
-	caddr_t		tun_bpf;
-#endif
 };
 
 /* Maximum packet size */

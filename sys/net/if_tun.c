@@ -137,7 +137,7 @@ tunattach(dummy)
 		ifp->if_opackets = 0;
 		if_attach(ifp);
 #if NBPFILTER > 0
-		bpfattach(&tunctl[i].tun_bpf, ifp, DLT_NULL, sizeof(u_int));
+		bpfattach(ifp, DLT_NULL, sizeof(u_int));
 #endif
 	}
 }
@@ -329,7 +329,7 @@ tunoutput(ifp, m0, dst, rt)
 		m0->m_data += sizeof(int);
 	}
 
-	if (tp->tun_bpf) {
+	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -344,7 +344,7 @@ tunoutput(ifp, m0, dst, rt)
 		m.m_len = 4;
 		m.m_data = (char *)&af;
 
-		bpf_mtap(tp->tun_bpf, &m);
+		bpf_mtap(ifp, &m);
 	}
 #endif
 
@@ -555,7 +555,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	top->m_pkthdr.rcvif = ifp;
 
 #if NBPFILTER > 0
-	if (tunctl[unit].tun_bpf) {
+	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -570,7 +570,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 		m.m_len = 4;
 		m.m_data = (char *)&af;
 
-		bpf_mtap(tunctl[unit].tun_bpf, &m);
+		bpf_mtap(ifp, &m);
 	}
 #endif
 

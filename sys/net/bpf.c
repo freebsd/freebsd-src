@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.20 1995/12/08 23:21:46 phk Exp $
+ * $Id: bpf.c,v 1.21 1995/12/14 09:53:10 phk Exp $
  */
 
 #include "bpfilter.h"
@@ -264,7 +264,7 @@ bpf_attachd(d, bp)
 	d->bd_next = bp->bif_dlist;
 	bp->bif_dlist = d;
 
-	*bp->bif_driverp = bp;
+	bp->bif_ifp->if_bpf = bp;
 }
 
 /*
@@ -304,7 +304,7 @@ bpf_detachd(d)
 		/*
 		 * Let the driver know that there are no more listeners.
 		 */
-		*d->bd_bif->bif_driverp = 0;
+		d->bd_bif->bif_ifp->if_bpf = 0;
 	d->bd_bif = 0;
 }
 
@@ -919,35 +919,20 @@ bpf_setif(d, ifr)
 	struct ifreq *ifr;
 {
 	struct bpf_if *bp;
-	char *cp;
-	int unit, s, error;
+	int s, error;
+	struct ifnet *theywant;
 
-	/*
-	 * Separate string into name part and unit number.  Put a null
-	 * byte at the end of the name part, and compute the number.
-	 * If the a unit number is unspecified, the default is 0,
-	 * as initialized above.  XXX This should be common code.
-	 */
-	unit = 0;
-	cp = ifr->ifr_name;
-	cp[sizeof(ifr->ifr_name) - 1] = '\0';
-	while (*cp++) {
-		if (*cp >= '0' && *cp <= '9') {
-			unit = *cp - '0';
-			*cp++ = '\0';
-			while (*cp)
-				unit = 10 * unit + *cp++ - '0';
-			break;
-		}
-	}
+	theywant = ifunit(ifr->ifr_name);
+	if (theywant == 0)
+		return ENXIO;
+
 	/*
 	 * Look through attached interfaces for the named one.
 	 */
 	for (bp = bpf_iflist; bp != 0; bp = bp->bif_next) {
 		struct ifnet *ifp = bp->bif_ifp;
 
-		if (ifp == 0 || unit != ifp->if_unit
-		    || strcmp(ifp->if_name, ifr->ifr_name) != 0)
+		if (ifp == 0 || ifp != theywant)
 			continue;
 		/*
 		 * We found the requested interface.
@@ -1073,8 +1058,8 @@ bpf_select(dev, rw, p)
  * buffer.
  */
 void
-bpf_tap(arg, pkt, pktlen)
-	caddr_t arg;
+bpf_tap(ifp, pkt, pktlen)
+	struct ifnet *ifp;
 	register u_char *pkt;
 	register u_int pktlen;
 {
@@ -1086,7 +1071,7 @@ bpf_tap(arg, pkt, pktlen)
 	 * The only problem that could arise here is that if two different
 	 * interfaces shared any data.  This is not the case.
 	 */
-	bp = (struct bpf_if *)arg;
+	bp = ifp->if_bpf;
 	for (d = bp->bif_dlist; d != 0; d = d->bd_next) {
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, pkt, pktlen, pktlen);
@@ -1126,11 +1111,11 @@ bpf_mcopy(src_arg, dst_arg, len)
  * Incoming linkage from device drivers, when packet is in an mbuf chain.
  */
 void
-bpf_mtap(arg, m)
-	caddr_t arg;
+bpf_mtap(ifp, m)
+	struct ifnet *ifp;
 	struct mbuf *m;
 {
-	struct bpf_if *bp = (struct bpf_if *)arg;
+	struct bpf_if *bp = ifp->if_bpf;
 	struct bpf_d *d;
 	u_int pktlen, slen;
 	struct mbuf *m0;
@@ -1277,33 +1262,24 @@ bpf_freed(d)
  * size of the link header (variable length headers not yet supported).
  */
 void
-bpfattach(driverp, ifp, dlt, hdrlen)
-	caddr_t *driverp;
+bpfattach(ifp, dlt, hdrlen)
 	struct ifnet *ifp;
 	u_int dlt, hdrlen;
 {
 	struct bpf_if *bp;
 	int i;
-#if BSD < 199103
-	static struct bpf_if bpf_ifs[NBPFILTER];
-	static int bpfifno;
-
-	bp = (bpfifno < NBPFILTER) ? &bpf_ifs[bpfifno++] : 0;
-#else
 	bp = (struct bpf_if *)malloc(sizeof(*bp), M_DEVBUF, M_DONTWAIT);
-#endif
 	if (bp == 0)
 		panic("bpfattach");
 
 	bp->bif_dlist = 0;
-	bp->bif_driverp = (struct bpf_if **)driverp;
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
 
 	bp->bif_next = bpf_iflist;
 	bpf_iflist = bp;
 
-	*bp->bif_driverp = 0;
+	bp->bif_ifp->if_bpf = 0;
 
 	/*
 	 * Compute the length of the bpf header.  This is not necessarily

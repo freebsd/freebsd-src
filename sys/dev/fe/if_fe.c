@@ -214,9 +214,6 @@ static struct fe_softc {
 	void ( * init )( struct fe_softc * ); /* Just before fe_init().  */
 	void ( * stop )( struct fe_softc * ); /* Just after fe_stop().  */
 
-	/* For BPF.  */
-	caddr_t bpf;		/* BPF "magic cookie" */
-
 	/* Transmission buffer management.  */
 	u_short txb_free;	/* free bytes in TX buffer  */
 	u_char txb_count;	/* number of packets in TX buffer  */
@@ -236,15 +233,7 @@ static struct fe_softc {
 #define sc_dcstate	kdc.kdc_state
 #define sc_description	kdc.kdc_description
 
-/*
- * Some entry functions receive a "struct ifnet *" typed pointer as an
- * argument.  It points to arpcom.ac_if of our softc.  Remember arpcom.ac_if
- * is located at very first of the fe_softc struct.  So, there is no
- * difference between "struct fe_softc *" and "struct ifnet *" at the machine
- * language level.  We just cast to turn a "struct ifnet *" value into "struct
- * fe_softc * value".  If this were C++, we would need no such cast at all.
- */
-#define IFNET2SOFTC(P)	( ( struct fe_softc * )(P) )
+#define IFNET2SOFTC(P)	(P)->if_softc
 
 /* Standard driver entry points.  These can be static.  */
 static int		fe_probe	( struct isa_device * );
@@ -271,7 +260,6 @@ static struct fe_filter
 static int	fe_hash		( u_char * );
 static void	fe_setmode	( struct fe_softc * );
 static void	fe_loadmar	( struct fe_softc * );
-static void	fe_setlinkaddr	( struct fe_softc * );
 #if FE_DEBUG >= 1
 static void	fe_dump		( int, struct fe_softc *, char * );
 #endif
@@ -1061,6 +1049,7 @@ fe_attach ( struct isa_device *isa_dev )
 	/*
 	 * Initialize ifnet structure
 	 */
+	sc->sc_if.if_softc    = sc;
 	sc->sc_if.if_unit     = sc->sc_unit;
 	sc->sc_if.if_name     = "fe";
 	sc->sc_if.if_output   = ether_output;
@@ -1122,7 +1111,7 @@ fe_attach ( struct isa_device *isa_dev )
 	/* Attach and stop the interface.  */
 	if_attach( &sc->sc_if );
 	fe_stop( sc->sc_unit );		/* This changes the state to IDLE.  */
-	fe_setlinkaddr( sc );
+	ether_ifattach(&sc->sc_if);
 
 	/* Print additional info when attached.  */
 	printf( "fe%d: address %6D, type %s\n", sc->sc_unit,
@@ -1162,8 +1151,7 @@ fe_attach ( struct isa_device *isa_dev )
 
 #if NBPFILTER > 0
 	/* If BPF is in the kernel, call the attach for it.  */
-	bpfattach(&sc->bpf, &sc->sc_if, DLT_EN10MB,
-		  sizeof(struct ether_header));
+	bpfattach(&sc->sc_if, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	return 1;
 }
@@ -2100,6 +2088,7 @@ fe_ioctl ( struct ifnet *ifp, int command, caddr_t data )
 	    }
 #endif
 
+#ifdef notdef
 #ifdef SIOCSIFPHYSADDR
 	  case SIOCSIFPHYSADDR:
 	    {
@@ -2115,6 +2104,7 @@ fe_ioctl ( struct ifnet *ifp, int command, caddr_t data )
 		break;
 	    }
 #endif
+#endif /* notdef */
 
 #ifdef SIOCSIFFLAGS
 	  case SIOCSIFFLAGS:
@@ -2278,8 +2268,8 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 	 * Check if there's a BPF listener on this interface.
 	 * If it is, hand off the raw packet to bpf.
 	 */
-	if ( sc->bpf ) {
-		bpf_mtap( sc->bpf, m );
+	if ( sc->sc_if.if_bpf ) {
+		bpf_mtap( &sc->sc_if, m );
 	}
 #endif
 
@@ -2678,47 +2668,6 @@ fe_loadmar ( struct fe_softc * sc )
 #if FE_DEBUG >= 3
 	log( LOG_INFO, "fe%d: address filter changed\n", sc->sc_unit );
 #endif
-}
-
-/*
- * Copy the physical (Ethernet) address into the "data link" address
- * entry of the address list for an interface.
- * This is (said to be) useful for netstat(1) to keep track of which
- * interface is which.
- *
- * What I'm not sure on this function is, why this is a driver's function.
- * Probably this should be moved to somewhere independent to a specific
- * hardware, such as if_ehtersubr.c.  FIXME.
- */
-static void
-fe_setlinkaddr ( struct fe_softc * sc )
-{
-	struct ifaddr *ifa;
-	struct sockaddr_dl * sdl;
-
-	/*
-	 * Search down the ifa address list looking for the AF_LINK type entry.
-	 */
-	for ( ifa = sc->sc_if.if_addrlist; ifa != NULL; ifa = ifa->ifa_next ) {
-		if ( ifa->ifa_addr != NULL
-		  && ifa->ifa_addr->sa_family == AF_LINK ) {
-
-			/*
-			 * We have found an AF_LINK type entry.
-			 * Fill in the link-level address for this interface
-			 */
-			sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-			sdl->sdl_type = IFT_ETHER;
-			sdl->sdl_alen = ETHER_ADDR_LEN;
-			sdl->sdl_slen = 0;
-			bcopy(sc->sc_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-#if FE_DEBUG >= 3
-			log( LOG_INFO, "fe%d: link address set\n",
-				sc->sc_unit );
-#endif
-			return;
-		}
-	}
 }
 
 #if FE_DEBUG >= 1

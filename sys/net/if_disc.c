@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.9 1995/12/02 17:11:09 bde Exp $
+ *	$Id: if_disc.c,v 1.10 1995/12/03 19:08:55 bde Exp $
  */
 
 /*
@@ -106,7 +106,7 @@ discattach(dummy)
 	ifp->if_addrlen = 0;
 	if_attach(ifp);
 #if NBPFILTER > 0
-	bpfattach(&ifp->if_bpf, ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 #endif
 }
 
@@ -144,7 +144,7 @@ dsoutput(ifp, m, dst, rt)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		bpf_mtap(dsif.if_bpf, &m0);
+		bpf_mtap(&dsif, &m0);
 	}
 #endif
 	m->m_pkthdr.rcvif = ifp;

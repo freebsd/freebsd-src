@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.41 1996/01/23 21:47:00 se Exp $
+ * $Id: if_de.c,v 1.42 1996/01/26 09:29:26 phk Exp $
  *
  */
 
@@ -1083,7 +1083,7 @@ tulip_rx_intr(
 	    eh = *mtod(m, struct ether_header *);
 #if NBPFILTER > 0
 	    if (sc->tulip_bpf != NULL)
-		bpf_tap(sc->tulip_bpf, mtod(m, caddr_t), total_len);
+		bpf_tap(ifp, mtod(m, caddr_t), total_len);
 #endif
 	    if ((sc->tulip_if.if_flags & IFF_PROMISC)
 		    && (eh.ether_dhost[0] & 1) == 0
@@ -1223,7 +1223,7 @@ static ifnet_ret_t
 tulip_start(
     struct ifnet * const ifp)
 {
-    tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(ifp->if_unit);
+    tulip_softc_t * const sc = ifp->if_softc;
     struct ifqueue * const ifq = &ifp->if_snd;
     tulip_ringinfo_t * const ri = &sc->tulip_txinfo;
     struct mbuf *m, *m0, *next_m0;
@@ -1374,7 +1374,7 @@ tulip_start(
 	 */
 #if NBPFILTER > 0
 	if (sc->tulip_bpf != NULL)
-	    bpf_mtap(sc->tulip_bpf, m);
+	    bpf_mtap(ifp, m);
 #endif
 	IF_ENQUEUE(&sc->tulip_txq, m);
 
@@ -1869,7 +1869,7 @@ tulip_ioctl(
     ioctl_cmd_t cmd,
     caddr_t data)
 {
-    tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(ifp->if_unit);
+    tulip_softc_t * const sc = ifp->if_softc;
     struct ifaddr *ifa = (struct ifaddr *)data;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
@@ -1994,6 +1994,7 @@ tulip_attach(
 {
     struct ifnet * const ifp = &sc->tulip_if;
 
+    ifp->if_softc = sc;
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
     ifp->if_ioctl = tulip_ioctl;
     ifp->if_output = ether_output;
@@ -2018,12 +2019,10 @@ tulip_attach(
     tulip_reset(sc);
 
     if_attach(ifp);
-#if defined(__NetBSD__)
     ether_ifattach(ifp);
-#endif
 
 #if NBPFILTER > 0
-    bpfattach(&sc->tulip_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 }
 

@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.38 1996/01/26 09:27:22 phk Exp $
+ *  $Id: if_ep.c,v 1.39 1996/01/29 03:16:12 gibbs Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -449,6 +449,7 @@ epattach(is)
     GO_WINDOW(0);
     outw(BASE + EP_W0_RESOURCE_CFG, SET_IRQ(irq));
 
+    ifp->if_softc = sc;
     ifp->if_unit = is->id_unit;
     ifp->if_name = "ep";
     ifp->if_mtu = ETHERMTU;
@@ -459,6 +460,7 @@ epattach(is)
     ifp->if_watchdog = epwatchdog;
 
     if_attach(ifp);
+    ether_ifattach(ifp);
 
     /* device attach does transition from UNCONFIGURED to IDLE state */
     kdc_ep[is->id_unit].kdc_state=DC_IDLE;
@@ -506,7 +508,7 @@ epattach(is)
     sc->top = sc->mcur = 0;
 
 #if NBPFILTER > 0
-    bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
     return 1;
 }
@@ -680,7 +682,7 @@ static void
 epstart(ifp)
     struct ifnet *ifp;
 {
-    register struct ep_softc *sc = &ep_softc[ifp->if_unit];
+    register struct ep_softc *sc = ifp->if_softc;
     register u_int len;
     register struct mbuf *m;
     struct mbuf *top;
@@ -759,8 +761,8 @@ startagain:
 	outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
 #if NBPFILTER > 0
-    if (sc->bpf) {
-	bpf_mtap(sc->bpf, top);
+    if (sc->arpcom.ac_if.if_bpf) {
+	bpf_mtap(&sc->arpcom.ac_if, top);
     }
 #endif
 
@@ -1083,8 +1085,8 @@ all_pkt:
     top->m_pkthdr.len = sc->cur_len;
 
 #if NBPFILTER > 0
-    if (sc->bpf) {
-	bpf_mtap(sc->bpf, top);
+    if (sc->arpcom.ac_if.if_bpf) {
+	bpf_mtap(&sc->arpcom.ac_if, top);
 
 	/*
 	 * Note that the interface cannot be in promiscuous mode if there are
@@ -1153,7 +1155,7 @@ epioctl(ifp, cmd, data)
     caddr_t data;
 {
     register struct ifaddr *ifa = (struct ifaddr *) data;
-    struct ep_softc *sc = &ep_softc[ifp->if_unit];
+    struct ep_softc *sc = ifp->if_softc;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 

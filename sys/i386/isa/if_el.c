@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.21 1995/12/15 00:54:10 bde Exp $
+ * $Id: if_el.c,v 1.22 1996/01/26 09:27:19 phk Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -80,7 +80,6 @@
 static struct el_softc {
 	struct arpcom arpcom;	/* Ethernet common */
 	u_short el_base;	/* Base I/O addr */
-	caddr_t bpf;		/* BPF magic cookie */
 	char el_pktbuf[EL_BUFSIZ]; 	/* Frame buffer */
 } el_softc[NEL];
 
@@ -208,6 +207,7 @@ el_attach(struct isa_device *idev)
 	el_hardreset(idev->id_unit);
 
 	/* Initialize ifnet structure */
+	ifp->if_softc = sc;
 	ifp->if_unit = idev->id_unit;
 	ifp->if_name = "el";
 	ifp->if_mtu = ETHERMTU;
@@ -220,6 +220,7 @@ el_attach(struct isa_device *idev)
 	/* Now we can attach the interface */
 	dprintf(("Attaching interface...\n"));
 	if_attach(ifp);
+	ether_ifattach(ifp);
 	kdc_el[idev->id_unit].kdc_state = DC_BUSY;
 
 	/* Put the station address in the ifa address list's AF_LINK
@@ -244,7 +245,7 @@ el_attach(struct isa_device *idev)
 	/* Finally, attach to bpf filter if it is present. */
 #if NBPFILTER > 0
 	dprintf(("Attaching to BPF...\n"));
-	bpfattach(&sc->bpf,ifp,DLT_EN10MB,sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
 	dprintf(("el_attach() finished.\n"));
@@ -357,7 +358,7 @@ el_start(struct ifnet *ifp)
 	int s, i, len, retries, done;
 
 	/* Get things pointing in the right directions */
-	sc = &el_softc[ifp->if_unit];
+	sc = ifp->if_softc;
 	base = sc->el_base;
 
 	dprintf(("el_start()...\n"));
@@ -400,8 +401,8 @@ el_start(struct ifnet *ifp)
 
 		/* Give the packet to the bpf, if any */
 #if NBPFILTER > 0
-		if(sc->bpf)
-			bpf_tap(sc->bpf,sc->el_pktbuf,len);
+		if(sc->arpcom.ac_if.if_bpf)
+			bpf_tap(&sc->arpcom.ac_if, sc->el_pktbuf, len);
 #endif
 
 		/* Transfer datagram to board */
@@ -588,8 +589,9 @@ static inline void elread(struct el_softc *sc,caddr_t buf,int len)
 	 * Check if there's a bpf filter listening on this interface.
 	 * If so, hand off the raw packet to bpf.
 	 */
-	if(sc->bpf) {
-		bpf_tap(sc->bpf,buf,len+sizeof(struct ether_header));
+	if(sc->arpcom.ac_if.if_bpf) {
+		bpf_tap(&sc->arpcom.ac_if, buf, 
+			len + sizeof(struct ether_header));
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if
@@ -699,7 +701,7 @@ el_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
-	struct el_softc *sc = &el_softc[ifp->if_unit];
+	struct el_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
 
@@ -825,7 +827,7 @@ el_ioctl(ifp, command, data)
 static void
 el_watchdog(struct ifnet *ifp)
 {
-	log(LOG_ERR,"el%d: device timeout\n",ifp->if_unit);
+	log(LOG_ERR,"el%d: device timeout\n", ifp->if_unit);
 	ifp->if_oerrors++;
 	el_reset(ifp->if_unit);
 }

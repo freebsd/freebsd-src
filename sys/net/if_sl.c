@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.34 1995/11/05 20:25:55 bde Exp $
+ * $Id: if_sl.c,v 1.35 1995/12/14 09:53:14 phk Exp $
  */
 
 /*
@@ -228,7 +228,7 @@ slattach(dummy)
 		sc->sc_fastq.ifq_maxlen = 32;
 		if_attach(&sc->sc_if);
 #if NBPFILTER > 0
-		bpfattach(&sc->sc_bpf, &sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
+		bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
 #endif
 	}
 }
@@ -541,7 +541,7 @@ slstart(tp)
 		 * munged when this happens.
 		 */
 #if NBPFILTER > 0
-		if (sc->sc_bpf) {
+		if (sc->sc_if.if_bpf) {
 			/*
 			 * We need to save the TCP/IP header before it's
 			 * compressed.  To avoid complicated code, we just
@@ -569,7 +569,7 @@ slstart(tp)
 				    &sc->sc_comp, 1);
 		}
 #if NBPFILTER > 0
-		if (sc->sc_bpf) {
+		if (sc->sc_if.if_bpf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.  The
 			 * compressed header is now at the beginning of the
@@ -577,7 +577,7 @@ slstart(tp)
 			 */
 			bpfbuf[SLX_DIR] = SLIPDIR_OUT;
 			bcopy(mtod(m, caddr_t), &bpfbuf[SLX_CHDR], CHDR_LEN);
-			bpf_tap(sc->sc_bpf, bpfbuf, len + SLIP_HDRLEN);
+			bpf_tap(&sc->sc_if, bpfbuf, len + SLIP_HDRLEN);
 		}
 #endif
 		sc->sc_if.if_lastchange = time;
@@ -802,7 +802,7 @@ slinput(c, tp)
 			goto newpack;
 
 #if NBPFILTER > 0
-		if (sc->sc_bpf) {
+		if (sc->sc_if.if_bpf) {
 			/*
 			 * Save the compressed header, so we
 			 * can tack it on later.  Note that we
@@ -843,7 +843,7 @@ slinput(c, tp)
 				goto error;
 		}
 #if NBPFILTER > 0
-		if (sc->sc_bpf) {
+		if (sc->sc_if.if_bpf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.
 			 * We couldn't do this any earlier since
@@ -854,7 +854,7 @@ slinput(c, tp)
 
 			hp[SLX_DIR] = SLIPDIR_IN;
 			bcopy(chdr, &hp[SLX_CHDR], CHDR_LEN);
-			bpf_tap(sc->sc_bpf, hp, len + SLIP_HDRLEN);
+			bpf_tap(&sc->sc_if, hp, len + SLIP_HDRLEN);
 		}
 #endif
 		m = sl_btom(sc, len);
