@@ -175,6 +175,7 @@ static struct fd_type *fd_native_types[] = {
 	fd_searchlist_12m, 		/* FDT_12M */
 	fd_searchlist_720k, 		/* FDT_720K */
 	fd_searchlist_144m, 		/* FDT_144M */
+	fd_searchlist_288m,		/* FDT_288M_1 (mapped to FDT_288M) */
 	fd_searchlist_288m, 		/* FDT_288M */
 };
 
