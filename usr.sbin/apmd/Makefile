@@ -9,7 +9,7 @@ LDADD=	-ll
 MAN=	apmd.8
 
 YFLAGS+=-v
-CFLAGS+=-I. -I${.CURDIR} -Wall #-DYY_STACK_USED
+CFLAGS+=-I. -I${.CURDIR} #-DYY_STACK_USED
 # for debug:
 #CFLAGS+= -g -DDEBUG
 

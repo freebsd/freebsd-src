@@ -11,6 +11,5 @@
 #
 
 PROG=	fdwrite
-CFLAGS+=-Wall
 
 .include <bsd.prog.mk>

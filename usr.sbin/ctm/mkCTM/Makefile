@@ -1,9 +1,9 @@
+# $FreeBSD$
 
 PROG=	mkctm
 SRCS=	mkctm.c
 LDADD= -lmd
 NOMAN=	1
-CFLAGS= -g -Wall
 
 test:	mkctm
 	rm -f tst.out*

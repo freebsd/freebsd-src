@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 CFLAGS+=-DINET6
-CWARNFLAGS=	-Wall -Wnested-externs -Wmissing-prototypes -Wno-unused -Wredundant-decls -Wstrict-prototypes
+CWARNFLAGS=	${BDECFLAGS}
 
 .if exists(${.OBJDIR}/../common_source)
 LIBLPR=	${.OBJDIR}/../common_source/liblpr.a
