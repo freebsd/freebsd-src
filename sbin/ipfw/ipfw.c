@@ -1412,9 +1412,10 @@ add(ac,av)
 		if (!ac)
 			show_usage("``logamount'' requires argument");
 		rule.fw_logamount = atoi(*av);
-		if (rule.fw_logamount <= 0)
-			show_usage("``logamount'' argument must be greater "
-			    "than 0");
+		if (rule.fw_logamount < 0)
+			show_usage("``logamount'' argument must be positive");
+		if (rule.fw_logamount == 0)
+			rule.fw_logamount = -1;
 		ac--; av++;
 	}
 
@@ -1685,7 +1686,8 @@ badviacombo:
 			    &rule.fw_logamount, &len, NULL, 0) == -1)
 				errx(1, "sysctlbyname(\"%s\")",
 				    "net.inet.ip.fw.verbose_limit");
-		}
+		} else if (rule.fw_logamount == -1)
+			rule.fw_logamount = 0;
 		rule.fw_loghighest = rule.fw_logamount;
 	}
 done:
