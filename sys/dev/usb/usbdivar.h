@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdivar.h,v 1.57 2000/06/01 14:29:03 augustss Exp $	*/
+/*	$NetBSD: usbdivar.h,v 1.58 2000/06/24 04:12:53 thorpej Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -243,7 +243,10 @@ void		usb_disconnect_port(struct usbd_port *up, device_ptr_t);
 void		usb_needs_explore(usbd_bus_handle);
 void		usb_schedsoftintr(struct usbd_bus *);
 
-#ifdef DIAGNOSTIC
+/*
+ * XXX This check is extremely bogus. Bad Bad Bad.
+ */
+#if defined(DIAGNOSTIC) && 0
 #define SPLUSBCHECK \
 	do { int _s = splusb(), _su = splusb(); \
              if (!cold && _s != _su) printf("SPLUSBCHECK failed 0x%x!=0x%x, %s:%d\n", \
