@@ -26,6 +26,7 @@
  * SUCH DAMAGE.
  *
  *	from BSDI $Id: mutex_witness.c,v 1.1.2.20 2000/04/27 03:10:27 cp Exp $
+ *	and BSDI $Id: synch_machdep.c,v 2.3.2.39 2000/04/27 03:10:25 cp Exp $
  * $FreeBSD$
  */
 
@@ -50,20 +51,604 @@
  */
 
 #include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/vmmeter.h>
 #include <sys/ktr.h>
 
+#include <machine/atomic.h>
+#include <machine/bus.h>
+#include <machine/clock.h>
 #include <machine/cpu.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+
 #define _KERN_MUTEX_C_		/* Cause non-inlined mtx_*() to be compiled. */
-#include <machine/mutex.h>
+#include <sys/mutex.h>
+
+/*
+ * Machine independent bits of the mutex implementation
+ */
+/* All mutexes in system (used for debug/panic) */
+#ifdef MUTEX_DEBUG
+static struct mtx_debug all_mtx_debug = { NULL, {NULL, NULL}, NULL, 0,
+	"All mutexes queue head" };
+static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, &all_mtx_debug,
+	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
+	{ NULL, NULL }, &all_mtx, &all_mtx };
+#else	/* MUTEX_DEBUG */
+static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
+	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
+	{ NULL, NULL }, &all_mtx, &all_mtx };
+#endif	/* MUTEX_DEBUG */
+
+static int	mtx_cur_cnt;
+static int	mtx_max_cnt;
+
+void	_mtx_enter_giant_def(void);
+void	_mtx_exit_giant_def(void);
+static void propagate_priority(struct proc *) __unused;
+
+#define	mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
+#define	mtx_owner(m)	(mtx_unowned(m) ? NULL \
+			    : (struct proc *)((m)->mtx_lock & MTX_FLAGMASK))
+
+#define RETIP(x)		*(((uintptr_t *)(&x)) - 1)
+#define	SET_PRIO(p, pri)	(p)->p_priority = (pri)
+
+/*
+ * XXX Temporary, for use from assembly language
+ */
+
+void
+_mtx_enter_giant_def(void)
+{
+
+	mtx_enter(&Giant, MTX_DEF);
+}
+
+void
+_mtx_exit_giant_def(void)
+{
+
+	mtx_exit(&Giant, MTX_DEF);
+}
+
+static void
+propagate_priority(struct proc *p)
+{
+	int pri = p->p_priority;
+	struct mtx *m = p->p_blocked;
+
+	for (;;) {
+		struct proc *p1;
+
+		p = mtx_owner(m);
+
+		if (p == NULL) {
+			/*
+			 * This really isn't quite right. Really
+			 * ought to bump priority of process that
+			 * next acquires the mutex.
+			 */
+			MPASS(m->mtx_lock == MTX_CONTESTED);
+			return;
+		}
+		MPASS(p->p_magic == P_MAGIC);
+		if (p->p_priority <= pri)
+			return;
+		/*
+		 * If lock holder is actually running, just bump priority.
+		 */
+		if (TAILQ_NEXT(p, p_procq) == NULL) {
+			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB);
+			SET_PRIO(p, pri);
+			return;
+		}
+		/*
+		 * If on run queue move to new run queue, and
+		 * quit.
+		 */
+		if (p->p_stat == SRUN) {
+			MPASS(p->p_blocked == NULL);
+			remrunqueue(p);
+			SET_PRIO(p, pri);
+			setrunqueue(p);
+			return;
+		}
+
+		/*
+		 * If we aren't blocked on a mutex, give up and quit.
+		 */
+		if (p->p_stat != SMTX) {
+			printf(
+	"XXX: process %d(%s):%d holds %s but isn't blocked on a mutex\n",
+			    p->p_pid, p->p_comm, p->p_stat, m->mtx_description);
+			return;
+		}
+
+		/*
+		 * Pick up the mutex that p is blocked on.
+		 */
+		m = p->p_blocked;
+		MPASS(m != NULL);
+
+		printf("XXX: process %d(%s) is blocked on %s\n", p->p_pid,
+		    p->p_comm, m->mtx_description);
+		/*
+		 * Check if the proc needs to be moved up on
+		 * the blocked chain
+		 */
+		if ((p1 = TAILQ_PREV(p, rq, p_procq)) == NULL ||
+		    p1->p_priority <= pri) {
+			if (p1)
+				printf(
+	"XXX: previous process %d(%s) has higher priority\n",
+				    p->p_pid, p->p_comm);
+			else
+				printf("XXX: process at head of run queue\n");
+			continue;
+		}
+
+		/*
+		 * Remove proc from blocked chain
+		 */
+		TAILQ_REMOVE(&m->mtx_blocked, p, p_procq);
+		TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq) {
+			MPASS(p1->p_magic == P_MAGIC);
+			if (p1->p_priority > pri)
+				break;
+		}
+		if (p1)
+			TAILQ_INSERT_BEFORE(p1, p, p_procq);
+		else
+			TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
+		CTR4(KTR_LOCK,
+		    "propagate priority: p 0x%p moved before 0x%p on [0x%p] %s",
+		    p, p1, m, m->mtx_description);
+	}
+}
+
+void
+mtx_enter_hard(struct mtx *m, int type, int saveintr)
+{
+	struct proc *p = CURPROC;
+	struct timeval new_switchtime;
+
+	KASSERT(p != NULL, ("curproc is NULL in mutex"));
+
+	switch (type) {
+	case MTX_DEF:
+		if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)p) {
+			m->mtx_recurse++;
+			atomic_set_ptr(&m->mtx_lock, MTX_RECURSE);
+			CTR1(KTR_LOCK, "mtx_enter: 0x%p recurse", m);
+			return;
+		}
+		CTR3(KTR_LOCK, "mtx_enter: 0x%p contested (lock=%p) [0x%p]",
+		    m, m->mtx_lock, RETIP(m));
+		while (!_obtain_lock(m, p)) {
+			int v;
+			struct proc *p1;
+
+			mtx_enter(&sched_lock, MTX_SPIN | MTX_RLIKELY);
+			/*
+			 * check if the lock has been released while
+			 * waiting for the schedlock.
+			 */
+			if ((v = m->mtx_lock) == MTX_UNOWNED) {
+				mtx_exit(&sched_lock, MTX_SPIN);
+				continue;
+			}
+			/*
+			 * The mutex was marked contested on release. This
+			 * means that there are processes blocked on it.
+			 */
+			if (v == MTX_CONTESTED) {
+				p1 = TAILQ_FIRST(&m->mtx_blocked);
+				KASSERT(p1 != NULL, ("contested mutex has no contesters"));
+				KASSERT(p != NULL, ("curproc is NULL for contested mutex"));
+				m->mtx_lock = (uintptr_t)p | MTX_CONTESTED;
+				if (p1->p_priority < p->p_priority) {
+					SET_PRIO(p, p1->p_priority);
+				}
+				mtx_exit(&sched_lock, MTX_SPIN);
+				return;
+			}
+			/*
+			 * If the mutex isn't already contested and
+			 * a failure occurs setting the contested bit the
+			 * mutex was either release or the
+			 * state of the RECURSION bit changed.
+			 */
+			if ((v & MTX_CONTESTED) == 0 &&
+			    !atomic_cmpset_ptr(&m->mtx_lock, (void *)v,
+				               (void *)(v | MTX_CONTESTED))) {
+				mtx_exit(&sched_lock, MTX_SPIN);
+				continue;
+			}
+
+			/* We definitely have to sleep for this lock */
+			mtx_assert(m, MA_NOTOWNED);
+
+#ifdef notyet
+			/*
+			 * If we're borrowing an interrupted thread's VM
+			 * context must clean up before going to sleep.
+			 */
+			if (p->p_flag & (P_ITHD | P_SITHD)) {
+				ithd_t *it = (ithd_t *)p;
+
+				if (it->it_interrupted) {
+					CTR2(KTR_LOCK,
+					    "mtx_enter: 0x%x interrupted 0x%x",
+					    it, it->it_interrupted);
+					intr_thd_fixup(it);
+				}
+			}
+#endif
+
+			/* Put us on the list of procs blocked on this mutex */
+			if (TAILQ_EMPTY(&m->mtx_blocked)) {
+				p1 = (struct proc *)(m->mtx_lock &
+						     MTX_FLAGMASK);
+				LIST_INSERT_HEAD(&p1->p_contested, m,
+						 mtx_contested);
+				TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
+			} else {
+				TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq)
+					if (p1->p_priority > p->p_priority)
+						break;
+				if (p1)
+					TAILQ_INSERT_BEFORE(p1, p, p_procq);
+				else
+					TAILQ_INSERT_TAIL(&m->mtx_blocked, p,
+							  p_procq);
+			}
+
+			p->p_blocked = m;	/* Who we're blocked on */
+			p->p_stat = SMTX;
+#if 0
+			propagate_priority(p);
+#endif
+			CTR3(KTR_LOCK, "mtx_enter: p 0x%p blocked on [0x%p] %s",
+			    p, m, m->mtx_description);
+			/*
+			 * Blatantly copied from mi_switch nearly verbatim.
+			 * When Giant goes away and we stop dinking with it
+			 * in mi_switch, we can go back to calling mi_switch
+			 * directly here.
+			 */
+	
+			/*
+			 * Compute the amount of time during which the current
+			 * process was running, and add that to its total so
+			 * far.
+			 */
+			microuptime(&new_switchtime);
+			if (timevalcmp(&new_switchtime, &switchtime, <)) {
+				printf(
+		    "microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
+		    		    switchtime.tv_sec, switchtime.tv_usec,
+		    		    new_switchtime.tv_sec,
+		    		    new_switchtime.tv_usec);
+				new_switchtime = switchtime;
+			} else {
+				p->p_runtime += (new_switchtime.tv_usec -
+				    switchtime.tv_usec) +
+				    (new_switchtime.tv_sec - switchtime.tv_sec) *
+				    (int64_t)1000000;
+			}
+
+			/*
+			 * Pick a new current process and record its start time.
+			 */
+			cnt.v_swtch++;
+			switchtime = new_switchtime;
+			cpu_switch();
+			if (switchtime.tv_sec == 0)
+				microuptime(&switchtime);
+			switchticks = ticks;
+			CTR3(KTR_LOCK,
+			    "mtx_enter: p 0x%p free from blocked on [0x%p] %s",
+			    p, m, m->mtx_description);
+			mtx_exit(&sched_lock, MTX_SPIN);
+		}
+		return;
+	case MTX_SPIN:
+	case MTX_SPIN | MTX_FIRST:
+	case MTX_SPIN | MTX_TOPHALF:
+	    {
+		int i = 0;
+
+		if (m->mtx_lock == (uintptr_t)p) {
+			m->mtx_recurse++;
+			return;
+		}
+		CTR1(KTR_LOCK, "mtx_enter: %p spinning", m);
+		for (;;) {
+			if (_obtain_lock(m, p))
+				break;
+			while (m->mtx_lock != MTX_UNOWNED) {
+				if (i++ < 1000000)
+					continue;
+				if (i++ < 6000000)
+					DELAY (1);
+#ifdef DDB
+				else if (!db_active)
+#else
+				else
+#endif
+					panic(
+				"spin lock %s held by 0x%p for > 5 seconds",
+					    m->mtx_description,
+					    (void *)m->mtx_lock);
+			}
+		}
+			
+#ifdef MUTEX_DEBUG
+		if (type != MTX_SPIN)
+			m->mtx_saveintr = 0xbeefface;
+		else
+#endif
+			m->mtx_saveintr = saveintr;
+		CTR1(KTR_LOCK, "mtx_enter: 0x%p spin done", m);
+		return;
+	    }
+	}
+}
+
+void
+mtx_exit_hard(struct mtx *m, int type)
+{
+	struct proc *p, *p1;
+	struct mtx *m1;
+	int pri;
+
+	p = CURPROC;
+	switch (type) {
+	case MTX_DEF:
+	case MTX_DEF | MTX_NOSWITCH:
+		if (m->mtx_recurse != 0) {
+			if (--(m->mtx_recurse) == 0)
+				atomic_clear_ptr(&m->mtx_lock, MTX_RECURSE);
+			CTR1(KTR_LOCK, "mtx_exit: 0x%p unrecurse", m);
+			return;
+		}
+		mtx_enter(&sched_lock, MTX_SPIN);
+		CTR1(KTR_LOCK, "mtx_exit: 0x%p contested", m);
+		p1 = TAILQ_FIRST(&m->mtx_blocked);
+		MPASS(p->p_magic == P_MAGIC);
+		MPASS(p1->p_magic == P_MAGIC);
+		TAILQ_REMOVE(&m->mtx_blocked, p1, p_procq);
+		if (TAILQ_EMPTY(&m->mtx_blocked)) {
+			LIST_REMOVE(m, mtx_contested);
+			_release_lock_quick(m);
+			CTR1(KTR_LOCK, "mtx_exit: 0x%p not held", m);
+		} else
+			m->mtx_lock = MTX_CONTESTED;
+		pri = MAXPRI;
+		LIST_FOREACH(m1, &p->p_contested, mtx_contested) {
+			int cp = TAILQ_FIRST(&m1->mtx_blocked)->p_priority;
+			if (cp < pri)
+				pri = cp;
+		}
+		if (pri > p->p_nativepri)
+			pri = p->p_nativepri;
+		SET_PRIO(p, pri);
+		CTR2(KTR_LOCK, "mtx_exit: 0x%p contested setrunqueue 0x%p",
+		    m, p1);
+		p1->p_blocked = NULL;
+		p1->p_stat = SRUN;
+		setrunqueue(p1);
+		if ((type & MTX_NOSWITCH) == 0 && p1->p_priority < pri) {
+#ifdef notyet
+			if (p->p_flag & (P_ITHD | P_SITHD)) {
+				ithd_t *it = (ithd_t *)p;
+
+				if (it->it_interrupted) {
+					CTR2(KTR_LOCK,
+					    "mtx_exit: 0x%x interruped 0x%x",
+					    it, it->it_interrupted);
+					intr_thd_fixup(it);
+				}
+			}
+#endif
+			setrunqueue(p);
+			CTR2(KTR_LOCK, "mtx_exit: 0x%p switching out lock=0x%p",
+			    m, m->mtx_lock);
+			mi_switch();
+			CTR2(KTR_LOCK, "mtx_exit: 0x%p resuming lock=0x%p",
+			    m, m->mtx_lock);
+		}
+		mtx_exit(&sched_lock, MTX_SPIN);
+		break;
+	case MTX_SPIN:
+	case MTX_SPIN | MTX_FIRST:
+		if (m->mtx_recurse != 0) {
+			m->mtx_recurse--;
+			return;
+		}
+		MPASS(mtx_owned(m));
+		_release_lock_quick(m);
+		if (type & MTX_FIRST)
+			enable_intr();	/* XXX is this kosher? */
+		else {
+			MPASS(m->mtx_saveintr != 0xbeefface);
+			restore_intr(m->mtx_saveintr);
+		}
+		break;
+	case MTX_SPIN | MTX_TOPHALF:
+		if (m->mtx_recurse != 0) {
+			m->mtx_recurse--;
+			return;
+		}
+		MPASS(mtx_owned(m));
+		_release_lock_quick(m);
+		break;
+	default:
+		panic("mtx_exit_hard: unsupported type 0x%x\n", type);
+	}
+}
+
+#define MV_DESTROY	0	/* validate before destory */
+#define MV_INIT		1	/* validate before init */
+
+#ifdef MUTEX_DEBUG
+
+int mtx_validate __P((struct mtx *, int));
+
+int
+mtx_validate(struct mtx *m, int when)
+{
+	struct mtx *mp;
+	int i;
+	int retval = 0;
+
+	if (m == &all_mtx || cold)
+		return 0;
+
+	mtx_enter(&all_mtx, MTX_DEF);
+/*
+ * XXX - When kernacc() is fixed on the alpha to handle K0_SEG memory properly
+ * we can re-enable the kernacc() checks.
+ */
+#ifndef __alpha__
+	MPASS(kernacc((caddr_t)all_mtx.mtx_next, sizeof(uintptr_t),
+	    VM_PROT_READ) == 1);
+#endif
+	MPASS(all_mtx.mtx_next->mtx_prev == &all_mtx);
+	for (i = 0, mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next) {
+#ifndef __alpha__
+		if (kernacc((caddr_t)mp->mtx_next, sizeof(uintptr_t),
+		    VM_PROT_READ) != 1) {
+			panic("mtx_validate: mp=%p mp->mtx_next=%p",
+			    mp, mp->mtx_next);
+		}
+#endif
+		i++;
+		if (i > mtx_cur_cnt) {
+			panic("mtx_validate: too many in chain, known=%d\n",
+			    mtx_cur_cnt);
+		}
+	}
+	MPASS(i == mtx_cur_cnt); 
+	switch (when) {
+	case MV_DESTROY:
+		for (mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next)
+			if (mp == m)
+				break;
+		MPASS(mp == m);
+		break;
+	case MV_INIT:
+		for (mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next)
+		if (mp == m) {
+			/*
+			 * Not good. This mutex already exists.
+			 */
+			printf("re-initing existing mutex %s\n",
+			    m->mtx_description);
+			MPASS(m->mtx_lock == MTX_UNOWNED);
+			retval = 1;
+		}
+	}
+	mtx_exit(&all_mtx, MTX_DEF);
+	return (retval);
+}
+#endif
+
+void
+mtx_init(struct mtx *m, const char *t, int flag)
+{
+#ifdef MUTEX_DEBUG
+	struct mtx_debug *debug;
+#endif
+
+	CTR2(KTR_LOCK, "mtx_init 0x%p (%s)", m, t);
+#ifdef MUTEX_DEBUG
+	if (mtx_validate(m, MV_INIT))	/* diagnostic and error correction */
+		return;
+	if (flag & MTX_COLD)
+		debug = m->mtx_debug;
+	else
+		debug = NULL;
+	if (debug == NULL) {
+#ifdef DIAGNOSTIC
+		if(cold && bootverbose)
+			printf("malloc'ing mtx_debug while cold for %s\n", t);
+#endif
+
+		/* XXX - should not use DEVBUF */
+		debug = malloc(sizeof(struct mtx_debug), M_DEVBUF, M_NOWAIT);
+		MPASS(debug != NULL);
+		bzero(debug, sizeof(struct mtx_debug));
+	}
+#endif
+	bzero((void *)m, sizeof *m);
+	TAILQ_INIT(&m->mtx_blocked);
+#ifdef MUTEX_DEBUG
+	m->mtx_debug = debug;
+#endif
+	m->mtx_description = t;
+	m->mtx_lock = MTX_UNOWNED;
+	/* Put on all mutex queue */
+	mtx_enter(&all_mtx, MTX_DEF);
+	m->mtx_next = &all_mtx;
+	m->mtx_prev = all_mtx.mtx_prev;
+	m->mtx_prev->mtx_next = m;
+	all_mtx.mtx_prev = m;
+	if (++mtx_cur_cnt > mtx_max_cnt)
+		mtx_max_cnt = mtx_cur_cnt;
+	mtx_exit(&all_mtx, MTX_DEF);
+	witness_init(m, flag);
+}
+
+void
+mtx_destroy(struct mtx *m)
+{
+
+	CTR2(KTR_LOCK, "mtx_destroy 0x%p (%s)", m, m->mtx_description);
+#ifdef MUTEX_DEBUG
+	if (m->mtx_next == NULL)
+		panic("mtx_destroy: %p (%s) already destroyed",
+		    m, m->mtx_description);
+
+	if (!mtx_owned(m)) {
+		MPASS(m->mtx_lock == MTX_UNOWNED);
+	} else {
+		MPASS((m->mtx_lock & (MTX_RECURSE|MTX_CONTESTED)) == 0);
+	}
+	mtx_validate(m, MV_DESTROY);		/* diagnostic */
+#endif
+
+#ifdef WITNESS
+	if (m->mtx_witness)
+		witness_destroy(m);
+#endif /* WITNESS */
+
+	/* Remove from the all mutex queue */
+	mtx_enter(&all_mtx, MTX_DEF);
+	m->mtx_next->mtx_prev = m->mtx_prev;
+	m->mtx_prev->mtx_next = m->mtx_next;
+#ifdef MUTEX_DEBUG
+	m->mtx_next = m->mtx_prev = NULL;
+	free(m->mtx_debug, M_DEVBUF);
+	m->mtx_debug = NULL;
+#endif
+	mtx_cur_cnt--;
+	mtx_exit(&all_mtx, MTX_DEF);
+}
 
 /*
  * The non-inlined versions of the mtx_*() functions are always built (above),
- * but the witness code depends on the SMP_DEBUG and WITNESS kernel options
+ * but the witness code depends on the MUTEX_DEBUG and WITNESS kernel options
  * being specified.
  */
-#if (defined(SMP_DEBUG) && defined(WITNESS))
+#if (defined(MUTEX_DEBUG) && defined(WITNESS))
 
 #define WITNESS_COUNT 200
 #define	WITNESS_NCHILDREN 2
@@ -306,7 +891,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	}
 	for (i = 0; m1 != NULL; m1 = LIST_NEXT(m1, mtx_held), i++) {
 
-		ASS(i < 200);
+		MPASS(i < 200);
 		w1 = m1->mtx_witness;
 		if (isitmydescendant(w, w1)) {
 			mtx_exit(&w_mtx, MTX_SPIN);
@@ -355,7 +940,7 @@ out:
 	 * is acquired in hardclock. Put it in the ignore list. It is
 	 * likely not the mutex this assert fails on.
 	 */
-	ASS(m->mtx_held.le_prev == NULL);
+	MPASS(m->mtx_held.le_prev == NULL);
 	LIST_INSERT_HEAD(&p->p_heldmtx, (struct mtx*)m, mtx_held);
 }
 
@@ -422,7 +1007,7 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 	m->mtx_line = line;
 	m->mtx_file = file;
 	p = CURPROC;
-	ASS(m->mtx_held.le_prev == NULL);
+	MPASS(m->mtx_held.le_prev == NULL);
 	LIST_INSERT_HEAD(&p->p_heldmtx, (struct mtx*)m, mtx_held);
 }
 
@@ -564,7 +1149,7 @@ itismychild(struct witness *parent, struct witness *child)
 			return (1);
 		parent = parent->w_morechildren;
 	}
-	ASS(child != NULL);
+	MPASS(child != NULL);
 	parent->w_children[parent->w_childcnt++] = child;
 	/*
 	 * now prune whole tree
@@ -603,7 +1188,7 @@ found:
 	for (w1 = w; w1->w_morechildren != NULL; w1 = w1->w_morechildren)
 		continue;
 	w->w_children[i] = w1->w_children[--w1->w_childcnt];
-	ASS(w->w_children[i] != NULL);
+	MPASS(w->w_children[i] != NULL);
 
 	if (w1->w_childcnt != 0)
 		return;
@@ -639,7 +1224,7 @@ isitmydescendant(struct witness *parent, struct witness *child)
 	int j;
 
 	for (j = 0, w = parent; w != NULL; w = w->w_morechildren, j++) {
-		ASS(j < 1000);
+		MPASS(j < 1000);
 		for (i = 0; i < w->w_childcnt; i++) {
 			if (w->w_children[i] == child)
 				return (1);
@@ -795,4 +1380,4 @@ witness_restore(struct mtx *m, const char *file, int line)
 	m->mtx_witness->w_line = line;
 }
 
-#endif	/* (defined(SMP_DEBUG) && defined(WITNESS)) */
+#endif	/* (defined(MUTEX_DEBUG) && defined(WITNESS)) */
