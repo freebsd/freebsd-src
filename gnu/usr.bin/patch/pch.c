@@ -1,6 +1,16 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.11 1998/01/03 23:42:56 ache Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.14 1998/01/21 15:10:14 ache Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.14  1998/01/21 15:10:14  ache
+ * Add -I or --index-first option to take Index: precedence over context diff,
+ * as it was in hacked FreeBSD version
+ *
+ * Revision 1.13  1998/01/21 14:37:23  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
+ * Revision 1.8.2.2  1998/01/03 23:52:05  ache
+ * MFC: ctype and Index over +++/--- precedence
+ *
  * Revision 1.11  1998/01/03 23:42:56  ache
  * Back out Index over +++/--- precedence.
  * It maybe right, if patch was FreeBSD-own program, but it break compatibility
@@ -26,6 +36,16 @@
  *
  * Revision 1.8  1996/04/12 11:37:32  markm
  * Attempt to break a $Log: pch.c,v $
+ * Attempt to break a Revision 1.14  1998/01/21 15:10:14  ache
+ * Attempt to break a Add -I or --index-first option to take Index: precedence over context diff,
+ * Attempt to break a as it was in hacked FreeBSD version
+ * Attempt to break a
+ * Attempt to break a Revision 1.13  1998/01/21 14:37:23  ache
+ * Attempt to break a Resurrect patch 2.1 without FreeBSD Index: hack
+ * Attempt to break a
+ * Attempt to break a Revision 1.8.2.2  1998/01/03 23:52:05  ache
+ * Attempt to break a MFC: ctype and Index over +++/--- precedence
+ * Attempt to break a
  * Attempt to break a Revision 1.11  1998/01/03 23:42:56  ache
  * Attempt to break a Back out Index over +++/--- precedence.
  * Attempt to break a It maybe right, if patch was FreeBSD-own program, but it break compatibility
@@ -316,6 +336,7 @@ intuit_diff_type()
     char *newname = Nullch;
     Reg11 int retval;
     bool no_filearg = (filearg[0] == Nullch);
+    extern int index_first;
 
     ok_to_create_file = FALSE;
     Fseek(pfp, p_base, 0);
@@ -425,7 +446,9 @@ intuit_diff_type()
 	    oldname = fetchname(oldtmp, strippath, ok_to_create_file);
 	if (newtmp != Nullch)
 	    newname = fetchname(newtmp, strippath, ok_to_create_file);
-	if (oldname && newname) {
+	if (index_first && indname)
+	    filearg[0] = savestr(indname);
+	else if (oldname && newname) {
 	    if (strlen(oldname) < strlen(newname))
 		filearg[0] = savestr(oldname);
 	    else
