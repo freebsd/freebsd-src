@@ -208,10 +208,12 @@ structure: pnpinfo
 \ Global variables
 
 string conf_files
+string nextboot_conf_file
 string password
 create module_options sizeof module.next allot 0 module_options !
 create last_module_option sizeof module.next allot 0 last_module_option !
 0 value verbose?
+0 value nextboot?
 
 \ Support string functions
 
@@ -660,6 +662,14 @@ only forth also support-functions also file-processing definitions also
   s" loader_conf_files" assignment_type?
 ;
 
+: nextboot_flag?
+  s" nextboot_enable" assignment_type?
+;
+
+: nextboot_conf?
+  s" nextboot_conf" assignment_type?
+;
+
 : verbose_flag?
   s" verbose_loading" assignment_type?
 ;
@@ -711,6 +721,19 @@ only forth also support-functions also file-processing definitions also
   then
   strdup
   conf_files .len ! conf_files .addr !
+;
+
+: set_nextboot_conf
+  nextboot_conf_file .addr @ ?dup if
+    free-memory
+  then
+  value_buffer .addr @ c@ [char] " = if
+    value_buffer .addr @ char+ value_buffer .len @ 2 chars -
+  else
+    value_buffer .addr @ value_buffer .len @
+  then
+  strdup
+  nextboot_conf_file .len ! nextboot_conf_file .addr !
 ;
 
 : append_to_module_options_list  ( addr -- )
@@ -863,6 +886,10 @@ only forth also support-functions also file-processing definitions also
   then
 ;
 
+: set_nextboot_flag
+  yes_value? to nextboot?
+;
+
 : set_verbose
   yes_value? to verbose?
 ;
@@ -890,6 +917,8 @@ only forth also support-functions also file-processing definitions also
 : process_assignment
   name_buffer .len @ 0= if exit then
   loader_conf_files?	if set_conf_files exit then
+  nextboot_flag?	if set_nextboot_flag exit then
+  nextboot_conf?	if set_nextboot_conf exit then
   verbose_flag?		if set_verbose exit then
   execute?		if execute_command exit then
   password?		if set_password exit then
@@ -939,6 +968,19 @@ support-functions definitions
   repeat
 ;
 
+: peek_file
+  0 to end_of_file?
+  reset_line_reading
+  O_RDONLY fopen fd !
+  fd @ -1 = if open_error throw then
+  reset_assignment_buffers
+  read_line
+  get_assignment
+  ['] process_assignment catch
+  ['] free_buffers catch
+  fd @ fclose
+;
+  
 only forth also support-functions definitions
 
 \ Interface to loading conf files
@@ -1099,6 +1141,29 @@ variable current_conf_files
     process_conf_errors
     recurse_on_conf_files? if recurse then
   repeat
+;
+
+: get_nextboot_conf_file ( -- addr len )
+  nextboot_conf_file .addr @ nextboot_conf_file .len @ strdup
+;
+
+: rewrite_nextboot_file ( -- )
+  get_nextboot_conf_file
+  O_WRONLY fopen fd !
+  fd @ -1 = if open_error throw then
+  fd @ s' nextboot_enable="NO" ' fwrite
+  fd @ fclose
+;
+
+: include_nextboot_file
+  get_nextboot_conf_file
+  ['] peek_file catch
+  nextboot? if
+    get_nextboot_conf_file
+    ['] load_conf catch
+    process_conf_errors
+    ['] rewrite_nextboot_file catch
+  then
 ;
 
 \ Module loading functions
