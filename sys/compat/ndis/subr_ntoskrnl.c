@@ -129,6 +129,8 @@ __stdcall static void ntoskrnl_free_unicode_string(ndis_unicode_string *);
 __stdcall static void ntoskrnl_free_ansi_string(ndis_ansi_string *);
 __stdcall static ndis_status ntoskrnl_unicode_to_int(ndis_unicode_string *,
 	uint32_t, uint32_t *);
+static int atoi (const char *);
+static long atol (const char *);
 __stdcall static void dummy(void);
 
 static struct mtx *ntoskrnl_interlock;
@@ -805,6 +807,20 @@ ntoskrnl_free_ansi_string(astr)
 	return;
 }
 
+static int
+atoi(str)
+	const char		*str;
+{
+	return (int)strtol(str, (char **)NULL, 10);
+}
+
+static long
+atol(str)
+	const char		*str;
+{
+	return strtol(str, (char **)NULL, 10);
+}
+
 __stdcall static void
 dummy()
 {
@@ -847,6 +863,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "_aullrem",			(FUNC)_aullrem },
 	{ "_aullshr",			(FUNC)_aullshr },
 	{ "_aullshl",			(FUNC)_aullshl },
+	{ "atoi",			(FUNC)atoi },
+	{ "atol",			(FUNC)atol },
 	{ "WRITE_REGISTER_USHORT",	(FUNC)ntoskrnl_writereg_ushort },
 	{ "READ_REGISTER_USHORT",	(FUNC)ntoskrnl_readreg_ushort },
 	{ "WRITE_REGISTER_ULONG",	(FUNC)ntoskrnl_writereg_ulong },
