@@ -519,7 +519,8 @@ MPPEInitOptsOutput(struct bundle *bundle, struct fsm_opt *o,
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
                " MPPE is available only with CHAP81 authentication\n");
-    ua_htonl(0x0, o->data);
+    mval = 0;
+    ua_htonl(&mval, o->data);
     return;
   }
 
