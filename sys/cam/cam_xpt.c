@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.9 1998/09/20 07:14:36 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.10 1998/09/22 04:53:23 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -231,6 +231,8 @@ struct xpt_softc {
 };
 
 static const char quantum[] = "QUANTUM";
+static const char sony[] = "SONY";
+static const char west_digital[] = "WDIGTL";
 
 static struct xpt_quirk_entry xpt_quirk_table[] = 
 {
@@ -262,6 +264,24 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
         {
 		/* Broken tagged queuing drive */
                 { T_DIRECT, SIP_MEDIA_REMOVABLE, "iomega", "jaz*", "*" },
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
+	},
+        {
+		/*
+		 * Slow when tagged queueing is enabled. (1.5MB/sec versus
+		 * 8MB/sec.)
+		 * Submitted by: Andrew Gallatin <gallatin@cs.duke.edu>
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, west_digital, "WDE*", "*" },
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
+        },
+        {
+		/*
+		 * Slow when tagged queueing is enabled. (1.5MB/sec versus
+		 * 8MB/sec.)
+		 * Submitted by: Andrew Gallatin <gallatin@cs.duke.edu>
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, west_digital, "ENTERPRISE", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
         },
 	{
@@ -296,6 +316,28 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		/* Really only one LUN */
 		{
 			T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA*", "*"
+		},
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * This drive doesn't like multiple LUN probing.
+		 * Verified by: Jean-Marc Zucconi <jmz@FreeBSD.ORG>
+		 */
+		{
+			T_CDROM, SIP_MEDIA_REMOVABLE, sony,
+			"CD-ROM CDU-80*", "*"
+		},
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * This drive doesn't like multiple LUN probing.
+		 * Submitted by:  Parag Patel <parag@cgt.com>
+		 */
+		{
+			T_WORM, SIP_MEDIA_REMOVABLE, sony,
+			"CD-R   CDU9*", "*"
 		},
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
