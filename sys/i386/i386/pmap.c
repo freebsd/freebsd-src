@@ -1198,9 +1198,6 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 			pmap_invalidate_page(pmap, pteva);
 		}
 
-		if (pmap->pm_ptphint == m)
-			pmap->pm_ptphint = NULL;
-
 		/*
 		 * If the page is finally unwired, simply free it.
 		 */
@@ -1238,14 +1235,13 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 
 	if (mpte == NULL) {
 		ptepindex = (va >> PDRSHIFT);
-		if (pmap->pm_ptphint &&
-			(pmap->pm_ptphint->pindex == ptepindex)) {
-			mpte = pmap->pm_ptphint;
+		if (pmap->pm_pteobj->root &&
+			(pmap->pm_pteobj->root->pindex == ptepindex)) {
+			mpte = pmap->pm_pteobj->root;
 		} else {
 			while ((mpte = vm_page_lookup(pmap->pm_pteobj, ptepindex)) != NULL &&
 			       vm_page_sleep_if_busy(mpte, FALSE, "pulook"))
 				vm_page_lock_queues();
-			pmap->pm_ptphint = mpte;
 		}
 	}
 
@@ -1264,7 +1260,6 @@ pmap_pinit0(pmap)
 #else
 	invltlb();
 #endif
-	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1326,7 +1321,6 @@ pmap_pinit(pmap)
 		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW | PG_A | PG_M;
 
 	pmap->pm_active = 0;
-	pmap->pm_ptphint = NULL;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -1381,9 +1375,6 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 		pmap_kremove((vm_offset_t) pmap->pm_pdir);
 	}
 
-	if (pmap->pm_ptphint == p)
-		pmap->pm_ptphint = NULL;
-
 	p->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(p);
@@ -1428,11 +1419,6 @@ _pmap_allocpte(pmap, ptepindex)
 	ptepa = VM_PAGE_TO_PHYS(m);
 	pmap->pm_pdir[ptepindex] =
 		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
-
-	/*
-	 * Set the page table hint
-	 */
-	pmap->pm_ptphint = m;
 
 	/*
 	 * Try to use the new mapping, but if we cannot, then
@@ -1492,12 +1478,11 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 		 * In order to get the page table page, try the
 		 * hint first.
 		 */
-		if (pmap->pm_ptphint &&
-			(pmap->pm_ptphint->pindex == ptepindex)) {
-			m = pmap->pm_ptphint;
+		if (pmap->pm_pteobj->root &&
+			(pmap->pm_pteobj->root->pindex == ptepindex)) {
+			m = pmap->pm_pteobj->root;
 		} else {
 			m = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
-			pmap->pm_ptphint = m;
 		}
 		m->hold_count++;
 		return m;
@@ -2271,12 +2256,11 @@ retry:
 			if (ptepa) {
 				if (ptepa & PG_PS)
 					panic("pmap_enter_quick: unexpected mapping into 4MB page");
-				if (pmap->pm_ptphint &&
-					(pmap->pm_ptphint->pindex == ptepindex)) {
-					mpte = pmap->pm_ptphint;
+				if (pmap->pm_pteobj->root &&
+					(pmap->pm_pteobj->root->pindex == ptepindex)) {
+					mpte = pmap->pm_pteobj->root;
 				} else {
 					mpte = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
-					pmap->pm_ptphint = mpte;
 				}
 				if (mpte == NULL)
 					goto retry;
