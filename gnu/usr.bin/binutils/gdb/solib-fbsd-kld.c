@@ -159,7 +159,13 @@ kgdb_special_symbol_handling (void)
 static void
 kgdb_solib_create_inferior_hook (void)
 {
-  warning ("kgdb_solib_create_inferior_hook called\n");
+  struct so_list *inferior_sos;
+
+  inferior_sos = kgdb_current_sos ();
+  if (inferior_sos)
+    {
+      solib_add (NULL, /*from_tty*/0, NULL, auto_solib_add);
+    }
 }
 
 static void
