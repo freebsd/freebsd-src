@@ -50,9 +50,6 @@ static char rcsid[] = "$NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $";
 
 #define CHAR_MASK	(~(~0 << CHAR_BIT))
 
-/* XXX declaration of strtouq() is missing in stdlib.h ? */
-extern	u_quad_t strtouq __P((const char *, char **, int));
-
 /* Current position (its also updated when an included file is parsed) */
 pos_t	curr_pos = { 1, "" };
 
