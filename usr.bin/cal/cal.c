@@ -141,7 +141,7 @@ main(argc, argv)
 	(void) setlocale(LC_TIME, "");
 
 	yflag = 0;
-	while ((ch = getopt(argc, argv, "jy")) !=  -1)
+	while ((ch = getopt(argc, argv, "jy")) != -1)
 		switch(ch) {
 		case 'j':
 			julian = 1;

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biff.c,v 1.1.1.1.8.1 1997/06/24 06:43:41 charnier Exp $
+ *	$Id: biff.c,v 1.1.1.1.8.2 1997/08/29 05:28:56 imp Exp $
  */
 
 #ifndef lint
@@ -45,12 +45,12 @@ static char sccsid[] = "@(#)biff.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <err.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 
 static void usage __P((void));
 
@@ -63,7 +63,7 @@ main(argc, argv)
 	char *name;
 
 
-	while ((ch = getopt(argc, argv, "")) !=  -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:

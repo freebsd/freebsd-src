@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)banner.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)banner.c	8.4 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 /*
@@ -1026,26 +1026,26 @@ int	width = DWIDTH;	/* -w option: scrunch letters to 80 columns */
 int
 main(argc, argv)
 	int argc;
-	char **argv;
+	char *argv[];
 {
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:td")) !=  -1)
-		switch(ch) {
-		case 'w':
-			width = atoi(optarg);
-			if (width <= 0)
-				width = 80;
-			break;
+	while ((ch = getopt(argc, argv, "w:td")) != -1)
+		switch (ch) {
 		case 'd':
 			debug = 1;
 			break;
 		case 't':
 			trace = 1;
 			break;
+		case 'w':
+			width = atoi(optarg);
+			if (width <= 0)
+				errx(1, "illegal argument for -w option");
+			break;
 		case '?':
 		default:
-			fprintf(stderr, "usage: banner [-w width]\n");
+			(void)fprintf(stderr, "usage: banner [-w width]\n");
 			exit(1);
 		}
 	argc -= optind;
