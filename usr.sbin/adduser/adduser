@@ -25,11 +25,10 @@
 #  SUCH DAMAGE.
 
 #
-# $Id:$
+# $Id: adduser,v 1.2 1994/12/28 07:11:28 gclarkii Exp $
 #
 
-#$configfile = "\/etc\/adduser.conf";
-$configfile = "\.\/adduser.conf";
+$configfile = "\/etc\/adduser.conf";
 
 if (-f $configfile) {
  open (CONFIG, "$configfile");
