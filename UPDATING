@@ -19,6 +19,8 @@ build and install as described in the COMMON ITEMS section.
 	in some cases allow a normal user to unmount a file system
 	when usermounts have been changed from enabled to disabled.
 
+	Fix a panic in pseudofs(9).
+
 20040205:	p2	FreeBSD-SA-04:02.shmat
 	Correct a reference counting bug in shmat(2).
 
