@@ -59,6 +59,8 @@
 
 ; Please try to keep this file in ASCII collating order.
 
+; $FreeBSD$
+
 Language
 C
 
@@ -821,5 +823,9 @@ Enable verbose output
 w
 C ObjC C++ ObjC++
 ; Documented in common.opt
+
+fformat-extensions
+C ObjC C++ ObjC++
+Enable FreeBSD format extensions
 
 ; This comment is to ensure we retain the blank line above.
