@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.100 1997/06/29 16:39:09 bde Exp $
+#	$Id: Makefile.i386,v 1.101 1997/07/25 11:53:20 phk Exp $
 #
 # Makefile for FreeBSD
 #
@@ -162,7 +162,7 @@ assym.s: genassym
 
 # Some of the defines that genassym outputs may well depend on the
 # value of kernel options.
-genassym.o: ${I386}/i386/genassym.c Makefile opt_global.h
+genassym.o: ${I386}/i386/genassym.c Makefile opt_global.h opt_vm86.h
 	${CC} -c ${CFLAGS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
 
 genassym: genassym.o
