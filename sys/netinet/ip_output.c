@@ -751,7 +751,7 @@ pass:
 			goto bad;
 		}
 	} else {
-		/* nobody uses ia beyond here */
+		ia = ifatoia(ro->ro_rt->rt_ifa);
 		ifp = ro->ro_rt->rt_ifp;
 	}
 
@@ -785,6 +785,13 @@ skip_ipsec:
 				ip->ip_sum = in_cksum(m, hlen);
 			}
 		}
+
+		/* Record statistics for this interface address. */
+		if (!(flags & IP_FORWARDING)) {
+			ia->ia_ifa.if_opackets++;
+			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+		}
+
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
 		goto done;
@@ -913,10 +920,14 @@ sendorfree:
 	for (m = m0; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = 0;
-		if (error == 0)
+		if (error == 0) {
+			/* Record statistics for this interface address. */
+			ia->ia_ifa.if_opackets++;
+			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			
 			error = (*ifp->if_output)(ifp, m,
 			    (struct sockaddr *)dst, ro->ro_rt);
-		else
+		} else
 			m_freem(m);
 	}
 
