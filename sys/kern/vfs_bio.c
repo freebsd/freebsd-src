@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.65 1995/10/01 05:50:27 davidg Exp $
+ * $Id: vfs_bio.c,v 1.66 1995/10/08 00:06:08 swallace Exp $
  */
 
 /*
@@ -915,7 +915,7 @@ loop:
 				if (szleft > PAGE_SIZE) {
 					if ((bp->b_pages[i]->valid & VM_PAGE_BITS_ALL) !=
 						VM_PAGE_BITS_ALL) {
-						bp->b_flags &= ~B_CACHE;
+						bp->b_flags &= ~(B_CACHE|B_DONE);
 						break;
 					}
 					szleft -= PAGE_SIZE;
@@ -923,7 +923,7 @@ loop:
 					if (!vm_page_is_valid(bp->b_pages[i],
 						(((vm_offset_t) bp->b_data) & PAGE_MASK),
 						szleft)) {
-						bp->b_flags &= ~B_CACHE;
+						bp->b_flags &= ~(B_CACHE|B_DONE);
 						break;
 					}
 					szleft = 0;
