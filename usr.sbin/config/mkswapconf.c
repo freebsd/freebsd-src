@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkswapconf.c,v 1.15 1998/06/09 14:02:08 dfr Exp $";
+	"$Id: mkswapconf.c,v 1.16 1999/04/15 14:52:22 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -48,9 +48,6 @@ static const char rcsid[] =
 
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#ifdef linux
-#include <sys/sysmacros.h>
-#endif
 
 #include <ctype.h>
 #include <stdio.h>
@@ -58,13 +55,13 @@ static const char rcsid[] =
 
 #define ns(s) strdup(s)
 
-void initdevtable __P((void));
+static	void initdevtable __P((void));
+static 	struct file_list *do_swap __P((struct file_list *));
 
 void
 swapconf()
 {
 	register struct file_list *fl;
-	struct file_list *do_swap();
 
 	fl = conf_list;
 	while (fl) {
@@ -76,7 +73,7 @@ swapconf()
 	}
 }
 
-struct file_list *
+static struct file_list *
 do_swap(fl)
 	register struct file_list *fl;
 {
@@ -234,7 +231,7 @@ devtoname(dev)
 	return (ns(buf));
 }
 
-void
+static void
 initdevtable()
 {
 	char linebuf[256];

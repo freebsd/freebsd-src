@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.28 1999/04/10 14:03:38 ache Exp $";
+	"$Id: main.c,v 1.29 1999/04/11 03:40:10 grog Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -65,12 +65,15 @@ static const char rcsid[] =
 #define FALSE	(0)
 #endif
 
-char *PREFIX;
+char *	PREFIX;
 static int no_config_clobber = TRUE;
-int old_config_present;
+int	old_config_present;
+int	debugging;
+int	profiling;
+u_int   loadaddress;
 
 static void usage __P((void));
-void configfile __P((void));
+static void configfile __P((void));
 
 /*
  * Config builds a set of files for building a UNIX
@@ -148,35 +151,9 @@ main(argc, argv)
 		exit(3);
 	switch (machine) {
 
-	case MACHINE_VAX:
-		vax_ioconf();		/* Print ioconf.c */
-		ubglue();		/* Create ubglue.s */
-		break;
-
-	case MACHINE_TAHOE:
-		tahoe_ioconf();
-		vbglue();
-		break;
-
-	case MACHINE_HP300:
-	case MACHINE_LUNA68K:
-		hp300_ioconf();
-		hpglue();
-		break;
-
 	case MACHINE_I386:
 	case MACHINE_PC98:
 		i386_ioconf();		/* Print ioconf.c */
-		vector();		/* Create vector.s */
-		break;
-
-	case MACHINE_MIPS:
-	case MACHINE_PMAX:
-		pmax_ioconf();
-		break;
-
-	case MACHINE_NEWS3400:
-		news_ioconf();
 		break;
 
 	case MACHINE_ALPHA:
@@ -343,7 +320,7 @@ path(file)
 	return (cp);
 }
 
-void
+static void
 configfile()
 {
 	FILE *fi, *fo;

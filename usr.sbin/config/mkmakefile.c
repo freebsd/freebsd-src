@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.36 1999/04/11 03:40:10 grog Exp $";
+	"$Id: mkmakefile.c,v 1.37 1999/04/13 18:22:57 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -70,27 +70,28 @@ static const char rcsid[] =
 
 #define ns(s) strdup(s)
 
-static	struct file_list *fcur;
-char *tail();
+static struct file_list *fcur;
 extern int old_config_present;
 
-void do_swapspec __P((FILE *, char *));
-void do_clean __P((FILE *));
-void do_load __P((FILE *));
-void do_rules __P((FILE *));
-void do_sfiles __P((FILE *));
-void do_mfiles __P((FILE *));
-void do_cfiles __P((FILE *));
-void do_objs __P((FILE *));
-void do_before_depend __P((FILE *));
-int opteq __P((char *, char *));
-void read_files __P((void));
+static char *tail __P((char *));
+static void do_swapspec __P((FILE *, char *));
+static void do_clean __P((FILE *));
+static void do_load __P((FILE *));
+static void do_rules __P((FILE *));
+static void do_sfiles __P((FILE *));
+static void do_mfiles __P((FILE *));
+static void do_cfiles __P((FILE *));
+static void do_objs __P((FILE *));
+static void do_before_depend __P((FILE *));
+static struct file_list *do_systemspec __P((FILE *, struct file_list *, int));
+static int opteq __P((char *, char *));
+static void read_files __P((void));
 void makefile __P((void));
 
 /*
  * Lookup a file, by name.
  */
-struct file_list *
+static struct file_list *
 fl_lookup(file)
 	register char *file;
 {
@@ -106,7 +107,7 @@ fl_lookup(file)
 /*
  * Lookup a file, by final component name.
  */
-struct file_list *
+static struct file_list *
 fltail_lookup(file)
 	register char *file;
 {
@@ -122,7 +123,7 @@ fltail_lookup(file)
 /*
  * Make a new file list entry
  */
-struct file_list *
+static struct file_list *
 new_fent()
 {
 	register struct file_list *fp;
@@ -158,7 +159,7 @@ makefile()
 	ofp = fopen(path("Makefile.new"), "w");
 	if (ofp == 0)
 		err(1, "%s", path("Makefile.new"));
-	fprintf(ofp, "KERN_IDENT=%s\n", raise(ident));
+	fprintf(ofp, "KERN_IDENT=%s\n", raisestr(ident));
 	fprintf(ofp, "IDENT=");
 	if (profiling)
 		fprintf(ofp, " -DGPROF");
@@ -248,7 +249,7 @@ makefile()
  * Read in the information about files used in making the system.
  * Store it in the ftab linked list.
  */
-void
+static void
 read_files()
 {
 	FILE *fp;
@@ -288,7 +289,7 @@ next:
 			goto openit;
 		}
 		if (first == 2) {
-			(void) snprintf(fname, sizeof fname, "files.%s", raise(ident));
+			(void) snprintf(fname, sizeof fname, "files.%s", raisestr(ident));
 			first++;
 			fp = fopen(fname, "r");
 			if (fp != 0)
@@ -508,7 +509,7 @@ save:
 	goto next;
 }
 
-int
+static int
 opteq(cp, dp)
 	char *cp, *dp;
 {
@@ -526,7 +527,7 @@ opteq(cp, dp)
 	}
 }
 
-void
+static void
 do_before_depend(fp)
 	FILE *fp;
 {
@@ -552,7 +553,7 @@ do_before_depend(fp)
 		putc('\n', fp);
 }
 
-void
+static void
 do_objs(fp)
 	FILE *fp;
 {
@@ -591,7 +592,7 @@ cont:
 		putc('\n', fp);
 }
 
-void
+static void
 do_cfiles(fp)
 	FILE *fp;
 {
@@ -635,7 +636,7 @@ do_cfiles(fp)
 		putc('\n', fp);
 }
 
-void
+static void
 do_mfiles(fp)
 	FILE *fp;
 {
@@ -660,7 +661,7 @@ do_mfiles(fp)
 		putc('\n', fp);
 }
 
-void
+static void
 do_sfiles(fp)
 	FILE *fp;
 {
@@ -686,7 +687,7 @@ do_sfiles(fp)
 }
 
 
-char *
+static char *
 tail(fn)
 	char *fn;
 {
@@ -705,7 +706,7 @@ tail(fn)
  * which avoids any problem areas with i/o addressing
  * (e.g. for the VAX); assembler files are processed by as.
  */
-void
+static void
 do_rules(f)
 	FILE *f;
 {
@@ -776,13 +777,12 @@ do_rules(f)
 /*
  * Create the load strings
  */
-void
+static void
 do_load(f)
 	register FILE *f;
 {
 	register struct file_list *fl;
 	register int first;
-	struct file_list *do_systemspec();
 
 	for (first = 1, fl = conf_list; fl; first = 0)
 		fl = fl->f_type == SYSTEMSPEC ?
@@ -794,7 +794,7 @@ do_load(f)
 	putc('\n', f);
 }
 
-void
+static void
 do_clean(fp)
 	FILE *fp;
 {
@@ -817,7 +817,7 @@ do_clean(fp)
 		putc('\n', fp);
 }
 
-struct file_list *
+static struct file_list *
 do_systemspec(f, fl, first)
 	FILE *f;
 	register struct file_list *fl;
@@ -838,7 +838,7 @@ do_systemspec(f, fl, first)
 	return (fl);
 }
 
-void
+static void
 do_swapspec(f, name)
 	FILE *f;
 	register char *name;
@@ -853,7 +853,7 @@ do_swapspec(f, name)
 }
 
 char *
-raise(str)
+raisestr(str)
 	register char *str;
 {
 	register char *cp = str;

@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkoptions.c,v 1.7 1998/07/12 02:31:08 bde Exp $";
+	"$Id: mkoptions.c,v 1.8 1998/07/12 08:10:33 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -58,22 +58,16 @@ static	struct users {
 	int	u_min;
 	int	u_max;
 } users[] = {
-	{ 8, 2, 512 },			/* MACHINE_VAX */
-	{ 8, 2, 512 },			/* MACHINE_TAHOE */
-	{ 8, 2, 512 },			/* MACHINE_HP300 */
 	{ 8, 2, 512 },			/* MACHINE_I386 */
-	{ 8, 2, 512 },			/* MACHINE_MIPS */
-	{ 8, 2, 512 },			/* MACHINE_PMAX */
-	{ 8, 2, 512 },			/* MACHINE_LUNA68K */
-	{ 8, 2, 512 },			/* MACHINE_NEWS3400 */
 	{ 8, 2, 512 },			/* MACHINE_PC98 */
 	{ 8, 2, 512 },			/* MACHINE_ALPHA */
 };
 #define	NUSERS	(sizeof (users) / sizeof (users[0]))
 
-static	char *lower __P((char *));
-void read_options __P((void));
-void do_option __P((char *));
+static char *lower __P((char *));
+static void read_options __P((void));
+static void do_option __P((char *));
+static char *tooption __P((char *));
 
 void
 options()
@@ -96,7 +90,7 @@ options()
 	/* Initialize `maxusers'. */
 	if ((unsigned)machine > NUSERS) {
 		printf("maxusers config info isn't present, using vax\n");
-		up = &users[MACHINE_VAX - 1];
+		up = &users[MACHINE_I386 - 1];
 	} else
 		up = &users[machine - 1];
 	if (maxusers == 0) {
@@ -126,11 +120,11 @@ options()
  * Generate an <options>.h file
  */
 
-void
+static void
 do_option(name)
 	char *name;
 {
-	char *file, *inw, *tooption();
+	char *file, *inw;
 	struct opt *op, *op_head, *topp;
 	FILE *inf, *outf;
 	char *value;
@@ -250,7 +244,7 @@ do_option(name)
 /*
  * Find the filename to store the option spec into.
  */
-char *
+static char *
 tooption(name)
 	char *name;
 {
@@ -275,7 +269,7 @@ tooption(name)
 /*
  * read the options and options.<machine> files
  */
-void
+static void
 read_options()
 {
 	FILE *fp;
@@ -306,7 +300,7 @@ next:
 			goto openit;
 		}
 		if (first == 2) {
-			(void) snprintf(fname, sizeof fname, "options.%s", raise(ident));
+			(void) snprintf(fname, sizeof fname, "options.%s", raisestr(ident));
 			first++;
 			fp = fopen(fname, "r");
 			if (fp != 0)
