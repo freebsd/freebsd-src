@@ -53,6 +53,7 @@ struct sc_chinfo {
 	u_int32_t num, run;
 	u_int32_t blksz, blkcnt;
 	u_int32_t regbase, spdreg;
+	u_int32_t civ;
 
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
@@ -246,16 +247,16 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		ch->spdreg = sc->hasvra? AC97_REGEXT_FDACRATE : 0;
 		break;
 
-	case 1: /* mic */
-		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
-		ch->regbase = ICH_REG_MC_BASE;
-		ch->spdreg = sc->hasvrm? AC97_REGEXT_MADCRATE : 0;
-		break;
-
-	case 2: /* record */
+	case 1: /* record */
 		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
 		ch->regbase = ICH_REG_PI_BASE;
 		ch->spdreg = sc->hasvra? AC97_REGEXT_LADCRATE : 0;
+		break;
+
+	case 2: /* mic */
+		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
+		ch->regbase = ICH_REG_MC_BASE;
+		ch->spdreg = sc->hasvrm? AC97_REGEXT_MADCRATE : 0;
 		break;
 
 	default:
@@ -296,7 +297,7 @@ ichchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 
 	ch->blksz = blocksize;
 	ich_filldtbl(ch);
-	ich_wr(sc, ch->regbase + ICH_REG_X_LVI, ICH_DTBL_LENGTH - 1, 1);
+	ich_wr(sc, ch->regbase + ICH_REG_X_LVI, ch->blkcnt - 1, 1);
 
 	return ch->blksz;
 }
@@ -327,18 +328,11 @@ ichchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
-	u_int32_t ci, ofs, pos;
+      	u_int32_t pos;
 
-	ofs = 0;
-	ci = 1234;
-	while (ci != ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1)) {
-		ci = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1);
-		ofs = ich_rd(sc, ch->regbase + ICH_REG_X_PICB, 2) * 2;
-	}
+	ch->civ = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1) % ch->blkcnt;
 
-	ofs = ch->blksz - ofs;
-	ci %= ch->blkcnt;
-	pos = (ch->blksz * ci) + ofs;
+	pos = ch->civ * ch->blksz;
 
 	return pos;
 }
@@ -371,7 +365,7 @@ ich_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
 	struct sc_chinfo *ch;
-	u_int32_t st, lvi;
+	u_int32_t cbi, lbi, lvi, st;
 	int i;
 
 	for (i = 0; i < 3; i++) {
@@ -385,7 +379,16 @@ ich_intr(void *p)
 				if (ch->run)
 					chn_intr(ch->channel);
 				lvi = ich_rd(sc, ch->regbase + ICH_REG_X_LVI, 1);
-				lvi++;
+				cbi = ch->civ % ch->blkcnt;
+				if (cbi == 0)
+					cbi = ch->blkcnt - 1;
+				else
+					cbi--;
+				lbi = lvi % ch->blkcnt;
+				if (cbi >= lbi)
+					lvi += cbi - lbi;
+				else
+					lvi += cbi + ch->blkcnt - lbi;
 				lvi %= ICH_DTBL_LENGTH;
 				ich_wr(sc, ch->regbase + ICH_REG_X_LVI, lvi, 1);
 			}
@@ -419,7 +422,7 @@ ich_init(struct sc_info *sc)
 
 	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD | ICH_GLOB_CTL_PRES, 4);
 
-	if (ich_resetchan(sc, 0) || ich_resetchan(sc, 0))
+	if (ich_resetchan(sc, 0) || ich_resetchan(sc, 1) || ich_resetchan(sc, 2))
 		return ENXIO;
 
 	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl, BUS_DMA_NOWAIT, &sc->dtmap))
@@ -494,7 +497,7 @@ ich_pci_attach(device_t dev)
 	sc->nabmbart = rman_get_bustag(sc->nabmbar);
 	sc->nabmbarh = rman_get_bushandle(sc->nabmbar);
 
-	if (bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+	if (bus_dma_tag_create(NULL, 8, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			       NULL, NULL, ICH_DEFAULT_BUFSZ, 1, 0x3ffff, 0, &sc->dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
