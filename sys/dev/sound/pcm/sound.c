@@ -454,6 +454,7 @@ pcm_unregister(device_t dev)
 	if (d->ref) free(d->ref, M_DEVBUF);
 	if (d->atype) free(d->atype, M_DEVBUF);
 
+	chn_kill(&d->fakechan);
 	fkchan_kill(&d->fakechan);
 
 #ifdef USING_DEVFS

@@ -55,6 +55,12 @@ fkchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
+fkchan_free(kobj_t obj, void *data)
+{
+	return 0;
+}
+
+static int
 fkchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	return 0;
@@ -92,6 +98,7 @@ fkchan_getcaps(kobj_t obj, void *data)
 
 static kobj_method_t fkchan_methods[] = {
     	KOBJMETHOD(channel_init,		fkchan_init),
+    	KOBJMETHOD(channel_free,		fkchan_free),
     	KOBJMETHOD(channel_setformat,		fkchan_setformat),
     	KOBJMETHOD(channel_setspeed,		fkchan_setspeed),
     	KOBJMETHOD(channel_setblocksize,	fkchan_setblocksize),
