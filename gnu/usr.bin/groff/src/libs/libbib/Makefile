@@ -2,6 +2,6 @@
 
 LIB=		bib
 INTERNALLIB=	YES
-SRCS=		common.cc index.cc linear.cc search.cc map.c
+SRCS=		common.cpp index.cpp linear.cpp search.cpp map.c
 
 .include <bsd.lib.mk>

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	addftinfo
-SRCS=		addftinfo.cc guess.cc
+SRCS=		addftinfo.cpp guess.cpp
 DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
 CLEANFILES=	${MAN}

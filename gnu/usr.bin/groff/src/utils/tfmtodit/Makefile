@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	tfmtodit
-SRCS=		tfmtodit.cc
+SRCS=		tfmtodit.cpp
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
 CLEANFILES=	${MAN}
