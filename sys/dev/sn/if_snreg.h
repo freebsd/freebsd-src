@@ -337,6 +337,7 @@
 #define CHIP_9194       4
 #define CHIP_9195       5
 #define CHIP_91100      7
+#define CHIP_91100FD    8
 
 /* When packets are stuffed into the card or sucked out of the card
  * they are set up more or less as follows:
