@@ -49,11 +49,26 @@ union ip_fw_if {
  * Port numbers are stored in HOST byte order.
  */
 
+/*
+ * To match MAC headers:
+ *     12 bytes at fw_mac_hdr contain the dst-src MAC address after masking.
+ *     12 bytes at fw_mac_mask contain the mask to apply to dst-src
+ *     2 bytes at fw_mac_type contain the mac type after mask (in net format)
+ *     2 bytes at fw_mac_type_mask contain the mac type mask
+ *         If IP_FW_F_SRNG, the two contain the low-high of a range of types.
+ *     IP_FW_F_DRNG is used to indicare we want to match a vlan.
+ */
+#define	fw_mac_hdr		fw_src
+#define	fw_mac_mask		fw_uar
+#define	fw_mac_type		fw_iplen
+#define	fw_mac_mask_type	fw_ipid
+
 struct ip_fw {
 	LIST_ENTRY(ip_fw) next;		/* bidirectional list of rules */
 	u_int		fw_flg;		/* Operational Flags word */
 	u_int64_t	fw_pcnt;	/* Packet counters */
 	u_int64_t	fw_bcnt;	/* Byte counters */
+
 	struct in_addr	fw_src;		/* Source IP address */
 	struct in_addr	fw_dst;		/* Destination IP address */
 	struct in_addr	fw_smsk;	/* Mask for source IP address */
@@ -238,8 +253,9 @@ struct ipfw_dyn_rule {
 #define	IP_FW_F_CHECK_S	0x10000000	/* check state */
 #define	IP_FW_F_SME	0x20000000	/* source = me */
 #define	IP_FW_F_DME	0x40000000	/* destination = me */
+#define	IP_FW_F_MAC	0x80000000	/* match MAC header */
 
-#define	IP_FW_F_MASK	0x7FFFFFFF	/* All possible flag bits mask */
+#define	IP_FW_F_MASK	0xFFFFFFFF	/* All possible flag bits mask */
 
 /*
  * Flags for the 'fw_ipflg' field, for comparing values
@@ -320,8 +336,8 @@ void ip_fw_init(void);
 /* Firewall hooks */
 struct ip;
 struct sockopt;
-typedef int ip_fw_chk_t (struct ip **, int, struct ifnet *, u_int16_t *,
-    struct mbuf **, struct ip_fw **, struct sockaddr_in **);
+typedef int ip_fw_chk_t (struct mbuf **m, struct ifnet *oif,
+    u_int16_t *cookie, struct ip_fw **rule, struct sockaddr_in **next_hop);
 typedef int ip_fw_ctl_t (struct sockopt *);
 extern ip_fw_chk_t *ip_fw_chk_ptr;
 extern ip_fw_ctl_t *ip_fw_ctl_ptr;
