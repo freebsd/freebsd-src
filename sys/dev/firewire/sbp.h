@@ -70,38 +70,38 @@
 #define END_DEBUG	}
 
 struct ind_ptr {
-	u_int32_t hi,lo;
+	uint32_t hi,lo;
 };
 
 
 #define SBP_RECV_LEN 32
 
 struct sbp_login_res{
-	u_int16_t	len;
-	u_int16_t	id;
-	u_int16_t	res0;
-	u_int16_t	cmd_hi;
-	u_int32_t	cmd_lo;
-	u_int16_t	res1;
-	u_int16_t	recon_hold;
+	uint16_t	len;
+	uint16_t	id;
+	uint16_t	res0;
+	uint16_t	cmd_hi;
+	uint32_t	cmd_lo;
+	uint16_t	res1;
+	uint16_t	recon_hold;
 };
 
 struct sbp_status{
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	src:2,
+	uint8_t		src:2,
 			resp:2,
 			dead:1,
 			len:3;
 #else
-	u_int8_t	len:3,
+	uint8_t		len:3,
 			dead:1,
 			resp:2,
 			src:2;
 #endif
-	u_int8_t	status;
-	u_int16_t	orb_hi;
-	u_int32_t	orb_lo;
-	u_int32_t	data[6];
+	uint8_t		status;
+	uint16_t	orb_hi;
+	uint32_t	orb_lo;
+	uint32_t	data[6];
 };
 /* src */
 #define SRC_NEXT_EXISTS	0
@@ -159,29 +159,29 @@ struct sbp_cmd_status{
 #define SBP_SFMT_CURR 0
 #define SBP_SFMT_DEFER 1
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	sfmt:2,
+	uint8_t		sfmt:2,
 			status:6;
-	u_int8_t	valid:1,
+	uint8_t		valid:1,
 			mark:1,
 			eom:1,
 			ill_len:1,
 			s_key:4;
 #else
-	u_int8_t	status:6,
+	uint8_t		status:6,
 			sfmt:2;
-	u_int8_t	s_key:4,
+	uint8_t		s_key:4,
 			ill_len:1,
 			eom:1,
 			mark:1,
 			valid:1;
 #endif
-	u_int8_t	s_code;
-	u_int8_t	s_qlfr;
-	u_int32_t	info;
-	u_int32_t	cdb;
-	u_int8_t	fru;
-	u_int8_t	s_keydep[3];
-	u_int32_t	vend[2];
+	uint8_t		s_code;
+	uint8_t		s_qlfr;
+	uint32_t	info;
+	uint32_t	cdb;
+	uint8_t		fru;
+	uint8_t		s_keydep[3];
+	uint32_t	vend[2];
 };
 
 #define ORB_FUN_NAMES \

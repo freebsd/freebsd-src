@@ -128,8 +128,8 @@ fwdev_allocbuf(struct firewire_comm *fc, struct fw_xferq *q,
 	if (q->bulkxfer == NULL)
 		return(ENOMEM);
 
-	b->psize = roundup2(b->psize, sizeof(u_int32_t));
-	q->buf = fwdma_malloc_multiseg(fc, sizeof(u_int32_t),
+	b->psize = roundup2(b->psize, sizeof(uint32_t));
+	q->buf = fwdma_malloc_multiseg(fc, sizeof(uint32_t),
 			b->psize, b->nchunk * b->npacket, BUS_DMA_WAITOK);
 
 	if (q->buf == NULL) {
@@ -347,7 +347,7 @@ readloop:
 			return err;
 		}
 		err = uiomove((caddr_t)fp,
-			fp->mode.stream.len + sizeof(u_int32_t), uio);
+			fp->mode.stream.len + sizeof(uint32_t), uio);
 		ir->queued ++;
 		if(ir->queued >= ir->bnpacket){
 			s = splfw();
@@ -694,7 +694,7 @@ out:
 			ptr = malloc(CROMSIZE, M_FW, M_WAITOK);
 			len = CROMSIZE;
 			for (i = 0; i < CROMSIZE/4; i++)
-				((u_int32_t *)ptr)[i]
+				((uint32_t *)ptr)[i]
 					= ntohl(sc->fc->config_rom[i]);
 		} else {
 			/* found */
