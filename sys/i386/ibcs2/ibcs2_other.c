@@ -50,9 +50,7 @@ ibcs2_secure(struct thread *td, struct ibcs2_secure_args *uap)
 	switch (uap->cmd) {
 
 	case IBCS2_SECURE_GETLUID:		/* get login uid */
-		PROC_LOCK(td->td_proc);
-		td->td_retval[0] = td->td_proc->p_ucred->cr_uid;
-		PROC_UNLOCK(td->td_proc);
+		td->td_retval[0] = td->td_ucred->cr_uid;
 		return 0;
 
 	case IBCS2_SECURE_SETLUID:		/* set login uid */
