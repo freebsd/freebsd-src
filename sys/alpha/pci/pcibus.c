@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.11 1999/04/21 07:26:24 peter Exp $
+ * $Id: pcibus.c,v 1.12 1999/05/08 21:58:44 dfr Exp $
  *
  */
 
@@ -105,12 +105,6 @@ pci_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
 	case 4:
 		return chipset.cfgwritel(cfg->bus, cfg->slot, cfg->func, reg, data);
 	}
-}
-
-int
-pci_cfgopen(void)
-{
-	return 1;
 }
 
 vm_offset_t 
