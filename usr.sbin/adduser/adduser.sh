@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2002, 2003 Michael Telahun Makonnen. All rights reserved.
+# Copyright (c) 2002-2004 Michael Telahun Makonnen. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -77,10 +77,12 @@ show_usage() {
 	echo "usage: ${THISCMD} [options]"
 	echo "  options may include:"
 	echo "  -C		save to the configuration file only"
+	echo "  -D		do not attempt to create the home directory"
 	echo "  -E		disable this account after creation"
 	echo "  -G		additional groups to add accounts to"
 	echo "  -L		login class of the user"
 	echo "  -N		do not read configuration file"
+	echo "  -S		a nonexistent shell is not an error"
 	echo "  -d		home directory"
 	echo "  -f		file from which input will be received"
 	echo "  -g		default login group"
@@ -226,12 +228,22 @@ add_user() {
 	[ -n "$ulogingroup" ] && _group='-g "$ulogingroup"'
 	[ -n "$ugroups" ] && _grouplist='-G "$ugroups"'
 	[ -n "$ushell" ] && _shell='-s "$ushell"'
-	[ -n "$uhome" ] && _home='-m -d "$uhome"'
 	[ -n "$uclass" ] && _class='-L "$uclass"'
 	[ -n "$ugecos" ] && _comment='-c "$ugecos"'
 	[ -n "$udotdir" ] && _dotdir='-k "$udotdir"'
 	[ -n "$uexpire" ] && _expire='-e "$uexpire"'
 	[ -n "$upwexpire" ] && _pwexpire='-p "$upwexpire"'
+	if [ -z "$Dflag" -a -n "$uhome" ]; then
+		# The /nonexistent home directory is special. It
+		# means the user has no home directory.
+		if [ "$uhome" = "$NOHOME" ]; then
+			_home='-d "$uhome"'
+		else
+			_home='-m -d "$uhome"'
+		fi
+	elif [ -n "$Dflag" -a -n "$uhome" ]; then
+		_home='-d "$uhome"'
+	fi
 	case $passwdtype in
 	no)
 		_passwdmethod="-w no"
@@ -369,9 +381,11 @@ get_shell() {
 	ushell="$defaultshell"
 
 	# Make sure the current value of the shell is a valid one
-	if ! shell_exists $ushell ; then
-		info "Using default shell ${defaultshell}."
-		ushell="$defaultshell"
+	if [ -z "$Sflag" ]; then
+		if ! shell_exists $ushell ; then
+			info "Using default shell ${defaultshell}."
+			ushell="$defaultshell"
+		fi
 	fi
 
 	if [ -z "$fflag" ]; then
@@ -381,13 +395,17 @@ get_shell() {
 		_input="`echo "$fileline" | cut -f9 -d:`"
 	fi
 	if [ -n "$_input" ]; then
-		_fullpath=`fullpath_from_shell $_input`
-		if [ -n "$_fullpath" ]; then
-			ushell="$_fullpath"
+		if [ -n "$Sflag" ]; then
+			ushell="$_input"
 		else
-			err "Invalid shell ($_input) for user $username."
-			info "Using default shell ${defaultshell}."
-			ushell="$defaultshell"
+			_fullpath=`fullpath_from_shell $_input`
+			if [ -n "$_fullpath" ]; then
+				ushell="$_fullpath"
+			else
+				err "Invalid shell ($_input) for user $username."
+				info "Using default shell ${defaultshell}."
+				ushell="$defaultshell"
+			fi
 		fi
 	fi
 }
@@ -779,6 +797,7 @@ ADDUSERCONF="${ADDUSERCONF:-/etc/adduser.conf}"
 PWCMD="${PWCMD:-/usr/sbin/pw}"
 MAILCMD="${MAILCMD:-mail}"
 ETCSHELLS="${ETCSHELLS:-/etc/shells}"
+NOHOME="/nonexistent"
 NOLOGIN="nologin"
 NOLOGIN_PATH="/sbin/nologin"
 GREPCMD="/usr/bin/grep"
@@ -808,6 +827,8 @@ configflag=
 fflag=
 infile=
 disableflag=
+Dflag=
+Sflag=
 readconfig="yes"
 homeprefix="/home"
 randompass=
@@ -858,6 +879,10 @@ for _switch ; do
 		;;
 	-C)
 		configflag=yes
+		shift
+		;;
+	-D)
+		Dflag=yes
 		shift
 		;;
 	-E)
@@ -924,6 +949,10 @@ for _switch ; do
 	-s)
 		defaultshell="`fullpath_from_shell $2`"
 		shift; shift
+		;;
+	-S)
+		Sflag=yes
+		shift
 		;;
 	-u)
 		uidstart=$2
