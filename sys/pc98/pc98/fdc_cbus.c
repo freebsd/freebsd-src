@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Yoshihiro TAKAHASHI
  * All rights reserved.
  *
@@ -132,13 +132,14 @@ fdc_cbus_probe(device_t dev)
 static int
 fdc_cbus_attach(device_t dev)
 {
-	int	error;
 	struct	fdc_data *fdc;
+	int error;
 
 	fdc = device_get_softc(dev);
 
 	if ((error = fdc_cbus_alloc_resources(dev, fdc)) != 0 ||
-	    (error = fdc_attach(dev)) != 0) {
+	    (error = fdc_attach(dev)) != 0 ||
+	    (error = fdc_hints_probe(dev)) != 0) {
 		fdc_release_resources(fdc);
 		return (error);
 	}
