@@ -29,6 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
 .\"	@(#)3.t	8.1 (Berkeley) 7/27/93
 .\"
 .ds lq ``
@@ -711,7 +712,7 @@ After copying your version of
 you should do:
 .DS
 \fB#\fP \fIchown \-R root /var/spool/at\fP
-\fB#\fP \fIchown \-R uucp.daemon /var/spool/uucp\fP
+\fB#\fP \fIchown \-R uucp:daemon /var/spool/uucp\fP
 \fB#\fP \fIchmod \-R o\-w /var/spool/uucp\fP
 .DE
 .PP
