@@ -27,11 +27,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: user.c,v 1.5 1997/02/22 14:22:42 peter Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <ctype.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include "xtend.h"
@@ -40,15 +46,19 @@
 
 MONENTRY Monitor[MAXMON];
 
+int find __P((char *, char *[]));
+void printstatus __P((FILE *, STATUS *));
+
 /*
  * Process a user command
  */
 
+int
 user_command()
 {
   char h;
   char *m;
-  int i, k, c, n, error;
+  int i, k, n, error;
   char cmd[512], dumppath[MAXPATHLEN+1], pkt[3];
   FILE *dumpf;
 
@@ -137,6 +147,7 @@ user_command()
   return(0);
 }
 
+int
 find(s, tab)
 char *s;
 char *tab[];
@@ -149,6 +160,7 @@ char *tab[];
 	return(-1);
 }
 
+void
 printstatus(f, s)
 FILE *f;
 STATUS *s;
