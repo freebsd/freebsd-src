@@ -279,6 +279,15 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		/* XXX This is a guess */
 		*busnum = pci_cfgread(cfg, 0x41, 1);
 		break;
+	case 0x71208086:
+		s = "Intel 82810 (i810 GMCH) Host To Hub bridge";
+		break;
+	case 0x71228086:
+		s = "Intel 82810-DC100 (i810-DC100 GMCH) Host To Hub bridge";
+		break;
+	case 0x71248086:
+		s = "Intel 82810E (i810E GMCH) Host To Hub bridge";
+		break;
 	case 0x71808086:
 		s = "Intel 82443LX (440 LX) host to PCI bridge";
 		break;
