@@ -3,11 +3,6 @@
 #ifndef _main_h_
 #define _main_h_
 
-/*  $RCSfile: main.h,v $
- *  $Revision: 14020.12 $
- *  $Date: 93/05/21 05:45:33 $
- */
-
 struct userinfo {
 	str32   username;
 	string  homedir;
