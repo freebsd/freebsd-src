@@ -406,27 +406,18 @@ static void
 random_write_internal(void *buf, int count)
 {
 	int	i;
+	u_int	chunk;
 
 	/* Break the input up into HARVESTSIZE chunks.
 	 * The writer has too much control here, so "estimate" the
 	 * the entropy as zero.
 	 */
 	for (i = 0; i < count; i += HARVESTSIZE) {
+		chunk = HARVESTSIZE;
+		if (i + chunk >= count)
+			chunk = (u_int)(count - i);
 		random_harvest_internal(get_cyclecount(), (char *)buf + i,
-			HARVESTSIZE, 0, 0, RANDOM_WRITE);
-	}
-
-	/* Maybe the loop iterated at least once */
-	if (i > count)
-		i -= HARVESTSIZE;
-
-	/* Get the last bytes even if the input length is not
-	 * a multiple of HARVESTSIZE.
-	 */
-	count %= HARVESTSIZE;
-	if (count) {
-		random_harvest_internal(get_cyclecount(), (char *)buf + i,
-			(u_int)count, 0, 0, RANDOM_WRITE);
+			chunk, 0, 0, RANDOM_WRITE);
 	}
 }
 
