@@ -63,8 +63,6 @@ vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 loader: loader.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} loader.bin
-#	/usr/bin/kzip ${.TARGET}
-#	mv ${.TARGET}.kz ${.TARGET}
 
 loader.bin: loader.sym
 	cp ${.ALLSRC} ${.TARGET}
