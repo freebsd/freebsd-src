@@ -26,7 +26,7 @@ menu for switching between operating systems.
 3/ The MBR will load the first record of the selected partition and
 if it has (the same) magic numbers, jumps into it. In 386bsd this is the
 first stage boot, (or boot1) it is represented in /usr/mdec by
-wdboot, asboot and sdboot. If the disk has been set up without DOS partitioning
+wdboot, asboot and daboot. If the disk has been set up without DOS partitioning
 then this block will be at block zero, and will have been loaded directly by
 the BIOS. This is the usual case with floppies.
 
@@ -129,21 +129,21 @@ will boot xxx from drive 0, a partition.
 	wd(1,a)xxx
 will boot xxx from drive 1, a partition.
 
-similarly for sd and for higher drive numbers (if the BIOS supports them).
+similarly for da and for higher drive numbers (if the BIOS supports them).
 
 if you have one or more wd drives and one or more scsi drives, then you
 MUST specify the BIOS drive number for booting the scsi drives:
-	2:sd(0,a)xxx
+	2:da(0,a)xxx
 will boot xxx from scsi drive 0, a partition, provided `2' is the correct
-BIOS drive number for sd0.
+BIOS drive number for da0.
 
 otherwise the following will happen:
 
-with wd0 and sd0, you specify sd1 or wd1 to indicate the 2nd drive.
-it boots the kernel correctly, then tells the kernel to use sd1 as root.
-you however may not have an sd1, and problems arise.
+with wd0 and da0, you specify da1 or wd1 to indicate the 2nd drive.
+it boots the kernel correctly, then tells the kernel to use da1 as root.
+you however may not have an da1, and problems arise.
 
-Whether sd or wd is specified to the kernel is read from the disklabel,
+Whether da or wd is specified to the kernel is read from the disklabel,
 so ensure that all SCSI disks have type SCSI in their disklabel or the
 boot code will assume they are ESDI or IDE. (Remember, because it is
 working through the BIOS it has ho idea what kind of disk it is.
@@ -151,13 +151,13 @@ working through the BIOS it has ho idea what kind of disk it is.
 ##########################################################################
 Installing:
 The makefile supplied has a target install which will create the
-files wdboot,bootwd ,sdboot and bootsd in /usr/mdec.
+files wdboot,bootwd ,daboot and bootda in /usr/mdec.
 BEWARE these will overwrite the existing wdboot and bootwd. (so back
 them up)
 
-there are also targets wd and sd which wil only do one of them
+there are also targets wd and da which wil only do one of them
 
-The commented out targets wd0 and sd0 are examples of how to 
+The commented out targets wd0 and da0 are examples of how to 
 load the new bootblocks, however,make sure you change the 
 device type and label to suit your drive if you uncomment them.
 (see 'man disklabel')
@@ -169,4 +169,4 @@ Before you do this ensure you have a booting floppy with correct
 disktab and bootblock files on it so that if it doesn't work, you can
 re-disklabel from the floppy.
 
-$Id$
+$Id: README.386BSD,v 1.9 1997/02/22 09:30:02 peter Exp $
