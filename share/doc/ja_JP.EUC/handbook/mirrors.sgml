@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: mirrors.sgml,v 1.9 1997/02/22 13:01:28 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.47 -->
+<!-- Original revision: 1.49 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -8,13 +8,9 @@
 
 <chapt><heading>FreeBSD の入手方法<label id="mirrors"></heading>
 
-<p>FreeBSD の公式な情報は anonymous FTP によって以下の場所から
-入手できます:
-<quote>
-<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
-name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
-</quote> 
-また Walnut Creek CDROM から出ている CD-ROM からも入手できます:
+<sect><heading>CD-ROM 出版社</heading>
+
+<p>FreeBSD は Walnut Creek CDROM から出されている CD-ROM から入手できます:
 <quote>
  Walnut Creek CDROM<newline>
  1547 Palos Verdes Mall, Suite 260<newline>
@@ -24,6 +20,15 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
  Email: <url url="mailto:info@cdrom.com" name="info@cdrom.com"><newline>
  WWW: <url url="http://www.cdrom.com/" name="http://www.cdrom.com/">
 </quote>
+
+<sect><heading>FTP サイト<label id="mirrors-ftp"></heading>
+
+<p>FreeBSD の公式な情報は anonymous FTP によって以下の場所から
+入手できます:
+<quote>
+<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
+name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
+</quote> 
 
 <p>さらに, FreeBSD は以下のミラーサイトから anonymous FTP によって
 	入手できます. もし FreeBSD を anonymous FTP によって手にいれる場合は,
@@ -527,7 +532,8 @@ secure (DES) と eBones (Kerberos) を
 
 </descrip>
 
-<label id="mirrors-ctm">
+<sect><heading>CTM サイト<label id="mirrors-ctm"></heading>
+
 <p>CTM/FreeBSD は以下のミラーサイトから anonymous FTP によって
       入手できます. もし CTM を anonymous FTP によって手にいれる場合は,
       近くのサイトを利用するようにしてください. 
@@ -582,3 +588,85 @@ secure (DES) と eBones (Kerberos) を
 	name="http://ftpsearch.ntnu.no/ftpsearch"> の 
 <url url="http://ftpsearch.ntnu.no/" name="FTP search"> を試してください.
 FTP search はノルウェーの Trondheim にある, フリーの素晴らしい アーカイブサーバです.
+
+<sect><heading>CVSup サイト<label id="mirrors-cvsup"></heading>
+
+<p>FreeBSD の CVSup サーバは以下のサイトで稼働しています:
+
+<descrip>
+
+<tag>アルゼンチン</tag>
+<itemize>
+<item>cvsup.ar.FreeBSD.ORG
+(<url url="mailto:msagre@cactus.fi.uba.ar" name="maintainer">)
+</itemize>
+
+<tag>オーストラリア</tag>
+<itemize>
+<item>cvsup.au.FreeBSD.ORG
+(<url url="mailto:dawes@physics.usyd.edu.au" name="maintainer">)
+</itemize>
+
+<tag>ドイツ</tag>
+<itemize>
+<item>cvsup.de.FreeBSD.ORG
+(<url url="mailto:wosch@cs.tu-berlin.de" name="maintainer">)
+</itemize>
+
+<tag>日本</tag>
+<itemize>
+<item>cvsup.jp.FreeBSD.ORG
+(<url url="mailto:simokawa@sat.t.u-tokyo.ac.jp" name="maintainer">)
+</itemize>
+
+<tag>オランダ</tag>
+<itemize>
+<item>cvsup.nl.FreeBSD.ORG
+(<url url="mailto:xaa@stack.urc.tue.nl" name="maintainer">)
+</itemize>
+
+<tag>ノルウェー</tag>
+<itemize>
+<item>cvsup.no.FreeBSD.ORG
+(<url url="mailto:Tor.Egge@idt.ntnu.no" name="maintainer">)
+</itemize>
+
+<tag>南アフリカ</tag>
+<itemize>
+<item>cvsup.za.FreeBSD.ORG
+(<url url="mailto:markm@FreeBSD.ORG" name="maintainer">)
+</itemize>
+
+<tag>台湾</tag>
+<itemize>
+<item>sup.tw.FreeBSD.ORG
+(<url url="mailto:jdli@freebsd.csie.nctu.edu.tw" name="maintainer">)
+</itemize>
+
+<tag>アメリカ</tag>
+<itemize>
+<item>cvsup.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup2.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup4.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup5.FreeBSD.ORG
+(<url url="mailto:skynyrd@opus.cts.cwu.edu" name="maintainer">)
+</itemize>
+
+</descrip>
+
+FreeBSD の輸出規制されたコード (eBones と secure) は CVSup 経由で以下
+の国際的なリポジトリから入手できます. アメリカ合衆国やカナダ以外に居る
+場合は, このサイトを使って輸出規制されたコードを入手してください. 
+
+<descrip>
+
+<tag>南アフリカ</tag>
+<itemize>
+<item>cvsup.internat.FreeBSD.ORG
+(<url url="mailto:markm@FreeBSD.ORG" name="maintainer">)
+</itemize>
+
+</descrip>

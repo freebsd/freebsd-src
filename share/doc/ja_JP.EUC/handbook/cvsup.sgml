@@ -1,6 +1,6 @@
-<!-- $Id: cvsup.sgml,v 1.7 1997/02/22 13:00:48 peter Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.8 1997/02/22 14:08:08 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.6 -->
+<!-- Original revision: 1.8 -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
 
@@ -256,9 +256,10 @@ tag が間違っていた場合, たまたまファイルがまったく存在しない正しい tag
 
 <p><item>どこから入手したいのか?<label id="cvsup:config:where">
 
-<p>これは簡単なことです. cvsup に第一の FreeBSD 配布サイト 
-"cvsup.FreeBSD.org" から最新情報を持ってくるように伝える "host=" 
-フィールドを使います:
+<p>更新情報をどこから入手するかを cvsup に伝えるために "host=" 
+フィールドを使用します。<ref id="mirrors-cvsup" name="CVSup ミラーサイト"> 
+のどこからでも入手できますが、最寄りのサイトを選ぶべきでしょう。
+この例では、第一の FreeBSD 配布サイト "cvsup.FreeBSD.org" を使用します:
 
 <verb>
   *default host=cvsup.FreeBSD.org
