@@ -407,8 +407,8 @@ void draw_shadow(WINDOW *win, int y, int x, int height, int width)
 
 void dialog_clear_norefresh(void)
 {
-    erase();
-    bkgd(screen_attr|ACS_CKBOARD);
+    attr_clear(stdscr, LINES, COLS, screen_attr);
+    touchwin(stdscr);
     wnoutrefresh(stdscr);
 }
 
