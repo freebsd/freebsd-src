@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.12 1998/04/29 06:58:43 max Exp $
+#	$Id: SMP-GENERIC,v 1.13 1998/09/15 10:01:13 gibbs Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -21,7 +21,7 @@ machine		"i386"
 cpu		"I586_CPU"
 cpu		"I686_CPU"
 ident		SMP-GENERIC
-maxusers	10
+maxusers	32
 
 # Create a SMP capable kernel (mandatory options):
 options		SMP			# Symmetric MultiProcessor Kernel
