@@ -61,7 +61,7 @@ static int elf_exec(struct preloaded_file *);
 static int sparc64_autoload(void);
 static int mmu_mapin(vm_offset_t, vm_size_t);
 
-char __progname[] = "FreeBSD/sparc64 loader";
+extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
 struct tlb_entry *dtlb_store;
 struct tlb_entry *itlb_store;
@@ -428,7 +428,9 @@ main(int (*openfirm)(void *))
 	env_setenv("loaddev", EV_VOLATILE, ofw_fmtdev(&bootdev),
 	    env_noset, env_nounset);
 
-	printf("%s\n", __progname);
+	printf("\n");
+	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
+	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	printf("bootpath=\"%s\"\n", bootpath);
 	printf("loaddev=%s\n", getenv("loaddev"));
 
