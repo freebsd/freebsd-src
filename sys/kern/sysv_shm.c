@@ -738,8 +738,8 @@ sysvshm_modload(struct module *module, int cmd, void *arg)
 	return (error);
 }
 
-static moduledata_t sysvshm_moduledata = {
-	"sysvshm_mod",
+static moduledata_t sysvshm_mod = {
+	"sysvshm",
 	&sysvshm_modload,
 	NULL
 };
@@ -750,5 +750,6 @@ SYSCALL_MODULE_HELPER(shmctl, 3);
 SYSCALL_MODULE_HELPER(shmdt, 1);
 SYSCALL_MODULE_HELPER(shmget, 3);
 
-DECLARE_MODULE(sysvshm_mod, sysvshm_moduledata,
+DECLARE_MODULE(sysvshm, sysvshm_mod,
 	SI_SUB_SYSV_SHM, SI_ORDER_FIRST);
+MODULE_VERSION(sysvshm, 1);

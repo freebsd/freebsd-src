@@ -245,8 +245,8 @@ sysvmsg_modload(struct module *module, int cmd, void *arg)
 	return (error);
 }
 
-static moduledata_t sysvmsg_moduledata = {
-	"sysvmsg_mod",
+static moduledata_t sysvmsg_mod = {
+	"sysvmsg",
 	&sysvmsg_modload,
 	NULL
 };
@@ -257,8 +257,9 @@ SYSCALL_MODULE_HELPER(msgget, 2);
 SYSCALL_MODULE_HELPER(msgsnd, 4);
 SYSCALL_MODULE_HELPER(msgrcv, 5);
 
-DECLARE_MODULE(sysvmsg_mod, sysvmsg_moduledata,
+DECLARE_MODULE(sysvmsg, sysvmsg_mod,
 	SI_SUB_SYSV_MSG, SI_ORDER_FIRST);
+MODULE_VERSION(sysvmsg, 1);
 
 /*
  * Entry point for all MSG calls
