@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpc.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpc.c,v 1.6 1997/12/02 20:45:43 wollman Exp $";
+	"$Id: lpc.c,v 1.7 1998/03/22 20:19:27 jb Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,16 +74,17 @@ static const char rcsid[] =
 
 #define MAX_CMDLINE	200
 #define MAX_MARGV	20
-int	fromatty;
+static int	fromatty;
 
-char	cmdline[MAX_CMDLINE];
-int	margc;
-char	*margv[MAX_MARGV];
-int	top;
-uid_t	uid, euid;
+static char	cmdline[MAX_CMDLINE];
+static int	margc;
+static char	*margv[MAX_MARGV];
+static int	top;
+uid_t		uid, euid;
 
-jmp_buf	toplevel;
+static jmp_buf	toplevel;
 
+int			 main __P((int, char *[]));
 static void		 cmdscanner __P((int));
 static struct cmd	*getcmd __P((char *));
 static void		 intr __P((int));
