@@ -289,7 +289,7 @@ main(int argc, char *argv[])
 		if (stat(argv[0], &sb) == 0) {
 			/* OK, full pathname given */
 			disk = argv[0];
-		} else if (errno == ENOENT) {
+		} else if (errno == ENOENT && argv[0][0] != '/') {
 			/* Try prepending "/dev" */
 			asprintf(&disk, "%s%s", _PATH_DEV, argv[0]);
 			if (disk == NULL)
