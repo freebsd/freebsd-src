@@ -167,13 +167,13 @@ suivantes.</para>
     <filename>release/sysinstall</filename>. Ces fichiers ont
     &eacute;t&eacute; g&eacute;n&eacute;r&eacute;s lors de la
     confection de la version, mais pour d'obscures raisons, ils n'ont
-    pas &eacute;t&eacute; effac&eacute;. Ils ne servent &agrave;
-    rien.</para>
+    pas &eacute;t&eacute; effac&eacute;s. Ils ne servent &agrave;
+    rien et peuvent donc &ecirc;tre effac&eacute;s.</para>
 
     <para> Les paquetages  <filename
     role="package">databases/rdfdb</filename>   et <filename
     role="package">mail/ssmtp</filename> incluent dans &release.prev;
-    ne peuvent pas être install&eacute;s correctement. La solution
+    ne peuvent pas &ecirc;tre install&eacute;s correctement. La solution
     consiste &agrave; les compiler et &agrave; les install&eacute;s depuis la
     collection des ports.</para>
 
@@ -184,9 +184,8 @@ suivantes.</para>
     role="package">net/gnet</filename>. Pour r&eacute;soudre ce
     probl&egrave;me, installez <filename
     role="package">net/gnet</filename> via un paquetage ou via la
-    collection des ports, si possible avec d'installer <filename
+    collection des ports, si possible avant d'installer <filename
     role="package">net/gnomeicu</filename>.</para>
-
 
 ]]>
 
