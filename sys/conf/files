@@ -271,6 +271,7 @@ scsi/sd.c		optional sd
 scsi/st.c		optional st
 scsi/su.c		optional su
 scsi/uk.c		optional uk
+scsi/ssc.c		optional ssc
 ufs/ffs/ffs_alloc.c	optional ffs
 ufs/ffs/ffs_alloc.c	optional mfs
 ufs/ffs/ffs_balloc.c	optional ffs
