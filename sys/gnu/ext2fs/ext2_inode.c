@@ -59,6 +59,7 @@
 #include <sys/resourcevar.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
