@@ -76,6 +76,9 @@ _thread_fd_table_init(int fd)
 	struct fd_table_entry *entry;
 	int	saved_errno;
 
+	if (_thread_initial == NULL)
+		_thread_init();
+
 	/* Check if the file descriptor is out of range: */
 	if (fd < 0 || fd >= _thread_dtablesize) {
 		/* Return a bad file descriptor error: */
