@@ -1107,17 +1107,6 @@ nfs_init(vfsp)
 
 	nfsmount_zone = zinit("NFSMOUNT", sizeof(struct nfsmount), 0, 0, 1);
 
-	/*
-	 * Check to see if major data structures haven't bloated.
-	 */
-	if (sizeof (struct nfssvc_sock) > NFS_SVCALLOC) {
-		printf("struct nfssvc_sock bloated (> %dbytes)\n",NFS_SVCALLOC);
-		printf("Try reducing NFS_UIDHASHSIZ\n");
-	}
-	if (sizeof (struct nfsuid) > NFS_UIDALLOC) {
-		printf("struct nfsuid bloated (> %dbytes)\n",NFS_UIDALLOC);
-		printf("Try unionizing the nu_nickname and nu_flag fields\n");
-	}
 	nfs_mount_type = vfsp->vfc_typenum;
 	nfsrtt.pos = 0;
 	rpc_vers = txdr_unsigned(RPC_VER2);
