@@ -33,12 +33,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: Makefile,v 1.1 1994/08/19 12:14:02 davidg Exp $
+#	$Id: Makefile,v 1.1.6.2 1996/06/05 02:57:14 jkh Exp $
 #
 
 PROG=	modstat
 MAN8=	modstat.8
-BINGRP=	kmem
-BINMODE=2555
 
 .include <bsd.prog.mk>
