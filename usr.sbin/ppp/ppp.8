@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.119 1998/08/25 17:48:43 brian Exp $
+.\" $Id: ppp.8,v 1.120 1998/08/25 17:48:55 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2343,15 +2343,47 @@ which comes with the source distribution.
 .It [!]bg Ar command
 The given
 .Ar command
-is executed in the background.  Any of the pseudo arguments
-.Dv HISADDR ,
-.Dv INTERFACE
-and
-.Dv MYADDR
-will be replaced with the appropriate values.  If you wish to pause
+is executed in the background with the following words replaced:
+.Bl -tag -width PEER_ENDDISC
+.It Li AUTHNAME
+This is replaced with the local
+.Ar authname
+value.  See the
+.Dq set authname
+command below.
+.It Li ENDDISC
+This is replaced with the local endpoint discriminator value.  See the
+.Dq set enddisc
+command below.
+.It Li HISADDR
+This is replaced with the peers IP number.
+.It Li INTERFACE
+This is replaced with the name of the interface that's in use.
+.It Li LABEL
+This is replaced with the last label name used.  A label may be specified
+on the
+.Nm
+command line, via the
+.Dq load
+or
+.Dq dial
+commands and in the
+.Pa ppp.secret
+file.
+.It Li MYADDR
+This is replaced with the IP number assigned to the local interface.
+.It Li PEER_ENDDISC
+This is replaced with the value of the peers endpoint discriminator.
+.It Li USER
+This is replaced with the username that has been authenticated with PAP or
+CHAP.  Normally, this variable is assigned only in -direct mode.  This value
+is available irrespective of whether utmp logging is enabled.
+.El
+.Pp
+If you wish to pause
 .Nm
 while the command executes, use the
-.Dv shell
+.Dq shell
 command instead.
 .It clear modem|ipcp Op current|overall|peak...
 Clear the specified throughput values at either the
@@ -3351,14 +3383,13 @@ is not specified a shell is invoked according to the
 .Dv SHELL
 environment variable.  Otherwise, the given
 .Ar command
-is executed.  Any of the pseudo arguments
-.Dv HISADDR ,
-.Dv INTERFACE
-and
-.Dv MYADDR
-will be replaced with the appropriate values.  Use of the ! character
-requires a following space as with any other commands.  You should note
-that this command is executed in the foreground -
+is executed.  Word replacement is done in the same way as for the
+.Dq !bg
+commanad as described above.
+.Pp
+Use of the ! character
+requires a following space as with any of the other commands.  You should
+note that this command is executed in the foreground -
 .Nm
 will not continue running until this process has exited.  Use the
 .Dv bg
