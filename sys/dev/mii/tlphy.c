@@ -178,6 +178,7 @@ static int tlphy_attach(dev)
 				break;
 			}
 		}
+		free(devlist, M_TEMP);
 	}
 
 	mii->mii_instance++;
