@@ -25,6 +25,7 @@ SUBDIR=	atrun \
 	rshd \
 	save-entropy \
 	talkd \
+	tcpd \
 	tftpd \
 	xtend \
 	ypxfr
