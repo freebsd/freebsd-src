@@ -53,9 +53,9 @@ waits a count of
 .Ar seconds
 before asserting the terminating signal
 .Dv SIGALRM .
-When the signal has successfully been caught,
 .Fn alarm
-returns the amount of time left on the clock.
+returns the amount of time unexpired
+from any previously pending alarm.
 The maximum number of
 .Ar seconds
 allowed
