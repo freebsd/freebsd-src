@@ -134,7 +134,7 @@ ipxprotopr(u_long off, char *name, int af __unused)
 		}
 		if (Aflag)
 			printf("%8lx ", ppcb);
-		printf("%-5.5s %6ld %6ld ", name, sockb.so_rcv.sb_cc,
+		printf("%-5.5s %6u %6u ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		printf(Aflag?" %-18.18s":" %-22.22s", ipx_prpr(&ipxpcb.ipxp_laddr));
 		printf(Aflag?" %-18.18s":" %-22.22s", ipx_prpr(&ipxpcb.ipxp_faddr));

@@ -110,8 +110,8 @@ struct netinfo {
 	long	ni_lport;		/* local port */
 	struct	in_addr	ni_faddr;	/* foreign address */
 	long	ni_fport;		/* foreign port */
-	long	ni_rcvcc;		/* rcv buffer character count */
-	long	ni_sndcc;		/* snd buffer character count */
+	u_int	ni_rcvcc;		/* rcv buffer character count */
+	u_int	ni_sndcc;		/* snd buffer character count */
 };
 
 TAILQ_HEAD(netinfohead, netinfo) netcb = TAILQ_HEAD_INITIALIZER(netcb);
@@ -450,8 +450,8 @@ shownetstat()
 			p->ni_flags &= ~NIF_FACHG;
 		}
 		mvwaddstr(wnd, p->ni_line, PROTO, p->ni_proto);
-		mvwprintw(wnd, p->ni_line, RCVCC, "%6d", p->ni_rcvcc);
-		mvwprintw(wnd, p->ni_line, SNDCC, "%6d", p->ni_sndcc);
+		mvwprintw(wnd, p->ni_line, RCVCC, "%6u", p->ni_rcvcc);
+		mvwprintw(wnd, p->ni_line, SNDCC, "%6u", p->ni_sndcc);
 		if (streq(p->ni_proto, "tcp")) {
 			if (p->ni_state < 0 || p->ni_state >= TCP_NSTATES)
 				mvwprintw(wnd, p->ni_line, STATE, "%d",

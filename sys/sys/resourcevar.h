@@ -111,7 +111,7 @@ void	 addupc_task(struct kse *ke, uintptr_t pc, u_int ticks);
 void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp,
 	    struct timeval *ip);
 int	 chgproccnt(struct uidinfo *uip, int diff, int max);
-int	 chgsbsize(struct uidinfo *uip, u_long *hiwat, u_long to,
+int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t max);
 int	 fuswintr(void *base);
 struct plimit
