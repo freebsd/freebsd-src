@@ -1587,7 +1587,7 @@ knlist_destroy(struct knlist *knl)
  * knotes time to "settle".
  */
 void
-knlist_clear(struct knlist *knl, int islocked)
+knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 {
 	struct knote *kn;
 	struct kqueue *kq;
@@ -1603,15 +1603,20 @@ again:		/* need to reaquire lock since we have dropped it */
 	SLIST_FOREACH(kn, &knl->kl_list, kn_selnext) {
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
-		if ((kn->kn_status & KN_INFLUX) &&
-		    (kn->kn_status & KN_DETACHED) != KN_DETACHED) {
+		if ((kn->kn_status & KN_INFLUX)) {
 			KQ_UNLOCK(kq);
 			continue;
 		}
-		/* Make sure cleared knotes disappear soon */
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
 		knlist_remove_kq(knl, kn, 1, 1);
-		KQ_UNLOCK(kq);
+		if (killkn) {
+			kn->kn_status |= KN_INFLUX | KN_DETACHED;
+			KQ_UNLOCK(kq);
+			knote_drop(kn, td);
+		} else {
+			/* Make sure cleared knotes disappear soon */
+			kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+			KQ_UNLOCK(kq);
+		}
 		kq = NULL;
 	}
 
@@ -1628,8 +1633,6 @@ again:		/* need to reaquire lock since we have dropped it */
 		kq = NULL;
 		goto again;
 	}
-
-	SLIST_INIT(&knl->kl_list);
 
 	if (islocked)
 		mtx_assert(knl->kl_lock, MA_OWNED);

@@ -488,7 +488,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	 * OWNING thread? (or maybe the running thread?)
 	 * There is a semantic problem here...
 	 */
-	knlist_clear(&aiocbe->klist, 0); /* XXXKSE */
+	knlist_delete(&aiocbe->klist, FIRST_THREAD_IN_PROC(p), 0); /* XXXKSE */
 
 	if ((ki->kaio_flags & KAIO_WAKEUP) || ((ki->kaio_flags & KAIO_RUNDOWN)
 	    && ((ki->kaio_buffer_count == 0) && (ki->kaio_queue_count == 0)))) {
