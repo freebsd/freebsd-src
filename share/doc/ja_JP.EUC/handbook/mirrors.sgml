@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.14 1997/03/21 09:22:23 hanai Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.15 1997/04/25 20:09:23 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.55 -->
+<!-- Original revision: 1.56 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -591,8 +591,8 @@ secure (DES) と eBones (Kerberos) を
 <tag>ドイツ, トリエル</tag>
 <itemize>
 <item>
-<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"
-	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"><newline>
+<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/CTM"
+	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/CTM"><newline>
 </itemize>
 
 
