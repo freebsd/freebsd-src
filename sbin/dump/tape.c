@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)tape.c	8.4 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: tape.c,v 1.9 1998/06/15 06:58:11 charnier Exp $";
+	"$Id: tape.c,v 1.10 1998/09/15 10:25:50 gibbs Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -174,7 +174,11 @@ writerec(dp, isspcl)
 
 	slp->req[trecno].dblk = (daddr_t)0;
 	slp->req[trecno].count = 1;
+#ifndef	__alpha__
 	*(union u_spcl *)(*(nextblock)++) = *(union u_spcl *)dp;
+#else
+	bcopy(dp, *(nextblock)++, sizeof (union u_spcl));
+#endif
 	if (isspcl)
 		lastspclrec = spcl.c_tapea;
 	trecno++;
