@@ -86,14 +86,15 @@ Once the password has been verified,
 .Nm
 communicates the new password information to
 the Kerberos authenticating host.
-.Bl -tag -width flag
+.Pp
+The following option is available:
+.Bl -tag -width indent
 .It Fl l
-This option causes the password to be updated only in the local
+Cause the password to be updated only in the local
 password file, and not with the Kerberos database.
 When changing only the local password,
 .Xr pwd_mkdb  8
 is used to update the password databases.
-.Pp
 .El
 When changing local or NIS password, the next password change date
 is set according to
@@ -138,11 +139,9 @@ The super-user on NIS client systems and NIS slave
 servers still needs to provide a password before the update will be processed.
 .Pp
 The following additional options are supported for use with NIS:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl y
-The
-.Fl y
-flag overrides
+Override
 .Nm Ns 's
 checking heuristics and forces
 it into NIS mode.
@@ -205,7 +204,6 @@ The specified hostname need not be the name of an NIS master: the
 name of the NIS master for a given map can be determined by querying any
 NIS server (master or slave) in a domain, so specifying the name of a
 slave server will work equally well.
-.Pp
 .It Fl o
 Do not automatically override the password authentication checks for the
 super-user on the NIS master server; assume 'old' mode instead.
@@ -215,13 +213,13 @@ flag is of limited practical use but is useful for testing.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd
-The user database
+the user database
 .It Pa /etc/passwd
-A Version 7 format password file
+a Version 7 format password file
 .It Pa /etc/passwd.XXXXXX
-Temporary copy of the password file
+temporary copy of the password file
 .It Pa /etc/login.conf
-Login class capabilities database
+login class capabilities database
 .It Pa /etc/auth.conf
 configure authentication services
 .El
