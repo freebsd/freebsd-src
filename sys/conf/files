@@ -1001,6 +1001,7 @@ pci/if_wx.c		optional wx
 pci/if_xl.c		optional xl
 pci/isp_pci.c		optional isp
 pci/intpm.c		optional intpm
+pci/amdpm.c		optional amdpm
 pci/meteor.c		optional meteor pci
 pci/ncr.c		optional ncr
 dev/sym/sym_hipd.c	optional sym					\

@@ -150,3 +150,4 @@ DRIVER_MODULE(smbus, bti2c, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, alsmb, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, ichsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, amdsmb, smbus_driver, smbus_devclass, 0, 0);
