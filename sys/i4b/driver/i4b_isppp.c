@@ -52,7 +52,7 @@
 
 #ifndef __NetBSD__
 #if NI4BISPPP == 0
-# error "You need to define `pseudo-device sppp <N>' with options ISPPP"
+# error "You need to define `device sppp <N>' with options ISPPP"
 #endif
 #endif
 
