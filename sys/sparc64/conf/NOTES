@@ -68,6 +68,7 @@ nodevice	atkbd
 nodevice	psm
 nodevice	vga
 nodevice	daemon_saver
+nodevice	snake_saver
 nodevice	star_saver
 nodevice	bktr
 nodevice	fdc
