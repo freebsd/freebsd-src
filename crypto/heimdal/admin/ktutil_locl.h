@@ -33,6 +33,7 @@
 
 /* 
  * $Id: ktutil_locl.h,v 1.11 2000/02/07 04:26:37 assar Exp $
+ * $FreeBSD$
  */
 
 #ifndef __KTUTIL_LOCL_H__
@@ -53,7 +54,7 @@
 #endif
 #include <roken.h>
 
-#include <des.h>
+#include <openssl/des.h>
 
 #include <krb5.h>
 #include <kadm5/admin.h>

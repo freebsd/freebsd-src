@@ -33,6 +33,7 @@
 
 #include "krb5_locl.h"
 RCSID("$Id: crypto.c,v 1.29 2000/01/25 23:06:55 assar Exp $");
+/* RCSID("$FreeBSD$"); */
 
 #undef CRYPTO_DEBUG
 #ifdef CRYPTO_DEBUG
@@ -1010,9 +1011,9 @@ SHA1_checksum(krb5_context context,
 {
     SHA1_CTX m;
 
-    SHA1Init(&m);
-    SHA1Update(&m, data, len);
-    SHA1Final(C->checksum.data, &m);
+    SHA_Init(&m);
+    SHA_Update(&m, data, len);
+    SHA_Final(C->checksum.data, &m);
 }
 
 /* HMAC according to RFC2104 */
