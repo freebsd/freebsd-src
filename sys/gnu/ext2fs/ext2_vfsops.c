@@ -1031,7 +1031,7 @@ restart:
 		return (error);
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
-	lockinit(&ip->i_lock, PINOD, "ext2in", 0, 0);
+	lockinit(&vp->v_lock, PINOD, "ext2in", 0, 0);
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_e2fs = fs = ump->um_e2fs;
