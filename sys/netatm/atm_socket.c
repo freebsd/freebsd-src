@@ -78,7 +78,6 @@ atm_sock_init(void)
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (atm_pcb_zone == NULL)
 		panic("atm_sock_init: unable to initialize atm_pcb_zone");
-	uma_zone_set_max(atm_pcb_zone, 100);
 }
 
 /*

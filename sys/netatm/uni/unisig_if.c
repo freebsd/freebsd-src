@@ -169,10 +169,6 @@ unisig_start()
 	if (unisig_ie_zone == NULL)
 		panic("unisig_start: uma_zcreate failed to create ie zone");
 	
-	uma_zone_set_max(unisig_vc_zone, 50);
-	uma_zone_set_max(unisig_msg_zone, 50);
-	uma_zone_set_max(unisig_ie_zone, 50);
-
 	/*
 	 * Register ourselves with system
 	 */

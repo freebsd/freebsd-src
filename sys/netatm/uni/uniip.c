@@ -105,7 +105,6 @@ uniip_start()
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (uniip_zone == NULL)
 		panic("uniip_start: uma_zcreate");
-	uma_zone_set_max(uniip_zone, 100);
 
 	/*
 	 * Tell arp to initialize stuff
