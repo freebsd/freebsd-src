@@ -553,10 +553,14 @@ sendudp(struct iodesc *h, void *pkt, size_t len)
 	udpwrite_p->ip             = h->destip.s_addr;
 	udpwrite_p->dst_port       = h->destport;
 	udpwrite_p->src_port       = h->myport;
-	udpwrite_p->gw             = gateip.s_addr;
 	udpwrite_p->buffer_size    = len;
 	udpwrite_p->buffer.segment = VTOPSEG(pkt);
 	udpwrite_p->buffer.offset  = VTOPOFF(pkt);
+
+	if (netmask == 0 || SAMENET(myip, h->destip, netmask))
+		udpwrite_p->gw = 0;
+	else
+		udpwrite_p->gw = gateip.s_addr;
 
 	pxe_call(PXENV_UDP_WRITE);
 
