@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_ddb.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -1003,10 +1001,10 @@ again:
 		scsi_low_print(slp, NULL);
 		printf("%s: scsi_status 0x%x\n\n", slp->sl_xname, 
 		       (u_int) scsi_status);
-#ifdef	DDB
+#ifdef	KDB
 		if (ct_debug > 1)
 			SCSI_LOW_DEBUGGER("ct");
-#endif	/* DDB */
+#endif	/* KDB */
 	}
 #endif	/* CT_DEBUG */
 
