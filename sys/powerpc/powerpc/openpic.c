@@ -208,7 +208,7 @@ openpic_attach(device_t dev)
 	sc->sc_rman.rm_descr = device_get_nameunit(dev);
 
 	if (rman_init(&sc->sc_rman) != 0 ||
-	    rman_manage_region(&sc->sc_rman, 0, sc->sc_nirq - 1) != 0) {
+	    rman_manage_region(&sc->sc_rman, 0, sc->sc_nirq) != 0) {
 		device_printf(dev, "could not set up resource management");
 		return (ENXIO);
 	}
