@@ -983,8 +983,6 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
       m_freem(bp);
       return;
     }
-    log_Printf(LogWARN, "%s: Oops: Got %d bytes but %d byte payload\n",
-               fp->link->name, len, (int)ntohs(lh.length));
   }
 
   if (lh.code < fp->min_code || lh.code > fp->max_code ||
