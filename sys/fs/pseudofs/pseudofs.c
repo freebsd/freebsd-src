@@ -49,6 +49,10 @@ static MALLOC_DEFINE(M_PFSNODES, "pfs_nodes", "pseudofs nodes");
 SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW, 0,
     "pseudofs");
 
+#if PFS_FSNAMELEN != MFSNAMELEN
+#error "PFS_FSNAMELEN is not equal to MFSNAMELEN"
+#endif
+
 /*
  * Add a node to a directory
  */
