@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id: ipx_pcb.h,v 1.4 1995/11/04 09:03:16 julian Exp $
+ * $Id: ipx_pcb.h,v 1.5 1995/11/24 12:25:10 bde Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_
@@ -75,8 +75,8 @@ struct ipxpcb {
 /*
  * Nominal space allocated to a IPX socket.
  */
-#define	IPXSNDQ		2048
-#define	IPXRCVQ		2048
+#define	IPXSNDQ		16384
+#define	IPXRCVQ		40960
 
 #ifdef KERNEL
 extern struct ipxpcb ipxpcb;			/* head of list */

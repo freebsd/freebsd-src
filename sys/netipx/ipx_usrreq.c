@@ -33,12 +33,13 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.6 1996/04/13 14:37:22 jhay Exp $
+ * $Id: ipx_usrreq.c,v 1.7 1996/05/08 19:31:48 jhay Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -46,6 +47,7 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -64,6 +66,13 @@
  */
 
 int noipxRoute;
+
+int ipxsendspace = IPXSNDQ;
+SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxsendspace, CTLFLAG_RW,
+            &ipxsendspace, 0, "");
+int ipxrecvspace = IPXRCVQ;
+SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxrecvspace, CTLFLAG_RW,
+            &ipxrecvspace, 0, "");
 
 /*
  *  This may also be called for raw listeners.
@@ -268,9 +277,11 @@ ipx_output(ipxp, m0)
 	}
 	ipxp->ipxp_lastdst = ipx->ipx_dna;
 #endif /* ancient_history */
-	if (noipxRoute) ro = 0;
+	if (noipxRoute)
+		ro = 0;
 	return (ipx_outputfl(m, ro, so->so_options & SO_BROADCAST));
 }
+
 /* ARGSUSED */
 int
 ipx_ctloutput(req, so, level, name, value)
@@ -418,7 +429,7 @@ ipx_usrreq(so, req, m, nam, control)
 		error = ipx_pcballoc(so, &ipxpcb);
 		if (error)
 			break;
-		error = soreserve(so, (u_long) 2048, (u_long) 2048);
+		error = soreserve(so, ipxsendspace, ipxrecvspace);
 		if (error)
 			break;
 		break;
@@ -550,6 +561,7 @@ release:
 		m_freem(m);
 	return (error);
 }
+
 /*ARGSUSED*/
 int
 ipx_raw_usrreq(so, req, m, nam, control)
@@ -572,7 +584,7 @@ ipx_raw_usrreq(so, req, m, nam, control)
 		error = ipx_pcballoc(so, &ipxrawpcb);
 		if (error)
 			break;
-		error = soreserve(so, (u_long) 2048, (u_long) 2048);
+		error = soreserve(so, ipxsendspace, ipxrecvspace);
 		if (error)
 			break;
 		ipxp = sotoipxpcb(so);
