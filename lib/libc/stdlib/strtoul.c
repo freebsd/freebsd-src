@@ -84,7 +84,7 @@ strtoul(nptr, endptr, base)
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
 	acc = any = 0;
-	if (base < 2 || base > 35)
+	if (base < 2 || base > 36)
 		goto noconv;
 
 	cutoff = ULONG_MAX / base;
