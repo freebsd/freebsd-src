@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.3 1994/09/24 02:58:08 davidg Exp $
+ *	$Id: parser.c,v 1.4 1995/01/09 20:00:54 paul Exp $
  */
 
 #ifndef lint
@@ -835,7 +835,7 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 			CHECKSTRSPACE(3, out);	/* permit 3 calls to USTPUTC */
 			if (parsebackquote && c == '\\') {
 				c = pgetc();	/* XXX - compat with old /bin/sh */
-				if (c != '\\' && c != '`' && c != '$') {
+				if (/*c != '\\' && */c != '`' && c != '$') {
 					pungetc();
 					c = '\\';
 				}
@@ -1181,7 +1181,7 @@ parsebackq: {
                 while ((c = pgetc ()) != '`') {
                        if (c == '\\') {
                                 c = pgetc ();
-                                if (c != '`' && c != '$'
+                                if ( c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
                                         STPUTC('\\', out);
                        }
