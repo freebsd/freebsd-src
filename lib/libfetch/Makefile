@@ -5,7 +5,7 @@ LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
 CFLAGS+=	-DINET6
 .if !defined(DEBUG)
-CFLAGS+=	-DNDEBUG
+#CFLAGS+=	-DNDEBUG
 .endif
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
