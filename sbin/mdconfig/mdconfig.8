@@ -91,6 +91,11 @@ Select the type of the memory disk.
 Storage for this type of memory disk is allocated with
 .Xr malloc 9 .
 This limits the size to the malloc bucket limit in the kernel.
+If the
+.Fl o Cm reserve
+option is not set, creating and filling a large
+malloc-backed memory disk is a very easy way to
+panic a system.
 .It Cm vnode
 A file specified with
 .Fl f Ar file
