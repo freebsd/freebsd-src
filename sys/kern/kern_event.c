@@ -59,7 +59,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
+static MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
+
 /*
  * This lock is used if multiple kq locks are required.  This possibly
  * should be made into a per proc lock.

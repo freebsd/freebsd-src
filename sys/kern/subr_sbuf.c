@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 
 #ifdef _KERNEL
-MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
+static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBMALLOC(size)		malloc(size, M_SBUF, M_WAITOK)
 #define	SBFREE(buf)		free(buf, M_SBUF)
 #else /* _KERNEL */

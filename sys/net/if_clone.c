@@ -100,7 +100,7 @@ LIST_HEAD(, if_clone)	if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 		}							\
 	} while (0)
 
-MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
+static MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
 void
 if_clone_init(void)
