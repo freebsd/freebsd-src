@@ -331,7 +331,7 @@ nopgrp:
 		if (proc.p_state != PRS_ZOMBIE) {
 			kp->ki_pctcpu = proc.p_kse.ke_pctcpu;
 			kp->ki_estcpu = proc.p_ksegrp.kg_estcpu;
-			kp->ki_slptime = proc.p_kse.ke_slptime;
+			kp->ki_slptime = proc.p_ksegrp.kg_slptime;
 			kp->ki_swtime = proc.p_swtime;
 			kp->ki_flag = proc.p_flag;
 			kp->ki_sflag = proc.p_sflag;
