@@ -35,7 +35,9 @@ usage(int devmask, int recmask)
 {
 	int i, n;
 
-	printf("usage: mixer [-f device] [-s] [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
+	printf("usage: mixer [-f device] [-s] [dev [+|-][voll[:[+|-]volr]] ...\n"
+	       "       mixer [-f device] [-s] recsrc ...\n"
+	       "       mixer [-f device] [-s] {^|+|-|=}rec rdev ... \n");
 	printf(" devices: ");
 	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
@@ -91,6 +93,8 @@ main(int argc, char *argv[])
 	int devmask = 0, recmask = 0, recsrc = 0, orecsrc;
 	int dusage = 0, drecsrc = 0, shortflag = 0;
 	int l = 0, r = 0, t = 0;
+	char lstr[5], rstr[5];
+	int n = 0, lrel = 0, rrel = 0;
 	char ch;
 
 	char *name;
@@ -190,7 +194,24 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		switch(argc > 1 ? sscanf(argv[1], "%d:%d", &l, &r) : t) {
+#define	issign(c)	(((c) == '+') || ((c) == '-'))
+
+		if (argc > 1) {
+			n = sscanf(argv[1], "%7[^:]:%7s", lstr, rstr);
+			if (n > 0) {
+				if (issign(lstr[0]))
+					lrel = rrel = 1;
+				l = atoi(lstr);
+			}
+			if (n > 1) {
+				rrel = 0;
+				if (issign(rstr[0]))
+					rrel = 1;
+				r = atoi(rstr);
+			}
+		}
+
+		switch(argc > 1 ? n : t) {
 		case 0:
 			if (ioctl(baz, MIXER_READ(dev),&bar)== -1) {
 				warn("MIXER_READ");
@@ -208,6 +229,17 @@ main(int argc, char *argv[])
 		case 1:
 			r = l;
 		case 2:
+			if (ioctl(baz, MIXER_READ(dev),&bar)== -1) {
+				warn("MIXER_READ");
+				argc--; argv++;
+				continue;
+			}
+
+			if (lrel)
+				l = (bar & 0x7f) + l;
+			if (rrel)
+				r = ((bar >> 8) & 0x7f) + r;
+
 			if (l < 0)
 				l = 0;
 			else if (l > 100)
@@ -216,12 +248,6 @@ main(int argc, char *argv[])
 				r = 0;
 			else if (r > 100)
 				r = 100;
-
-			if (ioctl(baz, MIXER_READ(dev),&bar)== -1) {
-				warn("MIXER_READ");
-				argc--; argv++;
-				continue;
-			}
 
 			printf("Setting the mixer %s from %d:%d to %d:%d.\n",
 			    names[dev], bar & 0x7f, (bar >> 8) & 0x7f, l, r);
