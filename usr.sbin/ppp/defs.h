@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.8 1996/12/22 17:29:31 jkh Exp $
+ * $Id: defs.h,v 1.13 1997/05/04 02:39:03 ache Exp $
  *
  *	TODO:
  */
@@ -36,7 +36,7 @@
 /*
  *  Check follwiing definitions for your machine envirinment
  */
-#define	LOGFILE		"/var/log/ppp.log"	/* Name of log file */
+#define	LOGFILE		"/var/log/ppp.tun%d.log" /* Name of log	file */
 #ifdef __FreeBSD__
 #define	MODEM_DEV	"/dev/cuaa1"		/* name of tty device */
 #else
@@ -45,8 +45,11 @@
 #define MODEM_SPEED	B38400			/* tty speed */
 #define	SERVER_PORT	3000			/* Base server port no. */
 
-#define	MODEM_CTSRTS	TRUE		/* Default (true): use CTS/RTS signals */
-#define	REDIAL_PERIOD	30			/* Default Hold time to redial */
+#define	MODEM_CTSRTS	TRUE	/* Default (true): use CTS/RTS signals */
+#define	RECONNECT_TIMER	3	/* Default timer for carrier loss */
+#define	RECONNECT_TRIES	0	/* Default retries on carrier loss */
+#define	REDIAL_PERIOD	30	/* Default Hold time to redial */
+#define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKFILE 	"ppp.linkup"

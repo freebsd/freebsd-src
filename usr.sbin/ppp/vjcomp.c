@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.3 1995/05/30 03:51:02 rgrimes Exp $
+ * $Id: vjcomp.c,v 1.7 1997/05/07 23:30:50 brian Exp $
  *
  *  TODO:
  */
@@ -50,7 +50,8 @@ struct mbuf *bp;
 #ifdef DEBUG
   logprintf("SendPppFrame: proto = %x\n", IpcpInfo.his_compproto);
 #endif
-  if (cproto== PROTO_VJCOMP) {
+  if (((struct ip *)MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
+      && cproto== PROTO_VJCOMP) {
     type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
 
 #ifdef DEBUG

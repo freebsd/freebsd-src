@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.5.2.1 1997/02/02 19:06:21 joerg Exp $
+ * $Id: timer.c,v 1.14 1997/03/13 12:45:26 brian Exp $
  *
  *  TODO:
  */
@@ -25,10 +25,11 @@
 #include <sys/time.h>
 #include <signal.h>
 #include "timeout.h"
-#include "sig.h"
 #ifdef SIGALRM
 #include <errno.h>
 #endif
+#include "sig.h"
+
 void StopTimerNoBlock( struct pppTimer *);
 void ShowTimers(void);
 
@@ -279,13 +280,9 @@ void InitTimerService( void ) {
 void TermTimerService( void ) {
   struct itimerval itimer;
 
-  itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
+  itimer.it_interval.tv_usec = itimer.it_interval.tv_sec = 0;
   itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
   setitimer(ITIMER_REAL, &itimer, NULL);
-  /*
-   * Notes: after disabling timer here, we will get one
-   *        SIGALRM will be got.
-   */
   pending_signal(SIGALRM, SIG_IGN);
 }
 #endif
