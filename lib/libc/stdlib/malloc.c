@@ -1093,6 +1093,7 @@ malloc(size_t size)
 	wrtwarning("recursive call\n");
         malloc_active--;
         THREAD_UNLOCK();
+	errno = EDOFUS;
 	return (0);
     }
     if (!malloc_started)
@@ -1108,6 +1109,8 @@ malloc(size_t size)
     THREAD_UNLOCK();
     if (malloc_xmalloc && !r)
 	wrterror("out of memory\n");
+    if (!r)
+	errno = ENOMEM;
     return (r);
 }
 
@@ -1120,6 +1123,7 @@ free(void *ptr)
 	wrtwarning("recursive call\n");
 	malloc_active--;
         THREAD_UNLOCK();
+	errno = EDOFUS;
 	return;
     }
     if (ptr != ZEROSIZEPTR)
@@ -1142,6 +1146,7 @@ realloc(void *ptr, size_t size)
 	wrtwarning("recursive call\n");
         malloc_active--;
         THREAD_UNLOCK();
+	errno = EDOFUS;
 	return (0);
     }
     if (ptr && !malloc_started) {
@@ -1170,6 +1175,8 @@ realloc(void *ptr, size_t size)
     THREAD_UNLOCK();
     if (malloc_xmalloc && err)
 	wrterror("out of memory\n");
+    if (err)
+	errno = ENOMEM;
     return (r);
 }
 
