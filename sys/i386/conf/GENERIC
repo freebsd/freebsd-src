@@ -12,8 +12,8 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files. 
-# If you are in doubt as to the purpose or necessity of a line, check first 
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
 # $FreeBSD$
@@ -24,34 +24,34 @@ cpu		I586_CPU
 cpu		I686_CPU
 ident		GENERIC
 
-#To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"		#Default places to look for devices.
+# To statically compile in device wiring instead of /boot/device.hints
+#hints		"GENERIC.hints"		# Default places to look for devices.
 
-makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
-options 	SCHED_ULE		#ULE scheduler
-options 	INET			#InterNETworking
-options 	INET6			#IPv6 communications protocols
-options 	FFS			#Berkeley Fast Filesystem
-options 	SOFTUPDATES		#Enable FFS soft updates support
-options 	UFS_ACL			#Support for access control lists
-options 	UFS_DIRHASH		#Improve performance on big directories
-options 	MD_ROOT			#MD is a potential root device
-options 	NFSCLIENT		#Network Filesystem Client
-options 	NFSSERVER		#Network Filesystem Server
-options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
-options 	MSDOSFS			#MSDOS Filesystem
-options 	CD9660			#ISO 9660 Filesystem
-options 	PROCFS			#Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		#Pseudo-filesystem framework
-options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	COMPAT_FREEBSD4		#Compatible with FreeBSD4
-options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
-options 	KTRACE			#ktrace(1) support
-options 	SYSVSHM			#SYSV-style shared memory
-options 	SYSVMSG			#SYSV-style message queues
-options 	SYSVSEM			#SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options 	SCHED_ULE		# ULE scheduler
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	MD_ROOT			# MD is a potential root device
+options 	NFSCLIENT		# Network Filesystem Client
+options 	NFSSERVER		# Network Filesystem Server
+options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+options 	SCSI_DELAY=15000	# Delay (in ms) before probing SCSI
+options 	KTRACE			# ktrace(1) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
@@ -60,15 +60,15 @@ options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 options 	PFIL_HOOKS		# pfil(9) framework
 
 # Debugging for use in -current
-options 	DDB			#Enable the kernel debugger
-options 	INVARIANTS		#Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS			#Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+options 	DDB			# Enable the kernel debugger
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 # To make an SMP kernel, the next two are needed
-options 	SMP			# Symmetric MultiProcessor Kernel
-device		apic			# I/O APIC
+options 	SMP		# Symmetric MultiProcessor Kernel
+device		apic		# I/O APIC
 
 device		isa
 device		eisa
@@ -79,12 +79,12 @@ device		fdc
 
 # ATA and ATAPI devices
 device		ata
-device		atadisk			# ATA disk drives
-device		ataraid			# ATA RAID drives
-device		atapicd			# ATAPI CDROM drives
-device		atapifd			# ATAPI floppy drives
-device		atapist			# ATAPI tape drives
-options 	ATA_STATIC_ID		#Static device numbering
+device		atadisk		# ATA disk drives
+device		ataraid		# ATA RAID drives
+device		atapicd		# ATAPI CDROM drives
+device		atapifd		# ATAPI floppy drives
+device		atapist		# ATAPI tape drives
+options 	ATA_STATIC_ID	# Static device numbering
 
 # SCSI Controllers
 device		ahb		# EISA AHA1742 family
@@ -147,8 +147,8 @@ device		sc
 
 # Enable this for the pcvt (VT220 compatible) console driver
 #device		vt
-#options 	XSERVER			# support for X server on a vt console
-#options 	FAT_CURSOR		# start with block cursor
+#options 	XSERVER		# support for X server on a vt console
+#options 	FAT_CURSOR	# start with block cursor
 
 device		agp		# support several AGP chipsets
 
@@ -161,11 +161,11 @@ device		npx
 device		pmtimer
 
 # PCCARD (PCMCIA) support
-# Pcmcia and cardbus bridge support
-device		cbb			# cardbus (yenta) bridge
-#device		pcic			# ExCA ISA and PCI bridges
-device		pccard			# PC Card (16-bit) bus
-device		cardbus			# CardBus (32-bit) bus
+# PCMCIA and cardbus bridge support
+device		cbb		# cardbus (yenta) bridge
+#device		pcic		# ExCA ISA and PCI bridges
+device		pccard		# PC Card (16-bit) bus
+device		cardbus		# CardBus (32-bit) bus
 
 # Serial (COM) ports
 device		sio		# 8250, 16[45]50 based serial ports
@@ -210,7 +210,7 @@ device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
-# ISA Ethernet NICs.  pccard nics included.
+# ISA Ethernet NICs.  pccard NICs included.
 device		cs		# Crystal Semiconductor CS89x0 NIC
 # 'device ed' requires 'device miibus'
 device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
@@ -227,7 +227,7 @@ device		xe		# Xircom pccard ethernet
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
-device		an		# Aironet 4500/4800 802.11 wireless NICs. 
+device		an		# Aironet 4500/4800 802.11 wireless NICs.
 device		awi		# BayStack 660 and others
 device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
