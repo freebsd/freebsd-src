@@ -61,6 +61,10 @@
 
     <para>A &man.nmdm.4; null-modem terminal driver has been added.</para>
 
+    <para>The &man.stl.4; driver now supports the PCI and ISA EasyIO
+    multi-port serial cards from Stallion Technologies based on the
+    Signetics SC26C194/8 Intelligent Quad/Octal UART</para>
+
     <para>The <varname>maxusers</varname> kernel configuration
     parameter is now a boot-time tunable variable.  The kernel
     parameters derived from <varname>maxusers</varname> are now also
