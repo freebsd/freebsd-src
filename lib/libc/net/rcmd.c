@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$ 
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
+#include <arpa/nameser.h>
 
 /* wrapper for KAME-special getnameinfo() */
 #ifndef NI_WITHSCOPEID
@@ -100,7 +101,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	int s, aport, lport, timo, error;
 	char c;
 	int refused;
-	char num[8], *ohost;
+	char num[8];
+	static char canonnamebuf[MAXDNAME];	/* is it proper here? */
 
 	pid = getpid();
 
@@ -119,8 +121,12 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				strerror(errno));
 		return (-1);
 	}
-	ohost = *ahost;
-	*ahost = strdup(res->ai_canonname ? res->ai_canonname : *ahost);
+
+	if (res->ai_canonname
+	 && strlen(res->ai_canonname) + 1 < sizeof(canonnamebuf)) {
+		strncpy(canonnamebuf, res->ai_canonname, sizeof(canonnamebuf));
+		*ahost = canonnamebuf;
+	}
 	ai = res;
 	refused = 0;
 	oldmask = sigblock(sigmask(SIGURG));
@@ -139,8 +145,6 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				    strerror(errno));
 			freeaddrinfo(res);
 			sigsetmask(oldmask);
-			free(*ahost);
-			*ahost = ohost;
 			return (-1);
 		}
 		_fcntl(s, F_SETOWN, pid);
@@ -187,8 +191,6 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 		(void)fprintf(stderr, "%s: %s\n", *ahost, strerror(errno));
 		freeaddrinfo(res);
 		sigsetmask(oldmask);
-		free(*ahost);
-		*ahost = ohost;
 		return (-1);
 	}
 	lport--;
@@ -296,8 +298,6 @@ bad:
 	(void)_close(s);
 	sigsetmask(oldmask);
 	freeaddrinfo(res);
-	free(*ahost);
-	*ahost = ohost;
 	return (-1);
 }
 
