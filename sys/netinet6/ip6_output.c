@@ -461,6 +461,7 @@ skip_ipsec2:;
 	 * and is still up. If not, free it and try again.
 	 */
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+			 dst->sin6_family != AF_INET6 ||
 			 !IN6_ARE_ADDR_EQUAL(&dst->sin6_addr, &ip6->ip6_dst))) {
 		RTFREE(ro->ro_rt);
 		ro->ro_rt = (struct rtentry *)0;
