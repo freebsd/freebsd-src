@@ -20,6 +20,7 @@
  * MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
  * PURPOSE.
  */
+#define	CRYPTO_TIMING				/* enable timing support */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -79,10 +80,6 @@ static	struct mtx crypto_ret_q_mtx;
 static	uma_zone_t cryptop_zone;
 static	uma_zone_t cryptodesc_zone;
 
-int	crypto_usercrypto = 1;		/* userland may open /dev/crypto */
-SYSCTL_INT(_kern, OID_AUTO, usercrypto, CTLFLAG_RW,
-	   &crypto_usercrypto, 0,
-	   "Enable/disable user-mode access to crypto support");
 int	crypto_userasymcrypto = 1;	/* userland may do asym crypto reqs */
 SYSCTL_INT(_kern, OID_AUTO, userasymcrypto, CTLFLAG_RW,
 	   &crypto_userasymcrypto, 0,
@@ -94,26 +91,29 @@ SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RW,
 
 MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
 
-static void
+static	void crypto_proc(void);
+static	struct proc *cryptoproc;
+static	void crypto_ret_proc(void);
+static	struct proc *cryptoretproc;
+static	void crypto_destroy(void);
+
+static	struct cryptostats cryptostats;
+SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
+	    cryptostats, "Crypto system statistics");
+
+#ifdef CRYPTO_TIMING
+static	int crypto_timing = 0;
+SYSCTL_INT(_debug, OID_AUTO, crypto_timing, CTLFLAG_RW,
+	   &crypto_timing, 0, "Enable/disable crypto timing support");
+#endif
+
+static int
 crypto_init(void)
 {
-	cryptop_zone = uma_zcreate("cryptop", sizeof (struct cryptop),
-				    0, 0, 0, 0,
-				    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
-	cryptodesc_zone = uma_zcreate("cryptodesc", sizeof (struct cryptodesc),
-				    0, 0, 0, 0,
-				    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
-	if (cryptodesc_zone == NULL || cryptop_zone == NULL)
-		panic("cannot setup crypto zones");
+	int error;
 
 	mtx_init(&crypto_drivers_mtx, "crypto driver table",
 		NULL, MTX_DEF|MTX_QUIET);
-
-	crypto_drivers_num = CRYPTO_DRIVERS_INITIAL;
-	crypto_drivers = malloc(crypto_drivers_num *
-	    sizeof(struct cryptocap), M_CRYPTO_DATA, M_NOWAIT | M_ZERO);
-	if (crypto_drivers == NULL)
-		panic("cannot setup crypto drivers");
 
 	TAILQ_INIT(&crp_q);
 	TAILQ_INIT(&crp_kq);
@@ -122,6 +122,100 @@ crypto_init(void)
 	TAILQ_INIT(&crp_ret_q);
 	TAILQ_INIT(&crp_ret_kq);
 	mtx_init(&crypto_ret_q_mtx, "crypto return queues", NULL, MTX_DEF);
+
+	cryptop_zone = uma_zcreate("cryptop", sizeof (struct cryptop),
+				    0, 0, 0, 0,
+				    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+	cryptodesc_zone = uma_zcreate("cryptodesc", sizeof (struct cryptodesc),
+				    0, 0, 0, 0,
+				    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+	if (cryptodesc_zone == NULL || cryptop_zone == NULL) {
+		printf("crypto_init: cannot setup crypto zones\n");
+		error = ENOMEM;
+		goto bad;
+	}
+
+	crypto_drivers_num = CRYPTO_DRIVERS_INITIAL;
+	crypto_drivers = malloc(crypto_drivers_num *
+	    sizeof(struct cryptocap), M_CRYPTO_DATA, M_NOWAIT | M_ZERO);
+	if (crypto_drivers == NULL) {
+		printf("crypto_init: cannot setup crypto drivers\n");
+		error = ENOMEM;
+		goto bad;
+	}
+
+	error = kthread_create((void (*)(void *)) crypto_proc, NULL,
+		    &cryptoproc, 0, 0, "crypto");
+	if (error) {
+		printf("crypto_init: cannot start crypto thread; error %d",
+			error);
+		goto bad;
+	}
+
+	error = kthread_create((void (*)(void *)) crypto_ret_proc, NULL,
+		    &cryptoretproc, 0, 0, "crypto returns");
+	if (error) {
+		printf("crypto_init: cannot start cryptoret thread; error %d",
+			error);
+		goto bad;
+	}
+	return 0;
+bad:
+	crypto_destroy();
+	return error;
+}
+
+/*
+ * Signal a crypto thread to terminate.  We use the driver
+ * table lock to synchronize the sleep/wakeups so that we
+ * are sure the threads have terminated before we release
+ * the data structures they use.  See crypto_finis below
+ * for the other half of this song-and-dance.
+ */
+static void
+crypto_terminate(struct proc **pp, void *q)
+{
+	struct proc *p;
+
+	mtx_assert(&crypto_drivers_mtx, MA_OWNED);
+	p = *pp;
+	*pp = NULL;
+	if (p) {
+		wakeup_one(q);
+		PROC_LOCK(p);		/* NB: insure we don't miss wakeup */
+		CRYPTO_DRIVER_UNLOCK();	/* let crypto_finis progress */
+		msleep(p, &p->p_mtx, PWAIT, "crypto_destroy", 0);
+		PROC_UNLOCK(p);
+		CRYPTO_DRIVER_LOCK();
+	}
+}
+
+static void
+crypto_destroy(void)
+{
+	/*
+	 * Terminate any crypto threads.
+	 */
+	CRYPTO_DRIVER_LOCK();
+	crypto_terminate(&cryptoproc, &crp_q);
+	crypto_terminate(&cryptoretproc, &crp_ret_q);
+	CRYPTO_DRIVER_UNLOCK();
+
+	/* XXX flush queues??? */
+
+	/* 
+	 * Reclaim dynamically allocated resources.
+	 */
+	if (crypto_drivers != NULL)
+		free(crypto_drivers, M_CRYPTO_DATA);
+
+	if (cryptodesc_zone != NULL)
+		uma_zdestroy(cryptodesc_zone);
+	if (cryptop_zone != NULL)
+		uma_zdestroy(cryptop_zone);
+	mtx_destroy(&crypto_q_mtx);
+	mtx_destroy(&crypto_ret_q_mtx);
+	mtx_destroy(&crypto_drivers_mtx);
 }
 
 /*
@@ -130,18 +224,21 @@ crypto_init(void)
 static int
 crypto_modevent(module_t mod, int type, void *unused)
 {
+	int error = EINVAL;
+
 	switch (type) {
 	case MOD_LOAD:
-		crypto_init();
-		if (bootverbose)
+		error = crypto_init();
+		if (error == 0 && bootverbose)
 			printf("crypto: <crypto core>\n");
-		return 0;
+		break;
 	case MOD_UNLOAD:
 		/*XXX disallow if active sessions */
-		/*XXX kill kthreads */
+		error = 0;
+		crypto_destroy();
 		return 0;
 	}
-	return EINVAL;
+	return error;
 }
 
 static moduledata_t crypto_mod = {
@@ -558,6 +655,13 @@ crypto_dispatch(struct cryptop *crp)
 	struct cryptocap *cap;
 	int wasempty;
 
+	cryptostats.cs_ops++;
+
+#ifdef CRYPTO_TIMING
+	if (crypto_timing)
+		binuptime(&crp->crp_tstamp);
+#endif
+
 	CRYPTO_Q_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_q);
 	TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
@@ -582,6 +686,8 @@ crypto_kdispatch(struct cryptkop *krp)
 {
 	struct cryptocap *cap;
 	int wasempty;
+
+	cryptostats.cs_kops++;
 
 	CRYPTO_Q_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_kq);
@@ -642,6 +748,32 @@ crypto_kinvoke(struct cryptkop *krp, int hint)
 	return 0;
 }
 
+#ifdef CRYPTO_TIMING
+static void
+crypto_tstat(struct cryptotstat *ts, struct bintime *bt)
+{
+	struct bintime now, delta;
+	struct timespec t;
+	uint64_t u;
+
+	binuptime(&now);
+	u = now.frac;
+	delta.frac = now.frac - bt->frac;
+	delta.sec = now.sec - bt->sec;
+	if (u < delta.frac)
+		delta.sec--;
+	bintime2timespec(&delta, &t);
+	timespecadd(&ts->acc, &t);
+	if (timespeccmp(&t, &ts->min, <))
+		ts->min = t;
+	if (timespeccmp(&t, &ts->max, >))
+		ts->max = t;
+	ts->count++;
+
+	*bt = now;
+}
+#endif
+
 /*
  * Dispatch a crypto request to the appropriate crypto devices.
  */
@@ -651,6 +783,10 @@ crypto_invoke(struct cryptop *crp, int hint)
 	u_int32_t hid;
 	int (*process)(void*, struct cryptop *, int);
 
+#ifdef CRYPTO_TIMING
+	if (crypto_timing)
+		crypto_tstat(&cryptostats.cs_invoke, &crp->crp_tstamp);
+#endif
 	mtx_assert(&crypto_q_mtx, MA_OWNED);
 
 	/* Sanity checks. */
@@ -728,10 +864,10 @@ crypto_getreq(int num)
 	struct cryptodesc *crd;
 	struct cryptop *crp;
 
-	crp = uma_zalloc(cryptop_zone, 0);
+	crp = uma_zalloc(cryptop_zone, M_NOWAIT|M_ZERO);
 	if (crp != NULL) {
 		while (num--) {
-			crd = uma_zalloc(cryptodesc_zone, 0);
+			crd = uma_zalloc(cryptodesc_zone, M_NOWAIT|M_ZERO);
 			if (crd == NULL) {
 				crypto_freereq(crp);
 				return NULL;
@@ -752,6 +888,12 @@ crypto_done(struct cryptop *crp)
 {
 	int wasempty;
 
+	if (crp->crp_etype != 0)
+		cryptostats.cs_errs++;
+#ifdef CRYPTO_TIMING
+	if (crypto_timing)
+		crypto_tstat(&cryptostats.cs_done, &crp->crp_tstamp);
+#endif
 	CRYPTO_RETQ_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_ret_q);
 	TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
@@ -769,6 +911,8 @@ crypto_kdone(struct cryptkop *krp)
 {
 	int wasempty;
 
+	if (krp->krp_status != 0)
+		cryptostats.cs_kerrs++;
 	CRYPTO_RETQ_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_ret_kq);
 	TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
@@ -805,12 +949,23 @@ out:
 	return (0);
 }
 
-static struct proc *cryptoproc;
-
+/*
+ * Terminate a thread at module unload.  The process that
+ * initiated this is waiting for us to signal that we're gone;
+ * wake it up and exit.  We use the driver table lock to insure
+ * we don't do the wakeup before they're waiting.  There is no
+ * race here because the waiter sleeps on the proc lock for the
+ * thread so it gets notified at the right time because of an
+ * extra wakeup that's done in exit1().
+ */
 static void
-crypto_shutdown(void *arg, int howto)
+crypto_finis(void *chan)
 {
-	/* XXX flush queues */
+	CRYPTO_DRIVER_LOCK();
+	wakeup_one(chan);
+	CRYPTO_DRIVER_UNLOCK();
+	mtx_lock(&Giant);
+	kthread_exit(0);
 }
 
 /*
@@ -824,11 +979,7 @@ crypto_proc(void)
 	struct cryptocap *cap;
 	int result, hint;
 
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, crypto_shutdown, NULL,
-			      SHUTDOWN_PRI_FIRST);
-
 	CRYPTO_Q_LOCK();
-
 	for (;;) {
 		/*
 		 * Find the first element in the queue that can be
@@ -883,6 +1034,7 @@ crypto_proc(void)
 				/* XXX validate sid again? */
 				crypto_drivers[SESID2HID(submit->crp_sid)].cc_qblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_q, submit, crp_next);
+				cryptostats.cs_blocks++;
 			}
 		}
 
@@ -912,6 +1064,7 @@ crypto_proc(void)
 				/* XXX validate sid again? */
 				crypto_drivers[krp->krp_hid].cc_kqblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_kq, krp, krp_next);
+				cryptostats.cs_kblocks++;
 			}
 		}
 
@@ -929,23 +1082,14 @@ crypto_proc(void)
 			 * and some become blocked while others do not.
 			 */
 			msleep(&crp_q, &crypto_q_mtx, PWAIT, "crypto_wait", 0);
+			if (cryptoproc == NULL)
+				break;
+			cryptostats.cs_intrs++;
 		}
 	}
-}
-static struct kproc_desc crypto_kp = {
-	"crypto",
-	crypto_proc,
-	&cryptoproc
-};
-SYSINIT(crypto_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_THIRD,
-	kproc_start, &crypto_kp)
+	CRYPTO_Q_UNLOCK();
 
-static struct proc *cryptoretproc;
-
-static void
-crypto_ret_shutdown(void *arg, int howto)
-{
-	/* XXX flush queues */
+	crypto_finis(&crp_q);
 }
 
 /*
@@ -959,11 +1103,7 @@ crypto_ret_proc(void)
 	struct cryptop *crpt;
 	struct cryptkop *krpt;
 
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, crypto_ret_shutdown, NULL,
-			      SHUTDOWN_PRI_FIRST);
-
 	CRYPTO_RETQ_LOCK();
-
 	for (;;) {
 		/* Harvest return q's for completed ops */
 		crpt = TAILQ_FIRST(&crp_ret_q);
@@ -979,8 +1119,22 @@ crypto_ret_proc(void)
 			/*
 			 * Run callbacks unlocked.
 			 */
-			if (crpt != NULL)
-				crpt->crp_callback(crpt);
+			if (crpt != NULL) {
+#ifdef CRYPTO_TIMING
+				if (crypto_timing) {
+					/*
+					 * NB: We must copy the timestamp before
+					 * doing the callback as the cryptop is
+					 * likely to be reclaimed.
+					 */
+					struct bintime t = crpt->crp_tstamp;
+					crypto_tstat(&cryptostats.cs_cb, &t);
+					crpt->crp_callback(crpt);
+					crypto_tstat(&cryptostats.cs_finis, &t);
+				} else
+#endif
+					crpt->crp_callback(crpt);
+			}
 			if (krpt != NULL)
 				krpt->krp_callback(krpt);
 			CRYPTO_RETQ_LOCK();
@@ -991,13 +1145,12 @@ crypto_ret_proc(void)
 			 */
 			msleep(&crp_ret_q, &crypto_ret_q_mtx, PWAIT,
 				"crypto_ret_wait", 0);
+			if (cryptoretproc == NULL)
+				break;
+			cryptostats.cs_rets++;
 		}
 	}
+	CRYPTO_RETQ_UNLOCK();
+
+	crypto_finis(&crp_ret_q);
 }
-static struct kproc_desc crypto_ret_kp = {
-	"crypto returns",
-	crypto_ret_proc,
-	&cryptoretproc
-};
-SYSINIT(crypto_ret_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_THIRD,
-	kproc_start, &crypto_ret_kp)

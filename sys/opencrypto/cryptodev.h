@@ -175,6 +175,34 @@ struct crypt_kop {
 
 #define CIOCASYMFEAT	_IOR('c', 105, u_int32_t)
 
+struct cryptotstat {
+	struct timespec	acc;		/* total accumulated time */
+	struct timespec	min;		/* min time */
+	struct timespec	max;		/* max time */
+	u_int32_t	count;		/* number of observations */
+};
+
+struct cryptostats {
+	u_int32_t	cs_ops;		/* symmetric crypto ops submitted */
+	u_int32_t	cs_errs;	/* symmetric crypto ops that failed */
+	u_int32_t	cs_kops;	/* asymetric/key ops submitted */
+	u_int32_t	cs_kerrs;	/* asymetric/key ops that failed */
+	u_int32_t	cs_intrs;	/* crypto swi thread activations */
+	u_int32_t	cs_rets;	/* crypto return thread activations */
+	u_int32_t	cs_blocks;	/* symmetric op driver block */
+	u_int32_t	cs_kblocks;	/* symmetric op driver block */
+	/*
+	 * When CRYPTO_TIMING is defined at compile time and the
+	 * sysctl debug.crypto is set to 1, the crypto system will
+	 * accumulate statistics about how long it takes to process
+	 * crypto requests at various points during processing.
+	 */
+	struct cryptotstat cs_invoke;	/* crypto_dipsatch -> crypto_invoke */
+	struct cryptotstat cs_done;	/* crypto_invoke -> crypto_done */
+	struct cryptotstat cs_cb;	/* crypto_done -> callback */
+	struct cryptotstat cs_finis;	/* callback -> callback return */
+};
+
 #ifdef _KERNEL
 /* Standard initialization structure beginning */
 struct cryptoini {
@@ -217,7 +245,6 @@ struct cryptop {
 	u_int64_t	crp_sid;	/* Session ID */
 	int		crp_ilen;	/* Input data total length */
 	int		crp_olen;	/* Result total length */
-	int		crp_alloctype;	/* Type of buf to allocate if needed */
 
 	int		crp_etype;	/*
 					 * Error type (zero means no error).
@@ -243,6 +270,7 @@ struct cryptop {
 	int (*crp_callback)(struct cryptop *); /* Callback function */
 
 	caddr_t		crp_mac;
+	struct bintime	crp_tstamp;	/* performance time stamp */
 };
 
 #define CRYPTO_BUF_CONTIG	0x0
