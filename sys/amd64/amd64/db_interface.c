@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.41 1998/06/08 09:23:24 dfr Exp $
+ *	$Id: db_interface.c,v 1.42 1998/12/14 05:34:33 dillon Exp $
  */
 
 /*
@@ -295,11 +295,12 @@ db_write_bytes(addr, size, data)
  * Move this to machdep.c and allow it to be called if any debugger is
  * installed.
  */
+volatile int in_Debugger = 0;
+
 void
 Debugger(msg)
 	const char *msg;
 {
-	static volatile u_char in_Debugger;
 
 	/*
 	 * XXX
