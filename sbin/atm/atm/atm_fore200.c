@@ -54,6 +54,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 
 #include "atm.h"
 
@@ -151,7 +152,8 @@ show_fore200_stats(intf, argc, argv)
 	int		argc;
 	char		**argv;
 {
-	int			buf_len, stats_type;
+	int stats_type;
+	ssize_t buf_len;
 	struct air_cfg_rsp	*cfg;
 	struct air_vinfo_rsp	*stats;
 	struct atminfreq	air;
@@ -174,8 +176,7 @@ show_fore200_stats(intf, argc, argv)
 	} else if (!strcasecmp("driver", argv[0])) {
 		stats_type = SHOW_DRIVER;
 	} else {
-		fprintf(stderr, "%s: Illegal statistics type\n", prog);
-		exit(1);
+		errx(1, "Illegal statistics type");
 	}
 	argc--; argv++;
 
@@ -186,22 +187,16 @@ show_fore200_stats(intf, argc, argv)
 	air.air_opcode = AIOCS_INF_CFG;
 	strcpy(air.air_cfg_intf, intf);
 	buf_len = do_info_ioctl(&air, sizeof(struct air_cfg_rsp));
-	if (buf_len < 0) {
-		fprintf(stderr, "%s: ", prog);
+	if (buf_len == -1) {
 		switch (errno) {
 		case ENOPROTOOPT:
 		case EOPNOTSUPP:
-			perror("Internal error");
-			break;
+			err(1, "Internal error");
 		case ENXIO:
-			fprintf(stderr, "%s is not an ATM device\n",
-					intf);
-			break;
+			errx(1, "%s is not an ATM device", intf);
 		default:
-			perror("ioctl (AIOCINFO)");
-			break;
+			err(1, "ioctl (AIOCINFO)");
 		}
-		exit(1);
 	}
 	cfg = (struct air_cfg_rsp *)(void *)air.air_buf_addr;
 
@@ -212,22 +207,16 @@ show_fore200_stats(intf, argc, argv)
 	air.air_opcode = AIOCS_INF_VST;
 	strcpy(air.air_vinfo_intf, intf);
 	buf_len = do_info_ioctl(&air, sizeof(struct air_vinfo_rsp) + 1024);
-	if (buf_len < 0) {
-		fprintf(stderr, "%s: ", prog);
+	if (buf_len == -1) {
 		switch (errno) {
 		case ENOPROTOOPT:
 		case EOPNOTSUPP:
-			perror("Internal error");
-			break;
+			err(1, "Internal error");
 		case ENXIO:
-			fprintf(stderr, "%s is not an ATM device\n",
-					intf);
-			break;
+			errx(1, "%s is not an ATM device", intf);
 		default:
-			perror("ioctl (AIOCINFO)");
-			break;
+			err(1, "ioctl (AIOCINFO)");
 		}
-		exit(1);
 	}
 	stats = (struct air_vinfo_rsp *)(void *)air.air_buf_addr;
 

@@ -86,7 +86,7 @@ static int	arp_compare(const void *, const void *);
 void
 show_arp(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int			buf_len, arp_info_len;
+	size_t arp_info_len;
 	struct atminfreq	air;
 	struct air_arp_rsp	*arp_info, *arp_info_base;
 	struct sockaddr_in	*sain;
@@ -116,11 +116,10 @@ show_arp(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Get ARP information from the kernel
 	 */
 	bzero(&air, sizeof(air));
-	buf_len = sizeof(struct air_arp_rsp) * 10;
 	air.air_opcode = AIOCS_INF_ARP;
 	air.air_arp_addr = host_addr.sa;
-	arp_info_len = do_info_ioctl(&air, buf_len);
-	if (arp_info_len < 0) {
+	arp_info_len = do_info_ioctl(&air, sizeof(struct air_arp_rsp) * 10);
+	if ((ssize_t)arp_info_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -150,7 +149,7 @@ show_arp(int argc, char **argv, const struct cmd *cmdp __unused)
 	/*
 	 * Print the relevant information
 	 */
-	while (arp_info_len > 0) {
+	while (arp_info_len >= sizeof(struct air_arp_rsp)) {
 		print_arp_info(arp_info);
 		arp_info++;
 		arp_info_len -= sizeof(struct air_arp_rsp);
@@ -181,7 +180,7 @@ show_arp(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_arpserv(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int	asrv_info_len, buf_len = sizeof(struct air_asrv_rsp) * 3;
+	size_t buf_len, asrv_info_len;
 	struct atminfreq	air;
 	struct air_asrv_rsp	*asrv_info, *asrv_info_base;
 
@@ -203,8 +202,8 @@ show_arpserv(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Get interface information from the kernel
 	 */
 	air.air_opcode = AIOCS_INF_ASV;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0) {
+	buf_len = do_info_ioctl(&air, sizeof(struct air_asrv_rsp) * 3);
+	if ((ssize_t)buf_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -227,14 +226,13 @@ show_arpserv(int argc, char **argv, const struct cmd *cmdp __unused)
 	 */
 	asrv_info_base = asrv_info =
 			(struct air_asrv_rsp *)(void *)air.air_buf_addr;
-	for (; (size_t)buf_len >= sizeof(struct air_asrv_rsp);
-			asrv_info = (struct air_asrv_rsp *)
-				((u_long)asrv_info + asrv_info_len),
-			buf_len -= asrv_info_len) {
+	while (buf_len >= sizeof(struct air_asrv_rsp)) {
 		print_asrv_info(asrv_info);
 		asrv_info_len = sizeof(struct air_asrv_rsp) +
-				asrv_info->asp_nprefix *
-				sizeof(struct in_addr) * 2;
+		  asrv_info->asp_nprefix * sizeof(struct in_addr) * 2;
+		asrv_info = (struct air_asrv_rsp *)(void *)
+		    ((char *)asrv_info + asrv_info_len);
+		buf_len -= asrv_info_len;
 	}
 	free(asrv_info_base);
 }
@@ -258,7 +256,7 @@ show_arpserv(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_config(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int	buf_len = sizeof(struct air_asrv_rsp) * 3;
+	size_t buf_len;
 	struct atminfreq	air;
 	struct air_cfg_rsp	*cfg_info, *cfg_info_base;
 
@@ -280,8 +278,8 @@ show_config(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Get configuration information from the kernel
 	 */
 	air.air_opcode = AIOCS_INF_CFG;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0) {
+	buf_len = do_info_ioctl(&air, sizeof(struct air_asrv_rsp) * 3);
+	if ((ssize_t)buf_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -304,7 +302,7 @@ show_config(int argc, char **argv, const struct cmd *cmdp __unused)
 	 */
 	cfg_info_base = cfg_info =
 			(struct air_cfg_rsp *)(void *)air.air_buf_addr;
-	for (; (size_t)buf_len >= sizeof(struct air_cfg_rsp); cfg_info++,
+	for (; buf_len >= sizeof(struct air_cfg_rsp); cfg_info++,
 			buf_len -= sizeof(struct air_cfg_rsp)) {
 		print_cfg_info(cfg_info);
 	}
@@ -330,7 +328,7 @@ show_config(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_intf(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int	buf_len = sizeof(struct air_int_rsp) * 3;
+	size_t buf_len;
 	struct atminfreq	air;
 	struct air_int_rsp	*int_info, *int_info_base;
 
@@ -352,8 +350,8 @@ show_intf(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Get interface information from the kernel
 	 */
 	air.air_opcode = AIOCS_INF_INT;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0) {
+	buf_len = do_info_ioctl(&air, sizeof(struct air_int_rsp) * 3);
+	if ((ssize_t)buf_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -376,7 +374,7 @@ show_intf(int argc, char **argv, const struct cmd *cmdp __unused)
 	 */
 	int_info_base = int_info =
 			(struct air_int_rsp *)(void *)air.air_buf_addr;
-	for (; (size_t)buf_len >= sizeof(struct air_int_rsp); int_info++,
+	for (; buf_len >= sizeof(struct air_int_rsp); int_info++,
 			buf_len -= sizeof(struct air_int_rsp)) {
 		print_intf_info(int_info);
 	}
@@ -402,7 +400,8 @@ show_intf(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_ip_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int			buf_len, ip_info_len, rc;
+	int rc;
+	size_t ip_info_len;
 	char			*if_name = (char *)0;
 	struct atminfreq	air;
 	struct air_ip_vcc_rsp	*ip_info, *ip_info_base;
@@ -459,11 +458,10 @@ show_ip_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 	/*
 	 * Get IP map information from the kernel
 	 */
-	buf_len = sizeof(struct air_ip_vcc_rsp) * 10;
 	air.air_opcode = AIOCS_INF_IPM;
 	air.air_ip_addr = host_addr.sa;
-	ip_info_len = do_info_ioctl(&air, buf_len);
-	if (ip_info_len < 0) {
+	ip_info_len = do_info_ioctl(&air, sizeof(struct air_ip_vcc_rsp) * 10);
+	if ((ssize_t)ip_info_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -493,7 +491,7 @@ show_ip_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 	/*
 	 * Print the relevant information
 	 */
-	while (ip_info_len>0) {
+	while (ip_info_len >= sizeof(struct air_ip_vcc_rsp)) {
 		if (!if_name || !strcmp(if_name, ip_info->aip_intf)) {
 			print_ip_vcc_info(ip_info);
 		}
@@ -505,7 +503,6 @@ show_ip_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Release the information from the kernel
 	 */
 	free(ip_info_base);
-
 }
 
 
@@ -527,7 +524,7 @@ show_ip_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int	buf_len = sizeof(struct air_netif_rsp) * 3;
+	size_t buf_len;
 	struct atminfreq	air;
 	struct air_netif_rsp	*int_info, *int_info_base;
 
@@ -548,8 +545,8 @@ show_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Get network interface information from the kernel
 	 */
 	air.air_opcode = AIOCS_INF_NIF;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0) {
+	buf_len = do_info_ioctl(&air, sizeof(struct air_netif_rsp) * 3);
+	if ((ssize_t)buf_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -572,7 +569,7 @@ show_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 	 */
 	int_info_base = int_info =
 			(struct air_netif_rsp *) air.air_buf_addr;
-	for (; (size_t)buf_len >= sizeof(struct air_netif_rsp); int_info++,
+	for (; buf_len >= sizeof(struct air_netif_rsp); int_info++,
 			buf_len -= sizeof(struct air_netif_rsp)) {
 		print_netif_info(int_info);
 	}
@@ -598,7 +595,7 @@ show_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_intf_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int			buf_len;
+	size_t buf_len;
 	char			intf[IFNAMSIZ];
 	struct atminfreq	air;
 	struct air_phy_stat_rsp	*pstat_info, *pstat_info_base;
@@ -626,11 +623,10 @@ show_intf_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 		/*
 		 * Get adapter configuration information
 		 */
-		buf_len = sizeof(struct air_cfg_rsp);
 		air.air_opcode = AIOCS_INF_CFG;
 		strcpy(air.air_cfg_intf, intf);
-		buf_len = do_info_ioctl(&air, buf_len);
-		if (buf_len < 0) {
+		buf_len = do_info_ioctl(&air, sizeof(struct air_cfg_rsp));
+		if ((ssize_t)buf_len == -1) {
 			fprintf(stderr, "%s: ", prog);
 			switch (errno) {
 			case ENOPROTOOPT:
@@ -670,11 +666,11 @@ show_intf_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 		/*
 		 * Get generic interface statistics
 		 */
-		buf_len = sizeof(struct air_phy_stat_rsp) * 3;
 		air.air_opcode = AIOCS_INF_PIS;
 		strcpy(air.air_physt_intf, intf);
-		buf_len = do_info_ioctl(&air, buf_len);
-		if (buf_len < 0) {
+		buf_len = do_info_ioctl(&air,
+		    sizeof(struct air_phy_stat_rsp) * 3);
+		if ((ssize_t)buf_len == -1) {
 			fprintf(stderr, "%s: ", prog);
 			switch (errno) {
 			case ENOPROTOOPT:
@@ -697,7 +693,7 @@ show_intf_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 		 */
 		pstat_info_base = pstat_info = (struct air_phy_stat_rsp *)
 		    (void *)air.air_buf_addr;
-		for (; (size_t)buf_len >= sizeof(struct air_phy_stat_rsp);
+		for (; buf_len >= sizeof(struct air_phy_stat_rsp);
 				pstat_info++,
 				buf_len-=sizeof(struct air_phy_stat_rsp)) {
 			print_intf_stats(pstat_info);
@@ -725,7 +721,7 @@ show_intf_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_vcc_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int	vcc_info_len;
+	size_t vcc_info_len;
 	int	vpi = -1, vci = -1;
 	char	*cp, *intf = NULL;
 	struct air_vcc_rsp	*vcc_info, *vcc_info_base;
@@ -774,7 +770,7 @@ show_vcc_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 	vcc_info_len = get_vcc_info(intf, &vcc_info);
 	if (vcc_info_len == 0)
 		exit(1);
-	else if (vcc_info_len < 0) {
+	else if ((ssize_t)vcc_info_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -803,7 +799,7 @@ show_vcc_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Display the VCC statistics
 	 */
 	vcc_info_base = vcc_info;
-	for (; (size_t)vcc_info_len >= sizeof(struct air_vcc_rsp);
+	for (; vcc_info_len >= sizeof(struct air_vcc_rsp);
 			vcc_info_len-=sizeof(struct air_vcc_rsp),
 			vcc_info++) {
 		if (vpi != -1 && vcc_info->avp_vpi != vpi)
@@ -834,7 +830,7 @@ show_vcc_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 void
 show_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int	vcc_info_len;
+	size_t vcc_info_len;
 	int	vpi = -1, vci = -1, show_pvc = 0, show_svc = 0;
 	char	*cp, *intf = NULL;
 	struct air_vcc_rsp	*vcc_info, *vcc_info_base;
@@ -890,7 +886,7 @@ show_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 	vcc_info_len = get_vcc_info(intf, &vcc_info);
 	if (vcc_info_len == 0)
 		exit(1);
-	else if (vcc_info_len < 0) {
+	else if ((ssize_t)vcc_info_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -919,7 +915,7 @@ show_vcc(int argc, char **argv, const struct cmd *cmdp __unused)
 	 * Display the VCC information
 	 */
 	vcc_info_base = vcc_info;
-	for (; (size_t)vcc_info_len >= sizeof(struct air_vcc_rsp);
+	for (; vcc_info_len >= sizeof(struct air_vcc_rsp);
 			vcc_info_len-=sizeof(struct air_vcc_rsp),
 			vcc_info++) {
 		if (vpi != -1 && vcc_info->avp_vpi != vpi)
@@ -955,7 +951,7 @@ void
 show_version(int argc __unused, char **argv __unused,
     const struct cmd *cmdp __unused)
 {
-	int	buf_len = sizeof(struct air_version_rsp);
+	size_t buf_len;
 	struct atminfreq	air;
 	struct air_version_rsp	*ver_info, *ver_info_base;
 
@@ -963,8 +959,8 @@ show_version(int argc __unused, char **argv __unused,
 	 * Get network interface information from the kernel
 	 */
 	air.air_opcode = AIOCS_INF_VER;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0) {
+	buf_len = do_info_ioctl(&air, sizeof(struct air_version_rsp));
+	if ((ssize_t)buf_len == -1) {
 		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case ENOPROTOOPT:
@@ -986,7 +982,7 @@ show_version(int argc __unused, char **argv __unused,
 	 */
 	ver_info_base = ver_info =
 			(struct air_version_rsp *)(void *)air.air_buf_addr;
-	for (; (size_t)buf_len >= sizeof(struct air_version_rsp); ver_info++,
+	for (; buf_len >= sizeof(struct air_version_rsp); ver_info++,
 			buf_len -= sizeof(struct air_version_rsp)) {
 		print_version_info(ver_info);
 	}
