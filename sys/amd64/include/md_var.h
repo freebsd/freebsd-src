@@ -47,7 +47,6 @@ extern	u_int	cpu_high;
 extern	u_int	cpu_id;
 extern	u_int	cpu_procinfo;
 extern	char	cpu_vendor[];
-extern	uint16_t *elan_mmcr;
 extern	char	kstack[];
 extern	char	sigcode[];
 extern	int	szsigcode;
