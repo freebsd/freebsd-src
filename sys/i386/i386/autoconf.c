@@ -62,7 +62,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/sysctl.h>
 #include <sys/cons.h>
 
 #include <machine/bootinfo.h>

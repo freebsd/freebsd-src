@@ -71,8 +71,6 @@
 #include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
-#include <machine/cputypes.h>
-#include <machine/cputypes.h>
 #include <machine/globaldata.h>
 
 #if defined(APIC_IO)

@@ -58,7 +58,6 @@
 #include <sys/signalvar.h>
 
 #include <machine/frame.h>
-#include <machine/md_var.h>
 #include <machine/random.h>
 #include <machine/psl.h>
 #include <machine/specialreg.h>

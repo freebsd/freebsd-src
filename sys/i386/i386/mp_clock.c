@@ -10,9 +10,9 @@
  *
  */
 
-#include "opt_bus.h"
-#include "opt_pci.h"
-#include "opt_smp.h"
+/* #include "opt_bus.h" */
+/* #include "opt_pci.h" */
+/* #include "opt_smp.h" */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -22,7 +22,6 @@
 #include <sys/bus.h>
 
 #include <pci/pcivar.h>
-#include <pci/pcireg.h>
 
 static unsigned piix_get_timecount(struct timecounter *tc);
 
