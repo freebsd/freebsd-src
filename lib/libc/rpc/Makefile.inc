@@ -78,7 +78,9 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_clnt_calls.3 clnt_geterr.3 \
 		rpc_clnt_create.3 clnt_control.3 \
 		rpc_clnt_create.3 clnt_create.3 \
+		rpc_clnt_create.3 clnt_create_timed.3 \
 		rpc_clnt_create.3 clnt_create_vers.3 \
+		rpc_clnt_create.3 clnt_create_vers_timed.3 \
 		rpc_clnt_create.3 clnt_destroy.3 \
 		rpc_clnt_create.3 clnt_pcreateerror.3 \
 		rpc_clnt_create.3 clnt_spcreateerror.3 \
@@ -86,6 +88,7 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_clnt_create.3 clnt_raw_create.3 \
 		rpc_clnt_create.3 clnt_tli_create.3 \
 		rpc_clnt_create.3 clnt_tp_create.3 \
+		rpc_clnt_create.3 clnt_tp_create_timed.3 \
 		rpc_clnt_create.3 clnt_vc_create.3 \
 		rpc_svc_calls.3 svc_dg_enablecache.3 \
 		rpc_svc_calls.3 svc_exit.3 \
