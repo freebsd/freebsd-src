@@ -44,6 +44,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/acct.h>
@@ -909,6 +910,28 @@ issetugid(p, uap)
 	 */
 	p->p_retval[0] = (p->p_flag & P_SUGID) ? 1 : 0;
 	return (0);
+}
+
+int
+__setugid(p, uap)
+	struct proc *p;
+	struct __setugid_args *uap;
+{
+
+#ifdef REGRESSION
+	switch (uap->flag) {
+	case 0:
+		p->p_flag &= ~P_SUGID;
+		return (0);
+	case 1:
+		p->p_flag |= P_SUGID;
+		return (0);
+	default:
+		return (EINVAL);
+	}
+#else /* !REGRESSION */
+	return (ENOSYS);
+#endif /* !REGRESSION */
 }
 
 /*
