@@ -352,6 +352,7 @@ options 	LIBMCHAIN
 options 	NETGRAPH		#netgraph(4) system
 options 	NETGRAPH_ASYNC
 options 	NETGRAPH_BPF
+options 	NETGRAPH_BRIDGE
 options 	NETGRAPH_CISCO
 options 	NETGRAPH_ECHO
 options 	NETGRAPH_ETHER
@@ -362,6 +363,7 @@ options 	NETGRAPH_HOLE
 options 	NETGRAPH_IFACE
 options 	NETGRAPH_IP_INPUT
 options 	NETGRAPH_KSOCKET
+options 	NETGRAPH_L2TP
 options 	NETGRAPH_LMI
 # MPPC compression requires proprietary files (not included)
 #options 	NETGRAPH_MPPC_COMPRESSION
@@ -2282,7 +2284,6 @@ options 	MAXFILES=999
 options 	METEOR_TEST_VIDEO
 options 	NDEVFSINO=1025
 options 	NDEVFSOVERFLOW=32769
-options 	NETGRAPH_BRIDGE
 
 # Yet more undocumented options for linting.
 options 	VGA_DEBUG
