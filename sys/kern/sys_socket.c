@@ -168,7 +168,7 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 		return (0);
 
 	case SIOCATMARK:
-		*(int *)data = (so->so_state&SS_RCVATMARK) != 0;
+		*(int *)data = (so->so_rcv.sb_state & SBS_RCVATMARK) != 0;
 		return (0);
 	}
 	/*
@@ -207,13 +207,13 @@ soo_stat(fp, ub, active_cred, td)
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
 	/*
-	 * If SS_CANTRCVMORE is set, but there's still data left in the
+	 * If SBS_CANTRCVMORE is set, but there's still data left in the
 	 * receive buffer, the socket is still readable.
 	 */
-	if ((so->so_state & SS_CANTRCVMORE) == 0 ||
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0 ||
 	    so->so_rcv.sb_cc != 0)
 		ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
-	if ((so->so_state & SS_CANTSENDMORE) == 0)
+	if ((so->so_snd.sb_state & SBS_CANTSENDMORE) == 0)
 		ub->st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
 	ub->st_size = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	ub->st_uid = so->so_cred->cr_uid;

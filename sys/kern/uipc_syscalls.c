@@ -292,7 +292,7 @@ accept1(td, uap, compat)
 		goto noconnection;
 	}
 	while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0) {
-		if (head->so_state & SS_CANTRCVMORE) {
+		if (head->so_rcv.sb_state & SBS_CANTRCVMORE) {
 			head->so_error = ECONNABORTED;
 			break;
 		}
@@ -1842,7 +1842,7 @@ retry_lookup:
 		 * before going to the extra work of constituting the sf_buf.
 		 */
 		if ((so->so_state & SS_NBIO) && sbspace(&so->so_snd) <= 0) {
-			if (so->so_state & SS_CANTSENDMORE)
+			if (so->so_snd.sb_state & SBS_CANTSENDMORE)
 				error = EPIPE;
 			else
 				error = EAGAIN;
@@ -2001,8 +2001,8 @@ retry_space:
 		 * blocks before the pru_send (or more accurately, any blocking
 		 * results in a loop back to here to re-check).
 		 */
-		if ((so->so_state & SS_CANTSENDMORE) || so->so_error) {
-			if (so->so_state & SS_CANTSENDMORE) {
+		if ((so->so_snd.sb_state & SBS_CANTSENDMORE) || so->so_error) {
+			if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 				error = EPIPE;
 			} else {
 				error = so->so_error;

@@ -378,7 +378,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			}
 		}
 
-		if (so->so_state & SS_CANTSENDMORE) {
+		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 			error = EPIPE;
 			break;
 		}

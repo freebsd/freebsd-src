@@ -608,7 +608,7 @@ restart:
 		goto out;
 	do {
 		s = splnet();
-		if (so->so_state & SS_CANTSENDMORE)
+		if (so->so_snd.sb_state & SBS_CANTSENDMORE)
 			snderr(EPIPE);
 		if (so->so_error) {
 			error = so->so_error;
@@ -758,7 +758,7 @@ restart:
 			    so->so_options |= SO_DONTROUTE;
 		    s = splnet();				/* XXX */
 		    /*
-		     * XXX all the SS_CANTSENDMORE checks previously
+		     * XXX all the SBS_CANTSENDMORE checks previously
 		     * done could be out of date.  We could have recieved
 		     * a reset packet in an interrupt or maybe we slept
 		     * while doing page faults in uiomove() etc. We could
@@ -920,7 +920,7 @@ restart:
 				so->so_error = 0;
 			goto release;
 		}
-		if (so->so_state & SS_CANTRCVMORE) {
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 			if (m)
 				goto dontblock;
 			else
@@ -1035,7 +1035,7 @@ dontblock:
 		else
 		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
 			("m->m_type == %d", m->m_type));
-		so->so_state &= ~SS_RCVATMARK;
+		so->so_rcv.sb_state &= ~SBS_RCVATMARK;
 		len = uio->uio_resid;
 		if (so->so_oobmark && len > so->so_oobmark - offset)
 			len = so->so_oobmark - offset;
@@ -1125,7 +1125,7 @@ dontblock:
 			if ((flags & MSG_PEEK) == 0) {
 				so->so_oobmark -= len;
 				if (so->so_oobmark == 0) {
-					so->so_state |= SS_RCVATMARK;
+					so->so_rcv.sb_state |= SBS_RCVATMARK;
 					break;
 				}
 			} else {
@@ -1145,7 +1145,7 @@ dontblock:
 		 */
 		while (flags & MSG_WAITALL && m == NULL && uio->uio_resid > 0 &&
 		    !sosendallatonce(so) && nextrecord == NULL) {
-			if (so->so_error || so->so_state & SS_CANTRCVMORE)
+			if (so->so_error || so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				break;
 			/*
 			 * Notify the protocol that some data has been
@@ -1192,7 +1192,7 @@ dontblock:
 			(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 	}
 	if (orig_resid == uio->uio_resid && orig_resid &&
-	    (flags & MSG_EOR) == 0 && (so->so_state & SS_CANTRCVMORE) == 0) {
+	    (flags & MSG_EOR) == 0 && (so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0) {
 		sbunlock(&so->so_rcv);
 		splx(s);
 		goto restart;
@@ -1834,7 +1834,7 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if (events & (POLLPRI | POLLRDBAND))
-		if (so->so_oobmark || (so->so_state & SS_RCVATMARK))
+		if (so->so_oobmark || (so->so_rcv.sb_state & SBS_RCVATMARK))
 			revents |= events & (POLLPRI | POLLRDBAND);
 
 	if (revents == 0) {
@@ -1905,7 +1905,7 @@ filt_soread(struct knote *kn, long hint)
 	int result;
 
 	kn->kn_data = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
-	if (so->so_state & SS_CANTRCVMORE) {
+	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
 		result = 1;
@@ -1938,7 +1938,7 @@ filt_sowrite(struct knote *kn, long hint)
 	int result;
 
 	kn->kn_data = sbspace(&so->so_snd);
-	if (so->so_state & SS_CANTSENDMORE) {
+	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
 		result = 1;
