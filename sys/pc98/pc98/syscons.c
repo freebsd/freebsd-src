@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.13 1997/03/09 13:30:06 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.14 1997/04/11 07:44:39 kato Exp $
  */
 
 #include "sc.h"
@@ -94,8 +94,9 @@
 #define COLD 0
 #define WARM 1
 
-/* this may break on older VGA's but is useful on real 32 bit systems */
-#define bcopyw  bcopy
+/* XXX use sc_bcopy where video memory is concerned */
+#define sc_bcopy generic_bcopy
+extern void generic_bcopy(const void *, void *, size_t);
 
 static default_attr user_default = {
     (FG_LIGHTGREY | BG_BLACK) << 8,
@@ -155,6 +156,7 @@ static  long       	scrn_time_stamp;
 	char		font_14[256*14];
 	char		font_16[256*16];
 	char        	palette[256*3];
+static  char		vgaregs[64];
 static	char 		*cut_buffer;
 static  u_short 	mouse_and_mask[16] = {
 				0xc000, 0xe000, 0xf000, 0xf800,
@@ -240,6 +242,9 @@ static int mask2attr(struct term_stat *term);
 static void set_keyboard(int command, int data);
 static void update_leds(int which);
 static void set_vgaregs(char *modetable);
+static void read_vgaregs(char *buf);
+static int comp_vgaregs(u_char *buf1, u_char *buf2);
+static void dump_vgaregs(u_char *buf);
 static void set_font_mode(void);
 static void set_normal_mode(void);
 static void set_destructive_cursor(scr_stat *scp);
@@ -574,10 +579,10 @@ scattach(struct isa_device *dev)
 #endif
 
     /* copy temporary buffer to final buffer */
-    bcopyw(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+    bcopy(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
 
 #ifdef PC98
-    bcopyw(Atrat, scp->atr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+    bcopy(Atrat, scp->atr_buf, scp->xsize * scp->ysize * sizeof(u_short));
 #endif
     scp->cursor_pos = scp->cursor_oldpos =
 	scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
@@ -613,6 +618,20 @@ scattach(struct isa_device *dev)
 
     update_leds(scp->status);
 
+#ifndef PC98
+    if (bootverbose) {
+        printf("sc%d: BIOS video mode:%d\n", 
+	    dev->id_unit, *(u_char *)pa_to_va(0x449));
+        printf("sc%d: VGA registers upon power-up\n", dev->id_unit);
+        dump_vgaregs(vgaregs);
+        printf("sc%d: video mode:%d\n", dev->id_unit, scp->mode);
+        if (video_mode_ptr != NULL) {
+            printf("sc%d: VGA registers for mode:%d\n", 
+		dev->id_unit, scp->mode);
+            dump_vgaregs(video_mode_ptr + (64*scp->mode));
+        }
+    }
+#endif
     printf("sc%d: ", dev->id_unit);
 #ifdef PC98
 	printf(" <text mode>");
@@ -1703,10 +1722,10 @@ sccnputc(dev_t dev, int c)
     s = splclock();
     if (scp == cur_console && !(scp->status & UNKNOWN_MODE)) {
 	if (/* timer not running && */ (scp->start <= scp->end)) {
-	    bcopyw(scp->scr_buf + scp->start, Crtat + scp->start,
+	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
 		   (1 + scp->end - scp->start) * sizeof(u_short));
 #ifdef PC98
-	    bcopyw(scp->atr_buf + scp->start, Atrat + scp->start,
+	    sc_bcopy(scp->atr_buf + scp->start, Atrat + scp->start,
 		   (1 + scp->end - scp->start) * sizeof(u_short));
 #endif
 	    scp->start = scp->xsize * scp->ysize;
@@ -1799,10 +1818,10 @@ scrn_timer()
     if (!scrn_blanked) {
 	/* update screen image */
 	if (scp->start <= scp->end) {
-	    bcopyw(scp->scr_buf + scp->start, Crtat + scp->start,
+	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
 		   (1 + scp->end - scp->start) * sizeof(u_short));
 #ifdef PC98
-	    bcopyw(scp->atr_buf + scp->start, Atrat + scp->start,
+	    sc_bcopy(scp->atr_buf + scp->start, Atrat + scp->start,
 		   (1 + scp->end - scp->start) * sizeof(u_short));
 #endif
 	}
@@ -2059,16 +2078,16 @@ scan_esc(scr_stat *scp, u_char c)
 		move_crsr(scp, scp->xpos, scp->ypos - 1);
 	    else {
 #ifdef PC98
-		bcopyw(scp->scr_buf, scp->scr_buf + scp->xsize,
+		bcopy(scp->scr_buf, scp->scr_buf + scp->xsize,
 		       (scp->ysize - 1) * scp->xsize * sizeof(u_short));
-		bcopyw(scp->atr_buf, scp->atr_buf + scp->xsize,
+		bcopy(scp->atr_buf, scp->atr_buf + scp->xsize,
 		       (scp->ysize - 1) * scp->xsize * sizeof(u_short));
 		fillw(scr_map[0x20],
 		      scp->scr_buf, scp->xsize);
 		fillw(at2pc98(scp->term.cur_color),
 		      scp->atr_buf, scp->xsize);
 #else
-		bcopyw(scp->scr_buf, scp->scr_buf + scp->xsize,
+		bcopy(scp->scr_buf, scp->scr_buf + scp->xsize,
 		       (scp->ysize - 1) * scp->xsize * sizeof(u_short));
 		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->scr_buf, scp->xsize);
@@ -2290,11 +2309,11 @@ scan_esc(scr_stat *scp, u_char c)
 	    src = scp->scr_buf + scp->ypos * scp->xsize;
 	    dst = src + n * scp->xsize;
 	    count = scp->ysize - (scp->ypos + n);
-	    bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
+	    bcopy(src, dst, count * scp->xsize * sizeof(u_short));
 #ifdef PC98
 	    src_attr = scp->atr_buf + scp->ypos * scp->xsize;
 	    dst_attr = src_attr + n * scp->xsize;
-	    bcopyw(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
 	    fillw(scr_map[0x20], src,
 		  n * scp->xsize);
 	    fillw(at2pc98(scp->term.cur_color), src_attr,
@@ -2314,12 +2333,12 @@ scan_esc(scr_stat *scp, u_char c)
 	    dst = scp->scr_buf + scp->ypos * scp->xsize;
 	    src = dst + n * scp->xsize;
 	    count = scp->ysize - (scp->ypos + n);
-	    bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
+	    bcopy(src, dst, count * scp->xsize * sizeof(u_short));
 	    src = dst + count * scp->xsize;
 #ifdef PC98
 	    dst_attr = scp->atr_buf + scp->ypos * scp->xsize;
 	    src_attr = dst_attr + n * scp->xsize;
-	    bcopyw(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
 	    src_attr = dst_attr + count * scp->xsize;
 	    fillw(scr_map[0x20], src,
 		  n * scp->xsize);
@@ -2340,12 +2359,12 @@ scan_esc(scr_stat *scp, u_char c)
 	    dst = scp->cursor_pos;
 	    src = dst + n;
 	    count = scp->xsize - (scp->xpos + n);
-	    bcopyw(src, dst, count * sizeof(u_short));
+	    bcopy(src, dst, count * sizeof(u_short));
 	    src = dst + count;
 #ifdef PC98
 	    dst_attr = scp->cursor_atr;
 	    src_attr = dst_attr + n;
-	    bcopyw(src_attr, dst_attr, count * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * sizeof(u_short));
 	    src_attr = dst_attr + count;
 	    fillw(scr_map[0x20], src, n);
 	    fillw(at2pc98(scp->term.cur_color), src_attr, n);
@@ -2369,11 +2388,11 @@ scan_esc(scr_stat *scp, u_char c)
 	    src = scp->cursor_pos;
 	    dst = src + n;
 	    count = scp->xsize - (scp->xpos + n);
-	    bcopyw(src, dst, count * sizeof(u_short));
+	    bcopy(src, dst, count * sizeof(u_short));
 #ifdef PC98
 	    src_attr = scp->cursor_atr;
 	    dst_attr = src_attr + n;
-	    bcopyw(src_attr, dst_attr, count * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * sizeof(u_short));
 	    fillw(scr_map[0x20], src, n);
 	    fillw(at2pc98(scp->term.cur_color), src_attr, n);
 #else
@@ -2393,11 +2412,11 @@ scan_esc(scr_stat *scp, u_char c)
 	    n = scp->term.param[0]; if (n < 1)  n = 1;
 	    if (n > scp->ysize)
 		n = scp->ysize;
-	    bcopyw(scp->scr_buf + (scp->xsize * n),
+	    bcopy(scp->scr_buf + (scp->xsize * n),
 		   scp->scr_buf,
 		   scp->xsize * (scp->ysize - n) * sizeof(u_short));
 #ifdef PC98
-	    bcopyw(scp->atr_buf + (scp->xsize * n),
+	    bcopy(scp->atr_buf + (scp->xsize * n),
 		   scp->atr_buf,
 		   scp->xsize * (scp->ysize - n) * sizeof(u_short));
 	    fillw(scr_map[0x20],
@@ -2418,12 +2437,12 @@ scan_esc(scr_stat *scp, u_char c)
 	    n = scp->term.param[0]; if (n < 1)  n = 1;
 	    if (n > scp->ysize)
 		n = scp->ysize;
-	    bcopyw(scp->scr_buf,
+	    bcopy(scp->scr_buf,
 		  scp->scr_buf + (scp->xsize * n),
 		  scp->xsize * (scp->ysize - n) *
 		  sizeof(u_short));
 #ifdef PC98
-	    bcopyw(scp->atr_buf,
+	    bcopy(scp->atr_buf,
 		  scp->atr_buf + (scp->xsize * n),
 		  scp->xsize * (scp->ysize - n) *
 		  sizeof(u_short));
@@ -3065,11 +3084,11 @@ kanji_end:
     if (scp->cursor_pos >= scp->scr_buf + scp->ysize * scp->xsize) {
 	remove_cutmarking(scp);
 	if (scp->history) {
-	    bcopyw(scp->scr_buf, scp->history_head,
+	    bcopy(scp->scr_buf, scp->history_head,
 		   scp->xsize * sizeof(u_short));
 	    scp->history_head += scp->xsize;
 #ifdef PC98
-	    bcopyw(scp->atr_buf, scp->his_atr_head,
+	    bcopy(scp->atr_buf, scp->his_atr_head,
 		   scp->xsize * sizeof(u_short));
 	    scp->his_atr_head += scp->xsize;
 #endif
@@ -3083,10 +3102,10 @@ kanji_end:
 		scp->his_atr_head = scp->his_atr; }
 #endif
 	}
-	bcopyw(scp->scr_buf + scp->xsize, scp->scr_buf,
+	bcopy(scp->scr_buf + scp->xsize, scp->scr_buf,
 	       scp->xsize * (scp->ysize - 1) * sizeof(u_short));
 #ifdef PC98
-	bcopyw(scp->atr_buf + scp->xsize, scp->atr_buf,
+	bcopy(scp->atr_buf + scp->xsize, scp->atr_buf,
 	       scp->xsize * (scp->ysize - 1) * sizeof(u_short));
 	fillw(scr_map[0x20],
 	      scp->scr_buf + scp->xsize * (scp->ysize - 1),
@@ -3212,6 +3231,7 @@ scinit(void)
 	u_long  segoff;
 
 	crtc_vga = TRUE;
+	read_vgaregs(vgaregs);
 
 	/* Get the BIOS video mode pointer */
 	segoff = *(u_long *)pa_to_va(0x4a8);
@@ -3230,8 +3250,14 @@ scinit(void)
     init_scp(console[0]);
     cur_console = console[0];
 
+    /* discard the video mode table if we are not familiar with it... */
+    if (video_mode_ptr) {
+        if (comp_vgaregs(vgaregs, video_mode_ptr + 64*console[0]->mode)) 
+            video_mode_ptr = NULL;
+    }
+
     /* copy screen to temporary buffer */
-    bcopyw(Crtat, sc_buffer,
+    sc_bcopy(Crtat, sc_buffer,
 	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
     console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
@@ -3387,12 +3413,12 @@ history_to_screen(scr_stat *scp)
 #ifdef PC98
     {
 #endif
-	bcopyw(scp->history + (((scp->history_pos - scp->history) +
+	bcopy(scp->history + (((scp->history_pos - scp->history) +
 	       scp->history_size-((i+1)*scp->xsize))%scp->history_size),
 	       scp->scr_buf + (scp->xsize * (scp->ysize-1 - i)),
 	       scp->xsize * sizeof(u_short));
 #ifdef PC98
-	bcopyw(scp->his_atr + (((scp->his_atr_pos - scp->his_atr) +
+	bcopy(scp->his_atr + (((scp->his_atr_pos - scp->his_atr) +
 	       scp->history_size-((i+1)*scp->xsize))%scp->history_size),
 	       scp->atr_buf + (scp->xsize * (scp->ysize-1 - i)),
 	       scp->xsize * sizeof(u_short)); }
@@ -3584,12 +3610,12 @@ next_code:
 
 	    /* copy screen into top of history buffer */
 	    for (i=0; i<cur_console->ysize; i++) {
-		bcopyw(cur_console->scr_buf + (cur_console->xsize * i),
+		bcopy(cur_console->scr_buf + (cur_console->xsize * i),
 		       cur_console->history_head,
 		       cur_console->xsize * sizeof(u_short));
 		cur_console->history_head += cur_console->xsize;
 #ifdef PC98
-		bcopyw(cur_console->atr_buf + (cur_console->xsize * i),
+		bcopy(cur_console->atr_buf + (cur_console->xsize * i),
 		       cur_console->his_atr_head,
 		       cur_console->xsize * sizeof(u_short));
 		cur_console->his_atr_head += cur_console->xsize;
@@ -3826,13 +3852,13 @@ next_code:
 #endif
 
 			    for (i=0; i<cur_console->ysize; i++) {
-				bcopyw(ptr,
+				bcopy(ptr,
 				       cur_console->scr_buf +
 				       (cur_console->xsize*i),
 				       cur_console->xsize * sizeof(u_short));
 				ptr += cur_console->xsize;
 #ifdef PC98
-				bcopyw(ptr_a,
+				bcopy(ptr_a,
 				       cur_console->atr_buf +
 				       (cur_console->xsize*i),
 				       cur_console->xsize * sizeof(u_short));
@@ -4135,22 +4161,22 @@ set_mode(scr_stat *scp)
 #else
     switch (scp->mode) {
     case M_VGA_M80x60:
-	bcopyw(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
 	goto special_80x60;
 
     case M_VGA_C80x60:
-	bcopyw(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
 special_80x60:
 	special_modetable[2]  = 0x08;
 	special_modetable[19] = 0x47;
 	goto special_480l;
 
     case M_VGA_M80x30:
-	bcopyw(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
 	goto special_80x30;
 
     case M_VGA_C80x30:
-	bcopyw(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
 special_80x30:
 	special_modetable[19] = 0x4f;
 special_480l:
@@ -4165,21 +4191,21 @@ special_480l:
 	goto setup_mode;
 
     case M_ENH_B80x43:
-	bcopyw(video_mode_ptr+(64*M_ENH_B80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_ENH_B80x25), &special_modetable, 64);
 	goto special_80x43;
 
     case M_ENH_C80x43:
-	bcopyw(video_mode_ptr+(64*M_ENH_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_ENH_C80x25), &special_modetable, 64);
 special_80x43:
 	special_modetable[28] = 87;
 	goto special_80x50;
 
     case M_VGA_M80x50:
-	bcopyw(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
 	goto special_80x50;
 
     case M_VGA_C80x50:
-	bcopyw(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
 special_80x50:
 	special_modetable[2] = 8;
 	special_modetable[19] = 7;
@@ -4288,6 +4314,86 @@ set_vgaregs(char *modetable)
 }
 
 static void
+read_vgaregs(char *buf)
+{
+    int i, j;
+    int s;
+
+    bzero(buf, 64);
+
+    s = splhigh();
+
+    outb(TSIDX, 0x00); outb(TSREG, 0x01);   	/* stop sequencer */
+    outb(TSIDX, 0x07); outb(TSREG, 0x00);   	/* unlock registers */
+    for (i=0, j=5; i<4; i++) {           
+	outb(TSIDX, i+1);
+	buf[j++] = inb(TSREG);
+    }
+    buf[9] = inb(MISC + 10);      		/* dot-clock */
+    outb(TSIDX, 0x00); outb(TSREG, 0x03);   	/* start sequencer */
+
+    for (i=0, j=10; i<25; i++) {       		/* crtc */
+	outb(crtc_addr, i);
+	buf[j++] = inb(crtc_addr+1);
+    }
+    for (i=0, j=35; i<20; i++) {          	/* attribute ctrl */
+        inb(crtc_addr+6);           		/* reset flip-flop */
+	outb(ATC, i);
+	buf[j++] = inb(ATC + 1);
+    }
+    for (i=0, j=55; i<9; i++) {           	/* graph data ctrl */
+	outb(GDCIDX, i);
+	buf[j++] = inb(GDCREG);
+    }
+    inb(crtc_addr+6);           		/* reset flip-flop */
+    outb(ATC, 0x20);            		/* enable palette */
+
+    buf[0] = *(char *)pa_to_va(0x44a);		/* COLS */
+    buf[1] = *(char *)pa_to_va(0x484);		/* ROWS */
+    buf[2] = *(char *)pa_to_va(0x485);		/* POINTS */
+    buf[3] = *(char *)pa_to_va(0x44c);
+    buf[4] = *(char *)pa_to_va(0x44d);
+
+    splx(s);
+}
+
+static int 
+comp_vgaregs(u_char *buf1, u_char *buf2)
+{
+    int i;
+
+    for(i = 0; i < 20; ++i) {
+	if (*buf1++ != *buf2++)
+	    return 1;
+    }
+    buf1 += 2;  /* skip the cursor shape */
+    buf2 += 2;
+    for(i = 22; i < 24; ++i) {
+	if (*buf1++ != *buf2++)
+	    return 1;
+    }
+    buf1 += 2;  /* skip the cursor position */
+    buf2 += 2;
+    for(i = 26; i < 64; ++i) {
+	if (*buf1++ != *buf2++)
+	    return 1;
+    }
+    return 0;
+}
+
+static void
+dump_vgaregs(u_char *buf)
+{
+    int i;
+
+    for(i = 0; i < 64;) {
+	printf("%02x ", buf[i]);
+	if ((++i % 16) == 0)
+	    printf("\n");
+    }
+}
+
+static void
 set_font_mode()
 {
     int s = splhigh();
@@ -4358,6 +4464,9 @@ set_normal_mode()
     default:
 	modetable = video_mode_ptr + (64*M_VGA_C80x25);
     }
+
+    if (video_mode_ptr == NULL)
+	modetable = vgaregs;
 
     /* setup vga for normal operation mode again */
     inb(crtc_addr+6);           		/* reset flip-flop */
@@ -4457,19 +4566,19 @@ set_destructive_cursor(scr_stat *scp)
 
     if (scp->status & MOUSE_VISIBLE) {
 	if ((scp->cursor_saveunder & 0xff) == 0xd0)
-    	    bcopyw(&scp->mouse_cursor[0], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[0], cursor, scp->font_size);
 	else if ((scp->cursor_saveunder & 0xff) == 0xd1)
-    	    bcopyw(&scp->mouse_cursor[32], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[32], cursor, scp->font_size);
 	else if ((scp->cursor_saveunder & 0xff) == 0xd2)
-    	    bcopyw(&scp->mouse_cursor[64], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[64], cursor, scp->font_size);
 	else if ((scp->cursor_saveunder & 0xff) == 0xd3)
-    	    bcopyw(&scp->mouse_cursor[96], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[96], cursor, scp->font_size);
 	else
-	    bcopyw(font_buffer+((scp->cursor_saveunder & 0xff)*scp->font_size),
+	    bcopy(font_buffer+((scp->cursor_saveunder & 0xff)*scp->font_size),
  	       	   cursor, scp->font_size);
     }
     else
-    	bcopyw(font_buffer + ((scp->cursor_saveunder & 0xff) * scp->font_size),
+    	bcopy(font_buffer + ((scp->cursor_saveunder & 0xff) * scp->font_size),
  	       cursor, scp->font_size);
     for (i=0; i<32; i++)
 	if ((i >= scp->cursor_start && i <= scp->cursor_end) ||
@@ -4479,7 +4588,7 @@ set_destructive_cursor(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
 #endif
     set_font_mode();
-    bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
+    sc_bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode();
 #endif
 }
@@ -4616,13 +4725,13 @@ draw_mouse_image(scr_stat *scp)
     yoffset = scp->mouse_ypos % font_size;
 
     /* prepare mousepointer char's bitmaps */
-    bcopyw(font_buffer + ((*(scp->mouse_pos) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos) & 0xff) * font_size),
 	   &scp->mouse_cursor[0], font_size);
-    bcopyw(font_buffer + ((*(scp->mouse_pos+1) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos+1) & 0xff) * font_size),
 	   &scp->mouse_cursor[32], font_size);
-    bcopyw(font_buffer + ((*(scp->mouse_pos+scp->xsize) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos+scp->xsize) & 0xff) * font_size),
 	   &scp->mouse_cursor[64], font_size);
-    bcopyw(font_buffer + ((*(scp->mouse_pos+scp->xsize+1) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos+scp->xsize+1) & 0xff) * font_size),
 	   &scp->mouse_cursor[96], font_size);
     for (i=0; i<font_size; i++) {
 	buffer[i] = scp->mouse_cursor[i]<<8 | scp->mouse_cursor[i+32];
@@ -4649,7 +4758,7 @@ draw_mouse_image(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
 #endif
     set_font_mode();
-    bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
+    sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
     *(crt_pos) = (*(scp->mouse_pos)&0xff00)|0xd0;
     *(crt_pos+scp->xsize) = (*(scp->mouse_pos+scp->xsize)&0xff00)|0xd2;
@@ -4824,8 +4933,12 @@ toggle_splash_screen(scr_stat *scp)
 {
     static int toggle = 0;
     static u_char save_mode;
-    int s = splhigh();
+    int s;
 
+    if (video_mode_ptr == NULL)
+	return;
+
+    s = splhigh();
     if (toggle) {
 	scp->mode = save_mode;
 	scp->status &= ~UNKNOWN_MODE;
