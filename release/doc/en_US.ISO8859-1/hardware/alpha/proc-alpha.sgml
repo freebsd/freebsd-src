@@ -2738,6 +2738,85 @@ cpu	EV5</programlisting>
       file. The <literal>cpu EV5</literal> is mandatory to keep
       &man.config.8; happy.</para>
     </sect3>
+
+    <sect3>
+      <title>Compaq AlphaServer ES40 (<quote>Clipper</quote>)</title>
+
+      <para>The ES40 is a SMP system that can have 1 - 4 21264 Alpha CPUs.
+      With the maximum configuration of 32GB of memory these systems are
+      often deployed as heavy database servers and are also found in HPTC
+      compute farm environments.</para>
+
+      <para>Features:</para>
+        <itemizedlist>
+          <listitem>
+            <para>21264 Alpha CPU at 500 (EV6), 667 (EV67) or 833 MHz (EV68)
+            (max. 4 CPUs)</para>
+          </listitem>
+          <listitem>
+            <para>memory bus: 256-bit wide</para>
+          </listitem>
+          <listitem>
+            <para>21272 Core Logic chipset</para>
+          </listitem>
+          <listitem>
+            <para>PS/2 mouse & keyboard port</para>
+          </listitem>
+          <listitem>
+            <para>memory: 200-pin JEDEC standard SDRAM DIMMS,
+            max 32 GBytes of memory</para>
+          </listitem>
+          <listitem>
+            <para>2 16550A serial port</para>
+          </listitem>
+          <listitem>
+            <para>1 ECP/EPP parallel port</para>
+          </listitem>
+          <listitem>
+            <para>ALI M1543C Ultra DMA66 IDE interface</para>
+          </listitem>
+          <listitem>
+            <para>expansion: 2 64 bit PCI buses
+          </listitem>
+        </itemizedlist>
+
+      <para>SRM console code comes standard with the ES40.</para>
+      
+      <para>ES40 comes with an ATA CDROM drive, but uses SCSI
+      harddisks.</para>
+
+      <para>Memory is divided in 4 memory arrays which each contain 
+      a set of 4 SDRAM DIMMs. Each DIMM is 72 bit wide and of the 100MHz
+      speed variant. An array can contain 2 sets, so 8 DIMMs max per array.
+      The DIMMs live on Memory Mother Boards (MMBs). There are 2 MMB models,
+      with 4 and 8 DIMM sockets respectively. Each MMB provides half of the
+      256 bit memory bus width to the CPUs. 
+      Given the myriad options for the memory configuration it is advisable 
+      to check the system documentation for the optimum memory 
+      configuration.</para>
+
+      <para>Dependent on the model variation the ES40 has 6 or 10 64 bit PCI
+      slots. This is basically just means the same backplane with less 
+      connectors mounted.</para>
+
+      <para>ES40 has the same RMC remote power control as DS10 and DS20. 
+      See the description of the RMC in the DS10 section of this document.
+      Most variations of ES40 have multiple power supplies, allowing
+      for N+1 redundancy. When installing CPU cards you must unplug all
+      power cords, the CPU cards receive standby power from the power
+      supplies. Maximum memory configurations need more than the default
+      number of powersupplies.</para>
+      
+      <para>The kernel config file must contain:</para>
+      <programlisting>options   DEC_ST6600
+cpu     EV5</programlisting>
+
+      <para>Contrary to expectation there is no <literal>cpu
+      EV6</literal> defined for inclusion in the kernel config 
+      file. The <literal>cpu EV5</literal> is mandatory to keep
+      &man.config.8; happy.</para>
+    </sect3>
+
   </sect2>
 
   <sect2>
