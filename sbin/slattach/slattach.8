@@ -107,7 +107,8 @@ Empty
 cause connection reestablishing on leased line
 without any external command invoked.
 .It Fl s Ar baudrate
-Specify the speed of the connection. If not specified, the
+Specify the speed of the connection.
+If not specified, the
 default of 9600 is used.
 .It Fl u Ar unit-command
 When the line is switched to slip discipline, run
@@ -140,12 +141,14 @@ Force redial
 .Ar redial-command
 upon startup irrespective of carrier.
 .It Fl L
-Use uucp-style device locking. You need it unless you start
+Use uucp-style device locking.
+You need it unless you start
 .Nm
 from external program which already does uucp locking.
 Default case is no uucp locking to satisfy such programs.
 .It Fl K Ar keepalive
-Set SLIP "keep alive" timeout in seconds. If FRAME_END is not received in
+Set SLIP "keep alive" timeout in seconds.
+If FRAME_END is not received in
 this amount of time, re-connect occurs.
 The default value is no timeout.
 .It Fl O Ar outfill
@@ -154,7 +157,8 @@ to be sent during this time period, which is necessary for the "keep alive"
 timeout on the remote side.
 The default value is no timeout.
 .It Fl S Ar unit
-Set the SLIP unit number directly. Use with caution, because no check is made
+Set the SLIP unit number directly.
+Use with caution, because no check is made
 for two interfaces with same number.
 By default sliplogin dynamically assigns the unit number.
 .It Ar ttyname

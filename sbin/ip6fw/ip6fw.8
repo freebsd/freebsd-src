@@ -67,13 +67,15 @@ a byte count.
 These counters are updated when a packet matches the rule.
 .Pp
 The rules are ordered by a ``line-number'' from 1 to 65534 that is used
-to order and delete rules. Rules are tried in increasing order, and the
+to order and delete rules.
+Rules are tried in increasing order, and the
 first rule that matches a packet applies.
 Multiple rules may share the same number and apply in
 the order in which they were added.
 .Pp
 If a rule is added without a number, it is numbered 100 higher
-than the previous rule. If the highest defined rule number is
+than the previous rule.
+If the highest defined rule number is
 greater than 65434, new rules are appended to the last rule.
 .Pp
 The delete operation deletes the first rule with number
@@ -128,7 +130,8 @@ Try to resolve addresses and service names in output.
 .Bl -hang -offset flag -width 1234567890123456
 .It Ar allow
 Allow packets that match rule.
-The search terminates. Aliases are
+The search terminates.
+Aliases are
 .Ar pass ,
 .Ar permit ,
 and
@@ -158,7 +161,8 @@ or
 .Ar noport ,
 The search terminates.
 .It Ar reset
-TCP packets only. Discard packets that match this rule,
+TCP packets only.
+Discard packets that match this rule,
 and try to send a TCP reset (RST) notice.
 The search terminates
 .Em (not working yet).
@@ -192,7 +196,8 @@ interface.
 .Ar proto :
 .Bl -hang -offset flag -width 1234567890123456
 .It Ar ipv6
-All packets match. The alias
+All packets match.
+The alias
 .Ar all
 has the same effect.
 .It Ar tcp
@@ -226,7 +231,8 @@ An ipv6number with a prefix length of the form fec0::1:2:3:4/112.
 .El
 .Pp
 The sense of the match can be inverted by preceding an address with the
-``not'' modifier, causing all other addresses to be matched instead. This
+``not'' modifier, causing all other addresses to be matched instead.
+This
 does not affect the selection of port numbers.
 .Pp
 With the TCP and UDP protocols, optional
@@ -300,13 +306,15 @@ The
 .Ar recv
 interface can be tested on either incoming or outgoing packets, while the
 .Ar xmit
-interface can only be tested on outgoing packets. So
+interface can only be tested on outgoing packets.
+So
 .Ar out
 is required (and
 .Ar in
 invalid) whenver
 .Ar xmit
-is used. Specifying
+is used.
+Specifying
 .Ar via
 together with
 .Ar xmit
@@ -458,7 +466,8 @@ or in short form without timestamps:
 .Pp
 .Em WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
 .Pp
-This program can put your computer in rather unusable state. When
+This program can put your computer in rather unusable state.
+When
 using it for the first time, work on the console of the computer, and
 do
 .Em NOT

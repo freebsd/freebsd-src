@@ -94,7 +94,8 @@ determine what the
 command is trying to do.
 .It Fl f
 Forces the revocation of write access when trying to downgrade
-a filesystem mount status from read-write to read-only. Also
+a filesystem mount status from read-write to read-only.
+Also
 forces the R/W mount of an unclean filesystem (dangerous; use with
 caution).
 .It Fl o
@@ -123,7 +124,8 @@ the mounted filesystem.
 The same as
 .Fl f ;
 forces the revocation of write access when trying to downgrade
-a filesystem mount status from read-write to read-only. Also
+a filesystem mount status from read-write to read-only.
+Also
 forces the R/W mount of an unclean filesystem (dangerous; use with caution).
 .It fstab
 When used with the
@@ -135,7 +137,8 @@ file for the filesystem.
 Metadata I/O should be done synchronously, while data I/O should be done
 asynchronously.  This is the default.
 .It noatime
-Do not update the file access time when reading from a file. This option
+Do not update the file access time when reading from a file.
+This option
 is useful on filesystems where there are large numbers of files and
 performance is more critical than updating the file access time (which is
 rarely ever important). This option is currently only supported on local
@@ -182,10 +185,12 @@ Execute bits are removed from
 the file, and it will not be given to root.
 .Pp
 This feature is designed for use on fileservers serving PC users via
-ftp, SAMBA, or netatalk. It provides security holes for shell users and as
+ftp, SAMBA, or netatalk.
+It provides security holes for shell users and as
 such should not be used on shell machines, especially on home directories.
 This option requires the SUIDDIR
-option in the kernel to work. Only UFS filesystems support this option.
+option in the kernel to work.
+Only UFS filesystems support this option.
 See
 .Xr chmod 2
 for more information.
@@ -224,7 +229,8 @@ to execute the equivalent of:
 /sbin/mount_mfs -o nosuid -N -s 4000 /dev/dk0b /tmp
 .Ed
 .It Fl p
-Print mount information in fstab format. Implies also the
+Print mount information in fstab format.
+Implies also the
 .Fl v
 option.
 .It Fl r
