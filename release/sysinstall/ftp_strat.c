@@ -99,6 +99,7 @@ ftpShouldAbort(Device *dev, int retries)
     int rval = 0;
 
     if (reselectCount > 3) {
+	dialog_clear();
 	if (!msgYesNo("This doesn't seem to be working.  Your network card may be\n"
 		      "misconfigured, the information you entered in the network setup\n"
 		      "screen may be wrong or your network connection may just simply be\n"
