@@ -292,7 +292,6 @@ i386/isa/isa_dma.c		optional	isa
 i386/isa/mse.c			optional	mse
 i386/isa/nmi.c			standard
 i386/isa/npx.c			optional	npx
-i386/isa/pbio.c			optional	pbio
 i386/isa/pcf.c			optional	pcf
 i386/isa/pcvt/pcvt_drv.c	optional	vt
 i386/isa/pcvt/pcvt_ext.c	optional	vt
