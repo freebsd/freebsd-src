@@ -36,7 +36,7 @@
 #	John Kunze, Berkeley
 #	Craig Leres, Berkeley
 #
-# Please e-mail changes to termcap@berkeley.edu or uunet!ucbvax!termcap.
+# Please submit changes with send-pr(1).
 #
 # << EOH - after reordering, above header lines survive and this line dies >>
 #
@@ -88,6 +88,17 @@
 # Comments in this file begin with # - they cannot appear in the middle
 # of a termcap entry.  Individual entries are commented out by
 # placing a period between the colon and the capability name.
+#
+# To add a termcap entry under FreeBSD for a new terminal type, insert
+# the entry in the appropriate location in /etc/termcap then issue this
+# command:
+#
+#  cap_mkdb -f /usr/share/misc/termcap /etc/termcap
+#
+# Terminfo source entries can be converted to termcap entries with the
+# tic program that is part of the ncurses distribution, see the ports
+# section.
+#
 #
 #  This file is to be installed with an editor script (reorder)
 #  that moves the most common terminals to the front of the file.
