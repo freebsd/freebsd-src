@@ -528,8 +528,14 @@ struct in6_pktinfo {
 #define IPV6CTL_USE_DEPRECATED	21	/* use deprecated addr (RFC2462 5.5.4) */
 #define IPV6CTL_RR_PRUNE	22	/* walk timer for router renumbering */
 #define IPV6CTL_MAPPED_ADDR	23
+#ifdef notdef	/*__NetBSD__ - reserved, don't delete*/
+#define IPV6CTL_BINDV6ONLY	24
+#endif
+#define IPV6CTL_RTEXPIRE	25	/* cloned route expiration time */
+#define IPV6CTL_RTMINEXPIRE	26	/* min value for expiration time */
+#define IPV6CTL_RTMAXCACHE	27	/* trigger level for dynamic expire */
 /* New entries should be added here from current IPV6CTL_MAXID value. */
-#define IPV6CTL_MAXID		24
+#define IPV6CTL_MAXID		28
 #endif /* !_XOPEN_SOURCE */
 
 /*
