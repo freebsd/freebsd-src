@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.3 1993/11/07 17:39:25 wollman Exp $
+ *	$Id: db_sym.h,v 1.4 1994/08/18 22:34:26 wollman Exp $
  */
 
 #ifndef _DDB_DB_SYM_H_
@@ -96,7 +96,7 @@ extern int	db_eqname(/* char*, char*, char */);
 
 extern void	db_printsym(/* db_expr_t, db_strategy_t */);
 					/* print closest symbol to a value */
-extern boolean_t db_line_at_pc(int, int, int, int);
+extern boolean_t db_line_at_pc(db_sym_t, char **, int *, db_expr_t);
 extern int X_db_sym_nymargs(db_symtab_t *, db_sym_t, int *, char **);
 
 #endif /* _DDB_DB_SYM_H_ */

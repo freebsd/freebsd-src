@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id$
+ * $Id: cd9660_vfsops.c,v 1.3 1994/08/02 07:41:33 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -57,8 +57,6 @@
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
-
-extern int enodev ();
 
 struct vfsops cd9660_vfsops = {
 	cd9660_mount,
@@ -87,7 +85,6 @@ int
 cd9660_mountroot()
 {
 	register struct mount *mp;
-	extern struct vnode *rootvp;
 	struct proc *p = curproc;	/* XXX */
 	struct iso_mnt *imp;
 	register struct fs *fs;
@@ -229,7 +226,6 @@ iso_mountfs(devvp, mp, p, argp)
 	int error = EINVAL, i, size;
 	int needclose = 0;
 	int ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	extern struct vnode *rootvp;
 	int j;
 	int iso_bsize;
 	int iso_blknum;

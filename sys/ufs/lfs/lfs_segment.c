@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id$
+ * $Id: lfs_segment.c,v 1.3 1994/08/02 07:54:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -84,8 +84,6 @@ void	 lfs_newseg __P((struct lfs *));
 void	 lfs_shellsort __P((struct buf **, daddr_t *, register int));
 void	 lfs_supercallback __P((struct buf *));
 void	 lfs_updatemeta __P((struct segment *));
-int	 lfs_vref __P((struct vnode *));
-void	 lfs_vunref __P((struct vnode *));
 void	 lfs_writefile __P((struct lfs *, struct segment *, struct vnode *));
 int	 lfs_writeinode __P((struct lfs *, struct segment *, struct inode *));
 int	 lfs_writeseg __P((struct lfs *, struct segment *));

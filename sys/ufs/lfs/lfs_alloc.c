@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id$
+ * $Id: lfs_alloc.c,v 1.2 1994/08/02 07:54:29 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -157,7 +157,6 @@ lfs_vcreate(mp, ino, vpp)
 	ino_t ino;
 	struct vnode **vpp;
 {
-	extern int (**lfs_vnodeop_p)();
 	struct inode *ip;
 	struct ufsmount *ump;
 	int error, i;

@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.7 1994/05/27 04:02:10 rgrimes Exp $
+ * $Id: wt.c,v 1.8 1994/08/13 03:50:20 wollman Exp $
  *
  */
 
@@ -165,9 +165,6 @@ static void wtrewind (wtinfo_t *t);
 static int wtreadfm (wtinfo_t *t);
 static int wtwritefm (wtinfo_t *t);
 static int wtpoll (wtinfo_t *t, int mask, int bits);
-
-/* XXX */
-extern void DELAY (int usec);
 
 /*
  * Probe for the presence of the device.
