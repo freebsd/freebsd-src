@@ -309,7 +309,6 @@ smbfs_reclaim(ap)
 
 	if (np->n_hash.le_prev)
 		LIST_REMOVE(np, n_hash);
-	cache_purge(vp);
 	if (smp->sm_root == np) {
 		SMBVDEBUG("root vnode\n");
 		smp->sm_root = NULL;

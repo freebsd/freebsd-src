@@ -197,8 +197,6 @@ pfs_vncache_free(struct vnode *vp)
 {
 	struct pfs_vdata *pvd;
 
-	cache_purge(vp);
-
 	mtx_lock(&pfs_vncache_mutex);
 	pvd = (struct pfs_vdata *)vp->v_data;
 	KASSERT(pvd != NULL, ("pfs_vncache_free(): no vnode data\n"));
