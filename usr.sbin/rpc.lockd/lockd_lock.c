@@ -164,7 +164,13 @@ void unmonitor_lock_host(const char *hostname);
 
 void	copy_nlm4_lock_to_nlm4_holder(const struct nlm4_lock *src,
     const bool_t exclusive, struct nlm4_holder *dest);
+struct file_lock *	allocate_file_lock(const netobj *lockowner,
+    const netobj *matchcookie);
 void	deallocate_file_lock(struct file_lock *fl);
+void	fill_file_lock(struct file_lock *fl, const fhandle_t *fh,
+    struct sockaddr *addr, const bool_t exclusive, const int32_t svid,
+    const u_int64_t offset, const u_int64_t len, const char *caller_name,
+    const int state, const int status, const int flags, const int blocking);
 int	regions_overlap(const u_int64_t start1, const u_int64_t len1,
     const u_int64_t start2, const u_int64_t len2);;
 enum split_status  region_compare(const u_int64_t starte, const u_int64_t lene,
@@ -402,9 +408,10 @@ allocate_file_lock(const netobj *lockowner, const netobj *matchcookie)
  * file_file_lock: Force creation of a valid file lock
  */
 void
-fill_file_lock(struct file_lock *fl, const fhandle_t *fh, struct sockaddr *addr,
-    const bool_t exclusive, const int32_t svid, const u_int64_t offset, const u_int64_t len, 
-    const char* caller_name, const int state, const int status, const int flags, const int blocking) 
+fill_file_lock(struct file_lock *fl, const fhandle_t *fh,
+    struct sockaddr *addr, const bool_t exclusive, const int32_t svid,
+    const u_int64_t offset, const u_int64_t len, const char *caller_name,
+    const int state, const int status, const int flags, const int blocking)
 {
 	bcopy(fh, &fl->filehandle, sizeof(fhandle_t));
 	fl->addr = addr;
@@ -914,7 +921,8 @@ split_nfslock(exist_lock, unlock_lock, left_lock, right_lock)
 			return SPL_RESERR;
 		}
 
-		fill_file_lock(*left_lock, &exist_lock->filehandle, exist_lock->addr,
+		fill_file_lock(*left_lock, &exist_lock->filehandle,
+		    exist_lock->addr,
 		    exist_lock->client.exclusive, exist_lock->client.svid,
 		    start1, len1,
 		    exist_lock->client_name, exist_lock->nsm_status,
@@ -931,7 +939,8 @@ split_nfslock(exist_lock, unlock_lock, left_lock, right_lock)
 			return SPL_RESERR;
 		}
 
-		fill_file_lock(*right_lock, &exist_lock->filehandle, exist_lock->addr,
+		fill_file_lock(*right_lock, &exist_lock->filehandle,
+		    exist_lock->addr,
 		    exist_lock->client.exclusive, exist_lock->client.svid,
 		    start2, len2,
 		    exist_lock->client_name, exist_lock->nsm_status,
@@ -1880,7 +1889,8 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 
 	fill_file_lock(newfl, (fhandle_t *)lckarg->alock.fh.n_bytes,
 	    (struct sockaddr *)svc_getrpccaller(rqstp->rq_xprt)->buf,
-	    lckarg->exclusive, lckarg->alock.svid, lckarg->alock.l_offset, lckarg->alock.l_len,
+	    lckarg->exclusive, lckarg->alock.svid, lckarg->alock.l_offset,
+	    lckarg->alock.l_len,
 	    lckarg->alock.caller_name, lckarg->state, 0, flags, lckarg->block);
 	
 	/*
