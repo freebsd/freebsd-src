@@ -618,7 +618,7 @@
 
     <para arch="i386">DTC 3290 EISA SCSI controller in 1542 emulation mode.</para>
 
-    <para>Tekram DC390 and DC390T controllers, maybe other cards based
+    <para arch="i386">Tekram DC390 and DC390T controllers, maybe other cards based
     on the AMD 53c974 as well (&man.amd.4; driver)</para>
 
     <para arch="i386">Workbit Ninja SCSI-3 based PC-Card SCSI host
@@ -764,7 +764,7 @@
     </para>
 
     <para arch="i386">Allied-Telesis AT1700 and RE2000 cards
-    (&man.fe.4; driver)</para>
+    (&man.fe.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>CONTEC C-NET(PC)C PCMCIA Ethernet</para>
@@ -794,6 +794,7 @@
 	  <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
 	</listitem>
       </itemizedlist>
+    </para>
 
     <para arch="i386">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
     1 and Tigon 2 chipsets (&man.ti.4; driver)
@@ -2494,7 +2495,7 @@
     <para arch="i386,alpha">Floppy drives (&man.fd.4; driver)</para>
     <para arch="i386">Genius and Mustek hand scanners</para>
     <para arch="i386">GPB and Transputer drivers</para>
-    <para>Keyboards including:
+    <para arch="i386,alpha,ia64">Keyboards including:
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>AT-style keyboards</para>
@@ -2509,7 +2510,7 @@
       </itemizedlist>
     </para>
     <para arch="i386">Loran-C receiver (Dave Mills experimental hardware, loran driver).</para>
-    <para>Mice including:
+    <para arch="i386,alpha,ia64">Mice including:
       <itemizedlist>
         <listitem arch="i386">
 	  <para>Bus mice (&man.mse.4; driver)</para>
@@ -2527,7 +2528,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Parallel ports (&man.ppc.4; driver)</para>
+    <para arch="i386,alpha"><quote>PC standard</quote>parallel ports (&man.ppc.4; driver)</para>
 
     <para arch="i386">PC-compatible joysticks (&man.joy.4; driver)</para>
 
@@ -2545,7 +2546,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64,sparc64">8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
+    <para arch="i386,alpha,ia64,sparc64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     <para arch="i386">X-10 power controllers (&man.tw.4; driver)</para>
 
