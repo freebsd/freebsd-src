@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2001
+.Dd May 18, 2002
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -39,10 +39,13 @@
 .In sys/queue.h
 .In vm/uma.h
 .Ft uma_zone_t
-.Fn uma_zcreate "char *name" "int size" "uma_ctor ctor" "uma_dtor dtor" "uma_in
-it uminit" "uma_fini fini" "int align" "u_int16_t flags"
-.Ft void *
-.Fn uma_zalloc "uma_zone_t zone, int flags"
+.Fo uma_zcreate
+.Fa "char *name" "int size"
+.Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init uminit" "uma_fini fini"
+.Fa "int align" "u_int16_t flags"
+.Fc
+.Ft "void *"
+.Fn uma_zalloc "uma_zone_t zone" "int flags"
 .Ft void
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
@@ -66,7 +69,7 @@ and wish to use the type stable property of zones by leaving some fields
 pre-filled between allocations, must reserve
 two pointers at the very beginning for internal use by the zone
 allocator, as follows:
-.Bd -literal
+.Bd -literal -offset indent
 struct my_item {
         struct my_item  *z_rsvd1;
         struct my_item  *z_rsvd2;
@@ -121,7 +124,6 @@ must have been freed with
 .Fn uma_zfree
 before.
 .Sh RETURN VALUES
-.Pp
 The
 .Fn uma_zalloc
 function returns a pointer to an item, or
