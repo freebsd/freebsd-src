@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.5.2.10 1997/06/13 09:33:32 jkh Exp $
+ * $Id: dispatch.c,v 1.5.2.11 1997/06/13 17:54:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,7 +54,7 @@ static struct _word {
     { "configRegister",		configRegister		},
     { "configRouter",		configRouter		},
     { "configUsers",		configUsers		},
-    { "configXFree86",		configXFree86		},
+    { "configXEnvironment",	configXEnvironment	},
     { "diskPartitionEditor",	diskPartitionEditor	},
     { "diskPartitionWrite",	diskPartitionWrite	},
     { "diskLabelEditor",	diskLabelEditor		},

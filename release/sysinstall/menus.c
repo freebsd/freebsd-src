@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.43 1997/06/13 14:18:46 jkh Exp $
+ * $Id: menus.c,v 1.89.2.44 1997/06/13 17:54:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1106,7 +1106,7 @@ DMenu MenuConfigure = {
 #else
       { "X XFree86",	"Configure XFree86",
 #endif
-	NULL, configXFree86 },
+	NULL, configXEnvironment },
       { "D Distributions", "Install additional distribution sets",
 	NULL, distExtractAll },
       { "L Label",	"The disk Label editor",
