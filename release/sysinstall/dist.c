@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.27 1997/04/19 14:46:08 jkh Exp $
+ * $Id: dist.c,v 1.73.2.28 1997/05/05 05:17:45 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -217,7 +217,7 @@ distConfig(dialogMenuItem *self)
     if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
 	SrcDists = atoi(cp);
 
-#ifndef	USE_XIG_ENFIRONMENT
+#ifndef	USE_XIG_ENVIRONMENT
     if ((cp = variable_get(VAR_DIST_X11)) != NULL)
 	XF86Dists = atoi(cp);
 
