@@ -4,7 +4,6 @@
 PROG=	adventure
 SRCS=	main.c init.c done.c save.c subr.c vocab.c wizard.c io.c data.c crc.c
 MAN=	adventure.6
-CFLAGS+=-traditional-cpp
 HIDEGAME=hidegame
 CLEANFILES=data.c setup setup.o
 
