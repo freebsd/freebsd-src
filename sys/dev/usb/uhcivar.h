@@ -181,13 +181,13 @@ typedef struct uhci_softc {
 	device_ptr_t sc_child;		/* /dev/usb device */
 } uhci_softc_t;
 
-usbd_status	uhci_init __P((uhci_softc_t *));
-int		uhci_intr __P((void *));
+usbd_status	uhci_init(uhci_softc_t *);
+int		uhci_intr(void *);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-int		uhci_detach __P((uhci_softc_t *, int));
-int		uhci_activate __P((device_ptr_t, enum devact));
+int		uhci_detach(uhci_softc_t *, int);
+int		uhci_activate(device_ptr_t, enum devact);
 #endif
 
-void		uhci_shutdown __P((void *v));
-void		uhci_power __P((int state, void *priv));
+void		uhci_shutdown(void *v);
+void		uhci_power(int state, void *priv);
 

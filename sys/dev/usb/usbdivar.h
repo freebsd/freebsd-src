@@ -50,23 +50,23 @@ struct usbd_endpoint {
 };
 
 struct usbd_bus_methods {
-	usbd_status	      (*open_pipe)__P((struct usbd_pipe *pipe));
-	void		      (*do_poll)__P((struct usbd_bus *));
-	usbd_status	      (*allocm)__P((struct usbd_bus *, usb_dma_t *,
-					    u_int32_t bufsize));
-	void		      (*freem)__P((struct usbd_bus *, usb_dma_t *));
-	struct usbd_xfer *    (*allocx)__P((struct usbd_bus *));
-	void		      (*freex)__P((struct usbd_bus *,
-					   struct usbd_xfer *));
+	usbd_status	      (*open_pipe)(struct usbd_pipe *pipe);
+	void		      (*do_poll)(struct usbd_bus *);
+	usbd_status	      (*allocm)(struct usbd_bus *, usb_dma_t *,
+					    u_int32_t bufsize);
+	void		      (*freem)(struct usbd_bus *, usb_dma_t *);
+	struct usbd_xfer *    (*allocx)(struct usbd_bus *);
+	void		      (*freex)(struct usbd_bus *,
+					   struct usbd_xfer *);
 };
 
 struct usbd_pipe_methods {
-	usbd_status	      (*transfer)__P((usbd_xfer_handle xfer));
-	usbd_status	      (*start)__P((usbd_xfer_handle xfer));
-	void		      (*abort)__P((usbd_xfer_handle xfer));
-	void		      (*close)__P((usbd_pipe_handle pipe));
-	void		      (*cleartoggle)__P((usbd_pipe_handle pipe));
-	void		      (*done)__P((usbd_xfer_handle xfer));
+	usbd_status	      (*transfer)(usbd_xfer_handle xfer);
+	usbd_status	      (*start)(usbd_xfer_handle xfer);
+	void		      (*abort)(usbd_xfer_handle xfer);
+	void		      (*close)(usbd_pipe_handle pipe);
+	void		      (*cleartoggle)(usbd_pipe_handle pipe);
+	void		      (*done)(usbd_xfer_handle xfer);
 };
 
 struct usbd_port {
@@ -80,7 +80,7 @@ struct usbd_port {
 };
 
 struct usbd_hub {
-	usbd_status	      (*explore)__P((usbd_device_handle hub));
+	usbd_status	      (*explore)(usbd_device_handle hub);
 	void		       *hubsoftc;
 	usb_hub_descriptor_t	hubdesc;
 	struct usbd_port        ports[1];
@@ -204,37 +204,37 @@ struct usbd_xfer {
 #endif
 };
 
-void usbd_init __P((void));
-void usbd_finish __P((void));
+void usbd_init(void);
+void usbd_finish(void);
 
 /* Routines from usb_subr.c */
-int		usbctlprint __P((void *, const char *));
-void		usb_delay_ms __P((usbd_bus_handle, u_int));
-void		usbd_devinfo_vp __P((usbd_device_handle, char *, char *));
-usbd_status	usbd_reset_port __P((usbd_device_handle dev,
-				     int port, usb_port_status_t *ps));
-usbd_status	usbd_setup_pipe __P((usbd_device_handle dev,
+int		usbctlprint(void *, const char *);
+void		usb_delay_ms(usbd_bus_handle, u_int);
+void		usbd_devinfo_vp(usbd_device_handle, char *, char *);
+usbd_status	usbd_reset_port(usbd_device_handle dev,
+				     int port, usb_port_status_t *ps);
+usbd_status	usbd_setup_pipe(usbd_device_handle dev,
 				     usbd_interface_handle iface,
 				     struct usbd_endpoint *, int,
-				     usbd_pipe_handle *pipe));
-usbd_status	usbd_new_device __P((device_ptr_t parent, 
+				     usbd_pipe_handle *pipe);
+usbd_status	usbd_new_device(device_ptr_t parent, 
 				     usbd_bus_handle bus, int depth,
 				     int lowspeed, int port, 
-				     struct usbd_port *));
-void		usbd_remove_device __P((usbd_device_handle,
-					struct usbd_port *));
-int		usbd_printBCD __P((char *cp, int bcd));
-usbd_status	usbd_fill_iface_data __P((usbd_device_handle dev, 
-					  int i, int a));
-void		usb_free_device __P((usbd_device_handle));
+				     struct usbd_port *);
+void		usbd_remove_device(usbd_device_handle,
+					struct usbd_port *);
+int		usbd_printBCD(char *cp, int bcd);
+usbd_status	usbd_fill_iface_data(usbd_device_handle dev, 
+					  int i, int a);
+void		usb_free_device(usbd_device_handle);
 
-usbd_status	usb_insert_transfer __P((usbd_xfer_handle xfer));
-void		usb_transfer_complete __P((usbd_xfer_handle xfer));
-void		usb_disconnect_port __P((struct usbd_port *up, device_ptr_t));
+usbd_status	usb_insert_transfer(usbd_xfer_handle xfer);
+void		usb_transfer_complete(usbd_xfer_handle xfer);
+void		usb_disconnect_port(struct usbd_port *up, device_ptr_t);
 
 /* Routines from usb.c */
-int		usb_bus_count __P((void));
-void		usb_needs_explore __P((usbd_bus_handle));
+int		usb_bus_count(void);
+void		usb_needs_explore(usbd_bus_handle);
 
 #ifdef DIAGNOSTIC
 #define SPLUSBCHECK \

@@ -52,4 +52,4 @@ struct usbd_quirks {
 
 extern struct usbd_quirks usbd_no_quirk;
 
-struct usbd_quirks *usbd_find_quirk __P((usb_device_descriptor_t *));
+struct usbd_quirks *usbd_find_quirk(usb_device_descriptor_t *);
