@@ -122,11 +122,10 @@ umtx_timedwait(struct umtx *umtx, long id, void *uaddr,
 
 /* Wake threads waiting on a user address. */
 static __inline int
-umtx_wake(void *uaddr, int broadcast)
+umtx_wake(void *uaddr, int nr_wakeup)
 {
-	if (_umtx_op(0, UMTX_OP_WAKE, broadcast, uaddr, 0) == -1)
-		return (errno);
-	return (0);
+	/* return how many threads were woke up, -1 if error */
+	return _umtx_op(0, UMTX_OP_WAKE, nr_wakeup, uaddr, 0);
 }
 
 #endif /* !_KERNEL */
