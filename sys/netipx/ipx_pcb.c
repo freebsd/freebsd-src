@@ -63,6 +63,8 @@ ipx_pcballoc(so, head, td)
 {
 	register struct ipxpcb *ipxp;
 
+	IPX_LIST_LOCK_ASSERT();
+
 	MALLOC(ipxp, struct ipxpcb *, sizeof *ipxp, M_PCB, M_NOWAIT | M_ZERO);
 	if (ipxp == NULL)
 		return (ENOBUFS);
@@ -83,6 +85,9 @@ ipx_pcbbind(ipxp, nam, td)
 {
 	register struct sockaddr_ipx *sipx;
 	u_short lport = 0;
+
+	IPX_LIST_LOCK_ASSERT();
+	IPX_LOCK_ASSERT(ipxp);
 
 	if (ipxp->ipxp_lport || !ipx_nullhost(ipxp->ipxp_laddr))
 		return (EINVAL);
@@ -139,6 +144,9 @@ ipx_pcbconnect(ipxp, nam, td)
 	register struct ipx_addr *dst;
 	register struct route *ro;
 	struct ifnet *ifp;
+
+	IPX_LIST_LOCK_ASSERT();
+	IPX_LOCK_ASSERT(ipxp);
 
 	ia = NULL;
 
@@ -260,6 +268,9 @@ ipx_pcbdisconnect(ipxp)
 	struct ipxpcb *ipxp;
 {
 
+	IPX_LIST_LOCK_ASSERT();
+	IPX_LOCK_ASSERT(ipxp);
+
 	ipxp->ipxp_faddr = zeroipx_addr;
 	if (ipxp->ipxp_socket->so_state & SS_NOFDREF)
 		ipx_pcbdetach(ipxp);
@@ -270,6 +281,9 @@ ipx_pcbdetach(ipxp)
 	struct ipxpcb *ipxp;
 {
 	struct socket *so = ipxp->ipxp_socket;
+
+	IPX_LIST_LOCK_ASSERT();
+	IPX_LOCK_ASSERT(ipxp);
 
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
@@ -293,7 +307,9 @@ ipx_setsockaddr(ipxp, nam)
 	bzero((caddr_t)sipx, sizeof(*sipx));
 	sipx->sipx_len = sizeof(*sipx);
 	sipx->sipx_family = AF_IPX;
+	IPX_LOCK(ipxp);
 	sipx->sipx_addr = ipxp->ipxp_laddr;
+	IPX_UNLOCK(ipxp);
 	*nam = sodupsockaddr((struct sockaddr *)sipx, M_WAITOK);
 }
 
@@ -303,12 +319,14 @@ ipx_setpeeraddr(ipxp, nam)
 	struct sockaddr **nam;
 {
 	struct sockaddr_ipx *sipx, ssipx;
-	
+
 	sipx = &ssipx;
 	bzero(sipx, sizeof(*sipx));
 	sipx->sipx_len = sizeof(*sipx);
 	sipx->sipx_family = AF_IPX;
+	IPX_LOCK(ipxp);
 	sipx->sipx_addr = ipxp->ipxp_faddr;
+	IPX_UNLOCK(ipxp);
 	*nam = sodupsockaddr((struct sockaddr *)sipx, M_WAITOK);
 }
 
@@ -321,6 +339,8 @@ ipx_pcblookup(faddr, lport, wildp)
 	register struct ipxpcb *ipxp, *match = NULL;
 	int matchwild = 3, wildcard;
 	u_short fport;
+
+	IPX_LIST_LOCK_ASSERT();
 
 	fport = faddr->x_port;
 	LIST_FOREACH(ipxp, &ipxpcb_list, ipxp_list) {
