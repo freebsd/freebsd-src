@@ -150,9 +150,6 @@ chrdev	name		comments
 95	md		Memory Disk
 96	altq		alternate queueing (including cbq, red, wfq)
 97	prom		Alpha PROM console
-# Alpha vs. i386 conflicts
-#98	zsc		TurboLaser console uart
-#99	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
@@ -190,5 +187,7 @@ chrdev	name		comments
 132	amr		AMI MegaRAID (control device)
 133	amrd		AMI MegaRAID (disk device)
 134	taupci		Cronyx Tau-PCI card <vak@hanoi.cronyx.ru>
+135	zsc		TurboLaser console uart
+136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use

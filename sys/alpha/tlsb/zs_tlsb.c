@@ -66,7 +66,7 @@ static	d_open_t	zsopen;
 static	d_close_t	zsclose;
 static	d_ioctl_t	zsioctl;
 
-#define CDEV_MAJOR 98
+#define CDEV_MAJOR 135
 static struct cdevsw zs_cdevsw = {
 	/* open */	zsopen,
 	/* close */	zsclose,
