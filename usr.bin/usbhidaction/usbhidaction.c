@@ -58,7 +58,7 @@
 static int	verbose = 0;
 static int	isdemon = 0;
 static int	reparse = 1;
-static char *	pidfile = "/var/run/usbaction.pid";
+static const char *	pidfile = "/var/run/usbaction.pid";
 
 struct command {
 	struct command *next;
@@ -83,7 +83,7 @@ void docmd(struct command *, int, const char *, int, char **);
 void freecommands(struct command *);
 
 static void
-sighup(int sig)
+sighup(int sig __unused)
 {
 	reparse = 1;
 }
@@ -93,7 +93,8 @@ main(int argc, char **argv)
 {
 	const char *conf = NULL;
 	const char *dev = NULL;
-	int fd, fp, ch, sz, n, val, i;
+	int fd, fp, ch, n, val, i;
+	size_t sz, sz1;
 	int demon, ignore, dieearly;
 	report_desc_t repd;
 	char buf[100];
@@ -158,10 +159,10 @@ main(int argc, char **argv)
 
 	commands = parse_conf(conf, repd, reportid, ignore);
 
-	sz = hid_report_size(repd, hid_input, reportid);
+	sz = (size_t)hid_report_size(repd, hid_input, reportid);
 
 	if (verbose)
-		printf("report size %d\n", sz);
+		printf("report size %zu\n", sz);
 	if (sz > sizeof buf)
 		errx(1, "report too large");
 
@@ -170,8 +171,10 @@ main(int argc, char **argv)
 	if (demon) {
 		fp = open(pidfile, O_WRONLY|O_CREAT, S_IRUSR|S_IRGRP|S_IROTH);
 		if (fp >= 0) {
-			sz=snprintf(buf,100, "%d\n", getpid());
-			write(fp, buf, sz);
+			sz1 = snprintf(buf, sizeof buf, "%d\n", getpid());
+			if (sz1 > sizeof buf)
+				sz1 = sizeof buf;
+			write(fp, buf, sz1);
 			close(fp);
 		} else
 			err(1, "%s", pidfile);
@@ -264,7 +267,7 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 	char *p;
 	int line;
 	char buf[SIZE], name[SIZE], value[SIZE], debounce[SIZE], action[SIZE];
-	char usage[SIZE], coll[SIZE];
+	char usbuf[SIZE], coll[SIZE];
 	struct command *cmd, *cmds;
 	struct hid_data *d;
 	struct hid_item h;
@@ -364,22 +367,22 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 					range = 0;
 				}
 				for (u = lo; u <= hi; u++) {
-					snprintf(usage, sizeof usage,  "%s:%s",
+					snprintf(usbuf, sizeof usbuf,  "%s:%s",
 						 hid_usage_page(HID_PAGE(u)), 
 						 hid_usage_in_page(u));
 					if (verbose > 2)
-						printf("usage %s\n", usage);
-					if (!strcasecmp(usage, name))
+						printf("usage %s\n", usbuf);
+					if (!strcasecmp(usbuf, name))
 						goto foundhid;
 					if (coll[0]) {
-						snprintf(usage, sizeof usage,
+						snprintf(usbuf, sizeof usbuf,
 						  "%s.%s:%s", coll+1,
 						  hid_usage_page(HID_PAGE(u)), 
 						  hid_usage_in_page(u));
 						if (verbose > 2)
 							printf("usage %s\n",
-							       usage);
-						if (!strcasecmp(usage, name))
+							       usbuf);
+						if (!strcasecmp(usbuf, name))
 							goto foundhid;
 					}
 				}
