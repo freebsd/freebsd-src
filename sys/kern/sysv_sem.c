@@ -310,7 +310,7 @@ semu_alloc(td)
 	SEMUNDO_LOCKASSERT(MA_OWNED);
 	/*
 	 * Try twice to allocate something.
-	 * (we'll purge any empty structures after the first pass so
+	 * (we'll purge an empty structure after the first pass so
 	 * two passes are always enough)
 	 */
 
@@ -332,11 +332,11 @@ semu_alloc(td)
 
 		/*
 		 * We didn't find a free one, if this is the first attempt
-		 * then try to free some structures.
+		 * then try to free a structure.
 		 */
 
 		if (attempt == 0) {
-			/* All the structures are in use - try to free some */
+			/* All the structures are in use - try to free one */
 			int did_something = 0;
 
 			SLIST_FOREACH_PREVPTR(suptr, supptr, &semu_list,
@@ -345,6 +345,7 @@ semu_alloc(td)
 					suptr->un_proc = NULL;
 					did_something = 1;
 					*supptr = SLIST_NEXT(suptr, un_next);
+					break;
 				}
 			}
 
