@@ -285,7 +285,7 @@ nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
 	}
 	m_freem(mrep);
 nfsmout:
-	return error;
+	return (error);
 }
 
 /*
@@ -960,9 +960,9 @@ nfs_read(struct vop_read_args *ap)
 	case VREG:
 		return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred));
 	case VDIR:
-		return EISDIR;
+		return (EISDIR);
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
 }
 
@@ -1286,7 +1286,7 @@ static int
 nfs_mknod(struct vop_mknod_args *ap)
 {
 
-	return nfs_mknodrpc(ap->a_dvp, ap->a_vpp, ap->a_cnp, ap->a_vap);
+	return (nfs_mknodrpc(ap->a_dvp, ap->a_vpp, ap->a_cnp, ap->a_vap));
 }
 
 static u_long create_verf;
