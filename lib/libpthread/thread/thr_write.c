@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_write.c,v 1.7 1998/06/09 23:21:04 jb Exp $
+ * $Id: uthread_write.c,v 1.8 1998/06/10 22:28:45 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -94,7 +94,7 @@ write(int fd, const void *buf, size_t nbytes)
 			 * write:
 			 */
 			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
-			    errno == EAGAIN)) || num < nbytes)) {
+			    errno == EAGAIN)) || (n >= 0 && num < nbytes))) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 

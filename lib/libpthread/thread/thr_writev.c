@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.8 1998/06/09 23:21:05 jb Exp $
+ * $Id: uthread_writev.c,v 1.9 1998/06/10 22:28:45 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -145,7 +145,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 			 * write:
 			 */
 			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
-			    errno == EAGAIN)) || idx < iovcnt)) {
+			    errno == EAGAIN)) || (n >= 0 && idx < iovcnt))) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
