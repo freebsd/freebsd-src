@@ -166,6 +166,7 @@ hookup(host, port)
 		goto bad;
 	}
 	memcpy(&hisctladdr, res->ai_addr, res->ai_addrlen);
+	freeaddrinfo(res0);
 	len = sizeof(myctladdr);
 	if (getsockname(s, (struct sockaddr *)&myctladdr, &len) < 0) {
 		warn("getsockname");
