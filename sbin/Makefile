@@ -9,8 +9,6 @@ SUBDIR= adjkerntz badsect clri disklabel dmesg dset dump dumpfs dumplfs \
 	nologin ping quotacheck reboot restore route savecore scsi shutdown \
 	slattach startslip swapon tunefs umount
 
-#SUBDIR += sysinstall
-
 .if exists(${.CURDIR}/${MACHINE})
 SUBDIR+= ${MACHINE}
 .endif
