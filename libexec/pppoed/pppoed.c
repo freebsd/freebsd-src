@@ -63,6 +63,7 @@
 
 #define	DEFAULT_EXEC_PREFIX	"exec /usr/sbin/ppp -direct "
 #define	HISMACADDR		"HISMACADDR"
+#define	SESSION_ID		"SESSION_ID"
 
 static void nglogx(const char *, ...) __printflike(1, 2);
 
@@ -257,8 +258,8 @@ Spawn(const char *prog, const char *acname, const char *provider,
   struct ng_mesg *rep = (struct ng_mesg *)msgbuf;
   struct ngpppoe_sts *sts = (struct ngpppoe_sts *)(msgbuf + sizeof *rep);
   struct ngpppoe_init_data *data;
+  char env[sizeof(HISMACADDR)+18], unknown[14], sessionid[5], *path;
   unsigned char *macaddr;
-  char env[sizeof(HISMACADDR)+18], unknown[14], *path;
   const char *msg;
   int ret, slen;
 
@@ -350,7 +351,6 @@ Spawn(const char *prog, const char *acname, const char *provider,
 
       /* Put the peer's MAC address in the environment */
       if (sz >= sizeof(struct ether_header)) {
-        
         macaddr = ((struct ether_header *)request)->ether_shost;
         snprintf(env, sizeof(env), "%s=%x:%x:%x:%x:%x:%x", HISMACADDR,
                  macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4],
@@ -410,6 +410,13 @@ Spawn(const char *prog, const char *acname, const char *provider,
             if (setenv("ACNAME", sts->hook, 1) != 0)
               syslog(LOG_WARNING, "setenv: cannot set ACNAME=%s: %m",
                      sts->hook);
+            break;
+          case NGM_PPPOE_SESSIONID:
+            msg = "SESSIONID";
+            snprintf(sessionid, sizeof sessionid, "%04x", *(u_int16_t *)sts);
+            if (setenv("SESSIONID", sessionid, 1) != 0)
+              syslog(LOG_WARNING, "setenv: cannot set SESSIONID=%s: %m",
+                     sessionid);
             break;
           default:
             snprintf(unknown, sizeof unknown, "<%d>", (int)rep->header.cmd);
