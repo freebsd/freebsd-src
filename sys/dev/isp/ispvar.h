@@ -54,7 +54,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	2
-#define	ISP_CORE_VERSION_MINOR	8
+#define	ISP_CORE_VERSION_MINOR	9
 
 /*
  * Vector for bus specific code to provide specific services.

@@ -578,7 +578,7 @@ isp_got_msg(struct ispsoftc *isp, int bus, in_entry_t *inp)
 		msg.nt_tgt = inp->in_tgt;
 		msg.nt_lun = inp->in_lun;
 		msg.nt_tagtype = inp->in_tag_type;
-		msg.nt_tagval = inp->in_tag_val;
+		IN_MAKE_TAGID(msg.nt_tagval, 0, inp);
 		MEMCPY(msg.nt_msg, inp->in_msg, IN_MSGLEN);
 		(void) isp_async(isp, ISPASYNC_TARGET_MESSAGE, &msg);
 	} else {
@@ -614,7 +614,7 @@ isp_got_msg_fc(struct ispsoftc *isp, int bus, in_fcentry_t *inp)
 		MEMZERO(&msg, sizeof (msg));
 		msg.nt_bus = bus;
 		msg.nt_iid = inp->in_iid;
-		msg.nt_tagval = inp->in_seqid;
+		IN_FC_MAKE_TAGID(msg.nt_tagval, 0, inp);
 		msg.nt_lun = lun;
 
 		if (inp->in_task_flags & TASK_FLAGS_ABORT_TASK_SET) {

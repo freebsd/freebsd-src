@@ -244,24 +244,40 @@ typedef struct {
 #define AT_NOCAP	0x16	/* Requested capability not available */
 #define AT_BDR_MSG	0x17	/* Bus Device Reset msg received */
 #define AT_CDB		0x3D	/* CDB received */
-
 /*
  * Macros to create and fetch and test concatenated handle and tag value macros
  */
 
-#define	AT_MAKE_TAGID(tid, aep)						\
-	tid = ((aep)->at_handle << 16);					\
-	if ((aep)->at_flags & AT_TQAE)					\
-		(tid) |= ((aep)->at_tag_val + 1)
+#define	AT_MAKE_TAGID(tid, inst, aep)					\
+	tid = aep->at_handle;						\
+	if (aep->at_flags & AT_TQAE) {					\
+		tid |= (aep->at_tag_val << 16);				\
+		tid |= (1 << 24);					\
+	}								\
+	tid |= (inst << 25)
 
-#define	CT_MAKE_TAGID(tid, ct)						\
-	tid = ((ct)->ct_fwhandle << 16);				\
-	if ((ct)->ct_flags & CT_TQAE)					\
-		(tid) |= ((ct)->ct_tag_val + 1)
+#define	CT_MAKE_TAGID(tid, inst, ct)					\
+	tid = ct->ct_fwhandle;						\
+	if (ct->ct_flags & CT_TQAE) {					\
+		tid |= (ct->ct_tag_val << 16);				\
+		tid |= (1 << 24);					\
+	}								\
+	tid |= (inst << 25)
 
-#define	AT_HAS_TAG(val)		((val) & 0xffff)
-#define	AT_GET_TAG(val)		AT_HAS_TAG(val) - 1
-#define	AT_GET_HANDLE(val)	((val) >> 16)
+#define	AT_HAS_TAG(val)		((val) & (1 << 24))
+#define	AT_GET_TAG(val)		(((val) >> 16) & 0xff)
+#define	AT_GET_INST(val)	(((val) >> 25) & 0x7f)
+#define	AT_GET_HANDLE(val)	((val) & 0xffff)
+
+#define	IN_MAKE_TAGID(tid, inst, inp)					\
+	tid = inp->in_seqid;						\
+	tid |= (inp->in_tag_val << 16);					\
+	tid |= (1 << 24);						\
+	tid |= (inst << 25)
+
+#define	TAG_INSERT_INST(tid, inst)					\
+	tid &= ~(0x1ffffff);						\
+	tid |= (inst << 25)
 
 /*
  * Accept Target I/O Entry structure, Type 2
@@ -300,6 +316,30 @@ typedef struct {
 
 #define	ATIO2_EX_WRITE		0x1
 #define	ATIO2_EX_READ		0x2
+/*
+ * Macros to create and fetch and test concatenated handle and tag value macros
+ */
+#define	AT2_MAKE_TAGID(tid, inst, aep)					\
+	tid = aep->at_rxid;						\
+	tid |= (inst << 16)
+
+#define	CT2_MAKE_TAGID(tid, inst, ct)					\
+	tid = ct->ct_rxid;						\
+	tid |= (inst << 16)
+
+#define	AT2_HAS_TAG(val)	1
+#define	AT2_GET_TAG(val)	((val) & 0xffff)
+#define	AT2_GET_INST(val)	((val) >> 16)
+#define	AT2_GET_HANDLE		AT2_GET_TAG
+
+#define	IN_FC_MAKE_TAGID(tid, inst, inp)				\
+	tid = inp->in_seqid;						\
+	tid |= (inst << 16)
+
+#define	FC_TAG_INSERT_INST(tid, inst)					\
+	tid &= ~0xffff;							\
+	tid |= (inst << 16)
+
 
 /*
  * Continue Target I/O Entry structure
@@ -506,7 +546,6 @@ typedef struct {
 #define	ISP_TDQE(isp, msg, idx, arg)	\
     if (isp->isp_dblev & ISP_LOGTDEBUG2) isp_print_qentry(isp, msg, idx, arg)
 
-#ifdef	ISP_TARGET_FUNCTIONS
 /*
  * The functions below are for the publicly available
  * target mode functions that are internal to the Qlogic driver.
@@ -552,5 +591,4 @@ int isp_endcmd(struct ispsoftc *, void *, u_int32_t, u_int16_t);
  */
 
 int isp_target_async(struct ispsoftc *, int, int);
-#endif
 #endif	/* _ISP_TARGET_H */

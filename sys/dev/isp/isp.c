@@ -1300,9 +1300,17 @@ isp_fibre_init(struct ispsoftc *isp)
 			 *
 			 * If we set ZIO, it will disable fast posting,
 			 * so we don't need to clear it in fwoptions.
+			 *
+			 * Depending on the role we're selecting, we
+			 * chose fast posting or not as it still is
+			 * a win for target mode.
 			 */
 #ifndef	ISP_NO_ZIO
-			icbp->icb_xfwoptions |= ICBXOPT_ZIO;
+			if (isp->isp_role == ISP_ROLE_TARGET) {
+				icbp->icb_fwoptions |= ICBOPT_FAST_POST;
+			} else {
+				icbp->icb_xfwoptions |= ICBXOPT_ZIO;
+			}
 #else
 			icbp->icb_fwoptions |= ICBOPT_FAST_POST;
 #endif
@@ -3675,6 +3683,7 @@ again:
 		oop = optr;
 		optr = ISP_NXT_QENTRY(optr, RESULT_QUEUE_LEN(isp));
 		nlooked++;
+ read_again:
 		/*
 		 * Synchronize our view of this response queue entry.
 		 */
@@ -3700,7 +3709,10 @@ again:
 			 * may have updated the response queue pointers for
 			 * us, so we reload our goal index.
 			 */
-			if (isp_handle_other_response(isp, type, hp, &optr)) {
+			int i = isp_handle_other_response(isp, type, hp, &optr);
+			if (i < 0) {
+				goto read_again;
+			} else if (i > 0) {
 				iptr = isp->isp_resodx;
 				MEMZERO(hp, QENTRY_LEN);	/* PERF */
 				continue;
@@ -4119,12 +4131,16 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 		int handle =
 		    (ISP_READ(isp, OUTMAILBOX2) << 16) | 
 		    (ISP_READ(isp, OUTMAILBOX1));
-		if (isp_target_async(isp, handle, mbox))
+		if (isp_target_async(isp, handle, mbox)) {
 			rval = -1;
+		} else {
+			/* count it as a fast posting intr */
+			isp->isp_fphccmplt++;
+		}
 #else
 		isp_prt(isp, ISP_LOGINFO, "Fast Posting CTIO done");
-#endif
 		isp->isp_fphccmplt++;	/* count it as a fast posting intr */
+#endif
 		break;
 	}
 	case ASYNC_LIP_F8:
@@ -4282,7 +4298,7 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 
 	if (bus & 0x100) {
 		int i, nh;
-		u_int16_t handles[5];
+		u_int16_t handles[16];
 
 		for (nh = 0, i = 1; i < MAX_MAILBOX; i++) {
 			if ((bus & (1 << i)) == 0) {
@@ -4336,11 +4352,25 @@ isp_handle_other_response(struct ispsoftc *isp, int type,
 		/* FALLTHROUGH */
 	case RQSTYPE_REQUEST:
 	default:
-		if (isp_async(isp, ISPASYNC_UNHANDLED_RESPONSE, hp)) {
-			return (1);
+		USEC_DELAY(100);
+		if (type != isp_get_response_type(isp, hp)) {
+			/*
+			 * This is questionable- we're just papering over
+			 * something we've seen on SMP linux in target
+			 * mode- we don't really know what's happening
+			 * here that causes us to think we've gotten
+			 * an entry, but that either the entry isn't
+			 * filled out yet or our CPU read data is stale.
+			 */
+			isp_prt(isp, ISP_LOGINFO,
+				"unstable type in response queue");
+			return (-1);
 		}
 		isp_prt(isp, ISP_LOGWARN, "Unhandled Response Type 0x%x",
 		    isp_get_response_type(isp, hp));
+		if (isp_async(isp, ISPASYNC_UNHANDLED_RESPONSE, hp)) {
+			return (1);
+		}
 		return (0);
 	}
 }
