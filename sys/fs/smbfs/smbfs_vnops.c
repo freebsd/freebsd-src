@@ -86,12 +86,14 @@ static vop_getextattr_t	smbfs_getextattr;
 
 struct vop_vector smbfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		smbfs_access,
 	.vop_advlock =		smbfs_advlock,
 	.vop_close =		smbfs_close,
 	.vop_create =		smbfs_create,
 	.vop_fsync =		smbfs_fsync,
 	.vop_getattr =		smbfs_getattr,
+	.vop_getextattr = 	smbfs_getextattr,
 	.vop_getpages =		smbfs_getpages,
 	.vop_inactive =		smbfs_inactive,
 	.vop_ioctl =		smbfs_ioctl,
@@ -110,11 +112,10 @@ struct vop_vector smbfs_vnodeops = {
 	.vop_rename =		smbfs_rename,
 	.vop_rmdir =		smbfs_rmdir,
 	.vop_setattr =		smbfs_setattr,
+/*	.vop_setextattr =	smbfs_setextattr,*/
 	.vop_strategy =		smbfs_strategy,
 	.vop_symlink =		smbfs_symlink,
 	.vop_write =		smbfs_write,
-	.vop_getextattr = 	smbfs_getextattr,
-/*	.vop_setextattr =		smbfs_setextattr,*/
 };
 
 static int

@@ -558,6 +558,7 @@ portal_reclaim(ap)
 
 struct vop_vector portal_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		VOP_NULL,
 	.vop_getattr =		portal_getattr,
 	.vop_lookup =		portal_lookup,
