@@ -128,6 +128,44 @@ static	struct cdevsw	pcdevsw = {
 	ttselect,	pcmmap,		nostrategy, "vt", NULL, -1
 };
 
+#if PCVT_FREEBSD > 205
+struct tty *
+pcdevtotty(Dev_t dev)
+{
+	return get_pccons(dev);
+}
+
+static char vt_descr[VT_DESCR_LEN] = "Graphics console: ";
+
+static struct kern_devconf kdc_vt[NVT] = {
+    0, 0, 0,        		/* filled in by dev_attach */
+    "vt", 0, { MDDT_ISA, 0, "tty" },
+    isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+    &kdc_isa0,      		/* parent */
+    0,          		/* parentdata */
+    DC_UNCONFIGURED,		/* until we know it better */
+    vt_descr
+};
+
+static inline void
+vt_registerdev(struct isa_device *id, const char *name)
+{
+    if(id->id_unit)
+	kdc_vt[id->id_unit] = kdc_vt[0];
+
+    kdc_vt[id->id_unit].kdc_unit = id->id_unit;
+    kdc_vt[id->id_unit].kdc_isa = id;
+
+    /* XXX only vt0 currently allowed */
+    strncpy(vt_descr + sizeof("Graphics console: ") - 1,
+	    name,
+	    VT_DESCR_LEN - sizeof("Graphics console: "));
+
+    dev_attach(&kdc_vt[id->id_unit]);
+}
+
+#endif /* PCVT_FREEBSD > 205 */
+
 #if PCVT_NETBSD > 100	/* NetBSD-current Feb 20 1995 */
 int
 pcprobe(struct device *parent, void *match, void *aux)
@@ -741,7 +779,9 @@ pcioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	if((error = vgaioctl(dev,cmd,data,flag)) >= 0)
 		return error;
 
+#if PCVT_EMU_MOUSE
 do_standard:
+#endif
 
 #if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
 	if((error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p)) >= 0)
@@ -769,44 +809,6 @@ pcmmap(Dev_t dev, int offset, int nprot)
 		return -1;
 	return i386_btop((0xa0000 + offset));
 }
-
-#if PCVT_FREEBSD > 205
-struct tty *
-pcdevtotty(Dev_t dev)
-{
-	return get_pccons(dev);
-}
-
-static char vt_descr[VT_DESCR_LEN] = "Graphics console: ";
-
-static struct kern_devconf kdc_vt[NVT] = {
-    0, 0, 0,        		/* filled in by dev_attach */
-    "vt", 0, { MDDT_ISA, 0, "tty" },
-    isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-    &kdc_isa0,      		/* parent */
-    0,          		/* parentdata */
-    DC_UNCONFIGURED,		/* until we know it better */
-    vt_descr
-};
-
-static inline void
-vt_registerdev(struct isa_device *id, const char *name)
-{
-    if(id->id_unit)
-	kdc_vt[id->id_unit] = kdc_vt[0];
-
-    kdc_vt[id->id_unit].kdc_unit = id->id_unit;
-    kdc_vt[id->id_unit].kdc_isa = id;
-
-    /* XXX only vt0 currently allowed */
-    strncpy(vt_descr + sizeof("Graphics console: ") - 1,
-	    name,
-	    VT_DESCR_LEN - sizeof("Graphics console: "));
-
-    dev_attach(&kdc_vt[id->id_unit]);
-}
-
-#endif /* PCVT_FREEBSD > 205 */
 
 /*---------------------------------------------------------------------------*
  *
@@ -968,7 +970,7 @@ void
 pcstart(register struct tty *tp)
 {
 	register struct clist *rbp;
-	int s, len, n;
+	int s, len;
 	u_char buf[PCVT_PCBURST];
 
 	s = spltty();
@@ -1123,7 +1125,6 @@ int
 pccnprobe(struct consdev *cp)
 {
 	struct isa_device *dvp;
-	int maj;
 
 	/*
 	 * Take control if we are the highest priority enabled display device.
