@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.86 1999/05/10 09:03:10 kato Exp $
+#	$Id: options.pc98,v 1.87 1999/05/25 10:30:58 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -6,7 +6,6 @@ USER_LDT
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
 PMAP_SHPGPERPROC	opt_pmap.h
-VM86			opt_vm86.h
 
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
