@@ -146,6 +146,7 @@ static void sis_read_eeprom	__P((struct sis_softc *, caddr_t, int,
 #ifdef __i386__
 static void sis_read_cmos	__P((struct sis_softc *, device_t, caddr_t,
 							int, int));
+static void sis_read_mac	__P((struct sis_softc *, device_t, caddr_t));
 static device_t sis_find_bridge	__P((device_t));
 #endif
 
@@ -486,6 +487,33 @@ static void sis_read_cmos(sc, dev, dest, off, cnt)
 	pci_write_config(bridge, 0x48, reg & ~0x40, 1);
 	return;
 }
+
+static void sis_read_mac(sc, dev, dest)
+	struct sis_softc	*sc;
+	device_t		dev;
+	caddr_t			dest;
+{
+	u_int32_t		filtsave, csrsave;
+
+	filtsave = CSR_READ_4(sc, SIS_RXFILT_CTL);
+	csrsave = CSR_READ_4(sc, SIS_CSR);
+
+	CSR_WRITE_4(sc, SIS_CSR, SIS_CSR_RELOAD | filtsave);
+	CSR_WRITE_4(sc, SIS_CSR, 0);
+		
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave & ~SIS_RXFILTCTL_ENABLE);
+
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
+	((u_int16_t *)dest)[0] = CSR_READ_2(sc, SIS_RXFILT_DATA);
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL,SIS_FILTADDR_PAR1);
+	((u_int16_t *)dest)[1] = CSR_READ_2(sc, SIS_RXFILT_DATA);
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR2);
+	((u_int16_t *)dest)[2] = CSR_READ_2(sc, SIS_RXFILT_DATA);
+
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
+	CSR_WRITE_4(sc, SIS_CSR, csrsave);
+	return;
+}
 #endif
 
 static int sis_miibus_readreg(dev, phy, reg)
@@ -516,7 +544,8 @@ static int sis_miibus_readreg(dev, phy, reg)
 		return(val);
 	}
 
-	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
+	if (sc->sis_type == SIS_TYPE_900 &&
+	    sc->sis_rev < SIS_REV_635 && phy != 0)
 		return(0);
 
 	CSR_WRITE_4(sc, SIS_PHYCTL, (phy << 11) | (reg << 6) | SIS_PHYOP_READ);
@@ -785,6 +814,8 @@ static int sis_attach(dev)
 	if (pci_get_vendor(dev) == NS_VENDORID)
 		sc->sis_type = SIS_TYPE_83815;
 
+	sc->sis_rev = pci_read_config(dev, PCIR_REVID, 1);
+
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -925,11 +956,14 @@ static int sis_attach(dev)
 		 * requires some datasheets that I don't have access
 		 * to at the moment.
 		 */
-		command = pci_read_config(dev, PCIR_REVID, 1);
-		if (command == SIS_REV_630S ||
-		    command == SIS_REV_630E ||
-		    command == SIS_REV_630EA1)
+		if (sc->sis_rev == SIS_REV_630S ||
+		    sc->sis_rev == SIS_REV_630E ||
+		    sc->sis_rev == SIS_REV_630EA1 ||
+		    sc->sis_rev == SIS_REV_630ET)
 			sis_read_cmos(sc, dev, (caddr_t)&eaddr, 0x9, 6);
+
+		else if (command == SIS_REV_635)
+			sis_read_mac(sc, dev, (caddr_t)&eaddr);
 		else
 #endif
 			sis_read_eeprom(sc, (caddr_t)&eaddr,
@@ -942,6 +976,13 @@ static int sis_attach(dev)
 	 */
 	printf("sis%d: Ethernet address: %6D\n", unit, eaddr, ":");
 
+	/*
+	 * From the Linux driver:
+	 * 630ET : set the mii access mode as software-mode
+	 */
+	if (sc->sis_rev == SIS_REV_630ET)
+		SIS_SETBIT(sc, SIS_CSR, SIS_CSR_ACCESS_MODE);
+	
 	sc->sis_unit = unit;
 	callout_handle_init(&sc->sis_stat_ch);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
