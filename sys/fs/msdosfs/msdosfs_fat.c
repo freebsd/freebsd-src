@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_fat.c,v 1.1 1994/09/19 15:41:43 dfr Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -84,10 +84,6 @@ int fc_largedistance;		/* off by more than LMMAX		 */
 
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	(FAT12(pmp) ? (cn) * 3 / 2 : (cn) * 2)
-
-void fc_lookup(struct denode *dep, u_long findcn,
-		      u_long *frcnp, u_long *fsrcnp);
-void fc_purge(struct denode *dep, u_int frcn);
 
 static void
 fatblock(pmp, ofs, bnp, sizep, bop)
@@ -255,7 +251,8 @@ hiteof:;
  * Find the closest entry in the fat cache to the cluster we are looking
  * for.
  */
-void fc_lookup(dep, findcn, frcnp, fsrcnp)
+void 
+fc_lookup(dep, findcn, frcnp, fsrcnp)
 	struct denode *dep;
 	u_long findcn;
 	u_long *frcnp;
@@ -471,7 +468,8 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 
 	byteoffset = FATOFS(pmp, cn);
 	fatblock(pmp, byteoffset, &bn, &bsize, &bo);
-	if (error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp))
+	error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+	if (error)
 		return error;
 	
 	if (function & FAT_GET) {
@@ -540,7 +538,8 @@ fatchain(pmp, start, count, fillwith)
 	while (count > 0) {
 		byteoffset = FATOFS(pmp, start);
 		fatblock(pmp, byteoffset, &bn, &bsize, &bo);
-		if (error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp))
+		error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+		if (error)
 			return error;
 		while (count > 0) {
 			start++;
@@ -603,7 +602,8 @@ chainlength(pmp, start, count)
 	while (++idx <= max_idx) {
 		if (len >= count)
 			break;
-		if (map = pmp->pm_inusemap[idx]) {
+		map = pmp->pm_inusemap[idx];
+		if (map) {
 			len +=  ffs(map) - 1;
 			break;
 		}
@@ -670,7 +670,6 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 	u_long *retcluster;
 	u_long *got;
 {
-	int error;
 	u_long idx;
 	u_long len, newst, foundcn, foundl, cn, l;
 	u_int map;
@@ -768,7 +767,8 @@ freeclusterchain(pmp, cluster)
 		if (lbn != bn) {
 			if (bp)
 				updatefats(pmp, bp, bn);
-			if (error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp))
+			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+			if (error)
 				return error;
 			lbn = bn;
 		}
@@ -916,7 +916,8 @@ extendfile(dep, count, bpp, ncp, flags)
 			cn = 0;
 		else
 			cn = dep->de_fc[FC_LASTFC].fc_fsrcn + 1;
-		if (error = clusteralloc(pmp, cn, count, CLUST_EOFE, &cn, &got))
+		error = clusteralloc(pmp, cn, count, CLUST_EOFE, &cn, &got);
+		if (error)
 			return error;
 		
 		count -= got;
