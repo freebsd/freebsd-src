@@ -12,24 +12,24 @@ Fourth Edition (V4)
 Fifth Edition (V5)
      |
 Sixth Edition (V6) -----*
-     |                  |
-     |                  |
-     |                  |
+       \                |
+        \               |
+         \              |
 Seventh Edition (V7)    |
-     |      \           |
-     |       \        1BSD
-     |       32V        |
-     |         \      2BSD---------------*
-Eight Edition   \    /                   |
-     |           \  /                    |
-     |            \/                     |
-     |           3BSD                    |
-     |            |                      |
-     |         4.0BSD               2.7.9BSD
-Ninth Edition     |                      |
-     |         4.1BSD --------------> 2.8BSD
-     |            |                      |
-     |            |                 2.8.1BSD
+            \           |
+             \        1BSD
+             32V        |
+               \      2BSD---------------*
+                \    /                   |
+                 \  /                    |
+                  \/                     |
+                 3BSD                    |
+                  |                      |
+               4.0BSD               2.7.9BSD
+                  |                      |
+       *------ 4.1BSD --------------> 2.8BSD
+      /           |                      |
+Eighth Edition     |                 2.8.1BSD
      |            |                      |
      |        4.1aBSD -----------\       |
      |            |                \     |
@@ -39,15 +39,15 @@ Ninth Edition     |                      |
      |            |                      |
      |            |                   2.9BSD-Seismo
      |            |                      |
-     |         4.2BSD               2.9.1BSD
+     +----<--- 4.2BSD               2.9.1BSD
      |            |                      |
-     |         4.3BSD -------------> 2.10BSD
+     +----<--- 4.3BSD -------------> 2.10BSD
      |            |               /      |
-     |            |              / 2.10.1BSD
+Ninth Edition     |              / 2.10.1BSD
      |         4.3BSD Tahoe-----+        |
      |            |              \       |
      |            |                \     |
-     |            |                  2.11BSD
+     v            |                  2.11BSD
 Tenth Edition     |                      |
                   |                  2.11BSD rev #366
                4.3BSD NET/1              |
@@ -142,6 +142,7 @@ it was the announcement in Usenet or if it was available as tape.
 	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
 [SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
 [FBD] FreeBSD Project, The.
+[dmr] Dennis Ritchie, via E-Mail
 
 
 Multics                 1965
@@ -163,6 +164,12 @@ Sixth   Edition         1975-05-xx [QCU]
 Seventh Edition         1979-01-xx [QCU]
 				first portable Unix
 Eight   Edition         1985-02-xx [QCU]
+				VAX 11/750, VAX 11/780 [dmr]
+				descended from 4.1c BSD [dmr]
+				descended from 4.1 BSD [44B]
+			scooping-out and replacement of the character-device 
+			and networking part by the streams mechanism
+
 Ninth   Edition         1986-09-xx [QCU]
 Tenth   Edition         1989-10-xx [QCU]
 
@@ -278,4 +285,4 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 Copyright (c) 1997-1999 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/misc/bsd-family-tree
 
-$Date: 1998/08/19 12:58:38 $ $Revision: 1.9 $
+$Date: 1999/01/12 16:14:24 $ $Revision: 1.10 $
