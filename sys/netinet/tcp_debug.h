@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.h,v 1.3 1994/08/21 05:27:35 paul Exp $
+ * $Id: tcp_debug.h,v 1.4 1995/11/14 20:34:29 phk Exp $
  */
 
 #ifndef _NETINET_TCP_DEBUG_H_
-#define _NETINET_TCP_DEBUG_H_
+#define	_NETINET_TCP_DEBUG_H_
 
 struct	tcp_debug {
 	n_time	td_time;
@@ -59,7 +59,11 @@ static char	*tanames[] =
 #endif
 
 #define	TCP_NDEBUG 100
+
+#ifndef KERNEL
+/* XXX common variables for broken applications. */
 struct	tcp_debug tcp_debug[TCP_NDEBUG];
 int	tcp_debx;
-
 #endif
+
+#endif /* !_NETINET_TCP_DEBUG_H_ */
