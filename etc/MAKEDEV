@@ -35,6 +35,7 @@
 #	sa*	SCSI Sequential Access Devices
 #
 # Disks:
+#	aacd*	Adaptec FSA RAID
 #	acd*	ATAPI CD-ROM disks
 #	amrd*   AMI MegaRAID
 #	cd*	SCSI CD-ROM disks
@@ -378,9 +379,10 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
+aacd*s*|ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
+	aacd*s*) name=aacd; chr=151;;
 	ad*s*) name=ad; chr=116;;
 	afd*s*) name=afd; chr=118;;
 	amrd*s*) name=amrd; chr=133;;
@@ -395,7 +397,7 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*
 	wfd*s*) name=wfd; chr=87;;
 	esac
 	case $i in
-	amrd*s*|idad*s*|mlxd*s*|twed*s*)
+	aacd*s*|amrd*s*|idad*s*|mlxd*s*|twed*s*)
 		unit=`expr $i : '....\([0-9]*\)s'`
 		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
@@ -560,9 +562,10 @@ fd*)
 	umask 77
 	;;
 
-ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
+aacd*|ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
+	aacd*) name=aacd; chr=151;;
 	ad*) name=ad; chr=116;;
 	afd*) name=afd; chr=118;;
 	amrd*) name=amrd; chr=133;;
@@ -577,7 +580,7 @@ ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	wfd*) name=wfd; chr=87;;
 	esac
 	case $i in
-	amrd*|idad*|mlxd*|twed*)
+	aacd*|amrd*|idad*|mlxd*|twed*)
 		unit=`expr $i : '....\(.*\)'`
 		;;
 	afd*|fla*|wfd*)
@@ -1602,6 +1605,11 @@ i4btel*)
 i4btrc*)
 	unit=`expr $i : 'i4btrc\(.*\)'`
 	mknod i4btrc$unit c 59 `unit2minor $unit`
+	;;
+
+aac*)
+	unit=`expr $i : 'aac\(.*\)'`
+	mknod aac$unit c 150 `unit2minor $unit`
 	;;
 
 mlx*)
