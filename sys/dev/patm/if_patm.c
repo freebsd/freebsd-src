@@ -269,10 +269,7 @@ patm_stop(struct patm_softc *sc)
 	 * Give any waiters on closing a VCC a chance. They will stop
 	 * to wait if they see that IFF_RUNNING disappeared.
 	 */
-	while (!(cv_waitq_empty(&sc->vcc_cv))) {
-		cv_broadcast(&sc->vcc_cv);
-		DELAY(100);
-	}
+	cv_broadcast(&sc->vcc_cv);
 
 	/* free large buffers */
 	patm_debug(sc, ATTACH, "freeing large buffers...");
