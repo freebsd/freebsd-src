@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.99 1998/08/23 03:07:14 wollman Exp $
+ * $Id: ip_input.c,v 1.100 1998/08/24 07:47:39 dfr Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -824,8 +824,10 @@ insert:
 	m->m_next = 0;
 	m_cat(m, t);
 	nq = q->m_nextpkt;
+	q->m_nextpkt = 0;
 	for (q = nq; q != NULL; q = nq) {
 		nq = q->m_nextpkt;
+		q->m_nextpkt = NULL;
 		m_cat(m, q);
 	}
 
