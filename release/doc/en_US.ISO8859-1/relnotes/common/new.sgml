@@ -2379,6 +2379,10 @@
       This improves the functioning of <command>pkg_add
       -r</command>. &merged;</para>
 
+      <para>&man.pkg.create.1; now supports a <option>-b</option> to
+      create a package file from a locally-installed
+      package. &merged;</para>
+
       <para>When requested to delete multiple packages,
       &man.pkg.delete.1; will now attempt to remove them in dependency
       order rather than the order specified on the command
