@@ -21,6 +21,7 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/NFS_ROOT/d' \
 	-e '/PROCFS/d' \
 	-e '/PSEUDOFS/d' \
+	-e '/COMPAT_FREEBSD4/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/DDB/d' \
@@ -83,6 +84,7 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/NFS_ROOT/d' \
 	-e '/PROCFS/d' \
 	-e '/PSEUDOFS/d' \
+	-e '/COMPAT_FREEBSD4/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/DDB/d' \
@@ -117,6 +119,7 @@ echo "options  NETGRAPH"
 echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"
 echo "options  NETGRAPH_SOCKET"
+echo "options  NO_COMPAT_FREEBSD4"
 
 # reset maxusers to something lower
 echo "maxusers	5"
