@@ -612,7 +612,6 @@ void
 pmap_init(void)
 {
 	int i;
-	int initial_pvs;
 
 	/*
 	 * Allocate memory for random pmap data structures.  Includes the
@@ -630,12 +629,9 @@ pmap_init(void)
 	/*
 	 * init the pv free list
 	 */
-	initial_pvs = vm_page_array_size;
-	if (initial_pvs < MINPV)
-		initial_pvs = MINPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_prealloc(pvzone, initial_pvs);
+	uma_prealloc(pvzone, MINPV);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
