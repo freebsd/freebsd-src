@@ -1301,7 +1301,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				cfg->intpin);
 #endif /* __i386__ */
 			if (cfg->intline != 255) {
-				/* XXX write back to PCI space? */
+				pci_write_config(child, PCIR_INTLINE, cfg->intline, 1);
 				resource_list_add(rl, SYS_RES_IRQ, 0,
 				    cfg->intline, cfg->intline, 1);
 			}
