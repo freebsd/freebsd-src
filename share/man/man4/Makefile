@@ -368,6 +368,7 @@ MLINKS+=pcvt.4 vt.4
 MLINKS+=ppp.4 if_ppp.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
+MLINKS+=rue.4 if_rue.4
 MLINKS+=sbsh.4 if_sbsh.4
 MLINKS+=scsi.4 CAM.4
 MLINKS+=scsi.4 SCSI.4
