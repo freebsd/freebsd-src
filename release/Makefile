@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.163 1995/05/21 10:33:20 jkh Exp $
+#	$Id: Makefile,v 1.164 1995/05/21 13:36:13 jkh Exp $
 #
 # How to roll a release:
 #
@@ -23,8 +23,6 @@ EXTRA_DISTS=	des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
 CPIO1=	etc/services etc/protocols etc/sysconfig
-CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
-	scripts/adduser.sh scripts/bininst.sh scripts/setup.sh
 
 FAQS=	README MIRROR.SITES
 
@@ -300,7 +298,6 @@ release.7:
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=cpio \
 		DIR=${RD}/cpiofd/stand ZIP=false
 	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
-	cd ${.CURDIR} ; ls ${CPIO2} | cpio -dumpv ${RD}/cpiofd/stand
 	( JUST_TELL_ME=please ; . ${.CURDIR}/../sys/conf/newvers.sh ; \
 	sed "/DISTNAME=/s/FOOBAR/$$DISTNAME/" \
 		< ${RD}/cpiofd/stand/scripts/miscfuncs.sh \
@@ -309,7 +306,6 @@ release.7:
 	mv ${RD}/cpiofd/stand/scripts/tmp \
 		${RD}/cpiofd/stand/scripts/miscfuncs.sh
 	chmod 755 ${RD}/cpiofd/stand/scripts/*
-	cp ${RD}/trees/bin/usr/sbin/tzsetup ${RD}/cpiofd/stand
 	( cd ${RD}/cpiofd ; \
 		( rm -f OK ; find . -print ; touch OK ; echo OK ) | \
 		cpio -H newc -oa | gzip -9 -c | dd conv=osync ) \
