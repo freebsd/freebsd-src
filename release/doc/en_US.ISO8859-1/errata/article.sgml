@@ -236,6 +236,10 @@ boot</screen>
       <filename>/usr/sbin/nsupdate</filename> included in
       <application>BIND 8</application> have to be removed during
       the source-based upgrade procedure.</para>
+
+    <para>(9 Nov 2004) The &os; 5.3-RELEASE Release Notes should have stated
+      that <filename role="package">net/mpd</filename> which was compiled
+      on the old systems prior to 5.3-RELEASE must be recompiled.</para>
   </sect1>
 
   <sect1 id="late-news">
