@@ -370,6 +370,17 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
 	    catcher, sig);
 
+	/* Make sure we have a signal trampoline to return to. */
+	if (p->p_md.md_sigtramp == NULL) {
+		/*
+		 * No signal tramoline... kill the process.
+		 */
+		CTR0(KTR_SIG, "sendsig: no sigtramp");
+		PROC_LOCK(p);
+		sigexit(td, sig);
+		/* NOTREACHED */
+	}
+
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
@@ -435,10 +446,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		/* NOTREACHED */
 	}
 
-	if (p->p_md.md_sigtramp != NULL)
-		tf->tf_tpc = (u_long)p->p_md.md_sigtramp;
-	else
-		tf->tf_tpc = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	tf->tf_tpc = (u_long)p->p_md.md_sigtramp;
 	tf->tf_tnpc = tf->tf_tpc + 4;
 	tf->tf_sp = (u_long)fp - SPOFF;
 
