@@ -18,6 +18,7 @@
 # two	three	number	name
 AF	AFG	004	Afghanistan
 AL	ALB	008	Albania
+AX	ALA	248	Aland Islands
 DZ	DZA	012	Algeria
 AS	ASM	016	American Samoa
 AD	AND	020	Andorra
@@ -488,4 +489,16 @@ ZW	ZWE	716	Zimbabwe
 #
 # Newsletter V-8 2003-07-23
 #  YUGOSLAVIA (YU) changed official name, short name, alpha-2, and alpha-3.
+#
+# Newsletter V-9 2004-02-13
+#  ALAND ISLANDS (AX) added as a new entry.  In the official newsletter,
+#  this territory is shown with the correct (Swedish) orthography.  As this
+#  file is restricted to the ASCII character set, we have substituted the
+#  letter `A' for the Swedish letter \xc5.  (The Finnish name for this
+#  semi-autonomous territory is Ahvenanmaa, but the official place-names
+#  in the territory are Swedish-only.)  Note that the standard collation
+#  order for Swedish in Finland would sort this letter after Z.
+#
+# Newsletter V-10 2004-04-26
+#  Name changes not relevant to this file.
 #
