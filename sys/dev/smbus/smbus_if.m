@@ -23,13 +23,13 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: smbus_if.m,v 1.1.1.2 1998/08/13 15:16:58 son Exp $
+#	$Id: smbus_if.m,v 1.1.1.1 1998/09/03 20:52:54 nsouch Exp $
 #
 
 INTERFACE smbus
 
 #
-# Interprete interrupt
+# Interpret interrupt
 #
 METHOD void intr {
 	device_t dev;
@@ -37,6 +37,15 @@ METHOD void intr {
 	char low;
 	char high;
 	int error;
+};
+
+#
+# smbus callback
+#
+METHOD int callback {
+	device_t dev;
+	int index;
+	caddr_t data;
 };
 
 #
