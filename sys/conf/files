@@ -634,6 +634,11 @@ dev/iicbus/iic.c	optional iic
 dev/trm/trm.c		optional trm
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
+dev/twa/twa.c			optional twa
+dev/twa/twa_cam.c		optional twa
+dev/twa/twa_freebsd.c		optional twa
+dev/twa/twa_fwimg.c		optional twa
+dev/twa/twa_globals.c		optional twa
 dev/tx/if_tx.c			optional tx
 dev/txp/if_txp.c		optional txp
 dev/vinum/vinum.c		optional vinum

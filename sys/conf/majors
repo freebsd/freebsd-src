@@ -137,6 +137,7 @@ maj 	name		comments
 143	*urio		USB Rio 500 <n_hibma>
 145	*dri		DRI Graphics for OpenGL <dfr>
 146	*twe		3ware Escalade ATA RAID (controller)
+187	*twa		3ware 9000 series PATA/SATA RAID (controller)
 148	*agp		AGP <dfr>
 149	*tap		Ethernet tunneling device <myevmenkin@att.com>
 152	*acpi		ACPI bios support (Takanori Watanabe takawata@shidahara1.planet.sci.kobe-u.ac.jp)
