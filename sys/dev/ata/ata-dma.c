@@ -112,6 +112,8 @@ ata_dmainit(struct ata_softc *scp, int device,
 #endif
     switch (scp->chiptype) {
 
+    case 0x248a8086:	/* Intel ICH3 mobile */ 
+    case 0x248b8086:	/* Intel ICH3 */
     case 0x244a8086:	/* Intel ICH2 mobile */ 
     case 0x244b8086:	/* Intel ICH2 */
 	if (udmamode >= 5) {
@@ -144,6 +146,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 	/* FALLTHROUGH */
 
     case 0x24118086:    /* Intel ICH */
+    case 0x76018086:    /* Intel ICH */
 	if (udmamode >= 4) {
 	    int32_t mask48, new48;
 	    int16_t word54;
@@ -174,6 +177,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 	/* FALLTHROUGH */
 
     case 0x71118086:	/* Intel PIIX4 */
+    case 0x84CA8086:	/* Intel PIIX4 */
     case 0x71998086:	/* Intel PIIX4e */
     case 0x24218086:	/* Intel ICH0 */
 	if (udmamode >= 2) {
