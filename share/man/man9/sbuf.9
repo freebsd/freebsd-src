@@ -124,9 +124,9 @@ is the initial size of the storage buffer.
 The fourth argument,
 .Fa flags ,
 may be comprised of the following flags:
-.Bl -tag -width SBUF_AUTOEXTEND
+.Bl -tag -width ".Dv SBUF_AUTOEXTEND"
 .It Dv SBUF_FIXEDLEN
-The storage buffer is fixed at it's initial size.
+The storage buffer is fixed at its initial size.
 Attempting to extend the sbuf beyond this size results in an overflow condition.
 .It Dv SBUF_AUTOEXTEND
 This indicates that the storage buffer may be extended as necessary, so long
