@@ -45,6 +45,7 @@
  * ADMtek AN985 (www.admtek.com.tw)
  * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
  * Accton EN1217 (www.accton.com)
+ * Conexant LANfinity (www.conexant.com)
  *
  * Datasheets for the 21143 are available at developer.intel.com.
  * Datasheets for the clone parts can be found at their respective sites.
@@ -180,6 +181,8 @@ static struct dc_type dc_devs[] = {
 		"Accton EN1217 10/100BaseTX" },
 	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN2242,
 		"Accton EN2242 MiniPCI 10/100BaseTX" },
+	{ DC_VENDORID_CONEXANT, DC_DEVICEID_RS7112,
+		"Conexant LANfinity MiniPCI 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -357,7 +360,7 @@ static void dc_eeprom_putbyte(sc, addr)
 	 * a 93C46. It uses a different bit sequence for
 	 * specifying the "read" opcode.
 	 */
-	if (DC_IS_CENTAUR(sc))
+	if (DC_IS_CENTAUR(sc) || DC_IS_CONEXANT(sc))
 		d = addr | (DC_EECMD_READ << 2);
 	else
 		d = addr | DC_EECMD_READ;
@@ -690,6 +693,14 @@ static int dc_miibus_readreg(dev, phy, reg)
 	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
 		return(0);
 
+	/*
+	 * Note: the ukphy probes of the RS7112 report a PHY at
+	 * MII address 0 (possibly HomePNA?) and 1 (ethernet)
+	 * so we only respond to correct one.
+	 */
+	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
+		return(0);
+
 	if (sc->dc_pmode != DC_PMODE_MII) {
 		if (phy == (MII_NPHY - 1)) {
 			switch(reg) {
@@ -794,6 +805,9 @@ static int dc_miibus_writereg(dev, phy, reg, data)
 	bzero((char *)&frame, sizeof(frame));
 
 	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
+		return(0);
+
+	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
 		return(0);
 
 	if (DC_IS_PNIC(sc)) {
@@ -1178,7 +1192,7 @@ static void dc_setfilt(sc)
 	struct dc_softc		*sc;
 {
 	if (DC_IS_INTEL(sc) || DC_IS_MACRONIX(sc) || DC_IS_PNIC(sc) ||
-	    DC_IS_PNICII(sc) || DC_IS_DAVICOM(sc))
+	    DC_IS_PNICII(sc) || DC_IS_DAVICOM(sc) || DC_IS_CONEXANT(sc))
 		dc_setfilt_21143(sc);
 
 	if (DC_IS_ASIX(sc))
@@ -1357,7 +1371,7 @@ static void dc_reset(sc)
 			break;
 	}
 
-	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc)) {
+	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc) || DC_IS_CONEXANT(sc)) {
 		DELAY(10000);
 		DC_CLRBIT(sc, DC_BUSCTL, DC_BUSCTL_RESET);
 		i = 0;
@@ -1816,6 +1830,13 @@ static int dc_attach(dev)
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
+	case DC_DEVICEID_RS7112:
+		sc->dc_type = DC_TYPE_CONEXANT;
+		sc->dc_flags |= DC_TX_INTR_ALWAYS;
+		sc->dc_flags |= DC_REDUCED_MII_POLL;
+		sc->dc_pmode = DC_PMODE_MII;
+		dc_read_eeprom(sc, (caddr_t)&sc->dc_srom, 0, 256, 0);
+		break;
 	default:
 		printf("dc%d: unknown device: %x\n", sc->dc_unit,
 		    sc->dc_info->dc_did);
@@ -1879,6 +1900,9 @@ static int dc_attach(dev)
 	case DC_TYPE_AL981:
 	case DC_TYPE_AN985:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_AL_EE_NODEADDR, 3, 0);
+		break;
+	case DC_TYPE_CONEXANT:
+		bcopy(sc->dc_srom + DC_CONEXANT_EE_NODEADDR, &eaddr, 6);
 		break;
 	default:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
@@ -2416,6 +2440,7 @@ static void dc_txeof(sc)
 	struct dc_desc		*cur_tx = NULL;
 	struct ifnet		*ifp;
 	int			idx;
+	u_int32_t		errmask;
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -2459,11 +2484,19 @@ static void dc_txeof(sc)
 			continue;
 		}
 
-		if (/*sc->dc_type == DC_TYPE_21143 &&*/
-		    sc->dc_pmode == DC_PMODE_MII &&
-		    ((txstat & 0xFFFF) & ~(DC_TXSTAT_ERRSUM|
-		    DC_TXSTAT_NOCARRIER|DC_TXSTAT_CARRLOST)))
-			txstat &= ~DC_TXSTAT_ERRSUM;
+		if (sc->dc_pmode == DC_PMODE_MII) {
+			errmask = DC_TXSTAT_ERRSUM|
+			    DC_TXSTAT_NOCARRIER|DC_TXSTAT_CARRLOST;
+			/*
+			 * The Conexant chip always reports carrier lost
+			 * in full duplex modes.
+			 */
+			if (DC_IS_CONEXANT(sc) && (sc->dc_if_media & IFM_FDX)) {
+				errmask &= ~DC_TXSTAT_CARRLOST;
+			}
+			if ((txstat & 0xFFFF) & ~errmask)
+				txstat &= ~DC_TXSTAT_ERRSUM;
+		}
 
 		if (txstat & DC_TXSTAT_ERRSUM) {
 			ifp->if_oerrors++;
