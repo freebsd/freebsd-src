@@ -171,6 +171,10 @@ struct aiocblist {
         struct	aiocb uaiocb;		/* Kernel I/O control block */
 };
 
+/* Forward declarations for prototypes below. */
+struct socket;
+struct sockbuf;
+
 void	aio_proc_rundown(struct proc *p);
 void	aio_swake(struct socket *, struct sockbuf *);
 
