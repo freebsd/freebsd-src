@@ -161,16 +161,18 @@ acpi_cpu_attach(device_t dev)
 	cpu_pstate_cnt = AcpiGbl_FADT->PstateCnt;
 
 	/* validate the offset/width */
-	duty_end = cpu_duty_offset + cpu_duty_width - 1;
-	/* check that it fits */
-	if (duty_end > 31) {
-	    printf("acpi_cpu: CLK_VAL field overflows P_CNT register\n");
-	    cpu_duty_width = 0;
-	}
-	/* check for overlap with the THT_EN bit */
-	if ((cpu_duty_offset <= 4) && (duty_end >= 4)) {
-	    printf("acpi_cpu: CLK_VAL field overlaps THT_EN bit\n");
-	    cpu_duty_width = 0;
+	if (cpu_duty_width > 0) {
+		duty_end = cpu_duty_offset + cpu_duty_width - 1;
+		/* check that it fits */
+		if (duty_end > 31) {
+			printf("acpi_cpu: CLK_VAL field overflows P_CNT register\n");
+			cpu_duty_width = 0;
+		}
+		/* check for overlap with the THT_EN bit */
+		if ((cpu_duty_offset <= 4) && (duty_end >= 4)) {
+			printf("acpi_cpu: CLK_VAL field overlaps THT_EN bit\n");
+			cpu_duty_width = 0;
+		}
 	}
 
 	/* 
