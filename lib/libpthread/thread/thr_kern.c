@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/kse.h>
+#include <sys/ptrace.h>
 #include <sys/signalvar.h>
 #include <sys/queue.h>
 #include <machine/atomic.h>
@@ -98,7 +99,10 @@ __FBSDID("$FreeBSD$");
 	_pq_insert_tail(&(kse)->k_schedq->sq_runq, thrd)
 #define	KSE_RUNQ_REMOVE(kse, thrd)			\
 	_pq_remove(&(kse)->k_schedq->sq_runq, thrd)
-#define	KSE_RUNQ_FIRST(kse)	_pq_first(&(kse)->k_schedq->sq_runq)
+#define	KSE_RUNQ_FIRST(kse)				\
+	((_libkse_debug == 0) ?				\
+	 _pq_first(&(kse)->k_schedq->sq_runq) :		\
+	 _pq_first_debug(&(kse)->k_schedq->sq_runq))
 
 #define KSE_RUNQ_THREADS(kse)	((kse)->k_schedq->sq_runq.pq_threads)
 
@@ -222,7 +226,7 @@ _kse_single_thread(struct pthread *curthread)
 	 * dump core.
 	 */ 
 	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-	_thr_active_threads = 1;
+	_thread_active_threads = 1;
 
 	/*
 	 * Enter a loop to remove and free all threads other than
@@ -355,7 +359,7 @@ _kse_single_thread(struct pthread *curthread)
 	 * dump core.
 	 */ 
 	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-	_thr_active_threads = 1;
+	_thread_active_threads = 1;
 #endif
 }
 
@@ -435,6 +439,9 @@ _kse_setthreaded(int threaded)
 			PANIC("kse_create() failed\n");
 			return (-1);
 		}
+		_thr_initial->tcb->tcb_tmbx.tm_lwp = 
+			_kse_initial->k_kcb->kcb_kmbx.km_lwp;
+		_thread_activated = 1;
 
 #ifndef SYSTEM_SCOPE_ONLY
 		/* Set current thread to initial thread */
@@ -630,6 +637,19 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		kse_sched_single(&curkse->k_kcb->kcb_kmbx);
 	else {
+		if (__predict_false(_libkse_debug != 0)) {
+			/*
+			 * Because debugger saves single step status in thread
+			 * mailbox's tm_dflags, we can safely clear single 
+			 * step status here. the single step status will be
+			 * restored by kse_switchin when the thread is
+			 * switched in again. This also lets uts run in full
+			 * speed.
+			 */
+			 ptrace(PT_CLEARSTEP, curkse->k_kcb->kcb_kmbx.km_lwp,
+				(caddr_t) 1, 0);
+		}
+
 		KSE_SET_SWITCH(curkse);
 		_thread_enter_uts(curthread->tcb, curkse->k_kcb);
 	}
@@ -697,7 +717,7 @@ kse_sched_single(struct kse_mailbox *kmbx)
 		curkse->k_flags |= KF_INITIALIZED;
 		first = 1;
 		curthread->active = 1;
-		
+
 		/* Setup kernel signal masks for new thread. */
 		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 		/*
@@ -972,7 +992,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	 */
 	if (curthread == NULL)
 		;  /* Nothing to do here. */
-	else if ((curthread->need_switchout == 0) &&
+	else if ((curthread->need_switchout == 0) && DBG_CAN_RUN(curthread) &&
 	    (curthread->blocked == 0) && (THR_IN_CRITICAL(curthread))) {
 		/*
 		 * Resume the thread and tell it to yield when
@@ -992,8 +1012,10 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		if (ret != 0)
 			PANIC("Can't resume thread in critical region\n");
 	}
-	else if ((curthread->flags & THR_FLAGS_IN_RUNQ) == 0)
+	else if ((curthread->flags & THR_FLAGS_IN_RUNQ) == 0) {
+		curthread->tcb->tcb_tmbx.tm_lwp = 0;
 		kse_switchout_thread(curkse, curthread);
+	}
 	curkse->k_curthread = NULL;
 
 #ifdef DEBUG_THREAD_KERN
@@ -2447,7 +2469,7 @@ thr_link(struct pthread *thread)
 	 */
 	thread->uniqueid = next_uniqueid++;
 	THR_LIST_ADD(thread);
-	_thr_active_threads++;
+	_thread_active_threads++;
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	_kse_critical_leave(crit);
 }
@@ -2465,7 +2487,7 @@ thr_unlink(struct pthread *thread)
 	curkse = _get_curkse();
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 	THR_LIST_REMOVE(thread);
-	_thr_active_threads--;
+	_thread_active_threads--;
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	_kse_critical_leave(crit);
 }
@@ -2499,3 +2521,27 @@ _thr_hash_find(struct pthread *thread)
 	return (NULL);
 }
 
+void
+_thr_debug_check_yield(struct pthread *curthread)
+{
+	/*
+	 * Note that TMDF_DONOTRUNUSER is set after process is suspended.
+	 * When we are being debugged, every suspension in process
+	 * will cause all KSEs to schedule an upcall in kernel, unless the
+	 * KSE is in critical region.
+	 * If the function is being called, it means the KSE is no longer
+	 * in critical region, if the TMDF_DONOTRUNUSER is set by debugger
+	 * before KSE leaves critical region, we will catch it here, else
+	 * if the flag is changed during testing, it also not a problem,
+	 * because the change only occurs after a process suspension event
+	 * occurs. A suspension event will always cause KSE to schedule an
+	 * upcall, in the case, because we are not in critical region,
+	 * upcall will be scheduled sucessfully, the flag will be checked
+	 * again in kse_sched_multi, we won't back until the flag
+	 * is cleared by debugger, the flag will be cleared in next
+	 * suspension event. 
+	 */
+	if ((curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) == 0 &&
+	    !DBG_CAN_RUN(curthread))
+		_thr_sched_switch(curthread);
+}

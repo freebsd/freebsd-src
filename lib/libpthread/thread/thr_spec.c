@@ -38,15 +38,8 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-struct pthread_key {
-	volatile int	allocated;
-	volatile int	count;
-	int		seqno;
-	void            (*destructor) ();
-};
-
 /* Static variables: */
-static struct pthread_key key_table[PTHREAD_KEYS_MAX];
+struct pthread_key _thread_keytable[PTHREAD_KEYS_MAX];
 
 __weak_reference(_pthread_key_create, pthread_key_create);
 __weak_reference(_pthread_key_delete, pthread_key_delete);
@@ -64,10 +57,10 @@ _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 	for (i = 0; i < PTHREAD_KEYS_MAX; i++) {
 
-		if (key_table[i].allocated == 0) {
-			key_table[i].allocated = 1;
-			key_table[i].destructor = destructor;
-			key_table[i].seqno++;
+		if (_thread_keytable[i].allocated == 0) {
+			_thread_keytable[i].allocated = 1;
+			_thread_keytable[i].destructor = destructor;
+			_thread_keytable[i].seqno++;
 
 			/* Unlock the key table: */
 			THR_LOCK_RELEASE(curthread, &_keytable_lock);
@@ -91,8 +84,8 @@ _pthread_key_delete(pthread_key_t key)
 		/* Lock the key table: */
 		THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 
-		if (key_table[key].allocated)
-			key_table[key].allocated = 0;
+		if (_thread_keytable[key].allocated)
+			_thread_keytable[key].allocated = 0;
 		else
 			ret = EINVAL;
 
@@ -123,13 +116,13 @@ _thread_cleanupspecific(void)
 		    (curthread->specific_data_count > 0); key++) {
 			destructor = NULL;
 
-			if (key_table[key].allocated &&
+			if (_thread_keytable[key].allocated &&
 			    (curthread->specific[key].data != NULL)) {
 				if (curthread->specific[key].seqno ==
-				    key_table[key].seqno) {
+				    _thread_keytable[key].seqno) {
 					data = (void *)
 					    curthread->specific[key].data;
-					destructor = key_table[key].destructor;
+					destructor = _thread_keytable[key].destructor;
 				}
 				curthread->specific[key].data = NULL;
 				curthread->specific_data_count--;
@@ -185,7 +178,7 @@ _pthread_setspecific(pthread_key_t key, const void *value)
 	if ((pthread->specific) ||
 	    (pthread->specific = pthread_key_allocate_data())) {
 		if ((unsigned int)key < PTHREAD_KEYS_MAX) {
-			if (key_table[key].allocated) {
+			if (_thread_keytable[key].allocated) {
 				if (pthread->specific[key].data == NULL) {
 					if (value != NULL)
 						pthread->specific_data_count++;
@@ -193,7 +186,7 @@ _pthread_setspecific(pthread_key_t key, const void *value)
 					pthread->specific_data_count--;
 				pthread->specific[key].data = value;
 				pthread->specific[key].seqno =
-				    key_table[key].seqno;
+				    _thread_keytable[key].seqno;
 				ret = 0;
 			} else
 				ret = EINVAL;
@@ -216,8 +209,8 @@ _pthread_getspecific(pthread_key_t key)
 	/* Check if there is specific data: */
 	if (pthread->specific != NULL && (unsigned int)key < PTHREAD_KEYS_MAX) {
 		/* Check if this key has been used before: */
-		if (key_table[key].allocated &&
-		    (pthread->specific[key].seqno == key_table[key].seqno)) {
+		if (_thread_keytable[key].allocated &&
+		    (pthread->specific[key].seqno == _thread_keytable[key].seqno)) {
 			/* Return the value: */
 			data = (void *) pthread->specific[key].data;
 		} else {
