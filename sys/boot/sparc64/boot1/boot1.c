@@ -313,61 +313,42 @@ static void
 load(const char *fname)
 {
 	Elf64_Ehdr eh;
-	Elf64_Phdr ep[2];
-	Elf64_Shdr es[2];
+	Elf64_Phdr ph;
 	caddr_t p;
 	ino_t ino;
-	vm_offset_t entry;
-	int i, j;
+	int i;
 
 	if ((ino = lookup(fname)) == 0) {
 		printf("File %s not found\n", fname);
 		return;
 	}
-	if (fsread(ino, &eh, sizeof(eh)) != sizeof(eh))
+	if (fsread(ino, &eh, sizeof(eh)) != sizeof(eh)) {
+		printf("Can't read elf header\n");
 		return;
+	}
 	if (!IS_ELF(eh)) {
 		printf("Not an ELF file\n");
 		return;
 	}
-	fs_off = eh.e_phoff;
-	for (j = i = 0; i < eh.e_phnum && j < 2; i++) {
-		if (fsread(ino, ep + j, sizeof(ep[0])) != sizeof(ep[0]))
+	for (i = 0; i < eh.e_phnum; i++) {
+		fs_off = eh.e_phoff + i * eh.e_phentsize;
+		if (fsread(ino, &ph, sizeof(ph)) != sizeof(ph)) {
+			printf("Can't read program header %d\n", i);
 			return;
-		if (ep[j].p_type == PT_LOAD)
-			j++;
-	}
-	for (i = 0; i < j; i++) {
-		p = (caddr_t)ep[i].p_vaddr;
-		fs_off = ep[i].p_offset;
-		if (fsread(ino, p, ep[i].p_filesz) != ep[i].p_filesz)
-			return;
-		/*
-		 * Assume the second program header table entry
-		 * to contain data and bss.  Clear out the .bss section.
-		 */
-		if (i == 1) {
-			memset(p + ep[i].p_filesz, 0,
-			    ep[i].p_memsz - ep[i].p_filesz);
 		}
-	}
-	p += roundup2(ep[1].p_memsz, PAGE_SIZE);
-	if (eh.e_shnum == eh.e_shstrndx + 3) {
-		fs_off = eh.e_shoff + sizeof(es[0]) * (eh.e_shstrndx + 1);
-		if (fsread(ino, &es, sizeof(es)) != sizeof(es))
+		if (ph.p_type != PT_LOAD)
+			continue;
+		fs_off = ph.p_offset;
+		p = (caddr_t)ph.p_vaddr;
+		if (fsread(ino, p, ph.p_filesz) != ph.p_filesz) {
+			printf("Can't read content of section %d\n", i);
 			return;
-		for (i = 0; i < 2; i++) {
-			memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
-			p += sizeof(es[i].sh_size);
-			fs_off = es[i].sh_offset;
-			if (fsread(ino, p, es[i].sh_size) != es[i].sh_size)
-				return;
-			p += es[i].sh_size;
 		}
+		if (ph.p_filesz != ph.p_memsz)
+			memset(p + ph.p_filesz, 0, ph.p_memsz - ph.p_filesz);
 	}
-	entry = eh.e_entry;
 	ofw_close(bootdevh);
-	(*(void (*)(int, int, int, int, ofwfp_t))entry)(0, 0, 0, 0, ofw);
+	(*(void (*)(int, int, int, int, ofwfp_t))eh.e_entry)(0, 0, 0, 0, ofw);
 }
 
 static ino_t
