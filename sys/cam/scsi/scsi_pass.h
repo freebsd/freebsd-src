@@ -32,6 +32,10 @@
 
 #include <cam/cam_ccb.h>
 
+/*
+ * Convert to using a pointer to a ccb in the next major version.
+ * This should allow us to avoid an extra copy of the CCB data.
+ */
 #define CAMIOCOMMAND	_IOWR(CAM_VERSION, 2, union ccb)
 #define CAMGETPASSTHRU	_IOWR(CAM_VERSION, 3, union ccb)
 

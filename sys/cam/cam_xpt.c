@@ -40,6 +40,7 @@
 #include <sys/md5.h>
 #include <sys/devicestat.h>
 #include <sys/interrupt.h>
+#include <sys/sbuf.h>
 
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
@@ -122,7 +123,13 @@ struct cam_ed {
 	struct	cam_periph *owner;	/* Peripheral driver's ownership tag */
 	struct	xpt_quirk_entry *quirk;	/* Oddities about this device */
 					/* Storage for the inquiry data */
-	struct	scsi_inquiry_data inq_data;
+#ifdef CAM_NEW_TRAN_CODE
+	cam_proto	 protocol;
+	u_int		 protocol_version;
+	cam_xport	 transport;
+	u_int		 transport_version;
+#endif /* CAM_NEW_TRAN_CODE */
+	struct		 scsi_inquiry_data inq_data;
 	u_int8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.
 					 * This allows us to override settings
@@ -131,7 +138,7 @@ struct cam_ed {
 					 */
 	u_int8_t	 queue_flags;	/* Queue flags from the control page */
 	u_int8_t	 serial_num_len;
-	u_int8_t	 *serial_num;
+	u_int8_t	*serial_num;
 	u_int32_t	 qfrozen_cnt;
 	u_int32_t	 flags;
 #define CAM_DEV_UNCONFIGURED	 	0x01
@@ -718,11 +725,12 @@ static void	 xptasync(struct cam_periph *periph,
 			  u_int32_t code, cam_path *path);
 #endif
 static dev_match_ret	xptbusmatch(struct dev_match_pattern *patterns,
-				    int num_patterns, struct cam_eb *bus);
+				    u_int num_patterns, struct cam_eb *bus);
 static dev_match_ret	xptdevicematch(struct dev_match_pattern *patterns,
-				       int num_patterns, struct cam_ed *device);
+				       u_int num_patterns,
+				       struct cam_ed *device);
 static dev_match_ret	xptperiphmatch(struct dev_match_pattern *patterns,
-				       int num_patterns,
+				       u_int num_patterns,
 				       struct cam_periph *periph);
 static xpt_busfunc_t	xptedtbusfunc;
 static xpt_targetfunc_t	xptedttargetfunc;
@@ -776,6 +784,9 @@ static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
 static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
 static void	 probecleanup(struct cam_periph *periph);
 static void	 xpt_find_quirk(struct cam_ed *device);
+#ifdef CAM_NEW_TRAN_CODE
+static void	 xpt_devise_transport(struct cam_path *path);
+#endif /* CAM_NEW_TRAN_CODE */
 static void	 xpt_set_transfer_settings(struct ccb_trans_settings *cts,
 					   struct cam_ed *device,
 					   int async_update);
@@ -1129,8 +1140,8 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		struct cam_periph *periph;
 		struct periph_driver **p_drv;
 		char   *name;
-		int unit;
-		int cur_generation;
+		u_int unit;
+		u_int cur_generation;
 		int base_periph_found;
 		int splbreaknum;
 		int s;
@@ -1464,6 +1475,118 @@ xpt_remove_periph(struct cam_periph *periph)
 
 }
 
+#ifdef CAM_NEW_TRAN_CODE
+
+void
+xpt_announce_periph(struct cam_periph *periph, char *announce_string)
+{
+	struct	ccb_pathinq cpi;
+	struct	ccb_trans_settings cts;
+	struct	cam_path *path;
+	u_int	speed;
+	u_int	freq;
+	u_int	mb;
+	int	s;
+
+	path = periph->path;
+	/*
+	 * To ensure that this is printed in one piece,
+	 * mask out CAM interrupts.
+	 */
+	s = splsoftcam();
+	printf("%s%d at %s%d bus %d target %d lun %d\n",
+	       periph->periph_name, periph->unit_number,
+	       path->bus->sim->sim_name,
+	       path->bus->sim->unit_number,
+	       path->bus->sim->bus_id,
+	       path->target->target_id,
+	       path->device->lun_id);
+	printf("%s%d: ", periph->periph_name, periph->unit_number);
+	scsi_print_inquiry(&path->device->inq_data);
+	if ((bootverbose)
+	 && (path->device->serial_num_len > 0)) {
+		/* Don't wrap the screen  - print only the first 60 chars */
+		printf("%s%d: Serial Number %.60s\n", periph->periph_name,
+		       periph->unit_number, path->device->serial_num);
+	}
+	xpt_setup_ccb(&cts.ccb_h, path, /*priority*/1);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	xpt_action((union ccb*)&cts);
+
+	/* Ask the SIM for its base transfer speed */
+	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
+	speed = cpi.base_transfer_speed;
+	freq = 0;
+	if (cts.ccb_h.status == CAM_REQ_CMP
+	 && cts.transport == XPORT_SPI) {
+		struct	ccb_trans_settings_spi *spi;
+
+		spi = &cts.xport_specific.spi;
+		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0
+		  && spi->sync_offset != 0) {
+			freq = scsi_calc_syncsrate(spi->sync_period);
+			speed = freq;
+		}
+
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
+			speed *= (0x01 << spi->bus_width);
+	}
+
+	mb = speed / 1000;
+	if (mb > 0)
+		printf("%s%d: %d.%03dMB/s transfers",
+		       periph->periph_name, periph->unit_number,
+		       mb, speed % 1000);
+	else
+		printf("%s%d: %dKB/s transfers", periph->periph_name,
+		       periph->unit_number, speed);
+	/* Report additional information about SPI connections */
+	if (cts.ccb_h.status == CAM_REQ_CMP
+	 && cts.transport == XPORT_SPI) {
+		struct	ccb_trans_settings_spi *spi;
+
+		spi = &cts.xport_specific.spi;
+		if (freq != 0) {
+			printf(" (%d.%03dMHz%s, offset %d", freq / 1000,
+			       freq % 1000,
+			       (spi->ppr_options & MSG_EXT_PPR_DT_REQ) != 0
+			     ? " DT" : "",
+			       spi->sync_offset);
+		}
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0
+		 && spi->bus_width > 0) {
+			if (freq != 0) {
+				printf(", ");
+			} else {
+				printf(" (");
+			}
+			printf("%dbit)", 8 * (0x01 << spi->bus_width));
+		} else if (freq != 0) {
+			printf(")");
+		}
+	}
+
+	if (path->device->inq_flags & SID_CmdQue
+	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
+		printf("\n%s%d: Tagged Queueing Enabled",
+		       periph->periph_name, periph->unit_number);
+	}
+	printf("\n");
+
+	/*
+	 * We only want to print the caller's announce string if they've
+	 * passed one in..
+	 */
+	if (announce_string != NULL)
+		printf("%s%d: %s\n", periph->periph_name,
+		       periph->unit_number, announce_string);
+	splx(s);
+}
+#else /* CAM_NEW_TRAN_CODE */
 void
 xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 {
@@ -1567,9 +1690,10 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	splx(s);
 }
 
+#endif /* CAM_NEW_TRAN_CODE */
 
 static dev_match_ret
-xptbusmatch(struct dev_match_pattern *patterns, int num_patterns,
+xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	    struct cam_eb *bus)
 {
 	dev_match_ret retval;
@@ -1681,7 +1805,7 @@ xptbusmatch(struct dev_match_pattern *patterns, int num_patterns,
 }
 
 static dev_match_ret
-xptdevicematch(struct dev_match_pattern *patterns, int num_patterns,
+xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 	       struct cam_ed *device)
 {
 	dev_match_ret retval;
@@ -1797,7 +1921,7 @@ xptdevicematch(struct dev_match_pattern *patterns, int num_patterns,
  * Match a single peripheral against any number of match patterns.
  */
 static dev_match_ret
-xptperiphmatch(struct dev_match_pattern *patterns, int num_patterns,
+xptperiphmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	       struct cam_periph *periph)
 {
 	dev_match_ret retval;
@@ -2778,6 +2902,9 @@ xpt_action(union ccb *start_ccb)
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 	{
+#ifdef CAM_NEW_TRAN_CODE
+		struct cam_ed *device;
+#endif /* CAM_NEW_TRAN_CODE */
 #ifdef CAMDEBUG
 		char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 		struct cam_path *path;
@@ -2801,7 +2928,12 @@ xpt_action(union ccb *start_ccb)
 		 * This means that this code will be exercised while probing
 		 * devices with an ANSI revision greater than 2.
 		 */
+#ifdef CAM_NEW_TRAN_CODE
+		device = start_ccb->ccb_h.path->device;
+		if (device->protocol_version <= SCSI_REV_2
+#else /* CAM_NEW_TRAN_CODE */
 		if (SID_ANSI_REV(&start_ccb->ccb_h.path->device->inq_data) <= 2
+#endif /* CAM_NEW_TRAN_CODE */
 		 && start_ccb->ccb_h.target_lun < 8
 		 && (start_ccb->ccb_h.flags & CAM_CDB_POINTER) == 0) {
 
@@ -3023,7 +3155,7 @@ xpt_action(union ccb *start_ccb)
 		struct cam_periph	*nperiph;
 		struct periph_list	*periph_head;
 		struct ccb_getdevlist	*cgdl;
-		int			i;
+		u_int			i;
 		int			s;
 		struct cam_ed		*device;
 		int			found;
@@ -3115,7 +3247,7 @@ xpt_action(union ccb *start_ccb)
 		if (cdm->pos.position_type != CAM_DEV_POS_NONE)
 			position_type = cdm->pos.position_type;
 		else {
-			int i;
+			u_int i;
 
 			position_type = CAM_DEV_POS_NONE;
 
@@ -3980,6 +4112,44 @@ xpt_print_path(struct cam_path *path)
 	}
 }
 
+int
+xpt_path_string(struct cam_path *path, char *str, size_t str_len)
+{
+	struct sbuf sb;
+
+	sbuf_new(&sb, str, str_len, 0);
+
+	if (path == NULL)
+		sbuf_printf(&sb, "(nopath): ");
+	else {
+		if (path->periph != NULL)
+			sbuf_printf(&sb, "(%s%d:", path->periph->periph_name,
+				    path->periph->unit_number);
+		else
+			sbuf_printf(&sb, "(noperiph:");
+
+		if (path->bus != NULL)
+			sbuf_printf(&sb, "%s%d:%d:", path->bus->sim->sim_name,
+				    path->bus->sim->unit_number,
+				    path->bus->sim->bus_id);
+		else
+			sbuf_printf(&sb, "nobus:");
+
+		if (path->target != NULL)
+			sbuf_printf(&sb, "%d:", path->target->target_id);
+		else
+			sbuf_printf(&sb, "X:");
+
+		if (path->device != NULL)
+			sbuf_printf(&sb, "%d): ", path->device->lun_id);
+		else
+			sbuf_printf(&sb, "X): ");
+	}
+	sbuf_finish(&sb);
+
+	return(sbuf_len(&sb));
+}
+
 path_id_t
 xpt_path_path_id(struct cam_path *path)
 {
@@ -4115,7 +4285,7 @@ xpt_bus_register(struct cam_sim *sim, u_int32_t bus)
 		xpt_setup_ccb(&cpi.ccb_h, &path, /*priority*/1);
 		cpi.ccb_h.func_code = XPT_PATH_INQ;
 		xpt_action((union ccb *)&cpi);
-		xpt_async(AC_PATH_REGISTERED, xpt_periph->path, &cpi);
+		xpt_async(AC_PATH_REGISTERED, &path, &cpi);
 		xpt_release_path(&path);
 	}
 	return (CAM_SUCCESS);
@@ -4693,6 +4863,9 @@ xpt_release_target(struct cam_eb *bus, struct cam_et *target)
 static struct cam_ed *
 xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
+#ifdef CAM_NEW_TRAN_CODE
+	struct	   cam_path path;
+#endif /* CAM_NEW_TRAN_CODE */
 	struct	   cam_ed *device;
 	struct	   cam_devq *devq;
 	cam_status status;
@@ -4769,6 +4942,17 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 			TAILQ_INSERT_TAIL(&target->ed_entries, device, links);
 		}
 		target->generation++;
+#ifdef CAM_NEW_TRAN_CODE
+		if (lun_id != CAM_LUN_WILDCARD) {
+			xpt_compile_path(&path,
+					 NULL,
+					 bus->path_id,
+					 target->target_id,
+					 lun_id);
+			xpt_devise_transport(&path);
+			xpt_release_path(&path);
+		}
+#endif /* CAM_NEW_TRAN_CODE */
 	}
 	return (device);
 }
@@ -4964,10 +5148,6 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			work_ccb->ccb_h.cbfcnp = xpt_scan_bus;
 			work_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			work_ccb->crcn.flags = request_ccb->crcn.flags;
-#if 0
-			printf("xpt_scan_bus: probing %d:%d:%d\n",
-				request_ccb->ccb_h.path_id, i, 0);
-#endif
 			xpt_action(work_ccb);
 		}
 		break;
@@ -4989,11 +5169,6 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		target_id = request_ccb->ccb_h.target_id;
 		lun_id = request_ccb->ccb_h.target_lun;
 		xpt_action(request_ccb);
-
-#if 0
-		printf("xpt_scan_bus: got back probe from %d:%d:%d\n",
-			path_id, target_id, lun_id);
-#endif
 
 		if (request_ccb->ccb_h.status != CAM_REQ_CMP) {
 			struct cam_ed *device;
@@ -5087,10 +5262,6 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			request_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			request_ccb->crcn.flags =
 				scan_info->request_ccb->crcn.flags;
-#if 0
-			xpt_print_path(path);
-			printf("xpt_scan bus probing\n");
-#endif
 			xpt_action(request_ccb);
 		}
 		break;
@@ -5468,11 +5639,19 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 
 	xpt_setup_ccb(&cts.ccb_h, periph->path, /*priority*/1);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+#ifdef CAM_NEW_TRAN_CODE
+	cts.type = CTS_TYPE_USER_SETTINGS;
+#else /* CAM_NEW_TRAN_CODE */
 	cts.flags = CCB_TRANS_USER_SETTINGS;
+#endif /* CAM_NEW_TRAN_CODE */
 	xpt_action((union ccb *)&cts);
 	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+#ifdef CAM_NEW_TRAN_CODE
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+#else /* CAM_NEW_TRAN_CODE */
 	cts.flags &= ~CCB_TRANS_USER_SETTINGS;
 	cts.flags |= CCB_TRANS_CURRENT_SETTINGS;
+#endif /* CAM_NEW_TRAN_CODE */
 	xpt_action((union ccb *)&cts);
 }
 
@@ -5550,6 +5729,9 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 
 					xpt_find_quirk(path->device);
 
+#ifdef CAM_NEW_TRAN_CODE
+					xpt_devise_transport(path);
+#endif /* CAM_NEW_TRAN_CODE */
 					if ((inq_buf->flags & SID_CmdQue) != 0)
 						softc->action =
 						    PROBE_MODE_SENSE;
@@ -5788,6 +5970,379 @@ xpt_find_quirk(struct cam_ed *device)
 	device->quirk = (struct xpt_quirk_entry *)match;
 }
 
+#ifdef CAM_NEW_TRAN_CODE
+
+static void
+xpt_devise_transport(struct cam_path *path)
+{
+	struct ccb_pathinq cpi;
+	struct ccb_trans_settings cts;
+	struct scsi_inquiry_data *inq_buf;
+
+	/* Get transport information from the SIM */
+	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
+	inq_buf = NULL;
+	if ((path->device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0)
+		inq_buf = &path->device->inq_data;
+	path->device->protocol = PROTO_SCSI;
+	path->device->protocol_version =
+	    inq_buf != NULL ? SID_ANSI_REV(inq_buf) : cpi.protocol_version;
+	path->device->transport = cpi.transport;
+	path->device->transport_version = cpi.transport_version;
+
+	/*
+	 * Any device not using SPI3 features should
+	 * be considered SPI2 or lower.
+	 */
+	if (inq_buf != NULL) {
+		if (path->device->transport == XPORT_SPI
+		 && (inq_buf->spi3data & SID_SPI_MASK) == 0
+		 && path->device->transport_version > 2)
+			path->device->transport_version = 2;
+	} else {
+		struct cam_ed* otherdev;
+
+		for (otherdev = TAILQ_FIRST(&path->target->ed_entries);
+		     otherdev != NULL;
+		     otherdev = TAILQ_NEXT(otherdev, links)) {
+			if (otherdev != path->device)
+				break;
+		}
+		    
+		if (otherdev != NULL) {
+			/*
+			 * Initially assume the same versioning as
+			 * prior luns for this target.
+			 */
+			path->device->protocol_version =
+			    otherdev->protocol_version;
+			path->device->transport_version =
+			    otherdev->transport_version;
+		} else {
+			/* Until we know better, opt for safty */
+			path->device->protocol_version = 2;
+			if (path->device->transport == XPORT_SPI)
+				path->device->transport_version = 2;
+			else
+				path->device->transport_version = 0;
+		}
+	}
+
+	/*
+	 * XXX
+	 * For a device compliant with SPC-2 we should be able
+	 * to determine the transport version supported by
+	 * scrutinizing the version descriptors in the
+	 * inquiry buffer.
+	 */
+
+	/* Tell the controller what we think */
+	xpt_setup_ccb(&cts.ccb_h, path, /*priority*/1);
+	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	cts.transport = path->device->transport;
+	cts.transport_version = path->device->transport_version;
+	cts.protocol = path->device->protocol;
+	cts.protocol_version = path->device->protocol_version;
+	cts.proto_specific.valid = 0;
+	cts.xport_specific.valid = 0;
+	xpt_action((union ccb *)&cts);
+}
+
+static void
+xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
+			  int async_update)
+{
+	struct	ccb_pathinq cpi;
+	struct	ccb_trans_settings cur_cts;
+	struct	ccb_trans_settings_scsi *scsi;
+	struct	ccb_trans_settings_scsi *cur_scsi;
+	struct	cam_sim *sim;
+	struct	scsi_inquiry_data *inq_data;
+
+	if (device == NULL) {
+		cts->ccb_h.status = CAM_PATH_INVALID;
+		xpt_done((union ccb *)cts);
+		return;
+	}
+
+	if (cts->protocol == PROTO_UNKNOWN
+	 || cts->protocol == PROTO_UNSPECIFIED) {
+		cts->protocol = device->protocol;
+		cts->protocol_version = device->protocol_version;
+	}
+
+	if (cts->protocol_version == PROTO_VERSION_UNKNOWN
+	 || cts->protocol_version == PROTO_VERSION_UNSPECIFIED)
+		cts->protocol_version = device->protocol_version;
+
+	if (cts->protocol != device->protocol) {
+		xpt_print_path(cts->ccb_h.path);
+		printf("Uninitialized Protocol %x:%x?\n",
+		       cts->protocol, device->protocol);
+		cts->protocol = device->protocol;
+	}
+
+	if (cts->protocol_version > device->protocol_version) {
+		if (bootverbose) {
+			xpt_print_path(cts->ccb_h.path);
+			printf("Down reving Protocol Version from %d to %d?\n",
+			       cts->protocol_version, device->protocol_version);
+		}
+		cts->protocol_version = device->protocol_version;
+	}
+
+	if (cts->transport == XPORT_UNKNOWN
+	 || cts->transport == XPORT_UNSPECIFIED) {
+		cts->transport = device->transport;
+		cts->transport_version = device->transport_version;
+	}
+
+	if (cts->transport_version == XPORT_VERSION_UNKNOWN
+	 || cts->transport_version == XPORT_VERSION_UNSPECIFIED)
+		cts->transport_version = device->transport_version;
+
+	if (cts->transport != device->transport) {
+		xpt_print_path(cts->ccb_h.path);
+		printf("Uninitialized Transport %x:%x?\n",
+		       cts->transport, device->transport);
+		cts->transport = device->transport;
+	}
+
+	if (cts->transport_version > device->transport_version) {
+		if (bootverbose) {
+			xpt_print_path(cts->ccb_h.path);
+			printf("Down reving Transport Version from %d to %d?\n",
+			       cts->transport_version,
+			       device->transport_version);
+		}
+		cts->transport_version = device->transport_version;
+	}
+
+	sim = cts->ccb_h.path->bus->sim;
+
+	/*
+	 * Nothing more of interest to do unless
+	 * this is a device connected via the
+	 * SCSI protocol.
+	 */
+	if (cts->protocol != PROTO_SCSI) {
+		if (async_update == FALSE) 
+			(*(sim->sim_action))(sim, (union ccb *)cts);
+		return;
+	}
+
+	inq_data = &device->inq_data;
+	scsi = &cts->proto_specific.scsi;
+	xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, /*priority*/1);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
+	/* SCSI specific sanity checking */
+	if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0
+	 || (inq_data->flags & SID_CmdQue) == 0
+	 || (device->queue_flags & SCP_QUEUE_DQUE) != 0
+	 || (device->quirk->mintags == 0)) {
+		/*
+		 * Can't tag on hardware that doesn't support tags,
+		 * doesn't have it enabled, or has broken tag support.
+		 */
+		scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+	}
+
+	if (async_update == FALSE) {
+		/*
+		 * Perform sanity checking against what the
+		 * controller and device can do.
+		 */
+		xpt_setup_ccb(&cur_cts.ccb_h, cts->ccb_h.path, /*priority*/1);
+		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cur_cts.type = cts->type;
+		xpt_action((union ccb *)&cur_cts);
+
+		cur_scsi = &cur_cts.proto_specific.scsi;
+		if ((scsi->valid & CTS_SCSI_VALID_TQ) == 0) {
+			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+			scsi->flags |= cur_scsi->flags & CTS_SCSI_FLAGS_TAG_ENB;
+		}
+		if ((cur_scsi->valid & CTS_SCSI_VALID_TQ) == 0)
+			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+	}
+
+	/* SPI specific sanity checking */
+	if (cts->transport == XPORT_SPI
+	 && async_update == FALSE) {
+		u_int spi3caps;
+		struct ccb_trans_settings_spi *spi;
+		struct ccb_trans_settings_spi *cur_spi;
+
+		spi = &cts->xport_specific.spi;
+
+		cur_spi = &cur_cts.xport_specific.spi;
+
+		/* Fill in any gaps in what the user gave us */
+		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0)
+			spi->sync_period = cur_spi->sync_period;
+		if ((cur_spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0)
+			spi->sync_period = 0;
+		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0)
+			spi->sync_offset = cur_spi->sync_offset;
+		if ((cur_spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0)
+			spi->sync_offset = 0;
+		if ((spi->valid & CTS_SPI_VALID_PPR_OPTIONS) == 0)
+			spi->ppr_options = cur_spi->ppr_options;
+		if ((cur_spi->valid & CTS_SPI_VALID_PPR_OPTIONS) == 0)
+			spi->ppr_options = 0;
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) == 0)
+			spi->bus_width = cur_spi->bus_width;
+		if ((cur_spi->valid & CTS_SPI_VALID_BUS_WIDTH) == 0)
+			spi->bus_width = 0;
+		if ((spi->valid & CTS_SPI_VALID_DISC) == 0) {
+			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+			spi->flags |= cur_spi->flags & CTS_SPI_FLAGS_DISC_ENB;
+		}
+		if ((cur_spi->valid & CTS_SPI_VALID_DISC) == 0)
+			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+		if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
+		  && (inq_data->flags & SID_Sync) == 0
+		  && cts->type == CTS_TYPE_CURRENT_SETTINGS)
+		 || ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0)
+		 || (cts->sync_offset == 0)
+		 || (cts->sync_period == 0)) {
+			/* Force async */
+			spi->sync_period = 0;
+			spi->sync_offset = 0;
+		}
+
+		switch (spi->bus_width) {
+		case MSG_EXT_WDTR_BUS_32_BIT:
+			if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) == 0
+			  || (inq_data->flags & SID_WBus32) != 0
+			  || cts->type == CTS_TYPE_USER_SETTINGS)
+			 && (cpi.hba_inquiry & PI_WIDE_32) != 0)
+				break;
+			/* Fall Through to 16-bit */
+		case MSG_EXT_WDTR_BUS_16_BIT:
+			if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) == 0
+			  || (inq_data->flags & SID_WBus16) != 0
+			  || cts->type == CTS_TYPE_USER_SETTINGS)
+			 && (cpi.hba_inquiry & PI_WIDE_16) != 0) {
+				spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+				break;
+			}
+			/* Fall Through to 8-bit */
+		default: /* New bus width?? */
+		case MSG_EXT_WDTR_BUS_8_BIT:
+			/* All targets can do this */
+			spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+			break;
+		}
+
+		spi3caps = cpi.xport_specific.spi.ppr_options;
+		if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
+		 && cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			spi3caps &= inq_data->spi3data;
+
+		if ((spi3caps & SID_SPI_CLOCK_DT) == 0)
+			spi->ppr_options &= ~MSG_EXT_PPR_DT_REQ;
+
+		if ((spi3caps & SID_SPI_IUS) == 0)
+			spi->ppr_options &= ~MSG_EXT_PPR_IU_REQ;
+
+		if ((spi3caps & SID_SPI_QAS) == 0)
+			spi->ppr_options &= ~MSG_EXT_PPR_QAS_REQ;
+
+		/* No SPI Transfer settings are allowed unless we are wide */
+		if (spi->bus_width == 0)
+			spi->ppr_options = 0;
+
+		if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) == 0) {
+			/*
+			 * Can't tag queue without disconnection.
+			 */
+			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+			scsi->valid |= CTS_SCSI_VALID_TQ;
+		}
+
+		/*
+		 * If we are currently performing tagged transactions to
+		 * this device and want to change its negotiation parameters,
+		 * go non-tagged for a bit to give the controller a chance to
+		 * negotiate unhampered by tag messages.
+		 */
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS
+		 && (device->inq_flags & SID_CmdQue) != 0
+		 && (scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0
+		 && (spi->flags & (CTS_SPI_VALID_SYNC_RATE|
+				   CTS_SPI_VALID_SYNC_OFFSET|
+				   CTS_SPI_VALID_BUS_WIDTH)) != 0)
+			xpt_toggle_tags(cts->ccb_h.path);
+	}
+
+	if (cts->type == CTS_TYPE_CURRENT_SETTINGS
+	 && (scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
+		int device_tagenb;
+
+		/*
+		 * If we are transitioning from tags to no-tags or
+		 * vice-versa, we need to carefully freeze and restart
+		 * the queue so that we don't overlap tagged and non-tagged
+		 * commands.  We also temporarily stop tags if there is
+		 * a change in transfer negotiation settings to allow
+		 * "tag-less" negotiation.
+		 */
+		if ((device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
+		 || (device->inq_flags & SID_CmdQue) != 0)
+			device_tagenb = TRUE;
+		else
+			device_tagenb = FALSE;
+
+		if (((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0
+		  && device_tagenb == FALSE)
+		 || ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) == 0
+		  && device_tagenb == TRUE)) {
+
+			if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0) {
+				/*
+				 * Delay change to use tags until after a
+				 * few commands have gone to this device so
+				 * the controller has time to perform transfer
+				 * negotiations without tagged messages getting
+				 * in the way.
+				 */
+				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
+				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
+			} else {
+				struct ccb_relsim crs;
+
+				xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
+		  		device->inq_flags &= ~SID_CmdQue;
+				xpt_dev_ccbq_resize(cts->ccb_h.path,
+						    sim->max_dev_openings);
+				device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
+				device->tag_delay_count = 0;
+
+				xpt_setup_ccb(&crs.ccb_h, cts->ccb_h.path,
+					      /*priority*/1);
+				crs.ccb_h.func_code = XPT_REL_SIMQ;
+				crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
+				crs.openings
+				    = crs.release_timeout 
+				    = crs.qfrozen_cnt
+				    = 0;
+				xpt_action((union ccb *)&crs);
+			}
+		}
+	}
+	if (async_update == FALSE) 
+		(*(sim->sim_action))(sim, (union ccb *)cts);
+}
+
+#else /* CAM_NEW_TRAN_CODE */
+
 static void
 xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			  int async_update)
@@ -5972,6 +6527,9 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	}
 }
 
+
+#endif /* CAM_NEW_TRAN_CODE */
+
 static void
 xpt_toggle_tags(struct cam_path *path)
 {
@@ -5991,11 +6549,24 @@ xpt_toggle_tags(struct cam_path *path)
 		struct ccb_trans_settings cts;
 
 		xpt_setup_ccb(&cts.ccb_h, path, 1);
+#ifdef CAM_NEW_TRAN_CODE
+		cts.protocol = PROTO_SCSI;
+		cts.protocol_version = PROTO_VERSION_UNSPECIFIED;
+		cts.transport = XPORT_UNSPECIFIED;
+		cts.transport_version = XPORT_VERSION_UNSPECIFIED;
+		cts.proto_specific.scsi.flags = 0;
+		cts.proto_specific.scsi.valid = CTS_SCSI_VALID_TQ;
+#else /* CAM_NEW_TRAN_CODE */
 		cts.flags = 0;
 		cts.valid = CCB_TRANS_TQ_VALID;
+#endif /* CAM_NEW_TRAN_CODE */
 		xpt_set_transfer_settings(&cts, path->device,
 					  /*async_update*/TRUE);
+#ifdef CAM_NEW_TRAN_CODE
+		cts.proto_specific.scsi.flags = CTS_SCSI_FLAGS_TAG_ENB;
+#else /* CAM_NEW_TRAN_CODE */
 		cts.flags = CCB_TRANS_TAG_ENB;
+#endif /* CAM_NEW_TRAN_CODE */
 		xpt_set_transfer_settings(&cts, path->device,
 					  /*async_update*/TRUE);
 	}
@@ -6111,7 +6682,9 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 static void
 xpt_config(void *arg)
 {
-	/* Now that interrupts are enabled, go find our devices */
+	/*
+	 * Now that interrupts are enabled, go find our devices
+	 */
 
 #ifdef CAMDEBUG
 	/* Setup debugging flags and path */
@@ -6252,6 +6825,12 @@ xptaction(struct cam_sim *sim, union ccb *work_ccb)
 		cpi->unit_number = sim->unit_number;
 		cpi->bus_id = sim->bus_id;
 		cpi->base_transfer_speed = 0;
+#ifdef CAM_NEW_TRAN_CODE
+		cpi->protocol = PROTO_UNSPECIFIED;
+		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
+		cpi->transport = XPORT_UNSPECIFIED;
+		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
+#endif /* CAM_NEW_TRAN_CODE */
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(work_ccb);
 		break;
@@ -6330,7 +6909,8 @@ camisr(void *V_queue)
 			ccb_h->path->bus->sim->devq->send_openings++;
 			splx(s);
 			
-			if ((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
+			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
+			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)
 			 || ((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
 			  && (dev->ccbq.dev_active == 0))) {
 				

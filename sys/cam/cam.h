@@ -85,10 +85,11 @@ typedef struct {
  */
 #define GENERATIONCMP(x, op, y) ((int32_t)((x) - (y)) op 0)
 
-/* CAM flags */
+/* CAM flags XXX Move to cam_periph.h ??? */
 typedef enum {
 	CAM_FLAG_NONE		= 0x00,
-	CAM_EXPECT_INQ_CHANGE	= 0x01
+	CAM_EXPECT_INQ_CHANGE	= 0x01,
+	CAM_RETRY_SELTO		= 0x02 /* Retry Selection Timeouts */
 } cam_flags;
 
 /* CAM  Status field values */
@@ -139,7 +140,7 @@ typedef enum {
 	CAM_NO_NEXUS,		/* Nexus is not established */
 	CAM_IID_INVALID,	/* The initiator ID is invalid */
 	CAM_CDB_RECVD,		/* The SCSI CDB has been received */
-	CAM_LUN_ALRDY_ENA,	/* The LUN is already eanbeld for target mode */
+	CAM_LUN_ALRDY_ENA,	/* The LUN is already enabled for target mode */
 	CAM_SCSI_BUSY,		/* SCSI Bus Busy */
 
 	CAM_DEV_QFRZN = 0x40,	/* The DEV queue is frozen w/this err */
@@ -155,6 +156,39 @@ typedef enum {
 	CAM_SENT_SENSE = 0x40000000	/* sent sense with status */
 } cam_status;
 
+typedef enum {
+	CAM_ESF_NONE		= 0x00,
+	CAM_ESF_COMMAND		= 0x01,
+	CAM_ESF_CAM_STATUS	= 0x02,
+	CAM_ESF_PROTO_STATUS	= 0x04,
+	CAM_ESF_ALL		= 0xff
+} cam_error_string_flags;
+
+typedef enum {
+	CAM_EPF_NONE		= 0x00,
+	CAM_EPF_MINIMAL		= 0x01,
+	CAM_EPF_NORMAL		= 0x02,
+	CAM_EPF_ALL		= 0x03,
+	CAM_EPF_LEVEL_MASK	= 0x0f
+	/* All bits above bit 3 are protocol-specific */
+} cam_error_proto_flags;
+
+typedef enum {
+	CAM_ESF_PRINT_NONE	= 0x00,
+	CAM_ESF_PRINT_STATUS	= 0x10,
+	CAM_ESF_PRINT_SENSE	= 0x20
+} cam_error_scsi_flags;
+
+struct cam_status_entry
+{
+	cam_status  status_code;
+	const char *status_text;
+};
+
+extern const struct cam_status_entry cam_status_table[];
+extern const int num_cam_status_entries;
+union ccb;
+
 __BEGIN_DECLS
 typedef int (cam_quirkmatch_t)(caddr_t, caddr_t);
 
@@ -164,6 +198,24 @@ caddr_t	cam_quirkmatch(caddr_t target, caddr_t quirk_table, int num_entries,
 void	cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen);
 
 int	cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len);
+const struct cam_status_entry*
+	cam_fetch_status_entry(cam_status status);
+#ifdef _KERNEL
+char *	cam_error_string(union ccb *ccb, char *str, int str_len,
+			 cam_error_string_flags flags,
+			 cam_error_proto_flags proto_flags);
+void	cam_error_print(union ccb *ccb, cam_error_string_flags flags,
+			cam_error_proto_flags proto_flags);
+#else /* _KERNEL */
+struct cam_device;
+
+char *	cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
+			 int str_len, cam_error_string_flags flags,
+			 cam_error_proto_flags proto_flags);
+void	cam_error_print(struct cam_device *device, union ccb *ccb,
+			cam_error_string_flags flags,
+			cam_error_proto_flags proto_flags, FILE *ofile);
+#endif /* _KERNEL */
 __END_DECLS
 
 #ifdef _KERNEL

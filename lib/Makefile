@@ -16,11 +16,12 @@
 # libskey must be built before libpam.
 # libtacplus must be built before libpam.
 # libutil must be built before libpam.
+# libsbuf must be built before libcam.
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
-	libncurses libradius libskey libtacplus libutil \
+	libncurses libradius libskey libtacplus libutil libsbuf \
 	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
 	libftpio libgnumalloc ${_libio} libipsec libipx libisc libkvm libmenu \

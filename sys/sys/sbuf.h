@@ -46,14 +46,15 @@ struct sbuf {
 	int		 s_flags;	/* flags */
 };
 
+__BEGIN_DECLS
 /*
  * API functions
  */
 int	 sbuf_new(struct sbuf *s, char *buf, int length, int flags);
 void	 sbuf_clear(struct sbuf *s);
 int	 sbuf_setpos(struct sbuf *s, int pos);
-int	 sbuf_cat(struct sbuf *s, char *str);
-int	 sbuf_cpy(struct sbuf *s, char *str);
+int	 sbuf_cat(struct sbuf *s, const char *str);
+int	 sbuf_cpy(struct sbuf *s, const char *str);
 int	 sbuf_printf(struct sbuf *s, char *fmt, ...);
 int	 sbuf_putc(struct sbuf *s, int c);
 int	 sbuf_overflowed(struct sbuf *s);
@@ -61,5 +62,6 @@ void	 sbuf_finish(struct sbuf *s);
 char    *sbuf_data(struct sbuf *s);
 int	 sbuf_len(struct sbuf *s);
 void	 sbuf_delete(struct sbuf *s);
+__END_DECLS
 
 #endif

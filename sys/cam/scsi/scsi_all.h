@@ -92,16 +92,8 @@ typedef enum {
 	SS_TUR      = 0x040000,	/* Send a Test Unit Ready command to the
 				 * device, then retry the original command.
 				 */
-	SS_MANUAL   = 0x050000,	/* 
-				 * This error must be handled manually,
-				 * i.e. the code must look at the asc and 
-				 * ascq values and determine the proper
-				 * course of action.
-				 */
-	SS_TURSTART = 0x060000, /*
-				 * Send a Test Unit Ready command to the
-				 * device, and if that fails, send a start 
-				 * unit.
+	SS_REQSENSE = 0x050000,	/* Send a RequestSense command to the
+				 * device, then retry the original command.
 				 */
 	SS_MASK     = 0xff0000
 } scsi_sense_action;
@@ -111,16 +103,10 @@ typedef enum {
 	SSQ_DECREMENT_COUNT	= 0x0100,  /* Decrement the retry count */
 	SSQ_MANY		= 0x0200,  /* send lots of recovery commands */
 	SSQ_RANGE		= 0x0400,  /*
-					    * Yes, this is a hack.  Basically,
-					    * if this flag is set then it
-					    * represents an ascq range.  The
-					    * "correct" way to implement the
-					    * ranges might be to add a special
-					    * field to the sense code table,
-					    * but that would take up a lot of
-					    * additional space.  This solution
-					    * isn't as elegant, but is more 
-					    * space efficient.
+					    * This table entry represents the
+					    * end of a range of ASCQs that
+					    * have identical error actions
+					    * and text.
 					    */
 	SSQ_PRINT_SENSE		= 0x0800,
 	SSQ_MASK		= 0xff00
@@ -129,14 +115,14 @@ typedef enum {
 /* Mask for error status values */
 #define SS_ERRMASK	0xff
 
-/* The default error action */
-#define SS_DEF		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE|EIO
+/* The default, retyable, error action */
+#define SS_RDEF		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE|EIO
 
-/* Default error action, without an error return value */
-#define SS_NEDEF	SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
+/* The retyable, error action, with table specified error code */
+#define SS_RET		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
 
-/* Default error action, without sense printing or an error return value */
-#define SS_NEPDEF	SS_RETRY|SSQ_DECREMENT_COUNT
+/* Fatal error action, with table specified error code */
+#define SS_FATAL	SS_FAIL|SSQ_PRINT_SENSE
 
 struct scsi_generic
 {
@@ -493,7 +479,8 @@ struct scsi_inquiry_data
 	u_int8_t device;
 #define	SID_TYPE(inq_data) ((inq_data)->device & 0x1f)
 #define	SID_QUAL(inq_data) (((inq_data)->device & 0xE0) >> 5)
-#define	SID_QUAL_LU_CONNECTED	0x00	/* The specified peripheral device
+#define	SID_QUAL_LU_CONNECTED	0x00	/*
+					 * The specified peripheral device
 					 * type is currently connected to
 					 * logical unit.  If the target cannot
 					 * determine whether or not a physical
@@ -504,14 +491,16 @@ struct scsi_inquiry_data
 					 * does not mean that the device is
 					 * ready for access by the initiator.
 					 */
-#define	SID_QUAL_LU_OFFLINE	0x01	/* The target is capable of supporting
+#define	SID_QUAL_LU_OFFLINE	0x01	/*
+					 * The target is capable of supporting
 					 * the specified peripheral device type
 					 * on this logical unit; however, the
 					 * physical device is not currently
 					 * connected to this logical unit.
 					 */
 #define SID_QUAL_RSVD		0x02
-#define	SID_QUAL_BAD_LU		0x03	/* The target is not capable of
+#define	SID_QUAL_BAD_LU		0x03	/*
+					 * The target is not capable of
 					 * supporting a physical device on
 					 * this logical unit. For this
 					 * peripheral qualifier the peripheral
@@ -531,7 +520,7 @@ struct scsi_inquiry_data
 #define		SCSI_REV_0		0
 #define		SCSI_REV_CCS		1
 #define		SCSI_REV_2		2
-#define		SCSI_REV_3		3
+#define		SCSI_REV_SPC		3
 #define		SCSI_REV_SPC2		4
 
 #define SID_ECMA	0x38
@@ -569,6 +558,7 @@ struct scsi_inquiry_data
 #define	SID_SPI_CLOCK_ST	0x00
 #define	SID_SPI_CLOCK_DT	0x04
 #define	SID_SPI_CLOCK_DT_ST	0x0C
+#define	SID_SPI_MASK		0x0F
 	u_int8_t spi3data;
 	u_int8_t reserved2;
 	/*
@@ -703,8 +693,10 @@ struct scsi_mode_blk_desc
 #define SCSI_STATUS_INTERMED		0x10
 #define SCSI_STATUS_INTERMED_COND_MET	0x14
 #define SCSI_STATUS_RESERV_CONFLICT	0x18
-#define SCSI_STATUS_CMD_TERMINATED	0x22
+#define SCSI_STATUS_CMD_TERMINATED	0x22	/* Obsolete in SAM-2 */
 #define SCSI_STATUS_QUEUE_FULL		0x28
+#define SCSI_STATUS_ACA_ACTIVE		0x30
+#define SCSI_STATUS_TASK_ABORTED	0x40
 
 struct scsi_inquiry_pattern {
 	u_int8_t   type;
@@ -726,17 +718,23 @@ struct scsi_static_inquiry_pattern {
 
 struct scsi_sense_quirk_entry {
 	struct scsi_inquiry_pattern	inq_pat;
+	int				num_sense_keys;
 	int				num_ascs;
+	struct sense_key_table_entry	*sense_key_info;
 	struct asc_table_entry		*asc_info;
+};
+
+struct sense_key_table_entry {
+	u_int8_t    sense_key;
+	u_int32_t   action;
+	const char *desc;
 };
 
 struct asc_table_entry {
 	u_int8_t    asc;
 	u_int8_t    ascq;
 	u_int32_t   action;
-#if !defined(SCSI_NO_SENSE_STRINGS)
 	const char *desc;
-#endif
 };
 
 struct op_table_entry {
@@ -751,6 +749,10 @@ struct scsi_op_quirk_entry {
 	struct op_table_entry		*op_table;
 };
 
+typedef enum {
+	SSS_FLAG_NONE		= 0x00,
+	SSS_FLAG_PRINT_COMMAND	= 0x01
+} scsi_sense_string_flags;
 
 struct ccb_scsiio;
 struct cam_periph;
@@ -761,12 +763,22 @@ struct cam_device;
 
 extern const char *scsi_sense_key_text[];
 
+struct sbuf;
+
 __BEGIN_DECLS
-const char * 	scsi_sense_desc(int asc, int ascq,
-				struct scsi_inquiry_data *inq_data);
-scsi_sense_action scsi_error_action(int asc, int ascq, 
-				    struct scsi_inquiry_data *inq_data);
+void scsi_sense_desc(int sense_key, int asc, int ascq,
+		     struct scsi_inquiry_data *inq_data,
+		     const char **sense_key_desc, const char **asc_desc);
+scsi_sense_action scsi_error_action(struct ccb_scsiio* csio,
+				    struct scsi_inquiry_data *inq_data,
+				    u_int32_t sense_flags);
+const char *	scsi_status_string(struct ccb_scsiio *csio);
 #ifdef _KERNEL
+int		scsi_command_string(struct ccb_scsiio *csio, struct sbuf *sb);
+int		scsi_sense_sbuf(struct ccb_scsiio *csio, struct sbuf *sb,
+				scsi_sense_string_flags flags);
+char *		scsi_sense_string(struct ccb_scsiio *csio,
+				  char *str, int str_len);
 void		scsi_sense_print(struct ccb_scsiio *csio);
 int		scsi_interpret_sense(union ccb *ccb, 
 				     u_int32_t sense_flags,
@@ -774,7 +786,12 @@ int		scsi_interpret_sense(union ccb *ccb,
 				     u_int32_t *reduction,
 				     u_int32_t *timeout,
 				     scsi_sense_action error_action);
-#else
+#else /* _KERNEL */
+int		scsi_command_string(struct cam_device *device,
+				    struct ccb_scsiio *csio, struct sbuf *sb);
+int		scsi_sense_sbuf(struct cam_device *device, 
+				struct ccb_scsiio *csio, struct sbuf *sb,
+				scsi_sense_string_flags flags);
 char *		scsi_sense_string(struct cam_device *device, 
 				  struct ccb_scsiio *csio,
 				  char *str, int str_len);
@@ -793,7 +810,6 @@ int		scsi_interpret_sense(struct cam_device *device,
 #define SF_NO_PRINT	0x02
 #define SF_QUIET_IR	0x04	/* Be quiet about Illegal Request reponses */
 #define SF_PRINT_ALWAYS	0x08
-#define SF_RETRY_SELTO	0x10	/* Retry selection timeouts */
 
 
 const char *	scsi_op_desc(u_int16_t opcode, 

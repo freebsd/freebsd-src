@@ -1906,8 +1906,8 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 			QFRLS(ccb);
 			scsi_rewind(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
 			    FALSE, SSD_FULL_SIZE, REWIND_TIMEOUT);
-			error = cam_periph_runccb(ccb, saerror, 0,
-			    SF_NO_PRINT | SF_RETRY_SELTO | SF_RETRY_UA,
+			error = cam_periph_runccb(ccb, saerror, CAM_RETRY_SELTO,
+			    SF_NO_PRINT | SF_RETRY_UA,
 			    &softc->device_stats);
 			QFRLS(ccb);
 			if (error) {
@@ -1924,9 +1924,9 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		scsi_read_block_limits(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
 		    rblim, SSD_FULL_SIZE, 5000);
 
-		error = cam_periph_runccb(ccb, saerror, 0,
-		    SF_NO_PRINT | SF_RETRY_UA | SF_RETRY_SELTO,
-		    &softc->device_stats);
+		error = cam_periph_runccb(ccb, saerror, CAM_RETRY_SELTO,
+		    SF_NO_PRINT | SF_RETRY_UA, &softc->device_stats);
+
 		QFRLS(ccb);
 		xpt_release_ccb(ccb);
 
@@ -1940,7 +1940,7 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 			softc->max_blk = ~0;
 			softc->min_blk = 0;
 		} else {
-			if (softc->scsi_rev >= SCSI_REV_3) {
+			if (softc->scsi_rev >= SCSI_REV_SPC) {
 				softc->blk_gran = RBL_GRAN(rblim);
 			} else {
 				softc->blk_gran = 0;

@@ -594,9 +594,8 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 			else
 				sf = 0;
 
-			sf |= SF_RETRY_SELTO;
-
-			if ((error = pterror(done_ccb, 0, sf)) == ERESTART) {
+			error = pterror(done_ccb, CAM_RETRY_SELTO, sf);
+			if (error == ERESTART) {
 				/*
 				 * A retry was scheuled, so
 				 * just return.

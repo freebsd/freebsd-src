@@ -37,6 +37,9 @@
 #ifndef _AIC7XXX_FREEBSD_H_
 #define _AIC7XXX_FREEBSD_H_
 
+#ifdef CAM_NEW_TRAN_CODE
+#define AHC_NEW_TRAN_SETTINGS
+#endif /* CAM_NEW_TRAN_CODE */
 #include <opt_aic7xxx.h>	/* for config options */
 #include <pci.h>		/* for NPCI */
 
