@@ -277,7 +277,7 @@ dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
         f->offset += n;
         f->c = c;
         off = 0;
-        buf += n;
+        buf = (char *)buf + n;
         cnt -= n;
     }
  out:

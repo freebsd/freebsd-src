@@ -42,7 +42,7 @@ setheap(void *base, void *top)
 {
     /* Align start address to 16 bytes for the malloc code. Sigh. */
     heapbase = (void *)(((uintptr_t)base + 15) & ~15);
-    maxheap = top - heapbase;
+    maxheap = (char *)top - (char *)heapbase;
 }
 
 char *
@@ -51,7 +51,7 @@ sbrk(int incr)
     char	*ret;
     
     if ((heapsize + incr) <= maxheap) {
-	ret = heapbase + heapsize;
+	ret = (char *)heapbase + heapsize;
 	bzero(ret, incr);
 	heapsize += incr;
 	return(ret);

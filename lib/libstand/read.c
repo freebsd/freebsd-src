@@ -108,7 +108,7 @@ read(int fd, void *dest, size_t bcount)
 	    resid -= ccount;
 	    if (resid == 0)
 		return(bcount);
-	    dest += ccount;
+	    dest = (char *)dest + ccount;
 	}
 
 	/* will filling the readahead buffer again not help? */
