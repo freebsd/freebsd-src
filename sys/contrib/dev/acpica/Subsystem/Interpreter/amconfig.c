@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 25 $
+ *              $Revision: 26 $
  *
  *****************************************************************************/
 
@@ -392,7 +392,7 @@ AcpiAmlExecReconfiguration (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT (ACPI_ERROR,
-                ("ExecReconfiguration/AML_LOAD_OP: bad operand(s) (0x%X)\n",
+                ("ExecReconfiguration/AML_LOAD_OP: bad operand(s) (%X)\n",
                 Status));
 
             AcpiCmRemoveReference (RegionDesc);
@@ -408,7 +408,7 @@ AcpiAmlExecReconfiguration (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT (ACPI_ERROR,
-                ("ExecReconfiguration/AML_UNLOAD_OP: bad operand(s) (0x%X)\n",
+                ("ExecReconfiguration/AML_UNLOAD_OP: bad operand(s) (%X)\n",
                 Status));
 
             return_ACPI_STATUS (Status);

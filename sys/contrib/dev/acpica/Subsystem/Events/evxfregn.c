@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 22 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -270,7 +270,7 @@ AcpiInstallAddressSpaceHandler (
     else
     {
         DEBUG_PRINT (TRACE_OPREGION,
-            ("Creating object on Device 0x%X while installing handler\n",
+            ("Creating object on Device %p while installing handler\n",
             Node));
 
         /* ObjDesc does not exist, create one */
@@ -307,8 +307,8 @@ AcpiInstallAddressSpaceHandler (
     }
 
     DEBUG_PRINT (TRACE_OPREGION,
-        ("Installing address handler for %s on Device 0x%p (0x%p)\n",
-        AcpiGbl_RegionTypes[SpaceId], Node, ObjDesc));
+        ("Installing address handler for region %s(%X) on Device %p(%p)\n",
+        AcpiCmGetRegionName (SpaceId), SpaceId, Node, ObjDesc));
 
     /*
      *  Now we can install the handler
@@ -447,8 +447,8 @@ AcpiRemoveAddressSpaceHandler (
              *  Got it, first dereference this in the Regions
              */
             DEBUG_PRINT (TRACE_OPREGION,
-                ("Removing address handler 0x%p (0x%p) for %s on Device 0x%p (0x%p)\n",
-                HandlerObj, Handler, AcpiGbl_RegionTypes[SpaceId],
+                ("Removing address handler %p(%p) for region %s on Device %p(%p)\n",
+                HandlerObj, Handler, AcpiCmGetRegionName (SpaceId),
                 Node, ObjDesc));
 
             RegionObj = HandlerObj->AddrHandler.RegionList;
@@ -501,8 +501,8 @@ AcpiRemoveAddressSpaceHandler (
      *  The handler does not exist
      */
     DEBUG_PRINT (TRACE_OPREGION,
-        ("Unable to remove address handler 0x%p for %s, DeviceNode 0x%p, obj 0x%p\n",
-        Handler, AcpiGbl_RegionTypes[SpaceId], Node, ObjDesc));
+        ("Unable to remove address handler %p for %s(%X), DevNode %p, obj %p\n",
+        Handler, AcpiCmGetRegionName (SpaceId), SpaceId, Node, ObjDesc));
 
     Status = AE_NOT_EXIST;
 

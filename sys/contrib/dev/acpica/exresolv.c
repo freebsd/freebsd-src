@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amresolv - AML Interpreter object resolution
- *              $Revision: 77 $
+ *              $Revision: 78 $
  *
  *****************************************************************************/
 
@@ -424,7 +424,7 @@ AcpiAmlResolveObjectToValue (
                 /* Value is a Number */
 
                 DEBUG_PRINT (ACPI_INFO,
-                    ("AmlResolveObjectToValue: [Local%d] value is [0x%X] \n",
+                    ("AmlResolveObjectToValue: [Local%d] value=%X \n",
                     Index, ObjDesc->Number.Value));
             }
 
@@ -465,7 +465,7 @@ AcpiAmlResolveObjectToValue (
                 /* Value is a Number */
 
                 DEBUG_PRINT (ACPI_INFO,
-                    ("AmlResolveObjectToValue: [Arg%d] value is [0x%X] \n",
+                    ("AmlResolveObjectToValue: [Arg%d] value=%X\n",
                     Index, ObjDesc->Number.Value));
             }
 
@@ -543,7 +543,7 @@ AcpiAmlResolveObjectToValue (
                 /* Invalid reference OBJ*/
 
                 DEBUG_PRINT (ACPI_ERROR,
-                    ("AmlResolveObjectToValue: Unknown TargetType %d in Index/Reference obj %p\n",
+                    ("AmlResolveObjectToValue: Unknown TargetType %X in Index/Reference obj %p\n",
                     StackDesc->Reference.TargetType, StackDesc));
                 Status = AE_AML_INTERNAL;
                 break;
@@ -561,7 +561,7 @@ AcpiAmlResolveObjectToValue (
         default:
 
             DEBUG_PRINT (ACPI_ERROR,
-                ("AmlResolveObjectToValue: Unknown Reference object subtype %02x in %p\n",
+                ("AmlResolveObjectToValue: Unknown Reference object subtype %02X in %p\n",
                 Opcode, StackDesc));
             Status = AE_AML_INTERNAL;
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  ******************************************************************************/
 
@@ -418,7 +418,7 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("ACPI Table Information:\n\n");
         if (AcpiGbl_DSDT)
         {
-            AcpiOsPrintf ("DSDT Length:................% 7ld (0x%X)\n", AcpiGbl_DSDT->Length, AcpiGbl_DSDT->Length);
+            AcpiOsPrintf ("DSDT Length:................% 7ld (%X)\n", AcpiGbl_DSDT->Length, AcpiGbl_DSDT->Length);
         }
         break;
 

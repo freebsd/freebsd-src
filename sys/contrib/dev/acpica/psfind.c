@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 18 $
+ *              $Revision: 19 $
  *
  *****************************************************************************/
 
@@ -374,7 +374,8 @@ AcpiPsFind (
         break;
     }
 
-    DEBUG_PRINT (TRACE_PARSE, ("PsFind: Search scope %p Segs=%d Opcode=%4.4X Create=%d\n", Scope, SegCount, Opcode, Create));
+    DEBUG_PRINT (TRACE_PARSE, ("PsFind: Search scope %p Segs=%d Opcode=%4.4X Create=%d\n",
+                    Scope, SegCount, Opcode, Create));
 
     /* match each name segment */
 

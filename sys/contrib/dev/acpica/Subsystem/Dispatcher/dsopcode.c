@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 25 $
+ *              $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -290,8 +290,8 @@ AcpiDsGetRegionArguments (
     Node = ObjDesc->Region.Node;
 
     DEBUG_PRINT (TRACE_EXEC,
-        ("DsGetRegionArguments: [%4.4s] OpRegion JIT Init\n",
-        &Node->Name));
+        ("DsGetRegionArguments: [%4.4s] OpRegion Init at AML %p[%x]\n",
+        &Node->Name, ExtraDesc->Extra.Pcode, *(UINT32*) ExtraDesc->Extra.Pcode));
 
     /*
      * Allocate a new parser op to be the root of the parsed
@@ -478,7 +478,7 @@ AcpiDsEvalFieldUnitOperands (
         /* Invalid parameters on object stack  */
 
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecCreateField/%s: bad operand(s) (0x%X)\n",
+            ("ExecCreateField/%s: bad operand(s) (%X)\n",
             AcpiPsGetOpcodeName (Op->Opcode), Status));
 
         goto Cleanup;
@@ -625,7 +625,7 @@ AcpiDsEvalFieldUnitOperands (
             !AcpiCmValidObjectType (SrcDesc->Common.Type))
         {
             DEBUG_PRINT (ACPI_ERROR,
-                ("AmlExecCreateField: Tried to create field in invalid object type - 0x%X\n",
+                ("AmlExecCreateField: Tried to create field in invalid object type %X\n",
                 SrcDesc->Common.Type));
         }
 
@@ -988,7 +988,8 @@ AcpiDsExecEndControlOp (
             WalkState->ReturnDesc = WalkState->Operands[0];
         }
 
-        else if (WalkState->NumResults > 0)
+        else if ((WalkState->Results) &&
+                 (WalkState->Results->Results.NumResults > 0))
         {
             /*
              * The return value has come from a previous calculation.
@@ -998,13 +999,13 @@ AcpiDsExecEndControlOp (
              * cease to exist at the end of the method.
              */
 
-            Status = AcpiAmlResolveToValue (&WalkState->Results [0], WalkState);
+            Status = AcpiAmlResolveToValue (&WalkState->Results->Results.ObjDesc [0], WalkState);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
             }
 
-            WalkState->ReturnDesc = WalkState->Results [0];
+            WalkState->ReturnDesc = WalkState->Results->Results.ObjDesc [0];
         }
 
         else

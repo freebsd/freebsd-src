@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 152 $
+ *       $Revision: 155 $
  *
  *****************************************************************************/
 
@@ -150,8 +150,7 @@ typedef unsigned char                   UCHAR;
 typedef unsigned short                  UINT16;
 typedef int                             INT32;
 typedef unsigned int                    UINT32;
-typedef long                            INT64;
-typedef unsigned long                   UINT64;
+typedef COMPILER_DEPENDENT_UINT64       UINT64;
 
 typedef UINT64                          NATIVE_UINT;
 typedef INT64                           NATIVE_INT;
@@ -416,13 +415,11 @@ typedef UINT8                           OBJECT_TYPE_INTERNAL;
 #define INTERNAL_TYPE_WHILE             30 /* 0x1E  OpCode, multiple Code */
 #define INTERNAL_TYPE_SCOPE             31 /* 0x1F  Name, multiple Node */
 #define INTERNAL_TYPE_DEF_ANY           32 /* 0x20  type is Any, suppress search of enclosing scopes */
-#define INTERNAL_TYPE_METHOD_ARGUMENT   33 /* 0x21  */
-#define INTERNAL_TYPE_METHOD_LOCAL_VAR  34 /* 0x22  */
-#define INTERNAL_TYPE_EXTRA             35 /* 0x23  */
+#define INTERNAL_TYPE_EXTRA             33 /* 0x21  */
 
-#define INTERNAL_TYPE_MAX               35
+#define INTERNAL_TYPE_MAX               33
 
-#define INTERNAL_TYPE_INVALID           36
+#define INTERNAL_TYPE_INVALID           34
 #define ACPI_TYPE_NOT_FOUND             0xFF
 
 /*
@@ -493,13 +490,15 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 
 /* Address Space (Operation Region) Types */
 
-typedef UINT32                          ACPI_ADDRESS_SPACE_TYPE;
+typedef UINT8                           ACPI_ADDRESS_SPACE_TYPE;
 
 #define ADDRESS_SPACE_SYSTEM_MEMORY     (ACPI_ADDRESS_SPACE_TYPE) 0
 #define ADDRESS_SPACE_SYSTEM_IO         (ACPI_ADDRESS_SPACE_TYPE) 1
 #define ADDRESS_SPACE_PCI_CONFIG        (ACPI_ADDRESS_SPACE_TYPE) 2
 #define ADDRESS_SPACE_EC                (ACPI_ADDRESS_SPACE_TYPE) 3
 #define ADDRESS_SPACE_SMBUS             (ACPI_ADDRESS_SPACE_TYPE) 4
+#define ADDRESS_SPACE_CMOS              (ACPI_ADDRESS_SPACE_TYPE) 5
+#define ADDRESS_SPACE_PCI_BAR_TARGET    (ACPI_ADDRESS_SPACE_TYPE) 6
 
 
 /*

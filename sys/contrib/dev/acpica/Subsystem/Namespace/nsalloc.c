@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 42 $
+ *              $Revision: 43 $
  *
  ******************************************************************************/
 
@@ -427,7 +427,7 @@ AcpiNsDeleteChildren (
         DECREMENT_NAME_TABLE_METRICS (sizeof (ACPI_NAMESPACE_NODE));
 
         DEBUG_PRINT (ACPI_INFO,
-            ("AcpiNsDeleteChildren: Object %p, Remaining %d\n",
+            ("AcpiNsDeleteChildren: Object %p, Remaining %X\n",
             ChildNode, AcpiGbl_CurrentNodeCount));
 
         /*

@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 72 $
+ *              $Revision: 73 $
  *
  *****************************************************************************/
 
@@ -164,6 +164,8 @@ AcpiGetHandle (
         return (AE_BAD_PARAMETER);
     }
 
+    /* Convert a parent handle to a prefix node */
+
     if (Parent)
     {
         AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
@@ -179,7 +181,6 @@ AcpiGetHandle (
     }
 
     /* Special case for root, since we can't search for it */
-    /* TBD: [Investigate] Check for both forward and backslash?? */
 
     if (STRCMP (Pathname, NS_ROOT_PATH) == 0)
     {
@@ -188,12 +189,12 @@ AcpiGetHandle (
     }
 
     /*
-     *  Find the Node and convert to the user format
+     *  Find the Node and convert to a handle
      */
-    Status = AcpiNsGetNode (Pathname, Node, &Node);
+    Status = AcpiNsGetNode (Pathname, PrefixNode, &Node);
 
     *RetHandle = NULL;
-    if(ACPI_SUCCESS(Status))
+    if (ACPI_SUCCESS (Status))
     {
         *RetHandle = AcpiNsConvertEntryToHandle (Node);
     }

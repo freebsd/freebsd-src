@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 18 $
+ *              $Revision: 19 $
  *
  ******************************************************************************/
 
@@ -428,7 +428,7 @@ AcpiDbCreateExecutionThreads (
 
     if (!NumThreads || !NumLoops)
     {
-        AcpiOsPrintf ("Bad argument: Threads %d, Loops %d\n", NumThreads, NumLoops);
+        AcpiOsPrintf ("Bad argument: Threads %X, Loops %X\n", NumThreads, NumLoops);
         return;
     }
 
@@ -455,7 +455,7 @@ AcpiDbCreateExecutionThreads (
 
     /* Create the threads */
 
-    AcpiOsPrintf ("Creating %d threads to execute %d times each\n", NumThreads, NumLoops);
+    AcpiOsPrintf ("Creating %X threads to execute %X times each\n", NumThreads, NumLoops);
 
     for (i = 0; i < (NumThreads); i++)
     {
@@ -477,7 +477,7 @@ AcpiDbCreateExecutionThreads (
     AcpiOsDeleteSemaphore (ThreadGate);
 
     AcpiDbSetOutputDestination (DB_DUPLICATE_OUTPUT);
-    AcpiOsPrintf ("All threads (%d) have completed\n", NumThreads);
+    AcpiOsPrintf ("All threads (%X) have completed\n", NumThreads);
     AcpiDbSetOutputDestination (DB_CONSOLE_OUTPUT);
 }
 

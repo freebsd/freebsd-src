@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amutils - interpreter/scanner utilities
- *              $Revision: 63 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -591,7 +591,7 @@ AcpiAmlBuildCopyInternalPackageObject (
                  * Too many nested levels of packages for us to handle
                  */
                 DEBUG_PRINT (ACPI_ERROR,
-                    ("AmlBuildCopyInternalPackageObject: Pkg nested too deep (max %d)\n",
+                    ("AmlBuildCopyInternalPackageObject: Pkg nested too deep (max %X)\n",
                     MAX_PACKAGE_DEPTH));
                 return_ACPI_STATUS (AE_LIMIT);
             }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 41 $
+ *              $Revision: 42 $
  *
  ******************************************************************************/
 
@@ -263,7 +263,7 @@ AcpiDbDisplayTableInfo (
     {
         if (AcpiGbl_AcpiTables[i].Pointer)
         {
-            AcpiOsPrintf ("%s at 0x%p length 0x%X\n", AcpiGbl_AcpiTableData[i].Name,
+            AcpiOsPrintf ("%s at %p length %X\n", AcpiGbl_AcpiTableData[i].Name,
                         AcpiGbl_AcpiTables[i].Pointer, AcpiGbl_AcpiTables[i].Length);
         }
     }
@@ -355,13 +355,13 @@ AcpiDbSetMethodBreakpoint (
     Address = STRTOUL (Location, NULL, 16);
     if (Address <= Op->AmlOffset)
     {
-        AcpiOsPrintf ("Breakpoint 0x%X is beyond current address 0x%X\n", Address, Op->AmlOffset);
+        AcpiOsPrintf ("Breakpoint %X is beyond current address %X\n", Address, Op->AmlOffset);
     }
 
     /* Save breakpoint in current walk */
 
     WalkState->MethodBreakpoint = Address;
-    AcpiOsPrintf ("Breakpoint set at AML offset 0x%X\n", Address);
+    AcpiOsPrintf ("Breakpoint set at AML offset %X\n", Address);
 }
 
 
@@ -546,7 +546,7 @@ AcpiDbDumpNamespaceByOwner (
 
 
     AcpiDbSetOutputDestination (DB_DUPLICATE_OUTPUT);
-    AcpiOsPrintf ("ACPI Namespace by owner 0x%X:\n", OwnerId);
+    AcpiOsPrintf ("ACPI Namespace by owner %X:\n", OwnerId);
 
     /* Display the subtree */
 
@@ -761,11 +761,11 @@ AcpiDbWalkForSpecificObjects (
         switch (ObjDesc->Common.Type)
         {
         case ACPI_TYPE_METHOD:
-            AcpiOsPrintf ("  #Args %d  Concurrency %d", ObjDesc->Method.ParamCount, ObjDesc->Method.Concurrency);
+            AcpiOsPrintf ("  #Args %d  Concurrency %X", ObjDesc->Method.ParamCount, ObjDesc->Method.Concurrency);
             break;
 
         case ACPI_TYPE_NUMBER:
-            AcpiOsPrintf ("  Value 0x%X", ObjDesc->Number.Value);
+            AcpiOsPrintf ("  Value %X", ObjDesc->Number.Value);
             break;
 
         case ACPI_TYPE_STRING:
@@ -773,15 +773,15 @@ AcpiDbWalkForSpecificObjects (
             break;
 
         case ACPI_TYPE_REGION:
-            AcpiOsPrintf ("  SpaceId %d Address %X Length %X", ObjDesc->Region.SpaceId, ObjDesc->Region.Address, ObjDesc->Region.Length);
+            AcpiOsPrintf ("  SpaceId %X Address %X Length %X", ObjDesc->Region.SpaceId, ObjDesc->Region.Address, ObjDesc->Region.Length);
             break;
 
         case ACPI_TYPE_PACKAGE:
-            AcpiOsPrintf ("  #Elements %d", ObjDesc->Package.Count);
+            AcpiOsPrintf ("  #Elements %X", ObjDesc->Package.Count);
             break;
 
         case ACPI_TYPE_BUFFER:
-            AcpiOsPrintf ("  Length %d", ObjDesc->Buffer.Length);
+            AcpiOsPrintf ("  Length %X", ObjDesc->Buffer.Length);
             break;
         }
     }
@@ -909,7 +909,7 @@ AcpiDbWalkAndMatchName (
 
     else
     {
-        AcpiOsPrintf ("%32s (0x%p) - %s\n", Buffer, ObjHandle,
+        AcpiOsPrintf ("%32s (%p) - %s\n", Buffer, ObjHandle,
             AcpiCmGetTypeName (((ACPI_NAMESPACE_NODE *) ObjHandle)->Type));
     }
 
