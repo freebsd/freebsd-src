@@ -1,5 +1,0 @@
-# Host: Sun 4 or Sparcstation, running NetBSD
-NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o sparc-nat.o solib.o solib-sunos.o
-XM_FILE= xm-nbsd.h
-NAT_FILE= nm-nbsd.h
-HOST_IPC=-DBSD_IPC
