@@ -227,10 +227,11 @@ mpt_reset(mpt_softc_t *mpt)
 void
 mpt_free_request(mpt_softc_t *mpt, request_t *req)
 {
-	if (req == NULL || req != &mpt->requests[req->index]) {
+	if (req == NULL || req != &mpt->request_pool[req->index]) {
 		panic("mpt_free_request bad req ptr\n");
 		return;
 	}
+	req->sequence = 0;
 	req->ccb = NULL;
 	req->debug = REQ_FREE;
 	SLIST_INSERT_HEAD(&mpt->request_free_list, req, link);
@@ -243,7 +244,7 @@ mpt_get_request(mpt_softc_t *mpt)
 	request_t *req;
 	req = SLIST_FIRST(&mpt->request_free_list);
 	if (req != NULL) {
-		if (req != &mpt->requests[req->index]) {
+		if (req != &mpt->request_pool[req->index]) {
 			panic("mpt_get_request: corrupted request free list\n");
 		}
 		if (req->ccb != NULL) {
@@ -551,6 +552,7 @@ mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
 		device_printf(mpt->dev,
 		    "mpt_read_cfg_header: Config Info Status %x\n",
 		    reply->IOCStatus);
+		mpt_free_reply(mpt, (req->sequence << 1));
 		return (-1);
 	}
 	bcopy(&reply->Header, rslt, sizeof (fCONFIG_PAGE_HEADER));
@@ -559,7 +561,7 @@ mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
 	return (0);
 }
 
-#define	CFG_DATA_OFF	40
+#define	CFG_DATA_OFF	128
 
 int
 mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
@@ -574,11 +576,11 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 	req = mpt_get_request(mpt);
 
 	cfgp = req->req_vbuf;
- 	amt = (cfgp->Header.PageLength * sizeof (uint32_t));
-	bzero(cfgp, sizeof *cfgp);
+	bzero(cfgp, MPT_REQUEST_AREA);
 	cfgp->Action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	cfgp->Function = MPI_FUNCTION_CONFIG;
 	cfgp->Header = *hdr;
+ 	amt = (cfgp->Header.PageLength * sizeof (u_int32_t));
 	cfgp->Header.PageType &= MPI_CONFIG_PAGETYPE_MASK;
 	cfgp->PageAddress = PageAddress;
 	se = (SGE_SIMPLE32 *) &cfgp->PageBufferSGE;
@@ -607,6 +609,7 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 		device_printf(mpt->dev,
 		    "mpt_read_cfg_page: Config Info Status %x\n",
 		    reply->IOCStatus);
+		mpt_free_reply(mpt, (req->sequence << 1));
 		return (-1);
 	}
 	mpt_free_reply(mpt, (req->sequence << 1));
@@ -657,10 +660,10 @@ mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 	}
 	hdr->PageType &= MPI_CONFIG_PAGETYPE_MASK;
 
- 	amt = (cfgp->Header.PageLength * sizeof (uint32_t));
 	cfgp->Action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
 	cfgp->Function = MPI_FUNCTION_CONFIG;
 	cfgp->Header = *hdr;
+ 	amt = (cfgp->Header.PageLength * sizeof (u_int32_t));
 	cfgp->PageAddress = PageAddress;
 
 	se = (SGE_SIMPLE32 *) &cfgp->PageBufferSGE;
@@ -689,6 +692,8 @@ mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_1);
 	}
 	bcopy(hdr, ((caddr_t)req->req_vbuf)+CFG_DATA_OFF, amt);
+	/* Restore stripped out attributes */
+	hdr->PageType |= hdr_attr;
 
 	mpt_check_doorbell(mpt);
 	mpt_send_cmd(mpt, req);
@@ -709,14 +714,11 @@ mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 		device_printf(mpt->dev,
 		    "mpt_write_cfg_page: Config Info Status %x\n",
 		    reply->IOCStatus);
+		mpt_free_reply(mpt, (req->sequence << 1));
 		return (-1);
 	}
 	mpt_free_reply(mpt, (req->sequence << 1));
 
-	/*
-	 * Restore stripped out attributes
-	 */
-	hdr->PageType |= hdr_attr;
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -929,35 +931,6 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 			    mpt->mpt_dev_page1[i].Configuration);
 		}
 	}
-
-	/*
-	 * If the BIOS hasn't been enabled, the SCSI Port Page2 device
-	 * parameter are apparently complete nonsense. I've had partially
-	 * sensible Page2 settings on *one* bus, but nothing on another-
-	 * it's ridiculous.
-	 *
-	 * For that matter, the Port Page 0 parameters are *also* nonsense,
-	 * so the offset and period and currently connected physical interface
-	 * is also nonsense.
-	 *
-	 * This makes it very difficult to try and figure out what maximum
-	 * settings we could have. Therefore, we'll synthesize the maximums
-	 * here.
-	 */
-	for (i = 0; i < 16; i++) {
-		mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags =
-		    MPI_SCSIPORTPAGE2_DEVICE_DISCONNECT_ENABLE |
-		    MPI_SCSIPORTPAGE2_DEVICE_TAG_QUEUE_ENABLE;
-	}
-	mpt->mpt_port_page0.Capabilities =
-	    MPI_SCSIPORTPAGE0_CAP_IU |
-	    MPI_SCSIPORTPAGE0_CAP_DT |
-	    MPI_SCSIPORTPAGE0_CAP_QAS |
-	    MPI_SCSIPORTPAGE0_CAP_WIDE |
-	    (31 << 16) |			/* offset */
-	    (8 << 8);				/* period */
-	mpt->mpt_port_page0.PhysicalInterface =
-	    MPI_SCSIPORTPAGE0_PHY_SIGNAL_LVD;
 	return (0);
 }
 
@@ -990,7 +963,7 @@ mpt_send_port_enable(mpt_softc_t *mpt, int port)
 	do {
 		DELAY(500);
 		mpt_intr(mpt);
-		if (++count == 1000) {
+		if (++count == 100000) {
 			device_printf(mpt->dev, "port enable timed out\n");
 			return (-1);
 		}
@@ -1063,8 +1036,8 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 
 	/* Put all request buffers (back) on the free list */
         SLIST_INIT(&mpt->request_free_list);
-	for (val = 0; val < MPT_MAX_REQUESTS; val++) {
-		mpt_free_request(mpt, &mpt->requests[val]);
+	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
+		mpt_free_request(mpt, &mpt->request_pool[val]);
 	}
 
 	if (mpt->verbose > 1) {
@@ -1110,7 +1083,7 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 
 		if (mpt->verbose > 1) {
 			device_printf(mpt->dev,
-			    "mpt_get_iocfacts: GlobalCredits=%d BlockSize=%u "
+			    "IOCFACTS: GlobalCredits=%d BlockSize=%u "
 			    "Request Frame Size %u\n", facts.GlobalCredits,
 			    facts.BlockSize, facts.RequestFrameSize);
 		}
@@ -1124,8 +1097,9 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 
 		if (mpt->verbose > 1) {
 			device_printf(mpt->dev,
-			    "mpt_get_portfacts: Type %x PFlags %x IID %d\n",
-			    pfp.PortType, pfp.ProtocolFlags, pfp.PortSCSIID);
+			    "PORTFACTS: Type %x PFlags %x IID %d MaxDev %d\n",
+			    pfp.PortType, pfp.ProtocolFlags, pfp.PortSCSIID,
+			    pfp.MaxDevices);
 		}
 
 		if (pfp.PortType != MPI_PORTFACTS_PORTTYPE_SCSI &&

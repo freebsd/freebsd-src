@@ -34,6 +34,7 @@
 
 static void mpt_poll(struct cam_sim *);
 static timeout_t mpttimeout;
+static timeout_t mpttimeout2;
 static void mpt_action(struct cam_sim *, union ccb *);
 static int mpt_setwidth(mpt_softc_t *, int, int);
 static int mpt_setsync(mpt_softc_t *, int, int, int);
@@ -46,8 +47,8 @@ mpt_cam_attach(mpt_softc_t *mpt)
 	int maxq;
 
 	mpt->bus = 0;
-	maxq = (mpt->mpt_global_credits < MPT_MAX_REQUESTS)?
-	    mpt->mpt_global_credits : MPT_MAX_REQUESTS;
+	maxq = (mpt->mpt_global_credits < MPT_MAX_REQUESTS(mpt))?
+	    mpt->mpt_global_credits : MPT_MAX_REQUESTS(mpt);
 
 
 	/*
@@ -119,13 +120,22 @@ mpttimeout(void *arg)
 {
 	request_t *req;
 	union ccb *ccb = arg;
+	u_int32_t oseq;
 	mpt_softc_t *mpt;
 
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 	MPT_LOCK(mpt);
-
 	req = ccb->ccb_h.ccb_req_ptr;
+	oseq = req->sequence;
 	mpt->timeouts++;
+	if (mpt_intr(mpt)) {
+		if (req->sequence != oseq) {
+			device_printf(mpt->dev, "bullet missed in timeout\n");
+			MPT_UNLOCK(mpt);
+			return;
+		}
+		device_printf(mpt->dev, "bullet U-turned in timeout: got us\n");
+	}
 	device_printf(mpt->dev,
 	    "time out on request index = 0x%02x sequence = 0x%08x\n",
 	    req->index, req->sequence);
@@ -142,12 +152,27 @@ mpttimeout(void *arg)
 	mpt_print_scsi_io_request((MSG_SCSI_IO_REQUEST *)req->req_vbuf);
 	req->debug = REQ_TIMEOUT;
 	req->ccb = NULL;
+	req->link.sle_next = (void *) mpt;
+	(void) timeout(mpttimeout2, (caddr_t)req, hz / 10);
 	ccb->ccb_h.status = CAM_CMD_TIMEOUT;
 	ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+	mpt->outofbeer = 0;
 	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
 	CAMLOCK_2_MPTLOCK(mpt);
 	MPT_UNLOCK(mpt);
+}
+
+static void
+mpttimeout2(void *arg)
+{
+	request_t *req = arg;
+	if (req->debug == REQ_TIMEOUT) {
+		mpt_softc_t *mpt = (mpt_softc_t *) req->link.sle_next;
+		MPT_LOCK(mpt);
+		mpt_free_request(mpt, req);
+		MPT_UNLOCK(mpt);
+	}
 }
 
 /*
@@ -189,7 +214,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			else
 				ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		}
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
 		CAMLOCK_2_MPTLOCK(mpt);
@@ -334,13 +358,12 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
 		MPTLOCK_2_CAMLOCK(mpt);
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
 		return;
 	}
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
+	MPTLOCK_2_CAMLOCK(mpt);
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 		ccb->ccb_h.timeout_ch =
 			timeout(mpttimeout, (caddr_t)ccb,
@@ -350,18 +373,15 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 	if (mpt->verbose > 1)
 		mpt_print_scsi_io_request(mpt_req);
-	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_send_cmd(mpt, req);
 	MPTLOCK_2_CAMLOCK(mpt);
 }
 
-/* Convert a CAM SCSI I/O ccb into a MPT request to pass the FC Chip */
-/* Including building a Scatter gather list of physical page to transfer */
-static int
+static void
 mpt_start(union ccb *ccb)
 {
 	request_t *req;
-	struct	 mpt_softc *mpt;
+	struct mpt_softc *mpt;
 	MSG_SCSI_IO_REQUEST *mpt_req;
 	struct ccb_scsiio *csio = &ccb->csio;
 	struct ccb_hdr *ccbh = &ccb->ccb_h;
@@ -369,11 +389,20 @@ mpt_start(union ccb *ccb)
 	/* Get the pointer for the physical addapter */
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 
-	/* Get a request structure off the free list */
 	CAMLOCK_2_MPTLOCK(mpt);
+	/* Get a request structure off the free list */
 	if ((req = mpt_get_request(mpt)) == NULL) {
+		if (mpt->outofbeer == 0) {
+			mpt->outofbeer = 1;
+			xpt_freeze_simq(mpt->sim, 1);
+			if (mpt->verbose > 1) {
+				device_printf(mpt->dev, "FREEZEQ\n");
+			}
+		}
 		MPTLOCK_2_CAMLOCK(mpt);
-		return (CAM_REQUEUE_REQ);
+		ccb->ccb_h.status = CAM_REQUEUE_REQ;
+		xpt_done(ccb);
+		return;
 	}
 	MPTLOCK_2_CAMLOCK(mpt);
 
@@ -509,7 +538,6 @@ mpt_start(union ccb *ccb)
 	} else {
 		mpt_execute_req(req, NULL, 0, 0);
 	}
-	return (CAM_REQ_INPROG);
 }
 
 static int
@@ -566,136 +594,18 @@ mpt_bus_reset(union ccb *ccb)
 /*
  * Process an asynchronous event from the IOC.
  */
+static void mpt_ctlop(mpt_softc_t *, void *, u_int32_t);
+static void mpt_event_notify_reply(mpt_softc_t *mpt, MSG_EVENT_NOTIFY_REPLY *);
+
 void
-mpt_notify(mpt_softc_t *mpt, void *vmsg, u_int32_t reply)
+mpt_ctlop(mpt_softc_t *mpt, void *vmsg, u_int32_t reply)
 {
 	MSG_DEFAULT_REPLY *dmsg = vmsg;
 
 	if (dmsg->Function == MPI_FUNCTION_EVENT_NOTIFICATION) {
-		MSG_EVENT_NOTIFY_REPLY *msg = vmsg;
-		switch(msg->Event) {
-		case MPI_EVENT_LOG_DATA:
-			/* Some error occured that LSI wants logged */
-			device_printf(mpt->dev,
-			    "\tEvtLogData: IOCLogInfo: 0x%08x\n",
-			    msg->IOCLogInfo);
-			device_printf(mpt->dev, "\tEvtLogData: Event Data:");
-			{
-				int i;
-				for (i = 0; i < msg->EventDataLength; i++) {
-					device_printf(mpt->dev,
-					    "  %08X", msg->Data[i]);
-				}
-			}
-			device_printf(mpt->dev, "\n");
-			break;
-
-		case MPI_EVENT_UNIT_ATTENTION:
-			device_printf(mpt->dev,
-			    "Bus: 0x%02x TargetID: 0x%02x\n",
-			    (msg->Data[0] >> 8) & 0xff, msg->Data[0] & 0xff);
-			break;
-
-		case MPI_EVENT_IOC_BUS_RESET:
-			/* We generated a bus reset */
-			device_printf(mpt->dev, "IOC Bus Reset Port: %d\n",
-			    (msg->Data[0] >> 8) & 0xff);
-			break;
-
-		case MPI_EVENT_EXT_BUS_RESET:
-			/* Someone else generated a bus reset */
-			device_printf(mpt->dev, "Ext Bus Reset\n");
-			/*
-			 * These replies don't return EventData like the MPI
-			 * spec says they do
-			 */	
-/*			xpt_async(AC_BUS_RESET, path, NULL);  */
-			break;
-
-		case MPI_EVENT_RESCAN:
-			/*
-			 * In general this means a device has been added
-			 * to the loop.
-			 */
-			device_printf(mpt->dev,
-			    "Rescan Port: %d\n", (msg->Data[0] >> 8) & 0xff);
-/*			xpt_async(AC_FOUND_DEVICE, path, NULL);  */
-			break;
-
-		case MPI_EVENT_LINK_STATUS_CHANGE:
-			device_printf(mpt->dev, "Port %d: LinkState: %s\n",
-			    (msg->Data[1] >> 8) & 0xff,
-			    ((msg->Data[0] & 0xff) == 0)?  "Failed" : "Active");
-			break;
-
-		case MPI_EVENT_LOOP_STATE_CHANGE:
-			switch ((msg->Data[0] >> 16) & 0xff) {
-			case 0x01:
-				device_printf(mpt->dev,
-				    "Port 0x%x: FC LinkEvent: LIP(%02X,%02X) (Loop Initialization)\n",
-				    (msg->Data[1] >> 8) & 0xff,
-				    (msg->Data[0] >> 8) & 0xff,
-				    (msg->Data[0]     ) & 0xff);
-				switch ((msg->Data[0] >> 8) & 0xff) {
-				case 0xF7:
-					if ((msg->Data[0] & 0xff) == 0xF7) {
-						printf("Device needs AL_PA\n");
-					} else {
-						printf("Device %02X doesn't like FC performance\n", 
-										msg->Data[0] & 0xFF);
-					}
-					break;
-				case 0xF8:
-					if ((msg->Data[0] & 0xff) == 0xF7) {
-						printf("Device had loop failure at its receiver prior to acquiring AL_PA\n");
-					} else {
-						printf("Device %02X detected loop failure at its receiver\n", 
-										msg->Data[0] & 0xFF);
-					}
-					break;
-				default:
-					printf("Device %02X requests that device %02X reset itself\n", 
-						msg->Data[0] & 0xFF,
-						(msg->Data[0] >> 8) & 0xFF);
-					break;
-				}
-				break;
-			case 0x02:
-				device_printf(mpt->dev, "Port 0x%x: FC LinkEvent: LPE(%02X,%02X) (Loop Port Enable)\n",
-					(msg->Data[1] >> 8) & 0xff, /* Port */
-					(msg->Data[0] >>  8) & 0xff, /* Character 3 */
-					(msg->Data[0]      ) & 0xff  /* Character 4 */
-					);
-				break;
-			case 0x03:
-				device_printf(mpt->dev, "Port 0x%x: FC LinkEvent: LPB(%02X,%02X) (Loop Port Bypass)\n",
-					(msg->Data[1] >> 8) & 0xff, /* Port */
-				(msg->Data[0] >> 8) & 0xff, /* Character 3 */
-				(msg->Data[0]     ) & 0xff  /* Character 4 */
-					);
-				break;
-			default:
-				device_printf(mpt->dev, "Port 0x%x: FC LinkEvent: Unknown FC event (%02X %02X %02X)\n",
-					(msg->Data[1] >> 8) & 0xff, /* Port */
-					(msg->Data[0] >> 16) & 0xff, /* Event */
-					(msg->Data[0] >>  8) & 0xff, /* Character 3 */
-					(msg->Data[0]      ) & 0xff  /* Character 4 */
-					);
-			}
-			break;
-
-		case MPI_EVENT_LOGOUT:
-			device_printf(mpt->dev, "FC Logout Port: %d N_PortID: %02X\n",
-				(msg->Data[1] >> 8) & 0xff,
-				msg->Data[0]);
-			break;
-		case MPI_EVENT_EVENT_CHANGE:
-			/* This is just an acknowledgement of our 
-			   mpt_send_event_request */
-			break;
-		default:
-			device_printf(mpt->dev, "Unknown event %X\n", msg->Event);
-		}
+		mpt_event_notify_reply(mpt, vmsg);
+		mpt_free_reply(mpt, (reply << 1));
+	} else if (dmsg->Function == MPI_FUNCTION_EVENT_ACK) {
 		mpt_free_reply(mpt, (reply << 1));
 	} else if (dmsg->Function == MPI_FUNCTION_PORT_ENABLE) {
 		MSG_PORT_ENABLE_REPLY *msg = vmsg;
@@ -704,24 +614,167 @@ mpt_notify(mpt_softc_t *mpt, void *vmsg, u_int32_t reply)
 			device_printf(mpt->dev, "enable port reply idx %d\n",
 			    index);
 		}
-		if (index >= 0 && index < MPT_MAX_REQUESTS) {
-			request_t *req = &mpt->requests[index];
+		if (index >= 0 && index < MPT_MAX_REQUESTS(mpt)) {
+			request_t *req = &mpt->request_pool[index];
 			req->debug = REQ_DONE;
 		}
 		mpt_free_reply(mpt, (reply << 1));
 	} else if (dmsg->Function == MPI_FUNCTION_CONFIG) {
 		MSG_CONFIG_REPLY *msg = vmsg;
 		int index = msg->MsgContext & ~0x80000000;
-		if (index >= 0 && index < MPT_MAX_REQUESTS) {
-			request_t *req = &mpt->requests[index];
+		if (index >= 0 && index < MPT_MAX_REQUESTS(mpt)) {
+			request_t *req = &mpt->request_pool[index];
 			req->debug = REQ_DONE;
 			req->sequence = reply;
 		} else {
 			mpt_free_reply(mpt, (reply << 1));
 		}
 	} else {
-		device_printf(mpt->dev, "unknown mpt_notify: %x\n",
+		device_printf(mpt->dev, "unknown mpt_ctlop: %x\n",
 		    dmsg->Function);
+	}
+}
+
+static void
+mpt_event_notify_reply(mpt_softc_t *mpt, MSG_EVENT_NOTIFY_REPLY *msg)
+{
+	switch(msg->Event) {
+	case MPI_EVENT_LOG_DATA:
+		/* Some error occured that LSI wants logged */
+		device_printf(mpt->dev,
+		    "\tEvtLogData: IOCLogInfo: 0x%08x\n",
+		    msg->IOCLogInfo);
+		device_printf(mpt->dev, "\tEvtLogData: Event Data:");
+		{
+			int i;
+			for (i = 0; i < msg->EventDataLength; i++) {
+				device_printf(mpt->dev,
+				    "  %08X", msg->Data[i]);
+			}
+		}
+		device_printf(mpt->dev, "\n");
+		break;
+
+	case MPI_EVENT_UNIT_ATTENTION:
+		device_printf(mpt->dev,
+		    "Bus: 0x%02x TargetID: 0x%02x\n",
+		    (msg->Data[0] >> 8) & 0xff, msg->Data[0] & 0xff);
+		break;
+
+	case MPI_EVENT_IOC_BUS_RESET:
+		/* We generated a bus reset */
+		device_printf(mpt->dev, "IOC Bus Reset Port: %d\n",
+		    (msg->Data[0] >> 8) & 0xff);
+		break;
+
+	case MPI_EVENT_EXT_BUS_RESET:
+		/* Someone else generated a bus reset */
+		device_printf(mpt->dev, "Ext Bus Reset\n");
+		/*
+		 * These replies don't return EventData like the MPI
+		 * spec says they do
+		 */	
+/*		xpt_async(AC_BUS_RESET, path, NULL);  */
+		break;
+
+	case MPI_EVENT_RESCAN:
+		/*
+		 * In general this means a device has been added
+		 * to the loop.
+		 */
+		device_printf(mpt->dev,
+		    "Rescan Port: %d\n", (msg->Data[0] >> 8) & 0xff);
+/*		xpt_async(AC_FOUND_DEVICE, path, NULL);  */
+		break;
+
+	case MPI_EVENT_LINK_STATUS_CHANGE:
+		device_printf(mpt->dev, "Port %d: LinkState: %s\n",
+		    (msg->Data[1] >> 8) & 0xff,
+		    ((msg->Data[0] & 0xff) == 0)?  "Failed" : "Active");
+		break;
+
+	case MPI_EVENT_LOOP_STATE_CHANGE:
+		switch ((msg->Data[0] >> 16) & 0xff) {
+		case 0x01:
+			device_printf(mpt->dev,
+			    "Port 0x%x: FC LinkEvent: LIP(%02X,%02X) (Loop Initialization)\n",
+			    (msg->Data[1] >> 8) & 0xff,
+			    (msg->Data[0] >> 8) & 0xff,
+			    (msg->Data[0]     ) & 0xff);
+			switch ((msg->Data[0] >> 8) & 0xff) {
+			case 0xF7:
+				if ((msg->Data[0] & 0xff) == 0xF7) {
+					printf("Device needs AL_PA\n");
+				} else {
+					printf("Device %02X doesn't like FC performance\n", 
+									msg->Data[0] & 0xFF);
+				}
+				break;
+			case 0xF8:
+				if ((msg->Data[0] & 0xff) == 0xF7) {
+					printf("Device had loop failure at its receiver prior to acquiring AL_PA\n");
+				} else {
+					printf("Device %02X detected loop failure at its receiver\n", 
+									msg->Data[0] & 0xFF);
+				}
+				break;
+			default:
+				printf("Device %02X requests that device %02X reset itself\n", 
+					msg->Data[0] & 0xFF,
+					(msg->Data[0] >> 8) & 0xFF);
+				break;
+			}
+			break;
+		case 0x02:
+			device_printf(mpt->dev, "Port 0x%x: FC LinkEvent: LPE(%02X,%02X) (Loop Port Enable)\n",
+				(msg->Data[1] >> 8) & 0xff, /* Port */
+				(msg->Data[0] >>  8) & 0xff, /* Character 3 */
+				(msg->Data[0]      ) & 0xff  /* Character 4 */
+				);
+			break;
+		case 0x03:
+			device_printf(mpt->dev, "Port 0x%x: FC LinkEvent: LPB(%02X,%02X) (Loop Port Bypass)\n",
+				(msg->Data[1] >> 8) & 0xff, /* Port */
+			(msg->Data[0] >> 8) & 0xff, /* Character 3 */
+			(msg->Data[0]     ) & 0xff  /* Character 4 */
+				);
+			break;
+		default:
+			device_printf(mpt->dev, "Port 0x%x: FC LinkEvent: Unknown FC event (%02X %02X %02X)\n",
+				(msg->Data[1] >> 8) & 0xff, /* Port */
+				(msg->Data[0] >> 16) & 0xff, /* Event */
+				(msg->Data[0] >>  8) & 0xff, /* Character 3 */
+				(msg->Data[0]      ) & 0xff  /* Character 4 */
+				);
+		}
+		break;
+
+	case MPI_EVENT_LOGOUT:
+		device_printf(mpt->dev, "FC Logout Port: %d N_PortID: %02X\n",
+			(msg->Data[1] >> 8) & 0xff,
+			msg->Data[0]);
+		break;
+	case MPI_EVENT_EVENT_CHANGE:
+		/* This is just an acknowledgement of our 
+		   mpt_send_event_request */
+		break;
+	default:
+		device_printf(mpt->dev, "Unknown event %X\n", msg->Event);
+	}
+	if (msg->AckRequired) {
+		MSG_EVENT_ACK *ackp;
+		request_t *req;
+		if ((req = mpt_get_request(mpt)) == NULL) {
+			panic("unable to get request to acknowledge notify");
+		}
+		ackp = (MSG_EVENT_ACK *) req->req_vbuf;
+		bzero(ackp, sizeof *ackp);
+		ackp->Function = MPI_FUNCTION_EVENT_ACK;
+		ackp->Event = msg->Event;
+		ackp->EventContext = msg->EventContext;
+		ackp->MsgContext = req->index | 0x80000000;
+		mpt_check_doorbell(mpt);
+		mpt_send_cmd(mpt, req);
 	}
 }
 
@@ -761,12 +814,14 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 		index = mpt_reply->MsgContext;
 	}
 
-	/* Address reply with MessageContext high bit set */
-	/* This is most likely a notify message so we try */
-	/* to process it then free it */
+	/*
+	 * Address reply with MessageContext high bit set
+	 * This is most likely a notify message so we try
+	 * to process it then free it
+	 */
 	if ((index & 0x80000000) != 0) {
 		if (mpt_reply != NULL) {
-			mpt_notify(mpt, mpt_reply, reply);
+			mpt_ctlop(mpt, mpt_reply, reply);
 		} else {
 			device_printf(mpt->dev,
 			    "mpt_done: index 0x%x, NULL reply\n", index);
@@ -775,12 +830,12 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 	}
 
 	/* Did we end up with a valid index into the table? */
-	if (index < 0 || index >= MPT_MAX_REQUESTS) {
+	if (index < 0 || index >= MPT_MAX_REQUESTS(mpt)) {
 		printf("mpt_done: invalid index (%x) in reply\n", index);
 		return;
 	}
 
-	req = &mpt->requests[index];
+	req = &mpt->request_pool[index];
 
 	/* Make sure memory hasn't been trashed */
 	if (req->index != index) {
@@ -849,16 +904,24 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 		/* Context reply; report that the command was successfull */
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		ccb->csio.scsi_status = SCSI_STATUS_OK;
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		if (mpt->outofbeer) {
+			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+			mpt->outofbeer = 0;
+			if (mpt->verbose > 1) {
+				device_printf(mpt->dev, "THAWQ\n");
+			}
+		}
+		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
+		CAMLOCK_2_MPTLOCK(mpt);
 		goto done;
 	}
 
 	ccb->csio.scsi_status = mpt_reply->SCSIStatus;
 	switch(mpt_reply->IOCStatus) {
 	case MPI_IOCSTATUS_SCSI_DATA_OVERRUN:
-		ccb->ccb_h.status = CAM_DATA_RUN_ERR | CAM_DEV_QFRZN;
+		ccb->ccb_h.status = CAM_DATA_RUN_ERR;
 		break;
 
 	case MPI_IOCSTATUS_SCSI_DATA_UNDERRUN:
@@ -869,12 +932,16 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 		 * that returns status should probably be a status 
 		 * error as well.
 		 */
-		if (mpt_reply->SCSIState & MPI_SCSI_STATE_NO_SCSI_STATUS) {
-			ccb->ccb_h.status = CAM_DATA_RUN_ERR | CAM_DEV_QFRZN;
-			break;
-		}
 		ccb->csio.resid =
 		    ccb->csio.dxfer_len - mpt_reply->TransferCount;
+		if (mpt_reply->SCSIState & MPI_SCSI_STATE_NO_SCSI_STATUS) {
+			ccb->ccb_h.status = CAM_DATA_RUN_ERR;
+			break;
+		}
+#if	0
+device_printf(mpt->dev, "underrun, scsi status is %x\n", ccb->csio.scsi_status);
+		ccb->csio.scsi_status = SCSI_STATUS_QUEUE_FULL;
+#endif
 		/* Fall through */
 	case MPI_IOCSTATUS_SUCCESS:
 	case MPI_IOCSTATUS_SCSI_RECOVERED_ERROR:
@@ -882,20 +949,8 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 		case SCSI_STATUS_OK:
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
-		case SCSI_STATUS_QUEUE_FULL:
-			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
-#if 0
-			/* XXX This seams to freaze up the device */
-			/* But without it the tag queue total does */
-			/* Not get reduced properly!  */
-			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
-			ccb->ccb_h.status |= CAM_DEV_QFRZN;
-#endif
-			break;
 		default:
-			ccb->ccb_h.status =
-			    CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
-			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
+			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 			break;
 		}
 		break;
@@ -907,39 +962,32 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 	case MPI_IOCSTATUS_SCSI_INVALID_BUS:
 	case MPI_IOCSTATUS_SCSI_INVALID_TARGETID:
 	case MPI_IOCSTATUS_SCSI_DEVICE_NOT_THERE:
-		ccb->ccb_h.status = CAM_DEV_NOT_THERE | CAM_DEV_QFRZN;
+		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		break;
 
 	case MPI_IOCSTATUS_SCSI_RESIDUAL_MISMATCH:
-		ccb->ccb_h.status = CAM_DATA_RUN_ERR | CAM_DEV_QFRZN;
+		ccb->ccb_h.status = CAM_DATA_RUN_ERR;
 		break;
 
 	case MPI_IOCSTATUS_SCSI_PROTOCOL_ERROR:
 	case MPI_IOCSTATUS_SCSI_IO_DATA_ERROR:
-		ccb->ccb_h.status =  CAM_UNCOR_PARITY | CAM_DEV_QFRZN;
+		ccb->ccb_h.status =  CAM_UNCOR_PARITY;
 		break;
 
 	case MPI_IOCSTATUS_SCSI_TASK_TERMINATED:
-		/* Terminated due to task managment request */
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 
 	case MPI_IOCSTATUS_SCSI_TASK_MGMT_FAILED:
-		ccb->ccb_h.status = CAM_UA_TERMIO | CAM_DEV_QFRZN;
+		ccb->ccb_h.status = CAM_UA_TERMIO;
 		break;
-/*
+
 	case MPI_IOCSTATUS_SCSI_IOC_TERMINATED:
-		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+		ccb->ccb_h.status = CAM_REQ_TERMIO;
 		break;
-*/
-	/*
-	 * We always get this when a drive is pulled.
-	 * Just kill the device but not the bus.
-	 */
+
 	case MPI_IOCSTATUS_SCSI_EXT_TERMINATED:
-	case MPI_IOCSTATUS_SCSI_IOC_TERMINATED:
-		ccb->ccb_h.status = CAM_SCSI_BUS_RESET | CAM_DEV_QFRZN; 
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		ccb->ccb_h.status = CAM_SCSI_BUS_RESET; 
 		break;
 
 	default:
@@ -961,9 +1009,22 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 		ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 	}
 
-	if ((mpt_reply->MsgFlags & 0x80) == 0) 
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			ccb->ccb_h.status |= CAM_DEV_QFRZN;
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
+		}
+	}
+
+
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+	if (mpt->outofbeer) {
+		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		mpt->outofbeer = 0;
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev, "THAWQ\n");
+		}
+	}
 	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
 	CAMLOCK_2_MPTLOCK(mpt);
@@ -997,25 +1058,40 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		    device_printf(mpt->dev, "XPT_RESET_BUS\n");
 		CAMLOCK_2_MPTLOCK(mpt);
 		error = mpt_bus_reset(ccb);
-		MPTLOCK_2_CAMLOCK(mpt);
 		switch (error) {
 		case CAM_REQ_INPROG:
-			ccb->ccb_h.status |= CAM_SIM_QUEUED;
+			MPTLOCK_2_CAMLOCK(mpt);
 			break;
 		case CAM_REQUEUE_REQ:
-			xpt_freeze_simq(sim, 1);
+			if (mpt->outofbeer == 0) {
+				mpt->outofbeer = 1;
+				xpt_freeze_simq(sim, 1);
+				if (mpt->verbose > 1) {
+					device_printf(mpt->dev, "FREEZEQ\n");
+				}
+			}
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
+			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			break;
 
 		case CAM_REQ_CMP:
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			ccb->ccb_h.status |= CAM_REQ_CMP;
+			if (mpt->outofbeer) {
+				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+				mpt->outofbeer = 0;
+				if (mpt->verbose > 1) {
+					device_printf(mpt->dev, "THAWQ\n");
+				}
+			}
+			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			break;
 
 		default:
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 		}
 		break;
@@ -1032,34 +1108,14 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			}
 		}
 		/* Max supported CDB length is 16 bytes */
-		if (ccb->csio.cdb_len > 16) {
+		if (ccb->csio.cdb_len >
+		    sizeof (((PTR_MSG_SCSI_IO_REQUEST)0)->CDB)) {
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
 		}
-
 		ccb->csio.scsi_status = SCSI_STATUS_OK;
-		error = mpt_start(ccb);
-		switch (error) {
-		case CAM_REQ_INPROG:
-			ccb->ccb_h.status |= CAM_SIM_QUEUED;
-			break;
-
-		case CAM_REQUEUE_REQ:
-			xpt_freeze_simq(sim, 1);
-			ccb->ccb_h.status = CAM_REQUEUE_REQ;
-			xpt_done(ccb);
-			break;
-
-		case CAM_REQ_CMP:
-			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-			xpt_done(ccb);
-			break;
-
-		default:
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			xpt_done(ccb);
-		}
+		mpt_start(ccb);
 		break;
 
 	case XPT_ABORT:
@@ -1188,6 +1244,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 					break;
 				}
 			}
+			MPTLOCK_2_CAMLOCK(mpt);
 			if (mpt->verbose > 1) {
 				device_printf(mpt->dev, 
 				    "SET tgt %d flags %x period %x off %x\n",
@@ -1255,7 +1312,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 					device_printf(mpt->dev,
 					    "cannot get target %d DP0\n", tgt);
 				} else  {
-					mpt->mpt_dev_page0[tgt] = tmp;
 					if (mpt->verbose > 1) {
 						device_printf(mpt->dev,
                             "SPI Tgt %d Page 0: NParms %x Information %x\n",
@@ -1266,23 +1322,18 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 				}
 				MPTLOCK_2_CAMLOCK(mpt);
 
-				if (mpt->mpt_dev_page0[tgt].
-				    NegotiatedParameters & 
+				if (tmp.NegotiatedParameters & 
 				    MPI_SCSIDEVPAGE0_NP_WIDE)
 					dval |= DP_WIDE;
 
 				if (mpt->mpt_disc_enable & (1 << tgt)) {
 					dval |= DP_DISC_ENABLE;
 				}
-
 				if (mpt->mpt_tag_enable & (1 << tgt)) {
 					dval |= DP_TQING_ENABLE;
 				}
-
-				oval = (mpt->mpt_dev_page0[tgt].
-				    NegotiatedParameters >> 16);
-				pval = (mpt->mpt_dev_page0[tgt].
-				    NegotiatedParameters >>  8);
+				oval = (tmp.NegotiatedParameters >> 16) & 0xff;
+				pval = (tmp.NegotiatedParameters >>  8) & 0xff;
 			} else {
 				/*
 				 * XXX: Fix wrt NVRAM someday. Attempts
@@ -1470,15 +1521,8 @@ mpt_setsync(mpt_softc_t *mpt, int tgt, int period, int offset)
 	 */
 	if (period && offset) {
 		int factor, offset, np;
-		factor =
-		    (mpt->mpt_port_page0.Capabilities >> 8) & 0xff;
-		offset =
-		    (mpt->mpt_port_page0.Capabilities >> 16) & 0xff;
-		if ((mpt->mpt_port_page0.PhysicalInterface &
-		    MPI_SCSIPORTPAGE0_PHY_SIGNAL_TYPE_MASK) != 
-		    MPI_SCSIPORTPAGE0_PHY_SIGNAL_LVD && factor < 0xa) {
-			factor = 0xa;
-		}
+		factor = (mpt->mpt_port_page0.Capabilities >> 8) & 0xff;
+		offset = (mpt->mpt_port_page0.Capabilities >> 16) & 0xff;
 		np = 0;
 		if (factor < 0x9) {
 			np |= MPI_SCSIDEVPAGE1_RP_QAS;
@@ -1499,7 +1543,7 @@ mpt_setsync(mpt_softc_t *mpt, int tgt, int period, int offset)
 	mpt->mpt_dev_page1[tgt] = tmp;
 	if (mpt->verbose > 1) {
 		device_printf(mpt->dev,
-		    "SPI Target %d Page 1: RequestedParameters %x Config %x\n",
+		    "SPI Target %d Page 1: RParams %x Config %x\n",
 		    tgt, mpt->mpt_dev_page1[tgt].RequestedParameters,
 		    mpt->mpt_dev_page1[tgt].Configuration);
 	}
