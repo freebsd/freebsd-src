@@ -53,11 +53,12 @@ static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
 
 #define szsigcode (*(curthread->td_proc->p_sysent->sv_szsigcode))
+#define psstrings (curthread->td_proc->p_sysent->sv_psstrings)
 
 static __inline caddr_t
 stackgap_init()
 {
-	return (caddr_t)(PS_STRINGS - szsigcode - SPARE_USRSPACE);
+	return (caddr_t)(psstrings - szsigcode - SPARE_USRSPACE);
 }
 
 static __inline void *
@@ -68,7 +69,7 @@ stackgap_alloc(sgp, sz)
 	void *p = (void *) *sgp;
 
 	sz = ALIGN(sz);
-	if (*sgp + sz > (caddr_t)(PS_STRINGS - szsigcode))
+	if (*sgp + sz > (caddr_t)(psstrings - szsigcode))
 		return NULL;
 	*sgp += sz;
 	return p;
