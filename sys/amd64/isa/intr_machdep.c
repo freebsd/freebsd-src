@@ -239,7 +239,7 @@ static void init_i8259()
 	outb(IO_ICU1+ICU_IMR_OFFSET, IRQ_SLAVE);/* slave on line 2 */
 	outb(IO_ICU1+ICU_IMR_OFFSET, ICW4_8086);/* 8086 mode */
 	outb(IO_ICU1+ICU_IMR_OFFSET, 0xff);	/* leave interrupts masked */
-	outb(IO_ICU1, OCW3_SEL | OCW3_RIS);	/* default to IRR on read */
+	outb(IO_ICU1, OCW3_SEL | OCW3_RR);	/* default to IRR on read */
 	outb(IO_ICU1, ICU_SETPRI | 0x2);/* pri order 3-7, 0-2 (com2 first) */
 
 	outb(IO_ICU2, ICW1_RESET | ICW1_IC4);	/* reset; program device, four bytes */
@@ -248,7 +248,7 @@ static void init_i8259()
 	outb(IO_ICU2+ICU_IMR_OFFSET, ICU_SLAVEID); /* my slave id is 2 */
 	outb(IO_ICU2+ICU_IMR_OFFSET, ICW4_8086); /* 8086 mode */
 	outb(IO_ICU2+ICU_IMR_OFFSET, 0xff);     /* leave interrupts masked */
-	outb(IO_ICU2, OCW3_SEL | OCW3_RIS);	/* default to IRR on read */
+	outb(IO_ICU2, OCW3_SEL | OCW3_RR);	/* default to IRR on read */
 }
 
 /*
@@ -268,7 +268,7 @@ isa_strayintr(vcookiep)
 	if (intr == 7) {
 		outb(IO_ICU1, OCW3_SEL);	/* select IS register */
 		isr = inb(IO_ICU1);
-		outb(IO_ICU1, OCW3_SEL | OCW3_RIS); /* reselect IIR */
+		outb(IO_ICU1, OCW3_SEL | OCW3_RR | OCW3_RIS); /* reselect IIR */
 		if ((isr & 0x80) == 0) {
 			isaglitch7++;
 			return;
@@ -277,7 +277,7 @@ isa_strayintr(vcookiep)
 	if (intr == 15) {
 		outb(IO_ICU2, OCW3_SEL);	/* select IS register */
 		isr = inb(IO_ICU2);
-		outb(IO_ICU2, OCW3_SEL | OCW3_RIS); /* reselect IIR */
+		outb(IO_ICU2, OCW3_SEL | OCW3_RR); /* reselect IIR */
 		if ((isr & 0x80) == 0) {
 			isaglitch15++;
 			return;
