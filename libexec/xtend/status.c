@@ -27,9 +27,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <unistd.h>
@@ -39,14 +42,15 @@
 #include "xten.h"
 #include "paths.h"
 
+void printstatus __P((FILE *, STATUS *));
+
 /*
  * Initialize the status table from the status files
  */
 
+void
 initstatus()
 {
-  int h, i;
-
   if(lseek(status, 0, SEEK_SET) != 0) {
     fprintf(Log, "%s:  Seek error on status file\n", thedate());
     return;
@@ -62,6 +66,7 @@ initstatus()
  * and notify anyone monitoring those devices.
  */
 
+void
 checkpoint_status()
 {
   int h, i, k, offset;
