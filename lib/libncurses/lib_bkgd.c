@@ -1,4 +1,4 @@
-char _ncurses_copyright[] = "\n\
+
 /***************************************************************************
 *                            COPYRIGHT NOTICE                              *
 ****************************************************************************
@@ -16,4 +16,22 @@ char _ncurses_copyright[] = "\n\
 *        ncurses comes AS IS with no warranty, implied or expressed.       *
 *                                                                          *
 ***************************************************************************/
-\n";
+
+#include "curses.h"
+#include "curses.priv.h"
+
+int wbkgd(WINDOW *win, chtype ch)
+{
+int x, y;
+
+	T(("wbkgd(%x, %x) called", win, ch));
+	for (y = 0; y < win->_maxy; y++)
+		for (x = 0; x < win->_maxx; x++) 
+			if (win->_line[y][x]&A_CHARTEXT == ' ')
+				win->_line[y][x] |= ch;
+			else
+				win->_line[y][x] |= (ch&A_ATTRIBUTES);
+	touchwin(win);
+	return OK;
+}
+

@@ -109,6 +109,10 @@ If many small changes are made to the window, the \fBwsyncup\fR option could
 degrade performance.
 
 Note that \fBsyncok\fR may be a macro.
+.SH BUGS
+The subwindow functions (\fIsubwin\fR, \fIderwin\fR, etc.) are flaky, 
+incompletely implemented, and not well tested, especially in their
+interaction with scrolling.
 .SH SEE ALSO
 \fBncurses\fR(3X), \fBcurs_refresh\fR(3X), \fBcurs_touch\fR(3X)
 .\"#

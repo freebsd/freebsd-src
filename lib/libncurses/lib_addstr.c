@@ -15,21 +15,21 @@
 int
 waddnstr(WINDOW *win, char *str, int n)
 {
-	T(("waddnstr(%x,%s,%d) called", win, str, n));
+	T(("waddnstr(%x,\"%s\",%d) called", win, visbuf(str), n));
 
 	if (str == NULL)
 		return ERR;
 
 	if (n < 0) {
 		while (*str != '\0') {
-		    if (waddch(win, (unsigned char)*str++) == ERR)
+		    if (waddch(win, (chtype)(unsigned char)*str++) == ERR)
 			return(ERR);
 		}
 		return OK;
 	}
 
 	while((n-- > 0) && (*str != '\0')) {
-		if (waddch(win, (unsigned char)*str++) == ERR)
+		if (waddch(win, (chtype)(unsigned char)*str++) == ERR)
 			return ERR;
 	}
 	return OK;
@@ -42,14 +42,14 @@ waddchnstr(WINDOW *win, chtype *str, int n)
 
 	if (n < 0) {
 		while (*str) {
-		    if (waddch(win, *str++) == ERR)
+		    if (waddch(win, (chtype)(unsigned char)*str++) == ERR)
 			return(ERR);
 		}
 		return OK;
 	}
 
 	while(n-- > 0) {
-		if (waddch(win, *str++) == ERR)
+		if (waddch(win, (chtype)(unsigned char)*str++) == ERR)
 			return ERR;
 	}
 	return OK;

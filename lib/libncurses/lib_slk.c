@@ -8,7 +8,7 @@
  *	code under the terms of the GNU Copyleft.
  */
 
-#include <nterm.h>
+#include "terminfo.h"
 #include "curses.priv.h"
 #include <string.h>
 #include <stdlib.h>
@@ -26,10 +26,8 @@ char *
 slk_label(int n)
 {
 SLK *slk = SP->_slk;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_label(%d)", n);
-#endif
+
+	T(("slk_label(%d)", n));
 
 	if (slk == NULL || n < 1 || n > 8)
 		return NULL;
@@ -44,10 +42,7 @@ static void
 slk_intern_refresh(SLK *slk)
 {
 int i;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_intern_refresh(%x)", slk);
-#endif
+	T(("slk_intern_refresh(%x)", slk));
 
 	for (i = 0; i < 8; i++) {
 		if (slk->dirty || slk->ent[i].dirty) {
@@ -71,10 +66,8 @@ int
 slk_noutrefresh(void)
 {
 SLK *slk = SP->_slk;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_noutrefresh()");
-#endif
+
+	T(("slk_noutrefresh()"));
 	
 	if (slk == NULL)
 		return ERR;
@@ -92,10 +85,8 @@ int
 slk_refresh(void)
 {
 SLK *slk = SP->_slk;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_refresh()");
-#endif
+
+	T(("slk_refresh()"));
 	
 	if (slk == NULL)
 		return ERR;
@@ -113,10 +104,8 @@ int
 slk_restore(void)
 {
 SLK *slk = SP->_slk;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_restore()");
-#endif
+
+	T(("slk_restore()"));
 	
 	if (slk == NULL)
 		return ERR;
@@ -134,10 +123,7 @@ slk_set(int i, char *str, int format)
 {
 SLK *slk = SP->_slk;
 int len;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_set(%d, %s, %d)", i, str, format);
-#endif
+	T(("slk_set(%d, \"%s\", %d)", i, str, format));
 
 	if (slk == NULL || i < 1 || i > 8 || format < 0 || format > 2)
 		return ERR;
@@ -172,10 +158,7 @@ int
 slk_touch(void)
 {
 SLK *slk = SP->_slk;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_touch()");
-#endif
+	T(("slk_touch()"));
 	
 	if (slk == NULL)
 		return ERR;
@@ -191,10 +174,8 @@ int
 slk_clear(void)
 {
 SLK *slk = SP->_slk;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_clear()");
-#endif
+
+	T(("slk_clear()"));
 	
 	if (slk == NULL)
 		return ERR;
@@ -213,10 +194,8 @@ slk_initialize(WINDOW *stwin, int cols)
 {
 SLK *slk;
 int i, maxlab, x;
-#ifdef TRACE
-	if (_tracing)
-	_tracef("slk_initialize()");
-#endif
+
+	T(("slk_initialize()"));
 
 	if ((SP->_slk = slk = (SLK*) calloc(1,sizeof(SLK))) == NULL)
 		return OK;

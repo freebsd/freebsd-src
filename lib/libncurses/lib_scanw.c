@@ -10,6 +10,7 @@
 **
 */
 
+#include <stdio.h>
 #include "curses.priv.h"
 
 int vwscanw(WINDOW *win, char *fmt, va_list argp)
@@ -26,10 +27,7 @@ int scanw(char *fmt, ...)
 {
 va_list ap;
 
-#ifdef TRACE
-	if (_tracing)
-	    _tracef("scanw(%s,...) called", fmt);
-#endif
+	T(("scanw(\"%s\",...) called", fmt));
 
 	va_start(ap, fmt);
 	return(vwscanw(stdscr, fmt, ap));
@@ -39,10 +37,7 @@ int wscanw(WINDOW *win, char *fmt, ...)
 {
 va_list ap;
 
-#ifdef TRACE
-	if (_tracing)
-	    _tracef("wscanw(%x,%s,...) called", win, fmt);
-#endif
+	T(("wscanw(%x,\"%s\",...) called", win, fmt));
 
 	va_start(ap, fmt);
 	return(vwscanw(win, fmt, ap));
@@ -67,6 +62,5 @@ va_list ap;
 	va_start(ap, fmt);
 	return(wmove(win, y, x) == OK ? vwscanw(win, fmt, ap) : ERR);
 }
-
 
 

@@ -88,9 +88,7 @@ init ()
 	initscr ();
 	cbreak ();              /* immediate char return */
 	noecho ();              /* no immediate echo */
-	traceon();
 	title (1,23);
-	traceoff();
 	mvaddstr (23, 25, "Would you like instructions? ");
 	refresh();
 	if ((toupper(getch())) == 'Y') 

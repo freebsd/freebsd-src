@@ -20,7 +20,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <nterm.h>
+#include "terminfo.h"
 #include "curses.priv.h"
 
 #ifndef OPT_MVCUR
@@ -175,17 +175,14 @@ struct Sequence	seqA, seqB,	/* allocate work structures */
 		*try;		/* next try */
 bool		nlstat = SP->_nl; /* nl-output-mapping in effect ?*/
 
-#ifdef TRACE
-	if (_tracing)
-		_tracef("=============================\nmvcur(%d,%d,%d,%d) called",
-			oldrow, oldcol, newrow, newcol);
-#endif
+	T(("=============================\nmvcur(%d,%d,%d,%d) called",
+	   oldrow, oldcol, newrow, newcol));
 
 	if ((oldrow == newrow) && (oldcol == newcol))
 		return OK;
 		
 	if (oldcol == columns-1 && eat_newline_glitch && auto_right_margin) {
-		tputs(tparm(cursor_address, newrow, newcol), 1, _outc);
+		putp(tparm(cursor_address, newrow, newcol));
 		return OK;
 	}
 
@@ -255,10 +252,7 @@ bool		nlstat = SP->_nl; /* nl-output-mapping in effect ?*/
 		nl();
 #endif
 
-#ifdef TRACE
-	if (_tracing)
-		_tracef("===================================");
-#endif
+	T(("==================================="));
 
 	return OK;
 }
@@ -488,10 +482,7 @@ add_seq(struct Sequence	*seq1, struct Sequence *seq2)
 {
 int	*vptr;
 
-#ifdef TRACE
-	if (_tracing)
-		_tracef("add_seq(%x, %x)", seq1, seq2);
-#endif
+	T(("add_seq(%x, %x)", seq1, seq2));
 
 	if(seq1->cost >= INFINITY  ||  seq2->cost >= INFINITY)
 		seq1->cost = INFINITY;
@@ -511,10 +502,7 @@ int	*opptr, prm[9], ps, p, op;
 int	count;
 char	*sequence();
 
-#ifdef TRACE
-	if (_tracing)
-		_tracef("out_seq(%x)", seq);
-#endif
+	T(("out_seq(%x)", seq));
 
 	if (seq->cost >= INFINITY)
 		return;
@@ -526,14 +514,14 @@ char	*sequence();
 			for (p = 0;  p < ps;  p++)	/* fill in needed parms */
 				prm[p] = *(++opptr);
 
-			tputs(tparm(sequence(op),
+			putp(tparm(sequence(op),
 				prm[0], prm[1], prm[2], prm[3], prm[4],
-				prm[5], prm[6], prm[7], prm[8]), 1, _outc);
+				prm[5], prm[6], prm[7], prm[8]));
 		} else {
 			count = *(++opptr);
 			/*rev should save tputs output instead of mult calls */
 			while (count--)			/* do count times */
-				tputs(sequence(op), 1, _outc);
+				putp(sequence(op));
 		}
 	}
 }
@@ -550,10 +538,7 @@ char	*sequence();
 static void
 update_ops()
 {
-#ifdef TRACE
-	if (_tracing)
-		_tracef("update_ops()");
-#endif
+	T(("update_ops()"));
 
 	if (SP) {			/* SP structure exists */
 	int op; 
@@ -631,10 +616,8 @@ static void add_op(struct Sequence *seq, int op, ...)
 va_list	argp;
 int	num_ps, p;
 	
-#ifdef TRACE
-	if (_tracing)
-		_tracef("adding op %d to sequence", op);
-#endif
+	T(("adding op %d to sequence", op));
+
 	va_start(argp, op);
 	
 	num_ps = - op_info[op];		/* get parms or -cost */
@@ -673,10 +656,8 @@ int	num_ps, p;
 
 static char *sequence(int op)
 {
-#ifdef TRACE
-	if (_tracing)
-		_tracef("sequence(%d)", op);
-#endif
+	T(("sequence(%d)", op));
+
 	switch(op) {
 		case CARRIAGE_RETURN:
 			return (carriage_return);

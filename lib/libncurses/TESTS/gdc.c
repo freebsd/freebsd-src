@@ -15,6 +15,11 @@
 #include <unistd.h>
 #endif
 
+#define YBASE	10
+#define XBASE	10
+#define XLENGTH	54
+#define YDEPTH	5
+
 /* it won't be */
 long now; /* yeah! */
 struct tm *tm;
@@ -64,6 +69,7 @@ int n = 0;
 		start_color();
 		init_pair(1, COLOR_BLACK, COLOR_RED);
 		init_pair(2, COLOR_RED, COLOR_BLACK);
+		init_pair(3, COLOR_WHITE, COLOR_BLACK);
 		attrset(COLOR_PAIR(2));
 	}
 	
@@ -74,6 +80,26 @@ int n = 0;
 			scrol = 1;
 		else
 			n = atoi(*argv);
+	}
+
+	if(hascolor) {	
+		attrset(COLOR_PAIR(3));
+
+		mvaddch(YBASE - 1,  XBASE - 1, ACS_ULCORNER);
+		hline(ACS_HLINE, XLENGTH);
+		mvaddch(YBASE - 1,  XBASE + XLENGTH, ACS_URCORNER);
+
+		mvaddch(YBASE + YDEPTH,  XBASE - 1, ACS_LLCORNER);
+		hline(ACS_HLINE, XLENGTH);
+		mvaddch(YBASE + YDEPTH,  XBASE + XLENGTH, ACS_LRCORNER);
+
+		move(YBASE,  XBASE - 1);
+		vline(ACS_VLINE, YDEPTH);
+
+		move(YBASE,  XBASE + XLENGTH);
+		vline(ACS_VLINE, YDEPTH);
+
+		attrset(COLOR_PAIR(2));
 	}
 	do {
 		mask = 0;
@@ -102,7 +128,7 @@ int n = 0;
 						for(j=0,t=1<<26; t; t>>=1,j++) {
 							if(a&t) {
 								if(!(a&(t<<1))) {
-									movto(i, 2*j);
+									movto(YBASE + i, XBASE + 2*j);
 								}
 								addstr("  ");
 							}
@@ -154,15 +180,17 @@ void
 standt(int on)
 {
 	if (on) {
-		if(hascolor)
+		if(hascolor) {
 			attron(COLOR_PAIR(1));
-		else
-			attron(A_STANDOUT);		
+		} else {
+			attron(A_STANDOUT);	
+		}	
 	} else {
-		if(hascolor)
+		if(hascolor) {
 			attron(COLOR_PAIR(2));
-		else
+		} else {
 			attroff(A_STANDOUT);
+		}
 	}
 }
 

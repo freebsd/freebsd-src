@@ -11,7 +11,7 @@
 */
 
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 struct screen *
 set_term(screen)
@@ -19,10 +19,7 @@ struct screen *screen;
 {
 struct screen	*oldSP;
 
-#ifdef TRACE
-	if (_tracing)
-	    _tracef("set_term(%o) called", screen);
-#endif
+	T(("set_term(%o) called", screen));
 
 	oldSP = SP;
 	SP = screen;
@@ -30,6 +27,7 @@ struct screen	*oldSP;
 	cur_term = SP->_term;
 	curscr   = SP->_curscr;
 	newscr   = SP->_newscr;
+	stdscr   = SP->_stdscr;
 
 	return(oldSP);
 }

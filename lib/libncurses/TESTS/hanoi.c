@@ -28,7 +28,7 @@
 #define MIDPEG			39
 #define RIGHTPEG		59
 
-#define LENTOIND(x)		(((x)-1)/2-1)
+#define LENTOIND(x)             (((x)-1)/2)
 #define OTHER(a,b)		(3-((a)+(b)))
 
 struct Peg {
@@ -91,7 +91,6 @@ unsigned char AutoFlag = 0;
 		puts("terminal doesn't support color.");
 		exit(1);
 	}
-	traceon();
 	start_color();
 	{
 	int i;

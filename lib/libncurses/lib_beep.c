@@ -11,7 +11,7 @@
  */
 
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 /*
  *	beep()
@@ -27,9 +27,9 @@ int beep()
 
 	/* should make sure that we are not in altchar mode */
 	if (bell)
-		return(tputs(bell, 1, _outc));
+		return(putp(bell));
 	else if (flash_screen)
-		return(tputs(flash_screen, 1, _outc));
+		return(putp(flash_screen));
 	else
 		return(ERR);
 }
@@ -48,9 +48,9 @@ int flash()
 
 	/* should make sure that we are not in altchar mode */
 	if (flash_screen)
-		return(tputs(flash_screen, 1, _outc));
+		return(putp(flash_screen));
 	else if (bell)
-		return(tputs(bell, 1, _outc));
+		return(putp(bell));
 	else
 		return(ERR);
 }

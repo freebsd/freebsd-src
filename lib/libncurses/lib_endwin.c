@@ -10,14 +10,14 @@
 **
 */
 
-#include <nterm.h>
+#include "terminfo.h"
 #include "curses.priv.h"
-
-int _isendwin;
 
 int isendwin()
 {
-	return _isendwin;
+	if (SP == NULL)
+		return FALSE;
+	return SP->_endwin;
 }
 
 int
@@ -25,18 +25,21 @@ endwin()
 {
 	T(("endwin() called"));
 
-	_isendwin = 1;
+	SP->_endwin = TRUE;
 
 	mvcur(-1, -1, lines - 1, 0);
 
 	if (exit_ca_mode)
-	    tputs(exit_ca_mode, 1, _outc);
+	    putp(exit_ca_mode);
 
-	if (_coloron == 1)
-		tputs(orig_pair, 1, _outc);
+	if (SP->_coloron == TRUE)
+		putp(orig_pair);
 
 	if (curscr  &&  (curscr->_attrs != A_NORMAL)) 
 	    vidattr(curscr->_attrs = A_NORMAL);
+
+	if (SP->_cursor != 1)
+	    putp(cursor_normal);
 
 	fflush(SP->_ofp);
 
