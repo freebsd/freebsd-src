@@ -177,6 +177,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 }
 
 #ifdef __alpha__
+extern struct rpb *hwrpb;
 /*
  * Filler function for proc/cpuinfo (Alpha version)
  */

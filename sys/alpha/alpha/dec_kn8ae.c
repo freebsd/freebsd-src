@@ -39,8 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/bus.h>
 
-#include <machine/rpb.h>
 #include <machine/cpuconf.h>
+#include <machine/md_var.h>
+#include <machine/rpb.h>
 
 #include <alpha/tlsb/tlsbreg.h>
 #include <alpha/tlsb/gbusreg.h>

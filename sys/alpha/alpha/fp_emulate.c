@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/user.h>
+
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
@@ -41,10 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/user.h>
-#include <machine/inst.h>
+
 #include <machine/fpu.h>
+#include <machine/inst.h>
+#include <machine/md_var.h>
 #include <machine/reg.h>
+
 #include <alpha/alpha/ieee_float.h>
 
 #define GETREG(regs, i)		(*(fp_register_t*) &regs->fpr_regs[i])

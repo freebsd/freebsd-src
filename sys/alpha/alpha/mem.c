@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/uio.h>
 
+#include <machine/md_var.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif

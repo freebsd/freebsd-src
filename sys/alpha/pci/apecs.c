@@ -73,13 +73,15 @@ __FBSDID("$FreeBSD$");
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
 #include <alpha/isa/isavar.h>
-#include <machine/intr.h>
-#include <machine/resource.h>
-#include <machine/intrcnt.h>
+
 #include <machine/cpuconf.h>
-#include <machine/swiz.h>
+#include <machine/intr.h>
+#include <machine/intrcnt.h>
+#include <machine/md_var.h>
+#include <machine/resource.h>
 #include <machine/rpb.h>
 #include <machine/sgmap.h>
+#include <machine/swiz.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
