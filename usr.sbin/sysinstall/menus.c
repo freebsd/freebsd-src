@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.92 1996/11/06 19:15:30 jkh Exp $
+ * $Id: menus.c,v 1.93 1996/11/07 08:03:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -824,7 +824,7 @@ Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
   { "ps",	"Postscript documentation [5M]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PS },
-  { "set",	"Setup Utility [1.0M]",
+  { "set",	"XFree86 Setup Utility [1.0M]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
   { "sources",	"XFree86 3.2 standard sources [100M]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
