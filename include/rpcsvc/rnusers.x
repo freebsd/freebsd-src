@@ -35,7 +35,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)rnusers.x 1.2 87/09/20 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)rnusers.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id$";
+%static char rcsid[] = "$Id: rnusers.x,v 1.1 1994/08/04 19:01:50 wollman Exp $";
 %#endif /* not lint */
 #endif
 
@@ -58,6 +58,21 @@ struct utmpidle {
 typedef utmp utmparr<MAXUSERS>;
 
 typedef utmpidle utmpidlearr<MAXUSERS>;
+
+const RUSERS_MAXUSERLEN = 32;
+const RUSERS_MAXLINELEN = 32;
+const RUSERS_MAXHOSTLEN = 257;
+
+struct rusers_utmp {
+	string ut_user<RUSERS_MAXUSERLEN>;	/* aka ut_name */
+	string ut_line<RUSERS_MAXLINELEN>;	/* device */
+	string ut_host<RUSERS_MAXHOSTLEN>;	/* host user logged on from */
+	int ut_type;				/* type of entry */
+	int ut_time;				/* time entry was made */
+	unsigned int ut_idle;			/* minutes idle */
+};
+
+typedef rusers_utmp utmp_array<>;
 
 program RUSERSPROG {
 	/*
@@ -87,5 +102,21 @@ program RUSERSPROG {
 		utmpidlearr
 		RUSERSPROC_ALLNAMES(void) = 3;
 	} = 2;
+
+	/*
+	 * Version 3 rusers procedures (from Solaris).
+	 * (Thanks a lot Sun.)
+	 */
+	version RUSERSVERS_3 {
+		int
+		RUSERSPROC_NUM(void) = 1;
+
+		utmp_array
+		RUSERSPROC_NAMES(void) = 2;
+
+		utmp_array
+		RUSERSPROC_ALLNAMES(void) = 3;
+	} = 3;
+
 } = 100002;
-	
+
