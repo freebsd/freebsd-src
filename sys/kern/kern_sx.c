@@ -53,8 +53,10 @@ sx_init(struct sx *sx, const char *description)
 {
 	struct lock_object *lock;
 
-	bzero(sx, sizeof(*sx));
 	lock = &sx->sx_object;
+	KASSERT((lock->lo_flags & LO_INITIALIZED) == 0,
+	    ("sx lock %s %p already initialized", description, sx));
+	bzero(sx, sizeof(*sx));
 	lock->lo_class = &lock_class_sx;
 	lock->lo_name = description;
 	lock->lo_flags = LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE |
