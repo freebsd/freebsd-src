@@ -75,6 +75,16 @@ GRE mode is also the default tunnel mode on Cisco routers.
 This is also the default mode of operation of the
 .Nm
 interfaces.
+As part of the GRE mode
+.Nm
+also supports Cisco WCCP protocol, both version 1 and version 2.
+Since there is no reliable way to distinguish between WCCP versions, it
+should be configured manually using the
+.Cm link2
+flag.
+If the
+.Cm link2
+flag is not set (default), then WCCP version 1 is selected.
 .It "MOBILE encapsulation (IP protocol number 55)"
 Datagrams are
 encapsulated into IP, but with a shorter encapsulation.

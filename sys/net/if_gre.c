@@ -178,6 +178,7 @@ gre_clone_create(ifc, unit)
 	sc->sc_if.if_flags |= IFF_LINK0;
 	sc->encap = NULL;
 	sc->called = 0;
+	sc->wccp_ver = WCCP_V1;
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int32_t));
 	LIST_INSERT_HEAD(&gre_softc_list, sc, sc_list);
@@ -407,6 +408,10 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->g_proto = IPPROTO_GRE;
 		else
 			sc->g_proto = IPPROTO_MOBILE;
+		if ((ifr->ifr_flags & IFF_LINK2) != 0)
+			sc->wccp_ver = WCCP_V2;
+		else
+			sc->wccp_ver = WCCP_V1;
 		goto recompute;
 	case SIOCSIFMTU:
 		if ((error = suser(curthread)) != 0)

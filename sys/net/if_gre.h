@@ -44,6 +44,16 @@
 #ifdef _KERNEL
 #include <sys/queue.h>
 
+/*
+ * Version of the WCCP, need to be configured manually since
+ * header for version 2 is the same but IP payload is prepended
+ * with additional 4-bytes field.
+ */
+typedef enum {
+	WCCP_V1 = 0,
+	WCCP_V2
+} wccp_ver_t;
+
 struct gre_softc {
 	struct ifnet sc_if;
 	LIST_ENTRY(gre_softc) sc_list;
@@ -58,6 +68,8 @@ struct gre_softc {
 	const struct encaptab *encap;	/* encapsulation cookie */
 
 	int called;		/* infinite recursion preventer */
+
+	wccp_ver_t wccp_ver;	/* version of the WCCP */
 };
 
 
