@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.18 1996/01/17 09:35:23 olah Exp $
+ *	$Id: tcp_output.c,v 1.19 1996/03/11 15:13:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -186,15 +186,18 @@ again:
 		 * but we haven't been called to retransmit,
 		 * len will be -1.  Otherwise, window shrank
 		 * after we sent into it.  If window shrank to 0,
-		 * cancel pending retransmit and pull snd_nxt
-		 * back to (closed) window.  We will enter persist
-		 * state below.  If the window didn't close completely,
-		 * just wait for an ACK.
+		 * cancel pending retransmit, pull snd_nxt back
+		 * to (closed) window, and set the persist timer
+		 * if it isn't already going.  If the window didn't
+		 * close completely, just wait for an ACK.
 		 */
 		len = 0;
 		if (win == 0) {
 			tp->t_timer[TCPT_REXMT] = 0;
+			tp->t_rxtshift = 0;
 			tp->snd_nxt = tp->snd_una;
+			if (tp->t_timer[TCPT_PERSIST] == 0)
+				tcp_setpersist(tp);
 		}
 	}
 	if (len > tp->t_maxseg) {
