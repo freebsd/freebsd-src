@@ -1,6 +1,8 @@
 <!-- $FreeBSD$ -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
+<!ENTITY % output.html		"IGNORE">
+<!ENTITY % output.print 	"IGNORE">
 <!ENTITY freebsd.dsl PUBLIC "-//FreeBSD//DOCUMENT DocBook Stylesheet//EN" CDATA DSSSL>
 ]>
 
@@ -80,6 +82,12 @@
 ; the release notes.  We enable the printing of pubdate entry in
 ; sect1info elements to support this.
 (element (sect1info pubdate) (process-children))
+
+    <![ %output.print; [
+; Put URLs in footnotes, and put footnotes at the bottom of each page.
+      (define bop-footnotes #t)
+      (define %footnote-ulinks% #t)
+    ]]>
 
     </style-specification-body>
   </style-specification>
