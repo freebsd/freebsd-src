@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.16 1995/10/23 02:23:07 dyson Exp $
+ * $Id: ffs_vnops.c,v 1.17 1995/11/09 08:14:01 bde Exp $
  */
 
 #include <sys/param.h>
@@ -224,9 +224,9 @@ VNODEOP_SET(ffs_fifoop_opv_desc);
  */
 #include <sys/sysctl.h>
 int doclusterread = 1;
-struct ctldebug debug11 = { "doclusterread", &doclusterread };
+SYSCTL_INT(_debug, 11, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
 int doclusterwrite = 1;
-struct ctldebug debug12 = { "doclusterwrite", &doclusterwrite };
+SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
 #else
 /* XXX for ufs_readwrite */
 #define doclusterread 1
