@@ -303,6 +303,9 @@ isint:				cs[2] = '\0';
 				case 2:
 					pr->bcnt = 2;
 					break;
+				case 8:
+					pr->bcnt = 8;
+					break;
 				default:
 					p1[1] = '\0';
 					badcnt(p1);

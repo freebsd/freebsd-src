@@ -123,8 +123,8 @@ print(PR *pr, u_char *bp)
 	   double f8;
 	    float f4;
 	  int16_t s2;
-	   int8_t s8;
 	  int32_t s4;
+	  int64_t s8;
 	u_int16_t u2;
 	u_int32_t u4;
 	u_int64_t u8;
