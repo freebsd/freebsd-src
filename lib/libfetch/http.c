@@ -114,7 +114,7 @@ struct cookie
     int		 eof;
     int		 error;
     long	 chunksize;
-#ifdef DEBUG
+#ifndef NDEBUG
     long	 total;
 #endif
 };
@@ -141,7 +141,7 @@ _http_new_chunk(struct cookie *c)
 	else
 	    c->chunksize = c->chunksize * 16 + 10 + tolower(*p) - 'a';
     
-#ifdef DEBUG
+#ifndef NDEBUG
     c->total += c->chunksize;
     if (c->chunksize == 0)
 	fprintf(stderr, "\033[1m_http_fillbuf(): "
