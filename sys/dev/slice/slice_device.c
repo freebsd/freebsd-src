@@ -23,8 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: $
+ *	$Id: slice_device.c,v 1.1 1998/04/19 23:31:14 julian Exp $
  */
+#define DIAGNOSTIC 1
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -140,26 +141,7 @@ minor_to_slice(unsigned int minor)
 	return (NULL);
 }
 
-/*
- * Macro to check that the unit number is valid Often this isn't needed as
- * once the open() is performed, the unit number is pretty much safe.. The
- * exception would be if we implemented devices that could "go away". in
- * which case all these routines would be wise to check the number,
- * DIAGNOSTIC or not.
- */
-#define CHECKUNIT()					\
-do { /* the do-while is a safe way to do this grouping */	\
-	if (slice == NULL) { 					\
-		printf( __FUNCTION__ ": unit  not attached\n", unit);	\
-		panic ("slice");				\
-	}							\
-} while (0)
 
-#ifdef	DIAGNOSTIC
-#define	CHECKUNIT_DIAG() CHECKUNIT()
-#else				/* DIAGNOSTIC */
-#define	CHECKUNIT_DIAG()
-#endif				/* DIAGNOSTIC */
 
 int
 slcdevioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc * p)
@@ -167,7 +149,6 @@ slcdevioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc * p)
 	sl_p            slice = minor_to_slice(minor(dev));
 	int             error = 0;
 
-	CHECKUNIT_DIAG();
 RR;
 
 	/*
@@ -246,8 +227,15 @@ slcdevclose(dev_t dev, int flags, int mode, struct proc * p)
 {
 	sl_p            slice = minor_to_slice(minor(dev));
 RR;
-	CHECKUNIT_DIAG();
-	sliceclose(slice, flags, mode, p, SLW_DEVICE);
+#ifdef	DIAGNOSTIC
+	if ((flags & (FWRITE | FREAD)) != 0) {
+		printf("sliceclose called with non 0 flags\n");
+	}
+#endif
+	/*
+	 * Close is just an open for non-read/nonwrite in this context.
+	 */
+	sliceopen(slice, 0, mode, p, SLW_DEVICE);
 	return(0);
 }
 

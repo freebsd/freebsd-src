@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_base.c,v 1.1 1998/04/19 23:31:12 julian Exp $
+ *	$Id: slice_base.c,v 1.2 1998/04/22 01:51:34 julian Exp $
  */
 
 #include <sys/param.h>
@@ -575,6 +575,31 @@ sliceopen(struct slice *slice, int flags, int mode,
 	}
 	slice->flags &= ~SLF_OPEN_STATE;
 	slice->flags |= sl_flags;
+#if 1	/* it was basically a close */
+	if ((slice->flags & SLF_OPEN_STATE) == SLF_CLOSED) {
+		sh_p	tp;
+
+		/*
+		 * If we had an upper handler, ask it to check if it's still
+		 * valid. it may decide to self destruct.
+		 */
+		if (slice->handler_up) {
+			(*slice->handler_up->verify)(slice);
+		}
+		/*
+		 * If we don't have an upper handler, check if
+		 * maybe there is now a suitable environment for one.
+		 * We may end up with a different handler
+		 * from what we had above. Maybe we should clear the hint?
+		 * Maybe we should ask the lower one to re-issue the request?
+		 */
+		if (slice->handler_up == NULL) {
+			if ((tp = slice_probeall(slice)) != NULL) {
+				(*tp->constructor)(slice);
+			}
+		}
+	}
+#endif
 reject:
 	unlockslice(slice);
 	if ((slice->flags & SLF_INVALID) == SLF_INVALID)
@@ -583,6 +608,7 @@ reject:
 	return (error);
 }
 
+#if 0
 void
 sliceclose(struct slice *slice, int flags, int mode,
 	struct proc * p, enum slc_who who)
@@ -643,7 +669,7 @@ sliceclose(struct slice *slice, int flags, int mode,
 	sl_unref(slice);
 	return ;
 }
-
+#endif /* 0 */
 
 /*
  * control behaviour of slices WRT sharing:
