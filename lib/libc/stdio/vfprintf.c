@@ -342,6 +342,8 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, const char *xdigs,
 static char *
 __wcsconv(wchar_t *wcsarg, int prec)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	wchar_t *p;
 	char *convbuf, *mbp;
@@ -354,8 +356,9 @@ __wcsconv(wchar_t *wcsarg, int prec)
 	if (prec >= 0) {
 		nbytes = 0;
 		p = wcsarg;
+		mbs = initial;
 		for (;;) {
-			clen = wcrtomb(buf, *p++, NULL);
+			clen = wcrtomb(buf, *p++, &mbs);
 			if (clen == 0 || clen == (size_t)-1 ||
 			    nbytes + clen > prec)
 				break;
@@ -363,7 +366,8 @@ __wcsconv(wchar_t *wcsarg, int prec)
 		}
 	} else {
 		p = wcsarg;
-		nbytes = wcsrtombs(NULL, (const wchar_t **)&p, 0, NULL);
+		mbs = initial;
+		nbytes = wcsrtombs(NULL, (const wchar_t **)&p, 0, &mbs);
 		if (nbytes == (size_t)-1)
 			return (NULL);
 	}
@@ -376,8 +380,9 @@ __wcsconv(wchar_t *wcsarg, int prec)
 	 */
 	mbp = convbuf;
 	p = wcsarg;
+	mbs = initial;
 	while (mbp - convbuf < nbytes) {
-		clen = wcrtomb(mbp, *p++, NULL);
+		clen = wcrtomb(mbp, *p++, &mbs);
 		if (clen == 0 || clen == (size_t)-1)
 			break;
 		mbp += clen;
@@ -793,10 +798,13 @@ reswitch:	switch (ch) {
 			/*FALLTHROUGH*/
 		case 'c':
 			if (flags & LONGINT) {
+				static const mbstate_t initial;
+				mbstate_t mbs;
 				size_t mbseqlen;
 
+				mbs = initial;
 				mbseqlen = wcrtomb(cp = buf,
-				    (wchar_t)GETARG(wint_t), NULL);
+				    (wchar_t)GETARG(wint_t), &mbs);
 				if (mbseqlen == (size_t)-1) {
 					fp->_flags |= __SERR;
 					goto error;
