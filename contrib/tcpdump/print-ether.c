@@ -17,6 +17,8 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 #ifndef lint
 static const char rcsid[] =
@@ -194,6 +196,11 @@ ether_encap_print(u_short ethertype, const u_char *p,
 
 	case ETHERTYPE_IPX:
 		ipx_print(p, length);
+		return (1);
+
+	case ETHERTYPE_PPPOE_DISC:
+	case ETHERTYPE_PPPOE_SESS:
+		pppoe_print(p, length);
 		return (1);
 
 	case ETHERTYPE_LAT:
