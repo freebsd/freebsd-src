@@ -13,7 +13,38 @@ is now proceeding onwards toward release 2.2.5), please install from:
         ftp://releng22.freebsd.org/pub/FreeBSD/
 
 
-0. What's new since 2.2.1
+1. What's new since 2.2.2
+-------------------------
+The "world" target in /usr/src/Makefile has been made more
+independent of the host system, allowing for easier bootstrapping
+via source from very old systems.
+
+Many many fixes to the documentation.
+
+Many security enhancements, as documented with CERT and other
+security organizations.
+
+Important subsystems such as BIND and sendmail updated.
+
+Support for ethernet media selection.   Replacing the far
+more arcane "link" flag usage, a new media flag to ifconfig
+permits specific interfaces on multi-port ethernet cards to
+be selected by name (man ifconfig for more details).
+
+Significant improvements to the AHC (Adaptec 394x/294X) driver
+and AIC7xxx assembler.
+
+Enhancements to the serial boot code and GDB remote support.
+
+Make work-around available for CMD640 chipset (see /sys/i386/conf/LINT).
+
+Better support for Cyrix and AMD processors.
+
+Support for parallel port ZIP drives as well as a new parallel
+port "bus" architecture for devices sharing the printer port.
+
+
+1. What's new since 2.2.1
 -------------------------
 A number of bugs in the Adaptec 294x/394x (AHC) driver were fixed
 which could cause instability on heavily loaded systems.
@@ -43,158 +74,6 @@ Texinfo documentation mechanisms cleaned up in source tree.
 fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
 This brings it in line with the numbers used in the device names
 in /dev.
-
-
-1. What's new since 2.1.7
--------------------------
-
-Lots of installation bugs fixed, more pc98 changes synchronized, geeze,
-what else?
-
-gdb 4.16 has been merged from -current, most of the third-party source
-now lives under /usr/src/contrib.
-
-Updated support for the DEC DEFPA/DEFEA FDDI hardware.
-
-The old ``HAVE_FPU'' Makefile option is now finally gone, the selection
-between the math library using the floating point emulator, and the
-version using the co-processor is now fully automatic.  This will speed
-up floating-point using programs on sites that didn't like to recompile
-their `libm' previously.
-
-Javier Martin Rueda's `ex' driver has been merged, bringing support
-for the Intel EtherExpress Pro/10 network cards.
-
-The Intel EtherExpress Pro/100B now works in full-duplex mode.
-
-The `de' driver now recognizes cards using the DE21140A chip, like the
-popular SMC9332BDT (10/100 Mbit/s) one.
-
-There's now a workaround for the brokenness of the frequently used
-CMD640 PCI IDE chip in the sources, albeit still disabled by default
-in 2.2.
-
-The number of EISA slots to probe is now a fully supported option,
-including the ability to save the value from a UserConfig session
-with dset(8).  This helps owners of HP NetServer LC machines to
-install the system on their hardware.
-
-Support for the SDL RISCom N2pci sync serial card.
-
-Support for Cyclades Cyclom-Y (multi-port async serial) PCI adaptors
-as well as multiple controllers and the 32-Y (if you are currently using
-the Cyclades serial adapter, you should re-make your /dev entries and
-remove the old ones).
-
-Updated support for ethernet adaptors which use the DEC DC21X4X chipset.
-
-Update to gcc 2.7.2.1 & add support for weak symbols.
-
-Many things moved/brought into /usr/src/contrib, updating and
-cleaning up the source tree accordingly.
-
-Support for compiled-in shared library ld paths.
-
-Update sgmlfmt to `instant'.
-
-Support for SNMP-style interface MIBs, including full RFC
-1650-compliant MIBs for the `de' (DEC 21x4x) and `ed' (SMC/WD/Novell)
-drivers.
-
-/stand/sysinstall moved even more towards becoming a more general
-system management tool.  You can actually add a new, from-scratch
-formatted disk with it now, from partition label to filesystem
-creation (though it still doesn't modify your /etc/fstab file to
-make it permanent).
-
-The syscons and psm drivers now have a new underlying shared keyboard
-driver, eliminating many of the previously existing problems with
-their mutual interaction.
-
-Syscons now supports cut & paste in textmode using the moused(8)
-utility.
-
-2.2 is the first release that includes full CD-R support for the
-Plasmon RF41xx, HP4020i, HP6020i, and Philips CDD2000 drives.  The
-driver is still under development (in particular to extend its
-usability for other devices), but it has been proved to be stable
-by now.
-
-Support for NFSv3 clients and servers went into the 2.2 sources
-shortly after branching off the 2.0.5/2.1.X tree.  There are also
-other options available with NFS, like the ability to turn an NFSv2
-server into asynchronous write mode (which is in violation of the
-specs, but has precedents e.g. in SGI Irix).
-
-Poul-Henning Kamp's phkmalloc replaced the old and blatant BSD
-malloc implementation.  This usually saves a lot of virtual memory
-for the clients, and offers some neat features like aborting the
-program on detected malloc abuses, or filling the malloced and/or
-freed area with junk in order to detect semantical problems in
-programs that use malloc.
-
-The `netatalk' implementation of AppleTalk has been integrated into
-the sources, most of the integration work courtesy Whistle Communic-
-ations Corp.
-
-The mount option `async' allows asynchronous metadata updates on UFS
-file systems, something that is the default e.g. on Linux' ext2fs.
-This speeds up many i-node intensive filesystem operations (like
-rm -r) at the cost of an increased risk in case of a system crash.
-The installation itself makes use of this feature, and could be
-drastically accelerated by this.  (A bindist-only installation from a
-SCSI CD-ROM can now complete in less than 5 minutes on a fast
-machine!)
-
-The ATAPI CD-ROM support is now reported to work for quite an
-impressive number of drives.  In other words, all the drives that
-basically adhere to the ATAPI standard are likely to work.
-
-There are many new drivers available in the kernel, too many to keep
-them in mind.  Tekram supplied a driver for their DC390 and DC390T
-controllers.  These controllers are based on the AMD 53c974, and the
-driver is also able to handle other SCSI controllers based on that
-chip.  Of course, with Tekram being generous enough to support the
-FreeBSD project with their driver, we'd like to encourage you to buy
-their product.  The `ed' and `lnc' drivers now support auto-config-
-uration for the respective PCI ethernet cards, including many NE2000
-clones and the AMD PCnet chips.  The SDL RISCom N2 support is new, as
-well as the PCI version of the Cyclades driver.
-
-The Linux emulation is now fully functional, including ELF support.
-To make its use easier, there are even ports for the required shared
-libraries, and for the Slackware development environment.
-
-Along the same lines, the SysV COFF emulation (aka. SCO emulation) is
-reported to be working well now.
-
-FreeBSD also supports native ELF binaries, although it hasn't been
-decided yet whether, when, and how we might use this as the default
-binary format some day.
-
-A `brandelf' utility has been added to allow `branding' of non-shared
-linked ELF binaries where the kernel cannot guess which image activator
-(FreeBSD, Linux, maybe SysV some day) should be used.  This works around
-one major flaw in the ELF object format, the missing field to mark the
-ABI it belongs to.
-
-Support for APM BIOSes is now in a much better shape.
-
-The manual section 9 has been started, describing `official' kernel
-programming interfaces.  We are still seeking volunteers to document
-interfaces here!
-
-The kernel configuration option handling has been largely moved away
-from the old -D Makefile kludges, towards a system of "opt_foo.h"
-kernel include files, allowing Makefile dependencies to work again.
-We expect the old hack that blows the entire compile directory away
-on each run of config(8) to go away anytime soon.  Unless you're changing
-weird options, you might now consider using the -n option to config(8),
-or setting the env variable NO_CONFIG_CLOBBER, if CPU time is costly for
-you.  See also the comments in the handbook about how it works.
-
-The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
-believed to be fixed.
 
 
 2. Supported Configurations
