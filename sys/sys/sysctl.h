@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.14 1994/10/07 07:33:51 phk Exp $
+ * $Id: sysctl.h,v 1.15 1994/10/08 01:45:30 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -360,11 +360,6 @@ void fill_eproc __P((struct proc *, struct eproc *));
 int	sysctl_clockrate __P((char *, size_t*));
 int	sysctl_vnode __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));
-int	sysctl_doproc __P((int *, u_int, char *, size_t*));
-
-int	sysctl_clockrate __P((char *, size_t*));
-int	sysctl_vnode __P((char *, size_t*));
-int	sysctl_file __P((char *, size_t*)); 
 int	sysctl_doproc __P((int *, u_int, char *, size_t*));
 
 #else	/* !KERNEL */
