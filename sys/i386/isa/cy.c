@@ -135,8 +135,6 @@
 #define	siowrite	cywrite
 #define	sio_ih		cy_ih
 #define	sio_irec	cy_irec
-#define	sio_lock	cy_lock
-#define	sio_inited	cy_inited
 #define	sio_timeout	cy_timeout
 #define	sio_timeout_handle cy_timeout_handle
 #define	sio_timeouts_until_log	cy_timeouts_until_log
@@ -354,9 +352,7 @@ static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 void	cystatus	__P((int unit));
 #endif
 
-static char	driver_name[] = "cy";
-static struct	mtx sio_lock;
-static int	sio_inited;
+static char driver_name[] = "cy";
 
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
@@ -432,9 +428,6 @@ sioprobe(dev)
 	cy_addr	iobase;
 
 	iobase = (cy_addr)dev->id_maddr;
-
-	if (atomic_cmpset_int(&sio_inited, 0, 1))
-		mtx_init(&sio_lock, driver_name, MTX_SPIN);
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
 	cy_inb(iobase, CY16_RESET, 0);	/* XXX? */
@@ -603,11 +596,9 @@ cyattach_common(cy_iobase, cy_align)
 		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
 	}
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
-		mtx_unlock_spin(&sio_lock);
 		free(com, M_DEVBUF);
 		return (0);
 	}
-	mtx_unlock_spin(&sio_lock);
 	termioschars(&com->it_in);
 	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	com->it_out = com->it_in;
@@ -661,6 +652,7 @@ sioopen(dev, flag, mode, p)
 	int		s;
 	struct tty	*tp;
 	int		unit;
+	int		intrsave;
 
 	mynor = minor(dev);
 	unit = MINOR_TO_UNIT(mynor);
@@ -767,14 +759,17 @@ open_top:
 			}
 		}
 
-		mtx_lock_spin(&sio_lock);
+		intrsave = save_intr();
+		disable_intr();
+		COM_LOCK();
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
 		com->prev_modem_status = com->last_modem_status
 		    = inb(com->modem_status_port);
 		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
 				       | IER_EMSC);
-		mtx_unlock_spin(&sio_lock);
+		COM_UNLOCK();
+		restore_intr(intrsave);
 #else /* !0 */
 		/*
 		 * Flush fifos.  This requires a full channel reset which
@@ -785,13 +780,16 @@ open_top:
 				   CD1400_CCR_CMDRESET | CD1400_CCR_CHANRESET);
 		cd1400_channel_cmd(com, com->channel_control);
 
-		mtx_lock_spin(&sio_lock);
+		intrsave = save_intr();
+		disable_intr();
+		COM_LOCK();
 		com->prev_modem_status = com->last_modem_status
 		    = cd_getreg(com, CD1400_MSVR2);
 		cd_setreg(com, CD1400_SRER,
 			  com->intr_enable
 			  = CD1400_SRER_MDMCH | CD1400_SRER_RXDATA);
-		mtx_unlock_spin(&sio_lock);
+		COM_UNLOCK();
+		restore_intr(intrsave);
 #endif /* 0 */
 		/*
 		 * Handle initial DCD.  Callout devices get a fake initial
@@ -874,6 +872,7 @@ comhardclose(com)
 	int		s;
 	struct tty	*tp;
 	int		unit;
+	int		intrsave;
 
 	unit = com->unit;
 	iobase = com->iobase;
@@ -887,10 +886,13 @@ comhardclose(com)
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 #else
 	/* XXX */
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	com->etc = ETC_NONE;
 	cd_setreg(com, CD1400_COR2, com->cor[1] &= ~CD1400_COR2_ETC);
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 	cd1400_channel_cmd(com, CD1400_CCR_CMDRESET | CD1400_CCR_FTF);
 #endif
 
@@ -898,9 +900,12 @@ comhardclose(com)
 #if 0
 		outb(iobase + com_ier, 0);
 #else
-		mtx_lock_spin(&sio_lock);
+		intrsave = save_intr();
+		disable_intr();
+		COM_LOCK();
 		cd_setreg(com, CD1400_SRER, com->intr_enable = 0);
-		mtx_unlock_spin(&sio_lock);
+		COM_UNLOCK();
+		restore_intr(intrsave);
 #endif
 		tp = com->tp;
 		if ((tp->t_cflag & HUPCL)
@@ -991,8 +996,9 @@ siodtrwakeup(chan)
 }
 
 /*
- * Call this function with the sio_lock mutex held.  It will return with the
- * lock still held.
+ * This function:
+ *  a) needs to be called with COM_LOCK() held, and
+ *  b) needs to return with COM_LOCK() held.
  */
 static void
 sioinput(com)
@@ -1003,6 +1009,7 @@ sioinput(com)
 	u_char		line_status;
 	int		recv_data;
 	struct tty	*tp;
+	int		intrsave;
 
 	buf = com->ibuf;
 	tp = com->tp;
@@ -1026,7 +1033,9 @@ sioinput(com)
 			 * semantics instead of the save-and-disable semantics
 			 * that are used everywhere else.
 			 */
-			mtx_unlock_spin(&sio_lock);
+			intrsave = save_intr();
+			COM_UNLOCK();
+			enable_intr();
 			incc = com->iptr - buf;
 			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
 			    && (com->state & CS_RTS_IFLOW
@@ -1047,7 +1056,8 @@ sioinput(com)
 				tp->t_lflag &= ~FLUSHO;
 				comstart(tp);
 			}
-			mtx_lock_spin(&sio_lock);
+			restore_intr(intrsave);
+			COM_LOCK();
 		} while (buf < com->iptr);
 	} else {
 		do {
@@ -1056,7 +1066,9 @@ sioinput(com)
 			 * semantics instead of the save-and-disable semantics
 			 * that are used everywhere else.
 			 */
-			mtx_unlock_spin(&sio_lock);
+			intrsave = save_intr();
+			COM_UNLOCK();
+			enable_intr();
 			line_status = buf[com->ierroff];
 			recv_data = *buf++;
 			if (line_status
@@ -1071,7 +1083,8 @@ sioinput(com)
 					recv_data |= TTY_PE;
 			}
 			(*linesw[tp->t_line].l_rint)(recv_data, tp);
-			mtx_lock_spin(&sio_lock);
+			restore_intr(intrsave);
+			COM_LOCK();
 		} while (buf < com->iptr);
 	}
 	com_events -= (com->iptr - com->ibuf);
@@ -1103,7 +1116,7 @@ siointr(unit)
 	cy_addr	iobase;
 	u_char	status;
 
-	mtx_lock_spin(&sio_lock);	/* XXX could this be placed down lower in the loop? */
+	COM_LOCK();	/* XXX could this be placed down lower in the loop? */
 
 	baseu = unit * CY_MAX_PORTS;
 	cy_align = com_addr(baseu)->cy_align;
@@ -1569,7 +1582,7 @@ terminate_tx_service:
 
 	swi_sched(sio_ih, SWI_NOSWITCH);
 
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
 }
 
 #if 0
@@ -1744,6 +1757,7 @@ static void
 siopoll(void *arg)
 {
 	int		unit;
+	int		intrsave;
 
 #ifdef CyDebug
 	++cy_timeouts;
@@ -1766,7 +1780,9 @@ repeat:
 			 * (actually never opened devices) so that we don't
 			 * loop.
 			 */
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			incc = com->iptr - com->ibuf;
 			com->iptr = com->ibuf;
 			if (com->state & CS_CHECKMSR) {
@@ -1774,7 +1790,8 @@ repeat:
 				com->state &= ~CS_CHECKMSR;
 			}
 			com_events -= incc;
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 			if (incc != 0)
 				log(LOG_DEBUG,
 				    "sio%d: %d events for device with no tp\n",
@@ -1782,30 +1799,39 @@ repeat:
 			continue;
 		}
 		if (com->iptr != com->ibuf) {
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			sioinput(com);
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 		}
 		if (com->state & CS_CHECKMSR) {
 			u_char	delta_modem_status;
 
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			sioinput(com);
 			delta_modem_status = com->last_modem_status
 					     ^ com->prev_modem_status;
 			com->prev_modem_status = com->last_modem_status;
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 			if (delta_modem_status & MSR_DCD)
 				(*linesw[tp->t_line].l_modem)
 					(tp, com->prev_modem_status & MSR_DCD);
 		}
 		if (com->extra_state & CSE_ODONE) {
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			com_events -= LOTS_OF_EVENTS;
 			com->extra_state &= ~CSE_ODONE;
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 			if (!(com->state & CS_BUSY)) {
 				tp->t_state &= ~TS_BUSY;
 				ttwwakeup(com->tp);
@@ -1817,10 +1843,13 @@ repeat:
 			}
 		}
 		if (com->state & CS_ODONE) {
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 			(*linesw[tp->t_line].l_start)(tp);
 		}
 		if (com_events == 0)
@@ -1849,6 +1878,7 @@ comparam(tp, t)
 	u_char		opt;
 	int		s;
 	int		unit;
+	int		intrsave;
 
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
@@ -1996,11 +2026,15 @@ comparam(tp, t)
 	if (cflag & CCTS_OFLOW)
 		opt |= CD1400_COR2_CCTS_OFLOW;
 #endif
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	if (opt != com->cor[1]) {
 		cor_change |= CD1400_CCR_COR2;
 		cd_setreg(com, CD1400_COR2, com->cor[1] = opt);
 	}
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 
 	/*
 	 * set channel option register 3 -
@@ -2121,7 +2155,9 @@ comparam(tp, t)
 	 * XXX should have done this long ago, but there is too much state
 	 * to change all atomically.
 	 */
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 
 	com->state &= ~CS_TTGO;
 	if (!(tp->t_state & TS_TTSTOP))
@@ -2187,7 +2223,8 @@ comparam(tp, t)
 				    | CD1400_SRER_TXMPTY);
 	}
 
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 	splx(s);
 	comstart(tp);
 	if (com->ibufold != NULL) {
@@ -2197,10 +2234,6 @@ comparam(tp, t)
 	return (0);
 }
 
-/*
- * This function must be called with the sio_lock mutex released and will
- * return with it obtained.
- */
 static int
 siosetwater(com, speed)
 	struct com_s	*com;
@@ -2210,6 +2243,7 @@ siosetwater(com, speed)
 	u_char		*ibuf;
 	int		ibufsize;
 	struct tty	*tp;
+	int		intrsave;
 
 	/*
 	 * Make the buffer size large enough to handle a softtty interrupt
@@ -2221,7 +2255,6 @@ siosetwater(com, speed)
 	for (ibufsize = 128; ibufsize < cp4ticks;)
 		ibufsize <<= 1;
 	if (ibufsize == com->ibufsize) {
-		mtx_lock_spin(&sio_lock);
 		return (0);
 	}
 
@@ -2231,7 +2264,6 @@ siosetwater(com, speed)
 	 */
 	ibuf = malloc(2 * ibufsize, M_DEVBUF, M_NOWAIT);
 	if (ibuf == NULL) {
-		mtx_lock_spin(&sio_lock);
 		return (ENOMEM);
 	}
 
@@ -2249,7 +2281,9 @@ siosetwater(com, speed)
 	 * Read current input buffer, if any.  Continue with interrupts
 	 * disabled.
 	 */
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	if (com->iptr != com->ibuf)
 		sioinput(com);
 
@@ -2269,6 +2303,8 @@ siosetwater(com, speed)
 	com->ierroff = ibufsize;
 	com->ihighwater = ibuf + 3 * ibufsize / 4;
 
+	COM_UNLOCK();
+	restore_intr(intrsave);
 	return (0);
 }
 
@@ -2282,6 +2318,7 @@ comstart(tp)
 	bool_t		started;
 #endif
 	int		unit;
+	int		intrsave;
 
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
@@ -2292,7 +2329,9 @@ comstart(tp)
 	started = FALSE;
 #endif
 
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	if (tp->t_state & TS_TTSTOP) {
 		com->state &= ~CS_TTGO;
 		if (com->intr_enable & CD1400_SRER_TXRDY)
@@ -2328,7 +2367,8 @@ comstart(tp)
 				  com->mcr_image |= com->mcr_rts);
 #endif
 	}
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
 		ttwwakeup(tp);
 		splx(s);
@@ -2347,7 +2387,9 @@ comstart(tp)
 						  sizeof com->obuf1);
 			com->obufs[0].l_next = NULL;
 			com->obufs[0].l_queued = TRUE;
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2366,7 +2408,8 @@ comstart(tp)
 						    & ~CD1400_SRER_TXMPTY)
 						    | CD1400_SRER_TXRDY);
 			}
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 		}
 		if (tp->t_outq.c_cc != 0 && !com->obufs[1].l_queued) {
 #ifdef CyDebug
@@ -2377,7 +2420,9 @@ comstart(tp)
 						  sizeof com->obuf2);
 			com->obufs[1].l_next = NULL;
 			com->obufs[1].l_queued = TRUE;
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2396,7 +2441,8 @@ comstart(tp)
 						    & ~CD1400_SRER_TXMPTY)
 						    | CD1400_SRER_TXRDY);
 			}
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 		}
 		tp->t_state |= TS_BUSY;
 	}
@@ -2405,10 +2451,13 @@ comstart(tp)
 		++com->start_real;
 #endif
 #if 0
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 #endif
 	ttwwakeup(tp);
 	splx(s);
@@ -2421,10 +2470,13 @@ comstop(tp, rw)
 {
 	struct com_s	*com;
 	bool_t		wakeup_etc;
+	int		intrsave;
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	wakeup_etc = FALSE;
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	if (rw & FWRITE) {
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
@@ -2447,7 +2499,8 @@ comstop(tp, rw)
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 	if (wakeup_etc)
 		wakeup(&com->etc);
 	if (rw & FWRITE && com->etc == ETC_NONE)
@@ -2463,6 +2516,7 @@ commctl(com, bits, how)
 {
 	int	mcr;
 	int	msr;
+	int	intrsave;
 
 	if (how == DMGET) {
 		if (com->channel_control & CD1400_CCR_RCVEN)
@@ -2500,7 +2554,9 @@ commctl(com, bits, how)
 		mcr |= com->mcr_dtr;
 	if (bits & TIOCM_RTS)
 		mcr |= com->mcr_rts;
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	switch (how) {
 	case DMSET:
 		com->mcr_image = mcr;
@@ -2518,7 +2574,8 @@ commctl(com, bits, how)
 		cd_setreg(com, CD1400_MSVR2, mcr);
 		break;
 	}
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 	return (0);
 }
 
@@ -2580,9 +2637,14 @@ comwakeup(chan)
 		com = com_addr(unit);
 		if (com != NULL
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
-			mtx_lock_spin(&sio_lock);
+			int	intrsave;
+
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			siointr1(com);
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 		}
 	}
 #endif
@@ -2602,11 +2664,15 @@ comwakeup(chan)
 		for (errnum = 0; errnum < CE_NTYPES; ++errnum) {
 			u_int	delta;
 			u_long	total;
+			int	intrsave;
 
-			mtx_lock_spin(&sio_lock);
+			intrsave = save_intr();
+			disable_intr();
+			COM_LOCK();
 			delta = com->delta_error_counts[errnum];
 			com->delta_error_counts[errnum] = 0;
-			mtx_unlock_spin(&sio_lock);
+			COM_UNLOCK();
+			restore_intr(intrsave);
 			if (delta == 0)
 				continue;
 			total = com->error_counts[errnum] += delta;
@@ -2758,6 +2824,7 @@ cd_etc(com, etc)
 	struct com_s	*com;
 	int		etc;
 {
+	int		intrsave;
 
 	/*
 	 * We can't change the hardware's ETC state while there are any
@@ -2770,7 +2837,9 @@ cd_etc(com, etc)
 	 * for the tx to become empty so that the command is sure to be
 	 * executed soon after we issue it.
 	 */
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	COM_LOCK();
 	if (com->etc == etc)
 		goto wait;
 	if ((etc == CD1400_ETC_SENDBREAK
@@ -2779,7 +2848,8 @@ cd_etc(com, etc)
 	    || (etc == CD1400_ETC_STOPBREAK
 	       && (com->etc == ETC_BREAK_ENDING || com->etc == ETC_BREAK_ENDED
 		   || com->etc == ETC_NONE))) {
-		mtx_unlock_spin(&sio_lock);
+		COM_UNLOCK();
+		restore_intr(intrsave);
 		return;
 	}
 	com->etc = etc;
@@ -2787,7 +2857,8 @@ cd_etc(com, etc)
 		  com->intr_enable
 		  = (com->intr_enable & ~CD1400_SRER_TXRDY) | CD1400_SRER_TXMPTY);
 wait:
-	mtx_unlock_spin(&sio_lock);
+	COM_UNLOCK();
+	restore_intr(intrsave);
 	while (com->etc == etc
 	       && tsleep(&com->etc, TTIPRI | PCATCH, "cyetc", 0) == 0)
 		continue;
@@ -2801,6 +2872,7 @@ cd_getreg(com, reg)
 	struct com_s	*basecom;
 	u_char	car;
 	int	cy_align;
+	int	intrsave;
 	cy_addr	iobase;
 	int	val;
 
@@ -2808,11 +2880,16 @@ cd_getreg(com, reg)
 	car = com->unit & CD1400_CAR_CHAN;
 	cy_align = com->cy_align;
 	iobase = com->iobase;
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	if (intrsave & PSL_I)
+		COM_LOCK();
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	val = cd_inb(iobase, reg, cy_align);
-	mtx_unlock_spin(&sio_lock);
+	if (intrsave & PSL_I)
+		COM_UNLOCK();
+	restore_intr(intrsave);
 	return (val);
 }
 
@@ -2825,17 +2902,23 @@ cd_setreg(com, reg, val)
 	struct com_s	*basecom;
 	u_char	car;
 	int	cy_align;
+	int	intrsave;
 	cy_addr	iobase;
 
 	basecom = com_addr(com->unit & ~(CD1400_NO_OF_CHANNELS - 1));
 	car = com->unit & CD1400_CAR_CHAN;
 	cy_align = com->cy_align;
 	iobase = com->iobase;
-	mtx_lock_spin(&sio_lock);
+	intrsave = save_intr();
+	disable_intr();
+	if (intrsave & PSL_I)
+		COM_LOCK();
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	cd_outb(iobase, reg, cy_align, val);
-	mtx_unlock_spin(&sio_lock);
+	if (intrsave & PSL_I)
+		COM_UNLOCK();
+	restore_intr(intrsave);
 }
 
 #ifdef CyDebug
