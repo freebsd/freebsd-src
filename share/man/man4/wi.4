@@ -94,7 +94,7 @@ or
 .Dq "legacy Lucent ad-hoc mode" ,
 predates the IEEE 802.11 specification and so may not interoperate
 with cards from different vendors.
-The standardized point-to-point mode, is called IBSS (or confusingly
+The standardized point-to-point mode is called IBSS (or confusingly
 just ad-hoc mode), but is not supported by cards with very old
 firmware revisions.
 If your cards supports IBSS mode, it is recommended that you use it in
@@ -299,13 +299,13 @@ point.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "wi%d: init failed"
-The WaveLAN card failed to come ready after an initialization command
+The WaveLAN card failed to become ready after an initialization command
 was issued.
 .It "wi%d: failed to allocate %d bytes on NIC"
 The driver was unable to allocate memory for transmit frames in the
 NIC's on-board RAM.
 .It "wi%d: device timeout"
-The WaveLAN failed to generate an interrupt to acknowledge a transmit
+The WaveLAN card failed to generate an interrupt to acknowledge a transmit
 command.
 .El
 .Sh SEE ALSO
@@ -357,7 +357,7 @@ older versions of station firmware.
 .Pp
 Lucent cards prior to firmware version 6.0.4 do not support IBSS
 mode.
-These cards support only the pre 802.11 mode known as
+These cards support only the pre-802.11 mode known as
 .Dq "demo ad-hoc mode"
 which does not interoperate with stations in IBSS mode.
 .Pp
