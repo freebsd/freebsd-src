@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.5 1998/10/07 02:38:26 msmith Exp $
+ *	$Id: boot.c,v 1.6 1998/10/11 10:10:41 peter Exp $
  */
 
 /*
@@ -200,8 +200,6 @@ autoboot(int delay, char *prompt)
 	ntime = time(NULL);
 	if (ntime >= when) {
 	    yes = 1;
-	    if (cr)
-		putchar('\n');
 	    break;
 	}
 	if (ntime != otime) {
@@ -210,6 +208,8 @@ autoboot(int delay, char *prompt)
 	    cr = 1;
 	}
     }
+    if (cr)
+	putchar('\n');
     if (yes) {
 	argv[0] = "boot";
 	argv[1] = NULL;
