@@ -71,6 +71,12 @@ system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is not the super-user.
+.It Bq Er EINVAL
+The number specified in the
+.Fa ngroups
+argument is larger than the
+.Dv NGROUPS
+limit.
 .It Bq Er EFAULT
 The address specified for
 .Fa gidset
