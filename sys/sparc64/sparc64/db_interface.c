@@ -48,6 +48,7 @@
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
+#include <machine/atomic.h>
 #include <machine/setjmp.h>
 
 static jmp_buf *db_nofault = 0;
@@ -67,14 +68,22 @@ kdb_trap(struct trapframe *tf)
 		longjmp(db_global_jmpbuf, 1);
 	flushw();
 	ddb_regs = *tf;
+	critical_enter();
 	setjmp(db_global_jmpbuf);
 	db_global_jmpbuf_valid = TRUE;
-	db_active++;
+	atomic_add_acq_int(&db_active, 1);
+#ifdef SMP
+	stop_cpus(PCPU_GET(other_cpus));
+#endif
 	cndbctl(TRUE);
 	db_trap(tf->tf_type, 0);
 	cndbctl(FALSE);
 	db_active--;
+#ifdef SMP
+	restart_cpus(stopped_cpus);
+#endif
 	db_global_jmpbuf_valid = FALSE;
+	critical_exit();
 	*tf = ddb_regs;
 	TF_DONE(tf);
 	return (1);

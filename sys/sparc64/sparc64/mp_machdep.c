@@ -74,8 +74,12 @@
 
 #include <dev/ofw/openfirm.h>
 
+#include <ddb/ddb.h>
+
 #include <machine/asi.h>
+#include <machine/atomic.h>
 #include <machine/md_var.h>
+#include <machine/ofw_machdep.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/tte.h>
@@ -91,13 +95,14 @@ static ih_func_t cpu_ipi_stop;
  */
 struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
 struct	ipi_tlb_args ipi_tlb_args;
-struct	ipi_level_args ipi_level_args;
 
 vm_offset_t mp_tramp;
 
 static struct mtx ap_boot_mtx;
 
 u_int	mp_boot_mid;
+
+static volatile u_int	shutdown_cpus;
 
 void cpu_mp_unleash(void *);
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
@@ -174,6 +179,26 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 }
 
 /*
+ * Stop the calling CPU.
+ */
+static void
+sun4u_stopself(void)
+{
+	static struct {
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+	} args = {
+		(cell_t)"SUNW,stop-self",
+		0,
+		0,
+	};
+
+	openfirmware_exit(&args);
+	panic("sun4u_stopself: failed.");
+}
+
+/*
  * Fire up any non-boot processors.
  */
 void
@@ -235,6 +260,7 @@ cpu_mp_start(void)
 		all_cpus |= 1 << cpuid;
 	}
 	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+	smp_active = 1;
 }
 
 void
@@ -294,6 +320,7 @@ cpu_mp_unleash(void *v)
 
 	membar(StoreLoad);
 	csa->csa_count = 0; 
+	smp_started = 1;
 }
 
 void
@@ -304,6 +331,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	csa = &cpu_start_args;
 	pmap_map_tsb();
 	cpu_setregs(pc);
+	tick_start_ap();
 
 	smp_cpus++;
 	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
@@ -323,6 +351,27 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	cpu_throw();	/* doesn't return */
 }
 
+void
+cpu_mp_shutdown(void)
+{
+	int i;
+
+	critical_enter();
+	shutdown_cpus = PCPU_GET(other_cpus);
+	if (stopped_cpus != PCPU_GET(other_cpus))	/* XXX */
+		stop_cpus(stopped_cpus ^ PCPU_GET(other_cpus));
+	i = 0;
+	while (shutdown_cpus != 0) {
+		if (i++ > 100000) {
+			printf("timeout shutting down CPUs.\n");
+			break;
+		}
+	}
+	/* XXX: delay a bit to allow the CPUs to actually enter the PROM. */
+	DELAY(100000);
+	critical_exit();
+}
+
 static void
 cpu_ipi_ast(struct trapframe *tf)
 {
@@ -331,7 +380,18 @@ cpu_ipi_ast(struct trapframe *tf)
 static void
 cpu_ipi_stop(struct trapframe *tf)
 {
-	TODO;
+
+	CTR1(KTR_SMP, "cpu_ipi_stop: stopped %d", PCPU_GET(cpuid));
+	atomic_set_acq_int(&stopped_cpus, PCPU_GET(cpumask));
+	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
+		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {
+			atomic_clear_int(&shutdown_cpus, PCPU_GET(cpumask));
+			sun4u_stopself();
+		}
+	}
+	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
+	atomic_clear_rel_int(&stopped_cpus, PCPU_GET(cpumask));
+	CTR1(KTR_SMP, "cpu_ipi_stop: restarted %d", PCPU_GET(cpuid));
 }
 
 void
@@ -369,7 +429,10 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		if ((ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_NACK) == 0)
 			return;
 	}
-	panic("ipi_send: couldn't send ipi");
+	if (db_active || panicstr != NULL)
+		printf("ipi_send: couldn't send ipi to module %u\n", mid);
+	else
+		panic("ipi_send: couldn't send ipi");
 }
 
 void

@@ -526,6 +526,20 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 }
 
 /*
+ * Exit the kernel and execute a firmware call that will not return, as
+ * specified by the arguments.
+ */
+void
+cpu_shutdown(void *args)
+{
+
+#ifdef SMP
+	cpu_mp_shutdown();
+#endif
+	openfirmware_exit(args);
+}
+
+/*
  * Duplicate OF_exit() with a different firmware call function that restores
  * the trap table, otherwise a RED state exception is triggered in at least
  * some firmware versions.
@@ -543,7 +557,7 @@ cpu_halt(void)
 		0
 	};
 
-	openfirmware_exit(&args);
+	cpu_shutdown(&args);
 }
 
 void
@@ -561,11 +575,10 @@ sparc64_shutdown_final(void *dummy, int howto)
 
 	/* Turn the power off? */
 	if ((howto & RB_POWEROFF) != 0)
-		openfirmware_exit(&args);
+		cpu_shutdown(&args);
 	/* In case of halt, return to the firmware */
 	if ((howto & RB_HALT) != 0)
 		cpu_halt();
-		
 }
 
 int
