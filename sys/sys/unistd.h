@@ -227,7 +227,7 @@
 #define RFSTOPPED	(1<<17)	/* leave child in a stopped state */
 #define	RFHIGHPID	(1<<18) /* use a pid higher then 10 (idleproc) */
 #define RFPPWAIT	(1<<31) /* parent sleeps until child exits (vfork) */
-#define RFKERNELONLY	(RFSTOPPED|RFHIGHPID)
+#define RFKERNELONLY	(RFSTOPPED|RFHIGHPID|RFPPWAIT)
 
 #endif /* !_POSIX_SOURCE */
 
