@@ -136,17 +136,6 @@ MK_FLAGS=	-DWORLD -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 .endif
 
 #
-# If we're building a cross world, define MACHINE and MACHINE_ARCH for
-# the version of make that we're using.
-#
-.if defined(TARGET)
-CROSS_MAKE_FLAGS+=-DMACHINE=\"${TARGET}\"
-.endif
-.if defined(TARGET_ARCH)
-CROSS_MAKE_FLAGS+=-DMACHINE_ARCH=\"${TARGET_ARCH}\"
-.endif
-
-#
 # Define the location of the temporary installation directory. Note that
 # MAKEOBJDIRPREFIX normally isn't defined so if the current directory is
 # /usr/src, then the world temporary directory is /usr/obj/usr/src/tmp.
@@ -260,7 +249,7 @@ buildworld: check-objformat
 	( \
 	cd ${.CURDIR}/usr.bin/make; \
 		MAKEOBJDIRPREFIX=""; unset MAKEOBJDIRPREFIX; \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all CROSS_MAKE_FLAGS='${CROSS_MAKE_FLAGS}'; \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all; \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install; \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
 	)
@@ -508,7 +497,7 @@ bootstrap:
 	cd ${.CURDIR}/include;	${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all CROSS_MAKE_FLAGS='${CROSS_MAKE_FLAGS}'; \
+		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/xinstall; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
