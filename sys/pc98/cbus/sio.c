@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.32 1997/08/06 09:42:57 kato Exp $
+ *	$Id: sio.c,v 1.33 1997/08/20 10:25:21 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -147,6 +147,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
 #endif
+#include <i386/isa/intr_machdep.h>
 
 #ifdef COM_ESP
 #include <i386/isa/ic/esp.h>
@@ -160,23 +161,13 @@
 #include <pccard/slot.h>
 #endif
 
-#ifdef SMP
-#include <machine/smp.h>
-#define COM_LOCK() 	s_lock(&com_lock)
-#define COM_UNLOCK() 	s_unlock(&com_lock)
-#else
-#define COM_LOCK()
-#define COM_UNLOCK()
-#endif /* SMP */
-
 #ifdef APIC_IO
 /*
  * INTs are masked in the (global) IO APIC,
  *  but the IRR register is in each LOCAL APIC,
- *   so we HAVE to unmask the INT to be able to "see INT pending"
- * BUT how do we clear them???
+ *  so we would have to unmask the INT to be able to "see INT pending".
+ * So instead we just look in the 8259 ICU.
  */
-#include <i386/isa/intr_machdep.h>
 #define isa_irq_pending		icu_irq_pending
 #endif /* APIC_IO */
 
