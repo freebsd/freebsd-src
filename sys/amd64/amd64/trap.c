@@ -54,6 +54,7 @@
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/kse.h>
 #include <sys/pioctl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -266,6 +267,17 @@ trap(frame)
 		td->td_frame = &frame;
 		if (td->td_ucred != p->p_ucred) 
 			cred_update_thread(td);
+
+		/*
+		 * First check that we shouldn't just abort.
+		 * But check if we are the single thread first!
+		 */
+		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
+			mtx_lock_spin(&sched_lock);
+			PROC_LOCK(p);
+			thread_exit();
+			/* NOTREACHED */
+		}
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -939,11 +951,30 @@ syscall(frame)
 		mtx_unlock(&Giant);
 	}
 #endif
+	KASSERT((td->td_kse != NULL), ("syscall: kse/thread UNLINKED"));
+	KASSERT((td->td_kse->ke_thread == td), ("syscall:kse/thread mismatch"));
 
 	sticks = td->td_kse->ke_sticks;
 	td->td_frame = &frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
+	if (p->p_flag & P_KSES) {
+		/*
+		 * If we are doing a syscall in a KSE environment,
+		 * note where our mailbox is. There is always the
+		 * possibility that we could do this lazily (in sleep()),
+		 * but for now do it every time.
+		 */
+		td->td_mailbox = (void *)fuword((caddr_t)td->td_kse->ke_mailbox
+		    + offsetof(struct kse_mailbox, kmbx_current_thread));
+		if ((td->td_mailbox == NULL) ||
+		(td->td_mailbox == (void *)-1)) {
+			td->td_mailbox = NULL;	/* single thread it.. */
+			td->td_flags &= ~TDF_UNBOUND;
+		} else {
+			td->td_flags |= TDF_UNBOUND;
+		}
+	}
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
 	orig_tf_eflags = frame.tf_eflags;
@@ -1045,6 +1076,12 @@ syscall(frame)
 	}
 
 	/*
+	 * Release Giant if we previously set it.
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
+		mtx_unlock(&Giant);
+
+	/*
 	 * Traced syscall.
 	 */
 	if ((orig_tf_eflags & PSL_T) && !(orig_tf_eflags & PSL_VM)) {
@@ -1056,12 +1093,6 @@ syscall(frame)
 	 * Handle reschedule and other end-of-syscall issues
 	 */
 	userret(td, &frame, sticks);
-
-	/*
-	 * Release Giant if we previously set it.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))

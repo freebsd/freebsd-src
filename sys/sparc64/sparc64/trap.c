@@ -49,6 +49,7 @@
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/ktr.h>
+#include <sys/kse.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
@@ -190,6 +191,11 @@ trap(struct trapframe *tf)
 		td->td_frame = tf;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
+		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
+			mtx_lock_spin(&sched_lock);
+			thread_exit();
+			/* NOTREACHED */
+		}
  	} else {
  		sticks = 0;
 if ((type & ~T_KERNEL) != T_BREAKPOINT)
@@ -528,6 +534,23 @@ syscall(struct trapframe *tf)
 	td->td_frame = tf;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
+	if (p->p_flag & P_KSES) {
+		/*
+		 * If we are doing a syscall in a KSE environment,
+		 * note where our mailbox is. There is always the
+		 * possibility that we could do this lazily (in sleep()),
+		 * but for now do it every time.
+		 */
+		td->td_mailbox = (void *)fuword((caddr_t)td->td_kse->ke_mailbox
+		    + offsetof(struct kse_mailbox, kmbx_current_thread));
+		if ((td->td_mailbox == NULL) ||
+		    (td->td_mailbox == (void *)-1)) {
+			td->td_mailbox = NULL;  /* single thread it.. */
+			td->td_flags &= ~TDF_UNBOUND;
+		} else {
+			td->td_flags |= TDF_UNBOUND;
+		}
+	}
 	code = tf->tf_global[1];
 
 	/*
@@ -634,16 +657,16 @@ syscall(struct trapframe *tf)
 	}
 
 	/*
-	 * Handle reschedule and other end-of-syscall issues
-	 */
-	userret(td, tf, sticks);
-
-	/*
 	 * Release Giant if we had to get it.  Don't use mtx_owned(),
 	 * we want to catch broken syscalls.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
+
+	/*
+	 * Handle reschedule and other end-of-syscall issues
+	 */
+	userret(td, tf, sticks);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))

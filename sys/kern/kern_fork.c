@@ -212,23 +212,6 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
 
-#if 0
-void
-kse_init(struct kse *kse1, struct kse *kse2) 
-{
-}
-
-void
-thread_init(struct thread *thread1, struct thread *thread2) 
-{
-}
-
-void
-ksegrp_init(struct ksegrp *ksegrp1, struct ksegrp *ksegrp2) 
-{
-}
-#endif
-
 int
 fork1(td, flags, procp)
 	struct thread *td;			/* parent proc */
@@ -296,6 +279,29 @@ fork1(td, flags, procp)
 		return (0);
 	}
 
+	if (p1->p_flag & P_KSES) {
+		/*
+		 * Idle the other threads for a second.
+		 * Since the user space is copied, it must remain stable.
+		 * In addition, all threads (from the user perspective)
+		 * need to either be suspended or in the kernel,
+		 * where they will try restart in the parent and will
+		 * be aborted in the child.
+		 */
+		PROC_LOCK(p1);
+		if (thread_single(SNGLE_NO_EXIT)) {
+			/* Abort.. someone else is single threading before us */
+			PROC_UNLOCK(p1);
+			return (ERESTART);
+		}
+		PROC_UNLOCK(p1);
+		/*
+		 * All other activity in this process
+		 * is now suspended at the user boundary,
+		 * (or other safe places if we think of any).
+		 */
+	}
+
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
 
@@ -311,6 +317,11 @@ fork1(td, flags, procp)
 	if ((nprocs >= maxproc - 10 && uid != 0) || nprocs >= maxproc) {
 		sx_xunlock(&allproc_lock);
 		uma_zfree(proc_zone, newproc);
+		if (p1->p_flag & P_KSES) {
+			PROC_LOCK(p1);
+			thread_single_end();
+			PROC_UNLOCK(p1);
+		}
 		tsleep(&forksleep, PUSER, "fork", hz / 2);
 		return (EAGAIN);
 	}
@@ -325,6 +336,11 @@ fork1(td, flags, procp)
 	if (!ok) {
 		sx_xunlock(&allproc_lock);
 		uma_zfree(proc_zone, newproc);
+		if (p1->p_flag & P_KSES) {
+			PROC_LOCK(p1);
+			thread_single_end();
+			PROC_UNLOCK(p1);
+		}
 		tsleep(&forksleep, PUSER, "fork", hz / 2);
 		return (EAGAIN);
 	}
@@ -411,7 +427,7 @@ again:
 		lastpid = trypid;
 
 	p2 = newproc;
-	p2->p_stat = SIDL;			/* protect against others */
+	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
@@ -449,7 +465,7 @@ again:
 	 * Start by zeroing the section of proc that is zero-initialized,
 	 * then copy the section that is copied directly from the parent.
 	 */
-	td2 = thread_get(p2);
+	td2 = thread_alloc();
 	ke2 = &p2->p_kse;
 	kg2 = &p2->p_ksegrp;
 
@@ -459,8 +475,10 @@ again:
 	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
 	bzero(&ke2->ke_startzero,
 	    (unsigned) RANGEOF(struct kse, ke_startzero, ke_endzero));
+#if 0 /* bzero'd by the thread allocator */
 	bzero(&td2->td_startzero,
 	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
+#endif
 	bzero(&kg2->kg_startzero,
 	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
 
@@ -482,8 +500,21 @@ again:
 	 * XXXKSE Theoretically only the running thread would get copied 
 	 * Others in the kernel would be 'aborted' in the child.
 	 * i.e return E*something*
+	 * On SMP we would have to stop them running on
+	 * other CPUs! (set a flag in the proc that stops
+	 * all returns to userland until completed)
+	 * This is wrong but ok for 1:1.
 	 */
 	proc_linkup(p2, kg2, ke2, td2);
+
+	/* Set up the thread as an active thread (as if runnable). */
+	TAILQ_REMOVE(&kg2->kg_iq, ke2, ke_kgrlist);
+	kg2->kg_idle_kses--;
+	ke2->ke_state = KES_UNQUEUED;
+	ke2->ke_thread = td2;
+	td2->td_kse = ke2;
+	td2->td_flags &= ~TDF_UNBOUND; /* For the rest of this syscall. */
+KASSERT((ke2->ke_kgrlist.tqe_next != ke2), ("linked to self!"));
 
 	/* note.. XXXKSE no pcb or u-area yet */
 
@@ -699,7 +730,6 @@ again:
 	p2->p_acflag = AFORK;
 	if ((flags & RFSTOPPED) == 0) {
 		mtx_lock_spin(&sched_lock);
-		p2->p_stat = SRUN;
 		setrunqueue(td2);
 		mtx_unlock_spin(&sched_lock);
 	}
@@ -803,6 +833,9 @@ fork_exit(callout, arg, frame)
 	struct proc *p = td->td_proc;
 
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
+	p->p_state = PRS_NORMAL;
+	td->td_state = TDS_RUNNING; /* Already done in switch() on 386. */
+	td->td_kse->ke_state = KES_RUNNING;
 	/*
 	 * Finish setting up thread glue.  We need to initialize
 	 * the thread into a td_critnest=1 state.  Some platforms
@@ -814,7 +847,7 @@ fork_exit(callout, arg, frame)
 	sched_lock.mtx_lock = (uintptr_t)td;
 	sched_lock.mtx_recurse = 0;
 	cpu_critical_fork_exit();
-	CTR3(KTR_PROC, "fork_exit: new proc %p (pid %d, %s)", p, p->p_pid,
+	CTR3(KTR_PROC, "fork_exit: new thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
 	if (PCPU_GET(switchtime.sec) == 0)
 		binuptime(PCPU_PTR(switchtime));

@@ -40,6 +40,7 @@ idle_setup(void *dummy)
 	struct pcpu *pc;
 #endif
 	struct proc *p;
+	struct thread *td;
 	int error;
 
 #ifdef SMP
@@ -60,7 +61,10 @@ idle_setup(void *dummy)
 			panic("idle_setup: kthread_create error %d\n", error);
 
 		p->p_flag |= P_NOLOAD;
-		p->p_stat = SRUN;
+		td = FIRST_THREAD_IN_PROC(p);
+		td->td_state = TDS_RUNQ;	
+		td->td_kse->ke_state = KES_ONRUNQ;	
+		td->td_kse->ke_flags |= KEF_IDLEKSE; 
 #ifdef SMP
 	}
 #endif
@@ -75,16 +79,22 @@ idle_proc(void *dummy)
 #ifdef DIAGNOSTIC
 	int count;
 #endif
+	struct thread *td;
+	struct proc *p;
 
+	td = curthread;
+	p = td->td_proc;
+	td->td_state = TDS_RUNNING; 
+	td->td_kse->ke_state = KES_RUNNING;
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
 #ifdef DIAGNOSTIC
 		count = 0;
 
-		while (count >= 0 && procrunnable() == 0) {
+		while (count >= 0 && kserunnable() == 0) {
 #else
-		while (procrunnable() == 0) {
+		while (kserunnable() == 0) {
 #endif
 		/*
 		 * This is a good place to put things to be done in
@@ -103,8 +113,9 @@ idle_proc(void *dummy)
 		}
 
 		mtx_lock_spin(&sched_lock);
-		curproc->p_stats->p_ru.ru_nvcsw++;
+		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
+		td->td_kse->ke_state = KES_RUNNING;
 		mtx_unlock_spin(&sched_lock);
 	}
 }

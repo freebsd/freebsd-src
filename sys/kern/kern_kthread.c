@@ -109,8 +109,7 @@ kthread_create(void (*func)(void *), void *arg,
 	mtx_lock_spin(&sched_lock);
 	p2->p_sflag |= PS_INMEM;
 	if (!(flags & RFSTOPPED)) {
-		p2->p_stat = SRUN;
-		setrunqueue(FIRST_THREAD_IN_PROC(p2)); /* XXXKSE */
+		setrunqueue(FIRST_THREAD_IN_PROC(p2)); 
 	}
 	mtx_unlock_spin(&sched_lock);
 

@@ -52,6 +52,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 	int nl = 0;
 	volatile struct proc *p, *pp;
 	volatile struct thread *td;
+	char *state;
 
 	np = nprocs;
 
@@ -96,23 +97,44 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		if (pp == NULL)
 			pp = p;
 
-		db_printf("%5d %8p %8p %4d %5d %5d %07x  %d",
+
+		switch(p->p_state) {
+		case PRS_NORMAL:
+			if (P_SHOULDSTOP(p))
+				state = "stopped";
+			else
+				state = "Normal";
+			break;
+		case PRS_NEW:
+			state = "New";
+			break;
+		case PRS_WAIT:
+			state = "Wait";
+			break;
+		case PRS_ZOMBIE:
+			state = "Zombie";
+			break;
+		default:
+			state = "Unknown";
+			break;
+		}
+		db_printf("%5d %8p %8p %4d %5d %5d %07x  %s",
 		    p->p_pid, (volatile void *)p, (void *)p->p_uarea, 
 		    p->p_ucred ? p->p_ucred->cr_ruid : 0, pp->p_pid,
-		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, p->p_stat);
+		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, state);
 		if (p->p_flag & P_KSES) {
 			db_printf("(threaded)  %s\n", p->p_comm);
 			FOREACH_THREAD_IN_PROC(p, td) {
 				db_printf( ".  .  .  .  .  .  .  "
-				           ".  .  .  .  .  .  .  .  ");
+				           ".  thread %p   .  .  .  ", td);
 				if (td->td_wchan) {
-					db_printf("%6s %8p", td->td_wmesg,
+					db_printf("SLP %6s %8p\n", td->td_wmesg,
 					    (void *)td->td_wchan);
-				} else if (p->p_stat == SMTX) {
-					db_printf("%6s %8p", td->td_mtxname,
+				} else if (td->td_state == TDS_MTX) {
+					db_printf("MTX %6s %8p\n", td->td_mtxname,
 					    (void *)td->td_blocked);
 				} else {
-					db_printf("--not blocked--");
+					db_printf("--not blocked--\n");
 				}
 			}
 		} else {
@@ -120,7 +142,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			if (td->td_wchan) {
 				db_printf("  %6s %8p", td->td_wmesg,
 				    (void *)td->td_wchan);
-			} else if (p->p_stat == SMTX) {
+			} else if (td->td_state == TDS_MTX) {
 				db_printf("  %6s %8p", td->td_mtxname,
 				    (void *)td->td_blocked);
 			} else {

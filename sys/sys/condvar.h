@@ -62,6 +62,7 @@ void	cv_signal(struct cv *cvp);
 void	cv_broadcast(struct cv *cvp);
 
 void	cv_waitq_remove(struct thread *td);
+void	cv_abort(struct thread *td);
 
 #define	cv_waitq_empty(cvp)	(TAILQ_EMPTY(&(cvp)->cv_waitq))
 #define	cv_wmesg(cvp)		((cvp)->cv_description)

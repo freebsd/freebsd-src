@@ -181,7 +181,18 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 
 			mtx_lock_spin(&sched_lock);
 			rtp_to_pri(&rtp, kg);
-			td->td_last_kse->ke_flags |= KEF_NEEDRESCHED; /* XXXKSE */
+			FOREACH_THREAD_IN_GROUP(kg, td) { /* XXXKSE */
+				if (td->td_state == TDS_RUNNING) {
+					td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+				} else if (td->td_state == TDS_RUNQ) {
+					if (td->td_priority > kg->kg_user_pri) {
+						remrunqueue(td);
+						td->td_priority =
+						    kg->kg_user_pri;
+						setrunqueue(td);
+					}
+				}
+			}
 			mtx_unlock_spin(&sched_lock);
 		}
 		else
@@ -203,7 +214,19 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			 *     on the scheduling code: You must leave the
 			 *     scheduling info alone.
 			 */
-			td->td_last_kse->ke_flags |= KEF_NEEDRESCHED; /* XXXKSE */
+			FOREACH_THREAD_IN_GROUP(kg, td) {
+				if (td->td_state == TDS_RUNNING) {
+					td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+				} else if (td->td_state == TDS_RUNQ) {
+					if (td->td_priority > kg->kg_user_pri) {
+						remrunqueue(td);
+						td->td_priority =
+						    kg->kg_user_pri;
+						setrunqueue(td);
+					}
+				}
+				
+			}
 			mtx_unlock_spin(&sched_lock);
 		}
 		break;

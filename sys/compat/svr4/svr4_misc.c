@@ -1168,7 +1168,7 @@ svr4_setinfo(p, st, s)
 	if (p) {
 		i.si_pid = p->p_pid;
 		mtx_lock_spin(&sched_lock);
-		if (p->p_stat == SZOMB) {
+		if (p->p_state == PRS_ZOMBIE) {
 			i.si_stime = p->p_ru->ru_stime.tv_sec;
 			i.si_utime = p->p_ru->ru_utime.tv_sec;
 		}
@@ -1256,7 +1256,7 @@ loop:
 		}
 		nfound++;
 		mtx_lock_spin(&sched_lock);
-		if (q->p_stat == SZOMB && 
+		if ((q->p_state == PRS_ZOMBIE) && 
 		    ((SCARG(uap, options) & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(q);
@@ -1372,7 +1372,8 @@ loop:
 			nprocs--;
 			return 0;
 		}
-		if (q->p_stat == SSTOP && (q->p_flag & P_WAITED) == 0 &&
+		/* XXXKSE this needs clarification */
+		if (P_SHOULDSTOP(q) && ((q->p_flag & P_WAITED) == 0) &&
 		    (q->p_flag & P_TRACED ||
 		     (SCARG(uap, options) & (SVR4_WSTOPPED|SVR4_WCONTINUED)))) {
 			mtx_unlock_spin(&sched_lock);

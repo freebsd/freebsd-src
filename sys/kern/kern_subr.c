@@ -538,7 +538,6 @@ uio_yield()
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT();
 	td->td_priority = td->td_ksegrp->kg_user_pri; /* XXXKSE */
-	setrunqueue(td);
 	td->td_proc->p_stats->p_ru.ru_nivcsw++;
 	mi_switch();
 	mtx_unlock_spin(&sched_lock);

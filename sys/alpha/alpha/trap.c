@@ -39,6 +39,7 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/kse.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -299,6 +300,12 @@ trap(a0, a1, a2, entry, framep)
 		td->td_frame = framep;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
+		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
+			mtx_lock_spin(&sched_lock);
+			PROC_LOCK(p);
+			thread_exit();
+			/* NOTREACHED */
+		}
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 		KASSERT(cold || td->td_ucred != NULL,
@@ -659,6 +666,23 @@ syscall(code, framep)
 	sticks = td->td_kse->ke_sticks;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
+	if (p->p_flag & P_KSES) {
+		/*
+		 * If we are doing a syscall in a KSE environment,
+		 * note where our mailbox is. There is always the
+		 * possibility that we could do this lazily (in sleep()),
+		 * but for now do it every time.
+		 */
+		td->td_mailbox = (void *)fuword((caddr_t)td->td_kse->ke_mailbox
+		    + offsetof(struct kse_mailbox, kmbx_current_thread));
+		if ((td->td_mailbox == NULL) ||
+		    (td->td_mailbox == (void *)-1)) {
+			td->td_mailbox = NULL;  /* single thread it.. */
+			td->td_flags &= ~TDF_UNBOUND;
+		} else {
+			td->td_flags |= TDF_UNBOUND;
+		}
+	}
 
 #ifdef DIAGNOSTIC
 	alpha_fpstate_check(td);
@@ -756,14 +780,14 @@ syscall(code, framep)
 		break;
 	}
 
-	userret(td, framep, sticks);
-	
 	/*
 	 * Release Giant if we had to get it.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
 
+	userret(td, framep, sticks);
+	
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(code, error, td->td_retval[0]);

@@ -539,21 +539,6 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 }
 
 /*
- * Map process state to descriptive letter. Note that this does not
- * quite correspond to what Linux outputs, but it's close enough.
- */
-static char *state_str[] = {
-	"? (unknown)",
-	"I (idle)",
-	"R (running)",
-	"S (sleeping)",
-	"T (stopped)",
-	"Z (zombie)",
-	"W (waiting)",
-	"M (mutex)"
-};
-
-/*
  * Filler function for proc/pid/status
  */
 static int
@@ -562,13 +547,53 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	struct kinfo_proc kp;
 	char *state;
 	segsz_t lsize;
+	struct thread *td2;
 	int i;
 
 	mtx_lock_spin(&sched_lock);
-	if (p->p_stat > sizeof state_str / sizeof *state_str)
-		state = state_str[0];
-	else
-		state = state_str[(int)p->p_stat];
+	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
+
+	if (P_SHOULDSTOP(p)) {
+		state = "T (stopped)";
+	} else {
+		switch(p->p_state) {
+		case PRS_NEW:
+			state = "I (idle)";
+			break;
+		case PRS_NORMAL:
+			if (p->p_flag & P_WEXIT) {
+				state = "X (exiting)";
+				break;
+			}
+			switch(td2->td_state) {
+			case TDS_SLP:
+			case TDS_MTX:
+				state = "S (sleeping)";
+				break;
+			case TDS_RUNQ:
+			case TDS_RUNNING:
+				state = "R (running)";
+				break;
+			case TDS_NEW:
+			case TDS_UNQUEUED:
+			case TDS_IWAIT:
+			case TDS_SURPLUS:
+			default:
+				state = "? (unknown)";
+				break;
+			}
+			break;
+		case PRS_WAIT:
+			state = "W (waiting)";
+			break;
+		case PRS_ZOMBIE:
+			state = "Z (zombie)";
+			break;
+		default:
+			state = "? (unknown)";
+			break;
+		}
+	}
 	mtx_unlock_spin(&sched_lock);
 
 	PROC_LOCK(p);

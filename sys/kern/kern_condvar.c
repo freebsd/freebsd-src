@@ -48,7 +48,7 @@
  */
 #define	CV_ASSERT(cvp, mp, td) do {					\
 	KASSERT((td) != NULL, ("%s: curthread NULL", __func__));	\
-	KASSERT((td)->td_proc->p_stat == SRUN, ("%s: not SRUN", __func__));	\
+	KASSERT((td)->td_state == TDS_RUNNING, ("%s: not TDS_RUNNING", __func__));	\
 	KASSERT((cvp) != NULL, ("%s: cvp NULL", __func__));		\
 	KASSERT((mp) != NULL, ("%s: mp NULL", __func__));		\
 	mtx_assert((mp), MA_OWNED | MA_NOTRECURSED);			\
@@ -80,6 +80,7 @@
 #endif
 
 static void cv_timedwait_end(void *arg);
+static void cv_check_upcall(struct thread *td);
 
 /*
  * Initialize a condition variable.  Must be called before use.
@@ -109,14 +110,47 @@ cv_destroy(struct cv *cvp)
  */
 
 /*
+ * Decide if we need to queue an upcall.
+ * This is copied from msleep(), perhaps this should be a common function.
+ */
+static void
+cv_check_upcall(struct thread *td)
+{
+
+	/*
+	 * If we are capable of async syscalls and there isn't already
+	 * another one ready to return, start a new thread
+	 * and queue it as ready to run. Note that there is danger here
+	 * because we need to make sure that we don't sleep allocating
+	 * the thread (recursion here might be bad).
+	 * Hence the TDF_INMSLEEP flag.
+	 */
+	if ((td->td_proc->p_flag & P_KSES) && td->td_mailbox &&
+	    (td->td_flags & TDF_INMSLEEP) == 0) {
+		/*
+		 * If we have no queued work to do,
+		 * upcall to the UTS to see if it has more work.
+		 * We don't need to upcall now, just queue it.
+		 */
+		if (TAILQ_FIRST(&td->td_ksegrp->kg_runq) == NULL) {
+			/* Don't recurse here! */
+			td->td_flags |= TDF_INMSLEEP;
+			thread_schedule_upcall(td, td->td_kse);
+			td->td_flags &= ~TDF_INMSLEEP;
+		}
+	}
+}
+
+/*
  * Switch context.
  */
 static __inline void
 cv_switch(struct thread *td)
 {
 
-	td->td_proc->p_stat = SSLEEP;
+	td->td_state = TDS_SLP;
 	td->td_proc->p_stats->p_ru.ru_nvcsw++;
+	cv_check_upcall(td);
 	mi_switch();
 	CTR3(KTR_PROC, "cv_switch: resume thread %p (pid %d, %s)", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
@@ -135,7 +169,7 @@ cv_switch_catch(struct thread *td)
 	 * We put ourselves on the sleep queue and start our timeout before
 	 * calling cursig, as we could stop there, and a wakeup or a SIGCONT (or
 	 * both) could occur while we were stopped.  A SIGCONT would cause us to
-	 * be marked as SSLEEP without resuming us, thus we must be ready for
+	 * be marked as TDS_SLP without resuming us, thus we must be ready for
 	 * sleep when cursig is called.  If the wakeup happens while we're
 	 * stopped, td->td_wchan will be 0 upon return from cursig.
 	 */
@@ -143,13 +177,15 @@ cv_switch_catch(struct thread *td)
 	mtx_unlock_spin(&sched_lock);
 	p = td->td_proc;
 	PROC_LOCK(p);
-	sig = cursig(p);	/* XXXKSE */
+	sig = cursig(td);	/* XXXKSE */
+	if (thread_suspend_check(1))
+		sig = SIGSTOP;
 	mtx_lock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	if (sig != 0) {
 		if (td->td_wchan != NULL)
 			cv_waitq_remove(td);
-		td->td_proc->p_stat = SRUN;
+		td->td_state = TDS_RUNNING;	/* XXXKSE */
 	} else if (td->td_wchan != NULL) {
 		cv_switch(td);
 	}
@@ -175,7 +211,6 @@ cv_waitq_add(struct cv *cvp, struct thread *td)
 	td->td_flags |= TDF_CVWAITQ;
 	td->td_wchan = cvp;
 	td->td_wmesg = cvp->cv_description;
-	td->td_kse->ke_slptime = 0; /* XXXKSE */
 	td->td_ksegrp->kg_slptime = 0; /* XXXKSE */
 	td->td_base_pri = td->td_priority;
 	CTR3(KTR_PROC, "cv_waitq_add: thread %p (pid %d, %s)", td,
@@ -285,7 +320,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	PROC_LOCK(p);
 	if (sig == 0)
-		sig = cursig(p);  /* XXXKSE */
+		sig = cursig(td);	/* XXXKSE */
 	if (sig != 0) {
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
@@ -293,6 +328,8 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 			rval = ERESTART;
 	}
 	PROC_UNLOCK(p);
+	if (p->p_flag & P_WEXIT)
+		rval = EINTR;
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -363,6 +400,8 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		mi_switch();
 	}
 
+	if (td->td_proc->p_flag & P_WEXIT)
+		rval = EWOULDBLOCK;
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -436,12 +475,11 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 	}
-
 	mtx_unlock_spin(&sched_lock);
 
 	PROC_LOCK(p);
 	if (sig == 0)
-		sig = cursig(p);
+		sig = cursig(td);
 	if (sig != 0) {
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
@@ -449,6 +487,9 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 			rval = ERESTART;
 	}
 	PROC_UNLOCK(p);
+
+	if (p->p_flag & P_WEXIT)
+		rval = EINTR;
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -477,15 +518,13 @@ cv_wakeup(struct cv *cvp)
 	TAILQ_REMOVE(&cvp->cv_waitq, td, td_slpq);
 	td->td_flags &= ~TDF_CVWAITQ;
 	td->td_wchan = 0;
-	if (td->td_proc->p_stat == SSLEEP) {
+	if (td->td_state == TDS_SLP) {
 		/* OPTIMIZED EXPANSION OF setrunnable(td); */
 		CTR3(KTR_PROC, "cv_signal: thread %p (pid %d, %s)",
 		    td, td->td_proc->p_pid, td->td_proc->p_comm);
 		if (td->td_ksegrp->kg_slptime > 1) /* XXXKSE */
 			updatepri(td);
-		td->td_kse->ke_slptime = 0;
 		td->td_ksegrp->kg_slptime = 0;
-		td->td_proc->p_stat = SRUN;
 		if (td->td_proc->p_sflag & PS_INMEM) {
 			setrunqueue(td);
 			maybe_resched(td);
@@ -568,7 +607,7 @@ cv_timedwait_end(void *arg)
 		td->td_flags &= ~TDF_TIMEOUT;
 		setrunqueue(td);
 	} else if (td->td_wchan != NULL) {
-		if (td->td_proc->p_stat == SSLEEP) /* XXXKSE */
+		if (td->td_state == TDS_SLP)	/* XXXKSE */
 			setrunnable(td);
 		else
 			cv_waitq_remove(td);
@@ -577,3 +616,27 @@ cv_timedwait_end(void *arg)
 		td->td_flags |= TDF_TIMOFAIL;
 	mtx_unlock_spin(&sched_lock);
 }
+
+/*
+ * For now only abort interruptable waits.
+ * The others will have to either complete on their own or have a timeout.
+ */
+void
+cv_abort(struct thread *td)
+{
+
+	CTR3(KTR_PROC, "cv_abort: thread %p (pid %d, %s)", td,
+	    td->td_proc->p_pid,
+	    td->td_proc->p_comm);
+	mtx_lock_spin(&sched_lock);
+	if ((td->td_flags & (TDF_SINTR|TDF_TIMEOUT)) == TDF_SINTR) {
+		if (td->td_wchan != NULL) {
+			if (td->td_state == TDS_SLP)
+				setrunnable(td);
+			else
+				cv_waitq_remove(td);
+		}
+	}
+	mtx_unlock_spin(&sched_lock);
+}
+

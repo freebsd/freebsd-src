@@ -127,7 +127,6 @@ vm_pagezero(void)
 			pages += vm_page_zero_idle();
 			if (pages > idlezero_maxrun) {
 				mtx_lock_spin(&sched_lock);
-				setrunqueue(td);
 				td->td_proc->p_stats->p_ru.ru_nvcsw++;
 				mi_switch();
 				mtx_unlock_spin(&sched_lock);

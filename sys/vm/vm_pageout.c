@@ -642,6 +642,7 @@ vm_pageout_scan(int pass)
 	int vnodes_skipped = 0;
 	int maxlaunder;
 	int s;
+	struct thread *td;
 
 	GIANT_REQUIRED;
 	/*
@@ -1123,7 +1124,8 @@ rescan0:
 		bigproc = NULL;
 		bigsize = 0;
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
+			int breakout;
 			/*
 			 * If this process is already locked, skip it.
 			 */
@@ -1139,10 +1141,19 @@ rescan0:
 			}
 			/*
 			 * if the process is in a non-running type state,
-			 * don't touch it.
+			 * don't touch it. Check all the threads individually.
 			 */
 			mtx_lock_spin(&sched_lock);
-			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
+			breakout = 0;
+			FOREACH_THREAD_IN_PROC(p, td) {
+				if (td->td_state != TDS_RUNQ &&
+				    td->td_state != TDS_RUNNING &&
+				    td->td_state != TDS_SLP) {
+					breakout = 1;
+					break;
+				}
+			}
+			if (breakout) {
 				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
 				continue;
@@ -1445,6 +1456,8 @@ static void
 vm_daemon()
 {
 	struct proc *p;
+	int breakout;
+	struct thread *td;
 
 	mtx_lock(&Giant);
 	while (TRUE) {
@@ -1473,7 +1486,16 @@ vm_daemon()
 			 * don't touch it.
 			 */
 			mtx_lock_spin(&sched_lock);
-			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
+			breakout = 0;
+			FOREACH_THREAD_IN_PROC(p, td) {
+				if (td->td_state != TDS_RUNQ &&
+				    td->td_state != TDS_RUNNING &&
+				    td->td_state != TDS_SLP) {
+					breakout = 1;
+					break;
+				}
+			}
+			if (breakout) {
 				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
