@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.71 2000/03/29 18:24:53 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.72 2000/04/14 14:13:56 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -873,9 +873,6 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 	uaa.usegeneric = 1;
 	uaa.configno = UHUB_UNK_CONFIGURATION;
 	uaa.ifaceno = UHUB_UNK_INTERFACE;
-	uaa.vendor = UHUB_UNK_VENDOR;
-	uaa.product = UHUB_UNK_PRODUCT;
-	uaa.release = UHUB_UNK_RELEASE;
 	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
 	if (dv != NULL) {
 		dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
@@ -907,7 +904,7 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
  */
 usbd_status
 usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
-		int speed, int port, struct usbd_port *up)
+		int lowspeed, int port, struct usbd_port *up)
 {
 	usbd_device_handle dev;
 	usb_device_descriptor_t *dd;
@@ -915,8 +912,8 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	int addr;
 	int i;
 
-	DPRINTF(("usbd_new_device bus=%p port=%d depth=%d speed=%d\n",
-		 bus, port, depth, speed));
+	DPRINTF(("usbd_new_device bus=%p port=%d depth=%d lowspeed=%d\n",
+		 bus, port, depth, lowspeed));
 	addr = usbd_getnewaddr(bus);
 	if (addr < 0) {
 		printf("%s: No free USB addresses, new device ignored.\n", 
