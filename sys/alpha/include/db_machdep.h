@@ -34,8 +34,9 @@
 /*
  * Machine-dependent defines for new kernel debugger.
  */
-
+#ifndef KLD_MODULE
 #include "opt_ddb.h"
+#endif
 
 #include <sys/param.h>
 #include <vm/vm.h>
