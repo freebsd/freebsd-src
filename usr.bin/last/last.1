@@ -42,7 +42,9 @@
 .Op Fl Ns Ar n
 .Op Fl f Ar file
 .Op Fl h Ar host
+.Op Fl s
 .Op Fl t Ar tty
+.Op Fl w
 .Op user ...
 .Sh DESCRIPTION
 .Nm Last
@@ -60,16 +62,22 @@ a crash or shutdown,
 will so indicate.
 .Pp
 .Bl -tag -width indent-two
+.It Fl Ar n
+Limits the report to
+.Ar n
+lines.
 .It Fl f Ar file
 .Nm Last
 reads the file
 .Ar file
 instead of the default,
 .Pa /var/log/wtmp .
-.It Fl Ar n
-Limits the report to
-.Ar n
-lines.
+.It Fl h Ar host
+.Ar Host
+names may be names or internet numbers.
+.It Fl s
+Report the duration of the login session in seconds, instead of the
+default days, hours and minutes.
 .It Fl t Ar tty
 Specify the
 .Ar tty .
@@ -78,9 +86,9 @@ Tty names may be given fully or abbreviated, for example,
 is
 equivalent to
 .Dq Li "last -t tty03" .
-.It Fl h Ar host
-.Ar Host
-names may be names or internet numbers.
+.It Fl w
+Widen the duration field to show seconds, as well as the
+default days, hours and minutes.
 .El
 .Pp
 If
