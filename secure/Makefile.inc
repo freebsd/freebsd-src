@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-DISTRIBUTION?=crypto
-
 .if exists(${.CURDIR}/../../lib/libcrypt/obj)
 CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt/obj
 .else

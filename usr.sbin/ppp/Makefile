@@ -74,7 +74,6 @@ SRCS+=	id.c
 .if defined(RELEASE_CRUNCH) || defined(NOCRYPT) || defined(NO_OPENSSL)
 CFLAGS+=-DNODES
 .else
-DISTRIBUTION=crypto
 SRCS+=	chap_ms.c mppe.c
 LDADD+= -lcrypto
 DPADD+= ${LIBCRYPTO}

@@ -786,7 +786,7 @@ installCustomCommit(dialogMenuItem *self)
  * installation but come back here again to load more distributions,
  * perhaps from a different media type.  This would allow, for
  * example, the user to load the majority of the system from CDROM and
- * then use ftp to load just the CRYPTO dist.
+ * then use ftp to load a different dist.
  */
 int
 installCommit(dialogMenuItem *self)

@@ -63,7 +63,6 @@ CLEANFILES+=sm_os.h
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 # STARTTLS support
-DISTRIBUTION=	crypto
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_1
 DPADD+=		${LIBSSL} ${LIBCRYPTO}
 LDADD+=		-lssl -lcrypto
