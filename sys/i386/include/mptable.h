@@ -1025,7 +1025,7 @@ revoke_apic_irq(int irq)
 	int oldintpin;
 	
 	if (int_to_apicintpin[irq].ioapic == -1)
-		panic("assign_apic_irq: inconsistent table");
+		panic("revoke_apiq_irq: inconsistent table");
 	
 	oldapic = int_to_apicintpin[irq].ioapic;
 	oldintpin = int_to_apicintpin[irq].int_pin;
@@ -1038,7 +1038,7 @@ revoke_apic_irq(int irq)
 	for (x = 0; x < nintrs; x++) {
 		if ((io_apic_ints[x].int_type == 0 || 
 		     io_apic_ints[x].int_type == 3) &&
-		    io_apic_ints[x].int_vector == 0xff &&
+		    io_apic_ints[x].int_vector != 0xff &&
 		    io_apic_ints[x].dst_apic_id == IO_TO_ID(oldapic) &&
 		    io_apic_ints[x].dst_apic_int == oldintpin)
 			io_apic_ints[x].int_vector = 0xff;
