@@ -113,7 +113,7 @@ static __inline int		dpt_wait(dpt_softc_t *dpt, u_int bits,
 static __inline struct dpt_ccb* dptgetccb(struct dpt_softc *dpt);
 static __inline void		dptfreeccb(struct dpt_softc *dpt,
 					   struct dpt_ccb *dccb);
-static __inline u_int32_t	dptccbvtop(struct dpt_softc *dpt,
+static __inline bus_addr_t	dptccbvtop(struct dpt_softc *dpt,
 					   struct dpt_ccb *dccb);
 
 static __inline int		dpt_send_immediate(dpt_softc_t *dpt,
@@ -260,7 +260,7 @@ dptfreeccb(struct dpt_softc *dpt, struct dpt_ccb *dccb)
 	splx(s);
 }
 
-static __inline u_int32_t
+static __inline bus_addr_t
 dptccbvtop(struct dpt_softc *dpt, struct dpt_ccb *dccb)
 {
 	return (dpt->dpt_ccb_busbase
@@ -268,7 +268,7 @@ dptccbvtop(struct dpt_softc *dpt, struct dpt_ccb *dccb)
 }
 
 static __inline struct dpt_ccb *
-dptccbptov(struct dpt_softc *dpt, u_int32_t busaddr)
+dptccbptov(struct dpt_softc *dpt, bus_addr_t busaddr)
 {
 	return (dpt->dpt_dccbs
 	     +  ((struct dpt_ccb *)busaddr
