@@ -58,6 +58,7 @@ static const char rcsid[] =
 
 #include "truss.h"
 #include "syscall.h"
+#include "extern.h"
 
 static int fd = -1;
 static int cpid = -1;
@@ -79,7 +80,7 @@ static int nsyscalls =
  */
 static struct linux_syscall {
 	struct syscall *sc;
-	char *name;
+	const char *name;
 	int number;
 	unsigned long args[5];
 	int nargs;	/* number of arguments -- *not* number of words! */
@@ -88,7 +89,7 @@ static struct linux_syscall {
 
 /* Clear up and free parts of the fsc structure. */
 static __inline void
-clear_fsc() {
+clear_fsc(void) {
   if (fsc.s_args) {
     int i;
     for (i = 0; i < fsc.nargs; i++)
@@ -109,8 +110,8 @@ clear_fsc() {
 void
 i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   char buf[32];
-  struct reg regs = { 0 };
-  int syscall;
+  struct reg regs;
+  int syscall_num;
   int i;
   struct syscall *sc;
 
@@ -118,7 +119,7 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDWR);
     if (fd == -1) {
-      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+      fprintf(trussinfo->outfile, "-- CANNOT OPEN REGISTERS --\n");
       return;
     }
     cpid = trussinfo->pid;
@@ -126,14 +127,17 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 
   clear_fsc();
   lseek(fd, 0L, 0);
-  i = read(fd, &regs, sizeof(regs));
-  syscall = regs.r_eax;
+  if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
+    fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+    return;
+  }
+  syscall_num = regs.r_eax;
 
-  fsc.number = syscall;
+  fsc.number = syscall_num;
   fsc.name =
-    (syscall < 0 || syscall > nsyscalls) ? NULL : linux_syscallnames[syscall];
+    (syscall_num < 0 || syscall_num > nsyscalls) ? NULL : linux_syscallnames[syscall_num];
   if (!fsc.name) {
-    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall);
+    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
   }
 
   if (fsc.name && (trussinfo->flags & FOLLOWFORKS)
@@ -258,7 +262,7 @@ const int bsd_to_linux_errno[] = {
 };
 
 int
-i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall) {
+i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused) {
   char buf[32];
   struct reg regs;
   int retval;
@@ -270,8 +274,8 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall) {
     sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDONLY);
     if (fd == -1) {
-      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
-      return;
+      fprintf(trussinfo->outfile, "-- CANNOT OPEN REGISTERS --\n");
+      return (-1);
     }
     cpid = trussinfo->pid;
   }
@@ -279,7 +283,7 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall) {
   lseek(fd, 0L, 0);
   if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
     fprintf(trussinfo->outfile, "\n");
-    return;
+    return (-1);
   }
   retval = regs.r_eax;
   errorp = !!(regs.r_eflags & PSL_C);
@@ -323,7 +327,7 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall) {
    * but that complicates things considerably.
    */
   if (errorp) {
-    for (i = 0; i < sizeof(bsd_to_linux_errno) / sizeof(int); i++)
+    for (i = 0; (size_t)i < sizeof(bsd_to_linux_errno) / sizeof(int); i++)
       if (retval == bsd_to_linux_errno[i])
       break;
   }
