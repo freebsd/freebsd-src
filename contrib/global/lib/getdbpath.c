@@ -69,7 +69,7 @@ char	*dbpath;
 	if (bsd) {
 		sprintf(path, "%s/%s/GTAGS", candidate, makeobjdir);
 		if (test("fr", path)) {
-			sprintf(dbpath, "%s%s", candidate, makeobjdir);
+			sprintf(dbpath, "%s/%s", candidate, makeobjdir);
 			return 1;
 		}
 		sprintf(path, "%s%s/GTAGS", makeobjdirprefix, candidate);
@@ -126,7 +126,8 @@ char	*dbpath;
 			die("GTAGSROOT must be an absolute path.");
 		if (stat(p, &sb) || !S_ISDIR(sb.st_mode))
 			die1("directory '%s' not found.", p);
-		strcpy(root, p);
+		if (realpath(p, root) == NULL)
+			die1("cannot get real path of '%s'.", p);
 		/*
 		 * GTAGSDBPATH is meaningful only when GTAGSROOT exist.
 		 */
