@@ -50,6 +50,7 @@
  */
 #include <setjmp.h>
 #include <signal.h>
+#include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sched.h>
@@ -219,6 +220,7 @@ enum pthread_state {
 	PS_FDLW_WAIT,
 	PS_FDR_WAIT,
 	PS_FDW_WAIT,
+	PS_FILE_WAIT,
 	PS_SELECT_WAIT,
 	PS_SLEEP_WAIT,
 	PS_WAIT_WAIT,
@@ -283,6 +285,7 @@ struct pthread {
 	 */
 #define	PTHREAD_MAGIC		((u_int32_t) 0xd09ba115)
 	u_int32_t		magic;
+	char			*name;
 
 	/*
 	 * Pointer to the next thread in the thread linked list.
@@ -387,11 +390,17 @@ struct pthread {
 	 * The current thread can belong to only one queue at a time.
 	 *
 	 * Pointer to queue (if any) on which the current thread is waiting.
+	 *
+	 * XXX The queuing should be changed to use the TAILQ entry below.
+	 * XXX For the time being, it's hybrid.
 	 */
 	struct pthread_queue	*queue;
 
 	/* Pointer to next element in queue. */
 	struct pthread	*qnxt;
+
+	/* Queue entry for this thread: */
+	TAILQ_ENTRY(pthread) qe;
 
 	/* Wait data. */
 	union pthread_wait_data data;
@@ -634,8 +643,6 @@ ssize_t _thread_sys_sendto(int, const void *,size_t, int, const struct sockaddr 
 
 /* #include <stdio.h> */
 #ifdef  _STDIO_H_
-void    _thread_flockfile(FILE *fp,char *fname,int lineno);
-void    _thread_funlockfile(FILE *fp);
 FILE    *_thread_sys_fdopen(int, const char *);
 FILE    *_thread_sys_fopen(const char *, const char *);
 FILE    *_thread_sys_freopen(const char *, const char *, FILE *);

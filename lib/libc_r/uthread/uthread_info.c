@@ -52,7 +52,8 @@ static const struct s_thread_info thread_info[] = {
 	{PS_FDLR_WAIT	, "Waiting for a file read lock"},
 	{PS_FDLW_WAIT	, "Waiting for a file write lock"},
 	{PS_FDR_WAIT	, "Waiting for read"},
-	{PS_FDW_WAIT	, "Waitingfor write"},
+	{PS_FDW_WAIT	, "Waiting for write"},
+	{PS_FILE_WAIT	, "Waiting for FILE lock"},
 	{PS_SELECT_WAIT	, "Waiting on select"},
 	{PS_SLEEP_WAIT	, "Sleeping"},
 	{PS_WAIT_WAIT	, "Waiting process"},
@@ -87,8 +88,8 @@ _thread_dump_info(void)
 				if (thread_info[j].state == pthread->state)
 					break;
 			/* Output a record for the current thread: */
-			sprintf(s, "--------------------\nThread %p prio %3d state %s [%s:%d]\n",
-				pthread, pthread->pthread_priority, thread_info[j].name,pthread->fname,pthread->lineno);
+			sprintf(s, "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
+				pthread, (pthread->name == NULL) ? "":pthread->name, pthread->pthread_priority, thread_info[j].name,pthread->fname,pthread->lineno);
 			_thread_sys_write(fd, s, strlen(s));
 
 			/* Check if this is the running thread: */
@@ -105,7 +106,7 @@ _thread_dump_info(void)
 			}
 			/* Process according to thread state: */
 			switch (pthread->state) {
-				/* File descriptor read lock wait: */
+			/* File descriptor read lock wait: */
 			case PS_FDLR_WAIT:
 			case PS_FDLW_WAIT:
 			case PS_FDR_WAIT:
@@ -117,10 +118,10 @@ _thread_dump_info(void)
 				_thread_sys_write(fd, s, strlen(s));
 				break;
 
-				/*
-				 * Trap other states that are not explicitly
-				 * coded to dump information: 
-				 */
+			/*
+			 * Trap other states that are not explicitly
+			 * coded to dump information: 
+			 */
 			default:
 				/* Nothing to do here. */
 				break;
@@ -177,6 +178,16 @@ _thread_dump_info(void)
 		/* Close the dump file: */
 		_thread_sys_close(fd);
 	}
+	return;
+}
+
+/* Set the thread name for debug: */
+void
+pthread_set_name_np(pthread_t thread, char *name)
+{
+	/* Check if the caller has specified a valid thread: */
+	if (thread != NULL && thread->magic == PTHREAD_MAGIC)
+		thread->name = strdup(name);
 	return;
 }
 #endif
