@@ -151,8 +151,8 @@ _${file}: ${file}
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
 CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
-SRCS+=	adler32.c crc32.c _infblock.c _infcodes.c _inffast.c _inflate.c \
-	_inftrees.c _infutil.c _zutil.c _zutil.h
+SRCS+=	adler32.c crc32.c _infback.c _inffast.c _inflate.c \
+	_inftrees.c _zutil.c _zutil.h
 
 # aargh
 .for file in zutil.h
@@ -162,7 +162,7 @@ _${file}: ${file} ${file}.diff
 	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.[ch]}
 .endfor
 
-.for file in infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c zutil.c
+.for file in infback.c inffast.c inflate.c inftrees.c zutil.c
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
