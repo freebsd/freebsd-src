@@ -46,7 +46,8 @@
 /* prototypes */
 static void atapi_read(struct atapi_request *, int);
 static void atapi_write(struct atapi_request *, int);
-static void atapi_timeout(struct atapi_request *request);
+static void atapi_finish(struct atapi_request *);
+static void atapi_timeout(struct atapi_request *);
 static char *atapi_type(int);
 static char *atapi_cmd2str(u_int8_t);
 static char *atapi_skey2str(u_int8_t);
@@ -262,7 +263,7 @@ atapi_start(struct atapi_softc *atp)
     }
 }
 
-void
+int
 atapi_transfer(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
@@ -282,17 +283,8 @@ atapi_transfer(struct atapi_request *request)
 	    request->error = 0;
 	else
 	    request->error = EBUSY;
-	if (request->callback) {
-	    if (!((request->callback)(request))) {
-		if (request->dmatab)
-		    free(request->dmatab, M_DEVBUF);
-		free(request, M_ATAPI);
-	    }
-	}
-	else 
-            wakeup((caddr_t)request);	
-	atp->controller->active = ATA_IDLE; /* should go in ata-all.c */
-	return;
+	atapi_finish(request);
+	return ATA_OP_FINISHED;
     }
 
     /* start timeout for this command */
@@ -329,7 +321,7 @@ atapi_transfer(struct atapi_request *request)
 
     /* command interrupt device ? just return */
     if (ATP_PARAM->drqtype == ATAPI_DRQT_INTR)
-	return;
+	return ATA_OP_CONTINUES;
 
     /* ready to write ATAPI command */
     timout = 5000; /* might be less for fast devices */
@@ -345,7 +337,9 @@ atapi_transfer(struct atapi_request *request)
 	request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 	ata_printf(atp->controller, atp->unit,
 		   "failure to execute ATAPI packet command\n");
-	return;
+	request->error = EIO;
+        atapi_finish(request);	
+	return ATA_OP_FINISHED;
     }
 
     /* this seems to be needed for some (slow) devices */
@@ -354,6 +348,7 @@ atapi_transfer(struct atapi_request *request)
     /* send actual command */
     ATA_OUTSW(atp->controller->r_io, ATA_DATA, (int16_t *)request->ccb,
 	      request->ccbsize / sizeof(int16_t));
+    return ATA_OP_CONTINUES;
 }
 
 int
@@ -362,7 +357,7 @@ atapi_interrupt(struct atapi_request *request)
     struct atapi_softc *atp = request->device;
     int reason, dma_stat = 0;
 
-    reason = (ATA_INB(atp->controller->r_io, ATA_IREASON) & (ATA_I_CMD|ATA_I_IN)) |
+    reason = (ATA_INB(atp->controller->r_io, ATA_IREASON)&(ATA_I_CMD|ATA_I_IN))|
 	     (atp->controller->status & ATA_S_DRQ);
 
     if (reason == ATAPI_P_CMDOUT) {
@@ -450,20 +445,13 @@ op_finished:
 	request->ccb[0] = ATAPI_REQUEST_SENSE;
 	request->ccb[4] = sizeof(struct atapi_reqsense);
 	request->bytecount = sizeof(struct atapi_reqsense);
-	request->flags = ATPR_F_READ | ATPR_F_INTERNAL;
+	request->flags &= ATPR_F_QUIET;
+	request->flags |= ATPR_F_READ | ATPR_F_INTERNAL;
 	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
     }
     else {
     	if (request->result) {
 	    switch ((request->result & ATAPI_SK_MASK)) {
-	    case ATAPI_SK_RESERVED:
-		ata_printf(atp->controller, atp->unit,
-			   "%s - timeout error=0x%02x\n", 
-			   atapi_cmd2str(atp->cmd), 
-			   request->result & ATAPI_E_MASK);
-		request->error = EIO;
-		break;
-
 	    case ATAPI_SK_NO_SENSE:
 		request->error = 0;
 		break;
@@ -485,6 +473,11 @@ op_finished:
 		break;
 
 	    default: 
+		request->error = EIO;
+
+		if (request->flags & ATPR_F_QUIET)
+		    break;
+
 		ata_printf(atp->controller, atp->unit,
 			   "%s - %s asc=0x%02x ascq=0x%02x ",
 			   atapi_cmd2str(atp->cmd), 
@@ -496,24 +489,16 @@ op_finished:
 			   request->sense.sk_specific1,
 			   request->sense.sk_specific2);
 		printf("error=0x%02x\n", request->result & ATAPI_E_MASK);
-		request->error = EIO;
 	    }
 	}
 	else
 	    request->error = 0;
-	if (request->callback) {
 #ifdef ATAPI_DEBUG
+	if (request->callback)
 	    ata_printf(atp->controller, atp->unit, "finished %s (callback)\n", 
 		       atapi_cmd2str(request->ccb[0]));
 #endif
-	    if (!((request->callback)(request))) {
-		if (request->dmatab)
-		    free(request->dmatab, M_DEVBUF);
-		free(request, M_ATAPI);
-	    }
-	}
-	else 
-            wakeup((caddr_t)request);	
+        atapi_finish(request);	
     }
     return ATA_OP_FINISHED;
 }
@@ -630,6 +615,20 @@ atapi_write(struct atapi_request *request, int length)
     request->donecount += size;
 }
 
+static void
+atapi_finish(struct atapi_request *request)
+{
+    if (request->callback) {
+	if (!((request->callback)(request))) {
+	    if (request->dmatab)
+		free(request->dmatab, M_DEVBUF);
+	    free(request, M_ATAPI);
+	}
+    }
+    else 
+	wakeup((caddr_t)request);	
+}
+
 static void 
 atapi_timeout(struct atapi_request *request)
 {
@@ -656,7 +655,7 @@ atapi_timeout(struct atapi_request *request)
         TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
     else {
         /* retries all used up, return error */
-	request->result = ATAPI_SK_RESERVED | ATAPI_E_ABRT;
+	request->error = EIO;
 	wakeup((caddr_t)request);
     } 
     ata_reinit(atp->controller);

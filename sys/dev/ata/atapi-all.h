@@ -173,6 +173,7 @@ struct atapi_request {
 #define		ATPR_F_DMA_USED		0x0002
 #define		ATPR_F_AT_HEAD		0x0004
 #define		ATPR_F_INTERNAL		0x0008
+#define		ATPR_F_QUIET		0x0010
 
     caddr_t			data;		/* pointer to data buf */
     atapi_callback_t		*callback;	/* ptr to callback func */
@@ -184,7 +185,7 @@ struct atapi_request {
 void atapi_attach(struct ata_softc *, int);
 void atapi_detach(struct atapi_softc *);
 void atapi_start(struct atapi_softc *);
-void atapi_transfer(struct atapi_request *);
+int atapi_transfer(struct atapi_request *);
 int atapi_interrupt(struct atapi_request *);
 int atapi_queue_cmd(struct atapi_softc *, int8_t [], caddr_t, int, int, int, atapi_callback_t, void *);
 void atapi_reinit(struct atapi_softc *);
