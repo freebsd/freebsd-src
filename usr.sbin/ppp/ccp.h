@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14 1998/01/11 17:50:29 brian Exp $
+ * $Id: ccp.h,v 1.14.2.1 1998/01/29 00:49:13 brian Exp $
  *
  *	TODO:
  */
@@ -42,11 +42,14 @@ struct ccpstate {
   int reset_sent;		/* If != -1, ignore compressed 'till ack */
   int last_reset;		/* We can receive more (dups) w/ this id */
 
+  int in_algorithm;		/* Incoming algorithm in use */
+  int out_algorithm;		/* Outgoing algorithm in use */
+
   u_int32_t his_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;		/* Request codes I have rejected */
 
-  int out_init;			/* Init called for out algorithm */
-  int in_init;			/* Init called for in algorithm */
+  int out_init : 1;		/* Init called for out algorithm */
+  int in_init : 1;		/* Init called for in algorithm */
 
   u_long uncompout, compout;
   u_long uncompin, compin;

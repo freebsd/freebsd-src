@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30 1998/01/21 02:15:10 brian Exp $
+ * $Id: ccp.c,v 1.30.2.1 1998/01/29 00:49:13 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -43,7 +43,7 @@
 #include "pred.h"
 #include "deflate.h"
 
-struct ccpstate CcpInfo = { -1, -1, -1, -1 };
+struct ccpstate CcpInfo = { -1, -1, -1, -1, -1, -1 };
 
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
@@ -119,8 +119,6 @@ static const struct ccp_algorithm *algorithm[] = {
   &PppdDeflateAlgorithm
 };
 
-static int in_algorithm = -1;
-static int out_algorithm = -1;
 #define NALGORITHMS (sizeof algorithm/sizeof algorithm[0])
 
 int
@@ -141,12 +139,11 @@ static void
 ccpstateInit(void)
 {
   if (CcpInfo.in_init)
-    (*algorithm[in_algorithm]->i.Term)();
+    (*algorithm[CcpInfo.in_algorithm]->i.Term)();
   if (CcpInfo.out_init)
-    (*algorithm[out_algorithm]->o.Term)();
-  in_algorithm = -1;
-  out_algorithm = -1;
+    (*algorithm[CcpInfo.out_algorithm]->o.Term)();
   memset(&CcpInfo, '\0', sizeof CcpInfo);
+  CcpInfo.in_algorithm = CcpInfo.out_algorithm = -1;
   CcpInfo.his_proto = CcpInfo.my_proto = -1;
   CcpInfo.reset_sent = CcpInfo.last_reset = -1;
 }
@@ -175,7 +172,7 @@ CcpSendConfigReq(struct fsm *fp)
   LogPrintf(LogCCP, "CcpSendConfigReq\n");
   cp = ReqBuff;
   CcpInfo.my_proto = -1;
-  out_algorithm = -1;
+  CcpInfo.out_algorithm = -1;
   for (f = 0; f < NALGORITHMS; f++)
     if (Enabled(algorithm[f]->Conf) && !REJECTED(&CcpInfo, algorithm[f]->id)) {
       struct lcp_opt o;
@@ -184,7 +181,7 @@ CcpSendConfigReq(struct fsm *fp)
       cp += LcpPutConf(LogCCP, cp, &o, cftypes[o.id],
                        (*algorithm[f]->Disp)(&o));
       CcpInfo.my_proto = o.id;
-      out_algorithm = f;
+      CcpInfo.out_algorithm = f;
     }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
 }
@@ -201,7 +198,7 @@ CcpSendResetReq(struct fsm *fp)
 static void
 CcpSendTerminateReq(struct fsm *fp)
 {
-  /* XXX: No code yet */
+  /* Fsm has just send a terminate request */
 }
 
 static void
@@ -214,8 +211,8 @@ CcpSendTerminateAck(struct fsm *fp)
 void
 CcpRecvResetReq(struct fsm *fp)
 {
-  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS)
-    (*algorithm[out_algorithm]->o.Reset)();
+  if (CcpInfo.out_init)
+    (*algorithm[CcpInfo.out_algorithm]->o.Reset)();
 }
 
 static void
@@ -245,17 +242,29 @@ static void
 CcpLayerUp(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerUp(%d).\n", fp->state);
+  if (!CcpInfo.in_init && CcpInfo.in_algorithm >= 0 &&
+      CcpInfo.in_algorithm < NALGORITHMS)
+    if ((*algorithm[CcpInfo.in_algorithm]->i.Init)())
+      CcpInfo.in_init = 1;
+    else {
+      LogPrintf(LogERROR, "%s (in) initialisation failure\n",
+                protoname(CcpInfo.his_proto));
+      CcpInfo.his_proto = CcpInfo.my_proto = -1;
+      FsmClose(fp);
+    }
+  if (!CcpInfo.out_init && CcpInfo.out_algorithm >= 0 &&
+      CcpInfo.out_algorithm < NALGORITHMS)
+    if ((*algorithm[CcpInfo.out_algorithm]->o.Init)())
+      CcpInfo.out_init = 1;
+    else {
+      LogPrintf(LogERROR, "%s (out) initialisation failure\n",
+                protoname(CcpInfo.my_proto));
+      CcpInfo.his_proto = CcpInfo.my_proto = -1;
+      FsmClose(fp);
+    }
   LogPrintf(LogCCP, "Out = %s[%d], In = %s[%d]\n",
             protoname(CcpInfo.my_proto), CcpInfo.my_proto,
             protoname(CcpInfo.his_proto), CcpInfo.his_proto);
-  if (!CcpInfo.in_init && in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
-    (*algorithm[in_algorithm]->i.Init)();
-    CcpInfo.in_init = 1;
-  }
-  if (!CcpInfo.out_init && out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
-    (*algorithm[out_algorithm]->o.Init)();
-    CcpInfo.out_init = 1;
-  }
 }
 
 void
@@ -320,7 +329,7 @@ CcpDecodeConfig(u_char *cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(algorithm[f]->Conf) && in_algorithm == -1) {
+	if (Acceptable(algorithm[f]->Conf) && CcpInfo.in_algorithm == -1) {
 	  memcpy(&o, cp, length);
           switch ((*algorithm[f]->i.Set)(&o)) {
           case MODE_REJ:
@@ -335,7 +344,7 @@ CcpDecodeConfig(u_char *cp, int plen, int mode_type)
 	    memcpy(ackp, cp, length);
 	    ackp += length;
 	    CcpInfo.his_proto = type;
-            in_algorithm = f;		/* This one'll do ! */
+            CcpInfo.in_algorithm = f;		/* This one'll do ! */
             break;
           }
 	} else {
@@ -365,8 +374,10 @@ CcpDecodeConfig(u_char *cp, int plen, int mode_type)
 
   if (rejp != RejBuff) {
     ackp = AckBuff;	/* let's not send both ! */
-    CcpInfo.his_proto = -1;
-    in_algorithm = -1;
+    if (!CcpInfo.in_init) {
+      CcpInfo.his_proto = -1;
+      CcpInfo.in_algorithm = -1;
+    }
   }
 }
 
@@ -401,15 +412,15 @@ CcpResetInput(u_char id)
 
   CcpInfo.last_reset = CcpInfo.reset_sent;
   CcpInfo.reset_sent = -1;
-  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
-    (*algorithm[in_algorithm]->i.Reset)();
+  if (CcpInfo.in_init)
+    (*algorithm[CcpInfo.in_algorithm]->i.Reset)();
 }
 
 int
 CcpOutput(struct physical *physical, int pri, u_short proto, struct mbuf *m)
 {
-  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS)
-    return (*algorithm[out_algorithm]->o.Write)(physical, pri, proto, m);
+  if (CcpInfo.out_init)
+    return (*algorithm[CcpInfo.out_algorithm]->o.Write)(physical, pri, proto, m);
   return 0;
 }
 
@@ -421,14 +432,14 @@ CompdInput(u_short *proto, struct mbuf *m)
     LogPrintf(LogCCP, "ReSendResetReq(%d)\n", CcpInfo.reset_sent);
     FsmOutput(&CcpFsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
     pfree(m);
-  } else if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
-    return (*algorithm[in_algorithm]->i.Read)(proto, m);
+  } else if (CcpInfo.in_init)
+    return (*algorithm[CcpInfo.in_algorithm]->i.Read)(proto, m);
   return NULL;
 }
 
 void
 CcpDictSetup(u_short proto, struct mbuf *m)
 {
-  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
-    (*algorithm[in_algorithm]->i.DictSetup)(proto, m);
+  if (CcpInfo.in_init)
+    (*algorithm[CcpInfo.in_algorithm]->i.DictSetup)(proto, m);
 }
