@@ -1040,6 +1040,10 @@ setregs(p, entry, stack, ps_strings)
 	struct trapframe *regs = p->p_md.md_regs;
 	struct pcb *pcb = &p->p_addr->u_pcb;
 
+	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
+	pcb->pcb_gs = _udatasel;
+	load_gs(_udatasel);
+
 #ifdef USER_LDT
 	/* was i386_user_cleanup() in NetBSD */
 	user_ldt_free(pcb);
@@ -1057,12 +1061,6 @@ setregs(p, entry, stack, ps_strings)
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
 	regs->tf_ebx = ps_strings;
-
-	/* reset %gs as well */
-	if (pcb == curpcb)
-		load_gs(_udatasel);
-	else
-		pcb->pcb_gs = _udatasel;
 
         /*
          * Reset the hardware debug registers if they were in use.
