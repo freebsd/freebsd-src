@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.11 1996/05/13 08:38:15 asami Exp $ */
+/* $Id: ccd.c,v 1.12 1996/05/13 09:17:42 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -215,7 +215,9 @@ static	void ccdmakedisklabel __P((struct ccd_softc *));
 static	int ccdlock __P((struct ccd_softc *));
 static	void ccdunlock __P((struct ccd_softc *));
 
+#ifdef CCD_DEBUG
 static	void loopdelay __P((void));
+#endif
 
 #ifdef DEBUG
 static	void printiinfo __P((struct ccdiinfo *));
@@ -701,8 +703,7 @@ ccdstrategy(bp)
 {
 	register int unit = ccdunit(bp->b_dev);
 	register struct ccd_softc *cs = &ccd_softc[unit];
-	register daddr_t bn;
-	register int sz, s;
+	register int s;
 	int wlabel;
 	struct disklabel *lp;
 
@@ -1076,6 +1077,7 @@ ccdwrite(dev, uio, flags)
 	return (physio(ccdstrategy, NULL, dev, B_WRITE, minphys, uio));
 }
 
+#ifdef CCD_DEBUG
 static void
 loopdelay()
 {
@@ -1087,6 +1089,7 @@ loopdelay()
 			for (k = 0; k < 100; k++)
 				l = i * j * k;
 }
+#endif
 
 int
 ccdioctl(dev, cmd, data, flag, p)
@@ -1480,14 +1483,9 @@ ccdgetdisklabel(dev)
 	struct ccd_softc *cs = &ccd_softc[unit];
 	char *errstring;
 	struct disklabel *lp = &cs->sc_dkdev.dk_label;
-/*	struct cpu_disklabel *clp = &cs->sc_dkdev.dk_cpulabel; */
 	struct ccdgeom *ccg = &cs->sc_geom;
 
-	struct dos_partition dos_partdummy;
-	struct dkbad dkbaddummy;
-
 	bzero(lp, sizeof(*lp));
-/*	bzero(clp, sizeof(*clp)); */
 
 	lp->d_secperunit = cs->sc_size;
 	lp->d_secsize = ccg->ccg_secsize;
@@ -1519,8 +1517,7 @@ ccdgetdisklabel(dev)
 	 * Call the generic disklabel extraction routine.
 	 */
 	if (errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
-	    &cs->sc_dkdev.dk_label/*, &dos_partdummy, &dkbaddummy*/)) 
-		/*, &cs->sc_dkdev.dk_cpulabel)) */
+	    &cs->sc_dkdev.dk_label))
 		ccdmakedisklabel(cs);
 
 #ifdef DEBUG

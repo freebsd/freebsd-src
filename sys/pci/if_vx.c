@@ -189,8 +189,6 @@ vx_pci_attach(
     struct ifnet *ifp;
     u_short i, *p;
     u_long j;
-    struct ifaddr *ifa;
-    struct sockaddr_dl *sdl;
 
     if (unit >= NVX) {
        printf("vx%d: not configured; kernel is built for only %d device%s.\n",

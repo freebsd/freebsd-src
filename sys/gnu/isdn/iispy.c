@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.10 1995/12/17 21:17:43 phk Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
+/* @(#)$Id: iispy.c,v 1.11 1996/03/28 14:27:51 scrappy Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -34,7 +34,7 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.10 1995/12/17 21:17:43 phk Exp
 int	ispy_applnr;
 static int	next_if =0;
 static unsigned long ispy_cnt, ispy_out;
-static char	dir;
+static const char	dir = 0;
 #define ISPY_SIZE	260
 #define OPEN		1
 #define READ_WAIT	2
@@ -116,7 +116,6 @@ ispy_input(int no, int len, char *buf, int out)
 static	int
 ispyopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	int             err;
 	struct ispy_data *ispy;
 
 	if (minor(dev)>NISPY)
@@ -144,8 +143,6 @@ ispyclose(dev_t dev, int flags, int fmt, struct proc *p)
 static	int
 ispyioctl (dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
-        int     unit = minor(dev);
-
         switch (cmd) {
             default:
                 return (ENOTTY);

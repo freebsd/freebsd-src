@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.8 1996/03/04 11:15:19 peter Exp $
+ *  $Id: linux_ioctl.c,v 1.9 1996/03/10 22:30:53 peter Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,7 @@ static void
 bsd_to_linux_termios(struct termios *bsd_termios, 
 		struct linux_termios *linux_termios)
 {
-    int i, speed;
+    int i;
 
 #ifdef DEBUG
     printf("LINUX: BSD termios structure (input):\n");
@@ -263,7 +263,7 @@ static void
 linux_to_bsd_termios(struct linux_termios *linux_termios,
 		struct termios *bsd_termios)
 {
-    int i, speed;
+    int i;
 #ifdef DEBUG
     printf("LINUX: LINUX termios structure (input):\n");
     printf("i=%08x o=%08x c=%08x l=%08x line=%d\n",
@@ -451,10 +451,8 @@ int
 linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 {
     struct termios bsd_termios;
-    struct winsize bsd_winsize;
     struct linux_termios linux_termios;
     struct linux_termio linux_termio;
-    struct linux_winsize linux_winsize;
     struct filedesc *fdp = p->p_fd;
     struct file *fp;
     int (*func)(struct file *fp, int com, caddr_t data, struct proc *p);

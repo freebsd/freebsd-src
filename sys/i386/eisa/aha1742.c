@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.52 1996/03/10 07:04:26 gibbs Exp $
+ *      $Id: aha1742.c,v 1.53 1996/05/22 00:03:50 dima Exp $
  */
 
 #include <sys/types.h>
@@ -709,7 +709,6 @@ ahbintr(arg)
 	int     target;
 	long int mboxval;
 	int	port;
-	int	unit;
 
 	ahb = (struct ahb_data *)arg;
 	port = ahb->baseport;

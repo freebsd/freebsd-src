@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.18 1996/03/23 21:32:39 nate Exp $
+ *	$Id: if_zp.c,v 1.19 1996/06/04 21:41:01 nate Exp $
  */
 /*-
  * TODO:
@@ -477,8 +477,6 @@ zpattach(isa_dev)
 	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u_short i;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	int     pl;
 
 	/* PCMCIA card can be offlined. Reconfiguration is required */

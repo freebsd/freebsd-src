@@ -484,7 +484,6 @@ gscattach(struct isa_device *isdp)
 {
   int unit = isdp->id_unit;
   struct gsc_unit *scu = unittab + unit;
-  char	name[32];
 
   scu->flags |= FLAG_DEBUG;
 

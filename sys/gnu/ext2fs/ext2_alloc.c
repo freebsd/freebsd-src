@@ -211,11 +211,15 @@ nospace:
  * Note that the error return is not reflected back to the user. Rather
  * the previous block allocation will be used.
  */
+
+#ifdef FANCY_REALLOC
 #include <sys/sysctl.h>
 static int doasyncfree = 1;
 #ifdef	OPT_DEBUG
 SYSCTL_INT(_debug, 14, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
 #endif	/* OPT_DEBUG */
+#endif
+
 int
 ext2_reallocblks(ap)
 	struct vop_reallocblks_args /* {

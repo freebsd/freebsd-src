@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $Id: dgreg.h,v 1.2 1995/10/04 21:51:26 jkh Exp $
+ *  dgreg.h $Id: dgreg.h,v 1.3 1995/12/22 16:08:15 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -253,7 +253,7 @@ struct board_chan {
 #define PCXE    1
 #define	PCXEVE	2
 
-static char *board_desc[] = {
+static char * const board_desc[] = {
 	"PC/Xi (64K)",
 	"PC/Xe (64K)",
 	"PC/Xe (8K) ",

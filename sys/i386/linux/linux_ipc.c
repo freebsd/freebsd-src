@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.6 1996/01/08 04:34:54 peter Exp $
+ *  $Id: linux_ipc.c,v 1.7 1996/03/02 19:37:56 peter Exp $
  */
 
 
@@ -44,7 +44,6 @@ static int linux_semget __P((struct proc *, struct linux_ipc_args *, int *));
 static int linux_semctl __P((struct proc *, struct linux_ipc_args *, int *));
 static int linux_msgsnd __P((struct proc *, struct linux_ipc_args *, int *));
 static int linux_msgrcv __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_msgop __P((struct proc *, struct linux_ipc_args *, int *));
 static int linux_msgctl __P((struct proc *, struct linux_ipc_args *, int *));
 static int linux_shmat __P((struct proc *, struct linux_ipc_args *, int *));
 static int linux_shmdt __P((struct proc *, struct linux_ipc_args *, int *));

@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id$
+ * $Id: ibcs2_misc.c,v 1.9 1995/10/23 19:46:51 swallace Exp $
  */
 
 /*
@@ -112,12 +112,14 @@ ibcs2_ulimit(p, uap, retval)
 	struct ibcs2_ulimit_args *uap;
 	int *retval;
 {
+#ifdef notyet
 	int error;
 	struct rlimit rl;
 	struct setrlimit_args {
 		int resource;
 		struct rlimit *rlp;
 	} sra;
+#endif
 #define IBCS2_GETFSIZE		1
 #define IBCS2_SETFSIZE		2
 #define IBCS2_GETPSIZE		3
@@ -567,7 +569,7 @@ ibcs2_getgroups(p, uap, retval)
 	int *retval;
 {
 	int error, i;
-	ibcs2_gid_t igid, *iset;
+	ibcs2_gid_t *iset;
 	struct getgroups_args sa;
 	gid_t *gp;
 	caddr_t sg = stackgap_init();
@@ -596,7 +598,7 @@ ibcs2_setgroups(p, uap, retval)
 	int *retval;
 {
 	int error, i;
-	ibcs2_gid_t igid, *iset;
+	ibcs2_gid_t *iset;
 	struct setgroups_args sa;
 	gid_t *gp;
 	caddr_t sg = stackgap_init();
@@ -887,7 +889,7 @@ ibcs2_nice(p, uap, retval)
 	struct ibcs2_nice_args *uap;
 	int *retval;
 {
-	int error, cur_nice = p->p_nice;
+	int error;
 	struct setpriority_args sa;
 
 	SCARG(&sa, which) = PRIO_PROCESS;

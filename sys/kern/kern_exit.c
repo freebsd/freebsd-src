@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.31 1996/04/07 17:38:56 bde Exp $
+ * $Id: kern_exit.c,v 1.32 1996/04/11 20:56:29 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -108,7 +108,6 @@ exit1(p, rv)
 	int rv;
 {
 	register struct proc *q, *nq;
-	register struct proc **pp;
 	register struct vmspace *vm;
 
 	if (p->p_pid == 1) {

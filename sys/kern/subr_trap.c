@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.75 1996/03/28 05:40:57 dyson Exp $
+ *	$Id: trap.c,v 1.76 1996/05/18 03:36:19 dyson Exp $
  */
 
 /*
@@ -606,9 +606,6 @@ trap_pfault(frame, usermode)
 		ftype = VM_PROT_READ;
 
 	if (map != kernel_map) {
-		vm_offset_t v;
-		vm_page_t mpte;
-
 		/*
 		 * Keep swapout from messing with us during this
 		 *	critical time.

@@ -70,8 +70,10 @@
 
 static void cvt_msqid2imsqid __P((struct msqid_ds *, struct ibcs2_msqid_ds *));
 static void cvt_imsqid2msqid __P((struct ibcs2_msqid_ds *, struct msqid_ds *));
+#ifdef unused
 static void cvt_sem2isem     __P((struct sem *, struct ibcs2_sem *));
 static void cvt_isem2sem     __P((struct ibcs2_sem *, struct sem *));
+#endif
 static void cvt_semid2isemid __P((struct semid_ds *, struct ibcs2_semid_ds *));
 static void cvt_isemid2semid __P((struct ibcs2_semid_ds *, struct semid_ds *));
 static void cvt_shmid2ishmid __P((struct shmid_ds *, struct ibcs2_shmid_ds *));
@@ -172,7 +174,7 @@ ibcs2_msgsys(p, uap, retval)
 /*
  * iBCS2 semsys call
  */
-
+#ifdef unused
 static void
 cvt_sem2isem(bp, ibp)
 struct sem *bp;
@@ -196,6 +198,7 @@ struct sem *bp;
 	bp->semzcnt = ibp->semzcnt;
 	return;
 }
+#endif
 
 static void
 cvt_semid2isemid(bp, ibp)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.14 1996/01/03 21:41:32 wollman Exp $
+ *	$Id: sys_machdep.c,v 1.15 1996/03/03 01:57:44 jkh Exp $
  *
  */
 
@@ -185,8 +185,6 @@ i386_set_ldt(p, args, retval)
 	int error = 0, i, n;
  	int largest_ld;
 	struct pcb *pcb = &p->p_addr->u_pcb;
- 	union descriptor desc;
-	union descriptor *lp;
 	int s;
 	struct i386_set_ldt_args ua, *uap;
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.17 1996/03/26 19:16:42 fenner Exp $
+ * $Id: igmp.c,v 1.18 1996/04/18 15:41:10 wollman Exp $
  */
 
 /*
@@ -68,7 +68,6 @@
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
 
-static int	fill_rti __P((struct in_multi *inm));
 static struct router_info *
 		find_rti __P((struct ifnet *ifp));
 
@@ -434,7 +433,6 @@ igmp_sendpkt(inm, type, addr)
         struct igmp *igmp;
         struct ip *ip;
         struct ip_moptions imo;
-	struct sockaddr_in *sin;
 
         MGETHDR(m, M_DONTWAIT, MT_HEADER);
         if (m == NULL)

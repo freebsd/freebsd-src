@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.14 1996/03/12 06:20:19 peter Exp $
+ *	$Id: imgact_coff.c,v 1.15 1996/05/01 02:42:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -301,17 +301,11 @@ exec_coff_imgact(imgp)
 	struct scnhdr *scns;
 	int i;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
-	unsigned long vmaddr;
 	int nscns;
-	int error, len;
+	int error;
 	unsigned long text_offset = 0, text_address = 0, text_size = 0;
 	unsigned long data_offset = 0, data_address = 0, data_size = 0;
 	unsigned long bss_size = 0;
-	int need_hack_p;
-	unsigned long data_end;
-	unsigned long data_map_start, data_map_len, data_map_addr = 0;
-	unsigned long bss_address, bss_map_start, data_copy_len, bss_map_len;
-	unsigned char *data_buf = 0;
 	caddr_t hole;
 
 	if (fhdr->f_magic != I386_COFF ||
@@ -372,7 +366,7 @@ exec_coff_imgact(imgp)
 	    	/* .bss section */
 	    	bss_size = scns[i].s_size;
 	  } else if (scns[i].s_flags & STYP_LIB) {
-	    	char *buf = 0, *ptr;
+	    	char *buf = 0;
 	    	int foff = trunc_page(scns[i].s_scnptr);
 	    	int off = scns[i].s_scnptr - foff;
 	    	int len = round_page(scns[i].s_size + PAGE_SIZE);

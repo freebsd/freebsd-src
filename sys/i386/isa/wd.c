@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.108 1996/05/03 14:57:27 phk Exp $
+ *	$Id: wd.c,v 1.109 1996/06/08 10:03:35 bde Exp $
  */
 
 /* TODO:
@@ -282,7 +282,9 @@ static int wdcontrol(struct buf *bp);
 static int wdcommand(struct disk *du, u_int cylinder, u_int head,
 		     u_int sector, u_int count, u_int command);
 static int wdsetctlr(struct disk *du);
+#if 0
 static int wdwsetctlr(struct disk *du);
+#endif
 static int wdgetctlr(struct disk *du);
 static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
@@ -731,7 +733,6 @@ wdstart(int ctrlr)
 	if (wdtab[ctrlr].b_active)
 		return;
 #endif
-loop:
 	/* is there a drive for the controller to do a transfer with? */
 	bp = wdtab[ctrlr].controller_queue.tqh_first;
 	if (bp == NULL) {
@@ -1452,6 +1453,7 @@ wdsetctlr(struct disk *du)
 	return (0);
 }
 
+#if 0
 /*
  * Wait until driver is inactive, then set up controller.
  */
@@ -1468,6 +1470,7 @@ wdwsetctlr(struct disk *du)
 	splx(x);
 	return (stat);
 }
+#endif
 
 /*
  * issue READP to drive to ask it what it is.

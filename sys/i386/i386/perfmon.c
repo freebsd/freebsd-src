@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.4 1996/03/28 21:00:29 wollman Exp $
+ *	$Id: perfmon.c,v 1.5 1996/03/29 17:48:21 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -220,7 +220,6 @@ int
 writectl5(int pmc)
 {
 	quad_t newval = 0;
-	quad_t oldtsc;
 
 	if (ctl_shadow[1] & (PMCF_EN << 16)) {
 		if (ctl_shadow[1] & (PMCF_USR << 16))

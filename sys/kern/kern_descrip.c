@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.27 1996/03/11 02:17:30 hsu Exp $
+ * $Id: kern_descrip.c,v 1.28 1996/03/27 19:19:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -682,8 +682,6 @@ void
 ffree(fp)
 	register struct file *fp;
 {
-	register struct file *fq;
-
 	LIST_REMOVE(fp, f_list);
 	crfree(fp->f_cred);
 #ifdef DIAGNOSTIC

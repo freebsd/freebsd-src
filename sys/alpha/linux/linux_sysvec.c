@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.4 1996/03/17 14:31:58 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.5 1996/05/01 06:31:18 jkh Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -361,7 +361,6 @@ linux_sigreturn(p, args, retval)
 void
 linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 {
-	int i;
 	args[0] = tf->tf_ebx;
 	args[1] = tf->tf_ecx;
 	args[2] = tf->tf_edx;

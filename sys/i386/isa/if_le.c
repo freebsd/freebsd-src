@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.30 1996/02/06 18:50:47 wollman Exp $
+ * $Id: if_le.c,v 1.31 1996/03/23 19:34:12 fenner Exp $
  */
 
 /*
@@ -390,7 +390,6 @@ le_attach(
 {
     le_softc_t *sc = &le_softc[dvp->id_unit];
     struct ifnet *ifp = &sc->le_if;
-    struct ifaddr *ifa = ifp->if_addrlist;
 
     ifp->if_softc = sc;
     ifp->if_mtu = ETHERMTU;

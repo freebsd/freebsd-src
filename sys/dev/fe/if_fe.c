@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.13 1996/04/07 17:50:09 bde Exp $
+ * $Id: if_fe.c,v 1.14 1996/04/23 18:36:55 nate Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -2632,7 +2632,6 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 {
 	u_short addr_bmpr8 = sc->ioaddr[ FE_BMPR8 ];
 	u_short length, len;
-	short pad;
 	struct mbuf *mp;
 	u_char *data;
 	u_short savebyte;	/* WARNING: Architecture dependent!  */

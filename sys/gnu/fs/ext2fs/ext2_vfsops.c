@@ -80,7 +80,6 @@ static int ext2_flushfiles __P((struct mount *mp, int flags, struct proc *p));
 static int ext2_mount __P((struct mount *,
 	    char *, caddr_t, struct nameidata *, struct proc *));
 static int ext2_mountfs __P((struct vnode *, struct mount *, struct proc *));
-static int ext2_mountroot __P((void));
 static int ext2_reload __P((struct mount *mountp, struct ucred *cred,
 			struct proc *p));
 static int ext2_sbupdate __P((struct ufsmount *, int));
@@ -115,16 +114,19 @@ extern u_long nextgennumber;
 static int ext2fs_inode_hash_lock;
 #endif
 
+static int	compute_sb_data __P((struct vnode * devvp,
+				     struct ext2_super_block * es,
+				     struct ext2_sb_info * fs));
+
+#ifdef notyet
+static int ext2_mountroot __P((void));
+
 /*
- * Called by main() when ufs is going to be mounted as root.
+ * Called by main() when ext2fs is going to be mounted as root.
  *
  * Name is updated by mount(8) after booting.
  */
 #define ROOTNAME	"root_device"
-
-static int	compute_sb_data __P((struct vnode * devvp,
-				     struct ext2_super_block * es,
-				     struct ext2_sb_info * fs));
 
 static int
 ext2_mountroot()
@@ -183,6 +185,7 @@ ext2_mountroot()
 	inittodr(fs->s_es->s_wtime);		/* this helps to set the time */
 	return (0);
 }
+#endif
 
 /*
  * VFS Operations.
