@@ -37,7 +37,7 @@
 #include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 #include <sparc64/sbus/sbusvar.h>
 
 #include <dev/isp/isp_freebsd.h>

@@ -70,7 +70,7 @@
 #include <sys/malloc.h>
 #include <sys/systm.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/ofw_bus.h>
 
