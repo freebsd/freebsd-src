@@ -21,6 +21,7 @@
 #include <readline/history.h>
 #endif
 #include <sys/types.h>
+#include <paths.h>
 #include "libdisk.h"
 
 u_char mbr[] = {
@@ -91,7 +92,7 @@ Scan_Disk(struct disk *d)
 	u_long l;
 	int i,j,fd;
 
-        strcpy(device,"/dev/r");
+        strcpy(device,_PATH_DEV"r");
         strcat(device,d->name);
 
         fd = open(device,O_RDWR);
