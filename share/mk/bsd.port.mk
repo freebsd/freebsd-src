@@ -6,19 +6,20 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.244 1997/01/10 21:02:27 wosch Exp $
+# $Id: bsd.port.mk,v 1.245 1997/01/12 11:48:26 asami Exp $
 #
 # Please view me with 4 column tabs!
 
 # This is for this file, not for the ports that includes it, so it's
-# commented out -- the person to contact if you have questions/
+# not called MAINTAINER -- the person to contact if you have questions/
 # suggestions about bsd.port.mk.
 #
 # If you are not him, you are not allowed to commit to this file without
 # his permission. :)
 #
-# MAINTAINER=	asami@FreeBSD.ORG
-#
+
+FreeBSD_MAINTAINER=	asami@FreeBSD.ORG
+OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 
 # Supported Variables and their behaviors:
 #
@@ -26,10 +27,10 @@
 # 
 # OPSYS			- Portability clause.  This is the operating system the
 #				  makefile is being used on.  Automatically set to
-#				  "FreeBSD" or "NetBSD" as appropriate.
+#				  "FreeBSD," "NetBSD," or "OpenBSD" as appropriate.
 # PORTSDIR		- The root of the ports tree.  Defaults:
-#					FreeBSD: /usr/ports
-#					NetBSD: /usr/opt
+#					FreeBSD/OpenBSD: /usr/ports
+#					NetBSD:          /usr/opt
 # DISTDIR 		- Where to get gzip'd, tarballed copies of original sources
 #				  (default: ${PORTSDIR}/distfiles).
 # PREFIX		- Where to install things in general (default: /usr/local).
@@ -323,10 +324,14 @@ DO_NADA?=		/usr/bin/true
 # Miscellaneous overridable commands:
 GMAKE?=			gmake
 XMKMF?=			xmkmf -a
-.if (${OPSYS} == "NetBSD")
+.if exists(/sbin/md5)
+MD5?=			/sbin/md5
+.elif exists(/bin/md5)
+MD5?=			/bin/md5
+.elif exists(/usr/bin/md5)
 MD5?=			/usr/bin/md5
 .else
-MD5?=			/sbin/md5
+MD5?=			md5
 .endif
 MD5_FILE?=		${FILESDIR}/md5
 
@@ -334,7 +339,11 @@ MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
 MAKE_ENV+=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB="${MOTIFLIB}" CFLAGS="${CFLAGS}"
 
+.if exists(/usr/bin/fetch)
 FETCH_CMD?=		/usr/bin/fetch
+.else
+FETCH_CMD?=		/usr/bin/ftp
+.endif
 
 TOUCH?=			/usr/bin/touch
 TOUCH_FLAGS?=	-f
@@ -361,7 +370,11 @@ PATCH_ARGS+=	-C
 PATCH_DIST_ARGS+=	-C
 .endif
 
+.if exists(/bin/tar)
+EXTRACT_CMD?=	/bin/tar
+.else
 EXTRACT_CMD?=	/usr/bin/tar
+.endif
 EXTRACT_SUFX?=	.tar.gz
 # Backwards compatability.
 .if defined(EXTRACT_ARGS)
