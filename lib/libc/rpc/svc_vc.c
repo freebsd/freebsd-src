@@ -779,8 +779,7 @@ __msgread_withcred(sock, buf, cnt, cmp)
 	bcopy(&cm.cmsg, &cmp->cmsg, sizeof(cmp->cmsg));
 	bcopy(CMSG_DATA(&cm), &cmp->cmcred, sizeof(cmp->cmcred));
 
-	if (msg.msg_controllen == 0 ||
-	   (msg.msg_flags & MSG_CTRUNC) != 0)
+	if ((msg.msg_flags & MSG_CTRUNC) != 0)
 		return (-1);
 
 	return (ret);
