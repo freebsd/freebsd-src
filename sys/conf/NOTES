@@ -2572,6 +2572,9 @@ options 	SPX_HACK
 # Enable Linux ABI emulation
 options 	COMPAT_LINUX
 
+# Enable the linux-like proc filesystem support (requires COMPAT_LINUX)
+options 	LINPROCFS
+
 # Linux debugging
 options 	DEBUG_LINUX
 
