@@ -265,14 +265,14 @@ int dictCellsUsed(FICL_DICT *pDict)
 ** Checks the dictionary for corruption and throws appropriate
 ** errors
 **************************************************************************/
-void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int nCells)
+void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int n)
 {
-    if ((nCells >= 0) && (dictCellsAvail(pDict) < nCells))
+    if ((n >= 0) && (dictCellsAvail(pDict) * sizeof (CELL) < n))
     {
         vmThrowErr(pVM, "Error: dictionary full");
     }
 
-    if ((nCells <= 0) && (dictCellsUsed(pDict) < -nCells))
+    if ((n <= 0) && (dictCellsUsed(pDict) * sizeof (CELL) < -n))
     {
         vmThrowErr(pVM, "Error: dictionary underflow");
     }
