@@ -139,6 +139,8 @@ fget_locked(struct filedesc *fdp, int fd)
 	return ((u_int)fd >= (u_int)fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
 }
 
+extern struct mtx fdesc_mtx;
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_FILEDESC_H_ */
