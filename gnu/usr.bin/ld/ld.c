@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id$
+ *	$Id: ld.c,v 1.41 1997/02/22 15:46:20 peter Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -200,6 +200,7 @@ int	global_alias_count;	/* # of aliased symbols */
 int	set_symbol_count;	/* # of N_SET* symbols. */
 int	set_vector_count;	/* # of set vectors in output. */
 int	warn_sym_count;		/* # of warning symbols encountered. */
+int	flag_list_files;	/* 1 => print pathnames of files, don't link */
 int	list_warning_symbols;	/* 1 => warning symbols referenced */
 
 struct string_list_element	*set_element_prefixes;
@@ -263,6 +264,7 @@ static void	write_syms __P((void));
 static void	assign_symbolnums __P((struct file_entry *, int *));
 static void	cleanup __P((void));
 static int	parse __P((char *, char *, char *));
+static void	list_files __P((void));
 
 
 int
@@ -343,6 +345,9 @@ main(argc, argv)
 
 	/* Completely decode ARGV.  */
 	decode_command(argc, argv);
+
+	if (flag_list_files)
+		list_files();
 
 	building_shared_object =
 		(!relocatable_output && (link_mode & SHAREABLE));
@@ -682,6 +687,10 @@ decode_option(swt, arg)
 			undefined_global_sym_count++;
 		entry_symbol->flags |= GS_REFERENCED;
 		add_cmdline_ref(entry_symbol);
+		return;
+
+	case 'f':
+		flag_list_files = 1;
 		return;
 
 	case 'l':
@@ -3769,4 +3778,27 @@ padfile(padding, fd)
 	buf = (char *)alloca(padding);
 	bzero(buf, padding);
 	mywrite(buf, padding, 1, fd);
+}
+
+static void
+list_files()
+{
+	int    error, i;
+
+	error = 0;
+	for (i = 0; i < number_of_files; i++) {
+		register struct file_entry *entry = &file_table[i];
+		int	fd;
+
+		if (entry->flags & E_SEARCH_DIRS)
+			fd = findlib(entry);
+		else
+			fd = open(entry->filename, O_RDONLY, 0);
+		if (fd < 0)
+			error = 1;
+		else
+			close(fd);
+		printf("%s\n", entry->filename);
+	}
+	exit(error);
 }
