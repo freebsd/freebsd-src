@@ -673,6 +673,11 @@ options 	NFS_ROOT		#NFS usable as root device
 # making abrupt shutdown less risky.
 options 	SOFTUPDATES
 
+# Directory hashing improves the speed of operations on very large
+# directories at the expense of some memory.
+# Warning: this is experimental code!
+options		UFS_DIRHASH
+
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
 options 	MD_ROOT_SIZE=10

@@ -1029,6 +1029,7 @@ ufs/ufs/ufs_lookup.c	standard
 ufs/ufs/ufs_quota.c	standard
 ufs/ufs/ufs_vfsops.c	standard
 ufs/ufs/ufs_vnops.c	standard
+ufs/ufs/ufs_dirhash.c	standard
 vm/default_pager.c	standard
 vm/device_pager.c	standard
 vm/phys_pager.c		standard
