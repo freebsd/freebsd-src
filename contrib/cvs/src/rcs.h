@@ -250,6 +250,7 @@ void RCS_setincexc PROTO ((const char *arg));
 void RCS_setlocalid PROTO ((const char *arg));
 char *make_file_label PROTO ((const char *, const char *, RCSNode *));
 
+extern int datesep;
 extern int preserve_perms;
 
 /* From import.c.  */
