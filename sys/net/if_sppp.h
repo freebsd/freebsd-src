@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.1, Thu Oct 27 21:15:02 MSK 1994
+ * Version 1.7, Wed Jun  7 22:12:02 MSD 1995
  */
 
 #ifndef _NET_IF_HDLC_H_
@@ -20,12 +20,13 @@
 struct slcp {
 	u_short state;          /* state machine */
 	u_long  magic;          /* local magic number */
-	u_long  rmagic;         /* remote magic number */
-	u_char  lastid;         /* id of last keepalive echo request */
+	u_char  echoid;         /* id of last keepalive echo request */
+	u_char  confid;         /* id of last configuration request */
 };
 
 struct sipcp {
 	u_short state;          /* state machine */
+	u_char  confid;         /* id of last configuration request */
 };
 
 struct sppp {
@@ -43,6 +44,7 @@ struct sppp {
 
 #define PP_KEEPALIVE    0x01    /* use keepalive protocol */
 #define PP_CISCO        0x02    /* use Cisco protocol instead of PPP */
+#define PP_TIMO         0x04    /* cp_timeout routine active */
 
 #define PP_MTU          1500    /* max. transmit unit */
 
@@ -62,8 +64,9 @@ void sppp_detach (struct ifnet *ifp);
 void sppp_input (struct ifnet *ifp, struct mbuf *m);
 int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct rtentry *rt);
-int sppp_ioctl (struct ifnet *ifp, int cmd, caddr_t data);
+int sppp_ioctl (struct ifnet *ifp, int cmd, void *data);
 struct mbuf *sppp_dequeue (struct ifnet *ifp);
+int sppp_isempty (struct ifnet *ifp);
 void sppp_flush (struct ifnet *ifp);
 #endif
 
