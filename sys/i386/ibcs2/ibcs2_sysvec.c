@@ -62,7 +62,9 @@ struct sysentvec ibcs2_svr3_sysvec = {
 	&szsigcode,	/* use generic trampoline size */
 	0,		/* prepsyscall */
 	"IBCS2 COFF",
-	NULL		/* we don't have a COFF coredump function */
+	NULL,		/* we don't have a COFF coredump function */
+	NULL,
+	IBCS2_MINSIGSTKSZ
 };
 
 /*

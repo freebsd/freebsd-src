@@ -45,6 +45,12 @@ typedef int sig_atomic_t;
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 
+/*
+ * Minimum signal stack size. The current signal frame
+ * for i386 is 408 bytes large.
+ */
+#define	MINSIGSTKSZ	(512 * 4)
+
 #include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
 
 /*

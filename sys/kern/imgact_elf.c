@@ -99,7 +99,9 @@ struct sysentvec elf_freebsd_sysvec = {
         &szsigcode,
         0,
 	"FreeBSD ELF",
-	elf_coredump
+	elf_coredump,
+	NULL,
+	MINSIGSTKSZ
 };
 
 static Elf_Brandinfo freebsd_brand_info = {

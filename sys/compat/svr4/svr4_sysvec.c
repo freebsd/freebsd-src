@@ -177,7 +177,9 @@ struct sysentvec svr4_sysvec = {
   &svr4_szsigcode,
   NULL,
   "SVR4",
-  elf_coredump
+  elf_coredump,
+  NULL,
+  SVR4_MINSIGSTKSZ
 };
 
 Elf32_Brandinfo svr4_brand = {
