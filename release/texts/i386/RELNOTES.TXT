@@ -190,7 +190,7 @@ licensing restrictions, it cannot be compiled into the kernel.
 [MERGED] To use this driver, add the following line to
 /boot/loader.conf:
 
-	maestro3_load="YES"
+	snd_maestro3_load="YES"
 
 Replace the PQ_*CACHE options with a single PQ_CACHESIZE option to be
 set to the cache size in kilobytes.  The old options are still
@@ -441,6 +441,9 @@ Added support for PCI Gigabit Ethernet adapters based on the National
 Semiconductor DP83820 and DP83821 gigabit ethernet controller chips,
 including the D-Link DGE-500T, SMC EZ Card 1000 (SMC9462TX),
 Asante FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron AEG320T.
+
+The USER_LDT kernel option is now activated by default.
+
 
 1.2. SECURITY FIXES
 -------------------
