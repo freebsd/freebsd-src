@@ -181,7 +181,6 @@ static dpt_sig_S ASR_sig = {
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/bus.h>

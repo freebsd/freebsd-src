@@ -34,6 +34,7 @@
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/ipc.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
