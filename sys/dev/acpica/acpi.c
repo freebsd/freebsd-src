@@ -911,6 +911,7 @@ acpi_MatchHid(device_t dev, char *hid)
     ACPI_HANDLE		h;
     ACPI_DEVICE_INFO	devinfo;
     ACPI_STATUS		error;
+    int			cid;
 
     ACPI_ASSERTLOCK;
 
@@ -921,6 +922,10 @@ acpi_MatchHid(device_t dev, char *hid)
     if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
 	return(FALSE);
     if ((devinfo.Valid & ACPI_VALID_HID) && !strcmp(hid, devinfo.HardwareId))
+	return(TRUE);
+    if ((error = acpi_EvaluateInteger(h, "_CID", &cid)) != AE_OK)
+	return(FALSE);
+    if (cid == PNP_EISAID(hid))
 	return(TRUE);
     return(FALSE);
 }
