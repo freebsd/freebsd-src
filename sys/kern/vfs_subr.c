@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.64.2.3 1997/03/05 04:58:43 davidg Exp $
+ * $Id: vfs_subr.c,v 1.64.2.4 1997/04/25 06:49:15 peter Exp $
  */
 
 /*
@@ -1398,8 +1398,15 @@ again:
 	return (0);
 }
 
+/*
+ * XXX
+ * Exporting the vnode list on large systems causes them to crash.
+ * Exporting the vnode list on medium systems causes sysctl to coredump.
+ */
+#if 0
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_vnode, "S,vnode", "");
+#endif
 
 /*
  * Check to see if a filesystem is mounted on a block device.
