@@ -259,7 +259,7 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_old_postblformat = 1;
 		sblock.fs_old_nrpos = 1;
 	} else {
-		sblock.fs_magic = FS_UFS2_MAGIC;
+		sblock.fs_magic = FS_BAD2_MAGIC;
 		sblock.fs_sblockloc = SBLOCK_UFS2;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs2_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs2_dinode);
@@ -449,6 +449,9 @@ mkfs(struct partition *pp, char *fsys)
 	                    chdummy, SBLOCKSIZE);
 		}
 	}
+	if (!Nflag)
+		sbwrite(&disk, 0);
+	sblock.fs_magic = FS_UFS2_MAGIC;
 
 	/*
 	 * Now build the cylinders group blocks and
