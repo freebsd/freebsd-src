@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigsetjmp.S,v 1.6 1996/02/17 12:25:21 peter Exp $
+ *	$Id: sigsetjmp.S,v 1.7 1996/05/05 07:56:07 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigsetjmp.S,v 1.6 1996/02/17 12:25:21 peter Exp $"
+	.asciz "$Id: sigsetjmp.S,v 1.7 1996/05/05 07:56:07 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -68,7 +68,7 @@ ENTRY(sigsetjmp)
 	movl	4(%esp),%ecx 
 	movl	%eax,32(%ecx)
 	testl	%eax,%eax
-	jz	1f
+	jz	2f
 	PIC_PROLOGUE
 	pushl	$0
 #ifdef _THREAD_SAFE
@@ -80,7 +80,7 @@ ENTRY(sigsetjmp)
 	PIC_EPILOGUE
 	movl	4(%esp),%ecx 
 	movl	%eax,24(%ecx)
-1:	movl	0(%esp),%edx
+2:	movl	0(%esp),%edx
 	movl	%edx, 0(%ecx)
 	movl	%ebx, 4(%ecx)
 	movl	%esp, 8(%ecx)
@@ -98,7 +98,7 @@ ENTRY(siglongjmp)
 #endif
 	movl	4(%esp),%edx
 	cmpl	$0,32(%edx)
-	jz	1f
+	jz	2f
 	PIC_PROLOGUE
 	pushl	24(%edx)
 #ifdef _THREAD_SAFE
@@ -108,7 +108,7 @@ ENTRY(siglongjmp)
 #endif
 	addl	$4,%esp
 	PIC_EPILOGUE
-1:	movl	4(%esp),%edx
+2:	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx
 	movl	4(%edx),%ebx
@@ -119,7 +119,7 @@ ENTRY(siglongjmp)
 	fninit
 	fldcw	28(%edx)
 	testl	%eax,%eax
-	jnz	2f
+	jnz	1f
 	incl	%eax
-2:	movl	%ecx,0(%esp)
+1:	movl	%ecx,0(%esp)
 	ret
