@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.232 1996/07/10 06:36:01 markm Exp $
+#	$Id: Makefile,v 1.233 1996/08/02 18:19:47 pst Exp $
 #
 # How to roll a release:
 #
@@ -429,7 +429,8 @@ ftp.1:
 #
 cdrom.1:
 	mkdir -p ${CD}/filesys
-	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
+	cd ${RD} && find floppies -print | cpio -dumpl ${CD}
+	cd ${RD}/dists && find . -print | cpio -dumpl ${CD}
 	ln -f ${RD}/kernels/MFSKERNEL.std ${CD}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
