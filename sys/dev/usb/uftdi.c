@@ -145,8 +145,12 @@ USB_MATCH(uftdi)
 {
 	USB_MATCH_START(uftdi, uaa);
 
-	if (uaa->iface != NULL)
+	if (uaa->iface != NULL) {
+		if (uaa->vendor == USB_VENDOR_FTDI &&
+		    (uaa->product == USB_PRODUCT_FTDI_SERIAL_2232C))
+			return (UMATCH_VENDOR_IFACESUBCLASS);
 		return (UMATCH_NONE);
+	}
 
 	DPRINTFN(20,("uftdi: vendor=0x%x, product=0x%x\n",
 		     uaa->vendor, uaa->product));
@@ -199,19 +203,23 @@ USB_ATTACH(uftdi)
 
 	devname = USBDEVNAME(ucom->sc_dev);
 
-	/* Move the device into the configured state. */
-	err = usbd_set_config_index(dev, UFTDI_CONFIG_INDEX, 1);
-	if (err) {
-		printf("\n%s: failed to set configuration, err=%s\n",
-		       devname, usbd_errstr(err));
-		goto bad;
-	}
+	if (uaa->iface == NULL) {
+		/* Move the device into the configured state. */
+		err = usbd_set_config_index(dev, UFTDI_CONFIG_INDEX, 1);
+		if (err) {
+			printf("\n%s: failed to set configuration, err=%s\n",
+			       devname, usbd_errstr(err));
+			goto bad;
+		}
 
-	err = usbd_device2interface_handle(dev, UFTDI_IFACE_INDEX, &iface);
-	if (err) {
-		printf("\n%s: failed to get interface, err=%s\n",
-		       devname, usbd_errstr(err));
-		goto bad;
+		err = usbd_device2interface_handle(dev, UFTDI_IFACE_INDEX, &iface);
+		if (err) {
+			printf("\n%s: failed to get interface, err=%s\n",
+			       devname, usbd_errstr(err));
+			goto bad;
+		}
+	} else {
+		iface = uaa->iface;
 	}
 
 	usbd_devinfo(dev, 0, devinfo);
@@ -229,6 +237,7 @@ USB_ATTACH(uftdi)
 			break;
 		case USB_PRODUCT_FTDI_SEMC_DSS20:
 		case USB_PRODUCT_FTDI_SERIAL_8U232AM:
+		case USB_PRODUCT_FTDI_SERIAL_2232C:
 		case USB_PRODUCT_FTDI_CFA_631:
 		case USB_PRODUCT_FTDI_CFA_632:
 		case USB_PRODUCT_FTDI_CFA_633:
@@ -322,7 +331,10 @@ USB_ATTACH(uftdi)
 		goto bad;
 	}
         ucom->sc_parent  = sc;
-	ucom->sc_portno = FTDI_PIT_SIOA;
+	if (uaa->iface == NULL)
+		ucom->sc_portno = FTDI_PIT_SIOA;
+	else
+		ucom->sc_portno = FTDI_PIT_SIOA + id->bInterfaceNumber;
 	/* bulkin, bulkout set above */
 
   	ucom->sc_ibufsize = UFTDIIBUFSIZE;
