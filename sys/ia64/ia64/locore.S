@@ -145,7 +145,6 @@ ENTRY(mi_startup_trampoline, 0)
 END(mi_startup_trampoline)
 
 #ifdef SMP
-
 /*
  * AP wake-up entry point. The handoff state is similar as for the BSP,
  * as described on page 3-9 of the IPF SAL Specification. The difference
@@ -205,7 +204,7 @@ ENTRY(os_boot_rendez,0)
 	;;
 1:	mov	r16 = ip
 	add	r17 = 2f-1b, r17
-	movl	r18 = (IA64_PSR_AC|IA64_PSR_IC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_IT|IA64_PSR_BN)
+	movl	r18 = (IA64_PSR_AC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_IT|IA64_PSR_BN)
 	;;
 	add	r17 = r17, r16
 	mov	cr.ipsr = r18
@@ -217,29 +216,55 @@ ENTRY(os_boot_rendez,0)
 
 	.align	32
 2:	movl	r16 = ia64_vector_table			// set up IVT early
-	movl	r17 = ia64_vhpt+(1<<8)+(15<<2)+1	// and VHPT
 	;;
 	mov	cr.iva = r16
-	mov	cr.pta = r17
 	;;
 	srlz.i
 	;;
-	srlz.d
 	movl	r16 = ap_stack
+	movl	r17 = ap_pcpu
 	mov	ar.rsc = 0
 	movl	gp = __gp
 	;;
 	ld8	r16 = [r16]
-	mov	r17 = KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
+	ld8	r17 = [r17]
+	mov	r18 = KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
 	;;
-	add	sp = r17, r16
+	add	sp = r18, r16
 	mov	ar.bspstore = r16
+	mov	ar.k4 = r17
+	mov	r13 = r17	/* gas doesn't know tp as an alias for r13 */
 	;;
 	loadrs
+	movl	r16 = ia64_pal_base
 	;;
 	mov	ar.rsc = 3
+	ld8	r16 = [r16]
 	;;
-	alloc	r16 = ar.pfs, 0, 0, 0, 0
+	cmp.eq	p1, p0 = 0, r16
+(p1)	br.cond.spnt	1f
+	;;
+	mov	r18 = 28<<2
+	movl	r17 = 7<<61
+	;;
+	mov	cr.itir = r18
+	or	r17 = r17, r16
+	mov	r16 = (PTE_P|PTE_MA_WB|PTE_A|PTE_D|PTE_PL_KERN|PTE_AR_RWX)
+	;;
+	mov	cr.ifa = r17
+	extr.u  r18 = r17, 12, 38
+	;;
+	srlz.i
+	shl	r18 = r18, 12
+	;;
+	add	r17 = 1, r0
+	or	r16 = r16, r18
+	;;
+	itr.i	itr[r17] = r16
+	;;
+	srlz.i
+	;;
+1:	alloc	r16 = ar.pfs, 0, 0, 0, 0
 	;;
 	br.call.sptk.few rp = ia64_ap_startup
 	/* NOT REACHED */
