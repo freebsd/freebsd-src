@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.146 1999/02/01 08:49:30 dillon Exp $
+ * $Id: vm_map.c,v 1.147 1999/02/03 01:57:16 dillon Exp $
  */
 
 /*
@@ -491,7 +491,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (
 	    (object == NULL) &&
 	    (prev_entry != &map->header) &&
-	    ((prev_entry->eflags & (MAP_ENTRY_IS_A_MAP | MAP_ENTRY_IS_SUB_MAP)) == 0) &&
+	    ((prev_entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) &&
 		((prev_entry->object.vm_object == NULL) ||
 		 (prev_entry->object.vm_object->type == OBJT_DEFAULT) ||
 		 (prev_entry->object.vm_object->type == OBJT_SWAP)) &&
@@ -901,7 +901,7 @@ vm_map_simplify_entry(map, entry)
 	vm_map_entry_t next, prev;
 	vm_size_t prevsize, esize;
 
-	if (entry->eflags & (MAP_ENTRY_IS_SUB_MAP|MAP_ENTRY_IS_A_MAP))
+	if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 		return;
 
 	prev = entry->prev;
@@ -1013,7 +1013,7 @@ _vm_map_clip_start(map, entry, start)
 
 	vm_map_entry_link(map, entry->prev, new_entry);
 
-	if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
+	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 		if (new_entry->object.vm_object->ref_count == 1)
 			vm_object_set_flag(new_entry->object.vm_object,
 					   OBJ_ONEMAPPING);
@@ -1077,7 +1077,7 @@ _vm_map_clip_end(map, entry, end)
 
 	vm_map_entry_link(map, entry, new_entry);
 
-	if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
+	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 		if (new_entry->object.vm_object->ref_count == 1)
 			vm_object_set_flag(new_entry->object.vm_object,
 					   OBJ_ONEMAPPING);
@@ -1141,7 +1141,7 @@ vm_map_submap(map, start, end, submap)
 	vm_map_clip_end(map, entry, end);
 
 	if ((entry->start == start) && (entry->end == end) &&
-	    ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_COW)) == 0) &&
+	    ((entry->eflags & MAP_ENTRY_COW) == 0) &&
 	    (entry->object.vm_object == NULL)) {
 		entry->object.sub_map = submap;
 		entry->eflags |= MAP_ENTRY_IS_SUB_MAP;
@@ -1223,40 +1223,9 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
 
-			if (current->eflags & MAP_ENTRY_IS_A_MAP) {
-				vm_map_entry_t share_entry;
-				vm_offset_t share_end;
-
-				vm_map_lock(current->object.share_map);
-				(void) vm_map_lookup_entry(
-				    current->object.share_map,
-				    current->offset,
-				    &share_entry);
-				share_end = current->offset +
-				    (current->end - current->start);
-				while ((share_entry !=
-					&current->object.share_map->header) &&
-				    (share_entry->start < share_end)) {
-
-					pmap_protect(map->pmap,
-					    (qmax(share_entry->start,
-						    current->offset) -
-						current->offset +
-						current->start),
-					    min(share_entry->end,
-						share_end) -
-					    current->offset +
-					    current->start,
-					    current->protection &
-					    MASK(share_entry));
-
-					share_entry = share_entry->next;
-				}
-				vm_map_unlock(current->object.share_map);
-			} else
-				pmap_protect(map->pmap, current->start,
-				    current->end,
-				    current->protection & MASK(entry));
+			pmap_protect(map->pmap, current->start,
+			    current->end,
+			    current->protection & MASK(entry));
 #undef	MASK
 		}
 
@@ -1300,7 +1269,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 		current = current->next) {
 		vm_size_t size;
 
-		if (current->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
+		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
 			continue;
 		}
 
@@ -1491,7 +1460,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 
 			/* Here on entry being newly wired */
 
-			if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
+			if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 				int copyflag = entry->eflags & MAP_ENTRY_NEEDS_COPY;
 				if (copyflag && ((entry->protection & VM_PROT_WRITE) != 0)) {
 
@@ -1689,7 +1658,7 @@ vm_map_pageable(map, start, end, new_pageable)
 				 * point to sharing maps, because we won't
 				 * hold the lock on the sharing map.
 				 */
-				if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
+				if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 					int copyflag = entry->eflags & MAP_ENTRY_NEEDS_COPY;
 					if (copyflag &&
 					    ((entry->protection & VM_PROT_WRITE) != 0)) {
@@ -1858,12 +1827,12 @@ vm_map_clean(map, start, end, syncio, invalidate)
 	for (current = entry; current->start < end; current = current->next) {
 		offset = current->offset + (start - current->start);
 		size = (end <= current->end ? end : current->end) - start;
-		if (current->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
+		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
 			vm_map_t smap;
 			vm_map_entry_t tentry;
 			vm_size_t tsize;
 
-			smap = current->object.share_map;
+			smap = current->object.sub_map;
 			vm_map_lock_read(smap);
 			(void) vm_map_lookup_entry(smap, offset, &tentry);
 			tsize = tentry->end - offset;
@@ -1955,7 +1924,7 @@ vm_map_entry_delete(map, entry)
 	vm_map_entry_unlink(map, entry);
 	map->size -= entry->end - entry->start;
 
-	if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
+	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 		vm_object_deallocate(entry->object.vm_object);
 	}
 
@@ -2257,8 +2226,7 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 {
 	vm_object_t src_object;
 
-	if ((dst_entry->eflags|src_entry->eflags) &
-		(MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP))
+	if ((dst_entry->eflags|src_entry->eflags) & MAP_ENTRY_IS_SUB_MAP)
 		return;
 
 	if (src_entry->wired_count == 0) {
@@ -2406,7 +2374,6 @@ vmspace_fork(vm1)
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
-			new_entry->eflags &= ~MAP_ENTRY_IS_A_MAP;
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
 			vm_map_copy_entry(old_map, new_map, old_entry,
@@ -2507,7 +2474,9 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_map_entry_t entry;
 	vm_map_t map = *var_map;
 	vm_prot_t prot;
+#if 0
 	boolean_t su;
+#endif
 	vm_prot_t fault_type = fault_typea;
 
 RetryLookup:;
@@ -2596,33 +2565,8 @@ RetryLookup:;
 	 * If we don't already have a VM object, track it down.
 	 */
 
-	su = (entry->eflags & MAP_ENTRY_IS_A_MAP) == 0;
-	if (su) {
-		share_map = map;
-		share_offset = vaddr;
-	} else {
-		vm_map_entry_t share_entry;
-
-		/*
-		 * Compute the sharing map, and offset into it.
-		 */
-
-		share_map = entry->object.share_map;
-		share_offset = (vaddr - entry->start) + entry->offset;
-
-		/*
-		 * Look for the backing store object and offset
-		 */
-
-		vm_map_lock_read(share_map);
-
-		if (!vm_map_lookup_entry(share_map, share_offset,
-			&share_entry)) {
-			vm_map_unlock_read(share_map);
-			RETURN(KERN_INVALID_ADDRESS);
-		}
-		entry = share_entry;
-	}
+	share_map = map;
+	share_offset = vaddr;
 
 	/*
 	 * If the entry was copy-on-write, we either ...
@@ -2721,13 +2665,6 @@ vm_map_lookup_done(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
-	/*
-	 * If this entry references a map, unlock it first.
-	 */
-
-	if (entry->eflags & MAP_ENTRY_IS_A_MAP)
-		vm_map_unlock_read(entry->object.share_map);
-
 	/*
 	 * Unlock the main-level map
 	 */
@@ -3100,19 +3037,18 @@ DB_SHOW_COMMAND(map, vm_map_print)
 			if (entry->wired_count != 0)
 				db_printf(", wired");
 		}
-		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
+		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP) {
 			/* XXX no %qd in kernel.  Truncate entry->offset. */
 			db_printf(", share=%p, offset=0x%lx\n",
-			    (void *)entry->object.share_map,
+			    (void *)entry->object.sub_map,
 			    (long)entry->offset);
 			nlines++;
 			if ((entry->prev == &map->header) ||
-			    ((entry->prev->eflags & MAP_ENTRY_IS_A_MAP) == 0) ||
-			    (entry->prev->object.share_map !=
-				entry->object.share_map)) {
+			    (entry->prev->object.sub_map !=
+				entry->object.sub_map)) {
 				db_indent += 2;
 				vm_map_print((db_expr_t)(intptr_t)
-					     entry->object.share_map,
+					     entry->object.sub_map,
 					     full, 0, (char *)0);
 				db_indent -= 2;
 			}
@@ -3128,7 +3064,6 @@ DB_SHOW_COMMAND(map, vm_map_print)
 			nlines++;
 
 			if ((entry->prev == &map->header) ||
-			    (entry->prev->eflags & MAP_ENTRY_IS_A_MAP) ||
 			    (entry->prev->object.vm_object !=
 				entry->object.vm_object)) {
 				db_indent += 2;

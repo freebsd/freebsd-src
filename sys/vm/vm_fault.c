@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.97 1999/01/24 00:55:04 dillon Exp $
+ * $Id: vm_fault.c,v 1.98 1999/01/24 06:04:52 dillon Exp $
  */
 
 /*
@@ -625,9 +625,8 @@ readrest:
 				 * grab the lock if we need to
 				 */
 				(fs.lookup_still_valid ||
-						(((fs.entry->eflags & MAP_ENTRY_IS_A_MAP) == 0) &&
-						 lockmgr(&fs.map->lock,
-							LK_EXCLUSIVE|LK_NOWAIT, (void *)0, curproc) == 0))) {
+				 lockmgr(&fs.map->lock, LK_EXCLUSIVE|LK_NOWAIT, (void *)0, curproc) == 0)
+			    ) {
 				
 				fs.lookup_still_valid = 1;
 				/*

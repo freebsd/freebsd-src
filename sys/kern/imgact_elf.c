@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.50 1999/02/05 03:47:47 newton Exp $
+ *	$Id: imgact_elf.c,v 1.51 1999/02/05 22:24:26 jdp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -844,7 +844,7 @@ each_writable_segment(p, func, closure)
 	    entry = entry->next) {
 		vm_object_t obj;
 
-		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP) ||
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
 		    (entry->protection & (VM_PROT_READ|VM_PROT_WRITE)) !=
 		    (VM_PROT_READ|VM_PROT_WRITE))
 			continue;
