@@ -52,11 +52,11 @@ __assert(func, file, line, failedexpr)
 {
 	if (func == NULL)
 		(void)fprintf(stderr,
-		     "assertion (%s) failed: file %s:%d\n", failedexpr,
+		     "Assertion failed: (%s), file %s, line %d.\n", failedexpr,
 		     file, line);
 	else
 		(void)fprintf(stderr,
-		     "assertion (%s) failed: function %s(), file %s:%d\n",
+		     "Assertion failed: (%s), function %s, file %s, line %d.\n",
 		     failedexpr, func, file, line);
 	abort();
 	/* NOTREACHED */
