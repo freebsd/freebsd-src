@@ -1,3 +1,5 @@
+/*	$NetBSD: defs.h,v 1.5 1995/10/06 05:12:14 thorpej Exp $	*/
+
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
@@ -38,9 +40,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)defs.h	8.1 (Berkeley) 6/4/93
+ *	from: @(#)defs.h	8.1 (Berkeley) 6/4/93
  *
- * Utah $Hdr: defs.h 3.1 92/07/06$
+ * From: Utah Hdr: defs.h 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
@@ -107,7 +109,7 @@
  *  (unless there are no restrictions on who we can boot).
  */
 typedef struct client_s {
-	u_char			addr[RMP_ADDRLEN];	/* addr of machine */
+	u_int8_t		addr[RMP_ADDRLEN];	/* addr of machine */
 	char			*files[C_MAXFILE];	/* boot-able files */
 	struct client_s		*next;			/* ptr to next */
 } CLIENT;
@@ -126,9 +128,8 @@ typedef struct rmpconn_s {
 /*
  *  All these variables are defined in "conf.c".
  */
-extern	char	*ProgName;		/* path-stripped argv[0] */
 extern	char	MyHost[];		/* this hosts' name */
-extern	int	MyPid;			/* this processes' ID */
+extern	pid_t	MyPid;			/* this processes' ID */
 extern	int	DebugFlg;		/* set true if debugging */
 extern	int	BootAny;		/* set true if we can boot anyone */
 
@@ -141,14 +142,14 @@ extern	char	*BootDir;		/* directory w/boot files */
 extern	FILE	*DbgFp;			/* debug file pointer */
 extern	char	*IntfName;		/* interface we are attached to */
 
-extern	u_short	SessionID;		/* generated session ID */
+extern	u_int16_t SessionID;		/* generated session ID */
 
 extern	char	*BootFiles[];		/* list of boot files */
 
 extern	CLIENT	*Clients;		/* list of addrs we'll accept */
 extern	RMPCONN	*RmpConns;		/* list of active connections */
 
-extern	char	RmpMcastAddr[];		/* RMP multicast address */
+extern	u_int8_t RmpMcastAddr[];	/* RMP multicast address */
 
 void	 AddConn __P((RMPCONN *));
 int	 BootDone __P((RMPCONN *));
@@ -169,11 +170,11 @@ void	 FreeClients __P((void));
 void	 FreeConn __P((RMPCONN *));
 void	 FreeConns __P((void));
 int	 GetBootFiles __P((void));
-char	*GetEtherAddr __P((u_char *));
-CLIENT	*NewClient __P((u_char *));
+char	*GetEtherAddr __P((u_int8_t *));
+CLIENT	*NewClient __P((u_int8_t *));
 RMPCONN	*NewConn __P((RMPCONN *));
 char	*NewStr __P((char *));
-u_char	*ParseAddr __P((char *));
+u_int8_t *ParseAddr __P((char *));
 int	 ParseConfig __P((void));
 void	 ProcessPacket __P((RMPCONN *, CLIENT *));
 void	 ReConfig __P((int));

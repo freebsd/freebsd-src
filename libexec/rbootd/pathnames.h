@@ -1,3 +1,5 @@
+/*	$NetBSD: pathnames.h,v 1.3 1995/08/21 17:05:15 thorpej Exp $	*/
+
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
@@ -38,9 +40,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
+ *	from: @(#)pathnames.h	8.1 (Berkeley) 6/4/93
  *
- * Utah $Hdr: pathnames.h 3.1 92/07/06$
+ * From: Utah Hdr: pathnames.h 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
