@@ -34,29 +34,28 @@
 #include <sys/bus.h>
 
 #include "acpi.h"
+
 #include <dev/acpica/acpivar.h>
 
-/* Hooks for the ACPI CA debugging infrastructure */
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
 #define _COMPONENT	ACPI_BUTTON
 ACPI_MODULE_NAME("BUTTON")
 
 struct acpi_button_softc {
     device_t	button_dev;
     ACPI_HANDLE	button_handle;
+#define ACPI_POWER_BUTTON	0
+#define ACPI_SLEEP_BUTTON	1
     boolean_t	button_type;	/* Power or Sleep Button */
-#define		ACPI_POWER_BUTTON	0
-#define		ACPI_SLEEP_BUTTON	1
 };
-
-#define		ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP	0x80
-#define		ACPI_NOTIFY_BUTTON_PRESSED_FOR_WAKEUP	0x02
 
 static int	acpi_button_probe(device_t dev);
 static int	acpi_button_attach(device_t dev);
 static int	acpi_button_suspend(device_t dev);
 static int	acpi_button_resume(device_t dev);
-static void 	acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify,
-					   void *context);
+static void 	acpi_button_notify_handler(ACPI_HANDLE h,UINT32 notify, void *context);
 static void	acpi_button_notify_pressed_for_sleep(void *arg);
 static void	acpi_button_notify_pressed_for_wakeup(void *arg);
 
@@ -65,7 +64,6 @@ static device_method_t acpi_button_methods[] = {
     DEVMETHOD(device_probe,	acpi_button_probe),
     DEVMETHOD(device_attach,	acpi_button_attach),
     DEVMETHOD(device_suspend,	acpi_button_suspend),
-    DEVMETHOD(device_shutdown,	acpi_button_suspend),
     DEVMETHOD(device_resume,	acpi_button_resume),
 
     {0, 0}
@@ -78,8 +76,7 @@ static driver_t acpi_button_driver = {
 };
 
 static devclass_t acpi_button_devclass;
-DRIVER_MODULE(acpi_button, acpi, acpi_button_driver, acpi_button_devclass,
-	      0, 0);
+DRIVER_MODULE(acpi_button, acpi, acpi_button_driver, acpi_button_devclass, 0, 0);
 
 static int
 acpi_button_probe(device_t dev)
@@ -92,16 +89,16 @@ acpi_button_probe(device_t dev)
 	    if (acpi_MatchHid(dev, "PNP0C0C")) {
 		device_set_desc(dev, "Power Button");
 		sc->button_type = ACPI_POWER_BUTTON;
-		return (0);
+		return(0);
 	    }
 	    if (acpi_MatchHid(dev, "PNP0C0E")) {
 		device_set_desc(dev, "Sleep Button");
 		sc->button_type = ACPI_SLEEP_BUTTON;
-		return (0);
+		return(0);
 	    }
 	}
     }
-    return (ENXIO);
+    return(ENXIO);
 }
 
 static int
@@ -116,15 +113,13 @@ acpi_button_attach(device_t dev)
     sc->button_dev = dev;
     sc->button_handle = acpi_get_handle(dev);
 
-    status = AcpiInstallNotifyHandler(sc->button_handle, ACPI_DEVICE_NOTIFY, 
-				      acpi_button_notify_handler, sc);
-    if (ACPI_FAILURE(status)) {
-	device_printf(sc->button_dev, "couldn't install Notify handler - %s\n",
-		      AcpiFormatException(status));
-	return_VALUE (ENXIO);
+    if (ACPI_FAILURE(status = AcpiInstallNotifyHandler(sc->button_handle, ACPI_DEVICE_NOTIFY, 
+					   acpi_button_notify_handler, sc))) {
+	device_printf(sc->button_dev, "couldn't install Notify handler - %s\n", AcpiFormatException(status));
+	return_VALUE(ENXIO);
     }
     acpi_device_enable_wake_capability(sc->button_handle, 1);
-    return_VALUE (0);
+    return_VALUE(0);
 }
 
 static int
@@ -140,6 +135,7 @@ acpi_button_suspend(device_t dev)
 static int
 acpi_button_resume(device_t dev)
 {
+
     return (0);
 }
 
@@ -153,8 +149,9 @@ acpi_button_notify_pressed_for_sleep(void *arg)
 
     sc = (struct acpi_button_softc *)arg;
     acpi_sc = acpi_device_get_parent_softc(sc->button_dev);
-    if (acpi_sc == NULL)
+    if (acpi_sc == NULL) {
 	return_VOID;
+    }
 
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
@@ -168,6 +165,7 @@ acpi_button_notify_pressed_for_sleep(void *arg)
     default:
 	break;		/* unknown button type */
     }
+    return_VOID;
 }
 
 static void
@@ -180,8 +178,9 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
 
     sc = (struct acpi_button_softc *)arg;
     acpi_sc = acpi_device_get_parent_softc(sc->button_dev);
-    if (acpi_sc == NULL)
+    if (acpi_sc == NULL) {
 	return_VOID;
+    }
 
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
@@ -195,7 +194,12 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
     default:
 	break;		/* unknown button type */
     }
+    return_VOID;
 }
+
+/* XXX maybe not here */
+#define ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP	0x80
+#define ACPI_NOTIFY_BUTTON_PRESSED_FOR_WAKEUP	0x02
 
 static void 
 acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
@@ -206,14 +210,15 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-				acpi_button_notify_pressed_for_sleep, sc);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_button_notify_pressed_for_sleep, sc);
 	break;   
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_WAKEUP:
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-				acpi_button_notify_pressed_for_wakeup, sc);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_button_notify_pressed_for_wakeup, sc);
 	break;   
     default:
 	break;		/* unknown notification value */
     }
+    return_VOID;
 }
+
+

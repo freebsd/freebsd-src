@@ -1,5 +1,4 @@
 /*-
- * Copyright (c) 2003 Nate Lawson
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
@@ -221,34 +220,13 @@ typedef UINT8				EC_EVENT;
 #define EC_SET_CSR(sc, v)						\
 	bus_space_write_1((sc)->ec_csr_tag, (sc)->ec_csr_handle, 0, (v))
 
-/* Embedded Controller Boot Resources Table (ECDT) */
-typedef struct {
-    ACPI_TABLE_HEADER		header;
-    ACPI_GENERIC_ADDRESS	control;
-    ACPI_GENERIC_ADDRESS	data;
-    UINT32			uid;
-    UINT8			gpe_bit;
-    char			ec_id[0];
-} ACPI_TABLE_ECDT;
-
-/* Indicate that this device has already been probed via ECDT. */
-#define DEV_ECDT(x)		(acpi_get_private(x) == &acpi_ec_devclass)
-
-/* Indicate that this device should use the global lock. */
-#define DEV_GLK_FLAG		0x40000000
-
-/* Get/set GPE bit value in the magic ivar. */
-#define DEV_GET_GPEBIT(x)	((x) & 0xff)
-#define DEV_SET_GPEBIT(x, y)	((x) = ((x) & ~0xff) | ((y) & 0xff))
-
 /*
  * Driver softc.
  */
 struct acpi_ec_softc {
     device_t		ec_dev;
     ACPI_HANDLE		ec_handle;
-    UINT8		ec_gpebit;
-    UINT8		ec_csrvalue;
+    UINT32		ec_gpebit;
     
     int			ec_data_rid;
     struct resource	*ec_data_res;
@@ -260,51 +238,26 @@ struct acpi_ec_softc {
     bus_space_tag_t	ec_csr_tag;
     bus_space_handle_t	ec_csr_handle;
 
-    int			ec_glk;
-    int			ec_glkhandle;
-    struct mtx		ec_mtx;
-    int			ec_polldelay;
+    int			ec_locked;
+    int			ec_lockhandle;
+    int			ec_pendquery;
+    int			ec_csrvalue;
 };
 
-/*
- * XXX
- * I couldn't find it in the spec but other implementations also use a
- * value of 1 ms for the time to acquire global lock.
- */
-#define EC_LOCK_TIMEOUT	1000
+static int		acpi_ec_event_driven = 0;
+TUNABLE_INT("hw.acpi.ec.event_driven", &acpi_ec_event_driven);
 
-/*
- * Start with an interval of 1 us for status poll loop.  This delay
- * will be dynamically adjusted based on the actual time waited.
- */
-#define EC_POLL_DELAY	1
-
-/* Total time in ms spent in the poll loop waiting for a response. */
-#define EC_POLL_TIMEOUT	50
-
-#define EVENT_READY(event, status)			\
-	(((event) == EC_EVENT_OUTPUT_BUFFER_FULL &&	\
-	 ((status) & EC_FLAG_OUTPUT_BUFFER) != 0) ||	\
-	 ((event) == EC_EVENT_INPUT_BUFFER_EMPTY && 	\
-	 ((status) & EC_FLAG_INPUT_BUFFER) == 0))
-
-static int	ec_poll_timeout = EC_POLL_TIMEOUT;
-TUNABLE_INT("hw.acpi.ec.poll_timeout", &ec_poll_timeout);
+#define EC_LOCK_TIMEOUT	1000	/* 1ms */
 
 static __inline ACPI_STATUS
 EcLock(struct acpi_ec_softc *sc)
 {
-    ACPI_STATUS	status = AE_OK;
+    ACPI_STATUS	status;
 
-    /* Always acquire this EC's mutex. */
-    mtx_lock(&sc->ec_mtx);
-
-    /* If _GLK is non-zero, also acquire the global lock. */
-    if (sc->ec_glk) {
-	status = AcpiAcquireGlobalLock(EC_LOCK_TIMEOUT, &sc->ec_glkhandle);
-	if (ACPI_FAILURE(status))
-	    mtx_unlock(&sc->ec_mtx);
-    }
+    /* XXX ACPI_WAIT_FOREVER is probably a bad idea, what is a better time? */
+    status = AcpiAcquireGlobalLock(ACPI_WAIT_FOREVER, &sc->ec_lockhandle);
+    if (ACPI_SUCCESS(status))
+	sc->ec_locked = 1;
 
     return (status);
 }
@@ -312,10 +265,22 @@ EcLock(struct acpi_ec_softc *sc)
 static __inline void
 EcUnlock(struct acpi_ec_softc *sc)
 {
-    if (sc->ec_glk)
-	AcpiReleaseGlobalLock(sc->ec_glkhandle);
-    mtx_unlock(&sc->ec_mtx);
+    sc->ec_locked = 0; 
+    AcpiReleaseGlobalLock(sc->ec_lockhandle);
 }
+
+static __inline int
+EcIsLocked(struct acpi_ec_softc *sc)
+{
+    return (sc->ec_locked != 0);
+}
+
+typedef struct
+{
+    EC_COMMAND		Command;
+    UINT8		Address;
+    UINT8		Data;
+} EC_REQUEST;
 
 static void		EcGpeHandler(void *Context);
 static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, 
@@ -325,16 +290,20 @@ static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
 				UINT32 width, ACPI_INTEGER *Value,
 				void *Context, void *RegionContext);
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event);
-static ACPI_STATUS	EcCommand(struct acpi_ec_softc *sc, EC_COMMAND cmd);
+static ACPI_STATUS	EcQuery(struct acpi_ec_softc *sc, UINT8 *Data);
+static ACPI_STATUS	EcTransaction(struct acpi_ec_softc *sc,
+				EC_REQUEST *EcRequest);
 static ACPI_STATUS	EcRead(struct acpi_ec_softc *sc, UINT8 Address,
 				UINT8 *Data);
 static ACPI_STATUS	EcWrite(struct acpi_ec_softc *sc, UINT8 Address,
 				UINT8 *Data);
+static void		acpi_ec_identify(driver_t driver, device_t bus);
 static int		acpi_ec_probe(device_t dev);
 static int		acpi_ec_attach(device_t dev);
 
 static device_method_t acpi_ec_methods[] = {
     /* Device interface */
+    DEVMETHOD(device_identify,	acpi_ec_identify),
     DEVMETHOD(device_probe,	acpi_ec_probe),
     DEVMETHOD(device_attach,	acpi_ec_attach),
 
@@ -351,157 +320,38 @@ static devclass_t acpi_ec_devclass;
 DRIVER_MODULE(acpi_ec, acpi, acpi_ec_driver, acpi_ec_devclass, 0, 0);
 
 /*
- * Look for an ECDT and if we find one, set up default GPE and 
- * space handlers to catch attempts to access EC space before
+ * Look for an ECDT table and if we find one, set up a default EC 
+ * space handler to catch possible attempts to access EC space before
  * we have a real driver instance in place.
- * TODO: if people report invalid ECDTs, add a tunable to disable them.
+ * We're not really an identify routine, but because we get called 
+ * before most other things, this works out OK.
  */
-void
-acpi_ec_ecdt_probe(device_t parent)
+static void
+acpi_ec_identify(driver_t driver, device_t bus)
 {
-    ACPI_TABLE_ECDT *ecdt;
-    ACPI_STATUS	     status;
-    device_t	     child;
-    ACPI_HANDLE	     h;
-    int		     magic;
-
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    /* Find and validate the ECDT. */
-    status = AcpiGetFirmwareTable("ECDT", 1, ACPI_LOGICAL_ADDRESSING, 
-		(ACPI_TABLE_HEADER **)&ecdt);
-    if (ACPI_FAILURE(status) ||
-	ecdt->control.RegisterBitWidth != 8 ||
-	ecdt->data.RegisterBitWidth != 8) {
-	return;
-    }
-
-    /* Create the child device with the given unit number. */
-    child = BUS_ADD_CHILD(parent, 0, "acpi_ec", ecdt->uid);
-    if (child == NULL) {
-	printf("acpi_ec_ecdt_probe: can't add child\n");
-	return;
-    }
-
-    /* Find and save the ACPI handle for this device. */
-    status = AcpiGetHandle(NULL, ecdt->ec_id, &h);
-    if (ACPI_FAILURE(status)) {
-	device_delete_child(parent, child);
-	printf("acpi_ec_ecdt_probe: can't get handle\n");
-	return;
-    }
-    acpi_set_handle(child, h);
-
-    /* Set the data and CSR register addresses. */
-    bus_set_resource(child, SYS_RES_IOPORT, 0, ecdt->data.Address,
-	/*count*/1);
-    bus_set_resource(child, SYS_RES_IOPORT, 1, ecdt->control.Address,
-	/*count*/1);
-
-    /*
-     * Store values for the probe/attach routines to use.  Store the
-     * ECDT GPE bit and set the global lock flag (just to be safe).
-     * We'll determine whether we really want to use the global lock
-     * in a later call to attach.
-     */
-    acpi_set_private(child, &acpi_ec_devclass);
-    magic = DEV_GLK_FLAG;
-    DEV_SET_GPEBIT(magic, ecdt->gpe_bit);
-    acpi_set_magic(child, magic);
-
-    /* Finish the attach process. */
-    if (device_probe_and_attach(child) != 0)
-	device_delete_child(parent, child);
+    /* XXX implement - need an ACPI 2.0 system to test this */
 }
 
+/*
+ * We could setup resources in the probe routine in order to have them printed 
+ * when the device is attached.
+ */
 static int
 acpi_ec_probe(device_t dev)
 {
-    ACPI_HANDLE h;
-    ACPI_STATUS status;
-    device_t	peer;
-    char	desc[64];
-    int		magic, uid, glk, gpebit, ret = ENXIO;
 
-    /* Check that this is a device and that EC is not disabled. */
-    if (acpi_get_type(dev) != ACPI_TYPE_DEVICE || acpi_disabled("ec"))
-	return (ENXIO);
-
-    /*
-     * If probed via ECDT, set description and continue.  Otherwise,
-     * we can access the namespace and make sure this is not a
-     * duplicate probe.
-     */
-    magic = acpi_get_magic(dev);
-    if (DEV_ECDT(dev)) {
-	snprintf(desc, sizeof(desc), "embedded controller: ECDT, GPE %#x, GLK",
-		 DEV_GET_GPEBIT(magic));
-	device_set_desc_copy(dev, desc);
-	ret = 0;
-    } else if (acpi_MatchHid(dev, "PNP0C09")) {
-	h = acpi_get_handle(dev);
+    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("ec") &&
+	acpi_MatchHid(dev, "PNP0C09")) {
 
 	/*
-	 * Read the unit ID to check for duplicate attach and the
-	 * global lock value to see if we should acquire it when
-	 * accessing the EC.
+	 * Set device description 
 	 */
-	status = acpi_EvaluateInteger(h, "_UID", &uid);
-	if (ACPI_FAILURE(status))
-	    uid = 0;
-	status = acpi_EvaluateInteger(h, "_GLK", &glk);
-	if (ACPI_FAILURE(status))
-	    glk = 0;
-
-	/*
-	 * Evaluate the _GPE method to find the GPE bit used by the EC to
-	 * signal status (SCI).  Note that we don't handle the case where
-	 * it can return a package instead of an int.
-	 */
-	status = acpi_EvaluateInteger(h, "_GPE", &gpebit);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(dev, "can't evaluate _GPE - %s\n",
-			  AcpiFormatException(status));
-	    return (ENXIO);
-	}
-
-	/* Store the values we got from the namespace for attach. */
-	magic = glk != 0 ? DEV_GLK_FLAG : 0;
-	DEV_SET_GPEBIT(magic, gpebit);
-	acpi_set_magic(dev, magic);
-
-	/*
-	 * Check for a duplicate probe.  This can happen when a probe
-	 * via ECDT succeeded already.  If there is a duplicate, override
-	 * its value for GLK in the peer's softc since the ECDT case
-	 * always enables the global lock to be safe.  Otherwise, just
-	 * continue on to attach.
-	 */
-	peer = devclass_get_device(acpi_ec_devclass, uid);
-	if (peer == NULL || !device_is_alive(peer)) {
-	    snprintf(desc, sizeof(desc), "embedded controller: GPE %#x%s",
-		     gpebit, glk != 0 ? ", GLK" : "");
-	    device_set_desc_copy(dev, desc);
-	    ret = 0;
-	} else {
-	    struct acpi_ec_softc *sc;
-
-	    /*
-	     * Set the peer's sc->ec_glk with locks held so we won't
-	     * override it between another thread's lock/unlock calls.
-	     */
-	    sc = device_get_softc(peer);
-	    if (sc->ec_glk != glk) {
-		ACPI_VPRINT(peer, acpi_device_get_parent_softc(peer),
-		    "Changing GLK from %d to %d\n", sc->ec_glk, glk);
-		mtx_lock(&sc->ec_mtx);
-		sc->ec_glk = glk != 0 ? 1 : 0;
-		mtx_unlock(&sc->ec_mtx);
-	    }
-	}
+	device_set_desc(dev, "embedded controller");
+	return (0);
     }
-
-    return (ret);
+    return (ENXIO);
 }
 
 static int
@@ -509,23 +359,21 @@ acpi_ec_attach(device_t dev)
 {
     struct acpi_ec_softc	*sc;
     ACPI_STATUS			Status;
-    int				magic, errval = 0;
+    int				errval = 0;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    /* Fetch/initialize softc (assumes softc is pre-zeroed). */
+    /*
+     * Fetch/initialise softc
+     */
     sc = device_get_softc(dev);
+    bzero(sc, sizeof(*sc));
     sc->ec_dev = dev;
     sc->ec_handle = acpi_get_handle(dev);
-    sc->ec_polldelay = EC_POLL_DELAY;
-    mtx_init(&sc->ec_mtx, "ACPI embedded controller", NULL, MTX_DEF);
 
-    /* Retrieve previously probed values via device ivars. */
-    magic = acpi_get_magic(dev);
-    sc->ec_glk = (magic & DEV_GLK_FLAG) != 0 ? 1 : 0;
-    sc->ec_gpebit = DEV_GET_GPEBIT(magic);
-
-    /* Attach bus resources for data and command/status ports. */
+    /* 
+     * Attach bus resources
+     */
     sc->ec_data_rid = 0;
     sc->ec_data_res = bus_alloc_resource(sc->ec_dev, SYS_RES_IOPORT,
 			&sc->ec_data_rid, 0, ~0, 1, RF_ACTIVE);
@@ -549,12 +397,31 @@ acpi_ec_attach(device_t dev)
     sc->ec_csr_handle = rman_get_bushandle(sc->ec_csr_res);
 
     /*
-     * Install a handler for this EC's GPE bit.  We want edge-triggered
-     * behavior.
+     * Install GPE handler
+     *
+     * Evaluate the _GPE method to find the GPE bit used by the EC to signal
+     * status (SCI).
      */
-    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE handler\n"));
-    Status = AcpiInstallGpeHandler(NULL, sc->ec_gpebit,
-		ACPI_EVENT_EDGE_TRIGGERED, &EcGpeHandler, sc);
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE\n"));
+    Status = acpi_EvaluateInteger(sc->ec_handle, "_GPE", &sc->ec_gpebit);
+    if (ACPI_FAILURE(Status)) {
+	device_printf(dev, "can't evaluate _GPE - %s\n",
+		      AcpiFormatException(Status));
+	errval = ENXIO;
+	goto out;
+    }
+
+    /*
+     * Install a handler for this EC's GPE bit.  Note that EC SCIs are 
+     * treated as both edge- and level-triggered interrupts; in other words
+     * we clear the status bit immediately after getting an EC-SCI, then
+     * again after we're done processing the event.  This guarantees that
+     * events we cause while performing a transaction (e.g. IBE/OBF) get 
+     * cleared before re-enabling the GPE.
+     */
+    Status = AcpiInstallGpeHandler(sc->ec_gpebit,
+		ACPI_EVENT_LEVEL_TRIGGERED | ACPI_EVENT_EDGE_TRIGGERED, 
+		EcGpeHandler, sc);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
@@ -567,29 +434,25 @@ acpi_ec_attach(device_t dev)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching address space handler\n"));
     Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC,
-		&EcSpaceHandler, &EcSpaceSetup, sc);
+		EcSpaceHandler, EcSpaceSetup, sc);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
-	Status = AcpiRemoveGpeHandler(NULL, sc->ec_gpebit, &EcGpeHandler);
-	if (ACPI_FAILURE(Status))
-	    panic("Added GPE handler but can't remove it");
+	panic("very suck");
 	errval = ENXIO;
 	goto out;
     }
-
-    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "acpi_ec_attach complete\n"));
-    return (0);
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attach complete\n"));
+    return_VALUE (0);
 
  out:
     if (sc->ec_csr_res)
 	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_csr_rid, 
 			     sc->ec_csr_res);
     if (sc->ec_data_res)
-	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
+        bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
 			     sc->ec_data_res);
-    mtx_destroy(&sc->ec_mtx);
-    return (errval);
+    return_VALUE (errval);
 }
 
 static void
@@ -598,91 +461,90 @@ EcGpeQueryHandler(void *Context)
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     UINT8			Data;
     ACPI_STATUS			Status;
-    EC_STATUS			EcStatus;
     char			qxx[5];
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-    KASSERT(Context != NULL, ("EcGpeQueryHandler called with NULL"));
 
-    Status = EcLock(sc);
-    if (ACPI_FAILURE(Status)) {
-	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "GpeQuery lock error: %s\n", AcpiFormatException(Status));
-	return;
+    for (;;) {
+
+	/*
+	 * Check EC_SCI.
+	 * 
+	 * Bail out if the EC_SCI bit of the status register is not set.
+	 * Note that this function should only be called when
+	 * this bit is set (polling is used to detect IBE/OBF events).
+	 *
+	 * It is safe to do this without locking the controller, as it's
+	 * OK to call EcQuery when there's no data ready; in the worst
+	 * case we should just find nothing waiting for us and bail.
+	 */
+	if ((EC_GET_CSR(sc) & EC_EVENT_SCI) == 0)
+	    break;
+
+	/*
+	 * Find out why the EC is signalling us
+	 */
+	Status = EcQuery(sc, &Data);
+	    
+	/*
+	 * If we failed to get anything from the EC, give up
+	 */
+	if (ACPI_FAILURE(Status)) {
+	    ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+		"GPE query failed - %s\n", AcpiFormatException(Status));
+	    break;
+	}
+
+	/*
+	 * Evaluate _Qxx to respond to the controller.
+	 */
+	sprintf(qxx, "_Q%02x", Data);
+	strupr(qxx);
+	Status = AcpiEvaluateObject(sc->ec_handle, qxx, NULL, NULL);
+	/*
+	 * Ignore spurious query requests.
+	 */
+	if (ACPI_FAILURE(Status) && (Data != 0 || Status != AE_NOT_FOUND)) {
+	    ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    	"evaluation of GPE query method %s failed - %s\n", 
+		qxx, AcpiFormatException(Status));
+	}
     }
-
-    /*
-     * If the EC_SCI bit of the status register is not set, then pass
-     * it along to any potential waiters as it may be an IBE/OBF event.
-     */
-    EcStatus = EC_GET_CSR(sc);
-    if ((EcStatus & EC_EVENT_SCI) == 0) {
-	sc->ec_csrvalue = EcStatus;
-	wakeup(&sc->ec_csrvalue);
-	EcUnlock(sc);
-	goto re_enable;
-    }
-
-    /*
-     * Send a query command to the EC to find out which _Qxx call it
-     * wants to make.  This command clears the SCI bit and also the
-     * interrupt source since we are edge-triggered.
-     */
-    Status = EcCommand(sc, EC_COMMAND_QUERY);
-    if (ACPI_FAILURE(Status)) {
-	EcUnlock(sc);
-	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "GPE query failed - %s\n", AcpiFormatException(Status));
-	goto re_enable;
-    }
-    Data = EC_GET_DATA(sc);
-    EcUnlock(sc);
-
-    /* Ignore the value for "no outstanding event". (13.3.5) */
-    if (Data == 0)
-	goto re_enable;
-
-    /* Evaluate _Qxx to respond to the controller. */
-    sprintf(qxx, "_Q%02x", Data);
-    strupr(qxx);
-    Status = AcpiEvaluateObject(sc->ec_handle, qxx, NULL, NULL);
-    if (ACPI_FAILURE(Status) && Status != AE_NOT_FOUND) {
-	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "evaluation of GPE query method %s failed - %s\n", 
-		    qxx, AcpiFormatException(Status));
-    }
-
-re_enable:
-    /* Re-enable the GPE event so we'll get future requests. */
-    Status = AcpiEnableGpe(NULL, sc->ec_gpebit, ACPI_NOT_ISR);
-    if (ACPI_FAILURE(Status))
-	printf("EcGpeQueryHandler: AcpiEnableEvent failed\n");
+        /* I know I request Level trigger cleanup */
+    if (ACPI_FAILURE(AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE)))
+	printf("EcGpeQueryHandler:ClearEvent Failed\n");
+    if (ACPI_FAILURE(AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0)))
+	printf("EcGpeQueryHandler:EnableEvent Failed\n");
 }
 
 /*
- * Handle a GPE.  Currently we only handle SCI events as others must
- * be handled by polling in EcWaitEvent().  This is because some ECs
- * treat events as level when they should be edge-triggered.
+ * Handle a GPE sent to us.
  */
 static void
 EcGpeHandler(void *Context)
 {
     struct acpi_ec_softc *sc = Context;
-    ACPI_STATUS		       Status;
+    int csrvalue;
 
-    KASSERT(Context != NULL, ("EcGpeHandler called with NULL"));
-
-    /* Disable further GPEs while we handle this one. */
-    AcpiDisableGpe(NULL, sc->ec_gpebit, ACPI_ISR);
-
-    /* Schedule the GPE query handler. */
-    Status = AcpiOsQueueForExecution(OSD_PRIORITY_GPE, EcGpeQueryHandler,
-		Context);
-    if (ACPI_FAILURE(Status)) {
-	printf("Queuing GPE query handler failed.\n");
-	Status = AcpiEnableGpe(NULL, sc->ec_gpebit, ACPI_ISR);
-	if (ACPI_FAILURE(Status))
-	    printf("EcGpeHandler: AcpiEnableEvent failed\n");
+    /* 
+     * If EC is locked, the intr must process EcRead/Write wait only.
+     * Query request must be pending.
+     */
+    if (EcIsLocked(sc)) {
+	csrvalue = EC_GET_CSR(sc);
+	if (csrvalue & EC_EVENT_SCI)
+	    sc->ec_pendquery = 1;
+	if ((csrvalue & EC_FLAG_OUTPUT_BUFFER) != 0 ||
+	    (csrvalue & EC_FLAG_INPUT_BUFFER) == 0) {
+	    sc->ec_csrvalue = csrvalue;
+	    wakeup(&sc->ec_csrvalue);
+	}
+    } else {
+	/* Queue GpeQuery Handler */
+	if (ACPI_FAILURE(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
+				    EcGpeQueryHandler,Context))) {
+	    printf("QueryHandler Queuing Failed\n");
+	}
     }
 }
 
@@ -707,194 +569,249 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     ACPI_STATUS			Status = AE_OK;
-    UINT8			EcAddr, EcData;
+    EC_REQUEST			EcRequest;
     int				i;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Address);
 
     if (Address > 0xFF || width % 8 != 0 || Value == NULL || Context == NULL)
-	return_ACPI_STATUS (AE_BAD_PARAMETER);
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+
+    switch (Function) {
+    case ACPI_READ:
+        EcRequest.Command = EC_COMMAND_READ;
+        EcRequest.Address = Address;
+	(*Value) = 0;
+        break;
+    case ACPI_WRITE:
+        EcRequest.Command = EC_COMMAND_WRITE;
+        EcRequest.Address = Address;
+        break;
+    default:
+	device_printf(sc->ec_dev, "invalid Address Space function %d\n",
+		      Function);
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
 
     /*
      * Perform the transaction.
      */
-    EcAddr = Address;
     for (i = 0; i < width; i += 8) {
-	Status = EcLock(sc);
+	if (Function == ACPI_READ)
+	    EcRequest.Data = 0;
+	else
+	    EcRequest.Data = (UINT8)((*Value) >> i);
+	Status = EcTransaction(sc, &EcRequest);
 	if (ACPI_FAILURE(Status))
-	    return (Status);
-
-	switch (Function) {
-	case ACPI_READ:
-	    EcData = 0;
-	    Status = EcRead(sc, EcAddr, &EcData);
 	    break;
-	case ACPI_WRITE:
-	    EcData = (UINT8)((*Value) >> i);
-	    Status = EcWrite(sc, EcAddr, &EcData);
-	    break;
-	default:
-	    device_printf(sc->ec_dev, "invalid EcSpaceHandler function %d\n",
-			  Function);
-	    Status = AE_BAD_PARAMETER;
-	    break;
-	}
-
-	EcUnlock(sc);
-	if (ACPI_FAILURE(Status))
-	    return (Status);
-
-	*Value |= (ACPI_INTEGER)EcData << i;
-	if (++EcAddr == 0)
-	    return_ACPI_STATUS (AE_BAD_PARAMETER);
+        *Value |= (ACPI_INTEGER)EcRequest.Data << i;
+	if (++EcRequest.Address == 0)
+            return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
     return_ACPI_STATUS (Status);
+}
+
+/*
+ * Wait for an event interrupt for a specific condition.
+ */
+static ACPI_STATUS
+EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
+{
+    EC_STATUS	EcStatus;
+    int		i;
+
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Event);
+
+    /* XXX this should test whether interrupts are available some other way */
+    if (cold || acpi_ec_event_driven)
+	return_ACPI_STATUS (EcWaitEvent(sc, Event));
+
+    if (!EcIsLocked(sc)) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWaitEventIntr called without EC lock!\n");
+    }
+
+    EcStatus = EC_GET_CSR(sc);
+
+    /* XXX waiting too long? */
+    for (i = 0; i < 10; i++) {
+	/*
+	 * Check EC status against the desired event.
+	 */
+    	if ((Event == EC_EVENT_OUTPUT_BUFFER_FULL) &&
+	    (EcStatus & EC_FLAG_OUTPUT_BUFFER) != 0)
+	    return_ACPI_STATUS (AE_OK);
+      
+	if ((Event == EC_EVENT_INPUT_BUFFER_EMPTY) && 
+	    (EcStatus & EC_FLAG_INPUT_BUFFER) == 0)
+	    return_ACPI_STATUS (AE_OK);
+	
+	sc->ec_csrvalue = 0;
+	/* XXX sleeping with Acpi Global Lock held */
+	if (tsleep(&sc->ec_csrvalue, PZERO, "EcWait", 1) != EWOULDBLOCK) {
+	    EcStatus = sc->ec_csrvalue;
+	} else {
+	    EcStatus = EC_GET_CSR(sc);
+	}
+    }
+    return_ACPI_STATUS (AE_ERROR);
 }
 
 static ACPI_STATUS
 EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 {
     EC_STATUS	EcStatus;
-    ACPI_STATUS	Status;
-    int		i, period, retval;
-    static int	EcDbgMaxDelay;
+    UINT32	i = 0;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
-    Status = AE_NO_HARDWARE_RESPONSE;
+    if (!EcIsLocked(sc)) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWaitEvent called without EC lock!\n");
+    }
 
-    /* 
-     * Wait for 1 us before checking the CSR.  Testing shows about
-     * 50% of requests complete in 1 us and 90% of them complete
-     * in 5 us or less.
+    /*
+     * Stall 1us:
+     * ----------
+     * Stall for 1 microsecond before reading the status register
+     * for the first time.  This allows the EC to set the IBF/OBF
+     * bit to its proper state.
+     *
+     * XXX it is not clear why we read the CSR twice.
      */
     AcpiOsStall(1);
+    EcStatus = EC_GET_CSR(sc);
 
     /*
+     * Wait For Event:
+     * ---------------
      * Poll the EC status register to detect completion of the last
-     * command.  First, wait up to 1 ms in chunks of sc->ec_polldelay
-     * microseconds.
+     * command.  Wait up to 10ms (in 10us chunks) for this to occur.
      */
-    for (i = 0; i < 1000 / sc->ec_polldelay; i++) {
+    for (i = 0; i < 1000; i++) {
 	EcStatus = EC_GET_CSR(sc);
-	if (EVENT_READY(Event, EcStatus)) {
-	    Status = AE_OK;
-	    break;
-	}
-	AcpiOsStall(sc->ec_polldelay);
+
+        if (Event == EC_EVENT_OUTPUT_BUFFER_FULL &&
+            (EcStatus & EC_FLAG_OUTPUT_BUFFER) != 0)
+	    return (AE_OK);
+
+	if (Event == EC_EVENT_INPUT_BUFFER_EMPTY && 
+            (EcStatus & EC_FLAG_INPUT_BUFFER) == 0)
+	    return(AE_OK);
+	
+	AcpiOsStall(10);
     }
 
-    /* Scale poll delay by the amount of time actually waited. */
-    period = i * sc->ec_polldelay;
-    if (period <= 5)
-	sc->ec_polldelay = 1;
-    else if (period <= 20)
-	sc->ec_polldelay = 5;
-    else if (period <= 100)
-	sc->ec_polldelay = 10;
-    else
-	sc->ec_polldelay = 100;
+    return (AE_ERROR);
+}    
 
-    /*
-     * If we still don't have a response, wait up to ec_poll_timeout ms
-     * for completion, sleeping for chunks of 10 ms.
-     */
-    if (Status != AE_OK) {
-	retval = -1;
-	for (i = 0; i < ec_poll_timeout / 10; i++) {
-	    if (retval != 0)
-		EcStatus = EC_GET_CSR(sc);
-	    else
-		EcStatus = sc->ec_csrvalue;
-	    if (EVENT_READY(Event, EcStatus)) {
-		Status = AE_OK;
-		break;
-	    }
-	    retval = msleep(&sc->ec_csrvalue, &sc->ec_mtx, PZERO, "ecpoll",
-			    10/*ms*/);
-	}
-    }
+static ACPI_STATUS
+EcQuery(struct acpi_ec_softc *sc, UINT8 *Data)
+{
+    ACPI_STATUS	Status;
 
-    /* Calculate new delay and print it if it exceeds the max. */
-    if (period == 1000)
-	period += i * 10000;
-    if (period > EcDbgMaxDelay) {
-	EcDbgMaxDelay = period;
+    Status = EcLock(sc);
+    if (ACPI_FAILURE(Status))
+	return (Status);
+
+    EC_SET_CSR(sc, EC_COMMAND_QUERY);
+    Status = EcWaitEvent(sc, EC_EVENT_OUTPUT_BUFFER_FULL);
+    if (ACPI_SUCCESS(Status))
+	*Data = EC_GET_DATA(sc);
+
+    EcUnlock(sc);
+
+    if (ACPI_FAILURE(Status)) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "info: new max delay is %d us\n", period);
+	    "timeout waiting for EC to respond to EC_COMMAND_QUERY\n");
     }
-
     return (Status);
 }    
 
 static ACPI_STATUS
-EcCommand(struct acpi_ec_softc *sc, EC_COMMAND cmd)
+EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
 {
     ACPI_STATUS	Status;
-    EC_EVENT	Event;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
+    Status = EcLock(sc);
+    if (ACPI_FAILURE(Status))
+	return (Status);
 
-    /* Decide what to wait for based on command type. */
-    switch (cmd) {
+    /*
+     * Perform the transaction.
+     */
+    switch (EcRequest->Command) {
     case EC_COMMAND_READ:
-    case EC_COMMAND_WRITE:
-    case EC_COMMAND_BURST_DISABLE:
-	Event = EC_EVENT_INPUT_BUFFER_EMPTY;
+	Status = EcRead(sc, EcRequest->Address, &EcRequest->Data);
 	break;
-    case EC_COMMAND_QUERY:
-    case EC_COMMAND_BURST_ENABLE:
-	Event = EC_EVENT_OUTPUT_BUFFER_FULL;
+    case EC_COMMAND_WRITE:
+	Status = EcWrite(sc, EcRequest->Address, &EcRequest->Data);
 	break;
     default:
-	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "EcCommand: Invalid command %#x\n", cmd);
-	return (AE_BAD_PARAMETER);
+	Status = AE_SUPPORT;
+	break;
     }
 
-    /* Run the command and wait for the chosen event. */
-    EC_SET_CSR(sc, cmd);
-    Status = EcWaitEvent(sc, Event);
-    if (ACPI_FAILURE(Status)) {
+    EcUnlock(sc);
+    
+    /*
+     * Clear & Re-Enable the EC GPE:
+     * -----------------------------
+     * 'Consume' any EC GPE events that we generated while performing
+     * the transaction (e.g. IBF/OBF).	Clearing the GPE here shouldn't
+     * have an adverse affect on outstanding EC-SCI's, as the source
+     * (EC-SCI) will still be high and thus should trigger the GPE
+     * immediately after we re-enabling it.
+     */
+    if (sc->ec_pendquery) {
+	if (ACPI_FAILURE(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
+						 EcGpeQueryHandler, sc)))
+	    printf("Pend Query Queuing Failed\n");
+	sc->ec_pendquery = 0;
+    }
+
+    if (ACPI_FAILURE(AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE))) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "EcCommand: no response to %#x\n", cmd);
+	    "EcRequest: Unable to clear the EC GPE.\n");
+    }
+    if (ACPI_FAILURE(AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0))) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRequest: Unable to re-enable the EC GPE.\n");
     }
 
     return (Status);
 }
+
 
 static ACPI_STATUS
 EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 {
     ACPI_STATUS	Status;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
+    if (!EcIsLocked(sc)) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRead called without EC lock!\n");
+    }
 
-#ifdef notyet
-    /* If we can't start burst mode, continue anyway. */
-    EcCommand(sc, EC_COMMAND_BURST_ENABLE);
-#endif
+    /*EcBurstEnable(EmbeddedController);*/
 
-    Status = EcCommand(sc, EC_COMMAND_READ);
-    if (ACPI_FAILURE(Status))
-	return (Status);
-
-    EC_SET_DATA(sc, Address);
-    Status = EcWaitEvent(sc, EC_EVENT_OUTPUT_BUFFER_FULL);
+    EC_SET_CSR(sc, EC_COMMAND_READ);
+    Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY);
     if (ACPI_FAILURE(Status)) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "EcRead: Failed waiting for EC to send data.\n");
+	    "EcRead: Failed waiting for EC to process read command.\n");
+	return (Status);
+    }
+
+    EC_SET_DATA(sc, Address);
+    Status = EcWaitEventIntr(sc, EC_EVENT_OUTPUT_BUFFER_FULL);
+    if (ACPI_FAILURE(Status)) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRead: Failed waiting for EC to send data.\n");
 	return (Status);
     }
 
     *Data = EC_GET_DATA(sc);
 
-#ifdef notyet
-    if (sc->ec_burstactive) {
-	Status = EcCommand(sc, EC_COMMAND_BURST_DISABLE);
-	if (ACPI_FAILURE(Status))
-	    return (Status);
-    }
-#endif
+    /*EcBurstDisable(EmbeddedController);*/
 
     return (AE_OK);
 }    
@@ -904,40 +821,38 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 {
     ACPI_STATUS	Status;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
+    if (!EcIsLocked(sc)) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWrite called without EC lock!\n");
+    }
 
-#ifdef notyet
-    /* If we can't start burst mode, continue anyway. */
-    EcCommand(sc, EC_COMMAND_BURST_ENABLE);
-#endif
+    /*EcBurstEnable(EmbeddedController);*/
 
-    Status = EcCommand(sc, EC_COMMAND_WRITE);
-    if (ACPI_FAILURE(Status))
-	return (Status);
-
-    EC_SET_DATA(sc, Address);
-    Status = EcWaitEvent(sc, EC_EVENT_INPUT_BUFFER_EMPTY);
+    EC_SET_CSR(sc, EC_COMMAND_WRITE);
+    Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY);
     if (ACPI_FAILURE(Status)) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "EcRead: Failed waiting for EC to process address\n");
+	    "EcWrite: Failed waiting for EC to process write command.\n");
+	return (Status);
+    }
+
+    EC_SET_DATA(sc, Address);
+    Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY);
+    if (ACPI_FAILURE(Status)) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRead: Failed waiting for EC to process address.\n");
 	return (Status);
     }
 
     EC_SET_DATA(sc, *Data);
-    Status = EcWaitEvent(sc, EC_EVENT_INPUT_BUFFER_EMPTY);
+    Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY);
     if (ACPI_FAILURE(Status)) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
-		    "EcWrite: Failed waiting for EC to process data\n");
+	    "EcWrite: Failed waiting for EC to process data.\n");
 	return (Status);
     }
 
-#ifdef notyet
-    if (sc->ec_burstactive) {
-	Status = EcCommand(sc, EC_COMMAND_BURST_DISABLE);
-	if (ACPI_FAILURE(Status))
-	    return (Status);
-    }
-#endif
+    /*EcBurstDisable(EmbeddedController);*/
 
     return (AE_OK);
 }

@@ -80,13 +80,13 @@ AcpiOsGetPhysicalAddress(void *LogicalAddress, ACPI_PHYSICAL_ADDRESS *PhysicalAd
  * that callers will not pass garbage to us.
  */
 BOOLEAN
-AcpiOsReadable (void *Pointer, ACPI_SIZE Length)
+AcpiOsReadable (void *Pointer, UINT32 Length)
 {
     return(TRUE);
 }
 
 BOOLEAN
-AcpiOsWritable (void *Pointer, ACPI_SIZE Length)
+AcpiOsWritable (void *Pointer, UINT32 Length)
 {
     return(TRUE);
 }
@@ -94,7 +94,7 @@ AcpiOsWritable (void *Pointer, ACPI_SIZE Length)
 ACPI_STATUS
 AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS	Address,
-    UINT32			*Value,
+    void			*Value,
     UINT32			Width)
 {
     void	*LogicalAddress;
@@ -129,7 +129,7 @@ AcpiOsReadMemory (
 ACPI_STATUS
 AcpiOsWriteMemory (
     ACPI_PHYSICAL_ADDRESS	Address,
-    UINT32			Value,
+    ACPI_INTEGER		Value,
     UINT32			Width)
 {
     void	*LogicalAddress;

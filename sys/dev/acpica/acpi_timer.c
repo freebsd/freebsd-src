@@ -44,7 +44,7 @@
 #include "acpi.h"
 
 #include <dev/acpica/acpivar.h>
-#include <dev/pci/pcivar.h>
+#include <pci/pcivar.h>
 
 /*
  * A timecounter based on the free-running ACPI timer.
@@ -98,12 +98,11 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
  * Timecounter.
  */
 static struct timecounter acpi_timer_timecounter = {
-	acpi_timer_get_timecount_safe,
-	0,
-	0xffffff,
-	0,
-	"ACPI",
-	1000
+    acpi_timer_get_timecount_safe,
+    0,
+    0xffffff,
+    0,
+    "ACPI"
 };
 
 
