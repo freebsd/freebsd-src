@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.27 1995/10/13 19:47:47 wollman Exp $
+ *	$Id: if_ie.c,v 1.28 1995/10/26 20:29:43 julian Exp $
  */
 
 /*
@@ -110,6 +110,7 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -160,6 +161,8 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <net/bpfdesc.h>
 #endif
 
+extern int check_ie_present __P((int unit, caddr_t where, unsigned size));
+
 static struct mbuf *last_not_for_us;
 
 #ifdef DEBUG
@@ -183,6 +186,7 @@ struct ie_softc;
 static int ieprobe(struct isa_device *dvp);
 static int ieattach(struct isa_device *dvp);
 static void ieinit(int unit);
+static void ie_stop __P((int unit));
 static int ieioctl(struct ifnet *ifp, int command, caddr_t data);
 static void iestart(struct ifnet *ifp);
 static void el_reset_586(int unit);
@@ -194,7 +198,9 @@ static void ie_readframe(int unit, struct ie_softc *ie, int bufno);
 static void ie_drop_packet_buffer(int unit, struct ie_softc *ie);
 static void sl_read_ether(int unit, unsigned char addr[6]);
 static void find_ie_mem_size(int unit);
+static void chan_attn_timeout __P((void * rock));
 static int command_and_wait(int unit, int command, void volatile *pcmd, int);
+static void run_tdr __P((int unit, struct ie_tdr_cmd *cmd));
 static int ierint(int unit, struct ie_softc *ie);
 static int ietint(int unit, struct ie_softc *ie);
 static int iernr(int unit, struct ie_softc *ie);
@@ -1538,7 +1544,7 @@ iereset(unit)
  */
 static void
 chan_attn_timeout(rock)
-	caddr_t rock;
+	void *rock;
 {
   *(int *)rock = 1;
 }
