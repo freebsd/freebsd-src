@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.53 1996/05/23 16:34:25 jkh Exp $
+ * $Id: dist.c,v 1.54 1996/05/28 23:31:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -359,12 +359,13 @@ distExtract(char *parent, Distribution *me)
 	dist_attr = NULL;
 	numchunks = 0;
 
-	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
-	if (file_readable(buf)) {
+	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
+	fd = mediaDevice->get(mediaDevice, buf, TRUE);
+	if (fd >= 0) {
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (DITEM_STATUS(attr_parse_file(dist_attr, buf)) == DITEM_FAILURE)
+	    if (DITEM_STATUS(attr_parse(dist_attr, fd)) == DITEM_FAILURE)
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
@@ -375,8 +376,13 @@ distExtract(char *parent, Distribution *me)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
 	    safe_free(dist_attr);
+	    mediaDevice->close(mediaDevice, fd);
 	}
-
+	else if (fd == -2) {	/* Hard error, can't continue */
+	    mediaDevice->shutdown(mediaDevice);
+	    status = FALSE;
+	    goto done;
+	}
 	if (!numchunks)
 	    continue;
 
@@ -519,6 +525,7 @@ distExtractAll(dialogMenuItem *self)
 	distExtract(NULL, DistTable);
 
     if (Dists) {
+	buf[0] = '\0';
 	printSelected(buf, Dists, DistTable);
 	dialog_clear();
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
