@@ -101,6 +101,7 @@ iso88025_ifattach(struct ifnet *ifp)
         ifp->if_baudrate = TR_16MBPS; /* 16Mbit should be a safe default */
     if (ifp->if_mtu == 0)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
+    ifp->if_broadcastaddr = etherbroadcastaddr;
 
         ifa = ifaddr_byindex(ifp->if_index);
         if (ifa == 0) {
@@ -142,7 +143,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
 #ifdef INET
                 case AF_INET:
                         ifp->if_init(ifp->if_softc);    /* before arpwhohas */
-                        arp_ifinit((struct arpcom *)ifp, ifa);
+                        arp_ifinit(ifp, ifa);
                         break;
 #endif	/* INET */
 #ifdef IPX
@@ -272,7 +273,7 @@ iso88025_output(ifp, m, dst, rt0)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (!arpresolve(ac, rt, m, dst, edst, rt0))
+		if (!arpresolve(ifp, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
 		snap_type = ETHERTYPE_IP;
 		break;

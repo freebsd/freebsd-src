@@ -158,6 +158,7 @@ struct ifnet {
 	struct	ifqueue if_snd;		/* output queue */
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
+	u_int8_t *if_broadcastaddr;	/* linklevel broadcast bytestring */
 };
 
 typedef void if_init_f_t __P((void *));
@@ -446,6 +447,9 @@ void	if_clone_detach __P((struct if_clone *));
 
 int	if_clone_create __P((char *, int));
 int	if_clone_destroy __P((const char *));
+
+#define IF_LLADDR(ifp)							\
+    LLADDR((struct sockaddr_dl *) ifaddr_byindex((ifp)->if_index)->ifa_addr)
 
 #endif /* _KERNEL */
 

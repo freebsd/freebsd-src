@@ -178,7 +178,7 @@ ether_output(ifp, m, dst, rt0)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (!arpresolve(ac, rt, m, dst, edst, rt0))
+		if (!arpresolve(ifp, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
 		off = m->m_pkthdr.len - m->m_len;
 		type = htons(ETHERTYPE_IP);
@@ -663,6 +663,7 @@ ether_ifattach(ifp, bpf)
 	ifp->if_resolvemulti = ether_resolvemulti;
 	if (ifp->if_baudrate == 0)
 	    ifp->if_baudrate = 10000000;
+	ifp->if_broadcastaddr = etherbroadcastaddr;
 	ifa = ifaddr_byindex(ifp->if_index);
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __FUNCTION__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -715,7 +716,7 @@ ether_ioctl(ifp, command, data)
 #ifdef INET
 		case AF_INET:
 			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
-			arp_ifinit(IFP2AC(ifp), ifa);
+			arp_ifinit(ifp, ifa);
 			break;
 #endif
 #ifdef IPX
