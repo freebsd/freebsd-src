@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.3 1998/02/06 02:23:35 brian Exp $
+ *  $Id: link.c,v 1.1.2.4 1998/02/07 20:49:47 brian Exp $
  *
  */
 
@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 
 #include <stdio.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -44,6 +45,8 @@
 #include "vars.h"
 #include "link.h"
 #include "bundle.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 void
 link_AddInOctets(struct link *l, int n)
@@ -189,14 +192,14 @@ link_ReportProtocolStatus(struct link *l)
 {
   int i;
 
-  fprintf(VarTerm,
-          "    Protocol     in        out      Protocol      in       out\n");
+  prompt_Printf(&prompt, "    Protocol     in        out      "
+                "Protocol      in       out\n");
   for (i = 0; i < NPROTOSTAT; i++) {
-    fprintf(VarTerm, "   %-9s: %8lu, %8lu",
+    prompt_Printf(&prompt, "   %-9s: %8lu, %8lu",
 	    ProtocolStat[i].name, l->proto_in[i], l->proto_out[i]);
     if ((i % 2) == 0)
-      fprintf(VarTerm, "\n");
+      prompt_Printf(&prompt, "\n");
   }
   if (i % 2)
-    fprintf(VarTerm, "\n");
+    prompt_Printf(&prompt, "\n");
 }

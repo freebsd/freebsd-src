@@ -17,11 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.h,v 1.9.2.2 1998/02/07 20:49:55 brian Exp $
+ * $Id: main.h,v 1.9.2.3 1998/02/08 11:07:32 brian Exp $
  *
  */
 
-extern int TermMode;
 extern int CleaningUp;
 
 extern void Cleanup(int);

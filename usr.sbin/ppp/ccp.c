@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.7 1998/02/07 20:49:26 brian Exp $
+ * $Id: ccp.c,v 1.30.2.8 1998/02/08 11:04:45 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -42,6 +43,8 @@
 #include "pred.h"
 #include "deflate.h"
 #include "bundle.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
@@ -128,15 +131,13 @@ static const struct ccp_algorithm *algorithm[] = {
 int
 ReportCcpStatus(struct cmdargs const *arg)
 {
-  if (VarTerm) {
-    fprintf(VarTerm, "%s [%s]\n", CcpInfo.fsm.name,
-            StateNames[CcpInfo.fsm.state]);
-    fprintf(VarTerm, "My protocol = %s, His protocol = %s\n",
-            protoname(CcpInfo.my_proto), protoname(CcpInfo.his_proto));
-    fprintf(VarTerm, "Output: %ld --> %ld,  Input: %ld --> %ld\n",
-            CcpInfo.uncompout, CcpInfo.compout,
-            CcpInfo.compin, CcpInfo.uncompin);
-  }
+  prompt_Printf(&prompt, "%s [%s]\n", CcpInfo.fsm.name,
+                StateNames[CcpInfo.fsm.state]);
+  prompt_Printf(&prompt, "My protocol = %s, His protocol = %s\n",
+                protoname(CcpInfo.my_proto), protoname(CcpInfo.his_proto));
+  prompt_Printf(&prompt, "Output: %ld --> %ld,  Input: %ld --> %ld\n",
+                CcpInfo.uncompout, CcpInfo.compout,
+                CcpInfo.compin, CcpInfo.uncompin);
   return 0;
 }
 

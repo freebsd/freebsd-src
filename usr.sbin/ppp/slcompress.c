@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.15 1997/12/24 09:29:17 brian Exp $
+ * $Id: slcompress.c,v 1.15.2.1 1998/01/29 23:11:43 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -39,6 +40,8 @@
 #include "slcompress.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 static struct slstat {
   int sls_packets;		/* outbound packets */
@@ -572,16 +575,13 @@ bad:
 int
 ReportCompress(struct cmdargs const *arg)
 {
-  if (!VarTerm)
-    return 1;
-
-  fprintf(VarTerm, "Out:  %d (compress) / %d (total)",
-	  slstat.sls_compressed, slstat.sls_packets);
-  fprintf(VarTerm, "  %d (miss) / %d (search)\n",
-	  slstat.sls_misses, slstat.sls_searches);
-  fprintf(VarTerm, "In:  %d (compress), %d (uncompress)",
-	  slstat.sls_compressedin, slstat.sls_uncompressedin);
-  fprintf(VarTerm, "  %d (error),  %d (tossed)\n",
-	  slstat.sls_errorin, slstat.sls_tossed);
+  prompt_Printf(&prompt, "Out:  %d (compress) / %d (total)",
+	        slstat.sls_compressed, slstat.sls_packets);
+  prompt_Printf(&prompt, "  %d (miss) / %d (search)\n",
+	        slstat.sls_misses, slstat.sls_searches);
+  prompt_Printf(&prompt, "In:  %d (compress), %d (uncompress)",
+	        slstat.sls_compressedin, slstat.sls_uncompressedin);
+  prompt_Printf(&prompt, "  %d (error),  %d (tossed)\n",
+	        slstat.sls_errorin, slstat.sls_tossed);
   return 0;
 }

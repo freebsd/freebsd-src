@@ -23,24 +23,38 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.1.2.3 1998/02/10 03:21:55 brian Exp $
+ *	$Id$
  */
 
-#define PHYSICAL_DESCRIPTOR (1)
-#define SERVER_DESCRIPTOR (2)
-#define PROMPT_DESCRIPTOR (3)
+struct prompt {
+  struct descriptor desc;
+  int fd_in, fd_out;
+  int TermMode;
+  FILE *Term;			/* sits on top of fd_out */
 
-struct descriptor {
-  int type;
-  struct descriptor *next;
-
-  int (*UpdateSet)(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
-  int (*IsSet)(struct descriptor *, fd_set *);
-  void (*Read)(struct descriptor *, struct bundle *, const fd_set *);
-  void (*Write)(struct descriptor *, const fd_set *);
+  struct termios oldtio;	/* Original tty mode */
+  struct termios comtio;	/* Command level tty mode */
 };
 
-#define descriptor_UpdateSet(d, r, w, e, n) ((*(d)->UpdateSet)(d, r, w, e, n))
-#define descriptor_IsSet(d, s) ((*(d)->IsSet)(d, s))
-#define descriptor_Read(d, b, f) ((*(d)->Read)(d, b, f))
-#define descriptor_Write(d, f) ((*(d)->Write)(d, f))
+#define prompt2descriptor(p) (&(p)->desc)
+#define descriptor2prompt(d) \
+  ((d)->type == PROMPT_DESCRIPTOR ? (struct prompt *)(d) : NULL)
+
+extern struct prompt prompt;
+
+#define prompt_Active(p) ((p)->Term ? 1 : 0)
+#define PROMPT_NONE -2
+#define PROMPT_STD  -1
+extern int  prompt_Init(struct prompt *, int);
+extern int  prompt_Display(struct prompt *, struct bundle *);
+extern void prompt_Drop(struct prompt *, int);
+extern void prompt_Printf(struct prompt *, const char *, ...);
+extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_);
+#define PROMPT_DONT_WANT_INT 1
+#define PROMPT_WANT_INT 0
+extern void prompt_TtyInit(struct prompt *, int);
+extern void prompt_TtyCommandMode(struct prompt *);
+extern void prompt_TtyTermMode(struct prompt *);
+extern void prompt_TtyOldMode(struct prompt *);
+extern pid_t prompt_pgrp(struct prompt *);
+#define prompt_IsTermMode(p) ((p)->TermMode ? 1 : 0)

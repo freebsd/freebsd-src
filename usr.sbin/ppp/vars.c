@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.45.2.4 1998/02/06 02:22:52 brian Exp $
+ * $Id: vars.c,v 1.45.2.5 1998/02/09 19:21:11 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -43,9 +43,10 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "prompt.h"
 
 char VarVersion[] = "PPP Version 1.90";
-char VarLocalVersion[] = "$Date: 1998/02/06 02:22:52 $";
+char VarLocalVersion[] = "$Date: 1998/02/09 19:21:11 $";
 int Utmp = 0;
 int ipKeepAlive = 0;
 int reconnectState = RECON_UNKNOWN;
@@ -84,18 +85,15 @@ DisplayCommand(struct cmdargs const *arg)
 {
   struct confdesc *vp;
 
-  if (!VarTerm)
-    return 1;
-
-  fprintf(VarTerm, "Current configuration option settings..\n\n");
-  fprintf(VarTerm, "Name\t\tMy Side\t\tHis Side\n");
-  fprintf(VarTerm, "----------------------------------------\n");
+  prompt_Printf(&prompt, "Current configuration option settings..\n\n");
+  prompt_Printf(&prompt, "Name\t\tMy Side\t\tHis Side\n");
+  prompt_Printf(&prompt, "----------------------------------------\n");
   for (vp = pppConfs; vp->name; vp++)
-    fprintf(VarTerm, "%-10s\t%s\t\t%s\n", vp->name,
-	    (vp->myside == CONF_ENABLE) ? "enable" :
-             (vp->myside == CONF_DISABLE ? "disable" : "N/A"),
-	    (vp->hisside == CONF_ACCEPT) ? "accept" :
-             (vp->hisside == CONF_DENY ? "deny" : "N/A"));
+    prompt_Printf(&prompt, "%-10s\t%s\t\t%s\n", vp->name,
+	          (vp->myside == CONF_ENABLE) ? "enable" :
+                   (vp->myside == CONF_DISABLE ? "disable" : "N/A"),
+	          (vp->hisside == CONF_ACCEPT) ? "accept" :
+                   (vp->hisside == CONF_DENY ? "deny" : "N/A"));
 
   return 0;
 }

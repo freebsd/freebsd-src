@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.44.2.4 1998/02/06 02:23:30 brian Exp $
+ * $Id: chat.c,v 1.44.2.5 1998/02/09 19:20:36 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -58,6 +58,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "chat.h"
+#include "prompt.h"
 
 #ifndef isblank
 #define	isblank(c)	((c) == '\t' || (c) == ' ')
@@ -202,8 +203,7 @@ ExpandString(const char *str, char *result, int reslen, int sendmode)
 	strncpy(result, phone, reslen);
 	reslen -= strlen(result);
 	result += strlen(result);
-	if (VarTerm)
-	  fprintf(VarTerm, "Phone: %s\n", phone);
+	prompt_Printf(&prompt, "Phone: %s\n", phone);
 	LogPrintf(LogPHASE, "Phone: %s\n", phone);
 	break;
       case 'U':

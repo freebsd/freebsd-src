@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.17 1998/02/09 19:24:00 brian Exp $
+ * $Id: main.c,v 1.121.2.18 1998/02/10 03:21:57 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -78,6 +78,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "server.h"
+#include "prompt.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -85,10 +86,6 @@
 #endif
 #endif
 
-int TermMode = 0;
-
-static struct termios oldtio;	/* Original tty mode */
-static struct termios comtio;	/* Command level tty mode */
 static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
 static int dial_up;
@@ -96,87 +93,6 @@ static int dial_up;
 static void DoLoop(struct bundle *);
 static void TerminalStop(int);
 static const char *ex_desc(int);
-
-static void
-TtyInit(int DontWantInt)
-{
-  struct termios newtio;
-  int stat;
-
-  stat = fcntl(netfd, F_GETFL, 0);
-  if (stat > 0) {
-    stat |= O_NONBLOCK;
-    (void) fcntl(netfd, F_SETFL, stat);
-  }
-  newtio = oldtio;
-  newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
-  newtio.c_iflag = 0;
-  newtio.c_oflag &= ~OPOST;
-  newtio.c_cc[VEOF] = _POSIX_VDISABLE;
-  if (DontWantInt)
-    newtio.c_cc[VINTR] = _POSIX_VDISABLE;
-  newtio.c_cc[VMIN] = 1;
-  newtio.c_cc[VTIME] = 0;
-  newtio.c_cflag |= CS8;
-  tcsetattr(netfd, TCSANOW, &newtio);
-  comtio = newtio;
-}
-
-/*
- *  Set tty into command mode. We allow canonical input and echo processing.
- */
-void
-TtyCommandMode(struct bundle *bundle, int prompt)
-{
-  struct termios newtio;
-  int stat;
-
-  if (!(mode & MODE_INTER))
-    return;
-  tcgetattr(netfd, &newtio);
-  newtio.c_lflag |= (ECHO | ISIG | ICANON);
-  newtio.c_iflag = oldtio.c_iflag;
-  newtio.c_oflag |= OPOST;
-  tcsetattr(netfd, TCSADRAIN, &newtio);
-  stat = fcntl(netfd, F_GETFL, 0);
-  if (stat > 0) {
-    stat |= O_NONBLOCK;
-    (void) fcntl(netfd, F_SETFL, stat);
-  }
-  TermMode = 0;
-  if (prompt)
-    Prompt(bundle);
-}
-
-/*
- * Set tty into terminal mode which is used while we invoke term command.
- */
-void
-TtyTermMode()
-{
-  int stat;
-
-  tcsetattr(netfd, TCSADRAIN, &comtio);
-  stat = fcntl(netfd, F_GETFL, 0);
-  if (stat > 0) {
-    stat &= ~O_NONBLOCK;
-    (void) fcntl(netfd, F_SETFL, stat);
-  }
-  TermMode = 1;
-}
-
-void
-TtyOldMode()
-{
-  int stat;
-
-  stat = fcntl(netfd, F_GETFL, 0);
-  if (stat > 0) {
-    stat &= ~O_NONBLOCK;
-    (void) fcntl(netfd, F_SETFL, stat);
-  }
-  tcsetattr(netfd, TCSADRAIN, &oldtio);
-}
 
 static struct bundle *SignalBundle;
 int CleaningUp;
@@ -196,7 +112,7 @@ Cleanup(int excode)
 void
 AbortProgram(int excode)
 {
-  DropClient(1);
+  prompt_Drop(&prompt, 1);
   ServerClose();
   ID0unlink(pid_filename);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
@@ -209,7 +125,7 @@ AbortProgram(int excode)
     close(BGFiledes[1]);
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  TtyOldMode();
+  prompt_TtyOldMode(&prompt);
   link_Destroy(physical2link(SignalBundle->physical));
   LogClose();
   bundle_Destroy(SignalBundle);
@@ -245,14 +161,16 @@ TerminalCont(int signo)
 {
   pending_signal(SIGCONT, SIG_DFL);
   pending_signal(SIGTSTP, TerminalStop);
-  TtyCommandMode(SignalBundle, getpgrp() == tcgetpgrp(netfd));
+  prompt_TtyCommandMode(&prompt);
+  if (getpgrp() == prompt_pgrp(&prompt))
+    prompt_Display(&prompt, SignalBundle);
 }
 
 static void
 TerminalStop(int signo)
 {
   pending_signal(SIGCONT, TerminalCont);
-  TtyOldMode();
+  prompt_TtyOldMode(&prompt);
   pending_signal(SIGTSTP, SIG_DFL);
   kill(getpid(), signo);
 }
@@ -374,17 +292,31 @@ main(int argc, char **argv)
     while (--nfds > 2)
       close(nfds);
 
-  VarTerm = 0;
   name = strrchr(argv[0], '/');
   LogOpen(name ? name + 1 : argv[0]);
-
-  tcgetattr(STDIN_FILENO, &oldtio);	/* Save original tty mode */
 
   argc--;
   argv++;
   label = ProcessArgs(argc, argv);
-  if (!(mode & MODE_DIRECT))
-    VarTerm = stdout;
+
+#ifdef __FreeBSD__
+  /*
+   * A FreeBSD hack to dodge a bug in the tty driver that drops output
+   * occasionally.... I must find the real reason some time.  To display
+   * the dodgy behaviour, comment out this bit, make yourself a large
+   * routing table and then run ppp in interactive mode.  The `show route'
+   * command will drop chunks of data !!!
+   */
+  if (mode & MODE_INTER) {
+    close(STDIN_FILENO);
+    if (open(_PATH_TTY, O_RDONLY) != STDIN_FILENO) {
+      fprintf(stderr, "Cannot open %s for input !\n", _PATH_TTY);
+      return 2;
+    }
+  }
+#endif
+
+  prompt_Init(&prompt, (mode & MODE_DIRECT) ? PROMPT_NONE : PROMPT_STD);
 
   ID0init();
   if (ID0realuid() != 0) {
@@ -427,14 +359,14 @@ main(int argc, char **argv)
 
   SignalBundle = bundle;
 
-  if (SelectSystem(bundle, "default", CONFFILE) < 0 && VarTerm)
-    fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
+  if (SelectSystem(bundle, "default", CONFFILE) < 0)
+    prompt_Printf(&prompt,
+                  "Warning: No default entry is given in config file.\n");
 
   if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
     if (label == NULL) {
-      if (VarTerm)
-	fprintf(VarTerm, "Destination system must be specified in"
-		" auto, background or ddial mode.\n");
+      prompt_Printf(&prompt, "Destination system must be specified in"
+		    " auto, background or ddial mode.\n");
       return EX_START;
     }
 
@@ -511,13 +443,13 @@ main(int argc, char **argv)
 	  BGPid = bgpid;
 	  close(BGFiledes[1]);
 	  if (read(BGFiledes[0], &c, 1) != 1) {
-	    fprintf(VarTerm, "Child exit, no status.\n");
+	    prompt_Printf(&prompt, "Child exit, no status.\n");
 	    LogPrintf(LogPHASE, "Parent: Child exit, no status.\n");
 	  } else if (c == EX_NORMAL) {
-	    fprintf(VarTerm, "PPP enabled.\n");
+	    prompt_Printf(&prompt, "PPP enabled.\n");
 	    LogPrintf(LogPHASE, "Parent: PPP enabled.\n");
 	  } else {
-	    fprintf(VarTerm, "Child failed (%s).\n", ex_desc((int) c));
+	    prompt_Printf(&prompt, "Child failed (%s).\n", ex_desc((int) c));
 	    LogPrintf(LogPHASE, "Parent: Child failed (%s).\n",
 		      ex_desc((int) c));
 	  }
@@ -528,26 +460,22 @@ main(int argc, char **argv)
 	close(BGFiledes[0]);
     }
 
-    VarTerm = 0;		/* We know it's currently stdout */
+    prompt_Init(&prompt, PROMPT_NONE);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
 
     if (mode & MODE_DIRECT)
       /* STDIN_FILENO gets used by modem_Open in DIRECT mode */
-      TtyInit(1);
+      prompt_TtyInit(&prompt, PROMPT_DONT_WANT_INT);
     else if (mode & MODE_DAEMON) {
       setsid();
       close(STDIN_FILENO);
     }
   } else {
-    close(STDIN_FILENO);
-    if ((netfd = open(_PATH_TTY, O_RDONLY)) < 0) {
-      fprintf(stderr, "Cannot open %s for intput !\n", _PATH_TTY);
-      return 2;
-    }
     close(STDERR_FILENO);
-    TtyInit(0);
-    TtyCommandMode(bundle, 1);
+    prompt_TtyInit(&prompt, PROMPT_WANT_INT);
+    prompt_TtyCommandMode(&prompt);
+    prompt_Display(&prompt, bundle);
   }
 
   snprintf(pid_filename, sizeof pid_filename, "%stun%d.pid",
@@ -591,107 +519,8 @@ PacketMode(struct bundle *bundle, int delay)
   LcpUp();
 
   LcpOpen(delay);
-  if (mode & MODE_INTER)
-    TtyCommandMode(bundle, 0);
-  if (VarTerm) {
-    fprintf(VarTerm, "Packet mode.\n");
-    /* aft_cmd = 1; */
-  }
-}
-
-static void
-ShowHelp(void)
-{
-  fprintf(stderr, "The following commands are available:\r\n");
-  fprintf(stderr, " ~p\tEnter Packet mode\r\n");
-  fprintf(stderr, " ~-\tDecrease log level\r\n");
-  fprintf(stderr, " ~+\tIncrease log level\r\n");
-  fprintf(stderr, " ~t\tShow timers (only in \"log debug\" mode)\r\n");
-  fprintf(stderr, " ~m\tShow memory map (only in \"log debug\" mode)\r\n");
-  fprintf(stderr, " ~.\tTerminate program\r\n");
-  fprintf(stderr, " ~?\tThis help\r\n");
-}
-
-static void
-ReadTty(struct bundle *bundle)
-{
-  int n;
-  char ch;
-  static int ttystate;
-  char linebuff[LINE_LEN];
-
-  LogPrintf(LogDEBUG, "termode = %d, netfd = %d, mode = %d\n",
-	    TermMode, netfd, mode);
-  if (!TermMode) {
-    n = read(netfd, linebuff, sizeof linebuff - 1);
-    if (n > 0) {
-      aft_cmd = 1;
-      if (linebuff[n-1] == '\n')
-        linebuff[--n] = '\0';
-      else
-        linebuff[n] = '\0';
-      if (n)
-        DecodeCommand(bundle, linebuff, n, IsInteractive(0) ? NULL : "Client");
-      Prompt(bundle);
-    } else if (n <= 0) {
-      LogPrintf(LogPHASE, "Client connection closed.\n");
-      DropClient(0);
-    }
-    return;
-  }
-
-  /*
-   * We are in terminal mode, decode special sequences
-   */
-  n = read(netfd, &ch, 1);
-  LogPrintf(LogDEBUG, "Got %d bytes (reading from the terminal)\n", n);
-
-  if (n > 0) {
-    switch (ttystate) {
-    case 0:
-      if (ch == '~')
-	ttystate++;
-      else
-	/* XXX missing return value check */
-	Physical_Write(bundle->physical, &ch, n);
-      break;
-    case 1:
-      switch (ch) {
-      case '?':
-	ShowHelp();
-	break;
-      case 'p':
-
-	/*
-	 * XXX: Should check carrier.
-	 */
-	if (LcpInfo.fsm.state <= ST_CLOSED)
-	  PacketMode(bundle, 0);
-	break;
-      case '.':
-	TermMode = 1;
-	aft_cmd = 1;
-	TtyCommandMode(bundle, 1);
-	break;
-      case 't':
-	if (LogIsKept(LogDEBUG)) {
-	  ShowTimers();
-	  break;
-	}
-      case 'm':
-	if (LogIsKept(LogDEBUG)) {
-	  ShowMemMap(NULL);
-	  break;
-	}
-      default:
-	if (Physical_Write(bundle->physical, &ch, n) < 0)
-	  LogPrintf(LogERROR, "error writing to modem.\n");
-	break;
-      }
-      ttystate = 0;
-      break;
-    }
-  }
+  prompt_TtyCommandMode(&prompt);
+  prompt_Printf(&prompt, "Packet mode.\n");
 }
 
 static struct pppTimer RedialTimer;
@@ -748,7 +577,6 @@ DoLoop(struct bundle *bundle)
       while (modem_Open(bundle->physical, bundle) < 0)
 	nointr_sleep(VarReconnectTimer);
   }
-  fflush(VarTerm);
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
@@ -862,6 +690,8 @@ DoLoop(struct bundle *bundle)
       qlen = link_QueueLen(physical2link(bundle->physical));
     }
 
+    /* handle_signals(); */
+
     descriptor_UpdateSet(&bundle->physical->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
 
@@ -884,14 +714,7 @@ DoLoop(struct bundle *bundle)
       FD_SET(bundle->tun_fd, &rfds);
     }
 
-    if (netfd >= 0) {
-      if (netfd + 1 > nfds)
-	nfds = netfd + 1;
-      FD_SET(netfd, &rfds);
-      FD_SET(netfd, &efds);
-    }
-
-    handle_signals();
+    descriptor_UpdateSet(&prompt.desc, &rfds, &wfds, &efds, &nfds);
 
 #ifndef SIGALRM
 
@@ -926,7 +749,7 @@ DoLoop(struct bundle *bundle)
       break;
     }
 
-    if ((netfd >= 0 && FD_ISSET(netfd, &efds)) ||
+    if (descriptor_IsSet(&prompt.desc, &efds) ||
         descriptor_IsSet(&bundle->physical->desc, &efds)) {
       LogPrintf(LogALERT, "Exception detected.\n");
       break;
@@ -935,9 +758,8 @@ DoLoop(struct bundle *bundle)
     if (descriptor_IsSet(&server.desc, &rfds))
       descriptor_Read(&server.desc, bundle, &rfds);
 
-    if (netfd >= 0 && FD_ISSET(netfd, &rfds))
-      /* something to read from tty */
-      ReadTty(bundle);
+    if (descriptor_IsSet(&prompt.desc, &rfds))
+      descriptor_Read(&prompt.desc, bundle, &rfds);
 
     if (descriptor_IsSet(&bundle->physical->desc, &wfds)) {
       /* ready to write into modem */

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.5 1998/02/02 19:33:01 brian Exp $
+ * $Id: route.c,v 1.42.2.6 1998/02/07 20:50:06 brian Exp $
  *
  */
 
@@ -38,6 +38,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "command.h"
@@ -56,6 +57,8 @@
 #include "fsm.h"
 #include "ipcp.h"
 #include "route.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 static void
 p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
@@ -129,7 +132,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
     break;
   }
 
-  fprintf(VarTerm, "%-*s ", width-1, buf);
+  prompt_Printf(&prompt, "%-*s ", width-1, buf);
 }
 
 static struct bits {
@@ -172,19 +175,17 @@ static struct bits {
 static void
 p_flags(u_long f, int max)
 {
-  if (VarTerm) {
-    char name[33], *flags;
-    register struct bits *p = bits;
+  char name[33], *flags;
+  register struct bits *p = bits;
 
-    if (max > sizeof name - 1)
-      max = sizeof name - 1;
+  if (max > sizeof name - 1)
+    max = sizeof name - 1;
 
-    for (flags = name; p->b_mask && flags - name < max; p++)
-      if (p->b_mask & f)
-	*flags++ = p->b_val;
-    *flags = '\0';
-    fprintf(VarTerm, "%-*.*s", max, max, name);
-  }
+  for (flags = name; p->b_mask && flags - name < max; p++)
+    if (p->b_mask & f)
+      *flags++ = p->b_val;
+  *flags = '\0';
+  prompt_Printf(&prompt, "%-*.*s", max, max, name);
 }
 
 const char *
@@ -277,9 +278,6 @@ ShowRoute(struct cmdargs const *arg)
   size_t needed;
   int mib[6];
 
-  if (!VarTerm)
-    return 1;
-
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
   mib[2] = 0;
@@ -302,7 +300,7 @@ ShowRoute(struct cmdargs const *arg)
   }
   ep = sp + needed;
 
-  fprintf(VarTerm, "%-20s%-20sFlags  Netif\n", "Destination", "Gateway");
+  prompt_Printf(&prompt, "%-20s%-20sFlags  Netif\n", "Destination", "Gateway");
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *) cp;
     wp = (char *)(rtm+1);
@@ -329,7 +327,7 @@ ShowRoute(struct cmdargs const *arg)
     p_sockaddr(sa_gw, NULL, 20);
 
     p_flags(rtm->rtm_flags, 6);
-    fprintf(VarTerm, " %s\n", Index2Nam(rtm->rtm_index));
+    prompt_Printf(&prompt, " %s\n", Index2Nam(rtm->rtm_index));
   }
   free(sp);
   return 0;

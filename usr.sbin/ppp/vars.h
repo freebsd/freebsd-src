@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.1 1998/01/29 00:49:31 brian Exp $
+ * $Id: vars.h,v 1.42.2.2 1998/02/06 02:23:48 brian Exp $
  *
  *	TODO:
  */
@@ -78,7 +78,6 @@ struct pppvars {
 #define LOCAL_NO_AUTH	0x02
 #define LOCAL_DENY	0x03
   u_char lauth;			/* Local Authorized status */
-  FILE *termfp;			/* The terminal */
 
   /* The rest are just default initialized in vars.c */
 #define DIALUP_REQ	0x01
@@ -138,7 +137,6 @@ struct pppvars {
 #define VarRedialNextTimeout	pppVars.redial_next_timeout
 #define VarDialTries		pppVars.dial_tries
 #define VarLoopback		pppVars.loopback
-#define VarTerm			pppVars.termfp
 
 #define VarAliasHandlers	   pppVars.handler
 #define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)

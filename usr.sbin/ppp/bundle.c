@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.6 1998/02/08 19:29:43 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.7 1998/02/09 19:20:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -73,6 +73,7 @@
 #include "pap.h"
 #include "chap.h"
 #include "tun.h"
+#include "prompt.h"
 
 static const char *PhaseNames[] = {
   "Dead", "Establish", "Authenticate", "Network", "Terminate"
@@ -115,7 +116,7 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
       if (LcpInfo.want_auth == PROTO_CHAP)
 	StartAuthChallenge(&AuthChapInfo, physical);
       bundle->phase = new;
-      Prompt(bundle);
+      prompt_Display(&prompt, bundle);
     } else
       bundle_NewPhase(bundle, physical, PHASE_NETWORK);
     break;
@@ -130,7 +131,7 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
 
   case PHASE_TERMINATE:
     bundle->phase = new;
-    Prompt(bundle);
+    prompt_Display(&prompt, bundle);
     break;
   }
 }
@@ -286,8 +287,8 @@ bundle_Create(const char *prefix)
   }
 
   if (bundle.unit > MAX_TUN) {
-    if (VarTerm)
-      fprintf(VarTerm, "No tunnel device is available (%s).\n", strerror(err));
+    prompt_Printf(&prompt, "No tunnel device is available (%s).\n",
+                  strerror(err));
     return NULL;
   }
 
@@ -339,8 +340,7 @@ bundle_Create(const char *prefix)
     return NULL;
   }
 
-  if (VarTerm)
-    fprintf(VarTerm, "Using interface: %s\n", bundle.ifname);
+  prompt_Printf(&prompt, "Using interface: %s\n", bundle.ifname);
   LogPrintf(LogPHASE, "Using interface: %s\n", bundle.ifname);
 
   bundle.routing_seq = 0;

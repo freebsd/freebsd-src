@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.7 1998/02/07 20:49:36 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.8 1998/02/09 19:20:47 brian Exp $
  *
  *	TODO:
  */
@@ -53,6 +53,7 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "prompt.h"
 
 static struct hdlcstat {
   int badfcs;
@@ -448,13 +449,10 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
 int
 ReportHdlcStatus(struct cmdargs const *arg)
 {
-  struct hdlcstat *hp = &HdlcStat;
-
-  if (VarTerm) {
-    fprintf(VarTerm, "HDLC level errors\n\n");
-    fprintf(VarTerm, "FCS: %u  ADDR: %u  COMMAND: %u  PROTO: %u\n",
-	    hp->badfcs, hp->badaddr, hp->badcommand, hp->unknownproto);
-  }
+  prompt_Printf(&prompt, "HDLC level errors\n\n");
+  prompt_Printf(&prompt, "FCS: %u  ADDR: %u  COMMAND: %u  PROTO: %u\n",
+	        HdlcStat.badfcs, HdlcStat.badaddr,
+                HdlcStat.badcommand, HdlcStat.unknownproto);
   return 0;
 }
 
@@ -463,15 +461,14 @@ static struct hdlcstat laststat;
 void
 HdlcErrorCheck()
 {
-  struct hdlcstat *hp = &HdlcStat;
-  struct hdlcstat *op = &laststat;
-
-  if (memcmp(hp, op, sizeof laststat)) {
+  if (memcmp(&HdlcStat, &laststat, sizeof laststat)) {
     LogPrintf(LogPHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
-	      hp->badfcs - op->badfcs, hp->badaddr - op->badaddr,
-      hp->badcommand - op->badcommand, hp->unknownproto - op->unknownproto);
+	      HdlcStat.badfcs - laststat.badfcs,
+              HdlcStat.badaddr - laststat.badaddr,
+              HdlcStat.badcommand - laststat.badcommand,
+              HdlcStat.unknownproto - laststat.unknownproto);
+    laststat = HdlcStat;
   }
-  laststat = HdlcStat;
 }
 
 void

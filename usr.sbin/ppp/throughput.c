@@ -23,14 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: throughput.c,v 1.4 1997/12/21 12:11:09 brian Exp $
  */
 
 #include <sys/param.h>
+#include <netinet/in.h>
 
 #include <stdio.h>
+#include <termios.h>
 #include <time.h>
-#include <netinet/in.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -40,6 +41,8 @@
 #include "defs.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 void
 throughput_init(struct pppThroughput *t)
@@ -54,22 +57,25 @@ throughput_init(struct pppThroughput *t)
 }
 
 void
-throughput_disp(struct pppThroughput *t, FILE *f)
+throughput_disp(struct pppThroughput *t)
 {
   int secs_up;
 
   secs_up = t->uptime ? time(NULL) - t->uptime : 0;
-  fprintf(f, "Connect time: %d secs\n", secs_up);
+  prompt_Printf(&prompt, "Connect time: %d secs\n", secs_up);
   if (secs_up == 0)
     secs_up = 1;
-  fprintf(f, "%ld octets in, %ld octets out\n", t->OctetsIn, t->OctetsOut);
+  prompt_Printf(&prompt, "%ld octets in, %ld octets out\n",
+                t->OctetsIn, t->OctetsOut);
   if (Enabled(ConfThroughput)) {
-    fprintf(f, "  overall   %5ld bytes/sec\n",
-            (t->OctetsIn+t->OctetsOut)/secs_up);
-    fprintf(f, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
-    fprintf(f, "  peak      %5d bytes/sec\n", t->BestOctetsPerSecond);
+    prompt_Printf(&prompt, "  overall   %5ld bytes/sec\n",
+                  (t->OctetsIn+t->OctetsOut)/secs_up);
+    prompt_Printf(&prompt, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
+    prompt_Printf(&prompt, "  peak      %5d bytes/sec\n",
+                  t->BestOctetsPerSecond);
   } else
-    fprintf(f, "Overall %ld bytes/sec\n", (t->OctetsIn+t->OctetsOut)/secs_up);
+    prompt_Printf(&prompt, "Overall %ld bytes/sec\n",
+                  (t->OctetsIn+t->OctetsOut)/secs_up);
 }
 
 

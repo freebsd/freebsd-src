@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13.2.2 1998/02/06 02:23:40 brian Exp $
+ * $Id: mbuf.c,v 1.13.2.3 1998/02/09 19:24:01 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -33,6 +34,8 @@
 #include "defs.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 static struct memmap {
   struct mbuf *queue;
@@ -153,11 +156,8 @@ ShowMemMap(struct cmdargs const *arg)
 {
   int i;
 
-  if (!VarTerm)
-    return 1;
-
   for (i = 0; i <= MB_MAX; i += 2)
-    fprintf(VarTerm, "%d: %d   %d: %d\n",
+    prompt_Printf(&prompt, "%d: %d   %d: %d\n",
 	    i, MemMap[i].count, i + 1, MemMap[i + 1].count);
 
   return 0;

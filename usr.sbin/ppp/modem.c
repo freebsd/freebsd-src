@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.12 1998/02/09 19:21:03 brian Exp $
+ * $Id: modem.c,v 1.77.2.13 1998/02/10 03:22:00 brian Exp $
  *
  *  TODO:
  */
@@ -61,13 +61,10 @@
 #include "throughput.h"
 #include "async.h"
 #include "bundle.h"
-
-#undef mode
-
-/* We're defining a physical device, and thus need the real headers. */
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "prompt.h"
 
 
 #ifndef O_NONBLOCK
@@ -745,10 +742,8 @@ modem_Hangup(struct link *l, int dedicated_force)
   StopTimer(&modem->link.Timer);
   throughput_stop(&modem->link.throughput);
 
-  if (TermMode) {
-    LogPrintf(LogDEBUG, "modem_Hangup: Not in 'term' mode\n");
-    return;
-  }
+  if (prompt_IsTermMode(&prompt))
+    prompt_TtyCommandMode(&prompt);
 
   if (!isatty(modem->fd)) {
     modem->mbits &= ~TIOCM_DTR;
@@ -881,15 +876,13 @@ modem_Dial(struct physical *modem, struct bundle *bundle)
   strncpy(ScriptBuffer, VarDialScript, sizeof ScriptBuffer - 1);
   ScriptBuffer[sizeof ScriptBuffer - 1] = '\0';
   if ((excode = DoChat(modem, ScriptBuffer)) > 0) {
-    if (VarTerm)
-      fprintf(VarTerm, "dial OK!\n");
+    prompt_Printf(&prompt, "dial OK!\n");
     strncpy(ScriptBuffer, VarLoginScript, sizeof ScriptBuffer - 1);
     if ((excode = DoChat(modem, ScriptBuffer)) > 0) {
       struct timeoutArg to;
 
       VarAltPhone = NULL;
-      if (VarTerm)
-	fprintf(VarTerm, "login OK!\n");
+      prompt_Printf(&prompt, "login OK!\n");
       to.modem = modem;
       to.bundle = bundle;
       modem_Timeout(&to);
@@ -920,52 +913,49 @@ modem_ShowStatus(struct cmdargs const *arg)
   int nb;
 #endif
 
-  if (!VarTerm)
-    return 1;
-
   dev = *VarDevice ? VarDevice : "network";
 
-  fprintf(VarTerm, "device: %s  speed: ", dev);
+  prompt_Printf(&prompt, "device: %s  speed: ", dev);
   if (Physical_IsSync(modem))
-    fprintf(VarTerm, "sync\n");
+    prompt_Printf(&prompt, "sync\n");
   else
-    fprintf(VarTerm, "%d\n", modem->speed);
+    prompt_Printf(&prompt, "%d\n", modem->speed);
 
   switch (modem->parity & CSIZE) {
   case CS7:
-    fprintf(VarTerm, "cs7, ");
+    prompt_Printf(&prompt, "cs7, ");
     break;
   case CS8:
-    fprintf(VarTerm, "cs8, ");
+    prompt_Printf(&prompt, "cs8, ");
     break;
   }
   if (modem->parity & PARENB) {
     if (modem->parity & PARODD)
-      fprintf(VarTerm, "odd parity, ");
+      prompt_Printf(&prompt, "odd parity, ");
     else
-      fprintf(VarTerm, "even parity, ");
+      prompt_Printf(&prompt, "even parity, ");
   } else
-    fprintf(VarTerm, "no parity, ");
+    prompt_Printf(&prompt, "no parity, ");
 
-  fprintf(VarTerm, "CTS/RTS %s.\n", (modem->rts_cts ? "on" : "off"));
+  prompt_Printf(&prompt, "CTS/RTS %s.\n", (modem->rts_cts ? "on" : "off"));
 
   if (LogIsKept(LogDEBUG))
-    fprintf(VarTerm, "fd = %d, modem control = %o\n", modem->fd, modem->mbits);
-  fprintf(VarTerm, "connect count: %d\n", modem->connect_count);
+    prompt_Printf(&prompt, "fd = %d, modem control = %o\n", modem->fd, modem->mbits);
+  prompt_Printf(&prompt, "connect count: %d\n", modem->connect_count);
 #ifdef TIOCOUTQ
   if (modem->fd >= 0)
     if (ioctl(modem->fd, TIOCOUTQ, &nb) >= 0)
-      fprintf(VarTerm, "outq: %d\n", nb);
+      prompt_Printf(&prompt, "outq: %d\n", nb);
     else
-      fprintf(VarTerm, "outq: ioctl probe failed: %s\n", strerror(errno));
+      prompt_Printf(&prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
-  fprintf(VarTerm, "outqlen: %d\n", link_QueueLen(&modem->link));
-  fprintf(VarTerm, "DialScript  = %s\n", VarDialScript);
-  fprintf(VarTerm, "LoginScript = %s\n", VarLoginScript);
-  fprintf(VarTerm, "PhoneNumber(s) = %s\n", VarPhoneList);
+  prompt_Printf(&prompt, "outqlen: %d\n", link_QueueLen(&modem->link));
+  prompt_Printf(&prompt, "DialScript  = %s\n", VarDialScript);
+  prompt_Printf(&prompt, "LoginScript = %s\n", VarLoginScript);
+  prompt_Printf(&prompt, "PhoneNumber(s) = %s\n", VarPhoneList);
 
-  fprintf(VarTerm, "\n");
-  throughput_disp(&modem->link.throughput, VarTerm);
+  prompt_Printf(&prompt, "\n");
+  throughput_disp(&modem->link.throughput);
 
   return 0;
 }
@@ -1019,8 +1009,8 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
           Physical_Write(p, "\r\n", 2);
         }
         PacketMode(bundle, 0);
-      } else if (VarTerm)
-        write(fileno(VarTerm), rbuff, n);
+      } else
+        prompt_Printf(&prompt, "%.*s", n, rbuff);
     }
   } else if (n > 0)
     async_Input(bundle, rbuff, n, p);

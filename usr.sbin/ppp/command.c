@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.13 1998/02/09 19:23:58 brian Exp $
+ * $Id: command.c,v 1.131.2.14 1998/02/10 03:21:39 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -77,6 +77,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "server.h"
+#include "prompt.h"
 
 struct in_addr ifnetmask;
 static const char *HIDDEN = "********";
@@ -105,14 +106,11 @@ HelpCommand(struct cmdargs const *arg)
   struct cmdtab const *cmd;
   int n, cmax, dmax, cols;
 
-  if (!VarTerm)
-    return 0;
-
   if (arg->argc > 0) {
     for (cmd = arg->cmd; cmd->name; cmd++)
       if (strcasecmp(cmd->name, *arg->argv) == 0 &&
           (cmd->lauth & VarLocalAuth)) {
-	fprintf(VarTerm, "%s\n", cmd->syntax);
+	prompt_Printf(&prompt, "%s\n", cmd->syntax);
 	return 0;
       }
     return -1;
@@ -130,13 +128,13 @@ HelpCommand(struct cmdargs const *arg)
   n = 0;
   for (cmd = arg->cmd; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
-      fprintf(VarTerm, " %-*.*s: %-*.*s",
+      prompt_Printf(&prompt, " %-*.*s: %-*.*s",
               cmax, cmax, cmd->name, dmax, dmax, cmd->helpmes);
       if (++n % cols == 0)
-        fprintf(VarTerm, "\n");
+        prompt_Printf(&prompt, "\n");
     }
   if (n % cols != 0)
-    fprintf(VarTerm, "\n");
+    prompt_Printf(&prompt, "\n");
 
   return 0;
 }
@@ -159,8 +157,8 @@ IsInteractive(int Display)
   else if (mode & MODE_INTER)
     m = "interactive";
   if (m) {
-    if (Display && VarTerm)
-      fprintf(VarTerm, "Working in %s mode\n", m);
+    if (Display)
+      prompt_Printf(&prompt, "Working in %s mode\n", m);
   }
   return mode & MODE_INTER;
 }
@@ -172,8 +170,8 @@ DialCommand(struct cmdargs const *arg)
   int res;
 
   if (LcpInfo.fsm.state > ST_CLOSED) {
-    if (VarTerm)
-      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpInfo.fsm.state]);
+    prompt_Printf(&prompt, "LCP state is [%s]\n",
+                  StateNames[LcpInfo.fsm.state]);
     return 0;
   }
 
@@ -193,11 +191,9 @@ DialCommand(struct cmdargs const *arg)
                 VarRedialNextTimeout);
       nointr_sleep(VarRedialNextTimeout);
     }
-    if (VarTerm)
-      fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
+    prompt_Printf(&prompt, "Dial attempt %u of %d\n", ++tries, VarDialTries);
     if (modem_Open(arg->bundle->physical, arg->bundle) < 0) {
-      if (VarTerm)
-	fprintf(VarTerm, "Failed to open modem.\n");
+      prompt_Printf(&prompt, "Failed to open modem.\n");
       break;
     }
     if ((res = modem_Dial(arg->bundle->physical, arg->bundle)) == EX_DONE) {
@@ -246,7 +242,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
    * we want to stop shell commands when we've got a telnet connection to an
    * auto mode ppp
    */
-  if (VarTerm && !(mode & MODE_INTER)) {
+  if (prompt_Active(&prompt) && !(mode & MODE_INTER)) {
     LogPrintf(LogWARN, "Shell is not allowed interactively in auto mode\n");
     return 1;
   }
@@ -254,7 +250,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 
   if (arg->argc == 0)
     if (!(mode & MODE_INTER)) {
-      if (VarTerm)
+      if (prompt_Active(&prompt))
         LogPrintf(LogWARN, "Can't start an interactive shell from"
 		  " a telnet session\n");
       else
@@ -279,8 +275,8 @@ ShellCommand(struct cmdargs const *arg, int bg)
     signal(SIGHUP, SIG_DFL);
     signal(SIGALRM, SIG_DFL);
 
-    if (VarTerm)
-      fd = fileno(VarTerm);
+    if (prompt_Active(&prompt))
+      fd = prompt.fd_out;
     else if ((fd = open("/dev/null", O_RDWR)) == -1) {
       LogPrintf(LogALERT, "Failed to open /dev/null: %s\n", strerror(errno));
       exit(1);
@@ -291,7 +287,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
       close(i);
 
-    TtyOldMode();
+    prompt_TtyOldMode(&prompt);
     setuid(geteuid());
     if (arg->argc > 0) {
       /* substitute pseudo args */
@@ -315,11 +311,11 @@ ShellCommand(struct cmdargs const *arg, int bg)
 	  LogPrintf(LogERROR, "%d: daemon: %s\n", p, strerror(errno));
 	  exit(1);
 	}
-      } else if (VarTerm)
+      } else if (prompt_Active(&prompt))
         printf("ppp: Pausing until %s finishes\n", arg->argv[0]);
       execvp(argv[0], argv);
     } else {
-      if (VarTerm)
+      if (prompt_Active(&prompt))
         printf("ppp: Pausing until %s finishes\n", shell);
       execl(shell, shell, NULL);
     }
@@ -336,7 +332,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     waitpid(shpid, &status, 0);
   }
 
-  TtyCommandMode(arg->bundle, 0);
+  prompt_TtyCommandMode(&prompt);
 
   return (0);
 }
@@ -412,9 +408,7 @@ static struct cmdtab const Commands[] = {
 static int
 ShowLoopback(struct cmdargs const *arg)
 {
-  if (VarTerm)
-    fprintf(VarTerm, "Local loopback is %s\n", VarLoopback ? "on" : "off");
-
+  prompt_Printf(&prompt, "Local loopback is %s\n", VarLoopback ? "on" : "off");
   return 0;
 }
 
@@ -423,20 +417,17 @@ ShowLogLevel(struct cmdargs const *arg)
 {
   int i;
 
-  if (!VarTerm)
-    return 0;
-
-  fprintf(VarTerm, "Log:  ");
+  prompt_Printf(&prompt, "Log:  ");
   for (i = LogMIN; i <= LogMAX; i++)
     if (LogIsKept(i) & LOG_KEPT_SYSLOG)
-      fprintf(VarTerm, " %s", LogName(i));
+      prompt_Printf(&prompt, " %s", LogName(i));
 
-  fprintf(VarTerm, "\nLocal:");
+  prompt_Printf(&prompt, "\nLocal:");
   for (i = LogMIN; i <= LogMAX; i++)
     if (LogIsKept(i) & LOG_KEPT_LOCAL)
-      fprintf(VarTerm, " %s", LogName(i));
+      prompt_Printf(&prompt, " %s", LogName(i));
 
-  fprintf(VarTerm, "\n");
+  prompt_Printf(&prompt, "\n");
 
   return 0;
 }
@@ -446,15 +437,13 @@ ShowEscape(struct cmdargs const *arg)
 {
   int code, bit;
 
-  if (!VarTerm)
-    return 0;
   if (EscMap[32]) {
     for (code = 0; code < 32; code++)
       if (EscMap[code])
 	for (bit = 0; bit < 8; bit++)
 	  if (EscMap[code] & (1 << bit))
-	    fprintf(VarTerm, " 0x%02x", (code << 3) + bit);
-    fprintf(VarTerm, "\n");
+	    prompt_Printf(&prompt, " 0x%02x", (code << 3) + bit);
+    prompt_Printf(&prompt, "\n");
   }
   return 0;
 }
@@ -462,44 +451,43 @@ ShowEscape(struct cmdargs const *arg)
 static int
 ShowTimeout(struct cmdargs const *arg)
 {
-  if (VarTerm) {
-    int remaining;
+  int remaining;
 
-    fprintf(VarTerm, " Idle Timer: %d secs   LQR Timer: %d secs"
-	    "   Retry Timer: %d secs\n", VarIdleTimeout, VarLqrTimeout,
-	    VarRetryTimeout);
-    remaining = RemainingIdleTime();
-    if (remaining != -1)
-    fprintf(VarTerm, " %d secs remaining\n", remaining);
-  }
+  prompt_Printf(&prompt, " Idle Timer: %d secs   LQR Timer: %d secs"
+	        "   Retry Timer: %d secs\n", VarIdleTimeout, VarLqrTimeout,
+	        VarRetryTimeout);
+  remaining = RemainingIdleTime();
+  if (remaining != -1)
+    prompt_Printf(&prompt, " %d secs remaining\n", remaining);
+
   return 0;
 }
 
 static int
 ShowStopped(struct cmdargs const *arg)
 {
-  if (!VarTerm)
-    return 0;
-
-  fprintf(VarTerm, " Stopped Timer:  LCP: ");
+  prompt_Printf(&prompt, " Stopped Timer:  LCP: ");
   if (!LcpInfo.fsm.StoppedTimer.load)
-    fprintf(VarTerm, "Disabled");
+    prompt_Printf(&prompt, "Disabled");
   else
-    fprintf(VarTerm, "%ld secs", LcpInfo.fsm.StoppedTimer.load / SECTICKS);
+    prompt_Printf(&prompt, "%ld secs",
+            LcpInfo.fsm.StoppedTimer.load / SECTICKS);
 
-  fprintf(VarTerm, ", IPCP: ");
+  prompt_Printf(&prompt, ", IPCP: ");
   if (!IpcpInfo.fsm.StoppedTimer.load)
-    fprintf(VarTerm, "Disabled");
+    prompt_Printf(&prompt, "Disabled");
   else
-    fprintf(VarTerm, "%ld secs", IpcpInfo.fsm.StoppedTimer.load / SECTICKS);
+    prompt_Printf(&prompt, "%ld secs",
+            IpcpInfo.fsm.StoppedTimer.load / SECTICKS);
 
-  fprintf(VarTerm, ", CCP: ");
+  prompt_Printf(&prompt, ", CCP: ");
   if (!CcpInfo.fsm.StoppedTimer.load)
-    fprintf(VarTerm, "Disabled");
+    prompt_Printf(&prompt, "Disabled");
   else
-    fprintf(VarTerm, "%ld secs", CcpInfo.fsm.StoppedTimer.load / SECTICKS);
+    prompt_Printf(&prompt, "%ld secs",
+            CcpInfo.fsm.StoppedTimer.load / SECTICKS);
 
-  fprintf(VarTerm, "\n");
+  prompt_Printf(&prompt, "\n");
 
   return 0;
 }
@@ -507,12 +495,10 @@ ShowStopped(struct cmdargs const *arg)
 static int
 ShowAuthKey(struct cmdargs const *arg)
 {
-  if (!VarTerm)
-    return 0;
-  fprintf(VarTerm, "AuthName = %s\n", VarAuthName);
-  fprintf(VarTerm, "AuthKey  = %s\n", HIDDEN);
+  prompt_Printf(&prompt, "AuthName = %s\n", VarAuthName);
+  prompt_Printf(&prompt, "AuthKey  = %s\n", HIDDEN);
 #ifdef HAVE_DES
-  fprintf(VarTerm, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
+  prompt_Printf(&prompt, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
 #endif
   return 0;
 }
@@ -520,64 +506,56 @@ ShowAuthKey(struct cmdargs const *arg)
 static int
 ShowVersion(struct cmdargs const *arg)
 {
-  if (VarTerm)
-    fprintf(VarTerm, "%s - %s \n", VarVersion, VarLocalVersion);
+  prompt_Printf(&prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
 }
 
 static int
 ShowInitialMRU(struct cmdargs const *arg)
 {
-  if (VarTerm)
-    fprintf(VarTerm, " Initial MRU: %d\n", VarMRU);
+  prompt_Printf(&prompt, " Initial MRU: %d\n", VarMRU);
   return 0;
 }
 
 static int
 ShowPreferredMTU(struct cmdargs const *arg)
 {
-  if (VarTerm)
-    if (VarPrefMTU)
-      fprintf(VarTerm, " Preferred MTU: %d\n", VarPrefMTU);
-    else
-      fprintf(VarTerm, " Preferred MTU: unspecified\n");
+  if (VarPrefMTU)
+    prompt_Printf(&prompt, " Preferred MTU: %d\n", VarPrefMTU);
+  else
+    prompt_Printf(&prompt, " Preferred MTU: unspecified\n");
   return 0;
 }
 
 static int
 ShowReconnect(struct cmdargs const *arg)
 {
-  if (VarTerm)
-    fprintf(VarTerm, " Reconnect Timer:  %d,  %d tries\n",
-	    VarReconnectTimer, VarReconnectTries);
+  prompt_Printf(&prompt, " Reconnect Timer:  %d,  %d tries\n",
+	        VarReconnectTimer, VarReconnectTries);
   return 0;
 }
 
 static int
 ShowRedial(struct cmdargs const *arg)
 {
-  if (!VarTerm)
-    return 0;
-  fprintf(VarTerm, " Redial Timer: ");
+  prompt_Printf(&prompt, " Redial Timer: ");
 
-  if (VarRedialTimeout >= 0) {
-    fprintf(VarTerm, " %d seconds, ", VarRedialTimeout);
-  } else {
-    fprintf(VarTerm, " Random 0 - %d seconds, ", REDIAL_PERIOD);
-  }
+  if (VarRedialTimeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", VarRedialTimeout);
+  else
+    prompt_Printf(&prompt, " Random 0 - %d seconds, ", REDIAL_PERIOD);
 
-  fprintf(VarTerm, " Redial Next Timer: ");
+  prompt_Printf(&prompt, " Redial Next Timer: ");
 
-  if (VarRedialNextTimeout >= 0) {
-    fprintf(VarTerm, " %d seconds, ", VarRedialNextTimeout);
-  } else {
-    fprintf(VarTerm, " Random 0 - %d seconds, ", REDIAL_PERIOD);
-  }
+  if (VarRedialNextTimeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", VarRedialNextTimeout);
+  else
+    prompt_Printf(&prompt, " Random 0 - %d seconds, ", REDIAL_PERIOD);
 
   if (VarDialTries)
-    fprintf(VarTerm, "%d dial tries", VarDialTries);
+    prompt_Printf(&prompt, "%d dial tries", VarDialTries);
 
-  fprintf(VarTerm, "\n");
+  prompt_Printf(&prompt, "\n");
 
   return 0;
 }
@@ -586,17 +564,16 @@ ShowRedial(struct cmdargs const *arg)
 static int
 ShowMSExt(struct cmdargs const *arg)
 {
-  if (VarTerm) {
-    fprintf(VarTerm, " MS PPP extention values \n");
-    fprintf(VarTerm, "   Primary NS     : %s\n",
-            inet_ntoa(IpcpInfo.ns_entries[0]));
-    fprintf(VarTerm, "   Secondary NS   : %s\n",
-            inet_ntoa(IpcpInfo.ns_entries[1]));
-    fprintf(VarTerm, "   Primary NBNS   : %s\n",
-            inet_ntoa(IpcpInfo.nbns_entries[0]));
-    fprintf(VarTerm, "   Secondary NBNS : %s\n",
-            inet_ntoa(IpcpInfo.nbns_entries[1]));
-  }
+  prompt_Printf(&prompt, " MS PPP extention values \n");
+  prompt_Printf(&prompt, "   Primary NS     : %s\n",
+                inet_ntoa(IpcpInfo.ns_entries[0]));
+  prompt_Printf(&prompt, "   Secondary NS   : %s\n",
+                inet_ntoa(IpcpInfo.ns_entries[1]));
+  prompt_Printf(&prompt, "   Primary NBNS   : %s\n",
+                inet_ntoa(IpcpInfo.nbns_entries[0]));
+  prompt_Printf(&prompt, "   Secondary NBNS : %s\n",
+                inet_ntoa(IpcpInfo.nbns_entries[1]));
+
   return 0;
 }
 
@@ -722,37 +699,6 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
   return val;
 }
 
-int aft_cmd = 1;
-
-void
-Prompt(struct bundle *bundle)
-{
-  const char *pconnect, *pauth;
-
-  if (!VarTerm || TermMode || CleaningUp)
-    return;
-
-  if (!aft_cmd)
-    fprintf(VarTerm, "\n");
-  else
-    aft_cmd = 0;
-
-  if (VarLocalAuth == LOCAL_AUTH)
-    pauth = " ON ";
-  else
-    pauth = " on ";
-  if (IpcpInfo.fsm.state == ST_OPENED)
-    pconnect = "PPP";
-  else if (bundle_Phase(bundle) == PHASE_NETWORK)
-    pconnect = "PPp";
-  else if (bundle_Phase(bundle) == PHASE_AUTHENTICATE)
-    pconnect = "Ppp";
-  else
-    pconnect = "ppp";
-  fprintf(VarTerm, "%s%s%s> ", pconnect, pauth, VarShortHost);
-  fflush(VarTerm);
-}
-
 void
 InterpretCommand(char *buff, int nb, int *argc, char ***argv)
 {
@@ -831,10 +777,12 @@ DecodeCommand(struct bundle *bundle, char *buff, int nb, const char *label)
 static int
 ShowCommand(struct cmdargs const *arg)
 {
-  if (arg->argc > 0)
+  if (!prompt_Active(&prompt))
+    LogPrintf(LogWARN, "show: Cannot show without a prompt\n");
+  else if (arg->argc > 0)
     FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ");
-  else if (VarTerm)
-    fprintf(VarTerm, "Use ``show ?'' to get a list.\n");
+  else if (prompt_Active(&prompt))
+    prompt_Printf(&prompt, "Use ``show ?'' to get a list.\n");
   else
     LogPrintf(LogWARN, "show command must have arguments\n");
 
@@ -845,30 +793,27 @@ static int
 TerminalCommand(struct cmdargs const *arg)
 {
   if (LcpInfo.fsm.state > ST_CLOSED) {
-    if (VarTerm)
-      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpInfo.fsm.state]);
+    prompt_Printf(&prompt, "LCP state is [%s]\n",
+                  StateNames[LcpInfo.fsm.state]);
     return 1;
   }
   if (!IsInteractive(1))
     return (1);
   if (modem_Open(arg->bundle->physical, arg->bundle) < 0) {
-    if (VarTerm)
-      fprintf(VarTerm, "Failed to open modem.\n");
+    prompt_Printf(&prompt, "Failed to open modem.\n");
     return (1);
   }
-  if (VarTerm) {
-    fprintf(VarTerm, "Entering terminal mode.\n");
-    fprintf(VarTerm, "Type `~?' for help.\n");
-  }
-  TtyTermMode();
-  return (0);
+  prompt_Printf(&prompt, "Entering terminal mode.\n");
+  prompt_Printf(&prompt, "Type `~?' for help.\n");
+  prompt_TtyTermMode(&prompt);
+  return 0;
 }
 
 static int
 QuitCommand(struct cmdargs const *arg)
 {
-  if (VarTerm) {
-    DropClient(1);
+  if (prompt_Active(&prompt)) {
+    prompt_Drop(&prompt, 1);
     if ((mode & MODE_INTER) ||
         (arg->argc > 0 && !strcasecmp(*arg->argv, "all") &&
          (VarLocalAuth & LOCAL_AUTH)))
@@ -1526,8 +1471,8 @@ SetCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
     FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ");
-  else if (VarTerm)
-    fprintf(VarTerm, "Use `set ?' to get a list or `set ? <var>' for"
+  else if (prompt_Active(&prompt))
+    prompt_Printf(&prompt, "Use `set ?' to get a list or `set ? <var>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "set command must have arguments\n");
@@ -1634,8 +1579,8 @@ AliasCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
     FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ");
-  else if (VarTerm)
-    fprintf(VarTerm, "Use `alias help' to get a list or `alias help"
+  else if (prompt_Active(&prompt))
+    prompt_Printf(&prompt, "Use `alias help' to get a list or `alias help"
             " <option>' for syntax help.\n");
   else
     LogPrintf(LogWARN, "alias command must have arguments\n");
@@ -1706,8 +1651,8 @@ AllowCommand(struct cmdargs const *arg)
   /* arg->bundle may be NULL (see ValidSystem()) ! */
   if (arg->argc > 0)
     FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ");
-  else if (VarTerm)
-    fprintf(VarTerm, "Use `allow ?' to get a list or `allow ? <cmd>' for"
+  else if (prompt_Active(&prompt))
+    prompt_Printf(&prompt, "Use `allow ?' to get a list or `allow ? <cmd>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "allow command must have arguments\n");

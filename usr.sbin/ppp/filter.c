@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.2 1998/01/30 19:45:38 brian Exp $
+ * $Id: filter.c,v 1.22.2.3 1998/01/31 02:48:17 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -45,6 +46,8 @@
 #include "fsm.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 struct filterent ifilters[MAXFILTERS];	/* incoming packet filter */
 struct filterent ofilters[MAXFILTERS];	/* outgoing packet filter */
@@ -444,34 +447,32 @@ ShowFilter(struct filterent * fp)
 {
   int n;
 
-  if (!VarTerm)
-    return;
-
   for (n = 0; n < MAXFILTERS; n++, fp++) {
     if (fp->action != A_NONE) {
-      fprintf(VarTerm, "%2d %s", n, actname[fp->action & (A_PERMIT|A_DENY)]);
+      prompt_Printf(&prompt, "%2d %s", n,
+                    actname[fp->action & (A_PERMIT|A_DENY)]);
       if (fp->action & A_UHOST)
-        fprintf(VarTerm, "host ");
+        prompt_Printf(&prompt, "host ");
       else if (fp->action & A_UPORT)
-        fprintf(VarTerm, "port ");
+        prompt_Printf(&prompt, "port ");
       else
-        fprintf(VarTerm, "     ");
-      fprintf(VarTerm, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
-      fprintf(VarTerm, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
+        prompt_Printf(&prompt, "     ");
+      prompt_Printf(&prompt, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
+      prompt_Printf(&prompt, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
       if (fp->proto) {
-	fprintf(VarTerm, "%s", protoname[fp->proto]);
+	prompt_Printf(&prompt, "%s", protoname[fp->proto]);
 
 	if (fp->opt.srcop)
-	  fprintf(VarTerm, " src %s %d", opname[fp->opt.srcop],
+	  prompt_Printf(&prompt, " src %s %d", opname[fp->opt.srcop],
 		  fp->opt.srcport);
 	if (fp->opt.dstop)
-	  fprintf(VarTerm, " dst %s %d", opname[fp->opt.dstop],
+	  prompt_Printf(&prompt, " dst %s %d", opname[fp->opt.dstop],
 		  fp->opt.dstport);
 	if (fp->opt.estab)
-	  fprintf(VarTerm, " estab");
+	  prompt_Printf(&prompt, " estab");
 
       }
-      fprintf(VarTerm, "\n");
+      prompt_Printf(&prompt, "\n");
     }
   }
 }

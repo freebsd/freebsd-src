@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.1 1998/01/29 20:45:16 brian Exp $
+ *	$Id: defs.c,v 1.11.4.2 1998/02/02 19:32:05 brian Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,6 @@
 int mode = MODE_INTER;
 int BGFiledes[2] = { -1, -1 };
 int modem = -1;
-int netfd = -1;
 
 static char dstsystem[50];
 
@@ -95,21 +94,4 @@ GetShortHost()
     *p = '\0';
 
   return 1;
-}
-
-void
-DropClient(int verbose)
-{
-  FILE *oVarTerm;
-
-  if (VarTerm && !(mode & MODE_INTER)) {
-    oVarTerm = VarTerm;
-    VarTerm = 0;
-    if (oVarTerm)
-      fclose(oVarTerm);
-    close(netfd);
-    netfd = -1;
-    if (verbose)
-      LogPrintf(LogPHASE, "Client connection dropped.\n");
-  }
 }

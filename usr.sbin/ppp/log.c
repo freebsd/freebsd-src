@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.24 1997/12/24 09:29:05 brian Exp $
+ *	$Id: log.c,v 1.25 1998/01/21 02:15:18 brian Exp $
  */
 
 #include <sys/param.h>
@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -39,6 +40,8 @@
 #include "loadalias.h"
 #include "defs.h"
 #include "vars.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 static const char *LogNames[] = {
   "Async",
@@ -169,17 +172,17 @@ LogPrintf(int lev, const char *fmt,...)
   if (LogIsKept(lev)) {
     static char nfmt[200];
 
-    if ((LogIsKept(lev) & LOG_KEPT_LOCAL) && VarTerm) {
+    if ((LogIsKept(lev) & LOG_KEPT_LOCAL) && prompt_Active(&prompt)) {
       if ((LogIsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
 	         LogTunno, LogName(lev), fmt);
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", LogName(lev), fmt);
-      vfprintf(VarTerm, nfmt, ap);
-      fflush(VarTerm);
+      prompt_vPrintf(&prompt, nfmt, ap);
     }
 
-    if ((LogIsKept(lev) & LOG_KEPT_SYSLOG) && (lev != LogWARN || !VarTerm)) {
+    if ((LogIsKept(lev) & LOG_KEPT_SYSLOG) && (lev != LogWARN ||
+                                               !prompt_Active(&prompt))) {
       if ((LogIsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
 	         LogTunno, LogName(lev), fmt);

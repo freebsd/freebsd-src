@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.12 1998/02/08 11:04:54 brian Exp $
+ * $Id: lcp.c,v 1.55.2.13 1998/02/09 19:20:54 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -67,6 +67,7 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "prompt.h"
 
 /* for received LQRs */
 struct lqrreq {
@@ -165,28 +166,27 @@ LcpReportTime(void *v)
 int
 ReportLcpStatus(struct cmdargs const *arg)
 {
-  if (!VarTerm)
-    return 1;
-
-  fprintf(VarTerm, "%s [%s]\n", LcpInfo.fsm.name,
-          StateNames[LcpInfo.fsm.state]);
-  fprintf(VarTerm,
-	  " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
-	  "           MAGIC %08lx, REJECT %04x\n",
-	  LcpInfo.his_mru, (u_long)LcpInfo.his_accmap, LcpInfo.his_protocomp,
-          LcpInfo.his_acfcomp, (u_long)LcpInfo.his_magic, LcpInfo.his_reject);
-  fprintf(VarTerm,
-	  " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
-          "           MAGIC %08lx, REJECT %04x\n",
-          LcpInfo.want_mru, (u_long)LcpInfo.want_accmap, LcpInfo.want_protocomp,
-          LcpInfo.want_acfcomp, (u_long)LcpInfo.want_magic, LcpInfo.my_reject);
-  fprintf(VarTerm, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
-          VarMRU, (u_long)VarAccmap);
-  fprintf(VarTerm, "Open Mode: %s",
-          (VarOpenMode == OPEN_PASSIVE) ? "passive" : "active");
+  prompt_Printf(&prompt, "%s [%s]\n", LcpInfo.fsm.name,
+                StateNames[LcpInfo.fsm.state]);
+  prompt_Printf(&prompt,
+	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
+	        "           MAGIC %08lx, REJECT %04x\n",
+	        LcpInfo.his_mru, (u_long)LcpInfo.his_accmap,
+                LcpInfo.his_protocomp, LcpInfo.his_acfcomp,
+                (u_long)LcpInfo.his_magic, LcpInfo.his_reject);
+  prompt_Printf(&prompt,
+	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
+                "           MAGIC %08lx, REJECT %04x\n",
+                LcpInfo.want_mru, (u_long)LcpInfo.want_accmap,
+                LcpInfo.want_protocomp, LcpInfo.want_acfcomp,
+                (u_long)LcpInfo.want_magic, LcpInfo.my_reject);
+  prompt_Printf(&prompt, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
+                VarMRU, (u_long)VarAccmap);
+  prompt_Printf(&prompt, "Open Mode: %s",
+                (VarOpenMode == OPEN_PASSIVE) ? "passive" : "active");
   if (VarOpenMode > 0)
-    fprintf(VarTerm, " (delay %d)", VarOpenMode);
-  fputc('\n', VarTerm);
+    prompt_Printf(&prompt, " (delay %d)", VarOpenMode);
+  prompt_Printf(&prompt, "\n");
   return 0;
 }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.2 1998/02/09 19:24:02 brian Exp $
+ *	$Id: server.c,v 1.16.2.3 1998/02/10 03:22:05 brian Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "command.h"
@@ -48,6 +49,7 @@
 #include "descriptor.h"
 #include "server.h"
 #include "id.h"
+#include "prompt.h"
 
 static int
 server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
@@ -56,9 +58,9 @@ server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 
   LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
   if (s->fd >= 0) {
-    FD_SET(s->fd, r);
     if (*n < s->fd + 1)
       *n = s->fd + 1;
+    FD_SET(s->fd, r);
     return 1;
   }
   return 0;
@@ -117,15 +119,13 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       return;
   }
 
-  if (netfd >= 0) {
+  if (!prompt_Init(&prompt, wfd)) {
     write(wfd, "Connection already in use.\n", 27);
     close(wfd);
   } else {
-    netfd = wfd;
-    VarTerm = fdopen(netfd, "a+");
     LocalAuthInit();
     IsInteractive(1);
-    Prompt(bundle);
+    prompt_Display(&prompt, bundle);
   }
 }
 
@@ -188,8 +188,8 @@ ServerLocalOpen(const char *name, mode_t mask)
     if (mask != (mode_t)-1)
       umask(mask);
     LogPrintf(LogERROR, "Local: bind: %s\n", strerror(errno));
-    if (errno == EADDRINUSE && VarTerm)
-      fprintf(VarTerm, "Wait for a while, then try again.\n");
+    if (errno == EADDRINUSE)
+      prompt_Printf(&prompt, "Wait for a while, then try again.\n");
     close(s);
     return 4;
   }
@@ -237,8 +237,8 @@ ServerTcpOpen(int port)
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   if (bind(s, (struct sockaddr *)&ifsin, sizeof ifsin) < 0) {
     LogPrintf(LogERROR, "Tcp: bind: %s\n", strerror(errno));
-    if (errno == EADDRINUSE && VarTerm)
-      fprintf(VarTerm, "Wait for a while, then try again.\n");
+    if (errno == EADDRINUSE)
+      prompt_Printf(&prompt, "Wait for a while, then try again.\n");
     close(s);
     return 8;
   }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: log.h,v 1.18 1997/12/21 12:11:07 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -48,6 +48,8 @@
 #define LogERROR	(18)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
 #define LogALERT	(19)	/* syslog(LOG_ALERT, ....)	 */
 #define LogMAX		(19)
+
+struct mbuf;
 
 /* The first int arg for all of the following is one of the above values */
 extern const char *LogName(int);
