@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.43 1994/12/17 06:57:45 jkh Exp $
+# $Id: instdist.sh,v 1.44 1994/12/21 04:57:07 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -99,7 +99,7 @@ binary set are only guaranteed to be available from the Primary site.\n\
 Please use arrow keys to scroll through all items." \
 -1 -1 6 \
   "Primary" "ftp.freebsd.org" \
-  "Australia" ftp.physics.usyd.edu.au" \
+  "Australia" "ftp.physics.usyd.edu.au" \
   "Finland" "nic.funet.fi" \
   "France" "ftp.ibp.fr" \
   "Germany" "ftp.uni-duisburg.de" \
