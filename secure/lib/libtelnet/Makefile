@@ -6,11 +6,11 @@ SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
 		enc_des.c sra.c pk.c
 
 CFLAGS+=        -DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
-                -I${TELNETDIR} \
+                -DSRA -I${TELNETDIR} \
 
 NOPIC=          yes
 
-INCLUDES=       -DSRA ${TELNETDIR}/arpa/telnet.h 
+INCLUDES=       ${TELNETDIR}/arpa/telnet.h 
 
 #
 # Before complaining about this, please *double-check* that you have
