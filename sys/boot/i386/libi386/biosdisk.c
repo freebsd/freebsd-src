@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.17 1998/11/02 23:28:11 msmith Exp $
+ *	$Id: biosdisk.c,v 1.18 1998/11/13 23:40:02 msmith Exp $
  */
 
 /*
@@ -100,6 +100,8 @@ static int	bd_getgeom(struct open_disk *od);
 static int	bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest);
 
 static int	bd_int13probe(struct bdinfo *bd);
+
+static void	bd_printslice(struct open_disk *od, int offset, char *prefix);
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
@@ -208,17 +210,84 @@ bd_int13probe(struct bdinfo *bd)
 static void
 bd_print(int verbose)
 {
-    int		i;
-    char	line[80];
+    int				i, j;
+    char			line[80];
+    struct i386_devdesc		dev;
+    struct open_disk		*od;
+    struct dos_partition	*dptr;
     
     for (i = 0; i < nbdinfo; i++) {
-	sprintf(line, "    disk%d:   BIOS drive %c:", i, 
+	sprintf(line, "    disk%d:   BIOS drive %c:\n", i, 
 		(bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit) : ('C' + bdinfo[i].bd_unit - 0x80));
 	pager_output(line);
-	/* XXX more detail? */
-	pager_output("\n");
+
+	/* try to open the whole disk */
+	dev.d_kind.biosdisk.unit = i;
+	dev.d_kind.biosdisk.slice = -1;
+	dev.d_kind.biosdisk.partition = -1;
+	
+	if (!bd_opendisk(&od, &dev)) {
+
+	    /* Do we have a partition table? */
+	    if (od->od_flags & BD_PARTTABOK) {
+		dptr = &od->od_parttab[0];
+
+		/* Check for a "truly dedicated" disk */
+		if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
+		    (dptr[3].dp_start == 0) &&
+		    (dptr[3].dp_size == 50000)) {
+		    sprintf(line, "      disk%d", i);
+		    bd_printslice(od, 0, line);
+		} else {
+		    for (j = 0; j < NDOSPART; j++) {
+			switch(dptr[j].dp_typ) {
+			case DOSPTYP_386BSD:
+			    sprintf(line, "      disk%ds%d", i, j + 1);
+			    bd_printslice(od, dptr[j].dp_start, line);
+			    break;
+			default:
+			}
+		    }
+		    
+		}
+	    }
+	    bd_closedisk(od);
+	}
     }
 }
+
+static void
+bd_printslice(struct open_disk *od, int offset, char *prefix)
+{
+    char		line[80];
+    u_char		buf[BIOSDISK_SECSIZE];
+    struct disklabel	*lp;
+    int			i;
+
+    /* read disklabel */
+    if (bd_read(od, offset + LABELSECTOR, 1, buf))
+	return;
+    lp =(struct disklabel *)(&buf[0]);
+    if (lp->d_magic != DISKMAGIC) {
+	sprintf(line, "%s: bad disklabel\n");
+	pager_output(line);
+	return;
+    }
+    
+    /* Print partitions */
+    for (i = 0; i < lp->d_npartitions; i++) {
+	if ((lp->d_partitions[i].p_fstype == FS_BSDFFS) || (lp->d_partitions[i].p_fstype == FS_SWAP) ||
+	    ((lp->d_partitions[i].p_fstype == FS_UNUSED) && 
+	     (od->od_flags & BD_FLOPPY) && (i == 0))) {	/* Floppies often have bogus fstype, print 'a' */
+	    sprintf(line, "  %s%c: %s  %.6dMB (%d - %d)\n", prefix, 'a' + i,
+		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : "FFS",
+		    lp->d_partitions[i].p_size / 2048,	/* 512-byte sector assumption */
+		    lp->d_partitions[i].p_offset, lp->d_partitions[i].p_offset + lp->d_partitions[i].p_size);
+	    pager_output(line);
+	}
+    }
+}
+
 
 /*
  * Attempt to open the disk described by (dev) for use by (f).
@@ -323,8 +392,14 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     dptr = &od->od_parttab[0];
     od->od_flags |= BD_PARTTABOK;
 
+    /* Is this a request for the whole disk? */
+    if (dev->d_kind.biosdisk.slice == -1) {
+	sector == 0;
+	goto unsliced;
+    }
+
     /* Try to auto-detect the best slice; this should always give a slice number */
-    if (dev->d_kind.biosdisk.slice < 1)
+    if (dev->d_kind.biosdisk.slice == 0)
 	dev->d_kind.biosdisk.slice = bd_bestslice(dptr);
 
     switch (dev->d_kind.biosdisk.slice) {
