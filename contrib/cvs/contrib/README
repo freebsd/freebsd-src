@@ -1,27 +1,31 @@
-$CVSid: @(#)README 1.12 94/09/25 $
+This "contrib" directory is a place holder for code/scripts sent to me
+by contributors around the world.  This README file will be kept
+up-to-date from release to release.  BUT, we must point out that these
+contributions are really, REALLY UNSUPPORTED.  In fact, we probably
+don't even know what some of them really do.  We certainly do not
+guarantee to have tried them, or ported them to work with this CVS
+distribution.  If you have questions, your best bet is to contact the
+original author, but you should not necessarily expect a reply, since
+the author may not be available at the address given.
 
-This "contrib" directory is a place holder for code/scripts sent to
-me by contributors around the world.  This README file will be kept
-up-to-date from release to release.  BUT, I must point out that these
-contributions are really, REALLY UNSUPPORTED.  In fact, I probably
-don't even know what they do.  Nor do I guarantee to have tried them,
-or ported them to work with this CVS distribution.  If you have questions,
-you might contact the author, but you should not necessarily expect
-a reply.  USE AT YOUR OWN RISK -- and all that stuff.
+USE AT YOUR OWN RISK -- and all that stuff.
 
-"Unsupported" also means that noone has volunteered to accept and
-check in changes to this directory.  So submissions for new scripts to
-add here are unlikely to be accepted.  Suggested changes to the
-existing scripts here conceivably might, but that isn't clear either.
-The exception is pcl-cvs; that is more actively maintained (see
-pcl-cvs/README).  If you have some software that works with CVS that
-you wish to offer it is suggested that you make it available by FTP or
-HTTP and then announce it on the info-cvs mailing list.  There is also
-a web page of software related to CVS at
-http://www.loria.fr/~molli/cvs-index.html which would presumably be
-willing to list your software.
+"Unsupported" also means that no one has volunteered to accept and check
+in changes to this directory.  So submissions for new scripts to add
+here are unlikely to be accepted.  Suggested changes to the existing
+scripts here conceivably might, but that isn't clear either, unless of
+course they come from the original author of the script.
 
-Contents of this directory:
+If you have some software that works with CVS that you wish to offer it
+is suggested that you make it available by FTP or HTTP and then announce
+it on the info-cvs mailing list.
+
+There is a web page of software related to CVS at the following URL which
+would presumably be willing to list your software.
+
+	http://www.loria.fr/~molli/cvs-index.html
+
+An attempt at a table of Contents for this directory:
 
 	README		This file.
 	log		A perl script suitable for including in your
@@ -29,9 +33,6 @@ Contents of this directory:
 			changes.  Includes the RCS revision of the change
 			as part of the log.
 			Contributed by Kevin Samborn <samborn@sunrise.com>.
-	pcl-cvs		A directory that contains GNU Emacs lisp code which
-			implements a CVS-mode for emacs.
-			Contributed by Per Cederqvist <ceder@lysator.liu.se>.
 	commit_prep	A perl script, to be combined with log_accum.pl, to
 	log_accum	provide for a way to combine the individual log
 			messages of a multi-directory "commit" into a
@@ -104,3 +105,7 @@ Contents of this directory:
 			by hostname, then runs a subprocess whose input/output
 			is redirected through the port.
 			Contributed by Benjamin J. Lee <benjamin@cyclic.com>
+	cvs2vendor	A shell script to move changes from a repository
+			that was started without a vendor branch to one
+			that has a vendor branch.
+			Contributed by Greg A. Woods <woods@planix.com>

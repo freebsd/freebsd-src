@@ -11,12 +11,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-# $CVSid: @(#)Makefile.in 1.30 94/10/22 $
-
 SHELL = /bin/sh
 
 #### Start of system configuration section. ####
@@ -90,32 +84,34 @@ FLAGS_TO_PASS = \
 
 DISTFILES = \
 	COPYING COPYING.LIB INSTALL README TODO PROJECTS \
-	BUGS MINOR-BUGS FAQ HACKING \
+	BUGS MINOR-BUGS FAQ HACKING DEVEL-CVS TESTS \
+	README.VMS build.com \
 	ChangeLog NEWS ChangeLog.zoo \
 	configure configure.in stamp-h.in config.h.in Makefile.in acconfig.h \
 	cvs-format.el mkinstalldirs install-sh \
 	cvsnt.mak \
-	.cvsignore
+	.cvsignore cvs.spec
 
 ### Subdirectories to run make in for the primary targets.
 # Unix source subdirs, where we'll want to run lint and etags:
-USOURCE_SUBDIRS = lib src
+USOURCE_SUBDIRS = lib zlib src
 # All other subdirs:
-SUBDIRS = ${USOURCE_SUBDIRS} man doc contrib tools windows-NT os2 macintosh
-# Only make TAGS/tags files in these directories, in this order
-#    [Why in this order?  If we didn't have to stick to this order, we
-#    could make "TSUBDIRS = ${USOURCE_SUBDIRS}".  -Karl]
+SUBDIRS = ${USOURCE_SUBDIRS} man doc contrib tools \
+	windows-NT os2 macintosh vms
+# Only make TAGS/tags files in these directories.
 TSUBDIRS= src lib
 
 # Set default target.
 all:
 
-.PHONY: all install uninstall
-all install uninstall: config.h Makefile all-local
+.PHONY: all install uninstall installdirs
+all install uninstall installdirs: config.h Makefile all-local
 	@for subdir in $(SUBDIRS); do \
 	  echo "making $@ in $$subdir"; \
 	  ( cd $$subdir && $(MAKE) $(FLAGS_TO_PASS) $@ ) || exit 1; \
 	done
+
+installdirs: installdirs-local
 
 install: all install-local install-info
 
@@ -128,6 +124,10 @@ info dvi clean-info install-info:
 
 .PHONY: install-local
 install-local: all-local
+	@: nothing to do locally
+
+.PHONY: installdirs-local
+installdirs-local: all-local
 	@: nothing to do locally
 
 .PHONY: tags
@@ -187,16 +187,19 @@ saber:
 .PHONY: check
 check:
 	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd zlib ; $(MAKE) $(FLAGS_TO_PASS)
 	cd src ; $(MAKE) $(FLAGS_TO_PASS) check
 
 .PHONY: remotecheck
 remotecheck:
 	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd zlib ; $(MAKE) $(FLAGS_TO_PASS)
 	cd src ; $(MAKE) $(FLAGS_TO_PASS) remotecheck
 
 .PHONY: installcheck
 installcheck:
 	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd zlib ; $(MAKE) $(FLAGS_TO_PASS)
 	cd src ; $(MAKE) $(FLAGS_TO_PASS) installcheck
 
 .PHONY: lint
@@ -207,12 +210,7 @@ lint:
 GZIP=gzip --best
 GZIP_EXT=.gz
 TAR_VERBOSE=
-dist:
-	echo > .fname \
-	  cvs-`sed < $(srcdir)/src/version.c \
-		    -e '/version_string/!d' \
-		    -e 's/[^0-9.]*\([0-9.]*\).*/\1/' \
-		    -e q`
+dist: spec
 	rm -rf `cat .fname`
 	${MAKE} dist-dir DISTDIR="`cat .fname`"
 	for dir in ${SUBDIRS}; do \
@@ -222,7 +220,7 @@ dist:
 	  ); \
 	done
 	tar chf${TAR_VERBOSE} - `cat .fname` | ${GZIP} > "`cat .fname`.tar${GZIP_EXT}"
-	rm -rf `cat .fname` .fname
+	rm -rf `cat .fname` .fname .version
 
 .PHONY: dist-dir
 dist-dir:
@@ -231,12 +229,31 @@ dist-dir:
 	  ln $(srcdir)/$${i} ${DISTDIR}; \
 	done
 
+.PHONY: spec
+spec:
+	rm -f .version .fname
+	sed < $(srcdir)/src/version.c \
+	    -e '/version_string/!d' \
+	    -e 's/[^0-9.]*\([0-9.]*\).*/\1/' \
+	    -e q > .version
+	echo > .fname cvs-`cat .version`
+	rm -f `cat .fname`.spec
+	sed < $(top_srcdir)/cvs.spec \
+	    -e 's/@VERSION@/'`cat .version`'/' \
+	    > `cat .fname`.spec
+
+
 # For the justification of the following Makefile rules, see node
 # `Automatic Remaking' in GNU Autoconf documentation.
 Makefile: Makefile.in config.status
 	CONFIG_FILES=$@ CONFIG_HEADERS= ./config.status
+
+# Use @CFLAGS@ not $(CFLAGS) because it would be confusing for "make CFLAGS="
+# to sometimes (i.e., if configure is modified) change the configured CFLAGS,
+# and sometimes not.
 config.status: configure
-	./config.status --recheck
+	CFLAGS="@CFLAGS@" ./config.status --recheck
+
 # The rules to run autoconf and autoheader are commented out.  This is because
 # when the user unpacks a tarfile, configure.in might end up newer than 
 # configure, but the user might not have (and does not need to have) autoconf

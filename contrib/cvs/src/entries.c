@@ -16,8 +16,10 @@
 
 static Node *AddEntryNode PROTO((List * list, Entnode *entnode));
 
-static Entnode *fgetentent PROTO((FILE *));
+static Entnode *fgetentent PROTO((FILE *, char *, int *));
 static int   fputentent PROTO((FILE *, Entnode *));
+
+static Entnode *subdir_record PROTO((int, const char *, const char *));
 
 static FILE *entfile;
 static char *entfilename;		/* for error messages */
@@ -25,8 +27,14 @@ static char *entfilename;		/* for error messages */
 /*
  * Construct an Entnode
  */
-Entnode *
-Entnode_Create(user, vn, ts, options, tag, date, ts_conflict)
+static Entnode *Entnode_Create PROTO ((enum ent_type, const char *,
+				       const char *, const char *,
+				       const char *, const char *,
+				       const char *, const char *));
+
+static Entnode *
+Entnode_Create(type, user, vn, ts, options, tag, date, ts_conflict)
+    enum ent_type type;
     const char *user;
     const char *vn;
     const char *ts;
@@ -39,6 +47,7 @@ Entnode_Create(user, vn, ts, options, tag, date, ts_conflict)
     
     /* Note that timestamp and options must be non-NULL */
     ent = (Entnode *) xmalloc (sizeof (Entnode));
+    ent->type      = type;
     ent->user      = xstrdup (user);
     ent->version   = xstrdup (vn);
     ent->timestamp = xstrdup (ts ? ts : "");
@@ -53,7 +62,9 @@ Entnode_Create(user, vn, ts, options, tag, date, ts_conflict)
 /*
  * Destruct an Entnode
  */
-void
+static void Entnode_Destroy PROTO ((Entnode *));
+
+static void
 Entnode_Destroy (ent)
     Entnode *ent;
 {
@@ -79,7 +90,14 @@ write_ent_proc (node, closure)
      Node *node;
      void *closure;
 {
-    if (fputentent(entfile, (Entnode *) node->data))
+    Entnode *entnode;
+
+    entnode = (Entnode *) node->data;
+
+    if (closure != NULL && entnode->type != ENT_FILE)
+	*(int *) closure = 1;
+
+    if (fputentent(entfile, entnode))
 	error (1, errno, "cannot write %s", entfilename);
 
     return (0);
@@ -93,10 +111,26 @@ static void
 write_entries (list)
     List *list;
 {
+    int sawdir;
+
+    sawdir = 0;
+
     /* open the new one and walk the list writing entries */
     entfilename = CVSADM_ENTBAK;
     entfile = open_file (entfilename, "w+");
-    (void) walklist (list, write_ent_proc, NULL);
+    (void) walklist (list, write_ent_proc, (void *) &sawdir);
+    if (! sawdir)
+    {
+	struct stickydirtag *sdtp;
+
+	/* We didn't write out any directories.  Check the list
+           private data to see whether subdirectory information is
+           known.  If it is, we need to write out an empty D line.  */
+	sdtp = (struct stickydirtag *) list->list->data;
+	if (sdtp == NULL || sdtp->subdirs)
+	    if (fprintf (entfile, "D\n") < 0)
+		error (1, errno, "cannot write %s", entfilename);
+    }
     if (fclose (entfile) == EOF)
 	error (1, errno, "error closing %s", entfilename);
 
@@ -128,13 +162,26 @@ Scratch_Entry (list, fname)
     /* hashlookup to see if it is there */
     if ((node = findnode_fn (list, fname)) != NULL)
     {
+	if (!noexec)
+	{
+	    entfilename = CVSADM_ENTLOG;
+	    entfile = open_file (entfilename, "a");
+
+	    if (fprintf (entfile, "R ") < 0)
+		error (1, errno, "cannot write %s", entfilename);
+
+	    write_ent_proc (node, NULL);
+
+	    if (fclose (entfile) == EOF)
+		error (1, errno, "error closing %s", entfilename);
+	}
+
 	delnode (node);			/* delete the node */
+
 #ifdef SERVER_SUPPORT
 	if (server_active)
 	    server_scratch (fname);
 #endif
-	if (!noexec)
-	    write_entries (list);	/* re-write the file */
     }
 }
 
@@ -179,17 +226,22 @@ Register (list, fname, vn, ts, options, tag, date, ts_conflict)
 #endif
     }
 
-    entnode = Entnode_Create(fname, vn, ts, options, tag, date, ts_conflict);
+    entnode = Entnode_Create (ENT_FILE, fname, vn, ts, options, tag, date,
+			      ts_conflict);
     node = AddEntryNode (list, entnode);
 
     if (!noexec)
     {
-	entfile = open_file (CVSADM_ENTLOG, "a");
-	
+	entfilename = CVSADM_ENTLOG;
+	entfile = open_file (entfilename, "a");
+
+	if (fprintf (entfile, "A ") < 0)
+	    error (1, errno, "cannot write %s", entfilename);
+
 	write_ent_proc (node, NULL);
 
         if (fclose (entfile) == EOF)
-            error (1, errno, "error closing %s", CVSADM_ENTLOG);
+	    error (1, errno, "error closing %s", entfilename);
     }
 }
 
@@ -207,20 +259,21 @@ freesdt (p)
 	free (sdtp->tag);
     if (sdtp->date)
 	free (sdtp->date);
-    if (sdtp->options)
-	free (sdtp->options);
     free ((char *) sdtp);
 }
 
 static Entnode *
-fgetentent(fpin)
+fgetentent(fpin, cmd, sawdir)
     FILE *fpin;
+    char *cmd;
+    int *sawdir;
 {
     Entnode *ent;
     char *line;
     size_t line_chars_allocated;
     register char *cp;
-    char *user, *vn, *ts, *options;
+    enum ent_type type;
+    char *l, *user, *vn, *ts, *options;
     char *tag_or_date, *tag, *date, *ts_conflict;
 
     line = NULL;
@@ -229,10 +282,39 @@ fgetentent(fpin)
     ent = NULL;
     while (getline (&line, &line_chars_allocated, fpin) > 0)
     {
-	if (line[0] != '/')
+	l = line;
+
+	/* If CMD is not NULL, we are reading an Entries.Log file.
+	   Each line in the Entries.Log file starts with a single
+	   character command followed by a space.  For backward
+	   compatibility, the absence of a space indicates an add
+	   command.  */
+	if (cmd != NULL)
+	{
+	    if (l[1] != ' ')
+		*cmd = 'A';
+	    else
+	    {
+		*cmd = l[0];
+		l += 2;
+	    }
+	}
+
+	type = ENT_FILE;
+
+	if (l[0] == 'D')
+	{
+	    type = ENT_SUBDIR;
+	    *sawdir = 1;
+	    ++l;
+	    /* An empty D line is permitted; it is a signal that this
+	       Entries file lists all known subdirectories.  */
+	}
+
+	if (l[0] != '/')
 	    continue;
 
-	user = line + 1;
+	user = l + 1;
 	if ((cp = strchr (user, '/')) == NULL)
 	    continue;
 	*cp++ = '\0';
@@ -258,7 +340,7 @@ fgetentent(fpin)
 	    tag = tag_or_date + 1;
 	else if (*tag_or_date == 'D')
 	    date = tag_or_date + 1;
-	
+
 	if ((ts_conflict = strchr (ts, '+')))
 	    *ts_conflict++ = '\0';
 	    
@@ -274,7 +356,7 @@ fgetentent(fpin)
 	 */
 	{
 	    struct stat sb;
-	    if (strlen (ts) > 30 && stat (user, &sb) == 0)
+	    if (strlen (ts) > 30 && CVS_STAT (user, &sb) == 0)
 	    {
 		char *c = ctime (&sb.st_mtime);
 		
@@ -288,7 +370,8 @@ fgetentent(fpin)
 	    }
 	}
 
-	ent = Entnode_Create(user, vn, ts, options, tag, date, ts_conflict);
+	ent = Entnode_Create (type, user, vn, ts, options, tag, date,
+			      ts_conflict);
 	break;
     }
 
@@ -301,6 +384,16 @@ fputentent(fp, p)
     FILE *fp;
     Entnode *p;
 {
+    switch (p->type)
+    {
+    case ENT_FILE:
+        break;
+    case ENT_SUBDIR:
+        if (fprintf (fp, "D") < 0)
+	    return 1;
+	break;
+    }
+
     if (fprintf (fp, "/%s/%s/%s", p->user, p->version, p->timestamp) < 0)
 	return 1;
     if (p->conflict)
@@ -339,10 +432,13 @@ Entries_Open (aflag)
     int aflag;
 {
     List *entries;
+    struct stickydirtag *sdtp = NULL;
     Entnode *ent;
     char *dirtag, *dirdate;
+    int dirnonbranch;
     int do_rewrite = 0;
     FILE *fpin;
+    int sawdir;
 
     /* get a fresh list... */
     entries = getlist ();
@@ -351,28 +447,29 @@ Entries_Open (aflag)
      * Parse the CVS/Tag file, to get any default tag/date settings. Use
      * list-private storage to tuck them away for Version_TS().
      */
-    ParseTag (&dirtag, &dirdate);
+    ParseTag (&dirtag, &dirdate, &dirnonbranch);
     if (aflag || dirtag || dirdate)
     {
-	struct stickydirtag *sdtp;
-
 	sdtp = (struct stickydirtag *) xmalloc (sizeof (*sdtp));
 	memset ((char *) sdtp, 0, sizeof (*sdtp));
 	sdtp->aflag = aflag;
 	sdtp->tag = xstrdup (dirtag);
 	sdtp->date = xstrdup (dirdate);
+	sdtp->nonbranch = dirnonbranch;
 
 	/* feed it into the list-private area */
 	entries->list->data = (char *) sdtp;
 	entries->list->delproc = freesdt;
     }
 
-    fpin = fopen (CVSADM_ENT, "r");
+    sawdir = 0;
+
+    fpin = CVS_FOPEN (CVSADM_ENT, "r");
     if (fpin == NULL)
 	error (0, errno, "cannot open %s for reading", CVSADM_ENT);
     else
     {
-	while ((ent = fgetentent (fpin)) != NULL) 
+	while ((ent = fgetentent (fpin, (char *) NULL, &sawdir)) != NULL) 
 	{
 	    (void) AddEntryNode (entries, ent);
 	}
@@ -380,15 +477,46 @@ Entries_Open (aflag)
 	fclose (fpin);
     }
 
-    fpin = fopen (CVSADM_ENTLOG, "r");
+    fpin = CVS_FOPEN (CVSADM_ENTLOG, "r");
     if (fpin != NULL) 
     {
-	while ((ent = fgetentent (fpin)) != NULL) 
+	char cmd;
+	Node *node;
+
+	while ((ent = fgetentent (fpin, &cmd, &sawdir)) != NULL)
 	{
-	    (void) AddEntryNode (entries, ent);
+	    switch (cmd)
+	    {
+	    case 'A':
+		(void) AddEntryNode (entries, ent);
+		break;
+	    case 'R':
+		node = findnode_fn (entries, ent->user);
+		if (node != NULL)
+		    delnode (node);
+		Entnode_Destroy (ent);
+		break;
+	    default:
+		/* Ignore unrecognized commands.  */
+	        break;
+	    }
 	}
 	do_rewrite = 1;
 	fclose (fpin);
+    }
+
+    /* Update the list private data to indicate whether subdirectory
+       information is known.  Nonexistent list private data is taken
+       to mean that it is known.  */
+    if (sdtp != NULL)
+	sdtp->subdirs = sawdir;
+    else if (! sawdir)
+    {
+	sdtp = (struct stickydirtag *) xmalloc (sizeof (*sdtp));
+	memset ((char *) sdtp, 0, sizeof (*sdtp));
+	sdtp->subdirs = 0;
+	entries->list->data = (char *) sdtp;
+	entries->list->delproc = freesdt;
     }
 
     if (do_rewrite && !noexec)
@@ -471,17 +599,23 @@ AddEntryNode (list, entdata)
  * Write out/Clear the CVS/Tag file.
  */
 void
-WriteTag (dir, tag, date)
+WriteTag (dir, tag, date, nonbranch, update_dir, repository)
     char *dir;
     char *tag;
     char *date;
+    int nonbranch;
+    char *update_dir;
+    char *repository;
 {
     FILE *fout;
-    char tmp[PATH_MAX];
+    char *tmp;
 
     if (noexec)
 	return;
 
+    tmp = xmalloc ((dir ? strlen (dir) : 0)
+		   + sizeof (CVSADM_TAG)
+		   + 10);
     if (dir == NULL)
 	(void) strcpy (tmp, CVSADM_TAG);
     else
@@ -492,8 +626,16 @@ WriteTag (dir, tag, date)
 	fout = open_file (tmp, "w+");
 	if (tag)
 	{
-	    if (fprintf (fout, "T%s\n", tag) < 0)
-		error (1, errno, "write to %s failed", tmp);
+	    if (nonbranch)
+	    {
+		if (fprintf (fout, "N%s\n", tag) < 0)
+		    error (1, errno, "write to %s failed", tmp);
+	    }
+	    else
+	    {
+		if (fprintf (fout, "T%s\n", tag) < 0)
+		    error (1, errno, "write to %s failed", tmp);
+	    }
 	}
 	else
 	{
@@ -506,15 +648,32 @@ WriteTag (dir, tag, date)
     else
 	if (unlink_file (tmp) < 0 && ! existence_error (errno))
 	    error (1, errno, "cannot remove %s", tmp);
+    free (tmp);
+#ifdef SERVER_SUPPORT
+    if (server_active)
+	server_set_sticky (update_dir, repository, tag, date, nonbranch);
+#endif
 }
 
-/*
- * Parse the CVS/Tag file for the current directory.
- */
+/* Parse the CVS/Tag file for the current directory.
+
+   If it contains a date, sets *DATEP to the date in a newly malloc'd
+   string, *TAGP to NULL, and *NONBRANCHP to an unspecified value.
+
+   If it contains a branch tag, sets *TAGP to the tag in a newly
+   malloc'd string, *NONBRANCHP to 0, and *DATEP to NULL.
+
+   If it contains a nonbranch tag, sets *TAGP to the tag in a newly
+   malloc'd string, *NONBRANCHP to 1, and *DATEP to NULL.
+
+   If it does not exist, or contains something unrecognized by this
+   version of CVS, set *DATEP and *TAGP to NULL and *NONBRANCHP to
+   an unspecified value.  */
 void
-ParseTag (tagp, datep)
+ParseTag (tagp, datep, nonbranchp)
     char **tagp;
     char **datep;
+    int *nonbranchp;
 {
     FILE *fp;
 
@@ -522,7 +681,12 @@ ParseTag (tagp, datep)
 	*tagp = (char *) NULL;
     if (datep)
 	*datep = (char *) NULL;
-    fp = fopen (CVSADM_TAG, "r");
+    /* Always store a value here, even in the 'D' case where the value
+       is unspecified.  Shuts up tools which check for references to
+       uninitialized memory.  */
+    if (nonbranchp != NULL)
+	*nonbranchp = 0;
+    fp = CVS_FOPEN (CVSADM_TAG, "r");
     if (fp)
     {
 	char *line;
@@ -531,18 +695,195 @@ ParseTag (tagp, datep)
 
 	line = NULL;
 	line_chars_allocated = 0;
-	  
+
 	if ((line_length = getline (&line, &line_chars_allocated, fp)) > 0)
 	{
 	    /* Remove any trailing newline.  */
 	    if (line[line_length - 1] == '\n')
 	        line[--line_length] = '\0';
-	    if (*line == 'T' && tagp)
-		*tagp = xstrdup (line + 1);
-	    else if (*line == 'D' && datep)
-		*datep = xstrdup (line + 1);
+	    switch (*line)
+	    {
+		case 'T':
+		    if (tagp != NULL)
+			*tagp = xstrdup (line + 1);
+		    break;
+		case 'D':
+		    if (datep != NULL)
+			*datep = xstrdup (line + 1);
+		    break;
+		case 'N':
+		    if (tagp != NULL)
+			*tagp = xstrdup (line + 1);
+		    if (nonbranchp != NULL)
+			*nonbranchp = 1;
+		    break;
+		default:
+		    /* Silently ignore it; it may have been
+		       written by a future version of CVS which extends the
+		       syntax.  */
+		    break;
+	    }
 	}
 	(void) fclose (fp);
 	free (line);
+    }
+}
+
+/*
+ * This is called if all subdirectory information is known, but there
+ * aren't any subdirectories.  It records that fact in the list
+ * private data.
+ */
+
+void
+Subdirs_Known (entries)
+     List *entries;
+{
+    struct stickydirtag *sdtp;
+
+    /* If there is no list private data, that means that the
+       subdirectory information is known.  */
+    sdtp = (struct stickydirtag *) entries->list->data;
+    if (sdtp != NULL && ! sdtp->subdirs)
+    {
+	FILE *fp;
+
+	sdtp->subdirs = 1;
+	if (!noexec)
+	{
+	    /* Create Entries.Log so that Entries_Close will do something.  */
+	    fp = open_file (CVSADM_ENTLOG, "a");
+	    if (fclose (fp) == EOF)
+		error (1, errno, "cannot close %s", CVSADM_ENTLOG);
+	}
+    }
+}
+
+/* Record subdirectory information.  */
+
+static Entnode *
+subdir_record (cmd, parent, dir)
+     int cmd;
+     const char *parent;
+     const char *dir;
+{
+    Entnode *entnode;
+
+    /* None of the information associated with a directory is
+       currently meaningful.  */
+    entnode = Entnode_Create (ENT_SUBDIR, dir, "", "", "",
+			      (char *) NULL, (char *) NULL,
+			      (char *) NULL);
+
+    if (!noexec)
+    {
+	if (parent == NULL)
+	    entfilename = CVSADM_ENTLOG;
+	else
+	{
+	    entfilename = xmalloc (strlen (parent)
+				   + sizeof CVSADM_ENTLOG
+				   + 10);
+	    sprintf (entfilename, "%s/%s", parent, CVSADM_ENTLOG);
+	}
+
+	entfile = CVS_FOPEN (entfilename, "a");
+	if (entfile == NULL)
+	{
+	    int save_errno = errno;
+
+	    /* It is not an error if there is no CVS administration
+               directory.  Permitting this case simplifies some
+               calling code.  */
+
+	    if (parent == NULL)
+	    {
+		if (! isdir (CVSADM))
+		    return entnode;
+	    }
+	    else
+	    {
+		sprintf (entfilename, "%s/%s", parent, CVSADM);
+		if (! isdir (entfilename))
+		{
+		    free (entfilename);
+		    entfilename = NULL;
+		    return entnode;
+		}
+	    }
+
+	    error (1, save_errno, "cannot open %s", entfilename);
+	}
+
+	if (fprintf (entfile, "%c ", cmd) < 0)
+	    error (1, errno, "cannot write %s", entfilename);
+
+	if (fputentent (entfile, entnode) != 0)
+	    error (1, errno, "cannot write %s", entfilename);
+
+	if (fclose (entfile) == EOF)
+	    error (1, errno, "error closing %s", entfilename);
+
+	if (parent != NULL)
+	{
+	    free (entfilename);
+	    entfilename = NULL;
+	}
+    }
+
+    return entnode;
+}
+
+/*
+ * Record the addition of a new subdirectory DIR in PARENT.  PARENT
+ * may be NULL, which means the current directory.  ENTRIES is the
+ * current entries list; it may be NULL, which means that it need not
+ * be updated.
+ */
+
+void
+Subdir_Register (entries, parent, dir)
+     List *entries;
+     const char *parent;
+     const char *dir;
+{
+    Entnode *entnode;
+
+    /* Ignore attempts to register ".".  These can happen in the
+       server code.  */
+    if (dir[0] == '.' && dir[1] == '\0')
+	return;
+
+    entnode = subdir_record ('A', parent, dir);
+
+    if (entries != NULL && (parent == NULL || strcmp (parent, ".") == 0))
+	(void) AddEntryNode (entries, entnode);
+    else
+	Entnode_Destroy (entnode);
+}
+
+/*
+ * Record the removal of a subdirectory.  The arguments are the same
+ * as for Subdir_Register.
+ */
+
+void
+Subdir_Deregister (entries, parent, dir)
+     List *entries;
+     const char *parent;
+     const char *dir;
+{
+    Entnode *entnode;
+
+    entnode = subdir_record ('R', parent, dir);
+    Entnode_Destroy (entnode);
+
+    if (entries != NULL && (parent == NULL || strcmp (parent, ".") == 0))
+    {
+	Node *p;
+
+	p = findnode_fn (entries, dir);
+	if (p != NULL)
+	    delnode (p);
     }
 }

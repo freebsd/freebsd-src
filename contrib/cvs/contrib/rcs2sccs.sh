@@ -1,8 +1,6 @@
 #! /bin/sh
 #
 #
-# OrigId: rcs2sccs,v 1.12 90/10/04 20:52:23 kenc Exp Locker: kenc
-# $Id: rcs2sccs.sh,v 1.1 1995/07/10 02:26:45 kfogel Exp $
 
 ############################################################
 # Error checking

@@ -7,13 +7,14 @@
 
 #include "cvs.h"
 #include "savecwd.h"
+#include "getline.h"
 
 #ifndef DBLKSIZ
 #define	DBLKSIZ	4096			/* since GNU ndbm doesn't define it */
 #endif
 
 static int checkout_file PROTO((char *file, char *temp));
-static void make_tempfile PROTO((char *temp));
+static char *make_tempfile PROTO((void));
 static void rename_rcsfile PROTO((char *temp, char *real));
 
 #ifndef MY_NDBM
@@ -28,38 +29,50 @@ struct admin_file {
 
    /* This is a one line description of what the file is for.  It is not
       currently used, although one wonders whether it should be, somehow.
-      If NULL, then don't process this file in mkmodules (FIXME: a bit of
+      If NULL, then don't process this file in mkmodules (FIXME?: a bit of
       a kludge; probably should replace this with a flags field).  */
    char *errormsg;
 
    /* Contents which the file should have in a new repository.  To avoid
       problems with brain-dead compilers which choke on long string constants,
       this is a pointer to an array of char * terminated by NULL--each of
-      the strings is concatenated.  */
+      the strings is concatenated.
+
+      If this field is NULL, the file is not created in a new
+      repository, but it can be added with "cvs add" (just as if one
+      had created the repository with a version of CVS which didn't
+      know about the file) and the checked-out copy will be updated
+      without having to add it to checkoutlist.  */
    const char * const *contents;
 };
 
 static const char *const loginfo_contents[] = {
-    "# The \"loginfo\" file is used to control where \"cvs commit\" log information\n",
-    "# is sent.  The first entry on a line is a regular expression which is tested\n",
-    "# against the directory that the change is being made to, relative to the\n",
-    "# $CVSROOT.  For the first match that is found, then the remainder of the\n",
-    "# line is a filter program that should expect log information on its standard\n",
-    "# input.\n",
+    "# The \"loginfo\" file controls where \"cvs commit\" log information\n",
+    "# is sent.  The first entry on a line is a regular expression which must match\n",
+    "# the directory that the change is being made to, relative to the\n",
+    "# $CVSROOT.  If a match is found, then the remainder of the line is a filter\n",
+    "# program that should expect log information on its standard input.\n",
     "#\n",
-    "# If the repository name does not match any of the regular expressions in the\n",
-    "# first field of this file, the \"DEFAULT\" line is used, if it is specified.\n",
+    "# If the repository name does not match any of the regular expressions in this\n",
+    "# file, the \"DEFAULT\" line is used, if it is specified.\n",
     "#\n",
-    "# If the name \"ALL\" appears as a regular expression it is always used\n",
-    "# in addition to the first matching regex or \"DEFAULT\".\n",
+    "# If the name ALL appears as a regular expression it is always used\n",
+    "# in addition to the first matching regex or DEFAULT.\n",
     "#\n",
-    "# The filter program may use one and only one \"%s\" modifier (ala printf).  If\n",
-    "# such a \"%s\" is specified in the filter program, a brief title is included\n",
-    "# (as one argument, enclosed in single quotes) showing the relative directory\n",
-    "# name and listing the modified file names.\n",
+    "# You may specify a format string as part of the\n",
+    "# filter.  The string is composed of a `%' followed\n",
+    "# by a single format character, or followed by a set of format\n",
+    "# characters surrounded by `{' and `}' as separators.  The format\n",
+    "# characters are:\n",
+    "#\n",
+    "#   s = file name\n",
+    "#   V = old version number (pre-checkin)\n",
+    "#   v = new version number (post-checkin)\n",
     "#\n",
     "# For example:\n",
-    "#DEFAULT		(echo \"\"; who am i; date; cat) >> $CVSROOT/CVSROOT/commitlog\n",
+    "#DEFAULT (echo \"\"; id; echo %s; date; cat) >> $CVSROOT/CVSROOT/commitlog\n",
+    "# or\n",
+    "#DEFAULT (echo \"\"; id; echo %{sVv}; date; cat) >> $CVSROOT/CVSROOT/commitlog\n",
     NULL
 };
 
@@ -99,8 +112,33 @@ static const char *const editinfo_contents[] = {
     "# Actions such as mailing a copy of the report to each reviewer are\n",
     "# better handled by an entry in the loginfo file.\n",
     "#\n",
-    "# One thing that should be noted  is the the ALL keyword is not\n",
-    "# supported. There can be only one entry that matches a given\n",
+    "# One thing that should be noted is the the ALL keyword is not\n",
+    "# supported.  There can be only one entry that matches a given\n",
+    "# repository.\n",
+    NULL
+};
+
+static const char *const verifymsg_contents[] = {
+    "# The \"verifymsg\" file is used to allow verification of logging\n",
+    "# information.  It works best when a template (as specified in the\n",
+    "# rcsinfo file) is provided for the logging procedure.  Given a\n",
+    "# template with locations for, a bug-id number, a list of people who\n",
+    "# reviewed the code before it can be checked in, and an external\n",
+    "# process to catalog the differences that were code reviewed, the\n",
+    "# following test can be applied to the code:\n",
+    "#\n",
+    "#   Making sure that the entered bug-id number is correct.\n",
+    "#   Validating that the code that was reviewed is indeed the code being\n",
+    "#       checked in (using the bug-id number or a seperate review\n",
+    "#       number to identify this particular code set.).\n",
+    "#\n",
+    "# If any of the above test failed, then the commit would be aborted.\n",
+    "#\n",
+    "# Actions such as mailing a copy of the report to each reviewer are\n",
+    "# better handled by an entry in the loginfo file.\n",
+    "#\n",
+    "# One thing that should be noted is the the ALL keyword is not\n",
+    "# supported.  There can be only one entry that matches a given\n",
     "# repository.\n",
     NULL
 };
@@ -222,6 +260,9 @@ static const char *const modules_contents[] = {
     "#	-d dir		Place module in directory \"dir\" instead of module name.\n",
     "#	-l		Top-level directory only -- do not recurse.\n",
     "#\n",
+    "# NOTE:  If you change any of the \"Run\" options above, you'll have to\n",
+    "# release and re-checkout any working directories of these modules.\n",
+    "#\n",
     "# And \"directory\" is a path to a directory relative to $CVSROOT.\n",
     "#\n",
     "# The \"-a\" option specifies an alias.  An alias is interpreted as if\n",
@@ -244,6 +285,9 @@ static const struct admin_file filelist[] = {
     {CVSROOTADM_EDITINFO,
 	"a %s file can be used to validate log messages",
 	editinfo_contents},
+    {CVSROOTADM_VERIFYMSG,
+	"a %s file can be used to validate log messages",
+	verifymsg_contents},
     {CVSROOTADM_COMMITINFO,
 	"a %s file can be used to configure 'cvs commit' checking",
 	commitinfo_contents},
@@ -266,6 +310,20 @@ static const struct admin_file filelist[] = {
 	/* modules is special-cased in mkmodules.  */
 	NULL,
 	modules_contents},
+    {CVSROOTADM_READERS,
+	"a %s file specifies read-only users",
+	NULL},
+    {CVSROOTADM_WRITERS,
+	"a %s file specifies read/write users",
+	NULL},
+    /* Some have suggested listing CVSROOTADM_PASSWD here too.  The
+       security implications of transmitting hashed passwords over the
+       net are no worse than transmitting cleartext passwords which pserver
+       does, so this isn't a problem.  But I'm worried about the implications
+       of storing old passwords--if someone used a password in the past
+       they might be using it elsewhere, using a similar password, etc,
+       and so it doesn't seem to me like we should be saving old passwords,
+       even hashed.  */
     {NULL, NULL}
 };
 
@@ -275,27 +333,26 @@ mkmodules (dir)
     char *dir;
 {
     struct saved_cwd cwd;
-    /* FIXME: arbitrary limit */
-    char temp[PATH_MAX];
+    char *temp;
     char *cp, *last, *fname;
 #ifdef MY_NDBM
     DBM *db;
 #endif
     FILE *fp;
-    /* FIXME: arbitrary limit */
-    char line[512];
+    char *line = NULL;
+    size_t line_allocated = 0;
     const struct admin_file *fileptr;
 
     if (save_cwd (&cwd))
-	exit (EXIT_FAILURE);
+	error_exit ();
 
-    if (chdir (dir) < 0)
+    if ( CVS_CHDIR (dir) < 0)
 	error (1, errno, "cannot chdir to %s", dir);
 
     /*
      * First, do the work necessary to update the "modules" database.
      */
-    make_tempfile (temp);
+    temp = make_tempfile ();
     switch (checkout_file (CVSROOTADM_MODULES, temp))
     {
 
@@ -313,7 +370,7 @@ mkmodules (dir)
 
 	case -1:			/* fork failed */
 	    (void) unlink_file (temp);
-	    exit (EXIT_FAILURE);
+	    error (1, errno, "cannot check out %s", CVSROOTADM_MODULES);
 	    /* NOTREACHED */
 
 	default:
@@ -324,12 +381,13 @@ mkmodules (dir)
     }					/* switch on checkout_file() */
 
     (void) unlink_file (temp);
+    free (temp);
 
     /* Checkout the files that need it in CVSROOT dir */
     for (fileptr = filelist; fileptr && fileptr->filename; fileptr++) {
 	if (fileptr->errormsg == NULL)
 	    continue;
-	make_tempfile (temp);
+	temp = make_tempfile ();
 	if (checkout_file (fileptr->filename, temp) == 0)
 	    rename_rcsfile (temp, fileptr->filename);
 #if 0
@@ -344,10 +402,10 @@ mkmodules (dir)
 	    error (0, 0, fileptr->errormsg, fileptr->filename);
 #endif
 	(void) unlink_file (temp);
+	free (temp);
     }
 
-    /* Use 'fopen' instead of 'open_file' because we want to ignore error */
-    fp = fopen (CVSROOTADM_CHECKOUTLIST, "r");
+    fp = CVS_FOPEN (CVSROOTADM_CHECKOUTLIST, "r");
     if (fp)
     {
 	/*
@@ -356,7 +414,7 @@ mkmodules (dir)
 	 *
 	 * comment lines begin with '#'
 	 */
-	while (fgets (line, sizeof (line), fp) != NULL)
+	while (getline (&line, &line_allocated, fp) >= 0)
 	{
 	    /* skip lines starting with # */
 	    if (line[0] == '#')
@@ -374,7 +432,7 @@ mkmodules (dir)
 		;
 	    *cp = '\0';
 
-	    make_tempfile (temp);
+	    temp = make_tempfile ();
 	    if (checkout_file (fname, temp) == 0)
 	    {
 		rename_rcsfile (temp, fname);
@@ -386,12 +444,24 @@ mkmodules (dir)
 		if (cp < last && *cp)
 		    error (0, 0, cp, fname);
 	    }
+	    free (temp);
 	}
-	(void) fclose (fp);
+	if (line)
+	    free (line);
+	if (ferror (fp))
+	    error (0, errno, "cannot read %s", CVSROOTADM_CHECKOUTLIST);
+	if (fclose (fp) < 0)
+	    error (0, errno, "cannot close %s", CVSROOTADM_CHECKOUTLIST);
+    }
+    else
+    {
+	/* Error from CVS_FOPEN.  */
+	if (!existence_error (errno))
+	    error (0, errno, "cannot open %s", CVSROOTADM_CHECKOUTLIST);
     }
 
     if (restore_cwd (&cwd, NULL))
-	exit (EXIT_FAILURE);
+	error_exit ();
     free_cwd (&cwd);
 
     return (0);
@@ -400,25 +470,27 @@ mkmodules (dir)
 /*
  * Yeah, I know, there are NFS race conditions here.
  */
-static void
-make_tempfile (temp)
-    char *temp;
+static char *
+make_tempfile ()
 {
     static int seed = 0;
     int fd;
+    char *temp;
 
     if (seed == 0)
 	seed = getpid ();
+    temp = xmalloc (sizeof (BAKPREFIX) + 40);
     while (1)
     {
 	(void) sprintf (temp, "%s%d", BAKPREFIX, seed++);
-	if ((fd = open (temp, O_CREAT|O_EXCL|O_RDWR, 0666)) != -1)
+	if ((fd = CVS_OPEN (temp, O_CREAT|O_EXCL|O_RDWR, 0666)) != -1)
 	    break;
 	if (errno != EEXIST)
 	    error (1, errno, "cannot create temporary file %s", temp);
     }
     if (close(fd) < 0)
 	error(1, errno, "cannot close temporary file %s", temp);
+    return temp;
 }
 
 static int
@@ -426,18 +498,31 @@ checkout_file (file, temp)
     char *file;
     char *temp;
 {
-    char rcs[PATH_MAX];
+    char *rcs;
+    RCSNode *rcsnode;
     int retcode = 0;
 
-    (void) sprintf (rcs, "%s%s", file, RCSEXT);
+    if (noexec)
+	return 0;
+
+    rcs = xmalloc (strlen (file) + 5);
+    strcpy (rcs, file);
+    strcat (rcs, RCSEXT);
     if (!isfile (rcs))
-	return (1);
-    run_setup ("%s%s -x,v/ -q -p", Rcsbin, RCS_CO);
-    run_arg (rcs);
-    if ((retcode = run_exec (RUN_TTY, temp, RUN_TTY, RUN_NORMAL)) != 0)
     {
-	error (0, retcode == -1 ? errno : 0, "failed to check out %s file", file);
+	free (rcs);
+	return (1);
     }
+    rcsnode = RCS_parsercsfile (rcs);
+    retcode = RCS_checkout (rcsnode, NULL, NULL, NULL, NULL, temp,
+			    (RCSCHECKOUTPROC) NULL, (void *) NULL);
+    if (retcode != 0)
+    {
+	error (0, retcode == -1 ? errno : 0, "failed to check out %s file",
+	       file);
+    }
+    freercsnode (&rcsnode);
+    free (rcs);
     return (retcode);
 }
 
@@ -568,12 +653,12 @@ rename_dbmfile (temp)
     (void) unlink_file (bakdir);	/* rm .#modules.dir .#modules.pag */
     (void) unlink_file (bakpag);
     (void) unlink_file (bakdb);
-    (void) rename (dotdir, bakdir);	/* mv modules.dir .#modules.dir */
-    (void) rename (dotpag, bakpag);	/* mv modules.pag .#modules.pag */
-    (void) rename (dotdb, bakdb);	/* mv modules.db .#modules.db */
-    (void) rename (newdir, dotdir);	/* mv "temp".dir modules.dir */
-    (void) rename (newpag, dotpag);	/* mv "temp".pag modules.pag */
-    (void) rename (newdb, dotdb);	/* mv "temp".db modules.db */
+    (void) CVS_RENAME (dotdir, bakdir);	/* mv modules.dir .#modules.dir */
+    (void) CVS_RENAME (dotpag, bakpag);	/* mv modules.pag .#modules.pag */
+    (void) CVS_RENAME (dotdb, bakdb);	/* mv modules.db .#modules.db */
+    (void) CVS_RENAME (newdir, dotdir);	/* mv "temp".dir modules.dir */
+    (void) CVS_RENAME (newpag, dotpag);	/* mv "temp".pag modules.pag */
+    (void) CVS_RENAME (newdb, dotdb);	/* mv "temp".db modules.db */
 
     /* OK -- make my day */
     SIG_endCrSect ();
@@ -586,47 +671,31 @@ rename_rcsfile (temp, real)
     char *temp;
     char *real;
 {
-    char bak[50];
+    char *bak;
     struct stat statbuf;
-    char rcs[PATH_MAX];
-    
+    char *rcs;
+
     /* Set "x" bits if set in original. */
+    rcs = xmalloc (strlen (real) + sizeof (RCSEXT) + 10);
     (void) sprintf (rcs, "%s%s", real, RCSEXT);
     statbuf.st_mode = 0; /* in case rcs file doesn't exist, but it should... */
-    (void) stat (rcs, &statbuf);
+    (void) CVS_STAT (rcs, &statbuf);
+    free (rcs);
 
     if (chmod (temp, 0444 | (statbuf.st_mode & 0111)) < 0)
 	error (0, errno, "warning: cannot chmod %s", temp);
+    bak = xmalloc (strlen (real) + sizeof (BAKPREFIX) + 10);
     (void) sprintf (bak, "%s%s", BAKPREFIX, real);
     (void) unlink_file (bak);		/* rm .#loginfo */
-    (void) rename (real, bak);		/* mv loginfo .#loginfo */
-    (void) rename (temp, real);		/* mv "temp" loginfo */
+    (void) CVS_RENAME (real, bak);		/* mv loginfo .#loginfo */
+    (void) CVS_RENAME (temp, real);		/* mv "temp" loginfo */
+    free (bak);
 }
 
 const char *const init_usage[] = {
     "Usage: %s %s\n",
     NULL
 };
-
-/* Create directory NAME if it does not already exist; fatal error for
-   other errors.  FIXME: This should be in filesubr.c or thereabouts,
-   probably.  Perhaps it should be further abstracted, though (for example
-   to handle CVSUMASK where appropriate?).  */
-static void
-mkdir_if_needed (name)
-    char *name;
-{
-    if (CVS_MKDIR (name, 0777) < 0)
-    {
-	if (errno != EEXIST
-#ifdef EACCESS
-	    /* OS/2; see longer comment in client.c.  */
-	    && errno != EACCESS
-#endif
-	    )
-	    error (1, errno, "cannot mkdir %s", name);
-    }
-}
 
 int
 init (argc, argv)
@@ -644,9 +713,10 @@ init (argc, argv)
 
     umask (cvsumask);
 
-    if (argc > 1)
+    if (argc == -1 || argc > 1)
 	usage (init_usage);
 
+#ifdef CLIENT_SUPPORT
     if (client_active)
     {
 	start_server ();
@@ -655,21 +725,22 @@ init (argc, argv)
 	send_init_command ();
 	return get_responses_and_close ();
     }
+#endif /* CLIENT_SUPPORT */
 
     /* Note: we do *not* create parent directories as needed like the
        old cvsinit.sh script did.  Few utilities do that, and a
        non-existent parent directory is as likely to be a typo as something
        which needs to be created.  */
-    mkdir_if_needed (CVSroot);
+    mkdir_if_needed (CVSroot_directory);
 
-    adm = xmalloc (strlen (CVSroot) + sizeof (CVSROOTADM) + 10);
-    strcpy (adm, CVSroot);
+    adm = xmalloc (strlen (CVSroot_directory) + sizeof (CVSROOTADM) + 10);
+    strcpy (adm, CVSroot_directory);
     strcat (adm, "/");
     strcat (adm, CVSROOTADM);
     mkdir_if_needed (adm);
 
     /* This is needed by the call to "ci" below.  */
-    if (chdir (adm) < 0)
+    if ( CVS_CHDIR (adm) < 0)
 	error (1, errno, "cannot change to directory %s", adm);
 
     /* 80 is long enough for all the administrative file names, plus

@@ -8,11 +8,7 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 #include "cvs.h"
 #include "edit.h"
@@ -21,10 +17,11 @@
 
 const char *const watch_usage[] =
 {
-    "Usage: %s %s [on|off|add|remove] [-l] [-a action] [files...]\n",
+    "Usage: %s %s [on|off|add|remove] [-lR] [-a action] [files...]\n",
     "on/off: turn on/off read-only checkouts of files\n",
     "add/remove: add or remove notification on actions\n",
     "-l (on/off/add/remove): Local directory only, not recursive\n",
+    "-R (on/off/add/remove): Process directories recursively\n",
     "-a (add/remove): Specify what actions, one of\n",
     "    edit,unedit,commit,all,none\n",
     NULL
@@ -215,23 +212,28 @@ watch_modify_watchers (file, what)
 	free (mynewattr);
 }
 
-static int addremove_fileproc PROTO ((struct file_info *finfo));
+static int addremove_fileproc PROTO ((void *callerdat,
+				      struct file_info *finfo));
 
 static int
-addremove_fileproc (finfo)
+addremove_fileproc (callerdat, finfo)
+    void *callerdat;
     struct file_info *finfo;
 {
     watch_modify_watchers (finfo->file, &the_args);
     return 0;
 }
 
-static int addremove_filesdoneproc PROTO ((int, char *, char *));
+static int addremove_filesdoneproc PROTO ((void *, int, char *, char *,
+					   List *));
 
 static int
-addremove_filesdoneproc (err, repository, update_dir)
+addremove_filesdoneproc (callerdat, err, repository, update_dir, entries)
+    void *callerdat;
     int err;
     char *repository;
     char *update_dir;
+    List *entries;
 {
     if (the_args.setting_default)
 	watch_modify_watchers (NULL, &the_args);
@@ -255,12 +257,15 @@ watch_addremove (argc, argv)
     the_args.edit = 0;
     the_args.unedit = 0;
     optind = 1;
-    while ((c = getopt (argc, argv, "la:")) != -1)
+    while ((c = getopt (argc, argv, "+lRa:")) != -1)
     {
 	switch (c)
 	{
 	    case 'l':
 		local = 1;
+		break;
+	    case 'R':
+		local = 0;
 		break;
 	    case 'a':
 		a_omitted = 0;
@@ -332,10 +337,7 @@ watch_addremove (argc, argv)
 	    send_arg ("none");
 	}
 	send_file_names (argc, argv, SEND_EXPAND_WILD);
-	/* FIXME:  We shouldn't have to send current files, but I'm not sure
-	   whether it works.  So send the files --
-	   it's slower but it works.  */
-	send_files (argc, argv, local, 0);
+	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
 	send_to_server (the_args.adding ?
                         "watch-add\012" : "watch-remove\012",
                         0);
@@ -348,11 +350,11 @@ watch_addremove (argc, argv)
     lock_tree_for_write (argc, argv, local, 0);
 
     err = start_recursion (addremove_fileproc, addremove_filesdoneproc,
-			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL,
+			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			   argc, argv, local, W_LOCAL, 0, 0, (char *)NULL,
-			   1, 0);
+			   1);
 
-    lock_tree_cleanup ();
+    Lock_Cleanup ();
     return err;
 }
 
@@ -412,14 +414,18 @@ watch (argc, argv)
 
 static const char *const watchers_usage[] =
 {
-    "Usage: %s %s [files...]\n",
+    "Usage: %s %s [-lR] [files...]\n",
+    "\t-l\tProcess this directory only (not recursive).\n",
+    "\t-R\tProcess directories recursively.\n",
     NULL
 };
 
-static int watchers_fileproc PROTO ((struct file_info *finfo));
+static int watchers_fileproc PROTO ((void *callerdat,
+				     struct file_info *finfo));
 
 static int
-watchers_fileproc (finfo)
+watchers_fileproc (callerdat, finfo)
+    void *callerdat;
     struct file_info *finfo;
 {
     char *them;
@@ -480,12 +486,15 @@ watchers (argc, argv)
 	usage (watchers_usage);
 
     optind = 1;
-    while ((c = getopt (argc, argv, "l")) != -1)
+    while ((c = getopt (argc, argv, "+lR")) != -1)
     {
 	switch (c)
 	{
 	    case 'l':
 		local = 1;
+		break;
+	    case 'R':
+		local = 0;
 		break;
 	    case '?':
 	    default:
@@ -505,17 +514,14 @@ watchers (argc, argv)
 	if (local)
 	    send_arg ("-l");
 	send_file_names (argc, argv, SEND_EXPAND_WILD);
-	/* FIXME:  We shouldn't have to send current files, but I'm not sure
-	   whether it works.  So send the files --
-	   it's slower but it works.  */
-	send_files (argc, argv, local, 0);
+	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
 	send_to_server ("watchers\012", 0);
 	return get_responses_and_close ();
     }
 #endif /* CLIENT_SUPPORT */
 
     return start_recursion (watchers_fileproc, (FILESDONEPROC) NULL,
-			    (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL,
+			    (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			    argc, argv, local, W_LOCAL, 0, 1, (char *)NULL,
-			    1, 0);
+			    1);
 }
