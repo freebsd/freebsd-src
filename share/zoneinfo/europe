@@ -1,4 +1,4 @@
-# @(#)europe	7.41
+# @(#)europe	7.42
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -78,7 +78,7 @@
 # of the text said:
 #
 # `An old stone obelisk marking a forgotten terrestrial meridian stands
-# beside the river at Kew. In the 18th century, before time and longditude
+# beside the river at Kew. In the 18th century, before time and longitude
 # was standardised by the Royal Observatory in Greenwich, scholars observed
 # this stone and the movement of stars from Kew Observatory nearby. They
 # made their calculations and set the time for the Horse Guards and Parliament,
@@ -86,7 +86,7 @@
 # along the towpath within a few yards of it.'
 #
 # I have a one inch to one mile map of London and my estimate of the stone's
-# position is 51 deg. 28' 30" N, 0 deg. 18' 45" W. The longditude should
+# position is 51 deg. 28' 30" N, 0 deg. 18' 45" W. The longitude should
 # be within about +-2". The Ordnance Survey grid reference is TQ172761.
 #
 # [This yields GMTOFF = -0:01:15 for London LMT in the 18th century.]
@@ -167,7 +167,7 @@
 # It ends at 02:00 GMT on the morning of the day after the fourth Saturday
 # in October. (All the redundant `morning of the day ...' is in the Act.)
 # This is only of passing interest now as it will always be overridden by
-# an Order in Council (a Statutary Instrument, the SI thing mentioned above)
+# an Order in Council (a Statutory Instrument, the SI thing mentioned above)
 # to specify the EC specified dates.
 
 # From Peter Ilieve <peter@memex.co.uk> (1993-10-18):
@@ -327,7 +327,7 @@
 # so that part of the 1922 Act will still apply.
 #
 # - The Defence (Summer Time) Regulations, 1939, SR&O 1939 No. 1379
-#   [SR&O == Statutary Regulation and Order]
+#   [SR&O == Statutory Regulation and Order]
 #
 # These were made under the Emergency Powers (Defence) Act, 1939.
 # It changes the end date to be the day after the third Saturday in November.
@@ -403,7 +403,7 @@
 # harmonise with the EC since 1981. The major change is that the time changes
 # to 01:00 GMT.)
 #
-# - The Summer Time Order, 1992, SI 1992/1729 [SI == Statutary Instrument]
+# - The Summer Time Order, 1992, SI 1992/1729 [SI == Statutory Instrument]
 #
 # This specifies dates of:
 #       Start       End
@@ -1298,7 +1298,7 @@ Zone	Europe/Athens	1:34:52 -	LMT	1895 Sep 14
 			1:00	Greece	CE%sT	1944 Apr  4
 			2:00	Greece	EE%sT	1981
 			# Shanks says they switched to C-Eur in 1981;
-			# go with EU intead, since Greece joined it on Jan 1.
+			# go with EU instead, since Greece joined it on Jan 1.
 			2:00	EU	EE%sT
 
 # Hungary
@@ -1819,9 +1819,15 @@ Zone Europe/Bucharest	1:44:24 -	LMT	1891 Oct
 			2:00	E-Eur	EE%sT
 
 # Russia
-# From Shanks (1991):
-# In 1929 the Soviet Union instituted a 5 day week; in 1932 it instituted
-# a 6 day week; on 1940-06-27 it returned to the Gregorian week.
+
+# From Chris Carrier <72157.3334@CompuServe.COM> (1996-12-02):
+# On 1929-10-01 the Soviet Union instituted an ``Eternal Calendar''
+# with 30-day months plus 5 holidays, with a 5-day week.
+# On 1931-12-01 it changed to a 6-day week; in 1934 it reverted to the
+# Gregorian calendar while retaining the 6-day week; on 1940-06-27 it
+# reverted to the 7-day week.  With the 6-day week the usual days
+# off were the 6th, 12th, 18th, 24th and 30th of the month.
+# (Source: Evitiar Zerubavel, _The Seven Day Circle_)
 #
 # From Paul Eggert <eggert@twinsun.com> (1996-11-22):
 # Except for Moscow after 1919-07-01, I invented the time zone abbreviations,
@@ -2134,7 +2140,7 @@ Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 # Ukraine
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Ukraine	1917	only	-	Jul	 1	23:00	1:00	UST	# Ukrainian Summer Time
-Rule	Ukraine	1917	only	-	Dec	28	 0:00	0	KMT	# Kiev Mean TIme
+Rule	Ukraine	1917	only	-	Dec	28	 0:00	0	KMT	# Kiev Mean Time
 Rule	Ukraine	1918	only	-	May	31	22:00	2:00	UDST	# Ukrainian Double Summer Time
 Rule	Ukraine	1918	only	-	Sep	17	 0:00	1:00	UST
 Rule	Ukraine	1919	only	-	May	31	23:00	2:00	UDST
