@@ -38,6 +38,8 @@ INSTALL_CF=	${SENDMAIL_CF}
 .endif
 .endif
 
+DEST_CF=	${DESTDIR}/etc/mail/sendmail.cf
+
 ALL+=		${INSTALL_CF}
 
 # Additional .cf files to build
@@ -57,8 +59,10 @@ install:	${INSTALL_CF}
 	@false
 .endif
 .if defined(INSTALL_CF)
+.if ${INSTALL_CF} != ${DEST_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
-		${DESTDIR}/etc/mail/sendmail.cf
+		${DEST_CF}
+.endif
 .endif
 
 # Helper for src/etc/Makefile
@@ -72,11 +76,13 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/mail/freebsd.cf
 .if defined(INSTALL_CF)
+.if ${INSTALL_CF} != ${DEST_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
-		${DESTDIR}/etc/mail/sendmail.cf
+		${DEST_CF}
+.endif
 .else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
-		${DESTDIR}/etc/mail/sendmail.cf
+		${DEST_CF}
 .endif
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
 	    ${DESTDIR}/etc/mail/helpfile
