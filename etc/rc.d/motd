@@ -49,7 +49,6 @@ motd_start()
 		;;
 	esac
 	cmp -s $T /etc/motd || {
-		echo T=$T
 		cp $T /etc/motd
 		chmod ${PERMS} /etc/motd
 	}
