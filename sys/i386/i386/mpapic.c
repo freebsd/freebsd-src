@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.14 1997/07/20 17:40:39 smp Exp smp $
+ *	$Id: mpapic.c,v 1.15 1997/07/20 18:13:01 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -236,19 +236,11 @@ io_apic_setup(int apic)
 #undef DEFAULT_FLAGS
 
 
-#if defined(TEST_ALTTIMER)
-
 #if defined(TIMER_ALL)
 #define DEL_MODE IOART_DELLOPRI
 #else
 #define DEL_MODE IOART_DELFIXED
 #endif /** TIMER_ALL */
-
-#else
-
-#define DEL_MODE IOART_DELEXINT
-
-#endif /** TEST_ALTTIMER */
 
 #define DEFAULT_EXTINT_FLAGS	\
 	((u_int32_t)		\
@@ -272,7 +264,6 @@ ext_int_setup(int apic, int intr)
 	if (apic_int_type(apic, intr) != 3)
 		return -1;
 
-/** XXX FIXME: changed on 970708, make default if no complaints */
 #if defined(TIMER_ALL)
 	target = IOART_DEST;
 #else
@@ -285,10 +276,6 @@ ext_int_setup(int apic, int intr)
 
 	io_apic_write(apic, select, flags | vector);
 	io_apic_write(apic, select + 1, target);
-
-#if defined(TEST_ALTTIMER)
-	printf("SMP: using ALT timer setup\n");
-#endif /** TEST_ALTTIMER */
 
 	return 0;
 }
