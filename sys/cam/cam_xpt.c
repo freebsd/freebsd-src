@@ -124,7 +124,6 @@ struct cam_ed {
 	struct	xpt_quirk_entry *quirk;	/* Oddities about this device */
 					/* Storage for the inquiry data */
 	struct	scsi_inquiry_data inq_data;
-	u_int8_t	 inq_len;	/* valid length in inq_data */
 	u_int8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.
 					 * This allows us to override settings
@@ -2920,7 +2919,6 @@ xpt_action(union ccb *start_ccb)
 			bus = cgd->ccb_h.path->bus;
 			tar = cgd->ccb_h.path->target;
 			cgd->inq_data = dev->inq_data;
-			cgd->inq_len = dev->inq_len;
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
@@ -5273,6 +5271,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
 	{
+		u_int inquiry_len;
 		struct scsi_inquiry_data *inq_buf;
 
 		inq_buf = &periph->path->device->inq_data;
@@ -5300,14 +5299,16 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		} 
 
 		if (softc->action == PROBE_INQUIRY)
-			periph->path->device->inq_len = SHORT_INQUIRY_LENGTH;
+			inquiry_len = SHORT_INQUIRY_LENGTH;
+		else
+			inquiry_len = inq_buf->additional_length + 4;
 	
 		scsi_inquiry(csio,
 			     /*retries*/4,
 			     probedone,
 			     MSG_SIMPLE_Q_TAG,
 			     (u_int8_t *)inq_buf,
-			     (size_t) periph->path->device->inq_len,
+			     inquiry_len,
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
 			     SSD_MIN_SIZE,
@@ -5436,45 +5437,39 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			struct scsi_inquiry_data *inq_buf;
 			u_int8_t periph_qual;
 			u_int8_t periph_dtype;
-			u_int8_t alen;
 
 			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
 			inq_buf = &path->device->inq_data;
 
 			periph_qual = SID_QUAL(inq_buf);
 			periph_dtype = SID_TYPE(inq_buf);
-
-			/*
-			 * We conservatively request only SHORT_INQUIRY_LEN
-			 * bytes of inquiry information during our first try
-			 * at sending an INQUIRY. If the device has more
-			 * information to give, perform a second reques
-			 * specifying the amount of information the device
-			 * is willing to give (but not overflowing the amount
-			 * of room we have for it).
-			 */
-
-			alen = inq_buf->additional_length;
-
-			if (periph_dtype != T_NODEVICE
-			    && periph_qual == SID_QUAL_LU_CONNECTED
-			    && softc->action == PROBE_INQUIRY
-			    && alen > (SHORT_INQUIRY_LENGTH - 8)) {
-
-				path->device->inq_len =
-				    min(alen + 8, sizeof (*inq_buf));
-				softc->action = PROBE_FULL_INQUIRY;
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-
-
 			
 			if (periph_dtype != T_NODEVICE) {
 				switch(periph_qual) {
 				case SID_QUAL_LU_CONNECTED:
 				{
+					u_int8_t alen;
+
+					/*
+					 * We conservatively request only
+					 * SHORT_INQUIRY_LEN bytes of inquiry
+					 * information during our first try
+					 * at sending an INQUIRY. If the device
+					 * has more information to give,
+					 * perform a second request specifying
+					 * the amount of information the device
+					 * is willing to give.
+					 */
+					alen = inq_buf->additional_length;
+					if (softc->action == PROBE_INQUIRY
+					 && alen > (SHORT_INQUIRY_LENGTH - 4)) {
+						softc->action =
+						    PROBE_FULL_INQUIRY;
+						xpt_release_ccb(done_ccb);
+						xpt_schedule(periph, priority);
+						return;
+					}
+
 					xpt_find_quirk(path->device);
 
 					if ((inq_buf->flags & SID_CmdQue) != 0)
