@@ -1,5 +1,8 @@
 /* Declarations for getopt.
-   Copyright (C) 1989, 90, 91, 92, 93, 94 Free Software Foundation, Inc.
+   Copyright (C) 1989,90,91,92,93,94,96,97 Free Software Foundation, Inc.
+
+   NOTE: The canonical source of this file is maintained with the GNU C Library.
+   Bugs can be reported to bug-glibc@gnu.org.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -37,7 +40,7 @@ extern char *optarg;
 
    On entry to `getopt', zero means this is the first call; initialize.
 
-   When `getopt' returns EOF, this is the index of the first of the
+   When `getopt' returns -1, this is the index of the first of the
    non-option elements that the caller should itself scan.
 
    Otherwise, `optind' communicates from one call to the next
@@ -127,4 +130,4 @@ extern int _getopt_internal ();
 }
 #endif
 
-#endif /* _GETOPT_H */
+#endif /* getopt.h */

@@ -15,12 +15,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 #include <stdio.h>
 #include "system.h"
-#include "new.h"
+#include "alloc.h"
 #include "symtab.h"
 #include "gram.h"
 
@@ -29,11 +30,12 @@ bucket **symtab;
 bucket *firstsymbol;
 bucket *lastsymbol;
 
+void tabinit PARAMS((void));
+void free_symtab PARAMS((void));
 
 
-int
-hash(key)
-char *key;
+static int
+hash (char *key)
 {
   register char *cp;
   register int k;
@@ -48,9 +50,8 @@ char *key;
 
 
 
-char *
-copys(s)
-char *s;
+static char *
+copys (char *s)
 {
   register int i;
   register char *cp;
@@ -67,7 +68,7 @@ char *s;
 
 
 void
-tabinit()
+tabinit (void)
 {
 /*   register int i; JF unused */
 
@@ -79,8 +80,7 @@ tabinit()
 
 
 bucket *
-getsym(key)
-char *key;
+getsym (char *key)
 {
   register int hashval;
   register bucket *bp;
@@ -127,7 +127,7 @@ char *key;
 
 
 void
-free_symtab()
+free_symtab (void)
 {
   register int i;
   register bucket *bp,*bptmp;/* JF don't use ptr after free */

@@ -1,6 +1,9 @@
 /* getopt_long and getopt_long_only entry points for GNU getopt.
-   Copyright (C) 1987, 88, 89, 90, 91, 92, 1993, 1994
-	Free Software Foundation, Inc.
+   Copyright (C) 1987,88,89,90,91,92,93,94,96,97,98
+     Free Software Foundation, Inc.
+
+   NOTE: The canonical source of this file is maintained with the GNU C Library.
+   Bugs can be reported to bug-glibc@gnu.org.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -23,7 +26,7 @@
 
 #include "getopt.h"
 
-#if !defined (__STDC__) || !__STDC__
+#if !defined __STDC__ || !__STDC__
 /* This is a separate conditional since some stdc systems
    reject `defined (const)'.  */
 #ifndef const
@@ -41,15 +44,21 @@
    program understand `configure --with-gnu-libc' and omit the object files,
    it is simpler to just do this in the source for each such file.  */
 
-#if defined (_LIBC) || !defined (__GNU_LIBRARY__)
+#define GETOPT_INTERFACE_VERSION 2
+#if !defined _LIBC && defined __GLIBC__ && __GLIBC__ >= 2
+#include <gnu-versions.h>
+#if _GNU_GETOPT_INTERFACE_VERSION == GETOPT_INTERFACE_VERSION
+#define ELIDE_CODE
+#endif
+#endif
+
+#ifndef ELIDE_CODE
 
 
 /* This needs to come after some library #include
    to get __GNU_LIBRARY__ defined.  */
 #ifdef __GNU_LIBRARY__
 #include <stdlib.h>
-#else
-char *getenv ();
 #endif
 
 #ifndef	NULL
@@ -84,7 +93,7 @@ getopt_long_only (argc, argv, options, long_options, opt_index)
 }
 
 
-#endif	/* _LIBC or not __GNU_LIBRARY__.  */
+#endif	/* Not ELIDE_CODE.  */
 
 #ifdef TEST
 
@@ -115,7 +124,7 @@ main (argc, argv)
 
       c = getopt_long (argc, argv, "abc:d:0123456789",
 		       long_options, &option_index);
-      if (c == EOF)
+      if (c == -1)
 	break;
 
       switch (c)
