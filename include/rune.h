@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rune.h	8.1 (Berkeley) 6/27/93
+ * $FreeBSD$
  */
 
 #ifndef	_RUNE_H_
@@ -53,14 +54,14 @@
 #define sputrune(c, s, n, r)    (*__sputrune)((c), (s), (n), (r))
 
 __BEGIN_DECLS
-char	*mbrune __P((const char *, rune_t));
-char	*mbrrune __P((const char *, rune_t));
-char	*mbmb __P((const char *, char *));
-long	 fgetrune __P((FILE *));
-int	 fputrune __P((rune_t, FILE *));
-int	 fungetrune __P((rune_t, FILE *));
-int	 setrunelocale __P((char *));
-void	 setinvalidrune __P((rune_t));
+char	*mbrune(const char *, rune_t);
+char	*mbrrune(const char *, rune_t);
+char	*mbmb(const char *, char *);
+long	 fgetrune(FILE *);
+int	 fputrune(rune_t, FILE *);
+int	 fungetrune(rune_t, FILE *);
+int	 setrunelocale(char *);
+void	 setinvalidrune(rune_t);
 __END_DECLS
 
 #endif	/*! _RUNE_H_ */

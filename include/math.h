@@ -64,59 +64,59 @@
  * in the (broken) BSD libm, so they not declared as __pure2.
  */
 __BEGIN_DECLS
-double	acos __P((double));
-double	asin __P((double));
-double	atan __P((double));
-double	atan2 __P((double, double));
-double	ceil __P((double));
-double	cos __P((double));
-double	cosh __P((double));
-double	exp __P((double));
-double	fabs __P((double));
-double	floor __P((double));
-double	fmod __P((double, double));
-double	frexp __P((double, int *));	/* fundamentally !__pure2 */
-double	ldexp __P((double, int));
-double	log __P((double));
-double	log10 __P((double));
-double	modf __P((double, double *));	/* fundamentally !__pure2 */
-double	pow __P((double, double));
-double	sin __P((double));
-double	sinh __P((double));
-double	sqrt __P((double));
-double	tan __P((double));
-double	tanh __P((double));
+double	acos(double);
+double	asin(double);
+double	atan(double);
+double	atan2(double, double);
+double	ceil(double);
+double	cos(double);
+double	cosh(double);
+double	exp(double);
+double	fabs(double);
+double	floor(double);
+double	fmod(double, double);
+double	frexp(double, int *);	/* fundamentally !__pure2 */
+double	ldexp(double, int);
+double	log(double);
+double	log10(double);
+double	modf(double, double *);	/* fundamentally !__pure2 */
+double	pow(double, double);
+double	sin(double);
+double	sinh(double);
+double	sqrt(double);
+double	tan(double);
+double	tanh(double);
 
 /*
  * These functions are non-ANSI so they can be "right".  The ones that
  * don't set errno in [lib]msun are declared as __pure2.
  */
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-double	acosh __P((double));
-double	asinh __P((double));
-double	atanh __P((double));
+double	acosh(double);
+double	asinh(double);
+double	atanh(double);
 double	cabs();		/* we can't describe cabs()'s argument properly */
-double	cbrt __P((double)) __pure2;
-double	copysign __P((double, double)) __pure2;
-double	drem __P((double, double));
-double	erf __P((double));
-double	erfc __P((double)) __pure2;
-double	expm1 __P((double)) __pure2;
-int	finite __P((double)) __pure2;
-double	hypot __P((double, double));
-int	isinf __P((double)) __pure2;
-int	isnan __P((double)) __pure2;
-double	j0 __P((double));
-double	j1 __P((double));
-double	jn __P((int, double));
-double	lgamma __P((double));
-double	log1p __P((double)) __pure2;
-double	logb __P((double)) __pure2;
-double	rint __P((double)) __pure2;
-double	scalb __P((double, int));
-double	y0 __P((double));
-double	y1 __P((double));
-double	yn __P((int, double));
+double	cbrt(double) __pure2;
+double	copysign(double, double) __pure2;
+double	drem(double, double);
+double	erf(double);
+double	erfc(double) __pure2;
+double	expm1(double) __pure2;
+int	finite(double) __pure2;
+double	hypot(double, double);
+int	isinf(double) __pure2;
+int	isnan(double) __pure2;
+double	j0(double);
+double	j1(double);
+double	jn(int, double);
+double	lgamma(double);
+double	log1p(double) __pure2;
+double	logb(double) __pure2;
+double	rint(double) __pure2;
+double	scalb(double, int);
+double	y0(double);
+double	y1(double);
+double	yn(int, double);
 #endif
 
 __END_DECLS

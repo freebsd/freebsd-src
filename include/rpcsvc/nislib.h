@@ -25,6 +25,8 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -33,8 +35,7 @@
 
 /*
  * This file contains the interfaces that are visible in the SunOS 5.x
- * implementation of NIS Plus. When using C++ the defined __cplusplus and
- * __STDC__ should both be true.
+ * implementation of NIS Plus.
  */
 
 #ifndef	_RPCSVC_NISLIB_H
@@ -51,7 +52,6 @@ struct signature {
 	char *signature_val;
 };
 
-#ifdef __STDC__
 extern void nis_freeresult(nis_result *);
 extern nis_result * nis_lookup(nis_name, u_long);
 extern nis_result * nis_list(nis_name, u_long,
@@ -178,135 +178,6 @@ extern u_long __stop_clock(int);
  */
 
 extern struct signature *__nis_calculate_encrypted_cksum(unsigned char *, unsigned int, char *, int);
-
-#else
-
-/* Non-prototype definitions (old fashioned C) */
-
-extern void nis_freeresult();
-extern nis_result * nis_lookup();
-extern nis_result * nis_list();
-extern nis_result * nis_add();
-extern nis_result * nis_remove();
-extern nis_result * nis_modify();
-
-extern nis_result * nis_add_entry();
-extern nis_result * nis_remove_entry();
-extern nis_result * nis_modify_entry();
-extern nis_result * nis_first_entry();
-extern nis_result * nis_next_entry();
-
-extern nis_error nis_mkdir();
-extern nis_error nis_rmdir();
-extern name_pos nis_dir_cmp();
-
-extern nis_name *nis_getnames();
-extern void nis_freenames();
-extern nis_name nis_domain_of();
-extern nis_name nis_leaf_of();
-extern nis_name nis_leaf_of_r();
-extern nis_name nis_name_of();
-extern nis_name nis_local_group();
-extern nis_name nis_local_directory();
-extern nis_name nis_local_principal();
-extern nis_name nis_local_host();
-
-extern void nis_destroy_object();
-extern nis_object * nis_clone_object();
-extern void nis_print_object();
-
-extern char * nis_sperrno();
-extern void nis_perror();
-extern char * nis_sperror();
-extern void nis_lerror();
-
-extern void nis_print_group_entry();
-extern bool_t nis_ismember();
-extern nis_error nis_creategroup();
-extern nis_error nis_destroygroup();
-extern nis_error nis_addmember();
-extern nis_error nis_removemember();
-extern nis_error nis_verifygroup();
-
-extern void nis_freeservlist();
-extern nis_server ** nis_getservlist();
-extern nis_error nis_stats();
-extern nis_error nis_servstate();
-extern void nis_freetags();
-
-extern nis_result * nis_checkpoint();
-extern void nis_ping();
-
-/*
- * XXX: PLEASE NOTE THAT THE FOLLOWING FUNCTIONS ARE INTERNAL
- * TO NIS+ AND SHOULD NOT BE USED BY ANY APPLICATION PROGRAM.
- * THEIR SEMANTICS AND/OR SIGNATURE CAN CHANGE WITHOUT NOTICE.
- * SO, PLEASE DO NOT USE THEM.  YOU ARE WARNED!!!!
- */
-extern char ** __break_name();
-extern int __name_distance();
-extern nis_result * nis_make_error();
-extern nis_attr * __cvt2attr();
-extern void nis_free_request();
-extern nis_error nis_get_request();
-extern nis_object * nis_read_obj();
-extern int nis_write_obj();
-extern int nis_in_table();
-extern int nis_insert_item();
-extern NIS_HASH_ITEM * nis_find_item();
-extern NIS_HASH_ITEM * nis_remove_item();
-extern void nis_insert_name();
-extern void nis_remove_name();
-extern CLIENT * nis_make_rpchandle();
-extern void * nis_get_static_storage();
-extern char * nis_data();
-
-extern void nis_print_rights();
-extern void nis_print_directory();
-extern void nis_print_group();
-extern void nis_print_table();
-extern void nis_print_link();
-extern void nis_print_entry();
-extern nis_object * nis_get_object();
-
-extern nis_server * __nis_init_callback();
-extern int nis_getdtblsize();
-extern int __nis_run_callback();
-
-extern log_result * nis_dump();
-extern log_result * nis_dumplog();
-
-extern bool_t __do_ismember();
-extern nis_name __nis_map_group();
-extern nis_name __nis_map_group_r();
-
-
-extern nis_error __nis_CacheBind();
-extern directory_obj * __nis_CacheSearch();
-extern bool_t __nis_CacheRemoveEntry();
-extern void __nis_CacheRestart();
-extern void __nis_CachePrint();
-extern void __nis_CacheDumpStatistics();
-extern bool_t writeColdStartFile();
-
-extern CLIENT * __get_ti_clnt();
-extern int __strcmp_case_insens();
-extern int __strncmp_case_insens();
-
-extern fd_result * nis_finddirectory();
-extern int __start_clock();
-extern u_long __stop_clock();
-
-/*
- * This particular function is part of the FreeBSD NIS+ implementation
- * only. Ideally it should be somewhere else, but it is used by both
- * rpc.nisd and nis_cachemgr, and there aren't that many headers common
- * to both programs.
- */
-
-extern struct signature *__nis_calculate_encrypted_cksum();
-
-#endif
 
 #define	NUL '\0'
 

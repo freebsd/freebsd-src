@@ -55,10 +55,10 @@
 #define	_RPC_UDP	8
 
 __BEGIN_DECLS
-extern void *__rpc_setconf __P((const char *));
-extern void __rpc_endconf __P((void *));
-extern struct netconfig *__rpc_getconf __P((void *));
-extern struct netconfig *__rpc_getconfip __P((const char *));
+extern void *__rpc_setconf(const char *);
+extern void __rpc_endconf(void *);
+extern struct netconfig *__rpc_getconf(void *);
+extern struct netconfig *__rpc_getconfip(const char *);
 __END_DECLS
 
 #endif	/* !_RPC_NETTYPE_H */

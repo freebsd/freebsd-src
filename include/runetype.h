@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)runetype.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef	_RUNETYPE_H_
@@ -80,9 +81,9 @@ typedef struct {
 	char		encoding[32];	/* ASCII name of this encoding */
 
 	rune_t		(*sgetrune)
-	    __P((const char *, size_t, char const **));
+(const char *, size_t, char const **);
 	int		(*sputrune)
-	    __P((rune_t, char *, size_t, char **));
+(rune_t, char *, size_t, char **);
 	rune_t		invalid_rune;
 
 	unsigned long	runetype[_CACHED_RUNES];

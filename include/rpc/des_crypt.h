@@ -85,14 +85,14 @@
  * Cipher Block Chaining mode
  */
 __BEGIN_DECLS
-int cbc_crypt __P(( char *, char *, unsigned int, unsigned int, char *));
+int cbc_crypt( char *, char *, unsigned int, unsigned int, char *);
 __END_DECLS
 
 /*
  * Electronic Code Book mode
  */
 __BEGIN_DECLS
-int ecb_crypt __P(( char *, char *, unsigned int, unsigned int ));
+int ecb_crypt( char *, char *, unsigned int, unsigned int );
 __END_DECLS
 
 /* 
@@ -100,7 +100,7 @@ __END_DECLS
  * DES parity is odd and in the low bit of each byte
  */
 __BEGIN_DECLS
-void des_setparity __P(( char *));
+void des_setparity( char *);
 __END_DECLS
 
 #endif  /* _DES_DES_CRYPT_H */

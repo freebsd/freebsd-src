@@ -106,8 +106,6 @@ typedef struct db_result db_result;
  * Prototypes for the database functions.
  */
 
-#if (__STDC__)
-
 extern bool_t db_initialize(char *);
 #ifdef ORIGINAL_DECLS
 extern bool_t db_create_table(char *, table_obj *);
@@ -129,31 +127,6 @@ extern db_status db_table_exists(char *);
 extern db_status db_unload_table(char *);
 extern void db_free_result(db_result *);
 #endif
-
-#else /* Non-prototype definitions */
-
-extern bool_t db_initialize();
-#ifdef ORIGINAL_DECLS
-extern bool_t db_create_table();
-extern bool_t db_destroy_table();
-#else
-extern db_status db_create_table();
-extern db_status db_destroy_table();
-#endif
-extern db_result *db_first_entry();
-extern db_result *db_next_entry();
-extern db_result *db_reset_next_entry();
-extern db_result *db_list_entries();
-extern db_result *db_add_entry();
-extern db_result *db_remove_entry();
-extern db_status db_checkpoint();
-extern db_status db_standby();
-#ifndef ORIGINAL_DECLS
-extern db_status db_table_exists();
-extern db_status db_unload_table();
-extern void db_free_result();
-#endif
-#endif  /* __STDC__ */
 
 #ifdef __cplusplus
 }

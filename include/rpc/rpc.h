@@ -79,19 +79,19 @@
 #include <rpc/rpcent.h>
 
 __BEGIN_DECLS
-extern int get_myaddress __P((struct sockaddr_in *));
-extern int bindresvport __P((int, struct sockaddr_in *));
-extern int registerrpc __P((int, int, int, char *(*) __P((char [UDPMSGSIZE])),
-    xdrproc_t, xdrproc_t));
-extern int callrpc __P((const char *, int, int, int, xdrproc_t, void *,
-    xdrproc_t , void *));
-extern int getrpcport __P((char *, int, int, int));
+extern int get_myaddress(struct sockaddr_in *);
+extern int bindresvport(int, struct sockaddr_in *);
+extern int registerrpc(int, int, int, char *(*)(char [UDPMSGSIZE]),
+    xdrproc_t, xdrproc_t);
+extern int callrpc(const char *, int, int, int, xdrproc_t, void *,
+    xdrproc_t , void *);
+extern int getrpcport(char *, int, int, int);
 
-char *taddr2uaddr __P((const struct netconfig *, const struct netbuf *));
-struct netbuf *uaddr2taddr __P((const struct netconfig *, const char *));
+char *taddr2uaddr(const struct netconfig *, const struct netbuf *);
+struct netbuf *uaddr2taddr(const struct netconfig *, const char *);
 
 struct sockaddr;
-extern int bindresvport_sa __P((int, struct sockaddr *));
+extern int bindresvport_sa(int, struct sockaddr *);
 __END_DECLS
 
 /*
@@ -99,11 +99,10 @@ __END_DECLS
  * and rpcbind use only. Do not use, they may change without notice.
  */
 __BEGIN_DECLS
-int __rpc_nconf2fd __P((const struct netconfig *));
-int __rpc_nconf2sockinfo __P((const struct netconfig *,
-			      struct __rpc_sockinfo *));
-int __rpc_fd2sockinfo __P((int, struct __rpc_sockinfo *));
-u_int __rpc_get_t_size __P((int, int, int));
+int __rpc_nconf2fd(const struct netconfig *);
+int __rpc_nconf2sockinfo(const struct netconfig *, struct __rpc_sockinfo *);
+int __rpc_fd2sockinfo(int, struct __rpc_sockinfo *);
+u_int __rpc_get_t_size(int, int, int);
 __END_DECLS
 
 #endif /* !_RPC_RPC_H */

@@ -67,31 +67,31 @@
 #define	_CTYPE_Q	0x00200000L		/* Phonogram */
 
 __BEGIN_DECLS
-int	isalnum __P((int));
-int	isalpha __P((int));
-int	iscntrl __P((int));
-int	isdigit __P((int));
-int	isgraph __P((int));
-int	islower __P((int));
-int	isprint __P((int));
-int	ispunct __P((int));
-int	isspace __P((int));
-int	isupper __P((int));
-int	isxdigit __P((int));
-int	tolower __P((int));
-int	toupper __P((int));
+int	isalnum(int);
+int	isalpha(int);
+int	iscntrl(int);
+int	isdigit(int);
+int	isgraph(int);
+int	islower(int);
+int	isprint(int);
+int	ispunct(int);
+int	isspace(int);
+int	isupper(int);
+int	isxdigit(int);
+int	tolower(int);
+int	toupper(int);
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-int	digittoint __P((int));
-int	isascii __P((int));
-int	isblank __P((int));
-int	ishexnumber __P((int));
-int	isideogram __P((int));
-int	isnumber __P((int));
-int	isphonogram __P((int));
-int	isrune __P((int));
-int	isspecial __P((int));
-int	toascii __P((int));
+int	digittoint(int);
+int	isascii(int);
+int	isblank(int);
+int	ishexnumber(int);
+int	isideogram(int);
+int	isnumber(int);
+int	isphonogram(int);
+int	isrune(int);
+int	isspecial(int);
+int	toascii(int);
 #endif
 __END_DECLS
 
@@ -124,9 +124,9 @@ __END_DECLS
 
 /* See comments in <machine/ansi.h> about _BSD_CT_RUNE_T_. */
 __BEGIN_DECLS
-unsigned long	___runetype __P((_BSD_CT_RUNE_T_));
-_BSD_CT_RUNE_T_	___tolower __P((_BSD_CT_RUNE_T_));
-_BSD_CT_RUNE_T_	___toupper __P((_BSD_CT_RUNE_T_));
+unsigned long	___runetype(_BSD_CT_RUNE_T_);
+_BSD_CT_RUNE_T_	___tolower(_BSD_CT_RUNE_T_);
+_BSD_CT_RUNE_T_	___toupper(_BSD_CT_RUNE_T_);
 __END_DECLS
 
 /*
@@ -181,11 +181,11 @@ __tolower(_BSD_CT_RUNE_T_ _c)
 #else /* not using inlines */
 
 __BEGIN_DECLS
-int		__maskrune __P((_BSD_CT_RUNE_T_, unsigned long));
-int		__istype  __P((_BSD_CT_RUNE_T_, unsigned long));
-int		__isctype __P((_BSD_CT_RUNE_T_, unsigned long));
-_BSD_CT_RUNE_T_	__toupper __P((_BSD_CT_RUNE_T_));
-_BSD_CT_RUNE_T_	__tolower __P((_BSD_CT_RUNE_T_));
+int		__maskrune(_BSD_CT_RUNE_T_, unsigned long);
+int		__istype(_BSD_CT_RUNE_T_, unsigned long);
+int		__isctype(_BSD_CT_RUNE_T_, unsigned long);
+_BSD_CT_RUNE_T_	__toupper(_BSD_CT_RUNE_T_);
+_BSD_CT_RUNE_T_	__tolower(_BSD_CT_RUNE_T_);
 __END_DECLS
 #endif /* using inlines */
 

@@ -43,9 +43,9 @@ typedef	int	nl_item;
 typedef	void	*nl_catd;
 
 __BEGIN_DECLS
-extern nl_catd 	catopen __P((__const char *, int));
-extern char    *catgets	__P((nl_catd, int, int,	__const	char *));
-extern int	catclose __P((nl_catd));
+extern nl_catd 	catopen(__const char *, int);
+extern char    *catgets(nl_catd, int, int,	__const	char *);
+extern int	catclose(nl_catd);
 __END_DECLS
 
 #endif	/* _NL_TYPES_H_ */

@@ -64,18 +64,18 @@ typedef struct dl_info {
 } Dl_info;
 
 __BEGIN_DECLS
-int dladdr __P((const void *, Dl_info *));
-int dlclose __P((void *));
-const char *dlerror __P((void));
-void dllockinit __P((void *_context,
-		     void *(*_lock_create)(void *_context),
-		     void (*_rlock_acquire)(void *_lock),
-		     void (*_wlock_acquire)(void *_lock),
-		     void (*_lock_release)(void *_lock),
-		     void (*_lock_destroy)(void *_lock),
-		     void (*_context_destroy)(void *_context)));
-void *dlopen __P((const char *, int));
-void *dlsym __P((void *, const char *));
+int dladdr(const void *, Dl_info *);
+int dlclose(void *);
+const char *dlerror(void);
+void dllockinit(void *_context,
+		void *(*_lock_create)(void *_context),
+		void (*_rlock_acquire)(void *_lock),
+		void (*_wlock_acquire)(void *_lock),
+		void (*_lock_release)(void *_lock),
+		void (*_lock_destroy)(void *_lock),
+		void (*_context_destroy)(void *_context));
+void *dlopen(const char *, int);
+void *dlsym(void *, const char *);
 __END_DECLS
 
 #endif /* !_DLFCN_H_ */
