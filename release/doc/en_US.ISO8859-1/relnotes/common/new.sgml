@@ -173,13 +173,8 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para>A snapshot of <application>netcat</application> from OpenBSD
-	as of 4 February 2005 has been added.  More information can be
-        found in the &man.nc.1; manual page.</para>
-
-      <para>The timezone database has been updated from
-	<application>tzdata2004e</application> to
-	<application>tzdata2004g</application>.</para>
+      <para><application>ACPI-CA</application> has been updated from
+	20040527 to 20041119.</para>
 
     </sect3>
   </sect2>
@@ -226,8 +221,16 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para>A snapshot of <application>netcat</application> from OpenBSD
+      as of 4 February 2005 has been added.  More information can be
+      found in the &man.nc.1; manual page.</para>
+
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3.</para>
+
+    <para>The timezone database has been updated from
+      <application>tzdata2004e</application> to
+      <application>tzdata2004g</application>.</para>
 
     <para></para>
   </sect2>
