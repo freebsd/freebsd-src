@@ -51,6 +51,10 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
+#ifndef NMBCLUSTERS
+#define NMBCLUSTERS	(512 + MAXUSERS * 16)
+#endif
+
 static void mbinit(void *);
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 
@@ -61,8 +65,8 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
-int	nmbclusters;
-int	nmbufs;
+int	nmbclusters = NMBCLUSTERS;
+int	nmbufs = NMBCLUSTERS * 4;
 int	nmbcnt;
 u_long	m_mballoc_wid = 0;
 u_long	m_clalloc_wid = 0;
@@ -99,13 +103,9 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RD, &nmbcnt, 0,
 	   "Maximum number of ext_buf counters available");
 
-#ifndef NMBCLUSTERS
-#define NMBCLUSTERS	(512 + MAXUSERS * 16)
-#endif
-
-TUNABLE_INT_DECL("kern.ipc.nmbclusters", NMBCLUSTERS, nmbclusters);
-TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);
-TUNABLE_INT_DECL("kern.ipc.nmbcnt", EXT_COUNTERS, nmbcnt);
+TUNABLE_INT("kern.ipc.nmbclusters", &nmbclusters);
+TUNABLE_INT("kern.ipc.nmbufs", &nmbufs);
+TUNABLE_INT("kern.ipc.nmbcnt", &nmbcnt);
 
 static void	m_reclaim(void);
 
@@ -125,6 +125,12 @@ mbinit(void *dummy)
 {
 	vm_offset_t maxaddr;
 	vm_size_t mb_map_size;
+
+	/* Sanity checks and pre-initialization for non-constants */
+	if (nmbufs < nmbclusters * 2)
+		nmbufs = nmbclusters * 2;
+	if (nmbcnt == 0)
+		nmbcnt = EXT_COUNTERS;
 
 	/*
 	 * Setup the mb_map, allocate requested VM space.
