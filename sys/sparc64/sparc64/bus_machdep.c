@@ -449,7 +449,7 @@ nexus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	if (error == 0) {
 		(*callback)(callback_arg, dm_segments, nsegs + 1, 0);
-		map->dm_loaded = 1;
+		map->dm_flags |= DMF_LOADED;
 	} else
 		(*callback)(callback_arg, NULL, 0, error);
 
@@ -495,7 +495,7 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 		/* force "no valid mappings" in callback */
 		(*callback)(callback_arg, dm_segments, 0, 0, error);
 	} else {
-		map->dm_loaded = 1;
+		map->dm_flags |= DMF_LOADED;
 		(*callback)(callback_arg, dm_segments, nsegs + 1,
 		    m0->m_pkthdr.len, error);
 	}
@@ -554,7 +554,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		/* force "no valid mappings" in callback */
 		(*callback)(callback_arg, dm_segments, 0, 0, error);
 	} else {
-		map->dm_loaded = 1;
+		map->dm_flags |= DMF_LOADED;
 		(*callback)(callback_arg, dm_segments, nsegs + 1,
 		    uio->uio_resid, error);
 	}
@@ -569,7 +569,7 @@ static void
 nexus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
-	map->dm_loaded = 0;
+	map->dm_flags &= ~DMF_LOADED;
 }
 
 /*
