@@ -412,12 +412,11 @@ cryptodev_op(
 		crp->crp_mac=cse->tmp_mac;
 	}
 
-	crypto_dispatch(crp);
-	error = tsleep(cse, PSOCK, "crydev", 0);
-	if (error) {
-		/* XXX can this happen?  if so, how do we recover? */
+	error = crypto_dispatch(crp);
+	if (error == 0)
+		error = tsleep(cse, PSOCK, "crydev", 0);
+	if (error)
 		goto bail;
-	}
 
 	if (crp->crp_etype != 0) {
 		error = crp->crp_etype;
@@ -455,7 +454,7 @@ cryptodev_cb(void *op)
 	cse->error = crp->crp_etype;
 	if (crp->crp_etype == EAGAIN)
 		return crypto_dispatch(crp);
-	wakeup(cse);
+	wakeup_one(cse);
 	return (0);
 }
 
@@ -464,7 +463,7 @@ cryptodevkey_cb(void *op)
 {
 	struct cryptkop *krp = (struct cryptkop *) op;
 
-	wakeup(krp);
+	wakeup_one(krp);
 	return (0);
 }
 
@@ -532,13 +531,10 @@ cryptodev_key(struct crypt_kop *kop)
 	}
 
 	error = crypto_kdispatch(krp);
+	if (error == 0)
+		error = tsleep(krp, PSOCK, "crydev", 0);
 	if (error)
 		goto fail;
-	error = tsleep(krp, PSOCK, "crydev", 0);
-	if (error) {
-		/* XXX can this happen?  if so, how do we recover? */
-		goto fail;
-	}
 	
 	if (krp->krp_status != 0) {
 		error = krp->krp_status;
