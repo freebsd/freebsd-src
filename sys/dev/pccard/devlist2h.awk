@@ -126,7 +126,7 @@ $1 == "vendor" {
 	vendorindex[$2] = nvendors;		# record index for this name, for later.
 	vendors[nvendors, 1] = $2;		# name
 	vendors[nvendors, 2] = $3;		# id
-	printf("#define\tPCCARD_VENDOR_%s\t%s\t", vendors[nvendors, 1],
+	printf("#define\tPCMCIA_VENDOR_%s\t%s\t", vendors[nvendors, 1],
 	    vendors[nvendors, 2]) > hfile
 	vendors[nvendors, 3] = collectline(4, line)
 	printf("/* %s */\n", vendors[nvendors, 3]) > hfile
@@ -165,15 +165,15 @@ $1 == "product" {
 	else {
 		products[nproducts, 4] = "{ NULL, NULL, NULL, NULL }"
 	}
-	printf("#define\tPCCARD_CIS_%s_%s\t%s\n",
+	printf("#define\tPCMCIA_CIS_%s_%s\t%s\n",
 	    products[nproducts, 1], products[nproducts, 2],
 	    products[nproducts, 4]) > hfile
-	printf("#define\tPCCARD_PRODUCT_%s_%s\t%s\n", products[nproducts, 1],
+	printf("#define\tPCMCIA_PRODUCT_%s_%s\t%s\n", products[nproducts, 1],
 	    products[nproducts, 2], products[nproducts, 3]) > hfile
 
 	products[nproducts, 5] = collectline(f, line)
 
-	printf("#define\tPCCARD_STR_%s_%s\t\"%s\"\n",
+	printf("#define\tPCMCIA_STR_%s_%s\t\"%s\"\n",
 	    products[nproducts, 1], products[nproducts, 2],
 	    products[nproducts, 5]) > hfile
 
@@ -195,13 +195,13 @@ END {
 	for (i = 1; i <= nproducts; i++) {
 		printf("\t{\n") > dfile
 		if (products[i, 3] == -1) {
-			printf("\t    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_%s_%s,\n",
+			printf("\t    PCMCIA_VENDOR_UNKNOWN, PCMCIA_PRODUCT_%s_%s,\n",
 			    products[i, 1], products[i, 2]) > dfile
 		} else {
-			printf("\t    PCCARD_VENDOR_%s, PCCARD_PRODUCT_%s_%s,\n",
+			printf("\t    PCMCIA_VENDOR_%s, PCMCIA_PRODUCT_%s_%s,\n",
 			    products[i, 1], products[i, 1], products[i, 2]) > dfile
 		}
-		printf("\t    PCCARD_CIS_%s_%s,\n", 
+		printf("\t    PCMCIA_CIS_%s_%s,\n", 
 		    products[i, 1], products[i, 2]) > dfile
 		printf("\t    ") > dfile
 		printf("0") > dfile
@@ -214,9 +214,9 @@ END {
 	}
 	for (i = 1; i <= nvendors; i++) {
 		printf("\t{\n") > dfile
-		printf("\t    PCCARD_VENDOR_%s, 0,\n", vendors[i, 1]) > dfile
-		printf("\t    PCCARD_KNOWNDEV_NOPROD,\n") > dfile
-		printf("\t    PCCARD_CIS_INVALID,\n") > dfile
+		printf("\t    PCMCIA_VENDOR_%s, 0,\n", vendors[i, 1]) > dfile
+		printf("\t    PCMCIA_KNOWNDEV_NOPROD,\n") > dfile
+		printf("\t    PCMCIA_CIS_INVALID,\n") > dfile
 		printf("\t    \"%s\",\n", vendors[i, 3]) > dfile
 		printf("\t    NULL,\n") > dfile
 		printf("\t},\n") > dfile
