@@ -240,6 +240,14 @@
 #define	UEAFSR_P_DWR	(1UL << 61)	/* pri. error during write */
 #define	UEAFSR_P_DRD	(1UL << 62)	/* pri. error during read */
 
+/* Definitions for the psycho configuration space */
+#define	PCS_DEVICE	0		/* Device number of psycho CS entry */
+#define	PCS_FUNC	0		/* Function number of psycho CS entry */
+
+/* Non-Standard registers in the configration space */
+#define	PCSR_SECBUS	0x40		/* Secondary bus number register */
+#define	PCSR_SUBBUS	0x41		/* Subordinate bus number register */
+
 /*
  * these are the PROM structures we grovel
  */
