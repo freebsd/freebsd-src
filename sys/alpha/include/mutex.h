@@ -42,9 +42,9 @@
 #ifdef MUTEX_DEBUG
 
 #ifdef _KERN_MUTEX_C_
-char STR_IEN[] = "ps & IPL != IPL_HIGH";
+char STR_IEN[] = "ps & IPL == IPL_0";
 char STR_IDIS[] = "ps & IPL == IPL_HIGH";
-char STR_SIEN[] = "mpp->mtx_saveintr != IPL_HIGH";
+char STR_SIEN[] = "mpp->mtx_saveintr == IPL_0";
 #else	/* _KERN_MUTEX_C_ */
 extern char STR_IEN[];
 extern char STR_IDIS[];
@@ -54,14 +54,14 @@ extern char STR_SIEN[];
 #endif	/* MUTEX_DEBUG */
 
 #define	ASS_IEN		MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
-			       == ALPHA_PSL_IPL_HIGH, STR_IEN)
+			       == ALPHA_PSL_IPL_0, STR_IEN)
 #define	ASS_IDIS	MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
-			       != ALPHA_PSL_IPL_HIGH, STR_IDIS)
+			       == ALPHA_PSL_IPL_HIGH, STR_IDIS)
 #define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr \
-			       != ALPHA_PSL_IPL_HIGH, STR_SIEN)
+			       == ALPHA_PSL_IPL_0, STR_SIEN)
 
 #define	mtx_legal2block()						\
-	((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK) == ALPHA_PSL_IPL_HIGH)
+	((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK) == ALPHA_PSL_IPL_0)
 
 /*
  * Assembly macros (for internal use only)
