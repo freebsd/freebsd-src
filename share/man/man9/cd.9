@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: cd.9,v 1.5 1997/03/07 02:53:34 jmg Exp $
 .\"
 .Dd February 1, 1997
 .Dt CD 9
@@ -55,13 +55,11 @@ for more information on how to add quirk entries.
 .It Dv CD_Q_NO_TOUCH
 This flag tell the driver not to probe the drive at attach time to see if
 there is a disk in the drive and find out what size it is.
-.ig xx
 .It Dv CD_Q_BCD_TRACKS
 This flag is for broken drives that return the track numbers in packed BCD
-encoding instead of straight decimal.  If the drive seems to skip tracks
-.Pq usually tracks 10-15 are skipped
+instead of straight decimal.  If the drive seems to skip tracks
+.Pq tracks 10-15 are skipped
 then you have a drive that is in need of this flag.
-.xx
 .El
 .Sh FILES
 .Bl -tag -width /sys/scsi/scsiconf.h -compact
@@ -74,6 +72,7 @@ quirk flags
 .El
 .Sh SEE ALSO
 .Xr cd 4 ,
+.Xr scsi 4 ,
 .Xr scsiconf 9
 .Sh HISTORY
 The
