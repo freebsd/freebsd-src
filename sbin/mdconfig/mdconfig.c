@@ -113,6 +113,10 @@ main(int argc, char **argv)
 				cmdline = 2;
 			}
 			mdio.md_file = optarg;
+			fd = open(optarg, O_RDONLY);
+			if (fd < 0)
+				err(1, "could not open %s", optarg);
+			close(fd);
 			break;
 		case 'o':
 			if (cmdline != 2)
