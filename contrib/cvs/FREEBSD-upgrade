@@ -20,10 +20,10 @@ src/build_src.com
 lib/build_lib.com
 README.VMS
 
-
 The following non-freebsd-specific directories were deleted:
 macintosh
 os2
+emx
 windows-NT
 vms
 contrib/elib	(this has a .tar.Z in it)
