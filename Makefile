@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.203 1998/06/17 09:34:42 bde Exp $
+#	$Id: Makefile,v 1.204 1998/07/07 05:37:34 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -727,12 +727,27 @@ libraries:
 	cd ${.CURDIR}/kerberosIV/lib; ${MAKE} all; ${MAKE} -B install
 .endif
 
-# Exclude perl from the build-tools if NOPERL is defined.
-.if defined(NOPERL)
-_perl=
-.else
-_perl=	gnu/usr.bin/perl/perl
+#
+# Exclude unused tools from build-tools.
+#
+.if !defined(NOGAMES) && exists(${.CURDIR}/games)
+_adventure=	games/adventure
+_caesar=	games/caesar
+_hack=		games/hack
+_phantasia=	games/phantasia
+_strfile=	games/fortune/strfile
 .endif
+.if !defined(NOPERL)
+_perl=		gnu/usr.bin/perl/perl
+.endif
+.if !defined(NOSHARE) && exists(${.CURDIR}/share)
+_scrnmaps=	share/syscons/scrnmaps
+.endif
+.if !defined(NOLKM) && exists(${.CURDIR}/lkm)
+_linux=		lkm/linux
+.endif
+
+BTMAKEFLAGS=	${MK_FLAGS} -D_BUILD_TOOLS
 
 #
 # build-tools - build and install any other tools needed to complete the
@@ -760,8 +775,8 @@ build-tools:
 		bin/mv			\
 		bin/rm			\
 		bin/test		\
-		games/caesar		\
-		games/fortune/strfile	\
+		${_caesar}		\
+		${_strfile}		\
 		gnu/usr.bin/awk		\
 		gnu/usr.bin/bc		\
 		gnu/usr.bin/grep	\
@@ -808,24 +823,26 @@ build-tools:
 		usr.sbin/mtree		\
 		usr.sbin/zic		\
 		bin/sh
-	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} ${_DEPEND}; \
+		${MAKE} ${BTMAKEFLAGS} all; \
+		${MAKE} ${BTMAKEFLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
+.if !defined(NOGAMES) && exists(${.CURDIR}/games)
 	cd ${DESTDIR}/usr/games; cp -p caesar strfile ${DESTDIR}/usr/bin
+.endif
 .for d in				\
 		bin/sh			\
-		games/adventure		\
-		games/hack		\
-		games/phantasia		\
+		${_adventure}		\
+		${_hack}		\
+		${_phantasia}		\
 		gnu/usr.bin/cc/cc_tools	\
 		lib/libmytinfo		\
-		lkm/linux		\
-		share/syscons/scrnmaps	\
+		${_linux}		\
+		${_scrnmaps}		\
 		sys/i386/boot/netboot
-	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} build-tools
+	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} build-tools
 .endfor
-	cd ${.CURDIR}/usr.bin/tn3270/tools; ${MAKE} ${MK_FLAGS} all
+	cd ${.CURDIR}/usr.bin/tn3270/tools; ${MAKE} ${BTMAKEFLAGS} all
 
 .for __target in clean cleandepend cleandir depend obj
 .for entry in ${SUBDIR}
