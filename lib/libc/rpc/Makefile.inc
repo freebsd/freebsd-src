@@ -36,18 +36,10 @@ crypt.h: ${RPCDIR}/crypt.x
 	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/crypt.x
 
 .if ${LIB} == "c"
-#
-# XXX -- rstat.1 and rstat_svc.8 shouldn't really be here
-#        but there's no rstat command, don't know why, so I'm
-#        leaving them here in case they're needed sometime later.
-# Paul.
-#
 
-# MAN1+=	rstat.1
 MAN3+=	bindresvport.3 des_crypt.3 getrpcent.3 getrpcport.3 publickey.3 rpc.3 \
 	rpc_secure.3 rtime.3
 MAN5+=	publickey.5 rpc.5
-# MAN8+=	rstat_svc.8
 
 MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		getrpcent.3 endrpcent.3 \
