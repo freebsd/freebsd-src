@@ -144,6 +144,13 @@
 #define	LINUX_IOCTL_SOCKET_MAX	LINUX_SIOCDELMULTI
 
 /*
+ * Device private ioctl calls 
+ */
+#define LINUX_SIOCDEVPRIVATE	0x89F0  /* to 89FF */
+#define LINUX_IOCTL_PRIVATE_MIN	LINUX_SIOCDEVPRIVATE
+#define LINUX_IOCTL_PRIVATE_MAX	LINUX_SIOCDEVPRIVATE+0xf
+
+/*
  * sound
  */
 #define	LINUX_SOUND_MIXER_WRITE_VOLUME	0x4d00
@@ -433,5 +440,11 @@
 #define	LINUX_ASYNC_PGRP_LOCKOUT	0x0200
 #define	LINUX_ASYNC_CALLOUT_NOHUP	0x0400
 #define	LINUX_ASYNC_FLAGS		0x0FFF
+
+/*
+ * This doesn't really belong here, but I can't think of a better
+ * place to put it.
+ */
+int		 linux_ifname(struct ifnet *, char *, size_t);
 
 #endif /* !_LINUX_IOCTL_H_ */
