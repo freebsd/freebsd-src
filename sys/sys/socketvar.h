@@ -51,7 +51,6 @@ typedef	u_quad_t so_gen_t;
 struct accept_filter;
 
 struct socket {
-	struct	vm_zone *so_zone;	/* zone we were allocated from */
 	short	so_type;		/* generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
