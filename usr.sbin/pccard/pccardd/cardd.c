@@ -282,7 +282,9 @@ struct card *cp;
 		log_1s("Error reading CIS on %s\n", sp->name);
 		return;
 		}
+/*
 	dumpcis(sp->cis);
+*/
 	for (cp = cards; cp; cp = cp->next)
 		if (strcmp(cp->manuf, sp->cis->manuf) == 0 &&
 			strcmp(cp->version, sp->cis->vers) == 0)
@@ -595,10 +597,11 @@ int	rw_flags;
 	usleep(sp->card->reset_time*1000);
 	lseek(sp->fd, offs, SEEK_SET);
 	c = sp->config->index;
+c |= 0x40;
 	write(sp->fd, &c, sizeof(c));
 #ifdef	DEBUG
-	printf("Setting config reg at offs 0x%x to 0x%x\n",
-		offs, c);
+	printf("Setting config reg at offs 0x%x", offs);
+	printf(" to 0x%x\n",c);	
 	printf("Reset time = %d ms\n", sp->card->reset_time);
 #endif
 	sleep(5);
@@ -627,7 +630,7 @@ int	rw_flags;
 	if (sp->mem.addr)
 		{
 		mem.window = 0;
-		mem.flags = sp->mem.flags | MDF_ACTIVE;
+		mem.flags = sp->mem.flags | MDF_ACTIVE | MDF_16BITS;
 		mem.start = (caddr_t)sp->mem.addr;
 		mem.card = sp->mem.cardaddr;
 		mem.size = sp->mem.size;
