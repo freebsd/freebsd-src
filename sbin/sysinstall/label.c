@@ -44,7 +44,7 @@ void
 yelp(char *str)
 {
     standout();
-    mvprintw(24, 0, "%s", str);
+    mvprintw(24, 0, str);
     standend();
     beep();
 }
@@ -415,6 +415,7 @@ DiskLabel()
     struct disklabel *lbl, olbl;
     u_long cyl, hd, sec, tsec;
     u_long l1, l2, l3, l4;
+    char *yip = NULL;
     
     *buf = 0;
     i = AskEm(stdscr, "Enter number of disk to Disklabel> ", buf, 2);
@@ -430,13 +431,11 @@ DiskLabel()
     sec = lbl->d_nsectors;
     tsec = lbl->d_secperunit;
     while(!done) {
-	char *yip = NULL;
-
+	clear(); standend();
 	if (yip) {
 		yelp(yip);
 		yip = NULL;
 	}
-	clear(); standend();
 	j = 0;
 	mvprintw(j++, 0, "%s -- Diskspace editor -- DISKLABEL",  TITLE);
 	j++;
