@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.82 1997/03/22 18:52:03 kato Exp $
+ *	$Id: locore.s,v 1.83 1997/04/07 07:15:49 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -110,8 +110,6 @@ _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 physfree:	.long	0			/* phys addr of next free page */
-p0upa:	.long	0				/* phys addr of proc0's UPAGES */
-p0upt:	.long	0				/* phys addr of proc0's UPAGES page table */
 
 	.globl	_IdlePTD
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
@@ -120,6 +118,7 @@ _KPTphys:	.long	0			/* phys addr of kernel page tables */
 
 	.globl	_proc0paddr
 _proc0paddr:	.long	0			/* address of proc 0 address space */
+p0upa:		.long	0			/* phys addr of proc0's UPAGES */
 
 #ifdef BDE_DEBUGGER
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is present */
@@ -753,10 +752,6 @@ over_symalloc:
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_proc0paddr)
 
-/* Allocate proc0's page table for the UPAGES. */
-	ALLOCPAGES(1)
-	movl	%esi,R(p0upt)
-
 /* Map read-only from zero to the end of the kernel text section */
 	xorl	%eax, %eax
 #ifdef BDE_DEBUGGER
@@ -794,11 +789,6 @@ map_read_write:
 	movl	$1, %ecx
 	fillkptphys($PG_RW)
 
-/* Map proc0's page table for the UPAGES. */
-	movl	R(p0upt), %eax
-	movl	$1, %ecx
-	fillkptphys($PG_RW)
-
 /* Map proc0's UPAGES in the physical way ... */
 	movl	R(p0upa), %eax
 	movl	$UPAGES, %ecx
@@ -808,18 +798,6 @@ map_read_write:
 	movl	$ISA_HOLE_START, %eax
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkptphys($PG_RW)
-
-/* Map proc0s UPAGES in the special page table for this purpose ... */
-	movl	R(p0upa), %eax
-	movl	$KSTKPTEOFF, %ebx
-	movl	$UPAGES, %ecx
-	fillkpt(R(p0upt), $PG_RW)
-
-/* ... and put the page table in the pde. */
-	movl	R(p0upt), %eax
-	movl	$KSTKPTDI, %ebx
-	movl	$1, %ecx
-	fillkpt(R(_IdlePTD), $PG_RW)
 
 /* install a pde for temporary double map of bottom of VA */
 	movl	R(_KPTphys), %eax
