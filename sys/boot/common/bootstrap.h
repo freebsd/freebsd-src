@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.21 1999/04/16 21:21:47 peter Exp $
+ *	$Id: bootstrap.h,v 1.22 1999/06/26 12:26:54 peter Exp $
  */
 
 #include <sys/types.h>
@@ -68,6 +68,7 @@ extern int	bf_run(char *line);
 /* boot.c */
 extern int	autoboot(int delay, char *prompt);
 extern void	autoboot_maybe(void);
+extern int	getrootmount(char *rootdev);
 
 /* misc.c */
 extern char	*unargv(int argc, char *argv[]);
