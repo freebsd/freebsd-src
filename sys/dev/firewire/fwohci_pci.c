@@ -288,12 +288,28 @@ fwohci_pci_detach(device_t self)
 	return 0;
 }
 
+static int
+fwohci_pci_suspend(device_t dev)
+{
+	device_printf(dev, "fwoch_pci_suspend\n");
+	return 0;
+}
+
+static int
+fwohci_pci_resume(device_t dev)
+{
+	device_printf(dev, "fwoch_pci_resume\n");
+	return 0;
+}
+
 static device_method_t fwohci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fwohci_pci_probe),
 	DEVMETHOD(device_attach,	fwohci_pci_attach),
 	DEVMETHOD(device_detach,	fwohci_pci_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	fwohci_pci_suspend),
+	DEVMETHOD(device_resume,	fwohci_pci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
