@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -33,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.11 1999/03/13 04:47:09 grog Exp grog $
+ * $Id: vinumstate.c,v 2.12 1999/07/05 01:36:48 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -479,6 +483,8 @@ update_plex_state(int plexno)
     statemap = sdstatemap(plex);			    /* get a map of the subdisk states */
     vps = vpstate(plex);				    /* how do we compare with the other plexes? */
 
+    if (statemap & sd_initializing)			    /* something initializing? */
+	plex->state = plex_initializing;		    /* yup, that makes the plex the same */
     if ((statemap == sd_emptystate)			    /* all subdisks empty */
 &&((vps & volplex_otherup) == 0)			    /* and no other plex is up */ &&((plex->organization == plex_concat) /* and we're not RAID-5 */
     ||(plex->organization == plex_striped))) {
@@ -513,6 +519,9 @@ update_plex_state(int plexno)
 	 * the plex up
 	 */
 	plex->state = plex_up;
+    else if ((plex->organization == plex_raid5)		    /* raid 5 plex */
+    &&(plex->sddowncount == 1))				    /* and exactly one subdisk down */
+	plex->state = plex_degraded;			    /* limping a bit */
     else if ((statemap & (sd_upstate | sd_rebornstate)) == statemap) /* all up or reborn */
 	plex->state = plex_flaky;
     else if (statemap & (sd_upstate | sd_rebornstate))	    /* some up or reborn */
@@ -559,6 +568,24 @@ update_volume_state(int volno)
 }
 
 /*
+ * Helper for checksdstate.  If this is a write
+ * operation, it's no necessarily the end of the
+ * world that we can't write: there could be
+ * another plex which can satisfy the operation.
+ * We must write everything we can, though, so we
+ * don't want to stop when we hit a subdisk which
+ * is down.  Return a separate indication instead.
+ */
+enum requeststatus 
+sddownstate(struct request *rq)
+{
+    if (rq->bp->b_flags & B_READ)			    /* read operation? */
+	return REQUEST_DOWN;				    /* OK, can't do it */
+    else
+	return REQUEST_DEGRADED;
+}
+
+/*
  * Called from request routines when they find
  * a subdisk which is not kosher.  Decide whether
  * it warrants changing the state.  Return
@@ -599,17 +626,30 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	 *   subdisk is down
 	 */
 	if (plex->state == plex_striped)		    /* plex is striped, */
-	    return REQUEST_DOWN;			    /* can't access it now */
+	    return sddownstate(rq);
+
+	else if (plex->state == plex_raid5) {		    /* RAID5 plex */
+	    if (plex->sddowncount > 1)			    /* with more than one sd down, */
+		return sddownstate(rq);
+	    else
+		/*
+		 * XXX We shouldn't do this if we can find a
+		 * better way.  Check the other plexes
+		 * first, and return a DOWN if another
+		 * plex will do it better
+		 */
+		return REQUEST_OK;			    /* OK, we'll find a way */
+	}
 	if (diskaddr > (sd->revived
 		+ sd->plexoffset
 		+ (sd->revive_blocksize >> DEV_BSHIFT)))    /* we're beyond the end */
-	    return REQUEST_DOWN;			    /* don't take the sd down again... */
+	    return sddownstate(rq);
 	else if (diskend > (sd->revived + sd->plexoffset)) { /* we finish beyond the end */
 	    if (writeop) {
 		rq->flags |= XFR_REVIVECONFLICT;	    /* note a potential conflict */
 		rq->sdno = sd->sdno;			    /* and which sd last caused it */
 	    } else
-		return REQUEST_DOWN;			    /* can't read this yet */
+		return sddownstate(rq);
 	}
 	return REQUEST_OK;
 
@@ -622,20 +662,20 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	       * a read request to a reborn subdisk if that's
 	       * all we have. XXX
 	     */
-	    return REQUEST_DOWN;
+	    return sddownstate(rq);
 
     case sd_down:
 	if (writeop)					    /* writing to a consistent down disk */
 	    set_sd_state(sd->sdno, sd_obsolete, setstate_force); /* it's not consistent now */
-	return REQUEST_DOWN;				    /* and it's down one way or another */
+	return sddownstate(rq);
 
     case sd_crashed:
 	if (writeop)					    /* writing to a consistent down disk */
 	    set_sd_state(sd->sdno, sd_stale, setstate_force); /* it's not consistent now */
-	return REQUEST_DOWN;				    /* and it's down one way or another */
+	return sddownstate(rq);
 
     default:
-	return REQUEST_DOWN;
+	return sddownstate(rq);
     }
 }
 
@@ -719,10 +759,10 @@ vpstate(struct plex *plex)
     vol = &VOL[plex->volno];				    /* point to our volume */
     for (plexno = 0; plexno < vol->plexes; plexno++) {
 	if (&PLEX[vol->plex[plexno]] == plex) {		    /* us */
-	    if (PLEX[vol->plex[plexno]].state >= plex_flaky) /* are we up? */
+	    if (PLEX[vol->plex[plexno]].state >= plex_degraded)	/* are we up? */
 		state |= volplex_onlyus;		    /* yes */
 	} else {
-	    if (PLEX[vol->plex[plexno]].state >= plex_flaky) /* not us */
+	    if (PLEX[vol->plex[plexno]].state >= plex_degraded)	/* not us */
 		state |= volplex_otherup;		    /* and when they were up, they were up */
 	    else
 		state |= volplex_alldown;		    /* and when they were down, they were down */
