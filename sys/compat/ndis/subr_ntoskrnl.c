@@ -97,6 +97,9 @@ __stdcall static void ntoskrnl_init_nplookaside(npaged_lookaside_list *,
 __stdcall static void ntoskrnl_delete_nplookaside(npaged_lookaside_list *);
 static slist_entry *ntoskrnl_push_slist(slist_entry *, slist_entry *);
 static slist_entry *ntoskrnl_pop_slist(slist_entry *);
+static slist_entry *ntoskrnl_push_slist_ex(slist_entry *,
+	slist_entry *, kspin_lock *);
+static slist_entry *ntoskrnl_pop_slist_ex(slist_entry *, kspin_lock *);
 __stdcall static void dummy(void);
 
 static struct mtx ntoskrnl_interlock;
@@ -352,6 +355,8 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 	uint32_t		tag;
 	uint16_t		depth;
 {
+	struct mtx		*mtx;
+
 	lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
@@ -364,6 +369,13 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
+	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (mtx == NULL)
+                return;
+	mtx_init(mtx, "ndisnplook", "ndis lookaside lock",
+	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
+	lookaside->nll_obsoletelock = (kspin_lock)mtx;
+
 	return;
 }
 
@@ -371,6 +383,8 @@ __stdcall static void
 ntoskrnl_delete_lookaside(lookaside)
 	paged_lookaside_list   *lookaside;
 {
+	mtx_destroy((struct mtx *)lookaside->nll_obsoletelock);
+	free((struct mtx *)lookaside->nll_obsoletelock, M_DEVBUF);
 	return;
 }
 
@@ -385,6 +399,8 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 	uint32_t		tag;
 	uint16_t		depth;
 {
+	struct mtx		*mtx;
+
 	lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
@@ -397,6 +413,13 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
+	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (mtx == NULL)
+                return;
+	mtx_init(mtx, "ndisnplook", "ndis lookaside lock",
+	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
+	lookaside->nll_obsoletelock = (kspin_lock)mtx;
+
 	return;
 }
 
@@ -404,6 +427,8 @@ __stdcall static void
 ntoskrnl_delete_nplookaside(lookaside)
 	npaged_lookaside_list   *lookaside;
 {
+	mtx_destroy((struct mtx *)lookaside->nll_obsoletelock);
+	free((struct mtx *)lookaside->nll_obsoletelock, M_DEVBUF);
 	return;
 }
 
@@ -439,6 +464,38 @@ ntoskrnl_pop_slist(head)
 	return(first);
 }
 
+__stdcall static slist_entry *
+ntoskrnl_push_slist_ex(head, entry, lock)
+	slist_entry		*head;
+	slist_entry		*entry;
+	kspin_lock		*lock;
+{
+	slist_entry		*oldhead;
+	return(NULL);
+	mtx_lock((struct mtx *)*lock);
+	oldhead = head->sl_next;
+	entry->sl_next = head->sl_next;
+	head->sl_next = entry;
+	mtx_unlock((struct mtx *)*lock);
+	return(oldhead);
+}
+
+__stdcall static slist_entry *
+ntoskrnl_pop_slist_ex(head, lock)
+	slist_entry		*head;
+	kspin_lock		*lock;
+{
+	slist_entry		*first;
+
+	return(NULL);
+	mtx_lock((struct mtx *)*lock);
+	first = head->sl_next;
+	if (first != NULL)
+		head->sl_next = first->sl_next;
+	mtx_unlock((struct mtx *)*lock);
+	return(first);
+}
+
 __stdcall static void
 dummy()
 {
@@ -455,6 +512,9 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "strcmp",			(FUNC)strcmp },
 	{ "strncpy",			(FUNC)strncpy },
 	{ "strcpy",			(FUNC)strcpy },
+	{ "strlen",			(FUNC)strlen },
+	{ "memcpy",			(FUNC)memcpy },
+	{ "memset",			(FUNC)memset },
 	{ "IofCallDriver",		(FUNC)ntoskrnl_iofcalldriver },
 	{ "IoBuildSynchronousFsdRequest", (FUNC)ntoskrnl_iobuildsynchfsdreq },
 	{ "KeWaitForSingleObject",	(FUNC)ntoskrnl_waitforobj },
@@ -481,6 +541,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "ExDeleteNPagedLookasideList", (FUNC)ntoskrnl_delete_nplookaside },
 	{ "InterlockedPopEntrySList",	(FUNC)ntoskrnl_pop_slist },
 	{ "InterlockedPushEntrySList",	(FUNC)ntoskrnl_push_slist },
+	{ "ExInterlockedPopEntrySList",	(FUNC)ntoskrnl_pop_slist_ex },
+	{ "ExInterlockedPushEntrySList",(FUNC)ntoskrnl_push_slist_ex },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't

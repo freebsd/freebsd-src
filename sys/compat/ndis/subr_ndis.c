@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/timespec.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -207,6 +208,7 @@ __stdcall static ndis_list_entry *ndis_insert_tail(ndis_list_entry *,
 	ndis_list_entry *, ndis_spin_lock *);
 __stdcall static uint8_t ndis_sync_with_intr(ndis_miniport_interrupt *,
 	void *, void *);
+__stdcall static void ndis_time(uint64_t *);
 __stdcall static void dummy(void);
 
 
@@ -1839,6 +1841,20 @@ ndis_sync_with_intr(intr, syncfunc, syncctx)
 	return(sync(syncctx));
 }
 
+/*
+ * Return the number of 100 nanosecond intervals since
+ * January 1, 1601. (?!?!)
+ */
+__stdcall static void
+ndis_time(tval)
+	uint64_t		*tval;
+{
+	struct timespec		ts;
+	nanotime(&ts);
+	*tval = (ts.tv_nsec / 100) + (ts.tv_nsec * 10000000);  
+	return;
+}
+
 __stdcall static void
 dummy()
 {
@@ -1847,6 +1863,7 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisGetCurrentSystemTime",	(FUNC)ndis_time },
 	{ "NdisMSynchronizeWithInterrupt", (FUNC)ndis_sync_with_intr },
 	{ "NdisMAllocateSharedMemoryAsync", (FUNC)ndis_alloc_sharedmem_async },
 	{ "NdisInterlockedInsertHeadList", (FUNC)ndis_insert_head },
