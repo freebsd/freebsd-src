@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pat_rep.c,v 1.2 1994/09/24 02:56:24 davidg Exp $
  */
 
 #ifndef lint
@@ -617,7 +617,7 @@ range_match(pattern, test)
 	int negate;
 	int ok = 0;
 
-	if (negate = (*pattern == '!'))
+	if ((negate = (*pattern == '!')))
 		++pattern;
 
 	while ((c = *pattern++) != ']') {

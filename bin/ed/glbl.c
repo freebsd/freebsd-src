@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: glbl.c,v 1.2 1994/09/24 02:55:26 davidg Exp $
  */
 
 #ifndef lint
@@ -132,8 +132,8 @@ exec_global(interact, gflag)
 		for (; *ibufp;)
 			if ((status = extract_addr_range()) < 0 ||
 			    (status = exec_command()) < 0 ||
-			    status > 0 && (status = display_lines(
-			    current_addr, current_addr, status)) < 0)
+			    (status > 0 && (status = display_lines(
+			    current_addr, current_addr, status)) < 0))
 				return status;
 	}
 	return 0;

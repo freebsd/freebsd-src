@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: re.c,v 1.8 1994/09/24 02:55:29 davidg Exp $
  */
 
 #ifndef lint
@@ -67,7 +67,7 @@ get_compiled_pattern()
 		return NULL;
 	}
 	patlock = 0;
-	if (n = regcomp(exp, exps, 0)) {
+	if ((n = regcomp(exp, exps, 0))) {
 		regerror(n, exp, errmsg, sizeof errmsg);
 		free(exp);
 		return exp = NULL;

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.4 1994/10/02 08:33:30 davidg Exp $
+ *	$Id: print.c,v 1.5 1994/10/02 14:11:32 ache Exp $
  */
 
 #ifndef lint
@@ -468,7 +468,7 @@ p_rssize(k, ve)		/* doesn't account for text */
 #ifndef NEWVM
 	(void)printf("%*d", v->width, pgtok(KI_PROC(k)->p_rssize));
 #else
-	(void)printf("%*d", v->width, pgtok(KI_EPROC(k)->e_vm.vm_rssize));
+	(void)printf("%*ld", v->width, pgtok(KI_EPROC(k)->e_vm.vm_rssize));
 #endif
 }
 
@@ -599,7 +599,7 @@ pagein(k, ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%*d", v->width, 
+	(void)printf("%*ld", v->width, 
 	    k->ki_u.u_valid ? k->ki_u.u_ru.ru_majflt : 0);
 }
 
@@ -630,7 +630,7 @@ tsize(k, ve)
 #ifndef NEWVM
 	(void)printf("%*d", v->width, pgtok(KI_EPROC(k)->e_xsize));
 #else
-	(void)printf("%*d", v->width, pgtok(KI_EPROC(k)->e_vm.vm_tsize));
+	(void)printf("%*ld", v->width, pgtok(KI_EPROC(k)->e_vm.vm_tsize));
 #endif
 }
 
@@ -664,7 +664,7 @@ printval(bp, v)
 	if (v->flag & LJUST)
 		*cp++ = '-';
 	*cp++ = '*';
-	while (*cp++ = *fcp++);
+	while ((*cp++ = *fcp++));
 
 	switch (v->type) {
 	case CHAR:

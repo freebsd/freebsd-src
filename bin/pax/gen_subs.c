@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: gen_subs.c,v 1.2 1994/09/24 02:56:22 davidg Exp $
  */
 
 #ifndef lint
@@ -135,7 +135,7 @@ ls_list(arcn, now)
 #		ifdef NET2_STAT
 		(void)printf("%4u,%4u ", MAJOR(sbp->st_rdev),
 #		else
-		(void)printf("%4lu,%4lu ", MAJOR(sbp->st_rdev),
+		(void)printf("%4lu,%4lu ", (unsigned long)MAJOR(sbp->st_rdev),
 #		endif
 		    MINOR(sbp->st_rdev));
 	else {
