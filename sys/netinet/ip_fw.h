@@ -276,6 +276,7 @@ typedef struct  _ipfw_insn_log {
 struct ip_fw {
 	struct ip_fw	*next;		/* linked list of rules		*/
 	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
+	u_int32_t	set_disable;	/* disabled sets (for userland)	*/
 	u_int16_t	act_ofs;	/* offset of action in 32-bit units */
 	u_int16_t	cmd_len;	/* # of 32-bit words in cmd	*/
 	u_int16_t	rulenum;	/* rule number			*/
@@ -331,6 +332,7 @@ struct _ipfw_dyn_rule {
 					/* to generate keepalives)	*/
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
+	u_int16_t	rulenum;	/* rule number (for userland)	*/
 };
 
 /*
