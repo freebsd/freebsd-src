@@ -513,6 +513,8 @@
             ..
             et_EE.ISO_8859-15
             ..
+            et_EE.ISO_8859-1
+            ..
             fi_FI.ISO_8859-15
             ..
             fi_FI.ISO_8859-1
@@ -810,6 +812,8 @@
             es_ES.ISO_8859-1
             ..
             et_EE.ISO_8859-15
+            ..
+            et_EE.ISO_8859-1
             ..
             fi_FI.ISO_8859-15
             ..
