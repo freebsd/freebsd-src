@@ -172,13 +172,20 @@ fmt(fi)
 			*cp++ = c;
 			c = getc(fi);
 		}
-		*cp = '\0';
 
 		/*
 		 * Toss anything remaining on the input line.
 		 */
 		while (c != '\n' && c != EOF)
 			c = getc(fi);
+
+		if (cp != NULL) {
+			*cp = '\0';
+		} else {
+			putchar('\n');
+			c = getc(fi);
+			continue;
+		}
 
 		/*
 		 * Expand tabs on the way to canonb.
