@@ -2353,7 +2353,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	vm_offset_t tmpidx;
 	int psize;
 	vm_page_t p, mpte;
-	int objpgs;
 
 	if (pmap == NULL || object == NULL)
 		return;
@@ -2432,76 +2431,44 @@ retry:
 	}
 
 	mpte = NULL;
+
+	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+		if (p->pindex < pindex) {
+			p = vm_page_splay(pindex, object->root);
+			if ((object->root = p)->pindex < pindex)
+				p = TAILQ_NEXT(p, listq);
+		}
+	}
 	/*
-	 * if we are processing a major portion of the object, then scan the
-	 * entire thing.
+	 * Assert: the variable p is either (1) the page with the
+	 * least pindex greater than or equal to the parameter pindex
+	 * or (2) NULL.
 	 */
-	if (psize > (object->resident_page_count >> 2)) {
-		objpgs = psize;
-
-		for (p = TAILQ_FIRST(&object->memq);
-		    ((objpgs > 0) && (p != NULL));
-		    p = TAILQ_NEXT(p, listq)) {
-
-			if (p->pindex < pindex || p->pindex - pindex >= psize) {
-				continue;
-			}
-			tmpidx = p->pindex - pindex;
-			/*
-			 * don't allow an madvise to blow away our really
-			 * free pages allocating pv entries.
-			 */
-			if ((limit & MAP_PREFAULT_MADVISE) &&
-			    cnt.v_free_count < cnt.v_free_reserved) {
-				break;
-			}
-			vm_page_lock_queues();
-			if (((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-				(p->busy == 0) &&
-			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-				if ((p->queue - p->pc) == PQ_CACHE)
-					vm_page_deactivate(p);
-				vm_page_busy(p);
-				vm_page_unlock_queues();
-				mpte = pmap_enter_quick(pmap, 
-					addr + i386_ptob(tmpidx), p, mpte);
-				vm_page_lock_queues();
-				vm_page_wakeup(p);
-			}
-			vm_page_unlock_queues();
-			objpgs -= 1;
-		}
-	} else {
+	for (;
+	     p != NULL && (tmpidx = p->pindex - pindex) < psize;
+	     p = TAILQ_NEXT(p, listq)) {
 		/*
-		 * else lookup the pages one-by-one.
+		 * don't allow an madvise to blow away our really
+		 * free pages allocating pv entries.
 		 */
-		for (tmpidx = 0; tmpidx < psize; tmpidx += 1) {
-			/*
-			 * don't allow an madvise to blow away our really
-			 * free pages allocating pv entries.
-			 */
-			if ((limit & MAP_PREFAULT_MADVISE) &&
-			    cnt.v_free_count < cnt.v_free_reserved) {
-				break;
-			}
-			p = vm_page_lookup(object, tmpidx + pindex);
-			if (p == NULL)
-				continue;
-			vm_page_lock_queues();
-			if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
-				(p->busy == 0) &&
-			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-				if ((p->queue - p->pc) == PQ_CACHE)
-					vm_page_deactivate(p);
-				vm_page_busy(p);
-				vm_page_unlock_queues();
-				mpte = pmap_enter_quick(pmap, 
-					addr + i386_ptob(tmpidx), p, mpte);
-				vm_page_lock_queues();
-				vm_page_wakeup(p);
-			}
-			vm_page_unlock_queues();
+		if ((limit & MAP_PREFAULT_MADVISE) &&
+		    cnt.v_free_count < cnt.v_free_reserved) {
+			break;
 		}
+		vm_page_lock_queues();
+		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
+		    (p->busy == 0) &&
+		    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+			if ((p->queue - p->pc) == PQ_CACHE)
+				vm_page_deactivate(p);
+			vm_page_busy(p);
+			vm_page_unlock_queues();
+			mpte = pmap_enter_quick(pmap, 
+				addr + i386_ptob(tmpidx), p, mpte);
+			vm_page_lock_queues();
+			vm_page_wakeup(p);
+		}
+		vm_page_unlock_queues();
 	}
 	return;
 }
