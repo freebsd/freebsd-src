@@ -648,14 +648,17 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	 * assume we were successful.
 	 */
 	error = acpi_pci_link_get_current_irq(link, &link->current_irq);
-	if (ACPI_FAILURE(error) && bootverbose) {
-		printf("acpi link set: _CRS failed for link %s - %s\n",
-		    acpi_name(link->handle), AcpiFormatException(error));
+	if (ACPI_FAILURE(error)) {
+		if (bootverbose)
+			printf("acpi link set: _CRS failed for link %s - %s\n",
+			    acpi_name(link->handle),
+			    AcpiFormatException(error));
 		error = AE_OK;
 	}
 	if (link->current_irq != irq) {
-		printf("acpi link set: curr irq %d != %d for %s (ignoring)\n",
-		    link->current_irq, irq, acpi_name(link->handle));
+		if (bootverbose)
+			printf("acpi link set: curr irq %d != %d for %s\n",
+			    link->current_irq, irq, acpi_name(link->handle));
 		link->current_irq = irq;
 	}
 
