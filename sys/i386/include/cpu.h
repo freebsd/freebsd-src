@@ -135,6 +135,10 @@ extern char	etext[];
 void	fork_trampoline __P((void));
 void	fork_return __P((struct proc *, struct trapframe));
 
+#if defined(I386_CPU) || defined(I486_CPU)
+extern u_int   tsc_present;
+#endif
+
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
  * for non-critical timing.
@@ -143,7 +147,6 @@ static __inline u_int64_t
 get_cyclecount(void)
 {
 #if defined(I386_CPU) || defined(I486_CPU)
-	extern u_int   tsc_present;
 	struct timespec tv;
 
 	if (!tsc_present) {
