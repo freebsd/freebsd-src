@@ -125,6 +125,7 @@ dev/mii/mii.c		optional miibus
 dev/mii/mii_physubr.c	optional miibus
 dev/mii/ukphy.c		optional miibus
 dev/mii/ukphy_subr.c	optional miibus
+dev/mii/amphy.c		optional miibus
 dev/mii/exphy.c		optional miibus
 dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
@@ -634,6 +635,7 @@ pci/if_pn.c		optional pn
 pci/if_fpa.c		optional fpa pci
 pci/if_rl.c		optional rl
 pci/if_sf.c		optional sf
+pci/if_sis.c		optional sis
 pci/if_sk.c		optional sk
 pci/if_ste.c		optional ste
 pci/if_sr_p.c		optional sr pci
