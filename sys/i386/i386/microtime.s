@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.8 1995/10/12 20:38:24 wollman Exp $
+ *	$Id: microtime.s,v 1.9 1995/10/13 19:53:25 wollman Exp $
  */
 
 #include <machine/asmacros.h>
@@ -46,6 +46,8 @@ ENTRY(microtime)
 	movl	_pentium_mhz, %ecx
 	testl	%ecx, %ecx
 	jne	pentium_microtime
+#else
+	xorl	%ecx, %ecx	# clear ecx
 #endif
 
 	movb	$TIMER_SEL0|TIMER_LATCH, %al	# prepare to latch
@@ -172,8 +174,6 @@ common_microtime:
 	ret
 
 #ifdef I586_CPU
-	.extern _i586_ctr_bias
-
 	ALIGN_TEXT
 pentium_microtime:
 	cli
@@ -182,4 +182,4 @@ pentium_microtime:
 	sbbl	_i586_ctr_bias+4, %edx
 	divl	%ecx		# get value in usec
 	jmp	common_microtime
-#endif /* I586_CPU */
+#endif
