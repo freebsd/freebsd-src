@@ -373,7 +373,7 @@ network interface.
 On systems that do not support
 .Xr netgraph 4 ,
 an external program such as
-.Xr pppoe 8
+.Xr pppoed 8
 may be used.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
@@ -4548,7 +4548,7 @@ is not available,
 will attempt to load it using
 .Xr kldload 2 .
 If this fails, an external program must be used such as the
-.Xr pppoe 8
+.Xr pppoed 8
 program available under
 .Ox .
 The given
@@ -5956,7 +5956,7 @@ ifdef({LOCALRAD},{},{.Xr libradius 3 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
-.Xr pppoe 8 ,
+.Xr pppoed 8 ,
 .Xr route 8 ,
 .Xr sshd 8 ,
 .Xr syslogd 8 ,
