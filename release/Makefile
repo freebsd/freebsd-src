@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.197 1995/12/31 17:10:04 joerg Exp $
+#	$Id: Makefile,v 1.198 1996/01/03 23:40:59 joerg Exp $
 #
 # How to roll a release:
 #
@@ -549,12 +549,13 @@ doFS:
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
 		/dev/r${VNDEVICE} ${FSLABEL}
 .endif
-	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} /dev/r${VNDEVICE}
-	mount /dev/${VNDEVICE} ${MNT}
+	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} /dev/r${VNDEVICE}a
+	mount /dev/${VNDEVICE}a ${MNT}
 	cd ${FSPROTO} && find . -print | cpio -dump ${MNT}
 	df -i /mnt
 	umount ${MNT}
-	fsck  /dev/r${VNDEVICE} < /dev/null
+	fsck  /dev/r${VNDEVICE}a < /dev/null
+	@vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 
 installCRUNCH:
 .if !defined(CRUNCH)
