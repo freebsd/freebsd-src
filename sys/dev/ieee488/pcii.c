@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <isa/isavar.h>
 
+#define UPD7210_HW_DRIVER
 #include <dev/ieee488/upd7210.h>
 
 struct pcii_softc {
