@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2004
+.Dd October 4, 2004
 .Dt ACPIDUMP 8
 .Os
 .Sh NAME
@@ -65,10 +65,10 @@ power management support, and so on.
 The
 .Nm
 utility can extract the DSDT data block from physical memory and store it into
-a DSDT output file and optionally also disassemble it.
-If Secondary System Description Table (SSDT) entries exist, then the DSDT
-output file will include those tables.
-Disassembly of the DSDT will also include SSDT tables, if such exist.
+an output file and optionally also disassemble it.
+If any Secondary System Description Table
+(SSDT)
+entries exist, they will also be included in the output file and disassembly.
 .Pp
 When
 .Nm
@@ -98,6 +98,8 @@ utility dumps contents of the following tables:
 .Pp
 .Bl -tag -offset indent -width 12345 -compact
 .It DSDT
+.It ECDT
+.It FACS
 .It FADT
 .It HPET
 .It MADT
@@ -168,6 +170,7 @@ other miscellaneous tables.
 .An Doug Rabson Aq dfr@FreeBSD.org
 .An Mitsuru IWASAKI Aq iwasaki@FreeBSD.org
 .An Yasuo YOKOYAMA Aq yokoyama@jp.FreeBSD.org
+.An Nate Lawson Aq njl@FreeBSD.org
 .Pp
 .An -nosplit
 Some contributions made by

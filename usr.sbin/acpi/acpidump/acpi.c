@@ -719,6 +719,7 @@ sdt_load_devmem(void)
 	return (rsdp);
 }
 
+/* Write the DSDT to a file, concatenating any SSDTs (if present). */
 static int
 write_dsdt(int fd, struct ACPIsdt *rsdt, struct ACPIsdt *dsdt)
 {
@@ -726,6 +727,7 @@ write_dsdt(int fd, struct ACPIsdt *rsdt, struct ACPIsdt *dsdt)
 	struct ACPIsdt *ssdt;
 	uint8_t sum;
 
+	/* Create a new checksum to account for the DSDT and any SSDTs. */
 	sdt = *dsdt;
 	if (rsdt != NULL) {
 		sdt.check = 0;
@@ -740,8 +742,12 @@ write_dsdt(int fd, struct ACPIsdt *rsdt, struct ACPIsdt *dsdt)
 		sum += acpi_checksum(&sdt, SIZEOF_SDT_HDR);
 		sdt.check -= sum;
 	}
+
+	/* Write out the DSDT header and body. */
 	write(fd, &sdt, SIZEOF_SDT_HDR);
 	write(fd, dsdt->body, dsdt->len - SIZEOF_SDT_HDR);
+
+	/* Write out any SSDTs (if present.) */
 	if (rsdt != NULL) {
 		ssdt = sdt_from_rsdt(rsdt, "SSDT", NULL);
 		while (ssdt != NULL) {
