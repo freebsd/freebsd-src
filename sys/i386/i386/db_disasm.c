@@ -23,19 +23,15 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_disasm.c,v 1.19 1997/02/22 09:32:12 peter Exp $
  */
 
 /*
  * Instruction disassembler.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <ddb/ddb.h>
 
+#include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 
@@ -1337,10 +1333,6 @@ db_disasm(loc, altfmt)
 		case Is:
 		    len = db_lengths[size];
 		    get_value_inc(imm, loc, len, FALSE);
-		    /*
-		     * XXX the + in this format doesn't seem to work right.
-		     * `Is' is equivalent to `I'.
-		     */
 		    db_printf("$%+#n", imm);
 		    break;
 
