@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.6.2.4 1996/07/05 11:30:17 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.6.2.5 1996/07/12 16:33:23 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -54,17 +54,14 @@ Slippery when wet.  Beware of dog.
     server and workstation systems.  If you're really looking for performance,
     be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  I feel that it's worth
     the extra cost.  If you're looking for a 486 class motherboard, you might
-    also investigate ASUS's <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt" name="486SP3G"> offering.
+    also investigate ASUS's <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt" name="486SP3G"> offering (Note:  These have become
+    increasingly hard to get as ASUS apparently no longer manufactures them).
 
     NOTE:  The Intel <htmlurl url="http://asustek.asus.com.tw/Products/TB/triton-intro.html" name="Triton"> chip-set based motherboards do not offer memory
     parity logic, making it almost impossible to detect when a memory error
-    has occurred.  Those wishing to build highly fault-tolerant systems may
-    therefore want to wait for Intel's newest generation of motherboards
-    based on the Orion chip-set or investigate ASUS's SiS chip-set based
-    motherboard, the <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55sp4.txt" name="P55SP4">.  I have no personal experience with this
-    motherboard and have heard mixed reports - some say it's a fine MB, others
-    say that it's measurably slower than the Triton.  The only undisputed
-    advantage it offers is being available <em>now</em>. 
+    has occurred.  Those wishing to build more fault-tolerant systems should
+    therefore buy one of the newer Triton II based motherboards, which offer
+    both better performance and parity checking.
 
   <sect2><heading>Disk Controllers</heading>
     <p>This one is a bit trickier, and while I used to recommend the
@@ -133,7 +130,9 @@ Slippery when wet.  Beware of dog.
     or Compex ENET32 cards for any serious PCI based networking.  Both of
     the PCI cards are based around DEC's DC21041 Ethernet controller
     chip and other cards using it, such as the Zynx ZX342 or DEC DE435,
-    will generally work as well.
+    will generally work as well.  For 100Mbit networking, either the
+    SMC SMC9332DST 10/100MB or Intel EtherExpress Pro/100B cards will do
+    a fine job.
 
    <sect2><heading>Serial</heading>
     <p>If you're looking for high-speed serial networking solutions, then
@@ -241,6 +240,7 @@ Slippery when wet.  Beware of dog.
 
 	&uart;
 	&sio;
+	&cy;
 
 <sect1><heading>* Parallel ports</heading>
 <sect1><heading>* Modems</heading>
