@@ -163,18 +163,20 @@ vm_offset_t
 vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 {
 	vm_offset_t mapped;
-	vm_size_t npages, page_range;
-	vm_offset_t new_end;
+	vm_size_t npages;
+	vm_paddr_t page_range;
+	vm_paddr_t new_end;
 	int i;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	int nblocks;
-	vm_offset_t last_pa;
+	vm_paddr_t last_pa;
 
 	/* the biggest memory array is the second group of pages */
-	vm_offset_t end;
-	vm_offset_t biggestone, biggestsize;
+	vm_paddr_t end;
+	vm_paddr_t biggestsize;
+	int biggestone;
 
-	vm_offset_t total;
+	vm_paddr_t total;
 	vm_size_t bootpages;
 
 	total = 0;
@@ -189,7 +191,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	}
 
 	for (i = 0; phys_avail[i + 1]; i += 2) {
-		vm_size_t size = phys_avail[i + 1] - phys_avail[i];
+		vm_paddr_t size = phys_avail[i + 1] - phys_avail[i];
 
 		if (size > biggestsize) {
 			biggestone = i;

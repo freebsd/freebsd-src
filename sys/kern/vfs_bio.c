@@ -3622,7 +3622,7 @@ int
 vmapbuf(struct buf *bp)
 {
 	caddr_t addr, kva;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	int pidx, i;
 	struct vm_page *m;
 	struct pmap *pmap = &curproc->p_vmspace->vm_pmap;

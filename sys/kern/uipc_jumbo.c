@@ -212,7 +212,7 @@ void
 jumbo_pg_free(vm_offset_t addr)
 {
 	struct jumbo_kmap *entry;
-	vm_offset_t paddr;
+	vm_paddr_t paddr;
 	vm_page_t pg;
 
 	paddr = pmap_kextract((vm_offset_t)addr);

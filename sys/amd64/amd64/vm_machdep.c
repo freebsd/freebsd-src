@@ -405,15 +405,15 @@ cpu_wait(p)
 /*
  * Convert kernel VA to physical address
  */
-u_long
+vm_paddr_t
 kvtop(void *addr)
 {
-	vm_offset_t va;
+	vm_paddr_t pa;
 
-	va = pmap_kextract((vm_offset_t)addr);
-	if (va == 0)
+	pa = pmap_kextract((vm_offset_t)addr);
+	if (pa == 0)
 		panic("kvtop: zero page frame");
-	return((int)va);
+	return (pa);
 }
 
 /*

@@ -313,7 +313,7 @@ pcigfb_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 int
-pcigfb_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int prot)
+pcigfb_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	struct gfb_softc *sc;
 

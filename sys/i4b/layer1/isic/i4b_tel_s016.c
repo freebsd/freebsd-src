@@ -220,7 +220,7 @@ isic_probe_s016(device_t dev)
 			break;
 
 		default:
-			printf("isic%d: Error, invalid memory address 0x%lx for Teles S0/16!\n",
+			printf("isic%d: Error, invalid memory address 0x%x for Teles S0/16!\n",
 				unit, kvtop(sc->sc_vmem_addr));
 			isic_detach_common(dev);
 			return(ENXIO);

@@ -181,7 +181,7 @@ int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS		status;
-	vm_offset_t		oldphys;
+	vm_paddr_t		oldphys;
 	struct pmap		*pm;
 	vm_page_t		page;
 	static vm_page_t	opage = NULL;

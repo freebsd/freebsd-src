@@ -217,7 +217,7 @@ kmemphys:
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int prot)
+memmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this
