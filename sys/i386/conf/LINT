@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.20 1997/04/14 00:48:32 gibbs Exp $
+#	$Id: LINT,v 1.286.2.21 1997/05/11 18:01:22 tegge Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -504,7 +504,7 @@ options		"MAXMEM=(128*1024)"
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 options		PCVT_FREEBSD=210	# pcvt running on FreeBSD >= 2.0.5
-options		XSERVER			# include code for XFree86
+options		XSERVER			# support for running an X server.
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options		PCVT_SCANSET=2 		# IBM keyboards are non-std
