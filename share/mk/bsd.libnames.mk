@@ -74,21 +74,20 @@ LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 # The static PAM library doesn't know its secondary dependencies,
 # so we have to specify them explicitly.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
-MINUSLPAM?=	-lpam
+MINUSLPAM=	-lpam
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
-.if !defined(NO_KERBEROS)
-LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBROKEN}
-MINUSLPAM+=	-lkrb5 -lasn1 -lroken
-LIBPAM+=	${LIBCOM_ERR}
-MINUSLPAM+=	-lcom_err
+.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
+		${LIBROKEN} ${LIBCOM_ERR}
+MINUSLPAM+=	-lkrb5 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
 .endif
-LIBPAM+=	${LIBRADIUS} ${LIBRPCSVC} ${LIBTACPLUS} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD} ${LIBYPCLNT}
-MINUSLPAM+=	-lradius -lrpcsvc -ltacplus -lcrypt \
-		-lutil -lopie -lmd -lypclnt
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
-LIBPAM+=	${LIBSSH} ${LIBCRYPTO}
-MINUSLPAM+=	-lssh -lcrypto
+LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
+		${LIBUTIL} ${LIBOPIE} ${LIBMD} ${LIBYPCLNT} ${LIBRPCSVC}
+MINUSLPAM+=	-lradius -ltacplus -lcrypt \
+		-lutil -lopie -lmd -lypclnt -lrpcsvc
+.if !defined(NO_OPENSSH) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+LIBPAM+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
+MINUSLPAM+=	-lssh -lcrypto -lcrypt
 .endif
 .endif
 
