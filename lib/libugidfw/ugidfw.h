@@ -49,7 +49,7 @@ int	bsde_parse_rule(int argc, char *argv[],
 	    struct mac_bsdextended_rule *rule, size_t buflen, char *errstr);
 int	bsde_parse_rule_string(const char *string,
 	    struct mac_bsdextended_rule *rule, size_t buflen, char *errstr);
-int	bsde_get_mib(const char *string, int *name, int *namelen);
+int	bsde_get_mib(const char *string, int *name, size_t *namelen);
 int	bsde_get_rule_count(size_t buflen, char *errstr);
 int	bsde_get_rule_slots(size_t buflen, char *errstr);
 int	bsde_get_rule(int rulenum, struct mac_bsdextended_rule *rule,

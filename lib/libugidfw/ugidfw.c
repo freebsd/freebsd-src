@@ -553,9 +553,10 @@ bsde_parse_rule_string(const char *string, struct mac_bsdextended_rule *rule,
 }
 
 int
-bsde_get_mib(const char *string, int *name, int *namelen)
+bsde_get_mib(const char *string, int *name, size_t *namelen)
 {
-	int error, len;
+	size_t len;
+	int error;
 
 	len = *namelen;
 	error = sysctlnametomib(string, name, &len);
