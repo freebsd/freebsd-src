@@ -36,6 +36,7 @@
 .Os BSD 4.2
 .Sh NAME
 .Nm psignal ,
+.Nm strsignal ,
 .Nm sys_siglist ,
 .Nm sys_signame
 .Nd system signal messages
@@ -43,16 +44,29 @@
 .Fd #include <signal.h>
 .Ft void
 .Fn psignal "unsigned sig" "const char *s"
+.Ft "char *"
+.Fn strsignal "unsigned sig"
 .Vt extern const char * const sys_siglist[];
 .Vt extern const char * const sys_signame[];
 .Sh DESCRIPTION
 The
 .Fn psignal
-function locates the descriptive message
-string for the given signal number
+and
+.Fn strsignal
+functions locate the descriptive message
+string for a signal number.
+.Pp
+The
+.Fn strsignal
+function accepts a signal number argument
+.Fa sig
+and returns a pointer to the corresponding message string.
+.Pp
+The
+.Fn psignal
+function accepts an signal number argument
 .Fa sig
 and writes it to the standard error.
-.Pp
 If the argument
 .Fa s
 is
@@ -86,7 +100,8 @@ and
 .Va sys_signame .
 .Sh SEE ALSO
 .Xr sigaction 2 ,
-.Xr perror 3
+.Xr perror 3 ,
+.Xr strerror 3
 .Sh HISTORY
 The
 .Fn psignal
