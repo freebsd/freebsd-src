@@ -353,7 +353,8 @@ tp_inproto(u_long pcb)
 
 /*
  * Pretty print an iso address (net address + port).
- * If the nflag was specified, use numbers instead of names.
+ * If the numeric_addr or numeric_port were specified,
+ * use numbers instead of names.
  */
 
 #ifdef notdef
@@ -373,7 +374,7 @@ isonetname(struct iso_addr *iso)
 		sa.siso_addr = *iso;
 		sa.siso_tsuffix = 0;
 
-		if (!nflag )
+		if ( !numeric_addr )
 			ihe = iso_gethostentrybyaddr( &sa, 0, 0 );
 		if( ihe ) {
 			Ihe = *ihe;
@@ -408,7 +409,7 @@ isonetprint(struct iso_addr *iso, char *sufx, u_short sufxlen, int islocal)
 	if(Aflag)
 		islocal += 10 ;
 
-	if(!nflag) {
+	if(!numeric_addr) {
 		if( (cp -line)>10 ) {
 			cp = line+10;
 			bzero(cp, sizeof(line)-10);
@@ -417,7 +418,7 @@ isonetprint(struct iso_addr *iso, char *sufx, u_short sufxlen, int islocal)
 
 	*cp++ = '.';
 	if(sufxlen) {
-		if( !Aflag && !nflag && (ihe=iso_getserventrybytsel(sufx, sufxlen))) {
+		if( !Aflag && !numeric_port && (ihe=iso_getserventrybytsel(sufx, sufxlen))) {
 			Ihe = *ihe;
 			ihe = &Ihe;
 		}

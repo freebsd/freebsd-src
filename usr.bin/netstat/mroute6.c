@@ -88,8 +88,8 @@
 
 #include "netstat.h"
 
-#define	WID_ORG	(Wflag ? 39 : (nflag ? 29 : 18)) /* width of origin column */
-#define	WID_GRP	(Wflag ? 18 : (nflag ? 16 : 18)) /* width of group column */
+#define	WID_ORG	(Wflag ? 39 : (numeric_addr ? 29 : 18)) /* width of origin column */
+#define	WID_GRP	(Wflag ? 18 : (numeric_addr ? 16 : 18)) /* width of group column */
 
 void
 mroute6pr(u_long mfcaddr, u_long mifaddr)
@@ -102,7 +102,7 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 	register mifi_t mifi;
 	register int i;
 	register int banner_printed;
-	register int saved_nflag;
+	register int saved_numeric_addr;
 	mifi_t maxmif = 0;
 	long int waitings;
 
@@ -112,8 +112,8 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 		return;
 	}
 
-	saved_nflag = nflag;
-	nflag = 1;
+	saved_numeric_addr = numeric_addr;
+	numeric_addr = 1;
 
 	kread(mifaddr, (char *)&mif6table, sizeof(mif6table));
 	banner_printed = 0;
@@ -189,7 +189,7 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 		printf("\nIPv6 Multicast Routing Table is empty\n");
 
 	printf("\n");
-	nflag = saved_nflag;
+	numeric_addr = saved_numeric_addr;
 }
 
 void

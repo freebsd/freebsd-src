@@ -44,7 +44,8 @@ extern int	gflag;	/* show group (multicast) routing or stats */
 extern int	iflag;	/* show interfaces */
 extern int	Lflag;	/* show size of listen queues */
 extern int	mflag;	/* show memory stats */
-extern int	nflag;	/* show addresses numerically */
+extern int	numeric_addr;	/* show addresses numerically */
+extern int	numeric_port;	/* show ports numerically */
 extern int	rflag;	/* show routing tables (or routing stats) */
 extern int	sflag;	/* show protocol statistics */
 extern int	tflag;	/* show i/f watchdog timers */

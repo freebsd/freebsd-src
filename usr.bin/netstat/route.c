@@ -228,9 +228,9 @@ pr_family(int af)
 #define	WID_IF(af)	6	/* width of netif column */
 #else
 #define	WID_DST(af) \
-	((af) == AF_INET6 ? (Wflag ? 39 : (nflag ? 33: 18)) : 18)
+	((af) == AF_INET6 ? (Wflag ? 39 : (numeric_addr ? 33: 18)) : 18)
 #define	WID_GW(af) \
-	((af) == AF_INET6 ? (Wflag ? 31 : (nflag ? 29 : 18)) : 18)
+	((af) == AF_INET6 ? (Wflag ? 31 : (numeric_addr ? 29 : 18)) : 18)
 #define	WID_IF(af)	((af) == AF_INET6 ? 8 : 6)
 #endif /*INET6*/
 
@@ -552,7 +552,7 @@ p_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags, int width)
 	if (width < 0 )
 		printf("%s ", cp);
 	else {
-		if (nflag)
+		if (numeric_addr)
 			printf("%-*s ", width, cp);
 		else
 			printf("%-*.*s ", width, width, cp);
@@ -642,7 +642,7 @@ routename(u_long in)
 	struct hostent *hp;
 
 	cp = 0;
-	if (!nflag) {
+	if (!numeric_addr) {
 		hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
 			AF_INET);
 		if (hp) {
@@ -720,7 +720,7 @@ netname(u_long in, u_long mask)
 	i = ntohl(in);
 	dmask = forgemask(i);
 	omask = mask;
-	if (!nflag && i) {
+	if (!numeric_addr && i) {
 		net = i & dmask;
 		if (!(np = getnetbyaddr(i, AF_INET)) && net != i)
 			np = getnetbyaddr(net, AF_INET);
@@ -815,12 +815,12 @@ netname6(struct sockaddr_in6 *sa6, struct in6_addr *mask)
 	if (masklen == 0 && IN6_IS_ADDR_UNSPECIFIED(&sa6->sin6_addr))
 		return("default");
 
-	if (nflag)
+	if (numeric_addr)
 		flag |= NI_NUMERICHOST;
 	getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, line, sizeof(line),
 		    NULL, 0, flag);
 
-	if (nflag)
+	if (numeric_addr)
 		sprintf(&line[strlen(line)], "/%d", masklen);
 
 	return line;
@@ -837,7 +837,7 @@ routename6(struct sockaddr_in6 *sa6)
 	sa6_local.sin6_addr = sa6->sin6_addr;
 	sa6_local.sin6_scope_id = sa6->sin6_scope_id;
 
-	if (nflag)
+	if (numeric_addr)
 		flag |= NI_NUMERICHOST;
 
 	getnameinfo((struct sockaddr *)&sa6_local, sa6_local.sin6_len,

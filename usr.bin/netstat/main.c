@@ -314,7 +314,8 @@ int	gflag;		/* show group (multicast) routing or stats */
 int	iflag;		/* show interfaces */
 int	Lflag;		/* show size of listen queues */
 int	mflag;		/* show memory stats */
-int	nflag;		/* show addresses numerically */
+int	numeric_addr;	/* show addresses numerically */
+int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
 int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
@@ -338,7 +339,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rstuWw:")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rSstuWw:")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -415,7 +416,7 @@ main(argc, argv)
 			nlistf = optarg;
 			break;
 		case 'n':
-			nflag = 1;
+			numeric_addr = numeric_port = 1;
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
@@ -430,6 +431,9 @@ main(argc, argv)
 			break;
 		case 's':
 			++sflag;
+			break;
+		case 'S':
+			numeric_addr = 1;
 			break;
 		case 't':
 			tflag = 1;
@@ -730,7 +734,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-AaLnW] [-f protocol_family | -p protocol]\n"
+"usage: netstat [-AaLnSW] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-abdnt] [-f address_family]\n"
 "               [-M core] [-N system]",

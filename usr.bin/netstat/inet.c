@@ -254,7 +254,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 			       so->so_rcv.sb_cc,
 			       so->so_snd.sb_cc);
 		}
-		if (nflag) {
+		if (numeric_port) {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 					  name, 1);
@@ -697,7 +697,7 @@ inetprint(struct in_addr *in, int port, char *proto, int numeric_port)
 
 /*
  * Construct an Internet address representation.
- * If the nflag has been supplied, give
+ * If numeric_addr has been supplied, give
  * numeric value, otherwise try for symbolic name.
  */
 char *
@@ -709,7 +709,7 @@ inetname(struct in_addr *inp)
 	struct netent *np;
 
 	cp = 0;
-	if (!nflag && inp->s_addr != INADDR_ANY) {
+	if (!numeric_addr && inp->s_addr != INADDR_ANY) {
 		int net = inet_netof(*inp);
 		int lna = inet_lnaof(*inp);
 
