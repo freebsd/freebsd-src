@@ -99,8 +99,13 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	 */
 	memused = cnt.v_wire_count * PAGE_SIZE;
 	memfree = memtotal - memused;
-	swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
-	swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+	if (swapblist == NULL) {
+		swaptotal = 0;
+		swapfree = 0;
+	} else {
+		swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
+		swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+	}
 	swapused = swaptotal - swapfree;
 	memshared = 0;
 	for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
