@@ -286,7 +286,7 @@ static void ifree(void *ptr);
 static void *irealloc(void *ptr, size_t size);
 
 static void
-wrtmessage(char *p1, char *p2, char *p3, char *p4)
+wrtmessage(const char *p1, const char *p2, const char *p3, const char *p4)
 {
 
     _write(STDERR_FILENO, p1, strlen(p1));
@@ -295,7 +295,8 @@ wrtmessage(char *p1, char *p2, char *p3, char *p4)
     _write(STDERR_FILENO, p4, strlen(p4));
 }
 
-void (*_malloc_message)(char *p1, char *p2, char *p3, char *p4) = wrtmessage;
+void (*_malloc_message)(const char *p1, const char *p2, const char *p3,
+	    const char *p4) = wrtmessage;
 
 static void
 wrterror(char *p)
@@ -401,7 +402,8 @@ extend_pgdir(u_long index)
 static void
 malloc_init ()
 {
-    char *p, b[64];
+    const char *p;
+    char b[64];
     int i, j;
     int errnosave;
 
