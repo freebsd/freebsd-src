@@ -144,15 +144,6 @@ struct vm_page {
 #define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
 
 #if !defined(KLD_MODULE)
-
-/*
- * shared mutex array for vm_page_buckets[] 
- */
-#ifndef BUCKET_HASH_SIZE
-#define BUCKET_HASH_SIZE	16
-#endif
-#define BUCKET_HASH_MASK	(BUCKET_HASH_SIZE - 1)
-
 /*
  * Page coloring parameters
  */
