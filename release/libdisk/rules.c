@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.5 1995/05/03 06:30:59 phk Exp $
+ * $Id: rules.c,v 1.6 1995/05/04 07:00:56 phk Exp $
  *
  */
 
@@ -43,7 +43,7 @@ Next_Track_Aligned(struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return offset;
-	return Prev_Track_Aligned(d,offset + d->bios_sect);
+	return Prev_Track_Aligned(d,offset + d->bios_sect-1);
 }
 
 int
@@ -69,7 +69,7 @@ Next_Cyl_Aligned(struct disk *d, u_long offset)
 {
 	if (!d->bios_sect || !d->bios_hd)
 		return offset;
-	return Prev_Cyl_Aligned(d,offset + (d->bios_sect * d->bios_hd));
+	return Prev_Cyl_Aligned(d,offset + (d->bios_sect * d->bios_hd)-1);
 }
 
 /*

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.5 1995/05/01 21:30:22 jkh Exp $
+ * $Id: chunk.c,v 1.6 1995/05/03 22:36:49 phk Exp $
  *
  */
 
@@ -17,8 +17,6 @@
 #include <sys/types.h>
 #include <err.h>
 #include "libdisk.h"
-
-CHAR_N;
 
 #define new_chunk() malloc(sizeof(struct chunk))
 
@@ -218,8 +216,43 @@ Add_Chunk(struct disk *d, u_long offset, u_long size, char *name, chunk_e type,
 	for(c2=c1->part;c2;c2=c2->next) {
 		if (c2->type != unused)
 			continue;
-		if(Chunk_Inside(c2,&ct))
-			return Insert_Chunk(c2,offset,size,name,type,subtype,flags);
+		if(Chunk_Inside(c2,&ct)) {
+			if (type != freebsd) 
+				goto doit;
+			if (!(flags & CHUNK_ALIGN)) 
+				goto doit;
+			if (offset == d->chunks->offset 
+			   && end == d->chunks->end) 
+				goto doit;
+
+			/* Round down to prev cylinder */
+			offset = Prev_Cyl_Aligned(d,offset);
+			/* Stay inside the parent */
+			if (offset < c2->offset)
+				offset = c2->offset;
+			/* Round up to next cylinder */
+			offset = Next_Cyl_Aligned(d,offset);
+			/* Keep one track clear in front of parent */
+			if (offset == c1->offset)
+				offset = Next_Track_Aligned(d,offset+1);
+			
+			/* Work on the (end+1) */
+			size += offset;
+			/* Round up to cylinder */
+			size = Next_Cyl_Aligned(d,size);
+			/* Stay inside parent */
+			if ((size-1) > c2->end)
+				size = c2->end+1;
+			/* Round down to cylinder */
+			size = Prev_Cyl_Aligned(d,size);
+		
+			/* Convert back to size */
+			size -= offset;
+
+		    doit:
+			return Insert_Chunk(c2,offset,size,name,
+				type,subtype,flags);
+		}
 	}
 	return __LINE__;
 }
