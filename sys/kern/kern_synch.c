@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.56 1998/05/17 22:12:14 tegge Exp $
+ * $Id: kern_synch.c,v 1.57 1998/05/28 09:30:19 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -60,7 +60,6 @@
 #ifdef SMP
 #include <machine/smp.h>
 #endif
-#include <machine/ipl.h>
 #include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
 
 static void rqinit __P((void *));

@@ -46,9 +46,7 @@
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/time.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

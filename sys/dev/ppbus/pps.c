@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.7 1998/06/12 23:15:53 phk Exp $
+ * $Id: pps.c,v 1.8 1998/06/13 09:30:10 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -21,7 +21,6 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/uio.h>
 #include <sys/timepps.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
