@@ -34,6 +34,7 @@ the original English.
 .el .RB "[\ " "\\$1" "\ ]"
 ..
 .OP \-CchipStUv
+.OP \-d cs
 .OP \-m name
 .OP \-n num
 .OP \-o list
@@ -89,6 +90,7 @@ options
 .B \-c
 (using the old output scheme instead of SGR escape sequences).
 The
+.BR \-d ,
 .BR \-C ,
 .BR \-i ,
 .BR \-m ,
