@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.7 1995/05/30 00:07:05 rgrimes Exp $
+ *	$Id: ps.c,v 1.8 1995/10/23 21:06:31 ache Exp $
  */
 
 #ifndef lint
@@ -117,7 +117,8 @@ main(argc, argv)
 	int prtheader, wflag, what, xflg;
 	char *nlistf, *memf, *swapf, errbuf[256];
 
-	(void) setlocale(LC_CTYPE|LC_TIME, "");
+	(void) setlocale(LC_ALL, "");
+
 	if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDIN_FILENO,  TIOCGWINSZ, (char *)&ws) == -1) ||
