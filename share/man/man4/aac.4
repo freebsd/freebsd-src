@@ -133,15 +133,15 @@ and are also queued for retrieval by a management application.
 The
 .Nm
 driver first appeared in
-.Fx 4.3
-and is
-.Ud
+.Fx 4.3.
 .Sh AUTHORS
 .An Mike Smith
 .Aq msmith@FreeBSD.org
 .An Scott Long
 .Aq scottl@FreeBSD.org
 .Sh BUGS
+This driver is not compatible with controllers that have version 1.x firmware.
+.Pp
 This driver will not work on systems with more than 4GB of memory.
 .Pp
 The controller is not actually paused on suspend/resume.
