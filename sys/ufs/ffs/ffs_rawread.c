@@ -247,8 +247,7 @@ ffs_rawread_readahead(struct vnode *vp,
 	bp->b_blkno += blockoff;
 	bp->b_dev = dp->v_rdev;
 	
-	vmapbuf(bp);
-	if (vmapbuf < 0)
+	if (vmapbuf(bp) < 0)
 		return EFAULT;
 	
 	if (dp->v_type == VCHR)
