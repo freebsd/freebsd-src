@@ -598,11 +598,10 @@ eth_poll()
 /**************************************************************************
 ETH_PIO_READ - Read a frame via Programmed I/O
 **************************************************************************/
-eth_pio_read(src, dst, cnt, init)
+eth_pio_read(src, dst, cnt)
 	unsigned short src;
 	unsigned char *dst;
 	unsigned short cnt;
-	int init;
 {
 	if (cnt & 1) cnt++;
 	outb(eth_nic_base + D8390_P0_COMMAND, D8390_COMMAND_RD2 |
@@ -629,11 +628,10 @@ eth_pio_read(src, dst, cnt, init)
 /**************************************************************************
 ETH_PIO_WRITE - Write a frame via Programmed I/O
 **************************************************************************/
-eth_pio_write(src, dst, cnt, init)
+eth_pio_write(src, dst, cnt)
 	unsigned char *src;
 	unsigned short dst;
 	unsigned short cnt;
-	int init;
 {
 	outb(eth_nic_base + D8390_P0_COMMAND, D8390_COMMAND_RD2 |
 		D8390_COMMAND_STA);
