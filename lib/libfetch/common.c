@@ -205,6 +205,7 @@ _fetch_connect(char *host, int port, int af, int verbose)
 	close(sd);
 	sd = -1;
     }
+    freeaddrinfo(res0);
     if (sd < 0) {
 	_fetch_syserr();
 	return -1;
