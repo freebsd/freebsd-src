@@ -115,11 +115,11 @@ void	XentRestart(void);					/* MAGIC */
 void	XentSys(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
 void	XentUna(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
 void	alpha_init(u_long, u_long, u_long, u_long, u_long);
+void	alpha_fpstate_check(struct thread *td);
+void	alpha_fpstate_drop(struct thread *td);
+void	alpha_fpstate_save(struct thread *td, int write);
+void	alpha_fpstate_switch(struct thread *td);
 int	alpha_pa_access(u_long);
-void	alpha_fpstate_check(struct thread *p);
-void	alpha_fpstate_save(struct thread *p, int write);
-void	alpha_fpstate_drop(struct thread *p);
-void	alpha_fpstate_switch(struct thread *p);
 int	badaddr	(void *, size_t);
 int	badaddr_read(void *, size_t, void *);
 u_int64_t console_restart(u_int64_t, u_int64_t, u_int64_t);

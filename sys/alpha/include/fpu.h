@@ -116,9 +116,7 @@
 	__asm__("trapb")
 
 #ifdef _KERNEL
-
-extern int fp_software_completion(u_int64_t regmask, struct thread *p);
-
+extern int fp_software_completion(u_int64_t regmask, struct thread *td);
 #endif
 
 #endif /* ! _MACHINE_FPU_H_ */

@@ -119,7 +119,7 @@ struct sigcontext {
 	int	sc_efl;
 	int	sc_esp;
 	int	sc_ss;
-	int	sc_len;			/* sizeof(struct mcontext_t) */
+	int	sc_len;			/* sizeof(mcontext_t) */
 	/*
 	 * XXX - See <machine/ucontext.h> and <machine/npx.h> for
 	 *       the following fields.
@@ -127,7 +127,7 @@ struct sigcontext {
 	int	sc_fpformat;
 	int	sc_ownedfp;
 	int	sc_spare1[1];
-	int	sc_fpregs[128];
+	int	sc_fpstate[128];
 	int	sc_spare2[8];
 };
 

@@ -38,7 +38,7 @@ typedef struct __mcontext {
 	 * and ucontext_t at the same time.
 	 */
 	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;
+	int	mc_gs;			/* machine state (trapframe) */
 	int	mc_fs;
 	int	mc_es;
 	int	mc_ds;
@@ -55,7 +55,7 @@ typedef struct __mcontext {
 	int	mc_eip;
 	int	mc_cs;
 	int	mc_eflags;
-	int	mc_esp;			/* machine state */
+	int	mc_esp;
 	int	mc_ss;
 
 	int	mc_len;			/* sizeof(mcontext_t) */
@@ -72,8 +72,7 @@ typedef struct __mcontext {
 	int	mc_spare2[8];
 } mcontext_t;
 
-#ifdef _KERNEL
-#ifdef COMPAT_FREEBSD4
+#if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
 /* For 4.x binaries */
 struct mcontext4 {
 	int	mc_onstack;		/* XXX - sigcontext compat. */
@@ -99,12 +98,6 @@ struct mcontext4 {
 	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
 	int	__spare__[17];
 };
-#endif
-
-struct thread;
-
-void	get_mcontext(struct thread *td, mcontext_t *mcp);
-int	set_mcontext(struct thread *td, const mcontext_t *mcp);
 #endif
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
