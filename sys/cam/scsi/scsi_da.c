@@ -127,6 +127,7 @@ struct da_softc {
 	struct	 disk_params params;
 	struct	 disk disk;
 	union	 ccb saved_ccb;
+	dev_t    dev;
 };
 
 struct da_quirk_entry {
@@ -899,6 +900,9 @@ dacleanup(struct cam_periph *periph)
 	cam_extend_release(daperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
+	if (softc->dev) {
+		disk_destroy(softc->dev);
+	}
 	free(softc, M_DEVBUF);
 }
 
@@ -1048,7 +1052,7 @@ daregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Register this media as a disk
 	 */
-	disk_create(periph->unit_number, &softc->disk, 0, 
+	softc->dev = disk_create(periph->unit_number, &softc->disk, 0, 
 	    &da_cdevsw, &dadisk_cdevsw);
 
 	/*
