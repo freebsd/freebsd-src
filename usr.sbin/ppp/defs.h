@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.12 1998/04/08 18:27:22 brian Exp $
+ * $Id: defs.h,v 1.29.2.13 1998/04/10 13:19:07 brian Exp $
  *
  *	TODO:
  */
@@ -77,6 +77,4 @@
 #define PHYS_1OFF	32	/* Dial immediately, delete when done. (-background) */
 #define PHYS_ALL	63
 
-extern void SetLabel(const char *);
-extern const char *GetLabel(void);
 extern void randinit(void);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.1.2.1 1998/04/03 19:21:46 brian Exp $
+ *	$Id: mp.h,v 1.1.2.2 1998/04/07 00:54:11 brian Exp $
  */
 
 struct mbuf;
@@ -35,18 +35,36 @@ struct mp {
   struct link link;
 
   unsigned active : 1;
-  unsigned is12bit : 1;        /* 12 / 24bit seq nos */
+  unsigned peer_is12bit : 1;        /* 12 / 24bit seq nos */
+  unsigned local_is12bit : 1;
+  u_short peer_mrru;
+  u_short local_mrru;
+
+  struct {
+    u_char class;
+    char address[50];
+    int len;
+  } peer_enddisc;             /* peers endpoint discriminator */
 
   struct {
     u_int32_t out;            /* next outgoing seq */
     u_int32_t min_in;         /* minimum received incoming seq */
     u_int32_t next_in;        /* next incoming seq to process */
   } seq;
+
+  struct {
+    u_short mrru;             /* Max Reconstructed Receive Unit */
+    unsigned shortseq : 2;    /* I want short Sequence Numbers */
+    struct {
+      u_char class;
+      char address[50];
+      int len;
+    } enddisc;                /* endpoint discriminator */
+  } cfg;
+
   struct mbuf *inbufs;        /* Received fragments */
-
   struct fsm_parent fsmp;     /* Our callback functions */
-
-  struct bundle *bundle;
+  struct bundle *bundle;      /* Parent */
 };
 
 struct mp_link {
@@ -62,6 +80,10 @@ struct mp_header {
 
 extern void mp_Init(struct mp *, struct bundle *);
 extern void mp_linkInit(struct mp_link *);
+extern int mp_Up(struct mp *, u_short, u_short, int, int);
 extern void mp_Input(struct mp *, struct mbuf *, struct physical *);
 extern int mp_FillQueues(struct bundle *);
 extern int mp_SetDatalinkWeight(struct cmdargs const *);
+extern int mp_ShowStatus(struct cmdargs const *);
+extern const char *mp_Enddisc(u_char, const char *, int);
+extern int mp_SetEnddisc(struct cmdargs const *);

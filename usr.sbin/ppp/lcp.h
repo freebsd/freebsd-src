@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.19 1998/04/07 00:53:56 brian Exp $
+ * $Id: lcp.h,v 1.16.2.20 1998/04/16 00:26:06 brian Exp $
  *
  *	TODO:
  */
@@ -25,20 +25,24 @@
 struct lcp {
   struct fsm fsm;		/* The finite state machine */
   u_int16_t his_mru;		/* Peers maximum packet size */
+  u_int16_t his_mrru;		/* Peers maximum reassembled packet size (MP) */
   u_int32_t his_accmap;		/* Peeers async char control map */
   u_int32_t his_magic;		/* Peers magic number */
   u_int32_t his_lqrperiod;	/* Peers LQR frequency */
+  u_short his_auth;		/* Peer wants this type of authentication */
+  unsigned his_shortseq : 1;	/* Peer would like only 12bit seqs (MP) */
   unsigned his_protocomp : 1;	/* Does peer do Protocol field compression */
   unsigned his_acfcomp : 1;	/* Does peer do addr & cntrl fld compression */
-  u_short his_auth;		/* Peer wants this type of authentication */
 
   u_short want_mru;		/* Our maximum packet size */
+  u_short want_mrru;		/* Our maximum reassembled packet size (MP) */
   u_int32_t want_accmap;	/* Our async char control map */
   u_int32_t want_magic;		/* Our magic number */
   u_int32_t want_lqrperiod;	/* Our LQR frequency */
+  u_short want_auth;		/* We want this type of authentication */
+  unsigned want_shortseq : 1;	/* I'd like only 12bit seqs (MP) */
   unsigned want_protocomp : 1;	/* Do we do protocol field compression */
   unsigned want_acfcomp : 1;	/* Do we do addr & cntrl fld compression */
-  u_short want_auth;		/* We want this type of authentication */
 
   u_int32_t his_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;		/* Request codes I have rejected */
@@ -50,7 +54,6 @@ struct lcp {
 
   struct {
     u_short mru;		/* Preferred MRU value */
-    u_short mtu;		/* Preferred MTU value */
     u_int32_t accmap;		/* Initial ACCMAP value */
     int openmode;		/* when to start CFG REQs */
     u_int lqrperiod;		/* LQR frequency */
@@ -77,6 +80,9 @@ struct lcp {
 #define	TY_ACFCOMP	8	/* Address-and-Control-Field-Compression */
 #define	TY_FCSALT	9	/* FCS-Alternatives */
 #define	TY_SDP		10	/* Self-Describing-Padding */
+#define	TY_MRRU		17	/* Max Reconstructed Receive Unit (MP) */
+#define	TY_SHORTSEQ	18	/* Want short seqs (12bit) please (see mp.h) */
+#define	TY_ENDDISC	19	/* Endpoint discriminator */
 
 #define MAX_LCP_OPT_LEN 10
 struct lcp_opt {

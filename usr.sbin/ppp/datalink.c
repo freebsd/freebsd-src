@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.41 1998/04/18 23:17:25 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.42 1998/04/19 15:24:39 brian Exp $
  */
 
 #include <sys/types.h>
@@ -443,6 +443,21 @@ void
 datalink_AuthOk(struct datalink *dl)
 {
   /* XXX: Connect to another ppp instance HERE */
+
+  if (dl->physical->link.lcp.want_mrru) {
+    if (!mp_Up(&dl->bundle->ncp.mp,
+               dl->physical->link.lcp.want_mrru,
+               dl->physical->link.lcp.his_mrru,
+               dl->physical->link.lcp.want_shortseq,
+               dl->physical->link.lcp.his_shortseq)) {
+      datalink_AuthNotOk(dl);
+      return;
+    }
+  } else if (bundle_Phase(dl->bundle) == PHASE_NETWORK) {
+    LogPrintf(LogPHASE, "%s: Already in NETWORK phase\n", dl->name);
+    datalink_AuthNotOk(dl);
+    return;
+  }
 
   FsmUp(&dl->physical->link.ccp.fsm);
   FsmOpen(&dl->physical->link.ccp.fsm);

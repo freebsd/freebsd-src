@@ -23,33 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.7 1998/04/06 09:12:26 brian Exp $
+ *	$Id: defs.c,v 1.11.4.8 1998/04/10 13:19:07 brian Exp $
  */
 
 
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "defs.h"
-
-static char dstsystem[50];
-
-void
-SetLabel(const char *label)
-{
-  if (label)
-    strncpy(dstsystem, label, sizeof dstsystem - 1);
-  else
-    *dstsystem = '\0';
-}
-
-const char *
-GetLabel()
-{
-  return *dstsystem ? dstsystem : NULL;
-}
 
 void
 randinit()

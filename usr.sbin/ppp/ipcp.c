@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.40 1998/04/19 23:08:24 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.41 1998/04/21 01:02:15 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -668,8 +668,9 @@ IpcpLayerDown(struct fsm *fp)
    * associate executable sections in files with events.
    */
   if (SelectSystem(fp->bundle, s, LINKDOWNFILE, NULL) < 0)
-    if (GetLabel()) {
-       if (SelectSystem(fp->bundle, GetLabel(), LINKDOWNFILE, NULL) < 0)
+    if (bundle_GetLabel(fp->bundle)) {
+       if (SelectSystem(fp->bundle, bundle_GetLabel(fp->bundle),
+                        LINKDOWNFILE, NULL) < 0)
        SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
@@ -708,8 +709,9 @@ IpcpLayerUp(struct fsm *fp)
    * associate executable sections in files with events.
    */
   if (SelectSystem(fp->bundle, inet_ntoa(ipcp->my_ifip), LINKUPFILE, NULL) < 0)
-    if (GetLabel()) {
-      if (SelectSystem(fp->bundle, GetLabel(), LINKUPFILE, NULL) < 0)
+    if (bundle_GetLabel(fp->bundle)) {
+      if (SelectSystem(fp->bundle, bundle_GetLabel(fp->bundle),
+                       LINKUPFILE, NULL) < 0)
         SelectSystem(fp->bundle, "MYADDR", LINKUPFILE, NULL);
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKUPFILE, NULL);

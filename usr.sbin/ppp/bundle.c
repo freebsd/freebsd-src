@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.55 1998/04/19 23:08:11 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.56 1998/04/20 00:21:24 brian Exp $
  */
 
 #include <sys/types.h>
@@ -197,8 +197,8 @@ bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
 {
   /*
    * The given fsm is now up
-   * If it's an LCP (including MP initialisation), set our mtu
-   * (This routine is also called from mp_Init() with it's LCP)
+   * If it's an LCP set our mtu (if we're multilink, add up the link
+   * speeds and set the MRRU).
    * If it's an NCP, tell our -background parent to go away.
    * If it's the first NCP, start the idle timer.
    */
@@ -211,7 +211,7 @@ bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
       for (dl = bundle->links, speed = 0; dl; dl = dl->next)
         speed += modem_Speed(dl->physical);
       if (speed)
-        tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru, speed);
+        tun_configure(bundle, bundle->ncp.mp.peer_mrru, speed);
     } else
       tun_configure(bundle, fsm2lcp(fp)->his_mru,
                     modem_Speed(link2physical(fp->link)));
@@ -522,6 +522,8 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
   bundle.cfg.opt = OPT_IDCHECK | OPT_LOOPBACK | OPT_THROUGHPUT | OPT_UTMP;
+  *bundle.cfg.label = '\0';
+  bundle.cfg.mtu = DEF_MTU;
   bundle.phys_type = type;
 
   bundle.links = datalink_Create("default", &bundle, &bundle.fsm, type);
@@ -539,7 +541,9 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.desc.Read = bundle_DescriptorRead;
   bundle.desc.Write = bundle_DescriptorWrite;
 
-  /* XXX: what's an IPCP link anyway :-( */
+  mp_Init(&bundle.ncp.mp, &bundle);
+
+  /* Send over the first physical link by default */
   ipcp_Init(&bundle.ncp.ipcp, &bundle, &bundle.links->physical->link,
             &bundle.fsm);
 
@@ -775,6 +779,9 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
     }
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
+    mp_Init(&bundle->ncp.mp, bundle);
+    ipcp_Init(&bundle->ncp.ipcp, bundle, &bundle->links->physical->link,
+              &bundle->fsm);
   }
 }
 
@@ -866,6 +873,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
   } else
     prompt_Printf(arg->prompt, "disabled\n");
+  prompt_Printf(arg->prompt, " MTU:        %d\n", arg->bundle->cfg.mtu);
 
   prompt_Printf(arg->prompt, " ID check:   %s\n",
                 optval(arg->bundle, OPT_IDCHECK));
@@ -1067,4 +1075,19 @@ bundle_CleanDatalinks(struct bundle *bundle)
     else
       dlp = &(*dlp)->next;
   bundle_GenPhysType(bundle);
+}
+
+void
+bundle_SetLabel(struct bundle *bundle, const char *label)
+{
+  if (label)
+    strncpy(bundle->cfg.label, label, sizeof bundle->cfg.label - 1);
+  else
+    *bundle->cfg.label = '\0';
+}
+
+const char *
+bundle_GetLabel(struct bundle *bundle)
+{
+  return *bundle->cfg.label ? bundle->cfg.label : NULL;
 }

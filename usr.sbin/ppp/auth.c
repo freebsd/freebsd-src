@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.21 1998/04/16 00:25:47 brian Exp $
+ * $Id: auth.c,v 1.27.2.22 1998/04/19 15:24:34 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -114,7 +114,7 @@ AuthValidate(struct bundle *bundle, const char *fname, const char *system,
           /* XXX This should be deferred - we may join an existing bundle ! */
 	  ipcp_Setup(&bundle->ncp.ipcp);
 	  if (n > 3)
-	    SetLabel(vector[3]);
+	    bundle_SetLabel(bundle, vector[3]);
 	  return 1;		/* Valid */
         } else {
           CloseSecret(fp);
@@ -166,7 +166,7 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
         else
           return NULL;
       if (n > 3)
-        SetLabel(vector[3]);
+        bundle_SetLabel(bundle, vector[3]);
       return vector[1];
     }
   }

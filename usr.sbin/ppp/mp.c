@@ -23,15 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.5 1998/04/18 01:01:26 brian Exp $
+ *	$Id: mp.c,v 1.1.2.6 1998/04/20 00:20:40 brian Exp $
  */
 
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 
@@ -62,12 +64,13 @@
 #include "datalink.h"
 #include "bundle.h"
 #include "ip.h"
+#include "prompt.h"
 
 static u_int32_t
 inc_seq(struct mp *mp, u_int32_t seq)
 {
   seq++;
-  if (mp->is12bit) {
+  if (mp->peer_is12bit) {
     if (seq & 0xfffff000)
       seq = 0;
   } else if (seq & 0xff000000)
@@ -78,7 +81,7 @@ inc_seq(struct mp *mp, u_int32_t seq)
 static int
 mp_ReadHeader(struct mp *mp, struct mbuf *m, struct mp_header *header)
 {
-  if (mp->is12bit) {
+  if (mp->local_is12bit) {
     header->seq = *(u_int16_t *)MBUF_CTOP(m);
     if (header->seq & 0x3000) {
       LogPrintf(LogWARN, "Oops - MP header without required zero bits\n");
@@ -104,31 +107,35 @@ mp_ReadHeader(struct mp *mp, struct mbuf *m, struct mp_header *header)
 static void
 mp_LayerStart(void *v, struct fsm *fp)
 {
-  /* The given FSM is about to start up ! */
+  /* The given FSM (ccp) is about to start up ! */
 }
 
 static void
 mp_LayerUp(void *v, struct fsm *fp)
 {
-  /* The given fsm is now up */
+  /* The given fsm (ccp) is now up */
 }
 
 static void
 mp_LayerDown(void *v, struct fsm *fp)
 {
-  /* The given FSM has been told to come down */
+  /* The given FSM (ccp) has been told to come down */
 }
 
 static void
 mp_LayerFinish(void *v, struct fsm *fp)
 {
-  /* The given fsm is now down */
+  /* The given fsm (ccp) is now down */
 }
 
 void
 mp_Init(struct mp *mp, struct bundle *bundle)
 {
-  mp->is12bit = 0;
+  mp->peer_is12bit = mp->local_is12bit = 0;
+  mp->peer_mrru = mp->local_mrru = 0;
+  mp->peer_enddisc.class = 0;
+  *mp->peer_enddisc.address = '\0';
+  mp->peer_enddisc.len = 0;
   mp->seq.out = 0;
   mp->seq.min_in = 0;
   mp->seq.next_in = 0;
@@ -149,16 +156,48 @@ mp_Init(struct mp *mp, struct bundle *bundle)
   mp->fsmp.LayerFinish = mp_LayerFinish;
   mp->fsmp.object = mp;
 
+  mp->cfg.mrru = 0;
+  mp->cfg.shortseq = NEG_ENABLED|NEG_ACCEPTED;
+  mp->cfg.enddisc.class = 0;
+  *mp->cfg.enddisc.address = '\0';
+  mp->cfg.enddisc.len = 0;
+
   lcp_Init(&mp->link.lcp, mp->bundle, &mp->link, NULL);
   ccp_Init(&mp->link.ccp, mp->bundle, &mp->link, &mp->fsmp);
+}
 
-  /* Our lcp's already up 'cos of the NULL parent */
-  FsmUp(&mp->link.ccp.fsm);
-  FsmOpen(&mp->link.ccp.fsm);
+int
+mp_Up(struct mp *mp, u_short local_mrru, u_short peer_mrru,
+           int local_shortseq, int peer_shortseq)
+{
+  if (mp->active) {
+    /* We're adding a link - do a last validation on our parameters */
+    if (mp->local_mrru != local_mrru ||
+        mp->peer_mrru != peer_mrru ||
+        mp->local_is12bit != local_shortseq ||
+        mp->peer_is12bit != peer_shortseq) {
+      LogPrintf(LogPHASE, "Invalid MRRU/SHORTSEQ MP parameters !\n");
+      return 0;
+    }
+  } else {
+    /* First link in multilink mode */
 
-  mp->active = 1;
+    mp->local_mrru = local_mrru;
+    mp->peer_mrru = peer_mrru;
+    mp->local_is12bit = local_shortseq;
+    mp->peer_is12bit = peer_shortseq;
 
-  bundle_LayerUp(mp->bundle, &mp->link.lcp.fsm);
+    /* Re-point our IPCP layer at our MP link */
+    ipcp_Init(&mp->bundle->ncp.ipcp, mp->bundle, &mp->link, &mp->bundle->fsm);
+
+    /* Our lcp's already up 'cos of the NULL parent */
+    FsmUp(&mp->link.ccp.fsm);
+    FsmOpen(&mp->link.ccp.fsm);
+
+    mp->active = 1;
+  }
+
+  return 1;
 }
 
 void
@@ -358,7 +397,7 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
   seq16 = (u_int16_t *)cp;
   *seq32 = 0;
   *cp = (begin << 7) | (end << 6);
-  if (mp->is12bit) {
+  if (mp->peer_is12bit) {
     *seq16 |= (u_int16_t)mp->seq.out;
     mo->cnt = 2;
   } else {
@@ -446,5 +485,154 @@ mp_SetDatalinkWeight(struct cmdargs const *arg)
     return 1;
   }
   arg->cx->mp.weight = val;
+  return 0;
+}
+
+int
+mp_ShowStatus(struct cmdargs const *arg)
+{
+  struct mp *mp = &arg->bundle->ncp.mp;
+
+  prompt_Printf(arg->prompt, "Multilink is %sactive\n", mp->active ? "" : "in");
+
+  prompt_Printf(arg->prompt, "\nMy Side:\n");
+  if (mp->active) {
+    prompt_Printf(arg->prompt, " MRRU:      %u\n", mp->local_mrru);
+    prompt_Printf(arg->prompt, " Short Seq: %s\n",
+                  mp->local_is12bit ? "on" : "off");
+  }
+  prompt_Printf(arg->prompt, " End Disc:    %s\n",
+                mp_Enddisc(mp->cfg.enddisc.class, mp->cfg.enddisc.address,
+                           mp->cfg.enddisc.len));
+
+  prompt_Printf(arg->prompt, "\nHis Side:\n");
+  if (mp->active) {
+    prompt_Printf(arg->prompt, " Next SEQ:  %u\n", mp->seq.out);
+    prompt_Printf(arg->prompt, " MRRU:      %u\n", mp->peer_mrru);
+    prompt_Printf(arg->prompt, " Short Seq: %s\n",
+                  mp->peer_is12bit ? "on" : "off");
+  }
+  prompt_Printf(arg->prompt, " End Disc:  %s\n",
+                mp_Enddisc(mp->peer_enddisc.class, mp->peer_enddisc.address,
+                           mp->peer_enddisc.len));
+
+  prompt_Printf(arg->prompt, "\nDefaults:\n");
+  
+  prompt_Printf(arg->prompt, " MRRU:       ");
+  if (mp->cfg.mrru)
+    prompt_Printf(arg->prompt, "%d (multilink enabled)\n", mp->cfg.mrru);
+  else
+    prompt_Printf(arg->prompt, "disabled\n");
+  prompt_Printf(arg->prompt, " Short Seq:  %s\n",
+                  command_ShowNegval(mp->cfg.shortseq));
+
+  return 0;
+}
+
+const char *
+mp_Enddisc(u_char c, const char *address, int len)
+{
+  static char result[100];
+  int f, header;
+
+  switch (c) {
+    case 0:
+      sprintf(result, "Null Class");
+      break;
+
+    case 1:
+      snprintf(result, sizeof result, "Local Addr: %.*s", len, address);
+      break;
+
+    case 2:
+      if (len == 4)
+        snprintf(result, sizeof result, "IP %s",
+                 inet_ntoa(*(const struct in_addr *)address));
+      else
+        sprintf(result, "IP[%d] ???", len);
+      break;
+
+    case 3:
+      if (len == 6) {
+        const u_char *m = (const u_char *)address;
+        snprintf(result, sizeof result, "MAC %02x:%02x:%02x:%02x:%02x:%02x",
+                 m[0], m[1], m[2], m[3], m[4], m[5]);
+      } else
+        sprintf(result, "MAC[%d] ???", len);
+      break;
+
+    case 4:
+      sprintf(result, "Magic: 0x");
+      header = strlen(result);
+      if (len > sizeof result - header - 1)
+        len = sizeof result - header - 1;
+      for (f = 0; f < len; f++)
+        sprintf(result + header + 2 * f, "%02x", address[f]);
+      break;
+
+     case 5:
+      snprintf(result, sizeof result, "PSN: %.*s", len, address);
+      break;
+
+     default:
+      sprintf(result, "%d: ", (int)c);
+      header = strlen(result);
+      if (len > sizeof result - header - 1)
+        len = sizeof result - header - 1;
+      for (f = 0; f < len; f++)
+        sprintf(result + header + 2 * f, "%02x", address[f]);
+      break;
+  }
+  return result;
+}
+
+int
+mp_SetEnddisc(struct cmdargs const *arg)
+{
+  struct mp *mp = &arg->bundle->ncp.mp;
+
+  if (bundle_Phase(arg->bundle) != PHASE_DEAD) {
+    LogPrintf(LogWARN, "set enddisc: Only available at phase DEAD\n");
+    return 1;
+  }
+
+  if (arg->argc == arg->argn) {
+    mp->cfg.enddisc.class = 0;
+    *mp->cfg.enddisc.address = '\0';
+    mp->cfg.enddisc.len = 0;
+  } else if (arg->argc > arg->argn)
+    if (!strcasecmp(arg->argv[arg->argn], "ip")) {
+      memcpy(mp->cfg.enddisc.address,
+             &arg->bundle->ncp.ipcp.my_ip.s_addr,
+             sizeof arg->bundle->ncp.ipcp.my_ip.s_addr);
+      mp->cfg.enddisc.class = 2;
+      mp->cfg.enddisc.len = sizeof arg->bundle->ncp.ipcp.my_ip.s_addr;
+    } else if (!strcasecmp(arg->argv[arg->argn], "magic")) {
+      int f;
+
+      randinit();
+      for (f = 0; f < 20; f += sizeof(long))
+        *(long *)(mp->cfg.enddisc.address + f) = random();
+      mp->cfg.enddisc.class = 4;
+      mp->cfg.enddisc.len = 20;
+    } else if (!strcasecmp(arg->argv[arg->argn], "label")) {
+      mp->cfg.enddisc.class = 1;
+      strcpy(mp->cfg.enddisc.address, arg->bundle->cfg.label);
+      mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
+    } else if (!strcasecmp(arg->argv[arg->argn], "psn")) {
+      if (arg->argc > arg->argn+1) {
+        mp->cfg.enddisc.class = 5;
+        strcpy(mp->cfg.enddisc.address, arg->argv[arg->argn+1]);
+        mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
+      } else {
+        LogPrintf(LogWARN, "PSN endpoint requires additional data\n");
+        return 2;
+      }
+    } else {
+      LogPrintf(LogWARN, "%s: Unrecognised endpoint type\n",
+                arg->argv[arg->argn]);
+      return 3;
+    }
+
   return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.30 1998/04/17 22:04:22 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.31 1998/04/17 22:05:06 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -39,6 +39,8 @@
 #define OPT_PROXY	0x08
 #define OPT_THROUGHPUT	0x10
 #define OPT_UTMP	0x20
+
+#define MAX_ENDDISC_CLASS 5
 
 #define Enabled(b, o) ((b)->cfg.opt & (o))
 
@@ -71,6 +73,8 @@ struct bundle {
       char key[50];           /* PAP/CHAP key */
     } auth;
     unsigned opt;             /* Uses OPT_ bits from above */
+    char label[50];           /* last thing `load'ed */
+    u_short mtu;              /* Interface mtu */
   } cfg;
 
   struct {
@@ -134,3 +138,5 @@ extern void bundle_DatalinkClone(struct bundle *, struct datalink *,
                                  const char *);
 extern void bundle_DatalinkRemove(struct bundle *, struct datalink *);
 extern void bundle_CleanDatalinks(struct bundle *);
+extern void bundle_SetLabel(struct bundle *, const char *);
+extern const char *bundle_GetLabel(struct bundle *);

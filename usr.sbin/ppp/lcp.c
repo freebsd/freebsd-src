@@ -17,11 +17,16 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.42 1998/04/16 00:26:05 brian Exp $
+ * $Id: lcp.c,v 1.55.2.43 1998/04/19 23:08:30 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
  */
+
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <signal.h>
 #include <stdio.h>
@@ -35,6 +40,7 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "iplist.h"
 #include "lcp.h"
 #include "throughput.h"
 #include "lcpproto.h"
@@ -46,6 +52,11 @@
 #include "link.h"
 #include "physical.h"
 #include "prompt.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "mp.h"
+#include "bundle.h"
 
 /* for received LQRs */
 struct lqrreq {
@@ -99,9 +110,9 @@ static const char *cftypes[] = {
   "CONTIME",	/* 14: Connect-Time */
   "COMPFRAME",	/* 15: Compound-Frames */
   "NDE",	/* 16: Nominal-Data-Encapsulation */
-  "MULTIMRRU",	/* 17: Multilink-MRRU */
-  "MULTISSNH",	/* 18: Multilink-Short-Sequence-Number-Header */
-  "MULTIED",	/* 19: Multilink-Endpoint-Descriminator */
+  "MRRU",	/* 17: Multilink-MRRU */
+  "SHORTSEQ",	/* 18: Multilink-Short-Sequence-Number-Header */
+  "ENDDISC",	/* 19: Multilink-Endpoint-Descriminator */
   "PROPRIETRY",	/* 20: Proprietary */
   "DCEID",	/* 21: DCE-Identifier */
   "MULTIPP",	/* 22: Multi-Link-Plus-Procedure */
@@ -120,22 +131,22 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 State2Nam(lcp->fsm.state));
   prompt_Printf(arg->prompt,
 	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
-	        "           MAGIC %08lx, REJECT %04x\n",
+	        "           MAGIC %08lx, MRRU %u, SHORTSEQ %s, REJECT %04x\n",
 	        lcp->his_mru, (u_long)lcp->his_accmap,
                 lcp->his_protocomp ? "on" : "off",
                 lcp->his_acfcomp ? "on" : "off",
-                (u_long)lcp->his_magic, lcp->his_reject);
+                (u_long)lcp->his_magic, lcp->his_mrru,
+                lcp->his_shortseq ? "on" : "off", lcp->his_reject);
   prompt_Printf(arg->prompt,
 	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
-                "           MAGIC %08lx, REJECT %04x\n",
+                "           MAGIC %08lx, MRRU %u, SHORTSEQ %s, REJECT %04x\n",
                 lcp->want_mru, (u_long)lcp->want_accmap,
                 lcp->want_protocomp ? "on" : "off",
                 lcp->want_acfcomp ? "on" : "off",
-                (u_long)lcp->want_magic, lcp->my_reject);
+                (u_long)lcp->want_magic, lcp->want_mrru,
+                lcp->want_shortseq ? "on" : "off", lcp->my_reject);
 
   prompt_Printf(arg->prompt, "\n Defaults: MRU = %d, ", lcp->cfg.mru);
-  if (l->lcp.cfg.mtu)
-    prompt_Printf(arg->prompt, "MTU = %d, ", lcp->cfg.mtu);
   prompt_Printf(arg->prompt, "ACCMAP = %08lx\n", (u_long)lcp->cfg.accmap);
   prompt_Printf(arg->prompt, "           LQR period = %us, ",
                 lcp->cfg.lqrperiod);
@@ -165,7 +176,7 @@ GenerateMagic(void)
 {
   /* Generate random number which will be used as magic number */
   randinit();
-  return (random());
+  return random();
 }
 
 void
@@ -181,7 +192,6 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
            bundle, l, parent, &lcp_Callbacks, timer_names);
 
   lcp->cfg.mru = DEF_MRU;
-  lcp->cfg.mtu = DEF_MTU;
   lcp->cfg.accmap = 0;
   lcp->cfg.openmode = 1;
   lcp->cfg.lqrperiod = DEF_LQRPERIOD;
@@ -203,12 +213,16 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->fsm.maxconfig = 10;
 
   lcp->his_mru = DEF_MRU;
+  lcp->his_mrru = 0;
   lcp->his_magic = 0;
   lcp->his_lqrperiod = 0;
   lcp->his_acfcomp = 0;
   lcp->his_auth = 0;
+  lcp->his_shortseq = 0;
 
   lcp->want_mru = lcp->cfg.mru;
+  lcp->want_mrru = lcp->fsm.bundle->ncp.mp.cfg.mrru;
+  lcp->want_shortseq = IsEnabled(lcp->fsm.bundle->ncp.mp.cfg.shortseq) ? 1 : 0;
   lcp->want_acfcomp = IsEnabled(lcp->cfg.acfcomp) ? 1 : 0;
 
   if (lcp->fsm.parent) {
@@ -250,8 +264,9 @@ LcpSendConfigReq(struct fsm *fp)
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   struct lcp *lcp = fsm2lcp(fp);
-  u_char buff[100];
+  u_char buff[200];
   struct lcp_opt *o;
+  struct mp *mp;
 
   if (!p) {
     LogPrintf(LogERROR, "LcpSendConfigReq: Not a physical link !\n");
@@ -300,6 +315,22 @@ LcpSendConfigReq(struct fsm *fp)
     INC_LCP_OPT(TY_AUTHPROTO, 5, o);
     break;
   }
+
+  if (lcp->want_mrru && !REJECTED(lcp, TY_MRRU)) {
+    *(u_short *)o->data = htons(lcp->want_mrru);
+    INC_LCP_OPT(TY_MRRU, 4, o);
+
+    if (lcp->want_shortseq && !REJECTED(lcp, TY_SHORTSEQ))
+      INC_LCP_OPT(TY_SHORTSEQ, 2, o);
+  }
+
+  mp = &lcp->fsm.bundle->ncp.mp;
+  if (mp->cfg.enddisc.class != 0 && !REJECTED(lcp, TY_ENDDISC)) {
+    *o->data = mp->cfg.enddisc.class;
+    memcpy(o->data+1, mp->cfg.enddisc.address, mp->cfg.enddisc.len);
+    INC_LCP_OPT(TY_ENDDISC, mp->cfg.enddisc.len + 3, o);
+  }
+
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
 }
 
@@ -375,6 +406,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   u_short mtu, mru, *sp, proto;
   struct lqrreq *req;
   char request[20], desc[22];
+  struct mp *mp;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -386,6 +418,56 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       snprintf(request, sizeof request, " %s[%d]", cftypes[type], length);
 
     switch (type) {
+    case TY_MRRU:
+      mp = &lcp->fsm.bundle->ncp.mp;
+      sp = (u_short *)(cp + 2);
+      mru = htons(*sp);
+      LogPrintf(LogLCP, "%s %u\n", request, mru);
+
+      switch (mode_type) {
+      case MODE_REQ:
+        if (mp->cfg.mrru) {
+          if (REJECTED(lcp, TY_MRRU))
+            /* Ignore his previous reject so that we REQ next time */
+	    lcp->his_reject &= ~(1 << type);
+
+          mtu = lcp->fsm.bundle->cfg.mtu;
+          if (mru < MIN_MRU || mru < mtu) {
+            /* Push him up to MTU or MIN_MRU */
+            lcp->his_mrru = mru < mtu ? mtu : MIN_MRU;
+	    *sp = htons((u_short)lcp->his_mrru);
+	    memcpy(dec->nakend, cp, 4);
+	    dec->nakend += 4;
+	  } else {
+            lcp->his_mrru = mtu ? mtu : mru;
+	    memcpy(dec->ackend, cp, 4);
+	    dec->ackend += 4;
+	  }
+	  break;
+        } else
+	  goto reqreject;
+        break;
+      case MODE_NAK:
+        if (mp->cfg.mrru) {
+          if (REJECTED(lcp, TY_MRRU))
+            /* Must have changed his mind ! */
+	    lcp->his_reject &= ~(1 << type);
+
+          if (mru > MAX_MRU)
+            lcp->want_mrru = MAX_MRU;
+          else if (mru < MIN_MRU)
+            lcp->want_mrru = MIN_MRU;
+          else
+            lcp->want_mrru = mru;
+        }
+        /* else we honour our config and don't send the suggested REQ */
+        break;
+      case MODE_REJ:
+	lcp->his_reject |= (1 << type);
+	break;
+      }
+      break;
+
     case TY_MRU:
       sp = (u_short *) (cp + 2);
       mru = htons(*sp);
@@ -393,26 +475,26 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-        mtu = lcp->cfg.mtu;
-        if (mtu == 0)
-          mtu = MAX_MTU;
-	if (mru > mtu) {
-	  *sp = htons(mtu);
-	  memcpy(dec->nakend, cp, 4);
-	  dec->nakend += 4;
-	} else if (mru < MIN_MRU) {
-	  *sp = htons(MIN_MRU);
-	  memcpy(dec->nakend, cp, 4);
-	  dec->nakend += 4;
-	} else {
-	  lcp->his_mru = mru;
-	  memcpy(dec->ackend, cp, 4);
-	  dec->ackend += 4;
-	}
+        mtu = lcp->fsm.bundle->cfg.mtu;
+        if (mru < MIN_MRU || mru < mtu) {
+          /* Push him up to MTU or MIN_MRU */
+          lcp->his_mru = mru < mtu ? mtu : MIN_MRU;
+          *sp = htons((u_short)lcp->his_mru);
+          memcpy(dec->nakend, cp, 4);
+          dec->nakend += 4;
+        } else {
+          lcp->his_mru = mtu ? mtu : mru;
+          memcpy(dec->ackend, cp, 4);
+          dec->ackend += 4;
+        }
 	break;
       case MODE_NAK:
-	if (mru >= MIN_MRU || mru <= MAX_MRU)
-	  lcp->want_mru = mru;
+        if (mru > MAX_MRU)
+          lcp->want_mru = MAX_MRU;
+        else if (mru < MIN_MRU)
+          lcp->want_mru = MIN_MRU;
+        else
+          lcp->want_mru = mru;
 	break;
       case MODE_REJ:
 	lcp->his_reject |= (1 << type);
@@ -588,7 +670,6 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
             lcp->LcpFailedMagic = 0;
 	  }
 	} else {
-	  lcp->my_reject |= (1 << type);
 	  goto reqreject;
 	}
 	break;
@@ -621,9 +702,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	  memcpy(dec->nakend, cp, 2);
 	  dec->nakend += 2;
 #else
-	  memcpy(dec->rejend, cp, 2);
-	  dec->rejend += 2;
-	  lcp->my_reject |= (1 << type);
+	  goto reqreject;
 #endif
 	}
 	break;
@@ -651,9 +730,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	  memcpy(dec->nakend, cp, 2);
 	  dec->nakend += 2;
 #else
-	  memcpy(dec->rejend, cp, 2);
-	  dec->rejend += 2;
-	  lcp->my_reject |= (1 << type);
+	  goto reqreject;
 #endif
 	}
 	break;
@@ -675,6 +752,62 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       }
       break;
 
+    case TY_SHORTSEQ:
+      mp = &lcp->fsm.bundle->ncp.mp;
+      LogPrintf(LogLCP, "%s\n", request);
+
+      switch (mode_type) {
+      case MODE_REQ:
+        if (IsAccepted(mp->cfg.shortseq)) {
+          lcp->his_shortseq = 1;
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
+        } else
+	  goto reqreject;
+        break;
+      case MODE_NAK:
+        /*
+         * He's trying to get us to ask for short sequence numbers.
+         * We ignore the NAK and honour our configuration file instead.
+         */
+        break;
+      case MODE_REJ:
+	lcp->his_reject |= (1 << type);
+	break;
+      }
+      break;
+
+    case TY_ENDDISC:
+      LogPrintf(LogLCP, "%s %s\n", request,
+                mp_Enddisc(cp[2], cp + 3, length - 3));
+      switch (mode_type) {
+      case MODE_REQ:
+        if (length-3 < sizeof lcp->fsm.bundle->ncp.mp.peer_enddisc.address &&
+            cp[2] <= MAX_ENDDISC_CLASS) {
+          lcp->fsm.bundle->ncp.mp.peer_enddisc.class = cp[2];
+          lcp->fsm.bundle->ncp.mp.peer_enddisc.len = length-3;
+          memcpy(lcp->fsm.bundle->ncp.mp.peer_enddisc.address, cp+3, length-3);
+          lcp->fsm.bundle->ncp.mp.peer_enddisc.address[length-3] = '\0';
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
+        } else {
+          if (cp[2] > MAX_ENDDISC_CLASS)
+            LogPrintf(LogLCP, " ENDDISC rejected - unrecognised class %d\n",
+                      cp[2]);
+          else
+            LogPrintf(LogLCP, " ENDDISC rejected - local max length is %d\n",
+                      sizeof lcp->fsm.bundle->ncp.mp.peer_enddisc.address - 1);
+	  goto reqreject;
+        }
+	break;
+
+      case MODE_NAK:	/* Treat this as a REJ, we don't vary or disc */
+      case MODE_REJ:
+	lcp->his_reject |= (1 << type);
+	break;
+      }
+      break;
+      
     default:
       sz = (sizeof desc - 2) / 2;
       if (sz > length - 2)
@@ -697,7 +830,7 @@ reqreject:
 	dec->rejend += length;
 	lcp->my_reject |= (1 << type);
         if (length != cp[1])
-          return;
+          length = 0;		/* force our way out of the loop */
       }
       break;
     }

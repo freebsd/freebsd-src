@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.48 1998/04/10 13:19:11 brian Exp $
+ * $Id: main.c,v 1.121.2.49 1998/04/16 00:26:08 brian Exp $
  *
  *	TODO:
  */
@@ -370,15 +370,18 @@ main(int argc, char **argv)
   pending_signal(SIGUSR2, BringDownServer);
 
   if (label) {
+    /*
+     * Set label both before and after SelectSystem !
+     * This way, "set enddisc label" works during SelectSystem, and we
+     * also end up with the correct label if we have embedded load
+     * commands.
+     */
+    bundle_SetLabel(bundle, label);
     if (SelectSystem(bundle, label, CONFFILE, prompt) < 0) {
       prompt_Printf(prompt, "Destination system (%s) not found.\n", label);
       AbortProgram(EX_START);
     }
-    /*
-     * We don't SetLabel() 'till now in case SelectSystem() has an
-     * embeded load "otherlabel" command.
-     */
-    SetLabel(label);
+    bundle_SetLabel(bundle, label);
     if (mode == PHYS_DEMAND &&
 	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
       prompt_Printf(prompt, "You must \"set ifaddr\" with a peer address "

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.66 1998/04/19 03:40:56 brian Exp $
+ * $Id: command.c,v 1.131.2.67 1998/04/19 07:22:31 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -88,21 +88,22 @@
 #define	VAR_WINSIZE	4
 #define	VAR_DEVICE	5
 #define	VAR_ACCMAP	6
-#define	VAR_MRU		7
-#define	VAR_MTU		8
-#define	VAR_OPENMODE	9
-#define	VAR_PHONE	10
-#define	VAR_HANGUP	11
-#define	VAR_ENC		12
-#define	VAR_IDLETIMEOUT	13
-#define	VAR_LQRPERIOD	14
-#define	VAR_LCPRETRY	15
-#define	VAR_CHAPRETRY	16
-#define	VAR_PAPRETRY	17
-#define	VAR_CCPRETRY	18
-#define	VAR_IPCPRETRY	19
-#define	VAR_DNS		20
-#define	VAR_NBNS	21
+#define	VAR_MRRU	7
+#define	VAR_MRU		8
+#define	VAR_MTU		9
+#define	VAR_OPENMODE	10
+#define	VAR_PHONE	11
+#define	VAR_HANGUP	12
+#define	VAR_ENC		13
+#define	VAR_IDLETIMEOUT	14
+#define	VAR_LQRPERIOD	15
+#define	VAR_LCPRETRY	16
+#define	VAR_CHAPRETRY	17
+#define	VAR_PAPRETRY	18
+#define	VAR_CCPRETRY	19
+#define	VAR_IPCPRETRY	20
+#define	VAR_DNS		21
+#define	VAR_NBNS	22
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -117,8 +118,9 @@
 #define NEG_PPPDDEFLATE	45
 #define NEG_PRED1	46
 #define NEG_PROTOCOMP	47
-#define NEG_VJCOMP	48
-#define NEG_DNS		49
+#define NEG_SHORTSEQ	48
+#define NEG_VJCOMP	49
+#define NEG_DNS		50
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -235,11 +237,19 @@ LoadCommand(struct cmdargs const *arg)
   if (!ValidSystem(name, arg->prompt, arg->bundle->phys_type)) {
     LogPrintf(LogERROR, "%s: Label not allowed\n", name);
     return 1;
-  } else if (SelectSystem(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
-    LogPrintf(LogWARN, "%s: label not found.\n", name);
-    return -1;
-  } else
-    SetLabel(arg->argc > arg->argn ? name : NULL);
+  } else {
+    /*
+     * Set the label before & after so that `set enddisc' works and
+     * we handle nested `load' commands.
+     */
+    bundle_SetLabel(arg->bundle, arg->argc > arg->argn ? name : NULL);
+    if (SelectSystem(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
+      bundle_SetLabel(arg->bundle, NULL);
+      LogPrintf(LogWARN, "%s: label not found.\n", name);
+      return -1;
+    }
+    bundle_SetLabel(arg->bundle, arg->argc > arg->argn ? name : NULL);
+  }
   return 0;
 }
 
@@ -503,7 +513,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/19 03:40:56 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/19 07:22:31 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -544,6 +554,8 @@ static struct cmdtab const ShowCommands[] = {
   "Show memory map", "show mem"},
   {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
   "Show modem setups", "show modem"},
+  {"mp", "multilink", mp_ShowStatus, LOCAL_AUTH,
+  "Show multilink setup", "show mp"},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show protocol summary", "show proto"},
   {"route", NULL, ShowRoute, LOCAL_AUTH,
@@ -1136,6 +1148,25 @@ SetVariable(struct cmdargs const *arg)
       LogPrintf(LogWARN, err);
     }
     break;
+  case VAR_MRRU:
+    if (bundle_Phase(arg->bundle) != PHASE_DEAD)
+      LogPrintf(LogWARN, "mrru: Only changable at phase DEAD\n");
+    else {
+#ifdef notyet
+      ulong_val = atol(argp);
+      if (ulong_val < MIN_MRU)
+        err = "Given MRRU value (%lu) is too small.\n";
+      else if (ulong_val > MAX_MRU)
+        err = "Given MRRU value (%lu) is too big.\n";
+      else
+        arg->bundle->ncp.mp.cfg.mrru = ulong_val;
+      if (err)
+        LogPrintf(LogWARN, err, ulong_val);
+#else
+      LogPrintf(LogWARN, "mrru: ifdef'd out !\n");
+#endif
+    }
+    break;
   case VAR_MRU:
     ulong_val = atol(argp);
     if (ulong_val < MIN_MRU)
@@ -1150,13 +1181,13 @@ SetVariable(struct cmdargs const *arg)
   case VAR_MTU:
     ulong_val = atol(argp);
     if (ulong_val == 0)
-      l->lcp.cfg.mtu = 0;
+      arg->bundle->cfg.mtu = 0;
     else if (ulong_val < MIN_MTU)
       err = "Given MTU value (%lu) is too small.\n";
     else if (ulong_val > MAX_MTU)
       err = "Given MTU value (%lu) is too big.\n";
     else
-      l->lcp.cfg.mtu = ulong_val;
+      arg->bundle->cfg.mtu = ulong_val;
     if (err)
       LogPrintf(LogWARN, err, ulong_val);
     break;
@@ -1303,6 +1334,8 @@ static struct cmdtab const SetCommands[] = {
   {"encrypt", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Select CHAP encryption type", "set encrypt MSChap|MD5",
   (const void *)VAR_ENC},
+  {"enddisc", NULL, mp_SetEnddisc, LOCAL_AUTH,
+  "Set Endpoint Discriminator", "set enddisc [IP|magic|label|psn value]"},
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
   "Set escape characters", "set escape hex-digit ..."},
   {"filter", NULL, SetFilter, LOCAL_AUTH,
@@ -1323,10 +1356,12 @@ static struct cmdtab const SetCommands[] = {
   "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
+  {"mrru", NULL, SetVariable, LOCAL_AUTH, "Set MRRU value (enable multilink)",
+  "set mrru value", (const void *)VAR_MRRU},
   {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set MRU value", "set mru value", (const void *)VAR_MRU},
-  {"mtu", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set MTU value", "set mtu value", (const void *)VAR_MTU},
+  {"mtu", NULL, SetVariable, LOCAL_AUTH,
+  "Set interface MTU value", "set mtu value", (const void *)VAR_MTU},
   {"nbns", NULL, SetVariable, LOCAL_AUTH, "Set NetBIOS Name Server",
   "set nbns pri-addr [sec-addr]", (const void *)VAR_NBNS},
   {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set open mode",
@@ -1702,6 +1737,14 @@ NegotiateSet(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.protocomp &= keep;
       cx->physical->link.lcp.cfg.protocomp |= add;
       break;
+    case NEG_SHORTSEQ:
+      if (bundle_Phase(arg->bundle) != PHASE_DEAD)
+        LogPrintf(LogWARN, "shortseq: Only changable at phase DEAD\n");
+      else {
+        arg->bundle->ncp.mp.cfg.shortseq &= keep;
+        arg->bundle->ncp.mp.cfg.shortseq |= add;
+      }
+      break;
     case NEG_VJCOMP:
       arg->bundle->ncp.ipcp.cfg.vj.neg &= keep;
       arg->bundle->ncp.ipcp.cfg.vj.neg |= add;
@@ -1753,6 +1796,9 @@ static struct cmdtab const NegotiateCommands[] = {
   {"protocomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Protocol field compression", "accept|deny|disable|enable",
   (const void *)NEG_PROTOCOMP},
+  {"shortseq", NULL, NegotiateSet, LOCAL_AUTH,
+  "MP Short Sequence Numbers", "accept|deny|disable|enable",
+  (const void *)NEG_SHORTSEQ},
   {"vjcomp", NULL, NegotiateSet, LOCAL_AUTH,
   "Van Jacobson header compression", "accept|deny|disable|enable",
   (const void *)NEG_VJCOMP},
