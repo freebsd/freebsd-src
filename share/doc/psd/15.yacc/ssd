@@ -1,0 +1,45 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)ssd	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+Appendix D: Old Features Supported but not Encouraged
+.PP
+This Appendix mentions synonyms and features which are supported for historical
+continuity, but, for various reasons, are not encouraged.
+.IP 1.
+Literals may also be delimited by double quotes ``"''.
+.IP 2.
+Literals may be more than one character long.
+If all the characters are alphabetic, numeric, or \_, the type number of the literal is defined,
+just as if the literal did not have the quotes around it.
+Otherwise, it is difficult to find the value for such literals.
+.IP
+The use of multi-character literals is likely to mislead those unfamiliar with
+Yacc, since it suggests that Yacc is doing a job which must be actually done by the lexical analyzer.
+.IP 3.
+Most places where % is legal, backslash ``\e'' may be used.
+In particular, \e\e is the same as %%, \eleft the same as %left, etc.
+.IP 4.
+There are a number of other synonyms:
+.DS
+%< is the same as %left
+%> is the same as %right
+%binary and %2 are the same as %nonassoc
+%0 and %term are the same as %token
+%= is the same as %prec
+.DE
+.IP 5.
+Actions may also have the form
+.DS
+={ . . . }
+.DE
+and the curly braces can be dropped if the action is a
+single C statement.
+.IP 6.
+C code between %{ and %} used to be permitted at the
+head of the rules section, as well as in the
+declaration section.

@@ -1,0 +1,61 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)ss..	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.EH 'PSD:15-%''Yacc: Yet Another Compiler-Compiler'
+.OH 'Yacc: Yet Another Compiler-Compiler''PSD:15-%'
+.\".RP
+.ND "July 31, 1978"
+.TL
+Yacc:
+Yet Another Compiler-Compiler
+.AU "MH 2C-559" 3968
+Stephen C. Johnson
+.AI
+.MH
+.AB
+.PP
+Computer program input generally has some structure;
+in fact, every computer program that does input can be thought of as defining
+an ``input language'' which it accepts.
+An input language may be as complex as a programming language, or as simple as
+a sequence of numbers.
+Unfortunately, usual input facilities
+are limited, difficult to use,
+and often are lax about checking their inputs for validity.
+.PP
+Yacc provides a general tool for describing
+the input to a computer program.
+The Yacc user specifies the structures
+of his input, together with code to be invoked as
+each such structure is recognized.
+Yacc turns such a specification into a subroutine that
+handles the input process;
+frequently, it is convenient and appropriate to have most
+of the flow of control in the user's application
+handled by this subroutine.
+.PP
+The input subroutine produced by Yacc calls a user-supplied routine to
+return the next basic input item.
+Thus, the user can specify his input in terms of individual input characters, or
+in terms of higher level constructs such as names and numbers.
+The user-supplied routine may also handle idiomatic features such as
+comment and continuation conventions, which typically defy easy grammatical specification.
+.PP
+Yacc is written in portable C.
+The class of specifications accepted is a very general one: LALR(1)
+grammars with disambiguating rules.
+.PP
+In addition to compilers for C, APL, Pascal, RATFOR, etc., Yacc
+has also been used for less conventional languages,
+including a phototypesetter language, several desk calculator languages, a document retrieval system,
+and a Fortran debugging system.
+.AE
+.OK
+.\"Computer Languages
+.\"Compilers
+.\"Formal Language Theory
+.CS 23 11 34 0 0 8
