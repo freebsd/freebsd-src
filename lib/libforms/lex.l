@@ -32,6 +32,8 @@
  * SUCH DAMAGE.
  *
  */
+
+#include <string.h>
 #include <unistd.h>
 
 #include "y.tab.h"
@@ -40,56 +42,81 @@ extern int charno;
 extern int off;
 %}
 
+NUM		[0-9]+
+
 %%
-colortable		{ return COLORTABLE; }
-colourtable		{ return COLORTABLE; }
-Colors			{ return COLOR; }
-Colours			{ return COLOR; }
-black			{ return BLACK; }
-red				{ return RED; }
-green			{ return GREEN; }
-yellow			{ return YELLOW; }
-blue			{ return BLUE; }
-magenta			{ return MAGENTA; }
-cyan			{ return CYAN; }
-white			{ return WHITE; }
-pair			{ return PAIR; }
-Form			{ return FORM; }
-at				{ return AT; }
+!Forms			{ return FORMS; }
+Action			{ return ACTION; }
+Active			{ return ACTIVE; }
 as				{ return AS; }
-height			{ return HEIGHT; }
-=				{ return EQUALS; }
-width			{ return WIDTH; }
-start			{ return STARTFIELD; }
-text			{ return TEXT; }
-attributes		{ return ATTR; }
-highlight		{ return SELATTR; }
-label			{ return LABEL; }
-default			{ return DEFAULT; }
-limit			{ return LIMIT; }
-selected		{ return SELECTED; }
-options			{ return OPTIONS; }
-action			{ return ACTION; }
-function		{ return FUNC; }
-up				{ return UP; }
-down			{ return DOWN; }
-left			{ return LEFT; }
-right			{ return RIGHT; }
-next			{ return NEXT; }
+at				{ return AT; }
+Attributes		{ return ATTR; }
+AttrTable		{ return ATTRTABLE; }
+CallFunc		{ return CALLFUNC; }
+ColorPairs		{ return COLORPAIRS; }
+Default			{ return DEFAULT; }
+Display			{ return A_DISPLAY; }
+Down			{ return DOWN; }
+Forms			{ return FORMS; }
+Function		{ return FUNCTION; }
+Height			{ return HEIGHT; }
+Highlight		{ return HIGHLIGHT; }
+Input			{ return INPUT; }
+InputFile		{ return INPUTFILE; }
+Label			{ return LABEL; }
+Left			{ return LEFT; }
+Limit			{ return LIMIT; }
+Menu			{ return MENU; }
+Ncurses			{ return NCURSES; }
+Next			{ return NEXT; }
+Object			{ return AN_OBJECT; }
+on				{ return ON; }
+OnEntry			{ return ONENTRY; }
+OnExit			{ return ONEXIT; }
+Options			{ return OPTIONS; }
+OutputFile		{ return OUTPUTFILE; }
+Right			{ return RIGHT; }
+Selected		{ return SELECTED; }
+Text			{ return TEXT; }
+Ttyname			{ return TTYNAME; }
+Type			{ return TYPE; }
+Up				{ return UP; }
+Use				{ return USE; }
+UserDrawFunc	{ return USERDRAWFUNC; }
+UserProcFunc	{ return USERPROCFUNC; }
+Version			{ return VERSION; }
+Width			{ return WIDTH; }
+Window			{ return WINDOW; }
+
+Black			{ return BLACK; }
+Red				{ return RED; }
+Green			{ return GREEN; }
+Yellow			{ return YELLOW; }
+Blue			{ return BLUE; }
+Magenta			{ return MAGENTA; }
+Cyan			{ return CYAN; }
+White			{ return WHITE; }
+
 ,				{ return COMMA; }
 \{				{ return LBRACE; }
 \}				{ return RBRACE; }
-[0-9]+			{ yylval.ival = atoi(yytext); return NUMBER; }
-[A-Za-z_][A-Za-z0-9_()|&]*		{ yylval.sval = yytext; return NAME; }
-\"[^"]* {
-			if (yytext[yyleng-1] == '\\') {
-				yymore();
-			} else {
-				input();
-				yylval.sval = yytext+1;
+;				{ return SEMICOLON; }
+
+{NUM}+			{ yylval.ival = atoi(yytext); return NUMBER; }
+
+[A-Za-z_][A-Za-z0-9_.]*		{ yylval.sval = strdup(yytext);
+							  free(yytext);
+							  return NAME;
+							 }
+
+\"[^"]+\"   { 
+				yytext[strlen(yytext)-1] = '\0';
+				yylval.sval = strdup(yytext + 1);
+				free(yytext);
 				return STRING;
 			}
-		}
+
 \n				{ lineno++; }
 #.*				{ /* Ignored (comment) */; }
 [ \t\f]*		{ /* Ignored (white space) */; }
+

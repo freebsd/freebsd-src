@@ -32,126 +32,158 @@
  *
  */
 
-#include <ncurses.h>
+#ifndef _FORMS_H_
+#define _FORMS_H_
 
-#define FF_UNKNOWN 0
-#define FF_TEXT 1
-#define FF_ACTION 2
-#define FF_INPUT 3
-#define FF_MENU 4
+#include <ncurses.h>
+#include <strhash.h>
 
 #define F_DEFATTR 0
 #define F_SELATTR A_REVERSE
 
 /* Status values */
 
-#define FS_ERROR	-1
-#define FS_OK		0
-#define FS_EXIT		1
-#define FS_CANCEL	2
-#define FS_NOBIND	3
-#define FS_RUNNING  4
-
+#define ST_ERROR	-1
+#define ST_OK		0
+#define ST_DONE		1
+#define ST_CANCEL	2
+#define ST_NOBIND	3
+#define ST_RUNNING  4
 
 typedef enum {
-	FT_ANY,
-	FT_FORM, 
-	FT_COLTAB,
-	FT_FIELD_INST,
-	FT_FIELD_DEF,
-	FT_FUNC
+	TT_ANY,
+	TT_OBJ_INST,
+	TT_OBJ_DEF,
+	TT_FUNC,
+	TT_DISPLAY,
+	TT_ATTR
 } TupleType;
 
-struct Tuple {
+typedef enum {
+	DT_ANY,
+	DT_NCURSES,
+	DT_X,
+	DT_VGA
+} DisplayType;
+
+typedef enum {
+	OT_ACTION,
+	OT_COMPOUND,
+	OT_FUNCTION,
+	OT_INPUT,
+	OT_MENU,
+	OT_SHADOW,
+	OT_TEXT
+} ObjectType;
+
+#define FUNCP void(*)(void *)
+
+typedef struct Tuple {
 	char *name;
 	int type;
-	void *addr;
-	struct Tuple *next;
-};
+	void (*addr)(void *);
+} TUPLE;
 
-struct col_pair {
-	int f;
-	int b;
-};
+typedef struct NcursesDevice {
+	char *ttyname;
+	char *input;
+	char *output;
+	SCREEN *screen;
+} NCURSDEV;
 
-struct Form {
-	int status;
-	int no_fields;
-	char *startfield;
-	struct Field *current_field;
-	struct Field *prev_field;
+typedef struct NcursesWindow {
+	WINDOW *win;
+} NCURSES_WINDOW;
+
+typedef struct Display {
+	DisplayType type;
 	int height;
 	int width;
-	int y;
-	int x;
-	int attr;
-	char *colortable;
-	WINDOW *window;
-	hash_table *bindings;
-};
+	int virt_height;
+	int virt_width;
+	union {
+		NCURSDEV *ncurses;
+	} device;
+	hash_table *bind;
+} DISPLAY;
 
-struct TextField {
+typedef struct ActionObject {
 	char *text;
-};
+	char *action;
+} ACTION_OBJECT;
 
-struct ActionField {
-	char *text;
+typedef struct CompoundObject {
+	char *defobj;
+} COMPOUND_OBJECT;
+
+typedef struct FunctionObject {
 	char *fn;
-};
+} FUNCTION_OBJECT;
 
-struct InputField {
+typedef struct InputObject {
 	int lbl_flag;
 	char *label;
 	char *input;
 	int limit;
-};
+} INPUT_OBJECT;
 
-struct MenuField {
+typedef struct MenuObject {
 	int selected;
 	int no_options;
 	char **options;
-};
+} MENU_OBJECT;
 
-struct help_link {
-};
+typedef struct TextObject {
+	char *text;
+} TEXT_OBJECT;
 
-struct Field {
-	char *defname;
-	char *enter;
-	char *leave;
-	int type;
+typedef union {
+	NCURSES_WINDOW *ncurses;
+} WIN;
+
+typedef union {
+		ACTION_OBJECT *action;
+		COMPOUND_OBJECT *compound;
+		FUNCTION_OBJECT *function;
+		INPUT_OBJECT  *input;
+		MENU_OBJECT   *menu;
+		TEXT_OBJECT   *text;
+} OBJ_TYPE;
+
+typedef struct Object {
+	ObjectType type;
+	int status;
+	struct Object *parent;
 	int y;
 	int x;
 	int height;
 	int width;
-	int attr;
-	int selattr;
-	char *fnext;
-	char *fup;
-	char *fdown;
-	char *fleft;
-	char *fright;
-	char *f_keymap;
-	union {
-		struct TextField *text;
-		struct ActionField *action;
-		struct InputField *input;
-		struct MenuField *menu;
-	}field;
-	/*
-	struct help_link help;
-	*/
-};
+	char *attributes;
+	char *highlight;
+	char *lnext;
+	char *lup;
+	char *ldown;
+	char *lleft;
+	char *lright;
+	char *UserDrawFunc;
+	char *UserProcFunc;
+	char *OnEntry;
+	char *OnExit;
+	OBJ_TYPE object;
+	hash_table *bind;
+	struct Display *display;
+	WIN window;
+} OBJECT;
 
-/* Externally visible keymap table for user-definable keymaps */
-extern unsigned int keymap[];
+/* Externally visible variables */
+extern hash_table *root_table;
 
-/* Externally visible function declarations */
-struct Form *form_start(char *);
-struct Tuple *form_get_tuple(hash_table *, char *, TupleType);
-int form_bind_tuple(hash_table *, char *, TupleType, void *);
-void print_status(char *);
-void exit_form(struct Form *form);
-void cancel_form(struct Form *form);
-void print_status(char *);
-int add_menu_option(struct MenuField *, char *);
+/* Function declarations */
+__inline struct Tuple *get_tuple(hash_table *, char *, TupleType);
+TUPLE *tuple_search(OBJECT *, char *, TupleType);
+int bind_tuple(hash_table *, char *, TupleType, void(*fn)());
+int add_menu_option(MENU_OBJECT *, char *);
+void draw_box(OBJECT *);
+void draw_shadow(OBJECT *);
+
+#endif /* _FORMS_H_ */

@@ -1,8 +1,10 @@
 LIB = forms
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
 
-SRCS = forms.c parser.y lex.l menu.c fields.c
+SRCS = debug.c bindings.c parser.y lex.l forms.c objects.c ncurses.c
 
-CFLAGS += -I. -I${.CURDIR} -Wall -g -DHASH_STATS
+CFLAGS += -I. -I${.CURDIR} -DHASH_STATS #-g -DDEBUG -Wall -ansi -pedantic -Dlint
 LDFLAGS += -ll
 
 CLEANFILES+= lex.c parser.c y.tab.h
