@@ -148,8 +148,7 @@ procfs_open(ap)
 			return (EBUSY);
 
 		p1 = ap->a_p;
-		if ((!CHECKIO(p1, p2) || p_trespass(p1, p2)) &&
-		    !procfs_kmemaccess(p1))
+		if (!CHECKIO(p1, p2) || p_trespass(p1, p2))
 			return (EPERM);
 
 		if (ap->a_mode & FWRITE)
@@ -477,15 +476,11 @@ procfs_getattr(ap)
 	case Pregs:
 	case Pfpregs:
 	case Pdbregs:
+	case Pmem:
 		if (procp->p_flag & P_SUGID)
 			vap->va_mode &= ~((VREAD|VWRITE)|
 					  ((VREAD|VWRITE)>>3)|
 					  ((VREAD|VWRITE)>>6));
-		break;
-	case Pmem:
-		/* Retain group kmem readablity. */
-		if (procp->p_flag & P_SUGID)
-			vap->va_mode &= ~(VREAD|VWRITE);
 		break;
 	default:
 		break;
@@ -556,7 +551,6 @@ procfs_getattr(ap)
 			vap->va_uid = 0;
 		else
 			vap->va_uid = procp->p_ucred->cr_uid;
-		vap->va_gid = KMEM_GROUP;
 		break;
 
 	case Pregs:
