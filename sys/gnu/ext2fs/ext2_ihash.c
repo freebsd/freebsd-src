@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ufs_ihash.c,v 1.9 1997/10/12 20:26:21 phk Exp $
+ * $Id: ufs_ihash.c,v 1.10 1997/10/14 18:46:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -144,6 +144,7 @@ ufs_ihashrem(ip)
 {
 	simple_lock(&ufs_ihash_slock);
 	if (ip->i_flags & IN_HASHED) {
+		ip->i_flags &= ~IN_HASHED;
 		LIST_REMOVE(ip, i_hash);
 #ifdef DIAGNOSTIC
 		ip->i_hash.le_next = NULL;
