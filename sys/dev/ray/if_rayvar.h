@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayvar.h,v 1.3 2000/05/11 18:53:50 dmlb Exp $
+ * $Id: if_rayvar.h,v 1.4 2000/05/21 20:43:24 dmlb Exp $
  *
  */
 
@@ -90,6 +90,11 @@ struct ray_softc {
     TAILQ_HEAD(ray_comq, ray_comq_entry) 
 			sc_comq;	/* Command queue		*/
 
+#if XXX_IOCTLLOCK
+    int			sc_ioctl_lock;	/* IOCTL lock 			*/
+    int			sc_ioctl_cnt;	/* IOCTL lock count		*/
+#endif /* XXX_IOCTLLOCK */
+
     struct ray_nw_param	sc_c;		/* current network params 	*/
     struct ray_nw_param sc_d;		/* desired network params	*/
     int			sc_havenet;	/* true if we have a network	*/
@@ -123,9 +128,7 @@ struct ray_comq_entry {
 	size_t		c_ccs;			/* CCS structure	*/
 	struct ray_param_req
     			*c_pr;			/* MIB report/update	*/
-#if RAY_DEBUG & RAY_DBG_COM
 	char		*c_mesg;
-#endif /* RAY_DEBUG & RAY_DBG_COM */
 };
 
 /*
@@ -247,17 +250,15 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
         __FUNCTION__ , __LINE__ , ##args);				\
 } while (0)
 
-#ifndef RAY_COM_MALLOC
-#define RAY_COM_MALLOC(function, flags)	ray_com_malloc((function), (flags));
-#endif /* RAY_COM_MALLOC */
+#define RAY_COM_MALLOC(function, flags)	\
+    ray_com_malloc((function), (flags), __STRING(function));
+
+#define RAY_COM_INIT(com, function, flags)	\
+    ray_com_init((com), (function), (flags), __STRING(function));
 
 #ifndef RAY_COM_CHECK
 #define RAY_COM_CHECK(sc, com)
 #endif /* RAY_COM_CHECK */
-
-#ifndef RAY_COM_DUMP
-#define RAY_COM_DUMP(sc, com, s)
-#endif /* RAY_COM_DUMP */
 
 #ifndef RAY_MBUF_DUMP
 #define RAY_MBUF_DUMP(sc, mask, m, s)
