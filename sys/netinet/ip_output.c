@@ -105,12 +105,8 @@ static int	ip_pcbopts __P((int, struct mbuf **, struct mbuf *));
 static int	ip_setmoptions
 	__P((struct sockopt *, struct ip_moptions **));
 
-#if defined(IPFILTER_LKM) || defined(IPFILTER)
 int	ip_optcopy __P((struct ip *, struct ip *));
 extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
-#else
-static int	ip_optcopy __P((struct ip *, struct ip *));
-#endif
 
 
 extern	struct protosw inetsw[];
@@ -449,7 +445,6 @@ sendit:
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
 	 */ 
-#if defined(IPFILTER) || defined(IPFILTER_LKM)
 	if (fr_checkp) {
 		struct  mbuf    *m1 = m;
 
@@ -457,7 +452,6 @@ sendit:
 			goto done;
 		ip = mtod(m = m1, struct ip *);
 	}
-#endif
 
 	/*
 	 * Check with the firewall...
@@ -958,9 +952,6 @@ ip_insertoptions(m, opt, phlen)
  * Copy options from ip to jp,
  * omitting those not copied during fragmentation.
  */
-#if !defined(IPFILTER) && !defined(IPFILTER_LKM)
-static
-#endif
 int
 ip_optcopy(ip, jp)
 	struct ip *ip, *jp;

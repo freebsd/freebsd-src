@@ -180,9 +180,7 @@ int fw_enable = 1 ;
 ip_dn_ctl_t *ip_dn_ctl_ptr;
 #endif
 
-#if defined(IPFILTER_LKM) || defined(IPFILTER)
 int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **)) = NULL;
-#endif
 
 
 /*
@@ -380,7 +378,6 @@ tooshort:
 #if defined(IPFIREWALL) && defined(DUMMYNET)
 iphack:
 #endif
-#if defined(IPFILTER) || defined(IPFILTER_LKM)
 	/*
 	 * Check if we want to allow this packet to be processed.
 	 * Consider it to be bad if not.
@@ -392,7 +389,6 @@ iphack:
 			return;
 		ip = mtod(m = m1, struct ip *);
 	}
-#endif
 	if (fw_enable && ip_fw_chk_ptr) {
 #ifdef IPFIREWALL_FORWARD
 		/*
