@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.95 1999/07/29 18:15:33 iwasaki Exp $
+ *	$Id: apm.c,v 1.96 1999/07/30 08:24:19 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -1070,6 +1070,7 @@ static int
 apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc;
+	struct apm_bios_arg *args;
 	int error = 0;
 	int newstate;
 
@@ -1129,6 +1130,24 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		newstate = *(int *)addr;
 		if (apm_display(newstate))
 			error = ENXIO;
+		break;
+	case APMIO_BIOS:
+		/* XXX compatibility with the old interface */
+		args = (struct apm_bios_arg *)addr;
+		sc->bios.r.eax = args->eax;
+		sc->bios.r.ebx = args->ebx;
+		sc->bios.r.ecx = args->ecx;
+		sc->bios.r.edx = args->edx;
+		sc->bios.r.esi = args->esi;
+		sc->bios.r.edi = args->edi;
+		if (apm_bioscall())
+			sc->bios.r.eax &= 0xff;
+		args->eax = sc->bios.r.eax;
+		args->ebx = sc->bios.r.ebx;
+		args->ecx = sc->bios.r.ecx;
+		args->edx = sc->bios.r.edx;
+		args->esi = sc->bios.r.esi;
+		args->edi = sc->bios.r.edi;
 		break;
 	default:
 		error = EINVAL;
