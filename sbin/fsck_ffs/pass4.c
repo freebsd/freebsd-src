@@ -52,8 +52,8 @@ static const char rcsid[] =
 void
 pass4()
 {
-	register ino_t inumber;
-	register struct zlncnt *zlnp;
+	ino_t inumber;
+	struct zlncnt *zlnp;
 	struct dinode *dp;
 	struct inodesc idesc;
 	int i, n, cg;
@@ -122,9 +122,9 @@ pass4()
 
 int
 pass4check(idesc)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 {
-	register struct dups *dlp;
+	struct dups *dlp;
 	int nfrags, res = KEEPON;
 	ufs_daddr_t blkno = idesc->id_blkno;
 

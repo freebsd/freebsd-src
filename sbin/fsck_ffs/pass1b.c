@@ -54,8 +54,8 @@ static int pass1bcheck __P((struct inodesc *));
 void
 pass1b()
 {
-	register int c, i;
-	register struct dinode *dp;
+	int c, i;
+	struct dinode *dp;
 	struct inodesc idesc;
 	ino_t inumber;
 
@@ -87,9 +87,9 @@ pass1b()
 
 static int
 pass1bcheck(idesc)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 {
-	register struct dups *dlp;
+	struct dups *dlp;
 	int nfrags, res = KEEPON;
 	ufs_daddr_t blkno = idesc->id_blkno;
 

@@ -59,8 +59,8 @@ int	add __P((char *name, int ignoreebusy));
 int
 main(int argc, char **argv)
 {
-	register struct fstab *fsp;
-	register int stat;
+	struct fstab *fsp;
+	int stat;
 	int ch, doall;
 
 	doall = 0;

@@ -295,7 +295,7 @@ main(argc, argv)
 	struct addrinfo hints;
 	fd_set *fdmaskp;
 	int fdmasks;
-	register int cc, i;
+	int cc, i;
 	int ch, fromlen, hold, packlen, preload, optval, ret_ga;
 	u_char *datap, *packet;
 	char *e, *target, *ifname = NULL;
@@ -2127,7 +2127,7 @@ set_pathmtu(mtu)
  */
 void
 tvsub(out, in)
-	register struct timeval *out, *in;
+	struct timeval *out, *in;
 {
 	if ((out->tv_usec -= in->tv_usec) < 0) {
 		--out->tv_sec;
@@ -2585,7 +2585,7 @@ void
 fill(bp, patp)
 	char *bp, *patp;
 {
-	register int ii, jj, kk;
+	int ii, jj, kk;
 	int pat[16];
 	char *cp;
 

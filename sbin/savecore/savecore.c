@@ -367,8 +367,8 @@ char buf[1024 * 1024];
 void
 save_core()
 {
-	register FILE *fp;
-	register int bounds, ifd, nr, nw;
+	FILE *fp;
+	int bounds, ifd, nr, nw;
 	int hs, he;		/* start and end of hole */
 	char path[MAXPATHLEN];
 	mode_t oumask;
@@ -518,7 +518,7 @@ err2:			syslog(LOG_WARNING,
 int
 verify_dev(name, dev)
 	char *name;
-	register dev_t dev;
+	dev_t dev;
 {
 	struct stat sb;
 
@@ -538,7 +538,7 @@ verify_dev(name, dev)
  */
 void
 find_dev(dev)
-	register dev_t dev;
+	dev_t dev;
 {
 	struct dirent *ent;
 	char *dn, *dnp;
@@ -614,7 +614,7 @@ get_dumpsize()
 int
 check_space()
 {
-	register FILE *fp;
+	FILE *fp;
 	const char *tkernel;
 	off_t minfree, spacefree, totfree, kernelsize, needed;
 	struct stat st;

@@ -82,7 +82,7 @@ static int mkentry __P((struct inodesc *));
 void
 propagate()
 {
-	register struct inoinfo **inpp, *inp;
+	struct inoinfo **inpp, *inp;
 	struct inoinfo **inpend;
 	long change;
 
@@ -107,10 +107,10 @@ propagate()
  */
 int
 dirscan(idesc)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 {
-	register struct direct *dp;
-	register struct bufarea *bp;
+	struct direct *dp;
+	struct bufarea *bp;
 	u_int dsize, n;
 	long blksiz;
 	char dbuf[DIRBLKSIZ];
@@ -171,10 +171,10 @@ dirscan(idesc)
  */
 static struct direct *
 fsck_readdir(idesc)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 {
-	register struct direct *dp, *ndp;
-	register struct bufarea *bp;
+	struct direct *dp, *ndp;
+	struct bufarea *bp;
 	long size, blksiz, fix, dploc;
 
 	blksiz = idesc->id_numfrags * sblock.fs_fsize;
@@ -234,10 +234,10 @@ dpok:
 static int
 dircheck(idesc, dp)
 	struct inodesc *idesc;
-	register struct direct *dp;
+	struct direct *dp;
 {
-	register int size;
-	register char *cp;
+	int size;
+	char *cp;
 	u_char namlen, type;
 	int spaceleft;
 
@@ -294,7 +294,7 @@ fileerror(cwd, ino, errmesg)
 	ino_t cwd, ino;
 	char *errmesg;
 {
-	register struct dinode *dp;
+	struct dinode *dp;
 	char pathbuf[MAXPATHLEN + 1];
 
 	pwarn("%s ", errmesg);
@@ -315,7 +315,7 @@ fileerror(cwd, ino, errmesg)
 
 void
 adjust(idesc, lcnt)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 	int lcnt;
 {
 	struct dinode *dp;
@@ -387,7 +387,7 @@ static int
 mkentry(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 	struct direct newent;
 	int newlen, oldlen;
 
@@ -432,7 +432,7 @@ static int
 chgino(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 
 	if (memcmp(dirp->d_name, idesc->id_name, (int)dirp->d_namlen + 1))
 		return (KEEPON);
@@ -450,7 +450,7 @@ linkup(orphan, parentdir, name)
 	ino_t parentdir;
 	char *name;
 {
-	register struct dinode *dp;
+	struct dinode *dp;
 	int lostdir;
 	ino_t oldlfdir;
 	struct inodesc idesc;
@@ -625,11 +625,11 @@ makeentry(parent, ino, name)
  */
 static int
 expanddir(dp, name)
-	register struct dinode *dp;
+	struct dinode *dp;
 	char *name;
 {
 	ufs_daddr_t lastbn, newblk;
-	register struct bufarea *bp;
+	struct bufarea *bp;
 	char *cp, firstblk[DIRBLKSIZ];
 
 	lastbn = lblkno(&sblock, dp->di_size);
@@ -763,8 +763,8 @@ lftempname(bufp, ino)
 	char *bufp;
 	ino_t ino;
 {
-	register ino_t in;
-	register char *cp;
+	ino_t in;
+	char *cp;
 	int namlen;
 
 	cp = bufp + 2;

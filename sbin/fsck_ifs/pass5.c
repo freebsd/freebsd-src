@@ -63,7 +63,7 @@ pass5()
 	struct csum cstotal;
 	struct inodesc idesc[3];
 	char buf[MAXBSIZE];
-	register struct cg *newcg = (struct cg *)buf;
+	struct cg *newcg = (struct cg *)buf;
 	struct ocg *ocg = (struct ocg *)buf;
 
 	inoinfo(WINO)->ino_state = USTATE;

@@ -723,7 +723,7 @@ xdr_fhs(xdrsp, cp)
 	XDR *xdrsp;
 	caddr_t cp;
 {
-	register struct fhreturn *fhrp = (struct fhreturn *)cp;
+	struct fhreturn *fhrp = (struct fhreturn *)cp;
 	u_long ok = 0, len, auth;
 
 	if (!xdr_long(xdrsp, &ok))

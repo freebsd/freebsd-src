@@ -361,7 +361,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 	DBG_FUNC("initcg")
 	daddr_t cbase, d, dlower, dupper, dmax, blkno;
 	int i;
-	register struct csum *cs;
+	struct csum *cs;
 #ifdef FSIRAND
 	int j;
 #endif
