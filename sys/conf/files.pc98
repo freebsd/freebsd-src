@@ -67,6 +67,8 @@ trlld.o				optional	oltr			\
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
+crypto/des/des_ecb.c		optional	netsmbcrypto
+crypto/des/des_setkey.c		optional	netsmbcrypto
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
 dev/ata/ata-all.c		optional	ata 
@@ -96,6 +98,12 @@ dev/snc/dp83932subr.c		optional	snc
 dev/snc/if_snc.c		optional	snc
 dev/snc/if_snc_cbus.c		optional	snc isa
 dev/snc/if_snc_pccard.c		optional	snc card
+fs/smbfs/smbfs_io.c		optional	smbfs
+fs/smbfs/smbfs_node.c		optional	smbfs
+fs/smbfs/smbfs_smb.c		optional	smbfs
+fs/smbfs/smbfs_subr.c		optional	smbfs
+fs/smbfs/smbfs_vfsops.c		optional	smbfs
+fs/smbfs/smbfs_vnops.c		optional	smbfs
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
@@ -392,10 +400,20 @@ i4b/layer1/i4b_tel_s0163.c	optional	isic
 i4b/layer1/i4b_tel_s08.c	optional	isic
 i4b/layer1/i4b_usr_sti.c	optional	isic
 isa/psm.c			optional	psm
+kern/md4c.c			optional	netsmb
 kern/subr_diskmbr.c		optional	compat_atdisk
 libkern/divdi3.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+netsmb/smb_conn.c		optional	netsmb
+netsmb/smb_crypt.c		optional	netsmb
+netsmb/smb_dev.c		optional	netsmb
+netsmb/smb_iod.c		optional	netsmb
+netsmb/smb_rq.c			optional	netsmb
+netsmb/smb_smb.c		optional	netsmb
+netsmb/smb_subr.c		optional	netsmb
+netsmb/smb_trantcp.c		optional	netsmb
+netsmb/smb_usr.c		optional	netsmb
 #pci/ide_pci.c			optional	wd
