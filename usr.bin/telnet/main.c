@@ -135,7 +135,7 @@ main(argc, argv)
 	rlogin = (strncmp(prompt, "rlog", 4) == 0) ? '~' : _POSIX_VDISABLE;
 	autologin = -1;
 
-	while ((ch = getopt(argc, argv, "8EKLS:X:acde:fFk:l:n:rt:x")) !=  -1) {
+	while ((ch = getopt(argc, argv, "8EKLS:X:acde:fFk:l:n:rt:x")) != -1) {
 		switch(ch) {
 		case '8':
 			eight = 3;	/* binary output and input */
