@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.87 1999/07/18 14:42:48 jmb Exp $
+ *	$Id: tcp_input.c,v 1.88 1999/08/17 12:17:52 csgr Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
@@ -395,22 +395,39 @@ findpcb:
 	 * but should either do a listen or a connect soon.
 	 */
 	if (inp == NULL) {
-		if (log_in_vain && tiflags & TH_SYN) {
+		if (log_in_vain) {
 			char buf[4*sizeof "123"];
 
 			strcpy(buf, inet_ntoa(ti->ti_dst));
-			log(LOG_INFO,
-			    "Connection attempt to TCP %s:%d from %s:%d\n",
-			    buf, ntohs(ti->ti_dport), inet_ntoa(ti->ti_src),
-			    ntohs(ti->ti_sport));
+			switch (log_in_vain) {
+			case 1:
+				if(tiflags & TH_SYN)
+					log(LOG_INFO,
+			    		"Connection attempt to TCP %s:%d from %s:%d\n",
+			    		buf, ntohs(ti->ti_dport), inet_ntoa(ti->ti_src),
+			    		ntohs(ti->ti_sport));
+						break;
+			case 2:
+				log(LOG_INFO,
+			    	"Connection attempt to TCP %s:%d from %s:%d flags:0x%x\n",
+			    	buf, ntohs(ti->ti_dport), inet_ntoa(ti->ti_src),
+			    	ntohs(ti->ti_sport), tiflags);
+					break;
+			default:
+				break;
+			}
 		}
 #ifdef ICMP_BANDLIM
 		if (badport_bandlim(1) < 0)
 			goto drop;
 #endif
-		if(blackhole && tiflags & TH_SYN)
-			goto drop;
-		else
+		if(blackhole) { 
+			switch (blackhole) {
+				case 1: if(tiflags & TH_SYN) goto drop;
+				case 2: goto drop ;
+				default : goto drop ;
+			}
+		} else
 			goto dropwithreset;
 	}
 	tp = intotcpcb(inp);
