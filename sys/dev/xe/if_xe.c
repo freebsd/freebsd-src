@@ -218,22 +218,20 @@ xe_attach (device_t dev)
   scp->autoneg_status = XE_AUTONEG_NONE;
 
   /* Initialise the ifnet structure */
-  if (!scp->ifp->if_name) {
-    scp->ifp->if_softc = scp;
-    scp->ifp->if_name = "xe";
-    scp->ifp->if_unit = device_get_unit(dev);
-    scp->ifp->if_timer = 0;
-    scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-    scp->ifp->if_linkmib = &scp->mibdata;
-    scp->ifp->if_linkmiblen = sizeof scp->mibdata;
-    scp->ifp->if_output = ether_output;
-    scp->ifp->if_start = xe_start;
-    scp->ifp->if_ioctl = xe_ioctl;
-    scp->ifp->if_watchdog = xe_watchdog;
-    scp->ifp->if_init = xe_init;
-    scp->ifp->if_baudrate = 100000000;
-    scp->ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-  }
+  scp->ifp->if_softc = scp;
+  scp->ifp->if_name = "xe";
+  scp->ifp->if_unit = device_get_unit(dev);
+  scp->ifp->if_timer = 0;
+  scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+  scp->ifp->if_linkmib = &scp->mibdata;
+  scp->ifp->if_linkmiblen = sizeof scp->mibdata;
+  scp->ifp->if_output = ether_output;
+  scp->ifp->if_start = xe_start;
+  scp->ifp->if_ioctl = xe_ioctl;
+  scp->ifp->if_watchdog = xe_watchdog;
+  scp->ifp->if_init = xe_init;
+  scp->ifp->if_baudrate = 100000000;
+  scp->ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
   /* Initialise the ifmedia structure */
   ifmedia_init(scp->ifm, 0, xe_media_change, xe_media_status);
