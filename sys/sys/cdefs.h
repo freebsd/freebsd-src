@@ -296,7 +296,7 @@
 
 /*-
  * The following definitions are an extension of the behavior originally
- * implemented in <sys/_posix.h>, but with a different level of grandularity.
+ * implemented in <sys/_posix.h>, but with a different level of granularity.
  * POSIX.1 requires that the macros we test be defined before any standard
  * header file is included.
  *
