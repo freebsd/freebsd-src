@@ -107,6 +107,11 @@ int linker_add_class(linker_class_t _cls);
 int linker_load_file(const char* _filename, linker_file_t* _result);
 
 /*
+ * Obtain a reference to a module, loading it if required.
+ */
+int linker_reference_module(const char* _modname, linker_file_t* _result);
+
+/*
  * Find a currently loaded file given its filename.
  */
 linker_file_t linker_find_file_by_name(const char* _filename);

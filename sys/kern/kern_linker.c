@@ -331,6 +331,31 @@ out:
     return error;
 }
 
+int
+linker_reference_module(const char *modname, linker_file_t *result)
+{
+    char *pathname;
+    int res;
+
+    /*
+     * There will be a system to look up or guess a file name from
+     * a module name.
+     * For now we just try to load a file with the same name.
+     */
+    if ((pathname = linker_search_path(modname)) == NULL)
+	return (ENOENT);
+
+    /*
+     * If the module is already loaded or built into the kernel,
+     * linker_load_file() simply bumps it's refcount.
+     */
+    res = linker_load_file(pathname, result);
+
+    free(pathname, M_LINKER);
+
+    return (res);
+}
+
 linker_file_t
 linker_find_file_by_name(const char* filename)
 {
