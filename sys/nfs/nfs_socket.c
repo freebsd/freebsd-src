@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.45 1998/09/07 05:42:15 bde Exp $
+ * $Id: nfs_socket.c,v 1.46 1998/09/29 22:33:05 mckusick Exp $
  */
 
 /*
@@ -2232,7 +2232,9 @@ nfsrv_dorec(slp, nfsd, ndp)
 	nd->nd_dpos = mtod(m, caddr_t);
 	error = nfs_getreq(nd, nfsd, TRUE);
 	if (error) {
-		FREE(nam, M_SONAME);
+		if (nam) {
+			FREE(nam, M_SONAME);
+		}
 		free((caddr_t)nd, M_NFSRVDESC);
 		return (error);
 	}
