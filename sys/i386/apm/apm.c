@@ -103,9 +103,17 @@ static struct cdevsw apm_cdevsw = {
 
 static int apm_suspend_delay = 1;
 static int apm_standby_delay = 1;
+static int apm_debug = 0;
+
+#define APM_DPRINT(args...) do	{					\
+	if (apm_debug) {						\
+		printf(args);						\
+	}								\
+} while (0)
 
 SYSCTL_INT(_machdep, OID_AUTO, apm_suspend_delay, CTLFLAG_RW, &apm_suspend_delay, 1, "");
 SYSCTL_INT(_machdep, OID_AUTO, apm_standby_delay, CTLFLAG_RW, &apm_standby_delay, 1, "");
+SYSCTL_INT(_debug, OID_AUTO, apm_debug, CTLFLAG_RW, &apm_debug, 0, "");
 
 /*
  * return  0 if the function successfull,
@@ -120,10 +128,8 @@ apm_bioscall(void)
 	u_int apm_func = sc->bios.r.eax & 0xff;
 
 	if (!apm_check_function_supported(sc->intversion, apm_func)) {
-#ifdef APM_DEBUG
-		printf("apm_bioscall: function 0x%x is not supported in v%d.%d\n",
-			apm_func, sc->majorversion, sc->minorversion);
-#endif
+		APM_DPRINT("apm_bioscall: function 0x%x is not supported in v%d.%d\n",
+		    apm_func, sc->majorversion, sc->minorversion);
 		return (-1);
 	}
 
@@ -318,9 +324,7 @@ apm_add_hook(struct apmhook **list, struct apmhook *ah)
 	int s;
 	struct apmhook *p, *prev;
 
-#ifdef APM_DEBUG
-	printf("Add hook \"%s\"\n", ah->ah_name);
-#endif
+	APM_DPRINT("Add hook \"%s\"\n", ah->ah_name);
 
 	s = splhigh();
 	if (ah == NULL)
@@ -371,9 +375,7 @@ apm_execute_hook(struct apmhook *list)
 	struct apmhook *p;
 
 	for (p = list; p != NULL; p = p->ah_next) {
-#ifdef APM_DEBUG
-		printf("Execute APM hook \"%s.\"\n", p->ah_name);
-#endif
+		APM_DPRINT("Execute APM hook \"%s.\"\n", p->ah_name);
 		if ((*(p->ah_fun))(p->ah_arg))
 			printf("Warning: APM hook \"%s\" failed", p->ah_name);
 	}
@@ -546,9 +548,7 @@ apm_lastreq_rejected(void)
 	sc->bios.r.edx = 0;
 
 	if (apm_bioscall()) {
-#ifdef APM_DEBUG
-		printf("apm_lastreq_rejected: failed\n");
-#endif
+		APM_DPRINT("apm_lastreq_rejected: failed\n");
 		return 1;
 	}
 	apm_op_inprog = 0;
@@ -760,9 +760,7 @@ apm_event_enable(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-#ifdef APM_DEBUG
-	printf("called apm_event_enable()\n");
-#endif
+	APM_DPRINT("called apm_event_enable()\n");
 	if (sc->initialized) {
 		sc->active = 1;
 		apm_timeout(sc);
@@ -775,9 +773,7 @@ apm_event_disable(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-#ifdef APM_DEBUG
-	printf("called apm_event_disable()\n");
-#endif
+	APM_DPRINT("called apm_event_disable()\n");
 	if (sc->initialized) {
 		untimeout(apm_timeout, NULL, apm_timeout_ch);
 		sc->active = 0;
@@ -938,12 +934,9 @@ apm_processevent(void)
 	int apm_event;
 	struct apm_softc *sc = &apm_softc;
 
-#ifdef APM_DEBUG
-#  define OPMEV_DEBUGMESSAGE(symbol) case symbol: \
-	printf("Received APM Event: " #symbol "\n");
-#else
-#  define OPMEV_DEBUGMESSAGE(symbol) case symbol:
-#endif
+#define OPMEV_DEBUGMESSAGE(symbol) case symbol:				\
+	APM_DPRINT("Received APM Event: " #symbol "\n");
+
 	do {
 		apm_event = apm_getevent();
 		switch (apm_event) {
@@ -1048,17 +1041,17 @@ apm_attach(device_t dev)
 	/* Always call HLT in idle loop */
 	sc->always_halt_cpu = 1;
 
+	getenv_int("debug.apm_debug", &apm_debug);
+
 	/* print bootstrap messages */
-#ifdef APM_DEBUG
-	printf("apm: APM BIOS version %04x\n",  apm_version);
-	printf("apm: Code16 0x%08x, Data 0x%08x\n",
-               sc->bios.seg.code16.base, sc->bios.seg.data.base);
-	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-               sc->bios.entry, is_enabled(sc->slow_idle_cpu),
-	       is_enabled(!sc->disabled));
-	printf("apm: CS_limit=0x%x, DS_limit=0x%x\n",
-	      sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
-#endif /* APM_DEBUG */
+	APM_DPRINT("apm: APM BIOS version %04lx\n",  apm_version);
+	APM_DPRINT("apm: Code16 0x%08x, Data 0x%08x\n",
+	    sc->bios.seg.code16.base, sc->bios.seg.data.base);
+	APM_DPRINT("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
+	    sc->bios.entry, is_enabled(sc->slow_idle_cpu),
+	    is_enabled(!sc->disabled));
+	APM_DPRINT("apm: CS_limit=0x%x, DS_limit=0x%x\n",
+	    sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
 
 	/*
          * In one test, apm bios version was 1.02; an attempt to register
@@ -1076,38 +1069,29 @@ apm_attach(device_t dev)
 
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 
-#ifdef APM_DEBUG
 	if (sc->intversion >= INTVERSION(1, 1))
-		printf("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
-#endif
-
-	printf("apm: found APM BIOS v%ld.%ld, connected at v%d.%d\n",
+		APM_DPRINT("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
+	device_printf(dev, "found APM BIOS v%ld.%ld, connected at v%d.%d\n",
 	       ((apm_version & 0xf000) >> 12) * 10 + ((apm_version & 0x0f00) >> 8),
 	       ((apm_version & 0x00f0) >> 4) * 10 + ((apm_version & 0x000f) >> 0),
 	       sc->majorversion, sc->minorversion);
 
-#ifdef APM_DEBUG
-	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
-#endif
 
+	APM_DPRINT("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
 	/* enable power management */
 	if (sc->disabled) {
 		if (apm_enable_disable_pm(1)) {
-#ifdef APM_DEBUG
-			printf("apm: *Warning* enable function failed! [%x]\n",
-				(sc->bios.r.eax >> 8) & 0xff);
-#endif
+			APM_DPRINT("apm: *Warning* enable function failed! [%x]\n",
+			    (sc->bios.r.eax >> 8) & 0xff);
 		}
 	}
 
 	/* engage power managment (APM 1.1 or later) */
 	if (sc->intversion >= INTVERSION(1, 1) && sc->disengaged) {
 		if (apm_engage_disengage_pm(1)) {
-#ifdef APM_DEBUG
-			printf("apm: *Warning* engage function failed err=[%x]",
-				(sc->bios.r.eax >> 8) & 0xff);
-			printf(" (Docked or using external power?).\n");
-#endif
+			APM_DPRINT("apm: *Warning* engage function failed err=[%x]",
+			    (sc->bios.r.eax >> 8) & 0xff);
+			APM_DPRINT(" (Docked or using external power?).\n");
 		}
 	}
 
@@ -1199,9 +1183,7 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 	if (!sc->initialized)
 		return (ENXIO);
-#ifdef APM_DEBUG
-	printf("APM ioctl: cmd = 0x%x\n", cmd);
-#endif
+	APM_DPRINT("APM ioctl: cmd = 0x%lx\n", cmd);
 	switch (cmd) {
 	case APMIO_SUSPEND:
 		if (!(flag & FWRITE))
@@ -1369,9 +1351,7 @@ apmwrite(dev_t dev, struct uio *uio, int ioflag)
 		enabled = 0;
 	}
 	sc->event_filter[event_type] = enabled;
-#ifdef APM_DEBUG
-	printf("apmwrite: event 0x%x %s\n", event_type, is_enabled(enabled));
-#endif
+	APM_DPRINT("apmwrite: event 0x%x %s\n", event_type, is_enabled(enabled));
 
 	return uio->uio_resid;
 }
