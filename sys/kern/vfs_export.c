@@ -981,8 +981,6 @@ sched_sync(void)
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc, p,
 	    SHUTDOWN_PRI_LAST);   
 
-	p->p_flag |= P_BUFEXHAUST;
-
 	for (;;) {
 		kproc_suspend_loop(p);
 
