@@ -25,6 +25,7 @@
 .\" Western Washington University
 .\" Bellingham, WA 98226-9062
 .\"
+.\" $Id$
 .\"
 .TH bc 1 .\" "Command Manual" v1.02 "Feb 3, 1992"
 .SH NAME
@@ -310,7 +311,7 @@ precision, some numbers may not be printable on a single output line.
 These long numbers will be split across lines using the "\e" as the
 last character on a line.  The maximum number of characters printed
 per line is 70.  Due to the interactive nature of \fBbc\fR printing
-a number cause the side effect of assigning the printed value the the
+a number cause the side effect of assigning the printed value the
 special variable \fBlast\fR. This allows the user to recover the
 last value printed without having to retype the expression that
 printed the number.  Assigning to \fBlast\fR is legal and will
@@ -327,7 +328,7 @@ The print statement (an extension) provides another method of output.
 The "list" is a list of strings and expressions separated by commas.
 Each string or expression is printed in the order of the list.  No
 terminating newline is printed.  Expressions are evaluated and their
-value is printed and assigned the the variable \fBlast\fR. Strings
+value is printed and assigned the variable \fBlast\fR. Strings
 in the print statement are printed to the output and may contain
 special characters.  Special characters start with the backslash
 character (\e).  The special characters recognized by \fBbc\fR are

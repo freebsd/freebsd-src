@@ -1,3 +1,5 @@
+.\"	$Id$
+.\"
 .TH curs_insstr 3 ""
 .SH NAME
 \fBinsstr\fR, \fBinsnstr\fR, \fBwinsstr\fR, \fBwinsnstr\fR,
@@ -38,7 +40,7 @@ to be at every eighth column.  If a character in \fIstr\fR is another
 control character, it is drawn in the \fB^\fR\fIX\fR notation.
 Calling \fBwinch\fR after adding a control character (and moving to
 it, if necessary) does not return the control character, but instead
-returns a character in the the ^-representation of the control character.
+returns a character in the ^-representation of the control character.
 .SH RETURN VALUE
 All routines return the integer \fBERR\fR upon failure and an integer value
 other than \fBERR\fR upon successful completion.

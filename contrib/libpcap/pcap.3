@@ -17,6 +17,8 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
+.\" $Id$
+.\"
 .TH PCAP 3  "18 July 1996"
 .SH NAME
 pcap \- Packet Capture library
@@ -152,7 +154,7 @@ If there is an error,
 .B NULL
 is returned and
 .I errbuf
-is filled in with with an appropriate error message.
+is filled in with an appropriate error message.
 .PP
 .B pcap_lookupnet()
 is used to determine the network number and mask
@@ -167,7 +169,7 @@ are
 pointers.
 A return of -1 indicates an error in which case
 .I errbuf
-is filled in with with an appropriate error message.
+is filled in with an appropriate error message.
 .PP
 .B pcap_dispatch()
 is used to collect and process packets.

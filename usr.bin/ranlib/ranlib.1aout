@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ranlib.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt RANLIB 1
@@ -46,7 +47,7 @@
 creates a table of external references for archive libraries,
 normally used by the loader,
 .Xr ld 1 .
-This table is is named ``__.SYMDEF'' and is prepended to the archive.
+This table is named ``__.SYMDEF'' and is prepended to the archive.
 Files in the archive which are not executable and symbols which are
 uninteresting to the loader are ignored.
 .Pp
