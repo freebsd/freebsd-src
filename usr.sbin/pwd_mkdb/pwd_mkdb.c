@@ -122,13 +122,16 @@ main(int argc, char *argv[])
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "Cd:ps:u:vN")) != -1)
+	while ((ch = getopt(argc, argv, "CNd:ps:u:v")) != -1)
 		switch(ch) {
 		case 'C':                       /* verify only */
 			Cflag = 1;
 			break;
+		case 'N':			/* do not wait for lock	*/
+			nblock = LOCK_NB;	/* will fail if locked */
+			break;
 		case 'd':
-			strncpy(prefix, optarg, sizeof prefix - 1);
+			strlcpy(prefix, optarg, sizeof(prefix));
 			break;
 		case 'p':			/* create V7 "file.orig" */
 			makeold = 1;
@@ -140,9 +143,6 @@ main(int argc, char *argv[])
 			username = optarg;
 			break;
 		case 'v':                       /* backward compatible */
-			break;
-		case 'N':			/* do not wait for lock	*/
-			nblock = LOCK_NB;
 			break;
 		default:
 			usage();
