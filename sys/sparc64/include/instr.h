@@ -61,6 +61,8 @@
 #define	IF_F2_CC1_BITS		 1
 #define	IF_F2_CC0_SHIFT		20
 #define	IF_F2_CC0_BITS		 1
+#define	IF_F2_CC_SHIFT		20	/* CC0 and CC1 combined. */
+#define	IF_F2_CC_BITS		 2
 #define	IF_F2_D16HI_SHIFT	20
 #define	IF_F2_D16HI_BITS	 2
 #define	IF_F2_P_SHIFT		19
@@ -81,6 +83,8 @@
 #define	IF_F3_CC1_BITS		 1
 #define	IF_F3_CC0_SHIFT		25
 #define	IF_F3_CC0_BITS		 1
+#define	IF_F3_CC_SHIFT		25	/* CC0 and CC1 combined. */
+#define	IF_F3_CC_BITS		 2
 #define	IF_F3_RS1_SHIFT		IF_F2_RS1_SHIFT
 #define	IF_F3_RS1_BITS		IF_F2_RS1_BITS
 #define	IF_F3_I_SHIFT		13
@@ -170,6 +174,7 @@
 #define	IF_F2_OP2(i)		IF_DECODE((i), F2_OP2)
 #define	IF_F2_CC1(i)		IF_DECODE((i), F2_CC1)
 #define	IF_F2_CC0(i)		IF_DECODE((i), F2_CC0)
+#define	IF_F2_CC(i)		IF_DECODE((i), F2_CC)
 #define	IF_F2_D16HI(i)		IF_DECODE((i), F2_D16HI)
 #define	IF_F2_P(i)		IF_DECODE((i), F2_P)
 #define	IF_F2_RS1(i)		IF_DECODE((i), F2_RS1)
@@ -180,6 +185,7 @@
 #define	IF_F3_FCN(i)		IF_DECODE((i), F3_FCN)
 #define	IF_F3_CC1(i)		IF_DECODE((i), F3_CC1)
 #define	IF_F3_CC0(i)		IF_DECODE((i), F3_CC0)
+#define	IF_F3_CC(i)		IF_DECODE((i), F3_CC)
 #define	IF_F3_RS1(i)		IF_F2_RS1((i))
 #define	IF_F3_I(i)		IF_DECODE((i), F3_I)
 #define	IF_F3_X(i)		IF_DECODE((i), F3_X)
