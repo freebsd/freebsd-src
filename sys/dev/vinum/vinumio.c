@@ -336,6 +336,8 @@ check_drive(char *devicename)
     driveno = find_drive_by_name(devicename, 1);	    /* if entry doesn't exist, create it */
     drive = &vinum_conf.drive[driveno];			    /* and get a pointer */
 
+    if (drive->state >= drive_down)			    /* up or down, we know it */
+	return drive;
     if (read_drive_label(drive, 0) == DL_OURS) {	    /* one of ours */
 	for (i = 0; i < vinum_conf.drives_allocated; i++) { /* see if the name already exists */
 	    if ((i != driveno)				    /* not this drive */
@@ -774,7 +776,7 @@ vinum_scandisk(char *devicename[], int drives)
 			part);
 		    drive = check_drive(partname);	    /* try to open it */
 		    if ((drive->lasterror != 0)		    /* didn't work, */
-		    ||(drive->state != drive_up))
+		    ||(drive->state < drive_down))
 			free_drive(drive);		    /* get rid of it */
 		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
 			log(LOG_WARNING,
@@ -798,7 +800,7 @@ vinum_scandisk(char *devicename[], int drives)
 			part);
 		    drive = check_drive(partname);	    /* try to open it */
 		    if ((drive->lasterror != 0)		    /* didn't work, */
-		    ||(drive->state != drive_up))
+		    ||(drive->state < drive_down))
 			free_drive(drive);		    /* get rid of it */
 		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
 			log(LOG_WARNING,
