@@ -319,12 +319,8 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 
 	/* Get dimensions of our device. */
 	cp = LIST_FIRST(&gp->consumer);
-	error = g_getattr("GEOM::sectorsize", cp, &secsize);
-	if (error)
-		return (error);
-	error = g_getattr("GEOM::mediasize", cp, &mediasize);
-	if (error)
-		return (error);
+	secsize = cp->provider->sectorsize;
+	mediasize = cp->provider->mediasize;
 
 #ifdef nolonger
 	/*
@@ -513,11 +509,7 @@ g_bsd_ioctl(void *arg)
 	KASSERT(gio->cmd == DIOCWDINFO, ("Unknown ioctl in g_bsd_ioctl"));
 	cp = LIST_FIRST(&gp->consumer);
 	/* Get sector size, we need it to read data. */
-	error = g_getattr("GEOM::sectorsize", cp, &secsize);
-	if (error || secsize < 512) {
-		g_io_deliver(bp, error);
-		return;
-	}
+	secsize = cp->provider->sectorsize;
 	secoff = ms->labeloffset % secsize;
 	buf = g_read_data(cp, ms->labeloffset - secoff, secsize, &error);
 	if (buf == NULL || error != 0) {
@@ -703,8 +695,8 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			break;
 
 		/* Get sector size, we need it to read data. */
-		error = g_getattr("GEOM::sectorsize", cp, &secsize);
-		if (error || secsize < 512)
+		secsize = cp->provider->sectorsize;
+		if (secsize < 512)
 			break;
 
 		/* First look for a label at the start of the second sector. */
