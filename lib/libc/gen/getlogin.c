@@ -38,43 +38,76 @@ static char sccsid[] = "@(#)getlogin.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <errno.h>
 #include <pwd.h>
 #include <utmp.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-int	_logname_valid;		/* known to setlogin() */
+#include <libc_private.h>
 
-char *
-getlogin()
+#ifndef _THREAD_SAFE
+#define	THREAD_LOCK()
+#define	THREAD_UNLOCK()
+#else
+#include <pthread.h>
+#include "pthread_private.h"
+static struct pthread_mutex logname_lock = PTHREAD_MUTEX_STATIC_INITIALIZER;
+static pthread_mutex_t logname_mutex = &logname_lock;
+#define	THREAD_LOCK()	if (__isthreaded) pthread_mutex_lock(&logname_mutex)
+#define	THREAD_UNLOCK()	if (__isthreaded) pthread_mutex_unlock(&logname_mutex)
+#endif /* _THREAD_SAFE */
+
+int		_logname_valid;		/* known to setlogin() */
+
+static char *
+getlogin_basic(int *status)
 {
 	static char logname[MAXLOGNAME];
 
 	if (_logname_valid == 0) {
 #ifdef __NETBSD_SYSCALLS
-		if (__getlogin(logname, sizeof(logname) - 1) < 0)
+		if (__getlogin(logname, sizeof(logname) - 1) < 0) {
 #else
-		if (_getlogin(logname, sizeof(logname)) < 0)
+		if (_getlogin(logname, sizeof(logname)) < 0) {
 #endif
-			return ((char *)NULL);
+			*status = errno;
+			return (NULL);
+		}
 		_logname_valid = 1;
 	}
-	return (*logname ? logname : (char *)NULL);
+	*status = 0;
+	return (*logname ? logname : NULL);
 }
 
-
 char *
+getlogin(void)
+{
+	char	*result;
+	int	status;
+
+	THREAD_LOCK();
+	result = getlogin_basic(&status);
+	THREAD_UNLOCK();
+	return (result);
+}
+
+int
 getlogin_r(char *logname, int namelen)
 {
-	if (_logname_valid == 0) {
-#ifdef __NETBSD_SYSCALLS
-		if (__getlogin(logname, namelen - 1) < 0)
-#else
-		if (_getlogin(logname, namelen) < 0)
-#endif
-			return ((char *)NULL);
-		_logname_valid = 1;
+	char	*result;
+	int	len;
+	int	status;
+	
+	THREAD_LOCK();
+	result = getlogin_basic(&status);
+	if (status == 0) {
+		if ((len = strlen(result) + 1) > namelen)
+			status = ERANGE;
+		else
+			strncpy(logname, result, len);
 	}
-	return (*logname ? logname : (char *)NULL);
+	THREAD_UNLOCK();
+	return (status);
 }
