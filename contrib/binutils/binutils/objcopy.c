@@ -1,6 +1,6 @@
 /* objcopy.c -- copy object file from input to output, optionally massaging it.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001
+   2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -1268,6 +1268,13 @@ copy_object (ibfd, obfd)
     }
 }
 
+#undef MKDIR
+#if defined (_WIN32) && !defined (__CYGWIN32__)
+#define MKDIR(DIR, MODE) mkdir (DIR)
+#else
+#define MKDIR(DIR, MODE) mkdir (DIR, MODE)
+#endif
+
 /* Read each archive element in turn from IBFD, copy the
    contents to temp file, and keep the temp file handle.  */
 
@@ -1280,7 +1287,7 @@ copy_archive (ibfd, obfd, output_target)
   struct name_list
     {
       struct name_list *next;
-      char *name;
+      const char *name;
       bfd *obfd;
     } *list, *l;
   bfd **ptr = &obfd->archive_head;
@@ -1288,11 +1295,7 @@ copy_archive (ibfd, obfd, output_target)
   char *dir = make_tempname (bfd_get_filename (obfd));
 
   /* Make a temp directory to hold the contents.  */
-#if defined (_WIN32) && !defined (__CYGWIN32__)
-  if (mkdir (dir) != 0)
-#else
-  if (mkdir (dir, 0700) != 0)
-#endif
+  if (MKDIR (dir, 0700) != 0)
     {
       fatal (_("cannot mkdir %s for archive copying (error: %s)"),
 	     dir, strerror (errno));
@@ -1308,14 +1311,35 @@ copy_archive (ibfd, obfd, output_target)
 
   while (!status && this_element != (bfd *) NULL)
     {
-      /* Create an output file for this member.  */
-      char *output_name = concat (dir, "/", bfd_get_filename (this_element),
-				  (char *) NULL);
-      bfd *output_bfd = bfd_openw (output_name, output_target);
+      char *output_name;
+      bfd *output_bfd;
       bfd *last_element;
       struct stat buf;
       int stat_status = 0;
 
+      /* Create an output file for this member.  */
+      output_name = concat (dir, "/",
+			    bfd_get_filename (this_element), (char *) 0);
+
+      /* If the file already exists, make another temp dir.  */
+      if (stat (output_name, &buf) >= 0)
+	{
+	  output_name = make_tempname (output_name);
+	  if (MKDIR (output_name, 0700) != 0)
+	    {
+	      fatal (_("cannot mkdir %s for archive copying (error: %s)"),
+		     output_name, strerror (errno));
+	    }
+	  l = (struct name_list *) xmalloc (sizeof (struct name_list));
+	  l->name = output_name;
+	  l->next = list;
+	  l->obfd = NULL;
+	  list = l;
+	  output_name = concat (output_name, "/",
+				bfd_get_filename (this_element), (char *) 0);
+	}
+
+      output_bfd = bfd_openw (output_name, output_target);
       if (preserve_dates)
 	{
 	  stat_status = bfd_stat_arch_elt (this_element, &buf);
@@ -1371,8 +1395,13 @@ copy_archive (ibfd, obfd, output_target)
   /* Delete all the files that we opened.  */
   for (l = list; l != NULL; l = l->next)
     {
-      bfd_close (l->obfd);
-      unlink (l->name);
+      if (l->obfd == NULL)
+	rmdir (l->name);
+      else
+	{
+	  bfd_close (l->obfd);
+	  unlink (l->name);
+	}
     }
   rmdir (dir);
 }

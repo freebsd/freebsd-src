@@ -1,6 +1,6 @@
 /* coff object file format
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001
+   1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -1889,7 +1889,7 @@ count_entries_in_chain (idx)
     {
       if (fixup_ptr->fx_done == 0 && TC_COUNT_RELOC (fixup_ptr))
 	{
-#ifdef TC_A29K
+#if defined(TC_A29K) || defined(TC_OR32)
 	  if (fixup_ptr->fx_r_type == RELOC_CONSTH)
 	    nrelocs += 2;
 	  else
@@ -2048,6 +2048,20 @@ do_relocs_for (abfd, h, file_cursor)
 			  ext_ptr++;
 			}
 #endif
+#if defined(TC_OR32)
+		      /* The or32 has a special kludge for the high 16 bit
+			 reloc.  Two relocations are emited, R_IHIHALF,
+			 and R_IHCONST. The second one doesn't contain a
+			 symbol, but uses the value for offset.  */
+		      if (intr.r_type == R_IHIHALF)
+			{
+			  /* Now emit the second bit.  */
+			  intr.r_type = R_IHCONST;
+			  intr.r_symndx = fix_ptr->fx_addnumber;
+			  (void) bfd_coff_swap_reloc_out (abfd, & intr, ext_ptr);
+			  ext_ptr ++;
+			}
+#endif
 		    }
 
 		  fix_ptr = fix_ptr->fx_next;
@@ -2127,10 +2141,12 @@ fill_section (abfd, h, file_cursor)
 		 COFF_NOLOAD_PROBLEM, and have only one test here.  */
 #ifndef TC_I386
 #ifndef TC_A29K
+#ifndef TC_OR32
 #ifndef COFF_NOLOAD_PROBLEM
 	      /* Apparently the SVR3 linker (and exec syscall) and UDI
 		 mondfe progrem are confused by noload sections.  */
 	      s->s_flags |= STYP_NOLOAD;
+#endif
 #endif
 #endif
 #endif
@@ -4420,7 +4436,7 @@ fixup_segment (segP, this_segment_type)
 		  break;
 		default:
 
-#if defined(TC_A29K) || (defined(TE_PE) && defined(TC_I386)) || defined(TC_M88K)
+#if defined(TC_A29K) || (defined(TE_PE) && defined(TC_I386)) || defined(TC_M88K) || defined(TC_OR32)
 		  /* This really should be handled in the linker, but
 		     backward compatibility forbids.  */
 		  add_number += S_GET_VALUE (add_symbolP);
@@ -4466,7 +4482,7 @@ fixup_segment (segP, this_segment_type)
 
       if (pcrel)
 	{
-#if !defined(TC_M88K) && !(defined(TE_PE) && defined(TC_I386)) && !defined(TC_A29K)
+#if !defined(TC_M88K) && !(defined(TE_PE) && defined(TC_I386)) && !defined(TC_A29K) && !defined(TC_OR32)
 	  /* This adjustment is not correct on the m88k, for which the
 	     linker does all the computation.  */
 	  add_number -= md_pcrel_from (fixP);

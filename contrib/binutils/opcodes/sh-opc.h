@@ -76,6 +76,7 @@ typedef enum {
 	A_DISP_GBR,
 	A_PC,
 	A_DISP_PC,
+	A_DISP_PC_ABS,
 	A_DISP_REG_M,
 	A_DISP_REG_N,
 	A_GBR,

@@ -1,6 +1,6 @@
 /* Generic BFD library interface and support routines.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -36,127 +36,118 @@ CODE_FRAGMENT
 .
 .struct _bfd
 .{
-.    {* The filename the application opened the BFD with.  *}
-.    const char *filename;
+.  {* The filename the application opened the BFD with.  *}
+.  const char *filename;
 .
-.    {* A pointer to the target jump table.             *}
-.    const struct bfd_target *xvec;
+.  {* A pointer to the target jump table.  *}
+.  const struct bfd_target *xvec;
 .
-.    {* To avoid dragging too many header files into every file that
-.       includes `<<bfd.h>>', IOSTREAM has been declared as a "char
-.       *", and MTIME as a "long".  Their correct types, to which they
-.       are cast when used, are "FILE *" and "time_t".    The iostream
-.       is the result of an fopen on the filename.  However, if the
-.       BFD_IN_MEMORY flag is set, then iostream is actually a pointer
-.       to a bfd_in_memory struct.  *}
-.    PTR iostream;
+.  {* To avoid dragging too many header files into every file that
+.     includes `<<bfd.h>>', IOSTREAM has been declared as a "char *",
+.     and MTIME as a "long".  Their correct types, to which they
+.     are cast when used, are "FILE *" and "time_t".    The iostream
+.     is the result of an fopen on the filename.  However, if the
+.     BFD_IN_MEMORY flag is set, then iostream is actually a pointer
+.     to a bfd_in_memory struct.  *}
+.  PTR iostream;
 .
-.    {* Is the file descriptor being cached?  That is, can it be closed as
-.       needed, and re-opened when accessed later?  *}
+.  {* Is the file descriptor being cached?  That is, can it be closed as
+.     needed, and re-opened when accessed later?  *}
+.  boolean cacheable;
 .
-.    boolean cacheable;
+.  {* Marks whether there was a default target specified when the
+.     BFD was opened. This is used to select which matching algorithm
+.     to use to choose the back end.  *}
+.  boolean target_defaulted;
 .
-.    {* Marks whether there was a default target specified when the
-.       BFD was opened. This is used to select which matching algorithm
-.       to use to choose the back end. *}
+.  {* The caching routines use these to maintain a
+.     least-recently-used list of BFDs.  *}
+.  struct _bfd *lru_prev, *lru_next;
 .
-.    boolean target_defaulted;
+.  {* When a file is closed by the caching routines, BFD retains
+.     state information on the file here...  *}
+.  ufile_ptr where;
 .
-.    {* The caching routines use these to maintain a
-.       least-recently-used list of BFDs *}
+.  {* ... and here: (``once'' means at least once).  *}
+.  boolean opened_once;
 .
-.    struct _bfd *lru_prev, *lru_next;
+.  {* Set if we have a locally maintained mtime value, rather than
+.     getting it from the file each time.  *}
+.  boolean mtime_set;
 .
-.    {* When a file is closed by the caching routines, BFD retains
-.       state information on the file here: *}
+.  {* File modified time, if mtime_set is true.  *}
+.  long mtime;
 .
-.    ufile_ptr where;
+.  {* Reserved for an unimplemented file locking extension.  *}
+.  int ifd;
 .
-.    {* and here: (``once'' means at least once) *}
+.  {* The format which belongs to the BFD. (object, core, etc.)  *}
+.  bfd_format format;
 .
-.    boolean opened_once;
+.  {* The direction with which the BFD was opened.  *}
+.  enum bfd_direction
+.    {
+.      no_direction = 0,
+.      read_direction = 1,
+.      write_direction = 2,
+.      both_direction = 3
+.    }
+.  direction;
 .
-.    {* Set if we have a locally maintained mtime value, rather than
-.       getting it from the file each time: *}
+.  {* Format_specific flags.  *}
+.  flagword flags;
 .
-.    boolean mtime_set;
+.  {* Currently my_archive is tested before adding origin to
+.     anything. I believe that this can become always an add of
+.     origin, with origin set to 0 for non archive files.  *}
+.  ufile_ptr origin;
 .
-.    {* File modified time, if mtime_set is true: *}
+.  {* Remember when output has begun, to stop strange things
+.     from happening.  *}
+.  boolean output_has_begun;
 .
-.    long mtime;
+.  {* A hash table for section names.  *}
+.  struct bfd_hash_table section_htab;
 .
-.    {* Reserved for an unimplemented file locking extension.*}
+.  {* Pointer to linked list of sections.  *}
+.  struct sec *sections;
 .
-.    int ifd;
+.  {* The place where we add to the section list.  *}
+.  struct sec **section_tail;
 .
-.    {* The format which belongs to the BFD. (object, core, etc.) *}
+.  {* The number of sections.  *}
+.  unsigned int section_count;
 .
-.    bfd_format format;
+.  {* Stuff only useful for object files:
+.     The start address.  *}
+.  bfd_vma start_address;
 .
-.    {* The direction the BFD was opened with*}
+.  {* Used for input and output.  *}
+.  unsigned int symcount;
 .
-.    enum bfd_direction {no_direction = 0,
-.                        read_direction = 1,
-.                        write_direction = 2,
-.                        both_direction = 3} direction;
+.  {* Symbol table for output BFD (with symcount entries).  *}
+.  struct symbol_cache_entry  **outsymbols;
 .
-.    {* Format_specific flags*}
+.  {* Pointer to structure which contains architecture information.  *}
+.  const struct bfd_arch_info *arch_info;
 .
-.    flagword flags;
+.  {* Stuff only useful for archives.  *}
+.  PTR arelt_data;
+.  struct _bfd *my_archive;     {* The containing archive BFD.  *}
+.  struct _bfd *next;           {* The next BFD in the archive.  *}
+.  struct _bfd *archive_head;   {* The first BFD in the archive.  *}
+.  boolean has_armap;
 .
-.    {* Currently my_archive is tested before adding origin to
-.       anything. I believe that this can become always an add of
-.       origin, with origin set to 0 for non archive files.   *}
+.  {* A chain of BFD structures involved in a link.  *}
+.  struct _bfd *link_next;
 .
-.    ufile_ptr origin;
+.  {* A field used by _bfd_generic_link_add_archive_symbols.  This will
+.     be used only for archive elements.  *}
+.  int archive_pass;
 .
-.    {* Remember when output has begun, to stop strange things
-.       from happening. *}
-.    boolean output_has_begun;
-.
-.    {* A hash table for section names. *}
-.    struct bfd_hash_table section_htab;
-.
-.    {* Pointer to linked list of sections. *}
-.    struct sec *sections;
-.
-.    {* The place where we add to the section list. *}
-.    struct sec **section_tail;
-.
-.    {* The number of sections *}
-.    unsigned int section_count;
-.
-.    {* Stuff only useful for object files:
-.       The start address. *}
-.    bfd_vma start_address;
-.
-.    {* Used for input and output*}
-.    unsigned int symcount;
-.
-.    {* Symbol table for output BFD (with symcount entries) *}
-.    struct symbol_cache_entry  **outsymbols;
-.
-.    {* Pointer to structure which contains architecture information*}
-.    const struct bfd_arch_info *arch_info;
-.
-.    {* Stuff only useful for archives:*}
-.    PTR arelt_data;
-.    struct _bfd *my_archive;     {* The containing archive BFD.  *}
-.    struct _bfd *next;           {* The next BFD in the archive.  *}
-.    struct _bfd *archive_head;   {* The first BFD in the archive.  *}
-.    boolean has_armap;
-.
-.    {* A chain of BFD structures involved in a link.  *}
-.    struct _bfd *link_next;
-.
-.    {* A field used by _bfd_generic_link_add_archive_symbols.  This will
-.       be used only for archive elements.  *}
-.    int archive_pass;
-.
-.    {* Used by the back end to hold private data. *}
-.
-.    union
-.      {
+.  {* Used by the back end to hold private data.  *}
+.  union
+.    {
 .      struct aout_data_struct *aout_data;
 .      struct artdata *aout_ar_data;
 .      struct _oasys_data *oasys_obj_data;
@@ -187,15 +178,16 @@ CODE_FRAGMENT
 .      struct versados_data_struct *versados_data;
 .      struct netbsd_core_struct *netbsd_core_data;
 .      PTR any;
-.      } tdata;
+.    }
+.  tdata;
 .
-.    {* Used by the application to hold private data*}
-.    PTR usrdata;
+.  {* Used by the application to hold private data.  *}
+.  PTR usrdata;
 .
 .  {* Where all the allocated stuff under this BFD goes.  This is a
 .     struct objalloc *, but we use PTR to avoid requiring the inclusion of
 .     objalloc.h.  *}
-.    PTR memory;
+.  PTR memory;
 .};
 .
 */
@@ -270,7 +262,8 @@ CODE_FRAGMENT
 .  bfd_error_file_truncated,
 .  bfd_error_file_too_big,
 .  bfd_error_invalid_error_code
-.} bfd_error_type;
+.}
+.bfd_error_type;
 .
 */
 
@@ -632,7 +625,7 @@ FUNCTION
 
 SYNOPSIS
 	void bfd_set_reloc
-	  (bfd *abfd, asection *sec, arelent **rel, unsigned int count)
+	  (bfd *abfd, asection *sec, arelent **rel, unsigned int count);
 
 DESCRIPTION
 	Set the relocation pointer and count within

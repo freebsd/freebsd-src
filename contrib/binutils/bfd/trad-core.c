@@ -211,7 +211,7 @@ trad_unix_core_file_p (abfd)
      0 is at the place pointed to by u_ar0 (by setting the vma of the start
      of the section to -u_ar0).  GDB uses this info to locate the regs,
      using minor trickery to get around the offset-or-absolute-addr problem.  */
-  core_regsec (abfd)->vma = - (bfd_vma) u.u_ar0;
+  core_regsec (abfd)->vma = - (bfd_vma) (unsigned long) u.u_ar0;
 
   core_datasec (abfd)->filepos = NBPG * UPAGES;
   core_stacksec (abfd)->filepos = (NBPG * UPAGES) + NBPG * u.u_dsize

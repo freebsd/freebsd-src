@@ -1,5 +1,6 @@
 /* Main program of GNU linker.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
+   2002
    Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
@@ -53,6 +54,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 extern PTR sbrk ();
 #endif
 #endif
+
+int main PARAMS ((int, char **));
 
 static char *get_emulation PARAMS ((int, char **));
 static void set_scripts_dir PARAMS ((void));

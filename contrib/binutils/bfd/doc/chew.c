@@ -1,5 +1,6 @@
 /* chew
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
+   2002
    Free Software Foundation, Inc.
    Contributed by steve chamberlain @cygnus
 
@@ -289,8 +290,6 @@ struct dict_struct
 
 typedef struct dict_struct dict_type;
 
-#define WORD(x) static void x()
-
 static void
 die (msg)
      char *msg;
@@ -362,7 +361,8 @@ exec (word)
     (*pc) ();
 }
 
-WORD (call)
+static void
+call ()
 {
   stinst_type *oldpc = pc;
   dict_type *e;
@@ -371,7 +371,8 @@ WORD (call)
   pc = oldpc + 2;
 }
 
-WORD (remchar)
+static void
+remchar ()
 {
   if (tos->write_idx)
     tos->write_idx--;
@@ -388,7 +389,8 @@ strip_trailing_newlines ()
   pc++;
 }
 
-WORD (push_number)
+static void
+push_number ()
 {
   isp++;
   icheck_range ();
@@ -397,7 +399,8 @@ WORD (push_number)
   pc++;
 }
 
-WORD (push_text)
+static void
+push_text ()
 {
   tos++;
   check_range ();
@@ -551,7 +554,8 @@ paramstuff (void)
 /* turn {*
    and *} into comments */
 
-WORD (translatecomments)
+static void
+translatecomments ()
 {
   unsigned int idx = 0;
   string_type out;
@@ -587,7 +591,8 @@ WORD (translatecomments)
 
 /* turn everything not starting with a . into a comment */
 
-WORD (manglecomments)
+static void
+manglecomments ()
 {
   unsigned int idx = 0;
   string_type out;
@@ -665,7 +670,8 @@ outputdots (void)
 }
 
 /* Find lines starting with . and | and put example around them on tos */
-WORD (courierize)
+static void
+courierize ()
 {
   string_type out;
   unsigned int idx = 0;
@@ -686,37 +692,47 @@ WORD (courierize)
 
 	      while (at (tos, idx) && at (tos, idx) != '\n')
 		{
-		  if (at (tos, idx) == '{' && at (tos, idx + 1) == '*')
+		  if (command > 1)
+		    {
+		      /* We are inside {} parameters of some command;
+			 Just pass through until matching brace.  */
+		      if (at (tos, idx) == '{')
+			++command;
+		      else if (at (tos, idx) == '}')
+			--command;
+		    }
+		  else if (command != 0)
+		    {
+		      if (at (tos, idx) == '{')
+			++command;
+		      else if (!islower ((unsigned char) at (tos, idx)))
+			--command;
+		    }
+		  else if (at (tos, idx) == '@'
+			   && islower ((unsigned char) at (tos, idx + 1)))
+		    {
+		      ++command;
+		    }
+		  else if (at (tos, idx) == '{' && at (tos, idx + 1) == '*')
 		    {
 		      cattext (&out, "/*");
 		      idx += 2;
+		      continue;
 		    }
 		  else if (at (tos, idx) == '*' && at (tos, idx + 1) == '}')
 		    {
 		      cattext (&out, "*/");
 		      idx += 2;
+		      continue;
 		    }
-		  else if (at (tos, idx) == '{' && !command)
+		  else if (at (tos, idx) == '{'
+			   || at (tos, idx) == '}')
 		    {
-		      cattext (&out, "@{");
-		      idx++;
-		    }
-		  else if (at (tos, idx) == '}' && !command)
-		    {
-		      cattext (&out, "@}");
-		      idx++;
-		    }
-		  else
-		    {
-		      if (at (tos, idx) == '@')
-			command = 1;
-		      else if (isspace ((unsigned char) at (tos, idx))
-			       || at (tos, idx) == '}')
-			command = 0;
-		      catchar (&out, at (tos, idx));
-		      idx++;
+		      catchar (&out, '@');
 		    }
 
+		  catchar (&out, at (tos, idx));
+		  idx++;
 		}
 	      catchar (&out, '\n');
 	    }
@@ -741,7 +757,8 @@ WORD (courierize)
    on @itemize @bullet, and @items each of them. Then ends with @end
    itemize, inplace at TOS*/
 
-WORD (bulletize)
+static void
+bulletize ()
 {
   unsigned int idx = 0;
   int on = 0;
@@ -795,7 +812,8 @@ WORD (bulletize)
 
 /* Turn <<foo>> into @code{foo} in place at TOS*/
 
-WORD (do_fancy_stuff)
+static void
+do_fancy_stuff ()
 {
   unsigned int idx = 0;
   string_type out;
@@ -891,7 +909,8 @@ copy_past_newline (ptr, idx, dst)
 
 }
 
-WORD (icopy_past_newline)
+static void
+icopy_past_newline ()
 {
   tos++;
   check_range ();
@@ -903,7 +922,8 @@ WORD (icopy_past_newline)
 /* indent
    Take the string at the top of the stack, do some prettying.  */
 
-WORD (kill_bogus_lines)
+static void
+kill_bogus_lines ()
 {
   int sl;
 
@@ -989,7 +1009,8 @@ WORD (kill_bogus_lines)
 
 }
 
-WORD (indent)
+static void
+indent ()
 {
   string_type out;
   int tab = 0;
@@ -1039,7 +1060,8 @@ WORD (indent)
 
 }
 
-WORD (get_stuff_in_command)
+static void
+get_stuff_in_command ()
 {
   tos++;
   check_range ();
@@ -1054,7 +1076,8 @@ WORD (get_stuff_in_command)
   pc++;
 }
 
-WORD (swap)
+static void
+swap ()
 {
   string_type t;
 
@@ -1064,7 +1087,8 @@ WORD (swap)
   pc++;
 }
 
-WORD (other_dup)
+static void
+other_dup ()
 {
   tos++;
   check_range ();
@@ -1073,21 +1097,24 @@ WORD (other_dup)
   pc++;
 }
 
-WORD (drop)
+static void
+drop ()
 {
   tos--;
   check_range ();
   pc++;
 }
 
-WORD (idrop)
+static void
+idrop ()
 {
   isp--;
   icheck_range ();
   pc++;
 }
 
-WORD (icatstr)
+static void
+icatstr ()
 {
   tos--;
   check_range ();
@@ -1096,7 +1123,8 @@ WORD (icatstr)
   pc++;
 }
 
-WORD (skip_past_newline)
+static void
+skip_past_newline ()
 {
   while (at (ptr, idx)
 	 && at (ptr, idx) != '\n')
@@ -1105,7 +1133,8 @@ WORD (skip_past_newline)
   pc++;
 }
 
-WORD (internalmode)
+static void
+internalmode ()
 {
   internal_mode = *(isp);
   isp--;
@@ -1113,7 +1142,8 @@ WORD (internalmode)
   pc++;
 }
 
-WORD (maybecatstr)
+static void
+maybecatstr ()
 {
   if (internal_wanted == internal_mode)
     {
@@ -1390,19 +1420,22 @@ bang (void)
   pc++;
 }
 
-WORD (atsign)
+static void
+atsign ()
 {
   isp[0] = *(long *) (isp[0]);
   pc++;
 }
 
-WORD (hello)
+static void
+hello ()
 {
   printf ("hello\n");
   pc++;
 }
 
-WORD (stdout_)
+static void
+stdout_ ()
 {
   isp++;
   icheck_range ();
@@ -1410,7 +1443,8 @@ WORD (stdout_)
   pc++;
 }
 
-WORD (stderr_)
+static void
+stderr_ ()
 {
   isp++;
   icheck_range ();
@@ -1418,7 +1452,8 @@ WORD (stderr_)
   pc++;
 }
 
-WORD (print)
+static void
+print ()
 {
   if (*isp == 1)
     write_buffer (tos, stdout);

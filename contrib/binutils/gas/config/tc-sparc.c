@@ -1,6 +1,6 @@
 /* tc-sparc.c -- Assemble for the SPARC
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001
+   1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -31,6 +31,12 @@
 #include "elf/sparc.h"
 #include "dwarf2dbg.h"
 #endif
+
+/* Some ancient Sun C compilers would not take such hex constants as
+   unsigned, and would end up sign-extending them to form an offsetT,
+   so use these constants instead.  */
+#define U0xffffffff ((((unsigned long) 1 << 16) << 16) - 1)
+#define U0x80000000 ((((unsigned long) 1 << 16) << 15))
 
 static struct sparc_arch *lookup_arch PARAMS ((char *));
 static void init_default_arch PARAMS ((void));
@@ -916,7 +922,7 @@ in_signed_range (val, max)
   if (sparc_arch_size == 32)
     {
       bfd_signed_vma sign = (bfd_signed_vma) 1 << 31;
-      val = ((val & 0xffffffff) ^ sign) - sign;
+      val = ((val & U0xffffffff) ^ sign) - sign;
     }
   if (val > max)
     return 0;
@@ -1019,14 +1025,14 @@ synthetize_setuw (insn)
 	{
 	  if (sizeof (offsetT) > 4
 	      && (the_insn.exp.X_add_number < 0
-		  || the_insn.exp.X_add_number > (offsetT) 0xffffffff))
+		  || the_insn.exp.X_add_number > (offsetT) U0xffffffff))
 	    as_warn (_("set: number not in 0..4294967295 range"));
 	}
       else
 	{
 	  if (sizeof (offsetT) > 4
-	      && (the_insn.exp.X_add_number < -(offsetT) 0x80000000
-		  || the_insn.exp.X_add_number > (offsetT) 0xffffffff))
+	      && (the_insn.exp.X_add_number < -(offsetT) U0x80000000
+		  || the_insn.exp.X_add_number > (offsetT) U0xffffffff))
 	    as_warn (_("set: number not in -2147483648..4294967295 range"));
 	  the_insn.exp.X_add_number = (int) the_insn.exp.X_add_number;
 	}
@@ -1085,8 +1091,8 @@ synthetize_setsw (insn)
     }
 
   if (sizeof (offsetT) > 4
-      && (the_insn.exp.X_add_number < -(offsetT) 0x80000000
-	  || the_insn.exp.X_add_number > (offsetT) 0xffffffff))
+      && (the_insn.exp.X_add_number < -(offsetT) U0x80000000
+	  || the_insn.exp.X_add_number > (offsetT) U0xffffffff))
     as_warn (_("setsw: number not in -2147483648..4294967295 range"));
 
   low32 = the_insn.exp.X_add_number;
@@ -1128,7 +1134,7 @@ synthetize_setx (insn)
   int need_hh22_p = 0, need_hm10_p = 0, need_hi22_p = 0, need_lo10_p = 0;
   int need_xor10_p = 0;
 
-#define SIGNEXT32(x) ((((x) & 0xffffffff) ^ 0x80000000) - 0x80000000)
+#define SIGNEXT32(x) ((((x) & U0xffffffff) ^ U0x80000000) - U0x80000000)
   lower32 = SIGNEXT32 (the_insn.exp.X_add_number);
   upper32 = SIGNEXT32 (BSR (the_insn.exp.X_add_number, 32));
 #undef SIGNEXT32

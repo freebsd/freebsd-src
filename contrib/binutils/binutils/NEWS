@@ -1,5 +1,7 @@
 -*- text -*-
 
+* Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
+
 * size: Add --totals to display summary of sizes (Berkeley format only).
 
 * readelf: Add --wide option to not break section header or segment listing

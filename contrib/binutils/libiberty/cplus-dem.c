@@ -911,7 +911,7 @@ cplus_demangle (mangled, options)
   /* The V3 ABI demangling is implemented elsewhere.  */
   if (GNU_V3_DEMANGLING || AUTO_DEMANGLING)
     {
-      ret = cplus_demangle_v3 (mangled);
+      ret = cplus_demangle_v3 (mangled, work->options);
       if (ret || GNU_V3_DEMANGLING)
 	return ret;
     }
@@ -4874,7 +4874,7 @@ string_append_template_idx (s, idx)
 
 static const char *program_name;
 static const char *program_version = VERSION;
-static int flags = DMGL_PARAMS | DMGL_ANSI;
+static int flags = DMGL_PARAMS | DMGL_ANSI | DMGL_VERBOSE;
 
 static void demangle_it PARAMS ((char *));
 static void usage PARAMS ((FILE *, int)) ATTRIBUTE_NORETURN;
@@ -4887,7 +4887,8 @@ demangle_it (mangled_name)
 {
   char *result;
 
-  result = cplus_demangle (mangled_name, flags);
+  /* For command line args, also try to demangle type encodings.  */
+  result = cplus_demangle (mangled_name, flags | DMGL_TYPES);
   if (result == NULL)
     {
       printf ("%s\n", mangled_name);

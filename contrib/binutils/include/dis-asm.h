@@ -1,6 +1,6 @@
 /* Interface between the opcode library and its callers.
 
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2002 Free Software Foundation, Inc.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,6 +73,11 @@ typedef struct disassemble_info {
   unsigned long mach;
   /* Endianness (for bi-endian cpus).  Mono-endian cpus can ignore this.  */
   enum bfd_endian endian;
+  /* An arch/mach-specific bitmask of selected instruction subsets, mainly
+     for processors with run-time-switchable instruction sets.  The default,
+     zero, means that there is no constraint.  CGEN-based opcodes ports
+     may use ISA_foo masks.  */
+  unsigned long insn_sets;
 
   /* Some targets need information about the current section to accurately
      display insns.  If this is NULL, the target disassembler function
@@ -212,6 +217,8 @@ extern int print_insn_mn10200		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_mn10300		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_ns32k		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_openrisc		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_big_or32          PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_little_or32       PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_pdp11		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_pj		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_big_powerpc	PARAMS ((bfd_vma, disassemble_info*));
@@ -227,6 +234,9 @@ extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_vax		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_w65		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_xstormy16		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_sh64		PARAMS ((bfd_vma, disassemble_info *));
+extern int print_insn_sh64l		PARAMS ((bfd_vma, disassemble_info *));
+extern int print_insn_sh64x_media	PARAMS ((bfd_vma, disassemble_info *));
 
 extern disassembler_ftype arc_get_disassembler PARAMS ((void *));
 extern disassembler_ftype cris_get_disassembler PARAMS ((bfd *));
@@ -273,6 +283,7 @@ extern int generic_symbol_at_address
   (INFO).flavour = bfd_target_unknown_flavour, \
   (INFO).arch = bfd_arch_unknown, \
   (INFO).mach = 0, \
+  (INFO).insn_sets = 0, \
   (INFO).endian = BFD_ENDIAN_UNKNOWN, \
   (INFO).octets_per_byte = 1, \
   INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC)

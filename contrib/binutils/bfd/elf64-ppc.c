@@ -156,11 +156,8 @@ static boolean ppc64_elf_finish_dynamic_sections
 /* Since .opd is an array of descriptors and each entry will end up
    with identical R_PPC64_RELATIVE relocs, there is really no need to
    propagate .opd relocs;  The dynamic linker should be taught to
-   relocate .opd without reloc entries.  FIXME: the dynamic linker
-   will need to know where and how large .opd is via a couple of new
-   DT_PPC64_* tags, or perhaps just with one reloc that specifies the
-   start of .opd via its offset and the size via its addend.  Also,
-   .opd should be trimmed of unused values.  */
+   relocate .opd without reloc entries.  FIXME: .opd should be trimmed
+   of unused values.  */
 #ifndef NO_OPD_RELOCS
 #define NO_OPD_RELOCS 0
 #endif
@@ -2500,20 +2497,15 @@ func_desc_adjust (h, inf)
       fdh = elf_link_hash_lookup (&htab->elf, h->root.root.string + 1,
 				  false, false, true);
 
-      if (fdh == NULL && info->shared)
+      if (fdh == NULL
+	  && info->shared
+	  && (h->root.type == bfd_link_hash_undefined
+	      || h->root.type == bfd_link_hash_undefweak))
 	{
 	  bfd *abfd;
 	  asymbol *newsym;
 
-	  /* Create it as undefined.  */
-	  if (h->root.type == bfd_link_hash_undefined
-	      || h->root.type == bfd_link_hash_undefweak)
-	    abfd = h->root.u.undef.abfd;
-	  else if (h->root.type == bfd_link_hash_defined
-		   || h->root.type == bfd_link_hash_defweak)
-	    abfd = h->root.u.def.section->owner;
-	  else
-	    abort ();
+	  abfd = h->root.u.undef.abfd;
 	  newsym = bfd_make_empty_symbol (abfd);
 	  newsym->name = h->root.root.string + 1;
 	  newsym->section = bfd_und_section_ptr;
@@ -2529,6 +2521,7 @@ func_desc_adjust (h, inf)
 	    {
 	      return false;
 	    }
+	  fdh->elf_link_hash_flags &= ~ELF_LINK_NON_ELF;
 	}
 
       if (fdh != NULL
@@ -2540,13 +2533,16 @@ func_desc_adjust (h, inf)
 	  if (fdh->dynindx == -1)
 	    if (! bfd_elf64_link_record_dynamic_symbol (info, fdh))
 	      return false;
-	  fdh->plt.refcount = h->plt.refcount;
 	  fdh->elf_link_hash_flags |= (h->elf_link_hash_flags
 				       & (ELF_LINK_HASH_REF_REGULAR
 					  | ELF_LINK_HASH_REF_DYNAMIC
 					  | ELF_LINK_HASH_REF_REGULAR_NONWEAK
 					  | ELF_LINK_NON_GOT_REF));
-	  fdh->elf_link_hash_flags |= ELF_LINK_HASH_NEEDS_PLT;
+	  if (ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
+	    {
+	      fdh->plt.refcount = h->plt.refcount;
+	      fdh->elf_link_hash_flags |= ELF_LINK_HASH_NEEDS_PLT;
+	    }
 	  ((struct ppc_link_hash_entry *) fdh)->is_func_descriptor = 1;
 	  fdh->root.root.string = h->root.root.string + 1;
 	}
@@ -2557,7 +2553,7 @@ func_desc_adjust (h, inf)
 	 This prevents a shared library from exporting syms that have
 	 been imported from another library.  Function code syms that
 	 are really in the library we must leave global to prevent the
-	 linker dragging a definition in from a static library.  */
+	 linker dragging in a definition from a static library.  */
       force_local = (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR) == 0;
       _bfd_elf_link_hash_hide_symbol (info, h, force_local);
     }
@@ -2996,10 +2992,12 @@ ppc64_elf_size_dynamic_sections (output_bfd, info)
 		     linker script /DISCARD/, so we'll be discarding
 		     the relocs too.  */
 		}
-	      else
+	      else if (p->count != 0)
 		{
 		  srel = elf_section_data (p->sec)->sreloc;
 		  srel->_raw_size += p->count * sizeof (Elf64_External_Rela);
+		  if ((p->sec->output_section->flags & SEC_READONLY) != 0)
+		    info->flags |= DF_TEXTREL;
 		}
 	    }
 	}
@@ -3127,6 +3125,13 @@ ppc64_elf_size_dynamic_sections (output_bfd, info)
 	    return false;
 	}
 
+      if (NO_OPD_RELOCS)
+	{
+	  if (!add_dynamic_entry (DT_PPC64_OPD, 0)
+	      || !add_dynamic_entry (DT_PPC64_OPDSZ, 0))
+	    return false;
+	}
+
       if (relocs)
 	{
 	  if (!add_dynamic_entry (DT_RELA, 0)
@@ -3136,7 +3141,9 @@ ppc64_elf_size_dynamic_sections (output_bfd, info)
 
 	  /* If any dynamic relocs apply to a read-only section,
 	     then we need a DT_TEXTREL entry.  */
-	  elf_link_hash_traverse (&htab->elf, readonly_dynrelocs, (PTR) info);
+	  if ((info->flags & DF_TEXTREL) == 0)
+	    elf_link_hash_traverse (&htab->elf, readonly_dynrelocs,
+				    (PTR) info);
 
 	  if ((info->flags & DF_TEXTREL) != 0)
 	    {
@@ -3248,7 +3255,7 @@ ppc64_elf_size_stubs (obfd, info, changed)
 
   /* If the .plt doesn't have any entries crossing a 64k boundary,
      then there is no need for bigger stubs.  */
-  if (next_64k <= plt_offset + htab->splt->_raw_size)
+  if (plt_offset + htab->splt->_raw_size <= next_64k)
     return true;
 
   /* OK, so we have at least one transition.  Since .plt entries are
@@ -3955,22 +3962,21 @@ ppc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		 time.  */
 
 	      skip = false;
+	      relocate = false;
 
 	      outrel.r_offset =
 		_bfd_elf_section_offset (output_bfd, info, input_section,
 					 rel->r_offset);
 	      if (outrel.r_offset == (bfd_vma) -1)
 		skip = true;
-
+	      else if (outrel.r_offset == (bfd_vma) -2)
+		skip = true, relocate = true;
 	      outrel.r_offset += (input_section->output_section->vma
 				  + input_section->output_offset);
 	      outrel.r_addend = addend;
 
 	      if (skip)
-		{
-		  relocate = false;
-		  memset (&outrel, 0, sizeof outrel);
-		}
+		memset (&outrel, 0, sizeof outrel);
 	      else if (h != NULL
 		       && h->dynindx != -1
 		       && !is_opd
@@ -3979,10 +3985,7 @@ ppc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 			   || !info->symbolic
 			   || (h->elf_link_hash_flags
 			       & ELF_LINK_HASH_DEF_REGULAR) == 0))
-		{
-		  relocate = false;
-		  outrel.r_info = ELF64_R_INFO (h->dynindx, r_type);
-		}
+		outrel.r_info = ELF64_R_INFO (h->dynindx, r_type);
 	      else
 		{
 		  /* This symbol is local, or marked to become local,
@@ -4351,6 +4354,7 @@ ppc64_elf_finish_dynamic_sections (output_bfd, info)
       for (; dyncon < dynconend; dyncon++)
 	{
 	  Elf_Internal_Dyn dyn;
+	  asection *s;
 
 	  bfd_elf64_swap_dyn_in (dynobj, dyncon, &dyn);
 
@@ -4362,6 +4366,18 @@ ppc64_elf_finish_dynamic_sections (output_bfd, info)
 	    case DT_PPC64_GLINK:
 	      dyn.d_un.d_ptr = (htab->sglink->output_section->vma
 				+ htab->sglink->output_offset);
+	      break;
+
+	    case DT_PPC64_OPD:
+	      s = bfd_get_section_by_name (output_bfd, ".opd");
+	      if (s != NULL)
+		dyn.d_un.d_ptr = s->vma;
+	      break;
+
+	    case DT_PPC64_OPDSZ:
+	      s = bfd_get_section_by_name (output_bfd, ".opd");
+	      if (s != NULL)
+		dyn.d_un.d_val = s->_raw_size;
 	      break;
 
 	    case DT_PLTGOT:

@@ -5165,7 +5165,7 @@ md_apply_fix3 (fixP, valP, seg)
       if ((operand->flags & PPC_OPERAND_PARENS) != 0
 	  && operand->bits == 16
 	  && operand->shift == 0
-	  && operand->insert == NULL
+ 	  && (operand->insert == NULL || ppc_xcoff64)
 	  && fixP->fx_addsy != NULL
 	  && symbol_get_tc (fixP->fx_addsy)->subseg != 0
 	  && symbol_get_tc (fixP->fx_addsy)->class != XMC_TC

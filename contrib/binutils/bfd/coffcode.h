@@ -1787,7 +1787,7 @@ coff_mkobject_hook (abfd, filehdr, aouthdr)
 #endif
 
 #ifdef ARM
-  /* Set the flags field from the COFF header read in */
+  /* Set the flags field from the COFF header read in.  */
   if (! _bfd_coff_arm_set_private_flags (abfd, internal_f->f_flags))
     coff->flags = 0;
 #endif
@@ -1822,6 +1822,13 @@ coff_set_arch_mach_hook (abfd, filehdr)
   machine = 0;
   switch (internal_f->f_magic)
     {
+#ifdef OR32_MAGIC_BIG
+    case OR32_MAGIC_BIG:
+    case OR32_MAGIC_LITTLE:
+      arch = bfd_arch_or32;
+      machine = 0;
+      break;
+#endif
 #ifdef PPCMAGIC
     case PPCMAGIC:
       arch = bfd_arch_powerpc;
@@ -1864,7 +1871,12 @@ coff_set_arch_mach_hook (abfd, filehdr)
         case F_ARM_3M: machine = bfd_mach_arm_3M; break;
         case F_ARM_4:  machine = bfd_mach_arm_4;  break;
         case F_ARM_4T: machine = bfd_mach_arm_4T; break;
-        case F_ARM_5:  machine = bfd_mach_arm_5;  break;
+	  /* The COFF header does not have enough bits available
+	     to cover all the different ARM architectures.  So
+	     we interpret F_ARM_5, the highest flag value to mean
+	     "the highest ARM architecture known to BFD" which is
+	     currently the XScale.  */
+        case F_ARM_5:  machine = bfd_mach_arm_XScale;  break;
 	}
       break;
 #endif
@@ -2617,7 +2629,8 @@ coff_set_flags (abfd, magicp, flagsp)
 	case bfd_mach_arm_4:  * flagsp |= F_ARM_4;  break;
 	case bfd_mach_arm_4T: * flagsp |= F_ARM_4T; break;
 	case bfd_mach_arm_5:  * flagsp |= F_ARM_5;  break;
-	  /* FIXME: we do not have F_ARM vaues greater than F_ARM_5.  */
+	  /* FIXME: we do not have F_ARM vaues greater than F_ARM_5.
+	     See also the comment in coff_set_arch_mach_hook().  */
 	case bfd_mach_arm_5T: * flagsp |= F_ARM_5;  break;
 	case bfd_mach_arm_5TE: * flagsp |= F_ARM_5; break;
 	case bfd_mach_arm_XScale: * flagsp |= F_ARM_5; break;
@@ -2776,6 +2789,15 @@ coff_set_flags (abfd, magicp, flagsp)
 #ifdef W65MAGIC
     case bfd_arch_w65:
       *magicp = W65MAGIC;
+      return true;
+#endif
+
+#ifdef OR32_MAGIC_BIG
+    case bfd_arch_or32:
+      if (bfd_big_endian (abfd))
+        * magicp = OR32_MAGIC_BIG;
+      else
+        * magicp = OR32_MAGIC_LITTLE;
       return true;
 #endif
 
@@ -3828,6 +3850,11 @@ coff_write_object_contents (abfd)
 #if defined(MIPS) && defined(COFF_WITH_PE)
 #define __A_MAGIC_SET__
     internal_a.magic = MIPS_PE_MAGIC;
+#endif
+
+#ifdef OR32
+#define __A_MAGIC_SET__
+    internal_a.magic = NMAGIC; /* Assume separate i/d.  */
 #endif
 
 #ifndef __A_MAGIC_SET__
