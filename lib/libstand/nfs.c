@@ -387,10 +387,14 @@ nfs_open(upath, f)
 {
 	struct iodesc *desc;
 	struct nfs_iodesc *currfd;
+	char buf[2 * NFS_FHSIZE + 3];
+	u_char *fh;
+	char *cp;
+	int i;
 #ifndef NFS_NOSYMLINK
 	struct nfs_iodesc *newfd;
 	struct nfsv2_fattrs *fa;
-	char *cp, *ncp;
+	char *ncp;
 	int c;
 	char namebuf[NFS_MAXPATHLEN + 1];
 	char linkbuf[NFS_MAXPATHLEN + 1];
@@ -421,6 +425,16 @@ nfs_open(upath, f)
 	if ((error = nfs_getrootfh(desc, rootpath, nfs_root_node.fh)))
 		return (error);
 	nfs_root_node.iodesc = desc;
+
+	fh = &nfs_root_node.fh[0];
+	buf[0] = 'X';
+	cp = &buf[1];
+	for (i = 0; i < NFS_FHSIZE; i++, cp += 2)
+		sprintf(cp, "%02x", fh[i]);
+	sprintf(cp, "X");
+	setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+	setenv("boot.nfsroot.path", rootpath, 1);
+	setenv("boot.nfsroot.nfshandle", buf, 1);
 
 #ifndef NFS_NOSYMLINK
 	/* Fake up attributes for the root dir. */
