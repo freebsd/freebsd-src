@@ -109,17 +109,7 @@ static char	dirfile[MAXPATHLEN] = "#";	/* No file */
 static char	modefile[MAXPATHLEN] = "#";	/* No file */
 static char	dot[2] = ".";			/* So it can be modified */
 
-/*
- * Format of old style directories.
- */
-#define ODIRSIZ 14
-struct odirect {
-	u_short	d_ino;
-	char	d_name[ODIRSIZ];
-};
-
 static struct inotab	*allocinotab(struct context *, long);
-static void		 dcvt(struct odirect *, struct direct *);
 static void		 flushent(void);
 static struct inotab	*inotablookup(ino_t);
 static RST_DIR		*opendirfile(const char *);
@@ -332,9 +322,6 @@ searchdir(ino_t	inum, char *name)
 static void
 putdir(char *buf, long size)
 {
-	struct direct cvtbuf;
-	struct odirect *odp;
-	struct odirect *eodp;
 	struct direct *dp;
 	long loc, i;
 
@@ -342,6 +329,16 @@ putdir(char *buf, long size)
 		dp = (struct direct *)(buf + loc);
 		if (Bcvt)
 			swabst((u_char *)"ls", (u_char *) dp);
+		if (oldinofmt && dp->d_ino != 0) {
+#if BYTE_ORDER == BIG_ENDIAN
+			if (Bcvt)
+				dp->d_namlen = dp->d_type;
+#else
+			if (!Bcvt && dp->d_namlen == 0)
+				dp->d_namlen = dp->d_type;
+#endif
+			dp->d_type = DT_UNKNOWN;
+		}
 		i = DIRBLKSIZ - (loc & (DIRBLKSIZ - 1));
 		if ((dp->d_reclen & 0x3) != 0 ||
 		    dp->d_reclen > i ||
@@ -410,18 +407,6 @@ flushent(void)
 	(void) fwrite(dirbuf, (int)dirloc, 1, df);
 	seekpt = ftell(df);
 	dirloc = 0;
-}
-
-static void
-dcvt(struct odirect *odp, struct direct *ndp)
-{
-
-	memset(ndp, 0, (long)(sizeof *ndp));
-	ndp->d_ino =  odp->d_ino;
-	ndp->d_type = DT_UNKNOWN;
-	(void) strncpy(ndp->d_name, odp->d_name, ODIRSIZ);
-	ndp->d_namlen = strlen(ndp->d_name);
-	ndp->d_reclen = DIRSIZ(0, ndp);
 }
 
 /*

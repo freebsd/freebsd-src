@@ -38,32 +38,32 @@
 .Sh SYNOPSIS
 .Nm
 .Fl i
-.Op Fl cdhmNuvy
+.Op Fl dhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl R
-.Op Fl cdNuvy
+.Op Fl dNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl r
-.Op Fl cdNuvy
+.Op Fl dNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl t
-.Op Fl cdhNuvy
+.Op Fl dhNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Op Ar
 .Nm
 .Fl x
-.Op Fl cdhmNuvy
+.Op Fl dhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
@@ -276,15 +276,6 @@ If the
 option is not specified,
 .Nm
 tries to determine the media block size dynamically.
-.It Fl c
-Normally,
-.Nm
-will try to determine dynamically whether the dump was made from an
-old (pre-4.4) or new format file system.
-The
-.Fl c
-flag disables this check, and only allows reading a dump in the old
-format.
 .It Fl d
 Sends verbose debugging output to the standard error.
 .It Fl f Ar file
@@ -367,6 +358,24 @@ preceded by its file type.
 Do not ask the user whether to abort the restore in the event of an error.
 Always try to skip over the bad block(s) and continue.
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev TMPDIR"
+.It Ev TAPE
+Device from which to read backup.
+.It Ev TMPDIR
+Name of directory where temporary files are to be created.
+.El
+.Sh FILES
+.Bl -tag -width "./restoresymtable" -compact
+.It Pa /dev/sa0
+the default tape drive
+.It Pa /tmp/rstdir*
+file containing directories on the tape.
+.It Pa /tmp/rstmode*
+owner, mode, and time stamps for directories.
+.It Pa \&./restoresymtable
+information passed between incremental restores.
+.El
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -438,29 +447,16 @@ After a dump read error,
 may have to resynchronize itself.
 This message lists the number of blocks that were skipped over.
 .El
-.Sh FILES
-.Bl -tag -width "./restoresymtable" -compact
-.It Pa /dev/sa0
-the default tape drive
-.It Pa /tmp/rstdir*
-file containing directories on the tape.
-.It Pa /tmp/rstmode*
-owner, mode, and time stamps for directories.
-.It Pa \&./restoresymtable
-information passed between incremental restores.
-.El
-.Sh ENVIRONMENT
-.Bl -tag -width ".Ev TMPDIR"
-.It Ev TAPE
-Device from which to read backup.
-.It Ev TMPDIR
-Name of directory where temporary files are to be created.
-.El
 .Sh SEE ALSO
 .Xr dump 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
 .Xr rmt 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
 .Sh BUGS
 The
 .Nm
@@ -501,9 +497,4 @@ operation that may have been interrupted, the temporary files should
 be the same across different processes.
 In all other cases, the files are unique because it is possible to
 have two different dumps started at the same time, and separate
-operations shouldn't conflict with each other.
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Bx 4.2 .
+operations should not conflict with each other.
