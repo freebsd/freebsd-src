@@ -6,7 +6,6 @@
 
 SRCS=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c
 
-CFLAGS+=	-DPREFIX=\"/usr\"
 CFLAGS+=	-DIN_GCC
 
 LIB=		cc_drv
