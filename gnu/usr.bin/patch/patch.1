@@ -1,8 +1,9 @@
 .\" -*- nroff -*-
 .rn '' }`
+'\" $Header: patch.man,v 2.0.1.2 88/06/22 20:47:18 lwall Locked $
 '\" $FreeBSD$
 '\" 
-'\" $Log: patch.1,v $
+'\" $Log:	patch.man,v $
 '\" Revision 2.0.1.2  88/06/22  20:47:18  lwall
 '\" patch12: now avoids Bell System Logo
 '\" 
@@ -50,6 +51,7 @@
 '\"     string Tr holds user defined translation string.
 '\"     Bell System Logo is used as a dummy character.
 '\"
+.if !d Tr .ds Tr
 .ie n \{\
 .tr \(*W-\*(Tr
 .ds -- \(*W-
