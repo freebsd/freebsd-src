@@ -923,6 +923,7 @@ vn_extattr_set(struct vnode *vp, int ioflg, const char *attrname, int buflen,
 {
 	struct uio	auio;
 	struct iovec	iov;
+	struct mount	*mp;
 	int	error;
 
 	iov.iov_len = buflen;
@@ -936,14 +937,19 @@ vn_extattr_set(struct vnode *vp, int ioflg, const char *attrname, int buflen,
 	auio.uio_offset = 0;
 	auio.uio_resid = buflen;
 
-	if ((ioflg & IO_NODELOCKED) == 0)
+	if ((ioflg & IO_NODELOCKED) == 0) {
+		if ((error = vn_start_write(vp, &mp, V_WAIT)) != 0)
+			return (error);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	}
 
 	/* authorize attribute setting as kernel */
 	error = VOP_SETEXTATTR(vp, attrname, &auio, NULL, p);
 
-	if ((ioflg & IO_NODELOCKED) == 0)
+	if ((ioflg & IO_NODELOCKED) == 0) {
+		vn_finished_write(mp);
 		VOP_UNLOCK(vp, 0, p);
+	}
 
 	return (error);
 }
