@@ -7,7 +7,10 @@ limitations is lack of support for user-defined functions. Also,
 globbing should be implemented with our glob(3) - the version in
 sh4.c is rather primitive.
 
+This is a copyrighted software - see the file LICENSE. In short,
+it allows you to use it for research and educational purposes only.
+
 Andrzej Bialecki
 <abial@FreeBSD.org>
 
-$Id$
+$Id: README,v 1.1 1998/10/21 17:36:28 abial Exp $
