@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-#	$Id: Makefile,v 1.5 1996/06/05 03:54:43 wpaul Exp $
+#	$Id: Makefile,v 1.6 1996/08/30 02:02:09 peter Exp $
 
 .PATH: ${DESTDIR}/usr/include/rpcsvc
 
@@ -10,7 +10,7 @@ RPCSRCS= klm_prot.x mount.x nfs_prot.x nlm_prot.x rex.x rnusers.x \
 
 RPCCOM = rpcgen
 
-INCDIRS= -I/usr/include/rpcsvc
+INCDIRS= -I${DESTDIR}/usr/include/rpcsvc
 CFLAGS+= ${INCDIRS}
 
 SRCS= ${RPCSRCS:R:S/$/_xdr.c/g}
