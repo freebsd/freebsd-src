@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.43 1994/11/18 10:18:36 phk Exp $
+ *	$Id: fd.c,v 1.44 1994/11/29 15:46:20 jkh Exp $
  *
  */
 
@@ -51,7 +51,7 @@
 #include "fd.h"
 
 /* Flags */
-#define FT_DONT_PROBE		0x1
+#define FT_PROBE		0x1
 
 #if NFDC > 0
 
@@ -432,11 +432,9 @@ fdattach(dev)
 			fd->type = NO_TYPE;
 #endif
 #if NFT > 0
-				/* If BIOS says no floppy, or > 2nd device */
-				/* Probe for and attach a floppy tape.     */
-			if (dev->id_flags & FT_DONT_PROBE)
-				printf(" [fd%d: floppy tape not probed]", fdu);
-			else if (ftattach(dev, fdup))
+			/* If BIOS says no floppy, or > 2nd device */
+			/* Probe for and attach a floppy tape.     */
+			if ((dev->id_flags & FT_PROBE) && ftattach(dev, fdup))
 				continue;
 			if (fdsu < DRVS_PER_CTLR) 
 				fd->type = NO_TYPE;
