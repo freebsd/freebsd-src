@@ -220,6 +220,7 @@ ebus_probe(device_t dev)
 		    &sc->sc_pci_imapmsk);
 		if (sc->sc_nimap == -1)
 			panic("ebus_probe: no interrupt map found");
+		sc->sc_imap_type = EBUS_IT_PCI;
 	} else {
 		if (OF_getprop(node, "interrupt-map-mask",
 		    &sc->sc_ebus_imapmsk, sizeof(sc->sc_ebus_imapmsk)) == -1) {
