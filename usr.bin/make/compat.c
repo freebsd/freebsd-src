@@ -195,7 +195,7 @@ CompatInterrupt (int signo)
  *-----------------------------------------------------------------------
  */
 static int
-shellneed (char *cmd)
+shellneed(char *cmd)
 {
 	char **av;
 	const char *const *p;
