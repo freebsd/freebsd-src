@@ -373,18 +373,6 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 		link->initial_irq = 0;
 	}
 
-	/*
-	 * Try to disable this link.  If successful, set the current IRQ to
-	 * zero and flags to indicate this link is not routed.  If we can't
-	 * run _DIS (i.e., the method doesn't exist), assume the initial
-	 * IRQ was routed by the BIOS.
-	 */
-	if (ACPI_SUCCESS(AcpiEvaluateObject(handle, "_DIS", NULL, NULL))) {
-		link->current_irq = 0;
-		link->flags = ACPI_LINK_NONE;
-	} else
-		link->flags = ACPI_LINK_ROUTED;
-
 	error = AcpiGetPossibleResources(handle, &buf);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
@@ -424,6 +412,18 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 		error = AE_NULL_ENTRY;
 		goto out;
 	}
+
+	/*
+	 * Try to disable this link.  If successful, set the current IRQ to
+	 * zero and flags to indicate this link is not routed.  If we can't
+	 * run _DIS (i.e., the method doesn't exist), assume the initial
+	 * IRQ was routed by the BIOS.
+	 */
+	if (ACPI_SUCCESS(AcpiEvaluateObject(handle, "_DIS", NULL, NULL))) {
+		link->current_irq = 0;
+		link->flags = ACPI_LINK_NONE;
+	} else
+		link->flags = ACPI_LINK_ROUTED;
 
 	/*
 	 * If the initial IRQ is invalid (not in _PRS), set it to 0 and
