@@ -118,7 +118,7 @@ extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
-#if defined(I386_CPU) || defined(CPU_DISABLE_CMPXCHG)
+#if defined(CPU_DISABLE_CMPXCHG)
 
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
@@ -144,7 +144,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	return (res);
 }
 
-#else /* defined(I386_CPU) */
+#else /* defined(CPU_DISABLE_CMPXCHG) */
 
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
@@ -166,7 +166,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	return (res);
 }
 
-#endif /* defined(I386_CPU) */
+#endif /* defined(CPU_DISABLE_CMPXCHG) */
 
 #endif /* defined(__GNUC__) || defined(__INTEL_COMPILER) */
 
