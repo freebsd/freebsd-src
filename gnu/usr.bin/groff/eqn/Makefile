@@ -12,9 +12,6 @@ DPADD+=		${LIBGROFF}
 MANDEPEND=	neqn.1 eqn.1
 CLEANFILES+=	eqn.cc eqn.tab.h neqn ${MANDEPEND}
 
-neqn:
-	sed -e 's/@g@/${g}/g' ${DIST_DIR}/neqn.sh > neqn
-
 afterinstall:	neqn
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} neqn \
 		${DESTDIR}${BINDIR}
@@ -23,3 +20,7 @@ beforedepend: eqn.cc
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
+
+neqn:   ${DIST_DIR}/neqn.sh
+	sed -e 's/@g@/${g}/g' ${DIST_DIR}/neqn.sh > neqn
+
