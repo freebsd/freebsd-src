@@ -1,4 +1,4 @@
-#	$FreeBSD$
+# $FreeBSD$
 
 PROG=	getconf
 
@@ -14,10 +14,11 @@ CLEANFILES+=	confstr.c limits.c pathconf.c progenv.c sysconf.c \
 all:	conflicts
 
 .gperf.c:
-	awk -f ${.CURDIR}/fake-gperf.awk ${.IMPSRC} >${.TARGET}
+	LC_ALL=C awk -f ${.CURDIR}/fake-gperf.awk ${.IMPSRC} >${.TARGET}
 
 .gperf.names:
-	awk '/^[_A-Z]/ { print; }' ${.IMPSRC} | sed -e 's/,$$//' >${.TARGET}
+	LC_ALL=C awk '/^[_A-Z]/ { print; }' ${.IMPSRC} | \
+	    sed -e 's/,$$//' >${.TARGET}
 
 conflicts: conflicting.names unique.names
 	@if test `wc -l <conflicting.names` != `wc -l <unique.names`; then \
@@ -31,6 +32,6 @@ conflicting.names:	confstr.names limits.names sysconf.names
 	cat ${.ALLSRC} >${.TARGET}
 
 unique.names:		conflicting.names
-	sort -u ${.ALLSRC} >${.TARGET}
+	LC_ALL=C sort -u ${.ALLSRC} >${.TARGET}
 
 .include <bsd.prog.mk>
