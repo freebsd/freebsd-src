@@ -30,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,29 +45,36 @@ main(int argc, char *argv[])
 	int i;
 	int rval;
 	
-	if (argc < 2)
+	if (argc < 2) {
 		usage();
+		/* NOTREACHED */
+	}
 	
-	rval = 0;
+	rval = EX_OK;
 	for (i = 1; i < argc; ++i) {
-		if ((fd = open(argv[i], O_RDONLY)) < 0) {
+		if ((fd = open(argv[i], O_RDONLY)) == -1) {
 			warn("open %s", argv[i]);
-			rval = errno;
+			if (rval == EX_OK)
+				rval = EX_NOINPUT;
 			continue;
 		}
 
-		if (fsync(fd) != 0) {
+		if (fsync(fd) == -1) {
 			warn("fsync %s", argv[i]);
-			rval = errno;
+			if (rval == EX_OK)
+				rval = EX_OSERR;
 		}
 		close(fd);
 	}
-	return (rval);
+	exit(rval);
+	/* NOTREACHED */
 }
 
 static void
-usage()
+usage(void)
 {
+
 	fprintf(stderr, "usage: fsync file ...\n");
 	exit(EX_USAGE);
+	/* NOTREACHED */
 }
