@@ -140,14 +140,6 @@ ffs_fsync(ap)
 	int s, error, wait, passes, skipmeta;
 	daddr_t lbn;
 
-	/*
-	 * Snapshots have to be unlocked so they do not deadlock
-	 * checking whether they need to copy their written buffers.
-	 * We always hold a reference, so they cannot be removed
-	 * out from underneath us.
-	 */
-	if (ip->i_flags & SF_SNAPSHOT)
-		VOP_UNLOCK(vp, 0, ap->a_td);
 	wait = (ap->a_waitfor == MNT_WAIT);
 	if (vn_isdisk(vp, NULL)) {
 		lbn = INT_MAX;
@@ -289,8 +281,5 @@ loop:
 		}
 	}
 	splx(s);
-	error = UFS_UPDATE(vp, wait);
-	if (ip->i_flags & SF_SNAPSHOT)
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
-	return (error);
+	return (UFS_UPDATE(vp, wait));
 }
