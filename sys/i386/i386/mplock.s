@@ -65,6 +65,9 @@
 
 
 	.text
+
+#ifdef SMP 
+
 /***********************************************************************
  *  void MPgetlock_edx(unsigned int *lock : %edx)
  *  ----------------------------------
@@ -293,11 +296,15 @@ NON_GPROF_ENTRY(rel_mplock)
 	popl	%ecx
 	ret
 
+#endif
+
 /***********************************************************************
  * 
  */
 	.data
 	.p2align 2			/* xx_lock aligned on int boundary */
+
+#ifdef SMP
 
 	.globl _mp_lock
 _mp_lock:	.long	0		
@@ -322,3 +329,4 @@ _tryhits3:
 msg:
 	.asciz	"lock hits: 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
 #endif /* GLPROFILE */
+#endif /* SMP */

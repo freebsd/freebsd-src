@@ -39,9 +39,7 @@
 
 #include <sys/signal.h>
 #include <sys/proc.h>
-#ifdef SMP
 #include <machine/smp.h>
-#endif
 
 /*
  * Kernel signal definitions and data structures,
