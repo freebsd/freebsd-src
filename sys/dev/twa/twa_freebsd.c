@@ -146,7 +146,6 @@ static int	twa_shutdown (device_t dev);
 static int	twa_suspend (device_t dev);
 static int	twa_resume (device_t dev);
 static void	twa_pci_intr(void *arg);
-static void	twa_intrhook (void *arg);
 
 static device_method_t	twa_methods[] = {
 	/* Device interface */
@@ -262,6 +261,15 @@ twa_attach(device_t dev)
 	sc->twa_bus_tag = rman_get_bustag(sc->twa_io_res);
 	sc->twa_bus_handle = rman_get_bushandle(sc->twa_io_res);
 
+	/* Initialize the driver for this controller. */
+	if ((error = twa_setup(sc))) {
+		twa_free(sc);
+		return(error);
+	}
+
+	/* Print some information about the controller and configuration. */
+	twa_describe_controller(sc);
+
 	/* Allocate and connect our interrupt. */
 	res_id = 0;
 	if ((sc->twa_irq_res = bus_alloc_resource(sc->twa_bus_dev, SYS_RES_IRQ,
@@ -278,34 +286,11 @@ twa_attach(device_t dev)
 		return(ENXIO);
 	}
 
-	/* Initialize the driver for this controller. */
-	if ((error = twa_setup(sc))) {
-		twa_free(sc);
-		return(error);
-	}
-
-	/* Print some information about the controller and configuration. */
-	twa_describe_controller(sc);
-
 	/* Create the control device. */
 	sc->twa_ctrl_dev = make_dev(&twa_cdevsw, device_get_unit(sc->twa_bus_dev),
 					UID_ROOT, GID_OPERATOR, S_IRUSR | S_IWUSR,
 					"twa%d", device_get_unit(sc->twa_bus_dev));
 	sc->twa_ctrl_dev->si_drv1 = sc;
-
-	/*
-	 * Schedule ourselves to bring the controller up once interrupts are
-	 * available.  This isn't strictly necessary, since we disable
-	 * interrupts while probing the controller, but it is more in keeping
-	 * with common practice for other disk devices.
-	 */
-	sc->twa_ich.ich_func = twa_intrhook;
-	sc->twa_ich.ich_arg = sc;
-	if (config_intrhook_establish(&sc->twa_ich) != 0) {
-		twa_printf(sc, "Can't establish configuration hook.\n");
-		twa_free(sc);
-		return(ENXIO);
-	}
 
 	if ((error = twa_cam_setup(sc))) {
 		twa_free(sc);
@@ -336,22 +321,30 @@ twa_free(struct twa_softc *sc)
 
 	/* Destroy dma handles. */
 
-	bus_dmamap_unload(sc->twa_dma_tag, sc->twa_cmd_map); 
+	bus_dmamap_unload(sc->twa_cmd_tag, sc->twa_cmd_map); 
 	while ((tr = twa_dequeue_free(sc)) != NULL)
-		bus_dmamap_destroy(sc->twa_dma_tag, tr->tr_dma_map);
+		bus_dmamap_destroy(sc->twa_buf_tag, tr->tr_buf_map);
 
 	/* Free all memory allocated so far. */
 	if (sc->twa_req_buf)
 		free(sc->twa_req_buf, TWA_MALLOC_CLASS);
 	if (sc->twa_cmd_pkt_buf)
-		bus_dmamem_free(sc->twa_dma_tag, sc->twa_cmd_pkt_buf,
+		bus_dmamem_free(sc->twa_cmd_tag, sc->twa_cmd_pkt_buf,
 					sc->twa_cmd_map);
 	if (sc->twa_aen_queue[0])
-		free (sc->twa_aen_queue[0], M_DEVBUF);
+		free(sc->twa_aen_queue[0], M_DEVBUF);
 
 	/* Destroy the data-transfer DMA tag. */
-	if (sc->twa_dma_tag)
-		bus_dma_tag_destroy(sc->twa_dma_tag);
+	if (sc->twa_buf_tag)
+		bus_dma_tag_destroy(sc->twa_buf_tag);
+
+	/* Destroy the cmd DMA tag. */
+	if (sc->twa_cmd_tag)
+		bus_dma_tag_destroy(sc->twa_cmd_tag);
+
+	/* Destroy the parent DMA tag. */
+	if (sc->twa_parent_tag)
+		bus_dma_tag_destroy(sc->twa_parent_tag);
 
 	/* Disconnect the interrupt handler. */
 	if (sc->twa_intr_handle)
@@ -517,30 +510,6 @@ twa_pci_intr(void *arg)
 
 
 /*
- * Function name:	twa_intrhook
- * Description:		Callback for us to enable interrupts.
- *
- * Input:		arg	-- ptr to per ctlr structure
- * Output:		None
- * Return value:	None
- */
-static void
-twa_intrhook(void *arg)
-{
-	struct twa_softc	*sc = (struct twa_softc *)arg;
-
-	twa_dbg_dprint(4, sc, "twa_intrhook Entered");
-
-	/* Pull ourselves off the intrhook chain. */
-	config_intrhook_disestablish(&sc->twa_ich);
-
-	/* Enable interrupts. */
-	twa_enable_interrupts(sc);
-}
-
-
-
-/*
  * Function name:	twa_write_pci_config
  * Description:		Writes to the PCI config space.
  *
@@ -579,7 +548,7 @@ twa_alloc_req_pkts(struct twa_softc *sc, int num_reqs)
 					TWA_MALLOC_CLASS, M_NOWAIT)) == NULL)
 		return(ENOMEM);
 
-	/* Allocate the bus DMA tag appropriate for PCI. */
+	/* Create the parent dma tag. */
 	if (bus_dma_tag_create(NULL,			/* parent */
 				TWA_ALIGNMENT,		/* alignment */
 				0,			/* boundary */
@@ -591,26 +560,66 @@ twa_alloc_req_pkts(struct twa_softc *sc, int num_reqs)
 				TWA_MAX_SG_ELEMENTS,	/* nsegments */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 				BUS_DMA_ALLOCNOW,	/* flags */
-				busdma_lock_mutex,	/* lockfunc */
-				&Giant,			/* lockfuncarg */
-				&sc->twa_dma_tag	/* tag */)) {
-		twa_printf(sc, "Can't allocate DMA tag.\n");
+				NULL,			/* lockfunc */
+				NULL,			/* lockfuncarg */
+				&sc->twa_parent_tag	/* tag */)) {
+		twa_printf(sc, "Can't allocate parent DMA tag.\n");
 		return(ENOMEM);
 	}
 
-	/* Allocate memory for cmd pkts. */
-	if (bus_dmamem_alloc(sc->twa_dma_tag,
-				(void *)(&(sc->twa_cmd_pkt_buf)),
-				BUS_DMA_WAITOK, &(sc->twa_cmd_map)))
+	/* Create a bus dma tag for cmd pkts. */
+	if (bus_dma_tag_create(sc->twa_parent_tag,	/* parent */
+				TWA_ALIGNMENT,		/* alignment */
+				0,			/* boundary */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
+				BUS_SPACE_MAXADDR, 	/* highaddr */
+				NULL, NULL, 		/* filter, filterarg */
+				TWA_Q_LENGTH *
+				(sizeof(struct twa_command_packet)),/* maxsize */
+				1,			/* nsegments */
+				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
+				0,			/* flags */
+				NULL,			/* lockfunc */
+				NULL,			/* lockfuncarg */
+				&sc->twa_cmd_tag	/* tag */)) {
+		twa_printf(sc, "Can't allocate cmd DMA tag.\n");
 		return(ENOMEM);
+	}
 
-	bus_dmamap_load(sc->twa_dma_tag, sc->twa_cmd_map,
+
+	/* Allocate memory for cmd pkts. */
+	if (bus_dmamem_alloc(sc->twa_cmd_tag,
+				(void *)(&(sc->twa_cmd_pkt_buf)),
+				BUS_DMA_WAITOK, &(sc->twa_cmd_map))) {
+		twa_printf(sc, "Can't allocate memory for cmd pkts.\n");
+		return(ENOMEM);
+	}
+
+	bus_dmamap_load(sc->twa_cmd_tag, sc->twa_cmd_map,
 				sc->twa_cmd_pkt_buf,
 				num_reqs * sizeof(struct twa_command_packet),
 				twa_setup_request_dmamap, sc, 0);
 	bzero(sc->twa_req_buf, num_reqs * sizeof(struct twa_request));
 	bzero(sc->twa_cmd_pkt_buf,
 			num_reqs * sizeof(struct twa_command_packet));
+
+	/* Create a bus dma tag for data buffers. */
+	if (bus_dma_tag_create(sc->twa_parent_tag,	/* parent */
+				TWA_ALIGNMENT,		/* alignment */
+				0,			/* boundary */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
+				BUS_SPACE_MAXADDR, 	/* highaddr */
+				NULL, NULL, 		/* filter, filterarg */
+				TWA_MAX_IO_SIZE,	/* maxsize */
+				TWA_MAX_SG_ELEMENTS,	/* nsegments */
+				TWA_MAX_IO_SIZE,	/* maxsegsize */
+				BUS_DMA_WAITOK,		/* flags */
+				busdma_lock_mutex,	/* lockfunc */
+				&Giant,			/* lockfuncarg */
+				&sc->twa_buf_tag	/* tag */)) {
+		twa_printf(sc, "Can't allocate buf DMA tag.\n");
+		return(ENOMEM);
+	}
 
 	for (i = 0; i < num_reqs; i++) {
 		tr = &(sc->twa_req_buf[i]);
@@ -621,15 +630,9 @@ twa_alloc_req_pkts(struct twa_softc *sc, int num_reqs)
 		tr->tr_sc = sc;
 		sc->twa_lookup[i] = tr;
 
-		/*
-		 * Create a map for data buffers.  maxsize (256 * 1024) used in
-		 * bus_dma_tag_create above should suffice the bounce page needs
-		 * for data buffers, since the max I/O size we support is 128KB.
-		 * If we supported I/O's bigger than 256KB, we would have to
-		 * create a second dma_tag, with the appropriate maxsize.
-		 */
-		if (bus_dmamap_create(sc->twa_dma_tag, 0,
-						&tr->tr_dma_map))
+		/* Create maps for data buffers. */
+		if (bus_dmamap_create(sc->twa_buf_tag, 0,
+						&tr->tr_buf_map))
 			return(ENOMEM);
 
 		/* Insert request into the free queue. */
@@ -690,6 +693,7 @@ twa_setup_data_dmamap(void *arg, bus_dma_segment_t *segs,
 
 	twa_dbg_dprint_enter(10, tr->tr_sc);
 
+	tr->tr_flags |= TWA_CMD_MAPPED;
 	if ((tr->tr_flags & TWA_CMD_IN_PROGRESS) &&
 			(tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_EXTERNAL))
 		twa_allow_new_requests(tr->tr_sc, (void *)(tr->tr_private));
@@ -716,7 +720,7 @@ twa_setup_data_dmamap(void *arg, bus_dma_segment_t *segs,
 	}
 
 	if (tr->tr_flags & TWA_CMD_DATA_IN)
-		bus_dmamap_sync(tr->tr_sc->twa_dma_tag, tr->tr_dma_map,
+		bus_dmamap_sync(tr->tr_sc->twa_buf_tag, tr->tr_buf_map,
 							BUS_DMASYNC_PREREAD);
 	if (tr->tr_flags & TWA_CMD_DATA_OUT) {
 		/* 
@@ -725,7 +729,7 @@ twa_setup_data_dmamap(void *arg, bus_dma_segment_t *segs,
 		 */
 		if (tr->tr_flags & TWA_CMD_DATA_COPY_NEEDED)
 			bcopy(tr->tr_real_data, tr->tr_data, tr->tr_real_length);
-		bus_dmamap_sync(tr->tr_sc->twa_dma_tag, tr->tr_dma_map,
+		bus_dmamap_sync(tr->tr_sc->twa_buf_tag, tr->tr_buf_map,
 						BUS_DMASYNC_PREWRITE);
 	}
 	error = twa_submit_io(tr);
@@ -819,14 +823,21 @@ twa_map_request(struct twa_request *tr)
 		/*
 		 * Map the data buffer into bus space and build the s/g list.
 		 */
-		if ((error = bus_dmamap_load(sc->twa_dma_tag, tr->tr_dma_map,
-					tr->tr_data, tr->tr_length, 
+		if ((error = bus_dmamap_load(sc->twa_buf_tag, tr->tr_buf_map,
+					tr->tr_data,
+					(bus_size_t)(tr->tr_length),
 					twa_setup_data_dmamap, tr,
 					BUS_DMA_WAITOK))) {
 			if (error == EINPROGRESS) {
-				tr->tr_flags |= TWA_CMD_IN_PROGRESS;
-				if (tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_EXTERNAL)
-					twa_disallow_new_requests(sc);
+				int	s;
+
+				s = splcam();
+				if (!(tr->tr_flags & TWA_CMD_MAPPED)) {
+					tr->tr_flags |= TWA_CMD_IN_PROGRESS;
+					if (tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_EXTERNAL)
+						twa_disallow_new_requests(sc);
+				}
+				splx(s);
 				error = 0;
 			} else {
 				/* Free alignment buffer if it was used. */
@@ -872,8 +883,8 @@ twa_unmap_request(struct twa_request *tr)
 			cmd_status = tr->tr_command->command.cmd_pkt_7k.generic.status;
 
 		if (tr->tr_flags & TWA_CMD_DATA_IN) {
-			bus_dmamap_sync(sc->twa_dma_tag,
-					tr->tr_dma_map, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync(sc->twa_buf_tag,
+					tr->tr_buf_map, BUS_DMASYNC_POSTREAD);
 
 			/* 
 			 * If we are using a bounce buffer, and we are reading
@@ -885,10 +896,10 @@ twa_unmap_request(struct twa_request *tr)
 							tr->tr_real_length);
 		}
 		if (tr->tr_flags & TWA_CMD_DATA_OUT)
-			bus_dmamap_sync(sc->twa_dma_tag, tr->tr_dma_map,
+			bus_dmamap_sync(sc->twa_buf_tag, tr->tr_buf_map,
 							BUS_DMASYNC_POSTWRITE);
 
-		bus_dmamap_unload(sc->twa_dma_tag, tr->tr_dma_map); 
+		bus_dmamap_unload(sc->twa_buf_tag, tr->tr_buf_map); 
 	}
 
 	/* Free alignment buffer if it was used. */
@@ -983,7 +994,6 @@ twa_print_request(struct twa_request *tr, int req_type)
 	struct twa_command_9k		*cmd9k;
 	union twa_command_7k		*cmd7k;
 	u_int8_t			*cdb;
-	int				cmd_phys_addr;
 
 	if (tr->tr_status != req_type) {
 		twa_printf(sc, "Invalid %s request %p in queue! req_type = %x, queue_type = %x\n",
@@ -992,8 +1002,7 @@ twa_print_request(struct twa_request *tr, int req_type)
 
 		if (tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_9K) {
 			cmd9k = &(cmdpkt->command.cmd_pkt_9k);
-			cmd_phys_addr = cmd9k->sg_list[0].address;
-			twa_printf(sc, "9K cmd = %x %x %x %x %x %x %x %x %jx\n",
+			twa_printf(sc, "9K cmd = %x %x %x %x %x %x %x %jx %x\n",
 					cmd9k->command.opcode,
 					cmd9k->command.reserved,
 					cmd9k->unit,
@@ -1001,8 +1010,8 @@ twa_print_request(struct twa_request *tr, int req_type)
 					cmd9k->status,
 					cmd9k->sgl_offset,
 					cmd9k->sgl_entries,
-					cmd_phys_addr,
-					(uintmax_t)cmd9k->sg_list[0].length);
+					(uintmax_t)(cmd9k->sg_list[0].address),
+					cmd9k->sg_list[0].length);
 			cdb = (u_int8_t *)(cmdpkt->command.cmd_pkt_9k.cdb);
 			twa_printf(sc, "cdb = %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 				cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5], cdb[6], cdb[7],
@@ -1021,12 +1030,12 @@ twa_print_request(struct twa_request *tr, int req_type)
 					cmd7k->generic.count);
 		}
 
-		cmd_phys_addr = (int)(tr->tr_cmd_phys);
-		twa_printf(sc, "cmdphys=0x%x data=%p length=0x%jx\n",
-				cmd_phys_addr, tr->tr_data, (uintmax_t)tr->tr_length);
+		twa_printf(sc, "cmd_phys=0x%jx data=%p length=0x%x\n",
+			(uintmax_t)(tr->tr_cmd_phys), tr->tr_data,
+			tr->tr_length);
 		twa_printf(sc, "req_id=0x%x flags=0x%x callback=%p private=%p\n",
-					tr->tr_request_id, tr->tr_flags,
-					tr->tr_callback, tr->tr_private);
+			tr->tr_request_id, tr->tr_flags,
+			tr->tr_callback, tr->tr_private);
 	}
 }
 #endif
