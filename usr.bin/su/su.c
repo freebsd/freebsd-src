@@ -254,6 +254,9 @@ main(int argc, char *argv[])
 	else
 		syslog(LOG_ERR, "pam_get_item(PAM_USER): %s",
 		    pam_strerror(pamh, retcode));
+	pwd = getpwnam(user);
+	if (pwd == NULL)
+		errx(1, "unknown login: %s", user);
 
 	retcode = pam_acct_mgmt(pamh, 0);
 	if (retcode == PAM_NEW_AUTHTOK_REQD) {
@@ -271,10 +274,7 @@ main(int argc, char *argv[])
 		errx(1, "Sorry");
 	}
 
-	/* get target login information, default to root */
-	pwd = getpwnam(user);
-	if (pwd == NULL)
-		errx(1, "unknown login: %s", user);
+	/* get target login information */
 	if (class == NULL)
 		lc = login_getpwclass(pwd);
 	else {
