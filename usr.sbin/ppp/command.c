@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.71 1997/08/20 23:47:41 brian Exp $
+ * $Id: command.c,v 1.72 1997/08/21 16:18:07 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -182,6 +182,17 @@ char **argv;
   } while (VarDialTries == 0 || tries < VarDialTries);
 
   return 0;
+}
+
+static int
+SetLoopback(struct cmdtab *cmdlist, int argc, char **argv)
+{
+  if (argc == 1)
+    if (!strcasecmp(*argv, "on"))
+      VarLoopback = 1;
+    else if (!strcasecmp(*argv, "off"))
+      VarLoopback = 0;
+  return -1;
 }
 
 static int
@@ -367,6 +378,15 @@ extern int ReportCompress();
 extern int ShowModemStatus();
 extern int ReportHdlcStatus();
 extern int ShowMemMap();
+
+static int
+ShowLoopback()
+{
+  if (VarTerm)
+    fprintf(VarTerm, "Local loopback is %s\n", VarLoopback ? "on" : "off");
+
+  return 0;
+}
 
 static int ShowLogLevel()
 {
@@ -554,6 +574,8 @@ struct cmdtab const ShowCommands[] = {
 	"Show IPCP status", "show ipcp"},
   { "lcp",      NULL,     ReportLcpStatus,	LOCAL_AUTH,
 	"Show LCP status", "show lcp"},
+  { "loopback",	NULL,	  ShowLoopback,	LOCAL_AUTH,
+	"Show current loopback setting", "show loopback"},
   { "log",	NULL,	  ShowLogLevel,	LOCAL_AUTH,
 	"Show current log level", "show log"},
   { "mem",      NULL,     ShowMemMap,		LOCAL_AUTH,
@@ -1352,6 +1374,8 @@ struct cmdtab const SetCommands[] = {
 	"Set destination address", "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   { "ifilter",  NULL,     SetIfilter, 		LOCAL_AUTH,
 	"Set input filter", "set ifilter ..."},
+  { "loopback", NULL,	  SetLoopback,		LOCAL_AUTH,
+	"Set loopback facility", "set loopback on|off"},
   { "log",    NULL,	  SetLogLevel,	LOCAL_AUTH,
 	"Set log level", "set log [+|-]value..."},
   { "login",    NULL,     SetVariable,		LOCAL_AUTH,
