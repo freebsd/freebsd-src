@@ -103,7 +103,7 @@ crc32(fd, cval, clen)
 	
     len = 0 ;
     crc32_total = ~crc32_total ;
-    while ((nr = read(fd, buf, sizeof(buf))))
+    while ((nr = read(fd, buf, sizeof(buf))) > 0)
         for (len += nr, p = buf; nr--; ++p) {
 	    CRC(crc, *p) ;
 	    CRC(crc32_total, *p) ;
