@@ -39,12 +39,8 @@ fi
 
 MDDEVICE=`mdconfig -a -t vnode -f ${FSIMG}`
 if [ ! -c /dev/${MDDEVICE} ] ; then
-    if [ ! -f /dev/MAKEDEV ] ; then
-	echo "No /dev/$MDDEVICE and no MAKEDEV" 1>&2
-	mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
+	echo "No /dev/$MDDEVICE" 1>&2
 	exit 1
-    fi
-    (cd /dev && sh MAKEDEV ${MDDEVICE})
 fi
 
 trap "umount ${MNT}; mdconfig -d -u ${MDDEVICE}" EXIT
