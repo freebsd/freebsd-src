@@ -85,7 +85,7 @@
   <para>Typical release note items
     document new drivers or hardware support, new commands or options,
     major bugfixes, or contributed software upgrades.  Applicable security
-    advisories issued after &release.prev; are also listed.</para>
+    advisories issued after &release.prev.historic; are also listed.</para>
 
   <para>Many additional changes were made to &os; that are not listed
     here for lack of space.  For example, documentation was corrected
@@ -138,10 +138,9 @@
       and supports more flexible attachment of devices, has been
       largely reworked.  &man.devfs.5; is now enabled by default and
       can be disabled by the <literal>NODEVFS</literal> kernel
-      option.</para>
-
-    <para>The &man.devfs.5; <quote>rule</quote> subsystem has been introduced.  DEVFS rules
-      permit the administrator to define certain properties of new device
+      option.
+      A <quote>rule</quote> subsystem 
+      permits the administrator to define certain properties of new device
       nodes before they become visible to the userland.  Both static (e.g.
       <filename>/dev/speaker</filename>) and dynamic (e.g.
       <filename>/dev/bpf*</filename>, some removable devices) nodes are
@@ -150,12 +149,11 @@
       jails.  Rules and rulesets are manipulated with the &man.devfs.8;
       utility.</para>
 
-    <para>The dgm driver has been removed in favor of the digi driver.</para>
-
     <para>A new digi driver has been added to support PCI Xr-based and
       ISA Xem Digiboard cards.  A new &man.digictl.8; program is
       (mainly) used to re-initialize cards that have external port
-      modules attached such as the PC/Xem.</para>
+      modules attached such as the PC/Xem.  This driver replaces the older
+      dgm driver.</para>
 
     <para>An &man.eaccess.2; system call has been added, similar to
       &man.access.2; except that the former uses effective credentials
@@ -233,7 +231,7 @@
     <para>&os; now supports an extensible Mandatory Access Control
       framework, the TrustedBSD MAC Framework.  It permits loadable
       kernel modules to link to the kernel at compile-time, boot-time,
-      or run-time, and augment the system security policy.  The
+      or run-time to augment the system security policy.  The
       framework permits modules to express interest in a variety
       of events, and also provides common security policy services
       such as label storage.  A variety of sample policy modules are
@@ -471,7 +469,7 @@
       instance is desired. &merged;</para>
 
     <para>It is now possible to hardwire kernel environment variables
-      (such as tuneables) at compile-time using &man.config.8;'s
+      (such as tunables) at compile-time using &man.config.8;'s
       <literal>ENV</literal> directive.</para>
 
     <para>Idle zeroing of pages can be enabled with the
@@ -558,7 +556,7 @@
 	improve performance on the 80386 due to the elimination of
 	runtime processor type checks.
         Custom kernels that will run on the 80386 can
-	still be built by changing the cpu options in the kernel
+	still be built by changing the CPU options in the kernel
 	configuration file to only include
 	<literal>I386_CPU</literal>.</para>
 
@@ -995,7 +993,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	support for VLANs is also supported. &merged;</para>
 
       <para>A <literal>FAST_IPSEC</literal> kernel option now allows
-        the IPsec implementation to use the kernel crypo framework,
+        the IPsec implementation to use the kernel &man.crypto.4; framework,
         along with its support for hardware cryptographic
         acceleration.
         <note>
@@ -1040,7 +1038,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         commonly referred to as <quote>IPFW2</quote>).  It now uses
         variable-sized representation of rules in the kernel, similar
         to &man.bpf.4; instructions.  Most of the externally-visible
-        behavior (i.e. through &man.ipfw.8;) should be unchanged.,
+        behavior (i.e. through &man.ipfw.8;) should be unchanged,
         although &man.ipfw.8; now supports <literal>or</literal>
         connectives between match fields. &merged;</para>
 
@@ -1193,7 +1191,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <varname>net.inet.tcp.rexmit_min</varname> and
       <varname>net.inet.tcp.rexmit_slop</varname>.  The default has
       been reduced from one second to 200ms (similar to the Linux default)
-      in order to better handle hicups over interactive connections and
+      in order to better handle hiccups over interactive connections and
       improve recovery over lossy fast connections such as wireless links.</para>
 
     <para>The &man.tcp.4; protocol now has the ability to dynamically
@@ -1309,7 +1307,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	driver supports the Compaq SmartRAID 5* family of RAID
 	controllers (5300, 532, 5i). &merged;</para>
 
-      <para>The &man.fdc.4; floppy disk has undergone a number of
+      <para>The &man.fdc.4; floppy disk driver has undergone a number of
 	enhancements.  Density selection for common settings is now
 	automatic; the driver is also much more flexible in setting
 	the densities of various subdevices.</para>
@@ -1326,7 +1324,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	    refer to a disk partition without specifying an MBR slice
 	    (e.g. <filename>/dev/ad0a</filename>); the kernel would
 	    automatically find the first applicable &os; slice and use
-	    it.  On GEOM kernels, only the full partition names
+	    it.  On GEOM-enabled kernels (the default), only the full partition names
 	    (e.g. <filename>/dev/ad0s1a</filename>) are allowed when
 	    referring to partitions within MBR slices.  This
 	    change should affect very few users.</para>
@@ -1437,7 +1435,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Filesystems</title>
 
-      <para>Support for named extended attributes was added to the
+      <para>Support for named extended attributes has been added to the
 	&os; kernel.  This allows the kernel, and appropriately
 	privileged userland processes, to tag files and directories
 	with attribute data.  Extended attributes were added to
@@ -1454,10 +1452,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>A filesystem snapshot capability has been added to FFS.
 	Details can be found in
 	<filename>/usr/src/sys/ufs/ffs/README.snapshot</filename>.</para>
-
-<!-- The following note needs to be made more specific or eliminated. -->
-      <para>Softupdates for FFS have received some bug fixes and
-	enhancements.</para>
 
       <para>When running with softupdates, &man.statfs.2; and
 	&man.df.1; will track the number of blocks and files that are
@@ -1819,45 +1813,45 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       or disabling various system services in &man.rc.conf.5; on new
       installs. &merged;</para>
 
-    <para>A bug in which malformed ELF executable images can hang the
+    <para role="historic">A bug in which malformed ELF executable images can hang the
       system has been fixed (see security advisory
       FreeBSD-SA-00:41). &merged;</para>
 
-    <para>A security hole in Linux emulation was fixed (see security
+    <para role="historic">A security hole in Linux emulation was fixed (see security
       advisory FreeBSD-SA-00:42). &merged;</para>
 
     <para role="historic">String-handling library calls in many programs were fixed to
       reduce the possibility of buffer overflow-related exploits.
       &merged;</para>
 
-    <para>TCP now uses stronger randomness in choosing its initial
+    <para role="historic">TCP now uses stronger randomness in choosing its initial
       sequence numbers (see security advisory
       FreeBSD-SA-00:52). &merged;</para>
 
-    <para>Several buffer overflows in &man.tcpdump.1; were corrected
+    <para role="historic">Several buffer overflows in &man.tcpdump.1; were corrected
       (see security advisory FreeBSD-SA-00:61). &merged;</para>
 
-    <para>A security hole in &man.top.1; was corrected (see security
+    <para role="historic">A security hole in &man.top.1; was corrected (see security
       advisory FreeBSD-SA-00:62). &merged;</para>
 
-    <para>A potential security hole caused by an off-by-one-error in
+    <para role="historic">A potential security hole caused by an off-by-one-error in
       &man.gethostbyname.3; has been fixed (see security advisory
       FreeBSD-SA-00:63). &merged;</para>
 
-    <para>A potential buffer overflow in the &man.ncurses.3; library,
+    <para role="historic">A potential buffer overflow in the &man.ncurses.3; library,
       which could cause arbitrary code to be run from within
       &man.systat.1;, has been corrected (see security advisory
       FreeBSD-SA-00:68). &merged;</para>
 
-    <para>A vulnerability in &man.telnetd.8; that could cause it to
+    <para role="historic">A vulnerability in &man.telnetd.8; that could cause it to
       consume large amounts of server resources has been fixed (see
       security advisory FreeBSD-SA-00:69). &merged;</para>
 
-    <para>The <literal>nat deny_incoming</literal> command in
+    <para role="historic">The <literal>nat deny_incoming</literal> command in
       &man.ppp.8; now works correctly (see security advisory
       FreeBSD-SA-00:70). &merged;</para>
 
-    <para>A vulnerability in &man.csh.1;/&man.tcsh.1; temporary files
+    <para role="historic">A vulnerability in &man.csh.1;/&man.tcsh.1; temporary files
       that could allow overwriting of arbitrary user-writable files
       has been closed (see security advisory
       FreeBSD-SA-00:76). &merged;</para>
@@ -1872,33 +1866,33 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.telnet.1; now does a better job of sanitizing its
       environment. &merged;</para>
 
-    <para>Several vulnerabilities in &man.procfs.5; were fixed (see
+    <para role="historic">Several vulnerabilities in &man.procfs.5; were fixed (see
       security advisory FreeBSD-SA-00:77). &merged;</para>
 
-    <para>A bug in <application>OpenSSH</application> in which a
+    <para role="historic">A bug in <application>OpenSSH</application> in which a
       server was unable to disable &man.ssh-agent.1; or
       <literal>X11Forwarding</literal> was fixed (see security
       advisory FreeBSD-SA-01:01). &merged;</para>
 
-    <para>A bug in &man.ipfw.8; and &man.ip6fw.8; in which inbound TCP
+    <para role="historic">A bug in &man.ipfw.8; and &man.ip6fw.8; in which inbound TCP
       segments could incorrectly be treated as being part of an
       <literal>established</literal> connection has been fixed (see
       security advisory FreeBSD-SA-01:08). &merged;</para>
 
-    <para>A bug in &man.crontab.1; that could allow users to read any
+    <para role="historic">A bug in &man.crontab.1; that could allow users to read any
       file on the system in valid &man.crontab.5; syntax has been
       fixed (see security advisory FreeBSD-SA-01:09). &merged;</para>
 
-    <para>A vulnerability in &man.inetd.8; that could allow
+    <para role="historic">A vulnerability in &man.inetd.8; that could allow
       read-access to the initial 16 bytes of
       <groupname>wheel</groupname>-accessible files has been fixed
       (see security advisory FreeBSD-SA-01:11). &merged;</para>
 
-    <para>A bug in &man.periodic.8; that used insecure temporary files
+    <para role="historic">A bug in &man.periodic.8; that used insecure temporary files
       has been corrected (see security advisory
       FreeBSD-SA-01:12). &merged;</para>
 
-    <para><application>OpenSSH</application> now has code to prevent
+    <para role="historic"><application>OpenSSH</application> now has code to prevent
       (instead of just mitigating through connection limits) an attack
       that can lead to guessing the server key (not host key) by
       regenerating the server key when an RSA failure is detected (see
@@ -1914,42 +1908,42 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">A bug in ICMP that could cause an attacker to disrupt TCP and UDP
       <quote>sessions</quote> has been corrected. &merged;</para>
 
-    <para>A bug in &man.timed.8;, which caused it to crash if send
+    <para role="historic">A bug in &man.timed.8;, which caused it to crash if send
       certain malformed packets, has been corrected (see security
       advisory FreeBSD-SA-01:28). &merged;</para>
 
-    <para>A bug in &man.rwhod.8;, which caused it to crash if send
+    <para role="historic">A bug in &man.rwhod.8;, which caused it to crash if send
       certain malformed packets, has been corrected (see security
       advisory FreeBSD-SA-01:29). &merged;</para>
 
-    <para>A security hole in &os;'s FFS and EXT2FS implementations,
+    <para role="historic">A security hole in &os;'s FFS and EXT2FS implementations,
       which allowed a race condition that could cause users to have
       unauthorized access to data, has been fixed (see security
       advisory FreeBSD-SA-01:30). &merged;</para>
 
-    <para>A remotely-exploitable vulnerability in &man.ntpd.8; has
+    <para role="historic">A remotely-exploitable vulnerability in &man.ntpd.8; has
       been closed (see security advisory
       FreeBSD-SA-01:31). &merged;</para>
 
-    <para>A security hole in <application>IPFilter</application>'s
+    <para role="historic">A security hole in <application>IPFilter</application>'s
       fragment cache has been closed (see security advisory
       FreeBSD-SA-01:32). &merged;</para>
 
-    <para>Buffer overflows in &man.glob.3;, which could cause
+    <para role="historic">Buffer overflows in &man.glob.3;, which could cause
       arbitrary code to be run on an FTP server, have been closed.  In
       addition, to prevent some forms of DOS attacks, &man.glob.3;
       allows specification of a limit on the number of pathname
       matches it will return.  &man.ftpd.8; now uses this feature (see
       security advisory FreeBSD-SA-01:33). &merged;</para>
 
-    <para>Initial sequence numbers in TCP are more thoroughly
+    <para role="historic">Initial sequence numbers in TCP are more thoroughly
       randomized (see security advisory FreeBSD-SA-01:39).  Due to
       some possible compatibility issues, the behavior of this
       security fix can be enabled or disabled via the
       <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl
       variable.&merged;</para>
 
-    <para>A vulnerability in the &man.fts.3; routines (used by
+    <para role="historic">A vulnerability in the &man.fts.3; routines (used by
       applications for recursively traversing a filesystem) could
       allow a program to operate on files outside the intended
       directory hierarchy.  This bug has been fixed (see security
@@ -1959,19 +1953,19 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       user's UID before attempting to unlink the authentication
       forwarding file, nullifying the effects of a race.</para>
 
-    <para>A flaw allowed some signal handlers to remain in effect in a
+    <para role="historic">A flaw allowed some signal handlers to remain in effect in a
       child process after being exec-ed from its parent.  This allowed
       an attacker to execute arbitrary code in the context of a setuid
       binary.  This flaw has been corrected (see security advisory
       FreeBSD-SA-01:42). &merged;</para>
 
-    <para>A remote buffer overflow in &man.tcpdump.1; has been fixed
+    <para role="historic">A remote buffer overflow in &man.tcpdump.1; has been fixed
       (see security advisory FreeBSD-SA-01:48). &merged;</para>
 
-    <para>A remote buffer overflow in &man.telnetd.8; has been fixed
+    <para role="historic">A remote buffer overflow in &man.telnetd.8; has been fixed
       (see security advisory FreeBSD-SA-01:49). &merged;</para>
 
-    <para>The new <varname>net.inet.ip.maxfragpackets</varname> and
+    <para role="historic">The new <varname>net.inet.ip.maxfragpackets</varname> and
       <varname>net.inet.ip6.maxfragpackets</varname> sysctl variables
       limit the amount of memory that can be consumed by IPv4 and IPv6
       packet fragments, which defends against some denial of service
@@ -1984,33 +1978,33 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       installations, as well as editing
       <filename>inetd.conf</filename>. &merged;</para>
 
-    <para>A flaw in the implementation of the &man.ipfw.8;
+    <para role="historic">A flaw in the implementation of the &man.ipfw.8;
       <literal>me</literal> rules on point-to-point links has been
       corrected.  Formerly, <literal>me</literal> filter rules would
       match the remote IP address of a point-to-point interface in
       addition to the intended local IP address (see security advisory
       FreeBSD-SA-01:53). &merged;</para>
 
-    <para>A vulnerability in &man.procfs.5;, which could allow a
+    <para role="historic">A vulnerability in &man.procfs.5;, which could allow a
       process to read sensitive information from another process's
       memory space, has been closed (see security advisory
       FreeBSD-SA-01:55). &merged;</para>
 
-    <para>The <literal>PARANOID</literal> hostname checking in
+    <para role="historic">The <literal>PARANOID</literal> hostname checking in
       <application>tcp_wrappers</application> now works as advertised
       (see security advisory FreeBSD-SA-01:56). &merged;</para>
 
-    <para>A local root exploit in &man.sendmail.8; has been closed
+    <para role="historic">A local root exploit in &man.sendmail.8; has been closed
       (see security advisory FreeBSD-SA-01:57). &merged;</para>
 
-    <para>A remote root vulnerability in &man.lpd.8; has been closed
+    <para role="historic">A remote root vulnerability in &man.lpd.8; has been closed
       (see security advisory FreeBSD-SA-01:58). &merged;</para>
 
-    <para>A race condition in &man.rmuser.8; that briefly exposed a
+    <para role="historic">A race condition in &man.rmuser.8; that briefly exposed a
       world-readable <filename>/etc/master.passwd</filename> has been
       fixed (see security advisory FreeBSD-SA-01:59). &merged;</para>
 
-    <para>A vulnerability in <application>UUCP</application> has been
+    <para role="historic">A vulnerability in <application>UUCP</application> has been
       closed (see security advisory FreeBSD-SA-01:62).  All
       non-<username>root</username>-owned binaries in standard system
       paths now have the <literal>schg</literal> flag set to prevent
@@ -2026,112 +2020,108 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">A security hole in the form of a buffer overflow in the
       &man.semop.2; system call has been closed. &merged;</para>
 
-    <para>A security hole in <application>OpenSSH</application>, which
+    <para role="historic">A security hole in <application>OpenSSH</application>, which
       could allow users to execute code with arbitrary privileges if
       <literal>UseLogin yes</literal> was set, has been closed.  Note
       that the default value of this setting is
       <literal>UseLogin no</literal>.  (See security advisory
       FreeBSD-SA-01:63.) &merged;</para>
 
-    <para>The use of an insecure temporary directory by
+    <para role="historic">The use of an insecure temporary directory by
       &man.pkg.add.1; could permit a local attacker to modify the
       contents of binary packages while they were being installed.
       This hole has been closed.  (See security advisory
       FreeBSD-SA-02:01.) &merged;</para>
 
-    <para>A race condition in &man.pw.8;, which could expose the
+    <para role="historic">A race condition in &man.pw.8;, which could expose the
       contents of <filename>/etc/master.passwd</filename>, has been
       eliminated.  (See security advisory FreeBSD-SA-02:02.)
       &merged;</para>
 
-    <para>A bug in &man.k5su.8; could have allowed a process that had
+    <para role="historic">A bug in &man.k5su.8; could have allowed a process that had
       given up superuser privileges to regain them.  This bug has been
       fixed.  (See security advisory FreeBSD-SA-02:07.)
       &merged;</para>
 
-    <para>An <quote>off-by-one</quote> bug has been fixed in
+    <para role="historic">An <quote>off-by-one</quote> bug has been fixed in
       <application>OpenSSH</application>'s multiplexing code.  This bug
       could have allowed an authenticated remote user to cause
       &man.sshd.8; to execute arbitrary code with superuser
       privileges, or allowed a malicious SSH server to execute arbitrary
       code on the client system with the privileges of the client user.  (See security
-      advisory <ulink
-        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)
+      advisory FreeBSD-SA-02:13.)
       &merged;</para>
 
-    <para>A programming error in <application>zlib</application> could
+    <para role="historic">A programming error in <application>zlib</application> could
       result in attempts to free memory multiple times.  The
       &man.malloc.3;/&man.free.3; routines used in &os; are not
       vulnerable to this error, but applications receiving
       specially-crafted blocks of invalid compressed data could
       be made to function incorrectly or abort.  This
       <application>zlib</application> bug has been fixed.  For a
-      workaround and solutions, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.
+      workaround and solutions, see security advisory FreeBSD-SA-02:18.
       &merged;</para>
 
-    <para>Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
+    <para role="historic">Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
       cookie (<quote>syncookie</quote>) implementations, which could
       cause legitimate TCP/IP traffic to crash a machine, have been
       fixed.  For a workaround and patches, see security advisory
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.
+      FreeBSD-SA-02:20.
       &merged;</para>
 
-    <para>A routing table memory leak, which could allow a remote
+    <para role="historic">A routing table memory leak, which could allow a remote
       attacker to exhaust the memory of a target machine, has been
       fixed.  A workaround and patches can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.
+      advisory FreeBSD-SA-02:21.
       &merged;</para>
 
-    <para>A bug with memory-mapped I/O, which could cause a system
+    <para role="historic">A bug with memory-mapped I/O, which could cause a system
       crash, has been fixed.  For more information about a solution,
-      see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
+      see security advisory
+      FreeBSD-SA-02:22.
       &merged;</para>
 
-    <para>A security hole, in which SUID programs could be made to
+    <para role="historic">A security hole, in which SUID programs could be made to
       read from or write to inappropriate files through manipulation
       of their standard I/O file descriptors, has been fixed.
       Information regarding a solution can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
+      advisory
+      FreeBSD-SA-02:23.
       &merged;</para>
 
-    <para>Some unexpected behavior could be allowed with &man.k5su.8;
+    <para role="historic">Some unexpected behavior could be allowed with &man.k5su.8;
       because it does not require that an invoking user be a member of
       the <groupname>wheel</groupname> group when attempting to become
       the superuser (this is the case with &man.su.1;).  To avoid this
       situation, &man.k5su.8; is now installed non-SUID by default
       (effectively disabling it).  More information can be found in
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.
+      security advisory
+      FreeBSD-SA-02:24.
       &merged;</para>
 
-    <para>Multiple vulnerabilities were found in the &man.bzip2.1;
+    <para role="historic">Multiple vulnerabilities were found in the &man.bzip2.1;
       utility, which could allow files to be overwritten without
       warning or allow local users unintended access to files.  These
       problems have been corrected with a new import of
       <application>bzip2</application>.  For more information, see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.
+      security advisory
+      FreeBSD-SA-02:25.
       &merged;</para>
 
-    <para>A bug has been fixed in the implementation of the TCP SYN
+    <para role="historic">A bug has been fixed in the implementation of the TCP SYN
       cache (<quote>syncache</quote>), which could allow a remote
       attacker to deny access to a service when accept filters
       (see &man.accept.filter.9;) were in use.  This bug has been
-      fixed; for more information, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.
+      fixed; for more information, see security advisory
+      FreeBSD-SA-02:26.
       &merged;</para>
 
-    <para>Due to a bug in &man.rc.8;'s use of shell globbing, users
+    <para role="historic">Due to a bug in &man.rc.8;'s use of shell globbing, users
       may be able to remove the contents of arbitrary files if
       <filename>/tmp/.X11-unix</filename> does not exist and the
       system can be made to reboot.  This bug has been corrected (see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).
+      security advisory
+      FreeBSD-SA-02:27.
       &merged;</para>
 
     <para>A buffer overflow in the resolver, which could be exploited
@@ -2317,7 +2307,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.calendar.1; now takes a <option>-W</option> option,
       which operates similar to <option>-A</option> but without
-      special treatment at weekends, and a <option>-F</option>option
+      special treatment at weekends, and a <option>-F</option> option
       to change the notion of <quote>Friday</quote>.</para>
 
     <para arch="i386,pc98" role="historic">A minimalized version of &man.camcontrol.8; is
@@ -2378,7 +2368,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.chown.8; no longer takes <literal>.</literal> as a
       user/group delimeter.  This change was made to support usernames
-      containing a <literal>.</literal>.</para>
+      containing a <literal>.</literal> character.</para>
 
     <para>Use of the <literal>CSMG_*</literal> macros no longer
       require inclusion of
@@ -2432,7 +2422,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       functionality of &man.pccardd.8;.
 
       <note>
-        <para>&man.devd.8; is work-in-progress.</para>
+        <para>&man.devd.8; is a work in progress.</para>
       </note>
 
       </para>
@@ -2516,7 +2506,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.fdread.1;, a program to read data from floppy disks,
       has been added.  It is a counterpart to &man.fdwrite.1; and is
       designed to provide a means of recovering at least some data
-      from bad media, and to obviate for a complex invocation of
+      from bad media, and to obviate the need for a complex invocation of
       &man.dd.1;.</para>
 
     <para role="historic">&man.find.1; now takes the <option>-empty</option> flag,
@@ -3087,7 +3077,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       space. &merged;</para>
 
     <para>A number of archaic features of &man.newfs.8; have been
-      removed; these implement tuning features that are essentially
+      removed; these implemented tuning features that are essentially
       useless on modern hard disks.  These features were controlled by
       the <option>-O</option>, <option>-d</option>,
       <option>-k</option>, <option>-l</option>, <option>-n</option>,
@@ -3300,7 +3290,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.rcmd.3; now supports the use of the
       <envar>RSH</envar> environment variable to specify a program to
       use other than &man.rsh.1; for remote execution.  As a result,
-      programs such as &man.dump.8;, can use &man.ssh.1; for remote
+      programs such as &man.dump.8; can use &man.ssh.1; for remote
       transport.</para>
 
     <para>&man.rdist.1; has been retired from the base system, but is
@@ -3525,7 +3515,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       deleted. &merged;</para>
 
     <para>&man.sysinstall.8; no longer mounts the &man.procfs.5;
-      filesystem by default on new installs.</para>
+      filesystem by default on new installs.  This change was made to
+      improve security, but &man.procfs.5; can still be mounted
+      manually or via an appropriate line in the &man.fstab.5;
+      file.</para>
 
     <para role="historic">&man.sysinstall.8; now has rudimentary support for
       retrieving packages from the correct volume of a multiple-volume
@@ -3786,24 +3779,18 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       utility.  The standards conformance of each utility or library
       function is generally listed in its manual page.</para>
 
-    <para>A number of games have been removed from the base system.
+    <para>A number of traditional BSD games have been removed from the base system;
+      they are now available in the <filename
+      role="package">games/freebsd-games</filename> port.
       These include: adventure(6), arithmetic(6), atc(6),
       backgammon(6), battlestar(6), bs(6), canfield(6), cribbage(6),
       fish(6), hack(6), hangman(6), larn(6), mille(6), phantasia(6),
       piano(6), pig(6), quiz(6), rain(6), robots(6), rogue(6),
-      sail(6), snake(6), trek(6), wargames(6), worm(6), worms(6),
+      sail(6), snake(6), trek(6), wargames(6), worm(6), worms(6), and
       wump(6).  dm(8), which was used to control access to games, is
       no longer necessary, and has also been removed.  The
       <quote>utility-like</quote> games, as well as &man.fortune.6;,
-      remain.
-
-      <note>
-        <para>The affected programs will reappear as a port in the
-	  Ports Collection.  This note will contain a pointer to that
-	  port, once it has been committed.</para>
-      </note>
-
-      </para>
+      remain.</para>
 
     <sect3>
       <title>Contributed Software</title>
@@ -3925,10 +3912,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	compliance, transfer rate throttling, and a customizable
 	command-line prompt.  Some environment variables and
 	command-line arguments have changed.</para>
-
-      <para>The FTP daemon from NetBSD, otherwise known as
-	<application>lukemftpd</application> 1.2 beta 1, has been imported and is
-	available as &man.lukemftpd.8;. &merged;</para>
 
       <para>&man.m4.1; has been imported from OpenBSD, as of 26 April
 	2002. &merged;</para>
@@ -4130,7 +4113,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  &man.ssh.1;. &merged;</para>
 
 	<para><application>OpenSSH</application> has been updated to
-	  version 3.1. &merged; Among the changes:
+	  version 3.4p1. &merged; Among the changes:
 	    <itemizedlist>
 	      <listitem>
 	        <para>The <filename>*2</filename> files are obsolete
@@ -4152,12 +4135,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 		  specific key type; one must be specified with the
 		  <option>-t</option> option.</para>
 	      </listitem>
-	    </itemizedlist>
-	  </para>
-
-	<para><application>OpenSSH</application> has been updated to
-	  3.4p1. &merged; The main changes are:
-	    <itemizedlist>
 	      <listitem>
 	        <para>A <quote>privilege separation</quote> feature,
 		  which uses unprivileged processes to contain and
@@ -4416,7 +4393,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	string. &merged;</para>
 
       <para>&man.pkg.version.1;, formerly a Perl script, has been
-        rewritten in C.</para>
+        rewritten in C.  The <option>-c</option>, frequently misused,
+        has been removed.  The <filename
+        role="package">sysutils/portupgrade</filename> port provides a
+        supported and safer alternative.</para>
 
       <para role="historic">Version numbers of installed packages have a new
 	(backward-compatible) syntax, which supports the
