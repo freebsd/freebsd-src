@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -10,6 +10,7 @@
 LIB=		stand
 NOPROFILE=	YES
 NOPIC=		YES
+MAN3=		libstand.3
 
 # Mostly OK, some of the libc imports are a bit noisy
 CFLAGS+=	-Wall
@@ -112,5 +113,9 @@ SRCS+=	ufs.c nfs.c cd9660.c tftp.c zipfs.c
 SRCS+=	netif.c nfs.c
 # needs "open directory" support
 #SRCS+=	dosfs.c
+
+beforeinstall:
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/stand.h \
+		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
