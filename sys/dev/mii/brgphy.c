@@ -86,8 +86,7 @@ DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
 
 static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
 static void	brgphy_status(struct mii_softc *);
-static int	brgphy_mii_phy_auto(struct mii_softc *, int);
-extern void	mii_phy_auto_timeout(void *);
+static int	brgphy_mii_phy_auto(struct mii_softc *);
 
 static int brgphy_probe(dev)
 	device_t		dev;
@@ -228,7 +227,7 @@ brgphy_service(sc, mii, cmd)
 			if (PHY_READ(sc, BRGPHY_MII_BMCR) & BRGPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void) brgphy_mii_phy_auto(sc, 1);
+			(void) brgphy_mii_phy_auto(sc);
 			break;
 		case IFM_1000_T:
 			speed = BRGPHY_S1000;
@@ -313,9 +312,8 @@ setit:
 		
 		sc->mii_ticks = 0;
 		mii_phy_reset(sc);
-		if (brgphy_mii_phy_auto(sc, 0) == EJUSTRETURN)
-			return (0);
-		break;
+		brgphy_mii_phy_auto(sc);
+		return (0);
 	}
 
 	/* Update the media status. */
@@ -390,59 +388,24 @@ brgphy_status(sc)
 
 
 static int
-brgphy_mii_phy_auto(mii, waitfor)
+brgphy_mii_phy_auto(mii)
 	struct mii_softc *mii;
-	int waitfor;
 {
-	int bmsr, ktcr = 0, i;
+	int ktcr = 0;
 
-	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		mii_phy_reset(mii);
-		PHY_WRITE(mii, BRGPHY_MII_BMCR, 0);
-		DELAY(1000);
-		ktcr = PHY_READ(mii, BRGPHY_MII_1000CTL);
-		PHY_WRITE(mii, BRGPHY_MII_1000CTL, ktcr |
-		    BRGPHY_1000CTL_AFD|BRGPHY_1000CTL_AHD);
-		ktcr = PHY_READ(mii, BRGPHY_MII_1000CTL);
-		DELAY(1000);
-		PHY_WRITE(mii, BRGPHY_MII_ANAR,
-		    BMSR_MEDIA_TO_ANAR(mii->mii_capabilities) | ANAR_CSMA);
-		DELAY(1000);
-		PHY_WRITE(mii, BRGPHY_MII_BMCR,
-		    BRGPHY_BMCR_AUTOEN | BRGPHY_BMCR_STARTNEG);
-		PHY_WRITE(mii, BRGPHY_MII_IMR, 0xFF00);
-	}
-
-	if (waitfor) {
-		/* Wait 500ms for it to complete. */
-		for (i = 0; i < 500; i++) {
-			if ((bmsr = PHY_READ(mii, BRGPHY_MII_BMSR)) &
-			    BRGPHY_BMSR_ACOMP)
-				return (0);
-			DELAY(1000);
-#if 0
-		if ((bmsr & BMSR_ACOMP) == 0)
-			printf("%s: autonegotiation failed to complete\n",
-			    mii->mii_dev.dv_xname);
-#endif
-		}
-
-		/*
-		 * Don't need to worry about clearing MIIF_DOINGAUTO.
-		 * If that's set, a timeout is pending, and it will
-		 * clear the flag.
-		 */
-		return (EIO);
-	}
-
-	/*
-	 * Just let it finish asynchronously.  This is for the benefit of
-	 * the tick handler driving autonegotiation.  Don't want 500ms
-	 * delays all the time while the system is running!
-	 */
-	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		mii->mii_flags |= MIIF_DOINGAUTO;
-		mii->mii_auto_ch = timeout(mii_phy_auto_timeout, mii, hz >> 1);
-	}
+	mii_phy_reset(mii);
+	PHY_WRITE(mii, BRGPHY_MII_BMCR, 0);
+	DELAY(1000);
+	ktcr = PHY_READ(mii, BRGPHY_MII_1000CTL);
+	PHY_WRITE(mii, BRGPHY_MII_1000CTL, ktcr |
+	    BRGPHY_1000CTL_AFD|BRGPHY_1000CTL_AHD);
+	ktcr = PHY_READ(mii, BRGPHY_MII_1000CTL);
+	DELAY(1000);
+	PHY_WRITE(mii, BRGPHY_MII_ANAR,
+	    BMSR_MEDIA_TO_ANAR(mii->mii_capabilities) | ANAR_CSMA);
+	DELAY(1000);
+	PHY_WRITE(mii, BRGPHY_MII_BMCR,
+	    BRGPHY_BMCR_AUTOEN | BRGPHY_BMCR_STARTNEG);
+	PHY_WRITE(mii, BRGPHY_MII_IMR, 0xFF00);
 	return (EJUSTRETURN);
 }
