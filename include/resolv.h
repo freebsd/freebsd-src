@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 8.17 1996/11/26 10:11:20 vixie Exp
- *	$Id: resolv.h,v 1.10 1997/02/23 09:17:15 peter Exp $
+ *	$Id: resolv.h,v 1.11 1997/05/07 02:26:36 eivind Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -62,8 +62,6 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/cdefs.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <stdio.h>
 
 /*

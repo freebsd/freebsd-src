@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.7 1997/02/23 09:17:25 peter Exp $
+ *	$Id: xdr.h,v 1.8 1997/05/07 02:27:11 eivind Exp $
  */
 
 /*
@@ -40,7 +40,6 @@
 #ifndef _RPC_XDR_H
 #define _RPC_XDR_H
 #include <sys/cdefs.h>
-#include <rpc/types.h>
 
 /*
  * XDR provides a conventional way for converting between C data

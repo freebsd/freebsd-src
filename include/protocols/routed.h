@@ -40,10 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ident "$Revision: 1.8 $"
-
-#include <sys/types.h>
-#include <sys/socket.h> 
+#ident "$Revision: 1.9 $"
 
 /*
  * Routing Information Protocol

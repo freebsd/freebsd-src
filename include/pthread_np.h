@@ -33,8 +33,6 @@
 #ifndef _PTHREAD_NP_H_
 #define _PTHREAD_NP_H_
 
-#include <pthread.h>
-
 /*
  * Non-POSIX thread function prototype definitions:
  */

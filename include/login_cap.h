@@ -21,13 +21,11 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.h,v 1.7 1997/03/14 17:53:35 peter Exp $
+ *	$Id: login_cap.h,v 1.8 1997/05/07 02:26:35 eivind Exp $
  */
 
 #ifndef _LOGIN_CAP_H_
 #define _LOGIN_CAP_H_
-
-#include <sys/types.h>
 
 #define LOGIN_DEFCLASS		"default"
 #define LOGIN_DEFSTYLE		"passwd"
