@@ -62,7 +62,7 @@ struct ndis_cfglist {
 
 TAILQ_HEAD(nch, ndis_cfglist);
 
-#define NDIS_INITIALIZED(sc)	(sc->ndis_block.nmb_miniportadapterctx != NULL)
+#define NDIS_INITIALIZED(sc)	(sc->ndis_block->nmb_miniportadapterctx != NULL)
 
 #define NDIS_INC(x)		\
 	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts 
@@ -97,8 +97,8 @@ struct ndis_softc {
 	struct mtx		ndis_intrmtx;
 	device_t		ndis_dev;
 	int			ndis_unit;
-	ndis_miniport_block	ndis_block;
-	ndis_miniport_characteristics	ndis_chars;
+	ndis_miniport_block	*ndis_block;
+	ndis_miniport_characteristics	*ndis_chars;
 	interface_type		ndis_type;
 	struct callout_handle	ndis_stat_ch;
 	int			ndis_maxpkts;
@@ -130,6 +130,7 @@ struct ndis_softc {
 	bus_dmamap_t		*ndis_mmaps;
 	bus_dmamap_t		*ndis_tmaps;
 	int			ndis_mmapcnt;
+	device_object		*ndis_pdo;
 };
 
 #define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)

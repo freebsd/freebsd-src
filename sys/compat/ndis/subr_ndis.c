@@ -113,7 +113,7 @@ SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
         MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
 
 __stdcall static void NdisInitializeWrapper(ndis_handle *,
-	device_object *, void *, void *);
+	driver_object *, void *, void *);
 __stdcall static ndis_status NdisMRegisterMiniport(ndis_handle,
 	ndis_miniport_characteristics *, int);
 __stdcall static ndis_status NdisAllocateMemoryWithTag(void **,
@@ -367,17 +367,39 @@ ndis_unicode_to_ascii(unicode, ulen, ascii)
 	return(0);
 }
 
+/*
+ * This routine does the messy Windows Driver Model device attachment
+ * stuff on behalf of NDIS drivers. We register our own AddDevice
+ * routine here
+ */
 __stdcall static void
-NdisInitializeWrapper(wrapper, drv_obj, path, unused)
+NdisInitializeWrapper(wrapper, drv, path, unused)
 	ndis_handle		*wrapper;
-	device_object		*drv_obj;
+	driver_object		*drv;
 	void			*path;
 	void			*unused;
 {
-	ndis_miniport_block	*block;
+	/*
+	 * As of yet, I haven't come up with a compelling
+	 * reason to define a private NDIS wrapper structure,
+	 * so we use a pointer to the driver object as the
+	 * wrapper handle. The driver object has the miniport
+	 * characteristics struct for this driver hung off it
+	 * via IoAllocateDriverObjectExtension(), and that's
+	 * really all the private data we need.
+	 */
 
-	block = drv_obj->do_rsvd;
-	*wrapper = block;
+	*wrapper = drv;
+
+	/*
+	 * If this was really Windows, we'd be registering dispatch
+	 * routines for the NDIS miniport module here, but we're
+	 * not Windows so all we really need to do is set up an
+	 * AddDevice function that'll be invoked when a new device
+	 * instance appears.
+	 */
+
+	drv->dro_driverext->dre_adddevicefunc = NdisAddDevice;
 
 	return;
 }
@@ -387,6 +409,7 @@ NdisTerminateWrapper(handle, syspec)
 	ndis_handle		handle;
 	void			*syspec;
 {
+	/* Nothing to see here, move along. */
 	return;
 }
 
@@ -396,18 +419,34 @@ NdisMRegisterMiniport(handle, characteristics, len)
 	ndis_miniport_characteristics *characteristics;
 	int			len;
 {
-	ndis_miniport_block	*block;
-	struct ndis_softc	*sc;
+	ndis_miniport_characteristics	*ch = NULL;
+	driver_object		*drv;
 
-	block = (ndis_miniport_block *)handle;
-	sc = (struct ndis_softc *)block->nmb_ifp;
-	bcopy((char *)characteristics, (char *)&sc->ndis_chars,
-	    sizeof(ndis_miniport_characteristics));
-	if (sc->ndis_chars.nmc_version_major < 5 ||
-	    sc->ndis_chars.nmc_version_minor < 1) {
-		sc->ndis_chars.nmc_shutdown_handler = NULL;
-		sc->ndis_chars.nmc_canceltxpkts_handler = NULL;
-		sc->ndis_chars.nmc_pnpevent_handler = NULL;
+	drv = (driver_object *)handle;
+
+	/*
+	 * We need to save the NDIS miniport characteristics
+	 * somewhere. This data is per-driver, not per-device
+	 * (all devices handled by the same driver have the
+	 * same characteristics) so we hook it onto the driver
+	 * object using IoAllocateDriverObjectExtension().
+	 * The extra extension info is automagically deleted when
+	 * the driver is unloaded (see windrv_unload()).
+	 */
+
+	if (IoAllocateDriverObjectExtension(drv, (void *)1,
+	    sizeof(ndis_miniport_characteristics), (void **)&ch) !=
+	    STATUS_SUCCESS)
+		return(NDIS_STATUS_RESOURCES);
+
+	bzero((char *)ch, sizeof(ndis_miniport_characteristics));
+
+	bcopy((char *)characteristics, (char *)ch, len);
+
+	if (ch->nmc_version_major < 5 || ch->nmc_version_minor < 1) {
+		ch->nmc_shutdown_handler = NULL;
+		ch->nmc_canceltxpkts_handler = NULL;
+		ch->nmc_pnpevent_handler = NULL;
 	}
 
 	return(NDIS_STATUS_SUCCESS);
@@ -421,7 +460,7 @@ NdisAllocateMemoryWithTag(vaddr, len, tag)
 {
 	void			*mem;
 
-	mem = malloc(len, M_DEVBUF, M_NOWAIT);
+	mem = ExAllocatePoolWithTag(NonPagedPool, len, tag);
 	if (mem == NULL)
 		return(NDIS_STATUS_RESOURCES);
 	*vaddr = mem;
@@ -438,7 +477,7 @@ NdisAllocateMemory(vaddr, len, flags, highaddr)
 {
 	void			*mem;
 
-	mem = malloc(len, M_DEVBUF, M_NOWAIT);
+	mem = ExAllocatePoolWithTag(NonPagedPool, len, 0);
 	if (mem == NULL)
 		return(NDIS_STATUS_RESOURCES);
 	*vaddr = mem;
@@ -454,7 +493,8 @@ NdisFreeMemory(vaddr, len, flags)
 {
 	if (len == 0)
 		return;
-	free(vaddr, M_DEVBUF);
+
+	ExFreePool(vaddr);
 
 	return;
 }
@@ -490,6 +530,7 @@ NdisOpenConfiguration(status, cfg, wrapctx)
 {
 	*cfg = wrapctx;
 	*status = NDIS_STATUS_SUCCESS;
+
 	return;
 }
 
@@ -535,8 +576,8 @@ ndis_encode_parm(block, oid, type, parm)
 		ndis_ascii_to_unicode((char *)oid->oid_arg1, &unicode);
 		(*parm)->ncp_type = ndis_parm_string;
 		ustr = &(*parm)->ncp_parmdata.ncp_stringdata;
-		ustr->nus_len = strlen((char *)oid->oid_arg1) * 2;
-		ustr->nus_buf = unicode;
+		ustr->us_len = strlen((char *)oid->oid_arg1) * 2;
+		ustr->us_buf = unicode;
 		break;
 	case ndis_parm_int:
 		if (strncmp((char *)oid->oid_arg1, "0x", 2) == 0)
@@ -627,14 +668,14 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 	struct sysctl_ctx_entry	*e;
 
 	block = (ndis_miniport_block *)cfg;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-	if (key->nus_len == 0 || key->nus_buf == NULL) {
+	if (key->us_len == 0 || key->us_buf == NULL) {
 		*status = NDIS_STATUS_FAILURE;
 		return;
 	}
 
-	ndis_unicode_to_ascii(key->nus_buf, key->nus_len, &keystr);
+	ndis_unicode_to_ascii(key->us_buf, key->us_len, &keystr);
 
 	*parm = &block->nmb_replyparm;
 	bzero((char *)&block->nmb_replyparm, sizeof(ndis_config_parm));
@@ -698,7 +739,7 @@ ndis_decode_parm(block, parm, val)
 	switch(parm->ncp_type) {
 	case ndis_parm_string:
 		ustr = &parm->ncp_parmdata.ncp_stringdata;
-		ndis_unicode_to_ascii(ustr->nus_buf, ustr->nus_len, &astr);
+		ndis_unicode_to_ascii(ustr->us_buf, ustr->us_len, &astr);
 		bcopy(astr, val, 254);
 		free(astr, M_DEVBUF);
 		break;
@@ -730,9 +771,9 @@ NdisWriteConfiguration(status, cfg, key, parm)
 	char			val[256];
 
 	block = (ndis_miniport_block *)cfg;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-	ndis_unicode_to_ascii(key->nus_buf, key->nus_len, &keystr);
+	ndis_unicode_to_ascii(key->us_buf, key->us_len, &keystr);
 
 	/* Decode the parameter into a string. */
 	bzero(val, sizeof(val));
@@ -863,14 +904,16 @@ NdisReadPciSlotInformation(adapter, slot, offset, buf, len)
 	ndis_miniport_block	*block;
 	int			i;
 	char			*dest;
+	device_t		dev;
 
 	block = (ndis_miniport_block *)adapter;
 	dest = buf;
-	if (block == NULL || block->nmb_dev == NULL)
+	if (block == NULL)
 		return(0);
 
+	dev = block->nmb_physdeviceobj->do_devext;
 	for (i = 0; i < len; i++)
-		dest[i] = pci_read_config(block->nmb_dev, i + offset, 1);
+		dest[i] = pci_read_config(dev, i + offset, 1);
 
 	return(len);
 }
@@ -886,15 +929,17 @@ NdisWritePciSlotInformation(adapter, slot, offset, buf, len)
 	ndis_miniport_block	*block;
 	int			i;
 	char			*dest;
+	device_t		dev;
 
 	block = (ndis_miniport_block *)adapter;
 	dest = buf;
 
-	if (block == NULL || block->nmb_dev == NULL)
+	if (block == NULL)
 		return(0);
 
+	dev = block->nmb_physdeviceobj->do_devext;
 	for (i = 0; i < len; i++)
-		pci_write_config(block->nmb_dev, i + offset, dest[i], 1);
+		pci_write_config(dev, i + offset, dest[i], 1);
 
 	return(len);
 }
@@ -914,9 +959,10 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	char			*str = NULL, *ustr = NULL;
 	uint16_t		flags;
 	char			msgbuf[ERRMSGLEN];
-
+	device_t		dev;
 
 	block = (ndis_miniport_block *)adapter;
+	dev = block->nmb_physdeviceobj->do_devext;
 
 	error = pe_get_message(block->nmb_img, code, &str, &i, &flags);
 	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE) {
@@ -925,13 +971,13 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 		    ((i / 2)) > (ERRMSGLEN - 1) ? ERRMSGLEN : i, &ustr);
 		str = ustr;
 	}
-	device_printf (block->nmb_dev, "NDIS ERROR: %x (%s)\n", code,
+	device_printf (dev, "NDIS ERROR: %x (%s)\n", code,
 	    str == NULL ? "unknown error" : str);
-	device_printf (block->nmb_dev, "NDIS NUMERRORS: %x\n", numerrors);
+	device_printf (dev, "NDIS NUMERRORS: %x\n", numerrors);
 
 	va_start(ap, numerrors);
 	for (i = 0; i < numerrors; i++)
-		device_printf (block->nmb_dev, "argptr: %p\n",
+		device_printf (dev, "argptr: %p\n",
 		    va_arg(ap, void *));
 	va_end(ap);
 
@@ -982,7 +1028,7 @@ NdisMStartBufferPhysicalMapping(adapter, buf, mapreg, writedev, addrarray, array
 		return;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	if (mapreg > sc->ndis_mmapcnt)
 		return;
@@ -1019,7 +1065,7 @@ NdisMCompleteBufferPhysicalMapping(adapter, buf, mapreg)
 		return;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	if (mapreg > sc->ndis_mmapcnt)
 		return;
@@ -1136,7 +1182,7 @@ NdisMQueryAdapterResources(status, adapter, list, buflen)
 	int			rsclen;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	rsclen = sizeof(ndis_resource_list) +
 	    (sizeof(cm_partial_resource_desc) * (sc->ndis_rescnt - 1));
@@ -1165,7 +1211,7 @@ NdisMRegisterIoPortRange(offset, adapter, port, numports)
 		return(NDIS_STATUS_FAILURE);
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	if (sc->ndis_res_io == NULL)
 		return(NDIS_STATUS_FAILURE);
@@ -1201,7 +1247,7 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 	uint8_t			empty[] = { 0, 0, 0, 0, 0, 0 };
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	if (bcmp(sc->arpcom.ac_enaddr, empty, ETHER_ADDR_LEN) == 0)
 		*status = NDIS_STATUS_FAILURE;
@@ -1236,7 +1282,7 @@ NdisMAllocateMapRegisters(adapter, dmachannel, dmasize, physmapneeded, maxmap)
 	int			error, i, nseg = NDIS_MAXSEG;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	sc->ndis_mmaps = malloc(sizeof(bus_dmamap_t) * physmapneeded,
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
@@ -1271,7 +1317,7 @@ NdisMFreeMapRegisters(adapter)
 	int			i;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	for (i = 0; i < sc->ndis_mmapcnt; i++)
 		bus_dmamap_destroy(sc->ndis_mtag, sc->ndis_mmaps[i]);
@@ -1322,7 +1368,7 @@ NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
 		return;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	sh = malloc(sizeof(struct ndis_shmem), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (sh == NULL)
@@ -1398,12 +1444,12 @@ ndis_asyncmem_complete(arg)
 
 	w = arg;
 	block = (ndis_miniport_block *)w->na_adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	vaddr = NULL;
 	paddr.np_quad = 0;
 
-	donefunc = sc->ndis_chars.nmc_allocate_complete_func;
+	donefunc = sc->ndis_chars->nmc_allocate_complete_func;
 	NdisMAllocateSharedMemory(w->na_adapter, w->na_len,
 	    w->na_cached, &vaddr, &paddr);
 	donefunc(w->na_adapter, vaddr, &paddr, w->na_len, w->na_ctx);
@@ -1463,7 +1509,7 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 		return;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	sh = prev = sc->ndis_shlist;
 
 	while (sh) {
@@ -1501,7 +1547,7 @@ NdisMMapIoSpace(vaddr, adapter, paddr, len)
 		return(NDIS_STATUS_FAILURE);
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	if (sc->ndis_res_mem != NULL &&
 	    paddr.np_quad == rman_get_start(sc->ndis_res_mem))
@@ -1564,7 +1610,7 @@ NdisMInitializeScatterGatherDma(adapter, is64, maxphysmap)
 	if (adapter == NULL)
 		return(NDIS_STATUS_FAILURE);
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	/* Don't do this twice. */
 	if (sc->ndis_sc == 1)
@@ -2083,8 +2129,8 @@ NdisUnicodeStringToAnsiString(dstr, sstr)
 {
 	if (dstr == NULL || sstr == NULL)
 		return(NDIS_STATUS_FAILURE);
-	if (ndis_unicode_to_ascii(sstr->nus_buf,
-	    sstr->nus_len, &dstr->nas_buf))
+	if (ndis_unicode_to_ascii(sstr->us_buf,
+	    sstr->us_len, &dstr->nas_buf))
 		return(NDIS_STATUS_FAILURE);
 	dstr->nas_len = dstr->nas_maxlen = strlen(dstr->nas_buf);
 	return (NDIS_STATUS_SUCCESS);
@@ -2103,11 +2149,11 @@ NdisAnsiStringToUnicodeString(dstr, sstr)
 		return(NDIS_STATUS_FAILURE);
 	strncpy(str, sstr->nas_buf, sstr->nas_len);
 	*(str + sstr->nas_len) = '\0';
-	if (ndis_ascii_to_unicode(str, &dstr->nus_buf)) {
+	if (ndis_ascii_to_unicode(str, &dstr->us_buf)) {
 		free(str, M_DEVBUF);
 		return(NDIS_STATUS_FAILURE);
 	}
-	dstr->nus_len = dstr->nus_maxlen = sstr->nas_len * 2;
+	dstr->us_len = dstr->us_maxlen = sstr->nas_len * 2;
 	free(str, M_DEVBUF);
 	return (NDIS_STATUS_SUCCESS);
 }
@@ -2147,6 +2193,7 @@ NdisMRegisterInterrupt(intr, adapter, ivec, ilevel, reqisr, shared, imode)
 	intr->ni_isrreq = reqisr;
 	intr->ni_shared = shared;
 	block->nmb_interrupt = intr;
+
 	return(NDIS_STATUS_SUCCESS);
 }	
 
@@ -2171,8 +2218,8 @@ NdisMRegisterAdapterShutdownHandler(adapter, shutdownctx, shutdownfunc)
 		return;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
-	chars = &sc->ndis_chars;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	chars = sc->ndis_chars;
 
 	chars->nmc_shutdown_handler = shutdownfunc;
 	chars->nmc_rsvd0 = shutdownctx;
@@ -2192,8 +2239,8 @@ NdisMDeregisterAdapterShutdownHandler(adapter)
 		return;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
-	chars = &sc->ndis_chars;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	chars = sc->ndis_chars;
 
 	chars->nmc_shutdown_handler = NULL;
 	chars->nmc_rsvd0 = NULL;
@@ -2272,7 +2319,7 @@ NdisReadPcmciaAttributeMemory(handle, offset, buf, len)
 		return(0);
 
 	block = (ndis_miniport_block *)handle;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	dest = buf;
 
 	bh = rman_get_bushandle(sc->ndis_res_am);
@@ -2302,7 +2349,7 @@ NdisWritePcmciaAttributeMemory(handle, offset, buf, len)
 		return(0);
 
 	block = (ndis_miniport_block *)handle;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	src = buf;
 
 	bh = rman_get_bushandle(sc->ndis_res_am);
@@ -2383,7 +2430,7 @@ NdisMSynchronizeWithInterrupt(intr, syncfunc, syncctx)
 	if (syncfunc == NULL || syncctx == NULL)
 		return(0);
 
-	sc = (struct ndis_softc *)intr->ni_block->nmb_ifp;
+	sc = device_get_softc(intr->ni_block->nmb_physdeviceobj->do_devext);
 	sync = syncfunc;
 	mtx_lock(&sc->ndis_intrmtx);
 	rval = sync(syncctx);
@@ -2432,10 +2479,10 @@ NdisInitializeString(dst, src)
 	ndis_unicode_string	*u;
 
 	u = dst;
-	u->nus_buf = NULL;
-	if (ndis_ascii_to_unicode(src, &u->nus_buf))
+	u->us_buf = NULL;
+	if (ndis_ascii_to_unicode(src, &u->us_buf))
 		return;
-	u->nus_len = u->nus_maxlen = strlen(src) * 2;
+	u->us_len = u->us_maxlen = strlen(src) * 2;
 	return;
 }
 
@@ -2445,8 +2492,8 @@ NdisFreeString(str)
 {
 	if (str == NULL)
 		return;
-	if (str->nus_buf != NULL)
-		free(str->nus_buf, M_DEVBUF);
+	if (str->us_buf != NULL)
+		free(str->us_buf, M_DEVBUF);
 	free(str, M_DEVBUF);
 	return;
 }
@@ -2491,14 +2538,14 @@ NdisInitUnicodeString(dst, src)
 	if (u == NULL)
 		return;
 	if (src == NULL) {
-		u->nus_len = u->nus_maxlen = 0;
-		u->nus_buf = NULL;
+		u->us_len = u->us_maxlen = 0;
+		u->us_buf = NULL;
 	} else {
 		i = 0;
 		while(src[i] != 0)
 			i++;
-		u->nus_buf = src;
-		u->nus_len = u->nus_maxlen = i * 2;
+		u->us_buf = src;
+		u->us_len = u->us_maxlen = i * 2;
 	}
 
 	return;
@@ -2518,9 +2565,11 @@ __stdcall static void NdisMGetDeviceProperty(adapter, phydevobj,
 	block = (ndis_miniport_block *)adapter;
 
 	if (phydevobj != NULL)
-		*phydevobj = &block->nmb_devobj;
+		*phydevobj = block->nmb_physdeviceobj;
 	if (funcdevobj != NULL)
-		*funcdevobj = &block->nmb_devobj;
+		*funcdevobj = block->nmb_deviceobj;
+	if (nextdevobj != NULL)
+		*nextdevobj = block->nmb_nextdeviceobj;
 
 	return;
 }
@@ -2617,8 +2666,8 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	linker_file_t		head, lf;
 	caddr_t			kldstart, kldend;
 
-	ndis_unicode_to_ascii(filename->nus_buf,
-	    filename->nus_len, &afilename);
+	ndis_unicode_to_ascii(filename->us_buf,
+	    filename->us_len, &afilename);
 
 	fh = malloc(sizeof(ndis_fh), M_TEMP, M_NOWAIT);
 	if (fh == NULL) {
@@ -3010,7 +3059,7 @@ NdisMRegisterDevice(handle, devname, symname, majorfuncs, devobj, devhandle)
 	ndis_miniport_block	*block;
 
 	block = (ndis_miniport_block *)handle;
-	*devobj = &block->nmb_devobj;
+	*devobj = block->nmb_deviceobj;
 	*devhandle = handle;
 
 	return(NDIS_STATUS_SUCCESS);
@@ -3029,11 +3078,14 @@ NdisMQueryAdapterInstanceName(name, handle)
 	ndis_handle		handle;
 {
 	ndis_miniport_block	*block;
+	device_t		dev;
 
 	block = (ndis_miniport_block *)handle;
+	dev = block->nmb_physdeviceobj->do_devext;
+
 	ndis_ascii_to_unicode(__DECONST(char *,
-	    device_get_nameunit(block->nmb_dev)), &name->nus_buf);
-	name->nus_len = strlen(device_get_nameunit(block->nmb_dev)) * 2;
+	    device_get_nameunit(dev)), &name->us_buf);
+	name->us_len = strlen(device_get_nameunit(dev)) * 2;
 
 	return(NDIS_STATUS_SUCCESS);
 }

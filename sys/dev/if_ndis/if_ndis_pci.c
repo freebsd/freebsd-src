@@ -86,13 +86,14 @@ static int ndis_probe_pci	(device_t);
 static int ndis_attach_pci	(device_t);
 static struct resource_list *ndis_get_resource_list
 				(device_t, device_t);
+extern int ndisdrv_modevent	(module_t, int, void *);
 extern int ndis_attach		(device_t);
 extern int ndis_shutdown	(device_t);
 extern int ndis_detach		(device_t);
 extern int ndis_suspend		(device_t);
 extern int ndis_resume		(device_t);
 
-extern struct mtx_pool *ndis_mtxpool;
+extern unsigned char drv_data[];
 
 static device_method_t ndis_methods[] = {
 	/* Device interface */
@@ -123,14 +124,15 @@ static devclass_t ndis_devclass;
 
 #ifdef NDIS_MODNAME
 #define NDIS_MODNAME_OVERRIDE_PCI(x)					\
-	DRIVER_MODULE(x, pci, ndis_driver, ndis_devclass, 0, 0)
+	DRIVER_MODULE(x, pci, ndis_driver, ndis_devclass, ndisdrv_modevent, 0)
 #define NDIS_MODNAME_OVERRIDE_CARDBUS(x)				\
-	DRIVER_MODULE(x, cardbus, ndis_driver, ndis_devclass, 0, 0)
+	DRIVER_MODULE(x, cardbus, ndis_driver, ndis_devclass,		\
+		ndisdrv_modevent, 0)
 NDIS_MODNAME_OVERRIDE_PCI(NDIS_MODNAME);
 NDIS_MODNAME_OVERRIDE_CARDBUS(NDIS_MODNAME);
 #else
-DRIVER_MODULE(ndis, pci, ndis_driver, ndis_devclass, 0, 0);
-DRIVER_MODULE(ndis, cardbus, ndis_driver, ndis_devclass, 0, 0);
+DRIVER_MODULE(ndis, pci, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
+DRIVER_MODULE(ndis, cardbus, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 #endif
 
 /*
@@ -142,8 +144,15 @@ ndis_probe_pci(dev)
 	device_t		dev;
 {
 	struct ndis_pci_type	*t;
+	driver_object		*drv;
+	vm_offset_t		img;
 
 	t = ndis_devs;
+	img = (vm_offset_t)drv_data;
+	drv = windrv_lookup(img);
+
+	if (drv == NULL)
+		return(ENXIO);
 
 	while(t->ndis_name != NULL) {
 		if ((pci_get_vendor(dev) == t->ndis_vid) &&
@@ -151,6 +160,9 @@ ndis_probe_pci(dev)
 		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
 		    t->ndis_subsys) || t->ndis_subsys == 0)) {
 			device_set_desc(dev, t->ndis_name);
+
+			/* Create PDO for this device instance */
+			windrv_create_pdo(drv, dev);
 			return(0);
 		}
 		t++;
