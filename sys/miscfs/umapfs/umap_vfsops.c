@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap_vfsops.c,v 1.7 1995/03/16 20:23:43 wollman Exp $
+ * $Id: umap_vfsops.c,v 1.8 1995/05/30 08:07:18 rgrimes Exp $
  */
 
 /*
@@ -53,6 +53,27 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/umapfs/umap.h>
+
+extern int	umapfs_init __P((void));
+
+extern int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
+				   struct mbuf *nam, struct vnode **vpp,
+				   int *exflagsp, struct ucred **credanonp));
+extern int	umapfs_mount __P((struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct proc *p));
+extern int	umapfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+				     caddr_t arg, struct proc *p));
+extern int	umapfs_root __P((struct mount *mp, struct vnode **vpp));
+extern int	umapfs_start __P((struct mount *mp, int flags, struct proc *p));
+extern int	umapfs_statfs __P((struct mount *mp, struct statfs *sbp,
+				   struct proc *p));
+extern int	umapfs_sync __P((struct mount *mp, int waitfor,
+				 struct ucred *cred, struct proc *p));
+extern int	umapfs_unmount __P((struct mount *mp, int mntflags,
+				    struct proc *p));
+extern int	umapfs_vget __P((struct mount *mp, ino_t ino,
+				 struct vnode **vpp));
+extern int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Mount umap layer
@@ -392,8 +413,6 @@ umapfs_vptofh(vp, fhp)
 {
 	return (VFS_VPTOFH(UMAPVPTOLOWERVP(vp), fhp));
 }
-
-int umapfs_init __P((void));
 
 struct vfsops umap_vfsops = {
 	umapfs_mount,

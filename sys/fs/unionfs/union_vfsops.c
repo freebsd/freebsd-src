@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.9 1995/03/16 20:23:44 wollman Exp $
+ * $Id: union_vfsops.c,v 1.10 1995/05/30 08:07:26 rgrimes Exp $
  */
 
 /*
@@ -56,8 +56,26 @@
 #include <sys/queue.h>
 #include <miscfs/union/union.h>
 
-int	union_root __P((struct mount *, struct vnode **));
-int	union_statfs __P((struct mount *, struct statfs *, struct proc *));
+extern int	union_init __P((void));
+
+extern int	union_fhtovp __P((struct mount *mp, struct fid *fidp,
+				  struct mbuf *nam, struct vnode **vpp,
+				  int *exflagsp, struct ucred **credanonp));
+extern int	union_mount __P((struct mount *mp, char *path, caddr_t data,
+				 struct nameidata *ndp, struct proc *p));
+extern int	union_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+				    caddr_t arg, struct proc *p));
+extern int	union_root __P((struct mount *mp, struct vnode **vpp));
+extern int	union_start __P((struct mount *mp, int flags, struct proc *p));
+extern int	union_statfs __P((struct mount *mp, struct statfs *sbp,
+				  struct proc *p));
+extern int	union_sync __P((struct mount *mp, int waitfor,
+				struct ucred *cred, struct proc *p));
+extern int	union_unmount __P((struct mount *mp, int mntflags,
+				   struct proc *p));
+extern int	union_vget __P((struct mount *mp, ino_t ino,
+				struct vnode **vpp));
+extern int	union_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Mount union filesystem
@@ -542,8 +560,6 @@ union_vptofh(vp, fhp)
 
 	return (EOPNOTSUPP);
 }
-
-int union_init __P((void));
 
 struct vfsops union_vfsops = {
 	union_mount,
