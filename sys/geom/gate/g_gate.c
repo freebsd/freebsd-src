@@ -52,7 +52,7 @@ static MALLOC_DEFINE(M_GATE, "gg data", "GEOM Gate Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, gate, CTLFLAG_RW, 0, "GEOM_GATE stuff");
-static u_int g_gate_debug = 3;
+static u_int g_gate_debug = 0;
 SYSCTL_UINT(_kern_geom_gate, OID_AUTO, debug, CTLFLAG_RW, &g_gate_debug, 0,
     "Debug level");
 
