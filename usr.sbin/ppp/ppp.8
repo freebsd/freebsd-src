@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.163 1999/03/19 09:00:08 brian Exp $
+.\" $Id: ppp.8,v 1.164 1999/03/25 23:36:25 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3333,7 +3333,7 @@ If
 .Nm
 is the callee,
 .Ar number
-should be either a comma seperated list of allowable numbers or a
+should be either a comma separated list of allowable numbers or a
 .Dq \&* ,
 meaning any number is permitted.  If
 .Nm
