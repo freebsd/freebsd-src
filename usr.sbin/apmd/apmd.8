@@ -171,6 +171,7 @@ is running:
 .Pp
 .Bl -tag -hang -width USERSUSPENDREQ -compact -offset indent
 .It STANDBYREQ
+.It USERSTANDBYREQ
 .It SUSPENDREQ
 should include sync in the command list,
 .It USERSUSPENDREQ
@@ -189,6 +190,7 @@ after kernel handling:
 .It STANDBYRESUME
 .It POWERSTATECHANGE
 .It UPDATETIME
+.It CAPABILITIESCHANGE
 .El
 .Pp
 Other events will not be sent to 
@@ -297,4 +299,4 @@ and
 The
 .Nm apmd
 command appeared in
-.Fx 4.0 .
+.Fx 3.3 .

@@ -975,6 +975,14 @@ apm_processevent(void)
 			    }
 			}
 			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_USERSTANDBYREQ);
+			if (apm_op_inprog == 0) {
+			    apm_op_inprog++;
+			    if (apm_record_event(sc, apm_event)) {
+				apm_suspend(PMST_STANDBY);
+			    }
+			}
+			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_SUSPENDREQ);
  			apm_lastreq_notify();
 			if (apm_op_inprog == 0) {
@@ -1020,6 +1028,9 @@ apm_processevent(void)
 		    OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
 			apm_record_event(sc, apm_event);
 			inittodr(0);	/* adjust time to RTC */
+			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_CAPABILITIESCHANGE);
+			apm_record_event(sc, apm_event);
 			break;
 		    case PMEV_NOEVENT:
 			break;
