@@ -1999,29 +1999,31 @@ err:
 static void
 fw_try_bmr_callback(struct fw_xfer *xfer)
 {
-	struct fw_pkt *sfp,*rfp;
+	struct fw_pkt *rfp;
 	struct firewire_comm *fc;
+	int bmr;
 
-	if(xfer == NULL) return;
+	if (xfer == NULL)
+		return;
 	fc = xfer->fc;
-	if(xfer->resp != 0){
+	if (xfer->resp != 0)
 		goto error;
-	}
-
-	if(xfer->send.buf == NULL){
+	if (xfer->send.buf == NULL)
 		goto error;
-	}
-	sfp = (struct fw_pkt *)xfer->send.buf;
-
-	if(xfer->recv.buf == NULL){
+	if (xfer->recv.buf == NULL)
 		goto error;
-	}
 	rfp = (struct fw_pkt *)xfer->recv.buf;
-	CSRARC(fc, BUS_MGR_ID)
-		= fc->set_bmr(fc, ntohl(rfp->mode.lres.payload[0]) & 0x3f);
+	if (rfp->mode.lres.rtcode != FWRCODE_COMPLETE)
+		goto error;
+
+	bmr = ntohl(rfp->mode.lres.payload[0]);
+	if (bmr == 0x3f)
+		bmr = fc->nodeid;
+
+	CSRARC(fc, BUS_MGR_ID) = fc->set_bmr(fc, bmr & 0x3f);
 	device_printf(fc->bdev, "new bus manager %d ",
 		CSRARC(fc, BUS_MGR_ID));
-	if((htonl(rfp->mode.lres.payload[0]) & 0x3f) == fc->nodeid){
+	if(bmr == fc->nodeid){
 		printf("(me)\n");
 /* If I am bus manager, optimize gapcount */
 		if(fc->max_hop <= MAX_GAPHOP ){
@@ -2071,8 +2073,8 @@ fw_try_bmr(void *arg)
 	xfer->dst = FWLOCALBUS | fc->irm;
 	fp->mode.lreq.dst = htons(xfer->dst);
 	fp->mode.lreq.dest_lo = htonl(0xf0000000 | BUS_MGR_ID);
-	fp->mode.lreq.payload[0] = 0x3f;
-	fp->mode.lreq.payload[1] = fc->nodeid;
+	fp->mode.lreq.payload[0] = htonl(0x3f);
+	fp->mode.lreq.payload[1] = htonl(fc->nodeid);
 	xfer->act_type = FWACT_XFER;
 	xfer->act.hand = fw_try_bmr_callback;
 
