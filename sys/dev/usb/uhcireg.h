@@ -1,4 +1,4 @@
-/*	$NetBSD: usb/uhcireg.h,v 1.12 2000/07/23 19:43:38 augustss Exp $	*/
+/*	$NetBSD: usb/uhcireg.h,v 1.13 2000/08/13 18:20:15 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -120,6 +120,12 @@ typedef u_int32_t uhci_physaddr_t;
 #define UHCI_PTR_TD		0x00000000
 #define UHCI_PTR_QH		0x00000002
 #define UHCI_PTR_VF		0x00000004
+
+/* 
+ * Wait this long after a QH has been removed.  This gives that HC a
+ * chance to stop looking at it before it's recycled.
+ */
+#define UHCI_QH_REMOVE_DELAY	5
 
 /*
  * The Queue Heads and Transfer Descriptors are accessed
