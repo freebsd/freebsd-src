@@ -1,9 +1,6 @@
 # $FreeBSD$
 
 TARGET_ARCH?= ${MACHINE_ARCH}
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
-GDB_CROSS_DEBUGGER=
-.endif
 
 LIB=	gdb
 INTERNALLIB=
@@ -52,12 +49,7 @@ SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c \
 	valarith.c valops.c valprint.c values.c varobj.c \
 	wrapper.c ${LIBSRCS}
 
-TARGET_ARCH?= ${MACHINE_ARCH}
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
-GDB_CROSS_DEBUGGER=
-.endif
-
-.if !defined(GDB_CROSS_DEBUGGER)
+.if ${TARGET_ARCH} == ${MACHINE_ARCH}
 _fork_child= fork-child.c
 _infptrace= infptrace.c
 _inftarg= inftarg.c
