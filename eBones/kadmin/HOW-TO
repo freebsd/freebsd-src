@@ -1,8 +1,0 @@
-#	$Id$
-
-To re-create this directory from outside the US, take the Makefile
-(provided), get the two source files from the original eBones distribution,
-do a `perl -spi.bak -e 's/\$(Header[^\$])\$/$1/g' *.{c,ct}', and then
-edit the #includes in kadmin.c to make things compile.
-
-Unfortunately, this program is not exportable.
