@@ -36,8 +36,15 @@
 /*
  * Compiled KERNBASE location
  */
-	.globl	kernbase
+	.globl	kernbase,loc_PTmap,loc_PDmap,loc_PDPmap,loc_PML4map,loc_PML4pml4e,dmapbase,dmapend
 	.set	kernbase,KERNBASE
+	.set	loc_PTmap,addr_PTmap
+	.set	loc_PDmap,addr_PDmap
+	.set	loc_PDPmap,addr_PDPmap
+	.set	loc_PML4map,addr_PML4map
+	.set	loc_PML4pml4e,addr_PML4pml4e
+	.set	dmapbase,DMAP_MIN_ADDRESS
+	.set	dmapend,DMAP_MAX_ADDRESS
 
 	.text
 /**********************************************************************

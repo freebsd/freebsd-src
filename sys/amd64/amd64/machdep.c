@@ -133,11 +133,6 @@ u_long	atdevbase;
 
 u_int64_t	modulep;	/* phys addr of metadata table */
 u_int64_t	physfree;	/* first free page after kernel */
-u_int64_t	IdlePTD;	/* phys addr of kernel PTD */
-u_int64_t	IdlePDP;	/* phys addr of kernel level 3 */
-u_int64_t	IdlePML4;	/* phys addr of kernel level 4 */
-struct user	*proc0uarea;	/* address of proc 0 uarea space */
-vm_offset_t	proc0kstack;	/* address of proc 0 kstack space */
 
 int cold = 1;
 
@@ -945,7 +940,7 @@ physmap_done:
 		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
 	/* call pmap initialization to make new kernel address space */
-	pmap_bootstrap(first, 0);
+	pmap_bootstrap(&first);
 
 	/*
 	 * Size up each available chunk of physical memory.
@@ -1086,69 +1081,6 @@ allocpages(int n)
 	return (ret);
 }
 
-static void
-create_pagetables(void)
-{
-	u_int64_t p0kpa;
-	u_int64_t p0upa;
-	u_int64_t KPTphys;
-	int i;
-
-	/* Allocate pages */
-	KPTphys = allocpages(NKPT);
-	IdlePML4 = allocpages(NKPML4E);
-	IdlePDP = allocpages(NKPDPE);
-	IdlePTD = allocpages(NPGPTD);
-	p0upa = allocpages(UAREA_PAGES);
-	p0kpa = allocpages(KSTACK_PAGES);
-
-	proc0uarea = (struct user *)(p0upa + KERNBASE);
-	proc0kstack = p0kpa + KERNBASE;
-
-	/* Fill in the underlying page table pages */
-	/* Read-only from zero to physfree */
-	/* XXX not fully used, underneath 2M pages */
-	for (i = 0; (i << PAGE_SHIFT) < physfree; i++) {
-		((pt_entry_t *)KPTphys)[i] = i << PAGE_SHIFT;
-		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V;
-	}
-
-	/* Now map the page tables at their location within PTmap */
-	for (i = 0; i < NKPT; i++) {
-		((pd_entry_t *)IdlePTD)[i + KPTDI] = KPTphys + (i << PAGE_SHIFT);
-		((pd_entry_t *)IdlePTD)[i + KPTDI] |= PG_RW | PG_V;
-	}
-
-	/* Map from zero to end of allocations under 2M pages */
-	/* This replaces some of the PTD entries above */
-	for (i = 0; (i << PDRSHIFT) < physfree; i++) {
-		((pd_entry_t *)IdlePTD)[i] = i << PDRSHIFT;
-		((pd_entry_t *)IdlePTD)[i] |= PG_RW | PG_V | PG_PS;
-	}
-
-	/* Now map the page tables at their location within PTmap */
-	for (i = 0; i < NKPT; i++) {
-		((pd_entry_t *)IdlePTD)[i] = KPTphys + (i << PAGE_SHIFT);
-		((pd_entry_t *)IdlePTD)[i] |= PG_RW | PG_V;
-	}
-
-	/* Now map the PTD at the top of the PTmap (ie: PTD[]) */
-	for (i = 0; i < NPGPTD; i++) {
-		((pd_entry_t *)IdlePTD)[i + PTDPTDI] = IdlePTD + (i << PAGE_SHIFT);
-		((pd_entry_t *)IdlePTD)[i + PTDPTDI] |= PG_RW | PG_V;
-	}
-
-	/* And connect up the PTD to the PDP */
-	for (i = 0; i < NPGPTD; i++) {
-		((pdp_entry_t *)IdlePDP)[i] = IdlePTD + (i << PAGE_SHIFT);
-		((pdp_entry_t *)IdlePDP)[i] |= PG_RW | PG_V | PG_U;
-	}
-
-	/* And connect up the PDP to the PML4 */
-	((pdp_entry_t *)IdlePML4)[0] = IdlePDP;
-	((pdp_entry_t *)IdlePML4)[0] |= PG_RW | PG_V | PG_U;
-}
-
 void
 hammer_time(void)
 {
@@ -1157,18 +1089,14 @@ hammer_time(void)
 	struct region_descriptor r_gdt, r_idt;
 	struct pcpu *pc;
 	u_int64_t msr;
+	char *env;
 
 	/* Turn on PTE NX (no execute) bit */
 	msr = rdmsr(MSR_EFER) | EFER_NXE;
 	wrmsr(MSR_EFER, msr);
-	create_pagetables();
 
-	/* XXX do %cr0 as well */
-	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
-	load_cr3(IdlePML4);
-
-	proc0.p_uarea = proc0uarea;
-	thread0.td_kstack = proc0kstack;
+	proc0.p_uarea = (struct user *)(allocpages(UAREA_PAGES) + KERNBASE);
+	thread0.td_kstack = allocpages(KSTACK_PAGES) + KERNBASE;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	atdevbase = ISA_HOLE_START + KERNBASE;
@@ -1310,8 +1238,12 @@ hammer_time(void)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
-	thread0.td_pcb->pcb_cr3 = IdlePML4;
+	thread0.td_pcb->pcb_cr3 = KPML4phys;
 	thread0.td_frame = &proc0_tf;
+
+        env = getenv("kernelname");
+	if (env != NULL)
+		strlcpy(kernelname, env, sizeof(kernelname));
 }
 
 void

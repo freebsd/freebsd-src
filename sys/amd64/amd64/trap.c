@@ -212,7 +212,7 @@ trap(frame)
 		 * kernel can print out a useful trap message and even get
 		 * to the debugger.
 		 */
-		if (td->td_critnest == 0)
+		if (td->td_critnest != 0)
 			trap_fatal(&frame, frame.tf_addr);
 	}
 

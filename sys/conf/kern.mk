@@ -57,7 +57,7 @@ CFLAGS+=	-mcmodel=medlow -msoft-float
 # once pmap is ready.  Be excessively careful to not generate FPU code.
 #
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+=	-mcmodel=medium -mno-red-zone \
+CFLAGS+=	-mcmodel=kernel -mno-red-zone \
 		-mfpmath=387 -mno-sse -mno-sse2 -mno-mmx -mno-3dnow -msoft-float
 .endif
 

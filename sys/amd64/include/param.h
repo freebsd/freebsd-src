@@ -89,33 +89,31 @@
 #define	ALIGN(p)		_ALIGN(p)
 #define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER((p),(t))
 
+
 /* Size of the level 1 page table units */
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define	NPTEPGSHIFT	9		/* LOG2(NPTEPG) */
 #define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
 #define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
 #define PAGE_MASK	(PAGE_SIZE-1)
 /* Size of the level 2 page directory units */
 #define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+#define	NPDEPGSHIFT	9		/* LOG2(NPDEPG) */
 #define	PDRSHIFT	21              /* LOG2(NBPDR) */
 #define	NBPDR		(1<<PDRSHIFT)   /* bytes/page dir */
 #define	PDRMASK		(NBPDR-1)
 /* Size of the level 3 page directory pointer table units */
 #define	NPDPEPG		(PAGE_SIZE/(sizeof (pdp_entry_t)))
+#define	NPDPEPGSHIFT	9		/* LOG2(NPDPEPG) */
 #define	PDPSHIFT	30		/* LOG2(NBPDP) */
 #define	NBPDP		(1<<PDPSHIFT)	/* bytes/page dir ptr table */
 #define	PDPMASK		(NBPDP-1)
 /* Size of the level 4 page-map level-4 table units */
 #define	NPML4EPG	(PAGE_SIZE/(sizeof (pml4_entry_t)))
+#define	NPML4EPGSHIFT	9		/* LOG2(NPML4EPG) */
 #define	PML4SHIFT	39		/* LOG2(NBPML4T) */
 #define	NBPML4T		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4T-1)
-
-#define NKPML4E		1		/* addressable number of page tables/pde's */
-#define NKPDPE		1		/* addressable number of page tables/pde's */
-#define NPGPTD		4
- 
-#define NBPTD           (NPGPTD<<PAGE_SHIFT)
-#define NPDEPTD         (NBPTD/(sizeof (pd_entry_t)))
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 

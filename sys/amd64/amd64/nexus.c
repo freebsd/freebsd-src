@@ -355,8 +355,8 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 			 */
 			vaddr = (caddr_t)(uintptr_t)(KERNBASE + rman_get_start(r));
 		} else {
-			u_int32_t paddr;
-			u_int32_t psize;
+			u_int64_t paddr;
+			u_int64_t psize;
 			u_int32_t poffs;
 
 			paddr = rman_get_start(r);

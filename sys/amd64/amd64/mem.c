@@ -63,6 +63,7 @@
 #include <machine/frame.h>
 #include <machine/psl.h>
 #include <machine/specialreg.h>
+#include <machine/vmparam.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -177,7 +178,7 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 			addr = trunc_page(uio->uio_offset);
 			eaddr = round_page(uio->uio_offset + c);
 
-			if (addr < (vm_offset_t)VADDR(0, 0, PTDPTDI, 0))
+			if (addr < (vm_offset_t)KERNBASE)
 				return (EFAULT);
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)
