@@ -3,7 +3,7 @@
 ### WARNING: this file contains embedded tabs.  Do not run untabify on this file.
 
 # Configuration script
-# Copyright (C) 1988, 90, 91, 92, 93, 94, 95, 96, 1997
+# Copyright (C) 1988, 90, 91, 92, 93, 94, 95, 96, 97, 98, 1999
 # Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -86,7 +86,7 @@ subdirs=
 target_alias=NOTARGET
 target_makefile_frag=
 undefs=NOUNDEFS
-version="$Revision: 1.270 $"
+version="$Revision: 1.13 $"
 x11=default
 bindir='${exec_prefix}/bin'
 sbindir='${exec_prefix}/sbin'
@@ -237,7 +237,7 @@ do
 		esac
 
 		enableopt=`echo ${option} | sed 's:^--::;s:=.*$::;s:-:_:g'`
-		eval "$enableopt='$optarg'"
+		eval "$enableopt=\$optarg"
 		enableoptions="$enableoptions '$option'"
 		;;
 	--exec-prefix* | --ex*)
@@ -370,7 +370,7 @@ do
 		esac
 
 		withopt=`echo ${option} | sed 's:^--::;s:=.*$::;s:-:_:g'`
-		eval $withopt="$optarg"
+		eval $withopt="\$optarg"
 		withoptions="$withoptions $option"
 		;;
 	--without-*)
@@ -450,7 +450,7 @@ case "${fatal}" in
 					fi
 					;;
 				esac
-				echo "Configuring for a ${host_alias} host." 1>&2
+				echo "Configuring for a ${host_alias} host."
 				arguments="--host=$host_alias $arguments"
 			else
 				echo 'Config.guess failed to determine the host type.  You need to specify one.' 1>&2
@@ -518,7 +518,8 @@ fi
 
 configsub=`echo ${progname} | sed 's/configure$/config.sub/'`
 moveifchange=`echo ${progname} | sed 's/configure$/move-if-change/'`
-topsrcdir=`cd \`dirname ${progname}\`; pwd`
+## the sed command below emulates the dirname command
+topsrcdir=`cd \`echo ${progname} | sed -e 's,[^/]*$,,;s,/$,,;s,^$,.,'\`; pwd`
 
 
 # this is a hack.  sun4 must always be a valid host alias or this will fail.
@@ -576,7 +577,6 @@ case "${srcdir}" in
         fi
 esac
 
-
 # default exec_prefix
 case "${exec_prefixoption}" in
 "") exec_prefix="\$(prefix)" ;;
@@ -587,12 +587,12 @@ esac
 # the gcc version number changes.
 if [ "${with_gcc_version_trigger+set}" = set ]; then
     gcc_version_trigger="$with_gcc_version_trigger"
-    gcc_version=`sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${with_gcc_version_trigger}`
+    gcc_version=`grep version_string ${with_gcc_version_trigger} | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'`
 else
     # If gcc's sources are available, define the trigger file.
     if [ -f ${topsrcdir}/gcc/version.c ] ; then
 	gcc_version_trigger=${topsrcdir}/gcc/version.c
-	gcc_version=`sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${gcc_version_trigger}`
+	gcc_version=`grep version_string ${gcc_version_trigger} | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'`
 	case "$arguments" in
 	  *--with-gcc-version-trigger=$gcc_version_trigger* )
 	    ;;
@@ -655,8 +655,8 @@ case "${TMPDIR}" in
 *) ;;
 esac
 
-# keep this filename short for &%*%$*# 14 char file names
-tmpfile=${TMPDIR}/cONf$$
+# keep this filename short for &%*%$*# 14 char file names and 8+3 file names
+tmpfile=${TMPDIR}/cNf$$
 # Note that under many versions of sh a trap handler for 0 will *override* any
 # exit status you explicitly specify!  At this point, the only non-error exit
 # is at the end of the script; these actions are duplicated there, minus
@@ -912,9 +912,10 @@ if [ "${build}" != "${host}" ]; then
   tools="${tools} HOST_PREFIX_1 LD LD_FOR_TARGET LEX MAKEINFO NM"
   tools="${tools} NM_FOR_TARGET RANLIB RANLIB_FOR_TARGET"
   tools="${tools} WINDRES WINDRES_FOR_TARGET YACC"
+  tools="${tools} OBJCOPY OBJDUMP"
 
   for var in ${tools}; do
-    if [ -z "`eval 'echo $'"${var}"`" ] && [ -r Makefile ]; then
+    if eval [ -z \"\$${var}\" ] && [ -r Makefile ]; then
       sed -n -e ':loop
 /\\$/ N
 s/\\\n//g
@@ -923,7 +924,7 @@ t loop
 	< Makefile > Makefile.v
       t=`tail -1 Makefile.v`
       if [ -n "${t}" ]; then
-	eval "${var}='${t}'"
+	eval "${var}=\${t}"
       fi
       rm -f Makefile.v
     fi
@@ -955,6 +956,8 @@ t loop
   RANLIB_FOR_TARGET=${RANLIB_FOR_TARGET-${target_alias}-ranlib}
   WINDRES=${WINDRES-${host_alias}-windres}
   WINDRES_FOR_TARGET=${WINDRES_FOR_TARGET-${target_alias}-windres}
+  OBJCOPY=${OBJCOPY-${host_alias}-objcopy}
+  OBJDUMP=${OBJDUMP-${host_alias}-objdump}
 
   if [ -z "${YACC}" ]; then
     IFS="${IFS= 	}"; save_ifs="$IFS"; IFS="${IFS}:"
@@ -1005,6 +1008,8 @@ t loop
   export NM
   export RANLIB
   export WINDRES
+  export OBJCOPY
+  export OBJDUMP
 else
   # If CC is still not set, try to get gcc.
   if [ -z "${CC}" ]; then
@@ -1057,6 +1062,27 @@ export CXX
 export CFLAGS
 export CXXFLAGS
 
+# FIXME: This should be in configure.in, not configure
+case "$host" in
+	*go32*)
+	    enable_gdbtk=no ;;
+	*msdosdjgpp*)
+	    enable_gdbtk=no ;;
+esac
+
+# FIXME: This should be in configure.in, not configure
+# Determine whether gdb needs tk/tcl or not.
+if [ "$enable_gdbtk" != "no" ]; then
+	GDB_TK="all-tcl all-tk all-itcl all-tix all-libgui"
+else
+	GDB_TK=""
+fi
+
+all_build_modules=
+if test x"${build_alias}" != x"${host_alias}"
+then
+  all_build_modules='$(ALL_BUILD_MODULES_LIST)'
+fi
 
 for subdir in . ${subdirs} ; do
 
@@ -1315,35 +1341,6 @@ EOF
                 echo site_makefile_frag = ${invsubdir}${site_makefile_frag} >>${Makefile}
             fi 
 
-	    # provide a proper gxx_include_dir to all subdirs.
-	    # Note, if you change the default, make sure to fix both here
-	    # and in the gcc subdirectory.
-	    # Check whether --with-gxx-include-dir or --without-gxx-include-dir was given.
-	    gxx_include_dir=
-	    if test -n "${with_gxx_include_dir}"; then
-		case "${with_gxx_include_dir}" in
-		  yes )
-		    echo "configure: error: bad value ${withval} given for g++ include directory" 1>&2
-		    exit 1
-		    ;;
-		  no )
-		    ;;
-		  * )
-		    gxx_include_dir=${with_gxx_include_dir}
-		    ;;
-		esac
-	    fi
-	    if test x${gxx_include_dir} = x; then
-	        if test x${enable_version_specific_runtime_libs} = xyes; then
-		    echo gxx_include_dir = '${libsubdir}/include/g++' >> ${Makefile}
-		else
-		    . ${topsrcdir}/config.if
-		    echo gxx_include_dir = '${prefix}/include/g++'-${libstdcxx_interface} >> ${Makefile}
-		fi
-	    else
-		echo gxx_include_dir = ${gxx_include_dir} >> ${Makefile}
-	    fi
-
 	    # record if we want to build shared libs.
 	    if test -z "${enable_shared}"; then
 	        echo enable_shared = no >> ${Makefile}
@@ -1387,6 +1384,7 @@ EOF
                     -e "s|^oldincludedir[ 	]*=.*$|oldincludedir = ${oldincludedir}|" \
                     -e "s|^infodir[ 	]*=.*$|infodir = ${infodir}|" \
                     -e "s|^mandir[ 	]*=.*$|mandir = ${mandir}|" \
+		    -e "s|^ALL_BUILD_MODULES =.*|ALL_BUILD_MODULES =${all_build_modules}|" \
 		    -e "/^CC[ 	]*=/{
 			:loop1
 			/\\\\$/ N
@@ -1422,17 +1420,20 @@ EOF
                     -e "s:^program_suffix[ 	]*=.*$:program_suffix = ${program_suffix}:" \
                     -e "s:^program_transform_name[ 	]*=.*$:program_transform_name = ${program_transform_name}:" \
                     -e "s|^tooldir[ 	]*=.*$|tooldir = ${tooldir}|" \
+                    -e "s|^build_tooldir[ 	]*=.*$|build_tooldir = ${tooldir}|" \
 		    -e "s:^DEFAULT_YACC[	 ]*=.*$:DEFAULT_YACC = ${DEFAULT_YACC}:" \
 		    -e "s:^DEFAULT_LEX[	 ]*=.*$:DEFAULT_LEX = ${DEFAULT_LEX}:" \
 		    -e "s:^DEFAULT_M4[  ]*=.*$:DEFAULT_M4 = ${DEFAULT_M4}:" \
                     ${subdir}/Makefile.tem >> ${Makefile}
   
+	    sed -e "s:^GDB_TK[	 ]*=.*$:GDB_TK = ${GDB_TK}:" ${Makefile} >${Makefile}.tem
+	    mv -f ${Makefile}.tem ${Makefile}
 
 	    # If this is a Canadian Cross, preset the values of many more
 	    # tools.
 	    if [ "${build}" != "${host}" ]; then
 		for var in ${tools}; do
-		    val=`eval 'echo $'"${var}"`
+		    eval val=\$${var}
 		    sed -e "/^${var}[ 	]*=/{
 			   :loop1
 			   /\\\\$/ N

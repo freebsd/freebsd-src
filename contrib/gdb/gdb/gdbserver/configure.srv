@@ -1,0 +1,65 @@
+# Mappings from configuration triplets to gdbserver build options.
+# This is invoked from the autoconf-generated configure script, to
+# produce the appropriate Makefile substitutions.
+
+# This file sets the following shell variables:
+#   srv_regobj		The register protocol appropriate for this target.
+#   srv_tgtobj		Any other target-specific modules appropriate
+#			for this target.
+#
+# In addition, on GNU/Linux the following shell variables will be set:
+#   srv_linux_regsets	Set to "yes" if ptrace(PTRACE_GETREGS) and friends
+#			may be available on this platform;  unset otherwise.
+#			They will only be used if <sys/ptrace.h> defines
+#			PTRACE_GETREGS.
+#   srv_linux_usrregs	Set to "yes" if we can get at registers via
+#			PTRACE_PEEKUSR / PTRACE_POKEUSR.
+
+# Input is taken from the "${target}" variable.
+
+case "${target}" in
+  arm*-*-linux*)	srv_regobj=reg-arm.o
+			srv_tgtobj="linux-low.o linux-arm-low.o"
+			srv_linux_usrregs=yes
+			;;
+  i[3456]86-*-linux*)	srv_regobj=reg-i386-linux.o
+			srv_tgtobj="linux-low.o linux-i386-low.o i387-fp.o"
+			srv_linux_usrregs=yes
+			srv_linux_regsets=yes
+			;;
+  ia64-*-linux*)	srv_regobj=reg-ia64.o
+			srv_tgtobj="linux-low.o linux-ia64-low.o"
+			srv_linux_usrregs=yes
+			;;
+  m68*-*-linux*)	srv_regobj=reg-m68k.o
+			srv_tgtobj="linux-low.o linux-m68k-low.o"
+			srv_linux_usrregs=yes
+			;;
+  mips*-*-linux*)	srv_regobj=reg-mips.o
+			srv_tgtobj="linux-low.o linux-mips-low.o"
+			srv_linux_usrregs=yes
+			;;
+  powerpc*-*-linux*)	srv_regobj=reg-ppc.o
+			srv_tgtobj="linux-low.o linux-ppc-low.o"
+			srv_linux_usrregs=yes
+			;;
+  s390-*-linux*)	srv_regobj=reg-s390.o
+			srv_tgtobj="linux-low.o linux-s390-low.o"
+			srv_linux_usrregs=yes
+			;;
+  s390x-*-linux*)	srv_regobj=reg-s390x.o
+			srv_tgtobj="linux-low.o linux-s390-low.o"
+			srv_linux_usrregs=yes
+			;;
+  sh*-*-linux*)		srv_regobj=reg-sh.o
+			srv_tgtobj="linux-low.o linux-sh-low.o"
+			srv_linux_usrregs=yes
+			;;
+  x86_64-*-linux*)	srv_regobj=reg-x86-64.o
+			srv_tgtobj="linux-low.o linux-x86-64-low.o i387-fp.o"
+			srv_linux_regsets=yes
+			;;
+  *)			echo "Error: target not supported by gdbserver."
+			exit 1
+			;;
+esac

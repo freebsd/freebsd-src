@@ -1,1112 +1,3267 @@
-1999-04-07  Jim Blandy  <jimb@zwingli.cygnus.com>
+2002-06-22  Andrew Cagney  <ac131313@redhat.com>
 
-	* GDB 4.18 released.
+	* NEWS: Mention below.
 
-1999-04-06  Jim Blandy  <jimb@zwingli.cygnus.com>
+	Merge from mainline:
+	2002-05-12 Fred Fish <fnf@redhat.com>:
+	* symfile.c (default_symfile_offsets): Arrange for uninitialized
+	sect_index_xxx members to index the first slot in section_offsets
+	if all of the section_offsets are zero.
 
-	* README: Change revision numbers in text to "4.18".
-	* Makefile.in (VERSION): Set to 4.18.
+2002-06-20  Elena Zannoni  <ezannoni@redhat.com>
 
-1999-04-06  Stan Shebs  <shebs@andros.cygnus.com>
+        * event-top.c (command_handler): Don't use space_at_cmd_start
+        unless there is sbrk() on the host. Assign time and space data
+        to union fields of the appropriate length.
 
-	* solib.c (clear_solib): Don't call disable_breakpoints_in_shlibs,
-	this breaks rerunning on sun4 native.
+2002-06-16  Andrew Cagney  <ac131313@redhat.com>
 
-1999-04-05  Stan Shebs  <shebs@andros.cygnus.com>
+	* NEWS: Mention below.
 
-	* NEWS: Incorporate suggestions from David Taylor and Jason Molenda.
+	Merge from mainline:
+	2002-04-22 J. Brobecker <brobecker@gnat.com>:
+	* symfile.h (get_section_index): Define.
+	* symfile.c (get_section_index): New function.
+	* mdebugread.c (SC_IS_SBSS): New macro.
+	(SC_IS_BSS): Return true for the scBss storage class only, as
+	the scSBss storage class refers to the .sbss section.
+	(parse_partial_symbols): Discard the symbols which associated
+	section does not exist.
+	Make sure to use the .sbss section index for symbols which
+	storage class is scBss, rather than using the .bss section index.
+
+2002-05-28  Theodore A. Roth  <troth@verinet.com>
+
+	* MAINTAINERS: Add myself as AVR maintainer.
+	* NEWS: Note new avr target.
+
+2002-06-07  Michal Ludvig  <mludvig@suse.cz>
+
+	Merge from mainline:
+
+	2002-05-27  Michal Ludvig  <mludvig@suse.cz>
+
+		* x86-64-tdep.c (x86_64_skip_prologue): Remove obsolete 
+		note. Let PC point right after the prologue before looking 
+		up symbols.
+
+2002-05-28  Theodore A. Roth  <troth@verinet.com>
+
+	* Makefile.in: Add support for AVR target.
+	* configure.tgt: Add support for AVR target.
+	* avr-tdep.c: New file.
+	* config/avr/avr.mt: New file.
+
+2002-05-23  Andrew Cagney  <ac131313@redhat.com>
+
+	From Ross Alexander at NEC Europe:
+	* config/pa/hpux11w.mh (NATDEPFILES): Add solib.o.
+
+2002-05-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* PROBLEMS: Mention s390 and FreeBSD 4.4 build problems.
+
+2002-05-22  Michal Ludvig  <mludvig@suse.cz>
+
+	* dwarf2cfi.c (frame_state_for): Added safety check for a valid
+	fde->cie_ptr.
+	(dwarf2_build_frame_info): Corrected handling of eh_frame.
+	(dwarf2_build_frame_info): Add offset to fde->initial_location 
+	so that frames of shared libraries are mapped correctly.
+	(execute_stack_op): Change type of 'result' from ULONGEST to
+	CORE_ADDR.
 	
-1999-04-02  Jim Blandy  <jimb@zwingli.cygnus.com>
+2002-05-14  Michal Ludvig  <mludvig@suse.cz>
 
-	* README: Note that GDB requires an ANSI C compiler, and explain
-	how to get GCC.
+	Merge from mainline:
 
-	* README: Update.
-	It says we provide HTML documentation, but we don't.
-	The instructions for building the .info files were wrong.
-	It didn't mention that texinfo.tex was provided with GDB.
-	It didn't mention the intl, texinfo, etc, or util directories.
-	(Perhaps util would be best left unmentioned.)
-	It didn't mention the --enable-build-warnings flag, or the --host
-	    flag.
-	It didn't mention remote-array.c or remote-d10v.c.
-	It had an old address for reporting bugs.  It's now gdb@gnu.org.
-	It mentioned xxgdb, which is obsolete, but didn't mention DDD.	
-
-	* config/sparc/nm-linux.h: Don't redefine PT_ATTACH to use the
- 	deprecated PTRACE_SUNATTACH compatibility commands.  The
- 	definitions from <sys/ptrace.h> are fine.
-
-1999-04-01  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* NEWS: Add more notes about user-visible changes.
-
-1999-04-01  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Fix for cross-debugging on an AIX host from Johanna Svenningsson:
-	* ax-gdb.h (enum axs_lvalue_kind): Remove trailing comma from enum.
-	* ax.h (enum agent_op, enum agent_flaws): Same.
-	* tracepoint.h (enum actionline_type): Same.
-	* config/xm-aix4.h: Add declaration for termdef.
-
-1999-03-31  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* jv-lang.h (dynamics_objfile): Remove decl, conflicts with static
-	decl in jv-lang.c.
-
-1999-03-31  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Mon Mar 29 14:40:44 1999  David Taylor  <taylor@ryobi.cygnus.com>
-
-	* valops.c (search_struct_field): revert HP merge change
-	to this function -- it causes messages to be printed about
-	member class ambiguity when the compiler is happy.
-	(search_struct_field_aux): delete -- added as part of HP merge
-	change; with aforementioned change it is no longer called.
-
-1999-03-26  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Merged change from Keith Seitz:
+	2002-05-14  Michal Ludvig  <mludvig@suse.cz>
+	* dwarf2cfi.c (context_cpy): Copy registers correctly.
+	(update_context): Use __func__ in warnings.
 	
-	1999-03-16  Keith Seitz  <keiths@cygnus.com>
+	2002-05-07  Michal Ludvig  <mludvig@suse.cz>
+	* dwarf2cfi.c: Code cleanup, removed unused variables,
+	added default labels to switch {} statements.
 
-        * remote.c (reomte_binary_checked): New file global.
-        (check_binary_download): New function to check if
-        stub supports binary downloading that works with
-        stubs that are not eight bit clean.
-        (remote_write_bytes): Check for binary download capability
-        and use it if available.
-        Remove references to global remote_binary_length. What a hack.
-        (putpkt_binary): New function.
-	(putpkt): Call putpkt_binary.
-	Use xor to escape trouble characters.
-	* m32r-stub.c (bin2mem): Follow escape char convention change.
+2002-05-01  Andreas Schwab  <schwab@suse.de>
 
-	Applied patch from Stu Grossman:
+	* config/s390/s390.mh (NATDEPFILES): Remove solib.o, add
+	linux-proc.o and gcore.o.
 
-	Mon Feb 22 12:32:19 1999  Per Bothner  <bothner@cygnus.com>
+2002-04-30  Michael Chastain  <mec@shout.net>
 
-	* jv-valprint.c (java_val_print):  Restore line that somehow got lost.
+	Merge from trunk.  This also fixes PR gdb/172.
 
-1999-03-24  Stan Shebs  <shebs@andros.cygnus.com>
+	2002-04-25  Pierre Muller  <muller@ics.u-strasbg.fr>
 
-	* Makefile (VERSION): Bump to 4.17.87.
+	Fix PR gdb/508.
+	* symfile.c (add_filename_language): Fix wrong xrealloc size argument.
 
-	Attempt to sort out SCO-related configs.
-	* configure.host (i[3456]86-*-sysv4.2*): Use instead of
-	i[3456]86-*-sysv4.2MP and i[3456]86-*-sysv4.2uw2*.
-	(i[3456]86-*-sysv5*): Recognize.
-	* configure.tgt (i[3456]86-*-sco3.2v5*, i[3456]86-*-sco3.2v4*):
- 	Recognize.
+2002-04-29  GDB Administrator  <gdbadmin@sourceware.cygnus.com>
 
-Wed Mar 24 01:01:27 1999  Andrew Cagney  <cagney@sludge.cygnus.com>
+	* version.in: Bump to version 5.2.0-0000-00-00-cvs.
 
-	* rs6000-tdep.c (rs6000_software_single_step): Change SIGNAL to
- 	unsigned int.
+2002-04-26  GDB Administrator  <gdbadmin@sourceware.cygnus.com>
 
-	From Rodney Brown <rodneybrown@pmsc.com>:
-	* target.h (enum thread_control_capabilities), breakpoint.h (enum
- 	bptype), breakpoint.c (enum insertion_state_t): Strict ISO-C
- 	doesn't allow trailing comma in enum definition.
-	
-1999-03-23  Jason Molenda  (jsm@bugshack.cygnus.com)
+	GDB 5.2 Released.
+	* version.in: Update to version 5.2.
 
-        * hppa-tdep.c (pa_register_look_aside): Remove CPU_HPPA_RISC_20
-        check, test for presence of struct save_state_t and the ss_wide 
-        member directly.
-        * configure.in:  Remove CPU_HPPA_RISC_20 test.  Add tests for
-        HAVE_STRUCT_SAVE_STATE_T and HAVE_STRUCT_MEMBER_SS_WIDE.
-        * acconfig.h: Add HAVE_STRUCT_SAVE_STATE_T HAVE_STRUCT_MEMBER_SS_WIDE.
-        * configure, config.in: Regenerated.
+2002-04-26  Michal Ludvig  <mludvig@suse.cz>
 
-Tue Mar 23 17:22:57 1999  Philippe De Muyter  <phdm@macqel.be>
+	* x86-64-tdep.c (x86_64_skip_prologue): Print note when debugging
+	code without frame pointers.
 
-	* remote.c, parse.c: Include ctype.h.
+2002-04-25  Andrew Cagney  <ac131313@redhat.com>
 
-Mon Mar 22 13:25:13 1999  Michael Snyder  <msnyder@cleaver.cygnus.com>
+	* README: Update to GDB 5.2.
 
-	* infttrace.c (proc_wait): rename to ptrace_wait.
+2002-04-19  Eli Zaretskii  <eliz@is.elta.co.il>
 
-1999-03-17  Jason Molenda  (jsm@bugshack.cygnus.com)
+	* config/djgpp/README: Update.
 
-	* configure.in (HAVE_MULTIPLE_PROC_FDS): Don't define for Solaris
-	hosts--gdb doesn't support this yet.
-	* configure: Regenerated.
+	* go32-nat.c (store_register): Cast &a_tss to `char *', to avoid
+	compiler warning.
 
-Tue Mar 16 01:11:33 1999  Andrew Cagney  <cagney@rhino.cygnus.com>
+2002-04-18  GDB Administrator  <gdbadmin@sourceware.cygnus.com>
 
-	* target.h (struct target_ops), target.c (debug_to_query),
- 	remote.c (pack_hex_byte, remote_query): Promote char parameters to
- 	int.  Stops compile problems with pedantic ISO-C compilers.
-
-Tue Mar 16 15:29:04 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* jv-lang.c, jv-lang.h (java_primitive_type): Declare argument
-	as int instead of char.
-
-1999-03-15  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Merged changes for binary downloads from Michael Snyder:
-	
-	Fri Mar 12 13:11:48 1999  Michael Snyder  <msnyder@cleaver.cygnus.com>
-
-        * remote.c (remote_write_bytes): fix 'X' packet protocol so that it
-        can't overwrite the end of its buffer with escaped characters.
-
-1999-03-12  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Merged changes for HP/UX 9 from Jason Molenda:
-
-	1999-03-08  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* infttrace.c (hppa_get_process_events): Removed. Function only 
-	usable on HPUX 10 and above.  It is not called by any other part
-	of GDB.
-	* hppah-nat.c (hppa_get_process_events): Ditto.
-	(child_pid_to_exec_file): Only call ptrace with PT_GET_PROCESS_PATHNAME
-	if that symbol has been defined.
-	* config/pa/nm-hppah.h: Don't set up prototypes et al for 
-	hppa_get_process_events.
-
-	* config/pa/hppahpux.mh (TERM_LIB): Do not initialize, let autoconf
-	determine best library automatically.
-	* config/pa/hpux1020.mh: Ditto.
-	* config/pa/hpux1100.mh: Ditto.
-	* configure.in (TERM_LIB): Also check for libHcurses.
-	* configure: Regenerated.
-
-	Merged changes to accomodate the Hurd:
-	
-        Thu Mar 11 18:05:11 1999  Michael Snyder  <msnyder@cleaver.cygnus.com>
-
-	* infptrace.c (proc_wait): Rename to ptrace_wait.
-	* inftarg.c (child_wait): call ptrace_wait instead of proc_wait.
-	* inferior.h: Declare ptrace_wait instead of proc_wait.
-
-1999-03-11  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	* Makefile.in (VERSION): click to 4.17.86, for next snapshot.
-
-1999-03-09  Rodney Brown  <RodneyBrown@pmsc.com>
-
-	Get working on UnixWare 2.1.1.
-	* acconfig.h: Update for defines for procfs.c.
-	* configure.in: Identify defines for procfs.c.
-	* configure.host: i386-*-sysv4.2uw2* => i386v42mp
-	* configure.tgt:  i386-*-sysv4.2uw2* => i386v42mp
-	* configure, config.in: Regenerate.
-	* procfs.c: Rename HAVE_NO_PRRUN_T to HAVE_PRRUN_T (autoconf
- 	standard), wrap UNIXWARE difference in THE_PR_LWP macro for
- 	legibility.
-	* config/i386/tm-i386v42mp.h: Remove HAVE_PSTATUS_T,
- 	HAVE_NO_PRRUN_T; now set by configure.
-
-1999-03-04  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Merged changes from Jason Molenda:
-	
-	1999-02-24  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-        * configure.in: Set CPU_HPPA_RISC_20 if the host CPU is a PA 2.0 
-        processor.
-        * acconfig.h: Add CPU_HPPA_RISC_20
-        * config.in, configure: Regenerated.
-        * hppa-tdep.c (pa_register_look_aside): Only refer to new 
-        structure elements if we are on a PA2.0 system.
-        * defs.h: Include limits.h.
-
-	Merged changes from Stu Grossman:
-	
-	Wed Feb 17 10:10:27 1999  Stu Grossman  <grossman@babylon-5.cygnus.com>
-
-	* gdbtypes.h (get_discrete_bounds):  Remove duplicate decl.
-
-	* jv-typeprint.c (java_type_print_base):  Change fputs => fputs_filtered.
-	
-	Mon Jan 25 18:30:57 1999  Per Bothner  <bothner@cygnus.com>
-
-	* jv-lang.h (JAVA_OBJECT_SIZE):  Change from hard-wired constant.
-	(java_primitive_type_from_name, get_java_object_header_size):  Declare.
-	* jv-lang.c (java_class_from_object):  Use get_java_object_type.
-	* jv-lang.c:  Update Class field names:  dtable->vtable,
-	msize->method_count, nfields->field_count, bfsize->size_in_bytes,
-	nmethods->method_count.
-	(type_from_class):  Demangle array type names.
-	(java_link_class_type):  Array type names are now demangled.
-	(get_java_object_type):  If not defined yet, try looking it up.
-	(get_java_object_header_size):  New function.
-	(java_primitive_type_from_name):  New function.
-	(java_demangled_signature_length, java_demangled_signature_copy): New.
-	(java_demangle_type_signature):  Re-implement using above functions.
-	(evaluate_subexp_java):  For UNOP_IND, call evaluate_subexp_java
-	to evaluate subexp (not evaluate_subexp_standard).
-	For BINOP_SUBSCRIPT update for new array type naming scheme.
-	* jv-valprint.c (java_value_print):  Use java_class_from_object.
-	Update array printing to new array type naming convention.
-	(java_val_print):  Doing check_typedef when printing a pointer is
-	is a waste of effort.  Also, handle TYPE_CODE_INT, to make sure
-	Java bytes as not printed as C chars.
-
-	Fri Jan  8 16:58:22 1999  Stu Grossman  <grossman@babylon-5.cygnus.com>
-
-	* blockframe.c (find_pc_sect_partial_function):  Search full symtabs as
-	a last ditch effort (after the partial & minimal symtabs).
-	* defs.h utils.c:  Fixup prototypes for vprintf_filtered,
-	vfprintf_filtered, vfprintf_unfiltered and vprintf_unfiltered to return
- 	ints to match their standard equivalents.
-	* defs.h symtab.c top.c:  Create skip_prologue_hook to allow Java to
-	control the prologue skipping process.
-	* jv-typeprint.c (java_type_print_base):  Remove extern for
-	jv_class_demangle, add new arg for objfile (NULL).
-	* symtab.h:  Remove struct sourcevector and struct source.  Definately
-	not needed.
-	* values.c (value_virtual_fn_field):  Fixes code to handle new vtable
-	debug info format.  Patch from marka.
-	
-	Wed Dec 16 23:11:25 1998  Stu Grossman  <grossman@fencer.cygnus.com>
-
-	* jv-lang.c (java_class_from_object java_class_is_primitive
-	is_object_type):  Change dtable to vtable.
-	* (java_primitive_type):  Change arg to type char.
-	* (_initialize_java_language):  Make java_char_type be unsigned.
-	* jv-lang.h:  Fixup prototypes.
-	
-	Mon Dec  7 19:02:15 1998  Stu Grossman  <grossman@babylon-5.cygnus.com>
-
-	* jv-valprint.c (java_value_print):  Fix printing of values where
-	run time type != compile time type.
-
-	Fri Dec  4 15:23:38 1998  Stu Grossman  <grossman@fencer.cygnus.com>
-  
-	* Makefile.in:  Whack out m2-typeprint.c.
-	* c-typeprint.c (c_type_print_varspec_suffix) typeprint.h:  Make this
-	global.  It's needed by Java.
-	* (c_type_print_base):  Whack prefix off of qualified method names
-	(names with name spaces).
-	* gdbtypes.h (struct cplus_struct_type):  Add bits for Java attributes.
-  	Shrink voffset
-	to 16 bits to compensate for added bits above (hopefully this is still
- 	enough).
-	* Add new accessor macros (TYPE_FND_FIELD_PUBLIC, ...) for all new
-	attribute bits.
-	* jv-typeprint.c (java_type_print_base):  Fix printing of method
-	attributes.  Handle JVM style manglings.
-	* (java_print_type):  Enable code type print varspec_suffix to allow
-	array indices to print out.
-	* jv-valprint.c (java_val_print):  Minor formatting.
-	* m2-lang.c (m2_language_d):  Change m2_print_type to c_print_type.
-	* stabsread.c (read_member_functions):  Save public and static attributes.
-
-1999-03-02  Stan Shebs  <shebs@andros.cygnus.com>
-
-	From Gary Thomas  <gthomas@cygnus.co.uk>:
-	* arm-tdep.c (ARM_LE_BREAKPOINT, ARM_BE_BREAKPOINT,
-	THUMB_LE_BREAKPOINT, THUMB_BE_BREAKPOINT): Use illegal instruction
-	instead of SWI 24.
-	* config/arm/tm-arm.h (CALL_DUMMY): Ditto.
-	(IN_SIGTRAMP): Define.
-
-1999-03-01  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	* configure.in (TERM_LIB): Move the code which sets this to a
-	better place.
-
-1999-02-25  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* breakpoint.c (SOLIB_LOADED_LIBRARY_PATHNAME,
- 	SOLIB_UNLOADED_LIBRARY_PATHNAME, SOLIB_CREATE_CATCH_LOAD_HOOK,
- 	SOLIB_CREATE_CATCH_UNLOAD_HOOK): Supply default definitions.
-	* infrun.c (SOLIB_IN_DYNAMIC_LINKER): Ditto.
-
-1999-02-23  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Patch from Jason Molenda  (jsm@bugshack.cygnus.com)
-        * configure.in (TERM_LIB): Move checking for TERM_LIB, substituting.
-        * configure, aclocal.m4, config.in: Regenerated.
-
-1999-02-22  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	* Makefile.in (VERSION): Bump to 4.17.85, for the release process.
-
-	Patch from Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
-	* breakpoint.c (watch_command_1): Reformat comment.
-
-	Patch from Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
-	* c-typeprint.c (c_type_print_base): Reformat comments.
-
-	Patch from Edith Epstein  <eepstein@sophia.cygnus.com>:
-        * config/pa/nm-hppah.h: Added prototype declarations for
-        hppa_enable_page_protection_events and 
-        hppa_disable_page_protection_events.
-
-	Patch from Edith Epstein  <eepstein@sophia.cygnus.com>:
-        * infttrace.c (hppa_insert_hw_watchpoint): Make sure that
-        function always returns a value.
-        (hppa_remove_hw_watchpoint): Make sure that function always
-        returns a value.
-
-	Patch from Edith Epstein  <eepstein@sophia.cygnus.com>:
-        * inftarg.c (child_wait): Fixed code that checks whether
-        or not the target program has done a fork/vfork. 
-        related_pid  does not have a value unless the target 
-        program has forked/vforked.
-	
-1999-02-22  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	* tm-h8500.h, i386lynx-nat.c: Removed.  These files are long
-	dead; it seems that they only appeared due to some CVS weirdness.
-	If they appear again, we may need to distribute garlic and holy
-	water.
-
-1999-02-16  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	* Makefile.in (VERSION): Bump to 4.17.2.
-
-Sun Feb 14 18:21:08 1999  Mark Alexander  <marka@cygnus.com>
-
-	* config/sh/tm-sh.h (BELIEVE_PCC_PROMOTION): Define, so that
-	coffread.c will correctly handle char or short function parameters.
-
-1999-02-11  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* configure, aclocal.m4: Regenerate with correct version of aclocal.
-
-1999-02-10  Syd Polk  <spolk@cygnus.com>
-
-	* acinclude.m4: Fix for new location of itclConfig.sh and itkConfig.sh.
-	* aclocal.m4: Regnerate.
-	* configure: Regenerate.
-
-1999-02-10  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-        * demangle.c: Fix comments to mention "set demangle-style"
-        instead of "set demangle".
-        Run through indent to fix minor indenting problems.
-
-Wed Feb 10 17:53:09 1999  Bob Manson  <manson@charmed.cygnus.com>
-
-	* i386-tdep.c (gdb_print_insn_i386): Add missing returns.
-
-Wed Feb 10 13:17:21 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	Declare Gould configuration obsolete:
-	* configure.host, configure.tgt: Comment out Gould configs.
-	* Makefile.in: Comment out Gould-related actions.
-	* gould-xdep.c, gould-tdep.c, config/gould/*: Comment out.
-	* NEWS: Mention obsolete status.
-
-1999-02-09  DJ Delorie  <dj@cygnus.com>
-
-	* sparcl-tdep.c: UDP download works in cygwin
-
-1999-02-08  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* gnu-regex.c: Check ENABLE_NLS instead of HAVE_LIBINTL_H.
-	* configure.in: Don't check for libintl.h.
-	* configure, config.in: Regenerated.
-
-Mon Feb  8 18:10:50 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* NEWS: Mention new X packet and PowerPC variant support.
-
-1999-02-08  Nick Clifton  <nickc@cygnus.com>
-
-	* configure.host: Add support for StrongARM host.
-	* configure.tgt: Add support for StrongARM target.
-
-Mon Feb  8 12:05:05 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* dsrec.c (make_srec): Cast targ_addr to int in call to sprintf
- 	otherwise on big endian machine with a bfd_vma of 64 bits,
- 	*everything* gets loaded at location 0.
-
-Mon Feb  7 10:05:43 1999  Frank Ch. Eigler  <fche@cygnus.com>
-
-       * infrun.c (wait_for_inferior): Allow SIGTRAP to be "pass"ed
-       to target program.
-
-Fri Feb  5 16:46:14 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* NEWS: Add mentions of various new things.
-
-Thu Feb  4 00:19:14 1999  Christopher Faylor <cgf@cygnus.com>
-
-	* configure.in: Move termcap determination later in the
-	file to catch setting of cygwin flag.
-	* configure: Regenerate.
-
-Wed Feb  3 14:16:38 1999  Christopher Faylor <cgf@cygnus.com>
-
-	* config/i386/cygwin.mh: Move TERMCAP test code to configure.in.
-	* configure.in: Treat libtermcap.a detection as a special case
-	when hosting on cygwin.
-	* configure: Regenerate.
-
-1999-02-03  Keith Seitz  <keiths@cygnus.com>
+	* version.in: Bump to version 5.1.91.
+
+2002-04-15  Andrew Cagney  <ac131313@redhat.com>
+
+	* PROBLEMS: Mention hppa2.0-hp-hpux10.20 compile problems.
+
+2002-04-15  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	Merge from trunk:
+
+	2002-04-09  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* p-exp.y (yylex): Handle also the fact that is_a_field_of_this
+	is non zero as a found symbol.
+
+2002-04-15  Andrew Cagney  <ac131313@redhat.com>
  
-        * remote.c (remote_binary_download, remote_binary_length): New
-        static globals for dealing with binary transmissions.
-        (remote_write_bytes): Add support for binary downloads
-        by shadowing the "M" packet with a new "X" packet. This
-        defaults to ON; if the stub does not understand this, it
-        will fall back to using "M".
-        (putpkt): Add support for binary downloading.
-        * monitor.c (monitor_expect): The mon2000 monitor
-        on the MSA2000 will also emit random DC1/DC3 chars.
-        * m32r-stub.c: Change all char's to unsigned char's
-        to support binary downloading.
-        (handle_exception): Add support for binary downloading
-        via a new "X" packet.
-        (getpacket): Do NOT strip eighth bit of incoming chars.
-        Watch out for escaped characters in the incoming stream.
-        (putpacket): Do NOT strip eighth bit of incoming chars.
-        (bin2mem): New function to write binary data directly to
-        memory.
-        * m32r-rom.c: Add new "mon2000" target.
+	* bcache.c: Include <stddef.h> and <stdlib.h> after "defs.h".
+	Update copyright.
 
-Tue Feb  2 18:40:29 1999  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+	* hpread.c (hpread_getlntt): Add declaration.
+	Also fix PR gdb/391.
 
-	* hp-psymtab-read.c (hpread_build_psymtabs): Coerce first arg
-	passed to make_cleanup to the correct type.
-	(hpread_quick_traverse): Change fifth arg to call to 
-	hpread_end_psymtab to be 0. 
-	Compare CURR_MODULE_END to 0 rather than NULL.
-	Get rid of ifdef'ed out code.
-	(scan_procs): Get rid of ifdef'ed out code.
+2002-04-14  Andrew Cagney  <ac131313@redhat.com>
 
-	* somread.c (som_symfile_read): Coerce first argument passed to
-	make_cleanup to the correct type.
+	* acinclude.m4 (AM_PROG_CC_STDC): Import from automake 1.6.
+	* aclocal.m4, configure: Re-generate.
+	Fix PR gdb/391.
+	
+2002-04-14  Elena Zannoni  <ezannoni@redhat.com>
 
-Tue Feb  2 17:36:29 1999  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+	* MAINTAINERS (sh-elf): Change warning flag to ,-Werror.
 
-	* hp-psymtab-read.c (do_pxdb): New function. Check whether the
-	file needs to be processed by pxdb (an HP debug info massaging
-	tool), if so call it.
-	(hpread_build_psymtabs): Initialize scan_start to 0 and
-	simplify flow of control.
+2002-04-14  Elena Zannoni  <ezannoni@redhat.com>
 
-	* somread.c (som_symfile_read): Add call to do_pxdb (), 
-	in hp-psymtab-read.c.
+        * remote-e7000.c (write_small, e7000_read_inferior_memory,
+        e7000_read_inferior_memory_large, e7000_insert_breakpoint,
+        e7000_remove_breakpoint): Use paddr_nz() to print addresses.
 
-	* symfile.c (symbol_file_add): Remove ifdef'ed out HPUX specific
+2002-04-10  Michal Ludvig  <mludvig@suse.cz>
+
+	* x86-64-linux-nat.c (child_resume, child_xfer_memory): Delete.
+	(PTRACE_XFER_TYPE): Moved to config/i386/nm-x86-64.h.
+	(kernel_u_size): Added.
+	* config/i386/nm-x86-64.h (CHILD_XFER_MEMORY, CHILD_RESUME): Delete.
+	(PTRACE_XFER_TYPE): Moved here from config/i386/nm-x86-64.h.
+
+2002-04-08  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	from 2002-03-22  Christopher Faylor  <cgf@redhat.com> patch 
+	in main branch.
+	* win32-nat.c (child_create_inferior): Check for proper shell to use 
+	here, in case the user changes it on the fly.
+	(_initialize_inftarg): Remove shell path considerations.
+
+
+2002-04-07  Andrew Cagney  <ac131313@redhat.com>
+
+	I believe Jeff Law denies responsability for this one:
+	* config/pa/hpux11w.mh (MH_CFLAGS): Add -Dvfork=fork.
+	* config/pa/hpux11.mh (MH_CFLAGS): Add -Dvfork=fork.
+	* config/pa/hpux1020.mh (MH_CFLAGS): Add -Dvfork=fork.
+	Work-around for PR gdb/366.
+
+2002-04-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS (Misc): List Daniel Jacobowitz as the GDBSERVER
+	maintainer.
+
+2002-04-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* README (Reporting Bugs in GDB): Document the bug web page as the
+	prefered way of submitting bugs.
+	Fix PR gdb/402.
+
+2002-04-07  Andreas Schwab  <schwab@suse.de>
+
+	* m68klinux-nat.c (fill_fpregset): Properly pass address of
+	buffer to regcache_collect.
+
+2002-04-04  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from trunk:
+
+	2002-03-17  Daniel Jacobowitz  <drow@mvista.com>
+
+        * dbxread.c (process_one_symbol): Extend the first N_SLINE
+        in a function to cover the entire beginning of the function
+        as well if it does not already.
+
+2002-04-04  Michal Ludvig  <mludvig@suse.cz>
+
+	* x86-64-linux-nat.c (child_xfer_memory): x86-64 ptrace() ABI 
+	change sync with glibc.
+
+2002-04-01  Daniel Jacobowitz  <drow@mvista.com>
+
+	* rs6000-tdep.c: Change #include of "bfd/libcoff.h"
+	and "bfd/libbfd.h" to "libcoff.h" and "libbfd.h".
+
+2002-03-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from trunk:
+
+	2002-03-27  Daniel Jacobowitz  <drow@mvista.com>
+
+        * gdbserver/server.c (main): Call target_signal_to_host_p
+        and target_signal_to_host on signals received from the remote.
+        * gdbserver/remote-utils.c (prepare_resume_reply): Call
+        target_signal_from_host on signals sent to the remote.
+        * gdbserver/server.h: Add prototypes.  Include "gdb/signals.h".
+        * gdbserver/Makefile.in: Add signals.o.  Add -I${INCLUDE_DIR}.
+
+
+ 	2002-03-20  Martin M. Hunt  <hunt@redhat.com>
+
+        * gdbserver/remote-utils.c (remote_open): Don't call
+        getprotobyname, we're all using TCP here so just use
+        IPPROTO_TCP.
+        * gdbserver/gdbreplay.c (remote_open): Ditto.
+
+
+	2002-03-13  Michal Ludvig  <mludvig@suse.cz>
+
+        * gdbserver/remote-util.c (remote_open): Print remote-side's
+        IP address when remote debugging over the network.
+
+2002-03-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from trunk:
+	2002-03-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* signals/signals.c: Include "server.h" in gdbserver build.
+	(target_signal_from_name): Don't use STREQ.
+	(_initialize_signals): Likewise.  Don't include function in
+	gdbserver build.
+
+2002-03-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from trunk:
+	* signals/signals.c: New file, copied from signals.c.
+
+2002-03-27  Andrew Cagney  <ac131313@redhat.com>
+
+	From veksler at il.ibm.com:
+	* utils.c (gdb_realpath): If canonicalize_file_name fails, return
+	the xstrduped original path.
+	Fix PR gdb/417.
+
+	From 2002-03-14 Richard Henderson <rth@redhat.com>
+	* configure.in: Detect declaration for canonicalize_file_name.
+	* utils.c (canonicalize_file_name): Declare, if needed.
+	(gdb_realpath): Prefer realpath if available and usable.
+	* config.in, configure: Rebuild.
+
+2002-03-27  Michal Ludvig  <mludvig@suse.cz>
+
+	* x86-64-tdep.c (x86_64_skip_prologue): Rewritten from scratch.
+	* x86-64-tdep.h (X86_64_NUM_REGS, X86_64_NUM_GREGS): Delete #defines.
+	(x86_64_num_regs, x86_64_num_gregs): Added extern variables.
+	* x86-64-linux-nat.c (x86_64_regmap): Swapped RBX <> RDX, added DS, ES, FS, GS.
+	(x86_64_linux_dr_get_status, supply_gregset),
+	(fill_gregset): Changed X86_64_NUM_GREGS to x86_64_num_gregs.
+	* x86-64-tdep.c (x86_64_register_raw_size_table): Delete.
+	(x86_64_register_info_table): Add.
+	(X86_64_NUM_REGS, X86_64_NUM_GREGS): Add.
+	(x86_64_register_raw_size, x86_64_register_virtual_type),
+	(x86_64_register_name, _initialize_x86_64_tdep): Changed to reflect new
+	general x86_64_register_info_table.
+	(i386_gdbarch_init): gdbarch_register_bytes is now set
+	dynamicaly during initialization.
+	* regformats/reg-x86-64.dat: Synced with changes to registers above.
+	* gdbserver/linux-x86-64-low.c: Ditto.
+	
+2002-03-27  Andreas Jaeger  <aj@suse.de>
+
+	* dwarf2cfi.c: Give credit to Daniel Berlin, reformat copyright
+	comment.
+
+2002-03-25  Alexandre Oliva  <aoliva@redhat.com>
+
+	* coffread.c: Remove redundant static declarations.  Replace
+	occurrences of `PTR' with `void *'.
+	* elfread.c, mdebugread.c, minsyms.c, mipsread.c: Likewise.
+	* top.h (quit_cover): Likewise.
+	* defs.h (catch_errors): Likewise.
+
+2002-03-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS (sh-elf): Change warning flag to -w.
+
+2002-03-20  David O'Brien  <obrien@FreeBSD.org>
+
+	* sparc-nat.c:  Include sys/param.h where possible.
+
+2002-03-12  David O'Brien  <obrien@FreeBSD.org>
+
+	* config/sparc/fbsd.mh: Fix copyright.
+	* config/sparc/fbsd.mt: Likewise.
+
+2002-03-09  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Add Jim Ingham and Klee Dienes to ``write after
+	approval''.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/linux-low.c (PTRACE_XFER_TYPE): Change to long.
+	(num_regs, regmap): Move inside HAVE_LINUX_USRREGS.
+	(register_addr, REGISTER_RAW_SIZE): Likewise.
+	(usr_store_inferior_registers): Use PTRACE_XFER_TYPE.
+	* gdbserver/linux-x86-64-low.c: Remove extra #endif.
+
+2002-03-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (gdb_cv_bigtoc): Check for -bbigtoc on AIX.
+	* configure: Rebuilt.
+
+2002-03-06  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* m68hc11-tdep.c (_initialize_m68hc11_tdep): Don't set tm_print_insn.
+	(m68hc11_gdbarch_init): But use set_gdbarch_print_insn instead.
+
+2002-03-05  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS (Past Maintainers): Add Frank Ch. Eigler.
+
+2002-03-05  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Fix Mac OS X and Objective-C/C++.
+
+2002-03-05  Andrew Cagney  <ac131313@redhat.com>
+
+	* NEWS: Update headings, 5.2 has branched.
+
+2002-03-01  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.host (sparc64-*-freebsd): Add.
+	* configure.tgt: Likewise.
+	* config/sparc/fbsd.mh: New file.
+	* config/sparc/fbsd.mt: Likewise.
+	* config/sparc/nm-fbsd.h: Likewise.
+	* config/sparc/tm-fbsd.h: Likewise.
+
+2002-03-01  Daniel Jacobowitz  <drow@mvista.com>
+
+	* config/djgpp/fnchange.lst: Add regformats/reg-i386-linux.dat and
+	regformats/reg-s390x.dat.
+
+2002-03-01  Andrew Cagney  <ac131313@redhat.com>
+
+	* utils.c: Add FIXME explaining true/false problem.
+
+2002-02-28  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS (Past Maintainers): Add J.T. Conklin.
+
+2002-02-28  Michael Chastain  <mec@shout.net>
+
+	* MAINTAINERS: Fix typo: gdb.satbs -> gdb.stabs .
+
+2002-02-28  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/linux-s390-low.c: New file.
+	* regformats/reg-s390.dat: New file.
+	* regformats/reg-s390x.dat: New file.
+	* gdbserver/configure.srv: Add S/390.
+	* gdbserver/Makefile.in: Add S/390.
+	* configure.tgt: Enable gdbserver for S/390.
+
+2002-02-28  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* go32-nat.c (_initialize_go32_nat): Don't use periods in the
+	first line of the doc string for "info dos", except at the end of
+	the sentence, since the short help stops at the first period.
+
+2002-02-28  Jason Merrill  <jason@redhat.com>
+
+	* dwarf2read.c (dwarf_cfi_name): Add new codes.
+
+2002-02-27  Fred Fish  <fnf@redhat.com>
+
+	* blockframe.c (generic_fix_call_dummy): Fix obvious typo in
+	comment (dumy -> dummy).
+
+2002-02-27  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* symtab.c (gdb_mangle_name): Handle fully mangled v3 abi physnames.
+
+2002-02-27  Rodney Brown  <rbrown64@csc.com.au>
+
+      * utils.c (gdb_realpath): Add pathconf fallback for sco3.2v5.
+
+2002-02-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/acconfig.h: New file.
+	* gdbserver/i387-fp.c: New file.
+	* gdbserver/i387-fp.h: New file.
+	* gdbserver/linux-x86-64.c: New file.
+	* regformats/reg-x86-64.dat: New file.
+	* configure.tgt: Add x86_64-*-linux* gdbserver support.
+	* gdbserver/configure.srv: Add x86_64-*-linux* and regset support.
+	* gdbserver/configure.in: Add support for regsets.
+	* gdbserver/config.in: Regenerate.
+	* gdbserver/configure: Regenerate.
+	* gdbserver/Makefile.in: Likewise.  Add $(linux_low_h).
+	* gdbserver/linux-low.h: New file.
+	* gdbserver/linux-low.c: Include "linux-low.h".  Add support
+	for regsets.
+	* gdbserver/linux-arm-low.c: Include "linux-low.h".
+	* gdbserver/linux-ia64-low.c: Include "linux-low.h".
+	* gdbserver/linux-m68k-low.c: Include "linux-low.h".
+	* gdbserver/linux-mips-low.c: Include "linux-low.h".
+	* gdbserver/linux-ppc-low.c: Include "linux-low.h".
+	* gdbserver/linux-sh-low.c: Include "linux-low.h".
+	* gdbserver/linux-i386-low.c: Include "linux-low.h".  Include
+	"i387-fp.h".  Add PTRACE_GETREGS and friends.
+	* gdbserver/regcache.c (supply_register): New function.
+	(supply_register_by_name): New function.
+	(collect_register): New function.
+	(collect_register_by_name): New function.
+
+2002-02-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/Makefile.in (INTERNAL_CFLAGS): Remove -DGDBSERVER.
+	(config.status): Add configure.srv dependency.
+	(server_h): Add config.h dependency.
+
+2002-02-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* regformats/reg-i386-linux.dat: New file, with $orig_eax.
+	* gdbserver/Makefile.in: Add rules for reg-i386-linux.o.
+	* gdbserver/configure.srv: Change i386-*-linux* to use
+	reg-i386-linux.o.
+
+2002-02-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* x86-64-tdep.c: Re-indent.  Update copyright date.
+
+2002-02-26  Andrew Cagney  <ac131313@redhat.com>
+
+	From Michal Ludvig <mludvig@suse.cz>:
+	* x86-64-tdep.c (value.h): Delete.
+	(gdb_assert.h): Include.
+	(x86_64_register_convert_to_virtual,
+	x86_64_register_convert_to_raw ): Add check which lets only
+	floating-point values to be converted.
+	(value_push): Delete.
+	(x86_64_push_arguments): Order of arguments pushed on stack fixed.
+	(i386_gdbarch_init): Number of register_bytes fixed.
+
+2002-02-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Add x86-64 target.
+
+2002-02-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* memattr.c (mem_command): Eliminate ``true'' and ``false''.
+	* osfsolib.c (solib_map_sections): Ditto.
+	* irix5-nat.c (solib_map_sections): Ditto.
+	* corelow.c (gdb_check_format): Ditto.
+	* symfile.c (symfile_bfd_open): Ditto.
+	* solib.c (solib_map_sections): Ditto.
+	Fix PR gdb/354.
+
+2002-02-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* remote.c (_initialize_remote): By default, disable ``e'' and
+	``E'' step out-of-range packets.
+
+2002-02-26  Andreas Schwab  <schwab@suse.de>
+
+	* config/m68k/tm-linux.h (FRAME_SAVED_PC): Define as
+	m68k_linux_frame_saved_pc.
+	(IN_SIGTRAMP): Define as m68k_linux_in_sigtramp instead of
+	in_sigtramp.
+	(SIGCONTEXT_PC_OFFSET): Remove.
+	* m68klinux-nat.c (m68k_linux_frame_saved_pc,
+	m68k_linux_sigtramp_saved_pc): New functions.
+	(IS_SIGTRAMP, IS_RT_SIGTRAMP): Define.
+	(SIGCONTEXT_PC_OFFSET): Moved here from config/m68k/tm-linux.h.
+	(UCONTEXT_PC_OFFSET): Define.
+	(m68k_linux_in_sigtramp): Renamed from in_sigtramp, handle both
+	non-RT and RT signal trampolines.
+
+2002-02-26  Richard Earnshaw  <rearnsha@arm.com>
+
+	* config/arm/tm-embed.h (TARGET_UPAGES): Delete.
+	(TARGET_NBPG, STACK_END_ADDR): Delete
+	(VARIABLES_INSIDE_BLOCK): Delete.
+
+2002-02-25  Andrew Cagney  <ac131313@redhat.com>
+
+	* utils.c (perror_with_name): Make string parameter constant.
+	(print_sys_errmsg): Ditto.
+	(query): Ditto.
+	* defs.h (perror_with_name): Update.
+	(print_sys_errmsg): Update.
+	(query): Update.
+
+2002-02-25  Daniel Jacobowitz  <drow@mvista.com>
+
+	From Eliot Dresselhaus <eliot@ayrnetworks.com>:
+	* gdbserver/linux-mips-low.c (cannot_fetch_register): Fix typo.
+
+2002-02-25  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* rs6000-nat.c (set_host_arch): Do not switch to a new architecture
+	if it already matches the current architecture from the exec file.
+	Include arch-utils.h for gdbarch_info_init prototype.
+	* Makefile.in (rs6000-nat.o): Update dependencies.
+
+2002-02-25  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* config/djgpp/djconfig.sh: Set NM=nm and CFLAGS="-g -O2" in the
+	 list of exported variables.
+
+2002-02-24  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/configure.srv: New file.
+	* gdbserver/configure.in: Use configure.srv instead
+	of the host/target makefile fragments.  Set GDBSERVER_DEPFILES
+	from it.
+	* gdbserver/configure: Regenerated.
+	* gdbserver/terminal.h: New file.
+	* gdbserver/Makefile.in: Update for configure changes.  Remove
+	more unneeded include paths.
+
+2002-02-24  Andrew Cagney  <ac131313@redhat.com>
+
+	From wiz at danbala:
+	* config/sparc/tm-sp64.h: Fix grammar and typos.
+	Fix PR gdb/287.
+
+2002-02-24  Andrew Cagney  <ac131313@redhat.com>
+
+	* lin-lwp.c, thread-db.c, defs.h, cris-tdep.c: Replace ``Linux''
+	with either ``GNU/Linux'' or ``Linux kernel''.  Update copyright.
+	* m68klinux-nat.c, sparc-linux-nat.c, x86-64-linux-nat.c: Ditto.
+	* x86-64-linux-tdep.c, gregset.h, gdb_wait.h: Ditto.
+	* ia64-linux-nat.c, infrun.c, linux-proc.c: Ditto.
+	* proc-service.c, i386-linux-tdep.c, ppc-linux-tdep.c: Ditto.
+	* s390-tdep.c: Ditto.
+	* config/nm-linux.h, config/alpha/nm-linux.h: Ditto.
+	* config/alpha/tm-alpha.h, config/alpha/tm-alphalinux.h:
+	* config/alpha/xm-alphalinux.h, config/i386/nm-linux.h: Ditto.
+	* config/i386/nm-x86-64.h, config/i386/tm-linux.h: Ditto.
+	* config/m68k/tm-linux.h, config/mips/nm-linux.h: Ditto.
+	* config/mips/tm-linux.h, config/mips/xm-linux.h: Ditto.
+	* config/powerpc/tm-linux.h, config/s390/nm-linux.h: Ditto.
+	* config/s390/tm-linux.h, config/sh/tm-linux.h: Ditto.
+	* config/sparc/nm-linux.h, config/sparc/tm-linux.h: Ditto.
+	* config/sparc/tm-sp64linux.h, config/sparc/xm-linux.h: Ditto.
+	Fix PR gdb/378.
+
+2002-02-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* lin-thread.c: Delete file.
+	* configure.in (gdb_cv_struct_reg_r_gs): Update comment to refer
+	to gdb_proc_service.h.
+	* configure: Re-generate.
+
+	* ocd.c (ocd_open): Do not try to open the "ocd" device.
+	* serial.c (serial_open): Delete check for "ocd".
+	Fix PR gdb/349.
+
+	* Makefile.in (linux-thread.o): Delete target.
+	* linux-thread.c: Delete file.
+
+	* config/djgpp/fnchange.lst: Rename bfd/elf32-sh64.c.  Tweak other
+	renamed SH files to be consistent.
+
+	* symtab.c (sort_search_symbols): Use xfree.
+
+2002-02-23  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-linux-tdep.c (arm_linux_init_abi): Register
+	IN_SOLIB_CALL_TRAMPOLINE and SKIP_TRAMPOLINE_CODE
+	* config/arm/tm-linux.h (IN_SOLIB_CALL_TRAMPOLINE): Replace old
+	definition with undef, since we don't want the sysvr4 definition.
+	(SKIP_TRAMPOLINE_CODE): Likewise.
+
+2002-02-23  Andrew Cagney  <ac131313@redhat.com>
+
+	From 2002-02-22 Alfred M. Szmidt <ams@kemisten.nu>:
+
+	* configure.in: (AC_CHECK_FUNCS) Added test for
+	canonicalize_file_name Regenerated.
+        * config.in, configure: Regenerated.
+        * utils.c: (gdb_realpath) If HAVE_CANONICALIZE_FILE_NAME is
+	defined use canonicalize_file_name.
+
+2002-02-23  Michael Chastain  <mec@shout.net>
+
+	* MAINTAINERS: Remove Michael Chastain from "paper trail" list.
+
+2002-02-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* README: Remove references to cygnus.com.
+	* MAINTAINERS: Change Past Maintainer addresses to ``foo at bar
+	dot com'' form.  Remove references to cygnus.com and sourceware.
+
+2002-02-23  Andrew Cagney  <ac131313@redhat.com>
+
+	From 2002-02-19 Paul Eggert <eggert@twinsun.com>:
+	* Makefile.in (VER): Change "head -1" to "sed q", since POSIX
+	1003.1-2001 no longer allows "head -1".
+	* gdb/Makefile.in (version.c): Likewise.
+	* gdb/doc/Makefile.in (GDBvn.texi): Likewise.
+	* gdb/CONTRIBUTE: Change "diff -c3" to "diff -c", which is
+	equivalent.  POSIX 1003.1-2001 no longer allows "diff -c3".
+
+2002-02-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* cli/cli-decode.c (cmd_cfunc_eq): New function.
+	* command.h (cmd_cfunc_eq): Declare.
+	* cli/cli-decode.h (cmd_cfunc_eq): Ditto.
+
+	* cli/cli-cmds.h (is_complete_command): Change parameter to a
+	``struct cmd_list_element *''.
+	* cli/cli-cmds.c (is_complete_command): Update.  Use
+	cmd_cfunc_eq.
+	* top.c (execute_command): Pass the command to
+	is_complete_command.
+	* tracepoint.c: Replace function.cfunc with cmd_cfunc_eq.
+
+2002-02-23  Andrew Cagney  <ac131313@redhat.com>
+
+	From 2002-02-20 Martin Schwidefsky <schwidefsky@de.ibm.com>:
+	* config/s390/tm-s390.h (GDB_TARGET_IS_ESAME): Use renamed
+	architecture defines.
+	* s390-tdep.c (s390_gdbarch_init): Likewise.
+
+2002-02-23  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-linux-tdep.c (arm_linux_extract_return_value): Make static.
+	(arm_linux_push_arguments): Likewise.
+	(arm_linux_init_abi): Register them.  Also register linux-specific
+	call_dummy_words.
+	(find_minsym_and_objfile): Use strcmp, not STREQ.
+	* config/arm/tm-linux.h (CALL_DUMMY_WORDS): Delete.
+	(arm_linux_call_dummy_words): Delete declaration.
+	(EXTRACT_RETURN_VALUE, PUSH_ARGUMENTS): Delete.
+	(arm_linux_extract_return_value, arm_linux_push_arguments): Delete
+	declarations.
+	(LOWEST_PC): Delete.
+
+2002-02-23  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* maint.c (print_section_info): Do not prepend `0x' to filepos
+	output, it will be handled by local_hex_string_custom.
+
+2002-02-23  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-linux-nat.c (store_newfpe_single): Use regcache_collect.
+	(store_newfpe_double, store_newfpe_extended, store_fpregister)
+	(store_register, store_regs, fill_gregset, fill_fpregset): Likewise.
+
+2002-02-22  Jim Blandy  <jimb@redhat.com>
+
+	Indicate that the bcache functions don't change the strings
+	they're passed.
+	* bcache.h (bcache, hash): Add `const' keywords to declarations.
+	* bcache.c (bcache, hash): Add `const' keywords to definitions.
+
+2002-02-22  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* win32-nat.c (child_create_inferior): Fix create flags setting bug.
+
+2002-02-21  Christopher Faylor  <cgf@redhat.com>
+
+	* win32-nat.c (register_loaded_dll): Just use raw name when we can't
+	find the complete path to a loaded DLL.
+
+2002-02-21  Fred Fish  <fnf@redhat.com>
+
+	* dbxread.c (process_one_symbol): When finding an N_FUN symbol
+	that marks the end of the range of a function, enter a line number
+	entry that has a line number of zero and a PC offset that matches
+	the end of the function.  This starts a range of PC's for which no
+	line number information is known.
+	* symtab.c (find_pc_sect_line): If our best fit is in a range of
+	PC's for which no line number info is found (line number is zero)
+	then we didn't find any valid line information.
+	* symtab.h: Document use of zero line number entry.
+
+2002-02-21  Elena Zannoni  <ezannoni@redhat.com>
+
+	* ppc-linux-nat.c (PTRACE_GETVRREGS, PTRACE_SETVRREGS): Define.
+	(have_ptrace_getvrregs): Define for run time checks.
+	(gdb_vrregset_t): New type for Altivec register handling.
+	(fetch_register, store_register): Fetch/store altivec register
+	when needed.
+	(fetch_altivec_register, store_altivec_register): New functions.
+	(supply_vrregset, fill_vrregset): New functions.
+	(fetch_altivec_registers, store_altivec_registers): New functions.
+	(fetch_ppc_registers, store_ppc_registers): Fetch/store altivec
+	registers as well.
+
+2002-02-21  Jiri Smid  <smid@suse.cz>
+
+	* config/i386/x86-64linux.mh (NATDEPFILES): Remove x86-64-nat.o.
+
+2002-02-21  Richard Earnshaw  <rearnsha@arm.com>
+
+	* Makefile.in (armnbsd-nat.o): Update dependencies.
+	* armnbsd-nat.c (supply_gregset): New function.  Common code to
+	supply the integer register set.
+	(supply_fparegset): New function.  Similar for FPA registers.
+	(fetch_regs, fetch_fp_regs): Use them.
+	(fetch_core_registers): Likewise.
+	(fetch_elfcore_registers): New function.
+	(arm_netbsd_elfcore_fns): New core-file type specification.
+	(_initialize_arm_netbsd_nat): Register it.
+
+2002-02-21  Richard Earnshaw  <rearnsha@arm.com>
+
+	* armnbsd-nat.c: Include gdbcore.h.
+	(FETCH_INFERIOR_REGISTERS): Just error if this isn't defined.
+	(fetch_regs, fetch_fp_regs, store_regs, store_fp_regs): Add explicit
+	'void' to declaration, to shut up ARI.
+	(fetch_core_registers): Make static.  Rewrite using supply_register.
+	(arm_netbsd_core_fns): New core-file type specification.
+	(_initialize_arm_netbsd_nat): New function.
+
+2002-02-21  Christopher Faylor  <cgf@redhat.com>
+
+	* win32-nat.c (register_loaded_dll): Correctly check for invalid handle
+	value.
+
+2002-02-20  Christopher Faylor  <cgf@redhat.com>
+
+	* win32-nat.c (register_loaded_dll): Handle case where FindFirstFile
+	fails.
+
+2002-02-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* jv-exp.y (parse_number): Change type of implicit longs
+	to builtin_type_uint64.
+
+2002-02-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/linux-low.c (mywait): Change argument to waitpid
+	to be an integer instead of a `union wait'.
+
+2002-02-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* mips-linux-nat.c: Call the operating system GNU/Linux.
+	* mips-linux-tdep.c: Likewise.
+	* mips-tdep.c: Likewise.
+
+2002-02-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	Fix PR gdb/265.
+	* jv-exp.y (parse_number): Handle 64-bit integers.
+
+2002-02-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/configure.in: Remove AM_PROC_CC_STDC.  Change
+	AC_STDC_HEADERS to AC_HEADER_STDC.
+	* gdbserver/configure: Regenerated.
+
+2002-02-20  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arc-tdep.c (get_longjmp_target): Only compile this function if JB_PC
+	is defined.
+	* sparc-tdep.c (get_longjmp_target): Likewise.
+
+2002-02-20  Richard Earnshaw  <rearnsha@arm.com>
+
+	* News: Add news about ARM and Multi-arch.  Mention the new target
+	arm*-*-netbsd*.
+
+2002-02-19  Jim Blandy  <jimb@redhat.com>
+
+	* stabsread.c (error_type_complaint): Improve error message.
+
+2002-02-19  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/README: Update documentation.
+	* gdbserver/configure.in: Update configury to match documentation.
+	* gdbserver/Makefile.in: Likewise.
+	* gdbserver/configure: Regenerated.
+	* gdbserver/aclocal.m4: New file, generated by aclocal.
+	* gdbserver/config.in: New file, generated by autoheader.
+
+2002-02-19  Richard Earnshaw  <rearnsha@arm.com>
+
+	* config/djgpp/fnchange.lst: Add change rules for armnbsd-tdep.c and
+	armnbsd-nat.c.
+
+2002-02-19  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.h (enum arm_float_model): New enum.
+	(struct gdbarch_tdep): Add fp_model.
+	* arm-tdep.c (arm_gdbarch_init): Set fp_model in tdep.  Defer setting
+	up floating-point conversions until we know the floating-point model
+	in use by the inferior.  Don't complain about being unable to
+	determine the ABI of the inferior when we don't have one.
+	(arm_extract_return_value): Support different floating-point models.
+	(arm_store_return_value): Likewise.
+	* armnbsd-tdep.c (arm_netbsd_aout_init_abi): Set fp_model in tdep to
+	ARM_FLOAT_SOFT.
+	(arm_netbsd_elf_init_abi): Set fp_model to ARM_FLOAT_SOFT_VFP.
+
+2002-02-19  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* i386-tdep.c (i386_gdbarch_init): Eliminate incorrect use
+        of ``current_gdbarch''.
+
+2002-02-19  Richard Earnshaw  <rearnsha@arm.com>
+
+	* armnbsd-nat.c : ANSIfy all function declarations.
+	(fetch_register, fetch_regs, fetch_fp_register, fetch_fp_regs): New.
+	(fetch_inferior_registers): Re-implement in terms of above.
+	(store_register, store_regs, store_fp_register, store_fp_regs): New.
+	(store_inferior_registers): Re-implement in terms of above.
+
+2002-02-19  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-linux-nat.c: Linux -> GNU/Linux when not talking about the
+	kernel.
+	* arm-linux-tdep.c: Likewise.
+	* config/arm/tm-linux.h: Likewise.
+
+2002-02-19  Richard Earnshaw  <rearnsha@arm.com>
+
+	* configure.tgt (arm*-*-netbsd*): This variant is now fully multi-arch.
+	* config/arm/nbsd.mt (TM_FILE): Delete.
+	* config/arm/tm-nbsd.h: Delete.
+
+2002-02-19  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_gdbarch_init): Initialize TARGET_CHAR_SIGNED.
+	Initialize CALL_DUMMY_LENGTH.
+
+2002-02-19  Richard Earnshaw  <rearnsha@arm.com>
+
+	* armnbsd-tdep.c (arm_netbsd_aout_in_solib_call_trampoline): New
+	function.
+	(arm_netbsd_aout_init_abi): Initialize IN_SOLIB_CALL_TRAMPOLINE.
+	* config/arm/tm-nbsd.h: Don't include config/tm-nbsd.h, it only
+	defines one thing and that is incorrect for this port.
+	(IN_SOLIB_CALL_TRAMPOLINE): Delete.
+
+2002-02-18  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* go32-nat.c: add i386-tdep.h include to import FP_REGNUM_P macro.
+
+2002-02-18  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* win32-nat.c (display_selector): New function. Displays information
+	about the information returned by GetThreadSelectorEntry API function.
+	(display_selectors): New function. Displays the infomation of
+	the selector given as argument, or of CS, DS ans FS selectors
+	if no argument is given.
+	( _initialize_inftarg): Add "w32" as info prefix command.
+	Add "info w32 selector" as command calling display_selectors.
+
+2002-02-19  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* i386-tdep.c (get_longjmp_target): Fix compilation failure
+	by setting dummy values to JB_PC and JB_ELEMENT_SIZE
+	if not defined.
+
+2002-02-18  Richard Earnshaw  <rearnsha@arm.com>
+
+	* config/arm/nbsd.mt (TDEPFILES): Add solib-sunos.o.
+
+2002-02-18  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_set_call_dummy_breakpoint_offset): New function.
+	(arm_fix_call_dummy): Call it.
+	(arm_call_dummy_breakpoint_offset): Delete.
+	(arm_gdbarch_init): Initialize call_dummy_breakpoint_offset.
+	* config/arm/tm-arm.h (CALL_DUMMY_BREAKPOINT_OFFSET): Delete.
+
+2002-02-18  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbarch.sh (FRAME_CHAIN_VALID): Only require at level 2.
+	Default to func_frame_chain_valid.
+	* gdbarch.h, gdbarch.c: Re-generate.
+	* frame.h (FRAME_CHAIN_VALID): Delete definition.
+
+2002-02-18  Elena Zannoni  <ezannoni@redhat.com>
+
+	* ppc-linux-nat.c: Update copyright.
+	(fetch_register, store_register): Add tid parameter, don't compute
+	tid here.
+	(fetch_ppc_registers, store_ppc_registers): Add tid
+	parameter. Pass it along to callees.
+	(fetch_inferior_registers, store_inferior_registers): Compute tid
+	here, and pass it to calleed functions.
+	(fill_gregset, supply_fpregset): Clean up formatting.
+
+2002-02-18  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_gdbarch_init): Initialize coerce_float_to_double.
+	* config/arm/tm-arm.h (COERCE_FLOAT_TO_DOUBLE): Delete.
+
+2002-02-18  Richard Earnshaw  <rearnsha@arm.com>
+
+	* gdbarch.sh (GET_LONGJMP_TARGET): Add rule.
+	* gdbarch.c gdbarch.h: Regenerate.
+	* breakpoint.c (create_longjmp_breakpoint): Always compile this
+	function.
+	(breakpoint_reset): Test GET_LONGJMP_TARGET_P().
+	* infrun.c (GET_LONGJMP_TARGET): Delete default definition.
+	(handle_inferior_event): Test GET_LONGJMP_TARGET_P().
+
+	* arm-tdep.h (struct gdbarch_tdep): Add jb_pc and jb_elt_size fields.
+	* arm-tdep.c (arm_get_longjmp_target): New function.
+	(arm_gdbarch_init): Initialize jb_pc to -1.  If ABI handler changes
+	this to a positive value register arm_get_longjmp_target as the
+	longjmp handler.
+	* arm-linux-tdep.c (arm_get_longjmp_target): Delete.
+	(arm_linux_init_abi): Set up longjmp description in tdep.
+	* armnbsd-nat.c (get_longjmp_target): Delete.
+	* armnbsd-tdep.c (arm_netbsd_init_abi_common): Set up longjmp
+	description in tdep.
+	* config/arm/tm-nbsd.h (JB_ELEMENT_SIZE, JB_PC): Delete.
+	(get_longjmp_target): Delete declaration.
+	(GET_LONGJMP_TARGET): Delete.
+	* config/arm/tm-linux.h (arm_get_longjmp_target): Delete declaration.
+	(GET_LONGJMP_TARGET): Delete.
+
+2002-02-17  Kevin Buettner  <kevinb@redhat.com>
+
+	From Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>:
+	* ia64-tdep.c (ia64_gdbarch_init): Eliminate incorrect use
+	of ``current_gdbarch''.
+
+2002-02-17  Tom Tromey  <tromey@redhat.com>
+
+	* cli/cli-cmds.c (compare_strings): New function.
+	(complete_command): Only print each unique item once.
+	* completer.h (complete_line): Declare.
+	* completer.c (complete_line): New function.
+	(line_completion_function): Use it.
+
+2002-02-16  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbarch.sh (TARGET_LONG_DOUBLE_BIT): Default to 64.
+	* gdbarch.h, gdbarch.c: Re-generate.
+
+2002-02-16  Daniel Jacobowitz  <drow@mvista.com>
+
+	* valarith.c (value_x_unop): Fix decrement; support post-decrement.
+
+2002-02-16  Daniel Jacobowitz  <drow@mvista.com>
+
+	From Peter Schauer <Peter.Schauer@Regent.E-Technik.TU-Muenchen.DE>:
+	* valops.c (value_arg_coerce): Don't take the address of a reference
+	to convert an argument to a reference.
+
+2002-02-15  Christopher Faylor  <cgf@redhat.com>
+
+	* win32-nat.c (get_image_name): New function.
+	(handle_load_dll): Use get_image_name function.
+	(get_child_debug_event): Avoid registering debug events until possibly
+	execed process is started.
+	(child_create_inferior): Allow invocation via shell so that command
+	line redirection, etc.  works ok.
+	(_initialize_inftarg): Add new command: "set shell" to control whether
+	a shell is used to start a process.
+
+2002-02-15  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/linux-mips-low.c (cannot_fetch_register): Use find_regno
+	instead of find_register_by_number.
+	(cannot_store_register): Likewise.
+
+2002-02-14  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* dwarf2read.c: Replace fprintf (stderr, ...) by
+	fprintf_unfiltered (gdb_stderr, ...).
+
+2002-02-15  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/gdbserver.1: Document --attach.
+
+2002-02-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.h (struct gdbarch_tdep): Add fields for breakpoint
+	descriptions.
+	* arm-tdep.c (arm_default_arm_le_breakpoint)
+	(arm_default_arm_be_breakpoint, arm_default_thumb_le_breakpoint)
+	(arm_default_thumb_be_breakpoint): New.  Initialize them from
+	traditional breakpoint defines.
+	(arm_breakpoint_from_pc): Use new gdbarch_tdep entries.
+	(arm_gdbarch_init): Initialize new breakpoint variables.
+	* arm-linux-tdep.c (arm_linux_arm_le_breakpoint): New.
+	(arm_linux_init_abi): Initialize linux-specific breakpoint.
+	* armnbsd-tdep.c (arm_nbsd_arm_le_breakpoint): New.
+	(arm_netbsd_aout_init_abi, arm_netbsd_elf_init_abi): Split common
+	code out to ...
+	(arm_netbsd_init_abi_common): ... here; new function.
+	* config/arm/tm-arm.h (ARM_LE_BREAKPOINT, ARM_BE_BREAKPOINT)
+	(THUMB_LE_BREAKPOINT, THUMB_BE_BREAKPOINT): Delete.
+	* config/arm/tm-linux.h (ARM_LE_BREAKPOINT): Delete.
+	* config/arm/tm-nbsd.h (ARM_LE_BREAKPOINT): Delete.
+
+2002-02-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.h (enum arm_abi): New enum.
+	(struct gdbarch_tdep): New structure.
+	(LOWEST_PC): Provide a default.
+	(arm_gdbarch_register_os_abi): Declare new function.
+	* arm-tdep.c (arm_abi_names): New array.
+	(process_note_abi_tag_sections): New function.
+	(get_elfosabi): New function.
+	(arm_gdbarch_register_os_abi): New function.
+	(arm_gdbarch_init): Try to determine the ABI of the inferior.  If
+	support for that ABI has been built in, then call the appropriate
+	configuration routine.  Use gdbarch_num_regs() to get the number
+	of registers.
+	(arm_dump_tdep): New function.
+	(arm_init_abi_eabi_v1, arm_init_abi_eabi_v2, arm_init_abi_apcs): New
+	place-holder functions.
+	(_initialize_arm_tdep): Register them.
+	* config/arm/tm-arm.h (LOWEST_PC): Delete.
+
+	* armnbsd-tdep.c: New file.
+	* Makefile.in (armnbsd-tdep.o): Add dependencies.
+	* config/arm/nbsd.mt (TDEPFILES): Add it.
+	* config/arm/tm-nbsd.h (LOWEST_PC): Delete.
+
+	* armnbsd-nat.c: Include regcache.h.
+	* Makefile.in (armnbsd-nat.o): Update dependency list.
+
+	* arm-tdep.c (arm_get_next_pc): Use printf_filtered for error message.
+
+2002-02-14  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/Makefile.in: Fix typos in target rules.
+
+2002-02-14  Daniel Jacobowitz  <drow@mvista.com>
+
+	Fix part of PR gdb/267.
+	* linespec.c (find_methods): Handle constructors specially for now.
+
+2002-02-14  Corinna Vinschen  <vinschen@redhat.com>
+
+	* arm-tdep.c (arm_push_arguments): Eliminate special float type
+	handling.
+	* config/arm/tm-arm.h (COERCE_FLOAT_TO_DOUBLE): Define to call
+	standard_coerce_float_to_double().
+
+2002-02-14  Christopher Faylor  <cgf@redhat.com>
+
+	* config/i386/xm-cygwin.h: Revert inadvertent reinclusion of
+	GDBINIT_FILENAME.
+
+2002-02-14  Elena Zannoni  <ezannoni@redhat.com>
+
+	* rs6000-tdep.c (rs6000_gdbarch_init): Don't call
+	find_variant_by_name, because it confuses the multiarch
+	framework. Return NULL if there isn't an architecture with the
+	user supplied name, instead of forcing a different one without
+	recording the change with the multiarch machinery.
+	(find_variant_by_name): Delete.
+
+2002-02-14  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* config/i386/i386sol2.mh (NATDEPFILES): Add i387-nat.o, needed by
+	i386v4-nat.o now. Add gcore.o, Solaris x86 supports gcore.
+
+2002-02-13  Martin M. Hunt  <hunt@redhat.com>
+
+	* stack.c (print_frame_info_base): When calling
+	print_frame_info_listing_hook, set current_source_symtab.
+
+2002-02-14  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/Makefile.in: Add regformats directory to INCLUDE_CFLAGS,
+	and remove unused $(INCLUDE_DIR).
+	Add regcache.c to OBS.
+	Add generated register protocol files to clean target.
+	Update dependencies for new objects, obsolete old target code.
+
+	* gdbserver/linux-low.c: Remove all platform-specific code to
+	new files.  Remove various dead code.  Update to use regcache
+	functionality.
+	* gdbserver/remote-utils.c (fromhex): Add return statement
+	to quiet warning.
+	(putpkt): Dynamically allocate buf2 because PBUFSIZ is no longer
+	constant.
+	(input_interrupt): Add integer parameter to match prototype
+	of a signal handler.
+	(outreg): Use register_data ().
+	(prepare_resume_reply): Use gdbserver_expedite_regs.
+	* gdbserver/server.c (main): Dynamically allocate own_buf because
+	PBUFSIZ is no longer constant.  Use registers_to_string () and
+	registers_from_string ().
+	* gdbserver/server.h: No longer include "defs.h".  Add prototypes
+	for error (), fatal (), and warning ().  Update definition of
+	PBUFSIZ to use regcache functionality.  Add include guard.
+	* gdbserver/utils.c (fatal): Add missing ``const''.
+	(warning): New function.
+
+	* regformats/regdat.sh: Include "regcache.h" in generated files.
+	Provide init_registers () function.
+	* regformats/regdef.h: Add prototype for set_register_cache ().
+	Add include guard.
+
+	* gdbserver/linux-arm-low.c: New file.
+	* gdbserver/linux-i386-low.c: New file.
+	* gdbserver/linux-ia64-low.c: New file.
+	* gdbserver/linux-m68k-low.c: New file.
+	* gdbserver/linux-mips-low.c: New file.
+	* gdbserver/linux-ppc-low.c: New file.
+	* gdbserver/linux-sh-low.c: New file.
+
+	* gdbserver/regcache.c: New file.
+	* gdbserver/regcache.h: New file.
+
+	* gdbserver/low-linux.c: Removed obsolete file.
+
+2002-02-14  Daniel Jacobowitz  <drow@mvista.com>
+
+	* config/arm/linux.mt: Update GDBSERVER_DEPFILES.
+	* config/i386/linux.mt: Likewise.
+	* config/ia64/linux.mt: Likewise.
+	* config/m68k/linux.mh: Likewise.
+	* config/powerpc/linux.mh: Likewise.
+	* config/mips/linux.mt: Likewise.
+
+	* config/sh/linux.mt: Add GDBSERVER_DEPFILES.
+
+	* config/i386/i386lynx.mh: Mark gdbserver variables
+	as (currently) obsolete for this target.
+	* config/i386/nbsd.mt: Likewise.
+	* config/i386/nbsdelf.mt: Likewise.
+	* config/m32r/m32r.mt: Likewise.
+	* config/m68k/m68klynx.mh: Likewise.
+	* config/m68k/nbsd.mt: Likewise.
+	* config/m68k/sun3os4.mh: Likewise.
+	* config/mips/vr5000.mt: Likewise.
+	* config/ns32k/nbsd.mt: Likewise.
+	* config/pa/hppabsd.mh: Likewise.
+	* config/pa/hppaosf.mh: Likewise.
+	* config/powerpc/nbsd.mt: Likewise.
+	* config/rs6000/rs6000lynx.mh: Likewise.
+	* config/s390/s390.mt: Likewise.
+	* config/s390/s390x.mt: Likewise.
+	* config/sparc/sparclynx.mh: Likewise.
+	* config/sparc/sun4os4.mh: Likewise.
+	* config/i386/x86-64linux.mt: Likewise.
+	* config/sparc/linux.mh: Likewise.
+
+2002-02-14  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure.tgt: Configure gdbserver only for known working
+	targets.  Set ${build_gdbserver} instead of modifying ${configdirs}.
+	* configure.in: Check ${build_gdbserver}.  Put gdbserver/ into
+	SUBDIRS if it is configured.  Update comment for ${nativefile}.
+	* configure: Regenerated.
+
+2002-02-13  Michael Snyder  <msnyder@redhat.com>
+
+	* gcore.c (gcore_command): Use gcore_default_target instead of NULL.
+	(default_gcore_mach): Just return 0, work around a problem in bfd.
+	(default_gcore_target): OK to return NULL if exec_bfd is null.
+	(make_mem_sec): Use a cast, avoid a warning.
+
+	* procfs.c (find_memory_regions_callback): Use a cast instead of
+	calling host_pointer_to_address (which complains if
+	sizeof (host pointer) != sizeof (target pointer)).
+	(procfs_make_note_section): Avoid overflow in psargs string.
+
+	* procfs.c (procfs_make_note_section): Make the default
+	implementation return an error.
+
+2002-02-13  Rodney Brown  <rbrown64@csc.com.au>
+
+	* procfs.c (procfs_make_note_section): Provide a default definition
+	(for alpha-dec-osf4.0f). Fix typos.
+
+2002-02-13  Elena Zannoni  <ezannoni@redhat.com>
+
+	* linux-proc.c: Add include of regcache.h.
+	* Makefile.in (linux-proc.o): Add dependency on regcache.h.
+
+2002-02-13  Andrew Cagney  <ac131313@redhat.com>
+
+	From 2002-01-18 Greg McGary <greg@mcgary.org>:
+	* memattr.c (create_mem_region): Disallow useless empty region.
+	Regions are half-open intervals, so allow [A..B) [B..C) as
+	non-overlapping.
+
+2002-02-13  Michael Chastain <mec@shout.net>
+
+	* defs.h: Kill CONST_PTR.
+	* c-lang.h (c_builtin_types): Change CONST_PTR to simple "const".
+	* c-lang.c (c_builtin_types): Likewise.
+	* ch-lang.c (ch_builtin_types): Likewise.
+	* f-lang.c (f_builtin_types): Likewise.
+	* language.c (unknown_builtin_types): Likewise.
+	* m2-lang.c (m2_builtin_types): Likewise.
+	* p-lang.c (pascal_builtin_types): Likewise.
+	* scm-lang.c (c_builtin_types): Likewise.
+
+2002-02-13  Keith Seitz  <keiths@redhat.com>
+
+	* arm-tdep.h (arm_get_next_pc): Add declaration.
+
+2002-02-13  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_use_struct_convention): Make static.  Move to be
+	with other related struct-returning functions.
+	(arm_extract_struct_value_address): New function.
+	(arm_gdbarch_init): Initialize the above in multi-arch vector.  Also
+	initialize float_format, double_format and long_double_format as
+	appropriate to the endianness of the target.
+	* config/arm/tm-arm.h (TARGET_DOUBLE_FORMAT): Delete.
+	(arm_use_struct_convention): Delete declaration.
+	(USE_STRUCT_CONVENTION, EXTRACT_STRUCT_VALUE_ADDRESS): Delete.
+
+2002-02-13  Keith Seitz  <keiths@redhat.com>
+
+        * defs.h (core_addr_to_string_nz): New function.
+
+2002-02-13  Mark Kettenis  <kettenis@gnu.org>
+
+	Apply missing bits of 2002-01-15 patch.
+	* i386v4-nat.c (supply_fpregset): Use i387_supply_fsave.
+	(fill_fpregset): Use i387_fill_fsave.
+
+2002-02-12  Keith Seitz  <keiths@redhat.com>
+
+	* utils.c (core_addr_to_string): Use phex instead of phex_nz.
+	(core_addr_to_string_nz): New function.
+
+2002-02-11  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-linux-nat.c: Really include arm-tdep.h.
+	* config/arm/tm-linux.h (struct type, struct value): Declare.
+
+2002-02-11  Michael Snyder  <msnyder@redhat.com>
+
+	* procfs.c: Include elf-bfd.h (for elfcore_write functions).
+	(gcore section): Ifdef for Solaris and Unixware only.
+	(procfs_do_thread_registers): Unixware needs one lwpstatus
+	per thread (not one prstatus or pstatus).
+	(procfs_make_note_section): Iterate only over kernel threads (lwps),
+	not over all gdb threads.  For unixware, call elfcore_write_pstatus
+	once before iterating over threads.
+
+2002-02-11  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.h: New file.
+	* arm-tdep.c: Include arm-tdep.h.
+	(arm_addr_bits_remove, arm_smash_text_address, arm_saved_pc_after_call)
+	(arm_skip_prologue, arm_call_dummy_words, arm_fix_call_dummy)
+	(arm_print_float_info, arm_register_type, convert_to_extended)
+	(arm_elf_make_msymbols_special, arm_coff_make_msymbol_special)
+	(arm_extract_return_value, arm_register_name): Make static.
+	(arm_software_single_step): Similarly.  Fix types in declaration.
+	(arm_register_byte, arm_register_raw_size, arm_register_virtual_size)
+	(arm_store_return_value, arm_store_struct_return): New functions.
+	(arm_gdbarch_init): Register the above functions.  Also register
+	call_dummy_start_offset, sizeof_call_dummy_words,
+	function_start_offset, inner_than, decr_pc_after_break, fp_regnum,
+	sp_regnum, pc_regnum, register_bytes, num_regs, max_register_raw_size,
+	max_register_virtual_size, register_size.  Set up
+	prologue_cache.saved_regs here, rather than ...
+	(_initialize_arm_tdep): ... here.
+	* config/arm/tm-arm.h (struct type, struct value): Delete forward
+	declarations.
+	(arm_addr_bits_remove, arm_smash_text_address, arm_saved_pc_after_call)
+	(arm_skip_prologue, arm_call_dummy_words, arm_fix_call_dummy)
+	(arm_print_float_info, arm_register_type, convert_to_extended)
+	(arm_elf_make_msymbols_special, arm_coff_make_msymbol_special)
+	(arm_extract_return_value, arm_register_name): Delete declarations.
+	(SMASH_TEXT_ADDRESS, ADDR_BITS_REMOVE, FUNCTION_START_OFFSET)
+	(SKIP_PROLOGUE, SAVED_PC_AFTER_CALL, INNER_THAN, BREAKPOINT_FROM_PC)
+	(DECR_PC_AFTER_BREAK, PRINT_FLOAT_INFO, REGISTER_SIZE, NUM_REGS)
+	(REGISTER_NAME, REGISTER_BYTES, REGISTER_BYTE, REGISTER_RAW_SIZE)
+	(REGISTER_VIRTUAL_SIZE, MAX_REGISTER_RAW_SIZE)
+	(MAX_REGISTER_VIRTUAL_SIZE, REGISTER_VIRTUAL_TYPE, STORE_STRUCT_RETURN)
+	(EXTRACT_RETURN_VALUE, STORE_RETURN_VALUE, CALL_DUMMY_WORDS)
+	(SIZEOF_CALL_DUMMY_WORDS, CALL_DUMMY_START_OFFSET, FIX_CALL_DUMMY)
+	(SOFTWARE_SINGLE_STEP_P, SOFTWARE_SINGLE_STEP)
+	(ELF_MAKE_MSYMBOL_SPECIAL, COFF_MAKE_MSYMBOL_SPECIAL) Delete.
+	(arm_pc_is_thumb, arm_pc_is_thumb_dummy, thumb_get_next_pc)
+	(arm_get_next_pc): No-longer static -- these are needed by the RDI
+	interface.
+	* arm-linux-nat.c arm-linux-tdep.c armnbsd-nat.c: Include arm-tdep.h.
+	* remote-rdi.c remote-rdp.c: Likewise.
+	* Makefile.in (arm-linux-nat.o, arm-linux-tdep.o arm-tdep.o)
+	(armnbsd-nat.o, remote-rdi.o, remote_rdp.o): Update dependencies.
+	* config/arm/tm-nbsd.h (SOFTWARE_SINGLE_STEP_P): Delete bogus
+	definition.
+
+	* arm-tdep.h (ARM_A1_REGNUM, ARM_A4_REGNUM, ARM_AP_REGNUM)
+	(ARM_SP_REGNUM, ARM_LR_REGNUM, ARM_PC_REGNUM, ARM_F0_REGNUM)
+	(ARM_F3_REGNUM, ARM_F7_REGNUM, ARM_FPS_REGNUM, ARM_PS_REGNUM): Renamed
+	from non-ARM_ prefixed definitions.
+	* arm-tdep.c armnbsd-nat.c arm-linux-nat.c arm-linux-tdep.c: Update
+	all uses of above.
+	* remote-rdi.c remote-rdp.c: Likewise.
+	* arm-linux-nat.c (ARM_CPSR_REGNUM): Renamed from CPSR_REGNUM.
+
+2002-02-11  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_frameless_function_invocation)
+	(arm_frame_args_address, arm_frame_locals_address, arm_frame_num_args)
+	(arm_frame_chain, arm_init_extra_frame_info, arm_frame_saved_pc)
+	(arm_read_fp, arm_frame_init_saved_regs, arm_push_dummy_frame)
+	(arm_pop_frame, arm_get_next_pc): Make static.
+	(arm_gdbarch_init): Register above in gdbarch structure.
+	(arm_read_fp): Renamed from arm_target_read_fp.
+	(arm_pc_is_thumb, arm_pc_is_thumb_dummy): Make static.
+	* config/arm/tm-arm.h (arm_frameless_function_invocation)
+	(arm_frame_args_address, arm_frame_locals_address, arm_frame_num_args)
+	(arm_frame_chain, arm_init_extra_frame_info, arm_frame_saved_pc)
+	(arm_target_read_fp, arm_frame_init_saved_regs, arm_push_dummy_frame)
+	(arm_pop_frame, arm_get_next_pc, arm_pc_is_thumb)
+	(arm_pc_is_thumb_dummy): Delete declarations.
+	(INIT_EXTRA_FRAME_INFO, TARGET_READ_FP, FRAME_CHAIN)
+	(FRAMELESS_FUNCTION_INVOCATION, FRAME_SAVED_PC, FRAME_ARGS_ADDRESS)
+	(FRAME_LOCALS_ADDRESS, FRAME_NUM_ARGS, FRAME_ARGS_SKIP)
+	(FRAME_INIT_SAVED_REGS, PUSH_DUMMY_FRAME, POP_FRAME): Delete.
+
+2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* symtab.c (compare_search_syms): New function.
+	(sort_search_symbols): New function.
+	(search_symbols): Sort symbols after searching rather than
+	before.
+
+2002-02-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* NEWS: Linux -> GNU/Linux.
+
+2002-02-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbarch.sh: For for level one methods, disallow a definition
+	when partially multi-arched.  Add comments explaining rationale.
+	* gdbarch.h: Re-generate.
+
+2002-02-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbarch.sh (EXTRA_STACK_ALIGNMENT_NEEDED): Don't require when
+	multi-arch partial.
+
+2002-02-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbarch.sh: Map LEVEL onto a symbolic GT_LEVEL.  Exit on bad
+	field.  Use diff -u.
+	* gdbarch.c: Re-generate.
+
+2002-02-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/mips/tm-mips.h (CALL_DUMMY_LOCATION): Delete.
+	* gdbarch.sh (PUSH_RETURN_ADDRESS): Don't require when multi-arch
+	partial.
+
+2002-02-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbarch.sh (REGISTER_CONVERTIBLE): Don't require when
+	multi-arch partial.
+	(PUSH_ARGUMENTS): Switch to using predefault.
+	* gdbarch.c: Regenerate.
+
+2002-02-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* valops.c (PUSH_ARGUMENTS): Delete definition.
+	* gdbarch.sh (PUSH_ARGUMENTS): Don't require when multi-arch
+	partial.  Default to default_push_arguments.
+	* gdbarch.h, gdbarch.c: Regenerate.
+
+2002-02-09  Andrew Cagney  <ac131313@redhat.com>
+
+	* defs.h (throw_exception): Rename return_to_top_level.  Update
+	comments.
+	* utils.c (error_stream, internal_verror, quit): Ditto.
+	* top.c (throw_exception, catcher): Ditto.
+	* sparclet-rom.c (sparclet_load): Ditto.
+	* remote.c (interrupt_query, minitelnet): Ditto.
+	* remote-sds.c (interrupt_query): Ditto.
+	* remote-mips.c (mips_error, mips_kill): Ditto.
+	* ocd.c (interrupt_query): Ditto.
+	* monitor.c (monitor_interrupt_query): Ditto.
+	* m3-nat.c (suspend_all_threads, thread_resume_command): Ditto.
+	* target.h: Update comment.
+
+	* m3-nat.c, ocd.c, sparclet-rom.c: Update copyright.
+
+2002-02-09  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbarch.sh (TARGET_LONG_DOUBLE_FORMAT): Default to
+	default_double_format.
+	* gdbarch.h, gdbarch.c: Re-generate.
+	* findvar.c (floatformat_unknown): Delete variable definition.
+	* doublest.h (floatformat_unknown): Delete variable declaration.
+
+2002-02-09  Jim Blandy  <jimb@redhat.com>
+
+	* stabsread.c (read_type): Add code to parse Sun's syntax for
+	prototyped function types.
+
+2002-02-09  Andrew Cagney  <ac131313@redhat.com>
+
+	* Makefile.in (SUBDIR_CLI_INITS): Set to SUBDIR_CLI_SRCS.
+	(SUBDIR_MI_INITS): Set to SUBDIR_MI_SRCS.
+
+2002-02-09  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* xcoffsolib.c (_initialize_xcoffsolib): Renamed from
+	_initialize_solib.  Fixes name clash with solib.c:_initialize_solib,
+	now _initialize_xcoffsolib gets called again and overrides the
+	commands from solib.c in a native configuration.
+
+2002-02-09  Mark Kettenis  <kettenis@gnu.org>
+
+	* doublest.c (store_typed_floating): Don't try to return a value.
+	Fixes PR gdb/290.
+
+2002-02-08  Jim Blandy  <jimb@redhat.com>
+
+	* c-typeprint.c (c_type_print_varspec_suffix): If a function type
+	is prototyped and has no arguments, print its argument list as
+	`(void)'.
+
+2002-02-08  Chris Demetriou  <cgd@broadcom.com>
+
+	* MAINTAINERS (write-after-approval): Add myself.
+	(paper-trail): I've escaped!
+
+2002-02-08  Christopher Faylor  <cgf@redhat.com>
+
+	* win32-nat.c (cygwin_pid_to_str): Revert 2002-02-08 change xasprintf
+	changes.
+	(_initialize_check_for_gdb_ini): Ditto.
+
+2002-02-08  Martin M. Hunt  <hunt@redhat.com>
+
+	* win32-nat.c (cygwin_pid_to_str): Fix typo.
+	xaprintf -> xasprintf.
+
+2002-02-08  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* win32-nat.c: Remove use of printf and sprintf functions.
+
+2002-02-08  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_frame_chain_valid): Make static.
+	(arm_push_arguments): Likewise.
+	(arm_gdbarch_init): New function.
+	(_initialize_arm_tdep): Call it.
+	* config/arm/tm-arm.h (GDB_MULTI_ARCH): Set to 1.
+	(TARGET_DOUBLE_FORMAT): Test TARGET_BYTE_ORDER, not target_byte_order.
+	(FRAME_CHAIN_VALID): Delete.
+	(arm_frame_chain_valid): Delete declaration.
+	(PUSH_ARGUMENTS): Delete.
+	(arm_push_arguments): Delete declaration.
+	(CALL_DUMMY_P): Delete.
+
+2002-02-08  Andrew Cagney  <ac131313@redhat.com>
+	    Corinna Vinschen  <vinschen@redhat.com>
+
+	* gdbtypes.c (build_gdbtypes): Disable setting a specific float format
+	on builtin float types.
+
+2002-02-08  Daniel Jacobowitz  <drow@mvista.com>
+
+	* utils.c: Include <curses.h> before "bfd.h".
+	* tui/tui-hooks.c: Likewise.
+	* tui/tui.c: Likewise.
+	* tui/tuiCommand.c: Likewise.
+	* tui/tuiData.c: Likewise.
+	* tui/tuiDataWin.c: Likewise.
+	* tui/tuiDisassem.c: Likewise.
+	* tui/tuiGeneralWin.c: Likewise.
+	* tui/tuiIO.c: Likewise.
+	* tui/tuiLayout.c: Likewise.
+	* tui/tuiRegs.c: Likewise.
+	* tui/tuiSource.c: Likewise.
+	* tui/tuiSourceWin.c: Likewise.
+	* tui/tuiStack.c: Likewise.
+	* tui/tuiWin.c: Likewise.
+
+2002-02-07  Elena Zannoni  <ezannoni@redhat.com>
+
+	* sh-tdep.c (sh_nofp_frame_init_saved_regs): Extend where[] array
+	to include space for pseudoregs as well. Update loops accordingly.
+	(sh_fp_frame_init_saved_regs): Ditto.
+	(sh_init_extra_frame_info, sh_pop_frame): Split long lines.
+
+2002-02-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Andreas Schwab is GNU/Linux m68k maintainer.
+	Add Richard Earnshaw to Arm maintainers.
+
+2002-02-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* defs.h (warning_begin): Delete declaration.
+
+	* config/powerpc/tm-ppcle-eabi.h (TARGET_BYTE_ORDER_DEFAULT):
+	Delete macro.
+
+2002-02-07  Michael Snyder  <msnyder@redhat.com>
+
+	* solib-legacy.c (legacy_svr4_fetch_link_map_offsets):
+	Logic bug, remove misplaced else.
+
+2002-02-07  Klee Dienes  <klee@apple.com>
+
+	* fork-inferior.c (fork_inferior): Add '!' to the list of
+	characters that need to be quoted when building a string for the
+	shell.  Quote '!' specifically with a backslash, since CSH chokes
+	when trying to evaluate "str!str".
+
+2002-02-06  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* rdi-share/host.h: Only provide a typedef for bool if it is not
+	defined.
+
+2002-02-04  Michael Snyder  <msnyder@redhat.com>
+
+	* breakpoint.h (enum bptype): Add new overlay event bp type.
+	(enable_overlay_breakpoints, disable_overlay_breakpoints): Export.
+
+	* breakpoint.c (create_internal_breakpoint): New function.
+	(internal_breakpoint_number): Moved into create_internal_breakpoint.
+	(create_longjmp_breakpoint): Use create_internal_breakpoint.
+	(create_thread_event_breakpoint): Ditto.
+	(create_solib_event_breakpoint): Ditto.
+	(create_overlay_event_breakpoint): New function.
+	(enable_overlay_breakpoints, disable_overlay_breakpoints): New funcs.
+	(update_breakpoints_after_exec): Delete and re-initialize
+	overlay event breakpoints after an exec.  Add FIXME comment
+	about longjmp breakpoint.
+	(print_it_typical): Ignore overlay event breakpoints.
+	(print_one_breakpoint): Ditto.
+	(mention): Ditto.
+	(bpstat_what): Do not stop for overlay event breakpoints.
+	(delete_breakpoint): Don't delete overlay event breakpoints.
+	(breakpoint_re_set_one): Delete the overlay event breakpoint.
+	(breakpoint_re_set): Re-create overlay event breakpoint.
+
+	* symfile.c (overlay_auto_command): Enable overlay breakpoints.
+	(overlay_manual_command): Disable overlay breakpoints.
+	(overlay_off_command): Disable overlay breakpoints.
+
+2002-02-06  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c: Include elf-bfd.h and coff/internal.h.
+	(MSYMBOL_SET_SPECIAL, MSYMBOL_IS_SPECIAL, MSYMBOL_SIZE): Move defines
+	to here from config/tm-arm.h.
+	(coff_sym_is_thumb): Make static.
+	(arm_elf_make_msymbol_special): New function.
+	(arm_coff_make_msymbol_special): New function.
+	* config/arm/tm-arm.h (MSYMBOL_SET_SPECIAL): Delete definition.
+	(MSYMBOL_IS_SPECIAL, MSYMBOL_SIZE): Likewise.
+	(coff_sym_is_thumb): Delete declaration.
+	(arm_elf_make_msymbol_special): Declare.
+	(arm_coff_make_msymbol_special): Declare.
+	(ELF_MAKE_MSYMBOL_SPECIAL): Call arm_elf_make_msymbol_special.
+	(COFF_MAKE_MSYMBOL_SPECIAL): Call arm_coff_make_msymbol_special.
+
+2002-02-06  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_software_single_step): ANSIfy function declaration.
+
+2002-02-06  Richard Earnshaw  <rearnsha@arm.com>
+
+	* gdbarch.sh (PRINT_FLOAT_INFO): Add rule.
+	* gdbarch.c gdbarch.h: Regenerate.
+	* arch-utils.c (default_print_float_info): New function.
+	* arch-utils.h (default_print_float_info): Prototype it.
+	* infcmd.c (float_info): Call PRINT_FLOAT_INFO.
+	* doc/gdbint.texinfo (FLOAT_INFO): Mark as deprecated.
+	(PRINT_FLOAT_INFO): Document it.
+
+	* arm-tdep.c (arm_print_float_info): Renamed from arm_float_info.
+	* config/arm/tm-arm.h (FLOAT_INFO): Delete.
+	(PRINT_FLOAT_INFO): Define.
+
+2002-02-06  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* win32-nat.c (_initialize_check_for_gdb_ini):
+	Add typecast to sprintf argument to suppress a warning.
+
+2002-02-05  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* win32-nat.c (last_sig): Changed type of variable to target_signal,
+	to allow easier handling of pass state.
+	(DEBUG_EXCEPTION_SIMPLE): New macro, used in handle_exception,
+	that gives exception name and address.
+	(handle_exception): Use DEBUG_EXCEPTION_SIMPLE macro
+	and set last_sig value to ourstatus->value.sig. Some missing
+	exceptions added.
+	(child_continue): Correctly report continue_status.
+	(get_child_debug_event,do_initial_child_stuff): Set last_sig to
+	TARGET_SIGNAL_0 (new default value).
+	(child_resume): consider sig argument passed to decide if
+	the exception should be passed to debuggee or not.
+
+2002-02-05  Michael Snyder  <msnyder@redhat.com>
+
+	* regcache.c (fetch_register): Call target_fetch_register
+	only if we don't call FETCH_PSEUDO_REGISTER.
+	(store_register): Call target_store_register only if we
+	don't call STORE_PSEUDO_REGISTER.
+
+2002-02-05  Elena Zannoni  <ezannoni@redhat.com>
+
+	* gdbarch.sh: Add definitions for COFF_MAKEMSYMBOL_SPECIAL and
+	ELF_MAKE_MSYMBOL_SPECIAL.
+	* gdbarch.c, gdbarch.h: Regenerate.
+	* arch-utils.c (default_make_msymbol_special): New function.
+	* arch-utils.h (default_make_msymbol_special): Export.
+	* elfread.c (elf_symtab_read): Compile use of
+	ELF_MAKE_MSYMBOL_SPECIAL unconditionally because it is now
+	multiarched.
+	* coffread.c (coff_symtab_read): Ditto, for
+	COFF_MAKE_MSYMBOL_SPECIAL.
+
+2002-02-05  Jim Blandy  <jimb@redhat.com>
+
+	* solib-svr4.c (svr4_truncate_ptr): New function.
+	(svr4_relocate_section_addresses): Do the address arithmetic with
+	the appropriate truncation for target addresses, even when
+	CORE_ADDR is larger than a target address.
+
+2002-02-05  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/linux-low.c (mywait): Cast second argument of waitpid
+	to (int *).
+
+2002-02-05  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/linux-low.c (kill_inferior): Remove commented out
 	code.
-	(symfile_bfd_open): Remove HPUXHPPA ifdef'ed code. Code is now
-	in hp-psymtab-read.c.
-
-1999-02-02  Martin Hunt  <hunt@cygnus.com>
-
-	* printcmd.c (print_scalar_formatted): Use strcat to concat all
-	the output together before calling fprintf_filtered().
-
-1999-02-01  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* configure.in: Require autoconf 2.13.
-	(AM_EXEEXT): Replace with new AC_EXEEXT.
-	* acinclude.m4: Move itcl header macros from aclocal.m4 to here.
-	* aclocal.m4: Regenerated.
-	* configure: Regenerated.
-
-1999-02-01  Jim Blandy  <jimb@zwingli.cygnus.com>
-
-	Allow PPC users to select which PPC/RS6000 variant they're
- 	debugging at run-time.  At the moment, the only thing this affects
- 	is the set of registers visible.
-	* config/rs6000/tm-rs6000.h (REGISTER_NAME): Define this as a call
-	to the function rs6000_register_name.
-	(rs6000_register_name): Include extern decl.
-	(NUM_REGS): Bump to 183.  What's the right way to do this?
-	(FIRST_UISA_SP_REGNUM, LAST_UISA_SP_REGNUM): Renamed from
-	FIRST_SP_REGNUM, LAST_SP_REGNUM.
-	(REGISTER_BYTES): Recompute this.
-	* rs6000-tdep.c: Renamed all uses of FIRST_SP_REGNUM and
-	LAST_SP_REGNUM to FIRST_UISA_SP_REGNUM and LAST_UISA_SP_REGNUM, with
-	some concomitant formatting changes.
-	#include "gdbcmd.h", so we can define commands here.
-	(struct variant): New structure.
-	(COMMON_UISA_REG_NAMES, PPC_UISA_SPR_NAMES, PPC_SEGMENT_REG_NAMES,
-	PPC_32_OEA_SPR_NAMES, num_registers): New macros. 
-	(register_names_rs6000, register_names_uisa, register_names_403,
- 	register_names_403GC, register_names_505, register_names_860,
- 	register_names_601, register_names_602, register_names_603,
- 	register_names_604, register_names_750, variants): New variables.
-	(rs6000_register_name, install_variant, find_variant_by_name,
-	install_variant_by_name, list_variants, show_current_variant,
-	set_processor, show_processor): New functions.
-	(_initialize_rs6000_tdep): Define new commands `set processor' and
-	`show processor', and call install_variant_by_name to set the
-	default variant.
-	* rs6000-nat.c: Renamed all uses of FIRST_SP_REGNUM and
-	LAST_SP_REGNUM to FIRST_UISA_SP_REGNUM and LAST_UISA_SP_REGNUM, with
-	some concomitant formatting changes.
-	* configure.in: Accept the `--with-cpu' flag, to specify a default
-	processor variant.
-	* acconfig.h: Provide a blurb for TARGET_CPU_DEFAULT, which is set
-	by configure's `--with-cpu' flag.
-	* config.in, configure: Regenerated.
 
-Sun Jan 31 15:24:24 1999  Stan Shebs  <shebs@andros.cygnus.com>
+2002-02-05  Daniel Jacobowitz  <drow@mvista.com>
 
-	* buildsym.h, buildsym.c: Convert to ANSI-only.
+        * c-valprint.c (c_val_print): Handle TYPE_CODE_COMPLEX.
 
-	* buildsym.h, buildsym.c: Reformat to standard.
+2002-02-05  Daniel Jacobowitz  <drow@mvista.com>
 
-	* buildsym.c (merge_symbol_lists): Remove unused variable.
-	(_initialize_buildsym): Remove, does nothing.
+	* gdbserver/linux-low.c: Remove unused include files.
 
-1999-01-31 J.T. Conklin  <jtc@redbacknetworks.com>
+2002-02-05  Daniel Jacobowitz  <drow@mvista.com>
 
-	* i386-stub.c, m32r-stub.c, m68k-stub.c, sh-stub.c, sparc-stub.c,
- 	sparcl-stub, sparclet-stub.c: Change declaration of putDebugChar
- 	to include explicit void return type as per documentation.  Fix up
- 	occasions where stubs erroneously checked return type.
+	* gdbserver/linux-low.c: Define PTRACE_ARG3_TYPE.
+	(read_inferior_memory): Use it.
+	(write_inferior_memory): Likewise.
 
-Sun Jan 31 13:18:33 1999  Stan Shebs  <shebs@andros.cygnus.com>
+2002-02-05  Daniel Jacobowitz  <drow@mvista.com>
 
-	From J.T. Conklin <jtc@redbacknetworks.com>:
-	* remote.c (remote_query): Fix tipo.
+	* gdbserver/linux-low.c (create_inferior): Call strerror instead of
+	grubbing through sys_errlist.
 
-Fri Jan 29 15:25:09 1999  Stan Shebs  <shebs@andros.cygnus.com>
+2002-02-05  Daniel Jacobowitz  <drow@mvista.com>
 
-	* configure.tgt (v850): Add wildcard to match.
+	* gdbserver/linux-low.c: New file, copied exactly from low-linux.c.
 
-Fri Jan 29 16:44:01 1999  Edith Epstein  <eepstein@sophia.cygnus.com>
+2002-02-04  Pierre Muller  <muller@ics.u-strasbg.fr>
+	* win32-nat.c (handle_exception): Handle Ctrl-Break exception.
 
-	* inferior.h: Ran indent.
+2002-02-04  Andrew Cagney  <ac131313@redhat.com>
 
-	* fork-child.c: Ran indent.
+	* cli/cli-decode.c (do_cfunc, set_cmd_cfunc): New functions.
+	(do_sfunc, set_cmd_sfunc): New functions.
 
-	* infrun.c : Ran indent.
+	* command.h (struct cmd_list_element): Add field func.
+	* cli/cli-decode.h (struct cmd_list_element): Ditto.
+	* command.h (set_cmd_sfunc, set_cmd_cfunc): Declare.
+	* cli/cli-decode.h: Ditto.
 
-Fri Jan 29 12:57:34 1999  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+	* cli/cli-decode.c (help_cmd): Test for func not cfunc/sfunc.
+	(help_all, help_cmd_list): Ditto.
+	(find_cmd, complete_on_cmdlist): Ditto.
+	* top.c (execute_command): Ditto.
 
-	* infrun.c (_initialize_infrun): Do not stop or print anything
-	when a SIGWINCH is received.
+	* cli/cli-setshow.c (do_setshow_command): Call func instead of
+	function.sfunc.
 
-	* Makefile.in (m2-exp.tab.c): Use YACC not BISON.
-	(f-exp.tab.c): Ditto.
-	(jv-exp.tab.c): Ditto.
-	(c-exp.tab.c): Ditto.
-	(YACC): Define as @YACC@.
+	* infcmd.c (notice_args_read): Fix function signature.
 
-1999-01-29  Martin Hunt  <hunt@cygnus.com>
+	* cli/cli-cmds.c (init_cli_cmds): Use set_cmd_sfunc.
+	* cli/cli-decode.c (add_set_cmd): Ditto.
+	* utils.c (initialize_utils): Ditto.
+	* maint.c (_initialize_maint_cmds): Ditto.
+	* infrun.c (_initialize_infrun): Ditto.
+	* demangle.c (_initialize_demangler): Ditto.
+	* remote.c (add_packet_config_cmd): Ditto.
+	* mips-tdep.c (_initialize_mips_tdep): Ditto.
+	* cris-tdep.c (_initialize_cris_tdep): Ditto.
+	* proc-api.c (_initialize_proc_api): Ditto.
+	* kod.c (_initialize_kod): Ditto.
+	* valprint.c (_initialize_valprint): Ditto.
+	* top.c (init_main): Ditto.
+	* infcmd.c (_initialize_infcmd): Ditto.
+	* corefile.c (_initialize_core): Ditto.
+	* arm-tdep.c (_initialize_arm_tdep): Ditto.
+	* arch-utils.c (initialize_current_architecture): Ditto.
+	(_initialize_gdbarch_utils): Ditto.
+	* alpha-tdep.c (_initialize_alpha_tdep): Ditto.
 
-	Changes from Keith Seitz  <keiths@cygnus.com>
-        * valops.c (value_assign): Add calls to register_changed_hook and
-        memory_changed_hook to inform UIs that the user has changed
-        the target's registers/memory.
-        * findvar.c (write_register_gen): Remove call to pc_changed_hook.
-        * defs.h: Remove declaration for pc_changed_hook and
-        add declarations for register_changed_hook and
-        memory_changed_hook.
-        * top.c: Ditto.
+	* cli/cli-decode.c (add_cmd): Use set_cmd_cfunc.
+	* wince.c (_initialize_inftarg): Ditto.
+	* symfile.c (_initialize_symfile): Ditto.
+	* mips-tdep.c (_initialize_mips_tdep): Ditto.
+	* language.c (_initialize_language): Ditto.
+	* arc-tdep.c (_initialize_arc_tdep): Ditto.
 
-1999-01-29  Mark Alexander  <marka@cygnus.com>
+2002-02-04  Michael Snyder  <msnyder@redhat.com>
 
-	* procfs.c (wait_fd): Handle deleted threads correctly.
+	* memattr.c (_initialize_mem): Elaborate the help for 'mem' command.
 
-1999-01-28  Jason Molenda  (jsm@bugshack.cygnus.com)
+2002-02-04  Daniel Jacobowitz  <drow@mvista.com>
 
-	* utils.c (init_page_info): Force window size if running under emacs.
+	* gdbserver/Makefile.in: Add regformats directory to INCLUDE_CFLAGS.
+	Add rules for building the register data files.
 
-1999-01-27  James Ingham  <jingham@cygnus.com>
+2002-02-04  Daniel Jacobowitz  <drow@mvista.com>
 
-	* typeprint.c (whatis_exp): Remove static declaration.
+	* regformats/regdat.sh: Add braces to the definition of
+	expedite_regs_${arch}.
 
-Wed Jan 27 16:50:25 1999  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+2002-02-04  Daniel Jacobowitz  <drow@mvista.com>
 
-	* hp-psymtab-read.c: Reformat using indent.
+	* regformats/regdef.h (struct reg): Add comment describing the
+	requirements for offset and size fields.
 
-Wed Jan 27 13:20:25 1999  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+2002-02-04  Andreas Schwab  <schwab@suse.de>
 
-	* hp-psymtab-read.c: Reformat comments, update copyright.
+	* config/ia64/linux.mh: Don't set NAT_CLIBS and REGEX.
+	* config/ia64/linux.mt: Don't set GDBSERVER_LIBS.
 
-Tue Jan 26 16:02:47 1999  Mark Alexander  <marka@cygnus.com>
+2002-02-04  Richard Earnshaw  <rearnsha@arm.com>
 
-	* v850-tdep.c (v850_generic_reg_names, v850e_reg_names,
-	v850_register_names, v850_processor_type_table): Declare tables
-	and structures for handling differences in register names for
-	v850 and v850e.
-	(struct reg_list): Define new structure for creating tables
-	of register bit masks in v850e instrutions.
-	(handle_prepare, handle_pushm): New helpers for v850_scan_prologue.
-	(v850_scan_prologue): Recognize v850e instructions: callt, prepare,
-	and pushm.
-	(v850_target_architecture_hook): New function to set register
-	names based on current machine.
-	(_initialize_v850_tdep): Set up target_architecture_hook.
-	* config/v850/tm-v850.h (v850_register_names): Declare.
-	(REGISTER_NAME): Define to refer to v850_register_names.
-	(SR0_REGNUM, CTBP_REGNUM): Define.
-	(PS_REGNUM): Redefine in terms of SR0_REGNUM.
+	* gdbarch.sh (copyright): Update years in generated header.
+	(SMASH_TEXT_ADDRESS): Add rule.
+	* gdbarch.h, gdbarch.c: Re-generate.
+	* coffread.c: Multi-arch uses of SMASH_TEXT_ADDRESS.
+	* dbxread.c: Likewise.
+	* dwarfread.c: Likewise.
+	* elfread.c: Likewise.
+	* somread.c: Likewise.
+
+	* arm-tdep.c (arm_smash_text_address): New function.
+	* config/arm/tm-arm.h (SMASH_TEXT_ADDRESS): Define in terms of above.
+
+2002-02-04  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	Add support for hardware watchpoints on win32 native.
+	* win32-nat.c (CONTEXT_DEBUG_DR macro): Add use of
+	CONTEXT_DEBUG_REGISTERS.
+	(dr variable): New variable. Static array containing a local copy
+	of debug registers.
+	(debug_registers_changed): New variable.  Reflects when debug registers
+	are changed and need to be written to inferior.
+	(debug_registers_used): New variable. Reflects when any debug register
+	was set, used when new threads are created.
+	(cygwin_set_dr, cygwin_set_dr7, cygwin_get_dr6): New functions used by
+	i386-nat code.
+	(thread_rec): Set dr array if id is the thread of current_event .
+	(child_continue, child_resume): Change the debug registers for all
+	threads if debug_registers_changed.
+	(child_add_thread): Change the debug registers if debug_registers_used.
+	* config/i386/cygwin.mh: Add use of i386-nat.o file.
+	Link nm.h to new nm-cygwin.h file.
+	+ config/i386/nm-cygwin.h: New file. Contains the macros used for use
+	of hardware registers.
 
-Tue Jan 26 18:27:26 1999  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+2002-02-03  Andrew Cagney  <ac131313@redhat.com>
 
-	* Makefile.in (c-exp.tab.c): Use BISON instead of YACC, to pick
-	the correct value from configure output.
-	(jv-exp.tab.c): Ditto.
-	(f-exp.tab.c): Ditto.
-	(m2-exp.tab.c): Ditto.
+	* valprint.c (print_floating): Allow non TYPE_CODE_FLT types.
+	Restore behavour broken by 2002-01-20 Andrew Cagney
+	<ac131313@redhat.com> IEEE_FLOAT removal.
+
+2002-02-03  Daniel Jacobowitz  <drow@mvista.com>
+
+	* c-valprint.c (c_val_print): Pass a proper valaddr to
+	cp_print_class_method.
+	* valops.c (search_struct_method): If there is only one method
+	and args is NULL, return that method.
+
+2002-02-03  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbtypes.c (init_simd_type): Use TYPE_TAG_NAME instead of
+	accessing tag_name directly.
+
+2002-02-03  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ax-gdb.c (find_field): Use TYPE_TAG_NAME instead
+	of accessing tag_name directly.
+
+2002-02-03  Daniel Jacobowitz  <drow@mvista.com>
+
+	PR gdb/280
+	* gdbtypes.c (replace_type): New function.
+	* gdbtypes.h (replace_type): Add prototype.
+	* stabsread.c (read_type): Use replace_type.
+
+2002-02-03  Richard Earnshaw  <rearnsha@arm.com>
+
+	* Makefile.in (memattr.o): Add missing dependencies rule.
+
+2002-02-03  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+
+	* breakpoint.c (break_at_finish_command): Really export.
+	(break_at_finish_at_depth_command): Ditto.
+	(tbreak_at_finish_command): Ditto.
+	* hppa-tdep.c: Include completer.h.
+	* Makefile.in (hppa-tdep.o): Add dependency on $(completer_h).
+	(COMMON_OBS): Remove duplicate ui-file.o, frame.o, doublest.o.
+
+2002-02-01  Andrew Cagney  <ac131313@redhat.com>
+
+	* utils.c (do_write): New function.
+	(error_stream): Rewrite combining the code from error_begin and
+	verror.
+	(verror): Rewrite using error_stream.
+	(error_begin): Delete function.
+
+2002-02-01  Andrew Cagney  <ac131313@redhat.com>
+
+	* utils.c (error_begin): Make static.
+	* defs.h (error_begin): Delete declaration.
+
+	* linespec.c (cplusplus_error): Replace cplusplus_hint.
+	(decode_line_1): Use cplusplus_error instead of error_begin,
+	cplusplus_hint and return_to_top_level.
+	* coffread.c (coff_symfile_read): Use error instead of error_begin
+	and return_to_top_level.
+	* infrun.c (default_skip_permanent_breakpoint): Ditto.
 
-1999-01-26  Jason Molenda  (jsm@bugshack.cygnus.com)
+2002-02-01  Andrew Cagney  <ac131313@redhat.com>
+
+	* language.h (type_error, range_error): Make string parameter
+	constant.
+	* language.c (warning_pre_print): Delete extern declaration.
+	* dwarfread.c (warning_pre_print): Ditto.
+	* language.c (type_error, range_error): Rewrite to use verror and
+	vwarning instead of warning_begin.
+
+2002-02-01  Michael Snyder  <msnyder@redhat.com>
 
-	* breakpoint.h (ep_is_exception_catchpoint): Add prototype.
-	* frame.h (select_and_print_frame): Add prototype.
-	* stack.c (func_command): Call select_and_print_frame with correct
-	number of arguments.  Reformat whitespace.
+	* breakpoint.c (breakpoint_re_set): Delete ancient #if 0 code.
+	(set_ignore_count): Move misplaced comment back where it belongs.
 
-Tue Jan 26 16:53:54 1999  Fernando Nasser  <fnasser@cygnus.com>
+2002-02-01  Andrew Cagney  <ac131313@redhat.com>
 
-	* remote.c (remote_query): fix maximum packet size to account for
-	  remote_debug use.
-	  (putpkt): add comment to alert about extra byte need.
+	* command.h (NO_FUNCTION): Delete macro.
+	* cli/cli-decode.h (NO_FUNCTION): Ditto.
+	* top.c (execute_command): Replace NO_FUNCTION with NULL.
+	* tracepoint.c (_initialize_tracepoint): Ditto.
+	* cli/cli-decode.c (add_set_cmd): Ditto.
+	* cli/cli-cmds.c (init_cli_cmds): Ditto.
 
-Mon Jan 25 19:55:30 1999  Mark Alexander  <marka@cygnus.com>
+2002-02-01  Daniel Jacobowitz  <drow@mvista.com>
 
-	* sh-tdep.c (sh_target_architecture_hook): Return immediately
-	when a matching machine is found.
+	* gnu-v3-abi.c (gnuv3_virtual_fn_field): Update comments.
+	Update ``this'' pointer when calling virtual functions.
 
-Fri Jan 22 09:10:35 1999  Mark Alexander  <marka@cygnus.com>
+2002-02-01  Michael Snyder  <msnyder@redhat.com>
 
-	* remote-mips.c (mips_initialize): Fix parameters to clear_breakpoint.
-	(common_breakpoint): Restore support for instruction breakpoints
-	on non-LSI targets.
+	* breakpoint.c (create_temp_exception_breakpoint): Delete.
+	* hppa-tdep.c: Deprecate xbreak, txbreak and bx commands.
 
-Thu Jan 21 17:16:19 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+2002-02-01  Daniel Jacobowitz  <drow@mvista.com>
 
-	* stack.c: Close open comment.
-	* symtab.c (find_pc_sect_line): Ditto.
+	* regformats/reg-arm.dat: New file.
+	* regformats/reg-i386.dat: New file.
+	* regformats/reg-ia64.dat: New file.
+	* regformats/reg-m68k.dat: New file.
+	* regformats/reg-mips.dat: New file.
+	* regformats/reg-ppc.dat: New file.
+	* regformats/reg-sh.dat: New file.
+	* regformats/regdef.h: New file.
+	* regformats/regdat.sh: New file.
 
-Thu Jan 21 17:51:51 1999  Stan Shebs  <shebs@andros.cygnus.com>
+2002-02-01  Richard Earnshaw  <reanrsha@arm.com>
 
-	* procfs.c (init_procfs_ops): New function, fills in procfs_ops,
-	init only nonzero fields, leave to_require_attach and
-	to_require_detach empty, not needed for /proc systems yet.
-	(_initialize_procfs): Call init_procfs_ops.
+	* arm-tdep.c (arm_frameless_function_invocation): Add some comments.
+	(arm_frame_args_address, arm_frame_locals_address): New functions.
+	(arm_frame_num_args): New function.
+	* config/tm-arm.h (FRAME_ARGS_ADDRESS): Call arm_frame_args_address.
+	(FRAME_LOCALS_ADDRESS): Call arm_frame_locals_address.
+	(FRMA_NUM_ARGS): Call arm_frame_num_args.
 
-	From J.T. Conklin <jtc@redbacknetworks.com>:
-	* top.c (init_main): Fix tipo in description of the remotetimeout
-	variable.
-	* breakpoint.c (bpstat_stop_status): Handle systems where
-	DECR_PC_AFTER_BREAK != DECR_PC_AFTER_HW_BREAK.
+2002-01-31  Michael Snyder  <msnyder@redhat.com>
 
-Thu Jan 21 17:25:46 1999  Mark Alexander  <marka@cygnus.com>
+	* breakpoint.c (break_at_finish_command): Export.
+	(break_at_finish_at_depth_command): Export.
+	(tbreak_at_finish_command): Export.
+	(_initialize_breakpoint): Delete "xbreak" and "tbreak" commands.
+	* hppa-tdep.c (_initialize_hppa_tdep): Add "xbreak" and
+	"tbreak" commands, which are HPPA specific.
 
-	* mon960-rom.c (_initialize_mon960): Call init_mon960_cmds
-	to fill in mon960_cmds structure properly.
+	* printcmd.c (disassemble_command): Remove an ancient
+	artifact of an old merge.
 
-Wed Jan 20 17:53:22 1999  Stan Shebs  <shebs@andros.cygnus.com>
+	* symfile.h (enum overlay_debugging_state):
+	Define enum constant values for overlay mode.
+	* symfile.c (overlay_debugging): Use enums instead of literals.
+	(overlay_is_mapped, overlay_auto_command,
+	overlay_manual_command): Ditto.
 
-	* remote-sds.c (sds_ops): Define only once.
-	(init_sds_ops, sds_command, _initialize_remote_sds): Declare.
-	(init_sds_ops): Init only non-zero fields.
+	* breakpoint.c (insert_breakpoints, remove_breakpoint,
+	breakpoint_here_p, breakpoint_inserted_here_p,
+	breakpoint_thread_match, bpstat_stop_status,
+	describe_other_breakpoints, check_duplicates, clear_command):
+	Coding standard fixes.
 
-Wed Jan 20 15:45:15 1999  Mark Alexander  <marka@cygnus.com>
+	* target.c (target_xfer_memory): Add spaces, coding standard.
+	(do_xfer_memory): Add missing line to trust-readonly
+	code: check bfd SEC_READONLY flag for section.
+
+2002-01-31  Andrew Cagney  <ac131313@redhat.com>
 
-	* h8300-tdep.c (original_register_names, h8300h_register_names,
-	h8300_register_names): Define new variables.
-	(set_register_names): New function to set register names based on
-	current CPU type.
-	(h8300_command, h8300h_command, h8300s_command): Call
-	set_register_names.
-	* config/h8300/tm-h8300.h (h8300_register_names): Declare.
-	(REGISTER_NAME): Define to refer to h8300_register_names.
+	* PROBLEMS: Fix typo, 5.1->5.1.1.
 
-1999-01-19  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+2002-01-30  Daniel Jacobowitz  <drow@mvista.com>
 
-	* sol-thread.c abug-rom.c cpu32bug-rom.c dbug-rom.c m32r-rom.c 
-	mac-nat.c mon960-rom.c op50-rom.c ppc-bdm.c remote-adapt.c 
-	remote-array.c remote-bug.c remote-e7000.c remote-eb.c remote-es.c 
-	remote-est.c remote-hms.c remote-mm.c remote-nindy.c remote-nrom.c 
-	remote-os9k.c remote-rdp.c remote-sds.c remote-sim.c remote-st.c 
-	remote-udi.c rom68k-rom.c sh3-rom.c sparcl-tdep.c sparclet-rom.c 
-	v850ice.c win32-nat.c: cosmetic changes to conform to coding
-	standards. 
+	* symtab.c (find_pc_sect_psymtab): Do not search psymtabs for
+	data symbols, since we search based on textlow and texthigh.
+	(find_pc_sect_symtab): Likewise.
 
-1999-01-19  Jim Blandy  <jimb@zwingli.cygnus.com>
+2002-01-30  Andrew Cagney  <ac131313@redhat.com>
 
-	Use aclocal to generate GDB's aclocal.m4 script.  
-	* acinclude.m4: New file, containing the hand-written local macro
- 	definitions that used to be in aclocal.m4.  Don't sinclude
- 	../bfd/aclocal.m4 any more; running aclocal in this directory will
- 	get us the definitions we need.  HOWEVER: Do sinclude
- 	../bfd/acinclude.m4, because we need the definition of
- 	BFD_NEED_DECLARATION.
-	* aclocal.m4: Regenerated by aclocal.
-	* configure: Regenerated by autoconf.
+	* defs.h (vwarning): Declare.
+	* utils.c (vwarning): New function.
+	(warning): Call vwarning.
+	(warning_begin): Delete function.
 
-Tue Jan 19 10:27:23 1999  David Taylor  <taylor@texas.cygnus.com>
+	* rs6000-nat.c (vmap_ldinfo): Use the function warning to print
+	the warning message.
+	* d10v-tdep.c (d10v_address_to_pointer) [0]: Delete call to
+	warning_begin.
 
-	* breakpoint.c (disable_breakpoints_in_shlibs): new parameter,
-	silent, controls whether to print message about removal of shared
-	library breakpoints.
-	* breakpoint.h (disable_breakpoints_in_shlibs): decl updated.
-	* irix5-nat.c (clear_solib): call disable_breakpoints_in_shlibs.
-	* osfsolib.c (clear_solib): ditto.
-	* solib.c (clear_solib): ditto.
-	* somsolib.c (som_solib_restart): update call to
-	disable_breakpoints_in_shlibs.
+2002-01-30  Michael Snyder  <msnyder@redhat.com>
 
-	* target.h (child_post_attach): only declare if CHILD_POST_ATTACH
-	is define.
+	* NEWS: Mention "set trust-readonly-sections" command.
+	Mention generate-core-file command.
 
-Tue Jan 19 18:07:11 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+2002-01-15  Michael Snyder  <msnyder@redhat.com>
 
-	* corelow.c (solib_add_stub): Ditto.
-	(core_file_to_sym_file): Cast make_cleanup parameter.
+	* target.c: New command, "set trust-readonly-sections on".
+	(do_xfer_memory): Honor the suggestion to trust readonly sections
+	by reading them from the object file instead of from the target.
+	(initialize_targets): Register command "set trust-readonly-sections".
 
-	* solib.c (symbol_add_stub, solib_map_sections): Change argument
- 	to PTR insted of a char*.  Matches catch_errors interface.
+2002-01-29  Andrew Cagney  <ac131313@redhat.com>
 
-Mon Jan 18 14:01:24 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+	* parse.c (target_map_name_to_register): Simplify, search regs and
+	pseudo-regs using a single loop.
 
-	* remote-array.c (array_open): Don't use fprintf_filtered to send
- 	data to the log file.
+2002-01-30  Andrew Cagney  <ac131313@redhat.com>
 
-	* remote-array.c (handle_load_dll): Change argument type to PTR so
- 	that it is compatible with catch_errors.
-	* ocd.c (ocd_start_remote): Ditto.
-	* remote-sds.c (sds_start_remote): Ditto.
+	* PROBLEMS: Note that the i386 fix was missing from 5.1.1.
 
-	* win32-nat.c (win32_child_thread_alive): Namespace proof
- 	child_thread_alive.
-	(init_child_ops): Update.
+2002-01-15  Rodney Brown  <rbrown64@csc.com.au>
 
-Mon Jan 18 12:03:47 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+	* config/i386/tm-i386v4.h: Define HAVE_I387_REGS.
+	* config/i386/i386v42mp.mh: Add i387-nat.o .
+	* i386v4-nat.c: Include i387-nat.h.
+	(supply_fpregset): Use i387_supply_fsave.
+	(fill_fpregset): Use i387_fill_fsave.
 
-	* remote-rdi.c (arm_rdi_open): Set gdb_hostif.hostosarg and
- 	gdb_hostif.dbgarg to NULL instead of stdout.
-	(voiddummy, myprint, mywritec): Use gdb_stdout instead of stdout.
+2002-01-30  Richard Earnshaw  <rearnsha@arm.com>
 
-Mon Jan 18 16:40:50 1999  Stan Shebs  <shebs@andros.cygnus.com>
+	* arm-tdep.c (arm_call_dummy_words): Define.
+	* arm-linux-tdep.c (arm_linux_call_dummy_words): Define.
+	* config/arm/tm-arm.h (CALL_DUMMY_P): Define.
+	(CALL_DUMMY_WORDS): Define.
+	(arm_call_dummy_words): Declare.
+	* config/arm/tm-linux.h (CALL_DUMMY_WORDS): Define.
+	(arm_linux_call_dummy_words): Declare.
 
-	* ser-ocd.c (ocd_open): Handle Unix case gracefully.
+2002-01-30  Andreas Schwab  <schwab@suse.de>
 
-	* target.c (dummy_target): Don't initialize statically.
-	(init_dummy_target): New function, fills in dummy_target.
-	(initialize_targets): Use it.
-	* hpux-thread.c (hpux_thread_ops): Don't initialize statically.
-	(init_hpux_thread_ops): New function, fills in hpux_thread_ops.
-	(_initialize_hpux_thread): Use it.
-	* m3-nat.c (m3_ops): Don't initialize statically.
-	(init_m3_ops): New function, fills in m3_ops.
-	(_initialize_m3): Use it.
+	* m68klinux-nat.c: Fix last change to use regcache_collect
+	instead of referencing registers[] directly.
 
-1999-01-18  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+2002-01-29  Andrew Cagney  <ac131313@redhat.com>
 
-	* sol-thread.c: delete compile time initialization of target_ops
-	  (_initialize_sol_thread): initialize target_ops at run time.
-	* hpux-thread.c: added target_ops entry.
-	* m3-nat.c: ditto.
+	* parse.c (target_map_name_to_register): Delete code wrapped in
+	#ifdef REGISTER_NAME_ALIAS_HOOK.
 
-Mon Jan 18 15:19:13 1999  David Taylor  <taylor@texas.cygnus.com>
+2002-01-28  Michael Snyder  <msnyder@redhat.com>
 
-	* procfs.c (procfs_ops): delete compile time initialization.
-	(_initialize_procfs): initialize procfs_ops at run time.
+	* regcache.c (legacy_read_register_gen): Need to be able to
+	read pseudo-register as well as real register.
+	(legacy_write_register_gen): Ditto.
 
-Mon Jan 18 12:51:44 1999  Christopher Faylor <cgf@cygnus.com>
+2002-01-28  Andrew Cagney  <ac131313@redhat.com>
 
-	* configure.in: Ensure that -luser32 is always linked in
-	for cygwin build.
-	* configure: Regenerated.
+	* config/mips/tm-wince.h (TARGET_BYTE_ORDER): Delete.
+	* config/sparc/tm-sparc.h (TARGET_BYTE_ORDER): Delete.
+	* config/ns32k/tm-umax.h (TARGET_BYTE_ORDER): Delete.
+	* config/ia64/tm-ia64.h (TARGET_BYTE_ORDER): Delete.
+	* config/m32r/tm-m32r.h (TARGET_BYTE_ORDER): Delete.
+	* config/m68k/tm-m68k.h (TARGET_BYTE_ORDER): Delete.
+	* config/m88k/tm-m88k.h (TARGET_BYTE_ORDER): Delete.
+	* config/mn10200/tm-mn10200.h (TARGET_BYTE_ORDER): Delete.
+	* config/pa/tm-hppa.h (TARGET_BYTE_ORDER): Delete.
+	* config/sh/tm-wince.h (TARGET_BYTE_ORDER): Delete.
+	* config/v850/tm-v850.h (TARGET_BYTE_ORDER): Delete.
+	* config/vax/tm-vax.h (TARGET_BYTE_ORDER): Delete.
+	* config/z8k/tm-z8k.h (TARGET_BYTE_ORDER): Delete.
+	* config/i960/tm-i960.h (TARGET_BYTE_ORDER): Delete.
+	* config/i386/tm-i386.h (TARGET_BYTE_ORDER): Delete.
+	* config/h8500/tm-h8500.h (TARGET_BYTE_ORDER): Delete.
+	* config/h8300/tm-h8300.h (TARGET_BYTE_ORDER): Delete.
+	* config/fr30/tm-fr30.h (TARGET_BYTE_ORDER): Delete.
+	* config/d30v/tm-d30v.h (TARGET_BYTE_ORDER): Delete.
+	* config/alpha/tm-alpha.h (TARGET_BYTE_ORDER): Delete.
+
+2002-01-28  Andrew Cagney  <ac131313@redhat.com>
 
-Mon Jan 18 08:38:05 1999  Mark Alexander  <marka@cygnus.com>
+	* arch-utils.c (TARGET_BYTE_ORDER_DEFAULT): Delete macro.
+	(target_byte_order): Initialize to BFD_ENDIAN_BIG.
+	(initialize_current_architecture): Update target_byte_order using
+	information from BFD.
+	* config/mcore/tm-mcore.h (TARGET_BYTE_ORDER_DEFAULT):
+	* config/arm/tm-arm.h (TARGET_BYTE_ORDER_DEFAULT): Delete.
 
-	* values.c (value_virtual_fn_field): Clear the pointed-to
-	offset when casting to the base class.
-
-Mon Jan 18 10:30:51 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* remote-udi.c (init_udi_ops): change non-existant udi_run_ops to
-	udi_ops; delete NULL initializers.
-
-Mon Jan 18 12:03:47 1999  Andrew Cagney  <cagney@b1.cygnus.com>
-
-	* serial.c (serial_close): gdb_fclose tages gdb_file** arg, not
- 	gdb_file*.
-
-	* f-valprint.c, target.c, gdbarch.c: Pass gdb_stderr not stderr.
-
-Mon Jan 18 10:46:12 1999  Andrew Cagney  <cagney@b1.cygnus.com>
-
-	* stack.c (print_frame_info_base): Don't cast call to
- 	catch_errors.
-	(print_args_stub): Change char* arg to PTR.
-	* symmisc.c (print_symbol): Ditto.
-	* top.c (quit_cover): Ditto.
-	* remote.c (remote_open_1, remote_start_remote): Ditto.
-	* infrun.c (normal_stop, hook_stop_stub, restore_selected_frame):
- 	Ditto.
-
-	* stack.c (backtrace_command): Cast first arg of make_cleanup to
- 	make_cleanup_func.
-	* remote.c (remote_kill): Cast putpkt arg to catch_errors_ftype.
-
-Mon Jan 18 08:47:02 1999  Andrew Cagney  <cagney@b1.cygnus.com>
-	
-	* defs.h (catch_errors_ftype): Define.
-	(catch_errors): Replace char* arg with PTR arg.
-	* top.c (catch_errors): Update
-
-	* breakpoint.c (bpstat_stop_status, bpstat_stop_status,
- 	delete_breakpoint, breakpoint_re_set): Delete all casts in call to
- 	catch_errors.
- 	(breakpoint_cond_eval, watchpoint_check,
- 	cover_target_enable_exception_callback, breakpoint_re_set_one):
- 	Arg is PTR not char*.
-	
-	* breakpoint.c (cover_target_enable_exception_callback): Change
- 	type to int. Check for cast values of 0 and -1.  Return a result!
-	(insert_breakpoints): Move declaration of SAL and ARGS to where
- 	they are used.
-
-1999-01-16  Fernando Nasser  <fnasser@totem.to.cygnus.com>
-
-	* remote.c (remote_query): new function - creates proper interface
-	to the remote protocol "q" command.	
-
-Fri Jan 15 17:11:48 EST 1999  Zdenek Radouch   (radouch@cygnus.com)
-
-	* config/fr30/tm-fr30.h:  Changed ABI to match GCC change
-	  (always use pointer for structs passed by value).
-
-1999-01-15  Fernando Nasser  <fnasser@totem.to.cygnus.com>
-
-	* target.h: added entry for target queries (to_query)
-	  target.c: ditto.
-
-Thu Jan 14 18:29:17 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* remote-mm.c (mm_wait): fix stream arg to gdb_flush.
-	* remote-udi.c (udi_wait): fix stream arg to fwrite.
-	* symmisc.c (maintenance_check_symtabs): fix stream argument to
-	print_address_numeric.
-	
-Wed Jan 13 19:33:16 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* breakpoint.c (insert_breakpoints): insert cast to eliminate
-	warning.
-
-Wed Jan 13 14:59:02 1999  Michael Snyder  <msnyder@cleaver.cygnus.com>
-
-	* infrun.c (set/show scheduler-locking) New command.  Set a
-	  mode bit that will control how GDB attempts to control thread
-	  scheduling for step, continue, etc.  (resume): make use of
-	  the schedule-locking mode.
-	* target.h (struct target_ops): new field to_has_thread_control.
-	* sol-thread.c: initialize target_ops to_has_thread_control.
-	* procfs.c: ditto.
-	* target.c: ditto.
-	* m3-nat.c: ditto.
-	* remote.c: ditto.
-	* hpux-thread.c: ditto.
-	* thread.c: cull duplicate prototypes.  Move prototypes to top.
-	* serial.c: indentation cleanup.
-	* breakpoint.c: add casts to eliminate compiler warnings.
-	
-Tue Jan 12 17:00:00 1999  Edith Epstein  <eepstein@sophia.cygnus.com>
-
-	* inftarg.c (child_create_inferior): fixed HPUXHPPA specific
-	  call to fork_inferior. The shell param is now NULL.
-
-1999-01-12  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* monitor.c (init_base_monitor_ops): Whitespace cleanup.
-	(_initialize_remote_monitors): Same.
-
-1999-01-12  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* monitor.c (init_monitor_ops): Initialize the monitor_ops
-	structure if it hasn't already been done.
-
-Tue Jan 12 14:50:10 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* inftarg.c (child_ops): Don't initialize statically.
-	(init_child_ops): New function, fills in child_ops.
-	(_initialize_inftarg): Use it.
-	(child_post_attach): Declare extern.
-	(child_wait): Fix ambiguous parens.
-	(child_attach_to_process): Remove unused local wstatus.
-	(child_insert_fork_catchpoint, child_remove_fork_catchpoint,
-	child_insert_vfork_catchpoint, child_remove_vfork_catchpoint,
-	child_has_forked, child_insert_exec_catchpoint,
-	child_remove_exec_catchpoint): Return a value.
-
-Mon Jan 11 16:43:44 1999  Michael Snyder  <msnyder@cleaver.cygnus.com>
-
-	* remote.c (remote_wait): Add inferior_pid to thread list only
-	if it is not already there.
-
-1999-01-11  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* scm-tags.h: Update FSF's address on copyright notice.
-	* ser-e7kpc.c: Same.
-	* gnu-nat.h: Same.
-
-Mon Jan 11 13:45:57 1999  Stu Grossman  <grossman@babylon-5.cygnus.com>
-
-	* dwarf2read.c (dump_die):  Change stderr to gdb_stderr.
-	* expprint.c (print_subexp):  fprintf => fprintf_unfiltered.
-	* jv-typeprint.c (java_type_print_base):  fputs => fputs_filtered.
-	* stack.c (struct function_bounds):  Remove superfluous `typedef'.
-	* symfile.c (list_overlays_command):  stdout => gdb_stdout.
-	* symmisc.c (maintenance_check_symtabs):  stdout => gdb_stdout.
-	* utils.c (print_spaces):  Make more efficient.
-	
-Mon Jan 11 13:55:51 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* utils (print_spaces): fix arg to strcat; fix formatting.
-
-Fri Jan  8 11:57:24 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* exec.c (exec_ops): Don't initialize statically.
-	(init_exec_ops): New function, fills in exec_ops.
-	(_initialize_exec): Use it.
-
-Thu Jan  7 17:50:15 EST 1999  Zdenek Radouch   (radouch@cygnus.com)
-
-	Beta FR30 port.
-	* fr30-tdep.c
-	* config/fr30/tm-fr30.h
-	
-Wed Jan  6 12:28:35 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* configure.in: Add an --enable-tui argument.  Construct
- 	tui/Makefile from tui/Makefile.in.  Use AM_PROG_CC_STDC.  If we
- 	have the GUI, then we need this to process libgui.h.
-	(ENABLE_CFLAGS): define and export BUILD_TUI.
-	(AC_CHECK_HEADERS): Add check for term.h.
-	
-	* configure.host (hppa-*-hpux10.20, hppa-*-hpux11.0*): New configs.
-
-	* config.in, configure : regenerated.
-
-	* Makefile.in: Allow the TUI code to be conditionally enabled.
-	(TUI_LIBRARY): New variable, value are set by the configuration
- 	script.  Set to the empty string when the TUI isn't enabled.
-	(gdb$(GDBEXT)): Use those, instead of referring to all-tui and
- 	tui/libtui.a directly.
-	(BUILD_TUI): build the tui -- only when configured with
- 	--enable-tui.
-	(YLWRAP): use ylwrap to avoid problems on systems w/o bison.
-	(gdb$(EXEEXT)): make it dependent on BUILD_TUI.
-	(all-tui): remove dependency from phony target.
-	(c-exp.tab.c): use ylwrap instead of bison.
-	(jv-exp.tab.c): ditto.
-	(f-exp.tab.c): ditto.
-	(m2-exp.tab.c): ditto.
-	(ALLDEPFILES): add somread.c, hp-psymtab-read.c, hp-symtab-read.c.
-	(SFILES): remove the above files
-	(COMMON_OBS): remove somread.o
-	(SFILES): Add the tui files to this, so they get included in etags
- 	tables.
-	(gdb$(EXEEXT)): Add all-tui to the list of dependencies, and add
- 	tui/libtui.a to the link list.
-	(all-tui): New rule, which does a recursive make in the tui
- 	subdir.
-	(tui/libtui.a): When recursing, pass down ${FLAGS_TO_PASS}.  And
- 	don't echo the make command.  This is closer to what the other
- 	recursions do.
-	(HFILES_NO_SRCDIR): add hpread.h
-	(COMMON_OBS): add hp-psymtab-read.o, hp-symtab-read.o
-        (SFILES): add hp-psymtab-read.c, hp-symtab-read.c add rules for
- 	the new files.  Remove hpread.c, hpread.o
-	(gdb$(EXEEXT)): Depend on the actual tui library, not on a
- 	fictitious target.  Since the fictitious target never existed,
- 	make would always relink.
-	(tui/libtui.a): Always recurse to make sure the library is up to
- 	date.
-
-Wed Jan  6 12:05:12 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* remote.c: Pacify --enable-build-warnings, reformat code
-	to conform to standards, fix spelling errors.
-	(ishex, stubhex, record_currthread, etc): Declare.
-	(ishex, stubhex): Declare char arg as int.
-	(pack_string): Comment out, never used but possibly useful.
-	(threadref_to_int, remote_get_threadinfo, etc): Make static.
-
-Wed Jan  6 11:43:32 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	The following changes were made by Elena Zannoni
- 	<ezannoni@cygnus.com> and Edith Epstein <eepstein@cygnus.com> as
- 	part of a project to merge in changes made by HP.
-
-	* c-exp.y: use external flag hp_som_som_object_present to decide
- 	whether code was compiled by HP's compilers.  Add two new C++
- 	tokens for true and false.
-        (yylex): check for template name is done differently for the
- 	HP/aCC compiler case.  Change some of the template processing code
- 	for handling HP aCC templates.  Handle true and false tokens.
-	
-Tue Jan  5 11:13:36 1999  Michael Snyder  <msnyder@cleaver.cygnus.com>
-
-	* remote.c (record_curthread): Must not modify inferior_pid when
- 	called from wait_for_inferior.  Instead, if a new thread-id is
- 	detected, call add_thread.
-	(MAGIC_NULL_PID): new macro, use instead of the magic number
- 	"42000".
-	(remote_find_new_threads): if inferior_pid is unknown, get and use
- 	the current thread id.
-	(remote_start_remote): on connecting, attempt to get the current
- 	thread id for inferior_pid.
-	(remote_resume): If pid == -1, then resume any-thread (not the
- 	current thread specifically).  Also some cosmetic fixups.
-	
-	* thread.c (info_threads_command): don't initialize current_pid 
-	until after call to FIND_NEW_THREADS (which may change inferior_pid).
-	Also some cosmetic fixups.
-	* infrun.c: cosmetic fixups and casts to avoid warnings.
-	* infcmd.c: cosmetic fixups, mainly long lines.
-	
-Tue Jan  5 11:55:57 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* target.c (noprocess): terminate sentence with a period.
-	* breakpoint.c (catch_command_1): ditto.
-
-	* c-valprint.c (c_value_print): remove hack^2 from HP; it causes
-	testsuite losses with no real gain.
-
-	* inferior.h (START_INFERIOR_TRAPS_EXPECTED): restore, but only
-	if tm-*.h hasn't overridden default value.
-
-1999-01-04  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* configure.in: Fix whitespace indentation for --help.
-	* configure: Regenerated.
-
-1999-01-04  Manuel Bouyer <bouyer@antioche.lip6.fr>
-
-	* main.c: Add --write command line option, document -w.
-	* gdb.1: Document --write.
-
-1999-01-04  Jason Molenda  (jsm@bugshack.cygnus.com)
-
-	* configure.in: Require autoconf 2.12.1 or higher.
-	* doc/configure.in: Ditto.
-	* nlm/configure.in: Ditto.
-	* rdi-share/configure.in: Ditto.
-	* testsuite/configure.in: Ditto.
-	* doc/Makefile.in: Don't hardcode $(SHELL).
-	* nlm/Makefile.in: Ditto.
-	* rdi-share/Makefile.in: Ditto.
-	* testsuite/Makefile.in: Ditto.
-
-Mon Jan  4 12:53:03 1999  Stan Shebs  <shebs@andros.cygnus.com>
-
-	* remote-vx.c (init_vx_ops, init_vx_run_ops): Remove unneeded
-	inits of new fields, including ref to bogus field.
-	(vx_ops, vx_run_ops): Make static.
-
-Mon Jan  4 15:05:29 1999  David Taylor  <taylor@texas.cygnus.com>
-
-	* inferior.h (START_INFERIOR_TRAPS_EXPECTED): delete,
-	already defined in tm.h.
-
-	* inftarg.c: change <sys/unistd.h> to <unistd.h> and
-	conditionalize its inclusion.
-	* infttrace.c: ditto.
-
-For older changes see ChangeLog-98
+2002-01-28  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/vax/tm-vax.h (INVALID_FLOAT): Move macro from here...
+	* vax-tdep.c (INVALID_FLOAT): To here.  Document why it is broken.
+
+	* rs6000-tdep.c (rs6000_do_registers_info): Delete code wrapped in
+	#ifdef INVALID_FLOAT.
+	* infcmd.c (do_registers_info): Ditto.
+	* values.c (unpack_double): Ditto.  Add comment.
+
+	* config/ns32k/tm-umax.h (INVALID_FLOAT): Delete macro that was
+	already commented out.
+
+2002-01-26  Andreas Schwab  <schwab@suse.de>
+
+	* config/m68k/nm-linux.h (FETCH_INFERIOR_REGISTERS): Define.
+	* m68klinux-nat.c: Update ptrace interface for fetching/storing
+	registers and add support for PTRACE_GETREGS.
+
+2002-01-24  Andrew Cagney  <ac131313@redhat.com>
+
+	GDB 5.1.1 released from 5.1 branch.
+	* NEWS: Add 5.1.1 news.
+	* README: Sync with 5.1 branch.
+
+2002-01-23  Fred Fish  <fnf@redhat.com>
+
+	* mdebugread.c (parse_partial_symbols): Only copy stabstring1 to
+	stabstring on initial malloc.  Reallocing will copy it for us,
+	if necessary.
+
+2002-01-23  Elena Zannoni  <ezannoni@redhat.com>
+
+        * Makefile.in (hpread_h): Delete.
+        (HFILES_NO_SRCDIR): Remove hpread.h.
+        (ALLDEPFILES): Remove hp-psymtab-read.c and hp-symtab-read.c.
+        (hpread.o): Update dependencies.
+        (hp-psymtab-read.o, hp-symtab-read.o): Remove.
+
+        * hp-psymtab-read.c: Remove file.
+        * hp-symtab-read.c: Remove file.
+        * hpread.h: Remove file.
+
+        * hpread.c: Merge all contents of hp-psymtab-read.c,
+        hp-symtab-read.c and hpread.h into this file, as it was prior to
+        January 1999.
+
+        * config/pa/hpux11w.mh, config/pa/hpux11.mh,
+        config/pa/hpux1020.mh, config/pa/hppaosf.mh,
+        config/pa/hppahpux.mh, config/pa/hppabsd.mh (NATDEPFILES):
+        Remove hp-psymtab-read.o and hp-symtab-read.o, add hpread.o.
+
+2002-01-23  Elena Zannoni  <ezannoni@redhat.com>
+
+	* ppc-linux-nat.c (ppc_register_u_addr, supply_gregset,
+	fill_gregset): Call gdbarch_tdep() just once, assign result to
+	variable and use that, instead of calling the function several
+	times.
+
+2002-01-24  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.host: Accept sparcv9 as alias for sparc64.
+	* configure.tgt: Likewise.
+
+2002-01-22  Kevin Buettner  <kevinb@redhat.com>
+
+	* solib-aix5.c (build_so_list_from_mapfile)
+	(aix5_relocate_main_executable): Fix xcalloc() calls so order of
+	arguments is not reversed.
+	* solib-sunos.c (sunos_relocate_main_executable): Likewise.
+	* solib-svr4.c (svr4_relocate_main_executable): Likewise.
+
+2002-01-22  Elena Zannoni  <ezannoni@redhat.com>
+
+	* sh-tdep.c (sh_pseudo_register_read): New function. Renamed and
+	modified version of obsolete sh_fetch_pseudo_register.
+	(sh_fetch_pseudo_register): Rename to sh_pseudo_register_read.
+	(sh4_register_read): New function.
+	(sh_pseudo_register_write): New function. Renamed and modified
+	version of obsolete sh_store_pseudo_register.
+	(sh_store_pseudo_register): Rename to sh_pseudo_register_write.
+	(sh4_register_write): New function.
+	(sh_gdbarch_init): Remove setting of gdbarch function
+	fetch_pseudo_register and store_pseudo_register. Remove setting of
+	register_convert_to_raw, register_convert_to_virtual,
+	register_convertible.
+	(sh_sh4_register_convertible): Delete. No longer needed. All is
+	taken care by architecture specific functions
+	register_read/register_write.
+	(sh_sh4_register_convert_to_virtual): Make static.
+	(sh_sh4_register_convert_to_raw): Ditto.
+
+2002-01-22  Andrew Cagney  <ac131313@redhat.com>
+
+	* doublest.c (floatformat_is_negative): Assert FMT is non NULL.
+	(floatformat_is_nan, floatformat_mantissa): Ditto.
+
+	* gdbtypes.c (_initialize_gdbtypes): Initialize TYPE_FLOATFORMAT
+	for builtin_type_ieee_single_little, builtin_type_ieee_double_big,
+	builtin_type_ieee_double_little,
+	builtin_type_ieee_double_littlebyte_bigword,
+	builtin_type_m68881_ext, builtin_type_i960_ext,
+	builtin_type_m88110_ext, builtin_type_m88110_harris_ext,
+	builtin_type_arm_ext_big, builtin_type_arm_ext_littlebyte_bigword,
+	builtin_type_ia64_spill_big, builtin_type_ia64_spill_little and
+	builtin_type_ia64_quad_big, builtin_type_ia64_quad_little.
+
+2002-01-22  Corinna Vinschen  <vinschen@redhat.com>
+
+	* xstormy16-tdep.c (xstormy16_scan_prologue): Add frameless
+	parameter.  Set frameless flag if it exists and depended of
+	whether the scanned function is frameless or not.
+	(xstormy16_skip_prologue): If function is frameless, return
+	result of xstormy16_scan_prologue().
+	(xstormy16_frame_init_saved_regs): Adjust xstormy16_scan_prologue()
+	call.
+
+2002-01-21  Elena Zannoni  <ezannoni@redhat.com>
+
+	* sh-tdep.c (sh_fp_frame_init_saved_regs, sh_push_arguments,
+	sh_generic_show_regs, sh3_show_regs, sh3e_show_regs,
+	sh3_dsp_show_regs, sh4_show_regs, sh_dsp_show_regs,
+	sh_sh4_register_byte, sh_sh4_register_raw_size,
+	sh_sh3e_register_virtual_type, sh_sh4_register_virtual_type,
+	sh_sh4_register_convertible, sh_sh4_register_convert_to_virtual,
+	sh_sh4_register_convert_to_raw, sh_fetch_pseudo_register,
+	sh_store_pseudo_register, sh_do_pseudo_register): Call
+	gdbarch_tdep() just once, assign result to variable and use that,
+	instead of calling the function several times.
+
+2002-01-20  Mark Kettenis  <kettenis@gnu.org>
+
+	* go32-nat.c (fetch_register): Use FP_REGNUM_P and FPC_REGNUM_P
+	macros instead of LAST_FPU_CTRL_REGNUM.
+	(store_register): Likewise.
+
+2002-01-21  Jim Blandy  <jimb@redhat.com>
+
+	* infcmd.c (run_command): Check that the `exec' target layer's BFD
+	is up-to-date before running the program, not just when a program
+	exits.
+
+2002-01-21  Fred Fish  <fnf@redhat.com>
+
+	* arm-tdep.c (thumb_skip_prologue): Quit scanning prologue
+	when we have found all instructions we are looking for.
+
+2002-01-21  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-tdep.c (arm_register_name): New function.
+	(arm_registers_names): Make static.
+	* config/arm/tm-arm.h (arm_register_names): Delete declaration.
+	(arm_register_name): Declare.
+	(REGISTER_NAME): Use it.
+
+2002-01-21  Richard Earnshaw  <rearnsha@arm.com>
+	    Kevin Buettner  <kevinb@redhat.com>
+
+	Convert arm targets to new FRAME interface.
+	* arm-tdep.c (struct frame_extra_info): Remove fsr.
+	(arm_frame_find_save_regs): Delete.
+	(arm_frame_init_saved_regs): New.
+	(arm_init_extra_frame_info): Alloacte saved_regs as required.
+	Allocate extra_info as required.  Convert all uses of fsr.regs
+	to use saved_regs, similarly all uses of EXTRA_FRAME_INFO fields
+	to use extra_info.
+	(thumb_scan_prologue, arm_scan_prologue, arm_find_callers_reg)
+	(arm_frame_chain, arm_frame_saved_pc, arm_pop_frame): Likewise.
+	(check_prologue_cache, save_prologue_cache): Likewise.
+	(_initialize_arm_tdep): Ensure prologue_cache is correctly set up.
+	* config/arm/tm-arm.h (EXTRA_FRAME_INFO): Delete.
+	(FRAME_FIND_SAVED_REGS): Delete.
+	(arm_frame_find_saved_regs): Delete prototype.
+	(arm_frame_init_saved_regs): New prototype.
+	(FRAME_INIT_SAVED_REGS): Define.
+
+2002-01-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/arc/tm-arc.h (IEEE_FLOAT): Delete.
+
+2002-01-20  Andrew Cagney  <ac131313@redhat.com>
+
+	From Jeff Law <law@redhat.com>:
+	* infttrace.c: Include <sys/pstat.h>.
+	(child_pid_to_exec_file): Revamp.  Use pstat call to get the
+	exec file if the ttrace equivalent fails.
+
+2002-01-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* rdi-share/devsw.c (openLogFile): Delete unused ``struct tm lt''.
+	(closeLogFile): Ditto.
+
+2002-01-20  Michael Chastain  <mec@shout.net>
+
+	* top.c (print_gdb_version): Bump copyright year to 2002.
+
+2002-01-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS (Blanket Write Privs): Add Kevin Buettner, Elena
+	Zannoni and Eli Zaretskii.
+
+2002-01-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* buildsym.c: Update copyright years.
+	* c-typeprint.c: Likewise.
+	* dwarf2read.c: Likewise.
+	* f-typeprint.c: Likewise.
+	* gdbtypes.c: Likewise.
+	* gdbtypes.h: Likewise.
+	* hp-symtab-read.c: Likewise.
+	* hpread.c: Likewise.
+	* mdebugread.c: Likewise.
+	* p-typeprint.c: Likewise.
+
+2002-01-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* remote-sim.c (gdbsim_open): Simplify code testing the macro
+	TARGET_BYTE_ORDER_SELECTABLE_P.  Assume the target is always
+	byte-order selectable.
+	* sparc-tdep.c (sparc_target_architecture_hook): Ditto.
+	* arch-utils.c: Ditto.
+	(set_endian): Ditto.
+	(set_endian_from_file): Ditto.
+	* gdbserver/low-sim.c (create_inferior): Ditto.
+	* gdbarch.sh: Ditto.
+	* gdbarch.h: Re-generate.
+	* config/powerpc/tm-ppc-eabi.h (TARGET_BYTE_ORDER_SELECTABLE_P):
+	* config/sparc/tm-sparclite.h (TARGET_BYTE_ORDER_SELECTABLE):
+	* config/sparc/tm-sparclet.h (TARGET_BYTE_ORDER_SELECTABLE):
+	* config/mcore/tm-mcore.h (TARGET_BYTE_ORDER_SELECTABLE_P):
+	* config/arm/tm-wince.h (TARGET_BYTE_ORDER_SELECTABLE_P):
+	* config/arm/tm-linux.h (TARGET_BYTE_ORDER_SELECTABLE_P):
+	* config/arc/tm-arc.h (TARGET_BYTE_ORDER_SELECTABLE):
+	* config/arm/tm-arm.h (TARGET_BYTE_ORDER_SELECTABLE_P): Delete
+	macro definition.
+	* config/mips/tm-wince.h: Remove #undef of macro
+	TARGET_BYTE_ORDER_SELECTABLE.
+	* config/sh/tm-wince.h: Ditto.
+
+2002-01-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbtypes.h (struct cplus_struct_type): Add is_artificial to
+	member function fields.  Add accessor macro
+	TYPE_FN_FIELD_ARTIFICIAL.
+	* dwarf2read.c (dwarf2_add_member_fn): Check for artificial methods.
+	* c-typeprint.c (c_type_print_base): Skip artificial member
+	functions.
+
+2002-01-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* f-typeprint.c: Delete unused function f_type_print_args.
+	* p-typeprint.c: Delete unused function pascal_type_print_args.
+
+2002-01-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbtypes.h (struct type): Fix whitespace.  Remove obsolete
+	comment.  Add ``artificial'' to ``union field_location''.
+
+	* dwarf2read.c: Remove ad-hoc TYPE_FIELD_ARTIFICIAL.
+
+	* buildsym.c (finish_block): Initialize TYPE_FIELD_ARTIFICIAL to 0.
+	* mdebugread.c (parse_symbol): Likewise.
+	* stabsread.c (define_symbol): Likewise.
+	* hp-symtab-read.c (hpread_function_type): Likewise, instead of
+	initializing TYPE_FIELD_BITPOS to n (obsolete).
+	(hpread_doc_function_type): Likewise.
+	* hpread.c (hpread_function_type): Likewise.
+
+2002-01-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* configure.in (host_makefile_frag): Only require a host makefile
+	fragment when a native build.
+	* configure: Re-generate.
+
+2002-01-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* doublest.h (floatformat_from_type): Declare.
+	* doublest.c (floatformat_from_type): New function.
+	(convert_typed_floating): Use.
+
+	* valprint.c (print_floating): Replace checks for IEEE_FLOAT with
+	call to function floatformat_from_type.
+
+	* gdbarch.sh (IEEE_FLOAT): Delete.
+	* gdbarch.h, gdbarch.c: Re-generate.
+	* config/i960/tm-i960.h (IEEE_FLOAT): Delete macro.
+	* config/i386/tm-i386.h (IEEE_FLOAT): Ditto.
+	* config/z8k/tm-z8k.h (IEEE_FLOAT): Ditto.
+	* config/sparc/tm-sparc.h (IEEE_FLOAT): Ditto.
+	* config/pa/tm-hppa.h (IEEE_FLOAT): Ditto.
+	* config/m88k/tm-m88k.h (IEEE_FLOAT): Ditto.
+	* config/m68k/tm-m68k.h (IEEE_FLOAT): Ditto.
+	* config/h8500/tm-h8500.h (IEEE_FLOAT): Ditto.
+	* config/h8300/tm-h8300.h (IEEE_FLOAT): Ditto.
+	* config/fr30/tm-fr30.h (IEEE_FLOAT): Ditto.
+	* config/arm/tm-arm.h (IEEE_FLOAT): Ditto.
+	* config/alpha/tm-alpha.h (IEEE_FLOAT): Ditto.
+
+	* s390-tdep.c (s390_gdbarch_init): Do not set ieee_float.
+	* x86-64-tdep.c (i386_gdbarch_init): Ditto.
+	* sparc-tdep.c (sparc_gdbarch_init): Ditto.
+	* sh-tdep.c (sh_gdbarch_init): Ditto.
+	* mips-tdep.c (mips_gdbarch_init): Ditto.
+	* m68hc11-tdep.c (m68hc11_gdbarch_init): Ditto.
+	* cris-tdep.c (cris_gdbarch_init): Ditto.
+
+2002-01-20  Jiri Smid  <smid@suse.cz>
+
+	* configure.host, configure.tgt: Support x86-64.
+	* NEWS: Note new target x86-64.
+
+	* config/i386/x86-64linux.mh (NATDEPFILES): x86-64-nat.o removed.
+	* x86-64-linux-nat.c (x86_64_register_u_addr): New function.
+	* config/i386/nm-x86-64.h (ATTACH_LWP): Removed.
+	* Makefile.in (x86-64-tdep.o, x86-64-linux-tdep.o,
+	x86-64-linux-nat.o): Fix dependencies.
+
+2002-01-19  Andrew Cagney  <ac131313@redhat.com>
+
+	* utils.c: Remove #ifndef MALLOC_INCOMPATIBLE.
+	* config/sparc/xm-sun4os4.h (PTRACE_ARG3_TYPE): Move macro ....
+	* config/sparc/nm-sun4os4.h (PTRACE_ARG3_TYPE): ... to here.
+	* config/sparc/xm-sun4os4.h: Delete file.
+	* config/sparc/sun4os4.mh (XM_FILE): Delete makefile variable.
+
+2002-01-19  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/sparc/sparclynx.mh (XM_FILE): Delete.
+	* config/rs6000/rs6000lynx.mh (XM_FILE): Delete.
+	* config/m68k/m68klynx.mh (XM_FILE): Delete.
+	* config/i386/i386lynx.mh (XM_FILE): Delete.
+	* config/rs6000/xm-rs6000ly.h: Delete file.
+	* config/sparc/xm-sparclynx.h: Delete file.
+	* config/m68k/xm-m68klynx.h: Delete file.
+	* config/i386/xm-i386lynx.h: Delete file.
+	* config/xm-lynx.h: Delete file.
+	* config/djgpp/fnchange.lst: Update.
+
+2002-01-19  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alpha-tdep.c (alpha_register_byte): New function.
+	(alpha_register_raw_size): Ditto.
+	(alpha_register_virtual_size): Ditto.
+	(alpha_skip_prologue_internal): Renamed from
+	alpha_skip_prologue.
+	(alpha_skip_prologue): New version that calls
+	alpha_skip_prologue_internal.
+	(alpha_in_lenient_prologue): Use alpha_skip_prologue_internal.
+	* config/alpha/tm-alpha.h (SKIP_PROLOGUE): Remove
+	second argument from alpha_skip_prologue.
+	(REGISTER_BYTE): Use alpha_register_byte.
+	(REGISTER_RAW_SIZE): Use alpha_register_raw_size.
+	(REGISTER_VIRTUAL_SIZE): Use alpha_register_virtual_size.
+	(FRAMELESS_FUNCTION_INVOCATION): Use
+	generic_frameless_function_invocation_not.
+	(FRAME_NUM_ARGS): Use frame_num_args_unknown.
+	(COERCE_FLOAT_TO_DOUBLE): Use standard_coerce_float_to_double.
+
+2002-01-19  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/mips/xm-news-mips.h: Delete file.
+	* config/mips/news-mips.mh (XM_FILE): Delete makefile variable.
+
+	* config/m88k/xm-m88k.h: Delete file.
+	* config/m88k/xm-dgux.h: Do not include xm-m88k.h.
+	* config/m88k/xm-delta88v4.h: Ditto.
+	* config/m88k/xm-delta88.h: Ditto.
+
+	* config/alpha/xm-fbsd.h: Delete file.
+	* config/alpha/fbsd.mh (XM_FILE): Delete makefile variable.
+
+	* config/sparc/xm-sparc.h: Delete file.
+	* Makefile.in (xm-sun4os4.h): Delete dependency.
+	* config/sparc/xm-sun4sol2.h: Do not include xm-sparc.h.
+	* config/sparc/xm-sun4os4.h: Ditto.
+	* config/sparc/xm-linux.h: Ditto.
+
+	* config/i386/xm-windows.h: Delete file.
+
+2002-01-19  Andrew Cagney  <ac131313@redhat.com>
+
+	* utils.c: Include <sys/param.h> for MAXPATHLEN.
+	(gdb_realpath): Use MAXPATHLEN when PATH_MAX is not defined.
+
+2002-01-19  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alpha-tdep.c (alpha_call_dummy_words): New.
+	* config/alpha/tm-alpha.h (CALL_DUMMY): Remove.
+	(CALL_DUMMY_P): Define.
+	(CALL_DUMMY_WORDS): Define.
+	(SIZEOF_CALL_DUMMY_WORDS): Define.
+
+2002-01-19  Per Bothner  <per@bothner.com>
+
+	* gnu-v3-abi.c (gnuv3_rtti_type):  Guard that vtable_symbol_name
+	isn't NULL, which can happen with some gcj-3.x-produced code.
+
+2002-01-19  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alpha-tdep.c (alpha_register_virtual_type): New function.
+	(alpha_init_frame_pc_first): Ditto.
+	(alpha_fix_call_dummy): Ditto.
+	(alpha_store_struct_return): Ditto.
+	(alpha_extract_struct_value_address): Ditto.
+	* config/alpha/tm-alpha.h (REGISTER_VIRTUAL_TYPE): Use
+	alpha_register_virtual_type.
+	(STORE_STRUCT_RETURN): Use alpha_store_struct_return.
+	(EXTRACT_STRUCT_VALUE_ADDRESS): Use
+	alpha_extract_struct_value_address.
+	(FIX_CALL_DUMMY): Use alpha_fix_call_dummy.
+	(INIT_FRAME_PC): Use init_frame_pc_noop.
+	(INIT_FRAME_PC_FIRST): Use alpha_init_frame_pc_first.
+
+2002-01-19  Mark Kettenis  <kettenis@gnu.org>
+
+	* i386gnu-nat.c: Include "i386-tdep.h".
+	(fetch_fpregs): Simplify code dealing with uninitialized floating
+	point states such that it doesn't require FP7_REGNUM.
+
+2002-01-18  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alpha-tdep.c (frame_extra_info): New.
+	(alpha_find_saved_regs): Make static.  Use
+	frame->extra_info.
+	(alpha_frame_init_saved_regs): New function.
+	(alpha_frame_saved_pc): Use frame->extra_info.
+	(temp_saved_regs): Don't declare as struct frame_saved_regs.
+	(heuristic_proc_desc): Adjust for temp_saved_regs changes.
+	(init_extra_frame_info): Rename to...
+	(alpha_init_extra_frame_info): ...this.  Use frame->extra_info.
+	(alpha_print_extra_frame_info): New function.
+	(alpha_frame_locals_address): Ditto.
+	(alpha_frame_args_address): Ditto.
+	(alpha_pop_frame): Use frame->extra_info.
+	* config/alpha/tm-alpha.h (FRAME_ARGS_ADDRESS): Use
+	alpha_frame_args_address.
+	(FRAME_LOCALS_ADDRESS): Use alpha_frame_locals_address.
+	(alpha_find_saved_regs): Remove prototype.
+	(FRAME_INIT_SAVED_REGS): Use alpha_frame_init_saved_regs.
+	(EXTRA_FRAME_INFO): Remove.
+	(INIT_EXTRA_FRAME_INFO): Use alpha_init_extra_frame_info.
+	(PRINT_EXTRA_FRAME_INFO): Use alpha_print_extra_frame_info.
+
+2002-01-18  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alpha-tdep.c (alpha_osf_in_sigtramp): New function.
+	(alpha_cannot_fetch_register): Ditto.
+	(alpha_cannot_store_register): Ditto.
+	(alpha_register_convertible): Ditto.
+	(alpha_use_struct_convention): Ditto.
+	* config/alpha/tm-alpha.h: Update copyright years.
+	(IN_SIGTRAMP): Use alpha_osf_in_sigtramp.
+	(INNER_THAN): Use core_addr_lessthan.
+	(CANNOT_FETCH_REGISTER): Use alpha_cannot_fetch_register.
+	(CANNOT_STORE_REGISTER): Use alpha_cannot_store_register.
+	(REGISTER_CONVERTIBLE): Use alpha_register_convertible.
+	(USE_STRUCT_CONVENTION): Use alpha_use_struct_convention.
+	(FRAME_CHAIN): Remove unnecessary cast.
+
+2002-01-18  Andrew Cagney  <ac131313@redhat.com>
+
+	* NEWS: Document that testsuite/gdb.hp/gdb.threads-hp/ is
+	obsolete.
+
+2002-01-18  Andrew Cagney  <ac131313@redhat.com>
+
+	* infptrace.c: Remove ATTRIBUTE_UNUSED.  Update copyright.
+	* monitor.c, remote-array.c, remote-bug.c: Ditto.
+	* remote-e7000.c, remote-es.c, remote-mips.c: Ditto.
+	* remote-nindy.c, remote-os9k.c, remote-rdi.c: Ditto.
+	* remote-rdp.c, remote-sds.c, remote-sim.c: Ditto.
+	* remote-st.c, remote-vx.c, remote.c, win32-nat.c: Ditto.
+	* x86-64-linux-nat.c: Ditto.
+
+2002-01-18  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alpha-tdep.c (alpha_register_name): New function.
+	* config/alpha/tm-alpha.h (REGISTER_NAMES): Remove.
+	(REGISTER_NAME): Define.
+
+2002-01-18  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* config/nm-nbsd.h (KERNEL_U_ADDR): Remove.
+
+2002-01-18  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alpha-tdep.c: Update copyright years.
+	(alpha_next_pc): New function.
+	(alpha_software_single_step): Ditto.
+	* config/alpha/tm-alpha.h: Add prototype for
+	alpha_software_single_step.
+
+2002-01-18  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* alphabsd-nat.c: Update copyright years.
+	(fill_gregset): Use regcache_collect.
+	(fill_fpregset): Likewise.
+	(fetch_inferior_registers): Only fetch integer registers
+	if requested to do so.
+	(store_inferior_registers): Only store integer registers
+	if requested to do so.
+
+2002-01-17  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/alpha/alpha-osf3.mh (XDEPFILES): Delete.
+	* config/alpha/alpha-osf2.mh (XDEPFILES): Delete.
+	* config/alpha/alpha-osf1.mh (XDEPFILES): Delete.
+	* config/alpha/alpha-linux.mh (XDEPFILES): Delete.
+	* config/alpha/fbsd.mh (XDEPFILES): Delete.
+	* config/arm/linux.mh (XDEPFILES): Delete.
+	* config/arm/nbsd.mh (XDEPFILES): Delete.
+	* config/i386/i386dgux.mh (XDEPFILES): Delete.
+	* config/i386/i386sol2.mh (XDEPFILES): Delete.
+	* config/i386/i386m3.mh (XDEPFILES): Delete.
+	(NATDEPFILES): Move i387-tdep.o and core-aout.o to here.
+	* config/i386/i386gnu.mh (XDEPFILES): Delete.
+	* config/i386/fbsd.mh (XDEPFILES): Delete.
+	* config/i386/i386bsd.mh (XDEPFILES): Delete.
+	* config/i386/i386sco5.mh (XDEPFILES): Delete.
+	* config/i386/i386v4.mh (XDEPFILES): Delete.
+	* config/i386/i386v42mp.mh (XDEPFILES): Delete.
+	* config/i386/i386sco4.mh (XDEPFILES): Delete.
+	* config/i386/i386aix.mh (XDEPFILES): Delete.
+	* config/i386/go32.mh (XDEPFILES): Delete.
+	* config/i386/cygwin.mh (XDEPFILES): Delete.
+	* config/i386/i386lynx.mh (XDEPFILES): Delete.
+	* config/i386/i386mach.mh (XDEPFILES): Delete.
+	* config/i386/i386v32.mh (XDEPFILES): Delete.
+	* config/i386/linux.mh (XDEPFILES): Delete.
+	* config/i386/nbsdelf.mh (XDEPFILES): Delete.
+	* config/i386/ncr3000.mh (XDEPFILES): Delete.
+	* config/i386/i386mk.mh (NATDEPFILES): Rename XDEPFILES.
+	* config/i386/i386sco.mh (XDEPFILES): Delete.
+	* config/i386/i386v.mh (XDEPFILES): Delete.
+	* config/i386/nbsd.mh (XDEPFILES): Delete.
+	* config/i386/ptx.mh (NATDEPFILES): Rename XDEPFILES.
+	* config/i386/ptx4.mh (NATDEPFILES): Rename XDEPFILES.
+	* config/i386/symmetry.mh (XDEPFILES): Delete.
+	* config/i386/obsd.mh (XDEPFILES): Delete.
+	* config/i386/x86-64linux.mh (XDEPFILES): Delete.
+	* config/ia64/linux.mh (XDEPFILES): Delete.
+	* config/ia64/aix.mh (XDEPFILES): Delete.
+	* config/m68k/apollo68b.mh (XDEPFILES): Delete.
+	* config/m68k/dpx2.mh (XDEPFILES): Delete.
+	* config/m68k/3b1.mh (NATDEPFILES): Rename XDEPFILES.
+	* config/m68k/apollo68v.mh (XDEPFILES): Delete.
+	* config/m68k/hp300bsd.mh (XDEPFILES): Delete.
+	* config/m68k/linux.mh (XDEPFILES): Delete.
+	* config/m68k/m68klynx.mh (XDEPFILES): Delete.
+	* config/m68k/m68kv4.mh (XDEPFILES): Delete.
+	* config/m68k/nbsd.mh (XDEPFILES): Delete.
+	* config/m68k/sun2os3.mh (XDEPFILES): Delete.
+	* config/m68k/sun2os4.mh (XDEPFILES): Delete.
+	* config/m68k/sun3os3.mh (XDEPFILES): Delete.
+	* config/m68k/sun3os4.mh (XDEPFILES): Delete.
+	* config/m88k/delta88.mh (XDEPFILES): Delete.
+	* config/m88k/delta88v4.mh (XDEPFILES): Delete.
+	* config/m88k/m88k.mh (XDEPFILES): Delete.
+	* config/mips/littlemips.mh (NATDEPFILES): Rename XDEPFILES.
+	* config/mips/linux.mh (XDEPFILES): Delete.
+	* config/mips/irix6.mh (XDEPFILES): Delete.
+	* config/mips/irix5.mh (XDEPFILES): Delete.
+	* config/mips/irix4.mh (XDEPFILES): Delete.
+	* config/mips/irix3.mh (XDEPFILES): Delete.
+	* config/mips/decstation.mh (XDEPFILES): Delete.
+	* config/mips/mipsm3.mh (XDEPFILES): Delete.
+	(NATDEPFILES): Move core-aout.o to here.
+	* config/ns32k/nbsd.mh (XDEPFILES): Delete.
+	* config/pa/hpux1020.mh (XDEPFILES): Delete.
+	* config/pa/hppabsd.mh (XDEPFILES): Delete.
+	* config/pa/hppahpux.mh (XDEPFILES): Delete.
+	* config/pa/hpux11w.mh (XDEPFILES): Delete.
+	* config/pa/hppaosf.mh (XDEPFILES): Delete.
+	* config/pa/hpux11.mh (XDEPFILES): Delete.
+	* config/powerpc/aix.mh (XDEPFILES): Delete.
+	* config/powerpc/nbsd.mh (XDEPFILES): Delete.
+	* config/powerpc/linux.mh (XDEPFILES): Delete.
+	* config/romp/rtbsd.mh: Rename XDEPFILES.
+	* config/rs6000/rs6000lynx.mh (XDEPFILES): Delete.
+	* config/rs6000/aix4.mh (XDEPFILES): Delete.
+	* config/rs6000/rs6000.mh (XDEPFILES): Delete.
+	* config/s390/s390.mh (XDEPFILES): Delete.
+	* config/vax/vaxbsd.mh (NATDEPFILES): Rename XDEPFILES.
+	* config/sparc/sun4sol2.mh (XDEPFILES): Delete.
+	* config/sparc/sun4os4.mh (XDEPFILES): Delete.
+	* config/sparc/sparclynx.mh (XDEPFILES): Delete.
+	* config/sparc/nbsdelf.mh (XDEPFILES): Delete.
+	* config/sparc/nbsd.mh (XDEPFILES): Delete.
+	* config/sparc/linux.mh (XDEPFILES): Delete.
+	* config/vax/vaxult.mh (XDEPFILES): Delete.
+	* config/vax/vaxult2.mh (XDEPFILES): Delete.
+	* Makefile.in (DEPFILES): Remove XDEPFILES.
+
+2002-01-17  Andrew Cagney  <ac131313@redhat.com>
+
+	* utils.c (internal_verror): Fix comments, default is yes not no.
+	Update queries to match.  Default to quit and dump core.
+
+2002-01-17  Andrew Cagney  <ac131313@redhat.com>
+
+	* breakpoint.c: Update assuming #if UI_OUT is always true.  Update
+	copyright.
+	* defs.h, event-top.c, gdbcmd.h: Ditto.
+	* infcmd.c, infrun.c, main.c, printcmd.c, remote.c: Ditto.
+	* source.c, stack.c, symfile.c, symtab.c, thread.c: Ditto.
+	* top.c, cli/cli-cmds.c, cli/cli-decode.c: Ditto.
+	* cli/cli-script.c, cli/cli-script.h, cli/cli-setshow.c: Ditto.
+	* mi/ChangeLog, mi/mi-cmd-break.c, mi/mi-cmd-stack.c: Ditto.
+	* mi/mi-main.c:Ditto.
+
+	* stack.c, symfile.c: Update copyright.
+
+2002-01-17  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/low-hppabsd.c, gdbserver/low-lynx.c,
+	gdbserver/low-nbsd.c, gdbserver/low-sim.c,
+	gdbserver/low-sparc.c, gdbserver/low-sun3.c,
+	gdbserver/low-linux.c, gdbserver/server.c: Correct copyright notices.
+
+2002-01-17  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdbserver/low-hppabsd.c (myattach): New function, returning -1.
+	* gdbserver/low-lynx.c (myattach): Likewise.
+	* gdbserver/low-nbsd.c (myattach): Likewise.
+	* gdbserver/low-sim.c (myattach): Likewise.
+	* gdbserver/low-sparc.c (myattach): Likewise.
+	* gdbserver/low-sun3.c (myattach): Likewise.
+
+	* gdbserver/low-linux.c (myattach): New function.
+
+	* gdbserver/server.c (attach_inferior): New function.
+	(main): Handle "--attach".
+
+2002-01-16  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS (language support): Daniel Jacobwitz is C++
+	maintainer.
+
+2002-01-15  Daniel Jacobowitz  <drow@mvista.com>
+
+	* c-typeprint.c (is_type_conversion_operator): Add additional
+	check for non-conversion operators.
+
+2002-01-15  Michael Snyder  <msnyder@redhat.com>
+
+	* linux-proc.c: Add "info proc" command, a la procfs.c.
+	(read_mapping): New function, abstract and re-use code.
+	(linux_find_memory_regions): Use new func read_mapping.
+	(linux_info_proc_cmd): New function, implement "info proc".
+	(_initialize_linux_proc): Add new command "info proc".
+
+2002-01-15  Michael Snyder  <msnyder@redhat.com>
+
+	* symfile.c (generic_load): Use bfd_map_over_sections method
+	instead of manipulating bfd structure members directly.
+	(add_section_size_callback): New function, bfd sections callback
+	used by generic_load.
+	(load_sections_callback): New function, bfd sections callback
+	used by generic_load.
+
+2002-01-15  Elena Zannoni  <ezannoni@redhat.com>
+
+	[Based on work by Jim Blandy]
+	* gdbtypes.h (builtin_type_v16qi, builtin_type_v8hi): Export.
+	(builtin_type_vec128): Export.
+	* gdbtypes.c (builtin_type_v16qi, builtin_type_v8hi): New SIMD
+	types.
+	(builtin_type_vec128): New builtin type for 128 bit vector
+	registers.
+	(build_gdbtypes): Initialize builtin_type_v16qi and
+	builtin_type_v8hi. Create the vec128 register builtin type
+	structure.
+	(build_builtin_type_vec128): New function.
+	(_initialize_gdbtypes): Register builtin_type_v16qi and
+	builtin_type_v8hi with gdbarch. Same for builtin_type_vec128.
+	* rs6000-tdep.c (rs6000_register_virtual_type): Change type of
+	AltiVec register to new builtin type.
+
+2001-01-15  Daniel Jacobowitz  <drow@mvista.com>
+
+	* stabsread.c (read_type): Pass dbx_lookup_type (typenums)
+	to make_cv_type.
+
+2002-01-14  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/pa/tm-hppa.h (DEPRECATED_CLEAN_UP_REGISTER_VALUE): Rename
+	CLEAN_UP_REGISTER_VALUE.
+	* regcache.c (supply_register): Update only call.
+
+2002-01-14  Andrew Cagney  <ac131313@redhat.com>
+
+	* configure.tgt: Mark a29k-*-aout*, a29k-*-coff*, a29k-*-elf*,
+	a29k-*-ebmon*, a29k-*-kern*, a29k-*-none*, a29k-*-udi* and
+	a29k-*-vxworks* targets as obsolete.
+
+2002-01-14  Michael Snyder  <msnyder@redhat.com>
+
+	* linux-proc.c (linux_do_thread_registers): Ignore fpxregs
+	until we can resolve portability issues.
+	* gregset.h: Remove references to fpxregs.
+	* gcore.c (gcore_command): Initialize note_sec to NULL.
+
+2002-01-13  Andrew Cagney  <ac131313@redhat.com>
+
+	* signals.c (target_signal_to_name): Rewrite.  Only use
+	signals[].name when in bounds and non-NULL.
+
+2002-01-13  Andrew Cagney  <ac131313@redhat.com>
+
+	From Petr Ledvina <ledvinap@kae.zcu.cz>:
+	* signals.c (target_signal_to_name): Verify that SIG is within the
+	bounds of the signals array.
+
+2002-01-13  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Remove arm-coff and arm-pe from target list.
+
+2002-01-13  Keith Seitz  <keiths@redhat.com>
+
+	* stack.c (print_frame_info_base): Print the frame's pc
+	only if when print_frame_info_listing_hook is not defined.
+
+2002-01-13  Keith Seitz  <keiths@redhat.com>
+
+	* varobj.c (varobj_set_value): Make sure that there were no
+	errors evaluating the object before attempting to set its
+	value.
+	value_cast now properly adjusts VALUE_ADDRESS for baseclasses,
+	so this offset adjustment is no longer necessary.
+	(create_child): Don't set the error flag if the child is
+	a CPLUS_FAKE_CHILD.
+	(value_of_child): If value_fetch_lazy fails, return NULL
+	so that callers will be notified that an error occurred.
+	(c_value_of_variable): Delay check of variable's validity
+	until later. We actually want all structs and unions to have
+	the value "{...}".
+	Do not return "???" for variables which could not be evaluated.
+	This error condition must be returned to the caller so that it
+	can get the error condition from gdb.
+	(cplus_name_of_child): Adjust index for vptr before figuring
+	out the name of the child.
+	(cplus_value_of_child): If a child's (real) parent is not valid,
+	don't even bother trying to give a value for it. Just return
+	an error. Change all instances in this function.
+	(cplus_type_of_child): If our parent is one of the "fake"
+	parents, we need to get at the type of the real parent, and
+	derive the child's true type using this information.
+
+2002-01-13  Andrew Cagney  <ac131313@redhat.com>
+
+	From 2002-01-09 John Marshall <johnm@falch.net>:
+	* CONTRIBUTE, README, TODO: Change sourceware.cygnus.com to
+	sources.redhat.com, and tweak some related URLs which had
+	suffered from linkrot.
+
+2002-01-13  Andrew Cagney  <ac131313@redhat.com>
+
+	From Jeff law:
+	* hppa-tdep.c (hppa_push_arguments): Correct handling of 5-7 byte
+	structures passed in registers.
+
+2002-01-13  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* go32-nat.c (save_npx) [__DJGPP_MINOR__ < 3]: Remove extraneous
+	white space which prevented compilation.  Reported by DSK
+	<dsk@student.unsw.edu.au>.
+
+2002-01-11  Michael Snyder  <msnyder@redhat.com>
+
+	* symfile.c (build_section_addr_info_from_section_tab):
+	Use bfd access method instead of manipulating bfd directly.
+	(syms_from_objfile): Ditto.
+	(simple_overlay_update_1): Ditto.
+	(simple_overlay_update): Ditto.
+	(generic_load): Ditto.
+	(overlay_unmapped_address): FIXME comment, bfd access methods.
+	(sections_overlap): FIXME comment, bfd access methods.
+	(pc_in_mapped_range): FIXME comment, bfd access methods.
+	(pc_in_unmapped_range): FIXME comment, bfd access methods.
+	(section_is_mapped): FIXME comment, bfd access methods.
+	(section_is_overlay): FIXME comment, bfd access methods.
+
+	* symfile.c (generic_load): Whitespace and long line cleanups.
+	Remove duplicate variable, change several local variables to
+	more appropriate data types.
+	(print_transfer_performance): Use %lu instead of %ld for ulongs.
+
+2002-01-12  Andrew Cagney  <ac131313@redhat.com>
+
+	From Peter Schauer:
+	* language.c (longest_local_hex_string_custom): Use phex_nz to
+	convert NUM to a hex string.
+
+2002-01-12  Elena Zannoni  <ezannoni@redhat.com>
+
+	* sh-tdep.c (sh_gdbarch_init): Move setting of long_bit earlier in
+	the function.
+	Update Copyright year.
+
+2002-01-12  Andrew Cagney  <ac131313@redhat.com>
+
+	* language.c (longest_raw_hex_string): Delete unused function.
+
+2002-01-11  Petr Sorfa  <petrs@caldera.com>
+
+	* MAINTAINERS (write-after-approval): Add myself.
+	* dwarf2read.c (read_tag_string_type): Handling of
+	DW_AT_byte_size.
+	(read_tag_string_type): FORTRAN fix to prevent propagation of
+	first string size.
+	(set_cu_language): Handling of DW_LANG_Fortran95
+
+2002-01-11  Richard Earnshaw  <rearnsha@arm.com>
+
+	* armnbsd-nat.c (fetch_inferior_registers): Change inferior_pid ->
+	GETPID(inferior_ptid).
+	(store_inferior_registers): Likewise.
+
+2002-01-10  Jason Merrill  <jason@redhat.com>
+
+	* dwarf2read.c (decode_locdesc): Implement DW_OP_litn, DW_OP_dup.
+	Fix DW_OP_minus.
+
+2002-01-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* config/djgpp/fnchange.lst: Add renames for bfd/ChangeLog-0001
+	and bfd/elf32-sh-nbsd.c.
+
+2002-01-10  Michael Snyder  <msnyder@redhat.com>
+
+	* NEWS: Mention --pid and corefile/proc-id behavior change.
+
+	* Makefile.in: Add rules for gcore.o and linux-proc.o.
+	* gcore.c: Include cli/cli-decode.h instead of command.h.
+
+	* main.c (captured_main): Add new command line option "--pid".
+	If the second command line argument (following the symbol-file)
+	begins with a digit, try to attach to it before trying to open
+	it as a corefile.
+	(print_gdb_help): Document the "--pid" argument.
+
+2002-01-10  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* completer.c (command_completer): New function.
+
+	* completer.h <command_completer>: Add prototype.
+
+	* cli/cli-cmds.c (init_cli_cmds): Make command_completer be the
+	completer for the "help" command.
+
+2002-01-09  Jason Merrill  <jason@redhat.com>
+
+	* c-typeprint.c (is_type_conversion_operator): Fix thinko.
+
+2002-01-09  Michael Snyder  <msnyder@redhat.com>
+
+	* i386-linux-nat.c (fill_fpxregset): Make global.
+	(store_fpxregset): Ditto.
+
+	* gregset.h (gdb_fpxregset_t): Define.
+	(supply_fpxregset): Prototype.
+	(fill_fpxregset): Prototype.
+
+	* exec.c (exec_make_note_section): Don't call elfcore_write_prpsinfo.
+
+2002-01-09  Richard Earnshaw  <rearnsha@arm.com>
+
+	* config/arm/arm-tdep.h (arm_software_single_step): Remove PARAMS.
+	* config/arm/nm-nbsd.h (arm_register_u_addr): Likewise.
+	* config/arm/tm-nbsd.h (get_longjmp_target): Likewise.
+
+2002-01-09  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Update target maintainer rules so that any
+	Maintainer can approve a tested patch for a maintenance-only
+	target.
+
+2002-01-09  Richard Earnshaw  <rearnsha@arm.com>
+
+	* MAINTAINERS (write-after-approval): Add myself.
+
+	* arm-tdep.c (arm_init_extra_frame_info): Cast NULL argument to
+	IN_SIGTRAMP.
+
+2002-01-08  Michael Snyder  <msnyder@redhat.com>
+
+	* linux-proc.c (child_pid_to_exec_file): Use readlink to get the
+	real name of the executable, rather than the /proc name.
+
+2002-01-03  Michael Snyder  <msnyder@redhat.com>
+
+	Implement a "generate-core-file" command in gdb, save target state.
+	* gcore.c: New file.  Implement new command 'generate-core-file'.
+	Save a corefile image of the current state of the inferior.
+	* linux-proc.c: Add linux-specific code for saving corefiles.
+	* target.h (struct target_ops): Add new target vectors for saving
+	corefiles; to_find_memory_regions and to_make_corefile_notes.
+	(target_find_memory_regions): New macro.
+	(target_make_corefile_notes): New macro.
+	* target.c (update_current_target): Inherit new target methods.
+	(dummy_find_memory_regions): New place-holder method.
+	(dummy_make_corefile_notes): New place-holder method.
+	(init_dummy_target): Initialize new dummy target vectors.
+	* exec.c (exec_set_find_memory_regions): New function.
+	Allow the exec_ops vector for memory regions to be taken over.
+	(exec_make_note_section): New function, target vector method.
+	* defs.h (exec_set_find_memory_regions): Export prototype.
+	* procfs.c (proc_find_memory_regions): New function, corefile method.
+	(procfs_make_note_section): New function, corefile method.
+	(init_procfs_ops): Set new target vector pointers.
+	(find_memory_regions_callback): New function.
+	(procfs_do_thread_registers): New function.
+	(procfs_corefile_thread_callback): New function.
+	* sol-thread.c (sol_find_memory_regions): New function.
+	(sol_make_note_section): New function.
+	(init_sol_thread_ops): Initialize new target vectors.
+	* inftarg.c (inftarg_set_find_memory_regions): New function.
+	Allow to_find_memory_regions vector to be taken over.
+	(inftarg_set_make_corefile_notes): New function.
+	Allow to_make_corefile_notes vector to be taken over.
+	* thread-db.c (thread_db_new_objfile): Don't activate thread-db
+	interface layer if not target_has_execution (may be a corefile).
+	* config/i386/linux.mh: Add gcore.o to NATDEPFILES.
+	* config/sparc/sun4sol2.mh: Ditto.
+	* config/alpha/alpha-linux.mh: Ditto.
+	* config/arm/linux.mh: Ditto.
+	* config/i386/x86-64linux.mh: Ditto.
+	* config/ia64/linux.mh: Ditto.
+	* config/m68k/linux.mh: Ditto.
+	* config/mips/linux.mh: Ditto.
+	* config/powerpc/linux.mh: Ditto.
+	* config/sparc/linux.mh: Ditto.
+
+2002-01-07  Michael Snyder  <msnyder@redhat.com>
+
+	* arm-linux-nat.c: Remove references to regcache.c internal data
+	(registers[] and register_valid[]).
+
+2002-01-07  Michael Snyder  <msnyder@redhat.com>
+
+	* linux-proc.c: New file.  Implement child_pid_to_exec_file,
+	so that attaching to a pid will automatically read the process's
+	symbol file and shlibs.
+	* Makefile.in: Add rule for linux-proc.o.
+	* config/nm-linux.h: Define CHILD_PID_TO_EXEC_FILE.
+	* config/alpha/alpha-linux.mh: Add linux-proc.o to NATDEPFILES.
+	* config/arm/linux.mh: Ditto.
+	* config/i386/linux.mh: Ditto.
+	* config/i386/x86-64linux.mh: Ditto.
+	* config/ia64/linux.mh: Ditto.
+	* config/m68k/linux.mh: Ditto.
+	* config/mips/linux.mh: Ditto.
+	* config/powerpc/linux.mh: Ditto.
+	* config/sparc/linux.mh: Ditto.
+
+2002-01-06  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* win32-nat.c: Add i386-tdep.h dependency.
+
+2002-01-07  Michael Snyder  <msnyder@redhat.com>
+
+	* solib.c (info_sharedlibrary_command): Use TARGET_PTR_BIT
+	instead of bfd_get_arch_size.  Don't bail out just because
+	there's no exec_bfd.
+
+	* cp-valprint.c (cp_print_value): FIXME comment, alloca size.
+	* p-valprint.c (pascal_object_print_value): Ditto.
+	* somread.c (som_symtab_read): Ditto.
+	* symfile.c (simple_free_overlay_region_table): Ditto.
+	* valops.c (value_assign): Ditto.
+
+	* tracepoint.c (tracepoint_save_command): From Klee Dienes --
+	use tilde_expand and strerror for opening save-tracepoints file.
+
+	* thread-db.c (thread_db_new_objfile): Indendation fix.
+
+	* infptrace.c (GDB_MAX_ALLOCA): New define.
+	(child_xfer_memory): Use xmalloc/xfree instead of alloca if the
+	size of the buffer exceeds GDB_MAX_ALLOCA (default 1 megabyte,
+	can be overridden with whatever value is appropriate to the host).
+	* infttrace.c (child_xfer_memory): Add FIXME warning about use of
+	alloca to allocate potentially large buffer.
+	* rs6000-nat.c (child_xfer_memory): Ditto.
+	* symm-nat.c (child_xfer_memory): Ditto.
+	* x86-64-linux-nat.c (child_xfer_memory): Ditto.
+
+2002-01-07  Jackie Smith Cashion  <jsmith@redhat.com>
+
+	From Nick Clifton  <nickc@redhat.com>
+	* d10v-tdep.c: Set STACK_START to 0x200bffe.
+
+2002-01-07  Michael Snyder  <msnyder@redhat.com>
+
+	* solib-legacy.c (legacy_svr4_fetch_link_map_offsets):
+	Don't use exec_bfd if it's NULL.
+
+2002-01-06  Mark Kettenis  <kettenis@gnu.org>
+
+	* valops.c (value_arg_coerce): Fix formatting.
+
+2002-01-06  Andrew Cagney  <ac131313@redhat.com>
+
+	* hp-psymtab-read.c: Include "gdb_string.h" instead of <string.h>.
+	* gnu-nat.c: Ditto.
+
+2002-01-06  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Note that alpha-dec-osf4.0a, arc-elf, arm-coff,
+	arm-elf, arm-pe, d30v-elf, fr30-elf, h8300hms, h8500hms,
+	i960-coff, m32r-elf, m68k-elf, m88k, mcore-elf, mn10200-elf,
+	ns32k-netbsd, hppa1.1-hp-proelf, v850-elf, vax-dec-vms5.5 and
+	z8k-coff have not been multi-arched.  Update z8k-coff build
+	status.
+
+2002-01-06  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Mark a29k target as obsolete.
+	* Makefile.in (a29k-tdep.o, remote-adapt.o, remote-eb.o)
+	(remote-mm.o, remote-udi.o): Obsolete.  Remove references in
+	comments.
+	* NEWS: Note that a29k targets are obsolete.
+	* a29k-tdep.c: Mark as obsolete.
+	* configure.tgt: Mark a29k-*-aout*, a29k-*-coff*, a29k-*-elf*,
+	a29k-*-ebmon*, a29k-*-kern*, a29k-*-none*, a29k-*-udi* and
+	a29k-*-vxworks* targets as obsolete.
+	* remote-adapt.c: Obsolete.
+	* remote-eb.c: Obsolete.
+	* remote-mm.c: Obsolete.
+	* remote-udi.c: Obsolete.
+	* config/a29k/a29k-udi.mt: Obsolete.
+	* config/a29k/a29k.mt: Obsolete.
+	* config/a29k/tm-a29k.h: Obsolete.
+	* config/a29k/tm-vx29k.h: Obsolete.
+	* config/a29k/vx29k.mt: Obsolete.
+
+2002-01-05  Andrew Cagney  <ac131313@redhat.com>
+
+	* rs6000-tdep.c (rs6000_do_registers_info): Replace BIG_ENDIAN
+	with BFD_ENDIAN_BIG.
+
+2002-01-05  Andrew Cagney  <ac131313@redhat.com>
+
+	* configure.in (AC_CHECK_HEADERS): Do not check for <endian.h>.
+	* configure, config.in: Re-generate.
+	* config/vax/xm-vaxbsd.h: Do not include <machine/endian.h>.
+	* defs.h: Do not include <endian.h>.
+
+2002-01-05  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* acconfig.h (HAVE_PT_GETXMMREGS): New.
+	* config.in: Regenerate.
+	* configure.in: Update copyright years.
+	Add test for PT_GETXMMREGS supplied by <sys/ptrace.h>.
+	* configure: Regenerate.
+	* i386bsd-nat.c: Update copyright years.
+	(fill_gregset): Use regcache_collect.
+	(fetch_inferior_registers): Only fetch integer registers
+	if requested to do so.  Add support for XMM registers
+	using PT_GETXMMREGS.
+	(store_inferior_registers): Only store integer registers
+	if requested to do so.  Add support for XMM registers
+	using PT_SETXMMREGS.
+	* i386nbsd-nat.c (fetch_inferior_registers): Remove.
+	(store_inferior_registers): Remove.
+	(fetch_core_registers): Use supply_gregset and i387_supply_fsave.
+	(fetch_elfcore_registers): New function.
+	(i386nbsd_elfcore_fns): New.
+	(_initialize_i386nbsd_nat): Register i386nbsd_elfcore_fns.
+	* config/i386/nbsd.mh (NATDEPFILES): Add i387-nat.o and
+	i386bsd-nat.o.
+	* config/i386/nbsdelf.mh (NATDEPFILES): Likewise.
+	* config/i386/nbsd.mt (TDEPFILES): Add i386bsd-nat.o.
+	* config/i386/nbsdelf.mt (TDEPFILES): Likewise.
+	* config/i386/tm-nbsd.h: Update copyright years.
+	(HAVE_SSE_REGS): Define.
+	(IN_SIGTRAMP): Define as i386bsd_in_sigtramp.
+	(SIGTRAMP_START): Redefine as i386bsd_sigtramp_start.
+	(SIGTRAMP_END): Redefine as i386bsd_sigtramp_end.
+	(SIGCONTEXT_PC_OFFSET): Remove.
+	(FRAME_SAVED_PC): Define as i386bsd_frame_saved_pc.
+
+2002-01-05  Andrew Cagney  <ac131313@redhat.com>
+
+	* configure.tgt: Remove powerpc-*-macos* target.
+	* config/m68k/xm-mpw.h: Delete file.
+	* config/xm-mpw.h: Delete file.
+	* ser-mac.c: Delete file.
+	* mpw-make.sed: Delete file.
+	* mpw-config.in: Delete file.
+	* mac-xdep.c: Delete file.
+	* mac-gdb.r: Delete file.
+	* mac-defs.h: Delete file.
+	* mac-nat.c: Delete file.
+	* config/powerpc/macos.mh: Delete file.
+	* config/powerpc/macos.mt: Delete file.
+	* config/powerpc/nm-macos.h: Delete file.
+	* config/powerpc/tm-macos.h: Delete file.
+	* source.c (openp, open_source_file): Remove obsolete code.
+	* top.c	(gdb_readline): Ditto.
+	* utils.c (query): Ditto.
+	* event-top.c (display_gdb_prompt): Ditto.
+	* Makefile.in (ser-mac.o): Delete obsolete target.
+	* NEWS: Update.
+
+2002-01-04  Andrew Cagney  <ac131313@redhat.com>
+
+	* defs.h (BIG_ENDIAN): Delete macro definition.
+	* a29k-tdep.c, arch-utils.c, arm-tdep.c, ax-gdb.c, ch-exp.c,
+	coffread.c, cris-tdep.c, d10v-tdep.c, d30v-tdep.c, defs.h,
+	findvar.c, infcmd.c, mem-break.c, mips-tdep.c, mn10300-tdep.c,
+	printcmd.c, remote-os9k.c, remote-rdi.c, remote-rdp.c,
+	remote-sim.c, remote.c, rs6000-tdep.c, sh-tdep.c, sparcl-tdep.c,
+	stabsread.c, valops.c, valprint.c, config/a29k/tm-a29k.h,
+	config/a29k/tm-vx29k.h, config/arm/tm-arm.h,
+	config/d30v/tm-d30v.h, config/fr30/tm-fr30.h,
+	config/h8300/tm-h8300.h, config/h8500/tm-h8500.h,
+	config/m32r/tm-m32r.h, config/m68k/tm-m68k.h,
+	config/m88k/tm-m88k.h, config/mips/tm-mips.h, config/pa/tm-hppa.h,
+	config/sparc/tm-sparc.h, config/z8k/tm-z8k.h, mi/mi-cmd-disas.c,
+	mi/mi-main.c: Replace BIG_ENDIAN with BFD_ENDIAN_BIG.
+	* gdbarch.sh: Replace BIG_ENDIAN with BFD_ENDIAN_BIG.
+	* gdbarch.c: Re-generate.
+
+2002-01-04  Daniel Jacobowitz  <drow@mvista.com>
+
+	* thread-db.c (thread_db_new_objfile): Do not enable thread_db
+	for core files.
+
+2002-01-04  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* config/arm/nbsd.mh (XDEPFILES): Remove ser-tcp.o.
+
+2002-01-04  Andrew Cagney  <ac131313@redhat.com>
+
+	* value.h (value_ptr): Delete typedef.
+
+2002-01-04  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* i386nbsd-nat.c: Update copyright years.
+	Include i386-tdep.h.
+
+2002-01-04  Elena Zannoni  <ezannoni@redhat.com>
+
+	* stabsread.c: Update copyright years.
+
+	From Debashis Mahata <debashis.mahata@wipro.com>:
+	(read_struct_fields): Deal with Sun C compiler erroneous stab
+	output for structs and unions.
+        Fix PR gdb/269.
+
+2002-01-04  Daniel Jacobowitz  <drow@mvista.com>
+
+	* p-valprint.c: Include "cp-abi.h" for baseclass_offset
+	prototype.
+
+2002-01-04  Daniel Jacobowitz  <drow@mvista.com>
+
+	* cp-abi.c: Fix whitespace.
+	(baseclass_offset): New wrapper function.
+	* cp-abi.h (baseclass_offset): Add prototype.
+	(struct cp_abi_ops): Add baseclass_offset pointer.
+
+	* valops.c (vb_match): Move to...
+	* gnu-v2-abi.c (vb_match): here.
+	* valops.c (baseclass_offset): Move to...
+	* gnu-v2-abi.c (gnuv2_baseclass_offset): here, and rename.
+
+	* gnu-v3-abi.c (gnuv3_baseclass_offset): New function.
+
+	* gnu-v2-abi.c (init_gnuv2_ops): Initialize baseclass_offset.
+	* gnu-v3-abi.c (init_gnuv3_ops): Likewise.
+	* hpacc-abi.c (init_hpacc_ops): Likewise.
+
+2002-01-04  Daniel Jacobowitz  <drow@mvista.com>
+
+	* valops.c (find_overload_match): Accept obj as a
+	reference parameter.  Update it before returning.
+	* value.h (find_overload_match): Update prototype.
+	* eval.c (evaluate_subexp_standard): Pass object to
+	find_overload_match by reference.
+
+2002-01-03  Andrew Cagney  <ac131313@redhat.com>
+
+	* valarith.c: Replace value_ptr with struct value pointer.  Remove
+	register attribute from value declarations.
+	* valops.c: Ditto.
+	* value.h: Ditto.
+	* scm-lang.c (scm_lookup_name): Ditto.
+
+2002-01-03  Michael Snyder  <msnyder@redhat.com>
+
+	Abstract the functionality of iterating over mapped memory
+	regions into a general purpose iterator function.
+	* procfs.c (iterate_over_mappings): New function, general purpose
+	iterator for memory sections.
+	(proc_iterate_over_mappings): Reimplement using iterate_over_mappings.
+	(solib_mappings_callback): New function, callback for above.
+	(info_proc_mappings): Reimpliment using iterate_over_mappings.
+	(info_mappings_callback): New function, callback for above.
+
+	* procfs.c (proc_set_watchpoint): Add cast to suppress warning.
+
+2002-01-01  Mark Kettenis  <kettenis@gnu.org>
+
+	* i386-tdep.h (struct gdbarch_tdep): Add `os_ident' member.
+	* i386-tdep.c: Include "elf-bfd.h".
+	(process_note_abi_tag_sections): New function.
+	(i386_gdbarch_init): Add code to recognize various OS/ABI
+	combinations.
+
+	* maint.c (_initialize_maint_cmds): Add missing \ in
+	string-literal.
+
+For older changes see ChangeLog-2001
 
 Local Variables:
 mode: change-log

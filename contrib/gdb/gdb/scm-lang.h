@@ -1,3 +1,23 @@
+/* Scheme/Guile language support routines for GDB, the GNU debugger.
+   Copyright 1995, 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
+
+   This file is part of GDB.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
+
 #define SICP
 #include "scm-tags.h"
 #undef SCM_NCELLP
@@ -22,29 +42,29 @@
 #define SCM_CODE(x) SCM_CAR(SCM_CLOSCAR (x))
 #define SCM_MAKINUM(x) (((x)<<2)+2L)
 
-#ifdef __STDC__		/* Forward decls for prototypes */
+/* Forward decls for prototypes */
 struct value;
-#endif
 
-extern int scm_value_print PARAMS ((struct value *, GDB_FILE*,
-				    int, enum val_prettyprint));
+extern int scm_value_print (struct value *, struct ui_file *,
+			    int, enum val_prettyprint);
 
-extern int scm_val_print PARAMS ((struct type*, char*, int, CORE_ADDR, GDB_FILE*,
-				 int, int, int, enum val_prettyprint));
+extern int scm_val_print (struct type *, char *, int, CORE_ADDR,
+			  struct ui_file *, int, int, int,
+			  enum val_prettyprint);
 
-extern LONGEST scm_get_field PARAMS ((LONGEST, int));
+extern LONGEST scm_get_field (LONGEST, int);
 
-extern void scm_scmval_print PARAMS ((LONGEST, GDB_FILE *,
-				     int, int, int, enum val_prettyprint));
+extern void scm_scmval_print (LONGEST, struct ui_file *, int, int, int,
+			      enum val_prettyprint);
 
-extern int is_scmvalue_type PARAMS ((struct type*));
+extern int is_scmvalue_type (struct type *);
 
-extern void scm_printchar PARAMS ((int, GDB_FILE*));
+extern void scm_printchar (int, struct ui_file *);
 
-extern struct value * scm_evaluate_string PARAMS ((char*, int));
+extern struct value *scm_evaluate_string (char *, int);
 
 extern struct type *builtin_type_scm;
 
-extern int scm_parse PARAMS ((void));
+extern int scm_parse (void);
 
-extern LONGEST scm_unpack PARAMS ((struct type *, char *, enum type_code));
+extern LONGEST scm_unpack (struct type *, char *, enum type_code);

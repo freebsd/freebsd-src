@@ -1,0 +1,3155 @@
+Fri Dec 28 00:13:42 1990  John Gilmore  (gnu at cygint)
+
+	Further stabilization for the Intel 960.
+
+	* Makefile.dist: Parameterize the location of the "include"
+	and "bfd" directories, as well as "getopt".  Add symfile.c.
+	Link in both dbxread and coffread.  Fix up "make depend" to
+	rewack the locations of include, bfd, and getopt in its output.
+
+	* README:  Document moving include files, improve some of
+	the other doc.
+
+	* coffread.c:  Move common code out to symfile.c.  Change
+	symbol_file_command style interface to use new *_symfile_init
+	and *_symfile_read interface under BFD.  Use BFD internal
+	info to locate line table, symbols, etc.
+
+	* core.c (core_fetch_registers):  Rename to get_core_registers
+	to avoid confusion with fetch_core_registers.
+	(register_addr):  Move to coredep.c, which is already machine
+	dependent.  This leaves core.c pretty clean of dependencies.
+
+	* coredep.c (register_addr):  Accept this routine from core.c.
+
+	* dbxread.c: Move common code (with coffread.c, etc) into new
+	symfile.c.  Each psymtab now contains a pointer to the
+	format-dependent function that knows how to read it in.  Make
+	some things static.  
+	(dbx_psymtab_to_symtab): Renamed from psymtab_to_symtab_2.
+	(process_one_symbol): Add code to complain about a "compiler bug
+	we muzzle here", if we actually see it.
+
+	* eval.c (evaluate_subexp):  Insert missing "break" statements
+	in code that determines whether a variable is an lvalue in
+	memory, register, or whatever.	I detected this via a compiler
+	bug in which it *almost* mashed out the whole switch statement.
+
+	* gdb-int.texinfo:  Add minor sections on configuring gdb for
+	release, and about the README file.
+
+	* infcmd.c (registers_info):  Fix formatting somewhat.  Still
+	not as pretty as before, but it handles byte swapping.
+
+	* remote-nindy.c: If data cache routines are interrupted while
+	waiting for the remote end, be sure that any uninitialized cache
+	blocks are on the free list, not on the valid list!
+
+	* symfile.h: Flesh out this header file with all the various
+	routines and variables that have been merged in from dbxread.c
+	coffread.c, and symtab.c to symfile.c.
+
+	* symfile.c: New file, containing code common to dbxread.c,
+	coffread.c, and some code from symtab.c.  All generic code for
+	reading symbol files should be in here now.
+	(unrecord_misc_function):  Remove unused function.
+
+	* symtab.h:  Remove file-reading things to symfile.h.
+
+	* symtab.c:  Remove file-reading things to symfile.c.
+
+	* tm-i960.h:  Fix FRAME_CHAIN types; define PRINT_RANDOM_SIGNAL
+	to decode i960 fault types.
+
+	* target.h, remote.c, remote-eb.c, remote-vx.c, remote-nindy.c,
+	target.c: Change type of the "resume" function from int to void,
+	since its result was never used.
+
+Sat Dec 22 02:51:40 1990  John Gilmore  (gnu at cygint)
+
+	* main.c:  Replace "stupid" with "caution"; you now "set caution
+	on or off".
+
+	* printcmd.c (print_scalar_formatted):  Fix typo in 'g' format
+
+	* infcmd.c (do_registers_info):  Call val_print to deal with the
+	byte order of the registers being printed.  FIXME, this makes
+	the formatting of the output uglier.
+
+	* infcmd.c (wait_for_inferior):  If PRINT_RANDOM_SIGNAL is
+	defined, call it for signals the debugger doesn't itself use.
+	The i960 uses this for more detailed fault information.
+
+	* remote.c (remote_open):  If arg is null, print help rather than
+	dumping core.
+
+	* sparc-xdep.c (register_valid):  Avoid declaring size, since
+	various modules will think of various sizes depending on the
+	architecture of their tm-file.  FIXME, we need protection against
+	actually entering one of those modules, which would clobber
+	storage if not for the target architecture compiled into gdb.
+
+	* stack.c (up_command, down_command):  Always print the frame
+	you arrive at.
+	(up_silently_command, down_silently_command):  New commands
+	for use in scripts.
+
+	* i960-pinsn.c (reg), i960-tdep.c:  Lint.
+
+	* i960-tdep.c (i960_frame_chain_valid): Lookup_symbol now takes
+	more parameters than it used to.
+
+	* findvar.c (registers):  Increase slop to 256 bytes, which should
+	protect us against even most RISC machines with large register
+	sets.
+	(locate_var_value):  Move declaration inside related ifdef.
+
+	* remote-nindy.c ():  Use TIOCSETN rather than TIOCSETP
+	throughout, to avoid throwing away buffered input from the board.
+	(nindy_wait):  Supply_register takes addr_of_value, not value.
+	(i960_print_fault):  Renamed from i80960_fault.
+	(nindy_fetch_registers):  Avoid have_regs stuff, just get them.
+	(nindy_store_registers):  Avoid regs_changed stuff, just stuff
+	them.
+	(nindy_create_inferior):  Don't bother to write PC_REGNUM since
+	we can set the PC in the call to proceed().  Unpush nindy_ops
+	before pushing it on top, to avoid message to user.  Eliminate
+	commentary from Unix machines that just misleads here.
+	(reset_command):  Fix error message to suggest target command.
+	
+Wed Dec 19 11:03:56 1990  John Gilmore  (gnu at cygint)
+
+	Release 3.92.5 as frozen.
+
+	Stabilize the merged release...with help from lint, Saber C,
+	gcc -W, etc.
+
+	Everywhere:  Add include files needed to declare return types
+	of functions called.
+
+	* gdb.texinfo:  Roland Pesch is documenting gdb, glory be!
+
+	* breakpoint.h:  Add undeclared breakpoint functions, and some
+	functions for display handling since I couldn't think of a better
+	.h to put them in.
+
+	* breakpoint.c (insert_breakpoints):  Make code for disabling
+	shared library bkpts more likely to work.  It's used when we
+	rerun a program and stop before the shared library has been
+	mapped in.
+	(breakpoint_cond_eval, bpstat_stop_status):  Pass arg as int,
+	cast from pointer, so it squeezes through catch_errors.
+	(bpstat_stop_status):  Fix logic broken some time ago.  We now
+	always create a bpstat if the stop address matches a breakpoint,
+	even if we don't stop there -- just like the old code used to do
+	before I got my fingers into it (sigh).
+	(breakpoint_1):  Print "ignore count" after "stop only if"
+	condition, since that's how it actually works.
+	(mention):  Handle watchpoints as well as breakpoints.
+	(watch_command):  use set_raw_breakpoint and mention to do most 
+	of the work (and initialize all the fields!).  Only pass one
+	arg to parse_c_expression, since that's all it takes.
+
+	* command.c (not_just_help_class_command):  Rename arg to args
+	since we ignore "unused argument" warnings on vars named "args".
+	inflow.c (child_terminal_info):  ditto.
+	infptrace.c (kill_inferior):  ditto
+	main.c (catch_errors, version_info, quit_command, pwd_command,
+	source_command, dump_me_command, editing_info,
+	set_history_size_command, set_history, show_history,
+	set_verbose): ditto
+	stack.c (locals_info):  ditto
+	target.c (target_files_info):  ditto
+	valprint.c (set_input_radix, set_output_radix):  ditto
+
+	* core.c:  Remove old variables for handling core and exec file
+	sections (data_start, data_end, stack_start, stack_end,
+	reg_stack_start, reg_stack_end, reg_stack_offset, text_start,
+	text_end, exec_data_start, exec_data_end, text_offset,
+	exec_data_offset, data_offset, stack_offset).  They're
+	superseded the more general build_section_table and
+	xfer_memory.
+	(get_exec_file):  Mention the `file' command.
+	(read_memory_check):  Rename to memory_error, and only call it
+	in the case of an actual error.
+	(read_memory, write_memory):  call memory_error.
+	(core_fetch_registers):  Register section name is ".reg".
+
+	coredep.c:  Remove a bunch of crud now that all this file does
+	is pull the registers out of a core file.
+	(fetch_core_registers):  Rewrite to actually work, I hope.
+
+	dbxread.c:  Use a.out.gnu.h, not system a.out, now.
+	Replace index() with strchr().  Remove all the pre-BFD macro
+	definitions for accessing the symbol file.
+	(struct dbx_symfile_info):  Encapsulate the information that
+	dbx_symfile_init needs to pass to dbx_symfile_read in this
+	struct.
+
+	(dbx_new_init, dbx_symfile_init, dbx_symfile_read,
+	dbx_symfile_discard): Rearrange symbol file reading to divide
+	the format-specific part from the format-independent part,
+	leaving the format-independent part such as file name expansion
+	and opening in symtab.c.  This replaces
+	partial_symbol_file_open and partial_symbol_file_read.
+	Symbol_file_read, add_file, add_file_target_command,
+	add_file_addr_command move to symtab.c.  Pass an explicit
+	"mainline" flag for when reading the main symbol table, rather
+	than relying on the offset address to be zero or nonzero.
+
+	(dbx_symfile_read): Don't allow void *'s to be printed as
+	typedefs.
+	(SWAP_SYMBOL):  Use bfd routines to byte-swap the symbols.
+	(ADD_PSYMBOL_TO_LIST):  Make the "function call rather than
+	macro" debug version really work.
+	(read_dbx_symtab):  Remove unref'd parameter inclink.
+	Avoid swapping N_SLINE symbols, for speed.
+	Merge N_TEXT!N_EXT case with the other external symbol
+	definitions' case. Add comments.
+	(start_psymtab):  Allocate the symfile name in the psymtab on
+	the psymbol_obstack, rather than using the caller's storage.
+	(end_psymtab): Only allocate a dependencies list if there are
+	more than zero.
+	(psymtab_to_symtab_2):  Use BFD when reopening file to read
+	its symbols for real.
+	(read_struct_type):  Add FIXME comments where it needs work
+	for C++ bogosity.
+	(read_huge_number):  Add FIXME about overflows.
+	(read_range_type):  Add FIXME about comparing a long to 1<<32.
+
+	* coffread.c:  Minor changes to move things closer to the new
+	regime with symtab.c and dbxread.c   Major work is still needed
+	here.
+
+	* exec.c (exec_file_command):  Remove old variables (see core.c
+	above).
+	(xfer_memory): If memory transfer is right at the end of a
+	section, don't lose.
+
+	* findvar.c (get_saved_register):  If value is in a real
+	register, LVAL is lval_register, not lval_memory.
+
+	frame.h:  Declare print_sel_frame and record_selected_frame.
+
+	gdb-int.texinfo:  New file, for GDB internals documentation.
+	Very simple, unformatted doc of cleanups is there for now.
+
+	gdbcore.h:  Remove obsolete variables that described a.out
+	section addresses and offsets.  (See core.c above.)
+	Declare fetch_core_registers and registers_fetched.
+
+	getopt.c:  Declare char *alloca(); even on SPARC.
+
+	infcmd.c (run_command):  Call target_kill rather than
+	kill_inferior. 
+	(step_command, next_command, stepi_command, nexti_command):
+	Declare from_tty parameter even though we don't use it.
+	(run_stack_dummy):  argument BUFFER is a char array, not
+	a pointer to REGISTER_TYPE.
+	(finish_command):  using_struct_return needed a value *, 
+	not a struct symbol *.
+
+	* infptrace.c (child_xfer_memory):  To avoid dependency on
+	where sections are in memory, try PT_WRITE_D and if that fails,
+	try PT_WRITE_I.  Most Unixes don't care which you use.
+
+	* infrun.c (step_resume_break_shadow):  Change to array to
+	match other breakpoint shadow storage.
+	(clear_proceed_status):  Pass address of bpstat to
+	bpstat_clear, not the bpstat itself.
+	(child_create_inferior):  FIXME comment about if the child
+	exits.
+	(start_inferior):  Remove old function.
+	(child_open):  Use target_kill rather than kill_inferior.
+	(wait_for_inferior):  Ditto.
+	(insert_step_breakpoint, remote_step_breakpoint):  Use
+	new step_resume_break_shadow.
+
+	* inftarg.c (child_wait):  If all child processes die,
+	pretend that the one being waited for exited with signal 42.
+
+	* main.c (command_line_input):  When scanning for comments,
+	don't coredump on unclosed quotes.
+	(quit_command):  Use target_kill rther than kill_inferior.
+	(_initialize_main):  Rename class_user from "user" to
+	"user-defined".
+
+	* printcmd.c (print_command_1):  Initialize "fmt" if no format
+	is specified by the user.
+	(print_frame_args):  Only add to args_printed if we are
+	actually fetching args from the stack (avoiding undefined
+	arg_size).
+	(_initialize_printcmd):  Remove bogus \{ from string.
+
+	* remote-eb.c (eb_open):  Avoid coredump on no argument.
+
+	* remote-nindy.c:  Bring out of Intel environment into new
+	target environment.  Remove all conditional compilation on
+	I80960.  Massive hacking throughout.
+	(nindy_xfer_inferior_memory):  New routine stolen from
+	infptrace.c.
+	(nindy_create_inferior):  New routine pieced together, probably
+	not quite working yet.
+	(nindy_ops):  New target_ops struct for nindy.
+
+	* remote-vx.c:	Use write_memory rather than target_write_memory
+	to get error checking.
+	(vx_add_file_command, vx_open): Use symbol_file_add rather than
+	add_file.
+	(vx_create_inferior):  Use target_terminal_ours...
+
+	* signame.c (_initialize_signame):  Always initialize, since
+	we need the table for things other than psignal.
+	
+	* solib.c (solib_add):  Use symbol_file_add, not add_file.
+	(solib_address):  Return boolean result rather than struct
+	pointer which nobody else knows the type of.
+
+	* sparc-tdep.c, valops.c:  Use write_memory rather than
+	target_write_memory, to get error checking.
+
+	* stack.c (locals_info, catch_info, args_info,
+	get_selected_block, frame_command, up_command): Use
+	target_has_stack, rather than have_inferior_p or
+	have_core_file_p.
+
+	* sun3-xdep.c (fetch_core_registers):  Rewrite for new BFD regime.
+
+	* symfile.h:  New file, defining the interface between the
+	generic and object-file-specific symbol reading code.
+
+	* symtab.c:  Move generic symbol-reading interface to symtab.c,
+	from dbxread.c, coffread.c, mipsread.c, etc.  Add symtab_fns
+	table to map BFD targets to symbol-reading modules in GDB.
+	Change index to strchr.
+	(lookup_struct_elt_type):  Use error() rather than hand-made
+	simulations thereof.
+	(lookup_partial_symbol):  Speedup slightly when length == 0.
+	(symbol_file_add):  New function.
+	(symbol_file_command):  Call it.
+	(symfile_open, symfile_init):  New function.
+	(add_file_target_command, add_file_addr_command): moved from
+	dbxread.c.
+
+	* target.c (target_command):  use target_kill.
+
+	* target.h (target_files_info):  Don't declare, never called
+	from outside.
+
+	* tm-sun2.h, tm-sun3.h (STACK_END_ADDR): Use system include
+	files to determine stack end address.
+
+	* valarith.c (value_x_binop, value_x_unop): Change error message
+	to be more useful.  Pass proper argument to value_struct_elt.
+
+	* valops.c (value_assign):  FIXME comment that long long 
+	bitfields will break here.
+
+	* Makefile.dist:  Add symfile.h, remote-nindy.c, remote-eb.c.
+	Update `make saber_gdb' to work better.
+
+	* TODO:  A woman's work is never done.
+
+	* cplus-dem.c, environ.c, inferior.h, infrun.c, inftarg.c,
+	main.c, obstack.c, printcmd.c, remote-eb.c, remote-nindy.c,
+	remote-vx.c, remote.c, solib.c, source.c, sparc-pinsn.c,
+	sparc-tdep.c, sparc-xdep.c, symmisc.c, symtab.c, symtab.h
+	target.c, terminal.h, tm-sparc.h, tm-sunos.h, utils.c,
+	valops.c, valprint.c, exec.c:  Lint.
+
+
+Wed Dec 12 23:44:15 1990  John Gilmore  (gnu at cygnus.com)
+
+	Continuing Intel 960 port merge of GDB.
+
+	* Makefile.dist:  Merge i960 "nindy-share" files.  Rename
+	malloc.h to gmalloc.h to avoid name conflicts in /usr/include.
+	Don't ship gdb.dvi in tar file.  Link gdb with init.o, not init.c.
+	Wack over "make depend" so it handles files in subdirectories
+	vx-share, nindy-share, bfd, and in the current directory.
+
+	* blockframe.c (get_prev_frame_info):  Remove fatal error
+	if stack not defined.
+
+	* core.c (core_open, core_detach):  New functions that handle
+	the old "core-file" command as "target core" and "detach" instead.
+	(core_file_command):  Call them.
+	(core_xfer_memory):  Use common routine xfer_memory.
+
+	* dbxread.c:  Include a.out.gnu.h, not system a.out.h.
+	dbxread now uses bfd for everything but symbol reading itself.
+	BFD internals are used to drag out the relevant file offsets.
+	(partial_symbol_file_open):  Change args all around for BFD.
+
+	* symtab.c: Rename "value" to "val" everywhere, so we can
+	#include "value.h".
+	(symbol_file_command):  New command, moved from dbxread.c
+	and coffread.c.  It uses BFD to read the file, then vectors
+	based on its type, to dbx or coff symbol readers.
+	* symtab.h:  Extern a few vars for symbol_file_command.
+
+	* target.h:  Breakpoint takes a char * save area, not a char **.
+
+	* valprint.c (val_print):  When unpacking bitfields, offset
+	the address in gdb of the value, if it is declared with a shorter
+	type.  Remove the last "runtime kludge test" of host byte order.
+
+	* utils.c:  Remove old my_bfd_read routine.
+
+	* stack.c (frame_info):  Use target_has_stack.  Print program counter
+	register's actual name rather than "pc", since it's called the
+	"ip" (instruction pointer) on the i960 (sigh).
+
+	* target.c (target_command):  Add command for selecting a target
+	type and calling its open routine.  This is used for initiating
+	communication with a particular target, in a generic way.
+
+	* tm-i960.h:  Update for modern gdb.  Remove semicolons from
+	various macros.  Handle reading struct return convention, and
+	error-out attempts to return structs with the "return" command.
+	Be sure gdb doesn't think we know how to call functions in the
+	inferior.
+
+	* i960-tdep.c:  Rename FRAME_CHAIN_VALID and FRAME_FIND_SAVED_REGS
+	to i960_xxx in lower case.
+	(arg_address):  Circumvent errors due to LOC_ARG_BLOCK
+	not being defined yet.
+
+	* remote.c (remote_open):  Call start_remote to initialize 
+	wait_for_inferior during open.
+	(remote_xfer_inferior_memory):  Return length written rather
+	than errno value.
+
+	* remote-vx.c (target_command -> vx_open):  Use new generic
+	target command.
+	* remote-eb.c, inftarg.c, exec.c: ditto.
+
+	* infrun.c:  Fix comments.
+	(attach_program -> child_open):  Use new generic target command.
+	(wait_for_inferior):  Clear saved register values before target_wait,
+	so target_wait can set some of them if convenient.
+
+	* infptrace.c (fetch_inferior_registers, store_inferior_registers):
+	Return success indicator, not void.
+	(child_xfer_memory):  Avoid fetching initial word if we'll
+	overwrite it anyway.
+
+	* infcmd.c (attach_command):  Use new generic target open routine.
+	(_initialize_infcmd):  Update doc on attach and detach commands.
+	(do_registers_info):  Merge in a byte-order problem as a FIXME
+	comment.
+
+	* findvar.c (find_saved_register):  Avoid problem in current frame.
+	(read_relative_register):  Ditto.
+	(write_register):  Convert byte order on the way out.
+
+	* exec.c (file_command):  Add.
+	(add_to_section_table, exec_command):  Use new bfd_map_over_sections.
+	(xfer_memory):  Common function between core_xfer_memory and
+	exec_xfer_memory.
+	(exec_xfer_memory):  Use it.
+
+	* pn-opcode.h:  Document that a "PN" is a Gould PowerNode.
+
+	* breakpoint.c, breakpoint.h, symtab.h, value.h, frame.h, utils.c,
+	valops.c, stack.c, target.c, sparc-xdep.c, source.c, printcmd.c,
+	infcmd.c, i960-pinsn.c, eval.c, defs.h:  lint and gcc -Wall.
+
+Sun Dec  2 16:45:06 1990  John Gilmore  (gnu at cygnus.com)
+
+	Merge Intel 960 port of gdb, continuing...
+
+	* dbxread.c (partial_symbol_file_open, partial_symbol_file_read,
+	symbol_file_command):  Pass from_tty arg to hush 'em up.
+
+	* coffread.c (symbol_file_command):  Avoid output if from_tty != 1.
+	Add magic numbers for 960 COFF format.
+
+Fri Nov 30 09:18:20 1990  John Gilmore  (gnu at cygnus.com)
+
+	Merge Intel 960 port of gdb, from Intel "1.2" release.
+
+	CHANGE_LOG entries from their port, which was based on
+	gdb+-2.8.0:
+
+    Thu Sep  6 11:02:22 PDT 1990
+	Remove temp file if download is interrupted.
+
+    Wed Aug  1 09:08:33 PDT 1990
+	Now uses binary protocol to talk to NINDY.
+	Old hex protocol (NINDY 2.13 and older) supported with -O switch.
+	Times out after 5 seconds when trying to talk to NINDY.
+
+    Tue May 29 12:54:49 PDT 1990
+	Added variable baud rate (-b switch).
+	Source code reorganization.
+
+    Thu Apr 26 11:09:55 PDT 1990
+	More cleanup of batch mode;  specifically, execute "-s", "-e", and
+	"-se" switches as soon as they are encountered on the invocation line.
+
+    Fri Apr 20 13:47:15 PDT 1990
+	Add -brk switch.
+
+    Thu Apr 19 09:54:28 PDT 1990
+	Add 'reset' command.
+
+    Wed Apr 18 09:48:07 PDT 1990
+	After opening remote tty, wait for 1 second to go by without input
+	from it before trying to talk to NINDY (fixes problems with the
+	Heurikon HK80/V960E).
+
+    Mon Apr  4 16:33:05 PDT 1990
+	Some output was not being suppressed in 'batch' mode.
+
+    Thu Mar 22 15:31:11 PST 1990
+	Ask user if old symbol table should be deleted when new file is
+	downloaded.
+
+	Allow user to run a program downloaded before gdb960 was brought up.
+
+	Correct "exec-file" help message for i80960 context.
+
+	Correct bug in calculating user space address:  could occasionally
+	corrupt user program.
+
+	Make sure to zero low-order bits in rip's because of bug in 960CA
+	A-step part:  could cause operation faults when "next"ing across
+	a function call.
+
+	Correct bug that made it impossible to get source line numbers for
+	code loaded at addresses higher than 0x7fffffff.
+
+    Wed Jan 10 12:43:22 PST 1990
+	Open remote tty for exclusive use.
+
+    Fri Jan  5 12:14:42 PST 1990
+	Correct disassembly (CA manual was right after all):
+	opcode for sysctl is 0x659
+
+    Mon Oct 23 12:03:04 PDT 1989
+	Use G960BASE and G960BIN environment variables to find 'sx' utility.
+
+    Mon Oct 16 14:15:09 PDT 1989
+	"sfr0"-"sfr31" should have been named "sf0"-"sf31"
+
+    Mon Oct  2 15:56:31 PDT 1989
+
+	Added 960CA disassembly support.
+
+	To simplify maintenance:
+		- eliminated use of symblic links on pinsn.c: use i960-pinsn.c
+			directly instead.
+		- eliminated opcode.h: incorporates tables into i960-pinsn.c
+		- moved 960-specific routines from i960-pinsn.c to i960-md.c
+		- made disassembly interface identical to that in gdmp960.
+
+
+
+Wed Nov 28 21:32:48 1990  John Gilmore  (gnu at cygint)
+
+	* target.h: Allow targets to stack.  Add target_has_memory,
+	_registers, etc.  Restructure memory access and "info files"
+	to walk the target stack.
+	* exec.c, core.c, inftarg.c, remote.c, remote-vx.c, remote-eb.c,
+	target.c:  Change tables to match target.h.
+	* inflow.c (child_mourn_inferior):  pop child_ops.
+	(generic_mourn_inferior):  Use new has_stack flag.
+	* infptrace.c (child_xfer_memory): New memory regime.
+	* inftarg.c (child_files_info): New "info files" regime.
+	* remote-eb.c: New memory regime, new info files.
+	* remote-vx.c: New memory regime, new info files.  Now use
+	separate targets for VxWorks attachment to machine, and 
+	actually running a process under VxWorks, since one has
+	stack & execution & regs and the other doesn't.
+	* remote.c: New memory regime, new info files.
+	* sparc-xdep.c (fetch_core-registers):  New memory regime.
+	* target.c:  New routines and support for stacked targets,
+	new memory regime, new info files regime.
+	
+
+	Generalize section handling for an arbitrary number of sections,
+	including use of the new BFD (binary file) library.
+	* gdbcore.h: Add struct section_table.
+	* exec.c (build_section_table):  Iterate all sections and
+	record what gdb needs to know about them.
+	(exec_command):  Use it.
+	(exec_xfer_memory):  Use the table.
+	(exec_files_info):  Print the table.
+	* core.c (core_file_command, core_xfer_memory, core_files_info):
+	Likewise.	
+	* source.c (find_source_lines):  Use bfd_get_mtime.
+	* dbxread.c:  Quick changes to make it compile with new BFD.
+	* utils.c (error):  Avoid using bfd_error in generic routines.
+	
+	* core.c (core_fetch_registers):  Get from the ".regs" section of
+	the BFD core file.
+	* sparc-xdep.c (fetch_core_registers):  Use the .regs info.
+
+	* inferior.h (attach_flag):  Export.
+	* infcmd.c (run_command):  use new target_create_inferior.
+	* infrun.c (child_create_inferior):  Don't return result.
+	* Makefile.dist (VERSION):  3.91.4.
+
+Fri Nov 23 28:15:38 1990  John Gilmore  (gnu at cygint)
+
+	* breakpoint.c (bpstat_num):  Handle breakpoints which have
+	since been deleted, such as temporary breakpoints.
+	infcmd.c (program_info):  ditto.
+
+	* core.c (core_file_command):  Display the frame where the core
+	dump occurred.
+
+	* main.c:  lint.
+
+	* remote-vx.c (target_command):  Merge in target command from
+	targ-vx.c.  A few other cleanups.
+
+	* TODO, Projects:  Lots more stuff to do...
+
+Fri Nov 23 18:15:38 1990  John Gilmore  (gnu at cygint)
+
+	Massive changes to wall off the remote-debugging interface
+	behind a function vector.  The port to handle VxWorks targets
+	is also part of this.
+
+	All files:  Replace references to renamed functions,
+	remove references to remote_debugging, remove references to
+	have_include_file, have_core_file in favor of target_has_stack,
+	target_has_memory, etc.
+
+	* Modularize the breakpoint interface.
+	breakpoint.h (BREAKPOINT_MAX):  New define sets max length of
+	a breakpoint instruction.
+	breakpoint.c: struct breakpoint's shadow_contents now sized as
+	BREAKPOINT_MAX.
+	(insert_breakpoints):  Vector to target to install breakpoints.
+	(remove_breakpoints):  Vector to target here too.
+	Remove REMOTE_SA_SPARC kludges and other remote_debugging.
+	sparc-tdep.c (single_step):  Use new breakpoint interface for
+	the single-step breakpoints.
+	mem-break.c (memory_insert_breakpoint, memory_remove_breakpoint):
+	New file, contains routines to insert and remove breakpoints by
+	reading out the old contents and later replacing them.  This is
+	how ptrace breakpoints work, and many remote systems as well.
+
+	* tm-vxworks68.h:  New config file, overrides a few things for
+	Wind River's preferences.
+
+	* target.h:  New file, for transfer vector used to talk to the
+	inferior (child, attached, core, exec, remote, etc).  All accesses
+	to the thing being debugged should come through these vectors.
+	target.c:  New file, routines to handle transfer vector.
+	(various files):  Add transfer vectors XXX_ops for the various
+	targets and pseudo-targets (core files, etc) we support.
+
+	* breakpoint.c (bpstat_stop_status):  Further explorations of
+	watchpoints and why things don't work all the time.
+	(bpstat_alloc):  New fn to allocate a bpstat and chain it.
+
+	* config.gdb:  Only add "source ${srcdir}/.gdbinit" to
+	the local gdbinit if it doesn't already have it.
+
+	* core.c (core_ops):  add and install.
+	Allow core debugging without exec file.
+
+	* dbxread.c (free_and_init_header_files):  Merge two fns.
+	(end_symtab):  Free named symbol table when a new version comes in.
+	(read_dbx_symtab):  Relocate all kinds of symbols with base
+	address.  First step toward handling different text, data, bss
+	reloc.
+	(add_file_addr_command):  Renamed add_file_command.
+	(add_file_command):  Vector to remote handler.
+	Add "load" as an alias for "add-file" command.
+
+	* defs.h:  Allow "volatile" to be used in non-ANSI; use it for
+	non-returning functions.
+
+	* exec.c:  Add exec_ops, and push it as a target when an exec
+	file is specified.
+
+	* infcmd.c (run_command):  Pass executable file name and arg list
+	separately when starting an inferior.  Permit "run" when no exec
+	file is specified, for VxWorks.
+	(detach_command):  Move to child_detach in inftarg.c.
+
+	* inftarg.c:  New file.  Unix-child-specific routines, and the
+	child_ops structure.
+
+	* inferior.h (registers):  Export "registers" as the way for
+	target dependent register handlers to find gdb's local copy of
+	the registers.  Rename "stop_after_attach" to "stop_soon_quietly"
+	since it is now used by places that want wait_for_inferior to
+	handle the grunge but want to see every trap from the inferior.
+
+	* inflow.c (create_inferior):  Pull out, and merge into infrun.c.
+	Eliminate remote_debugging hooks in terminal handling.
+
+	* infrun.c:  Replace start_inferior with child_create_inferior.
+	Move all the hair of Unix shells and ptrace idiosyncracies into
+	child_create_inferior, so remote handlers don't have to deal.
+	Remove running_in_shell.  Rename stop_after_attach to
+	stop_soon_quietly, and use it in a few other places where we want
+	to just call wait_for_inferior and get control back on the first
+	trap.  trap_expected now never takes a value > 1.
+	(init_wait_for_inferior):  Initialize static vars when a new
+	process is created.
+
+	main.c (gdbinit):  Add new hook for .gdbinit file name, let
+	it be overridden by config files as GDBINIT_FILENAME.
+	(DEFAULT_PROMPT):  Add new hook for overriding (gdb) prompt.
+	Both of these are used for VxWorks gdb.
+
+	mcheck.c:  rename include file "gmalloc.c" to avoid problems
+	with system include file "malloc.c".
+
+	param-no-tm.h:  New include file, same as param.h but does not
+	include the default "tm.h" file.  This is used in files where
+	the target is known, e.g. remote-eb.c or sparc-xdep.c.
+
+	param.h:  Now just a shell that includes tm.h and param-no-tm.h.
+
+	remote-vx.c:  New file, VxWorks remote debugging support.  Uses
+	RPC routines that are shared with the target system, in directory
+	${srcdir}/vx-share.
+
+	remote.c:  Vectorize remote interface.
+
+	source.c:  Globalize source_path, and make an alias "l" for "list"
+	since we now have the "load" command.
+
+	sparc-xdep.c:  Use new param-no-tm.h.
+
+	symmisc.c (free_named_symtab):  Add new function from Wind River.
+	However, ifdef it out for now while we think about what it should
+	really be doing.
+
+	tm-sun3.h, xm-sparc.h, xm-sun3.h, xm-symmetry.h: Move
+	PREPARE_TO_STORE to
+	the xm- file, and change its name to CHILD_PREPARE_TO_STORE, since
+	non-Unix-children handle this with their own code in the target
+	transfer vector.
+
+	Makefile.dist:  Roll version to 3.92.3.  Add vx-share stuff to
+	source and target lists.  Add vx-share to default list of include
+	directories.  Add new files to src and target lists: mem-break,
+	target, inftarg, remote-eb, remote-vx, targ-vx.  Be sure the
+	${srcdir} versions of munch and createtags are used.
+
+	* valops.c (find_function_addr):  Split out of call_function.
+	(call_function_by_hand):  Rename call_function; this function 
+	calls functions in the target by laboriously patching the target
+	word-by-word with the right stack, args, regs, etc.
+
+
+Mon Nov  5 17:29:10 1990  John Gilmore  (gnu at cygint)
+
+	Handle AMD 29000 a bit better.
+
+	* remote-eb.c (readchar):  Mask received char log to make it readable.
+	(remote_start):  Pass arguments down to executing program.
+	Make startaddr unsigned.
+	infrun.c (start_inferior):  Accept args, pass them to
+	remote_start.
+	infcmd.c (run_command):  Pass args down to start_inferior.
+
+	* tconfig/am29k-aout, tconfig/am29k-coff:  New files specifying
+	the target object file format.
+	tm-29k.h:  Pay heed to COFF_ENCAPSULATE.
+
+	* am29k-pinsn.c (print_insn):  Print 0x on hex numbers in disassembly.
+	am29k-tdep.c (examine_prologue):  Better checking of function prefixes.
+
+Sun Oct  7 18:20:45 1990  John Gilmore  (gnu at cygint)
+
+	* Makefile.dist (VERSION):  Roll version to 3.91.9 and freeze.
+	* TODO:  We did a few things, we have more to do though.
+
+	* xm-sparc.h (CLEAR_DEFERRED_STORES):  Define.
+	* inflow.c (inferior_died):  Clear deferred stores.
+	
+	* Debug problems with dummy frames and calls to the inferior.
+	* tm-sparc.h (PUSH_DUMMY_FRAME, POP_FRAME):  Move to sparc-tdep.c.
+	* sparc-tdep.c (do_restore_insn):  Simplify.
+	(sparc_frame_find_saved_regs):  Simplify and fix what we find.
+	(sparc_push_dummy_frame):  Simplify and fix what we push.
+	(sparc_pop_frame):  Slightly more hair here, deciding whether
+	we are restoring a saved PC or returning to a return address in %i7.
+	* sparc-xdep.c (read_inferior_registers):  Debug if valid reg is read.
+
+	* utils.c (xmalloc, xrealloc):  Return type depends on __STDC__.
+	* symtab.h (xmalloc): ditto, for obstack_chunk_alloc.
+	* obstack.h (chunkfun): ditto.
+	* defs.h (xmalloc, xrealloc): ditto
+
+	* utils.c (quit):  Grab the terminal from the child if necessary. 
+
+	* inflow.c (term_status_command): Rename to term_info, change
+	to "info terminal".
+
+	* sparc-pinsn.c (print_insn):  Disassembly prefers real instructions.
+	(is_delayed_branch):  Speed up.
+	* sparc-opcode.h: Add ALIAS bit to aliases.  Fix up opcode tables.
+	Still missing some float ops, and needs testing.
+
+	* Support for input and output radixes other than base 10
+	* defs.h (input_radix, output_radix):  Declare.
+	* expread.y (yyparse, parse_number):  Handle changes of input
+	radix, and ambiguous names-or-numbers in radixes >10.
+	* printcmd.c (print_scalar_formatted):  Print formatted hex
+	numbers in varying column widths.
+	* valprint.c (val_print):  Use output_format to print scalar ints.
+	(set_input_radix, set_output_radix, set_radix):  Create.
+	(set_output_radix):  Set output_format from output_radix.
+	(_initialize_valprint):  add `set radix' but leave the others off.
+	
+	* main.c (execute_command): Let stupid questions be turned off.
+	(_initialize_main): Handle "set stupidity", etc.
+
+	* main.c, inflow.c, inferior.h, frame.h, command.c, defs.h, 
+	sparc-pinsn.c, sparc-xdep.c, value.h, valops.c, values.c:  Lint.
+
+Tue Oct  2 11:20:02 1990  John Gilmore  (gnu at cygint)
+
+	* TODO, Makefile.dist, ChangeLog:  Freeze for 3.91.8 release.
+	bfd stuff is still screwed up, but with some manual work, it
+	compiles.
+
+	* breakpoint.c (bpstat_do_actions):  Start over if a command
+	proceeds the inferior, since the inferior will have stopped and
+	will need to have its new stop-actions taken care of.
+
+	* dbxread.c (read_struct_type):  Expression gives Sun3 4.0.3
+	compiler fits, simplify it.
+
+	* gdb.texinfo (directory command): Doc new dir command.
+	source.c (directory_command):  "dir" now puts things on the front
+	of the path, moves dups up front, and handles multiple names
+	on the command line, inserting each one in order.  It also
+	blows away cached line and full_filename info.
+
+	* stack.c (backtrace_command):  Skip "more stack frames follow"
+	unless interactive.
+
+	* Change #ifndef HAVE_VPRINTF to #define MISSING_VPRINTF in
+	xm-convex.h, xm-hp300bsd.h, xm-isi.h, xm-merlin.h, xm-news.h, 
+	xm-np1.h, xm-pn.h, xm-pyr.h, xm-symmetry.h, xm-umax.h, xm-vax.h.
+	The only odd one was Gould NP1, which had defined vprintf to
+	"printf"!!!
+
+	* Merge Ted Goldstein <tedg@Eng.sun.com>'s changes for epoch.
+	printcmd.c (print_command_1): Pass 'inspect' flag down as a global
+	variable, inspect_it.
+	valprint.c (print_string, val_print): Use the global inspect_it
+	to indicate whether to print in Epoch style or normal style.	
+
+Mon Oct  1 23:55:26 1990  John Gilmore  (gnu at cygint)
+
+	* printcmd.c (call_command):  add an alias for the "print" command
+	which runs expressions and doesn't print the result if void.
+	(print_command_1): implement it.
+
+	* command.c: Remove #if 0'd code.  Initialize all the fields
+	in add_cmd ().  Rename do_nothing_command to
+	not_just_help_class_command, and make it externally visible.
+	command.h: add user_commands to struct.
+	* main.c (define_command):  Don't overload c->function with a char
+	string as well as a function pointer.
+
+	* eval.c (evaluate_subexp):  Reinstall tiemann changes to
+	calling convention of value_struct_elt () that got dropped in
+	merge.
+
+	* tm-sparc.h (FRAME_FIND_SAVED_REGS):  move to sparc-xdep.c.
+	sparc-tdep.c (sparc_frame_find_saved_regs):  ditto.
+
+	* tm-sparc.h (POP_FRAME): replace some constants with defines.
+
+	* sparc-xdep.c (store_inferior_registers):  defer stores to regs
+	until a good time (e.g. when we are about to run the child),
+	saving ptrace calls.
+    	* infrun.c (proceed):  handle DO_DEFERRED_STORES.
+	* tm-sparc.h: define DO_DEFERRED_STORES.
+
+	* sparc-xdep.c (store_inferior_registers): when storing float
+	registers, don't store stack regs too.  When storing the SP,
+	however, DO store the stack regs too.  This fixes a bug in which
+	the dummy frame is not recognized when a call_function finishes,
+	because its frame pointer (in the stack regs) was never
+	initialized.
+	(read_inferior_registers):  Mark WIM and TBR and FPS and CPS valid
+	even though we don't know how to read them from an inferior.
+	valops.c (call_function):  Comment about storing SP.
+
+	* infrun.c (save_inferior_status): Save away the original bpstat
+	chain so it can be restored later.  Install the copied version for
+	use by whoever saved the status.  It will be blow away by
+	restore_inferior_status, and the original chain restored.  This is
+	important for people who have pointers into the original.
+
+	* breakpoint.c, command.h, copying.awk, dbxread.c, defs.h,
+	findvar.c, frame.h, obstack.h, obstack.c, inflow.c, value.h,
+	main.c, printcmd.c, sparc-tdep.c, symtab.c, valprint.c: lint
+
+
+Fri Sep 28 20:32:46 1990  John Gilmore  (gnu at cygnus.com)
+
+	* Makefile.dist: Roll version to 3.91.8.  Add bfd.h and bfdconfig.h
+	temporarily to the makefile.  Add am29k-opcode.h and WHATS.NEW.
+	Add stuff.c and kdb-start.c to the OTHERS list for tar files.
+
+Fri Sep 28 19:12:12 1990  John Gilmore  (gnu at cygint)
+
+	* Merge Mike Tiemann's multiple inheritance changes from Sun.
+	Store the baseclasses in a type struct starting from array element
+	0 rather than from the unusual array element 1.
+
+	dbxread.c: the above.
+	(virtual_context): Add
+	Read new debug information about which virtual function table
+	a virtual function is from, and store it in fn_field.fcontext.
+	
+	symtab.h: Add fcontextt.  Fix baseclass indices.  Typo in
+	TYPE_FN_FIELD_STATIC_P.
+
+	symtab.c: the above.
+	valops.c: the above.  Handle pointer casts of object *'s.
+	(search_struct_method): Add.
+	(value_struct_elt): First arg is now a pointer to a value, and is
+	modified on return.
+
+	valprint.c: the above.
+	values.c (value_virtual_fn_field): Add type arg.  Handle
+	offsetting to the proper object when calling virtual fns.
+	The above.
+	(baseclass_addr): Add valuep arg.
+
+	* README:  Document the current state of BFD config (missing).
+	* TODO, ChangeLog, Makefile.dist: Roll version.
+	* WHATS.NEW: Add summary of changes since 3.5.
+
+Thu Sep 27 16:23:12 1990  John Gilmore  (gnu at cygint)
+
+	* dbxread.c (read_struct_type): Clear bit vectors whenever
+	we allocate one.
+	symtab.c (B_CLRALL): define.
+
+	* tm-sparc.h (STORE_RETURN_VALUE): Avoid clobbering types by
+	using == rather than =.  Huh...  This fixes the dreaded problem
+	wherein builtin_type_int becomes TYPE_CODE_FLT.
+
+	* core.c (info_files): Show the inferior pid.
+
+	* config.gdb: Avoid putting "dir" command into .gdbinit.  GDB
+	already knows how to look in the source directory.
+
+	* Remove psymtab hair from many places.  Remove duplicated code
+	for searching symbol tables.  Hide psymtabs from most places.
+	Make it fast to get from a psymtab to its symtab.
+
+	blockframe.c (blockvector_for_pc): Remove psymtab hair.
+	coffread.c (psymtab_to_symtab): Rename to psymtab_to_symtab2.
+	mipsread.c (psymtab_to_symtab): Rename to psymtab_to_symtab2.
+	dbxread.c: export psymtab_to_symtab, make it work if called N times.
+	(psymtab_to_symtab): Rename to psymtab_to_symtab2.  Initialize
+	new symtab completely.  New psymtabs get symtab pointer
+	initialized to zero.  Remove MI warning printf.  
+	symtab.h: Comments.  Add psymtab to symtab pointer.
+	(PSYMTAB_TO_SYMTAB): New macro.
+	symtab.c: use PSYMTAB_TO_SYMTAB.  Add psymtab_to_symtab and export it.
+	source.c: use PSYMTAB_TO_SYMTAB.  Remove symtab version and
+	compilation fields.
+	stack.c (backtrace_command): Avoid pre-pass to read symbols, if
+	verbose is not set.
+	(print_frame_info): Avoid special-casing symbols that have not yet
+	been read in.
+
+	* source.c (open_source_file): Quick path if we have already
+	located the source file by its full name.
+
+	* symtab.c (lookup_symbol): Use find_pc_symtab rather than
+	find_pc_psymtab.  When a name is found in the misc function
+	vector, search the symbol table for its mangled name, not the
+	name that the user typed.
+
+	* bfd.h: Fix missing comment terminators, make #endifs match.
+
+	* valarith.c (value_less): Handle unsigned int comparisons.
+	Add FIXME about pointer compares, which assume host and target
+	pointers are the same.
+
+	* command.c (do_nothing_command): lint
+	dbxread.c: lint.  Remove sort_syms.  Document C++ visibility info,
+	fix comments on debug symbol format for visibility.  Actually set
+	visibility of symbols.
+	main.c (echo_command): lint; use <readline/history.h>.
+	tm-sparc.h (FRAME_FIND_SAVED_REGS): lint
+	obstack.h (_obstack_blank): Rearrange pointer math to avoid
+	pointing past end of allocated memory; saber complains.
+	obstack.h: Declare the external functions that we use.
+	valarith.h: use <string.h>
+	solib.c (solib_add): lint.
+
+Fri Sep 21 17:05:19 1990  John Gilmore  (gnu at cygint)
+
+	* main.c (initialize_main):  Default info_verbose to off, now that
+	symbol reading is fast.
+	(quit_command):  Avoid clobbering exec_bfd while quitting.
+
+	* Initial BFD (binary file diddling library) merger:
+	coffread.c: Change AOUTHDR to struct exe_hdr.
+	dbxread.c: ditto.
+	core.c: initialize initialized data at compile time.
+	(core_file_command):  Move from coredep.c, convert to bfd.
+	(xfer_core_file): Convert to bfd.
+	exec.c (exec_file_command): use bfd routines.
+	gdbcore.h: BFD.
+	mips-tdep.c: Remove exec_file_command and friends.
+	source.c: bfd.
+	
+	* coredep.c: (fetch_core_registers) Convert core_file_command to
+	fetch_core_registers.
+	mips-xdep.c, sparc-xdep.c, sun3-xdep.c: ditto.
+	
+	* utils.c: (error): Bogus crap, FIXME, to print bfd errors.
+	(my_bfd_read): More bogosity, which I don't think we call.
+	(program_name): Remove this atrocity asap!
+
+Wed Sep 19 13:36:41 1990  John Gilmore  (gnu at cygint)
+
+	* From Per Bothner:
+	values.c: allocate_repeat_value was not clearing the
+	optimized_out field.
+	(value_static_field): minor stylistic fix (wrong macro was used).
+	valops.c (value_struct_elt_for_address): didn't work for C++
+	static fields.
+
+	* signame.c (_initialize_signame):  Initialize signal names once.
+
+	* breakpoint.h, command.c, copying.awk, defs.h, environ.c,
+	exec.c, frame.h, infcmd.c, inferior.h, main.c, munch, sun3-xdep.c,
+	symtab.h, tm-29k.h, valprint.c, value.h, values.c:  Lint.
+
+	* remote-eb.c:  Support user-settable baud rates on the serial port.
+
+	* tm-sun3.h (PREPARE_TO_STORE): fix typo.
+
+Fri Sep 14 13:28:29 1990  John Gilmore  (gnu at cygint)
+
+	* tconfig/sun3os4: Remove warning about native assembler,
+	since it also occurs in the xconfig file.
+
+	* findvar.c (registers): Allocate some slop after `registers'
+	to prevent stray accesses from trashing the next variable.
+
+	* tm-68k.h (REGISTER_BYTES):  Allocate the right number of bytes
+	on the sun-3, by changing the #ifdef from `sun3' (which is not
+	defined by cc) to `sun'.  Symptom was trashed builtin_type_XXX
+	vars, which happened to follow `registers' in the executable.
+
+	* readline/history.c (history_search): Heed gcc-2's advice
+	and parenthesize && inside ||).
+
+	* am29k-opcode.h, am29k-pinsn.c, am29k-tdep.c, remote-eb.c,
+	tm-29k.c:  Insert FSF copyright headers.
+
+	* remote-eb.c:  Better comments.
+
+	* Makefile.dist:  Update to 3.91.6.
+	* TODO: note PREPARE_TO_STORE problem.
+
+Thu Sep 13 09:52:33 1990  Jim Kingdon  (kingdon at cygint)
+
+	* stack.c (frame_info): Only use FRAME_FIND_SAVED_REGS if defined.
+
+	* remote.c:  Wrap the whole file in #if !defined (SPECIAL_REMOTE).
+
+	* infrun.c (wait_for_inferior, at end): Don't set up
+	prev_* if the inferior no longer exists.
+
+	* inferior.h (CALL_DUMMY_LOCATION): New macro, to replace
+	CANNOT_EXECUTE_STACK.
+	valops.c (call_function): Use it.
+
+	* tm-convex.h: Add CALL_DUMMY_LENGTH for use by PC_IN_CALL_DUMMY.
+
+	* inferior.h (PC_IN_CALL_DUMMY): New macro.
+	infrun.c (wait_for_inferior, 2 places): Use it.
+
+	* values.c (value_being_returned): Only use
+	EXTRACT_STRUCT_VALUE_ADDRESS if defined.
+
+	* Move PREPARE_TO_STORE from xm-sun3.h to tm-sun3.h to do the
+	right thing for remote-eb.c.  
+
+	* sun3-xdep.c:  Remove extraneous call to remote_store_registers.
+	* sun386-xdep.c, hp300hpux-xdep.c, sparc-xdep.c:  Ditto.
+
+	* blockframe.c:  Put get_frame_saved_regs inside #if !defined
+	(FRAME_FIND_SAVED_REGS).
+
+	* findvar.c ({fetch,store}_registers): Check for
+	REMOTE_{FETCH_STORE}_REGISTER macro.
+
+	* findvar.c (get_saved_register): Add argument lval and
+	change meaning of argument addr.
+	findvar.c:  Change calls to get_saved_register to reflect
+	new calling convention.
+	valops.c (value_assign): Use get_saved_register instead of
+	find_saved_register.
+
+Sun Sep  2 12:40:20 1990  Jim Kingdon  (kingdon at cygint.cygnus.com)
+
+	* coffread.c (read_one_sym): Make temp_aux an AUXENT, not
+	an (uninitialized) pointer to one.  Use "&" when passing it
+	to fread.
+
+Fri Aug 31 22:57:54 1990  Jim Kingdon  (kingdon at cygint.cygnus.com)
+
+	* coffread.c (getfilename): Use DGUX x_offset and x_name if
+	defined.
+
+	* coffread.c (symbol_file_command): Put semicolon after
+	"int from_tty".
+	Put safe_to_init_tdesc_context in #if defined (TDESC).
+	Put #ifdef TDESCs in 1st column for non-ANSI cpp's.
+	coffread.c: #include <sys/stat.h>.
+	(read_coff_symtab): Typo: in_source_files -> in_source_file.
+	Add missing ')' in check for "lc%" and friends.  Remove
+	extraneous '}'.
+	Declare read_one_sym() at top of file.
+	(read_file_hdr): Put in extra #ifdefs so MC68MAGIC and
+	MC68WRMAGIC can have the same value without causing a duplicate
+	case.
+
+Thu Sep 13 15:55:36 1990  John Gilmore  (gnu at cygint)
+
+	* Allow a Makefile to be built without building the
+	tm and xm file links that screw up builds in subdirectories.
+	This is done with `config.gdb none', then you can do things
+	like `make gdb.tar.Z'.
+	* tconfig/none: Config file for no target system
+	* xconfig/none: Config file for no host system
+	* config.gdb: If no TM or XM files are called out by the
+	host or target file, don't make links for them.
+
+	* cplus-dem.c: Add documentation.
+
+	* dbxread.c (read_ofile_symtab): Turn a fatal error into a
+	simple error, so the user's gdb doesn't crash due to some object
+	file problem (e.g. somebody is rebuilding the file out from under
+	gdb).
+
+	* printcmd.c (print_address_symbolic): demangle the symbol.
+
+	* Makefile.dist (OTHERS): Remove tdesc-lib because it has 
+	Motorola copyrights in it.  Make "make gdb.tar.Z" work.
+	(alldeps.mak): sort and uniq all results from this; duplicates
+	hose gdb.tar.Z link building.  Remove RCS files from
+	tconfig and xconfig.  Add config files for sun386.  Add
+	a few odd files to OTHERS and HFILES.
+
+Mon Sep 10 21:20:24 1990  John Gilmore  (gnu at cygint)
+
+	* Makefile.dist: Pull solib.c to tconfig/sun?os4.
+	Roll version number to 3.91.5.  Make lint work in bindir.
+
+	* README:  Document cross-debugging and new file structure.
+
+	* blockframe.c: Lint.  Include "value.h" to declare read_register.
+	(find_pc_partial_function): remove duplicate line.
+
+	* command.h: Lint.  Declare error_no_arg and dont_repeat.
+
+	* tm-news.h: Remove inadvertently duplicated stuff.
+
+	* mipsread.c: Remove cache_pc_function stuff, now done cleanly.
+	Clean up usage of misc_function_type.  Declare some CORE_ADDRs.
+
+	* config.gdb: Allow `config.gdb host target' form.  Clean
+	up previous change that printed bogus messages when you just said
+	`config.gdb'.
+
+	* core.c: #include "command.h" for lint.
+	* dbxread.c: lint
+	* eval.c: lint
+	* main.c: Remove some casts of enums.  Lint.
+	* source.c: lint
+	* symtab.c: lint
+	* symtab.h: lint
+	* expread.y: lint
+	* valarith.c: lint
+
+	* printcmd.c (initialize_printcmd): Fix thinko in inspect cmd.
+	
+	* sparc-tdep.c (isannulled): Take instruction as parameter, don't
+	read it from memory.  This will allow us to save ptrace calls
+	eventually.   Changed caller single_step too.
+
+	* sparc-xdep.c (fetch_inferior_registers): Avoid reading regs
+	that we aren't going to use, saving many ptrace calls, especially
+	when watchpointing or single stepping.  Use some #define's for
+	constants.
+	(store_inferior_registers): Ditto.
+	(core_file_command): Use some #define's for constants.
+
+	* tm-sparc.h: Add #define's for some register numbers, so we
+	can eliminate the use of random constants in sparc-xdep.c.
+
+	* stack.c (frame_command, print_frame_info, up_command,
+	down_command) Remove frame_changed, since it
+	causes a bug and doesn't seem to do anything useful.  In some
+	places it was used as a flag, in others as a stack level (?).
+
+	* utils.c: Use MISSING_VPRINTF rather than HAVE_VPRINTF, so the
+	default is to use the portable (vprintf) version rather than the
+	kludge version.
+	* xm-news.h (MISSING_VPRINTF): Add.
+
+	* valprint.c (val_print): Demangle fancy vtbl printouts.  Lint.
+
+Sat Sep  8 00:24:12 1990  John Gilmore  (gnu at cygint)
+
+	* Remove stuff that forces -Bstatic linking of gdb, and warnings
+	about linking debugged programs -Bstatic in the sun?os4 config
+	files in tconfig and xconfig subdirectories.
+
+	* main.c (main):  Remove unreached exit(0) now that we exit
+	via quit_command().
+
+	* Create TODO file for online bug list.  There are too many
+	"little" bugs to keep track of on paper.
+
+	* Change Projects file to refer to bug-gdb@cygnus.com
+	rather than kingdon@ai.
+
+Fri Sep  7 23:35:15 1990  John Gilmore  (gnu at cygint)
+
+	* Makefile.dist (VERSION): 3.91.4 now.
+
+	* symtab.c (init_misc_bunches): Rename from init_misc_functions.
+	(condense_misc_bunches): Add sanity check that misc_count is
+	the same as the number of symbols in the bunch.
+	
+	* coffread.c: rename init_misc_bunches.  Pass an argument 
+	to condense_misc_bunches (a zero).
+
+	* dbxread.c (partial_symbol_file_read): Call init_misc_bunches
+	every time we are called; don't rely on our caller to do it.
+	(add_file): Remove call to init_misc_bunches.
+
+	* mipsread.c: Only warn, don't error, if unknown symbol types.
+	This keeps an old gdb from falling on its face if it sees newly
+	extended symbol info.  Rename init_misc_bunches.
+
+Fri Sep  7 22:58:15 1990  John Gilmore  (gnu at cygint)
+
+	* Merge in changes from Per Bothner for DECstations and other
+	MIPS stuff.  The rest is Bothner speaking:
+
+	The next message is a merger of Alessando Forin's mips port with
+	mine.  I've tried to use my good if biased judgment to get
+	the best of both. It *does* need testing.
+
+	Some of the changes are general, *not* mips-specific.
+
+	param.h:
+	Didn't believe in little-endian bit order.
+	There are still inconsistencies about whether flags
+	like BITS_BIG_ENDIAN are integer (#if ...) or
+	boolean (#ifdef ...). I tried to paper over them.
+
+	dbxread.c,coffread.c,mipsread.c,symtab.c,symtab.h:
+	Moved some misc_function code that was common to
+	{dbx,coff,mips}read.c to symtab.c.
+	In the process, I think I cleaned things up a bit.
+	At the same time, moved obsavestring and obconcat to symtab.c.
+
+	dbxread.c:
+	Removed obsolete condense_addl_misc_bunches (use
+	condense_misc_bunches(1) instead).
+
+	exec.c:
+	Needed to include <sys/dir>, at least on DECstations.
+
+	valops.c, mips-tdep.c, tm-mips.h:
+	Added PUSH_ARGUMENTS macro to support funny argument-pushing
+	conventions (when STACK_ALIGN is insufficient).
+	Needed on mips, where doubles need 8-byte alignment,
+	but ints only need 4.
+
+	mips-opcode.h:
+	Removed cruft that was not being used.
+	Merged in many fixes (most from Frank Yellin, fy@lucid.com).
+
+	mips-pinsn.c:
+	Print $ before register-names (I think that makes things a little
+	more consistent).
+	Never print two instructions, even if one delays.
+	Removed hex-disassemble set_cmd.  (This is not mips-specific,
+	so I think the argument is whether it is generally worthwhile or not.
+	I'm inclined to think not, given how easy it is to
+	convert between radixes in gdb.)
+
+	mipsread.c:
+	This is basically Alessando's code.
+	It doesn't use obstacks; I changed it to use obstacks
+	in a few minor places where using malloc causes a
+	memory leak. (Probably, more places could/should be changed.)
+	I added record_misc_function where it was missing.
+	In symbol_file_command and add_file_command, I tried
+	to make the code consistent with more recent versions.
+	Minor sylistic changes in parse_procedure.
+	Make a .gdbinfo. psuedo-symbol point back to the real
+	procedure symbol (using the isym field).
+
+	mips-tdep.c:
+	This is basically from my port, but with a lot of details
+	and a number of routines merged in from Alessando's version.
+	I basically used my code "raw" backtrace (use heuristics
+	from the actual code, rather than symbol table info) - though
+	the idea is Alessandro's. I feel my code is a little cleaner
+	here, particularly in being a little more flexible, such as being
+	able to handle gcc-produced code (which it now can).
+	It also doesn't do frame caching (which is not useful
+	more recent gdb versions).
+	I also used my code for push_/pop_dummy, more or less.
+	I tried to incorporate AF's code for testing sigtramp
+	while backtracing; I probably got it wrong.
+	Added mips_print_register, which tries to scrunch as much
+	information as possible on a screen...
+	Removed the skip-prologue set_cmd. As with hex-disassemble (see
+	under mips-pinsn.c), I don't see anything mips-specific here,
+	and I don't see it being all that useful anyway.
+	
+	tm-mips.h:
+	Added a $fp psuedo-reg distinct from $fp (nice for gcc).
+	Use more register names (rather than hard-cases numbers).
+	
+Thu Sep  6 18:33:15 1990  John Gilmore  (gnu at cygint)
+
+	* Hack up 3.90.11 changes:
+
+	* Makefile.dist (depend): parameterize $(GCC).
+	Add solib.c and solib.o.
+	(readline): Fix vpath for both absolute or relative SRCDIR.
+
+	* blockframe.c: Fix from Schaefer@asc.slb.com for shared libs.
+	Also, let the part I didn't understand at least compile so
+	I can test the rest.  FIXME.
+
+	* dbxread.c: Fix thinko using strcmp.
+	(init_psymbol_list): declare static.
+	(partial_symbol_file_open): Comment cleanups better, avoid
+	cleaning up the string table since the caller will do that.
+	Move the stat for mod time into symbol_file_command, temporarily.
+	(There should be a mod time for each symbol file, eventually,
+	to control its rereading.  FIXME.)
+
+	* infptrace.c (PT_WRITE_D): use same value as PT_WRITE_I for
+	SunOS, which gives error for shared libs otherwise.  (From
+	Schaefer, probably FIXME needs work for portability.)
+
+	* solib.c:  Move #include "param.h" to work.
+	Lowercase all the Uppercase Letters In the Messages.
+	(find_solib): Clean up inferior_so_name for debug printouts.
+	Allow no argument, to mean all shared libraries.
+
+	* symmisc.c: include param.h to get CLEAR_SOLIB.	
+
+Wed Sep  5 18:00:08 1990  John Gilmore  (gnu at cygint)
+
+	* Merge in Kingdon's changes from FSF: the diffs from 3.90.9
+	  to 3.90.11.  ChangeLog entries below are from this.
+
+Wed Jun 13 09:17:39 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* Version 3.90.11.
+
+	* Makefile.dist (HFILES): Add tm-sunos.h.
+
+Tue Jun 12 16:15:26 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Version 3.90.10.
+
+	* Makefile.dist (gdb.tar.Z): Change linking of config so it works.
+
+Thu Jun  7 16:22:27 EDT 1990  Jay Fenlason (hack@ai.mit.edu)
+
+	* sparc-opcode.h  Added single-operand version of rett.
+
+Mon Jun  4 18:12:31 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* m-sparc.h (REG_STRUCT_HAS_ADDR, STRUCT_ARG_SYM_GARBAGE):
+	Put parens around gcc_p in expansion.
+
+Thu May 24 15:44:51 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* utils.c (lines_to_list): Return 10 if lines_per_page == 0.
+
+Wed May 23 16:36:04 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Changes for Sun shared libraries:
+	blockframe.c (find_pc_partial_function): If a non-text symbol
+	is found, set *address = pc - FUNCTION_START_OFFSET.
+	breakpoint.c (insert_breakpoints) [DISABLE_UNSETTABLE_BREAK]:
+	Disable breakpoints instead of giving an error.
+	source.c (select_source_symtab): Initialize cs_pst.
+	symmisc.c: Call CLEAR_SOLIB if defined.
+	symtab.h: Make text{low,high} CORE_ADDR not int.
+	(psymtab): New field addr.
+	solib.c: New file.
+	dbxread.c: Move DECLARE_FILE_HEADERS outside functions.
+	(record_misc_function): Give correct type for N_DATA symbols.
+	(condense_misc_bunches): do "misc_function_count = j" regardless
+	of inclink.
+	Take code which is shared between symbol_file_command and
+	add_file_command and put it into partial_symbol_file_{open,read}.
+	Split add_file_command into add_file_command and add_file.
+	Make psymtab_to_symtab read in the string table if the file
+	is not symfile.
+	Two new parameters to read_dbx_symtab and start_psymtab.
+	tm-sunos.h: New file.
+
+Tue May 22 17:43:03 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* infcmd.c: Change cont_command to continue_command and "cont"
+	to "continue".
+
+Mon May 21 14:41:41 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* breakpoint.c (enable_breakpoint): Get value of watchpoint.
+
+	* defs.h [sparc]: Use <alloca.h> regardless of __GNUC__.
+
+	* values.c (USE_STRUCT_CONVENTION): Check for structures of
+	size 1,2,4,8 rather than size < 8.
+
+	* dbxread.c (dbx_lookup_type): Do f->length *= 2 as many times
+	as necessary, not just once.
+
+	* sparc-opcode.h: Add a bunch of new opcodes which Sun as supports.
+
+Thu May 17 15:04:09 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* {t,x}m-sun386.h, sun386-xdep.c, {x,t}config/sun386
+
+	* tm-news.h: Add CALL_DUMMY_*.
+
+	* tm-68k.h: Remove duplicate comment at FRAME_FIND_SAVED_REGS.
+
+	* config.gdb: In list_host, list_target, use ${i}, not $i.
+
+Tue May 15 21:27:12 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* source.c (find_source_lines) [BROKEN_LARGE_ALLOCA]: Use xmalloc.
+
+	* sparc-opcode.h: Change all store floating-point state register
+	instructions to have the right match & lose fields.
+
+Sat May  5 12:39:18 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Makefile.dist: Move -I${srcdir} to GLOBAL_CFLAGS and pass
+	VPATH to readline.
+	config.gdb: If srcdir != ., create readline directory and
+	copy a makefile into it.
+
+	* wait.h, infrun.c: Change WRETCODE to WEXITSTATUS for
+	consistency with POSIX.
+
+	* breakpoint.c (bpstat_stop_status): Disable watchpoint
+	when we exit its exp_valid_block.
+
+Tue Sep  4 11:46:46 1990  John Gilmore  (gnu at cygint)
+
+	* Makefile.dist: Bump version to 3.91.3.
+
+	* Clean up handling of breakpoint commands (somewhat).
+	  Prompted by Tiemann bug report "cont 10" doesn't work any more.
+
+	  inferior.h: Add breakpoint_proceeded to inferior status struct
+	  and globals; save it and restore it.
+	  (clear_breakpoint_commands): Cleanup, remove old #define.
+
+	  infrun.c (clear_proceed_status): Set breakpoint_proceeded.
+	  (save_inferior_status, restore_inferior_status): handle it also.
+	  (proceed): Remove earlier code that set breakpoint_proceeded.
+	  It is now set only in clear_proceed_status.
+	  (clear_proceed_status): Cleanup, use bpstat_clear rather
+	  than clear_breakpoint_commands.  No callers need the stop_bpstat
+	  between clear_proceed_status and proceed.
+
+	  infcmd.c: Add breakpoint_proceeded definition and comment.
+	  (cont_command, jump_command, signal_command): Move call to
+	  clear_proceed_status right next to call to proceed.
+
+	  breakpoint.c (bpstat_do_actions): Avoid clobbering our
+	  caller's argument while running down the chain of breakpoints.
+	  Use new variable "breakpoint_proceeded" to determine when
+	  a command that it executes moves the inferior past the
+	  breakpoint.
+	  (bpstat_clear): Handle NULL argument.
+	  (bpstat_clear_actions): Avoid useless call to
+	  breakpoint_auto_delete.
+	  (delete_breakpoint):  Clean up bpstat's that are pointing to
+	  the deleted breakpoint from the stop_bpstat chain.
+	  (breakpoint_auto_delete): Simplify.
+
+	* Clean up handling of EOF, error on stdin, etc.  This was
+	  prompted by a network problem that caused gdb to go into an
+	  infinite loop filling up its malloc'd memory.
+
+	  main.c (return_to_top_level): Cleanup: call bpstat_clear_actions,
+	  not clear_breakpoints_commands, which is now gone.
+	  (main): If command_loop returns (e.g. from EOF on stdin), do
+	  a quit_command (looping back to command_loop if quit_command
+	  doesn't really quit).
+	  (command_loop): check result from command_line_input and
+	  exit if it returns NULL, rather than passing the NULL to
+	  execute_command.
+	  (gdb_readline):  Free malloc'd result space before returning
+	  NULL for EOF.
+
+	* utils.c (query): Handle C-d to mean "yes", just as if the
+	  input was not a terminal.  Also avoid infinite loop if EOF
+	  occurs in mid-input-line before newline.  This allows
+	  query to be used at EOF on stdin with reasonable results.
+
+	* infrun.c (proceed): Set breakpoint_proceeded.
+
+	* values.c (value_as_long): Avoid infinite recursion for enums.
+	  (_initialize_values): Fix typo in help msg (kingdon).
+
+	* Makefile.dist (RL_LIB): Use RL_LIB_DEP for dependencies,
+	  RL_LIB for linking.  This allows -lreadline for linking
+	  and nothing for dependencies, once readline is a real library.
+
+	* config.gdb: Jim Kingdon: give useful error message if the
+	  host or target type is not recognized.
+
+	* defs.h (alloca): SPARC <alloca.h> does not declare alloca,
+	  it just defines it.  Dumb, but deal with it.
+
+	* Jim Kingdon suggests:
+	  in xconfig/sun3os4, CFLAGS should be XM_CFLAGS.
+
+Wed Aug 29 18:03:27 1990  John Gilmore  (gnu at cygint)
+
+	* Makefile.dist (VERSION): Bump version # to 3.91.2.
+
+	* Clean up Bothner's changes.
+
+	* blockframe.c (clear_pc_function_cache): New function.
+	* blockframe.c: remake cache_pc_function_* static.
+	* dbxread.c (symbol_file_command): remove references to
+		    cache_pc_function_* variables.
+	* dbxread.c (read_struct_type): Use VOFFSET_STATIC.
+	* printcmd.c: Avoid kludging a global variable (addressprint)
+	  to avoid printing the address of a string twice.  Instead,
+	  pass the format letter 's' down low enough that it can be seen
+	  to avoid this problem.
+	  (print_formatted): Pass format arg to value_print.
+	  (restore_addressprint): Remove function.
+	  (do_examine):  Avoid hacking addressprint, cleanups and such.
+	  (print_frame_args):  Add a comment to a Bothner change.
+	* symtab.h: define VOFFSET_STATIC and use it instead of "-1".
+	* symmisc.c (free_all_symtabs): Call clear_pc_function_cache
+	  to wipe out the values cached in blockframe.c.
+	* symtab.c (find_method): Add comment saying how big you must
+	  allocate to be "big enough".  Per being terse again.
+	* valprint.c (val_print): Handle format letter "s" to print
+	  strings without addresses.  Add comment to vtbl printing code
+	  which casts with wild abandon.  Rearrange reference-printing
+	  code so it prints:
+	       @0xaddr: value		(print w/addressprint)
+	       value			(print w/~addressprint)
+	       @0xaddr			(parameter lists w/addressprint)
+	  or   nothing			(parameter lists w/o addressprint)
+
+Tue Aug 28 10:47:18 1990  John Gilmore  (gnu at cygint)
+
+	* Merge more changes from Per Bothner:
+
+Gdb's handling of TYPE_CODE_REF was so counter-C++ (and otherwise
+annoying) that I tried to improve it. Here are my suggestions.
+
+	These patches all attempt to handle TYPE_CODE_REF (as in C++) better.
+
+	findvar.c:
+	Do automatic de-reference when taking the address of a reference.
+	printcmd.c:
+	Don't deref_ref when printing parameter lists.
+	valops.c:
+	More attempts at treating refernences properly.
+	valprint.c:
+	In val_print, if deref_ref==0, don't print dangling " = ".
+	value.h:
+	Add COERCE_REF macro, which de-references an REF.
+
+	* Merge changes from Per Bothner:
+
+* Fixed (Sony news)-specific configuration problems.
+* Fixed other problems with using vanilla pcc and libc (enum problems;
+assumption that vsprintf exists).
+* Some major speed-ups (finc_pc_partial_function now caches a match;
+parsing avoids duplicate symbol_lookup calls).
+* Changed handling of baseclasses (no longer use baseclasses field
+of struct type, use the first n_baseclasses fields instead).
+* Various minor changes/fixes, most C++-related.
+
+blockframe.c:
+Cache the most previous match from find_pc_partial_function.
+(Save both low and high ends of matching function's pc range.)
+This speeds up the loop of infrun.c:wait_for_inferior quite
+a bit, and makes step/next commands much zippier.
+command.c:
+Added an enum->int cast (otherwise, some compilers barf).
+dbxread.c:
+No longer set baseclass offset to 0, since multiple
+inheritance now mostly works.
+Added a number of casts, to shut up compiler warnings
+(after stabs where made enums, not ints).
+When discarding a symbol table (in symbol_file_command),
+must clear the cache introduced in blockframe.c.
+Don't convert $vtbl_ptr_type to vtbl any more.
+Get rid of TYPE_BASECLASEES and  baseclass_vec (see also symtab.h).
+Mask off sign bit emitted by g++ for virtual table offset.
+Set voffset to -1 (not 1) for static member functions.
+expread.y:
+Changed parsing/lexing of names to avoid doing symbol lookup twice
+(once when lexing to determine symbol class, once for real).
+Now only call symbol_lookup once. Fields of 'this' win especially big.
+printcmd.c:
+Subpress printing addr twice in the case of 'x/s addr'.
+symtab.c:
+lookup_basetype_type is no longer used.
+Add find_methods as recursive helper function to decode_line_1.
+This allows multiple inheritance to work.
+Also, once one or more matches has been found, do not look in
+base-classes. (Baseclass methods would be overridden, anyway.)
+symtab.h:
+Removed baseclasses array in struct type.
+Instead of using baseclasses[i], use fields[i-1].
+Added virtual_field_bits[i] to indicate if the i'th baseclass is virtual.
+Changed sign convention of voffset (previous was inconsistent).
+tm-news.h:
+Some macros (CALL_DUMMY and relatives) were missing. Put them back.
+utils.c:
+Used to assume existence of vsprintf. Re-written to not need it
+if HAVE_VPRINTF is undefined.
+valops.c:
+typecmp was too pessimistic. Made it less so.
+valprint.c:
+Don't print space after address.
+If vtable points to a misc symbol (with 0 offset), print it,
+since that indicates the actual class of the object.
+Changed ype_print_derivation_info to use new inheritance
+scheme (without baseclasses vector).
+values.c:
+In value_primitive_field, fixed some bugs left over from previous set of fixes.
+Also, changes needed because TYPE_BASECLASSES were removed.
+xm-news.h:
+REGISTER_U_ADDR didn't work for PC. Rewrote to use an array.
+
+Tue Aug 21 20:08:54 1990  John Gilmore  (gnu at cygint)
+
+	* source.c:
+  If there is no path set, and the symbols don't indicate what directory
+  a file was compiled in, look in the current directory.  But either
+  a path or a known compilation directory will prevent this.
+
+	* dbxread.c:
+  Three independent bug fixes:
+   * Remove the #if 0 block that breaks some stuff.
+   * SunOS 4.1 fixed the promoted-parameter-wrong-addr bug in Sun C;
+     adapt gdb to either SunOS 4.0.* or 4.1.
+   * MAX_OF_TYPE and MIN_OF_TYPE thinko.  By tedg@sun, I think.
+ 
+	* symtab.c:
+  Instantiate the class T when looking for methods in it.  (Tiemann@sun)
+
+	* valprint.c:
+  (type_print) Demangle the name being printed.
+  (type_print_base) Handle botched demangling without coredump (tiemann).
+
+	* values.c:
+  (check_stub_method):  Document routine.
+			(tiemann) fix bug for no-arg functions
+			Avoid clobbering beyond end of malloc'd storage.
+			Terminate the argument list properly.
+
+Sat Aug 18 01:29:59 1990  Per Bothner (bothner@cs.wisc.edu)
+
+	* Changes merged by John Gilmore:
+    
+breakpoint.c:
+  In breakpoint_1, use new print_address_symbolic instead
+  of find_pc_partial_function. (This forces use of assembler-level
+  addresses, and avoids misleading non-mangled source-level names.)
+cplus-dem.c:
+  Generalize ansi argument such that -1 means skip arglist totally.
+  Removed global variable print_ansi_qualifiers (which made
+  code non-reentrant), in favor of extra explicit arguments
+  to internal routines.
+printcmd.c:
+  Add new helper function print_address_symbolic.
+  Use find_pc_misc_function instead of find_pc_partial_function
+  (since we want assembler-level symbols here).
+stack.c:
+  Print unknown function as just "f (...)", not "f (...) (...)".
+  Use new fputs_demangled explicitly.
+symtab.c:
+  Fixed a typing violation (problem: value.h cannot be imported
+  without renaming many variable in this file).
+  lookup_symbol: If no matching misc_func, look for a C++-mangled name.
+  decode_line_1: Moved forward some never-reached code.
+  Made decode_line_2 skip function prologues correctly.
+utils.c:
+  fputs_filtered should not demangle by default.
+  Add new fputs_demangled to demangle on demand..
+valops.c:
+  Change value_struct_elt to use value_primitive_field (using recursive
+  utility function search_struct_field). This allows foo.bar to work
+  for multiple inheritance (so far only for data fields).
+  Change check_field in the same way (recursive helper function
+  to support multiple inheritance).
+  (Note: there are more of these problems that I haven't fixed.
+  Any code that says TYPE_BASECLASS (t, 1) is probably wrong.)
+  value_of_this: 'this' symbol name is now just "this", note "$this".
+valprint.c:
+  Don't print static members.
+  Avoid printing "members of <type>" if there are none.
+  Simplified type_print_derivation_info by merging duplicate code.
+  Remove useless blank lines in type_print_base (ptype command).
+value.h:
+  Added declaration of new routine value_primitive_field.
+values.c:
+  Added value_primitive_field which is generalized version of
+  value_field that can handle multiple inheritance (non-zero offsets etc).
+  Re-implemented value_field to call value_primitive_field.
+
+Fri Aug 17 23:33:44 1990  John Gilmore  (gnu at cygint)
+
+	* infcmd.c -- insert else to avoid 'delete env' coredump when you
+	delete the whole environment.  Karl Berry reported the bug.
+	* source.c - fix openp to avoid //'s in filenames, which
+	trigger an Emacs bug causing it to not be able to find files
+	when running gdb in a window.
+	* dbxread.c - zap the #if 0 that botches the add-file code.
+	It seems to work a lot better without all the code commented out.
+
+Fri Jul 20 16:58:46 1990  John Gilmore  (gnu at cygnus.com)
+
+	* Merge Tiemann's and Ted Goldstein's changes, detailed below,
+	into gdb-3.90.9.
+
+Tue Jul 17 19:34:33 1990  Ted Goldstein  (tedg at golem)
+
+	* Makefile - added a ${CFLAGS} to a couple of entries,
+	added remote-sa.sparc.c
+	* added remote.sa-sparc.c, a modification of remote.c
+	which conducts a dialog directly with the SparcStation prom.
+	* breakpoint.c, infrun.c, sparcdep.c  added 
+	remote_insert_breakpoint(), and remote_remove_breakpoint() 
+	to breakpoint.c instead of directly writing breakpoint instructions.
+	* sparcdep.c on remote_debugging,there is no need 
+	to remove signle step breakpoint instructions.
+	* main.c added "-epoch" flag and "int epoch_interface" to main.c
+	global variable
+	* printcmd.c - epoch interface sends lisp expressions to open up
+	epoch windows on inspection.
+	* valprint.c - added arrayprint, and addressprint and made adding
+	format controls easier
+	* wait.h added a couple of undef's because we were getting
+	complaints about WSTOPSIG and WTERMSIG begin redefined.
+
+
+Wed Jul  4 05:27:51 1990  Michael Tiemann  (tiemann at masham)
+
+	* symtab.c (decode_line_1): Add support for handling method stubs
+	in the type information.
+
+Tue Jul  3 09:39:18 1990  Michael Tiemann  (tiemann at masham)
+
+	* values.c (baseclass_addr): Run loop from INDEX+1 to
+	N_BASECLASSES; otherwise, we can still get into a loop.
+	@@ This should be restructured to use a cleaner search strategy.
+
+Sun Jul  1 12:28:51 1990  Michael Tiemann  (tiemann at masham)
+
+	* dbxread.c (define_symbol,read_type): Grok GNU C++'s new
+	abbreviation "Tt" for tags which have the same name as their
+	typedecls.
+
+Fri Jun 29 01:03:46 1990  Michael Tiemann  (tiemann at masham)
+
+	* symtab.c (list_symbols): add ability to set breakpoints on all
+	the functions which match a particular regular expression.
+
+Tue Jun 26 04:26:29 1990  Michael Tiemann  (tiemann at masham)
+
+	* cplus-dem.c (cplus_demangle): New parameter ANSI says whether we
+	should print ANSI qualifiers (such as `const' and `volatile').
+	All callers changed to call with ANSI == 1, except from
+	`check_method_stub', which uses old-style syntax.
+
+	* symseg.h (struct fn_field): Remove unneccessary `args' field.
+	* symtab.h (TYPE_FN_FIELD_ARGS): Redefined.
+
+	* values.c (check_stub_method): New function.
+
+	* cplus-dem.c (do_type): Handle "long long" (encoded as 'x').
+
+	* dbxread.c (read_type): Handle new GNU C++ method type stubs.
+	* valprint (type_print_base): Ditto.
+
+	* symtab.c (gdb_mangle_typename): New function.
+
+Tue Jun  5 00:18:43 1990  Michael Tiemann  (tiemann at gzilla)
+
+	* breakpoint.c (catch_command): New function.  Provides a
+	mechanism to set breakpoints based on catch clauses.
+	(disable_catch): Similar, but disables breakpoints on catch
+	clauses.
+	(delete_catch): Similar, but deleted breakpoints on catch clauses.
+
+Sun Jun  3 22:54:08 1990  Michael Tiemann  (tiemann at gzilla)
+
+	* blockframe.c (blockvector_for_pc): New function.
+	* blockframe.c (block_for_pc): Changed to call
+	`blockvector_for_pc' and get the block itself.
+
+	* stack.c (catch_info): New function.  Prints info about
+	exceptions which can be caught in the current frame.
+	* stack.c (print_frame_label_vars): New function.  Similar to
+	`print_frame_local_vars'.
+	* stack.c (print_block_frame_labels): Prints out labels that are
+	defined in this frame.  These labels are exceptions that can be
+	caught.
+
+	* dbxread.c: Updated to handle N_CATCH symtab types.
+
+Thu May  3 22:10:00 1990  Michael Tiemann  (tiemann at teacake)
+
+	* valprint.c (everywhere): TYPE_NAME (TYPE) no longer comes in the
+	form "struct ..." for GNU C++.  Don't flush any part of TYPE_NAME
+	when printing the type.
+
+Wed May  2 22:43:04 1990  Michael Tiemann  (tiemann at teacake)
+
+	* valprint.c (val_print): Use `baseclass_addr' to access the
+	baseclasses pointed to via the derived class object at VALADDR.
+
+	* values.c (baseclass_addr): New function.  Casts derived pointers
+	to baseclass pointers taking virtual baseclasses and multiple
+	inheritance into account.
+
+Sat May  5 12:39:18 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Version 3.90.9.
+
+Fri May  4 12:12:55 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* breakpoint.c (watch_command, bpstat_stop_status): Deal with
+	exp_valid_block field correctly.
+
+	* infrun.c (wait_for_inferior): When checking "don't even think
+	about breakpoints" if stop_signal == SIGTRAP && trap_expected,
+	also check step_resume_breakpoint.
+	Insert breakpoints and continue (not step) if
+	step_resume_break_address != NULL, even if another_trap.
+	If trap_expected and we enter sigtramp, then set up a
+	step_resume_break.
+	If trap_expected is set when we hit the step_resume_break,
+	set another_trap.
+	When calling resume and trap_expected says tell resume to step
+	(2 places), also check step_resume_break_address.
+
+	* infrun.c (wait_for_inferior): Don't set
+	prev_{pc,sp,func_{start,name}} before calling wait ().
+	Do set them after exiting loop.
+	Move their declarations outside functions.
+	(start_inferior): Initialize them.
+
+Thu May  3 00:15:11 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* infrun.c (wait_for_inferior, after check for trap_expected > 1):
+	Restore old code which distinguishes between trap_expected and
+	running_in_shell, just make the latter take any non-TRAP signal,
+	not just SEGV.
+
+	* values.c (allocate_value): Zero VALUE_OPTIMIZED_OUT flag.
+
+	* Makefile.dist (pinsn.o): Use PINSN_CC to compile.
+	xconfig/3b1 (CC,PINSN_CC): Define.
+
+	* xconfig/altos, altos-dep.c: Rename altos-dep.c to altos-xdep.c.
+
+	* Version 3.90.8
+
+	* breakpoint.c (bpstat_stop_status),
+	infrun.c (wait_for_inferior) [SHIFT_INST_REGS]: New code.
+
+	* param.h, tm-88k.h: Define ADDR_BITS_*.
+	infcmd.c (jump_command, read_pc), infrun.c (wait_for_inferior),
+	printcmd.c (do_one_display): Use them.
+
+	* utils.c: Split #ifdef USG into a USG_UTILS and a QUEUE_MISSING.
+	xm-88k.h: Define USG_UTILS.
+
+Wed May  2 00:05:33 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* printcmd.c (printf_command) [__INT_VARARGS_H]: New code.
+	(printf_command): Add from_tty parameter.
+
+	* valprint.c (value_print): Check VALUE_OPTIMIZED_OUT flag.
+
+	* value.h: Add optimized_out field and change lazy field to
+	char.  Add macro VALUE_OPTIMIZED_OUT.
+
+	* i386-pinsn.c: Change from Eirik Fuller to write to stream directly
+	instead of stuffing things in buffers (oappend, etc).
+
+	* breakpoint.c (bpstat_do_actions): If *BSP is set to NULL by
+	execute_command, exit both loops.
+
+	* Makefile.dist: Don't set TARGET_ARCH.  Add .c.o rule.
+
+Tue May  1 17:07:23 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Makefile.dist (RAPP_OBS, rapp),
+	rgdb.c, rserial.c, rudp.c, serial.c, udp.c, xdep.h,
+	remote.h: Added.
+	m68k-xdep.c, coredep.c: Wrap in #if !defined (RDB).
+
+	* valops.c (value_struct_elt), values.c (value_static_field):
+	Change error messages to remove references to `info methods'.
+
+Tue Apr 24 10:25:10 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* More 88k changes:
+	infrun.c (start_inferior): Add START_INFERIOR_HOOK.
+	infcmd.c [SHIFT_INST_REGS]: New code.
+	findvar.c (read_relative_register_raw_bytes): Return a value.
+	infcmd.c (do_registers_info): Check value from
+	read_relative_register_raw_bytes.
+
+	* command.c (delete_cmd): Free the struct cmd_list_element(s)
+	we are removing.
+
+Mon Apr 23 10:42:21 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* More 88k changes:
+	findvar.c (get_saved_register): New function.
+	findvar.c: Rewrite code which called find_saved_register to
+	call get_saved_register instead.
+
+Sun Apr 22 14:47:51 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* valprint.c (val_print): Change error message printed when
+	the type has TYPE_FLAG_STUB set.
+
+	* valprint.c (val_print): Check for TYPE_CODE_UNDEF.
+
+	* findvar.c (write_register): Set register_valid (regno).
+
+	* valops.c (call_function): Check for NULL return from block_for_pc.
+
+Fri Apr 20 11:31:23 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* findvar.c (write_register): Add PREPARE_TO_STORE.
+	{sun3,sparc,symmetry}-xdep.c (PREPARE_TO_STORE): Add.
+	infptrace.c, {mips,pyr,symmetry,sun3,arm,hp300hpux}-xdep.c
+	(store_inferior_registers): Don't call read_register_bytes.
+	symmetry-xdep.c (store_inferior_registers):
+	#if 0 out code to fetch registers.
+
+	* values.c (value_as_long): Call COERCE_ARRAY.
+
+	* tm-sun3.h: Include tm-68k.h not m-68k.h
+
+	* sparc-tdep.c (single_step): Set next_pc, npc4 within
+	if (!one_stepped), not outside it.
+
+	* Changes from Data General for 88k:
+	* coffread.c (read_file_hdr): Add *88*MAGIC.
+	* coffread.c (have_symbol_file_p): New function.
+	* coffread.c [COFF_CHECK_X_ZEROES] [TDESC]: New code.
+	* coffread.c (read_one_sym): If there is more than one
+	aux entry, don't give an error message, just ignore the
+	extra ones.
+	* coffread.c (process_coff_symbol): Replace clipper with
+	BELIEVE_PCC_PROMOTION in #ifdef's.
+	* coffread.c: Define L_LNNO32 if not defined.
+	(enter_linenos): Use it.
+	* blockframe.c: Add INIT_FRAME_PC hook and use it in
+	get_prev_frame_info.
+	m-m88k.h: Use INIT_{FRAME_PC,EXTRA_FRAME_INFO} to do tdesc stuff.
+	Use dummy versions of FRAME_CHAIN_*.
+	* Makefile.dist, xconfig/i386*: Rename M_CLIBS to XM_CLIBS and add
+	TM_CLIBS and CDEPS.
+	tdesc/libdc.o: New target.
+	tdesc.{c,h}, tdesc/*, {t,x}config/m88k: New files.
+
+Thu Apr 12 15:47:00 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* m68k-opcode.h (bras, bsrs): Use "Bw" not "Bg".
+
+Tue Apr 10 20:50:25 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Version 3.90.7.
+
+	* xm-mips.h (BYTE_ORDER): If not defined, make it LITTLE_ENDIAN.
+
+	* mips-xdep.c ({fetch,store}_inferior_registers): Remove variable
+	offset and just use register_addr (regno, 1).
+	(core_file_command): Remove variable reg_offset and just use
+	register_addr (regno, 0).
+
+	* gdbcore.h [COFF_FORMAT]: #undef a_magic before redefining it.
+
+	* infrun.c ("if (trap_expected && stop_signal != SIGTRAP)", near end
+	of wait_for_inferior): Always pass 0 as first arg to resume.
+	#if 0 out "SIGSEGV in shell" test right above it (now redundant).
+
+	* i386-pinsn.c (oappend_address): New function.
+	(oappend): Make it "static void" and declare at top of file.
+	(OP_J, OP_DIR): Use oappend_address.
+
+Mon Apr  9 15:22:09 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* mips-xdep.c: Include <mips/inst.h> not "mips/inst.h".
+
+	* wait.h [HAVE_WAIT_STRUCT]: Put #defines in #if !defined so that
+	it's OK if they are defined in <sys/wait.h>.
+
+	* findvar.c (fetch_registers): Pass "registers", not "&registers",
+	to remote_fetch_registers.
+
+	* mips-tdep.c (_initialize_mipsdep): Remove hex_disassembler
+	and re-write skip_prologue to use add_set_cmd.
+
+	* Makefile.dist (alldeps.mak): Don't put \ after the last
+	filename in each list.
+
+Sun Apr  8 01:59:19 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Version 3.90.6.
+
+	* Makefile.dist (alldeps.mak): "XM_FILE" -> "XM_FILE=".
+
+	* valarith.c (value_x_{un,bin}op): use "operator" not "operator "
+	to match dbxread.c change of 16 Mar 90.
+
+	* valarith.c (value_x_unop): Pass &static_memfuncp,
+	not static_memfuncp.
+
+	* breakpoint.c: Add watchpoint stuff.
+	breakpoint.h: Add bpstat_should_step.
+	infrun.c (proceed, wait_for_inferior): Use it.
+	breakpoint.h: Add bpstat_print (and rename old bpstat_print
+	to bpstat_should_print).
+	infrun.c (normal_stop): Use it.
+
+	* value.h: Add value_free.  Declare a few functions.
+
+Sat Apr  7 21:43:43 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* dbxread.c (read_dbx_symtab): Remove PROFILE_TYPES code and
+	insert comment suggesting easy shell script equivalents.
+
+	* values.c (unpack_long): Give better error messages for
+	unrecognized sizes of ints and floats.
+
+Fri Apr  6 00:32:21 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* dbxread.c, gdbcore.h (IS_OBJECT_FILE): Check for a_drsize
+	nonzero as well as a_trsize.
+
+	* More places: Use SWAP_TARGET_AND_HOST.
+
+	* valops.c (destructor_name_p): Only skip "struct " if present.
+
+	* main.c (gdb_readline): Return NULL on end of file.
+
+	* sparc-opcode.h: Add jmp 1+2, jmp 1+i, jmp i+1.
+
+	* Makefile.dist: Make expread.tab.c unambiguously be in srcdir.
+
+	* main.c: Split source_command into source_command and
+	read_command_file.
+	(main): Accept "-" as arg to +command for stdin.
+
+	* dbxread.c (psymtab_to_symtab): Don't read string table.
+	(symbol_file_command): Save string table size.
+
+	* Version 3.90.5
+
+	* symtab.c: Remove declaration of lookup_misc_func.
+
+	* mips-pinsn.c: Add use_hex_p stuff (re-worked from Forin stuff).
+
+	* mips-opcode.h: Add bdelay field.
+	mips-pinsn.c: Various changes from Forin, I think to make it look
+	like the MIPS assembler format.
+	mips-tdep.c, mips-xdep.c, mipsread.c: Various changes from Forin.
+
+	* gdbcore.h: Declare register_addr.
+
+	* gdbcore.h: Include <a.out.h>, before trying to redefine N_TXTADDR
+	and friends.
+	various: Don't include both a.out.h and gdbcore.h.
+
+	* Makefile.dist (HFILES): Add param.h
+
+	* utils.c (init_malloc): Moved here from mcheck.c and modified
+	to use the standard mcheck.c
+	Makefile.dist: Modify to reflect new mcheck.
+
+Thu Apr  5 16:38:28 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* valprint.c (val_print, print_hex_chars): Print integers
+	larger than LONGEST.
+
+	* valarith.c (value_sub): Give error message if attempt to
+	subtract something of the wrong type from a pointer.
+
+	* breakpoint.c (bpstat_stop_status): Initialize retval to NULL.
+
+	* i386-tdep.c (i386_pop_frame): Change addr to adr.
+
+Wed Apr  4 05:21:50 1990  Jim Kingdon  (kingdon at teenage-mutant)
+
+	* main.c (command_line_input): return NULL on end of file.
+	(execute_command): If p is NULL, return almost right away.
+	(read_command_lines): Treat end of file like "end".
+
+	* printcmd.c (print_frame_args): Change it so num is number
+	of ints of args, not number of args.
+
+	* xm-*.h: Make sure BYTE_ORDER is defined.
+	Also fix various #includes of old names of things.
+
+	* main.c (command_line_input): Fix comment code of 2 Apr.
+
+	* values.c (value_from_long, unpack_long): SWAP_TARGET_AND_HOST.
+	various: Replace {BYTES,WORDS}_BIG_ENDIAN with TARGET_BYTE_ORDER.
+	valarith.c various: SWAP_TARGET_AND_HOST.
+	dbxread.c (READ_FILE_HEADERS): SWAP_TARGET_AND_HOST.
+	(SWAP_SYMBOL): New macro.  Use it wherever symbuf_idx is incremented.
+	exec.c (exec_file_command): SWAP_TARGET_AND_HOST.
+
+	* valarith.c (value_subscripted_rvalue): Just bcopy() the
+	appropriate bytes rather than playing strange games with
+	value_from_long.
+
+	* param.h (SWAP_TARGET_AND_HOST): New macro.
+
+	* tm-np1.h (V7_REGNUM): Change from 27 to 26.
+	(REGISTER_VIRTUAL_TYPE): Return correct result for vector regs.
+	gould-tdep.c: New file.
+
+	* Move reading of register before store from
+	findvar.c (write_register) to
+	infptrace.c, *-xdep.c (store_inferior_register).
+
+	* findvar.c (fetch_registers, store_registers): New functions.
+	write_register{,_bytes}: Use store_registers regardless of
+	have_inferior_p.
+	registers_valid: New variable.
+	(supply_register, read_register, etc.): Use it.
+	(read_register_gen): New variable.
+	various: Use read_register_gen rather than read_register_bytes
+	where appropriate.
+	*-xdep.c (fetch_inferior_registers): Remove remote_debugging check.
+	infrun.c (wait_for_inferior, start_inferior): Call registers_changed
+	not fetch_inferior_registers.
+	*-xdep.c (fetch_inferior_registers): Call registers_fetched if
+	not setting registers via supply_register, and if fetching
+	all registers.
+	infptrace.c, *-xdep.c (fetch_inferior_registers): Add param,
+	# of register to fetch (-1 for all).
+	infptrace.c, hp300hpux-xdep.c (fetch_inferior_registers):
+	Actually fetch only those registers needed.
+	value.h: Declare all the extern register functions from findvar.c.
+
+	* coffread.c (read_coff_symtab): Test for specific kinds of GCC
+	labels (LI%.*, LPB%.*, etc), not just ??%.*.
+
+	* coffread.c (record_misc_function): Use mf_text not mf_unknown.
+
+	* utils.c,defs.h (lines_to_list): New function.
+	source.c (select_source_symtab, list_command, forward_search_command,
+	reverse_search_command), stack.c (print_frame_info):
+	Use it instead of 10.
+
+	* munch: If MUNCH_NM variable exists, use it.
+
+	* main.c (initialize_main): Set rl_readline_name.
+	main.c: #include readline.h and #undef savestring.
+	Remove declarations of things declared in readline.h.
+
+	* main.c (gdb_readline): If instream == 0, read from stdin.
+
+	* main.c (main): Only call clearerr if ISATTY.  Exit loop if
+	feof (instream).
+
+	* infcmd.c (detach_command): Set inferior_pid to 0 after
+	calling remote_close.
+
+	* main.c (main): If exec and sym files are the same, and there
+	is an error reading execfile, don't try to read sym file.
+
+	* infcmd.c (detach_command) [ATTACH_DETACH]: Don't try to detach
+	from inferior when remote debugging.
+
+	* source.c (reverse_search_command): Change while test from 1 to
+	line > 1.
+
+Tue Apr  3 18:14:14 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Version 3.90.4.
+
+	* Makefile.dist (gdb.tar.Z): Use -z option to tar rather than
+	creating gdb.tar and calling compress separately.
+
+	* breakpoint.c (read_memory_nobpt): Do not treat bcopy as if it
+	returned an "errno" value.
+
+	* various: Make sure gdbcore.h is not included before a.out.h.
+
+	* Makefile.dist (OPCODES): Add mips-opcode.h.
+
+	* config.gdb: Print lists of {hosts,targets} after finding srcdir.
+	When parsing +{host,target}=, strip off +{host,target}=, not +{x,t}m=.
+
+	* Makefile.dist (gdb.tar): Do {t,x}config not just config.
+
+Mon Apr  2 02:42:23 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* sparc-opcode.h (inc): Fix incorrect lose field.
+
+	* valarith.c (value_subscripted_rvalue): Use TARGET_BYTE_ORDER,
+	rather than checking endianness at runtime.
+
+	* main.c (comand_line_input): Accept comments anywhere, not
+	just at starts of lines.
+
+Sat Mar 31 21:59:35 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* symtab.c (check_stub_type): Call lookup_symbol with 5 args.
+
+Fri Mar 30 15:23:52 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* frame.h: #include param.h.
+	param.h: Protect against multiple inclusion.
+
+	* i386-tdep.c (i386_get_frame_setup): Fix comment about what
+	opcode 0x55 is.
+	If 0x81 or 0x83 is followed by something besides 0xec,
+	put codestream back where it was and return 0.
+	[USE_MACHINE_REG_H]: Include <machine/reg.h> not <sys/reg.h>
+	Move include of a.out.h above <sys/user.h>.
+	(i386_frame_find_saved_regs): Make locals signed.
+	(i386_frame_find_saved_regs, i386_push_dummy_frame, i386_pop_frame):
+	Use REGISTER_BYTES, REGISTER_RAW_SIZE, etc. to deal with floating
+	point registers.
+
+Wed Mar 28 18:33:40 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* Makefile.dist (OTHERS): Add gdb.dvi.
+	(gdb.dvi): New rule.
+
+	* breakpoint.c (_initialize_breakpoint): Clean up docstrings so
+	as not to mention subcommands (e.g. auto-display).
+	Call add_cmd not add_abbrev_cmd for "disable breakpoint" and
+	put it in class_alias.
+
+	* breakpoint.c (set_breakpoint_count): New function.
+	(set_breakpoint, break_command_1): Use it.
+
+	* breakpoint.c (get_number): New function.
+	(*_command, map_breakpoint_numbers): Use it.
+
+	* infptrace.c (write_inferior_memory): Remove remote_debugging
+	stuff (is handled in core.c).
+	(read_inferior_memory): Remove #if 0'd out remote_debugging code.
+
+Tue Mar 27 16:51:27 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* inferior.h: Include frame.h.
+
+	* findvar.c (write_register): Replace sun4 #ifdef with
+	check of CANNOT_STORE_REGISTER.
+	xm-sparc.h: Define CANNOT_STORE_REGISTER.
+
+	* sparc-tdep.c: Remove superfluous declaration of
+	get_breakpoint_commands.
+
+	* breakpoint.{c,h}: Add bpstat stuff.
+	bpstat_do_action: Re-work do_breakpoint_commands into this.
+	main.c (command_loop): Call bpstat_do_action not
+	do_breakpoint_commands.
+	inferior.h, infrun.c, breakpoint.c, infcmd.c:
+	Rework breakpoint_commands and stop_breakpoint
+	stuff to use bpstat instead.
+
+	* infcmd.c (program_info): "info reg"->"info registers".
+
+	* np1-opcode.h: Renamed from npl-opcode.h.
+	gould-pinsn.c: Include np1-opcode.h.
+	Makefile.dist (OPCODES): Change npl-opcode.h to np1-opcode.h
+
+	* coffread.c (read_enum_type): Stop reading when we hit .eos.
+
+Mon Mar 26 15:52:35 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Version 3.90.3.
+
+	* breakpoint.c (read_memory_nobpt): New function.
+	gdbcore.h: Declare read_memory_{nobpt,check}.
+	mips-tdep.c: Use read_memory_nobpt not breakpoint_shadow_val.
+
+Fri Mar 23 14:26:38 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* inflow.c (terminal_inferior): Reenable commented out
+	inferior_thisrun_terminal check.
+	(terminal_ours_1): If inferior_thisrun_terminal is nonzero,
+	return immediately.
+
+	* Makefile.dist: Rewrite DEPFILES, M_FILE, etc. stuff to deal
+	with host & target separation.
+
+	* config/*: Split into xconfig/* and tconfig/*.
+	*-dep.c: Split into *-xdep.c and *-tdep.c.
+
+	* main.c (main): Always pass two args to xrealloc.
+
+Thu Mar 22 20:29:25 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* Makefile.dist ({,dist}clean): rm {x,t}m.h not param.h
+	xgdb.o: Remove obsolete dependency (now in depend).
+
+	* arm-pinsn.c: Include arm-opcode.h not opcode.h.
+
+	* mips-pinsn.c, mips-opcode.h: New files from Bothner (from
+	release of 24 Jan 90 with mips-opcode.h patch from 1 Feb 90).
+
+	* utils.c (xmalloc): Return NULL on request for 0 bytes.
+
+Wed Mar 21 13:30:08 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* config.gdb: Re-write machine stuff to deal with host & target.
+
+	* xm-altos.h: Don't define HAVE_WAIT_STRUCT.
+
+	* m-*.h: Split into xm-*.h and tm-*.h.
+
+	* infrun.c (wait_for_inferior): Put #ifdef sony_news code
+	in regardless of machine.
+
+	* symtab.c (decode_line_1): Add quotes and capitalize error
+	message "no class, struct, or union named".
+
+	* Makefile.dist (cplus-dem.o): Compile with -Dnounderscore.
+
+	* stack.c (print_frame_info): Use print_symbol to print function name.
+
+	* symtab.c (output_source_filename): Don't print a comma if
+	we are skipping a filename already printed.
+
+Tue Mar 20 10:48:54 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* symtab.c (output_source_filename): Don't print a filename
+	more than once.
+
+	* utils.c (fprint_symbol): New function.
+	defs.h: Decalare it.
+	various: Use fprint_symbol to print symbol names.
+	Makefile.dist (SFILES, OBS): Add cplus-dem.{c,o}.
+
+Mon Mar 19 17:11:03 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* coffread.c (read_file_hdr): Add MC68K??MAGIC.
+
+	* coffread.c (read_coff_symtab): Ignore swbeg and string label
+	symbols.
+
+	* coffread.c (read_coff_symtab): Increment num_object_files
+	in case C_STAT not C_FILE.
+	New variable in_source_file.  Set it in case C_FILE.
+	Check it in case C_STAT.
+
+	* coffread.c [FUNCTION_EPILOGUE_SIZE]: New code.
+	m-umax.h (FUNCTION_EPILOGUE_SIZE): Define.
+
+	* config/3b1: New file.
+
+	* config/sun*: Print message warning people to use GAS with GCC.
+
+Sun Mar 18 02:56:40 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* infcmd.c (run_stack_dummy): Change error message.
+
+	* m-68k.h (REGISTER_VIRTUAL_TYPE): Make pc, fp, sp char *.
+
+	* m-mips.h (LONGEST, BUILTIN_TYPE_LONGEST): Remove.
+
+Sat Mar 17 21:27:49 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* mips-dep.c: Remove infptrace.c stuff.
+
+	* m-bigmips.h: New file.
+	m-mips.h [MIPSEB]: Remove *_BIG_ENDIAN stuff.
+
+	* m-sparc.h (FIX_CALL_DUMMY): Do not insert unimp instruction
+	if function was compiled with gcc.
+
+	* m-mips.h: Remove FIX_CALL_DUMMY_ALIGNED and make FIX_CALL_DUMMY
+	use new args.
+
+	* valops.c (call_function): New args to FIX_CALL_DUMMY.
+	m-*.h (FIX_CALL_DUMMY): Take new args.
+
+	* values.c (using_struct_return): New parameter gcc_p.
+	valops.c (call_function): New variable using_gcc.
+	valops.c (call_function) [REG_STRUCT_HAS_ADDR]: New code.
+
+	* m-mips.h, mips-dep.c: New files from Forin.
+	m-mips.h: Replace RETURN_STRUCT_BY_REF with USE_STRUCT_CONVENTION.
+
+Fri Mar 16 13:17:19 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Makefile.dist: Add some dependencies of m-*.h files.
+	(HFILES): Add m-68k.h.
+
+	* dbxread.c (read_struct_type): Put "operator+" not "operator +"
+	in symtab.
+
+	* core.c: Split read_memory into read_memory_check and read_memory.
+	breakpoint.c (insert_breakpoints): If can't read memory,
+	tell user that error was due to seting breakpoints.
+
+Thu Mar 15 11:47:19 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* infrun.c [COFF_ENCAPSULATE]: Include a.out.encap.h.
+
+	* blockframe.c (FRAMELESS_LOOK_FOR_PROLOGUE): Make it a function.
+	various m-*.h: Call function not macro.
+	frame.h: Declare the function.
+
+Wed Mar 14 02:44:51 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* sparc-dep.c: Include signame.h.
+
+	* sparc-pinsn.c (print_insn): When looking for sethi before
+	delayed branch, call read_memory_noerr not read_memory.
+
+	* m-isi.h, m-sun3.h, m-news.h, m-hp300bsd.h, m-altos.h,
+	m-hp300hpux.h, m-sun2.h: Merge machine stuff except inferior
+	function call stuff into new file m-68k.h.  Create m-3b1.h.
+
+Tue Mar 13 21:34:33 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* inflow.c (new_tty): If can't open tty, print error message
+	before exiting.
+
+	* blockframe.c: Remove declaration of psymtab_to_symtab.
+	symtab.h: Declare psymtab_to_symtab.
+	blockframe.c: Remove declarations of block_for_pc and
+	find_pc_function_start.
+	frame.h: Add declarations of block_for_pc and find_pc_function_start.
+	Remove declaration of nonexistent function find_pc_function.
+	values.c: include frame.h instead of declaring block_for_pc.
+
+	* Version 3.90.2.
+
+Mon Mar 12 14:20:06 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* main.c (main): Delete superfluous "e" from long_options.
+
+Sat Mar 10 15:47:23 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* valprint.c (val_print): Print <%d bit integer> not just
+	<large integer>.
+
+	* dbxread.c (error_type): Fix loop that finds '\0' so that on
+	exit, *pp points to the '\0', not the character after.
+	(read_type): Make sure that places which call read_type and then
+	try to read more input stop immediately with another error
+	upon encountering '\0'.
+
+	* dbxread.c (read_range_type): Fix check for large signed
+	integral type to match comment and reality.  Set TYPE_LENGTH based
+	on n2bits for signed, n3bits for unsigned.
+
+	* infcmd.c (cont_command): Print warning message if we
+	decide to ignore the argument.
+
+	* gdb.texinfo (attach): @xref{Attach} -> @xref{Remote}.
+
+Fri Mar  9 16:26:47 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* symtab.h (address_class): Reinstate LOC_EXTERNAL with rewritten
+	comment.
+
+	* expread.y (yyerror, parse_c_1): Make yyerror take a char * arg.
+
+	* main.c (symbol_completion_function): Don't call error() on
+	"info jkldskf".
+
+	* m-npl.h (USE_STRUCT_CONVENTION): Change >= to >.
+
+Thu Mar  8 00:19:01 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* symseg.h: Nuke more symseg references including LOC_EXTERNAL.
+	Put contents of	symseg.h into symtab.h and remove symseg.h.
+
+Wed Mar  7 18:02:15 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* symtab.h (SYMBOL_LINE): New macro.
+	symtab.c (decode_line_1): Accept variable as well as function.
+	Lookup variable/function in selected block if no file specified.
+	printcmd.c: #if 0 out whereis_command.
+
+	* command.c (do_setshow_command): Call function with additional
+	argument C.
+	main.c (set_history_size_command): Take argument C.
+	(set_verbose): New function to set docstring.
+	(initialize_main): Put set_verbose in command list.
+	command.c (lookup_cmd_1): Accept result_list NULL.
+
+	* valprint.c (_initialize_valprint): Change docstring for
+	"set unionprint" to normal set/show form.
+
+	* command.c (add_show_from_set): Check that docstring starts with
+	"Set " before assuming it does.
+
+	* main.c (show_history): Call cmd_show_list.
+	command.{c,h} (cmd_show_list): New function.
+	command.h: Declare do_setshow_command.
+
+	* command.h (cmd_list_element): New field completer.
+	main.c (symbol_completion_function): Use it.
+	symtab.h: Declare make_symbol_completion_list.
+	command.c (add_cmd): Set completer.
+	main.c, gdbcmd.h (noop_completer): New function.
+	infcmd.c: Set completer for environment functions.
+
+	* symtab.c (types_info, _initialize_symtab): #if 0 out.
+	various: Use fputs_filtered, not fprintf_filtered(%s).
+
+	* valprint.c (type_print_base): Check for integers larger than
+	LONGEST.
+
+	* sun3-dep.c: Include "signame.h" instead of directly declaring
+	sys_siglist.
+
+Tue Mar  6 14:59:34 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* infrun.c (signals_info): Allow argument to be a signal name
+	as well as an expression.
+	(handle_command): Check for error from sig_number.
+
+	* main.c (float_handler): Change error message.
+
+	* inflow.c (create_inferior): If getenv ("SHELL") exists, use it
+	instead of /bin/sh.
+
+	* dbxread.c (read_dbx_symtab, case N_SO): New variable first_symnum.
+	Pass it to {start,end}_psymtab.
+
+	* dbxread.c (read_ofile_symtab): Increment symbuf_idx and symnum
+	when calling process_symbol_pair.
+
+	* symtab.c (sources_info, output_source_filename):
+	Re-write so output_source_filename takes a first parameter
+	instead of a next one.
+
+	* dbxread.c (read_dbx_symtab, case N_SO): When incrementing
+	symbuf_idx, increment symnum also.
+
+	* values.c (set_internalvar_component): Use VALUE_CONTENTS,
+	not VALUE_CONTENTS_RAW.
+
+	* symmisc.c (free_symtab): Don't free filename (now in symbol_obstack).
+
+	* environ.c (init_environ): Copy entire string, including
+	terminating '\0'.
+
+	* value.h, values.c: Rename value_lazy to value_fetch_lazy.
+	values.c (value_of_internalvar): Call value_fetch_lazy.
+
+	* dbxread.c (read_huge_number): Return an error on encountering
+	a large decimal number.
+
+	* dbxread.c (read_huge_number): Reverse sense of overflow test.
+
+	* valprint.c (val_print, case TYPE_CODE_INT): Check for integers
+	larger than LONGEST.
+
+	* dbxread.c (read_ofile_symtab): When calling process_one_symbol,
+	call it with desc and value rather than with bufp->n_{desc,value}.
+
+	* defs.h (LONG_MAX): Define.
+
+	* sun3-dep.c: Declare sys_siglist.
+
+	* infptrace.c: Move include of gdbcore.h after a.out.h
+
+	* Makefile.dist (expread.o, mcheck.o): Remove leading "./" not
+	leading ".".
+
+	* m-hp300hpux.h [!HPUX_VERSION_5]: Define KERNEL_U_ADDR_HPUX.
+	infptrace.c [KERNEL_U_ADDR_HPUX] [KERNEL_U_ADDR_BSD]:
+	Set kernel_u_addr using nlist().
+	m-hp300bsd.h: Define KERNEL_U_ADDR_BSD.
+
+Mon Mar  5 16:52:41 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* dbxread.c (read_dbx_symtab): If value of .o symbol is crazy,
+	don't end psymtab.
+
+	* dbxread.c (read_dbx_symtab): Ignore first of a pair of N_SO
+	when both appear.
+	(start_subfile, start_symtab): Extra parameter dirname.
+	(start_subfile): Use obsavestring, not savestring, for name.
+	various: Call start_{subfile,symtab} with extra argument.
+	(end_symtab): Set dirname field in symtab.
+	(read_ofile_symtab): Call process_symbol_pair on pair of N_SO.
+	(process_symbol_pair): New function.
+	symtab.h (symtab): New field dirname.
+	source.c (open_source_file): New function.
+	source.c: Use open_source_file instead of openp where appropriate.
+
+	* defs.h (TARGET_CHAR_BIT): Define.
+
+Sun Mar  4 13:11:48 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* dbxread.c (fill_symbuf): Print error messages nicely.
+
+	* Makefile.dist (SFILES): Put standalone.c at end.
+
+	* Makefile.dist (alldeps.mak): Put out backslash after arm-convert.s.
+
+	* symtab.{c,h} (builtin_type_error): New type.
+	symseg.h (type_code): Add TYPE_CODE_ERROR.
+	valprint.c (val_print, type_print_base),
+	values.c (using_struct_return, set_return_value):
+	Check for and deal with TYPE_CODE_ERROR.
+	dbxread.c (error_type): New function
+	(read_type and subroutines): Call error_type instead of error.
+
+	* dbxread.c (read_huge_number): New function.
+	(read_range_type): Use read_huge_number and check results
+	to see if it is a large integral type.
+
+	* symmisc.c: Remove symseg stuff.
+
+	* Gould NP1 changes from (or inspired by) chpmjd@gdr.bath.ac.uk
+	dbxread.c (read_dbx_symtab) [N_NBSTS]:
+	Treat this and N_NBLCS like N_LCSYM, etc.
+	(process_one_symbol) [BLOCK_ADDRESS_ABSOLUTE]: New code.
+	m-npl.h (USE_STRUCT_CONVENTION): Add.
+	(IGNORE_SYMBOL): Add 0xa4.
+	(END_OF_TEXT_DEFAULT): Remove.
+	(STRING_TABLE_OFFSET): don't add sizeof(int).
+	[!HAVE_VPRINTF]: Define vprintf to be doprnt, not printf.
+	(BLOCK_ADDRESS_ABSOLUTE): Define.
+	(BREAKPOINT): Pad to size of machine word.
+	(SAVED_PC_AFTER_CALL): Remove ` at start of line (!).
+	(R2_REGNUM): Define.
+	(SP_REGNUM, FP_REGNUM): Switch definitions.
+	(REGISTER_U_ADDR): Use FP_REGNUM in place of SP_REGNUM.
+	(STORE_STRUCT_RETURN, EXTACT_RETURN_VALUE, STORE_RETURN_VALUE,
+	call function stuff):
+	Replace bogus definitions with correct ones for NP1.
+	(CANNOT_EXECUTE_STACK): Define.
+	(FRAME_LOCALS_ADDRESS): Don't add 80.
+	(FRAME_FIND_SAVED_REGS): Also get SP.
+	gould-pinsn.c (findframe): Move framechain declaration outside #if 0.
+	infptrace.c (write_inferior_memory): Check addr against text_end
+	and use PT_WRITE_I or PT_WRITE_D as appropriate.
+	(store_inferior_registers): Don't try to write registers in
+	CANNOT_STORE_REGISTER.
+	m-npl.h (CANNOT_STORE_REGISTER): Define.
+	npl-opcode.h (lil): 0xf8080000 -> 0xf80b0000.
+	
+	* munch: Distinguish between BSD and System V nm by actually
+	seeing what output from nm looks like.
+
+Fri Mar  2 13:43:36 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* printcmd.c (print_frame_args): Change highest_offset to point
+	to next unprinted arg.
+
+	* main.c (main): Print "type help for list of commands" along
+	with the version.  Follow it with a blank line.
+
+Thu Mar  1 14:49:26 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* valprint.c: Move print_address for function from value_print
+	to val_print.
+
+Wed Feb 28 15:06:12 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Makefile.dist (m-sun4os4.h): Depend on m-sparc.h
+
+	* Makefile.dist (version.c): Depend on Makefile.dist, not Makefile.
+
+	* Makefile.dist: Change MAKEFILES to Makefiles.
+
+	* symtab.h: Declare get_sym_file.
+	core.c: Include symtab.h.
+
+	* Move signal name stuff from utils.c to signame.c
+	Move signal name stuff from defs.h to signame.h.
+	Makefile.dist (SFILES, HFILES, OBS): Add signame.{c,h,o}.
+
+Mon Feb 26 12:03:12 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* command.c (add_cmd): Don't call savestring on name.
+
+Sun Feb 25 15:52:18 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* printcmd.c (print_frame_args): Make highest_offset an int.
+	New variable args_printed.
+	(print_frame_nameless_args): Remove parameter end and add num
+	and first.
+	(print_frame_args): Change call to print_frame_nameless_args.
+
+Fri Feb 23 21:40:15 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* stack.c (up_command, down_command):
+	Only print stack frame if from_tty.
+
+Thu Feb 22 12:01:36 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* expread.y: Inlcude value.h and don't cast return value from
+	lookup_internalvar.
+
+	* infrun.c: Remove code in #ifdef UMAX_PTRACE.
+
+	* values.c (convenience_info): Print in form "$foo = 5".
+	Don't print "Debugger convenience variables:" before first one.
+
+	* Makefile.dist: Remove ADD_FILES from CLIBS.
+	(gdb, kdb, xgdb): Put in ADD_FILES as well as CLIBS.
+
+	* m-pyr.h: #if 0 out call dummy stuff.
+	Put in POP_FRAME which just calls error().
+	valops.c: If CALL_DUMMY is not defined, put in dummy call_function
+	which just prints an error message.
+
+Tue Feb 20 22:11:40 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* breakpoint.c (commands_command): Add arg from_tty.
+
+	* main.c (main): Put if (!setjmp (to_top_level)) around calls
+	to *_command made in response to command line arguments.
+
+Mon Feb 19 13:58:28 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* main.c (main): Use getopt_long_only.  Move one-character options
+	to long_options.  Remove entries which are just unambiguous
+	abbreviations of other options.
+
+	* command.h: Add types cmd_types and var_types.
+	Add fields type, var_type, and var to struct cmd_list_element.
+	command.c (add_set_cmd, add_set_from_show): New functions.
+	(add_cmd): Set c->var_type.
+	(add_abbrev_cmd): Call add_cmd instead of duplicating code.
+	main.c: Add showlist.
+	Move parse_binary_operation from main.c to command.c.
+	command.c (do_setshow_command): New function.
+	gdbcmd.h: New file.
+	Makefile.dist: Add gdbcmd.h.
+	many files: Include gdbcmd.h, use add_set_cmd and add_show_from_set.
+	Replace info * with show * where appropriate.
+	utils.c (fputs_filtered): Use UINT_MAX in lines_per_page to mean
+	no paging.
+	defs.h: Define UINT_MAX.
+	infcmd.c (run_command): Use execute_command, not set_args_command.
+	main.c (execute_command): Call do_setshow_command if necessary.
+	main.c (show_command, show_history): New functions.
+	main.c (initialize_main): Call add_prefix_cmd
+	for show and show history.
+
+	* coffread.c (enter_linenos): Print error if
+	file_offset < linetab_offset.
+
+Sun Feb 18 15:37:05 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* convex-dep.c (comm_registers_info): Fix typo.  ("argc"->"arg").
+
+Wed Feb 14 20:45:14 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* config.gdb: Create Makefile with make.
+
+	* Makefile.dist, config.gdb: Move "srcdir=" line from Makefile.dist
+	to new file Makefile.srcdir.
+
+	* valprint.c: Include <errno.h>.
+
+	* value.h: Declare value_coerce_function.
+
+	* findvar.c: Add missing " after #include "gdbcore.h
+
+	* main.c (main): Re-write command parsing to use getopt.
+	On "gdb +help" print options with '+' not '-'.
+	Makefile.dist: Add getopt.
+
+Tue Feb 13 00:08:27 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Makefile.dist: Add "srcdir=."
+	config.gdb: Edit srcdir= rather than adding it to the beginning.
+
+	* pyr-dep.c: Make global_reg_offset, last_frame_offset not static.
+	Move definition of reg_stack_offset to core.c [REG_STACK_SEGMENT].
+
+	* config/pyramid: Print message about alloca.
+
+	* breakpoint.c (clear_command): When printing "no breakpoint"
+	error, only use arg if non-NULL.
+
+	* core.c (read_memory): Rename to read_memory_noerr.
+	(read_memory): New function which calls read_memory and checks for err.
+	gdbcore.h: Declare all extern core.c functions.
+	move myread from core.c to utils.c.
+	declare it in defs.h.
+	(read_memory_integer): move from infcmd.c to core.c.
+	gdbcore.h: Declare it.
+	Many places: Remove error checking on read_memory, or call
+	read_memory_noerr instead.  Include "gdbcore.h" if calling either.
+
+	* value.h (COERCE_ARRAY): Coerce functions to function pointers.
+	valops.c (value_coerce_function): New function.
+
+	* core.c, convex-dep.c, arm-dep.c (xfer_core_file): Return EIO
+	if address out of bounds.
+
+	* m-arm.h, arm-dep.c arm-pinsn.c arm-opcode.h: New files.
+	dbxread.c, m-convex.h (VARIABLES_INSIDE_BLOCK): Add gcc_p parameter.
+	Makefile.dist (alldeps.mak): Special case for arm-convert.s.
+	dbxread.c (define_symbol): Check for local based on it not
+	being any one of the known deftypes.
+	values.c (using_struct_return): Use new macro USE_STRUCT_CONVENTION.
+
+	* Makefile.dist, config.gdb: Put in srcdir stuff.
+
+Mon Feb 12 22:46:16 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* breakpoint.c: Add addr_string and cond_string fields to
+	struct breakpoint.
+	(break_command_1): Set them.  Use mention ().
+	(mention): Create with code from break_command_1.
+	(breakpoint_re_set): New function.
+	(breakpoint_clear): Remove.
+	(condition_command): Set cond_string.
+	(breakpoint_delete): Free cond_string and addr_string.
+	Declare parse_c_1's type and remove casts to struct expression *.
+	symmisc.c (free_all_symtabs): Don't call breakpoint_clear.
+	dbxread.c, coffread.c (reread_symbols): Call breakpoint_re_set,
+	Include breakpoint.h.
+	breakpoint.h: New file.
+	dbxread.c: Move declaration of symmisc.c functions to symtab.h.
+
+Sun Feb 11 17:29:23 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* symtab.c: Make lookup_block_symtab extern.
+	symtab.h: Declare it.
+	valops.c (value_of_this): Use it.
+
+Fri Feb  9 08:59:37 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* config/hp300hpux: Print message telling people to use gcc.
+
+	* value.h: Declare print_floating.
+	printcmd.c (print_scalar_formatted, case 'f'): Use print_floating.
+	valprint.c (val_print, case TYPE_CODE_FLT): Use print_floating.
+	valprint.c (print_floating): Make this function out of is_nan
+	and the code which was in val_print.
+	Put parentheses around high & 0xfffff.
+	Print sign and fraction for NaN's.
+	Print 17 digits not 16 for doubles.
+	(is_nan): Remove.
+	m-news.h, m-sun3.h: Define IEEE_FLOAT.
+
+	* Rename gld-pinsn.c to gould-pinsn.c.
+	config/{pn,npl}: Change name of gld-pinsn.c
+
+Tue Feb  6 00:25:36 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* infptrace.c: Define PT_ATTACH if not defined.
+	m-hp300hpux.h: Define ATTACH_DETACH.
+
+	* main.c (initialize_main): Change alias class to aliases.
+
+	* dbxread.c: Search and destroy references to symsegs.
+	Also remove some #if 0'd code.
+
+	* core.c: Remove reread_exec.
+	dbxread.c (reread_symbols): New function.
+	dbxread.c (symbol_file_command): Set symfile_mtime.
+	coffread.c: Same.
+	infcmd.c (run_command): Call reread_symbols not reread_exec.
+
+	* valprint.c (val_print): When printing string after char *, print
+	it for "" just like any other string.
+
+	* core.c (reread_exec): New procedure.
+	infcmd.c (run_command): Call reread_exec.
+
+	* coffread.c (symbol_file_command): Add from_tty.
+
+	* dbxread.c (symbol_file_command): Only ask about loading new
+	symbol table if from_tty.
+
+Mon Feb  5 02:25:25 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* inflow.c (inferior_died): Call breakpoint_clear_ignore_counts.
+
+	* Makefile.dist (OBS): Remove dbxread.o and coffread.o.
+
+	* config.gdb: Ignore files ending in '#' in config.
+
+	* stack.c (backtrace_command): Add QUIT to get_prev_frame loops.
+
+Sat Feb  3 22:25:09 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* Makefile.dist (YACC): Don't use -v.
+
+Fri Feb  2 19:26:50 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* createtags: Only change .o to .c at end of name.
+
+	* Makefile.dist (alldeps.mak): new target.
+	(Makefile): add alldeps.mak.
+	(SOURCES): remove PINSNS.
+	(TAGFILES: use ALLPARAM.
+	(gdb.tar): add config/.
+
+	* config.gdb: Check for M_FILE= not #param.h
+	config/*: Make sure M_FILE= exists with space after M_FILE=.
+	Makefile.dist (TAGS): Pass M_FILE and DEPFILES.
+	createtags: Change .o to .c.  Remove special tests for dep.c etc.
+
+	* dbxread.c, coffread.c: Don't check COFF_FORMAT and READ_DBX_FORMAT.
+	Makefile.dist: Move {dbx,coff}read.c from SFILES to ALLDEPFILES.
+	config/*: add dbxread.o or coffread.o to depfiles.
+
+	* Makefile.dist (depend): Depend on $(SOURCES), not force.
+
+Thu Feb  1 17:43:54 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* symmisc.c (print_symbol): Print newline after label.
+
+Wed Jan 31 22:35:38 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* dbxread.c (read_addl_syms): Remove code that checks for
+	_etext.
+	Move end_of_text_addr into read_dbx_symtab.
+	(read_dbx_symtab): #if 0 out code which checks for _etext.
+
+Tue Jan 30 15:40:19 1990  Jim Kingdon  (kingdon at albert.ai.mit.edu)
+
+	* Makefile.dist (gdb.tar): Use readline's "make readline.tar"
+	instead of having a list of readline files.
+
+	* infrun.c (normal_stop): #if 0 out "you have found a bug in sh".
+
+	* munch (-DSYSV): Check for .text at end of name.
+	Optionally allow extra underscore before initialize.
+	Remove space between #! and /bin/sh.
+
+	* m-merlin.h: Put in clarifying comments about SHELL_FILE.
+	Makefile.dist (install): Execute M_INSTALL.
+	config/merlin: Define M_INSTALL.
+
+Mon Jan 29 04:32:09 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* inflow.c: Change all references to signal handlers from
+	int (*)() to void (*)().
+
+	* main.c: Declare init_signals before use & make it void.
+	Declare initialize_all_files.
+
+	* Makefile.dist (config.status): New target.
+
+Sat Jan 27 00:19:50 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* defs.h (enum command_class): Remove comma after last element.
+
+	* Makefile.dist (gdb.tar.Z): Use compress <foo >bar rather
+	than deleting gdb.tar.Z before starting.
+
+	* dbxread.c (process_one_symbol): Compare context_stack_depth
+	with !VARIABLES_INSIDE_BLOCK, not VARIABLES_INSIDE_BLOCK.
+
+	* mcheck.c: Put whole file in #if defined MALLOC_RANGE_CHECK.
+
+	* mcheck.c (checkhdr): Call fatal_dump_core not abort.
+
+	* mcheck.c: Copy from malloc distribution.
+
+	* main.c (main): Call init_malloc ().
+
+	* main.c (initialize_signals): Rename to init_signals.
+
+Fri Jan 26 00:53:23 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* *dep.c: Make core_file_command return void.
+
+	* gdbcore.h [!KERNEL_U_ADDR]: Declare kernel_u_addr.
+	infptrace.c [!KERNEL_U_ADDR]: Make it extern.
+
+	* altos-dep.c (NBPG, UPAGES): Wrap #define in #if !defined.
+
+	* m-pn.h (GOULD_PN): Define.
+	*-pinsn.c: Include actual opcode table not just opcode.h
+
+	* main.c [ALIGN_STACK_ON_STARTUP]: New code.
+	m-i386.h: Define ALIGN_STACK_ON_STARTUP.
+
+	* m-merlin.h (NO_SIGINTERRUPT, SHELL_FILE): Define.
+
+	* Move code from infptrace [USE_PTRACE_GETREGS] to sun3-dep.c.
+	m-sun{2,3}.h, m-sparc.h: Define FETCH_INFERIOR_REGISTERS.
+
+	* Makefile.dist, config.gdb, config/*:
+	Re-write to use machine-dependent makefiles instead of cpp.
+
+	* m-hp300hpux.h: Define FETCH_INFERIOR_REGISTERS.
+	infptrace.c: Put {fetch,store}_inferior_registers inside
+	#if !defined FETCH_INFERIOR_REGISTERS.
+
+	* Split execcore.c into exec.c and coredep.c.
+	Move a bunch of stuff from coredep.c and *dep.c to gdbcore.h.
+
+	* infptrace.c ({fetch,store}_inferior_registers):
+	Use U_REGS_OFFSET to set offset.
+	m-umax.h: Define U_REGS_OFFSET.
+
+	* m-umax.h: Define PTRACE_{ATTACH,DETACH}.
+
+	* m-i386.h (N_SET_MAGIC): Define.
+	m-i386gas.h: add #undef N_SET_MAGIC.
+
+Thu Jan 25 18:39:45 1990  Jim Kingdon  (kingdon at mole.ai.mit.edu)
+
+	* m-hp300bsd.h: Remove KERNEL_U_ADDR.
+
+	* infptrace.c [!KERNEL_U_ADDR]: Get address of kernel u area
+	at runtime.
+
+	* infptrace.c: Replace numbers with PT_KILL, etc.
+	(store_inferior_registers): Loop for as many words are in the register.
+
+	* infptrace.c [NO_SINGLE_STEP]: Call single_step().
+
+	* kill_inferior{,_fast}: Declare as returning void.
+
+	* m-sun3.h (USE_PTRACE_GETREGS): Define.
+
+	* execcore.c: Add IS_OBJECT_FILE & related stuff.
+
+	* infptrace.c: Include <sys/ptrace.h>.
+	[ATTACH_DETACH] [USE_PTRACE_GETREGS]: New code.
+
+	* Split default-dep.c into infptrace.c and execcore.c.
+
+	* valprint.c [IEEE_FLOAT]: Change void * to char *.
+
+	* breakpoint.c: Change printf_filtered(%s) to fputs_filtered.
+
+Wed Jan 24 00:35:52 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* dbxread.c (symbol_file_command): When freeing everything, free
+	the string table too.
+
+	* Makefile.dist (gdb1): add "rm -f gdb1".
+
+	* printcmd.c (print_scalar_formatted): If size is 0, use 'b'
+	'h', 'w', or 'g' depending on the type.
+
+	* stack.c (backtrace_command): Read in symbols for frames we'll
+	print before printing them.
+
+	* valops.c (value_at): Don't print "I/O error" on EIO from
+	ptrace.  Don't print "out of bounds" for any ptrace error
+	except EIO.
+
+	* valprint.c (type_print_base, case TYPE_CODE_ENUM):
+	Print "FOO = 5" not "FOO : 5".
+
+	* symtab.{c,h}: Make lookup_misc_func extern.
+
+	* Makefile.dist: Define VERSION in makefile, and generate
+	version.c automatically.
+	(gdb.tar): Use gdb-$(VERSION), not dist-gdb.
+
+	* expread.y (yylex): Use lookup_primitive_typename to
+	cut down on calls to lookup_symbol.
+	symtab.{c,h} (lookup_primitive_typename): New function.
+	(lookup_typename): Use it.
+
+	* symtab.{c,h} (check_stub_type): New function.
+	valprint.c (type_print_base, val_print, type_print_derivation_info),
+	values.c (allocate_value): Call it.
+
+	* printcmd.c (whereis_command): New function.
+	symtab.c (lookup_symbol): Add symtab parameter.
+	various: Pass additional argument to lookup_symbol.
+	symseg.h (struct symbol): Add line field.
+	dbxread.c (define_symbol): Set sym->line.
+
+	* dbxread.c (symbol_file_command): Read string table into
+	malloc'd memory (symfile_string_table) and leave it there.
+	(psymtab_to_symtab): Use symfile_string_table.
+
+	* utils.c (sig_abbrev): Return NULL if not found.
+	infrun.c (sig_print_{header,info}): Consolidate duplicated
+	code from handle_command, signals_info.
+	(sig_print_info): Just print number if no name from sig_abbrev.
+
+	* Makefile.dist (OTHERS): Add ChangeLog-3.x
+
+	* infrun.c (restore_inferior_status): #if 0 out
+	"Unable to restore previously selected frame" error message.
+
+	* infrun.c (signals_info, handle_command): Print signal
+	abbrevs along with numbers.
+
+	* infrun.c (handle_command): Accept symbol signal names.
+
+	* utils.c (sig_{number,abbrev}, init_sig): New functions.
+	_initialize_utils: Call init_sig for each signal.
+	defs.h: Declare them.
+
+	* default-dep.c (read_inferior_memory): Check quit_flag in
+	fetch loop.
+
+	* Changes for lazy fetching (speeds things up for big objects):
+	value.h (struct value): New field lazy.
+	VALUE_CONTENTS_RAW, VALUE_LAZY, value_at_lazy: New.
+	findvar.c (read_var_value): Set lazy instead of fetching.
+	various: Copy into VALUE_CONTENTS_RAW, not VALUE_CONTENTS.
+	valops.c: Add value_at_lazy, value_lazy.
+	various: Call value_at_lazy instead of value_at.
+
+	* symtab.h (LONGEST): Define.
+
+	* m-*.h (LONGEST, BUILTIN_TYPE_LONGEST): Delete (in symtab.h).
+
+	* infrun.c (wait_for_inferior): #if 0 out stop if ABOUT_TO_RETURN
+
+	* version.c: Change version number to 4.0development
+
+For older changes see ChangeLog-3.x
+
+Local Variables:
+mode: indented-text
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

@@ -1,37 +1,49 @@
 /* Macro definitions for GDB on an Intel i[345]86.
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef TM_I386_H
 #define TM_I386_H 1
 
-#ifdef __STDC__		/* Forward decl's for prototypes */
+#define GDB_MULTI_ARCH GDB_MULTI_ARCH_PARTIAL
+
+#include "regcache.h"
+
+/* Forward declarations for prototypes.  */
 struct frame_info;
 struct frame_saved_regs;
+struct value;
 struct type;
-#endif
 
-#define TARGET_BYTE_ORDER LITTLE_ENDIAN
+/* The format used for `long double' on almost all i386 targets is the
+   i387 extended floating-point format.  In fact, of all targets in the
+   GCC 2.95 tree, only OSF/1 does it different, and insists on having
+   a `long double' that's not `long' at all.  */
 
-/* Used for example in valprint.c:print_floating() to enable checking
-   for NaN's */
+#define TARGET_LONG_DOUBLE_FORMAT &floatformat_i387_ext
 
-#define IEEE_FLOAT
+/* Although the i386 extended floating-point has only 80 significant
+   bits, a `long double' actually takes up 96, probably to enforce
+   alignment.  */
+
+#define TARGET_LONG_DOUBLE_BIT 96
 
 /* Number of traps that happen between exec'ing the shell to run an
    inferior, and when we finally get to the inferior code.  This is 2
@@ -47,15 +59,14 @@ struct type;
 /* Advance PC across any function entry prologue instructions to reach some
    "real" code.  */
 
-#define SKIP_PROLOGUE(frompc)   {(frompc) = i386_skip_prologue((frompc));}
+#define SKIP_PROLOGUE(frompc)   (i386_skip_prologue (frompc))
 
-extern int i386_skip_prologue PARAMS ((int));
+extern int i386_skip_prologue (int);
 
-/* Immediately after a function call, return the saved pc.  Can't always go
-   through the frames for this because on some machines the new frame is not
-   set up until the new function executes some instructions.  */
+/* Immediately after a function call, return the saved pc.  */
 
-#define SAVED_PC_AFTER_CALL(frame) (read_memory_integer (read_register (SP_REGNUM), 4))
+#define SAVED_PC_AFTER_CALL(frame) i386_saved_pc_after_call (frame)
+extern CORE_ADDR i386_saved_pc_after_call (struct frame_info *frame);
 
 /* Stack grows downward.  */
 
@@ -76,24 +87,38 @@ extern int i386_skip_prologue PARAMS ((int));
 
 #define REGISTER_SIZE 4
 
-/* Number of machine registers */
+/* This register file is parameterized by two macros:
+   HAVE_I387_REGS --- register file should include i387 registers
+   HAVE_SSE_REGS  --- register file should include SSE registers
+   If HAVE_SSE_REGS is #defined, then HAVE_I387_REGS must also be #defined.
+   
+   However, GDB code should not test those macros with #ifdef, since
+   that makes code which is annoying to multi-arch.  Instead, GDB code
+   should check the values of NUM_GREGS, NUM_FREGS, and NUM_SSE_REGS,
+   which will eventually get mapped onto architecture vector entries.
 
-#define NUM_FREGS 0 /*8*/		/* Number of FP regs */
-#define NUM_REGS (16 + NUM_FREGS)	/* Basic i*86 regs + FP regs */
+   It's okay to use the macros in tm-*.h files, though, since those
+   files will get completely replaced when we multi-arch anyway.  */
 
-/* Initializer for an array of names of registers.  There should be at least
-   NUM_REGS strings in this initializer.  Any excess ones are simply ignored.
-   The order of the first 8 registers must match the compiler's numbering
-   scheme (which is the same as the 386 scheme) and also regmap in the various
-   *-nat.c files. */
+/* Number of general registers, present on every 32-bit x86 variant.  */
+#define NUM_GREGS (16)
 
-#define REGISTER_NAMES { "eax",   "ecx",    "edx",   "ebx", \
-			 "esp",   "ebp",    "esi",   "edi", \
-			 "eip",   "eflags", "cs",    "ss", \
-			 "ds",    "es",     "fs",    "gs", \
-			 "st0",   "st1",    "st2",   "st3", \
-			 "st4",   "st5",    "st6",   "st7", \
-			 }
+/* Number of floating-point unit registers.  */
+#ifdef HAVE_I387_REGS
+#define NUM_FREGS (16)
+#else
+#define NUM_FREGS (0)
+#endif
+
+/* Number of SSE registers.  */
+#ifdef HAVE_SSE_REGS
+#define NUM_SSE_REGS (9)
+#else
+#define NUM_SSE_REGS (0)
+#endif
+
+/* Largest number of registers we could have in any configuration.  */
+#define MAX_NUM_REGS (16 + 16 + 9)
 
 /* Register numbers of various important registers.
    Note that some of these values are "real" register numbers,
@@ -102,128 +127,178 @@ extern int i386_skip_prologue PARAMS ((int));
    to be actual register numbers as far as the user is concerned
    but do serve to get the desired values when passed to read_register.  */
 
-#define FP_REGNUM 5	/* (ebp) Contains address of executing stack frame */
-#define SP_REGNUM 4	/* (usp) Contains address of top of stack */
-#define PC_REGNUM 8	/* (eip) Contains program counter */
-#define PS_REGNUM 9	/* (ps)  Contains processor status */
+#define FP_REGNUM 5		/* (ebp) Contains address of executing stack
+				   frame */
+#define SP_REGNUM 4		/* (usp) Contains address of top of stack */
+#define PC_REGNUM 8		/* (eip) Contains program counter */
+#define PS_REGNUM 9		/* (ps)  Contains processor status */
 
-#define FP0_REGNUM 16   /* (st0) 387 register */
-#define FPC_REGNUM 25	/* 80387 control register */
+/* First FPU data register.  */
+#ifdef HAVE_I387_REGS
+#define FP0_REGNUM 16
+#else
+#define FP0_REGNUM 0
+#endif
+
+/* Return the name of register REG.  */
+
+#define REGISTER_NAME(reg) i386_register_name ((reg))
+extern char *i386_register_name (int reg);
+
+/* Use the "default" register numbering scheme for stabs and COFF.  */
+
+#define STAB_REG_TO_REGNUM(reg) i386_stab_reg_to_regnum ((reg))
+#define SDB_REG_TO_REGNUM(reg) i386_stab_reg_to_regnum ((reg))
+extern int i386_stab_reg_to_regnum (int reg);
+
+/* Use the DWARF register numbering scheme for DWARF and DWARF 2.  */
+
+#define DWARF_REG_TO_REGNUM(reg) i386_dwarf_reg_to_regnum ((reg))
+#define DWARF2_REG_TO_REGNUM(reg) i386_dwarf_reg_to_regnum ((reg))
+extern int i386_dwarf_reg_to_regnum (int reg);
+
+/* We don't define ECOFF_REG_TO_REGNUM, since ECOFF doesn't seem to be
+   in use on any of the supported i386 targets.  */
+
+
+/* Sizes of individual register sets.  These cover the entire register
+   file, so summing up the sizes of those portions actually present
+   yields REGISTER_BYTES.  */
+#define SIZEOF_GREGS (NUM_GREGS * 4)
+#define SIZEOF_FPU_REGS (8 * 10)
+#define SIZEOF_FPU_CTRL_REGS (8 * 4)
+#define SIZEOF_SSE_REGS (8 * 16 + 4)
+
 
 /* Total amount of space needed to store our copies of the machine's register
    state, the array `registers'. */
+#ifdef HAVE_SSE_REGS
+#define REGISTER_BYTES \
+  (SIZEOF_GREGS + SIZEOF_FPU_REGS + SIZEOF_FPU_CTRL_REGS + SIZEOF_SSE_REGS)
+#else
+#ifdef HAVE_I387_REGS
+#define REGISTER_BYTES (SIZEOF_GREGS + SIZEOF_FPU_REGS + SIZEOF_FPU_CTRL_REGS)
+#else
+#define REGISTER_BYTES (SIZEOF_GREGS)
+#endif
+#endif
 
-#define REGISTER_BYTES ((NUM_REGS - NUM_FREGS)*4 + NUM_FREGS*10)
+/* Return the offset into the register array of the start of register
+   number REG.  */
+#define REGISTER_BYTE(reg) i386_register_byte ((reg))
+extern int i386_register_byte (int reg);
 
-/* Index within `registers' of the first byte of the space for register N. */
-
-#define REGISTER_BYTE(N) \
-  (((N) < FP0_REGNUM) ? ((N) * 4) : ((((N) - FP0_REGNUM) * 10) + 64))
- 
-/* Number of bytes of storage in the actual machine representation for
-   register N.  All registers are 4 bytes, except 387 st(0) - st(7),
-   which are 80 bits each. */
-
-#define REGISTER_RAW_SIZE(N) (((N) < FP0_REGNUM) ? 4 : 10)
+/* Return the number of bytes of storage in GDB's register array
+   occupied by register REG.  */
+#define REGISTER_RAW_SIZE(reg) i386_register_raw_size ((reg))
+extern int i386_register_raw_size (int reg);
 
 /* Largest value REGISTER_RAW_SIZE can have.  */
+#define MAX_REGISTER_RAW_SIZE 16
 
-#define MAX_REGISTER_RAW_SIZE 10
-
-/* Number of bytes of storage in the program's representation
-   for register N. */
-
-#define REGISTER_VIRTUAL_SIZE(N) (((N) < FP0_REGNUM) ? 4 : 8)
+/* Return the size in bytes of the virtual type of register REG.  */
+#define REGISTER_VIRTUAL_SIZE(reg) i386_register_virtual_size ((reg))
+extern int i386_register_virtual_size (int reg);
 
 /* Largest value REGISTER_VIRTUAL_SIZE can have.  */
+#define MAX_REGISTER_VIRTUAL_SIZE 16
 
-#define MAX_REGISTER_VIRTUAL_SIZE 8
+/* Return the GDB type object for the "standard" data type of data in
+   register REGNUM.  */
 
-/* Return the GDB type object for the "standard" data type of data in 
-   register N.  Perhaps si and di should go here, but potentially they
-   could be used for things other than address.  */
+#define REGISTER_VIRTUAL_TYPE(regnum) i386_register_virtual_type (regnum)
+extern struct type *i386_register_virtual_type (int regnum);
 
-#define REGISTER_VIRTUAL_TYPE(N) \
-  (((N) == PC_REGNUM || (N) == FP_REGNUM || (N) == SP_REGNUM) \
-   ? lookup_pointer_type (builtin_type_void) \
-   : (((N) < FP0_REGNUM) \
-      ? builtin_type_int \
-      : builtin_type_double))
+/* Return true iff register REGNUM's virtual format is different from
+   its raw format.  */
+
+#define REGISTER_CONVERTIBLE(regnum) i386_register_convertible (regnum)
+extern int i386_register_convertible (int regnum);
+
+/* Convert data from raw format for register REGNUM in buffer FROM to
+   virtual format with type TYPE in buffer TO.  */
+
+#define REGISTER_CONVERT_TO_VIRTUAL(regnum, type, from, to) \
+  i386_register_convert_to_virtual ((regnum), (type), (from), (to))
+extern void i386_register_convert_to_virtual (int regnum, struct type *type,
+					      char *from, char *to);
+
+/* Convert data from virtual format with type TYPE in buffer FROM to
+   raw format for register REGNUM in buffer TO.  */
+
+#define REGISTER_CONVERT_TO_RAW(type, regnum, from, to) \
+  i386_register_convert_to_raw ((type), (regnum), (from), (to))
+extern void i386_register_convert_to_raw (struct type *type, int regnum,
+					  char *from, char *to);
+
+/* Print out the i387 floating point state.  */
+#ifdef HAVE_I387_REGS
+extern void i387_float_info (void);
+#define FLOAT_INFO { i387_float_info (); }
+#endif
+
+
+#define PUSH_ARGUMENTS(nargs, args, sp, struct_return, struct_addr) \
+  i386_push_arguments ((nargs), (args), (sp), (struct_return), (struct_addr))
+extern CORE_ADDR i386_push_arguments (int nargs, struct value **args,
+				      CORE_ADDR sp, int struct_return,
+				      CORE_ADDR struct_addr);
 
 /* Store the address of the place in which to copy the structure the
-   subroutine will return.  This is called from call_function. */
+   subroutine will return.  This is called from call_function.  */
 
-#define STORE_STRUCT_RETURN(ADDR, SP) \
-  { char buf[REGISTER_SIZE];	\
-    (SP) -= sizeof (ADDR);	\
-    store_address (buf, sizeof (ADDR), ADDR);	\
-    write_memory ((SP), buf, sizeof (ADDR)); }
+#define STORE_STRUCT_RETURN(addr, sp) \
+  i386_store_struct_return ((addr), (sp))
+extern void i386_store_struct_return (CORE_ADDR addr, CORE_ADDR sp);
 
 /* Extract from an array REGBUF containing the (raw) register state
    a function return value of type TYPE, and copy that, in virtual format,
    into VALBUF.  */
 
-#define EXTRACT_RETURN_VALUE(TYPE,REGBUF,VALBUF) \
-   i386_extract_return_value ((TYPE),(REGBUF),(VALBUF))
+#define EXTRACT_RETURN_VALUE(type, regbuf, valbuf) \
+  i386_extract_return_value ((type), (regbuf), (valbuf))
+extern void i386_extract_return_value (struct type *type, char *regbuf,
+				       char *valbuf);
 
-extern void i386_extract_return_value PARAMS ((struct type *, char [], char *));
+/* Write into the appropriate registers a function return value stored
+   in VALBUF of type TYPE, given in virtual format.  */
 
-/* Write into appropriate registers a function return value of type TYPE, given
-   in virtual format.  */
+#define STORE_RETURN_VALUE(type, valbuf) \
+  i386_store_return_value ((type), (valbuf))
+extern void i386_store_return_value (struct type *type, char *valbuf);
 
-#define STORE_RETURN_VALUE(TYPE,VALBUF) \
-  {    	       	       	       	       	       	       	       	       	     \
-    if (TYPE_CODE (TYPE) == TYPE_CODE_FLT)				     \
-      write_register_bytes (REGISTER_BYTE (FP0_REGNUM), (VALBUF),	     \
-			    TYPE_LENGTH (TYPE));			     \
-    else								     \
-      write_register_bytes (0, (VALBUF), TYPE_LENGTH (TYPE));  		     \
-  }
+/* Extract from an array REGBUF containing the (raw) register state
+   the address in which a function should return its structure value,
+   as a CORE_ADDR.  */
 
-/* Extract from an array REGBUF containing the (raw) register state the address
-   in which a function should return its structure value, as a CORE_ADDR (or an
-   expression that can be used as one).  */
-
-#define EXTRACT_STRUCT_VALUE_ADDRESS(REGBUF) (*(int *)(REGBUF))
+#define EXTRACT_STRUCT_VALUE_ADDRESS(regbuf) \
+  i386_extract_struct_value_address ((regbuf))
+extern CORE_ADDR i386_extract_struct_value_address (char *regbuf);
 
 /* The following redefines make backtracing through sigtramp work.
    They manufacture a fake sigtramp frame and obtain the saved pc in sigtramp
    from the sigcontext structure which is pushed by the kernel on the
    user stack, along with a pointer to it.  */
 
-/* FRAME_CHAIN takes a frame's nominal address and produces the frame's
-   chain-pointer.
-   In the case of the i386, the frame's nominal address
-   is the address of a 4-byte word containing the calling frame's address.  */
+/* Return the chain-pointer for FRAME.  In the case of the i386, the
+   frame's nominal address is the address of a 4-byte word containing
+   the calling frame's address.  */
 
-#define FRAME_CHAIN(thisframe)  \
-  ((thisframe)->signal_handler_caller \
-   ? (thisframe)->frame \
-   : (!inside_entry_file ((thisframe)->pc) \
-      ? read_memory_integer ((thisframe)->frame, 4) \
-      : 0))
+#define FRAME_CHAIN(frame) i386_frame_chain ((frame))
+extern CORE_ADDR i386_frame_chain (struct frame_info *frame);
 
-/* A macro that tells us whether the function invocation represented
-   by FI does not have a frame on the stack associated with it.  If it
-   does not, FRAMELESS is set to 1, else 0.  */
+/* Determine whether the function invocation represented by FRAME does
+   not have a from on the stack associated with it.  If it does not,
+   return non-zero, otherwise return zero.  */
 
-#define FRAMELESS_FUNCTION_INVOCATION(FI, FRAMELESS) \
-  do { \
-    if ((FI)->signal_handler_caller) \
-      (FRAMELESS) = 0; \
-    else \
-      (FRAMELESS) = frameless_look_for_prologue(FI); \
-  } while (0)
+#define FRAMELESS_FUNCTION_INVOCATION(frame) \
+  i386_frameless_function_invocation (frame)
+extern int i386_frameless_function_invocation (struct frame_info *frame);
 
-/* Saved Pc.  Get it from sigcontext if within sigtramp.  */
+/* Return the saved program counter for FRAME.  */
 
-#define FRAME_SAVED_PC(FRAME) \
-  (((FRAME)->signal_handler_caller \
-    ? sigtramp_saved_pc (FRAME) \
-    : read_memory_integer ((FRAME)->frame + 4, 4)) \
-   )
-
-extern CORE_ADDR sigtramp_saved_pc PARAMS ((struct frame_info *));
+#define FRAME_SAVED_PC(frame) i386_frame_saved_pc (frame)
+extern CORE_ADDR i386_frame_saved_pc (struct frame_info *frame);
 
 #define FRAME_ARGS_ADDRESS(fi) ((fi)->frame)
 
@@ -232,9 +307,9 @@ extern CORE_ADDR sigtramp_saved_pc PARAMS ((struct frame_info *));
 /* Return number of args passed to a frame.  Can return -1, meaning no way
    to tell, which is typical now that the C compiler delays popping them.  */
 
-#define FRAME_NUM_ARGS(numargs, fi) (numargs) = i386_frame_num_args(fi)
+#define FRAME_NUM_ARGS(fi) (i386_frame_num_args(fi))
 
-extern int i386_frame_num_args PARAMS ((struct frame_info *));
+extern int i386_frame_num_args (struct frame_info *);
 
 /* Return number of bytes at start of arglist that are not really args.  */
 
@@ -246,28 +321,31 @@ extern int i386_frame_num_args PARAMS ((struct frame_info *));
    ways in the stack frame.  sp is even more special:
    the address we return for it IS the sp for the next frame.  */
 
-#define FRAME_FIND_SAVED_REGS(frame_info, frame_saved_regs) \
-{ i386_frame_find_saved_regs ((frame_info), &(frame_saved_regs)); }
-
-extern void i386_frame_find_saved_regs PARAMS ((struct frame_info *,
-						struct frame_saved_regs *));
+extern void i386_frame_init_saved_regs (struct frame_info *);
+#define FRAME_INIT_SAVED_REGS(FI) i386_frame_init_saved_regs (FI)
 
 
+
 /* Things needed for making the inferior call functions.  */
+
+/* "An argument's size is increased, if necessary, to make it a
+   multiple of [32 bit] words.  This may require tail padding,
+   depending on the size of the argument" - from the x86 ABI.  */
+#define PARM_BOUNDARY 32
 
 /* Push an empty stack frame, to record the current PC, etc.  */
 
 #define PUSH_DUMMY_FRAME { i386_push_dummy_frame (); }
 
-extern void i386_push_dummy_frame PARAMS ((void));
+extern void i386_push_dummy_frame (void);
 
 /* Discard from the stack the innermost frame, restoring all registers.  */
 
 #define POP_FRAME  { i386_pop_frame (); }
 
-extern void i386_pop_frame PARAMS ((void));
-
+extern void i386_pop_frame (void);
 
+
 /* this is 
  *   call 11223344 (32 bit relative)
  *   int3
@@ -277,28 +355,22 @@ extern void i386_pop_frame PARAMS ((void));
 
 #define CALL_DUMMY_LENGTH 8
 
-#define CALL_DUMMY_START_OFFSET 0  /* Start execution at beginning of dummy */
+#define CALL_DUMMY_START_OFFSET 0	/* Start execution at beginning of dummy */
 
 #define CALL_DUMMY_BREAKPOINT_OFFSET 5
 
 /* Insert the specified number of args and function address
    into a call sequence of the above form stored at DUMMYNAME.  */
 
-#define FIX_CALL_DUMMY(dummyname, pc, fun, nargs, args, type, gcc_p)   \
-{ \
-	int from, to, delta, loc; \
-	loc = (int)(read_register (SP_REGNUM) - CALL_DUMMY_LENGTH); \
-	from = loc + 5; \
-	to = (int)(fun); \
-	delta = to - from; \
-	*((char *)(dummyname) + 1) = (delta & 0xff); \
-	*((char *)(dummyname) + 2) = ((delta >> 8) & 0xff); \
-	*((char *)(dummyname) + 3) = ((delta >> 16) & 0xff); \
-	*((char *)(dummyname) + 4) = ((delta >> 24) & 0xff); \
-}
+#define FIX_CALL_DUMMY(dummyname, pc, fun, nargs, args, type, gcc_p) \
+  i386_fix_call_dummy (dummyname, pc, fun, nargs, args, type, gcc_p)
+extern void i386_fix_call_dummy (char *dummy, CORE_ADDR pc, CORE_ADDR fun,
+				 int nargs, struct value **args,
+				 struct type *type, int gcc_p);
 
-extern void print_387_control_word PARAMS ((unsigned int));
-extern void print_387_status_word PARAMS ((unsigned int));
+/* FIXME: kettenis/2000-06-12: These do not belong here.  */
+extern void print_387_control_word (unsigned int);
+extern void print_387_status_word (unsigned int);
 
 /* Offset from SP to first arg on stack at first instruction of a function */
 

@@ -1,5 +1,6 @@
 dnl Autoconf configure script for GDB, the GNU debugger.
-dnl Copyright 1995, 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+dnl Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+dnl Free Software Foundation, Inc.
 dnl
 dnl This file is part of GDB.
 dnl 
@@ -22,6 +23,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.13)dnl
 AC_INIT(main.c)
 AC_CONFIG_HEADER(config.h:config.in)
+AM_MAINTAINER_MODE
 
 AC_PROG_CC
 AC_AIX
@@ -39,10 +41,30 @@ CY_GNU_GETTEXT
 dnl List of object files added by configure.
 
 CONFIG_OBS=
+CONFIG_LIB_OBS=
 CONFIG_DEPS=
 CONFIG_SRCS=
+CONFIG_INITS=
+ENABLE_CFLAGS=
+CONFIG_ALL=
+CONFIG_CLEAN=
+CONFIG_INSTALL=
+CONFIG_UNINSTALL=
 
 configdirs="doc testsuite"
+
+AC_ARG_ENABLE(multi-ice,
+[  --enable-multi-ice            Build the multi-ice-gdb-server],
+[case "${enableval}" in
+    yes ) enable_multi_ice="yes" ;;
+    no)  enable_multi_ice="no" ;;
+    *) AC_MSG_ERROR(Bad value for --enable-multi-ice: ${enableval}) ;;
+  esac
+])
+
+if test "${enable_multi_ice}" = "yes"; then
+  configdirs="${configdirs} multi-ice"
+fi
 
 dnl
 changequote(,)dnl
@@ -51,13 +73,36 @@ changequote(,)dnl
 
 . ${srcdir}/configure.tgt
 
+targ=${target} ; . ${srcdir}/../bfd/config.bfd
+
 dnl
 changequote([,])dnl
 
+dnl use BFD to determine the default architecture and byte order
+dnl (bfd_vec->byteorder provides the latter).
+targ=${target}
+. ${srcdir}/../bfd/config.bfd
+
+dnl We only want the first arch, if there is more than one.
+targ_archs=`echo ${targ_archs} | sed -e 's/ .*//;'`
+
+if test x"${targ_archs}" != x ; then
+    AC_DEFINE_UNQUOTED(DEFAULT_BFD_ARCH, ${targ_archs})
+fi
+if test x"${targ_defvec}" != x ; then
+    AC_DEFINE_UNQUOTED(DEFAULT_BFD_VEC, ${targ_defvec})
+fi
+
+AC_PROG_AWK
 AC_PROG_INSTALL
 AC_CHECK_TOOL(AR, ar)
 AC_CHECK_TOOL(RANLIB, ranlib, :)
+AC_CHECK_TOOL(DLLTOOL, dlltool)
+AC_CHECK_TOOL(WINDRES, windres)
 AC_PROG_YACC
+
+dnl MiG is needed for the Hurd.
+AC_CHECK_TOOL(MIG, mig)
 
 AC_ARG_PROGRAM
 
@@ -65,23 +110,138 @@ AC_TYPE_SIGNAL
 
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS(ctype.h curses.h endian.h link.h \
+dnl Solaris 7 needs _MSE_INT_H defined to avoid a clash between <widec.h>
+dnl and <wchar.h> that causes AC_CHECK_HEADERS to think <curses.h> doesn't
+dnl exist.
+
+case $host_os in solaris2.7 | solaris2.8) case "$GCC" in yes)
+    AC_DEFINE(_MSE_INT_H)
+esac; esac
+
+AC_CHECK_HEADERS(ctype.h nlist.h link.h thread_db.h proc_service.h \
 	memory.h objlist.h ptrace.h sgtty.h stddef.h stdlib.h \
-	string.h sys/procfs.h sys/ptrace.h sys/reg.h \
+	string.h sys/procfs.h sys/ptrace.h sys/reg.h stdint.h \
 	term.h termio.h termios.h unistd.h wait.h sys/wait.h \
-	wchar.h wctype.h asm/debugreg.h sys/debugreg.h)
+	wchar.h wctype.h asm/debugreg.h sys/debugreg.h sys/select.h \
+	time.h sys/file.h sys/ioctl.h sys/user.h sys/fault.h sys/syscall.h \
+	dirent.h sys/ndir.h sys/dir.h ndir.h sys/filio.h \
+	curses.h ncurses.h \
+	poll.h sys/poll.h)
 AC_HEADER_STAT
 
 AC_C_CONST
 
-AC_CHECK_FUNCS(setpgid sbrk sigaction isascii bzero bcopy btowc)
+AC_CHECK_FUNCS(bcopy btowc bzero canonicalize_file_name isascii poll \
+	realpath sbrk setpgid setpgrp sigaction sigprocmask sigsetmask )
 AC_FUNC_ALLOCA
+AC_FUNC_VFORK
+dnl AC_FUNC_SETPGRP does not work when cross compiling
+dnl Instead, assume we will have a prototype for setpgrp if cross compiling.
+if test "$cross_compiling" = no; then
+  AC_FUNC_SETPGRP
+else
+  AC_CACHE_CHECK([whether setpgrp takes no argument], ac_cv_func_setpgrp_void,
+    [AC_TRY_COMPILE([
+#include <unistd.h>
+], [
+  if (setpgrp(1,1) == -1)
+    exit (0);
+  else
+    exit (1);
+], ac_cv_func_setpgrp_void=no, ac_cv_func_setpgrp_void=yes)])
+if test $ac_cv_func_setpgrp_void = yes; then
+  AC_DEFINE(SETPGRP_VOID, 1)
+fi
+fi
+
+# Check if sigsetjmp is available.  Using AC_CHECK_FUNCS won't do
+# since sigsetjmp might only be defined as a macro.
+AC_CACHE_CHECK([for sigsetjmp], gdb_cv_func_sigsetjmp,
+[AC_TRY_COMPILE([
+#include <setjmp.h>
+], [sigjmp_buf env; while (! sigsetjmp (env, 1)) siglongjmp (env, 1);],
+gdb_cv_func_sigsetjmp=yes, gdb_cv_func_sigsetjmp=no)])
+if test $gdb_cv_func_sigsetjmp = yes; then
+  AC_DEFINE(HAVE_SIGSETJMP, 1, [Define if sigsetjmp is available. ])
+fi
+
+# See if <machine/reg.h> supports the %fs and %gs i386 segment registers.
+# Older i386 BSD's don't have the r_fs and r_gs members of `struct reg'.
+AC_CACHE_CHECK([for r_fs in struct reg], gdb_cv_struct_reg_r_fs,
+[AC_TRY_COMPILE([#include <machine/reg.h>], [struct reg r; r.r_fs;],
+gdb_cv_struct_reg_r_fs=yes, gdb_cv_struct_reg_r_fs=no)])
+if test $gdb_cv_struct_reg_r_fs = yes; then
+  AC_DEFINE(HAVE_STRUCT_REG_R_FS)
+fi
+AC_CACHE_CHECK([for r_gs in struct reg], gdb_cv_struct_reg_r_gs,
+[AC_TRY_COMPILE([#include <machine/reg.h>], [struct reg r; r.r_gs;],
+gdb_cv_struct_reg_r_gs=yes, gdb_cv_struct_reg_r_gs=no)])
+if test $gdb_cv_struct_reg_r_gs = yes; then
+  AC_DEFINE(HAVE_STRUCT_REG_R_GS)
+fi
+
+# See if <sys/ptrace.h> provides the PTRACE_GETREGS request.
+AC_MSG_CHECKING(for PTRACE_GETREGS)
+AC_CACHE_VAL(gdb_cv_have_ptrace_getregs,
+[AC_TRY_COMPILE([#include <sys/ptrace.h>],
+		[PTRACE_GETREGS;],
+		[gdb_cv_have_ptrace_getregs=yes],
+		[gdb_cv_have_ptrace_getregs=no])])
+AC_MSG_RESULT($gdb_cv_have_ptrace_getregs)
+if test $gdb_cv_have_ptrace_getregs = yes; then
+  AC_DEFINE(HAVE_PTRACE_GETREGS)
+fi
+
+# See if <sys/ptrace.h> provides the PTRACE_GETFPXREGS request.
+AC_MSG_CHECKING(for PTRACE_GETFPXREGS)
+AC_CACHE_VAL(gdb_cv_have_ptrace_getfpxregs,
+[AC_TRY_COMPILE([#include <sys/ptrace.h>],
+		[PTRACE_GETFPXREGS;],
+		[gdb_cv_have_ptrace_getfpxregs=yes],
+		[gdb_cv_have_ptrace_getfpxregs=no])])
+AC_MSG_RESULT($gdb_cv_have_ptrace_getfpxregs)
+if test $gdb_cv_have_ptrace_getfpxregs = yes; then
+  AC_DEFINE(HAVE_PTRACE_GETFPXREGS)
+fi
+
+# See if <sys/ptrace.h> provides the PT_GETDBREGS request.
+AC_MSG_CHECKING(for PT_GETDBREGS)
+AC_CACHE_VAL(gdb_cv_have_pt_getdbregs,
+[AC_TRY_COMPILE([#include <sys/types.h>
+#include <sys/ptrace.h>],
+		[PT_GETDBREGS;],
+		[gdb_cv_have_pt_getdbregs=yes],
+		[gdb_cv_have_pt_getdbregs=no])])
+AC_MSG_RESULT($gdb_cv_have_pt_getdbregs)
+if test $gdb_cv_have_pt_getdbregs = yes; then
+  AC_DEFINE(HAVE_PT_GETDBREGS)
+fi
+
+# See if <sys/ptrace.h> provides the PT_GETXMMREGS request.
+AC_MSG_CHECKING(for PT_GETXMMREGS)
+AC_CACHE_VAL(gdb_cv_have_pt_getxmmregs,
+[AC_TRY_COMPILE([#include <sys/types.h>
+#include <sys/ptrace.h>],
+		[PT_GETXMMREGS;],
+		[gdb_cv_have_pt_getxmmregs=yes],
+		[gdb_cv_have_pt_getxmmregs=no])])
+AC_MSG_RESULT($gdb_cv_have_pt_getxmmregs)
+if test $gdb_cv_have_pt_getxmmregs = yes; then
+  AC_DEFINE(HAVE_PT_GETXMMREGS)
+fi
+
+
+AC_CHECK_LIB(socket, socketpair)
+AC_CHECK_FUNCS(socketpair)
+
 
 BFD_NEED_DECLARATION(malloc)
 BFD_NEED_DECLARATION(realloc)
 BFD_NEED_DECLARATION(free)
 BFD_NEED_DECLARATION(strerror)
 BFD_NEED_DECLARATION(strdup)
+BFD_NEED_DECLARATION(strstr)
+BFD_NEED_DECLARATION(canonicalize_file_name)
 
 
 # The following save_state_t checkery is only necessary for HPUX 
@@ -106,7 +266,7 @@ AC_MSG_RESULT($gdb_cv_hpux_sswide)
 
 # If we are configured native on GNU/Linux, work around problems with
 # sys/procfs.h
-# Also detect which type of /proc is in use, such as for Unixware.
+# Also detect which type of /proc is in use, such as for Unixware or Solaris.
 
 if test "${target}" = "${host}"; then
   case "${host}" in
@@ -114,21 +274,16 @@ if test "${target}" = "${host}"; then
 	AC_DEFINE(START_INFERIOR_TRAPS_EXPECTED,2)
 	AC_DEFINE(sys_quotactl)
 	;;
+  ia64-*-aix*)
+      AC_DEFINE(NEW_PROC_API)
+      ;;
+  *-*-unixware* | *-*-sysv4.2* | *-*-sysv5*)
+      AC_DEFINE(NEW_PROC_API)
+      ;;
+  *-*-solaris2.[[678]])
+      AC_DEFINE(NEW_PROC_API)
+      ;;
   esac
-  AC_MSG_CHECKING(for directory proc entries)
-# The [gdb_host != sun4sol2] hack is because Solaris does provide the
-# multiple procfs files as of Solaris 2.6, but GDB can't use it right now.
-  if test "$ac_cv_header_sys_procfs_h" = yes -a "$gdb_host" != sun4sol2 \
-  -a -d /proc/$$ \
-  -a -f /proc/$$/ctl \
-  -a -f /proc/$$/as \
-  -a -f /proc/$$/map \
-  -a -f /proc/$$/status; then
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(HAVE_MULTIPLE_PROC_FDS)
-  else
-    AC_MSG_RESULT(no)
-  fi
 fi
 
 if test "$ac_cv_header_sys_procfs_h" = yes; then
@@ -136,6 +291,43 @@ if test "$ac_cv_header_sys_procfs_h" = yes; then
   BFD_HAVE_SYS_PROCFS_TYPE(prrun_t)
   BFD_HAVE_SYS_PROCFS_TYPE(gregset_t)
   BFD_HAVE_SYS_PROCFS_TYPE(fpregset_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(prgregset_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(prfpregset_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(prgregset32_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(prfpregset32_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(lwpid_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(psaddr_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(prsysent_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(pr_sigset_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(pr_sigaction64_t)
+  BFD_HAVE_SYS_PROCFS_TYPE(pr_siginfo64_t)
+
+
+  dnl Check for broken prfpregset_t type
+
+  dnl For Linux/i386, glibc 2.1.3 was released with a bogus
+  dnl prfpregset_t type (it's a typedef for the pointer to a struct
+  dnl instead of the struct itself).  We detect this here, and work
+  dnl around it in gdb_proc_service.h.
+
+  if test $bfd_cv_have_sys_procfs_type_prfpregset_t = yes; then
+    AC_MSG_CHECKING(whether prfpregset_t type is broken)
+    AC_CACHE_VAL(gdb_cv_prfpregset_t_broken,
+      [AC_TRY_RUN([#include <sys/procfs.h>
+       int main ()
+       {
+         if (sizeof (prfpregset_t) == sizeof (void *))
+           return 1;
+         return 0;
+       }],
+       gdb_cv_prfpregset_t_broken=no,
+       gdb_cv_prfpregset_t_broken=yes,
+       gdb_cv_prfpregset_t_broken=yes)])
+    AC_MSG_RESULT($gdb_cv_prfpregset_t_broken)
+    if test $gdb_cv_prfpregset_t_broken = yes; then
+      AC_DEFINE(PRFPREGSET_T_BROKEN)
+    fi
+  fi
 
   dnl Check for PIOCSET ioctl entry 
 
@@ -152,6 +344,71 @@ if test "$ac_cv_header_sys_procfs_h" = yes; then
   AC_MSG_RESULT($gdb_cv_have_procfs_piocset)
   if test $gdb_cv_have_procfs_piocset = yes; then
     AC_DEFINE(HAVE_PROCFS_PIOCSET)
+  fi
+fi
+
+dnl For native ports (host == target), check to see what kind of
+dnl legacy link.h support is needed.  (See solib-legacy.c.)
+if test ${host} = ${target} ; then
+  dnl Check for struct link_map with l_ members which are indicative
+  dnl of SVR4-like shared libraries
+
+  AC_MSG_CHECKING(for member l_addr in struct link_map)
+  AC_CACHE_VAL(gdb_cv_have_struct_link_map_with_l_members,
+    [AC_TRY_COMPILE([#include <link.h>],
+                    [struct link_map lm; (void) lm.l_addr;],
+                    gdb_cv_have_struct_link_map_with_l_members=yes,
+                    gdb_cv_have_struct_link_map_with_l_members=no)])
+  AC_MSG_RESULT($gdb_cv_have_struct_link_map_with_l_members)
+  if test $gdb_cv_have_struct_link_map_with_l_members = yes; then
+    AC_DEFINE(HAVE_STRUCT_LINK_MAP_WITH_L_MEMBERS)
+  fi
+
+  dnl Check for struct link_map with lm_ members which are indicative
+  dnl of SunOS-like shared libraries
+
+  AC_MSG_CHECKING(for member lm_addr in struct link_map)
+  AC_CACHE_VAL(gdb_cv_have_struct_link_map_with_lm_members,
+    [AC_TRY_COMPILE([#include <sys/types.h>
+#include <link.h>],
+                    [struct link_map lm; (void) lm.lm_addr;],
+                    gdb_cv_have_struct_link_map_with_lm_members=yes,
+                    gdb_cv_have_struct_link_map_with_lm_members=no)])
+  AC_MSG_RESULT($gdb_cv_have_struct_link_map_with_lm_members)
+  if test $gdb_cv_have_struct_link_map_with_lm_members = yes; then
+    AC_DEFINE(HAVE_STRUCT_LINK_MAP_WITH_LM_MEMBERS)
+  fi
+
+  dnl Check for struct so_map with som_ members which are found on 
+  dnl some *BSD systems.
+
+  AC_MSG_CHECKING(for member som_addr in struct so_map)
+  AC_CACHE_VAL(gdb_cv_have_struct_so_map_with_som_members,
+    [AC_TRY_COMPILE([#include <sys/types.h>
+#ifdef HAVE_NLIST_H
+#include <nlist.h>
+#endif
+#include <link.h>],
+                    [struct so_map lm; (void) lm.som_addr;],
+                    gdb_cv_have_struct_so_map_with_som_members=yes,
+                    gdb_cv_have_struct_so_map_with_som_members=no)])
+  AC_MSG_RESULT($gdb_cv_have_struct_so_map_with_som_members)
+  if test $gdb_cv_have_struct_so_map_with_som_members = yes; then
+    AC_DEFINE(HAVE_STRUCT_SO_MAP_WITH_SOM_MEMBERS)
+  fi
+
+  dnl Check for struct link_map32 type, which allows a 64-bit Solaris
+  dnl debugger to debug a 32-bit Solaris app with 32-bit shared libraries.
+
+  AC_MSG_CHECKING(for struct link_map32 in sys/link.h)
+  AC_CACHE_VAL(gdb_cv_have_struct_link_map32, 
+    [AC_TRY_COMPILE([#define _SYSCALL32
+#include <sys/link.h>], [struct link_map32 l;],
+     gdb_cv_have_struct_link_map32=yes,
+     gdb_cv_have_struct_link_map32=no)])
+  AC_MSG_RESULT($gdb_cv_have_struct_link_map32)
+  if test $gdb_cv_have_struct_link_map32 = yes; then
+    AC_DEFINE(HAVE_STRUCT_LINK_MAP32)
   fi
 fi
 
@@ -255,6 +512,23 @@ AC_MSG_RESULT($gdb_cv_scanf_has_long_double)
 
 AC_FUNC_MMAP
 
+case ${host_os} in
+aix*)
+  AC_CACHE_CHECK([for -bbigtoc option], [gdb_cv_bigtoc], [
+    SAVE_LDFLAGS=$LDFLAGS
+
+    case $GCC in
+    yes) gdb_cv_bigtoc=-Wl,-bbigtoc ;;
+    *) gdb_cv_bigtoc=-bbigtoc ;;
+    esac
+
+    LDFLAGS=$LDFLAGS\ $gdb_cv_bigtoc
+    AC_TRY_LINK([], [int i;], [], [gdb_cv_bigtoc=])
+  ])
+  CONFIG_LDFLAGS="${CONFIG_LDFLAGS} ${gdb_cv_bigtoc}"
+  ;;
+esac
+
 dnl See if thread_db library is around for Solaris thread debugging.  Note that
 dnl we must explicitly test for version 1 of the library because version 0
 dnl (present on Solaris 2.4 or earlier) doesn't have the same API.
@@ -270,7 +544,7 @@ if test ${build} = ${host} -a ${host} = ${target} ; then
          if test "$GCC" = "yes" ; then
             AC_MSG_RESULT(yes)
             AC_DEFINE(HAVE_HPUX_THREAD_SUPPORT)
-            CONFIG_OBS="${CONFIG_OJS} hpux-thread.o"
+            CONFIG_LIB_OBS="${CONFIG_LIB_OBS} hpux-thread.o"
             CONFIG_SRCS="${CONFIG_SRCS} hpux-thread.c"
          else
             AC_MSG_RESULT(no (suppressed because you are not using GCC))
@@ -284,7 +558,7 @@ if test ${build} = ${host} -a ${host} = ${target} ; then
       if test -f /usr/lib/libthread_db.so.1 ; then
          AC_MSG_RESULT(yes)
          AC_DEFINE(HAVE_THREAD_DB_LIB)
-         CONFIG_OBS="${CONFIG_OBS} sol-thread.o"
+         CONFIG_LIB_OBS="${CONFIG_LIB_OBS} sol-thread.o"
          CONFIG_SRCS="${CONFIG_SRCS} sol-thread.c"
          AC_CHECK_LIB(dl, dlopen)
          if test "$GCC" = "yes" ; then
@@ -323,8 +597,93 @@ if test ${build} = ${host} -a ${host} = ${target} ; then
    AC_SUBST(CONFIG_LDFLAGS)
 fi
 
+dnl The CLI cannot be disabled yet, but may be in the future  
+
+dnl Handle CLI sub-directory configury.
+AC_ARG_ENABLE(gdbcli,
+[  --enable-gdbcli            Enable GDB-CLI interface],
+[
+  case "${enableval}" in
+    yes) enable_gdbcli=yes ;;
+    "") enable_gdbcli=yes ;;
+    no) 
+      AC_MSG_ERROR(The CLI cannot be disabled yet)
+    ;;
+    *)
+      AC_MSG_ERROR(Bad value for --enable-gdbcli: ${enableval})
+    ;;
+  esac
+],
+[enable_gdbcli=yes])
+case ${enable_gdbcli} in
+  "yes" )
+    if test -d "${srcdir}/cli" ; then
+      CONFIG_OBS="${CONFIG_OBS} \$(SUBDIR_CLI_OBS)"
+      CONFIG_DEPS="${CONFIG_DEPS} \$(SUBDIR_CLI_DEPS)"
+      CONFIG_SRCS="${CONFIG_SRCS} \$(SUBDIR_CLI_SRCS)"
+      CONFIG_INITS="${CONFIG_INITS} \$(SUBDIR_CLI_INITS)"
+      ENABLE_CFLAGS="${ENABLE_CFLAGS} \$(SUBDIR_CLI_CFLAGS)"
+      CONFIG_ALL="${CONFIG_ALL} \$(SUBDIR_CLI_ALL)"
+      CONFIG_CLEAN="${CONFIG_CLEAN} \$(SUBDIR_CLI_CLEAN)"
+      CONFIG_INSTALL="${CONFIG_INSTALL} \$(SUBDIR_CLI_INSTALL)"
+      CONFIG_UNINSTALL="${CONFIG_UNINSTALL} \$(SUBDIR_CLI_UNINSTALL)"
+    fi
+    ;;
+esac
+
 dnl Handle optional features that can be enabled.
-ENABLE_CFLAGS=
+
+dnl Handle MI sub-directory configury.
+AC_ARG_ENABLE(gdbmi,
+[  --enable-gdbmi            Enable GDB-MI interface],
+[
+  case "${enable_gdbmi}" in
+    yes | no) ;;
+    "")  enable_gdbmi=yes ;;
+    *)
+      AC_MSG_ERROR(Bad value for --enable-gdbmi: ${enableval})
+    ;;
+  esac
+],
+[enable_gdbmi=yes])
+case ${enable_gdbmi} in
+  "yes" )
+    if test -d "${srcdir}/mi" ; then
+      CONFIG_OBS="${CONFIG_OBS} \$(SUBDIR_MI_OBS)"
+      CONFIG_DEPS="${CONFIG_DEPS} \$(SUBDIR_MI_DEPS)"
+      CONFIG_SRCS="${CONFIG_SRCS} \$(SUBDIR_MI_SRCS)"
+      CONFIG_INITS="${CONFIG_INITS} \$(SUBDIR_MI_INITS)"
+      ENABLE_CFLAGS="${ENABLE_CFLAGS} \$(SUBDIR_MI_CFLAGS)"
+      CONFIG_ALL="${CONFIG_ALL} \$(SUBDIR_MI_ALL)"
+      CONFIG_CLEAN="${CONFIG_CLEAN} \$(SUBDIR_MI_CLEAN)"
+      CONFIG_INSTALL="${CONFIG_INSTALL} \$(SUBDIR_MI_INSTALL)"
+      CONFIG_UNINSTALL="${CONFIG_UNINSTALL} \$(SUBDIR_MI_UNINSTALL)"
+    fi
+    ;;
+esac
+
+# Configure UI_OUT by default (before 5.2 it can be disabled)
+# It must be configured if gdbmi is configured
+
+UIOUT_CFLAGS=
+AC_SUBST(UIOUT_CFLAGS)
+
+AC_ARG_WITH(uiout,
+[  --with-uiout          Use new uiout functions instead of *printf's],
+[case "${withval}" in
+  yes)  want_uiout=true ;;
+  no)   if test $enable_gdbmi = yes; then
+          AC_MSG_ERROR(uiout is needed for MI and cannot be disabled)
+        else
+           want_uiout=false
+        fi ;;
+  *)    AC_MSG_ERROR(bad value ${withval} for GDB with-uiout option) ;;
+esac],
+[want_uiout=true])dnl
+
+if test $want_uiout = true; then
+   UIOUT_CFLAGS="-DUI_OUT=1"
+fi
 
 AC_ARG_ENABLE(tui,
 [  --enable-tui            Enable full-screen terminal user interface],
@@ -339,17 +698,19 @@ AC_ARG_ENABLE(tui,
 ])
 case ${enable_tui} in
   "yes" )
-    AC_DEFINE(TUI)
-    BUILD_TUI=all-tui
-    TUI_LIBRARY=tui/libtui.a
-  ;;
-  * )
-    BUILD_TUI=
-    TUI_LIBRARY=
-  ;;
+    if test -d "${srcdir}/tui" ; then
+      CONFIG_OBS="${CONFIG_OBS} \$(SUBDIR_TUI_OBS)"
+      CONFIG_DEPS="${CONFIG_DEPS} \$(SUBDIR_TUI_DEPS)"
+      CONFIG_SRCS="${CONFIG_SRCS} \$(SUBDIR_TUI_SRCS)"
+      CONFIG_INITS="${CONFIG_INITS} \$(SUBDIR_TUI_INITS)"
+      ENABLE_CFLAGS="${ENABLE_CFLAGS} \$(SUBDIR_TUI_CFLAGS)"
+      CONFIG_ALL="${CONFIG_ALL} \$(SUBDIR_TUI_ALL)"
+      CONFIG_CLEAN="${CONFIG_CLEAN} \$(SUBDIR_TUI_CLEAN)"
+      CONFIG_INSTALL="${CONFIG_INSTALL} \$(SUBDIR_TUI_INSTALL)"
+      CONFIG_UNINSTALL="${CONFIG_UNINSTALL} \$(SUBDIR_TUI_UNINSTALL)"
+    fi
+    ;;
 esac
-AC_SUBST(BUILD_TUI)
-AC_SUBST(TUI_LIBRARY)
 
 AC_ARG_ENABLE(netrom,
 [  --enable-netrom         Enable NetROM support],
@@ -360,14 +721,26 @@ no)	enable_netrom=no ;;
 esac])
 
 if test "${enable_netrom}" = "yes"; then
-	CONFIG_OBS="${CONFIG_OBS} remote-nrom.o" 
+	CONFIG_LIB_OBS="${CONFIG_LIB_OBS} remote-nrom.o" 
         CONFIG_SRCS="${CONFIG_SRCS} remote-nrom.c"
 fi
 
+
+# NOTE: Don't add -Wall or -Wunused, they both include
+# -Wunused-parameter which reports bogus warnings.
+# NOTE: If you add to this list, remember to update
+# gdb/doc/gdbint.texinfo.
+build_warnings="-Wimplicit -Wreturn-type -Wcomment -Wtrigraphs \
+-Wformat -Wparentheses -Wpointer-arith -Wuninitialized"
+# Up for debate: -Wswitch -Wcomment -trigraphs -Wtrigraphs
+# -Wunused-function -Wunused-label -Wunused-variable -Wunused-value
+# -Wchar-subscripts -Wtraditional -Wshadow -Wcast-qual
+# -Wcast-align -Wwrite-strings -Wconversion -Wstrict-prototypes
+# -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls
+# -Woverloaded-virtual -Winline -Werror"
 AC_ARG_ENABLE(build-warnings,
 [  --enable-build-warnings Enable build-time compiler warnings if gcc is used],
-[build_warnings="-Wall -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations"
-case "${enableval}" in
+[case "${enableval}" in
   yes)	;;
   no)	build_warnings="-w";;
   ,*)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
@@ -375,15 +748,45 @@ case "${enableval}" in
   *,)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
         build_warnings="${t} ${build_warnings}";;
   *)    build_warnings=`echo "${enableval}" | sed -e "s/,/ /g"`;;
-esac],[build_warnings=""])dnl
-
+esac
+if test x"$silent" != x"yes" && test x"$build_warnings" != x""; then
+  echo "Setting compiler warning flags = $build_warnings" 6>&1
+fi])dnl
+AC_ARG_ENABLE(gdb-build-warnings,
+[  --enable-gdb-build-warnings Enable GDB specific build-time compiler warnings if gcc is used],
+[case "${enableval}" in
+  yes)	;;
+  no)	build_warnings="-w";;
+  ,*)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
+        build_warnings="${build_warnings} ${t}";;
+  *,)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
+        build_warnings="${t} ${build_warnings}";;
+  *)    build_warnings=`echo "${enableval}" | sed -e "s/,/ /g"`;;
+esac
+if test x"$silent" != x"yes" && test x"$build_warnings" != x""; then
+  echo "Setting GDB specific compiler warning flags = $build_warnings" 6>&1
+fi])dnl
+WARN_CFLAGS=""
+WERROR_CFLAGS=""
 if test "x${build_warnings}" != x -a "x$GCC" = xyes
 then
-   WARN_CFLAGS="${build_warnings}"
-else
-   WARN_CFLAGS=""
+    AC_MSG_CHECKING(compiler warning flags)
+    # Separate out the -Werror flag as some files just cannot be
+    # compiled with it enabled.
+    for w in ${build_warnings}; do
+	case $w in
+	-Werr*) WERROR_CFLAGS=-Werror ;;
+	*) # Check that GCC accepts it
+	    saved_CFLAGS="$CFLAGS"
+	    CFLAGS="$CFLAGS $w"
+	    AC_TRY_COMPILE([],[],WARN_CFLAGS="${WARN_CFLAGS} $w",)
+	    CFLAGS="$saved_CFLAGS"
+	esac
+    done
+    AC_MSG_RESULT(${WARN_CFLAGS}${WERROR_CFLAGS})
 fi
 AC_SUBST(WARN_CFLAGS)
+AC_SUBST(WERROR_CFLAGS)
 
 MMALLOC_CFLAGS=
 MMALLOC=
@@ -405,7 +808,59 @@ if test x$want_mmalloc = xtrue; then
    MMALLOC='../mmalloc/libmmalloc.a'
 fi
 
+AC_ARG_WITH(included-regex,
+[  --with-included-regex          Use included regex],
+[case "${withval}" in
+  yes)  want_included_regex=true ;;
+  no)   want_included_regex=false;;
+  *)    AC_MSG_ERROR(bad value ${withval} for GDB with-included-regex option) ;;
+esac],[want_included_regex=true])dnl
+
+if test $want_included_regex = false; then
+  AC_MSG_CHECKING(for GNU regex)
+  AC_CACHE_VAL(gdb_cv_have_gnu_regex,
+[AC_TRY_COMPILE([#include <gnu-versions.h>
+#include <sys/types.h>
+#include <regex.h>],
+[#if !defined _GNU_REGEX_INTERFACE_VERSION || !defined __GLIBC__ || __GLIBC__ < 2
+#error No valid GNU regex.
+#endif
+],
+		[gdb_cv_have_gnu_regex=yes],
+		[gdb_cv_have_gnu_regex=no])])
+  AC_MSG_RESULT($gdb_cv_have_gnu_regex)
+  if test $gdb_cv_have_gnu_regex = no; then
+	want_included_regex=true
+  fi
+fi
+
+if test x${want_included_regex} = xtrue; then
+    REGEX="gnu-regex.o"
+    AC_DEFINE(USE_INCLUDED_REGEX)
+fi
+AC_SUBST(REGEX)
+
+# In the Cygwin environment, we need some additional flags.
+AC_CACHE_CHECK([for cygwin], gdb_cv_os_cygwin,
+[AC_EGREP_CPP(lose, [
+#if defined (__CYGWIN__) || defined (__CYGWIN32__)
+lose
+#endif],[gdb_cv_os_cygwin=yes],[gdb_cv_os_cygwin=no])])
+
+
+dnl Figure out which of the many generic ser-*.c files the _host_ supports.
+SER_HARDWIRE="ser-unix.o ser-pipe.o ser-tcp.o"
+case ${host} in
+  *go32* ) SER_HARDWIRE=ser-go32.o ;;
+  *djgpp* ) SER_HARDWIRE=ser-go32.o ;;
+esac
+AC_SUBST(SER_HARDWIRE)
+
+
 dnl Figure out which term library to use.
+if test x$gdb_host = xgo32; then
+  TERM_LIB=
+else
 if test x$gdb_cv_os_cygwin = xyes; then
   TERM_LIB='`if test -r ../libtermcap/libtermcap.a; then echo ../libtermcap/libtermcap.a; else echo -ltermcap; fi`'
 else
@@ -422,16 +877,278 @@ else
     AC_MSG_ERROR(Could not find a term library, e.g. termcap or termlib!)
   fi
 fi
+fi
 AC_SUBST(TERM_LIB)
 
+# libreadline needs libuser32.a in a cygwin environment
+WIN32LIBS=
+if test x$gdb_cv_os_cygwin = xyes; then
+    WIN32LIBS="-luser32"
+    case "${target}" in
+	*cygwin*) WIN32LIBS="$WIN32LIBS -limagehlp"
+	;;
+    esac
+fi
+AC_SUBST(WIN32LIBS)
+
+LIBGUI="../libgui/src/libgui.a"
+GUI_CFLAGS_X="-I${srcdir}/../libgui/src"
+AC_SUBST(LIBGUI)
+AC_SUBST(GUI_CFLAGS_X)
+
+AC_ARG_WITH(cpu,
+[  --with-cpu=CPU          Set the default CPU variant to debug],
+[case "${target}" in
+  powerpc-* | powerpcle-* )
+    ## It would be nice to keep this table in sync with the one in
+    ## gcc/configure.
+    case "${with_cpu}" in
+      ppc-uisa | rs6000 | 403 | 403GC | 505 | 860 | 601 | 602 | 603 \
+      | 604 | 750 )
+        ## Those are all handled in variants in rs6000-tdep.c, so they're fine.
+      ;;
+      common | power | power2 | rios | rios1 | rios2 | rsc | rsc1 ) 
+        ## These are all RS6000 variants, as far as GDB is concerned.
+        with_cpu=rs6000
+      ;;
+      603e | ec603e )
+        with_cpu=603
+      ;;
+      604e )
+	with_cpu=604
+      ;;
+      * )
+        AC_MSG_WARN(GDB: unknown --with-cpu value: \`${with_cpu}'; using \`ppc-uisa'.)
+	with_cpu=ppc-uisa
+      ;;
+    esac
+  ;;
+  * )
+    AC_MSG_WARN(GDB may ignore the --with-cpu flag for ${target} targets)
+  ;;
+esac
+AC_DEFINE_UNQUOTED(TARGET_CPU_DEFAULT, "${with_cpu}")
+],)
+
+
+AC_ARG_ENABLE(gdbtk,
+[  --enable-gdbtk          Enable GDBTK GUI front end],
+[case "${enableval}" in
+    yes)
+	case "$host" in
+	*go32*)
+	    AC_MSG_WARN([GDB does not support GDBtk on host ${host}.  GDBtk will be disabled.])
+	    enable_gdbtk=no ;;
+	*windows*)
+	    AC_MSG_WARN([GDB does not support GDBtk on host ${host}.  GDBtk will be disabled.])
+	    enable_gdbtk=no ;;
+	*)
+	    enable_gdbtk=yes ;;
+	esac ;;
+    no)
+	enable_gdbtk=no  ;;
+    *)
+	AC_MSG_ERROR(bad value ${enableval} given for gdbtk option) ;;
+esac],
+[
+# Default is on for everything but go32 and Cygwin
+case "$host" in
+    *go32* | *windows*)
+	;;
+    *)
+ 	if test -d "${srcdir}/gdbtk" ; then
+            enable_gdbtk=yes
+	fi
+	;;
+esac
+])
+
+WIN32LDAPP=
+AC_SUBST(WIN32LIBS)
+AC_SUBST(WIN32LDAPP)
+
+configdir="unix"
+
+GDBTKLIBS=
+if test "${enable_gdbtk}" = "yes"; then
+
+    # Gdbtk must have an absolute path to srcdir in order to run
+    # properly when not installed.
+    here=`pwd`
+    cd ${srcdir}
+    GDBTK_SRC_DIR=`pwd`
+    cd $here
+
+    CY_AC_PATH_TCLCONFIG
+    if test -z "${no_tcl}"; then
+	CY_AC_LOAD_TCLCONFIG
+	CY_AC_PATH_TKCONFIG
+
+	# now look for Tcl library stuff
+
+	case "${host}" in
+	*-*-cygwin*)
+	    tcldir=../tcl/win/
+	    ;;
+	*)
+	    tcldir=../tcl/unix/
+	    ;;
+	esac
+
+	TCL_DEPS="${tcldir}${TCL_LIB_FILE}"
+
+	# If $no_tk is nonempty, then we can't do Tk, and there is no
+	# point to doing Tcl.
+	if test -z "${no_tk}"; then
+	   CY_AC_LOAD_TKCONFIG
+	   CY_AC_PATH_TCLH
+	   CY_AC_PATH_TKH
+	   CY_AC_PATH_ITCLH
+	   CY_AC_PATH_ITKH
+	   CY_AC_PATH_TIXH
+
+
+	   # now look for Tk library stuff
+
+	   case "${host}" in
+	   *-*-cygwin*)
+	       tkdir=../tk/win/
+	       ;;
+	   *)
+	       tkdir=../tk/unix/
+	       ;;
+	   esac
+
+	   TK_DEPS="${tkdir}${TK_LIB_FILE}"
+
+	   # now look for Itcl library stuff
+
+	   CY_AC_PATH_ITCLCONFIG
+           if test -z "${no_itcl}"; then
+             CY_AC_LOAD_ITCLCONFIG 
+
+	     ITCLLIB="${ITCL_BUILD_LIB_SPEC}"
+	     ITCL_DEPS="${ITCL_LIB_FULL_PATH}"
+           fi
+
+	   
+	   # now look for Itk library stuff
+	   CY_AC_PATH_ITKCONFIG
+           if test -z "${no_itcl}"; then
+             CY_AC_LOAD_ITKCONFIG
+
+	     ITKLIB="${ITK_BUILD_LIB_SPEC}"
+	     ITK_DEPS="${ITK_LIB_FULL_PATH}"
+           fi
+
+	   # now look for Tix library stuff
+	   CY_AC_PATH_TIXCONFIG
+           if test -z "${no_tix}"; then
+             CY_AC_LOAD_TIXCONFIG
+	     TIXLIB="${TIX_BUILD_LIB_SPEC}"
+	     TIX_DEPS="${TIX_BUILD_LOCATION}/${TIX_LIB_FILE}"
+           fi
+
+           ENABLE_CFLAGS="${ENABLE_CFLAGS} \$(SUBDIR_GDBTK_CFLAGS)"
+	   # Tcl/Tk 8.1 require -fwritable strings.  I don't
+           # know whether 8.2 will or not, but I bet it will.
+           # I don't have to worry about 7.x since we don't support it.
+           GDBTK_CFLAGS=""
+	   if test "$GCC" = "yes"; then
+               if test "$TCL_VERSION" != "8.0" ; then
+                   GDBTK_CFLAGS="-fwritable-strings"
+	       fi
+           fi
+
+	   # Include some libraries that Tcl and Tk want.
+	   TCL_LIBS='$(LIBGUI) $(ITCL) $(ITK) $(TIX) $(TK) $(TCL) $(X11_LDFLAGS) $(X11_LIBS)'
+	   # Yes, the ordering seems wrong here.  But it isn't.
+	   # TK_LIBS is the list of libraries that need to be linked
+	   # after Tcl/Tk.  Note that this isn't put into LIBS.  If it
+	   # were in LIBS then any link tests after this point would
+	   # try to include things like `$(LIBGUI)', which wouldn't work.
+	   GDBTKLIBS="${TCL_LIBS} ${TK_LIBS}"
+
+           CONFIG_OBS="${CONFIG_OBS} \$(SUBDIR_GDBTK_OBS)"
+           CONFIG_DEPS="${CONFIG_DEPS} \$(SUBDIR_GDBTK_DEPS)"
+           CONFIG_SRCS="${CONFIG_SRCS} \$(SUBDIR_GDBTK_SRCS)"
+           CONFIG_INITS="${CONFIG_INITS} \$(SUBDIR_GDBTK_INITS)"
+	   CONFIG_ALL="${CONFIG_ALL} \$(SUBDIR_GDBTK_ALL)"
+	   CONFIG_CLEAN="${CONFIG_CLEAN} \$(SUBDIR_GDBTK_CLEAN)"
+	   CONFIG_INSTALL="${CONFIG_INSTALL} \$(SUBDIR_GDBTK_INSTALL)"
+	   CONFIG_UNINSTALL="${CONFIG_UNINSTALL} \$(SUBDIR_GDBTK_UNINSTALL)"
+
+	   if test x$gdb_cv_os_cygwin = xyes; then
+	      WIN32LIBS="${WIN32LIBS} -lshell32 -lgdi32 -lcomdlg32 -ladvapi32"
+	      WIN32LDAPP="-Wl,--subsystem,console"
+	      CONFIG_OBS="${CONFIG_OBS} gdbres.o"
+	   fi
+	fi
+    fi
+fi
+
+AC_SUBST(X_CFLAGS)
+AC_SUBST(X_LDFLAGS)
+AC_SUBST(X_LIBS)
+AC_SUBST(TCL_DEPS)
+AC_SUBST(TK_DEPS)
+AC_SUBST(ITCLLIB)
+AC_SUBST(ITCL_DEPS)
+AC_SUBST(ITKLIB)
+AC_SUBST(ITK_DEPS)
+AC_SUBST(TIXLIB)
+AC_SUBST(TIX_DEPS)
+AC_SUBST(GDBTKLIBS)
+AC_SUBST(GDBTK_CFLAGS)
+AC_SUBST(GDBTK_SRC_DIR)
 
 AC_PATH_X
+
+ 
+# Unlike the sim directory, whether a simulator is linked is controlled by 
+# presence of a SIM= and a SIM_OBS= definition in the target '.mt' file.  
+# This code just checks for a few cases where we'd like to ignore those
+# definitions, even when they're present in the '.mt' file.  These cases
+# are when --disable-sim is specified, or if the simulator directory is
+# not part of the source tree.
+#
+AC_ARG_ENABLE(sim,
+[  --enable-sim            Link gdb with simulator],
+[echo "enable_sim = $enable_sim";
+ echo "enableval = ${enableval}";
+ case "${enableval}" in
+  yes) ignore_sim=false ;;
+  no)  ignore_sim=true ;;
+  *)   ignore_sim=false ;;
+ esac],
+[ignore_sim=false])
+
+if test ! -d "${srcdir}/../sim"; then
+  ignore_sim=true
+fi
+
+if test "${ignore_sim}" = "true"; then
+    IGNORE_SIM="SIM="
+    IGNORE_SIM_OBS="SIM_OBS="
+else
+    IGNORE_SIM=""
+    IGNORE_SIM_OBS=""
+    AC_DEFINE(WITH_SIM)
+fi
+AC_SUBST(IGNORE_SIM)
+AC_SUBST(IGNORE_SIM_OBS)
 
 AC_SUBST(ENABLE_CFLAGS)
 
 AC_SUBST(CONFIG_OBS)
+AC_SUBST(CONFIG_LIB_OBS)
 AC_SUBST(CONFIG_DEPS)
 AC_SUBST(CONFIG_SRCS)
+AC_SUBST(CONFIG_INITS)
+AC_SUBST(CONFIG_ALL)
+AC_SUBST(CONFIG_CLEAN)
+AC_SUBST(CONFIG_INSTALL)
+AC_SUBST(CONFIG_UNINSTALL)
 
 # Begin stuff to support --enable-shared
 AC_ARG_ENABLE(shared,
@@ -455,7 +1172,7 @@ if test "${shared}" = "true"; then
     ;;
   *-*-linux*aout*)
     ;;
-  *-*-linux* | *-pc-linux-gnu)
+  *-*-linux* | *-pc-linux-gnu*)
     HLDFLAGS='-Wl,-rpath,$(libdir)'
     ;;
   *-*-solaris*)
@@ -504,7 +1221,14 @@ AC_SUBST(target_subdir)
 frags=
 host_makefile_frag=${srcdir}/config/${gdb_host_cpu}/${gdb_host}.mh
 if test ! -f ${host_makefile_frag}; then
-AC_MSG_ERROR("*** Gdb does not support host ${host}")
+    # When building a native debuger the .mh file containing things
+    # like NATDEPFILES is needed.  Cross debuggers don't need .mh
+    # since it no longer contains anything useful.
+    if test "${target}" = "${host}"; then
+	AC_MSG_ERROR("*** Gdb does not support native target ${host}")
+    else
+	host_makefile_frag=/dev/null
+    fi
 fi
 frags="$frags $host_makefile_frag"
 
@@ -527,46 +1251,106 @@ targetfile=`sed -n '
 s/TM_FILE[ 	]*=[ 	]*\([^ 	]*\)/\1/p
 ' ${target_makefile_frag}`
 
-# these really aren't orthogonal true/false values of the same condition,
-# but shells are slow enough that I like to reuse the test conditions
-# whenever possible
+GDB_MULTI_ARCH=`sed -n '
+s/GDB_MULTI_ARCH[ 	]*=[ 	]*\([^ 	]*\)[ 	]*/\1/p
+' ${target_makefile_frag}`
+
 if test "${target}" = "${host}"; then
+# We pick this up from the host configuration file (.mh) because we
+# do not have a native configuration Makefile fragment.
 nativefile=`sed -n '
 s/NAT_FILE[ 	]*=[ 	]*\([^ 	]*\)/\1/p
 ' ${host_makefile_frag}`
-# else
-# GDBserver is only useful in a "native" enviroment
-# configdirs=`echo $configdirs | sed 's/gdbserver//'`
 fi
 changequote([,])
 
+# New targets should just set gdb_multi_arch=yes in configure.tgt.
+# Old targets being converted can either do that or set GDB_MULTI_ARCH
+# in the target specific makefile frag.  Eventually gdb_multi_arch=yes
+# will be the default.
+if test x"${GDB_MULTI_ARCH}" = x ; then
+    case "${gdb_multi_arch}" in
+    yes ) GDB_MULTI_ARCH=GDB_MULTI_ARCH_PURE ;;
+    no ) GDB_MULTI_ARCH=0 ;;
+    0|1|2 ) GDB_MULTI_ARCH=${gdb_multi_arch} ;;
+    esac
+fi
+if test x"${GDB_MULTI_ARCH}" != x ; then
+    AC_DEFINE_UNQUOTED(GDB_MULTI_ARCH, ${GDB_MULTI_ARCH})
+fi
+# Warn the user when they use an old practice
+case "${GDB_MULTI_ARCH}" in
+    "" ) ;;
+    0 | GDB_MULTI_ARCH_PARTIAL | 1 | GDB_MULTI_ARCH_TM | 2 )
+	AC_MSG_WARN("GDB: Target is not pure multi-arch") ;;
+    GDB_MULTI_ARCH_PURE )
+	if test x"${targetfile}" != x ; then
+	    AC_MSG_WARN("GDB: Ignoring TM_FILE in ${target_makefile_frag}")
+	    targetfile=""
+	fi ;;
+    *)  AC_MSG_ERROR("GDB: Unknown GDB_MULTI_ARCH value ${GDB_MULTI_ARCH}");;
+esac
+
+SUBDIRS="doc testsuite nlm"
+if test "${enable_multi_ice}" = "yes"; then
+  SUBDIRS="${SUBDIRS} multi-ice"
+fi
+
+# ``gdbserver'' can only be built in a native configuration.
+if test x"${target}" = x"${host}"; then
+    AC_MSG_CHECKING(whether gdbserver is supported on this host)
+    if test x"${build_gdbserver}" = xyes ; then
+	configdirs="${configdirs} gdbserver"
+	SUBDIRS="${SUBDIRS} gdbserver"
+	AC_MSG_RESULT(yes)
+    else
+	AC_MSG_RESULT(no)
+    fi
+fi
+
+AC_SUBST(SUBDIRS)
+
 # If hostfile (XM_FILE) and/or targetfile (TM_FILE) and/or nativefile
-# (NAT_FILE) is not set in config/*/*.m[ht] files, we don't make the
-# corresponding links.  But we have to remove the xm.h files and tm.h
-# files anyway, e.g. when switching from "configure host" to
-# "configure none".
+# (NAT_FILE) is not set in config/*/*.m[ht] files, we link to an empty
+# version.
 
 files=
 links=
+
 rm -f xm.h
+xm_h=""
 if test "${hostfile}" != ""; then
-files="${files} config/${gdb_host_cpu}/${hostfile}"
-links="${links} xm.h"
+    xm_h=xm.h
+    GDB_XM_FILE="config/${gdb_host_cpu}/${hostfile}"
+    files="${files} ${GDB_XM_FILE}"
+    links="${links} xm.h"
+    AC_DEFINE_UNQUOTED(GDB_XM_FILE, ${GDB_XM_FILE})
 fi
+AC_SUBST(xm_h)
+
 rm -f tm.h
+tm_h=""
 if test "${targetfile}" != ""; then
-files="${files} config/${gdb_target_cpu}/${targetfile}"
-links="${links} tm.h"
+    tm_h=tm.h
+    GDB_TM_FILE="config/${gdb_target_cpu}/${targetfile}"
+    files="${files} ${GDB_TM_FILE}"
+    links="${links} tm.h"
+    AC_DEFINE_UNQUOTED(GDB_TM_FILE, ${GDB_TM_FILE})
 fi
+AC_SUBST(tm_h)
+
 rm -f nm.h
+nm_h=""
 if test "${nativefile}" != ""; then
-files="${files} config/${gdb_host_cpu}/${nativefile}"
-links="${links} nm.h"
-else
-# A cross-only configuration.
-files="${files} config/nm-empty.h"
-links="${links} nm.h"
+    nm_h=nm.h
+    GDB_NM_FILE="config/${gdb_host_cpu}/${nativefile}"
+    files="${files} ${GDB_NM_FILE}"
+    links="${links} nm.h"
+    AC_DEFINE_UNQUOTED(GDB_NM_FILE, ${GDB_NM_FILE})
 fi
+AC_SUBST(nm_h)
+
+AC_PROG_LN_S
 
 AC_LINK_FILES($files, $links)
 
@@ -574,14 +1358,16 @@ dnl Check for exe extension set on certain hosts (e.g. Win32)
 AC_EXEEXT
 
 AC_CONFIG_SUBDIRS($configdirs)
-AC_OUTPUT(Makefile tui/Makefile .gdbinit:gdbinit.in,
+AC_OUTPUT(Makefile .gdbinit:gdbinit.in,
 [
 dnl Autoconf doesn't provide a mechanism for modifying definitions 
 dnl provided by makefile fragments.
 dnl
 if test "${nativefile}" = ""; then
-sed -e '/^NATDEPFILES[[ 	]]*=[[ 	]]*/s//# NATDEPFILES=/' \
-	< Makefile > Makefile.tem
+        < Makefile \
+        sed -e '/^NATDEPFILES[[ 	]]*=[[ 	]]*/s//# NATDEPFILES=/' \
+        | sed -e '/^\(NATDEPFILES[[ 	]]*[[+]]=[[ 	]]*\)/s//# \1/' \
+	> Makefile.tem
 mv -f Makefile.tem Makefile
 fi
 
@@ -591,6 +1377,7 @@ sed -e '/^TM_FILE[ 	]*=/s,^TM_FILE[ 	]*=[ 	]*,&config/'"${gdb_target_cpu}"'/,
 /^NAT_FILE[ 	]*=/s,^NAT_FILE[ 	]*=[ 	]*,&config/'"${gdb_host_cpu}"'/,' <Makefile >Makefile.tmp
 mv -f Makefile.tmp Makefile
 changequote([,])dnl
+
 
 case x$CONFIG_HEADERS in
 xconfig.h:config.in)

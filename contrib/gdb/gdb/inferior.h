@@ -1,22 +1,24 @@
 /* Variables that describe the inferior process running under GDB:
    Where it is, why it stopped, and how to step it.
-   Copyright 1986, 1989, 1992, 1996, 1998 Free Software Foundation, Inc.
+   Copyright 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
+   1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #if !defined (INFERIOR_H)
 #define INFERIOR_H 1
@@ -27,79 +29,96 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* For enum target_signal.  */
 #include "target.h"
 
-/* Structure in which to save the status of the inferior.  Save
+/* Structure in which to save the status of the inferior.  Create/Save
    through "save_inferior_status", restore through
    "restore_inferior_status".
+
    This pair of routines should be called around any transfer of
    control to the inferior which you don't want showing up in your
    control variables.  */
 
-struct inferior_status
-  {
-    enum target_signal stop_signal;
-    CORE_ADDR stop_pc;
-    bpstat stop_bpstat;
-    int stop_step;
-    int stop_stack_dummy;
-    int stopped_by_random_signal;
-    int trap_expected;
-    CORE_ADDR step_range_start;
-    CORE_ADDR step_range_end;
-    CORE_ADDR step_frame_address;
-    int step_over_calls;
-    CORE_ADDR step_resume_break_address;
-    int stop_after_trap;
-    int stop_soon_quietly;
-    CORE_ADDR selected_frame_address;
-    char stop_registers[REGISTER_BYTES];
+struct inferior_status;
 
-    /* These are here because if call_function_by_hand has written some
-     registers and then decides to call error(), we better not have changed
-     any registers.  */
-    char registers[REGISTER_BYTES];
+extern struct inferior_status *save_inferior_status (int);
 
-    int selected_level;
-    int breakpoint_proceeded;
-    int restore_stack_info;
-    int proceed_to_finish;
-  };
+extern void restore_inferior_status (struct inferior_status *);
 
-/* This macro gives the number of registers actually in use by the
-   inferior.  This may be less than the total number of registers,
-   perhaps depending on the actual CPU in use or program being run.  */
+extern struct cleanup *make_cleanup_restore_inferior_status (struct inferior_status *);
 
-#ifndef ARCH_NUM_REGS
-#define ARCH_NUM_REGS NUM_REGS
-#endif
+extern void discard_inferior_status (struct inferior_status *);
 
-extern void save_inferior_status PARAMS ((struct inferior_status *, int));
+extern void write_inferior_status_register (struct inferior_status
+					    *inf_status, int regno,
+					    LONGEST val);
 
-extern void restore_inferior_status PARAMS ((struct inferior_status *));
+/* The -1 ptid, often used to indicate either an error condition
+   or a "don't care" condition, i.e, "run all threads."  */
+extern ptid_t minus_one_ptid;
 
-extern void set_sigint_trap PARAMS ((void));
+/* The null or zero ptid, often used to indicate no process. */
+extern ptid_t null_ptid;
 
-extern void clear_sigint_trap PARAMS ((void));
+/* Attempt to find and return an existing ptid with the given PID, LWP,
+   and TID components.  If none exists, create a new one and return
+   that.  */
+ptid_t ptid_build (int pid, long lwp, long tid);
 
-extern void set_sigio_trap PARAMS ((void));
+/* Find/Create a ptid from just a pid. */
+ptid_t pid_to_ptid (int pid);
 
-extern void clear_sigio_trap PARAMS ((void));
+/* Fetch the pid (process id) component from a ptid. */
+int ptid_get_pid (ptid_t ptid);
+
+/* Fetch the lwp (lightweight process) component from a ptid. */
+long ptid_get_lwp (ptid_t ptid);
+
+/* Fetch the tid (thread id) component from a ptid. */
+long ptid_get_tid (ptid_t ptid);
+
+/* Compare two ptids to see if they are equal */
+extern int ptid_equal (ptid_t p1, ptid_t p2);
+
+/* Save value of inferior_ptid so that it may be restored by
+   a later call to do_cleanups().  Returns the struct cleanup
+   pointer needed for later doing the cleanup.  */
+extern struct cleanup * save_inferior_ptid (void);
+
+extern void set_sigint_trap (void);
+
+extern void clear_sigint_trap (void);
+
+extern void set_sigio_trap (void);
+
+extern void clear_sigio_trap (void);
 
 /* File name for default use for standard in/out in the inferior.  */
 
 extern char *inferior_io_terminal;
 
-/* Pid of our debugged inferior, or 0 if no inferior now.  */
+/* Collected pid, tid, etc. of the debugged inferior.  When there's
+   no inferior, PIDGET (inferior_ptid) will be 0. */
 
-extern int inferior_pid;
+extern ptid_t inferior_ptid;
 
-/* This is only valid when inferior_pid is non-zero.
+/* Is the inferior running right now, as a result of a 'run&',
+   'continue&' etc command? This is used in asycn gdb to determine
+   whether a command that the user enters while the target is running
+   is allowed or not. */
+extern int target_executing;
+
+/* Are we simulating synchronous execution? This is used in async gdb
+   to implement the 'run', 'continue' etc commands, which will not
+   redisplay the prompt until the execution is actually over. */
+extern int sync_execution;
+
+/* This is only valid when inferior_ptid is non-zero.
 
    If this is 0, then exec events should be noticed and responded to
    by the debugger (i.e., be reported to the user).
 
    If this is > 0, then that many subsequent exec events should be
    ignored (i.e., not be reported to the user).
-   */
+ */
 extern int inferior_ignoring_startup_exec_events;
 
 /* This is only valid when inferior_ignoring_startup_exec_events is
@@ -110,87 +129,106 @@ extern int inferior_ignoring_startup_exec_events;
    need actually be noticed and responded to by the debugger (i.e.,
    be reported to the user), then this is the number of "leading"
    exec events which should be ignored.
-   */
+ */
 extern int inferior_ignoring_leading_exec_events;
 
 /* Inferior environment. */
 
 extern struct environ *inferior_environ;
 
-/* Character array containing an image of the inferior programs' registers.  */
+extern void clear_proceed_status (void);
 
-extern char registers[];
+extern void proceed (CORE_ADDR, enum target_signal, int);
 
-/* Array of validity bits (one per register).  Nonzero at position XXX_REGNUM
-   means that `registers' contains a valid copy of inferior register XXX.
-   -1 if register value is not available. */
+/* When set, stop the 'step' command if we enter a function which has
+   no line number information.  The normal behavior is that we step
+   over such function.  */
+extern int step_stop_if_no_debug;
 
-extern SIGNED char register_valid[NUM_REGS];
+extern void kill_inferior (void);
 
-extern void clear_proceed_status PARAMS ((void));
+extern void generic_mourn_inferior (void);
 
-extern void proceed PARAMS ((CORE_ADDR, enum target_signal, int));
+extern void terminal_ours (void);
 
-extern void kill_inferior PARAMS ((void));
+extern int run_stack_dummy (CORE_ADDR, char *);
 
-extern void generic_mourn_inferior PARAMS ((void));
+extern CORE_ADDR read_pc (void);
 
-extern void terminal_ours PARAMS ((void));
+extern CORE_ADDR read_pc_pid (ptid_t);
 
-extern int run_stack_dummy PARAMS ((CORE_ADDR, char[REGISTER_BYTES]));
+extern CORE_ADDR generic_target_read_pc (ptid_t);
 
-extern CORE_ADDR read_pc PARAMS ((void));
+extern void write_pc (CORE_ADDR);
 
-extern CORE_ADDR read_pc_pid PARAMS ((int));
+extern void write_pc_pid (CORE_ADDR, ptid_t);
 
-extern void write_pc PARAMS ((CORE_ADDR));
+extern void generic_target_write_pc (CORE_ADDR, ptid_t);
 
-extern void write_pc_pid PARAMS ((CORE_ADDR, int));
+extern CORE_ADDR read_sp (void);
 
-extern CORE_ADDR read_sp PARAMS ((void));
+extern CORE_ADDR generic_target_read_sp (void);
 
-extern void write_sp PARAMS ((CORE_ADDR));
+extern void write_sp (CORE_ADDR);
 
-extern CORE_ADDR read_fp PARAMS ((void));
+extern void generic_target_write_sp (CORE_ADDR);
 
-extern void write_fp PARAMS ((CORE_ADDR));
+extern CORE_ADDR read_fp (void);
 
-extern void wait_for_inferior PARAMS ((void));
+extern CORE_ADDR generic_target_read_fp (void);
 
-extern void init_wait_for_inferior PARAMS ((void));
+extern void write_fp (CORE_ADDR);
 
-extern void close_exec_file PARAMS ((void));
+extern void generic_target_write_fp (CORE_ADDR);
 
-extern void reopen_exec_file PARAMS ((void));
+extern CORE_ADDR unsigned_pointer_to_address (struct type *type, void *buf);
+
+extern void unsigned_address_to_pointer (struct type *type, void *buf,
+					 CORE_ADDR addr);
+extern CORE_ADDR signed_pointer_to_address (struct type *type, void *buf);
+extern void address_to_signed_pointer (struct type *type, void *buf,
+				       CORE_ADDR addr);
+
+extern void wait_for_inferior (void);
+
+extern void fetch_inferior_event (void *);
+
+extern void init_wait_for_inferior (void);
+
+extern void close_exec_file (void);
+
+extern void reopen_exec_file (void);
 
 /* The `resume' routine should only be called in special circumstances.
    Normally, use `proceed', which handles a lot of bookkeeping.  */
 
-extern void resume PARAMS ((int, enum target_signal));
+extern void resume (int, enum target_signal);
 
 /* From misc files */
 
-extern void store_inferior_registers PARAMS ((int));
+extern void do_registers_info (int, int);
 
-extern void fetch_inferior_registers PARAMS ((int));
+extern void store_inferior_registers (int);
 
-extern void solib_create_inferior_hook PARAMS ((void));
+extern void fetch_inferior_registers (int);
 
-extern void child_terminal_info PARAMS ((char *, int));
+extern void solib_create_inferior_hook (void);
 
-extern void term_info PARAMS ((char *, int));
+extern void child_terminal_info (char *, int);
 
-extern void terminal_ours_for_output PARAMS ((void));
+extern void term_info (char *, int);
 
-extern void terminal_inferior PARAMS ((void));
+extern void terminal_ours_for_output (void);
 
-extern void terminal_init_inferior PARAMS ((void));
+extern void terminal_inferior (void);
 
-extern void terminal_init_inferior_with_pgrp PARAMS ((int pgrp));
+extern void terminal_init_inferior (void);
+
+extern void terminal_init_inferior_with_pgrp (int pgrp);
 
 /* From infptrace.c or infttrace.c */
 
-extern int attach PARAMS ((int));
+extern int attach (int);
 
 #if !defined(REQUIRE_ATTACH)
 #define REQUIRE_ATTACH attach
@@ -200,65 +238,78 @@ extern int attach PARAMS ((int));
 #define REQUIRE_DETACH(pid,siggnal) detach (siggnal)
 #endif
 
-extern void detach PARAMS ((int));
+extern void detach (int);
 
-int ptrace_wait PARAMS ((int, int *));
+/* PTRACE method of waiting for inferior process.  */
+int ptrace_wait (ptid_t, int *);
 
-extern void child_resume PARAMS ((int, int, enum target_signal));
+extern void child_resume (ptid_t, int, enum target_signal);
 
 #ifndef PTRACE_ARG3_TYPE
 #define PTRACE_ARG3_TYPE int	/* Correct definition for most systems. */
 #endif
 
-extern int call_ptrace PARAMS ((int, int, PTRACE_ARG3_TYPE, int));
+extern int call_ptrace (int, int, PTRACE_ARG3_TYPE, int);
 
-extern void pre_fork_inferior PARAMS ((void));
+extern void pre_fork_inferior (void);
 
 /* From procfs.c */
 
-extern int proc_iterate_over_mappings PARAMS ((int (*)(int, CORE_ADDR)));
+extern int proc_iterate_over_mappings (int (*)(int, CORE_ADDR));
 
-extern int procfs_first_available PARAMS ((void));
-
-extern int procfs_get_pid_fd PARAMS ((int));
+extern ptid_t procfs_first_available (void);
 
 /* From fork-child.c */
 
-extern void fork_inferior PARAMS ((char *, char *, char **,
-				   void (*)(void),
-				   void (*)(int),
-				   void (*)(void),
-				   char *));
+extern void fork_inferior (char *, char *, char **,
+			   void (*)(void),
+			   void (*)(int), void (*)(void), char *);
 
 
-extern void
-clone_and_follow_inferior PARAMS ((int, int *));
+extern void clone_and_follow_inferior (int, int *);
 
-extern void startup_inferior PARAMS ((int));
+extern void startup_inferior (int);
+
+extern char *construct_inferior_arguments (struct gdbarch *, int, char **);
 
 /* From inflow.c */
 
-extern void new_tty_prefork PARAMS ((char *));
+extern void new_tty_prefork (char *);
 
-extern int gdb_has_a_terminal PARAMS ((void));
+extern int gdb_has_a_terminal (void);
 
 /* From infrun.c */
 
-extern void start_remote PARAMS ((void));
+extern void start_remote (void);
 
-extern void normal_stop PARAMS ((void));
+extern void normal_stop (void);
 
-extern int signal_stop_state PARAMS ((int));
+extern int signal_stop_state (int);
 
-extern int signal_print_state PARAMS ((int));
+extern int signal_print_state (int);
 
-extern int signal_pass_state PARAMS ((int));
+extern int signal_pass_state (int);
+
+extern int signal_stop_update (int, int);
+
+extern int signal_print_update (int, int);
+
+extern int signal_pass_update (int, int);
+
+extern void get_last_target_status(ptid_t *ptid,
+                                   struct target_waitstatus *status);
 
 /* From infcmd.c */
 
-extern void tty_command PARAMS ((char *, int));
+extern void tty_command (char *, int);
 
-extern void attach_command PARAMS ((char *, int));
+extern void attach_command (char *, int);
+
+extern char *get_inferior_args (void);
+
+extern char *set_inferior_args (char *);
+
+extern void set_inferior_args_vector (int, char **);
 
 /* Last signal that the inferior received (why it stopped).  */
 
@@ -300,7 +351,7 @@ extern int stopped_by_random_signal;
    that address plus one.  But maybe not.).  */
 
 extern CORE_ADDR step_range_start;	/* Inclusive */
-extern CORE_ADDR step_range_end;/* Exclusive */
+extern CORE_ADDR step_range_end;	/* Exclusive */
 
 /* Stack frame address as of when stepping command was issued.
    This is how we know when we step into a subroutine call,
@@ -315,7 +366,14 @@ extern CORE_ADDR step_sp;
 /* 1 means step over all subroutine calls.
    -1 means step over calls to undebuggable functions.  */
 
-extern int step_over_calls;
+enum step_over_calls_kind
+  {
+    STEP_OVER_NONE,
+    STEP_OVER_ALL,
+    STEP_OVER_UNDEBUGGABLE
+  };
+
+extern enum step_over_calls_kind step_over_calls;
 
 /* If stepping, nonzero means step count is > 1
    so don't print frame next time inferior stops
@@ -340,9 +398,9 @@ extern int proceed_to_finish;
    Thus this contains the return value from the called function (assuming
    values are returned in a register).  */
 
-extern char stop_registers[REGISTER_BYTES];
+extern char *stop_registers;
 
-/* Nonzero if the child process in inferior_pid was attached rather
+/* Nonzero if the child process in inferior_ptid was attached rather
    than forked.  */
 
 extern int attach_flag;
@@ -376,57 +434,100 @@ extern int attach_flag;
 #define AFTER_TEXT_END 3
 #define AT_ENTRY_POINT 4
 
+#if !defined (USE_GENERIC_DUMMY_FRAMES)
+#define USE_GENERIC_DUMMY_FRAMES 0
+#endif
+
 #if !defined (CALL_DUMMY_LOCATION)
 #define CALL_DUMMY_LOCATION ON_STACK
 #endif /* No CALL_DUMMY_LOCATION.  */
 
-/* Are we in a call dummy?  The code below which allows DECR_PC_AFTER_BREAK
-   below is for infrun.c, which may give the macro a pc without that
-   subtracted out.  */
-#if !defined (PC_IN_CALL_DUMMY)
-#if CALL_DUMMY_LOCATION == BEFORE_TEXT_END
-extern CORE_ADDR text_end;
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address) \
-  ((pc) >= text_end - CALL_DUMMY_LENGTH         \
-   && (pc) <= text_end + DECR_PC_AFTER_BREAK)
+#if !defined (CALL_DUMMY_ADDRESS)
+#define CALL_DUMMY_ADDRESS() (internal_error (__FILE__, __LINE__, "CALL_DUMMY_ADDRESS"), 0)
+#endif
+#if !defined (CALL_DUMMY_START_OFFSET)
+#define CALL_DUMMY_START_OFFSET (internal_error (__FILE__, __LINE__, "CALL_DUMMY_START_OFFSET"), 0)
+#endif
+#if !defined (CALL_DUMMY_BREAKPOINT_OFFSET)
+#define CALL_DUMMY_BREAKPOINT_OFFSET_P (0)
+#define CALL_DUMMY_BREAKPOINT_OFFSET (internal_error (__FILE__, __LINE__, "CALL_DUMMY_BREAKPOINT_OFFSET"), 0)
+#endif
+#if !defined CALL_DUMMY_BREAKPOINT_OFFSET_P
+#define CALL_DUMMY_BREAKPOINT_OFFSET_P (1)
+#endif
+#if !defined (CALL_DUMMY_LENGTH)
+#define CALL_DUMMY_LENGTH (internal_error (__FILE__, __LINE__, "CALL_DUMMY_LENGTH"), 0)
+#endif
+
+#if defined (CALL_DUMMY_STACK_ADJUST)
+#if !defined (CALL_DUMMY_STACK_ADJUST_P)
+#define CALL_DUMMY_STACK_ADJUST_P (1)
+#endif
+#endif
+#if !defined (CALL_DUMMY_STACK_ADJUST)
+#define CALL_DUMMY_STACK_ADJUST (internal_error (__FILE__, __LINE__, "CALL_DUMMY_STACK_ADJUST"), 0)
+#endif
+#if !defined (CALL_DUMMY_STACK_ADJUST_P)
+#define CALL_DUMMY_STACK_ADJUST_P (0)
+#endif
+
+/* FIXME: cagney/2000-04-17: gdbarch should manage this.  The default
+   shouldn't be necessary. */
+
+#if !defined (CALL_DUMMY_P)
+#if defined (CALL_DUMMY)
+#define CALL_DUMMY_P 1
+#else
+#define CALL_DUMMY_P 0
+#endif
+#endif
+
+#if !defined PUSH_DUMMY_FRAME
+#define PUSH_DUMMY_FRAME (internal_error (__FILE__, __LINE__, "PUSH_DUMMY_FRAME"), 0)
+#endif
+
+#if !defined FIX_CALL_DUMMY
+#define FIX_CALL_DUMMY(a1,a2,a3,a4,a5,a6,a7) (internal_error (__FILE__, __LINE__, "FIX_CALL_DUMMY"), 0)
+#endif
+
+#if !defined STORE_STRUCT_RETURN
+#define STORE_STRUCT_RETURN(a1,a2) (internal_error (__FILE__, __LINE__, "STORE_STRUCT_RETURN"), 0)
+#endif
+
+
+/* Are we in a call dummy? */
+
+extern int pc_in_call_dummy_before_text_end (CORE_ADDR pc, CORE_ADDR sp,
+					     CORE_ADDR frame_address);
+#if !GDB_MULTI_ARCH
+#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == BEFORE_TEXT_END
+#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_before_text_end (pc, sp, frame_address)
 #endif /* Before text_end.  */
+#endif
 
-#if CALL_DUMMY_LOCATION == AFTER_TEXT_END
-extern CORE_ADDR text_end;
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address) \
-  ((pc) >= text_end   \
-   && (pc) <= text_end + CALL_DUMMY_LENGTH + DECR_PC_AFTER_BREAK)
-#endif /* After text_end.  */
+extern int pc_in_call_dummy_after_text_end (CORE_ADDR pc, CORE_ADDR sp,
+					    CORE_ADDR frame_address);
+#if !GDB_MULTI_ARCH
+#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == AFTER_TEXT_END
+#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_after_text_end (pc, sp, frame_address)
+#endif
+#endif
 
-#if CALL_DUMMY_LOCATION == ON_STACK
-/* Is the PC in a call dummy?  SP and FRAME_ADDRESS are the bottom and
-   top of the stack frame which we are checking, where "bottom" and
-   "top" refer to some section of memory which contains the code for
-   the call dummy.  Calls to this macro assume that the contents of
-   SP_REGNUM and FP_REGNUM (or the saved values thereof), respectively,
-   are the things to pass.
+extern int pc_in_call_dummy_on_stack (CORE_ADDR pc, CORE_ADDR sp,
+				      CORE_ADDR frame_address);
+#if !GDB_MULTI_ARCH
+#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == ON_STACK
+#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_on_stack (pc, sp, frame_address)
+#endif
+#endif
 
-   This won't work on the 29k, where SP_REGNUM and FP_REGNUM don't
-   have that meaning, but the 29k doesn't use ON_STACK.  This could be
-   fixed by generalizing this scheme, perhaps by passing in a frame
-   and adding a few fields, at least on machines which need them for
-   PC_IN_CALL_DUMMY.
-
-   Something simpler, like checking for the stack segment, doesn't work,
-   since various programs (threads implementations, gcc nested function
-   stubs, etc) may either allocate stack frames in another segment, or
-   allocate other kinds of code on the stack.  */
-
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address) \
-  (INNER_THAN ((sp), (pc)) && (frame_address != 0) && INNER_THAN ((pc), (frame_address)))
-#endif /* On stack.  */
-
-#if CALL_DUMMY_LOCATION == AT_ENTRY_POINT
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address)			\
-  ((pc) >= CALL_DUMMY_ADDRESS ()				\
-   && (pc) <= (CALL_DUMMY_ADDRESS () + DECR_PC_AFTER_BREAK))
-#endif /* At entry point.  */
-#endif /* No PC_IN_CALL_DUMMY.  */
+extern int pc_in_call_dummy_at_entry_point (CORE_ADDR pc, CORE_ADDR sp,
+					    CORE_ADDR frame_address);
+#if !GDB_MULTI_ARCH
+#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == AT_ENTRY_POINT
+#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_at_entry_point (pc, sp, frame_address)
+#endif
+#endif
 
 /* It's often not enough for our clients to know whether the PC is merely
    somewhere within the call dummy.  They may need to know whether the
@@ -444,7 +545,7 @@ extern CORE_ADDR text_end;
    default implementation of CALL_DUMMY_HAS_COMPLETED is sufficient.
    Else, a target may wish to supply an implementation that works in
    the presense of multiple breakpoints in its call dummy.
-   */
+ */
 #if !defined(CALL_DUMMY_HAS_COMPLETED)
 #define CALL_DUMMY_HAS_COMPLETED(pc, sp, frame_address) \
   PC_IN_CALL_DUMMY((pc), (sp), (frame_address))

@@ -1,21 +1,23 @@
 /* Modula 2 language support routines for GDB, the GNU debugger.
-   Copyright 1992 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2002
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "symtab.h"
@@ -25,11 +27,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "language.h"
 #include "m2-lang.h"
 #include "c-lang.h"
+#include "valprint.h"
 
-static struct type *m2_create_fundamental_type PARAMS ((struct objfile *, int));
-static void m2_printstr PARAMS ((GDB_FILE *stream, char *string, unsigned int length, int width, int force_ellipses));
-static void m2_printchar PARAMS ((int, GDB_FILE *));
-static void m2_emit_char PARAMS ((int, GDB_FILE *, int));
+extern void _initialize_m2_language (void);
+static struct type *m2_create_fundamental_type (struct objfile *, int);
+static void m2_printstr (struct ui_file * stream, char *string,
+			 unsigned int length, int width,
+			 int force_ellipses);
+static void m2_printchar (int, struct ui_file *);
+static void m2_emit_char (int, struct ui_file *, int);
 
 /* Print the character C on STREAM as part of the contents of a literal
    string whose delimiter is QUOTER.  Note that that format for printing
@@ -39,10 +45,7 @@ static void m2_emit_char PARAMS ((int, GDB_FILE *, int));
  */
 
 static void
-m2_emit_char (c, stream, quoter)
-     register int c;
-     GDB_FILE *stream;
-     int quoter;
+m2_emit_char (register int c, struct ui_file *stream, int quoter)
 {
 
   c &= 0xFF;			/* Avoid sign bit follies */
@@ -91,9 +94,7 @@ m2_emit_char (c, stream, quoter)
    be replaced with a true Modula version. */
 
 static void
-m2_printchar (c, stream)
-     int c;
-     GDB_FILE *stream;
+m2_printchar (int c, struct ui_file *stream)
 {
   fputs_filtered ("'", stream);
   LA_EMIT_CHAR (c, stream, '\'');
@@ -108,20 +109,14 @@ m2_printchar (c, stream)
    be replaced with a true Modula version. */
 
 static void
-m2_printstr (stream, string, length, width, force_ellipses)
-     GDB_FILE *stream;
-     char *string;
-     unsigned int length;
-     int width;
-     int force_ellipses;
+m2_printstr (struct ui_file *stream, char *string, unsigned int length,
+	     int width, int force_ellipses)
 {
   register unsigned int i;
   unsigned int things_printed = 0;
   int in_quotes = 0;
   int need_comma = 0;
   extern int inspect_it;
-  extern int repeat_count_threshold;
-  extern int print_max;
 
   if (length == 0)
     {
@@ -132,7 +127,7 @@ m2_printstr (stream, string, length, width, force_ellipses)
   for (i = 0; i < length && things_printed < print_max; ++i)
     {
       /* Position of the character we are examining
-	 to see whether it is repeated.  */
+         to see whether it is repeated.  */
       unsigned int rep1;
       /* Number of repetitions we have detected so far.  */
       unsigned int reps;
@@ -202,198 +197,197 @@ m2_printstr (stream, string, length, width, force_ellipses)
    by an experienced Modula programmer. */
 
 static struct type *
-m2_create_fundamental_type (objfile, typeid)
-     struct objfile *objfile;
-     int typeid;
+m2_create_fundamental_type (struct objfile *objfile, int typeid)
 {
   register struct type *type = NULL;
 
   switch (typeid)
     {
-      default:
-	/* FIXME:  For now, if we are asked to produce a type not in this
-	   language, create the equivalent of a C integer type with the
-	   name "<?type?>".  When all the dust settles from the type
-	   reconstruction work, this should probably become an error. */
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_INT_BIT / TARGET_CHAR_BIT,
-			  0, "<?type?>", objfile);
-        warning ("internal error: no Modula fundamental type %d", typeid);
-	break;
-      case FT_VOID:
-	type = init_type (TYPE_CODE_VOID,
-			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
-			  0, "void", objfile);
-	break;
-      case FT_BOOLEAN:
-	type = init_type (TYPE_CODE_BOOL,
-			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_UNSIGNED, "boolean", objfile);
-	break;
-      case FT_STRING:
-	type = init_type (TYPE_CODE_STRING,
-			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
-			  0, "string", objfile);
-	break;
-      case FT_CHAR:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
-			  0, "char", objfile);
-	break;
-      case FT_SIGNED_CHAR:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
-			  0, "signed char", objfile);
-	break;
-      case FT_UNSIGNED_CHAR:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_UNSIGNED, "unsigned char", objfile);
-	break;
-      case FT_SHORT:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_SHORT_BIT / TARGET_CHAR_BIT,
-			  0, "short", objfile);
-	break;
-      case FT_SIGNED_SHORT:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_SHORT_BIT / TARGET_CHAR_BIT,
-			  0, "short", objfile);	/* FIXME-fnf */
-	break;
-      case FT_UNSIGNED_SHORT:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_SHORT_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_UNSIGNED, "unsigned short", objfile);
-	break;
-      case FT_INTEGER:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_INT_BIT / TARGET_CHAR_BIT,
-			  0, "int", objfile);
-	break;
-      case FT_SIGNED_INTEGER:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_INT_BIT / TARGET_CHAR_BIT,
-			  0, "int", objfile); /* FIXME -fnf */
-	break;
-      case FT_UNSIGNED_INTEGER:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_INT_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_UNSIGNED, "unsigned int", objfile);
-	break;
-      case FT_FIXED_DECIMAL:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_INT_BIT / TARGET_CHAR_BIT,
-			  0, "fixed decimal", objfile);
-	break;
-      case FT_LONG:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_LONG_BIT / TARGET_CHAR_BIT,
-			  0, "long", objfile);
-	break;
-      case FT_SIGNED_LONG:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_LONG_BIT / TARGET_CHAR_BIT,
-			  0, "long", objfile); /* FIXME -fnf */
-	break;
-      case FT_UNSIGNED_LONG:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_LONG_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_UNSIGNED, "unsigned long", objfile);
-	break;
-      case FT_LONG_LONG:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
-			  0, "long long", objfile);
-	break;
-      case FT_SIGNED_LONG_LONG:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
-			  0, "signed long long", objfile);
-	break;
-      case FT_UNSIGNED_LONG_LONG:
-	type = init_type (TYPE_CODE_INT,
-			  TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
-			  TYPE_FLAG_UNSIGNED, "unsigned long long", objfile);
-	break;
-      case FT_FLOAT:
-	type = init_type (TYPE_CODE_FLT,
-			  TARGET_FLOAT_BIT / TARGET_CHAR_BIT,
-			  0, "float", objfile);
-	break;
-      case FT_DBL_PREC_FLOAT:
-	type = init_type (TYPE_CODE_FLT,
-			  TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
-			  0, "double", objfile);
-	break;
-      case FT_FLOAT_DECIMAL:
-	type = init_type (TYPE_CODE_FLT,
-			  TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
-			  0, "floating decimal", objfile);
-	break;
-      case FT_EXT_PREC_FLOAT:
-	type = init_type (TYPE_CODE_FLT,
-			  TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
-			  0, "long double", objfile);
-	break;
-      case FT_COMPLEX:
-	type = init_type (TYPE_CODE_COMPLEX,
-			  2 * TARGET_FLOAT_BIT / TARGET_CHAR_BIT,
-			  0, "complex", objfile);
-	TYPE_TARGET_TYPE (type)
-	  = m2_create_fundamental_type (objfile, FT_FLOAT);
-	break;
-      case FT_DBL_PREC_COMPLEX:
-	type = init_type (TYPE_CODE_COMPLEX,
-			  2 * TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
-			  0, "double complex", objfile);
-	TYPE_TARGET_TYPE (type)
-	  = m2_create_fundamental_type (objfile, FT_DBL_PREC_FLOAT);
-	break;
-      case FT_EXT_PREC_COMPLEX:
-	type = init_type (TYPE_CODE_COMPLEX,
-			  2 * TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
-			  0, "long double complex", objfile);
-	TYPE_TARGET_TYPE (type)
-	  = m2_create_fundamental_type (objfile, FT_EXT_PREC_FLOAT);
-	break;
-      }
+    default:
+      /* FIXME:  For now, if we are asked to produce a type not in this
+         language, create the equivalent of a C integer type with the
+         name "<?type?>".  When all the dust settles from the type
+         reconstruction work, this should probably become an error. */
+      type = init_type (TYPE_CODE_INT,
+			TARGET_INT_BIT / TARGET_CHAR_BIT,
+			0, "<?type?>", objfile);
+      warning ("internal error: no Modula fundamental type %d", typeid);
+      break;
+    case FT_VOID:
+      type = init_type (TYPE_CODE_VOID,
+			TARGET_CHAR_BIT / TARGET_CHAR_BIT,
+			0, "void", objfile);
+      break;
+    case FT_BOOLEAN:
+      type = init_type (TYPE_CODE_BOOL,
+			TARGET_CHAR_BIT / TARGET_CHAR_BIT,
+			TYPE_FLAG_UNSIGNED, "boolean", objfile);
+      break;
+    case FT_STRING:
+      type = init_type (TYPE_CODE_STRING,
+			TARGET_CHAR_BIT / TARGET_CHAR_BIT,
+			0, "string", objfile);
+      break;
+    case FT_CHAR:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_CHAR_BIT / TARGET_CHAR_BIT,
+			0, "char", objfile);
+      break;
+    case FT_SIGNED_CHAR:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_CHAR_BIT / TARGET_CHAR_BIT,
+			0, "signed char", objfile);
+      break;
+    case FT_UNSIGNED_CHAR:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_CHAR_BIT / TARGET_CHAR_BIT,
+			TYPE_FLAG_UNSIGNED, "unsigned char", objfile);
+      break;
+    case FT_SHORT:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_SHORT_BIT / TARGET_CHAR_BIT,
+			0, "short", objfile);
+      break;
+    case FT_SIGNED_SHORT:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_SHORT_BIT / TARGET_CHAR_BIT,
+			0, "short", objfile);	/* FIXME-fnf */
+      break;
+    case FT_UNSIGNED_SHORT:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_SHORT_BIT / TARGET_CHAR_BIT,
+			TYPE_FLAG_UNSIGNED, "unsigned short", objfile);
+      break;
+    case FT_INTEGER:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_INT_BIT / TARGET_CHAR_BIT,
+			0, "int", objfile);
+      break;
+    case FT_SIGNED_INTEGER:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_INT_BIT / TARGET_CHAR_BIT,
+			0, "int", objfile);	/* FIXME -fnf */
+      break;
+    case FT_UNSIGNED_INTEGER:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_INT_BIT / TARGET_CHAR_BIT,
+			TYPE_FLAG_UNSIGNED, "unsigned int", objfile);
+      break;
+    case FT_FIXED_DECIMAL:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_INT_BIT / TARGET_CHAR_BIT,
+			0, "fixed decimal", objfile);
+      break;
+    case FT_LONG:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_LONG_BIT / TARGET_CHAR_BIT,
+			0, "long", objfile);
+      break;
+    case FT_SIGNED_LONG:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_LONG_BIT / TARGET_CHAR_BIT,
+			0, "long", objfile);	/* FIXME -fnf */
+      break;
+    case FT_UNSIGNED_LONG:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_LONG_BIT / TARGET_CHAR_BIT,
+			TYPE_FLAG_UNSIGNED, "unsigned long", objfile);
+      break;
+    case FT_LONG_LONG:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
+			0, "long long", objfile);
+      break;
+    case FT_SIGNED_LONG_LONG:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
+			0, "signed long long", objfile);
+      break;
+    case FT_UNSIGNED_LONG_LONG:
+      type = init_type (TYPE_CODE_INT,
+			TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
+			TYPE_FLAG_UNSIGNED, "unsigned long long", objfile);
+      break;
+    case FT_FLOAT:
+      type = init_type (TYPE_CODE_FLT,
+			TARGET_FLOAT_BIT / TARGET_CHAR_BIT,
+			0, "float", objfile);
+      break;
+    case FT_DBL_PREC_FLOAT:
+      type = init_type (TYPE_CODE_FLT,
+			TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
+			0, "double", objfile);
+      break;
+    case FT_FLOAT_DECIMAL:
+      type = init_type (TYPE_CODE_FLT,
+			TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
+			0, "floating decimal", objfile);
+      break;
+    case FT_EXT_PREC_FLOAT:
+      type = init_type (TYPE_CODE_FLT,
+			TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
+			0, "long double", objfile);
+      break;
+    case FT_COMPLEX:
+      type = init_type (TYPE_CODE_COMPLEX,
+			2 * TARGET_FLOAT_BIT / TARGET_CHAR_BIT,
+			0, "complex", objfile);
+      TYPE_TARGET_TYPE (type)
+	= m2_create_fundamental_type (objfile, FT_FLOAT);
+      break;
+    case FT_DBL_PREC_COMPLEX:
+      type = init_type (TYPE_CODE_COMPLEX,
+			2 * TARGET_DOUBLE_BIT / TARGET_CHAR_BIT,
+			0, "double complex", objfile);
+      TYPE_TARGET_TYPE (type)
+	= m2_create_fundamental_type (objfile, FT_DBL_PREC_FLOAT);
+      break;
+    case FT_EXT_PREC_COMPLEX:
+      type = init_type (TYPE_CODE_COMPLEX,
+			2 * TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
+			0, "long double complex", objfile);
+      TYPE_TARGET_TYPE (type)
+	= m2_create_fundamental_type (objfile, FT_EXT_PREC_FLOAT);
+      break;
+    }
   return (type);
 }
-
 
+
 /* Table of operators and their precedences for printing expressions.  */
 
-static const struct op_print m2_op_print_tab[] = {
-    {"+",   BINOP_ADD, PREC_ADD, 0},
-    {"+",   UNOP_PLUS, PREC_PREFIX, 0},
-    {"-",   BINOP_SUB, PREC_ADD, 0},
-    {"-",   UNOP_NEG, PREC_PREFIX, 0},
-    {"*",   BINOP_MUL, PREC_MUL, 0},
-    {"/",   BINOP_DIV, PREC_MUL, 0},
-    {"DIV", BINOP_INTDIV, PREC_MUL, 0},
-    {"MOD", BINOP_REM, PREC_MUL, 0},
-    {":=",  BINOP_ASSIGN, PREC_ASSIGN, 1},
-    {"OR",  BINOP_LOGICAL_OR, PREC_LOGICAL_OR, 0},
-    {"AND", BINOP_LOGICAL_AND, PREC_LOGICAL_AND, 0},
-    {"NOT", UNOP_LOGICAL_NOT, PREC_PREFIX, 0},
-    {"=",   BINOP_EQUAL, PREC_EQUAL, 0},
-    {"<>",  BINOP_NOTEQUAL, PREC_EQUAL, 0},
-    {"<=",  BINOP_LEQ, PREC_ORDER, 0},
-    {">=",  BINOP_GEQ, PREC_ORDER, 0},
-    {">",   BINOP_GTR, PREC_ORDER, 0},
-    {"<",   BINOP_LESS, PREC_ORDER, 0},
-    {"^",   UNOP_IND, PREC_PREFIX, 0},
-    {"@",   BINOP_REPEAT, PREC_REPEAT, 0},
-    {"CAP", UNOP_CAP, PREC_BUILTIN_FUNCTION, 0},
-    {"CHR", UNOP_CHR, PREC_BUILTIN_FUNCTION, 0},
-    {"ORD", UNOP_ORD, PREC_BUILTIN_FUNCTION, 0},
-    {"FLOAT",UNOP_FLOAT, PREC_BUILTIN_FUNCTION, 0},
-    {"HIGH", UNOP_HIGH, PREC_BUILTIN_FUNCTION, 0},
-    {"MAX", UNOP_MAX, PREC_BUILTIN_FUNCTION, 0},
-    {"MIN", UNOP_MIN, PREC_BUILTIN_FUNCTION, 0},
-    {"ODD", UNOP_ODD, PREC_BUILTIN_FUNCTION, 0},
-    {"TRUNC", UNOP_TRUNC, PREC_BUILTIN_FUNCTION, 0},
-    {NULL,  0, 0, 0}
+static const struct op_print m2_op_print_tab[] =
+{
+  {"+", BINOP_ADD, PREC_ADD, 0},
+  {"+", UNOP_PLUS, PREC_PREFIX, 0},
+  {"-", BINOP_SUB, PREC_ADD, 0},
+  {"-", UNOP_NEG, PREC_PREFIX, 0},
+  {"*", BINOP_MUL, PREC_MUL, 0},
+  {"/", BINOP_DIV, PREC_MUL, 0},
+  {"DIV", BINOP_INTDIV, PREC_MUL, 0},
+  {"MOD", BINOP_REM, PREC_MUL, 0},
+  {":=", BINOP_ASSIGN, PREC_ASSIGN, 1},
+  {"OR", BINOP_LOGICAL_OR, PREC_LOGICAL_OR, 0},
+  {"AND", BINOP_LOGICAL_AND, PREC_LOGICAL_AND, 0},
+  {"NOT", UNOP_LOGICAL_NOT, PREC_PREFIX, 0},
+  {"=", BINOP_EQUAL, PREC_EQUAL, 0},
+  {"<>", BINOP_NOTEQUAL, PREC_EQUAL, 0},
+  {"<=", BINOP_LEQ, PREC_ORDER, 0},
+  {">=", BINOP_GEQ, PREC_ORDER, 0},
+  {">", BINOP_GTR, PREC_ORDER, 0},
+  {"<", BINOP_LESS, PREC_ORDER, 0},
+  {"^", UNOP_IND, PREC_PREFIX, 0},
+  {"@", BINOP_REPEAT, PREC_REPEAT, 0},
+  {"CAP", UNOP_CAP, PREC_BUILTIN_FUNCTION, 0},
+  {"CHR", UNOP_CHR, PREC_BUILTIN_FUNCTION, 0},
+  {"ORD", UNOP_ORD, PREC_BUILTIN_FUNCTION, 0},
+  {"FLOAT", UNOP_FLOAT, PREC_BUILTIN_FUNCTION, 0},
+  {"HIGH", UNOP_HIGH, PREC_BUILTIN_FUNCTION, 0},
+  {"MAX", UNOP_MAX, PREC_BUILTIN_FUNCTION, 0},
+  {"MIN", UNOP_MIN, PREC_BUILTIN_FUNCTION, 0},
+  {"ODD", UNOP_ODD, PREC_BUILTIN_FUNCTION, 0},
+  {"TRUNC", UNOP_TRUNC, PREC_BUILTIN_FUNCTION, 0},
+  {NULL, 0, 0, 0}
 };
 
 /* The built-in types of Modula-2.  */
@@ -404,22 +398,24 @@ struct type *builtin_type_m2_card;
 struct type *builtin_type_m2_real;
 struct type *builtin_type_m2_bool;
 
-struct type ** CONST_PTR (m2_builtin_types[]) = 
+struct type **const (m2_builtin_types[]) =
 {
   &builtin_type_m2_char,
-  &builtin_type_m2_int,
-  &builtin_type_m2_card,
-  &builtin_type_m2_real,
-  &builtin_type_m2_bool,
-  0
+    &builtin_type_m2_int,
+    &builtin_type_m2_card,
+    &builtin_type_m2_real,
+    &builtin_type_m2_bool,
+    0
 };
 
-const struct language_defn m2_language_defn = {
+const struct language_defn m2_language_defn =
+{
   "modula-2",
   language_m2,
   m2_builtin_types,
   range_check_on,
   type_check_on,
+  case_sensitive_on,
   m2_parse,			/* parser */
   m2_error,			/* parser error function */
   evaluate_subexp_standard,
@@ -430,21 +426,21 @@ const struct language_defn m2_language_defn = {
   m2_print_type,		/* Print a type using appropriate syntax */
   m2_val_print,			/* Print a value using appropriate syntax */
   c_value_print,		/* Print a top-level value */
-  {"",      "",   "",   ""},	/* Binary format info */
-  {"%loB",   "",   "o",  "B"},	/* Octal format info */
-  {"%ld",    "",   "d",  ""},	/* Decimal format info */
-  {"0%lXH",  "0",  "X",  "H"},	/* Hex format info */
+  {"", "", "", ""},		/* Binary format info */
+  {"%loB", "", "o", "B"},	/* Octal format info */
+  {"%ld", "", "d", ""},		/* Decimal format info */
+  {"0%lXH", "0", "X", "H"},	/* Hex format info */
   m2_op_print_tab,		/* expression operators for printing */
   0,				/* arrays are first-class (not c-style) */
   0,				/* String lower bound */
-  &builtin_type_m2_char,	/* Type of string elements */ 
+  &builtin_type_m2_char,	/* Type of string elements */
   LANG_MAGIC
 };
 
 /* Initialization for Modula-2 */
 
 void
-_initialize_m2_language ()
+_initialize_m2_language (void)
 {
   /* Modula-2 "pervasive" types.  NOTE:  these can be redefined!!! */
   builtin_type_m2_int =

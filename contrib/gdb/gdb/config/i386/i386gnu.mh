@@ -1,6 +1,5 @@
 # Host: Intel 386 running the GNU Hurd
-XDEPFILES= i387-tdep.o
-NATDEPFILES= i386gnu-nat.o gnu-nat.o fork-child.o solib.o corelow.o notify_S.o process_reply_S.o msg_reply_S.o msg_U.o exc_request_U.o exc_request_S.o
+NATDEPFILES= i386gnu-nat.o i387-nat.o gnu-nat.o fork-child.o solib.o solib-svr4.o solib-legacy.o corelow.o notify_S.o process_reply_S.o msg_reply_S.o msg_U.o exc_request_U.o exc_request_S.o
 XM_FILE= xm-i386gnu.h
 NAT_FILE= nm-gnu.h
 MH_CFLAGS = -D_GNU_SOURCE
@@ -12,7 +11,6 @@ XM_CLIBS = -lshouldbeinlibc
 msg-MIGUFLAGS = -D'MSG_IMPORTS=waittime 1000;'
 
 # ick
-MIG = mig
 MIGCOM = $(MIG) -cc cat - /dev/null
 
 # Reply servers need special massaging of the code mig generates, to make
