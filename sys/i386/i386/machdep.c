@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.18 1998/01/25 15:40:29 kato Exp $
+ *	$Id: machdep.c,v 1.209.2.19 1998/03/06 23:44:33 julian Exp $
  */
 
 #include "npx.h"
@@ -953,8 +953,13 @@ setidt(idx, func, typ, dpl, selec)
 	int dpl;
 	int selec;
 {
-	struct gate_descriptor *ip = idt + idx;
+	struct gate_descriptor *ip;
 
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
+	ip = (t_idt != NULL ? t_idt : idt) + idx;
+#else
+	ip = idt + idx;
+#endif
 	ip->gd_looffset = (int)func;
 	ip->gd_selector = selec;
 	ip->gd_stkcpy = 0;
