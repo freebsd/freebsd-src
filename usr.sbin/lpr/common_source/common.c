@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -71,6 +72,13 @@ const char	*progname;		/* program name */
 extern uid_t	uid, euid;
 
 static int compar(const void *_p1, const void *_p2);
+
+/*
+ * isdigit() takes a parameter of 'int', but expect values in the range
+ * of unsigned char.  Define a wrapper which takes a value of type 'char',
+ * whether signed or unsigned, and ensure it ends up in the right range.
+ */
+#define	isdigitch(Anychar) isdigit((u_char)(Anychar))
 
 /*
  * Getline reads a line from the control file cfp, removes tabs, converts
@@ -205,6 +213,53 @@ compar(const void *p1, const void *p2)
 	if ((qe1->job_cfname[3] == '0') && (qe2->job_cfname[3] == '9'))
 		return (1);
 	return (strcmp(qe1->job_cfname, qe2->job_cfname));
+}
+
+/*
+ * A simple routine to determine the job number for a print job based on
+ * the name of its control file.  The algorithm used here may look odd, but
+ * the main issue is that all parts of `lpd', `lpc', `lpq' & `lprm' must be
+ * using the same algorithm, whatever that algorithm may be.  If the caller
+ * provides a non-null value for ''hostpp', then this returns a pointer to
+ * the start of the hostname (or IP address?) as found in the filename.
+ *
+ * Algorithm: The standard `cf' file has the job number start in position 4,
+ * but some implementations have that as an extra file-sequence letter, and
+ * start the job number in position 5.  The job number is usually three bytes,
+ * but may be as many as five.  Confusing matters still more, some Windows
+ * print servers will append an IP address to the job number, instead of
+ * the expected hostname.  So, if the job number ends with a '.', then
+ * assume the correct jobnum value is the first three digits.
+ */
+int
+calc_jobnum(const char *cfname, const char **hostpp)
+{
+	int jnum;
+	const char *cp, *numstr, *hoststr;
+
+	numstr = cfname + 3;
+	if (!isdigitch(*numstr))
+		numstr++;
+	jnum = 0;
+	for (cp = numstr; (cp < numstr + 5) && isdigitch(*cp); cp++)
+		jnum = jnum * 10 + (*cp - '0');
+	hoststr = cp;
+
+	/*
+	 * If the filename was built with an IP number instead of a hostname,
+	 * then recalculate using only the first three digits found.
+	 */
+	while(isdigitch(*cp))
+		cp++;
+	if (*cp == '.') {
+		jnum = 0;
+		for (cp = numstr; (cp < numstr + 3) && isdigitch(*cp); cp++)
+			jnum = jnum * 10 + (*cp - '0');
+		hoststr = cp;
+	}
+	if (hostpp != NULL)
+		*hostpp = hoststr;
+	return (jnum);
 }
 
 /* sleep n milliseconds */
