@@ -22,14 +22,16 @@
 #endif /* _SYS_DISKLABEL */
 
 struct disk {
-	int			d_opencount;
+	int			d_flags;
 	struct cdevsw		*d_devsw;
 	dev_t			d_dev;
 	struct diskslices	*d_slice;
 	struct disklabel	d_label;
 };
 
-dev_t disk_create __P((int unit, struct disk *disk, struct cdevsw *cdevsw));
+dev_t disk_create __P((int unit, struct disk *disk, int flags, struct cdevsw *cdevsw));
 void disk_delete __P((dev_t dev));
+int disk_dumpcheck __P((dev_t dev, u_int *count, u_int *blkno, u_int *secsize));
+void disk_invalidate __P((struct disk *disk));
 
 #endif /* _SYS_DISK_H_ */

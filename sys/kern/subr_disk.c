@@ -17,6 +17,8 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/malloc.h>
+#include <sys/vnode.h>
+#include <machine/md_var.h>
 
 MALLOC_DEFINE(M_DISK, "disk", "disk data");
 
@@ -49,22 +51,22 @@ static struct cdevsw disk_cdevsw = {
 };      
 
 dev_t
-disk_create(int unit, struct disk *dp, struct cdevsw *cdevsw)
+disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw)
 {
 	dev_t dev;
 	struct cdevsw *cds;
 
-	dp->d_devsw = cdevsw;
 	dev = makedev(cdevsw->d_maj, 0);	
 	cds = devsw(dev);
 	if (!cds) {
 		/* Build the "real" cdevsw */
 		MALLOC(cds, struct cdevsw *, sizeof(*cds), M_DISK, M_WAITOK);
 		*cds = disk_cdevsw;
-		cds->d_name = dp->d_devsw->d_name;
-		cds->d_maj = dp->d_devsw->d_maj;
-		cds->d_bmaj = dp->d_devsw->d_bmaj;
-		cds->d_flags = dp->d_devsw->d_flags;
+		cds->d_name = cdevsw->d_name;
+		cds->d_maj = cdevsw->d_maj;
+		cds->d_bmaj = cdevsw->d_bmaj;
+		cds->d_flags = cdevsw->d_flags & ~D_TRACKCLOSE;
+		cds->d_dump = cdevsw->d_dump;
 
 		cdevsw_add(cds);
 	}
@@ -73,9 +75,45 @@ disk_create(int unit, struct disk *dp, struct cdevsw *cdevsw)
 	dev = make_dev(cds, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
 	    0, 0, 0, "r%s%d", cds->d_name, unit);
 
+	bzero(dp, sizeof(*dp));
+	dp->d_devsw = cdevsw;
 	dev->si_disk = dp;
 	dp->d_dev = dev;
+	dp->d_flags = flags;
 	return (dev);
+}
+
+int
+disk_dumpcheck(dev_t dev, u_int *count, u_int *blkno, u_int *secsize)
+{
+	struct disk *dp;
+	struct disklabel *dl;
+	u_int boff;
+
+	dp = dev->si_disk;
+	if (!dp)
+		return (ENXIO);
+	if (!dp->d_slice)
+		return (ENXIO);
+	dl = dsgetlabel(dev, dp->d_slice);
+	if (!dl)
+		return (ENXIO);
+	*count = (u_long)Maxmem * PAGE_SIZE / dl->d_secsize;
+	if (dumplo < 0 || 
+	    (dumplo + *count > dl->d_partitions[dkpart(dev)].p_size))
+		return (EINVAL);
+	boff = dl->d_partitions[dkpart(dev)].p_offset +
+	    dp->d_slice->dss_slices[dkslice(dev)].ds_offset;
+	*blkno = boff + dumplo;
+	*secsize = dl->d_secsize;
+	return (0);
+	
+}
+
+void 
+disk_invalidate (struct disk *disk)
+{
+	dsgone(&disk->d_slice);
 }
 
 void
@@ -84,6 +122,10 @@ disk_delete(dev_t dev)
 	return;
 }
 
+/*
+ * The cdevsw functions
+ */
+
 static int
 diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 {
@@ -91,24 +133,28 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	struct disk *dp;
 	int error;
 
+	error = 0;
 	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
+
 	dp = pdev->si_disk;
-	dev->si_disk = pdev->si_disk;
-	dev->si_drv1 = pdev->si_drv1;
-	dev->si_drv2 = pdev->si_drv2;
 	if (!dp)
 		return (ENXIO);
+
 	dev->si_disk = dp;
-	if (!dp->d_opencount++) {
+	dev->si_drv1 = pdev->si_drv1;
+	dev->si_drv2 = pdev->si_drv2;
+
+	if (!dsisopen(dp->d_slice))
 		error = dp->d_devsw->d_open(dev, oflags, devtype, p);
-		if (error)
-			return(error);
-	}
 
-	error = dsopen(dev, devtype, 0, &dp->d_slice, &dp->d_label);
+	if (error)
+		return(error);
+	
+	error = dsopen(dev, devtype, dp->d_flags, &dp->d_slice, &dp->d_label);
 
-	if (error && !--dp->d_opencount)
+	if (!dsisopen(dp->d_slice)) 
 		dp->d_devsw->d_close(dev, oflags, devtype, p);
+	
 	return(error);
 }
 
@@ -121,7 +167,7 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 	error = 0;
 	dp = dev->si_disk;
 	dsclose(dev, devtype, dp->d_slice);
-	if (!--dp->d_opencount)
+	if (dsisopen(dp->d_slice))
 		error = dp->d_devsw->d_close(dev, fflag, devtype, p);
 	return (error);
 }
@@ -177,7 +223,15 @@ static int
 diskpsize(dev_t dev)
 {
 	struct disk *dp;
+	dev_t pdev;
 
 	dp = dev->si_disk;
+	if (!dp) {
+		pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
+		dp = pdev->si_disk;
+		dev->si_drv1 = pdev->si_drv1;
+		dev->si_drv2 = pdev->si_drv2;
+		/* XXX: don't set bp->b_dev->si_disk (?) */
+	}
 	return (dssize(dev, &dp->d_slice));
 }
