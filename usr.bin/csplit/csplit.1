@@ -115,6 +115,17 @@ After all the patterns have been processed, the remaining input data
 .Pp
 Requesting to split at a line before the current line number or past the
 end of the file will result in an error.
+.Sh ENVIRONMENT
+The
+.Ev LANG ,
+.Ev LC_ALL ,
+.Ev LC_COLLATE
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh EXAMPLES
 Split the
 .Xr mdoc 7
