@@ -37,7 +37,7 @@
 .Sh NAME
 .Nm truncate ,
 .Nm ftruncate
-.Nd truncate a file to a specified length
+.Nd truncate or extend a file to a specified length
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft int
@@ -50,11 +50,13 @@ causes the file named by
 .Fa path
 or referenced by
 .Fa fd
-to be truncated to at most
+to be truncated or extended to
 .Fa length
 bytes in size.  If the file previously
 was larger than this size, the extra data
 is lost.
+If the file was smaller than this size,
+extra zeros are appended.
 With
 .Fn ftruncate ,
 the file must be open for writing.
@@ -116,6 +118,10 @@ is not open for writing.
 .Sh BUGS
 These calls should be generalized to allow ranges
 of bytes in a file to be discarded.
+.Pp
+Use of
+.Fn truncate
+to extend a file is not portable.
 .Sh HISTORY
 The
 .Nm
