@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.33 2002/11/16 12:50:15 ue Exp $
-	basiert auf: 1.1.2.90
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.36 2003/01/11 09:33:56 ue Exp $
+	basiert auf: 1.1.2.93
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -50,12 +50,14 @@
       <year>2000</year>
       <year>2001</year>
       <year>2002</year>
+      <year>2003</year>
       <holder role="mailto:freebsd-doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
     </copyright>
 
     <copyright>
       <year>2001</year>
       <year>2002</year>
+      <year>2003</year>
       <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The FreeBSD German Documentation Project</holder>
     </copyright>
   </articleinfo>
@@ -167,6 +169,12 @@
       finden Sie im Sicherheitshinweis <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
 
+    <para>In der Systemfunktion &man.fpathconf.2; wurde ein Fehler
+      (Verlust von Datei-Handles) beseitigt, durch den ein lokaler
+      Benutzer das System zum Absturz bringen oder h&ouml;here
+      Privilegien erhalten konnte.  Weitere Informationen finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.</para>
 ]]>
   </sect1>
 
@@ -178,8 +186,11 @@
 
 <![ %release.type.snapshot [
     <para>Da gegen Ende des Release-Zyklus f&uuml;r &os;
-      &release.prev; Lizenz-Probleme im Treiber &man.matcd.4;
-      auffielen, mu&szlig;te dieser entfernt werden.</para>
+      &release.prev; Bedenken wegen der Lizenz des Treibers
+      &man.matcd.4; aufkamen, mu&szlig;te dieser entfernt werden.
+      An diesem Problem wird zur Zeit gearbeitet und es ist denkbar,
+      da&szlig;  der Treiber in einer sp&auml;teren Version von &os;
+      wieder zur Verf&uuml;gung stehen wird.</para>
 
     <para>Die Distribution <filename>srelease</filename> enth&auml;lt
       im Verzeichnis <filename>release/sysinstall</filename> *.o
@@ -213,6 +224,15 @@
       Diese Angabe ist falsch, es gibt keine Pl&auml;ne, diese
       Option zu entfernen.</para>
 
+    <para>In der Virtual Hosting-Funktionalit&auml;t von &man.ftpd.8;
+      wurde ein Fehler entdeckt, der nur auftritt, wenn die IP-Adresse
+      eines virtuellen Systems in <filename>/etc/ftphosts</filename>
+      in einem Hostnamen aufgel&ouml;st werden kann.  In diesem Fall
+      st&uuml;rzt der D&aelig;mon mit <literal>SIGSEGV</literal>
+      (Signal 11) an, wenn er durch &man.inetd.8; gestartet wird; wird
+      er normal gestartet, kann es zu unvorhersagbaren Abst&uuml;rzen
+      kommen.  Der Fehler wurde in &os; &release.current;
+      behoben.</para>
 ]]>
   </sect1>
 </article>

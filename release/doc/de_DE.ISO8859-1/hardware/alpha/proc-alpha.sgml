@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.14 2002/12/07 22:49:40 ue Exp $
-  basiert auf: 1.13.2.28
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.15 2003/01/10 09:24:27 ue Exp $
+  basiert auf: 1.13.2.30
 -->
 
 <sect1>
@@ -817,7 +817,7 @@ cpu     EV4</programlisting>
         </listitem>
 
         <listitem>
-          <para>21174 Core Logic (<quote>Pyxis</quote>) Chipsatz</para>
+          <para>21174 Core Logic (<quote>Pyxis</quote>) Chip</para>
         </listitem>
 
         <listitem>
@@ -1676,7 +1676,9 @@ cpu     EV4</programlisting>
         </listitem>
 
         <listitem>
-          <para>21174 (Alcor) Chipsatz</para>
+          <para>21171 (Alcor) chip set [EB164]</para>
+          <para>21172 (Alcor2) chip set [PC164]</para>
+          <para>21174 (Pyxis) Chip [164LX, 164SX]</para>
         </listitem>
 
         <listitem>
