@@ -37,7 +37,7 @@
 
 RCSID("$FreeBSD$")
 
-ENTRY(__ieee754_fmod)
+ENTRY(fmod)
 	fldl	12(%esp)
 	fldl	4(%esp)
 1:	fprem

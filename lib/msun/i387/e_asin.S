@@ -42,7 +42,7 @@ RCSID("$FreeBSD$")
  * Actually evaluate (1 - x^2) as (1 - x) * (1 + x) to avoid loss of
  * precision when |x| is nearly 1.
  */
-ENTRY(__ieee754_asin)
+ENTRY(asin)
 	fldl	4(%esp)			/* x */
 	fld1
 	fld	%st(0)

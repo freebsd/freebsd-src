@@ -37,7 +37,7 @@
 
 RCSID("$FreeBSD$")
 
-ENTRY(__ieee754_scalb)
+ENTRY(scalb)
 	fldl	12(%esp)
 	fldl	4(%esp)
 	fscale

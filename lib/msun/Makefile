@@ -12,35 +12,6 @@
 #
 #
 
-#
-# There are two options in making libm at fdlibm compile time:
-# 	_IEEE_LIBM 	--- IEEE libm; smaller, and somewhat faster
-#	_MULTI_LIBM	--- Support multi-standard at runtime by
-#			    imposing wrapper functions defined in
-#			    math.h:
-#				_IEEE_MODE 	-- IEEE
-#				_XOPEN_MODE 	-- X/OPEN
-#				_POSIX_MODE 	-- POSIX/ANSI
-#				_SVID3_MODE 	-- SVID
-#
-# Here is how to set up CFLAGS to create the desired libm at
-# compile time:
-#
-# 	CFLAGS = -D_IEEE_LIBM		... IEEE libm (recommended)
-#	CFLAGS = -D_SVID3_MODE	... Multi-standard supported
-#					    libm with SVID as the
-#					    default standard
-#	CFLAGS = -D_XOPEN_MODE	... Multi-standard supported
-#					    libm with XOPEN as the
-#					    default standard
-#	CFLAGS = -D_POSIX_MODE	... Multi-standard supported
-#					    libm with POSIX as the
-#					    default standard
-#	CFLAGS = 			... Multi-standard supported
-#					    libm with IEEE as the
-#					    default standard
-#
-
 # XXX MD crud should be in separate makefiles
 .if ${MACHINE_ARCH} == "alpha"
 ARCH_SRCS = s_copysign.S s_copysignf.S
@@ -86,7 +57,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_rem_pio2f.c e_remainder.c e_remainderf.c e_scalb.c e_scalbf.c \
 	e_sinh.c e_sinhf.c e_sqrt.c e_sqrtf.c fenv.c \
 	k_cos.c k_cosf.c k_rem_pio2.c k_rem_pio2f.c k_sin.c k_sinf.c \
-	k_standard.c k_tan.c k_tanf.c \
+	k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_cbrt.c s_cbrtf.c \
 	s_ceil.c s_ceilf.c s_ceill.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c s_erf.c s_erff.c \
@@ -95,23 +66,15 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c s_ldexpf.c \
-	s_lib_version.c s_llrint.c s_llrintf.c s_llround.c s_llroundf.c \
+	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
-	s_lround.c s_lroundf.c s_matherr.c s_modff.c \
+	s_lround.c s_lroundf.c s_modff.c \
 	s_nearbyint.c s_nextafter.c s_nextafterf.c \
 	s_rint.c s_rintf.c s_round.c s_roundf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c s_tan.c \
 	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
-	w_acos.c w_acosf.c w_acosh.c w_acoshf.c w_asin.c w_asinf.c w_atan2.c \
-	w_atan2f.c w_atanh.c w_atanhf.c w_cabs.c w_cabsf.c w_cosh.c w_coshf.c \
-	w_drem.c w_dremf.c w_exp.c w_expf.c w_fmod.c w_fmodf.c w_gamma.c \
-	w_gamma_r.c w_gammaf.c w_gammaf_r.c w_hypot.c w_hypotf.c w_j0.c \
-	w_j0f.c w_j1.c w_j1f.c w_jn.c w_jnf.c w_lgamma.c w_lgamma_r.c \
-	w_lgammaf.c w_lgammaf_r.c w_log.c w_log10.c w_log10f.c w_logf.c \
-	w_pow.c w_powf.c w_remainder.c w_remainderf.c w_scalb.c w_scalbf.c \
-	w_sinh.c w_sinhf.c w_sqrt.c w_sqrtf.c \
-	w_y0.c w_y0f.c w_y1.c w_y1f.c w_yn.c w_ynf.c
+	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
 # Location of fpmath.h and _fpmath.h
 LIBCDIR=	${.CURDIR}/../libc

@@ -8,7 +8,7 @@
 __FBSDID("$FreeBSD$");
 /* RCSID("$NetBSD: e_remainderf.S,v 1.2 1995/05/08 23:49:47 jtc Exp $") */
 
-ENTRY(__ieee754_remainderf)
+ENTRY(remainderf)
 	flds	8(%esp)
 	flds	4(%esp)
 1:	fprem1
