@@ -4,7 +4,7 @@
 #
 #      $Id$
 #      $FreeBSD$
-#      Original revision: 1.5
+#      Original revision: 1.3.2.3
 
 RELN_ROOT?= ${.CURDIR}/../..
 .ifdef NO_LANGCODE_IN_DESTDIR
