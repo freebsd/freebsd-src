@@ -53,17 +53,17 @@
 .\"
 .\"	from hostname.7	6.4 (Berkeley) 1/16/90
 .\"
-.TH @INDOT_U@NAMED.RELOAD @SYS_OPS_EXT_U@ "June 26, 1993"
+.TH NAMED.RELOAD 8 "June 26, 1993"
 .UC 5
 .SH NAME
-@INDOT@named.reload \- cause the name server to synchronize its database
+named.reload \- cause the name server to synchronize its database
 .SH DESCRIPTION
 This command sends a \s-1SIGHUP\s+1 to the running name server.  This
 signal is documented in
-.IR named (@SYS_OPS_EXT@).
+.IR named (8).
 .SH BUGS
 Does not check to see if the name server is actually running, and could
 use a stale PID cache file which may result in the death of an unrelated
 process.
 .SH SEE ALSO
-@INDOT@named(@SYS_OPS_EXT@), @INDOT@named.restart(@SYS_OPS_EXT@)
+named(8), named.restart(8)
