@@ -42,7 +42,7 @@
 #define	PCB_CWP_EMPTY	0xff
 
 /* NOTE: pcb_fpstate must be aligned on a 64 byte boundary. */
-struct	pcb {
+struct pcb {
 	struct	fpstate	pcb_fpstate;
 	u_long	pcb_cwp;
 	u_long	pcb_fp;
@@ -54,7 +54,7 @@ struct	pcb {
 	struct	rwindow pcb_rw[MAXWIN];
 };
 
-struct	md_coredump {
+struct md_coredump {
 };
 
 #ifdef _KERNEL

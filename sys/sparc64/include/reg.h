@@ -29,13 +29,13 @@
 #ifndef	_MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
-struct	reg {
+struct reg {
 };
 
-struct	fpreg {
+struct fpreg {
 };
 
-struct	dbreg {
+struct dbreg {
 };
 
 #ifdef _KERNEL

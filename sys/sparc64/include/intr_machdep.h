@@ -43,11 +43,11 @@
 typedef	void ih_func_t(struct trapframe *);
 typedef	void iv_func_t(void *);
 
-struct	intr_handler {
+struct intr_handler {
 	ih_func_t *ih_func;
 };
 
-struct	iqe {
+struct iqe {
 	u_int	iqe_tag;
 	u_int	iqe_pri;
 	u_long	iqe_vec;
@@ -55,13 +55,13 @@ struct	iqe {
 	void	*iqe_arg;
 };
 
-struct	intr_queue {
+struct intr_queue {
 	struct	iqe iq_queue[IQ_SIZE];	/* must be first */
 	u_long	iq_head;
 	u_long	iq_tail;
 };
 
-struct	intr_vector {
+struct intr_vector {
 	iv_func_t *iv_func;		/* must be first */
 	void	*iv_arg;
 	u_int	iv_pri;
