@@ -1,4 +1,4 @@
-<!-- $Id: pgpkeys.sgml,v 1.18 1997/03/08 16:27:59 guido Exp $ -->
+<!-- $Id: pgpkeys.sgml,v 1.19 1997/04/25 22:54:33 ache Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>PGP keys<label id="pgpkeys"></heading>
@@ -154,7 +154,8 @@ liJ+RYamF7CpIxBsSDgTn775VUNFG3EdDdvuRejG+Rqq12aSHrJ+4xSaZECj1A==
 
 <tscreen><verb>
 Andrey A. Chernov &lt;ache@FreeBSD.org&gt;
-Fingerprint = 33 03 9F 48 33 7B 4A 15  63 48 88 0A C4 97 FD 49
+       aka &lt;ache@nagual.pp.ru&gt;
+Key fingerprint = 33 03 9F 48 33 7B 4A 15  63 48 88 0A C4 97 FD 49
 
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: 2.6.3ia
