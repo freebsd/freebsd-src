@@ -35,7 +35,7 @@
 .\"	@(#)rune.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd October 6, 2002
 .Dt RUNE 3
 .Os
 .Sh NAME
@@ -266,15 +266,6 @@ binary LC_CTYPE file for the locale
 .Xr setlocale 3 ,
 .Xr euc 4 ,
 .Xr utf2 4
-.Sh NOTES
-The ANSI C type
-.Em wchar_t
-is the same as
-.Em rune_t .
-.Em Rune_t
-was chosen to accent the purposeful choice of not basing the
-system with the ANSI C
-primitives, which were, shall we say, less aesthetic.
 .Sh HISTORY
 These functions first appeared in
 .Bx 4.4 .
@@ -282,12 +273,7 @@ These functions first appeared in
 The
 .Fn setrunelocale
 function and the other non-ANSI rune functions were inspired by
-.Sy "Plan 9 from Bell Labs"
-as a much more sane alternative to the ANSI multibyte and
-wide character support.
+.Sy "Plan 9 from Bell Labs" .
 .\"They were conceived at the San Diego 1993 Summer USENIX conference by
 .\"Paul Borman of Krystal Technologies, Keith Bostic of CSRG and Andrew Hume
 .\"of Bell Labs.
-.Pp
-All of the ANSI multibyte and wide character
-support functions are built using the rune functions.
