@@ -685,7 +685,7 @@ which is normally in a shared filesystem
 in NFS-mounted networks and avoids installing them in each machine
 separately.
 The default can be overridden by the
-.Ic keysdir   
+.Ic keysdir
 configuration command.
 However, this is not a good place to install
 the private key file, since each machine needs its own file.
@@ -881,7 +881,7 @@ includes a comprehensive monitoring facility suitable
 for continuous, long term recording of server and client
 timekeeping performance.
 See the
-.Ic statistics   
+.Ic statistics
 command below
 for a listing and example of each type of statistics currently
 supported.
@@ -892,7 +892,7 @@ directory of this distribution.
 Using
 these facilities and
 .Ux
-.Xr cron 8   
+.Xr cron 8
 jobs, the data can be
 automatically summarized and archived for retrospective analysis.
 .Ss Monitoring Commands
@@ -903,7 +903,7 @@ Currently, four kinds of
 .Ar name
 statistics are supported.
 .Bl -tag -width indent
-.It Cm loopstats   
+.It Cm loopstats
 Enables recording of loop filter statistics information.
 Each
 update of the local clock outputs a line of the following form to
@@ -918,7 +918,7 @@ The next five fields
 show time offset (seconds), frequency offset (parts per million -
 PPM), RMS jitter (seconds), Allan deviation (PPM) and clock
 discipline time constant.
-.It Cm peerstats   
+.It Cm peerstats
 Enables recording of peer statistics information.
 This includes
 statistics records of all peers of a NTP server and of special
@@ -987,7 +987,7 @@ Indicates the full path of a directory where statistics files
 should be created (see below).
 This keyword allows the (otherwise
 constant)
-.Ic filegen   
+.Ic filegen
 filename prefix to be modified for file
 generation sets, which is useful for handling statistics logs.
 .It Xo Ic filegen Ar name
@@ -1013,16 +1013,16 @@ This way, information stored in elements
 of a file set that are currently unused are available for
 administrational operations without the risk of disturbing the
 operation of
-.Xr ntpd 8 . 
+.Xr ntpd 8 .
 (Most important: they can be removed to
 free space for new data produced.)
 Note that this command can be sent from the
-.Xr ntpdc 8   
+.Xr ntpdc 8
 program running at a remote location.
 .Bl -tag -width indent
 .It Ar name
 This is the type of the statistics records, as shown in the
-.Ic statistics   
+.Ic statistics
 command.
 .It Cm file Ar filename
 This is the file name for the statistics records.
@@ -1035,7 +1035,7 @@ suffix:
 This is a constant filename path.
 It is not subject to
 modifications via the
-.Ic filegen   
+.Ic filegen
 option.
 It is defined by the
 server, usually specified as a compile-time constant.
@@ -1043,12 +1043,12 @@ It may,
 however, be configurable for individual file generation sets via
 other commands.
 For example, the prefix used with
-.Cm loopstats   
+.Cm loopstats
 and
-.Cm peerstats   
+.Cm peerstats
 generation can be
 configured using the
-.Ic statsdir   
+.Ic statsdir
 option explained above.
 .It filename
 This string is directly concatenated to the prefix mentioned
@@ -1059,7 +1059,7 @@ This can be modified
 using the
 .Ar file
 argument to the
-.Ic filegen   
+.Ic filegen
 statement.
 No
 .Ql \&..
@@ -1080,12 +1080,12 @@ following types are supported:
 The file set is actually a single plain file.
 .It pid
 One element of file set is used per incarnation of a
-.Xr ntpd 8   
+.Xr ntpd 8
 server.
 This type does not perform any changes to
 file set members during runtime, however it provides an easy way of
 separating files belonging to different
-.Xr ntpd 8   
+.Xr ntpd 8
 server
 incarnations.
 The set member filename is built by appending a
@@ -1093,7 +1093,7 @@ The set member filename is built by appending a
 (dot) to concatenated prefix and filename
 strings, and appending the decimal representation of the process ID
 of the
-.Xr ntpd 8   
+.Xr ntpd 8
 server process.
 .It day
 One file generation set element is created per day.
@@ -1150,9 +1150,9 @@ number.
 This number is taken to be the number of seconds the server
 is running at the start of the corresponding 24-hour period.
 Information is only written to a file generation by specifying
-.Ic enable  ; 
+.Ic enable  ;
 output is prevented by specifying
-.Ic disable  . 
+.Ic disable  .
 .El
 .It Cm link \&| Cm nolink
 It is convenient to be able to access the current element of a
@@ -1172,7 +1172,7 @@ it is renamed appending a dot, the letter
 .Ql C ,
 and the pid
 of the
-.Xr ntpd 8   
+.Xr ntpd 8
 server process.
 When the number of links is
 greater than one, the file is unlinked.
@@ -1183,7 +1183,7 @@ Enables or disables the recording function.
 .El
 .El
 .Sh Access Control Support
-.Xr ntpd 8   
+.Xr ntpd 8
 implements a general purpose address-and-mask based
 restriction list.
 The list is sorted by address and by mask, and
@@ -1344,14 +1344,14 @@ Requests from other clients from the same net
 are rejected.
 Only time request packets are taken into account.
 Query packets sent by the
-.Xr ntpq 8   
+.Xr ntpq 8
 and
-.Xr ntpdc 8   
+.Xr ntpdc 8
 programs
 are not subject to these limits.
 A history of clients is kept using
 the monitoring capability of
-.Xr ntpd 8  . 
+.Xr ntpd 8  .
 Thus, monitoring is
 always active as long as there is a restriction entry with the
 .Cm limited
@@ -1372,7 +1372,7 @@ The
 .Cm ntpport
 is considered more specific and
 is sorted later in the list.
-.It Cm version   
+.It Cm version
 Ignore these hosts if not the current NTP version.
 .El
 .Pp
@@ -1525,7 +1525,7 @@ override the defaults for the device.
 There are two optional
 device-dependent time offsets and four flags that can be included
 in the
-.Ic fudge   
+.Ic fudge
 command as well.
 .Pp
 The stratum number of a reference clock is by default zero.
@@ -1537,7 +1537,7 @@ one.
 In order to provide engineered backups, it is often useful to
 specify the reference clock stratum as greater than zero.
 The
-.Cm stratum   
+.Cm stratum
 option is used for this purpose.
 Also, in cases
 involving both a reference clock and a pulse-per-second (PPS)
@@ -1910,7 +1910,7 @@ peers, system events and so on is suppressed.
 .It Ic logfile Ar logfile
 This command specifies the location of an alternate log file to
 be used instead of the default system
-.Xr syslog 3   
+.Xr syslog 3
 facility.
 .It Ic setvar Ar variable Op Cm default
 This command adds an additional system variable.
