@@ -124,7 +124,7 @@ RELEASEDISTFILES?=	${.CURDIR}/../../ports/distfiles
 AUTO_KEYBOARD_DETECT?= 0
 
 .if !defined(NODOC)
-DIST_DOCS_ARCH_INDEP=	readme errata
+DIST_DOCS_ARCH_INDEP=	readme errata early-adopter
 DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 .endif
 
@@ -640,6 +640,7 @@ release.9:
 	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	done
 	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT ${RD}/mfsfd/stand/help/INSTALL.TXT
+	@mv ${RD}/mfsfd/stand/help/EARLY-ADOPTER.TXT ${RD}/mfsfd/stand/help/EARLY.TXT
 .endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
@@ -758,6 +759,8 @@ ftp.1:
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
 	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
+	@mv ${FD}/EARLY-ADOPTER.TXT ${FD}/EARLY.TXT
+	@mv ${FD}/EARLY-ADOPTER.HTM ${FD}/EARLY.HTM
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
@@ -797,6 +800,8 @@ cdrom.1:
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
+	@mv ${CD_DISC1}/EARLY-ADOPTER.TXT ${CD_DISC1}/EARLY.TXT
+	@mv ${CD_DISC1}/EARLY-ADOPTER.HTM ${CD_DISC1}/EARLY.HTM
 .endif
 .if ${TARGET} != "pc98"
 	@echo "Setting up /boot"
