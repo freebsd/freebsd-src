@@ -118,16 +118,16 @@ ext2_update(ap)
 	    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)
 		return (0);
 	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime.ts_sec = ap->a_access->tv_sec;
+		ip->i_atime.tv_sec = ap->a_access->tv_sec;
 	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime.ts_sec = ap->a_modify->tv_sec;
+		ip->i_mtime.tv_sec = ap->a_modify->tv_sec;
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE) {
 #if !defined(__FreeBSD__)
 		get_time(&time);
 #endif
-		ip->i_ctime.ts_sec = time.tv_sec;
+		ip->i_ctime.tv_sec = time.tv_sec;
 	}
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 	fs = ip->i_e2fs;
