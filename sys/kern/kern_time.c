@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.60 1999/01/27 21:49:56 dillon Exp $
+ * $Id: kern_time.c,v 1.61 1999/02/25 15:54:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,8 @@ static int
 settime(tv)
 	struct timeval *tv;
 {
-	struct timeval delta, tv1;
+	struct timeval delta, tv1, tv2;
+	static struct timeval maxtime;
 	struct timespec ts;
 	int s;
 
@@ -89,13 +90,31 @@ settime(tv)
 
 	/*
 	 * If the system is secure, we do not allow the time to be 
-	 * set to an earlier value (it may be slowed using adjtime,
-	 * but not set back). This feature prevent interlopers from
-	 * setting arbitrary time stamps on files.
+	 * set to a value earlier than 1 second less than the highest
+	 * time we have yet seen. The worst a miscreant can do in
+	 * this circumstance is "freeze" time. He couldn't go
+	 * back to the past.
 	 */
-	if (delta.tv_sec < 0 && securelevel > 1) {
-		splx(s);
-		return (EPERM);
+	if (securelevel > 1) {
+		if (delta.tv_sec < 0 || delta.tv_usec < 0) {
+			if ( tv1.tv_sec > maxtime.tv_sec )
+				maxtime=tv1;
+			tv2=*tv;
+			timevalsub( &tv2, &maxtime );
+			if ( tv2.tv_sec < -1 ) {
+				tv.tv_sec=maxtime.tv_sec-1;
+				printf("Time adjustment clamped to -1 second\n");
+			}
+		}
+		else {
+			/* XXX
+			 * We have to figure out how to be secure
+			 * in this case. Allowing arbitrary
+			 * positive increases allows a miscreant
+			 * to simply wrap time around the end
+			 * of time.
+			 */
+		}
 	}
 
 	ts.tv_sec = tv->tv_sec;
