@@ -37,7 +37,7 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.46.2.14 1997/04/04 19:49:26 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.46.2.15 1997/04/05 22:04:28 gibbs Exp $
  *
  *-M************************************************************************/
 
@@ -310,7 +310,8 @@ ndx_dtr_2:
  *
  */
 ITloop:
-	test	SSTAT1,REQINIT	jz ITloop;
+	test	SSTAT1,REQINIT		jz ITloop;
+	test	SSTAT1, SCSIPERR	jnz ITloop;
 
 	and	A,PHASE_MASK,SCSISIGI;
 	mov	LASTPHASE,A;
@@ -328,8 +329,8 @@ ITloop:
 
 await_busfree:
 	and	SIMODE1, ~ENBUSFREE;
-	mov	NONE, SCSIDATL;		/* Ack the last byte */
 	call	clear_target_state;
+	mov	NONE, SCSIDATL;		/* Ack the last byte */
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz poll_for_work;
 	mvi	INTSTAT, BAD_PHASE;
@@ -538,7 +539,8 @@ p_mesgout_start:
  * a MESSAGE REJECT.
  */
 p_mesgout_loop:
-	test	SSTAT1, REQINIT	jz p_mesgout_loop;
+	test	SSTAT1, REQINIT		jz p_mesgout_loop;
+	test	SSTAT1, SCSIPERR	jnz p_mesgout_loop;
 	and	LASTPHASE, PHASE_MASK, SCSISIGI;
 	cmp	LASTPHASE, P_MESGOUT jne p_mesgout_done;
 /*
@@ -780,6 +782,7 @@ snoop_tag:
 	mov	NONE,SCSIDATL;		/* ACK Identify MSG */
 snoop_tag_loop:
 	test	SSTAT1,REQINIT		jz snoop_tag_loop;
+	test	SSTAT1, SCSIPERR	jnz snoop_tag_loop;
 	and	LASTPHASE, PHASE_MASK, SCSISIGI;
 	cmp	LASTPHASE, P_MESGIN	jne not_found;
 	cmp	SCSIBUSL,MSG_SIMPLE_Q_TAG jne not_found;
