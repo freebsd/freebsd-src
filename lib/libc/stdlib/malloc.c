@@ -48,6 +48,11 @@
 #       define malloc_pageshift		12U
 #       define malloc_minsize		16U
 #   endif
+#   if defined(__ia64__)
+	static int malloc_pageshift_value;
+#	define malloc_pageshift		malloc_pageshift_value
+#       define malloc_minsize		16U
+#   endif
 #   if defined(__alpha__)
 #       define malloc_pageshift		13U
 #       define malloc_minsize		16U
@@ -395,6 +400,12 @@ malloc_init ()
     int errnosave;
 
     INIT_MMAP();
+
+#ifdef __ia64__
+    malloc_pageshift = 0;
+    while ((1L << malloc_pageshift) < getpagesize())
+	    malloc_pageshift++;
+#endif
 
 #ifdef EXTRA_SANITY
     malloc_junk = 1;
