@@ -73,9 +73,9 @@ g_stat_new(void *id)
 			break;
 	}
 	if (spp == NULL) {
-		spp = g_malloc(sizeof *spp, M_ZERO);
+		spp = g_malloc(sizeof *spp, M_ZERO | M_WAITOK);
 		TAILQ_INSERT_TAIL(&pagelist, spp, list);
-		spp->stat = g_malloc(PAGE_SIZE, M_ZERO);
+		spp->stat = g_malloc(PAGE_SIZE, M_ZERO | M_WAITOK);
 		spp->nfree = statsperpage;
 	}
 	gsp = spp->stat;
