@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)file.c	8.2 (Berkeley) 3/19/94";
 #else
 static const char rcsid[] =
-	"$Id: file.c,v 1.6 1997/02/22 14:01:54 peter Exp $";
+	"$Id: file.c,v 1.7 1997/08/07 21:42:08 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -453,7 +453,7 @@ tsearch(word, command, max_word_length)
 
     looking_for_lognames = (*word == '~') && (Strchr(word, '/') == NULL);
     if (looking_for_lognames) {
-	(void) setpwent();
+	setpwent();
 	copyn(name, &word[1], MAXNAMLEN);	/* name sans ~ */
 	dir_fd = NULL;
     }
@@ -501,7 +501,7 @@ again:				/* search for matches */
 	ignoring = FALSE;
 	nignored = 0;
 	if (looking_for_lognames)
-	    (void) setpwent();
+	    setpwent();
 	else
 	    rewinddir(dir_fd);
 	goto again;
