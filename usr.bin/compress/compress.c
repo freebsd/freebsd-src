@@ -65,8 +65,8 @@ static const char rcsid[] =
 #include "zopen.h"
 
 void	compress __P((char *, char *, int));
-void	cwarn __P((const char *, ...));
-void	cwarnx __P((const char *, ...));
+void	cwarn __P((const char *, ...)) __printflike(1, 2);
+void	cwarnx __P((const char *, ...)) __printflike(1, 2);
 void	decompress __P((char *, char *, int));
 int	permission __P((char *));
 void	setfile __P((char *, struct stat *));
