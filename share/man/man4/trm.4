@@ -1,14 +1,18 @@
+.\"	$NetBSD: trm.4,v 1.3 2001/11/11 05:24:45 tsutsui Exp $
 .\"
-.\" Copyright (c) 1999 Alexey Zelkin
-.\" All rights reserved.
+.\" Copyright (c) 2002, David E O'Brien.  All rights reserved.
+.\" Copyright (c) 2001, Izumi Tsutsui.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
 .\" 1. Redistributions of source code must retain the above copyright
 .\"    notice, this list of conditions and the following disclaimer.
-.\" 2. The name of the author may not be used to endorse or promote products
-.\"    derived from this software without specific prior written permission
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -28,15 +32,38 @@
 .Os
 .Sh NAME
 .Nm trm
-.Nd trm-s1040 PCI SCSI driver
+.Nd Tekram TRM-S1040 ASIC based PCI SCSI host adapter driver
 .Sh SYNOPSIS
 .Cd "device trm"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the
-.Tn trm-s1040
-based SCSI cards, such as Tekram DC315X or Tekram DC395X.
+driver supports PCI SCSI host adapters based on the Tekram TRM-S1040 SCSI ASIC.
+.Sh HARDWARE
+Supported SCSI controllers include:
+.Pp
+.Bl -item -offset indent
+.It
+.Tn Tekram DC-315
+PCI Ultra SCSI adapter without BIOS and internal SCSI connector
+.It
+.Tn Tekram DC-315U
+PCI Ultra SCSI adapter without BIOS
+.It
+.Tn Tekram DC-395F
+PCI Ultra-Wide SCSI adapter with flash BIOS and 68-pin external SCSI connector
+.It
+.Tn Tekram DC-395U
+PCI Ultra SCSI adapter with flash BIOS
+.It
+.Tn Tekram DC-395UW
+PCI Ultra-Wide SCSI adapter with flash BIOS
+.El
+.Pp
+For the Tekram DC-310/U and DC-390F/U/UW/U2B/U2W/U3W PCI SCSI host adapters,
+use the
+.Xr sym 4
+driver.
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr ch 4 ,
@@ -44,10 +71,16 @@ based SCSI cards, such as Tekram DC315X or Tekram DC395X.
 .Xr intro 4 ,
 .Xr sa 4 ,
 .Xr scsi 4
+.Xr sym 4
+.Pp
+.Pa http://www.tekram.com/
 .Sh AUTHORS
 The
 .Nm
-driver was written by Tekram, Inc. and updated to work under
+driver was originally written for
+.Fx 3.0 Ns /i386
+by Erich Chen of Tekram Technology,
+and ported to
 .Fx 5.0
 by
 .An Olivier Houchard Aq cognet@FreeBSD.org .
