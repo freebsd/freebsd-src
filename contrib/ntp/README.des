@@ -8,6 +8,7 @@ If you *need* DES support:
 - first see if you can simply "want" DES support instead
 - Get RSAREF or RSAEURO (or a reasonable facsimile thereof)
 - - Unpack it in the top-level source directory of the NTP distribution
+    in a directory named rsaref2
     (You should see directories like ports, rsaref2, scripts)
 
 When you run configure, the Right Thing will happen.

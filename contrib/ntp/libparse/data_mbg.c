@@ -1,5 +1,5 @@
 /*
- * /src/NTP/ntp-4/libparse/data_mbg.c,v 4.3 1999/02/21 12:17:42 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/data_mbg.c,v 4.3 1999/02/21 12:17:42 kardel RELEASE_19991128_A
  *
  * $Created: Sun Jul 20 12:08:14 1997 $
  *

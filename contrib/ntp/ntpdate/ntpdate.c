@@ -142,9 +142,8 @@ char *progname;
  */
 int sys_samples = DEFSAMPLES;	/* number of samples/server */
 u_long sys_timeout = DEFTIMEOUT; /* timeout time, in TIMER_HZ units */
-struct server **sys_servers;	/* the server list */
+struct server *sys_servers;	/* the server list */
 int sys_numservers = 0; 	/* number of servers to poll */
-int sys_maxservers = 0; 	/* max number of servers to deal with */
 int sys_authenticate = 0;	/* true when authenticating */
 u_int32 sys_authkey = 0;	/* set to authentication key in use */
 u_long sys_authdelay = 0;	/* authentication delay */
@@ -256,7 +255,6 @@ void clear_globals()
    * Systemwide parameters and flags
    */
   sys_numservers = 0;	  /* number of servers to poll */
-  sys_maxservers = 0;	  /* max number of servers to deal with */
   sys_authenticate = 0;   /* true when authenticating */
   sys_authkey = 0;	   /* set to authentication key in use */
   sys_authdelay = 0;   /* authentication delay */
@@ -472,13 +470,9 @@ ntpdatemain (
 	/*
 	 * Add servers we are going to be polling
 	 */
-	sys_maxservers = argc - ntp_optind;
 #ifdef HAVE_NETINFO
-	if ((netinfoservers = getnetinfoservers()))
-		sys_maxservers += netinfoservers->ni_namelist_len;
+	inetinfoservers = getnetinfoservers();
 #endif
-	sys_servers = (struct server **)
-		emalloc(sys_maxservers * sizeof(struct server *));
 
 	for ( ; ntp_optind < argc; ntp_optind++)
 		addserver(argv[ntp_optind]);
@@ -1025,8 +1019,7 @@ clock_select(void)
 	 * NTP_MAXLIST of them.
 	 */
 	nlist = 0;	/* none yet */
-	for (n = 0; n < sys_numservers; n++) {
-		server = sys_servers[n];
+	for (server = sys_servers; server != NULL; server = server->next_server) {
 		if (server->delay == 0)
 			continue;	/* no data */
 		if (server->stratum > NTP_INFIN)
@@ -1201,18 +1194,17 @@ clock_select(void)
 static int
 clock_adjust(void)
 {
-	register int i;
-	register struct server *server;
+	register struct server *sp, *server;
 	s_fp absoffset;
 	int dostep;
 
-	for (i = 0; i < sys_numservers; i++)
-		clock_filter(sys_servers[i]);
+	for (sp = sys_servers; sp != NULL; sp = sp->next_server)
+		clock_filter(sp);
 	server = clock_select();
 
 	if (debug || simple_query) {
-		for (i = 0; i < sys_numservers; i++)
-			printserver(sys_servers[i], stdout);
+		for (sp = sys_servers; sp != NULL; sp = sp->next_server)
+			printserver(sp, stdout);
 	}
 
 	if (server == 0) {
@@ -1275,21 +1267,6 @@ addserver(
 {
 	register struct server *server;
 	u_int32 netnum;
-	static int toomany = 0;
-
-	if (sys_numservers >= sys_maxservers) {
-		if (!toomany) {
-			/*
-			 * This is actually a `can't happen' now.    Leave
-			 * the error message in anyway, though
-			 */
-			toomany = 1;
-			msyslog(LOG_ERR,
-				"too many servers (> %d) specified, remainder not used",
-				sys_maxservers);
-		}
-		return;
-	}
 
 	if (!getnetnum(serv, &netnum)) {
 		msyslog(LOG_ERR, "can't find host %s\n", serv);
@@ -1303,8 +1280,16 @@ addserver(
 	server->srcadr.sin_addr.s_addr = netnum;
 	server->srcadr.sin_port = htons(NTP_PORT);
 
-	sys_servers[sys_numservers++] = server;
-	server->event_time = sys_numservers;
+	server->event_time = ++sys_numservers;
+	if (sys_servers == NULL)
+		sys_servers = server;
+	else {
+		struct server *sp;
+
+		for (sp = sys_servers; sp->next_server != NULL;
+		     sp = sp->next_server) ;
+		sp->next_server = server;
+	}
 }
 
 
@@ -1316,18 +1301,47 @@ findserver(
 	struct sockaddr_in *addr
 	)
 {
-	register int i;
 	register u_int32 netnum;
+	struct server *server;
+	struct server *mc_server;
 
+	mc_server = NULL;
 	if (htons(addr->sin_port) != NTP_PORT)
 		return 0;
 	netnum = addr->sin_addr.s_addr;
 
-	for (i = 0; i < sys_numservers; i++) {
-		if (netnum == sys_servers[i]->srcadr.sin_addr.s_addr)
-			return sys_servers[i];
+	for (server = sys_servers; server != NULL; 
+	     server = server->next_server) {
+		register u_int32 servnum;
+		
+		servnum = server->srcadr.sin_addr.s_addr;
+		if (netnum == servnum)
+			return server;
+		if (IN_MULTICAST(ntohl(servnum)))
+			mc_server = server;
 	}
-	return 0;
+
+	if (mc_server != NULL) {	
+		struct server *sp;
+
+		if (mc_server->event_time != 0) {
+			mc_server->event_time = 0;
+			complete_servers++;
+		}
+		server = (struct server *)emalloc(sizeof(struct server));
+		memset((char *)server, 0, sizeof(struct server));
+
+		server->srcadr.sin_family = AF_INET;
+		server->srcadr.sin_addr.s_addr = netnum;
+		server->srcadr.sin_port = htons(NTP_PORT);
+
+		server->event_time = ++sys_numservers;
+		for (sp = sys_servers; sp->next_server != NULL;
+		     sp = sp->next_server) ;
+		sp->next_server = server;
+		transmit(server);
+	}
+	return NULL;
 }
 
 
@@ -1337,7 +1351,7 @@ findserver(
 void
 timer(void)
 {
-	register int i;
+	struct server *server;
 
 	/*
 	 * Bump the current idea of the time
@@ -1349,10 +1363,11 @@ timer(void)
 	 * who's event timers have expired.  Give these to
 	 * the transmit routine.
 	 */
-	for (i = 0; i < sys_numservers; i++) {
-		if (sys_servers[i]->event_time != 0
-			&& sys_servers[i]->event_time <= current_time)
-			transmit(sys_servers[i]);
+	for (server = sys_servers; server != NULL; 
+	     server = server->next_server) {
+		if (server->event_time != 0
+		    && server->event_time <= current_time)
+			transmit(server);
 	}
 }
 
@@ -1826,7 +1841,8 @@ l_step_systime(
 		isneg = 0;
 
 	if (ftmp.l_ui >= 3) {		/* Step it and slew - we might win */
-		n = step_systime(ts);
+		LFPTOD(ts, dtemp);
+		n = step_systime(dtemp);
 		if (!n)
 			return n;
 		if (isneg)

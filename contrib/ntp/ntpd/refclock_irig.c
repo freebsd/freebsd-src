@@ -11,12 +11,6 @@
 #include <ctype.h>
 #include <sys/time.h>
 #include <math.h>
-#ifdef HAVE_SYS_AUDIOIO_H
-#include <sys/audioio.h>
-#endif /* HAVE_SYS_AUDIOIO_H */
-#ifdef HAVE_SUN_AUDIOIO_H
-#include <sun/audioio.h>
-#endif /* HAVE_SUN_AUDIOIO_H */
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif /* HAVE_SYS_IOCTL_H */
@@ -26,6 +20,7 @@
 #include "ntp_refclock.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
+#include "audio.h"
 
 /*
  * Audio IRIG-B/E demodulator/decoder
@@ -149,8 +144,7 @@
 #define	REFID		"IRIG"	/* reference ID */
 #define	DESCRIPTION	"Generic IRIG Audio Driver" /* WRU */
 
-#define AUDIO_BUFSIZ	160	/* codec buffer size (Solaris only) */
-#define SAMPLES		8000	/* nominal sample rate (Hz) */
+#define SECOND		8000	/* nominal sample rate (Hz) */
 #define BAUD		80	/* samples per baud interval */
 #define OFFSET		128	/* companded sample offset */
 #define SIZE		256	/* decompanding table size */
@@ -162,7 +156,7 @@
 #define	MAXSIG		6000.	/* maximum signal level */
 #define DRPOUT		100.	/* dropout signal level */
 #define MODMIN		0.5	/* minimum modulation index */
-#define MAXFREQ		(250e-6 * SAMPLES) /* freq tolerance (.025%) */
+#define MAXFREQ		(250e-6 * SECOND) /* freq tolerance (.025%) */
 #define PI		3.1415926535 /* the real thing */
 
 /*
@@ -269,8 +263,6 @@ static	void	irig_base	P((struct peer *, double));
 static	void	irig_rf		P((struct peer *, double));
 static	void	irig_decode	P((struct peer *, int));
 static	void	irig_gain	P((struct peer *));
-static	int	irig_audio	P((void));
-static	void	irig_debug	P((void));
 
 /*
  * Transfer vector
@@ -288,11 +280,6 @@ struct	refclock refclock_irig = {
 /*
  * Global variables
  */
-#ifdef HAVE_SYS_AUDIOIO_H
-struct	audio_device device;	/* audio device ident */
-#endif /* HAVE_SYS_AUDIOIO_H */
-static struct	audio_info info; /* audio device info */
-static int	irig_ctl_fd;	/* audio control file descriptor */
 static char	hexchar[] = {	/* really quick decoding table */
 	'0', '8', '4', 'c',		/* 0000 0001 0010 0011 */
 	'2', 'a', '6', 'e',		/* 0100 0101 0110 0111 */
@@ -323,11 +310,13 @@ irig_start(
 	/*
 	 * Open audio device
 	 */
-	fd = open("/dev/audio", O_RDWR | O_NONBLOCK, 0777);
-	if (fd == -1) {
-		perror("audio");
+	fd = audio_init();
+	if (fd < 0)
 		return (0);
-	}
+#ifdef DEBUG
+	if (debug)
+		audio_show();
+#endif
 
 	/*
 	 * Allocate and initialize unit structure
@@ -359,11 +348,7 @@ irig_start(
 	up->tc = MINTC;
 	up->decim = 1;
 	up->fdelay = IRIG_B;
-	up->gain = (AUDIO_MAX_GAIN - AUDIO_MIN_GAIN) / 2;
-	if (irig_audio() < 0) {
-		io_closeclock(&pp->io);
-		return(0);
-	}
+	up->gain = 127;
 	up->pollcnt = 2;
 
 	/*
@@ -380,7 +365,7 @@ irig_start(
                 if (i % 16 == 0)
 		    step *= 2.;
 	}
-	DTOLFP(1. / SAMPLES, &up->tick);
+	DTOLFP(1. / SECOND, &up->tick);
 	return (1);
 }
 
@@ -436,7 +421,7 @@ irig_receive(
 	 */
 	up->timestamp = rbufp->recv_time;
 	up->bufcnt = rbufp->recv_length;
-	DTOLFP((double)up->bufcnt / SAMPLES, &ltemp);
+	DTOLFP((double)up->bufcnt / SECOND, &ltemp);
 	L_SUB(&up->timestamp, &ltemp);
 	dpt = rbufp->recv_buffer;
 	for (up->bufptr = 0; up->bufptr < up->bufcnt; up->bufptr++) {
@@ -462,7 +447,7 @@ irig_receive(
 		 * unit produces a change of 360 degrees; a frequency
 		 * change of one unit produces a change of 1 Hz.
 		 */
-		up->phase += up->freq / SAMPLES;
+		up->phase += up->freq / SECOND;
 		if (up->phase >= .5) {
 			up->phase -= 1.;
 		} else if (up->phase < -.5) {
@@ -478,7 +463,7 @@ irig_receive(
 		 * Once each second, determine the IRIG format, codec
 		 * port and gain.
 		 */
-		up->seccnt = (up->seccnt + 1) % SAMPLES;
+		up->seccnt = (up->seccnt + 1) % SECOND;
 		if (up->seccnt == 0) {
 			if (up->irig_b > up->irig_e) {
 				up->decim = 1;
@@ -488,11 +473,10 @@ irig_receive(
 				up->fdelay = IRIG_E;
 			}
 			if (pp->sloppyclockflag & CLK_FLAG2)
-			    up->port = AUDIO_LINE_IN;
+			    up->port = 2;
 			else
-			    up->port = AUDIO_MICROPHONE;
+			    up->port = 1;
 			irig_gain(peer);
-			up->clipcnt = 0;
 			up->irig_b = up->irig_e = 0;
 		}
 	}
@@ -755,7 +739,7 @@ irig_base(
 		 * this plus the delay since the last carrier positive
 		 * zero crossing.
 		 */
-		DTOLFP(up->decim * (dtemp / SAMPLES + 1.) + up->fdelay,
+		DTOLFP(up->decim * (dtemp / SECOND + 1.) + up->fdelay,
 		       &ltemp);
 		pp->lastrec = up->timestamp;
 		L_SUB(&pp->lastrec, &ltemp);
@@ -890,9 +874,9 @@ irig_decode(
 				"%02x %c %2d %3d %02d:%02d:%02d %4.0f %3d %6.3f %2d %2d %6.3f %6.1f %s",
 				up->errflg, syncchar, pp->year, pp->day,
 				pp->hour, pp->minute, pp->second,
-				up->maxsignal, info.record.gain, up->modndx,
+				up->maxsignal, up->gain, up->modndx,
 				up->envxing, up->tc, up->yxing, up->freq *
-				1e6 / SAMPLES, ulfptoa(&up->montime, 6));
+				1e6 / SECOND, ulfptoa(&up->montime, 6));
 			pp->lencode = strlen(pp->a_lastcode);
 			if (up->timecnt == 0 || pp->sloppyclockflag &
 			    CLK_FLAG4)
@@ -964,115 +948,21 @@ irig_gain(
 	/*
 	 * Apparently, the codec uses only the high order bits of the
 	 * gain control field. Thus, it may take awhile for changes to
-	 * wiggle the hardware bits. Set the new bits in the structure
-	 * and call AUDIO_SETINFO. Upon return, the old bits are in the
-	 * structure.
+	 * wiggle the hardware bits.
 	 */
 	if (up->clipcnt == 0) {
 		up->gain += 4;
-		if (up->gain > AUDIO_MAX_GAIN)
-		    up->gain = AUDIO_MAX_GAIN;
-	} else if (up->clipcnt > SAMPLES / 100) {
+		if (up->gain > 255)
+			up->gain = 255;
+	} else if (up->clipcnt > SECOND / 100) {
 		up->gain -= 4;
-		if (up->gain < AUDIO_MIN_GAIN)
-		    up->gain = AUDIO_MIN_GAIN;
+		if (up->gain < 0)
+			up->gain = 0;
 	}
-	AUDIO_INITINFO(&info);
-	info.record.port = up->port;
-	info.record.gain = up->gain;
-	info.record.error = 0;
-	ioctl(irig_ctl_fd, (int)AUDIO_SETINFO, &info);
-	if (info.record.error)
-	    up->errflg |= IRIG_ERR_ERROR;
+	audio_gain(up->gain, up->port);
+	up->clipcnt = 0;
 }
 
-
-/*
- * irig_audio - initialize audio device
- *
- * This code works with SunOS 4.1.3 and Solaris 2.6; however, it is
- * believed generic and applicable to other systems with a minor twid
- * or two. All it does is open the device, set the buffer size (Solaris
- * only), preset the gain and set the input port. It assumes that the
- * codec sample rate (8000 Hz), precision (8 bits), number of channels
- * (1) and encoding (ITU-T G.711 mu-law companded) have been set by
- * default.
- */
-static int
-irig_audio(
-	)
-{
-	/*
-	 * Open audio control device
-	 */
-	if ((irig_ctl_fd = open("/dev/audioctl", O_RDWR)) < 0) {
-		perror("audioctl");
-		return(-1);
-	}
-#ifdef HAVE_SYS_AUDIOIO_H
-	/*
-	 * Set audio device parameters.
-	 */
-	AUDIO_INITINFO(&info);
-	info.record.buffer_size = AUDIO_BUFSIZ;
-	if (ioctl(irig_ctl_fd, (int)AUDIO_SETINFO, &info) < 0) {
-		perror("AUDIO_SETINFO");
-		close(irig_ctl_fd);
-		return(-1);
-	}
-#endif /* HAVE_SYS_AUDIOIO_H */
-#ifdef DEBUG
-	irig_debug();
-#endif /* DEBUG */
-	return(0);
-}
-
-
-#ifdef DEBUG
-/*
- * irig_debug - display audio parameters
- *
- * This code doesn't really do anything, except satisfy curiousity and
- * verify the ioctl's work.
- */
-static void
-irig_debug(
-	)
-{
-	if (debug == 0)
-	    return;
-#ifdef HAVE_SYS_AUDIOIO_H
-	ioctl(irig_ctl_fd, (int)AUDIO_GETDEV, &device);
-	printf("irig: name %s, version %s, config %s\n",
-	       device.name, device.version, device.config);
-#endif /* HAVE_SYS_AUDIOIO_H */
-	ioctl(irig_ctl_fd, (int)AUDIO_GETINFO, &info);
-	printf(
-		"irig: samples %d, channels %d, precision %d, encoding %d\n",
-		info.record.sample_rate, info.record.channels,
-		info.record.precision, info.record.encoding);
-#ifdef HAVE_SYS_AUDIOIO_H
-	printf("irig: gain %d, port %d, buffer %d\n",
-	       info.record.gain, info.record.port,
-	       info.record.buffer_size);
-#else /* HAVE_SYS_AUDIOIO_H */
-	printf("irig: gain %d, port %d\n",
-	       info.record.gain, info.record.port);
-#endif /* HAVE_SYS_AUDIOIO_H */
-	printf(
-		"irig: samples %d, eof %d, pause %d, error %d, waiting %d, balance %d\n",
-		info.record.samples, info.record.eof,
-		info.record.pause, info.record.error,
-		info.record.waiting, info.record.balance);
-#ifdef __NetBSD__
-	printf("irig: monitor %d, blocksize %d, hiwat %d, lowat %d, mode %d\n",
-	       info.monitor_gain, info.blocksize, info.hiwat, info.lowat, info.mode);
-#else /* __NetBSD__ */
-	printf("irig: monitor %d, muted %d\n",
-	       info.monitor_gain, info.output_muted);
-#endif /* __NetBSD__ */
-}
-#endif /* DEBUG */
 
 #else
 int refclock_irig_bs;

@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/clk_rawdcf.c,v 4.6 1998/06/14 21:09:37 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/clk_rawdcf.c,v 4.9 1999/12/06 13:42:23 kardel Exp
  *  
- * clk_rawdcf.c,v 4.6 1998/06/14 21:09:37 kardel RELEASE_19990228_A
+ * clk_rawdcf.c,v 4.9 1999/12/06 13:42:23 kardel Exp
  *
  * Raw DCF77 pulse clock support
  *
@@ -88,6 +88,10 @@ static u_long pps_rawdcf P((parse_t *, int, timestamp_t *));
 static u_long cvt_rawdcf P((unsigned char *, int, struct format *, clocktime_t *, void *));
 static u_long inp_rawdcf P((parse_t *, unsigned int, timestamp_t  *));
 
+typedef struct last_tcode {
+	time_t tcode;	/* last converted time code */
+} last_tcode_t;
+
 clockformat_t clock_rawdcf =
 {
   inp_rawdcf,			/* DCF77 input handling */
@@ -97,7 +101,7 @@ clockformat_t clock_rawdcf =
   "RAW DCF77 Timecode",		/* direct decoding / time synthesis */
 
   61,				/* bit buffer */
-  0				/* no private data (currently in input buffer) */
+  sizeof(last_tcode_t)
 };
 
 static struct dcfparam
@@ -316,11 +320,12 @@ cvt_rawdcf(
 	   void            *local
 	   )
 {
+	         last_tcode_t  *t = (last_tcode_t *)local;
 	register unsigned char *s = (unsigned char *)buffer;
 	register unsigned char *e = s + size;
 	register unsigned char *b = dcfparameter.onebits;
 	register unsigned char *c = dcfparameter.zerobits;
-	register unsigned rtc = CVT_NONE;
+	         u_long   rtc = CVT_NONE;
 	register unsigned int i, lowmax, highmax, cutoff, span;
 #define BITS 9
 	unsigned char     histbuf[BITS];
@@ -458,7 +463,30 @@ cvt_rawdcf(
 		c++;
 	}
 
-	return (rtc == CVT_NONE) ? convert_rawdcf(buffer, size, &dcfparameter, clock_time) : rtc;
+        if (rtc == CVT_NONE)
+        {
+	       rtc = convert_rawdcf(buffer, size, &dcfparameter, clock_time);
+	       if (rtc == CVT_OK)
+	       {
+			time_t newtime;
+
+			newtime = parse_to_unixtime(clock_time, &rtc);
+			if ((rtc == CVT_OK) && t)
+			{
+				if ((newtime - t->tcode) == 60) /* guard against multi bit errors */
+				{
+					clock_time->utctime = newtime;
+				}
+				else
+				{
+					rtc = CVT_FAIL|CVT_BADTIME;
+				}
+				t->tcode            = newtime;
+			}
+	       }
+        }
+	 
+    	return rtc;
 }
 
 /*
@@ -555,6 +583,15 @@ int clk_rawdcf_bs;
  * History:
  *
  * clk_rawdcf.c,v
+ * Revision 4.9  1999/12/06 13:42:23  kardel
+ * transfer correctly converted time codes always into tcode
+ *
+ * Revision 4.8  1999/11/28 09:13:50  kardel
+ * RECON_4_0_98F
+ *
+ * Revision 4.7  1999/04/01 20:07:20  kardel
+ * added checking for minutie increment of timestamps in clk_rawdcf.c
+ *
  * Revision 4.6  1998/06/14 21:09:37  kardel
  * Sun acc cleanup
  *
