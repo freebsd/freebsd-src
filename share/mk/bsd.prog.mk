@@ -178,7 +178,7 @@ distribute: _SUBDIR
 .if !target(lint)
 lint: ${SRCS} _SUBDIR
 .if defined(PROG)
-	@${LINT} ${LINTFLAGS} ${CFLAGS} ${.ALLSRC} | more 2>&1
+	@${LINT} ${LINTFLAGS} ${.ALLSRC} | more 2>&1
 .endif
 .endif
 
