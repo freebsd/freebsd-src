@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.25.2.1 1999/01/31 13:06:22 yokota Exp $
+# $Id: INDEX.keymaps,v 1.25.2.2 1999/06/23 08:21:39 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -36,6 +36,10 @@ FONT:pl:iso02-8x16.fnt
 be.iso.kbd:en:Belgian ISO-8859-1
 be.iso.kbd:de:Belgisch ISO-8859-1
 be.iso.kbd:pt,es:Belga ISO-8859-1
+
+be.iso.acc.kbd:en:Belgian ISO-8859-1 (accent keys)
+be.iso.acc.kbd:de:Belgisch ISO-8859-1 (accent keys)
+be.iso.acc.kbd:pt,es:Belga ISO-8859-1 (com acentos)
 
 br275.iso.kbd:en:Brazilian 275 ISO-8859-1
 br275.iso.kbd:de:Brasilianische 275 ISO-8859-1
