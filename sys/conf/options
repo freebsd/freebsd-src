@@ -1,4 +1,4 @@
-#	$Id: options,v 1.109 1998/11/26 23:13:11 n_hibma Exp $
+#	$Id: options,v 1.110 1998/12/05 03:19:48 dillon Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -185,9 +185,11 @@ BOOTP_COMPAT		opt_bootp.h
 BOOTP_NFSROOT		opt_bootp.h
 BOOTP_NFSV3		opt_bootp.h
 BOOTP_WIRED_TO		opt_bootp.h
+BRIDGE			opt_bdg.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
 IPDIVERT
+DUMMYNET		opt_ipdn.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
