@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 # BIND version number
-CFLAGS+=	-DVERSION='"9.3.0rc4"'
+CFLAGS+=	-DVERSION='"9.3.0"'
 
 CFLAGS+=	-DHAVE_CONFIG_H
 
@@ -15,7 +15,7 @@ SHLIB_MINOR=	${LIBINTERFACE}
 CFLAGS+=	-DLIBAGE=${LIBAGE}
 .endif
 
-# GSSAPI support is incomplete in 9.3.0rc4
+# GSSAPI support is incomplete in 9.3.0
 #.if !defined(NO_KERBEROS)
 #CFLAGS+=	-DGSSAPI
 #.endif
