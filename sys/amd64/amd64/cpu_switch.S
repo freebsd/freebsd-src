@@ -194,14 +194,18 @@ sw1b:
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f				/* Load it up */
 
-1:		/* Use the common default TSS instead of our own */
-		/* Set our stack pointer into the TSS, it's set to just */
-		/* below the PCB. In C,  common_tss.tss_esp0 = &pcb - 16; */
+1:	/*
+	 * Use the common default TSS instead of our own.
+	 * Set our stack pointer into the TSS, it's set to just
+	 * below the PCB.  In C, common_tss.tss_esp0 = &pcb - 16;
+	 */
 	leal	-16(%edx), %ebx			/* leave space for vm86 */
 	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
 
-		/* Test this CPU's  bit in the bitmap to see if this */
-		/* CPU was using a private TSS. */
+	/*
+	 * Test this CPU's  bit in the bitmap to see if this
+	 * CPU was using a private TSS.
+	 */
 	btrl	%esi, private_tss		/* Already using the common? */
 	jae	3f				/* if so, skip reloading */
 	PCPU_ADDR(COMMON_TSSD, %edi)
