@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.105 1998/10/13 09:45:59 jkh Exp $
+ * $Id: disks.c,v 1.106 1998/10/13 09:49:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -36,6 +36,8 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/disklabel.h>
 
 /* Where we start displaying chunk information on the screen */
@@ -531,6 +533,37 @@ diskPartition(Device *dev)
     restorescr(w);
 }
 
+static u_char *
+bootalloc(char *name)
+{
+    char buf[FILENAME_MAX];
+    struct stat sb;
+
+    snprintf(buf, sizeof buf, "/boot/%s", name);
+    if (stat(buf, &sb) != -1) {
+	int fd;
+
+	fd = open(buf, O_RDONLY);
+	if (fd != -1) {
+	    u_char *cp;
+
+	    cp = malloc(sb.st_size);
+	    if (read(fd, cp, sb.st_size) != sb.st_size) {
+		free(cp);
+		close(fd);
+		msgDebug("bootalloc: couldn't read %d bytes from %s\n", sb.st_size, buf);
+		return NULL;
+	    }
+	    close(fd);
+	    return cp;
+	}
+	msgDebug("bootalloc: couldn't open %s\n", buf);
+    }
+    else
+	msgDebug("bootalloc: can't stat %s\n", buf);
+    return NULL;
+}
+	
 static int
 partitionHook(dialogMenuItem *selected)
 {
@@ -639,15 +672,16 @@ diskPartitionWrite(dialogMenuItem *self)
     for (i = 0; devs[i]; i++) {
 	Chunk *c1;
 	Disk *d = (Disk *)devs[i]->private;
+	static u_char *boot1;
+	static u_char *boot2;
 
 	if (!devs[i]->enabled)
 	    continue;
 
-#ifdef __alpha__
-	Set_Boot_Blocks(d, boot1, NULL);
-#else
+	if (!boot1) boot1 = bootalloc("boot1");
+	if (!boot2) boot2 = bootalloc("boot2");
 	Set_Boot_Blocks(d, boot1, boot2);
-#endif
+
 	msgNotify("Writing partition information to drive %s", d->name);
 	if (!Fake && Write_Disk(d)) {
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
