@@ -1035,7 +1035,7 @@ static char *
 getRelname(void)
 {
     static char buf[64];
-    int sz = (sizeof buf) - 1;
+    size_t sz = (sizeof buf) - 1;
 
     if (sysctlbyname("kern.osrelease", buf, &sz, NULL, 0) != -1) {
 	buf[sz] = '\0';

@@ -44,7 +44,8 @@
 void
 configTtys(void)
 {
-    int len, t, tlen, changed;
+    size_t len;
+    int t, tlen, changed;
     FILE *fp, *np;
     char sq, *line, *p, *q, *cp, *tptr;
     char templ[sizeof(_PATH_TTYS) + sizeof(_X_EXTENSION) - 1];
