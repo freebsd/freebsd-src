@@ -606,10 +606,8 @@ gv_new_sd(int max, char *token[])
 				break;
 			}
 			s->size = gv_sizespec(token[j]);
-			if (s->size <= 0) {
-				errors++;
-				break;
-			}
+			if (s->size <= 0)
+				s->size = -1;
 		} else if (!strcmp(token[j], "driveoffset")) {
 			j++;
 			if (j >= max) {
