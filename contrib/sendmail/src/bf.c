@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -18,7 +18,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: bf.c,v 8.48 2001/11/04 17:10:49 ca Exp $")
+SM_RCSID("@(#)$Id: bf.c,v 8.51 2002/03/04 21:51:25 gshapiro Exp $")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -61,7 +61,6 @@ struct bf
 	MODE_T	bf_filemode;	/* Mode of buffered file, if ever committed */
 	off_t	bf_offset;	/* Currect file offset */
 	int	bf_size;	/* Total current size of file */
-	int	bf_refcount;	/* Reference count */
 };
 
 #ifdef BF_STANDALONE
@@ -84,10 +83,8 @@ struct bf_info
 **
 **	Parameters:
 **		fp -- file pointer being filled-in for file being open'd
-**		filename -- name of the file being open'd
+**		info -- information about file being opened
 **		flags -- ignored
-**		fmode -- file mode (stored for use later)
-**		sflags -- "safeopen" flags (stored for use later)
 **		rpool -- ignored (currently)
 **
 **	Returns:
@@ -156,7 +153,6 @@ sm_bfopen(fp, info, flags, rpool)
 	/* Nearly home free, just set all the parameters now */
 	bfp->bf_committed = false;
 	bfp->bf_ondisk = false;
-	bfp->bf_refcount = 1;
 	bfp->bf_flags = sflags;
 	bfp->bf_bufsize = bsize;
 	bfp->bf_buffilled = 0;
@@ -173,7 +169,7 @@ sm_bfopen(fp, info, flags, rpool)
 	(void) sm_strlcpy(bfp->bf_filename, filename, l);
 	bfp->bf_filemode = fmode;
 	bfp->bf_offset = 0;
-	bfp->bf_size = bsize;
+	bfp->bf_size = 0;
 	bfp->bf_disk_fd = -1;
 	fp->f_cookie = bfp;
 
@@ -262,6 +258,8 @@ sm_bfgetinfo(fp, what, valp)
 	{
 	  case SM_IO_WHAT_FD:
 		return bfp->bf_disk_fd;
+	  case SM_IO_WHAT_SIZE:
+		return bfp->bf_size;
 	  default:
 		return -1;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: strl.c,v 1.29 2001/10/03 16:09:32 ca Exp $")
+SM_RCSID("@(#)$Id: strl.c,v 1.31 2002/01/20 01:41:25 gshapiro Exp $")
 #include <sm/config.h>
 #include <sm/string.h>
 
@@ -229,6 +229,7 @@ sm_strlcpyn(dst, len, n, va_alist)
 		i = 0;
 		while (n-- > 0)
 			i += strlen(SM_VA_ARG(ap, char *));
+		SM_VA_END(ap);
 		return i;
 	}
 
@@ -251,9 +252,11 @@ sm_strlcpyn(dst, len, n, va_alist)
 			j += strlen(str + i);
 			while (n-- > 0)
 				j += strlen(SM_VA_ARG(ap, char *));
+			SM_VA_END(ap);
 			return j;
 		}
 	}
+	SM_VA_END(ap);
 
 	dst[j] = '\0';	/* terminate dst; there is space since j < len */
 	return j;

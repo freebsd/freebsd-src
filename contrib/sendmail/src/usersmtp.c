@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.428 2002/01/08 00:56:23 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.431 2002/04/03 00:23:25 gshapiro Exp $")
 
 #include <sysexits.h>
 
@@ -73,6 +73,7 @@ smtpinit(m, mci, e, onlyhelo)
 	bool onlyhelo;
 {
 	register int r;
+	int state;
 	register char *p;
 	register char *hn;
 	char *enhsc;
@@ -93,6 +94,7 @@ smtpinit(m, mci, e, onlyhelo)
 	if (CurHostName == NULL)
 		CurHostName = MyHostName;
 	SmtpNeedIntro = true;
+	state = mci->mci_state;
 	switch (mci->mci_state)
 	{
 	  case MCIS_MAIL:
@@ -115,7 +117,7 @@ smtpinit(m, mci, e, onlyhelo)
 		/* FALLTHROUGH */
 
 	  case MCIS_CLOSED:
-		syserr("451 4.4.0 smtpinit: state CLOSED");
+		syserr("451 4.4.0 smtpinit: state CLOSED (was %d)", state);
 		return;
 
 	  case MCIS_OPENING:
@@ -1903,15 +1905,11 @@ smtpmailfrom(m, mci, e)
 	{
 		/* communications failure */
 		mci_setstat(mci, EX_TEMPFAIL, "4.4.2", NULL);
-		smtpquit(m, mci, e);
 		return EX_TEMPFAIL;
 	}
 	else if (r == SMTPCLOSING)
 	{
-		/* service shutting down */
-		mci_setstat(mci, EX_TEMPFAIL, ENHSCN(enhsc, "4.5.0"),
-			    SmtpReplyBuffer);
-		smtpquit(m, mci, e);
+		/* service shutting down: handled by reply() */
 		return EX_TEMPFAIL;
 	}
 	else if (REPLYTYPE(r) == 4)
@@ -2307,7 +2305,8 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	r = reply(m, mci, e, TimeOuts.to_datainit, NULL, &enhsc);
 	if (r < 0 || REPLYTYPE(r) == 4)
 	{
-		smtpquit(m, mci, e);
+		if (r >= 0)
+			smtpquit(m, mci, e);
 		errno = mci->mci_errno;
 		return EX_TEMPFAIL;
 	}
@@ -2458,10 +2457,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 		return EX_OK;
 	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc);
 	if (r < 0)
-	{
-		smtpquit(m, mci, e);
 		return EX_TEMPFAIL;
-	}
 	mci->mci_state = MCIS_OPEN;
 	xstat = EX_NOTSTICKY;
 	if (r == 452)
@@ -2567,10 +2563,7 @@ smtpgetstat(m, mci, e)
 	/* check for the results of the transaction */
 	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc);
 	if (r < 0)
-	{
-		smtpquit(m, mci, e);
 		return EX_TEMPFAIL;
-	}
 	xstat = EX_NOTSTICKY;
 	if (REPLYTYPE(r) == 4)
 		status = EX_TEMPFAIL;
@@ -2624,6 +2617,9 @@ smtpquit(m, mci, e)
 	int rcode;
 	char *oldcurhost;
 
+	if (mci->mci_state == MCIS_CLOSED)
+		return;
+
 	oldcurhost = CurHostName;
 	CurHostName = mci->mci_host;		/* XXX UGLY XXX */
 	if (CurHostName == NULL)
@@ -2646,15 +2642,12 @@ smtpquit(m, mci, e)
 	if (mci->mci_state != MCIS_ERROR &&
 	    mci->mci_state != MCIS_QUITING)
 	{
-		int origstate = mci->mci_state;
-
 		SmtpPhase = "client QUIT";
 		mci->mci_state = MCIS_QUITING;
 		smtpmessage("QUIT", m, mci);
 		(void) reply(m, mci, e, TimeOuts.to_quit, NULL, NULL);
 		SuprErrs = oldSuprErrs;
-		if (mci->mci_state == MCIS_CLOSED ||
-		    origstate == MCIS_CLOSED)
+		if (mci->mci_state == MCIS_CLOSED)
 			goto end;
 	}
 
@@ -2729,23 +2722,19 @@ smtprset(m, mci, e)
 	smtpmessage("RSET", m, mci);
 	r = reply(m, mci, e, TimeOuts.to_rset, NULL, NULL);
 	if (r < 0)
-		mci->mci_state = MCIS_ERROR;
-	else
-	{
-		/*
-		**  Any response is deemed to be acceptable.
-		**  The standard does not state the proper action
-		**  to take when a value other than 250 is received.
-		**
-		**  However, if 421 is returned for the RSET, leave
-		**  mci_state as MCIS_SSD (set in reply()).
-		*/
-
-		if (mci->mci_state != MCIS_SSD)
-			mci->mci_state = MCIS_OPEN;
 		return;
-	}
-	smtpquit(m, mci, e);
+
+	/*
+	**  Any response is deemed to be acceptable.
+	**  The standard does not state the proper action
+	**  to take when a value other than 250 is received.
+	**
+	**  However, if 421 is returned for the RSET, leave
+	**  mci_state as MCIS_SSD (set in reply()).
+	*/
+
+	if (mci->mci_state != MCIS_SSD)
+		mci->mci_state = MCIS_OPEN;
 }
 /*
 **  SMTPPROBE -- check the connection state
@@ -2777,7 +2766,7 @@ smtpprobe(mci)
 	SmtpPhase = "client probe";
 	smtpmessage("RSET", m, mci);
 	r = reply(m, mci, e, TimeOuts.to_miscshort, NULL, NULL);
-	if (r < 0 || REPLYTYPE(r) != 2)
+	if (REPLYTYPE(r) != 2)
 		smtpquit(m, mci, e);
 	return r;
 }
@@ -2853,6 +2842,15 @@ reply(m, mci, e, timeout, pfunc, enhstat)
 		{
 			if (mci->mci_errno == 0)
 				mci->mci_errno = EBADF;
+
+			/* errors on QUIT should be ignored */
+			if (strncmp(SmtpMsgBuffer, "QUIT", 4) == 0)
+			{
+				errno = mci->mci_errno;
+				return -1;
+			}
+			mci->mci_state = MCIS_ERROR;
+			smtpquit(m, mci, e);
 			errno = mci->mci_errno;
 			return -1;
 		}
@@ -2869,6 +2867,10 @@ reply(m, mci, e, timeout, pfunc, enhstat)
 		{
 			bool oldholderrs;
 			extern char MsgBuf[];
+
+			/* errors on QUIT should be ignored */
+			if (strncmp(SmtpMsgBuffer, "QUIT", 4) == 0)
+				return -1;
 
 			/* if the remote end closed early, fake an error */
 			errno = save_errno;
@@ -2890,10 +2892,7 @@ reply(m, mci, e, timeout, pfunc, enhstat)
 			HoldErrs = true;
 			usrerr("451 4.4.1 reply: read error from %s",
 			       CURHOSTNAME);
-
-			/* errors on QUIT should not be persistent */
-			if (strncmp(SmtpMsgBuffer, "QUIT", 4) != 0)
-				mci_setstat(mci, EX_TEMPFAIL, "4.4.2", MsgBuf);
+			mci_setstat(mci, EX_TEMPFAIL, "4.4.2", MsgBuf);
 
 			/* if debugging, pause so we can see state */
 			if (tTd(18, 100))
@@ -2993,7 +2992,8 @@ reply(m, mci, e, timeout, pfunc, enhstat)
 		(void) sm_strlcpy(SmtpError, SmtpReplyBuffer, sizeof SmtpError);
 
 	/* reply code 421 is "Service Shutting Down" */
-	if (r == SMTPCLOSING && mci->mci_state != MCIS_SSD)
+	if (r == SMTPCLOSING && mci->mci_state != MCIS_SSD &&
+	    mci->mci_state != MCIS_QUITING)
 	{
 		/* send the quit protocol */
 		mci->mci_state = MCIS_SSD;

@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
 ##
-## Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+## Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 ##	All rights reserved.
 ##
-## $Id: qtool.pl,v 8.26 2001/11/21 19:26:17 gshapiro Exp $
+## $Id: qtool.pl,v 8.27 2002/01/29 21:55:49 ca Exp $
 ##
 use strict;
 use File::Basename;
@@ -17,6 +17,11 @@ use Getopt::Std;
 ##	This program is for moving files between sendmail queues. It is
 ## pretty similar to just moving the files manually, but it locks the files
 ## the same way sendmail does to prevent problems. 
+##
+##	NOTICE: Do not use this program to move queue files around
+## if you use sendmail 8.12 and multiple queue groups. It may interfere
+## with sendmail's internal queue group selection strategy and can cause
+## mail to be not delivered.
 ##
 ## 	The syntax is the reverse of mv (ie. the target argument comes
 ## first). This lets you pick the files you want to move using find and
@@ -62,6 +67,7 @@ my $result;
 my $action;
 my $new_condition;
 my $qprefix;
+my $queuegroups = 0;
 my $conditions = new Compound();
 
 Getopt::Std::getopts('bC:de:Qs:', \%opts);
@@ -147,6 +153,10 @@ my $queue_root;
 
 	my $line;
 	open(CONFIG_FILE, $config_file) or die "$config_file: $!";
+
+	##  Notice: we can only break out of this loop (using last)
+	##	when both entries (queue directory and group group)
+	##	have been found.
 	while ($line = <CONFIG_FILE>)
 	{
 		chomp $line;
@@ -157,7 +167,26 @@ my $queue_root;
 			{
 				$queue_root = $1;
 			}
-			last;
+			# found also queue groups?
+			if ($queuegroups)
+			{
+				last;
+			}
+		}
+		if ($line =~ m/^Q.*/)
+		{
+			$queuegroups = 1;
+			if ($action == \&move_action)
+			{
+				print("WARNING: moving queue files around " .
+				      "when queue groups are used may\n" .
+				      "result in undelivered mail!\n");
+			}
+			# found also queue directory?
+			if (defined $queue_root)
+			{
+				last;
+			}
 		}
 	}
 	close(CONFIG_FILE);

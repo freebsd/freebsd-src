@@ -26,13 +26,13 @@
 
 #####  $Id: cfhead.m4,v 8.107 2001/07/22 03:25:37 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: submit.mc,v 8.5 2001/09/08 01:20:53 gshapiro Exp $  #####
-#####  $Id: msp.m4,v 1.29 2001/12/13 23:56:38 gshapiro Exp $  #####
+#####  $Id: submit.mc,v 8.6 2002/03/26 03:30:58 ca Exp $  #####
+#####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
 
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.628 2001/12/28 19:02:40 ca Exp $  #####
+#####  $Id: proto.m4,v 8.639 2002/04/02 23:42:42 gshapiro Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -106,11 +106,11 @@ Kdequote dequote
 DnMAILER-DAEMON
 
 
-D{MTAHost}localhost
+D{MTAHost}[localhost]
 
 
 # Configuration version number
-DZ8.12.2/Submit
+DZ8.12.3/Submit
 
 
 ###############
@@ -127,7 +127,7 @@ O SevenBitInput=False
 O AliasWait=10
 
 # location of alias file
-O AliasFile
+#O AliasFile=/etc/mail/aliases
 
 # minimum number of free blocks on filesystem
 O MinFreeBlocks=100
@@ -259,6 +259,8 @@ O QueueDirectory=/var/spool/clientmqueue
 # key for shared memory; 0 to turn off
 #O SharedMemoryKey=0
 
+
+
 # timeouts (many of these)
 #O Timeout.initial=5m
 #O Timeout.connect=5m
@@ -312,7 +314,7 @@ O StatusFile=/var/spool/clientmqueue/sm-client.st
 #  if undefined, use system default
 #  if defined but null, use TZ envariable passed in
 #  if defined and non-null, use that info
-#O TimeZoneSpec=
+O TimeZoneSpec=
 
 # default UID (can be username or userid:groupid)
 #O DefaultUser=mailnull
@@ -1351,19 +1353,19 @@ SMasqRelay
 R$+			$: $>MasqSMTP $1
 R$+			$: $>MasqHdr $1
 
-Msmtp,		P=[IPC], F=mDFMuXk05, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
+Msmtp,		P=[IPC], F=mDFMuXk5, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
 		T=DNS/RFC822/SMTP,
 		A=TCP $h
-Mesmtp,		P=[IPC], F=mDFMuXak05, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
+Mesmtp,		P=[IPC], F=mDFMuXak5, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
 		T=DNS/RFC822/SMTP,
 		A=TCP $h
-Msmtp8,		P=[IPC], F=mDFMuX8k05, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
+Msmtp8,		P=[IPC], F=mDFMuX8k5, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
 		T=DNS/RFC822/SMTP,
 		A=TCP $h
-Mdsmtp,		P=[IPC], F=mDFMuXa%k05, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
+Mdsmtp,		P=[IPC], F=mDFMuXa%k5, S=EnvFromSMTP/HdrFromSMTP, R=EnvToSMTP, E=\r\n, L=990,
 		T=DNS/RFC822/SMTP,
 		A=TCP $h
-Mrelay,		P=[IPC], F=mDFMuXa8k0, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=2040,
+Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=2040,
 		T=DNS/RFC822/SMTP,
 		A=TCP $h
 

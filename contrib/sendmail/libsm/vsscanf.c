@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: vsscanf.c,v 1.22 2001/09/11 04:04:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: vsscanf.c,v 1.23 2002/02/01 02:28:00 ca Exp $")
 #include <string.h>
 #include <sm/io.h>
 
@@ -77,7 +77,6 @@ sm_vsscanf(str, fmt, ap)
 	fake.f_bf.smb_size = fake.f_r = strlen(str);
 	fake.f_read = sm_eofread;
 	fake.f_ub.smb_base = NULL;
-	fake.f_lb.smb_base = NULL;
 	fake.f_close = NULL;
 	fake.f_open = NULL;
 	fake.f_write = NULL;
