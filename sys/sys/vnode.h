@@ -133,6 +133,12 @@ struct vnode {
 	} v_un;
 
 	/*
+	 * vfs_hash:  (mount + inode) -> vnode hash.
+	 */
+	LIST_ENTRY(vnode)	v_hashlist;
+	u_int			v_hash;
+
+	/*
 	 * VFS_namecache stuff
 	 */
 	LIST_HEAD(, namecache) v_cache_src;	/* c Cache entries from us */
@@ -232,6 +238,7 @@ struct xvnode {
  *	VI flags are protected by interlock and live in v_iflag
  *	VV flags are protected by the vnode lock and live in v_vflag
  */
+#define	VI_HASHED	0x0004	/* vnode is hashed in vfs_hash */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
 #define	VI_AGE		0x0040	/* Insert vnode at head of free list */
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
@@ -699,6 +706,11 @@ extern struct vop_vector default_vnodeops;
 #define VOP_EINVAL	((void*)(uintptr_t)vop_einval)
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
 
+/* vfs_hash.c */
+int vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp);
+int vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp);
+void vfs_hash_rehash(struct vnode *vp, u_int hash);
+void vfs_hash_remove(struct vnode *vp);
 
 #endif /* _KERNEL */
 
