@@ -460,7 +460,7 @@ readone(int fd, struct pcisel *sel, long reg, int width)
 	if (ioctl(fd, PCIOCREAD, &pi) < 0)
 		err(1, "ioctl(PCIOCREAD)");
 
-	printf("0x%08x", pi.pi_data);
+	printf("%0*x", width*2, pi.pi_data);
 }
 
 static void
@@ -486,9 +486,10 @@ readit(const char *name, const char *reg, int width)
 	sel = getsel(name);
 	for (i = 1, r = rstart; r <= rend; i++, r += width) {	
 		readone(fd, &sel, r, width);
-		putchar(i % 4 ? ' ' : '\n');
+		if (i && !(i % 8)) putchar(' ');
+		putchar(i % (16/width) ? ' ' : '\n');
 	}
-	if (i % 4 != 1)
+	if (i % (16/width) != 1)
 		putchar('\n');
 	close(fd);
 }
