@@ -1107,8 +1107,8 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
  */
 #define vm_map_clip_end(map, entry, endaddr) \
 { \
-	if (endaddr < entry->end) \
-		_vm_map_clip_end(map, entry, endaddr); \
+	if ((endaddr) < (entry->end)) \
+		_vm_map_clip_end((map), (entry), (endaddr)); \
 }
 
 /*
