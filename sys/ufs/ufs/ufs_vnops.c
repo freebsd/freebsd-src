@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.32 1995/11/05 23:35:58 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.33 1995/11/09 08:14:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ static int ufs_chmod __P((struct vnode *, int, struct ucred *, struct proc *));
 static int ufs_chown
 	__P((struct vnode *, uid_t, gid_t, struct ucred *, struct proc *));
 
-#if EXT2FS
+#ifdef EXT2FS
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
@@ -673,7 +673,7 @@ ufs_remove(ap)
 		error = EPERM;
 		goto out;
 	}
-#if EXT2FS
+#ifdef EXT2FS
 	if (IS_EXT2_VNODE(dvp)) {
 		error = ext2_dirremove(dvp, ap->a_cnp);
 	} else {
@@ -742,7 +742,7 @@ ufs_link(ap)
 	tv = time;
 	error = VOP_UPDATE(vp, &tv, &tv, 1);
 	if (!error) {
-#if EXT2FS
+#ifdef EXT2FS
 		if (IS_EXT2_VNODE(tdvp)) {
 			error = ext2_direnter(ip, tdvp, cnp);
 		} else {
@@ -940,7 +940,7 @@ abortit:
 			goto bad;
 		if (xp != NULL)
 			vput(tvp);
-#if EXT2FS
+#ifdef EXT2FS
 		if (IS_EXT2_VNODE(tdvp)) {
 			error = ext2_checkpath(ip, dp, tcnp->cn_cred);
 		} else {
@@ -987,7 +987,7 @@ abortit:
 			if (error)
 				goto bad;
 		}
-#if EXT2FS
+#ifdef EXT2FS
 		if (IS_EXT2_VNODE(tdvp)) {
 			error = ext2_direnter(ip, tdvp, tcnp);
 		} else {
@@ -1031,7 +1031,7 @@ abortit:
 		 * (both directories, or both not directories).
 		 */
 		if ((xp->i_mode&IFMT) == IFDIR) {
-#if EXT2FS
+#ifdef EXT2FS
 			if (! (IS_EXT2_VNODE(ITOV(xp)) ? 
 					ext2_dirempty : ufs_dirempty)
 #else
@@ -1051,7 +1051,7 @@ abortit:
 			error = EISDIR;
 			goto bad;
 		}
-#if EXT2FS
+#ifdef EXT2FS
 		if (IS_EXT2_VNODE(ITOV(dp))) {
 			error = ext2_dirrewrite(dp, ip, tcnp);
 		} else {
@@ -1151,7 +1151,7 @@ abortit:
 #				else
 					namlen = dirbuf.dotdot_namlen;
 #				endif
-#if EXT2FS
+#ifdef EXT2FS
 				if(IS_EXT2_VNODE(fvp))
 					namlen = ((struct odirtemplate *)
 						    &dirbuf)->dotdot_namlen;
@@ -1174,7 +1174,7 @@ abortit:
 				}
 			}
 		}
-#if EXT2FS
+#ifdef EXT2FS
 		if (IS_EXT2_VNODE(fdvp)) {
 			error = ext2_dirremove(fdvp, fcnp);
 		} else {
@@ -1297,7 +1297,7 @@ ufs_mkdir(ap)
 
 	/* Initialize directory with "." and ".." from static template. */
 	if (dvp->v_mount->mnt_maxsymlinklen > 0
-#if EXT2FS
+#ifdef EXT2FS
 		/* omastertemplate is want we want for EXT2 */
 		&& !IS_EXT2_VNODE(dvp) 
 #endif /* EXT2FS */
@@ -1308,7 +1308,7 @@ ufs_mkdir(ap)
 	dirtemplate = *dtp;
 	dirtemplate.dot_ino = ip->i_number;
 	dirtemplate.dotdot_ino = dp->i_number;
-#if EXT2FS
+#ifdef EXT2FS
 	/* note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE 
 	 * so let's just redefine it - for this function only
 	 */
@@ -1334,7 +1334,7 @@ ufs_mkdir(ap)
 	}
 
 	/* Directory set up, now install it's entry in the parent directory. */
-#if EXT2FS
+#ifdef EXT2FS
 	if (IS_EXT2_VNODE(dvp)) {
 		error = ext2_direnter(ip, dvp, cnp);
 	} else {
@@ -1362,7 +1362,7 @@ out:
 	FREE(cnp->cn_pnbuf, M_NAMEI);
 	vput(dvp);
 	return (error);
-#if EXT2FS
+#ifdef EXT2FS
 #undef  DIRBLKSIZ
 #define DIRBLKSIZ  DEV_BSIZE
 #endif /* EXT2FS */
@@ -1404,7 +1404,7 @@ ufs_rmdir(ap)
 	 */
 	error = 0;
 	if (ip->i_nlink != 2 ||
-#if EXT2FS
+#ifdef EXT2FS
 	    !(IS_EXT2_VNODE(ITOV(ip)) ? ext2_dirempty : ufs_dirempty)
 	    		 (ip, dp->i_number, cnp->cn_cred)) {
 #else
@@ -1422,7 +1422,7 @@ ufs_rmdir(ap)
 	 * inode.  If we crash in between, the directory
 	 * will be reattached to lost+found,
 	 */
-#if EXT2FS
+#ifdef EXT2FS
 	if (IS_EXT2_VNODE(dvp)) {
 		error = ext2_dirremove(dvp, cnp);
 	} else {
@@ -2122,7 +2122,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	error = VOP_UPDATE(tvp, &tv, &tv, 1);
 	if (error)
 		goto bad;
-#if EXT2FS
+#ifdef EXT2FS
 	if (IS_EXT2_VNODE(dvp)) {
 		error = ext2_direnter(ip, dvp, cnp);
 	} else {
