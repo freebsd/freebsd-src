@@ -24,7 +24,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.60 1999/11/17 04:09:58 assar Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.70 2000/10/28 10:18:40 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -41,10 +45,13 @@ static const char rcsid[] =
 #ifdef INET6
 #include <netdb.h>
 #include <sys/socket.h>
+/* Workaround for AIX 4.3 */
+#if !defined(AI_NUMERICHOST)
+#define AI_NUMERICHOST 0x04
+#endif
 #endif /*INET6*/
 #include "tokdefs.h"
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -54,30 +61,16 @@ static inline int xdtoi(int);
 
 #ifdef FLEX_SCANNER
 #define YY_NO_UNPUT
-#undef YY_INPUT
-#define YY_INPUT(buf, result, max)\
- {\
-	char *src = in_buffer;\
-	int i;\
-\
-	if (*src == 0)\
-		result = YY_NULL;\
-	else {\
-		for (i = 0; *src && i < max; ++i)\
-			buf[i] = *src++;\
-		in_buffer += i;\
-		result = i;\
-	}\
- }
+static YY_BUFFER_STATE in_buffer;
 #else
+static char *in_buffer;
+
 #undef getc
 #define getc(fp)  (*in_buffer == 0 ? EOF : *in_buffer++)
 #endif
 
 #define yylval pcap_lval
 extern YYSTYPE yylval;
-
-static char *in_buffer;
 
 %}
 
@@ -90,6 +83,7 @@ W		([0-9A-Fa-f][0-9A-Fa-f]?[0-9A-Fa-f]?[0-9A-Fa-f]?)
 %e 6000
 %k 4000
 %p 19000
+%n 2000
 
 V680		{W}:{W}:{W}:{W}:{W}:{W}:{W}:{W}
 
@@ -174,7 +168,7 @@ dst		return DST;
 src		return SRC;
 
 link|ether|ppp|slip  return LINK;
-fddi		return LINK;
+fddi|tr		return LINK;
 arp		return ARP;
 rarp		return RARP;
 ip		return IP;
@@ -191,6 +185,7 @@ ah		return AH;
 esp		return ESP;
 
 atalk		return ATALK;
+aarp		return AARP;
 decnet		return DECNET;
 lat		return LAT;
 sca		return SCA;
@@ -202,6 +197,7 @@ esis		return ESIS;
 es-is		return ESIS;
 isis		return ISIS;
 is-is		return ISIS;
+clnp		return CLNP;
 
 host		return HOST;
 net		return NET;
@@ -231,6 +227,8 @@ not		return '!';
 len|length	return LEN;
 inbound		return INBOUND;
 outbound	return OUTBOUND;
+
+vlan		return VLAN;
 
 [ \n\t]			;
 [+\-*/:\[\]!<>()&|=]	return yytext[0];
@@ -272,8 +270,24 @@ void
 lex_init(buf)
 	char *buf;
 {
+#ifdef FLEX_SCANNER
+	in_buffer = yy_scan_string(buf);
+#else
 	in_buffer = buf;
-	yyrestart(NULL);
+#endif
+}
+
+/*
+ * Do any cleanup necessary after parsing.
+ */
+void
+lex_cleanup()
+{
+#ifdef FLEX_SCANNER
+	if (in_buffer != NULL)
+		yy_delete_buffer(in_buffer);
+	in_buffer = NULL;
+#endif
 }
 
 /*
@@ -325,4 +339,3 @@ stoi(s)
 
 	return n;
 }
-

@@ -26,7 +26,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/nametoaddr.c,v 1.51 1999/11/25 08:25:35 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/nametoaddr.c,v 1.57.2.1 2001/01/17 18:21:56 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -34,14 +38,13 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/time.h>
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
-
 #include <net/if.h>
-#include <net/ethernet.h>
 #include <netinet/in.h>
+#ifdef HAVE_NETINET_IF_ETHER_H
+#include <netinet/if_ether.h>
+#endif
 #include <arpa/inet.h>
 #ifdef INET6
 #include <netdb.h>
@@ -60,7 +63,6 @@ struct rtentry;
 #include "gencode.h"
 #include <pcap-namedb.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -76,7 +78,6 @@ static inline int xdtoi(int);
  *  Convert host name to internet address.
  *  Return 0 upon failure.
  */
-#ifndef INET6
 bpf_u_int32 **
 pcap_nametoaddr(const char *name)
 {
@@ -100,9 +101,10 @@ pcap_nametoaddr(const char *name)
 	else
 		return 0;
 }
-#else
+
+#ifdef INET6
 struct addrinfo *
-pcap_nametoaddr(const char *name)
+pcap_nametoaddrinfo(const char *name)
 {
 	struct addrinfo hints, *res;
 	int error;
@@ -340,7 +342,7 @@ pcap_ether_hostton(const char *name)
 	register struct pcap_etherent *ep;
 	register u_char *ap;
 	static FILE *fp = NULL;
-	static init = 0;
+	static int init = 0;
 
 	if (!init) {
 		fp = fopen(PCAP_ETHERS_FILE, "r");
@@ -366,6 +368,15 @@ pcap_ether_hostton(const char *name)
 }
 #else
 
+/*
+ * XXX - perhaps this should, instead, be declared in "lbl/os-XXX.h" files,
+ * for those OS versions that don't declare it, rather than being declared
+ * here?  That way, for example, we could declare it on FreeBSD 2.x (which
+ * doesn't declare it), but not on FreeBSD 3.x (which declares it like
+ * this) or FreeBSD 4.x (which declares it with its first argument as
+ * "const char *", so no matter how we declare it here, it'll fail to
+ * compile on one of 3.x or 4.x).
+ */
 #if !defined(sgi) && !defined(__NetBSD__) && !defined(__FreeBSD__)
 extern int ether_hostton(char *, struct ether_addr *);
 #endif
