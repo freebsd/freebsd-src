@@ -1,18 +1,24 @@
 
 PROG=	mkctm
-SRCS=	mkctm.c bdiff.c
+SRCS=	mkctm.c
 LDADD= -lmd
 CFLAGS= -g -Wall
 
 test:	mkctm
 	rm -f tst.out*
-	time ./mkctm /usr/src /a/stable/src 2>a | md5 -p > ${.CURDIR}/tst.out 
-	ls -l ${.CURDIR}/tst.out
-	gzip -9 -v tst.out
-	ls -l ${.CURDIR}/tst.out.gz
+	time ./mkctm -v -v /3c/210src  /a/r1/usr/src \
+		2>a | md5 -p > /a/tst.out 
+	ls -l /a/tst.out
+	gzip -9 -v /a/tst.out
+	ls -l /a/tst.out.gz
 	# cd /usr/src/release && ctm -c -v -v  ${.CURDIR}/tst.out
 
 test1:	mkctm
-	time ./mkctm 2>&1 | more
+	rm -f tst.out*
+	time ./mkctm -v -v /3c/210src  /home/ncvs/src \
+		2> b | md5 -p > /a/tst2.out 
+	ls -l /a/tst2.out
+	gzip -9 -v /a/tst2.out
+	ls -l /a/tst2.out.gz
 
 .include <bsd.prog.mk>
