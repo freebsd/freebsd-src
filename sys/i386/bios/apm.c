@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.44 1996/06/18 01:21:54 bde Exp $
+ *	$Id: apm.c,v 1.45 1996/07/10 15:09:46 nate Exp $
  */
 
 #include "apm.h"
@@ -689,6 +689,11 @@ apmattach(struct isa_device *dvp)
 #ifdef APM_DSVALUE_BUG
 	caddr_t apm_bios_work;
 
+	/*
+	 * XXX - Malloc enough space for the APM DS, and then copy the
+	 * current DS into the new space since the DS setup by the
+	 * APM bios is going to get wiped out.
+	 */
 	apm_bios_work = (caddr_t)malloc(apm_ds_limit, M_DEVBUF, M_NOWAIT);
 	bcopy((caddr_t)((apm_ds_base << 4) + APM_KERNBASE), apm_bios_work,
 		apm_ds_limit);
@@ -708,6 +713,7 @@ apmattach(struct isa_device *dvp)
 	sc->cs_entry = apm_cs_entry;
 
 #ifdef APM_DSVALUE_BUG
+	/* Set the DS base to point to the newly made copy of the APM DS */
 	sc->ds_base = (u_int)apm_bios_work;
 #endif /* APM_DSVALUE_BUG */
 
@@ -726,10 +732,11 @@ apmattach(struct isa_device *dvp)
 	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
 		sc->cs_entry, is_enabled(sc->slow_idle_cpu),
 		is_enabled(!sc->disabled));
-	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
+	printf("apm: CS_limit=0x%x, DS_limit=0x%x\n",
+		sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
 
-#ifdef APM_DEBUG
+#ifdef 0
 	/* Workaround for some buggy APM BIOS implementations */
 	sc->cs_limit = 0xffff;
 	sc->ds_limit = 0xffff;
