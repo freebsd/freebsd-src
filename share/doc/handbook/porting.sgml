@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.13 1996/01/31 14:26:13 mpp Exp $ -->
+<!-- $Id: porting.sgml,v 1.14 1996/03/06 09:04:43 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.13 1996/01/31 14:26:13 mpp Exp $
+ # $Id: porting.sgml,v 1.14 1996/03/06 09:04:43 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -760,6 +760,37 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  doesn't say `not stripped', it is stripped.
 
       <sect3>
+	<heading>Install additional documentation</heading>
+	<p>If your software has some documentation other than the
+	  standard man and info pages that you think is useful for the
+	  user, install it under <tt>&dollar;{PREFIX}/share/doc</tt>.
+	  This can be done, like the previous item, in the
+	  <tt>post-install</tt> target.
+
+        <p>Create a new directory for your port.  The directory name
+	  should reflect what the port is.  This usually means
+	  <tt>&dollar;{PKGNAME}</tt> minus the version part.  However,
+	  if you think the user might want different versions of the
+	  port to be installed at the same time (e.g., tcl/tk), you
+	  can use the whole <tt>&dollar;{PKGNAME}</tt>.
+
+	<p>Make the installation dependent to the variable
+	  <tt>NOPORTDOCS</tt> so that users can disable it in
+	  <tt>/etc/make.conf</tt>, like this:
+<tscreen><verb>
+ post-install:
+ .if !defined(NOPORTDOCS)
+	 mkdir -p ${PREFIX}/share/doc/xv
+	 cp ${WRKSRC}/docs/xvdocs.ps ${PREFIX}/share/doc/xv
+ .endif
+</verb></tscreen>
+
+	<p>Don't forget to add them to <tt>pkg/PLIST</tt> too!  (Don't
+	  worry about <tt>NOPORTDOCS</tt> here; there is currently no
+	  way for the packages to read variables from
+	  <tt>/etc/make.conf</tt>.)
+
+      <sect3>
 	<heading>Custom utilities</heading>
 	<p>Don't rely on custom utilities in your local configure
 	  script or anything -- they may not be there on the user's
@@ -905,7 +936,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.13 1996/01/31 14:26:13 mpp Exp $
+ # $Id: porting.sgml,v 1.14 1996/03/06 09:04:43 asami Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #
