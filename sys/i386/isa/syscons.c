@@ -35,7 +35,7 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.0 930928
- *	$Id$
+ *	$Id: syscons.c,v 1.13 1993/10/16 13:46:23 rgrimes Exp $
  *
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
@@ -308,11 +308,12 @@ int pcattach(struct isa_device *dev)
 		printf(" <%d virtual consoles>\n", NCONS);
 	else
 		printf("\n");
-	if (crtc_vga) {
 #ifdef	FAT_CURSOR
                 start = 0;
                 end = 18;
-#else
+#endif
+	if (crtc_vga) {
+#ifndef	FAT_CURSOR
 		get_cursor_shape(&start, &end);
 #endif
 		save_palette();
