@@ -66,6 +66,7 @@
 #define ATAPI_TEST_UNIT_READY		0x00	/* check if device is ready */
 #define ATAPI_REWIND			0x01	/* rewind */
 #define ATAPI_REQUEST_SENSE		0x03	/* get sense data */
+#define ATAPI_FORMAT			0x04	/* format unit */
 #define ATAPI_READ			0x08	/* read data */
 #define ATAPI_WRITE			0x0a	/* write data */
 #define ATAPI_WEOF			0x10	/* write filemark */
@@ -94,16 +95,23 @@
 #define ATAPI_PLAY_MSF			0x47	/* play by MSF address */
 #define ATAPI_PLAY_TRACK		0x48	/* play by track number */
 #define ATAPI_PAUSE			0x4b	/* pause audio operation */
+#define ATAPI_READ_DISK_INFO		0x51	/* get disk info structure */
 #define ATAPI_READ_TRACK_INFO		0x52	/* get track info structure */
+#define ATAPI_RESERVE_TRACK		0x53	/* reserve track */
+#define ATAPI_SEND_OPC_INFO		0x54	/* send OPC structurek */
 #define ATAPI_MODE_SELECT_BIG		0x55	/* set device parameters */
+#define ATAPI_REPAIR_TRACK		0x58	/* repair track */
+#define ATAPI_READ_MASTER_CUE		0x59	/* read master CUE info */
 #define ATAPI_MODE_SENSE_BIG		0x5a	/* get device parameters */
 #define ATAPI_CLOSE_TRACK		0x5b	/* close track/session */
+#define ATAPI_READ_BUFFER_CAPACITY	0x5c	/* get buffer capicity */
+#define ATAPI_SEND_CUE_SHEET		0x5d	/* send CUE sheet */
 #define ATAPI_BLANK			0xa1	/* blank the media */
-#define ATAPI_SEND_KEY			0xa3
-#define ATAPI_REPORT_KEY		0xa4
+#define ATAPI_SEND_KEY			0xa3	/* send DVD key structure */
+#define ATAPI_REPORT_KEY		0xa4	/* get DVD key structure */
 #define ATAPI_PLAY_BIG			0xa5	/* play by lba */
 #define ATAPI_LOAD_UNLOAD		0xa6	/* changer control command */
-#define ATAPI_READ_STRUCTURE		0xad
+#define ATAPI_READ_STRUCTURE		0xad	/* get DVD structure */
 #define ATAPI_PLAY_CD			0xb4	/* universal play command */
 #define ATAPI_SET_SPEED			0xbb	/* set drive speed */
 #define ATAPI_MECH_STATUS		0xbd	/* get changer status */
