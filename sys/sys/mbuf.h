@@ -262,13 +262,13 @@ union mcluster {
 	}
 
 #define	MCLFREE1(p) \
-	  do { \
+	do { \
 	  	if (--mclrefcnt[mtocl(p)] == 0) { \
 			((union mcluster *)(p))->mcl_next = mclfree; \
 			mclfree = (union mcluster *)(p); \
 			mbstat.m_clfree++; \
 	  	} \
-	  } while (0)
+	} while (0)
 
 #define	MCLFREE(p) \
 	MBUFLOCK( \
