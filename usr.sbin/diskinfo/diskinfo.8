@@ -42,11 +42,12 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility prints out information about a diskdevice and optionally runs a naïve performance test on the device.
+utility prints out information about a disk device,
+and optionally runs a naive performance test on the device.
 .Pp
-If given no arguments the output will be a single line per specified device
-with the following fields:  device name, sectorsize, media size in bytes,
-media size in sectors, firmware cylinders, firmware heads and firmware sectors.
+If given no arguments, the output will be a single line per specified device
+with the following fields: device name, sectorsize, media size in bytes,
+media size in sectors, firmware cylinders, firmware heads, and firmware sectors.
 The last three fields are only present if the information is available.
 .Pp
 If given the
@@ -55,7 +56,7 @@ option, the fields will be printed one per line with a descriptive comment.
 .Pp
 The
 .Fl t
-option triggers a simple and rather naïve benchmark of the disks seek
+option triggers a simple and rather naive benchmark of the disks seek
 and transfer performance.
 .Sh AUTHORS
 .An Poul-Henning Kamp
@@ -63,7 +64,7 @@ and transfer performance.
 There are in order of increasing severity: lies,
 damn lies, statistics, and computer benchmarks.
 .Sh HISTORY
-.The
+The
 .Nm
 command appeared in
-.Fx 5.1
+.Fx 5.1 .
