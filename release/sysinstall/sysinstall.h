@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.74 1996/07/09 14:28:22 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.65 1996/07/09 14:37:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -190,6 +190,11 @@ typedef enum {
     DEVICE_TYPE_NFS,
     DEVICE_TYPE_ANY,
 } DeviceType;
+
+/* CDROM mount codes */
+#define CD_UNMOUNTED		0
+#define CD_ALREADY_MOUNTED	1
+#define CD_WE_MOUNTED_IT	2
 
 /* A "device" from sysinstall's point of view */
 typedef struct _device {

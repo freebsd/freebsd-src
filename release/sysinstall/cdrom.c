@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.20 1996/07/13 05:48:44 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.25 1996/07/13 05:52:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,10 +50,6 @@
 #define CD9660
 #include <sys/mount.h>
 #undef CD9660
-
-#define CD_UNMOUNTED		0
-#define CD_ALREADY_MOUNTED	1
-#define CD_WE_MOUNTED_IT	2
 
 /*
  * This isn't static, like the others, since it's often useful to know whether

@@ -455,28 +455,28 @@ The FreeBSD Development Team, excluding core team members
         Stefan Esser <se@FreeBSD.org>
         Bill Fenner <fenner@FreeBSD.org>
         John Fieber <jfieber@FreeBSD.org>
-	Marc G. Fournier <scrappy@FreeBSD.org>
+        Marc G. Fournier <scrappy@FreeBSD.org>
         Lars Fredriksen <lars@freeBSD.org>
         Thomas Gellekum <tg@FreeBSD.org>
         Thomas Graichen <graichen@FreeBSD.org>
         Rod Grimes <rgrimes@FreeBSD.org>
-	John Hay <jhay@FreeBSD.org>
+        John Hay <jhay@FreeBSD.org>
         Eric L. Hernes <erich@FreeBSD.org>
         Jeffrey Hsu <hsu@FreeBSD.org>
         Gary Jennejohn <gj@FreeBSD.org>
-	Andreas Klemm <andreas@FreeBSD.org>
+        Andreas Klemm <andreas@FreeBSD.org>
         L Jonas Olsson <ljo@FreeBSD.org>
         Scott Mace <smace@FreeBSD.org>
         Atsushi Murai <amurai@FreeBSD.org>
         Mark Murray <markm@FreeBSD.org>
-	Alex Nash <alex@FreeBSD.org>
-	Sujal Patel <smpatel@FreeBSD.org>
+        Alex Nash <alex@FreeBSD.org>
+        Sujal Patel <smpatel@FreeBSD.org>
         Bill Paul <wpaul@FreeBSD.org>
         Joshua Peck Macdonald <jmacd@FreeBSD.org>
         John Polstra <jdp@FreeBSD.org>
         Mike Pritchard <mpp@FreeBSD.org>
         Doug Rabson <dfr@FreeBSD.org>
-	James Raynard <jraynard@FreeBSD.org>
+        James Raynard <jraynard@FreeBSD.org>
         Geoff Rehmet <csgr@FreeBSD.org>
         Martin Renters <martin@FreeBSD.org>
         Paul Richards <paul@FreeBSD.org>
@@ -495,8 +495,8 @@ The FreeBSD Development Team, excluding core team members
 Additional FreeBSD helpers and beta testers:
 
         Coranth Gryphon            Dave Rivers 
-        Kaleb S. Keithley	   Michael Smith
-        Terry Lambert		   David Dawes
+        Kaleb S. Keithley          Michael Smith
+        Terry Lambert              David Dawes
         Troy Curtis
 
 
@@ -526,5 +526,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.23 1996/07/05 10:35:39 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.24 1996/07/12 11:41:44 jkh Exp $
  LocalWords:  Adaptec

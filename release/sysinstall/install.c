@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.114 1996/07/13 05:13:25 jkh Exp $
+ * $Id: install.c,v 1.71.2.103 1996/07/13 05:14:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -372,18 +372,9 @@ installNovice(dialogMenuItem *self)
     }
 
     if (!mediaDevice) {
-	dialog_clear();
-	/* Try to set ourselves up as a CDROM if we can do that first */
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) == DITEM_SUCCESS) {
-	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
-	    if (!mediaDevice->init(mediaDevice))
-		mediaDevice = NULL;
-	}
-	if (!mediaDevice) {
-	    msgConfirm("Finally, you must specify an installation medium.");
-	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-		return DITEM_FAILURE | DITEM_RECREATE;
-	}
+	msgConfirm("Finally, you must specify an installation medium.");
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
