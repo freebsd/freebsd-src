@@ -224,7 +224,7 @@ struct dn_flow_queue {
 
     /* WF2Q+ support */
     struct dn_flow_set *fs ; /* parent flow set */
-    int blh_pos ;	/* position in backlogged_heap */
+    int heap_pos ;	/* position (index) of struct in heap */
     dn_key sched_time ; /* current time when queue enters ready_heap */
 
     dn_key S,F ; /* start-time, finishing time */
@@ -319,7 +319,6 @@ struct dn_pipe {			/* a pipe */
     /* WF2Q+ */
     struct dn_heap scheduler_heap ; /* top extract - key Finish time*/
     struct dn_heap not_eligible_heap; /* top extract- key Start time */
-    struct dn_heap backlogged_heap ; /* random extract - key Start time */
     struct dn_heap idle_heap ; /* random extract - key Start=Finish time */
 
     dn_key V ; /* virtual time */

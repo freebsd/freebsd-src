@@ -450,6 +450,7 @@ sendit:
                 /*
                  * On return we must do the following:
                  * m == NULL         -> drop the pkt
+                 * (off & 0x40000)   -> drop the pkt (XXX new)
                  * 1<=off<= 0xffff   -> DIVERT
                  * (off & 0x10000)   -> send to a DUMMYNET pipe
                  * (off & 0x20000)   -> TEE the packet
@@ -461,6 +462,12 @@ sendit:
                  * unsupported rules), but better play safe and drop
                  * packets in case of doubt.
                  */
+		if (off & 0x40000) {
+			if (m)
+				m_freem(m);
+			error = EACCES ;
+			goto done ;
+		}
 		if (!m) { /* firewall said to reject */
 			error = EACCES;
 			goto done;
@@ -479,7 +486,7 @@ sendit:
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
 		    error = dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,
-				ifp, ro, dst, rule, flags);
+				ifp,ro,dst,rule, flags);
 		    goto done;
 		}
 #endif   
