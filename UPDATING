@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20031002:	p45	FreeBSD-SA-03:16.filedesc
+	Correct a reference counting bug in readv(2).
+
 20030924:	p44	FreeBSD-SA-03:14.arp
 	Updated fix for arplookup bug.
 
