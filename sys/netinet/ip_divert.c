@@ -487,8 +487,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	s = splnet();
 	for (inp = LIST_FIRST(divcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(
-		    req->td->td_proc, inp))
+		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->td, inp))
 			inp_list[i++] = inp;
 	}
 	splx(s);
