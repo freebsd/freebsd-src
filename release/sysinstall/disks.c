@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.28 1995/10/30 08:04:46 jkh Exp $
+ * $Id: disks.c,v 1.31.2.29 1995/11/04 11:08:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,7 +83,7 @@ print_chunks(Disk *d)
 		   "it to the correct values manually with the (G)eometry command.\n"
 		   "If you are unsure about the correct geometry (which may be\n"
 		   "\"translated\"), please consult the Hardware Guide in the\n"
-		   "Documentation submenu.  If you are using the entire disk for FreeBSD"
+		   "Documentation submenu.  If you are using the entire disk for FreeBSD\n"
 		   "then you can probably safely ignore this message.", d->name);
     }
     attrset(A_NORMAL);
@@ -222,6 +222,7 @@ getBootMgr(char *dname)
 	/* Figure out what kind of MBR the user wants */
 	sprintf(str, "Install Boot Manager for drive %s?", dname);
 	MenuMBRType.title = str;
+	dialog_clear();
 	i = dmenuOpenSimple(&MenuMBRType);
     }
     else {
@@ -456,6 +457,7 @@ diskPartition(Device *dev, Disk *d)
 
 	case 'Q':
 	    chunking = FALSE;
+	    clear();
 	    /* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 	     * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 	     * booteasy or a "standard" MBR -- both would be fatal in this case.
