@@ -83,12 +83,13 @@ device		sio1	at isa? port IO_COM2 irq 3
 #
 device	miibus 
 #device de0              # DEC/Intel DC21x4x (``Tulip'')
-device	fxp0             # Intel, 4KB
-device	xl0		# 3Com
+device	fxp		# Intel, 4KB
+device	xl		# 3Com
 #device	ep0
-device rl0		# Realtek 8139, 4KB
-device dc0		# New Dec/Intel DC21x4x, 8KB
-device	lnc0
+device rl		# Realtek 8139, 4KB
+device dc		# New Dec/Intel DC21x4x, 8KB
+device lnc
+device sis		# National
 
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
 device ed1 at isa? port 0x300 irq 5 iomem 0xd0000
