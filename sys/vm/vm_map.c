@@ -360,6 +360,8 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 {
 	int error;
 
+	if (map->system_map)
+		GIANT_REQUIRED;
 	error = lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread);
 	KASSERT(error == 0, ("%s: failed to get lock", __func__));
 	map->timestamp++;
@@ -377,6 +379,8 @@ _vm_map_lock_read(vm_map_t map, const char *file, int line)
 {
 	int error;
 
+	if (map->system_map)
+		GIANT_REQUIRED;
 	error = lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread);
 	KASSERT(error == 0, ("%s: failed to get lock", __func__));
 }
@@ -393,6 +397,8 @@ _vm_map_trylock(vm_map_t map, const char *file, int line)
 {
 	int error;
 
+	if (map->system_map)
+		GIANT_REQUIRED;
 	error = lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL, curthread);
 	return (error == 0);
 }
