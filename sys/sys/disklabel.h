@@ -171,7 +171,7 @@ struct disklabel {
 };
 
 #ifdef CTASSERT
-CTASSERT(sizeof(struct disklabel) == 276);
+CTASSERT(sizeof(struct disklabel) == 148 + MAXPARTITIONS * 16);
 #endif
 
 static __inline u_int16_t dkcksum(struct disklabel *lp);
