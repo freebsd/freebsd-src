@@ -114,7 +114,7 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 #if 0
 	/*
 	 * XXX: Some sources indicate this is a magic sequence, but appearantly
-	 * XXX: it is not universal. Documentation would be wonderfule to have.
+	 * XXX: it is not universal. Documentation would be wonderful to have.
 	 */
 	if (sec[4] != 'I' || sec[5] != 'P' || sec[6] != 'L' || sec[7] != '1')
 		return (EBUSY);
@@ -142,7 +142,10 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 			printf("PC98 Slice %d on %s:\n", i + 1, gp->name);
 			g_pc98_print(i, dp + i);
 		}
-		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
+		if (s[i] < 0 || l[i] < 0)
+			error = EBUSY;
+		else
+			error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
 				       s[i], l[i], ms->sectorsize,
 				       "%ss%d", gp->name, i + 1);
 		if (error)
@@ -311,14 +314,16 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
 		if (error || fwsectors == 0) {
 			fwsectors = 17;
-			printf("g_pc98_taste: error %d guessing %d sectors\n",
-			    error, fwsectors);
+			if (bootverbose)
+				printf("g_pc98_taste: guessing %d sectors\n",
+				    fwsectors);
 		}
 		error = g_getattr("GEOM::fwheads", cp, &fwheads);
 		if (error || fwheads == 0) {
 			fwheads = 8;
-			printf("g_pc98_taste: error %d guessing %d heads\n",
-			    error, fwheads);
+			if (bootverbose)
+				printf("g_pc98_taste: guessing %d heads\n",
+				    fwheads);
 		}
 		sectorsize = cp->provider->sectorsize;
 		if (sectorsize < 512)
