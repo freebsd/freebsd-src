@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.9 1997/02/22 09:43:43 peter Exp $
+ *	$Id: pcaudio.c,v 1.10 1997/09/04 13:20:33 kato Exp $
  */
 
 #include "pca.h"
@@ -53,6 +53,8 @@
 
 #define	DSP_ULAW_NOT_WANTED
 #include <i386/isa/sound/ulaw.h>
+#define	LINEAR_ALAW_NOT_WANTED
+#include <i386/isa/sound/alaw.h>
 
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -398,6 +400,7 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 				break;
 
 			case AUDIO_ENCODING_ALAW:
+				conv(alaw_linear, pca_status.buf[which], count);
 				break;
 
 			case AUDIO_ENCODING_RAW:
