@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#15 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#16 $
  *
  * $FreeBSD$
  */
@@ -54,6 +54,13 @@
  * automatically consume the entries.
  */
 
+bus_free_sel:
+	/*
+	 * Turn off the selection hardware.  We need to reset the
+	 * selection request in order to perform a new selection.
+	 */
+	and	SCSISEQ, TEMODE|ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ;
+	and	SIMODE1, ~ENBUSFREE;
 poll_for_work:
 	call	clear_target_state;
 	and	SXFRCTL0, ~SPIOEN;
@@ -135,7 +142,6 @@ start_waiting:
 	jmp	poll_for_work_loop;
 
 abort_qinscb:
-	mvi	ABORT_QINSCB call set_seqint;
 	call	add_scb_to_free_list;
 	jmp	poll_for_work_loop;
 
@@ -208,16 +214,14 @@ selection:
 	 * but prior to enabling the busfree interrupt.  SELDI
 	 * and SELDO will be cleared in that case.
 	 */
+	test	SSTAT0, SELDI|SELDO	jz bus_free_sel;
 	test	SSTAT0,SELDO	jnz select_out;
-	test	SSTAT0, SELDI	jnz . + 3;
-	and	SIMODE1, ~ENBUSFREE;
-	jmp	poll_for_work;
-	mvi	CLRSINT0, CLRSELDI;
 select_in:
 	if ((ahc->flags & AHC_TARGETROLE) != 0) {
 		if ((ahc->flags & AHC_INITIATORROLE) != 0) {
 			test	SSTAT0, TARGET	jz initiator_reselect;
 		}
+		mvi	CLRSINT0, CLRSELDI;
 
 		/*
 		 * We've just been selected.  Assert BSY and
@@ -407,6 +411,7 @@ if ((ahc->flags & AHC_INITIATORROLE) != 0) {
  */
 initiator_reselect:
 	/* XXX test for and handle ONE BIT condition */
+	or	SXFRCTL0, SPIOEN|CLRSTCNT|CLRCHN;
 	and	SAVED_SCSIID, SELID_MASK, SELID;
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		and	A, OID, SCSIID_ULTRA2;
@@ -418,7 +423,7 @@ initiator_reselect:
 		test	SBLKCTL, SELBUSB	jz . + 2;
 		or	SAVED_SCSIID, TWIN_CHNLB;
 	}
-	or	SXFRCTL0, SPIOEN|CLRSTCNT|CLRCHN;
+	mvi	CLRSINT0, CLRSELDI;
 	jmp	ITloop;
 }
 
@@ -542,8 +547,8 @@ target_cmdphase:
 		mov	A, SINDIR;
 
 		test	A, 0xFF jz command_phase_done;
-command_loop:
 		or	SXFRCTL0, SPIOEN;
+command_loop:
 		test	SSTAT0, SPIORDY jz .;
 		cmp	A, 1 jne . + 2;
 		and	SXFRCTL0, ~SPIOEN;	/* Last Byte */
@@ -1259,7 +1264,7 @@ p_command_embedded:
 		mvi	DFCNTRL, (PRELOADEN|SCSIEN|DIRECTION);
 		bmov	DFDAT, SCB_CDB_STORE, 12; 
 	} else if ((ahc->features & AHC_CMD_CHAN) != 0) {
-		if ((ahc->features & AHC_SCB_BTT) != 0) {
+		if ((ahc->flags & AHC_SCB_BTT) != 0) {
 			/*
 			 * On the 7895 the data FIFO will
 			 * get corrupted if you try to dump
@@ -1273,7 +1278,7 @@ p_command_embedded:
 			mvi	DFCNTRL, (SCSIEN|SDMAEN|DIRECTION|FIFORESET);
 		}
 		bmov	DFDAT, SCB_CDB_STORE, 12; 
-		if ((ahc->features & AHC_SCB_BTT) != 0) {
+		if ((ahc->flags & AHC_SCB_BTT) != 0) {
 			mvi	DFCNTRL, (SCSIEN|SDMAEN|DIRECTION|FIFOFLUSH);
 		} else {
 			or	DFCNTRL, FIFOFLUSH;
@@ -1583,7 +1588,7 @@ mesgin_rdptrs:
  */
 set_busy_target:
 	shr	DINDEX, 4, SINDEX;
-	if ((ahc->features & AHC_SCB_BTT) != 0) {
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		mov	SCBPTR, SAVED_LUN;
 		add	DINDEX, SCB_64_BTT;
 	} else {
@@ -1597,7 +1602,6 @@ set_busy_target:
  * clearing the "disconnected" bit so we don't "find" it by accident later.
  */
 mesgin_identify:
-	and	SAVED_LUN, MSG_IDENTIFY_LUNMASK, A;
 	/*
 	 * Determine whether a target is using tagged or non-tagged
 	 * transactions by first looking at the transaction stored in
@@ -1605,19 +1609,29 @@ mesgin_identify:
 	 * for this target or the transaction is for a different lun, then
 	 * this must be an untagged transaction.
 	 */
-fetch_busy_target:
-	shr	A, 4, SAVED_SCSIID;
-	if ((ahc->features & AHC_SCB_BTT) != 0) {
-		add	SINDEX, SCB_64_BTT, A;
+	shr	SINDEX, 4, SELID;
+	and	SAVED_LUN, MSG_IDENTIFY_LUNMASK, A;
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
+		add	SINDEX, SCB_64_BTT;
 		mov	SCBPTR, SAVED_LUN;
-	} else {
-		add	SINDEX, BUSY_TARGETS, A;
 		if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
-			add	A, -BUSY_TARGETS, SINDEX;
+			add	NONE, -SCB_64_BTT, SINDEX;
 			jc	. + 2;
 			mvi	INTSTAT, OUT_OF_RANGE;
 			nop;
-			add	A, -(BUSY_TARGETS + 16), SINDEX;
+			add	NONE, -(SCB_64_BTT + 16), SINDEX;
+			jnc	. + 2;
+			mvi	INTSTAT, OUT_OF_RANGE;
+			nop;
+		}
+	} else {
+		add	SINDEX, BUSY_TARGETS;
+		if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+			add	NONE, -BUSY_TARGETS, SINDEX;
+			jc	. + 2;
+			mvi	INTSTAT, OUT_OF_RANGE;
+			nop;
+			add	NONE, -(BUSY_TARGETS + 16), SINDEX;
 			jnc	. + 2;
 			mvi	INTSTAT, OUT_OF_RANGE;
 			nop;
@@ -1630,14 +1644,10 @@ fetch_busy_target:
 	} else {
 		mov	SCBPTR, RETURN_1;
 	}
-	if ((ahc->features & AHC_SCB_BTT) != 0) {
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		jmp setup_SCB_id_lun_okay;
 	} else {
-		mov	A, SCB_LUN;
-		cmp	SAVED_LUN, A		je setup_SCB_id_lun_okay;
-	}
-	if ((ahc->flags & AHC_PAGESCBS) != 0) {
-		call	add_scb_to_disc_list;
+		jmp	setup_SCB_id_okay;
 	}
 
 /*
@@ -1649,6 +1659,9 @@ fetch_busy_target:
  * SCB.
  */
 snoop_tag:
+	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+		or	SEQ_FLAGS, 0x80;
+	}
 	mov	NONE,SCSIDATL;		/* ACK Identify MSG */
 	call	phase_lock;
 	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
@@ -1673,16 +1686,17 @@ get_tag:
  * an SCB transaction to the reconnecting target.
  */
 setup_SCB:
-	mov	A, SAVED_SCSIID;
 	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
 		or	SEQ_FLAGS, 0x4;
 	}
-	cmp	SCB_SCSIID, A	jne not_found_cleanup_scb;
-	mov	A, SAVED_LUN;
+	mov	A, SCB_SCSIID;
+	cmp	SAVED_SCSIID, A	jne not_found_cleanup_scb;
 	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
 		or	SEQ_FLAGS, 0x8;
 	}
-	cmp	SCB_LUN, A	jne not_found_cleanup_scb;
+setup_SCB_id_okay:
+	mov	A, SCB_LUN;
+	cmp	SAVED_LUN, A	jne not_found_cleanup_scb;
 setup_SCB_id_lun_okay:
 	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
 		or	SEQ_FLAGS, 0x10;
@@ -1965,7 +1979,7 @@ dma_scb:
 		mvi	HSCB_ADDR call set_64byte_addr;
 		mov	CCSCBPTR, SCBPTR;
 		test	DMAPARAMS, DIRECTION jz dma_scb_tohost;
-		if ((ahc->features & AHC_SCB_BTT) != 0) {
+		if ((ahc->flags & AHC_SCB_BTT) != 0) {
 			mvi	CCHCNT, SCB_DOWNLOAD_SIZE_64;
 		} else {
 			mvi	CCHCNT, SCB_DOWNLOAD_SIZE;
