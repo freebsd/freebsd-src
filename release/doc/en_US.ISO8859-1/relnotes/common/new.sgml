@@ -90,6 +90,10 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">The &man.amdpm.4; driver has been added to
+    provide access to the system monitoring functions of the AMD 756
+    chip set.</para>
+
     <para arch="i386">The load addresses of kernels has been exported
     to the symbol table and various hard-coded constants removed so
     that utilities such as &man.ps.1; can work with kernels compiled
@@ -104,7 +108,7 @@
     the likelihood of kernel stack overflow (and subsequent corruption
     of per-process data structures).</para>
 
-    <para arch="i386">A new <varname>KVA_SPACE</varname>kernel option
+    <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
     can be used to reconfigure the size of the kernel virtual address
     space.</para>
 
@@ -209,6 +213,13 @@
     <para>&man.netstat.1; now has a <option>-S</option> flag to print
     address numerically but port names symbolically.</para>
 
+    <para>The default number of cylinders per group in &man.newfs.8;
+    is now computed to be the maximum allowable given the current
+    filesystem parameters.  It can be overridden with the
+    <option>-c</option>.  Formerly, the default was fixed at 16.  This
+    change leads to better &man.fsck.8; performance and reduced
+    fragmentation.</para>
+
     <para>&man.nl.1;, a line numbering filter program, has been added.</para>
 
     <para>&man.ping.8; now supports a <option>-A</option> option to
@@ -226,6 +237,10 @@
 
     <para>&man.route.8; can now create <quote>proxy only</quote>
     published ARP entries.</para>
+
+    <para>Previously, &man.vnconfig.8; was only capable of configuring
+    16 devices when invoked with the <option>-f</option>
+    (configuration file) option.  This limit has been removed.</para>
 
     <para>&man.wall.1; now supports a <option>-g</option> flag to
     write a message to all users of a given group.</para>
