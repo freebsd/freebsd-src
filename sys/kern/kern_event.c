@@ -802,7 +802,7 @@ kqueue_ioctl(struct file *fp, u_long com, void *data, struct thread *td)
 /*ARGSUSED*/
 static int
 kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
+	struct thread *td)
 {
 	struct kqueue *kq;
 	int revents = 0;
@@ -824,7 +824,7 @@ kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
 /*ARGSUSED*/
 static int
 kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
-    struct thread *td)
+	struct thread *td)
 {
 	struct kqueue *kq;
 
