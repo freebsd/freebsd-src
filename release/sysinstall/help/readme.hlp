@@ -9,7 +9,7 @@ updates and upgrades of several small non-critical   O O   ) /    |
 subsystems.  The emphasis with 2.1 was to increase   `-^--'`<     '
 system stability and applicability to "mission-     (_.)  _  )   /
 critical" applications.  No major features were      `.___/`    /
-added ore changed.  As usual, for more                 `-----' /
+added or changed.  As usual, for more                  `-----' /
 information on what's changed between     <----.     __ / __   \
 this release and the last one, please     <----|====O)))==) \) /====
 see the release notes!                    <----'    `--' `.__,' \
@@ -38,8 +38,8 @@ collection") is also provided to make it easier for you to obtain and
 install all your favorite traditional UNIX utilities for FreeBSD.
 Over 350 ports, from editors to programming languages to graphical
 applications, make FreeBSD a powerful and comprehensive operating
-environment that rivals that of many large workstations for general utility
-and power.
+environment that rivals that of many large workstations for general
+utility and power.
 
 
 For more documentation on this system, it is recommended that you
@@ -47,10 +47,14 @@ purchase the 4.4BSD Document Set from O'Reilly Associates and the
 USENIX Association, ISBN 1-56592-082-1.  We have no connection with
 O'Reilly, we're just satisfied customers!
 
-If you're new to FreeBSD then you should also read everything in the
-Documentation menu on the boot floppy.  It may seem like a lot to read,
-but you should at least aquaint yourself with the types of information
-available there should you later get stuck.
+If you're new to FreeBSD then you should also read EVERYTHING listed
+in the Documentation menu on the boot floppy.  It may seem like a lot
+to read, but you should at least aquaint yourself with the types of
+information available there should you later get stuck.  Once the
+system is installed, you can also revisit this menu and use a WEB
+browser to read the now-installed (or network) FAQ (Frequently Asked
+Questions) and Handbook HTML documentation sets for FreeBSD.
+
 
 DISCLAIMER: While FreeBSD does its best to safeguard against accidental
 loss of data, it's still more than possible to WIPE OUT YOUR ENTIRE DISK
@@ -58,7 +62,7 @@ with this installation!  Please do not proceed to the final FreeBSD
 installation menu unless you've adequately backed up any important
 data first!  We really mean it!
 
-E-mail addresses and tech support info:
+o E-mail addresses and tech support info:
 
 Technical comments on this release should be sent (in English!) to:
 
@@ -85,16 +89,30 @@ send-pr command are logged and tracked in our bugs database, and
 you'll be kept informed of any changes in status during the life of
 the bug (or feature request).
 
+
+o WWW Resources:
+
 Our WEB site, http://www.freebsd.org, is also a very good source for
 updated information and provides a number of advanced documentation
-facilities.  You may use the BSDI version of Netscape for browsing the
-World Wide Web directly from FreeBSD.
+searching facilities.  If you wish to use Netscape as your browser,
+you may install the BSDI version from ftp://ftp.mcom.com or simply
+type:
 
-You may also wish to look in /usr/share/doc (assuming that you've
-loaded the doc distribution) for further information on the system.
+	# cd /usr/ports/net/netscape
+	# make all install
 
-Thanks for reading all of this, and we sincerely hope you enjoy this
-release of FreeBSD!
+If you have the Ports collection installed (see the Configuration menu
+item).
 
-                                Jordan Hubbard,
-                                for The FreeBSD Project
+Several other non-commercial browsers are also available in
+/usr/ports/net and may be compiled and installed in the same fashion.
+Many are also available as pre-compiled packages, see the Packages
+entry in the Configuration menu for more details.
+
+The Handbook and FAQ are also available as on-line documents in
+/usr/share/doc and can be read with the ``file:/usr/share/doc'' syntax
+in any HTML capable browser (see the release notes for examples).
+
+We sincerely hope you enjoy this release of FreeBSD!
+
+	                                The FreeBSD Project

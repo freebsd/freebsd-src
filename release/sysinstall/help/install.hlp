@@ -1,4 +1,4 @@
-                    INSTALLATION GUIDE FOR FreeBSD 2.1
+                QUICK INSTALLATION GUIDE FOR FREEBSD 2.1
 
 This manual documents the process of installing FreeBSD on your
 machine.  Please also see the Hardware Guide for hardware-specific
@@ -63,9 +63,7 @@ partition and use this for communications between DOS and FreeBSD.
 
 1.3     Can I mount my DOS extended partitions?
 
-This feature isn't in FreeBSD 2.1 but should be in 2.1.  We've laid
-all the groundwork for making this happen, now we just need to do the
-last 1% of the work involved.
+NOTE for 2.1:  This feature MAY work but is currently untested.
 
 
 1.4     Can I run DOS binaries under FreeBSD?
@@ -76,10 +74,10 @@ DOSEMU utility may bring this much closer to being a reality sometime
 soon.  Send mail to hackers@freebsd.org if you're interested in
 joining this effort!
 
-However, there is a neat utility called "pcemu" in the ports collection
-which emulates an 8088 and enough BIOS services to run DOS text mode
-applications.  It requires the X Window System (provided as
-XFree86 3.1.1u1).
+However, there is a neat utility called "pcemu" in the ports
+collection which emulates an 8088 and enough BIOS services to run DOS
+text mode applications.  It requires the X Window System (provided as
+XFree86 3.1.2).
 
 
 
@@ -99,7 +97,7 @@ CD installation directly from DOS using Walnut Creek's supplied
 ``install.bat'' batch file or you can make a boot floppy with
 the ``makeflp.bat'' command.
 
-For the easiest interface of all (from DOS), type "go".  This
+For the easiest interface of all (from DOS), type "view".  This
 will bring up a DOS menu utility that leads you through all
 the available options.
 
@@ -126,6 +124,9 @@ something like this:
 Which would allow you to then "cd /usr/ports; make" and get all the
 sources from the CD, but yet create all the intermediate files in
 /usr/ports, which is presumably on a more writable media! :-)
+
+This is, in fact, what the Ports entry in the Configuration menu
+does at installation time if you select it.
 
 SPECIAL NOTE:  Before invoking the installation, be sure that the
 CDROM is in the drive so that the "probe" can find it!

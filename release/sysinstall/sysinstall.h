@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.24 1995/10/19 18:37:50 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.25 1995/10/20 07:02:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -91,7 +91,7 @@
 /* Internal environment variable names */
 #define DISK_PARTITIONED	"_diskPartitioned"
 #define DISK_LABELLED		"_diskLabelled"
-#define SYSTEM_INSTALLED	"_systemInstalled"
+#define SYSTEM_STATE		"_systemState"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
 
@@ -110,7 +110,9 @@
 #define SWAP_SIZE		"swapSize"
 #define NFS_PATH		"nfs"
 #define FTP_PATH		"ftp"
+#define UFS_PATH		"ufs"
 #define PORTS_PATH		"ports"
+#define DIST_SETS		"dists"		/* This one is sort of advanced-users only */
 #define MEDIA_TYPE		"mediaType"
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
@@ -463,23 +465,10 @@ extern int	installExpress(char *str);
 extern int	installFixit(char *str);
 extern int	installUpgrade(char *str);
 extern int	installPreconfig(char *str);
-extern int	installFixup(void);
-extern int	installFinal(void);
-extern int	installFilesystems(void);
-extern void	installVarDefaults(void);
-
-/* lang.c */
-extern void	lang_set_Danish(char *str);
-extern void	lang_set_Dutch(char *str);
-extern void	lang_set_English(char *str);
-extern void	lang_set_French(char *str);
-extern void	lang_set_German(char *str);
-extern void	lang_set_Italian(char *str);
-extern void	lang_set_Japanese(char *str);
-extern void	lang_set_Norwegian(char *str);
-extern void	lang_set_Russian(char *str);
-extern void	lang_set_Spanish(char *str);
-extern void	lang_set_Swedish(char *str);
+extern int	installFixup(char *str);
+extern int	installFinal(char *str);
+extern int	installFilesystems(char *str);
+extern int	installVarDefaults(char *str);
 
 /* label.c */
 extern int	diskLabelEditor(char *str);
@@ -511,7 +500,7 @@ extern int	mediaSetUFS(char *str);
 extern int	mediaSetNFS(char *str);
 extern int	mediaSetFtpUserPass(char *str);
 extern int	mediaSetCPIOVerbosity(char *str);
-extern int	mediaGetType(void);
+extern int	mediaGetType(char *str);
 extern Boolean	mediaExtractDist(char *dir, int fd);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);
