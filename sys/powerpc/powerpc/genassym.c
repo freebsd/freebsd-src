@@ -43,7 +43,6 @@
 #include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/ucontext.h>
-#include <sys/user.h>
 #include <sys/ucontext.h>
 #include <sys/vmmeter.h>
 
