@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.23 1999/05/14 11:22:42 dfr Exp $
+ *	$Id: subr_bus.c,v 1.24 1999/05/21 08:23:58 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -657,6 +657,8 @@ device_add_child_after(device_t dev, device_t place, const char *name,
     	    name, DEVICENAME(dev), DEVICENAME(place), unit, (ivars? "":"out")));
 
     child = make_device(dev, name, unit, ivars);
+    if (child == NULL)
+	return child;
 
     if (place) {
 	TAILQ_INSERT_AFTER(&dev->children, place, dev, link);
