@@ -214,7 +214,7 @@ getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
 static void
 getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
 {
-#ifndef __alpha__	/* only meaningful on x86 */
+#ifdef __i386__	/* only meaningful on x86 */
     static u_char *mbr, *boot0;
     static size_t mbr_size, boot0_size;
     char str[80];
