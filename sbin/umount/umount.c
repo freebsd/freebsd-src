@@ -214,10 +214,8 @@ umountall(char **typelist)
 		    strcmp(fs->fs_type, FSTAB_RQ))
 			continue;
 		/* If an unknown file system type, complain. */
-		if (getvfsbyname(fs->fs_vfstype, &vfc) == -1) {
-			warnx("%s: unknown mount type", fs->fs_vfstype);
+		if (getvfsbyname(fs->fs_vfstype, &vfc) == -1)
 			continue;
-		}
 		if (checkvfsname(fs->fs_vfstype, typelist))
 			continue;
 
