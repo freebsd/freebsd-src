@@ -304,16 +304,17 @@ the number and percentage of the translations that were
 handled by the per process name translation cache.
 .Pp
 At the bottom left is the disk usage display.
-It reports the number of seeks, transfers, and number
-of kilobyte blocks transferred per second averaged over the
+It reports the number of
+kilobytes per transaction, transactions per second and megabytes 
+per second averaged over the 
 refresh period of the display (by default, five seconds).
-For some disks it also reports the average milliseconds per seek.
-Note that the system only keeps statistics on at most eight disks
-(this is controlled by the constant 
-.Dv DK_NDRIVE
-in
-.Aq Pa sys/dkstat.h
-as a kernel compile-time constant).
+The system keeps statistics on most every storage device.  In general, up
+to seven devices are displayed.  The devices displayed by default are the
+first devices in the kernel's device list.  See 
+.Xr devstat 3
+and 
+.Xr devstat 9
+for details on the devstat system.
 .Pp
 Under the date in the upper right hand quadrant are statistics
 on paging and swapping activity.
