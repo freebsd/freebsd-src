@@ -124,6 +124,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	struct g_geom *gp;
 	struct g_provider *newpp;
 	struct g_consumer *cp;
+	char name[64];
 	int error;
 
 	g_topology_assert();
@@ -132,10 +133,16 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	newpp = NULL;
 	cp = NULL;
 
-	gp = g_new_geomf(mp, "%s%s", pp->name, G_NOP_SUFFIX);
+	snprintf(name, sizeof(name), "%s%s", pp->name, G_NOP_SUFFIX);
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		if (strcmp(gp->name, name) == 0) {
+			gctl_error(req, "Provider %s already exists.", name);
+			return (EEXIST);
+		}
+	}
+	gp = g_new_geomf(mp, name);
 	if (gp == NULL) {
-		gctl_error(req, "Cannot create geom %s%s.", pp->name,
-		    G_NOP_SUFFIX);
+		gctl_error(req, "Cannot create geom %s%s.", name);
 		return (ENOMEM);
 	}
 	gp->softc = NULL;
@@ -147,8 +154,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 
 	newpp = g_new_providerf(gp, gp->name);
 	if (newpp == NULL) {
-		gctl_error(req, "Cannot create provider %s%s.", pp->name,
-		    G_NOP_SUFFIX);
+		gctl_error(req, "Cannot create provider %s%s.", name);
 		error = ENOMEM;
 		goto fail;
 	}
