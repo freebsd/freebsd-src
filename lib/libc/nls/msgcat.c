@@ -91,8 +91,9 @@ int type;
     __const char *catpath = NULL;
     char        *nlspath;
     char	*lang;
-    long	len;
     char	*base, *cptr, *pathP;
+    int		spcleft;
+    long	len;
     struct stat	sbuf;
 
     if (!name || !*name) {
@@ -129,13 +130,20 @@ int type;
 		*cptr = '\0';
 		for (pathP = path; *nlspath; ++nlspath) {
 		    if (*nlspath == '%') {
+		        spcleft = sizeof(path) - (pathP - path);
 			if (*(nlspath + 1) == 'L') {
 			    ++nlspath;
-			    strcpy(pathP, lang);
+			    if (strlcpy(pathP, lang, spcleft) >= spcleft) {
+				errno = ENAMETOOLONG;
+				return(NLERR);
+			    }
 			    pathP += strlen(lang);
 			} else if (*(nlspath + 1) == 'N') {
 			    ++nlspath;
-			    strcpy(pathP, name);
+			    if (strlcpy(pathP, name, spcleft) >= spcleft) {
+			        errno = ENAMETOOLONG;
+				return(NLERR);
+			    }
 			    pathP += strlen(name);
 			} else *(pathP++) = *nlspath;
 		    } else *(pathP++) = *nlspath;
