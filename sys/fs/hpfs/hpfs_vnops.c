@@ -1030,13 +1030,12 @@ hpfs_lookup(ap)
 	int error;
 	int nameiop = cnp->cn_nameiop;
 	int flags = cnp->cn_flags;
-	int lockparent = flags & LOCKPARENT;
 #if HPFS_DEBUG
 	int wantparent = flags & (LOCKPARENT|WANTPARENT);
 #endif
-	dprintf(("hpfs_lookup(0x%x, %s, %ld, %d, %d): \n",
+	dprintf(("hpfs_lookup(0x%x, %s, %ld, %d): \n",
 		dhp->h_no, cnp->cn_nameptr, cnp->cn_namelen,
-		lockparent, wantparent));
+		wantparent));
 
 	if (nameiop != CREATE && nameiop != DELETE && nameiop != LOOKUP) {
 		printf("hpfs_lookup: LOOKUP, DELETE and CREATE are only supported\n");
@@ -1065,12 +1064,12 @@ hpfs_lookup(ap)
 			VOP_UNLOCK(dvp,0,cnp->cn_thread);
 			error = VFS_VGET(hpmp->hpm_mp,
 				 dhp->h_fn.fn_parent, LK_EXCLUSIVE, ap->a_vpp); 
-			VOP_LOCK(dvp, 0, cnp->cn_thread);
-			if(error)
+			if (error) {
+				vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY,
+				    cnp->cn_thread);
 				return(error);
+			}
 		}
-		if (!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(dvp,0,cnp->cn_thread);
 		return (0);
 	} else {
 		struct buf *bp;
@@ -1082,8 +1081,6 @@ hpfs_lookup(ap)
 		if (error) {
 			if ((error == ENOENT) && (flags & ISLASTCN) &&
 			    (nameiop == CREATE || nameiop == RENAME)) {
-				if(!lockparent)
-					VOP_UNLOCK(dvp, 0, cnp->cn_thread);
 				cnp->cn_flags |= SAVENAME;
 				return (EJUSTRETURN);
 			}
@@ -1129,8 +1126,6 @@ hpfs_lookup(ap)
 
 		brelse(bp);
 
-		if(!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(dvp, 0, cnp->cn_thread);
 		if ((flags & MAKEENTRY) &&
 		    (!(flags & ISLASTCN) || 
 		     (nameiop != DELETE && nameiop != CREATE)))
