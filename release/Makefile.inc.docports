@@ -19,6 +19,7 @@ MINIMALDOCPORTS= \
 	ports/devel/pkgconfig \
 	ports/graphics/gd \
 	ports/graphics/peps \
+	ports/graphics/jbigkit \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
 	ports/graphics/png \
