@@ -19,10 +19,6 @@
 #define DEFFSIZE 1024
 #define DEFFRAG 8
 
-int enable_label(int);
-int disable_label(int);
-int write_bootblocks(int, off_t, int);
-int build_bootblocks(struct disklabel *);
 int Mb_to_cylbdry(int, struct disklabel *);
 void default_disklabel(struct disklabel *, int, int);
 int disk_size(struct disklabel *);

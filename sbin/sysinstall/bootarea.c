@@ -31,115 +31,100 @@ extern struct mbr *mbr;
 extern char boot1[];
 extern char boot2[];
 
-int
+void
 enable_label(int fd)
 { 
 	int flag = 1;
-	if (ioctl(fd, DIOCWLABEL, &flag) < 0) {
-		return(-1);
-	}
-	return(0);
+	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
+	    Fatal("ioctl(DIOCWLABEL,1) failed: %s",strerror(errno));
 }
 
-int
+void
 disable_label(int fd)
 {  
 	int flag = 0;
-	if (ioctl(fd, DIOCWLABEL, &flag) < 0) {
-		return(-1);
-	}
-	return(0);
+	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
+	    Fatal("ioctl(DIOCWLABEL,0) failed: %s",strerror(errno));
 }
 
 int
-write_bootblocks(int fd, off_t offset, int bbsize)
+write_bootblocks(int fd, struct disklabel *lbl)
 {
-	if (ioctl(fd, DIOCWDINFO, &avail_disklabels[inst_disk]) < 0) {
-		Fatal("Failed to write disklabel: %s\n", strerror(errno));
-		return(-1);
-	}
+    off_t of = lbl->d_partitions[OURPART].p_offset;
 
-	Debug("Seeking to block %ld ", offset);
-	Debug("Seeking to byte %ld ", (offset * avail_disklabels[inst_disk].d_secsize));
-	if (lseek(fd, (offset * avail_disklabels[inst_disk].d_secsize), SEEK_SET) < 0) {
-		sprintf(errmsg, "Couldn't seek to start of partition\n");
-		return(-1);
-	}
+    Debug("Seeking to byte %ld ", of * lbl->d_secsize);
+    if (lseek(fd, (of * lbl->d_secsize), SEEK_SET) < 0) {
+	    Fatal("Couldn't seek to start of partition\n");
+    }
 
-	if (enable_label(fd) == -1)
-		return(-1);
+    enable_label(fd);
 
-	if (write(fd, bootblocks, bbsize) != bbsize) {
-		sprintf(errmsg, "Failed to write bootblocks (%p,%d) %d %s\n",
-			bootblocks, bbsize,
-			errno, strerror(errno)
-			);
-		return(-1);
-	}
+    if (write(fd, bootblocks, lbl->d_bbsize) != lbl->d_bbsize) {
+	    Fatal("Failed to write bootblocks (%p,%d) %d %s\n",
+		    bootblocks, lbl->d_bbsize,
+		    errno, strerror(errno)
+		    );
+    }
 
-	if (disable_label(fd) == -1)
-		return(-1);
+    disable_label(fd);
 
-	return(0);
+    return(0);
 }
 
 int
-build_bootblocks(struct disklabel *label)
+build_bootblocks(int dfd,struct disklabel *label,struct dos_partition *dospart)
 {
+    int fd;
+    off_t of = label->d_partitions[OURPART].p_offset;
 
-	int fd;
+    Debug("Loading boot code from %s", boot1);
 
-	sprintf(scratch, "\nLoading boot code from %s\n", boot1);
-	dialog_msgbox(TITLE, scratch, 5, 60, 0);
-	fd = open(boot1, O_RDONLY);
-	if (fd < 0) {
-		sprintf(errmsg, "Couldn't open boot file %s\n", boot1);
-		return(-1);
-	}
+    fd = open(boot1, O_RDONLY);
+    if (fd < 0) 
+	Fatal("Couldn't open boot file %s\n", boot1);
 
-	if (read(fd, bootblocks, MBRSIZE) < 0) {
-		sprintf(errmsg, "Couldn't read from boot file %s\n", boot1);
-		return(-1); 
-	}
+    if (read(fd, bootblocks, MBRSIZE) < 0) 
+	Fatal("Couldn't read from boot file %s\n", boot1);
 
-	if (close(fd) == -1) {
-		sprintf(errmsg, "Couldn't close boot file %s\n", boot1);
-		return(-1);
-	}
+    if (close(fd) == -1) 
+	Fatal("Couldn't close boot file %s\n", boot1);
 
-	dialog_clear();
-	sprintf(scratch, "\nLoading boot code from %s\n", boot2);
-	dialog_msgbox(TITLE, scratch, 5, 60, 0);
+    Debug("Loading boot code from %s", boot2);
 
-	fd = open(boot2, O_RDONLY);
-	if (fd < 0) {
-		sprintf(errmsg, "Couldn't open boot file %s\n", boot2);
-		return(-1);
-	}
+    fd = open(boot2, O_RDONLY);
+    if (fd < 0) 
+	Fatal("Couldn't open boot file %s", boot2);
 
-	if (read(fd, &bootblocks[MBRSIZE],
-				(int)(label->d_bbsize - MBRSIZE)) < 0) {
-		sprintf(errmsg, "Couldn't read from boot file %s\n", boot2);
-		return(-1);
-	}
+    if (read(fd, &bootblocks[MBRSIZE], (int)(label->d_bbsize - MBRSIZE)) < 0) 
+	Fatal("Couldn't read from boot file %s\n", boot2);
 
-	if (close(fd) == -1) {
-		sprintf(errmsg, "Couldn't close boot file %s\n", boot2);
-		return(-1);
-	}
+    if (close(fd) == -1) 
+	Fatal("Couldn't close boot file %s", boot2);
 
-	dialog_clear();
+    bcopy(dospart, &bootblocks[DOSPARTOFF],
+	  sizeof(struct dos_partition) * NDOSPART);
 
-	/* Copy MBR partition area into bootblocks */
+    label->d_checksum = 0;
+    label->d_checksum = dkcksum(label);
+    bcopy(label, &bootblocks[(LABELSECTOR * label->d_secsize) + LABELOFFSET],
+		    sizeof *label);
 
-	bcopy(mbr->dospart, &bootblocks[DOSPARTOFF],
-	      sizeof(struct dos_partition) * NDOSPART);
+    Debug("Seeking to byte %ld ", of * label->d_secsize);
 
-	/* Write the disklabel into the bootblocks */
+    if (lseek(dfd, (of * label->d_secsize), SEEK_SET) < 0) {
+	    Fatal("Couldn't seek to start of partition\n");
+    }
 
-	label->d_checksum = dkcksum(label);
-	bcopy(label, &bootblocks[(LABELSECTOR * label->d_secsize) + LABELOFFSET],
-			sizeof *label);
+    enable_label(dfd);
 
-	return(0);
+    if (write(dfd, bootblocks, label->d_bbsize) != label->d_bbsize) {
+	    Fatal("Failed to write bootblocks (%p,%d) %d %s\n",
+		    bootblocks, label->d_bbsize,
+		    errno, strerror(errno)
+		    );
+    }
+
+    disable_label(dfd);
+
+    return(0);
 }

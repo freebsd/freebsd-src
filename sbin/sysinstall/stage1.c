@@ -131,39 +131,48 @@ free_memory()
 }
 
 
+char * device_list[] = {"wd","sd",0};
+
 void
 query_disks()
 {
-	int i;
-	char disk[15];
-	char diskname[5];
-	struct stat st;
-	int fd;
+    int i,j;
+    char disk[15];
+    char diskname[5];
+    struct stat st;
+    struct disklabel dl;
+    int fd;
 
-	no_disks = 0;
-	for (i=0;i<10;i++) {
-		sprintf(diskname,"wd%d",i);
-		sprintf(disk,"/dev/r%sd",diskname);
-		if ((stat(disk, &st) == 0) && (st.st_mode & S_IFCHR))
-			if ((fd = open(disk, O_RDWR)) != -1) {
-				avail_fds[no_disks] = fd;
-				bcopy(diskname, avail_disknames[no_disks], strlen(diskname));
-				if (ioctl(fd, DIOCGDINFO, &avail_disklabels[no_disks++]) == -1)
-					no_disks--;
-			}
+    for(i=0;i<MAX_NO_DISKS;i++)
+	if(Dname[i]) {
+	    close(Dfd[i]); Dfd[i] = 0;
+	    free(Dlbl[i]); Dlbl[i] = 0;
+	    free(Dname[i]); Dname[i] = 0;
 	}
 
+    Ndisk = 0;
+
+    for (j=0; device_list[j]; j++) {
 	for (i=0;i<10;i++) {
-		sprintf(diskname,"sd%d",i);
-		sprintf(disk,"/dev/r%sd",diskname);
-		if ((stat(disk, &st) == 0) && (st.st_mode & S_IFCHR))
-			if ((fd = open(disk, O_RDWR)) != -1) {
-				avail_fds[no_disks] = fd;
-				bcopy(diskname, avail_disknames[no_disks], strlen(diskname));
-				if (ioctl(fd, DIOCGDINFO, &avail_disklabels[no_disks++]) == -1)
-					no_disks--;
-			}
+	    sprintf(diskname,"%s%d",device_list[j],i);
+	    sprintf(disk,"/dev/r%sd",diskname);
+	    if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
+		continue;
+	    if ((fd = open(disk, O_RDWR)) == -1)
+		continue;
+	    if (ioctl(fd, DIOCGDINFO, &dl) == -1) {
+		close(fd);
+		continue;
+	    }		
+	    Dlbl[Ndisk] = Malloc(sizeof dl);
+	    memcpy(Dlbl[Ndisk], &dl, sizeof dl);
+	    Dname[Ndisk]=StrAlloc(diskname);
+	    Dfd[Ndisk] = fd;
+	    Ndisk++;
+	    if(Ndisk == MAX_NO_DISKS)
+		return;
 	}
+    }
 }
 
 int
@@ -239,12 +248,61 @@ select_partition(int disk)
 void
 stage1()
 {
-	int i;
+	int i,j;
 	int ok = 0;
 	int ready = 0;
 
 	query_disks();
+	while (!ready) {
+	    clear(); standend();
+	    j = 0;
+	    mvprintw(j++,0,"%s -- Diskspace editor",TITLE);
+	    j++;
+	    mvprintw(j++,0,"Disks         Total   FreeBSD ");
+	    j++;
+	    for(i=0;i<MAX_NO_DISKS;i++) {
+		if(!Dname[i])
+		    continue;
+		mvprintw(j++,0,"%2d: %-6s %5lu MB  %5lu MB",
+		    i,
+		    Dname[i],
+		    PartMb(Dlbl[i],RAWPART),
+		    PartMb(Dlbl[i],OURPART) );
+	    }
+	    j++;
+	    mvprintw(j++,0,"Filesystems  Type        Size  Mountpoint");
+	    j++;
+	    for(i=0;i<MAX_NO_FS;i++) {
+		if(!Fname[i])
+		    continue;
+		mvprintw(j++,0,"%2d: %-5s    %-5s   %5lu MB  %-s",
+			i,Fname[i],Ftype[i],Fsize[i],Fmount[i]);
+	    }
 
+	    mvprintw(21,0,"Commands available:");
+	    mvprintw(22,0,"(F)disk  (D)isklabel  (Q)uit");
+	    mvprintw(23,0,"Enter Command> ");
+	    i = getch();
+	    switch(i) {
+		case 'q': case 'Q':
+		    return;
+		case 'f': case 'F':
+		    Fdisk();
+		    query_disks();
+		    break;
+		case 'd': case 'D':
+		    DiskLabel();
+		    break;
+		default:
+		    beep();
+	    }
+	}
+
+	for (i=0; Dname[i]; i++)
+	    close(Dfd[i]);
+	return;
+}
+#if 0
 	while (!ready) {
 		ready = 1;
 
@@ -321,7 +379,9 @@ stage1()
 			dialog_clear();
 		}
 	}
-
+	if(getenv("STAGE0")) {
+		Fatal("We stop here");
+	}
 	/* Write master boot record and bootblocks */
 	if (write_mbr(avail_fds[inst_disk], mbr) == -1)
 		Fatal(errmsg);
@@ -338,3 +398,4 @@ stage1()
 			Fatal(errmsg);
 		}
 }
+#endif
