@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.34 1998/05/04 17:56:22 bde Exp $
+#	$Id: Makefile,v 1.35 1998/08/30 02:01:07 jb Exp $
 
 PROG = gdb
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 BFDDIR= ${.CURDIR}/../../binutils/libbfd/${MACHINE_ARCH}
 .else
 BFDDIR= ${.CURDIR}/../bfd
@@ -49,7 +49,7 @@ YFLAGS=
 
 CLEANFILES=	init.c init.c-tmp
 
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 
 .if exists(${.OBJDIR}/../../binutils/libbfd)
 LIBBFD=	${.OBJDIR}/../../binutils/libbfd/libbfd.a
@@ -77,7 +77,7 @@ LIBIBERTY= ${.OBJDIR}/../libiberty/libiberty.a
 LIBIBERTY= ${.CURDIR}/../libiberty/libiberty.a
 .endif
 
-.endif # BINFORMAT
+.endif # OBJFORMAT
 
 DPADD=	${LIBBFD} ${LIBREADLINE} ${LIBGNUREGEX} ${LIBIBERTY} ${LIBTERMCAP}
 LDADD=	${LIBBFD} -lreadline     -lgnuregex     ${LIBIBERTY} -ltermcap
