@@ -234,7 +234,8 @@ m_prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
   head = m_get(len + extra, bp ? bp->m_type : MB_UNKNOWN);
   head->m_offset = extra;
   head->m_len -= extra;
-  memcpy(MBUF_CTOP(head), ptr, len);
+  if (ptr)
+    memcpy(MBUF_CTOP(head), ptr, len);
   head->m_next = bp;
 
   return head;
@@ -397,4 +398,20 @@ m_settype(struct mbuf *bp, int type)
       MemMap[type].fragments++;
       MemMap[type].octets += bp->m_size;
     }
+}
+
+struct mbuf *
+m_append(struct mbuf *m, const void *v, size_t sz)
+{
+  if (m) {
+    while (m->m_next)
+      m = m->m_next;
+    if (m->m_size - m->m_len > sz)
+      m->m_len += sz;
+    else
+      m->m_next = m_prepend(NULL, v, sz, 0);
+  } else
+    m = m_prepend(NULL, v, sz, 0);
+
+  return m;
 }
