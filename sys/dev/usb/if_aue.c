@@ -477,8 +477,10 @@ static void aue_miibus_statchg(dev)
 	 * This turns on the 'dual link LED' bin in the auxmode
 	 * register of the Broadcom PHY.
 	 */
-	if (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
-	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) {
+	if ((sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
+	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) ||
+	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
+	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650TX)) {
 		u_int16_t		auxmode;
 		auxmode = aue_miibus_readreg(dev, 0, 0x1b);
 		aue_miibus_writereg(dev, 0, 0x1b, auxmode | 0x04);
@@ -566,8 +568,10 @@ static void aue_reset(sc)
 	csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0|AUE_GPIO_SEL1);
 
 	/* Grrr. LinkSys has to be different from everyone else. */
-	if (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
-	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) {
+	if ((sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
+	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) ||
+	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
+	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650TX)) {
 		csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1);
 		csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1|
 			AUE_GPIO_OUT0);
