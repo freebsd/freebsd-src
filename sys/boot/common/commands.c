@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.8 1999/01/09 02:34:48 msmith Exp $
+ *	$Id: commands.c,v 1.9 1999/01/11 06:41:31 msmith Exp $
  */
 
 #include <stand.h>
@@ -35,6 +35,7 @@
 char		*command_errmsg;
 char		command_errbuf[256];	/* XXX should have procedural interface for setting, size limit? */
 
+static int page_file(char *filename);
 
 /*
  * Help is read from a formatted text file.
@@ -382,6 +383,50 @@ command_read(int argc, char *argv[])
 	setenv(name, buf, 1);
     return(CMD_OK);
 }
+
+/*
+ * File pager
+ */
+COMMAND_SET(more, "more", "show contents of a file", command_more);
+
+static int
+command_more(int argc, char *argv[])
+{
+    int         i;
+    int         res;
+    char	line[80];
+
+    res=0;
+    pager_open();
+    for (i = 1; (i < argc) && (res == 0); i++) {
+	sprintf(line, "*** FILE %s BEGIN ***\n", argv[i]);
+	pager_output(line);
+        res = page_file(argv[i]);
+	if (!res) {
+	    sprintf(line, "*** FILE %s END ***\n", argv[i]);
+	    pager_output(line);
+	}
+    }
+    pager_close();
+
+    if (res == 0)
+	return CMD_OK;
+    else
+	return CMD_ERROR;
+}
+
+static int
+page_file(char *filename)
+{
+    int result;
+
+    result = pager_file(filename);
+
+    if (result == -1)
+	sprintf(command_errbuf, "error showing %s", filename);
+
+    return result;
+}   
 
 /*
  * List all disk-like devices
