@@ -78,7 +78,6 @@ extern int sccnattach __P((void));
 void
 st550_init()
 {
-	int i;
 	platform.family = "Digital Personal Workstation (Miata)";
 
 	if ((platform.model = alpha_dsr_sysname()) == NULL) {
@@ -141,7 +140,7 @@ st550_cons_init()
 		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
 
-		panic("consinit: unknown console type %d\n",
+		panic("consinit: unknown console type %ld\n",
 		    ctb->ctb_term_type);
 	}
 }
