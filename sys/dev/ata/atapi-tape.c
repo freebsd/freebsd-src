@@ -61,7 +61,6 @@ static struct cdevsw ast_cdevsw = {
 	.d_ioctl =	ast_ioctl,
 	.d_strategy =	ast_strategy,
 	.d_name =	"ast",
-	.d_maj =	119,
 	.d_flags =	D_TAPE | D_TRACKCLOSE,
 };
 
