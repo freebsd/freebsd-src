@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.16 1995/02/25 23:00:50 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.17 1995/02/25 23:42:14 roberto Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -276,6 +276,7 @@ UltraStor            UH-14f Series <ISA>
 Any SCSI drive connected to a supported controller.
 
 Mitsumi LU002(8bit), LU005(16bit) and FX001D(16bit 2x Speed).
+NOTE: The Mitsumi IDE CD-ROMs are NOT supported.
 
 FreeBSD does NOT support drives connected to a Sound Blaster or
 non-SCSI SONY or Panasonic drives at this time.  A general rule of thumb when
@@ -283,6 +284,8 @@ selecting a CDROM drive for FreeBSD use is to buy a very standard SCSI
 model; they cost more, but deliver very solid performance in return.
 Do not be fooled by very cheap drives that, in turn, deliver VERY LOW
 performance!  As always, you get what you pay for.
+
+FreeBSD also does not support any of the ``IDE'' CD-ROM interfaces.
 
 The Mitsumi driver is known to be extremely slow compared to SCSI
 drives.
