@@ -39,7 +39,7 @@
 #endif
 
 /*
- * ucb stdio.h defines BSD as something wierd
+ * ucb stdio.h defines BSD as something weird
  */
 #if defined(sun) && defined(__svr4__)
 #define BSD 43
