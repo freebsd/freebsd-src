@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.65 1997/04/28 00:24:59 fsmp Exp $
+ *	$Id: cpufunc.h,v 1.66 1997/05/07 19:51:59 peter Exp $
  */
 
 /*
@@ -356,7 +356,11 @@ rdtsc(void)
 static __inline void
 setbits(volatile unsigned *addr, u_int bits)
 {
-	__asm __volatile("orl %1,%0" : "=m" (*addr) : "ir" (bits));
+	__asm __volatile(
+#ifdef SMP
+			 "lock; "
+#endif
+			 "orl %1,%0" : "=m" (*addr) : "ir" (bits));
 }
 
 static __inline void
