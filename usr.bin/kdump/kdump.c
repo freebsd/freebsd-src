@@ -565,7 +565,10 @@ ktruser(int len, unsigned char *p)
 {
 	(void)printf("%d ", len);
 	while (len--)
-		(void)printf(" %02x", *p++);
+		if (decimal)
+			(void)printf(" %d", *p++);
+		else
+			(void)printf(" %02x", *p++);
 	(void)printf("\n");
 		
 }
