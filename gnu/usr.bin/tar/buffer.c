@@ -21,6 +21,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * Buffer management for tar.
  *
  * Written by John Gilmore, ihnp4!hoptoad!gnu, on 25 August 1985.
+ *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -1254,6 +1256,21 @@ close_archive ()
   if (f_verify)
     verify_volume ();
 
+#ifndef __MSDOS__
+  /*
+   * Closing the child's pipe before reading EOF guarantees that it
+   * will be unhappy - SIGPIPE, or exit 1.
+   * Either way it can screw us, so play nice.
+   */
+  if (childpid && ar_reading)
+    {
+      char buf[BUFSIZ];
+
+      while ((c = read(archive, buf, sizeof(buf))) > 0)
+        ;
+    }
+#endif
+
   if ((c = rmtclose (archive)) < 0)
     msg_perror ("Warning: can't close %s(%d,%d)", ar_files[cur_ar_file], archive, c);
 
@@ -1292,8 +1309,11 @@ close_archive ()
 		  /* Do nothing. */
 		}
 	      else if (WEXITSTATUS (status))
-		msg ("child returned status %d",
-		     WEXITSTATUS (status));
+	        {
+		  msg ("child returned status %d",
+		       WEXITSTATUS (status));
+		  exit (EX_BADARCH);
+		}
 	    }
 	}
     }
