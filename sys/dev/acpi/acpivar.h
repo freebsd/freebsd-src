@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1999 Takanori Watanabe <takawata@shidahara1.planet.sci.kobe-u.ac.jp>
  * Copyright (c) 1999, 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+ * Copyright (c) 2000 Michael Smith <msmith@FreeBSD.org>
+ * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,9 +28,6 @@
  *
  *	$FreeBSD$
  */
-
-#ifndef _DEV_ACPI_ACPI_H_
-#define _DEV_ACPI_ACPI_H_
 
 /* 
  * PowerResource control 
@@ -92,15 +91,40 @@ struct acpi_event {
 	int ae_arg;
 };
 
+/*
+ * I/O resource structure
+ */
+
+#define ACPI_RES_SMI_CMD	0
+#define ACPI_RES_PM1A_EVT	1
+#define ACPI_RES_PM1B_EVT	2
+#define ACPI_RES_PM1A_CNT	3
+#define ACPI_RES_PM1B_CNT	4
+#define ACPI_RES_PM2_CNT	5
+#define ACPI_RES_PM_TMR		6
+#define ACPI_RES_GPE0		7
+#define ACPI_RES_GPE1		8
+#define ACPI_RES_FIRSTFREE	9
+#define ACPI_RES_AUTO		-1
+#define ACPI_RES_MAX		64
+
+struct acpi_io_resource {
+	struct resource		*rsc;
+	int			rid;
+	int			size;
+	bus_space_handle_t	bhandle;
+	bus_space_tag_t		btag;
+};
+
 /* 
  * Softc 
-*/
+ */
 typedef struct acpi_softc {
 	device_t	dev;
 	dev_t		dev_t;
 
-	struct resource	*port;
-	int		port_rid;
+	struct acpi_io_resource iores[ACPI_RES_MAX];
+
 	struct resource	*irq;
 	int		irq_rid;
 	void		*irq_handle;
@@ -126,6 +150,23 @@ typedef struct acpi_softc {
 } acpi_softc_t;
 
 /* 
+ * ACPI register I/O 
+ */
+#define	ACPI_REGISTER_INPUT	0
+#define	ACPI_REGISTER_OUTPUT	1
+extern void	acpi_enable_disable(acpi_softc_t *sc, boolean_t enable);
+extern void	acpi_io_pm1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *status);
+extern void	acpi_io_pm1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *enable);
+extern void	acpi_io_pm1_control(acpi_softc_t *sc, boolean_t io, u_int32_t *val_a, u_int32_t *val_b);
+extern void	acpi_io_pm2_control(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
+extern void	acpi_io_pm_timer(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
+extern void	acpi_io_gpe0_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
+extern void	acpi_io_gpe0_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
+extern void	acpi_io_gpe1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
+extern void	acpi_io_gpe1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
+
+
+/* 
  * Device State 
  */
 extern u_int8_t	 acpi_get_current_device_state(struct aml_name *name);
@@ -133,6 +174,11 @@ extern void	 acpi_set_device_state(acpi_softc_t *sc, struct aml_name *name,
 				       u_int8_t state);
 extern void	 acpi_set_device_wakecap(acpi_softc_t *sc, struct aml_name *name,
 					 u_int8_t cap);
+
+/*
+ * System state
+ */
+extern void	acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state);
 
 /* 
  * PowerResource State 
@@ -147,20 +193,54 @@ extern void	acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state);
 /* 
  * GPE enable bit manipulation 
  */
-extern void	acpi_gpe_enable_bit(acpi_softc_t *, u_int32_t, boolean_t);
+extern void	acpi_gpe_enable_bit(acpi_softc_t *sc, u_int32_t bit, boolean_t on_off);
 
 /*
- * Event queue
+ * Event management
  */
+extern void	acpi_intr(void *data);
 extern void	acpi_queue_event(acpi_softc_t *sc, int type, int arg);
+extern int	acpi_send_pm_event(acpi_softc_t *sc, u_int8_t state);
+extern void	acpi_enable_events(acpi_softc_t *sc);
+extern void	acpi_clear_ignore_events(void *arg);
+extern void 	acpi_event_thread(void *arg);
+
+/*
+ * ACPI pmap subsystem
+ */
+#define ACPI_SMAP_MAX_SIZE	16
+
+struct ACPIaddr {
+	int	entries;
+	struct {
+		vm_offset_t	pa_base;
+		vm_offset_t	va_base;
+		vm_size_t	size;
+		u_int32_t	type;
+	} t [ACPI_SMAP_MAX_SIZE];
+};
+
+extern struct ACPIaddr	acpi_addr;
+extern struct ACPIrsdp *acpi_rsdp;	/* ACPI Root System Description Table */
+extern void		acpi_init_addr_range(void);
+extern void		acpi_register_addr_range(u_int64_t base, u_int64_t size, u_int32_t type);
+extern int		acpi_sdt_checksum(struct ACPIsdt * sdt);
+extern vm_offset_t	acpi_pmap_ptv(vm_offset_t pa);
+extern vm_offset_t	acpi_pmap_vtp(vm_offset_t va);
+
+/*
+ * Bus interface.
+ */
+extern int		acpi_attach_resource(acpi_softc_t *sc, int type, int *wantidx, 
+					     u_long start, u_long size);
+extern struct ACPIrsdp	*acpi_find_rsdp(void);
+extern void		acpi_mapmem(void);
 
 /*
  * Debugging, console output
  *
- * XXX this should really be using device_printf
+ * XXX this should really be using device_printf or similar.
  */
 extern int acpi_debug;
 #define ACPI_DEVPRINTF(args...)		printf("acpi0: " args)
 #define ACPI_DEBUGPRINT(args...)	do { if (acpi_debug) ACPI_DEVPRINTF(args);} while(0)
-
-#endif	/* !_DEV_ACPI_ACPI_H_ */
