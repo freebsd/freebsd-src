@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.10.4.2 1995/09/01 03:07:17 davidg Exp $
+ *	$Id: ftpd.c,v 1.10.4.3 1996/03/18 11:10:16 davidg Exp $
  */
 
 #ifndef lint
@@ -1475,6 +1475,11 @@ void
 dologout(status)
 	int status;
 {
+	/*
+	 * Prevent reception of SIGURG from resulting in a resumption
+	 * back to the main program loop.
+	 */
+	transflag = 0;
 
 	if (logged_in) {
 		(void) seteuid((uid_t)0);
