@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.17 1998/05/19 18:42:09 phk Exp $
+ *	$Id: ddb.h,v 1.18 1998/06/07 17:09:38 dfr Exp $
  */
 
 /*
@@ -66,14 +66,14 @@ func_name(addr, have_addr, count, modif)			\
 	char *modif;
 
 extern char *esym;
-extern unsigned long db_maxoff;
+extern db_expr_t db_maxoff;
 extern int db_indent;
 extern int db_inst_count;
 extern int db_load_count;
 extern int db_store_count;
-extern long db_radix;
-extern long db_max_width;
-extern long db_tab_stop_width;
+extern db_expr_t db_radix;
+extern db_expr_t db_max_width;
+extern db_expr_t db_tab_stop_width;
 
 struct vm_map;
 

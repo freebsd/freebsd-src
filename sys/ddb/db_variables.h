@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.h,v 1.8 1997/06/30 23:54:50 bde Exp $
+ *	$Id: db_variables.h,v 1.9 1998/06/07 17:09:38 dfr Exp $
  */
 
 /*
@@ -42,7 +42,7 @@ typedef	int	db_varfcn_t __P((struct db_variable *vp, db_expr_t *valuep,
 				 int op));
 struct db_variable {
 	char	*name;		/* Name of variable */
-	long	*valuep;	/* value of variable */
+	db_expr_t *valuep;	/* value of variable */
 				/* function to call when reading/writing */
 	db_varfcn_t *fcn;
 #define DB_VAR_GET	0
