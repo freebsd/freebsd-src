@@ -212,6 +212,7 @@ static struct {
 } pci_ids[] = {
 	{0x1638, 0x1100,	"PRISM2STA PCI WaveLAN/IEEE 802.11"},
 	{0x1385, 0x4100,	"Netgear MA301 PCI IEEE 802.11b"},
+	{0x16ab, 0x1101,	"GLPRISM2 PCI WaveLAN/IEEE 802.11"},
 	{0x16ab, 0x1102,	"Linksys WDT11 PCI IEEE 802.11b"},
 	{0,	 0,	NULL}
 };
