@@ -351,7 +351,7 @@
       <title>Network Interface Support</title>
 
       <para arch="i386">The &man.arl.4; driver, which supports
-	Aironet Arlan 655 wireless adapters has been added.</para>
+	Aironet Arlan 655 wireless adapters has been added. &merged;</para>
 
       <para arch="sparc64">The &man.dc.4; driver now supports sparc64
 	Davicom cards that store their MAC address in
@@ -508,6 +508,12 @@
 	has been implemented.  This is enabled by default and can be disabled
 	using the <varname>net.inet.ip.portrange.randomized</varname>
 	sysctl.  &merged;</para>
+
+      <para>TCP Selective Acknowledgements (SACK) as described in RFC
+        2018 have been added.  This improves TCP performance over
+        connections with heavy packet loss.  SACK can be enabled with
+        the sysctl <varname>net.inet.tcp.sack.enable.</varname></para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -557,6 +563,8 @@
         ported from NetBSD to support the sbus SCSI card in Sun Ultra
         1e and 2 machines.</para>
 
+      <para>Support for LSI-type software RAID has been added.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -596,6 +604,10 @@
 
       <para>The meteor (video capture) driver has been removed due to
 	breakage and lack of maintainership.</para>
+
+      <para>The Direct Rendering Manager (DRM) code has been updated
+        from the DRI Project CVS tree as of 2004-05-26.  This update
+        includes new PCI IDs and a new packet for Radeon.</para>
 
     </sect3>
 
@@ -864,6 +876,9 @@
     <para><application>gdtoa</application> (a library that performs
       conversions of numbers between binary and decimal form) has been
       updated from version 20030324 to version 20040118.</para>
+
+    <para><application>GDB</application> has been updated to version
+      6.1.1.</para>
 
     <para><application>GNU grep</application> has been updated from
       2.4d to 2.4.2.</para>
