@@ -55,6 +55,11 @@
     url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
     Handbook</ulink>.</para>
 
+  <para>For significant information discovered after the release
+    or last-minute changes in the release cycle to be otherwise
+    included in the release documentation, please read
+    <ulink url="http://www.FreeBSD.org/releases/4.10R/errata.html">Errata</ulink>
+    document.</para>
 ]]>
 </sect1>
 
