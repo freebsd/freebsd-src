@@ -78,7 +78,6 @@ ENTRY(_start, 2)
 	mov	loc1=rp
 	movl	loc2=@gprel(ImageBase)
 	;;
-	br.sptk.few 9f
 	add	loc2=gp,loc2
 	;;
 	mov	out0=loc2
