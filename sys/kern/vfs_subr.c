@@ -2726,7 +2726,34 @@ vgonechrl(struct vnode *vp, struct thread *td)
 {
 	ASSERT_VI_LOCKED(vp, "vgonechrl");
 	vx_lock(vp);
-	vclean(vp, 0, td);
+	/*
+	 * This is a custom version of vclean() which does not tearm down
+	 * the bufs or vm objects held by this vnode.  This allows filesystems
+	 * to continue using devices which were discovered via another
+	 * filesystem that has been unmounted.
+	 */
+	if (vp->v_usecount != 0) {
+		v_incr_usecount(vp, 1);
+		/*
+		 * Ensure that no other activity can occur while the
+		 * underlying object is being cleaned out.
+		 */
+		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+		/*
+		 * Any other processes trying to obtain this lock must first
+		 * wait for VXLOCK to clear, then call the new lock operation.
+		 */
+		VOP_UNLOCK(vp, 0, td);
+		vp->v_vnlock = &vp->v_lock;
+		vp->v_tag = "orphanchr";
+		vp->v_op = spec_vnodeop_p;
+		if (vp->v_mount != NULL)
+			insmntque(vp, (struct mount *)0);
+		cache_purge(vp);
+		vrele(vp);
+		VI_LOCK(vp);
+	} else
+		vclean(vp, 0, td);
 	vp->v_op = spec_vnodeop_p;
 	vx_unlock(vp);
 	VI_UNLOCK(vp);
