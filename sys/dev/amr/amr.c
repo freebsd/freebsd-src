@@ -1573,9 +1573,43 @@ amr_describe_controller(struct amr_softc *sc)
     } else {
 	prod = "unsupported controller";
     }
-    device_printf(sc->amr_dev, "<%s> Firmware %.4s, BIOS %.4s, %dMB RAM\n", 
-		  prod, ae->ae_adapter.aa_firmware, ae->ae_adapter.aa_bios,
-		  ae->ae_adapter.aa_memorysize);
+
+    /*
+     * HP NetRaid controllers have a special encoding of the firmware and
+     * BIOS versions. The AMI version seems to have it as strings whereas
+     * the HP version does it with a leading uppercase character and two
+     * binary numbers.
+     */
+     
+    if(ae->ae_adapter.aa_firmware[2] >= 'A' &&
+       ae->ae_adapter.aa_firmware[2] <= 'Z' &&
+       ae->ae_adapter.aa_firmware[1] <  ' ' &&
+       ae->ae_adapter.aa_firmware[0] <  ' ' &&
+       ae->ae_adapter.aa_bios[2] >= 'A'     &&
+       ae->ae_adapter.aa_bios[2] <= 'Z'     &&
+       ae->ae_adapter.aa_bios[1] <  ' '     &&
+       ae->ae_adapter.aa_bios[0] <  ' ') {
+
+	/* this looks like we have an HP NetRaid version of the MegaRaid */
+
+    	if(ae->ae_signature == AMR_SIG_438) {
+    		/* the AMI 438 is an NetRaid 3si in HP-land */
+    		prod = "HP NetRaid 3si";
+    	}
+    	
+	device_printf(sc->amr_dev, "<%s> Firmware %c.%02d.%02d, BIOS %c.%02d.%02d, %dMB RAM\n",
+		      prod, ae->ae_adapter.aa_firmware[2],
+		      ae->ae_adapter.aa_firmware[1],
+		      ae->ae_adapter.aa_firmware[0],
+		      ae->ae_adapter.aa_bios[2],
+		      ae->ae_adapter.aa_bios[1],
+		      ae->ae_adapter.aa_bios[0],
+		      ae->ae_adapter.aa_memorysize);		
+    } else {
+	device_printf(sc->amr_dev, "<%s> Firmware %.4s, BIOS %.4s, %dMB RAM\n", 
+		      prod, ae->ae_adapter.aa_firmware, ae->ae_adapter.aa_bios,
+		      ae->ae_adapter.aa_memorysize);
+    }    	
     free(ae, M_DEVBUF);
 }
 
