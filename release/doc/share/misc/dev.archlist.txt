@@ -90,6 +90,8 @@ snd_solo	i386,amd64
 ste	i386,pc98,alpha,amd64
 stg	i386,pc98
 sym	i386,pc98,alpha,sparc64,amd64
+ti	i386,pc98,amd64
+tl	i386,pc98,alpha,amd64
 trm	i386,amd64
 twa	i386,amd64
 twe	i386,amd64
