@@ -33,7 +33,10 @@
  * Common code for dealing with 3COM ethernet cards.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <machine/cpufunc.h>
 
@@ -53,6 +56,10 @@ elink_reset()
 		x = 1;
 		outb(ELINK_ID_PORT, ELINK_RESET);
 	}
+	outb(ELINK_ID_PORT, 0);
+	outb(ELINK_ID_PORT, 0);
+
+	return;
 }
 
 /*
@@ -75,3 +82,12 @@ elink_idseq(u_char p)
 			c <<= 1;
 	}
 }
+
+static moduledata_t elink_mod = {
+	"elink",/* module name */
+	NULL,	/* event handler */
+	0	/* extra data */
+};
+
+DECLARE_MODULE(elink, elink_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(elink, 1);
