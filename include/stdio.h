@@ -221,7 +221,7 @@ int	 fgetc(FILE *);
 int	 fgetpos(FILE *, fpos_t *);
 char	*fgets(char *, int, FILE *);
 FILE	*fopen(const char *, const char *);
-int	 fprintf(FILE *, const char *, ...);
+int	 fprintf(FILE *__restrict, const char *__restrict, ...);
 int	 fputc(int, FILE *);
 int	 fputs(const char *, FILE *);
 size_t	 fread(void *, size_t, size_t, FILE *);
@@ -235,7 +235,7 @@ int	 getc(FILE *);
 int	 getchar(void);
 char	*gets(char *);
 void	 perror(const char *);
-int	 printf(const char *, ...);
+int	 printf(const char *__restrict, ...);
 int	 putc(int, FILE *);
 int	 putchar(int);
 int	 puts(const char *);
@@ -245,7 +245,7 @@ void	 rewind(FILE *);
 int	 scanf(const char *, ...);
 void	 setbuf(FILE *__restrict, char *__restrict);
 int	 setvbuf(FILE *__restrict, char *__restrict, int, size_t);
-int	 sprintf(char *, const char *, ...);
+int	 sprintf(char *__restrict, const char *__restrict, ...);
 int	 sscanf(const char *, const char *, ...);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
@@ -255,7 +255,7 @@ int	 vprintf(const char *, _BSD_VA_LIST_);
 int	 vsprintf(char *, const char *, _BSD_VA_LIST_);
 
 #if __ISO_C_VISIBLE >= 1999
-int	 snprintf(char *, size_t, const char *, ...) __printflike(3, 4);
+int	 snprintf(char *__restrict, size_t, const char *__restrict, ...) __printflike(3, 4);
 int	 vsnprintf(char *, size_t, const char *, _BSD_VA_LIST_)
 	    __printflike(3, 0);
 #endif
