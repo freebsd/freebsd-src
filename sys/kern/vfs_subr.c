@@ -2284,8 +2284,6 @@ vgonel(struct vnode *vp, struct thread *td)
 	if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
 		vinvalbuf(vp, 0, td, 0, 0);
 
-	VOP_DESTROYVOBJECT(vp);
-
 	/*
 	 * Any other processes trying to obtain this lock must first
 	 * wait for VXLOCK to clear, then call the new lock operation.
@@ -2320,6 +2318,9 @@ vgonel(struct vnode *vp, struct thread *td)
 	 */
 	if (VOP_RECLAIM(vp, td))
 		panic("vclean: cannot reclaim");
+
+	KASSERT(vp->v_object == NULL,
+	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
 
 	if (active) {
 		/*
