@@ -36,20 +36,21 @@
 #		via the floppy disk controller)
 #
 # Disks:
-#	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
-#	wfd*	IDE floppy disk drives (LS-120)
-#	fd*	floppy disk drives (3 1/2", 5 1/4")
-#	da*	SCSI Direct Access Devices
-#	cd*	SCSI CD-ROM disks
-#	sd*	SCSI disk, antiquated, use da* instead
-#	mcd*	Mitsumi CD-ROM disks
-#	scd*	Sony CD-ROM disks
-#	matcd*	Matsushita (Panasonic) CD-ROM disks
 #	acd*	ATAPI CD-ROM disks
-#	vn*	vnode disks
-#	od*	optical disks
+#	cd*	SCSI CD-ROM disks
+#	da*	SCSI Direct Access Devices
+#	fd*	floppy disk drives (3 1/2", 5 1/4")
 #	fla*	M-Systems DiskOnChip
 #	ida*	Compaq Smart-2 RAID
+#	matcd*	Matsushita (Panasonic) CD-ROM disks
+#	mcd*	Mitsumi CD-ROM disks
+#	md*	Memory (or malloc) disk
+#	od*	optical disks
+#	scd*	Sony CD-ROM disks
+#	sd*	SCSI disk, antiquated, use da* instead
+#	vn*	vnode disks
+#	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
+#	wfd*	IDE floppy disk drives (LS-120)
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -311,7 +312,7 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|da*s*|fla*s*|ida*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
+ad*s*|afd*s*|da*s*|fla*s*|ida*s*|md*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; blk=30; chr=116;;
@@ -319,6 +320,7 @@ ad*s*|afd*s*|da*s*|fla*s*|ida*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	da*s*) name=da; blk=4;  chr=13;;
 	fla*s*) name=fla; blk=28; chr=102;;
 	ida*s*) name=ida; blk=29; chr=109;;
+	md*s*) name=md; blk=22;  chr=95;;
 	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	vn*s*) name=vn; blk=15; chr=43;;
@@ -485,7 +487,7 @@ ft*)
 	umask 77
 	;;
 
-ad*|afd*|da*|fla*|ida*|od*|sd*|vn*|wd*|wfd*)
+ad*|afd*|da*|fla*|ida*|md*|od*|sd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; blk=30; chr=116;;
@@ -493,6 +495,7 @@ ad*|afd*|da*|fla*|ida*|od*|sd*|vn*|wd*|wfd*)
 	da*) name=da; blk=4;  chr=13;;
 	fla*) name=fla; blk=28; chr=102;;
 	ida*) name=ida; blk=29; chr=109;;
+	md*) name=md; blk=22; chr=95;;
 	od*) name=od; blk=4; chr=13;;
 	sd*) name=sd; blk=4; chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
