@@ -295,8 +295,8 @@ static void usage (appname)
 	note (url);
 	note ("");
 
-	warn ("Usage: %s [-c] [-p <port>] [-lf lease-file]", appname);
-	error ("       [-pf pidfile] [-1] [interface]");
+	warn ("Usage: %s [-D] [-d] [-p <port>] [-lf lease-file]", appname);
+	error ("       [-pf pidfile] [-q] [-1] [interface]");
 }
 
 void cleanup ()
@@ -1181,7 +1181,7 @@ void state_panic (ipp)
 	   tell the shell script that we failed to allocate an address,
 	   and try again later. */
 	if (onetry) {
-		exit(1);
+		exit(2);
 		note ("Unable to obtain a lease on first try - exiting.\n");
 	}
 	note ("No working leases in persistent database - sleeping.\n");
