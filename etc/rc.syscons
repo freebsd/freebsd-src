@@ -96,7 +96,7 @@ case ${scrnmap} in
 [Nn][Oo] | '')
 	;;
 *)
-	echo -n ' screen_map';	vidcontrol < ${viddev} -l ${scrnmap}
+	echo -n ' scrnmap';	vidcontrol < ${viddev} -l ${scrnmap}
 	;;
 esac
 
@@ -136,7 +136,7 @@ case ${blanktime} in
 [Nn][Oo] | '')
         ;;
 *)
-	echo -n ' blank_time';	vidcontrol < ${viddev} -t ${blanktime}
+	echo -n ' blanktime';	vidcontrol < ${viddev} -t ${blanktime}
 	;;
 esac
 
