@@ -36,6 +36,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rlog.c,v $
+ * Revision 1.4  1994/05/12  00:37:59  phk
+ * made -v produce tip-revision, which was what I wanted in the first place...
+ *
  * Revision 1.3  1994/05/11  22:39:44  phk
  * Added -v option to rlog.  This gives a quick way to get a list of versions.
  *
@@ -201,7 +204,7 @@ static struct lockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.3 1994/05/11 22:39:44 phk Exp $")
+mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.4 1994/05/12 00:37:59 phk Exp $")
 {
 	static char const cmdusage[] =
 		"\nrlog usage: rlog -{bhLRt} [-v[string]] -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";
@@ -342,7 +345,7 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.3 1994/05/11 22:39:44 phk Exp $")
 		continue;
 
 	    if ( versionlist ) {
-		gettree()l
+		gettree();
 		aprintf(out, "%s%s %s\n", vstring, workfilename, tiprev());
 		continue;
 	    }
