@@ -44,11 +44,13 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl g
+.Op Fl n
 .Op Fl u
 .Op Fl v
 .Ar filesystem Ar ...
 .Nm
 .Op Fl g
+.Op Fl n
 .Op Fl u
 .Op Fl v
 .Fl a
@@ -66,6 +68,9 @@ Print the quotas of all the file systems listed in
 .It Fl g
 Print only group quotas (the default is to print both
 group and user quotas if they exist).
+.It Fl n
+Display user and group IDs numerically rather than converting to
+a user or group name.
 .It Fl u
 Print only user quotas (the default is to print both
 group and user quotas if they exist).

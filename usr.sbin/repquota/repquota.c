@@ -96,6 +96,7 @@ u_long highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
 
 int	vflag;			/* verbose */
 int	aflag;			/* all filesystems */
+int	nflag;			/* display user/group by id */
 
 int hasquota(struct fstab *, int, char **);
 int oneof(char *, char *[], int);
@@ -113,13 +114,16 @@ main(int argc, char **argv)
 	long i, argnum, done = 0;
 	char ch, *qfnp;
 
-	while ((ch = getopt(argc, argv, "aguv")) != -1) {
+	while ((ch = getopt(argc, argv, "agnuv")) != -1) {
 		switch(ch) {
 		case 'a':
 			aflag++;
 			break;
 		case 'g':
 			gflag++;
+			break;
+		case 'n':
+			nflag++;
 			break;
 		case 'u':
 			uflag++;
@@ -140,13 +144,13 @@ main(int argc, char **argv)
 			gflag++;
 		uflag++;
 	}
-	if (gflag) {
+	if (gflag && !nflag) {
 		setgrent();
 		while ((gr = getgrent()) != 0)
 			(void) addid((u_long)gr->gr_gid, GRPQUOTA, gr->gr_name);
 		endgrent();
 	}
-	if (uflag) {
+	if (uflag && !nflag) {
 		setpwent();
 		while ((pw = getpwent()) != 0)
 			(void) addid((u_long)pw->pw_uid, USRQUOTA, pw->pw_name);
@@ -183,8 +187,8 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n",
-		"usage: repquota [-v] [-g] [-u] -a",
-		"       repquota [-v] [-g] [-u] filesystem ...");
+		"usage: repquota [-v] [-g] [-n] [-u] -a",
+		"       repquota [-v] [-g] [-n] [-u] filesystem ...");
 	exit(1);
 }
 
