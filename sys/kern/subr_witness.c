@@ -162,6 +162,7 @@ static int	blessed(struct witness *, struct witness *);
 #endif
 static void	witness_displaydescendants(void(*)(const char *fmt, ...),
 					   struct witness *);
+static const char *fixup_filename(const char *file);
 static void	witness_leveldescendents(struct witness *parent, int level);
 static void	witness_levelall(void);
 static struct	witness *witness_get(void);
@@ -522,6 +523,18 @@ witness_display(void(*prnt)(const char *fmt, ...))
 }
 #endif /* DDB */
 
+/* Trim useless garbage from filenames. */
+static const char *
+fixup_filename(const char *file)
+{
+
+	if (file == NULL)
+		return (NULL);
+	while (strncmp(file, "../", 3) == 0)
+		file += 3;
+	return (file);
+}
+
 void
 witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 {
@@ -541,6 +554,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	w = lock->lo_witness;
 	class = lock->lo_class;
 	td = curthread;
+	file = fixup_filename(file);
 
 	if (class->lc_flags & LC_SLEEPLOCK) {
 		/*
@@ -815,6 +829,7 @@ witness_upgrade(struct lock_object *lock, int flags, const char *file, int line)
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 	class = lock->lo_class;
+	file = fixup_filename(file);
 	if ((lock->lo_flags & LO_UPGRADABLE) == 0)
 		panic("upgrade of non-upgradable lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
@@ -849,6 +864,7 @@ witness_downgrade(struct lock_object *lock, int flags, const char *file,
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 	class = lock->lo_class;
+	file = fixup_filename(file);
 	if ((lock->lo_flags & LO_UPGRADABLE) == 0)
 		panic("downgrade of non-upgradable lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
@@ -884,6 +900,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 		return;
 	td = curthread;
 	class = lock->lo_class;
+	file = fixup_filename(file);
 	if (class->lc_flags & LC_SLEEPLOCK)
 		lock_list = &td->td_sleeplocks;
 	else
@@ -1492,6 +1509,7 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 		    lock->lo_class->lc_name, lock->lo_name);
 		return;
 	}
+	file = fixup_filename(file);
 	switch (flags) {
 	case LA_UNLOCKED:
 		if (instance != NULL)
