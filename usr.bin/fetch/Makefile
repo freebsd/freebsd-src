@@ -1,9 +1,10 @@
-PROG = fetch
-SRCS = file.c ftp.c http.c main.c util.c uri.c
+# $FreeBSD$
 
-CFLAGS+=	-Wall -Wwrite-strings -Wmissing-prototypes
-
-DPADD=  ${LIBFTPIO} ${LIBMD}
-LDADD=  -lftpio -lmd
+MAINTAINER=	des@freebsd.org
+PROG=		fetch
+CFLAGS+=	-Wall -pedantic
+SRCS=		fetch.c
+DPADD=		${LIBFETCH}
+LDADD=		-lfetch
 
 .include <bsd.prog.mk>
