@@ -1034,12 +1034,8 @@ ohci_intr1(sc)
 		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS);
 	}
 
-	if (intrs == 0) {
-		/* nothing to be done ?! */
-		printf("%s: interrupt, but not for us\n",
-		       USBDEVNAME(sc->sc_bus.bdev));
+	if (intrs == 0)		/* nothing to be done (PCI shared interrupt) */
 		return (0);
-	}
 
 	intrs &= ~OHCI_MIE;	/* mask out Master Interrupt Enable */
 
