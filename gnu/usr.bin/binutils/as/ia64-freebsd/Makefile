@@ -2,6 +2,8 @@
 
 .include "${.CURDIR}/../Makefile.inc0"
 
+WARNS=	0
+
 .if ${TARGET_ARCH} != "ia64"
 NOMAN=	 true
 BINDIR=	/usr/libexec/cross/ia64-freebsd
