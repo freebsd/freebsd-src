@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.26 1997/06/25 20:18:58 tegge Exp $
+ *	$Id: vmparam.h,v 1.27 1997/10/27 00:38:46 jkh Exp $
  */
 
 
@@ -118,6 +118,11 @@
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
 #define VM_KMEM_SIZE		(32 * 1024 * 1024)
+#endif
+
+/* initial pagein size of beginning of executable file */
+#ifndef VM_INITIAL_PAGEIN
+#define	VM_INITIAL_PAGEIN	16
 #endif
 
 #endif /* _MACHINE_VMPARAM_H_ */

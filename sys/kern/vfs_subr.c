@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.127 1998/01/31 01:17:58 tegge Exp $
+ * $Id: vfs_subr.c,v 1.128 1998/02/04 22:32:40 eivind Exp $
  */
 
 /*
@@ -1170,6 +1170,7 @@ vclean(vp, flags, p)
 	struct proc *p;
 {
 	int active;
+	vm_object_t obj;
 
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
@@ -1199,18 +1200,18 @@ vclean(vp, flags, p)
 	 * Clean out any buffers associated with the vnode.
 	 */
 	vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0);
-	if (vp->v_object) {
-		if (vp->v_object->ref_count == 0) {
+	if (obj = vp->v_object) {
+		if (obj->ref_count == 0) {
 			/*
 			 * This is a normal way of shutting down the object/vnode
 			 * association.
 			 */
-			vm_object_terminate(vp->v_object);
+			vm_object_terminate(obj);
 		} else {
 			/*
 			 * Woe to the process that tries to page now :-).
 			 */
-			vm_pager_deallocate(vp->v_object);
+			vm_pager_deallocate(obj);
 		}
 	}
 

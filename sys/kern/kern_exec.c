@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.74 1998/01/11 21:35:38 dyson Exp $
+ *	$Id: kern_exec.c,v 1.75 1998/02/04 22:32:31 eivind Exp $
  */
 
 #include "opt_diagnostic.h"
@@ -359,8 +359,9 @@ int
 exec_map_first_page(imgp)
 	struct image_params *imgp;
 {
-	int s;
-	vm_page_t m;
+	int s, rv, i;
+	int initial_pagein;
+	vm_page_t ma[VM_INITIAL_PAGEIN];
 	vm_object_t object;
 
 
@@ -371,40 +372,45 @@ exec_map_first_page(imgp)
 	object = imgp->vp->v_object;
 	s = splvm();
 
-retry:
-	m = vm_page_lookup(object, 0);
-	if (m == NULL) {
-		m = vm_page_alloc(object, 0, VM_ALLOC_NORMAL);
-		if (m == NULL) {
-			VM_WAIT;
-			goto retry;
+	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+
+	if ((ma[0]->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
+		initial_pagein = VM_INITIAL_PAGEIN;
+		if (initial_pagein > object->size)
+			initial_pagein = object->size;
+		for (i = 1; i < initial_pagein; i++) {
+			if (ma[i] = vm_page_lookup(object, i)) {
+				if ((ma[i]->flags & PG_BUSY) || ma[i]->busy)
+					break;
+				if (ma[i]->valid)
+					break;
+				ma[i]->flags |= PG_BUSY;
+			} else {
+				ma[i] = vm_page_alloc(object, i, VM_ALLOC_NORMAL);
+				if (ma[i] == NULL)
+					break;
+			}
 		}
-	} else if ((m->flags & PG_BUSY) || m->busy) {
-		m->flags |= PG_WANTED;
-		tsleep(m, PVM, "execpw", 0);
-		goto retry;
-	}
+		initial_pagein = i;
 
-	m->flags |= PG_BUSY;
+		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
+		ma[0] = vm_page_lookup(object, 0);
 
-	if ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
-		int rv;
-		rv = vm_pager_get_pages(object, &m, 1, 0);
-		if (rv != VM_PAGER_OK) {
-			vm_page_protect(m, VM_PROT_NONE);
-			vm_page_deactivate(m);
-			PAGE_WAKEUP(m);
+		if ((rv != VM_PAGER_OK) || (ma[0] == NULL)) {
+			vm_page_protect(ma[0], VM_PROT_NONE);
+			vm_page_deactivate(ma[0]);
+			PAGE_WAKEUP(ma[0]);
 			splx(s);
 			return EIO;
 		}
 	}
 
-	vm_page_wire(m);
-	PAGE_WAKEUP(m);
+	vm_page_wire(ma[0]);
+	PAGE_WAKEUP(ma[0]);
 	splx(s);
 
-	pmap_kenter((vm_offset_t) imgp->image_header, VM_PAGE_TO_PHYS(m));
-	imgp->firstpage = m;
+	pmap_kenter((vm_offset_t) imgp->image_header, VM_PAGE_TO_PHYS(ma[0]));
+	imgp->firstpage = ma[0];
 
 	return 0;
 }

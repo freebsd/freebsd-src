@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.81 1998/01/31 11:56:53 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.82 1998/02/04 22:34:03 eivind Exp $
  */
 
 /*
@@ -181,9 +181,9 @@ vnode_pager_dealloc(object)
 	}
 
 	object->handle = NULL;
-	object->type = OBJT_DEFAULT;
+	object->type = OBJT_DEAD;
 	vp->v_object = NULL;
-	vp->v_flag &= ~(VTEXT|VOBJBUF);
+	vp->v_flag &= ~(VTEXT | VOBJBUF);
 }
 
 static boolean_t
@@ -763,7 +763,10 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 			 * now tell them that it is ok to use
 			 */
 			if (!error) {
-				vm_page_deactivate(m[i]);
+				if (m[i]->flags & PG_WANTED)
+					vm_page_activate(m[i]);
+				else
+					vm_page_deactivate(m[i]);
 				PAGE_WAKEUP(m[i]);
 			} else {
 				vnode_pager_freepage(m[i]);
@@ -880,8 +883,10 @@ vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
 		if (i < ncount) {
 			rtvals[i] = VM_PAGER_OK;
 		}
-		if ((m[i]->busy == 0) && (m[i]->flags & PG_WANTED))
+		if ((m[i]->busy == 0) && (m[i]->flags & PG_WANTED)) {
+			vm_page_activate(m[i]);
 			wakeup(m[i]);
+		}
 	}
 	return rtvals[0];
 }
