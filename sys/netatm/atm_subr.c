@@ -79,7 +79,6 @@ int			atm_dev_print = 0;
 int			atm_print_data = 0;
 int			atm_version = ATM_VERSION;
 struct timeval		atm_debugtime = {0, 0};
-const int		atmintrq_present = 1;
 
 struct sp_info	atm_attributes_pool = {
 	"atm attributes pool",		/* si_name */
@@ -133,9 +132,10 @@ atm_initialize()
 		return;
 	atm_init = 1;
 
-
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
 	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", MTX_DEF);
+	atmintrq_present = 1;
+
 #ifdef sgi
 	atm_intr_index = register_isr(atm_intr);
 #endif
