@@ -926,6 +926,16 @@ struct dc_softc {
 #define DC_DEVICEID_RS7112	0x1803
 
 /*
+ * Planex vendor ID
+ */
+#define DC_VENDORID_PLANEX     0x14ea
+
+/*
+ * Planex device IDs.
+ */
+#define DC_DEVICEID_FNW3602T   0xab08
+
+/*
  * Not sure who this vendor should be, so we'll go with HAWKING until
  * I can locate the right one.
  */
