@@ -36,12 +36,15 @@
 .Sh SYNOPSIS
 .In fmtmsg.h
 .Ft int
-.Fn fmtmsg "long classification" "const char *label" "int severity" "const char *text" "const char *action" "const char *tag"
+.Fo fmtmsg
+.Fa "long classification" "const char *label" "int severity"
+.Fa "const char *text" "const char *action" "const char *tag"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn fmtmsg
 function displays a detailed diagnostic message, based on
-the supplied augments, to
+the supplied arguments, to
 .Em stderr
 and/or the system console.
 .Pp
@@ -56,18 +59,17 @@ The Output classification group is an exception since both
 and
 .Dv MM_CONSOLE
 may be specified.
-.Pp
-Output
-.Bl -tag -offset indent -width MM_CONSOLE
+.Bl -tag -width indent
+.It Output
+.Bl -tag -width ".Dv MM_CONSOLE"
 .It Dv MM_PRINT
 Output should take place on
 .Em stderr .
 .It Dv MM_CONSOLE
 Output should take place on the system console.
 .El
-.Pp
-Source of Condition (Major)
-.Bl -tag -offset indent -width MM_CONSOLE
+.It "Source of Condition (Major)"
+.Bl -tag -width ".Dv MM_CONSOLE"
 .It Dv MM_HARD
 The source of the condition is hardware related.
 .It Dv MM_SOFT
@@ -75,9 +77,8 @@ The source of the condition is software related.
 .It Dv MM_FIRM
 The source of the condition is firmware related.
 .El
-.Pp
-Source of Condition (Minor)
-.Bl -tag -offset indent -width MM_CONSOLE
+.It "Source of Condition (Minor)"
+.Bl -tag -width ".Dv MM_CONSOLE"
 .It Dv MM_APPL
 The condition was detected at the application level.
 .It Dv MM_UTIL
@@ -85,13 +86,13 @@ The condition was detected at the utility level.
 .It Dv MM_OPSYS
 The condition was detected at the operating system level.
 .El
-.Pp
-Status
-.Bl -tag -offset indent -width MM_CONSOLE
+.It Status
+.Bl -tag -width ".Dv MM_CONSOLE"
 .It Dv MM_RECOVER
 The application can recover from the condition.
 .It Dv MM_NRECOV
 The application is unable to recover from the condition.
+.El
 .El
 .Pp
 Alternatively, the
@@ -102,7 +103,7 @@ The
 .Fa label
 argument indicates the source of the message.
 It is made up of two fields separated by a colon
-.Pq \&: .
+.Pq Ql \&: .
 The first field can be up to 10 bytes,
 and the second field can be up to 14 bytes.
 The
@@ -113,7 +114,7 @@ The
 .Fa severity
 argument identifies the importance of the condition.
 One of the following manifest constants should be used for this argument.
-.Bl -tag -offset indent -width MM_WARNING
+.Bl -tag -offset indent -width ".Dv MM_WARNING"
 .It Dv MM_HALT
 The application has confronted a serious fault and is halting.
 .It Dv MM_ERROR
@@ -141,8 +142,8 @@ argument details how the error-recovery process should begin.
 Upon output,
 .Fn fmtmsg
 will prefix
-.Qq TO FIX:
-to the begin of the
+.Qq Li "TO FIX:"
+to the beginning of the
 .Fa action
 argument.
 The
@@ -156,7 +157,7 @@ This usually includes the
 .Fa label
 and a unique identifying number.
 An example tag is
-.Qq BSD:ls:168 .
+.Qq Li BSD:ls:168 .
 The
 .Dv MM_NULLTAG
 manifest constant may be used to specify no tag.
@@ -178,24 +179,27 @@ to indicate output to
 and the system console failed.
 .Sh ENVIRONMENT
 The
-.Va MSGVERB
-.Pq message verbosity
+.Ev MSGVERB
+(message verbosity)
 environment variable specifies which arguments to
 .Fn fmtmsg
 will be output to
 .Em stderr ,
 and in which order.
-.Va MSGVERB
+.Ev MSGVERB
 should be a colon
-.Pq \&:
+.Pq Ql \&:
 separated list of identifiers.
-Valid identifiers include: label, severity, text, action, and tag.
+Valid identifiers include:
+.Li label , severity , text , action ,
+and
+.Li tag .
 If invalid identifiers are specified or incorrectly separated,
 the default message verbosity and ordering will be used.
 The default ordering is equivalent to a
-.Va MSGVERB
+.Ev MSGVERB
 with a value of
-.Qq label:severity:text:action:tag .
+.Qq Li label:severity:text:action:tag .
 .Sh EXAMPLES
 The code:
 .Bd -literal -offset indent
@@ -213,9 +217,9 @@ to
 .Em stderr .
 .Pp
 The same code, with
-.Va MSGVERB
+.Ev MSGVERB
 set to
-.Qq "text:severity:action:tag" ,
+.Qq Li "text:severity:action:tag" ,
 produces:
 .Bd -literal -offset indent
 illegal option -- z: ERROR

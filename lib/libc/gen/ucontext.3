@@ -1,11 +1,11 @@
 .\" Copyright (c) 2002 Packet Design, LLC.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty,
 .\" use and redistribution of this software, in source or object code
 .\" forms, with or without modifications are expressly permitted by
 .\" Packet Design; provided, however, that:
-.\" 
+.\"
 .\"    (i)  Any and all reproductions of the source or object code
 .\"         must include the copyright notice above and the following
 .\"         disclaimer of warranties; and
@@ -13,7 +13,7 @@
 .\"         Packet Design trademarks, including the mark "PACKET DESIGN"
 .\"         on advertising, endorsements, or otherwise except as such
 .\"         appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 10, 2002
+.Dd September 10, 2002
 .Dt UCONTEXT 3
 .Os
 .Sh NAME
@@ -56,42 +56,51 @@ blocked signals.
 The
 .Vt ucontext_t
 structure contains at least these fields:
-.Bl -tag -compact -offset 3n -width "mcontext_t  uc_mcontext"
 .Pp
-.It "ucontext_t *uc_link"
-Context to assume when this one returns
-.It "sigset_t    uc_sigmask"
-Signals being blocked
-.It "stack_t     uc_stack"
-Stack area
-.It "mcontext_t  uc_mcontext"
-Saved registers
+.Bl -tag -width ".Va mcontext_t\ \ uc_mcontext" -offset 3n -compact
+.It Va "ucontext_t *uc_link"
+context to assume when this one returns
+.It Va "sigset_t    uc_sigmask"
+signals being blocked
+.It Va "stack_t     uc_stack"
+stack area
+.It Va "mcontext_t  uc_mcontext"
+saved registers
 .El
 .Pp
 The
-.Fa uc_link
+.Va uc_link
 field points to the context to resume when this context's entry point
 function returns.
 If
-.Fa uc_link
+.Va uc_link
 is equal to
 .Dv NULL ,
 then the process exits when this context returns.
 .Pp
 The
-.Fa uc_mcontext
+.Va uc_mcontext
 field is machine-dependent and should be treated as opaque by
 portable applications.
 .Pp
 The following functions are defined to manipulate
 .Vt ucontext_t
 structures:
-.Bd -literal -offset xxx
-int getcontext(ucontext_t *);
-int setcontext(const ucontext_t *);
-void makecontext(ucontext_t *, void (*)(void), int, ...);
-int swapcontext(ucontext_t *, const ucontext_t *);
-.Ed
+.Pp
+.Bl -item -offset 3n -compact
+.It
+.Ft int
+.Fn getcontext "ucontext_t *" ;
+.It
+.Ft int
+.Fn setcontext "const ucontext_t *" ;
+.It
+.Ft void
+.Fn makecontext "ucontext_t *" "void \*[lp]*\*[rp]\*[lp]void\*[rp]" int ... ;
+.It
+.Ft int
+.Fn swapcontext "ucontext_t *" "const ucontext_t *" ;
+.El
 .Sh SEE ALSO
 .Xr sigaltstack 2 ,
 .Xr getcontext 3 ,
