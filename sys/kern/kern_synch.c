@@ -175,7 +175,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * interrupted.
 		 */
 		if (catch) {
-			if ((p->p_flag & P_WEXIT) && p->p_singlethread != td) {
+			if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td) {
 				mtx_unlock_spin(&sched_lock);
 				sleepq_release(ident);
 				return (EINTR);
