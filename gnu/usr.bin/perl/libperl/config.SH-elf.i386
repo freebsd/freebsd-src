@@ -5,12 +5,12 @@
 # do not forget to propagate your changes by running "Configure -der". You may
 # instead choose to run each of the .SH files by yourself, or "Configure -S".
 #
-# $Id: config.SH-elf.i386,v 1.8 1999/01/14 20:27:26 markm Exp $
+# $Id: config.SH-elf.i386,v 1.9 1999/01/15 04:14:52 ache Exp $
 #
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: $Date: 1999/01/14 20:27:26 $
+# Configuration time: $Date: 1999/01/15 04:14:52 $
 # Configured by     : markm
 # Target system     : freebsd 3.0-current #0:
 
@@ -55,7 +55,7 @@ ccdlflags=' '
 ccflags=''
 cf_by='markm'
 cf_email='markm@freebsd.org'
-cf_time='$Date: 1999/01/14 20:27:26 $'
+cf_time='$Date: 1999/01/15 04:14:52 $'
 chgrp=''
 chmod=''
 chown=''
@@ -461,7 +461,7 @@ nonxs_ext='Errno'
 nroff='nroff'
 o_nonblock='O_NONBLOCK'
 obj_ext='.o'
-optimize="${CFLAGS}"
+optimize=${CFLAGS:-''}
 orderlib='false'
 osname='freebsd'
 osvers='3.0-current'
