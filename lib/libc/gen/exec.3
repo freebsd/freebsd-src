@@ -203,11 +203,13 @@ will be set to indicate the error.
 The shell.
 .El
 .Sh ERRORS
-.Fn Execl ,
+The
+.Fn execl ,
 .Fn execle ,
 .Fn execlp
 and
 .Fn execvp
+functions
 may fail and set
 .Va errno
 for any of the errors specified for the library functions
@@ -215,9 +217,11 @@ for any of the errors specified for the library functions
 and
 .Xr malloc 3 .
 .Pp
-.Fn Exect
+The
+.Fn exect
 and
 .Fn execv
+functions
 may fail and set
 .Va errno
 for any of the errors specified for the library function
@@ -286,11 +290,13 @@ and the unusual error
 The behaviour was changed to match the behaviour of
 .Xr sh 1 .
 .Sh STANDARDS
-.Fn Execl ,
+The
+.Fn execl ,
 .Fn execv ,
 .Fn execle ,
 .Fn execlp
 and
 .Fn execvp
+functions
 conform to
 .St -p1003.1-88 .

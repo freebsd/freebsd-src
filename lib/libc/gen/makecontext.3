@@ -54,7 +54,9 @@
 .Ft int
 .Fn swapcontext "ucontext_t *oucp" "const ucontext_t *ucp"
 .Sh DESCRIPTION
+The
 .Fn makecontext
+function
 modifies the user thread context pointed to by
 .Fa ucp ,
 which must have previously been initialized by a call to
@@ -83,7 +85,9 @@ otherwise,
 .Fn setcontext "ucp->uc_link"
 is implicitly invoked.
 .Pp
+The
 .Fn swapcontext
+function
 saves the current thread context in
 .Fa "*oucp"
 and makes
@@ -97,7 +101,9 @@ otherwise \-1 is returned and the global variable
 .Va errno
 is set appropriately.
 .Sh ERRORS
+The
 .Fn swapcontext
+function
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM

@@ -38,7 +38,9 @@
 .Ft int
 .Fn dladdr "const void *addr" "Dl_info *info"
 .Sh DESCRIPTION
-.Nm
+The
+.Fn dladdr
+function
 queries the dynamic linker for information about the shared object
 containing the address
 .Fa addr .
@@ -67,13 +69,15 @@ The value of the symbol returned in
 .Li dli_sname .
 .El
 .Pp
-.Nm
+The
+.Fn dladdr
+function
 is available only in dynamically linked programs.
 .Sh ERRORS
 If a mapped shared object containing
 .Fa addr
 cannot be found,
-.Nm
+.Fn dladdr
 returns 0.
 In that case, a message detailing the failure can be retrieved by
 calling
@@ -85,7 +89,7 @@ On success, a non-zero value is returned.
 .Xr dlopen 3
 .Sh HISTORY
 The
-.Nm
+.Fn dladdr
 function first appeared in the Solaris operating system.
 .Sh BUGS
 This implementation is bug-compatible with the Solaris
