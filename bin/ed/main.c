@@ -824,11 +824,11 @@ exec_command(void)
 		GET_COMMAND_SUFFIX();
 #ifdef DES
 		des = get_keyword();
+		break;
 #else
 		errmsg = "crypt unavailable";
 		return ERR;
 #endif
-		break;
 	case 'z':
 #ifdef BACKWARDS
 		if (check_addr_range(first_addr = 1, current_addr + 1) < 0)
