@@ -144,10 +144,11 @@ struct vm86_intcall_args {
 	struct 	vm86frame vmf;
 };
 
+#ifdef _KERNEL
 extern	int in_vm86call;
 extern 	int vm86paddr;
 
-struct proc;
+struct thread;
 extern	int vm86_emulate __P((struct vm86frame *));
 extern	int vm86_sysarch __P((struct thread *, char *));
 extern void vm86_trap __P((struct vm86frame *));
@@ -160,5 +161,6 @@ extern int vm86_getptr __P((struct vm86context *, vm_offset_t,
 				u_short *, u_short *));
 
 extern vm_offset_t vm86_getaddr __P((struct vm86context *, u_short, u_short));
+#endif /* _KERNEL */
 
 #endif /* _MACHINE_VM86_H_ */
