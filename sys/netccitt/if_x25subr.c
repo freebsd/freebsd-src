@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_x25subr.c,v 1.2 1994/08/02 07:47:14 davidg Exp $
+ * $Id: if_x25subr.c,v 1.3 1994/12/13 22:32:12 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -127,6 +127,8 @@ register struct rtentry *rt;
 	}
 	return lx;
 }
+
+void
 x25_lxfree(lx)
 register struct llinfo_x25 *lx;
 {
@@ -145,9 +147,11 @@ register struct llinfo_x25 *lx;
 	remque(lx);
 	FREE(lx, M_PCB);
 }
+
 /*
  * Process a x25 packet as datagram;
  */
+void
 x25_ifinput(lcp, m)
 struct pklcd *lcp;
 register struct mbuf *m;
@@ -157,6 +161,7 @@ register struct mbuf *m;
 	struct ifqueue *inq;
 	extern struct timeval time;
 	int s, len, isr;
+	void x25_connect_callback();
  
 	if (m == 0 || lcp->lcd_state != DATA_TRANSFER) {
 		x25_connect_callback(lcp, 0);
@@ -211,6 +216,8 @@ register struct mbuf *m;
 	}
 	splx(s);
 }
+
+void
 x25_connect_callback(lcp, m)
 register struct pklcd *lcp;
 register struct mbuf *m;
@@ -242,6 +249,7 @@ register struct mbuf *m;
 #define SA(p) ((struct sockaddr *)(p))
 #define RT(p) ((struct rtentry *)(p))
 
+void
 x25_dgram_incoming(lcp, m0)
 register struct pklcd *lcp;
 struct mbuf *m0;
@@ -276,6 +284,7 @@ refuse: 	lcp->lcd_upper = 0;
 /*
  * X.25 output routine.
  */
+int
 x25_ifoutput(ifp, m0, dst, rt)
 struct	ifnet *ifp;
 struct	mbuf *m0;
@@ -390,6 +399,7 @@ next_circuit:
 /*
  * Simpleminded timer routine.
  */
+void
 x25_iftimeout(ifp)
 struct ifnet *ifp;
 {
@@ -413,7 +423,10 @@ struct ifnet *ifp;
  * This routine gets called when validating additions of new routes
  * or deletions of old ones.
  */
+
+void
 x25_rtrequest(cmd, rt, dst)
+int cmd;
 register struct rtentry *rt;
 struct sockaddr *dst;
 {
@@ -424,7 +437,6 @@ struct sockaddr *dst;
 	/* would put this pk_init, except routing table doesn't
 	   exist yet. */
 	if (x25_dgram_sockmask == 0) {
-		struct radix_node *rn_addmask();
 		x25_dgram_sockmask =
 			SA(rn_addmask((caddr_t)&x25_dgmask, 0, 4)->rn_key);
 	}
@@ -464,6 +476,7 @@ struct sockaddr *dst;
 
 int x25_dont_rtinvert = 0;
 
+void
 x25_rtinvert(cmd, sa, rt)
 register struct sockaddr *sa;
 register struct rtentry *rt;

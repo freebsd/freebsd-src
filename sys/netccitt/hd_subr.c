@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_subr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: hd_subr.c,v 1.2 1994/08/02 07:47:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -57,13 +57,16 @@
 #include <netccitt/x25.h>
 #include <netccitt/pk_var.h>
 
+void
 hd_init ()
 {
 
 	hdintrq.ifq_maxlen = IFQ_MAXLEN;
 }
 
+int
 hd_ctlinput (prc, addr)
+int prc;
 struct sockaddr *addr;
 {
 	register struct x25config *xcp = (struct x25config *)addr;
@@ -71,6 +74,8 @@ struct sockaddr *addr;
 	register struct ifaddr *ifa;
 	struct ifnet *ifp;
 	caddr_t pk_newlink();
+	void hd_writeinternal();
+	void hd_message();
 
 	if (addr->sa_family != AF_CCITT)
 		return (EAFNOSUPPORT);
@@ -148,6 +153,7 @@ struct sockaddr *addr;
 	return (0);
 }
 
+void
 hd_initvars (hdp)
 register struct hdcb *hdp;
 {
@@ -174,6 +180,7 @@ register struct hdcb *hdp;
 	hdp->hd_condition = 0;
 }
 
+int
 hd_decode (hdp, frame)
 register struct hdcb *hdp;
 struct Hdlc_frame *frame;
@@ -239,6 +246,7 @@ struct Hdlc_frame *frame;
  *  Only supervisory or unnumbered frames are processed.
  */
 
+void
 hd_writeinternal (hdp, frametype, pf)
 register struct hdcb *hdp;
 register int frametype, pf;
@@ -247,6 +255,7 @@ register int frametype, pf;
 	struct Hdlc_frame *frame;
 	register struct Hdlc_sframe *sframe;
 	register struct Hdlc_uframe *uframe;
+	void hd_flush();
 
 	MGETHDR (buf, M_DONTWAIT, MT_HEADER);
 	if (buf == 0)
@@ -338,6 +347,7 @@ struct hdtxq *q;
 	return (m);
 }
 
+void
 hd_append (q, m)
 register struct hdtxq *q;
 register struct mbuf *m;
@@ -351,6 +361,7 @@ register struct mbuf *m;
 	q -> tail = m;
 }
 
+void
 hd_flush (ifp)
 struct ifnet *ifp;
 {
@@ -367,6 +378,7 @@ struct ifnet *ifp;
 	}
 }
 
+void
 hd_message (hdp, msg)
 struct hdcb *hdp;
 char *msg;
@@ -380,6 +392,7 @@ char *msg;
 }
 
 #ifdef HDLCDEBUG
+void
 hd_status (hdp)
 struct hdcb *hdp;
 {
