@@ -1013,7 +1013,7 @@ ia32_syscall(struct trapframe *framep)
 	switch (error) {
 	case 0:
 		framep->tf_r[FRAME_R8] = td->td_retval[0]; /* eax */
-		framep->tf_r[FRAME_R10] = td->td_retval[0]; /* edx */
+		framep->tf_r[FRAME_R10] = td->td_retval[1]; /* edx */
 		ia64_set_eflag(ia64_get_eflag() & ~PSL_C);
 		break;
 
