@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id$
+ *	$Id: atcompat_diskslice.c,v 1.5 1997/02/22 09:43:31 peter Exp $
  */
 
 /*
@@ -111,14 +111,16 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	/*
 	 * If ssector1 is on a cylinder >= 1024, then ssector can't be right.
 	 * Allow the C/H/S for it to be 1023/ntracks-1/nsectors, or correct
-	 * apart from the cylinder being reduced modulo 1024.
+	 * apart from the cylinder being reduced modulo 1024.  Always allow
+	 * 1023/255/63.
 	 */
 	if (ssector < ssector1
 	    && ((chs_ssect == nsectors && dp->dp_shd == ntracks - 1
 		 && chs_scyl == 1023)
-		|| (ssector1 - ssector) % (1024 * secpercyl) == 0)
-		|| (dp->dp_scyl == 255 && dp->dp_shd == 255
-		    && dp->dp_ssect == 255)) {
+		|| (secpercyl != 0
+		    && (ssector1 - ssector) % (1024 * secpercyl) == 0))
+	    || (dp->dp_scyl == 255 && dp->dp_shd == 255
+		&& dp->dp_ssect == 255)) {
 		TRACE(("%s: C/H/S start %d/%d/%d, start %lu: allow\n",
 		       sname, chs_scyl, dp->dp_shd, chs_ssect, ssector1));
 		ssector = ssector1;
@@ -134,9 +136,10 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	if (esector < esector1
 	    && ((chs_esect == nsectors && dp->dp_ehd == ntracks - 1
 		 && chs_ecyl == 1023)
-		|| (esector1 - esector) % (1024 * secpercyl) == 0)
-		|| (dp->dp_ecyl == 255 && dp->dp_ehd == 255
-		    && dp->dp_esect == 255)) {
+		|| (secpercyl != 0
+		    && (esector1 - esector) % (1024 * secpercyl) == 0))
+	    || (dp->dp_ecyl == 255 && dp->dp_ehd == 255
+		&& dp->dp_esect == 255)) {
 		TRACE(("%s: C/H/S end %d/%d/%d, end %lu: allow\n",
 		       sname, chs_ecyl, dp->dp_ehd, chs_esect, esector1));
 		esector = esector1;
