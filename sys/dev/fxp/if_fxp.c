@@ -391,8 +391,6 @@ fxp_attach(device_t dev)
 	 * BIOS/Prom forgot about it.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
 	val = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	fxp_powerstate_d0(dev);
@@ -411,14 +409,11 @@ fxp_attach(device_t dev)
 		m2 = PCIM_CMD_MEMEN;
 	}
 
-	if (val & m1) {
-		sc->rtp =
-		    (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		sc->rgd = (m1 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
-		sc->mem = bus_alloc_resource(dev, sc->rtp, &sc->rgd,
+	sc->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+	sc->rgd = (m1 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
+	sc->mem = bus_alloc_resource(dev, sc->rtp, &sc->rgd,
 	                                     0, ~0, 1, RF_ACTIVE);
-	}
-	if (sc->mem == NULL && (val & m2)) {
+	if (sc->mem == NULL) {
 		sc->rtp =
 		    (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 		sc->rgd = (m2 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
@@ -427,7 +422,6 @@ fxp_attach(device_t dev)
 	}
 
 	if (!sc->mem) {
-		device_printf(dev, "could not map device registers\n");
 		error = ENXIO;
 		goto fail;
         }

@@ -909,7 +909,6 @@ static int
 ste_attach(dev)
 	device_t		dev;
 {
-	u_int32_t		command;
 	struct ste_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
@@ -958,23 +957,6 @@ ste_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-#ifdef STE_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
-		printf("ste%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#else
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("ste%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#endif
 
 	rid = STE_RID;
 	sc->ste_res = bus_alloc_resource(dev, STE_RES, &rid,

@@ -1114,7 +1114,6 @@ tl_attach(dev)
 	device_t		dev;
 {
 	int			i;
-	u_int32_t		command;
 	u_int16_t		did, vid;
 	struct tl_type		*t;
 	struct ifnet		*ifp;
@@ -1145,16 +1144,8 @@ tl_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef TL_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
-		device_printf(dev, "failed to enable I/O ports!\n");
-		error = ENXIO;
-		goto fail;
-	}
 
 	rid = TL_PCI_LOIO;
 	sc->tl_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,

@@ -861,7 +861,6 @@ rl_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	u_int32_t		command;
 	u_int16_t		as[3];
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
@@ -903,23 +902,6 @@ rl_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-#ifdef RL_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
-		printf("rl%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#else
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("rl%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#endif
 
 	rid = RL_RID;
 	sc->rl_res = bus_alloc_resource(dev, RL_RES, &rid,
