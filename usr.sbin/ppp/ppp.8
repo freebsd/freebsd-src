@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.34 1998/05/15 23:58:27 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.35 1998/05/16 23:47:28 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -149,6 +149,11 @@ Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
 stack (ie. Win95, WinNT)
+.It Supports Multilink PPP
+It is possible to configure
+.Nm
+to open more than one physical connection to the peer, combining the
+bandwidth of all links for better throughput.
 .Sh PERMISSIONS
 .Nm Ppp
 is installed as user
@@ -1199,8 +1204,6 @@ it uses CCP ID 24 to negotiate.  This allows
 to successfully negotiate DEFLATE with
 .Nm pppd
 version 2.3.*.
-.Nm Pppd
-should be fixed.
 .Sh CONTROLLING IP ADDRESS
 .Nm
 uses IPCP to negotiate IP addresses. Each side of the connection
@@ -1612,6 +1615,159 @@ to close any existing server socket, dropping all existing diagnostic
 connections.
 .El
 .Pp
+.Sh MULTILINK PPP
+If you wish to use more than one physical link to connect to a
+.Em PPP
+peer, that peer must also understand the
+.Em MULTILINK PPP
+protocol.  Refer to RFC 1990 for specification details.
+.Pp
+The peer is identified using a combination of his
+.Dq endpoint discriminator
+and his
+.Dq authentication id .
+Either or both of these may be specified.  It is recommended that
+at least one is specified, otherwise there is no way of ensuring that
+all links are actually connected to the same peer program, and some
+confusing lock-ups may result.  Locally, these identification variables
+are specified using the
+.Dq set enddisc
+and
+.Dq set authname
+commands.  The
+.Sq authname
+.Pq and Sq authkey
+must be agreed in advance with the peer.
+.Pp
+Multilink capabilities are enabled using the
+.Dq set mrru
+command (set maximum reconstructed receive unit).  Once multilink
+is enabled,
+.Nm
+will attempt to negotiate a multilink connection with the peer.
+.Pp
+By default, only one
+.Sq link
+is available
+.Pq called Sq deflink .
+To create more links, the
+.Dq clone
+command is used.  This command will clone existing links, where all
+characteristics are the same except:
+.Bl -enum
+.It
+The new link has its own name as specified on the
+.Dq clone
+command line.
+.It
+The new link is an
+.Sq interactive
+link.  It's mode may subsequently be changed using the
+.Dq set mode
+command.
+.It
+The new link is in a
+.Sq closed
+state.
+.El
+.Pp
+A summary of all available links can be seen using the
+.Dq show links
+command.
+.Pp
+Once a new link has been created, command usage varies.  All link
+specific commands must be prefixed with the
+.Dq link Ar name
+command, specifying on which link the command is to be applied.  When
+only a single link is available,
+.Nm
+is smart enough not to require the
+.Dq link Ar name
+prefix.
+.Pp
+Some commands can still be used without specifying a link - resulting
+in an operation at the
+.Sq bundle
+level.  For example, once two or more links are available, the command
+.Dq show ccp
+will show CCP configuration and statistics at the multilink level, and
+.Dq link deflink show ccp
+will show the same information at the
+.Dq deflink
+link level.
+.Pp
+Armed with this information, the following configuration might be used:
+.Pp
+.Bd -literal -offset indent
+mp:
+ set timeout 0
+ set log phase chat
+ set device /dev/cuaa0 /dev/cuaa1 /dev/cuaa2
+ set phone "123456789"
+ set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \\"\\" ATZ \e
+           OK-AT-OK \\\\dATDT\\\\T TIMEOUT 45 CONNECT"
+ set login
+ set ifaddr 10.0.0.1/0 10.0.0.2/0
+ set authname ppp
+ set authkey ppppassword
+
+ set mrru 1500
+ clone 1,2,3
+ link deflink remove
+.Ed
+.Pp
+Note how all cloning is done at the end of the configuration.  Usually,
+the link will be configured first, then cloned.  If you wish all links
+to be up all the time, you can add the following line to the end of your
+configuration.
+.Pp
+.Bd -literal -offset indent
+  link 1,2,3 set mode ddial
+.Ed
+.Pp
+If you want the links to dial on demand, this command could be used:
+.Pp
+.Bd -literal -offset indent
+  link * set mode auto
+.Ed
+.Pp
+Links may be tied to specific names by removing the
+.Dq set device
+line above, and specifying the following after the
+.Dq clone
+command:
+.Pp
+.Bd -literal -offset indent
+ link 1 set device /dev/cuaa0
+ link 2 set device /dev/cuaa1
+ link 3 set device /dev/cuaa2
+.Ed
+.Pp
+When
+.Nm
+has negotiated
+.Em MULTILINK
+mode with the peer, it creates a unix domain socket in the
+.Pa /var/run
+directory.  This socket is used to pass link information (including
+the actual link file descriptor) between different
+.Nm
+invocations.  This facilitates
+.Nm ppp Ns No s
+ability to be run from a
+.Xr getty 8
+or directly from
+.Pa /etc/gettydefs
+(using the
+.Sq pp=
+capability), without needing to have initial control of the serial
+line.  Once
+.Nm
+negotiates multilink mode, it will pass its open link to any
+already running process.  If there is no already running process,
+.Nm
+will act as the master, creating the socket and listening for new
+connections.
 .Sh PPP COMMAND LIST
 This section lists the available commands and their effect.  They are
 usable either from an interactive
@@ -2123,8 +2279,7 @@ Clone the specified link, creating one or more new links according to the
 argument(s).  This command must be used from the
 .Dq link
 command below unless you've only got a single link (in which case that
-link  becomes the default).  This command is only available in multilink
-mode.  Links may be removed using the
+link  becomes the default).  Links may be removed using the
 .Dq remove
 command below.
 .Pp
@@ -2179,7 +2334,7 @@ and
 scripts for the given
 .Ar label .
 Otherwise, the current settings are used to establish
-the connection.
+the connection, and all closed links are brought up.
 .It down Op Ar lcp|ccp
 Bring the relevent layer down ungracefully, as if the underlying layer
 had become unavailable.  It's not considered polite to use this command on
@@ -2229,7 +2384,7 @@ with no arguments or with the
 .Dq lcp
 argument is the same as using
 .Dq dial
-in that all configured links are brought up.  If the
+in that all closed links are brought up.  If the
 .Dq ccp
 argument is used, the relevent compression layer is opened.
 .It passwd Ar pass
@@ -3054,6 +3209,19 @@ and
 modes.
 .It Pa /etc/services
 Get port number if port number is using service name.
+.It Pa /var/run/ppp-authname-class-value
+In multilink mode, unix domain sockets are created using the peer
+authentication name
+.Pq Sq authname ,
+the peer endpoint discriminator class
+.Pq Sq class
+and the peer endpoint discriminator value
+.Pq Sq value .
+As the endpoint discriminator value may be a binary value, it is turned
+to HEX to determine the actual file name.
+.Pp
+This socket is used to pass links between different instances of
+.Nm ppp .
 .El
 .Pp
 .Sh SEE ALSO
@@ -3088,5 +3256,9 @@ Get port number if port number is using service name.
 This program was originally written by Toshiharu OHNO (tony-o@iij.ad.jp),
 and was submitted to FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).
 .Pp
-It has since been substantially modified by Brian Somers (brian@Awfulhak.org),
-and was ported to OpenBSD in November '97 (just after the 2.2 release).
+It was substantially modified during 1997 by Brian Somers
+(brian@Awfulhak.org), and was ported to OpenBSD in November that year
+(just after the 2.2 release).
+.Pp
+Most of the code was rewritten by Brian Somers in early 1998 when
+multilink ppp support was added.
