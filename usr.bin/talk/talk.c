@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)talk.c	8.1 (Berkeley) 6/6/93";
  *		Modified to run under 4.1a by Clem Cole and Peter Moore
  *		Modified to run between hosts by Peter Moore, 8/19/82
  *		Modified to run under 4.1c by Peter Moore 3/17/83
+ *		Fixed to not run with unwriteable terminals MRVM 28/12/94
  */
 
 main(argc, argv)
@@ -62,6 +63,7 @@ main(argc, argv)
 	char *argv[];
 {
 	get_names(argc, argv);
+	check_writeable();
 	init_display();
 	open_ctl();
 	open_sockt();
