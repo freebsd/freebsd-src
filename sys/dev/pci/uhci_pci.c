@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.7 1999/01/06 19:55:49 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.8 1999/01/07 23:01:11 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -76,13 +76,13 @@
 #define PCI_UHCI_VENDORID_VIA		0x1106
 
 #define PCI_UHCI_DEVICEID_PIIX3         0x70208086ul
-static const char *uhci_device_piix3 = "Intel 82371SB USB Host Controller";
+static const char *uhci_device_piix3	= "Intel 82371SB (PIIX3) USB Host Controller";
 #define PCI_UHCI_DEVICEID_PIIX4         0x71128086ul
 #define PCI_UHCI_DEVICEID_PIIX4E        0x71128086ul    /* no separate step */
-static const char *uhci_device_piix4 = "Intel 82371AB/EB USB Host Controller";
+static const char *uhci_device_piix4	= "Intel 82371AB/EB (PIIX4) USB Host Controller";
 #define PCI_UHCI_DEVICEID_VT83C572	0x30381106ul
-static const char *uhci_device_vt83c572 = "VIA 83C572 USB Host Controller";
-static const char *uhci_device_generic = "UHCI USB Controller (generic)";
+static const char *uhci_device_vt83c572	= "VIA 83C572 USB Host Controller";
+static const char *uhci_device_generic	= "UHCI (generic) USB Controller";
 
 #define PCI_UHCI_BASE_REG               0x20
 
@@ -199,16 +199,6 @@ uhci_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 
-	r = uhci_init(sc);
-	if (r != USBD_NORMAL_COMPLETION) {
-		printf("%s%d: init failed, error=%d\n",
-			device_get_name(sc->sc_bus.bdev),
-			device_get_unit(sc->sc_bus.bdev),
-			r);
-		device_delete_child(root_bus, sc->sc_bus.bdev);
-		return;
-	}
-
 	switch (id) {
 	case PCI_UHCI_DEVICEID_PIIX3:
 		device_set_desc(sc->sc_bus.bdev, uhci_device_piix3);
@@ -222,6 +212,15 @@ uhci_pci_attach(pcici_t config_id, int unit)
 	default:
 		printf("(New UHCI DeviceId=0x%08x)\n", id);
 		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
+	}
+
+	r = uhci_init(sc);
+	if (r != USBD_NORMAL_COMPLETION) {
+		printf("%s%d: init failed, error=%d\n",
+			device_get_name(sc->sc_bus.bdev),
+			device_get_unit(sc->sc_bus.bdev),
+			r);
+		device_delete_child(root_bus, sc->sc_bus.bdev);
 	}
 
 	return;
