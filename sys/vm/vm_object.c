@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_object.c,v 1.3 1994/08/02 07:55:29 davidg Exp $
  */
 
 /*
@@ -353,7 +353,7 @@ vm_object_terminate(object)
 		VM_PAGE_CHECK(p);
 
 		vm_page_lock_queues();
-		s = splimp();
+		s = splhigh();
 		if (p->flags & PG_ACTIVE) {
 			TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
 			p->flags &= ~PG_ACTIVE;
@@ -613,7 +613,6 @@ again:
 						vm_page_deactivate(p);
 					vm_page_unlock_queues();
 				}
-				p->flags &= ~PG_BUSY;
 				PAGE_WAKEUP(p);
 				goto again;
 			}
@@ -713,6 +712,7 @@ vm_object_pmap_remove(object, start, end)
 	register vm_offset_t	end;
 {
 	register vm_page_t	p;
+	int s;
 
 	if (object == NULL)
 		return;
@@ -721,11 +721,14 @@ vm_object_pmap_remove(object, start, end)
 again:
 	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
 		if ((start <= p->offset) && (p->offset < end)) {
+			s = splhigh();
 			if (p->flags & PG_BUSY) {
 				p->flags |= PG_WANTED;
 				tsleep((caddr_t) p, PVM, "vmopmr", 0);
+				splx(s);
 				goto again;
 			}
+			splx(s);
 			pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
 			if ((p->flags & PG_CLEAN) == 0)
 				p->flags |= PG_LAUNDRY;
@@ -1456,11 +1459,14 @@ again:
 		for (p = object->memq.tqh_first; (p != NULL && size > 0); p = next) {
 			next = p->listq.tqe_next;
 			if ((start <= p->offset) && (p->offset < end)) {
+				s=splhigh();
 				if (p->flags & PG_BUSY) {
 					p->flags |= PG_WANTED;
 					tsleep((caddr_t) p, PVM, "vmopar", 0);
+					splx(s);
 					goto again;
 				}
+				splx(s);
 				pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
 				vm_page_lock_queues();
 				vm_page_free(p);
@@ -1471,11 +1477,14 @@ again:
 	} else {
 		while (size > 0) {
 			while (p = vm_page_lookup(object, start)) {
+				s = splhigh();
 				if (p->flags & PG_BUSY) {
 					p->flags |= PG_WANTED;
 					tsleep((caddr_t) p, PVM, "vmopar", 0);
+					splx(s);
 					goto again;
 				}
+				splx(s);
 				pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
 				vm_page_lock_queues();
 				vm_page_free(p);
