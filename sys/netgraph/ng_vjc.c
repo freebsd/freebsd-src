@@ -76,7 +76,7 @@
 #define MAX_VJHEADER		19
 
 /* Node private data */
-struct private {
+struct ng_vjc_private {
 	struct	ngm_vjc_config conf;
 	struct	slcompress slc;
 	hook_p	ip;
@@ -84,7 +84,7 @@ struct private {
 	hook_p	vjuncomp;
 	hook_p	vjip;
 };
-typedef struct private *priv_p;
+typedef struct ng_vjc_private *priv_p;
 
 #define ERROUT(x)	do { error = (x); goto done; } while (0)
 
@@ -414,8 +414,24 @@ ng_vjc_rmnode(node_p node)
 static int
 ng_vjc_disconnect(hook_p hook)
 {
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	const node_p node = hook->node;
+	const priv_p priv = node->private;
+
+	/* Zero out hook pointer */
+	if (hook == priv->ip)
+		priv->ip = NULL;
+	else if (hook == priv->vjcomp)
+		priv->vjcomp = NULL;
+	else if (hook == priv->vjuncomp)
+		priv->vjuncomp = NULL;
+	else if (hook == priv->vjip)
+		priv->vjip = NULL;
+	else
+		panic("%s: unknown hook", __FUNCTION__);
+
+	/* Go away if no hooks left */
+	if (node->numhooks == 0)
+		ng_rmnode(node);
 	return (0);
 }
 
