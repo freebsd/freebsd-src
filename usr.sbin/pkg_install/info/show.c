@@ -256,3 +256,18 @@ show_size(char *title, Package *plist)
     else
 	printf("%lu\n", size);
 }
+
+/* Show an "origin" path (usually category/portname) */
+void
+show_origin(char *title, Package *plist)
+{
+    PackingList p;
+
+    if (!Quiet)
+	printf("%s%s", InfoPrefix, title);
+    for (p = plist->head; p != NULL; p = p->next)
+	if (p->type == PLIST_COMMENT && !strncmp(p->name, "ORIGIN:", 7)) {
+	    printf("%s\n", p->name + 7);
+	    break;
+	}
+}
