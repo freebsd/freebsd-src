@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.15 1995/03/02 04:18:43 jkh Exp $
+# $Id: instdist.sh,v 1.16 1995/03/24 00:23:02 phk Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -87,7 +87,7 @@ media_rm_tmpdir()
 	if [ -d ${TMPDIR}/${MEDIA_DISTRIBUTION} ]; then
 		_TARGET=${TMPDIR}/${MEDIA_DISTRIBUTION}
 	else
-		_TARGET=${TMPDIR}
+		_TARGET="${TMPDIR}/*"
 	fi
 	if dialog --title "Delete contents?" --yesno \
 	  "Do you wish to delete ${_TARGET}?" -1 -1; then
