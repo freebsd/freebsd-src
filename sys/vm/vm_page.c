@@ -335,6 +335,7 @@ void
 vm_page_io_start(vm_page_t m)
 {
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->busy++;
 }
@@ -343,6 +344,7 @@ void
 vm_page_io_finish(vm_page_t m)
 {
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->busy--;
 	if (m->busy == 0)
