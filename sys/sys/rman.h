@@ -126,6 +126,9 @@ int	rman_release_resource(struct resource *r);
 struct resource *rman_reserve_resource(struct rman *rm, u_long start,
 					u_long end, u_long count,
 					u_int flags, struct device *dev);
+struct resource *rman_reserve_resource_bound(struct rman *rm, u_long start,
+					u_long end, u_long count, u_long bound,
+					u_int flags, struct device *dev);
 uint32_t rman_make_alignment_flags(uint32_t size);
 
 #define rman_get_start(r)	((r)->r_start)
