@@ -370,7 +370,7 @@ initarm(void *arg, void *arg2)
 
 	/* Set stack for exception handlers */
 	
-	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
+	proc_linkup(&proc0, &ksegrp0, &thread0);
 	proc0.p_uarea = (struct user *) proc0_uarea.pv_va;
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)

@@ -46,7 +46,7 @@ int	sched_runnable(void);
  * Proc related scheduling hooks.
  */
 void	sched_exit(struct proc *p, struct thread *childtd);
-void	sched_fork(struct thread *td, struct proc *child);
+void	sched_fork(struct thread *td, struct thread *childtd);
 
 /*
  * KSE Groups contain scheduling priority information.  They record the
@@ -74,7 +74,6 @@ void	sched_wakeup(struct thread *td);
  * Threads are moved on and off of run queues
  */
 void	sched_add(struct thread *td, int flags);
-struct kse *sched_choose(void);		/* XXX Should be thread * */
 void	sched_clock(struct thread *td);
 void	sched_rem(struct thread *td);
 
@@ -87,25 +86,14 @@ static __inline void sched_pin(void);
 void	sched_unbind(struct thread *td);
 static __inline void sched_unpin(void);
 
-/*
- * These interfaces will eventually be removed.
- */
-void	sched_exit_kse(struct kse *ke, struct thread *childtd);
-void	sched_fork_kse(struct thread *td, struct kse *child);
 
 /*
  * These procedures tell the process data structure allocation code how
  * many bytes to actually allocate.
  */
-int	sched_sizeof_kse(void);
 int	sched_sizeof_ksegrp(void);
 int	sched_sizeof_proc(void);
 int	sched_sizeof_thread(void);
-
-extern struct ke_sched *kse0_sched;
-extern struct kg_sched *ksegrp0_sched;
-extern struct p_sched *proc0_sched;
-extern struct td_sched *thread0_sched;
 
 static __inline void
 sched_pin(void)
@@ -119,4 +107,13 @@ sched_unpin(void)
 	curthread->td_pinned--;
 }
 
+/* temporarily here */
+void schedinit(void);
+void sched_destroyproc(struct proc *p);
+void sched_init_concurrency(struct ksegrp *kg);
+void sched_set_concurrency(struct ksegrp *kg, int cuncurrency);
+void sched_schedinit(void);
+void sched_newproc(struct proc *p, struct ksegrp *kg, struct thread *td);
+void sched_thread_exit(struct thread *td);
+void sched_newthread(struct thread *td);
 #endif /* !_SYS_SCHED_H_ */
