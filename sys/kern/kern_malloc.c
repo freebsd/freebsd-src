@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
+ *	@(#)kern_malloc.c	8.4 (Berkeley) 5/20/95
  */
 
 #include <sys/param.h>
@@ -103,6 +103,9 @@ malloc(size, type, flags)
 	int copysize;
 	char *savedtype;
 #endif
+#ifdef DEBUG
+	extern int simplelockrecurse;
+#endif
 #ifdef KMEMSTATS
 	register struct kmemstats *ksp = &kmemstats[type];
 
@@ -127,6 +130,10 @@ malloc(size, type, flags)
 #ifdef DIAGNOSTIC
 	copysize = 1 << indx < MAX_COPY ? 1 << indx : MAX_COPY;
 #endif
+#ifdef DEBUG
+	if (flags & M_NOWAIT)
+		simplelockrecurse++;
+#endif
 	if (kbp->kb_next == NULL) {
 		kbp->kb_last = NULL;
 		if (size > MAXALLOCSAVE)
@@ -138,6 +145,10 @@ malloc(size, type, flags)
 					   !(flags & M_NOWAIT));
 		if (va == NULL) {
 			splx(s);
+#ifdef DEBUG
+			if (flags & M_NOWAIT)
+				simplelockrecurse--;
+#endif
 			return ((void *) NULL);
 		}
 #ifdef KMEMSTATS
@@ -239,6 +250,10 @@ out:
 out:
 #endif
 	splx(s);
+#ifdef DEBUG
+	if (flags & M_NOWAIT)
+		simplelockrecurse--;
+#endif
 	return ((void *) va);
 }
 

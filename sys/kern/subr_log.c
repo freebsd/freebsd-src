@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
+ *	@(#)subr_log.c	8.3 (Berkeley) 2/14/95
  */
 
 /*
@@ -59,6 +59,7 @@ struct logsoftc {
 int	log_open;			/* also used in log() */
 
 /*ARGSUSED*/
+int
 logopen(dev, flags, mode, p)
 	dev_t dev;
 	int flags, mode;
@@ -87,6 +88,7 @@ logopen(dev, flags, mode, p)
 }
 
 /*ARGSUSED*/
+int
 logclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -99,6 +101,7 @@ logclose(dev, flag, mode, p)
 }
 
 /*ARGSUSED*/
+int
 logread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -144,6 +147,7 @@ logread(dev, uio, flag)
 }
 
 /*ARGSUSED*/
+int
 logselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -165,6 +169,7 @@ logselect(dev, rw, p)
 	return (0);
 }
 
+void
 logwakeup()
 {
 	struct proc *p;
@@ -185,9 +190,10 @@ logwakeup()
 }
 
 /*ARGSUSED*/
+int
 logioctl(dev, com, data, flag, p)
 	dev_t dev;
-	int com;
+	u_long com;
 	caddr_t data;
 	int flag;
 	struct proc *p;

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tty.c	8.8 (Berkeley) 1/21/94
+ *	@(#)tty.c	8.13 (Berkeley) 1/9/95
  */
 
 #include <sys/param.h>
@@ -531,7 +531,7 @@ ttyoutput(c, tp)
 	register struct tty *tp;
 {
 	register long oflag;
-	register int col, s;
+	register int notout, col, s;
 
 	oflag = tp->t_oflag;
 	if (!ISSET(oflag, OPOST)) {
@@ -553,15 +553,18 @@ ttyoutput(c, tp)
 	if (c == '\t' &&
 	    ISSET(oflag, OXTABS) && !ISSET(tp->t_lflag, EXTPROC)) {
 		c = 8 - (tp->t_column & 7);
-		if (!ISSET(tp->t_lflag, FLUSHO)) {
+		if (ISSET(tp->t_lflag, FLUSHO)) {
+			notout = 0;
+		} else {
 			s = spltty();		/* Don't interrupt tabs. */
-			c -= b_to_q("        ", c, &tp->t_outq);
+			notout = b_to_q("        ", c, &tp->t_outq);
+			c -= notout;
 			tk_nout += c;
 			tp->t_outcc += c;
 			splx(s);
 		}
 		tp->t_column += c;
-		return (c ? -1 : '\t');
+		return (notout ? '\t' : -1);
 	}
 	if (c == CEOT && ISSET(oflag, ONOEOT))
 		return (-1);
@@ -613,8 +616,9 @@ ttyoutput(c, tp)
 int
 ttioctl(tp, cmd, data, flag)
 	register struct tty *tp;
-	int cmd, flag;
+	u_long cmd;
 	void *data;
+	int flag;
 {
 	extern struct tty *constty;	/* Temporary virtual console. */
 	extern int nlinesw;
@@ -1766,11 +1770,11 @@ ttyinfo(tp)
 		ttyprintf(tp, "not a controlling terminal\n");
 	else if (tp->t_pgrp == NULL)
 		ttyprintf(tp, "no foreground process group\n");
-	else if ((p = tp->t_pgrp->pg_mem) == NULL)
+	else if ((p = tp->t_pgrp->pg_members.lh_first) == 0)
 		ttyprintf(tp, "empty foreground process group\n");
 	else {
 		/* Pick interesting process. */
-		for (pick = NULL; p != NULL; p = p->p_pgrpnxt)
+		for (pick = NULL; p != 0; p = p->p_pglist.le_next)
 			if (proc_compare(pick, p))
 				pick = p;
 

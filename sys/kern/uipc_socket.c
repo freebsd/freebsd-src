@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
+ *	@(#)uipc_socket.c	8.6 (Berkeley) 5/2/95
  */
 
 #include <sys/param.h>
@@ -54,6 +54,7 @@
  * switching out to the protocol specific routines.
  */
 /*ARGSUSED*/
+int
 socreate(dom, aso, type, proto)
 	int dom;
 	struct socket **aso;
@@ -79,9 +80,8 @@ socreate(dom, aso, type, proto)
 	if (p->p_ucred->cr_uid == 0)
 		so->so_state = SS_PRIV;
 	so->so_proto = prp;
-	error =
-	    (*prp->pr_usrreq)(so, PRU_ATTACH,
-		(struct mbuf *)0, (struct mbuf *)proto, (struct mbuf *)0);
+	error = (*prp->pr_usrreq)(so, PRU_ATTACH, (struct mbuf *)0,
+	    (struct mbuf *)(long)proto, (struct mbuf *)0);
 	if (error) {
 		so->so_state |= SS_NOFDREF;
 		sofree(so);
@@ -91,6 +91,7 @@ socreate(dom, aso, type, proto)
 	return (0);
 }
 
+int
 sobind(so, nam)
 	struct socket *so;
 	struct mbuf *nam;
@@ -105,6 +106,7 @@ sobind(so, nam)
 	return (error);
 }
 
+int
 solisten(so, backlog)
 	register struct socket *so;
 	int backlog;
@@ -127,6 +129,7 @@ solisten(so, backlog)
 	return (0);
 }
 
+int
 sofree(so)
 	register struct socket *so;
 {
@@ -148,6 +151,7 @@ sofree(so)
  * Initiate disconnect if connected.
  * Free socket when disconnect complete.
  */
+int
 soclose(so)
 	register struct socket *so;
 {
@@ -174,7 +178,7 @@ soclose(so)
 				goto drop;
 			while (so->so_state & SS_ISCONNECTED)
 				if (error = tsleep((caddr_t)&so->so_timeo,
-				    PSOCK | PCATCH, netcls, so->so_linger))
+				    PSOCK | PCATCH, netcls, so->so_linger * hz))
 					break;
 		}
 	}
@@ -198,6 +202,7 @@ discard:
 /*
  * Must be called at splnet...
  */
+int
 soabort(so)
 	struct socket *so;
 {
@@ -207,6 +212,7 @@ soabort(so)
 		(struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0));
 }
 
+int
 soaccept(so, nam)
 	register struct socket *so;
 	struct mbuf *nam;
@@ -223,6 +229,7 @@ soaccept(so, nam)
 	return (error);
 }
 
+int
 soconnect(so, nam)
 	register struct socket *so;
 	struct mbuf *nam;
@@ -250,6 +257,7 @@ soconnect(so, nam)
 	return (error);
 }
 
+int
 soconnect2(so1, so2)
 	register struct socket *so1;
 	struct socket *so2;
@@ -263,6 +271,7 @@ soconnect2(so1, so2)
 	return (error);
 }
 
+int
 sodisconnect(so)
 	register struct socket *so;
 {
@@ -302,6 +311,7 @@ bad:
  * must check for short counts if EINTR/ERESTART are returned.
  * Data and control buffers are freed on return.
  */
+int
 sosend(so, addr, uio, top, control, flags)
 	register struct socket *so;
 	struct mbuf *addr;
@@ -477,6 +487,7 @@ out:
  * an mbuf **mp0 for use in returning the chain.  The uio is then used
  * only for the count in uio_resid.
  */
+int
 soreceive(so, paddr, uio, mp0, controlp, flagsp)
 	register struct socket *so;
 	struct mbuf **paddr;
@@ -503,8 +514,8 @@ soreceive(so, paddr, uio, mp0, controlp, flagsp)
 		flags = 0;
 	if (flags & MSG_OOB) {
 		m = m_get(M_WAIT, MT_DATA);
-		error = (*pr->pr_usrreq)(so, PRU_RCVOOB,
-		    m, (struct mbuf *)(flags & MSG_PEEK), (struct mbuf *)0);
+		error = (*pr->pr_usrreq)(so, PRU_RCVOOB, m,
+		    (struct mbuf *)(long)(flags & MSG_PEEK), (struct mbuf *)0);
 		if (error)
 			goto bad;
 		do {
@@ -534,8 +545,8 @@ restart:
 	 * (subject to any timeout) if:
 	 *   1. the current count is less than the low water mark, or
 	 *   2. MSG_WAITALL is set, and it is possible to do the entire
-	 *	receive operation at once if we block (resid <= hiwat).
-	 *   3. MSG_DONTWAIT is not set
+	 *	receive operation at once if we block (resid <= hiwat), or
+	 *   3. MSG_DONTWAIT is not set.
 	 * If MSG_WAITALL is set but resid is larger than the receive buffer,
 	 * we have to do the receive in sections, and thus risk returning
 	 * a short count if a timeout or signal occurs after we start.
@@ -757,7 +768,7 @@ dontblock:
 			so->so_rcv.sb_mb = nextrecord;
 		if (pr->pr_flags & PR_WANTRCVD && so->so_pcb)
 			(*pr->pr_usrreq)(so, PRU_RCVD, (struct mbuf *)0,
-			    (struct mbuf *)flags, (struct mbuf *)0,
+			    (struct mbuf *)(long)flags, (struct mbuf *)0,
 			    (struct mbuf *)0);
 	}
 	if (orig_resid == uio->uio_resid && orig_resid &&
@@ -775,6 +786,7 @@ release:
 	return (error);
 }
 
+int
 soshutdown(so, how)
 	register struct socket *so;
 	register int how;
@@ -790,6 +802,7 @@ soshutdown(so, how)
 	return (0);
 }
 
+void
 sorflush(so)
 	register struct socket *so;
 {
@@ -811,6 +824,7 @@ sorflush(so)
 	sbrelease(&asb);
 }
 
+int
 sosetopt(so, level, optname, m0)
 	register struct socket *so;
 	int level, optname;
@@ -893,7 +907,7 @@ sosetopt(so, level, optname, m0)
 				goto bad;
 			}
 			tv = mtod(m, struct timeval *);
-			if (tv->tv_sec > SHRT_MAX / hz - hz) {
+			if (tv->tv_sec * hz + tv->tv_usec / tick > SHRT_MAX) {
 				error = EDOM;
 				goto bad;
 			}
@@ -927,6 +941,7 @@ bad:
 	return (error);
 }
 
+int
 sogetopt(so, level, optname, mp)
 	register struct socket *so;
 	int level, optname;
@@ -998,7 +1013,7 @@ sogetopt(so, level, optname, mp)
 			m->m_len = sizeof(struct timeval);
 			mtod(m, struct timeval *)->tv_sec = val / hz;
 			mtod(m, struct timeval *)->tv_usec =
-			    (val % hz) / tick;
+			    (val % hz) * tick;
 			break;
 		    }
 
@@ -1011,6 +1026,7 @@ sogetopt(so, level, optname, mp)
 	}
 }
 
+void
 sohasoutofband(so)
 	register struct socket *so;
 {

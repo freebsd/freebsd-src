@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
+ *	@(#)uipc_proto.c	8.2 (Berkeley) 2/14/95
  */
 
 #include <sys/param.h>
@@ -44,7 +44,7 @@
  */
 
 int	uipc_usrreq(), raw_usrreq();
-void	raw_init(),raw_input(),raw_ctlinput();
+void	raw_init(), raw_input(), raw_ctlinput();
 extern	struct domain unixdomain;		/* or at least forward */
 
 struct protosw unixsw[] = {

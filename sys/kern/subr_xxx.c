@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
+ *	@(#)subr_xxx.c	8.3 (Berkeley) 3/29/95
  */
 
 /*
@@ -45,6 +45,7 @@
 /*
  * Unsupported device function (e.g. writing to read-only device).
  */
+int
 enodev()
 {
 
@@ -54,6 +55,7 @@ enodev()
 /*
  * Unconfigured device function; driver not configured.
  */
+int
 enxio()
 {
 
@@ -63,6 +65,7 @@ enxio()
 /*
  * Unsupported ioctl function.
  */
+int
 enoioctl()
 {
 
@@ -74,6 +77,7 @@ enoioctl()
  * This is used for an otherwise-reasonable operation
  * that is not supported by the current system binary.
  */
+int
 enosys()
 {
 
@@ -84,6 +88,7 @@ enosys()
  * Return error for operation not supported
  * on a specific object or file type.
  */
+int
 eopnotsupp()
 {
 
@@ -91,8 +96,20 @@ eopnotsupp()
 }
 
 /*
+ * Return error for an inval operation
+ * on a specific object or file type.
+ */
+int
+einval()
+{
+
+	return (EINVAL);
+}
+
+/*
  * Generic null operation, always returns success.
  */
+int
 nullop()
 {
 

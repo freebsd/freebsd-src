@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
+ *	@(#)kern_fork.c	8.8 (Berkeley) 2/14/95
  */
 
 #include <sys/param.h>
@@ -51,14 +51,11 @@
 #include <sys/acct.h>
 #include <sys/ktrace.h>
 
-struct fork_args {
-	int	dummy;
-};
 /* ARGSUSED */
 fork(p, uap, retval)
 	struct proc *p;
-	struct fork_args *uap;
-	int retval[];
+	void *uap;
+	register_t *retval;
 {
 
 	return (fork1(p, 0, retval));
@@ -67,8 +64,8 @@ fork(p, uap, retval)
 /* ARGSUSED */
 vfork(p, uap, retval)
 	struct proc *p;
-	struct fork_args *uap;
-	int retval[];
+	void *uap;
+	register_t *retval;
 {
 
 	return (fork1(p, 1, retval));
@@ -78,7 +75,8 @@ int	nprocs = 1;		/* process 0 */
 
 fork1(p1, isvfork, retval)
 	register struct proc *p1;
-	int isvfork, retval[];
+	int isvfork;
+	register_t *retval;
 {
 	register struct proc *p2;
 	register uid_t uid;
@@ -99,6 +97,7 @@ fork1(p1, isvfork, retval)
 		tablefull("proc");
 		return (EAGAIN);
 	}
+
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
@@ -136,9 +135,9 @@ retry:
 		 * is in use.  Remember the lowest pid that's greater
 		 * than nextpid, so we can avoid checking for a while.
 		 */
-		p2 = (struct proc *)allproc;
+		p2 = allproc.lh_first;
 again:
-		for (; p2 != NULL; p2 = p2->p_next) {
+		for (; p2 != 0; p2 = p2->p_list.le_next) {
 			while (p2->p_pid == nextpid ||
 			    p2->p_pgrp->pg_id == nextpid) {
 				nextpid++;
@@ -153,43 +152,18 @@ again:
 		}
 		if (!doingzomb) {
 			doingzomb = 1;
-			p2 = zombproc;
+			p2 = zombproc.lh_first;
 			goto again;
 		}
 	}
 
-
-	/*
-	 * Link onto allproc (this should probably be delayed).
-	 * Heavy use of volatile here to prevent the compiler from
-	 * rearranging code.  Yes, it *is* terribly ugly, but at least
-	 * it works.
-	 */
 	nprocs++;
 	p2 = newproc;
-#define	Vp2 ((volatile struct proc *)p2)
-	Vp2->p_stat = SIDL;			/* protect against others */
-	Vp2->p_pid = nextpid;
-	/*
-	 * This is really:
-	 *	p2->p_next = allproc;
-	 *	allproc->p_prev = &p2->p_next;
-	 *	p2->p_prev = &allproc;
-	 *	allproc = p2;
-	 * The assignment via allproc is legal since it is never NULL.
-	 */
-	*(volatile struct proc **)&Vp2->p_next = allproc;
-	*(volatile struct proc ***)&allproc->p_prev =
-	    (volatile struct proc **)&Vp2->p_next;
-	*(volatile struct proc ***)&Vp2->p_prev = &allproc;
-	allproc = Vp2;
-#undef Vp2
+	p2->p_stat = SIDL;			/* protect against others */
+	p2->p_pid = nextpid;
+	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	p2->p_forw = p2->p_back = NULL;		/* shouldn't be necessary */
-
-	/* Insert on the hash chain. */
-	hash = &pidhash[PIDHASH(p2->p_pid)];
-	p2->p_hash = *hash;
-	*hash = p2;
+	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 
 	/*
 	 * Make a proc table entry for the new process.
@@ -238,13 +212,11 @@ again:
 		p2->p_flag |= P_CONTROLT;
 	if (isvfork)
 		p2->p_flag |= P_PPWAIT;
-	p2->p_pgrpnxt = p1->p_pgrpnxt;
-	p1->p_pgrpnxt = p2;
+	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	p2->p_pptr = p1;
-	p2->p_osptr = p1->p_cptr;
-	if (p1->p_cptr)
-		p1->p_cptr->p_ysptr = p2;
-	p1->p_cptr = p2;
+	LIST_INSERT_HEAD(&p1->p_children, p2, p_sibling);
+	LIST_INIT(&p2->p_children);
+
 #ifdef KTRACE
 	/*
 	 * Copy traceflag and tracefile if enabled.

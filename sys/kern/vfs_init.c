@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
+ *	@(#)vfs_init.c	8.5 (Berkeley) 5/11/95
  */
 
 
@@ -211,7 +211,6 @@ vfs_op_init()
  */
 extern struct vnodeops dead_vnodeops;
 extern struct vnodeops spec_vnodeops;
-extern void vclean();
 struct vattr va_null;
 
 /*
@@ -219,7 +218,8 @@ struct vattr va_null;
  */
 vfsinit()
 {
-	struct vfsops **vfsp;
+	struct vfsconf *vfsp;
+	int i, maxtypenum;
 
 	/*
 	 * Initialize the vnode table
@@ -238,9 +238,14 @@ vfsinit()
 	 * Initialize each file system type.
 	 */
 	vattr_null(&va_null);
-	for (vfsp = &vfssw[0]; vfsp <= &vfssw[MOUNT_MAXTYPE]; vfsp++) {
-		if (*vfsp == NULL)
-			continue;
-		(*(*vfsp)->vfs_init)();
+	maxtypenum = 0;
+	for (vfsp = vfsconf, i = 1; i <= maxvfsconf; i++, vfsp++) {
+		if (i < maxvfsconf)
+			vfsp->vfc_next = vfsp + 1;
+		if (maxtypenum <= vfsp->vfc_typenum)
+			maxtypenum = vfsp->vfc_typenum + 1;
+		(*vfsp->vfc_vfsops->vfs_init)(vfsp);
 	}
+	/* next vfc_typenum to be used */
+	maxvfsconf = maxtypenum;
 }
