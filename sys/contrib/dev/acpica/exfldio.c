@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 59 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -155,19 +155,11 @@ AcpiExSetupField (
 
     FUNCTION_TRACE_U32 ("ExSetupField", FieldDatumByteOffset);
 
-
-    /* Parameter validation */
-
     RgnDesc = ObjDesc->CommonField.RegionObj;
-    if (!ObjDesc || !RgnDesc)
-    {
-        DEBUG_PRINTP (ACPI_ERROR, ("Internal error - null handle\n"));
-        return_ACPI_STATUS (AE_AML_NO_OPERAND);
-    }
 
     if (ACPI_TYPE_REGION != RgnDesc->Common.Type)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Needed Region, found type %x %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Needed Region, found type %x %s\n",
             RgnDesc->Common.Type, AcpiUtGetTypeName (RgnDesc->Common.Type)));
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
@@ -204,8 +196,8 @@ AcpiExSetupField (
              * than the region itself.  For example, a region of length one
              * byte, and a field with Dword access specified.
              */
-            DEBUG_PRINTP (ACPI_ERROR,
-                ("Field access width (%d bytes) too large for region size (%X)\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Field access width (%d bytes) too large for region size (%X)\n",
                 ObjDesc->CommonField.AccessByteWidth, RgnDesc->Region.Length));
         }
 
@@ -213,8 +205,8 @@ AcpiExSetupField (
          * Offset rounded up to next multiple of field width
          * exceeds region length, indicate an error
          */
-        DEBUG_PRINTP (ACPI_ERROR,
-            ("Field base+offset+width %X+%X+%X exceeds region size (%X bytes) field=%p region=%p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Field base+offset+width %X+%X+%X exceeds region size (%X bytes) field=%p region=%p\n",
             ObjDesc->CommonField.BaseByteOffset, FieldDatumByteOffset, 
             ObjDesc->CommonField.AccessByteWidth,
             RgnDesc->Region.Length, ObjDesc, RgnDesc));
@@ -309,7 +301,7 @@ AcpiExReadFieldDatum (
         Address = RgnDesc->Region.Address + ObjDesc->CommonField.BaseByteOffset +
                     FieldDatumByteOffset;
 
-        DEBUG_PRINTP (TRACE_BFIELD, ("Region %s(%X) width %X base:off %X:%X at %8.8lX%8.8lX\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "Region %s(%X) width %X base:off %X:%X at %8.8lX%8.8lX\n",
             AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
             RgnDesc->Region.SpaceId, ObjDesc->CommonField.AccessBitWidth,
             ObjDesc->CommonField.BaseByteOffset, FieldDatumByteOffset,
@@ -322,14 +314,14 @@ AcpiExReadFieldDatum (
                         Address, ObjDesc->CommonField.AccessBitWidth, Value);
         if (Status == AE_NOT_IMPLEMENTED)
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("Region %s(%X) not implemented\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Region %s(%X) not implemented\n",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
 
         else if (Status == AE_NOT_EXIST)
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("Region %s(%X) has no handler\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Region %s(%X) has no handler\n",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
@@ -338,14 +330,14 @@ AcpiExReadFieldDatum (
 
     default:
 
-        DEBUG_PRINTP (ACPI_ERROR, ("%p, wrong source type - %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p, wrong source type - %s\n",
             ObjDesc, AcpiUtGetTypeName (ObjDesc->Common.Type)));
         Status = AE_AML_INTERNAL;
         break;
     }
 
 
-    DEBUG_PRINTP (TRACE_BFIELD, ("Returned value=%08lX \n", *Value));
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "Returned value=%08lX \n", *Value));
 
     return_ACPI_STATUS (Status);
 }
@@ -473,7 +465,7 @@ AcpiExExtractFromField (
     ByteFieldLength = ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
     if (ByteFieldLength > BufferLength)
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Field size %X (bytes) too large for buffer (%X)\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Field size %X (bytes) too large for buffer (%X)\n",
             ByteFieldLength, BufferLength));
 
         return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
@@ -483,8 +475,8 @@ AcpiExExtractFromField (
 
     DatumCount = ROUND_UP_TO (ByteFieldLength, ObjDesc->CommonField.AccessByteWidth);
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("ByteLen=%x, DatumLen=%x, BitGran=%x, ByteGran=%x\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "ByteLen=%x, DatumLen=%x, BitGran=%x, ByteGran=%x\n",
         ByteFieldLength, DatumCount, ObjDesc->CommonField.AccessBitWidth, 
         ObjDesc->CommonField.AccessByteWidth));
 
@@ -695,8 +687,8 @@ AcpiExWriteFieldDatum (
                     ObjDesc->CommonField.BaseByteOffset +
                     FieldDatumByteOffset;
 
-        DEBUG_PRINTP (TRACE_BFIELD, 
-            ("Store %X in Region %s(%X) at %8.8lX%8.8lX width %X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, 
+            "Store %X in Region %s(%X) at %8.8lX%8.8lX width %X\n",
             Value, AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
             RgnDesc->Region.SpaceId, HIDWORD(Address), LODWORD(Address),
             ObjDesc->CommonField.AccessBitWidth));
@@ -708,16 +700,16 @@ AcpiExWriteFieldDatum (
 
         if (Status == AE_NOT_IMPLEMENTED)
         {
-            DEBUG_PRINTP (ACPI_ERROR,  
-                ("**** Region type %s(%X) not implemented\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,  
+                "**** Region type %s(%X) not implemented\n",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
 
         else if (Status == AE_NOT_EXIST)
         {
-            DEBUG_PRINTP (ACPI_ERROR, 
-                ("**** Region type %s(%X) does not have a handler\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                "**** Region type %s(%X) does not have a handler\n",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
@@ -727,14 +719,14 @@ AcpiExWriteFieldDatum (
 
     default:
 
-        DEBUG_PRINTP (ACPI_ERROR, ("%p, wrong source type - %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p, wrong source type - %s\n",
             ObjDesc, AcpiUtGetTypeName (ObjDesc->Common.Type)));
         Status = AE_AML_INTERNAL;
         break;
     }
 
 
-    DEBUG_PRINTP (TRACE_BFIELD, ("Value written=%08lX \n", Value));
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "Value written=%08lX \n", Value));
     return_ACPI_STATUS (Status);
 }
 
@@ -818,8 +810,8 @@ AcpiExWriteFieldDatumWithUpdateRule (
 
 
         default:
-            DEBUG_PRINT (ACPI_ERROR,
-                ("WriteWithUpdateRule: Unknown UpdateRule setting: %x\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "WriteWithUpdateRule: Unknown UpdateRule setting: %x\n",
                 ObjDesc->CommonField.UpdateRule));
             return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
             break;
@@ -832,7 +824,7 @@ AcpiExWriteFieldDatumWithUpdateRule (
     Status = AcpiExWriteFieldDatum (ObjDesc, FieldDatumByteOffset, 
                     MergedValue);
 
-    DEBUG_PRINTP (TRACE_BFIELD, ("Mask %X DatumOffset %X Value %X, MergedValue %X\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "Mask %X DatumOffset %X Value %X, MergedValue %X\n",
         Mask, FieldDatumByteOffset, FieldValue, MergedValue));
 
     return_ACPI_STATUS (Status);
@@ -881,7 +873,7 @@ AcpiExInsertIntoField (
     ByteFieldLength = ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
     if (BufferLength < ByteFieldLength)
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Buffer length %X too small for field %X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Buffer length %X too small for field %X\n",
             BufferLength, ByteFieldLength));
 
         /* TBD: Need a better error code */
@@ -893,8 +885,8 @@ AcpiExInsertIntoField (
 
     DatumCount = ROUND_UP_TO (ByteFieldLength, ObjDesc->CommonField.AccessByteWidth);
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("ByteLen=%x, DatumLen=%x, BitGran=%x, ByteGran=%x\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "ByteLen=%x, DatumLen=%x, BitGran=%x, ByteGran=%x\n",
         ByteFieldLength, DatumCount, ObjDesc->CommonField.AccessBitWidth, 
         ObjDesc->CommonField.AccessByteWidth));
 
