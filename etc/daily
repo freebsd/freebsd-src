@@ -41,10 +41,14 @@ if [ -d /var/rwho ] ; then
 fi
 
 cd /tmp
-find / ! -fstype local -a -prune -o \
-	\( -name '[#,]*' -o -name '.#*' -o -name a.out -o -name core \
-	   -o -name '*.CKP' -o -name '.emacs_[0-9]*' \) \
-		-a -atime +3 -exec rm -f -- {} \;
+# This is not safe, you need to decide what is appropriate for your
+# system.
+#
+#find / ! -fstype local -a -prune -o \
+#	\( -name '[#,]*' -o -name '.#*' -o -name a.out -o -name core \
+#	   -o -name '*.CKP' -o -name '.emacs_[0-9]*' \) \
+#		-a -atime +3 -exec rm -f -- {} \;
+#
 msgs -c
 if [ -f /etc/news.expire ]; then
 	/etc/news.expire
