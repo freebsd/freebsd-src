@@ -18,7 +18,6 @@ NOSHARED=	broken
 LIB=		stdc++
 SHLIB_MAJOR=	4
 
-CSTD?=
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR}
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections -Wno-deprecated
