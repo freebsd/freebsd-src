@@ -428,9 +428,8 @@ swap_pager_dealloc(object)
 	}
 	mtx_unlock(&sw_alloc_mtx);
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	vm_object_pip_wait(object, "swpdea");
-	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * Free all remaining metadata.  We only bother to free it from 

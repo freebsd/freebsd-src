@@ -256,10 +256,15 @@ vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
 	return (ret);
 }
 
+/*
+ *	The object must be locked.
+ */
 void
 vm_pager_deallocate(object)
 	vm_object_t object;
 {
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 
