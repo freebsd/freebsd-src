@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: parser.c,v 1.3 1998/12/28 04:56:23 peter Exp $
+ * $Id: vinumparser.c,v 1.14 1999/01/18 03:30:07 grog Exp grog $
  */
 
 /* This file contains the parser for the configuration routines.  It's used
@@ -60,6 +60,7 @@
 #ifdef KERNEL
 #undef KERNEL						    /* XXX */
 #define REALLYKERNEL
+#include "opt_vinum.h"
 #else
 #include <ctype.h>
 #include <errno.h>
@@ -144,6 +145,11 @@ struct _keywords keywords[] =
     keypair(resetconfig),
     keypair(start),
     keypair(stop),
+    keypair(makedev),
+    keypair(help),
+    keypair(quit),
+    keypair(setdaemon),
+    keypair(getdaemon),
     keypair(resetstats)
 #endif
 };
