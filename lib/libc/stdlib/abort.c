@@ -44,10 +44,18 @@ static char sccsid[] = "@(#)abort.c	8.1 (Berkeley) 6/4/93";
 #include "pthread_private.h"
 #endif
 
+void (*__cleanup)();
+
 void
 abort()
 {
 	sigset_t mask;
+
+	/*
+	 * POSIX requires we flush stdio buffers on abort
+	 */
+	if (__cleanup)
+		(*__cleanup)();
 
 	sigfillset(&mask);
 	/*
