@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.43 1996/06/14 11:01:25 asami Exp $
+ * $Id: init_main.c,v 1.44 1996/07/31 09:26:31 davidg Exp $
  */
 
 #include "opt_rlimit.h"
@@ -289,6 +289,7 @@ char	copyright[] =
 "Copyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
 "\tAll rights reserved.\n\n";
 #else
+"Copyright (c) 1992-1996 FreeBSD Inc.\n"
 "Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.  All rights reserved.\n\n";
 #endif
 #endif
