@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
@@ -37,54 +37,56 @@
 .Nm ng_sscop
 .Nd netgraph SSCOP node type
 .Sh SYNOPSIS
-.Fd #include <netnatm/saal/sscopdef.h>
-.Fd #include <netgraph/atm/ng_sscop.h>
+.In netnatm/saal/sscopdef.h
+.In netgraph/atm/ng_sscop.h
 .Sh DESCRIPTION
 The
-.Nm
-netgraph node implements the ITU-T standard Q.2110.
+.Nm sscop
+netgraph node type implements the ITU-T standard Q.2110.
 This standard describes
 the so called Service Specific Connection Oriented Protocol (SSCOP) that
 is used to carry signalling messages over the private and public UNIs and
 the public NNI.
 This protocol is a transport protocol with selective
-acknowledgements and can be tailored to the environment.
+acknowledgements, and can be tailored to the environment.
 This implementation is a full implementation of that standard.
 .Pp
 After creation of the node, the SSCOP instance must be created by sending
-an enable message to the node.
+an
+.Dq enable
+message to the node.
 If the node is enabled, the SSCOP parameters
 can be retrieved and modified and the protocol can be started.
 .Pp
-The node is shutdown either by a
+The node is shut down either by a
 .Dv NGM_SHUTDOWN
-message or when all hooks are disconnected.
+message, or when all hooks are disconnected.
 .Sh HOOKS
 Each
-.Nm
+.Nm sscop
 node has three hooks with fixed names:
-.Bl -tag -width manage
-.It Dv lower
-This hook is the hook that must be connected to a node that ensures
+.Bl -tag -width ".Va manage"
+.It Va lower
+This hook must be connected to a node that ensures
 transport of packets to and from the remote peer node.
 Normally this is a
 .Xr ng_atm 4
 node with an AAL5 hook, but the
-.Nm
+.Nm sscop
 node is able to work on any packet-transporting layer, like, for example,
 IP or UDP.
 The node handles flow control messages received on
 this hook: if it receives a
 .Dv NGM_HIGH_WATER_PASSED
-message it declares the
-.Ql lower layer busy
+message, it declares the
+.Dq "lower layer busy"
 state.
 If a
 .Dv NGM_LOW_WATER_PASSED
-message is received the busy state is cleared.
-Note, that the node does not
+message is received, the busy state is cleared.
+Note that the node does not
 look at the message contents of these flow control messages.
-.It Dv upper
+.It Va upper
 This is the interface to the SSCOP user.
 This interface uses the following message format:
 .Bd -literal
@@ -95,7 +97,9 @@ struct sscop_arg {
 };
 .Ed
 .Pp
-.Fa sig
+The
+.Va sig
+field
 is one of the signals defined in the standard:
 .Bd -literal
 enum sscop_aasig {
@@ -128,33 +132,41 @@ enum sscop_aasig {
 };
 .Ed
 .Pp
-The arrows in the comment show the direction of the signal whether it
+The arrows in the comment show the direction of the signal, whether it
 is a signal that comes out of the node
-.Ql ->
+.Pq Ql -> ,
 or is sent by the node user to the node
-.Ql <- .
+.Pq Ql <- .
 The
-.Fa arg
+.Va arg
 field contains the argument to some of the signals: it is either a PDU
-sequence number or the
+sequence number, or the
 .Dv CLEAR-BUFFER
 flag.
 There are a number of special sequence numbers for some operations:
-.Bl -column SSCOP_RETRIEVE_UNKNOWN -offset indent
-.It Dv SSCOP_MAXSEQNO Ta maximum legal sequence number
-.It Dv SSCOP_RETRIEVE_UNKNOWN Ta retrieve transmission queue
-.It Dv SSCOP_RETRIEVE_TOTAL Ta retrieve transmission buffer and queue
+.Pp
+.Bl -tag -width ".Dv SSCOP_RETRIEVE_UNKNOWN" -offset indent -compact
+.It Dv SSCOP_MAXSEQNO
+maximum legal sequence number
+.It Dv SSCOP_RETRIEVE_UNKNOWN
+retrieve transmission queue
+.It Dv SSCOP_RETRIEVE_TOTAL
+retrieve transmission buffer and queue
 .El
 .Pp
 For signals that carry user data (as, for example,
 .Dv SSCOP_DATA_request )
 these two fields are followed by the variable sized user data.
 .Pp
-If the upper hook is disconnected and the SSCOP instance is not in the idle
-state and the lower hook is still connected, an
+If the
+.Va upper
+hook is disconnected and the SSCOP instance is not in the idle
+state, and the
+.Va lower
+hook is still connected, an
 .Dv SSCOP_RELEASE_request
 is executed to release the SSCOP connection.
-.It Dv manage
+.It Va manage
 This is the management interface defined in the standard.
 The data structure used here is:
 .Bd -literal
@@ -165,7 +177,7 @@ struct sscop_marg {
 .Ed
 .Pp
 Here
-.Dv sig
+.Va sig
 is one of
 .Bd -literal
 enum sscop_maasig {
@@ -187,13 +199,14 @@ struct sscop_merr {
 	uint32_t cnt;	/* error count */
 };
 .Ed
+.El
 .Sh CONTROL MESSAGES
 The
-.Nm
-node understands the generic messages plus the following:
-.Bl -tag -width xxx
+.Nm sscop
+node understands the generic control messages, plus the following:
+.Bl -tag -width indent
 .It Dv NGM_SSCOP_SETPARAM
-Set operational parameters of the SSCOP instance and takes the
+Sets operational parameters of the SSCOP instance and takes the
 following structure:
 .Bd -literal
 struct ng_sscop_setparam {
@@ -203,10 +216,10 @@ struct ng_sscop_setparam {
 .Ed
 .Pp
 The sub-structure
-.Dv param
-contains the parameters to set and the
-.Dv mask
-field contains a bit mask, telling which of the parameters to set and which
+.Va param
+contains the parameters to set, and the
+.Va mask
+field contains a bit mask, telling which of the parameters to set, and which
 to ignore.
 If a bit is set, the corresponding parameter is set.
 The parameters are:
@@ -228,28 +241,57 @@ struct sscop_param {
 .Ed
 .Pp
 The
-.Dv flags
+.Va flags
 field contains the following flags influencing SSCOP operation:
-.Bl -column SSCOP_POLLREX -offset indent
-.It Dv SSCOP_ROBUST Ta enable atmf/97-0216 robustness enhancement
-.It Dv SSCOP_POLLREX Ta send POLL after each retransmission
+.Pp
+.Bl -tag -width ".Dv SSCOP_POLLREX" -offset indent -compact
+.It Dv SSCOP_ROBUST
+enable atmf/97-0216 robustness enhancement
+.It Dv SSCOP_POLLREX
+send POLL after each retransmission
 .El
 .Pp
 The bitmap has the following bits:
-.Bl -column SSCOP_POLLREXx -offset indent
-.It Dv SSCOP_SET_TCC Ta set Dv timer_cc
-.It Dv SSCOP_SET_TPOLL Ta set Dv timer_poll
-.It Dv SSCOP_SET_TKA Ta set Dv timer_keep_alive
-.It Dv SSCOP_SET_TNR Ta set Dv timer_no_response
-.It Dv SSCOP_SET_TIDLE Ta set Dv timer_idle
-.It Dv SSCOP_SET_MAXK Ta set Dv maxk
-.It Dv SSCOP_SET_MAXJ Ta set Dv maxj
-.It Dv SSCOP_SET_MAXCC Ta set Dv maxcc
-.It Dv SSCOP_SET_MAXPD Ta set Dv maxpd
-.It Dv SSCOP_SET_MAXSTAT Ta set Dv maxstat
-.It Dv SSCOP_SET_MR Ta set the initial window
-.It Dv SSCOP_SET_ROBUST Ta set or clear Dv SSCOP_ROBUST
-.It Dv SSCOP_SET_POLLREX Ta set or clear Dv SSCOP_POLLREX
+.Pp
+.Bl -tag -width ".Dv SSCOP_SET_POLLREX" -offset indent -compact
+.It Dv SSCOP_SET_TCC
+set
+.Va timer_cc
+.It Dv SSCOP_SET_TPOLL
+set
+.Va timer_poll
+.It Dv SSCOP_SET_TKA
+set
+.Va timer_keep_alive
+.It Dv SSCOP_SET_TNR
+set
+.Va timer_no_response
+.It Dv SSCOP_SET_TIDLE
+set
+.Va timer_idle
+.It Dv SSCOP_SET_MAXK
+set
+.Va maxk
+.It Dv SSCOP_SET_MAXJ
+set
+.Va maxj
+.It Dv SSCOP_SET_MAXCC
+set
+.Va maxcc
+.It Dv SSCOP_SET_MAXPD
+set
+.Va maxpd
+.It Dv SSCOP_SET_MAXSTAT
+set
+.Va maxstat
+.It Dv SSCOP_SET_MR
+set the initial window
+.It Dv SSCOP_SET_ROBUST
+set or clear
+.Dv SSCOP_ROBUST
+.It Dv SSCOP_SET_POLLREX
+set or clear
+.Dv SSCOP_POLLREX
 .El
 .Pp
 The node responds to the
@@ -263,98 +305,99 @@ struct ng_sscop_setparam_resp {
 .Ed
 .Pp
 Here
-.Dv mask
-contains the a bitmask of the parameters that the user requested to set,
+.Va mask
+contains a bitmask of the parameters that the user requested to set,
 but that could not be set and
-.Dv error
+.Va error
 is an
 .Xr errno 3
 code describing why the parameter could not be set.
 .It Dv NGM_SSCOP_GETPARAM
 This message returns the current operational parameters of the SSCOP
 instance in a
-.Fa sscop_param
+.Vt sscop_param
 structure.
 .It Dv NGM_SSCOP_ENABLE
 This message creates the actual SSCOP instance and initializes it.
-Until this is done, parameters may neither be retrieved not set and all
-message received on any hook are discarded.
+Until this is done, parameters may neither be retrieved nor set, and all
+messages received on any hook are discarded.
 .It Dv NGM_SSCOP_DISABLE
 Destroy the SSCOP instance.
-After this all messages on any hooks are
+After this, all messages on any hooks are
 discarded.
 .It Dv NGM_SSCOP_SETDEBUG
 Set debugging flags.
-The argument is an
+The argument is a
 .Vt uint32_t .
 .It Dv NGM_SSCOP_GETDEBUG
 Retrieve the actual debugging flags.
-Needs no arguments and responds with an
+Needs no arguments and responds with a
 .Vt uint32_t .
 .It Dv NGM_SSCOP_GETSTATE
-Responds with the current state of the SSCOP instance in an
+Responds with the current state of the SSCOP instance in a
 .Vt uint32_t .
-If the node is not enabled the retrieved state is 0.
+If the node is not enabled, the retrieved state is 0.
 .El
 .Sh FLOW CONTROL
 Flow control works on the upper and on the lower layer interface.
 At the lower
-layer interface the two messages
+layer interface, the two messages,
 .Dv NGM_HIGH_WATER_PASSED
 and
-.Dv NGM_LOW_WATER_PASSED
+.Dv NGM_LOW_WATER_PASSED ,
 are used to declare or clear the
-.Ql lower layer busy
+.Dq "lower layer busy"
 state of the protocol.
 .Pp
-At the upper layer interface the
-.Nm
+At the upper layer interface, the
+.Nm sscop
 node handles three types of flow control messages:
-.Bl -tag -width xxx
+.Bl -tag -width indent
 .It Dv NGM_HIGH_WATER_PASSED
-If this message is received the SSCOP stops moving the receive window.
-Each time a data message is handed over to the upper layer the receive
+If this message is received, the SSCOP stops moving the receive window.
+Each time a data message is handed over to the upper layer, the receive
 window is moved by one message.
 Stopping these updates
 means that the window will start to close and if the peer has sent
 all messages allowed by the current window, it stops transmission.
-This means, that the upper layer must be able to receive still a full window
+This means that the upper layer must be able to still receive a full window
 amount of messages.
 .It Dv NGM_LOW_WATER_PASSED
-This will re-enable the automatic window updates and if the space indicated
+This will re-enable the automatic window updates, and if the space indicated
 in the message is larger than the current window, the window will be opened
 by that amount.
 The space is computed as the difference of the
-.Fa max_queuelen_packets
+.Va max_queuelen_packets
 and
-.Fa current
+.Va current
 members of the
-.Fa ngm_queue_state
+.Vt ngm_queue_state
 structure.
 .It Dv NGM_SYNC_QUEUE_STATE
-If the upper layer buffer filling state as indicated by
-.Fa current
-is equal too or higher than
-.Fa high_watermark
-than the message is ignored.
-If this is not the case the amount
+If the upper layer buffer filling state, as indicated by
+.Va current ,
+is equal to or greater than
+.Va high_watermark
+then the message is ignored.
+If this is not the case, the amount
 of receiver space is computed as the difference of
-.Fa max_queuelen_packets
+.Va max_queuelen_packets
 and
-.Fa current ,
-if automatic window updates are currently allowed and as the difference of
-.Fa high_water_mark
+.Va current
+if automatic window updates are currently allowed, and as the difference of
+.Va high_water_mark
 and
-.Fa current ,
+.Va current
 if window updates are disabled.
 If the resulting value is larger than the current window, the current window
 is opened up to this value.
-Automatic window updates are enabled, if they
+Automatic window updates are enabled if they
 were disabled.
+.El
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_atm 4 ,
 .Xr ng_sscfu 4 ,
 .Xr ngctl 8
 .Sh AUTHORS
-.An Harti Brandt Aq harti@freebsd.org
+.An Harti Brandt Aq harti@FreeBSD.org
