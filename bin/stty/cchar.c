@@ -50,6 +50,8 @@ static const char rcsid[] =
 #include "stty.h"
 #include "extern.h"
 
+static int c_cchar __P((const void *, const void *));
+
 /*
  * Special control characters.
  *
@@ -77,14 +79,14 @@ struct cchar cchars1[] = {
 	{ "susp",	VSUSP,		CSUSP },
 	{ "time",	VTIME,		CTIME },
 	{ "werase",	VWERASE,	CWERASE },
-	{ NULL },
+	{ NULL,		0,		0},
 };
 
 struct cchar cchars2[] = {
 	{ "brk",	VEOL,		CEOL },
 	{ "flush",	VDISCARD, 	CDISCARD },
 	{ "rprnt",	VREPRINT, 	CREPRINT },
-	{ NULL },
+	{ NULL,		0,		0 },
 };
 
 static int
@@ -92,7 +94,7 @@ c_cchar(a, b)
         const void *a, *b;
 {
 
-        return (strcmp(((struct cchar *)a)->name, ((struct cchar *)b)->name));
+        return (strcmp(((const struct cchar *)a)->name, ((const struct cchar *)b)->name));
 }
 
 int
