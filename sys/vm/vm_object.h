@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.26 1995/12/14 09:55:05 phk Exp $
+ * $Id: vm_object.h,v 1.27 1996/03/02 02:54:23 dyson Exp $
  */
 
 /*
@@ -96,6 +96,7 @@ struct vm_object {
 	int shadow_count;		/* how many objects that this is a shadow for */
 	u_short flags;			/* see below */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
+	u_short	behavior;		/* see below */
 	int resident_page_count;	/* number of resident pages */
 	vm_ooffset_t paging_offset;	/* Offset into paging space */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
@@ -129,6 +130,11 @@ struct vm_object {
 #define	OBJ_WRITEABLE	0x0080		/* object has been made writable */
 #define	OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
 #define OBJ_CLEANING	0x0200
+
+
+#define OBJ_NORMAL	0x0		/* default behavior */
+#define OBJ_SEQUENTIAL	0x1		/* expect sequential accesses */
+#define OBJ_RANDOM	0x2		/* expect random accesses */
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
@@ -175,6 +181,7 @@ void vm_object_pmap_copy __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_pmap_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_reference __P((vm_object_t));
 void vm_object_shadow __P((vm_object_t *, vm_ooffset_t *, vm_size_t));
+void vm_object_madvise __P((vm_object_t, vm_pindex_t, int, int));
 #endif				/* KERNEL */
 
 #endif				/* _VM_OBJECT_ */

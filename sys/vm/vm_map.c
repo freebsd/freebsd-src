@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.44 1996/05/03 21:01:49 phk Exp $
+ * $Id: vm_map.c,v 1.45 1996/05/18 03:37:43 dyson Exp $
  */
 
 /*
@@ -75,6 +75,7 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/vmmeter.h>
+#include <sys/mman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -845,6 +846,7 @@ vm_map_simplify_entry(map, entry)
 		prevsize = prev->end - prev->start;
 		if ( (prev->end == entry->start) &&
 		     (prev->object.vm_object == entry->object.vm_object) &&
+		     (!prev->object.vm_object || (prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		     (prev->offset + prevsize == entry->offset) &&
 		     (prev->needs_copy == entry->needs_copy) &&
 		     (prev->copy_on_write == entry->copy_on_write) &&
@@ -873,6 +875,7 @@ vm_map_simplify_entry(map, entry)
 		esize = entry->end - entry->start;
 		if ((entry->end == next->start) &&
 		    (next->object.vm_object == entry->object.vm_object) &&
+		    (!next->object.vm_object || (next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		    (entry->offset + esize == next->offset) &&
 		    (next->needs_copy == entry->needs_copy) &&
 		    (next->copy_on_write == entry->copy_on_write) &&
@@ -1175,6 +1178,94 @@ vm_map_protect(map, start, end, new_prot, set_max)
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
+
+/*
+ *	vm_map_madvise:
+ *
+ * 	This routine traverses a processes map handling the madvise
+ *	system call.
+ */
+void
+vm_map_madvise(map, pmap, start, end, advise)
+	vm_map_t map;
+	pmap_t pmap;
+	vm_offset_t start, end;
+	int advise;
+{
+	register vm_map_entry_t current;
+	vm_map_entry_t entry;
+
+	vm_map_lock(map);
+
+	VM_MAP_RANGE_CHECK(map, start, end);
+
+	if (vm_map_lookup_entry(map, start, &entry)) {
+		vm_map_clip_start(map, entry, start);
+	} else
+		entry = entry->next;
+
+	for(current = entry;
+		(current != &map->header) && (current->start < end);
+		current = current->next) {
+		if (current->is_a_map || current->is_sub_map) {
+			continue;
+		}
+		vm_map_clip_end(map, current, end);
+		switch (advise) {
+	case MADV_NORMAL:
+			current->object.vm_object->behavior = OBJ_NORMAL;
+			break;
+	case MADV_SEQUENTIAL:
+			current->object.vm_object->behavior = OBJ_SEQUENTIAL;
+			break;
+	case MADV_RANDOM:
+			current->object.vm_object->behavior = OBJ_RANDOM;
+			break;
+	/*
+	 * Right now, we could handle DONTNEED and WILLNEED with common code.
+	 * They are mostly the same, except for the potential async reads (NYI).
+	 */
+	case MADV_DONTNEED:
+			{
+				vm_pindex_t pindex;
+				int count;
+				vm_size_t size = entry->end - entry->start;
+				pindex = OFF_TO_IDX(entry->offset);
+				count = OFF_TO_IDX(size);
+				/*
+				 * MADV_DONTNEED removes the page from all
+				 * pmaps, so pmap_remove is not necessary.
+				 */
+				vm_object_madvise(current->object.vm_object,
+					pindex, count, advise);
+			}
+			break;
+
+	case MADV_WILLNEED:
+			{
+				vm_pindex_t pindex;
+				int count;
+				vm_size_t size = entry->end - entry->start;
+				pindex = OFF_TO_IDX(entry->offset);
+				count = OFF_TO_IDX(size);
+				vm_object_madvise(current->object.vm_object,
+					pindex, count, advise);
+				pmap_object_init_pt(pmap, current->start,
+					current->object.vm_object, pindex,
+					(count << PAGE_SHIFT), 0);
+			}
+			break;
+
+	default:
+			break;
+		}
+	}
+
+	vm_map_simplify_entry(map, entry);
+	vm_map_unlock(map);
+	return;
+}	
+
 
 /*
  *	vm_map_inherit:

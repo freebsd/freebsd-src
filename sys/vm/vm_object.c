@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.68 1996/04/24 04:16:45 dyson Exp $
+ * $Id: vm_object.c,v 1.69 1996/05/18 03:37:55 dyson Exp $
  */
 
 /*
@@ -77,6 +77,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/vmmeter.h>
+#include <sys/mman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -162,6 +163,7 @@ _vm_object_allocate(type, size, object)
 	object->size = size;
 	object->ref_count = 1;
 	object->flags = 0;
+	object->behavior = OBJ_NORMAL;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
@@ -670,6 +672,69 @@ vm_object_pmap_remove(object, start, end)
 		if (p->pindex >= start && p->pindex < end)
 			vm_page_protect(p, VM_PROT_NONE);
 	}
+}
+
+/*
+ *	vm_object_madvise:
+ *
+ *	Implements the madvise function at the object/page level.
+ */
+void
+vm_object_madvise(object, pindex, count, advise)
+	vm_object_t object;
+	vm_pindex_t pindex;
+	int count;
+	int advise;
+{
+	vm_pindex_t end;
+	vm_page_t m;
+
+	if (object == NULL)
+		return;
+
+	end = pindex + count;
+
+	for (; pindex < end; pindex += 1) {
+		m = vm_page_lookup(object, pindex);
+
+		/*
+		 * If the page is busy or not in a normal active state,
+		 * we skip it.  Things can break if we mess with pages
+		 * in any of the below states.
+		 */
+		if (m == NULL || m->busy || (m->flags & PG_BUSY) ||
+			m->hold_count || m->wire_count ||
+			m->valid != VM_PAGE_BITS_ALL)
+			continue;
+
+		if (advise == MADV_WILLNEED) {
+			if (m->queue != PQ_ACTIVE)
+				vm_page_activate(m);
+		} else if (advise == MADV_DONTNEED) {
+			/*
+			 * If the upper level VM system doesn't think that
+			 * the page is dirty, check the pmap layer.
+			 */
+			if (m->dirty == 0) {
+				vm_page_test_dirty(m);
+			}
+			/*
+			 * If the page is not dirty, then we place it onto
+			 * the cache queue.  When on the cache queue, it is
+			 * available for immediate reuse.
+			 */
+			if (m->dirty == 0) {
+				vm_page_cache(m);
+			} else {
+			/*
+			 * If the page IS dirty, then we remove it from all
+			 * pmaps and deactivate it.
+			 */
+				vm_page_protect(m, VM_PROT_NONE);
+				vm_page_deactivate(m);
+			}
+		}
+	}	
 }
 
 /*

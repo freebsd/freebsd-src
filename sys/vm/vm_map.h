@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.11 1996/01/19 03:59:55 dyson Exp $
+ * $Id: vm_map.h,v 1.12 1996/01/30 23:02:35 mpp Exp $
  */
 
 /*
@@ -236,6 +236,7 @@ int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
 void vm_map_simplify __P((vm_map_t, vm_offset_t));
 void vm_map_startup __P((void));
 int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
+void vm_map_madvise __P((vm_map_t, pmap_t, vm_offset_t, vm_offset_t, int));
 
 #endif
 #endif				/* _VM_MAP_ */

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.41 1996/05/03 21:01:51 phk Exp $
+ * $Id: vm_mmap.c,v 1.42 1996/05/18 03:37:51 dyson Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_page.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
@@ -543,9 +544,37 @@ madvise(p, uap, retval)
 	struct madvise_args *uap;
 	int *retval;
 {
+	vm_map_t map;
+	pmap_t pmap;
+	vm_offset_t start, end, addr, nextaddr;
+	/*
+	 * Check for illegal addresses.  Watch out for address wrap... Note
+	 * that VM_*_ADDRESS are not constants due to casts (argh).
+	 */
+	if (VM_MAXUSER_ADDRESS > 0 &&
+		((vm_offset_t) uap->addr + uap->len) > VM_MAXUSER_ADDRESS)
+		return (EINVAL);
+#ifndef i386
+	if (VM_MIN_ADDRESS > 0 && uap->addr < VM_MIN_ADDRESS)
+		return (EINVAL);
+#endif
+	if (((vm_offset_t) uap->addr + uap->len) < (vm_offset_t) uap->addr)
+		return (EINVAL);
+
+	/*
+	 * Since this routine is only advisory, we default to conservative
+	 * behavior.
+	 */
+	start = round_page((vm_offset_t) uap->addr);
+	end = trunc_page((vm_offset_t) uap->addr + uap->len);
+	
+	map = &p->p_vmspace->vm_map;
+	pmap = &p->p_vmspace->vm_pmap;
+
+	vm_map_madvise(map, pmap, start, end, uap->behav);
 
 	/* Not yet implemented */
-	return (EOPNOTSUPP);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -563,30 +592,156 @@ mincore(p, uap, retval)
 	struct mincore_args *uap;
 	int *retval;
 {
-	vm_offset_t addr;
-	vm_offset_t end;
+	vm_offset_t addr, first_addr;
+	vm_offset_t end, cend;
+	pmap_t pmap;
+	vm_map_t map;
 	char *vec;
+	int error;
+	int vecindex, lastvecindex;
+	register vm_map_entry_t current;
+	vm_map_entry_t entry;
+	int mincoreinfo;
 
-	addr = trunc_page((vm_offset_t) uap->addr);
+	/*
+	 * Make sure that the addresses presented are valid for user
+	 * mode.
+	 */
+	first_addr = addr = trunc_page((vm_offset_t) uap->addr);
 	end = addr + (vm_size_t)round_page(uap->len);
 	if (VM_MAXUSER_ADDRESS > 0 && end > VM_MAXUSER_ADDRESS)
 		return (EINVAL);
 	if (end < addr)
 		return (EINVAL);
 
+	/*
+	 * Address of byte vector
+	 */
 	vec = uap->vec;
-	while(addr < end) {
-		int error;
-		if (pmap_extract(&p->p_vmspace->vm_pmap, addr)) {
-			error = subyte( vec, 1);
-		} else {
-			error = subyte( vec, 0);
+
+	map = &p->p_vmspace->vm_map;
+	pmap = &p->p_vmspace->vm_pmap;
+
+	vm_map_lock(map);
+
+	/*
+	 * Not needed here
+	 */
+#if 0
+	VM_MAP_RANGE_CHECK(map, addr, end);
+#endif
+
+	if (!vm_map_lookup_entry(map, addr, &entry))
+		entry = entry->next;
+
+	/*
+	 * Do this on a map entry basis so that if the pages are not
+	 * in the current processes address space, we can easily look
+	 * up the pages elsewhere.
+	 */
+	lastvecindex = -1;
+	for(current = entry;
+		(current != &map->header) && (current->start < end);
+		current = current->next) {
+
+		/*
+		 * ignore submaps (for now) or null objects
+		 */
+		if (current->is_a_map || current->is_sub_map ||
+			current->object.vm_object == NULL)
+			continue;
+		
+		/*
+		 * limit this scan to the current map entry and the
+		 * limits for the mincore call
+		 */
+		if (addr < current->start)
+			addr = current->start;
+		cend = current->end;
+		if (cend > end)
+			cend = end;
+
+		/*
+		 * scan this entry one page at a time
+		 */
+		while(addr < cend) {
+			/*
+			 * Check pmap first, it is likely faster, also
+			 * it can provide info as to whether we are the
+			 * one referencing or modifying the page.
+			 */
+			mincoreinfo = pmap_mincore(pmap, addr);
+			if (!mincoreinfo) {
+				vm_pindex_t pindex;
+				vm_ooffset_t offset;
+				vm_page_t m;
+				/*
+				 * calculate the page index into the object
+				 */
+				offset = current->offset + (addr - current->start);
+				pindex = OFF_TO_IDX(offset);
+				m = vm_page_lookup(current->object.vm_object,
+					pindex);
+				/*
+				 * if the page is resident, then gather information about
+				 * it.
+				 */
+				if (m) {
+					mincoreinfo = MINCORE_INCORE;
+					if (m->dirty ||
+						pmap_is_modified(VM_PAGE_TO_PHYS(m)))
+						mincoreinfo |= MINCORE_MODIFIED_OTHER;
+					if ((m->flags & PG_REFERENCED) ||
+						pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
+						mincoreinfo |= MINCORE_REFERENCED_OTHER;
+				}
+			}
+
+			/*
+			 * calculate index into user supplied byte vector
+			 */
+			vecindex = OFF_TO_IDX(addr - first_addr);
+
+			/*
+			 * If we have skipped map entries, we need to make sure that
+			 * the byte vector is zeroed for those skipped entries.
+			 */
+			while((lastvecindex + 1) < vecindex) {
+				error = subyte( vec + lastvecindex, 0);
+				if (error) {
+					vm_map_unlock(map);
+					return (EFAULT);
+				}
+				++lastvecindex;
+			}
+
+			/*
+			 * Pass the page information to the user
+			 */
+			error = subyte( vec + vecindex, mincoreinfo);
+			if (error) {
+				vm_map_unlock(map);
+				return (EFAULT);
+			}
+			lastvecindex = vecindex;
+			addr += PAGE_SIZE;
 		}
-		if (error)
-			return EFAULT;
-		vec++;
-		addr += PAGE_SIZE;
 	}
+
+	/*
+	 * Zero the last entries in the byte vector.
+	 */
+	vecindex = OFF_TO_IDX(end - first_addr);
+	while((lastvecindex + 1) < vecindex) {
+		error = subyte( vec + lastvecindex, 0);
+		if (error) {
+			vm_map_unlock(map);
+			return (EFAULT);
+		}
+		++lastvecindex;
+	}
+	
+	vm_map_unlock(map);
 	return (0);
 }
 
@@ -804,7 +959,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	 */
 	if ((type == OBJT_VNODE) && (map->pmap != NULL)) {
 		pmap_object_init_pt(map->pmap, *addr,
-			object, (vm_pindex_t) OFF_TO_IDX(foff), size);
+			object, (vm_pindex_t) OFF_TO_IDX(foff), size, 1);
 	}
 
 	/*
