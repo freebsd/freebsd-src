@@ -33,7 +33,12 @@
 
 #include <sys/queue.h>
 
-#define	BUS_DMAMAP_NSEGS	((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
+/*
+ * This is more or less arbitrary, except for the stack space consumed by
+ * the segments array. Choose more than ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1),
+ * since in practice we could be map pages more than once.
+ */
+#define	BUS_DMAMAP_NSEGS	64
 
 struct bus_dmamap_res {
 	struct resource		*dr_res;
