@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.18 1997/03/11 14:11:43 ache Exp $
+ *	$Id: pw_user.c,v 1.19 1997/03/24 15:09:41 ache Exp $
  */
 
 #include <unistd.h>
@@ -235,7 +235,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			cnf->groups[i++] = NULL;
 	}
 	if ((arg = getarg(args, 'k')) != NULL) {
-		if (stat(cnf->dotdir = arg->val, &st) == -1 || S_ISDIR(st.st_mode))
+		if (stat(cnf->dotdir = arg->val, &st) == -1 || !S_ISDIR(st.st_mode))
 			cmderr(EX_OSFILE, "skeleton `%s' is not a directory or does not exist\n", cnf->dotdir);
 	}
 	if ((arg = getarg(args, 's')) != NULL)
