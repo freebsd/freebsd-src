@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.92 1997/09/09 12:48:59 jmg Exp $
+ **      $Id: userconfig.c,v 1.93 1997/09/18 08:00:48 jmg Exp $
  **/
 
 /**
@@ -125,6 +125,8 @@
 #endif
 
 #include <pci/pcivar.h>
+
+MALLOC_DEFINE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
 
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
@@ -2365,7 +2367,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.92 1997/09/09 12:48:59 jmg Exp $
+ *      $Id: userconfig.c,v 1.93 1997/09/18 08:00:48 jmg Exp $
  */
 
 #include "scbus.h"

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.127 1997/09/21 04:49:30 dyson Exp $
+ * $Id: vfs_bio.c,v 1.128 1997/09/21 22:00:25 gibbs Exp $
  */
 
 /*
@@ -59,6 +59,8 @@
 #include <sys/proc.h>
 
 #include <miscfs/specfs/specdev.h>
+
+MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
 static void vfs_update __P((void));
 static struct	proc *updateproc;

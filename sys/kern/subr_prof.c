@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id$
+ * $Id: subr_prof.c,v 1.20 1997/02/22 09:39:17 peter Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #ifdef GPROF
 #include <sys/malloc.h>
 #include <sys/gmon.h>
+
+MALLOC_DEFINE(M_GPROF, "gprof", "kernel profiling buffer");
 
 static void kmstartup __P((void *));
 SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)

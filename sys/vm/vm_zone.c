@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.7 1997/09/21 04:24:26 dyson Exp $
+ * $Id: vm_zone.c,v 1.8 1997/09/21 11:41:12 peter Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,8 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
+
+MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
 
 /*
  * This file comprises a very simple zone allocator.  This is used

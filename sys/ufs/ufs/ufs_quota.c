@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.13 1997/03/23 03:37:48 bde Exp $
+ * $Id: ufs_quota.c,v 1.14 1997/08/02 14:33:24 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,8 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
+
+MALLOC_DEFINE(M_DQUOT, "UFS quota", "UFS quota entries");
 
 /*
  * Quota name to error message mapping.
