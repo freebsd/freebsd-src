@@ -41,12 +41,11 @@
  *
  * Implemented by calling the acl_check routine in acl_support, which
  * requires ordering.  We call acl_support's acl_sort to make this
- * true.
- *
- * POSIX.1e allows acl_valid() to reorder the ACL as it sees fit.
+ * true.  POSIX.1e allows acl_valid() to reorder the ACL as it sees fit.
  *
  * This call is deprecated, as it doesn't ask whether the ACL is valid
- * for a particular target.
+ * for a particular target.  However, this call is standardized, unlike
+ * the other two forms.
  */ 
 int
 acl_valid(acl_t acl)
@@ -65,7 +64,7 @@ acl_valid(acl_t acl)
 
 
 int
-acl_valid_file(const char *pathp, acl_type_t type, acl_t acl)
+acl_valid_file_np(const char *pathp, acl_type_t type, acl_t acl)
 {
 	int	error;
 
@@ -82,7 +81,7 @@ acl_valid_file(const char *pathp, acl_type_t type, acl_t acl)
 
 
 int
-acl_valid_fd(int fd, acl_type_t type, acl_t acl)
+acl_valid_fd_np(int fd, acl_type_t type, acl_t acl)
 {
 	int	error;
 
