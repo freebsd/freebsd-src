@@ -41,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
@@ -375,9 +374,8 @@ vop_nolock(ap)
 	 * Since we are not using the lock manager, we must clear
 	 * the interlock here.
 	 */
-	if (ap->a_flags & LK_INTERLOCK) {
+	if (ap->a_flags & LK_INTERLOCK)
 		simple_unlock(&ap->a_vp->v_interlock);
-	}
 	return (0);
 #endif
 }
