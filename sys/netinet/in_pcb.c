@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.5 1995/02/16 00:55:37 wollman Exp $
+ * $Id: in_pcb.c,v 1.6 1995/03/02 19:29:42 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,7 @@ in_pcballoc(so, head)
 {
 	register struct inpcb *inp;
 
-	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, M_WAITOK);
+	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
