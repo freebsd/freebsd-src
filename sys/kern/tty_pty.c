@@ -157,7 +157,6 @@ ptyinit(n)
 
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = &pt->pt_tty;
-	pt->pt_tty.t_timeout = -1;
 	ttyregister(&pt->pt_tty);
 }
 
@@ -356,6 +355,7 @@ ptcopen(dev, flag, devtype, p)
 	tp = dev->si_tty;
 	if (tp->t_oproc)
 		return (EIO);
+	tp->t_timeout = -1;
 	tp->t_oproc = ptsstart;
 	tp->t_stop = ptsstop;
 	(void)(*linesw[tp->t_line].l_modem)(tp, 1);
