@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 struct ypalias {
-	const char *alias, *name;
+	char *alias, *name;
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
 	{ "master.passwd", "master.passwd.byname" },
