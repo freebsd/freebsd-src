@@ -262,7 +262,10 @@ sndattach (struct isa_device *dev)
 void
 tenmicrosec (void)
 {
-  DELAY(10);
+  int             i;
+
+  for (i = 0; i < 16; i++)
+    inb (0x80);
 }
 
 #ifdef EXCLUDE_GUS
