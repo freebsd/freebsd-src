@@ -237,7 +237,7 @@ reloc_jmpslots(Obj_Entry *obj)
 	return 0;
     rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
-	Elf_Addr *where;
+	Elf_Addr *where, target;
 	const Elf_Sym *def;
 	const Obj_Entry *defobj;
 
@@ -246,7 +246,8 @@ reloc_jmpslots(Obj_Entry *obj)
 	def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true, NULL);
 	if (def == NULL)
 	    return -1;
-	reloc_jmpslot(where, (Elf_Addr)(defobj->relocbase + def->st_value));
+	target = (Elf_Addr)(defobj->relocbase + def->st_value);
+	reloc_jmpslot(where, target, defobj);
     }
     obj->jmpslots_done = true;
     return 0;
