@@ -41,7 +41,7 @@
  *
  *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: subr_autoconf.c,v 1.9 1999/04/17 08:36:04 peter Exp $
+ * $Id: subr_autoconf.c,v 1.10 1999/04/17 09:12:35 peter Exp $
  */
 
 #include <sys/param.h>
@@ -66,10 +66,11 @@ static void
 run_interrupt_driven_config_hooks(dummy)
 	void *dummy;
 {
-	struct intr_config_hook *hook;
+	struct intr_config_hook *hook, *next;
 
 	for (hook = intr_config_hook_list.tqh_first; hook != NULL;
-	     hook = hook->ich_links.tqe_next) {
+	     hook = next) {
+		next = hook->ich_links.tqe_next;
 		(*hook->ich_func)(hook->ich_arg);
 	}
 
