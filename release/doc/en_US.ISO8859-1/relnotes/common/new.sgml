@@ -235,6 +235,10 @@
     hierarchy.  This bug has been fixed (see security advisory
     FreeBSD-SA-01:40).</para>
 
+    <para>The portmapper, <filename>/usr/sbin/portmap</filename>, is now
+    turned off by default.  However, if you turn on NFS server, NIS services,
+    or Amd; the portmapper will still be started.</para>
+
     <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
     and <varname>net.inet.ip.maxfragpackets</varname> sysctl
     variables limit the amount of memory that can be consumed by IPv4
