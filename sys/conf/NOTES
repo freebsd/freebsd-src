@@ -796,6 +796,7 @@ device		random
 options		CD9660_ICONV
 options		MSDOSFS_ICONV
 options		NTFS_ICONV
+options		UDF_ICONV
 
 
 #####################################################################
