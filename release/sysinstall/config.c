@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.46 1997/05/23 18:46:51 jkh Exp $
+ * $Id: config.c,v 1.51.2.47 1997/05/26 04:57:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -533,7 +533,7 @@ configXFree86(dialogMenuItem *self)
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-    if (mediaDevice && mediaDevice->type != MEDIA_CDROM) {
+    if (mediaDevice && mediaDevice->type != DEVICE_TYPE_CDROM) {
 	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice || !mediaDevice->init(mediaDevice)) {
 	    msgConfirm("I can't mount the CDE distribution from CDROM, sorry.\n"
 		       "Please make sure you have the 1st CD of your FreeBSD Desktop/Pro\n"
