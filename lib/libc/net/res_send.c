@@ -78,6 +78,7 @@ static char rcsid[] = "$FreeBSD$";
  * Send query to name server and wait for reply.
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/param.h>
@@ -96,6 +97,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include "res_config.h"
 
@@ -460,7 +462,7 @@ res_send(buf, buflen, ans, anssiz)
 					res_close();
 
 				af = nsap->sa_family;
-				s = socket(af, SOCK_STREAM, 0);
+				s = _socket(af, SOCK_STREAM, 0);
 				if (s < 0) {
 					terrno = errno;
 					Perror(stderr, "socket(vc)", errno);
@@ -469,7 +471,7 @@ res_send(buf, buflen, ans, anssiz)
 					goto next_ns;
 				}
 				errno = 0;
-				if (connect(s, nsap, salen) < 0) {
+				if (_connect(s, nsap, salen) < 0) {
 					terrno = errno;
 					Aerror(stderr, "connect/vc",
 					       errno, nsap);
@@ -487,7 +489,7 @@ res_send(buf, buflen, ans, anssiz)
 			iov[0].iov_len = INT16SZ;
 			iov[1].iov_base = (caddr_t)buf;
 			iov[1].iov_len = buflen;
-			if (writev(s, iov, 2) != (INT16SZ + buflen)) {
+			if (_writev(s, iov, 2) != (INT16SZ + buflen)) {
 				terrno = errno;
 				Perror(stderr, "write failed", errno);
 				badns |= (1 << ns);
@@ -604,7 +606,7 @@ read_len:
 				if (vc)
 					res_close();
 				af = nsap->sa_family;
-				s = socket(af, SOCK_DGRAM, 0);
+				s = _socket(af, SOCK_DGRAM, 0);
 				if (s < 0) {
 #ifndef CAN_RECONNECT
  bad_dg_sock:
@@ -639,7 +641,7 @@ read_len:
 				 * receive a response from another server.
 				 */
 				if (!connected) {
-					if (connect(s, nsap, salen) < 0) {
+					if (_connect(s, nsap, salen) < 0) {
 						Aerror(stderr,
 						       "connect(dg)",
 						       errno, nsap);
@@ -668,15 +670,15 @@ read_len:
 					no_addr.sin_family = AF_INET;
 					no_addr.sin_addr.s_addr = INADDR_ANY;
 					no_addr.sin_port = 0;
-					(void) connect(s,
+					(void) _connect(s,
 						       (struct sockaddr *)
 						        &no_addr,
 						       sizeof no_addr);
 #else
-					int s1 = socket(af, SOCK_DGRAM,0);
+					int s1 = _socket(af, SOCK_DGRAM,0);
 					if (s1 < 0)
 						goto bad_dg_sock;
-					(void)dup2(s1, s);
+					(void)_dup2(s1, s);
 					(void)_close(s1);
 					Dprint(_res.options & RES_DEBUG,
 						(stdout, ";; new DG socket\n"))
@@ -685,7 +687,7 @@ read_len:
 					errno = 0;
 				}
 #endif /* !CANNOT_CONNECT_DGRAM */
-				if (sendto(s, (char*)buf, buflen, 0,
+				if (_sendto(s, (char*)buf, buflen, 0,
 					   nsap, salen) != buflen) {
 					Aerror(stderr, "sendto", errno, nsap);
 					badns |= (1 << ns);
@@ -717,7 +719,7 @@ read_len:
 			kv.flags = EV_ADD | EV_ONESHOT;
 			kv.filter = EVFILT_READ;
 				
-			n = kevent(kq, &kv, 1, &kv, 1, &timeout);
+			n = _kevent(kq, &kv, 1, &kv, 1, &timeout);
 			if (n < 0) {
 				if (errno == EINTR)
 					goto wait;
@@ -738,7 +740,7 @@ read_len:
 			}
 			errno = 0;
 			fromlen = sizeof(from);
-			resplen = recvfrom(s, (char*)ans, anssiz, 0,
+			resplen = _recvfrom(s, (char*)ans, anssiz, 0,
 					   (struct sockaddr *)&from, &fromlen);
 			if (resplen <= 0) {
 				Perror(stderr, "recvfrom", errno);

@@ -39,6 +39,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -59,6 +60,7 @@ static const char rcsid[] =
 #else
 #include <varargs.h>
 #endif
+#include "un-namespace.h"
 
 static int	LogFile = -1;		/* fd for log */
 static int	connected;		/* have done connect */
@@ -235,7 +237,7 @@ vsyslog(pri, fmt, ap)
 		++v;
 		v->iov_base = "\n";
 		v->iov_len = 1;
-		(void)writev(STDERR_FILENO, iov, 2);
+		(void)_writev(STDERR_FILENO, iov, 2);
 	}
 
 	/* Get connected, output the message to the local logger. */
@@ -270,7 +272,7 @@ vsyslog(pri, fmt, ap)
 		++v;
 		v->iov_base = "\r\n";
 		v->iov_len = 2;
-		(void)writev(fd, iov, 2);
+		(void)_writev(fd, iov, 2);
 		(void)_close(fd);
 	}
 }
@@ -295,7 +297,7 @@ connectlog()
 	struct sockaddr_un SyslogAddr;	/* AF_UNIX address of local logger */
 
 	if (LogFile == -1) {
-		if ((LogFile = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
+		if ((LogFile = _socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
 			return;
 		(void)_fcntl(LogFile, F_SETFD, 1);
 	}
@@ -304,7 +306,7 @@ connectlog()
 		SyslogAddr.sun_family = AF_UNIX;
 		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG,
 		    sizeof SyslogAddr.sun_path);
-		connected = connect(LogFile, (struct sockaddr *)&SyslogAddr,
+		connected = _connect(LogFile, (struct sockaddr *)&SyslogAddr,
 			sizeof(SyslogAddr)) != -1;
 
 		if (!connected) {
@@ -314,7 +316,7 @@ connectlog()
 			 */
 			(void)strncpy(SyslogAddr.sun_path, _PATH_OLDLOG,
 			    sizeof SyslogAddr.sun_path);
-			connected = connect(LogFile,
+			connected = _connect(LogFile,
 				(struct sockaddr *)&SyslogAddr,
 				sizeof(SyslogAddr)) != -1;
 		}

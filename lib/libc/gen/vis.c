@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 7/19/93";
 #include <sys/types.h>
 #include <limits.h>
 #include <ctype.h>
+#include <stdio.h>
 #include <vis.h>
 
 #define	isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')

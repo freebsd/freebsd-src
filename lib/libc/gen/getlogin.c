@@ -44,22 +44,19 @@ static char sccsid[] = "@(#)getlogin.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include "namespace.h"
+#include <pthread.h>
+#include "un-namespace.h"
 
 #include <libc_private.h>
 
-#ifndef _THREAD_SAFE
-#define	THREAD_LOCK()
-#define	THREAD_UNLOCK()
-#else
-#include <pthread.h>
-#include "pthread_private.h"
-static struct pthread_mutex logname_lock = PTHREAD_MUTEX_STATIC_INITIALIZER;
-static pthread_mutex_t logname_mutex = &logname_lock;
-#define	THREAD_LOCK()	if (__isthreaded) pthread_mutex_lock(&logname_mutex)
-#define	THREAD_UNLOCK()	if (__isthreaded) pthread_mutex_unlock(&logname_mutex)
-#endif /* _THREAD_SAFE */
+#define	THREAD_LOCK()	if (__isthreaded) _pthread_mutex_lock(&logname_mutex)
+#define	THREAD_UNLOCK()	if (__isthreaded) _pthread_mutex_unlock(&logname_mutex)
 
-int		_logname_valid;		/* known to setlogin() */
+extern int		_getlogin(char *, int);
+
+int			_logname_valid;		/* known to setlogin() */
+static pthread_mutex_t	logname_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static char *
 getlogin_basic(int *status)
@@ -68,7 +65,7 @@ getlogin_basic(int *status)
 
 	if (_logname_valid == 0) {
 #ifdef __NETBSD_SYSCALLS
-		if (__getlogin(logname, sizeof(logname) - 1) < 0) {
+		if (_getlogin(logname, sizeof(logname) - 1) < 0) {
 #else
 		if (_getlogin(logname, sizeof(logname)) < 0) {
 #endif

@@ -44,6 +44,7 @@ static const char rcsid[] =
 
 #include <limits.h>
 #include <stdio.h>
+#include "local.h"
 
 int
 vsnprintf(str, n, fmt, ap)
@@ -65,7 +66,7 @@ vsnprintf(str, n, fmt, ap)
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n;
-	ret = vfprintf(&f, fmt, ap);
+	ret = __vfprintf(&f, fmt, ap);
 	if (on > 0)
 		*f._p = '\0';
 	return (ret);

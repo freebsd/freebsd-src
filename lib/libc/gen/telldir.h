@@ -59,7 +59,8 @@ struct _telldir {
 	long	td_loccnt;	/* index of entry for sequential readdir's */
 };
 
-void _reclaim_telldir __P((DIR *));
-void _seekdir __P((DIR *, long));
+struct dirent	*_readdir_unlocked(DIR *);
+void 		_reclaim_telldir(DIR *);
+void 		_seekdir(DIR *, long);
 
 #endif

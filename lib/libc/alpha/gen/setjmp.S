@@ -66,12 +66,12 @@ LEAF(setjmp, 1)
 	lda	a2, (71 * 8)(a0)		/* oset: sc_reserved */
 	mov	zero, a1			/* set:	 NULL */
 	addq	a1, 1, a0			/* how:	 SIG_BLOCK */
-	PCALL(sigprocmask)			/* see what's blocked */
+	CALL(_sigprocmask)			/* see what's blocked */
 
 	lda	sp, -24(sp)			/* sizeof struct sigaltstack */
 	mov	zero, a0
 	mov	sp, a1
-	PCALL(sigaltstack)
+	CALL(_sigaltstack)
 	ldl	t0, 16(sp)			/* offset of ss_flags */
 	lda	sp, 24(sp)			/* sizeof struct sigaltstack */
 	ldq	ra, ((26 + 4) * 8)(s0)		/* restore return address */
@@ -115,22 +115,14 @@ LEAF(setjmp, 1)
 	RET
 END(setjmp)
 
-#ifdef _THREAD_SAFE
+XLEAF(longjmp, 2)
 LEAF(__longjmp, 2)
-#else
-XLEAF(__longjmp, 2)
-LEAF(longjmp, 2)
-#endif
 	LDGP(pv)
 	stq	a1, (( 0 + 4) * 8)(a0)		/* save return value */
-	PCALL(sigreturn)			/* use sigreturn to return */
+	CALL(_sigreturn)			/* use sigreturn to return */
 
 botch:
 	CALL(longjmperror)
 	CALL(abort)
 	RET					/* "can't" get here... */
-#ifdef _THREAD_SAFE
 END(__longjmp)
-#else
-END(longjmp)
-#endif

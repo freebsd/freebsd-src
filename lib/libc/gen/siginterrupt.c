@@ -29,13 +29,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)siginterrupt.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <signal.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 
 /*
  * Set signal state to prevent restart of system calls
@@ -49,7 +54,7 @@ siginterrupt(sig, flag)
 	struct sigaction sa;
 	int ret;
 
-	if ((ret = sigaction(sig, (struct sigaction *)0, &sa)) < 0)
+	if ((ret = _sigaction(sig, (struct sigaction *)0, &sa)) < 0)
 		return (ret);
 	if (flag) {
 		sigaddset(&_sigintr, sig);
@@ -58,5 +63,5 @@ siginterrupt(sig, flag)
 		sigdelset(&_sigintr, sig);
 		sa.sa_flags |= SA_RESTART;
 	}
-	return (sigaction(sig, &sa, (struct sigaction *)0));
+	return (_sigaction(sig, &sa, (struct sigaction *)0));
 }

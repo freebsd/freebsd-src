@@ -34,13 +34,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)local.h	8.3 (Berkeley) 7/3/94
+ *
+ * $FreeBSD$
  */
+
+#include <sys/types.h>	/* for off_t */
 
 /*
  * Information local to this implementation of stdio,
  * in particular, macros and private variables.
  */
 
+extern int	_fseeko __P((FILE *, off_t, int));
+extern int	__fflush __P((FILE *fp));
 extern int	__sflush __P((FILE *));
 extern FILE	*__sfp __P((void));
 extern int	__srefill __P((FILE *));
@@ -56,6 +62,8 @@ extern int	__swhatbuf __P((FILE *, size_t *, int *));
 extern int	_fwalk __P((int (*)(FILE *)));
 extern int	__swsetup __P((FILE *));
 extern int	__sflags __P((const char *, int *));
+extern int	__ungetc __P((int, FILE *));
+extern int	__vfprintf __P((FILE *, const char *, _BSD_VA_LIST_));
 
 extern int	__sdidinit;
 

@@ -40,6 +40,7 @@
 static char sccsid[] = "@(#)hash.c	8.9 (Berkeley) 6/16/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -52,6 +53,7 @@ static char sccsid[] = "@(#)hash.c	8.9 (Berkeley) 6/16/94";
 #ifdef DEBUG
 #include <assert.h>
 #endif
+#include "un-namespace.h"
 
 #include <db.h>
 #include "hash.h"
@@ -136,7 +138,7 @@ __hash_open(file, flags, mode, info, dflags)
 		/* if the .db file is empty, and we had permission to create
 		   a new .db file, then reinitialize the database */
 		if ((flags & O_CREAT) &&
-		     fstat(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
+		     _fstat(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
 			new_table = 1;
 
 		(void)_fcntl(hashp->fp, F_SETFD, 1);
@@ -562,7 +564,8 @@ hash_put(dbp, key, data, flag)
 
 	hashp = (HTAB *)dbp->internal;
 	if (flag && flag != R_NOOVERWRITE) {
-		hashp->error = errno = EINVAL;
+		hashp->error = EINVAL;
+		errno = EINVAL;
 		return (ERROR);
 	}
 	if ((hashp->flags & O_ACCMODE) == O_RDONLY) {

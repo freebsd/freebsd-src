@@ -39,10 +39,12 @@ static char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <errno.h>
 #include <limits.h>
 #include <time.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 unsigned int
 __sleep(seconds)
@@ -68,6 +70,5 @@ __sleep(seconds)
 		(time_remaining.tv_nsec != 0)); /* round up */
 }
 
-#ifndef _THREAD_SAFE
 __weak_reference(__sleep, sleep);
-#endif
+__weak_reference(__sleep, _sleep);

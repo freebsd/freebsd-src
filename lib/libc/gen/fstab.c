@@ -42,6 +42,7 @@ static char rcsid[] =
 #endif
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -53,6 +54,7 @@ static char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 static FILE *_fs_fp;
 static struct fstab _fs_fstab;

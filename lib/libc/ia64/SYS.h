@@ -75,50 +75,35 @@ END(label);
  * Design note:
  *
  * The macros PSYSCALL() and PRSYSCALL() are intended for use where a
- * syscall needs to be renamed in the threaded library. When building
- * a normal library, they default to the traditional SYSCALL() and
- * RSYSCALL(). This avoids the need to #ifdef _THREAD_SAFE everywhere
- * that the renamed function needs to be called.
+ * syscall needs to be renamed in the threaded library.
  */
-#ifdef _THREAD_SAFE
 /*
- * For the thread_safe versions, we prepend _thread_sys_ to the function
+ * For the thread_safe versions, we prepend __sys_ to the function
  * name so that the 'C' wrapper can go around the real name.
  */
 #define	PCALL(name)						\
-	CALL(_thread_sys_ ## name)
+	CALL(__sys_ ## name)
 
 #define	PENTRY(name, args)					\
-ENTRY(_thread_sys_ ## name,args)
+ENTRY(__sys_ ## name,args)
 
 #define	PEND(name)						\
-END(_thread_sys_ ## name)
+END(__sys_ ## name)
 
 #define	PSYSCALL(name)						\
 PENTRY(name,0);				/* XXX # of args? */	\
 	CALLSYS_ERROR(name)
 
 #define	PRSYSCALL(name)						\
-PENTRY(name,0);				/* XXX # of args? */	\
+PENTRY(_sys_ ## name,0);		/* XXX # of args? */	\
+	WEAK_ALIAS(name, __sys_ ## name);			\
+	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
 	CALLSYS_ERROR(name)					\
 	br.ret.sptk.few rp;					\
 PEND(name)
 
 #define	PPSEUDO(label,name)					\
-PENTRY(label,0);				/* XXX # of args? */	\
+PENTRY(label,0);			/* XXX # of args? */	\
 	CALLSYS_ERROR(name);					\
 	br.ret.sptk.few rp;					\
 PEND(label)
-
-#else
-/*
- * The non-threaded library defaults to traditional syscalls where
- * the function name matches the syscall name.
- */
-#define	PSYSCALL(x)	SYSCALL(x)
-#define	PRSYSCALL(x)	RSYSCALL(x)
-#define	PPSEUDO(x,y)	PSEUDO(x,y)
-#define	PENTRY(x,y)	ENTRY(x,y)
-#define	PEND(x)		END(x)
-#define	PCALL(x)	CALL(x)
-#endif

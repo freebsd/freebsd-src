@@ -42,6 +42,7 @@
  *
  */
 
+#include "namespace.h"
 #if defined(__FreeBSD__)
 #   if defined(__i386__)
 #       define malloc_pageshift		12U
@@ -97,6 +98,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 /*
  * This structure describes a page worth of chunks.

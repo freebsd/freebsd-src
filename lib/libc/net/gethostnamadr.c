@@ -35,7 +35,6 @@ static char rcsid[] = "$FreeBSD$";
 #include <netdb.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <errno.h>
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>
@@ -117,7 +116,6 @@ gethostbyaddr(const char *addr, int len, int type)
 		return hp;
 }
 
-#ifdef _THREAD_SAFE
 struct hostent_data;
 
 /*
@@ -136,7 +134,6 @@ int gethostbyaddr_r(const char *addr, int len, int type,
 	}
 	return(ret);
 }
-#endif
 
 void
 sethostent(stayopen)

@@ -40,6 +40,7 @@
 static char sccsid[] = "@(#)rec_open.c	8.10 (Berkeley) 9/1/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -50,6 +51,7 @@ static char sccsid[] = "@(#)rec_open.c	8.10 (Berkeley) 9/1/94";
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include <db.h>
 #include "recno.h"
@@ -146,7 +148,7 @@ slow:			if ((t->bt_rfp = fdopen(rfd, "r")) == NULL)
 				goto einval;
 			}
 
-			if (fstat(rfd, &sb))
+			if (_fstat(rfd, &sb))
 				goto err;
 			/*
 			 * Kluge -- we'd like to test to see if the file is too

@@ -43,6 +43,7 @@ static char *rcsid = "$FreeBSD$";
  * and a record/tcp stream.
  */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -51,6 +52,7 @@ static char *rcsid = "$FreeBSD$";
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include "un-namespace.h"
 
 /*
  * Ops vector for TCP/IP based rpc service handle
@@ -135,14 +137,14 @@ svctcp_create(sock, sendsize, recvsize)
 	int on;
 
 	if (sock == RPC_ANYSOCK) {
-		if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+		if ((sock = _socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 			perror("svctcp_.c - udp socket creation problem");
 			return ((SVCXPRT *)NULL);
 		}
 		madesock = TRUE;
 	}
 	on = 1;
-	if (ioctl(sock, FIONBIO, &on) < 0) {
+	if (_ioctl(sock, FIONBIO, &on) < 0) {
 		perror("svc_tcp.c - cannot turn on non-blocking mode");
 		if (madesock)
 		       (void)_close(sock);
@@ -153,10 +155,10 @@ svctcp_create(sock, sendsize, recvsize)
 	addr.sin_family = AF_INET;
 	if (bindresvport(sock, &addr)) {
 		addr.sin_port = 0;
-		(void)bind(sock, (struct sockaddr *)&addr, len);
+		(void)_bind(sock, (struct sockaddr *)&addr, len);
 	}
-	if ((getsockname(sock, (struct sockaddr *)&addr, &len) != 0)  ||
-	    (listen(sock, 2) != 0)) {
+	if ((_getsockname(sock, (struct sockaddr *)&addr, &len) != 0)  ||
+	    (_listen(sock, 2) != 0)) {
 		perror("svctcp_.c - cannot getsockname or listen");
 		if (madesock)
 		       (void)_close(sock);
@@ -247,7 +249,7 @@ rendezvous_request(xprt)
 	r = (struct tcp_rendezvous *)xprt->xp_p1;
     again:
 	len = sizeof(struct sockaddr_in);
-	if ((sock = accept(xprt->xp_sock, (struct sockaddr *)&addr,
+	if ((sock = _accept(xprt->xp_sock, (struct sockaddr *)&addr,
 	    &len)) < 0) {
 		if (errno == EINTR)
 			goto again;
@@ -264,7 +266,7 @@ rendezvous_request(xprt)
 	 * The listening socket is in FIONBIO mode and we inherit it.
 	 */
 	off = 0;
-	if (ioctl(sock, FIONBIO, &off) < 0) {
+	if (_ioctl(sock, FIONBIO, &off) < 0) {
 		_close(sock);
 		return (FALSE);
 	}
@@ -317,7 +319,7 @@ static struct timeval wait_per_try = { 35, 0 };
  * Note: we have to be careful here not to allow ourselves to become
  * blocked too long in this routine. While we're waiting for data from one
  * client, another client may be trying to connect. To avoid this situation,
- * some code from svc_run() is transplanted here: the select() loop checks
+ * some code from svc_run() is transplanted here: the _select() loop checks
  * all RPC descriptors including the one we want and calls svc_getreqset2()
  * to handle new requests if any are detected.
  */
@@ -349,8 +351,8 @@ readtcp(xprt, buf, len)
 
 		/* XXX we know the other bits are still clear */
 		FD_SET(sock, fds);
-		tv = delta;	/* in case select() implements writeback */
-		switch (select(svc_maxfd + 1, fds, NULL, NULL, &tv)) {
+		tv = delta;	/* in case _select() implements writeback */
+		switch (_select(svc_maxfd + 1, fds, NULL, NULL, &tv)) {
 		case -1:
 			if (errno != EINTR)
 				goto fatal_err;

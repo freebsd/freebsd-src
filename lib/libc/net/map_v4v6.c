@@ -70,7 +70,6 @@ static char rcsid[] = "$FreeBSD$";
 #include <netdb.h>
 #include <resolv.h>
 #include <ctype.h>
-#include <errno.h>
 #include <syslog.h>
 
 typedef union {

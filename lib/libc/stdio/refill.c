@@ -45,6 +45,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "local.h"
 
 static int lflush __P((FILE *));

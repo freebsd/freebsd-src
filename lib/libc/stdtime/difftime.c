@@ -1,6 +1,8 @@
 /*
 ** This file is in the public domain, so clarified as of
 ** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+*
+* $FreeBSD$
 */
 
 #ifndef lint
@@ -11,7 +13,9 @@ static char	elsieid[] = "@(#)difftime.c	7.7";
 
 /*LINTLIBRARY*/
 
+#include "namespace.h"
 #include "private.h"
+#include "un-namespace.h"
 
 /*
 ** Algorithm courtesy Paul Eggert (eggert@twinsun.com).

@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -38,7 +40,10 @@ static char sccsid[] = "@(#)signal.c	8.1 (Berkeley) 6/4/93";
 /*
  * Almost backwards compatible signal.
  */
+#include "namespace.h"
 #include <signal.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 
 sigset_t _sigintr;		/* shared with siginterrupt */
 
@@ -54,7 +59,7 @@ signal(s, a)
 	sa.sa_flags = 0;
 	if (!sigismember(&_sigintr, s))
 		sa.sa_flags |= SA_RESTART;
-	if (sigaction(s, &sa, &osa) < 0)
+	if (_sigaction(s, &sa, &osa) < 0)
 		return (SIG_ERR);
 	return (osa.sa_handler);
 }

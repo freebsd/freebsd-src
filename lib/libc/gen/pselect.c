@@ -29,11 +29,13 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/select.h>
 #include <sys/time.h>
 
 #include <errno.h>
 #include <signal.h>
+#include "un-namespace.h"
 
 /*
  * Emulate the POSIX 1003.1g-2000 `pselect' interface.  This is the
@@ -56,15 +58,15 @@ pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 		tvp = 0;
 
 	if (mask != 0) {
-		rv = sigprocmask(SIG_SETMASK, mask, &omask);
+		rv = _sigprocmask(SIG_SETMASK, mask, &omask);
 		if (rv != 0)
 			return rv;
 	}
 
-	rv = select(count, rfds, wfds, efds, tvp);
+	rv = _select(count, rfds, wfds, efds, tvp);
 	if (mask != 0) {
 		sverrno = errno;
-		sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
+		_sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
 		errno = sverrno;
 	}
 

@@ -42,17 +42,19 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
+#include "un-namespace.h"
 #include "libc_private.h"
+#include "local.h"
 
 void
-rewind(fp)
-	register FILE *fp;
+rewind(FILE *fp)
 {
 	FLOCKFILE(fp);
-	(void) fseek(fp, 0L, SEEK_SET);
+	(void) _fseeko(fp, (off_t)0, SEEK_SET);
 	clearerr(fp);
 	FUNLOCKFILE(fp);
-	errno = 0;      /* not required, but seems reasonable */
+	errno = 0;	/* not required, but seems reasonable */
 }

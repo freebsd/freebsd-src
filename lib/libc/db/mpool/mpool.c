@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -46,6 +47,7 @@ static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include <db.h>
 
@@ -76,7 +78,7 @@ mpool_open(key, fd, pagesize, maxcache)
 	 * XXX
 	 * We don't currently handle pipes, although we should.
 	 */
-	if (fstat(fd, &sb))
+	if (_fstat(fd, &sb))
 		return (NULL);
 	if (!S_ISREG(sb.st_mode)) {
 		errno = ESPIPE;

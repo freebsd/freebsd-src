@@ -38,14 +38,14 @@ static char *rcsid = "$FreeBSD$";
  */
 #include <rpc/rpc.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <netdb.h>
 #include <string.h>
 
 /*
  * Generic client creation: takes (hostname, program-number, protocol) and
  * returns client handle. Default options are set, which the user can
- * change using the rpc equivalent of ioctl()'s.
+ * change using the rpc equivalent of _ioctl()'s.
  */
 CLIENT *
 clnt_create(hostname, prog, vers, proto)
