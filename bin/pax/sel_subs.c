@@ -236,7 +236,7 @@ grp_add(char *str)
 			paxwarn(1,"Cannot determine gid for group name: %s", str);
 			return(-1);
 		}
-		gid = (gid_t)gr->gr_gid;
+		gid = gr->gr_gid;
 	} else
 #		ifdef NET2_STAT
 		gid = (gid_t)atoi(str+1);
