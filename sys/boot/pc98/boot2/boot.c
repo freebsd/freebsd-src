@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id$
+ *	$Id: boot.c,v 1.1.2.1 1999/02/06 07:37:12 kato Exp $
  */
 
 
@@ -151,6 +151,7 @@ boot(int drive)
 #endif
 	}
 #endif /* PC98 */
+	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
 		name = "/boot/loader";
 	if (boot_config[0] != '\0') {
 		printf("boot.config: %s", boot_config);
@@ -373,10 +374,7 @@ readfile(char *path, char *buf, size_t nbytes)
 	buf[0] = '\0';
 	name = path;
 	openstatus = openrd();
-	if (openstatus != 0) {
-		if (openstatus > 0)
-			printf("Can't find file %s\n", name);
-	} else {
+	if (openstatus == 0) {
 		/* XXX no way to determine file size. */
 		read(buf, nbytes);
 	}
