@@ -74,7 +74,6 @@ distSetUser             Select user distribution
 distSetXUser            Select X user distribution
 distSetMinimum          Select minimal distribution
 distSetEverything       Select all distributions
-distSetDES              Select DES sub-distributions
 distSetSrc              Select source sub-distributions
 distSetXF86             Select XFree86 sub-distributions
 distExtractAll          Extract all selected distributions
@@ -95,7 +94,6 @@ mediaSetFtpUserPass     Prompt for FTP username and password
 mediaSetCPIOVerbosity   Prompt for CPIO verbosity
 mediaGetType            Prompt for media type
 optionsEditor           Go to options editor
-register                Go to registration editor.
 
 Examples:
 
