@@ -62,11 +62,9 @@ DUMMY(capget);
 DUMMY(capset);
 DUMMY(sendfile);
 
-DUMMY(chown);
 DUMMY(getdtablesize);
 DUMMY(gethostname);
 DUMMY(getpagesize);
-DUMMY(lchown);
 DUMMY(madvise);
 DUMMY(mincore);
 DUMMY(old_adjtimex);
