@@ -83,22 +83,6 @@ static int	dofileread __P((struct thread *, struct file *, int, void *,
 static int	dofilewrite __P((struct thread *, struct file *, int,
 		    const void *, size_t, off_t, int));
 
-struct file*
-holdfp(fdp, fd, flag)
-	struct filedesc* fdp;
-	int fd, flag;
-{
-	struct file* fp;
-
-	if (((u_int)fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL ||
-	    (fp->f_flag & flag) == 0) {
-		return (NULL);
-	}
-	fhold(fp);
-	return (fp);
-}
-
 /*
  * Read system call.
  */
@@ -115,18 +99,16 @@ struct read_args {
 int
 read(td, uap)
 	struct thread *td;
-	register struct read_args *uap;
+	struct read_args *uap;
 {
-	register struct file *fp;
+	struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FREAD)) != NULL) {
+	if ((error = fget_read(td, uap->fd, &fp)) == 0) {
 		error = dofileread(td, fp, uap->fd, uap->buf,
 			    uap->nbyte, (off_t)-1, 0);
 		fdrop(fp, td);
-	} else {
-		error = EBADF;
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -150,20 +132,19 @@ struct pread_args {
 int
 pread(td, uap)
 	struct thread *td;
-	register struct pread_args *uap;
+	struct pread_args *uap;
 {
-	register struct file *fp;
+	struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FREAD)) == NULL) {
-		error = EBADF;
-	} else if (fp->f_type != DTYPE_VNODE) {
-		error = ESPIPE;
-		fdrop(fp, td);
-	} else {
-		error = dofileread(td, fp, uap->fd, uap->buf, uap->nbyte, 
-			    uap->offset, FOF_OFFSET);
+	if ((error = fget_read(td, uap->fd, &fp)) == 0) {
+		if (fp->f_type == DTYPE_VNODE) {
+			error = dofileread(td, fp, uap->fd, uap->buf, 
+				    uap->nbyte, uap->offset, FOF_OFFSET);
+		} else {
+			error = ESPIPE;
+		}
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
@@ -247,12 +228,11 @@ struct readv_args {
 int
 readv(td, uap)
 	struct thread *td;
-	register struct readv_args *uap;
+	struct readv_args *uap;
 {
-	register struct file *fp;
-	register struct filedesc *fdp;
+	struct file *fp;
 	struct uio auio;
-	register struct iovec *iov;
+	struct iovec *iov;
 	struct iovec *needfree;
 	struct iovec aiov[UIO_SMALLIOV];
 	long i, cnt, error = 0;
@@ -262,12 +242,9 @@ readv(td, uap)
 	struct uio ktruio;
 #endif
 	mtx_lock(&Giant);
-	fdp = td->td_proc->p_fd;
 
-	if ((fp = holdfp(fdp, uap->fd, FREAD)) == NULL) {
-		error = EBADF;
+	if ((error = fget_read(td, uap->fd, &fp)) != 0)
 		goto done2;
-	}
 	/* note: can't use iovlen until iovcnt is validated */
 	iovlen = uap->iovcnt * sizeof (struct iovec);
 	if (uap->iovcnt > UIO_SMALLIOV) {
@@ -352,18 +329,18 @@ struct write_args {
 int
 write(td, uap)
 	struct thread *td;
-	register struct write_args *uap;
+	struct write_args *uap;
 {
-	register struct file *fp;
+	struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FWRITE)) != NULL) {
+	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
 		error = dofilewrite(td, fp, uap->fd, uap->buf, uap->nbyte,
 			    (off_t)-1, 0);
 		fdrop(fp, td);
 	} else {
-		error = EBADF;
+		error = EBADF;	/* XXX this can't be right */
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -387,21 +364,22 @@ struct pwrite_args {
 int
 pwrite(td, uap)
 	struct thread *td;
-	register struct pwrite_args *uap;
+	struct pwrite_args *uap;
 {
-	register struct file *fp;
+	struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FWRITE)) == NULL) {
-		error = EBADF;
-	} else if (fp->f_type != DTYPE_VNODE) {
-		error = ESPIPE;
+	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
+		if (fp->f_type == DTYPE_VNODE) {
+			error = dofilewrite(td, fp, uap->fd, uap->buf,
+				    uap->nbyte, uap->offset, FOF_OFFSET);
+		} else {
+			error = ESPIPE;
+		}
 		fdrop(fp, td);
 	} else {
-		error = dofilewrite(td, fp, uap->fd, uap->buf, uap->nbyte,
-			    uap->offset, FOF_OFFSET);
-		fdrop(fp, td);
+		error = EBADF;	/* this can't be right */
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -489,8 +467,7 @@ writev(td, uap)
 	struct thread *td;
 	register struct writev_args *uap;
 {
-	register struct file *fp;
-	register struct filedesc *fdp;
+	struct file *fp;
 	struct uio auio;
 	register struct iovec *iov;
 	struct iovec *needfree;
@@ -503,8 +480,7 @@ writev(td, uap)
 #endif
 
 	mtx_lock(&Giant);
-	fdp = td->td_proc->p_fd;
-	if ((fp = holdfp(fdp, uap->fd, FWRITE)) == NULL) {
+	if ((error = fget_write(td, uap->fd, &fp)) != 0) {
 		error = EBADF;
 		goto done2;
 	}
