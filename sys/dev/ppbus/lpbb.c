@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lpbb.c,v 1.1 1998/10/31 11:35:21 nsouch Exp $
  *
  */
 
@@ -277,8 +277,11 @@ static int lpbb_detect(struct lpbb_softc *sc)
 	setSCL(sc, 1);
 
 	if ((ppb_rstr(&sc->lpbb_dev) & I2CKEY) ||
-		((ppb_rstr(&sc->lpbb_dev) & ALIM) != ALIM))
+		((ppb_rstr(&sc->lpbb_dev) & ALIM) != ALIM)) {
+
+		ppb_release_bus(&sc->lpbb_dev);
 		return (0);
+	}
 
 	ppb_release_bus(&sc->lpbb_dev);
 
