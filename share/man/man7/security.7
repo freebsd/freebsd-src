@@ -6,7 +6,7 @@
 .\"
 .Dd September 18, 1999
 .Dt SECURITY 7
-.Os
+.Os FreeBSD
 .Sh NAME
 .Nm security
 .Nd introduction to security under FreeBSD
@@ -416,7 +416,10 @@ utilities such as
 and
 .Xr md5 1
 It is best to physically md5 the client-box files boxes at least once a 
-day, and to test control files such as those found in /etc and /usr/local/etc
+day, and to test control files such as those found in
+.Pa /etc
+and
+.Pa /usr/local/etc
 even more often.  When mismatches are found relative to the base md5
 information the limited-access machine knows is valid, it should scream at
 a sysadmin to go check it out.  A good security script will also check for
@@ -436,8 +439,11 @@ using ssh may be necessary when running over unsecure links, but it's also a
 lot harder to deal with.
 .Pp
 A good security script will also check for changes to user and staff members
-access configuration files:  .rhosts, .shosts, .ssh/authorized_keys, and
-so forth... files that might fall outside the purview of the MD5 check.
+access configuration files:
+.Pa .rhosts ,
+.Pa .shosts ,
+.Pa .ssh/authorized_keys 
+and so forth... files that might fall outside the purview of the MD5 check.
 .Pp
 If you have a huge amount of user disk space it may take too long to run
 through every file on those partitions.  In this case, setting mount
@@ -680,11 +686,11 @@ machines.
 .Xr netstat 1 ,
 .Xr syslogd 1 ,
 .Xr xdm 1 ,
-.Xr ttys 5 ,
 .Xr group 5 ,
-.Xr vipw 8 ,
+.Xr ttys 5 ,
 .Xr init 8 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr vipw 8
 
 The following are part of security ports collection:
 
