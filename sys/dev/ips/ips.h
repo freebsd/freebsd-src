@@ -39,6 +39,7 @@
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/time.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
@@ -82,6 +83,7 @@
 
 #define IPS_LD_OFFLINE               	0x02
 #define IPS_LD_OKAY                  	0x03
+#define IPS_LD_DEGRADED			0x04
 #define IPS_LD_FREE                  	0x00
 #define IPS_LD_SYS                   	0x06
 #define IPS_LD_CRS                   	0x24
@@ -140,14 +142,47 @@
 #define IPS_SG_READ_CMD			0x82
 #define IPS_SG_WRITE_CMD		0x83
 #define IPS_RW_NVRAM_CMD		0xBC
+#define IPS_FFDC_CMD			0xD7
 
 /* error information returned by the adapter */
 #define IPS_MIN_ERROR			0x02
 #define IPS_ERROR_STATUS		0x13000200 /* ahh, magic numbers */
 
-#define IPS_OS_FREEBSD			10
+#define IPS_OS_FREEBSD			8
 #define IPS_VERSION_MAJOR		"0.90"
-#define IPS_VERSION_MINOR		".00"
+#define IPS_VERSION_MINOR		".10"
+
+/* Adapter Types */
+#define IPS_ADAPTER_COPPERHEAD		0x01
+#define IPS_ADAPTER_COPPERHEAD2		0x02
+#define IPS_ADAPTER_COPPERHEADOB1	0x03
+#define IPS_ADAPTER_COPPERHEADOB2	0x04
+#define IPS_ADAPTER_CLARINET		0x05
+#define IPS_ADAPTER_CLARINETLITE	0x06
+#define IPS_ADAPTER_TROMBONE		0x07
+#define IPS_ADAPTER_MORPHEUS		0x08
+#define IPS_ADAPTER_MORPHEUSLITE	0x09
+#define IPS_ADAPTER_NEO			0x0A
+#define IPS_ADAPTER_NEOLITE		0x0B
+#define IPS_ADAPTER_SARASOTA2		0x0C
+#define IPS_ADAPTER_SARASOTA1		0x0D
+#define IPS_ADAPTER_MARCO		0x0E
+#define IPS_ADAPTER_SEBRING		0x0F
+#define IPS_ADAPTER_MAX_T		IPS_ADAPTER_SEBRING
+
+/* values for ffdc_settime (from gmtime) */
+#define IPS_SECSPERMIN      60
+#define IPS_MINSPERHOUR     60
+#define IPS_HOURSPERDAY     24
+#define IPS_DAYSPERWEEK     7
+#define IPS_DAYSPERNYEAR    365
+#define IPS_DAYSPERLYEAR    366
+#define IPS_SECSPERHOUR     (IPS_SECSPERMIN * IPS_MINSPERHOUR)
+#define IPS_SECSPERDAY      ((long) IPS_SECSPERHOUR * IPS_HOURSPERDAY)
+#define IPS_MONSPERYEAR     12
+#define IPS_EPOCH_YEAR      1970
+#define IPS_LEAPS_THRU_END_OF(y)    ((y) / 4 - (y) / 100 + (y) / 400)
+#define ips_isleap(y) (((y) % 4) == 0 && (((y) % 100) != 0 || ((y) % 400) == 0))
 
 /*
  *  IPS MACROS
@@ -231,6 +266,22 @@ typedef struct{
 	u_int32_t	buffaddr;
 	u_int32_t	reserve3;
 } __attribute__((packed)) ips_adapter_info_cmd;
+
+typedef struct{
+	u_int8_t	command;
+	u_int8_t	id;
+	u_int8_t	reset_count;
+	u_int8_t	reset_type;
+	u_int8_t	second;
+	u_int8_t	minute;
+	u_int8_t	hour;
+	u_int8_t	day;
+	u_int8_t	reserve1[4];
+	u_int8_t	month;
+	u_int8_t	yearH;
+	u_int8_t	yearL;
+	u_int8_t	reserve2;
+} __attribute__((packed)) ips_adapter_ffdc_cmd;
 
 typedef union{
 	ips_generic_cmd		generic_cmd;
@@ -358,10 +409,13 @@ typedef struct ips_softc{
         device_t                dev;
         dev_t                   device_file;
 	struct callout_handle	timer;
+	u_int16_t		adapter_type;
 	ips_adapter_info_t	adapter_info;
 	device_t		diskdev[IPS_MAX_NUM_DRIVES];
 	ips_drive_t		drives[IPS_MAX_NUM_DRIVES];
 	u_int8_t		drivecount;
+	u_int16_t		ffdc_resetcount;
+	struct timeval		ffdc_resettime;
 	u_int8_t		next_drive;
 	u_int8_t		max_cmds;
 	volatile u_int8_t	used_commands;
@@ -387,6 +441,7 @@ extern int ips_flush_cache(ips_softc_t *sc);
 extern void ips_start_io_request(ips_softc_t *sc, struct bio *iobuf);
 extern int ips_get_drive_info(ips_softc_t *sc);
 extern int ips_get_adapter_info(ips_softc_t *sc);
+extern int ips_ffdc_reset(ips_softc_t *sc);
 extern int ips_update_nvram(ips_softc_t *sc); 
 extern int ips_clear_adapter(ips_softc_t *sc);
 
