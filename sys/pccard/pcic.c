@@ -283,10 +283,15 @@ pcic_dump_attributes(unsigned char *scratch, int maxlen)
 }
 #endif
 
+static void
+nullfunc(int unit)
+{
+	/* empty */
+}
+
 static u_int
 build_freelist(u_int pcic_mask)
 { 
-	inthand2_t *nullfunc; 
 	int irq;
 	u_int mask, freemask; 
  
