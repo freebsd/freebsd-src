@@ -70,16 +70,19 @@ _sigaltstack(stack_t *_ss, stack_t *_oss)
 	if (_ss != NULL) {
 		if (oonstack) {
 			_kse_critical_leave(crit);
-			return (EPERM);
+			errno = EPERM;
+			return (-1);
 		}
 		if ((ss.ss_flags & ~SS_DISABLE) != 0) {
 			_kse_critical_leave(crit);
-			return (EINVAL);
+			errno = EINVAL;
+			return (-1);
 		}
 		if (!(ss.ss_flags & SS_DISABLE)) {
 			if (ss.ss_size < MINSIGSTKSZ) {
 				_kse_critical_leave(crit);
-				return (ENOMEM);
+				errno = ENOMEM;
+				return (-1);
 			}
 			curthread->sigstk = ss;
 		} else {
