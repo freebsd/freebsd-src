@@ -1598,7 +1598,7 @@ static void dc_apply_fixup(sc, media)
 	struct dc_mediainfo	*m;
 	u_int8_t		*p;
 	int			i;
-	u_int8_t		reg;
+	u_int32_t		reg;
 
 	m = sc->dc_mi;
 
