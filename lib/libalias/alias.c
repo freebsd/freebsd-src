@@ -76,6 +76,9 @@
     Version 2.3 Dec 1998 (dillon)
 	- Major bounds checking additions, see FreeBSD/CVS
 
+    Version 3.1 May, 2000 (eds)
+	- Added hooks to handle PPTP.
+
     See HISTORY file for additional revisions.
 
     $FreeBSD$
@@ -90,12 +93,6 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
-#ifndef IPPROTO_GRE
-#define IPPROTO_GRE 47
-#define IPPROTO_ESP 50
-#define IPPROTO_AH  51
-#endif
-
 #include "alias_local.h"
 #include "alias.h"
 
@@ -105,6 +102,7 @@
 #define IRC_CONTROL_PORT_NUMBER_1 6667
 #define IRC_CONTROL_PORT_NUMBER_2 6668
 #define CUSEEME_PORT_NUMBER 7648
+#define PPTP_CONTROL_PORT_NUMBER 1723
 
 
 
@@ -181,6 +179,7 @@ TcpMonitorOut(struct ip *pip, struct alias_link *link)
     ProtoAliasIn(), ProtoAliasOut()
     UdpAliasIn(), UdpAliasOut()
     TcpAliasIn(), TcpAliasOut()
+    GreAliasIn()
 
 These routines handle protocol specific details of packet aliasing.
 One may observe a certain amount of repetitive arithmetic in these
@@ -233,6 +232,8 @@ static int UdpAliasIn (struct ip *);
 
 static int TcpAliasOut(struct ip *, int);
 static int TcpAliasIn (struct ip *);
+
+static int GreAliasIn(struct ip *);
 
 
 static int
@@ -725,6 +726,39 @@ ProtoAliasOut(struct ip *pip)
 }
 
 
+static int
+GreAliasIn(struct ip *pip)
+{
+    u_short call_id;
+    struct alias_link *link;
+
+/* Return if proxy-only mode is enabled. */
+    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+        return (PKT_ALIAS_OK);
+
+    if (PptpGetCallID(pip, &call_id)) {
+	if ((link = FindPptpIn(pip->ip_src, pip->ip_dst, call_id)) != NULL) {
+	    struct in_addr alias_address;
+	    struct in_addr original_address;
+
+	    alias_address = GetAliasAddress(link);
+	    original_address = GetOriginalAddress(link);
+	    PptpSetCallID(pip, GetOriginalPort(link));
+
+	    /* Restore original IP address. */
+	    DifferentialChecksum(&pip->ip_sum,
+				 (u_short *)&original_address,
+				 (u_short *)&pip->ip_dst,
+				 2);
+	    pip->ip_dst = original_address;
+
+	    return (PKT_ALIAS_OK);
+	} else
+	    return (PKT_ALIAS_IGNORED);
+    } else
+	return ProtoAliasIn(pip);
+}
+
 
 static int
 UdpAliasIn(struct ip *pip)
@@ -903,6 +937,11 @@ TcpAliasIn(struct ip *pip)
         int accumulate;
         u_short *sptr;
 
+/* Special processing for IP encoding protocols */
+        if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
+         || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
+            AliasHandlePptpIn(pip, link);
+
         alias_address = GetAliasAddress(link);
         original_address = GetOriginalAddress(link);
         proxy_address = GetProxyAddress(link);
@@ -1070,9 +1109,12 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
         if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER
          || ntohs(tc->th_sport) == FTP_CONTROL_PORT_NUMBER)
             AliasHandleFtpOut(pip, link, maxpacketsize);
-        if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
+        else if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
          || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
             AliasHandleIrcOut(pip, link, maxpacketsize);
+        else if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
+         || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
+            AliasHandlePptpOut(pip, link);
 
 /* Adjust TCP checksum since source port is being aliased */
 /* and source address is being altered                    */
@@ -1300,6 +1342,9 @@ PacketAliasIn(char *ptr, int maxpacketsize)
                 break;
             case IPPROTO_TCP:
                 iresult = TcpAliasIn(pip);
+                break;
+            case IPPROTO_GRE:
+                iresult = GreAliasIn(pip);
                 break;
 	    default:
 		iresult = ProtoAliasIn(pip);
