@@ -79,7 +79,6 @@ void	 checknologin __P((void));
 void	 dolastlog __P((int));
 void	 getloginname __P((void));
 void	 motd __P((void));
-void	 change_passwd __P((void));
 int	 rootterm __P((char *));
 void	 sigint __P((int));
 void	 sleepexit __P((int));
@@ -122,6 +121,7 @@ main(argc, argv)
 	struct timeval tp;
 	struct utmp utmp;
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
+	int changepass;
 	uid_t uid;
 	char *domain, *p, *ep, *salt, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
@@ -348,10 +348,11 @@ main(argc, argv)
 	if (pwd->pw_change || pwd->pw_expire)
 		(void)gettimeofday(&tp, (struct timezone *)NULL);
 
+	changepass=0;
 	if (pwd->pw_change)
 		if (tp.tv_sec >= pwd->pw_change) {
 			(void)printf("Sorry -- your password has expired.\n");
-			change_passwd();
+			changepass=1;
 		} else if (pwd->pw_change - tp.tv_sec <
 		    2 * DAYSPERWEEK * SECSPERDAY && !quietlog)
 			(void)printf("Warning: your password expires on %s",
@@ -471,14 +472,20 @@ main(argc, argv)
 	(void)strcpy(tbuf + 1, (p = strrchr(pwd->pw_shell, '/')) ?
 	    p + 1 : pwd->pw_shell);
 
-	if (setlogin(pwd->pw_name) < 0)
-		syslog(LOG_ERR, "setlogin() failure: %m");
+     	if (setlogin(pwd->pw_name) < 0)
+                syslog(LOG_ERR, "setlogin() failure: %m"); 
 
 	/* Discard permissions last so can't get killed and drop core. */
 	if (rootlogin)
 		(void) setuid(0);
 	else
 		(void) setuid(pwd->pw_uid);
+
+	if (changepass) {
+		int res;
+		if ((res=system(_PATH_CHPASS)))
+			sleepexit(1);
+	}
 
 	execlp(pwd->pw_shell, tbuf, 0);
 	err(1, "%s", pwd->pw_shell);
@@ -657,26 +664,4 @@ sleepexit(eval)
 	exit(eval);
 }
 
-void
-change_passwd()
-{
-	int pid, status, w;
-	register void (*istat)(), (*qstat)();
-
-	if (( pid=fork() ) == 0)
-		{
-		execl( "/usr/bin/passwd", "passwd", NULL );
-		fprintf( stderr, "ERROR: Can't execute passwd!\n" );
-		sleepexit( 1 );
-		}
-
-	istat = signal( SIGINT,  SIG_IGN );	
-	qstat = signal( SIGQUIT, SIG_IGN );
-
-	while ((w = wait( &status )) != pid && w != -1)
-		;
-
-	signal( SIGINT,  istat );
-	signal( SIGQUIT, qstat );
-}
 
