@@ -1025,6 +1025,7 @@ AAA
 				neg = sp->neg;
 				untimeout(pppoe_ticker, sendhook,
 				    neg->timeout_handle);
+				neg->pkt->pkt_header.ph.sid = wh->ph.sid;
 				sp->Session_ID = ntohs(wh->ph.sid);
 				neg->timeout = 0;
 				sp->state = PPPOE_CONNECTED;
@@ -1290,7 +1291,7 @@ AAA
 			strncpy(tag->tag_data, SIGNOFF, msglen);
 			m->m_pkthdr.len = (m->m_len += sizeof(*tag) + msglen);
 			wh->ph.length = htons(sizeof(*tag) + msglen);
-			NG_MESSAGE_SEND(error, privp->ethernet_hook, m, dummy);
+			NG_SEND_DATA(error, privp->ethernet_hook, m, dummy);
 		}
 		if (sp->neg) {
 			untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
