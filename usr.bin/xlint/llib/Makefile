@@ -6,7 +6,6 @@
 LIBS=	llib-lposix.ln llib-lstdc.ln
 LINT=	${.OBJDIR}/../xlint/xlint
 
-.if ${MKLINT} != "no"
 FILES=	${LIBS}
 FILESDIR= ${LINTLIBDIR}
 
