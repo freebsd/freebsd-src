@@ -206,7 +206,7 @@ account(acct)
 
 	while (fgets(linebuf, BUFSIZ, acct) != NULL) {
 		cp = linebuf;
-		while (any(*cp, " t\t"))
+		while (any(*cp, " \t"))
 			cp++;
 		t = atof(cp);
 		while (any(*cp, ".0123456789"))
