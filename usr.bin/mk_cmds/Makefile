@@ -1,13 +1,9 @@
-#	$Id$
+#	$Id: Makefile,v 1.5 1997/02/22 19:56:09 peter Exp $
 
 PROG=	mk_cmds
-#
-# NB: ct.c must come before cmd_tbl.c so that y.tab.h will be generated.
-#
-SRCS=	mk_cmds.c options.c utils.c ct.c cmd_tbl.c
+SRCS=	mk_cmds.c options.c utils.c ct.y cmd_tbl.l
 CFLAGS+= -I. -I${.CURDIR}/../../lib/libss -DIN_MK_CMDS
 LFLAGS=	-l
-CLEANFILES+=	y.tab.c y.tab.h lex.yy.c cmd_tbl.c ct.c
 NOMAN=		# XXX
 
 LDADD+=	-ll
