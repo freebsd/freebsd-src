@@ -30,14 +30,8 @@
 #include <sys/bus.h>
 #include <isa/isavar.h>
 
-#ifdef SMP
-#include <machine/smp.h>
-#define LEAVE() rel_mplock();			
-#define ENTER() get_mplock();			
-#else
 #define LEAVE()
 #define ENTER()
-#endif
 
 #include <contrib/dev/fla/msysosak.h>
 
