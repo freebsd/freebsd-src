@@ -292,6 +292,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     int				bus;
     int				interrupt;
     int				i;
+
+    FUNCTION_TRACE(__func__);
     
     crsbuf.Pointer = NULL;
     prsbuf.Pointer = NULL;
@@ -393,8 +395,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 		      AcpiFormatException(status));
 	/* this is not fatal, since it may be hardwired */
     }
-    DEBUG_PRINT(TRACE_RESOURCES, ("got %d bytes for %s._CRS\n", crsbuf.Length, acpi_name(lnkdev)));
-    DEBUG_PRINT(TRACE_RESOURCES, ("got %d bytes for %s._PRS\n", prsbuf.Length, acpi_name(lnkdev)));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "got %d bytes for %s._CRS\n", crsbuf.Length, acpi_name(lnkdev)));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "got %d bytes for %s._PRS\n", prsbuf.Length, acpi_name(lnkdev)));
 
     /*
      * The interrupt may already be routed, so check _CRS first.  We don't check the
@@ -508,6 +510,6 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	AcpiOsFree(prsbuf.Pointer);
 
     /* XXX APIC_IO interrupt mapping? */
-    return(interrupt);
+    return_VALUE(interrupt);
 }
 

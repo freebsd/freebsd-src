@@ -167,12 +167,12 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
 
     /* get the Power Resource object */
     if ((status = acpi_EvaluateIntoBuffer(res, NULL, NULL, &buf)) != AE_OK) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("no power resource object\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "no power resource object\n"));
 	goto out;
     }
     obj = buf.Pointer;
     if (obj->Type != ACPI_TYPE_POWER) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("questionable power resource object %s\n", acpi_name(res)));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "questionable power resource object %s\n", acpi_name(res)));
 	status = AE_TYPE;
 	goto out;
     }
@@ -194,7 +194,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     TAILQ_INSERT_TAIL(&acpi_powerresources, rp, ap_link);
 
  done:
-    DEBUG_PRINT(TRACE_OBJECTS, ("registered power resource %s\n", acpi_name(res)));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "registered power resource %s\n", acpi_name(res)));
  out:
     if (obj != NULL)
 	AcpiOsFree(obj);
@@ -227,7 +227,7 @@ acpi_pwr_deregister_resource(ACPI_HANDLE res)
     TAILQ_REMOVE(&acpi_powerresources, rp, ap_link);
     free(rp, M_ACPIPWR);
 
-    DEBUG_PRINT(TRACE_OBJECTS, ("deregistered power resource %s\n", acpi_name(res)));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "deregistered power resource %s\n", acpi_name(res)));
 
     return_ACPI_STATUS(AE_OK);
 }
@@ -257,7 +257,7 @@ acpi_pwr_register_consumer(ACPI_HANDLE consumer)
 
     pc->ac_state = ACPI_STATE_UNKNOWN;	/* XXX we should try to find its current state */
 
-    DEBUG_PRINT(TRACE_OBJECTS, ("registered power consumer %s\n", acpi_name(consumer)));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "registered power consumer %s\n", acpi_name(consumer)));
     
     return_ACPI_STATUS(AE_OK);
 }
@@ -286,7 +286,7 @@ acpi_pwr_deregister_consumer(ACPI_HANDLE consumer)
     /* pull the consumer off the list and free it */
     TAILQ_REMOVE(&acpi_powerconsumers, pc, ac_link);
 
-    DEBUG_PRINT(TRACE_OBJECTS, ("deregistered power consumer %s\n", acpi_name(consumer)));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "deregistered power consumer %s\n", acpi_name(consumer)));
 
     return_ACPI_STATUS(AE_OK);
 }
@@ -342,8 +342,8 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     default:
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
-    DEBUG_PRINT(TRACE_OBJECTS, ("setup to switch %s D%d -> D%d\n",
-				acpi_name(consumer), pc->ac_state, state));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "setup to switch %s D%d -> D%d\n",
+		      acpi_name(consumer), pc->ac_state, state));
 
     /*
      * Verify that this state is supported, ie. one of method or
@@ -390,14 +390,14 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      */
     if (reslist_handle != NULL) {
 	if ((status = acpi_EvaluateIntoBuffer(reslist_handle, NULL, NULL, &reslist_buffer)) != AE_OK) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("can't evaluate resource list %s\n",
-					acpi_name(reslist_handle)));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't evaluate resource list %s\n",
+			      acpi_name(reslist_handle)));
 	    return_ACPI_STATUS(status);
 	}
 	reslist_object = (ACPI_OBJECT *)reslist_buffer.Pointer;
 	if (reslist_object->Type != ACPI_TYPE_PACKAGE) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("resource list is not ACPI_TYPE_PACKAGE (%d)\n",
-					reslist_object->Type));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "resource list is not ACPI_TYPE_PACKAGE (%d)\n",
+			      reslist_object->Type));
 	    return_ACPI_STATUS(AE_TYPE);
 	}
     } else {
@@ -410,7 +410,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     res_changed = 0;
     while((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
 	res_changed = 1;
-	DEBUG_PRINT(TRACE_OBJECTS, ("removing reference to %s\n", acpi_name(pr->ar_resource->ap_resource)));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "removing reference to %s\n", acpi_name(pr->ar_resource->ap_resource)));
 	TAILQ_REMOVE(&pr->ar_resource->ap_references, pr, ar_rlink);
 	TAILQ_REMOVE(&pc->ac_references, pr, ar_clink);
 	free(pr, M_ACPIPWR);
@@ -422,8 +422,8 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * of the resources that are referenced.
      */
     if (reslist_object != NULL) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("referencing %d new resources\n", 
-				    reslist_object->Package.Count));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "referencing %d new resources\n", 
+			  reslist_object->Package.Count));
 	acpi_ForeachPackageObject(reslist_object, acpi_pwr_reference_resource, pc);
 	res_changed = 1;
     }
@@ -433,15 +433,15 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * pass now.
      */
     if ((status = acpi_pwr_switch_power()) != AE_OK) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("failed to correctly switch resources to move %s to D%d\n",
-				    acpi_name(consumer), state));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "failed to correctly switch resources to move %s to D%d\n",
+			  acpi_name(consumer), state));
 	return_ACPI_STATUS(status);	/* XXX is this appropriate?  Should we return to previous state? */
     }
 
     /* invoke power state switch method (if present) */
     if (method_handle != NULL) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("invoking state transition method %s\n",
-				    acpi_name(method_handle)));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "invoking state transition method %s\n",
+			  acpi_name(method_handle)));
 	if ((status = AcpiEvaluateObject(method_handle, NULL, NULL, NULL)) != AE_OK)
 	    pc->ac_state = ACPI_STATE_UNKNOWN;
 	    return_ACPI_STATUS(status);	/* XXX is this appropriate?  Should we return to previous state? */
@@ -452,8 +452,8 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     return_ACPI_STATUS(AE_OK);
 
  bad:
-    DEBUG_PRINT(TRACE_OBJECTS, ("attempt to set unsupported state D%d\n", 
-		state));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "attempt to set unsupported state D%d\n", 
+		      state));
     if (reslist_object)
 	AcpiOsFree(reslist_object);
     return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -476,36 +476,36 @@ acpi_pwr_reference_resource(ACPI_OBJECT *obj, void *arg)
 
     /* check the object type */
     if (obj->Type != ACPI_TYPE_STRING) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("don't know how to create a power reference to object type %d\n", 
-				    obj->Type));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "don't know how to create a power reference to object type %d\n", 
+			  obj->Type));
 	return_VOID;
     }
 
-    DEBUG_PRINT(TRACE_OBJECTS, ("building reference from %s to %s\n",
-				acpi_name(pc->ac_consumer), obj->String.Pointer));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "building reference from %s to %s\n",
+		      acpi_name(pc->ac_consumer), obj->String.Pointer));
 
     /* get the handle of the resource */
     if (ACPI_FAILURE(status = AcpiGetHandle(NULL, obj->String.Pointer, &res))) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("couldn't find power resource %s\n", 
-				    obj->String.Pointer));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "couldn't find power resource %s\n", 
+			  obj->String.Pointer));
 	return_VOID;
     }
 
     /* create/look up the resource */
     if (ACPI_FAILURE(status = acpi_pwr_register_resource(res))) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("couldn't register power resource %s - %s\n",
-				    obj->String.Pointer, AcpiFormatException(status)));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "couldn't register power resource %s - %s\n",
+			  obj->String.Pointer, AcpiFormatException(status)));
 	return_VOID;
     }
     if ((rp = acpi_pwr_find_resource(res)) == NULL) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("power resource list corrupted\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "power resource list corrupted\n"));
 	return_VOID;
     }
-    DEBUG_PRINT(TRACE_OBJECTS, ("found power resource %s\n", acpi_name(rp->ap_resource)));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "found power resource %s\n", acpi_name(rp->ap_resource)));
 
     /* create a reference between the consumer and resource */
     if ((pr = malloc(sizeof(*pr), M_ACPIPWR, M_NOWAIT | M_ZERO)) == NULL) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("couldn't allocate memory for a power consumer reference\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "couldn't allocate memory for a power consumer reference\n"));
 	return_VOID;
     }
     pr->ar_consumer = pc;
@@ -537,15 +537,15 @@ acpi_pwr_switch_power(void)
      */
     TAILQ_FOREACH(rp, &acpi_powerresources, ap_link) {
 	if (TAILQ_FIRST(&rp->ap_references) == NULL) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("%s has no references, not turning on\n",
-					acpi_name(rp->ap_resource)));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "%s has no references, not turning on\n",
+			      acpi_name(rp->ap_resource)));
 	    continue;
 	}
 
 	/* we could cache this if we trusted it not to change under us */
 	if ((status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur)) != AE_OK) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("can't get status of %s - %d\n",
-					acpi_name(rp->ap_resource), status));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
+			      acpi_name(rp->ap_resource), status));
 	    continue;	/* XXX is this correct?  Always switch if in doubt? */
 	}
 
@@ -556,13 +556,13 @@ acpi_pwr_switch_power(void)
 	 */
 	if (cur != ACPI_PWR_ON) {
 	    if (ACPI_FAILURE(status = AcpiEvaluateObject(rp->ap_resource, "_ON", NULL, NULL))) {
-		DEBUG_PRINT(TRACE_OBJECTS, ("failed to switch %s on - %s\n", 
-					    acpi_name(rp->ap_resource), AcpiFormatException(status)));
+		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "failed to switch %s on - %s\n", 
+				  acpi_name(rp->ap_resource), AcpiFormatException(status)));
 	    } else {
-		DEBUG_PRINT(TRACE_OBJECTS, ("switched %s on\n", acpi_name(rp->ap_resource)));
+		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "switched %s on\n", acpi_name(rp->ap_resource)));
 	    }
 	} else {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("%s is already on\n", acpi_name(rp->ap_resource)));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "%s is already on\n", acpi_name(rp->ap_resource)));
 	}
     }
     
@@ -571,15 +571,15 @@ acpi_pwr_switch_power(void)
      */
     TAILQ_FOREACH_REVERSE(rp, &acpi_powerresources, acpi_powerresource_list, ap_link) {
 	if (TAILQ_FIRST(&rp->ap_references) != NULL) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("%s has references, not turning off\n",
-					acpi_name(rp->ap_resource)));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "%s has references, not turning off\n",
+			      acpi_name(rp->ap_resource)));
 	    continue;
 	}
 
 	/* we could cache this if we trusted it not to change under us */
 	if ((status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur)) != AE_OK) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("can't get status of %s - %d\n",
-					acpi_name(rp->ap_resource), status));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
+			      acpi_name(rp->ap_resource), status));
 	    continue;	/* XXX is this correct?  Always switch if in doubt? */
 	}
 
@@ -590,13 +590,13 @@ acpi_pwr_switch_power(void)
 	 */
 	if (cur != ACPI_PWR_OFF) {
 	    if (ACPI_FAILURE(status = AcpiEvaluateObject(rp->ap_resource, "_OFF", NULL, NULL))) {
-		DEBUG_PRINT(TRACE_OBJECTS, ("failed to switch %s off - %s\n", 
-					    acpi_name(rp->ap_resource), AcpiFormatException(status)));
+		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "failed to switch %s off - %s\n", 
+				  acpi_name(rp->ap_resource), AcpiFormatException(status)));
 	    } else {
-		DEBUG_PRINT(TRACE_OBJECTS, ("switched %s off\n", acpi_name(rp->ap_resource)));
+		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "switched %s off\n", acpi_name(rp->ap_resource)));
 	    }
 	} else {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("%s is already off\n", acpi_name(rp->ap_resource)));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "%s is already off\n", acpi_name(rp->ap_resource)));
 	}
     }
     return_ACPI_STATUS(AE_OK);
