@@ -1,5 +1,5 @@
 /* scan.h - Utility declarations for scan-decls and fix-header programs.
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1998, 1999 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -34,7 +34,7 @@ typedef struct sstring
   if ((STR)->limit - (STR)->ptr < (COUNT)) make_sstring_space (STR, COUNT);
 
 #ifndef _PARAMS
-#if defined(__STDC__) || defined(__cplusplus)
+#if defined(ANSI_PROTOTYPES) || defined(__cplusplus)
 #define _PARAMS(args) args
 #else
 #define _PARAMS(args) ()
@@ -44,9 +44,9 @@ typedef struct sstring
 struct partial_proto;
 struct fn_decl
 {
-  char *fname;
-  char *rtype;
-  char *params;
+  const char *fname;
+  const char *rtype;
+  const char *params;
   struct partial_proto *partial;
 };
 
@@ -57,8 +57,6 @@ extern int skip_spaces _PARAMS((FILE *, int));
 extern int scan_ident _PARAMS((FILE *, sstring *, int));
 extern int scan_string _PARAMS((FILE *, sstring *, int));
 extern int read_upto _PARAMS((FILE *, sstring *, int));
-extern char *xmalloc _PARAMS((unsigned));
-extern char *xrealloc _PARAMS((char *, unsigned));
 extern unsigned long hash _PARAMS((const char *));
 extern void recognized_function _PARAMS((char *, int, int, char *, int, int, char *, int));
 extern void recognized_extern _PARAMS((char *, int, char *, int));

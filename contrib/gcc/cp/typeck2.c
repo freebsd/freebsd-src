@@ -1,6 +1,6 @@
 /* Report error messages, build initializers, and perform
    some front-end optimizations for C++ compiler.
-   Copyright (C) 1987, 88, 89, 92, 93, 94, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 89, 92-98, 1999 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -38,6 +38,7 @@ Boston, MA 02111-1307, USA.  */
 #include "toplev.h"
 
 static tree process_init_constructor PROTO((tree, tree, tree *));
+static void ack PVPROTO ((const char *, ...)) ATTRIBUTE_PRINTF_1;
 
 extern int errorcount;
 extern int sorrycount;
@@ -80,11 +81,11 @@ binfo_or_else (parent_or_type, type)
 void
 readonly_error (arg, string, soft)
      tree arg;
-     char *string;
+     const char *string;
      int soft;
 {
-  char *fmt;
-  void (*fn)();
+  const char *fmt;
+  void (*fn) PVPROTO ((const char *, ...));
 
   if (soft)
     fn = cp_pedwarn;
@@ -118,7 +119,9 @@ readonly_error (arg, string, soft)
     (*fn) ("%s of read-only reference `%D'", string, TREE_OPERAND (arg, 0));
   else if (TREE_CODE (arg) == RESULT_DECL)
     (*fn) ("%s of read-only named return value `%D'", string, arg);
-  else	       
+  else if (TREE_CODE (arg) == FUNCTION_DECL)
+    (*fn) ("%s of function `%D'", string, arg);
+  else
     (*fn) ("%s of read-only location", string);
 }
 
@@ -131,29 +134,7 @@ abstract_virtuals_error (decl, type)
      tree type;
 {
   tree u = CLASSTYPE_ABSTRACT_VIRTUALS (type);
-  int has_abstract_virtuals, needs_final_overriders;
   tree tu;
-
-  /* Count how many abstract methods need to be defined.  */
-  for (has_abstract_virtuals = 0, tu = u; tu; tu = TREE_CHAIN (tu))
-    {
-      if (DECL_ABSTRACT_VIRTUAL_P (TREE_VALUE (tu))
-	  && ! DECL_NEEDS_FINAL_OVERRIDER_P (TREE_VALUE (tu)))
-	{
-	  has_abstract_virtuals = 1;
-	  break;
-	}
-    }
-
-  /* Count how many virtual methods need a final overrider.  */
-  for (needs_final_overriders = 0, tu = u; tu; tu = TREE_CHAIN (tu))
-    {
-      if (DECL_NEEDS_FINAL_OVERRIDER_P (TREE_VALUE (tu)))
-	{
-	  needs_final_overriders = 1;
-	  break;
-	}
-    }
 
   if (decl)
     {
@@ -183,44 +164,12 @@ abstract_virtuals_error (decl, type)
     {
       TREE_PURPOSE (u) = error_mark_node;
 
-      if (has_abstract_virtuals)
-	error ("  since the following virtual functions are abstract:");
-      tu = u;
-      while (tu)
-	{
-	  if (DECL_ABSTRACT_VIRTUAL_P (TREE_VALUE (tu))
-	      && ! DECL_NEEDS_FINAL_OVERRIDER_P (TREE_VALUE (tu)))
-	    cp_error ("\t%#D", TREE_VALUE (tu));
-	  tu = TREE_CHAIN (tu);
-	}
-
-      if (needs_final_overriders)
-	{
-	  if (has_abstract_virtuals)
-	    error ("  and the following virtual functions need a final overrider:");
-	  else
-	    error ("  since the following virtual functions need a final overrider:");
-	}
-      tu = u;
-      while (tu)
-	{
-	  if (DECL_NEEDS_FINAL_OVERRIDER_P (TREE_VALUE (tu)))
-	    cp_error ("\t%#D", TREE_VALUE (tu));
-	  tu = TREE_CHAIN (tu);
-	}
+      error ("  since the following virtual functions are abstract:");
+      for (tu = u; tu; tu = TREE_CHAIN (tu))
+	cp_error_at ("\t%#D", TREE_VALUE (tu));
     }
   else
-    {
-      if (has_abstract_virtuals)
-	{
-	  if (needs_final_overriders)
-	    cp_error ("  since type `%T' has abstract virtual functions and must override virtual functions", type);
-	  else
-	    cp_error ("  since type `%T' has abstract virtual functions", type);
-	}
-      else
-	cp_error ("  since type `%T' must override virtual functions", type);
-    }
+    cp_error ("  since type `%T' has abstract virtual functions", type);
 }
 
 /* Print an error message for invalid use of a signature type.
@@ -265,73 +214,89 @@ incomplete_type_error (value, type)
      tree value;
      tree type;
 {
-  char *errmsg = 0;
-
   /* Avoid duplicate error message.  */
   if (TREE_CODE (type) == ERROR_MARK)
     return;
 
+retry:
+  /* We must print an error message.  Be clever about what it says.  */
+
+  switch (TREE_CODE (type))
+    {
+    case RECORD_TYPE:
+    case UNION_TYPE:
+    case ENUMERAL_TYPE:
+      cp_error ("invalid use of undefined type `%#T'", type);
+      cp_error_at ("forward declaration of `%#T'", type);
+      break;
+
+    case VOID_TYPE:
+      cp_error ("invalid use of void expression");
+      break;
+
+    case ARRAY_TYPE:
+      if (TYPE_DOMAIN (type))
+        {
+          type = TREE_TYPE (type);
+          goto retry;
+        }
+      cp_error ("invalid use of array with unspecified bounds");
+      break;
+
+    case OFFSET_TYPE:
+    bad_member:
+      cp_error ("invalid use of member (did you forget the `&' ?)");
+      break;
+
+    case TEMPLATE_TYPE_PARM:
+      cp_error ("invalid use of template type parameter");
+      break;
+
+    case UNKNOWN_TYPE:
+      if (value && TREE_CODE (value) == COMPONENT_REF)
+        goto bad_member;
+      else if (value && TREE_CODE (value) == ADDR_EXPR)
+        cp_error ("address of overloaded function with no contextual type information");
+      else if (value && TREE_CODE (value) == OVERLOAD)
+        cp_error ("overloaded function with no contextual type information");
+      else
+        cp_error ("insufficient contextual information to determine type");
+      break;
+    
+    default:
+      my_friendly_abort (108);
+    }
+
   if (value != 0 && (TREE_CODE (value) == VAR_DECL
 		     || TREE_CODE (value) == PARM_DECL))
-    cp_error ("`%D' has incomplete type", value);
-  else
-    {
-    retry:
-      /* We must print an error message.  Be clever about what it says.  */
-
-      switch (TREE_CODE (type))
-	{
-	case RECORD_TYPE:
-	case UNION_TYPE:
-	case ENUMERAL_TYPE:
-	  errmsg = "invalid use of undefined type `%#T'";
-	  break;
-
-	case VOID_TYPE:
-	  error ("invalid use of void expression");
-	  return;
-
-	case ARRAY_TYPE:
-	  if (TYPE_DOMAIN (type))
-	    {
-	      type = TREE_TYPE (type);
-	      goto retry;
-	    }
-	  error ("invalid use of array with unspecified bounds");
-	  return;
-
-	case OFFSET_TYPE:
-	  error ("invalid use of member type (did you forget the `&' ?)");
-	  return;
-
-	case TEMPLATE_TYPE_PARM:
-	  error ("invalid use of template type parameter");
-	  return;
-
-	default:
-	  my_friendly_abort (108);
-	}
-
-      cp_error (errmsg, type);
-    }
+    cp_error_at ("incomplete `%D' defined here", value);
 }
 
 /* Like error(), but don't call report_error_function().  */
 
 static void
-ack (s, v, v2)
-     char *s;
-     HOST_WIDE_INT v;
-     HOST_WIDE_INT v2;
+ack VPROTO ((const char *msg, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  const char *msg;
+#endif
+  va_list ap;
   extern char * progname;
+  
+  VA_START (ap, msg);
+
+#ifndef ANSI_PROTOTYPES
+  msg = va_arg (ap, const char *);
+#endif
   
   if (input_filename)
     fprintf (stderr, "%s:%d: ", input_filename, lineno);
   else
     fprintf (stderr, "%s: ", progname);
 
-  fprintf (stderr, s, v, v2);
+  vfprintf (stderr, msg, ap);
+  va_end (ap);
+  
   fprintf (stderr, "\n");
 }
   
@@ -350,19 +315,14 @@ ack (s, v, v2)
    59 is, so they can understand how to work around it, should they
    ever run into it.
 
-   Note, there will be no more calls in the C++ front end to abort,
-   because the C++ front end is so unreliable still.  The C front end
-   can get away with calling abort, because for most of the calls to
-   abort on most machines, it, I suspect, can be proven that it is
-   impossible to ever call abort.  The same is not yet true for C++,
-   one day, maybe it will be.
-
    We used to tell people to "fix the above error[s] and try recompiling
    the program" via a call to fatal, but that message tended to look
    silly.  So instead, we just do the equivalent of a call to fatal in the
-   same situation (call exit).  */
+   same situation (call exit).
 
-/* First used: 0 (reserved), Last used: 369.  Free: */
+   We used to assign sequential numbers for the aborts; now we use an
+   encoding of the date the abort was added, since that has more meaning
+   when we only see the error message.  */
 
 static int abortcount = 0;
 
@@ -383,8 +343,8 @@ my_friendly_abort (i)
 	    ack ("Internal compiler error.");
 	  else
 	    ack ("Internal compiler error %d.", i);
-	  ack ("Please submit a full bug report to `egcs-bugs@egcs.cygnus.com'.");
-	  ack ("See <URL:http://egcs.cygnus.com/faq.html#bugreport> for details.");
+	  ack ("Please submit a full bug report.");
+	  ack ("See <URL:http://www.gnu.org/software/gcc/faq.html#bugreport> for instructions.");
 	}
       else
 	error ("confused by earlier errors, bailing out");
@@ -398,8 +358,8 @@ my_friendly_abort (i)
   else
     error ("Internal compiler error %d.", i);
 
-  error ("Please submit a full bug report to `egcs-bugs@egcs.cygnus.com'.");
-  fatal ("See <URL:http://egcs.cygnus.com/faq.html#bugreport> for details.");
+  error ("Please submit a full bug report.");
+  fatal ("See <URL:http://www.gnu.org/software/gcc/faq.html#bugreport> for instructions.");
 }
 
 void
@@ -440,6 +400,7 @@ initializer_constant_valid_p (value, endtype)
     case REAL_CST:
     case STRING_CST:
     case COMPLEX_CST:
+    case PTRMEM_CST:
       return null_pointer_node;
 
     case ADDR_EXPR:
@@ -650,13 +611,6 @@ store_init_value (decl, init)
 	  else
 	    init = TREE_VALUE (init);
 	}
-      else if (TREE_TYPE (init) != 0
-	       && TREE_CODE (TREE_TYPE (init)) == OFFSET_TYPE)
-	{
-	  /* Use the type of our variable to instantiate
-	     the type of our initializer.  */
-	  init = instantiate_type (type, init, 1);
-	}
       else if (TREE_CODE (init) == TREE_LIST
 	       && TREE_CODE (TREE_TYPE (decl)) == ARRAY_TYPE)
 	{
@@ -766,6 +720,9 @@ digest_init (type, init, tail)
   /* Strip NON_LVALUE_EXPRs since we aren't using as an lvalue.  */
   if (TREE_CODE (init) == NON_LVALUE_EXPR)
     init = TREE_OPERAND (init, 0);
+
+  if (TREE_CODE (init) == CONSTRUCTOR && TREE_TYPE (init) == type)
+    return init;
 
   raw_constructor = TREE_CODE (init) == CONSTRUCTOR && TREE_TYPE (init) == 0;
 
@@ -937,6 +894,7 @@ process_init_constructor (type, init, elts)
   /* List of the elements of the result constructor,
      in reverse order.  */
   register tree members = NULL;
+  register tree next1;
   tree result;
   int allconstant = 1;
   int allsimple = 1;
@@ -971,42 +929,62 @@ process_init_constructor (type, init, elts)
       else
 	len = -1;  /* Take as many as there are */
 
-      for (i = 0; (len < 0 || i < len) && tail != 0; i++)
+      for (i = 0; len < 0 || i < len; i++)
 	{
-	  register tree next1;
-
-	  if (TREE_PURPOSE (tail)
-	      && (TREE_CODE (TREE_PURPOSE (tail)) != INTEGER_CST
-		  || TREE_INT_CST_LOW (TREE_PURPOSE (tail)) != i))
-	    sorry ("non-trivial labeled initializers");
-
-	  if (TREE_VALUE (tail) != 0)
+	  if (tail)
 	    {
-	      tree tail1 = tail;
-	      next1 = digest_init (TREE_TYPE (type),
-				   TREE_VALUE (tail), &tail1);
-	      if (TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (type))
-		  && TYPE_MAIN_VARIANT (TREE_TYPE (type)) != TYPE_MAIN_VARIANT (TREE_TYPE (next1)))
+	      if (TREE_PURPOSE (tail)
+		  && (TREE_CODE (TREE_PURPOSE (tail)) != INTEGER_CST
+		      || TREE_INT_CST_LOW (TREE_PURPOSE (tail)) != i))
+		sorry ("non-trivial labeled initializers");
+
+	      if (TREE_VALUE (tail) != 0)
 		{
-		  /* The fact this needs to be done suggests this code needs
-		     to be totally rewritten.  */
-		  next1 = convert_for_initialization (NULL_TREE, TREE_TYPE (type), next1, LOOKUP_NORMAL, "initialization", NULL_TREE, 0);
+		  tree tail1 = tail;
+		  next1 = digest_init (TREE_TYPE (type),
+				       TREE_VALUE (tail), &tail1);
+		  if (next1 == error_mark_node)
+		    return next1;
+		  my_friendly_assert
+		    (same_type_p (TYPE_MAIN_VARIANT (TREE_TYPE (type)),
+				  TYPE_MAIN_VARIANT (TREE_TYPE (next1))),
+		     981123);
+		  my_friendly_assert (tail1 == 0
+				      || TREE_CODE (tail1) == TREE_LIST, 319);
+		  if (tail == tail1 && len < 0)
+		    {
+		      error ("non-empty initializer for array of empty elements");
+		      /* Just ignore what we were supposed to use.  */
+		      tail1 = NULL_TREE;
+		    }
+		  tail = tail1;
 		}
-	      my_friendly_assert (tail1 == 0
-				  || TREE_CODE (tail1) == TREE_LIST, 319);
-	      if (tail == tail1 && len < 0)
+	      else
 		{
-		  error ("non-empty initializer for array of empty elements");
-		  /* Just ignore what we were supposed to use.  */
-		  tail1 = NULL_TREE;
+		  next1 = error_mark_node;
+		  tail = TREE_CHAIN (tail);
 		}
-	      tail = tail1;
+	    }
+	  else if (len < 0)
+	    /* We're done.  */
+	    break;
+	  else if (TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (type)))
+	    {
+	      /* If this type needs constructors run for
+		 default-initialization, we can't rely on the backend to do it
+		 for us, so build up TARGET_EXPRs.  If the type in question is
+		 a class, just build one up; if it's an array, recurse.  */
+
+	      if (IS_AGGR_TYPE (TREE_TYPE (type)))
+		next1 = build_functional_cast (TREE_TYPE (type), NULL_TREE);
+	      else
+		next1 = build (CONSTRUCTOR, NULL_TREE, NULL_TREE, NULL_TREE);
+	      next1 = digest_init (TREE_TYPE (type), next1, 0);
 	    }
 	  else
-	    {
-	      next1 = error_mark_node;
-	      tail = TREE_CHAIN (tail);
-	    }
+	    /* The default zero-initialization is fine for us; don't
+	       add anything to the CONSTRUCTOR.  */
+	    break;
 
 	  if (next1 == error_mark_node)
 	    erroneous = 1;
@@ -1017,7 +995,7 @@ process_init_constructor (type, init, elts)
 	  members = expr_tree_cons (NULL_TREE, next1, members);
 	}
     }
-  if (TREE_CODE (type) == RECORD_TYPE)
+  else if (TREE_CODE (type) == RECORD_TYPE)
     {
       register tree field;
 
@@ -1042,12 +1020,10 @@ process_init_constructor (type, init, elts)
 	    }
 	}
 
-      for (field = TYPE_FIELDS (type); field && tail;
+      for (field = TYPE_FIELDS (type); field;
 	   field = TREE_CHAIN (field))
 	{
-	  register tree next1;
-
-	  if (! DECL_NAME (field))
+	  if (! DECL_NAME (field) && DECL_C_BIT_FIELD (field))
 	    {
 	      members = expr_tree_cons (field, integer_zero_node, members);
 	      continue;
@@ -1056,25 +1032,67 @@ process_init_constructor (type, init, elts)
 	  if (TREE_CODE (field) != FIELD_DECL)
 	    continue;
 
-	  if (TREE_PURPOSE (tail)
-	      && TREE_PURPOSE (tail) != field
-	      && TREE_PURPOSE (tail) != DECL_NAME (field))
-	    sorry ("non-trivial labeled initializers");
-
-	  if (TREE_VALUE (tail) != 0)
+	  if (tail)
 	    {
-	      tree tail1 = tail;
+	      if (TREE_PURPOSE (tail)
+		  && TREE_PURPOSE (tail) != field
+		  && TREE_PURPOSE (tail) != DECL_NAME (field))
+		sorry ("non-trivial labeled initializers");
 
-	      next1 = digest_init (TREE_TYPE (field),
-				   TREE_VALUE (tail), &tail1);
-	      my_friendly_assert (tail1 == 0
-				  || TREE_CODE (tail1) == TREE_LIST, 320);
-	      tail = tail1;
+	      if (TREE_VALUE (tail) != 0)
+		{
+		  tree tail1 = tail;
+
+		  next1 = digest_init (TREE_TYPE (field),
+				       TREE_VALUE (tail), &tail1);
+		  my_friendly_assert (tail1 == 0
+				      || TREE_CODE (tail1) == TREE_LIST, 320);
+		  tail = tail1;
+		}
+	      else
+		{
+		  next1 = error_mark_node;
+		  tail = TREE_CHAIN (tail);
+		}
+	    }
+	  else if (TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (field)))
+	    {
+	      /* If this type needs constructors run for
+		 default-initialization, we can't rely on the backend to do it
+		 for us, so build up TARGET_EXPRs.  If the type in question is
+		 a class, just build one up; if it's an array, recurse.  */
+
+	      if (IS_AGGR_TYPE (TREE_TYPE (field)))
+		next1 = build_functional_cast (TREE_TYPE (field),
+					       NULL_TREE);
+	      else
+		next1 = build (CONSTRUCTOR, NULL_TREE, NULL_TREE,
+			       NULL_TREE);
+	      next1 = digest_init (TREE_TYPE (field), next1, 0);
+
+	      /* Warn when some struct elements are implicitly initialized.  */
+	      if (extra_warnings)
+		cp_warning ("missing initializer for member `%D'", field);
 	    }
 	  else
 	    {
-	      next1 = error_mark_node;
-	      tail = TREE_CHAIN (tail);
+	      if (TREE_READONLY (field))
+		cp_error ("uninitialized const member `%D'", field);
+	      else if (TYPE_LANG_SPECIFIC (TREE_TYPE (field))
+		       && CLASSTYPE_READONLY_FIELDS_NEED_INIT (TREE_TYPE (field)))
+		cp_error ("member `%D' with uninitialized const fields",
+			  field);
+	      else if (TREE_CODE (TREE_TYPE (field)) == REFERENCE_TYPE)
+		cp_error ("member `%D' is uninitialized reference", field);
+
+	      /* Warn when some struct elements are implicitly initialized
+		 to zero.  */
+	      if (extra_warnings)
+		cp_warning ("missing initializer for member `%D'", field);
+
+	      /* The default zero-initialization is fine for us; don't
+		 add anything to the CONSTRUCTOR.  */
+	      continue;
 	    }
 
 	  if (next1 == error_mark_node)
@@ -1085,45 +1103,10 @@ process_init_constructor (type, init, elts)
 	    allsimple = 0;
 	  members = expr_tree_cons (field, next1, members);
 	}
-      for (; field; field = TREE_CHAIN (field))
-	{
-	  if (TREE_CODE (field) != FIELD_DECL)
-	    continue;
-
-	  /* Does this field have a default initialization?  */
-	  if (DECL_INITIAL (field))
-	    {
-	      register tree next1 = DECL_INITIAL (field);
-	      if (TREE_CODE (next1) == ERROR_MARK)
-		erroneous = 1;
-	      else if (!TREE_CONSTANT (next1))
-		allconstant = 0;
-	      else if (! initializer_constant_valid_p (next1, TREE_TYPE (next1)))
-		allsimple = 0;
-	      members = expr_tree_cons (field, next1, members);
-	    }
-	  else if (TREE_READONLY (field))
-	    error ("uninitialized const member `%s'",
-		   IDENTIFIER_POINTER (DECL_NAME (field)));
-	  else if (TYPE_LANG_SPECIFIC (TREE_TYPE (field))
-		   && CLASSTYPE_READONLY_FIELDS_NEED_INIT (TREE_TYPE (field)))
-	    error ("member `%s' with uninitialized const fields",
-		   IDENTIFIER_POINTER (DECL_NAME (field)));
-	  else if (TREE_CODE (TREE_TYPE (field)) == REFERENCE_TYPE)
-	    error ("member `%s' is uninitialized reference",
-		   IDENTIFIER_POINTER (DECL_NAME (field)));
-	  /* Warn when some struct elements are implicitly initialized
-	      to zero.  */
-	  else if (extra_warnings)
-	    warning ("missing initializer for member `%s'",
-		     IDENTIFIER_POINTER (DECL_NAME (field)));
-	}
     }
-
-  if (TREE_CODE (type) == UNION_TYPE)
+  else if (TREE_CODE (type) == UNION_TYPE)
     {
       register tree field = TYPE_FIELDS (type);
-      register tree next1;
 
       /* Find the first named field.  ANSI decided in September 1990
 	 that only named fields count here.  */
@@ -1152,8 +1135,8 @@ process_init_constructor (type, init, elts)
 	      if (temp)
 		field = temp, win = 1;
 	      else
-		error ("no field `%s' in union being initialized",
-		       IDENTIFIER_POINTER (TREE_PURPOSE (tail)));
+		cp_error ("no field `%D' in union being initialized",
+			  TREE_PURPOSE (tail));
 	    }
 	  if (!win)
 	    TREE_VALUE (tail) = error_mark_node;
@@ -1392,8 +1375,7 @@ build_m_component_ref (datum, component)
     }
   else
     {
-      component = build_indirect_ref (component, NULL_PTR);
-      type = TREE_TYPE (component);
+      type = TREE_TYPE (TREE_TYPE (component));
       rettype = TREE_TYPE (type);
     }
 
@@ -1502,6 +1484,11 @@ build_functional_cast (exp, parms)
   if (TYPE_SIZE (complete_type (type)) == NULL_TREE)
     {
       cp_error ("type `%T' is not yet defined", type);
+      return error_mark_node;
+    }
+  if (IS_AGGR_TYPE (type) && CLASSTYPE_ABSTRACT_VIRTUALS (type))
+    {
+      abstract_virtuals_error (NULL_TREE, type);
       return error_mark_node;
     }
 
@@ -1659,11 +1646,15 @@ report_case_error (code, type, new_value, old_value)
 }
 #endif
 
+/* Complain about defining new types in inappropriate places.  We give an
+   exception for C-style casts, to accommodate GNU C stylings.  */
+
 void
 check_for_new_type (string, inptree)
-     char *string;
+     const char *string;
      flagged_type_tree inptree;
 {
-  if (pedantic && inptree.new_type_flag)
+  if (inptree.new_type_flag
+      && (pedantic || strcmp (string, "cast") != 0))
     pedwarn ("ANSI C++ forbids defining types within %s",string);
 }

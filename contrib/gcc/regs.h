@@ -38,10 +38,6 @@ Boston, MA 02111-1307, USA.  */
 
 extern int max_regno;
 
-/* Maximum number of SCRATCH rtx's in each block of this function.  */
-
-extern int max_scratch;
-
 /* Register information indexed by register number */
 typedef struct reg_info_def {
 				/* fields set by reg_scan */
@@ -211,14 +207,17 @@ extern int caller_save_needed;
 #define CLASS_LIKELY_SPILLED_P(CLASS) (reg_class_size[(int) (CLASS)] == 1)
 #endif
 
-/* Allocated in local_alloc.  */
+/* Select a register mode required for caller save of hard regno REGNO.  */
+#ifndef HARD_REGNO_CALLER_SAVE_MODE
+#define HARD_REGNO_CALLER_SAVE_MODE(REGNO, NREGS) \
+  choose_hard_reg_mode (REGNO, NREGS)
+#endif
 
-/* A list of SCRATCH rtl allocated by local-alloc.  */
-extern rtx *scratch_list;
-/* The basic block in which each SCRATCH is used.  */
-extern int *scratch_block;
-/* The length of the arrays pointed to by scratch_block and scratch_list.  */
-extern int scratch_list_length;
+/* Registers that get partially clobbered by a call in a given mode. 
+   These must not be call used registers.  */
+#ifndef HARD_REGNO_CALL_PART_CLOBBERED
+#define HARD_REGNO_CALL_PART_CLOBBERED(REGNO, MODE) 0
+#endif
 
 /* Allocate reg_n_info tables */
 extern void allocate_reg_info PROTO((size_t, int, int));

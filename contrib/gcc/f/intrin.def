@@ -133,7 +133,7 @@ DEFNAME	("DSQRT",	"dsqrt",	"DSqRt",	genNONE,	specDSQRT)
 DEFNAME	("DTAN",	"dtan",		"DTan",		genNONE,	specDTAN)
 DEFNAME	("DTAND",	"dtand",	"DTanD",	genNONE,	specDTAND)	/* VXT */
 DEFNAME	("DTANH",	"dtanh",	"DTanH",	genNONE,	specDTANH)
-DEFNAME	("DTIME",	"dtime",	"Dtime",	genDTIME,	specNONE)	/* UNIX */
+DEFNAME	("DTIME",	"dtime",	"DTime",	genDTIME,	specNONE)	/* UNIX */
 DEFNAME	("EOSHIFT",	"eoshift",	"EOShift",	genNONE,	specEOSHIFT)	/* F90 */
 DEFNAME	("EPSILON",	"epsilon",	"Epsilon",	genNONE,	specEPSILON)	/* F90 */
 DEFNAME	("ERF",		"erf",		"ErF",		genNONE,	specERF)	/* UNIX */
@@ -142,7 +142,7 @@ DEFNAME	("ETIME",	"etime",	"ETime",	genETIME,	specNONE)	/* UNIX */
 DEFNAME	("EXIT",	"exit",		"Exit",		genNONE,	specEXIT)	/* UNIX */
 DEFNAME	("EXP",		"exp",		"Exp",		genNONE,	specEXP)
 DEFNAME	("EXPONENT",	"exponent",	"Exponent",	genNONE,	specEXPONENT)	/* F90 */
-DEFNAME	("FDATE",	"fdate",	"Fdate",	genFDATE,	specNONE)	/* UNIX */
+DEFNAME	("FDATE",	"fdate",	"FDate",	genFDATE,	specNONE)	/* UNIX */
 DEFNAME	("FGET",	"fget",		"FGet",		genFGET,	specNONE)	/* UNIX */
 DEFNAME	("FGETC",	"fgetc",	"FGetC",	genFGETC,	specNONE)	/* UNIX */
 DEFNAME	("FLOAT",	"float",	"Float",	genNONE,	specFLOAT)
@@ -3006,6 +3006,12 @@ DEFSPEC (NONE,
 
    CONTROL    -- A control string, described below.
 
+   The DEFIMPY macro specifies the above, plus:
+
+   Y2KBAD     -- TRUE if the intrinsic is known to be non-Y2K-compliant,
+                 FALSE if it is known to be Y2K-compliant.  (In terms of
+                 interface and libg2c implementation.)
+
 */
 
 /* The control string has the following format:
@@ -3231,8 +3237,8 @@ DEFIMP	(CHMOD_subr,	"CHMOD_subr",	CHMOD,,,	"--:-:Name=A1,Mode=A1,Status=?I1w")
 DEFIMP	(COMPLEX,	"COMPLEX",	,,,		"C=:*:Real=S*,Imag=S*")
 DEFIMP	(CPU_TIME,	"CPU_TIME",	SECOND,,,	"--:-:Seconds=R*w")
 DEFIMP	(CTIME_func,	"CTIME_func",	CTIME,,,	"A1*:-:STime=I*")
-DEFIMP	(CTIME_subr,	"CTIME_subr",	CTIME,,,	"--:-:Result=A1w,STime=I*")
-DEFIMP	(DATE,		"DATE",		DATE,,,		"--:-:Date=A1w")
+DEFIMP	(CTIME_subr,	"CTIME_subr",	CTIME,,,	"--:-:STime=I*,Result=A1w")
+DEFIMPY	(DATE,		"DATE",		DATE,,,		"--:-:Date=A1w",	TRUE)
 DEFIMP	(DATE_AND_TIME,	"DATE_AND_TIME", DATE_AND_TIME,,, "--:-:Date=A1w,Time=?A1w,Zone=?A1w,Values=?I1(8)w")
 DEFIMP	(DBESJ0,	"DBESJ0",	L_BESJ0,,,	"R2:-:X=R2")
 DEFIMP	(DBESJ1,	"DBESJ1",	L_BESJ1,,,	"R2:-:X=R2")
@@ -3247,11 +3253,11 @@ DEFIMP	(DFLOAT,	"DFLOAT",	,,,		"R2:-:A=I*")
 DEFIMP	(DIMAG,		"DIMAG",	,DIMAG,,	"R2:-:Z=C2")
 DEFIMP	(DREAL,		"DREAL",	,,,		"R2:-:A=N*")
 DEFIMP	(DTIME_func,	"DTIME_func",	DTIME,,,	"R1:-:TArray=R1(2)w")
-DEFIMP	(DTIME_subr,	"DTIME_subr",	DTIME,,,	"--:-:Result=R1w,TArray=R1(2)w")
+DEFIMP	(DTIME_subr,	"DTIME_subr",	DTIME,,,	"--:-:TArray=R1(2)w,Result=R1w")
 DEFIMP	(ERF,		"ERF",		L_ERF,ERF,,	"R=:0:X=R*")
 DEFIMP	(ERFC,		"ERFC",		L_ERFC,ERFC,,	"R=:0:X=R*")
 DEFIMP	(ETIME_func,	"ETIME_func",	ETIME,,,	"R1:-:TArray=R1(2)w")
-DEFIMP	(ETIME_subr,	"ETIME_subr",	ETIME,,,	"--:-:Result=R1w,TArray=R1(2)w")
+DEFIMP	(ETIME_subr,	"ETIME_subr",	ETIME,,,	"--:-:TArray=R1(2)w,Result=R1w")
 DEFIMP	(EXIT,		"EXIT",		EXIT,,,		"--:-:Status=?I*")
 DEFIMP	(FDATE_func,	"FDATE_func",	FDATE,,,	"A1*:-:")
 DEFIMP	(FDATE_subr,	"FDATE_subr",	FDATE,,,	"--:-:Date=A1w")
@@ -3289,7 +3295,7 @@ DEFIMP	(IBCLR,		"IBCLR",	,,,		"I=:0:I=I*,Pos=I*")
 DEFIMP	(IBITS,		"IBITS",	,,,		"I=:0:I=I*,Pos=I*,Len=I*")
 DEFIMP	(IBSET,		"IBSET",	,,,		"I=:0:I=I*,Pos=I*")
 DEFIMP	(IDATE_unix,	"IDATE_unix",	IDATE,,,	"--:-:TArray=I1(3)w")
-DEFIMP	(IDATE_vxt,	"IDATE_vxt",	VXTIDATE,,,	"--:-:M=I1w,D=I1w,Y=I1w")
+DEFIMPY	(IDATE_vxt,	"IDATE_vxt",	VXTIDATE,,,	"--:-:M=I1w,D=I1w,Y=I1w",	TRUE)
 DEFIMP	(IEOR,		"IEOR",		,,,		"I=:*:I=I*,J=I*")
 DEFIMP	(IOR,		"IOR",		,,,		"I=:*:I=I*,J=I*")
 DEFIMP	(IERRNO,	"IERRNO",	IERRNO,,,	"I1:-:")
@@ -3342,7 +3348,7 @@ DEFIMP	(TIME8,		"TIME8",	TIME,,,		"I2:-:")
 DEFIMP	(TIME_unix,	"TIME_unix",	TIME,,,		"I1:-:")
 DEFIMP	(TIME_vxt,	"TIME_vxt",	VXTTIME,,,	"--:-:Time=A1[8]w")
 DEFIMP	(TTYNAM_func,	"TTYNAM_func",	TTYNAM,,,	"A1*:-:Unit=I*")
-DEFIMP	(TTYNAM_subr,	"TTYNAM_subr",	TTYNAM,,,	"--:-:Name=A1w,Unit=I*")
+DEFIMP	(TTYNAM_subr,	"TTYNAM_subr",	TTYNAM,,,	"--:-:Unit=I*,Name=A1w")
 DEFIMP	(UMASK_func,	"UMASK_func",	UMASK,,,	"I1:-:Mask=I*")
 DEFIMP	(UMASK_subr,	"UMASK_subr",	UMASK,,,	"--:-:Mask=I*,Old=?I1w")
 DEFIMP	(UNLINK_func,	"UNLINK_func",	UNLINK,,,	"I1:-:File=A1")

@@ -1,5 +1,5 @@
 /* Definitions for code generation pass of GNU compiler.
-   Copyright (C) 1987, 91-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 91-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -91,20 +91,45 @@ extern int current_function_uses_pic_offset_table;
 /* The arg pointer hard register, or the pseudo into which it was copied.  */
 extern rtx current_function_internal_arg_pointer;
 
-/* Nonzero means stack pops must not be deferred, and deferred stack
-   pops must not be output.  It is nonzero inside a function call,
-   inside a conditional expression, inside a statement expression,
-   and in other cases as well.  */
+/* This is nonzero if memory access checking be enabled in the current
+   function.  */
+extern int current_function_check_memory_usage;
+
+/* Under some ABIs, it is the caller's responsibility to pop arguments
+   pushed for function calls.  A naive implementation would simply pop
+   the arguments immediately after each call.  However, if several
+   function calls are made in a row, it is typically cheaper to pop
+   all the arguments after all of the calls are complete since a
+   single pop instruction can be used.  Therefore, GCC attempts to
+   defer popping the arguments until absolutely necessary.  (For
+   example, at the end of a conditional, the arguments must be popped,
+   since code outside the conditional won't know whether or not the
+   arguments need to be popped.)
+
+   When INHIBIT_DEFER_POP is non-zero, however, the compiler does not
+   attempt to defer pops.  Instead, the stack is popped immediately
+   after each call.  Rather then setting this variable directly, use
+   NO_DEFER_POP and OK_DEFER_POP.  */
 extern int inhibit_defer_pop;
+
+/* Prevent the compiler from deferring stack pops.  See
+   inhibit_defer_pop for more information.  */
+#define NO_DEFER_POP (inhibit_defer_pop += 1)
+
+/* Allow the compiler to defer stack pops.  See inhibit_defer_pop for
+   more information.  */
+#define OK_DEFER_POP (inhibit_defer_pop -= 1)
 
 /* Number of function calls seen so far in current function.  */
 
 extern int function_call_count;
 
-/* RTX for stack slot that holds the current handler for nonlocal gotos.
+/* List (chain of EXPR_LIST) of stack slots that hold the current handlers
+   for nonlocal gotos.  There is one for every nonlocal label in the function;
+   this list matches the one in nonlocal_labels.
    Zero when function does not have nonlocal labels.  */
 
-extern rtx nonlocal_goto_handler_slot;
+extern rtx nonlocal_goto_handler_slots;
 
 /* RTX for stack slot that holds the stack pointer value to restore
    for a nonlocal goto.
@@ -119,9 +144,6 @@ extern rtx nonlocal_goto_stack_level;
 #ifdef TREE_CODE   /* Don't lose if tree.h not included.  */
 extern tree nonlocal_labels;
 #endif
-
-#define NO_DEFER_POP (inhibit_defer_pop += 1)
-#define OK_DEFER_POP (inhibit_defer_pop -= 1)
 
 /* Number of units that we should eventually pop off the stack.
    These are the arguments to function calls that have already returned.  */
@@ -208,6 +230,17 @@ enum direction {none, upward, downward};  /* Value has this type.  */
 /* Provide a default value for STRICT_ARGUMENT_NAMING.  */
 #ifndef STRICT_ARGUMENT_NAMING
 #define STRICT_ARGUMENT_NAMING 0
+#endif
+
+/* Provide a default value for PRETEND_OUTGOING_VARARGS_NAMED.  */
+#ifdef SETUP_INCOMING_VARARGS
+#ifndef PRETEND_OUTGOING_VARARGS_NAMED
+#define PRETEND_OUTGOING_VARARGS_NAMED 1
+#endif
+#else
+/* It is an error to define PRETEND_OUTGOING_VARARGS_NAMED without
+   defining SETUP_INCOMING_VARARGS.  */
+#define PRETEND_OUTGOING_VARARGS_NAMED 0
 #endif
 
 /* Nonzero if we do not know how to pass TYPE solely in registers.
@@ -437,11 +470,13 @@ extern rtx memset_libfunc;
 extern rtx bzero_libfunc;
 
 extern rtx throw_libfunc;
+extern rtx rethrow_libfunc;
 extern rtx sjthrow_libfunc;
 extern rtx sjpopnthrow_libfunc;
 extern rtx terminate_libfunc;
 extern rtx setjmp_libfunc;
 extern rtx longjmp_libfunc;
+extern rtx eh_rtime_match_libfunc;
 
 extern rtx eqhf2_libfunc;
 extern rtx nehf2_libfunc;
@@ -532,6 +567,10 @@ extern rtx chkr_set_right_libfunc;
 extern rtx chkr_copy_bitmap_libfunc;
 extern rtx chkr_check_exec_libfunc;
 extern rtx chkr_check_str_libfunc;
+
+/* For instrument-functions.  */
+extern rtx profile_function_entry_libfunc;
+extern rtx profile_function_exit_libfunc;
 
 typedef rtx (*rtxfun) PROTO ((rtx));
 
@@ -576,7 +615,7 @@ extern int expand_twoval_binop PROTO((optab, rtx, rtx, rtx, rtx, int));
 extern rtx expand_unop PROTO((enum machine_mode, optab, rtx, rtx, int));
 
 /* Expand the absolute value operation.  */
-extern rtx expand_abs PROTO((enum machine_mode, rtx, rtx, int, int));
+extern rtx expand_abs PROTO((enum machine_mode, rtx, rtx, int));
 
 /* Expand the complex absolute value operation.  */
 extern rtx expand_complex_abs PROTO((enum machine_mode, rtx, rtx, int));
@@ -601,6 +640,11 @@ extern void emit_0_to_1_insn PROTO((rtx));
 /* Emit one rtl insn to compare two rtx's.  */
 extern void emit_cmp_insn PROTO((rtx, rtx, enum rtx_code, rtx,
 				 enum machine_mode, int, int));
+
+/* Emit a pair of rtl insns to compare two rtx's and to jump 
+   to a label if the comparison is true.  */
+extern void emit_cmp_and_jump_insns PROTO((rtx, rtx, enum rtx_code, rtx,
+					   enum machine_mode, int, int, rtx));
 
 /* Nonzero if a compare of mode MODE can be done straightforwardly
    (without splitting it into pieces).  */
@@ -699,6 +743,9 @@ extern rtx protect_from_queue PROTO((rtx, int));
 /* Perform all the pending incrementations.  */
 extern void emit_queue PROTO((void));
 
+/* Tell if something has a queued subexpression.  */
+extern int queued_subexp_p PROTO((rtx));
+
 /* Emit some rtl insns to move data between rtx's, converting machine modes.
    Both modes must be floating or both fixed.  */
 extern void convert_move PROTO((rtx, rtx, int));
@@ -726,6 +773,11 @@ extern void emit_group_load PROTO((rtx, rtx, int, int));
 /* Store a BLKmode value from non-consecutive registers represented by a
    PARALLEL.  */
 extern void emit_group_store PROTO((rtx, rtx, int, int));
+
+#ifdef TREE_CODE
+/* Copy BLKmode object from a set of registers. */
+extern rtx copy_blkmode_from_reg PROTO((rtx,rtx,tree));
+#endif
 
 /* Mark REG as holding a parameter for the next CALL_INSN.  */
 extern void use_reg PROTO((rtx *, rtx));
@@ -962,6 +1014,14 @@ extern rtx assemble_static_space PROTO((int));
 extern rtx (*lang_expand_expr) PROTO ((union tree_node *, rtx,
 				       enum machine_mode,
 				       enum expand_modifier modifier));
+
+#ifdef TREE_CODE
+/* Hook called by output_constant for language-specific tree codes.
+   It is up to the language front-end to install a hook if it has any
+   such codes that output_constant needs to know about.  Returns a
+   language-independent constant equivalent to its input.  */
+extern tree (*lang_expand_constant) PROTO((tree));
+#endif
 
 extern void init_all_optabs			PROTO ((void));
 extern void init_mov_optab			PROTO ((void));

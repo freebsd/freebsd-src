@@ -1,5 +1,5 @@
 /* Definitions for Intel 386 running SCO Unix System V 3.2 Version 5.
-   Copyright (C) 1992, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1992, 95-98, 1999 Free Software Foundation, Inc.
    Contributed by Kean Johnston (hug@netcom.com)
 
 This file is part of GNU CC.
@@ -211,8 +211,9 @@ do {									\
 #undef ASM_FILE_END
 #define ASM_FILE_END(FILE)						\
 do {									\
-  fprintf ((FILE), "%s\t\"GCC: (GNU) %s\"\n",				\
-    IDENT_ASM_OP, version_string);					\
+     if (!flag_no_ident)						\
+	fprintf ((FILE), "%s\t\"GCC: (GNU) %s\"\n",			\
+		 IDENT_ASM_OP, version_string);				\
 } while (0)
 
 #undef ASM_FINISH_DECLARE_OBJECT
@@ -689,7 +690,9 @@ dtors_section ()							\
 #undef SELECT_SECTION
 #define SELECT_SECTION(DECL,RELOC)					\
 {									\
-  if (TREE_CODE (DECL) == STRING_CST)					\
+  if (TARGET_ELF && flag_pic && RELOC)					\
+     data_section ();							\
+  else if (TREE_CODE (DECL) == STRING_CST)				\
     {									\
       if (! flag_writable_strings)					\
 	const_section ();						\
@@ -698,11 +701,7 @@ dtors_section ()							\
     }									\
   else if (TREE_CODE (DECL) == VAR_DECL)				\
     {									\
-      if ((TARGET_ELF && flag_pic && RELOC)				\
-	  || !TREE_READONLY (DECL) || TREE_SIDE_EFFECTS (DECL)		\
-	  || !DECL_INITIAL (DECL)					\
-	  || (DECL_INITIAL (DECL) != error_mark_node			\
-	      && !TREE_CONSTANT (DECL_INITIAL (DECL))))			\
+      if (! DECL_READONLY_SECTION (DECL, RELOC)) 			\
 	data_section ();						\
       else								\
 	const_section ();						\
@@ -726,10 +725,18 @@ dtors_section ()							\
   && strcmp (STR, "Tbss"))
 
 #undef TARGET_DEFAULT
-#define TARGET_DEFAULT 0301
+#define TARGET_DEFAULT (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS)
 
 #undef HANDLE_SYSV_PRAGMA
 #define HANDLE_SYSV_PRAGMA 1
+
+/* Though OpenServer support .weak in COFF, g++ doesn't play nice with it
+ * so we'll punt on it for now
+ */
+#define SUPPORTS_WEAK (TARGET_ELF)
+#define ASM_WEAKEN_LABEL(FILE,NAME) \
+  do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME);		\
+	fputc ('\n', FILE); } while (0)
 
 #undef SCCS_DIRECTIVE
 #define SCCS_DIRECTIVE 1
@@ -904,10 +911,22 @@ dtors_section ()							\
 
 #undef SUBTARGET_SWITCHES
 #define SUBTARGET_SWITCHES 		\
-	{ "coff", MASK_COFF }, 		\
-	{ "elf", -MASK_COFF },
+	{ "coff", MASK_COFF, "Generate COFF output" }, 		\
+	{ "elf", -MASK_COFF, "Generate ELF output"  },
 
 #define NO_DOLLAR_IN_LABEL
+
+/* Implicit library calls should use memcpy, not bcopy, etc.  They are 
+   faster on OpenServer libraries. */
+
+#define TARGET_MEM_FUNCTIONS
+
+/* Biggest alignment supported by the object file format of this
+   machine.  Use this macro to limit the alignment which can be
+   specified using the `__attribute__ ((aligned (N)))' construct.  If
+   not defined, the default value is `BIGGEST_ALIGNMENT'.  */
+
+#define MAX_OFILE_ALIGNMENT (32768*8)
 
 /*
 Here comes some major hackery to get the crt stuff to compile properly.

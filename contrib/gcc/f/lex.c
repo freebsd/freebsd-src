@@ -1,6 +1,6 @@
 /* Implementation of Fortran lexer
-   Copyright (C) 1995-1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Copyright (C) 1995-1998 Free Software Foundation, Inc.
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -1077,6 +1077,23 @@ ffelex_get_directive_line_ (char **text, FILE *finput)
    Returns the next character unhandled, which is always newline or EOF.  */
 
 #if FFECOM_targetCURRENT == FFECOM_targetGCC
+
+#if defined HANDLE_PRAGMA
+/* Local versions of these macros, that can be passed as function pointers.  */
+static int
+pragma_getc ()
+{
+  return getc (finput);
+}
+
+static void
+pragma_ungetc (arg)
+     int arg;
+{
+  ungetc (arg, finput);
+}
+#endif /* HANDLE_PRAGMA */
+
 static int
 ffelex_hash_ (FILE *finput)
 {
@@ -1105,17 +1122,42 @@ ffelex_hash_ (FILE *finput)
 	      && ((c = getc (finput)) == ' ' || c == '\t' || c == '\n'
 		  || c == EOF))
 	    {
-	      goto skipline;
 #if 0	/* g77 doesn't handle pragmas, so ignores them FOR NOW. */
-#ifdef HANDLE_SYSV_PRAGMA
-	      return handle_sysv_pragma (finput, c);
-#else /* !HANDLE_SYSV_PRAGMA */
+	      static char buffer [128];
+	      char * buff = buffer;
+
+	      /* Read the pragma name into a buffer.  */
+	      while (isspace (c = getc (finput)))
+		continue;
+	      
+	      do
+		{
+		  * buff ++ = c;
+		  c = getc (finput);
+		}
+	      while (c != EOF && ! isspace (c) && c != '\n'
+		     && buff < buffer + 128);
+
+	      pragma_ungetc (c);
+		
+	      * -- buff = 0;
 #ifdef HANDLE_PRAGMA
-	      HANDLE_PRAGMA (finput);
+	      if (HANDLE_PRAGMA (pragma_getc, pragma_ungetc, buffer))
+		goto skipline;
 #endif /* HANDLE_PRAGMA */
-	      goto skipline;
-#endif /* !HANDLE_SYSV_PRAGMA */
+#ifdef HANDLE_GENERIC_PRAGMAS
+	      if (handle_generic_pragma (buffer))
+		goto skipline;
+#endif /* !HANDLE_GENERIC_PRAGMAS */
+
+	      /* Issue a warning message if we have been asked to do so.
+		 Ignoring unknown pragmas in system header file unless
+		 an explcit -Wunknown-pragmas has been given. */
+	      if (warn_unknown_pragmas > 1
+		  || (warn_unknown_pragmas && ! in_system_header))
+		warning ("ignoring pragma: %s", token_buffer);
 #endif /* 0 */
+	      goto skipline;
 	    }
 	}
 
@@ -1201,7 +1243,7 @@ ffelex_hash_ (FILE *finput)
 		  goto skipline;
 		}
 
-	      if (ffe_is_ident ())
+	      if (! flag_no_ident)
 		{
 #ifdef ASM_OUTPUT_IDENT
 		  ASM_OUTPUT_IDENT (asm_out_file,
@@ -1709,10 +1751,10 @@ ffelex_token_new_ ()
   return t;
 }
 
-static char *
+static const char *
 ffelex_type_string_ (ffelexType type)
 {
-  static char *types[] = {
+  static const char *types[] = {
     "FFELEX_typeNONE",
     "FFELEX_typeCOMMENT",
     "FFELEX_typeEOS",
@@ -4305,7 +4347,7 @@ ffelexHandler
 ffelex_splice_tokens (ffelexHandler first, ffelexToken master,
 		      ffeTokenLength start)
 {
-  char *p;
+  unsigned char *p;
   ffeTokenLength i;
   ffelexToken t;
 
@@ -4448,7 +4490,7 @@ ffelex_token_name_from_names (ffelexToken t, ffeTokenLength start,
       assert (len > 0);
       assert ((start + len) <= t->length);
     }
-  assert (ffelex_is_firstnamechar (t->text[start]));
+  assert (ffelex_is_firstnamechar ((unsigned char)(t->text[start])));
 
   nt = ffelex_token_new_ ();
   nt->type = FFELEX_typeNAME;
@@ -4483,7 +4525,7 @@ ffelex_token_names_from_names (ffelexToken t, ffeTokenLength start,
       assert (len > 0);
       assert ((start + len) <= t->length);
     }
-  assert (ffelex_is_firstnamechar (t->text[start]));
+  assert (ffelex_is_firstnamechar ((unsigned char)(t->text[start])));
 
   nt = ffelex_token_new_ ();
   nt->type = FFELEX_typeNAMES;
@@ -4504,7 +4546,7 @@ ffelex_token_names_from_names (ffelexToken t, ffeTokenLength start,
 /* Make a new CHARACTER token.  */
 
 ffelexToken
-ffelex_token_new_character (char *s, ffewhereLine l, ffewhereColumn c)
+ffelex_token_new_character (const char *s, ffewhereLine l, ffewhereColumn c)
 {
   ffelexToken t;
 
@@ -4539,11 +4581,11 @@ ffelex_token_new_eof ()
 /* Make a new NAME token.  */
 
 ffelexToken
-ffelex_token_new_name (char *s, ffewhereLine l, ffewhereColumn c)
+ffelex_token_new_name (const char *s, ffewhereLine l, ffewhereColumn c)
 {
   ffelexToken t;
 
-  assert (ffelex_is_firstnamechar (*s));
+  assert (ffelex_is_firstnamechar ((unsigned char)*s));
 
   t = ffelex_token_new_ ();
   t->type = FFELEX_typeNAME;
@@ -4560,11 +4602,11 @@ ffelex_token_new_name (char *s, ffewhereLine l, ffewhereColumn c)
 /* Make a new NAMES token.  */
 
 ffelexToken
-ffelex_token_new_names (char *s, ffewhereLine l, ffewhereColumn c)
+ffelex_token_new_names (const char *s, ffewhereLine l, ffewhereColumn c)
 {
   ffelexToken t;
 
-  assert (ffelex_is_firstnamechar (*s));
+  assert (ffelex_is_firstnamechar ((unsigned char)*s));
 
   t = ffelex_token_new_ ();
   t->type = FFELEX_typeNAMES;
@@ -4589,7 +4631,7 @@ ffelex_token_new_names (char *s, ffewhereLine l, ffewhereColumn c)
    in the original string.  */
 
 ffelexToken
-ffelex_token_new_number (char *s, ffewhereLine l, ffewhereColumn c)
+ffelex_token_new_number (const char *s, ffewhereLine l, ffewhereColumn c)
 {
   ffelexToken t;
   ffeTokenLength len;

@@ -1,5 +1,5 @@
 /* Definitions for IBM PS2 running AIX/386.
-   Copyright (C) 1988, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1996, 1998 Free Software Foundation, Inc.
    Contributed by Minh Tran-Le <TRANLE@intellicorp.com>.
 
 This file is part of GNU CC.
@@ -58,9 +58,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef ASM_FILE_START
 #define ASM_FILE_START(FILE) 					\
-  do { fprintf (FILE, "\t.file\t");				\
-       output_quoted_string (FILE, dump_base_name);		\
-       fprintf (FILE, "\n");					\
+  do { output_file_directive (FILE, main_input_filename);	\
        if (optimize)						\
           ASM_FILE_START_1 (FILE); 				\
        else							\

@@ -55,7 +55,6 @@ Boston, MA 02111-1307, USA.  */
 #include "cpplib.h"
 extern cpp_reader  parse_in;
 extern cpp_options parse_options;
-static int cpp_initialized;
 #endif
 
 /* This is the default way of generating a method name.  */
@@ -284,7 +283,8 @@ static void dump_interface			PROTO((FILE *, tree));
 
 /* Everything else.  */
 
-static void objc_fatal				PROTO((void));
+static void objc_fatal				PROTO((void))
+  ATTRIBUTE_NORETURN;
 static tree define_decl				PROTO((tree, tree));
 static tree lookup_method_in_protocol_list	PROTO((tree, tree, int));
 static tree lookup_protocol_in_reflist		PROTO((tree, tree));
@@ -591,9 +591,18 @@ generate_struct_by_value_array ()
   exit (0);
 }
 
+#if USE_CPPLIB
+extern char *yy_cur;
+#endif
+
 void
 lang_init_options ()
 {
+#if USE_CPPLIB
+  cpp_reader_init (&parse_in);
+  parse_in.opts = &parse_options;
+  cpp_options_init (&parse_options);
+#endif
 }
 
 void
@@ -604,7 +613,10 @@ lang_init ()
      With luck, we discover the real source file's name from that
      and put it in input_filename.  */
   ungetc (check_newline (), finput);
-#endif
+#else
+  check_newline ();
+  yy_cur--;
+#endif 
 
   /* The line number can be -1 if we had -g3 and the input file
      had a directive specifying line 0.  But we want predefined
@@ -682,15 +694,6 @@ lang_decode_option (argc, argv)
      char **argv;
 {
   char *p = argv[0];
-#if USE_CPPLIB
-  if (! cpp_initialized)
-    {
-      cpp_reader_init (&parse_in);
-      parse_in.data = &parse_options;
-      cpp_options_init (&parse_options);
-      cpp_initialized = 1;
-    }
-#endif
   if (!strcmp (p, "-lang-objc"))
     doing_objc_thang = 1;
   else if (!strcmp (p, "-gen-decls"))
@@ -1317,7 +1320,7 @@ my_build_string (len, str)
 tree
 build_objc_string (len, str)
      int len;
-     char *str;
+     const char *str;
 {
   tree s = build_string (len, str);
 
@@ -1855,6 +1858,8 @@ get_objc_string_decl (ident, section)
     chain = meth_var_names_chain;
   else if (section == meth_var_types)
     chain = meth_var_types_chain;
+  else
+    abort ();
 
   for (; chain != 0; chain = TREE_VALUE (chain))
     if (TREE_VALUE (chain) == ident)
@@ -2078,7 +2083,7 @@ build_selector_translation_table ()
   tree sc_spec, decl_specs;
   tree chain, initlist = NULL_TREE;
   int offset = 0;
-  tree decl, var_decl, name;
+  tree decl = NULL_TREE, var_decl, name;
 
   /* The corresponding pop_obstacks is in finish_decl,
      called at the end of this function.  */
@@ -2350,6 +2355,8 @@ add_objc_string (ident, section)
     chain = &meth_var_names_chain;
   else if (section == meth_var_types)
     chain = &meth_var_types_chain;
+  else
+    abort ();
 
   while (*chain)
     {
@@ -3380,6 +3387,7 @@ build_selector_template ()
        struct objc_class *sibling_class;
      }
      struct objc_protocol_list *protocols;
+     void *gc_object_type;
    };  */
 
 static void
@@ -3515,6 +3523,21 @@ build_class_template ()
 			  decl_specs, NULL_TREE);
   chainon (field_decl_chain, field_decl);
 
+  /* void *sel_id; */
+
+  decl_specs = build_tree_list (NULL_TREE, ridpointers[(int) RID_VOID]);
+  field_decl = build1 (INDIRECT_REF, NULL_TREE, get_identifier ("sel_id"));
+  field_decl
+    = grokfield (input_filename, lineno, field_decl, decl_specs, NULL_TREE);
+  chainon (field_decl_chain, field_decl);
+
+  /* void *gc_object_type; */
+
+  decl_specs = build_tree_list (NULL_TREE, ridpointers[(int) RID_VOID]);
+  field_decl = build1 (INDIRECT_REF, NULL_TREE, get_identifier ("gc_object_type"));
+  field_decl
+    = grokfield (input_filename, lineno, field_decl, decl_specs, NULL_TREE);
+  chainon (field_decl_chain, field_decl);
 
   finish_struct (objc_class_template, field_decl_chain, NULL_TREE);
 }
@@ -4203,6 +4226,8 @@ generate_protocol_list (i_or_p)
 		  synth_id_with_class_suffix ("_OBJC_CATEGORY_PROTOCOLS",
 					      i_or_p),
 		  build_int_2 (size + 2, 0));
+  else
+    abort ();
 
   expr_decl = build1 (INDIRECT_REF, NULL_TREE, expr_decl);
 
@@ -4287,6 +4312,7 @@ build_category_initializer (type, cat_name, class_name,
        struct objc_class *sibling_class;
      }
      struct objc_protocol_list *protocols;
+     void *gc_object_type;
    };  */
 
 static tree
@@ -4376,6 +4402,9 @@ build_shared_structure_initializer (type, isa, super, name, size, status,
      TREE_TYPE (expr) = cast_type2;
      initlist = tree_cons (NULL_TREE, expr, initlist);
      }
+
+  /* gc_object_type = NULL */
+  initlist = tree_cons (NULL_TREE, build_int_2 (0, 0), initlist);
 
   return build_constructor (type, nreverse (initlist));
 }
@@ -4576,6 +4605,9 @@ synth_id_with_class_suffix (preamble, ctxt)
 	= (char *) alloca (strlen (preamble) + strlen (protocol_name) + 3);
       sprintf (string, "%s_%s", preamble, protocol_name);
     }
+  else
+    abort ();
+  
   return get_identifier (string);
 }
 
@@ -4590,6 +4622,7 @@ is_objc_type_qualifier (node)
 	      || node == ridpointers [(int) RID_OUT]
 	      || node == ridpointers [(int) RID_INOUT]
 	      || node == ridpointers [(int) RID_BYCOPY]
+              || node == ridpointers [(int) RID_BYREF]
 	      || node == ridpointers [(int) RID_ONEWAY]));
 }
 
@@ -4676,6 +4709,8 @@ build_keyword_selector (selector)
 	key_name = KEYWORD_KEY_NAME (key_chain);
       else if (TREE_CODE (selector) == TREE_LIST)
 	key_name = TREE_PURPOSE (key_chain);
+      else
+	abort ();
 
       if (key_name)
 	len += IDENTIFIER_LENGTH (key_name) + 1;
@@ -4693,6 +4728,8 @@ build_keyword_selector (selector)
 	key_name = KEYWORD_KEY_NAME (key_chain);
       else if (TREE_CODE (selector) == TREE_LIST)
 	key_name = TREE_PURPOSE (key_chain);
+      else
+	abort ();
 
       if (key_name)
 	strcat (buf, IDENTIFIER_POINTER (key_name));
@@ -4945,6 +4982,8 @@ build_message_expr (mess)
     sel_name = args;
   else if (TREE_CODE (args) == TREE_LIST)
     sel_name = build_keyword_selector (args);
+  else
+    abort ();
 
   /* Build the parameter list to give to the method.  */
 
@@ -5351,6 +5390,8 @@ build_selector_expr (selnamelist)
     selname = selnamelist;
   else if (TREE_CODE (selnamelist) == TREE_LIST)
     selname = build_keyword_selector (selnamelist);
+  else
+    abort ();
 
   if (flag_typed_selectors)
     return build_typed_selector_reference (selname, 0);
@@ -6475,6 +6516,8 @@ encode_type_qualifiers (declspecs)
 	obstack_1grow (&util_obstack, 'o');
       else if (ridpointers[(int) RID_BYCOPY] == TREE_VALUE (spec))
 	obstack_1grow (&util_obstack, 'O');
+      else if (ridpointers[(int) RID_BYREF] == TREE_VALUE (spec))
+        obstack_1grow (&util_obstack, 'R');
       else if (ridpointers[(int) RID_ONEWAY] == TREE_VALUE (spec))
 	obstack_1grow (&util_obstack, 'V');
     }
@@ -6819,6 +6862,62 @@ encode_type (type, curtype, format)
 }
 
 static void
+encode_complete_bitfield (int position, tree type, int size)
+{
+  enum tree_code code = TREE_CODE (type);
+  char buffer[40];
+  char charType = '?';
+
+  if (code == INTEGER_TYPE)
+    {
+      if (TREE_INT_CST_LOW (TYPE_MIN_VALUE (type)) == 0
+	  && TREE_INT_CST_HIGH (TYPE_MIN_VALUE (type)) == 0)
+	{
+	  /* Unsigned integer types.  */
+
+	  if (TYPE_MODE (type) == QImode)
+	    charType = 'C';
+	  else if (TYPE_MODE (type) == HImode)
+	    charType = 'S';
+	  else if (TYPE_MODE (type) == SImode)
+	    {
+	      if (type == long_unsigned_type_node)
+		charType = 'L';
+	      else
+		charType = 'I';
+	    }
+	  else if (TYPE_MODE (type) == DImode)
+	    charType = 'Q';
+	}
+
+      else
+	/* Signed integer types.  */
+	{
+	  if (TYPE_MODE (type) == QImode)
+	    charType = 'c';
+	  else if (TYPE_MODE (type) == HImode)
+	    charType = 's';
+	  else if (TYPE_MODE (type) == SImode)
+	    {
+	      if (type == long_integer_type_node)
+		charType = 'l';
+	      else
+		charType = 'i';
+	    }
+
+	  else if (TYPE_MODE (type) == DImode)
+	    charType = 'q';
+	}
+    }
+
+  else
+    abort ();
+
+  sprintf (buffer, "b%d%c%d", position, charType, size);
+  obstack_grow (&util_obstack, buffer, strlen (buffer));
+}
+
+static void
 encode_field_decl (field_decl, curtype, format)
      tree field_decl;
      int curtype;
@@ -6826,18 +6925,36 @@ encode_field_decl (field_decl, curtype, format)
 {
   tree type;
 
- /* If this field is obviously a bitfield, or is a bitfield that has been
+  type = TREE_TYPE (field_decl);
+
+  /* If this field is obviously a bitfield, or is a bitfield that has been
      clobbered to look like a ordinary integer mode, go ahead and generate
      the bitfield typing information.  */
-  type = TREE_TYPE (field_decl);
-  if (DECL_BIT_FIELD (field_decl))
-    encode_bitfield (DECL_FIELD_SIZE (field_decl), format);
-  else if (TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
-	   && DECL_FIELD_SIZE (field_decl)
-	   && TYPE_MODE (type) > DECL_MODE (field_decl))
-    encode_bitfield (DECL_FIELD_SIZE (field_decl), format);
+  if (flag_next_runtime)
+    {
+      if (DECL_BIT_FIELD (field_decl))
+	encode_bitfield (DECL_FIELD_SIZE (field_decl), format);
+      else if (TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
+	       && DECL_FIELD_SIZE (field_decl)
+	       && TYPE_MODE (type) > DECL_MODE (field_decl))
+	encode_bitfield (DECL_FIELD_SIZE (field_decl), format);
+      else
+	encode_type (TREE_TYPE (field_decl), curtype, format);
+    }
   else
-    encode_type (TREE_TYPE (field_decl), curtype, format);
+    {
+      if (DECL_BIT_FIELD (field_decl)
+	  || (TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
+	      && DECL_FIELD_SIZE (field_decl)
+	      && TYPE_MODE (type) > DECL_MODE (field_decl)))
+	{
+	  encode_complete_bitfield (TREE_INT_CST_LOW (DECL_FIELD_BITPOS (field_decl)),
+				    DECL_BIT_FIELD_TYPE (field_decl),
+				    DECL_FIELD_SIZE (field_decl));
+	}
+      else
+	encode_type (TREE_TYPE (field_decl), curtype, format);
+    }
 }
 
 static tree
@@ -7535,7 +7652,7 @@ gen_declarator (decl, buf, name)
 	  return buf;
 
 	default:
-	  break;
+	  abort ();
 	}
 
       return str;

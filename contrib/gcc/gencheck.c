@@ -23,8 +23,9 @@ Boston, MA 02111-1307, USA.  */
 
 #define DEFTREECODE(SYM, NAME, TYPE, LEN)   STRINGIFY(SYM),
 
-char *tree_codes[] = {
+const char *tree_codes[] = {
 #include "tree.def"
+#include "gencheck.h"
 (char*)0
 };
 
@@ -35,7 +36,7 @@ void usage ()
 
 int main (argc, argv)
      int argc;
-     char *argv[];
+     char *argv[] ATTRIBUTE_UNUSED;
 {
   int i;
 
@@ -61,22 +62,23 @@ int main (argc, argv)
   return 0;
 }
 
-#if defined(USE_C_ALLOCA) && !defined(__GNUC__)
+#if defined(USE_C_ALLOCA)
 /* FIXME: We only need an xmalloc definition because we are forced to
    link with alloca.o on some platforms.  This should go away if/when
    we link against libiberty.a. (ghazi@caip.rutgers.edu 6/3/98) */
-char *
+PTR
 xmalloc (nbytes)
-     int nbytes;
+  size_t nbytes;
 {
-  char *tmp = (char *) malloc (nbytes);
+  register PTR tmp = (PTR) malloc (nbytes);
 
   if (!tmp)
     {
-      fprintf (stderr, "can't allocate %d bytes (out of virtual memory)\n", nbytes);
+      fprintf (stderr, "can't allocate %d bytes (out of virtual memory)\n",
+	       nbytes);
       exit (FATAL_EXIT_CODE);
     }
 
   return tmp;
 }
-#endif /* USE_C_ALLOCA && !__GNUC__ */
+#endif /* USE_C_ALLOCA */

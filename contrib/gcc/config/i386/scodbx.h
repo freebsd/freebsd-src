@@ -1,6 +1,6 @@
 /* Definitions for Intel 386 running SCO Unix System V,
    using dbx-in-coff encapsulation.
-   Copyright (C) 1992, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1995, 1996, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -32,7 +32,7 @@ Boston, MA 02111-1307, USA.  */
    So don't make TARGET_IEEE_FP default for SCO. */
 
 #undef TARGET_DEFAULT
-#define TARGET_DEFAULT 0201
+#define TARGET_DEFAULT (MASK_80387 | MASK_FLOAT_RETURNS)
 
 /* Use crt1.o as a startup file and crtn.o as a closing file.  */
 

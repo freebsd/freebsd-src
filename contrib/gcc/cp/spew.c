@@ -1,5 +1,5 @@
 /* Type Analyzer for GNU C++.
-   Copyright (C) 1987, 89, 92, 93, 94, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 89, 92-97, 1998 Free Software Foundation, Inc.
    Hacked... nay, bludgeoned... by Mark Eichin (eichin@cygnus.com)
 
 This file is part of GNU CC.
@@ -32,6 +32,7 @@ Boston, MA 02111-1307, USA.  */
 #include "parse.h"
 #include "flags.h"
 #include "obstack.h"
+#include "toplev.h"
 
 /* This takes a token stream that hasn't decided much about types and
    tries to figure out as much as it can, with excessive lookahead and
@@ -47,7 +48,7 @@ struct token  {
 
 static int do_aggr PROTO((void));
 static int probe_obstack PROTO((struct obstack *, tree, unsigned int));
-static void scan_tokens PROTO((int));
+static void scan_tokens PROTO((unsigned int));
 
 #ifdef SPEW_DEBUG
 static int num_tokens PROTO((void));
@@ -155,9 +156,9 @@ consume_token ()
 
 static void
 scan_tokens (n)
-     int n;
+     unsigned int n;
 {
-  int i;
+  unsigned int i;
   struct token *tmp;
 
   /* We cannot read past certain tokens, so make sure we don't.  */
@@ -244,7 +245,7 @@ int
 yylex ()
 {
   struct token tmp_token;
-  tree trrr;
+  tree trrr = NULL_TREE;
   int old_looking_for_typename = 0;
 
  retry:
@@ -360,6 +361,19 @@ yylex ()
       break;
 
     case SCSPEC:
+      /* If export, warn that it's unimplemented and go on. */
+      if (tmp_token.yylval.ttype == get_identifier("export"))
+	{
+	  warning ("keyword 'export' not implemented and will be ignored");
+	  consume_token ();
+	  goto retry;
+	}
+      else
+	{
+	  ++first_token;
+	  break;
+	}
+
     case NEW:
       /* do_aggr needs to check if the previous token was RID_NEW,
 	 so just increment first_token instead of calling consume_token.  */

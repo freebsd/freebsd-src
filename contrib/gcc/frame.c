@@ -1,6 +1,6 @@
 /* Subroutines needed for unwinding stack frames for exception handling.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1997 Free Software Foundation, Inc.
+/* Copyright (C) 1997, 1998 Free Software Foundation, Inc.
    Contributed by Jason Merrill <jason@cygnus.com>.
 
 This file is part of GNU CC.
@@ -46,7 +46,6 @@ Boston, MA 02111-1307, USA.  */
 #include "defaults.h"
 
 #ifdef DWARF2_UNWIND_INFO
-#include "gansidecl.h"
 #include "dwarf2.h"
 #include <stddef.h>
 #include "frame.h"
@@ -70,6 +69,25 @@ typedef unsigned int  uword __attribute__ ((mode (SI)));
 typedef unsigned int  uaddr __attribute__ ((mode (pointer)));
 typedef          int  saddr __attribute__ ((mode (pointer)));
 typedef unsigned char ubyte;
+
+/* Terminology:
+   CIE - Common Information Element
+   FDE - Frame Descriptor Element
+
+   There is one per function, and it describes where the function code
+   is located, and what the register lifetimes and stack layout are
+   within the function.
+
+   The data structures are defined in the DWARF specfication, although
+   not in a very readable way (see LITERATURE).
+
+   Every time an exception is thrown, the code needs to locate the FDE
+   for the current function, and starts to look for exception regions
+   from that FDE. This works in a two-level search:
+   a) in a linear search, find the shared image (i.e. DLL) containing
+      the PC
+   b) using the FDE table for that shared object, locate the FDE using
+      binary search (which requires the sorting).  */   
 
 /* The first few fields of a CIE.  The CIE_id field is 0 for a CIE,
    to distinguish it from a valid FDE.  FDEs are aligned to an addressing
@@ -114,6 +132,33 @@ struct frame_state_internal
   struct frame_state s;
   struct frame_state_internal *saved_state;
 };
+
+/* This is undefined below if we need it to be an actual function.  */
+#define init_object_mutex_once()
+
+#if __GTHREADS
+#ifdef __GTHREAD_MUTEX_INIT_FUNCTION
+
+/* Helper for init_object_mutex_once.  */
+
+static void
+init_object_mutex (void)
+{
+  __GTHREAD_MUTEX_INIT_FUNCTION (&object_mutex);
+}
+
+/* Call this to arrange to initialize the object mutex.  */
+
+#undef init_object_mutex_once
+static void
+init_object_mutex_once (void)
+{
+  static __gthread_once_t once = __GTHREAD_ONCE_INIT;
+  __gthread_once (&once, init_object_mutex);
+}
+
+#endif /* __GTHREAD_MUTEX_INIT_FUNCTION */
+#endif /* __GTHREADS */
   
 /* Decode the unsigned LEB128 constant at BUF into the variable pointed to
    by R, and return the new value of BUF.  */
@@ -468,6 +513,7 @@ find_fde (void *pc)
   struct object *ob;
   size_t lo, hi;
 
+  init_object_mutex_once ();
   __gthread_mutex_lock (&object_mutex);
 
   for (ob = objects; ob; ob = ob->next)
@@ -685,6 +731,7 @@ __register_frame_info (void *begin, struct object *ob)
   ob->fde_array = 0;
   ob->count = 0;
 
+  init_object_mutex_once ();
   __gthread_mutex_lock (&object_mutex);
 
   ob->next = objects;
@@ -713,6 +760,7 @@ __register_frame_info_table (void *begin, struct object *ob)
   ob->pc_begin = ob->pc_end = 0;
   ob->count = 0;
 
+  init_object_mutex_once ();
   __gthread_mutex_lock (&object_mutex);
 
   ob->next = objects;
@@ -735,6 +783,7 @@ __deregister_frame_info (void *begin)
 {
   struct object **p;
 
+  init_object_mutex_once ();
   __gthread_mutex_lock (&object_mutex);
 
   p = &objects;

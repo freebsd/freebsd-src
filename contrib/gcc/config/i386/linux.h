@@ -150,9 +150,8 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
     
-/* The egcs-1.1 branch is the last time we will have -Di386.  -D__i386__ is the thing to use.  */
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__ -Dunix -Di386 -D__i386__ -Dlinux -Asystem(posix)"
+#define CPP_PREDEFINES "-D__ELF__ -Dunix -D__i386__ -Dlinux -Asystem(posix)"
 
 #undef CPP_SPEC
 #ifdef USE_GNULIBC_1
@@ -227,8 +226,11 @@ Boston, MA 02111-1307, USA.  */
    This is used to align code labels according to Intel recommendations.  */
 
 #ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
-#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP) \
-  if ((LOG)!=0) \
-    if ((MAX_SKIP)==0) fprintf ((FILE), "\t.p2align %d\n", (LOG)); \
-    else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP))
+#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP)			\
+  do {									\
+    if ((LOG) != 0) {							\
+      if ((MAX_SKIP) == 0) fprintf ((FILE), "\t.p2align %d\n", (LOG));	\
+      else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP));	\
+    }									\
+  } while (0)
 #endif

@@ -1,6 +1,6 @@
 /* name.c -- Implementation File (module.c template V1.0)
    Copyright (C) 1995 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -167,7 +167,7 @@ ffename_lookup (ffenameSpace ns, ffelexToken t)
    ffename_space_drive_global(ns,fn);  */
 
 void
-ffename_space_drive_global (ffenameSpace ns, ffeglobal (*fn) ())
+ffename_space_drive_global (ffenameSpace ns, ffeglobal (*fn) (ffeglobal))
 {
   ffename n;
 
@@ -188,7 +188,7 @@ ffename_space_drive_global (ffenameSpace ns, ffeglobal (*fn) ())
    ffename_space_drive_symbol(ns,fn);  */
 
 void
-ffename_space_drive_symbol (ffenameSpace ns, ffesymbol (*fn) ())
+ffename_space_drive_symbol (ffenameSpace ns, ffesymbol (*fn) (ffesymbol))
 {
   ffename n;
 
