@@ -452,7 +452,6 @@ struct proc;
 
 int	 in_broadcast __P((struct in_addr, struct ifnet *));
 int	 in_canforward __P((struct in_addr));
-int	 in_cksum __P((struct mbuf *, int));
 int	 in_localaddr __P((struct in_addr));
 char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 
