@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <paths.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h> /* For WIFSIGNALED(status) */
 #include <errno.h>
