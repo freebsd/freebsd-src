@@ -74,6 +74,7 @@ struct	socket;
 struct	ether_header;
 #endif
 
+#include <sys/mac.h>		/* struct label */
 #include <sys/queue.h>		/* get TAILQ macros */
 
 #ifdef _KERNEL
@@ -174,6 +175,7 @@ struct ifnet {
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 	u_int8_t *if_broadcastaddr;	/* linklevel broadcast bytestring */
+	struct	label if_label;		/* interface MAC label */
 };
 
 typedef void if_init_f_t(void *);
