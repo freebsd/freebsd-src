@@ -54,7 +54,7 @@
 	<itemize>
 	  <item>MS-DOSを使っている場合:
 	    <url 
-url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/dos-tools/rawrite.exe"
+url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/rawrite.exe"
 	      name="rawrite.exe"> をダウンロードして, これを実行します. 
 <tscreen><verb>
 C:\> rawrite
