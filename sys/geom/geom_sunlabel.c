@@ -164,7 +164,6 @@ g_sunlabel_callconfig(void *arg, int flag)
 	if (!hp->error)
 		hp->error = g_write_data(LIST_FIRST(&hp->gp->consumer),
 		    0, hp->label, SUN_SIZE);
-	wakeup(hp);
 }
 
 /*
@@ -194,11 +193,8 @@ g_sunlabel_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 		error = g_access_rel(cp, 1, 1, 1);
 		if (error)
 			return (error);
-		g_post_event(g_sunlabel_callconfig, &h0h0, M_WAITOK, gp, NULL);
 		g_topology_unlock();
-		do 
-			tsleep(&h0h0, PRIBIO, "g_sunlabel_config", hz);
-		while (h0h0.error == -1);
+		g_waitfor_event(g_sunlabel_callconfig, &h0h0, M_WAITOK, gp, NULL);
 		g_topology_lock();
 		error = h0h0.error;
 		g_access_rel(cp, -1, -1, -1);

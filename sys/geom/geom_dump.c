@@ -106,7 +106,6 @@ g_confdot(void *p, int flag )
 		g_confdot_class(sb, mp);
 	sbuf_printf(sb, "};\n");
 	sbuf_finish(sb);
-	wakeup(p);
 }
 
 static void
@@ -150,7 +149,6 @@ g_conftxt(void *p, int flag)
 	if (mp != NULL)
 		g_conftxt_class(sb, mp);
 	sbuf_finish(sb);
-	wakeup(p);
 }
 
 
@@ -260,7 +258,6 @@ g_confxml(void *p, int flag)
 	KASSERT(flag != EV_CANCEL, ("g_confxml was cancelled"));
 	g_topology_assert();
 	g_conf_specific(p, NULL, NULL, NULL, NULL);
-	wakeup(p);
 }
 
 void
