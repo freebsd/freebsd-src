@@ -1,0 +1,262 @@
+.\"
+.\" Copyright (c) 2001 Dima Dorfman <dd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 26, 2001
+.Dt MDMFS 8
+.Os
+.Sh NAME
+.Nm mdmfs
+.Nd configure and mount an in-memory filesystem using the
+.Xr md 4
+driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl DLMNSX
+.Op Fl a Ar maxcontig
+.Op Fl b Ar block-size
+.Op Fl c Ar cylinders
+.Op Fl d Ar rotdelay
+.Op Fl e Ar maxbpg
+.Op Fl F Ar file
+.Op Fl f Ar frag-size
+.Op Fl i Ar bytes
+.Op Fl m Ar percent-free
+.Op Fl n Ar rotational-positions
+.Op Fl O Ar optimization
+.Op Fl o Ar mount-options
+.Op Fl p Ar permissions
+.Op Fl s Ar size
+.Op Fl w Ar user Ns | Ns Ar group
+.Ar md-device
+.Ar mount-point
+.Sh DESCRIPTION
+The
+.Nm
+program is designed to be a work-alike and look-alike of the deprecated
+.Xr mount_mfs 8 .
+The end result is essentially the same,
+but is accomplished in a completely different way.
+.Nm
+configures an
+.Xr md 4
+disk using
+.Xr mdconfig 8 ,
+labels it using
+.Xr disklabel 8 ,
+puts a UFS filesystem on it using
+.Xr newfs 8 ,
+and mounts it using
+.Xr mount 8 .
+All the command line options are passed to the appropriate program
+at the appropriate stage in order to achieve the desired effect.
+.Pp
+By default,
+.Nm
+creates a swap-based
+.Pq Dv MD_SWAP
+disk with soft-updates enabled
+and mounts it on
+.Ar mount-point .
+It uses the
+.Xr md 4
+device specified by
+.Ar md-device .
+If
+.Ar md-device
+is
+.Ql md
+(no unit number),
+it will use
+.Xr md 4 Ns 's
+auto-unit feature to automatically select an unused device.
+Unless otherwise specified with one of the options below,
+it uses the default arguments to all the helper programs.
+.Pp
+The following options are available.
+Where possible,
+the option letter matches the one used by
+.Xr mount_mfs 8
+for the same thing.
+.Bl -tag -width Ds
+.It Fl a Ar maxcontig
+Specify the maximum number of contiguous blocks that will be laid
+out before forcing a rotational delay
+(see the
+.Fl d
+option).
+.It Fl b Ar block-size
+The block size of the filesystem, in bytes.
+.It Fl c Ar cylinders
+The number of cylinders per cylinder group in the filesystem.
+.It Fl D
+If not using auto-unit,
+don't run
+.Xr mdconfig 8
+to try to detach the unit before attaching it.
+.It Fl d Ar rotdelay
+Specify the mininum time in milliseconds required to initiate another
+disk transfer on the same cylinder.
+Modern disks with read/write-behind achieve higher performance without
+this feature,
+so it is best to leave it at 0 milliseconds.
+.It Fl e Ar maxbpg
+Indicate the maximum number of blocks any single file can allocate
+out of a cylinder group before it is forced to begin allocating
+blocks from another cylinder group.
+.It Fl F Ar file
+Create a vnode-backed
+.Pq Dv MD_VNODE
+memory disk backed by
+.Ar file .
+.It Fl f Ar frag-size
+The fragment size of the filesystem in bytes.
+.It Fl i Ar bytes
+Number of bytes per inode.
+.It Fl L
+Show the output of the helper programs.
+By default,
+it is sent to
+.Pa /dev/null .
+.It Fl M
+Create a
+.Xr malloc 9
+backed disk
+.Pq Dv MD_MALLOC
+instead of a swap-backed disk.
+.It Fl m Ar percent-free
+The percentage of space reserved for the superuser.
+.It Fl N
+Don't actually run the helper programs.
+This is most useful in conjunction with
+.Fl X .
+.It Fl n Ar rotational-positions
+The default number of rotational positions to distinguish.
+.It Fl O Ar optimization
+Select the optimization preference;
+valid choices are
+.Ar space
+and
+.Ar time ,
+which will optimize for minimum space fragmentation and
+minimum time spent allocating blocks,
+respectively.
+.It Fl o Ar mount-options
+Specify the mount options with which to mount the filesystem.
+See
+.Xr mount 8
+for more information.
+.It Fl p Ar permissions
+Set the file (directory) permissions of the mount point
+.Ar mount-point
+to
+.Ar permissions .
+.It Fl S
+Don't enable soft-updates on the filesystem.
+.It Fl s Ar size
+Specify the size of the disk to create.
+This only makes sense if
+.Fl F
+is
+.Em not
+specified.
+That is,
+this will work for the default swap-backed
+.Pq Dv MD_SWAP
+disks,
+and the optional
+.Pq Fl M
+.Xr malloc 9
+backed disks
+.Pq Dv MD_MALLOC .
+.It Fl w Ar user Ns | Ns Ar group
+Set the owner user and group to
+.Ar user
+and
+.Ar group ,
+respectively.
+The arguments have the same semantics as with
+.Xr chown 8 ,
+but specifying just a user or just a group is not supported.
+.El
+.Pp
+The
+.Fl F
+and
+.Fl s
+options are passed to
+.Xr mdconfig 8
+as
+.Fl f
+and
+.Fl s ,
+respectively.
+The
+.Fl a ,
+.Fl b ,
+.Fl c ,
+.Fl d ,
+.Fl e ,
+.Fl f ,
+.Fl i ,
+.FL m
+and
+.Fl n
+options are passed to
+.Xr newfs 8
+with the same letter;
+the
+.Fl O
+option is passed to
+.Xr newfs 8
+as
+.Fl o .
+The
+.Fl o
+option is passed to
+.Xr mount 8
+with the same letter.
+See the programs that the options are passed to for more information
+on their semantics.
+.Sh EXAMPLES
+Create and mount a 32 megabyte swap-backed filesystem on
+.Pa /tmp :
+.Pp
+.Dl mdmfs -s 32m md /tmp
+.Pp
+Create and mount a 16 megabyte malloc-backed filesystem on
+.Pa /tmp
+using the
+.Pa /dev/md1
+device;
+furthermore,
+don't use soft-updates it and mount it
+.Cm async :
+.Pp
+.Dl mdmfs -M -S -o async -s 16m md1 /tmp
+.Sh AUTHOR
+.An Dima Dorfman
+.Aq dd@FreeBSD.org
