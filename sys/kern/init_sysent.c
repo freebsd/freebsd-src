@@ -99,10 +99,6 @@ int	bind();
 int	setsockopt();
 int	listen();
 int	sigsuspend();
-#ifdef TRACE
-int	vtrace();
-#else
-#endif
 int	gettimeofday();
 int	getrusage();
 int	getsockopt();
@@ -208,9 +204,6 @@ int	osigsetmask();
 int	osigstack();
 int	orecvmsg();
 int	osendmsg();
-#ifdef TRACE
-#else
-#endif
 #ifdef vax
 #else
 #endif
@@ -371,11 +364,7 @@ struct sysent sysent[] = {
 	{ compat(2,sigstack) },		/* 112 = old sigstack */
 	{ compat(3,recvmsg) },		/* 113 = old recvmsg */
 	{ compat(3,sendmsg) },		/* 114 = old sendmsg */
-#ifdef TRACE
-	{ 2, vtrace },			/* 115 = vtrace */
-#else
 	{ 0, nosys },			/* 115 = obsolete vtrace */
-#endif
 	{ 2, gettimeofday },			/* 116 = gettimeofday */
 	{ 2, getrusage },			/* 117 = getrusage */
 	{ 5, getsockopt },			/* 118 = getsockopt */
