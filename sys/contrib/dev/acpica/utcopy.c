@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 101 $
+ *              $Revision: 103 $
  *
  *****************************************************************************/
 
@@ -383,21 +383,23 @@ AcpiUtCopyIpackageToEpackage (
     /*
      * Free space begins right after the first package
      */
-    Info.Length      = 0;
+    Info.Length      = ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
+    Info.FreeSpace   = Buffer + ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
     Info.ObjectSpace = 0;
     Info.NumPackages = 1;
-    Info.FreeSpace   = Buffer + ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
 
-    ExternalObject->Type               = ACPI_GET_OBJECT_TYPE (InternalObject);
-    ExternalObject->Package.Count      = InternalObject->Package.Count;
-    ExternalObject->Package.Elements   = ACPI_CAST_PTR (ACPI_OBJECT, Info.FreeSpace);
+    ExternalObject->Type             = ACPI_GET_OBJECT_TYPE (InternalObject);
+    ExternalObject->Package.Count    = InternalObject->Package.Count;
+    ExternalObject->Package.Elements = ACPI_CAST_PTR (ACPI_OBJECT, Info.FreeSpace);
 
     /*
-     * Build an array of ACPI_OBJECTS in the buffer
+     * Leave room for an array of ACPI_OBJECTS in the buffer
      * and move the free space past it
      */
+    Info.Length    += (ACPI_SIZE) ExternalObject->Package.Count *
+                            ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
     Info.FreeSpace += ExternalObject->Package.Count *
-                    ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
+                            ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
 
     Status = AcpiUtWalkPackageTree (InternalObject, ExternalObject,
                             AcpiUtCopyIelementToEelement, &Info);
@@ -620,7 +622,6 @@ AcpiUtCopyEpackageToIpackage (
     ExternalObject->Type               = ACPI_GET_OBJECT_TYPE (InternalObject);
     ExternalObject->Package.Count      = InternalObject->Package.Count;
     ExternalObject->Package.Elements   = (ACPI_OBJECT *)FreeSpace;
-
 
     /*
      * Build an array of ACPI_OBJECTS in the buffer

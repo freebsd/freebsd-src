@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 125 $
+ *       $Revision: 128 $
  *
  *****************************************************************************/
 
@@ -163,6 +163,7 @@ extern      UINT32                      AcpiGbl_NestingLevel;
  *
  */
 ACPI_EXTERN UINT32                      AcpiGbl_TableFlags;
+ACPI_EXTERN UINT32                      AcpiGbl_RsdtTableCount;
 ACPI_EXTERN RSDP_DESCRIPTOR            *AcpiGbl_RSDP;
 ACPI_EXTERN XSDT_DESCRIPTOR            *AcpiGbl_XSDT;
 ACPI_EXTERN FADT_DESCRIPTOR            *AcpiGbl_FADT;
@@ -230,8 +231,9 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockPresent;
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_StartupFlags;
 extern const UINT8                      AcpiGbl_DecodeTo8bit[8];
-extern const NATIVE_CHAR                *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES];
+extern const NATIVE_CHAR               *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES];
 extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
+extern const NATIVE_CHAR               *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
 
 
 /*****************************************************************************
@@ -327,6 +329,12 @@ ACPI_EXTERN ACPI_GPE_INDEX_INFO        *AcpiGbl_GpeNumberToIndex;
 
 ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
+#ifdef ACPI_DISASSEMBLER
+
+ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
+ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
+#endif
+
 
 #ifdef ENABLE_DEBUGGER
 
@@ -337,9 +345,7 @@ ACPI_EXTERN int                         optind;
 ACPI_EXTERN NATIVE_CHAR                *optarg;
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_tables;
-ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_stats;
-ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_ini_methods;
 
 
@@ -351,7 +357,6 @@ ACPI_EXTERN NATIVE_CHAR                 AcpiGbl_DbDebugFilename[40];
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOutputToFile;
 ACPI_EXTERN NATIVE_CHAR                *AcpiGbl_DbBuffer;
 ACPI_EXTERN NATIVE_CHAR                *AcpiGbl_DbFilename;
-ACPI_EXTERN NATIVE_CHAR                *AcpiGbl_DbDisasmIndent;
 ACPI_EXTERN UINT32                      AcpiGbl_DbDebugLevel;
 ACPI_EXTERN UINT32                      AcpiGbl_DbConsoleDebugLevel;
 ACPI_EXTERN ACPI_TABLE_HEADER          *AcpiGbl_DbTablePtr;

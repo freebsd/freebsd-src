@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Name: actables.h - ACPI table management
- *       $Revision: 42 $
+ * Module Name: nsdump - table dumping routines for debug
+ *              $Revision: 1 $
  *
  *****************************************************************************/
 
@@ -23,6 +23,7 @@
  * copy of the source code appearing in this file ("Covered Code") an
  * irrevocable, perpetual, worldwide license under Intel's copyrights in the
  * base code distributed originally by Intel ("Original Intel Code") to copy,
+
  * make derivatives, distribute, use and display any portion of the Covered
  * Code in any form, with the right to sublicense such rights; and
  *
@@ -114,197 +115,107 @@
  *
  *****************************************************************************/
 
-#ifndef __ACTABLES_H__
-#define __ACTABLES_H__
+#define __NSDUMPDV_C__
+
+#include "acpi.h"
+#include "acnamesp.h"
+#include "acparser.h"
 
 
-/* Used in AcpiTbMapAcpiTable for size parameter if table header is to be used */
+#define _COMPONENT          ACPI_NAMESPACE
+        ACPI_MODULE_NAME    ("nsdumpdv")
 
-#define SIZE_IN_HEADER          0
 
+#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 
-ACPI_STATUS
-AcpiTbHandleToObject (
-    UINT16                  TableId,
-    ACPI_TABLE_DESC         **TableDesc);
-
-/*
- * tbconvrt - Table conversion routines
- */
-
-ACPI_STATUS
-AcpiTbConvertToXsdt (
-    ACPI_TABLE_DESC         *TableInfo);
-
-ACPI_STATUS
-AcpiTbConvertTableFadt (
-    void);
-
-ACPI_STATUS
-AcpiTbBuildCommonFacs (
-    ACPI_TABLE_DESC         *TableInfo);
-
-UINT32
-AcpiTbGetTableCount (
-    RSDP_DESCRIPTOR         *RSDP,
-    ACPI_TABLE_HEADER       *RSDT);
-
-/*
- * tbget - Table "get" routines
- */
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsDumpOneDevice
+ *
+ * PARAMETERS:  Handle              - Node to be dumped
+ *              Level               - Nesting level of the handle
+ *              Context             - Passed into WalkNamespace
+ *
+ * DESCRIPTION: Dump a single Node that represents a device
+ *              This procedure is a UserFunction called by AcpiNsWalkNamespace.
+ *
+ ******************************************************************************/
 
 ACPI_STATUS
-AcpiTbGetTable (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_DESC         *TableInfo);
+AcpiNsDumpOneDevice (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_DEVICE_INFO        Info;
+    ACPI_STATUS             Status;
+    UINT32                  i;
 
-ACPI_STATUS
-AcpiTbGetTableHeader (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_HEADER       *ReturnHeader);
 
-ACPI_STATUS
-AcpiTbGetTableBody (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_HEADER       *Header,
-    ACPI_TABLE_DESC         *TableInfo);
+    ACPI_FUNCTION_NAME ("NsDumpOneDevice");
 
-ACPI_STATUS
-AcpiTbGetThisTable (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_HEADER       *Header,
-    ACPI_TABLE_DESC         *TableInfo);
 
-ACPI_STATUS
-AcpiTbTableOverride (
-    ACPI_TABLE_HEADER       *Header,
-    ACPI_TABLE_DESC         *TableInfo);
+    Status = AcpiNsDumpOneObject (ObjHandle, Level, Context, ReturnValue);
 
-ACPI_STATUS
-AcpiTbGetTablePtr (
-    ACPI_TABLE_TYPE         TableType,
-    UINT32                  Instance,
-    ACPI_TABLE_HEADER       **TablePtrLoc);
+    Status = AcpiGetObjectInfo (ObjHandle, &Info);
+    if (ACPI_SUCCESS (Status))
+    {
+        for (i = 0; i < Level; i++)
+        {
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " "));
+        }
 
-ACPI_STATUS
-AcpiTbVerifyRsdp (
-    ACPI_POINTER            *Address);
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "    HID: %s, ADR: %8.8X%8.8X, Status: %X\n",
+                        Info.HardwareId,
+                        ACPI_HIDWORD (Info.Address), ACPI_LODWORD (Info.Address),
+                        Info.CurrentStatus));
+    }
+
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsDumpRootDevices
+ *
+ * PARAMETERS:  None
+ *
+ * DESCRIPTION: Dump all objects of type "device"
+ *
+ ******************************************************************************/
 
 void
-AcpiTbGetRsdtAddress (
-    ACPI_POINTER            *OutAddress);
-
-ACPI_STATUS
-AcpiTbValidateRsdt (
-    ACPI_TABLE_HEADER       *TablePtr);
-
-ACPI_STATUS
-AcpiTbGetRequiredTables (
-    void);
-
-ACPI_STATUS
-AcpiTbGetPrimaryTable (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_DESC         *TableInfo);
-
-ACPI_STATUS
-AcpiTbGetSecondaryTable (
-    ACPI_POINTER            *Address,
-    ACPI_STRING             Signature,
-    ACPI_TABLE_DESC         *TableInfo);
-
-/*
- * tbinstall - Table installation
- */
-
-ACPI_STATUS
-AcpiTbInstallTable (
-    ACPI_TABLE_DESC         *TableInfo);
-
-ACPI_STATUS
-AcpiTbMatchSignature (
-    NATIVE_CHAR             *Signature,
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT8                   SearchType);
-
-ACPI_STATUS
-AcpiTbRecognizeTable (
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT8                  SearchType);
-
-ACPI_STATUS
-AcpiTbInitTableDescriptor (
-    ACPI_TABLE_TYPE         TableType,
-    ACPI_TABLE_DESC         *TableInfo);
+AcpiNsDumpRootDevices (void)
+{
+    ACPI_HANDLE             SysBusHandle;
+    ACPI_STATUS             Status;
 
 
-/*
- * tbremove - Table removal and deletion
- */
-
-void
-AcpiTbDeleteAcpiTables (
-    void);
-
-void
-AcpiTbDeleteAcpiTable (
-    ACPI_TABLE_TYPE         Type);
-
-void
-AcpiTbDeleteSingleTable (
-    ACPI_TABLE_DESC         *TableDesc);
-
-ACPI_TABLE_DESC *
-AcpiTbUninstallTable (
-    ACPI_TABLE_DESC         *TableDesc);
-
-void
-AcpiTbFreeAcpiTablesOfType (
-    ACPI_TABLE_DESC         *TableInfo);
+    ACPI_FUNCTION_NAME ("NsDumpRootDevices");
 
 
-/*
- * tbrsd - RSDP, RSDT utilities
- */
+    /* Only dump the table if tracing is enabled */
 
-ACPI_STATUS
-AcpiTbGetTableRsdt (
-    void);
+    if (!(ACPI_LV_TABLES & AcpiDbgLevel))
+    {
+        return;
+    }
 
-UINT8 *
-AcpiTbScanMemoryForRsdp (
-    UINT8                   *StartAddress,
-    UINT32                  Length);
+    Status = AcpiGetHandle (0, ACPI_NS_SYSTEM_BUS, &SysBusHandle);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
-ACPI_STATUS
-AcpiTbFindRsdp (
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT32                  Flags);
+    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Display of all devices in the namespace:\n"));
 
+    Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, SysBusHandle, 
+                ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
+                AcpiNsDumpOneDevice, NULL, NULL);
+}
 
-/*
- * tbutils - common table utilities
- */
-
-ACPI_STATUS
-AcpiTbFindTable (
-    NATIVE_CHAR             *Signature,
-    NATIVE_CHAR             *OemId,
-    NATIVE_CHAR             *OemTableId,
-    ACPI_TABLE_HEADER       **TablePtr);
-
-ACPI_STATUS
-AcpiTbVerifyTableChecksum (
-    ACPI_TABLE_HEADER       *TableHeader);
-
-UINT8
-AcpiTbChecksum (
-    void                    *Buffer,
-    UINT32                  Length);
-
-ACPI_STATUS
-AcpiTbValidateTableHeader (
-    ACPI_TABLE_HEADER       *TableHeader);
+#endif
 
 
-#endif /* __ACTABLES_H__ */
