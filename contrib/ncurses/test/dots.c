@@ -26,53 +26,118 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-#include <curses.priv.h>
-
-#include <term.h>	/* keypad_xmit, keypad_local, meta_on, meta_off */
-			/* cursor_visible,cursor_normal,cursor_invisible */
-#include <tic.h>	/* struct tinfo_fkeys */
-
-MODULE_ID("$Id: init_keytry.c,v 1.2 1999/09/11 17:32:57 Jeffrey.Honig Exp $")
-
 /*
-**      _nc_init_keytry()
-**
-**      Construct the try for the current terminal's keypad keys.
-**
-*/
+ * Author: Thomas E. Dickey <dickey@clark.net> 1999
+ *
+ * $Id: dots.c,v 1.2 1999/10/23 13:24:32 tom Exp $
+ *
+ * A simple demo of the terminfo interface.
+ */
+#include <test.priv.h>
 
-#ifdef	BROKEN_LINKER
-#undef	_nc_tinfo_fkeys
-#endif
+#include <term.h>		/* for tparm() */
 
-/* LINT_PREPRO
-#if 0*/
-#include <init_keytry.h>
-/* LINT_PREPRO
-#endif*/
+#include <time.h>
+#include <signal.h>
 
-#ifdef	BROKEN_LINKER
-struct tinfo_fkeys *_nc_tinfo_fkeysf(void)
+#define valid(s) ((s != 0) && s != (char *)-1)
+
+static bool interrupted = FALSE;
+
+static int
+outc(int c)
 {
-	return _nc_tinfo_fkeys;
+    if (interrupted) {
+	char tmp = c;
+	write(STDOUT_FILENO, &tmp, 1);
+    } else {
+	putc(c, stdout);
+    }
+    return 0;
 }
-#endif
 
-void _nc_init_keytry(void)
+static bool
+outs(char *s)
 {
-	size_t n;
+    if (valid(s)) {
+	tputs(s, 1, outc);
+	return TRUE;
+    }
+    return FALSE;
+}
 
-	/* The SP->_keytry value is initialized in newterm(), where the SP
-	 * structure is created, because we can not tell where keypad() or
-	 * mouse_activate() (which will call keyok()) are first called.
-	 */
+static void
+cleanup(void)
+{
+    outs(exit_attribute_mode);
+    if (!outs(orig_colors))
+	outs(orig_pair);
+    outs(clear_screen);
+    outs(cursor_normal);
+}
 
-	for (n = 0; _nc_tinfo_fkeys[n].code; n++)
-		if (_nc_tinfo_fkeys[n].offset < STRCOUNT)
-		_nc_add_to_try(&(SP->_keytry),
-			CUR Strings[_nc_tinfo_fkeys[n].offset],
-			_nc_tinfo_fkeys[n].code);
-#ifdef TRACE
-	_nc_trace_tries(SP->_keytry);
-#endif
+static void
+onsig(int n GCC_UNUSED)
+{
+    interrupted = TRUE;
+    cleanup();
+    exit(EXIT_FAILURE);
+}
+
+static float
+ranf(void)
+{
+    long r = (rand() & 077777);
+    return ((float) r / 32768.);
+}
+
+int
+main(
+    int argc GCC_UNUSED,
+    char *argv[]GCC_UNUSED)
+{
+    int x, y, z, j, p;
+    float r;
+    float c;
+
+    for (j = SIGHUP; j <= SIGTERM; j++)
+	if (signal(j, SIG_IGN) != SIG_IGN)
+	    signal(j, onsig);
+
+    srand(time(0));
+    setupterm((char *) 0, 1, (int *) 0);
+    outs(clear_screen);
+    outs(cursor_invisible);
+    if (max_colors > 1) {
+	if (!valid(set_a_foreground)
+	    || !valid(set_a_background)
+	    || (!valid(orig_colors) && !valid(orig_pair)))
+	    max_colors = -1;
+    }
+
+    r = (float) (lines - 4);
+    c = (float) (columns - 4);
+
+    for (;;) {
+	x = (int) (c * ranf()) + 2;
+	y = (int) (r * ranf()) + 2;
+	p = (ranf() > 0.9) ? '*' : ' ';
+
+	tputs(tparm(cursor_address, y, x), 1, outc);
+	if (max_colors > 0) {
+	    z = ranf() * max_colors;
+	    if (ranf() > 0.01) {
+		tputs(tparm(set_a_foreground, z), 1, outc);
+	    } else {
+		tputs(tparm(set_a_background, z), 1, outc);
+	    }
+	} else if (valid(exit_attribute_mode)
+	    && valid(enter_reverse_mode)) {
+	    if (ranf() <= 0.01)
+		outs((ranf() > 0.6) ? enter_reverse_mode :
+		    exit_attribute_mode);
+	}
+	outc(p);
+	fflush(stdout);
+    }
 }

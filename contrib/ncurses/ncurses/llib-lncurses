@@ -1209,7 +1209,7 @@ void	filter(void)
 
 #undef newterm
 SCREEN	*newterm(
-		char	*term, 
+		char	*name, 
 		FILE	*ofp, 
 		FILE	*ifp)
 		{ return(*(SCREEN **)0); }
@@ -1402,7 +1402,7 @@ int	wnoutrefresh(
 
 #undef restartterm
 int	restartterm(
-		char	*term, 
+		char	*termp, 
 		int	filenum, 
 		int	*errret)
 		{ return(*(int *)0); }
@@ -1520,7 +1520,7 @@ int	wsetscrreg(
 
 #undef set_term
 SCREEN	*set_term(
-		SCREEN	*screen)
+		SCREEN	*screenp)
 		{ return(*(SCREEN **)0); }
 
 #undef delscreen
@@ -1938,6 +1938,8 @@ int	use_default_colors(void)
 
 /* ./base/lib_freeall.c */
 
+#include <term_entry.h>
+
 #undef _nc_freeall
 void	_nc_freeall(void)
 		{ /* void */ }
@@ -1958,16 +1960,7 @@ int	resizeterm(
 		int	ToCols)
 		{ return(*(int *)0); }
 
-/* ./trace/trace_tries.c */
-
-#undef _nc_trace_tries
-void	_nc_trace_tries(
-		struct tries *tree)
-		{ /* void */ }
-
 /* ./trace/trace_xnames.c */
-
-#include <term_entry.h>
 
 #undef _nc_trace_xnames
 void	_nc_trace_xnames(
@@ -1996,6 +1989,12 @@ int	_nc_remove_string(
 		char	*string)
 		{ return(*(int *)0); }
 
+/* ./base/version.c */
+
+#undef curses_version
+const char *curses_version(void)
+		{ return(*(const char **)0); }
+
 /* ./base/wresize.c */
 
 #undef wresize
@@ -2012,6 +2011,15 @@ int	_nc_access(
 		const char *path, 
 		int	mode)
 		{ return(*(int *)0); }
+
+/* ./tinfo/add_tries.c */
+
+#undef _nc_add_to_try
+void	_nc_add_to_try(
+		struct tries **tree, 
+		char	*str, 
+		unsigned short code)
+		{ /* void */ }
 
 /* ./tinfo/alloc_entry.c */
 
@@ -2151,7 +2159,7 @@ void	_nc_syserr_abort(
 char	*_nc_tic_expand(
 		const char *srcp, 
 		bool	tic_format, 
-		bool	numbers)
+		int	numbers)
 		{ return(*(char **)0); }
 
 /* ./tinfo/comp_hash.c */
@@ -2293,10 +2301,11 @@ char	*_nc_home_terminfo(void)
 
 #include <init_keytry.h>
 
-#undef _nc_tinfo_fkeys
-struct tinfo_fkeys _nc_tinfo_fkeys[];
-
 #endif
+
+#undef _nc_tinfo_fkeysf
+struct tinfo_fkeys *_nc_tinfo_fkeysf(void)
+		{ return(*(struct tinfo_fkeys **)0); }
 
 #undef _nc_init_keytry
 void	_nc_init_keytry(void)
@@ -2341,12 +2350,12 @@ TERMINAL *cur_term;
 
 #undef set_curterm
 TERMINAL *set_curterm(
-		TERMINAL *term)
+		TERMINAL *termp)
 		{ return(*(TERMINAL **)0); }
 
 #undef del_curterm
 int	del_curterm(
-		TERMINAL *term)
+		TERMINAL *termp)
 		{ return(*(int *)0); }
 
 /* ./tinfo/lib_data.c */
@@ -2835,13 +2844,11 @@ char	*_nc_trace_buf(
 		size_t	want)
 		{ return(*(char **)0); }
 
-/* ./tinfo/add_tries.c */
+/* ./trace/trace_tries.c */
 
-#undef _nc_add_to_try
-void	_nc_add_to_try(
-		struct tries **tree, 
-		char	*str, 
-		unsigned short code)
+#undef _nc_trace_tries
+void	_nc_trace_tries(
+		struct tries *tree)
 		{ /* void */ }
 
 /* ./unctrl.c */

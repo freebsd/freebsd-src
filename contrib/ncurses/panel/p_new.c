@@ -36,7 +36,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_new.c,v 1.2 1998/02/11 12:14:01 tom Exp $")
+MODULE_ID("$Id: p_new.c,v 1.4 1999/09/29 15:22:32 juergen Exp $")
 
 /*+-------------------------------------------------------------------------
   Get root (i.e. stdscr's) panel.
@@ -54,18 +54,14 @@ root_panel(void)
 	PANEL* pan  = _nc_stdscr_pseudo_panel;
 	WINDOW* win = stdscr;
 	pan->win = win;
-	getbegyx(win, pan->wstarty, pan->wstartx);
-	pan->wendy   = pan->wstarty + getmaxy(win);
-	pan->wendx   = pan->wstartx + getmaxx(win);
 	pan->below   = (PANEL*)0;
 	pan->above   = (PANEL*)0;
-        pan->obscure = (PANELCONS*)0;
 #ifdef TRACE
 	pan->user = "stdscr";
 #else
 	pan->user = (void*)0;
 #endif
-	_nc_panel_link_bottom(pan);
+	_nc_bottom_panel = _nc_top_panel = pan;
       }
     }
   return _nc_stdscr_pseudo_panel;
@@ -84,15 +80,11 @@ new_panel(WINDOW *win)
       pan->win = win;
       pan->above = (PANEL *)0;
       pan->below = (PANEL *)0;
-      getbegyx(win, pan->wstarty, pan->wstartx);
-      pan->wendy = pan->wstarty + getmaxy(win);
-      pan->wendx = pan->wstartx + getmaxx(win);
 #ifdef TRACE
       pan->user = "new";
 #else
       pan->user = (char *)0;
 #endif
-      pan->obscure = (PANELCONS *)0;
       (void)show_panel(pan);
     }
   return(pan);

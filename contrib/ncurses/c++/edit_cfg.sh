@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: edit_cfg.sh,v 1.4 1998/02/11 12:13:41 tom Exp $
+# $Id: edit_cfg.sh,v 1.7 1999/09/12 02:00:14 tom Exp $
 ##############################################################################
 # Copyright (c) 1998 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -37,7 +37,12 @@
 #	$2 = etip.h
 #
 for name in \
+	CPP_HAS_PARAM_INIT \
+	ETIP_NEEDS_MATH_EXCEPTION \
+	ETIP_NEEDS_MATH_H \
 	HAVE_BUILTIN_H \
+	HAVE_GXX_BUILTIN_H \
+	HAVE_GPP_BUILTIN_H \
 	HAVE_TYPEINFO \
 	HAVE_VALUES_H
 do

@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.11 1999/07/31 21:41:29 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.12 1999/10/17 01:11:59 tom Exp $
 .TH curs_terminfo 3X ""
 .ds n 5
 .SH NAME
@@ -244,6 +244,14 @@ In System V Release 4, the third argument of \fBtputs\fR has the type
 
 The XSI Curses standard prototypes \fBtparm\fR with a fixed number of parameters,
 rather than a variable argument list.
+
+XSI notes that after calling \fBmvcur\fR, the curses state may not match the
+actual terminal state, and that an application should touch and refresh
+the window before resuming normal curses calls.
+Both ncurses and System V Release 4 curses implement \fBmvcur\fR using
+the SCREEN data allocated in either \fBinitscr\fR or \fBnewterm\fR. 
+So though it is documented as a terminfo function,
+\fBmvcur\fR is really a curses function which is not well specified.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_kernel\fR(3X), \fBcurs_termcap\fR(3X),
 \fBputc\fR(3S), \fBterminfo\fR(\*n)

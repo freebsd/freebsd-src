@@ -6,7 +6,7 @@
  *   Demo code for NCursesMenu and NCursesForm written by
  *   Juergen Pfeifer <juergen.pfeifer@gmx.net>
  *
- * $Id: demo.cc,v 1.17 1999/07/31 09:47:17 juergen Exp $
+ * $Id: demo.cc,v 1.18 1999/09/11 18:57:54 tom Exp $
  */
 
 #include "cursesapp.h"
@@ -333,7 +333,7 @@ private:
   NCursesPanel* P;
   NCursesMenuItem** I;
   UserData *u;
-  static const int n_items = 7;
+  #define n_items 7
 
 public:
   MyMenu ()

@@ -1,5 +1,5 @@
 # Test-Program modules
-# $Id: modules,v 1.10 1999/04/10 21:36:00 tom Exp $
+# $Id: modules,v 1.11 1999/10/23 00:41:02 tom Exp $
 ##############################################################################
 # Copyright (c) 1999 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -36,6 +36,7 @@ blue		progs		$(srcdir)	../include/term.h
 bs		progs		$(srcdir)
 cardfile	progs		$(srcdir)	../include/panel.h ../include/menu.h ../include/form.h
 ditto		progs		$(srcdir)
+dots		progs		$(srcdir)	../include/term.h
 filter		progs		$(srcdir)
 firework	progs		$(srcdir)	../include/term.h
 firstlast	progs		$(srcdir)

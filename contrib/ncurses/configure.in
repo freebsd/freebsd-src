@@ -28,10 +28,10 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
 dnl
-dnl $Id: configure.in,v 1.169 1999/08/21 20:33:10 tom Exp $
+dnl $Id: configure.in,v 1.179 1999/10/24 00:32:42 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.12.971222)
-AC_REVISION($Revision: 1.169 $)
+AC_REVISION($Revision: 1.179 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -105,18 +105,28 @@ AC_SUBST(LDCONFIG)
 dnl DEFECT in autoconf 2.12:	an attempt to set policy, this breaks the
 dnl				configure script by not letting us test if C++
 dnl				is present, making this option necessary.
-AC_MSG_CHECKING(if you want to build with C++)
+AC_MSG_CHECKING(if you want to ensure bool is consistent with C++)
 AC_ARG_WITH(cxx,
-	[  --without-cxx           suppress check for C++, don't build demo],
+	[  --without-cxx           do not adjust ncurses bool to match C++],
 	[cf_with_cxx=$withval],
 	[cf_with_cxx=yes])
 AC_MSG_RESULT($cf_with_cxx)
-if test "X$cf_with_cxx" != Xno ; then
-AC_PROG_CXX
+if test "X$cf_with_cxx" = Xno ; then
+	CXX=""
+	GXX=""
+else
+	AC_PROG_CXX
 fi
 changequote(,)dnl
 if test -n "$GXX" ; then case "`${CXX-g++} --version`" in 1*|2.[0-6]*) GXX=""; CXX=""; ac_cv_prog_gxx=no; cf_cxx_library=no ; echo No: templates do not work;; esac; fi
 changequote([,])dnl
+
+AC_MSG_CHECKING(if you want to build C++ binding and demo)
+AC_ARG_WITH(cxx-binding,
+	[  --without-cxx-binding   do not build C++ binding and demo],
+	[cf_with_cxx_binding=$withval],
+	[cf_with_cxx_binding=$cf_with_cxx])
+AC_MSG_RESULT($cf_with_cxx_binding)
 
 AC_MSG_CHECKING(if you want to build with Ada95)
 AC_ARG_WITH(ada,
@@ -254,7 +264,7 @@ if test $with_gpm = yes ; then
 		SHLIB_LIST="-lgpm $SHLIB_LIST"
 		AC_DEFINE(HAVE_LIBGPM)
 		AC_CHECK_HEADERS(gpm.h)
-	],,-lcurses -ltermcap)
+	],AC_MSG_WARN(Cannot link with gpm library - read the FAQ))
 fi
 
 TINFO_LIST="$SHLIB_LIST"
@@ -294,7 +304,6 @@ LIB_PREFIX=$LIB_DIR/$cf_prefix
 AC_SUBST(LIB_PREFIX)
 
 dnl Not all ports of gcc support the -g option
-dnl autoconf 2.12 uses different symbol for -g option than autoconf 2.10, etc.
 
 if test X"$CC_G_OPT" = X"" ; then
 	CC_G_OPT='-g'
@@ -324,7 +333,6 @@ AC_ARG_ENABLE(rpath,
 AC_MSG_RESULT($cf_cv_ld_rpath)
 
 CF_SHARED_OPTS
-
 if test "$CC_SHARED_OPTS" = "unknown"; then
 	for model in $cf_list_models; do
 		if test "$model" = "shared"; then
@@ -744,11 +752,11 @@ strstr \
 tcgetattr \
 tcgetpgrp \
 times \
-usleep \
 vfscanf \
 vsnprintf \
 vsscanf \
 )
+
 
 if test "$with_getcap" = "yes" ; then
 	CF_CGETENT
@@ -779,21 +787,32 @@ dnl Check for C++ compiler characteristics (and ensure that it's there!)
 CF_BOOL_DECL(cf_cv_cc_bool_type)
 if test -n "$CXX" ; then
 	AC_LANG_CPLUSPLUS
+	CF_STDCPP_LIBRARY
 	case "`${CXX-g++} --version`" in
-	2.7*)
-	    CF_CXX_LIBRARY
-	    ;;
-	*)
+	1*|2.[0-6]*)
 	    cf_cxx_library=yes
 	    ;;
+	2.7*)
+	    CF_GPP_LIBRARY
+	    ;;
+	*)
+	    cf_cxx_library=no
+	    ;;
 	esac
-	AC_CHECK_HEADERS(builtin.h typeinfo)
+	AC_CHECK_HEADERS(typeinfo)
 	CF_BOOL_DECL
 	CF_BOOL_SIZE
 	CF_ETIP_DEFINES
+	CF_CPP_PARAM_INIT
+	case $cf_cv_system_name in #(vi
+	sco3.2v5*)
+	    CXXLDFLAGS="-u main"
+	    ;;
+	esac
+	AC_SUBST(CXXLDFLAGS)
 else
 	cf_cxx_library=no
-	cf_cv_builtin_bool=0
+	cf_cv_builtin_bool=1
 
 	# Just because we are not configuring against C++ right now does not
 	# mean that a user will not want to use C++.  Some distributors disable
@@ -961,7 +980,7 @@ cf_cv_do_symlinks="$cf_cv_do_symlinks"
 cf_cv_rel_version="$cf_cv_rel_version"
 cf_cv_rm_so_locs="$cf_cv_rm_so_locs"
 cf_cv_system_name="$cf_cv_system_name"
-cf_cxx_library="$cf_cxx_library"
+cf_with_cxx_binding="$cf_with_cxx_binding"
 target="$target"
 
 ],sort)dnl

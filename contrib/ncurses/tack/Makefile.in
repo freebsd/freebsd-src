@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.7 1998/03/28 21:41:21 tom Exp $
+# $Id: Makefile.in,v 1.9 1999/09/18 23:33:48 tom Exp $
 # Makefile for tack
 #
 # The variable 'srcdir' refers to the source-distribution, and can be set with
@@ -15,6 +15,7 @@ THIS		= Makefile
 
 CF_MFLAGS 	= @cf_cv_makeflags@
 @SET_MAKE@
+x		= @PROG_EXT@
 
 MODEL		= ../@DFT_OBJ_SUBDIR@
 INSTALL_PREFIX	= @INSTALL_PREFIX@
@@ -65,26 +66,28 @@ LINT		= @LINT@
 LINT_OPTS	= @LINT_OPTS@
 LINT_LIBS	= -lncurses @LIBS@
 
-PROGS = tack
+PROGS = tack$x
 
 # Default library, for linking applications
 DEPS_CURSES = ../lib/libncurses@DFT_DEP_SUFFIX@
 
 ################################################################################
-all:	$(PROGS) 
+all:	$(PROGS)
 
-install: install.tack 
-uninstall: uninstall.tack 
+sources:
+
+install: install.tack
+uninstall: uninstall.tack
 
 # this line simplifies the configure-script
 install.libs:
 uninstall.libs:
 
 install.tack: $(PROGS) $(INSTALL_PREFIX)$(bindir)
-	$(INSTALL_PROGRAM) tack    $(INSTALL_PREFIX)$(bindir)/tack
+	$(INSTALL_PROGRAM) tack$x    $(INSTALL_PREFIX)$(bindir)/tack$x
 
 uninstall.tack:
-	-@rm -f $(INSTALL_PREFIX)$(bindir)/tack
+	-@rm -f $(INSTALL_PREFIX)$(bindir)/tack$x
 
 $(INSTALL_PREFIX)$(bindir) :
 	$(srcdir)/../mkinstalldirs $@
@@ -111,7 +114,7 @@ DEPS_TACK = \
 	$(MODEL)/sysdep.o \
 	$(MODEL)/tack.o
 
-tack: $(DEPS_TACK) $(DEPS_CURSES)
+tack$x: $(DEPS_TACK) $(DEPS_CURSES)
 	@ECHO_LINK@ $(LINK) $(DEPS_TACK) $(LDFLAGS_DEFAULT) -o $@
 
 #

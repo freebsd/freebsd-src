@@ -41,7 +41,7 @@
 
 #include <term.h>
 
-MODULE_ID("$Id: lib_color.c,v 1.35 1999/03/15 01:45:14 Alexander.V.Lukyanov Exp $")
+MODULE_ID("$Id: lib_color.c,v 1.36 1999/10/03 00:20:37 Philippe.Blain Exp $")
 
 /*
  * These should be screen structure members.  They need to be globals for
@@ -345,7 +345,7 @@ bool has_colors(void)
 int color_content(short color, short *r, short *g, short *b)
 {
     T((T_CALLED("color_content(%d,%p,%p,%p)"), color, r, g, b));
-    if (color < 0 || color > COLORS)
+    if (color < 0 || color >= COLORS)
 	returnCode(ERR);
 
     if (r) *r = SP->_color_table[color].red;
@@ -358,7 +358,7 @@ int pair_content(short pair, short *f, short *b)
 {
 	T((T_CALLED("pair_content(%d,%p,%p)"), pair, f, b));
 
-	if ((pair < 0) || (pair > COLOR_PAIRS))
+	if ((pair < 0) || (pair >= COLOR_PAIRS))
 		returnCode(ERR);
 	if (f) *f = ((SP->_color_pairs[pair] >> C_SHIFT) & C_MASK);
 	if (b) *b =  (SP->_color_pairs[pair] & C_MASK);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@ DESCRIPTION
 AUTHOR
    Author: Eric S. Raymond <esr@snark.thyrsus.com> 1993
 
-$Id: ncurses.c,v 1.118 1999/08/10 00:37:30 tom Exp $
+$Id: ncurses.c,v 1.120 1999/10/23 20:01:30 tom Exp $
 
 ***************************************************************************/
 
@@ -3186,7 +3186,16 @@ main(int argc, char *argv[])
      */
     endwin();
 
+#if HAVE_CURSES_VERSION
+    (void) printf("Welcome to %s.  Press ? for help.\n", curses_version());
+#elif defined(NCURSES_VERSION_MAJOR) && defined(NCURSES_VERSION_MINOR) && defined(NCURSES_VERSION_PATCH)
+    (void) printf("Welcome to ncurses %d.%d.%d.  Press ? for help.\n",
+		NCURSES_VERSION_MAJOR,
+		NCURSES_VERSION_MINOR,
+		NCURSES_VERSION_PATCH);
+#else
     (void) puts("Welcome to ncurses.  Press ? for help.");
+#endif
 
     do {
 	(void) puts("This is the ncurses main menu");
