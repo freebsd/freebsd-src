@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.40 1997/03/28 02:25:14 jkh Exp $
+ * $Id: install.c,v 1.180 1997/04/02 12:07:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,6 +45,8 @@
 #include <sys/param.h>
 #define MSDOSFS
 #include <sys/mount.h>
+#include <ufs/ufs/ufsmount.h>
+#include <msdosfs/msdosfsmount.h>
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <unistd.h>

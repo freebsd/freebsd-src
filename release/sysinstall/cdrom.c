@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: cdrom.c,v 1.38 1997/02/22 14:11:12 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,6 +49,7 @@
 
 #define CD9660
 #include <sys/mount.h>
+#include <isofs/cd9660/cd9660_mount.h>
 #undef CD9660
 
 static Boolean cdromMounted;
