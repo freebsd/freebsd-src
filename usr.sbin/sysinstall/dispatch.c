@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.17 1997/06/13 17:55:32 jkh Exp $
+ * $Id: dispatch.c,v 1.18 1997/06/21 15:45:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -38,6 +38,7 @@
 #include <ctype.h>
 
 static int _shutdown(dialogMenuItem *unused);
+static int _systemExecute(dialogMenuItem *unused);
     
 static struct _word {
     char *name;
@@ -102,6 +103,7 @@ static struct _word {
     { "addGroup",		userAddGroup		},
     { "addUser",		userAddUser		},
     { "shutdown",		_shutdown 		},
+    { "system",			_systemExecute 		},
     { NULL, NULL },
 };
 
@@ -122,9 +124,22 @@ call_possible_resword(char *name, dialogMenuItem *value, int *status)
 }
 
 /* Just convenience */
-static int _shutdown(dialogMenuItem *unused)
+static int
+_shutdown(dialogMenuItem *unused)
 {
     systemShutdown(0);
+    return DITEM_FAILURE;
+}
+
+static int
+_systemExecute(dialogMenuItem *unused)
+{
+    char *cmd = variable_get("command");
+
+    if (cmd)
+	return systemExecute(cmd) ? DITEM_FAILURE : DITEM_SUCCESS;
+    else
+	msgDebug("_systemExecute: No command passed in `command' variable.\n");
     return DITEM_FAILURE;
 }
 
