@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.62 1997/06/25 02:04:35 brian Exp $
+ * $Id: command.c,v 1.63 1997/06/25 19:29:59 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -258,17 +258,13 @@ char **argv;
      TtyOldMode();
      if(argc > 0) {
        /* substitute pseudo args */
-       for (i=1; i<argc; i++) {
-         if (strcasecmp(argv[i], "HISADDR") == 0) {
+       for (i=1; i<argc; i++)
+         if (strcasecmp(argv[i], "HISADDR") == 0)
            argv[i] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
-         }
-         if (strcasecmp(argv[i], "INTERFACE") == 0) {
+         else if (strcasecmp(argv[i], "INTERFACE") == 0)
            argv[i] = strdup(IfDevName);
-         }
-         if (strcasecmp(argv[i], "MYADDR") == 0) {
+         else if (strcasecmp(argv[i], "MYADDR") == 0)
            argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
-         }
-       }
        (void)execvp(argv[0], argv);
      }
      else
@@ -1311,7 +1307,10 @@ char **argv;
   struct in_addr dest, gateway, netmask;
 
   if (argc == 3) {
-    dest = GetIpAddr(argv[0]);
+    if (strcasecmp(argv[0], "MYADDR") == 0)
+      dest = IpcpInfo.want_ipaddr;
+    else
+      dest = GetIpAddr(argv[0]);
     netmask = GetIpAddr(argv[1]);
     if (strcasecmp(argv[2], "HISADDR") == 0)
       gateway = IpcpInfo.his_ipaddr;
@@ -1335,7 +1334,10 @@ char **argv;
   if (argc == 1 && strcasecmp(argv[0], "all") == 0)
     DeleteIfRoutes(0);
   else if (argc > 0 && argc < 4) {
-    dest = GetIpAddr(argv[0]);
+    if (strcasecmp(argv[0], "MYADDR") == 0)
+      dest = IpcpInfo.want_ipaddr;
+    else
+      dest = GetIpAddr(argv[0]);
     netmask.s_addr = INADDR_ANY;
     if (argc > 1) {
       if (strcasecmp(argv[1], "HISADDR") == 0)
