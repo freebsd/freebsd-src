@@ -398,8 +398,10 @@ ata_pci_attach(device_t dev)
 	sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				      0, ~0, 1, RF_ACTIVE);
 	if (!sc->bmio)
-	    device_printf(dev, "Busmastering DMA not supported\n");
+	    device_printf(dev, "Busmastering DMA not configured\n");
     }
+    else
+	device_printf(dev, "Busmastering DMA not supported\n");
 
     /* do extra chipset specific setups */
     switch (type) {
@@ -471,6 +473,12 @@ ata_pci_attach(device_t dev)
 			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
 	}
 	break;
+
+    case 0x10001042:	/* RZ 100? known bad, no DMA */
+    case 0x10011042:
+    case 0x06401095:	/* CMD 640 known bad, no DMA */
+	sc->bmio = 0x0;
+	device_printf(dev, "Busmastering DMA disabled\n");
     }
 
     /*
@@ -554,7 +562,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    return &sc->bmio_2;
 		}
 	    }
-	    break;
+	    return 0;
 
 	default:
 	    return 0;
@@ -1095,7 +1103,7 @@ ata_intr(void *data)
 	      (scp->channel ? 0x08 : 0x04)))
 	    return;
 	goto out;
-         
+
     case 0x4d33105a:	/* Promise Ultra/Fasttrak 33 */
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
