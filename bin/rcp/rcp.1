@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rcp.1	8.1 (Berkeley) 5/31/93
-.\"	$Id$
+.\"	$Id: rcp.1,v 1.5 1997/02/22 14:05:21 peter Exp $
 .\"
 .Dd May 31, 1993
 .Dt RCP 1
@@ -58,26 +58,21 @@ argument is either a remote file name of the
 form ``rname@rhost:path'', or a local file name (containing no `:' characters,
 or a `/' before any `:'s).
 .Pp
-.Bl -tag -width flag
+The following options are available:
+.Bl -tag -width indent
 .It Fl K
-The
-.Fl K
-option turns off all Kerberos authentication.
+Turn off all Kerberos authentication.
 .It Fl k
-The
-.Fl k
-option requests
-.Nm rcp
+Request
+.Nm
 to obtain tickets
 for the remote host in realm
 .Ar realm
 instead of the remote host's realm as determined by
 .Xr krb_realmofhost  3  .
 .It Fl p
-The
-.Fl p
-option causes
-.Nm rcp
+Cause
+.Nm
 to attempt to preserve (duplicate) in its copies the modification
 times and modes of the source files, ignoring the
 .Ar umask  .
@@ -89,16 +84,14 @@ modified by the
 on the destination host is used.
 .It Fl r
 If any of the source files are directories,
-.Nm rcp
+.Nm
 copies each subtree rooted at that name; in this case
 the destination must be a directory.
 .It Fl x
-The
-.Fl x
-option turns on
+Turn on
 .Tn DES
 encryption for all data passed by
-.Nm rcp .
+.Nm Ns .
 This may impact response time and
 .Tn CPU
 utilization, but provides
@@ -134,11 +127,11 @@ are on the current machine.
 .Xr rsh 1
 .Sh HISTORY
 The
-.Nm rcp
+.Nm
 command appeared in
 .Bx 4.2 .
 The version of
-.Nm rcp
+.Nm
 described here
 has been reimplemented with Kerberos in
 .Bx 4.3 Reno .
@@ -157,4 +150,4 @@ The destination user and hostname may have to be specified as
 ``rhost.rname'' when the destination machine is running the
 .Bx 4.2
 version of
-.Nm rcp  .
+.Nm Ns  .

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rmdir.1	8.1 (Berkeley) 5/31/93
-.\"	$Id$
+.\"	$Id: rmdir.1,v 1.6 1997/02/22 14:05:37 peter Exp $
 .\"
 .Dd May 31, 1993
 .Dt RMDIR 1
@@ -46,7 +46,9 @@
 .Op Fl p
 .Ar directory ...
 .Sh DESCRIPTION
-The rmdir utility removes the directory entry specified by
+The
+.Nm
+utility removes the directory entry specified by
 each
 .Ar directory
 argument, provided it is empty.
@@ -56,11 +58,11 @@ In order to remove both a parent directory and a subdirectory
 of that parent, the subdirectory
 must be specified first so the parent directory
 is empty when
-.Nm rmdir
+.Nm
 tries to remove it.
 .Pp
 The following option is available:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl p
 Each
 .Ar directory
@@ -73,7 +75,7 @@ for fully non-discriminant recursive removal.)
 .El
 .Pp
 The
-.Nm rmdir
+.Nm
 utility exits with one of the following values:
 .Bl -tag -width Ds
 .It Li \&0
@@ -87,7 +89,7 @@ An error occurred.
 .Xr rm 1
 .Sh STANDARDS
 The
-.Nm rmdir
+.Nm
 command is expected to be
 .St -p1003.2
 compatible.
