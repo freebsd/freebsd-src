@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995,1999 Theo de Raadt
+ * Copyright (c) 1995,1999 Theo de Raadt.  All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +24,10 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: atomicio.c,v 1.7 2000/10/18 18:04:02 markus Exp $");
+RCSID("$OpenBSD: atomicio.c,v 1.9 2001/03/02 18:54:30 deraadt Exp $");
 
 #include "xmalloc.h"
-#include "ssh.h"
+#include "atomicio.h"
 
 /*
  * ensure all of data on socket comes through. f==read || f==write

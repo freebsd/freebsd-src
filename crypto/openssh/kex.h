@@ -1,3 +1,5 @@
+/*	$OpenBSD: kex.h,v 1.22 2001/04/04 20:25:37 markus Exp $	*/
+
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -24,9 +26,13 @@
 #ifndef KEX_H
 #define KEX_H
 
+#include <openssl/evp.h>
+#include "buffer.h"
+#include "cipher.h"
+#include "key.h"
+
 #define	KEX_DH1		"diffie-hellman-group1-sha1"
 #define	KEX_DHGEX	"diffie-hellman-group-exchange-sha1"
-#define	KEX_DSS		"ssh-dss"
 
 enum kex_init_proposals {
 	PROPOSAL_KEX_ALGS,
@@ -52,78 +58,73 @@ enum kex_exchange {
 	DH_GRP1_SHA1,
 	DH_GEX_SHA1
 };
-		
+
+#define KEX_INIT_SENT	0x0001
+
 typedef struct Kex Kex;
 typedef struct Mac Mac;
 typedef struct Comp Comp;
 typedef struct Enc Enc;
+typedef struct Newkeys Newkeys;
 
 struct Enc {
-	char		*name;
-	Cipher		*cipher;
-	int		enabled;
-	unsigned char	*key;
-	unsigned char	*iv;
+	char	*name;
+	Cipher	*cipher;
+	int	enabled;
+	u_char	*key;
+	u_char	*iv;
 };
 struct Mac {
-	char		*name;
-	int		enabled;
-	EVP_MD		*md;
-	int		mac_len;
-	unsigned char	*key;
-	int		key_len;
+	char	*name;
+	int	enabled;
+	EVP_MD	*md;
+	int	mac_len;
+	u_char	*key;
+	int	key_len;
 };
 struct Comp {
-	int		type;
-	int		enabled;
-	char		*name;
+	int	type;
+	int	enabled;
+	char	*name;
+};
+struct Newkeys {
+	Enc	enc;
+	Mac	mac;
+	Comp	comp;
 };
 struct Kex {
-	Enc		enc [MODE_MAX];
-	Mac		mac [MODE_MAX];
-	Comp		comp[MODE_MAX];
-	int		we_need;
-	int		server;
-	char		*name;
-	char		*hostkeyalg;
-	int		kex_type;
+	u_char	*session_id;
+	int	session_id_len;
+	Newkeys	*newkeys[MODE_MAX];
+	int	we_need;
+	int	server;
+	char	*name;
+	int	hostkey_type;
+	int	kex_type;
+	Buffer	my;
+	Buffer	peer;
+	int	done;
+	int	flags;
+	char	*client_version_string;
+	char	*server_version_string;
+	int	(*check_host_key)(Key *hostkey);
+	Key	*(*load_host_key)(int type);
 };
 
-Buffer	*kex_init(char *myproposal[PROPOSAL_MAX]);
-void
-kex_exchange_kexinit(
-    Buffer *my_kexinit, Buffer *peer_kexint,
-    char *peer_proposal[PROPOSAL_MAX]);
-Kex *
-kex_choose_conf(char *cprop[PROPOSAL_MAX],
-    char *sprop[PROPOSAL_MAX], int server);
-int	kex_derive_keys(Kex *k, unsigned char *hash, BIGNUM *shared_secret);
-void	packet_set_kex(Kex *k);
-int	dh_pub_is_valid(DH *dh, BIGNUM *dh_pub);
-DH	*dh_new_group_asc(const char *, const char *);
-DH	*dh_new_group(BIGNUM *, BIGNUM *);
-DH	*dh_new_group1();
+Kex	*kex_setup(char *proposal[PROPOSAL_MAX]);
+void	kex_finish(Kex *kex);
 
-unsigned char *
-kex_hash(
-    char *client_version_string,
-    char *server_version_string,
-    char *ckexinit, int ckexinitlen,
-    char *skexinit, int skexinitlen,
-    char *serverhostkeyblob, int sbloblen,
-    BIGNUM *client_dh_pub,
-    BIGNUM *server_dh_pub,
-    BIGNUM *shared_secret);
+void	kex_send_kexinit(Kex *kex);
+void	kex_input_kexinit(int type, int plen, void *ctxt);
+void	kex_derive_keys(Kex *k, u_char *hash, BIGNUM *shared_secret);
 
-unsigned char *
-kex_hash_gex(
-    char *client_version_string,
-    char *server_version_string,
-    char *ckexinit, int ckexinitlen,
-    char *skexinit, int skexinitlen,
-    char *serverhostkeyblob, int sbloblen,
-    int minbits, BIGNUM *prime, BIGNUM *gen,
-    BIGNUM *client_dh_pub,
-    BIGNUM *server_dh_pub,
-    BIGNUM *shared_secret);
+void	kexdh(Kex *);
+void	kexgex(Kex *);
+
+Newkeys *kex_get_newkeys(int mode);
+
+#if defined(DEBUG_KEX) || defined(DEBUG_KEXDH)
+void	dump_digest(char *msg, u_char *digest, int len);
+#endif
+
 #endif
