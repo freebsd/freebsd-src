@@ -51,7 +51,6 @@ The FreeBSD Core Team
 	John Dyson <dyson@FreeBSD.org>
 	Jordan K. Hubbard <jkh@FreeBSD.org>
 	Justin Gibbs <gibbs@FreeBSD.org>
-	Paul Richards <paul@FreeBSD.org>
 	Poul-Henning Kamp <phk@FreeBSD.org>
 	Rich Murphey <rich@FreeBSD.org>
 	Rodney W. Grimes <rgrimes@FreeBSD.org>
@@ -275,4 +274,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.20 1995/08/24 23:20:26 davidg Exp $
+$Id: CONTRIB.FreeBSD,v 1.21 1995/08/30 09:44:45 davidg Exp $
