@@ -18,7 +18,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *	$Id$
+ *	$Id: ultra14f.c,v 1.6 1993/08/21 20:01:34 rgrimes Exp $
  */
  
 #include <sys/types.h>
@@ -322,7 +322,7 @@ uha_send_mbox(  int             unit
 		&& (spincount--));
 	if(spincount == -1)
 	{
-		printf("uha%d: board not responding\n",unit);
+		printf("uha%d: uha_send_mbox, board not responding\n",unit);
 		Debugger();
 	}
 
@@ -348,7 +348,7 @@ uha_abort(	int		unit
 		&& (spincount--));
 	if(spincount == -1);
 	{
-		printf("uha%d: board not responding\n",unit);
+		printf("uha%d: uha_abort, board not responding\n",unit);
 		Debugger();
 	}
 
@@ -358,7 +358,7 @@ uha_abort(	int		unit
 	while((abortcount--) && (!(inb(port + UHA_SINT) & UHA_ABORT_FAIL)));
 	if(abortcount == -1)
 	{
-		printf("uha%d: board not responding\n",unit);
+		printf("uha%d: uha_abort, board not responding\n",unit);
 		Debugger();
 	}
 	if((inb(port + UHA_SINT) & 0x10) != 0)
@@ -387,7 +387,7 @@ retry:
 	while( (spincount--) && (!(inb(stport) &  UHA_SINTP)));
 	if(spincount == -1)
 	{
-		printf("uha%d: board not responding\n",unit);
+		printf("uha%d: uha_poll, board not responding\n",unit);
 		return(EIO);
 	}
 if ((int)cheat != PHYSTOKV(inl(port + UHA_ICM0)))
@@ -713,7 +713,7 @@ int	unit;
 	model = inb(port + UHA_ID0);
 	submodel = inb(port + UHA_ID1);
 		 if ((model != 0x56) & (submodel != 0x40))
-		      { printf("uha%d: not responding\n",unit);
+		      { printf("uha%d: uha_init, board not responding\n",unit);
 			return(ENXIO); }
 
 	printf("uha%d: reading board settings, ",unit);
