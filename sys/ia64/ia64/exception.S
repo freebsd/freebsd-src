@@ -125,9 +125,8 @@ interruption_Instruction_TLB:
 	add	r20=16,r18		// address of tag
 	;;
 	ld8.acq	r23=[r20]		// read old tag
-	movl	r24=(1<<63)		// ti bit
 	;;
-	or	r23=r23,r24		// set ti bit
+	dep	r23=-1,r23,63,1		// set ti bit
 	;;
 	st8.rel	[r20]=r23		// store old tag + ti
 	;;
@@ -141,7 +140,8 @@ interruption_Instruction_TLB:
 	;; 
 	mov	pr=r17,0x1ffff		// restore predicates
 	;;
-	rfi				// walker will retry the access
+	itc.i	r21			// and place in TLB
+	rfi
 	
 3:	add	r20=24,r20		// next in chain
 	;;
@@ -201,9 +201,8 @@ interruption_Data_TLB:
 	add	r20=16,r18		// address of tag
 	;;
 	ld8.acq	r23=[r20]		// read old tag
-	movl	r24=(1<<63)		// ti bit
 	;;
-	or	r23=r23,r24		// set ti bit
+	dep	r23=-1,r23,63,1		// set ti bit
 	;;
 	st8.rel	[r20]=r23		// store old tag + ti
 	;;
@@ -217,7 +216,8 @@ interruption_Data_TLB:
 	;; 
 	mov	pr=r17,0x1ffff		// restore predicates
 	;;
-	rfi				// walker will retry the access
+	itc.d	r21			// and place in TLB
+	rfi
 	
 3:	add	r20=24,r20		// next in chain
 	;;
@@ -336,9 +336,8 @@ interruption_Dirty_Bit:
 	add	r20=16,r18		// address of tag
 	;;
 	ld8.acq	r23=[r20]		// read old tag
-	movl	r24=(1<<63)		// ti bit
 	;;
-	or	r23=r23,r24		// set ti bit
+	dep	r23=-1,r23,63,1		// set ti bit
 	;;
 	st8.rel	[r20]=r23		// store old tag + ti
 	;;
@@ -352,7 +351,8 @@ interruption_Dirty_Bit:
 	;; 
 	mov	pr=r17,0x1ffff		// restore predicates
 	;;
-	rfi				// walker will retry the access
+	itc.d	r21			// and place in TLB
+	rfi
 	
 2:	add	r20=24,r20		// next in chain
 	;;
@@ -405,9 +405,8 @@ interruption_Instruction_Access_Bit:
 	add	r20=16,r18		// address of tag
 	;;
 	ld8.acq	r23=[r20]		// read old tag
-	movl	r24=(1<<63)		// ti bit
 	;;
-	or	r23=r23,r24		// set ti bit
+	dep	r23=-1,r23,63,1		// set ti bit
 	;;
 	st8.rel	[r20]=r23		// store old tag + ti
 	;;
@@ -421,6 +420,7 @@ interruption_Instruction_Access_Bit:
 	;; 
 	mov	pr=r17,0x1ffff		// restore predicates
 	;;
+	itc.i	r21			// and place in TLB
 	rfi				// walker will retry the access
 	
 2:	add	r20=24,r20		// next in chain
@@ -474,9 +474,8 @@ interruption_Data_Access_Bit:
 	add	r20=16,r18		// address of tag
 	;;
 	ld8.acq	r23=[r20]		// read old tag
-	movl	r24=(1<<63)		// ti bit
 	;;
-	or	r23=r23,r24		// set ti bit
+	dep	r23=-1,r23,63,1		// set ti bit
 	;;
 	st8.rel	[r20]=r23		// store old tag + ti
 	;;
@@ -490,6 +489,7 @@ interruption_Data_Access_Bit:
 	;; 
 	mov	pr=r17,0x1ffff		// restore predicates
 	;;
+	itc.d	r21			// and place in TLB
 	rfi				// walker will retry the access
 	
 2:	add	r20=24,r20		// next in chain
