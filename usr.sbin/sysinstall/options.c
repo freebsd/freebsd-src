@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.39 1996/06/14 14:33:58 jkh Exp $
+ * $Id: options.c,v 1.40 1996/07/08 10:08:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,6 +99,7 @@ mediaCheck(Option opt)
 #define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
 #define EDITOR_PROMPT	"Please specify the name of the text editor you wish to use:"
 #define PKG_PROMPT	"Please specify a temporary directory with lots of free space:"
+#define INSTROOT_PROMPT	"Please specify a root directory if installing somewhere other than /"
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
@@ -119,6 +120,8 @@ static Option Options[] = {
       OPT_IS_FUNC,	mediaSetCPIOVerbosity,	VAR_CPIO_VERBOSITY,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
       OPT_IS_VAR,	RELNAME_PROMPT,		VAR_RELNAME,		varCheck	},
+{ "Install Root",	"Which directory to unpack distributions or packages relative to",
+      OPT_IS_VAR,	INSTROOT_PROMPT,	VAR_INSTALL_ROOT,	varCheck	},
 { "Browser Pkg",	"This is the browser package that will be used for viewing HTML docs",
       OPT_IS_VAR,	BPKG_PROMPT,		VAR_BROWSER_PACKAGE,	varCheck	},
 { "Browser Exec",	"This is the path to the main binary of the browser package",
