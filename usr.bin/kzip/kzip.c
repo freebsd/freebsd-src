@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id: kzip.c,v 1.3 1995/05/30 06:31:03 rgrimes Exp $
+ * $Id: kzip.c,v 1.4 1995/10/06 02:42:15 peter Exp $
  *
  */
 
@@ -31,7 +31,7 @@
 void
 Usage(char *prog)
 {
-	fprintf(stderr,"usage:\n\t%s [ -l loadaddr] kernel\n", prog);
+	fprintf(stderr,"usage:\n\t%s [-v] [ -l loadaddr] kernel\n", prog);
 	exit(1);
 }
 
