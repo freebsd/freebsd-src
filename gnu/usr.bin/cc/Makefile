@@ -3,7 +3,15 @@
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.
 
-SUBDIR= cc_fbsd cc_tools cc_int cccp cpp cc1 cc cc1plus c++ c++filt doc
+SUBDIR= cc_fbsd cc_tools cc_int cccp cc1 cc
+
+.if !defined(NO_CPP)
+SUBDIR+= cpp
+.endif
+
+.if !defined(NO_CXX)
+SUBDIR+= cc1plus c++ c++filt doc
+.endif
 
 .if !defined(NO_OBJC)
 SUBDIR+= cc1obj
