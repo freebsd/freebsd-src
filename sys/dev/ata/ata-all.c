@@ -67,6 +67,7 @@ static void ata_boot_attach(void);
 static void ata_intr(void *);
 static int ata_getparam(struct ata_device *, u_int8_t);
 static int ata_service(struct ata_channel *);
+static void ata_flush(struct ata_device *);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
@@ -198,9 +199,9 @@ ata_detach(device_t dev)
     s = splbio();
 #ifdef DEV_ATADISK
     if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver)
-	ad_detach(&ch->device[MASTER], 1);
+	ad_detach(&ch->device[MASTER]);
     if (ch->devices & ATA_ATA_SLAVE && ch->device[SLAVE].driver)
-	ad_detach(&ch->device[SLAVE], 1);
+	ad_detach(&ch->device[SLAVE]);
 #endif
 #if DEV_ATAPIALL
     if (ch->devices & ATA_ATAPI_MASTER && ch->device[MASTER].driver)
@@ -214,10 +215,12 @@ ata_detach(device_t dev)
     splx(s);
 
     if (ch->device[MASTER].param) {
+	ata_flush(&ch->device[MASTER]);
 	free(ch->device[MASTER].param, M_ATA);
 	ch->device[MASTER].param = NULL;
     }
     if (ch->device[SLAVE].param) {
+	ata_flush(&ch->device[SLAVE]);
 	free(ch->device[SLAVE].param, M_ATA);
 	ch->device[SLAVE].param = NULL;
     }
@@ -818,9 +821,9 @@ ata_reinit(struct ata_channel *ch)
     if ((misdev = devices & ~ch->devices)) {
 #ifdef DEV_ATADISK
 	if (misdev & ATA_ATA_MASTER && ch->device[MASTER].driver)
-	    ad_detach(&ch->device[MASTER], 0);
+	    ad_detach(&ch->device[MASTER]);
 	if (misdev & ATA_ATA_SLAVE && ch->device[SLAVE].driver)
-	    ad_detach(&ch->device[SLAVE], 0);
+	    ad_detach(&ch->device[SLAVE]);
 #endif
 #if DEV_ATAPIALL
 	if (misdev & ATA_ATAPI_MASTER && ch->device[MASTER].driver)
@@ -914,6 +917,32 @@ ata_service(struct ata_channel *ch)
 #endif
     }
     return ATA_OP_FINISHED;
+}
+
+static void
+ata_flush(struct ata_device *atadev)
+{
+    if (ata_command(atadev, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
+	ata_prtdev(atadev, "flushing device failed\n");
+}
+
+static void
+ata_shutdown(void *arg, int howto)
+{
+    struct ata_channel *ch;
+    int ctlr;
+
+    /* flush cache on all devices */
+    for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
+	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
+	    continue;
+	ch->locking(ch, ATA_LF_LOCK);
+	if (ch->device[MASTER].param)
+	    ata_flush(&ch->device[MASTER]);
+	if (ch->device[SLAVE].param)
+	    ata_flush(&ch->device[SLAVE]);
+	ch->locking(ch, ATA_LF_UNLOCK);
+    }
 }
 
 int
@@ -1538,5 +1567,10 @@ ata_init(void)
 	printf("ata: config_intrhook_establish failed\n");
 	free(ata_delayed_attach, M_TEMP);
     }
+    /* Register a handler to flush write caches on shutdown */
+    if ((EVENTHANDLER_REGISTER(shutdown_post_sync, ata_shutdown,
+			       NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
+	printf("ata: shutdown event registration failed!\n");
+
 }
 SYSINIT(atadev, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL)

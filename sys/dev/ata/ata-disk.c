@@ -53,7 +53,6 @@
 
 /* prototypes */
 static disk_open_t adopen;
-static disk_close_t adclose;
 static disk_strategy_t adstrategy;
 static dumper_t addump;
 static void ad_invalidatequeue(struct ad_softc *, struct ad_request *);
@@ -186,7 +185,6 @@ ad_attach(struct ata_device *atadev)
     ATA_UNLOCK_CH(atadev->channel);
 
     adp->disk.d_open = adopen;
-    adp->disk.d_close = adclose;
     adp->disk.d_strategy = adstrategy;
     adp->disk.d_dump = addump;
     adp->disk.d_name = "ad";
@@ -208,7 +206,7 @@ ad_attach(struct ata_device *atadev)
 }
 
 void
-ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
+ad_detach(struct ata_device *atadev)
 {
     struct ad_softc *adp = atadev->driver;
     struct ad_request *request;
@@ -229,10 +227,6 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
     if (adp->flags & AD_F_RAID_SUBDISK)
 	ata_raiddisk_detach(adp);
 
-    if (flush) {
-	if (ata_command(atadev, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
-	    ata_prtdev(atadev, "flushing cache on detach failed\n");
-    }
     ata_free_name(atadev);
     ata_free_lun(&adp_lun_map, adp->lun);
     atadev->driver = NULL;
@@ -251,20 +245,6 @@ adopen(struct disk *dp)
     /* hold off access until we are fully attached */
     while (ata_delayed_attach)
 	tsleep(&ata_delayed_attach, PRIBIO, "adopn", 1);
-    return 0;
-}
-
-static int
-adclose(struct disk *dp)
-{
-    struct ad_softc *adp = dp->d_drv1;
-
-    adp->device->channel->locking(adp->device->channel, ATA_LF_LOCK);
-    ATA_SLEEPLOCK_CH(adp->device->channel, ATA_CONTROL);
-    if (ata_command(adp->device, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
-	ata_prtdev(adp->device, "flushing cache on close failed\n");
-    ATA_UNLOCK_CH(adp->device->channel);
-    adp->device->channel->locking(adp->device->channel, ATA_LF_UNLOCK);
     return 0;
 }
 
