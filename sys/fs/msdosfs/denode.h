@@ -140,7 +140,7 @@ struct denode {
 	struct vnode *de_vnode;	/* addr of vnode we are part of */
 	struct vnode *de_devvp;	/* vnode of blk dev we live on */
 	u_long de_flag;		/* flag bits */
-	dev_t de_dev;		/* device where direntry lives */
+	struct cdev *de_dev;	/* device where direntry lives */
 	u_long de_dirclust;	/* cluster of the directory file containing this entry */
 	u_long de_diroffset;	/* offset of this entry in the directory cluster */
 	u_long de_fndoffset;	/* offset of found dir entry */
