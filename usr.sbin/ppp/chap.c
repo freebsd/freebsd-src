@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.23 1997/09/25 00:52:32 brian Exp $
+ * $Id: chap.c,v 1.24 1997/10/26 01:02:16 brian Exp $
  *
  *	TODO:
  */
@@ -131,19 +131,10 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
   name[namelen] = 0;
   LogPrintf(LogPHASE, " Valsize = %d, Name = %s\n", valsize, name);
 
-  /*
-   * Get a secret key corresponds to the peer
-   */
-  keyp = AuthGetSecret(SECRETFILE, name, namelen, chp->code == CHAP_RESPONSE);
-
   switch (chp->code) {
   case CHAP_CHALLENGE:
-    if (keyp) {
-      keylen = strlen(keyp);
-    } else {
-      keylen = strlen(VarAuthKey);
-      keyp = VarAuthKey;
-    }
+    keyp = VarAuthKey;
+    keylen = strlen(VarAuthKey);
     name = VarAuthName;
     namelen = strlen(VarAuthName);
 
@@ -208,8 +199,11 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
     free(argp);
     break;
   case CHAP_RESPONSE:
+    /*
+     * Get a secret key corresponds to the peer
+     */
+    keyp = AuthGetSecret(SECRETFILE, name, namelen, chp->code == CHAP_RESPONSE);
     if (keyp) {
-
       /*
        * Compute correct digest value
        */
