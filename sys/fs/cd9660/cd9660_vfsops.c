@@ -88,7 +88,7 @@ static struct vfsops cd9660_vfsops = {
 	cd9660_checkexp,
 	cd9660_vptofh,
 	cd9660_init,
-	vfs_stduninit,
+	cd9660_uninit,
 	vfs_stdextattrctl,
 };
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
