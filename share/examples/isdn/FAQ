@@ -634,7 +634,7 @@ is discarding the extensions.
 This can easily be checked by doing ``sysctl net.inet.tcp.rfc1323''. If the
 result is 1, then the RFC1323 support is turned on.
 
-Turn this off by doing ``sysctl -w net.inet.tcp.rfc1323=0'' (This is
+Turn this off by doing ``sysctl net.inet.tcp.rfc1323=0'' (This is
 called "net.inet.tcp.do_rfc1323" under BSD/OS).
 
 For FreeBSD make sure that tcp_extension="NO" is in your /etc/rc.conf

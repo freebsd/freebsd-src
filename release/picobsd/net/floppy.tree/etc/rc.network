@@ -55,16 +55,16 @@ network_pass1() {
     echo -n 'Additional routing options:'
     if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
 	    echo -n ' tcp_extensions=NO'
-	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
-	    sysctl -w net.inet.tcp.rfc1644=0 >/dev/null 2>&1
+	    sysctl net.inet.tcp.rfc1323=0 >/dev/null 2>&1
+	    sysctl net.inet.tcp.rfc1644=0 >/dev/null 2>&1
     fi
     if [ "X$gateway_enable" = X"YES" ]; then
 	    echo -n ' IP_gateway=YES'
-	    sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
+	    sysctl net.inet.ip.forwarding=1 >/dev/null 2>&1
     fi
     if [ "X$arpproxy_all" = X"YES" ]; then
 	    echo -n ' turning on ARP_PROXY_ALL: '
-	    sysctl -w net.link.ether.inet.proxyall=1 2>&1
+	    sysctl net.link.ether.inet.proxyall=1 2>&1
     fi
     echo '.'
     network_pass1_done=YES	# Let future generations know we made it.

@@ -13,7 +13,7 @@ export PATH
 
 trap "echo 'Reboot interrupted'; exit 1" 3
 
-sysctl -w vm.defer_swapspace_pageouts=1 vm.disable_swapspace_pageouts=1 2>&1 >/dev/null
+sysctl vm.defer_swapspace_pageouts=1 vm.disable_swapspace_pageouts=1 2>&1 >/dev/null
 
 echo ""
 echo "-------------------------------------------"

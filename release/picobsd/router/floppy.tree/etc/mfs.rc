@@ -6,7 +6,7 @@ motd /etc/motd
 set HOME=/
 set PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 
-sysctl -w vm.defer_swapspace_pageouts=1 vm.disable_swapspace_pageouts=1
+sysctl vm.defer_swapspace_pageouts=1 vm.disable_swapspace_pageouts=1
 
 ### Special setup for one floppy PICOBSD ###
 echo
