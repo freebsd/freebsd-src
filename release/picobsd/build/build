@@ -1,7 +1,7 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.5 1998/09/07 06:46:25 abial Exp $
+#	$Id: build,v 1.6 1998/09/15 11:12:13 abial Exp $
 #
 
 # You can set the SRC variable which points to your source tree. It's
@@ -20,9 +20,9 @@ ROUTER_DFLT_SIZE=820
 NET_DFLT_SIZE=2200
 ISP_DFLT_SIZE=2200
 
-# SET THIS if you're building on 2.2.x system
+# SET THIS if you're not using DEVFS
 #
-# RELENG_2_2=yes
+# NO_DEVFS=yes
 
 # Path to srcdirs of special program for init(8) (standard if empty)
 INIT=
@@ -89,7 +89,7 @@ sleep 2
 # Build the kernel, if necessary
 build_kernel
 
-export SIZE LANGUAGE TYPE SRC RELENG_2_2 INIT
+export SIZE LANGUAGE TYPE SRC NO_DEVFS INIT
 
 for i in stage1 populate stage2 stage3
 do
@@ -295,7 +295,7 @@ then
 			set_dflt_size
 			echo "---------------------------------------------">>build.status
 			echo "Building TYPE=${z}, LANGUAGE=${y}, SIZE=${SIZE}" >>build.status
-			export TYPE SIZE LANGUAGE SRC RELENG_2_2 INIT
+			export TYPE SIZE LANGUAGE SRC NO_DEVFS INIT
 			main
 			if [ "X$?" != "X0" ]
 			then
@@ -360,7 +360,7 @@ do
 	esac
 done
 # Export the parameters
-export LANGUAGE SIZE TYPE SRC RELENG_2_2 INIT
+export LANGUAGE SIZE TYPE SRC NO_DEVFS INIT
 # Call the build procedure
 main
 # Install if it's ok.
