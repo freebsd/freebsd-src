@@ -26,6 +26,7 @@
 RCSID("$OpenBSD: auth2.c,v 1.95 2002/08/22 21:33:58 markus Exp $");
 RCSID("$FreeBSD$");
 
+#include "canohost.h"
 #include "ssh2.h"
 #include "xmalloc.h"
 #include "packet.h"
