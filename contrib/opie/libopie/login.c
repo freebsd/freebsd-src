@@ -1,13 +1,15 @@
 /* login.c: The opielogin() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
+This software is Copyright 1996-2001 by Craig Metz, All Rights Reserved.
+The Inner Net License Version 3 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Add support for ut_id and
+		ut_syslen. Don't zero-terminate ut_name and ut_host.
 	Modified by cmetz for OPIE 2.31. If the OS won't tell us where
 		_PATH_WTMP[X] is, try playing the SVID game, then use
 		Autoconf-discovered values. Fixed gettimeofday() call
@@ -38,12 +40,15 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #endif /* DEBUG */
 #include "opie.h"
 
+#define IDLEN 4
+
 int opielogin FUNCTION((line, name, host), char *line AND char *name AND char *host)
 {
-  struct utmp u;
   int rval = 0;
-
 #if !DISABLE_UTMP
+  struct utmp u;
+  char id[IDLEN + 1] = "";
+
   if (__opiegetutmpentry(line, &u)) {
 #if DEBUG
     syslog(LOG_DEBUG, "opielogin: __opiegetutmpentry(line=%s, &u) failed", line);
@@ -58,6 +63,11 @@ int opielogin FUNCTION((line, name, host), char *line AND char *name AND char *h
 #endif /* DEBUG */
   }
 
+#if DOUTMPX || HAVE_UT_ID
+  strncpy(id, u.ut_id, sizeof(u.ut_id));
+  id[sizeof(id)-1] = 0;
+#endif /* DOUTMPX || HAVE_UT_ID */
+
 #if HAVE_UT_TYPE && defined(USER_PROCESS)
   u.ut_type = USER_PROCESS;
 #endif /* HAVE_UT_TYPE && defined(USER_PROCESS) */
@@ -67,15 +77,16 @@ int opielogin FUNCTION((line, name, host), char *line AND char *name AND char *h
 
 #if HAVE_UT_NAME
   strncpy(u.ut_name, name, sizeof(u.ut_name));
-  u.ut_name[sizeof(u.ut_name)-1] = 0;
 #else /* HAVE_UT_NAME */
 #error No ut_name field in struct utmp? (Please send in a bug report)
 #endif /* HAVE_UT_NAME */
 
 #if HAVE_UT_HOST
   strncpy(u.ut_host, host, sizeof(u.ut_host));
-  u.ut_host[sizeof(u.ut_host)-1] = 0;
 #endif /* HAVE_UT_HOST */
+#if DOUTMPX && HAVE_UTX_SYSLEN
+  u.ut_syslen = strlen(host) + 1;
+#endif /* DOUTMPX && HAVE_UT_SYSLEN */
 
 #if DOUTMPX
 #ifdef HAVE_ONE_ARG_GETTIMEOFDAY
@@ -96,7 +107,7 @@ int opielogin FUNCTION((line, name, host), char *line AND char *name AND char *h
 #endif /* !DISABLE_UTMP */
 
 dowtmp:
-  opielogwtmp(line, name, host);
+  opielogwtmp(line, name, host, id);
   opielogwtmp(NULL, NULL, NULL);
 
 dosetlogin:
