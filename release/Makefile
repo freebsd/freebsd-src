@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.195 1995/12/07 10:32:51 peter Exp $
+#	$Id: Makefile,v 1.196 1995/12/30 21:15:45 joerg Exp $
 #
 # How to roll a release:
 #
@@ -18,7 +18,7 @@ BUILDNAME=2.2-current
 
 # Things which without too much trouble can be considered variables
 
-EXPORT_DISTS=	games manpages proflibs dict info
+EXPORT_DISTS=	games manpages proflibs dict info doc
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
