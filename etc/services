@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.11 1995/04/09 03:02:08 ache Exp $
+#	$Id: services,v 1.15 1995/09/15 22:02:06 gibbs Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -800,7 +800,10 @@ qrh		752/tcp
 qrh		752/udp
 rrh		753/tcp
 rrh		753/udp
+krb_prop	754/tcp		# kerberos server propogation
+#PROBLEMS!========================================================
 tell		754/tcp	    #send
+#PROBLEMS!========================================================
 tell		754/udp	    #send
 nlogin		758/tcp
 nlogin		758/udp
@@ -1482,7 +1485,8 @@ dlsrpn		2065/tcp   #Data Link Switch Read Port Number
 dlsrpn		2065/udp   #Data Link Switch Read Port Number
 dlswpn		2067/tcp   #Data Link Switch Write Port Number
 dlswpn		2067/udp   #Data Link Switch Write Port Number
-eklogin		2105/tcp		# Kerberos (v4) encrypted rlogin
+eklogin		2105/tcp   #Kerberos (v4) encrypted rlogin
+rkinit		2108/tcp   #Kerberos (v4) remote initialization
 ats		2201/tcp   #Advanced Training System Program
 ats		2201/udp   #Advanced Training System Program
 ivs-video	2232/tcp   #IVS Video default
