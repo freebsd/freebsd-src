@@ -2324,7 +2324,7 @@ mlx_diagnose_command(struct mlx_command *mc)
     /* look up message in table */
     for (i = 0; mlx_messages[i].command != -1; i++)
 	if ((mc->mc_mailbox[0] == mlx_messages[i].command) &&
-	    (mc->mc_status == mlx_messages[i].command))
+	    (mc->mc_status == mlx_messages[i].status))
 	    return(mlx_status_messages[mlx_messages[i].msg]);
 	
     sprintf(unkmsg, "unknown response 0x%x for command 0x%x", (int)mc->mc_status, (int)mc->mc_mailbox[0]);
