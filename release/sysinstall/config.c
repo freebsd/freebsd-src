@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.52 1996/11/04 12:56:17 jkh Exp $
+ * $Id: config.c,v 1.51.2.1 1996/11/04 19:46:33 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -321,6 +321,15 @@ configSysconfig(char *config)
 	free(lines[i]);
     }
     fclose(fp);
+}
+
+int
+configSaver(dialogMenuItem *self)
+{
+    variable_set((char *)self->data);
+    if (!variable_get(VAR_BLANKTIME))
+	variable_set2(VAR_BLANKTIME, "300");
+    return DITEM_SUCCESS;
 }
 
 int
