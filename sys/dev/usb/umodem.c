@@ -67,8 +67,8 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * Comm Class spec:  http://www.usb.org/developers/data/devclass/usbcdc10.pdf
- *                   http://www.usb.org/developers/data/devclass/usbcdc11.pdf
+ * Comm Class spec:  http://www.usb.org/developers/devclass_docs/usbccs10.pdf
+ *                   http://www.usb.org/developers/devclass_docs/usbcdc11.pdf
  */
 
 /*
