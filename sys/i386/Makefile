@@ -1,30 +1,39 @@
-#	from: @(#)Makefile	7.3 (Berkeley) 6/9/91
-#	$Id: Makefile,v 1.4 1997/02/22 09:29:47 peter Exp $
+#	$Id: Makefile,v 1.5 1998/05/31 22:40:49 steve Exp $
+#	@(#)Makefile	8.1 (Berkeley) 6/11/93
 
-# Makefile for i386 tags file
+# Makefile for i386 links, tags file
+
+# SYS is normally set in Make.tags.inc
+# SYS=/sys
+
+TAGDIR=	i386
+
+.include "../kern/Make.tags.inc"
 
 all:
-	@echo "make tags or links only"
-
-TI386=	${.OBJDIR}/../i386/tags
-SI386=	${.CURDIR}/../i386/i386/*.[ch] ${.CURDIR}/../i386/include/*.h \
-	${.CURDIR}/../i386/isa/*.[ch]
-AI386=	${.CURDIR}/../i386/i386/*.s
+	@echo "make links or tags only"
 
 # Directories in which to place i386 tags links
-DI386=	eisa isa include
+DI386=	apm conf eisa i386 ibcs2 include isa linux
 
-tags:
-	-ctags -dtf ${TI386} ${COMM} ${SI386}
+links::
+	-for i in ${COMMDIR1}; do \
+	    (cd $$i && { rm -f tags; ln -s ../${TAGDIR}/tags tags; }) done
+	-for i in ${COMMDIR2}; do \
+	    (cd $$i && { rm -f tags; ln -s ../../${TAGDIR}/tags tags; }) done
+	-for i in ${DI386}; do \
+	    (cd $$i && { rm -f tags; ln -s ../tags tags; }) done
+
+SI386=	${SYS}/i386/apm/*.[ch] ${SYS}/i386/eisa/*.[ch] \
+	${SYS}/i386/i386/*.[ch] ${SYS}/i386/ibcs2/*.[ch] \
+	${SYS}/i386/include/*.[ch] ${SYS}/i386/isa/*.[ch] \
+	${SYS}/i386/linux/*.[ch]
+AI386=	${SYS}/i386/i386/*.s
+
+tags::
+	-ctags -wdt ${COMM} ${I386}
 	egrep "^ENTRY(.*)|^ALTENTRY(.*)" ${AI386} | \
 	    sed "s;\([^:]*\):\([^(]*\)(\([^, )]*\)\(.*\);\3 \1 /^\2(\3\4$$/;" \
-		>> ${TI386}
-	sort -o ${TI386} ${TI386}
-
-#XXX This doesn't work because ${.OBJDIR}/$i doesn't exist
-#
-#links:
-#	-for i in ${DI386}; do \
-#	    (cd ${.CURDIR}/$$i && rm -f ${.OBJDIR}/tags; \
-#	    ln -s ${.OBJDIR}/../tags ${.OBJDIR}/tags) \
-#	done
+		>> tags
+	sort -o tags tags
+	chmod 444 tags
