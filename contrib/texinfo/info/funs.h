@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* funs.h -- Generated declarations for Info commands. */
 
 /* Functions declared in "./session.c". */
