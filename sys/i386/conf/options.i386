@@ -1,10 +1,11 @@
-#	$Id: options.i386,v 1.74 1998/02/20 04:19:15 steve Exp $
+#	$Id: options.i386,v 1.75 1998/02/21 10:11:41 eivind Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
+PMAP_SHPGPERPROC	opt_pmap.h
 VM86			opt_vm86.h
 
 IBCS2			opt_dontuse.h
