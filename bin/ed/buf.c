@@ -26,10 +26,11 @@
  * SUCH DAMAGE.
  */
 #ifndef lint
-static char *rcsid = "@(#)$Id: buf.c,v 1.3 1993/12/14 16:19:56 alm Exp $";
+static char *rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
 #endif /* not lint */
 
 #include <sys/file.h>
+#include <sys/stat.h>
 
 #include "ed.h"
 
@@ -131,7 +132,7 @@ add_line_node(lp)
 	line_t *cp;
 
 	cp = get_addressed_line_node(current_addr);				/* this get_addressed_line_node last! */
-	insque(lp, cp);
+	INSQUE(lp, cp);
 	addr_last++;
 	current_addr++;
 }
@@ -195,13 +196,18 @@ char sfn[15] = "";				/* scratch file name */
 int
 open_sbuf()
 {
+	int u;
+
 	isbinary = newline_added = 0;
+	u = umask(077);
 	strcpy(sfn, "/tmp/ed.XXXXXX");
 	if (mktemp(sfn) == NULL || (sfp = fopen(sfn, "w+")) == NULL) {
 		fprintf(stderr, "%s: %s\n", sfn, strerror(errno));
 		sprintf(errmsg, "cannot open temp file");
+		umask(u);
 		return ERR;
 	}
+	umask(u);
 	return 0;
 }
 
