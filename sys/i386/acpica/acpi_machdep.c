@@ -98,6 +98,15 @@ acpi_capm_convert_battstate(struct  acpi_battinfo *battp)
 	if (battp->state & ACPI_BATT_STAT_CHARGING)
 		state = 3;		/* charging */
 
+	/* If still unknown, determine it based on the battery capacity. */
+	if (state == 0xff) {
+		if (battp->cap >= 50) {
+			state = 0;	/* high */
+		} else {
+			state = 1;	/* low */
+		}
+	}
+
 	return (state);
 }
 
