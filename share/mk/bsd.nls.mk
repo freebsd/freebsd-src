@@ -30,8 +30,6 @@
 # bsd.obj.mk: cleandir and obj
 
 GENCAT?=	gencat -new
-# from NetBSD -- to use in libraries
-#NLSNAME?=	${PROG:Ulib${LIB}}
 
 NLSDIR?=        ${SHAREDIR}/nls
 NLSGRP?=        ${SHAREGRP}
@@ -51,12 +49,19 @@ NLS?=
 # .msg file pre-build rules
 #
 .for file in ${NLS}
+.if !defined(NLSSRCDIR_${file}) && defined(NLSSRCDIR)
+NLSSRCDIR_${file}=${NLSSRCDIR}
+.endif
+.if !defined(NLSSRCFILES_${file}) && defined(NLSSRCFILES)
+NLSSRCFILES_${file}=${NLSSRCFILES}
+.endif
+
 .if defined(NLSSRCFILES_${file})
 ${file}:
 	@rm -f ${.TARGET}
 	cat ${NLSSRCDIR_${file}}/${NLSSRCFILES_${file}} > ${.TARGET}
-.endif
 CLEANFILES+= ${file}
+.endif
 .endfor
 
 #
