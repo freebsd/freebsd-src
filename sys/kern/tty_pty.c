@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.4 1994/09/15 19:47:16 bde Exp $
+ * $Id: tty_pty.c,v 1.5 1994/10/02 17:35:30 phk Exp $
  */
 
 /*
@@ -265,7 +265,7 @@ ptcwakeup(tp, flag)
 	}
 	if (flag & FWRITE) {
 		selwakeup(&pti->pt_selw);
-		wakeup((caddr_t)&tp->t_rawq.c_cf);
+		wakeup((caddr_t)&tp->t_rawq.c_cl);
 	}
 }
 
@@ -543,7 +543,7 @@ block:
 			return (EWOULDBLOCK);
 		return (0);
 	}
-	error = tsleep((caddr_t)&tp->t_rawq.c_cf, TTOPRI | PCATCH, ttyout, 0);
+	error = tsleep((caddr_t)&tp->t_rawq.c_cl, TTOPRI | PCATCH, ttyout, 0);
 	if (error) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;
