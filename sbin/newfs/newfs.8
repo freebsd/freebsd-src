@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
-.\"	$Id: newfs.8,v 1.18 1998/09/29 23:20:04 grog Exp $
+.\"	$Id: newfs.8,v 1.19 1998/11/28 09:59:40 rnordier Exp $
 .\"
 .Dd May 3, 1995
 .Dt NEWFS 8
@@ -92,12 +92,13 @@ or
 the disk must be labeled using 
 .Xr disklabel 8 .
 .Nm Newfs
-builds a file system on the specified special file.  (We often refer to the
+builds a file system on the specified special file.
+(We often refer to the
 .Dq special file
 as the
 .Dq disk ,
-although the special file need not be a physical disk.  In fact, it need not
-even be special.)
+although the special file need not be a physical disk.
+In fact, it need not even be special.)
 Typically the defaults are reasonable, however
 .Nm
 has numerous options to allow the defaults to be selectively overridden.
@@ -219,10 +220,10 @@ for more details on how to set this option.
 .It Fl s Ar size
 The size of the file system in sectors.
 .It Fl v
-Specify that the special device does not contain any partitions, and that
+Specify that the disk does not contain any partitions, and that
 .Nm
-should treat the whole slice as the file system.  This option is useful for
-synthetic disks such as
+should build a file system on the whole disk.
+This option is useful for synthetic disks such as
 .Nm vinum.
 .El
 .Pp
