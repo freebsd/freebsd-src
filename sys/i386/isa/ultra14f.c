@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.59 1998/04/17 22:36:42 des Exp $
+ *      $Id: ultra14f.c,v 1.60 1998/06/08 09:47:37 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
@@ -43,8 +43,6 @@
 #endif /*KERNEL */
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
-
-#include "ioconf.h"
 
 /* */
 
@@ -289,8 +287,8 @@ static timeout_t
 
 static unsigned long int scratch;
 #define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
-static	uha_slot = 0;		/* slot last board was found in */
-static  uha_unit = 0;
+static int uha_slot;		/* slot last board was found in */
+static int uha_unit;
 #define UHA_SHOWMSCPS 0x01
 #define UHA_SHOWINTS 0x02
 #define UHA_SHOWCMDS 0x04
