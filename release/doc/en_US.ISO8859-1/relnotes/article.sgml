@@ -172,7 +172,7 @@
       treated as an unprivileged user; if set to <literal>1</literal>, then
       a jailed root user is treated the same as an unjailed <username>root</username> user.  &merged;</para>
 
-    <para arch="alpha,amd64,i386">The loader tunable <varname>debug.mpsafevm</varname>
+    <para arch="alpha,amd64,i386,sparc64">The loader tunable <varname>debug.mpsafevm</varname>
       has been enabled by default.  &merged;</para>
 
     <para>&man.memguard.9;, a kernel memory allocator designed to help detect
@@ -414,6 +414,8 @@
 	  the &man.em.4; driver supports all of the supported hardware.</para>
 	  
 	<para>The &man.hme.4; driver is now MPSAFE. &merged;</para>
+
+	<para>The &man.ixgb.4; driver is now MPSAFE.</para>
 
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
 	  supports &windows;/x86-64 binaries on amd64
@@ -697,11 +699,19 @@
     <para>The on-disk format of <literal>LC_CTYPE</literal> files has
       been changed to be machine-independent.</para>
 
+    <para>A bug in the <filename>libalias</filename> library
+      which causes a core dump when the <option>-reverse</option>
+      option is specified in &man.natd.8; has been fixed.</para>
+
     <para>The <filename>libarchive</filename> library (as well as the
       &man.tar.1; command that uses it) now has support for reading ISO
       images (with optional RockRidge extensions) and ZIP archives
       (with <literal>deflate</literal> and <literal>none</literal>
       compression). &merged;</para>
+
+    <para>The <filename>libarchive</filename> library now supports
+      handling a ZIP archive entry with more than 4GB compressed size (ZIP64
+      extension) and Unix extension.</para>
 
     <para>The <filename>libgpib</filename> library has been added to
       give userland access to GPIB devices (using the the pcii driver)
@@ -854,6 +864,10 @@
 
     <para>The &man.restore.8; utility has regained the ability to read
       &os; version 1 dump tapes.</para>
+
+    <para>A bug of the &man.rexecd.8; utility which results in
+      it behaving as if the <option>-i</option> option is always
+      specified has been fixed.  &merged;</para>
 
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation (once) if recursively
