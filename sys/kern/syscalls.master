@@ -59,7 +59,7 @@
 			    struct rusage *rusage); } wait4 wait_args int
 8	MCOMPAT	{ int creat(char *path, int mode); }
 9	MSTD	{ int link(char *path, char *link); }
-10	STD	{ int unlink(char *path); }
+10	MSTD	{ int unlink(char *path); }
 11	OBSOL	execv
 12	STD	{ int chdir(char *path); }
 13	STD	{ int fchdir(int fd); }
