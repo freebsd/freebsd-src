@@ -65,6 +65,11 @@
 #endif
 
 #define THR_IN_MUTEXQ(thr)	(((thr)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
+#define	MUTEX_DESTROY(m) do {		\
+	_lock_destroy(&(m)->m_lock);	\
+	free(m);			\
+} while (0)
+
 
 /*
  * Prototypes
@@ -192,14 +197,26 @@ _pthread_mutex_init(pthread_mutex_t *mutex,
 				*mutex = pmutex;
 			} else {
 				/* Free the mutex lock structure: */
-				_lock_destroy(&pmutex->m_lock);
-				free(pmutex);
+				MUTEX_DESTROY(pmutex);
 				*mutex = NULL;
 			}
 		}
 	}
 	/* Return the completion status: */
 	return (ret);
+}
+
+void
+_thr_mutex_reinit(pthread_mutex_t *mutex)
+{
+	_lock_reinit(&(*mutex)->m_lock, LCK_ADAPTIVE,
+	    _thr_lock_wait, _thr_lock_wakeup);
+	TAILQ_INIT(&(*mutex)->m_queue);
+	(*mutex)->m_owner = NULL;
+	(*mutex)->m_count = 0;
+	(*mutex)->m_refcount = 0;
+	(*mutex)->m_prio = 0;
+	(*mutex)->m_saved_prio = 0;
 }
 
 int
@@ -241,11 +258,7 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 			 * structure:
 			 */
 			MUTEX_ASSERT_NOT_OWNED(m);
-
-			/* Free the mutex lock structure: */
-			_lock_destroy(&m->m_lock);
-
-			free(m);
+			MUTEX_DESTROY(m);
 		}
 	}
 
