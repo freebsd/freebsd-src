@@ -201,9 +201,9 @@ bootp(sock, flag)
 	bcopy(rbuf.rbootp.bp_file, bootfile, sizeof(bootfile));
 	bootfile[sizeof(bootfile) - 1] = '\0';
 
-	if (IN_CLASSA(myip.s_addr))
+	if (IN_CLASSA(ntohl(myip.s_addr)))
 		nmask = htonl(IN_CLASSA_NET);
-	else if (IN_CLASSB(myip.s_addr))
+	else if (IN_CLASSB(ntohl(myip.s_addr)))
 		nmask = htonl(IN_CLASSB_NET);
 	else
 		nmask = htonl(IN_CLASSC_NET);
