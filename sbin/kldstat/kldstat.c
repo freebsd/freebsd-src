@@ -37,11 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/linker.h>
 
-#if defined(__alpha__)
-#define	POINTER_WIDTH	18
-#else
-#define	POINTER_WIDTH	10
-#endif
+#define	POINTER_WIDTH	(sizeof(void *) > 4 ? 18 : 10)
 
 static void
 printmod(int modid)
