@@ -361,7 +361,7 @@ zsstop(struct tty *tp, int flag)
 	splx(s);
 }
 
-DEV_DRIVER_MODULE(zs, zsc, zs_driver, zs_devclass, zs_cdevsw, 0, 0);
+DRIVER_MODULE(zs, zsc, zs_driver, zs_devclass, 0, 0);
 
 /*
  * The zsc bus holds two zs devices, one for channel A, one for channel B.
@@ -442,6 +442,8 @@ zsc_tlsb_attach(device_t dev)
 	struct zsc_softc* sc = device_get_softc(dev);
 	device_t parent = device_get_parent(dev);
 	void *ih;
+
+	cdevsw_add(&zs_cdevsw);
 
 	bus_generic_attach(dev);
 	
