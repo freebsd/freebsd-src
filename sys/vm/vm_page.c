@@ -1316,11 +1316,10 @@ vm_page_try_to_free(vm_page_t m)
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
 		return (0);
 	}
-	vm_page_test_dirty(m);
+	pmap_remove_all(m);
 	if (m->dirty)
 		return (0);
 	vm_page_busy(m);
-	pmap_remove_all(m);
 	vm_page_free(m);
 	return (1);
 }
@@ -1405,8 +1404,8 @@ vm_page_dontneed(vm_page_t m)
 		return;
 	}
 
-	if (m->dirty == 0)
-		vm_page_test_dirty(m);
+	if (m->dirty == 0 && pmap_is_modified(m))
+		vm_page_dirty(m);
 
 	if (m->dirty || (dnw & 0x0070) == 0) {
 		/*
