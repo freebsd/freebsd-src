@@ -307,7 +307,7 @@ sock6_open(struct flags *flags
 	on = 1;
 	if (setsockopt(s6, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on,
 		       sizeof(on)) < 0) {
-		syslog(LOG_ERR, "<%s> IPV6_PKTINFO: %s",
+		syslog(LOG_ERR, "<%s> IPV6_RECVPKTINFO: %s",
 		       __FUNCTION__, strerror(errno));
 		exit(1);
 	}
