@@ -840,7 +840,7 @@ addchild(struct servtab *sep, pid_t pid)
  */
 
 void
-flag_reapchild(int signo)
+flag_reapchild(int signo __unused)
 {
 	flag_signal('C');
 }
@@ -877,7 +877,7 @@ reapchild(void)
 }
 
 void
-flag_config(int signo)
+flag_config(int signo __unused)
 {
 	flag_signal('H');
 }
@@ -1104,7 +1104,7 @@ unregisterrpc(struct servtab *sep)
 }
 
 void
-flag_retry(int signo)
+flag_retry(int signo __unused)
 {
 	flag_signal('A');
 }
