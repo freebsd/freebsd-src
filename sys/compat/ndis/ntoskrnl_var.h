@@ -212,13 +212,34 @@ typedef struct nt_objref nt_objref;
 #define EVENT_TYPE_NOTIFY	0
 #define EVENT_TYPE_SYNC		1
 
+/*
+ * We need to use the timeout()/untimeout() API for ktimers
+ * since timers can be initialized, but not destroyed (so
+ * malloc()ing our own callout structures would mean a leak,
+ * since there'd be no way to free() them). This means we
+ * need to use struct callout_handle, which is really just a
+ * pointer. To make it easier to deal with, we use a union
+ * to overlay the callout_handle over the k_timerlistentry.
+ * The latter is a list_entry, which is two pointers, so
+ * there's enough space available to hide a callout_handle
+ * there.
+ */
+
 struct ktimer {
 	nt_dispatch_header	k_header;
 	uint64_t		k_duetime;
-	list_entry		k_timerlistentry;
+	union {
+		list_entry		k_timerlistentry;
+		struct callout_handle	k_handle;
+	} u;
 	void			*k_dpc;
 	uint32_t		k_period;
 };
+
+#define k_timerlistentry	u.k_timerlistentry
+#define k_handle		u.k_handle
+
+typedef struct ktimer ktimer;
 
 struct nt_kevent {
 	nt_dispatch_header	k_header;
@@ -243,6 +264,8 @@ struct kdpc {
 	uint32_t		*k_lock;
 };
 
+typedef struct kdpc kdpc;
+
 /*
  * Note: the acquisition count is BSD-specific. The Microsoft
  * documentation says that mutexes can be acquired recursively
@@ -256,12 +279,17 @@ struct kdpc {
  */
 struct kmutant {
 	nt_dispatch_header	km_header;
-	list_entry		km_listentry;
+	union {
+		list_entry		km_listentry;
+		uint32_t		km_acquirecnt;
+	} u;
 	void			*km_ownerthread;
 	uint8_t			km_abandoned;
 	uint8_t			km_apcdisable;
-	uint32_t		km_acquirecnt;
 };
+
+#define km_listentry		u.km_listentry
+#define km_acquirecnt		u.km_acquirecnt
 
 typedef struct kmutant kmutant;
 
