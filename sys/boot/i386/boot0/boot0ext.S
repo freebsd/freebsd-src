@@ -34,6 +34,7 @@
 
 		.set KEY_ENTER,0x1c		# Enter key scan code
 		.set KEY_F1,0x3b		# F1 key scan code
+		.set KEY_1,0x02			# #1 key scan code
 
 #
 # Flag bits
@@ -45,7 +46,7 @@
 # Addresses in the sector of embedded data values.
 # Accessed with negative offsets from the end of the relocated sectors (%bp).
 #
-		.set _PRT_END,(FAKE-(ORIGIN+SECTOR_SIZE))
+		.set _PRT_END,(FAKE-(ORIGIN+SECTOR_SIZE*(NUM_SECTORS-1)))
 		.set _NXTDRV,-(_PRT_END+0x48)	# Next drive
 		.set _OPT,-(_PRT_END+0x47)	# Default option
 		.set _SETDRV,-(_PRT_END+0x46)	# Drive to force
@@ -86,6 +87,16 @@ start:		cld				# String ops inc
 		stosw				#  them
 		incb -0xe(%di)			# Sector number 1
 #
+# Check what flags were loaded with us; specifically, use a predefined Drive.
+# If what the bios gives us is bad, use the '0' in the block instead, as well.
+#
+		testb $FL_SETDRV,LOAD+flags-start # Set number drive?
+		jnz boot.1			# Yes
+		testb %dl,%dl			# Drive number valid?
+		js boot.2			# Possibly (0x80 set)
+boot.1:		movb LOAD+setdrv-start,%dl	# Drive number to use
+boot.2:
+#
 # Reload all of boot0 (including the extra sectors) into memory at the
 # relocation address.  
 #
@@ -100,19 +111,10 @@ start:		cld				# String ops inc
 #
 		jmp main+ORIGIN-LOAD		# To relocated code
 #
-# Check what flags were loaded with us; specifically, use a predefined Drive.
-# If what the bios gives us is bad, use the '0' in the block instead, as well.
-#
-main:		testb $FL_SETDRV,_FLAGS(%bp)	# Set number drive?
-		jnz main.1			# Yes
-		testb %dl,%dl			# Drive number valid?
-		js main.2			# Possibly (0x80 set)
-main.1: 	movb _SETDRV(%bp),%dl		# Drive number to use
-#
 # Whatever we decided to use, now store it into the fake
 # partition entry that lives in the data space above us.
 #
-main.2: 	movb %dl,_FAKE(%bp)		# Save drive number
+main:		movb %dl,_FAKE(%bp)		# Save drive number
 		callw putn			# To new line
 		pushw %dx			# Save drive number
 #
@@ -245,6 +247,9 @@ main.11:	xorb %ah,%ah			# BIOS: Get
 #
 		subb $KEY_F1,%al		# Less F1 scan code
 		cmpb $0x4,%al			# F1..F5?
+		jna main.12			# Yes
+		subb $(KEY_1 - KEY_F1),%al	# Less #1 scan code
+		cmpb $0x4,%al			# #1..#5?
 		ja main.10			# No
 #
 # We have a selection.
@@ -263,7 +268,7 @@ main.12:	cbtw				# Option
 		movw $fake,%si			# Partition for write
 		movb (%si),%dl			# Drive number
 		movw %si,%bx			# Partition for read
-		cmpb $0x4,%al			# F5 pressed?
+		cmpb $0x4,%al			# F5/#5 pressed?
 		pushf				# Save
 		je main.13			# Yes
 		shlb $0x4,%al			# Point to
@@ -285,7 +290,7 @@ main.14:	popw %si			# Restore
 # If going to next drive, replace drive with selected one.
 # Remember to un-ascii it. Hey 0x80 is already set, cool!
 #
-		jne main.15			# If not F5
+		jne main.15			# If not F5/#5
 		movb _NXTDRV(%bp),%dl		# Next drive
 		subb $'0',%dl			#  number
 # 
@@ -442,7 +447,7 @@ table0_end:
 #
 # These values indicate bootable types we know the names of
 #
-table1:		.byte 0x1, 0x4, 0x6, 0x7, 0xb, 0xc, 0xe, 0x63, 0x83
+table1:		.byte 0x1, 0x4, 0x6, 0x7, 0xb, 0xc, 0xe, 0x42, 0x63, 0x83
 		.byte 0x9f, 0xa5, 0xa6, 0xa9
 table1_end:
 #
@@ -453,10 +458,11 @@ table1_end:
 		.byte os_dos-.			# DOS
 		.byte os_dos-.			# DOS
 		.byte os_dos-.			# DOS
-		.byte os_nt-.			# NT or OS/2
+		.byte os_nt-.			# NT/XP or OS/2
+		.byte os_windows-.		# Windows 32-bit FAT
+		.byte os_windows-.		# Windows 32-bit FAT ext int 13
 		.byte os_windows-.		# Windows
-		.byte os_windows-.		# Windows
-		.byte os_windows-.		# Windows
+		.byte os_windows-.		# Windows 2000 dyn ext
 		.byte os_unix-. 		# UNIX
 		.byte os_linux-.		# Linux
 		.byte os_bsdos-.		# BSD/OS
@@ -469,7 +475,7 @@ table1_end:
 #
 os_misc:	.ascii "Unknow";	.byte 'n'|0x80
 os_dos: 	.ascii "DO";		.byte 'S'|0x80
-os_nt:		.ascii "Windows N";	.byte 'T'|0x80
+os_nt:		.ascii "Windows NT/X";	.byte 'P'|0x80
 os_windows: 	.ascii "Window";	.byte 's'|0x80
 os_unix:	.ascii "UNI";		.byte 'X'|0x80
 os_linux:	.ascii "Linu";		.byte 'x'|0x80
