@@ -214,8 +214,8 @@ static int
 vop_nostrategy (struct vop_strategy_args *ap)
 {
 	printf("No strategy for buffer at %p\n", ap->a_bp);
-	vprint("", ap->a_vp);
-	vprint("", ap->a_bp->b_vp);
+	vprint("vnode", ap->a_vp);
+	vprint("device vnode", ap->a_bp->b_vp);
 	ap->a_bp->b_ioflags |= BIO_ERROR;
 	ap->a_bp->b_error = EOPNOTSUPP;
 	bufdone(ap->a_bp);
@@ -238,7 +238,7 @@ vop_nospecstrategy (struct vop_specstrategy_args *ap)
 	static int once;
 
 	if (!once) {
-		vprint("\nVOP_SPECSTRATEGY on non-VCHR\n", ap->a_vp);
+		vprint("VOP_SPECSTRATEGY on non-VCHR", ap->a_vp);
 		backtrace();
 		once++;
 	}
