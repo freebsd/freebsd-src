@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.15 1997/04/21 01:01:45 brian Exp $
+ * $Id: ip.c,v 1.16 1997/05/10 01:22:11 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -45,7 +45,7 @@ static void IdleTimeout()
 {
   LogPrintf(LOG_PHASE_BIT, "Idle timer expired.\n");
   LcpClose();
-  lostCarrier = 0;
+  reconnectCount = 0;
 }
 
 /*

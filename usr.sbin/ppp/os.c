@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.15 1997/04/15 00:03:36 brian Exp $
+ * $Id: os.c,v 1.16 1997/05/04 02:39:04 ache Exp $
  *
  */
 #include "fsm.h"
@@ -186,6 +186,15 @@ OsLinkup()
   if (linkup == 0) {
     if (setuid(0) < 0)
 	logprintf("setuid failed\n");
+    if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
+        char c = EX_NORMAL;
+        if (write(BGFiledes[1],&c,1) == 1)
+          LogPrintf(LOG_PHASE_BIT,"Parent notified of success.\n");
+        else
+          LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of success.\n");
+        close(BGFiledes[1]);
+        BGFiledes[1] = -1;
+    }
     peer_addr = IpcpInfo.his_ipaddr;
     s = (char *)inet_ntoa(peer_addr);
     LogPrintf(LOG_LINK_BIT|LOG_LCP_BIT, "OsLinkup: %s\n", s);
