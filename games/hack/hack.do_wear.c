@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.do_wear.c - version 1.0.3 */
+/* $FreeBSD$ */
 
 #include "hack.h"
 #include <stdio.h>

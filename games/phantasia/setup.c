@@ -1,5 +1,7 @@
 /*
  * setup.c - set up all files for Phantasia
+ *
+ * $FreeBSD$
  */
 #include "include.h"
 #include <sys/types.h>

@@ -1,4 +1,5 @@
 /*	diag.c		Larn is copyrighted 1986 by Noah Morgan. */
+/* $FreeBSD$ */
 #include <sys/types.h>
 #include <sys/times.h>
 #include <sys/stat.h>

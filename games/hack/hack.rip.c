@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.rip.c - version 1.0.2 */
+/* $FreeBSD$ */
 
 #include <stdio.h>
 #include "hack.h"

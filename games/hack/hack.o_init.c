@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.o_init.c - version 1.0.3 */
+/* $FreeBSD$ */
 
 #include <string.h>
 #include	"config.h"		/* for typedefs */

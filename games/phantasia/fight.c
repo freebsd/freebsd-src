@@ -1,5 +1,7 @@
 /*
  * fight.c   Phantasia monster fighting routines
+ *
+ * $FreeBSD$
  */
 
 #include <string.h>
