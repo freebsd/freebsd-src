@@ -38,7 +38,23 @@ if [ -f /etc/sysctl.conf ]; then
 		\#*|'')
 			;;
 		*)
-			sysctl ${var}
+			mib=${var%=*}
+			val=${var#*=}
+
+			if current_value=`sysctl -n ${mib} 2>/dev/null`; then
+				case ${current_value} in
+				${val}) ;;
+				*)
+					sysctl ${var}
+					;;
+				esac
+			else
+				case ${1} in
+				last)
+				echo "Warning: sysctl ${mib} does not exist"
+					;;
+				esac
+			fi
 			;;
 		esac
 	done < /etc/sysctl.conf
