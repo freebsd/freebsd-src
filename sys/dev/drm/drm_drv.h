@@ -124,6 +124,7 @@ static void DRM(cleanup)(drm_device_t *dev);
 #if __REALLY_HAVE_AGP
 MODULE_DEPEND(DRIVER_NAME, agp, 1, 1, 1);
 #endif
+MODULE_DEPEND(DRIVER_NAME, mem, 1, 1, 1);
 #endif /* __FreeBSD__ */
 
 #ifdef __NetBSD__
