@@ -82,14 +82,6 @@ userret(td, frame, oticks)
 	mtx_lock_spin(&sched_lock);
 	kg->kg_pri.pri_level = kg->kg_pri.pri_user;
 	if (ke->ke_flags & KEF_NEEDRESCHED) {
-		/*
-		 * Since we are curproc, a clock interrupt could
-		 * change our priority without changing run queues
-		 * (the running process is not kept on a run queue).
-		 * If this happened after we setrunqueue ourselves but
-		 * before we switch()'ed, we might not be on the queue
-		 * indicated by our priority.
-		 */
 		DROP_GIANT_NOSWITCH();
 		setrunqueue(td);
 		p->p_stats->p_ru.ru_nivcsw++;
