@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: lockf.c,v 1.1.1.1 1997/01/08 20:12:59 jdp Exp $
  */
 
 #include <sys/types.h>
@@ -34,6 +34,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 static int acquire_lock(const char *name);
@@ -73,7 +74,7 @@ main(int argc, char **argv)
 		char *endptr;
 		waitsec = strtol(optarg, &endptr, 0);
 		if (*optarg == '\0' || *endptr != '\0' || waitsec < 0)
-		    errx(1, "invalid timeout \"%s\"", optarg);
+		    errx(EX_USAGE, "invalid timeout \"%s\"", optarg);
 	    }
 	    break;
 
@@ -109,17 +110,17 @@ main(int argc, char **argv)
 
     if (lockfd == -1) {		/* We failed to acquire the lock. */
 	if (silent)
-	    exit(1);
-	errx(1, "%s: already locked", lockname);
+	    exit(EX_TEMPFAIL);
+	errx(EX_TEMPFAIL, "%s: already locked", lockname);
     }
 
     /* At this point, we own the lock. */
 
     if (atexit(cleanup) == -1)
-	err(1, "atexit failed");
+	err(EX_OSERR, "atexit failed");
 
     if ((child = fork()) == -1)
-	err(1, "cannot fork");
+	err(EX_OSERR, "cannot fork");
 
     if (child == 0) {	/* The child process. */
 	close(lockfd);
@@ -135,7 +136,7 @@ main(int argc, char **argv)
     signal(SIGTERM, killed);
 
     if (waitpid(child, &status, 0) == -1)
-	err(1, "waitpid failed");
+	err(EX_OSERR, "waitpid failed");
 
     return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
 }
@@ -152,7 +153,7 @@ acquire_lock(const char *name)
     if ((fd = open(name, O_RDONLY|O_CREAT|O_EXLOCK|O_NONBLOCK, 0666)) == -1) {
 	if (errno == EAGAIN || errno == EINTR)
 	    return -1;
-	err(1, "cannot open %s", name);
+	err(EX_CANTCREAT, "cannot open %s", name);
     }
     return fd;
 }
@@ -163,8 +164,7 @@ acquire_lock(const char *name)
 static void
 cleanup(void)
 {
-    if (unlink(lockname) == -1 && errno != ENOENT)
-	err(1, "cannot unlink %s", lockname);
+    unlink(lockname);
 }
 
 /*
@@ -177,7 +177,7 @@ killed(int sig)
     cleanup();
     signal(sig, SIG_DFL);
     if (kill(getpid(), sig) == -1)
-	err(1, "kill failed");
+	err(EX_OSERR, "kill failed");
 }
 
 /*
@@ -192,7 +192,7 @@ timeout(int sig)
 static void
 usage(void)
 {
-    errx(1, "usage: lockf [-s] [-t seconds] file command [arguments]");
+    errx(EX_USAGE, "usage: lockf [-s] [-t seconds] file command [arguments]");
 }
 
 /*
@@ -206,7 +206,7 @@ wait_for_lock(const char *name)
     if ((fd = open(name, O_RDONLY|O_EXLOCK)) == -1) {
 	if (errno == ENOENT || errno == EINTR)
 	    return;
-	err(1, "cannot open %s", name);
+	err(EX_CANTCREAT, "cannot open %s", name);
     }
     close(fd);
     return;
