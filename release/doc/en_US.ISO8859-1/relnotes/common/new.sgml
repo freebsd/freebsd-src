@@ -121,6 +121,30 @@
       <para>The &man.an.4; driver now supports Cisco LEAP, as well as
         the <quote>Home</quote> WEP key.  The Linux Aironet
         utilities are now supported under emulation.</para>
+
+      <para arch="i386">Generic support for ARCNET token-based
+	networks has been added.</para>
+
+      <para arch="i386">The cm driver has been added to support SMC
+	COM90cx6 ARCNET network adapters.</para>
+
+<!-- Above this line, order network driver changes by manpage/variable name-->
+
+      <para>Selected network drivers now implement a
+	semi-polling mode, which makes systems much more resilient to
+	attacks and overloads.  To enable polling, the following options
+	are required in a kernel configuration file:
+
+	<programlisting>options DEVICE_POLLING
+options HZ=1000 # not compulsory but strongly recommended</programlisting>
+
+	The <varname>kern.polling.enable</varname> sysctl variable
+	will then activate polling mode; with the
+	<varname>kern.polling.user_frac</varname> sysctl indicating the
+	percentage of CPU time to be reserved for userland.  The devices
+	initially supporting polling are &man.dc.4;, &man.fxp.4;, and
+	&man.sis.4;.  More details can be found in the &man.polling.4;
+	manual page.</para>
     </sect3>
 
     <sect3>
