@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3.2.4 1996/11/23 08:33:18 phk Exp $
+# $Id: Makefile,v 1.3.2.5 1996/12/08 14:10:46 ache Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -20,6 +20,8 @@ TCLINTERP=	yes	#fine, in base tree, little cost
 
 APISTUFF=	ex_tcl.c ex_perl.c
 .endif
+
+CFLAGS+=	-DGTAGS
 
 #if using ncurses:
 #CFLAGS+=	-DSYSV_CURSES

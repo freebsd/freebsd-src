@@ -89,6 +89,7 @@ int re_compile __P((SCR *,
     char *, size_t, char **, size_t *, regex_t *, u_int));
 void re_error __P((SCR *, int, regex_t *));
 int ex_tag_first __P((SCR *, char *));
+int ex_rtag_push __P((SCR *, EXCMD *));
 int ex_tag_push __P((SCR *, EXCMD *));
 int ex_tag_next __P((SCR *, EXCMD *));
 int ex_tag_prev __P((SCR *, EXCMD *));

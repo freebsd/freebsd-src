@@ -226,6 +226,11 @@ v_tagpush(sp, vp)
 	ARGS *ap[2], a;
 	EXCMD cmd;
 
+#ifdef GTAGS
+	if (O_ISSET(sp, O_GTAGSMODE) && vp->m_start.cno == 0)
+		ex_cinit(&cmd, C_RTAG, 0, OOBLNO, 0, 0, ap);
+	else
+#endif
 	ex_cinit(&cmd, C_TAG, 0, OOBLNO, 0, 0, ap);
 	ex_cadd(&cmd, &a, VIP(sp)->keyw, strlen(VIP(sp)->keyw));
 	return (v_exec_ex(sp, vp, &cmd));
