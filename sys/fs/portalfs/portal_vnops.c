@@ -65,7 +65,6 @@
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;
 
-static int	portal_badop __P((void));
 static void	portal_closefd __P((struct proc *p, int fd));
 static int	portal_connect __P((struct socket *so, struct socket *so2));
 static int	portal_getattr __P((struct vop_getattr_args *ap));
@@ -557,18 +556,6 @@ portal_print(ap)
 
 	printf("tag VT_PORTAL, portal vnode\n");
 	return (0);
-}
-
-
-/*
- * Portal "should never get here" operation
- */
-static int
-portal_badop()
-{
-
-	panic("portal: bad op");
-	/* NOTREACHED */
 }
 
 vop_t **portal_vnodeop_p;
