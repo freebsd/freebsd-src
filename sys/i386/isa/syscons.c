@@ -59,7 +59,7 @@
 #include "kernel.h"
 #include "syslog.h"
 #include "errno.h"
-#include "console.h"
+#include "machine/console.h"
 #include "malloc.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/isa.h"
