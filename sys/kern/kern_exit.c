@@ -64,6 +64,9 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/jail.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -296,9 +299,11 @@ exit1(td, rv)
 	 * release trace file
 	 */
 	PROC_LOCK(p);
+	mtx_lock(&ktrace_mtx);
 	p->p_traceflag = 0;	/* don't trace the vrele() */
 	tracevp = p->p_tracep;
 	p->p_tracep = NULL;
+	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
 	if (tracevp != NULL)
 		vrele(tracevp);
