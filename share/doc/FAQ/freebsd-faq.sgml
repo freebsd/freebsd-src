@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.22 1995/11/24 07:55:14 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.23 1995/12/03 17:21:07 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1577,8 +1577,6 @@ disk        fd1   at fdc0 drive 1
           Recompile and install.
 
       <sect1>
-
-      <sect1>
         <heading>I have 128 MB of RAM but it seems that the system use only the first 64 MB. What's going on ?</heading>
 
         <p>
@@ -1599,6 +1597,7 @@ disk        fd1   at fdc0 drive 1
           Where <tt/n/ is your memory in Kilobytes. For a 128 MB machine,
           you'd want to use <tt/131072/
 
+      <sect1>
 	<heading>Will FreeBSD ever support other architectures?</heading>
 
         <p>
