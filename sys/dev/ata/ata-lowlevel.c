@@ -545,15 +545,19 @@ ata_reset(struct ata_channel *ch)
 			   stat0, err, lsb, msb);
 	    if (!(stat0 & ATA_S_BUSY)) {
 		if (err == ATA_E_ILI) {
-		    if (stat0 & ATA_S_READY) {
-			ch->devices |= ATA_ATA_MASTER;
-		    }
-		    else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
+		    if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 			ch->devices |= ATA_ATAPI_MASTER;
 		    }
+		    else if (stat0 & ATA_S_READY) {
+			ch->devices |= ATA_ATA_MASTER;
+		    }
 		}
-		else if (err == lsb && err == msb) 
-		    stat0 |= ATA_S_BUSY;
+		else if (err == lsb && err == msb) {
+		    ATA_IDX_OUTB(ch, ATA_ERROR, 0xff);
+		    DELAY(10);
+    	    	    if (stat0 == ATA_IDX_INB(ch, ATA_STATUS))
+			stat0 |= ATA_S_BUSY;
+		}
 	    }
 	}
 	if (stat1 & ATA_S_BUSY) {
@@ -569,15 +573,19 @@ ata_reset(struct ata_channel *ch)
 			   stat1, err, lsb, msb);
 	    if (!(stat1 & ATA_S_BUSY)) {
 		if (err == ATA_E_ILI) {
-		    if (stat1 & ATA_S_READY) {
-			ch->devices |= ATA_ATA_SLAVE;
-		    }
-		    else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
+		    if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 			ch->devices |= ATA_ATAPI_SLAVE;
 		    }
+		    else if (stat1 & ATA_S_READY) {
+			ch->devices |= ATA_ATA_SLAVE;
+		    }
 		}
-		else if (err == lsb && err == msb) 
-		    stat1 |= ATA_S_BUSY;
+		else if (err == lsb && err == msb) {
+		    ATA_IDX_OUTB(ch, ATA_ERROR, 0xff);
+		    DELAY(10);
+    	    	    if (stat1 == ATA_IDX_INB(ch, ATA_STATUS))
+			stat1 |= ATA_S_BUSY;
+		}
 	    }
 	}
 	if (mask == 0x01)	/* wait for master only */
