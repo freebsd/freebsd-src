@@ -50,4 +50,4 @@ void	 netfinger __P((char *));
 PERSON	*palloc __P((void));
 char	*prphone __P((char *));
 void	 sflag_print __P((void));
-int	 show_text __P((char *, char *, char *));
+int	 show_text __P((const char *, const char *, const char *));
