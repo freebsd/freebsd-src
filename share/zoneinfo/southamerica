@@ -1,4 +1,4 @@
-# @(#)southamerica	7.15
+# @(#)southamerica	7.16
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -61,7 +61,7 @@
 # ARGENTINA           3 H BEHIND   UTC
 
 # From Hernan G. Otero <hernan@isoft.com.ar> (1995-06-26):
-# I am sending modifications to the Argentinian time zone table...
+# I am sending modifications to the Argentine time zone table...
 # AR was chosen because they are the ISO letters that represent Argentina.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -99,7 +99,7 @@ Rule	Arg	1988	only	-	Dec	 1	0:00	1:00	S
 # These corrections were contributed by InterSoft Argentina S.A.,
 # obtaining the data from the:
 # Talleres de Hidrografia Naval Argentina
-# (Argentinian Naval Hydrography Institute)
+# (Argentine Naval Hydrography Institute)
 #
 # Shanks gives 1989 Mar 16 and stops after 1990 Mar 4; go with Otero.
 Rule	Arg	1989	1993	-	Mar	Sun>=1	0:00	0	-

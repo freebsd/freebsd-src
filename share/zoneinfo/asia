@@ -1,4 +1,4 @@
-# @(#)asia	7.26
+# @(#)asia	7.27
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -354,6 +354,26 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 			9:00	-	JAYT
 
 # Iran
+# From Paul Eggert (1996-12-17), following up a suggestion by Rich Wales:
+# Ahmad Alavi <URL:http://tehran.stanford.edu/Iran_Lib/Calendar/taghveem.txt>
+# (1993-08-04) writes ``Daylight saving time in Iran starts from the first day
+# of Farvardin and ends the first day of Mehr.''  This disagrees with the SSIM:
+#
+#		   DST start	   DST end
+#	year	SSIM	Alavi	SSIM	Alavi
+#	1991	05-03!=	03-21	09-20!=	09-23
+#	1992	03-22!=	03-21	09-23	09-23
+#	1993	03-21	03-21	09-23	09-23
+#	1994	03-21	03-21	09-22!= 09-23
+#	1995	03-21	03-21	09-22!= 09-23
+#	1996	03-21!=	03-20	09-21!= 09-22
+#	1997	03-21	03-21	09-21!= 09-23
+#
+# Go with Alavi starting with 1992.
+# I used Ed Reingold's cal-persia in GNU Emacs 19.34 to compute Persian dates.
+# The Persian calendar is based on the sun, and dates after around 2050
+# are approximate; stop after 2037 when 32-bit time_t's overflow.
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Iran	1978	1980	-	Mar	21	0:00	1:00	S
 Rule	Iran	1978	only	-	Oct	21	0:00	0	-
@@ -361,11 +381,50 @@ Rule	Iran	1979	only	-	Sep	19	0:00	0	-
 Rule	Iran	1980	only	-	Sep	23	0:00	0	-
 Rule	Iran	1991	only	-	May	 3	0:00s	1:00	S
 Rule	Iran	1991	only	-	Sep	20	0:00s	0	-
-Rule	Iran	1992	only	-	Mar	22	0:00	1:00	S
-Rule	Iran	1992	1993	-	Sep	23	0:00	0	-
-Rule	Iran	1993	max	-	Mar	21	0:00	1:00	S
-Rule	Iran	1994	1995	-	Sep	22	0:00	0	-
-Rule	Iran	1996	max	-	Sep	21	0:00	0	-
+Rule	Iran	1992	1995	-	Mar	21	0:00	1:00	S
+Rule	Iran	1992	1995	-	Sep	23	0:00	0	-
+Rule	Iran	1996	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	1996	only	-	Sep	22	0:00	0	-
+Rule	Iran	1997	1999	-	Mar	21	0:00	1:00	S
+Rule	Iran	1997	1999	-	Sep	23	0:00	0	-
+Rule	Iran	2000	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2000	only	-	Sep	22	0:00	0	-
+Rule	Iran	2001	2003	-	Mar	21	0:00	1:00	S
+Rule	Iran	2001	2003	-	Sep	23	0:00	0	-
+Rule	Iran	2004	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2004	only	-	Sep	22	0:00	0	-
+Rule	Iran	2005	2007	-	Mar	21	0:00	1:00	S
+Rule	Iran	2005	2007	-	Sep	23	0:00	0	-
+Rule	Iran	2008	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2008	only	-	Sep	22	0:00	0	-
+Rule	Iran	2009	2011	-	Mar	21	0:00	1:00	S
+Rule	Iran	2009	2011	-	Sep	23	0:00	0	-
+Rule	Iran	2012	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2012	only	-	Sep	22	0:00	0	-
+Rule	Iran	2013	2015	-	Mar	21	0:00	1:00	S
+Rule	Iran	2013	2015	-	Sep	23	0:00	0	-
+Rule	Iran	2016	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2016	only	-	Sep	22	0:00	0	-
+Rule	Iran	2017	2019	-	Mar	21	0:00	1:00	S
+Rule	Iran	2017	2019	-	Sep	23	0:00	0	-
+Rule	Iran	2020	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2020	only	-	Sep	22	0:00	0	-
+Rule	Iran	2021	2023	-	Mar	21	0:00	1:00	S
+Rule	Iran	2021	2023	-	Sep	23	0:00	0	-
+Rule	Iran	2024	2025	-	Mar	20	0:00	1:00	S
+Rule	Iran	2024	2025	-	Sep	22	0:00	0	-
+Rule	Iran	2026	2027	-	Mar	21	0:00	1:00	S
+Rule	Iran	2026	2027	-	Sep	23	0:00	0	-
+Rule	Iran	2028	2029	-	Mar	20	0:00	1:00	S
+Rule	Iran	2028	2029	-	Sep	22	0:00	0	-
+Rule	Iran	2030	2031	-	Mar	21	0:00	1:00	S
+Rule	Iran	2030	2031	-	Sep	23	0:00	0	-
+Rule	Iran	2032	2033	-	Mar	20	0:00	1:00	S
+Rule	Iran	2032	2033	-	Sep	22	0:00	0	-
+Rule	Iran	2034	2035	-	Mar	21	0:00	1:00	S
+Rule	Iran	2034	2035	-	Sep	23	0:00	0	-
+Rule	Iran	2036	2037	-	Mar	20	0:00	1:00	S
+Rule	Iran	2036	2037	-	Sep	22	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			3:25:44	-	TMT	1946	# Tehran Mean Time
@@ -492,7 +551,7 @@ Rule	Zion	1995	only	-	Sep	 3	0:00	0	S
 #
 #   ftp://ftp.huji.ac.il/pub/misc/timezones/announcements/1996-1998.ps.gz
 #
-# Emptor Caveat: The dates for the years 1996-1998 were originally announced
+# Caveat emptor: The dates for the years 1996-1998 were originally announced
 # on 1995-08-31, by the previous Minister of Interior.  The new Minister
 # of Interior changed the dates on 1996-01-01, to take into account the
 # desires of certain portions of Israeli society (the next election is in the
