@@ -423,17 +423,22 @@ isa_assign_resources(device_t child)
 	struct isa_device *idev = DEVTOISA(child);
 	struct isa_config_entry *ice;
 	struct isa_config *cfg;
+	char *reason = "Empty ISA id_configs";
 
 	cfg = malloc(sizeof(struct isa_config), M_TEMP, M_NOWAIT|M_ZERO);
 	if (cfg == NULL)
 		return(0);
 	TAILQ_FOREACH(ice, &idev->id_configs, ice_link) {
+		reason = "memory";
 		if (!isa_find_memory(child, &ice->ice_config, cfg))
 			continue;
+		reason = "port";
 		if (!isa_find_port(child, &ice->ice_config, cfg))
 			continue;
+		reason = "irq";
 		if (!isa_find_irq(child, &ice->ice_config, cfg))
 			continue;
+		reason = "drq";
 		if (!isa_find_drq(child, &ice->ice_config, cfg))
 			continue;
 
@@ -441,6 +446,7 @@ isa_assign_resources(device_t child)
 		 * A working configuration was found enable the device 
 		 * with this configuration.
 		 */
+		reason = "no callback";
 		if (idev->id_config_cb) {
 			idev->id_config_cb(idev->id_config_arg,
 					   cfg, 1);
@@ -453,7 +459,7 @@ isa_assign_resources(device_t child)
 	 * Disable the device.
 	 */
 	bus_print_child_header(device_get_parent(child), child);
-	printf(" can't assign resources\n");
+	printf(" can't assign resources (%s)\n", reason);
 	if (bootverbose)
 	    isa_print_child(device_get_parent(child), child);
 	bzero(cfg, sizeof (*cfg));
