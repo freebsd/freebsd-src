@@ -200,7 +200,7 @@ struct	xsocket {
 #define	soreadable(so) \
     ((so)->so_rcv.sb_cc >= (so)->so_rcv.sb_lowat || \
 	((so)->so_state & SS_CANTRCVMORE) || \
-	(so)->so_comp.tqh_first || (so)->so_error)
+	!TAILQ_EMPTY(&(so)->so_comp) || (so)->so_error)
 
 /* can we write something to so? */
 #define	sowriteable(so) \
