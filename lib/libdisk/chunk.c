@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.3 1995/04/29 04:00:54 phk Exp $
+ * $Id: chunk.c,v 1.4 1995/04/30 06:09:24 phk Exp $
  *
  */
 
@@ -198,9 +198,9 @@ Add_Chunk(struct disk *d, u_long offset, u_long size, char *name, chunk_e type,
 		return 0; 
 	}
 	c1 = 0;
-	if(!c1 && (type == freebsd || type == fat || type == foo))
+	if(!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,extended);
-	if(!c1 && (type == freebsd || type == fat || type == foo))
+	if(!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
 	if(!c1 && type == extended)
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
@@ -263,9 +263,9 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 
 	if(type == whole) 
 		return 1;
-	if(!c1 && (type == freebsd || type == fat || type == foo))
+	if(!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,extended);
-	if(!c1 && (type == freebsd || type == fat || type == foo))
+	if(!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,whole);
 	if(!c1 && type == extended)
 		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,whole);
