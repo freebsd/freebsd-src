@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_safe.c,v 1.26 2001/05/14 06:14:50 assar Exp $");
+RCSID("$Id: mk_safe.c,v 1.27 2001/06/18 02:45:15 assar Exp $");
 
 krb5_error_code
 krb5_mk_safe(krb5_context context,
@@ -53,6 +53,14 @@ krb5_mk_safe(krb5_context context,
   size_t len;
   u_int32_t tmp_seq;
   krb5_crypto crypto;
+  krb5_keyblock *key;
+
+  if (auth_context->local_subkey)
+      key = auth_context->local_subkey;
+  else if (auth_context->remote_subkey)
+      key = auth_context->remote_subkey;
+  else
+      key = auth_context->keyblock;
 
   s.pvno = 5;
   s.msg_type = krb_safe;
@@ -88,7 +96,7 @@ krb5_mk_safe(krb5_context context,
       free (buf);
       return ret;
   }
-  ret = krb5_crypto_init(context, auth_context->keyblock, 0, &crypto);
+  ret = krb5_crypto_init(context, key, 0, &crypto);
   if (ret) {
       free (buf);
       return ret;

@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_priv.c,v 1.29 2001/05/14 06:14:49 assar Exp $");
+RCSID("$Id: mk_priv.c,v 1.30 2001/06/18 02:44:54 assar Exp $");
 
 /*
  *
@@ -58,8 +58,6 @@ krb5_mk_priv(krb5_context context,
   KerberosTime sec2;
   int usec2;
   krb5_crypto crypto;
-
-  /* XXX - Is this right? */
 
   if (auth_context->local_subkey)
       key = auth_context->local_subkey;

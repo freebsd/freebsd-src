@@ -33,7 +33,7 @@
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
  */
 
-/* $Id: ext.h,v 1.22 2001/04/24 23:12:11 assar Exp $ */
+/* $Id: ext.h,v 1.23 2001/08/29 00:45:22 assar Exp $ */
 
 #ifndef __EXT_H__
 #define __EXT_H__
@@ -181,6 +181,11 @@ extern struct clocks_t clocks;
 
 extern int log_unauth;
 extern int no_warn;
+
+extern int def_tspeed, def_rspeed;
+#ifdef	TIOCSWINSZ
+extern int def_row, def_col;
+#endif
 
 #ifdef STREAMSPTY
 extern int really_stream;

@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: commands.c,v 1.65 2001/02/20 03:12:09 assar Exp $");
+RCSID("$Id: commands.c,v 1.67 2001/08/29 00:45:20 assar Exp $");
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -350,11 +350,12 @@ send_wontcmd(char *name)
     return(send_tncmd(send_wont, "wont", name));
 }
 
+extern char *telopts[];		/* XXX */
+
 static int
 send_tncmd(void (*func)(), char *cmd, char *name)
 {
     char **cpp;
-    extern char *telopts[];
     int val = 0;
 
     if (isprefix(name, "help") || isprefix(name, "?")) {
@@ -1564,7 +1565,7 @@ env_init(void)
 	 * "unix:0.0", we have to get rid of "unix" and insert our
 	 * hostname.
 	 */
-	if ((ep = env_find("DISPLAY"))
+	if ((ep = env_find((unsigned char*)"DISPLAY"))
 	    && (*ep->value == ':'
 	    || strncmp((char *)ep->value, "unix:", 5) == 0)) {
 		char hbuf[256+1];
@@ -1604,7 +1605,8 @@ env_init(void)
 	 * USER with the value from LOGNAME.  By default, we
 	 * don't export the USER variable.
 	 */
-	if ((env_find("USER") == NULL) && (ep = env_find("LOGNAME"))) {
+	if ((env_find((unsigned char*)"USER") == NULL) && 
+	    (ep = env_find((unsigned char*)"LOGNAME"))) {
 		env_define((unsigned char *)"USER", ep->value);
 		env_unexport((unsigned char *)"USER");
 	}

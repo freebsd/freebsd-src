@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: purge.c,v 1.5 2001/05/11 00:54:01 assar Exp $");
+RCSID("$Id: purge.c,v 1.6 2001/07/23 09:46:41 joda Exp $");
 
 /*
  * keep track of the highest version for every principal.
@@ -132,20 +132,8 @@ kt_purge(int argc, char **argv)
 	return 1;
     }
 
-    if (keytab_string == NULL) {
-	ret = krb5_kt_default_modify_name (context, keytab_buf,
-					   sizeof(keytab_buf));
-	if (ret) {
-	    krb5_warn(context, ret, "krb5_kt_default_modify_name");
-	    return 1;
-	}
-	keytab_string = keytab_buf;
-    }
-    ret = krb5_kt_resolve(context, keytab_string, &keytab);
-    if (ret) {
-	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
+    if((keytab = ktutil_open_keytab()) == NULL)
 	return 1;
-    }
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
@@ -153,9 +141,6 @@ kt_purge(int argc, char **argv)
 	goto out;
     }
 
-    if (verbose_flag)
-	fprintf (stderr, "Using keytab %s\n", keytab_string);
-	
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0) {
 	add_entry (entry.principal, entry.vno, &head);
 	krb5_kt_free_entry(context, &entry);

@@ -33,9 +33,8 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kaserver.c,v 1.16 2001/02/05 10:49:43 assar Exp $");
+RCSID("$Id: kaserver.c,v 1.18 2001/08/17 07:49:01 joda Exp $");
 
-#ifdef KASERVER
 
 #include <rx.h>
 
@@ -311,8 +310,8 @@ create_reply_ticket (struct rx_header *hdr,
 
     /* encrypt it */
     des_set_key (key, schedule);
-    des_pcbc_encrypt ((des_cblock *)enc_data.data,
-		      (des_cblock *)enc_data.data,
+    des_pcbc_encrypt (enc_data.data,
+		      enc_data.data,
 		      enc_data.length,
 		      schedule,
 		      key,
@@ -433,17 +432,17 @@ do_authenticate (struct rx_header *hdr,
     }
 
     /* find a DES key */
-    ret = get_des_key(client_entry, TRUE, &ckey);
+    ret = get_des_key(client_entry, FALSE, TRUE, &ckey);
     if(ret){
-	kdc_log(0, "%s", krb5_get_err_text(context, ret));
+	kdc_log(0, "no suitable DES key for client");
 	make_error_reply (hdr, KANOKEYS, reply);
 	goto out;
     }
 
     /* find a DES key */
-    ret = get_des_key(server_entry, TRUE, &skey);
+    ret = get_des_key(server_entry, TRUE, TRUE, &skey);
     if(ret){
-	kdc_log(0, "%s", krb5_get_err_text(context, ret));
+	kdc_log(0, "no suitable DES key for server");
 	make_error_reply (hdr, KANOKEYS, reply);
 	goto out;
     }
@@ -451,8 +450,8 @@ do_authenticate (struct rx_header *hdr,
     /* try to decode the `request' */
     memcpy (&key, ckey->key.keyvalue.data, sizeof(key));
     des_set_key (&key, schedule);
-    des_pcbc_encrypt ((des_cblock *)request.data,
-		      (des_cblock *)request.data,
+    des_pcbc_encrypt (request.data,
+		      request.data,
 		      request.length,
 		      schedule,
 		      &key,
@@ -624,17 +623,17 @@ do_getticket (struct rx_header *hdr,
     }
 
     /* find a DES key */
-    ret = get_des_key(krbtgt_entry, TRUE, &kkey);
+    ret = get_des_key(krbtgt_entry, TRUE, TRUE, &kkey);
     if(ret){
-	kdc_log(0, "%s", krb5_get_err_text(context, ret));
+	kdc_log(0, "no suitable DES key for krbtgt");
 	make_error_reply (hdr, KANOKEYS, reply);
 	goto out;
     }
 
     /* find a DES key */
-    ret = get_des_key(server_entry, TRUE, &skey);
+    ret = get_des_key(server_entry, TRUE, TRUE, &skey);
     if(ret){
-	kdc_log(0, "%s", krb5_get_err_text(context, ret));
+	kdc_log(0, "no suitable DES key for server");
 	make_error_reply (hdr, KANOKEYS, reply);
 	goto out;
     }
@@ -819,5 +818,3 @@ out:
     krb5_storage_free (sp);
     return ret;
 }
-
-#endif /* KASERVER */

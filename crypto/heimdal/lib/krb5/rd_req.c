@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_req.c,v 1.45 2001/05/14 06:14:50 assar Exp $");
+RCSID("$Id: rd_req.c,v 1.47 2001/06/18 02:48:18 assar Exp $");
 
 static krb5_error_code
 decrypt_tkt_enc_part (krb5_context context,
@@ -181,7 +181,7 @@ krb5_verify_authenticator_checksum(krb5_context context,
     krb5_authenticator authenticator;
     krb5_crypto crypto;
     
-    ret = krb5_auth_getauthenticator (context,
+    ret = krb5_auth_con_getauthenticator (context,
 				      ac,
 				      &authenticator);
     if(ret)
@@ -343,17 +343,16 @@ krb5_verify_ap_req2(krb5_context context,
     }
 
     if (ac->authenticator->seq_number)
-	ac->remote_seqnumber = *ac->authenticator->seq_number;
+	krb5_auth_con_setremoteseqnumber(context, ac,
+					 *ac->authenticator->seq_number);
 
     /* XXX - Xor sequence numbers */
 
-    /* XXX - subkeys? */
-    /* And where should it be stored? */
-
     if (ac->authenticator->subkey) {
-	krb5_copy_keyblock(context, 
-			   ac->authenticator->subkey,
-			   &ac->remote_subkey);
+	ret = krb5_auth_con_setremotesubkey(context, ac,
+					    ac->authenticator->subkey);
+	if (ret)
+	    goto out2;
     }
 
     if (ap_req_options) {

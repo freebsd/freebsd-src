@@ -1,3 +1,57 @@
+2001-11-01  Assar Westerlund  <assar@sics.se>
+
+	* add strsep, and bump version to 3:3:3
+
+2001-10-27  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set version to 3:2:3
+
+2001-10-24  Assar Westerlund  <assar@sics.se>
+
+	* afskrb.c (afslog_uid_int): handle krb_get_tf_fullname that
+	cannot take NULLs
+	(such as the MIT one)
+
+2001-10-22  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (ROKEN_SRCS): add strlcpy.c
+
+2001-10-09  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (ROKEN_SRCS): add strtok_r.c
+	* roken_rename.h (dns_srv_order): rename correctly
+	(strtok_r): add renaming
+
+2001-09-10  Assar Westerlund  <assar@sics.se>
+
+	* kafs.h, common.c: look for configuration files in /etc/arla (the
+	location in debian's arla package)
+
+2001-08-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: handle both krb5 and krb4 cases
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set version to 3:0:3
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* common.c: look in /etc/openafs for debian openafs
+	* kafs.h: add paths for openafs debian (/etc/openafs)
+
+	* Makefile.am: add required library dependencies
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set versoin to 2:4:2
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* common.c (_kafs_realm_of_cell): changed to first try exact match
+	in CellServDB, then exact match in DNS, and finally in-exact match
+	in CellServDB
+
 2001-05-18  Johan Danielsson  <joda@pdc.kth.se>
 
 	* Makefile.am: only build resolve.c if doing renaming

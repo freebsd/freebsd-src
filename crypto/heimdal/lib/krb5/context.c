@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: context.c,v 1.64 2001/05/16 22:24:42 assar Exp $");
+RCSID("$Id: context.c,v 1.73 2002/02/12 08:24:08 joda Exp $");
 
 #define INIT_FIELD(C, T, E, D, F)					\
     (C)->E = krb5_config_get_ ## T ## _default ((C), NULL, (D), 	\
@@ -81,7 +81,9 @@ set_etypes (krb5_context context,
 static krb5_error_code
 init_context_from_config_file(krb5_context context)
 {
+    krb5_error_code ret;
     const char * tmp;
+
     INIT_FIELD(context, time, max_skew, 5 * 60, "clockskew");
     INIT_FIELD(context, time, kdc_timeout, 3, "kdc_timeout");
     INIT_FIELD(context, int, max_retries, 3, "max_retries");
@@ -96,7 +98,7 @@ init_context_from_config_file(krb5_context context)
 	       KEYTAB_DEFAULT, "default_keytab_name");
 
     INIT_FIELD(context, string, default_keytab_modify, 
-	       KEYTAB_DEFAULT_MODIFY, "default_keytab_modify_name");
+	       NULL, "default_keytab_modify_name");
 
     INIT_FIELD(context, string, time_fmt, 
 	       "%Y-%m-%dT%H:%M:%S", "time_format");
@@ -125,16 +127,31 @@ init_context_from_config_file(krb5_context context)
 				      NULL);
 	memset(&addresses, 0, sizeof(addresses));
 	for(a = adr; a && *a; a++) {
-	    krb5_parse_address(context, *a, &addresses);
-	    krb5_add_extra_addresses(context, &addresses);
-	    krb5_free_addresses(context, &addresses);
+	    ret = krb5_parse_address(context, *a, &addresses);
+	    if (ret == 0) {
+		krb5_add_extra_addresses(context, &addresses);
+		krb5_free_addresses(context, &addresses);
+	    }
+	}
+	krb5_config_free_strings(adr);
+
+	adr = krb5_config_get_strings(context, NULL, 
+				      "libdefaults", 
+				      "ignore_addresses", 
+				      NULL);
+	memset(&addresses, 0, sizeof(addresses));
+	for(a = adr; a && *a; a++) {
+	    ret = krb5_parse_address(context, *a, &addresses);
+	    if (ret == 0) {
+		krb5_add_ignore_addresses(context, &addresses);
+		krb5_free_addresses(context, &addresses);
+	    }
 	}
 	krb5_config_free_strings(adr);
     }
     
     INIT_FIELD(context, bool, scan_interfaces, TRUE, "scan_interfaces");
     INIT_FIELD(context, bool, srv_lookup, TRUE, "srv_lookup");
-    INIT_FIELD(context, bool, srv_try_txt, FALSE, "srv_try_txt");
     INIT_FIELD(context, int, fcache_vno, 0, "fcache_version");
 
     context->cc_ops       = NULL;
@@ -197,18 +214,23 @@ krb5_init_context(krb5_context *context)
 void
 krb5_free_context(krb5_context context)
 {
-  int i;
+    int i;
 
-  free(context->etypes);
-  free(context->etypes_des);
-  krb5_free_host_realm (context, context->default_realms);
-  krb5_config_file_free (context, context->cf);
-  free_error_table (context->et_list);
-  for(i = 0; i < context->num_cc_ops; ++i)
-    free(context->cc_ops[i].prefix);
-  free(context->cc_ops);
-  free(context->kt_types);
-  free(context);
+    free(context->etypes);
+    free(context->etypes_des);
+    krb5_free_host_realm (context, context->default_realms);
+    krb5_config_file_free (context, context->cf);
+    free_error_table (context->et_list);
+    for(i = 0; i < context->num_cc_ops; ++i)
+	free(context->cc_ops[i].prefix);
+    free(context->cc_ops);
+    free(context->kt_types);
+    krb5_clear_error_string(context);
+    if(context->warn_dest != NULL)
+	krb5_closelog(context, context->warn_dest);
+    krb5_set_extra_addresses(context, NULL);
+    krb5_set_ignore_addresses(context, NULL);
+    free(context);
 }
 
 /*
@@ -295,7 +317,9 @@ krb5_get_default_in_tkt_etypes(krb5_context context,
 const char *
 krb5_get_err_text(krb5_context context, krb5_error_code code)
 {
-    const char *p = com_right(context->et_list, code);
+    const char *p = NULL;
+    if(context != NULL)
+	p = com_right(context->et_list, code);
     if(p == NULL)
 	p = strerror(code);
     return p;
@@ -308,6 +332,7 @@ krb5_init_ets(krb5_context context)
 	krb5_add_et_list(context, initialize_krb5_error_table_r);
 	krb5_add_et_list(context, initialize_asn1_error_table_r);
 	krb5_add_et_list(context, initialize_heim_error_table_r);
+	krb5_add_et_list(context, initialize_k524_error_table_r);
     }
 }
 
@@ -337,9 +362,15 @@ krb5_add_extra_addresses(krb5_context context, krb5_addresses *addresses)
 krb5_error_code
 krb5_set_extra_addresses(krb5_context context, const krb5_addresses *addresses)
 {
-    if(context->extra_addresses) {
+    if(context->extra_addresses)
 	krb5_free_addresses(context, context->extra_addresses);
-	free(context->extra_addresses);
+
+    if(addresses == NULL) {
+	if(context->extra_addresses != NULL) {
+	    free(context->extra_addresses);
+	    context->extra_addresses = NULL;
+	}
+	return 0;
     }
     if(context->extra_addresses == NULL) {
 	context->extra_addresses = malloc(sizeof(*context->extra_addresses));
@@ -358,7 +389,50 @@ krb5_get_extra_addresses(krb5_context context, krb5_addresses *addresses)
 	memset(addresses, 0, sizeof(*addresses));
 	return 0;
     }
-    return copy_HostAddresses(context->extra_addresses, addresses);
+    return krb5_copy_addresses(context,context->extra_addresses, addresses);
+}
+
+krb5_error_code
+krb5_add_ignore_addresses(krb5_context context, krb5_addresses *addresses)
+{
+
+    if(context->ignore_addresses)
+	return krb5_append_addresses(context, 
+				     context->ignore_addresses, addresses);
+    else
+	return krb5_set_ignore_addresses(context, addresses);
+}
+
+krb5_error_code
+krb5_set_ignore_addresses(krb5_context context, const krb5_addresses *addresses)
+{
+    if(context->ignore_addresses)
+	krb5_free_addresses(context, context->ignore_addresses);
+    if(addresses == NULL) {
+	if(context->ignore_addresses != NULL) {
+	    free(context->ignore_addresses);
+	    context->ignore_addresses = NULL;
+	}
+	return 0;
+    }
+    if(context->ignore_addresses == NULL) {
+	context->ignore_addresses = malloc(sizeof(*context->ignore_addresses));
+	if(context->ignore_addresses == NULL) {
+	    krb5_set_error_string (context, "malloc: out of memory");
+	    return ENOMEM;
+	}
+    }
+    return krb5_copy_addresses(context, addresses, context->ignore_addresses);
+}
+
+krb5_error_code
+krb5_get_ignore_addresses(krb5_context context, krb5_addresses *addresses)
+{
+    if(context->ignore_addresses == NULL) {
+	memset(addresses, 0, sizeof(*addresses));
+	return 0;
+    }
+    return krb5_copy_addresses(context, context->ignore_addresses, addresses);
 }
 
 krb5_error_code

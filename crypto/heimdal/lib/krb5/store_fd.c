@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: store_fd.c,v 1.8 2001/01/29 02:32:35 assar Exp $");
+RCSID("$Id: store_fd.c,v 1.9 2001/06/24 05:39:51 assar Exp $");
 
 typedef struct fd_storage{
     int fd;
@@ -63,7 +63,15 @@ krb5_storage *
 krb5_storage_from_fd(int fd)
 {
     krb5_storage *sp = malloc(sizeof(krb5_storage));
+
+    if (sp == NULL)
+	return NULL;
+
     sp->data = malloc(sizeof(fd_storage));
+    if (sp->data == NULL) {
+	free(sp);
+	return NULL;
+    }
     sp->flags = 0;
     FD(sp) = fd;
     sp->fetch = fd_fetch;

@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a Ar authmode
-.Op Fl dilv
+.Op Fl dilvU
 .Op Fl g Ar umask
 .Op Fl p Ar port 
 .Op Fl T Ar maxtimeout
@@ -128,6 +128,14 @@ The inactivity timeout period is set to
 seconds (the default is 15 minutes).
 .It Fl u
 Set the initial umask to something else than the default 027.
+.It Fl U
+In previous versions of
+.Nm ftpd ,
+when a passive mode client requested a data connection to the server, the 
+server would use data ports in the range 1024..4999.  Now, by default, 
+if the system supports the IP_PORTRANGE socket option, the server will
+use data ports in the range 49152..65535.  Specifying this option will
+revert to the old behavior.  
 .It Fl v
 Verbose mode.
 .It Xo
@@ -460,7 +468,7 @@ Login access for Kerberos.
 .Xr otp 1 ,
 .Xr getusershell 3 ,
 .Xr ftpusers 5 ,
-.Xr syslogd 8 ,
+.Xr syslogd 8
 .Sh STANDARDS
 .Bl -tag -compact -width "RFC 1938"
 .It Cm RFC 959

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: symbol.c,v 1.8 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: symbol.c,v 1.9 2001/09/25 13:39:27 assar Exp $");
 
 static Hashtab *htab;
 
@@ -55,7 +55,7 @@ hash (void *a)
 }
 
 void
-initsym ()
+initsym (void)
 {
   htab = hashtabnew (101, cmp, hash);
 }

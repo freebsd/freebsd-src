@@ -177,8 +177,10 @@ In this
 mode, the escape character is set to the tilde (~) character,
 unless modified by the -e option.
 .It Fl x
-Turns on encryption of the data stream if possible. This is 
-currently the default and when it fails a warning is issued.
+Turn on encryption of the data stream.  When this option is turned on,
+.B telnet
+will exit with an error if authentication cannot be negotiated or if
+encryption cannot be turned on.
 .It Ar host
 Indicates the official name, an alias, or the Internet address
 of a remote host.

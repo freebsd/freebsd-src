@@ -1,3 +1,8 @@
+2001-09-13  Assar Westerlund  <assar@sics.se>
+
+	* editline.c: rename STATUS -> el_STATUS to avoid conflict with
+	STATUS in arpa/nameser.h
+
 2000-11-15  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: make libeditline and libel_compat into libtool

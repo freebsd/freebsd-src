@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: 8003.c,v 1.8 2001/01/29 02:08:58 assar Exp $");
+RCSID("$Id: 8003.c,v 1.10 2001/08/29 02:21:09 assar Exp $");
 
 static krb5_error_code
 encode_om_uint32(OM_uint32 n, u_char *p)
@@ -86,27 +86,35 @@ hash_input_chan_bindings (const gss_channel_bindings_t b,
   return 0;
 }
 
-krb5_error_code
+/*
+ * create a checksum over the chanel bindings in
+ * `input_chan_bindings', `flags' and `fwd_data' and return it in
+ * `result'
+ */
+
+OM_uint32
 gssapi_krb5_create_8003_checksum (
+		      OM_uint32 *minor_status,    
 		      const gss_channel_bindings_t input_chan_bindings,
 		      OM_uint32 flags,
-		      krb5_data *fwd_data,
+		      const krb5_data *fwd_data,
 		      Checksum *result)
 {
   u_char *p;
 
   /* 
    * see rfc1964 (section 1.1.1 (Initial Token), and the checksum value 
-   * field's format)
-   */
+   * field's format) */
   result->cksumtype = 0x8003;
   if (fwd_data->length > 0 && (flags & GSS_C_DELEG_FLAG))
     result->checksum.length = 24 + 4 + fwd_data->length;
   else 
     result->checksum.length = 24;
   result->checksum.data   = malloc (result->checksum.length);
-  if (result->checksum.data == NULL)
-    return ENOMEM;
+  if (result->checksum.data == NULL) {
+    *minor_status = ENOMEM;
+    return GSS_S_FAILURE;
+  }
   
   p = result->checksum.data;
   encode_om_uint32 (16, p);
@@ -139,18 +147,21 @@ gssapi_krb5_create_8003_checksum (
      memcpy(p, (unsigned char *) fwd_data->data, fwd_data->length);
 
      p += fwd_data->length;
-     
-  if (p - (u_char *)result->checksum.data != result->checksum.length)
-        abort();
   }
-  
-  return 0;
+     
+  return GSS_S_COMPLETE;
 }
 
-krb5_error_code
+/*
+ * verify the checksum in `cksum' over `input_chan_bindings'
+ * returning  `flags' and `fwd_data'
+ */
+
+OM_uint32
 gssapi_krb5_verify_8003_checksum(
+		      OM_uint32 *minor_status,    
 		      const gss_channel_bindings_t input_chan_bindings,
-		      Checksum *cksum,
+		      const Checksum *cksum,
 		      OM_uint32 *flags,
 		      krb5_data *fwd_data)
 {
@@ -160,21 +171,29 @@ gssapi_krb5_verify_8003_checksum(
     int DlgOpt;
 
     /* XXX should handle checksums > 24 bytes */
-    if(cksum->cksumtype != 0x8003)
+    if(cksum->cksumtype != 0x8003) {
+	*minor_status = 0;
 	return GSS_S_BAD_BINDINGS;
+    }
     
     p = cksum->checksum.data;
     decode_om_uint32(p, &length);
-    if(length != sizeof(hash))
-	return GSS_S_FAILURE;
+    if(length != sizeof(hash)) {
+	*minor_status = 0;
+	return GSS_S_BAD_BINDINGS;
+    }
     
     p += 4;
     
     if (input_chan_bindings != GSS_C_NO_CHANNEL_BINDINGS) {
-	if(hash_input_chan_bindings(input_chan_bindings, hash) != 0)
-	    return GSS_S_FAILURE;
-	if(memcmp(hash, p, sizeof(hash)) != 0)
-	    return GSS_S_FAILURE;
+	if(hash_input_chan_bindings(input_chan_bindings, hash) != 0) {
+	    *minor_status = 0;
+	    return GSS_S_BAD_BINDINGS;
+	}
+	if(memcmp(hash, p, sizeof(hash)) != 0) {
+	    *minor_status = 0;
+	    return GSS_S_BAD_BINDINGS;
+	}
     }
     
     p += sizeof(hash);
@@ -186,18 +205,22 @@ gssapi_krb5_verify_8003_checksum(
       p += 4;
     
       DlgOpt = (p[0] << 0) | (p[1] << 8 );
-      if (DlgOpt != 1)
-         return GSS_S_BAD_BINDINGS;
+      if (DlgOpt != 1) {
+	  *minor_status = 0;
+	  return GSS_S_BAD_BINDINGS;
+      }
       
       p += 2;
       fwd_data->length = (p[0] << 0) | (p[1] << 8);
       fwd_data->data = malloc(fwd_data->length);
-      if (fwd_data->data == NULL)
-         return ENOMEM;
+      if (fwd_data->data == NULL) {
+	  *minor_status = ENOMEM;
+	  return GSS_S_FAILURE;
+      }
 
       p += 2;
       memcpy(fwd_data->data, p, fwd_data->length);
     }
     
-    return 0;
+    return GSS_S_COMPLETE;
 }

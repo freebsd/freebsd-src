@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos5.c,v 1.133 2001/05/22 20:16:22 assar Exp $");
+RCSID("$Id: kerberos5.c,v 1.135 2002/01/06 23:07:33 assar Exp $");
 
 #define MAX_TIME ((time_t)((1U << 31) - 1))
 
@@ -109,7 +109,7 @@ find_keys(hdb_entry *client,
 	  krb5_enctype *cetype,
 	  Key **skey,
 	  krb5_enctype *setype, 
-	  int *etypes,
+	  krb5_enctype *etypes,
 	  unsigned num_etypes)
 {
     krb5_error_code ret;
@@ -1237,7 +1237,7 @@ tgs_check_authenticator(krb5_auth_context ac,
     krb5_error_code ret;
     krb5_crypto crypto;
     
-    krb5_auth_getauthenticator(context, ac, &auth);
+    krb5_auth_con_getauthenticator(context, ac, &auth);
     if(auth->cksum == NULL){
 	kdc_log(0, "No authenticator in request");
 	ret = KRB5KRB_AP_ERR_INAPP_CKSUM;
@@ -1438,7 +1438,7 @@ tgs_rep2(KDC_REQ_BODY *b,
     {
 	krb5_authenticator auth;
 
-	ret = krb5_auth_getauthenticator(context, ac, &auth);
+	ret = krb5_auth_con_getauthenticator(context, ac, &auth);
 	if (ret == 0) {
 	    *csec   = malloc(sizeof(**csec));
 	    if (*csec == NULL) {

@@ -55,7 +55,7 @@
  * or implied warranty.
  */
 
-/* $Id: encrypt.h,v 1.6 2001/02/15 06:46:28 assar Exp $ */
+/* $Id: encrypt.h,v 1.7 2001/08/22 20:30:22 assar Exp $ */
 
 #ifndef	__ENCRYPT__
 #define	__ENCRYPT__
@@ -90,7 +90,7 @@ typedef struct {
 
 #define	SK_DES		1	/* Matched Kerberos v5 KEYTYPE_DES */
 
-#ifdef HAVE_OPENSSL_DES_H
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 #define des_new_random_key des_random_key
 #else

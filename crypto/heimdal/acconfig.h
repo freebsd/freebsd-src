@@ -48,14 +48,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #define SGTTY
 #endif
 
-/*
- * Define NDBM if you are using the 4.3 ndbm library (which is part of
- * libc).  If not defined, 4.2 dbm will be assumed.
- */
-#if defined(HAVE_DBM_FIRSTKEY)
-#define NDBM
-#endif
-
 /* telnet stuff ----------------------------------------------- */
 
 #if defined(ENCRYPTION) && !defined(AUTHENTICATION)

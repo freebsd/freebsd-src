@@ -1,13 +1,11 @@
-.\" $Id: verify_krb5_conf.8,v 1.3 2001/05/02 08:59:23 assar Exp $
+.\" $Id: verify_krb5_conf.8,v 1.6 2002/02/15 12:58:19 joda Exp $
 .\"
-.Dd March  4, 2000
+.Dd August 30, 2001
 .Dt VERIFY_KRB5_CONF 8
 .Os HEIMDAL
 .Sh NAME
 .Nm verify_krb5_conf
-.Nd does a crude test that
-.Pa krb5.conf
-does not contain any obvious syntax error
+.Nd checks krb5.conf for obvious errors
 .Sh SYNOPSIS
 .Nm
 .Ar [config-file]
@@ -17,16 +15,50 @@ reads the configuration file
 .Pa krb5.conf ,
 or the file given on the command line,
 and parses it, thereby verifying that the syntax is not correctly wrong.
-Since that file is read by almost all Kerberos programs but most of
-them have no way of notifying the user that it could not be parsed,
-this program is useful.
+.Pp
+If the file is syntactically correct,
+.Nm 
+tries to verify that the contents of the file is of relevant nature.
+.Sh DIAGNOSTICS
+Possible output from 
+.Nm 
+include:
+.Bl -tag -width "<path>"
+.It "<path>: failed to parse <something> as size/time/number/boolean"
+Usually means that <something> is misspelled, or that it contains
+weird characters. The parsing done by
+.Nm
+is more strict than the one performed by libkrb5, and so strings that
+work in real life, might be reported as bad.
+.It "<path>: host not found (<hostname>)"
+Means that <path> is supposed to point to a host, but it can't be
+recognised as one.
+.It <path>: unknown or wrong type
+Means that <path> is either is a string when it should be a list, vice
+versa, or just that
+.Nm 
+is confused.
+.It <path>: unknown entry
+Means that <string> is not known by
+.Nm "" .
+.El
 .Sh ENVIRONMENT
 .Ev KRB5_CONFIG
 points to the configuration file to read.
 .Sh FILES
-.Xr krb5.conf 5
+.Bl -tag -width /etc/krb5.conf -compact
+.It Pa /etc/krb5.conf
+Kerberos 5 configuration file
+.El
 .Sh SEE ALSO
 .Xr krb5.conf 5
 .Sh BUGS
-It should know about what variables are actually used and warn about
-unknown ones.
+Since each application can put almost anything in the config file,
+it's hard to come up with a water tight verification process. Most of
+the default settings are sanity checked, but this does not mean that
+every problem is discovered, or that everything that is reported as a
+possible problem actually is one. This tool should thus be used with
+some care.
+.Pp
+It should warn about obsolete data, or bad practice, but currently
+doesn't.

@@ -1,3 +1,75 @@
+2001-10-31  Jacques Vidrine <n@nectar.com>
+
+	* get_mic.c (mic_des3): MIC computation using DES3/SHA1
+	was bogusly appending the message buffer to the result,
+	overwriting a heap buffer in the process.
+
+2001-08-29  Assar Westerlund  <assar@sics.se>
+
+	* 8003.c (gssapi_krb5_verify_8003_checksum,
+	gssapi_krb5_create_8003_checksum): make more consistent by always
+	returning an gssapi error and setting minor status.  update
+	callers
+
+2001-08-28  Jacques Vidrine  <n@nectar.com>
+
+	* accept_sec_context.c: Create a cache for delegated credentials
+	  when needed.
+
+2001-08-28  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): set version to 3:4:2
+
+2001-08-23  Assar Westerlund  <assar@sics.se>
+
+	*  *.c: handle minor_status more consistently
+
+	* display_status.c (gss_display_status): handle krb5_get_err_text
+	failing
+
+2001-08-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* gssapi_locl.h: fix prototype for gssapi_krb5_init
+
+2001-08-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* accept_sec_context.c (gsskrb5_register_acceptor_identity): init
+	context and check return value from kt_resolve
+
+	* init.c: return error code
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): update to 3:3:2
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LIBADD): add required library
+	dependencies
+
+2001-07-06  Assar Westerlund  <assar@sics.se>
+
+	* accept_sec_context.c (gsskrb5_register_acceptor_identity): set
+	the keytab to be used for gss_acquire_cred too'
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): set version to 3:2:2
+
+2001-06-18  Assar Westerlund  <assar@sics.se>
+
+	* wrap.c: replace gss_krb5_getsomekey with gss_krb5_get_localkey
+	and gss_krb5_get_remotekey
+	* verify_mic.c: update krb5_auth_con function names use
+	gss_krb5_get_remotekey
+	* unwrap.c: replace gss_krb5_getsomekey with gss_krb5_get_localkey
+	and gss_krb5_get_remotekey
+	* gssapi_locl.h (gss_krb5_get_remotekey, gss_krb5_get_localkey):
+	add prototypes
+	* get_mic.c: update krb5_auth_con function names. use
+	gss_krb5_get_localkey
+	* accept_sec_context.c: update krb5_auth_con function names
+
 2001-05-17  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: bump version to 3:1:2

@@ -1,4 +1,4 @@
-.\" $Id: hprop.8,v 1.10 2001/06/08 21:35:31 joda Exp $
+.\" $Id: hprop.8,v 1.13 2001/07/19 16:33:26 assar Exp $
 .\"
 .Dd June 19, 2000
 .Dt HPROP 8
@@ -16,18 +16,16 @@
 .Fl -database= Ns Pa file
 .Xc
 .Oc
-.Op Fl -source= Ns Ar heimdal|mit-dump|krb4-db|krb4-dump
-.Op Fl 4 | Fl -v4-db
-.Op Fl K | Fl -ka-db
+.Op Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|krb4-db|kaserver
+.Oo Fl r Ar string \*(Ba Xo
+.Fl -v4-realm= Ns Ar string
+.Xc
+.Oc
 .Oo Fl c Ar cell \*(Ba Xo
 .Fl -cell= Ns Ar cell
 .Xc
 .Oc
 .Op Fl S | Fl -kaspecials
-.Oo Fl r Ar string \*(Ba Xo
-.Fl -v4-realm= Ns Ar string
-.Xc
-.Oc
 .Oo Fl k Ar keytab \*(Ba Xo
 .Fl -keytab= Ns Ar keytab
 .Xc
@@ -42,7 +40,7 @@
 .Op Fl v | Fl -verbose
 .Op Fl -version
 .Op Fl h | Fl -help
-.Ar host Ns Op : Ns Ar port
+.Op Ar host Ns Op : Ns Ar port
 .Ar ...
 .Sh DESCRIPTION
 .Nm
@@ -70,10 +68,11 @@ Where to find the master key to encrypt or decrypt keys with.
 .Xc
 The database to be propagated.
 .It Xo
-.Fl -source= Ns Ar heimdal|mit-dump|krb4-db|krb4-dump
+.Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|krb4-db|kaserver
 .Xc
 Specifies the type of the source database. Alternatives include: 
-.Bl -tag -width krb4-dump
+
+.Bl -tag -width krb4-dump -compact -offset indent
 .It heimdal
 a Heimdal database
 .It mit-dump
@@ -83,7 +82,7 @@ a Kerberos 4 database
 .It krb4-dump
 a Kerberos 4 dump file
 .It kaserver
-a Transarc kaserver database
+an AFS kaserver database
 .El
 .It Xo
 .Fl k Ar keytab Ns ,
@@ -104,13 +103,13 @@ Local realm override.
 .Fl -decrypt
 .Xc
 The encryption keys in the database can either be in clear, or
-encrypted with a master key. This option thansmits the database with
+encrypted with a master key. This option transmits the database with
 unencrypted keys.
 .It Xo
 .Fl E Ns ,
 .Fl -encrypt
 .Xc
-This option thansmits the database with encrypted keys.
+This option transmits the database with encrypted keys.
 .It Xo
 .Fl n Ns ,
 .Fl -stdout
@@ -165,7 +164,7 @@ $ hprop --source=krb4-db -E krb5-slave
 .Pp
 Convert a Kerberos 4 dump-file for use with a Heimdal KDC:
 .Bd -literal -offset indent
-$ hprop -n --source=krb4-dump -d /var/kerberos/principal.dump -E | hpropd -n
+$ hprop -n --source=krb4-dump -d /var/kerberos/principal.dump --master-key=/.k | hpropd -n
 .Ed
 .Sh SEE ALSO
 .Xr hpropd 8

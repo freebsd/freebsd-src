@@ -8,7 +8,7 @@
  */
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: xnlock.c,v 1.85 2001/03/15 17:13:13 joda Exp $");
+RCSID("$Id: xnlock.c,v 1.89 2001/09/10 14:12:43 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -372,12 +372,22 @@ walk(int dir)
     lastdir = dir;
 }
 
+static long
+my_random (void)
+{
+#ifdef HAVE_RANDOM
+    return random();
+#else
+    return rand();
+#endif
+}
+
 static int
 think(void)
 {
-    if (rand() & 1)
+    if (my_random() & 1)
 	walk(FRONT);
-    if (rand() & 1) {
+    if (my_random() & 1) {
 	words = get_words();
 	return 1;
     }
@@ -392,21 +402,21 @@ move(XtPointer _p, XtIntervalId *_id)
     if (!length) {
 	int tries = 0;
 	dir = 0;
-	if ((rand() & 1) && think()) {
+	if ((my_random() & 1) && think()) {
 	    talk(0); /* sets timeout to itself */
 	    return;
 	}
-	if (!(rand() % 3) && (interval = look())) {
+	if (!(my_random() % 3) && (interval = look())) {
 	    timeout_id = XtAppAddTimeOut(app, interval, move, NULL);
 	    return;
 	}
-	interval = 20 + rand() % 100;
+	interval = 20 + my_random() % 100;
 	do  {
 	    if (!tries)
-		length = Width/100 + rand() % 90, tries = 8;
+		length = Width/100 + my_random() % 90, tries = 8;
 	    else
 		tries--;
-	    switch (rand() % 8) {
+	    switch (my_random() % 8) {
 		case 0:
 		    if (x - X_INCR*length >= 5)
 			dir = LEFT;
@@ -574,7 +584,6 @@ verify_krb5(const char *password)
 				 NULL)) {
 	    CREDENTIALS c;
 	    krb5_creds mcred, cred;
-	    char krb4tkfile[MAXPATHLEN];
 
 	    krb5_make_principal(context, &mcred.server,
 				client->realm,
@@ -583,7 +592,7 @@ verify_krb5(const char *password)
 				NULL);
 	    ret = krb5_cc_retrieve_cred(context, id, 0, &mcred, &cred);
 	    if(ret == 0) {
-		ret = krb524_convert_creds_kdc(context, id, &cred, &c);
+		ret = krb524_convert_creds_kdc_ccache(context, id, &cred, &c);
 		if(ret == 0) 
 		    tf_setup(&c, c.pname, c.pinst);
 		memset(&c, 0, sizeof(c));
@@ -916,21 +925,21 @@ look(void)
 {
     XSetForeground(dpy, gc, White);
     XSetBackground(dpy, gc, Black);
-    if (rand() % 3) {
-	XCopyPlane(dpy, (rand() & 1)? down : front, XtWindow(widget), gc,
+    if (my_random() % 3) {
+	XCopyPlane(dpy, (my_random() & 1)? down : front, XtWindow(widget), gc,
 	    0, 0, 64,64, x, y, 1L);
 	return 1000L;
     }
-    if (!(rand() % 5))
+    if (!(my_random() % 5))
 	return 0;
-    if (rand() % 3) {
-	XCopyPlane(dpy, (rand() & 1)? left_front : right_front,
+    if (my_random() % 3) {
+	XCopyPlane(dpy, (my_random() & 1)? left_front : right_front,
 	    XtWindow(widget), gc, 0, 0, 64,64, x, y, 1L);
 	return 1000L;
     }
-    if (!(rand() % 5))
+    if (!(my_random() % 5))
 	return 0;
-    XCopyPlane(dpy, (rand() & 1)? left0 : right0, XtWindow(widget), gc,
+    XCopyPlane(dpy, (my_random() & 1)? left0 : right0, XtWindow(widget), gc,
 	0, 0, 64,64, x, y, 1L);
     return 1000L;
 }
@@ -967,9 +976,15 @@ main (int argc, char **argv)
       strlcpy(login, pw->pw_name, sizeof(login));
     }
 
-    srand(getpid());
+#if defined(HAVE_SRANDOMDEV)
+    srandomdev();
+#elif defined(HAVE_RANDOM)
+    srandom(time(NULL));
+#else
+    srand (time(NULL));
+#endif
     for (i = 0; i < STRING_LENGTH; i++)
-	STRING[i] = ((unsigned long)rand() % ('~' - ' ')) + ' ';
+	STRING[i] = ((unsigned long)my_random() % ('~' - ' ')) + ' ';
 
     locked_at = time(0);
 
