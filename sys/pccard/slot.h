@@ -54,6 +54,8 @@
  */
 struct slot;
 struct slot_ctrl {
+	void	(*mapirq)(struct slot *, int);
+				/* Map irq */
 	int	(*mapmem)(struct slot *, int);
 				/* Map memory */
 	int	(*mapio)(struct slot *, int);
