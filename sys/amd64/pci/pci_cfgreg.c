@@ -29,23 +29,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>		/* XXX trim includes */
+#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/md_var.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <isa/isavar.h>
 #include <machine/pci_cfgreg.h>
-
-#include "pcib_if.h"
 
 static int cfgmech;
 static int devmax;
@@ -106,18 +97,6 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
 
 	pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
-}
-
-/*
- * Route a PCI interrupt
- */
-int
-pci_cfgintr(int bus, int device, int pin, int oldirq)
-{
-
-	printf("pci_cfgintr: can't route an interrupt to %d:%d INT%c without ACPI\n", bus, 
-	    device, 'A' + pin - 1);
-	return (PCI_INVALID_IRQ);
 }
 
 /* 
