@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.6 1998/09/20 05:04:05 gibbs Exp $
+ *      $Id: advlib.c,v 1.7 1998/10/07 03:32:57 gibbs Exp $
  */
 /*
  * Ported from:
@@ -817,8 +817,16 @@ adv_copy_lram_doneq(struct adv_softc *adv, u_int16_t q_addr,
 	scsiq->sense_len = val & 0xFF;
 	scsiq->extra_bytes = (val >> 8) & 0xFF;
 
+	/*
+	 * XXX 
+	 * Due to a bug in accessing LRAM on the 940UA, we only pull
+	 * the low 16bits of residual information.  In the future, we'll
+	 * want to allow transfers larger than 64K, but hopefully we'll
+	 * get a new firmware revision from AdvanSys that address this
+	 * problem before we up the transfer size.
+	 */
 	scsiq->remain_bytes =
-	    adv_read_lram_32(adv, q_addr + ADV_SCSIQ_DW_REMAIN_XFER_CNT);
+	    adv_read_lram_16(adv, q_addr + ADV_SCSIQ_DW_REMAIN_XFER_CNT);
 	/*
 	 * XXX Is this just a safeguard or will the counter really
 	 * have bogus upper bits?
