@@ -96,6 +96,7 @@
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
+#include <machine/atomic.h>     /* for atomic_readandclear_32 */
 #include <machine/clock.h>      /* for DELAY */
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
@@ -2232,11 +2233,14 @@ bge_intr(xsc)
 {
 	struct bge_softc *sc;
 	struct ifnet *ifp;
+	u_int32_t statusword;
 	u_int32_t status;
 
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
+	statusword =
+	    atomic_readandclear_32(&sc->bge_rdata->bge_status_block.bge_status);
 
 #ifdef notdef
 	/* Avoid this for now -- checking this register is expensive. */
@@ -2273,13 +2277,7 @@ bge_intr(xsc)
 			    BRGPHY_INTRS);
 		}
 	} else {
-		if ((sc->bge_rdata->bge_status_block.bge_status &
-		    BGE_STATFLAG_UPDATED) &&
-		    (sc->bge_rdata->bge_status_block.bge_status &
-		    BGE_STATFLAG_LINKSTATE_CHANGED)) {
-			sc->bge_rdata->bge_status_block.bge_status &=
-			    ~(BGE_STATFLAG_UPDATED|
-			    BGE_STATFLAG_LINKSTATE_CHANGED);
+		if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED) {
 			/*
 			 * Sometimes PCS encoding errors are detected in
 			 * TBI mode (on fiber NICs), and for some reason
