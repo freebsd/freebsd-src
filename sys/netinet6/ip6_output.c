@@ -827,10 +827,28 @@ skip_ipsec2:;
 		goto bad;
 
 	/*
-	 * advanced API (IPV6_USE_MIN_MTU) overrides mtu setting
+	 * The caller of this function may specify to use the minimum MTU
+	 * in some cases.
+	 * An advanced API option (IPV6_USE_MIN_MTU) can also override MTU
+	 * setting.  The logic is a bit complicated; by default, unicast
+	 * packets will follow path MTU while multicast packets will be sent at
+	 * the minimum MTU.  If IP6PO_MINMTU_ALL is specified, all packets
+	 * including unicast ones will be sent at the minimum MTU.  Multicast
+	 * packets will always be sent at the minimum MTU unless
+	 * IP6PO_MINMTU_DISABLE is explicitly specified.
+	 * See RFC 3542 for more details.
 	 */
-	if ((flags & IPV6_MINMTU) != 0 && mtu > IPV6_MMTU)
-		mtu = IPV6_MMTU;
+	if (mtu > IPV6_MMTU) {
+		if ((flags & IPV6_MINMTU))
+			mtu = IPV6_MMTU;
+		else if (opt && opt->ip6po_minmtu == IP6PO_MINMTU_ALL)
+			mtu = IPV6_MMTU;
+		else if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
+			 (opt == NULL ||
+			  opt->ip6po_minmtu != IP6PO_MINMTU_DISABLE)) {
+			mtu = IPV6_MMTU;
+		}
+	}
 
 	/* Fake scoped addresses */
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
@@ -1032,6 +1050,8 @@ skip_ipsec2:;
 		u_int32_t id = htonl(ip6_id++);
 #endif
 		u_char nextproto;
+		struct ip6ctlparam ip6cp;
+		u_int32_t mtu32;
 
 		/*
 		 * Too large for the destination or interface;
@@ -1041,6 +1061,13 @@ skip_ipsec2:;
 		hlen = unfragpartlen;
 		if (mtu > IPV6_MAXPACKET)
 			mtu = IPV6_MAXPACKET;
+
+		/* Notify a proper path MTU to applications. */
+		mtu32 = (u_int32_t)mtu;
+		bzero(&ip6cp, sizeof(ip6cp));
+		ip6cp.ip6c_cmdarg = (void *)&mtu32;
+		pfctlinput2(PRC_MSGSIZE, (struct sockaddr *)&ro_pmtu->ro_dst,
+		    (void *)&ip6cp);
 
 		len = (mtu - hlen - sizeof(struct ip6_frag)) & ~7;
 		if (len < 8) {
