@@ -767,6 +767,7 @@ ng_iface_rmnode(node_p node)
 	ng_unname(node);
 	bpfdetach(priv->ifp);
 	if_detach(priv->ifp);
+	FREE(priv->ifp, M_NETGRAPH);
 	priv->ifp = NULL;
 	ng_iface_free_unit(priv->unit);
 	FREE(priv, M_NETGRAPH);
