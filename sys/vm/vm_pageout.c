@@ -1155,9 +1155,9 @@ rescan0:
 			mtx_lock_spin(&sched_lock);
 			breakout = 0;
 			FOREACH_THREAD_IN_PROC(p, td) {
-				if (td->td_state != TDS_RUNQ &&
-				    td->td_state != TDS_RUNNING &&
-				    td->td_state != TDS_SLP) {
+				if (!TD_ON_RUNQ(td) &&
+				    !TD_IS_RUNNING(td) &&
+				    !TD_IS_SLEEPING(td)) {
 					breakout = 1;
 					break;
 				}
@@ -1498,9 +1498,9 @@ vm_daemon()
 			mtx_lock_spin(&sched_lock);
 			breakout = 0;
 			FOREACH_THREAD_IN_PROC(p, td) {
-				if (td->td_state != TDS_RUNQ &&
-				    td->td_state != TDS_RUNNING &&
-				    td->td_state != TDS_SLP) {
+				if (!TD_ON_RUNQ(td) &&
+				    !TD_IS_RUNNING(td) &&
+				    !TD_IS_SLEEPING(td)) {
 					breakout = 1;
 					break;
 				}

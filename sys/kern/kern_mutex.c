@@ -119,11 +119,9 @@ propagate_priority(struct thread *td)
 			return;
 		}
 
-		KASSERT(td->td_state != TDS_SURPLUS, ("Mutex owner SURPLUS"));
 		MPASS(td->td_proc != NULL);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
-		KASSERT(td->td_state != TDS_SLP,
-		    ("sleeping thread owns a mutex"));
+		KASSERT(!TD_IS_SLEEPING(td), ("sleeping thread owns a mutex"));
 		if (td->td_priority <= pri) /* lower is higher priority */
 			return;
 
@@ -131,7 +129,7 @@ propagate_priority(struct thread *td)
 		/*
 		 * If lock holder is actually running, just bump priority.
 		 */
-		if (td->td_state == TDS_RUNNING) {
+		if (TD_IS_RUNNING(td)) {
 			td->td_priority = pri;
 			return;
 		}
@@ -150,7 +148,7 @@ propagate_priority(struct thread *td)
 		 * but try anyhow.
 		 * We should have a special call to do this more efficiently.
 		 */
-		if (td->td_state == TDS_RUNQ) {
+		if (TD_ON_RUNQ(td)) {
 			MPASS(td->td_blocked == NULL);
 			remrunqueue(td);
 			td->td_priority = pri;
@@ -165,7 +163,7 @@ propagate_priority(struct thread *td)
 		/*
 		 * If we aren't blocked on a mutex, we should be.
 		 */
-		KASSERT(td->td_state == TDS_MTX, (
+		KASSERT(TD_ON_MUTEX(td), (
 		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
 		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_state,
 		    m->mtx_object.lo_name));
@@ -619,7 +617,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 */
 		td->td_blocked = m;
 		td->td_mtxname = m->mtx_object.lo_name;
-		td->td_state = TDS_MTX;
+		TD_SET_MUTEX(td);
 		propagate_priority(td);
 
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -763,6 +761,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    m, td1);
 
 	td1->td_blocked = NULL;
+	TD_CLR_MUTEX(td1);
 	setrunqueue(td1);
 
 	if (td->td_critnest == 1 && td1->td_priority < pri) {

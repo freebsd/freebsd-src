@@ -63,7 +63,7 @@ idle_setup(void *dummy)
 		p->p_flag |= P_NOLOAD;
 		p->p_state = PRS_NORMAL;
 		td = FIRST_THREAD_IN_PROC(p);
-		td->td_state = TDS_UNQUEUED;
+		td->td_state = TDS_CAN_RUN;
 		td->td_kse->ke_flags |= KEF_IDLEKSE; 
 #ifdef SMP
 	}
@@ -112,7 +112,7 @@ idle_proc(void *dummy)
 
 		mtx_lock_spin(&sched_lock);
 		p->p_stats->p_ru.ru_nvcsw++;
-		td->td_state = TDS_UNQUEUED;
+		td->td_state = TDS_CAN_RUN;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 	}

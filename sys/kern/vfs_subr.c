@@ -1654,10 +1654,14 @@ sched_sync(void)
 int
 speedup_syncer()
 {
+	struct thread *td;
 
+	td = FIRST_THREAD_IN_PROC(updateproc);
 	mtx_lock_spin(&sched_lock);
-	if (FIRST_THREAD_IN_PROC(updateproc)->td_wchan == &lbolt) /* XXXKSE */
-		setrunnable(FIRST_THREAD_IN_PROC(updateproc));
+	if (td->td_wchan == &lbolt) /* XXXKSE */
+		unsleep(td);
+		TD_CLR_SLEEPING(td);
+		setrunnable(td);
 	mtx_unlock_spin(&sched_lock);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;

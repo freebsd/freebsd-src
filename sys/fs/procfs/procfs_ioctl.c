@@ -97,8 +97,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = sig;
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
-			FOREACH_THREAD_IN_PROC(p, td)
-				setrunnable(td);	/* XXX Totally bogus */
+			thread_unsuspend(p);
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			mtx_unlock_spin(&sched_lock);

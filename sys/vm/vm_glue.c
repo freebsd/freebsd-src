@@ -499,16 +499,18 @@ faultin(p)
 		PROC_UNLOCK(p);
 
 		vm_proc_swapin(p);
-		FOREACH_THREAD_IN_PROC (p, td)
+		FOREACH_THREAD_IN_PROC (p, td) {
 			pmap_swapin_thread(td);
+			TD_CLR_SWAPPED(td);
+		}
 
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		p->p_sflag &= ~PS_SWAPPINGIN;
 		p->p_sflag |= PS_INMEM;
 		FOREACH_THREAD_IN_PROC (p, td)
-			if (td->td_state == TDS_SWAPPED)
-				setrunqueue(td);
+			if (TD_CAN_RUN(td))
+				setrunnable(td);
 
 		wakeup(&p->p_sflag);
 
@@ -558,10 +560,11 @@ loop:
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			/*
-			 * A runnable thread of a process swapped out is in
-			 * TDS_SWAPPED.
+			 * An otherwise runnable thread of a process
+			 * swapped out has only the TDI_SWAPPED bit set.
+			 * 
 			 */
-			if (td->td_state == TDS_SWAPPED) {
+			if (td->td_inhibitors == TDI_SWAPPED) {
 				kg = td->td_ksegrp;
 				pri = p->p_swtime + kg->kg_slptime;
 				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
@@ -849,18 +852,20 @@ swapout(p)
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
 	PROC_UNLOCK(p);
-	FOREACH_THREAD_IN_PROC (p, td)
-		if (td->td_state == TDS_RUNQ) {	/* XXXKSE */
+	FOREACH_THREAD_IN_PROC (p, td) /* shouldn't be possible, but..... */
+		if (TD_ON_RUNQ(td)) {	/* XXXKSE */
+			panic("swapping out runnable process");
 			remrunqueue(td);	/* XXXKSE */
-			td->td_state = TDS_SWAPPED;
 		}
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
 	mtx_unlock_spin(&sched_lock);
 
 	vm_proc_swapout(p);
-	FOREACH_THREAD_IN_PROC(p, td)
+	FOREACH_THREAD_IN_PROC(p, td) {
 		pmap_swapout_thread(td);
+		TD_SET_SWAPPED(td);
+	}
 	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_SWAPPING;
 	p->p_swtime = 0;

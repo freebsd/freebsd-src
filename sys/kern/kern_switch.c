@@ -163,7 +163,7 @@ retry:
 	if (panicstr && ((td->td_proc->p_flag & P_SYSTEM) == 0 &&
 	    (td->td_flags & TDF_INPANIC) == 0))
 		goto retry;
-	td->td_state = TDS_RUNNING;
+	TD_SET_RUNNING(td);
 	return (td);
 }
 
@@ -229,8 +229,7 @@ remrunqueue(struct thread *td)
 	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT ((td->td_state == TDS_RUNQ),
-		("remrunqueue: Bad state on run queue"));
+	KASSERT ((TD_ON_RUNQ(td)), ("remrunqueue: Bad state on run queue"));
 	kg = td->td_ksegrp;
 	ke = td->td_kse;
 	/*
@@ -238,8 +237,8 @@ remrunqueue(struct thread *td)
 	 * threads are BOUND.
 	 */
 	CTR1(KTR_RUNQ, "remrunqueue: td%p", td);
-	td->td_state = TDS_UNQUEUED;
 	kg->kg_runnable--;
+	TD_SET_CAN_RUN(td);
 	if ((td->td_flags & TDF_UNBOUND) == 0)  {
 		/* Bring its kse with it, leave the thread attached */
 		runq_remove(&runq, ke);
@@ -300,8 +299,9 @@ setrunqueue(struct thread *td)
 
 	CTR1(KTR_RUNQ, "setrunqueue: td%p", td);
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((td->td_state != TDS_RUNQ), ("setrunqueue: bad thread state"));
-	td->td_state = TDS_RUNQ;
+	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
+	    ("setrunqueue: bad thread state"));
+	TD_SET_RUNQ(td);
 	kg = td->td_ksegrp;
 	kg->kg_runnable++;
 	if ((td->td_flags & TDF_UNBOUND) == 0) {
@@ -715,7 +715,7 @@ thread_sanity_check(struct thread *td)
 		}
 		FOREACH_THREAD_IN_GROUP(kg, td2) {
 			if (((td2->td_flags & TDF_UNBOUND) == 0) && 
-			    (td2->td_state == TDS_RUNQ)) {
+			    (TD_ON_RUNQ(td2))) {
 				assigned++;
 				if (td2->td_kse == NULL) {
 					panic ("BOUND thread with no KSE");
