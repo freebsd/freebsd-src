@@ -75,7 +75,7 @@ reg int	(*func)(); {
 			char	buf[80];
 over:
 			printf("Debug file:");
-			gets(buf);
+			fgets(buf, 80, stdin);
 			if ((outf = fopen(buf, "w")) == NULL) {
 				perror(buf);
 				goto over;
