@@ -14,7 +14,7 @@ Since our release of FreeBSD 2.0 some 8 months ago, the performance,
 feature set, and stability of FreeBSD has improved dramatically.  The
 largest change is a revamped VM system with a merged VM/file buffer
 cache that not only increases performance, but reduces FreeBSD's
-memory footprint, making a 4MB configuration a more acceptible
+memory footprint, making a 4MB configuration a more acceptable
 minimum.  Other enhancements include full NIS client and server
 support, transaction TCP support, dial-on-demand PPP, an improved SCSI
 subsystem, early ISDN support, support for FDDI and Fast Ethernet
@@ -86,7 +86,7 @@ the U.S., give it a try!
 
 
 1.1 What's new in 2.0.5?
-----------------------
+------------------------
 
 The following features were added or substantially improved between
 the release of 2.0 and this 2.0.5 release.  In order to facilitate
@@ -123,7 +123,7 @@ the parent directory version to frustrate the hash, and improved the
 management of the cache in various other ways while we were at it.
 
 Owner:                  Poul-Henning Kamp (phk@FreeBSD.org)
-                        David GreenMan (davidg@FreeBSD.org)
+                        David Greenman (davidg@FreeBSD.org)
 
 
 Less restrictive swap-spaces
@@ -133,7 +133,7 @@ removed.  Now swapon will accept any block devices, up to the maximum
 number of swap devices configured in the kernel.
 
 Owner:                  Poul-Henning Kamp (phk@FreeBSD.org)
-                        David GreenMan (davidg@FreeBSD.org)
+                        David Greenman (davidg@FreeBSD.org)
 
 
 Hard Wired SCSI Devices
@@ -193,15 +193,16 @@ Matsushita/Panasonic (Creative) CD-ROM driver
 The Matsushita/Panasonic CR-562 and CR-563 drives are now supported
 when connected to a Sound Blaster or 100% compatible host adapter.  Up
 to four host adapters are supported for a total of 16 CD-ROM drives.
-The audio functions are supported with the Karoke variable speed
-playback.
+The audio functions are supported, along with access to the raw (2352 byte) 
+data frames of any compact disc.  Audio discs may be played using Karoke
+variable speed functions.
 
 Owner:                  Frank Durda IV   bsdmail@nemesis.lonestar.org
 Sources involved:       isa/matcd
 
 
 Adaptec 2742/2842/2940 SCSI driver
------------------------------
+----------------------------------
 The original 274x/284x driver has evolved considerably since the 2.0
 release.  We now offer full support for the 2940 series as well as the
 Wide models of these cards.  The arbitration bug (as well as many
@@ -388,7 +389,7 @@ Owner:                  Jim Lowe
 
 
 1.2 Experimental features
----------------------------------------------
+-------------------------
 
 The unionfs and LFS file systems are known to be severely broken in
 2.0.5.  This is in part due to old bugs that we haven't had time to
@@ -407,7 +408,6 @@ syscall wrappers have been written.
 
 Owner:                  Soren Schmidt (sos) & Sean Eric Fagan (sef)
 Sources involved:       sys/i386/ibcs2/* + misc kernel changes.
-=======
 
 
 2. Supported Configurations
@@ -425,6 +425,7 @@ we have simply not received any indication of this.
 
 
 2.1. Disk Controllers
+---------------------
 
 WD1003 (any generic MFM/RLL)
 WD1007 (any generic IDE/ESDI)
@@ -439,15 +440,13 @@ Adaptec 274X/284X/2940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes
 the AHA-152x and SoundBlaster SCSI cards.
 
-** Note: You cannot boot from the SoundBlaster cards
-as they have no on-board BIOS, which is necessary for mapping
-the boot device into the system BIOS I/O vectors.
-They're perfectly usable for external tapes, CDROMs, etc,
-however.  The same goes for any other AIC-6x60 based card
-without a boot ROM.  Some systems DO have a boot ROM, which
-is generally indicated by some sort of message when the system
-is first powered up or reset.  Check your system/board documentation
-for more details.
+** Note: You cannot boot from the SoundBlaster cards as they have no
+   on-board BIOS, which is necessary for mapping the boot device into the
+   system BIOS I/O vectors.  They're perfectly usable for external tapes,
+   CDROMs, etc, however.  The same goes for any other AIC-6x60 based card
+   without a boot ROM.  Some systems DO have a boot ROM, which is generally
+   indicated by some sort of message when the system is first powered up
+   or reset.  Check your system/board documentation for more details.
 
 [Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S & 545c
@@ -470,6 +469,7 @@ Future Domain 8xx/950 series SCSI controllers.
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
 DAT) and CD ROM drives.
+
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI (also includes ProAudio Spectrum and SoundBlaster SCSI)
 (mcd)   Mitsumi proprietary interface 
@@ -493,6 +493,7 @@ memory without difficulty.
 
 
 2.2. Ethernet cards
+-------------------
 
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
@@ -529,6 +530,7 @@ supported.
 
 
 2.3. Misc
+---------
 
 AST 4 port serial card using shared IRQ.
 
@@ -544,7 +546,7 @@ Mitsumi (all models) CDROM interface and drive.
 
 SDL Communications Riscom/8 Serial Board.
 
-Soundblaster SCSI and ProAudio Spectrum SCSI CDROM interface and drive.
+SoundBlaster SCSI and ProAudio Spectrum SCSI CDROM interface and drive.
 
 Matsushita/Panasonic (Creative SoundBlaster) CDROM interface and drive.
 
@@ -556,15 +558,15 @@ support is apparently close to materializing.  Details will be posted
 as the situation develops.
 
 
-3. Obtaining FreeBSD.
----------------------
+3. Obtaining FreeBSD
+--------------------
 
 You may obtain FreeBSD in a variety of ways:
 
 1. FTP/Mail
 
 You can ftp FreeBSD and any or all of its optional packages from
-`ftp.freebsd.org' - the offical FreeBSD release site.
+`ftp.freebsd.org' - the official FreeBSD release site.
 
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the nearest site
@@ -601,8 +603,8 @@ Should you be dissatisfied for any reason, the CD comes with an
 unconditional return policy.
 
 
-Reporting problems, making suggestions, submitting code.
------------------------------------------------------------
+Reporting problems, making suggestions, submitting code
+-------------------------------------------------------
 
 Your suggestions, bug reports and contributions of code are always
 valued - please do not hesitate to report any problems you may find
@@ -720,4 +722,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.2 1995/06/04 07:07:23 jkh Exp $
+$Id: RELNOTES,v 1.3 1995/06/04 07:31:51 jkh Exp $
