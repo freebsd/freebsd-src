@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.340 1999/06/10 02:48:51 jlemon Exp $
+ *	$Id: machdep.c,v 1.341 1999/06/13 19:20:25 alc Exp $
  */
 
 #include "apm.h"
@@ -887,7 +887,8 @@ union descriptor gdt[NGDT * NCPU];	/* global descriptor table */
 #else
 union descriptor gdt[NGDT];		/* global descriptor table */
 #endif
-struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
+static struct gate_descriptor idt0[NIDT];
+struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
 #ifdef SMP
 /* table descriptors - used to load tables by microp */
@@ -900,7 +901,6 @@ extern struct segment_descriptor common_tssd, *tss_gdt;
 int private_tss;			/* flag indicating private tss */
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
 
@@ -1090,11 +1090,7 @@ setidt(idx, func, typ, dpl, selec)
 {
 	struct gate_descriptor *ip;
 
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-	ip = (t_idt != NULL ? t_idt : idt) + idx;
-#else
 	ip = idt + idx;
-#endif
 	ip->gd_looffset = (int)func;
 	ip->gd_selector = selec;
 	ip->gd_stkcpy = 0;
@@ -1610,7 +1606,7 @@ init386(first)
  	setidt(0x80, &IDTVEC(int0x80_syscall),
 			SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
 
-	r_idt.rd_limit = sizeof(idt) - 1;
+	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (int) idt;
 	lidt(&r_idt);
 
@@ -1714,6 +1710,7 @@ SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
 
 static void
 f00f_hack(void *unused) {
+	struct gate_descriptor *new_idt;
 #ifndef SMP
 	struct region_descriptor r_idt;
 #endif
@@ -1724,7 +1721,7 @@ f00f_hack(void *unused) {
 
 	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
-	r_idt.rd_limit = sizeof(idt) - 1;
+	r_idt.rd_limit = sizeof(idt0) - 1;
 
 	tmp = kmem_alloc(kernel_map, PAGE_SIZE * 2);
 	if (tmp == 0)
@@ -1732,10 +1729,11 @@ f00f_hack(void *unused) {
 	if (((unsigned int)tmp & (PAGE_SIZE-1)) != 0)
 		panic("kmem_alloc returned non-page-aligned memory");
 	/* Put the first seven entries in the lower page */
-	t_idt = (struct gate_descriptor*)(tmp + PAGE_SIZE - (7*8));
-	bcopy(idt, t_idt, sizeof(idt));
-	r_idt.rd_base = (int)t_idt;
+	new_idt = (struct gate_descriptor*)(tmp + PAGE_SIZE - (7*8));
+	bcopy(idt, new_idt, sizeof(idt0));
+	r_idt.rd_base = (int)new_idt;
 	lidt(&r_idt);
+	idt = new_idt;
 	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
 			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
 		panic("vm_map_protect failed");
