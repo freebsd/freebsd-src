@@ -165,10 +165,11 @@ MACHINE_CPU = ev4
 .  endif
 . elif ${MACHINE_ARCH} == "amd64"
 .  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
-MACHINE_CPU = amd64 k8 athlon-mp athlon k7 3dnow sse2 sse mmx k6 k5 i586 i486 i386
+MACHINE_CPU = k8 3dnow
 .  elif ${CPUTYPE} == "nocona"
-MACHINE_CPU = sse3 sse2 sse mmx
+MACHINE_CPU = sse3
 .  endif
+MACHINE_CPU += amd64 sse2 sse mmx
 . elif ${MACHINE_ARCH} == "ia64"
 .  if ${CPUTYPE} == "itanium"
 MACHINE_CPU = itanium
