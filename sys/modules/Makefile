@@ -162,6 +162,7 @@ SUBDIR+=3dfx \
 	awi \
 	bktr \
 	coff \
+	dpt \
 	drm \
 	ed \
 	elink \
