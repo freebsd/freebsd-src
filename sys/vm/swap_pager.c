@@ -1649,7 +1649,7 @@ swp_pager_hash(vm_object_t object, vm_pindex_t index)
 	struct swblock **pswap;
 	struct swblock *swap;
 
-	index &= ~SWAP_META_MASK;
+	index &= ~(vm_pindex_t)SWAP_META_MASK;
 	pswap = &swhash[(index ^ (int)(intptr_t)object) & swhash_mask];
 	while ((swap = *pswap) != NULL) {
 		if (swap->swb_object == object &&
@@ -1731,7 +1731,7 @@ retry:
 
 		swap->swb_hnext = NULL;
 		swap->swb_object = object;
-		swap->swb_index = index & ~SWAP_META_MASK;
+		swap->swb_index = index & ~(vm_pindex_t)SWAP_META_MASK;
 		swap->swb_count = 0;
 
 		++object->un_pager.swp.swp_bcount;
