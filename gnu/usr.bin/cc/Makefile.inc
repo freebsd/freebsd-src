@@ -3,14 +3,16 @@
 .include "../Makefile.inc"
 
 # Sometimes this is .include'd several times...
-.if !defined(GCCDIR)
-GCCDIR=		${.CURDIR}/../../../../contrib/gcc
+.if !defined(__CC_MAKEFILE_INC__)
+__CC_MAKEFILE_INC__= ${MFILE}
+
+GCCDIR=	${.CURDIR}/../../../../contrib/gcc
 
 .include "Makefile.tgt"
 
 # Machine description.
-MD_FILE=	${GCCDIR}/config/${TARGET_ARCH}/${TARGET_ARCH}.md
-target=		${TARGET_ARCH}-unknown-freebsd
+MD_FILE=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md
+target=		${TARGET_ARCH}-undermydesk-freebsd
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
@@ -50,4 +52,4 @@ LIBCC_INT=	${.OBJDIR}/../cc_int/libcc_int.a
 LIBCC_INT=	${.CURDIR}/../cc_int/libcc_int.a
 .endif
 
-.endif # !GCCDIR
+.endif # !__CC_MAKEFILE_INC__
