@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $Id: mount_nfs.c,v 1.5 2003/11/05 14:58:58 rees Exp $ */
 
 /*
