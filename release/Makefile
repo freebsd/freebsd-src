@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.264 1996/12/23 05:10:31 peter Exp $
+#	$Id: Makefile,v 1.265 1996/12/29 05:26:04 jkh Exp $
 #
 # How to roll a release:
 #
@@ -22,7 +22,7 @@
 # Things which without too much trouble can be considered variables
 
 COMPAT_DISTS=	compat1x compat20 compat21
-EXPORT_DISTS=	games manpages proflibs dict info doc ${COMPAT_DISTS}
+EXPORT_DISTS=	games manpages catpages proflibs dict info doc ${COMPAT_DISTS}
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 KERNELS?=	GENERIC
@@ -237,9 +237,18 @@ release.5:
 
 	# Move all the manpages out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
-		tar -cf - -C ${RD}/trees/bin/usr/share/man . | \
-			tar xf - -C ${RD}/trees/manpages/usr/share/man && \
+		( cd ${RD}/trees/bin/usr/share/man; \
+		find . | cpio -dumpl ${RD}/trees/manpages/usr/share/man ) && \
 		rm -rf ${RD}/trees/bin/usr/share/man; \
+	fi
+	# Create the catpages
+	if [ -d ${RD}/trees/manpages/usr/share/man ] ; then \
+		mtree -U -f ${.CURDIR}/man.mtree -d -e \
+			-p ${RD}/trees/manpages/usr/share; \
+		su -m man -c 'catman ${RD}/trees/manpages/usr/share/man'; \
+		( cd ${RD}/trees/manpages/usr/share/man; \
+		find cat* | cpio -dumpl ${RD}/trees/catpages/usr/share/man ) && \
+		rm -rf ${RD}/trees/manpages/usr/share/man/cat*; \
 	fi
 	# Move all the games out to their own dist
 	if [ -d ${RD}/trees/bin/usr/games ] ; then \
