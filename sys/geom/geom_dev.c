@@ -178,7 +178,11 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 	g_silence();
 	r = flags & FREAD ? 1 : 0;
 	w = flags & FWRITE ? 1 : 0;
+#ifdef notyet
 	e = flags & O_EXCL ? 1 : 0;
+#else
+	e = 0;
+#endif
 	error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
 	PICKUP_GIANT();
@@ -204,7 +208,11 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 	g_silence();
 	r = flags & FREAD ? -1 : 0;
 	w = flags & FWRITE ? -1 : 0;
+#ifdef notyet
 	e = flags & O_EXCL ? -1 : 0;
+#else
+	e = 0;
+#endif
 	error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
 	PICKUP_GIANT();
