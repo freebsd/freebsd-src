@@ -557,6 +557,14 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 		PRINT(with, n); \
 	} \
 }
+#define	PRINTANDPAD(p, ep, len, with) do {	\
+	n2 = (ep) - (p);       			\
+	if (n2 > (len))				\
+		n2 = (len);			\
+	if (n2 > 0)				\
+		PRINT((p), n2);			\
+	PAD((len) - (n2 > 0 ? n2 : 0), (with));	\
+} while(0)
 #define	FLUSH() { \
 	if (uio.uio_resid && __sprint(fp, &uio)) \
 		goto error; \
@@ -714,16 +722,14 @@ reswitch:	switch (ch) {
 			goto rflag;
 		case '.':
 			if ((ch = *fmt++) == '*') {
-				GETASTER (n);
-				prec = n < 0 ? -1 : n;
+				GETASTER (prec);
 				goto rflag;
 			}
-			n = 0;
+			prec = 0;
 			while (is_digit(ch)) {
-				n = 10 * n + to_digit(ch);
+				prec = 10 * prec + to_digit(ch);
 				ch = *fmt++;
 			}
-			prec = n < 0 ? -1 : n;
 			goto reswitch;
 		case '0':
 			/*-
@@ -917,7 +923,7 @@ fp_begin:
 			if (expchar) {
 				expsize = exponent(expstr, expt - 1, expchar);
 				size = expsize + prec;
-				if (prec || flags & ALT)
+				if (prec > 1 || flags & ALT)
 					++size;
 			} else {
 				if (expt > 0) {
@@ -942,7 +948,7 @@ fp_begin:
 					}
 					size += nseps + nrepeats;
 				} else
-					lead = (expt < ndig) ? expt : ndig;
+					lead = expt /*(expt < ndig) ? expt : ndig*/;
 			}
 			break;
 #endif /* FLOATING_POINT */
@@ -1159,10 +1165,10 @@ number:			if ((dprec = prec) >= 0)
 					buf[1] = *decimal_point;
 					PRINT(buf, 2);
 					PAD(-expt, zeroes);
-					if (ndig > 0)
-						PRINT(cp, ndig);
+					/* already handled initial 0's */
+					prec += expt;
 				} else {
-					PRINT(cp, lead);
+					PRINTANDPAD(cp, dtoaend, lead, zeroes);
 					cp += lead;
 					if (grouping) {
 						while (nseps>0 || nrepeats>0) {
@@ -1174,20 +1180,19 @@ number:			if ((dprec = prec) >= 0)
 							}
 							PRINT(&thousands_sep,
 							    1);
-							PRINT(cp, *grouping);
+							PRINTANDPAD(cp,dtoaend,
+							    *grouping, zeroes);
 							cp += *grouping;
 						}
-					} else {
-						PAD(expt - lead, zeroes);
+						if (cp > dtoaend)
+							cp = dtoaend;
 					}
 					if (prec || flags & ALT)
 						PRINT(decimal_point,1);
-					if (ndig > lead)
-						PRINT(cp, ndig - lead);
 				}
-				PAD(prec - ndig + expt, zeroes);
+				PRINTANDPAD(cp, dtoaend, prec, zeroes);
 			} else {	/* %[eE] or sufficiently long %[gG] */
-				if (prec || flags & ALT) {
+				if (prec > 1 || flags & ALT) {
 					buf[0] = *cp++;
 					buf[1] = *decimal_point;
 					PRINT(buf, 2);
@@ -1195,7 +1200,6 @@ number:			if ((dprec = prec) >= 0)
 					PAD(prec - ndig, zeroes);
 				} else	/* XeYYY */
 					PRINT(cp, 1);
-					
 				PRINT(expstr, expsize);
 			}
 		}
