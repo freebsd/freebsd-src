@@ -1,5 +1,5 @@
 /* YACC parser for C expressions, for GDB.
-   Copyright (C) 1986, 1989, 1990, 1991, 1993, 1994
+   Copyright (C) 1986, 1989, 1990, 1991, 1993, 1994, 1996, 1997
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -48,6 +48,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h" /* Required by objfiles.h.  */
 #include "symfile.h" /* Required by objfiles.h.  */
 #include "objfiles.h" /* For have_full_symbols and have_partial_symbols */
+
+/* Flag indicating we're dealing with HP-compiled objects */ 
+extern int hp_som_som_object_present;
 
 /* Remap normal yacc parser interface names (yyparse, yylex, yyerror, etc),
    as well as gratuitiously global symbol names, so we can have multiple
@@ -195,6 +198,9 @@ parse_number PARAMS ((char *, int, int, YYSTYPE *));
 
 /* C++ */
 %token THIS
+%token TRUEKEYWORD
+%token FALSEKEYWORD
+
 
 %left ','
 %left ABOVE_COMMA
@@ -214,6 +220,7 @@ parse_number PARAMS ((char *, int, int, YYSTYPE *));
 %right UNARY INCREMENT DECREMENT
 %right ARROW '.' '[' '('
 %token <ssym> BLOCKNAME 
+%token <bval> FILENAME
 %type <bval> block
 %left COLONCOLON
 
@@ -288,6 +295,7 @@ exp	:	exp ARROW qualified_name
 			  write_exp_elt_opcode (UNOP_ADDR);
 			  write_exp_elt_opcode (STRUCTOP_MPTR); }
 	;
+
 exp	:	exp ARROW '*' exp
 			{ write_exp_elt_opcode (STRUCTOP_MPTR); }
 	;
@@ -297,7 +305,6 @@ exp	:	exp '.' name
 			  write_exp_string ($3);
 			  write_exp_elt_opcode (STRUCTOP_STRUCT); }
 	;
-
 
 exp	:	exp '.' qualified_name
 			{ /* exp.type::name becomes exp.*(&type::name) */
@@ -528,22 +535,33 @@ exp	:	THIS
 			  write_exp_elt_opcode (OP_THIS); }
 	;
 
+exp     :       TRUEKEYWORD    
+                        { write_exp_elt_opcode (OP_LONG);
+                          write_exp_elt_type (builtin_type_bool);
+                          write_exp_elt_longcst ((LONGEST) 1);
+                          write_exp_elt_opcode (OP_LONG); }
+	;
+
+exp     :       FALSEKEYWORD   
+                        { write_exp_elt_opcode (OP_LONG);
+                          write_exp_elt_type (builtin_type_bool);
+                          write_exp_elt_longcst ((LONGEST) 0);
+                          write_exp_elt_opcode (OP_LONG); }
+	;
+
 /* end of C++.  */
 
 block	:	BLOCKNAME
 			{
-			  if ($1.sym != 0)
-			      $$ = SYMBOL_BLOCK_VALUE ($1.sym);
+			  if ($1.sym)
+			    $$ = SYMBOL_BLOCK_VALUE ($1.sym);
 			  else
-			    {
-			      struct symtab *tem =
-				  lookup_symtab (copy_name ($1.stoken));
-			      if (tem)
-				$$ = BLOCKVECTOR_BLOCK (BLOCKVECTOR (tem), STATIC_BLOCK);
-			      else
-				error ("No file or function \"%s\".",
-				       copy_name ($1.stoken));
-			    }
+			    error ("No file or function \"%s\".",
+				   copy_name ($1.stoken));
+			}
+	|	FILENAME
+			{
+			  $$ = $1;
 			}
 	;
 
@@ -596,15 +614,14 @@ qualified_name:	typebase COLONCOLON name
 			    error ("`%s' is not defined as an aggregate type.",
 				   TYPE_NAME (type));
 
-			  if (!STREQ (type_name_no_tag (type), $4.ptr))
-			    error ("invalid destructor `%s::~%s'",
-				   type_name_no_tag (type), $4.ptr);
-
 			  tmp_token.ptr = (char*) alloca ($4.length + 2);
 			  tmp_token.length = $4.length + 1;
 			  tmp_token.ptr[0] = '~';
 			  memcpy (tmp_token.ptr+1, $4.ptr, $4.length);
 			  tmp_token.ptr[tmp_token.length] = 0;
+
+			  /* Check for valid destructor name.  */
+			  destructor_name_p (tmp_token.ptr, type);
 			  write_exp_elt_opcode (OP_SCOPE);
 			  write_exp_elt_type (type);
 			  write_exp_string (tmp_token);
@@ -826,6 +843,9 @@ typebase  /* Implements (approximately): (type-qualifier)* type-specifier */
 			{ $$ = lookup_signed_typename (TYPE_NAME($2.type)); }
 	|	SIGNED_KEYWORD
 			{ $$ = builtin_type_int; }
+                /* It appears that this rule for templates is never
+                   reduced; template recognition happens by lookahead
+                   in the token processing code in yylex. */         
 	|	TEMPLATE name '<' type '>'
 			{ $$ = lookup_template_type(copy_name($2), $4,
 						    expression_context_block);
@@ -907,7 +927,7 @@ parse_number (p, len, parsed_float, putithere)
      here, and we do kind of silly things like cast to unsigned.  */
   register LONGEST n = 0;
   register LONGEST prevn = 0;
-  unsigned LONGEST un;
+  ULONGEST un;
 
   register int i = 0;
   register int c;
@@ -920,34 +940,38 @@ parse_number (p, len, parsed_float, putithere)
   /* We have found a "L" or "U" suffix.  */
   int found_suffix = 0;
 
-  unsigned LONGEST high_bit;
+  ULONGEST high_bit;
   struct type *signed_type;
   struct type *unsigned_type;
 
   if (parsed_float)
     {
-      char c;
-
       /* It's a float since it contains a point or an exponent.  */
+      char c;
+      int num = 0;	/* number of tokens scanned by scanf */
+      char saved_char = p[len];
 
+      p[len] = 0;	/* null-terminate the token */
       if (sizeof (putithere->typed_val_float.dval) <= sizeof (float))
-	sscanf (p, "%g", &putithere->typed_val_float.dval);
+	num = sscanf (p, "%g%c", (float *) &putithere->typed_val_float.dval,&c);
       else if (sizeof (putithere->typed_val_float.dval) <= sizeof (double))
-	sscanf (p, "%lg", &putithere->typed_val_float.dval);
+	num = sscanf (p, "%lg%c", (double *) &putithere->typed_val_float.dval,&c);
       else
 	{
-#ifdef PRINTF_HAS_LONG_DOUBLE
-	  sscanf (p, "%Lg", &putithere->typed_val_float.dval);
+#ifdef SCANF_HAS_LONG_DOUBLE
+	  num = sscanf (p, "%Lg%c", &putithere->typed_val_float.dval,&c);
 #else
 	  /* Scan it into a double, then assign it to the long double.
 	     This at least wins with values representable in the range
 	     of doubles. */
 	  double temp;
-	  sscanf (p, "%lg", &temp);
+	  num = sscanf (p, "%lg%c", &temp,&c);
 	  putithere->typed_val_float.dval = temp;
 #endif
 	}
-
+      p[len] = saved_char;	/* restore the input stream */
+      if (num != 1) 		/* check scanf found ONLY a float ... */
+	return ERROR;
       /* See if it has `f' or `l' suffix (float or long double).  */
 
       c = tolower (p[len - 1]);
@@ -1043,7 +1067,7 @@ parse_number (p, len, parsed_float, putithere)
 	 on 0x123456789 when LONGEST is 32 bits.  */
       if (c != 'l' && c != 'u' && n != 0)
 	{	
-	  if ((unsigned_p && (unsigned LONGEST) prevn >= (unsigned LONGEST) n))
+	  if ((unsigned_p && (ULONGEST) prevn >= (ULONGEST) n))
 	    error ("Numeric constant too large.");
 	}
       prevn = n;
@@ -1061,11 +1085,11 @@ parse_number (p, len, parsed_float, putithere)
      the case where it is we just always shift the value more than
      once, with fewer bits each time.  */
 
-  un = (unsigned LONGEST)n >> 2;
+  un = (ULONGEST)n >> 2;
   if (long_p == 0
       && (un >> (TARGET_INT_BIT - 2)) == 0)
     {
-      high_bit = ((unsigned LONGEST)1) << (TARGET_INT_BIT-1);
+      high_bit = ((ULONGEST)1) << (TARGET_INT_BIT-1);
 
       /* A large decimal (not hex or octal) constant (between INT_MAX
 	 and UINT_MAX) is a long or unsigned long, according to ANSI,
@@ -1079,20 +1103,19 @@ parse_number (p, len, parsed_float, putithere)
   else if (long_p <= 1
 	   && (un >> (TARGET_LONG_BIT - 2)) == 0)
     {
-      high_bit = ((unsigned LONGEST)1) << (TARGET_LONG_BIT-1);
+      high_bit = ((ULONGEST)1) << (TARGET_LONG_BIT-1);
       unsigned_type = builtin_type_unsigned_long;
       signed_type = builtin_type_long;
     }
   else
     {
-      high_bit = (((unsigned LONGEST)1)
-		  << (TARGET_LONG_LONG_BIT - 32 - 1)
-		  << 16
-		  << 16);
-      if (high_bit == 0)
+      int shift;
+      if (sizeof (ULONGEST) * HOST_CHAR_BIT < TARGET_LONG_LONG_BIT)
 	/* A long long does not fit in a LONGEST.  */
-	high_bit =
-	  (unsigned LONGEST)1 << (sizeof (LONGEST) * HOST_CHAR_BIT - 1);
+	shift = (sizeof (ULONGEST) * HOST_CHAR_BIT - 1);
+      else
+	shift = (TARGET_LONG_LONG_BIT - 1);
+      high_bit = (ULONGEST) 1 << shift;
       unsigned_type = builtin_type_unsigned_long_long;
       signed_type = builtin_type_long_long;
     }
@@ -1164,8 +1187,14 @@ yylex ()
   int tempbufindex;
   static char *tempbuf;
   static int tempbufsize;
-  
+  struct symbol * sym_class = NULL;
+  char * token_string = NULL;
+  int class_prefix = 0;
+  int unquoted_expr;
+   
  retry:
+
+  unquoted_expr = 1;
 
   tokstart = lexptr;
   /* See if it is a special token of length 3.  */
@@ -1218,6 +1247,7 @@ yylex ()
 	  if (namelen > 2)
 	    {
 	      lexptr = tokstart + namelen;
+              unquoted_expr = 0;
 	      if (lexptr[-1] != '\'')
 		error ("Unmatched single quote.");
 	      namelen -= 2;
@@ -1402,15 +1432,45 @@ yylex ()
        (c == '_' || c == '$' || (c >= '0' && c <= '9')
 	|| (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '<');)
     {
-       if (c == '<')
-	 {
-	   int i = namelen;
-	   while (tokstart[++i] && tokstart[i] != '>');
-	   if (tokstart[i] == '>')
-	     namelen = i;
-	  }
-       c = tokstart[++namelen];
-     }
+      /* Template parameter lists are part of the name.
+	 FIXME: This mishandles `print $a<4&&$a>3'.  */
+
+      if (c == '<')
+	{ 
+           if (hp_som_som_object_present)
+             {
+               /* Scan ahead to get rest of the template specification.  Note
+                  that we look ahead only when the '<' adjoins non-whitespace
+                  characters; for comparison expressions, e.g. "a < b > c",
+                  there must be spaces before the '<', etc. */
+               
+               char * p = find_template_name_end (tokstart + namelen);
+               if (p)
+                 namelen = p - tokstart;
+               break;
+             }
+           else
+             { 
+	       int i = namelen;
+	       int nesting_level = 1;
+	       while (tokstart[++i])
+		 {
+		   if (tokstart[i] == '<')
+		     nesting_level++;
+		   else if (tokstart[i] == '>')
+		     {
+		       if (--nesting_level == 0)
+			 break;
+		     }
+		 }
+	       if (tokstart[i] == '>')
+		 namelen = i;
+	       else
+		 break;
+	     }
+	}
+      c = tokstart[++namelen];
+    }
 
   /* The token "if" terminates the expression and is NOT 
      removed from the input stream.  */
@@ -1446,9 +1506,13 @@ yylex ()
 	return DOUBLE_KEYWORD;
       break;
     case 5:
-      if (current_language->la_language == language_cplus
-	  && STREQN (tokstart, "class", 5))
-	return CLASS;
+      if (current_language->la_language == language_cplus)
+        {
+          if (STREQN (tokstart, "false", 5))
+            return FALSEKEYWORD;
+          if (STREQN (tokstart, "class", 5))
+            return CLASS;
+        }
       if (STREQN (tokstart, "union", 5))
 	return UNION;
       if (STREQN (tokstart, "short", 5))
@@ -1461,17 +1525,22 @@ yylex ()
 	return ENUM;
       if (STREQN (tokstart, "long", 4))
 	return LONG;
-      if (current_language->la_language == language_cplus
-	  && STREQN (tokstart, "this", 4))
-	{
-	  static const char this_name[] =
-				 { CPLUS_MARKER, 't', 'h', 'i', 's', '\0' };
+      if (current_language->la_language == language_cplus)
+          {
+            if (STREQN (tokstart, "true", 4))
+              return TRUEKEYWORD;
 
-	  if (lookup_symbol (this_name, expression_context_block,
-			     VAR_NAMESPACE, (int *) NULL,
-			     (struct symtab **) NULL))
-	    return THIS;
-	}
+            if (STREQN (tokstart, "this", 4))
+              {
+                static const char this_name[] =
+                { CPLUS_MARKER, 't', 'h', 'i', 's', '\0' };
+                
+                if (lookup_symbol (this_name, expression_context_block,
+                                   VAR_NAMESPACE, (int *) NULL,
+                                   (struct symtab **) NULL))
+                  return THIS;
+              }
+          }
       break;
     case 3:
       if (STREQN (tokstart, "int", 3))
@@ -1489,7 +1558,25 @@ yylex ()
       write_dollar_variable (yylval.sval);
       return VARIABLE;
     }
-
+  
+  /* Look ahead and see if we can consume more of the input
+     string to get a reasonable class/namespace spec or a
+     fully-qualified name.  This is a kludge to get around the
+     HP aCC compiler's generation of symbol names with embedded
+     colons for namespace and nested classes. */ 
+  if (unquoted_expr)
+    {
+      /* Only do it if not inside single quotes */ 
+      sym_class = parse_nested_classes_for_hpacc (yylval.sval.ptr, yylval.sval.length,
+                                                  &token_string, &class_prefix, &lexptr);
+      if (sym_class)
+        {
+          /* Replace the current token with the bigger one we found */ 
+          yylval.sval.ptr = token_string;
+          yylval.sval.length = strlen (token_string);
+        }
+    }
+  
   /* Use token-type BLOCKNAME for symbols that happen to be defined as
      functions or symtabs.  If this is not so, then ...
      Use token-type TYPENAME for symbols that happen to be defined
@@ -1509,13 +1596,25 @@ yylex ()
     /* Call lookup_symtab, not lookup_partial_symtab, in case there are
        no psymtabs (coff, xcoff, or some future change to blow away the
        psymtabs once once symbols are read).  */
-    if ((sym && SYMBOL_CLASS (sym) == LOC_BLOCK) ||
-        lookup_symtab (tmp))
+    if (sym && SYMBOL_CLASS (sym) == LOC_BLOCK)
       {
 	yylval.ssym.sym = sym;
 	yylval.ssym.is_a_field_of_this = is_a_field_of_this;
 	return BLOCKNAME;
       }
+    else if (!sym)
+      {				/* See if it's a file name. */
+	struct symtab *symtab;
+
+	symtab = lookup_symtab (tmp);
+
+	if (symtab)
+	  {
+	    yylval.bval = BLOCKVECTOR_BLOCK (BLOCKVECTOR (symtab), STATIC_BLOCK);
+	    return FILENAME;
+	  }
+      }
+
     if (sym && SYMBOL_CLASS (sym) == LOC_TYPEDEF)
         {
 #if 1

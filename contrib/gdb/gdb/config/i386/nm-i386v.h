@@ -34,5 +34,3 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 extern int
 i386_register_u_addr PARAMS ((int, int));
-
-#define NO_PTRACE_H

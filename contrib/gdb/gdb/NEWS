@@ -1,6 +1,279 @@
 		What has changed in GDB?
 	     (Organized release by release)
 
+*** Changes in GDB-4.18:
+
+* New native configurations
+
+HP-UX 10.20					hppa*-*-hpux10.20
+HP-UX 11.x					hppa*-*-hpux11.0*
+M68K Linux					m68*-*-linux*
+
+* New targets
+
+Fujitsu FR30					fr30-*-elf*
+Intel StrongARM					strongarm-*-*
+Mitsubishi D30V					d30v-*-*
+
+* OBSOLETE configurations
+
+Gould PowerNode, NP1				np1-*-*, pn-*-*
+
+Configurations that have been declared obsolete will be commented out,
+but the code will be left in place.  If there is no activity to revive
+these configurations before the next release of GDB, the sources will
+be permanently REMOVED.
+
+* ANSI/ISO C
+
+As a compatibility experiment, GDB's source files buildsym.h and
+buildsym.c have been converted to pure standard C, no longer
+containing any K&R compatibility code.  We believe that all systems in
+use today either come with a standard C compiler, or have a GCC port
+available.  If this is not true, please report the affected
+configuration to bug-gdb@gnu.org immediately.  See the README file for
+information about getting a standard C compiler if you don't have one
+already.
+
+* Readline 2.2
+
+GDB now uses readline 2.2.
+
+* set extension-language
+
+You can now control the mapping between filename extensions and source
+languages by using the `set extension-language' command.  For instance,
+you can ask GDB to treat .c files as C++ by saying
+	set extension-language .c c++
+The command `info extensions' lists all of the recognized extensions
+and their associated languages.
+
+* Setting processor type for PowerPC and RS/6000
+
+When GDB is configured for a powerpc*-*-* or an rs6000*-*-* target,
+you can use the `set processor' command to specify what variant of the
+PowerPC family you are debugging.  The command
+
+	set processor NAME
+
+sets the PowerPC/RS6000 variant to NAME.  GDB knows about the
+following PowerPC and RS6000 variants:
+
+  ppc-uisa  PowerPC UISA - a PPC processor as viewed by user-level code
+  rs6000    IBM RS6000 ("POWER") architecture, user-level view
+  403       IBM PowerPC 403
+  403GC     IBM PowerPC 403GC
+  505       Motorola PowerPC 505
+  860       Motorola PowerPC 860 or 850
+  601       Motorola PowerPC 601
+  602       Motorola PowerPC 602
+  603       Motorola/IBM PowerPC 603 or 603e
+  604       Motorola PowerPC 604 or 604e
+  750       Motorola/IBM PowerPC 750 or 750
+
+At the moment, this command just tells GDB what to name the
+special-purpose processor registers.  Since almost all the affected
+registers are inaccessible to user-level programs, this command is
+only useful for remote debugging in its present form.
+
+* HP-UX support
+
+Thanks to a major code donation from Hewlett-Packard, GDB now has much
+more extensive support for HP-UX.  Added features include shared
+library support, kernel threads and hardware watchpoints for 11.00,
+support for HP's ANSI C and C++ compilers, and a compatibility mode
+for xdb and dbx commands.
+
+* Catchpoints
+
+HP's donation includes the new concept of catchpoints, which is a
+generalization of the old catch command.  On HP-UX, it is now possible
+to catch exec, fork, and vfork, as well as library loading.
+
+This means that the existing catch command has changed; its first
+argument now specifies the type of catch to be set up.  See the
+output of "help catch" for a list of catchpoint types.
+
+* Debugging across forks
+
+On HP-UX, you can choose which process to debug when a fork() happens
+in the inferior.
+
+* TUI
+
+HP has donated a curses-based terminal user interface (TUI).  To get
+it, build with --enable-tui.  Although this can be enabled for any
+configuration, at present it only works for native HP debugging.
+
+* GDB remote protocol additions
+
+A new protocol packet 'X' that writes binary data is now available.
+Default behavior is to try 'X', then drop back to 'M' if the stub
+fails to respond.  The settable variable `remotebinarydownload'
+allows explicit control over the use of 'X'.
+
+For 64-bit targets, the memory packets ('M' and 'm') can now contain a
+full 64-bit address.  The command
+
+	set remoteaddresssize 32
+
+can be used to revert to the old behaviour.  For existing remote stubs
+the change should not be noticed, as the additional address information
+will be discarded.
+
+In order to assist in debugging stubs, you may use the maintenance
+command `packet' to send any text string to the stub.  For instance,
+
+	maint packet heythere
+
+sends the packet "$heythere#<checksum>".  Note that it is very easy to
+disrupt a debugging session by sending the wrong packet at the wrong
+time.
+
+The compare-sections command allows you to compare section data on the
+target to what is in the executable file without uploading or
+downloading, by comparing CRC checksums.
+
+* Tracing can collect general expressions
+
+You may now collect general expressions at tracepoints.  This requires
+further additions to the target-side stub; see tracepoint.c and
+doc/agentexpr.texi for further details.
+
+* mask-address variable for Mips
+
+For Mips targets, you may control the zeroing of the upper 32 bits of
+a 64-bit address by entering `set mask-address on'.  This is mainly
+of interest to users of embedded R4xxx and R5xxx processors.
+
+* Higher serial baud rates
+
+GDB's serial code now allows you to specify baud rates 57600, 115200,
+230400, and 460800 baud.  (Note that your host system may not be able
+to achieve all of these rates.)
+
+* i960 simulator
+
+The i960 configuration now includes an initial implementation of a
+builtin simulator, contributed by Jim Wilson.
+
+
+*** Changes in GDB-4.17:
+
+* New native configurations
+
+Alpha GNU/Linux					alpha*-*-linux*
+Unixware 2.x					i[3456]86-unixware2*
+Irix 6.x					mips*-sgi-irix6*
+PowerPC GNU/Linux				powerpc-*-linux*
+PowerPC Solaris					powerpcle-*-solaris*
+Sparc GNU/Linux					sparc-*-linux*
+Motorola sysV68 R3V7.1				m68k-motorola-sysv
+
+* New targets
+
+Argonaut Risc Chip (ARC)			arc-*-*
+Hitachi H8/300S					h8300*-*-*
+Matsushita MN10200 w/simulator			mn10200-*-*
+Matsushita MN10300 w/simulator			mn10300-*-*
+MIPS NEC VR4100					mips64*vr4100*{,el}-*-elf*
+MIPS NEC VR5000					mips64*vr5000*{,el}-*-elf*
+MIPS Toshiba TX39				mips64*tx39*{,el}-*-elf*
+Mitsubishi D10V w/simulator			d10v-*-*
+Mitsubishi M32R/D w/simulator			m32r-*-elf*
+Tsqware Sparclet				sparclet-*-*
+NEC V850 w/simulator				v850-*-*
+
+* New debugging protocols
+
+ARM with RDI protocol				arm*-*-*
+M68K with dBUG monitor				m68*-*-{aout,coff,elf}
+DDB and LSI variants of PMON protocol		mips*-*-*
+PowerPC with DINK32 monitor			powerpc{,le}-*-eabi
+PowerPC with SDS protocol			powerpc{,le}-*-eabi
+Macraigor OCD (Wiggler) devices			powerpc{,le}-*-eabi
+
+* DWARF 2
+
+All configurations can now understand and use the DWARF 2 debugging
+format.  The choice is automatic, if the symbol file contains DWARF 2
+information.
+
+* Java frontend
+
+GDB now includes basic Java language support.  This support is
+only useful with Java compilers that produce native machine code.
+
+* solib-absolute-prefix and solib-search-path
+
+For SunOS and SVR4 shared libraries, you may now set the prefix for
+loading absolute shared library symbol files, and the search path for
+locating non-absolute shared library symbol files.
+
+* Live range splitting
+
+GDB can now effectively debug code for which GCC has performed live
+range splitting as part of its optimization.  See gdb/doc/LRS for
+more details on the expected format of the stabs information.
+
+* Hurd support
+
+GDB's support for the GNU Hurd, including thread debugging, has been
+updated to work with current versions of the Hurd.
+
+* ARM Thumb support
+
+GDB's ARM target configuration now handles the ARM7T (Thumb) 16-bit
+instruction set.  ARM GDB automatically detects when Thumb
+instructions are in use, and adjusts disassembly and backtracing
+accordingly.
+
+* MIPS16 support
+
+GDB's MIPS target configurations now handle the MIP16 16-bit
+instruction set.
+
+* Overlay support
+
+GDB now includes support for overlays; if an executable has been
+linked such that multiple sections are based at the same address, GDB
+will decide which section to use for symbolic info.  You can choose to
+control the decision manually, using overlay commands, or implement
+additional target-side support and use "overlay load-target" to bring
+in the overlay mapping.  Do "help overlay" for more detail.
+
+* info symbol
+
+The command "info symbol <address>" displays information about
+the symbol at the specified address.
+
+* Trace support
+
+The standard remote protocol now includes an extension that allows
+asynchronous collection and display of trace data.  This requires
+extensive support in the target-side debugging stub.  Tracing mode
+includes a new interaction mode in GDB and new commands: see the
+file tracepoint.c for more details.
+
+* MIPS simulator
+
+Configurations for embedded MIPS now include a simulator contributed
+by Cygnus Solutions.  The simulator supports the instruction sets
+of most MIPS variants.
+
+* Sparc simulator
+
+Sparc configurations may now include the ERC32 simulator contributed
+by the European Space Agency.  The simulator is not built into
+Sparc targets by default; configure with --enable-sim to include it.
+
+* set architecture
+
+For target configurations that may include multiple variants of a
+basic architecture (such as MIPS and SH), you may now set the
+architecture explicitly.  "set arch" sets, "info arch" lists
+the possible architectures.
+
 *** Changes in GDB-4.16:
 
 * New native configurations

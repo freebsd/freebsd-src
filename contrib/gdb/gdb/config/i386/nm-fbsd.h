@@ -29,9 +29,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <machine/vmparam.h>
 #define KERNEL_U_ADDR USRSTACK
 
-#define FLOAT_INFO extern i386_float_info (); \
-						  i386_float_info ()
-
 #define REGISTER_U_ADDR(addr, blockend, regno) \
 	(addr) = i386_register_u_addr ((blockend),(regno));
 

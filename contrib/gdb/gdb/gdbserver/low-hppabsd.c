@@ -161,12 +161,12 @@ myresume (step, signal)
     - KERNEL_U_ADDR
 #endif
 
-unsigned int
+CORE_ADDR
 register_addr (regno, blockend)
      int regno;
-     int blockend;
+     CORE_ADDR blockend;
 {
-  int addr;
+  CORE_ADDR addr;
 
   if (regno < 0 || regno >= ARCH_NUM_REGS)
     error ("Invalid register number %d.", regno);
