@@ -19,7 +19,7 @@
 .Nd control the APM BIOS and display its information
 .Sh SYNOPSIS
 .Nm apm
-.Op Fl ablstzZ
+.Op Fl abelstzZ
 .Op Fl d Ar 1|0
 .Op Fl r Ar delta
 .Pp
@@ -68,6 +68,9 @@ or
 .Ar 0
 respectively.  This argument seems to not work on many different
 laptops, including the Libretto 30CT and 50CT.
+.It Fl e
+Enable APM if it is currently not enabled, or disable APM if it is currently
+enabled.
 .It Fl l
 Display the remaining battery percentage.  If your laptop does not 
 support this function, 255 is displayed.
