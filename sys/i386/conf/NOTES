@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.271 1996/06/23 19:46:46 ache Exp $
+#	$Id: LINT,v 1.272 1996/06/26 19:42:06 gpalmer Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -660,6 +660,7 @@ options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
 # lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)
+# sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # ze: IBM/National Semiconductor PCMCIA ethernet controller.
 # zp: 3Com PCMCIA Etherlink III (It does not require shared memory for
 #     send/receive operation, but it needs 'iomem' to read/write the
@@ -678,6 +679,7 @@ device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device lnc0 at isa? port 0x300 net irq 10 drq 0 vector lncintr
+device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector srintr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
