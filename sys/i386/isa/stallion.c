@@ -55,7 +55,15 @@
 #include <machine/comstats.h>
 
 #include "pci.h"
+#ifdef COMPILING_LINT
+#warning "The stallion pci device is broken and not compiled with LINT"
+#undef NPCI
+#define NPCI 0
+#endif
 #if NPCI > 0
+#ifndef COMPAT_OLDPCI
+#error "The stallion pci driver requires the old pci compatibility shims"
+#endif
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #endif
