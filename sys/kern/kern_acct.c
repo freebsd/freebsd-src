@@ -83,10 +83,12 @@ static void	acctwatch(void *);
 static struct	callout acctwatch_callout;
 
 /*
- * Accounting vnode pointer, and saved vnode pointer.
+ * Accounting vnode pointer, saved vnode pointer, and flags for each.
  */
 static struct	vnode *acctp;
+static int	acctflags;
 static struct	vnode *savacctp;
+static int	savacctflags;
 
 /*
  * Values associated with enabling and disabling accounting
@@ -139,7 +141,7 @@ acct(td, uap)
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, td);
 		if (nd.ni_vp->v_type != VREG) {
-			vn_close(nd.ni_vp, FWRITE | O_APPEND, td->td_ucred, td);
+			vn_close(nd.ni_vp, flags, td->td_ucred, td);
 			error = EACCES;
 			goto done2;
 		}
@@ -152,7 +154,8 @@ acct(td, uap)
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp),
-		    FWRITE | O_APPEND, td->td_ucred, td);
+		    (acctp != NULLVP ? acctflags : savacctflags),
+		    td->td_ucred, td);
 		acctp = savacctp = NULLVP;
 	}
 	if (SCARG(uap, path) == NULL)
@@ -163,6 +166,7 @@ acct(td, uap)
 	 * free space watcher.
 	 */
 	acctp = nd.ni_vp;
+	acctflags = flags;
 	callout_init(&acctwatch_callout, 0);
 	acctwatch(NULL);
 done2:
@@ -316,14 +320,14 @@ acctwatch(a)
 
 	if (savacctp != NULLVP) {
 		if (savacctp->v_type == VBAD) {
-			(void) vn_close(savacctp, FWRITE | O_APPEND, NOCRED,
-			    NULL);
+			(void) vn_close(savacctp, savacctflags, NOCRED, NULL);
 			savacctp = NULLVP;
 			return;
 		}
 		(void)VFS_STATFS(savacctp->v_mount, &sb, (struct thread *)0);
 		if (sb.f_bavail > acctresume * sb.f_blocks / 100) {
 			acctp = savacctp;
+			acctflags = savacctflags;
 			savacctp = NULLVP;
 			log(LOG_NOTICE, "Accounting resumed\n");
 		}
@@ -331,13 +335,14 @@ acctwatch(a)
 		if (acctp == NULLVP)
 			return;
 		if (acctp->v_type == VBAD) {
-			(void) vn_close(acctp, FWRITE | O_APPEND, NOCRED, NULL);
+			(void) vn_close(acctp, acctflags, NOCRED, NULL);
 			acctp = NULLVP;
 			return;
 		}
 		(void)VFS_STATFS(acctp->v_mount, &sb, (struct thread *)0);
 		if (sb.f_bavail <= acctsuspend * sb.f_blocks / 100) {
 			savacctp = acctp;
+			savacctflags = acctflags;
 			acctp = NULLVP;
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
