@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.451 1998/08/10 08:40:26 yokota Exp $
+#	$Id: LINT,v 1.452 1998/08/16 17:14:59 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -689,7 +689,7 @@ options		"MSGBUF_SIZE=40960"
 # Micro Channel is not supported at all.
 
 #
-# Mandatory ISA devices: isa, npx
+# Mandatory ISA devices: isa.
 #
 controller	isa0
 
@@ -748,14 +748,14 @@ options		PPS_SYNC
 controller	pnp0
 
 # The pcvt console driver (vt220 compatible).
-device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
+device		vt0	at isa? port "IO_KBD" tty irq 1
 options		XSERVER			# support for running an X server.
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible).
-device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+device		sc0	at isa? port "IO_KBD" tty irq 1
 options		MAXCONS=16		# number of virtual consoles
 options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
 options		"STD8X16FONT"		# Compile font in
@@ -782,7 +782,7 @@ options		SC_BAD_FLICKER
 # buggy. If it is not configured then you *must* configure math emulation
 # (see above).  If both npx0 and emulation are configured, then only npx0
 # is used (provided it works).
-device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
+device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13
 
 #
 # `flags' for npx0:
@@ -831,7 +831,7 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 # probed correctly.
 #
 
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
+controller	bt0	at isa? port "IO_BT0" bio irq ?
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
@@ -867,7 +867,7 @@ controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 # specification with the low 16 bits for drive 0, and the high 16 bits
 # for drive 1.
 # e.g.:
-#controller	wdc0	at isa? port "IO_WD1" bio irq 14 flags 0x00ff8004 vector wdintr
+#controller	wdc0	at isa? port "IO_WD1" bio irq 14 flags 0x00ff8004
 #
 # specifies that drive 0 will be allowed to probe for 32 bit transfers and
 # a maximum multi-sector transfer of 4 sectors, and drive 1 will not be
@@ -891,10 +891,10 @@ controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 # entries.  These are automatically filled in by the IDE/PCI support.
 #
 
-controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+controller	wdc0	at isa? port "IO_WD1" bio irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
-controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+controller	wdc1	at isa? port "IO_WD2" bio irq 15
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
@@ -925,7 +925,7 @@ device          wst0
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
-controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
 #
 # FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
 # gotta turn it actually on by setting the variable fd_debug with DDB,
@@ -937,7 +937,7 @@ options		FDC_PRINT_BOGUS_CHIPTYPE
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
 # for people with floppy disks only, so it's "hidden" behind a flag:
-#controller fdc0 at isa? port "IO_FD1" bio flags 1 irq 6 drq 2 vector fdintr
+#controller fdc0 at isa? port "IO_FD1" bio flags 1 irq 6 drq 2
 
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
@@ -951,14 +951,14 @@ tape		ft0	at fdc0 drive 2
 #	lpt specials:
 #		port can be specified as ?, this will cause the driver to scan
 #		the BIOS port list;
-#		the irq and vector clauses may be omitted, this
+#		the irq clause may be omitted, this
 #		will force the port into polling mode.
 # mse: Logitech and ATI InPort bus mouse ports
 # psm: PS/2 mouse port [note: conflicts with sc0/vt0, thus "conflicts" keywd]
 # sio: serial ports (see sio(4))
 
-device		lpt0	at isa? port? tty irq 7 vector lptintr
-device		lpt1	at isa? port "IO_LPT3" tty irq 5 vector lptintr
+device		lpt0	at isa? port? tty irq 7
+device		lpt1	at isa? port "IO_LPT3" tty irq 5
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 
@@ -967,7 +967,7 @@ options		PSM_HOOKAPM		#hook the APM resume event, useful
 					#for some laptops
 options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
-device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
+device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
 
 #
 # `flags' for serial drivers that support consoles (only for sio now):
@@ -1027,7 +1027,7 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector arintr
 device cs0 at isa? port 0x300 net irq ? vector csintr
 device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
-device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
+device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
 device eg0 at isa? port 0x310 net irq 5 vector egintr
 device el0 at isa? port 0x300 net irq 9 vector elintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
@@ -1274,7 +1274,7 @@ device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port "IO_GAME"
 device          alog0   at isa? port 0x260 tty irq 5 vector alogintr
-device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
+device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
 device		dgm0	at isa? port 0x104 iomem 0xd00000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
@@ -1332,7 +1332,7 @@ options AHC_ALLOW_MEMIO
 options	"EISA_SLOTS=12"
 
 #
-# PCI devices & PCI options:
+# PCI devices and PCI-device-specific options:
 #
 # The main PCI bus device is `pci'.  It provides auto-detection and
 # configuration support for all devices on the PCI bus, using either
@@ -1416,7 +1416,7 @@ device		bktr0
 options         OVERRIDE_TUNER=NO_TUNER
 
 #
-# PCI options
+# PCI options:
 #
 #options	PCI_QUIET	#quiets PCI code on chipset settings
 
@@ -1528,6 +1528,7 @@ options		MSGSSZ=16
 options		MSGTQL=41
 options		NBUF=512
 options		NETATALKDEBUG
+options		NFS_ACDEBUG
 options		NMBCLUSTERS=1024
 options		NPX_DEBUG
 options		NULLFS_DIAGNOSTIC
@@ -1566,8 +1567,13 @@ options		SHMMIN=2
 options		SHMMNI=33
 options		SHMSEG=9
 options		SI_DEBUG
+# Broken:
+#options		SIMOS
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
+options		"VM_KMEM_SIZE=(13*1024*1024)"
+options		"VM_KMEM_SIZE_MAX=(81*1024*1024)"
+options		"VM_KMEM_SIZE_SCALE=4"
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
