@@ -467,11 +467,10 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	error = ng_netflow_flow_add(priv, &m, iface);
 
 done:
-	if (m) {
-		if (item)
-			NG_FREE_ITEM(item);
+	if (item)
+		NG_FREE_ITEM(item);
+	if (m)
 		NG_FREE_M(m);
-	}
 
 	return (error);	
 }
