@@ -1,20 +1,19 @@
 
-		 Release notes for OpenPAM Celandine
-		 ===================================
+		  Release notes for OpenPAM Centaury
+		  ==================================
 
 This is a beta release.
 
-The library itself is mostly complete.  Documentation exists in the
-form of man pages for the library functions, though some pages are
-still incomplete.
+The library itself is complete.  Documentation exists in the form of
+man pages for the library functions, though some pages are still
+incomplete.
 
-This release is primarily intended for reviewers and developers
-interested in testing OpenPAM on FreeBSD.  It has not been tested on
-any other OS, though it should build and run with minimal tweaks on
-NetBSD and OpenBSD.
+This release is incorporated into FreeBSD-CURRENT as of 2002-03-14.
+It has not been tested on any other OS, though it should build and run
+with minimal tweaks on NetBSD and OpenBSD.
 
 Known issues:
 
   - The documentation is still incomplete.
 
-$P4: //depot/projects/openpam/RELNOTES#5 $
+$P4: //depot/projects/openpam/RELNOTES#6 $
