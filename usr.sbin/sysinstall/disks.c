@@ -396,7 +396,7 @@ diskPartition(Device *dev)
 
 	case 'A':
 	case 'F':	/* Undocumented magic Dangerously Dedicated mode */
-#if !defined(__i386__) && !defined(__amd64__) && !defined(__ia64__)
+#if !defined(__i386__) && !defined(__amd64__)
 	    rv = 1;
 #else	    /* The rest is only relevant on x86 */
 	    cp = variable_get(VAR_DEDICATE_DISK);
@@ -624,8 +624,7 @@ diskPartition(Device *dev)
 	    }
 	    clear();
 	    break;
-	    
-#ifndef __ia64__
+
 	case '|':
 	    if (!msgNoYes("Are you SURE you want to go into Wizard mode?\n"
 			  "No seat belts whatsoever are provided!")) {
@@ -639,7 +638,6 @@ diskPartition(Device *dev)
 		msg = "Wise choice!";
 	    clear();
 	    break;
-#endif
 
 	case '\033':	/* ESC */
 	case 'Q':
@@ -856,7 +854,7 @@ diskPartitionWrite(dialogMenuItem *self)
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
 	static u_char *boot1;
-#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__)
 	static u_char *boot2;
 #endif
 
