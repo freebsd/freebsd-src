@@ -520,7 +520,6 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 	int error = 0, linkNum, linksSeen;
 	int manycast;
 	struct mbuf *m;
-	meta_p meta;
 	struct ng_bridge_link *firstLink;
 
 	NGI_GET_M(item, m);
@@ -666,11 +665,9 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Distribute unknown, multicast, broadcast pkts to all other links */
-	meta = NGI_META(item); /* peek.. */
 	firstLink = NULL;
 	for (linkNum = linksSeen = 0; linksSeen <= priv->numLinks; linkNum++) {
 		struct ng_bridge_link *destLink;
-		meta_p meta2 = NULL;
 		struct mbuf *m2 = NULL;
 
 		/*
@@ -705,7 +702,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 			/*
 			 * It's usable link but not the reserved (first) one.
-			 * Copy mbuf and meta info for sending.
+			 * Copy mbuf info for sending.
 			 */
 			m2 = m_dup(m, M_DONTWAIT);	/* XXX m_copypacket() */
 			if (m2 == NULL) {
@@ -713,14 +710,6 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 				NG_FREE_ITEM(item);
 				NG_FREE_M(m);
 				return (ENOBUFS);
-			}
-			if (meta != NULL
-			    && (meta2 = ng_copy_meta(meta)) == NULL) {
-				link->stats.memoryFailures++;
-				m_freem(m2);
-				NG_FREE_ITEM(item);
-				NG_FREE_M(m);
-				return (ENOMEM);
 			}
 		}
 
@@ -747,7 +736,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			NG_FWD_NEW_DATA(error, item, destLink->hook, m);
 			break; /* always done last - not really needed. */
 		} else {
-			NG_SEND_DATA(error, destLink->hook, m2, meta2);
+			NG_SEND_DATA_ONLY(error, destLink->hook, m2);
 		}
 	}
 	return (error);

@@ -291,10 +291,8 @@ ngt_rcvdata(hook_p hook, item_p item)
 	struct hookinfo *dup;
 	int error = 0;
 	struct mbuf *m;
-	meta_p meta;
 
 	m = NGI_M(item);
-	meta = NGI_META(item); /* leave these owned by the item */
 	/* Which hook? */
 	if (hinfo == &sc->left) {
 		dup = &sc->left2right;
@@ -327,26 +325,17 @@ ngt_rcvdata(hook_p hook, item_p item)
 		dup = NULL;
 	}
 
-	/* Duplicate packet and meta info if requried */
+	/* Duplicate packet if requried */
 	if (dup && dup->hook) {
 		struct mbuf *m2;
-		meta_p meta2;
 
 		/* Copy packet (failure will not stop the original)*/
 		m2 = m_dup(m, M_DONTWAIT);
 		if (m2) {
-
-			/* Copy meta info */
-			/* If we can't get a copy, tough.. */
-			if (meta != NULL) {
-				meta2 = ng_copy_meta(meta);
-			} else
-				meta2 = NULL;
-
 			/* Deliver duplicate */
 			dup->stats.outOctets += m->m_pkthdr.len;
 			dup->stats.outFrames++;
-			NG_SEND_DATA(error, dup->hook, m2, meta2);
+			NG_SEND_DATA_ONLY(error, dup->hook, m2);
 		}
 	}
 	/* Deliver frame out destination hook */
