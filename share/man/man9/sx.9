@@ -125,15 +125,20 @@ function tests specified conditions and panics if they are not met and the
 kernel is compiled with
 .Dv INVARIANTS .
 The following assertions are supported:
-.Bl -tag -width SX_XLOCKED
+.Bl -tag -width ".Dv SX_XLOCKED"
 .It Dv SX_LOCKED
 Assert that the current thread has either a shared or an exclusive lock on the
-sx lock pointed to by the first argument.
+.Vt sx
+lock pointed to by the first argument.
 .It Dv SX_SLOCKED
-Assert that the current thread has a shared lock on the sx lock pointed to by
+Assert that the current thread has a shared lock on the
+.Vt sx
+lock pointed to by
 the first argument.
 .It Dv SX_XLOCKED
-Assert that the current thread has an exclusive lock on the sx lock pointed to
+Assert that the current thread has an exclusive lock on the
+.Vt sx
+lock pointed to
 by the first argument.
 .El
 .Pp
