@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
-.\"	$Id: tcp.4,v 1.8 1997/02/22 13:24:45 peter Exp $
+.\"	$Id: tcp.4,v 1.9 1997/03/19 19:47:40 bde Exp $
 .\"
 .Dd February 14, 1995
 .Dt TCP 4
@@ -187,7 +187,7 @@ and the reverse source route is used in responding.
 .Sh MIB VARIABLES
 The
 .Nm
-protocol implements three variables in the
+protocol implements a number of variables in the
 .Li net.inet
 branch of the
 .Xr sysctl 3
@@ -207,6 +207,27 @@ as described in RFC 1644.
 The default value used for the maximum segment size
 .Pq Dq MSS
 when no advice to the contrary is received from MSS negotiation.
+.It TCPCTL_RTTDFLT
+.Pq tcp.rttdflt
+The value of the default maximum TCP Round Trip Time.
+.It TCPCTL_SENDSPACE
+.Pq tcp.sendspace
+Maximum TCP send window.
+.It TCPCTL_RECVSPACE
+.Pq tcp.recvspace
+Maximum TCP receive window. 
+.It tcp.log_in_vain
+Log any connection attempts to ports where there is not a socket
+accepting connections.
+.It tcp.blackhole
+If enabled, disable sending of RST when a connection is attempted
+to a port where there is not a socket accepting connections.
+See
+.Xr blackhole 4 .
+.It tcp.delayed_ack
+Delay ACK to try and piggyback it onto a data packet.
+.It tcp.path_mtu_discovery
+Enable Path MTU Discovery
 .El
 .Sh DIAGNOSTICS
 A socket operation may fail with one of the following errors returned:
@@ -247,6 +268,7 @@ address.
 .Xr intro 4 ,
 .Xr ip 4 ,
 .Xr ttcp 4
+.Xr blackhole 4
 .Rs
 .%A V. Jacobson, R. Braden, and D. Borman
 .%T "TCP Extensions for High Performance"
