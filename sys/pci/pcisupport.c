@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.100 1999/04/20 11:36:36 kato Exp $
+**  $Id: pcisupport.c,v 1.101 1999/05/06 21:21:30 julian Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -947,7 +947,7 @@ isab_match(device_t dev)
 
 	/* Cyrix -- vendor 0x1078 */
 	case 0x00001078:
-		return ("Cyrix Cx5520 PCI-ISA bridge");
+		return ("Cyrix Cx5510 PCI-ISA bridge");
 	case 0x01001078:
 		return ("Cyrix Cx5530 PCI-ISA bridge");
 
