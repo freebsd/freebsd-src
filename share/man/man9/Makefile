@@ -803,7 +803,7 @@ MLINKS+=sema.9 sema_destroy.9 \
 	sema.9 sema_trywait.9 \
 	sema.9 sema_value.9 \
 	sema.9 sema_wait.9
-MLINKS+=signal.9 CURSIG.9 \
+MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
 	signal.9 killproc.9 \
