@@ -207,9 +207,7 @@ static struct ia64_lpte **kptdir;
 
 vm_offset_t kernel_vm_end;
 
-/*
- * Values for ptc.e. XXX values for SKI.
- */
+/* Values for ptc.e. XXX values for SKI. */
 static u_int64_t pmap_ptc_e_base = 0x100000000;
 static u_int64_t pmap_ptc_e_count1 = 3;
 static u_int64_t pmap_ptc_e_count2 = 2;

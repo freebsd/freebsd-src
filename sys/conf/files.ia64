@@ -50,12 +50,10 @@ ia64/ia64/mem.c			standard
 ia64/ia64/mp_machdep.c		optional	smp
 ia64/ia64/nexus.c		standard
 ia64/ia64/pal.s			standard
-ia64/ia64/pal_stub.s		optional	ski
 ia64/ia64/pmap.c		standard
 ia64/ia64/sal.c			standard
 ia64/ia64/sapic.c		standard
 ia64/ia64/setjmp.s		standard
-ia64/ia64/ski.c			optional	ski
 ia64/ia64/support.s		standard
 ia64/ia64/ssc.c			optional	ski
 ia64/ia64/sscdisk.c		optional	ski

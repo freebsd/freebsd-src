@@ -85,7 +85,7 @@ ia64_sal_init(struct sal_system_table *saltab)
 	u_int8_t *p;
 	int i;
 
-	if (memcmp(saltab->sal_signature, "SST_", 4)) {
+	if (memcmp(saltab->sal_signature, SAL_SIGNATURE, 4)) {
 		printf("Bad signature for SAL System Table\n");
 		return;
 	}

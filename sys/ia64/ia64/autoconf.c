@@ -105,8 +105,7 @@ cpu_rootconf()
 #endif
 
 #ifdef BOOTP
-	if (!ia64_running_in_simulator())
-		bootpc_init();
+	bootpc_init();
 #endif
 #if defined(NFSCLIENT) && defined(NFS_ROOT)
 #if !defined(BOOTP_NFSROOT)

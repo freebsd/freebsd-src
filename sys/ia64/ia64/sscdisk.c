@@ -288,9 +288,6 @@ ssc_clone (void *arg, char *name, int namelen, dev_t *dev)
 static void
 ssc_drvinit(void *unused)
 {
-	if (!ia64_running_in_simulator())
-		return;
-
 	ssccreate(-1);
 }
 
