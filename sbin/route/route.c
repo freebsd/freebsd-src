@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.7 1996/02/17 21:13:32 mpp Exp $";
+	"$Id: route.c,v 1.8 1996/05/08 20:48:59 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
+#include <netatalk/at.h>
 #ifdef NS
 #include <netns/ns.h>
 #endif
@@ -91,6 +92,7 @@ struct	ortentry route;
 union	sockunion {
 	struct	sockaddr sa;
 	struct	sockaddr_in sin;
+	struct	sockaddr_at sat;
 #ifdef NS
 	struct	sockaddr_ns sns;
 #endif
@@ -112,6 +114,8 @@ int	locking, lockrest, debugonly;
 struct	rt_metrics rt_metrics;
 u_long  rtm_inits;
 struct	in_addr inet_makeaddr();
+int	atalk_aton __P((const char *, struct at_addr *));
+char	*atalk_ntoa __P((struct at_addr));
 char	*routename(), *netname();
 void	flushroutes(), newroute(), monitor(), sockaddr(), sodump(), bprintf();
 void	print_getmsg(), print_rtmsg(), pmsg_common(), pmsg_addrs(), mask_addr();
@@ -232,6 +236,9 @@ flushroutes(argc, argv)
 		    switch (keyword(*argv + 1)) {
 			case K_INET:
 				af = AF_INET;
+				break;
+			case K_ATALK:
+				af = AF_APPLETALK;
 				break;
 #ifdef NS
 			case K_XNS:
@@ -365,6 +372,11 @@ routename(sa)
 		break;
 	    }
 
+	case AF_APPLETALK:
+		(void) snprintf(line, sizeof(line), "atalk %s",
+			atalk_ntoa(((struct sockaddr_at *)sa)->sat_addr));
+		break;
+
 #ifdef NS
 	case AF_NS:
 		return (ns_print((struct sockaddr_ns *)sa));
@@ -462,6 +474,11 @@ netname(sa)
 		break;
 	    }
 
+	case AF_APPLETALK:
+		(void) snprintf(line, sizeof(line), "atalk %s",
+			atalk_ntoa(((struct sockaddr_at *)sa)->sat_addr));
+		break;
+
 #ifdef NS
 	case AF_NS:
 		return (ns_print((struct sockaddr_ns *)sa));
@@ -551,6 +568,10 @@ newroute(argc, argv)
 			case K_INET:
 				af = AF_INET;
 				aflen = sizeof(struct sockaddr_in);
+				break;
+			case K_ATALK:
+				af = AF_APPLETALK;
+				aflen = sizeof(struct sockaddr_at);
 				break;
 #ifdef CCITT
 			case K_X25:
@@ -867,6 +888,11 @@ getaddr(which, s, hpp)
 		return (1);
 #endif
 
+	case AF_APPLETALK:
+		if (!atalk_aton(s, &su->sat.sat_addr))
+			errx(EX_NOHOST, "bad address: %s", s);
+		return(su->sat.sat_addr.s_node != 0);
+
 	case AF_LINK:
 		link_addr(s, &su->sdl);
 		return (1);
@@ -1121,6 +1147,7 @@ mask_addr()
 	case AF_NS:
 #endif
 	case AF_INET:
+	case AF_APPLETALK:
 #ifdef CCITT
 	case AF_CCITT:
 #endif
@@ -1411,6 +1438,10 @@ sodump(su, which)
 		(void) printf("%s: inet %s; ",
 		    which, inet_ntoa(su->sin.sin_addr));
 		break;
+	case AF_APPLETALK:
+		(void) printf("%s: atalk %s; ",
+		    which, atalk_ntoa(su->sat.sat_addr));
+		break;
 #ifdef NS
 	case AF_NS:
 		(void) printf("%s: xns %s; ",
@@ -1472,4 +1503,26 @@ sockaddr(addr, sa)
 		break;
 	} while (cp < cplim);
 	sa->sa_len = cp - (char *)sa;
+}
+
+int
+atalk_aton(const char *text, struct at_addr *addr)
+{
+	u_int net, node;
+
+	if (sscanf(text, "%u.%u", &net, &node) != 2
+	    || net > 0xffff || node > 0xff)
+		return(0);
+	addr->s_net = net;
+	addr->s_node = node;
+	return(1);
+}
+
+char *
+atalk_ntoa(struct at_addr at)
+{
+	static char buf[20];
+
+	(void) snprintf(buf, sizeof(buf), "%u.%u", at.s_net, at.s_node);
+	return(buf);
 }
