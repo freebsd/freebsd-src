@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.33 1996/05/22 19:13:59 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.34 1996/06/10 22:51:10 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -333,6 +333,9 @@ for this domain.
 <item>
 <htmlurl url="ftp://ftp2.za.FreeBSD.ORG/pub/FreeBSD"
 	name="ftp://ftp2.za.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp3.za.FreeBSD.ORG/FreeBSD"
+	name="ftp://ftp3.za.FreeBSD.ORG/FreeBSD"><newline>
 
 </itemize>
 
