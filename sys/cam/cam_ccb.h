@@ -521,6 +521,13 @@ typedef enum {
 struct ccb_pathinq_settings_spi {
 	u_int8_t ppr_options;
 };
+struct ccb_pathinq_settings_fc {
+	u_int64_t wwnn;		/* world wide node name */
+	u_int64_t wwpn;		/* world wide port name */
+	u_int32_t port;		/* 24 bit port id, if known */
+	u_int32_t bitrate;	/* Mbps */
+};
+#define	PATHINQ_SETTINGS_SIZE	128
 #endif /* CAM_NEW_TRAN_CODE */
 
 struct ccb_pathinq {
@@ -550,6 +557,8 @@ struct ccb_pathinq {
 	u_int	    transport_version;
 	union {
 		struct ccb_pathinq_settings_spi spi;
+		struct ccb_pathinq_settings_fc fc;
+		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 #endif /* CAM_NEW_TRAN_CODE */
 };
