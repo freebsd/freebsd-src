@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.127 1998/10/22 02:32:49 brian Exp $
+.\" $Id: ppp.8,v 1.128 1998/10/26 19:07:36 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2084,6 +2084,11 @@ as the client password in
 Default: Disabled.  Enabling this option will tell
 .Nm
 to proxy ARP for the peer.
+.It proxyall
+Default: Disabled.  Enabling this will tell
+.Nm
+to add proxy arp entries for every IP address in all class C or
+smaller subnets routed via the tun interface.
 .It sroutes
 Default: Enabled.  When the
 .Dq add
@@ -3317,6 +3322,11 @@ defaults to zero.  A value of
 for
 .Ar timeout
 will result in a variable pause, somewhere between 0 and 30 seconds.
+.It set recvpipe Op Ar value
+This sets the routing table RECVPIPE value.  The optimum value is
+just over twice the MTU value.  If
+.Ar value
+is unspecified or zero, the default kernel controlled value is used.
 .It set redial Ar seconds[.nseconds] [attempts]
 .Nm Ppp
 can be instructed to attempt to redial
@@ -3345,6 +3355,11 @@ should immediately follow the
 keyword.  See the
 .Dq open
 description above for further details.
+.It set sendpipe Op Ar value
+This sets the routing table SENDPIPE value.  The optimum value is
+just over twice the MTU value.  If
+.Ar value
+is unspecified or zero, the default kernel controlled value is used.
 .It set server|socket Ar TcpPort|LocalName|none password Op Ar mask
 This command tells
 .Nm
@@ -3532,11 +3547,11 @@ Read the example configuration files.  They are a good source of information.
 .It
 Use
 .Dq help ,
-.Dq show ? ,
 .Dq alias ? ,
+.Dq enable ? ,
 .Dq set ?
 and
-.Dq set ? <var>
+.Dq show ?
 to get online information about what's available.
 .It
 The following urls contain useful information:

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.169 1998/10/24 01:08:45 brian Exp $
+ * $Id: command.c,v 1.170 1998/10/26 19:07:36 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -113,6 +113,8 @@
 #define	VAR_CALLBACK	24
 #define	VAR_CBCP	25
 #define	VAR_CHOKED	26
+#define	VAR_SENDPIPE	27
+#define	VAR_RECVPIPE	28
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -132,7 +134,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/24 01:08:45 $";
+const char VersionDate[] = "$Date: 1998/10/26 19:07:36 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -484,8 +486,9 @@ ShellCommand(struct cmdargs const *arg, int bg)
       execl(shell, shell, NULL);
     }
 
-    log_Printf(LogWARN, "exec() of %s failed\n",
-              arg->argc > arg->argn ? arg->argv[arg->argn] : shell);
+    log_Printf(LogWARN, "exec() of %s failed: %s\n",
+              arg->argc > arg->argn ? arg->argv[arg->argn] : shell,
+              strerror(errno));
     exit(255);
   }
 
@@ -1665,7 +1668,16 @@ SetVariable(struct cmdargs const *arg)
     if (arg->bundle->cfg.choked.timeout <= 0)
       arg->bundle->cfg.choked.timeout = CHOKED_TIMEOUT;
     break;
- 
+
+  case VAR_SENDPIPE:
+    long_val = atol(argp);
+    arg->bundle->ncp.ipcp.cfg.sendpipe = long_val;
+    break;
+
+  case VAR_RECVPIPE:
+    long_val = atol(argp);
+    arg->bundle->ncp.ipcp.cfg.recvpipe = long_val;
+    break;
   }
 
   return err ? 1 : 0;
@@ -1763,8 +1775,12 @@ static struct cmdtab const SetCommands[] = {
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Reconnect timeout", "set reconnect value ntries"},
+  {"recvpipe", NULL, SetVariable, LOCAL_AUTH,
+  "RECVPIPE value", "set recvpipe value", (const void *)VAR_RECVPIPE},
   {"redial", NULL, datalink_SetRedial, LOCAL_AUTH | LOCAL_CX,
   "Redial timeout", "set redial value|random[.value|random] [attempts]"},
+  {"sendpipe", NULL, SetVariable, LOCAL_AUTH,
+  "SENDPIPE value", "set sendpipe value", (const void *)VAR_SENDPIPE},
   {"server", "socket", SetServer, LOCAL_AUTH,
   "server port", "set server|socket TcpPort|LocalName|none password [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
@@ -2166,8 +2182,10 @@ static struct cmdtab const NegotiateCommands[] = {
   "disable|enable", (const void *)OPT_LOOPBACK},
   {"passwdauth", NULL, OptSet, LOCAL_AUTH, "Use passwd file",
   "disable|enable", (const void *)OPT_PASSWDAUTH},
-  {"proxy", NULL, OptSet, LOCAL_AUTH, "Create proxy ARP entry",
+  {"proxy", NULL, OptSet, LOCAL_AUTH, "Create a proxy ARP entry",
   "disable|enable", (const void *)OPT_PROXY},
+  {"proxyall", NULL, OptSet, LOCAL_AUTH, "Proxy ARP for all remote hosts",
+  "disable|enable", (const void *)OPT_PROXYALL},
   {"sroutes", NULL, OptSet, LOCAL_AUTH, "Use sticky routes",
   "disable|enable", (const void *)OPT_SROUTES},
   {"throughput", NULL, OptSet, LOCAL_AUTH, "Rolling throughput",
@@ -2178,7 +2196,7 @@ static struct cmdtab const NegotiateCommands[] = {
    "maintain interface addresses", "disable|enable",
    (const void *)OPT_IFACEALIAS},
 
-#define OPT_MAX 8	/* accept/deny allowed below and not above */
+#define OPT_MAX 9	/* accept/deny allowed below and not above */
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",

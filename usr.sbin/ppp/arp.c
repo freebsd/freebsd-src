@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.29 1998/06/16 19:40:34 brian Exp $
+ * $Id: arp.c,v 1.30 1998/08/26 17:39:36 brian Exp $
  *
  */
 
@@ -87,10 +87,8 @@ static struct {
   char extra[128];
 } arpmsg;
 
-static int arpmsg_valid;
-
-int
-arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
+static int
+arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
 {
   int routes;
 
@@ -98,9 +96,11 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
+
   memset(&arpmsg, 0, sizeof arpmsg);
   if (!get_ether_addr(s, addr, &arpmsg.hwa)) {
-    log_Printf(LogWARN, "Cannot determine ethernet address for proxy ARP\n");
+    log_Printf(LogWARN, "%s: Cannot determine ethernet address for proxy ARP\n",
+	       inet_ntoa(addr));
     return 0;
   }
   routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
@@ -109,7 +109,7 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
 	      strerror(errno));
     return 0;
   }
-  arpmsg.hdr.rtm_type = RTM_ADD;
+  arpmsg.hdr.rtm_type = add ? RTM_ADD : RTM_DELETE;
   arpmsg.hdr.rtm_flags = RTF_ANNOUNCE | RTF_HOST | RTF_STATIC;
   arpmsg.hdr.rtm_version = RTM_VERSION;
   arpmsg.hdr.rtm_seq = ++bundle->routing_seq;
@@ -122,14 +122,24 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
 
   arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
     + arpmsg.hwa.sdl_len;
-  if (write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0) {
-    log_Printf(LogERROR, "Add proxy arp entry: %s\n", strerror(errno));
+
+
+  if (write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0 &&
+      !(!add && errno == ESRCH)) {
+    log_Printf(LogERROR, "%s proxy arp entry %s: %s\n",
+	add ? "Add" : "Delete", inet_ntoa(addr), strerror(errno));
     close(routes);
     return 0;
   }
   close(routes);
-  arpmsg_valid = 1;
   return 1;
+}
+
+int
+arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
+{
+
+  return (arp_ProxySub(bundle, addr, 1, s));
 }
 
 /*
@@ -138,28 +148,8 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
 int
 arp_ClearProxy(struct bundle *bundle, struct in_addr addr, int s)
 {
-  int routes;
 
-  if (!arpmsg_valid)
-    return 0;
-  arpmsg_valid = 0;
-
-  arpmsg.hdr.rtm_type = RTM_DELETE;
-  arpmsg.hdr.rtm_seq = ++bundle->routing_seq;
-
-  routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
-  if (routes < 0) {
-    log_Printf(LogERROR, "arp_SetProxy: opening routing socket: %s\n",
-	      strerror(errno));
-    return 0;
-  }
-  if (write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0) {
-    log_Printf(LogERROR, "Delete proxy arp entry: %s\n", strerror(errno));
-    close(routes);
-    return 0;
-  }
-  close(routes);
-  return 1;
+  return (arp_ProxySub(bundle, addr, 0, s));
 }
 
 #else				/* RTM_VERSION */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.14 1998/10/22 02:32:48 brian Exp $
+ *	$Id: bundle.h,v 1.15 1998/10/24 01:08:45 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -33,14 +33,15 @@
 #define	PHASE_TERMINATE		4	/* Terminating link */
 
 /* cfg.opt bit settings */
-#define OPT_IDCHECK	0x01
-#define OPT_LOOPBACK	0x02
-#define OPT_PASSWDAUTH	0x04
-#define OPT_PROXY	0x08
-#define OPT_SROUTES	0x10
-#define OPT_THROUGHPUT	0x20
-#define OPT_UTMP	0x40
-#define OPT_IFACEALIAS	0x80
+#define OPT_IDCHECK	0x0001
+#define OPT_LOOPBACK	0x0002
+#define OPT_PASSWDAUTH	0x0004
+#define OPT_PROXY	0x0008
+#define OPT_PROXYALL	0x0010
+#define OPT_SROUTES	0x0020
+#define OPT_THROUGHPUT	0x0040
+#define OPT_UTMP	0x0080
+#define OPT_IFACEALIAS	0x0100
 
 #define MAX_ENDDISC_CLASS 5
 
