@@ -126,9 +126,6 @@ rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 
 	if ((len = RSA_public_encrypt(ilen, inbuf, outbuf, key,
 	    RSA_PKCS1_PADDING)) <= 0)
-	    if (BN_num_bits(key->n) > 1024 && RSA_libversion() == RSALIB_RSAREF)
-		fatal("rsa_private_encrypt() failed: RSAREF cannot handle keys larger than 1024 bits.");
-	    else
 		fatal("rsa_private_encrypt() failed.");
 
 	BN_bin2bn(outbuf, len, out);
@@ -154,9 +151,6 @@ rsa_private_decrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 
 	if ((len = RSA_private_decrypt(ilen, inbuf, outbuf, key,
 	    RSA_PKCS1_PADDING)) <= 0)
-	    if (BN_num_bits(key->n) > 1024 && RSA_libversion() == RSALIB_RSAREF)
-		fatal("rsa_private_decrypt() failed: RSAREF cannot handle keys larger than 1024 bits.");
-	    else
 		fatal("rsa_private_decrypt() failed.");
 
 	BN_bin2bn(outbuf, len, out);

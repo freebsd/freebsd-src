@@ -150,8 +150,8 @@ SRCS+=	rmd_dgst.c rmd_one.c
 
 # rsa
 .if defined(WITH_RSA) && ${WITH_RSA} == YES
-SRCS+=	rsa_chk.c rsa_err.c rsa_gen.c rsa_lib.c rsa_none.c rsa_null.c \
-	rsa_oaep.c rsa_pk1.c rsa_saos.c rsa_sign.c rsa_ssl.c rsa_stubs.c
+SRCS+=	rsa_chk.c rsa_eay.c rsa_err.c rsa_gen.c rsa_lib.c rsa_none.c \
+	rsa_null.c rsa_oaep.c rsa_pk1.c rsa_saos.c rsa_sign.c rsa_ssl.c
 .endif
 
 # sha
