@@ -102,7 +102,21 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>A bug in the &man.fetch.1; utility which allows
+      a malicious HTTP server to cause arbitrary portions of the client's
+      memory to be overwritten, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16.fetch</ulink>.
+      &merged;</para>
+
+    <para>A bug in &man.procfs.5; and &man.linprocfs.5;
+      which could cause a malicious local user could perform a local
+      denial of service attack by causing a system panic, or the user
+      could read parts of kernel memory, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -130,6 +144,12 @@
       by the loader tunable (and sysctl variable)
       <varname>debug.mpsafevfs</varname>, which currently defaults to
       <literal>0</literal> (disabled).</para>
+
+    <para arch="i386">A bug in Inter-Processor Interrupt (IPI)
+      handling, which could cause SMP systems to crash under heavy
+      load, has been fixed.  More details are contained in errata note
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:03.ipi.asc">FreeBSD-EN-05:03.ipi</ulink>.
+      &merged;</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -207,6 +227,14 @@
 
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;. &merged;</para>
+
+	<para>Several programming errors in the &man.sk.4; driver have
+	  been corrected.  This bug was particular to SMP systems, and
+	  could cause panics, page faults, aborted SSH connections, or
+	  corrupted file transfers.  More details can be found in
+	  errata note
+	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>.
+	  &merged;</para>
 
 	<para>The &man.sk.4; driver now has support for &man.altq.4;.
 	  This driver also now supports jumbo frames on Yukon-based
@@ -303,6 +331,12 @@
 
       <para>The autofs(9) file system and the userland library
 	&man.libautofs.3; have been added.</para>
+
+      <para>A kernel panic in the NFS server has been fixed.  More
+	details can be found in errata note 
+	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
+	&merged;</para>
+
     </sect3>
 
     <sect3>
