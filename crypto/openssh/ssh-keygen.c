@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.100 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.101 2002/06/23 09:39:55 deraadt Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -170,7 +170,7 @@ do_convert_to_ssh2(struct passwd *pw)
 	}
 	fprintf(stdout, "%s\n", SSH_COM_PUBLIC_BEGIN);
 	fprintf(stdout,
-	    "Comment: \"%d-bit %s, converted from OpenSSH by %s@%s\"\n",
+	    "Comment: \"%u-bit %s, converted from OpenSSH by %s@%s\"\n",
 	    key_size(k), key_type(k),
 	    pw->pw_name, hostname);
 	dump_base64(stdout, blob, len);
@@ -462,7 +462,7 @@ do_fingerprint(struct passwd *pw)
 	public = key_load_public(identity_file, &comment);
 	if (public != NULL) {
 		fp = key_fingerprint(public, fptype, rep);
-		printf("%d %s %s\n", key_size(public), fp, comment);
+		printf("%u %s %s\n", key_size(public), fp, comment);
 		key_free(public);
 		xfree(comment);
 		xfree(fp);
@@ -496,7 +496,8 @@ do_fingerprint(struct passwd *pw)
 			if (i == 0 || ep == NULL || (*ep != ' ' && *ep != '\t')) {
 				int quoted = 0;
 				comment = cp;
-				for (; *cp && (quoted || (*cp != ' ' && *cp != '\t')); cp++) {
+				for (; *cp && (quoted || (*cp != ' ' &&
+				    *cp != '\t')); cp++) {
 					if (*cp == '\\' && cp[1] == '"')
 						cp++;	/* Skip both */
 					else if (*cp == '"')
@@ -519,7 +520,7 @@ do_fingerprint(struct passwd *pw)
 			}
 			comment = *cp ? cp : comment;
 			fp = key_fingerprint(public, fptype, rep);
-			printf("%d %s %s\n", key_size(public), fp,
+			printf("%u %s %s\n", key_size(public), fp,
 			    comment ? comment : "no comment");
 			xfree(fp);
 			key_free(public);

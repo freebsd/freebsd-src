@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.35 2002/06/06 17:30:11 markus Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.37 2002/06/24 17:57:20 deraadt Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -282,7 +282,7 @@ send_status(u_int32_t id, u_int32_t error)
 		"Unknown error"			/* Others */
 	};
 
-	TRACE("sent status id %d error %d", id, error);
+	TRACE("sent status id %u error %u", id, error);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_STATUS);
 	buffer_put_int(&msg, id);
@@ -311,7 +311,7 @@ send_data_or_handle(char type, u_int32_t id, char *data, int dlen)
 static void
 send_data(u_int32_t id, char *data, int dlen)
 {
-	TRACE("sent data id %d len %d", id, dlen);
+	TRACE("sent data id %u len %d", id, dlen);
 	send_data_or_handle(SSH2_FXP_DATA, id, data, dlen);
 }
 
@@ -322,7 +322,7 @@ send_handle(u_int32_t id, int handle)
 	int hlen;
 
 	handle_to_string(handle, &string, &hlen);
-	TRACE("sent handle id %d handle %d", id, handle);
+	TRACE("sent handle id %u handle %d", id, handle);
 	send_data_or_handle(SSH2_FXP_HANDLE, id, string, hlen);
 	xfree(string);
 }
@@ -337,7 +337,7 @@ send_names(u_int32_t id, int count, Stat *stats)
 	buffer_put_char(&msg, SSH2_FXP_NAME);
 	buffer_put_int(&msg, id);
 	buffer_put_int(&msg, count);
-	TRACE("sent names id %d count %d", id, count);
+	TRACE("sent names id %u count %d", id, count);
 	for (i = 0; i < count; i++) {
 		buffer_put_cstring(&msg, stats[i].name);
 		buffer_put_cstring(&msg, stats[i].long_name);
@@ -352,7 +352,7 @@ send_attrib(u_int32_t id, Attrib *a)
 {
 	Buffer msg;
 
-	TRACE("sent attrib id %d have 0x%x", id, a->flags);
+	TRACE("sent attrib id %u have 0x%x", id, a->flags);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_ATTRS);
 	buffer_put_int(&msg, id);
@@ -391,7 +391,7 @@ process_open(void)
 	a = get_attrib();
 	flags = flags_from_portable(pflags);
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ? a->perm : 0666;
-	TRACE("open id %d name %s flags %d mode 0%o", id, name, pflags, mode);
+	TRACE("open id %u name %s flags %d mode 0%o", id, name, pflags, mode);
 	fd = open(name, flags, mode);
 	if (fd < 0) {
 		status = errno_to_portable(errno);
@@ -417,7 +417,7 @@ process_close(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("close id %d handle %d", id, handle);
+	TRACE("close id %u handle %d", id, handle);
 	ret = handle_close(handle);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -436,7 +436,7 @@ process_read(void)
 	off = get_int64();
 	len = get_int();
 
-	TRACE("read id %d handle %d off %llu len %d", id, handle,
+	TRACE("read id %u handle %d off %llu len %d", id, handle,
 	    (u_int64_t)off, len);
 	if (len > sizeof buf) {
 		len = sizeof buf;
@@ -477,7 +477,7 @@ process_write(void)
 	off = get_int64();
 	data = get_string(&len);
 
-	TRACE("write id %d handle %d off %llu len %d", id, handle,
+	TRACE("write id %u handle %d off %llu len %d", id, handle,
 	    (u_int64_t)off, len);
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
@@ -512,7 +512,7 @@ process_do_stat(int do_lstat)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("%sstat id %d name %s", do_lstat ? "l" : "", id, name);
+	TRACE("%sstat id %u name %s", do_lstat ? "l" : "", id, name);
 	ret = do_lstat ? lstat(name, &st) : stat(name, &st);
 	if (ret < 0) {
 		status = errno_to_portable(errno);
@@ -548,7 +548,7 @@ process_fstat(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("fstat id %d handle %d", id, handle);
+	TRACE("fstat id %u handle %d", id, handle);
 	fd = handle_to_fd(handle);
 	if (fd  >= 0) {
 		ret = fstat(fd, &st);
@@ -582,13 +582,12 @@ process_setstat(void)
 	Attrib *a;
 	u_int32_t id;
 	char *name;
-	int ret;
-	int status = SSH2_FX_OK;
+	int status = SSH2_FX_OK, ret;
 
 	id = get_int();
 	name = get_string(NULL);
 	a = get_attrib();
-	TRACE("setstat id %d name %s", id, name);
+	TRACE("setstat id %u name %s", id, name);
 	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
 		ret = truncate(name, a->size);
 		if (ret == -1)
@@ -625,7 +624,7 @@ process_fsetstat(void)
 	id = get_int();
 	handle = get_handle();
 	a = get_attrib();
-	TRACE("fsetstat id %d handle %d", id, handle);
+	TRACE("fsetstat id %u handle %d", id, handle);
 	fd = handle_to_fd(handle);
 	name = handle_to_name(handle);
 	if (fd < 0 || name == NULL) {
@@ -677,7 +676,7 @@ process_opendir(void)
 
 	id = get_int();
 	path = get_string(NULL);
-	TRACE("opendir id %d path %s", id, path);
+	TRACE("opendir id %u path %s", id, path);
 	dirp = opendir(path);
 	if (dirp == NULL) {
 		status = errno_to_portable(errno);
@@ -713,13 +712,13 @@ ls_file(char *name, struct stat *st)
 	if ((pw = getpwuid(st->st_uid)) != NULL) {
 		user = pw->pw_name;
 	} else {
-		snprintf(ubuf, sizeof ubuf, "%d", st->st_uid);
+		snprintf(ubuf, sizeof ubuf, "%u", (u_int)st->st_uid);
 		user = ubuf;
 	}
 	if ((gr = getgrgid(st->st_gid)) != NULL) {
 		group = gr->gr_name;
 	} else {
-		snprintf(gbuf, sizeof gbuf, "%d", st->st_gid);
+		snprintf(gbuf, sizeof gbuf, "%u", (u_int)st->st_gid);
 		group = gbuf;
 	}
 	if (ltime != NULL) {
@@ -749,7 +748,7 @@ process_readdir(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("readdir id %d handle %d", id, handle);
+	TRACE("readdir id %u handle %d", id, handle);
 	dirp = handle_to_dir(handle);
 	path = handle_to_name(handle);
 	if (dirp == NULL || path == NULL) {
@@ -759,6 +758,7 @@ process_readdir(void)
 		char pathname[1024];
 		Stat *stats;
 		int nstats = 10, count = 0, i;
+
 		stats = xmalloc(nstats * sizeof(Stat));
 		while ((dp = readdir(dirp)) != NULL) {
 			if (count >= nstats) {
@@ -802,7 +802,7 @@ process_remove(void)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("remove id %d name %s", id, name);
+	TRACE("remove id %u name %s", id, name);
 	ret = unlink(name);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -822,7 +822,7 @@ process_mkdir(void)
 	a = get_attrib();
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ?
 	    a->perm & 0777 : 0777;
-	TRACE("mkdir id %d name %s mode 0%o", id, name, mode);
+	TRACE("mkdir id %u name %s mode 0%o", id, name, mode);
 	ret = mkdir(name, mode);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -838,7 +838,7 @@ process_rmdir(void)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("rmdir id %d name %s", id, name);
+	TRACE("rmdir id %u name %s", id, name);
 	ret = rmdir(name);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -858,7 +858,7 @@ process_realpath(void)
 		xfree(path);
 		path = xstrdup(".");
 	}
-	TRACE("realpath id %d path %s", id, path);
+	TRACE("realpath id %u path %s", id, path);
 	if (realpath(path, resolvedname) == NULL) {
 		send_status(id, errno_to_portable(errno));
 	} else {
@@ -881,7 +881,7 @@ process_rename(void)
 	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
-	TRACE("rename id %d old %s new %s", id, oldpath, newpath);
+	TRACE("rename id %u old %s new %s", id, oldpath, newpath);
 	/* fail if 'newpath' exists */
 	if (stat(newpath, &st) == -1) {
 		ret = rename(oldpath, newpath);
@@ -902,7 +902,7 @@ process_readlink(void)
 
 	id = get_int();
 	path = get_string(NULL);
-	TRACE("readlink id %d path %s", id, path);
+	TRACE("readlink id %u path %s", id, path);
 	if ((len = readlink(path, link, sizeof(link) - 1)) == -1)
 		send_status(id, errno_to_portable(errno));
 	else {
@@ -927,7 +927,7 @@ process_symlink(void)
 	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
-	TRACE("symlink id %d old %s new %s", id, oldpath, newpath);
+	TRACE("symlink id %u old %s new %s", id, oldpath, newpath);
 	/* fail if 'newpath' exists */
 	if (stat(newpath, &st) == -1) {
 		ret = symlink(oldpath, newpath);
