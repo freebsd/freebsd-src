@@ -49,14 +49,12 @@
 
 __BEGIN_DECLS
 void	err(int, const char *, ...) __dead2 __printf0like(2, 3);
-void	verr(int, const char *, _BSD_VA_LIST_) __dead2
-	    __printf0like(2, 0);
+void	verr(int, const char *, _BSD_VA_LIST_) __dead2 __printf0like(2, 0);
 void	errc(int, int, const char *, ...) __dead2 __printf0like(3, 4);
 void	verrc(int, int, const char *, _BSD_VA_LIST_) __dead2
 	    __printf0like(3, 0);
 void	errx(int, const char *, ...) __dead2 __printf0like(2, 3);
-void	verrx(int, const char *, _BSD_VA_LIST_) __dead2
-	    __printf0like(2, 0);
+void	verrx(int, const char *, _BSD_VA_LIST_) __dead2 __printf0like(2, 0);
 void	warn(const char *, ...) __printf0like(1, 2);
 void	vwarn(const char *, _BSD_VA_LIST_) __printf0like(1, 0);
 void	warnc(int, const char *, ...) __printf0like(2, 3);
