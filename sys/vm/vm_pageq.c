@@ -183,8 +183,8 @@ vm_pageq_remove(vm_page_t m)
  *	This routine must be called at splvm().
  *	This routine may not block.
  *
- *	This routine may only be called from the vm_page_list_find() macro
- *	in vm_page.h
+ *	This routine may only be called from the vm_pageq_find()
+ *	function in this file.
  */
 static __inline vm_page_t
 _vm_pageq_find(int basequeue, int index)
