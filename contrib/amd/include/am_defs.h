@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.4 1999/01/13 20:03:59 obrien Exp $
+ * $Id: am_defs.h,v 1.10 1999/08/22 05:12:54 ezk Exp $
+ * $FreeBSD$
  *
  */
 
@@ -68,6 +69,24 @@
 # endif /* not HAVE_STRCHR */
 char *strchr(), *strrchr(), *strdup();
 #endif /* not STDC_HEADERS */
+
+/*
+ * Handle gcc __attribute__ if available.
+ */
+#ifndef __attribute__
+/* This feature is available in gcc versions 2.5 and later.  */
+# if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 5) || __STRICT_ANSI__
+#  define __attribute__(Spec) /* empty */
+# endif /* __GNUC__ < 2 ... */
+/*
+ * The __-protected variants of `format' and `printf' attributes
+ * are accepted by gcc versions 2.6.4 (effectively 2.7) and later.
+ */
+# if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 7)
+#  define __format__ format
+#  define __printf__ printf
+# endif /* __GNUC__ < 2 ... */
+#endif /* not __attribute__ */
 
 /*
  * How to handle signals of any type
@@ -303,7 +322,7 @@ extern int errno;
 #endif /* HAVE_SYS_MNTENT_H */
 
 /*
- * Actions to take if <ndbm.h> exists.
+ * Actions to take if <ndbm.h> or <db1/ndbm.h> exist.
  * Should be included before <rpcsvc/yp_prot.h> because on some systems
  * like Linux, it also defines "struct datum".
  */
@@ -314,6 +333,13 @@ extern int errno;
 #  define DATUM
 # endif /* not DATUM */
 #endif /* HAVE_NDBM_H */
+#ifdef HAVE_DB1_NDBM_H
+# include <db1/ndbm.h>
+# ifndef DATUM
+/* ensure that struct datum is not included again from <rpcsvc/yp_prot.h> */
+#  define DATUM
+# endif /* not DATUM */
+#endif /* HAVE_DB1_NDBM_H */
 
 /*
  * Actions to take if <net/errno.h> exists.
@@ -323,19 +349,19 @@ extern int errno;
 #endif /* HAVE_NET_ERRNO_H */
 
 /*
- * Actions to take if <net/if.h> exists.
+ * Actions to take if <net/route.h> exists.
  */
 #ifdef HAVE_NET_ROUTE_H
 # include <net/route.h>
 #endif /* HAVE_NET_ROUTE_H */
 
 /*
- * Actions to take if <net/if.h> exists.
+ * Actions to take if <sys/mbuf.h> exists.
  */
 #ifdef HAVE_SYS_MBUF_H
 # include <sys/mbuf.h>
 /*
- * OSF4 (DU-4.0) defines m_next and m_data also in <sys/mount> so I must
+ * OSF4 (DU-4.0) defines m_next and m_data also in <sys/mount.h> so I must
  # undefine them here to avoid conflicts.
  */
 # ifdef m_next
@@ -345,7 +371,7 @@ extern int errno;
 #  undef m_data
 # endif /* m_data */
 /*
- * AIX 3 defines MFREE and m_flags also in <sys/mount>.
+ * AIX 3 defines MFREE and m_flags also in <sys/mount.h>.
  */
 # ifdef m_flags
 #  undef m_flags
@@ -470,8 +496,8 @@ struct ypall_callback;
  */
 #ifdef HAVE_LINUX_FS_H
 /*
- * There's a conflict of definitions on redhat alpha linux between
- * <netinet/in.h> and <linux/fs.h>.
+ * There are various conflicts in definitions between RedHat Linux, newer
+ * 2.2 kernels, and <netinet/in.h> and <linux/fs.h>.
  */
 # ifdef HAVE_SOCKETBITS_H
 /* conflicts with <socketbits.h> */
@@ -485,23 +511,54 @@ struct ypall_callback;
 #  undef BLKRRPART
 #  undef MS_MGC_VAL
 #  undef MS_RMT_MASK
+#  if defined(__GLIBC__) && __GLIBC__ >= 2
 /* conflicts with <waitflags.h> */
-#  undef WNOHANG
-#  undef WUNTRACED
+#   undef WNOHANG
+#   undef WUNTRACED
+#  endif /* defined(__GLIBC__) && __GLIBC__ >= 2 */
 /* conflicts with <statfsbuf.h> */
 #  define _SYS_STATFS_H
 # endif /* HAVE_SOCKETBITS_H */
+
+# ifdef _SYS_WAIT_H
+#  if defined(__GLIBC__) && __GLIBC__ >= 2
+/* conflicts with <bits/waitflags.h> (RedHat/Linux 6.0 and kernels 2.2 */
+#   undef WNOHANG
+#   undef WUNTRACED
+#  endif /* defined(__GLIBC__) && __GLIBC__ >= 2 */
+# endif /* _SYS_WAIT_H */
+
 # ifdef HAVE_LINUX_POSIX_TYPES_H
 #  include <linux/posix_types.h>
 # endif /* HAVE_LINUX_POSIX_TYPES_H */
 # ifndef _LINUX_BYTEORDER_GENERIC_H
 #  define _LINUX_BYTEORDER_GENERIC_H
 # endif /* _LINUX_BYTEORDER_GENERIC_H */
-/* conflicts with <sys/mount.h> in 2.1 kernels */
+/* conflicts with <sys/mount.h> in 2.[12] kernels */
 # ifdef _SYS_MOUNT_H
-#  ifdef BLOCK_SIZE
-#   undef BLOCK_SIZE
-#  endif /* BLOCK_SIZE */
+#  undef BLKFLSBUF
+#  undef BLKGETSIZE
+#  undef BLKRAGET
+#  undef BLKRASET
+#  undef BLKROGET
+#  undef BLKROSET
+#  undef BLKRRPART
+#  undef BLOCK_SIZE
+#  undef MS_MANDLOCK
+#  undef MS_MGC_VAL
+#  undef MS_NOATIME
+#  undef MS_NODEV
+#  undef MS_NODIRATIME
+#  undef MS_NOEXEC
+#  undef MS_NOSUID
+#  undef MS_RDONLY
+#  undef MS_REMOUNT
+#  undef MS_RMT_MASK
+#  undef MS_SYNCHRONOUS
+#  undef S_APPEND
+#  undef S_IMMUTABLE
+/* conflicts with <statfsbuf.h> */
+#  define _SYS_STATFS_H
 # endif /* _SYS_MOUNT_H */
 # include <linux/fs.h>
 #endif /* HAVE_LINUX_FS_H */
@@ -576,7 +633,7 @@ struct ypall_callback;
 # include <nfs/mount.h>
 #endif /* HAVE_NFS_MOUNT_H */
 #ifdef HAVE_NFS_NFS_MOUNT_H_off
-/* broken on netxtep3 (includes non-existing headers) */
+/* broken on nexttep3 (includes non-existing headers) */
 # include <nfs/nfs_mount.h>
 #endif /* HAVE_NFS_NFS_MOUNT_H */
 #ifdef HAVE_NFS_PATHCONF_H
@@ -701,6 +758,12 @@ struct sockaddr_dl;
 #ifdef HAVE_SYS_FS_UFS_MOUNT_H
 # include <sys/fs/ufs_mount.h>
 #endif /* HAVE_SYS_FS_UFS_MOUNT_H */
+#ifdef	HAVE_UFS_UFS_UFSMOUNT_H_off
+# error do not include this file here because on netbsd/openbsd it
+# error causes errors with other header files.  Instead, add it to the
+# error specific conf/nfs_prot_*.h file.
+# include <ufs/ufs/ufsmount.h>
+#endif	/* HAVE_UFS_UFS_UFSMOUNT_H */
 
 /*
  * Actions to take if <sys/fs/efs_clnt.h> exists.
@@ -1223,6 +1286,10 @@ extern const char * const sys_errlist[];
 extern char *optarg;
 extern int optind;
 #endif /* not HAVE_EXTERN_OPTARG */
+
+#if defined(HAVE_CLNT_SPCREATEERROR) && !defined(HAVE_EXTERN_CLNT_SPCREATEERROR)
+extern char *clnt_spcreateerror(const char *s);
+#endif /* defined(HAVE_CLNT_SPCREATEERROR) && !defined(HAVE_EXTERN_CLNT_SPCREATEERROR) */
 
 #if defined(HAVE_CLNT_SPERRNO) && !defined(HAVE_EXTERN_CLNT_SPERRNO)
 extern char *clnt_sperrno(const enum clnt_stat num);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.c,v 1.3 1998/11/14 03:13:19 obrien Exp $
+ * $Id: amd.c,v 1.5 1999/02/04 07:24:14 ezk Exp $
+ * $FreeBSD$
  *
  */
 
@@ -55,13 +56,7 @@
 struct amu_global_options gopt;	/* where global options are stored */
 
 char pid_fsname[16 + MAXHOSTNAMELEN];	/* "kiska.southseas.nz:(pid%d)" */
-#if 0
-char *progname;			/* "amd" */
-#endif
 char *hostdomain = "unknown.domain";
-#if 0
-char hostname[MAXHOSTNAMELEN + 1] = "localhost"; /* Hostname */
-#endif
 char hostd[2 * MAXHOSTNAMELEN + 1]; /* Host+domain */
 char *endian = ARCH_ENDIAN;	/* Big or Little endian */
 char *cpu = HOST_CPU;		/* CPU type */
@@ -73,11 +68,6 @@ int orig_umask = 022;
 int select_intr_valid;
 
 jmp_buf select_intr;
-#if 0
-pid_t mypid;			/* Current process id */
-serv_state amd_state;
-int foreground = 1;		/* This is the top-level server */
-#endif
 struct amd_stats amd_stats;	/* Server statistics */
 struct in_addr myipaddr;	/* (An) IP address of this host */
 time_t do_mapc_reload = 0;	/* mapc_reload() call required? */
@@ -490,7 +480,7 @@ main(int argc, char *argv[])
    * can mount the automounter.
    */
   amu_get_myaddress(&myipaddr);
-  plog(XLOG_INFO, "My ip addr is 0x%x", htonl(myipaddr.s_addr));
+  plog(XLOG_INFO, "My ip addr is %s", inet_ntoa(myipaddr));
 
   /* avoid hanging on other NFS servers if started elsewhere */
   if (chdir("/") < 0)
@@ -500,7 +490,7 @@ main(int argc, char *argv[])
    * Now check we are root.
    */
   if (geteuid() != 0) {
-    plog(XLOG_FATAL, "Must be root to mount filesystems (euid = %d)", geteuid());
+    plog(XLOG_FATAL, "Must be root to mount filesystems (euid = %ld)", (long) geteuid());
     going_down(1);
   }
 
