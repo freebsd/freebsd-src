@@ -12663,8 +12663,6 @@ Caution: Breathing may be hazardous to your health.
 %
 Caution: Keep out of reach of children.
 %
-CChheecckk yyoouurr dduupplleexx sswwiittcchh..
-%
 CCI Power 6/40: one board, a megabyte of cache, and an attitude...
 %
 Celebrate Hannibal Day this year.  Take an elephant to lunch.
@@ -36424,26 +36422,6 @@ as large as we want.  If n is sufficiently large, the case of n+1 is
 trivially equivalent, so the only important n are n less than n.  We can
 take n = n (from above), so it's true for n+1 becuase it's just about n.
 	QED.	(QED translates from the Latin as "So what?")
-%
-Proof techniques #2: Proof by Oddity.
-	SAMPLE: To prove that horses have an infinite number of legs.
-[1] Horses have an even number of legs.
-[2] They have two legs in back and fore legs in front.
-[3] This makes a total of six legs,
-	which certainly is an odd number of legs for a horse.
-[4] But the only number that is both odd and even is infinity. 
-[5] Therefore, horses must have an infinite number of legs.
-
-Topics is be covered in future issues include proof by:
-	intimidation,
-	gesticulation (handwaving),
-	"try it; it works",
-	constipation (I was just sitting there and...),
-	blatant assertion,
-	changing all the 2's to n's,
-	mutual consent,
-	lack of a counterexample, and,
-	"it stands to reason".
 %
 Proper treatment will cure a cold in seven days,
 but left to itself, a cold will hang on for a week.
