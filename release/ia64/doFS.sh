@@ -47,6 +47,8 @@ if [ ! -c /dev/${MDDEVICE} ] ; then
     (cd /dev && sh MAKEDEV ${MDDEVICE})
 fi
 
+trap "umount ${MNT}; mdconfig -d -u ${MDDEVICE}" EXIT
+
 EFI_SIZE=$((${FSSIZE}-68))
 
 gpt create ${MDDEVICE}
@@ -67,10 +69,6 @@ mv ${MNT}/boot/loader.efi ${MNT}/efi/boot/bootia64.efi
 df -ki ${MNT}
 
 set `df -ki ${MNT} | tail -1`
-
-umount ${MNT}
-
-mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
 
 echo "*** Filesystem is ${FSSIZE} K, $4 left"
 echo "***     ${FSINODE} bytes/inode, $7 left"
