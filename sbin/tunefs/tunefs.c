@@ -76,10 +76,10 @@ union {
 int fi;
 long dev_bsize = 1;
 
-void bwrite __P((daddr_t, char *, int));
+void bwrite __P((daddr_t, const char *, int));
 int bread __P((daddr_t, char *, int));
-void getsb __P((struct fs *, char *));
-void putsb __P((struct fs *, char *, int));
+void getsb __P((struct fs *, const char *));
+void putsb __P((struct fs *, const char *, int));
 void usage __P((void));
 void printfs __P((void));
 
@@ -88,7 +88,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	char *special, *name;
+	char *special;
+	const char *name;
 	struct stat st;
 	int Aflag = 0, active = 0;
 	int aflag = 0, dflag = 0, eflag = 0, fflag = 0, mflag = 0;
@@ -97,7 +98,8 @@ main(argc, argv)
 	int mvalue = 0, ovalue = 0, svalue = 0;
 	char *nvalue = NULL; 
 	struct fstab *fs;
-	char *chg[2], device[MAXPATHLEN];
+	const char *chg[2];
+	char device[MAXPATHLEN];
 	struct ufs_args args;
 	struct statfs stfs;
 	int found_arg, ch;
@@ -357,8 +359,8 @@ usage()
 
 void
 getsb(fs, file)
-	register struct fs *fs;
-	char *file;
+	struct fs *fs;
+	const char *file;
 {
 
 	fi = open(file, O_RDONLY);
@@ -373,8 +375,8 @@ getsb(fs, file)
 
 void
 putsb(fs, file, all)
-	register struct fs *fs;
-	char *file;
+	struct fs *fs;
+	const char *file;
 	int all;
 {
 	int i;
@@ -389,11 +391,11 @@ putsb(fs, file, all)
 	close(i);
 	if (fi < 0)
 		err(3, "cannot open %s", file);
-	bwrite((daddr_t)SBOFF / dev_bsize, (char *)fs, SBSIZE);
+	bwrite((daddr_t)SBOFF / dev_bsize, (const char *)fs, SBSIZE);
 	if (all)
 		for (i = 0; i < fs->fs_ncg; i++)
 			bwrite(fsbtodb(fs, cgsblock(fs, i)),
-			    (char *)fs, SBSIZE);
+			    (const char *)fs, SBSIZE);
 	close(fi);
 }
 
@@ -427,7 +429,7 @@ printfs()
 void
 bwrite(blk, buf, size)
 	daddr_t blk;
-	char *buf;
+	const char *buf;
 	int size;
 {
 
