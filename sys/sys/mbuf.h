@@ -552,6 +552,11 @@ struct	mbuf *
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
 #define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
+#define	PACKET_TAG_PF_GENERATED	(20 | MTAG_PERSISTENT) /* PF, pass always */
+#define	PACKET_TAG_PF_ROUTED			21 /* PF routed, avoid loops */
+#define	PACKET_TAG_PF_FRAGCACHE			22 /* PF fragment cached */
+#define	PACKET_TAG_PF_QID			23 /* PF ALTQ queue id */
+#define	PACKET_TAG_PF_TAG			24 /* PF tagged */
 
 /* Packet tag routines. */
 struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);

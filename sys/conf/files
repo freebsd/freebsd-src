@@ -206,6 +206,14 @@ contrib/ipfilter/netinet/ip_nat.c	optional ipfilter inet
 contrib/ipfilter/netinet/ip_proxy.c	optional ipfilter inet
 contrib/ipfilter/netinet/ip_state.c	optional ipfilter inet
 contrib/ipfilter/netinet/mlfk_ipl.c	optional ipfilter inet
+contrib/pf/net/if_pflog.c		optional pflog
+contrib/pf/net/if_pfsync.c		optional pfsync
+contrib/pf/net/pf.c			optional pf nowerror
+contrib/pf/net/pf_ioctl.c		optional pf
+contrib/pf/net/pf_norm.c		optional pf
+contrib/pf/net/pf_table.c		optional pf
+contrib/pf/net/pf_osfp.c		optional pf
+contrib/pf/netinet/in4_cksum.c		optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
 crypto/cast128/cast128.c	optional ipsec ipsec_esp
