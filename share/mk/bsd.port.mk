@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.260 1997/06/24 07:16:21 asami Exp $
+#	$Id: bsd.port.mk,v 1.261 1997/06/29 10:51:55 obrien Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -29,6 +29,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #
 # Variables that typically apply to all ports:
 # 
+# ARCH			- The architecture, as returned by "uname -m".
 # OPSYS			- Portability clause.  This is the operating system the
 #				  makefile is being used on.  Automatically set to
 #				  "FreeBSD," "NetBSD," or "OpenBSD" as appropriate.
@@ -257,6 +258,9 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # NEVER override the "regular" targets unless you want to open
 # a major can of worms.
 
+# Get the architecture
+ARCH!=	uname -m
+
 # Get the operating system type
 OPSYS!=	uname -s
 
@@ -264,6 +268,13 @@ OPSYS!=	uname -s
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
+.if exists(${.CURDIR}/Makefile.${ARCH}-${OPSYS})
+.include "${.CURDIR}/Makefile.${ARCH}-${OPSYS}"
+.elif exists(${.CURDIR}/Makefile.${OPSYS})
+.include "${.CURDIR}/Makefile.${OPSYS}"
+.elif exists(${.CURDIR}/Makefile.${ARCH})
+.include "${.CURDIR}/Makefile.${ARCH}"
+.endif
 
 # These need to be absolute since we don't know how deep in the ports
 # tree we are and thus can't go relative.  They can, of course, be overridden
@@ -289,10 +300,47 @@ WRKSRC?=		${WRKDIR}
 .else
 WRKSRC?=		${WRKDIR}/${DISTNAME}
 .endif
+
+.if exists(${.CURDIR}/patches.${ARCH}-${OPSYS})
+PATCHDIR?=		${.CURDIR}/patches.${ARCH}-${OPSYS}
+.elif exists(${.CURDIR}/patches.${OPSYS})
+PATCHDIR?=		${.CURDIR}/patches.${OPSYS}
+.elif exists(${.CURDIR}/patches.${ARCH})
+PATCHDIR?=		${.CURDIR}/patches.${ARCH}
+.else
 PATCHDIR?=		${.CURDIR}/patches
+.endif
+
+.if exists(${.CURDIR}/scripts.${ARCH}-${OPSYS})
+SCRIPTDIR?=		${.CURDIR}/scripts.${ARCH}-${OPSYS}
+.elif exists(${.CURDIR}/scripts.${OPSYS})
+SCRIPTDIR?=		${.CURDIR}/scripts.${OPSYS}
+.elif exists(${.CURDIR}/scripts.${ARCH})
+SCRIPTDIR?=		${.CURDIR}/scripts.${ARCH}
+.else
 SCRIPTDIR?=		${.CURDIR}/scripts
+.endif
+
+.if exists(${.CURDIR}/files.${ARCH}-${OPSYS})
+FILESDIR?=		${.CURDIR}/files.${ARCH}-${OPSYS}
+.elif exists(${.CURDIR}/files.${OPSYS})
+FILESDIR?=		${.CURDIR}/files.${OPSYS}
+.elif exists(${.CURDIR}/files.${ARCH})
+FILESDIR?=		${.CURDIR}/files.${ARCH}
+.else
 FILESDIR?=		${.CURDIR}/files
+.endif
+
+.if exists(${.CURDIR}/pkg.${ARCH}-${OPSYS})
+PKGDIR?=		${.CURDIR}/pkg.${ARCH}-${OPSYS}
+.elif exists(${.CURDIR}/pkg.${OPSYS})
+PKGDIR?=		${.CURDIR}/pkg.${OPSYS}
+.elif exists(${.CURDIR}/pkg.${ARCH})
+PKGDIR?=		${.CURDIR}/pkg.${ARCH}
+.else
 PKGDIR?=		${.CURDIR}/pkg
+.endif
+
 .if defined(USE_IMAKE) || defined(USE_X11)
 PREFIX?=		${X11BASE}
 .else
@@ -478,6 +526,7 @@ RM?=		/bin/rm
 RMDIR?=		/bin/rmdir
 SED?=		/usr/bin/sed
 SETENV?=	/usr/bin/env
+SH?=		/bin/sh
 TR?=		/usr/bin/tr
 
 # Used to print all the '===>' style prompts - override this to turn them off.
@@ -936,7 +985,7 @@ do-patch:
 .if !target(do-configure)
 do-configure:
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
-		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} /bin/sh \
+		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
 		  ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
@@ -1054,8 +1103,8 @@ _PORT_USE: .USE
 		exit 1; \
 	fi
 .endif
-	@if [ `/bin/sh -c umask` != 0022 ]; then \
-		${ECHO_MSG} "===>  Warning: your umask is \"`/bin/sh -c umask`"\".; \
+	@if [ `${SH} -c umask` != 0022 ]; then \
+		${ECHO_MSG} "===>  Warning: your umask is \"`${SH} -c umask`"\".; \
 		${ECHO_MSG} "      If this is not desired, set it to an appropriate value"; \
 		${ECHO_MSG} "      and install this port again by \`\`make reinstall''."; \
 	fi
@@ -1073,13 +1122,13 @@ _PORT_USE: .USE
 .endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/pre-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/} ]; then \
-		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} /bin/sh \
+		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
 			${SCRIPTDIR}/${.TARGET:S/^real-/pre-/}; \
 	fi
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/do-/}
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/post-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/post-/} ]; then \
-		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} /bin/sh \
+		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
 			${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
 .if make(real-install) && defined(_MANPAGES)
