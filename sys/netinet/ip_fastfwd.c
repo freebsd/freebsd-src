@@ -338,7 +338,8 @@ ip_fastforward(struct mbuf *m)
 	/*
 	 * Or is it for a local IP broadcast address on this host?
 	 */
-	if (m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
+	if ((m->m_flags & M_BCAST) &&
+	    (m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST)) {
 	        TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
