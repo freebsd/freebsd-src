@@ -2,10 +2,11 @@
 # Copyright (c) 2002 Networks Associates Technology, Inc.
 # All rights reserved.
 #
-# This software was developed for the FreeBSD Project by ThinkSec AS and
-# NAI Labs, the Security Research Division of Network Associates, Inc.
-# under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
-# DARPA CHATS research program.
+# This software was developed for the FreeBSD Project by ThinkSec AS
+# and Network Associates Laboratories, the Security Research Division
+# of Network Associates, Inc.  under DARPA/SPAWAR contract
+# N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
+# program.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,52 +32,75 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/doc/man/Makefile#8 $
+# $P4: //depot/projects/openpam/doc/man/Makefile#11 $
 #
 
-MAN		 =
-MAN		+= openpam_borrow_cred.3
-MAN		+= openpam_free_data.3
-MAN		+= openpam_get_option.3
-MAN		+= openpam_log.3
-MAN		+= openpam_nullconv.3
-MAN		+= openpam_restore_cred.3
-MAN		+= openpam_set_option.3
-MAN		+= openpam_ttyconv.3
-MAN		+= pam.3
-MAN		+= pam_acct_mgmt.3
-MAN		+= pam_authenticate.3
-MAN		+= pam_chauthtok.3
-MAN		+= pam_close_session.3
-MAN		+= pam_end.3
-MAN		+= pam_error.3
-MAN		+= pam_get_authtok.3
-MAN		+= pam_get_data.3
-MAN		+= pam_get_item.3
-MAN		+= pam_get_user.3
-MAN		+= pam_getenv.3
-MAN		+= pam_getenvlist.3
-MAN		+= pam_info.3
-MAN		+= pam_open_session.3
-MAN		+= pam_prompt.3
-MAN		+= pam_putenv.3
-MAN		+= pam_set_data.3
-MAN		+= pam_set_item.3
-MAN		+= pam_setcred.3
-MAN		+= pam_setenv.3
-MAN		+= pam_sm_acct_mgmt.3
-MAN		+= pam_sm_authenticate.3
-MAN		+= pam_sm_chauthtok.3
-MAN		+= pam_sm_close_session.3
-MAN		+= pam_sm_open_session.3
-MAN		+= pam_sm_setcred.3
-MAN		+= pam_start.3
-MAN		+= pam_strerror.3
-MAN		+= pam_verror.3
-MAN		+= pam_vinfo.3
-MAN		+= pam_vprompt.3
+GENDOC		 = ${.CURDIR}/../../misc/gendoc.pl
 
-generate:
-	(cd ${.CURDIR} && perl -w ../../misc/gendoc.pl ../../lib/*.c >pam.3)
+# Standard PAM API
+PMAN		 =
+PMAN		+= pam_acct_mgmt.3
+PMAN		+= pam_authenticate.3
+PMAN		+= pam_chauthtok.3
+PMAN		+= pam_close_session.3
+PMAN		+= pam_end.3
+PMAN		+= pam_get_data.3
+PMAN		+= pam_get_item.3
+PMAN		+= pam_get_user.3
+PMAN		+= pam_getenv.3
+PMAN		+= pam_getenvlist.3
+PMAN		+= pam_open_session.3
+PMAN		+= pam_putenv.3
+PMAN		+= pam_set_data.3
+PMAN		+= pam_set_item.3
+PMAN		+= pam_setcred.3
+PMAN		+= pam_start.3
+PMAN		+= pam_strerror.3
+
+# Standard module API
+MMAN		 =
+MMAN		+= pam_sm_acct_mgmt.3
+MMAN		+= pam_sm_authenticate.3
+MMAN		+= pam_sm_chauthtok.3
+MMAN		+= pam_sm_close_session.3
+MMAN		+= pam_sm_open_session.3
+MMAN		+= pam_sm_setcred.3
+
+# OpenPAM extensions
+OMAN		 =
+OMAN		+= openpam_borrow_cred.3
+OMAN		+= openpam_free_data.3
+OMAN		+= openpam_get_option.3
+OMAN		+= openpam_log.3
+OMAN		+= openpam_nullconv.3
+OMAN		+= openpam_restore_cred.3
+OMAN		+= openpam_set_option.3
+OMAN		+= openpam_ttyconv.3
+OMAN		+= pam_error.3
+OMAN		+= pam_get_authtok.3
+OMAN		+= pam_info.3
+OMAN		+= pam_prompt.3
+OMAN		+= pam_setenv.3
+OMAN		+= pam_verror.3
+OMAN		+= pam_vinfo.3
+OMAN		+= pam_vprompt.3
+
+MAN		 = ${PMAN} ${OMAN} ${MMAN}
+MAN		+= openpam.3
+MAN		+= pam.3
+MAN		+= pam_conv.3
+
+CLEANFILES	+= ${PMAN} ${OMAN} ${MMAN} openpam.3 pam.3
+
+.for man in ${PMAN} ${OMAN} ${MMAN}
+${man}: ${.CURDIR}/../../lib/${man:R}.c ${GENDOC}
+	perl -w ${GENDOC} ${.CURDIR}/../../lib/${man:R}.c
+.endfor
+
+openpam.3: ${OMAN} ${GENDOC} openpam.man
+	perl -w ${GENDOC} -o ${OMAN} <${.CURDIR}/openpam.man
+
+pam.3: ${PMAN} ${GENDOC} pam.man
+	perl -w ${GENDOC} -p ${PMAN} <${.CURDIR}/pam.man
 
 .include <bsd.prog.mk>
