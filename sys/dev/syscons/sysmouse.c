@@ -150,7 +150,6 @@ smioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	struct tty *tp;
 	mousehw_t *hw;
 	mousemode_t *mode;
-	int error;
 	int s;
 
 	tp = dev->si_tty;
