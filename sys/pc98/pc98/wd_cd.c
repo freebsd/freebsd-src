@@ -33,7 +33,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
-#include <sys/disklabel.h>
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
 #include <sys/fcntl.h>
@@ -116,13 +115,10 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
     ptr->slot = -1;
     ptr->changer_info = NULL;
 
-    pdev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
+    pdev = make_dev(&acd_cdevsw, lun,
         UID_ROOT, GID_OPERATOR, 0640, "wcd%da", lun);
     make_dev_alias(pdev, "rwcd%da", lun);
-    pdev->si_drv1 = ptr;
-
-    pdev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-        UID_ROOT, GID_OPERATOR, 0640, "wcd%dc", lun);
+    make_dev_alias(pdev, "wcd%dc", lun);
     make_dev_alias(pdev, "rwcd%dc", lun);
     pdev->si_drv1 = ptr;
 
