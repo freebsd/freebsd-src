@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.7 1999/01/10 13:29:51 peter Exp $
+#	$Id: boot1.s,v 1.8 1999/01/13 23:30:07 rnordier Exp $
 
 		.set MEM_REL,0x700		# Relocation address
 		.set MEM_ARG,0x900		# Arguments
@@ -39,17 +39,21 @@ start:		jmp main			# Start recognizably
 
 # External read from disk
 
-xread:		pushl %ecx			# Set
-		pushl %eax			#  LBA
-		pushl %es			# Set transfer
-		pushl %ebx			#  buffer
-		pushl %edx			# Set count:drive
+xread:		pushl %ss			# Address
+		popl %ds			#  data
+xread.1:	o16				# Starting
+		pushb $0x0			#  absolute
+		pushl %ecx			#  block
+		pushl %eax			#  number
+		pushl %es			# Address of
+		pushl %ebx			#  transfer buffer
+		xorl %eax,%eax			# Number of
+		movb %dh,%al			#  blocks to
+		pushl %eax			#  transfer
+		pushb $0x10			# Size of packet
+		movl %esp,%ebp			# Packet pointer
 		callwi(read)			# Read from disk
-		popl %edx			# Pop all
-		popl %ebx			#  registers
-		popl %es			#  pushed, but
-		popl %ecx			#  preserve
-		popl %ecx			#  AX
+		leaw1r(0x10,_bp_,_sp)		# Clear stack
 		lret				# To far caller
 
 # Bootstrap
@@ -127,7 +131,7 @@ nread:		movwir(MEM_BUF,_bx)		# Transfer buffer
 		movw1r(0x8,_si_,_ax)		# Get
 		movw1r(0xa,_si_,_cx)		#  LBA
 		pushl %cs			# Read from
-		callwi(xread)			#  disk
+		callwi(xread.1) 		#  disk
 		jnc return			# If success
 		movwir(msg_read,_si)		# Message
 
@@ -155,8 +159,25 @@ return: 	ret				# To caller
 
 # Read from disk
 
-read:		movl %esp,%ebp			# Address stack frame
+read:		cs_				# LBA support
+		tstbim(0x80,MEM_REL+flags-start)#  enabled?
+		jz read.1			# No
+		movwir(0x55aa,_bx)		# Magic
 		pushl %edx			# Save
+		movb $0x41,%ah			# BIOS: Check
+		int $0x13			#  extensions present
+		popl %edx			# Restore
+		jc read.1			# If error
+		cmpwir(0xaa55,_bx)		# Magic?
+		jne read.1			# No
+		testb $0x1,%cl			# Packet interface?
+		jz read.1			# No
+		movl %ebp,%esi			# Disk packet
+		movb $0x42,%ah			# BIOS: Extended
+		int $0x13			#  read
+		ret				# To caller
+
+read.1: 	pushl %edx			# Save
 		movb $0x8,%ah			# BIOS: Get drive
 		int $0x13			#  parameters
 		movb %dh,%ch			# Max head number
@@ -189,32 +210,32 @@ read:		movl %esp,%ebp			# Address stack frame
 		xchgl %eax,%ecx 		#  number
 		movb %bh,%dh			# Head number
 		subb %ah,%al			# Sectors this track
-		movb1r(0x3,_bp_,_ah)		# Blocks to read
+		movb1r(0x2,_bp_,_ah)		# Blocks to read
 		cmpb %ah,%al			# To read
-		jb read.1			#  this
+		jb read.2			#  this
 		movb %ah,%al			#  track
-read.1: 	movwir(0x5,_di) 		# Try count
-read.2: 	lesw1r(0x4,_bp_,_bx)		# Transfer buffer
+read.2: 	movwir(0x5,_di) 		# Try count
+read.3: 	lesw1r(0x4,_bp_,_bx)		# Transfer buffer
 		pushl %eax			# Save
 		movb $0x2,%ah			# BIOS: Read
 		int $0x13			#  from disk
 		popl %ebx			# Restore
-		jnc read.3			# If success
+		jnc read.4			# If success
 		decl %edi			# Retry?
-		jz read.5			# No
+		jz read.6			# No
 		xorb %ah,%ah			# BIOS: Reset
 		int $0x13			#  disk system
 		xchgl %ebx,%eax 		# Block count
-		jmp read.2			# Continue
-read.3: 	movzbl %bl,%eax 		# Sectors read
+		jmp read.3			# Continue
+read.4: 	movzbl %bl,%eax 		# Sectors read
 		addwr1(_ax,0x8,_bp_)		# Adjust
-		jnc read.4			#  LBA,
+		jnc read.5			#  LBA,
 		incw1(0xa,_bp_) 		#  transfer
-read.4: 	shlb %bl			#  buffer
+read.5: 	shlb %bl			#  buffer
 		addbr1(_bl,0x5,_bp_)		#  pointer,
-		subbr1(_al,0x3,_bp_)		#  block count
-		ja read 			# If not done
-read.5: 	ret				# To caller
+		subbr1(_al,0x2,_bp_)		#  block count
+		ja read.1			# If not done
+read.6: 	ret				# To caller
 
 # Messages
 
@@ -222,6 +243,8 @@ msg_read:	.asciz "Read"
 msg_part:	.asciz "Boot"
 
 prompt: 	.asciz " error\r\n"
+
+flags:		.byte FLAGS			# Flags
 
 		.org PRT_OFF,0x90
 
