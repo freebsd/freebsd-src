@@ -264,7 +264,6 @@ i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 i386/isa/isa_dma.c		optional	isa
 i386/isa/istallion.c		optional	stli nowerror
 i386/isa/loran.c		optional	loran
-i386/isa/matcd/matcd.c		count		matcd
 i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			count		mcd
 i386/isa/mse.c			optional	mse

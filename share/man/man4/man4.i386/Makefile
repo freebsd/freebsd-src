@@ -3,7 +3,7 @@
 MAN=	aic.4 alpm.4 amdpm.4 apm.4 ar.4 asc.4 asr.4 \
 	cs.4 cx.4 cy.4 \
 	dgb.4 el.4 en.4 ep.4 ex.4 fe.4 gsc.4 \
-	ie.4 io.4 le.4 linux.4 lnc.4 longrun.4 matcd.4 mcd.4 \
+	ie.4 io.4 le.4 linux.4 lnc.4 longrun.4 mcd.4 \
 	meteor.4 mse.4 npx.4 \
 	pcf.4 perfmon.4 pnp.4 pnpbios.4 \
 	ray.4 rdp.4 scd.4 \
