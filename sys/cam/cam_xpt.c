@@ -1882,7 +1882,7 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 	 * If there are no match entries, then this device matches no
 	 * matter what.
 	 */
-	if ((patterns == NULL) || (patterns == 0))
+	if ((patterns == NULL) || (num_patterns == 0))
 		return(DM_RET_DESCEND | DM_RET_COPY);
 
 	for (i = 0; i < num_patterns; i++) {
