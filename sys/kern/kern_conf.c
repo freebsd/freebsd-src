@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.11 1996/08/19 19:22:25 julian Exp $
+ * $Id: kern_conf.c,v 1.12 1996/10/28 11:34:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -150,7 +150,8 @@ int TTYPE##_add(dev_t *descrip,						\
         if (oldentry) {							\
 		*oldentry = TTYPE[i];					\
 	}								\
-	newentry->d_maj = i;						\
+	if (newentry)							\
+		newentry->d_maj = i;					\
 	/* replace with new */						\
 	TTYPE[i] = newentry;						\
 									\
