@@ -456,7 +456,7 @@ if_attachdomain(void *dummy)
 	int s;
 
 	s = splnet();
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
+	TAILQ_FOREACH(ifp, &ifnet, if_link)
 		if_attachdomain1(ifp);
 	splx(s);
 }
@@ -1978,6 +1978,11 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
 		bcopy(lladdr, ((struct arpcom *)ifp->if_softc)->ac_enaddr, len);
+		/*
+		 * XXX We also need to store the lladdr in LLADDR(sdl),
+		 * which is done below. This is a pain because we must
+		 * remember to keep the info in sync.
+		 */
 		/* FALLTHROUGH */
 	case IFT_ARCNET:
 		bcopy(lladdr, LLADDR(sdl), len);
