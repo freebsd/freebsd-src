@@ -75,38 +75,38 @@ to make initial installation of the system as easy as possible.
     installed, then insert this disk in a floppy drive.  Again, specify 
     the drive to read from.
 
-5.  After the dos-floppy has been copied to the disk, enter `halt' at
+6.  After the dos-floppy has been copied to the disk, enter `halt' at
     the command prompt.
 
-6.  When the system asks you to press the return key to reboot, first
+7.  When the system asks you to press the return key to reboot, first
     remove the floppy and then press the return key to boot from the hard
     disk.
 
-7.  At this point you will get 4 errors from the fsck on boot, these
+8.  At this point you will get 4 errors from the fsck on boot, these
     are normal and are caused by files that were open when the
     /dev entries were built - just ignore them.  The system will
     correct these errors and then halt, after which you should press
     the return key again to reboot with a clean system.
 
-8.  Congratulations, you've got the mini FreeBSD system on your disk!
+9.  Congratulations, you've got the mini FreeBSD system on your disk!
 
-9.  Follow the instructions about set_tmp_dir and extract that
+10. Follow the instructions about set_tmp_dir and extract that
     will come on your screen after you've pressed the return key.
 
-10. You will get the following errors while extracting the bin
+11. You will get the following errors while extracting the bin
     distribution, you can safely ignore them.
 
 	/tmp/tar: Could not create file bin/sh : Text file busy
 	/tmp/tar: Could not create file sbin/init : Text file busy
 	/tmp/tar: Could not link .profile to root/.profile : File exists
 
-11. Run the configure command to set up some of the /etc files by
+12. Run the configure command to set up some of the /etc files by
     typing ``configure''.  You will have to edit /etc/netstart after
     this if you have a networking interface.
 
-12. Reboot so that the system comes up multiuser by typing ``reboot''.
+13. Reboot so that the system comes up multiuser by typing ``reboot''.
 
-13. You are now running FreeBSD!  Congradulations!  You may now continue
+14. You are now running FreeBSD!  Congradulations!  You may now continue
     with installing the source distribution, or stop here for now.
 
     Should you decided to postpone further installation, you should
@@ -118,7 +118,7 @@ to make initial installation of the system as easy as possible.
 	mv /.profile /.profile.install
 	ln /root/.profile /.profile
 
-14. If your disk has several operating systems, you may want to
+15. If your disk has several operating systems, you may want to
     install the Thomas Wolfram's os-bs boot manager for selecting
     which system to boot.  This works well with DOS, OS/2, FreeBSD
     and other systems.  To install it, boot the system with MS-DOS
@@ -141,9 +141,9 @@ to make initial installation of the system as easy as possible.
     partition for the boot system active.  FreeBSD has an fdisk
     command that can be used for this purpose as well.
 
-15. In addition to the FreeBSD  source and binary distributions, many 
+16. In addition to the FreeBSD  source and binary distributions, many 
     additional packages, such as X11 and TeX, may be obtained from 
     freebsd.cdrom.com - please have a look around!  You may also find 
-    this a good time to read the release notes in /usr/src/RELNOTES.FreeBSD.
+    this a good time to read the release notes in RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.7 1993/09/11 08:32:50 alm Exp $
+End of $Id: floppy.install_notes,v 1.8 1993/09/13 07:26:39 alm Exp $
