@@ -38,8 +38,7 @@
 The file
 .Pa isdnd.rates
 contains descriptions how long charging units last at a given time of day,
-day of week and the distance to the destination.
-If this file is available,
+day of week and the distance to the destination. If this file is available,
 this information may be used by the
 .Xr isdnd 8
 ISDN connection management daemon to calculate the short hold time for a
@@ -65,21 +64,18 @@ for Sunday, 1 for Monday and so on until the digit 6 which stands for Saturday.
 .Pp
 The rest of the line consists of one or more space separated fields which have
 the following syntax:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 start_hour.start_minutes-end_hour.end_minutes:charge_unit_length
 .Ed
 .Pp
 Start_hour and start_minutes define the begin of a time section and end_hour
-and end_minutes define the end.
-Charge_unit_length define the length of a
-charging unit in the previously defined time section.
-No spaces or tabs are
-allowed inside this field.
-The hour and minutes specifications MUST have
+and end_minutes define the end. Charge_unit_length define the length of a
+charging unit in the previously defined time section. No spaces or tabs are
+allowed inside this field. The hour and minutes specifications MUST have
 exactly 2 digits, in case just one digit is needed, a leading 0 must be used.
 .Pp
 For example,
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 14.00-18.00:90
 .Ed
 .Pp

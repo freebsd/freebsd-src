@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,13 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdndebug.8,v 1.10 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: isdndebug.8,v 1.11 2000/05/31 08:15:29 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:01:42 1999]
+.\"	last edit-date: [Wed May 31 10:15:07 2000]
 .\"
-.Dd May 29, 1999
+.Dd May 31, 2000
 .Dt ISDNDEBUG 8
 .Os
 .Sh NAME
@@ -36,9 +36,9 @@
 .Nd display and control isdn4bsd kernel variables and statistics
 .Sh SYNOPSIS
 .Nm
+.Op Fl c
 .Op Fl e
 .Op Fl g
-.Op Fl h
 .Op Fl l Ar layer
 .Op Fl m
 .Op Fl q
@@ -46,7 +46,7 @@
 .Op Fl s Ar value
 .Op Fl u Ar unit
 .Op Fl z
-.Op Fl H
+.Op Fl C
 .Op Fl Q
 .Sh DESCRIPTION
 .Nm
@@ -57,23 +57,20 @@ manipulated using this utility.
 .Pp
 A second usage of
 .Nm
-is to display and reset the HSCX (the HSCX is the chip responsible for 
-the B-channel handling in the
-.Xr isic 4
-driver) error counters and and to display and reset the D-channel layer 2
+is to display and reset chipset specific statistics and/or error counters
+and and to display and reset the D-channel layer 2
 (Q.921 LAPD protocol) statistics and error counters.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
+.It Fl c
+Display chipset specific statistics and/or error counters.
 .It Fl e
 Set debugging mask for the selected layer(s) to display errors only.
 .It Fl g
 Get the debugging mask for the selected layer(s).
-.It Fl h
-Display the HSCX error counters.
 .It Fl l
-Specify the layer for which a command applies.
-Default is all layers.
+Specify the layer for which a command applies. Default is all layers.
 .It Fl m
 Set debugging mask for the selected layer(s) to display all possible
 debugging messages (maximum output).
@@ -83,16 +80,15 @@ Display the Q.921 (D-channel layer 2) frame receive/transmit statistics.
 Set debugging mask for the selected layer(s) to the compiled in default
 (reset).
 .It Fl s
-Set debugging mask for the selected layer(s) to value.
-Value can be
+Set debugging mask for the selected layer(s) to value. Value can be
 specified in any number base supported by
 .Xr sscanf 3 .
 .It Fl u
-Set the unit numbers for the -h, -q, -H and -Q flags.
+Set the unit numbers for the -c, -q, -C and -Q flags.
 .It Fl z
 Set debugging mask for the selected layer(s) to no output at all (zero).
 .It Fl H
-Reset the HSCX error counters to zero.
+Reset the chipset specific statistics and/or error counters to zero.
 .It Fl Q
 Reset the Q.921 (D-channel layer 2) frame receive/transmit statistics to zero.
 .El

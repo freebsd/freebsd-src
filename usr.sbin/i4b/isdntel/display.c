@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- *	$Id: display.c,v 1.7 1999/12/13 21:25:26 hm Exp $ 
+ *	$Id: display.c,v 1.9 2000/07/19 08:56:24 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:53:57 1999]
+ *      last edit-date: [Wed Jul 19 10:08:06 2000]
  *
  *----------------------------------------------------------------------------*/
 
@@ -49,8 +49,10 @@ init_screen(void)
 	
 	initscr();			/* curses init */
 	
+	curses_ready = 1;
+	
 	if((COLS < 80) || (LINES < 24))
-		fatal(0, "ERROR, minimal screensize must be 80x24, is %dx%d, terminating!", COLS, LINES);
+		fatal("ERROR, minimal screensize must be 80x24, is %dx%d, terminating!", COLS, LINES);
 
 	
 	if((main_w = newwin(LINES-START_O-2, COLS, START_O, 0)) == NULL)
@@ -88,8 +90,6 @@ init_screen(void)
 	refresh();
 
 	wrefresh(main_w);
-
-	curses_ready = 1;
 }
 
 /*---------------------------------------------------------------------------*

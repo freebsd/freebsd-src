@@ -54,8 +54,7 @@ Clear the telephone input queue.
 .It Fl g
 Get the sound format currently in use.
 .It Fl u
-Set the /dev/i4btel unit number.
-The default value is zero to access
+Set the /dev/i4btel unit number. The default value is zero to access
 device /dev/i4btel0.
 .It Fl A
 Do A-law (ISDN line) -> u-law (userland) conversion.
@@ -86,10 +85,10 @@ isdntelctl -g
 .Pp
 displays the currently used sound format for device /dev/i4btel0.
 .Sh SEE ALSO
-.Xr i4btel 4
-.Xr g711conv 1
+.Xr g711conv 1 ,
+.Xr i4btel 4 ,
+.Xr isdnd.rc 5 ,
 .Xr isdnd 8
-.Xr isdnd.rc 5
 .Sh AUTHORS
 The
 .Nm

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000  Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- *	$Id: i4b_tel_ioctl.h,v 1.11 1999/12/13 21:25:28 hm Exp $ 
+ *	$Id: i4b_tel_ioctl.h,v 1.13 2000/01/12 14:49:36 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:07:18 1999]
+ *      last edit-date: [Wed Jan 12 15:47:11 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -61,6 +61,19 @@
  *---------------------------------------------------------------------------*/
 
 #define I4B_TEL_VR_REQ		_IOR('A', 3, msg_vr_req_t)
+
+/*---------------------------------------------------------------------------*
+ *	send tones out of the tel interface
+ *---------------------------------------------------------------------------*/
+
+#define I4B_TEL_MAXTONES 32
+
+struct i4b_tel_tones {
+	int frequency[I4B_TEL_MAXTONES];
+	int duration[I4B_TEL_MAXTONES];
+};
+
+#define I4B_TEL_TONES		_IOR('A', 4, struct i4b_tel_tones)
 
 /*===========================================================================*
  *	/dev/i4bteld<n> devices (dialer interface)

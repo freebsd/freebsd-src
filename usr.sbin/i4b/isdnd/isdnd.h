@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - main header file
  *	-----------------------------
  *
- *	$Id: isdnd.h,v 1.72 1999/12/13 21:25:24 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:46:50 1999]
+ *      last edit-date: [Wed May  2 09:34:44 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -102,6 +100,8 @@
 #define DL_DRVR		0x0080	/* messages related to kernel i4b msg i/o*/
 #define DL_CNST		0x0100	/* messages related to controller state	*/
 #define DL_RCCF		0x0200	/* messages related to isdnd.rc at boot	*/
+#define DL_BDGT		0x0400	/* messages related to budgets		*/
+#define DL_VALID	0x0800	/* messages related to valid keyword	*/
 
 #ifdef DEBUG
 #define DBGL(cond, dolog) if(cond & debug_flags) dolog
@@ -134,13 +134,15 @@
 #define WMENU_TITLE 	"Command"	/* title string */
 #define WMENU_POSLN	10		/* menu position, line */
 #define WMENU_POSCO	5		/* menu position, col */
-#define WMITEMS 	4		/* no of menu items */
+#define WMITEMS 	6		/* no of menu items */
 #define WMENU_HGT 	(WMITEMS + 4)	/* menu window height */
 
 #define WREFRESH	0
 #define WHANGUP		1
 #define WREREAD		2
-#define WQUIT		3
+#define WSHOW		3
+#define WBUDGET		4
+#define WQUIT		5
 
 #define WMTIMEOUT	5		/* timeout in seconds */
 
@@ -335,6 +337,49 @@ typedef struct cfg_entry {
 #define DIR_INOUT	0
 #define DIR_INONLY	1
 #define DIR_OUTONLY	2
+
+	int	budget_callbackperiod;	/* length of a budget period (s)*/
+	int	budget_callbackncalls;	/* call budget for a period	*/
+	char	*budget_callbacks_file;	/* filename to store callback stats */
+	char	budget_callbacksfile_rotate;
+
+	int	budget_calloutperiod;	/* length of a budget period (s)*/
+	int	budget_calloutncalls;	/* call budget for a period	*/
+	char	*budget_callouts_file;	/* filename to store callout stats */
+	char	budget_calloutsfile_rotate;
+	
+	int	ppp_expect_auth;
+	int	ppp_send_auth;
+#define AUTH_UNDEF	0
+#define AUTH_NONE	1
+#define AUTH_PAP	2
+#define AUTH_CHAP	3
+
+	int	ppp_auth_flags;
+#define AUTH_RECHALLENGE 0x01
+#define AUTH_REQUIRED    0x02
+
+#define AUTHNAMELEN	32 /* AUTHNAMELEN must match in <machine/i4b_isppp.h> */
+#define AUTHKEYLEN	16
+	char	ppp_expect_name[AUTHNAMELEN];	/* PPP PAP/CHAP login name */
+	char	ppp_send_name[AUTHNAMELEN];
+
+	char	ppp_expect_password[AUTHKEYLEN];
+	char	ppp_send_password[AUTHKEYLEN];
+
+	int	day;				/* days valid */
+#define		SU	0x01
+#define		MO	0x02
+#define		TU	0x04
+#define		WE	0x08
+#define		TH	0x10
+#define		FR	0x20
+#define		SA	0x40
+#define		HD	0x80	/* holiday */
+        int	fromhr;				/* time valid */
+        int	frommin;
+        int	tohr;
+        int	tomin;
 	
 /*===========================================================================*/	
 /*============ filled in after start, then dynamic ==========================*/
@@ -380,7 +425,7 @@ typedef struct cfg_entry {
 
 #define N_STATES	(ST_ILL+1)	/* max number of states               */
 
-	int disc_cause;			/* cause from disconnect */
+	cause_t disc_cause;		/* cause from disconnect */
 
 	int local_disconnect;		/* flag, who disconnected */
 #define DISCON_LOC	0
@@ -435,24 +480,45 @@ typedef struct cfg_entry {
 
 	int	alert_time;		/* count down of alert time	*/	
 	char display[DISPLAY_MAX];
+
+	time_t	budget_callbackperiod_time; /* end of current period	*/
+	int	budget_callbackncalls_cnt;  /* amount of calls left	*/
+
+	int	budget_callback_req;	/* requests			*/
+	int	budget_callback_done;	/* call done			*/
+	int	budget_callback_rej;	/* call refused			*/	
+
+	time_t	budget_calloutperiod_time; /* end of current period	*/
+	int	budget_calloutncalls_cnt;  /* amount of calls left	*/
+
+	int	budget_callout_req;	/* requests			*/
+	int	budget_callout_done;	/* call done			*/
+	int	budget_callout_rej;	/* call refused			*/	
+	
+	int	budget_calltype;	/* type of call			*/
+#define	BUDGET_TYPE_CBACK 1
+#define	BUDGET_TYPE_COUT  2
+
 } cfg_entry_t;
 
 /*---------------------------------------------------------------------------*
- *	this struct describes state of controller with 2 b channels
+ *	this struct describes state of controller with MAX_BCHAN b channels
  *---------------------------------------------------------------------------*/
 typedef struct isdn_ctrl_state {
 	int ctrl_type;			/* type: active/passive 	*/
 	int card_type;			/* manufacturer (CARD_XXXX) 	*/
 	int protocol;			/* ISDN D-channel protocol 	*/	
+	char* firmware;			/* loadable fimrware file name 	*/
+    
 	int state;			/* controller state		*/
 #define  CTRL_DOWN 	0		/* controller inoparable	*/
 #define  CTRL_UP	1		/* controller may be used	*/
-	int stateb1;			/* B-channel 1 			*/
-	int stateb2;			/* B-channel 2			*/
+#define  MAX_BCHAN      30
+        int stateb[MAX_BCHAN];          /* b channel state */
 #define  CHAN_IDLE	0		/* channel is free for usage	*/
 #define  CHAN_RUN	1		/* channel is occupied		*/
+        int nbch;                       /* number of b channels */
 	int freechans;			/* number of unused channels	*/
-#define  MAX_CHANCTRL	2		/* free channels per controller	*/
 	int tei;			/* tei or -1 if invalid		*/
 	int l1stat;			/* layer 1 state		*/
 	int l2stat;			/* layer 2 state		*/
@@ -563,10 +629,15 @@ int monitorport = -1;
 int accepted = 0;
 
 int isdntime = 0;		/* flag, log time from exchange	*/
+int extcallattr = 0;		/* flag, display extended caller attributes */
 
 char tinainitprog[MAXPATHLEN] = TINA_FILE_DEF;
 
 char rotatesuffix[MAXPATHLEN] = "";
+
+time_t starttime = 0;
+
+char holidayfile[MAXPATHLEN] = HOLIDAY_FILE_DEF; /* holiday filename */
 
 #else /* !MAIN */
 
@@ -607,6 +678,7 @@ int nentries;
 
 int uselogfile;
 char logfile[MAXPATHLEN];
+FILE *logfp;
 int logfacility;
 int nregex;
 struct rarr rarr[MAX_RE];
@@ -641,10 +713,15 @@ int monitorport;
 int accepted;
 
 int isdntime;
+int extcallattr;
 
 char tinainitprog[MAXPATHLEN];
 
 char rotatesuffix[MAXPATHLEN];
+
+time_t starttime;
+
+char holidayfile[MAXPATHLEN];
 
 #endif /* MAIN */
 
@@ -684,6 +761,7 @@ cfg_entry_t * get_cep_by_cdid ( int cdid );
 int get_current_rate ( cfg_entry_t *cep, int logit );
 void handle_charge ( cfg_entry_t *cep );
 void handle_recovery ( void );
+void handle_scrprs(int cdid, int scr, int prs, char *caller);
 void if_up(cfg_entry_t *cep);
 void if_down(cfg_entry_t *cep);
 void init_controller ( void );
@@ -722,8 +800,8 @@ void select_next_dialno ( cfg_entry_t *cep );
 void select_this_dialno ( cfg_entry_t *cep );
 int sendm_alert_req ( cfg_entry_t *cep );
 int sendm_connect_req ( cfg_entry_t *cep );
-int sendm_connect_resp ( cfg_entry_t *cep, int cdid, int response, int cause );
-int sendm_disconnect_req ( cfg_entry_t *cep, int cause );
+int sendm_connect_resp ( cfg_entry_t *cep, int cdid, int response, cause_t cause );
+int sendm_disconnect_req ( cfg_entry_t *cep, cause_t cause );
 int set_channel_busy(int controller, int channel);
 int set_channel_idle(int controller, int channel);
 int setup_dialout(cfg_entry_t *cep);
@@ -787,5 +865,13 @@ int ret_channel_state(int controller, int channel);
 void init_alias(char *filename);
 void free_aliases(void);
 char *get_alias(char *number);
+
+void upd_callstat_file(char *filename, int rotateflag);
+
+/* holiday.c */
+
+void init_holidays(char *filename);
+void free_holidays(void);
+int isholiday(int d, int m, int y);
 
 #endif /* _ISDND_H_ */

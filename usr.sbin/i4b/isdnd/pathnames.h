@@ -27,11 +27,11 @@
  *	i4b daemon - location of files
  *	------------------------------
  *
- *	$Id: pathnames.h,v 1.10 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: pathnames.h,v 1.11 2000/10/09 11:17:07 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:48:01 1999]
+ *      last edit-date: [Mon Oct  2 22:55:28 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,17 +41,18 @@
 #define I4BDEVICE	"/dev/i4b"
 
 #define ETCPATH		"/etc/isdn"
+
 #define CONFIG_FILE_DEF	"/etc/isdn/isdnd.rc"
+
 #define RATES_FILE_DEF	"/etc/isdn/isdnd.rates"
+
+#define HOLIDAY_FILE_DEF "/etc/isdn/holidays"
 
 #define TINA_FILE_DEF	"/etc/isdn/tinainitprog"
 
 #define LOG_FILE_DEF	"/var/log/isdnd.log"
-#ifdef __bsdi__
+
 #define ACCT_FILE_DEF	"/var/log/isdnd.acct"
-#else
-#define ACCT_FILE_DEF	"/var/account/isdnd.acct"
-#endif
 
 #define PIDFILE		"/var/run/isdnd.pid"
 

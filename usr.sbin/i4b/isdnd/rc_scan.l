@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -30,11 +30,9 @@
  *	i4b daemon - runtime configuration lexical analyzer
  *	---------------------------------------------------
  *
- *	$Id: rc_scan.l,v 1.27 1999/12/13 21:25:25 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:48:57 1999]
+ *      last edit-date: [Mon May 21 11:22:38 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -95,8 +93,17 @@ aliasfile			{ return ALIASFNAME; }
 answerprog			{ return ANSWERPROG; }
 b1protocol			{ return B1PROTOCOL; }
 beepconnect			{ return BEEPCONNECT; }
+budget-callbackperiod		{ return BUDGETCALLBACKPERIOD; }
+budget-callbackncalls		{ return BUDGETCALLBACKNCALLS; }
+budget-callbacksfile		{ return BUDGETCALLBACKSFILE; }
+budget-callbacksfile-rotate	{ return BUDGETCALLBACKSFILEROTATE; }
+budget-calloutperiod		{ return BUDGETCALLOUTPERIOD; }
+budget-calloutncalls		{ return BUDGETCALLOUTNCALLS; }
+budget-calloutsfile		{ return BUDGETCALLOUTSFILE; }
+budget-calloutsfile-rotate	{ return BUDGETCALLOUTSFILEROTATE; }
 callbackwait			{ return CALLBACKWAIT; }
 calledbackwait			{ return CALLEDBACKWAIT; }
+clone				{ return CLONE; }
 connectprog			{ return CONNECTPROG; }
 controller			{ return CONTROLLER; }
 dialin-reaction			{ return REACTION; }
@@ -109,6 +116,9 @@ downtries			{ return DOWNTRIES; }
 downtime			{ return DOWNTIME; }
 earlyhangup			{ return EARLYHANGUP; }
 entry				{ return ENTRY; }
+extcallattr			{ return EXTCALLATTR; }
+firmware			{ return FIRMWARE; }
+holidayfile			{ return HOLIDAYFILE; }
 idletime-incoming		{ return IDLETIME_IN; }
 idletime-outgoing		{ return IDLETIME_OUT; }
 idle-algorithm-outgoing		{ return IDLE_ALG_OUT; }
@@ -135,6 +145,14 @@ name				{ return NAME; }
 no				{ return NO; }
 off				{ return OFF; }
 on				{ return ON; }
+ppp-auth-rechallenge		{ return PPP_AUTH_RECHALLENGE; }
+ppp-auth-paranoid		{ return PPP_AUTH_PARANOID; }
+ppp-expect-auth			{ return PPP_EXPECT_AUTH; }
+ppp-expect-name			{ return PPP_EXPECT_NAME; }
+ppp-expect-password		{ return PPP_EXPECT_PASSWORD; }
+ppp-send-auth			{ return PPP_SEND_AUTH; }
+ppp-send-name			{ return PPP_SEND_NAME; }
+ppp-send-password		{ return PPP_SEND_PASSWORD; }
 protocol			{ return PROTOCOL; }
 ratesfile			{ return RATESFILE; }
 ratetype			{ return RATETYPE; }
@@ -154,6 +172,7 @@ useacctfile			{ return USEACCTFILE; }
 usrdevicename			{ return USRDEVICENAME; }
 usrdeviceunit			{ return USRDEVICEUNIT; }
 usedown				{ return USEDOWN; }
+valid				{ return VALID; }
 yes				{ return YES; }
 
 \n				{ lineno++; return '\n'; }
