@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.5 1995/03/19 13:28:44 joerg Exp $
+ *	$Id: ls.c,v 1.6 1995/03/23 19:05:00 phk Exp $
  */
 
 #ifndef lint
@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <locale.h>
 
 #include "ls.h"
 #include "extern.h"
@@ -104,6 +105,7 @@ main(argc, argv)
 	int ch, fts_options, notused;
 	char *p;
 
+	(void) setlocale(LC_ALL, "");
 	/* Terminal defaults to -Cq, non-terminal defaults to -1. */
 	if (isatty(STDOUT_FILENO)) {
 		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == -1 ||
