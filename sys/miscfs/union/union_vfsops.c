@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.15 1997/04/14 10:52:25 kato Exp $
+ * $Id: union_vfsops.c,v 1.16 1997/04/19 06:04:13 kato Exp $
  */
 
 /*
@@ -504,7 +504,7 @@ union_statfs(mp, sbp, p)
 	 */
 
 	if (mstat.f_bsize != lbsize)
-		sbp->f_blocks = sbp->f_blocks * lbsize / mstat.f_bsize;
+		sbp->f_blocks = ((off_t) sbp->f_blocks * lbsize) / mstat.f_bsize;
 
 	/*
 	 * The "total" fields count total resources in all layers,
