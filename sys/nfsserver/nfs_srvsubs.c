@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
  * copy data between mbuf chains and uio lists.
  */
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -1051,7 +1053,9 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 #ifdef MNT_EXNORESPORT
 	if (!(exflags & (MNT_EXNORESPORT|MNT_EXPUBLIC))) {
 		saddr = (struct sockaddr_in *)nam;
-		if (saddr->sin_family == AF_INET &&
+		if ((saddr->sin_family == AF_INET ||
+		     saddr->sin_family == AF_INET6) &&
+	/* same code for INET and INET6: sin*_port at same offet */
 		    ntohs(saddr->sin_port) >= IPPORT_RESERVED) {
 			vput(*vpp);
 			*vpp = NULL;
@@ -1117,6 +1121,21 @@ netaddr_match(int family, union nethostaddr *haddr, struct sockaddr *nam)
 		    inetaddr->sin_addr.s_addr == haddr->had_inetaddr)
 			return (1);
 		break;
+#ifdef INET6
+	case AF_INET6:
+	{
+		register struct sockaddr_in6 *inet6addr1, *inet6addr2;
+
+		inet6addr1 = (struct sockaddr_in6 *)nam;
+		inet6addr2 = (struct sockaddr_in6 *)haddr->had_nam;
+	/* XXX - should test sin6_scope_id ? */
+		if (inet6addr1->sin6_family == AF_INET6 &&
+		    IN6_ARE_ADDR_EQUAL(&inet6addr1->sin6_addr,
+				       &inet6addr2->sin6_addr))
+			return (1);
+		break;
+	}
+#endif
 	default:
 		break;
 	};
