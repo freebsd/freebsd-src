@@ -101,13 +101,6 @@
  * Poul-Henning Kamp <phk@freebsd.org>
  */
 
-#include "olpt.h"
-#include "opt_inet.h"
-#ifdef PC98
-#undef INET	/* PLIP is not supported for old PC-98 */
-#define LPT_DRVINIT_AT_ATTACH	/* avoid conflicting with lpt on ppbus */
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -117,61 +110,21 @@
 #include <sys/syslog.h>
 #include <machine/clock.h>
 
-#include <i386/isa/isa_device.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+
+#include <isa/isavar.h>
+
 #include <i386/isa/lptreg.h>
 #include <dev/ppbus/lptio.h>
-
-#ifdef INET
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
-
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/netisr.h>
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <net/bpf.h>
-#endif /* INET */
-
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
 #define	LPTOUTINITIAL	10	/* initial timeout to wait for ready 1/10 s */
 #define	LPTOUTMAX	1	/* maximal timeout 1 s */
 #define	LPPRI		(PZERO+8)
 #define	BUFSIZE		1024
-
-#ifdef INET
-#ifndef LPMTU			/* MTU for the lp# interfaces */
-#define	LPMTU	1500
-#endif
-
-#ifndef LPMAXSPIN1		/* DELAY factor for the lp# interfaces */
-#define	LPMAXSPIN1	8000   /* Spinning for remote intr to happen */
-#endif
-
-#ifndef LPMAXSPIN2		/* DELAY factor for the lp# interfaces */
-#define	LPMAXSPIN2	500	/* Spinning for remote handshake to happen */
-#endif
-
-#ifndef LPMAXERRS		/* Max errors before !RUNNING */
-#define	LPMAXERRS	100
-#endif
-
-#define CLPIPHDRLEN	14	/* We send dummy ethernet addresses (two) + packet type in front of packet */
-#define	CLPIP_SHAKE	0x80	/* This bit toggles between nibble reception */
-#define MLPIPHDRLEN	CLPIPHDRLEN
-
-#define LPIPHDRLEN	2	/* We send 0x08, 0x00 in front of packet */
-#define	LPIP_SHAKE	0x40	/* This bit toggles between nibble reception */
-#if !defined(MLPIPHDRLEN) || LPIPHDRLEN > MLPIPHDRLEN
-#define MLPIPHDRLEN	LPIPHDRLEN
-#endif
-
-#define	LPIPTBLSIZE	256	/* Size of octet translation table */
-
-#endif /* INET */
 
 #ifndef PC98
 /* BIOS printer list - used by BIOS probe*/
@@ -194,7 +147,11 @@ static int volatile lptflag = 1;
 #define	LPTUNIT(s)	((s)&0x03)
 #define	LPTFLAGS(s)	((s)&0xfc)
 
-static struct lpt_softc {
+struct lpt_softc {
+	struct resource *res_port;
+	struct resource *res_irq;
+	void *sc_ih;
+
 	int	sc_port;
 	short	sc_state;
 	/* default case: negative prime, negative ack, handshake strobe,
@@ -216,13 +173,7 @@ static struct lpt_softc {
 #define LP_USE_IRQ	0x02	/* we are using our irq */
 #define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
 	u_char	sc_backoff ;	/* time to call lptout() again */
-
-#ifdef INET
-	struct  ifnet	sc_if;
-	u_char		*sc_ifbuf;
-	int		sc_iferrs;
-#endif
-} lpt_sc[NOLPT] ;
+};
 
 /* bits for state */
 #define	OPEN		(1<<0)	/* device is open */
@@ -253,38 +204,25 @@ static struct lpt_softc {
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
 
 static timeout_t lptout;
-static int	lptprobe (struct isa_device *dvp);
-static int	lptattach (struct isa_device *isdp);
-static ointhand2_t	lptintr;
-static void 	lpt_drvinit(void *unused);
+static int lpt_probe(device_t);
+static int lpt_attach(device_t);
+static void lpt_intr(void *);
 
-#ifdef INET
+static devclass_t olpt_devclass;
 
-/* Tables for the lp# interface */
-static u_char *txmith;
-#define txmitl (txmith+(1*LPIPTBLSIZE))
-#define trecvh (txmith+(2*LPIPTBLSIZE))
-#define trecvl (txmith+(3*LPIPTBLSIZE))
-
-static u_char *ctxmith;
-#define ctxmitl (ctxmith+(1*LPIPTBLSIZE))
-#define ctrecvh (ctxmith+(2*LPIPTBLSIZE))
-#define ctrecvl (ctxmith+(3*LPIPTBLSIZE))
-
-/* Functions for the lp# interface */
-static void lpattach(struct lpt_softc *,int);
-#ifndef PC98
-static int lpinittables(void);
-#endif
-static int lpioctl(struct ifnet *, u_long, caddr_t);
-static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-	struct rtentry *);
-static void lpintr(int);
-#endif /* INET */
-
-struct	isa_driver olptdriver = {
-	lptprobe, lptattach, "olpt"
+static device_method_t olpt_methods[] = {
+	DEVMETHOD(device_probe,		lpt_probe),
+	DEVMETHOD(device_attach,	lpt_attach),
+	{ 0, 0 }
 };
+
+static driver_t olpt_driver = {
+	"olpt",
+	olpt_methods,
+	sizeof (struct lpt_softc),
+};
+
+DRIVER_MODULE(olpt, isa, olpt_driver, olpt_devclass, 0, 0);
 
 static	d_open_t	lptopen;
 static	d_close_t	lptclose;
@@ -308,6 +246,8 @@ static struct cdevsw lpt_cdevsw = {
 	/* flags */	0,
 	/* bmaj */	-1
 };
+
+static bus_addr_t lpt_iat[] = {0, 2, 4, 6};
 
 #ifndef PC98
 /*
@@ -378,14 +318,28 @@ lpt_port_test (int port, u_char data, u_char mask)
  */
 
 int
-lptprobe(struct isa_device *dvp)
+lpt_probe(device_t dev)
 {
 #ifdef PC98
 #define PC98_OLD_LPT 0x40
 #define PC98_IEEE_1284_FUNCTION 0x149
-	unsigned int pc98_ieee_mode, tmp;
+	int rid;
+	struct resource *res;
 
-	if (dvp->id_iobase == PC98_OLD_LPT) {
+	/* Check isapnp ids */
+	if (isa_get_vendorid(dev))
+		return ENXIO;
+
+	rid = 0;
+	res = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, lpt_iat, 4,
+				  RF_ACTIVE);
+	if (res == NULL)
+		return ENXIO;
+	isa_load_resourcev(res, lpt_iat, 4);
+
+	if (isa_get_port(dev) == PC98_OLD_LPT) {
+		unsigned int pc98_ieee_mode, tmp;
+
 		tmp = inb(PC98_IEEE_1284_FUNCTION);
 		pc98_ieee_mode = tmp;
 		if ((tmp & 0x10) == 0x10) {
@@ -393,11 +347,15 @@ lptprobe(struct isa_device *dvp)
 			tmp = inb(PC98_IEEE_1284_FUNCTION);
 			if ((tmp & 0x10) != 0x10) {
 				outb(PC98_IEEE_1284_FUNCTION, pc98_ieee_mode);
-				return 0;
+				bus_release_resource(dev, SYS_RES_IOPORT, rid,
+						     res);
+				return ENXIO;
 			}
 		}
 	}
-	return 8;
+
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+	return 0;
 #else
 	int		port;
 	static short	next_bios_lpt = 0;
@@ -451,15 +409,22 @@ end_probe:
 
 /* XXX Todo - try and detect if interrupt is working */
 int
-lptattach(struct isa_device *isdp)
+lpt_attach(device_t dev)
 {
+	int	rid, unit;
 	struct	lpt_softc	*sc;
-	int	unit;
 
-	isdp->id_ointr = lptintr;
-	unit = isdp->id_unit;
-	sc = lpt_sc + unit;
-	sc->sc_port = isdp->id_iobase;
+	unit = device_get_unit(dev);
+	sc = device_get_softc(dev);
+
+	rid = 0;
+	sc->res_port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					   lpt_iat, 4, RF_ACTIVE);
+	if (sc->res_port == NULL)
+		return ENXIO;
+	isa_load_resourcev(sc->res_port, lpt_iat, 4);
+
+	sc->sc_port = rman_get_start(sc->res_port);
 	sc->sc_primed = 0;	/* not primed yet */
 #ifdef PC98
 	outb(sc->sc_port+lpt_pstb_ctrl,	LPC_DIS_PSTB);	/* PSTB disable */
@@ -471,29 +436,34 @@ lptattach(struct isa_device *isdp)
 	outb(sc->sc_port+lpt_control, LPC_NINIT);
 #endif
 
-	/* check if we can use interrupt */
-	lprintf(("oldirq %x\n", sc->sc_irq));
-	if (isdp->id_irq) {
+	sc->sc_irq = 0;
+	if (isa_get_irq(dev) != -1) {
+		rid = 0;
+		sc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+						 0, ~0, 1, RF_ACTIVE);
+		if (sc->res_irq == NULL) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0,
+					     sc->res_port);
+			return ENXIO;
+		}
+		if (bus_setup_intr(dev, sc->res_irq, INTR_TYPE_TTY, lpt_intr,
+				   sc, &sc->sc_ih)) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0,
+					     sc->res_port);
+			bus_release_resource(dev, SYS_RES_IRQ, 0,
+					     sc->res_irq);
+			return ENXIO;
+		}
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
-		printf("lpt%d: Interrupt-driven port\n", unit);
-#ifdef INET
-		lpattach(sc, unit);
-#endif
-	} else {
-		sc->sc_irq = 0;
-		lprintf(("lpt%d: Polled port\n", unit));
+		device_printf(dev, "Interrupt-driven port");
 	}
-	lprintf(("irq %x\n", sc->sc_irq));
 
 	/* XXX what to do about the flags in the minor number? */
 	make_dev(&lpt_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
 	make_dev(&lpt_cdevsw, unit | LP_BYPASS,
 			UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
 
-#ifdef LPT_DRVINIT_AT_ATTACH
-	lpt_drvinit(NULL);
-#endif
-	return (1);
+	return 0;
 }
 
 /*
@@ -512,16 +482,10 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 #else
 	int trys, port;
 #endif
-	u_int unit = LPTUNIT(minor(dev));
 
-	sc = lpt_sc + unit;
-	if ((unit >= NOLPT) || (sc->sc_port == 0))
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
+	if (sc->sc_port == 0)
 		return (ENXIO);
-
-#ifdef INET
-	if (sc->sc_if.if_flags & IFF_UP)
-		return(EBUSY);
-#endif
 
 	if (sc->sc_state) {
 		lprintf(("lp: still open %x\n", sc->sc_state));
@@ -633,7 +597,7 @@ lptout (void *arg)
 	 */
 	if (sc->sc_xfercnt) {
 		pl = spltty();
-		lptintr(sc - lpt_sc);
+		lpt_intr(sc);
 		splx(pl);
 	} else {
 		sc->sc_state &= ~OBUSY;
@@ -650,14 +614,18 @@ lptout (void *arg)
 static	int
 lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
+	struct lpt_softc *sc;
 #ifndef PC98
-	int port = sc->sc_port;
+	int port;
 #endif
 
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
+#ifndef PC98
+	port = sc->sc_port;
+#endif
 	sc->sc_state &= ~OPEN;
 
 #ifndef PC98
@@ -761,8 +729,9 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
-	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
+	struct lpt_softc *sc;
 
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
 	if(sc->sc_flags & LP_BYPASS) {
 		/* we can't do writes in bypass mode */
 		return(EPERM);
@@ -780,7 +749,7 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 			if ((sc->sc_state & OBUSY) == 0){
 				lprintf(("\nC %d. ", sc->sc_xfercnt));
 				pl = spltty();
-				lptintr(sc - lpt_sc);
+				lpt_intr(sc);
 				(void) splx(pl);
 			}
 			lprintf(("W "));
@@ -809,67 +778,8 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
  */
 
 static void
-lptintr(int unit)
+lpt_intr(void *arg)
 {
-#if defined(INET) || !defined(PC98)
-	struct lpt_softc *sc = lpt_sc + unit;
-#endif
-#ifndef PC98
-	int port = sc->sc_port, sts;
-	int i;
-#endif
-
-#ifdef INET
-	if(sc->sc_if.if_flags & IFF_UP) {
-	    lpintr(unit);
-	    return;
-	}
-#endif /* INET */
-
-#ifndef PC98
-	/*
-	 * Is printer online and ready for output?
-	 *
-	 * Avoid falling back to lptout() too quickly.  First spin-loop
-	 * to see if the printer will become ready ``really soon now''.
-	 */
-	for (i = 0;
-	     i < 100 &&
-	     ((sts=inb(port+lpt_status)) & RDY_MASK) != LP_READY;
-	     i++) ;
-	if ((sts & RDY_MASK) == LP_READY) {
-		sc->sc_state = (sc->sc_state | OBUSY) & ~ERROR;
-		sc->sc_backoff = hz/LPTOUTINITIAL;
-
-		if (sc->sc_xfercnt) {
-			/* send char */
-			/*lprintf(("%x ", *sc->sc_cp)); */
-			outb(port+lpt_data, *sc->sc_cp++) ;
-			outb(port+lpt_control, sc->sc_control|LPC_STB);
-			/* DELAY(X) */
-			outb(port+lpt_control, sc->sc_control);
-
-			/* any more data for printer */
-			if(--(sc->sc_xfercnt) > 0) return;
-		}
-
-		/*
-		 * No more data waiting for printer.
-		 * Wakeup is not done if write call was interrupted.
-		 */
-		sc->sc_state &= ~OBUSY;
-		if(!(sc->sc_state & INTERRUPTED))
-			wakeup((caddr_t)sc);
-		lprintf(("w "));
-		return;
-	} else	{	/* check for error */
-		if(((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
-				(sc->sc_state & OPEN))
-			sc->sc_state |= ERROR;
-		/* lptout() will jump in and try to restart. */
-	}
-#endif
-	lprintf(("sts %x ", sts));
 }
 
 static	int
@@ -880,7 +790,7 @@ lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
         u_int	unit = LPTUNIT(minor(dev));
 	u_char	old_sc_irq;	/* old printer IRQ status */
 
-        sc = lpt_sc + unit;
+        sc = devclass_get_softc(olpt_devclass, unit);
 
 	switch (cmd) {
 	case LPT_IRQ :
@@ -913,532 +823,3 @@ lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 
 	return(error);
 }
-
-#ifdef INET
-
-static void
-lpattach (struct lpt_softc *sc, int unit)
-{
-	struct ifnet *ifp = &sc->sc_if;
-
-	ifp->if_softc = sc;
-	ifp->if_name = "lp";
-	ifp->if_unit = unit;
-	ifp->if_mtu = LPMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
-	ifp->if_ioctl = lpioctl;
-	ifp->if_output = lpoutput;
-	ifp->if_type = IFT_PARA;
-	ifp->if_hdrlen = 0;
-	ifp->if_addrlen = 0;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-	if_attach(ifp);
-	printf("lp%d: TCP/IP capable interface\n", unit);
-
-	bpfattach(ifp, DLT_NULL, LPIPHDRLEN);
-}
-
-#ifndef PC98
-/*
- * Build the translation tables for the LPIP (BSD unix) protocol.
- * We don't want to calculate these nasties in our tight loop, so we
- * precalculate them when we initialize.
- */
-static int
-lpinittables (void)
-{
-    int i;
-
-    if (!txmith)
-	txmith = malloc(4*LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
-
-    if (!txmith)
-	return 1;
-
-    if (!ctxmith)
-	ctxmith = malloc(4*LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
-
-    if (!ctxmith)
-	return 1;
-
-    for (i=0; i < LPIPTBLSIZE; i++) {
-	ctxmith[i] = (i & 0xF0) >> 4;
-	ctxmitl[i] = 0x10 | (i & 0x0F);
-	ctrecvh[i] = (i & 0x78) << 1;
-	ctrecvl[i] = (i & 0x78) >> 3;
-    }
-
-    for (i=0; i < LPIPTBLSIZE; i++) {
-	txmith[i] = ((i & 0x80) >> 3) | ((i & 0x70) >> 4) | 0x08;
-	txmitl[i] = ((i & 0x08) << 1) | (i & 0x07);
-	trecvh[i] = ((~i) & 0x80) | ((i & 0x38) << 1);
-	trecvl[i] = (((~i) & 0x80) >> 4) | ((i & 0x38) >> 3);
-    }
-
-    return 0;
-}
-#endif /* PC98 */
-
-/*
- * Process an ioctl request.
- */
-
-static int
-lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-    struct lpt_softc *sc = lpt_sc + ifp->if_unit;
-    struct ifaddr *ifa = (struct ifaddr *)data;
-    struct ifreq *ifr = (struct ifreq *)data;
-    u_char *ptr;
-
-    switch (cmd) {
-
-    case SIOCSIFDSTADDR:
-    case SIOCAIFADDR:
-    case SIOCSIFADDR:
-	if (ifa->ifa_addr->sa_family != AF_INET)
-	    return EAFNOSUPPORT;
-	ifp->if_flags |= IFF_UP;
-	/* FALLTHROUGH */
-    case SIOCSIFFLAGS:
-	if ((!(ifp->if_flags & IFF_UP)) && (ifp->if_flags & IFF_RUNNING)) {
-	    outb(sc->sc_port + lpt_control, 0x00);
-	    ifp->if_flags &= ~IFF_RUNNING;
-	    break;
-	}
-#ifdef PC98
-	/* XXX */
-	return ENOBUFS;
-#else
-	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
-	    if (lpinittables())
-		return ENOBUFS;
-	    sc->sc_ifbuf = malloc(sc->sc_if.if_mtu + MLPIPHDRLEN,
-				  M_DEVBUF, M_WAITOK);
-	    if (!sc->sc_ifbuf)
-		return ENOBUFS;
-
-	    outb(sc->sc_port + lpt_control, LPC_ENA);
-	    ifp->if_flags |= IFF_RUNNING;
-	}
-	break;
-#endif
-    case SIOCSIFMTU:
-	ptr = sc->sc_ifbuf;
-	sc->sc_ifbuf = malloc(ifr->ifr_mtu+MLPIPHDRLEN, M_DEVBUF, M_NOWAIT);
-	if (!sc->sc_ifbuf) {
-	    sc->sc_ifbuf = ptr;
-	    return ENOBUFS;
-	}
-	if (ptr)
-	    free(ptr,M_DEVBUF);
-	sc->sc_if.if_mtu = ifr->ifr_mtu;
-	break;
-
-    case SIOCGIFMTU:
-	ifr->ifr_mtu = sc->sc_if.if_mtu;
-	break;
-
-    case SIOCADDMULTI:
-    case SIOCDELMULTI:
-	if (ifr == 0) {
-	    return EAFNOSUPPORT;		/* XXX */
-	}
-	switch (ifr->ifr_addr.sa_family) {
-
-#ifdef INET
-	case AF_INET:
-	    break;
-#endif
-
-	default:
-	    return EAFNOSUPPORT;
-	}
-	break;
-
-    default:
-	lprintf(("LP:ioctl(0x%lx)\n", cmd));
-	return EINVAL;
-    }
-    return 0;
-}
-
-static __inline int
-clpoutbyte (u_char byte, int spin, int data_port, int status_port)
-{
-	outb(data_port, ctxmitl[byte]);
-	while (inb(status_port) & CLPIP_SHAKE)
-		if (--spin == 0) {
-			return 1;
-		}
-	outb(data_port, ctxmith[byte]);
-	while (!(inb(status_port) & CLPIP_SHAKE))
-		if (--spin == 0) {
-			return 1;
-		}
-	return 0;
-}
-
-static __inline int
-clpinbyte (int spin, int data_port, int status_port)
-{
-	int c, cl;
-
-	while((inb(status_port) & CLPIP_SHAKE))
-	    if(!--spin) {
-		return -1;
-	    }
-	cl = inb(status_port);
-	outb(data_port, 0x10);
-
-	while(!(inb(status_port) & CLPIP_SHAKE))
-	    if(!--spin) {
-		return -1;
-	    }
-	c = inb(status_port);
-	outb(data_port, 0x00);
-
-	return (ctrecvl[cl] | ctrecvh[c]);
-}
-
-static void
-lpintr (int unit)
-{
-	struct   lpt_softc *sc = lpt_sc + unit;
-	register int lpt_data_port = sc->sc_port + lpt_data;
-	register int lpt_stat_port = sc->sc_port + lpt_status;
-		 int lpt_ctrl_port = sc->sc_port + lpt_control;
-	int len, s, j;
-	u_char *bp;
-	u_char c, cl;
-	struct mbuf *top;
-
-	s = splhigh();
-
-	if (sc->sc_if.if_flags & IFF_LINK0) {
-
-	    /* Ack. the request */
-	    outb(lpt_data_port, 0x01);
-
-	    /* Get the packet length */
-	    j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
-	    if (j == -1)
-		goto err;
-	    len = j;
-	    j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
-	    if (j == -1)
-		goto err;
-	    len = len + (j << 8);
-	    if (len > sc->sc_if.if_mtu + MLPIPHDRLEN)
-		goto err;
-
-	    bp  = sc->sc_ifbuf;
-	
-	    while (len--) {
-	        j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
-	        if (j == -1) {
-		    goto err;
-	        }
-	        *bp++ = j;
-	    }
-	    /* Get and ignore checksum */
-	    j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
-	    if (j == -1) {
-	        goto err;
-	    }
-
-	    len = bp - sc->sc_ifbuf;
-	    if (len <= CLPIPHDRLEN)
-	        goto err;
-
-	    sc->sc_iferrs = 0;
-
-	    if (IF_QFULL(&ipintrq)) {
-	        lprintf(("DROP"));
-	        IF_DROP(&ipintrq);
-		goto done;
-	    }
-	    len -= CLPIPHDRLEN;
-	    sc->sc_if.if_ipackets++;
-	    sc->sc_if.if_ibytes += len;
-	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, &sc->sc_if, 0);
-	    if (top) {
-	        IF_ENQUEUE(&ipintrq, top);
-	        schednetisr(NETISR_IP);
-	    }
-	    goto done;
-	}
-	while ((inb(lpt_stat_port) & LPIP_SHAKE)) {
-	    len = sc->sc_if.if_mtu + LPIPHDRLEN;
-	    bp  = sc->sc_ifbuf;
-	    while (len--) {
-
-		cl = inb(lpt_stat_port);
-		outb(lpt_data_port, 8);
-
-		j = LPMAXSPIN2;
-		while((inb(lpt_stat_port) & LPIP_SHAKE))
-		    if(!--j) goto err;
-
-		c = inb(lpt_stat_port);
-		outb(lpt_data_port, 0);
-
-		*bp++= trecvh[cl] | trecvl[c];
-
-		j = LPMAXSPIN2;
-		while (!((cl=inb(lpt_stat_port)) & LPIP_SHAKE)) {
-		    if (cl != c &&
-			(((cl = inb(lpt_stat_port)) ^ 0xb8) & 0xf8) ==
-			  (c & 0xf8))
-			goto end;
-		    if (!--j) goto err;
-		}
-	    }
-
-	end:
-	    len = bp - sc->sc_ifbuf;
-	    if (len <= LPIPHDRLEN)
-		goto err;
-
-	    sc->sc_iferrs = 0;
-
-	    if (IF_QFULL(&ipintrq)) {
-		lprintf(("DROP"));
-		IF_DROP(&ipintrq);
-		goto done;
-	    }
-	    if (sc->sc_if.if_bpf) {
-		bpf_tap(&sc->sc_if, sc->sc_ifbuf, len);
-	    }
-	    len -= LPIPHDRLEN;
-	    sc->sc_if.if_ipackets++;
-	    sc->sc_if.if_ibytes += len;
-	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, &sc->sc_if, 0);
-	    if (top) {
-		    IF_ENQUEUE(&ipintrq, top);
-		    schednetisr(NETISR_IP);
-	    }
-	}
-	goto done;
-
-    err:
-	outb(lpt_data_port, 0);
-	lprintf(("R"));
-	sc->sc_if.if_ierrors++;
-	sc->sc_iferrs++;
-
-	/*
-	 * We are not able to send receive anything for now,
-	 * so stop wasting our time
-	 */
-	if (sc->sc_iferrs > LPMAXERRS) {
-	    printf("lp%d: Too many errors, Going off-line.\n", unit);
-	    outb(lpt_ctrl_port, 0x00);
-	    sc->sc_if.if_flags &= ~IFF_RUNNING;
-	    sc->sc_iferrs=0;
-	}
-
-    done:
-	splx(s);
-	return;
-}
-
-static __inline int
-lpoutbyte (u_char byte, int spin, int data_port, int status_port)
-{
-    outb(data_port, txmith[byte]);
-    while (!(inb(status_port) & LPIP_SHAKE))
-	if (--spin == 0)
-		return 1;
-    outb(data_port, txmitl[byte]);
-    while (inb(status_port) & LPIP_SHAKE)
-	if (--spin == 0)
-		return 1;
-    return 0;
-}
-
-static int
-lpoutput (struct ifnet *ifp, struct mbuf *m,
-	  struct sockaddr *dst, struct rtentry *rt)
-{
-    register int lpt_data_port = lpt_sc[ifp->if_unit].sc_port + lpt_data;
-    register int lpt_stat_port = lpt_sc[ifp->if_unit].sc_port + lpt_status;
-#ifndef PC98
-	     int lpt_ctrl_port = lpt_sc[ifp->if_unit].sc_port + lpt_control;
-#endif
-
-    int s, err;
-    struct mbuf *mm;
-    u_char *cp = "\0\0";
-    u_char chksum = 0;
-    int count = 0;
-    int i;
-    int spin;
-
-    /* We need a sensible value if we abort */
-    cp++;
-    ifp->if_flags |= IFF_RUNNING;
-
-    err = 1;			/* assume we're aborting because of an error */
-
-    s = splhigh();
-
-#ifndef PC98
-    /* Suspend (on laptops) or receive-errors might have taken us offline */
-    outb(lpt_ctrl_port, LPC_ENA);
-#endif
-
-    if (ifp->if_flags & IFF_LINK0) {
-
-	if (!(inb(lpt_stat_port) & CLPIP_SHAKE)) {
-	    lprintf(("&"));
-	    lptintr(ifp->if_unit);
-	}
-
-	/* Alert other end to pending packet */
-	spin = LPMAXSPIN1;
-	outb(lpt_data_port, 0x08);
-	while ((inb(lpt_stat_port) & 0x08) == 0)
-		if (--spin == 0) {
-			goto nend;
-		}
-
-	/* Calculate length of packet, then send that */
-
-	count += 14;		/* Ethernet header len */
-
-	mm = m;
-	for (mm = m; mm; mm = mm->m_next) {
-		count += mm->m_len;
-	}
-	if (clpoutbyte(count & 0xFF, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
-		goto nend;
-	if (clpoutbyte((count >> 8) & 0xFF, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
-		goto nend;
-
-	/* Send dummy ethernet header */
-	for (i = 0; i < 12; i++) {
-		if (clpoutbyte(i, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
-			goto nend;
-		chksum += i;
-	}
-
-	if (clpoutbyte(0x08, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
-		goto nend;
-	if (clpoutbyte(0x00, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
-		goto nend;
-	chksum += 0x08 + 0x00;		/* Add into checksum */
-
-	mm = m;
-	do {
-		cp = mtod(mm, u_char *);
-		while (mm->m_len--) {
-			chksum += *cp;
-			if (clpoutbyte(*cp++, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
-				goto nend;
-		}
-	} while ((mm = mm->m_next));
-
-	/* Send checksum */
-	if (clpoutbyte(chksum, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
-		goto nend;
-
-	/* Go quiescent */
-	outb(lpt_data_port, 0);
-
-	err = 0;			/* No errors */
-
-	nend:
-	if (err)  {				/* if we didn't timeout... */
-		ifp->if_oerrors++;
-		lprintf(("X"));
-	} else {
-		ifp->if_opackets++;
-		ifp->if_obytes += m->m_pkthdr.len;
-	}
-
-	m_freem(m);
-
-	if (!(inb(lpt_stat_port) & CLPIP_SHAKE)) {
-		lprintf(("^"));
-		lptintr(ifp->if_unit);
-	}
-	(void) splx(s);
-	return 0;
-    }
-
-    if (inb(lpt_stat_port) & LPIP_SHAKE) {
-        lprintf(("&"));
-        lptintr(ifp->if_unit);
-    }
-
-    if (lpoutbyte(0x08, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
-        goto end;
-    if (lpoutbyte(0x00, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
-        goto end;
-
-    mm = m;
-    do {
-        cp = mtod(mm,u_char *);
-        while (mm->m_len--)
-	    if (lpoutbyte(*cp++, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
-	        goto end;
-    } while ((mm = mm->m_next));
-
-    err = 0;				/* no errors were encountered */
-
-    end:
-    --cp;
-    outb(lpt_data_port, txmitl[*cp] ^ 0x17);
-
-    if (err)  {				/* if we didn't timeout... */
-	ifp->if_oerrors++;
-        lprintf(("X"));
-    } else {
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
-	if (ifp->if_bpf) {
-	    /*
-	     * We need to prepend the packet type as
-	     * a two byte field.  Cons up a dummy header
-	     * to pacify bpf.  This is safe because bpf
-	     * will only read from the mbuf (i.e., it won't
-	     * try to free it or keep a pointer to it).
-	     */
-	    struct mbuf m0;
-	    u_short hdr = 0x800;
-
-	    m0.m_next = m;
-	    m0.m_len = 2;
-	    m0.m_data = (char *)&hdr;
-
-	    bpf_mtap(ifp, &m0);
-	}
-    }
-
-    m_freem(m);
-
-    if (inb(lpt_stat_port) & LPIP_SHAKE) {
-	lprintf(("^"));
-	lptintr(ifp->if_unit);
-    }
-
-    (void) splx(s);
-    return 0;
-}
-
-#endif /* INET */
-
-static int lpt_devsw_installed;
-
-static void 	lpt_drvinit(void *unused)
-{
-
-	if( ! lpt_devsw_installed ) {
-		cdevsw_add(&lpt_cdevsw);
-		lpt_devsw_installed = 1;
-    	}
-}
-#ifndef LPT_DRVINIT_AT_ATTACH
-SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
-#endif
