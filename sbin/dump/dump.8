@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
-.\"	$Id: dump.8,v 1.15 1997/04/29 17:46:17 wollman Exp $
+.\"	$Id: dump.8,v 1.16 1997/08/23 21:52:47 steve Exp $
 .\"
 .Dd May 1, 1995
 .Dt DUMP 8
@@ -101,7 +101,7 @@ copy all files new or modified since the
 last dump of the same or lower level.
 The default level is 9.
 .It Fl B Ar records
-The number of dump records per volume.
+The number of 1 KB blocks per volume.
 This option overrides the calculation of tape size
 based on length and density.
 .It Fl a
