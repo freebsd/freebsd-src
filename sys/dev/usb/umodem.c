@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #if defined(__NetBSD__)
 #include <sys/ioctl.h>
+#include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -55,7 +56,6 @@
 #include <sys/select.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/device.h>
 #include <sys/poll.h>
 
 #include <dev/usb/usb.h>
