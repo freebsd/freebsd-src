@@ -178,6 +178,10 @@
       break at byte positions and a <option>-s</option> flag to break at
       word boundaries.</para>
 
+    <para>&man.ifconfig.8; now supports a <option>eui64</option>
+      command to fill in the lowermost 64 bits of an IPv6 address
+      automatically.  This makes &man.prefix.8; obsolete.</para>
+
     <para>&man.nice.1; now uses the <option>-n</option> option to
       specify the <quote>niceness</quote> of the utility being
       run.</para>
