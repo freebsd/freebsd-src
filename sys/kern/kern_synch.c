@@ -457,8 +457,8 @@ tsleep(ident, priority, wmesg, timo)
 	p->p_slptime = 0;
 	p->p_priority = priority & PRIMASK;
 	p->p_nativepri = p->p_priority;
-	CTR4(KTR_PROC, "tsleep: proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	CTR4(KTR_PROC, "tsleep: proc %p (pid %d, %s), schedlock %p",
+		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
 	if (timo)
 		thandle = timeout(endtsleep, (void *)p, timo);
@@ -473,8 +473,8 @@ tsleep(ident, priority, wmesg, timo)
 	 */
 	if (catch) {
 		CTR4(KTR_PROC,
-		        "tsleep caught: proc %p (pid %d, %s), schedlock %x",
-			p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+		        "tsleep caught: proc %p (pid %d, %s), schedlock %p",
+			p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 		p->p_flag |= P_SINTR;
 		if ((sig = CURSIG(p))) {
 			if (p->p_wchan)
@@ -492,8 +492,8 @@ tsleep(ident, priority, wmesg, timo)
 	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
 	CTR4(KTR_PROC,
-	        "tsleep resume: proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	        "tsleep resume: proc %p (pid %d, %s), schedlock %p",
+		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 resume:
 	curpriority = p->p_usrpri;
 	splx(s);
@@ -721,8 +721,8 @@ endtsleep(arg)
 
 	p = (struct proc *)arg;
 	CTR4(KTR_PROC,
-	        "endtsleep: proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	        "endtsleep: proc %p (pid %d, %s), schedlock %p",
+		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	s = splhigh();
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_wchan) {
@@ -777,8 +777,8 @@ restart:
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
 				CTR4(KTR_PROC,
-				        "wakeup: proc %p (pid %d, %s), schedlock %x",
-					p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+				        "wakeup: proc %p (pid %d, %s), schedlock %p",
+					p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 				if (p->p_slptime > 1)
 					updatepri(p);
 				p->p_slptime = 0;
@@ -823,8 +823,8 @@ wakeup_one(ident)
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
 				CTR4(KTR_PROC,
-				        "wakeup1: proc %p (pid %d, %s), schedlock %x",
-					p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+				        "wakeup1: proc %p (pid %d, %s), schedlock %p",
+					p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 				if (p->p_slptime > 1)
 					updatepri(p);
 				p->p_slptime = 0;
@@ -878,8 +878,8 @@ mi_switch()
 	 */
 	x = splstatclock();
 
-	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %p",
+		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	mtx_enter(&sched_lock, MTX_SPIN | MTX_RLIKELY);
 
 	WITNESS_SAVE(&Giant, Giant);
@@ -930,11 +930,11 @@ mi_switch()
 	 */
 	cnt.v_swtch++;
 	switchtime = new_switchtime;
-	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %p",
+		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	cpu_switch();
-	CTR4(KTR_PROC, "mi_switch: new proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	CTR4(KTR_PROC, "mi_switch: new proc %p (pid %d, %s), schedlock %p",
+		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	if (switchtime.tv_sec == 0)
 		microuptime(&switchtime);
 	switchticks = ticks;
