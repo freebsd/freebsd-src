@@ -280,12 +280,8 @@ fm801_intr(void *p)
 {
 	struct fm801_info 	*fm801 = (struct fm801_info *)p;
 	u_int32_t       	intsrc = fm801_rd(fm801, FM_INTSTATUS, 2);
-	struct fm801_chinfo	*ch = &(fm801->pch);
-	snd_dbuf 		*b = ch->buffer;
 
 	DPRINT("\nfm801_intr intsrc 0x%x ", intsrc);
-	DPRINT("rp %d, rl %d, fp %d fl %d, size=%d\n",
-		b->rp,b->rl, b->fp,b->fl, b->blksz);
 
 	if(intsrc & FM_INTSTATUS_PLAY) {
 		fm801->play_flip++;
@@ -435,12 +431,9 @@ fm801ch_trigger(kobj_t obj, void *data, int go)
 	struct fm801_chinfo *ch = data;
 	struct fm801_info *fm801 = ch->parent;
 	u_int32_t baseaddr = vtophys(sndbuf_getbuf(ch->buffer));
-	snd_dbuf *b = ch->buffer;
 	u_int32_t k1;
 
 	DPRINT("fm801ch_trigger go %d , ", go);
-	DPRINT("rp %d, rl %d, fp %d fl %d, dl %d, blksize=%d\n",
-		b->rp,b->rl, b->fp,b->fl, b->dl, b->blksz);
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD) {
 		return 0;
@@ -495,7 +488,6 @@ fm801ch_getptr(kobj_t obj, void *data)
 	struct fm801_chinfo *ch = data;
 	struct fm801_info *fm801 = ch->parent;
 	int result = 0;
-	snd_dbuf *b = ch->buffer;
 
 	if (ch->dir == PCMDIR_PLAY) {
 		result = fm801_rd(fm801,
@@ -508,9 +500,6 @@ fm801ch_getptr(kobj_t obj, void *data)
 			(fm801->rec_flip&1) ?
 			FM_REC_DMABUF2:FM_REC_DMABUF1, 4) - fm801->rec_start;
 	}
-
-	DPRINT("fm801ch_getptr:%d,  rp %d, rl %d, fp %d fl %d\n",
-	                result, b->rp,b->rl, b->fp,b->fl);
 
 	return result;
 }
