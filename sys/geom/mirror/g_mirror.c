@@ -445,6 +445,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	struct g_mirror_disk *disk;
 	struct g_mirror_event *ep;
 	struct g_geom *gp;
+	struct g_consumer *cp;
 
 	g_topology_assert();
 
@@ -470,7 +471,16 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	callout_drain(&sc->sc_callout);
 	gp->softc = NULL;
 	uma_zdestroy(sc->sc_sync.ds_zone);
-	g_wither_geom(sc->sc_sync.ds_geom, ENXIO);
+	while ((cp = LIST_FIRST(&sc->sc_sync.ds_geom->consumer)) != NULL) {
+		if (cp->provider != NULL) {
+			if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
+				g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+			g_detach(cp);
+		}
+		g_destroy_consumer(cp);
+	}
+	sc->sc_sync.ds_geom->softc = NULL;
+	g_destroy_geom(sc->sc_sync.ds_geom);
 	mtx_destroy(&sc->sc_queue_mtx);
 	mtx_destroy(&sc->sc_events_mtx);
 	G_MIRROR_DEBUG(0, "Device %s destroyed.", gp->name);
