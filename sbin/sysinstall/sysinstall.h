@@ -19,8 +19,10 @@
 
 #define MAX_NO_DEVICES 10
 #define MAX_NO_DISKS	10
+#define MAX_NO_MOUNTS 30
 #define MAX_NO_FS	30
 #define MAXFS	MAX_NO_FS
+
 
 #include <stdio.h>
 #include <stdlib.h>

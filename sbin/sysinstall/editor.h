@@ -13,6 +13,8 @@ struct field {
 	int right;
 	char field[80];
 	int type;
+	int spare;
+	char *misc;
 };
 
 #define F_EDIT 0

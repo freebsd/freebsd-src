@@ -12,6 +12,7 @@
  * its use.
  */
 
+#define DKTYPENAMES
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,9 +54,11 @@ char selection[30];
 char *device_names[] = {"wd", "sd", "cd", "mcd", 0};
 struct devconf *device_list[MAX_NO_DEVICES];
 struct disk disk_list[MAX_NO_DEVICES];
+struct fstab *mounts[MAX_NO_MOUNTS];
 
 int no_devices;
 int no_disks;
+int no_mounts;
 
 int
 alloc_memory()
@@ -185,18 +188,11 @@ configure_disks()
 
 		for (i = 0; i < no_disks; i++) {
 			sprintf(options[(i*2)], "%d",i+1);
-			if (disk_list[i].selected)
-				sprintf(options[(i*2)+1], " ** %s, (%dMb) -> %s%d",
-					  disk_list[i].lbl.d_typename,
-					  disk_size(&disk_list[i].lbl),
+			sprintf(options[(i*2)+1], "%s%d:  %s (%dMb)",
 					  disk_list[i].devconf->dc_name,
-					  disk_list[i].devconf->dc_unit);
-			else
-				sprintf(options[(i*2)+1], "    %s, (%dMb) -> %s%d",
+					  disk_list[i].devconf->dc_unit,
 					  disk_list[i].lbl.d_typename,
-					  disk_size(&disk_list[i].lbl),
-					  disk_list[i].devconf->dc_name,
-					  disk_list[i].devconf->dc_unit);
+					  disk_size(&disk_list[i].lbl));
 		}
 
 		sprintf(options[no_disks*2], "%d", no_disks+1);
@@ -204,30 +200,30 @@ configure_disks()
 
 		dialog_clear_norefresh();
 		if (dialog_menu("FreeBSD Installation", scratch, -1, -1,
-							 min(5, no_disks),  no_disks, options, selection)) {
+							 min(5, no_disks+1),  no_disks+1, options, selection)) {
 			dialog_clear_norefresh();
 			sprintf(scratch,"\nYou selected cancel.\n");
 			AskAbort(scratch);
 			valid = 0;
 			continue;
 		}
-		choice = atoi(selection);
+		choice = atoi(selection) - 1;
 		if (choice == no_disks)
 			valid = 1;
 		else {
-			if (edit_mbr(choice-1) == -1) {
+			if (edit_mbr(choice) == -1) {
 				sprintf(scratch, "\nThe following error occured while\nediting the master boot record.\n%s", errmsg);
 				AskAbort(scratch);
 				valid = 0;
 				continue;
 			};
-			if (edit_disklabel(choice-1) == -1) {
+			if (edit_disklabel(choice) == -1) {
 				sprintf(scratch, "\nThe following error occured while\nediting the disklabel.\n%s", errmsg);
 				AskAbort(scratch);
 				valid = 0;
 				continue;
 			}
-			disk_list[choice-1].selected = 1;
+			disk_list[choice].selected = 1;
 		}
 	} while (!valid);
 }
@@ -235,10 +231,20 @@ configure_disks()
 int
 stage1()
 {
-    int i;
-    int ok = 0;
+    int i, j;
 
 	query_devices();
 	configure_disks();
-	exit(1);
+	/* List filesystems */
+	for (i=0; i < MAX_NO_DEVICES; i++) {
+		if (!disk_list[i].selected)
+			continue;
+		for (j=0; j < MAXPARTITIONS; j++) {
+			if ((j == OURPART) || (j == RAWPART))
+				continue;
+			if (!disk_list[i].lbl.d_partitions[j].p_size)
+				continue;
+			mounts[no_mounts++] = &disk_list[i].mounts[j];
+		}
+	}
 }
