@@ -114,7 +114,8 @@
 
 #define ISDIGIT(a) (((a) >= '0') && ((a) <= '9'))
 
-int search_string(char *data, int dlen, char *search_str)
+static int
+search_string(char *data, int dlen, char *search_str)
 {
     int i, j, k;
     int search_str_len;
@@ -134,7 +135,8 @@ int search_string(char *data, int dlen, char *search_str)
     return -1;
 }
 
-int alias_rtsp_out(struct ip *pip,
+static int
+alias_rtsp_out(struct ip *pip,
 		   struct alias_link *link,
 		   char *data,
 		   char *port_str)
@@ -315,7 +317,8 @@ int alias_rtsp_out(struct ip *pip,
 
 /* Support the protocol used by early versions of RealPlayer */
 
-int alias_pna_out(struct ip *pip,
+static int
+alias_pna_out(struct ip *pip,
 		  struct alias_link *link,
 		  char *data,
 		  int dlen)
