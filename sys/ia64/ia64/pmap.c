@@ -810,19 +810,8 @@ pmap_swapin_thread(struct thread *td)
 void
 pmap_pinit0(struct pmap *pmap)
 {
-	int i;
-
-	/*
-	 * kernel_pmap is the same as any other pmap.
-	 */
+	/* kernel_pmap is the same as any other pmap. */
 	pmap_pinit(pmap);
-	pmap->pm_flags = 0;
-	for (i = 0; i < 5; i++)
-		pmap->pm_rid[i] = 0;
-	pmap->pm_ptphint = NULL;
-	pmap->pm_active = 0;
-	TAILQ_INIT(&pmap->pm_pvlist);
-	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
 /*
