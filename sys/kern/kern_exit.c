@@ -238,7 +238,6 @@ exit1(td, rv)
 	TAILQ_FOREACH(ep, &exit_list, next) 
 		(*ep->function)(p);
 
-	stopprofclock(p);
 
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
 		M_ZOMBIE, 0);
@@ -247,6 +246,7 @@ exit1(td, rv)
 	 * P_PPWAIT is set; we will wakeup the parent below.
 	 */
 	PROC_LOCK(p);
+	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	SIGEMPTYSET(p->p_siglist);
 	PROC_UNLOCK(p);
