@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /src/pub/tcsh/host.defs,v 1.35 2002/07/23 16:13:21 christos Exp $ */
+/* $Header: /src/pub/tcsh/host.defs,v 1.36 2003/02/08 20:03:25 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -33,12 +33,14 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$Id: host.defs,v 1.35 2002/07/23 16:13:21 christos Exp $")
+RCSID("$Id: host.defs,v 1.36 2003/02/08 20:03:25 christos Exp $")
 
 endcode	:
 
-macro	: M_mipsel : (defined(mips) || defined(__mips)) && (defined(MIPSEL) || defined(__MIPSEL))
-macro	: M_mipseb : (defined(mips) || defined(__mips)) && (defined(MIPSEB) || defined(__MIPSEB))
+macro	: M_mips64el : (defined(mips64) || defined(__mips64)) && (defined(MIPSEL) || defined(__MIPSEL))
+macro	: M_mips64eb : (defined(mips64) || defined(__mips64)) && (defined(MIPSEB) || defined(__MIPSEB))
+macro	: M_mipsel : (!defined(M_mips64el)) && (defined(mips) || defined(__mips)) && (defined(MIPSEL) || defined(__MIPSEL))
+macro	: M_mipseb : (!defined(M_mips64eb)) && (defined(mips) || defined(__mips)) && (defined(MIPSEB) || defined(__MIPSEB))
 macro	: M_i386 : (defined(i386) || defined(__i386__))
 macro	: M_i486 : (defined(i486) || defined(__i486__))
 macro	: M_i586 : (defined(i586) || defined(__i586__))
@@ -450,6 +452,10 @@ hosttype: defined(__alpha)				: "alpha"
 hosttype: defined(PPC)					: "powerpc"
 machtype: defined(__alpha)				: "alpha"
 machtype: defined(PPC)					: "powerpc"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+machtype: defined(M_mips64el)				: "mips64el"
+machtype: defined(M_mips64eb)				: "mips64eb"
 enddef	:
 
 

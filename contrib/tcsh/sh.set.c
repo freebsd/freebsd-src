@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.set.c,v 3.44 2002/07/01 20:50:22 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.set.c,v 3.48 2004/03/21 16:48:14 christos Exp $ */
 /*
  * sh.set.c: Setting and Clearing of variables
  */
@@ -32,13 +32,14 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.set.c,v 3.44 2002/07/01 20:50:22 christos Exp $")
+RCSID("$Id: sh.set.c,v 3.48 2004/03/21 16:48:14 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
 
 extern Char HistLit;
 extern bool GotTermCaps;
+int numeof = 0;
 
 static	void		 update_vars	__P((Char *));
 static	Char		*getinx		__P((Char *, int *));
@@ -122,7 +123,7 @@ update_vars(vp)
 	ed_Init();		/* reset the editor */
     }
     else if (eq(vp, STRhome)) {
-	register Char *cp;
+	Char *cp;
 
 	cp = Strsave(varval(vp));	/* get the old value back */
 
@@ -147,6 +148,18 @@ update_vars(vp)
     else if (eq(vp, STRshlvl)) {
 	tsetenv(STRKSHLVL, varval(vp));
     }
+    else if (eq(vp, STRignoreeof)) {
+	Char *cp;
+	numeof = 0;
+    	for ((cp = varval(STRignoreeof)); cp && *cp; cp++) {
+	    if (!Isdigit(*cp)) {
+		numeof = 0;
+		break;
+	    }
+	    numeof = numeof * 10 + *cp - '0';
+	}
+	if (numeof <= 0) numeof = 26;	/* Sanity check */
+    } 
     else if (eq(vp, STRbackslash_quote)) {
 	bslash_quote = 1;
     }
@@ -732,6 +745,8 @@ unset(v, c)
 	HIST = '!';
 	HISTSUB = '^';
     }
+    if (adrof(STRignoreeof) == 0)
+	numeof = 0;
     if (adrof(STRpromptchars) == 0) {
 	PRCH = '>';
 	PRCHROOT = '#';
@@ -1230,9 +1245,13 @@ autoset_dspmbyte(pcp)
 	{ STRLANGEUCJPB, STRKEUC },
 	{ STRLANGEUCKRB, STRKEUC },
 	{ STRLANGEUCZHB, STRKEUC },
+#ifdef linux
+	{ STRLANGEUCJPC, STRKEUC },
+#endif
 	{ STRLANGSJIS, STRKSJIS },
 	{ STRLANGSJISB, STRKSJIS },
 	{ STRLANGBIG5, STRKBIG5 },
+	{ STRSTARKUTF8, STRKUTF8 },
 	{ NULL, NULL }
     };
 
@@ -1240,7 +1259,8 @@ autoset_dspmbyte(pcp)
 	return;
 
     for (i = 0; dspmt[i].n; i++) {
-	if (eq(pcp, dspmt[i].n)) {
+	Char *estr;
+	if (t_pmatch(pcp, dspmt[i].n, &estr, 1) > 0) {
 	    set(CHECK_MBYTEVAR, Strsave(dspmt[i].v), VAR_READWRITE);
 	    update_dspmbyte_vars();
 	    break;

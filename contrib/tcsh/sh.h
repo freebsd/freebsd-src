@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.h,v 3.108 2002/07/23 16:13:22 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.h,v 3.114 2004/02/21 20:34:25 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -109,9 +109,13 @@ typedef int sigret_t;
 /*
  * Return true if the path is absolute
  */
-#if defined(WINNT_NATIVE) || defined(__CYGWIN__)
+#if defined(WINNT_NATIVE)
 # define ABSOLUTEP(p)	((p)[0] == '/' || \
     (Isalpha((p)[0]) && (p)[1] == ':'))
+#elif defined(__CYGWIN__)
+# define ABSOLUTEP(p)	((p)[0] == '/' || \
+    (Isalpha((p)[0]) && (p)[1] == ':' && \
+     ((p)[2] == '\0' || (p)[2] == '/')))
 #else /* !WINNT_NATIVE && !__CYGWIN__ */
 # define ABSOLUTEP(p)	(*(p) == '/')
 #endif /* WINNT_NATIVE || __CYGWIN__ */
@@ -335,6 +339,9 @@ typedef int sigret_t;
 #if !defined(O_RDONLY) || !defined(O_NDELAY)
 # include <fcntl.h>
 #endif 
+#ifndef O_LARGEFILE
+# define O_LARGEFILE 0
+#endif
 
 #include <errno.h>
 
@@ -420,7 +427,7 @@ typedef int sigret_t;
 #  define __P(a) a
 # else
 #  define __P(a) ()
-#  if !__STDC__
+#  if !defined(__STDC__)
 #   define const
 #   ifndef apollo
 #    define volatile	/* Apollo 'c' extensions need this */
@@ -610,10 +617,6 @@ EXTERN Char   *arginp IZERO;	/* Argument input for sh -c and internal `xx` */
 EXTERN int     onelflg IZERO;	/* 2 -> need line for -t, 1 -> exit on read */
 extern Char   *ffile;		/* Name of shell file for $0 */
 extern bool    dolzero;		/* if $?0 should return true... */
-
-#if defined(FILEC) && defined(TIOCSTI)
-extern bool    filec;
-#endif /* FILEC && TIOCSTI */
 
 extern char *seterr;		/* Error message from scanner/parser */
 #if !defined(BSD4_4) && !defined(__linux__)
@@ -1030,6 +1033,10 @@ EXTERN int   gflag;		/* After tglob -> is globbing needed? */
 
 #define MAXVARLEN 30		/* Maximum number of char in a variable name */
 
+#ifdef __CYGWIN__
+# undef MAXPATHLEN
+#endif /* __CYGWIN__ */
+
 #ifndef MAXPATHLEN
 # define MAXPATHLEN 2048
 #endif /* MAXPATHLEN */
@@ -1116,6 +1123,7 @@ EXTERN Char    PRCHROOT;	/* Prompt symbol for root */
 #define Strlen(a)		strlen(a)
 #define Strcmp(a, b)		strcmp(a, b)
 #define Strncmp(a, b, c)	strncmp(a, b, c)
+#define Strcasecmp(a, b)	strcasecmp(a, b)
 
 #define Strspl(a, b)		strspl(a, b)
 #define Strsave(a)		strsave(a)
@@ -1136,6 +1144,7 @@ EXTERN Char    PRCHROOT;	/* Prompt symbol for root */
 #define Strlen(a)		s_strlen(a)
 #define Strcmp(a, b)		s_strcmp(a, b)
 #define Strncmp(a, b, c)	s_strncmp(a, b, c)
+#define Strcasecmp(a, b)	s_strcasecmp(a, b)
 
 #define Strspl(a, b)		s_strspl(a, b)
 #define Strsave(a)		s_strsave(a)
@@ -1246,6 +1255,10 @@ EXTERN nl_catd catd;
 # define CGETS(b, c, d)	nt_cgets( b, c, d)
 # define CSAVS(b, c, d)	strsave(CGETS(b, c, d))
 #endif /* WINNT_NATIVE */
+
+#if defined(FILEC)
+extern bool    filec;
+#endif /* FILEC */
 
 /*
  * Since on some machines characters are unsigned, and the signed

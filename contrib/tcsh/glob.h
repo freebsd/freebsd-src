@@ -86,6 +86,6 @@ typedef struct {
 
 int	glob __P((const char *, int, int (*)(const char *, int), glob_t *));
 void	globfree __P((glob_t *));
-int	globcharcoll __P((int, int));
+int	globcharcoll __P((int, int, int));
 
 #endif /* !_GLOB_H_ */
