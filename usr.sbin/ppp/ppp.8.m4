@@ -4194,7 +4194,17 @@ will attempt to create a
 .Em PPP
 over Ethernet connection using the given
 .Ar iface
-interface.
+interface by using
+.Xr netgraph 4 .
+If
+.Xr netgraph 4
+is not available,
+.Nm
+will attempt to loaded it using
+.Xr kldload 2 .
+If this fails, an external program must be used such as the
+.Xr pppoe 8
+program available under OpenBSD.
 The given
 .Ar provider
 is passed as the service name in the PPPoE Discovery Initiation (PADI)
@@ -5363,6 +5373,7 @@ This socket is used to pass links between different instances of
 .Xr login 1 ,
 .Xr tcpdump 1 ,
 .Xr telnet 1 ,
+.Xr kldload 2 ,
 .Xr libalias 3 ,
 .Xr syslog 3 ,
 .Xr uucplock 3 ,
@@ -5384,6 +5395,7 @@ This socket is used to pass links between different instances of
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
+.Xr pppoe 8 ,
 .Xr route 8 ,
 .Xr sshd 8 ,
 .Xr syslogd 8 ,
