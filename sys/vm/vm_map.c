@@ -1217,7 +1217,7 @@ vm_map_madvise(map, start, end, behav)
 				    current->object.vm_object,
 				    pindex, 
 				    (count << PAGE_SHIFT),
-				    0
+				    MAP_PREFAULT_MADVISE
 				);
 			}
 		}
