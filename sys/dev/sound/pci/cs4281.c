@@ -27,7 +27,9 @@
  *
  * The order of pokes in the initiation sequence is based on Linux
  * driver by Thomas Sailer, gw boynton (wesb@crystal.cirrus.com), tom
- * woller (twoller@crystal.cirrus.com).  */
+ * woller (twoller@crystal.cirrus.com).  Shingo Watanabe (nabe@nabechan.org)
+ * contributed towards power management.
+ */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
@@ -69,8 +71,9 @@ struct sc_chinfo {
     snd_dbuf *buffer;
     pcm_channel *channel;
 
-    u_int32_t spd, fmt, bps;
-    int       dma_setup, dma_chan;
+    u_int32_t spd, fmt, bps, blksz;
+
+    int dma_setup, dma_active, dma_chan;
 };
 
 /* device private data */
@@ -98,12 +101,10 @@ struct sc_info {
 static u_int32_t adcdac_go(struct sc_chinfo *ch, u_int32_t go);
 static void      adcdac_prog(struct sc_chinfo *ch);
 
-/* stuff */
+/* power management and interrupt control */
 static void      cs4281_intr(void *);
 static int       cs4281_power(struct sc_info *, int);
 static int       cs4281_init(struct sc_info *);
-static int       cs4281_uninit(struct sc_info *);
-static int       cs4281_reinit(struct sc_info *);
 
 /* talk to the card */
 static u_int32_t cs4281_rd(struct sc_info *, int);
@@ -201,7 +202,7 @@ cs4281_waitclr(struct sc_info *sc, int regno, u_int32_t mask, int tries)
 static u_int32_t cs4281_rates[] = {48000, 44100, 22050, 16000, 11025, 8000};
 #define CS4281_NUM_RATES sizeof(cs4281_rates)/sizeof(cs4281_rates[0])
 
-static u_int8_t 
+static u_int8_t
 cs4281_rate_to_rv(u_int32_t rate)
 {
     u_int32_t v;
@@ -226,7 +227,7 @@ cs4281_rv_to_rate(u_int8_t rv)
 }
 
 static inline u_int32_t
-cs4281_format_to_dmr(u_int32_t format) 
+cs4281_format_to_dmr(u_int32_t format)
 {
     u_int32_t dmr = 0;
     if (AFMT_8BIT & format)      dmr |= CS4281PCI_DMR_SIZE8;
@@ -234,10 +235,10 @@ cs4281_format_to_dmr(u_int32_t format)
     if (AFMT_BIGENDIAN & format) dmr |= CS4281PCI_DMR_BEND;
     if (!(AFMT_SIGNED & format)) dmr |= CS4281PCI_DMR_USIGN;
     return dmr;
-} 
+}
 
 static inline u_int32_t
-cs4281_format_to_bps(u_int32_t format) 
+cs4281_format_to_bps(u_int32_t format)
 {
     return ((AFMT_8BIT & format) ? 1 : 2) * ((AFMT_STEREO & format) ? 2 : 1);
 }
@@ -250,18 +251,18 @@ cs4281_rdcd(kobj_t obj, void *devinfo, int regno)
 {
     struct sc_info *sc = (struct sc_info *)devinfo;
     int codecno;
-    
+
     codecno = regno >> 8;
     regno &= 0xff;
 
     /* Remove old state */
-    cs4281_rd(sc, CS4281PCI_ACSDA); 
+    cs4281_rd(sc, CS4281PCI_ACSDA);
 
     /* Fill in AC97 register value request form */
     cs4281_wr(sc, CS4281PCI_ACCAD, regno);
     cs4281_wr(sc, CS4281PCI_ACCDA, 0);
-    cs4281_wr(sc, CS4281PCI_ACCTL, CS4281PCI_ACCTL_ESYN | 
-	      CS4281PCI_ACCTL_VFRM | CS4281PCI_ACCTL_DCV | 
+    cs4281_wr(sc, CS4281PCI_ACCTL, CS4281PCI_ACCTL_ESYN |
+	      CS4281PCI_ACCTL_VFRM | CS4281PCI_ACCTL_DCV |
 	      CS4281PCI_ACCTL_CRW);
 
     /* Wait for read to complete */
@@ -275,8 +276,8 @@ cs4281_rdcd(kobj_t obj, void *devinfo, int regno)
 	device_printf(sc->dev,"cs4281_rdcd: VSTS did not come\n");
 	return 0xffffffff;
     }
-    
-    return cs4281_rd(sc, CS4281PCI_ACSDA); 
+
+    return cs4281_rd(sc, CS4281PCI_ACSDA);
 }
 
 static void
@@ -284,15 +285,15 @@ cs4281_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
     struct sc_info *sc = (struct sc_info *)devinfo;
     int codecno;
-    
+
     codecno = regno >> 8;
     regno &= 0xff;
 
     cs4281_wr(sc, CS4281PCI_ACCAD, regno);
     cs4281_wr(sc, CS4281PCI_ACCDA, data);
-    cs4281_wr(sc, CS4281PCI_ACCTL, CS4281PCI_ACCTL_ESYN | 
+    cs4281_wr(sc, CS4281PCI_ACCTL, CS4281PCI_ACCTL_ESYN |
 	      CS4281PCI_ACCTL_VFRM | CS4281PCI_ACCTL_DCV);
-    
+
     if (cs4281_waitclr(sc, CS4281PCI_ACCTL, CS4281PCI_ACCTL_DCV, 250) == 0) {
 	device_printf(sc->dev,"cs4281_wrcd: DCV did not go\n");
     }
@@ -324,6 +325,7 @@ cs4281chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
     ch->fmt = AFMT_U8;
     ch->spd = DSP_DEFAULT_SPEED;
     ch->bps = 1;
+    ch->blksz = sndbuf_getsize(ch->buffer);
 
     ch->dma_chan = (dir == PCMDIR_PLAY) ? CS4281_DMA_PLAY : CS4281_DMA_REC;
     ch->dma_setup = 0;
@@ -338,20 +340,19 @@ static int
 cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
     struct sc_chinfo *ch = data;
-    u_int32_t blksz, go;
+    u_int32_t go;
 
     go = adcdac_go(ch, 0);
 
     /* 2 interrupts are possible and used in buffer (half-empty,empty),
      * hence factor of 2. */
-    blksz = MIN(blocksize, CS4281_BUFFER_SIZE / 2);
-    sndbuf_resize(ch->buffer, 2, blksz);
-
+    ch->blksz = MIN(blocksize, CS4281_BUFFER_SIZE / 2);
+    sndbuf_resize(ch->buffer, 2, ch->blksz);
     ch->dma_setup = 0;
     adcdac_prog(ch);
     adcdac_go(ch, go);
 
-    DEB(printf("cs4281chan_setblocksize: bufsz %d Setting %d\n", blocksize, blksz));
+    DEB(printf("cs4281chan_setblocksize: bufsz %d Setting %d\n", blocksize, ch->blksz));
 
     return sndbuf_getsize(ch->buffer);
 }
@@ -384,7 +385,7 @@ cs4281chan_setformat(kobj_t obj, void *data, u_int32_t format)
 
     if (ch->dma_chan == CS4281_DMA_PLAY)
 	v = CS4281PCI_DMR_TR_PLAY;
-    else 
+    else
 	v = CS4281PCI_DMR_TR_REC;
     v |= CS4281PCI_DMR_DMA | CS4281PCI_DMR_AUTO;
     v |= cs4281_format_to_dmr(format);
@@ -465,12 +466,12 @@ adcdac_go(struct sc_chinfo *ch, u_int32_t go)
 {
     struct sc_info *sc = ch->parent;
     u_int32_t going;
-    
+
     going = !(cs4281_rd(sc, CS4281PCI_DCR(ch->dma_chan)) & CS4281PCI_DCR_MSK);
 
-    if (go) 
+    if (go)
 	cs4281_clr4(sc, CS4281PCI_DCR(ch->dma_chan), CS4281PCI_DCR_MSK);
-    else 
+    else
 	cs4281_set4(sc, CS4281PCI_DCR(ch->dma_chan), CS4281PCI_DCR_MSK);
 
     cs4281_wr(sc, CS4281PCI_HICR, CS4281PCI_HICR_EOI);
@@ -479,7 +480,7 @@ adcdac_go(struct sc_chinfo *ch, u_int32_t go)
 }
 
 static void
-adcdac_prog(struct sc_chinfo *ch) 
+adcdac_prog(struct sc_chinfo *ch)
 {
     struct sc_info *sc = ch->parent;
     u_int32_t go;
@@ -488,7 +489,7 @@ adcdac_prog(struct sc_chinfo *ch)
 	go = adcdac_go(ch, 0);
 	cs4281_wr(sc, CS4281PCI_DBA(ch->dma_chan),
 		  vtophys(sndbuf_getbuf(ch->buffer)));
-	cs4281_wr(sc, CS4281PCI_DBC(ch->dma_chan), 
+	cs4281_wr(sc, CS4281PCI_DBC(ch->dma_chan),
 		  sndbuf_getsize(ch->buffer) / ch->bps - 1);
 	ch->dma_setup = 1;
 	adcdac_go(ch, go);
@@ -505,7 +506,7 @@ cs4281_intr(void *p)
     u_int32_t hisr;
 
     hisr = cs4281_rd(sc, CS4281PCI_HISR);
-    
+
     if (hisr == 0) return;
 
     if (hisr & CS4281PCI_HISR_DMA(CS4281_DMA_PLAY)) {
@@ -519,23 +520,31 @@ cs4281_intr(void *p)
     }
 
     /* Signal End-of-Interrupt */
-    cs4281_wr(sc, CS4281PCI_HICR, CS4281PCI_HICR_EOI); 
+    cs4281_wr(sc, CS4281PCI_HICR, CS4281PCI_HICR_EOI);
 }
 
 /* -------------------------------------------------------------------- */
-/* stuff */
+/* power management related */
 
 static int
 cs4281_power(struct sc_info *sc, int state)
 {
+
     switch (state) {
-    case 0: /* full power */
+    case 0:
+        /* Permit r/w access to all BA0 registers */
+        cs4281_wr(sc, CS4281PCI_CWPR, CS4281PCI_CWPR_MAGIC);
+        /* Power on */
+        cs4281_clr4(sc, CS4281PCI_EPPMC, CS4281PCI_EPPMC_FPDN);
         break;
-    case 1:
-    case 2:
-    case 3: /* power off */
+    case 3:
+    	/* Power off card and codec */
+    	cs4281_set4(sc, CS4281PCI_EPPMC, CS4281PCI_EPPMC_FPDN);
+    	cs4281_clr4(sc, CS4281PCI_SPMC, CS4281PCI_SPMC_RSTN);
         break;
     }
+
+    DEB(printf("cs4281_power %d -> %d\n", sc->power, state));
     sc->power = state;
 
     return 0;
@@ -546,13 +555,10 @@ cs4281_init(struct sc_info *sc)
 {
     u_int32_t i, v;
 
-    /* Permit r/w access to all BA0 registers */
-    cs4281_wr(sc, CS4281PCI_CWPR, CS4281PCI_CWPR_MAGIC); 
-
     /* (0) Blast clock register and serial port */
     cs4281_wr(sc, CS4281PCI_CLKCR1, 0);
     cs4281_wr(sc, CS4281PCI_SERMC,  0);
-    
+
     /* (1) Make ESYN 0 to turn sync pulse on AC97 link */
     cs4281_wr(sc, CS4281PCI_ACCTL, 0);
     DELAY(50);
@@ -562,30 +568,30 @@ cs4281_init(struct sc_info *sc)
     DELAY(100);
     cs4281_wr(sc, CS4281PCI_SPMC, CS4281PCI_SPMC_RSTN);
     /* Wait 50ms for ABITCLK to become stable */
-    DELAY(50000); 
+    DELAY(50000);
 
     /* (3) Enable Sound System Clocks */
-    cs4281_wr(sc, CS4281PCI_CLKCR1, CS4281PCI_CLKCR1_DLLP); 
+    cs4281_wr(sc, CS4281PCI_CLKCR1, CS4281PCI_CLKCR1_DLLP);
     DELAY(50000); /* Wait for PLL to stabilize */
-    cs4281_wr(sc, CS4281PCI_CLKCR1, 
-	      CS4281PCI_CLKCR1_DLLP | CS4281PCI_CLKCR1_SWCE); 
+    cs4281_wr(sc, CS4281PCI_CLKCR1,
+	      CS4281PCI_CLKCR1_DLLP | CS4281PCI_CLKCR1_SWCE);
 
     /* (4) Power Up - this combination is essential. */
-    cs4281_set4(sc, CS4281PCI_SSPM, 
+    cs4281_set4(sc, CS4281PCI_SSPM,
 		CS4281PCI_SSPM_ACLEN | CS4281PCI_SSPM_PSRCEN |
 		CS4281PCI_SSPM_CSRCEN | CS4281PCI_SSPM_MIXEN);
 
     /* (5) Wait for clock stabilization */
-    if (cs4281_waitset(sc, 
-		       CS4281PCI_CLKCR1, 
-		       CS4281PCI_CLKCR1_DLLRDY, 
+    if (cs4281_waitset(sc,
+		       CS4281PCI_CLKCR1,
+		       CS4281PCI_CLKCR1_DLLRDY,
 		       250) == 0) {
 	device_printf(sc->dev, "Clock stabilization failed\n");
 	return -1;
     }
 
     /* (6) Enable ASYNC generation. */
-    cs4281_wr(sc, CS4281PCI_ACCTL,CS4281PCI_ACCTL_ESYN); 
+    cs4281_wr(sc, CS4281PCI_ACCTL,CS4281PCI_ACCTL_ESYN);
 
     /* Wait to allow AC97 to start generating clock bit */
     DELAY(50000);
@@ -597,12 +603,12 @@ cs4281_init(struct sc_info *sc)
     if (cs4281_waitset(sc, CS4281PCI_ACSTS, CS4281PCI_ACSTS_CRDY, 250) == 0) {
 	device_printf(sc->dev, "codec did not avail\n");
 	return -1;
-    }    
+    }
 
     /* (8) Assert valid frame signal to begin sending commands to
      *     AC97 codec */
-    cs4281_wr(sc, 
-	      CS4281PCI_ACCTL, 
+    cs4281_wr(sc,
+	      CS4281PCI_ACCTL,
 	      CS4281PCI_ACCTL_VFRM | CS4281PCI_ACCTL_ESYN);
 
     /* (9) Wait for codec calibration */
@@ -622,17 +628,17 @@ cs4281_init(struct sc_info *sc)
     cs4281_wr(sc, CS4281PCI_SERMC, CS4281PCI_SERMC_PTC_AC97);
 
     /* (11) Wait for valid data to arrive */
-    if (cs4281_waitset(sc, 
-		       CS4281PCI_ACISV, 
-		       CS4281PCI_ACISV_ISV(3) | CS4281PCI_ACISV_ISV(4), 
+    if (cs4281_waitset(sc,
+		       CS4281PCI_ACISV,
+		       CS4281PCI_ACISV_ISV(3) | CS4281PCI_ACISV_ISV(4),
 		       10000) == 0) {
 	device_printf(sc->dev, "cs4281 never got valid data\n");
 	return -1;
-    } 
+    }
 
     /* (12) Start digital data transfer of audio data to codec */
-    cs4281_wr(sc, 
-	      CS4281PCI_ACOSV, 
+    cs4281_wr(sc,
+	      CS4281PCI_ACOSV,
 	      CS4281PCI_ACOSV_SLV(3) | CS4281PCI_ACOSV_SLV(4));
 
     /* Set Master and headphone to max */
@@ -641,7 +647,7 @@ cs4281_init(struct sc_info *sc)
 
     /* Power on the DAC */
     v = cs4281_rdcd(0, sc, AC97_REG_POWER) & 0xfdff;
-    cs4281_wrcd(0, sc, AC97_REG_POWER, v); 
+    cs4281_wrcd(0, sc, AC97_REG_POWER, v);
 
     /* Wait until DAC state ready */
     for(i = 0; i < 320; i++) {
@@ -652,7 +658,7 @@ cs4281_init(struct sc_info *sc)
 
     /* Power on the ADC */
     v = cs4281_rdcd(0, sc, AC97_REG_POWER) & 0xfeff;
-    cs4281_wrcd(0, sc, AC97_REG_POWER, v); 
+    cs4281_wrcd(0, sc, AC97_REG_POWER, v);
 
     /* Wait until ADC state ready */
     for(i = 0; i < 320; i++) {
@@ -706,10 +712,10 @@ cs4281_init(struct sc_info *sc)
     cs4281_wr(sc,
 	      CS4281PCI_DCR(CS4281_DMA_REC),
 	      CS4281PCI_DCR_TCIE | CS4281PCI_DCR_HTCIE | CS4281PCI_DCR_MSK);
-    
+
     /* Enable Interrupts */
-    cs4281_clr4(sc, 
-		CS4281PCI_HIMR, 
+    cs4281_clr4(sc,
+		CS4281PCI_HIMR,
 		CS4281PCI_HIMR_DMAI |
 		CS4281PCI_HIMR_DMA(CS4281_DMA_PLAY) |
 		CS4281PCI_HIMR_DMA(CS4281_DMA_REC));
@@ -719,18 +725,6 @@ cs4281_init(struct sc_info *sc)
     cs4281_wr(sc, CS4281PCI_PPRVC, 7);
 
     return 0;
-}
-
-static int
-cs4281_uninit(struct sc_info *sc)
-{
-    return -1;
-}
-
-static int
-cs4281_reinit(struct sc_info *sc)
-{
-    return -1;
 }
 
 /* -------------------------------------------------------------------- */
@@ -749,7 +743,7 @@ cs4281_pci_probe(device_t dev)
 
     if (s)
 	device_set_desc(dev, s);
-    return s? 0 : ENXIO;
+    return s ? 0 : ENXIO;
 }
 
 static int
@@ -775,6 +769,14 @@ cs4281_pci_attach(device_t dev)
 
     data = pci_read_config(dev, PCIR_COMMAND, 2);
 
+    if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+	/* Reset the power state. */
+	device_printf(dev, "chip is in D%d power mode "
+		      "-- setting to D0\n", pci_get_powerstate(dev));
+
+	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+    }
+
     sc->regid   = PCIR_MAPS;
     sc->regtype = SYS_RES_MEMORY;
     sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
@@ -792,7 +794,7 @@ cs4281_pci_attach(device_t dev)
     sc->sh = rman_get_bushandle(sc->reg);
 
     sc->memid = PCIR_MAPS + 4;
-    sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->memid, 0, 
+    sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->memid, 0,
 				 ~0, CS4281PCI_BA1_SIZE, RF_ACTIVE);
     if (sc->mem == NULL) {
 	device_printf(dev, "unable to allocate fifo space\n");
@@ -816,7 +818,7 @@ cs4281_pci_attach(device_t dev)
 			   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			   /*highaddr*/BUS_SPACE_MAXADDR,
 			   /*filter*/NULL, /*filterarg*/NULL,
-			   /*maxsize*/CS4281_BUFFER_SIZE, /*nsegments*/1, 
+			   /*maxsize*/CS4281_BUFFER_SIZE, /*nsegments*/1,
 			   /*maxsegz*/0x3ffff,
 			   /*flags*/0, &sc->parent_dmat) != 0) {
 	device_printf(dev, "unable to create dma tag\n");
@@ -881,8 +883,6 @@ cs4281_pci_detach(device_t dev)
 	return r;
 
     sc = pcm_getdevinfo(dev);
-    /* shutdown chip */
-    cs4281_uninit(sc);
 
     /* power off */
     cs4281_power(sc, 3);
@@ -903,10 +903,11 @@ cs4281_pci_suspend(device_t dev)
     struct sc_info *sc;
 
     sc = pcm_getdevinfo(dev);
-    /* save chip state */
 
-    /* power off */
-    cs4281_power(sc, 3); 
+    sc->rch.dma_active = adcdac_go(&sc->rch, 0);
+    sc->pch.dma_active = adcdac_go(&sc->pch, 0);
+
+    cs4281_power(sc, 3);
 
     return 0;
 }
@@ -919,21 +920,30 @@ cs4281_pci_resume(device_t dev)
     sc = pcm_getdevinfo(dev);
 
     /* power up */
-    /* cs4281_power(sc, 0); */
+    cs4281_power(sc, 0);
 
-    /* reinit chip */
-    if (cs4281_reinit(sc) == -1) {
-	device_printf(dev, "unable to reinitialize the card\n");
-	return ENXIO;
+    /* initialize chip */
+    if (cs4281_init(sc) == -1) {
+        device_printf(dev, "unable to reinitialize the card\n");
+        return ENXIO;
     }
-
-    /* restore chip state */
 
     /* restore mixer state */
     if (mixer_reinit(dev) == -1) {
 	device_printf(dev, "unable to reinitialize the mixer\n");
 	return ENXIO;
     }
+
+    /* restore chip state */
+    cs4281chan_setspeed(NULL, &sc->rch, sc->rch.spd);
+    cs4281chan_setblocksize(NULL, &sc->rch, sc->rch.blksz);
+    cs4281chan_setformat(NULL, &sc->rch, sc->rch.fmt);
+    adcdac_go(&sc->rch, sc->rch.dma_active);
+
+    cs4281chan_setspeed(NULL, &sc->pch, sc->pch.spd);
+    cs4281chan_setblocksize(NULL, &sc->pch, sc->pch.blksz);
+    cs4281chan_setformat(NULL, &sc->pch, sc->pch.fmt);
+    adcdac_go(&sc->pch, sc->pch.dma_active);
 
     return 0;
 }
