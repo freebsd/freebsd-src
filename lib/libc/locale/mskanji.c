@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)mskanji.c	1.0 (Phase One) 5/5/95";
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <runetype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,6 +91,11 @@ _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 
 	ms = (_MSKanjiState *)ps;
 
+	if (ms->count < 0 || ms->count > sizeof(ms->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
 	if (s == NULL) {
 		s = "";
 		n = 1;
@@ -122,10 +128,17 @@ _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 }
 
 size_t
-_MSKanji_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+_MSKanji_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	_MSKanjiState *ms;
 	int len, i;
+
+	ms = (_MSKanjiState *)ps;
+
+	if (ms->count != 0) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
 
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */
