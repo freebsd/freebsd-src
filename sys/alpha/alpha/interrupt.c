@@ -352,9 +352,10 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 		i->disable = disable;
 		i->enable = enable;
 
-		s = splhigh();
+		s = save_intr();
+		disable_intr();
 		LIST_INSERT_HEAD(&alpha_intr_hash[h], i, list);
-		splx(s);
+		restore_intr(s);
 	}
 
 	/* Second, create the interrupt thread if needed. */
@@ -484,9 +485,10 @@ alpha_teardown_intr(void *cookie)
 	/* XXX - if the ithd has no handlers left, we should remove it */
 
 #if 0
-	s = splhigh();
+	s = save_intr();
+	disable_intr();
 	LIST_REMOVE(i, list);
-	splx(s);
+	restore_intr(s);
 
 	free(i, M_DEVBUF);
 #endif

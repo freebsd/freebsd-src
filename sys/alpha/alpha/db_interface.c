@@ -191,7 +191,8 @@ kdb_trap(a0, a1, a2, entry, regs)
 
 	ddb_regs = *regs;
 
-	s = splhigh();
+	s = save_intr();
+	disable_intr();
 
 #if 0
 	db_printf("stopping %x\n", PCPU_GET(other_cpus));
@@ -214,7 +215,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 	restart_cpus(stopped_cpus);
 #endif
 
-	splx(s);
+	restore_intr(s);
 
 	*regs = ddb_regs;
 
