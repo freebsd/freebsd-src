@@ -26,7 +26,7 @@
 .\"
 .Dd February 5, 2001
 .Dt MERGEMASTER 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm mergemaster
 .Nd merge configuration files, et al during an upgrade
@@ -259,9 +259,10 @@ comparison, use:
 .Pp
 .Dl # mergemaster -sw 110
 .Sh FILES
-.Bl -ohang
+.Bl -tag -width $HOME/.mergemasterrc -compact
 .It Pa /etc/mergemaster.rc
 .It Pa $HOME/.mergemasterrc
+.El
 .Pp
 .Nm
 will . (source) these files if they exist.
@@ -316,7 +317,6 @@ with all values commented out:
 #MM_PRE_COMPARE_SCRIPT=
 #MM_EXIT_SCRIPT=
 .Ed
-.El
 .Sh SEE ALSO
 .Xr cvs 1 ,
 .Xr diff 1 ,
@@ -326,10 +326,11 @@ with all values commented out:
 .Xr pwd_mkdb 8
 .Pp
 .Pa /usr/src/etc/Makefile
-.Pp
-http://www.FreeBSD.org/handbook/makeworld.html ,
-.Pa The Cutting Edge (using make world) ,
-by Nik Clayton
+.Rs
+.%O http://www.FreeBSD.org/handbook/makeworld.html
+.%T The Cutting Edge (using make world)
+.%A Nik Clayton
+.Re
 .Sh DIAGNOSTICS
 Exit status is 0 on successful completion, or if the user bails out
 manually at some point during execution.
@@ -341,7 +342,6 @@ Invalid command line option
 Failure to create the temporary root environment
 .Pp
 Failure to populate the temporary root
-.Pp
 .Sh HISTORY
 The
 .Nm
@@ -351,7 +351,6 @@ web pages in a much simpler form under the name
 on 13 March 1998. The idea for creating the
 temporary root environment comes from Nik Clayton's
 make world tutorial which is referenced above.
-.Pp
 .Sh AUTHORS
 This manual page and the script itself were written by
 .An Douglas Barton Aq DougB@FreeBSD.org .
