@@ -36,7 +36,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -45,6 +49,7 @@ static char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 #include <sys/uio.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -220,11 +225,9 @@ redirect:
 				if (cp->u.fd == -1 && (cp->u.fd = open(cp->t,
 				    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 				    DEFFILEMODE)) == -1)
-					err(FATAL, "%s: %s\n",
-					    cp->t, strerror(errno));
+					err(1, "%s", cp->t);
 				if (write(cp->u.fd, ps, psl) != psl)
-					err(FATAL, "%s: %s\n",
-					    cp->t, strerror(errno));
+					err(1, "%s", cp->t);
 				break;
 			case 'x':
 				if (hs == NULL)
@@ -323,8 +326,8 @@ substitute(cp)
 	if (re == NULL) {
 		if (defpreg != NULL && cp->u.s->maxbref > defpreg->re_nsub) {
 			linenum = cp->u.s->linenum;
-			err(COMPILE, "\\%d not defined in the RE",
-			    cp->u.s->maxbref);
+			errx(1, "%lu: %s: \\%d not defined in the RE",
+					linenum, fname, cp->u.s->maxbref);
 		}
 	}
 	if (!regexec_e(re, s, 0, 0, psl))
@@ -407,9 +410,9 @@ substitute(cp)
 	if (cp->u.s->wfile && !pd) {
 		if (cp->u.s->wfd == -1 && (cp->u.s->wfd = open(cp->u.s->wfile,
 		    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC, DEFFILEMODE)) == -1)
-			err(FATAL, "%s: %s\n", cp->u.s->wfile, strerror(errno));
+			err(1, "%s", cp->u.s->wfile);
 		if (write(cp->u.s->wfd, ps, psl) != psl)
-			err(FATAL, "%s: %s\n", cp->u.s->wfile, strerror(errno));
+			err(1, "%s", cp->u.s->wfile);
 	}
 	return (1);
 }
@@ -442,13 +445,13 @@ flush_appends()
 			 */
 			if ((f = fopen(appends[i].s, "r")) == NULL)
 				break;
-			while (count = fread(buf, sizeof(char), sizeof(buf), f))
+			while ((count = fread(buf, sizeof(char), sizeof(buf), f)))
 				(void)fwrite(buf, sizeof(char), count, stdout);
 			(void)fclose(f);
 			break;
 		}
 	if (ferror(stdout))
-		err(FATAL, "stdout: %s", strerror(errno ? errno : EIO));
+		errx(1, "stdout: %s", strerror(errno ? errno : EIO));
 	appendx = sdone = 0;
 }
 
@@ -462,7 +465,7 @@ lputs(s)
 	static int termwidth = -1;
 
 	if (termwidth == -1)
-		if (p = getenv("COLUMNS"))
+		if ((p = getenv("COLUMNS")))
 			termwidth = atoi(p);
 		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == 0 &&
 		    win.ws_col > 0)
@@ -481,7 +484,7 @@ lputs(s)
 		} else {
 			escapes = "\\\a\b\f\n\r\t\v";
 			(void)putchar('\\');
-			if (p = strchr(escapes, *s)) {
+			if ((p = strchr(escapes, *s))) {
 				(void)putchar("\\abfnrtv"[p - escapes]);
 				count += 2;
 			} else {
@@ -493,7 +496,7 @@ lputs(s)
 	(void)putchar('$');
 	(void)putchar('\n');
 	if (ferror(stdout))
-		err(FATAL, "stdout: %s", strerror(errno ? errno : EIO));
+		errx(1, "stdout: %s", strerror(errno ? errno : EIO));
 }
 
 static inline int
@@ -507,7 +510,7 @@ regexec_e(preg, string, eflags, nomatch, slen)
 
 	if (preg == NULL) {
 		if (defpreg == NULL)
-			err(FATAL, "first RE may not be empty");
+			errx(1, "first RE may not be empty");
 	} else
 		defpreg = preg;
 
@@ -525,7 +528,7 @@ regexec_e(preg, string, eflags, nomatch, slen)
 	case REG_NOMATCH:
 		return (0);
 	}
-	err(FATAL, "RE error: %s", strregerror(eval, defpreg));
+	errx(1, "RE error: %s", strregerror(eval, defpreg));
 	/* NOTREACHED */
 }
 
@@ -615,13 +618,12 @@ cfclose(cp, end)
 		switch(cp->code) {
 		case 's':
 			if (cp->u.s->wfd != -1 && close(cp->u.s->wfd))
-				err(FATAL,
-				    "%s: %s", cp->u.s->wfile, strerror(errno));
+				err(1, "%s", cp->u.s->wfile);
 			cp->u.s->wfd = -1;
 			break;
 		case 'w':
 			if (cp->u.fd != -1 && close(cp->u.fd))
-				err(FATAL, "%s: %s", cp->t, strerror(errno));
+				err(1, "%s", cp->t);
 			cp->u.fd = -1;
 			break;
 		case '{':
