@@ -3096,7 +3096,7 @@ char *string;		/* string containing user command		*/
 	}
 	if (shell_fork)
 	{
-		printf(continue_msg);
+		printf("%s", continue_msg);
 		fflush(stdout);
 		while ((in = getchar()) != '\n')
 			;

@@ -85,13 +85,13 @@ main(int argc, char **argv)
 
 	fdi = open(kernname ,O_RDONLY);
 	if(fdi<0) {
-		warn(kernname);
+		warn("%s", kernname);
 		return 2;
 	}
 
 	/* figure out how big the uncompressed image will be */
 	if (read (fdi, (char *)&hdr, sizeof(hdr)) != sizeof(hdr))
-		err(2, argv[1]);
+		err(2, "%s", argv[1]);
 
 	size = hdr.a_text + hdr.a_data + hdr.a_bss;
 	entry = hdr.a_entry & 0x00FFFFFF;
@@ -106,7 +106,7 @@ main(int argc, char **argv)
 
 	fdo = open(obj,O_WRONLY|O_TRUNC|O_CREAT,0666);
 	if(fdo<0) {
-		warn(obj);
+		warn("%s", obj);
 		return 2;
 	}
 
@@ -222,13 +222,13 @@ main(int argc, char **argv)
 
 		fdn = open(obj ,O_RDONLY);
 		if(fdn<0) {
-			warn(obj);
+			warn("%s", obj);
 			return 3;
 		}
 
 		/* figure out how big the compressed image is */
 		if (read (fdn, (char *)&hdr, sizeof(hdr)) != sizeof(hdr)) {
-			warn(obj);
+			warn("%s", obj);
 			return 3;
 		}
 		close(fdn);
@@ -251,11 +251,11 @@ extract (char *file)
 	struct exec hdr;
 
 	if (read (0, (char *)&hdr, sizeof(hdr)) != sizeof(hdr))
-		err(2, file);
+		err(2, "%s", file);
 	if (hdr.a_magic != ZMAGIC)
 		errx(2, "bad magic in file %s, probably not a kernel", file);
 	if (lseek (0, N_TXTOFF(hdr), 0) < 0)
-		err(2, file);
+		err(2, "%s", file);
 
 	sz = N_SYMOFF (hdr) - N_TXTOFF (hdr);
 
@@ -269,7 +269,7 @@ extract (char *file)
 		n = read (0, buf, l);
 		if (n != l) {
 			if (n == -1)
-				err(1, file);
+				err(1, "%s", file);
 			else
 				errx(1, "unexpected EOF");
 		}

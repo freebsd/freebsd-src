@@ -126,13 +126,13 @@ phaser()
 	{
 		if (damaged(COMPUTER))
 		{
-			printf(Device[COMPUTER].name);
+			printf("%s", Device[COMPUTER].name);
 			manual++;
 		}
 		else
 			if (damaged(SRSCAN))
 			{
-				printf(Device[SRSCAN].name);
+				printf("%s", Device[SRSCAN].name);
 				manual++;
 			}
 		if (manual)

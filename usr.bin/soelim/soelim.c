@@ -102,7 +102,7 @@ process(file)
 	} else {
 		soee = fopen(file, "r");
 		if (soee == NULL) {
-			warn(file);
+			warn("%s", file);
 			return(-1);
 		}
 	}

@@ -153,7 +153,7 @@ main(int argc, char **argv)
 			free(q);
 		q = p = readline(myprompt);
 #else
-		printf(myprompt);
+		printf("%s", myprompt);
 		fflush(stdout);
 		q = p = fgets(input,sizeof(input),stdin);
 #endif
