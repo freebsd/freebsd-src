@@ -58,8 +58,8 @@ void
 instructions()
 {
 	struct stat sb;
-	union wait pstat;
 	pid_t pid;
+	int pstat;
 	char *pager, *path;
 
 	if (stat(_PATH_INSTR, &sb)) {
@@ -84,7 +84,7 @@ instructions()
 		do {
 			pid = waitpid(pid, (int *)&pstat, 0);
 		} while (pid == -1 && errno == EINTR);
-		if (pid == -1 || pstat.w_status)
+		if (pid == -1 || WEXITSTATUS(pstat) || WTERMSIG(pstat))
 			exit(1);
 	}
 }
