@@ -1199,6 +1199,7 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     Dell PERC
     Dell PERC 2/SC
     Dell PERC 2/DC
+    Dell PERC 3/DCL
     HP NetRAID-1si
     HP NetRAID-3si
     HP Embedded NetRAID
@@ -1363,9 +1364,12 @@ Lite-On 82c168/82c169 PNIC Fast Ethernet NICs including the following:
   Kingston KNE110TX
 
 Macronix 98713, 98713A, 98715, 98715A and 98725 Fast Ethernet NICs
-  NDC Communications SFA100A (98713A)
+  Accton EN1217 (98715A)
+  Adico AE310TX (98715A)
+  Compex RL100-TX
   CNet Pro120A (98713 or 98713A)
   CNet Pro120B (98715)
+  NDC Communications SFA100A (98713A)
   SVEC PN102TX (98713)
 
 Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NICs including the following:
@@ -1436,6 +1440,13 @@ ASIX Electronics AX88140A PCI NICs, including the following:
   CNet Pro110B
 
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
+
+DEC/Intel 21143 based Fast Ethernet NICs, including the following:
+  DEC DE500-BA
+  Compaq Presario 7900 series built-in Ethernet
+  D-Link DFE-570TX
+  Kingston KNE100TX
+  LinkSys EtherFast 10/100 Instant GigaDrive built-in Ethernet
 
 Davicom DM9100 and DM9102 PCI Fast Ethernet NICs, including the
 following:
