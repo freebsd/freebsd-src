@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi)
+#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
 static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/5/93";
-#endif /* not lint */
-
-#ident "$Revision: 1.14 $"
+#elif defined(__NetBSD__)
+static char rcsid[] = "$NetBSD$";
+#endif
+#ident "$Revision: 1.16 $"
 
 #include "defs.h"
 
@@ -61,6 +62,7 @@ struct {
 	} v12, v2;
 	char	metric;			/* adjust metrics by interface */
 	int	npackets;
+	int	gen_limit;
 	u_int	state;
 #define	    WS_ST_FLASH	    0x001	/* send only changed routes */
 #define	    WS_ST_RIP2_SAFE 0x002	/* send RIPv2 safe for RIPv1 */
@@ -170,6 +172,10 @@ output(enum output_type type,
 			}
 			sin.sin_addr.s_addr = htonl(INADDR_RIP_GROUP);
 		}
+
+	case NO_OUT_MULTICAST:
+	case NO_OUT_RIPV2:
+		break;
 	}
 
 	trace_rip(msg, "to", &sin, ifp, buf, size);
@@ -297,20 +303,22 @@ supply_out(struct ag_info *ag)
 			ddst_h = v1_mask & -v1_mask;
 			i = (v1_mask & ~mask)/ddst_h;
 
-			if (i >= 1024) {
+			if (i > ws.gen_limit) {
 				/* Punt if we would have to generate an
 				 * unreasonable number of routes.
 				 */
 #ifdef DEBUG
-				msglog("sending %s to %s as-is instead"
-				       " of as %d routes",
-				       addrname(htonl(dst_h),mask,0),
-				       naddr_ntoa(ws.to.sin_addr.s_addr), i);
+				msglog("sending %s to %s as 1 instead"
+				       " of %d routes",
+				       addrname(htonl(dst_h),mask,1),
+				       naddr_ntoa(ws.to.sin_addr.s_addr),
+				       i+1);
 #endif
 				i = 0;
 
 			} else {
 				mask = v1_mask;
+				ws.gen_limit -= i;
 			}
 		}
 	}
@@ -539,6 +547,7 @@ supply(struct sockaddr_in *dst,
 
 
 	ws.state = 0;
+	ws.gen_limit = 1024;
 
 	ws.to = *dst;
 	ws.to_std_mask = std_mask(ws.to.sin_addr.s_addr);

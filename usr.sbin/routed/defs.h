@@ -31,9 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
+ *
+ *	$NetBSD$
  */
 
-#ident "$Revision: 1.11 $"
+#ifndef  __NetBSD__
+#ident "$Revision: 1.13 $"
+#endif
 
 /* Definitions for RIPv2 routing process.
  *
@@ -78,17 +82,19 @@
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
+#ifdef sgi
+#include <net/radix.h>
+#else
+#include "radix.h"
+#endif
 #include <net/if.h>
 #include <net/route.h>
-#include <net/radix.h>
-#ifndef sgi
-struct walkarg;
-#endif
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #define RIPVERSION RIPv2
 #include <protocols/routed.h>
+
 
 /* Type of an IP address.
  *	Some systems do not like to pass structures, so do not use in_addr.
@@ -99,7 +105,11 @@ struct walkarg;
 #ifdef sgi
 #define naddr __uint32_t
 #else
+#ifdef __NetBSD__
+#define naddr u_int32_t
+#else
 #define naddr u_long
+#endif
 #define _HAVE_SA_LEN
 #define _HAVE_SIN_LEN
 #endif
@@ -147,6 +157,12 @@ union pkt_buf {
 	struct	rip rip;
 };
 
+
+/* no more routes than this, to protect ourself in case something goes
+ * whacko and starts broadcast zillions of bogus routes.
+ */
+#define MAX_ROUTES  (128*1024)
+extern int total_routes;
 
 /* Main, daemon routing table structure
  */
@@ -449,15 +465,10 @@ extern void	logbad(int, char *, ...);
 #else
 #define	DBGERR(dump,msg) LOGERR(msg)
 #endif
-#ifdef MCAST_PPP_BUG
-extern void mcasterr(struct interface *, int, char *);
-#define MCASTERR(ifp,dump,msg) mcasterr(ifp, dump, "setsockopt(IP_"msg")")
-#else
-#define MCASTERR(ifp, dump,msg) DBGERR(dump,"setsockopt(IP_" msg ")")
-#endif
 extern	char	*naddr_ntoa(naddr);
 extern	char	*saddr_ntoa(struct sockaddr *);
 
+extern void	*rtmalloc(size_t, char *);
 extern void	timevaladd(struct timeval *, struct timeval *);
 extern void	intvl_random(struct timeval *, u_long, u_long);
 extern int	getnet(char *, naddr *, naddr *);
@@ -539,9 +550,6 @@ extern naddr	ripv1_mask_net(naddr, struct interface *);
 extern naddr	ripv1_mask_host(naddr,struct interface *);
 #define		on_net(a,net,mask) (((ntohl(a) ^ (net)) & (mask)) == 0)
 extern int	check_dst(naddr);
-#ifdef sgi
-extern int	sysctl(int *, u_int, void *, size_t *, void *, size_t);
-#endif
 extern void	addrouteforif(register struct interface *);
 extern void	ifinit(void);
 extern int	walk_bad(struct radix_node *, struct walkarg *);

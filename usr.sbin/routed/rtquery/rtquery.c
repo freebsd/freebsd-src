@@ -35,9 +35,12 @@ char copyright[] =
 "@(#) Copyright (c) 1982, 1986, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 
-#if !defined(lint) && !defined(sgi)
+#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
 static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
-#endif /* not lint */
+#elif defined(__NetBSD__)
+static char rcsid[] = "$NetBSD$";
+#endif
+#ident "$Revision: 1.8 $"
 
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -151,7 +154,7 @@ main(int argc,
 				}
 				bcopy(hp->h_addr, &OMSG.rip_nets[0].n_dst,
 				      sizeof(OMSG.rip_nets[0].n_dst));
-				OMSG.rip_nets[0].n_family = AF_INET;
+				OMSG.rip_nets[0].n_family = RIP_AF_INET;
 				OMSG.rip_nets[0].n_mask = -1;
 				rflag = 1;
 			}
@@ -176,7 +179,7 @@ main(int argc,
 					if (!value
 					    || strlen(value) > MAXPATHLEN)
 						goto usage;
-					strcpy(OMSG.rip_tracefile, value);
+					strcpy((char*)OMSG.rip_tracefile,value);
 					omsg_len += (strlen(value)
 						     - sizeof(OMSG.ripun));
 					break;
@@ -544,7 +547,7 @@ rip_input(struct sockaddr_in *from,
 
 		} else {
 			(void)sprintf(net_buf, "(af %#x) %d.%d.%d.%d",
-				      n->n_family,
+				      ntohs(n->n_family),
 				      (char)(n->n_dst >> 24),
 				      (char)(n->n_dst >> 16),
 				      (char)(n->n_dst >> 8),
@@ -576,11 +579,11 @@ rip_input(struct sockaddr_in *from,
 /* Return the classical netmask for an IP address.
  */
 static u_int
-std_mask(u_int addr)
+std_mask(u_int addr)			/* in network order */
 {
-	NTOHL(addr);
+	NTOHL(addr);			/* was a host, not a network */
 
-	if (addr == 0)
+	if (addr == 0)			/* default route has mask 0 */
 		return 0;
 	if (IN_CLASSA(addr))
 		return IN_CLASSA_NET;
@@ -628,6 +631,8 @@ getnet(char *name,
 
 	if (mname == 0) {
 		mask = std_mask(in.s_addr);
+		if ((~mask & in.s_addr) != 0)
+			mask = 0xffffffff;
 	} else {
 		mask = (u_int)strtoul(mname, &p, 0);
 		if (*p != '\0' || mask > 32)
@@ -635,8 +640,8 @@ getnet(char *name,
 		mask = 0xffffffff << (32-mask);
 	}
 
-	rt->n_dst = in.s_addr;
-	rt->n_family = AF_INET;
+	rt->n_dst = htonl(in.s_addr);
+	rt->n_family = RIP_AF_INET;
 	rt->n_mask = htonl(mask);
 	return 1;
 }

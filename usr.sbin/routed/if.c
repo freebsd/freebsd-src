@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi)
+#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
 static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
-#endif /* not lint */
-
-#ident "$Revision: 1.15 $"
+#elif defined(__NetBSD__)
+static char rcsid[] = "$NetBSD$";
+#endif
+#ident "$Revision: 1.16 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -62,10 +63,7 @@ ifwithaddr(naddr addr,
 	struct interface *ifp, *possible = 0;
 
 	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
-		if ((ifp->int_addr == addr
-		     && !(ifp->int_if_flags & IFF_POINTOPOINT))
-		    || (ifp->int_dstaddr == addr
-			&& (ifp->int_if_flags & IFF_POINTOPOINT))
+		if (ifp->int_addr == addr
 		    || ((ifp->int_if_flags & IFF_BROADCAST)
 			&& ifp->int_brdaddr == addr
 			&& bcast)) {
@@ -171,7 +169,7 @@ std_mask(naddr addr)			/* in network order */
 }
 
 
-/* Find The netmask that would be inferred by RIPv1 listeners
+/* Find the netmask that would be inferred by RIPv1 listeners
  *	on the given interface for a given network.
  *	If no interface is specified, look for the best fitting	interface.
  */
@@ -453,14 +451,15 @@ ifinit(void)
 	static size_t sysctl_buf_size = 0;
 	uint complaints = 0;
 	static u_int prev_complaints = 0;
-#	define COMP_NOT_INET	0x01
-#	define COMP_WIERD	0x02
-#	define COMP_NOADDR	0x04
-#	define COMP_NODST	0x08
-#	define COMP_NOBADR	0x10
-#	define COMP_NOMASK	0x20
-#	define COMP_DUP		0x40
-#	define COMP_BAD_METRIC	0x80
+#	define COMP_NOT_INET	0x001
+#	define COMP_WIERD	0x002
+#	define COMP_NOADDR	0x004
+#	define COMP_NODST	0x008
+#	define COMP_NOBADR	0x010
+#	define COMP_NOMASK	0x020
+#	define COMP_DUP		0x040
+#	define COMP_BAD_METRIC	0x080
+#	define COMP_NETMASK	0x100
 
 	struct interface ifs, ifs0, *ifp, *ifp1;
 	struct rt_entry *rt;
@@ -498,7 +497,6 @@ ifinit(void)
 		if ((needed = sysctl_buf_size) != 0) {
 			if (sysctl(mib, 6, sysctl_buf,&needed, 0, 0) >= 0)
 				break;
-
 			if (errno != ENOMEM && errno != EFAULT)
 				BADERR(1, "ifinit: get interface table");
 			free(sysctl_buf);
@@ -506,8 +504,7 @@ ifinit(void)
 		}
 		if (sysctl(mib, 6, 0, &needed, 0, 0) < 0)
 			BADERR(1,"ifinit: route-sysctl-estimate");
-		if ((sysctl_buf = malloc(sysctl_buf_size = needed)) == 0)
-			BADERR(1,"ifinit: malloc");
+		sysctl_buf = rtmalloc(sysctl_buf_size = needed, "ifinit");
 	}
 
 	ifam_lim = (struct ifa_msghdr *)(sysctl_buf + needed);
@@ -540,7 +537,7 @@ ifinit(void)
 			continue;
 		}
 		if (ifam->ifam_type != RTM_NEWADDR) {
-			DBGERR(1,"ifinit: out of sync");
+			logbad(1,"ifinit: out of sync");
 			continue;
 		}
 
@@ -705,6 +702,9 @@ ifinit(void)
 		}
 
 		if (ifp != 0) {
+			/* The primary representative of an alias worries
+			 * about how things are working.
+			 */
 			if (ifp->int_state & IS_ALIAS)
 				continue;
 
@@ -850,9 +850,7 @@ ifinit(void)
 
 		/* Add it to the list of interfaces
 		 */
-		ifp = (struct interface *)malloc(sizeof(*ifp));
-		if (ifp == 0)
-			BADERR(1,"ifinit: out of memory");
+		ifp = (struct interface *)rtmalloc(sizeof(*ifp), "ifinit");
 		bcopy(&ifs, ifp, sizeof(*ifp));
 		if (ifnet != 0) {
 			ifp->int_next = ifnet;
@@ -860,6 +858,32 @@ ifinit(void)
 		}
 		ifnet = ifp;
 		trace_if("Add", ifp);
+
+		/* Notice likely bad netmask.
+		 */
+		if (!(prev_complaints & COMP_NETMASK)
+		    && !(ifp->int_if_flags & IFF_POINTOPOINT)) {
+			for (ifp1 = ifnet; 0 != ifp1; ifp1 = ifp1->int_next) {
+				if (ifp1->int_mask == ifp->int_mask)
+					continue;
+				if (ifp1->int_if_flags & IFF_POINTOPOINT)
+					continue;
+				if (on_net(ifp->int_addr,
+					   ifp1->int_net, ifp1->int_mask)
+				    || on_net(ifp1->int_addr,
+					      ifp->int_net, ifp->int_mask)) {
+					msglog("possible netmask problem"
+					       " betwen %s:%s and %s:%s",
+					       ifp->int_name,
+					       addrname(htonl(ifp->int_net),
+							ifp->int_mask, 1),
+					       ifp1->int_name,
+					       addrname(htonl(ifp1->int_net),
+							ifp1->int_mask, 1));
+					complaints |= COMP_NETMASK;
+				}
+			}
+		}
 
 		/* Count the # of directly connected networks.
 		 */
