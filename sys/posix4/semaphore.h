@@ -47,6 +47,8 @@ typedef	struct sem *	sem_t;
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 
+struct timespec;
+
 __BEGIN_DECLS
 int	 sem_close(sem_t *);
 int	 sem_destroy(sem_t *);
