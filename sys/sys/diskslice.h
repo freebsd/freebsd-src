@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.27 1998/08/14 08:04:39 dfr Exp $
+ *	$Id: diskslice.h,v 1.28 1998/08/16 01:47:19 bde Exp $
  */
 
 #ifndef	_SYS_DISKSLICE_H_
@@ -69,7 +69,6 @@ struct	diskslice {
 };
 
 struct diskslices {
-	struct cdevsw *dss_bdevsw;	/* for containing device */
 	struct cdevsw *dss_cdevsw;	/* for containing device */
 	int	dss_first_bsd_slice;	/* COMPATIBILITY_SLICE is mapped here */
 	u_int	dss_nslices;		/* actual dimension of dss_slices[] */
@@ -110,7 +109,7 @@ char	*dsname __P((char *dname, int unit, int slice, int part,
 int	dsopen __P((char *dname, dev_t dev, int mode, u_int flags,
 		    struct diskslices **sspp, struct disklabel *lp,
 		    void (*strat)(struct buf *bp), ds_setgeom_t *setgeom,
-		    struct cdevsw *bdevsw, struct cdevsw *cdevsw));
+		    struct cdevsw *cdevsw));
 int	dssize __P((dev_t dev, struct diskslices **sspp,
 		    int (*dopen)(dev_t dev, int oflags, int devtype,
 				  struct proc *p),
