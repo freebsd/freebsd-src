@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.20 1997/09/10 00:52:30 brian Exp $
+# $Id: ppp.conf.sample,v 1.21 1997/11/08 20:58:39 brian Exp $
 #
 #################################################################
 
@@ -12,6 +12,9 @@
 # a label starting in column 0 and followed directly by a ``:''.  The
 # section continues until the next section.  Blank lines and lines
 # beginning with ``#'' are ignored.
+#
+# Lines beginning with "!include" will ``include'' another file.  You
+# may want to ``!include ~/.ppp.conf'' for backwards compatibility.
 #
 
 # Default setup. Always executed when PPP is invoked.
