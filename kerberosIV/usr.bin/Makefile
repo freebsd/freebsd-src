@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SUBDIR=	kadmin kauth kdestroy kinit klist ksrvtgt telnet
 

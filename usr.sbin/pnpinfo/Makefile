@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/03/12 12:54:25 eivind Exp $
+# $FreeBSD$
 
 PROG=	pnpinfo
 

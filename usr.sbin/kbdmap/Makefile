@@ -1,5 +1,5 @@
 # Makefile for kbdmap / vidfont
-# $Id: Makefile,v 1.7 1997/02/22 16:06:00 peter Exp $
+# $FreeBSD$
 
 MAINTAINER= wosch
 

@@ -27,7 +27,7 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.22 1999/07/30 06:51:13 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri Jul 30 08:14:34 1999]
  *

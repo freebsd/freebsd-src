@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	crontab
 CFLAGS+=-I${.CURDIR}/../cron

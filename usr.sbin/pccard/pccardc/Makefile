@@ -1,7 +1,7 @@
 #
 #	pccardc Makefile
 #
-#	$Id: Makefile,v 1.8 1999/02/13 11:32:01 kuriyama Exp $
+# $FreeBSD$
 #
 PROG=	pccardc
 SRCS=	beep.c dumpcis.c enabler.c pccardc.c pccardmem.c printcis.c \

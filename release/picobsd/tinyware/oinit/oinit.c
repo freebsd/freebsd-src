@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: oinit.c,v 1.2 1998/10/15 21:40:07 abial Exp $
+ * $FreeBSD$
  */
 
 /*

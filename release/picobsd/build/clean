@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: clean,v 1.9 1999/08/22 21:42:30 dwhite Exp $
+# $FreeBSD$
 #
 set -e
 

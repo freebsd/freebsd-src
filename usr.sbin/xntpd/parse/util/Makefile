@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 CFLAGS+= -I${.CURDIR}/../../include

@@ -1,4 +1,4 @@
-#	$Id: $
+# $FreeBSD$
 
 PROG=	boot0cfg
 MAN8=	boot0cfg.8

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/08/09 18:50:45 abial Exp $
+# $FreeBSD$
 #
 PROG=oinit
 #CFLAGS+=-DUSE_HISTORY

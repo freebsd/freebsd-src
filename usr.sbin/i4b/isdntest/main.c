@@ -27,7 +27,7 @@
  *	main.c - i4b selftest utility
  *	-----------------------------
  *
- *	$Id: main.c,v 1.13 1999/07/30 06:51:13 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri Jul 30 08:16:37 1999]
  *

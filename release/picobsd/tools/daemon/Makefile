@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1998/07/14 07:30:40 abial Exp $
+# $FreeBSD$
 #
 PROG=daemon
 NOMAN=yes

@@ -1,4 +1,4 @@
-# $Id: update.en,v 1.2.2.1 1999/05/07 10:03:37 abial Exp $
+# $FreeBSD$
 echo -n "Updating /etc contents on startup floppy...  "
 mount /dev/fd0a /start_floppy
 cd /etc

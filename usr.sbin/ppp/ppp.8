@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.191 1999/08/19 18:15:52 brian Exp $
+.\" $FreeBSD$
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD

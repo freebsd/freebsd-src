@@ -27,7 +27,7 @@
  *	i4b daemon - compile time configuration header file
  *	---------------------------------------------------
  *
- *      $Id: config.h,v 1.7 1999/02/14 09:44:55 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:10:10 1999]
  *

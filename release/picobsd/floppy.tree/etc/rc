@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.en,v 1.5 1999/01/19 23:11:50 abial Exp $
+# $FreeBSD$
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###

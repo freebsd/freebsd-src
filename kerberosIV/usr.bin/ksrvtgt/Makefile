@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 MAN1=		${KRB4DIR}/man/ksrvtgt.1
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.c,v 1.7 1999/08/06 20:04:03 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

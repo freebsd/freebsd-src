@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $FreeBSD$
  */
 
 #if (defined(BSD)) && (BSD >= 199103) || defined(__linux) || defined(AIX)

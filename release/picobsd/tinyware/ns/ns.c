@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ns.c,v 1.5 1998/10/09 12:42:20 abial Exp $
+ * $FreeBSD$
  */
 
 

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.h,v 1.8 1997/02/22 16:07:09 peter Exp $
+ * $FreeBSD$
  * vif.h,v 3.8.4.26 1998/01/14 21:21:19 fenner Exp
  */
 

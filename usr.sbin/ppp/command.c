@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.208 1999/08/19 18:15:49 brian Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/param.h>
@@ -144,7 +144,7 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.23";
-const char VersionDate[] = "$Date: 1999/08/19 18:15:49 $";
+const char VersionDate[] = "$Date: 1999/08/22 01:29:53 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);

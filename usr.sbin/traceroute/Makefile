@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/09/19 22:42:13 obrien Exp $
+# $FreeBSD$
 
 PROG=	traceroute
 MAN8=	traceroute.8

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/06/11 03:53:23 jb Exp $
+# $FreeBSD$
 
 #
 # Library of internal routines for the print spooler suite.

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1999/01/19 23:10:34 abial Exp $
+# $FreeBSD$
 #
 SRC?=/usr/src
 
