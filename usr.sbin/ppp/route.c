@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.29 1997/12/04 18:49:39 brian Exp $
+ * $Id: route.c,v 1.30 1997/12/07 04:09:15 brian Exp $
  *
  */
 
@@ -48,6 +48,9 @@
 #include "defs.h"
 #include "vars.h"
 #include "id.h"
+#include "os.h"
+#include "ipcp.h"
+#include "iplist.h"
 #include "route.h"
 
 static int IfIndex;
@@ -142,17 +145,19 @@ OsSetRoute(int cmd,
     LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
     switch (rtmes.m_rtm.rtm_errno) {
     case EEXIST:
-      LogPrintf(LogTCPIP, "Add route failed: Already exists\n");
+      LogPrintf(LogWARN, "Add route failed: %s already exists\n",
+                inet_ntoa(dst));
       break;
     case ESRCH:
-      LogPrintf(LogTCPIP, "Del route failed: Non-existent\n");
+      LogPrintf(LogWARN, "Del route failed: %s: Non-existent\n",
+                inet_ntoa(dst));
       break;
     case 0:
-      LogPrintf(LogTCPIP, "%s route failed: %s\n", cmdstr, strerror(errno));
+      LogPrintf(LogWARN, "%s route failed: %s\n", cmdstr, strerror(errno));
       break;
     case ENOBUFS:
     default:
-      LogPrintf(LogTCPIP, "%s route failed: %s\n",
+      LogPrintf(LogWARN, "%s route failed: %s\n",
 		cmdstr, strerror(rtmes.m_rtm.rtm_errno));
       break;
     }
@@ -283,7 +288,7 @@ p_flags(u_long f, const char *format)
 static const char *
 Index2Nam(int idx)
 {
-  static char ifs[50][6];
+  static char ifs[200][6];	/* We could have 256 tun devices ! */
   static int nifs, debug_done;
 
   if (!nifs) {
@@ -492,4 +497,29 @@ GetIfIndex(char *name)
     else
       idx++;
   return -1;
+}
+
+struct in_addr
+ChooseHisAddr(const struct in_addr gw)
+{
+  struct in_addr try;
+  int f;
+
+  for (f = 0; f < DefHisChoice.nItems; f++) {
+    try = iplist_next(&DefHisChoice);
+    LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
+              f, inet_ntoa(try));
+    if (OsTrySetIpaddress(gw, try) == 0) {
+      LogPrintf(LogIPCP, "ChooseHisAddr: Selected IP address %s\n",
+                inet_ntoa(try));
+      break;
+    }
+  }
+
+  if (f == DefHisChoice.nItems) {
+    LogPrintf(LogDEBUG, "ChooseHisAddr: All addresses in use !\n");
+    try.s_addr = INADDR_ANY;
+  }
+
+  return try;
 }
