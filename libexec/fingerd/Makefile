@@ -4,5 +4,6 @@
 PROG=	fingerd
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
+MAN=	fingerd.8
 
 .include <bsd.prog.mk>

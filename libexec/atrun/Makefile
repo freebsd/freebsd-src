@@ -6,15 +6,14 @@ MAINSRC=${.CURDIR}/../../usr.bin/at
 
 PROG=	atrun
 SRCS=	atrun.c gloadavg.c
+MAN=	atrun.8
 
 BINDIR=	${ATLIB_DIR}
-CLEANFILES= ${MAN8}
+CLEANFILES= ${MAN}
 
 CFLAGS+=-I${MAINSRC} -I${.CURDIR}
 
-.include <bsd.prog.mk>
-
-${MAN8}: atrun.man
+atrun.8: atrun.man
 	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \
 	sed -e \
 		"s@_ATSPOOL_DIR@$(ATSPOOL_DIR)@g; \
@@ -22,3 +21,5 @@ ${MAN8}: atrun.man
 		s@_ATLIB_DIR@$(ATLIB_DIR)@g; \
 		s@_LOADAVG_MX@$(LOADAVG_MX)@g;" \
 		< ${.ALLSRC} > ${.TARGET}
+
+.include <bsd.prog.mk>

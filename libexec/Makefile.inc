@@ -2,4 +2,3 @@
 # $FreeBSD$
 
 BINDIR?=	/usr/libexec
-MANSECT?=	8

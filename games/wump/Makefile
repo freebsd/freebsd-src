@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	wump
+MAN=	wump.6
 HIDEGAME=hidegame
 
 beforeinstall:

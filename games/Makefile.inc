@@ -9,5 +9,3 @@ GBINDIR:=      ${BINDIR}
 BINDIR:=       ${BINDIR}/hide
 BINMODE=       550
 .endif
-
-MANSECT?=	6

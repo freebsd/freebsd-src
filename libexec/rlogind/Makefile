@@ -3,6 +3,7 @@
 
 PROG=	rlogind
 SRCS=	rlogind.c
+MAN=	rlogind.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 CFLAGS+= -Wall -DINET6

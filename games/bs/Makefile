@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=   bs
+MAN=   bs.6
 DPADD=  ${LIBNCURSES}
 LDADD=  -lncurses
 HIDEGAME=hidegame
