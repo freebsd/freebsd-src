@@ -237,7 +237,8 @@ void tex_output::solid_arc(const position &cent, double rad,
 	 milliinches(rad/scale),
 	 milliinches(rad/scale),
 	 -end_angle,
-	 (-end_angle > -start_angle) ? M_PI * 2 - start_angle : -start_angle);
+	 (-end_angle > -start_angle) ? (double)M_PI * 2 - start_angle
+	 			     : -start_angle);
 }
   
 void tex_output::arc(const position &start, const position &cent,

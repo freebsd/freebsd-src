@@ -829,7 +829,7 @@ int main(int argc, char **argv)
       for (j = int(sizeof(m)/sizeof(m[0])) - 1; j > 0; j--)
 	if (m[j] != 0)
 	  break;
-      for (int k = 1; k <= j; k++)
+      for (k = 1; k <= j; k++)
 	printf(",%d", m[k]*MULTIPLIER);
       int type = 0;
       if (m[2] > 0)

@@ -31,7 +31,6 @@ TOP=..
 LIBGROFF=$(TOP)/libgroff/libgroff.a
 LIBBIB=$(TOP)/libbib/libbib.a
 LIBDRIVER=$(TOP)/libdriver/libdriver.a
-LIBM=-lm
 MLIB=
 XLIBS=
 YTABH=
@@ -121,6 +120,7 @@ extraclean:
 	-e "s;@MAN7EXT@;$(man7ext);g" \
 	-e "s;@TMAC_S_PREFIX@;$(tmac_s_prefix);g" \
 	-e "s;@TMAC_M_PREFIX@;$(tmac_m_prefix);g" \
+	-e "s;@TMAC_AN_PREFIX@;$(tmac_an_prefix);g" \
 	-e "s;@TMAC_MDIR@;$(tmacdir)/mm;g" \
 	-e "s;@BROKEN_SPOOLER_FLAGS@;$(BROKEN_SPOOLER_FLAGS);g" \
 	-e "s;@VERSION@;`cat $(srcdir)/../VERSION`;g" \

@@ -13,7 +13,7 @@ the CXX environment variable.
 
 If you have a library that provides a faster malloc than your system's
 usual malloc, it is good idea to include it in LIBS.  For example,
-using the malloc that comes with GNU Emacs version 18 can give a
+using the malloc that comes with GNU Emacs version 20 can give a
 worthwhile (and sometimes spectacular) performance improvement.
 
 When you have built groff, you can use the test-groff script to try
@@ -26,6 +26,10 @@ the build directory when the script is run.  For example, you could do
 
 If you want to install gxditview (an X11 previewer), follow the
 instructions in the INSTALL file in the xditview directory.
+
+To get PostScript versions of the documentation resp. reference files for
+the `me' macros and the `pic' preprocessor, simply say `make' in the
+`doc' subdirectory.
 
 If you have problems, read the PROBLEMS file.  If this doesn't help
 send a bug report using the form in the file BUG-REPORT.

@@ -270,7 +270,7 @@ void string::clear()
 
 int string::search(char c) const
 {
-  char *p = (char *)memchr(ptr, c, len);
+  char *p = ptr ? (char *)memchr(ptr, c, len) : NULL;
   return p ? p - ptr : -1;
 }
 

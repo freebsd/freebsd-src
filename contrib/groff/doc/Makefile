@@ -20,15 +20,15 @@
 FFLAG=-F..
 TROFF=../troff/troff -M../tmac $(FFLAG)
 GROPS=../grops/grops $(FFLAG)
-DOCS=meref.PS meintro.PS pic.PS
+DOCS=meref.ps meintro.ps pic.ps
 MEMACROS=../macros/tmac.e
 SOELIM=../soelim/soelim
 
 all: $(DOCS)
 
-.SUFFIXES: .tr .me .ms .PS .dit
+.SUFFIXES: .tr .me .ms .ps .dit
 
-.dit.PS:
+.dit.ps:
 	$(GROPS) $< >$@
 
 .me.dit:
@@ -39,18 +39,24 @@ all: $(DOCS)
 .tr.dit:
 	$(TROFF) -Tps $< >$@
 
-meref.PS: meref.dit
-meintro.PS: meintro.dit
+meref.ps: meref.dit
+meintro.ps: meintro.dit
 
 # This production must use -p -e -t so pic/eqn processing is done
-pic.PS: pic.ms
-	sed $< -e "s;@VERSION@;`cat ../VERSION`;" \
+pic.ps: pic.ms
+	sed -e "s;@VERSION@;`cat ../VERSION`;" $< \
 	| ../groff/groff -p -e -t -Tps $(FFLAG) -ms  >$@
+
+pic.html: pic.ms
+	sed -e "s;@VERSION@;`cat ../VERSION`;" $< \
+	| ../groff/groff -p -e -t -Thtml $(FFLAG) -ms -mhtml >$@
 
 install:
 
 clean:
-	-rm -f *.PS *.dit core
+	-rm -f *.ps *.html *.png *.gif *.dit core
+	-rm -f *.aux *.cp *.cps *.cv *.cn *.dvi *.fn *.fns *.ky *.kys \
+               *.log *.op *.pg *.pgs *.ps *.toc *.tp *.tps *.tr *.vr *.vrs
 
 distclean: clean
 

@@ -159,7 +159,7 @@ int list_box::compute_metrics(int style)
     have_simple = list.p[i]->is_simple();
   if (have_simple) {
     printf(".nr " WIDTH_FORMAT " +\\w" DELIMITER_CHAR, uid);
-    for (int i = 0; i < list.len; i++)
+    for (i = 0; i < list.len; i++)
       if (list.p[i]->is_simple())
 	list.p[i]->output();
     printf(DELIMITER_CHAR "\n");
@@ -187,7 +187,7 @@ void list_box::compute_sublist_width(int n)
     have_simple = list.p[i]->is_simple();
   if (have_simple) {
     printf("+\\w" DELIMITER_CHAR);
-    for (int i = 0; i < n; i++)
+    for (i = 0; i < n; i++)
       if (list.p[i]->is_simple())
 	list.p[i]->output();
     printf(DELIMITER_CHAR);

@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -35,7 +35,7 @@ the original English.
 .SH SYNOPSIS
 .B @g@pic
 [
-.B \-nvC
+.B \-nvCSU
 ]
 [
 .I filename
@@ -45,7 +45,7 @@ the original English.
 .B @g@pic
 .B \-t
 [
-.B \-cvzC
+.B \-cvzCSU
 ]
 [
 .I filename
@@ -104,6 +104,11 @@ Safer mode; do not execute
 .B sh
 commands.
 This can be useful when operating on untrustworthy input.
+(enabled by default)
+.TP
+.B \-U
+Unsafe mode; revert the default option
+.BR \-S .
 .TP
 .B \-n
 Don't use the groff extensions to the troff drawing commands.
@@ -734,10 +739,11 @@ macros.
 .br
 Tpic: Pic for \*(tx
 .br
-AT&T Bell Laboratories, Computing Science Technical Report No.\ 116,
-PIC \(em A Graphics Language for Typesetting.
-(This can be obtained by sending a mail message to netlib@research.att.com
-with a body of `send\ 116\ from\ research/cstr'.)
+Brian W. Kernighan,
+PIC \(em A Graphics Language for Typesetting (User Manual).
+AT&T Bell Laboratories, Computing Science Technical Report No.\ 116
+<URL:http://cm.bell-labs.com/cm/cs/cstr/116.ps.gz>
+(revised May, 1991).
 .SH BUGS
 .LP
 Input characters that are illegal for
