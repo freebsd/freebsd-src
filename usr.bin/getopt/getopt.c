@@ -29,5 +29,5 @@ char *argv[];
 	for (; optind < argc; optind++)
 		printf(" %s", argv[optind]);
 	printf("\n");
-	exit(status);
+	return status;
 }
