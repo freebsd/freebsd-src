@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.89 1999/05/07 04:36:21 jkh Exp $
+ * $Id: label.c,v 1.90 1999/07/29 06:28:52 brian Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -309,7 +309,8 @@ new_part(char *mpoint, Boolean newfs, u_long size)
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     sstrncpy(ret->mountpoint, mpoint, FILENAME_MAX);
-    strcpy(ret->newfs_cmd, "newfs -b 8192 -f 1024");
+    strcpy(ret->newfs_cmd, "newfs ");
+    strcat(ret->newfs_cmd, variable_get(VAR_NEWFS_ARGS));
     ret->newfs = newfs;
     if (!size)
 	return ret;
