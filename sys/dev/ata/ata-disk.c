@@ -131,7 +131,6 @@ ad_attach(struct ata_device *atadev)
     ad_config(atadev);
 
     /* lets create the disk device */
-    adp->max_iosize = DEV_BSIZE;
     adp->disk.d_open = adopen;
     adp->disk.d_strategy = adstrategy;
     adp->disk.d_dump = addump;
