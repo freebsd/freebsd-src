@@ -191,8 +191,6 @@ main(argc, argv)
 			}
 			Tflag = 1;
 			lastlevel = '?';
-			argc--;
-			argv++;
 			break;
 
 		case 'u':		/* update /etc/dumpdates */
