@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -384,25 +385,29 @@ ar_close(void)
 	if (frmt == NULL) {
 #	ifdef NET2_STAT
 		(void)fprintf(listf, "%s: unknown format, %lu bytes skipped.\n",
-#	else
-		(void)fprintf(listf, "%s: unknown format, %qu bytes skipped.\n",
-#	endif
 		    argv0, rdcnt);
+#	else
+		(void)fprintf(listf, "%s: unknown format, %ju bytes skipped.\n",
+		    argv0, (uintmax_t)rdcnt);
+#	endif
 		(void)fflush(listf);
 		flcnt = 0;
 		return;
 	}
 
 	if (strcmp(NM_CPIO, argv0) == 0)
-		(void)fprintf(listf, "%qu blocks\n", (rdcnt ? rdcnt : wrcnt) / 5120);
+		(void)fprintf(listf, "%llu blocks\n",
+		    (unsigned long long)((rdcnt ? rdcnt : wrcnt) / 5120));
 	else if (strcmp(NM_TAR, argv0) != 0)
 		(void)fprintf(listf,
 #	ifdef NET2_STAT
 		    "%s: %s vol %d, %lu files, %lu bytes read, %lu bytes written.\n",
-#	else
-		    "%s: %s vol %d, %lu files, %qu bytes read, %qu bytes written.\n",
-#	endif
 		    argv0, frmt->name, arvol-1, flcnt, rdcnt, wrcnt);
+#	else
+		    "%s: %s vol %d, %ju files, %ju bytes read, %ju bytes written.\n",
+		    argv0, frmt->name, arvol-1, (uintmax_t)flcnt,
+		    (uintmax_t)rdcnt, (uintmax_t)wrcnt);
+#	endif
 	(void)fflush(listf);
 	flcnt = 0;
 }

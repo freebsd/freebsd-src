@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <langinfo.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <utmp.h>
 #include <unistd.h>
@@ -138,7 +139,7 @@ ls_list(ARCHD *arcn, time_t now, FILE *fp)
 #		ifdef NET2_STAT
 		(void)fprintf(fp, "%9lu ", sbp->st_size);
 #		else
-		(void)fprintf(fp, "%9qu ", sbp->st_size);
+		(void)fprintf(fp, "%9ju ", (uintmax_t)sbp->st_size);
 #		endif
 	}
 
