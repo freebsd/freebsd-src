@@ -1004,17 +1004,11 @@ msdosfs_rename(ap)
 	u_long cn;
 	daddr_t bn;
 	struct denode *fddep;	/* from file's parent directory	 */
-	struct denode *fdep;	/* from file or directory	 */
-	struct denode *tddep;	/* to file's parent directory	 */
-	struct denode *tdep;	/* to file or directory		 */
 	struct msdosfsmount *pmp;
 	struct direntry *dotdotp;
 	struct buf *bp;
 
 	fddep = VTODE(ap->a_fdvp);
-	fdep = VTODE(ap->a_fvp);
-	tddep = VTODE(ap->a_tdvp);
-	tdep = tvp ? VTODE(tvp) : NULL;
 	pmp = fddep->de_pmp;
 
 	pmp = VFSTOMSDOSFS(fdvp->v_mount);
