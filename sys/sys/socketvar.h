@@ -405,6 +405,7 @@ int	soconnect2(struct socket *so1, struct socket *so2);
 int	socow_setup(struct mbuf *m0, struct uio *uio);
 int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
+void	sodealloc(struct socket *so);
 int	sodisconnect(struct socket *so);
 void	sofree(struct socket *so);
 int	sogetopt(struct socket *so, struct sockopt *sopt);
