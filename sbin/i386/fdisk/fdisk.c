@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.26 1998/11/06 03:43:21 alex Exp $";
+	"$Id: fdisk.c,v 1.27 1998/11/26 12:24:35 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -118,6 +118,7 @@ typedef struct cmd {
 
 
 static int a_flag  = 0;		/* set active partition */
+static int b_flag  = 0;		/* replace boot code */
 static int i_flag  = 0;		/* replace partition data */
 static int u_flag  = 0;		/* update partition data */
 static int t_flag  = 0;		/* test only, if f_flag is given */
@@ -220,6 +221,7 @@ static void init_boot(void);
 static void change_part(int i);
 static void print_params();
 static void change_active(int which);
+static void change_code();
 static void get_params_to_use();
 static void dos(int sec, int size, unsigned char *c, unsigned char *s,
 		unsigned char *h);
@@ -266,6 +268,9 @@ main(int argc, char *argv[])
 					break;
 				case 'a':
 					a_flag = 1;
+					break;
+				case 'b':
+					b_flag = 1;
 					break;
 				case 'f':
 					if (*token)
@@ -380,7 +385,10 @@ main(int argc, char *argv[])
 	    if (u_flag || a_flag)
 		change_active(partition);
 
-	    if (u_flag || a_flag) {
+	    if (b_flag)
+		change_code();
+
+	    if (u_flag || a_flag || b_flag) {
 		if (!t_flag)
 		{
 		    printf("\nWe haven't changed the partition table yet.  ");
@@ -406,7 +414,7 @@ static void
 usage()
 {
 	fprintf(stderr,
- "usage: fdisk {-a|-i|-u} [-f <config file> [-t] [-v]] [-{1,2,3,4}] [disk]\n");
+ "usage: fdisk {-a|-b|-i|-u} [-f configfile [-t] [-v]] [-{1,2,3,4}] [disk]\n");
         exit(1);
 }
 
@@ -587,6 +595,14 @@ setactive:
 		partp[active-1].dp_flag = ACTIVE;
 }
 
+static void
+change_code()
+{
+	if (ok("Do you want to change the boot code?"))
+		init_boot();
+
+}
+
 void
 get_params_to_use()
 {
@@ -649,7 +665,8 @@ struct stat 	st;
 	}
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
-	if ((fd = open(disk, a_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
+	if ((fd = open(disk,
+	    a_flag || b_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
 		if(errno == ENXIO)
 			return -2;
 		warnx("can't open device %s", disk);
