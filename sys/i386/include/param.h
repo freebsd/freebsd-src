@@ -33,24 +33,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)param.h	5.8 (Berkeley) 6/28/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         2       00166
- * --------------------         -----   ----------------------
- *
- * 08 Apr 93	Andrew Herbert		Fixes for kmem_alloc panics
- *		Rodney W. Grimes	Tuneable mbuf sizes
- * 04 Jun 93	Rodney W. Grimes	Change default mbuf size to 2048 via
- *					MCLSHIFT.
+ *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
+ *	$Id$
  */
 
 /*
  * Machine dependent constants for Intel 386.
  */
 
-#define MACHINE "i386"
+#define MACHINE		"i386"
+#define MID_MACHINE	MID_I386
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
@@ -59,7 +51,6 @@
  */
 #define ALIGNBYTES	(sizeof(int) - 1)
 #define ALIGN(p)	(((u_int)(p) + ALIGNBYTES) &~ ALIGNBYTES)
-
 
 #define	NBPG		4096		/* bytes/page */
 #define	PGOFSET		(NBPG-1)	/* byte offset into page */
@@ -101,8 +92,8 @@
 #ifndef	MCLSHIFT
 #define	MCLSHIFT	11		/* convert bytes to m_buf clusters */
 #endif	/* MCLSHIFT */
-#define	MCLBYTES	(1 << MCLSHIFT)	/* size of an m_buf cluster */
-#define	MCLOFSET	(MCLBYTES - 1)	/* offset within an m_buf cluster */
+#define	MCLBYTES	(1 << MCLSHIFT)	/* size of a m_buf cluster */
+#define	MCLOFSET	(MCLBYTES - 1)	/* offset within a m_buf cluster */
 
 #ifndef NMBCLUSTERS
 #ifdef GATEWAY
@@ -160,7 +151,3 @@
 #define i386_dtob(x)		((unsigned)(x) << PDRSHIFT)
 #define i386_btop(x)		((unsigned)(x) >> PGSHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PGSHIFT)
-
-#ifndef KERNEL
-#define	DELAY(n)	{ volatile int N = (n); while (--N > 0); }
-#endif
