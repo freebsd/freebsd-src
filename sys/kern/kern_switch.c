@@ -210,7 +210,7 @@ kse_reassign(struct kse *ke)
 		kg->kg_last_assigned = td;
 		td->td_kse = ke;
 		ke->ke_thread = td;
-		sched_add(ke);
+		sched_add(td);
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
 		return;
 	}
@@ -249,7 +249,7 @@ remrunqueue(struct thread *td)
 	 */
 	if ((td->td_proc->p_flag & P_SA) == 0) {
 		/* Bring its kse with it, leave the thread attached */
-		sched_rem(ke);
+		sched_rem(td);
 		ke->ke_state = KES_THREAD; 
 		return;
 	}
@@ -262,7 +262,7 @@ remrunqueue(struct thread *td)
 		 * KSE to the next available thread. Then, we should
 		 * see if we need to move the KSE in the run queues.
 		 */
-		sched_rem(ke);
+		sched_rem(td);
 		ke->ke_state = KES_THREAD; 
 		td2 = kg->kg_last_assigned;
 		KASSERT((td2 != NULL), ("last assigned has wrong value"));
@@ -294,8 +294,8 @@ adjustrunqueue( struct thread *td, int newpri)
 		/* We only care about the kse in the run queue. */
 		td->td_priority = newpri;
 		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
-			sched_rem(ke);
-			sched_add(ke);
+			sched_rem(td);
+			sched_add(td);
 		}
 		return;
 	}
@@ -309,7 +309,7 @@ adjustrunqueue( struct thread *td, int newpri)
 			kg->kg_last_assigned =
 			    TAILQ_PREV(td, threadqueue, td_runq);
 		}
-		sched_rem(ke);
+		sched_rem(td);
 	}
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	td->td_priority = newpri;
@@ -337,7 +337,7 @@ setrunqueue(struct thread *td)
 		 * and the KSE is always already attached.
 		 * Totally ignore the ksegrp run queue.
 		 */
-		sched_add(td->td_kse);
+		sched_add(td);
 		return;
 	}
 
@@ -360,7 +360,7 @@ setrunqueue(struct thread *td)
 			ke->ke_thread = NULL;
 			tda = kg->kg_last_assigned =
 		    	    TAILQ_PREV(tda, threadqueue, td_runq);
-			sched_rem(ke);
+			sched_rem(td);
 		}
 	} else {
 		/* 
@@ -419,7 +419,7 @@ setrunqueue(struct thread *td)
 			td2->td_kse = ke;
 			ke->ke_thread = td2;
 		}
-		sched_add(ke);
+		sched_add(ke->ke_thread);
 	}
 }
 
