@@ -1838,6 +1838,7 @@ vflush(mp, rootrefs, flags)
 		if ((error = VFS_ROOT(mp, &rootvp)) != 0)
 			return (error);
 		vput(rootvp);
+
 	}
 	mtx_lock(&mntvnode_mtx);
 loop:
@@ -2002,6 +2003,12 @@ vclean(vp, flags, td)
 	VOP_DESTROYVOBJECT(vp);
 
 	/*
+	 * Any other processes trying to obtain this lock must first
+	 * wait for VXLOCK to clear, then call the new lock operation.
+	 */
+	VOP_UNLOCK(vp, 0, td);
+
+	/*
 	 * If purging an active vnode, it must be closed and
 	 * deactivated before being reclaimed. Note that the
 	 * VOP_INACTIVE will unlock the vnode.
@@ -2009,14 +2016,11 @@ vclean(vp, flags, td)
 	if (active) {
 		if (flags & DOCLOSE)
 			VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
+		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
+			panic("vclean: cannot relock.");
 		VOP_INACTIVE(vp, td);
-	} else {
-		/*
-		 * Any other processes trying to obtain this lock must first
-		 * wait for VXLOCK to clear, then call the new lock operation.
-		 */
-		VOP_UNLOCK(vp, 0, td);
 	}
+
 	/*
 	 * Reclaim the vnode.
 	 */
