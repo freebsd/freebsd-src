@@ -224,7 +224,7 @@ coda_kill(whoIam, dcstat)
 						   (cp->c_fid).Vnode,
 						   (cp->c_fid).Unique, 
 						   cp->c_flags,
-						   CTOV(cp)->v_usecount)); );
+						   vrefcnt(CTOV(cp)))); );
 			}
 		}
 	}
@@ -271,7 +271,7 @@ coda_testflush(void)
 	     cp = CNODE_NEXT(cp)) {  
 	    myprintf(("Live cnode fid %lx.%lx.%lx count %d\n",
 		      (cp->c_fid).Volume,(cp->c_fid).Vnode,
-		      (cp->c_fid).Unique, CTOV(cp)->v_usecount));
+		      (cp->c_fid).Unique, vrefcnt(CTOV(cp))));
 	}
     }
 }
@@ -419,8 +419,8 @@ int handleDownCall(opcode, out)
 	      CODADEBUG(CODA_ZAPFILE, myprintf((
 "zapfile: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
 		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique,
-		  CTOV(cp)->v_usecount - 1, error)););
-	      if (CTOV(cp)->v_usecount == 1) {
+		  vrefcnt(CTOV(cp)) - 1, error)););
+	      if (vrefcnt(CTOV(cp)) == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
 	      vrele(CTOV(cp));
@@ -445,8 +445,8 @@ int handleDownCall(opcode, out)
 	      CODADEBUG(CODA_ZAPDIR, myprintf((
 "zapdir: fid = (%lx.%lx.%lx), refcnt = %d\n",
 		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique,
-		  CTOV(cp)->v_usecount - 1)););
-	      if (CTOV(cp)->v_usecount == 1) {
+		  vrefcnt(CTOV(cp)) - 1)););
+	      if (vrefcnt(CTOV(cp)) == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
 	      vrele(CTOV(cp));
@@ -480,8 +480,8 @@ int handleDownCall(opcode, out)
 	      CODADEBUG(CODA_PURGEFID, myprintf(("purgefid: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
                                             cp->c_fid.Volume, cp->c_fid.Vnode,
                                             cp->c_fid.Unique, 
-					    CTOV(cp)->v_usecount - 1, error)););
-	      if (CTOV(cp)->v_usecount == 1) {
+					    vrefcnt(CTOV(cp)) - 1, error)););
+	      if (vrefcnt(CTOV(cp)) == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
 	      vrele(CTOV(cp));

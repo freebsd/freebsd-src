@@ -343,7 +343,7 @@ coda_close(v)
 	if (cp->c_ovp) {
 #ifdef	CODA_VERBOSE
 	    printf("coda_close: destroying container ref %d, ufs vp %p of vp %p/cp %p\n",
-		    vp->v_usecount, cp->c_ovp, vp, cp);
+		    vrefcnt(vp), cp->c_ovp, vp, cp);
 #endif
 #ifdef	hmm
 	    vgone(cp->c_ovp);
@@ -492,7 +492,7 @@ printf("coda_rdwr: Internally Opening %p\n", vp);
     /* Have UFS handle the call. */
     CODADEBUG(CODA_RDWR, myprintf(("indirect rdwr: fid = (%lx.%lx.%lx), refcnt = %d\n",
 			      cp->c_fid.Volume, cp->c_fid.Vnode, 
-			      cp->c_fid.Unique, CTOV(cp)->v_usecount)); )
+			      cp->c_fid.Unique, vrefcnt(CTOV(cp)))); )
 
     if (rw == UIO_READ) {
 	error = VOP_READ(cfvp, uiop, ioflag, cred);
@@ -855,10 +855,12 @@ coda_fsync(v)
      * For now we ignore them.
      */
     /*
+    VI_LOCK(vp);
     if (!vp->v_usecount) {
     	printf("coda_fsync on vnode %p with %d usecount.  c_flags = %x (%x)\n",
 		vp, vp->v_usecount, cp->c_flags, cp->c_flags&C_PURGING);
     }
+    VI_UNLOCK(vp);
     */
 
     /*
@@ -926,15 +928,15 @@ coda_inactive(v)
 
     if (IS_UNMOUNTING(cp)) {
 #ifdef	DEBUG
-	printf("coda_inactive: IS_UNMOUNTING use %d: vp %p, cp %p\n", vp->v_usecount, vp, cp);
+	printf("coda_inactive: IS_UNMOUNTING use %d: vp %p, cp %p\n", vrefcnt(vp), vp, cp);
 	if (cp->c_ovp != NULL)
 	    printf("coda_inactive: cp->ovp != NULL use %d: vp %p, cp %p\n",
-	    	   vp->v_usecount, vp, cp);
+	    	   vrefcnt(vp), vp, cp);
 #endif
 	lockmgr(&cp->c_lock, LK_RELEASE, &vp->v_interlock, td);
     } else {
 #ifdef OLD_DIAGNOSTIC
-	if (CTOV(cp)->v_usecount) {
+	if (vrefcnt(CTOV(cp))) {
 	    panic("coda_inactive: nonzero reference count");
 	}
 	if (cp->c_ovp != NULL) {
@@ -1661,7 +1663,7 @@ printf("coda_readdir: Internally Opening %p\n", vp);
 	}
 	
 	/* Have UFS handle the call. */
-	CODADEBUG(CODA_READDIR, myprintf(("indirect readdir: fid = (%lx.%lx.%lx), refcnt = %d\n",cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique, vp->v_usecount)); )
+	CODADEBUG(CODA_READDIR, myprintf(("indirect readdir: fid = (%lx.%lx.%lx), refcnt = %d\n",cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique, vrefcnt(vp))); )
 	error = VOP_READDIR(cp->c_ovp, uiop, cred, eofflag, ncookies,
 			       cookies);
 	
@@ -1765,7 +1767,7 @@ coda_reclaim(v)
 #endif
     } else {
 #ifdef OLD_DIAGNOSTIC
-	if (vp->v_usecount != 0) 
+	if (vrefcnt(vp) != 0) 
 	    print("coda_reclaim: pushing active %p\n", vp);
 	if (VTOC(vp)->c_ovp) {
 	    panic("coda_reclaim: c_ovp not void");
