@@ -601,6 +601,9 @@
 415	UNIMPL	BSD	__execve_mac
 416	UNIMPL	BSD	newsigreturn
 417	UNIMPL	BSD	newsigaction
+418	UNIMPL	BSD	__xstat
+419	UNIMPL	BSD	__xfstat
+420	UNIMPL	BSD	__xlstat
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
