@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_rwlock.c,v 1.1 1998/09/07 19:01:43 alex Exp $
+ *	$Id: uthread_rwlock.c,v 1.2 1998/09/07 19:23:55 alex Exp $
  */
 
 #ifdef _THREAD_SAFE
@@ -130,7 +130,7 @@ int
 pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 {
 	pthread_rwlock_t 	prwlock;
-	int			ret = 0;
+	int			ret;
 
 	if (rwlock == NULL)
 		return(EINVAL);
@@ -181,7 +181,7 @@ int
 pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 {
 	pthread_rwlock_t 	prwlock;
-	int			ret = 0;
+	int			ret;
 
 	if (rwlock == NULL)
 		return(EINVAL);
@@ -218,7 +218,7 @@ int
 pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 {
 	pthread_rwlock_t 	prwlock;
-	int			ret = 0;
+	int			ret;
 
 	if (rwlock == NULL)
 		return(EINVAL);
@@ -253,7 +253,7 @@ int
 pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 {
 	pthread_rwlock_t 	prwlock;
-	int			ret = 0;
+	int			ret;
 
 	if (rwlock == NULL)
 		return(EINVAL);
@@ -290,7 +290,7 @@ int
 pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
 {
 	pthread_rwlock_t 	prwlock;
-	int			ret = 0;
+	int			ret;
 
 	if (rwlock == NULL)
 		return(EINVAL);
