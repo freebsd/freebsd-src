@@ -643,7 +643,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	if (ku) {
 		if ((td2 = ku->ku_owner) == NULL) {
 			panic("%s: no owner", __func__);
-		} else if (TD_ON_SLEEPQ(td2) &&
+		} else if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) &&
 		           ((td2->td_wchan == &kg->kg_completed) ||
 			    (td2->td_wchan == &p->p_siglist &&
 			     (ku->ku_mflags & KMF_WAITSIGEVENT)))) {
