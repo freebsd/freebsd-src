@@ -557,8 +557,6 @@ static struct cdevsw stl_cdevsw = {
 	/* bmaj */	-1
 };
 
-static int stl_devsw_installed;
-
 static void stl_drvinit(void *unused)
 {
 
@@ -956,7 +954,7 @@ STATIC int stlstop(struct tty *tp, int rw)
 STATIC struct tty *stldevtotty(dev_t dev)
 {
 #if DEBUG
-	printf("stldevtotty(dev=%x)\n", dev);
+	printf("stldevtotty(dev=%s)\n", devtoname(dev));
 #endif
 	return((struct tty *) stl_dev2port(dev));
 }

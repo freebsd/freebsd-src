@@ -742,7 +742,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 	struct iso_mnt *imp;
 	struct iso_node *ip;
 	struct buf *bp;
-	struct vnode *vp, *nvp;
+	struct vnode *vp;
 	dev_t dev;
 	int error;
 
