@@ -45,6 +45,7 @@ int	 revstatcmp(const FTSENT *, const FTSENT *);
 
 void	 printcol(DISPLAY *);
 void	 printlong(DISPLAY *);
+int	 printname(const char *);
 void	 printscol(DISPLAY *);
 void	 printstream(DISPLAY *);
 void	 usage(void);
