@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)tags.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id: tags.c,v 1.4 1999/06/01 20:02:30 hoek Exp $";
+        "$Id: tags.c,v 1.5 1999/06/04 19:35:22 hoek Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -168,6 +168,11 @@ extern int linenums;
 extern char *line;
 
 static char *ctagpattern;
+static int ctagflags;
+
+/* ctag flags */
+#define START_OF_LINE 0x01
+#define END_OF_LINE   0x02
 
 /*
  * Find specified tag in the ctags(1)-format tag file ctagfile.  Returns
@@ -243,13 +248,23 @@ findctag(tag)
 		 * Delete the initial "^" and the final "$" from the pattern.
 		 */
 		search_char = *p++;
-		if (*p == '^')
+		if (*p == '^') {
 			p++;
+			ctagflags |= START_OF_LINE;
+		} else {
+			ctagflags &= ~START_OF_LINE;
+		}
 		ctagpattern = p;  /* cock ctagsearch() */
 		while (*p != search_char && *p != '\0')
 			p++;
-		if (p[-1] == '$')
+		if (p[-1] == '\n')
 			p--;
+		if (p[-1] == '$') {
+			p--;
+			ctagflags |= END_OF_LINE;
+		} else {
+			ctagflags &= ~END_OF_LINE;
+		}
 		*p = '\0';
 
 		(void)fclose(f);
@@ -310,12 +325,36 @@ ctagsearch()
 			add_lnum(linenum, pos);
 
 		/*
-		 * Test the line to see if we have a match.
+		 * Test the line to see if we have a match.  I don't know of
+		 * any tags program that would use START_OF_LINE but not
+		 * END_OF_LINE, or vice-a-versa, but we handle this case anyway.
 		 */
-		if (strcmp(ctagpattern, line) == 0)
+		switch (ctagflags) {
+		case 0: /* !START_OF_LINE and !END_OF_LINE */
+			if (strstr(line, ctagpattern))
+				goto found;
 			break;
+		case START_OF_LINE:  /* !END_OF_LINE */
+			if (!strncmp(ctagpattern, line, strlen(ctagpattern)))
+				goto found;
+			break;
+		case END_OF_LINE:  /* !START_OF_LINE */
+		{
+			char *x = strstr(line, ctagpattern);
+			if (!x)
+				break;
+			if (x[strlen(ctagpattern)] != '\0')
+				break;
+			goto found;
+		}
+		case START_OF_LINE | END_OF_LINE:
+			if (!strcmp(ctagpattern, line))
+				goto found;
+			break;
+		}
 	}
 
+found:
 	jump_loc(linepos);
 	return (0);
 }
