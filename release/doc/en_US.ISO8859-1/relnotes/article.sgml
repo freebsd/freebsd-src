@@ -173,6 +173,9 @@
       import includes a newly-ported SiS 300/305/540/630/730
       driver.</para>
 
+    <para>A multi-byte character set conversion method is now supported
+      by the <literal>LIBICONV</literal> kernel option.</para>
+
     <para arch="sparc64">A new OFW PCI framework, conditional on the
       <literal>OFW_NEWPCI</literal> kernel configuration option, has
       been added.  This addition improves the handling of PCI busses.
@@ -368,6 +371,13 @@
     <sect3 id="fs">
       <title>File Systems</title>
 
+      <para>Multi-byte character conversion with the cd9660, msdosfs,
+	and ntfs filesystems is now supported by including the
+	<literal>CD9660_ICONV</literal>,
+	<literal>MSDOSFS_ICONV</literal>, and
+	<literal>NTFS_ICONV</literal> kernel options,
+	respectively.</para>
+
       <para>Some off-by-one errors in the smbfs that prevented it from
 	working correctly with 15-character NetBIOS names have been fixed.</para>
 
@@ -432,6 +442,10 @@
       programs that used <filename>libcipher</filename> have been
       converted to use <filename>libcrypto</filename> instead.</para>
 
+    <para>The <filename>libkiconv</filename> library has been added to
+      support working with loadable character set conversion tables in
+      the kernel.</para>
+
     <para arch="i386,ia64">The <filename>libthr</filename> 1:1
       threading library is now built by default.</para>
 
@@ -447,6 +461,22 @@
       This allows to unambiguously specify which file system is
       to be unmounted even when two or more file systems share
       the same device and mount point names.</para>
+
+    <para>The &man.mount.cd9660.8; and &man.mount.ntfs.8; utilities
+      now support a <option>-C</option> option to specify local
+      character sets to convert Unicode filenames. It is possible to
+      specify multi-byte character sets using this option.</para>
+
+    <para>The &man.mount.msdosfs.8; utility now supports a
+      <option>-M</option> option to specify the maximum file
+      permissions for directories in the file system.</para>
+
+    <para>The &man.mount.msdosfs.8; utility now supports a
+      <option>-D</option> option to specify MS-DOS codepages and a
+      <option>-L</option> option to specify local character sets.  They are
+      used to convert character sets of filenames.  The
+      <filename>/usr/libdata/msdosfs</filename> tables have
+      retired.</para>
 
     <para>The &man.mount.nwfs.8;, &man.mount.portalfs.8;, and
       &man.mount.smbfs.8; utilities have been moved from
@@ -556,7 +586,7 @@
       <quote>Dogwood</quote> release.</para>
 
     <para><application>OpenSSL</application> has been updated from
-      0.9.7a to 0.9.7c.</para>
+      0.9.7a to 0.9.7c. &merged;</para>
 
     <para><application>sendmail</application> has been updated to
       version 8.12.10.</para>
