@@ -27,9 +27,9 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- *      $Id: alias.c,v 1.6 1999/02/14 09:44:57 hm Exp $ 
+ *      $Id: alias.c,v 1.7 1999/04/26 12:10:39 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:19:13 1999]
+ *      last edit-date: [Mon Apr 26 13:53:13 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -55,7 +55,7 @@ init_alias(char *filename)
 	struct alias *lasta = NULL;
 	
 	if((fp = fopen(filename, "r")) == NULL)
-		fatal("cannot open aliasfile %s!", filename);
+		return;
 
 	while((fgets(buffer, MAXBUFSZ, fp)) != NULL)
 	{

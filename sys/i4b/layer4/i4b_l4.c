@@ -27,9 +27,9 @@
  *	i4b_l4.c - kernel interface to userland
  *	-----------------------------------------
  *
- *	$Id: i4b_l4.c,v 1.36 1999/02/15 09:55:48 hm Exp $ 
+ *	$Id: i4b_l4.c,v 1.39 1999/04/08 16:37:56 hm Exp $ 
  *
- *      last edit-date: [Mon Feb 15 10:42:37 1999]
+ *      last edit-date: [Thu Apr  8 17:31:52 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -84,6 +84,10 @@ struct ctrl_type_desc ctrl_types[CTRL_NUMTYPES] = { { NULL, NULL} };
 static int i4b_link_bchandrvr(call_desc_t *cd);
 static void i4b_unlink_bchandrvr(call_desc_t *cd);
 static void i4b_l4_setup_timeout(call_desc_t *cd);
+static void i4b_idle_check_fix_unit(call_desc_t *cd);
+static void i4b_idle_check_var_unit(call_desc_t *cd);
+static void i4b_l4_setup_timeout_fix_unit(call_desc_t *cd);
+static void i4b_l4_setup_timeout_var_unit(call_desc_t *cd);
 
 /*---------------------------------------------------------------------------*
  *	send MSG_PDEACT_IND message to userland
@@ -204,6 +208,33 @@ i4b_l4_dialout(int driver, int driver_unit)
 		md->driver = driver;
 		md->driver_unit = driver_unit;	
 
+		i4bputqueue(m);
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	send MSG_DIALOUTNUMBER_IND message to userland
+ *---------------------------------------------------------------------------*/
+void
+i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd)
+{
+	struct mbuf *m;
+
+	if((m = i4b_Dgetmbuf(sizeof(msg_dialoutnumber_ind_t))) != NULL)
+	{
+		msg_dialoutnumber_ind_t *md = (msg_dialoutnumber_ind_t *)m->m_data;
+
+		md->header.type = MSG_DIALOUTNUMBER_IND;
+		md->header.cdid = -1;
+
+		md->driver = driver;
+		md->driver_unit = driver_unit;
+
+		if(cmdlen > TELNO_MAX)
+			cmdlen = TELNO_MAX;
+
+		md->cmdlen = cmdlen;
+		bcopy(cmd, md->cmd, cmdlen);
 		i4bputqueue(m);
 	}
 }
@@ -703,10 +734,7 @@ idletime_state:      IST_NONCHK             IST_CHECK       IST_SAFE
 
 /*---------------------------------------------------------------------------*
  *	B channel idle check timeout setup
- *---------------------------------------------------------------------------*/
-static void i4b_l4_setup_timeout_fix_unit(call_desc_t *cd);
-static void i4b_l4_setup_timeout_var_unit(call_desc_t *cd);
-
+ *---------------------------------------------------------------------------*/ 
 static void
 i4b_l4_setup_timeout(call_desc_t *cd)
 {
@@ -731,13 +759,14 @@ i4b_l4_setup_timeout(call_desc_t *cd)
 	{
 		switch( cd->shorthold_data.shorthold_algorithm )
 		{
-		  default:	/* fall into the old fix algorithm */
-		  case msg_alg__fix_unit_size:
-			i4b_l4_setup_timeout_fix_unit( cd );
-			break;
-		  case msg_alg__var_unit_size:
-			i4b_l4_setup_timeout_var_unit( cd );
-			break;
+			default:	/* fall into the old fix algorithm */
+			case SHA_FIXU:
+				i4b_l4_setup_timeout_fix_unit( cd );
+				break;
+				
+			case SHA_VARU:
+				i4b_l4_setup_timeout_var_unit( cd );
+				break;
 		}
 	}
 	else
@@ -746,6 +775,9 @@ i4b_l4_setup_timeout(call_desc_t *cd)
 	}
 }
 
+/*---------------------------------------------------------------------------*
+ *	fixed unit algorithm B channel idle check timeout setup
+ *---------------------------------------------------------------------------*/
 static void
 i4b_l4_setup_timeout_fix_unit(call_desc_t *cd)
 {
@@ -792,6 +824,9 @@ i4b_l4_setup_timeout_fix_unit(call_desc_t *cd)
 	}
 }
 
+/*---------------------------------------------------------------------------*
+ *	variable unit algorithm B channel idle check timeout setup
+ *---------------------------------------------------------------------------*/
 static void
 i4b_l4_setup_timeout_var_unit(call_desc_t *cd)
 {
@@ -816,10 +851,7 @@ i4b_l4_setup_timeout_var_unit(call_desc_t *cd)
 
 /*---------------------------------------------------------------------------*
  *	B channel idle check timeout function
- *---------------------------------------------------------------------------*/
-static void i4b_idle_check_fix_unit(call_desc_t *cd);
-static void i4b_idle_check_var_unit(call_desc_t *cd);
-
+ *---------------------------------------------------------------------------*/ 
 void
 i4b_idle_check(call_desc_t *cd)
 {
@@ -855,6 +887,7 @@ i4b_idle_check(call_desc_t *cd)
 		else
 		{
 			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: incoming-call, activity, last_active=%ld, max_idle=%ld\n", (long)SECOND, (long)cd->last_active_time, (long)cd->max_idle_time));
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 			cd->idle_timeout_handle =
 #endif
@@ -869,22 +902,25 @@ i4b_idle_check(call_desc_t *cd)
 	{
 		switch( cd->shorthold_data.shorthold_algorithm )
 		{
-		  case msg_alg__fix_unit_size:
-			i4b_idle_check_fix_unit( cd );
-			break;
-		  case msg_alg__var_unit_size:
-			i4b_idle_check_var_unit( cd );
-			break;
-		  default:
-			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: bad value for shorthold_algorithm of %d\n",
-				(long)SECOND, cd->shorthold_data.shorthold_algorithm ));
-			i4b_idle_check_fix_unit( cd );
-			break;
+			case SHA_FIXU:
+				i4b_idle_check_fix_unit( cd );
+				break;
+			case SHA_VARU:
+				i4b_idle_check_var_unit( cd );
+				break;
+			default:
+				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: bad value for shorthold_algorithm of %d\n",
+					(long)SECOND, cd->shorthold_data.shorthold_algorithm ));
+				i4b_idle_check_fix_unit( cd );
+				break;
 		}
 	}
 	splx(s);
 }
 
+/*---------------------------------------------------------------------------*
+ *	fixed unit algorithm B channel idle check timeout function
+ *---------------------------------------------------------------------------*/
 static void
 i4b_idle_check_fix_unit(call_desc_t *cd)
 {
@@ -979,6 +1015,9 @@ i4b_idle_check_fix_unit(call_desc_t *cd)
 	}
 }
 
+/*---------------------------------------------------------------------------*
+ *	variable unit algorithm B channel idle check timeout function
+ *---------------------------------------------------------------------------*/
 static void
 i4b_idle_check_var_unit(call_desc_t *cd)
 {
@@ -1011,7 +1050,7 @@ i4b_idle_check_var_unit(call_desc_t *cd)
 		DBGL4(L4_ERR, "i4b_idle_check", ("outgoing-call: var idle timeout invalid idletime_state value!\n"));
 		cd->idletime_state = IST_IDLE;
 		break;
-		}
+	}
 }
 
 #endif /* NI4B > 0 */

@@ -27,9 +27,9 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.69 1999/03/01 09:04:15 hm Exp $ 
+ *	$Id: i4b_ioctl.h,v 1.106 1999/05/19 08:51:14 hm Exp $ 
  *
- *      last edit-date: [Mon Mar  1 10:01:15 1999]
+ *      last edit-date: [Wed May 19 10:56:56 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,7 +46,7 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
-#define	REL		71		/* release number	*/
+#define	REL		81		/* release number	*/
 #define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
@@ -74,7 +74,9 @@
 #define CTRL_UNKNOWN	0		/* unknown controller type	*/
 #define CTRL_PASSIVE	1		/* passive ISDN controller cards*/
 #define CTRL_DAIC	2		/* Diehl active controller cards*/
-#define	CTRL_NUMTYPES	3		/* number of controller types */
+#define CTRL_TINADD	3		/* Stollmann Tina-dd active card*/
+#define CTRL_AVMB1	4		/* AVM B1 active card		*/
+#define	CTRL_NUMTYPES	5		/* number of controller types	*/
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_PASSIVE 
@@ -100,6 +102,7 @@
 #define	CARD_TYPEP_ELSAMLMCALL	17	/* ELSA MicroLink MCall		*/
 #define	CARD_TYPEP_ITKIX1	18	/* ITK ix1 micro 		*/
 #define CARD_TYPEP_AVMA1PCI	19	/* AVM FRITZ!CARD PCI		*/
+#define CARD_TYPEP_PCC16	20	/* ELSA PCC-16			*/
 
 /*
  * in case you add support for more cards, please update:
@@ -110,7 +113,7 @@
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		19	/* max type */
+#define CARD_TYPEP_MAX		20	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
@@ -170,19 +173,17 @@ typedef	unsigned int cause_t;		/* 32 bit unsigned int	*/
 /*---------------------------------------------------------------------------*
  *	The shorthold algorithm to use
  *---------------------------------------------------------------------------*/
-typedef enum msg_shorthold_algorithm {
-	msg_alg__fix_unit_size,	/* timeout algorithm for fix unit charging */
-	msg_alg__var_unit_size	/* timeout algorithm for variable unit charging */
-} msg_shorthold_algorithm_t;
+#define SHA_FIXU	0    /* timeout algorithm for fix unit charging */
+#define SHA_VARU	1    /* timeout algorithm for variable unit charging */
  
 /*---------------------------------------------------------------------------*
  *	The shorthold data struct
  *---------------------------------------------------------------------------*/
 typedef struct {
-	msg_shorthold_algorithm_t shorthold_algorithm;	/* shorthold algorithm to use */
-	int	unitlen_time;	/* length of a charging unit		*/
-	int	idle_time;	/* time without activity on b ch	*/
-	int	earlyhup_time;	/* safety area at end of unit		*/
+	int	shorthold_algorithm;	/* shorthold algorithm to use	*/
+	int	unitlen_time;		/* length of a charging unit	*/
+	int	idle_time;		/* time without activity on b ch*/
+	int	earlyhup_time;		/* safety area at end of unit	*/
 } msg_shorthold_t;
 
 
@@ -274,6 +275,7 @@ typedef struct {
 #define MSG_PDEACT_IND		'm'
 #define	MSG_NEGCOMP_IND		'n'
 #define	MSG_IFSTATE_CHANGED_IND	'o'
+#define MSG_DIALOUTNUMBER_IND	'p'
 	int		cdid;		/* call descriptor id		*/
 } msg_hdr_t;
 
@@ -347,6 +349,17 @@ typedef struct {
 	int		driver;		/* driver type		*/
 	int		driver_unit;	/* driver unit number	*/
 } msg_dialout_ind_t;
+
+/*---------------------------------------------------------------------------*
+ *	dial a number
+ *---------------------------------------------------------------------------*/
+typedef struct {
+	msg_hdr_t	header;		/* common header	*/
+	int		driver;		/* driver type		*/
+	int		driver_unit;	/* driver unit number	*/
+	int		cmdlen;		/* length of string	*/
+	char		cmd[TELNO_MAX];	/* the number to dial	*/	
+} msg_dialoutnumber_ind_t;
 
 /*---------------------------------------------------------------------------*
  *	idle timeout disconnect sent indication
@@ -541,6 +554,7 @@ typedef struct {
 #define  DSTAT_TFAIL	1		/* transient failure */
 #define  DSTAT_PFAIL	2		/* permanent failure */
 #define  DSTAT_INONLY	3		/* no outgoing dials allowed */
+	cause_t		cause;		/* exact i4b cause */
 } msg_dialout_resp_t;
 
 #define	I4B_DIALOUT_RESP	_IOW('4', 5, msg_dialout_resp_t)

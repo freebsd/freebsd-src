@@ -33,9 +33,9 @@
  *	i4b daemon - network monitor client
  *	-----------------------------------
  *
- *	$Id: main.c,v 1.2 1999/03/07 16:12:43 hm Exp $
+ *	$Id: main.c,v 1.12 1999/05/11 08:15:59 hm Exp $
  *
- *      last edit-date: [Tue Oct 27 11:53:12 1998]
+ *      last edit-date: [Tue Apr 20 14:14:26 1999]
  *
  *	-mh	created
  *	-hm	checking in
@@ -303,7 +303,7 @@ static void mloop()
 
 		if (FD_ISSET(monsock, &rd))
 		{
-			BYTE buf[1024];
+			BYTE buf[4096];
 			u_long u;
 			int bytes, ret;
 

@@ -27,20 +27,24 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- *	$Id: i4b_tel_ioctl.h,v 1.7 1999/02/16 10:40:18 hm Exp $ 
+ *	$Id: i4b_tel_ioctl.h,v 1.9 1999/04/21 10:06:32 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:39:19 1999]
+ *      last edit-date: [Wed Apr 21 11:00:02 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #ifndef _I4B_TEL_IOCTL_H_
 #define _I4B_TEL_IOCTL_H_
 
-/* supported audio format conversions for /dev/i4btelXX devices */
+/*===========================================================================*
+ *	/dev/i4btel<n> devices (audio data)
+ *===========================================================================*/
+ 
+/* supported audio format conversions */
 
-#define CVT_NONE	0		/* no format conversion	*/
-#define CVT_ALAW2ULAW	1		/* kernel A-law, userland mu-law */
-#define CVT_ALAW_CANON	2		/* kernel A-law, userland canonical A-law */
+#define CVT_NONE	0		/* no A-law/u-law conversion     */
+#define CVT_ALAW2ULAW	1		/* ISDN line: A-law, user: u-law */
+#define CVT_ULAW2ALAW	2		/* ISDN line: u-law, user: A-law */
       
 /*---------------------------------------------------------------------------*
  *	get / set audio format 
@@ -49,5 +53,21 @@
 #define	I4B_TEL_GETAUDIOFMT	_IOR('A', 0, int)
 #define	I4B_TEL_SETAUDIOFMT	_IOW('A', 1, int)
 #define	I4B_TEL_EMPTYINPUTQUEUE	_IOW('A', 2, int)
+
+/*===========================================================================*
+ *	/dev/i4bteld<n> devices (dialer interface)
+ *===========================================================================*/
+
+/* dialer commands */
+
+#define CMD_DIAL        'D'     /* dial the following number string */
+#define CMD_HUP         'H'     /* hangup */
+
+/* dialer responses */
+
+#define RSP_CONN        '0'     /* connect */
+#define RSP_BUSY        '1'     /* busy */
+#define RSP_HUP         '2'     /* hangup */
+#define RSP_NOA         '3'     /* no answer */
 
 #endif /* _I4B_TEL_IOCTL_H_ */

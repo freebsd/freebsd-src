@@ -101,6 +101,7 @@
 #	i4bctl	debugging control device
 #	i4btrc* trace data interface(s), one per passive card
 #	i4btel* telephony interface(s)
+#	i4bteld* telephony dialout interface(s)
 #	i4brbch* raw b channel access device(s)
 #
 # Special purpose devices:
@@ -126,7 +127,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.195 1999/04/24 20:57:39 peter Exp $
+#	$Id: MAKEDEV,v 1.196 1999/05/04 17:03:58 hosokawa Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -235,7 +236,8 @@ all)
 	sh MAKEDEV apm card0 card1 card2 card3		# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
-	sh MAKEDEV i4brbch0 i4brbch1 i4btel0 i4btel1	# cdev, ISDN
+	sh MAKEDEV i4btel0 i4btel1 i4bteld0 i4bteld1	# cdev, ISDN
+	sh MAKEDEV i4brbch0 i4brbch1			# cdev, ISDN
 	;;
 
 std)
@@ -1369,6 +1371,14 @@ i4btel*)
 	mknod i4btel$unit c 56 $unit
 	chown root:wheel i4btel$unit
 	chmod 600 i4btel$unit
+	;;
+
+i4bteld*)
+	offset=64
+	unit=`expr $i : 'i4bteld\(.*\)'`
+	mknod i4bteld$unit c 56 `expr $offset + $unit `
+	chown root:wheel i4bteld$unit
+	chmod 600 i4bteld$unit
 	;;
 
 i4btrc*)

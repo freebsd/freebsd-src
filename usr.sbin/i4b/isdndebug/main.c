@@ -27,9 +27,9 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.14 1999/02/14 09:44:57 hm Exp $ 
+ *	$Id: main.c,v 1.17 1999/04/28 14:48:06 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:13:25 1999]
+ *      last edit-date: [Wed Apr 28 16:47:28 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -517,14 +517,19 @@ void
 printl4(unsigned long val)
 {
 	printf("\nLayer 4: %s  =  0x%lX\n", bin_str(val, 32), val);
-	printf("                                         || ||||\n"),
-	printf("                                         || |||+- general error messages\n");
-	printf("                                         || ||+-- general messages\n");
-	printf("                                         || |+--- B-ch timeout messages\n");
-	printf("                                         || +---- network driver dial state\n");
-	printf("                                         |+------ ipr driver debug messages\n");
-	printf("                                         +------- rbch driver debug messages\n");
-	printf("         ++++-++++-++++-++++-++++-++++-++-------- unassigned\n");
+	printf("                                   ||| |||| ||||\n"),
+	printf("                                   ||| |||| |||+- general error messages\n");
+	printf("                                   ||| |||| ||+-- general messages\n");
+	printf("                                   ||| |||| |+--- B-ch timeout messages\n");
+	printf("                                   ||| |||| +---- network driver dial state\n");
+	printf("                                   ||| |||+------ ipr driver debug messages\n");
+	printf("                                   ||| ||+------- rbch driver debug messages\n");
+	printf("                                   ||| |+-------- isp driver debug messages\n");
+	printf("                                   ||| +--------- tel driver debug messages\n");
+	printf("                                   ||+----------- tina driver debug messages\n");
+	printf("                                   |+------------ tina driver messages\n");
+	printf("                                   +------------- tina driver error messages\n");
+	printf("         ++++-++++-++++-++++-++++-+-------------- unassigned\n");
 }
 
 /*---------------------------------------------------------------------------*
@@ -534,7 +539,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdndebug - i4b set debug level, version %02d.%02d, compiled %s %s\n", VERSION, REL, __DATE__, __TIME__);
+	fprintf(stderr, "isdndebug - i4b set debug level, version %d.%d.%d, compiled %s %s\n", VERSION, REL, STEP, __DATE__, __TIME__);
 	fprintf(stderr, "usage: isdndebug -e -h -g -l <layer> -m -r -s <value> -u <unit> -z -H\n");
 	fprintf(stderr, "       -e            set error only debugging output\n");
 	fprintf(stderr, "       -g            get current debugging values\n");

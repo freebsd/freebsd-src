@@ -27,9 +27,9 @@
  *	i4b_l2.h - ISDN layer 2 (Q.921) definitions
  *	---------------------------------------------
  *
- *	$Id: i4b_l2.h,v 1.15 1999/02/14 09:45:00 hm Exp $ 
+ *	$Id: i4b_l2.h,v 1.17 1999/04/22 11:51:45 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:31:31 1999]
+ *      last edit-date: [Thu Apr 22 13:50:55 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -65,7 +65,16 @@ typedef struct {
 	struct	callout_handle T200_callout;
 	struct	callout_handle T202_callout;
 	struct	callout_handle T203_callout;
+	struct	callout_handle IFQU_callout;	
 #endif
+
+/*
+ * i4b_iframe.c, i4b_i_frame_queued_up(): value of IFQU_DLY
+ * some experimentation Gary did showed a minimal value of (hz/20) was
+ * possible to let this work, Gary suggested using (hz/10) but i settled
+ * down to using (hz/5) for now (-hm).
+ */
+#define IFQU_DLY (hz/5)		/* reschedule I-FRAME-QUEUED-UP 0.2 sec */
 
 	int	vr;		/* receive sequence frame counter */
 	int	vs;		/* transmit sequence frame counter */

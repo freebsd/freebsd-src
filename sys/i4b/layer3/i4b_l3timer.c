@@ -27,9 +27,9 @@
  *	i4b_l3timer.c - timer and timeout handling for layer 3
  *	------------------------------------------------------
  *
- *	$Id: i4b_l3timer.c,v 1.10 1999/02/14 09:45:01 hm Exp $ 
+ *	$Id: i4b_l3timer.c,v 1.12 1999/04/21 07:50:31 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:33:38 1999]
+ *      last edit-date: [Wed Apr 21 09:46:59 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -101,8 +101,12 @@ T303_timeout(call_desc_t *cd)
 void
 T303_start(call_desc_t *cd)
 {
+	if (cd->T303 == TIMER_ACTIVE)
+		return;
+		
 	DBGL3(L3_T_MSG, "T303_start", ("cr = %d\n", cd->cr));
 	cd->T303 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	cd->T303_callout = timeout((TIMEOUT_FUNC_T)T303_timeout, (void *)cd, T303VAL);
 #else
@@ -116,6 +120,9 @@ T303_start(call_desc_t *cd)
 void
 T303_stop(call_desc_t *cd)
 {
+	CRIT_VAR;
+	CRIT_BEG;
+	
 	if(cd->T303 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -125,6 +132,7 @@ T303_stop(call_desc_t *cd)
 #endif
 		cd->T303 = TIMER_IDLE;
 	}
+	CRIT_END;
 	DBGL3(L3_T_MSG, "T303_stop", ("cr = %d\n", cd->cr));
 }
 
@@ -144,8 +152,12 @@ T305_timeout(call_desc_t *cd)
 void
 T305_start(call_desc_t *cd)
 {
+	if (cd->T305 == TIMER_ACTIVE)
+		return;
+		
 	DBGL3(L3_T_MSG, "T305_start", ("cr = %d\n", cd->cr));
 	cd->T305 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	cd->T305_callout = timeout((TIMEOUT_FUNC_T)T305_timeout, (void *)cd, T305VAL);
 #else
@@ -159,6 +171,9 @@ T305_start(call_desc_t *cd)
 void
 T305_stop(call_desc_t *cd)
 {
+	CRIT_VAR;
+	CRIT_BEG;
+	
 	if(cd->T305 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -168,6 +183,8 @@ T305_stop(call_desc_t *cd)
 #endif
 		cd->T305 = TIMER_IDLE;
 	}
+	CRIT_END;
+	
 	DBGL3(L3_T_MSG, "T305_stop", ("cr = %d\n", cd->cr));
 }
 
@@ -187,8 +204,12 @@ T308_timeout(call_desc_t *cd)
 void
 T308_start(call_desc_t *cd)
 {
+	if(cd->T308 == TIMER_ACTIVE)
+		return;
+		
 	DBGL3(L3_T_MSG, "T308_start", ("cr = %d\n", cd->cr));
 	cd->T308 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	cd->T308_callout = timeout((TIMEOUT_FUNC_T)T308_timeout, (void *)cd, T308VAL);
 #else
@@ -202,6 +223,9 @@ T308_start(call_desc_t *cd)
 void
 T308_stop(call_desc_t *cd)
 {
+	CRIT_VAR;
+	CRIT_BEG;
+	
 	if(cd->T308 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -211,6 +235,8 @@ T308_stop(call_desc_t *cd)
 #endif
 		cd->T308 = TIMER_IDLE;
 	}
+	CRIT_END;
+	
 	DBGL3(L3_T_MSG, "T308_stop", ("cr = %d\n", cd->cr));
 }
 
@@ -230,8 +256,12 @@ T309_timeout(call_desc_t *cd)
 void
 T309_start(call_desc_t *cd)
 {
+	if (cd->T309 == TIMER_ACTIVE)
+		return;
+
 	DBGL3(L3_T_MSG, "T309_start", ("cr = %d\n", cd->cr));
 	cd->T309 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	cd->T309_callout = timeout((TIMEOUT_FUNC_T)T309_timeout, (void *)cd, T309VAL);
 #else
@@ -245,6 +275,9 @@ T309_start(call_desc_t *cd)
 void
 T309_stop(call_desc_t *cd)
 {
+	CRIT_VAR;
+	CRIT_BEG;
+	
 	if(cd->T309 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -254,6 +287,8 @@ T309_stop(call_desc_t *cd)
 #endif
 		cd->T309 = TIMER_IDLE;
 	}
+	CRIT_END;
+	
 	DBGL3(L3_T_MSG, "T309_stop", ("cr = %d\n", cd->cr));
 }
 
@@ -273,8 +308,12 @@ T310_timeout(call_desc_t *cd)
 void
 T310_start(call_desc_t *cd)
 {
+	if (cd->T310 == TIMER_ACTIVE)
+		return;
+		
 	DBGL3(L3_T_MSG, "T310_start", ("cr = %d\n", cd->cr));
 	cd->T310 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	cd->T310_callout = timeout((TIMEOUT_FUNC_T)T310_timeout, (void *)cd, T310VAL);
 #else
@@ -288,6 +327,9 @@ T310_start(call_desc_t *cd)
 void
 T310_stop(call_desc_t *cd)
 {
+	CRIT_VAR;
+	CRIT_BEG;
+	
 	if(cd->T310 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -297,6 +339,8 @@ T310_stop(call_desc_t *cd)
 #endif
 		cd->T310 = TIMER_IDLE;
 	}
+	CRIT_END;
+
 	DBGL3(L3_T_MSG, "T310_stop", ("cr = %d\n", cd->cr));
 }
 
@@ -316,8 +360,12 @@ T313_timeout(call_desc_t *cd)
 void
 T313_start(call_desc_t *cd)
 {
+	if (cd->T313 == TIMER_ACTIVE)
+		return;
+		
 	DBGL3(L3_T_MSG, "T313_start", ("cr = %d\n", cd->cr));
 	cd->T313 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	cd->T313_callout = timeout((TIMEOUT_FUNC_T)T313_timeout, (void *)cd, T313VAL);
 #else
@@ -331,6 +379,9 @@ T313_start(call_desc_t *cd)
 void
 T313_stop(call_desc_t *cd)
 {
+	CRIT_VAR;
+	CRIT_BEG;
+	
 	if(cd->T313 != TIMER_IDLE)
 	{
 		cd->T313 = TIMER_IDLE;
@@ -340,6 +391,8 @@ T313_stop(call_desc_t *cd)
 		untimeout((TIMEOUT_FUNC_T)T313_timeout, (void *)cd);
 #endif
 	}
+	CRIT_END;
+	
 	DBGL3(L3_T_MSG, "T313_stop", ("cr = %d\n", cd->cr));
 }
 

@@ -35,14 +35,13 @@
  *	i4b_isic_pcmcia.c - i4b FreeBSD PCMCIA support
  *	----------------------------------------------
  *
- *	$Id: i4b_isic_pcmcia.c,v 1.5 1999/03/16 11:07:04 hm Exp $
+ *	$Id: i4b_isic_pcmcia.c,v 1.9 1999/04/27 09:49:49 hm Exp $
  *
- *      last edit-date: [Tue Mar 16 10:36:56 1999]
+ *      last edit-date: [Mon Apr 26 10:52:57 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #ifdef __FreeBSD__
- 
 #include "isic.h"
 #include "opt_i4b.h"
 #include "card.h"
@@ -53,9 +52,9 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/param.h>
+#include <i386/isa/isa_device.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
-#include <sys/module.h>
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
@@ -89,10 +88,14 @@
 
 #if !(defined(__FreeBSD_version)) || (defined(__FreeBSD_version) && __FreeBSD_version >= 300006)
 void isicintr ( int unit );
+#else
+extern void isicintr(int unit);
 #endif
 
 #endif
  
+extern int isicattach(struct isa_device *dev);
+
 /*  
  * PC-Card (PCMCIA) specific code.
  */
@@ -100,9 +103,7 @@ static int  isic_pccard_init    __P((struct pccard_devinfo *));
 static void isic_unload         __P((struct pccard_devinfo *));
 static int  isic_card_intr      __P((struct pccard_devinfo *));
     
-#ifdef PCCARD_MODULE
-PCCARD_MODULE(isic_pcmcia, isic_pccard_init, isic_unload, isic_card_intr, 0, net_imask);
-#else
+#if defined(__FreeBSD__) && __FreeBSD__ < 3
 static struct pccard_device isic_info = {
     "isic",
     isic_pccard_init,
@@ -110,10 +111,13 @@ static struct pccard_device isic_info = {
     isic_card_intr,
     0,                      /* Attributes - presently unused */
     &net_imask
-};  
-
+};      
+  
 DATA_SET(pccarddrv_set, isic_info);
+#else
+PCCARD_MODULE(isic, isic_pccard_init, isic_unload, isic_card_intr, 0,net_imask);
 #endif
+
 
 /*
  * Initialize the device - called from Slot manager.
@@ -124,6 +128,7 @@ static int opened = 0;			/* our cards status */
 static int isic_pccard_init(devi)
 struct pccard_devinfo *devi;
 {   
+#ifdef AVM_A1_PCMCIA
     	struct isa_device *is = &devi->isahd;
 
 	if ((1 << is->id_unit) & opened)
@@ -149,6 +154,7 @@ struct pccard_devinfo *devi;
 
 	isic_realattach(is, 0);
 
+#endif
 	return(0);
 }
 

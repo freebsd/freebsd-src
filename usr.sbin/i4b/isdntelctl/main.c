@@ -27,9 +27,9 @@
  *	isdntelctl - i4b set telephone interface options
  *	------------------------------------------------
  *
- *	$Id: main.c,v 1.7 1999/02/16 10:40:18 hm Exp $
+ *	$Id: main.c,v 1.9 1999/04/26 12:10:39 hm Exp $
  *
- *      last edit-date: [Tue Feb 16 11:32:09 1999]
+ *      last edit-date: [Mon Apr 26 14:07:06 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -47,6 +47,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+#include <machine/i4b_ioctl.h>
 #include <machine/i4b_tel_ioctl.h>
 
 static void usage ( void );
@@ -58,7 +59,7 @@ int opt_unit = 0;
 int opt_U = 0;
 int opt_A = 0;
 int opt_C = 0;
-int opt_R = 0;
+int opt_N = 0;
 
 /*---------------------------------------------------------------------------*
  *	program entry
@@ -71,7 +72,7 @@ main(int argc, char **argv)
 	int telfd;
 	char namebuffer[128];
 	
-	while ((c = getopt(argc, argv, "cgu:AUR?")) != EOF)
+	while ((c = getopt(argc, argv, "cgu:AUN?")) != EOF)
 	{
 		switch(c)
 		{
@@ -97,8 +98,8 @@ main(int argc, char **argv)
 				opt_U = 1;
 				break;
 
-			case 'R':
-				opt_R = 1;
+			case 'N':
+				opt_N = 1;
 				break;
 
 			case '?':
@@ -108,12 +109,12 @@ main(int argc, char **argv)
 		}
 	}
 
-	if(opt_get == 0 && opt_R == 0 && opt_U == 0 && opt_A == 0 && opt_C == 0)
+	if(opt_get == 0 && opt_N == 0 && opt_U == 0 && opt_A == 0 && opt_C == 0)
 	{
 		opt_get = 1;
 	}
 
-	if((opt_get + opt_R + opt_U + opt_A + opt_C) > 1)
+	if((opt_get + opt_N + opt_U + opt_A + opt_C) > 1)
 	{
 		usage();
 	}
@@ -138,15 +139,15 @@ main(int argc, char **argv)
 
 		if(format == CVT_NONE)
 		{
-			printf("device %s uses A-Law sound format\n", namebuffer);
+			printf("device %s does not do A-law/u-law format conversion\n", namebuffer);
 		}
 		else if(format == CVT_ALAW2ULAW)
 		{
-			printf("device %s uses u-Law sound format\n", namebuffer);
+			printf("device %s does ISDN: A-law -> user: u-law format conversion\n", namebuffer);
 		}
-		else if(format == CVT_ALAW_CANON)
+		else if(format == CVT_ULAW2ALAW)
 		{
-			printf("device %s uses canonical A-Law sound format\n", namebuffer);
+			printf("device %s does ISDN: u-law -> user: A-law format conversion\n", namebuffer);
 		}
 		else
 		{
@@ -157,7 +158,7 @@ main(int argc, char **argv)
 
 	if(opt_A)
 	{
-		int format = CVT_NONE;
+		int format = CVT_ALAW2ULAW;
 		
 		if((ret = ioctl(telfd, I4B_TEL_SETAUDIOFMT, &format)) < 0)
 		{
@@ -169,7 +170,7 @@ main(int argc, char **argv)
 
 	if(opt_U)
 	{
-		int format = CVT_ALAW2ULAW;
+		int format = CVT_ULAW2ALAW;
 		
 		if((ret = ioctl(telfd, I4B_TEL_SETAUDIOFMT, &format)) < 0)
 		{
@@ -178,9 +179,9 @@ main(int argc, char **argv)
 		}
 		exit(0);
 	}
-	if(opt_R)
+	if(opt_N)
 	{
-		int format = CVT_ALAW_CANON;
+		int format = CVT_NONE;
 		
 		if((ret = ioctl(telfd, I4B_TEL_SETAUDIOFMT, &format)) < 0)
 		{
@@ -209,14 +210,14 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntelctl - i4b telephone i/f control, compiled %s %s\n",__DATE__, __TIME__);
-	fprintf(stderr, "usage: isdntelctl -g -u <unit> -A -U -c\n");
+	fprintf(stderr, "isdntelctl - /dev/i4btel control, version %d.%d.%d (%s %s)\n",VERSION, REL, STEP, __DATE__, __TIME__);
+	fprintf(stderr, "usage: isdntelctl -c -g -u <unit> -A -N -U\n");
+	fprintf(stderr, "       -c            clear input queue\n");
 	fprintf(stderr, "       -g            get current settings\n");
 	fprintf(stderr, "       -u unit       specify unit number\n");	
-	fprintf(stderr, "       -A            set interface to A-Law coding\n");
-	fprintf(stderr, "       -U            set interface to u-Law coding\n");
-	fprintf(stderr, "       -R            set interface to canonical (regular) A-Law coding\n");
-	fprintf(stderr, "       -c            clear input queue\n");
+	fprintf(stderr, "       -A            set conversion ISDN: A-law -> user: u-law\n");
+	fprintf(stderr, "       -U            set conversion ISDN: u-law -> user: A-law\n");
+	fprintf(stderr, "       -N            set conversion to no A-law/u-law conversion\n");
 	fprintf(stderr, "\n");
 	exit(1);
 }

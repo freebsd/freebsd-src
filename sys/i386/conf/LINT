@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.598 1999/05/14 03:57:24 obrien Exp $
+#	$Id: LINT,v 1.599 1999/05/18 12:55:11 roger Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1773,7 +1773,9 @@ device iicsmb0	at iicbus?
 controller pcf0	at isa? port 0x320 irq 5
 
 # ISDN4BSD section
-
+#
+# see /usr/share/examples/isdn/ROADMAP for an introduction to isdn4bsd.
+#
 # i4b passive ISDN cards support (isic - I4b Siemens Isdn Chipset driver)
 # note that the ``options'' and ``device'' lines must BOTH be defined !
 #
@@ -1803,6 +1805,10 @@ options USR_STI
 # ITK ix1 Micro
 options ITKIX1
 #device isic0 at isa? port 0x398 irq 10 flags 18
+#
+# ELSA PCC-16
+options "ELSA_PCC16"
+#device isic0 at isa? port 0x360 irq 10 flags 19
 #
 # PnP-Cards:
 # ----------
@@ -1836,6 +1842,10 @@ options ELSA_QS1ISA
 #
 # ELSA QuickStep 1000pro PCI
 options ELSA_QS1PCI
+#device  isic0
+#
+# AVM Fritz!Card PCI
+options "AVM_A1_PCI" 
 #device  isic0
 #
 # PCMCIA-Cards:

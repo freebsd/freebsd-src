@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1998 Martin Husemann. All rights reserved.
+ *   Copyright (c) 1998,1999 Martin Husemann. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -33,11 +33,12 @@
  *	pci_isic.c - pcmcia bus frontend for i4b_isic driver
  *	-------------------------------------------------------
  *
- *	$Id: pci_isic.c,v 1.2 1999/02/14 09:45:00 hm Exp $ 
+ *	$Id: pci_isic.c,v 1.3 1999/03/16 15:21:55 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:29:25 1999]
+ *      last edit-date: [Wed Mar 10 07:22:08 1999]
  *
  *	-mh	original implementation
+ *	-mh	added support for Fritz! PCI card
  *
  *---------------------------------------------------------------------------*/
 
@@ -72,6 +73,7 @@
 #include <i4b/layer1/i4b_ipac.h>
 #include <i4b/layer1/i4b_isac.h>
 #include <i4b/layer1/i4b_hscx.h>
+#include <i4b/layer1/pci_isic.h>
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l1l2.h>
 
@@ -79,15 +81,7 @@ static int pci_isic_match __P((struct device *, struct cfdata *, void *));
 static void pci_isic_attach __P((struct device *, struct device *, void *));
 static const struct isic_pci_product * find_matching_card __P((struct pci_attach_args *pa));
 
-extern void isic_attach_Eqs1pp __P((struct isic_softc *sc, struct pci_attach_args *pa));
-static int isic_pciattach __P((struct isic_softc *sc));
-
-struct pci_isic_softc {
-	struct isic_softc sc_isic;	/* parent class */
-
-	/* PCI-specific goo */
-	void *sc_ih;				/* interrupt handler */
-};
+static void isic_pciattach __P((struct pci_isic_softc *psc, struct pci_attach_args *pa));
 
 struct cfattach pci_isic_ca = {
 	sizeof(struct pci_isic_softc), pci_isic_match, pci_isic_attach
@@ -98,16 +92,37 @@ static const struct isic_pci_product {
 	pci_vendor_id_t npp_vendor;
 	pci_product_id_t npp_product;
 	int cardtype;
-	int flag;
 	const char * name;
-	void (*attach)(struct isic_softc *sc, struct pci_attach_args *pa);
+	void (*attach)(struct pci_isic_softc *psc, struct pci_attach_args *pa);
+	void (*pciattach)(struct pci_isic_softc *psc, struct pci_attach_args *pa);
 } isic_pci_products[] = {
-	{ PCI_VENDOR_ELSA, 0x1000,
-	  CARD_TYPEP_ELSAQS1PCI, FLAG_ELSA_QS1P_PCI,
-	  "ELSA QuickStep 1000pro/PCI",
-	  isic_attach_Eqs1pp },
 
-	{ 0, 0, 0, 0, NULL, NULL },
+#ifdef ELSA_QS1PCI
+#ifndef PCI_PRODUCT_ELSA_QS1PCI
+#define PCI_PRODUCT_ELSA_QS1PCI 0x1000	/* added to pcidevs in 1.3K, earlier versions missing it */
+#endif
+	{ PCI_VENDOR_ELSA, PCI_PRODUCT_ELSA_QS1PCI,
+	  CARD_TYPEP_ELSAQS1PCI,
+	  "ELSA QuickStep 1000pro/PCI",
+	  isic_attach_Eqs1pp,	/* card specific initialization */
+	  isic_pciattach	/* generic setup for ISAC/HSCX or IPAC boards */
+	 },
+#endif
+
+#ifdef AVM_A1_PCI
+#ifndef PCI_VENDOR_AVM
+#define PCI_VENDOR_AVM	0x1244	/* earlier versions missing this */
+#define	PCI_PRODUCT_AVM_FRITZ_CARD 0x0a00
+#endif
+	{ PCI_VENDOR_AVM, PCI_PRODUCT_AVM_FRITZ_CARD,
+	  CARD_TYPEP_AVMA1PCI,
+	  "Fritz!Card",
+	  isic_attach_fritzPci,
+	  NULL				/* card rolls its own setup */
+	 },
+#endif
+
+	{ 0, 0, 0, NULL, NULL },
 };
 
 static const struct isic_pci_product * find_matching_card(pa)
@@ -151,10 +166,7 @@ pci_isic_attach(parent, self, aux)
 	struct pci_isic_softc *psc = (void*) self;
 	struct isic_softc *sc = &psc->sc_isic;
 	struct pci_attach_args *pa = aux;
-	pci_chipset_tag_t pc = pa->pa_pc;
-	pci_intr_handle_t ih;
 	const struct isic_pci_product * prod;
-	const char *intrstr;
 
 	/* Redo probe */
 	prod = find_matching_card(pa);
@@ -164,38 +176,24 @@ pci_isic_attach(parent, self, aux)
 	printf(": %s\n", prod->name);
 
 	/* card initilization and sc setup */
-	prod->attach(sc, pa);
+	prod->attach(psc, pa);
 
-	/* generic setup */
-	isic_pciattach(sc);
-
-	/* Map and establish the interrupt. */
-	if (pci_intr_map(pc, pa->pa_intrtag, pa->pa_intrpin,
-	    pa->pa_intrline, &ih)) {
-		printf("%s: couldn't map interrupt\n", sc->sc_dev.dv_xname);
-		return;
-	}
-	intrstr = pci_intr_string(pc, ih);
-	psc->sc_ih = pci_intr_establish(pc, ih, IPL_NET, isicintr, sc);
-	if (psc->sc_ih == NULL) {
-		printf("%s: couldn't establish interrupt",
-		    sc->sc_dev.dv_xname);
-		if (intrstr != NULL)
-			printf(" at %s", intrstr);
-		printf("\n");
-		return;
-	}
-	printf("%s: interrupting at %s\n", sc->sc_dev.dv_xname, intrstr);
+	/* generic setup, if needed for this card */
+	if (prod->pciattach) prod->pciattach(psc, pa);
 }
 
 /*---------------------------------------------------------------------------*
  *	isic - pci device driver attach routine
  *---------------------------------------------------------------------------*/
-static int
-isic_pciattach(sc)
-	struct isic_softc *sc;
+static void
+isic_pciattach(psc, pa)
+	struct pci_isic_softc *psc;
+	struct pci_attach_args *pa;
 {
-	int ret = 0;
+	struct isic_softc *sc = &psc->sc_isic;
+	pci_chipset_tag_t pc = pa->pa_pc;
+	pci_intr_handle_t ih;
+	const char *intrstr;
 
   	static char *ISACversion[] = {
   		"2085 Version A1/A2 or 2086/2186 Version 1.1",
@@ -222,7 +220,7 @@ isic_pciattach(sc)
 	
 	if(sc->sc_ipac)
 	{
-		ret = IPAC_READ(IPAC_ID);
+		u_int ret = IPAC_READ(IPAC_ID);
 
 		switch(ret)
 		{
@@ -233,8 +231,7 @@ isic_pciattach(sc)
 			default:
 				printf("%s: Error, IPAC version %d unknown!\n",
 					sc->sc_dev.dv_xname, ret);
-				return(0);
-				break;
+				return;
 		}
 	}
 	else
@@ -256,8 +253,7 @@ isic_pciattach(sc)
 			default:
 				printf("%s: Error, ISAC version %d unknown!\n",
 					sc->sc_dev.dv_xname, sc->sc_isac_version);
-				return(0);
-				break;
+				return;
 		}
 	
 		sc->sc_hscx_version = HSCX_READ(0, H_VSTR) & 0xf;
@@ -276,8 +272,7 @@ isic_pciattach(sc)
 			default:
 				printf("%s: Error, HSCX version %d unknown!\n",
 					sc->sc_dev.dv_xname, sc->sc_hscx_version);
-				return(0);
-				break;
+				return;
 		}
 	}
 	
@@ -322,6 +317,23 @@ isic_pciattach(sc)
 	
 	MPH_Status_Ind(sc->sc_unit, STI_ATTACH, sc->sc_cardtyp);
 	
-	return(1);
+
+	/* Map and establish the interrupt. */
+	if (pci_intr_map(pc, pa->pa_intrtag, pa->pa_intrpin,
+	    pa->pa_intrline, &ih)) {
+		printf("%s: couldn't map interrupt\n", sc->sc_dev.dv_xname);
+		return;
+	}
+	intrstr = pci_intr_string(pc, ih);
+	psc->sc_ih = pci_intr_establish(pc, ih, IPL_NET, isicintr, sc);
+	if (psc->sc_ih == NULL) {
+		printf("%s: couldn't establish interrupt",
+		    sc->sc_dev.dv_xname);
+		if (intrstr != NULL)
+			printf(" at %s", intrstr);
+		printf("\n");
+		return;
+	}
+	printf("%s: interrupting at %s\n", sc->sc_dev.dv_xname, intrstr);
 }
 

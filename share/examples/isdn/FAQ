@@ -3,7 +3,7 @@
                    ISDN4BSD Frequently Asked Questions
                    ===================================
 
-                last edit-date: [Sun Feb 14 12:06:23 1999]
+                last edit-date: [Mon May 10 11:40:48 1999]
 
 --------------------------------------------------------------------------------
 
@@ -23,7 +23,8 @@ Contents:
 	10. Incoming alert - what does it mean ?
 	11. How do i change irq's on my teles 16.3 card ?
 	12. NL: i'm getting CAUSE 100 or CAUSE 101 when dialling out
-
+	14. I'm using sPPP. I can connect to my ISP but no TCP/IP services work. HELP!
+	15. i4b 0.80.00: problems with AVM Fritz PCI
 
 
 1. How do I get started with synchronous PPP (sPPP) ?
@@ -605,3 +606,90 @@ Hope this helps.
 Bart
 
 			(from Bart van Leeuwen bart@ixori.demon.nl)
+
+14. I'm using sPPP. I can connect to my ISP but no TCP/IP services work. HELP!
+==============================================================================
+
+This is probably because you have the RFC1323 - TCP Extensions for High
+Performance - support turned on and your ISP (or some router in the loop)
+is discarding the extensions.
+
+This can easily be checked by doing ``sysctl net.inet.tcp.rfc1323''. If the
+result is 1, then the RFC1323 support is turned on.
+
+Turn this off by doing ``sysctl -w net.inet.tcp.rfc1323=0'' (This is
+called "net.inet.tcp.do_rfc1323" under BSD/OS).
+
+For FreeBSD make sure that tcp_extension="NO" is in your /etc/rc.conf
+(/etc/defaults/rc.conf with more recent versions of FreeBSD) and
+/etc/rc.conf.local (in -STABLE and upcoming 3.2)
+
+This may be different for NetBSD, OpenBSD and BSD/OS.
+
+Martin Husemann writes:
+-----------------------
+This does apply for NetBSD too (and probably OpenBSD, since it's been
+in NetBSD for a long time). The sysctl name is even compatible ;-) We don't
+have a coresponding rc.conf entry, I do it in /etc/netstart.local.
+
+I would suggest to set this to 0 on all machines routed over ISDN (not only
+the router), as this "high speed options" in fact do slow down an ISDN link
+by making VJ "compression" impossible - as far as I understood it. So there
+should be a more general advice in the FAQ, not only "turn it off if it
+doesn't work for you".
+
+I've only seen the problems against old linux kernels (about two years ago),
+are there still machines out there that have such a broken TCP/IP stack? We
+should start to blame the vendors...
+
+	(by Gary Jennejohn, garyj@muc.de, with additions from 
+	 Harold Gutch <logix@foobar.franken.de> and 
+	 Martin Husemann <martin@rumolt.teuto.de>).
+
+15. i4b 0.80.00: problems with AVM Fritz PCI
+==============================================================================
+
+Question:
+=========
+
+The system is FreeBSD 3.1-RELEASE with i4b-00.80.00-beta-070599 [...]
+
+I'm trying to compile a Kernel with support for my AVM Fritz!PCI card, 
+however, when compiling, it fails with the following error
+
+sh ../../conf/newvers.sh GENERIC -DAVM_A1_PCI
+cc -c -O -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit  -Wnested-
+externs
+-Wstrict-prototypes -Wmissing-prototypes  -Wpointer-arith -Winline -
+Wuninitializ
+ed -Wformat -Wunused  -fformat-extensions -ansi  -nostdinc -I- -I. -I../.. 
+-I/us
+r/include -DAVM_A1_PCI -DKERNEL -DVM_STACK -include opt_global.h -elf  
+vers.c
+loading kernel
+i4b_isic_pci.o: In function `i4b_pci_attach':
+i4b_isic_pci.o(.text+0x141): undefined reference to `avma1pp_map_int'
+i4b_isic_pci.o: In function `isic_pciattach':
+i4b_isic_pci.o(.text+0x196): undefined reference to `isic_attach_avma1pp'
+*** Error code 1
+
+
+Solution:
+=========
+
+> I have added
+> 
+> i4b/layer1/i4b_avm_fritz_pci.c  optional        isic    device-driver
+> 
+> and am recomiling at the moment, but given that it's a 486, it could take 
+> some time :-)
+
+The problem appears to be that overinstall.sh does not update files.i386 
+and options.i386, and that AVM_A1_PCI was added after 3.1-RELEASE and 
+hence is not defined. 
+
+Manually editing these files (using install.sh as a guide) allows the 
+kernel to compile cleanly.
+
+
+(from Rich Wood, rich@dynamite.org)

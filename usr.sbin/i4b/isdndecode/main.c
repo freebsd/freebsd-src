@@ -27,9 +27,9 @@
  *	main.c - isdndecode main program file
  *	-------------------------------------
  *
- *	$Id: main.c,v 1.7 1999/02/14 09:44:57 hm Exp $
+ *	$Id: main.c,v 1.8 1999/04/26 12:10:39 hm Exp $
  *
- *      last edit-date: [Sun Feb 14 10:17:04 1999]
+ *      last edit-date: [Mon Apr 26 14:02:44 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -750,7 +750,7 @@ void
 usage(void)
 {
 	fprintf(stderr,"\n");
-	fprintf(stderr,"isdndecode - isdn4bsd package ISDN decoder for passive cards (%02d.%02d)\n", VERSION, REL);
+	fprintf(stderr,"isdndecode - isdn4bsd package ISDN decoder for passive cards (%d.%d.%d)\n", VERSION, REL, STEP);
 	fprintf(stderr,"usage: isdntrace -a -b -d -f <file> -h -i -l -n <val> -o -p <file> -r -u <unit>\n");
 	fprintf(stderr,"                 -B -P -R <unit> -T <unit>\n");
 	fprintf(stderr,"       -a        analyzer mode ................................... (default off)\n");

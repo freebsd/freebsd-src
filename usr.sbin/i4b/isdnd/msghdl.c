@@ -27,9 +27,9 @@
  *	i4b daemon - message from kernel handling routines
  *	--------------------------------------------------
  *
- *	$Id: msghdl.c,v 1.57 1999/02/25 12:45:41 hm Exp $ 
+ *	$Id: msghdl.c,v 1.60 1999/05/10 19:34:54 hm Exp $ 
  *
- *      last edit-date: [Thu Feb 25 13:43:46 1999]
+ *      last edit-date: [Mon May 10 21:32:46 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -526,8 +526,7 @@ msg_disconnect_ind(msg_disconnect_ind_t *mp)
 			mp->header.cdid)));
 		cep->saved_call.cdid = CDID_UNUSED;
 
-		if((set_channel_idle(cep->saved_call.controller, cep->saved_call.channel)) == ERROR)
-			log(LL_ERR, "msg_disconnect_ind: set_channel_idle failed!");
+		set_channel_idle(cep->saved_call.controller, cep->saved_call.channel);
 
 		incr_free_channels(cep->saved_call.controller);
 		return;
@@ -630,8 +629,7 @@ msg_disconnect_ind(msg_disconnect_ind_t *mp)
 
 	/* set the B-channel inactive */
 
-	if((set_channel_idle(cep->isdncontrollerused, cep->isdnchannelused)) == ERROR)
-		log(LL_ERR, "msg_disconnect_ind: set_channel_idle failed!");
+	set_channel_idle(cep->isdncontrollerused, cep->isdnchannelused);
 
 	incr_free_channels(cep->isdncontrollerused);
 	
@@ -665,6 +663,40 @@ msg_dialout(msg_dialout_ind_t *mp)
 	if((cep->cdid = get_cdid()) == 0)
 	{
 		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialout: get_cdid() returned 0!")));
+		return;
+	}
+	
+	cep->charge = 0;
+	cep->last_charge = 0;
+
+	next_state(cep, EV_MDO);	
+}
+
+/*---------------------------------------------------------------------------*
+ *	handle incoming DIALOUTNUMBER message
+ *---------------------------------------------------------------------------*/
+void
+msg_dialoutnumber(msg_dialoutnumber_ind_t *mp)
+{
+	cfg_entry_t *cep;
+	
+	DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: dial req from %s, unit %d", bdrivername(mp->driver), mp->driver_unit)));
+
+	if((cep = find_by_device_for_dialoutnumber(mp->driver, mp->driver_unit, mp->cmdlen, mp->cmd)) == NULL)
+	{
+		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: config entry reserved or no match")));
+		return;
+	}
+
+	if(cep->inout == DIR_INONLY)
+	{
+		dialresponse(cep, DSTAT_INONLY);
+		return;
+	}
+	
+	if((cep->cdid = get_cdid()) == 0)
+	{
+		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: get_cdid() returned 0!")));
 		return;
 	}
 	

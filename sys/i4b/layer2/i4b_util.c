@@ -27,9 +27,9 @@
  *	i4b_util.c - layer 2 utility routines
  *	-------------------------------------
  *
- *	$Id: i4b_util.c,v 1.17 1999/02/14 09:45:01 hm Exp $ 
+ *	$Id: i4b_util.c,v 1.20 1999/04/15 09:53:55 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:32:23 1999]
+ *      last edit-date: [Thu Apr 15 10:47:52 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -94,12 +94,15 @@ i4b_establish_data_link(l2_softc_t *l2sc)
 void
 i4b_clear_exception_conditions(l2_softc_t *l2sc)
 {
+	CRIT_VAR;
 
+	CRIT_BEG;
+	
 /*XXX -------------------------------------------------------------- */
 /*XXX is this really appropriate here or should it moved elsewhere ? */
 
 	i4b_Dcleanifq(&l2sc->i_queue);
-
+	
 	if(l2sc->ua_num != UA_EMPTY)
 	{
 		i4b_Dfreembuf(l2sc->ua_frame);
@@ -114,6 +117,8 @@ i4b_clear_exception_conditions(l2_softc_t *l2sc)
 	l2sc->own_busy = 0;
 
 	l2sc->ack_pend = 0;	
+
+	CRIT_END;	
 }
 
 /*---------------------------------------------------------------------------*
@@ -165,13 +170,15 @@ i4b_enquiry_response(l2_softc_t *l2sc)
 void
 i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 {
-	int x = SPLI4B();
+	CRIT_VAR;
+
+	CRIT_BEG;
 
 	DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("nr = %d\n", nr ));
 	
 	while(l2sc->vs != nr)
 	{
-		DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("nr != vs, nr = %d, vs = %d\n", nr, l2sc->vs));
+		DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("nr(%d) != vs(%d)\n", nr, l2sc->vs));
 
 		M128DEC(l2sc->vs);
 
@@ -179,8 +186,15 @@ i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 
 		if((l2sc->ua_num != UA_EMPTY) && (l2sc->vs == l2sc->ua_num))
 		{
-			IF_ENQUEUE(&l2sc->i_queue, l2sc->ua_frame);
-			l2sc->ua_num = UA_EMPTY;
+			if(IF_QFULL(&l2sc->i_queue))
+			{
+				DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("ERROR, I-queue full!\n"));
+			}
+			else
+			{
+				IF_ENQUEUE(&l2sc->i_queue, l2sc->ua_frame);
+				l2sc->ua_num = UA_EMPTY;
+			}
 		}
 		else
 		{
@@ -192,7 +206,7 @@ i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 		i4b_i_frame_queued_up(l2sc);
 	}
 
-	splx(x);
+	CRIT_END;
 }
 
 /*---------------------------------------------------------------------------*
@@ -260,9 +274,9 @@ i4b_rxd_ack(l2_softc_t *l2sc, int nr)
 
 	if(l2sc->ua_num != UA_EMPTY)
 	{
-		int s;
-		
-		s = SPLI4B();
+		CRIT_VAR;
+
+		CRIT_BEG;
 		
 		M128DEC(nr);
 
@@ -272,7 +286,7 @@ i4b_rxd_ack(l2_softc_t *l2sc, int nr)
 		i4b_Dfreembuf(l2sc->ua_frame);
 		l2sc->ua_num = UA_EMPTY;
 		
-		splx(s);
+		CRIT_END;
 	}
 }
 
@@ -308,7 +322,6 @@ i4b_l2_nr_ok(int nr, int va, int vs)
 		DBGL2(L2_ERROR, "i4b_l2_nr_ok", ("ERROR, va = %d, nr = %d, vs = %d [2]\n", va, nr, vs));
 		return 0;	/* fail */
 	}
-
 	return 1;		/* good */
 }
 	

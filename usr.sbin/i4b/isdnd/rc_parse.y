@@ -30,9 +30,9 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- *	$Id: rc_parse.y,v 1.18 1999/02/23 16:25:49 hm Exp $ 
+ *	$Id: rc_parse.y,v 1.19 1999/04/29 08:27:10 hm Exp $ 
  *
- *      last edit-date: [Tue Feb 23 16:42:02 1999]
+ *      last edit-date: [Thu Apr 29 08:46:01 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -124,6 +124,7 @@ int		entrycount = -1;
 %token		REGPROG
 %token		RTPRIO
 %token		SYSTEM
+%token		TINAINITPROG
 %token		UNITLENGTH
 %token		UNITLENGTHSRC
 %token		USEACCTFILE
@@ -287,6 +288,7 @@ boolean:	  NO			{ $$ = FALSE; }
 sysfilekeyword:	  RATESFILE		{ $$ = RATESFILE; }
 		| ACCTFILE		{ $$ = ACCTFILE; }
 		| ALIASFNAME		{ $$ = ALIASFNAME; }
+		| TINAINITPROG		{ $$ = TINAINITPROG; }
 		;
 
 sysboolkeyword:	  USEACCTFILE		{ $$ = USEACCTFILE; }

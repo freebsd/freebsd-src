@@ -27,9 +27,9 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- *	$Id: main.c,v 1.34 1999/02/23 16:25:49 hm Exp $ 
+ *	$Id: main.c,v 1.36 1999/04/29 08:27:10 hm Exp $ 
  *
- *      last edit-date: [Tue Feb 23 16:47:33 1999]
+ *      last edit-date: [Thu Apr 29 09:41:21 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -306,6 +306,14 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+	/* init active controllers, if any */
+	
+	signal(SIGCHLD, SIG_IGN);		/*XXX*/
+
+	init_active_controller();
+
+	signal(SIGCHLD, sigchild_handler);	/*XXX*/
+	
 	/* handle the rates stuff */
 	
 	if((i = readrates(ratesfile)) == ERROR)
@@ -620,6 +628,10 @@ isdnrdhdl(void)
 
 			case MSG_IFSTATE_CHANGED_IND:
 				msg_ifstatechg_ind((msg_ifstatechg_ind_t *)msg_rd_buf);
+				break;
+
+			case MSG_DIALOUTNUMBER_IND:
+				msg_dialoutnumber((msg_dialoutnumber_ind_t *)msg_rd_buf);
 				break;
 
 			default:
