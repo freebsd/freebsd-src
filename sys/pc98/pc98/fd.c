@@ -19,7 +19,7 @@
  *  dufault@hda.com (Peter Dufault)
  *
  * Copyright (c) 2001 Joerg Wunsch,
- *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
+ *  joerg_wunsch@uriah.heep.sax.de (Joerg Wunsch)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,14 +52,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disklabel.h>
 #include <sys/devicestat.h>
+#include <sys/disklabel.h>
 #include <sys/fcntl.h>
 #include <sys/fdcio.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -89,8 +89,6 @@
 #include <isa/rtc.h>
 #endif
 
-/* misuse a flag to identify format operation */
-
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
 #define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
@@ -111,8 +109,6 @@
 #define NUMDENS  (NUMTYPES - 7)
 #endif
 
-/* These defines (-1) must match index for fd_types */
-#define F_TAPE_TYPE	0x020	/* bit for fd_types to indicate tape */
 #define NO_TYPE		0	/* must match NO_TYPE in ft.c */
 #define FD_1720         1
 #define FD_1480         2
@@ -189,6 +185,8 @@ static struct fd_type fd_types[NUMTYPES] =
 #else
 #define DRVS_PER_CTLR 2		/* 2 floppies */
 #endif
+
+#define MAX_SEC_SIZE	(128 << 3)
 
 /***********************************************************************\
 * Per controller structure.						*
@@ -293,10 +291,6 @@ nrd_info(addr)
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
 
-/* needed for ft driver, thus exported */
-int in_fdc(struct fdc_data *);
-int out_fdc(struct fdc_data *, int);
-
 /* internal functions */
 static	void fdc_intr(void *);
 static void set_motor(struct fdc_data *, int, int);
@@ -307,6 +301,7 @@ static timeout_t fd_motor_on;
 static void fd_turnon(struct fd_data *);
 static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
+static int out_fdc(struct fdc_data *, int);
 static void fdstart(struct fdc_data *);
 static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
@@ -315,24 +310,9 @@ static int retrier(struct fdc_data *);
 static int fdformat(dev_t, struct fd_formb *, struct proc *);
 
 static int enable_fifo(fdc_p fdc);
+static void fd_clone (void *arg, char *name, int namelen, dev_t *dev);
 
 static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
-
-
-#define DEVIDLE		0
-#define FINDWORK	1
-#define	DOSEEK		2
-#define SEEKCOMPLETE 	3
-#define	IOCOMPLETE	4
-#define RECALCOMPLETE	5
-#define	STARTRECAL	6
-#define	RESETCTLR	7
-#define	SEEKWAIT	8
-#define	RECALWAIT	9
-#define	MOTORWAIT	10
-#define	IOTIMEDOUT	11
-#define	RESETCOMPLETE	12
-#define PIOREAD		13
 
 #ifdef	FDC_DEBUG
 static char const * const fdstates[] =
@@ -412,7 +392,11 @@ fdin_rd(fdc_p fdc)
 
 #endif
 
-static	d_open_t	Fdopen;	/* NOTE, not fdopen */
+/*
+ * named Fdopen() to avoid confusion with fdopen() in fd(4); the
+ * difference is now only meaningful for debuggers
+ */
+static	d_open_t	Fdopen;
 static	d_close_t	fdclose;
 static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
@@ -504,7 +488,6 @@ enable_fifo(fdc_p fdc)
 	if ((fdc->flags & FDC_HAS_FIFO) == 0) {
 		
 		/*
-		 * XXX: 
 		 * Cannot use fd_cmd the normal way here, since
 		 * this might be an invalid command. Thus we send the
 		 * first byte, and check for an early turn of data directon.
@@ -662,7 +645,7 @@ static int pc98_fd_check_ready(fdu_t fdu)
 {
 	fd_p fd = devclass_get_softc(fd_devclass, fdu);
 	struct fdc_data *fdc = fd->fdc;
-	int retry = 0;
+	int retry = 0, status;
 
 #ifdef EPSON_NRDISK
 	if (fdu == nrdu) {
@@ -676,7 +659,8 @@ static int pc98_fd_check_ready(fdu_t fdu)
 		DELAY(100);
 		out_fdc(fdc, fdu); /* Drive number */
 		DELAY(100);
-		if ((in_fdc(fdc) & NE7_ST3_RD)){
+		fd_in(fdc, &status);
+		if ((status & NE7_ST3_RD)) {
 			fdout_wr(fdc, FDO_DMAE | FDO_MTON);
 			DELAY(10);
 			return 0;
@@ -1047,7 +1031,7 @@ fdc_attach(device_t dev)
 	fdc = device_get_softc(dev);
 	error = fdc_alloc_resources(fdc);
 	if (error) {
-		device_printf(dev, "cannot re-aquire resources\n");
+		device_printf(dev, "cannot re-acquire resources\n");
 		return error;
 	}
 	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
@@ -1061,10 +1045,13 @@ fdc_attach(device_t dev)
 	fdc->flags |= FDC_ATTACHED;
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
-		/* Acquire the DMA channel forever, The driver will do the rest */
-				/* XXX should integrate with rman */
+		/*
+		 * Acquire the DMA channel forever, the driver will do
+		 * the rest
+		 * XXX should integrate with rman
+		 */
 		isa_dma_acquire(fdc->dmachan);
-		isa_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
+		isa_dmainit(fdc->dmachan, MAX_SEC_SIZE);
 	}
 	fdc->state = DEVIDLE;
 
@@ -1155,8 +1142,6 @@ DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
 
-static void fd_clone __P((void *arg, char *name, int namelen, dev_t *dev));
-
 static struct {
 	char *match;
 	int minor;
@@ -1187,11 +1172,7 @@ static struct {
 	{ 0, 0 }
 };
 static void
-fd_clone(arg, name, namelen, dev)
-	void *arg;
-	char *name;
-	int namelen;
-	dev_t *dev;
+fd_clone (void *arg, char *name, int namelen, dev_t *dev)
 {
 	int u, d, i;
 	char *n;
@@ -1469,7 +1450,7 @@ fd_attach(device_t dev)
 	 * Export the drive to the devstat interface.
 	 */
 	devstat_add_entry(&fd->device_stats, device_get_name(dev), 
-			  device_get_unit(dev), 512, DEVSTAT_NO_ORDERED_TAGS,
+			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
 			  DEVSTAT_PRIORITY_FD);
 	return (0);
@@ -1545,10 +1526,12 @@ set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 
 	if (needspecify) {
 		/*
-		 * XXX
-		 * special case: since we have just woken up the FDC
-		 * from its sleep, we silently assume the command will
-		 * be accepted, and do not test for a timeout
+		 * we silently assume the command will be accepted
+		 * after an FDC reset
+		 *
+		 * Steinbach's Guideline for Systems Programming:
+		 * Never test for an error condition you don't know
+		 * how to handle.
 		 */
 #ifdef PC98
 		(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
@@ -1643,7 +1626,7 @@ fdc_reset(fdc_p fdc)
 	TRACE1("[0x%x->FDOUT]", fdc->fdout);
 #endif
 
-	/* XXX after a reset, silently believe the FDC will accept commands */
+	/* after a reset, silently believe the FDC will accept commands */
 #ifdef PC98
 	(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
 		     NE7_SPEC_1(4, 240), NE7_SPEC_2(2, 0),
@@ -1660,28 +1643,6 @@ fdc_reset(fdc_p fdc)
 /****************************************************************************/
 /*                             fdc in/out                                   */
 /****************************************************************************/
-int
-in_fdc(struct fdc_data *fdc)
-{
-	int i, j = 100000;
-	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0)
-		if (i == NE7_RQM)
-			return fdc_err(fdc, "ready for output in input\n");
-	if (j <= 0)
-		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
-#ifdef	FDC_DEBUG
-	i = fddata_rd(fdc);
-	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
-	return(i);
-#else	/* !FDC_DEBUG */
-	return fddata_rd(fdc);
-#endif	/* FDC_DEBUG */
-}
-
-/*
- * fd_in: Like in_fdc, but allows you to see if it worked.
- */
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
@@ -2655,16 +2616,11 @@ retrier(struct fdc_data *fdc)
 	default:
 	fail:
 		{
-			dev_t sav_bio_dev = bp->bio_dev;
 			int printerror = (fd->options & FDOPT_NOERRLOG) == 0;
 
-			/* Trick diskerr */
-			bp->bio_dev = makedev(major(bp->bio_dev),
-				    (FDUNIT(minor(bp->bio_dev))<<3)|RAW_PART);
 			if (printerror)
 				diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
 					(struct disklabel *)NULL);
-			bp->bio_dev = sav_bio_dev;
 			if (printerror) {
 				if (fdc->flags & FDC_STAT_VALID)
 				{
