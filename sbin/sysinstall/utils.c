@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.6 1994/10/21 04:43:07 ache Exp $
+ * $Id: utils.c,v 1.7 1994/10/21 18:08:33 paul Exp $
  *
  */
 
@@ -93,20 +93,25 @@ void
 ExitSysinstall()
 {
 	if (getpid() == 1) {
+		if (dialog_active) {
 		clear();
+			dialog_update();
+		}
 		if (reboot(RB_AUTOBOOT) == -1)
 			if (dialog_active) {
-				dialog_clear();
+				clear();
 				dialog_msgbox(TITLE, "\n\nCan't reboot machine -- hit reset button",
 						  5,30,0);
 			} else
 				fprintf(stderr, "Can't reboot the machine -- hit the reset button");
 			while(1);
-	} else
-		clear();
-		refresh();
+	} else {
+		if (dialog_active) {
+			dialog_update();
 		end_dialog();
+		}
 		exit(0);
+	}
 }
 
 void *
