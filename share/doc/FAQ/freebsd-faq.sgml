@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.44 1996/05/19 05:20:18 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.45 1996/05/29 00:46:01 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1449,7 +1449,10 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 	<heading>When I try to mount a CDROM, I get a ``Device not configured'' error.  What's going on?</heading>
         <p>
           This generally means that there is no CDROM in the CDROM drive.
-          Feed the drive something.
+          or the drive is not visible on the bus. Feed the drive
+          something, and/or check it's master/slave status if it is
+          IDE (ATAPI).
+
   
       <sect1>
 	<heading>My programs occasionally die with ``Signal 11'' errors. What's going on?</heading>
