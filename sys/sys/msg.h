@@ -59,7 +59,7 @@ struct msqid_ds {
  * this user defined buffer might look like, and includes the following
  * members:".  This sentence is followed by two lines equivalent
  * to the mtype and mtext field declarations below.  It isn't clear
- * if "mymsg" refers to the naem of the structure type or the name of an
+ * if "mymsg" refers to the name of the structure type or the name of an
  * instance of the structure...
  */
 struct mymsg {
