@@ -119,13 +119,10 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Changing NIS password for %s\n",
 		    pwd->pw_name);
 		break;
-	case _PWF_HESIOD:
-		errx(1, "can't change Hesiod password");
-		break;
 	default:
-		/* specieist! */
-		errx(1, "can't change little green men's passwords (0x%x)",
-		    pwd->pw_fields);
+		/* XXX: Green men ought to be supported via PAM. */
+		errx(1, 
+	  "Sorry, `passwd' can only change passwords for local or NIS users.");
 	}
 
 #define pam_check(func) do { \
