@@ -307,8 +307,8 @@ extern unsigned long get_time(void);
  * The rest of this file is not complete yet. The functions using these
  * macros will not work
  */
-#define ALLOC_DMA_CHN(chn,deviceID) ({0; } )
-#define RELEASE_DMA_CHN(chn) ({ 0; })
+#define ALLOC_DMA_CHN(chn,deviceID) (isa_dma_acquire(chn))
+#define RELEASE_DMA_CHN(chn) (isa_dma_release(chn))
 #define DMA_MODE_READ		0
 #define DMA_MODE_WRITE		1
 #define RELEASE_IRQ(irq_no)
