@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: bsd.dep.mk,v 1.10 1997/02/22 13:56:08 peter Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -55,6 +55,9 @@ ${DEPENDFILE}: ${SRCS}
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 		${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[ID]*} \
 		${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
+.endif
+.if target(_EXTRADEPEND)
+	cd ${.CURDIR}; ${MAKE} _EXTRADEPEND
 .endif
 
 .else

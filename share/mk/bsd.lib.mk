@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id$
+#	$Id: bsd.lib.mk,v 1.50 1997/02/22 13:56:11 peter Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -143,7 +143,8 @@ lib${LIB}_p.a:: ${POBJS}
 .endif
 
 .if defined(DESTDIR)
-LDDESTDIR?=	-L${DESTDIR}/usr/lib
+LDDESTDIR?=	-L${DESTDIR}${SHLIBDIR} -L${DESTDIR}/usr/lib
+# LDDESTDIR+=	-nostdlib
 .endif
 
 .if !defined(NOPIC)
@@ -182,10 +183,16 @@ clean:	_SUBDIR
 .endif
 
 .if defined(SRCS)
-afterdepend:
-	@(TMP=_depend$$$$; \
-	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so:/' < .depend > $$TMP; \
-	mv $$TMP .depend)
+_EXTRADEPEND::
+	@TMP=_depend$$$$; \
+	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so:/' < ${DEPENDFILE} \
+	    > $$TMP; \
+	mv $$TMP ${DEPENDFILE}
+.endif
+.if defined(LDADD)
+_EXTRADEPEND::
+	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
+	    `ld -Bshareable -x -f ${LDDESTDIR} ${LDADD}` >> ${DEPENDFILE}
 .endif
 
 .if !target(install)
