@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.17 1997/05/31 10:13:46 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.18 1997/06/02 08:19:06 dfr Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -571,7 +571,7 @@ pppfcs(fcs, cp, len)
     register u_char *cp;
     register int len;
 {
-    while (len--)
+    while (len-- > 0)
 	fcs = PPP_FCS(fcs, *cp++);
     return (fcs);
 }
