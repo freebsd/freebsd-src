@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.10 1995/08/08 02:22:16 davidg Exp $
+ *	$Id: uipc_usrreq.c,v 1.11 1995/08/16 16:13:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -333,7 +333,9 @@ release:
  * and don't really want to reserve the sendspace.  Their recvspace should
  * be large enough for at least one max-size datagram plus address.
  */
-#define	PIPSIZ	4096
+#ifndef PIPSIZ
+#define	PIPSIZ	8192
+#endif
 u_long	unpst_sendspace = PIPSIZ;
 u_long	unpst_recvspace = PIPSIZ;
 u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
