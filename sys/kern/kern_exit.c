@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.10 1994/10/09 21:53:49 sos Exp $
+ * $Id: kern_exit.c,v 1.11 1994/10/11 20:42:01 sos Exp $
  */
 
 #include <sys/param.h>
@@ -102,9 +102,11 @@ exit1(p, rv)
 	register struct proc **pp;
 	register struct vmspace *vm;
 
-	if (p->p_pid == 1)
-		panic("init died (signal %d, exit %d)",
+	if (p->p_pid == 1) {
+		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
+		panic("Going nowhere without my init!");
+	}
 #ifdef PGINPROF
 	vmsizmon();
 #endif
