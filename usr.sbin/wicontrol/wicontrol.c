@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <net/ethernet.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
+#include <dev/wi/wi_hostap.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -82,6 +83,41 @@ static void wi_readcache(const char *);
 static void usage(const char *);
 
 int listaps;
+
+/*
+ * Print a value a la the %b format of the kernel's printf
+ * (ripped screaming from ifconfig/ifconfig.c)
+ */
+void
+printb(s, v, bits)
+	char *s;
+	char *bits;
+	unsigned short v;
+{
+	int i, any = 0;
+	char c;
+
+	if (bits && *bits == 8)
+		printf("%s=%o", s, v);
+	else
+		printf("%s=%x", s, v);
+	bits++;
+	if (bits) {
+		putchar('<');
+		while ((i = *bits++)) {
+			if (v & (1 << (i-1))) {
+				if (any)
+					putchar(',');
+				any = 1;
+				for (; (c = *bits) > 32; bits++)
+					putchar(c);
+			} else
+				for (; *bits > 32; bits++)
+					;
+		}
+		putchar('>');
+	}
+}
 
 static void
 wi_getval(const char *iface, struct wi_req *wreq)
@@ -724,6 +760,47 @@ usage(const char *p)
 	exit(1);
 }
 
+static void
+wi_dumpstations(const char *iface)
+{
+	struct hostap_getall    reqall;
+	struct hostap_sta       stas[WIHAP_MAX_STATIONS];
+	struct ifreq		ifr;
+	int i, s;
+
+	bzero(&ifr, sizeof(ifr));
+	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
+	ifr.ifr_data = (caddr_t) & reqall;
+	bzero(&reqall, sizeof(reqall));
+	reqall.size = sizeof(stas);
+	reqall.addr = stas;
+	bzero(&stas, sizeof(stas));
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1)
+		err(1, "socket");
+
+	if (ioctl(s, SIOCHOSTAP_GETALL, &ifr) < 0)
+		err(1, "SIOCHOSTAP_GETALL");
+
+	printf("%d station%s:\n", reqall.nstations, reqall.nstations>1?"s":"");
+	for (i = 0; i < reqall.nstations; i++) {
+		struct hostap_sta *info = &stas[i];
+
+	        printf("%02x:%02x:%02x:%02x:%02x:%02x  asid=%04x",
+			info->addr[0], info->addr[1], info->addr[2],
+			info->addr[3], info->addr[4], info->addr[5],
+			info->asid - 0xc001);
+		printb(", flags", info->flags, HOSTAP_FLAGS_BITS);
+		printb(", caps", info->capinfo, IEEE80211_CAPINFO_BITS);
+		printb(", rates", info->rates, WI_RATES_BITS);
+		if (info->sig_info)
+			printf(", sig=%d/%d",
+			    info->sig_info >> 8, info->sig_info & 0xff);
+		putchar('\n');
+	}
+}
+
 #ifdef WICACHE
 static void
 wi_zerocache(const char *iface)
@@ -814,15 +891,15 @@ main(int argc, char *argv[])
 	opterr = 1;
 		
 	while((ch = getopt(argc, argv,
-	    "a:hoc:d:e:f:i:k:lp:r:q:t:n:s:m:v:F:P:S:T:ZC")) != -1) {
+	    "a:hoc:d:e:f:i:k:lp:r:q:t:n:s:m:v:F:LP:S:T:ZC")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef WICACHE
 			wi_zerocache(iface);
-			exit(0);
 #else
 			printf("WICACHE not available\n");
 #endif
+			exit(0);
 			break;
 		case 'C':
 #ifdef WICACHE
@@ -859,8 +936,12 @@ main(int argc, char *argv[])
  		case 'k':
  			key = optarg;
 			break;
-		case 'l':
+		case 'L':
 			listaps = 1;
+			break;
+		case 'l':
+			wi_dumpstations(iface);
+			exit(0);
 			break;
 		case 'p':
 			wi_setword(iface, WI_RID_PORTTYPE, atoi(optarg));
