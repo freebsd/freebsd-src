@@ -423,13 +423,13 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 
 	/* sanity check */
 	if (m == NULL || inp == NULL || error == NULL)
-		panic("ipsec4_getpolicybysock: NULL pointer was passed.");
+		panic("ipsec4_getpolicybypcb: NULL pointer was passed.");
 
 	pcbsp = inp->inp_sp;
 
 #ifdef DIAGNOSTIC
 	if (pcbsp == NULL)
-		panic("ipsec4_getpolicybysock: pcbsp is NULL.");
+		panic("ipsec4_getpolicybypcb: pcbsp is NULL.");
 #endif
 
 	tag = 0;
@@ -451,12 +451,12 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 		currsp = pcbsp->sp_out;
 		break;
 	default:
-		panic("ipsec4_getpolicybysock: illegal direction.");
+		panic("ipsec4_getpolicybypcb: illegal direction.");
 	}
 
 	/* sanity check */
 	if (currsp == NULL)
-		panic("ipsec4_getpolicybysock: currsp is NULL.");
+		panic("ipsec4_getpolicybypcb: currsp is NULL.");
 
 	/* when privileged socket */
 	if (pcbsp->priv) {
@@ -473,7 +473,7 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 			    (kernsp = key_allocsp(tag, &spidx, dir)) != NULL) {
 				/* SP found */
 				KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-					printf("DP ipsec4_getpolicybysock called "
+					printf("DP ipsec4_getpolicybypcb called "
 					       "to allocate SP:%p\n", kernsp));
 				*error = 0;
 				ipsec_fillpcbcache(pcbsp, m, kernsp, dir);
@@ -493,7 +493,7 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 			return currsp;
 
 		default:
-			ipseclog((LOG_ERR, "ipsec4_getpolicybysock: "
+			ipseclog((LOG_ERR, "ipsec4_getpolicybypcb: "
 			      "Invalid policy for PCB %d\n", currsp->policy));
 			*error = EINVAL;
 			return NULL;
@@ -507,7 +507,7 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 	    (kernsp = key_allocsp(tag, &spidx, dir)) != NULL) {
 		/* SP found */
 		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-			printf("DP ipsec4_getpolicybysock called "
+			printf("DP ipsec4_getpolicybypcb called "
 			       "to allocate SP:%p\n", kernsp));
 		*error = 0;
 		ipsec_fillpcbcache(pcbsp, m, kernsp, dir);
@@ -517,7 +517,7 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 	/* no SP found */
 	switch (currsp->policy) {
 	case IPSEC_POLICY_BYPASS:
-		ipseclog((LOG_ERR, "ipsec4_getpolicybysock: "
+		ipseclog((LOG_ERR, "ipsec4_getpolicybypcb: "
 		       "Illegal policy for non-privileged defined %d\n",
 			currsp->policy));
 		*error = EINVAL;
@@ -536,7 +536,7 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 		return currsp;
 
 	default:
-		ipseclog((LOG_ERR, "ipsec4_getpolicybysock: "
+		ipseclog((LOG_ERR, "ipsec4_getpolicybypcb: "
 		   "Invalid policy for PCB %d\n", currsp->policy));
 		*error = EINVAL;
 		return NULL;
@@ -627,18 +627,18 @@ ipsec6_getpolicybypcb(m, dir, inp, error)
 
 	/* sanity check */
 	if (m == NULL || inp == NULL || error == NULL)
-		panic("ipsec6_getpolicybysock: NULL pointer was passed.");
+		panic("ipsec6_getpolicybypcb: NULL pointer was passed.");
 
 #ifdef DIAGNOSTIC
 	if ((inp->inp_vflag & INP_IPV6PROTO) == 0)
-		panic("ipsec6_getpolicybysock: socket domain != inet6");
+		panic("ipsec6_getpolicybypcb: socket domain != inet6");
 #endif
 
 	pcbsp = inp->in6p_sp;
 
 #ifdef DIAGNOSTIC
 	if (pcbsp == NULL)
-		panic("ipsec6_getpolicybysock: pcbsp is NULL.");
+		panic("ipsec6_getpolicybypcb: pcbsp is NULL.");
 #endif
 
 	tag = 0;
@@ -660,12 +660,12 @@ ipsec6_getpolicybypcb(m, dir, inp, error)
 		currsp = pcbsp->sp_out;
 		break;
 	default:
-		panic("ipsec6_getpolicybysock: illegal direction.");
+		panic("ipsec6_getpolicybypcb: illegal direction.");
 	}
 
 	/* sanity check */
 	if (currsp == NULL)
-		panic("ipsec6_getpolicybysock: currsp is NULL.");
+		panic("ipsec6_getpolicybypcb: currsp is NULL.");
 
 	/* when privileged socket */
 	if (pcbsp->priv) {
@@ -682,7 +682,7 @@ ipsec6_getpolicybypcb(m, dir, inp, error)
 			    (kernsp = key_allocsp(tag, &spidx, dir)) != NULL) {
 				/* SP found */
 				KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-					printf("DP ipsec6_getpolicybysock called "
+					printf("DP ipsec6_getpolicybypcb called "
 					       "to allocate SP:%p\n", kernsp));
 				*error = 0;
 				ipsec_fillpcbcache(pcbsp, m, kernsp, dir);
@@ -702,7 +702,7 @@ ipsec6_getpolicybypcb(m, dir, inp, error)
 			return currsp;
 
 		default:
-			ipseclog((LOG_ERR, "ipsec6_getpolicybysock: "
+			ipseclog((LOG_ERR, "ipsec6_getpolicybypcb: "
 			    "Invalid policy for PCB %d\n", currsp->policy));
 			*error = EINVAL;
 			return NULL;
@@ -716,7 +716,7 @@ ipsec6_getpolicybypcb(m, dir, inp, error)
 	    (kernsp = key_allocsp(tag, &spidx, dir)) != NULL) {
 		/* SP found */
 		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-			printf("DP ipsec6_getpolicybysock called "
+			printf("DP ipsec6_getpolicybypcb called "
 			       "to allocate SP:%p\n", kernsp));
 		*error = 0;
 		ipsec_fillpcbcache(pcbsp, m, kernsp, dir);
@@ -726,7 +726,7 @@ ipsec6_getpolicybypcb(m, dir, inp, error)
 	/* no SP found */
 	switch (currsp->policy) {
 	case IPSEC_POLICY_BYPASS:
-		ipseclog((LOG_ERR, "ipsec6_getpolicybysock: "
+		ipseclog((LOG_ERR, "ipsec6_getpolicybypcb: "
 		    "Illegal policy for non-privileged defined %d\n",
 		    currsp->policy));
 		*error = EINVAL;
