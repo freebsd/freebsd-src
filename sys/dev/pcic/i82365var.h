@@ -204,3 +204,7 @@ int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
 int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
+int pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_intr_t intr, void *arg, void **cookiep);
+int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookiep);

@@ -33,17 +33,8 @@
 
 extern int pcic_isa_intr_alloc_mask;
 
-/* 
- * Establish/disestablish interrupts for PCCARD functions.
- */
-
-void	*pcic_isa_chip_intr_establish(pccard_chipset_handle_t,
-	    struct pccard_function *, int, int (*) (void *), void *);
-void	pcic_isa_chip_intr_disestablish(pccard_chipset_handle_t, void *);
-
 /*
  * Figure out how wide the ISA bus is...
  */
 
 void pcic_isa_bus_width_probe(device_t);
-

@@ -220,8 +220,8 @@ static device_method_t pcic_isa_methods[] = {
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
 
 #if 0
 	/* pccard/cardbus interface */

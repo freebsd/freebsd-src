@@ -82,31 +82,27 @@ int	pcic_debug = 0;
 static void	pcic_attach_socket(device_t, struct pcic_handle *);
 static void	pcic_init_socket(struct pcic_handle *);
 
-#if XXX
-int	pcic_submatch (struct device *, struct cfdata *, void *);
-#endif
-int	pcic_intr_socket (struct pcic_handle *);
+int	pcic_intr_socket(struct pcic_handle *);
 
-void	pcic_attach_card (struct pcic_handle *);
-void	pcic_detach_card (struct pcic_handle *, int);
-void	pcic_deactivate_card (struct pcic_handle *);
+void	pcic_attach_card(struct pcic_handle *);
+void	pcic_detach_card(struct pcic_handle *, int);
+void	pcic_deactivate_card(struct pcic_handle *);
 
-void	pcic_chip_do_mem_map (struct pcic_handle *, int);
-void	pcic_chip_do_io_map (struct pcic_handle *, int);
+void	pcic_chip_do_mem_map(struct pcic_handle *, int);
+void	pcic_chip_do_io_map(struct pcic_handle *, int);
 
-void	pcic_create_event_thread (void *);
-void	pcic_event_thread (void *);
+void	pcic_create_event_thread(void *);
+void	pcic_event_thread(void *);
 
-void	pcic_queue_event (struct pcic_handle *, int);
+void	pcic_queue_event(struct pcic_handle *, int);
 
-static void	pcic_wait_ready (struct pcic_handle *);
+static void	pcic_wait_ready(struct pcic_handle *);
 
-static u_int8_t st_pcic_read (struct pcic_handle *, int);
-static void st_pcic_write (struct pcic_handle *, int, u_int8_t);
+static u_int8_t st_pcic_read(struct pcic_handle *, int);
+static void st_pcic_write(struct pcic_handle *, int, u_int8_t);
 
 int
-pcic_ident_ok(ident)
-	int ident;
+pcic_ident_ok(int ident)
 {
 	/* this is very empirical and heuristic */
 
@@ -124,8 +120,7 @@ pcic_ident_ok(ident)
 }
 
 int
-pcic_vendor(h)
-	struct pcic_handle *h;
+pcic_vendor(struct pcic_handle *h)
 {
 	int reg;
 
@@ -159,8 +154,7 @@ pcic_vendor(h)
 }
 
 char *
-pcic_vendor_to_string(vendor)
-	int vendor;
+pcic_vendor_to_string(int vendor)
 {
 	switch (vendor) {
 	case PCIC_VENDOR_I82365SLR0:
@@ -378,8 +372,7 @@ pcic_attach_socket(device_t dev, struct pcic_handle *h)
 }
 
 void
-pcic_create_event_thread(arg)
-	void *arg;
+pcic_create_event_thread(void *arg)
 {
 	struct pcic_handle *h = arg;
 	const char *cs;
@@ -410,8 +403,7 @@ pcic_create_event_thread(arg)
 }
 
 void
-pcic_event_thread(arg)
-	void *arg;
+pcic_event_thread(void *arg)
 {
 	struct pcic_handle *h = arg;
 	struct pcic_event *pe;
@@ -498,8 +490,7 @@ pcic_event_thread(arg)
 }
 
 void
-pcic_init_socket(h)
-	struct pcic_handle *h;
+pcic_init_socket(struct pcic_handle *h)
 {
 	int reg;
 	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
@@ -545,73 +536,8 @@ pcic_init_socket(h)
 	}
 }
 
-#if XXX
 int
-pcic_submatch(parent, cf, aux)
-	struct device *parent;
-	struct cfdata *cf;
-	void *aux;
-{
-
-	struct pccardbus_attach_args *paa = aux;
-	struct pcic_handle *h = (struct pcic_handle *) paa->pch;
-
-	switch (h->sock) {
-	case C0SA:
-		if (cf->cf_loc[PCCARDBUSCF_CONTROLLER] !=
-		    PCCARDBUSCF_CONTROLLER_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_CONTROLLER] != 0)
-			return 0;
-		if (cf->cf_loc[PCCARDBUSCF_SOCKET] !=
-		    PCCARDBUSCF_SOCKET_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_SOCKET] != 0)
-			return 0;
-
-		break;
-	case C0SB:
-		if (cf->cf_loc[PCCARDBUSCF_CONTROLLER] !=
-		    PCCARDBUSCF_CONTROLLER_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_CONTROLLER] != 0)
-			return 0;
-		if (cf->cf_loc[PCCARDBUSCF_SOCKET] !=
-		    PCCARDBUSCF_SOCKET_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_SOCKET] != 1)
-			return 0;
-
-		break;
-	case C1SA:
-		if (cf->cf_loc[PCCARDBUSCF_CONTROLLER] !=
-		    PCCARDBUSCF_CONTROLLER_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_CONTROLLER] != 1)
-			return 0;
-		if (cf->cf_loc[PCCARDBUSCF_SOCKET] !=
-		    PCCARDBUSCF_SOCKET_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_SOCKET] != 0)
-			return 0;
-
-		break;
-	case C1SB:
-		if (cf->cf_loc[PCCARDBUSCF_CONTROLLER] !=
-		    PCCARDBUSCF_CONTROLLER_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_CONTROLLER] != 1)
-			return 0;
-		if (cf->cf_loc[PCCARDBUSCF_SOCKET] !=
-		    PCCARDBUSCF_SOCKET_DEFAULT &&
-		    cf->cf_loc[PCCARDBUSCF_SOCKET] != 1)
-			return 0;
-
-		break;
-	default:
-		panic("unknown pcic socket");
-	}
-
-	return ((*cf->cf_attach->ca_match)(parent, cf, aux));
-}
-#endif
-
-int
-pcic_intr(arg)
-	void *arg;
+pcic_intr(void *arg)
 {
 	struct pcic_softc *sc = arg;
 	int i, ret = 0;
@@ -626,8 +552,7 @@ pcic_intr(arg)
 }
 
 int
-pcic_intr_socket(h)
-	struct pcic_handle *h;
+pcic_intr_socket(struct pcic_handle *h)
 {
 	int cscreg;
 
@@ -687,9 +612,7 @@ pcic_intr_socket(h)
 }
 
 void
-pcic_queue_event(h, event)
-	struct pcic_handle *h;
-	int event;
+pcic_queue_event(struct pcic_handle *h, int event)
 {
 	struct pcic_event *pe;
 	int s;
@@ -706,8 +629,7 @@ pcic_queue_event(h, event)
 }
 
 void
-pcic_attach_card(h)
-	struct pcic_handle *h;
+pcic_attach_card(struct pcic_handle *h)
 {
 
 	if (!(h->flags & PCIC_FLAG_CARDP)) {
@@ -721,9 +643,7 @@ pcic_attach_card(h)
 }
 
 void
-pcic_detach_card(h, flags)
-	struct pcic_handle *h;
-	int flags;		/* DETACH_* */
+pcic_detach_card(struct pcic_handle *h, int flags)
 {
 
 	if (h->flags & PCIC_FLAG_CARDP) {
@@ -737,8 +657,7 @@ pcic_detach_card(h, flags)
 }
 
 void
-pcic_deactivate_card(h)
-	struct pcic_handle *h;
+pcic_deactivate_card(struct pcic_handle *h)
 {
 
 	/* call the MI deactivate function */
@@ -1374,9 +1293,6 @@ int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 			return err;
 		}
 		break;
-	case SYS_RES_IRQ:
-		/* XXX */
-		break;
 	case SYS_RES_MEMORY: 
 		err = pcic_chip_mem_alloc(h, sz, &h->mem[rid]);
 		if (err)
@@ -1390,7 +1306,8 @@ int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	default:
 		break;
 	}
-	err = bus_generic_activate_resource(dev, child, type, rid, r);
+	err = bus_generic_activate_resource(device_get_parent(dev), child,
+	    type, rid, r);
 	return (err);
 }
 
@@ -1404,8 +1321,6 @@ int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_IOPORT:
 		pcic_chip_io_unmap(h, rid);
 		pcic_chip_io_free(h, &h->io[rid]);
-	case SYS_RES_IRQ:
-		/* XXX */
 		break;
 	case SYS_RES_MEMORY: 
 		pcic_chip_mem_unmap(h, rid);
@@ -1413,6 +1328,48 @@ int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	default:
 		break;
 	}
-	err = bus_generic_deactivate_resource(dev, child, type, rid, r);
+	err = bus_generic_deactivate_resource(device_get_parent(dev), child,
+	    type, rid, r);
 	return (err);
+}
+int pcic_setup_intr(device_t dev, device_t child, struct resource *irqres,
+    int flags, driver_intr_t intr, void *arg, void **cookiep)
+{
+	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(child);
+	int reg;
+	int irq;
+	int err;
+
+	err = bus_generic_setup_intr(device_get_parent(dev), child, irqres,
+	    flags, intr, arg, cookiep);
+	if (!err)
+		return (err);
+
+	irq = rman_get_start(irqres);
+	reg = pcic_read(h, PCIC_INTR);
+	reg &= ~(PCIC_INTR_IRQ_MASK | PCIC_INTR_ENABLE);
+	reg |= irq;
+	pcic_write(h, PCIC_INTR, reg);
+
+	h->ih_irq = irq;
+
+	printf("card irq %d\n",irq);
+
+	return 0;
+}
+
+int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookiep)
+{
+	int reg;
+	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(child);
+
+	h->ih_irq = 0;
+
+	reg = pcic_read(h, PCIC_INTR);
+	reg &= ~(PCIC_INTR_IRQ_MASK | PCIC_INTR_ENABLE);
+	pcic_write(h, PCIC_INTR, reg);
+
+	return (bus_generic_teardown_intr(device_get_parent(dev), child, irq,
+	    cookiep));
 }
