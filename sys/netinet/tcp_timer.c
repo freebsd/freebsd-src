@@ -132,11 +132,6 @@ tcp_slowtimo()
 
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 
-#ifdef TCP_COMPAT_42
-	tcp_iss += TCP_ISSINCR/PR_SLOWHZ;		/* increment iss */
-	if ((int)tcp_iss < 0)
-		tcp_iss = TCP_ISSINCR;			/* XXX */
-#endif
 	splx(s);
 }
 
@@ -264,19 +259,9 @@ tcp_timer_keep(xtp)
 		 * correspondent TCP to respond.
 		 */
 		tcpstat.tcps_keepprobe++;
-#ifdef TCP_COMPAT_42
-		/*
-		 * The keepalive packet must have nonzero length
-		 * to get a 4.2 host to respond.
-		 */
-		tcp_respond(tp, tp->t_template->tt_ipgen,
-			    &tp->t_template->tt_t, (struct mbuf *)NULL,
-			    tp->rcv_nxt - 1, tp->snd_una - 1, 0);
-#else
 		tcp_respond(tp, tp->t_template->tt_ipgen,
 			    &tp->t_template->tt_t, (struct mbuf *)NULL,
 			    tp->rcv_nxt, tp->snd_una - 1, 0);
-#endif
 		callout_reset(tp->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
 	} else
 		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
