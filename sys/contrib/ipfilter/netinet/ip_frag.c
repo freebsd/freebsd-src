@@ -281,9 +281,6 @@ ipfr_t *table[];
 	ipfr_t	*f, frag;
 	u_int	idx;
 
-	if (!(fin->fin_fi.fi_fl & FI_FRAG))
-		return NULL;
-
 	/*
 	 * For fragments, we record protocol, packet id, TOS and both IP#'s
 	 * (these should all be the same for all fragments of a packet).
@@ -315,15 +312,16 @@ ipfr_t *table[];
 			  IPFR_CMPSZ)) {
 			u_short	atoff, off;
 
+			off = fin->fin_off;
+
 			/*
 			 * XXX - We really need to be guarding against the
 			 * retransmission of (src,dst,id,offset-range) here
 			 * because a fragmented packet is never resent with
 			 * the same IP ID#.
 			 */
-			off = ip->ip_off & IP_OFFMASK;
 			if (f->ipfr_seen0) {
-				if (!off || (fin->fin_fi.fi_fl & FI_SHORT))
+				if (!off || (fin->fin_fl & FI_SHORT))
 					continue;
 			} else if (!off)
 				f->ipfr_seen0 = 1;
