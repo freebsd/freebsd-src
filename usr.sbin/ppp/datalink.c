@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.29 1999/02/06 02:54:44 brian Exp $
+ *	$Id: datalink.c,v 1.30 1999/02/11 10:14:08 brian Exp $
  */
 
 #include <sys/param.h>
@@ -495,6 +495,14 @@ datalink_LayerUp(void *v, struct fsm *fp)
   }
 }
 
+static void
+datalink_AuthReInit(struct datalink *dl)
+{
+  auth_StopTimer(&dl->pap);
+  auth_StopTimer(&dl->chap.auth);
+  chap_ReInit(&dl->chap);
+}
+
 void
 datalink_GotAuthname(struct datalink *dl, const char *name)
 {
@@ -549,7 +557,7 @@ void
 datalink_CBCPComplete(struct datalink *dl)
 {
   datalink_NewState(dl, DATALINK_LCP);
-  chap_ReInit(&dl->chap);
+  datalink_AuthReInit(dl);
   fsm_Close(&dl->physical->link.lcp.fsm);
 }
 
@@ -576,7 +584,7 @@ datalink_AuthOk(struct datalink *dl)
     /* It's not CBCP */
     log_Printf(LogPHASE, "%s: Shutdown and await peer callback\n", dl->name);
     datalink_NewState(dl, DATALINK_LCP);
-    chap_ReInit(&dl->chap);
+    datalink_AuthReInit(dl);
     fsm_Close(&dl->physical->link.lcp.fsm);
   } else
     switch (dl->physical->link.lcp.his_callback.opmask) {
@@ -601,7 +609,7 @@ datalink_AuthOk(struct datalink *dl)
         }
         dl->cbcp.fsm.delay = 0;
         datalink_NewState(dl, DATALINK_LCP);
-        chap_ReInit(&dl->chap);
+        datalink_AuthReInit(dl);
         fsm_Close(&dl->physical->link.lcp.fsm);
         break;
 
@@ -614,7 +622,7 @@ datalink_AuthOk(struct datalink *dl)
         dl->cbcp.required = 1;
         dl->cbcp.fsm.delay = 0;
         datalink_NewState(dl, DATALINK_LCP);
-        chap_ReInit(&dl->chap);
+        datalink_AuthReInit(dl);
         fsm_Close(&dl->physical->link.lcp.fsm);
         break;
 
@@ -622,7 +630,7 @@ datalink_AuthOk(struct datalink *dl)
         log_Printf(LogPHASE, "%s: Oops - Should have NAK'd peer callback !\n",
                    dl->name);
         datalink_NewState(dl, DATALINK_LCP);
-        chap_ReInit(&dl->chap);
+        datalink_AuthReInit(dl);
         fsm_Close(&dl->physical->link.lcp.fsm);
         break;
     }
@@ -632,7 +640,7 @@ void
 datalink_AuthNotOk(struct datalink *dl)
 {
   datalink_NewState(dl, DATALINK_LCP);
-  chap_ReInit(&dl->chap);
+  datalink_AuthReInit(dl);
   fsm_Close(&dl->physical->link.lcp.fsm);
 }
 
@@ -661,7 +669,7 @@ datalink_LayerDown(void *v, struct fsm *fp)
         timer_Stop(&dl->chap.auth.authtimer);
     }
     datalink_NewState(dl, DATALINK_LCP);
-    chap_ReInit(&dl->chap);
+    datalink_AuthReInit(dl);
   }
 }
 
@@ -892,7 +900,7 @@ datalink_Close(struct datalink *dl, int how)
     case DATALINK_CBCP:
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      chap_ReInit(&dl->chap);
+      datalink_AuthReInit(dl);
       fsm_Close(&dl->physical->link.lcp.fsm);
       if (how != CLOSE_NORMAL) {
         dl->dial_tries = -1;
