@@ -401,8 +401,8 @@ static __inline int
 atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 {
 
-        return (
-            atomic_cmpset_long((volatile u_long *)dst, (u_long)exp, (u_long)src));
+        return (atomic_cmpset_long((volatile u_long *)dst, (u_long)exp,
+            (u_long)src));
 }
 
 static __inline u_int32_t
@@ -439,12 +439,26 @@ atomic_cmpset_rel_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
 	return (retval);
 }
 
+static __inline int
+atomic_cmpset_acq_ptr(volatile void *dst, void *exp, void *src)
+{
+
+        return (atomic_cmpset_acq_long((volatile u_long *)dst, (u_long)exp,
+	    (u_long)src));
+}
+
+static __inline int
+atomic_cmpset_rel_ptr(volatile void *dst, void *exp, void *src)
+{
+
+        return (atomic_cmpset_rel_long((volatile u_long *)dst, (u_long)exp,
+            (u_long)src));
+}
+
 #define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
 #define	atomic_cmpset_acq_long	atomic_cmpset_acq_64
 #define	atomic_cmpset_rel_long	atomic_cmpset_rel_64
-#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_long
-#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
 
 static __inline void *
 atomic_load_acq_ptr(volatile void *p)
