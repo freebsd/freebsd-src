@@ -816,13 +816,23 @@ void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	  vm_size_t len, vm_offset_t src_addr)
 {
-	TODO;
+
+	/*
+	 * This is not needed as it's mainly an optimisation.
+	 * It may want to be implemented later though.
+	 */
 }
 
 void
-pmap_copy_page(vm_page_t src, vm_page_t dst)
+pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	TODO;
+	vm_offset_t	dst;
+	vm_offset_t	src;
+
+	dst = VM_PAGE_TO_PHYS(mdst);
+	src = VM_PAGE_TO_PHYS(msrc);
+
+	kcopy((void *)src, (void *)dst, PAGE_SIZE);
 }
 
 /*
