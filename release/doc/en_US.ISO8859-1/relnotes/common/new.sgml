@@ -163,6 +163,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The &man.tcp.4; syncache implementation had a bug that
 	could cause kernel panics; this has been fixed.</para>
+
+      <para>The TCP implementation now properly ignores packets
+	addressed to IP-layer broadcast addresses.</para>
     </sect3>
 
     <sect3>
@@ -202,6 +205,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>&man.dump.8; now supplies progress information in its
+      process title, useful for monitoring automated backups.</para>
 
     <para>The functionality of <filename>/etc/security</filename> has
       been been moved into a set of scripts under the &man.periodic.8;
