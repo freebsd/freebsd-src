@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.17 1995/01/09 16:04:44 davidg Exp $
+ *	$Id: vmparam.h,v 1.18 1995/05/25 07:41:28 davidg Exp $
  */
 
 
@@ -70,31 +70,11 @@
 #define USRTEXT		(1*NBPG)		/* base of user text XXX bogus */
 
 /*
- * Default sizes of swap allocation chunks (see dmap.h).
- * The actual values may be changed in vminit() based on MAXDSIZ.
- * With MAXDSIZ of 16Mb and NDMAP of 38, dmmax will be 1024.
- */
-#define	DMMIN	32			/* smallest swap allocation */
-#define	DMMAX	4096			/* largest potential swap allocation */
-#define	DMTEXT	1024			/* swap allocation for text */
-
-/*
- * Sizes of the system and user portions of the system page table.
- */
-#define	SYSPTSIZE 	(2*NPTEPG)
-#define	USRPTSIZE 	(2*NPTEPG)
-
-/*
  * Size of the Shared Memory Pages page table.
  */
 #ifndef	SHMMAXPGS
 #define	SHMMAXPGS	1024		/* XXX until we have more kmap space */
 #endif
-
-/*
- * Size of User Raw I/O map
- */
-#define	USRIOSIZE 	1024
 
 /*
  * The time for a process to be blocked before being very swappable.
@@ -128,6 +108,5 @@
 
 /* virtual sizes (bytes) for various kernel submaps */
 #define VM_KMEM_SIZE		(32 * 1024 * 1024)
-#define VM_PHYS_SIZE		(USRIOSIZE*CLBYTES)
 
 #endif /* _MACHINE_VMPARAM_H_ */

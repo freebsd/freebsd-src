@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.30 1995/12/07 12:45:30 davidg Exp $
+ *	$Id: genassym.c,v 1.31 1996/01/04 20:28:29 wollman Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -87,7 +87,6 @@ main()
 	struct sigframe *sigf = (struct sigframe *)0;
 	struct bootinfo *bootinfo = (struct bootinfo *)0;
 
-	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
 	printf("#define\tP_FORW %p\n", &p->p_forw);
 	printf("#define\tP_BACK %p\n", &p->p_back);
 	printf("#define\tP_VMSPACE %p\n", &p->p_vmspace);
@@ -120,16 +119,12 @@ main()
 	printf("#define\tAPTDPTDI 0x%x\n", APTDPTDI);
 	printf("#define\tPGSHIFT %d\n", PGSHIFT);
 	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
-	printf("#define\tSYSPTSIZE %d\n", SYSPTSIZE);
-	printf("#define\tUSRPTSIZE %d\n", USRPTSIZE);
-	printf("#define\tUSRIOSIZE %d\n", USRIOSIZE);
 #ifdef SYSVSHM
 	printf("#define\tSHMMAXPGS %d\n", SHMMAXPGS);
 #endif
 	printf("#define\tUSRSTACK 0x%lx\n", USRSTACK);
 	printf("#define\tVM_MAXUSER_ADDRESS 0x%lx\n", VM_MAXUSER_ADDRESS);
 	printf("#define\tKERNBASE 0x%x\n", KERNBASE);
-	printf("#define\tMSGBUFPTECNT %d\n", btoc(sizeof (struct msgbuf)));
 	printf("#define\tMCLBYTES %d\n", MCLBYTES);
 	printf("#define\tPCB_LINK %p\n", &pcb->pcb_tss.tss_link);
 	printf("#define\tPCB_ESP0 %p\n", &pcb->pcb_tss.tss_esp0);
