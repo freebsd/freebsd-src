@@ -81,7 +81,7 @@ int crunched_here(char *path)
 }
 
 
-int crunched_main(int argc, char **argv)
+int crunched_main(int argc, char **argv, char **envp)
 {
     struct stub *ep;
     int columns, len;
@@ -89,7 +89,7 @@ int crunched_main(int argc, char **argv)
     if(argc <= 1)
 	crunched_usage();
 
-    return main(--argc, ++argv);
+    return main(--argc, ++argv, envp);
 }
 
 
