@@ -1,0 +1,3 @@
+# $Id$
+# This file determines where crash dumps will be saved.
+/var/crash

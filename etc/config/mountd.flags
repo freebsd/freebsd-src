@@ -1,0 +1,3 @@
+# $Id$
+# This file lists the flags passed to the NFS mount daemon `mountd' when
+# started at boot time.
