@@ -591,8 +591,12 @@ null_lock(ap)
 	int error;
 
 	if (flags & LK_THISLAYER) {
-		if (vp->v_vnlock != NULL)
-			return 0;	/* lock is shared across layers */
+		if (vp->v_vnlock != NULL) {
+			/* lock is shared across layers */
+			if (flags & LK_INTERLOCK)
+				mtx_unlock(&vp->v_interlock);
+			return 0;
+		}
 		error = lockmgr(&vp->v_lock, flags & ~LK_THISLAYER,
 		    &vp->v_interlock, td);
 		return (error);
