@@ -5,12 +5,12 @@
 # do not forget to propagate your changes by running "Configure -der". You may
 # instead choose to run each of the .SH files by yourself, or "Configure -S".
 #
-# $Id$
+# $Id: config.SH-elf.i386,v 1.3 1998/09/22 12:00:58 markm Exp $
 #
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: $Date$
+# Configuration time: $Date: 1998/09/22 12:00:58 $
 # Configured by     : markm
 # Target system     : freebsd 3.0-current #0:
 
@@ -55,7 +55,7 @@ ccdlflags=' '
 ccflags=''
 cf_by='markm'
 cf_email='markm@freebsd.org'
-cf_time='$Date$'
+cf_time='$Date: 1998/09/22 12:00:58 $'
 chgrp=''
 chmod=''
 chown=''
@@ -102,7 +102,7 @@ d_dirnamlen='define'
 d_dlerror='define'
 d_dlopen='define'
 d_dlsymun='undef'
-d_dosuid='undef'
+d_dosuid='define'
 d_dup2='define'
 d_endgrent='define'
 d_endhent='define'
