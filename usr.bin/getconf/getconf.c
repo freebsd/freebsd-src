@@ -148,9 +148,14 @@ do_confstr(const char *name, int key)
 	if (len == 0) {
 		printf("undefined\n");
 	} else {
-		buf = alloca(len);
-		confstr(key, buf, len);
-		printf("%s\n", buf);
+		buf = malloc(len);
+		if (buf != NULL) {
+			confstr(key, buf, len);
+			printf("%s\n", buf);
+			free(buf);
+		}
+		else
+			err(EX_OSERR, "malloc: confstr");
 	}
 }
 
