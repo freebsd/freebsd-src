@@ -167,7 +167,7 @@ kdb_trap(type, code, regs)
 #endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
 
 	/* Restart all the CPUs we previously stopped */
-	if (stopped_cpus != other_cpus) {
+	if (stopped_cpus != other_cpus && smp_started != 0) {
 		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
 			  other_cpus, stopped_cpus);
 		panic("stop_cpus() failed");
