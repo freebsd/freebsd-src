@@ -74,7 +74,7 @@ The
 .Fa cred
 pointer may be
 .Dv NULL
-to indicate that access control checks are not to be performed, of possible.
+to indicate that access control checks are not to be performed, if possible.
 This
 .Fa cred
 setting might be used to allow the kernel to authorize extended attribute
@@ -103,7 +103,7 @@ The uio structure refers to an invalid userspace address
 The name or uio argument is invalid
 .It Bq Er EOPNOTSUPP
 The file system does not support
-.Fn VOP_GETEXTATTR
+.Fn VOP_SETEXTATTR
 .It Bq Er ENOSPC
 The file system is out of space
 .It Bq Er EROFS

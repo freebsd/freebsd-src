@@ -65,9 +65,9 @@ The
 .Fa cred
 pointer may be
 .Dv NULL
-to indicate that access control checks are not to be performed, of possible.
-This cred setting might be used to allow the kernel to authorize extended
-attribute changes that the active process might not be permitted to make.
+to indicate that access control checks are not to be performed, if possible.
+This cred setting might be used to allow the kernel to authorize ACL
+changes that the active process might not be permitted to make.
 .Pp
 The vnode ACL interface defines the syntax, and not semantics, of file and
 directory ACL interfaces.  More information about ACL management in kernel
