@@ -46,7 +46,6 @@
 .Nd transform binary date and time value to
 .Tn ASCII
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
 .Fd #include <time.h>
 .Vt extern char *tzname[2];
 .Ft char *
@@ -89,9 +88,9 @@ environmental variable (see
 The function
 .Fn localtime
 uses
-.Xr tzset
+.Xr tzset 3
 to initialize time conversion information if
-.Xr tzset
+.Xr tzset 3
 has not already been called by the process.
 .Pp
 After filling in the tm structure,

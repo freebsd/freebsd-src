@@ -124,6 +124,28 @@ may also set
 to any value specified by the
 .Xr open 2
 function.
+.Sh NOTES
+A common problem that results in a core dump is that the programmer
+passes in a read-only string to 
+.Fn mktemp
+or 
+.Fn mkstemp .
+This is common with programs that were developed before 
+.St -ansiC
+compilers were common.
+For example, calling
+.Fn mkstemp 
+with an argument of 
+.Qq /tmp/tempfile.XXXXXX
+will result in a core dump due to 
+.Fn mkstemp
+attempting to modify the string constant that was given.
+If the program in question makes heavy use of that type
+of function call, you do have the option of compiling the program
+so that it will store string constants in a writable segment of memory.  
+See
+.Xr gcc 1
+for more information.
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr getpid 2 ,
