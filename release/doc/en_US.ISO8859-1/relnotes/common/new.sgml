@@ -740,8 +740,8 @@
 	This import breaks ABI compatibility of
 	<varname>struct ifnet</varname>.</para>
 
-	<para><application>IPFilter</application> has been updated
-	  from version 3.4.31 to version 3.4.35.</para>
+      <para><application>IPFilter</application> has been updated
+	from version 3.4.31 to version 3.4.35.</para>
 
       <para arch="ia64">An ia64 stack unwinder,
 	<application>Unwind Express (libuwx)</application>
@@ -1139,7 +1139,6 @@
 	  default.  In addition, password authentication over SSH is
 	  disabled by default if PAM is enabled.</para>
       </note>
-
       </para>
 
     <para><application>OpenSSL</application> has been updated from
@@ -1213,11 +1212,11 @@
       portupgrade.</para>
 
     <para>The package tools can now match packages with relational
-      operators and csh-style {...} choices, e.g.:
+      operators and csh-style {...} choices, e.g.:</para>
 
     <screen>&prompt.root; <userinput>pkg_info -I 'docbook>=3.0'</userinput></screen>
 
-      will list (all) docbook DTDs with at least version 3.0.
+    <para>will list (all) docbook DTDs with at least version 3.0.
       Additional command line options have also been added to aid
       pattern matching.</para>
 
@@ -1280,7 +1279,6 @@
     <para></para>
 
   </sect2>
-
 </sect1>
 
 <sect1 id="upgrade">
