@@ -149,7 +149,6 @@ struct en_vcc {
 #define	VCC_DRAIN	0x0001		/* closed, but draining rx */
 #define	VCC_SWSL	0x0002		/* on rx software service list */
 #define	VCC_CLOSE_RX	0x0004		/* currently closing */
-#define	VCC_ASYNC	0x0008		/* async close */
 
 /*
  * softc
