@@ -79,7 +79,7 @@ static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
 
 static struct g_class g_dev_class	= {
-	"DEV-class",
+	"DEV",
 	g_dev_taste,
 	NULL,
 	G_CLASS_INITSTUFF
@@ -291,7 +291,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 
 	if (error != 0 && cmd == DIOCGDVIRGIN) {
 		g_topology_lock();
-		gp = g_create_geomf("BSD-class", cp->provider, NULL);
+		gp = g_create_geomf("BSD", cp->provider, NULL);
 		g_topology_unlock();
 	}
 	PICKUP_GIANT();
