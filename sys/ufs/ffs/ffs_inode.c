@@ -274,6 +274,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			    IO_EXT | IO_NORMAL : IO_NORMAL);
 			vinvalbuf(ovp, needextclean ? 0 : V_NORMAL,
 			    cred, td, 0, 0);
+			vnode_pager_setsize(vp, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(ovp, 0));
 		}
