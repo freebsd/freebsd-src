@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.32 1997/11/22 03:37:21 brian Exp $
+#	$Id: Makefile,v 1.33 1997/12/03 10:23:44 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
-	defs.c filter.c fsm.c hdlc.c id.c ip.c ipcp.c lcp.c \
+	defs.c filter.c fsm.c hdlc.c id.c ip.c ipcp.c iplist.c lcp.c \
 	log.c lqr.c main.c mbuf.c modem.c os.c pap.c phase.c \
 	pred.c route.c server.c sig.c slcompress.c systems.c throughput.c \
 	timer.c tun.c vars.c vjcomp.c

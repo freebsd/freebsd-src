@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.105 1997/11/22 03:37:39 brian Exp $
+ * $Id: main.c,v 1.106 1997/12/03 10:23:50 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -413,7 +413,7 @@ main(int argc, char **argv)
     fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
 
   if (OpenTunnel(&tunno) < 0) {
-    LogPrintf(LogWARN, "open_tun: %s\n", strerror(errno));
+    LogPrintf(LogWARN, "OpenTunnel: %s\n", strerror(errno));
     return EX_START;
   }
   if (mode & MODE_INTER) {

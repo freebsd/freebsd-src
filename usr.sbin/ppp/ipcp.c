@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.40 1997/12/04 18:49:35 brian Exp $
+ * $Id: ipcp.c,v 1.41 1997/12/06 22:43:58 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -44,6 +44,7 @@
 #include "fsm.h"
 #include "lcpproto.h"
 #include "lcp.h"
+#include "iplist.h"
 #include "ipcp.h"
 #include "slcompress.h"
 #include "os.h"
@@ -53,6 +54,7 @@
 #include "vjcomp.h"
 #include "ip.h"
 #include "throughput.h"
+#include "route.h"
 
 #ifndef NOMSEXT
 struct in_addr ns_entries[2];
@@ -62,6 +64,7 @@ struct in_addr nbns_entries[2];
 struct ipcpstate IpcpInfo;
 struct in_range  DefMyAddress;
 struct in_range  DefHisAddress;
+struct iplist    DefHisChoice;
 struct in_addr   TriggerAddress;
 int HaveTriggerAddress;
 
@@ -184,6 +187,8 @@ IpcpDefAddress()
 void
 IpcpInit()
 {
+  if (iplist_isvalid(&DefHisChoice))
+    iplist_setrandpos(&DefHisChoice);
   FsmInit(&IpcpFsm);
   memset(&IpcpInfo, '\0', sizeof(struct ipcpstate));
   if ((mode & MODE_DEDICATED) && !GetLabel()) {
@@ -305,7 +310,7 @@ IpcpLayerUp(struct fsm * fp)
 
   LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
 	    tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
-  if (OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr, ifnetmask) < 0) {
+  if (OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr) < 0) {
     if (VarTerm)
       LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
@@ -366,7 +371,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
     else if (type > 128 && type < 128 + NCFTYPES128)
       snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes128[type-128], length);
     else
-      snprintf(tbuff, sizeof(tbuff), " ??? ");
+      snprintf(tbuff, sizeof(tbuff), " <%d>[%d] ", type, length);
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */
@@ -376,13 +381,29 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-	if (!AcceptableAddr(&DefHisAddress, ipaddr)) {
+        if (iplist_isvalid(&DefHisChoice)) {
+          if (iplist_ip2pos(&DefHisChoice, ipaddr) < 0 ||
+              OsTrySetIpaddress(DefMyAddress.ipaddr, ipaddr) != 0) {
+            LogPrintf(LogIPCP, "%s: Address invalid or already in use\n",
+                      inet_ntoa(ipaddr));
+            IpcpInfo.his_ipaddr = ChooseHisAddr(DefMyAddress.ipaddr);
+            if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
+	      memcpy(rejp, cp, length);
+	      rejp += length;
+            } else {
+	      memcpy(nakp, cp, 2);
+	      memcpy(nakp+2, &IpcpInfo.his_ipaddr.s_addr, length - 2);
+	      nakp += length;
+            }
+	    break;
+          }
+	} else if (!AcceptableAddr(&DefHisAddress, ipaddr)) {
 	  /*
 	   * If destination address is not acceptable, insist to use what we
 	   * want to use.
 	   */
 	  memcpy(nakp, cp, 2);
-	  memcpy(nakp+2, &IpcpInfo.his_ipaddr.s_addr, length);
+	  memcpy(nakp+2, &IpcpInfo.his_ipaddr.s_addr, length - 2);
 	  nakp += length;
 	  break;
 	}
@@ -392,14 +413,14 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       case MODE_NAK:
 	if (AcceptableAddr(&DefMyAddress, ipaddr)) {
-
-	  /*
-	   * Use address suggested by peer.
-	   */
+	  /* Use address suggested by peer */
 	  snprintf(tbuff2, sizeof(tbuff2), "%s changing address: %s ", tbuff,
 		   inet_ntoa(IpcpInfo.want_ipaddr));
 	  LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	  IpcpInfo.want_ipaddr = ipaddr;
+	} else {
+	  LogPrintf(LogIPCP, "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
+          FsmClose(&IpcpFsm);
 	}
 	break;
       case MODE_REJ:
