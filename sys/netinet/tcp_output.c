@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.26 1997/09/16 18:36:05 joerg Exp $
+ *	$Id: tcp_output.c,v 1.27 1997/10/07 21:10:06 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -737,7 +737,7 @@ void
 tcp_setpersist(tp)
 	register struct tcpcb *tp;
 {
-	register t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
+	register int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
 
 	if (tp->t_timer[TCPT_REXMT])
 		panic("tcp_output REXMT");

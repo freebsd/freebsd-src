@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.14 1997/07/20 16:21:36 bde Exp $
+ *      $Id: bt.c,v 1.15 1997/09/21 21:43:54 gibbs Exp $
  */
 
 /*
@@ -324,7 +324,7 @@ bt_cmd(bt, icnt, ocnt, wait, retval, opcode, va_alist)
 	va_list ap;
 	u_char data;
 	u_char		oc;
-	register	i;
+	int		i;
 	int		sts;
 
 	/*

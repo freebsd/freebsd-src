@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.32 1997/09/21 22:10:49 gibbs Exp $
+ * $Id: ufs_disksubr.c,v 1.33 1997/11/07 08:53:36 phk Exp $
  */
 
 #include <sys/param.h>
@@ -189,7 +189,7 @@ setdisklabel(olp, nlp, openmask)
 	register struct disklabel *olp, *nlp;
 	u_long openmask;
 {
-	register i;
+	register int i;
 	register struct partition *opp, *npp;
 
 	/*
