@@ -53,6 +53,7 @@ struct sc_chinfo {
 	u_int32_t num, run;
 	u_int32_t blksz, blkcnt;
 	u_int32_t regbase, spdreg;
+	u_int32_t imask;
 	u_int32_t civ;
 
 	struct snd_dbuf *buffer;
@@ -78,6 +79,7 @@ struct sc_info {
 
 	struct ac97_info *codec;
 	struct sc_chinfo ch[3];
+	int ac97rate;
 	struct ich_desc *dtbl;
 };
 
@@ -245,18 +247,21 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		KASSERT(dir == PCMDIR_PLAY, ("wrong direction"));
 		ch->regbase = ICH_REG_PO_BASE;
 		ch->spdreg = sc->hasvra? AC97_REGEXT_FDACRATE : 0;
+		ch->imask = ICH_GLOB_STA_POINT;
 		break;
 
 	case 1: /* record */
 		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
 		ch->regbase = ICH_REG_PI_BASE;
 		ch->spdreg = sc->hasvra? AC97_REGEXT_LADCRATE : 0;
+		ch->imask = ICH_GLOB_STA_PIINT;
 		break;
 
 	case 2: /* mic */
 		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
 		ch->regbase = ICH_REG_MC_BASE;
 		ch->spdreg = sc->hasvrm? AC97_REGEXT_MADCRATE : 0;
+		ch->imask = ICH_GLOB_STA_MINT;
 		break;
 
 	default:
@@ -283,10 +288,16 @@ ichchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
-	if (ch->spdreg)
-		return ac97_setrate(sc->codec, ch->spdreg, speed);
-	else
+	if (ch->spdreg) {
+		int r;
+		if (sc->ac97rate <= 32000 || sc->ac97rate >= 64000)
+			sc->ac97rate = 48000;
+		r = speed * 48000 / sc->ac97rate;
+		return ac97_setrate(sc->codec, ch->spdreg, r) * 
+			sc->ac97rate / 48000;
+	} else {
 		return 48000;
+	}
 }
 
 static int
@@ -365,37 +376,114 @@ ich_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
 	struct sc_chinfo *ch;
-	u_int32_t cbi, lbi, lvi, st;
+	u_int32_t cbi, lbi, lvi, st, gs;
 	int i;
+
+	gs = ich_rd(sc, ICH_REG_GLOB_STA, 4) & ICH_GLOB_STA_IMASK;
+	if (gs & (ICH_GLOB_STA_PRES | ICH_GLOB_STA_SRES)) {
+		/* Clear resume interrupt(s) - nothing doing with them */
+		ich_wr(sc, ICH_REG_GLOB_STA, gs, 4);
+	}
+	gs &= ~(ICH_GLOB_STA_PRES | ICH_GLOB_STA_SRES);
 
 	for (i = 0; i < 3; i++) {
 		ch = &sc->ch[i];
-		/* check channel status */
+		if ((ch->imask & gs) == 0) 
+			continue;
+		gs &= ~ch->imask;
 		st = ich_rd(sc, ch->regbase + ICH_REG_X_SR, 2);
 		st &= ICH_X_SR_FIFOE | ICH_X_SR_BCIS | ICH_X_SR_LVBCI;
-		if (st != 0) {
-			if (st & (ICH_X_SR_BCIS | ICH_X_SR_LVBCI)) {
+		if (st & (ICH_X_SR_BCIS | ICH_X_SR_LVBCI)) {
 				/* block complete - update buffer */
-				if (ch->run)
-					chn_intr(ch->channel);
-				lvi = ich_rd(sc, ch->regbase + ICH_REG_X_LVI, 1);
-				cbi = ch->civ % ch->blkcnt;
-				if (cbi == 0)
-					cbi = ch->blkcnt - 1;
-				else
-					cbi--;
-				lbi = lvi % ch->blkcnt;
-				if (cbi >= lbi)
-					lvi += cbi - lbi;
-				else
-					lvi += cbi + ch->blkcnt - lbi;
-				lvi %= ICH_DTBL_LENGTH;
-				ich_wr(sc, ch->regbase + ICH_REG_X_LVI, lvi, 1);
-			}
-			/* clear status bit */
-			ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
+			if (ch->run)
+				chn_intr(ch->channel);
+			lvi = ich_rd(sc, ch->regbase + ICH_REG_X_LVI, 1);
+			cbi = ch->civ % ch->blkcnt;
+			if (cbi == 0)
+				cbi = ch->blkcnt - 1;
+			else
+				cbi--;
+			lbi = lvi % ch->blkcnt;
+			if (cbi >= lbi)
+				lvi += cbi - lbi;
+			else
+				lvi += cbi + ch->blkcnt - lbi;
+			lvi %= ICH_DTBL_LENGTH;
+			ich_wr(sc, ch->regbase + ICH_REG_X_LVI, lvi, 1);
+
 		}
+		/* clear status bit */
+		ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
 	}
+	if (gs != 0) {
+		device_printf(sc->dev, 
+			      "Unhandled interrupt, gs_intr = %x\n", gs);
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+/* Sysctl to control ac97 speed (some boards overclocked ac97). */
+
+static int
+ich_initsys(struct sc_info* sc)
+{
+#ifdef SND_DYNSYSCTL
+	struct snddev_info *d = device_get_softc(sc->dev);
+	SYSCTL_ADD_INT(&d->sysctl_tree, 
+		       SYSCTL_CHILDREN(d->sysctl_tree_top),
+		       OID_AUTO, "ac97rate", CTLFLAG_RW, 
+		       &sc->ac97rate, 48000, 
+		       "AC97 link rate (default = 48000)");
+#endif /* SND_DYNSYSCTL */
+	return 0;
+}
+
+/* -------------------------------------------------------------------- */
+/* Calibrate card (some boards are overclocked and need scaling) */
+
+static
+unsigned int ich_calibrate(struct sc_info *sc)
+{
+	/* Grab audio from input for fixed interval and compare how
+	 * much we actually get with what we expect.  Interval needs
+	 * to be sufficiently short that no interrupts are
+	 * generated. */
+	struct sc_chinfo *ch = &sc->ch[1];
+	u_int16_t target_picb, actual_picb;
+	u_int32_t wait_us, actual_48k_rate;
+       
+	KASSERT(ch->regbase == ICH_REG_PI_BASE, ("wrong direction"));
+       
+	ichchan_setspeed(0, ch, 48000);
+	ichchan_setblocksize(0, ch, ICH_DEFAULT_BUFSZ);
+
+	target_picb = ch->dtbl[0].length / 2;   /* half interrupt interval */
+	wait_us = target_picb * 1000 / (2 * 48); /* (2 == stereo -> mono) */
+
+	if (bootverbose)
+		device_printf(sc->dev, "Calibration interval %d us\n", 
+			      wait_us);
+
+	ichchan_trigger(0, ch, PCMTRIG_START);
+	DELAY(wait_us);
+	actual_picb = ich_rd(sc, ch->regbase + ICH_REG_X_PICB, 2);
+	ichchan_trigger(0, ch, PCMTRIG_ABORT);
+
+	actual_48k_rate = 48000 * (2 * target_picb - actual_picb) / 
+		(target_picb);
+
+	if (actual_48k_rate > 48500 || actual_48k_rate < 47500) {
+		sc->ac97rate = actual_48k_rate;
+	} else {
+		sc->ac97rate = 48000;
+	}
+
+	if (bootverbose)
+		device_printf(sc->dev, 
+			      "Estimated AC97 link rate %d, using %d\n", 
+			      actual_48k_rate, sc->ac97rate);
+
+	return sc->ac97rate;
 }
 
 /* -------------------------------------------------------------------- */
@@ -470,6 +558,7 @@ static int
 ich_pci_attach(device_t dev)
 {
 	u_int32_t		data;
+	u_int16_t		extcaps;
 	struct sc_info 		*sc;
 	char 			status[SND_STATUSLEN];
 
@@ -518,10 +607,10 @@ ich_pci_attach(device_t dev)
 	mixer_init(dev, ac97_getmixerclass(), sc->codec);
 
 	/* check and set VRA function */
-	if (ac97_setextmode(sc->codec, AC97_EXTCAP_VRA) == 0)
-		sc->hasvra = 1;
-	if (ac97_setextmode(sc->codec, AC97_EXTCAP_VRM) == 0)
-		sc->hasvrm = 1;
+	extcaps = ac97_getextcaps(sc->codec);
+	sc->hasvra = extcaps & AC97_EXTCAP_VRA;
+	sc->hasvrm = extcaps & AC97_EXTCAP_VRM;
+	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
@@ -541,6 +630,9 @@ ich_pci_attach(device_t dev)
 		 rman_get_start(sc->nambar), rman_get_start(sc->nabmbar), rman_get_start(sc->irq));
 
 	pcm_setstatus(dev, status);
+
+	ich_initsys(sc);
+	ich_calibrate(sc);
 
 	return 0;
 
