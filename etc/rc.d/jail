@@ -122,6 +122,8 @@ jail_start()
 	echo '.'
 
 	echo -n 'Starting jails:'
+	_tmp_dir=`mktemp -d /tmp/jail.XXXXXXXX` || \
+	    err 3 "$name: Can't create temp dir, exiting..."
 	for _jail in ${jail_list}
 	do
 		init_variables $_jail
@@ -155,7 +157,7 @@ jail_start()
 				mount -t procfs proc "${jail_procdir}"
 			fi
 		fi
-		_tmp_jail=/tmp/jail.$$
+		_tmp_jail=${_tmp_dir}/jail.$$
 		jail -i ${jail_rootdir} ${jail_hostname} \
 			${jail_ip} ${jail_exec} > ${_tmp_jail} 2>&1
 		[ "$?" -eq 0 ] && echo -n " $jail_hostname"
@@ -164,6 +166,7 @@ jail_start()
 		rm -f ${_tmp_jail}
 		echo ${_jail_id} > /var/run/jail_${_jail}.id
 	done
+	rmdir ${_tmp_dir}
 	echo '.'
 }
 
