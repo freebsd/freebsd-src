@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.13 1995/02/13 01:58:29 jkh Exp $
+# $Id: instdist.sh,v 1.14 1995/02/13 02:28:14 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -437,9 +437,10 @@ correct value and press return."; then
 	CDROM)
 		dialog --title "Choose CDROM Type" --menu \
 "Which type of CDROM drive do you have attached to your \n\
-system?  FreeBSD supports the following types:\n" -1 -1 2 \
+system?  FreeBSD supports the following types:\n" -1 -1 4 \
 		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
 		"Sony" "Sony CDU33 or compatible CDROM drive" \
+		"SB" "Sound Blaster CDROM (Matsushita/Panasonic)" \
 		"Mitsumi" "Mitsumi CDROM (non-IDE) drive" \
 			2> ${TMP}/menu.tmp.$$
 		RETVAL=$?
@@ -454,6 +455,10 @@ system?  FreeBSD supports the following types:\n" -1 -1 2 \
 
 			Sony)
 				MEDIA_DEVICE=/dev/scd0a
+			;;
+
+			SB)
+				MEDIA_DEVICE=/dev/matcd0a
 			;;
 
 			Mitsumi)
