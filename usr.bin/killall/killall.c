@@ -303,7 +303,7 @@ main(int ac, char **av)
 	if (st == -1)
 		err(1, "could not sysctl(KERN_PROC)");
 	if (size % sizeof(struct kinfo_proc) != 0) {
-		fprintf(stderr, "proc size mismatch (%d total, %d chunks)\n",
+		fprintf(stderr, "proc size mismatch (%zu total, %zu chunks)\n",
 			size, sizeof(struct kinfo_proc));
 		fprintf(stderr, "userland out of sync with kernel, recompile libkvm etc\n");
 		exit(1);
