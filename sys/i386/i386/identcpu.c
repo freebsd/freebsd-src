@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.48 1998/05/22 22:15:14 des Exp $
+ *	$Id: identcpu.c,v 1.49 1998/06/30 19:41:21 phk Exp $
  */
 
 #include "opt_cpu.h"
@@ -69,9 +69,9 @@ void panicifcpuunsupported(void);
 static void identifycyrix(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
-static void do_cpuid(u_long ax, u_long *p);
+static void do_cpuid(u_int ax, u_int *p);
 
-u_long	cyrix_did;		/* Device ID of Cyrix CPU */
+u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
 char machine[] = "i386";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -98,7 +98,7 @@ static struct cpu_nameclass i386_cpus[] = {
 };
 
 static void
-do_cpuid(u_long ax, u_long *p)
+do_cpuid(u_int ax, u_int *p)
 {
 	__asm __volatile(
 	".byte	0x0f, 0xa2;"
@@ -120,7 +120,7 @@ void
 printcpuinfo(void)
 {
 
-	u_long regs[4], nreg;
+	u_int regs[4], nreg;
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
@@ -673,7 +673,7 @@ identblue(void)
 static void
 identifycyrix(void)
 {
-	u_long	eflags;
+	u_int	eflags;
 	int	ccr2_test = 0, dir_test = 0;
 	u_char	ccr2, ccr3;
 
@@ -714,7 +714,7 @@ finishidentcpu(void)
 {
 	int	isblue = 0;
 	u_char	ccr3;
-	u_long	regs[4];
+	u_int	regs[4];
 
 	if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		if (cpu == CPU_486) {
@@ -818,7 +818,7 @@ print_AMD_assoc(int i)
 static void
 print_AMD_info(void) 
 {
-	u_long regs[4];
+	u_int regs[4];
 
 	do_cpuid(0x80000000, regs);
 	if (regs[0] >= 0x80000005) {
