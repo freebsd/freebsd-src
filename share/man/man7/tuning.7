@@ -637,29 +637,28 @@ network programs use the default range which is controlled by
 .Va net.inet.ip.portrange.first
 and
 .Va net.inet.ip.portrange.last ,
-which default to 1024 and 5000, respectively.
+which default to 49152 and 65535, respectively.
 Bound port ranges are
 used for outgoing connections, and it is possible to run the system out
 of ports under certain circumstances.
 This most commonly occurs when you are
 running a heavily loaded web proxy.
 The port range is not an issue
-when running servers which handle mainly incoming connections, such as a
+when running a server which handles mainly incoming connections, such as a
 normal web server, or has a limited number of outgoing connections, such
 as a mail relay.
-For situations where you may run yourself out of
-ports, we recommend increasing
-.Va net.inet.ip.portrange.last
+For situations where you may run out of ports,
+we recommend decreasing
+.Va net.inet.ip.portrange.first
 modestly.
-A value of 10000 or 20000 or 30000 may be reasonable.
+A range of 10000 to 30000 ports may be reasonable.
 You should also consider firewall effects when changing the port range.
 Some firewalls
 may block large ranges of ports (usually low-numbered ports) and expect systems
 to use higher ranges of ports for outgoing connections.
-For this reason,
-we do not recommend that
-.Va net.inet.ip.portrange.first
-be lowered.
+By default
+.Va net.inet.ip.portrange.last
+is set at the maximum allowable port number.
 .Pp
 The
 .Va kern.ipc.somaxconn
