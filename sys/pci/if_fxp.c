@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.53 1998/08/02 00:28:45 dg Exp $
+ *	$Id: if_fxp.c,v 1.54 1998/08/02 00:33:38 dg Exp $
  */
 
 /*
@@ -244,6 +244,15 @@ static int tx_threshold = 64;
 #define FXP_NTXCB	128
 
 /*
+ * Number of completed TX commands at which point an interrupt
+ * will be generated to garbage collect the attached buffers.
+ * Must be at least one less than FXP_NTXCB, and should be
+ * enough less so that the transmitter doesn't becomes idle
+ * during the buffer rundown (which would reduce performance).
+ */
+#define FXP_CXINT_THRESH 120
+
+/*
  * TxCB list index mask. This is used to do list wrap-around.
  */
 #define FXP_TXCB_MASK	(FXP_NTXCB - 1)
@@ -394,9 +403,10 @@ fxp_attach(parent, self, aux)
 	 */
 	if_attach(ifp);
 	/*
-	 * Let the system queue as many packets as we have TX descriptors.
+	 * Let the system queue as many packets as we have available
+	 * TX descriptors.
 	 */
-	ifp->if_snd.ifq_maxlen = FXP_NTXCB;
+	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
 	ether_ifattach(ifp, enaddr);
 #if NBPFILTER > 0
 	bpfattach(&sc->sc_ethercom.ec_if.if_bpf, ifp, DLT_EN10MB,
@@ -566,9 +576,10 @@ fxp_attach(config_id, unit)
 	 */
 	if_attach(ifp);
 	/*
-	 * Let the system queue as many packets as we have TX descriptors.
+	 * Let the system queue as many packets as we have available
+	 * TX descriptors.
 	 */
-	ifp->if_snd.ifq_maxlen = FXP_NTXCB;
+	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
 	ether_ifattach(ifp);
 #if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -797,8 +808,10 @@ fxp_start(ifp)
 	/*
 	 * We're finished if there is nothing more to add to the list or if
 	 * we're all filled up with buffers to transmit.
+	 * NOTE: One TxCB is reserved to guarantee that fxp_mc_setup() can add
+	 *       a NOP command when needed.
 	 */
-	while (ifp->if_snd.ifq_head != NULL && sc->tx_queued < FXP_NTXCB) {
+	while (ifp->if_snd.ifq_head != NULL && sc->tx_queued < FXP_NTXCB - 1) {
 		struct mbuf *m, *mb_head;
 		int segment;
 
@@ -859,8 +872,18 @@ tbdinit:
 		txp->tbd_number = segment;
 		txp->mb_head = mb_head;
 		txp->cb_status = 0;
-		txp->cb_command =
-		    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
+		if (sc->tx_queued != FXP_CXINT_THRESH - 1) {
+			txp->cb_command =
+			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
+		} else {
+			txp->cb_command =
+			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
+			/*
+			 * Set a 5 second timer just in case we don't hear from the
+			 * card again.
+			 */
+			ifp->if_timer = 5;
+		}
 		txp->tx_threshold = tx_threshold;
 	
 		/*
@@ -895,12 +918,6 @@ tbdinit:
 	if (txp != NULL) {
 		fxp_scb_wait(sc);
 		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
-
-		/*
-		 * Set a 5 second timer just in case we don't hear from the
-		 * card again.
-		 */
-		ifp->if_timer = 5;
 	}
 }
 
@@ -927,6 +944,33 @@ fxp_intr(arg)
 		 */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, statack);
 
+		/*
+		 * Free any finished transmit mbuf chains.
+		 */
+		if (statack & FXP_SCB_STATACK_CXTNO) {
+			struct fxp_cb_tx *txp;
+
+			for (txp = sc->cbl_first; sc->tx_queued &&
+			    (txp->cb_status & FXP_CB_STATUS_C) != 0;
+			    txp = txp->next) {
+				if (txp->mb_head != NULL) {
+					m_freem(txp->mb_head);
+					txp->mb_head = NULL;
+				}
+				sc->tx_queued--;
+			}
+			sc->cbl_first = txp;
+			ifp->if_timer = 0;
+			if (sc->tx_queued == 0) {
+				if (sc->need_mcsetup)
+					fxp_mc_setup(sc);
+			}
+			/*
+			 * Try to start more packets transmitting.
+			 */
+			if (ifp->if_snd.ifq_head != NULL)
+				fxp_start(ifp);
+		}
 		/*
 		 * Process receiver interrupts. If a no-resource (RNR)
 		 * condition exists, get whatever packets we can and
@@ -1002,33 +1046,6 @@ rcvloop:
 				CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND,
 				    FXP_SCB_COMMAND_RU_START);
 			}
-		}
-		/*
-		 * Free any finished transmit mbuf chains.
-		 */
-		if (statack & FXP_SCB_STATACK_CNA) {
-			struct fxp_cb_tx *txp;
-
-			for (txp = sc->cbl_first; sc->tx_queued &&
-			    (txp->cb_status & FXP_CB_STATUS_C) != 0;
-			    txp = txp->next) {
-				if (txp->mb_head != NULL) {
-					m_freem(txp->mb_head);
-					txp->mb_head = NULL;
-				}
-				sc->tx_queued--;
-			}
-			sc->cbl_first = txp;
-			if (sc->tx_queued == 0) {
-				ifp->if_timer = 0;
-				if (sc->need_mcsetup)
-					fxp_mc_setup(sc);
-			}
-			/*
-			 * Try to start more packets transmitting.
-			 */
-			if (ifp->if_snd.ifq_head != NULL)
-				fxp_start(ifp);
 		}
 	}
 #if defined(__NetBSD__)
@@ -1262,7 +1279,7 @@ fxp_init(xsc)
 	cbp->dma_bce =		0;	/* (disable) dma max counters */
 	cbp->late_scb =		0;	/* (don't) defer SCB update */
 	cbp->tno_int =		0;	/* (disable) tx not okay interrupt */
-	cbp->ci_int =		0;	/* interrupt on CU not active */
+	cbp->ci_int =		1;	/* interrupt on CU idle */
 	cbp->save_bf =		prm;	/* save bad frames */
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (1) on DMA underrun */
@@ -1691,7 +1708,7 @@ fxp_ioctl(ifp, command, data)
  *
  * We have an artificial restriction that the multicast setup command
  * must be the first command in the chain, so we take steps to ensure
- * that. By requiring this, it allows us to keep the performance of
+ * this. By requiring this, it allows us to keep up the performance of
  * the pre-initialized command ring (esp. link pointers) by not actually
  * inserting the mcsetup command in the ring - i.e. its link pointer
  * points to the TxCB ring, but the mcsetup descriptor itself is not part
@@ -1709,8 +1726,49 @@ fxp_mc_setup(sc)
 	struct ifmultiaddr *ifma;
 	int nmcasts;
 
+	/*
+	 * If there are queued commands, we must wait until they are all
+	 * completed. If we are already waiting, then add a NOP command
+	 * with interrupt option so that we're notified when all commands
+	 * have been completed - fxp_start() ensures that no additional
+	 * TX commands will be added when need_mcsetup is true.
+	 */
 	if (sc->tx_queued) {
+		struct fxp_cb_tx *txp;
+
+		/*
+		 * need_mcsetup will be true if we are already waiting for the
+		 * NOP command to be completed (see below). In this case, bail.
+		 */
+		if (sc->need_mcsetup)
+			return;
 		sc->need_mcsetup = 1;
+
+		/*
+		 * Add a NOP command with interrupt so that we are notified when all
+		 * TX commands have been processed.
+		 */
+		txp = sc->cbl_last->next;
+		txp->mb_head = NULL;
+		txp->cb_status = 0;
+		txp->cb_command = FXP_CB_COMMAND_NOP | FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
+		/*
+		 * Advance the end of list forward.
+		 */
+		sc->cbl_last->cb_command &= ~FXP_CB_COMMAND_S;
+		sc->cbl_last = txp;
+		sc->tx_queued++;
+		/*
+		 * Issue a resume in case the CU has just suspended.
+		 */
+		fxp_scb_wait(sc);
+		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
+		/*
+		 * Set a 5 second timer just in case we don't hear from the
+		 * card again.
+		 */
+		ifp->if_timer = 5;
+
 		return;
 	}
 	sc->need_mcsetup = 0;
@@ -1721,7 +1779,7 @@ fxp_mc_setup(sc)
 	mcsp->next = sc->cbl_base;
 	mcsp->mb_head = NULL;
 	mcsp->cb_status = 0;
-	mcsp->cb_command = FXP_CB_COMMAND_MCAS | FXP_CB_COMMAND_S;
+	mcsp->cb_command = FXP_CB_COMMAND_MCAS | FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
 	mcsp->link_addr = vtophys(&sc->cbl_base->cb_status);
 
 	nmcasts = 0;
@@ -1758,6 +1816,6 @@ fxp_mc_setup(sc)
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(&mcsp->cb_status));
 	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
 
-	ifp->if_timer = 5;
+	ifp->if_timer = 2;
 	return;
 }
