@@ -73,8 +73,9 @@ ata_transaction(struct ata_request *request)
     request->device->channel->running = request;
 
     /* disable ATAPI DMA writes if HW doesn't support it */
-    if (request->flags & (ATA_R_ATAPI | ATA_R_DMA | ATA_R_WRITE) &&
-	request->device->channel->flags & ATA_ATAPI_DMA_RO)
+    if ((request->device->channel->flags & ATA_ATAPI_DMA_RO) &&
+	((request->flags & (ATA_R_ATAPI | ATA_R_DMA | ATA_R_WRITE)) ==
+	 (ATA_R_ATAPI | ATA_R_DMA | ATA_R_WRITE)))
 	request->flags &= ~ATA_R_DMA;
 
     switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA)) {
