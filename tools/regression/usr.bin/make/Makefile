@@ -30,7 +30,7 @@ all:
 	@${MAKE} sysvmatch || ${MAKE} failure
 	@echo "PASS: Test sysvmatch detected no regression."
 	@echo "Running test lhs_expn"
-	@${MAKE} lhs_expn || ${MAKE} failure
+	@! ${MAKE} lhs_expn && true || ${MAKE} failure
 	@echo "PASS: Test lhs_expn detected no regression."
 
 # Doubly-defined targets.  NetBSD make(1) will warn, ours will silently use the
@@ -50,7 +50,7 @@ sysvmatch:
 # program has not errored out because of the recursion caused by not expanding
 # the left-hand-side's embedded variables above.
 lhs_expn:
-	@false
+	@true
 
 failure:
 	@echo "FAIL: Test failed: regression detected.  See above."
