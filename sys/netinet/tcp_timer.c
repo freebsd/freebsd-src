@@ -130,11 +130,15 @@ int	tcp_maxidle;
 void
 tcp_slowtimo()
 {
-	int s;
 
-	s = splnet();
+	/*
+	 * XXXRW: Note that there is a minor race issue associated with rapid
+	 * modification of the two components of tcp_maxidle.  This could be
+	 * corrected by introducing sysctl handlers for those two fields,
+	 * sliding this update of tcp_maxidle under the tcbinfo lock, and
+	 * acquiring that lock in the handlers.
+	 */
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
-	splx(s);
 	INP_INFO_WLOCK(&tcbinfo);
 	(void) tcp_timer_2msl_tw(0);
 	INP_INFO_WUNLOCK(&tcbinfo);
@@ -142,6 +146,8 @@ tcp_slowtimo()
 
 /*
  * Cancel all timers for TCP tp.
+ *
+ * XXXRW: This appears to be unused.
  */
 void
 tcp_canceltimers(tp)
@@ -170,22 +176,18 @@ tcp_timer_delack(xtp)
 	void *xtp;
 {
 	struct tcpcb *tp = xtp;
-	int s;
 	struct inpcb *inp;
 
-	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
-	if (!inp) {
+	if (inp == NULL) {
 		INP_INFO_RUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&tcbinfo);
 	if (callout_pending(tp->tt_delack) || !callout_active(tp->tt_delack)) {
 		INP_UNLOCK(inp);
-		splx(s);
 		return;
 	}
 	callout_deactivate(tp->tt_delack);
@@ -194,7 +196,6 @@ tcp_timer_delack(xtp)
 	tcpstat.tcps_delack++;
 	(void) tcp_output(tp);
 	INP_UNLOCK(inp);
-	splx(s);
 }
 
 void
@@ -202,19 +203,16 @@ tcp_timer_2msl(xtp)
 	void *xtp;
 {
 	struct tcpcb *tp = xtp;
-	int s;
 	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
-	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
-	if (!inp) {
+	if (inp == NULL) {
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	INP_LOCK(inp);
@@ -222,7 +220,6 @@ tcp_timer_2msl(xtp)
 	if (callout_pending(tp->tt_2msl) || !callout_active(tp->tt_2msl)) {
 		INP_UNLOCK(tp->t_inpcb);
 		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
 		return;
 	}
 	callout_deactivate(tp->tt_2msl);
@@ -247,7 +244,6 @@ tcp_timer_2msl(xtp)
 	if (tp)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
 }
 
 struct twlist {
