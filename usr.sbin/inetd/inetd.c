@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.45 1999/01/02 16:04:19 des Exp $";
+	"$Id: inetd.c,v 1.46 1999/01/05 11:56:35 danny Exp $";
 #endif /* not lint */
 
 /*
@@ -131,6 +131,24 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <libutil.h>
 #include <sysexits.h>
+
+#ifdef LIBWRAP
+# include <tcpd.h>
+#ifndef LIBWRAP_ALLOW_FACILITY
+# define LIBWRAP_ALLOW_FACILITY LOG_AUTH
+#endif
+#ifndef LIBWRAP_ALLOW_SEVERITY
+# define LIBWRAP_ALLOW_SEVERITY LOG_INFO
+#endif
+#ifndef LIBWRAP_DENY_FACILITY
+# define LIBWRAP_DENY_FACILITY LOG_AUTH
+#endif
+#ifndef LIBWRAP_DENY_SEVERITY
+# define LIBWRAP_DENY_SEVERITY LOG_WARNING
+#endif
+int allow_severity = LIBWRAP_ALLOW_FACILITY|LIBWRAP_ALLOW_SEVERITY;
+int deny_severity = LIBWRAP_DENY_FACILITY|LIBWRAP_DENY_SEVERITY;
+#endif
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
@@ -268,7 +286,7 @@ struct biltin {
 	{ "discard",	SOCK_STREAM,	1, 0,	discard_stream },
 	{ "discard",	SOCK_DGRAM,	0, 0,	discard_dg },
 
-	/* Return 32 bit time since 1900 */
+	/* Return 32 bit time since 1970 */
 	{ "time",	SOCK_STREAM,	0, 0,	machtime_stream },
 	{ "time",	SOCK_DGRAM,	0, 0,	machtime_dg },
 
@@ -329,6 +347,11 @@ main(argc, argv, envp)
 	int i;
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
+#endif
+#ifdef LIBWRAP
+	struct request_info req;
+	int denied;
+	char *service = NULL;
 #endif
 
 
@@ -532,7 +555,11 @@ main(argc, argv, envp)
 			    ctrl = sep->se_fd;
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
+#ifdef LIBWRAP_INTERNAL
+		    dofork = 1;
+#else
 		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
+#endif
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
@@ -590,6 +617,40 @@ main(argc, argv, envp)
 					    _exit(0);
 				    }
 			    }
+#ifdef LIBWRAP
+#ifndef LIBWRAP_INTERNAL
+			    if (sep->se_bi == 0)
+#endif
+			    if (sep->se_accept
+				&& sep->se_socktype == SOCK_STREAM) {
+				request_init(&req,
+				    RQ_DAEMON, sep->se_argv[0] ?
+					 sep->se_argv[0] : sep->se_service,
+					RQ_FILE, ctrl, NULL);
+				fromhost(&req);
+				denied = !hosts_access(&req);
+				if (denied || log) {
+				    sp = getservbyport(sep->se_ctrladdr.sin_port, sep->se_proto);
+				    if (sp == NULL) {
+					(void)snprintf(buf, sizeof buf, "%d",
+					   ntohs(sep->se_ctrladdr.sin_port));
+					service = buf;
+				    } else
+					service = sp->s_name;
+				}
+				if (denied) {
+				    syslog(deny_severity,
+				        "refused connection from %.500s, service %s (%s)",
+				        eval_client(&req), service, sep->se_proto);
+				    goto reject;
+				}
+				if (log) {
+				    syslog(allow_severity,
+				        "connection from %.500s, service %s (%s)",
+					eval_client(&req), service, sep->se_proto);
+				}
+			    }
+#endif /* LIBWRAP */
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
 				/* NOTREACHED */
@@ -677,10 +738,13 @@ main(argc, argv, envp)
 				sigaction(SIGPIPE, &sapipe,
 				    (struct sigaction *)0);
 				execv(sep->se_server, sep->se_argv);
-				if (sep->se_socktype != SOCK_STREAM)
-					recv(0, buf, sizeof (buf), 0);
 				syslog(LOG_ERR,
 				    "cannot execute %s: %m", sep->se_server);
+#ifdef LIBWRAP
+			    reject:
+#endif
+				if (sep->se_socktype != SOCK_STREAM)
+					recv(0, buf, sizeof (buf), 0);
 				_exit(EX_OSERR);
 			    }
 		    }
