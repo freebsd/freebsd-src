@@ -227,6 +227,8 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			continue;
 		}
 		rstart = max(s->r_start, start);
+		rstart = (rstart + ((1ul << RF_ALIGNMENT(flags))) - 1) &
+		    ~((1ul << RF_ALIGNMENT(flags)) - 1);
 		rend = min(s->r_end, max(start + count, end));
 #ifdef RMAN_DEBUG
 		printf("truncated region: [%#lx, %#lx]; size %#lx (requested %#lx)\n",
@@ -608,4 +610,22 @@ rman_release_resource(struct resource *r)
 	rv = int_rman_release_resource(rm, r);
 	simple_unlock(rm->rm_slock);
 	return (rv);
+}
+
+uint32_t
+rman_make_alignment_flags(uint32_t size)
+{
+	int	i;
+
+	/*
+	 * Find the hightest bit set, and add one if more than one bit
+	 * set.  We're effectively computing the ceil(log2(size)) here.
+	 */
+	for (i = 32; i > 0; i--)
+		if ((1 << i) & size)
+			break;
+	if (~(1 << i) & size)
+		i++;
+
+	return(RF_ALIGNMENT_LOG2(i));
 }
