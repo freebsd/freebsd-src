@@ -170,7 +170,7 @@ static CLASS classes[] = {
 	{ "digit",  isdigit,  },
 	{ "graph",  isgraph,  },
 	{ "lower",  islower,  },
-	{ "print",  isupper,  },
+	{ "print",  isprint,  },
 	{ "punct",  ispunct,  },
 	{ "space",  isspace,  },
 	{ "upper",  isupper,  },
