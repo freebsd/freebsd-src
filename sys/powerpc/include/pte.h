@@ -45,6 +45,10 @@ struct pte {
 	u_int pte_hi;
 	u_int pte_lo;
 };
+
+struct pteg {
+	struct	pte pt[8];
+};
 #endif	/* LOCORE */
 /* High word: */
 #define	PTE_VALID	0x80000000
@@ -61,8 +65,12 @@ struct pte {
 #define	PTE_M		0x00000010
 #define	PTE_G		0x00000008
 #define	PTE_PP		0x00000003
-#define	PTE_RO		0x00000003
-#define	PTE_RW		0x00000002
+#define	PTE_SO		0x00000000	/* Super. Only       (U: XX, S: RW) */
+#define PTE_SW		0x00000001	/* Super. Write-Only (U: RO, S: RW) */
+#define	PTE_BW		0x00000002	/* Supervisor        (U: RW, S: RW) */
+#define	PTE_BR		0x00000003	/* Both Read Only    (U: RO, S: RO) */
+#define	PTE_RW		PTE_BW
+#define	PTE_RO		PTE_BR
 
 #ifndef	LOCORE
 typedef	struct pte pte_t;
