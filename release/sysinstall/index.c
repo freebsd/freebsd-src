@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.64 1999/04/06 08:25:52 jkh Exp $
+ * $Id: index.c,v 1.65 1999/05/12 09:02:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,9 +70,10 @@ _strdup(char *ptr)
 static char *descrs[] = {
     "Package Selection", "To mark a package, move to it and press SPACE.  If the package is\n"
     "already marked, it will be unmarked or deleted (if installed).\n"
+    "Items marked with a 'D' are dependencies which will be auto-loaded\n."
     "To search for a package by name, press ESC.  To select a category,\n"
     "press RETURN.  NOTE:  The All category selection creates a very large\n"
-    "submenu.  If you select it, please be patient while it comes up.",
+    "submenu!  If you select it, please be patient while it comes up.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
@@ -626,8 +627,9 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
     int status = DITEM_SUCCESS;
 
     for (tmp = plist->kids; tmp && tmp->name; tmp = tmp->next)
-	status |= index_extract_one(dev, top, tmp, FALSE);
-    return status;
+	if (DITEM_STATUS(index_extract_one(dev, top, tmp, FALSE)) != DITEM_SUCCESS)
+	    status = DITEM_FAILURE;
+    return status | DITEM_RESTORE;
 }
 
 int
