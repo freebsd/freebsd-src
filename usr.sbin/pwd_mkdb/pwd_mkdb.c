@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.25 1998/04/19 07:15:34 phk Exp $";
+	"$Id: pwd_mkdb.c,v 1.26 1998/06/09 20:19:59 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -81,7 +81,7 @@ static struct passwd pwd;			/* password structure */
 static char *pname;				/* password file name */
 static char prefix[MAXPATHLEN];
 
-static int Cflag;	/* flag for comments */
+static int is_comment;	/* flag for comments */
 static char line[LINE_MAX];
 
 void	cleanup __P((void));
@@ -283,11 +283,11 @@ main(argc, argv)
 	sdata.data = (u_char *)sbuf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
-		if (!Cflag && 
+		if (!is_comment && 
 		    (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-'))
 			yp_enabled = 1;
 #define	COMPACT(e)	t = e; while ((*p++ = *t++));
-		if (!Cflag && 
+		if (!is_comment && 
 		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
 			/* Create insecure data. */
 			p = buf;
@@ -386,7 +386,7 @@ main(argc, argv)
 			}
 		}
 		/* Create original format password file entry */
-		if (Cflag && makeold){	/* copy comments */
+		if (is_comment && makeold){	/* copy comments */
 			if (fprintf(oldfp, "%s\n", line) < 0)
 				error("write old");
 		} else if (makeold) {
@@ -484,10 +484,10 @@ scan(fp, pw)
 		if (*p != ' ' && *p != '\t')
 			break;
 	if (*p == '#' || *p == '\0') {
-		Cflag = 1;
+		is_comment = 1;
 		return(1);
 	} else
-		Cflag = 0;
+		is_comment = 0;
 #endif 
 
 	if (!pw_scan(line, pw)) {
