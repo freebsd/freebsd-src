@@ -38,16 +38,21 @@ EXPORT(curbrk)
 
 	.text
 ENTRY(sbrk, 1)
-	alloc	r14=ar.pfs,1,2,0,0
-
-	add	loc0=@ltoff(curbrk),gp ;;
-	ld8	loc0=[loc0] ;;
-	ld8	loc1=[loc0]
-	cmp.eq	p6,p0=in0,r0
-(p6)	br.dpnt.few 1f
-	add	in0=r14,in0
+	add	r14 = @ltoff(curbrk), gp
+	;;
+	ld8	r14 = [r14]
+	cmp.eq	p6, p0 = in0, r0
+	;;
+	ld8	ret0 = [r14]
+(p6)	br.ret.sptk.few	rp
+	;;
+	add	in0 = ret0, in0
 	CALLSYS_ERROR(break)
-	st8	[loc0]=in0
-1:	mov	ret0=loc1
-	br.ret.sptk.few rp
+	add	r14 = @ltoff(curbrk), gp
+	;;
+	ld8	r14 = [r14]
+	;;
+	ld8	ret0 = [r14]
+	st8	[r14] = in0
+	br.ret.sptk.few	rp
 END(sbrk)
