@@ -2199,6 +2199,15 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr cron 8 .
+.It Va cron_dst
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable the special handling of transitions to and from the
+Daylight Saving Time in 
+.Xr cron 8
+(equivalent to using the flag
+.Fl s ) .
 .It Va lpd_program
 .Pq Vt str
 Path to
