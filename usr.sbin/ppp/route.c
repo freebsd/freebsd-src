@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.26 1997/11/15 02:15:56 brian Exp $
+ * $Id: route.c,v 1.27 1997/11/22 03:37:44 brian Exp $
  *
  */
 
@@ -264,12 +264,11 @@ static const char *
 Index2Nam(int idx)
 {
   static char ifs[50][6];
-  static int nifs;
+  static int nifs, debug_done;
 
   if (!nifs) {
     int mib[6], needed, len;
     char *buf, *ptr, *end;
-    struct if_msghdr *n;
     struct sockaddr_dl *dl;
     struct if_msghdr *ifm;
 
@@ -292,38 +291,38 @@ Index2Nam(int idx)
     }
     end = buf + needed;
 
-    ptr = buf;
-    while (ptr < end) {
+    for (ptr = buf; ptr < end; ptr += ifm->ifm_msglen) {
       ifm = (struct if_msghdr *)ptr;
-
-      if (ifm->ifm_type != RTM_IFINFO) {
-        free(buf);
-        return "???";
-      }
       dl = (struct sockaddr_dl *)(ifm + 1);
-      ptr += ifm->ifm_msglen;
-      while (ptr < end) {
-        n = (struct if_msghdr *)ptr;
-        if (n->ifm_type != RTM_NEWADDR)
-          break;
-        ptr += n->ifm_msglen;
-      }
-      if ((len = dl->sdl_nlen) > sizeof(ifs[0])-1)
-        len = sizeof(ifs[0])-1;
-      strncpy(ifs[nifs], dl->sdl_data, len);
-      ifs[nifs++][len] = '\0';
-      if (nifs == sizeof(ifs)/sizeof(ifs[0]))
-        break;
+      if (ifm->ifm_index > 0 && ifm->ifm_index <= sizeof(ifs)/sizeof(ifs[0])
+          && ifs[ifm->ifm_index-1][0] == '\0') {
+        if ((len = dl->sdl_nlen) > sizeof(ifs[0])-1)
+          len = sizeof(ifs[0])-1;
+        strncpy(ifs[ifm->ifm_index-1], dl->sdl_data, len);
+        ifs[ifm->ifm_index-1][len] = '\0';
+        if (len && nifs < ifm->ifm_index)
+          nifs = ifm->ifm_index;
+      } else if (LogIsKept(LogDEBUG))
+        LogPrintf(LogDEBUG, "Skipping out-of-range interface %d!\n",
+                  ifm->ifm_index);
     }
     free(buf);
   }
 
-#ifdef __FreeBSD__
-  idx--;	/* We start at 1, not 0 */
-#endif
-  if (idx < 0 || idx >= nifs)
+  if (LogIsKept(LogDEBUG) && !debug_done) {
+    int f;
+
+    LogPrintf(LogDEBUG, "Found the following interfaces:\n");
+    for (f = 0; f < nifs; f++)
+      if (*ifs[f] != '\0')
+        LogPrintf(LogDEBUG, " Index %d, name \"%s\"\n", f+1, ifs[f]);
+    debug_done = 1;
+  }
+
+  if (idx < 1 || idx > nifs || ifs[idx-1][0] == '\0')
     return "???";
-  return ifs[idx];
+
+  return ifs[idx-1];
 }
 
 int
@@ -475,12 +474,7 @@ GetIfIndex(char *name)
   int idx;
   const char *got;
 
-#ifdef __FreeBSD__
-  idx = 1;	/* We start at 1, not 0 */
-#else
-  idx = 0;
-#endif
-
+  idx = 1;
   while (strcmp(got = Index2Nam(idx), "???"))
     if (!strcmp(got, name))
       return IfIndex = idx;
