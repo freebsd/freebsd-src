@@ -65,7 +65,8 @@ destination file or terminal as soon as written;
 when it is block buffered many characters are saved up and written as a block;
 when it is line buffered characters are saved up until a newline is
 output or input is read from any stream attached to a terminal device
-(typically stdin).
+(typically
+.Dv stdin ) .
 The function
 .Xr fflush 3
 may be used to force the block out early.
@@ -81,10 +82,10 @@ is called,
 and an optimally-sized buffer is obtained.
 If a stream refers to a terminal
 (as
-.Em stdout
+.Dv stdout
 normally does) it is line buffered.
 The standard error stream
-.Em stderr
+.Dv stderr
 is always unbuffered.
 .Pp
 The

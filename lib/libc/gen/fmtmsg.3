@@ -45,7 +45,7 @@ The
 .Fn fmtmsg
 function displays a detailed diagnostic message, based on
 the supplied arguments, to
-.Em stderr
+.Dv stderr
 and/or the system console.
 .Pp
 The
@@ -64,7 +64,7 @@ may be specified.
 .Bl -tag -width ".Dv MM_CONSOLE"
 .It Dv MM_PRINT
 Output should take place on
-.Em stderr .
+.Dv stderr .
 .It Dv MM_CONSOLE
 Output should take place on the system console.
 .El
@@ -169,13 +169,13 @@ function returns
 upon success,
 .Dv MM_NOMSG
 to indicate output to
-.Em stderr
+.Dv stderr
 failed,
 .Dv MM_NOCON
 to indicate output to the system console failed, or
 .Dv MM_NOTOK
 to indicate output to
-.Em stderr
+.Dv stderr
 and the system console failed.
 .Sh ENVIRONMENT
 The
@@ -184,7 +184,7 @@ The
 environment variable specifies which arguments to
 .Fn fmtmsg
 will be output to
-.Em stderr ,
+.Dv stderr ,
 and in which order.
 .Ev MSGVERB
 should be a colon
@@ -214,7 +214,7 @@ TO FIX: refer to manual BSD:ls:001
 .Ed
 .Pp
 to
-.Em stderr .
+.Dv stderr .
 .Pp
 The same code, with
 .Ev MSGVERB
