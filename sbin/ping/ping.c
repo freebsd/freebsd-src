@@ -963,7 +963,7 @@ pr_icmph(icp)
 			break;
 		case ICMP_UNREACH_NEEDFRAG:
 			(void)printf("frag needed and DF set (MTU %d)\n",
-					icp->icmp_nextmtu);
+					ntohs(icp->icmp_nextmtu));
 			break;
 		case ICMP_UNREACH_SRCFAIL:
 			(void)printf("Source Route Failed\n");
@@ -1009,7 +1009,7 @@ pr_icmph(icp)
 			(void)printf("Redirect, Bad Code: %d", icp->icmp_code);
 			break;
 		}
-		(void)printf("(New addr: 0x%08lx)\n", icp->icmp_gwaddr.s_addr);
+		(void)printf("(New addr: %s)\n", inet_ntoa(icp->icmp_gwaddr));
 #ifndef icmp_data
 		pr_retip(&icp->icmp_ip);
 #else
