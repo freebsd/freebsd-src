@@ -5226,7 +5226,8 @@ warning: ignoring -k options due to server limitations");
     }
     else if (vers->ts_rcs == NULL
 	     || args->force
-	     || strcmp (vers->ts_user, vers->ts_rcs) != 0)
+	     || strcmp (vers->ts_user, vers->ts_rcs) != 0
+	     || (vers->vn_user && *vers->vn_user == '0'))
     {
 	if (args->no_contents
 	    && supported_request ("Is-modified"))
