@@ -32,7 +32,7 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l
+.Fl l Op Fl v
 .Nm
 .Fl a Ar selector
 .Nm
@@ -58,6 +58,13 @@ foo0@pci0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 hdr=0x00
 bar0@pci0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 hdr=0x00
 none0@pci0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 hdr=0x00
 .Ed
+.Pp
+If the
+.Fl v
+option is supplied,
+.Nm
+will attempt to load the vendor/device information database, and print
+vendor, device, class and subclass identification strings for each device.
 .Pp
 The first column gives the
 device name, unit number, and
@@ -160,6 +167,11 @@ indicates a byte operation, and
 .Fl h
 indicates a halfword (two-byte) operation.  The default is to read or
 write a longword (four bytes).
+.Sh ENVIRONMENT
+The PCI vendor/device information database is normally read from
+.Pa /usr/share/misc/pci_vendors .
+This path can be overridden by setting the environment variable
+.Ev PCICONF_VENDOR_DATABASE .
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .\" .Xr pci 4 ,
