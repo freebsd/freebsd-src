@@ -45,7 +45,7 @@
 #include <machine/tstate.h>
 
 #define	CLKF_USERMODE(cfp)	TRAPF_USERMODE(&(cfp)->cf_tf)
-#define	CLKF_PC(cfp)		((cfp)->cf_tf.tf_tpc)
+#define	CLKF_PC(cfp)		TRAPF_PC(&(cfp)->cf_tf)
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_tpc)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_tstate & TSTATE_PRIV) == 0)
