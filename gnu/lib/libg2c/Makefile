@@ -1,4 +1,4 @@
-#  $Id: Makefile,v 1.2 1999/05/01 22:23:29 obrien Exp $
+#  $Id: Makefile,v 1.3 1999/05/01 22:30:14 obrien Exp $
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
 
@@ -119,5 +119,9 @@ ${E77OBJS:.o=.po}: f2cext.c
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
+
+beforeinstall:
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/g2c.h \
+	    ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
