@@ -71,9 +71,7 @@ struct netif_driver ofwnet = {
 	NENTS(ofwn_ifs)		/* netif_nifs */
 };
 
-static phandle_t	netdevice;
 static ihandle_t	netinstance;
-static ihandle_t	memory;
 
 static void		*dmabuf;
 
@@ -187,7 +185,6 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	int		pathlen;
 
 	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "memory", &memory, sizeof(memory));
 	pathlen = OF_getprop(chosen, "bootpath", path, 64);
 	if ((ch = index(path, ':')) != NULL)
 		*ch = '\0';
