@@ -23,11 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *     $Id$
+ *     $Id: call.c,v 1.1 1999/01/09 14:26:22 dfr Exp $
  */
 
 #include <stdio.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/module.h>
 
 static void usage (void);
 
@@ -43,11 +45,10 @@ main(int argc, char **argv)
 {
 	char *endptr;
 	int syscall_num;
+	struct module_stat stat;
 
-	if (argc != 2)
-		usage ();
-	syscall_num = strtol (argv[1], &endptr, 0);
-	if (syscall_num == 0 && argv[1] == endptr)
-		errx (1, "Bad number `%s'", argv[1]);
+	stat.version = sizeof(stat);
+	modstat(modfind("syscall"), &stat);
+	syscall_num = stat.data.intval;
 	return syscall (syscall_num);
 }
