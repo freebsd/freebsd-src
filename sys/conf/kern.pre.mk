@@ -53,8 +53,8 @@ PROF=	-pg
 .endif
 DEFINED_PROF=	${PROF}
 #WERROR?=	-Werror
-INLINE_LIMIT?=	2500
-CFLAGS+=	--param max-inline-insns-single=${INLINE_LIMIT}
+INLINE_LIMIT?=	15000
+CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 
 
 # Put configuration-specific C flags last (except for ${PROF}) so that they
