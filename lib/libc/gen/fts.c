@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>	
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -63,6 +64,7 @@ static int	 fts_palloc(FTS *, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, int);
 static u_short	 fts_stat(FTS *, FTSENT *, int);
 static int	 fts_safe_changedir(FTS *, FTSENT *, int, char *);
+static int	 fts_ufslinks(FTS *sp, const FTSENT *ent);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
 
@@ -77,12 +79,43 @@ static int	 fts_safe_changedir(FTS *, FTSENT *, int, char *);
 #define	BNAMES		2		/* fts_children, names only */
 #define	BREAD		3		/* fts_read */
 
+/*
+ * Internal representation of FTS, including extra implementation details.
+ * The FTS returned from fts_open is ftsp_fts from this structure, and it's
+ * fts_priv in turn points back to this internal version. i.e. for a given
+ * fts_private *priv: &priv->fts_fts == (FTS *)f == priv->fts_fts.fts_priv
+ */
+struct _fts_private {
+	FTS ftsp_fts;
+	struct statfs ftsp_statfs;
+	dev_t ftsp_dev;
+	int ftsp_linksreliable;
+};
+
+/*
+ * The "FTS_NOSTAT" option can avoid a lot of calls to stat(2) if it knows
+ * that a directory could not possibly have subdirectories. This is decided
+ * by looking at the link count: A subdirectory would increment its parent's
+ * link count by virtue of its own ".." entry. 
+ * This assumption only holds for UFS-like filesystems that implement links
+ * and directories this way, so we must punt for others.
+ */
+
+static const char *ufslike_filesystems[] = {
+	"ufs",
+	"nfs",
+	"nfs4",
+	"ext2fs",
+	0
+};
+
 FTS *
 fts_open(argv, options, compar)
 	char * const *argv;
 	int options;
 	int (*compar)(const FTSENT * const *, const FTSENT * const *);
 {
+	struct _fts_private *priv;
 	FTS *sp;
 	FTSENT *p, *root;
 	int nitems;
@@ -96,11 +129,13 @@ fts_open(argv, options, compar)
 	}
 
 	/* Allocate/initialize the stream */
-	if ((sp = malloc(sizeof(FTS))) == NULL)
+	if ((priv = malloc(sizeof(struct _fts_private))) == NULL)
 		return (NULL);
-	memset(sp, 0, sizeof(FTS));
+	memset(priv, 0, sizeof(struct _fts_private));
+	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
+	sp->fts_priv = priv;
 
 	/* Shush, GCC. */
 	tmp = NULL;
@@ -637,7 +672,10 @@ fts_build(sp, type)
 		/* Be quiet about nostat, GCC. */
 		nostat = 0;
 	} else if (ISSET(FTS_NOSTAT) && ISSET(FTS_PHYSICAL)) {
-		nlinks = cur->fts_nlink - (ISSET(FTS_SEEDOT) ? 0 : 2);
+		if (fts_ufslinks(sp, cur))
+			nlinks = cur->fts_nlink - (ISSET(FTS_SEEDOT) ? 0 : 2);
+		else
+			nlinks = -1;
 		nostat = 1;
 	} else {
 		nlinks = -1;
@@ -1153,4 +1191,38 @@ bail:
 		(void)_close(newfd);
 	errno = oerrno;
 	return (ret);
+}
+
+/*
+ * Check if the filesystem for "ent" has UFS-style links.
+ */
+static int
+fts_ufslinks(FTS *sp, const FTSENT *ent)
+{
+	struct _fts_private *priv;
+	const char **cpp;
+
+	priv = sp->fts_priv;
+	/*
+	 * If this node's device is different from the previous, grab
+	 * the filesystem information, and decide on the reliability
+	 * of the link information from this filesystem for stat(2)
+	 * avoidance.
+	 */
+	if (priv->ftsp_dev != ent->fts_dev) {
+		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
+			priv->ftsp_dev = ent->fts_dev;
+			priv->ftsp_linksreliable = 0;
+			for (cpp = ufslike_filesystems; *cpp; cpp++) {
+				if (strcmp(priv->ftsp_statfs.f_fstypename,
+				    *cpp) == 0) {
+					priv->ftsp_linksreliable = 1;
+					break;
+				}
+			}
+		} else {
+			priv->ftsp_linksreliable = 0;
+		}
+	}
+	return priv->ftsp_linksreliable;
 }
