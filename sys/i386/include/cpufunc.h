@@ -64,6 +64,24 @@ breakpoint(void)
 	__asm __volatile("int $3");
 }
 
+static __inline u_int
+bsfl(u_int mask)
+{
+	u_int	result;
+
+	__asm __volatile("bsfl %0,%0" : "=r" (result) : "0" (mask));
+	return (result);
+}
+
+static __inline u_int
+bsrl(u_int mask)
+{
+	u_int	result;
+
+	__asm __volatile("bsrl %0,%0" : "=r" (result) : "0" (mask));
+	return (result);
+}
+
 static __inline void
 disable_intr(void)
 {
@@ -82,24 +100,6 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
-
-#define	HAVE_INLINE__BSFL
-
-static __inline int
-__bsfl(int mask)
-{
-	int	result;
-
-	/*
-	 * bsfl turns out to be not all that slow on 486's.  It can beaten
-	 * using a binary search to reduce to 4 bits and then a table lookup,
-	 * but only if the code is inlined and in the cache, and the code
-	 * is quite large so inlining it probably busts the cache.
-	 */
-	__asm __volatile("bsfl %0,%0" : "=r" (result) : "0" (mask));
-	return (result);
-}
-
 #define	HAVE_INLINE_FFS
 
 static __inline int
@@ -108,19 +108,10 @@ ffs(int mask)
 	/*
 	 * Note that gcc-2's builtin ffs would be used if we didn't declare
 	 * this inline or turn off the builtin.  The builtin is faster but
-	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and 2.6.
+	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and later
+	 * versions.
 	 */
-	 return mask == 0 ? mask : __bsfl(mask) + 1;
-}
-
-#define	HAVE_INLINE__BSRL
-
-static __inline int
-__bsrl(int mask)
-{
-	int	result;
-	__asm __volatile("bsrl %0,%0" : "=r" (result) : "0" (mask));
-	return (result);
+	 return (mask == 0 ? mask : bsfl((u_int)mask) + 1);
 }
 
 #define	HAVE_INLINE_FLS
@@ -128,7 +119,7 @@ __bsrl(int mask)
 static __inline int
 fls(int mask)
 {
-	return mask == 0 ? mask : __bsrl(mask) + 1;
+	return (mask == 0 ? mask : bsrl((u_int)mask) + 1);
 }
 
 #if __GNUC__ < 2
@@ -464,6 +455,8 @@ load_gs(u_int sel)
 #else /* !__GNUC__ */
 
 int	breakpoint	__P((void));
+u_int	bsfl		__P((u_int mask));
+u_int	bsrl		__P((u_int mask));
 void	disable_intr	__P((void));
 void	enable_intr	__P((void));
 u_char	inb		__P((u_int port));
