@@ -90,7 +90,6 @@ static int ufs_mknod __P((struct vop_mknod_args *));
 static int ufs_open __P((struct vop_open_args *));
 static int ufs_pathconf __P((struct vop_pathconf_args *));
 static int ufs_print __P((struct vop_print_args *));
-static int ufs_readdir __P((struct vop_readdir_args *));
 static int ufs_readlink __P((struct vop_readlink_args *));
 static int ufs_remove __P((struct vop_remove_args *));
 static int ufs_rename __P((struct vop_rename_args *));
