@@ -279,6 +279,10 @@ static const char *const modules_contents[] = {
 static const char *const config_contents[] = {
     "# Set this to \"no\" if pserver shouldn't check system users/passwords\n",
     "#SystemAuth=no\n",
+    "\n",
+    "# Set `PreservePermissions' to `yes' to save file status information\n",
+    "# in the repository.\n",
+    "#PreservePermissions=no\n",
     NULL
 };
 
@@ -538,7 +542,7 @@ checkout_file (file, temp)
 			    (RCSCHECKOUTPROC) NULL, (void *) NULL);
     if (retcode != 0)
     {
-	error (0, retcode == -1 ? errno : 0, "failed to check out %s file",
+	error (0, 0, "failed to check out %s file",
 	       file);
     }
     freercsnode (&rcsnode);

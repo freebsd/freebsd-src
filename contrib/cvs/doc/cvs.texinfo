@@ -152,6 +152,7 @@ CVS and the Real World.
 * Keyword substitution::        CVS can include the revision inside the file
 * Tracking sources::            Tracking third-party sources
 * Builds::                      Issues related to CVS and builds
+* Special Files::		Devices, links and other non-regular files
 
 References.
 -----------
@@ -724,7 +725,7 @@ they should be in separate locations.
 @c /home/joe/sources.  But this node is too long
 @c as it is; need a little reorganization...
 
-@cindex :local:
+@cindex :local:, setting up
 @sc{Cvs} can access a repository by a variety of
 means.  It might be on the local computer, or it might
 be on a computer across the room or across the world.
@@ -2058,8 +2059,8 @@ for example @file{/usr/local/bin/cvs-1.6}.
 There is no need to edit @code{inetd.conf} or start a
 @sc{cvs} server daemon.
 
-@cindex :server:
-@cindex :ext:
+@cindex :server:, setting up
+@cindex :ext:, setting up
 There are two access methods that you use in CVSROOT
 for rsh.  @code{:server:} specifies an internal rsh
 client, which is supported only by some CVS ports.
@@ -2284,7 +2285,7 @@ passwd} command.
 @cindex Login (subcommand)
 @cindex password client, using
 @cindex authenticated client, using
-@cindex :pserver:
+@cindex :pserver:, setting up
 Before connecting to the server, the client must @dfn{log
 in} with the command @code{cvs login}.  Logging in
 verifies a password with the server, and also records
@@ -2417,7 +2418,7 @@ security, get Kerberos.
 
 @cindex GSSAPI
 @cindex security, GSSAPI
-@cindex :gserver:
+@cindex :gserver:, setting up
 GSSAPI is a generic interface to network security
 systems such as Kerberos 5.
 If you have a working GSSAPI library, you can have
@@ -2470,7 +2471,7 @@ cvs -d :gserver:chainsaw.yard.com:/usr/local/cvsroot checkout foo
 
 @cindex kerberos
 @cindex security, kerberos
-@cindex :kserver:
+@cindex :kserver:, setting up
 The easiest way to use kerberos is to use the kerberos
 @code{rsh}, as described in @ref{Connecting via rsh}.
 The main disadvantage of using rsh is that all the data
@@ -4731,6 +4732,21 @@ pairs of @var{filename} @var{revision}.  A non-zero
 exit of the filter program will cause the tag to be
 aborted.
 
+Here is an example of using taginfo to log tag and rtag
+commands.  In the taginfo file put:
+
+@example
+ALL /usr/local/cvsroot/CVSROOT/loggit
+@end example
+
+Where @file{/usr/local/cvsroot/CVSROOT/loggit} contains the
+following script:
+
+@example
+#!/bin/sh
+echo "$@@" >>/home/kingdon/cvsroot/CVSROOT/taglog
+@end example
+
 @node annotate
 @section Annotate command
 @cindex annotate (subcommand)
@@ -5841,6 +5857,14 @@ receive notifications, she should specify @code{-a none}.
 The @var{files} and options are processed as for the @code{cvs
 watch} commands.
 
+@strong{Caution:} If the @var{PreservePermissions}
+option is enabled in the repository (@pxref{config}),
+CVS will not change the permissions on any of the
+@var{files}.  The reason for this change is to ensure
+that using @samp{cvs edit} does not interfere with the
+ability to store file permissions in the CVS
+repository.
+
 @end deffn
 
 Normally when you are done with a set of changes, you
@@ -6738,6 +6762,67 @@ is Odin (see
 @c ftp://ftp.uu.net/pub/cmvc/mk).  But I'm not sure
 @c there is any point in mentioning them here unless they
 @c can work with CVS.
+
+@c ---------------------------------------------------------------------
+@node Special Files
+@chapter Special Files
+
+In normal circumstances, CVS works only with regular
+files.  Every file in a project is assumed to be
+persistent; it must be possible to open, read and close
+them; and so on.  CVS also ignores file permissions and
+ownerships, leaving such issues to be resolved by the
+developer at installation time.  In other words, it is
+not possible to "check in" a device into a repository;
+if the device file cannot be opened, CVS will refuse to
+handle it.  Files also lose their ownerships and
+permissions during repository transactions.
+
+If the configuration variable @var{PreservePermissions}
+(@pxref{config}) is set in the repository, CVS will
+preserve file permissions and ownership across
+repository transactions, and will permit checkin and
+checkout of special files and symbolic links.
+
+Using this option affects the behavior of CVS in
+several ways.  First, some of the new operations
+supported by CVS are not accessible to all users.  In
+particular, file ownership and special file
+characteristics may only be changed by the superuser.
+When the @var{PreservePermissions} configuration
+variable is set, therefore, users will have to be
+`root' in order to perform CVS operations.
+
+A more subtle difference is that CVS considers a file
+to have changed only if its contents have changed
+(specifically, if the modification time of the working
+file does not match that of the repository's file).
+Therefore, if only the permissions or ownership have
+changed, or if a device's major or minor numbers have
+changed, CVS will not notice.  In order to commit such
+a change to the repository, you must force the commit
+with @samp{cvs commit -f}.  This also means that if a
+file's permissions have changed and the repository file
+is newer than the working copy, performing @samp{cvs
+update} will silently change the permissions on the
+working copy.
+
+It is worth noting that only regular files may
+be merged, for reasons that hopefully are obvious.  If
+@samp{cvs update} or @samp{cvs checkout -j} attempts to
+merge a symbolic link with a regular file, or two
+device files for different kinds of devices, CVS will
+report a conflict and refuse to perform the merge.  At
+the same time, @samp{cvs diff} will not report any
+differences between these files, since no meaningful
+textual comparisons can be made on files which contain
+no text.
+
+The PreservePermissions features do not work with
+client/server @sc{cvs}.  Another limitation is that
+hard links must be to other files within the same
+directory; hard links across directories are not
+supported.
 
 @c ---------------------------------------------------------------------
 @node CVS commands
@@ -9117,7 +9202,9 @@ you should probably not use @samp{-u}.
 @item -V @var{vn}
 Expand keywords according to the rules current in
 @sc{rcs} version @var{vn} (the expansion format changed with
-@sc{rcs} version 5).
+@sc{rcs} version 5).  Note that this option is no
+longer accepted.  CVS will always expand keywords the
+way that @sc{rcs} version 5 does.
 @end table
 
 @c . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
@@ -9741,9 +9828,121 @@ description of the @samp{-I} option, and
 
 This appendix describes how to invoke @sc{cvs}, with
 references to where each command or feature is
-described in detail.  Other relevant references are the
-@samp{--help}/@samp{-H} option to @sc{cvs}
-(@pxref{Global options}) and @ref{Index}.
+described in detail.  For other references run the
+@code{cvs --help} command, or see @ref{Index}.
+
+A @sc{cvs} command looks like:
+
+@example
+cvs [ @var{global_options} ] @var{command} [ @var{command_options} ] [ @var{command_args} ]
+@end example
+
+Global options:
+
+@table @code
+@item --allow-root=@var{rootdir}
+Specify legal @sc{cvsroot} directory (server only) (not
+in @sc{cvs} 1.9 and older).  See @ref{Password
+authentication server}.
+
+@item -a
+Authenticate all communication (client only) (not in @sc{cvs}
+1.9 and older).  See @ref{Global options}.
+
+@item -b
+Specify RCS location (@sc{cvs} 1.9 and older).  See
+@ref{Global options}.
+
+@item -d @var{root}
+Specify the @sc{cvsroot}.  See @ref{Repository}.
+
+@item -e @var{editor}
+Edit messages with @var{editor}.  See @ref{Committing
+your changes}.
+
+@item -f
+Do not read the @file{~/.cvsrc} file.  See @ref{Global
+options}.
+
+@item -H
+@itemx --help
+Print a help message.  See @ref{Global options}.
+
+@item -l
+Do not log in CVSROOT/history file.  See @ref{Global
+options}.
+
+@item -n
+Do not change any files.  See @ref{Global options}.
+
+@item -Q
+Cause the command to be really quiet.  See @ref{Global options}.
+
+@item -q
+Cause the command to be somewhat quiet.  See @ref{Global options}.
+
+@item -r
+Make new working files files read-only.  See @ref{Global options}.
+
+@item -s @var{variable}=@var{value}
+Set a user variable.  See @ref{Variables}.
+
+@item -T @var{tempdir}
+Put temporary files in @var{tempdir}.  See @ref{Global
+options}.
+
+@item -t
+Trace @sc{cvs} execution.  See @ref{Global options}.
+
+@item -v
+@item --version
+Display version and copyright information for @sc{cvs}.
+
+@item -w
+Make new working files read-write.  See @ref{Global
+options}.
+
+@item -x
+Encrypt all communication (client only).  See
+@ref{Global options}.
+
+@item -z @var{gzip-level}
+Set the compression level (client only).
+@c FIXME: what are the valid values for gzip-level.
+@c And shouldn't this be documented in at least a
+@c little bit of detail somewhere?
+
+@end table
+
+Keyword expansion modes (@pxref{Substitution modes}):
+
+@example
+-kkv  $@asis{}Id: file1,v 1.1 1993/12/09 03:21:13 joe Exp $
+-kkvl $@asis{}Id: file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
+-kk   $@asis{}Id$
+-kv   file1,v 1.1 1993/12/09 03:21:13 joe Exp
+-ko   @i{no expansion}
+-kb   @i{no expansion, file is binary}
+@end example
+
+Keywords (@pxref{Keyword list}):
+
+@example
+$@asis{}Author: joe $
+$@asis{}Date: 1993/12/09 03:21:13 $
+$@asis{}Header: /home/files/file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
+$@asis{}Id: file1,v 1.1 1993/12/09 03:21:13 joe Exp harry $
+$@asis{}Locker: harry $
+$@asis{}Name: snapshot_1_14 $
+$@asis{}RCSfile: file1,v $
+$@asis{}Revision: 1.1 $
+$@asis{}Source: /home/files/file1,v $
+$@asis{}State: Exp $
+$@asis{}Log: file1,v $
+Revision 1.1  1993/12/09 03:30:17  joe
+Initial revision
+
+@end example
 
 @c The idea behind this table is that we want each item
 @c to be a sentence or two at most.  Preferably a
@@ -9752,6 +9951,8 @@ described in detail.  Other relevant references are the
 @c In some cases refs to "foo options" are just to get
 @c this thing written quickly, not because the "foo
 @c options" node is really the best place to point.
+Commands, command options, and command arguments:
+
 @table @code
 @item add [@var{options}] [@var{files}@dots{}]
 Add a new file/directory.  See @ref{Adding files}.
@@ -9773,9 +9974,7 @@ Administration of history files in the repository.  See
 
 @table @code
 @item -b[@var{rev}]
-Set default branch.
-@c FIXME: Should xref to a section which describes how
-@c to use this with the vendor branch.
+Set default branch.  See @ref{Reverting local changes}.
 
 @item -c@var{string}
 Set comment leader.
@@ -10209,7 +10408,7 @@ Top two diffs - last change made to the file.  See
 Unidiff output format.  See @ref{rdiff options}.
 
 @item -V @var{vers}
-Use RCS Version @var{vers} for keyword expansion.  See
+Use RCS Version @var{vers} for keyword expansion (obsolete).  See
 @ref{rdiff options}.
 @end table
 
@@ -11493,7 +11692,7 @@ must be run in the background.
 @c out locks (I think) but I don't see many advantages
 @c of that and we might as well document something which
 @c works for multiple files.
-Here is an example (this should all be on one line):
+Here is an example for unix (this should all be on one line):
 
 @example
 ^cyclic-pages		(date; cat; (sleep 2; cd /u/www/local-docs;
@@ -11811,6 +12010,14 @@ for users in the system's user database if not found in
 pserver users must exist in @file{CVSROOT/passwd}.
 The default is @samp{yes}.  For more on pserver, see
 @ref{Password authenticated}.
+
+@cindex PreservePermissions, in CVSROOT/config
+@item PreservePermissions=@var{value}
+Enable support for saving special device files,
+symbolic links, file permissions and ownerships in the
+repository.  The default value is @samp{no}.
+@xref{Special Files} for the full implications of using
+this keyword.
 @end table
 
 @c ---------------------------------------------------------------------
@@ -12060,6 +12267,7 @@ mentioned there.
 
 @menu
 * Error messages::              Partial list of CVS errors
+* Connection::                  Trouble making a connection to a CVS server
 * Other problems::              Problems not readily listed by error message
 @end menu
 
@@ -12394,12 +12602,75 @@ exit 0
 @c potentially confusing for the new user.
 @end table
 
+@node Connection
+@appendixsec Trouble making a connection to a CVS server
+
+This section concerns what to do if you are having
+trouble making a connection to a @sc{cvs} server.  If
+you are running the @sc{cvs} command line client
+running on Windows, first upgrade the client to
+@sc{cvs} 1.9.12 or later.  The error reporting in
+earlier versions provided much less information about
+what the problem was.  If the client is non-Windows,
+@sc{cvs} 1.9 should be fine.
+
+If the error messages are not sufficient to track down
+the problem, the next steps depend largely on which
+access method you are using.
+
+@table @code
+@cindex :ext:, troubleshooting
+@item :ext:
+Try running the rsh program from the command line.  For
+example: "rsh servername cvs -v" should print @sc{cvs}
+version information.  If this doesn't work, you need to
+fix it before you can worry about @sc{cvs} problems.
+
+@cindex :server:, troubleshooting
+@item :server:
+You don't need a command line rsh program to use this
+access method, but if you have an rsh program around,
+it may be useful as a debugging tool.  Follow the
+directions given for :ext:.
+
+@cindex :pserver:, troubleshooting
+@item :pserver:
+One good debugging tool is to "telnet servername
+2401".  After connecting, send any text (for example
+"foo" followed by return).  If @sc{cvs} is working
+correctly, it will respond with
+
+@example
+cvs [pserver aborted]: bad auth protocol start: foo
+@end example
+
+If this fails to work, then make sure inetd is working
+right.  Change the invocation in inetd.conf to run the
+echo program instead of cvs.  For example:
+
+@example
+2401  stream  tcp  nowait  root /bin/echo echo hello
+@end example
+
+After making that change and instructing inetd to
+re-read its configuration file, "telnet servername
+2401" should show you the text hello and then the
+server should close the connection.  If this doesn't
+work, you need to fix it before you can worry about
+@sc{cvs} problems.
+
+On AIX systems, the system will often have its own
+program trying to use port 2401.  This is AIX's problem
+in the sense that port 2401 is registered for use with
+@sc{cvs}.  I hear that there is an AIX patch available
+to address this problem.
+@end table
+
 @node Other problems
 @appendixsec Other common problems
 
-Here is a list of problems which cannot be readily
-looked up based on an error message.  They are in no
-particular order.
+Here is a list of problems which do not fit into the
+above categories.  They are in no particular order.
 
 @itemize @bullet
 @item

@@ -522,7 +522,7 @@ main (argc, argv)
 		(void) fputs (config_string, stdout);
 		(void) fputs ("\n", stdout);
 		(void) fputs ("\
-Copyright (c) 1989-1997 Brian Berliner, david d `zoo' zuhn, \n\
+Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
                         Jeff Polk, and other authors\n", stdout);
 		(void) fputs ("\n", stdout);
 		(void) fputs ("CVS may be copied only under the terms of the GNU General Public License,\n", stdout);

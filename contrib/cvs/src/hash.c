@@ -436,6 +436,17 @@ sortlist (list, comp)
     free (array);
 }
 
+/*
+ * compare two files list node (for sort)
+ */
+int
+fsortcmp (p, q)
+    const Node *p;
+    const Node *q;
+{
+    return (strcmp (p->key, q->key));
+}
+
 /* Debugging functions.  Quite useful to call from within gdb. */
 
 static char *nodetypestring PROTO ((Ntype));
