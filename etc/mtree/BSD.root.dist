@@ -1,4 +1,6 @@
-#	$Id: BSD.root.dist,v 1.39 1999/03/10 03:33:17 dcs Exp $
+#	$Id: BSD.root.dist,v 1.40 1999/04/19 14:33:31 peter Exp $
+#
+# Please see the file README before making changes to this file.
 #
 
 /set type=dir uname=root gname=wheel mode=0755
