@@ -3,8 +3,10 @@ Project by Christos Zoulas.  It has been ported to FreeBSD by Mark Newton.
 
 To use it:
 
-1.  Add "pseudo-device streams" to your kernel config file and rebuild,
-   reboot.
+1.  Choose one of:
+      a.  Add "pseudo-device streams" to your kernel config file and rebuild,
+          reboot; or
+      b.  Build and install the streams module in /sys/modules/streams
 
 2.  Build and install the svr4 module in /sys/modules/svr4
 
@@ -16,18 +18,21 @@ To use it:
 
 5.  Run "sh SVR4_MAKEDEV all" in /compat/svr4/dev
 
-6.  Mount a Solaris/x86 CD-ROM on /cdrom
+6.  Mount a Solaris/x86 v2.6 or v7 CD-ROM on /cdrom (also works with 
+    v2.4 and v2.5.1, but you need different symlinks in /compat/svr4)
 
-7.  Brand any executables you want to run
+7.  Brand any executables you want to run, and/or set the
+    kern.fallback_elf_brand sysctl to 'SVR4' to establish this as the
+    default emulator for unbranded executables.
 
-8.  See if they work.
+8.  See if your SysVR4 programs work.
 
 It's early days yet, folks -- You'll probably have trouble getting 100%
 functionality out of most things (specifically, poll() on a socket doesn't
 look like it works at the moment, so Netscape doesn't work (among other
 things)).  Patches will be appreciated (use send-pr).
 
-   - mark newton
+   - Mark Newton
      newton@atdot.dotat.org
 
-
+$Id$
