@@ -1747,6 +1747,9 @@ device		pci
 # The `fxp' device provides support for the Intel EtherExpress Pro/100B
 # PCI Fast Ethernet adapters.
 #
+# The `gx' device provides support for the Intel Pro/1000 Gigabit Ethernet
+# PCI adapters (82542, 82543-F, 82543-T).
+#
 # The 'lge' device provides support for PCI gigabit ethernet adapters
 # based on the Level 1 LXT1001 NetCellerator chipset. This includes the
 # D-Link DGE-500SX, SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
@@ -1945,6 +1948,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # Gigabit Ethernet NICs.
 device		bge		# Broadcom BCM570x (``Tigon III'')
+device		gx		# Intel Pro/1000 (82542, 82543)
 device		lge		# Level 1 LXT1001 (``Mercury'')
 device		nge		# NatSemi DP83820 and DP83821
 device		sk		# SysKonnect GEnesis
