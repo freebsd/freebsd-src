@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.187.2.4 1999/05/06 16:43:01 obrien Exp $
+#	$Id: Makefile,v 1.187.2.5 1999/05/06 16:48:17 obrien Exp $
 
 SUBDIR=	sendmail
 
@@ -24,7 +24,7 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist
 NAMEDB= PROTO.localhost.rev named.conf named.root make-localhost
 PPPCNF= ppp.deny ppp.shells.sample
-NOSPAM=	Makefile README sendmail.cf.additions
+NOSPAM=	Makefile README
 
 
 # Special top level files for FreeBSD
