@@ -4,9 +4,9 @@ PROG=	rlogin
 SRCS=	rlogin.c
 CFLAGS+=-Wall
 
-BINOWN=	root
-BINMODE=4555
-INSTALLFLAGS=-fschg
+#BINOWN=	root
+#BINMODE=4555
+#INSTALLFLAGS=-fschg
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c encrypt.c
