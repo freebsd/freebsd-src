@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/ee.msg,v 1.1.1.1 1995/08/30 07:28:06 jkh Exp $
+$ $Header: /home/ncvs/src/usr.bin/ee/nls/en_US.ISO_8859-1/ee.msg,v 1.1 1995/08/30 13:25:55 jkh Exp $
 $ 
 $set 1
 $quote "
@@ -50,7 +50,7 @@ $quote "
 41 "^f undelete char        ^n next page            ^x search                  "
 42 "^g begin of line        ^o end of line          ^y delete line             "
 43 "^h backspace            ^p prev page            ^z undelete line           "
-44 "^[ (escape) menu                                                           "
+44 "^[ (escape) menu        ESC-Enter: exit ee                                 "
 45 "                                                                           "
 46 "Commands:                                                                  "
 47 "help    : get this info                 file    : print file name          "
@@ -67,7 +67,7 @@ $quote "
 58 "^a ascii code     ^x search         ^z undelete line  ^d down   ^n next page  "
 59 "^b bottom of text ^g begin of line  ^w delete word    ^l left                 "
 60 "^t top of text    ^o end of line    ^v undelete word  ^r right                "
-61 "^c command        ^k delete char    ^f undelete char                          "
+61 "^c command        ^k delete char    ^f undelete char      ESC-Enter: exit ee  "
 62 "help : get help info  |file  : print file name         |line : print line # "
 63 "read : read a file    |char  : ascii code of char      |0-9 : go to line \"#\""
 64 "write: write a file   |case  : case sensitive search   |exit : leave and save "
