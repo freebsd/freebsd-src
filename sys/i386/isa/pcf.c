@@ -135,7 +135,7 @@ static devclass_t pcf_devclass;
 static int
 pcf_probe(device_t pcfdev)
 {
-	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
+	struct pcf_softc *pcf;
 	device_t parent = device_get_parent(pcfdev);
 	uintptr_t base;
 
