@@ -270,7 +270,7 @@
 	can try to send it to the &a.bugs;.</para>
 
       <para>For more information, <ulink
-	url="&url.base;/doc/en_US.ISO8859-1/articles/problem-reports/"><quote>Writing
+	url="&url.articles.problem-reports;/"><quote>Writing
 	&os; Problem Reports</quote></ulink>, available on the &os; Web
 	site, has a number of helpful hints on writing and submitting
 	effective problem reports.</para>
