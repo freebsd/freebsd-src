@@ -506,6 +506,12 @@ usbd_get_config_descriptor(usbd_device_handle dev)
 	return (dev->cdesc);
 }
 
+int
+usbd_get_speed(usbd_device_handle dev)
+{
+	return (dev->speed);
+}
+
 usb_interface_descriptor_t *
 usbd_get_interface_descriptor(usbd_interface_handle iface)
 {
