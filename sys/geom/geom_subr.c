@@ -332,7 +332,7 @@ g_detach(struct g_consumer *cp)
 	KASSERT(cp->acr == 0, ("detach but nonzero acr"));
 	KASSERT(cp->acw == 0, ("detach but nonzero acw"));
 	KASSERT(cp->ace == 0, ("detach but nonzero ace"));
-	KASSERT(cp->stat->nop == cp->stat->nend,
+	KASSERT(cp->nstart == cp->nend,
 	    ("detach with active requests"));
 	pp = cp->provider;
 	LIST_REMOVE(cp, consumers);
