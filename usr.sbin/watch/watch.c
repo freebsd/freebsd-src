@@ -96,11 +96,11 @@ set_tty()
 	ioctl(std_in, TIOCGETC, &tco);
 	sgn = sgo;
 	tc = tco;
-	sgn.sg_flags |= RAW;
+	sgn.sg_flags |= CBREAK;
 	sgn.sg_flags &= ~ECHO;
 	ospeed = sgo.sg_ospeed;
-	tc.t_intrc = 17;	/* ^Q */
-	tc.t_quitc = 17;	/* ^Q */
+	tc.t_intrc = 07;	/* ^G */
+	tc.t_quitc = 07;	/* ^G */
 	ioctl(std_in, TIOCSETP, &sgn);
 	ioctl(std_in, TIOCSETC, &tc);
 }
