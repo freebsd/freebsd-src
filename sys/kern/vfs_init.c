@@ -296,7 +296,7 @@ sysctl_vfs_conf SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_vfs, VFS_VFSCONF, vfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_vfs_conf, "S,vfsconf", "");
 
-#ifdef COMPAT_PRELITE2
+#ifndef NO_COMPAT_PRELITE2
 
 #define OVFS_MAXNAMELEN 32
 struct ovfsconf {
@@ -317,7 +317,7 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 		return EINVAL;
 	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
 		struct ovfsconf ovfs;
-		ovfs.vfc_vfsops = NULL;
+		ovfs.vfc_vfsops = vfsp->vfc_vfsops;	/* XXX used as flag */
 		strcpy(ovfs.vfc_name, vfsp->vfc_name);
 		ovfs.vfc_index = vfsp->vfc_typenum;
 		ovfs.vfc_refcount = vfsp->vfc_refcount;
@@ -332,7 +332,7 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_vfs, VFS_OVFSCONF, ovfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_ovfs_conf, "S,ovfsconf", "");
 
-#endif /* COMPAT_PRELITE2 */
+#endif /* !NO_COMPAT_PRELITE2 */
 
 /*
  * This goop is here to support a loadable NFS module... grumble...
