@@ -13,6 +13,8 @@
  */
 
 #define MAX_NO_DISKS 10
+#define SCRATCHSIZE 1024
+
 #define BOOT_MAGIC 0xAA55
 #define ACTIVE 0x80
 
