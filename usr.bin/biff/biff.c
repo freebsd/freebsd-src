@@ -52,6 +52,7 @@ static const char sccsid[] = "@(#)biff.c	8.1 (Berkeley) 6/6/93";
 #include <string.h>
 #include <err.h>
 
+int main __P((int, char *[]));
 static void usage __P((void));
 
 int
