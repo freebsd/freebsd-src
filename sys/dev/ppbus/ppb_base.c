@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.6 1999/01/10 12:04:54 nsouch Exp $
+ *	$Id: ppb_base.c,v 1.7 1999/01/27 20:09:19 dillon Exp $
  *
  */
 #include <sys/param.h>
@@ -56,6 +56,8 @@ ppb_intr(struct ppb_link *pl)
 	 */
 	if (ppb->ppb_owner && ppb->ppb_owner->intr)
 		(*ppb->ppb_owner->intr)(ppb->ppb_owner->id_unit);
+	if (ppb->ppb_owner && ppb->ppb_owner->bintr)
+		(*ppb->ppb_owner->bintr)(ppb->ppb_owner);
 
 	return;
 }

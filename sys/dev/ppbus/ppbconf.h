@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.13 1999/01/30 15:35:39 nsouch Exp $
+ *	$Id: ppbconf.h,v 1.14 1999/04/05 15:43:11 peter Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -174,6 +174,9 @@ struct ppb_device {
 		put_xfer[PPB_MAX_XFER];
 
 	void (*intr)(int);		/* interrupt handler */
+	void (*bintr)(struct ppb_device *);	/* interrupt handler */
+
+	void *drv1, *drv2;		/* drivers private data */
 
 	struct ppb_data *ppb;		/* link to the ppbus */
 
