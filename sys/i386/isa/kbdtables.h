@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.32.2.2 1997/10/12 19:58:20 jkh Exp $
+ *	$Id: kbdtables.h,v 1.32.2.3 1998/01/30 10:46:41 yokota Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
 
 #ifdef PC98
+#define NO_ACCENTCHARS
 /* PC-9801 keymap by kuribo@isl.melco.co.jp */
 static keymap_t key_map = { 0x80,	/* PC98 keymap */
 /*                                                            alt
