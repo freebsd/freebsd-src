@@ -44,17 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <rune.h>
 
 int
-wctomb(s, wchar)
-	char *s;
-	wchar_t wchar;
+wctomb(char *s, wchar_t wchar)
 {
 	char *e;
 
-	if (s == 0)
-		return (0);	/* No support for state dependent encodings. */
+	if (s == NULL)
+		/* No support for state dependent encodings. */
+		return (0);	
 
-	if (wchar == 0) {
-		*s = 0;
+	if (wchar == L'\0') {
+		*s = '\0';
 		return (1);
 	}
 
