@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: Ovfork.S,v 1.6 1997/02/22 14:59:28 peter Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: Ovfork.S,v 1.6 1997/02/22 14:59:28 peter Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -61,10 +61,7 @@ vforkok:
 	cmpl	$0,%edx		/* child process? */
 	jne	child		/* yes */
 	jmp 	parent 
-#ifdef	_THREAD_SAFE
-	/*
-	 * Threaded version using __error().
-	 */
+
 	.globl	CNAME(__error)
 	.type	CNAME(__error),@function
 verror:
@@ -78,22 +75,6 @@ verror:
 	movl	%ecx,(%eax)
 	movl	$-1,%eax
 	movl	$-1,%edx
-#else	/* !_THREAD_SAFE */
-	/*
-	 * Non-threaded version using global errno.
-	 */
-	.globl	CNAME(errno)
-verror:
-#ifdef PIC
-	PIC_PROLOGUE
-	movl	PIC_GOT(CNAME(errno)), %edx
-	movl	%eax,(%edx)
-	PIC_EPILOGUE
-#else
-	movl	%eax,CNAME(errno)
-#endif
-	movl	$-1,%eax
-#endif	/* !_THREAD_SAFE */
 	jmp	%ecx
 child:
 	movl	$0,%eax
