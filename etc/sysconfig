@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.44 1996/04/12 14:24:59 markm Exp $
+#	$Id: sysconfig,v 1.45 1996/04/26 20:18:58 mpp Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -87,10 +87,13 @@ weak_mountd_authentication=NO
 # for example:
 #
 #	network_interfaces="ed0 sl0 lo0"
+#
 #	ifconfig_ed0="inet 10.0.0.1 netmask 0xffffff00"
 #	ifconfig_sl0="inet 10.0.1.0 netmask 0xffffff00"
+#	ifconfig_lo0="inet localhost"
 #
 network_interfaces="lo0"
+
 ifconfig_lo0="inet localhost"
 
 #
