@@ -41,7 +41,7 @@
  * Machine-dependent part of the proc structure for AMD64.
  */
 struct mdthread {
-	register_t	md_savecrit;
+	register_t md_savecrit;
 };
 
 struct mdproc {

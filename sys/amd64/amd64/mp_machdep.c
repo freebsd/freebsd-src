@@ -130,7 +130,7 @@ struct cpu_info {
 } static cpu_info[MAXCPU];
 static int cpu_apic_ids[MAXCPU];
 
-static u_int	boot_address;
+static u_int boot_address;
 
 static void	set_logical_apic_ids(void);
 static int	start_all_aps(void);
