@@ -188,9 +188,12 @@ static ng_rcvdata_t	ng_ppp_rcvdata;
 static ng_disconnect_t	ng_ppp_disconnect;
 
 /* Helper functions */
-static int	ng_ppp_input(node_p node, int ln, struct mbuf *m, meta_p meta);
-static int	ng_ppp_output(node_p node, int ln, struct mbuf *m, meta_p meta);
-static int	ng_ppp_mp_input(node_p nd, int ln, struct mbuf *m, meta_p meta);
+static int	ng_ppp_input(node_p node, int bypass,
+			int linkNum, struct mbuf *m, meta_p meta);
+static int	ng_ppp_output(node_p node, int bypass,
+			int linkNum, struct mbuf *m, meta_p meta);
+static int	ng_ppp_mp_input(node_p node, int linkNum,
+			struct mbuf *m, meta_p meta);
 static int	ng_ppp_mp_output(node_p node, struct mbuf *m, meta_p meta);
 static void	ng_ppp_mp_strategy(node_p node, int len, int *distrib);
 static int	ng_ppp_intcmp(const void *v1, const void *v2);
@@ -344,6 +347,7 @@ ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
 			break;
 		case NGM_PPP_GET_LINK_STATS:
 		case NGM_PPP_CLR_LINK_STATS:
+		case NGM_PPP_GETCLR_LINK_STATS:
 		    {
 			struct ng_ppp_link_stat *stats;
 			u_int16_t linkNum;
@@ -356,13 +360,14 @@ ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
 				ERROUT(EINVAL);
 			stats = (linkNum == NG_PPP_BUNDLE_LINKNUM) ?
 				&priv->bundleStats : &priv->linkStats[linkNum];
-			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS) {
+			if (msg->header.cmd != NGM_PPP_CLR_LINK_STATS) {
 				NG_MKRESPONSE(resp, msg,
 				    sizeof(struct ng_ppp_link_stat), M_NOWAIT);
 				if (resp == NULL)
 					ERROUT(ENOMEM);
 				bcopy(stats, resp->data, sizeof(*stats));
-			} else
+			}
+			if (msg->header.cmd != NGM_PPP_GET_LINK_STATS)
 				bzero(stats, sizeof(*stats));
 			break;
 		    }
@@ -413,27 +418,24 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	/* Did it come from a link hook? */
 	if (index < 0) {
 
-		/* Is link active? */
+		/* Convert index into a link number */
 		linkNum = (u_int16_t)~index;
 		KASSERT(linkNum < NG_PPP_MAX_LINKS,
 		    ("%s: bogus index 0x%x", __FUNCTION__, index));
-		if (!priv->conf.links[linkNum].enableLink) {
-			NG_FREE_DATA(m, meta);
-			return (ENXIO);
-		}
 
 		/* Stats */
 		priv->linkStats[linkNum].recvFrames++;
 		priv->linkStats[linkNum].recvOctets += m->m_pkthdr.len;
 
-		/* Dispatch incoming frame */
-		return ng_ppp_input(node, linkNum, m, meta);
+		/* Dispatch incoming frame (if not enabled, to bypass) */
+		return ng_ppp_input(node,
+		    !priv->conf.links[linkNum].enableLink, linkNum, m, meta);
 	}
 
 	/* Get protocol & check if data allowed from this hook */
 	switch (index) {
 
-	/* Downwards flowing data */
+	/* Outgoing data */
 	case HOOK_INDEX_ATALK:
 		if (!priv->conf.enableAtalk) {
 			NG_FREE_DATA(m, meta);
@@ -501,9 +503,9 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 			return (EINVAL);
 		break;
 
-	/* Upwards flowing data */
+	/* Incoming data */
 	case HOOK_INDEX_VJC_IP:
-		if (!priv->conf.enableVJDecompression) {
+		if (!priv->conf.enableIP || !priv->conf.enableVJDecompression) {
 			NG_FREE_DATA(m, meta);
 			return (ENXIO);
 		}
@@ -521,11 +523,13 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		}
 		break;
 	default:
-		KASSERT(0, ("%s: bogus index 0x%x", __FUNCTION__, index));
+		panic("%s: bogus index 0x%x", __FUNCTION__, index);
 	}
 
 	/* Now figure out what to do with the frame */
 	switch (index) {
+
+	/* Outgoing data */
 	case HOOK_INDEX_INET:
 		if (priv->conf.enableVJCompression && priv->vjCompHooked) {
 			outHook = priv->hooks[HOOK_INDEX_VJC_IP];
@@ -566,13 +570,17 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 			NG_FREE_META(meta);
 			return (ENOBUFS);
 		}
-		return ng_ppp_output(node, NG_PPP_BUNDLE_LINKNUM, m, meta);
+		return ng_ppp_output(node,
+		    index == HOOK_INDEX_BYPASS, NG_PPP_BUNDLE_LINKNUM, m, meta);
 
 	/* Incoming data */
 	case HOOK_INDEX_DECRYPT:
 	case HOOK_INDEX_DECOMPRESS:
+		return ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, m, meta);
+
 	case HOOK_INDEX_VJC_IP:
-		return ng_ppp_input(node, NG_PPP_BUNDLE_LINKNUM, m, meta);
+		outHook = priv->hooks[HOOK_INDEX_INET];
+		break;
 	}
 
 	/* Send packet out hook */
@@ -592,6 +600,7 @@ ng_ppp_rmnode(node_p node)
 	node->flags |= NG_INVALID;
 	ng_cutlinks(node);
 	ng_unname(node);
+	ng_ppp_free_frags(node);
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
 	node->private = NULL;
@@ -619,7 +628,7 @@ ng_ppp_disconnect(hook_p hook)
  * and dispatch accordingly.
  */
 static int
-ng_ppp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
+ng_ppp_input(node_p node, int bypass, int linkNum, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = node->private;
 	hook_p outHook = NULL;
@@ -642,6 +651,10 @@ ng_ppp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 		NG_FREE_DATA(m, meta);
 		return (EINVAL);
 	}
+
+	/* Bypass frame? */
+	if (bypass)
+		goto bypass;
 
 	/* Check protocol */
 	switch (proto) {
@@ -682,6 +695,7 @@ ng_ppp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 	}
 
 	/* For unknown/inactive protocols, forward out the bypass hook */
+bypass:
 	if (outHook == NULL) {
 		M_PREPEND(m, 4, M_NOWAIT);
 		if (m == NULL || (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL))
@@ -700,10 +714,10 @@ ng_ppp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
  * Deliver a frame out a link, either a real one or NG_PPP_BUNDLE_LINKNUM
  */
 static int
-ng_ppp_output(node_p node, int linkNum, struct mbuf *m, meta_p meta)
+ng_ppp_output(node_p node, int bypass, int linkNum, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = node->private;
-	int error;
+	int len, error;
 
 	/* Check for bundle virtual link */
 	if (linkNum == NG_PPP_BUNDLE_LINKNUM) {
@@ -713,7 +727,7 @@ ng_ppp_output(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 	}
 
 	/* Check link status */
-	if (!priv->conf.links[linkNum].enableLink)
+	if (!bypass && !priv->conf.links[linkNum].enableLink)
 		return (ENXIO);
 	if (priv->links[linkNum] == NULL) {
 		NG_FREE_DATA(m, meta);
@@ -721,13 +735,14 @@ ng_ppp_output(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 	}
 
 	/* Deliver frame */
+	len = m->m_pkthdr.len;
 	NG_SEND_DATA(error, priv->links[linkNum], m, meta);
 
 	/* Update stats and 'bytes in queue' counter */
 	if (error == 0) {
 		priv->linkStats[linkNum].xmitFrames++;
-		priv->linkStats[linkNum].xmitOctets += m->m_pkthdr.len;
-		priv->qstat[linkNum].bytesInQueue += m->m_pkthdr.len;
+		priv->linkStats[linkNum].xmitOctets += len;
+		priv->qstat[linkNum].bytesInQueue += len;
 		microtime(&priv->qstat[linkNum].lastWrite);
 	}
 	return error;
@@ -795,7 +810,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 
 	/* Optimization: handle a frame that's all in one fragment */
 	if (frag->first && frag->last)
-		return ng_ppp_input(node, NG_PPP_BUNDLE_LINKNUM, m, meta);
+		return ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, m, meta);
 
 	/* Allocate a new frag struct for the queue */
 	MALLOC(frag, struct ng_ppp_frag *, sizeof(*frag), M_NETGRAPH, M_NOWAIT);
@@ -885,7 +900,7 @@ pruneQueue:
 	}
 
 	/* Deliver newly completed frame, if any */
-	return m ? ng_ppp_input(node, NG_PPP_BUNDLE_LINKNUM, m, meta) : 0;
+	return m ? ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, m, meta) : 0;
 }
 
 /*
@@ -1036,7 +1051,7 @@ deliver:
 				meta2 = meta;
 
 			/* Send fragment */
-			error = ng_ppp_output(node, linkNum, m2, meta2);
+			error = ng_ppp_output(node, 0, linkNum, m2, meta2);
 
 			/* Abort for error */
 			if (error != 0) {
@@ -1360,6 +1375,10 @@ ng_ppp_config_valid(node_p node, const struct ng_ppp_node_config *newConf)
 
 	/* Check per-link config and count how many links would be active */
 	for (newNumLinksActive = i = 0; i < NG_PPP_MAX_LINKS; i++) {
+		if (newConf->links[i].enableLink && priv->links[i] != NULL)
+			newNumLinksActive++;
+		if (!newConf->links[i].enableLink)
+			continue;
 		if (newConf->links[i].mru < MP_MIN_LINK_MRU)
 			return (0);
 		if (newConf->links[i].bandwidth == 0)
@@ -1368,16 +1387,10 @@ ng_ppp_config_valid(node_p node, const struct ng_ppp_node_config *newConf)
 			return (0);
 		if (newConf->links[i].latency > NG_PPP_MAX_LATENCY)
 			return (0);
-		if (newConf->links[i].enableLink && priv->links[i] != NULL)
-			newNumLinksActive++;
 	}
 
 	/* Check bundle parameters */
-	if (priv->conf.enableMultilink && newConf->mrru < MP_MIN_MRRU)
-		return (0);
-
-	/* At most one link can be active unless multi-link is enabled */
-	if (!newConf->enableMultilink && newNumLinksActive > 1)
+	if (newConf->enableMultilink && newConf->mrru < MP_MIN_MRRU)
 		return (0);
 
 	/* Disallow changes to multi-link configuration while MP is active */
@@ -1388,7 +1401,11 @@ ng_ppp_config_valid(node_p node, const struct ng_ppp_node_config *newConf)
 			return (0);
 	}
 
-	/* Configuration change is valid */
+	/* At most one link can be active unless multi-link is enabled */
+	if (!newConf->enableMultilink && newNumLinksActive > 1)
+		return (0);
+
+	/* Configuration change would be valid */
 	return (1);
 }
 
