@@ -128,7 +128,8 @@ struct sem_undo {
 /*
  * Macro to find a particular sem_undo vector
  */
-#define SEMU(ix)	((struct sem_undo *)(((intptr_t)semu)+ix * seminfo.semusz))
+#define SEMU(ix) \
+	((struct sem_undo *)(((intptr_t)semu)+ix * seminfo.semusz))
 
 /*
  * semaphore info struct
@@ -163,7 +164,7 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLFLAG_RD,
 static void
 seminit(void)
 {
-	register int i;
+	int i;
 
 	TUNABLE_INT_FETCH("kern.ipc.semmap", &seminfo.semmap);
 	TUNABLE_INT_FETCH("kern.ipc.semmni", &seminfo.semmni);
@@ -177,21 +178,16 @@ seminit(void)
 	TUNABLE_INT_FETCH("kern.ipc.semaem", &seminfo.semaem);
 
 	sem = malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, M_WAITOK);
-	if (sem == NULL)
-		panic("sem is NULL");
-	sema = malloc(sizeof(struct semid_ds) * seminfo.semmni, M_SEM, M_WAITOK);
-	if (sema == NULL)
-		panic("sema is NULL");
+	sema = malloc(sizeof(struct semid_ds) * seminfo.semmni, M_SEM,
+	    M_WAITOK);
 	semu = malloc(seminfo.semmnu * seminfo.semusz, M_SEM, M_WAITOK);
-	if (semu == NULL)
-		panic("semu is NULL");
 
 	for (i = 0; i < seminfo.semmni; i++) {
 		sema[i].sem_base = 0;
 		sema[i].sem_perm.mode = 0;
 	}
 	for (i = 0; i < seminfo.semmnu; i++) {
-		register struct sem_undo *suptr = SEMU(i);
+		struct sem_undo *suptr = SEMU(i);
 		suptr->un_proc = NULL;
 	}
 	semu_list = NULL;
@@ -286,9 +282,9 @@ static struct sem_undo *
 semu_alloc(td)
 	struct thread *td;
 {
-	register int i;
-	register struct sem_undo *suptr;
-	register struct sem_undo **supptr;
+	int i;
+	struct sem_undo *suptr;
+	struct sem_undo **supptr;
 	int attempt;
 
 	/*
@@ -354,14 +350,14 @@ semu_alloc(td)
 
 static int
 semundo_adjust(td, supptr, semid, semnum, adjval)
-	register struct thread *td;
+	struct thread *td;
 	struct sem_undo **supptr;
 	int semid, semnum;
 	int adjval;
 {
 	struct proc *p = td->td_proc;
-	register struct sem_undo *suptr;
-	register struct undo *sunptr;
+	struct sem_undo *suptr;
+	struct undo *sunptr;
 	int i;
 
 	/* Look for and remember the sem_undo if the caller doesn't provide
@@ -428,11 +424,11 @@ static void
 semundo_clear(semid, semnum)
 	int semid, semnum;
 {
-	register struct sem_undo *suptr;
+	struct sem_undo *suptr;
 
 	for (suptr = semu_list; suptr != NULL; suptr = suptr->un_next) {
-		register struct undo *sunptr = &suptr->un_ent[0];
-		register int i = 0;
+		struct undo *sunptr = &suptr->un_ent[0];
+		int i = 0;
 
 		while (i < suptr->un_cnt) {
 			if (sunptr->un_id == semid) {
@@ -470,7 +466,7 @@ struct __semctl_args {
 int
 __semctl(td, uap)
 	struct thread *td;
-	register struct __semctl_args *uap;
+	struct __semctl_args *uap;
 {
 	int semid = uap->semid;
 	int semnum = uap->semnum;
@@ -480,7 +476,7 @@ __semctl(td, uap)
 	struct ucred *cred = td->td_ucred;
 	int i, rval, error;
 	struct semid_ds sbuf;
-	register struct semid_ds *semaptr;
+	struct semid_ds *semaptr;
 	u_short usval;
 
 	DPRINTF(("call to semctl(%d, %d, %d, 0x%x)\n",
@@ -683,7 +679,7 @@ struct semget_args {
 int
 semget(td, uap)
 	struct thread *td;
-	register struct semget_args *uap;
+	struct semget_args *uap;
 {
 	int semid, error = 0;
 	int key = uap->key;
@@ -791,14 +787,14 @@ struct semop_args {
 int
 semop(td, uap)
 	struct thread *td;
-	register struct semop_args *uap;
+	struct semop_args *uap;
 {
 	int semid = uap->semid;
 	u_int nsops = uap->nsops;
 	struct sembuf *sops = NULL;
-	register struct semid_ds *semaptr;
-	register struct sembuf *sopptr = 0;
-	register struct sem *semptr = 0;
+	struct semid_ds *semaptr;
+	struct sembuf *sopptr = 0;
+	struct sem *semptr = 0;
 	struct sem_undo *suptr;
 	int i, j, error;
 	int do_wakeup, do_undos;
@@ -1064,8 +1060,8 @@ static void
 semexit_myhook(p)
 	struct proc *p;
 {
-	register struct sem_undo *suptr;
-	register struct sem_undo **supptr;
+	struct sem_undo *suptr;
+	struct sem_undo **supptr;
 
 	/*
 	 * Go through the chain of undo vectors looking for one
