@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.43 1996/11/24 08:39:11 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.44 1996/11/27 03:54:50 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -118,7 +118,10 @@ the ports collection.
 2.1.0-RELEASE:                  199511
 2.2-current before 2.1.5:       199512
 2.1.5-RELEASE:                  199607
-2.2-current as 12 Jul 1996:     199608  (will certainly be bumped)
+2.2-current before 2.1.6:       199608
+2.1.6-RELEASE:                  199612
+2.2-RELEASE:                    199701
+3.0-current as of Feb 1997:     199702  (will certainly be bumped)
 </verb></tscreen>
 The pattern is the year followed by the month.
 
@@ -1179,12 +1182,14 @@ lib/libtcl.so.7.3
  
  [section to describe the port itself and the master site - DISTNAME
   is always first, followed by PKGNAME (if necessary), CATEGORIES,
-  and then MASTER_SITES, and optionally EXTRACT_SUFX or DISTFILES]
+  and then MASTER_SITES, which can be followed by MASTER_SITE_SUBDIR.
+  After those, one of EXTRACT_SUFX or DISTFILES can be specified too.]
  DISTNAME=	xdvi
  PKGNAME=	xdvi-pl18
  CATEGORIES=	print
  [do not forget the trailing slash ("/")!]
- MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
+ MASTER_SITES=	${MASTER_SITE_XCONTRIB}
+ MASTER_SITE_SUBDIR= applications
  [set this if the source is not in the standard ".tar.gz" form]
  EXTRACT_SUFX=	.tar.Z
  
