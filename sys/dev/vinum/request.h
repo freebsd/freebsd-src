@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.16 1999/10/12 04:33:24 grog Exp grog $
+ * $Id: request.h,v 1.17 1999/12/27 02:18:05 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -118,6 +118,7 @@ struct rqgroup {
     int badsdno;					    /* index of bad subdisk or -1 */
     enum xferinfo flags;				    /* description of transfer */
     struct rangelock *lock;				    /* lock for this transfer */
+    daddr_t lockbase;					    /* and lock address */
     struct rqelement rqe[0];				    /* and the elements of this request */
 };
 

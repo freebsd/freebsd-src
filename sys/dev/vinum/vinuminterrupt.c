@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id$
+ * $Id: vinuminterrupt.c,v 1.8 1999/12/27 02:20:45 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -153,8 +153,13 @@ complete_rqe(struct buf *bp)
     } else if ((rqg->flags & (XFR_NORMAL_WRITE | XFR_DEGRADED_WRITE)) /* RAID 5 group write operation  */
     &&(rqg->active == 0))				    /* and we've finished phase 1 */
 	complete_raid5_write(rqe);
-    if (rqg->active == 0)				    /* request group finished, */
+    if (rqg->active == 0) {				    /* request group finished, */
 	rq->active--;					    /* one less */
+	if (rqg->lock) {				    /* got a lock? */
+	    unlockrange(rqg->plexno, rqg->lock);	    /* yes, free it */
+	    rqg->lock = 0;
+	}
+    }
     if (rq->active == 0) {				    /* request finished, */
 #if VINUMDEBUG
 	if (debug & DEBUG_RESID) {
