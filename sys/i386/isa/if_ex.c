@@ -137,6 +137,7 @@ static u_char plus_ee2irqmap[] =
 	{ 3, 4, 5, 7, 9, 10, 11, 12 };
 
 /* Bus Front End Functions */
+static void	ex_isa_identify	__P((driver_t *, device_t));
 static int	ex_isa_probe	__P((device_t));
 static int	ex_attach	__P((device_t));
 
@@ -157,6 +158,7 @@ static u_short	eeprom_read	__P((int, int));
 
 static device_method_t ex_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	ex_isa_identify),
 	DEVMETHOD(device_probe,		ex_isa_probe),
 	DEVMETHOD(device_attach,	ex_attach),
 
@@ -240,6 +242,59 @@ ex_card_type (u_char *enaddr)
 	return (CARD_TYPE_EX_10);
 }
 
+/*
+ * Non-destructive identify.
+ */
+static void
+ex_isa_identify (driver_t *driver, device_t parent)
+{
+	device_t	child;
+	u_int32_t	ioport;
+	u_char 		enaddr[6];
+	u_int		irq;
+	int		tmp;
+	const char *	desc;
+
+	for (ioport = 0x200; ioport < 0x3a0; ioport += 0x10) {
+
+		/* No board found at address */
+		if (!look_for_card(ioport)) {
+			continue;
+		}
+
+		/* Board in PnP mode */
+		if (eeprom_read(ioport, 0) & 0x01) {
+			continue;
+		}
+
+		bzero(enaddr, sizeof(enaddr));
+
+		/* Reset the card. */
+		outb(ioport + CMD_REG, Reset_CMD);
+		DELAY(400);
+
+		ex_get_address(ioport, enaddr);
+		tmp = eeprom_read(ioport, EE_IRQ_No) & IRQ_No_Mask;
+
+		/* work out which set of irq <-> internal tables to use */
+		if (ex_card_type(enaddr) == CARD_TYPE_EX_10_PLUS) {
+			irq  = plus_ee2irqmap[tmp];
+			desc = "Intel Pro/10+";
+		} else {
+			irq = ee2irqmap[tmp];
+			desc = "Intel Pro/10";
+		}
+
+		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "ex", -1);
+		device_set_desc_copy(child, desc);
+		device_set_driver(child, driver);
+		bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
+		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EX_IOSIZE);
+	}
+
+	return;
+}
+
 static int
 ex_isa_probe(device_t dev)
 {
@@ -266,29 +321,10 @@ ex_isa_probe(device_t dev)
 		return(error);
 	}
 
-	/*
-	 * If an I/O address was supplied in the configuration file
-	 * or by PnP ,probe only that. Otherwise, cycle through the
-	 * predefined set of possible addresses.
-	 * This should really be a bus enumerator ala DEVICE_IDENTFY()
-	 */
 	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
-	if (iobase != 0) {
-		if (! look_for_card(iobase)) {
-			printf("ex: no card found at 0x%03x\n", iobase);
-			return(ENXIO);
-		}
-	} else {
-		for (iobase = 0x200; iobase < 0x3a0; iobase += 0x10) {
-			if (look_for_card(iobase))
-				break;
-		}
-		if (iobase >= 0x3a0) {
-			return(ENXIO);
-		} else {
-			bus_set_resource(dev, SYS_RES_IOPORT, 0,
-					 iobase, EX_IOSIZE);
-		}
+	if (iobase && !look_for_card(iobase)) {
+		printf("ex: no card found at 0x%03x\n", iobase);
+		return(ENXIO);
 	}
 
 	/*
@@ -312,6 +348,7 @@ ex_isa_probe(device_t dev)
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
 
 	if (irq > 0) {
+		/* This will happen if board is in PnP mode. */
 		if (ee2irq[tmp] != irq) {
 			printf("ex: WARNING: board's EEPROM is configured"
 				" for IRQ %d, using %d\n",
