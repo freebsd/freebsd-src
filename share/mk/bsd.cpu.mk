@@ -76,11 +76,11 @@ CFLAGS += -mcpu=ev4
 
 .if ${MACHINE_ARCH} == "i386"
 . if ${CPUTYPE} == "k7"
-MACHINE_CPU = k7 3dnow k6 k5 i586 i486 i386
+MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6-2"
-MACHINE_CPU = 3dnow k6 k5 i586 i486 i386
+MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6"
-MACHINE_CPU = k6 k5 i586 i486 i386
+MACHINE_CPU = mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586 i486 i386
 . elif ${CPUTYPE} == "p4"
