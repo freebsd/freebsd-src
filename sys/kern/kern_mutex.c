@@ -709,8 +709,10 @@ SYSCTL_INT(_kern_giant, OID_AUTO, all, CTLFLAG_RW, &kern_giant_all, 0, "");
 
 int kern_giant_proc = 1;	/* Giant around PROC locks */
 int kern_giant_file = 1;	/* Giant around struct file & filedesc */
+int kern_giant_ucred = 1;	/* Giant around ucred */
 SYSCTL_INT(_kern_giant, OID_AUTO, proc, CTLFLAG_RW, &kern_giant_proc, 0, "");
 SYSCTL_INT(_kern_giant, OID_AUTO, file, CTLFLAG_RW, &kern_giant_file, 0, "");
+SYSCTL_INT(_kern_giant, OID_AUTO, ucred, CTLFLAG_RW, &kern_giant_ucred, 0, "");
 
 int
 mtx_lock_giant(int sysctlvar)
