@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.82 1998/10/25 17:44:50 phk Exp $
+ * $Id: kern_clock.c,v 1.83 1998/10/26 06:13:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -363,7 +363,7 @@ statclock(frame)
 	struct rusage *ru;
 	struct vmspace *vm;
 
-	if (CLKF_USERMODE(frame)) {
+	if (curproc != NULL && CLKF_USERMODE(frame)) {
 		p = curproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
