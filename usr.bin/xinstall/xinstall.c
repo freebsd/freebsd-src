@@ -598,6 +598,8 @@ int
 create_newfile(const char *path, int target, struct stat *sbp)
 {
 	char backup[MAXPATHLEN];
+	int saved_errno = 0;
+	int newfd;
 
 	if (target) {
 		/*
@@ -621,10 +623,14 @@ create_newfile(const char *path, int target, struct stat *sbp)
 			if (rename(path, backup) < 0)
 				err(EX_OSERR, "rename: %s to %s", path, backup);
 		} else
-			(void)unlink(path);
+			if (unlink(path) < 0)
+				saved_errno = errno;
 	}
 
-	return (open(path, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR));
+	newfd = open(path, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (newfd < 0 && saved_errno != 0)
+		errno = saved_errno;
+	return newfd;
 }
 
 /*
