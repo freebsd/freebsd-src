@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfprintf.c,v 1.19 1998/05/08 05:10:32 jb Exp $";
+		"$Id: vfprintf.c,v 1.21 1999/03/11 22:44:02 dfr Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -545,7 +545,10 @@ reswitch:	switch (ch) {
 			flags |= SHORTINT;
 			goto rflag;
 		case 'l':
-			flags |= LONGINT;
+			if (flags & LONGINT)
+				flags |= QUADINT;
+			else
+				flags |= LONGINT;
 			goto rflag;
 		case 'q':
 			flags |= QUADINT;
@@ -1016,7 +1019,10 @@ reswitch:	switch (ch) {
 			flags |= SHORTINT;
 			goto rflag;
 		case 'l':
-			flags |= LONGINT;
+			if (flags & LONGINT)
+				flags |= QUADINT;
+			else
+				flags |= LONGINT;
 			goto rflag;
 		case 'q':
 			flags |= QUADINT;
