@@ -1,9 +1,10 @@
-# $Id: Makefile,v 1.2 1997/07/28 18:31:11 wpaul Exp $
+# $Id: Makefile,v 1.8 1997/07/29 15:43:12 wpaul Exp $
 
 PROG=	rpc.yppasswdd
-SRCS=	pw_copy.c pw_util.c util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \
-	yp_dblookup.c yp_dbwrite.c yp_access.c yppasswd_private_xdr.c \
-	yppasswd_private_svc.c yp_clnt.c yppasswdd_server.c yppasswdd_main.c
+SRCS=	pw_copy.c pw_util.c util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
+	yp_error.c yppasswdd_main.c yppasswdd_server.c ypxfr_misc.c ${GENSRCS}
+GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_private.h yppasswd_private_svc.c \
+	yppasswd_private_xdr.c yppasswd_svc.c
 
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
@@ -19,9 +20,7 @@ CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../usr.sbin/ypserv \
 DPADD=	${LIBRPCSVC} ${LIBCRYPT}
 LDADD=	-lrpcsvc -lcrypt
 
-CLEANFILES= yppasswd_svc.c yppasswd.h \
-	    yppasswd_private_xdr.c yppasswd_private.h \
-	    yppasswd_private_svc.c yp.h yp_clnt.c
+CLEANFILES= ${GENSRCS}
 
 RPCGEN= rpcgen -I -C
 
