@@ -235,7 +235,7 @@ static int ipl_load()
 	 */
 	(void)ipl_remove();
 
-	error = iplattach();
+	error = ipl_enable();
 	if (error)
 		return error;
 

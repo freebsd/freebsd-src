@@ -4,6 +4,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -63,7 +66,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.3 2001/07/15 22:00:14 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.5 2002/02/22 15:32:58 darrenr Exp $";
 #endif
 
 
@@ -188,8 +191,6 @@ struct	tcpiphdr *ti;
 
 	if (!(p = getproc()))
 		return NULL;
-printf("fl %x ty %x cn %d mc %d\n",
-f->f_flag, f->f_type, f->f_count, f->f_msgcount);
 	up = (struct user *)malloc(sizeof(*up));
 #ifndef	ultrix
 	if (KMCPY(up, p->p_uarea, sizeof(*up)) == -1)

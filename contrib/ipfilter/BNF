@@ -2,27 +2,29 @@ filter-rule = [ insert ] action in-out [ options ] [ tos ] [ ttl ]
 	      [ proto ] [ ip ] [ group ].
 
 insert	= "@" decnumber .
-action	= block | "pass" | log | "count" | skip | auth | call .
+action	= block | "no-match" | "pass" | log | "count" | skip | auth | call .
 in-out	= "in" | "out" .
-options	= [ log ] [ "quick" ] [ "on" interface-name [ dup ] [ froute ] ] .
+options	= [ log ] [ "quick" ] [ "on" interface-name [ dup ] [ froute ]
+          [ via ] ] .
 tos	= "tos" decnumber | "tos" hexnumber .
 ttl	= "ttl" decnumber .
 proto	= "proto" protocol .
 ip	= srcdst [ flags ] [ with withopt ] [ icmp ] [ keep ] .
 group	= [ "head" decnumber ] [ "group" decnumber ] .
 
-block	= "block" [ reutrn-icmp[return-code] | "return-rst" ] .
+block	= "block" [ return-icmp[return-code] | "return-rst" ] .
 auth	= "auth" | "preauth" .
 log	= "log" [ "body" ] [ "first" ] [ "or-block" ] [ "level" loglevel ] .
 call	= "call" [ "now" ] function-name .
 skip	= "skip" decnumber .
 dup	= "dup-to" interface-name[":"ipaddr] .
+via	= "in-via" interface-name | "out-via" interface-name .
 froute	= "fastroute" | "to" interface-name [ ":" ipaddr ] .
 protocol = "tcp/udp" | "udp" | "tcp" | "icmp" | decnumber .
 srcdst	= "all" | fromto .
 fromto	= "from" object "to" object .
 
-reutrn-icmp = "return-icmp" | "return-icmp-as-dest" .
+return-icmp = "return-icmp" | "return-icmp-as-dest" .
 loglevel = facility"."priority | priority .
 object	= addr [ port-comp | port-range ] .
 addr	= "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
@@ -32,7 +34,8 @@ flags	= "flags" flag { flag } [ "/" flag { flag } ] .
 with	= "with" | "and" .
 icmp	= "icmp-type" icmp-type [ "code" decnumber ] .
 return-code = "("icmp-code")" .
-keep	= "keep" "state" | "keep" "frags" .
+keep	= "keep" "state" | "keep" "frags" | "keep" "state-age" state-age .
+state-age = decnmber [ "/" decnumber ] .
 
 nummask	= host-name [ "/" decnumber ] .
 host-name = ipaddr | hostname | "any" .

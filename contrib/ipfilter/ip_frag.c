@@ -7,6 +7,9 @@
 # define      _KERNEL
 #endif
 
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -23,7 +26,6 @@
 #else
 # include <sys/ioctl.h>
 #endif
-#include <sys/uio.h>
 #ifndef linux
 # include <sys/protosw.h>
 #endif
@@ -63,7 +65,6 @@
 #include "netinet/ip_compat.h"
 #include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
-#include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
 #include "netinet/ip_frag.h"
 #include "netinet/ip_state.h"
@@ -89,7 +90,7 @@ extern struct timeout ipfr_slowtimer_ch;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.14 2001/07/15 22:06:15 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.21 2002/04/10 04:56:10 darrenr Exp $";
 #endif
 
 
@@ -494,7 +495,6 @@ void ipfr_unload()
 }
 
 
-#ifdef	_KERNEL
 void ipfr_fragexpire()
 {
 	ipfr_t	**fp, *fra;
@@ -565,6 +565,7 @@ void ipfr_fragexpire()
  * Slowly expire held state for fragments.  Timeouts are set * in expectation
  * of this being called twice per second.
  */
+#ifdef _KERNEL
 # if (BSD >= 199306) || SOLARIS || defined(__sgi)
 #  if defined(SOLARIS2) && (SOLARIS2 < 7)
 void ipfr_slowtimer()
@@ -574,16 +575,19 @@ void ipfr_slowtimer __P((void *ptr))
 # else
 int ipfr_slowtimer()
 # endif
+#else
+void ipfr_slowtimer()
+#endif
 {
 #if defined(_KERNEL) && SOLARIS
 	extern	int	fr_running;
 
 	if (fr_running <= 0) 
 		return;
+	READ_ENTER(&ipf_solaris);
 #endif
 
-	READ_ENTER(&ipf_solaris);
-#ifdef __sgi
+#if defined(__sgi) && defined(_KERNEL)
 	ipfilter_sgi_intfsync();
 #endif
 
@@ -591,6 +595,7 @@ int ipfr_slowtimer()
 	fr_timeoutstate();
 	ip_natexpire();
 	fr_authexpire();
+#if defined(_KERNEL)
 # if    SOLARIS
 	ipfr_timer_id = timeout(ipfr_slowtimer, NULL, drv_usectohz(500000));
 	RWLOCK_EXIT(&ipf_solaris);
@@ -601,8 +606,8 @@ int ipfr_slowtimer()
 #   if (__FreeBSD_version >= 300000)
 	ipfr_slowtimer_ch = timeout(ipfr_slowtimer, NULL, hz/2);
 #   else
-#    if defined(__OpenBSD_)
-	timeout_add(&ipfr_slowtimer_ch, hz/2, ipfr_slowtimer, NULL);
+#    if defined(__OpenBSD__)
+	timeout_add(&ipfr_slowtimer_ch, hz/2);
 #    else
 	timeout(ipfr_slowtimer, NULL, hz/2);
 #    endif
@@ -612,5 +617,5 @@ int ipfr_slowtimer()
 #   endif /* FreeBSD */
 #  endif /* NetBSD */
 # endif /* SOLARIS */
-}
 #endif /* defined(_KERNEL) */
+}

@@ -42,7 +42,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)sbpf.c	1.3 8/25/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sbpf.c,v 2.1.4.1 2001/06/26 10:43:22 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sbpf.c,v 2.1.4.2 2001/09/30 04:04:28 darrenr Exp $";
 #endif
 
 /*
@@ -61,6 +61,8 @@ int	sport, tout;
 	struct	ifreq ifr;
 	char	bpfname[16];
 	int	fd, i;
+
+	fd = -1;
 
 	for (i = 0; i < 16; i++)
 	    {

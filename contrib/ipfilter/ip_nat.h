@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.17.2.20 2001/06/26 10:43:15 darrenr Exp $
+ * $Id: ip_nat.h,v 2.17.2.26 2002/04/20 16:42:05 darrenr Exp $
  */
 
 #ifndef	__IP_NAT_H__
@@ -88,6 +88,7 @@ typedef	struct	nat	{
 	struct	nat	*nat_next;
 	struct	nat	*nat_hnext[2];
 	struct	nat	**nat_phnext[2];
+	struct	nat	**nat_me;
 	void	*nat_ifp;
 	int	nat_dir;
 	char	nat_ifname[IFNAMSIZ];
@@ -118,6 +119,7 @@ typedef	struct	ipnat	{
 	struct	in_addr	in_out[2];
 	struct	in_addr	in_src[2];
 	struct	frtuc	in_tuc;
+	u_int	in_age[2];	/* Aging for NAT entries. Not for TCP */
 	int	in_redir; /* 0 if it's a mapping, 1 if it's a hard redir */
 	char	in_ifname[IFNAMSIZ];
 	char	in_plabel[APR_LABELLEN];	/* proxy label */
@@ -274,6 +276,8 @@ typedef	struct	natlog {
 			    (sd) = (s2) - (s1); \
 			    (sd) = ((sd) & 0xffff) + ((sd) >> 16); }
 
+#define	NAT_SYSSPACE		0x80000000
+#define	NAT_LOCKHELD		0x40000000
 
 extern	u_int	ipf_nattable_sz;
 extern	u_int	ipf_natrules_sz;
@@ -286,23 +290,27 @@ extern	nat_t	**nat_table[2];
 extern	nat_t	*nat_instances;
 extern	ipnat_t	**nat_rules;
 extern	ipnat_t	**rdr_rules;
+extern	ipnat_t	*nat_list;
 extern	natstat_t	nat_stats;
+#if defined(__OpenBSD__)
+extern	void	nat_ifdetach __P((void *));
+#endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 extern	int	nat_ioctl __P((caddr_t, u_long, int));
 #else
 extern	int	nat_ioctl __P((caddr_t, int, int));
 #endif
 extern	int	nat_init __P((void));
-extern	nat_t	*nat_new __P((ipnat_t *, ip_t *, fr_info_t *, u_int, int));
-extern	nat_t	*nat_outlookup __P((void *, u_int, u_int, struct in_addr,
-				 struct in_addr, u_32_t, int));
-extern	nat_t	*nat_inlookup __P((void *, u_int, u_int, struct in_addr,
-				struct in_addr, u_32_t, int));
-extern	nat_t	*nat_maplookup __P((void *, u_int, struct in_addr,
-				struct in_addr));
+extern	nat_t	*nat_new __P((fr_info_t *, ip_t *, ipnat_t *, nat_t **,
+			      u_int, int));
+extern	nat_t	*nat_outlookup __P((fr_info_t *, u_int, u_int, struct in_addr,
+				 struct in_addr, int));
+extern	nat_t	*nat_inlookup __P((fr_info_t *, u_int, u_int, struct in_addr,
+				struct in_addr, int));
 extern	nat_t	*nat_lookupredir __P((natlookup_t *));
 extern	nat_t	*nat_icmplookup __P((ip_t *, fr_info_t *, int));
 extern	nat_t	*nat_icmp __P((ip_t *, fr_info_t *, u_int *, int));
+extern	int	nat_clearlist __P((void));
 extern	void	nat_insert __P((nat_t *));
 
 extern	int	ip_natout __P((ip_t *, fr_info_t *));

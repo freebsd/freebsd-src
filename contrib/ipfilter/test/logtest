@@ -1,5 +1,4 @@
 #!/bin/sh
-# $FreeBSD$
 if [ -f /usr/ucb/touch ] ; then
 	TOUCH=/usr/ucb/touch
 else

@@ -52,12 +52,18 @@ Change the default directory used with
 and
 .B \-W
 options for saving state information.
+.TP
 .B \-n
 Don't actually take any action that would effect information stored in
 the kernel or on disk.
 .TP
 .B \-v
 Provides a verbose description of what's being done.
+.TP
+.B \-i <ifname1>,<ifname2>
+Change all instances of interface name ifname1 in the state save file to
+ifname2.  Useful if you're restoring state information after a hardware
+reconfiguration or change.
 .TP
 .B \-N
 Operate on NAT information.
@@ -69,7 +75,7 @@ Operate on filtering state information.
 Unlock state tables in the kernel.
 .TP
 .B \-l
-Unlock state tables in the kernel.
+Lock state tables in the kernel.
 .TP
 .B \-r
 Read information in from the specified file and load it into the
