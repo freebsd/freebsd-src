@@ -698,10 +698,10 @@ void fw_init(struct firewire_comm *fc)
 	fc->atq->queued = 0;
 	fc->ats->queued = 0;
 
-	fc->arq->psize = FWPMAX_S400;
-	fc->ars->psize = FWPMAX_S400;
-	fc->atq->psize = FWPMAX_S400;
-	fc->ats->psize = FWPMAX_S400;
+	fc->arq->psize = PAGE_SIZE;
+	fc->ars->psize = PAGE_SIZE;
+	fc->atq->psize = 0;
+	fc->ats->psize = 0;
 
 
 	fc->arq->buf = NULL;

@@ -162,7 +162,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		free(sc->fc->ir[sub]->bulkxfer, M_DEVBUF);
 		sc->fc->ir[sub]->bulkxfer = NULL;
 		sc->fc->ir[sub]->flag &= ~FWXFERQ_EXTBUF;
-		sc->fc->ir[sub]->psize = FWPMAX_S400;
+		sc->fc->ir[sub]->psize = PAGE_SIZE;
 		sc->fc->ir[sub]->maxq = FWMAXQUEUE;
 	}
 	if(sc->fc->it[sub]->flag & FWXFERQ_EXTBUF){
@@ -172,7 +172,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		sc->fc->it[sub]->bulkxfer = NULL;
 		sc->fc->it[sub]->dvbuf = NULL;
 		sc->fc->it[sub]->flag &= ~FWXFERQ_EXTBUF;
-		sc->fc->it[sub]->psize = FWPMAX_S400;
+		sc->fc->it[sub]->psize = 0;
 		sc->fc->it[sub]->maxq = FWMAXQUEUE;
 	}
 	for(xfer = STAILQ_FIRST(&sc->fc->ir[sub]->q);
