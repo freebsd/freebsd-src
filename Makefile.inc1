@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.76 1999/05/03 17:54:59 obrien Exp $
+#	$Id: Makefile.inc1,v 1.77 1999/06/01 02:55:44 billf Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -398,7 +398,7 @@ update:
 .endif
 .if defined(CVS_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Updating /usr/src from cvs repository" ${CVSROOT}
+	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; cvs -q update -P -d
 .endif
