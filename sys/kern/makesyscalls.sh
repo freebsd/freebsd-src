@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.24 1997/06/29 17:39:57 bde Exp $
+# $Id: makesyscalls.sh,v 1.25 1997/10/26 20:27:48 phk Exp $
 
 set -e
 
@@ -259,7 +259,7 @@ s/\$//g
 		}
 		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
 		    (!lkmnosys || funcname != "lkmnosys")) {
-			printf("%s\t%s __P((struct proc *, struct %s *, int []))", \
+			printf("%s\t%s __P((struct proc *, struct %s *))", \
 			    rettype, funcname, argalias) > sysdcl
 			if (funcname == "exit")
 				printf(" __dead2") > sysdcl
@@ -304,7 +304,7 @@ s/\$//g
 		else if($2 != "CPT_NOA")
 			printf("struct\t%s {\n\tint dummy;\n};\n", \
 				argalias) > sysarg
-		printf("%s\to%s __P((struct proc *, struct %s *, int []));\n", \
+		printf("%s\to%s __P((struct proc *, struct %s *));\n", \
 		    rettype, funcname, argalias) > syscompatdcl
 		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n", \
 		    argc+bigargc, funcname, syscall, funcalias) > sysent
