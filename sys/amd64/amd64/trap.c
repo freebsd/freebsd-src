@@ -397,6 +397,25 @@ trap(frame)
 
 		case T_TRCTRAP:	 /* trace trap */
 			/*
+			 * Ignore debug register trace traps due to
+			 * accesses in the user's address space, which
+			 * can happen under several conditions such as
+			 * if a user sets a watchpoint on a buffer and
+			 * then passes that buffer to a system call.
+			 * We still want to get TRCTRAPS for addresses
+			 * in kernel space because that is useful when
+			 * debugging the kernel.
+			 */
+			if (user_dbreg_trap()) {
+				/*
+				 * Reset breakpoint bits because the
+				 * processor doesn't
+				 */
+				/* XXX check upper bits here */
+				load_dr6(rdr6() & 0xfffffff0);
+				goto out;
+			}
+			/*
 			 * FALLTHROUGH (TRCTRAP kernel mode, kernel address)
 			 */
 		case T_BPTFLT:
