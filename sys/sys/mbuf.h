@@ -286,7 +286,7 @@ struct mcntfree_lst {
 #define MEXT_REM_REF(m) do {						\
 	KASSERT((m)->m_ext.ref_cnt->refcnt > 0, ("m_ext refcnt < 0"));	\
 	atomic_subtract_long(&((m)->m_ext.ref_cnt->refcnt), 1);		\
-	} while(0)
+} while(0)
 
 #define MEXT_ADD_REF(m) atomic_add_long(&((m)->m_ext.ref_cnt->refcnt), 1)
 
