@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.40 1998/11/04 20:22:11 fenner Exp $
+ *	$Id: uipc_socket2.c,v 1.41 1998/11/11 10:03:56 truckman Exp $
  */
 
 #include <sys/param.h>
@@ -213,7 +213,6 @@ sonewconn(head, connstatus)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
-	fsetown(fgetown(head->so_sigio), &so->so_sigio);
 	so->so_uid = head->so_uid;
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
 
