@@ -13,26 +13,24 @@
 #
 # $FreeBSD$
 
-machine		"alpha"
-cpu		"EV5"
-ident		GENERIC
+machine		alpha
+cpu		EV5
+ident		SIMOS
 maxusers	10
 
-options 	"DEC_KN8AE"
+options 	DEC_KN8AE
 options 	SIMOS
 options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
 options 	MSDOSFS			#MSDOS Filesystem
-options 	"CD9660"		#ISO 9660 Filesystem
+options 	CD9660			#ISO 9660 Filesystem
 options 	NFS_ROOT		#NFS usable as root device
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
-options 	"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=100		#Be pessimistic about Joe SCSI device
-
-config		kernel
 
 device		pci
 
@@ -43,11 +41,7 @@ device		da
 device		sa
 device		cd
 
-# Order is important here due to intrusive probes, do *not* alphabetize
-# this list of network interfaces until the probes have been fixed.
-# Right now it appears that the ie0 must be probed before ep0. See
-# revision 1.20 of this file.
-#device de
+#device		de
 
 device		loop
 device		ether
