@@ -22,12 +22,10 @@ static const char rcsid[] =
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 
-int parse_line __P((char *, u_long *, u_long *, int *, unsigned *));
+static int parse_line (char *, u_long *, u_long *, int *, unsigned *);
 
 int
-main(argc, argv)
-int     argc;
-char  **argv;
+main(int argc, char **argv)
 {
     struct sockaddr_in addr;
     char    buf[BUFSIZ];
@@ -51,13 +49,8 @@ char  **argv;
 
 /* parse_line - convert line to numbers */
 
-int
-parse_line(buf, prog, vers, prot, port)
-char   *buf;
-u_long *prog;
-u_long *vers;
-int    *prot;
-unsigned *port;
+static int
+parse_line(char *buf, u_long *prog, u_long *vers, int *prot, unsigned *port)
 {
     char    proto_name[BUFSIZ];
 
