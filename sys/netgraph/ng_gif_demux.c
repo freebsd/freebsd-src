@@ -108,7 +108,6 @@ const static struct iffam gFamilies[] = {
 	{ AF_IPX,	NG_GIF_DEMUX_HOOK_IPX	},
 	{ AF_ATM,	NG_GIF_DEMUX_HOOK_ATM	},
 	{ AF_NATM,	NG_GIF_DEMUX_HOOK_NATM	},
-	{ AF_NS,	NG_GIF_DEMUX_HOOK_NS	},
 };
 #define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
 

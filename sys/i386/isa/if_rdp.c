@@ -83,11 +83,6 @@
 #include <netinet/if_ether.h>
 #endif
 
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
 #include <net/bpf.h>
 
 #include <machine/md_var.h>

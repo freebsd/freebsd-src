@@ -258,7 +258,6 @@ struct route_cb {
 	int	ip_count;
 	int	ip6_count;
 	int	ipx_count;
-	int	ns_count;
 	int	any_count;
 };
 
