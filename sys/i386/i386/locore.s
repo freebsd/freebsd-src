@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.118 1998/12/08 10:22:31 kato Exp $
+ *	$Id: locore.s,v 1.119 1999/01/30 15:38:47 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -260,9 +260,11 @@ NON_GPROF_ENTRY(btext)
 	movl	$R(HIDENAME(tmpstk)),%esp
 
 #ifdef PC98
-	testb	$0x02,0x100620		/* pc98_machine_type & M_EPSON_PC98 */
+	/* pc98_machine_type & M_EPSON_PC98 */
+	testb	$0x02,R(_pc98_system_parameter)+220
 	jz	3f
-	cmpb	$0x0b,0x100624		/* epson_machine_id <= 0x0b */
+	/* epson_machine_id <= 0x0b */
+	cmpb	$0x0b,R(_pc98_system_parameter)+224
 	ja	3f
 
 	/* count up memory */
@@ -277,7 +279,7 @@ NON_GPROF_ENTRY(btext)
 	loop	1b
 2:	subl	$0x100000,%eax
 	shrl	$17,%eax
-	movb	%al,0x100401
+	movb	%al,R(_pc98_system_parameter)+1
 3:
 #endif
 
