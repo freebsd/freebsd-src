@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.71 1998/12/30 08:09:11 kato Exp $
+ *	$Id: sio.c,v 1.72 1999/01/03 05:03:47 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -171,6 +171,9 @@
 #include <i386/isa/ic/esp.h>
 #endif
 #include <i386/isa/ic/ns16550.h>
+#ifdef PC98
+#include <i386/isa/ic/rsa.h>
+#endif
 
 #include "card.h"
 #if NCARD > 0
@@ -229,9 +232,11 @@
 #define COM_IIR_TXRDYBUG(dev) ((dev)->id_flags & COM_C_IIR_TXRDYBUG)
 #define	COM_FIFOSIZE(dev)	(((dev)->id_flags & 0xff000000) >> 24)
 
-#ifndef PC98
+#ifdef PC98
+#define	com_emr		com_msr	/* Extension mode register for RSB-2000/3000 */
+#else
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
-#endif /* !PC98 */
+#endif
 
 /*
  * Input buffer watermarks.
@@ -768,13 +773,23 @@ struct {
 #endif /* PC98 */
 
 #ifdef COM_ESP
-/* XXX configure this properly. */
 #ifdef PC98
+
+/* XXX configure this properly. */
 static  Port_t  likely_com_ports[] = { 0, 0xb0, 0xb1, 0 };
 static  Port_t  likely_esp_ports[] = { 0xc0d0, 0 };
-#else
+
+#define	ESP98_CMD1	(ESP_CMD1 * 0x100)
+#define	ESP98_CMD2	(ESP_CMD2 * 0x100)
+#define	ESP98_STATUS1	(ESP_STATUS1 * 0x100)
+#define	ESP98_STATUS2	(ESP_STATUS2 * 0x100)
+
+#else /* PC98 */
+
+/* XXX configure this properly. */
 static	Port_t	likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
 static	Port_t	likely_esp_ports[] = { 0x140, 0x180, 0x280, 0 };
+
 #endif /* PC98 */
 #endif
 
@@ -1424,8 +1439,13 @@ espattach(isdp, com, esp_port)
 	 */
 
 	/* Get the dip-switch configuration */
+#ifdef PC98
+	outb(esp_port + ESP98_CMD1, ESP_GETDIPS);
+	dips = inb(esp_port + ESP98_STATUS1);
+#else
 	outb(esp_port + ESP_CMD1, ESP_GETDIPS);
 	dips = inb(esp_port + ESP_STATUS1);
+#endif
 
 	/*
 	 * Bits 0,1 of dips say which COM port we are.
@@ -1444,9 +1464,15 @@ espattach(isdp, com, esp_port)
 	/*
 	 * Check for ESP version 2.0 or later:  bits 4,5,6 = 010.
 	 */
+#ifdef PC98
+	outb(esp_port + ESP98_CMD1, ESP_GETTEST);
+	val = inb(esp_port + ESP98_STATUS1);	/* clear reg 1 */
+	val = inb(esp_port + ESP98_STATUS2);
+#else
 	outb(esp_port + ESP_CMD1, ESP_GETTEST);
 	val = inb(esp_port + ESP_STATUS1);	/* clear reg 1 */
 	val = inb(esp_port + ESP_STATUS2);
+#endif
 	if ((val & 0x70) < 0x20) {
 		printf("-old (%o)", val & 0x70);
 		return (0);
@@ -1715,24 +1741,44 @@ sioattach(isdp)
 		 * bursts of input.
 		 * XXX flow control should be set in comparam(), not here.
 		 */
+#ifdef PC98
+		outb(com->esp_port + ESP98_CMD1, ESP_SETMODE);
+		outb(com->esp_port + ESP98_CMD2, ESP_MODE_RTS | ESP_MODE_FIFO);
+#else
 		outb(com->esp_port + ESP_CMD1, ESP_SETMODE);
 		outb(com->esp_port + ESP_CMD2, ESP_MODE_RTS | ESP_MODE_FIFO);
+#endif
 
 		/* Set RTS/CTS flow control. */
+#ifdef PC98
+		outb(com->esp_port + ESP98_CMD1, ESP_SETFLOWTYPE);
+		outb(com->esp_port + ESP98_CMD2, ESP_FLOW_RTS);
+		outb(com->esp_port + ESP98_CMD2, ESP_FLOW_CTS);
+#else
 		outb(com->esp_port + ESP_CMD1, ESP_SETFLOWTYPE);
 		outb(com->esp_port + ESP_CMD2, ESP_FLOW_RTS);
 		outb(com->esp_port + ESP_CMD2, ESP_FLOW_CTS);
+#endif
 
 		/* Set flow-control levels. */
+#ifdef PC98
+		outb(com->esp_port + ESP98_CMD1, ESP_SETRXFLOW);
+		outb(com->esp_port + ESP98_CMD2, HIBYTE(768));
+		outb(com->esp_port + ESP98_CMD2, LOBYTE(768));
+		outb(com->esp_port + ESP98_CMD2, HIBYTE(512));
+		outb(com->esp_port + ESP98_CMD2, LOBYTE(512));
+#else
 		outb(com->esp_port + ESP_CMD1, ESP_SETRXFLOW);
 		outb(com->esp_port + ESP_CMD2, HIBYTE(768));
 		outb(com->esp_port + ESP_CMD2, LOBYTE(768));
 		outb(com->esp_port + ESP_CMD2, HIBYTE(512));
 		outb(com->esp_port + ESP_CMD2, LOBYTE(512));
+#endif
+
 #ifdef PC98
                 /* Set UART clock prescaler. */
-                outb(com->esp_port + ESP_CMD1, ESP_SETCLOCK);
-                outb(com->esp_port + ESP_CMD2, 2);	/* 4 times */
+                outb(com->esp_port + ESP98_CMD1, ESP_SETCLOCK);
+                outb(com->esp_port + ESP98_CMD2, 2);	/* 4 times */
 #endif
 	}
 #endif /* COM_ESP */
