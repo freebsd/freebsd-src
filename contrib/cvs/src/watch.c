@@ -308,7 +308,7 @@ watch_addremove (argc, argv)
     }
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	start_server ();
 	ign_setup ();
@@ -348,7 +348,7 @@ watch_addremove (argc, argv)
 
     the_args.setting_default = (argc <= 0);
 
-    lock_tree_for_write (argc, argv, local, 0);
+    lock_tree_for_write (argc, argv, local, W_LOCAL, 0);
 
     err = start_recursion (addremove_fileproc, addremove_filesdoneproc,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
@@ -509,7 +509,7 @@ watchers (argc, argv)
     argv += optind;
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	start_server ();
 	ign_setup ();

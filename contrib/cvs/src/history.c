@@ -131,7 +131,7 @@
  *	-p repository	- Only records in which the "repository" string is a
  *			  prefix of the "repos" field are considered.
  *
- *	-m modulename	- Only records which contain "modulename" in the
+ *	-n modulename	- Only records which contain "modulename" in the
  *			  "module" field are considered.
  *
  *
@@ -191,8 +191,9 @@ static struct hrec
     char *end;		/* Ptr into repository to copy at end of workdir */
     char *mod;		/* The module within which the file is contained */
     time_t date;	/* Calculated from date stored in record */
-    int idx;		/* Index of record, for "stable" sort. */
+    long idx;		/* Index of record, for "stable" sort. */
 } *hrec_head;
+static long hrec_idx;
 
 
 static void fill_hrec PROTO((char *line, struct hrec * hr));
@@ -439,8 +440,8 @@ history (argc, argv)
 		save_file ("", optarg, (char *) NULL);
 		break;
 	    case 'm':			/* Full module report */
-		report_count++;
-		module_report++;
+		if (!module_report++) report_count++;
+		/* fall through */
 	    case 'n':			/* Look for specified module */
 		save_module (optarg);
 		break;
@@ -538,7 +539,7 @@ history (argc, argv)
 	error (1, 0, "Only one report type allowed from: \"-Tcomxe\".");
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	struct file_list_str *f1;
 	char **mod;
@@ -669,9 +670,9 @@ history (argc, argv)
 	fname = xstrdup (histfile);
     else
     {
-	fname = xmalloc (strlen (CVSroot_directory) + sizeof (CVSROOTADM)
+	fname = xmalloc (strlen (current_parsed_root->directory) + sizeof (CVSROOTADM)
 			 + sizeof (CVSROOTADM_HISTORY) + 10);
-	(void) sprintf (fname, "%s/%s/%s", CVSroot_directory,
+	(void) sprintf (fname, "%s/%s/%s", current_parsed_root->directory,
 			CVSROOTADM, CVSROOTADM_HISTORY);
     }
 
@@ -715,9 +716,9 @@ history_write (type, update_dir, revs, name, repository)
 	return;
     if ( strchr(logHistory, type) == NULL )	
 	return;
-    fname = xmalloc (strlen (CVSroot_directory) + sizeof (CVSROOTADM)
-		     + sizeof (CVSROOTADM_HISTORY) + 10);
-    (void) sprintf (fname, "%s/%s/%s", CVSroot_directory,
+    fname = xmalloc (strlen (current_parsed_root->directory) + sizeof (CVSROOTADM)
+		     + sizeof (CVSROOTADM_HISTORY) + 3);
+    (void) sprintf (fname, "%s/%s/%s", current_parsed_root->directory,
 		    CVSROOTADM, CVSROOTADM_HISTORY);
 
     /* turn off history logging if the history file does not exist */
@@ -984,7 +985,12 @@ expand_modules ()
  * 
  */
 
-#define NEXT_BAR(here) do { while (isspace(*line)) line++; hr->here = line; while ((c = *line++) && c != '|') ; if (!c) return; *(line - 1) = '\0'; } while (0)
+#define NEXT_BAR(here) do { \
+	while (isspace(*line)) line++; \
+	hr->here = line; \
+	while ((c = *line++) && c != '|') ; \
+	if (!c) return; line[-1] = '\0'; \
+	} while (0)
 
 static void
 fill_hrec (line, hr)
@@ -993,37 +999,31 @@ fill_hrec (line, hr)
 {
     char *cp;
     int c;
-    int off;
-    static int idx = 0;
-    unsigned long date;
 
-    memset ((char *) hr, 0, sizeof (*hr));
+    hr->type = hr->user = hr->dir = hr->repos = hr->rev = hr->file =
+	hr->end = hr->mod = NULL;
+    hr->date = -1;
+    hr->idx = ++hrec_idx;
 
     while (isspace ((unsigned char) *line))
 	line++;
 
     hr->type = line++;
-    (void) sscanf (line, "%lx", &date);
-    hr->date = date;
-    while (*line && strchr ("0123456789abcdefABCDEF", *line))
-	line++;
-    if (*line == '\0')
+    hr->date = strtoul (line, &cp, 16);
+    if (cp == line || *cp != '|')
 	return;
-
-    line++;
+    line = cp + 1;
     NEXT_BAR (user);
     NEXT_BAR (dir);
     if ((cp = strrchr (hr->dir, '*')) != NULL)
     {
 	*cp++ = '\0';
-	(void) sscanf (cp, "%x", &off);
-	hr->end = line + off;
+	hr->end = line + strtoul (cp, NULL, 16);
     }
     else
 	hr->end = line - 1;		/* A handy pointer to '\0' */
     NEXT_BAR (repos);
     NEXT_BAR (rev);
-    hr->idx = idx++;
     if (strchr ("FOET", *(hr->type)))
 	hr->mod = line;
 
@@ -1055,7 +1055,7 @@ static void
 read_hrecs (fname)
     char *fname;
 {
-    unsigned char *cpstart, *cp, *nl;
+    unsigned char *cpstart, *cpend, *cp, *nl;
     char *hrline;
     int i;
     int fd;
@@ -1072,21 +1072,22 @@ read_hrecs (fname)
 
     cpstart = xmalloc (2 * STAT_BLOCKSIZE(st_buf));
     cpstart[0] = '\0';
-    cp = cpstart;
+    cp = cpend = cpstart;
 
     hrec_max = HREC_INCREMENT;
     hrec_head = xmalloc (hrec_max * sizeof (struct hrec));
+    hrec_idx = 0;
 
     for (;;)
     {
-	for (nl = cp; *nl && *nl != '\n'; nl++)
+	for (nl = cp; nl < cpend && *nl != '\n'; nl++)
 	    if (!isprint(*nl)) *nl = ' ';
 
-	if (!*nl)
+	if (nl >= cpend)
 	{
 	    if (nl - cp >= STAT_BLOCKSIZE(st_buf))
 	    {
-		error(1, 0, "history line too long (> %lu)",
+		error(1, 0, "history line %ld too long (> %lu)", hrec_idx + 1,
 		      (unsigned long) STAT_BLOCKSIZE(st_buf));
 	    }
 	    if (nl > cp)
@@ -1096,13 +1097,14 @@ read_hrecs (fname)
 	    i = read (fd, nl, STAT_BLOCKSIZE(st_buf));
 	    if (i > 0)
 	    {
-		nl[i] = '\0';
+		cpend = nl + i;
+		*cpend = '\0';
 		continue;
 	    }
 	    if (i < 0)
 		error (1, errno, "error reading history file");
 	    if (nl == cp) break;
-	    nl[1] = '\0';
+	    error (0, 0, "warning: no newline at end of history file");
 	}
 	*nl = '\0';
 
@@ -1191,6 +1193,14 @@ select_hrec (hr)
     char **cpp, *cp, *cp2;
     struct file_list_str *fl;
     int count;
+
+    /* basic validity checking */
+    if (!hr->type || !hr->user || !hr->dir || !hr->repos || !hr->rev ||
+	!hr->file || !hr->end)
+    {
+	error (0, 0, "warning: history line %ld invalid", hr->idx);
+	return (0);
+    }
 
     /* "Since" checking:  The argument parser guarantees that only one of the
      *			  following four choices is set:

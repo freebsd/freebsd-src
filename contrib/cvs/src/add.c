@@ -93,7 +93,7 @@ add (argc, argv)
     if (argc <= 0)
 	usage (add_usage);
 
-    cvsroot_len = strlen (CVSroot_directory);
+    cvsroot_len = strlen (current_parsed_root->directory);
 
     /* First some sanity checks.  I know that the CVS case is (sort of)
        also handled by add_directory, but we need to check here so the
@@ -111,7 +111,8 @@ add (argc, argv)
 	    || strcmp (argv[i], "..") == 0
 	    || fncmp (argv[i], CVSADM) == 0)
 	{
-	    error (0, 0, "cannot add special file `%s'; skipping", argv[i]);
+	    if (!quiet)
+		error (0, 0, "cannot add special file `%s'; skipping", argv[i]);
 	    skip_file = 1;
 	}
 	else
@@ -147,7 +148,7 @@ add (argc, argv)
     }
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	int i;
 
@@ -227,7 +228,7 @@ add (argc, argv)
 		repository = Name_Repository (NULL, update_dir);
 
 		/* don't add stuff to Emptydir */
-		if (strncmp (repository, CVSroot_directory, cvsroot_len) == 0
+		if (strncmp (repository, current_parsed_root->directory, cvsroot_len) == 0
 		    && ISDIRSEP (repository[cvsroot_len])
 		    && strncmp (repository + cvsroot_len + 1,
 				CVSROOTADM,
@@ -323,7 +324,7 @@ add (argc, argv)
 	repository = Name_Repository (NULL, finfo.update_dir);
 
 	/* don't add stuff to Emptydir */
-	if (strncmp (repository, CVSroot_directory, cvsroot_len) == 0
+	if (strncmp (repository, current_parsed_root->directory, cvsroot_len) == 0
 	    && ISDIRSEP (repository[cvsroot_len])
 	    && strncmp (repository + cvsroot_len + 1,
 			CVSROOTADM,
@@ -356,7 +357,7 @@ add (argc, argv)
 		error (1, errno, "cannot read directory %s", finfo.repository);
 	    found_name = NULL;
 	    errno = 0;
-	    while ((dp = readdir (dirp)) != NULL)
+	    while ((dp = CVS_READDIR (dirp)) != NULL)
 	    {
 		if (cvs_casecmp (dp->d_name, finfo.file) == 0)
 		{
@@ -368,7 +369,7 @@ add (argc, argv)
 	    }
 	    if (errno != 0)
 		error (1, errno, "cannot read directory %s", finfo.repository);
-	    closedir (dirp);
+	    CVS_CLOSEDIR (dirp);
 
 	    if (found_name != NULL)
 	    {
@@ -448,8 +449,8 @@ add (argc, argv)
 		    if (vers->nonbranch)
 		    {
 			error (0, 0,
-			       "cannot add file on non-branch tag %s",
-			       vers->tag);
+				"cannot add file on non-branch tag %s",
+				vers->tag);
 			++err;
 		    }
 		    else
@@ -505,18 +506,21 @@ same name already exists in the repository.");
 		    }
 		    else
 		    {
-			if (vers->tag)
-			    error (0, 0, "\
+			if (!quiet)
+			{
+			    if (vers->tag)
+				error (0, 0, "\
 file `%s' will be added on branch `%s' from version %s",
-				   finfo.fullname, vers->tag, vers->vn_rcs);
-			else
-			    /* I'm not sure that mentioning
-			       vers->vn_rcs makes any sense here; I
-			       can't think of a way to word the
-			       message which is not confusing.  */
-			    error (0, 0, "\
+					finfo.fullname, vers->tag, vers->vn_rcs);
+			    else
+				/* I'm not sure that mentioning
+				   vers->vn_rcs makes any sense here; I
+				   can't think of a way to word the
+				   message which is not confusing.  */
+				error (0, 0, "\
 re-adding file %s (in place of dead revision %s)",
-				   finfo.fullname, vers->vn_rcs);
+					finfo.fullname, vers->vn_rcs);
+			}
 			Register (entries, finfo.file, "0", vers->ts_user,
 				  vers->options,
 				  vers->tag, NULL, NULL);
@@ -542,7 +546,8 @@ re-adding file %s (in place of dead revision %s)",
 	     * An entry for a new-born file, ts_rcs is dummy, but that is
 	     * inappropriate here
 	     */
-	    error (0, 0, "%s has already been entered", finfo.fullname);
+	    if (!quiet)
+		error (0, 0, "%s has already been entered", finfo.fullname);
 	    err++;
 	}
 	else if (vers->vn_user[0] == '-')
@@ -607,9 +612,10 @@ cannot resurrect %s; RCS file removed by second party", finfo.fullname);
 	else
 	{
 	    /* A normal entry, ts_rcs is valid, so it must already be there */
-	    error (0, 0, "%s already exists, with version number %s",
-		   finfo.fullname,
-		   vers->vn_user);
+	    if (!quiet)
+		error (0, 0, "%s already exists, with version number %s",
+			finfo.fullname,
+			vers->vn_user);
 	    err++;
 	}
 	freevers_ts (&vers);
@@ -641,7 +647,7 @@ cannot resurrect %s; RCS file removed by second party", finfo.fullname);
 	    free (found_name);
 #endif
     }
-    if (added_files)
+    if (added_files && !really_quiet)
 	error (0, 0, "use '%s commit' to add %s permanently",
 	       program_name,
 	       (added_files == 1) ? "this file" : "these files");

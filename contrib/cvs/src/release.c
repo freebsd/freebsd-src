@@ -118,14 +118,14 @@ release (argc, argv)
      */
     /* Construct the update command. */
     update_cmd = xmalloc (strlen (program_path)
-			  + strlen (CVSroot_original)
+			  + strlen (current_parsed_root->original)
 			  + 20);
     sprintf (update_cmd, "%s -n -q -d %s update",
-             program_path, CVSroot_original);
+             program_path, current_parsed_root->original);
 
 #ifdef CLIENT_SUPPORT
     /* Start the server; we'll close it after looping. */
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	start_server ();
 	ign_setup ();
@@ -226,7 +226,7 @@ release (argc, argv)
 
 	if (1
 #ifdef CLIENT_SUPPORT
-	    && !(client_active
+	    && !(current_parsed_root->isremote
 		 && (!supported_request ("noop")
 		     || !supported_request ("Notify")))
 #endif
@@ -242,7 +242,7 @@ release (argc, argv)
 	}
 
 #ifdef CLIENT_SUPPORT
-        if (client_active)
+        if (current_parsed_root->isremote)
         {
 	    send_to_server ("Argument ", 0);
 	    send_to_server (thisarg, 0);
@@ -271,7 +271,7 @@ release (argc, argv)
 	}
 
 #ifdef CLIENT_SUPPORT
-        if (client_active)
+        if (current_parsed_root->isremote)
 	    err += get_server_responses ();
 #endif /* CLIENT_SUPPORT */
     }
@@ -281,7 +281,7 @@ release (argc, argv)
     free_cwd (&cwd);
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	/* Unfortunately, client.c doesn't offer a way to close
 	   the connection without waiting for responses.  The extra

@@ -1,3 +1,70 @@
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
+
+2001-03-24  Noel Cragg  <noel@shave.red-bean.com>
+
+	* diff.c: fix typo in usage string.
+
+2001-03-20  Derek Price  <derek.price@openavenue.com>
+	    for Karl Tomlinson  <k.tomlinson@auckland.ac.nz>
+
+	* diff3.c (main): changed the common file of the two diffs to
+	OLDFILE for merges and edscripts so that the diffs are more likely
+	to contain the intended changes.  Not changing the horizon-lines
+	arg for the second diff.  If the two diffs have the same parameters
+	equal changes in each diff are more likely to appear the same.
+
+	* analyze.c (shift_boundaries): undid Paul Eggert's patch to fix
+	the diff3 merge bug described in ccvs/doc/DIFFUTILS-2.7-BUG.  The
+	patch is no longer necessary now that diff3 does its differences
+	differently.  I think the hunk merges provide a better indication
+	of the area modified by the user now that the diffs are actually
+	done between the appropriate revisions.
+
+2001-03-15  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (INCLUDES): Add -I$(top_srcdir)/lib for platforms which
+	need the regex library there.
+
+	* Makefile.in: Regenerated.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+	* .cvsignore: Added '.deps'.
+
+	    Pavel Roskin  <proski@gnu.org>
+
+	* Makefile.am: New file.
+	* Makefile.in: Regenerated.
+
+2001-02-22  Derek Price  <derek.price@openavenue.com>
+	    Pavel Roskin  <proski@gnu.org>
+
+	* Makefile.in: Don't define PR_PROGRAM - it's defined by configure.
+	Remove separate rule for util.c.
+
+2001-02-06  Derek Price  <derek.price@openavenue.com>
+	    Rex Jolliff  <Rex_Jolliff@notes.ymp.gov>
+	    Shawn Smith  <Shawn_Smith@notes.ymp.gov>
+
+	* dir.c: Replace opendir, closedir, & readdir calls with CVS_OPENDIR,
+	CVS_CLOSEDIR, & CVS_READDIR in support of changes to handle VMS DEC C
+	5.7 {open,read,close}dir problems.  Check today's entry in the vms
+	subdir for more.
+	* system.h: definitions of CVS_*DIR provided here.
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: Some changes to support Automake targets
+
+2000-10-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in: Get PR_PROGRAM from autoconf instead of hard coding.
+	(Patch submitted by Urs Thuermann <urs@isnogud.escape.de>.)
+	Also add a dependency for util.o on Makefile since PR_PROGRAM gets
+	compiled in.
+
 2000-08-03  Larry Jones  <larry.jones@sdrc.com>
 
 	* diff3.c (read_diff): Use cvs_temp_name () instead of tmpnam () so
