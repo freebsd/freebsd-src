@@ -1,7 +1,7 @@
 /*
  * extensions to ioctl_meteor.h for the bt848 cards
  *
- * $Id: ioctl_bt848.h,v 1.19 1998/09/30 21:06:55 sos Exp $
+ * $Id: ioctl_bt848.h,v 1.20 1999/01/28 16:32:52 roger Exp $
  */
 
 /*
@@ -101,7 +101,7 @@ struct eeProm {
 #define	TVTUNER_GETSTATUS  _IOR('x', 34, unsigned int)	/* get tuner status */
 #define	TVTUNER_SETFREQ    _IOW('x', 35, unsigned int)	/* set frequency */
 #define	TVTUNER_GETFREQ    _IOR('x', 36, unsigned int)	/* get frequency */
-
+ 
 
 #define BT848_SHUE	_IOW('x', 37, int)		/* set hue */
 #define BT848_GHUE	_IOR('x', 37, int)		/* get hue */
@@ -136,6 +136,29 @@ struct eeProm {
 #define BT848_SLNOTCH	_IOW('x', 55, int)		/* set luma notch */
 #define BT848_GLNOTCH	_IOR('x', 56, int)		/* get luma notch */
 
+#define BT848_MAX_CHNLSET_NAME_LEN 16
+struct bktr_chnlset {
+       short   index;
+       short   max_channel;
+       char    name[BT848_MAX_CHNLSET_NAME_LEN];
+};
+
+#define	TVTUNER_GETCHNLSET _IOWR('x', 57, struct bktr_chnlset) /* get channelset */
+
+struct bktr_remote {
+       unsigned char data[3];
+};
+#define	REMOTE_GETKEY _IOR('x', 58, struct bktr_remote) /*get remote keypress*/                                                         /*returns raw data*/
+
+
+/*
+ * Direct access to GPIO pins
+ */
+#define BT848_GPIO_SET_EN      _IOW('x', 59, int)      /* set gpio_out_en */
+#define BT848_GPIO_GET_EN      _IOR('x', 60, int)      /* get gpio_out_en */
+#define BT848_GPIO_SET_DATA    _IOW('x', 61, int)      /* set gpio_data */
+#define BT848_GPIO_GET_DATA    _IOR('x', 62, int)      /* get gpio_data */
+ 
 /*
  * XXX: more bad magic,
  *      we need to fix the METEORGINPUT to return something public
