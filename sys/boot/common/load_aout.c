@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.6 1998/09/26 10:51:38 dfr Exp $
+ *	$Id: load_aout.c,v 1.7 1998/09/30 19:26:23 peter Exp $
  */
 
 #include <sys/param.h>
@@ -212,7 +212,7 @@ aout_loadimage(int fd, vm_offset_t loadaddr, struct exec *ehdr, int kernel)
     addr += sizeof(ehdr->a_syms);
 
     /* symbol table */
-    printf("symbols=[0x%lx+0x%lx", sizeof(ehdr->a_syms), ehdr->a_syms);
+    printf("symbols=[0x%x+0x%lx", sizeof(ehdr->a_syms), ehdr->a_syms);
     if (archsw.arch_readin(fd, addr, ehdr->a_syms) != ehdr->a_syms)
 	return(0);
     addr += ehdr->a_syms;
@@ -222,7 +222,7 @@ aout_loadimage(int fd, vm_offset_t loadaddr, struct exec *ehdr, int kernel)
     archsw.arch_copyin(&ss, addr, sizeof(ss));
     addr += sizeof(ss);
     ss -= sizeof(ss);
-    printf("+0x%lx+0x%x]", sizeof(ss), ss);
+    printf("+0x%x+0x%x]", sizeof(ss), ss);
     if (archsw.arch_readin(fd, addr, ss) != ss)
 	return(0);
     printf(" \n");
