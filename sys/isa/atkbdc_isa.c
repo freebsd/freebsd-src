@@ -62,9 +62,9 @@ static int	atkbdc_probe(device_t dev);
 static int	atkbdc_attach(device_t dev);
 static int	atkbdc_print_child(device_t bus, device_t dev);
 static int	atkbdc_read_ivar(device_t bus, device_t dev, int index,
-				 u_long *val);
+				 uintptr_t *val);
 static int	atkbdc_write_ivar(device_t bus, device_t dev, int index,
-				  u_long val);
+				  uintptr_t val);
 
 static device_method_t atkbdc_methods[] = {
 	DEVMETHOD(device_probe,		atkbdc_probe),
@@ -254,7 +254,7 @@ atkbdc_print_child(device_t bus, device_t dev)
 }
 
 static int
-atkbdc_read_ivar(device_t bus, device_t dev, int index, u_long *val)
+atkbdc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 {
 	atkbdc_device_t *ivar;
 
@@ -285,7 +285,7 @@ atkbdc_read_ivar(device_t bus, device_t dev, int index, u_long *val)
 }
 
 static int
-atkbdc_write_ivar(device_t bus, device_t dev, int index, u_long val)
+atkbdc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
 {
 	atkbdc_device_t *ivar;
 
