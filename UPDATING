@@ -48,6 +48,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	"options CPU_ENABLE_TCC" obsolete.  Please load cpufreq.ko or
 	compile in "device cpufreq" to restore this functionality.
 
+20050220:
+	The responsibility of recomputing the file system summary of
+	a SoftUpdates-enabled dirty volume has been transferred to the
+	background fsck.  A rebuild of fsck(8) utility is recommended
+	if you have updated the kernel.
+
+	To get the old behavior (recompute file system summary at mount
+	time), you can set vfs.ffs.compute_summary_at_mount=1 before
+	mounting the new volume.
+
 20050206:
 	The cpufreq import is complete.  As part of this, the sysctls for
 	acpi(4) throttling have been removed.  The power_profile script
