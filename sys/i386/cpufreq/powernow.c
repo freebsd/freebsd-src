@@ -636,7 +636,13 @@ pn_decode_pst(device_t dev)
 		default:
 			return (ENODEV);
 		case 0x14:
-			if (sc->pn_type != PN8_TYPE || psb->numpst != 1)
+			/*
+			 * We can't be picky about numpst since at least
+			 * some systems have a value of 1 and some have 2.
+			 * We trust that cpuid_is_k7() will be better at
+			 * catching that we're on a K8 anyway.
+			 */
+			if (sc->pn_type != PN8_TYPE)
 				return (EINVAL);
 			sc->vst = psb->settlingtime;
 			sc->rvo = PN8_PSB_TO_RVO(psb->res1),
