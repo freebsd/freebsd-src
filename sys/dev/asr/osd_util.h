@@ -219,12 +219,12 @@
   /* Reverses the byte ordering of a 2 byte variable */
 #if (!defined(osdSwap2))
  uSHORT       osdSwap2(DPT_UNALIGNED uSHORT *);
-#endif  // !osdSwap2
+#endif  /* !osdSwap2 */
 
   /* Reverses the byte ordering of a 4 byte variable and shifts left 8 bits */
 #if (!defined(osdSwap3))
  uLONG        osdSwap3(DPT_UNALIGNED uLONG *);
-#endif  // !osdSwap3
+#endif  /* !osdSwap3 */
 
 
 #ifdef  _DPT_NETWARE
@@ -236,12 +236,12 @@
 	 }
    #else
 	 #define osdSwap4(inLong)       DPT_Bswapl(inLong)
-   #endif  // cplusplus
+   #endif  /* cplusplus */
 #else
 	/* Reverses the byte ordering of a 4 byte variable */
 # if (!defined(osdSwap4))
    uLONG        osdSwap4(DPT_UNALIGNED uLONG *);
-# endif  // !osdSwap4
+# endif  /* !osdSwap4 */
 
   /* The following functions ALWAYS swap regardless of the *
    * presence of DPT_BIG_ENDIAN                            */
@@ -249,7 +249,7 @@
    uSHORT       trueSwap2(DPT_UNALIGNED uSHORT *);
    uLONG        trueSwap4(DPT_UNALIGNED uLONG *);
 
-#endif  // netware
+#endif  /* netware */
 
 
 /*-------------------------------------*
@@ -269,15 +269,15 @@ uLONG	netSwap4(uLONG val);
 
 #if defined (_DPT_BIG_ENDIAN)
 
-// for big-endian we need to swap
+/* for big-endian we need to swap */
 
 #ifndef NET_SWAP_2
 #define NET_SWAP_2(x) (((x) >> 8) | ((x) << 8))
-#endif  // NET_SWAP_2
+#endif  /* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
 #define NET_SWAP_4(x) netSwap4((x))
-#endif  // NET_SWAP_4
+#endif  /* NET_SWAP_4 */
 
 #else
 
@@ -285,13 +285,13 @@ uLONG	netSwap4(uLONG val);
 
 #ifndef NET_SWAP_2
 #define NET_SWAP_2(x) (x)
-#endif  // NET_SWAP_2
+#endif  /* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
 #define NET_SWAP_4(x) (x)
-#endif  // NET_SWAP_4
+#endif  /* NET_SWAP_4 */
 
-#endif  // big endian
+#endif  /* big endian */
 
 
 
