@@ -500,7 +500,7 @@
         <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
         restrictive licensing conditions.  These programs are available
         in the ports collection as <filename>net/pim6dd</filename> and
-        <filename>net/pim6dd</filename>.</para>
+        <filename>net/pim6sd</filename>.</para>
 
 	<para>&man.route6d.8; now supports a <option>-n</option> flag
 	to avoid updating the kernel forwarding table.</para>
