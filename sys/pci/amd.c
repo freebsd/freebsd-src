@@ -694,7 +694,7 @@ amd_poll(struct cam_sim * psim)
 static u_int8_t * 
 phystovirt(struct amd_srb * pSRB, u_int32_t xferCnt)
 {
-	int     dataPtr;
+	intptr_t   dataPtr;
 	struct ccb_scsiio *pcsio;
 	u_int8_t   i;
 	struct amd_sg *    pseg;
@@ -702,7 +702,7 @@ phystovirt(struct amd_srb * pSRB, u_int32_t xferCnt)
 	dataPtr = 0;
 	pcsio = &pSRB->pccb->csio;
 
-	dataPtr = (int) pcsio->data_ptr;
+	dataPtr = (intptr_t) pcsio->data_ptr;
 	pseg = pSRB->SGsegment;
 	for (i = 0; i < pSRB->SGIndex; i++) {
 		dataPtr += (int) pseg->SGXLen;
