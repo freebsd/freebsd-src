@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #define	BNICHOST	"whois.registro.br"
 #define NORIDHOST	"whois.norid.no"
 #define	IANAHOST	"whois.iana.org"
+#define GERMNICHOST	"de.whois-servers.net"
 #define	DEFAULT_PORT	"whois"
 #define	WHOIS_SERVER_ID	"Whois Server: "
 #define	WHOIS_ORG_SERVER_ID	"Registrant Street1:Whois Server:"
@@ -291,7 +292,11 @@ whois(const char *query, const char *hostname, int flags)
 	sfo = fdopen(s, "w");
 	if (sfi == NULL || sfo == NULL)
 		err(EX_OSERR, "fdopen()");
-	fprintf(sfo, "%s\r\n", query);
+	if (strcmp(hostname, GERMNICHOST) == 0) {
+		fprintf(sfo, "-T dn,ace -C US-ASCII %s\r\n", query);
+	} else {
+		fprintf(sfo, "%s\r\n", query);
+	}
 	fflush(sfo);
 	nhost = NULL;
 	while ((buf = fgetln(sfi, &len)) != NULL) {
