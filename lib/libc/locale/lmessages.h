@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001 Alexey Zelkin
+ * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,11 +29,11 @@
 #ifndef _LMESSAGES_H
 #define _LMESSAGES_H
 
-struct lc_messages_T {
-	const char *	yesexpr;
-	const char *	noexpr;
-	const char *	yesstr;
-	const char *	nostr;
+struct	lc_messages_T {
+	const char	*yesexpr;
+	const char	*noexpr;
+	const char	*yesstr;
+	const char	*nostr;
 };
 
 extern struct lc_messages_T * __get_current_messages_locale(void);
