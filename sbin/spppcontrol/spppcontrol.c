@@ -32,10 +32,15 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/callout.h>
 #include <sys/ioctl.h>
+#include <sys/mbuf.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <net/slcompress.h>
 #include <net/if_sppp.h>
 
 #include <err.h>
@@ -160,6 +165,10 @@ main(int argc, char **argv)
 			spr.defs.hisauth.flags |= AUTHFLAG_NORECHALLENGE;
 		else if (strcmp(argv[0], "rechallenge") == 0)
 			spr.defs.hisauth.flags &= ~AUTHFLAG_NORECHALLENGE;
+		else if (strcmp(argv[0], "enable-vj") == 0)
+			spr.defs.enable_vj = 1;
+		else if (strcmp(argv[0], "disable-vj") == 0)
+			spr.defs.enable_vj = 0;
 		else
 			errx(EX_DATAERR, "bad parameter: \"%s\"", argv[0]);
 
@@ -202,6 +211,7 @@ print_vals(const char *ifname, struct spppreq *sp)
 		       AUTHNAMELEN, sp->defs.hisauth.name,
 		       authflags(sp->defs.hisauth.flags));
 	}
+	printf("\t%sable-vj\n", sp->defs.enable_vj? "en": "dis");
 }
 
 const char *
