@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.49 1996/04/25 06:04:27 asami Exp $
+**  $Id: pci.c,v 1.50 1996/05/18 17:32:20 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -748,7 +748,8 @@ pci_bus_config (void)
 			**  allocate bus descriptor for bus behind the bridge
 			*/
 			link = &pcicb->pcicb_down;
-			while (*link) link = &(*link)->pcicb_next;
+			while (*link && (*link)->pcicb_bus < secondary)
+				link = &(*link)->pcicb_next;
 
 			this = malloc (sizeof (*this), M_DEVBUF, M_WAITOK);
 
@@ -758,6 +759,7 @@ pci_bus_config (void)
 			**	scanning the bus behind the bridge.
 			*/
 			bzero (this, sizeof(*this));
+			this->pcicb_next        = *link;
 			this->pcicb_up		= pcicb;
 			this->pcicb_bridge      = tag;
 			this->pcicb_bus 	= secondary;
