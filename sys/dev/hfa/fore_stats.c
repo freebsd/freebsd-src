@@ -130,7 +130,7 @@ fore_get_stats(fup)
 	 */
 	hcp = fup->fu_cmd_tail;
 	if ((*hcp->hcq_status) & QSTAT_FREE) {
-		void	*dma;
+		vm_paddr_t	dma;
 
 		/*
 		 * Queue entry available, so set our view of things up
@@ -146,7 +146,7 @@ fore_get_stats(fup)
 		cqp = hcp->hcq_cpelem;
 		(*hcp->hcq_status) = QSTAT_PENDING;
 
-		dma = (void *)vtophys(fup->fu_stats);
+		dma = vtophys(fup->fu_stats);
 		if (dma == NULL) {
 			fup->fu_stats->st_drv.drv_cm_nodma++;
 			(void) splx(s);

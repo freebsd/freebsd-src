@@ -92,6 +92,7 @@ fore_cmd_allocate(fup)
 	Fore_unit	*fup;
 {
 	caddr_t		memp;
+	vm_paddr_t	pmemp;
 
 	/*
 	 * Allocate non-cacheable memory for command status words
@@ -103,11 +104,11 @@ fore_cmd_allocate(fup)
 	}
 	fup->fu_cmd_stat = (Q_status *) memp;
 
-	memp = (caddr_t)vtophys(fup->fu_cmd_stat);
-	if (memp == NULL) {
+	pmemp = vtophys(fup->fu_cmd_stat);
+	if (pmemp == NULL) {
 		return (1);
 	}
-	fup->fu_cmd_statd = (Q_status *) memp;
+	fup->fu_cmd_statd = pmemp;
 
 	/*
 	 * Allocate memory for statistics buffer
@@ -153,7 +154,7 @@ fore_cmd_initialize(fup)
 	Cmd_queue	*cqp;
 	H_cmd_queue	*hcp;
 	Q_status	*qsp;
-	Q_status	*qsp_dma;
+	vm_paddr_t	qsp_dma;
 	int		i;
 
 	/*
@@ -198,7 +199,7 @@ fore_cmd_initialize(fup)
 		 */
 		hcp++;
 		qsp++;
-		qsp_dma++;
+		qsp_dma += sizeof(Q_status);
 		cqp++;
 	}
 
