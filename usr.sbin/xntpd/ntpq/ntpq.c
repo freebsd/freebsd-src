@@ -1,5 +1,7 @@
 /*
  * ntpq - query an NTP server using mode 6 commands
+ *
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <ctype.h>
@@ -512,7 +514,7 @@ int debug;
 /*
  * main - parse arguments and handle options
  */
-void
+int
 main(argc, argv)
 int argc;
 char *argv[];

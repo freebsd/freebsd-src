@@ -423,7 +423,7 @@ int download()
 
 /*****************************************************************************/
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	struct stat	statinfo;
 	int		c;

@@ -1,5 +1,7 @@
 /*
  * ntpdate - set the time of day by polling one or more NTP servers
+ *
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <signal.h>
@@ -156,7 +158,7 @@ static	void	printserver	P((struct server *, FILE *));
  * Main program.  Initialize us and loop waiting for I/O and/or
  * timer expiries.
  */
-void
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
