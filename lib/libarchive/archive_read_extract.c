@@ -394,11 +394,10 @@ archive_read_extract_dir(struct archive *a, struct archive_entry *entry,
 	mode = st->st_mode;
 
 	/*
-	 * XXX TODO: Does this really work under all conditions?
-	 * E.g., root restores a dir owned by someone else? XXX
+	 * Use conservative permissions when creating directories
+	 * to close a few security races.
 	 */
-	/* Ensure we can write to this directory. */
-	writable_mode = mode | 0700;
+	writable_mode = 0700;
 
 	if (mode != writable_mode || flags & ARCHIVE_EXTRACT_TIME) {
 		/* Add this dir to the fixup list. */
@@ -694,21 +693,34 @@ archive_read_extract_fifo(struct archive *a,
 /*
  * Returns 0 if it successfully created necessary directories.
  * Otherwise, returns ARCHIVE_WARN.
+ *
+ * XXX TODO: Merge this with archive_extract_dir() above; that will
+ * allow us to deal with all directory-related security and
+ * permissions issues in one place. XXX
  */
 static int
 mkdirpath(struct archive *a, const char *path)
 {
 	char *p;
 	struct extract *extract;
+	size_t len;
 
 	extract = a->extract;
 
 	/* Copy path to mutable storage, then call mkdirpath_recursive. */
 	archive_strcpy(&(extract->mkdirpath), path);
-	/* Prune a trailing '/' character. */
 	p = extract->mkdirpath.s;
-	if (p[strlen(p)-1] == '/')
-		p[strlen(p)-1] = 0;
+	len = strlen(p);
+	/* Prune trailing "/." sequence. */
+	if (len > 2 && p[len - 1] == '.' && p[len - 2] == '/') {
+		p[len - 1] = 0;
+		len--;
+	}
+	/* Prune a trailing '/' character. */
+	if (p[len - 1] == '/') {
+		p[len - 1] = 0;
+		len--;
+	}
 	/* Recursively try to build the path. */
 	return (mkdirpath_recursive(p));
 }
@@ -736,6 +748,10 @@ mkdirpath_recursive(char *path)
 static int
 mksubdir(char *path)
 {
+	/*
+	 * TODO: Change mode here to 0700 and add a fixup entry
+	 * to change the mode to 0755 after the extract is finished.
+	 */
 	int mode = 0755;
 
 	if (mkdir(path, mode) == 0) return (0);
