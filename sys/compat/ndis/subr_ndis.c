@@ -1961,7 +1961,7 @@ ndis_wait_event(event, msecs)
 		return(TRUE);
 	}
 
-	INSERT_LIST_HEAD((&event->ne_event.nk_header.dh_waitlisthead),
+	INSERT_LIST_TAIL((&event->ne_event.nk_header.dh_waitlisthead),
 	    (&w.wb_waitlist));
 
 	tv.tv_sec = 0;

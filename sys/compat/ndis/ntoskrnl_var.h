@@ -150,7 +150,7 @@ typedef struct list_entry list_entry;
 		list_entry		*b;	\
 						\
 		b = l->nle_blink;		\
-		e->nle_flink = l		\
+		e->nle_flink = l;		\
 		e->nle_blink = b;		\
 		b->nle_flink = e;		\
 		l->nle_blink = e;		\
@@ -264,6 +264,8 @@ struct kmutant {
 };
 
 typedef struct kmutant kmutant;
+
+#define LOOKASIDE_DEPTH 256
 
 struct general_lookaside {
 	slist_header		gl_listhead;
