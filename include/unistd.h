@@ -49,11 +49,17 @@
 #endif
 
 __BEGIN_DECLS
+#ifdef	__STDC__
+struct timespec;			/* nanosleep(2), clock_*(2) etc */
+#endif
 void	 _exit __P((int)) __dead2;
 int	 access __P((const char *, int));
 unsigned int	 alarm __P((unsigned int));
 int	 chdir __P((const char *));
 int	 chown __P((const char *, uid_t, gid_t));
+int	 clock_getres __P((clockid_t, struct timespec *));
+int	 clock_gettime __P((clockid_t, struct timespec *));
+int	 clock_settime __P((clockid_t, const struct timespec *));
 int	 close __P((int));
 int	 dup __P((int));
 int	 dup2 __P((int, int));
@@ -81,6 +87,7 @@ int	 link __P((const char *, const char *));
 #define	_LSEEK_DECLARED
 off_t	 lseek __P((int, off_t, int));
 #endif
+int	 nanosleep __P((const struct timespec *, struct timespec *));
 long	 pathconf __P((const char *, int));
 int	 pause __P((void));
 int	 pipe __P((int *));
