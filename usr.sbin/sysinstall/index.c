@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.28 1996/05/01 09:31:50 jkh Exp $
+ * $Id: index.c,v 1.29 1996/05/16 11:47:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -518,7 +518,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
     PkgNodePtr tmp;
     int status = DITEM_SUCCESS;
 
-    for (tmp = plist->kids; tmp; tmp = tmp->next)
+    for (tmp = plist->kids; tmp && tmp->name; tmp = tmp->next)
 	status = index_extract_one(dev, top, tmp, FALSE);
     return status;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.35 1996/04/30 06:13:50 jkh Exp $
+ * $Id: package.c,v 1.36 1996/05/16 11:47:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -38,6 +38,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/errno.h>
+#include <sys/time.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -114,27 +115,35 @@ package_extract(Device *dev, char *name, Boolean depended)
 	else {
 	    char buf[BUFSIZ];
 	    WINDOW *w = savescr();
+	    struct timeval start, stop;
 
 	    close(pfd[0]);
 	    tot = 0;
-	    while ((i = read(fd, buf, BUFSIZ)) > 0) {
-		char line[80];
-		int x, len;
+	    (void)gettimeofday(&start, (struct timezone *)0);
 
-		write(pfd[1], buf, i);
+	    while ((i = read(fd, buf, BUFSIZ)) > 0) {
+		int seconds;
+
 		tot += i;
-		sprintf(line, "%d bytes read from package %s", tot, name);
-		len = strlen(line);
-		for (x = len; x < 79; x++)
-		    line[x] = ' ';
-		line[79] = '\0';
-		mvprintw(0, 0, line);
-		clrtoeol();
-		refresh();
+		/* Print statistics about how we're doing */
+		(void) gettimeofday(&stop, (struct timezone *)0);
+		stop.tv_sec = stop.tv_sec - start.tv_sec;
+		stop.tv_usec = stop.tv_usec - start.tv_usec;
+		if (stop.tv_usec < 0)
+		    stop.tv_sec--, stop.tv_usec += 1000000;
+		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
+		if (!seconds)
+		    seconds = 1;
+		msgInfo("%d bytes read from package %s, %d KBytes/second", tot, name, (tot / seconds) / 1024);
+		/* Write it out */
+		if (write(pfd[1], buf, i) != i) {
+		    msgInfo("Write failure to pkg_add!  Package may be corrupt.");
+		    break;
+		}
 	    }
 	    close(pfd[1]);
 	    dev->close(dev, fd);
-	    mvprintw(0, 0, "Package %s read successfully - waiting for pkg_add", name);
+	    msgInfo("Package %s read successfully - waiting for pkg_add", name);
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
 	    if (i < 0 || WEXITSTATUS(tot)) {
@@ -149,6 +158,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     }
     else {
 	msgDebug("pkg_extract: get operation returned %d\n", fd);
+	dialog_clear();
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Unable to fetch package %s from selected media.\n"
 		      "No package add will be done.", name);
