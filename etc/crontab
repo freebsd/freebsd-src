@@ -1,0 +1,7 @@
+0,15,30,45 * * * *	root /usr/libexec/atrun
+#0 1 * * *	daemon	/usr/contrib/news/daily
+#0 0 * * *	uucp	/etc/uucp.daily
+#7 5,12,18 * * *	uucp	/etc/uucp.6hours
+0 2 * * *	root	/bin/sh /etc/daily 2>&1 | tee /var/log/daily.out | mail -s "daily output" root
+30 3 * * 6	root	/bin/sh /etc/weekly 2>&1 | tee /var/log/weekly.out | mail -s "weekly output" root
+30 5 1 * *	root	/bin/sh /etc/monthly 2>&1 | tee /var/log/monthly.out | mail -s "monthlyoutput" root
