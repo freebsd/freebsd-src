@@ -263,6 +263,7 @@ dev/mlx/mlx.c		optional mlx
 dev/mly/mly.c		optional mly
 dev/mly/mly_cam.c	optional mly
 dev/mly/mly_pci.c	optional mly
+dev/my/if_my.c		optional my
 dev/musycc/musycc.c	optional musycc
 dev/ncv/ncr53c500.c	optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv card
