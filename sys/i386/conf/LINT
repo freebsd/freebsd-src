@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.611 1999/06/29 18:58:27 peter Exp $
+#	$Id: LINT,v 1.612 1999/06/29 19:06:16 mph Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -698,7 +698,6 @@ device		ch0	#SCSI media changers
 device		da0	#SCSI direct access devices (aka disks)
 device		sa0	#SCSI tapes
 device		cd0	#SCSI CD-ROMs
-#device		od0	#SCSI optical disk
 device		pass0	#CAM passthrough driver
 
 # The previous devices (ch, da, st, cd) are recognized by config.
@@ -707,7 +706,6 @@ device		pass0	#CAM passthrough driver
 # clause.
 
 device pt0 at scbus?	# SCSI processor type
-device sctarg0 at scbus? # SCSI target
 
 # CAM OPTIONS:
 # debugging options:
