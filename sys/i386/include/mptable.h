@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.22 1997/06/25 21:01:52 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.6 1997/07/07 00:02:55 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -191,6 +191,8 @@ typedef struct BASETABLE_ENTRY {
  */
 #ifndef POSTCODE
 #define POSTCODE(X)
+#define POSTCODE_LO(X)
+#define POSTCODE_HI(X)
 #endif
 
 #define MP_BOOTADDRESS_POST	0x10
@@ -203,6 +205,9 @@ typedef struct BASETABLE_ENTRY {
 #define START_ALL_APS_POST	0x17
 #define INSTALL_AP_TRAMP_POST	0x18
 #define START_AP_POST		0x19
+
+/* XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
+int	current_postcode;
 
 /** FIXME: what system files declare these??? */
 extern struct region_descriptor r_gdt, r_idt;
@@ -491,6 +496,10 @@ mp_enable(u_int boot_addr)
 #if defined(TEST_CPUSTOP)
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
+	/* install a 'Spurious INTerrupt' vector */
+	setidt(XSPURIOUSINT_OFFSET, Xspuriousint,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #endif  /* TEST_CPUSTOP */
 #endif	/* APIC_IO */
@@ -1028,6 +1037,13 @@ isa_apic_mask(u_int isa_mask)
 {
 	int isa_irq;
 	int apic_pin;
+
+#if defined(SKIP_IRQ15_REDIRECT)
+	if (isa_mask == (1 << 15)) {
+		printf("skipping ISA IRQ15 redirect\n");
+		return isa_mask;
+	}
+#endif  /* SKIP_IRQ15_REDIRECT */
 
 	isa_irq = ffs(isa_mask);		/* find its bit position */
 	if (isa_irq == 0)			/* doesn't exist */
@@ -1742,18 +1758,29 @@ invltlb(void)
  *            from executing at same time.
 
  */
+extern int cshits[4];
+extern int lhits[4];
+extern int sihits;
 int
 stop_cpus( u_int map )
 {
+#if 1
+	int x, y;
+#endif
 	if (!smp_active)
 		return 0;
 
-	stopped_cpus = 0;
-
 	/* send IPI to all CPUs in map */
 #if defined(DEBUG_CPUSTOP)
+#if 0
+	POSTCODE(0xF0);
+#endif
 	db_printf("\nCPU%d stopping CPUs: 0x%08x\n", cpuid, map);
+	db_printf("b4 stop: cshits: %d, %d, mplock: 0x%08x, lhits: %d, %d, sihits: %d\n",
+		  cshits[0], cshits[1], mp_lock, lhits[0], lhits[1], sihits);
 #endif /* DEBUG_CPUSTOP */
+
+	stopped_cpus = 0;
 #if 0
 	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
 #else
@@ -1761,20 +1788,32 @@ stop_cpus( u_int map )
 #endif
 
 #if defined(DEBUG_CPUSTOP)
-	db_printf(" stopped_cpus: 0x%08x, map: 0x%08x, spin\n",
-	    	  stopped_cpus, map);
+	db_printf("  spin\n");
 #endif /* DEBUG_CPUSTOP */
 
+#if 0 /** */
+	y = 0;
 	while (stopped_cpus != map) {
 #if 0
 		/* spin */ ;
 #else
-		POSTCODE(stopped_cpus & 0xff);
+		POSTCODE_LO(stopped_cpus & 0x0f);
+#define MAX_SPIN 20000000
+		for ( x = 0; x < MAX_SPIN; ++x )
+			;
+		if (++y > 20) {
+			stopped_cpus = map;
+			break;
+		}
+		POSTCODE_LO(0x0f);
+		for ( x = 0; x < MAX_SPIN; ++x )
+			;
 #endif
 	}
+#endif /** 0 */
 
 #if defined(DEBUG_CPUSTOP)
-	db_printf("  spun\nstopped\n");
+	db_printf("  spun\nstopped, sihits: %d\n", sihits);
 #endif /* DEBUG_CPUSTOP */
 
 	return 1;
@@ -1800,17 +1839,27 @@ restart_cpus( u_int map )
 	if (!smp_active)
 		return 0;
 
-	started_cpus = map;		/* signal other cpus to restart */
-
 #if defined(DEBUG_CPUSTOP)
+#if 0
+	POSTCODE(0x90);
+#endif
 	db_printf("\nCPU%d restarting CPUs: 0x%08x (0x%08x)\n",
-	       cpuid, started_cpus, stopped_cpus);
+	       cpuid, map, stopped_cpus);
+	db_printf("b4 restart: cshits: %d, %d, mplock: 0x%08x, lhits: %d, %d, sihits: %d\n",
+		  cshits[0], cshits[1], mp_lock, lhits[0], lhits[1], sihits);
 #endif /* DEBUG_CPUSTOP */
 
+	started_cpus = map;		/* signal other cpus to restart */
+
+#if 0 /** */
 	while (started_cpus)		/* wait for each to clear its bit */
 		/* spin */ ;
+#endif /** 0 */
 
 #if defined(DEBUG_CPUSTOP)
+#if 0
+	POSTCODE(0xA0);
+#endif
 	db_printf(" restarted\n");
 #endif /* DEBUG_CPUSTOP */
 
