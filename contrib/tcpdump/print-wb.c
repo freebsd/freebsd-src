@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-wb.c,v 1.23 96/12/10 23:21:43 leres Exp $ (LBL)";
+    "@(#) $Header: print-wb.c,v 1.24 96/12/31 21:27:44 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -182,9 +182,9 @@ wb_id(const struct pkt_id *id, u_int len)
 	int nid;
 
 	printf(" wb-id:");
-	len -= sizeof(*id);
-	if (len < 0 || (u_char *)(id + 1) > snapend)
+	if (len < sizeof(*id) || (u_char *)(id + 1) > snapend)
 		return (-1);
+	len -= sizeof(*id);
 
 	printf(" %u/%s:%u (max %u/%s:%u) ",
 	       (u_int32_t)ntohl(id->pi_ps.slot),
@@ -338,9 +338,9 @@ wb_rrep(const struct pkt_rrep *rrep, u_int len)
 	const struct pkt_dop *dop = &rrep->pr_dop;
 
 	printf(" wb-rrep:");
-	len -= sizeof(*rrep);
-	if (len < 0 || (u_char *)(rrep + 1) > snapend)
+	if (len < sizeof(*rrep) || (u_char *)(rrep + 1) > snapend)
 		return (-1);
+	len -= sizeof(*rrep);
 
 	printf(" for %s %s:%u<%u:%u>",
 	    ipaddr_string(&rrep->pr_id),
@@ -359,9 +359,9 @@ static int
 wb_drawop(const struct pkt_dop *dop, u_int len)
 {
 	printf(" wb-dop:");
-	len -= sizeof(*dop);
-	if (len < 0 || (u_char *)(dop + 1) > snapend)
+	if (len < sizeof(*dop) || (u_char *)(dop + 1) > snapend)
 		return (-1);
+	len -= sizeof(*dop);
 
 	printf(" %s:%u<%u:%u>",
 	    ipaddr_string(&dop->pd_page.p_sid),
@@ -384,50 +384,52 @@ wb_print(register const void *hdr, register u_int len)
 	register const struct pkt_hdr *ph;
 
 	ph = (const struct pkt_hdr *)hdr;
-	len -= sizeof(*ph);
-	if (len < 0 || (u_char *)(ph + 1) <= snapend) {
-		if (ph->ph_flags)
-			printf("*");
-		switch (ph->ph_type) {
-
-		case PT_KILL:
-			printf(" wb-kill");
-			return;
-
-		case PT_ID:
-			if (wb_id((struct pkt_id *)(ph + 1), len) >= 0)
-				return;
-			break;
-
-		case PT_RREQ:
-			if (wb_rreq((struct pkt_rreq *)(ph + 1), len) >= 0)
-				return;
-			break;
-
-		case PT_RREP:
-			if (wb_rrep((struct pkt_rrep *)(ph + 1), len) >= 0)
-				return;
-			break;
-
-		case PT_DRAWOP:
-			if (wb_drawop((struct pkt_dop *)(ph + 1), len) >= 0)
-				return;
-			break;
-
-		case PT_PREQ:
-			if (wb_preq((struct pkt_preq *)(ph + 1), len) >= 0)
-				return;
-			break;
-
-		case PT_PREP:
-			if (wb_prep((struct pkt_prep *)(ph + 1), len) >= 0)
-				return;
-			break;
-
-		default:
-			printf(" wb-%d!", ph->ph_type);
-			return;
-		}
+	if (len < sizeof(*ph) || (u_char *)(ph + 1) > snapend) {
+		printf("[|wb]");
+		return;
 	}
-	printf("[|wb]");
+	len -= sizeof(*ph);
+
+	if (ph->ph_flags)
+		printf("*");
+	switch (ph->ph_type) {
+
+	case PT_KILL:
+		printf(" wb-kill");
+		return;
+
+	case PT_ID:
+		if (wb_id((struct pkt_id *)(ph + 1), len) >= 0)
+			return;
+		break;
+
+	case PT_RREQ:
+		if (wb_rreq((struct pkt_rreq *)(ph + 1), len) >= 0)
+			return;
+		break;
+
+	case PT_RREP:
+		if (wb_rrep((struct pkt_rrep *)(ph + 1), len) >= 0)
+			return;
+		break;
+
+	case PT_DRAWOP:
+		if (wb_drawop((struct pkt_dop *)(ph + 1), len) >= 0)
+			return;
+		break;
+
+	case PT_PREQ:
+		if (wb_preq((struct pkt_preq *)(ph + 1), len) >= 0)
+			return;
+		break;
+
+	case PT_PREP:
+		if (wb_prep((struct pkt_prep *)(ph + 1), len) >= 0)
+			return;
+		break;
+
+	default:
+		printf(" wb-%d!", ph->ph_type);
+		return;
+	}
 }

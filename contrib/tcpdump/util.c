@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1990, 1991, 1993, 1994, 1995, 1996
+ * Copyright (c) 1990, 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: util.c,v 1.55 96/09/26 23:36:51 leres Exp $ (LBL)";
+    "@(#) $Header: util.c,v 1.58 97/05/09 14:52:17 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -33,6 +33,9 @@ static const char rcsid[] =
 #include <errno.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
 #endif
 #include <pcap.h>
 #include <stdio.h>
@@ -246,31 +249,6 @@ copy_argv(register char **argv)
 	return buf;
 }
 
-/* A replacement for strdup() that cuts down on malloc() overhead */
-char *
-savestr(register const char *str)
-{
-	register u_int size;
-	register char *p;
-	static char *strptr = NULL;
-	static u_int strsize = 0;
-
-	size = strlen(str) + 1;
-	if (size > strsize) {
-		strsize = 1024;
-		if (strsize < size)
-			strsize = size;
-		strptr = (char *)malloc(strsize);
-		if (strptr == NULL)
-			error("savestr: malloc");
-	}
-	(void)strcpy(strptr, str);
-	p = strptr;
-	strptr += size;
-	strsize -= size;
-	return (p);
-}
-
 char *
 read_infile(char *fname)
 {
@@ -294,36 +272,4 @@ read_infile(char *fname)
 	cp[(int)buf.st_size] = '\0';
 
 	return (cp);
-}
-
-/*
- * Returns the difference between gmt and local time in seconds.
- * Use gmtime() and localtime() to keep things simple.
- */
-int32_t
-gmt2local(void)
-{
-	register int dt, dir;
-	register struct tm *gmt, *loc;
-	time_t t;
-	struct tm sgmt;
-
-	t = time(NULL);
-	gmt = &sgmt;
-	*gmt = *gmtime(&t);
-	loc = localtime(&t);
-	dt = (loc->tm_hour - gmt->tm_hour) * 60 * 60 +
-	    (loc->tm_min - gmt->tm_min) * 60;
-
-	/*
-	 * If the year or julian day is different, we span 00:00 GMT
-	 * and must add or subtract a day. Check the year first to
-	 * avoid problems when the julian day wraps.
-	 */
-	dir = loc->tm_year - gmt->tm_year;
-	if (dir == 0)
-		dir = loc->tm_yday - gmt->tm_yday;
-	dt += dir * 24 * 60 * 60;
-
-	return (dt);
 }

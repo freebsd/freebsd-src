@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996
+ * Copyright (c) 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,10 +23,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-igrp.c,v 1.6 96/12/10 23:27:35 leres Exp $ (LBL)";
+    "@(#) $Header: print-igrp.c,v 1.8 97/05/28 12:52:47 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
+#include <sys/types.h>			/* concession to AIX */
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -39,8 +40,8 @@ static const char rcsid[] =
 #include <errno.h>
 #include <stdio.h>
 
-#include "addrtoname.h"
 #include "interface.h"
+#include "addrtoname.h"
 #include "igrp.h"
 #include "extract.h"			/* must come after interface.h */
 
