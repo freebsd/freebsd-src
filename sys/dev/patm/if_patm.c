@@ -211,6 +211,10 @@ patm_initialize(struct patm_softc *sc)
 	    IDT_CFG_TXUIE | IDT_CFG_TXSFI | IDT_CFG_PHYIE;
 	patm_nor_write(sc, IDT_NOR_CFG, cfg);
 
+	for (i = 0; i < sc->mmap->max_conn; i++)
+		if (sc->vccs[i] != NULL)
+			patm_load_vc(sc, sc->vccs[i], 1);
+
 	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
 	    sc->utopia.carrier == UTP_CARR_OK);
 }
@@ -284,17 +288,21 @@ patm_stop(struct patm_softc *sc)
 	/* freeing partial receive chains and reset vcc state */
 	for (i = 0; i < sc->mmap->max_conn; i++) {
 		if (sc->vccs[i] != NULL) {
-			if (sc->vccs[i]->chain != NULL)
+			if (sc->vccs[i]->chain != NULL) {
 				m_freem(sc->vccs[i]->chain);
+				sc->vccs[i]->chain = NULL;
+				sc->vccs[i]->last = NULL;
+			}
 
-			if (sc->vccs[i]->vcc.flags & ATMIO_FLAG_NG) {
+			if (sc->vccs[i]->vflags & (PATM_VCC_RX_CLOSING |
+			    PATM_VCC_TX_CLOSING)) {
 				uma_zfree(sc->vcc_zone, sc->vccs[i]);
 				sc->vccs[i] = NULL;
 			} else {
-				/* keep HARP and NG */
-				sc->vccs[i]->chain = NULL;
-				sc->vccs[i]->last = NULL;
-				sc->vccs[i]->vflags = 0;
+				/* keep */
+				sc->vccs[i]->vflags &= ~PATM_VCC_OPEN;
+				sc->vccs[i]->cps = 0;
+				sc->vccs[i]->scd = NULL;
 			}
 		}
 	}

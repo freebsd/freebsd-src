@@ -171,24 +171,10 @@ patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg)
 
 	/* ok - go ahead */
 	sc->vccs[cid] = vcc;
-
-	patm_debug(sc, VCC, "Open VCC: opening");
-	if (!(vcc->vcc.flags & ATMIO_FLAG_NOTX))
-		patm_tx_vcc_open(sc, vcc);
-	if (!(vcc->vcc.flags & ATMIO_FLAG_NORX))
-		patm_rx_vcc_open(sc, vcc);
-
-	/* inform management about non-NG and NG-PVCs */
-	if (!(vcc->vcc.flags & ATMIO_FLAG_NG) ||
-	     (vcc->vcc.flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->vcc.vpi,
-		    vcc->vcc.vci, 1);
-
-	patm_debug(sc, VCC, "Open VCC: now open");
+	patm_load_vc(sc, vcc, 0);
 
 	/* don't free below */
 	vcc = NULL;
-
 	sc->vccs_open++;
 
 	/* done */
@@ -197,6 +183,27 @@ patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg)
 	if (vcc != NULL)
 		uma_zfree(sc->vcc_zone, vcc);
 	return (error);
+}
+
+void
+patm_load_vc(struct patm_softc *sc, struct patm_vcc *vcc, int reload)
+{
+
+	patm_debug(sc, VCC, "Open VCC: opening");
+	if (!(vcc->vcc.flags & ATMIO_FLAG_NOTX))
+		patm_tx_vcc_open(sc, vcc);
+	if (!(vcc->vcc.flags & ATMIO_FLAG_NORX))
+		patm_rx_vcc_open(sc, vcc);
+
+	if (!reload) {
+		/* inform management about non-NG and NG-PVCs */
+		if (!(vcc->vcc.flags & ATMIO_FLAG_NG) ||
+		     (vcc->vcc.flags & ATMIO_FLAG_PVC))
+			ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->vcc.vpi,
+			    vcc->vcc.vci, 1);
+	}
+
+	patm_debug(sc, VCC, "Open VCC: now open");
 }
 
 /*
