@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.12 1996/02/17 14:47:16 peter Exp $
+ * $Id: sys_pipe.c,v 1.13 1996/02/22 03:33:52 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -759,13 +759,12 @@ pipewrite(wpipe, uio, nbio)
 		}
 
 		space = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
+
+		/* Writes of size <= PIPE_BUF must be atomic. */
+		/* XXX perhaps they need to be contiguous to be atomic? */
 		if ((space < uio->uio_resid) && (orig_resid <= PIPE_BUF))
 			space = 0;
 
-		/*
-		 * We must afford contiguous writes on buffers of size
-		 * PIPE_BUF or less.
-		 */
 		if (space > 0) {
 			int size = wpipe->pipe_buffer.size - wpipe->pipe_buffer.in;
 			if (size > space)
@@ -831,6 +830,7 @@ pipewrite(wpipe, uio, nbio)
 		}
 	}
 
+	--wpipe->pipe_busy;
 	if ((wpipe->pipe_busy == 0) &&
 		(wpipe->pipe_state & PIPE_WANT)) {
 		wpipe->pipe_state &= ~(PIPE_WANT|PIPE_WANTR);
@@ -866,7 +866,6 @@ pipewrite(wpipe, uio, nbio)
 	if (wpipe->pipe_buffer.cnt)
 		pipeselwakeup(wpipe);
 
-	--wpipe->pipe_busy;
 	return error;
 }
 
