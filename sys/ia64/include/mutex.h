@@ -38,16 +38,7 @@
 
 #ifdef _KERNEL
 
-/*
- * Debugging
- */
-#ifdef MUTEX_DEBUG
-#define	ASS_IEN		MPASS2((save_intr() & IA64_PSR_I), "psr.i")
-#define	ASS_IDIS	MPASS2(!(save_intr() & IA64_PSR_I), "!psr.i")
-#define ASS_SIEN(mpp)	MPASS2(((mpp)->mtx_saveintr & IA64_PSR_I),	\
-			"mpp->mtx_saveintr & IA64_PSR_I")
-
-#define	mtx_legal2block()	(save_intr() & IA64_PSR_I)
+#define	mtx_legal2block()	(ia64_get_psr() & IA64_PSR_I)
 #define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr |= IA64_PSR_I
 
 #endif	/* _KERNEL */
