@@ -230,7 +230,7 @@ static driver_t wb_driver = {
 static devclass_t wb_devclass;
 
 DRIVER_MODULE(if_wb, pci, wb_driver, wb_devclass, 0, 0);
-DRIVER_MODULE(miibus, wb, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, if_wb, miibus_driver, miibus_devclass, 0, 0);
 
 #define WB_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
