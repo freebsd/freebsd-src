@@ -172,6 +172,7 @@ SUBDIR+=3dfx \
 	hea \
 	hfa \
 	ibcs2 \
+	ie \
 	linprocfs \
 	linux \
 	lnc \
