@@ -389,7 +389,7 @@ CLEANFILES = dep.sed DEP DEP1 DEP2
 # target is run by the taz target in ../Makefile.in.
 LDDISTSTUFF = ldgram.c ldgram.h ldlex.c
 
-DISTCLEANFILES = tdirs site.exp site.bak
+DISTCLEANFILES = tdirs site.exp site.bak stringify.sed
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
 CONFIG_HEADER = config.h

@@ -1261,6 +1261,7 @@ parse_stab_type (dhandle, info, typename, pp, slotp)
 	    {
 	    case 's':
 	      size = atoi (attr + 1);
+	      size /= 8;  /* Size is in bits.  We store it in bytes.  */
 	      if (size <= 0)
 		size = -1;
 	      break;

@@ -79,6 +79,10 @@ case "${targ}" in
   alpha*-*-*)
     targ_defvec=ecoffalpha_little_vec
     ;;
+  sparc64-*-netbsd*)
+    targ_defvec=bfd_elf64_sparc_vec
+    targ_selvecs="bfd_elf32_sparc_vec sunos_big_vec"
+    ;;
 #endif /* BFD64 */
 
   arc-*-elf*)
@@ -122,7 +126,11 @@ case "${targ}" in
     targ_selvecs=armcoff_big_vec
     targ_underscore=yes
     ;;
-  arm-*-elf | arm*-*-linux-gnu* | arm*-*-conix*)
+  armeb-*-elf | arm*b-*-linux-gnu*)
+    targ_defvec=bfd_elf32_bigarm_vec
+    targ_selvecs=bfd_elf32_littlearm_vec
+    ;;
+  arm-*-elf | arm*-*-linux-gnu* | arm*-*-conix* | arm*-*-uclinux*)
     targ_defvec=bfd_elf32_littlearm_vec
     targ_selvecs=bfd_elf32_bigarm_vec
     ;;
