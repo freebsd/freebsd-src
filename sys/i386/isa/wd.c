@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.72 1995/04/12 20:48:10 wollman Exp $
+ *	$Id: wd.c,v 1.73 1995/04/14 22:31:58 phk Exp $
  */
 
 /* TODO:
@@ -1923,13 +1923,13 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	wdc = du->dk_port;
 	timeout += POLLING;
 
-	/* dummy read for delay */
-	/*
-	 * the reason that we are reading from an *unused* port,
-	 * is that it might be *really* fast to read from the
-	 * wd port.
-	 */
-	(void) inb(0x84);
+/*
+ * This delay is really too long, but does not impact the performance
+ * as much when using the NSECS_MULTI option.  Shorter delays have
+ * caused I/O errors on some drives and system configs.  This should
+ * probably be fixed if we develop a better short term delay mechanism.
+ */
+	DELAY(1);
 
 	do {
 #ifdef WD_COUNT_RETRIES
