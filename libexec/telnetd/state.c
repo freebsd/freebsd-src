@@ -39,6 +39,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <stdarg.h>
 #include "telnetd.h"
 #if	defined(AUTHENTICATION)
 #include <libtelnet/auth.h>
@@ -190,8 +191,7 @@ gotiac:			switch (c) {
 				}
 
 				netclear();	/* clear buffer back */
-				*nfrontp++ = IAC;
-				*nfrontp++ = DM;
+				output_data("%c%c", IAC, DM);
 				neturg = nfrontp-1; /* off by one XXX */
 				DIAG(TD_OPTIONS,
 					printoption("td: send IAC", DM));
@@ -444,8 +444,7 @@ send_do(option, init)
 			set_his_want_state_will(option);
 		do_dont_resp[option]++;
 	}
-	(void) sprintf(nfrontp, (char *)doopt, option);
-	nfrontp += sizeof (dont) - 2;
+	output_data((const char *)doopt, option);
 
 	DIAG(TD_OPTIONS, printoption("td: send do", option));
 }
@@ -650,8 +649,7 @@ send_dont(option, init)
 		set_his_want_state_wont(option);
 		do_dont_resp[option]++;
 	}
-	(void) sprintf(nfrontp, (char *)dont, option);
-	nfrontp += sizeof (doopt) - 2;
+	output_data((const char *)dont, option);
 
 	DIAG(TD_OPTIONS, printoption("td: send dont", option));
 }
@@ -800,8 +798,7 @@ send_will(option, init)
 		set_my_want_state_will(option);
 		will_wont_resp[option]++;
 	}
-	(void) sprintf(nfrontp, (char *)will, option);
-	nfrontp += sizeof (doopt) - 2;
+	output_data((const char *)will, option);
 
 	DIAG(TD_OPTIONS, printoption("td: send will", option));
 }
@@ -954,8 +951,7 @@ send_wont(option, init)
 		set_my_want_state_wont(option);
 		will_wont_resp[option]++;
 	}
-	(void) sprintf(nfrontp, (char *)wont, option);
-	nfrontp += sizeof (wont) - 2;
+	output_data((const char *)wont, option);
 
 	DIAG(TD_OPTIONS, printoption("td: send wont", option));
 }
@@ -1351,9 +1347,8 @@ suboption()
 	    env_ovar_wrong:
 			env_ovar = OLD_ENV_VALUE;
 			env_ovalue = OLD_ENV_VAR;
-			DIAG(TD_OPTIONS, {sprintf(nfrontp,
-				"ENVIRON VALUE and VAR are reversed!\r\n");
-				nfrontp += strlen(nfrontp);});
+			DIAG(TD_OPTIONS,
+			    output_data("ENVIRON VALUE and VAR are reversed!\r\n"));
 
 		}
 	    }
@@ -1542,9 +1537,49 @@ send_status()
 	ADD(IAC);
 	ADD(SE);
 
-	writenet(statusbuf, ncp - statusbuf);
+	output_datalen(statusbuf, ncp - statusbuf);
 	netflush();	/* Send it on its way */
 
 	DIAG(TD_OPTIONS,
 		{printsub('>', statusbuf, ncp - statusbuf); netflush();});
+}
+
+/*
+ * This function appends data to nfrontp and advances nfrontp.
+ */
+
+int
+output_data(const char *format, ...)
+{
+	va_list args;
+	size_t remaining, ret;
+
+	va_start(args, format);
+	remaining = BUFSIZ - (nfrontp - netobuf);
+	/* try a netflush() if the room is too low */
+	if (strlen(format) > remaining || BUFSIZ / 4 > remaining) {
+		netflush();
+		remaining = BUFSIZ - (nfrontp - netobuf);
+	}
+	ret = vsnprintf(nfrontp, remaining, format, args);
+	nfrontp += (ret < remaining) ? ret : remaining;
+	va_end(args);
+	return ret;
+}
+
+int
+output_datalen(const char *buf, size_t len)
+{
+	size_t remaining;
+
+	remaining = BUFSIZ - (nfrontp - netobuf);
+	if (remaining < len) {
+		netflush();
+		remaining = BUFSIZ - (nfrontp - netobuf);
+		if (remaining < len)
+			return -1;
+	}
+	memmove(nfrontp, buf, len);
+	nfrontp += len;
+	return (len);
 }
