@@ -124,7 +124,8 @@ deget(pmp, dirclust, diroffset, depp)
 	 * entry that represented the file happens to be reused while the
 	 * deleted file is still open.
 	 */
-	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE, curthread, &nvp);
+	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE, curthread, &nvp,
+	    NULL, NULL);
 	if (error)
 		return(error);
 	if (nvp != NULL) {
@@ -158,7 +159,7 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_diroffset = diroffset;
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 
-	error = vfs_hash_insert(nvp, hash, 0, curthread, &xvp);
+	error = vfs_hash_insert(nvp, hash, 0, curthread, &xvp, NULL, NULL);
 	if (error) {
 		*depp = NULL;
 		return (error);

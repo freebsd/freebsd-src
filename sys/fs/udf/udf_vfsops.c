@@ -581,7 +581,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct file_entry *fe;
 	int error, sector, size;
 
-	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -601,7 +601,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	unode->udfmp = udfmp;
 	vp->v_data = unode;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
