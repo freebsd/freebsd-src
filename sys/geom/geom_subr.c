@@ -572,43 +572,6 @@ g_class_by_name(char *name)
 }
 
 struct g_geom *
-g_create_geomf(char *class, struct g_provider *pp, char *fmt, ...)
-{
-	va_list ap;
-	struct sbuf *sb;
-	char *s;
-	struct g_class *mp;
-	struct g_geom *gp;
-
-	g_trace(G_T_TOPOLOGY, "g_create_geom(%s, %p(%s))", class,
-		pp, pp == NULL ? "" : pp->name);
-	g_topology_assert();
-	gp = NULL;
-	mp = g_class_by_name(class);
-	if (mp == NULL)
-		return (NULL);
-	if (fmt != NULL) {
-		va_start(ap, fmt);
-		mtx_lock(&Giant);
-		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-		sbuf_vprintf(sb, fmt, ap);
-		sbuf_finish(sb);
-		mtx_unlock(&Giant);
-		s = sbuf_data(sb);
-	} else {
-		s = NULL;
-	}
-	if (pp != NULL)
-		gp = mp->taste(mp, pp, G_TF_INSIST);
-	if (gp == NULL && mp->create_geom == NULL)
-		return (NULL);
-	if (gp == NULL)
-		gp = mp->create_geom(mp, pp, s);
-	/* XXX: delete sbuf  */
-	return (gp);
-}
-
-struct g_geom *
 g_insert_geom(char *class, struct g_consumer *cp)
 {
 	struct g_class *mp;
@@ -699,4 +662,86 @@ g_sanity(void *ptr)
 	}
 }
 
+struct g_class *
+g_idclass(struct geomidorname *p)
+{
+	struct g_class *mp;
+	char *n;
 
+	if (p->len == 0) {
+		LIST_FOREACH(mp, &g_classes, class)
+			if ((uintptr_t)mp == p->u.id)
+				return (mp);
+		return (NULL);
+	}
+	n = g_malloc(p->len + 1, M_WAITOK);
+	if (copyin(p->u.name, n, p->len) == 0) {
+		n[p->len] = '\0';
+		LIST_FOREACH(mp, &g_classes, class)
+			if (!bcmp(n, mp->name, p->len + 1)) {
+				g_free(n);
+				return (mp);
+			}
+	}
+	g_free(n);
+	return (NULL);
+}
+
+struct g_geom *
+g_idgeom(struct geomidorname *p)
+{
+	struct g_class *mp;
+	struct g_geom *gp;
+	char *n;
+
+	if (p->len == 0) {
+		LIST_FOREACH(mp, &g_classes, class)
+			LIST_FOREACH(gp, &mp->geom, geom)
+				if ((uintptr_t)gp == p->u.id)
+					return (gp);
+		return (NULL);
+	}
+	n = g_malloc(p->len + 1, M_WAITOK);
+	if (copyin(p->u.name, n, p->len) == 0) {
+		n[p->len] = '\0';
+		LIST_FOREACH(mp, &g_classes, class)
+			LIST_FOREACH(gp, &mp->geom, geom)
+				if (!bcmp(n, gp->name, p->len + 1)) {
+					g_free(n);
+					return (gp);
+				}
+	}
+	g_free(n);
+	return (NULL);
+}
+
+struct g_provider *
+g_idprovider(struct geomidorname *p)
+{
+	struct g_class *mp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	char *n;
+
+	if (p->len == 0) {
+		LIST_FOREACH(mp, &g_classes, class)
+			LIST_FOREACH(gp, &mp->geom, geom)
+				LIST_FOREACH(pp, &gp->provider, provider)
+					if ((uintptr_t)pp == p->u.id)
+						return (pp);
+		return (NULL);
+	}
+	n = g_malloc(p->len + 1, M_WAITOK);
+	if (copyin(p->u.name, n, p->len) == 0) {
+		n[p->len] = '\0';
+		LIST_FOREACH(mp, &g_classes, class)
+			LIST_FOREACH(gp, &mp->geom, geom)
+				LIST_FOREACH(pp, &gp->provider, provider)
+					if (!bcmp(n, pp->name, p->len + 1)) {
+						g_free(n);
+						return (pp);
+					}
+	}
+	g_free(n);
+	return (NULL);
+}
