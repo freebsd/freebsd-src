@@ -154,12 +154,12 @@ struct	isa_driver wddriver = {
 	wdprobe, wdattach, "wd",
 };
 
-void wdustart(struct disk *);
-void wdstart();
-int wdcommand(struct disk *, int);
-int wdcontrol(struct buf *);
-int wdsetctlr(dev_t, struct disk *);
-int wdgetctlr(int, struct disk *);
+static void wdustart(struct disk *);
+static void wdstart();
+static int wdcommand(struct disk *, int);
+static int wdcontrol(struct buf *);
+static int wdsetctlr(dev_t, struct disk *);
+static int wdgetctlr(int, struct disk *);
 
 /*
  * Probe for controller.
@@ -423,7 +423,14 @@ loop:
 	 */
 	if ((du->dk_flags & (DKFL_SINGLE|DKFL_BADSECT))		/* 19 Aug 92*/
 		== (DKFL_SINGLE|DKFL_BADSECT))
-	    for (bt_ptr = du->dk_bad.bt_bad; bt_ptr->bt_cyl != -1; bt_ptr++) {
+	    /* XXX
+	     * BAD144END was done to clean up some old bad code that was
+	     * attempting to compare a u_short to -1.  This makes the compilers
+	     * happy and clearly shows what is going on.
+	     * rgrimes 93/06/17
+	     */
+#define BAD144END (u_short)(-1)
+	    for (bt_ptr = du->dk_bad.bt_bad; bt_ptr->bt_cyl != BAD144END; bt_ptr++) {
 		if (bt_ptr->bt_cyl > cylin)
 			/* Sorted list, and we passed our cylinder. quit. */
 			break;
