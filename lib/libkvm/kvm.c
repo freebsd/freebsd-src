@@ -174,7 +174,6 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 
 	kd->vmfd = -1;
 	kd->pmfd = -1;
-	kd->swfd = -1;
 	kd->nlfd = -1;
 	kd->vmst = 0;
 	kd->db = 0;
@@ -214,7 +213,6 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 		 */
 		if (strcmp(mf, _PATH_DEVNULL) == 0) {
 			kd->vmfd = open(_PATH_DEVNULL, O_RDONLY);
-			kd->swfd = open(_PATH_DEVNULL, O_RDONLY);
 		} else if (strcmp(mf, _PATH_MEM) != 0) {
 			_kvm_err(kd, kd->program,
 				 "%s: not physical memory device", mf);
@@ -222,10 +220,6 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 		} else {
 			if ((kd->vmfd = open(_PATH_KMEM, flag)) < 0) {
 				_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
-				goto failed;
-			}
-			if ((kd->swfd = open(sf, flag, 0)) < 0) {
-				_kvm_syserr(kd, kd->program, "%s", sf);
 				goto failed;
 			}
 		}
@@ -318,8 +312,6 @@ kvm_close(kd)
 		error |= close(kd->vmfd);
 	if (kd->nlfd >= 0)
 		error |= close(kd->nlfd);
-	if (kd->swfd >= 0)
-		error |= close(kd->swfd);
 	if (kd->db != 0)
 		error |= (kd->db->close)(kd->db);
 	if (kd->vmst)
