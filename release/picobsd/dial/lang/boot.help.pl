@@ -4,7 +4,7 @@
               Prosze czekac. Trwa uruchamianie systemu. 
 +----------------------------------------------------------------------+
 
- To jest specjalna wersja FreeBSD-3.0, zwana PicoBSD (v.0.4).
+ To jest specjalna wersja FreeBSD-3.0, zwana PicoBSD (v.@VER@).
 
  Pozwala ona na uzyskanie polaczenia z Internetem przez protokol PPP
  (polaczenie dialup) lub karte Ethernet.

@@ -1,6 +1,6 @@
 1998.07.12, Warszawa
 
-			PicoBSD 0.4 (wersja NET)
+			PicoBSD @VER@ (wersja NET)
 			------------------------
 
 Co to jest PicoBSD?
