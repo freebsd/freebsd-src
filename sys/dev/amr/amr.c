@@ -1496,7 +1496,7 @@ amr_printcommand(struct amr_command *ac)
 		  ac->ac_mailbox.mb_command, ac->ac_mailbox.mb_ident, ac->ac_mailbox.mb_drive);
     device_printf(sc->amr_dev, "blkcount %d  lba %d\n", 
 		  ac->ac_mailbox.mb_blkcount, ac->ac_mailbox.mb_lba);
-    device_printf(sc->amr_dev, "virtaddr %p  length %d\n", ac->ac_data, ac->ac_length);
+    device_printf(sc->amr_dev, "virtaddr %p  length %lu\n", ac->ac_data, (unsigned long)ac->ac_length);
     device_printf(sc->amr_dev, "physaddr %08x  nsg %d\n",
 		  ac->ac_mailbox.mb_physaddr, ac->ac_mailbox.mb_nsgelem);
 
