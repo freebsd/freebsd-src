@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.120 1999/05/09 16:56:09 phk Exp $
+ *	$Id: autoconf.c,v 1.121 1999/05/10 17:12:40 peter Exp $
  */
 
 /*
@@ -499,12 +499,12 @@ static int
 sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 {
 	int error;
-	dev_t ndumpdev;
+	udev_t ndumpdev;
 
-	ndumpdev = dumpdev;
+	ndumpdev = dev2udev(dumpdev);
 	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
 	if (error == 0 && req->newptr != NULL)
-		error = setdumpdev(ndumpdev);
+		error = setdumpdev(udev2dev(ndumpdev, 1));
 	return (error);
 }
 
