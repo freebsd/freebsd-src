@@ -155,7 +155,6 @@ struct {
 
 /* channel interface */
 static void *ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ds1pchan_setdir(void *data, int dir);
 static int ds1pchan_setformat(void *data, u_int32_t format);
 static int ds1pchan_setspeed(void *data, u_int32_t speed);
 static int ds1pchan_setblocksize(void *data, u_int32_t blocksize);
@@ -164,7 +163,6 @@ static int ds1pchan_getptr(void *data);
 static pcmchan_caps *ds1pchan_getcaps(void *data);
 
 static void *ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ds1rchan_setdir(void *data, int dir);
 static int ds1rchan_setformat(void *data, u_int32_t format);
 static int ds1rchan_setspeed(void *data, u_int32_t speed);
 static int ds1rchan_setblocksize(void *data, u_int32_t blocksize);
