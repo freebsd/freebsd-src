@@ -93,18 +93,18 @@ DVIPS2ASCII?=	dvips2ascii
 		-o ${.TARGET}
 
 .texi.dvi .texinfo.dvi:
-	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
 # Run again to reolve cross references.
-	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
 
 .texinfo.latin1 .texi.latin1:
 	perl -npe 's/(^\s*\\input\s+texinfo\s+)/$$1\n@tex\n\\global\\hsize=120mm\n@end tex\n\n/' ${.IMPSRC} >> ${.IMPSRC:T:R}-la.texi
-	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
 # Run again to reolve cross references.
-	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
 	${DVIPS} -o /dev/stdout ${.IMPSRC:T:R}-la.dvi | \
 		${DVIPS2ASCII} > ${.TARGET}.new
@@ -144,7 +144,7 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
-${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
+${x:S/$/-install/}:
 	${INSTALLINFO} ${INSTALLINFOFLAGS} \
 	    --defsection=${INFOSECTION} \
 	    --defentry=${INFOENTRY_${x}} \
