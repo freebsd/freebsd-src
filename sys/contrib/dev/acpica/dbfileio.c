@@ -119,8 +119,6 @@
 #include "acpi.h"
 #include "acdebug.h"
 #include "acnamesp.h"
-#include "acparser.h"
-#include "acevents.h"
 #include "actables.h"
 
 #ifdef ENABLE_DEBUGGER
@@ -137,7 +135,6 @@
 #include <stdio.h>
 FILE                        *AcpiGbl_DebugFile = NULL;
 #endif
-
 
 
 /*******************************************************************************
@@ -262,7 +259,7 @@ AcpiDbOpenDebugFile (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiDbLoadTable(
     FILE                    *fp,
     ACPI_TABLE_HEADER       **TablePtr,
@@ -387,7 +384,7 @@ AeLocalLoadTable (
 
     TableInfo.Pointer = TablePtr;
 
-    Status = AcpiTbInstallTable (NULL, &TableInfo);
+    Status = AcpiTbInstallTable (&TableInfo);
     if (ACPI_FAILURE (Status))
     {
         /* Free table allocated by AcpiTbGetTable */
@@ -481,7 +478,7 @@ AcpiDbLoadAcpiTable (
         if (Status == AE_ALREADY_EXISTS)
         {
             AcpiOsPrintf ("Table %4.4s is already installed\n",
-                            &AcpiGbl_DbTablePtr->Signature);
+                            AcpiGbl_DbTablePtr->Signature);
         }
         else
         {
@@ -493,7 +490,7 @@ AcpiDbLoadAcpiTable (
     }
 
     AcpiOsPrintf ("%4.4s at %p successfully installed and loaded\n",
-                                &AcpiGbl_DbTablePtr->Signature, AcpiGbl_DbTablePtr);
+                                AcpiGbl_DbTablePtr->Signature, AcpiGbl_DbTablePtr);
 
     AcpiGbl_AcpiHardwarePresent = FALSE;
 

@@ -120,8 +120,6 @@
 #include "acpi.h"
 #include "acinterp.h"
 #include "amlcode.h"
-#include "acnamesp.h"
-#include "achware.h"
 #include "acevents.h"
 #include "acdispat.h"
 
@@ -159,10 +157,12 @@ AcpiExSetupRegion (
 
     RgnDesc = ObjDesc->CommonField.RegionObj;
 
-    if (ACPI_TYPE_REGION != RgnDesc->Common.Type)
+    if (ACPI_GET_OBJECT_TYPE (RgnDesc) != ACPI_TYPE_REGION)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Needed Region, found type %x %s\n",
-            RgnDesc->Common.Type, AcpiUtGetTypeName (RgnDesc->Common.Type)));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Needed Region, found type %X (%s)\n",
+            ACPI_GET_OBJECT_TYPE (RgnDesc), 
+            AcpiUtGetObjectTypeName (RgnDesc)));
+
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
 
@@ -197,8 +197,8 @@ AcpiExSetupRegion (
              */
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Field [%4.4s] access width (%d bytes) too large for region [%4.4s] (length %X)\n",
-                (char *) &ObjDesc->CommonField.Node->Name, ObjDesc->CommonField.AccessByteWidth,
-                (char *) &RgnDesc->Region.Node->Name, RgnDesc->Region.Length));
+                ObjDesc->CommonField.Node->Name.Ascii, ObjDesc->CommonField.AccessByteWidth,
+                RgnDesc->Region.Node->Name.Ascii, RgnDesc->Region.Length));
         }
 
         /*
@@ -207,9 +207,9 @@ AcpiExSetupRegion (
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Field [%4.4s] Base+Offset+Width %X+%X+%X is beyond end of region [%4.4s] (length %X)\n",
-            (char *) &ObjDesc->CommonField.Node->Name, ObjDesc->CommonField.BaseByteOffset,
+            ObjDesc->CommonField.Node->Name.Ascii, ObjDesc->CommonField.BaseByteOffset,
             FieldDatumByteOffset, ObjDesc->CommonField.AccessByteWidth,
-            (char *) &RgnDesc->Region.Node->Name, RgnDesc->Region.Length));
+            RgnDesc->Region.Node->Name.Ascii, RgnDesc->Region.Length));
 
         return_ACPI_STATUS (AE_AML_REGION_LIMIT);
     }
@@ -339,7 +339,7 @@ AcpiExRegisterOverflow (
         return (FALSE);
     }
 
-    if (Value >= (ACPI_INTEGER) (1 << ObjDesc->CommonField.BitLength))
+    if (Value >= ((ACPI_INTEGER) 1 << ObjDesc->CommonField.BitLength))
     {
         /*
          * The Value is larger than the maximum value that can fit into
@@ -407,7 +407,7 @@ AcpiExFieldDatumIo (
      * BankFields   - Write to a Bank Register, then read/write from/to an OpRegion
      * IndexFields  - Write to an Index Register, then read/write from/to a Data Register
      */
-    switch (ObjDesc->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
     {
     case ACPI_TYPE_BUFFER_FIELD:
         /*
@@ -455,7 +455,7 @@ AcpiExFieldDatumIo (
         /* Ensure that the BankValue is not beyond the capacity of the register */
 
         if (AcpiExRegisterOverflow (ObjDesc->BankField.BankObj,
-                                    ObjDesc->BankField.Value))
+                                    (ACPI_INTEGER) ObjDesc->BankField.Value))
         {
             return_ACPI_STATUS (AE_AML_REGISTER_LIMIT);
         }
@@ -477,7 +477,7 @@ AcpiExFieldDatumIo (
          * RegionField case and write the datum to the Operation Region
          */
 
-        /* No break; ! */
+        /*lint -fallthrough */
 
 
     case INTERNAL_TYPE_REGION_FIELD:
@@ -502,7 +502,7 @@ AcpiExFieldDatumIo (
         /* Ensure that the IndexValue is not beyond the capacity of the register */
 
         if (AcpiExRegisterOverflow (ObjDesc->IndexField.IndexObj,
-                                    ObjDesc->IndexField.Value))
+                                    (ACPI_INTEGER) ObjDesc->IndexField.Value))
         {
             return_ACPI_STATUS (AE_AML_REGISTER_LIMIT);
         }
@@ -537,7 +537,7 @@ AcpiExFieldDatumIo (
     default:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p, Wrong object type - %s\n",
-            ObjDesc, AcpiUtGetTypeName (ObjDesc->Common.Type)));
+            ObjDesc, AcpiUtGetObjectTypeName (ObjDesc)));
         Status = AE_AML_INTERNAL;
         break;
     }
@@ -594,7 +594,7 @@ AcpiExWriteWithUpdateRule (
 
     /* If the mask is all ones, we don't need to worry about the update rule */
 
-    if (Mask != ACPI_UINT32_MAX)
+    if (Mask != ACPI_INTEGER_MAX)
     {
         /* Decode the update rule */
 
@@ -634,7 +634,7 @@ AcpiExWriteWithUpdateRule (
 
         default:
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "WriteWithUpdateRule: Unknown UpdateRule setting: %x\n",
+                "WriteWithUpdateRule: Unknown UpdateRule setting: %X\n",
                 (ObjDesc->CommonField.FieldFlags & AML_FIELD_UPDATE_RULE_MASK)));
             return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
         }
@@ -705,6 +705,10 @@ AcpiExGetBufferDatum(
 
         ACPI_MOVE_UNALIGNED64_TO_64 (Datum, &(((UINT64 *) Buffer) [Offset]));
         break;
+
+    default:
+        /* Should not get here */
+        break;
     }
 }
 
@@ -757,6 +761,10 @@ AcpiExSetBufferDatum (
     case ACPI_FIELD_QWORD_GRANULARITY:
 
         ACPI_MOVE_UNALIGNED64_TO_64 (&(((UINT64 *) Buffer)[Offset]), &MergedDatum);
+        break;
+
+    default:
+        /* Should not get here */
         break;
     }
 }
@@ -813,7 +821,7 @@ AcpiExExtractFromField (
                               ObjDesc->CommonField.AccessByteWidth);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "ByteLen=%x, DatumLen=%x, ByteGran=%x\n",
+        "ByteLen=%X, DatumLen=%X, ByteGran=%X\n",
         ByteFieldLength, DatumCount,ObjDesc->CommonField.AccessByteWidth));
 
     /*
@@ -1002,7 +1010,7 @@ AcpiExInsertIntoField (
     DatumCount = ACPI_ROUND_UP_TO (ByteFieldLength, ObjDesc->CommonField.AccessByteWidth);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "ByteLen=%x, DatumLen=%x, ByteGran=%x\n",
+        "ByteLen=%X, DatumLen=%X, ByteGran=%X\n",
         ByteFieldLength, DatumCount, ObjDesc->CommonField.AccessByteWidth));
 
     /*

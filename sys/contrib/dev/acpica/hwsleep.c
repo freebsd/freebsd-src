@@ -116,8 +116,6 @@
  *****************************************************************************/
 
 #include "acpi.h"
-#include "acnamesp.h"
-#include "achware.h"
 
 #define _COMPONENT          ACPI_HARDWARE
         ACPI_MODULE_NAME    ("hwsleep")
@@ -148,11 +146,13 @@ AcpiSetFirmwareWakingVector (
 
     if (AcpiGbl_CommonFACS.VectorWidth == 32)
     {
-        *(UINT32 *) AcpiGbl_CommonFACS.FirmwareWakingVector = (UINT32) PhysicalAddress;
+        *(ACPI_CAST_PTR (UINT32, AcpiGbl_CommonFACS.FirmwareWakingVector)) 
+                = (UINT32) PhysicalAddress;
     }
     else
     {
-        *AcpiGbl_CommonFACS.FirmwareWakingVector = PhysicalAddress;
+        *AcpiGbl_CommonFACS.FirmwareWakingVector 
+                = PhysicalAddress;
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -190,11 +190,13 @@ AcpiGetFirmwareWakingVector (
 
     if (AcpiGbl_CommonFACS.VectorWidth == 32)
     {
-        *PhysicalAddress = *(UINT32 *) AcpiGbl_CommonFACS.FirmwareWakingVector;
+        *PhysicalAddress = (ACPI_PHYSICAL_ADDRESS) 
+            *(ACPI_CAST_PTR (UINT32, AcpiGbl_CommonFACS.FirmwareWakingVector));
     }
     else
     {
-        *PhysicalAddress = *AcpiGbl_CommonFACS.FirmwareWakingVector;
+        *PhysicalAddress = 
+            *AcpiGbl_CommonFACS.FirmwareWakingVector;
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -231,7 +233,7 @@ AcpiEnterSleepStatePrep (
     /*
      * _PSW methods could be run here to enable wake-on keyboard, LAN, etc.
      */
-    Status = AcpiHwGetSleepTypeData (SleepState,
+    Status = AcpiGetSleepTypeData (SleepState,
                     &AcpiGbl_SleepTypeA, &AcpiGbl_SleepTypeB);
     if (ACPI_FAILURE (Status))
     {
@@ -281,11 +283,13 @@ ACPI_STATUS
 AcpiEnterSleepState (
     UINT8                   SleepState)
 {
-    UINT16                  PM1AControl;
-    UINT16                  PM1BControl;
+    UINT32                  PM1AControl;
+    UINT32                  PM1BControl;
     ACPI_BIT_REGISTER_INFO  *SleepTypeRegInfo;
     ACPI_BIT_REGISTER_INFO  *SleepEnableRegInfo;
+    UINT32                  InValue;
     UINT32                  Retry;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE ("AcpiEnterSleepState");
@@ -294,7 +298,7 @@ AcpiEnterSleepState (
     if ((AcpiGbl_SleepTypeA > ACPI_SLEEP_TYPE_MAX) ||
         (AcpiGbl_SleepTypeB > ACPI_SLEEP_TYPE_MAX))
     {
-        ACPI_REPORT_ERROR (("Sleep values out of range: A=%x B=%x\n",
+        ACPI_REPORT_ERROR (("Sleep values out of range: A=%X B=%X\n",
             AcpiGbl_SleepTypeA, AcpiGbl_SleepTypeB));
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
     }
@@ -305,16 +309,39 @@ AcpiEnterSleepState (
 
     /* Clear wake status */
 
-    AcpiHwBitRegisterWrite (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_LOCK);
-    AcpiHwClearAcpiStatus();
+    Status = AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_LOCK);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-    /* TBD: Disable arbitration here? */
+    Status = AcpiHwClearAcpiStatus();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-    AcpiHwDisableNonWakeupGpes();
+    /* Disable BM arbitration */
+
+    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_LOCK);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiHwDisableNonWakeupGpes();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /* Get current value of PM1A control */
 
-    PM1AControl = (UINT16) AcpiHwRegisterRead (ACPI_MTX_LOCK, ACPI_REGISTER_PM1_CONTROL);
+    Status = AcpiHwRegisterRead (ACPI_MTX_LOCK, ACPI_REGISTER_PM1_CONTROL, &PM1AControl);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
     ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Entering S%d\n", SleepState));
 
     /* Clear SLP_EN and SLP_TYP fields */
@@ -329,8 +356,17 @@ AcpiEnterSleepState (
 
     /* Write #1: fill in SLP_TYP data */
 
-    AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
-    AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
+    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /* Insert SLP_ENABLE bit */
 
@@ -338,36 +374,63 @@ AcpiEnterSleepState (
     PM1BControl |= SleepEnableRegInfo->AccessBitMask;
 
     /* Write #2: SLP_TYP + SLP_EN */
-    ACPI_FLUSH_CPU_CACHE();
 
-    AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
-    AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
+    ACPI_FLUSH_CPU_CACHE ();
+
+    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /*
      * Wait a second, then try again. This is to get S4/5 to work on all machines.
      */
     if (SleepState > ACPI_STATE_S3)
     {
-        AcpiOsStall (1000000);
+        /*
+         * We wait so long to allow chipsets that poll this reg very slowly to
+         * still read the right value. Ideally, this entire block would go
+         * away entirely.
+         */
+        AcpiOsStall (10000000);
 
-        AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1_CONTROL,
-                SleepEnableRegInfo->AccessBitMask);
+        Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1_CONTROL,
+                    SleepEnableRegInfo->AccessBitMask);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
     }
 
     /* Wait until we enter sleep state */
 
-    /* Spin until we wake */
     Retry = 1000;
-    while (!AcpiHwBitRegisterRead (ACPI_BITREG_WAKE_STATUS, ACPI_MTX_LOCK))
+    do 
     {
-	/*
-	 * Some BIOSes don't set WAK_STS at all,
-	 * give up waiting for wakeup if we time out.
-	 */
-	if (Retry-- == 0) {
-	    break;             /* giving up */
-	}
-    }
+        Status = AcpiGetRegister (ACPI_BITREG_WAKE_STATUS, &InValue, ACPI_MTX_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+
+        /*
+         * Some BIOSes don't set WAK_STS at all,
+         * give up waiting for wakeup if we time out.
+         */
+        if (Retry-- == 0) {
+            break;             /* giving up */
+        }
+
+        /* Spin until we wake */
+
+    } while (!InValue);
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -424,7 +487,14 @@ AcpiLeaveSleepState (
 
     /* _WAK returns stuff - do we want to look at it? */
 
-    AcpiHwEnableNonWakeupGpes();
+    Status = AcpiHwEnableNonWakeupGpes();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-    return_ACPI_STATUS (AE_OK);
+    /* Disable BM arbitration */
+    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_LOCK);
+
+    return_ACPI_STATUS (Status);
 }
