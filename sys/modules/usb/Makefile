@@ -6,7 +6,7 @@ S		 = ${.CURDIR}/../..
 .PATH:		 $S/dev/usb $S/pci
 KMOD		 = usb
 SRCS		 = bus_if.h device_if.h usb_if.h usb_if.c \
-		   vnode_if.c vnode_if.h \
+		   vnode_if.h \
 		   opt_usb.h \
 		   hid.c hid.h usbhid.h \
 		   uhub.c \
@@ -29,7 +29,7 @@ CLEANFILES	+= bus_if.h device_if.h pci_if.h usb_if.h usb_if.c \
 		   vnode_if.c vnode_if.h \
 		   uhci_pci.o uhci.o \
 		   ohci_pci.o ohci.o \
-		   opt_usb.h
+		   opt_usb.h opt_bus.h
 
 opt_usb.h:
 	echo > opt_usb.h
