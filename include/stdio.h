@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.4 (Berkeley) 1/4/94
+ *	$Id$
  */
 
 #ifndef	_STDIO_H_
@@ -268,8 +269,10 @@ __END_DECLS
  * Functions defined in POSIX 1003.1.
  */
 #ifndef _ANSI_SOURCE
-#define	L_cuserid	9	/* size for cuserid(); UT_NAMESIZE + 1 */
-#define	L_ctermid	1024	/* size for ctermid(); PATH_MAX */
+/* size for cuserid(3); UT_NAMESIZE + 1, see <utmp.h> */
+#define	L_cuserid	9
+
+#define	L_ctermid	1024	/* size for ctermid(3); PATH_MAX */
 
 __BEGIN_DECLS
 char	*ctermid __P((char *));

@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utmp.h	8.2 (Berkeley) 1/21/94
+ *	$Id$
  */
 
 #ifndef	_UTMP_H_
@@ -45,7 +46,7 @@
 #define	_PATH_WTMP	"/var/log/wtmp"
 #define	_PATH_LASTLOG	"/var/log/lastlog"
 
-#define	UT_NAMESIZE	8
+#define	UT_NAMESIZE	8	/* see MAXLOGNAME in <sys/param.h> */
 #define	UT_LINESIZE	8
 #define	UT_HOSTSIZE	16
 
