@@ -376,7 +376,7 @@ cue_setmulti(struct cue_softc *sc)
 	 * so we can receive broadcast frames.
  	 */
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = cue_crc(etherbroadcastaddr);
+		h = cue_crc(ifp->if_broadcastaddr);
 		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);		
 	}
 
