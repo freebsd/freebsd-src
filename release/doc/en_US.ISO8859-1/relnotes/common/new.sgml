@@ -265,8 +265,9 @@
       compiled as a module. &merged;</para>
 
     <para arch="i386">The &man.spic.4; driver, which provides access
-      to the jog dial device on some Sony laptops, has been
-      added.</para>
+      to the Jog Dial device on some Sony laptops, has been
+      added.  &man.moused.8; support for this device has also been
+      added. &merged;</para>
 
     <para>The &man.syscons.4; driver now supports keyboard-controlled
       pasting, by default bound to
@@ -2859,7 +2860,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been updated to 4.1.0. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Cinchona</quote> release) has been imported,
+        (<quote>Cineraria</quote> release) has been imported,
         replacing
         <application>Linux-PAM</application>.</para>
 
