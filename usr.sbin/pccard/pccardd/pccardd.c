@@ -156,12 +156,13 @@ main(int argc, char *argv[])
 {
 	struct slot *sp;
 	int count, dodebug = 0;
+	int probeonly = 0;
 	int delay = 0;
 	int irq_arg[16];
 	int irq_specified = 0;
 	int i;
 	struct sockaddr_un sun;
-#define	COM_OPTS	":Idvf:s:i:z"
+#define	COM_OPTS	":Idf:i:s:vxz"
 
 	bzero(irq_arg, sizeof(irq_arg));
 	use_kern_irq = 1;
@@ -224,12 +225,14 @@ main(int argc, char *argv[])
 	if (doverbose)
 		dump_config_file();
 	log_setup();
-	if (!dodebug && !delay)
+	if (!dodebug && !delay && !probeonly)
 		if (daemon(0, 0))
 			die("fork failed");
 	slots = readslots();
 	if (slots == 0)
 		die("no PC-CARD slots");
+	if (probeonly)
+		exit(0);
 	if (delay)
 		if (daemon(0, 0))
 			die("fork failed");
