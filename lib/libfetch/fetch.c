@@ -367,8 +367,7 @@ fetchParseURL(const char *URL)
 		_url_seterr(URL_BAD_PORT);
 		goto ouch;
 	    }
-	while (*p && (*p != '/'))
-	    p++;
+	p = q;
     }
 
 nohost:
