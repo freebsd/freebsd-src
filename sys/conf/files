@@ -333,8 +333,11 @@ msdosfs/msdosfs_fat.c		optional msdosfs
 msdosfs/msdosfs_lookup.c	optional msdosfs
 msdosfs/msdosfs_vfsops.c	optional msdosfs
 msdosfs/msdosfs_vnops.c		optional msdosfs
+# bpfilter is deprecated and will go away soon; use bpf instead.
 net/bpf.c		optional bpfilter
 net/bpf_filter.c	optional bpfilter
+net/bpf.c		optional bpf
+net/bpf_filter.c	optional bpf
 net/bsd_comp.c		optional ppp_bsdcomp
 #net/hostcache.c		standard
 net/if.c		standard
