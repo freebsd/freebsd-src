@@ -26,7 +26,6 @@ account		required	pam_unix.so
 #session	required	pam_krb5.so
 #session	required	pam_ssh.so
 session		required	pam_lastlog.so
-session		required	pam_unix.so
 
 # password
 #password	sufficient	pam_kerberosIV.so	no_warn try_first_pass

@@ -22,4 +22,3 @@ account		required	pam_unix.so
 #session	required	pam_kerberosIV.so
 #session	required	pam_krb5.so
 #session	required	pam_ssh.so
-session		required	pam_unix.so
