@@ -1590,7 +1590,7 @@
     </para>
 
     <para>Gigabit Ethernet NICs based on the Intel 82542 and 82543
-    controller chips (&man.wx.4; and &man.gx.4; drivers)
+    controller chips (&man.wx.4;, &man.gx.4; and &man.em.4; drivers)
       <itemizedlist>
 	<listitem>
 	  <para>Intel PRO/1000 Gigabit Ethernet</para>
