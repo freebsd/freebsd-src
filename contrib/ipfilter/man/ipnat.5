@@ -96,6 +96,15 @@ or as
 map de0 from 10.1.0.0/16 to any -> 201.2.3.4/32
 .fi
 .LP
+For even greater control, one may negate either of the "from" or "to" clauses
+with a preceding exclamation mark ("!").  Please note that one may not use a
+negated "from" within a \fBmap\fP rule or a negated "to" within a \fBrdr\fP
+rule.  Such a rule might look like the following:
+.LP
+.nf
++map de0 from 10.1.0.0/16 ! to 10.1.0.0/16 -> 201.2.3.4/32
+.fi
+.PP
 Only IP address and port numbers can be compared against.  This is available
 with all NAT rules.
 .SH TRANSLATION
