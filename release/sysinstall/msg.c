@@ -216,6 +216,7 @@ msgNotify(char *fmt, ...)
     if (isDebug())
 	msgDebug("Notify: %s\n", errstr);
     dialog_msgbox(NULL, errstr, -1, -1, 0);
+    dialog_update();
 }
 
 /* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
