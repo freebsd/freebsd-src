@@ -18,10 +18,10 @@ dnl Check $? to see if we passed or failed.  The first parameter is the test
 dnl which passed or failed.  It may be nil.
 define(`REGRESSION_PASSFAIL',
 if [ $? -eq 0 ]; then
-  echo "PASS: Test $1 detected no regression. (in $TESTDIR)"
+  echo "ok - $1 # Test detected no regression. (in $TESTDIR)"
 else
   STATUS=$?
-  echo "FAIL: Test $1 failed: regression detected.  See above. (in $TESTDIR)"
+  echo "not ok - $1 # Test failed: regression detected.  See above. (in $TESTDIR)"
 fi)
 
 dnl An actual test.  The first parameter is the test name.  The second is the
@@ -29,7 +29,6 @@ dnl command/commands to execute for the actual test.  Their exit status is
 dnl checked.  It is assumed that the test will output to stdout, and that the
 dnl output to be used to check for regression will be in regress.TESTNAME.out.
 define(`REGRESSION_TEST',
-echo "Running test $1"
 $2 | diff -u regress.$1.out -
 REGRESSION_PASSFAIL($1))
 
@@ -42,7 +41,6 @@ dnl A regression test like REGRESSION_TEST, except only regress.out is used
 dnl for checking output differences.  The first argument is the command, the
 dnl second argument (which may be empty) is the test name.
 define(`REGRESSION_TEST_ONE',
-echo "Running test $2"
 $1 | diff -u regress.out -
 REGRESSION_PASSFAIL($2))
 
@@ -50,7 +48,7 @@ dnl A fatal error.  This will exit with the given status (first argument) and
 dnl print the message (second argument) prefixed with the string "FATAL :" to
 dnl the error stream.
 define(`REGRESSION_FATAL',
-echo "FATAL: $2 (in $TESTDIR)" > /dev/stderr
+echo "Bail out! $2 (in $TESTDIR)" > /dev/stderr
 exit $1)
 
 dnl Cleanup.  Exit with the status code of the last failure.  Should probably

@@ -54,6 +54,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	assert(MB_CUR_MAX == 1);
 
 	/* Incomplete character sequence. */
@@ -127,7 +129,7 @@ main(int argc, char *argv[])
 	assert(cres == buf + 2);
 	assert(sgetrune(buf, 2, NULL) == 0xa3c1);
 
-	printf("PASS sgetrune()\n");
+	printf("ok 1 - sgetrune()\n");
 
 	return (0);
 }

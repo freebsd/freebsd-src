@@ -39,6 +39,8 @@
 int n_float, n_double, n_long_double;
 int n_float_complex, n_double_complex, n_long_double_complex;
 
+int currtest = 0;
+
 #define	TGMACRO(FNC)							\
 	TGMACRO_REAL(FNC)						\
 	TGMACRO_COMPLEX(c ## FNC)
@@ -390,15 +392,19 @@ _Bool b;
 
 int failed = 0;
 #define	PRINT(STR, X) do {						\
+	currtest++;							\
 	int result = (X);						\
 	if (!result)							\
 		failed = 1;						\
-	printf("%s %s\n", result ? "PASS" : "FAIL", (STR));		\
+	printf("%s %d - %s\n", result ? "ok" : "not ok", currtest, (STR));		\
+	fflush(stdout);							\
 } while (0)
 
 int
 main(void)
 {
+	printf("1..60\n");
+
 	/* 7.22#4 */
 	PRINT("acos",
 	    PASS_REAL_ARG_REAL_RET(acos) &&
@@ -612,6 +618,4 @@ main(void)
 	PRINT("creal",
 	    PASS_REAL_ARG_REAL_RET_(creal, _complex) &&
 	    PASS_COMPLEX_ARG_REAL_RET(creal));
-
-	printf("%s <tgmath.h>\n", failed ? "FAIL" : "PASS");
 }

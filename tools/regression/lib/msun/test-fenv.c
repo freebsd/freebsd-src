@@ -85,6 +85,7 @@ int
 main(int argc, char *argv[])
 {
 
+	printf("1..1\n");
 	init_exceptsets();
 	test_dfl_env();
 	test_fetestclearexcept();
@@ -95,7 +96,7 @@ main(int argc, char *argv[])
 	test_fegsetmask();
 	test_feholdupdate();
 
-	printf("PASS fenv\n");
+	printf("ok 1 - fenv\n");
 	return (0);
 }
 

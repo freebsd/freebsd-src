@@ -40,17 +40,20 @@ test_line(const char *line, const struct eui64 *eui, const char *host)
 {
 	struct eui64	e;
 	char		buf[256];
+	static int	test = 0;
+
+	test++;
 
 	if (eui64_line(line, &e, buf, sizeof(buf)) != 0 ||
 	    memcmp(&e, eui, sizeof(struct eui64)) != 0 ||
 	    strcmp(buf, host) != 0) {
-		printf("FAIL: eui64_line(\"%s\")\n", line);
-		printf("host = %s\n", buf);
+		printf("not ok %d - eui64_line(\"%s\")\n", test, line);
+		printf("# host = %s\n", buf);
 		eui64_ntoa(&e, buf, sizeof(buf));
-		printf("e = %s\n", buf);
+		printf("# e = %s\n", buf);
 		return (0);
 	} else {
-		printf("PASS: eui64_line(\"%s\")\n", line);
+		printf("ok %d - eui64_line(\"%s\")\n", test, line);
 		return (1);
 	}
 }
@@ -58,6 +61,8 @@ test_line(const char *line, const struct eui64 *eui, const char *host)
 int
 main(int argc, char **argv)
 {
+
+	printf("1..6\n");
 
 	test_line(test_eui64_line_id, &test_eui64_id,
 	    test_eui64_id_host);

@@ -55,6 +55,8 @@ main(int argc, char *argv[])
 	socklen_t size;
 	int fd1, fd2, fd3, i, s;
 
+	printf("1..1\n");
+
 	/*
 	 * Check for sequential fd allocation, and give up early if not.
 	 */
@@ -105,9 +107,9 @@ main(int argc, char *argv[])
 	 */
 	fd3 = dup(STDIN_FILENO);
 	if (fd3 != fd2 + 2)
-		errx(-1, "FAIL (%d, %d, %d)\n", fd1, fd2, fd3);
+		printf("not ok 1 - (%d, %d, %d)\n", fd1, fd2, fd3);
 	else
-		fprintf(stderr, "PASS\n");
+		printf("ok 1\n");
 
 	return (0);
 }

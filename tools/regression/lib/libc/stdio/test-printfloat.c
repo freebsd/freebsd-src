@@ -52,6 +52,7 @@ int
 main(int argc, char *argv[])
 {
 
+	printf("1..1\n");
 	assert(setlocale(LC_NUMERIC, ""));
 
 	testfmt(" 1.000000E+00", "%13E", 1.0);
@@ -203,7 +204,7 @@ main(int argc, char *argv[])
 	testfmt("0x2.00p-1030", "%.2a", 0x1.fffp-1030);
 	testfmt("0x1.00p-1026", "%.2a", 0xf.fffp-1030);
 
-	printf("PASS printfloat\n");
+	printf("ok 1 - printfloat\n");
 
 	return (0);
 }

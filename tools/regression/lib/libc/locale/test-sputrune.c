@@ -54,6 +54,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	assert(MB_CUR_MAX == 1);
 
 	/* Null wide character. */
@@ -127,7 +129,7 @@ main(int argc, char *argv[])
 	assert((unsigned char)buf[0] == 0xcc);
 
 
-	printf("PASS sputrune()\n");
+	printf("ok 1 - sputrune()\n");
 
 	return (0);
 }

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+echo 1..2
+
 REGRESSION_START($1)
 
 # To make sure we end up with matching headers.

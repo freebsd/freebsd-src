@@ -52,6 +52,8 @@ main(int argc, char *argv[])
 	double d = 0.0;
 	float f = 0.0;
 
+	printf("1..1\n");
+
 	buf[0] = '\0';
 	assert(setlocale(LC_NUMERIC, ""));
 
@@ -174,7 +176,7 @@ main(int argc, char *argv[])
 	sscanf("0x1.2345678p-1050", "%le", &d);
 	assert(d == 0x1.234568p-1050);
 
-	printf("PASS scanfloat\n");
+	printf("ok 1 - scanfloat\n");
 
 	return (0);
 }

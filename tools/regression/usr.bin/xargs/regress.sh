@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+echo 1..5
+
 REGRESSION_START($1)
 
 REGRESSION_TEST(`normal', `xargs echo The < regress.in')

@@ -9,8 +9,9 @@ cd $TESTDIR
 
 STATUS=0
 
+echo 1..2
+
 for test in GNU/changecom changecom; do
-  echo "Running test $test"
   case "$test" in
   GNU/*)
     M4="m4 -g"
@@ -28,10 +29,10 @@ for test in GNU/changecom changecom; do
     ;;
   esac
   if [ $? -eq 0 ]; then
-    echo "PASS: Test $test detected no regression, output matches."
+    echo "ok - $test # Test detected no regression, output matches."
   else
     STATUS=$?
-    echo "FAIL: Test $test failed: regression detected.  See above."
+    echo "not ok - $test # Test failed: regression detected.  See above."
   fi
 done
 
