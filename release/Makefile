@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.246.2.86 1998/05/20 01:08:41 jkh Exp $
+#	$Id: Makefile,v 1.246.2.87 1998/06/26 18:55:07 brian Exp $
 #
-# How to roll a release:
+#	$Id: Makefile,v 1.354 1998/06/06 04:39:42 jkoshy Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -22,6 +22,9 @@
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
 #NODOC=  YES
+# Comment the following if you want the release documentation to be
+# in English only.
+ALLLANG= yes
 DOCPORTS= archivers/unzip lang/perl5 textproc/jade textproc/iso8879 \
           textproc/linuxdoc textproc/docbook textproc/sgmlformat
 
@@ -179,6 +182,9 @@ rerelease release:
 .endif
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
+.endif
+.if defined(ALLLANG)
+	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
