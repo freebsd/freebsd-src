@@ -88,7 +88,6 @@ struct en_pci_softc {
 
   /* PCI bus glue */
   void *sc_ih;			/* interrupt handle */
-  pci_chipset_tag_t en_pc;	/* for PCI calls */
   pcici_t en_confid;		/* config id */
 };
 
