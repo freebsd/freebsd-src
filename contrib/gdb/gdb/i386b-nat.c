@@ -150,7 +150,6 @@ i386_register_u_addr (blockend, regnum)
 #include "floatformat.h"
 
 #include <sys/param.h>
-#include <sys/dir.h>
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -172,6 +171,37 @@ extern void print_387_status_word ();
 
 #define	fpstate		save87
 #define	U_FPSTATE(u)	u.u_pcb.pcb_savefpu
+
+static void
+i387_to_double (from, to)
+     char *from;
+     char *to;
+{
+  long *lp;
+  /* push extended mode on 387 stack, then pop in double mode
+   *
+   * first, set exception masks so no error is generated -
+   * number will be rounded to inf or 0, if necessary
+   */
+  asm ("pushl %eax"); 		/* grab a stack slot */
+  asm ("fstcw (%esp)");		/* get 387 control word */
+  asm ("movl (%esp),%eax");	/* save old value */
+  asm ("orl $0x3f,%eax");		/* mask all exceptions */
+  asm ("pushl %eax");
+  asm ("fldcw (%esp)");		/* load new value into 387 */
+
+  asm ("movl 8(%ebp),%eax");
+  asm ("fldt (%eax)");		/* push extended number on 387 stack */
+  asm ("fwait");
+  asm ("movl 12(%ebp),%eax");
+  asm ("fstpl (%eax)");		/* pop double */
+  asm ("fwait");
+
+  asm ("popl %eax");		/* flush modified control word */
+  asm ("fnclex");			/* clear exceptions */
+  asm ("fldcw (%esp)");		/* restore original control word */
+  asm ("popl %eax");		/* flush saved copy */
+}
 
 struct env387 
 {
@@ -225,12 +255,18 @@ print_387_status (status, ep)
 
   top = (ep->status >> 11) & 7;
   
-  printf_unfiltered ("regno     tag  msb              lsb  value\n");
+  printf_unfiltered (" regno     tag  msb              lsb  value\n");
   for (fpreg = 7; fpreg >= 0; fpreg--) 
     {
+      int st_regno;
       double val;
       
-      printf_unfiltered ("%s %d: ", fpreg == top ? "=>" : "  ", fpreg); 
+      /* The physical regno `fpreg' is only relevant as an index into the
+       * tag word.  Logical `%st' numbers are required for indexing ep->regs.
+       */
+      st_regno = (fpreg + 8 - top) & 7;
+
+      printf_unfiltered ("%%st(%d) %s ", st_regno, fpreg == top ? "=>" : "  ");
 
       switch ((ep->tag >> (fpreg * 2)) & 3) 
 	{
@@ -240,10 +276,9 @@ print_387_status (status, ep)
 	case 3: printf_unfiltered ("empty "); break;
 	}
       for (i = 9; i >= 0; i--)
-	printf_unfiltered ("%02x", ep->regs[fpreg][i]);
+	printf_unfiltered ("%02x", ep->regs[st_regno][i]);
       
-      floatformat_to_double(&floatformat_i387_ext, (char *) ep->regs[fpreg], 
-			      &val);
+      i387_to_double((char *) ep->regs[st_regno], (char *) &val);
       printf_unfiltered ("  %g\n", val);
     }
 }
