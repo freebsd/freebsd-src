@@ -1750,18 +1750,16 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	/* Enable any GPEs as appropriate and requested by the user. */
 	acpi_wake_prep_walk(state);
 
-	/* Inform all devices that we are going to sleep. */
-	if (DEVICE_SUSPEND(root_bus) != 0) {
-	    /*
-	     * Re-wake the system.
-	     *
-	     * XXX note that a better two-pass approach with a 'veto' pass
-	     *     followed by a "real thing" pass would be better, but the
-	     *     current bus interface does not provide for this.
-	     */
-	    DEVICE_RESUME(root_bus);
+	/*
+	 * Inform all devices that we are going to sleep.  If at least one
+	 * device fails, DEVICE_SUSPEND() automatically resumes the tree.
+	 *
+	 * XXX Note that a better two-pass approach with a 'veto' pass
+	 * followed by a "real thing" pass would be better, but the current
+	 * bus interface does not provide for this.
+	 */
+	if (DEVICE_SUSPEND(root_bus) != 0)
 	    return_ACPI_STATUS (AE_ERROR);
-	}
 
 	status = AcpiEnterSleepStatePrep(state);
 	if (ACPI_FAILURE(status)) {
@@ -1780,6 +1778,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    if (state == ACPI_STATE_S4)
 		AcpiEnable();
 	} else {
+	    ACPI_DISABLE_IRQS();
 	    status = AcpiEnterSleepState((UINT8)state);
 	    if (ACPI_FAILURE(status)) {
 		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
