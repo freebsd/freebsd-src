@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: scan.l,v 1.7 1997/02/22 19:54:32 peter Exp $
  */
 
 #include <ctype.h>
@@ -101,7 +101,7 @@ YYSTYPE yylval;
 		return CHAR;
 	}
 	if(yyleng > STR_LEN - 1)
-		errx(EX_UNAVAILABLE, "chain buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "chain buffer overflow near line %u",
 		     line_no);
 	strcpy(yylval.str, yytext);
 	return CHAIN;
@@ -121,19 +121,19 @@ YYSTYPE yylval;
 }
 <name>\/\/              {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name buffer overflaw near line %u, character '/'",
+		errx(EX_UNAVAILABLE, "name buffer overflow near line %u, character '/'",
 		     line_no);
 	*ptr++ = '/';
 }
 <name>\/\>              {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name buffer overflaw near line %u, character '>'",
+		errx(EX_UNAVAILABLE, "name buffer overflow near line %u, character '>'",
 		     line_no);
 	*ptr++ = '>';
 }
 <string>\\\"		{
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\"'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\"'",
 		     line_no);
 	*ptr++ = '"';
 }
@@ -167,49 +167,49 @@ YYSTYPE yylval;
 		errx(EX_UNAVAILABLE, "non-ASCII or non-printable character 0x%02x not allowed in the map/name near line %u of %s",
 		     *yytext, line_no, s);
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "map/name buffer overflaw near line %u of %s, character '%c'",
+		errx(EX_UNAVAILABLE, "map/name buffer overflow near line %u of %s, character '%c'",
 		     line_no, s, *yytext);
 	*ptr++ = *yytext;
 }
 <string>\\t             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\t'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\\t'",
 		     line_no);
 	*ptr++ = '\t';
 }
 <string>\\b             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\b'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\\b'",
 		     line_no);
 	*ptr++ = '\b';
 }
 <string>\\f             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\f'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\\f'",
 		     line_no);
 	*ptr++ = '\f';
 }
 <string>\\v             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\v'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\\v'",
 		     line_no);
 	*ptr++ = '\v';
 }
 <string>\\n             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\n'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\\n'",
 		     line_no);
 	*ptr++ = '\n';
 }
 <string>\\r             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\r'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\\r'",
 		     line_no);
 	*ptr++ = '\r';
 }
 <string>\\a             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\a'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '\\a'",
 		     line_no);
 	*ptr++ = '\a';
 }
@@ -237,13 +237,13 @@ YYSTYPE yylval;
 }
 <string>\\.             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '%c'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '%c'",
 		     line_no, yytext[1]);
 	*ptr++ = yytext[1];
 }
 <string>.               {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '%c'",
+		errx(EX_UNAVAILABLE, "string buffer overflow near line %u, character '%c'",
 		     line_no, *yytext);
 	*ptr++ = *yytext;
 }
