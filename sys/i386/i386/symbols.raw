@@ -1,6 +1,6 @@
 #	@(#)symbols.raw	7.6 (Berkeley) 5/8/91
 #
-#	$Id: symbols.raw,v 1.8 1997/02/22 09:32:52 peter Exp $
+#	$Id: symbols.raw,v 1.9 1997/04/07 07:15:55 peter Exp $
 #
 
 
@@ -57,7 +57,7 @@
 	_tcpstat
 	_udb
 	_udpstat
-	_rawcb
+#	_rawcb
 	_ifnet
 #	_rthost
 #	_rtnet
