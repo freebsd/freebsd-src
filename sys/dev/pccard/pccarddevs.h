@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.9 2001/01/20 02:03:53 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.11 2001/03/22 05:51:58 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.111 2001/01/20 01:56:16 imp Exp $ */
 
@@ -597,3 +597,6 @@
 #define	PCCARD_CIS_NANOSPEED_PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version 01.02", NULL }
 #define	PCCARD_PRODUCT_NANOSPEED_PRISM2	-1
 #define	PCCARD_STR_NANOSPEED_PRISM2	"NANOSPEED ROOT-RZ2000 WLAN Card"
+#define	PCCARD_CIS_ZOOM_AIR_4000	{ "Zoom", "Air-4000", NULL, NULL }
+#define	PCCARD_PRODUCT_ZOOM_AIR_4000	-1
+#define	PCCARD_STR_ZOOM_AIR_4000	"Zoom Air-4000"
