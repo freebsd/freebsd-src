@@ -199,6 +199,13 @@ CRUNCH_PROGS_usr.bin+= id
 CRUNCH_ALIAS_id= groups whoami
 
 ##################################################################
+# Programs from stock /usr/sbin
+# 
+CRUNCH_SRCDIRS+= usr.sbin
+
+CRUNCH_PROGS_usr.sbin+= chroot
+
+##################################################################
 #  The following is pretty nearly a generic crunchgen-handling makefile
 #
 
