@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.15 1997/06/10 10:04:19 brian Exp $
+# $Id: ppp.conf.sample,v 1.16 1997/08/25 01:07:06 brian Exp $
 #
 #################################################################
 
@@ -170,10 +170,8 @@ tcp-client:
  set dial
  set login
  set escape 0xff
- set ifaddr 10.0.5.1 10.0.4.1
- add 10.0.4.1 255.255.255.0 HISADDR
+ set ifaddr 10.0.5.1 10.0.4.1 255.255.255.0
 
 tcp-server:
  set escape 0xff
- set ifaddr 10.0.4.1 10.0.5.1
- add 10.0.5.1 255.255.255.0 HISADDR
+ set ifaddr 10.0.4.1 10.0.5.1 255.255.255.0
