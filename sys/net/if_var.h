@@ -356,7 +356,7 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 		(*ifp->if_start)(ifp);
 	return (1);
 }
-#if 1 /* ALTQ */
+#ifdef ALTQ
 #define	IFQ_ENQUEUE(ifq, m, err)					\
 do {									\
 	IF_LOCK(ifq);							\
