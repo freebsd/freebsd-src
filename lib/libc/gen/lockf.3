@@ -171,6 +171,7 @@ locked region is unlocked would cause a deadlock and fails with an
 .Er EDEADLK
 error.
 .Pp
+The
 .Fn lockf ,
 .Xr fcntl 2
 and
@@ -182,7 +183,9 @@ Blocking on a section is interrupted by any signal.
 .Rv -std lockf
 In the case of a failure, existing locks are not changed.
 .Sh ERRORS
+The
 .Fn lockf
+function
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN

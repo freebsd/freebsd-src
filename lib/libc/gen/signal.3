@@ -50,7 +50,7 @@
 or in
 .Fx Ns 's
 equivalent but easier to read typedef'd version:
-.Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp"
+.Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp" ;
 .Ft sig_t
 .Fn signal "int sig" "sig_t func"
 .Sh DESCRIPTION
@@ -135,7 +135,7 @@ is possible on a descriptor (see
 .Pp
 The
 .Fa sig
-parameter specifies which signal was received.
+argument specifies which signal was received.
 The
 .Fa func
 procedure allows a user to choose the action upon receipt of a signal.
@@ -211,12 +211,16 @@ Otherwise, SIG_ERR is returned and  the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Signal
+The
+.Fn signal
+function
 will fail and no action will take place if one of the
 following occur:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-.Em Sig
+The
+.Fa sig
+argument
 is not a valid signal number.
 .It Bq Er EINVAL
 An attempt is made to ignore or supply a handler for
