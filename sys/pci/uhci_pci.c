@@ -250,67 +250,14 @@ uhci_pci_attach(device_t self)
 	}
 	device_set_ivars(sc->sc_bus.bdev, sc);
 
-	switch (pci_get_devid(self)) {
-	case PCI_UHCI_DEVICEID_PIIX3:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_piix3);
+	device_set_desc(sc->sc_bus.bdev, uhci_pci_match(self));
+	if (pci_get_vendor(self) == PCI_UHCI_VENDORID_INTEL) {
 		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_PIIX4:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_piix4);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH0:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich0);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH2_A:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich2_a);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH2_B:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich2_b);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH3_A:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich3_a);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH3_B:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich3_b);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH4_A:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_a);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH4_B:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_b);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH4_C:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_c);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_440MX:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_440mx);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_460GX:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_460gx);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_VT83C572:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_vt83c572);
+	} else if (pci_get_vendor(self) == PCI_UHCI_VENDORID_VIA) {
 		sprintf(sc->sc_vendor, "VIA");
-		break;
-	default:
+	} else {
 		device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
 		    pci_get_devid(self));
-		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
 		sprintf(sc->sc_vendor, "(0x%08x)", pci_get_devid(self));
 	}
 
