@@ -57,7 +57,7 @@
 #include <geom/geom_slice.h>
 #include <machine/endian.h>
 
-#define SUNLABEL_CLASS_NAME "SUNLABEL-class"
+#define SUNLABEL_CLASS_NAME "SUN"
 
 struct g_sunlabel_softc {
 	int foo;

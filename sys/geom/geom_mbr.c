@@ -58,8 +58,8 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
-#define MBR_CLASS_NAME "MBR-class"
-#define MBREXT_CLASS_NAME "MBREXT-class"
+#define MBR_CLASS_NAME "MBR"
+#define MBREXT_CLASS_NAME "MBREXT"
 
 static void
 g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
