@@ -423,7 +423,14 @@ rl_redisplay ()
      contents of the command line? */
   while (lpos >= screenwidth)
     {
+#if 0
       temp = ((newlines + 1) * screenwidth) - ((newlines == 0) ? wrap_offset : 0);
+#else
+      /* XXX - possible fix from Darin Johnson <darin@acuson.com> for prompt
+       string with invisible characters that is longer than the screen
+       width. */
+      temp = ((newlines + 1) * screenwidth) + ((newlines == 0) ? wrap_offset : 0);
+#endif
       inv_lbreaks[++newlines] = temp;
       lpos -= screenwidth;
     }
