@@ -27,7 +27,6 @@ sed	\
 	-e '/pass/d' \
 	-e '/	amr/d' \
 	-e '/splash/d' \
-	-e '/	apm0/d' \
 	-e '/ppc/d' \
 	-e '/ppbus/d' \
 	-e '/plip/d' \
