@@ -27,7 +27,9 @@
  */
 
 #include <stand.h>
+#include "bootstrap.h"
 #include "libofw.h"
+#include "openfirm.h"
 
 #if defined(LOADER_NET_SUPPORT)
 #include "dev_net.h"
@@ -82,10 +84,9 @@ struct netif_driver *netif_drivers[] = {
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
-extern struct file_format powerpc_elf;
 
 struct file_format *file_formats[] = {
-/*  &powerpc_elf,*/
+    &ofw_elf,
     NULL
 };
 
@@ -101,3 +102,8 @@ struct console *consoles[] = {
     &ofwconsole,
     NULL
 };
+
+/*
+ * reloc - our load address
+ */
+vm_offset_t	reloc = RELOC;

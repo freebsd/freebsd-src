@@ -37,8 +37,6 @@
 
 void startup(void *, int, int (*)(void *), char *, int);
 
-static int stack[8192/4 + 4];
-
 #ifdef XCOFF_GLUE
 asm("
 	.text
@@ -48,7 +46,11 @@ _entry:
 ");
 #endif
 
-asm("
+__asm("
+	.data
+stack:
+	.space	16388
+
 	.text
 	.globl	_start
 _start:
