@@ -1370,8 +1370,6 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
 		sf.sf_si.si_addr = (void*)frame->tf_regs[FRAME_TRAPARG_A0];
-		sf.sf_si.si_pid = p->p_pid;
-		sf.sf_si.si_uid = p->p_ucred->cr_uid;
 	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
@@ -1512,8 +1510,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
 		sf.sf_si.si_addr = (void*)frame->tf_regs[FRAME_TRAPARG_A0];
-		sf.sf_si.si_pid = p->p_pid;
-		sf.sf_si.si_uid = p->p_ucred->cr_uid;
 	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
