@@ -95,13 +95,6 @@ static struct atm_time	atm_compactimer = {0, 0};
 
 static uma_zone_t atm_stackq_zone;
 
-static atm_init_fn atm_init_fns[] = {
-	&atm_sock_init,
-	&atm_cm_init,
-	&atm_aal5_init,
-	NULL
-};
-
 /*
  * Initialize ATM kernel
  * 
@@ -119,8 +112,6 @@ static atm_init_fn atm_init_fns[] = {
 void
 atm_initialize()
 {
-	u_int i;
-
 	/*
 	 * Never called from interrupts, so no locking needed
 	 */
@@ -150,8 +141,10 @@ atm_initialize()
 	/*
 	 * Initialize subsystems
 	 */
-	for (i = 0; i < sizeof(atm_init_fns) / sizeof(atm_init_fn); i++)
-		atm_init_fns[i]();
+	atm_sock_init();
+	atm_cm_init();
+	atm_aal5_init();
+
 	/*
 	 * Prime the timer
 	 */
