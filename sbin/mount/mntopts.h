@@ -42,7 +42,7 @@ struct mntopt {
 
 /* User-visible MNT_ flags. */
 #define MOPT_ASYNC		{ "async",	0, MNT_ASYNC, 0 }
-#define MOPT_NOAUTO		{ "auto",	1, MNT_NOAUTO, 0 }
+#define	MOPT_NOAUTO		{ "auto",	1, 0, 0 }
 #define MOPT_NODEV		{ "dev",	1, MNT_NODEV, 0 }
 #define MOPT_NOEXEC		{ "exec",	1, MNT_NOEXEC, 0 }
 #define MOPT_NOSUID		{ "suid",	1, MNT_NOSUID, 0 }
