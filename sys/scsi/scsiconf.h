@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.34 1995/12/14 09:54:30 phk Exp $
+ *	$Id: scsiconf.h,v 1.35 1995/12/14 19:38:38 bde Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -476,6 +476,9 @@ void scsi_configure_finish __P((void));
 
 void ukinit __P((void));
 
+#ifdef SCSI_2_DEF
+errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
+#endif
 #endif	/* KERNEL */
 
 #define SCSI_EXTERNALLEN (sizeof(struct scsi_link))

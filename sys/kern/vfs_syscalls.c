@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.42 1995/12/07 12:47:06 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.43 1995/12/11 04:56:11 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -317,10 +317,6 @@ dounmount(mp, flags, p)
 /*
  * Sync each mounted filesystem.
  */
-#ifdef DIAGNOSTIC
-int syncprt = 0;
-SYSCTL_INT(_debug, 0, syncprt, CTLFLAG_RW, &syncprt, 0, "");
-#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct sync_args {
