@@ -1218,7 +1218,12 @@ fxp_intr(arg)
 
 	FXP_LOCK(sc, s);
 
-	while (!sc->suspended && (statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
+	if (sc->suspended) {
+		FXP_UNLOCK(sc, s);
+		return;
+	}
+
+	while ((statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
 #if defined(__NetBSD__)
 		claimed = 1;
 #endif
