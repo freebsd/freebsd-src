@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)mtree.8	8.2 (Berkeley) 12/11/93
+.\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
+.\"	$Id$
 .\"
-.Dd December 11, 1993
+.Dd February 9, 1995
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -134,6 +135,8 @@ Ignore any file hierarchy below this file.
 The file group as a numeric value.
 .It Cm gname
 The file group as a symbolic name.
+.It Cm md5digest
+The MD5 message digest of the file.
 .It Cm mode
 The current file's permissions as a numeric (octal) or symbolic
 value.
@@ -232,28 +235,33 @@ option is used.
 To detect system binaries that have been ``trojan horsed'', it is recommended
 that
 .Nm mtree
+.Fl K
+.Cm md5digest
 be run on the file systems, and a copy of the results stored on a different
 machine, or, at least, in encrypted form.
-The seed for the
-.Fl s
-option should not be an obvious value and the final checksum should not be
-stored on-line under any circumstances!
+The output file itself should be digested using the
+.Xr md5 1
+utility.
 Then, periodically,
 .Nm mtree
-should be run against the on-line specifications and the final checksum
-compared with the previous value.
+and
+.Xr md5 1
+should be run against the on-line specifications.
 While it is possible for the bad guys to change the on-line specifications
-to conform to their modified binaries, it shouldn't be possible for them
-to make it produce the same final checksum value.
-If the final checksum value changes, the off-line copies of the specification
-can be used to detect which of the binaries have actually been modified.
+to conform to their modified binaries, it is believed to be
+impractical for them to create a modified specification which has
+the same MD5 digest as the original.
 .Pp
 The
 .Fl d
 and
 .Fl u
 options can be used in combination to create directory hierarchies
-for distributions and other such things.
+for distributions and other such things; the files in
+.Pa /etc/mtree
+were used to create almost all diectories in this
+.Tn FreeBSD
+distribution.
 .Sh FILES
 .Bl -tag -width /etc/mtree -compact
 .It Pa /etc/mtree
@@ -264,10 +272,17 @@ system specification directory
 .Xr chown 1 ,
 .Xr chgrp 1 ,
 .Xr cksum 1 ,
+.Xr md5 1 ,
 .Xr stat 2 ,
 .Xr fts 3 ,
+.Xr md5 3
 .Sh HISTORY
 The
 .Nm mtree
 utility appeared in
 .Bx 4.3 Reno .
+The MD5 digest capability was added in
+.Tn FreeBSD
+2.1, in response to the widespread use of programs which can spoof
+.Xr cksum 1 .
+

@@ -47,6 +47,7 @@ typedef struct _node {
 	off_t	st_size;			/* size */
 	struct timespec	st_mtimespec;		/* last modification time */
 	u_long	cksum;				/* check sum */
+	char	*md5digest;			/* MD5 digest */
 	char	*slink;				/* symbolic link reference */
 	uid_t	st_uid;				/* uid */
 	gid_t	st_gid;				/* gid */
@@ -69,6 +70,7 @@ typedef struct _node {
 #define	F_UID	0x1000				/* uid */
 #define	F_UNAME	0x2000				/* user name */
 #define	F_VISIT	0x4000				/* file visited */
+#define F_MD5	0x8000				/* MD5 digest */
 	u_short	flags;				/* items set */
 
 #define	F_BLOCK	0x001				/* block special */
