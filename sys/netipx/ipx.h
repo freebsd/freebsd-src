@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipx.h
+ *	@(#)$Id$
  */
 
 #ifndef _NETIPX_IPX_H_
@@ -156,8 +156,6 @@ struct ipx {
 
 #ifdef KERNEL
 
-#include <net/route.h>
-
 extern int ipxcksum;
 extern struct domain ipxdomain;
 extern struct sockaddr_ipx ipx_netmask;
@@ -172,6 +170,9 @@ extern union ipx_host ipx_broadhost;
 extern long ipx_pexseq;
 extern u_char ipxctlerrmap[];
 extern struct ipxpcb ipxrawpcb;
+
+#include <net/if.h>
+#include <net/route.h>
 
 #include <sys/cdefs.h>
 

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipx_pcb.h
+ *	@(#)$Id$
  */
 
 #ifndef _NETIPX_IPX_PCB_H_
@@ -91,7 +91,7 @@ void ipx_pcbdisconnect __P((struct ipxpcb *ipxp));
 void ipx_pcbdetach __P((struct ipxpcb *ipxp));
 void ipx_setsockaddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
 void ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
-void ipx_pcbnotify __P((struct ipx_addr *dst, int errno, int (*notify)(), long param));
+void ipx_pcbnotify __P((struct ipx_addr *dst, int errno, void (*notify)(struct ipxpcb *), long param));
 struct ipxpcb *ipx_pcblookup __P((struct ipx_addr *faddr, int lport, int wildp));
 __END_DECLS
 

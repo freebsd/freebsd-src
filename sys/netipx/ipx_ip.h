@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipxip.h
+ *	@(#)$Id$
  */
 
 #ifndef __NETIPX_IPXIP_H_
@@ -59,7 +59,7 @@ void ipxip_rtchange __P((struct in_addr *dst));
 struct ifnet_en *ipxipattach __P((void));
 int ipxipioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
 void ipxip_input __P((struct mbuf *m, struct ifnet *ifp));
-int ipxipoutput __P((struct ifnet_en *ifn, struct mbuf *m, struct sockaddr *dst));
+int ipxipoutput __P((struct ifnet *ifn, struct mbuf *m, struct sockaddr *dst, struct rtentry *rt));
 void ipxipstart __P((struct ifnet *ifp));
 int ipxip_route __P((struct mbuf *m));
 int ipxip_free __P((struct ifnet *ifp));
