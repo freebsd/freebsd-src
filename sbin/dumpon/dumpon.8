@@ -85,27 +85,6 @@ or to
 .Ar special_file
 is the text string:
 .Dq Li off .
-.Pp
-The
-.Xr ddb 4
-interactive kernel debugger may be used
-to specify a device for crash dumps
-that occur in single-user mode.
-For example,
-the following command at the
-.Xr ddb 4
-prompt would return the device number for the swap device
-.Pa /dev/ad0s1b :
-.Bd -literal -offset ident
-show disk/ad0s1b
-.Ed
-.Pp
-The value returned could then be written to the
-.Va dumpdev
-kernel variable as follows:
-.Bd -literal -offset indent
-write dumpdev 0xc0b65800
-.Ed
 .Sh SEE ALSO
 .Xr sysctl 3 ,
 .Xr fstab 5 ,
