@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -38,7 +38,7 @@
 
 /*
  * This file contains the parser for the configuration routines.  It's used
- * both in the kernel and in the user interface program, thus the separate file. 
+ * both in the kernel and in the user interface program, thus the separate file.
  */
 
 /*
@@ -53,7 +53,7 @@
  * grey space.
  *
  * Error conditions are end of line before end of quote, or no space after
- * a closing quote.  In this case, tokenize() returns -1. 
+ * a closing quote.  In this case, tokenize() returns -1.
  */
 
 #include <sys/param.h>
@@ -157,7 +157,10 @@ struct _keywords keywords[] =
     keypair(max),
     keypair(replace),
     keypair(readpol),
-    keypair(resetstats)
+    keypair(resetstats),
+    keypair(setstate),
+    keypair(checkparity),
+    keypair(rebuildparity)
 };
 struct keywordset keyword_set = KEYWORDSET(keywords);
 
@@ -174,7 +177,7 @@ struct keywordset flag_set = KEYWORDSET(flag_keywords);
 
 #endif
 
-int 
+int
 tokenize(char *cptr, char *token[])
 {
     char delim;						    /* delimiter for searching for the partner */
@@ -211,7 +214,7 @@ tokenize(char *cptr, char *token[])
 }
 
 /* Find a keyword and return an index */
-enum keyword 
+enum keyword
 get_keyword(char *name, struct keywordset *keywordset)
 {
     int i;
