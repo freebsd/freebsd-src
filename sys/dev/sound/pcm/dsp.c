@@ -152,12 +152,12 @@ dsp_close(snddev_info *d, int chan, int devtype)
 
 	if (rdch) {
 		chn_abort(rdch);
-		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
+		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(rdch, 0);
 	}
 	if (wrch) {
 		chn_flush(wrch);
-		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
+		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(wrch, 0);
 	}
 	d->aplay[chan] = NULL;
