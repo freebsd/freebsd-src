@@ -3,7 +3,7 @@
 
 PROG=	keyinfo
 CFLAGS+=-Wall
-DPADD=	${LIBSKEY} ${LIBMD}
+DPADD=	${LIBSKEY} ${LIBCRYPT} ${LIBMD}
 LDADD=	-lskey -lcrypt -lmd
 BINMODE=4555
 
