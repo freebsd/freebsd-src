@@ -43,7 +43,7 @@
  * ng_one2many(4) netgraph node type
  *
  * Packets received on the "one" hook are sent out each of the
- * "many" hooks in round-robin fashion. Packets received on any
+ * "many" hooks accoring to an algorithm. Packets received on any
  * "many" hook are always delivered to the "one" hook.
  */
 
@@ -278,6 +278,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			conf = (struct ng_one2many_config *)msg->data;
 			switch (conf->xmitAlg) {
 			case NG_ONE2MANY_XMIT_ROUNDROBIN:
+			case NG_ONE2MANY_XMIT_ALL:
 				break;
 			default:
 				error = EINVAL;
@@ -381,7 +382,9 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 	struct ng_one2many_link *dst;
 	int error = 0;
 	int linkNum;
+	int i;
 	struct mbuf *m;
+	meta_p meta;
 
 	m = NGI_M(item); /* just peaking, mbuf still owned by item */
 	/* Get link number */
@@ -405,8 +408,51 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 			NG_FREE_ITEM(item);
 			return (ENOTCONN);
 		}
-		dst = &priv->many[priv->activeMany[priv->nextMany]];
-		priv->nextMany = (priv->nextMany + 1) % priv->numActiveMany;
+		switch(priv->conf.xmitAlg) {
+		case NG_ONE2MANY_XMIT_ROUNDROBIN:
+			dst = &priv->many[priv->activeMany[priv->nextMany]];
+			priv->nextMany = (priv->nextMany + 1) % priv->numActiveMany;
+			break;
+		case NG_ONE2MANY_XMIT_ALL:
+			meta = NGI_META(item); /* peek.. */
+			/* no need to copy data for the 1st one */
+			dst = &priv->many[priv->activeMany[0]];
+
+			/* make copies of data and send for all links
+			 * except the first one, which we'll do last 
+			 */
+			for (i = 1; i < priv->numActiveMany; i++) {
+				meta_p meta2 = NULL;
+				struct mbuf *m2;
+				struct ng_one2many_link *mdst;
+
+				mdst = &priv->many[priv->activeMany[i]];
+				m2 = m_dup(m, M_NOWAIT);        /* XXX m_copypacket() */
+				if (m2 == NULL) {
+					mdst->stats.memoryFailures++;
+					NG_FREE_ITEM(item);
+					NG_FREE_M(m);
+					return (ENOBUFS);
+				}
+				if (meta != NULL
+				    && (meta2 = ng_copy_meta(meta)) == NULL) {
+					mdst->stats.memoryFailures++;
+					m_freem(m2);
+					NG_FREE_ITEM(item);
+					NG_FREE_M(m);
+					return (ENOMEM);
+				}
+				/* Update transmit stats */
+				mdst->stats.xmitPackets++;
+				mdst->stats.xmitOctets += m->m_pkthdr.len;
+				NG_SEND_DATA(error, mdst->hook, m2, meta2);
+			}
+			break;
+#ifdef INVARIANTS
+		default:
+			panic("%s: invalid xmitAlg", __FUNCTION__);
+#endif
+		}
 	} else
 		dst = &priv->one;
 
@@ -501,6 +547,8 @@ ng_one2many_update_many(priv_p priv)
 	case NG_ONE2MANY_XMIT_ROUNDROBIN:
 		if (priv->numActiveMany > 0)
 			priv->nextMany %= priv->numActiveMany;
+		break;
+	case NG_ONE2MANY_XMIT_ALL:
 		break;
 #ifdef INVARIANTS
 	default:
