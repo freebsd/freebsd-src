@@ -657,13 +657,16 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ic->ic_stats.is_rx_badchan++;
 			return;
 		}
-		if (chan != bchan) {
+		if (chan != bchan && ic->ic_phytype != IEEE80211_T_FH) {
 			/*
 			 * Frame was received on a channel different from the
-			 * one indicated in the DS/FH params element id;
+			 * one indicated in the DS params element id;
 			 * silently discard it.
 			 *
 			 * NB: this can happen due to signal leakage.
+			 *     But we should take it for FH phy because
+			 *     the rssi value should be correct even for
+			 *     different hop pattern in FH.
 			 */
 			IEEE80211_DPRINTF(("%s: ignore %s on channel %u marked "
 				"for channel %u\n", __func__,
