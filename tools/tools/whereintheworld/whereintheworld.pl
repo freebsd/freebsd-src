@@ -34,6 +34,10 @@ while ($line = <>) {
 		$lastwasdash = 0;
 		next;
 	}
+	if ($line =~ /^TB /) {
+		print $line;
+		next;
+	}
 	if ($line =~ /^=+>/) {
 		@lines = ();
 	}
@@ -58,7 +62,7 @@ if (!$error) {
 	}
 }
 foreach $line (@lines) {
-	if (!$error && length($line) >= $width) {
+	if (!$error && $line !~ m/^TB / && length($line) >= $width) {
 		substr($line, $width - 7) = " [...]\n";
 	}
 	print $line;
