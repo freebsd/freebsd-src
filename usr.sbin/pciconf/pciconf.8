@@ -1,4 +1,4 @@
-.\"	$Id: pciconf.8,v 1.3 1997/10/06 11:38:29 charnier Exp $
+.\"	$Id: pciconf.8,v 1.4 1998/11/12 00:22:30 ken Exp $
 .\" Copyright (c) 1997
 .\"	Stefan Esser <se@freebsd.org>. All rights reserved.
 .\"
@@ -152,7 +152,7 @@ write a longword (four bytes).
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .\" .Xr pci 4 ,
-.Xr modload 8 
+.Xr kldload 8 
 .Sh HISTORY
 The 
 .Nm
@@ -162,7 +162,7 @@ The
 .Fl a
 option was added for 
 .Tn PCI
-LKM support in
+KLD support in
 .Fx 3.0 .
 .Sh AUTHORS
 The
@@ -186,8 +186,8 @@ It might be useful to give non-root users access to the
 and
 .Fl r
 options. But only root will be able to execute a 
-.Nm modload
-to provide the device with a driver LKM, and reading of configuration space
+.Nm kldload
+to provide the device with a driver KLD, and reading of configuration space
 registers may cause a failure in badly designed 
 .Tn PCI
 chips.
