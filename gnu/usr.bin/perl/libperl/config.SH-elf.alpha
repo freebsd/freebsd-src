@@ -5,12 +5,14 @@
 # do not forget to propagate your changes by running "Configure -der". You may
 # instead choose to run each of the .SH files by yourself, or "Configure -S".
 #
+# $Id$
+#
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: Wed Sep  2 12:54:30 SAST 1998
-# Configured by     : root
-# Target system     : freebsd greenpeace.grondar.za 3.0-current freebsd 3.0-current #0: sat aug 22 14:55:55 sast 1998 root@greenpeace.grondar.za:usrsrcsyscompilega586dx alpha 
+# Configuration time: $Date$
+# Configured by     : markm
+# Target system     : freebsd 3.0-current #0:
 
 Author=''
 Date='$Date'
@@ -51,9 +53,9 @@ cc='cc'
 cccdlflags='-DPIC -fpic'
 ccdlflags=' '
 ccflags=''
-cf_by='root'
-cf_email='root@greenpeace.grondar.za'
-cf_time='Wed Sep  2 12:54:30 SAST 1998'
+cf_by='markm'
+cf_email='markm@freebsd.org'
+cf_time='$Date$'
 chgrp=''
 chmod=''
 chown=''
@@ -317,7 +319,7 @@ flex=''
 fpostype='fpos_t'
 freetype='void'
 full_csh='/bin/csh'
-full_sed='/usr/bin/sed'
+full_sed='sed'
 gccversion='2.7.2.1'
 gidtype='gid_t'
 glibpth="/usr/lib /usr/local/lib"
@@ -412,7 +414,7 @@ line='line'
 lint=''
 lkflags=''
 ln='ln'
-lns='/bin/ln -s'
+lns='ln -s'
 locincpth=''
 loclibpth=''
 longdblsize='8'
@@ -444,9 +446,9 @@ modetype='mode_t'
 more='more'
 mv=''
 myarchname='alpha-freebsd'
-mydomain='.grondar.za'
-myhostname='greenpeace'
-myuname='freebsd greenpeace.grondar.za 3.0-current freebsd 3.0-current #0: sat aug 22 14:55:55 sast 1998 root@greenpeace.grondar.za:usrsrcsyscompilega586dx alpha '
+mydomain='.freebsd.org'
+myhostname='freefall'
+myuname='freebsd 3.0-current #0: '
 n='-n'
 netdb_hlen_type='int'
 netdb_host_type='const char *'
@@ -464,12 +466,12 @@ orderlib='false'
 osname='freebsd'
 osvers='3.0-current'
 package='perl5'
-pager='/usr/bin/more'
+pager='more'
 passcat='cat /etc/passwd'
 patchlevel='5'
 path_sep=':'
 perl='perl'
-perladmin='root@greenpeace.grondar.za'
+perladmin='current@freebsd.org'
 perlpath='/usr/bin/perl'
 pg='pg'
 phostname='hostname'
@@ -569,7 +571,7 @@ zcat=''
 zip='zip'
 # Configure command line arguments.
 config_arg0='Configure'
-config_args='-Dprefix=/usr -Darchlib=/usr/libdata/perl/5.00502/mach -Dprivlib=/usr/libdata/perl/5.00502 -Dsitearch=/usr/local/lib/perl/5.00502/alpha-freebsd -Dsitelib=/usr/local/lib/perl/5.00502 -Dman1dir=/usr/share/man/man1 -Dman3dir=/usr/share/perl/man/man3 -des -Ulocincpth= -Uloclibpth= -Dpager=/usr/bin/more'
+config_args='-Dprefix=/usr -Darchlib=/usr/libdata/perl/5.00502/mach -Dprivlib=/usr/libdata/perl/5.00502 -Dsitearch=/usr/local/lib/perl/5.00502/alpha-freebsd -Dsitelib=/usr/local/lib/perl/5.00502 -Dman1dir=/usr/share/man/man1 -Dman3dir=/usr/share/perl/man/man3 -des -Ulocincpth= -Uloclibpth= -Dpager=more'
 config_argc=11
 config_arg1='-Dprefix=/usr'
 config_arg2='-Darchlib=/usr/libdata/perl/5.00502/mach'
@@ -581,7 +583,7 @@ config_arg7='-Dman3dir=/usr/share/perl/man/man3'
 config_arg8='-des'
 config_arg9='-Ulocincpth='
 config_arg10='-Uloclibpth='
-config_arg11='-Dpager=/usr/bin/more'
+config_arg11='-Dpager=more'
 PATCHLEVEL=5
 SUBVERSION=2
 CONFIG=true
