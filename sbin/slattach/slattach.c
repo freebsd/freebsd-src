@@ -42,27 +42,32 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id";
+static char rcsid[] = "$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
-#include <termios.h>
 #include <sys/socket.h>
+#include <sys/time.h>
+
+#include <fcntl.h>
+#include <netdb.h>
+#include <paths.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <syslog.h>
+#include <termios.h>
+#include <unistd.h>
+#include <libutil.h>
+#include <err.h>
+
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/slip.h>
 #include <net/if_slvar.h>
-#include <netdb.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <paths.h>
-#include <syslog.h>
-#include <signal.h>
-#include <strings.h>
-#include <err.h>
 
 #define DEFAULT_BAUD	9600
 
@@ -119,7 +124,7 @@ main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 
-	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zLK:O:S:")) != EOF) {
+	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zLK:O:S:")) != -1) {
 		switch (option) {
 		case 'a':
 			slflags |= IFF_LINK2;
@@ -276,7 +281,10 @@ void acquire_line()
 
 	if (uucp_lock) {
 		/* unlock not needed here, always re-lock with new pid */
-		if (uu_lock(dvname)) {
+		int res;
+		if ((res = uu_lock(dvname)) != UU_LOCK_OK) {
+			if (res != UU_LOCK_INUSE)
+				syslog(LOG_ERR, "uu_lock: %s", uu_lockerr(res));
 			syslog(LOG_ERR, "can't lock %s", dev);
 			exit_handler(1);
 		}
@@ -456,7 +464,10 @@ again:
 		if (system(redial_cmd))
 			goto again;
 		if (uucp_lock) {
-			if (uu_lock(dvname)) {
+			int res;
+			if ((res = uu_lock(dvname)) != UU_LOCK_OK) {
+				if (res != UU_LOCK_INUSE)
+					syslog(LOG_ERR, "uu_lock: %s", uu_lockerr(res));
 				syslog(LOG_ERR, "can't relock %s after %s, aborting",
 					dev, redial_cmd);
 				exit_handler(1);
