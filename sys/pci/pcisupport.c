@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.65 1998/05/04 01:39:48 kato Exp $
+**  $Id: pcisupport.c,v 1.66 1998/05/04 08:16:03 kato Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -851,7 +851,7 @@ static struct pci_device vga_device = {
 
 DATA_SET (pcidevice_set, vga_device);
 
-static char* vga_probe (pcici_t tag, pcidi_t type)
+static char* vga_probe (pcici_t tag, pcidi_t unused)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);
 	u_int id = pci_conf_read(tag, PCI_ID_REG);
