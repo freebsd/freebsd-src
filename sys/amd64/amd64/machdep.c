@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.342 1999/06/18 14:32:14 bde Exp $
+ *	$Id: machdep.c,v 1.343 1999/06/24 20:47:11 jlemon Exp $
  */
 
 #include "apm.h"
@@ -1231,7 +1231,7 @@ getmemsize(int first)
 			goto next_run;
 
 		if (smap->base > 0xffffffff) {
-			printf("%dK of memory above 2GB ignored\n",
+			printf("%dK of memory above 4GB ignored\n",
 			    (u_int32_t)(smap->length / 1024));
 			goto next_run;
 		}
