@@ -14,6 +14,6 @@
  * modification.
  */
 
-extern u_int16_t adv_mcode[];
+extern u_int8_t adv_mcode[];
 extern u_int16_t adv_mcode_size;
 extern u_int32_t adv_mcode_chksum;
