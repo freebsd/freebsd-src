@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.18 1997/06/14 00:27:03 ache Exp $
+ * $Id: local_passwd.c,v 1.19 1998/03/07 21:42:07 ache Exp $
  */
 
 #ifndef lint
@@ -123,8 +123,8 @@ getnewpasswd(pw, nis)
 		/* minpasswordlen capablity */
 		min_length = (int)login_getcapnum(lc, "minpasswordlen",
 				min_length, min_length);
-		/* passwordperiod capability */
-		period = login_getcaptime(lc, "passwordperiod", 0, 0);
+		/* passwordtime capability */
+		period = login_getcaptime(lc, "passwordtime", 0, 0);
 		if (period > (time_t)0) {
 			pw->pw_change = time(NULL) + period;
 		}
@@ -207,7 +207,7 @@ local_passwd(uname)
 	 * Get the new password.  Reset passwd change time to zero by
 	 * default. If the user has a valid login class (or the default
 	 * fallback exists), then the next password change date is set
-	 * by getnewpasswd() according to the "passwordperiod" capability
+	 * by getnewpasswd() according to the "passwordtime" capability
 	 * if one has been specified.
 	 */
 	pw->pw_change = 0;
