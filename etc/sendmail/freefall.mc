@@ -40,8 +40,14 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id$')
+VERSIONID(`$Id: freefall.mc,v 1.12 1997/08/14 14:42:05 peter Exp $')
 
 OSTYPE(bsd4.4)
 FEATURE(nullclient, hub.$m)
+FEATURE(`allmasquerade')  
+FEATURE(`masquerade_envelope')
 MASQUERADE_AS(FreeBSD.org)
+define(`MAIL_HUB', `hub.$m')  
+define(`SMART_HOST', `hub.$m')
+define(`confFORWARD_PATH', `')
+
