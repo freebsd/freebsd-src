@@ -68,7 +68,6 @@ inb(u_int port)
 {
 	volatile u_int8_t *p = ia64_port_address(port);
 	u_int8_t v = *p;
-	ia64_mf_a();
 	ia64_mf();
 	return v;
 }
@@ -78,7 +77,6 @@ inw(u_int port)
 {
 	volatile u_int16_t *p = ia64_port_address(port);
 	u_int16_t v = *p;
-	ia64_mf_a();
 	ia64_mf();
 	return v;
 }
@@ -88,7 +86,6 @@ inl(u_int port)
 {
 	volatile u_int32_t *p = ia64_port_address(port);
 	u_int32_t v = *p;
-	ia64_mf_a();
 	ia64_mf();
 	return v;
 }
@@ -122,7 +119,6 @@ outb(u_int port, u_int8_t data)
 {
 	volatile u_int8_t *p = ia64_port_address(port);
 	*p = data;
-	ia64_mf_a();
 	ia64_mf();
 }
 
@@ -131,7 +127,6 @@ outw(u_int port, u_int16_t data)
 {
 	volatile u_int16_t *p = ia64_port_address(port);
 	*p = data;
-	ia64_mf_a();
 	ia64_mf();
 }
 
@@ -140,7 +135,6 @@ outl(u_int port, u_int32_t data)
 {
 	volatile u_int32_t *p = ia64_port_address(port);
 	*p = data;
-	ia64_mf_a();
 	ia64_mf();
 }
 
@@ -173,7 +167,6 @@ readb(u_int addr)
 {
 	volatile u_int8_t *p = ia64_memory_address(addr);
 	u_int8_t v = *p;
-	ia64_mf_a();
 	ia64_mf();
 	return v;
 }
@@ -183,7 +176,6 @@ readw(u_int addr)
 {
 	volatile u_int16_t *p = ia64_memory_address(addr);
 	u_int16_t v = *p;
-	ia64_mf_a();
 	ia64_mf();
 	return v;
 }
@@ -193,7 +185,6 @@ readl(u_int addr)
 {
 	volatile u_int32_t *p = ia64_memory_address(addr);
 	u_int32_t v = *p;
-	ia64_mf_a();
 	ia64_mf();
 	return v;
 }
@@ -203,7 +194,6 @@ writeb(u_int addr, u_int8_t data)
 {
 	volatile u_int8_t *p = ia64_memory_address(addr);
 	*p = data;
-	ia64_mf_a();
 	ia64_mf();
 }
 
@@ -212,7 +202,6 @@ writew(u_int addr, u_int16_t data)
 {
 	volatile u_int16_t *p = ia64_memory_address(addr);
 	*p = data;
-	ia64_mf_a();
 	ia64_mf();
 }
 
@@ -221,7 +210,6 @@ writel(u_int addr, u_int32_t data)
 {
 	volatile u_int32_t *p = ia64_memory_address(addr);
 	*p = data;
-	ia64_mf_a();
 	ia64_mf();
 }
 
