@@ -408,10 +408,15 @@ sleepinit(void)
  * signal needs to be delivered, ERESTART is returned if the current system
  * call should be restarted if possible, and EINTR is returned if the system
  * call should be interrupted by the signal (return EINTR).
+ *
+ * The mutex argument is exited before the caller is suspended, and
+ * entered before msleep returns.  If priority includes the PDROP
+ * flag the mutex is not entered before returning.
  */
 int
-tsleep(ident, priority, wmesg, timo)
+msleep(ident, mtx, priority, wmesg, timo)
 	void *ident;
+	mtx_t *mtx;
 	int priority, timo;
 	const char *wmesg;
 {
@@ -419,13 +424,21 @@ tsleep(ident, priority, wmesg, timo)
 	int s, sig, catch = priority & PCATCH;
 	struct callout_handle thandle;
 	int rval = 0;
+	WITNESS_SAVE_DECL(mtx);
 
 #ifdef KTRACE
 	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
-	mtx_assert(&Giant, MA_OWNED);
+	WITNESS_SLEEP(0, mtx);
 	mtx_enter(&sched_lock, MTX_SPIN);
+
+	if (mtx != NULL) {
+		WITNESS_SAVE(mtx, mtx);
+		mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
+		if (priority & PDROP)
+			mtx = NULL;
+	}
 
 	s = splhigh();
 	if (cold || panicstr) {
@@ -527,7 +540,10 @@ out:
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
-
+	if (mtx != NULL) {
+		mtx_enter(mtx, MTX_DEF);
+		WITNESS_RESTORE(mtx, mtx);
+	}
 	return (rval);
 }
 
@@ -600,7 +616,6 @@ await(int priority, int timo)
 	int rval = 0;
 	int s;
 
-	mtx_assert(&Giant, MA_OWNED);
 	mtx_enter(&sched_lock, MTX_SPIN);
 
 	s = splhigh();
