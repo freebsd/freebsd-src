@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_start.c,v 1.1.1.1 1998/11/05 02:04:48 ezk Exp $
+ * $Id: nfs_start.c,v 1.4 1999/02/04 07:24:16 ezk Exp $
  *
  */
 
@@ -58,6 +58,7 @@ u_short nfs_port;
 #ifdef HAVE_FS_AUTOFS
 SVCXPRT *autofsxprt = NULL;
 u_short autofs_port = 0;
+int amd_use_autofs = 0;
 #endif /* HAVE_FS_AUTOFS */
 
 #ifndef HAVE_SIGACTION
@@ -86,12 +87,12 @@ checkup(void)
   }
   if (max_mem < next_mem) {
 #ifdef HAVE_GETPAGESIZE
-    dlog("%#x bytes of memory allocated; total is %#x (%ld pages)",
-	 next_mem - max_mem, next_mem,
+    dlog("%#lx bytes of memory allocated; total is %#lx (%ld pages)",
+	 (long) (next_mem - max_mem), (unsigned long) next_mem,
 	 ((long) next_mem + getpagesize() - 1) / getpagesize());
 #else /* not HAVE_GETPAGESIZE */
-    dlog("%#x bytes of memory allocated; total is %#x",
-	 next_mem - max_mem, next_mem);
+    dlog("%#lx bytes of memory allocated; total is %#lx",
+	 (long) (next_mem - max_mem), (unsigned long) next_mem);
 #endif /* not HAVE_GETPAGESIZE */
     max_mem = next_mem;
 
@@ -265,7 +266,7 @@ run_rpc(void)
       tvv.tv_sec = SELECT_MAXWAIT;
 #ifdef DEBUG
     if (tvv.tv_sec) {
-      dlog("Select waits for %ds", tvv.tv_sec);
+      dlog("Select waits for %ds", (int) tvv.tv_sec);
     } else {
       dlog("Select waits for Godot");
     }
@@ -374,14 +375,17 @@ mount_automounter(int ppid)
     return ret;
 
 #ifdef HAVE_FS_AUTOFS
-  /*
-   * Create the autofs service for amd.
-   */
-  plog(XLOG_INFO, "creating autofs service listener");
-  ret = create_autofs_service(&soAUTOFS, &autofs_port, &autofsxprt, autofs_program_1);
-  /* if autofs service fails it is OK if using a test amd */
-  if (ret != 0 && gopt.portmap_program == AMQ_PROGRAM)
-    return ret;
+  if (amd_use_autofs) {
+    /*
+     * Create the autofs service for amd, but only if autofs maps
+     * were defined (so amd doesn't clash with automountd.)
+     */
+    plog(XLOG_INFO, "creating autofs service listener");
+    ret = create_autofs_service(&soAUTOFS, &autofs_port, &autofsxprt, autofs_program_1);
+    /* if autofs service fails it is OK if using a test amd */
+    if (ret != 0 && gopt.portmap_program == AMQ_PROGRAM)
+      return ret;
+  }
 #endif /* HAVE_FS_AUTOFS */
 
   /*

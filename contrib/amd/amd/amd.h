@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.h,v 1.1.1.1 1998/11/05 02:04:51 ezk Exp $
+ * $Id: amd.h,v 1.3 1999/02/04 07:24:14 ezk Exp $
  *
  */
 
@@ -280,6 +280,7 @@ extern bool_t xdr_mountres3(XDR *xdrs, mountres3 *objp);
 #ifdef HAVE_FS_AUTOFS
 extern SVCXPRT *autofsxprt;
 extern u_short autofs_port;
+extern int amd_use_autofs;
 
 extern int autofs_mount(am_node *mp);
 extern int autofs_umount(am_node *mp);

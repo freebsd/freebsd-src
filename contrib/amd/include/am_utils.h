@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_utils.h,v 1.2 1998/12/27 06:25:23 ezk Exp $
+ * $Id: am_utils.h,v 1.6 1999/08/22 05:12:55 ezk Exp $
  *
  */
 
@@ -127,6 +127,8 @@
 /* allocate anything of type ty */
 #define	ALLOC(ty)	((ty *) xmalloc(sizeof(ty)))
 #define	CALLOC(ty)	((ty *) xcalloc(1, sizeof(ty)))
+/* simply allocate b bytes */
+#define	SALLOC(b)	xmalloc((b))
 
 /* converting am-filehandles to mount-points */
 #define	fh_to_mp2(fhp, rp) fh_to_mp3(fhp, rp, VLOOK_CREATE)
@@ -565,6 +567,7 @@ extern int amu_close(int fd);
 extern int background(void);
 extern int bind_resv_port(int, u_short *);
 extern int cmdoption(char *, struct opt_tab *, int *);
+extern int compute_automounter_mount_flags(mntent_t *);
 extern int compute_mount_flags(mntent_t *);
 extern int efs_readdir(am_node *, nfscookie, nfsdirlist *, nfsentry *, int);
 extern int eval_fs_opts(am_opts *, char *, char *, char *, char *, char *);
@@ -640,7 +643,8 @@ extern void nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp);
 extern void normalize_slash(char *);
 extern void ops_showamfstypes(char *buf);
 extern void ops_showfstypes(char *outbuf);
-extern void plog(int, char *,...);
+extern void plog(int, char *,...)
+     __attribute__ ((__format__ (__printf__, 2, 3)));
 extern void rem_que(qelem *);
 extern void reschedule_timeout_mp(void);
 extern void restart(void);
@@ -961,7 +965,8 @@ extern void print_nfs_args(const nfs_args_t *nap, u_long nfs_version);
 extern int debug_flags;		/* Debug options */
 extern int debug_option (char *opt);
 extern struct opt_tab dbg_opt[];
-extern void dplog(char *fmt, ...);
+extern void dplog(char *fmt, ...)
+     __attribute__ ((__format__ (__printf__, 1, 2)));
 
 /**************************************************************************/
 /*** MISC (stuff left to autoconfiscate)				***/

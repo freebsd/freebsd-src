@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_ldap.c,v 1.1.1.1 1998/11/05 02:04:49 ezk Exp $
+ * $Id: info_ldap.c,v 1.5 1999/08/22 05:12:50 ezk Exp $
  *
  */
 
@@ -182,7 +182,12 @@ amu_ldap_init(mnt_map *m, char *map, time_t *ts)
   ALD *aldh;
   CR *creds;
 
-  if (!STREQ(gopt.map_type, AMD_LDAP_TYPE)) {
+  /*
+   * XXX: by checking that map_type must be defined, aren't we
+   * excluding the possibility of automatic searches through all
+   * map types?
+   */
+  if (!gopt.map_type || !STREQ(gopt.map_type, AMD_LDAP_TYPE)) {
     return (ENOENT);
   }
 #ifdef DEBUG
@@ -219,7 +224,7 @@ amu_ldap_init(mnt_map *m, char *map, time_t *ts)
   if (get_ldap_timestamp(aldh->ldap, map, ts))
     return (ENOENT);
 #ifdef DEBUG
-  dlog("Got timestamp for map %s: %d\n", map, *ts);
+  dlog("Got timestamp for map %s: %ld\n", map, *ts);
 #endif /* DEBUG */
 
   return (0);
@@ -277,7 +282,7 @@ get_ldap_timestamp(LDAP * ld, char *map, time_t *ts)
   struct timeval tv;
   char **vals, *end;
   char filter[MAXPATHLEN];
-  int i, err, nentries = 0;
+  int i, err = 0, nentries = 0;
   LDAPMessage *res, *entry;
 
   tv.tv_sec = 3;
@@ -299,7 +304,9 @@ get_ldap_timestamp(LDAP * ld, char *map, time_t *ts)
 			 &res);
     if (err == LDAP_SUCCESS)
       break;
+#ifdef DEBUG
     dlog("Timestamp search timed out, trying again...\n");
+#endif /* DEBUG */
   }
 
   if (err != LDAP_SUCCESS) {
@@ -339,7 +346,7 @@ get_ldap_timestamp(LDAP * ld, char *map, time_t *ts)
       err = ENOENT;
     }
     if (!*ts > 0) {
-      plog(XLOG_USER, "Nonpositive timestamp %d for map %s\n",
+      plog(XLOG_USER, "Nonpositive timestamp %ld for map %s\n",
 	   *ts, map);
       err = ENOENT;
     }
@@ -353,7 +360,7 @@ get_ldap_timestamp(LDAP * ld, char *map, time_t *ts)
   ldap_msgfree(res);
   ldap_msgfree(entry);
 #ifdef DEBUG
-  dlog("The timestamp for %s is %d (err=%d)\n", map, *ts, err);
+  dlog("The timestamp for %s is %ld (err=%d)\n", map, *ts, err);
 #endif /* DEBUG */
   return (err);
 }
@@ -364,7 +371,7 @@ amu_ldap_search(mnt_map *m, char *map, char *key, char **pval, time_t *ts)
 {
   char **vals, filter[MAXPATHLEN];
   struct timeval tv;
-  int i, err, nvals = 0, nentries = 0;
+  int i, err = 0, nvals = 0, nentries = 0;
   LDAPMessage *entry, *res;
   ALD *a = (ALD *) (m->map_data);
 
@@ -452,7 +459,9 @@ amu_ldap_mtime(mnt_map *m, char *map, time_t *ts)
   ALD *aldh = (ALD *) (m->map_data);
 
   if (aldh == NULL) {
+#ifdef DEBUG
     dlog("LDAP panic: unable to find map data\n");
+#endif /* DEBUG */
     return (ENOENT);
   }
   if (amu_ldap_rebind(aldh)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wire-test.c,v 1.2 1998/12/27 06:25:28 ezk Exp $
+ * $Id: wire-test.c,v 1.4 1999/02/04 07:24:54 ezk Exp $
  *
  */
 
@@ -48,15 +48,6 @@
 #include <am_defs.h>
 
 #define STRMAX	100
-
-/* dummy variables */
-#if 0
-char *progname;
-pid_t mypid;
-serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
 
 char hostname[MAXHOSTNAMELEN + 1];
 
@@ -72,10 +63,6 @@ main(int argc, char **argv)
   struct hostent *hp = 0;
 
   am_set_progname(argv[0]);
-#if 0
-  mypid = getpid();
-  orig_umask = umask(0);
-#endif
 
   if (gethostname(hostname, sizeof(hostname)) < 0) {
     perror(argv[0]);

@@ -331,7 +331,8 @@ sub Splice_in_resent_headers {
 
     $month=(Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec)[$utctime[4]];
 
-    $date=sprintf("%s, %d %s %d %s UTC", $weekday, $utctime[3], $month, (($utctime[5] < 93 ? 20 : 19).$utctime[5]), $time);
+    # Ensure Y2K format
+    $date=sprintf("%s, %d %s %d %s UTC", $weekday, $utctime[3], $month, $utctime[5]+1900, $time);
 
     $current_msg .= "$RESENT_DATE" . $date . "\n";
 
@@ -602,7 +603,7 @@ if ( ! $noverify ) {
     printf("SMTP: address: %s   port: $port\n",
 	   join ('.',unpack('C4',$addr))) if ($debug);
 
-    $sockaddr = pack('n2C4x8',2, $port ,unpack('C4',$addr));
+    $sockaddr = sockaddr_in($port, $addr);
 
     printf("Sockaddr: %s\n", join (' ',unpack('C14',$sockaddr))) if ($debug);
 
