@@ -445,8 +445,6 @@ int	setsockopt __P((int, int, int, const void *, socklen_t));
 int	shutdown __P((int, int));
 int	socket __P((int, int, int));
 int	socketpair __P((int, int, int, int *));
-
-void	pfctlinput __P((int, struct sockaddr *));
 __END_DECLS
 
 #endif /* !_KERNEL */
