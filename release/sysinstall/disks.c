@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.8 1995/10/06 08:51:00 jkh Exp $
+ * $Id: disks.c,v 1.31.2.9 1995/10/07 11:55:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -420,7 +420,6 @@ diskPartitionWrite(char *str)
     Device **devs;
     int i;
 
-    mbrContents = getBootMgr();
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("Unable to find any disks to write to??");
@@ -437,10 +436,8 @@ diskPartitionWrite(char *str)
  	/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
  	   disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
  	   booteasy or a "standard" MBR -- both would be fatal in this case. */
- 	if (mbrContents && (d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL) {
+ 	if (!i && (mbrContents = getBootMgr()) != NULL && (d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL)
 	    Set_Boot_Mgr(d, mbrContents);
-	    mbrContents = NULL;
-	}
 
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
