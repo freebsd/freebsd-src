@@ -2,6 +2,7 @@
 
 .PATH: ${.CURDIR}/${MACHINE}/string ${.CURDIR}/string
 
+CFLAGS += -I${.CURDIR}/locale
 # machine-independent string sources
 SRCS+=	memccpy.c strcasecmp.c strcoll.c strdup.c strerror.c \
 	strmode.c strtok.c strxfrm.c swab.c
