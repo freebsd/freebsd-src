@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.36 1998/05/21 21:48:33 brian Exp $
+ * $Id: systems.c,v 1.37 1998/06/15 19:05:47 brian Exp $
  *
  *  TODO:
  */
@@ -30,10 +30,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "defs.h"
 #include "command.h"
 #include "log.h"
 #include "id.h"
-#include "defs.h"
 #include "systems.h"
 
 #define issep(ch) ((ch) == ' ' || (ch) == '\t')
@@ -252,7 +252,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   char filename[MAXPATHLEN];
   int linenum;
   int argc;
-  char **argv;
+  char *argv[MAXARGS];
   int allowcmd;
   int indent;
   char arg[LINE_LEN];
@@ -319,8 +319,8 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
             break;
 
           len = strlen(cp);
-          command_Interpret(cp, len, &argc, &argv);
-          allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
+          argc = command_Interpret(cp, len, argv);
+          allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
           if ((!doexec && allowcmd) || (doexec && !allowcmd))
 	    command_Run(bundle, argc, (char const *const *)argv, prompt,
                         name, cx);
