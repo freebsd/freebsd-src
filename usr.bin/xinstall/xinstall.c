@@ -532,6 +532,7 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	size_t tsize;
 	int done_compare;
 
+	rv = 0;
 	if (from_sb->st_size != to_sb->st_size)
 		return 1;
 
