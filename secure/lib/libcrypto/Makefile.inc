@@ -17,6 +17,5 @@ LOCALBASE?=	/usr/local
 
 WITH_RSA?= YES
 .if (!defined(USA_RESIDENT) || ${USA_RESIDENT} != NO) && ${WITH_RSA} != NO
-CFLAGS+= -DRSAref
 RSAREF= YES
 .endif
