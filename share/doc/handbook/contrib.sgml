@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.135 1996/09/20 04:41:01 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.136 1996/09/20 05:08:36 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -42,12 +42,12 @@
       Thanks also to Dermot McDonnell for his donation of a
       Toshiba XM3401B CDROM drive.  It has been most useful!
 
-      Thanks to Chuck Robey &lt;chuckr@eng.umd.edu&gt; who
+      Thanks to &a.chuck; who
       contributed his floppy tape streamer for experimental
       work.
 
-      Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to Wilko Bulte
-      &lt;wilko@yedi.iaf.nl&gt;, for providing us with a Wangtek and
+      Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to &a.wilko;,
+      for providing us with a Wangtek and
       an Archive QIC-02 tape drive, in order to give us the hardware
       to improve the <tt>wt</tt> driver.
 
@@ -172,9 +172,8 @@
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
-	  <item>Alex Nash &lt;nash@mcs.com&gt;
 	  <item>Andy Whitcroft &lt;andy@sarc.city.ac.uk&gt;
-	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
+	  <item>&a.andreas;
 	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
@@ -216,7 +215,7 @@
 	  <item>David O'Brien &lt;obrien@cs.ucdavis.edu&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
-	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
+	  <item>&a.whiteside;
 	  <item>Don Yuniskis &lt;dgy@rtd.com&gt;
 	  <item>Donald Burr &lt;d_burr@ix.netcom.com&gt;
 	  <item>Doug Ambrisko &lt;ambrisko@ambrisko.roble.com&gt;
@@ -303,7 +302,6 @@
           <item>Terry Lambert &lt;terry@lambert.org&gt;
 	  <item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
 	  <item>Theo Deraadt &lt;deraadt@fsa.ca&gt;
-	  <item>Thomas Gellekum &lt;thomas@ghpc8.ihf.rwth-aachen.de&gt;
 	  <item>Tim Kientzle &lt;kientzle@netcom.com&gt;
 	  <item>Tim Vanderhoek &lt;ac199@freenet.hamilton.on.ca&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;

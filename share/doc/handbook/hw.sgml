@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.40 1996/08/29 04:26:39 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.41 1996/09/08 02:50:17 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -424,7 +424,7 @@ a new kernel.
                         **      Although we tried to wake it up,
 
 </verb></tscreen>
-	<p>Reported by: Jonathan M. Bresler jmb@FreeBSD.ORG
+	<p>Reported by: &a.jmb;
 
 
 	<sect3><heading><label id="hw:storage:python">
@@ -486,7 +486,7 @@ Writes QIC-525, QIC-150, and QIC-120.
 	<p>Firmware revisions prior to "25462 -011" are bug
 ridden and will not function properly.
 	<p>Production of this drive has been discontinued.
-	<p>Reported by: Hellmuth Michaelis hm@kts.org
+	<p>Reported by: &a.hm;
 
 	<sect3><heading><label id="hw:storage:conner420r">
 Conner 420R</heading>
@@ -520,7 +520,7 @@ TZ87 (C) DEC 9206" "type 1 removable SCSI 2" "density code 0x19"
 	<p>This drive is identical to the Quantum DLT2000.  The
 drive firmware can be set to emulate several well-known drives,
 including an Exabyte 8mm drive.
-	<p>Reported by: Wilko Bulte wilko@yedi.iaf.nl
+	<p>Reported by: &a.wilko;
 
 	<sect3><heading><label id="hw:storage:exb2501">
 	<htmlurl
@@ -623,7 +623,7 @@ Switch 3 OFF enables MRS.  Switch 3 ON disables MRS.
 	<p><em>Warning:</em> Quality control on these drives
 varies greatly.  One FreeBSD core-team member has returned 2 of
 these drives.  Neither lasted more than 5 months.
-	<p>Reported by: Stefan Esser se@ZPR.Uni-Koeln.DE
+	<p>Reported by: &a.se;
 
 	<sect3><heading><label id="hw:storage:hp1534a">
 Hewlett-Packard HP 1534A</heading>
@@ -782,7 +782,7 @@ blocksize to 512 bytes (<tt>mt blocksize 512</tt>) reported by
 Kenneth Merry ken@ulc199.residence.gatech.edu"
 	<p>"SONY SDT-5000 327M" information reported by Charles Henrich
 	henrich@msu.edu
-	<p>Reported by: Jean-Marc Zucconi jmz@cabri.obs-besancon.fr
+	<p>Reported by: &a.jmz;
 
 	<sect3><heading><label id="hw:storage:tandberg3600">
 Tandberg TDC 3600</heading>
@@ -803,7 +803,7 @@ firmware EPROM of these units will solve the problem.
 Tandberg TDC 3620</heading>
 	<p>This is very similar to the <ref
 	 id="hw:storage:tandberg3600" name="Tandberg TDC 3600"> drive.
-	<p>Reported by: J&ouml;rg Wunsch joerg_wunsch@uriah.heep.sax.de
+	<p>Reported by: &a.joerg;
 
 	<sect3><heading><label id="hw:storage:tandberg4222">
 Tandberg TDC 4222</heading>
@@ -822,7 +822,7 @@ execute the backup program (<tt>mt fsr 1; mt rewind; dump ...</tt>)
 	<p>Data transfer rate is 600kB/s (vendor claim with compression),
 	350 KB/s can even be reached in start/stop mode.  The rate
 	decreases for smaller cartridges.
-	<p>Reported by: J&ouml;rg Wunsch joerg_wunsch@uriah.heep.sax.de
+	<p>Reported by: &a.joerg;
 
 	<sect3><heading><label id="hw:storage:wangtek5525es">
 Wangtek 5525ES</heading>
