@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.18 1996/07/12 11:13:54 jkh Exp $
+ * $Id: cdrom.c,v 1.19 1996/07/13 05:09:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,13 +113,11 @@ mediaInitCDROM(Device *dev)
 		       "Please fix this problem (check the console logs on VTY2) and\n"
 		       "try again.");
 	else
-	    msgConfirm("The version of the FreeBSD CD currently in the drive (%s)\n"
+	    msgConfirm("Warning: The version of the FreeBSD CD currently in the drive (%s)\n"
 		       "does not match the version of this boot floppy (%s).\n"
 		       "If this is intentional, then please visit the Options editor\n"
 		       "to set the boot floppy version string to match that of the CD\n"
-		       "before selecting it as an installation media.", cp, variable_get(VAR_RELNAME));
-	cdromMounted = CD_UNMOUNTED;
-	return FALSE;
+		       "before selecting it as an installation media to avoid this warning", cp, variable_get(VAR_RELNAME));
     }
     msgDebug("Mounted FreeBSD CDROM on device %s as /cdrom\n", dev->devname);
     return TRUE;
