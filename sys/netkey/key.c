@@ -4439,12 +4439,13 @@ key_timehandler(void)
 static void
 key_srandom()
 {
+#if 0   /* Already called in kern/init_main.c:proc0_post() */
 	struct timeval tv;
 
 	microtime(&tv);
 
 	srandom(tv.tv_usec);
-
+#endif
 	return;
 }
 
