@@ -6,9 +6,8 @@ ISO9660 (with RockRidge extensions) filesystem image.  See the top
 of the shell script for usage instructions.
 
 burncd.sh takes the filesystem image produced by makecdfs.sh and burns
-it onto an HP 4020i CDR drive (see script for information on customizing
-it to other types of CDR drives).  If you want to simply test your CDR
-without wasting a blank, you can also do:
+it onto a CDR drive.  If you want to simply test your CDR without wasting
+a blank, you can also do:
 
 	burncd.sh mybigtestimage dummy
 
