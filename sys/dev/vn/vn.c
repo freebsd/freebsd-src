@@ -224,7 +224,6 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	 * used directly if you open the 'whole disk' device.
 	 */
 	dev->si_bsize_phys = vn->sc_secsize;
-	dev->si_bsize_best = vn->sc_secsize;
 
 	if (flags & FWRITE && vn->sc_flags & VNF_READONLY)
 		return (EACCES);
