@@ -63,7 +63,7 @@
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
 static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_open(struct open_file *f, void *vdev);
+static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
 
@@ -147,9 +147,10 @@ bd_print(int verbose)
  *  slice before it?)
  */
 static int 
-bd_open(struct open_file *f, void *vdev)
+bd_open(struct open_file *f, ...)
 {
-    struct alpha_devdesc	*dev = vdev;
+    va_list			args;
+    struct alpha_devdesc	*dev;
     struct dos_partition	*dptr;
     struct open_disk		*od;
     struct disklabel		*lp;
@@ -157,6 +158,10 @@ bd_open(struct open_file *f, void *vdev)
     int				error;
     int				unit;
     prom_return_t		ret;
+
+    va_start(args, f);
+    dev = va_arg(args, struct alpha_devdesc*);
+    va_end(args);
 
     unit = dev->d_kind.srmdisk.unit;
     if (unit >= nbdinfo) {

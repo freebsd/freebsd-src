@@ -37,6 +37,8 @@
 #include <machine/bootinfo.h>
 #include "bootstrap.h"
 
+extern char *alpha_fmtdev(void *vdev);
+
 /*
  * Copy the environment into the load area starting at (addr).
  * Each variable is formatted as <name>=<value>, with a single nul

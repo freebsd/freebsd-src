@@ -68,9 +68,8 @@ extend_heap()
 {
     struct rpb *hwrpb = (struct rpb *)HWRPB_ADDR;
     struct mddt *mddtp;
-    struct mddt_cluster *memc;
+    struct mddt_cluster *memc = 0;
     int i;
-    unsigned long total = 0;
     unsigned long startpfn;
     vm_offset_t startva;
     vm_offset_t startpte;
@@ -107,7 +106,7 @@ extend_heap()
     }
 }
 
-void
+int
 main(void)
 {
     int		i;
@@ -188,6 +187,8 @@ main(void)
     open("/boot", O_RDONLY);
 
     interact();			/* doesn't return */
+
+    return 0;
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
