@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)psl.h	5.2 (Berkeley) 1/18/91
- *	$Id$
+ *	$Id: psl.h,v 1.2 1993/10/16 14:39:26 rgrimes Exp $
  */
+
+#ifndef _MACHINE_PSL_H_
+#define _MACHINE_PSL_H_ 1
 
 /*
  * 386 processor status longword.
@@ -59,3 +62,4 @@
 
 #define	PSL_USERSET	(PSL_IOPL)
 #define	PSL_USERCLR	(PSL_I|PSL_NT)
+#endif /* _MACHINE_PSL_H_ */

@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id$
+ *	$Id: reg.h,v 1.2 1993/10/16 14:39:29 rgrimes Exp $
  */
+
+#ifndef _MACHINE_REG_H_
+#define _MACHINE_REG_H_ 1
 
 /*
  * Location of the users' stored
@@ -92,3 +95,4 @@
 int ipcreg[NIPCREG] =
   { tES,tDS,tEDI,tESI,tEBP,tEBX,tEDX,tECX,tEAX,tEIP,tCS,tEFLAGS,tESP,tSS };
 #endif
+#endif /* _MACHINE_REG_H_ */

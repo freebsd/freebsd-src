@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id$
+ *	$Id: frame.h,v 1.2 1993/10/08 20:50:59 rgrimes Exp $
  */
+
+#ifndef _MACHINE_FRAME_H_
+#define _MACHINE_FRAME_H_ 1
 
 #include <sys/signal.h>
 
@@ -131,3 +134,4 @@ struct syscframe {
 	int	sf_esp;
 	int	sf_ss;
 };
+#endif /* _MACHINE_FRAME_H_ */

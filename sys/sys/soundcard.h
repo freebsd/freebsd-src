@@ -1,5 +1,5 @@
-#ifndef SOUNDCARD_H
-#define SOUNDCARD_H
+#ifndef _SOUNDCARD_H_
+#define _SOUNDCARD_H_ 1
 /*
  * Copyright by Hannu Savolainen 1993
  *
@@ -734,4 +734,4 @@ void seqbuf_dump();	/* This function must be provided by programs */
 
 #endif
 long soundcard_init(long mem_start);
-#endif
+#endif /* _SOUNDCARD_H_ */
