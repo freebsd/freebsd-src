@@ -61,6 +61,7 @@ SUBDIR=	accf_data \
 	sf \
 	sis \
 	sk \
+	snp \
 	sound \
 	ste \
 	syscons \
