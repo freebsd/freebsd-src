@@ -153,8 +153,8 @@ static int sis_list_tx_init	__P((struct sis_softc *));
 #define SIS_RES			SYS_RES_IOPORT
 #define SIS_RID			SIS_PCI_LOIO
 #else
-#define SIS_RES			SYS_RES_IOPORT
-#define SIS_RID			SIS_PCI_LOIO
+#define SIS_RES			SYS_RES_MEMORY
+#define SIS_RID			SIS_PCI_LOMEM
 #endif
 
 static device_method_t sis_methods[] = {
