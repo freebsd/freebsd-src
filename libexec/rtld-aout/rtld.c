@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.34 1996/05/22 06:34:12 jdp Exp $
+ *	$Id: rtld.c,v 1.35 1996/10/01 01:51:53 peter Exp $
  */
 
 #include <sys/param.h>
@@ -160,6 +160,18 @@ struct somap_private {
 
 /* Parent of link map */
 #define LM_PARENT(smp)	(LM_PRIVATE(smp)->spd_parent)
+
+#ifndef RELOC_EXTERN_P
+#define RELOC_EXTERN_P(s) ((s)->r_extern)
+#endif
+
+#ifndef RELOC_SYMBOL
+#define RELOC_SYMBOL(s) ((s)->r_symbolnum)
+#endif
+
+#ifndef RELOC_PCREL_P
+#define RELOC_PCREL_P(s) ((s)->r_pcrel)
+#endif
 
 static char		__main_progname[] = "main";
 static char		*main_progname = __main_progname;
