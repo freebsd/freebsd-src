@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.19 1994/08/23 07:52:04 paul Exp $
+ *      $Id: aha1742.c,v 1.20 1994/08/27 16:14:17 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -41,7 +41,7 @@
 # ifdef DDB
 int     Debugger();
 # else	/* DDB */
-#define Debugger() panic("should call debugger here (adaptec.c)")
+#define Debugger(x) panic("should call debugger here (adaptec.c)")
 # endif /* DDB */
 #else /* KERNEL */
 #define NAHB 1
