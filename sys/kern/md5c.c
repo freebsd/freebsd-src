@@ -178,6 +178,7 @@ MD5Update (context, input, inputLen)
 		i = 0;
 
 	/* Buffer remaining input */
+	/*lint -e{669} */
 	memcpy ((void *)&context->buffer[index], (const void *)&input[i],
 	    inputLen-i);
 }

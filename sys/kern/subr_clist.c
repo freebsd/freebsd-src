@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 static void clist_init(void *);
 SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL)
 
-static struct cblock *cfreelist = 0;
+static struct cblock *cfreelist = 0;	/* XXX: use <sys/queue.h> */
 int cfreecount = 0;
 static int cslushcount;
 static int ctotcount;

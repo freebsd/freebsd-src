@@ -3679,14 +3679,13 @@ NDFREE(ndp, flags)
  * request (obsoleted).  Returns 0 on success, or an errno on failure.
  */
 int
-vaccess(type, file_mode, file_uid, file_gid, acc_mode, cred, privused)
-	enum vtype type;
-	mode_t file_mode;
-	uid_t file_uid;
-	gid_t file_gid;
-	mode_t acc_mode;
-	struct ucred *cred;
-	int *privused;
+vaccess(enum vtype type,
+	mode_t file_mode,
+	uid_t file_uid,
+	gid_t file_gid,
+	mode_t acc_mode,
+	struct ucred *cred,
+	int *privused)
 {
 	mode_t dac_granted;
 #ifdef CAPABILITIES
