@@ -1,0 +1,3 @@
+addftinfo.o: addftinfo.cc ../include/lib.h ../include/errarg.h \
+ ../include/error.h ../include/stringclass.h ../include/cset.h guess.h
+guess.o: guess.cc guess.h

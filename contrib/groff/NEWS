@@ -1,0 +1,729 @@
+This file describes recent user-visible changes in groff.  Bug fixes
+are not described.  There are more details in the man pages.
+
+VERSION 1.10
+============
+
+The directory where data files are installed has been changed from
+/usr/local/lib/groff to /usr/local/share/groff to comply with the
+latest GNU coding standards.
+
+By default groff programs with Unix equivalents are installed with a
+"g" prefix unless there is an existing (non-groff) troff installation.
+
+A new approach is used to make system macro packages available to
+groff.  Instead of simply including /usr/lib/tmac in the list of
+directories searched by groff, the installation process creates for
+each system macro package a wrapper macro package in the groff macro
+directory that references the system macro package.  The groff macro
+packages are now installed with a leading "g" prefix if there is a
+system version of the same macro package, and otherwise without the
+"g" prefix, with the exception that the groff version of -me which is
+always installed as -me.
+
+There is a new device, lj4, for the HP LaserJet 4 (and PCL5
+compatibles).
+
+Groff
+-----
+
+groff has a -S option that prevents the use of unsafe features in pic
+and troff.  This uses a new -S option of pic and the -msafer macros
+for troff.
+
+Troff
+-----
+
+The `blm' request specifies a macro to be invoked when a blank line is
+encountered.
+
+Pic
+---
+
+A -S (safer) option disables the sh command.
+
+Grops
+-----
+
+The -m option enables manual feed.
+
+VERSION 1.09
+============
+
+\(rn will now produce a character that has the traditional metrics,
+and will form corners with \(ul and \(br.  This means that it will not
+align properly with \(sr.  Instead there's a new character
+\[radicalex] which aligns with \(sr; this is used by eqn for doing
+square roots.
+
+Troff
+-----
+
+The `pso' request allows you to read from the standard output of a
+command.
+
+Grops
+-----
+
+The PSPIC macro has options to allow the horizontal alignment of the
+graphic to be specified.
+
+VERSION 1.08
+============
+
+Troff
+-----
+
+The escape sequence \V[xxx] will interpolate the value of the
+environment variable xxx.
+
+Tbl
+---
+
+The decimalpoint option can be used to specify the character to be
+recognized as the decimal point character in place of the default
+period.
+
+VERSION 1.07
+============
+
+Groff
+-----
+
+The environment variable GROFF_COMMAND_PREFIX can be used to control
+whether groff looks for `gtroff' or `troff' (similarily for the
+preprocessors.)
+
+Troff
+-----
+
+Multilingual hyphenation is supported by new `hpf' and `hla' requests,
+and by a `\n[.hla]' number register.  The -H option has been removed.
+Files of hyphenation patterns can have comments.
+
+When a font cannot be found, troff gives a warning (of type `font',
+enabled by default) instead of an error.
+
+There's a new request `trnt' that's like `tr' except that it doesn't
+apply to text transparently throughput into a diversion with \!.
+
+Tbl
+---
+
+There is a `nokeep' option which tells tbl not to use diversions to
+try to keep the table on one page.
+
+Eqn
+---
+
+Setting the parameter `nroff' to a non-zero value causes `ndefine' to
+behave like `define' and `tdefine' to be ignored.  This is done by
+eqnrc when the current device is ascii or latin1.  There's a `neqn'
+script that just does `eqn -Tascii'.
+
+Grotty
+------
+
+grotty uses whatever page length was specified using the `pl' request
+rather than using the paperlength command in the DESC file.  The
+paperwidth command in the DESC file is also ignored.
+
+VERSION 1.06
+============
+
+The programs in groff that have Unix counterparts can now be installed
+without a leading `g' prefix.  See the `g' variable in the Makefile.
+
+The g?nroff script simulates the nroff command using groff.
+
+New special characters \(+h, \(+f, \(+p, \(Fn, \(Bq, \(bq, \(aq, \(lz,
+\(an.  See groff_char(7).
+
+^L is now a legal input character.
+
+Groff
+-----
+
+The Xps pseudo-device has disappeared.  Instead there is a new -X
+option that tells groff to use gxditview instead of the usual
+postprocessor. (So instead of -TXps, use -XTps or just -X if your
+default device is ps.)
+
+The postprocessor to be used for a particular device is now specified
+by a `postpro' command in the DESC file rather than being compiled
+into groff.  Similarly the command to be used for printing (with the
+-l option) is now specified by a `print' command in the DESC file.
+
+The groff command no longer specifies eqnchar as an input file for
+eqn.  Instead eqn automatically loads a file `eqnrc'.  The groff
+command no longer passes the -D option to eqn.  Instead eqnrc sets the
+draw_lines parameter.
+
+The groff command no longer tells troff to load a device-specific
+macro file.  This is handled instead by the `troffrc' file, which is
+always loaded by troff.
+
+The shell script version of groff has been removed.
+
+Troff
+-----
+
+The `rchar' request removes a character definition established with `char'.
+
+Compatibility mode is disabled and the escape character is set to `\'
+while a character definition is being processed.
+
+The `\#' escape sequence is like `\"' except that the terminating
+newline is ignored.
+
+The `shc' request tells troff which character to insert (instead of
+the default \(hy) when a word is hyphenated at a line break.
+
+A font name of 0 (zero) in the DESC file will cause no font to be
+mounted on the corresponding font position.  This is useful for
+arranging that special fonts are mounted on positions on which users
+are not likely explicitly to mount fonts.  All groff devices now avoid
+initially mounting fonts on positions 5-9.
+
+The `do' request allows a single request or macro to be interpreted
+with compatibility mode disabled.
+
+troff automatically loads a file `troffrc' before any other input file.
+This can be prevented with the -R option.  This file is responsible
+for loading the device-specific macros.
+
+Pic
+---
+
+The -x option has been removed and a -n option has been added.  By
+default, pic now assumes that the postprocessor supports groff
+extensions.  The -n option tells pic to generate output that works
+with ditroff drivers.  The -z option now applies only to TeX mode.
+
+The -p option has been removed. Instead if the -n option is not
+specified, pic generates output that uses \X'ps: ...' if the \n(0p
+register is non-zero and tmac.ps sets this register to 1.
+
+In places where you could 1st or 5th you can now say `i'th or `i+1'th
+(the quotes are required).
+
+Eqn
+---
+
+Eqn now automatically reads a file `eqnrc' from the macro directory.
+This performs the same role that the eqnchar files used to.  This can
+be prevented by the -R option.
+
+Setting the draw_lines parameter to a non-zero value causes lines to
+be drawn using \D rather than \l.  The -D option is now obsolete.
+
+`uparrow', `downarrow' and `updownarrow' can be used with `left' and
+`right'.
+
+The amount of extra space added before and after lines containing
+equations can be controlled using the `body_height' and `body_depth'
+parameters.
+
+Grops
+-----
+
+Font description files have been regenerated from newer AFM files.
+You can get access to the additional characters present in the text
+fonts in newer PostScript printers by using -mpsnew.
+
+The default value of the -b option is specified by a `broken' command
+in the DESC file.
+
+With the -g option, grops will generate PostScript code that guesses
+the page height.  This allows documents to be printed on both letter
+(8.5x11) and A4 paper without change.
+
+Grodvi
+------
+
+ISO Latin-1 characters are available with -Tdvi.  Format groff_char(7)
+with groff -Tdvi for more information.
+
+Grotty
+------
+
+The -mtty-char macros contain additional character definitions for
+use with grotty.
+
+Macros
+------
+
+In previous releases the groff -me macros treated the $r and $R number
+registers in a way that was incompatible with the BSD -me macros.  The
+reason for this was that the approach used by the BSD -me macros does
+not work with low resolution devices such as -TX75 and -TX100.
+However, this caused problems with existing -me documents.  In this
+release, the vertical spacing is controlled by the $v and $V registers
+which have the same meaning as $r and $R in earlier groff releases.
+In addition, if the $r or $R register is set to a value that would be
+correct for for the BSD -me macros and a low resolution device is not
+being used, then an appropriate value for the $v or $V register will
+be derived from the $r or $R register.
+
+The groff -me macros work with -C and (I think) with Unix troff.
+
+For backward compatibility with BSD -me, the \*{ and \*} strings are
+also available as \*[ and \*].  Of course, \*[ will only be usable
+with -C.
+
+The \*T string has been deleted.  Use \*(Tm instead.
+
+Xditview
+--------
+
+The `n', Space and Return keys are bound to the Next Page action.  The
+`p', BackSpace and Delete keys are bound to the Previous Page action.
+The `q' key is bound to the Quit action.
+
+The `r' key is bound to a rerasterize action that reruns groff, and
+redisplays the current page.
+
+VERSION 1.05
+============
+
+Pic
+---
+
+There is a alternative assignment operator `:=' which interacts
+differently with blocks.
+
+There is a new command `command', which allows the values of variables
+to be passed through to troff or TeX.
+
+The `print' command now accepts multiple arguments.
+
+String comparison expressions (using `==' or `!=') are allowed in more
+contexts.
+
+Grotty
+------
+
+Horizontal and vertical lines drawn with \D'l ...' will be rendered
+using -, | and + characters.  This is intended to give reasonable
+results with boxed tables.  It won't work well with pic.
+
+Macros
+------
+
+The -mdoc macros have been upgraded to the version in the second
+Berkeley networking release.  This version is not completely
+compatible with earlier versions; the old version is still available
+as -mdoc.old.  The grog script has been enhanced so that it can
+usually determine whether a document requires the old or new versions.
+
+With -TX75, -TX100 and -TXps, the PSPIC macro will produce a box
+around where the picture would appear with -Tps.
+
+VERSION 1.04
+============
+
+An implementation of the -mm macros is included.
+
+The directory in which temporary files are created can be controlled
+by setting the GROFF_TMPDIR or TMPDIR environment variables.
+
+Pic
+---
+
+Some MS-DOS support (see pic/make-dos-dist).
+
+Grops
+-----
+
+There are two new \X commands (\X'ps: invis' and \X'ps: endinvis')
+which make it possible to have substitute characters that are
+displayed when previewing with -TXps but ignored when printing with
+grops.
+
+Xditview
+--------
+
+Support for scalable fonts.
+
+VERSION 1.03
+============
+
+No changes other than bug fixes.
+
+VERSION 1.02
+============
+
+There is an implementation of refer and associated programs.  groff -R
+preprocesses with grefer; no mechanism is provided for passing
+arguments to grefer because most grefer options have equivalent
+commands which can be included in the file.  grog also supports refer.
+
+There is an alternative perl implementation of the grog script.
+
+The code field in lines in the charset section of font description
+files is now allowed to contain an arbitrary integer (previously it
+was required to lie between 0 and 255).  Currently grops and grodvi
+use only the low order 8 bits of the value.  Grodvi will use the
+complete value; however, this is unlikely to be useful with
+traditional TeX tools (.tfm files only allow 8 bit character codes.)
+
+Left and right double quotes can be obtained with \(lq and \(rq
+respectively.
+
+There is a new program called pfbtops which translates PostScript
+fonts in pfb format to ASCII.
+
+A slightly modified version of the Berkeley tmac.doc is included.
+
+Troff
+-----
+
+In long escape names the closing ] is now required to be at the same
+input level as the opening [.
+
+The \A'S' escape sequence returns 1 or 0 according as S is or is not
+suitable for use as a name.
+
+\~ produces an unbreakable space that can be stretched when the line
+is adjusted.
+
+The `mso' request is like the `so' request except that it searches for
+the file in the same directories in which tmac.X is searched for when
+the -mX option is given.
+
+The escape sequence `\R' is similar to the `nr' request.
+
+Eqn
+---
+
+A new `special' primitive allows you to add new types of unary
+constructs by writing a troff macro.
+
+Pic
+---
+
+The implementation no longer uses gperf.
+
+Grops
+-----
+
+The compile-time -DBROKEN_SPOOLER option has been replaced by a
+BROKEN_SPOOLER_FLAGS option.  This allows more precise control over
+how grops should workaround broken spoolers and previewers.  There is
+a new -b option that can change this at run-time.
+
+Grops now generates PostScript that complies with version 3.0 of the
+Document Structuring Convention.
+
+The resource management component of grops (the part that deals with
+imported documents and downloadable fonts) has been rewritten and now
+supports version 3.0 of the Document Structuring Conventions.  The
+%%DocumentFonts comment is no longer supported; you must use the
+%%Document{Needed,Supplied}{Fonts,Resources} comments instead
+(or as well.)
+
+tmac.psatk contains some macros that support the mechanism used by the
+Andrew Toolkit for including PostScript graphics in troff documents.
+
+Xditview
+--------
+
+Parts of xditview have been rewritten so that it can be used with the
+output of gtroff -Tps.  groff -TXps will run gtroff -Tps with
+gxditview.
+
+There is a new menu entry `Print' which brings up a dialog box for
+specifying a command with which the file being previewed should be
+printed.
+
+Xditview now uses imake.
+
+VERSION 1.01
+============
+
+The groff command now understands the gtroff `-a' and `-i' options.
+
+With the `m' and `n' scale indicators, the scale factor is rounded
+horizontally before being applied.  This makes (almost) no difference
+for devices with `hor' equal to 1, but it makes groff with -Tascii or
+-Tlatin1 behave more like nroff in its treatment of these scale
+indicators.  Accordingly tmac.tty now calls the `nroff' request so
+that the `n' condition will be true.
+
+The device-specific macros (tmac.ps, tmac.dvi, tmac.tty and tmac.X)
+have been made to work at least somewhat with -C.  In particular the
+special characters defined by these macros now work with -C.
+
+groff -Tdvi -p will now pass pic the -x flag; this will enable filling
+of arrowheads and boxes, provided that your dvi driver supports the
+latest version of the tpic specials.
+
+Eqn
+---
+
+There is a new `-N' option that tells eqn not to allow newlines in
+delimiters.  This allows eqn to recover better from missing closing
+delimiters.  The groff command will pass on a `-N' option to eqn.
+
+Grops
+-----
+
+You can now use psfig with grops.  See the file ps/psfig.diff.  I do
+not recommend using psfig for new documents.
+
+The command \X'ps: file F' is similar to \X'ps: exec ...' except that
+the PostScript code is read from the file F instead of being contained
+within the \X command.  This was added to support psfig.
+
+Grodvi
+------
+
+There are font files HB and HI corresponding to cmsssbx10 and cmssi10.
+
+Macros
+------
+
+The groff -me macros now work with the -C option.  As a result, they
+may also work with Unix nroff/troff.
+
+In -me, the $r and $R number registers now contain the line spacing as
+a percentage of the pointsize expressed in units (normally about 120).
+The previous definition was useless with low resolution devices such
+as X75 and X100.
+
+VERSION 1.00
+============
+
+A -ms-like macro-package is now included.
+
+The name for the Icelandic lowercase eth character has been changed
+from \(-d to \(Sd.
+
+Troff
+-----
+
+There is a new request `nroff', which makes the `n' built-in condition
+true and the `t' built-in condition false; also a new request `troff'
+which undoes the effect of the `nroff' request.  This is intended only
+for backward compatibility: it is usually better to test \n(.H or
+\n(.V or to use the `c' built-in condition.
+
+The \R escape sequence has been deleted.  Use \E instead.
+
+There are `break' and `continue' requests for use with the `while'
+request.
+
+There is a request `hym' that can ensure that when the current
+adjustment mode is not `b' a line will not be hyphenated if it is no
+more than a given amount short, and a request `hys' that can ensure
+that when the current adjustment mode is `b' a line will not be
+hyphenated if it can be justified by adding no more than a given
+amount of extra space to each word space.
+
+There is a request `rj' similar to `ce' that right justifies lines.
+
+A warning of type `space' will be given when a call is made to an
+undefined request or macro with a name longer than two characters, and
+the first two characters of the name make a name that is defined.
+This is intended to find places where a space has been omitted been a
+request or macro and its argument.  This type of warning is enabled by
+default.
+
+Pic
+---
+
+A comma is permitted between the arguments to the `reset' command.
+
+For use with TeX, there is a new `-c' option that makes gpic treat
+lines beginning with `.' in a way that is more compatible with tpic
+(but ugly).
+
+Eqn
+---
+
+It is no longer necessary to add `space 0' at the beginning of
+complicated equations inside pictures.
+
+`prime' is now treated as an ordinary character, as in Unix eqn.  The
+previous behaviour of `prime' as an operator can now be obtained using
+`opprime'.
+
+Xditview
+--------
+
+There are two new devices X75-12 and X100-12 which are the same as X75
+and X100 except that they are optimized for documents that use mostly
+12 point text.
+
+VERSION 0.6
+===========
+
+The installation process has been refined to make it easy for you to
+share groff with someone who has the same type of machine as you but
+does not have a C++ compiler.  See the end of the INSTALL file for
+details.
+
+There is a man page for the tfmtodit program which explains how to use
+your own fonts with groff -Tdvi.
+
+There is a man page for afmtodit which explains how to use your own
+PostScript fonts with groff -Tps.
+
+The \N escape sequence is now fully supported.  It can now be used to
+access any character in a font by its output code, even if it doesn't
+have a groff name.  This is made possible by a convention in the font
+files that a character name of `---' refers to an unnamed character.
+The drivers now all support the `N' command required for this.  The font
+description files have been updated to include unnamed characters.
+
+The `x' command in font description files has been removed: instead
+any unknown commands are automatically made available to the drivers.
+If you constructed your own font files with an earlier version of
+tfmtodit or afmtodit, you must construct them again using the current
+version.
+
+Characters between 0200 and 0237 octal are no longer legal input
+characters.  Note that these are not used in ISO 8859.
+
+A command called `grog' has been added, similar to the `doctype'
+command described in Kernighan and Pike.
+
+Groff
+-----
+
+The groff command has some new options: -V prints the pipeline
+instead of executing it; -P passes an argument to the postprocessor,
+-L passes an argument to the spooler.
+
+There is a C++ implementation of the groff command.  This handles some
+things slightly better than the shell script.  In particular, it can
+correctly handle arguments containing characters that have a special
+meaning to the shell; it can give an error message when child
+processes other than the last in the pipeline terminate abnormally;
+its exit status can take account of the exit statuses of all its child
+processes; it is a little more efficient; when geqn is used, it
+searches for the eqnchar file in the same way that font metric files
+are searched for, rather than expecting to find it in one particular
+directory.
+
+Gtroff
+------
+
+There is font translation feature: For example, you can tell gtroff to
+use font `HR' whenever font `H' is requested with the line
+  .ftr H HR
+This would be useful for a document that uses `H' to refer to
+Helvetica.
+
+There are some new number registers: `.kern' contains the current kern
+mode, `.lg' the current ligature mode, `.x' the major version number,
+`.y' the minor version number, `.ce' the number of lines to be
+centered in the current environment, `.trunc' the amount of vertical
+space truncated by the most recently sprung vertical position trap,
+`.ne' the amount of vertical space needed in the last `ne' request
+that caused a vertical position trap to be sprung.
+
+The `cf' request now behaves sensibly in a diversion.  If used in a
+diversion, it will now arrange for the file to be copied to the output
+when the diversion is reread.
+
+There is a new request `trf' (transparent file) similar to `cf', but
+more like `\!'.
+
+There is a new escape sequence `\Y[xxx]', roughly equivalent to
+`\X'\*[xxx]'', except that the contents of string or macro xxx are not
+interpreted, and xxx may contain newlines.  This requires an output
+format extension; the drivers have been modified to understand this.
+Grops has also been modified to cope with newlines in the arguments to
+\X commands; grops has a new \X command mdef, which is like def except
+that it has a first argument giving the number of definitions.
+
+There is a new warning category `escape' which warns about unknown
+escape sequences.
+
+The `fp' request now takes an optional third argument giving the external
+name of the font.
+
+The `\_' character is now automatically translated to `\(ul' as in troff.
+
+The environment variable `GROFF_HYPHEN' gives the name of the file
+containing the hyphenation patterns.
+
+There is a `\C'xxx'' escape sequence equivalent to `\[xxx]'.
+
+Characters ", ', ), ], *, \(dg are now initially transparent for the purposes
+of end of sentence recognition.
+
+There is an anti-recursion feature in the `char' request, so you can
+say `.char \(bu \s+2\(bu\s-2'.
+
+The limit on the number of font positions has been removed.
+Accordingly `\n[.fp]' never returns 0.
+
+The restriction on the number of numbered environments has been removed.
+
+There is a new escape sequence `\E' that makes it possible to
+guarantee that an escape sequence won't get interpreted in copy-mode.
+The `\R' escape sequence is accordingly now deprecated.
+
+Gpic
+----
+
+Arguments of the form `X anything X' (in the `copy thru', `sh', `for',
+`if' and `define' constructs) can now be of the form `{ anything }'.
+
+If the `linethick' variable is negative (as it now is initially),
+lines will be drawn with a thickness proportional to the current point
+size.
+
+The `rand' function now takes no arguments and returns a number between
+0 and 1.  The old syntax is still supported.
+
+`^' can be used in expressions to indicate exponentiation.
+
+In the `for' construct the argument to the by clause can be prefixed
+by `*' to indicate that the increment is multiplicative.
+
+A bare expression may be used as an attribute.  If the current
+direction is `dir', then an attribute `expr' is equivalent to
+`dir expr'
+
+There is a `sprintf' construct that allows numbers to be formatted and used
+wherever a quoted string can be used.
+
+The height of a text object without an explicit height attribute is
+the number of text strings associated with the object times the value
+of the `textht' variable.
+
+The maximum height and width of a picture is controlled by the
+`maxpswid' and `maxpsht' variables.
+
+Gtbl
+----
+
+Gtbl can now handle gracefully the situation where the `ce' request
+has been applied to a table.
+
+Geqn
+----
+
+The `ifdef' primitive has been generalized.
+
+A tilde accent can be put underneath a box using `utilde'.  This
+defined using a general `uaccent' primitive.
+
+Grops
+-----
+
+There is a new PostScript font downloading scheme which handles font
+downloading for imported illustrations.  Previously, the name of the
+file containing the font was given in the `x download' line in the
+groff font metric file.  Now, there is a `download' file which says
+for each PostScript font name which file contains that font.  Grops
+can also now handle inter-font dependencies, where one downloadable
+font depends on some other (possibly downloadable) font.
+
+The `T' font has been removed.  The characters it used to provide are
+now provided by `char' definitions in tmac.ps. TSymbol.ps has also
+been removed, and the tweaks it provided are now provided by `char'
+definitions.

@@ -1,0 +1,167 @@
+.ig \"-*- nroff -*-
+Copyright (C) 1989-1995 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.ie t .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
+.el .ds tx TeX
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.TH TFMTODIT @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+tfmtodit \- create font files for use with groff \-Tdvi
+.SH SYNOPSIS
+.B tfmtodit
+[
+.B \-sv
+]
+[
+.BI \-g gf_file
+]
+[
+.BI \-k skewchar
+]
+.I tfm_file
+.I map_file
+.I font
+.SH DESCRIPTION
+.B tfmtodit
+creates a font file for use with
+.B
+groff \-Tdvi\fR.
+.I tfm_file
+is the name of the \*(tx font metric file for the font.
+.I map_file
+is a file giving the groff names for characters in the font;
+this file should consist of a sequence of lines of the form:
+.IP
+.I
+n c1 c2 \fR.\|.\|.
+.LP
+where
+.I n
+is a decimal integer giving the position of the character in the font,
+and
+.IR c1 ,
+.IR c2 ,.\|.\|.
+are the groff names of the character.
+If a character has no groff names but exists in the tfm file,
+then it will be put in the groff font file as an unnamed character.
+.I font
+is the name of the groff font file.
+The groff font file is written to
+.IR font .
+.LP
+The
+.B \-s
+option should be given if the font is special
+(a font is
+.I special
+if
+.B troff
+should search it whenever
+a character is not found in the current font.)
+If the font is special,
+it should be listed in the
+.B fonts
+command in the DESC file;
+if it is not special, there is no need to list it, since
+.B troff
+can automatically mount it when it's first used.
+.LP
+To do a good job of math typesetting, groff requires
+font metric information not present in the tfm file.
+The reason for this is that \*(tx has separate math italic fonts
+whereas groff uses normal italic fonts for math.
+The additional information required by groff is given by the
+two arguments to the
+.B math_fit
+macro in the Metafont programs for the Computer Modern fonts.
+In a text font (a font for which
+.B math_fitting
+is false), Metafont normally ignores these two arguments.
+Metafont can be made to put this information in the gf file
+by loading the following definition after
+.B cmbase
+when creating
+.BR cm.base :
+.IP
+.nf
+.ft B
+def ignore_math_fit(expr left_adjustment,right_adjustment) =
+    special "adjustment";
+    numspecial left_adjustment*16/designsize;
+    numspecial right_adjustment*16/designsize;
+    enddef;
+.fi
+.ft R
+.LP
+The gf file created using this modified
+.B cm.base
+should be specified with the
+.B \-g
+option.
+The
+.B \-g
+option should not be given for a font for which
+.B math_fitting
+is true.
+.SH OPTIONS
+.TP
+.B \-v
+Print the version number.
+.TP
+.B \-s
+The font is special.
+The effect of this option is to add the
+.B special
+command to the font file.
+.TP
+.BI \-k n
+The skewchar of this font is at position
+.IR n .
+.I n
+should be an integer;
+it may be given in decimal,
+or with a leading 
+.B 0
+in octal,
+or with a leading
+.B 0x
+in hexadecimal.
+The effect of this option is to ignore any kerns whose second component
+is the specified character.
+.TP
+.BI \-g gf_file
+.I gf_file
+is a gf file produced by Metafont containing special and numspecial
+commands giving additional font metric information.
+.SH FILES
+.Tp \w'\fB@FONTDIR@/devdvi/DESC'u+2n
+.B @FONTDIR@/devdvi/DESC
+Device description file.
+.TP
+.BI @FONTDIR@/devdvi/ F
+Font description file for font
+.IR F .
+.SH "SEE ALSO"
+.BR groff (@MAN1EXT@),
+.BR grodvi (@MAN1EXT@),
+.BR groff_font (@MAN5EXT@)

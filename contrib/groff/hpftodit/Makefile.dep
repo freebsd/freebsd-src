@@ -1,0 +1,3 @@
+hpftodit.o: hpftodit.cc ../include/assert.h ../include/lib.h \
+ ../include/posix.h ../include/errarg.h ../include/error.h \
+ ../include/cset.h

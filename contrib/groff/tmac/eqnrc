@@ -1,0 +1,60 @@
+.\" Startup file for eqn.
+.EQ
+sdefine << %{ < back 20 < }%
+sdefine >> %{ > back 20 > }%
+
+sdefine dot %accent "\fR\(a.\fP"%
+sdefine dotdot %accent "\fR\(ad\fP"%
+sdefine vec %accent {up 52 "\s[\En[.s]/2u]\(->\s0"}%
+sdefine dyad %accent {up 52 "\s[\En[.s]/2u]\(<>\s0"}%
+
+sdefine cdot %type "binary" \(md%
+
+ifdef X75 ! define X %1% !
+ifdef X100 ! define X %1% !
+ifdef X75-12 ! define X %1% !
+ifdef X100-12 ! define X %1% !
+
+ifdef ps ! define ps|X %1% !
+ifdef X ! define ps|X %1% !
+
+ifdef ps|X ! sdefine inf %"\s[\En[.s]*13u/10u]\v'12M'\(if\v'-12M'\s0"% !
+
+ifdef dvi !
+sdefine int %{type "operator" vcenter \(is}%
+sdefine sum %{type "operator" vcenter \[sum]}%
+sdefine prod %{type "operator" vcenter \[product]}%
+sdefine coprod %{type "operator" vcenter \[coproduct]}%
+set num1 68
+set num2 39
+set denom1 69
+set denom2 34
+set sup1 41
+set sup2 36
+set sup3 29
+set sup_drop 39
+set sub_drop 5
+set axis_height 25
+set x_height 43
+set default_rule_thickness 4
+set big_op_spacing1 11
+set big_op_spacing2 16
+set big_op_spacing3 20
+set big_op_spacing4 60
+set big_op_spacing5 10
+!
+
+ifdef X ! set axis_height 32 !
+
+ifdef ps|X ! set draw_lines 1 !
+
+ifdef ascii ! define n %1% !
+ifdef latin1 ! define n %1% !
+ifdef n !
+set nroff 1
+!
+
+undef X
+undef ps|X
+undef n
+.EN
