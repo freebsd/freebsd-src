@@ -121,16 +121,16 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	struct options options;
 	struct passwd *pwd;
 	int retval;
-	const char *pass, *user;
-	char *encrypted, *password_prompt;
+	const char *pass, *user, *realpw;
+	char *prompt;
 
 	pam_std_option(&options, other_options, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL))
+	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
 		pwd = getpwnam(getlogin());
-	else {
+	} else {
 		retval = pam_get_user(pamh, &user, NULL);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
@@ -140,68 +140,31 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	PAM_LOG("Got user: %s", user);
 
 	if (pwd != NULL) {
-
 		PAM_LOG("Doing real authentication");
-
-		if (pwd->pw_passwd[0] == '\0'
-		    && pam_test_option(&options, PAM_OPT_NULLOK, NULL)) {
-			/*
-			 * No password case. XXX Are we giving too much away
-			 * by not prompting for a password?
-			 */
-			PAM_LOG("No password, and null password OK");
-			PAM_RETURN(PAM_SUCCESS);
+		realpw = pwd->pw_passwd;
+		if (realpw[0] == '\0') {
+			if (!(flags & PAM_DISALLOW_NULL_AUTHTOK) &&
+			    pam_test_option(&options, PAM_OPT_NULLOK, NULL))
+				PAM_RETURN(PAM_SUCCESS);
+			realpw = "*";
 		}
-		else {
-			lc = login_getpwclass(pwd);
-			password_prompt = login_getcapstr(lc, "passwd_prompt",
-			    NULL, NULL);
-			retval = pam_get_authtok(pamh, PAM_AUTHTOK,
-			    &pass, password_prompt);
-			login_close(lc);
-			if (retval != PAM_SUCCESS)
-				PAM_RETURN(retval);
-			PAM_LOG("Got password");
-		}
-		encrypted = crypt(pass, pwd->pw_passwd);
-		if (pass[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = colon;
-
-		PAM_LOG("Encrypted password 1 is: %s", encrypted);
-		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
-
-		retval = strcmp(encrypted, pwd->pw_passwd) == 0 ?
-		    PAM_SUCCESS : PAM_AUTH_ERR;
-	}
-	else {
-
+		lc = login_getpwclass(pwd);
+	} else {
 		PAM_LOG("Doing dummy authentication");
-
-		/*
-		 * User unknown.
-		 * Encrypt a dummy password so as to not give away too much.
-		 */
+		realpw = "*";
 		lc = login_getclass(NULL);
-		password_prompt = login_getcapstr(lc, "passwd_prompt",
-		    NULL, NULL);
-		retval = pam_get_authtok(pamh,
-		    PAM_AUTHTOK, &pass, password_prompt);
-		login_close(lc);
-		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
-		PAM_LOG("Got password");
-		crypt(pass, "xx");
-		retval = PAM_AUTH_ERR;
 	}
-
-	/*
-	 * The PAM infrastructure will obliterate the cleartext
-	 * password before returning to the application.
-	 */
+	prompt = login_getcapstr(lc, "passwd_prompt", NULL, NULL);
+	retval = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, prompt);
+	login_close(lc);
 	if (retval != PAM_SUCCESS)
-		PAM_VERBOSE_ERROR("UNIX authentication refused");
+		PAM_RETURN(retval);
+	PAM_LOG("Got password");
+	if (strcmp(crypt(pass, realpw), realpw) == 0)
+		PAM_RETURN(PAM_SUCCESS);
 
-	PAM_RETURN(retval);
+	PAM_VERBOSE_ERROR("UNIX authentication refused");
+	PAM_RETURN(PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
