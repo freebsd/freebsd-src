@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.139 1999/05/07 07:03:24 phk Exp $
+ *	$Id: fd.c,v 1.140 1999/05/07 10:10:30 phk Exp $
  *
  */
 
@@ -108,12 +108,6 @@
 
 /* internally used only, not really from CMOS: */
 #define RTCFDT_144M_PRETENDED	0x1000
-
-/*
- * this biotab field doubles as a field for the physical unit number
- * on the controller
- */
-#define id_physid id_scsiid
 
 /* error returns for fd_cmd() */
 #define FD_FAILED -1

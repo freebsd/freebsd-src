@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.195 1999/04/28 10:53:01 dt Exp $
+ *	$Id: wd.c,v 1.196 1999/05/07 07:03:30 phk Exp $
  */
 
 /* TODO:
@@ -114,12 +114,6 @@ extern void wdstart(int ctrlr);
 #define WDOPT_LBA	0x1000
 #define WDOPT_FORCEHD(x)	(((x)&0x0f00)>>8)
 #define WDOPT_MULTIMASK	0x00ff
-
-/*
- * This biotab field doubles as a field for the physical unit number on
- * the controller.
- */
-#define	id_physid id_scsiid
 
 /*
  * Drive states.  Used to initialize drive.
