@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_udp.c 1.24 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_udp.c	2.2 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_udp.c,v 1.5 1996/06/08 22:54:59 jraynard Exp $";
+static char *rcsid = "$Id: svc_udp.c,v 1.6 1996/08/12 14:00:26 peter Exp $";
 #endif
 
 /*
@@ -49,8 +49,6 @@ static char *rcsid = "$Id: svc_udp.c,v 1.5 1996/06/08 22:54:59 jraynard Exp $";
 #include <sys/socket.h>
 #include <errno.h>
 
-int bindresvport(int sd, struct sockaddr_in *);
-
 #define rpc_buffer(xprt) ((xprt)->xp_p1)
 #define MAX(a, b)     ((a > b) ? a : b)
 
@@ -60,6 +58,8 @@ static enum xprt_stat	svcudp_stat();
 static bool_t		svcudp_getargs();
 static bool_t		svcudp_freeargs();
 static void		svcudp_destroy();
+static void		cache_set __P((SVCXPRT *, u_long));
+static int		cache_get __P((SVCXPRT *, struct rpc_msg *, char **, u_long *));
 
 static struct xp_ops svcudp_op = {
 	svcudp_recv,
@@ -113,7 +113,7 @@ svcudp_bufcreate(sock, sendsz, recvsz)
 		}
 		madesock = TRUE;
 	}
-	bzero((char *)&addr, sizeof (addr));
+	memset((char *)&addr, 0, sizeof (addr));
 	addr.sin_len = sizeof(struct sockaddr_in);
 	addr.sin_family = AF_INET;
 	if (bindresvport(sock, &addr)) {
@@ -179,7 +179,6 @@ svcudp_recv(xprt, msg)
 	register int rlen;
 	char *reply;
 	u_long replylen;
-	static int cache_get();
 
     again:
 	xprt->xp_addrlen = sizeof(struct sockaddr_in);
@@ -187,7 +186,7 @@ svcudp_recv(xprt, msg)
 	    0, (struct sockaddr *)&(xprt->xp_raddr), &(xprt->xp_addrlen));
 	if (rlen == -1 && errno == EINTR)
 		goto again;
-	if (rlen < (int)(4*sizeof(u_long)))
+	if (rlen == -1 || rlen < 4*sizeof(u_int32_t))
 		return (FALSE);
 	xdrs->x_op = XDR_DECODE;
 	XDR_SETPOS(xdrs, 0);
@@ -213,7 +212,6 @@ svcudp_reply(xprt, msg)
 	register XDR *xdrs = &(su->su_xdrs);
 	register int slen;
 	register bool_t stat = FALSE;
-	static void cache_set();
 
 	xdrs->x_op = XDR_ENCODE;
 	XDR_SETPOS(xdrs, 0);
@@ -286,7 +284,7 @@ svcudp_destroy(xprt)
 	(type *) mem_alloc((unsigned) (sizeof(type) * (size)))
 
 #define BZERO(addr, type, size)	 \
-	bzero((char *) addr, sizeof(type) * (int) (size))
+	memset((char *) addr, 0, sizeof(type) * (int) (size))
 
 /*
  * An entry in the cache
@@ -443,8 +441,8 @@ cache_set(xprt, replylen)
  * Try to get an entry from the cache
  * return 1 if found, 0 if not found
  */
-static
-int cache_get(xprt, msg, replyp, replylenp)
+static int
+cache_get(xprt, msg, replyp, replylenp)
 	SVCXPRT *xprt;
 	struct rpc_msg *msg;
 	char **replyp;
@@ -455,7 +453,7 @@ int cache_get(xprt, msg, replyp, replylenp)
 	register struct svcudp_data *su = su_data(xprt);
 	register struct udp_cache *uc = (struct udp_cache *) su->su_cache;
 
-#	define EQADDR(a1, a2)	(bcmp((char*)&a1, (char*)&a2, sizeof(a1)) == 0)
+#	define EQADDR(a1, a2)	(memcmp(&a1, &a2, sizeof(a1)) == 0)
 
 	loc = CACHE_LOC(xprt, su->su_xid);
 	for (ent = uc->uc_entries[loc]; ent != NULL; ent = ent->cache_next) {
