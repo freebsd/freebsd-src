@@ -492,7 +492,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		icflags = INTR_EXCL;
 
 	driver = device_get_driver(child);
-	switch (flags & INTR_TYPE_FAST) {
+	switch (flags & ~INTR_TYPE_FAST) {
 	case INTR_TYPE_TTY:
 		mask = &tty_imask;
 		break;
