@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.60 1996/07/31 14:49:20 jkh Exp $
+ * $Id: disks.c,v 1.61 1996/08/01 11:39:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -188,10 +188,8 @@ diskPartition(Device *dev, Disk *d)
 	    msg = NULL;
 	}
 
-	key = getch() & 0x7F;
-	if (islower(key))
-	    key = toupper(key);
-	switch (key) {
+	key = getch();
+	switch (toupper(key)) {
 
 	case '\014':	/* ^L */
 	    clear();
@@ -308,7 +306,7 @@ diskPartition(Device *dev, Disk *d)
 	    }
 	    break;
 
-	case '\177':
+	case KEY_DC:
 	case 'D':
 	    if (chunk_info[current_chunk]->type == unused)
 		msg = "Partition is already unused!";
