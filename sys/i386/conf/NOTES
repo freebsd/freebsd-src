@@ -44,7 +44,7 @@ profile         2
 # they are enabled.  However, most HTT systems do not list HTT CPUs
 # in the MP Table if they are enabled, thus we guess at the HTT CPUs
 # for the MP Table case.  However, we shouldn't try to guess and use
-# these CPUs if HTTT is disabled.  Thus, HTT guessing is only enabled
+# these CPUs if HTT is disabled.  Thus, HTT guessing is only enabled
 # for the MP Table if the user explicitly asks for it via the
 # MPTABLE_FORCE_HTT option.  Do NOT use this option if you have HTT
 # disabled in your BIOS.
@@ -1014,7 +1014,7 @@ device		streams		# STREAMS network driver (required for svr4).
 # VM OPTIONS
 
 # Disable the 4 MByte page PSE CPU feature.  The PSE feature allows the
-# kernel to use a 4 MByte pages to map the kernel instead of 4k pages.
+# kernel to use 4 MByte pages to map the kernel instead of 4k pages.
 # This saves on the amount of memory needed for page tables needed to
 # map the kernel.  You should only disable this feature as a temporary
 # workaround if you are having problems with it enabled.
