@@ -783,10 +783,12 @@ dev/uart/uart_if.m		optional	uart
 dev/uart/uart_bus_acpi.c	optional	uart acpi
 dev/uart/uart_bus_ebus.c	optional	uart ebus
 dev/uart/uart_bus_isa.c		optional	uart isa
+#dev/uart/uart_bus_cbus.c	optional	uart cbus
 dev/uart/uart_bus_pci.c		optional	uart cardbus
 dev/uart/uart_bus_pci.c		optional	uart pci
 dev/uart/uart_bus_puc.c		optional	uart puc
 dev/uart/uart_core.c		optional	uart
+dev/uart/uart_dev_i8251.c	optional	uart
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/uart/uart_dev_sab82532.c	optional	uart
 dev/uart/uart_dev_z8530.c	optional	uart
