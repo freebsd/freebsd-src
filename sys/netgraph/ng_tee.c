@@ -385,10 +385,6 @@ ngt_shutdown(node_p node)
 {
 	const sc_p privdata = NG_NODE_PRIVATE(node);
 
-#if 0 /* can never happen as cutlinks is already called */
-	if (privdata->left.hook && privdata->right.hook)
-		ng_bypass(privdata->left.hook, privdata->right.hook);
-#endif
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH);
