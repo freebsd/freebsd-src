@@ -1,0 +1,180 @@
+# Makefile for GNU MP/mpz functions
+# Copyright (C) 1991, 1993, 1994, 1996 Free Software Foundation, Inc.
+
+# This file is part of the GNU MP Library.
+
+# The GNU MP Library is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Library General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or (at your
+# option) any later version.
+
+# The GNU MP Library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
+# License for more details.
+
+# You should have received a copy of the GNU Library General Public License
+# along with the GNU MP Library; see the file COPYING.LIB.  If not, write to
+# the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+# MA 02111-1307, USA.
+
+srcdir = .
+
+CC = gcc
+
+# If you cross compile on a machine with the same sizes of the integral
+# types ("int", "long int", "short int", and "char") define this as the
+# local compiler.  Otherwise, you need to look for the uses of LOCAL_CC below,
+# and handle those cases manually.
+LOCAL_CC = $(CC)
+CFLAGS = -g -O
+AR = ar
+AR_FLAGS = rc
+SHELL = /bin/sh
+
+#### host and target specific makefile fragments come in here.
+###
+
+MPZ_SRCS = init.c set.c set_ui.c set_si.c set_str.c set_d.c set_f.c set_q.c \
+  iset.c iset_ui.c iset_si.c iset_str.c iset_d.c clear.c \
+  get_ui.c get_si.c get_str.c get_d.c size.c sizeinbase.c \
+  add.c add_ui.c sub.c sub_ui.c mul.c mul_ui.c \
+  gcd.c gcd_ui.c gcdext.c sqrt.c sqrtrem.c powm.c powm_ui.c \
+  cmp.c cmp_ui.c cmp_si.c mul_2exp.c fdiv_q_2exp.c fdiv_r_2exp.c \
+  tdiv_q_2exp.c tdiv_r_2exp.c abs.c neg.c com.c and.c ior.c \
+  inp_raw.c inp_str.c out_raw.c out_str.c \
+  perfsqr.c random.c random2.c pow_ui.c ui_pow_ui.c setbit.c \
+  clrbit.c fac_ui.c pprime_p.c realloc.c getlimbn.c popcount.c hamdist.c \
+  cdiv_qr.c cdiv_q.c cdiv_r.c cdiv_qr_ui.c cdiv_q_ui.c cdiv_r_ui.c cdiv_ui.c \
+  fdiv_qr.c fdiv_q.c fdiv_r.c fdiv_qr_ui.c fdiv_q_ui.c fdiv_r_ui.c fdiv_ui.c \
+  tdiv_qr.c tdiv_q.c tdiv_r.c tdiv_qr_ui.c tdiv_q_ui.c tdiv_r_ui.c \
+  mod.c divexact.c array_init.c scan0.c scan1.c \
+  jacobi.c legendre.c invert.c
+MPZ_OBJS = init.o set.o set_ui.o set_si.o set_str.o set_d.o set_f.o set_q.o \
+  iset.o iset_ui.o iset_si.o iset_str.o iset_d.o clear.o \
+  get_ui.o get_si.o get_str.o get_d.o size.o sizeinbase.o \
+  add.o add_ui.o sub.o sub_ui.o mul.o mul_ui.o \
+  gcd.o gcd_ui.o gcdext.o sqrt.o sqrtrem.o powm.o powm_ui.o \
+  cmp.o cmp_ui.o cmp_si.o mul_2exp.o fdiv_q_2exp.o fdiv_r_2exp.o \
+  tdiv_q_2exp.o tdiv_r_2exp.o abs.o neg.o com.o and.o ior.o \
+  inp_raw.o inp_str.o out_raw.o out_str.o \
+  perfsqr.o random.o random2.o pow_ui.o ui_pow_ui.o setbit.o \
+  clrbit.o fac_ui.o pprime_p.o realloc.o getlimbn.o popcount.o hamdist.o \
+  cdiv_qr.o cdiv_q.o cdiv_r.o cdiv_qr_ui.o cdiv_q_ui.o cdiv_r_ui.o cdiv_ui.o \
+  fdiv_qr.o fdiv_q.o fdiv_r.o fdiv_qr_ui.o fdiv_q_ui.o fdiv_r_ui.o fdiv_ui.o \
+  tdiv_qr.o tdiv_q.o tdiv_r.o tdiv_qr_ui.o tdiv_q_ui.o tdiv_r_ui.o \
+  mod.o divexact.o array_init.o scan0.o scan1.o \
+  jacobi.o legendre.o invert.o
+
+INCLUDES = -I. -I.. -I../mpn -I$(srcdir)/..
+
+libmpz.a: Makefile $(MPZ_OBJS)
+	rm -f $@
+	$(AR) $(AR_FLAGS) $@ $(MPZ_OBJS)
+
+.c.o:
+	$(CC) -c $(INCLUDES) $(CFLAGS) $(XCFLAGS) $<
+
+clean mostlyclean:
+	rm -f *.o libmpz.a
+	-cd tests; $(MAKE) $@
+distclean maintainer-clean: clean
+	rm -f Makefile config.status
+	-cd tests; $(MAKE) $@
+
+Makefile: $(srcdir)/Makefile.in
+	$(SHELL) ./config.status
+
+H = $(srcdir)/../gmp.h $(srcdir)/../gmp-impl.h ../mpn/gmp-mparam.h
+
+abs.o: $(srcdir)/abs.c $(H)
+add.o: $(srcdir)/add.c $(H)
+add_ui.o: $(srcdir)/add_ui.c $(H)
+and.o: $(srcdir)/and.c $(H)
+array_init.o: $(srcdir)/array_init.c $(H)
+cdiv_q.o: $(srcdir)/cdiv_q.c $(H)
+cdiv_q_ui.o: $(srcdir)/cdiv_q_ui.c $(H)
+cdiv_qr.o: $(srcdir)/cdiv_qr.c $(H)
+cdiv_qr_ui.o: $(srcdir)/cdiv_qr_ui.c $(H)
+cdiv_r.o: $(srcdir)/cdiv_r.c $(H)
+cdiv_r_ui.o: $(srcdir)/cdiv_r_ui.c $(H)
+cdiv_ui.o: $(srcdir)/cdiv_ui.c $(H)
+clear.o: $(srcdir)/clear.c $(H)
+clrbit.o: $(srcdir)/clrbit.c $(H)
+cmp.o: $(srcdir)/cmp.c $(H)
+cmp_si.o: $(srcdir)/cmp_si.c $(H)
+cmp_ui.o: $(srcdir)/cmp_ui.c $(H)
+com.o: $(srcdir)/com.c $(H)
+fdiv_q_2exp.o: $(srcdir)/fdiv_q_2exp.c $(H)
+fdiv_r_2exp.o: $(srcdir)/fdiv_r_2exp.c $(H)
+divexact.o: $(srcdir)/divexact.c $(H) $(srcdir)/../longlong.h
+fac_ui.o: $(srcdir)/fac_ui.c $(H) $(srcdir)/../longlong.h
+fdiv_q.o: $(srcdir)/fdiv_q.c $(H)
+fdiv_q_ui.o: $(srcdir)/fdiv_q_ui.c $(H)
+fdiv_qr.o: $(srcdir)/fdiv_qr.c $(H)
+fdiv_qr_ui.o: $(srcdir)/fdiv_qr_ui.c $(H)
+fdiv_r.o: $(srcdir)/fdiv_r.c $(H)
+fdiv_r_ui.o: $(srcdir)/fdiv_r_ui.c $(H)
+fdiv_ui.o: $(srcdir)/fdiv_ui.c $(H)
+gcd.o: $(srcdir)/gcd.c $(H) $(srcdir)/../longlong.h
+gcd_ui.o: $(srcdir)/gcd_ui.c $(H)
+gcdext.o: $(srcdir)/gcdext.c $(H)
+get_d.o: $(srcdir)/get_d.c $(H)
+get_si.o: $(srcdir)/get_si.c $(H)
+get_str.o: $(srcdir)/get_str.c $(H)
+get_ui.o: $(srcdir)/get_ui.c $(H)
+getlimbn.o: $(srcdir)/getlimbn.c $(H)
+hamdist.o: $(srcdir)/hamdist.c $(H)
+init.o: $(srcdir)/init.c $(H)
+inp_raw.o: $(srcdir)/inp_raw.c $(H)
+inp_str.o: $(srcdir)/inp_str.c $(H)
+invert.o: $(srcdir)/invert.c $(H)
+ior.o: $(srcdir)/ior.c $(H)
+iset.o: $(srcdir)/iset.c $(H)
+iset_d.o: $(srcdir)/iset_d.c $(H)
+iset_si.o: $(srcdir)/iset_si.c $(H)
+iset_str.o: $(srcdir)/iset_str.c $(H)
+iset_ui.o: $(srcdir)/iset_ui.c $(H)
+jacobi.o: $(srcdir)/jacobi.c $(H)
+legendre.o: $(srcdir)/legendre.c $(H)
+mod.o: $(srcdir)/mod.c $(H)
+tdiv_q_2exp.o: $(srcdir)/tdiv_q_2exp.c $(H)
+tdiv_r_2exp.o: $(srcdir)/tdiv_r_2exp.c $(H)
+mul.o: $(srcdir)/mul.c $(H)
+mul_2exp.o: $(srcdir)/mul_2exp.c $(H)
+mul_ui.o: $(srcdir)/mul_ui.c $(H)
+neg.o: $(srcdir)/neg.c $(H)
+out_raw.o: $(srcdir)/out_raw.c $(H)
+out_str.o: $(srcdir)/out_str.c $(H)
+perfsqr.o: $(srcdir)/perfsqr.c $(H)
+popcount.o: $(srcdir)/popcount.c $(H)
+pow_ui.o: $(srcdir)/pow_ui.c $(H) $(srcdir)/../longlong.h
+powm.o: $(srcdir)/powm.c $(H) $(srcdir)/../longlong.h
+powm_ui.o: $(srcdir)/powm_ui.c $(H) $(srcdir)/../longlong.h
+pprime_p.o: $(srcdir)/pprime_p.c $(H)
+random.o: $(srcdir)/random.c $(H) $(srcdir)/../urandom.h
+random2.o: $(srcdir)/random2.c $(H)
+realloc.o: $(srcdir)/realloc.c $(H)
+scan0.o: $(srcdir)/scan0.c $(H)
+scan1.o: $(srcdir)/scan1.c $(H)
+set.o: $(srcdir)/set.c $(H)
+set_d.o: $(srcdir)/set_d.c $(H)
+set_f.o: $(srcdir)/set_f.c $(H)
+set_q.o: $(srcdir)/set_q.c $(H)
+set_si.o: $(srcdir)/set_si.c $(H)
+set_str.o: $(srcdir)/set_str.c $(H) $(srcdir)/../longlong.h
+set_ui.o: $(srcdir)/set_ui.c $(H)
+setbit.o: $(srcdir)/setbit.c $(H)
+size.o: $(srcdir)/size.c $(H)
+sizeinbase.o: $(srcdir)/sizeinbase.c $(H) $(srcdir)/../longlong.h
+sqrt.o: $(srcdir)/sqrt.c $(H)
+sqrtrem.o: $(srcdir)/sqrtrem.c $(H)
+sub.o: $(srcdir)/sub.c $(H)
+sub_ui.o: $(srcdir)/sub_ui.c $(H)
+tdiv_q.o: $(srcdir)/tdiv_q.c $(H) $(srcdir)/../longlong.h
+tdiv_q_ui.o: $(srcdir)/tdiv_q_ui.c $(H)
+tdiv_qr.o: $(srcdir)/tdiv_qr.c $(H) $(srcdir)/../longlong.h $(srcdir)/dmincl.c $(H)
+tdiv_qr_ui.o: $(srcdir)/tdiv_qr_ui.c $(H)
+tdiv_r.o: $(srcdir)/tdiv_r.c $(H) $(srcdir)/../longlong.h $(srcdir)/dmincl.c $(H)
+tdiv_r_ui.o: $(srcdir)/tdiv_r_ui.c $(H)
+ui_pow_ui.o: $(srcdir)/ui_pow_ui.c $(H) $(srcdir)/../longlong.h
