@@ -627,7 +627,7 @@ options 	EXT2FS
 
 #
 # Only set this if you positively know why you should never do that.
-options		ALLOW_BDEV_ACCESS
+options		ALLOW_BDEV_ACCESS	# enable bdev access
 
 
 #####################################################################
