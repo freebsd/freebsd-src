@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.228 1996/11/03 07:51:59 obrien Exp $
+# $Id: bsd.port.mk,v 1.229 1996/11/13 11:37:40 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -938,8 +938,9 @@ _PORT_USE: .USE
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
 .if make(real-install) && defined(_MANPAGES) && !defined(NOMANCOMPRESS)
+	@${ECHO_MSG} "===> Compressing the manual pages for ${PKGNAME}"
 .for manpage in ${_MANPAGES}
-	${GZIP_CMD} ${MANPREFIX}/${manpage}
+	@${GZIP_CMD} ${MANPREFIX}/${manpage}
 .endfor
 .endif
 .if make(real-install) && !defined(NO_PKG_REGISTER)
