@@ -666,7 +666,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 				if (i == 0 && lle->ll_next != NULL) {
 					lle = lle->ll_next;
 					i = lle->ll_count - 1;
-					MPASS(i != 0);
+					MPASS(i >= 0 && i < LOCK_NCHILDREN);
 				}
 			} while (i >= 0);
 			if (i < 0) {
