@@ -228,6 +228,7 @@ static driver_t rl_driver = {
 static devclass_t rl_devclass;
 
 DRIVER_MODULE(if_rl, pci, rl_driver, rl_devclass, 0, 0);
+DRIVER_MODULE(if_rl, cardbus, rl_driver, rl_devclass, 0, 0);
 DRIVER_MODULE(miibus, rl, miibus_driver, miibus_devclass, 0, 0);
 
 #define EE_SET(x)					\
@@ -247,7 +248,7 @@ static void rl_eeprom_putbyte(sc, addr)
 {
 	register int		d, i;
 
-	d = addr | RL_EECMD_READ;
+	d = addr | sc->rl_eecmd_read;
 
 	/*
 	 * Feed in each bit and strobe the clock.
@@ -893,6 +894,10 @@ static int rl_attach(dev)
 
 	/* Reset the adapter. */
 	rl_reset(sc);
+	sc->rl_eecmd_read = RL_EECMD_READ_6BIT;
+	rl_read_eeprom(sc, (caddr_t)&rl_did, 0, 1, 0);
+	if (rl_did != 8129)
+		sc->rl_eecmd_read = RL_EECMD_READ_8BIT;
 
 	/*
 	 * Get station address from the EEPROM.
