@@ -163,9 +163,11 @@ M4FILES!=	find ${SENDMAIL_CF_DIR} -type f -name '*.m4' -print
 # Aliases are handled separately since they normally reside in /etc
 # and can be rebuild without the help of makemap.
 #
-${SENDMAIL_ALIASES}.db:	${SENDMAIL_ALIASES}
-	${SENDMAIL} -bi
+.for _f in ${SENDMAIL_ALIASES}
+${_f}.db:	${_f}
+	${SENDMAIL} -bi -OAliasFile=${.ALLSRC}
 	chmod ${SENDMAIL_MAP_PERMS} ${.TARGET}
+.endfor
 
 #
 # ------------------------------------------------------------------------
@@ -203,7 +205,7 @@ install-submit-cf:	${INSTALL_SUBMIT_CF}
 .endif
 .endif
 
-aliases:	${SENDMAIL_ALIASES}.db
+aliases:	${SENDMAIL_ALIASES:%=%.db}
 
 maps:		${SENDMAIL_MAP_OBJ}
 
