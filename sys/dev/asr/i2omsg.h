@@ -89,9 +89,9 @@
  **********************************************************************/
 
 #if !defined(I2O_MESSAGE_HDR)
-#define I2O_MESSAGE_HDR
+#define	I2O_MESSAGE_HDR
 
-#define I2OMSG_REV 1_5_4  /* I2OMsg header file revision string */
+#define	I2OMSG_REV 1_5_4  /* I2OMsg header file revision string */
 
 /*
 
@@ -132,42 +132,42 @@ PRAGMA_ALIGN_PUSH
 PRAGMA_PACK_PUSH
 
 /* Set to 1 for 64 bit Context Fields */
-#define     I2O_64BIT_CONTEXT          0
+#define	    I2O_64BIT_CONTEXT          0
 
 /****************************************************************************/
 
 /* Common functions accross all classes. */
 
-#define    I2O_PRIVATE_MESSAGE                         0xFF
+#define	   I2O_PRIVATE_MESSAGE                         0xFF
 
 /****************************************************************************/
 /* Class ID and Code Assignments */
 
 
-#define    I2O_CLASS_VERSION_10                        0x00
-#define    I2O_CLASS_VERSION_11                        0x01
+#define	   I2O_CLASS_VERSION_10                        0x00
+#define	   I2O_CLASS_VERSION_11                        0x01
 
 /*    Class Code Names:  Table 6-1 Class Code Assignments. */
-#define    I2O_CLASS_EXECUTIVE                         0x000
-#define    I2O_CLASS_DDM                               0x001
-#define    I2O_CLASS_RANDOM_BLOCK_STORAGE              0x010
-#define    I2O_CLASS_SEQUENTIAL_STORAGE                0x011
-#define    I2O_CLASS_LAN                               0x020
-#define    I2O_CLASS_WAN                               0x030
-#define    I2O_CLASS_FIBRE_CHANNEL_PORT                0x040
-#define    I2O_CLASS_FIBRE_CHANNEL_PERIPHERAL          0x041
-#define    I2O_CLASS_SCSI_PERIPHERAL                   0x051
-#define    I2O_CLASS_ATE_PORT                          0x060
-#define    I2O_CLASS_ATE_PERIPHERAL                    0x061
-#define    I2O_CLASS_FLOPPY_CONTROLLER                 0x070
-#define    I2O_CLASS_FLOPPY_DEVICE                     0x071
-#define    I2O_CLASS_BUS_ADAPTER_PORT                  0x080
+#define	   I2O_CLASS_EXECUTIVE                         0x000
+#define	   I2O_CLASS_DDM                               0x001
+#define	   I2O_CLASS_RANDOM_BLOCK_STORAGE              0x010
+#define	   I2O_CLASS_SEQUENTIAL_STORAGE                0x011
+#define	   I2O_CLASS_LAN                               0x020
+#define	   I2O_CLASS_WAN                               0x030
+#define	   I2O_CLASS_FIBRE_CHANNEL_PORT                0x040
+#define	   I2O_CLASS_FIBRE_CHANNEL_PERIPHERAL          0x041
+#define	   I2O_CLASS_SCSI_PERIPHERAL                   0x051
+#define	   I2O_CLASS_ATE_PORT                          0x060
+#define	   I2O_CLASS_ATE_PERIPHERAL                    0x061
+#define	   I2O_CLASS_FLOPPY_CONTROLLER                 0x070
+#define	   I2O_CLASS_FLOPPY_DEVICE                     0x071
+#define	   I2O_CLASS_BUS_ADAPTER_PORT                  0x080
 /* Class Codes 0x090 - 0x09f are reserved for Peer-to-Peer classes */
-#define    I2O_CLASS_MATCH_ANYCLASS                    0xffffffff
+#define	   I2O_CLASS_MATCH_ANYCLASS                    0xffffffff
 
-#define    I2O_SUBCLASS_i960                           0x001
-#define    I2O_SUBCLASS_HDM                            0x020
-#define    I2O_SUBCLASS_ISM                            0x021
+#define	   I2O_SUBCLASS_i960                           0x001
+#define	   I2O_SUBCLASS_HDM                            0x020
+#define	   I2O_SUBCLASS_ISM                            0x021
 
 
 /****************************************************************************/
@@ -175,100 +175,100 @@ PRAGMA_PACK_PUSH
 
 /*   Defines for the Version_Status field. */
 
-#define    I2O_VERSION_10                              0x00
-#define    I2O_VERSION_11                              0x01
+#define	   I2O_VERSION_10                              0x00
+#define	   I2O_VERSION_11                              0x01
 
-#define    I2O_VERSION_OFFSET_NUMBER_MASK              0x07
-#define    I2O_VERSION_OFFSET_SGL_TRL_OFFSET_MASK      0xF0
+#define	   I2O_VERSION_OFFSET_NUMBER_MASK              0x07
+#define	   I2O_VERSION_OFFSET_SGL_TRL_OFFSET_MASK      0xF0
 
 /*   Defines for the Message Flags Field. */
 /*   Please Note the the FAIL bit is only set in the Transport Fail Message. */
-#define    I2O_MESSAGE_FLAGS_STATIC                    0x01
-#define    I2O_MESSAGE_FLAGS_64BIT_CONTEXT             0x02
-#define    I2O_MESSAGE_FLAGS_MULTIPLE                  0x10
-#define    I2O_MESSAGE_FLAGS_FAIL                      0x20
-#define    I2O_MESSAGE_FLAGS_LAST                      0x40
-#define    I2O_MESSAGE_FLAGS_REPLY                     0x80
+#define	   I2O_MESSAGE_FLAGS_STATIC                    0x01
+#define	   I2O_MESSAGE_FLAGS_64BIT_CONTEXT             0x02
+#define	   I2O_MESSAGE_FLAGS_MULTIPLE                  0x10
+#define	   I2O_MESSAGE_FLAGS_FAIL                      0x20
+#define	   I2O_MESSAGE_FLAGS_LAST                      0x40
+#define	   I2O_MESSAGE_FLAGS_REPLY                     0x80
 
 /* Defines for Request Status Codes:  Table 3-1 Reply Status Codes.  */
 
-#define    I2O_REPLY_STATUS_SUCCESS                    0x00
-#define    I2O_REPLY_STATUS_ABORT_DIRTY                0x01
-#define    I2O_REPLY_STATUS_ABORT_NO_DATA_TRANSFER     0x02
-#define    I2O_REPLY_STATUS_ABORT_PARTIAL_TRANSFER     0x03
-#define    I2O_REPLY_STATUS_ERROR_DIRTY                0x04
-#define    I2O_REPLY_STATUS_ERROR_NO_DATA_TRANSFER     0x05
-#define    I2O_REPLY_STATUS_ERROR_PARTIAL_TRANSFER     0x06
-#define    I2O_REPLY_STATUS_PROCESS_ABORT_DIRTY        0x08
-#define    I2O_REPLY_STATUS_PROCESS_ABORT_NO_DATA_TRANSFER   0x09
-#define    I2O_REPLY_STATUS_PROCESS_ABORT_PARTIAL_TRANSFER   0x0A
-#define    I2O_REPLY_STATUS_TRANSACTION_ERROR          0x0B
-#define    I2O_REPLY_STATUS_PROGRESS_REPORT            0x80
+#define	   I2O_REPLY_STATUS_SUCCESS                    0x00
+#define	   I2O_REPLY_STATUS_ABORT_DIRTY                0x01
+#define	   I2O_REPLY_STATUS_ABORT_NO_DATA_TRANSFER     0x02
+#define	   I2O_REPLY_STATUS_ABORT_PARTIAL_TRANSFER     0x03
+#define	   I2O_REPLY_STATUS_ERROR_DIRTY                0x04
+#define	   I2O_REPLY_STATUS_ERROR_NO_DATA_TRANSFER     0x05
+#define	   I2O_REPLY_STATUS_ERROR_PARTIAL_TRANSFER     0x06
+#define	   I2O_REPLY_STATUS_PROCESS_ABORT_DIRTY        0x08
+#define	   I2O_REPLY_STATUS_PROCESS_ABORT_NO_DATA_TRANSFER   0x09
+#define	   I2O_REPLY_STATUS_PROCESS_ABORT_PARTIAL_TRANSFER   0x0A
+#define	   I2O_REPLY_STATUS_TRANSACTION_ERROR          0x0B
+#define	   I2O_REPLY_STATUS_PROGRESS_REPORT            0x80
 
 /* DetailedStatusCode defines for ALL messages: Table 3-2 Detailed Status Codes.  */
 
-#define    I2O_DETAIL_STATUS_SUCCESS                        0x0000
-#define    I2O_DETAIL_STATUS_BAD_KEY                        0x0002
-#define    I2O_DETAIL_STATUS_TCL_ERROR                      0x0003
-#define    I2O_DETAIL_STATUS_REPLY_BUFFER_FULL              0x0004
-#define    I2O_DETAIL_STATUS_NO_SUCH_PAGE                   0x0005
-#define    I2O_DETAIL_STATUS_INSUFFICIENT_RESOURCE_SOFT     0x0006
-#define    I2O_DETAIL_STATUS_INSUFFICIENT_RESOURCE_HARD     0x0007
-#define    I2O_DETAIL_STATUS_CHAIN_BUFFER_TOO_LARGE         0x0009
-#define    I2O_DETAIL_STATUS_UNSUPPORTED_FUNCTION           0x000A
-#define    I2O_DETAIL_STATUS_DEVICE_LOCKED                  0x000B
-#define    I2O_DETAIL_STATUS_DEVICE_RESET                   0x000C
-#define    I2O_DETAIL_STATUS_INAPPROPRIATE_FUNCTION         0x000D
-#define    I2O_DETAIL_STATUS_INVALID_INITIATOR_ADDRESS      0x000E
-#define    I2O_DETAIL_STATUS_INVALID_MESSAGE_FLAGS          0x000F
-#define    I2O_DETAIL_STATUS_INVALID_OFFSET                 0x0010
-#define    I2O_DETAIL_STATUS_INVALID_PARAMETER              0x0011
-#define    I2O_DETAIL_STATUS_INVALID_REQUEST                0x0012
-#define    I2O_DETAIL_STATUS_INVALID_TARGET_ADDRESS         0x0013
-#define    I2O_DETAIL_STATUS_MESSAGE_TOO_LARGE              0x0014
-#define    I2O_DETAIL_STATUS_MESSAGE_TOO_SMALL              0x0015
-#define    I2O_DETAIL_STATUS_MISSING_PARAMETER              0x0016
-#define    I2O_DETAIL_STATUS_TIMEOUT                        0x0017
-#define    I2O_DETAIL_STATUS_UNKNOWN_ERROR                  0x0018
-#define    I2O_DETAIL_STATUS_UNKNOWN_FUNCTION               0x0019
-#define    I2O_DETAIL_STATUS_UNSUPPORTED_VERSION            0x001A
-#define    I2O_DEATIL_STATUS_DEVICE_BUSY                    0x001B
-#define    I2O_DETAIL_STATUS_DEVICE_NOT_AVAILABLE           0x001C
+#define	   I2O_DETAIL_STATUS_SUCCESS                        0x0000
+#define	   I2O_DETAIL_STATUS_BAD_KEY                        0x0002
+#define	   I2O_DETAIL_STATUS_TCL_ERROR                      0x0003
+#define	   I2O_DETAIL_STATUS_REPLY_BUFFER_FULL              0x0004
+#define	   I2O_DETAIL_STATUS_NO_SUCH_PAGE                   0x0005
+#define	   I2O_DETAIL_STATUS_INSUFFICIENT_RESOURCE_SOFT     0x0006
+#define	   I2O_DETAIL_STATUS_INSUFFICIENT_RESOURCE_HARD     0x0007
+#define	   I2O_DETAIL_STATUS_CHAIN_BUFFER_TOO_LARGE         0x0009
+#define	   I2O_DETAIL_STATUS_UNSUPPORTED_FUNCTION           0x000A
+#define	   I2O_DETAIL_STATUS_DEVICE_LOCKED                  0x000B
+#define	   I2O_DETAIL_STATUS_DEVICE_RESET                   0x000C
+#define	   I2O_DETAIL_STATUS_INAPPROPRIATE_FUNCTION         0x000D
+#define	   I2O_DETAIL_STATUS_INVALID_INITIATOR_ADDRESS      0x000E
+#define	   I2O_DETAIL_STATUS_INVALID_MESSAGE_FLAGS          0x000F
+#define	   I2O_DETAIL_STATUS_INVALID_OFFSET                 0x0010
+#define	   I2O_DETAIL_STATUS_INVALID_PARAMETER              0x0011
+#define	   I2O_DETAIL_STATUS_INVALID_REQUEST                0x0012
+#define	   I2O_DETAIL_STATUS_INVALID_TARGET_ADDRESS         0x0013
+#define	   I2O_DETAIL_STATUS_MESSAGE_TOO_LARGE              0x0014
+#define	   I2O_DETAIL_STATUS_MESSAGE_TOO_SMALL              0x0015
+#define	   I2O_DETAIL_STATUS_MISSING_PARAMETER              0x0016
+#define	   I2O_DETAIL_STATUS_TIMEOUT                        0x0017
+#define	   I2O_DETAIL_STATUS_UNKNOWN_ERROR                  0x0018
+#define	   I2O_DETAIL_STATUS_UNKNOWN_FUNCTION               0x0019
+#define	   I2O_DETAIL_STATUS_UNSUPPORTED_VERSION            0x001A
+#define	   I2O_DEATIL_STATUS_DEVICE_BUSY                    0x001B
+#define	   I2O_DETAIL_STATUS_DEVICE_NOT_AVAILABLE           0x001C
 
 /* Common I2O Field sizes  */
 
-#define    I2O_TID_SZ                                  12
-#define    I2O_FUNCTION_SZ                             8
-#define    I2O_UNIT_ID_SZ                              16
-#define    I2O_SEGMENT_NUMBER_SZ                       12
+#define	   I2O_TID_SZ                                  12
+#define	   I2O_FUNCTION_SZ                             8
+#define	   I2O_UNIT_ID_SZ                              16
+#define	   I2O_SEGMENT_NUMBER_SZ                       12
 
-#define    I2O_IOP_ID_SZ                               12
-#define    I2O_GROUP_ID_SZ                             16
-#define    I2O_IOP_STATE_SZ                            8
-#define    I2O_MESSENGER_TYPE_SZ                       8
+#define	   I2O_IOP_ID_SZ                               12
+#define	   I2O_GROUP_ID_SZ                             16
+#define	   I2O_IOP_STATE_SZ                            8
+#define	   I2O_MESSENGER_TYPE_SZ                       8
 
-#define    I2O_CLASS_ID_SZ                             12
-#define    I2O_CLASS_ORGANIZATION_ID_SZ                16
+#define	   I2O_CLASS_ID_SZ                             12
+#define	   I2O_CLASS_ORGANIZATION_ID_SZ                16
 
-#define    I2O_4BIT_VERSION_SZ                         4
-#define    I2O_8BIT_FLAGS_SZ                           8
-#define    I2O_COMMON_LENGTH_FIELD_SZ                  16
+#define	   I2O_4BIT_VERSION_SZ                         4
+#define	   I2O_8BIT_FLAGS_SZ                           8
+#define	   I2O_COMMON_LENGTH_FIELD_SZ                  16
 
-#define    I2O_DEVID_DESCRIPTION_SZ                    16
-#define    I2O_DEVID_VENDOR_INFO_SZ                    16
-#define    I2O_DEVID_PRODUCT_INFO_SZ                   16
-#define    I2O_DEVID_REV_LEVEL_SZ                      8
-#define    I2O_MODULE_NAME_SZ                          24
+#define	   I2O_DEVID_DESCRIPTION_SZ                    16
+#define	   I2O_DEVID_VENDOR_INFO_SZ                    16
+#define	   I2O_DEVID_PRODUCT_INFO_SZ                   16
+#define	   I2O_DEVID_REV_LEVEL_SZ                      8
+#define	   I2O_MODULE_NAME_SZ                          24
 
-#define    I2O_BIOS_INFO_SZ                            8
+#define	   I2O_BIOS_INFO_SZ                            8
 
-#define    I2O_RESERVED_4BITS                          4
-#define    I2O_RESERVED_8BITS                          8
-#define    I2O_RESERVED_12BITS                         12
-#define    I2O_RESERVED_16BITS                         16
-#define    I2O_RESERVED_20BITS                         20
-#define    I2O_RESERVED_24BITS                         24
-#define    I2O_RESERVED_28BITS                         28
+#define	   I2O_RESERVED_4BITS                          4
+#define	   I2O_RESERVED_8BITS                          8
+#define	   I2O_RESERVED_12BITS                         12
+#define	   I2O_RESERVED_16BITS                         16
+#define	   I2O_RESERVED_20BITS                         20
+#define	   I2O_RESERVED_24BITS                         24
+#define	   I2O_RESERVED_28BITS                         28
 
 
 typedef    U32        I2O_PARAMETER_TID;
@@ -284,17 +284,17 @@ typedef    U32        I2O_TRANSACTION_CONTEXT;
 
 /*  Serial Number format defines */
 
-#define    I2O_SERIAL_FORMAT_UNKNOWN                   0
-#define    I2O_SERIAL_FORMAT_BINARY                    1
-#define    I2O_SERIAL_FORMAT_ASCII                     2
-#define    I2O_SERIAL_FORMAT_UNICODE                   3
-#define    I2O_SERIAL_FORMAT_LAN_MAC                   4
-#define    I2O_SERIAL_FORMAT_WAN                       5
+#define	   I2O_SERIAL_FORMAT_UNKNOWN                   0
+#define	   I2O_SERIAL_FORMAT_BINARY                    1
+#define	   I2O_SERIAL_FORMAT_ASCII                     2
+#define	   I2O_SERIAL_FORMAT_UNICODE                   3
+#define	   I2O_SERIAL_FORMAT_LAN_MAC                   4
+#define	   I2O_SERIAL_FORMAT_WAN                       5
 
 /* Special TID Assignments */
 
-#define    I2O_IOP_TID                                 0
-#define    I2O_HOST_TID                                1
+#define	   I2O_IOP_TID                                 0
+#define	   I2O_HOST_TID                                1
 
 
 /****************************************************************************/
@@ -320,9 +320,9 @@ typedef struct _I2O_MESSAGE_FRAME {
 
 /* Transaction Reply Lists (TRL) Control Word structure */
 
-#define    I2O_TRL_FLAGS_SINGLE_FIXED_LENGTH           0x00
-#define    I2O_TRL_FLAGS_SINGLE_VARIABLE_LENGTH        0x40
-#define    I2O_TRL_FLAGS_MULTIPLE_FIXED_LENGTH         0x80
+#define	   I2O_TRL_FLAGS_SINGLE_FIXED_LENGTH           0x00
+#define	   I2O_TRL_FLAGS_SINGLE_VARIABLE_LENGTH        0x40
+#define	   I2O_TRL_FLAGS_MULTIPLE_FIXED_LENGTH         0x80
 
 typedef struct _I2O_TRL_CONTROL_WORD {
    U8                          TrlCount;
@@ -379,34 +379,34 @@ typedef struct _I2O_PRIVATE_MESSAGE_FRAME {
 
 /* Message Failure Severity Codes */
 
-#define    I2O_SEVERITY_FORMAT_ERROR                   0x1
-#define    I2O_SEVERITY_PATH_ERROR                     0x2
-#define    I2O_SEVERITY_PATH_STATE                     0x4
-#define    I2O_SEVERITY_CONGESTION                     0x8
+#define	   I2O_SEVERITY_FORMAT_ERROR                   0x1
+#define	   I2O_SEVERITY_PATH_ERROR                     0x2
+#define	   I2O_SEVERITY_PATH_STATE                     0x4
+#define	   I2O_SEVERITY_CONGESTION                     0x8
 
 /* Transport Failure Codes: Table 3-3 Mesasge Failure Codes */
 
-#define    I2O_FAILURE_CODE_TRANSPORT_SERVICE_SUSPENDED    0x81
-#define    I2O_FAILURE_CODE_TRANSPORT_SERVICE_TERMINATED   0x82
-#define    I2O_FAILURE_CODE_TRANSPORT_CONGESTION           0x83
-#define    I2O_FAILURE_CODE_TRANSPORT_FAIL                 0x84
-#define    I2O_FAILURE_CODE_TRANSPORT_STATE_ERROR          0x85
-#define    I2O_FAILURE_CODE_TRANSPORT_TIME_OUT             0x86
-#define    I2O_FAILURE_CODE_TRANSPORT_ROUTING_FAILURE      0x87
-#define    I2O_FAILURE_CODE_TRANSPORT_INVALID_VERSION      0x88
-#define    I2O_FAILURE_CODE_TRANSPORT_INVALID_OFFSET       0x89
-#define    I2O_FAILURE_CODE_TRANSPORT_INVALID_MSG_FLAGS    0x8A
-#define    I2O_FAILURE_CODE_TRANSPORT_FRAME_TOO_SMALL      0x8B
-#define    I2O_FAILURE_CODE_TRANSPORT_FRAME_TOO_LARGE      0x8C
-#define    I2O_FAILURE_CODE_TRANSPORT_INVALID_TARGET_ID    0x8D
-#define    I2O_FAILURE_CODE_TRANSPORT_INVALID_INITIATOR_ID 0x8E
-#define    I2O_FAILURE_CODE_TRANSPORT_INVALID_INITIATOR_CONTEXT    0x8F
-#define    I2O_FAILURE_CODE_TRANSPORT_UNKNOWN_FAILURE      0xFF
+#define	   I2O_FAILURE_CODE_TRANSPORT_SERVICE_SUSPENDED    0x81
+#define	   I2O_FAILURE_CODE_TRANSPORT_SERVICE_TERMINATED   0x82
+#define	   I2O_FAILURE_CODE_TRANSPORT_CONGESTION           0x83
+#define	   I2O_FAILURE_CODE_TRANSPORT_FAIL                 0x84
+#define	   I2O_FAILURE_CODE_TRANSPORT_STATE_ERROR          0x85
+#define	   I2O_FAILURE_CODE_TRANSPORT_TIME_OUT             0x86
+#define	   I2O_FAILURE_CODE_TRANSPORT_ROUTING_FAILURE      0x87
+#define	   I2O_FAILURE_CODE_TRANSPORT_INVALID_VERSION      0x88
+#define	   I2O_FAILURE_CODE_TRANSPORT_INVALID_OFFSET       0x89
+#define	   I2O_FAILURE_CODE_TRANSPORT_INVALID_MSG_FLAGS    0x8A
+#define	   I2O_FAILURE_CODE_TRANSPORT_FRAME_TOO_SMALL      0x8B
+#define	   I2O_FAILURE_CODE_TRANSPORT_FRAME_TOO_LARGE      0x8C
+#define	   I2O_FAILURE_CODE_TRANSPORT_INVALID_TARGET_ID    0x8D
+#define	   I2O_FAILURE_CODE_TRANSPORT_INVALID_INITIATOR_ID 0x8E
+#define	   I2O_FAILURE_CODE_TRANSPORT_INVALID_INITIATOR_CONTEXT    0x8F
+#define	   I2O_FAILURE_CODE_TRANSPORT_UNKNOWN_FAILURE      0xFF
 
 /* IOP_ID and Severity sizes */
 
-#define    I2O_FAILCODE_SEVERITY_SZ                        8
-#define    I2O_FAILCODE_CODE_SZ                            8
+#define	   I2O_FAILCODE_SEVERITY_SZ                        8
+#define	   I2O_FAILCODE_CODE_SZ                            8
 
 /* I2O Transport Message Reply for Message Failure. */
 
@@ -465,7 +465,7 @@ typedef struct _I2O_CLASS_ID {
 } I2O_CLASS_ID, *PI2O_CLASS_ID;
 
 
-#define    I2O_MAX_SERIAL_NUMBER_SZ                    256
+#define	   I2O_MAX_SERIAL_NUMBER_SZ                    256
 
 typedef struct _I2O_SERIAL_INFO {
    U8                          SerialNumberLength;
@@ -480,19 +480,19 @@ typedef struct _I2O_SERIAL_INFO {
 
 /* Bus Type Code defines */
 
-#define    I2O_LOCAL_BUS                               0
-#define    I2O_ISA_BUS                                 1
-#define    I2O_EISA_BUS                                2
-#define    I2O_MCA_BUS                                 3
-#define    I2O_PCI_BUS                                 4
-#define    I2O_PCMCIA_BUS                              5
-#define    I2O_NUBUS_BUS                               6
-#define    I2O_CARDBUS_BUS                             7
-#define    I2O_OTHER_BUS                               0x80
+#define	   I2O_LOCAL_BUS                               0
+#define	   I2O_ISA_BUS                                 1
+#define	   I2O_EISA_BUS                                2
+#define	   I2O_MCA_BUS                                 3
+#define	   I2O_PCI_BUS                                 4
+#define	   I2O_PCMCIA_BUS                              5
+#define	   I2O_NUBUS_BUS                               6
+#define	   I2O_CARDBUS_BUS                             7
+#define	   I2O_OTHER_BUS                               0x80
 
-#define    I2O_HRT_STATE_SZ                            4
-#define    I2O_HRT_BUS_NUMBER_SZ                       8
-#define    I2O_HRT_BUS_TYPE_SZ                         8
+#define	   I2O_HRT_STATE_SZ                            4
+#define	   I2O_HRT_BUS_NUMBER_SZ                       8
+#define	   I2O_HRT_BUS_TYPE_SZ                         8
 
 
 /* Bus Structures */
@@ -597,14 +597,14 @@ typedef struct _I2O_HRT {
 
 /* I2O Logical Configuration Table structures. */
 
-#define    I2O_IDENTITY_TAG_SZ                         8
+#define	   I2O_IDENTITY_TAG_SZ                         8
 
 /* I2O Logical Configuration Table Device Flags */
 
-#define    I2O_LCT_DEVICE_FLAGS_CONF_DIALOG_REQUEST            0x01
-#define    I2O_LCT_DEVICE_FLAGS_MORE_THAN_1_USER               0x02
-#define    I2O_LCT_DEVICE_FLAGS_PEER_SERVICE_DISABLED          0x10
-#define    I2O_LCT_DEVICE_FLAGS_MANAGEMENT_SERVICE_DISABLED    0x20
+#define	   I2O_LCT_DEVICE_FLAGS_CONF_DIALOG_REQUEST            0x01
+#define	   I2O_LCT_DEVICE_FLAGS_MORE_THAN_1_USER               0x02
+#define	   I2O_LCT_DEVICE_FLAGS_PEER_SERVICE_DISABLED          0x10
+#define	   I2O_LCT_DEVICE_FLAGS_MANAGEMENT_SERVICE_DISABLED    0x20
 
 /* LCT Entry Block */
 
@@ -654,28 +654,28 @@ typedef struct _I2O_LCT {
 
 /* SglFlags defines. */
 
-#define    I2O_SGL_FLAGS_LAST_ELEMENT                  0x80
-#define    I2O_SGL_FLAGS_END_OF_BUFFER                 0x40
+#define	   I2O_SGL_FLAGS_LAST_ELEMENT                  0x80
+#define	   I2O_SGL_FLAGS_END_OF_BUFFER                 0x40
 
-#define    I2O_SGL_FLAGS_IGNORE_ELEMENT                0x00
-#define    I2O_SGL_FLAGS_TRANSPORT_ELEMENT             0x04
-#define    I2O_SGL_FLAGS_BIT_BUCKET_ELEMENT            0x08
-#define    I2O_SGL_FLAGS_IMMEDIATE_DATA_ELEMENT        0x0C
-#define    I2O_SGL_FLAGS_SIMPLE_ADDRESS_ELEMENT        0x10
-#define    I2O_SGL_FLAGS_PAGE_LIST_ADDRESS_ELEMENT     0x20
-#define    I2O_SGL_FLAGS_CHAIN_POINTER_ELEMENT         0x30
-#define    I2O_SGL_FLAGS_LONG_TRANSACTION_ELEMENT      0x40
-#define    I2O_SGL_FLAGS_SHORT_TRANSACTION_ELEMENT     0x70
-#define    I2O_SGL_FLAGS_SGL_ATTRIBUTES_ELEMENT        0x7C
+#define	   I2O_SGL_FLAGS_IGNORE_ELEMENT                0x00
+#define	   I2O_SGL_FLAGS_TRANSPORT_ELEMENT             0x04
+#define	   I2O_SGL_FLAGS_BIT_BUCKET_ELEMENT            0x08
+#define	   I2O_SGL_FLAGS_IMMEDIATE_DATA_ELEMENT        0x0C
+#define	   I2O_SGL_FLAGS_SIMPLE_ADDRESS_ELEMENT        0x10
+#define	   I2O_SGL_FLAGS_PAGE_LIST_ADDRESS_ELEMENT     0x20
+#define	   I2O_SGL_FLAGS_CHAIN_POINTER_ELEMENT         0x30
+#define	   I2O_SGL_FLAGS_LONG_TRANSACTION_ELEMENT      0x40
+#define	   I2O_SGL_FLAGS_SHORT_TRANSACTION_ELEMENT     0x70
+#define	   I2O_SGL_FLAGS_SGL_ATTRIBUTES_ELEMENT        0x7C
 
-#define    I2O_SGL_FLAGS_BC0                           0x01
-#define    I2O_SGL_FLAGS_BC1                           0x02
-#define    I2O_SGL_FLAGS_DIR                           0x04
-#define    I2O_SGL_FLAGS_LOCAL_ADDRESS                 0x08
+#define	   I2O_SGL_FLAGS_BC0                           0x01
+#define	   I2O_SGL_FLAGS_BC1                           0x02
+#define	   I2O_SGL_FLAGS_DIR                           0x04
+#define	   I2O_SGL_FLAGS_LOCAL_ADDRESS                 0x08
 
-#define    I2O_SGL_FLAGS_CONTEXT_COUNT_MASK            0x03
-#define    I2O_SGL_FLAGS_ADDRESS_MODE_MASK             0x3C
-#define    I2O_SGL_FLAGS_NO_CONTEXT                    0x00
+#define	   I2O_SGL_FLAGS_CONTEXT_COUNT_MASK            0x03
+#define	   I2O_SGL_FLAGS_ADDRESS_MODE_MASK             0x3C
+#define	   I2O_SGL_FLAGS_NO_CONTEXT                    0x00
 
 /*  Scatter/Gather Truth Table */
 
@@ -735,41 +735,41 @@ typedef enum _SG_TYPE {
 
 /* 32 Bit Context Field defines */
 
-#define    I2O_SGL_FLAGS_CONTEXT32_NULL                0x00
-#define    I2O_SGL_FLAGS_CONTEXT32_U32                 0x01
-#define    I2O_SGL_FLAGS_CONTEXT32_U64                 0x02
-#define    I2O_SGL_FLAGS_CONTEXT32_U96                 0x03
+#define	   I2O_SGL_FLAGS_CONTEXT32_NULL                0x00
+#define	   I2O_SGL_FLAGS_CONTEXT32_U32                 0x01
+#define	   I2O_SGL_FLAGS_CONTEXT32_U64                 0x02
+#define	   I2O_SGL_FLAGS_CONTEXT32_U96                 0x03
 
-#define    I2O_SGL_FLAGS_CONTEXT32_NULL_SZ             0x00
-#define    I2O_SGL_FLAGS_CONTEXT32_U32_SZ              0x04
-#define    I2O_SGL_FLAGS_CONTEXT32_U64_SZ              0x08
-#define    I2O_SGL_FLAGS_CONTEXT32_U96_SZ              0x0C
+#define	   I2O_SGL_FLAGS_CONTEXT32_NULL_SZ             0x00
+#define	   I2O_SGL_FLAGS_CONTEXT32_U32_SZ              0x04
+#define	   I2O_SGL_FLAGS_CONTEXT32_U64_SZ              0x08
+#define	   I2O_SGL_FLAGS_CONTEXT32_U96_SZ              0x0C
 
 /* 64 Bit Context Field defines */
 
-#define    I2O_SGL_FLAGS_CONTEXT64_NULL                0x00
-#define    I2O_SGL_FLAGS_CONTEXT64_U64                 0x01
-#define    I2O_SGL_FLAGS_CONTEXT64_U128                0x02
-#define    I2O_SGL_FLAGS_CONTEXT64_U192                0x03
+#define	   I2O_SGL_FLAGS_CONTEXT64_NULL                0x00
+#define	   I2O_SGL_FLAGS_CONTEXT64_U64                 0x01
+#define	   I2O_SGL_FLAGS_CONTEXT64_U128                0x02
+#define	   I2O_SGL_FLAGS_CONTEXT64_U192                0x03
 
-#define    I2O_SGL_FLAGS_CONTEXT64_NULL_SZ             0x00
-#define    I2O_SGL_FLAGS_CONTEXT64_U64_SZ              0x08
-#define    I2O_SGL_FLAGS_CONTEXT64_U128_SZ             0x10
-#define    I2O_SGL_FLAGS_CONTEXT64_U192_SZ             0x18
+#define	   I2O_SGL_FLAGS_CONTEXT64_NULL_SZ             0x00
+#define	   I2O_SGL_FLAGS_CONTEXT64_U64_SZ              0x08
+#define	   I2O_SGL_FLAGS_CONTEXT64_U128_SZ             0x10
+#define	   I2O_SGL_FLAGS_CONTEXT64_U192_SZ             0x18
 
 /* SGL Attribute Element defines */
 
-#define    I2O_SGL_ATTRIBUTE_FLAGS_BIT_BUCKET_HINT     0x0400
-#define    I2O_SGL_ATTRIBUTE_FLAGS_IMMEDIATE_DATA_HINT 0x0200
-#define    I2O_SGL_ATTRIBUTE_FLAGS_LOCAL_ADDRESS_HINT  0x0100
-#define    I2O_SGL_ATTRIBUTE_FLAGS_32BIT_TRANSACTION   0x0000
-#define    I2O_SGL_ATTRIBUTE_FLAGS_64BIT_TRANSACTION   0x0004
-#define    I2O_SGL_ATTRIBUTE_FLAGS_32BIT_LOCAL_ADDRESS 0x0000
+#define	   I2O_SGL_ATTRIBUTE_FLAGS_BIT_BUCKET_HINT     0x0400
+#define	   I2O_SGL_ATTRIBUTE_FLAGS_IMMEDIATE_DATA_HINT 0x0200
+#define	   I2O_SGL_ATTRIBUTE_FLAGS_LOCAL_ADDRESS_HINT  0x0100
+#define	   I2O_SGL_ATTRIBUTE_FLAGS_32BIT_TRANSACTION   0x0000
+#define	   I2O_SGL_ATTRIBUTE_FLAGS_64BIT_TRANSACTION   0x0004
+#define	   I2O_SGL_ATTRIBUTE_FLAGS_32BIT_LOCAL_ADDRESS 0x0000
 
 /* SG Size defines */
 
-#define    I2O_SG_COUNT_SZ                             24
-#define    I2O_SG_FLAGS_SZ                             8
+#define	   I2O_SG_COUNT_SZ                             24
+#define	   I2O_SG_FLAGS_SZ                             8
 
 /* Standard Flags and Count fields for SG Elements */
 
@@ -951,16 +951,16 @@ typedef struct _I2O_SG_ELEMENT {
 
 /* Operation Function Numbers */
 
-#define   I2O_PARAMS_OPERATION_FIELD_GET               0x0001
-#define   I2O_PARAMS_OPERATION_LIST_GET                0x0002
-#define   I2O_PARAMS_OPERATION_MORE_GET                0x0003
-#define   I2O_PARAMS_OPERATION_SIZE_GET                0x0004
-#define   I2O_PARAMS_OPERATION_TABLE_GET               0x0005
-#define   I2O_PARAMS_OPERATION_FIELD_SET               0x0006
-#define   I2O_PARAMS_OPERATION_LIST_SET                0x0007
-#define   I2O_PARAMS_OPERATION_ROW_ADD                 0x0008
-#define   I2O_PARAMS_OPERATION_ROW_DELETE              0x0009
-#define   I2O_PARAMS_OPERATION_TABLE_CLEAR             0x000A
+#define	  I2O_PARAMS_OPERATION_FIELD_GET               0x0001
+#define	  I2O_PARAMS_OPERATION_LIST_GET                0x0002
+#define	  I2O_PARAMS_OPERATION_MORE_GET                0x0003
+#define	  I2O_PARAMS_OPERATION_SIZE_GET                0x0004
+#define	  I2O_PARAMS_OPERATION_TABLE_GET               0x0005
+#define	  I2O_PARAMS_OPERATION_FIELD_SET               0x0006
+#define	  I2O_PARAMS_OPERATION_LIST_SET                0x0007
+#define	  I2O_PARAMS_OPERATION_ROW_ADD                 0x0008
+#define	  I2O_PARAMS_OPERATION_ROW_DELETE              0x0009
+#define	  I2O_PARAMS_OPERATION_TABLE_CLEAR             0x000A
 
 /* Operations List Header */
 
@@ -1067,23 +1067,23 @@ typedef struct _I2O_PARAM_OPERATION_TABLE_CLEAR_TEMPLATE {
 
 /* Status codes and Error Information for Parameter functions */
 
-#define   I2O_PARAMS_STATUS_SUCCESS                0x00
-#define   I2O_PARAMS_STATUS_BAD_KEY_ABORT          0x01
-#define   I2O_PARAMS_STATUS_BAD_KEY_CONTINUE       0x02
-#define   I2O_PARAMS_STATUS_BUFFER_FULL            0x03
-#define   I2O_PARAMS_STATUS_BUFFER_TOO_SMALL       0x04
-#define   I2O_PARAMS_STATUS_FIELD_UNREADABLE       0x05
-#define   I2O_PARAMS_STATUS_FIELD_UNWRITEABLE      0x06
-#define   I2O_PARAMS_STATUS_INSUFFICIENT_FIELDS    0x07
-#define   I2O_PARAMS_STATUS_INVALID_GROUP_ID       0x08
-#define   I2O_PARAMS_STATUS_INVALID_OPERATION      0x09
-#define   I2O_PARAMS_STATUS_NO_KEY_FIELD           0x0A
-#define   I2O_PARAMS_STATUS_NO_SUCH_FIELD          0x0B
-#define   I2O_PARAMS_STATUS_NON_DYNAMIC_GROUP      0x0C
-#define   I2O_PARAMS_STATUS_OPERATION_ERROR        0x0D
-#define   I2O_PARAMS_STATUS_SCALAR_ERROR           0x0E
-#define   I2O_PARAMS_STATUS_TABLE_ERROR            0x0F
-#define   I2O_PARAMS_STATUS_WRONG_GROUP_TYPE       0x10
+#define	  I2O_PARAMS_STATUS_SUCCESS                0x00
+#define	  I2O_PARAMS_STATUS_BAD_KEY_ABORT          0x01
+#define	  I2O_PARAMS_STATUS_BAD_KEY_CONTINUE       0x02
+#define	  I2O_PARAMS_STATUS_BUFFER_FULL            0x03
+#define	  I2O_PARAMS_STATUS_BUFFER_TOO_SMALL       0x04
+#define	  I2O_PARAMS_STATUS_FIELD_UNREADABLE       0x05
+#define	  I2O_PARAMS_STATUS_FIELD_UNWRITEABLE      0x06
+#define	  I2O_PARAMS_STATUS_INSUFFICIENT_FIELDS    0x07
+#define	  I2O_PARAMS_STATUS_INVALID_GROUP_ID       0x08
+#define	  I2O_PARAMS_STATUS_INVALID_OPERATION      0x09
+#define	  I2O_PARAMS_STATUS_NO_KEY_FIELD           0x0A
+#define	  I2O_PARAMS_STATUS_NO_SUCH_FIELD          0x0B
+#define	  I2O_PARAMS_STATUS_NON_DYNAMIC_GROUP      0x0C
+#define	  I2O_PARAMS_STATUS_OPERATION_ERROR        0x0D
+#define	  I2O_PARAMS_STATUS_SCALAR_ERROR           0x0E
+#define	  I2O_PARAMS_STATUS_TABLE_ERROR            0x0F
+#define	  I2O_PARAMS_STATUS_WRONG_GROUP_TYPE       0x10
 
 
 /****************************************************************************/
@@ -1094,24 +1094,24 @@ typedef struct _I2O_PARAM_OPERATION_TABLE_CLEAR_TEMPLATE {
 
 /* Groups Numbers */
 
-#define    I2O_UTIL_PARAMS_DESCRIPTOR_GROUP_NO          0xF000
-#define    I2O_UTIL_PHYSICAL_DEVICE_TABLE_GROUP_NO      0xF001
-#define    I2O_UTIL_CLAIMED_TABLE_GROUP_NO              0xF002
-#define    I2O_UTIL_USER_TABLE_GROUP_NO                 0xF003
-#define    I2O_UTIL_PRIVATE_MESSAGE_EXTENSIONS_GROUP_NO 0xF005
-#define    I2O_UTIL_AUTHORIZED_USER_TABLE_GROUP_NO      0xF006
-#define    I2O_UTIL_DEVICE_IDENTITY_GROUP_NO            0xF100
-#define    I2O_UTIL_DDM_IDENTITY_GROUP_NO               0xF101
-#define    I2O_UTIL_USER_INFORMATION_GROUP_NO           0xF102
-#define    I2O_UTIL_SGL_OPERATING_LIMITS_GROUP_NO       0xF103
-#define    I2O_UTIL_SENSORS_GROUP_NO                    0xF200
+#define	   I2O_UTIL_PARAMS_DESCRIPTOR_GROUP_NO          0xF000
+#define	   I2O_UTIL_PHYSICAL_DEVICE_TABLE_GROUP_NO      0xF001
+#define	   I2O_UTIL_CLAIMED_TABLE_GROUP_NO              0xF002
+#define	   I2O_UTIL_USER_TABLE_GROUP_NO                 0xF003
+#define	   I2O_UTIL_PRIVATE_MESSAGE_EXTENSIONS_GROUP_NO 0xF005
+#define	   I2O_UTIL_AUTHORIZED_USER_TABLE_GROUP_NO      0xF006
+#define	   I2O_UTIL_DEVICE_IDENTITY_GROUP_NO            0xF100
+#define	   I2O_UTIL_DDM_IDENTITY_GROUP_NO               0xF101
+#define	   I2O_UTIL_USER_INFORMATION_GROUP_NO           0xF102
+#define	   I2O_UTIL_SGL_OPERATING_LIMITS_GROUP_NO       0xF103
+#define	   I2O_UTIL_SENSORS_GROUP_NO                    0xF200
 
 /* UTIL Group F000h - GROUP DESCRIPTORS Parameter Group */
 
-#define    I2O_UTIL_GROUP_PROPERTIES_GROUP_TABLE       0x01
-#define    I2O_UTIL_GROUP_PROPERTIES_ROW_ADDITION      0x02
-#define    I2O_UTIL_GROUP_PROPERTIES_ROW_DELETION      0x04
-#define    I2O_UTIL_GROUP_PROPERTIES_CLEAR_OPERATION   0x08
+#define	   I2O_UTIL_GROUP_PROPERTIES_GROUP_TABLE       0x01
+#define	   I2O_UTIL_GROUP_PROPERTIES_ROW_ADDITION      0x02
+#define	   I2O_UTIL_GROUP_PROPERTIES_ROW_DELETION      0x04
+#define	   I2O_UTIL_GROUP_PROPERTIES_CLEAR_OPERATION   0x08
 
 typedef struct _I2O_UTIL_GROUP_DESCRIPTOR_TABLE {
    U16                         GroupNumber;
@@ -1183,9 +1183,9 @@ typedef struct _I2O_UTIL_DDM_IDENTITY_SCALAR {
 
 /* UTIL Group F102h - User Information Parameter Group */
 
-#define    I2O_USER_DEVICE_NAME_SZ                     64
-#define    I2O_USER_SERVICE_NAME_SZ                    64
-#define    I2O_USER_PHYSICAL_LOCATION_SZ               64
+#define	   I2O_USER_DEVICE_NAME_SZ                     64
+#define	   I2O_USER_SERVICE_NAME_SZ                    64
+#define	   I2O_USER_PHYSICAL_LOCATION_SZ               64
 
 typedef struct _I2O_UTIL_USER_INFORMATION_SCALAR {
    U8                          DeviceName[I2O_USER_DEVICE_NAME_SZ];
@@ -1207,44 +1207,44 @@ typedef struct _I2O_UTIL_SGL_OPERATING_LIMITS_SCALAR {
 
 /* UTIL Group F200h - Sensors Parameter Group */
 
-#define    I2O_SENSOR_COMPONENT_OTHER                  0x00
-#define    I2O_SENSOR_COMPONENT_PLANAR_LOGIC_BOARD     0x01
-#define    I2O_SENSOR_COMPONENT_CPU                    0x02
-#define    I2O_SENSOR_COMPONENT_CHASSIS                0x03
-#define    I2O_SENSOR_COMPONENT_POWER_SUPPLY           0x04
-#define    I2O_SENSOR_COMPONENT_STORAGE                0x05
-#define    I2O_SENSOR_COMPONENT_EXTERNAL               0x06
+#define	   I2O_SENSOR_COMPONENT_OTHER                  0x00
+#define	   I2O_SENSOR_COMPONENT_PLANAR_LOGIC_BOARD     0x01
+#define	   I2O_SENSOR_COMPONENT_CPU                    0x02
+#define	   I2O_SENSOR_COMPONENT_CHASSIS                0x03
+#define	   I2O_SENSOR_COMPONENT_POWER_SUPPLY           0x04
+#define	   I2O_SENSOR_COMPONENT_STORAGE                0x05
+#define	   I2O_SENSOR_COMPONENT_EXTERNAL               0x06
 
-#define    I2O_SENSOR_SENSOR_CLASS_ANALOG              0x00
-#define    I2O_SENSOR_SENSOR_CLASS_DIGITAL             0x01
+#define	   I2O_SENSOR_SENSOR_CLASS_ANALOG              0x00
+#define	   I2O_SENSOR_SENSOR_CLASS_DIGITAL             0x01
 
-#define    I2O_SENSOR_SENSOR_TYPE_OTHER                0x00
-#define    I2O_SENSOR_SENSOR_TYPE_THERMAL              0x01
-#define    I2O_SENSOR_SENSOR_TYPE_DC_VOLTAGE           0x02
-#define    I2O_SENSOR_SENSOR_TYPE_AC_VOLTAGE           0x03
-#define    I2O_SENSOR_SENSOR_TYPE_DC_CURRENT           0x04
-#define    I2O_SENSOR_SENSOR_TYPE_AC_CURRENT           0x05
-#define    I2O_SENSOR_SENSOR_TYPE_DOOR_OPEN            0x06
-#define    I2O_SENSOR_SENSOR_TYPE_FAN_OPERATIONAL      0x07
+#define	   I2O_SENSOR_SENSOR_TYPE_OTHER                0x00
+#define	   I2O_SENSOR_SENSOR_TYPE_THERMAL              0x01
+#define	   I2O_SENSOR_SENSOR_TYPE_DC_VOLTAGE           0x02
+#define	   I2O_SENSOR_SENSOR_TYPE_AC_VOLTAGE           0x03
+#define	   I2O_SENSOR_SENSOR_TYPE_DC_CURRENT           0x04
+#define	   I2O_SENSOR_SENSOR_TYPE_AC_CURRENT           0x05
+#define	   I2O_SENSOR_SENSOR_TYPE_DOOR_OPEN            0x06
+#define	   I2O_SENSOR_SENSOR_TYPE_FAN_OPERATIONAL      0x07
 
-#define    I2O_SENSOR_SENSOR_STATE_NORMAL              0x00
-#define    I2O_SENSOR_SENSOR_STATE_ABNORMAL            0x01
-#define    I2O_SENSOR_SENSOR_STATE_UNKNOWN             0x02
-#define    I2O_SENSOR_SENSOR_STATE_LOW_CAT             0x03
-#define    I2O_SENSOR_SENSOR_STATE_LOW                 0x04
-#define    I2O_SENSOR_SENSOR_STATE_LOW_WARNING         0x05
-#define    I2O_SENSOR_SENSOR_STATE_HIGH_WARNING        0x06
-#define    I2O_SENSOR_SENSOR_STATE_HIGH                0x07
-#define    I2O_SENSOR_SENSOR_STATE_HIGH_CAT            0x08
+#define	   I2O_SENSOR_SENSOR_STATE_NORMAL              0x00
+#define	   I2O_SENSOR_SENSOR_STATE_ABNORMAL            0x01
+#define	   I2O_SENSOR_SENSOR_STATE_UNKNOWN             0x02
+#define	   I2O_SENSOR_SENSOR_STATE_LOW_CAT             0x03
+#define	   I2O_SENSOR_SENSOR_STATE_LOW                 0x04
+#define	   I2O_SENSOR_SENSOR_STATE_LOW_WARNING         0x05
+#define	   I2O_SENSOR_SENSOR_STATE_HIGH_WARNING        0x06
+#define	   I2O_SENSOR_SENSOR_STATE_HIGH                0x07
+#define	   I2O_SENSOR_SENSOR_STATE_HIGH_CAT            0x08
 
-#define    I2O_SENSOR_EVENT_ENABLE_STATE_CHANGE        0x0001
-#define    I2O_SENSOR_EVENT_ENABLE_LOW_CATASTROPHIC    0x0002
-#define    I2O_SENSOR_EVENT_ENABLE_LOW_READING         0x0004
-#define    I2O_SENSOR_EVENT_ENABLE_LOW_WARNING         0x0008
-#define    I2O_SENSOR_EVENT_ENABLE_CHANGE_TO_NORMAL    0x0010
-#define    I2O_SENSOR_EVENT_ENABLE_HIGH_WARNING        0x0020
-#define    I2O_SENSOR_EVENT_ENABLE_HIGH_READING        0x0040
-#define    I2O_SENSOR_EVENT_ENABLE_HIGH_CATASTROPHIC   0x0080
+#define	   I2O_SENSOR_EVENT_ENABLE_STATE_CHANGE        0x0001
+#define	   I2O_SENSOR_EVENT_ENABLE_LOW_CATASTROPHIC    0x0002
+#define	   I2O_SENSOR_EVENT_ENABLE_LOW_READING         0x0004
+#define	   I2O_SENSOR_EVENT_ENABLE_LOW_WARNING         0x0008
+#define	   I2O_SENSOR_EVENT_ENABLE_CHANGE_TO_NORMAL    0x0010
+#define	   I2O_SENSOR_EVENT_ENABLE_HIGH_WARNING        0x0020
+#define	   I2O_SENSOR_EVENT_ENABLE_HIGH_READING        0x0040
+#define	   I2O_SENSOR_EVENT_ENABLE_HIGH_CATASTROPHIC   0x0080
 
 
 typedef struct _I2O_UTIL_SENSORS_TABLE {

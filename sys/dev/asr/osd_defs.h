@@ -66,7 +66,7 @@
 #if defined (ZIL_CURSES)
 #define		_DPT_CURSES
 #else
-#define         _DPT_MOTIF
+#define	        _DPT_MOTIF
 #endif
 
   /* Redefine 'far' to nothing - no far pointer type required in UNIX */
