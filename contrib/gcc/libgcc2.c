@@ -1,7 +1,7 @@
 /* More subroutines needed by GCC output code on some machines.  */
 /* Compile this one with gcc.  */
 /* Copyright (C) 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002  Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003  Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,16 +29,28 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+
+/* We include auto-host.h here to get HAVE_GAS_HIDDEN.  This is
+   supposedly valid even though this is a "target" file.  */
+#include "auto-host.h"
+
 /* It is incorrect to include config.h here, because this file is being
    compiled for the target, and hence definitions concerning only the host
    do not apply.  */
-
 #include "tconfig.h"
 #include "tsystem.h"
+#include "coretypes.h"
+#include "tm.h"
 
 /* Don't use `fancy_abort' here even if config.h says to use it.  */
 #ifdef abort
 #undef abort
+#endif
+
+#ifdef HAVE_GAS_HIDDEN
+#define ATTRIBUTE_HIDDEN  __attribute__ ((__visibility__ ("hidden")))
+#else
+#define ATTRIBUTE_HIDDEN
 #endif
 
 #include "libgcc2.h"
@@ -51,13 +63,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 DWtype
 __negdi2 (DWtype u)
 {
-  DWunion w;
-  DWunion uu;
-
-  uu.ll = u;
-
-  w.s.low = -uu.s.low;
-  w.s.high = -uu.s.high - ((UWtype) w.s.low > 0);
+  const DWunion uu = {.ll = u};
+  const DWunion w = { {.low = -uu.s.low,
+		       .high = -uu.s.high - ((UWtype) -uu.s.low > 0) } };
 
   return w.ll;
 }
@@ -67,9 +75,7 @@ __negdi2 (DWtype u)
 Wtype
 __addvsi3 (Wtype a, Wtype b)
 {
-  Wtype w;
-
-  w = a + b;
+  const Wtype w = a + b;
 
   if (b >= 0 ? w < a : w > a)
     abort ();
@@ -82,9 +88,7 @@ __addvsi3 (Wtype a, Wtype b)
 DWtype
 __addvdi3 (DWtype a, DWtype b)
 {
-  DWtype w;
-
-  w = a + b;
+  const DWtype w = a + b;
 
   if (b >= 0 ? w < a : w > a)
     abort ();
@@ -97,18 +101,12 @@ __addvdi3 (DWtype a, DWtype b)
 Wtype
 __subvsi3 (Wtype a, Wtype b)
 {
-#ifdef L_addvsi3
-  return __addvsi3 (a, (-b));
-#else
-  DWtype w;
-
-  w = a - b;
+  const DWtype w = a - b;
 
   if (b >= 0 ? w > a : w < a)
     abort ();
 
   return w;
-#endif
 }
 #endif
 
@@ -116,30 +114,25 @@ __subvsi3 (Wtype a, Wtype b)
 DWtype
 __subvdi3 (DWtype a, DWtype b)
 {
-#ifdef L_addvdi3
-  return (a, (-b));
-#else
-  DWtype w;
-
-  w = a - b;
+  const DWtype w = a - b;
 
   if (b >= 0 ? w > a : w < a)
     abort ();
 
   return w;
-#endif
 }
 #endif
 
 #ifdef L_mulvsi3
+#define WORD_SIZE (sizeof (Wtype) * BITS_PER_UNIT)
 Wtype
 __mulvsi3 (Wtype a, Wtype b)
 {
-  DWtype w;
+  const DWtype w = (DWtype) a * (DWtype) b;
 
-  w = a * b;
-
-  if (((a >= 0) == (b >= 0)) ? w < 0 : w > 0)
+  if (((a >= 0) == (b >= 0))
+      ? (UDWtype) w > (UDWtype) (((DWtype) 1 << (WORD_SIZE - 1)) - 1)
+      : (UDWtype) w < (UDWtype) ((DWtype) -1 << (WORD_SIZE - 1)))
     abort ();
 
   return w;
@@ -150,9 +143,7 @@ __mulvsi3 (Wtype a, Wtype b)
 Wtype
 __negvsi2 (Wtype a)
 {
-  Wtype w;
-
-  w  = -a;
+  const Wtype w = -a;
 
   if (a >= 0 ? w > 0 : w < 0)
     abort ();
@@ -165,9 +156,7 @@ __negvsi2 (Wtype a)
 DWtype
 __negvdi2 (DWtype a)
 {
-  DWtype w;
-
-  w  = -a;
+  const DWtype w = -a;
 
   if (a >= 0 ? w > 0 : w < 0)
     abort ();
@@ -203,8 +192,8 @@ __absvdi2 (DWtype a)
   DWtype w = a;
 
   if (a < 0)
-#ifdef L_negvsi2
-    w = __negvsi2 (a);
+#ifdef L_negvdi2
+    w = __negvdi2 (a);
 #else
     w = -a;
 
@@ -217,37 +206,144 @@ __absvdi2 (DWtype a)
 #endif
 
 #ifdef L_mulvdi3
+#define WORD_SIZE (sizeof (Wtype) * BITS_PER_UNIT)
 DWtype
 __mulvdi3 (DWtype u, DWtype v)
 {
-  DWtype w;
+  /* The unchecked multiplication needs 3 Wtype x Wtype multiplications,
+     but the checked multiplication needs only two.  */
+  const DWunion uu = {.ll = u};
+  const DWunion vv = {.ll = v};
 
-  w = u * v;
+  if (__builtin_expect (uu.s.high == uu.s.low >> (WORD_SIZE - 1), 1))
+    {
+      /* u fits in a single Wtype.  */
+      if (__builtin_expect (vv.s.high == vv.s.low >> (WORD_SIZE - 1), 1))
+	{
+	  /* v fits in a single Wtype as well.  */
+	  /* A single multiplication.  No overflow risk.  */
+	  return (DWtype) uu.s.low * (DWtype) vv.s.low;
+	}
+      else
+	{
+	  /* Two multiplications.  */
+	  DWunion w0 = {.ll = (UDWtype) (UWtype) uu.s.low
+			* (UDWtype) (UWtype) vv.s.low};
+	  DWunion w1 = {.ll = (UDWtype) (UWtype) uu.s.low
+			* (UDWtype) (UWtype) vv.s.high};
 
-  if (((u >= 0) == (v >= 0)) ? w < 0 : w > 0)
-    abort ();
+	  if (vv.s.high < 0)
+	    w1.s.high -= uu.s.low;
+	  if (uu.s.low < 0)
+	    w1.ll -= vv.ll;
+	  w1.ll += (UWtype) w0.s.high;
+	  if (__builtin_expect (w1.s.high == w1.s.low >> (WORD_SIZE - 1), 1))
+	    {
+	      w0.s.high = w1.s.low;
+	      return w0.ll;
+	    }
+	}
+    }
+  else
+    {
+      if (__builtin_expect (vv.s.high == vv.s.low >> (WORD_SIZE - 1), 1))
+	{
+	  /* v fits into a single Wtype.  */
+	  /* Two multiplications.  */
+	  DWunion w0 = {.ll = (UDWtype) (UWtype) uu.s.low
+			* (UDWtype) (UWtype) vv.s.low};
+	  DWunion w1 = {.ll = (UDWtype) (UWtype) uu.s.high
+			* (UDWtype) (UWtype) vv.s.low};
 
-  return w;
+	  if (uu.s.high < 0)
+	    w1.s.high -= vv.s.low;
+	  if (vv.s.low < 0)
+	    w1.ll -= uu.ll;
+	  w1.ll += (UWtype) w0.s.high;
+	  if (__builtin_expect (w1.s.high == w1.s.low >> (WORD_SIZE - 1), 1))
+	    {
+	      w0.s.high = w1.s.low;
+	      return w0.ll;
+	    }
+	}
+      else
+	{
+	  /* A few sign checks and a single multiplication.  */
+	  if (uu.s.high >= 0)
+	    {
+	      if (vv.s.high >= 0)
+		{
+		  if (uu.s.high == 0 && vv.s.high == 0)
+		    {
+		      const DWtype w = (UDWtype) (UWtype) uu.s.low
+			* (UDWtype) (UWtype) vv.s.low;
+		      if (__builtin_expect (w >= 0, 1))
+			return w;
+		    }
+		}
+	      else
+		{
+		  if (uu.s.high == 0 && vv.s.high == (Wtype) -1)
+		    {
+		      DWunion ww = {.ll = (UDWtype) (UWtype) uu.s.low
+				    * (UDWtype) (UWtype) vv.s.low};
+
+		      ww.s.high -= uu.s.low;
+		      if (__builtin_expect (ww.s.high < 0, 1))
+			return ww.ll;
+		    }
+		}
+	    }
+	  else
+	    {
+	      if (vv.s.high >= 0)
+		{
+		  if (uu.s.high == (Wtype) -1 && vv.s.high == 0)
+		    {
+		      DWunion ww = {.ll = (UDWtype) (UWtype) uu.s.low
+				    * (UDWtype) (UWtype) vv.s.low};
+
+		      ww.s.high -= vv.s.low;
+		      if (__builtin_expect (ww.s.high < 0, 1))
+			return ww.ll;
+		    }
+		}
+	      else
+		{
+		  if (uu.s.high == (Wtype) -1 && vv.s.high == (Wtype) - 1)
+		    {
+		      DWunion ww = {.ll = (UDWtype) (UWtype) uu.s.low
+				    * (UDWtype) (UWtype) vv.s.low};
+
+		      ww.s.high -= uu.s.low;
+		      ww.s.high -= vv.s.low;
+		      if (__builtin_expect (ww.s.high >= 0, 1))
+			return ww.ll;
+		    }
+		}
+	    }
+	}
+    }
+
+  /* Overflow.  */
+  abort ();
 }
 #endif
 
 
-/* Unless shift functions are defined whith full ANSI prototypes,
+/* Unless shift functions are defined with full ANSI prototypes,
    parameter b will be promoted to int if word_type is smaller than an int.  */
 #ifdef L_lshrdi3
 DWtype
 __lshrdi3 (DWtype u, word_type b)
 {
-  DWunion w;
-  word_type bm;
-  DWunion uu;
-
   if (b == 0)
     return u;
 
-  uu.ll = u;
+  const DWunion uu = {.ll = u};
+  const word_type bm = (sizeof (Wtype) * BITS_PER_UNIT) - b;
+  DWunion w;
 
-  bm = (sizeof (Wtype) * BITS_PER_UNIT) - b;
   if (bm <= 0)
     {
       w.s.high = 0;
@@ -255,7 +351,7 @@ __lshrdi3 (DWtype u, word_type b)
     }
   else
     {
-      UWtype carries = (UWtype) uu.s.high << bm;
+      const UWtype carries = (UWtype) uu.s.high << bm;
 
       w.s.high = (UWtype) uu.s.high >> b;
       w.s.low = ((UWtype) uu.s.low >> b) | carries;
@@ -269,16 +365,13 @@ __lshrdi3 (DWtype u, word_type b)
 DWtype
 __ashldi3 (DWtype u, word_type b)
 {
-  DWunion w;
-  word_type bm;
-  DWunion uu;
-
   if (b == 0)
     return u;
 
-  uu.ll = u;
+  const DWunion uu = {.ll = u};
+  const word_type bm = (sizeof (Wtype) * BITS_PER_UNIT) - b;
+  DWunion w;
 
-  bm = (sizeof (Wtype) * BITS_PER_UNIT) - b;
   if (bm <= 0)
     {
       w.s.low = 0;
@@ -286,7 +379,7 @@ __ashldi3 (DWtype u, word_type b)
     }
   else
     {
-      UWtype carries = (UWtype) uu.s.low >> bm;
+      const UWtype carries = (UWtype) uu.s.low >> bm;
 
       w.s.low = (UWtype) uu.s.low << b;
       w.s.high = ((UWtype) uu.s.high << b) | carries;
@@ -300,16 +393,13 @@ __ashldi3 (DWtype u, word_type b)
 DWtype
 __ashrdi3 (DWtype u, word_type b)
 {
-  DWunion w;
-  word_type bm;
-  DWunion uu;
-
   if (b == 0)
     return u;
 
-  uu.ll = u;
+  const DWunion uu = {.ll = u};
+  const word_type bm = (sizeof (Wtype) * BITS_PER_UNIT) - b;
+  DWunion w;
 
-  bm = (sizeof (Wtype) * BITS_PER_UNIT) - b;
   if (bm <= 0)
     {
       /* w.s.high = 1..1 or 0..0 */
@@ -318,7 +408,7 @@ __ashrdi3 (DWtype u, word_type b)
     }
   else
     {
-      UWtype carries = (UWtype) uu.s.high << bm;
+      const UWtype carries = (UWtype) uu.s.high << bm;
 
       w.s.high = uu.s.high >> b;
       w.s.low = ((UWtype) uu.s.low >> b) | carries;
@@ -328,14 +418,31 @@ __ashrdi3 (DWtype u, word_type b)
 }
 #endif
 
-#ifdef L_ffsdi2
-DWtype
-__ffsdi2 (DWtype u)
+#ifdef L_ffssi2
+#undef int
+extern int __ffsSI2 (UWtype u);
+int
+__ffsSI2 (UWtype u)
 {
-  DWunion uu;
+  UWtype count;
+
+  if (u == 0)
+    return 0;
+
+  count_trailing_zeros (count, u);
+  return count + 1;
+}
+#endif
+
+#ifdef L_ffsdi2
+#undef int
+extern int __ffsDI2 (DWtype u);
+int
+__ffsDI2 (DWtype u)
+{
+  const DWunion uu = {.ll = u};
   UWtype word, count, add;
 
-  uu.ll = u;
   if (uu.s.low != 0)
     word = uu.s.low, add = 0;
   else if (uu.s.high != 0)
@@ -352,13 +459,10 @@ __ffsdi2 (DWtype u)
 DWtype
 __muldi3 (DWtype u, DWtype v)
 {
-  DWunion w;
-  DWunion uu, vv;
+  const DWunion uu = {.ll = u};
+  const DWunion vv = {.ll = v};
+  DWunion w = {.ll = __umulsidi3 (uu.s.low, vv.s.low)};
 
-  uu.ll = u,
-  vv.ll = v;
-
-  w.ll = __umulsidi3 (uu.s.low, vv.s.low);
   w.s.high += ((UWtype) uu.s.low * (UWtype) vv.s.high
 	       + (UWtype) uu.s.high * (UWtype) vv.s.low);
 
@@ -506,6 +610,170 @@ const UQItype __clz_tab[] =
   8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
 };
 #endif
+
+#ifdef L_clzsi2
+#undef int
+extern int __clzSI2 (UWtype x);
+int
+__clzSI2 (UWtype x)
+{
+  Wtype ret;
+
+  count_leading_zeros (ret, x);
+
+  return ret;
+}
+#endif
+
+#ifdef L_clzdi2
+#undef int
+extern int __clzDI2 (UDWtype x);
+int
+__clzDI2 (UDWtype x)
+{
+  const DWunion uu = {.ll = x};
+  UWtype word;
+  Wtype ret, add;
+
+  if (uu.s.high)
+    word = uu.s.high, add = 0;
+  else
+    word = uu.s.low, add = W_TYPE_SIZE;
+
+  count_leading_zeros (ret, word);
+  return ret + add;
+}
+#endif
+
+#ifdef L_ctzsi2
+#undef int
+extern int __ctzSI2 (UWtype x);
+int
+__ctzSI2 (UWtype x)
+{
+  Wtype ret;
+
+  count_trailing_zeros (ret, x);
+
+  return ret;
+}
+#endif
+
+#ifdef L_ctzdi2
+#undef int
+extern int __ctzDI2 (UDWtype x);
+int
+__ctzDI2 (UDWtype x)
+{
+  const DWunion uu = {.ll = x};
+  UWtype word;
+  Wtype ret, add;
+
+  if (uu.s.low)
+    word = uu.s.low, add = 0;
+  else
+    word = uu.s.high, add = W_TYPE_SIZE;
+
+  count_trailing_zeros (ret, word);
+  return ret + add;
+}
+#endif
+
+#if (defined (L_popcountsi2) || defined (L_popcountdi2)	\
+     || defined (L_popcount_tab))
+extern const UQItype __popcount_tab[] ATTRIBUTE_HIDDEN;
+#endif
+
+#ifdef L_popcount_tab
+const UQItype __popcount_tab[] =
+{
+    0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
+    1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+    1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+    1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+    3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8,
+};
+#endif
+
+#ifdef L_popcountsi2
+#undef int
+extern int __popcountSI2 (UWtype x);
+int
+__popcountSI2 (UWtype x)
+{
+  UWtype i, ret = 0;
+
+  for (i = 0; i < W_TYPE_SIZE; i += 8)
+    ret += __popcount_tab[(x >> i) & 0xff];
+
+  return ret;
+}
+#endif
+
+#ifdef L_popcountdi2
+#undef int
+extern int __popcountDI2 (UDWtype x);
+int
+__popcountDI2 (UDWtype x)
+{
+  UWtype i, ret = 0;
+
+  for (i = 0; i < 2*W_TYPE_SIZE; i += 8)
+    ret += __popcount_tab[(x >> i) & 0xff];
+
+  return ret;
+}
+#endif
+
+#ifdef L_paritysi2
+#undef int
+extern int __paritySI2 (UWtype x);
+int
+__paritySI2 (UWtype x)
+{
+#if W_TYPE_SIZE > 64
+# error "fill out the table"
+#endif
+#if W_TYPE_SIZE > 32
+  x ^= x >> 32;
+#endif
+#if W_TYPE_SIZE > 16
+  x ^= x >> 16;
+#endif
+  x ^= x >> 8;
+  x ^= x >> 4;
+  x &= 0xf;
+  return (0x6996 >> x) & 1;
+}
+#endif
+
+#ifdef L_paritydi2
+#undef int
+extern int __parityDI2 (UDWtype x);
+int
+__parityDI2 (UDWtype x)
+{
+  const DWunion uu = {.ll = x};
+  UWtype nx = uu.s.low ^ uu.s.high;
+
+#if W_TYPE_SIZE > 64
+# error "fill out the table"
+#endif
+#if W_TYPE_SIZE > 32
+  nx ^= nx >> 32;
+#endif
+#if W_TYPE_SIZE > 16
+  nx ^= nx >> 16;
+#endif
+  nx ^= nx >> 8;
+  nx ^= nx >> 4;
+  nx &= 0xf;
+  return (0x6996 >> nx) & 1;
+}
+#endif
 
 #ifdef L_udivmoddi4
 
@@ -516,15 +784,12 @@ static inline __attribute__ ((__always_inline__))
 UDWtype
 __udivmoddi4 (UDWtype n, UDWtype d, UDWtype *rp)
 {
-  DWunion ww;
-  DWunion nn, dd;
+  const DWunion nn = {.ll = n};
+  const DWunion dd = {.ll = d};
   DWunion rr;
   UWtype d0, d1, n0, n1, n2;
   UWtype q0, q1;
   UWtype b, bm;
-
-  nn.ll = n;
-  dd.ll = d;
 
   d0 = dd.s.low;
   d1 = dd.s.high;
@@ -725,8 +990,7 @@ __udivmoddi4 (UDWtype n, UDWtype d, UDWtype *rp)
 	}
     }
 
-  ww.s.low = q0;
-  ww.s.high = q1;
+  const DWunion ww = {{.low = q0, .high = q1}};
   return ww.ll;
 }
 #endif
@@ -736,11 +1000,9 @@ DWtype
 __divdi3 (DWtype u, DWtype v)
 {
   word_type c = 0;
-  DWunion uu, vv;
+  DWunion uu = {.ll = u};
+  DWunion vv = {.ll = v};
   DWtype w;
-
-  uu.ll = u;
-  vv.ll = v;
 
   if (uu.s.high < 0)
     c = ~c,
@@ -762,11 +1024,9 @@ DWtype
 __moddi3 (DWtype u, DWtype v)
 {
   word_type c = 0;
-  DWunion uu, vv;
+  DWunion uu = {.ll = u};
+  DWunion vv = {.ll = v};
   DWtype w;
-
-  uu.ll = u;
-  vv.ll = v;
 
   if (uu.s.high < 0)
     c = ~c,
@@ -806,9 +1066,8 @@ __udivdi3 (UDWtype n, UDWtype d)
 word_type
 __cmpdi2 (DWtype a, DWtype b)
 {
-  DWunion au, bu;
-
-  au.ll = a, bu.ll = b;
+  const DWunion au = {.ll = a};
+  const DWunion bu = {.ll = b};
 
   if (au.s.high < bu.s.high)
     return 0;
@@ -826,9 +1085,8 @@ __cmpdi2 (DWtype a, DWtype b)
 word_type
 __ucmpdi2 (DWtype a, DWtype b)
 {
-  DWunion au, bu;
-
-  au.ll = a, bu.ll = b;
+  const DWunion au = {.ll = a};
+  const DWunion bu = {.ll = b};
 
   if ((UWtype) au.s.high < (UWtype) bu.s.high)
     return 0;
@@ -849,17 +1107,14 @@ __ucmpdi2 (DWtype a, DWtype b)
 DWtype
 __fixunstfDI (TFtype a)
 {
-  TFtype b;
-  UDWtype v;
-
   if (a < 0)
     return 0;
 
   /* Compute high word of result, as a flonum.  */
-  b = (a / HIGH_WORD_COEFF);
+  const TFtype b = (a / HIGH_WORD_COEFF);
   /* Convert that to fixed (but not to DWtype!),
      and shift it into the high word.  */
-  v = (UWtype) b;
+  UDWtype v = (UWtype) b;
   v <<= WORD_SIZE;
   /* Remove high part from the TFtype, leaving the low part as flonum.  */
   a -= (TFtype)v;
@@ -891,17 +1146,14 @@ __fixtfdi (TFtype a)
 DWtype
 __fixunsxfDI (XFtype a)
 {
-  XFtype b;
-  UDWtype v;
-
   if (a < 0)
     return 0;
 
   /* Compute high word of result, as a flonum.  */
-  b = (a / HIGH_WORD_COEFF);
+  const XFtype b = (a / HIGH_WORD_COEFF);
   /* Convert that to fixed (but not to DWtype!),
      and shift it into the high word.  */
-  v = (UWtype) b;
+  UDWtype v = (UWtype) b;
   v <<= WORD_SIZE;
   /* Remove high part from the XFtype, leaving the low part as flonum.  */
   a -= (XFtype)v;
@@ -933,28 +1185,18 @@ __fixxfdi (XFtype a)
 DWtype
 __fixunsdfDI (DFtype a)
 {
-  DFtype b;
-  UDWtype v;
+  /* Get high part of result.  The division here will just moves the radix
+     point and will not cause any rounding.  Then the conversion to integral
+     type chops result as desired.  */
+  const UWtype hi = a / HIGH_WORD_COEFF;
 
-  if (a < 0)
-    return 0;
+  /* Get low part of result.  Convert `hi' to floating type and scale it back,
+     then subtract this from the number being converted.  This leaves the low
+     part.  Convert that to integral type.  */
+  const UWtype lo = (a - ((DFtype) hi) * HIGH_WORD_COEFF);
 
-  /* Compute high word of result, as a flonum.  */
-  b = (a / HIGH_WORD_COEFF);
-  /* Convert that to fixed (but not to DWtype!),
-     and shift it into the high word.  */
-  v = (UWtype) b;
-  v <<= WORD_SIZE;
-  /* Remove high part from the DFtype, leaving the low part as flonum.  */
-  a -= (DFtype)v;
-  /* Convert that to fixed (but not to DWtype!) and add it in.
-     Sometimes A comes out negative.  This is significant, since
-     A has more bits than a long int does.  */
-  if (a < 0)
-    v -= (UWtype) (- a);
-  else
-    v += (UWtype) a;
-  return v;
+  /* Assemble result from the two parts.  */
+  return ((UDWtype) hi << WORD_SIZE) | lo;
 }
 #endif
 
@@ -978,29 +1220,20 @@ __fixunssfDI (SFtype original_a)
   /* Convert the SFtype to a DFtype, because that is surely not going
      to lose any bits.  Some day someone else can write a faster version
      that avoids converting to DFtype, and verify it really works right.  */
-  DFtype a = original_a;
-  DFtype b;
-  UDWtype v;
+  const DFtype a = original_a;
 
-  if (a < 0)
-    return 0;
+  /* Get high part of result.  The division here will just moves the radix
+     point and will not cause any rounding.  Then the conversion to integral
+     type chops result as desired.  */
+  const UWtype hi = a / HIGH_WORD_COEFF;
 
-  /* Compute high word of result, as a flonum.  */
-  b = (a / HIGH_WORD_COEFF);
-  /* Convert that to fixed (but not to DWtype!),
-     and shift it into the high word.  */
-  v = (UWtype) b;
-  v <<= WORD_SIZE;
-  /* Remove high part from the DFtype, leaving the low part as flonum.  */
-  a -= (DFtype) v;
-  /* Convert that to fixed (but not to DWtype!) and add it in.
-     Sometimes A comes out negative.  This is significant, since
-     A has more bits than a long int does.  */
-  if (a < 0)
-    v -= (UWtype) (- a);
-  else
-    v += (UWtype) a;
-  return v;
+  /* Get low part of result.  Convert `hi' to floating type and scale it back,
+     then subtract this from the number being converted.  This leaves the low
+     part.  Convert that to integral type.  */
+  const UWtype lo = (a - ((DFtype) hi) * HIGH_WORD_COEFF);
+
+  /* Assemble result from the two parts.  */
+  return ((UDWtype) hi << WORD_SIZE) | lo;
 }
 #endif
 
@@ -1022,9 +1255,7 @@ __fixsfdi (SFtype a)
 XFtype
 __floatdixf (DWtype u)
 {
-  XFtype d;
-
-  d = (Wtype) (u >> WORD_SIZE);
+  XFtype d = (Wtype) (u >> WORD_SIZE);
   d *= HIGH_HALFWORD_COEFF;
   d *= HIGH_HALFWORD_COEFF;
   d += (UWtype) (u & (HIGH_WORD_COEFF - 1));
@@ -1041,9 +1272,7 @@ __floatdixf (DWtype u)
 TFtype
 __floatditf (DWtype u)
 {
-  TFtype d;
-
-  d = (Wtype) (u >> WORD_SIZE);
+  TFtype d = (Wtype) (u >> WORD_SIZE);
   d *= HIGH_HALFWORD_COEFF;
   d *= HIGH_HALFWORD_COEFF;
   d += (UWtype) (u & (HIGH_WORD_COEFF - 1));
@@ -1060,9 +1289,7 @@ __floatditf (DWtype u)
 DFtype
 __floatdidf (DWtype u)
 {
-  DFtype d;
-
-  d = (Wtype) (u >> WORD_SIZE);
+  DFtype d = (Wtype) (u >> WORD_SIZE);
   d *= HIGH_HALFWORD_COEFF;
   d *= HIGH_HALFWORD_COEFF;
   d += (UWtype) (u & (HIGH_WORD_COEFF - 1));
@@ -1083,11 +1310,6 @@ __floatdidf (DWtype u)
 SFtype
 __floatdisf (DWtype u)
 {
-  /* Do the calculation in DFmode
-     so that we don't lose any of the precision of the high word
-     while multiplying it.  */
-  DFtype f;
-
   /* Protect against double-rounding error.
      Represent any low-order bits, that might be truncated in DFmode,
      by a bit that won't be lost.  The bit can go in anywhere below the
@@ -1108,7 +1330,10 @@ __floatdisf (DWtype u)
 	    }
 	}
     }
-  f = (Wtype) (u >> WORD_SIZE);
+  /* Do the calculation in DFmode
+     so that we don't lose any of the precision of the high word
+     while multiplying it.  */
+  DFtype f = (Wtype) (u >> WORD_SIZE);
   f *= HIGH_HALFWORD_COEFF;
   f *= HIGH_HALFWORD_COEFF;
   f += (UWtype) (u & (HIGH_WORD_COEFF - 1));
@@ -1217,7 +1442,7 @@ __gcc_bcmp (const unsigned char *s1, const unsigned char *s2, size_t size)
 {
   while (size > 0)
     {
-      unsigned char c1 = *s1++, c2 = *s2++;
+      const unsigned char c1 = *s1++, c2 = *s2++;
       if (c1 != c2)
 	return c1 - c2;
       size--;
@@ -1249,342 +1474,9 @@ __eprintf (const char *string, const char *expression,
 #endif
 #endif
 
-#ifdef L_bb
-
-struct bb_function_info {
-  long checksum;
-  int arc_count;
-  const char *name;
-};
-
-/* Structure emitted by --profile-arcs  */
-struct bb
-{
-  long zero_word;
-  const char *filename;
-  gcov_type *counts;
-  long ncounts;
-  struct bb *next;
-
-  /* Older GCC's did not emit these fields.  */
-  long sizeof_bb;
-  struct bb_function_info *function_infos;
-};
-
-#ifndef inhibit_libc
-
-/* Arc profile dumper. Requires atexit and stdio.  */
-
-#undef NULL /* Avoid errors if stdio.h and our stddef.h mismatch.  */
-#include <stdio.h>
-
-#include "gcov-io.h"
-#include <string.h>
-#ifdef TARGET_HAS_F_SETLKW
-#include <fcntl.h>
-#include <errno.h>
-#endif
-
-/* Chain of per-object file bb structures.  */
-static struct bb *bb_head;
-
-/* Dump the coverage counts. We merge with existing counts when
-   possible, to avoid growing the .da files ad infinitum.  */
-
-void
-__bb_exit_func (void)
-{
-  struct bb *ptr;
-  int i;
-  gcov_type program_sum = 0;
-  gcov_type program_max = 0;
-  long program_arcs = 0;
-  gcov_type merged_sum = 0;
-  gcov_type merged_max = 0;
-  long merged_arcs = 0;
-  
-#if defined (TARGET_HAS_F_SETLKW)
-  struct flock s_flock;
-
-  s_flock.l_type = F_WRLCK;
-  s_flock.l_whence = SEEK_SET;
-  s_flock.l_start = 0;
-  s_flock.l_len = 0; /* Until EOF.  */
-  s_flock.l_pid = getpid ();
-#endif
-
-  /* Non-merged stats for this program.  */
-  for (ptr = bb_head; ptr; ptr = ptr->next)
-    {
-      for (i = 0; i < ptr->ncounts; i++)
-	{
-	  program_sum += ptr->counts[i];
-
-	  if (ptr->counts[i] > program_max)
-	    program_max = ptr->counts[i];
-	}
-      program_arcs += ptr->ncounts;
-    }
-  
-  for (ptr = bb_head; ptr; ptr = ptr->next)
-    {
-      FILE *da_file;
-      gcov_type object_max = 0;
-      gcov_type object_sum = 0;
-      long object_functions = 0;
-      int merging = 0;
-      int error = 0;
-      struct bb_function_info *fn_info;
-      gcov_type *count_ptr;
-      
-      /* Open for modification */
-      da_file = fopen (ptr->filename, "r+b");
-      
-      if (da_file)
-	merging = 1;
-      else
-	{
-	  /* Try for appending */
-	  da_file = fopen (ptr->filename, "ab");
-	  /* Some old systems might not allow the 'b' mode modifier.
-             Therefore, try to open without it.  This can lead to a
-             race condition so that when you delete and re-create the
-             file, the file might be opened in text mode, but then,
-             you shouldn't delete the file in the first place.  */
-	  if (!da_file)
-	    da_file = fopen (ptr->filename, "a");
-	}
-      
-      if (!da_file)
-	{
-	  fprintf (stderr, "arc profiling: Can't open output file %s.\n",
-		   ptr->filename);
-	  ptr->filename = 0;
-	  continue;
-	}
-
-#if defined (TARGET_HAS_F_SETLKW)
-      /* After a fork, another process might try to read and/or write
-         the same file simultanously.  So if we can, lock the file to
-         avoid race conditions.  */
-      while (fcntl (fileno (da_file), F_SETLKW, &s_flock)
-	     && errno == EINTR)
-	continue;
-#endif
-      for (fn_info = ptr->function_infos; fn_info->arc_count != -1; fn_info++)
-	object_functions++;
-
-      if (merging)
-	{
-	  /* Merge data from file.  */
-	  long tmp_long;
-	  gcov_type tmp_gcov;
-	  
-	  if (/* magic */
-	      (__read_long (&tmp_long, da_file, 4) || tmp_long != -123l)
-	      /* functions in object file.  */
-	      || (__read_long (&tmp_long, da_file, 4)
-		  || tmp_long != object_functions)
-	      /* extension block, skipped */
-	      || (__read_long (&tmp_long, da_file, 4)
-		  || fseek (da_file, tmp_long, SEEK_CUR)))
-	    {
-	    read_error:;
-	      fprintf (stderr, "arc profiling: Error merging output file %s.\n",
-		       ptr->filename);
-	      clearerr (da_file);
-	    }
-	  else
-	    {
-	      /* Merge execution counts for each function.  */
-	      count_ptr = ptr->counts;
-	      
-	      for (fn_info = ptr->function_infos; fn_info->arc_count != -1;
-		   fn_info++)
-		{
-		  if (/* function name delim */
-		      (__read_long (&tmp_long, da_file, 4)
-		       || tmp_long != -1)
-		      /* function name length */
-		      || (__read_long (&tmp_long, da_file, 4)
-			  || tmp_long != (long) strlen (fn_info->name))
-		      /* skip string */
-		      || fseek (da_file, ((tmp_long + 1) + 3) & ~3, SEEK_CUR)
-		      /* function name delim */
-		      || (__read_long (&tmp_long, da_file, 4)
-			  || tmp_long != -1))
-		    goto read_error;
-
-		  if (/* function checksum */
-		      (__read_long (&tmp_long, da_file, 4)
-		       || tmp_long != fn_info->checksum)
-		      /* arc count */
-		      || (__read_long (&tmp_long, da_file, 4)
-			  || tmp_long != fn_info->arc_count))
-		    goto read_error;
-		  
-		  for (i = fn_info->arc_count; i > 0; i--, count_ptr++)
-		    if (__read_gcov_type (&tmp_gcov, da_file, 8))
-		      goto read_error;
-		    else
-		      *count_ptr += tmp_gcov;
-		}
-	    }
-	  fseek (da_file, 0, SEEK_SET);
-	}
-      
-      /* Calculate the per-object statistics.  */
-      for (i = 0; i < ptr->ncounts; i++)
-	{
-	  object_sum += ptr->counts[i];
-
-	  if (ptr->counts[i] > object_max)
-	    object_max = ptr->counts[i];
-	}
-      merged_sum += object_sum;
-      if (merged_max < object_max)
-	merged_max = object_max;
-      merged_arcs += ptr->ncounts;
-      
-      /* Write out the data.  */
-      if (/* magic */
-	  __write_long (-123, da_file, 4)
-	  /* number of functions in object file.  */
-	  || __write_long (object_functions, da_file, 4)
-	  /* length of extra data in bytes.  */
-	  || __write_long ((4 + 8 + 8) + (4 + 8 + 8), da_file, 4)
-
-	  /* whole program statistics. If merging write per-object
-	     now, rewrite later */
-	  /* number of instrumented arcs.  */
-	  || __write_long (merging ? ptr->ncounts : program_arcs, da_file, 4)
-	  /* sum of counters.  */
-	  || __write_gcov_type (merging ? object_sum : program_sum, da_file, 8)
-	  /* maximal counter.  */
-	  || __write_gcov_type (merging ? object_max : program_max, da_file, 8)
-
-	  /* per-object statistics.  */
-	  /* number of counters.  */
-	  || __write_long (ptr->ncounts, da_file, 4)
-	  /* sum of counters.  */
-	  || __write_gcov_type (object_sum, da_file, 8)
-	  /* maximal counter.  */
-	  || __write_gcov_type (object_max, da_file, 8))
-	{
-	write_error:;
-	  fprintf (stderr, "arc profiling: Error writing output file %s.\n",
-		   ptr->filename);
-	  error = 1;
-	}
-      else
-	{
-	  /* Write execution counts for each function.  */
-	  count_ptr = ptr->counts;
-
-	  for (fn_info = ptr->function_infos; fn_info->arc_count != -1;
-	       fn_info++)
-	    {
-	      if (__write_gcov_string (fn_info->name,
-				       strlen (fn_info->name), da_file, -1)
-		  || __write_long (fn_info->checksum, da_file, 4)
-		  || __write_long (fn_info->arc_count, da_file, 4))
-		goto write_error;
-	      
-	      for (i = fn_info->arc_count; i > 0; i--, count_ptr++)
-		if (__write_gcov_type (*count_ptr, da_file, 8))
-		  goto write_error; /* RIP Edsger Dijkstra */
-	    }
-	}
-
-      if (fclose (da_file))
-	{
-	  fprintf (stderr, "arc profiling: Error closing output file %s.\n",
-		   ptr->filename);
-	  error = 1;
-	}
-      if (error || !merging)
-	ptr->filename = 0;
-    }
-
-  /* Upate whole program statistics.  */
-  for (ptr = bb_head; ptr; ptr = ptr->next)
-    if (ptr->filename)
-      {
-	FILE *da_file;
-	
-	da_file = fopen (ptr->filename, "r+b");
-	if (!da_file)
-	  {
-	    fprintf (stderr, "arc profiling: Cannot reopen %s.\n",
-		     ptr->filename);
-	    continue;
-	  }
-	
-#if defined (TARGET_HAS_F_SETLKW)
-	while (fcntl (fileno (da_file), F_SETLKW, &s_flock)
-	       && errno == EINTR)
-	  continue;
-#endif
-	
-	if (fseek (da_file, 4 * 3, SEEK_SET)
-	    /* number of instrumented arcs.  */
-	    || __write_long (merged_arcs, da_file, 4)
-	    /* sum of counters.  */
-	    || __write_gcov_type (merged_sum, da_file, 8)
-	    /* maximal counter.  */
-	    || __write_gcov_type (merged_max, da_file, 8))
-	  fprintf (stderr, "arc profiling: Error updating program header %s.\n",
-		   ptr->filename);
-	if (fclose (da_file))
-	  fprintf (stderr, "arc profiling: Error reclosing %s\n",
-		   ptr->filename);
-      }
-}
-
-/* Add a new object file onto the bb chain.  Invoked automatically
-   when running an object file's global ctors.  */
-
-void
-__bb_init_func (struct bb *blocks)
-{
-  if (blocks->zero_word)
-    return;
-
-  /* Initialize destructor and per-thread data.  */
-  if (!bb_head)
-    atexit (__bb_exit_func);
-
-  /* Set up linked list.  */
-  blocks->zero_word = 1;
-  blocks->next = bb_head;
-  bb_head = blocks;
-}
-
-/* Called before fork or exec - write out profile information gathered so
-   far and reset it to zero.  This avoids duplication or loss of the
-   profile information gathered so far.  */
-
-void
-__bb_fork_func (void)
-{
-  struct bb *ptr;
-
-  __bb_exit_func ();
-  for (ptr = bb_head; ptr != (struct bb *) 0; ptr = ptr->next)
-    {
-      long i;
-      for (i = ptr->ncounts - 1; i >= 0; i--)
-	ptr->counts[i] = 0;
-    }
-}
-
-#endif /* not inhibit_libc */
-#endif /* L_bb */
 
 #ifdef L_clear_cache
 /* Clear part of an instruction cache.  */
-
-#define INSN_CACHE_PLANE_SIZE (INSN_CACHE_SIZE / INSN_CACHE_DEPTH)
 
 void
 __clear_cache (char *beg __attribute__((__unused__)),
@@ -1592,109 +1484,23 @@ __clear_cache (char *beg __attribute__((__unused__)),
 {
 #ifdef CLEAR_INSN_CACHE
   CLEAR_INSN_CACHE (beg, end);
-#else
-#ifdef INSN_CACHE_SIZE
-  static char array[INSN_CACHE_SIZE + INSN_CACHE_PLANE_SIZE + INSN_CACHE_LINE_WIDTH];
-  static int initialized;
-  int offset;
-  void *start_addr
-  void *end_addr;
-  typedef (*function_ptr) (void);
-
-#if (INSN_CACHE_SIZE / INSN_CACHE_LINE_WIDTH) < 16
-  /* It's cheaper to clear the whole cache.
-     Put in a series of jump instructions so that calling the beginning
-     of the cache will clear the whole thing.  */
-
-  if (! initialized)
-    {
-      int ptr = (((int) array + INSN_CACHE_LINE_WIDTH - 1)
-		 & -INSN_CACHE_LINE_WIDTH);
-      int end_ptr = ptr + INSN_CACHE_SIZE;
-
-      while (ptr < end_ptr)
-	{
-	  *(INSTRUCTION_TYPE *)ptr
-	    = JUMP_AHEAD_INSTRUCTION + INSN_CACHE_LINE_WIDTH;
-	  ptr += INSN_CACHE_LINE_WIDTH;
-	}
-      *(INSTRUCTION_TYPE *) (ptr - INSN_CACHE_LINE_WIDTH) = RETURN_INSTRUCTION;
-
-      initialized = 1;
-    }
-
-  /* Call the beginning of the sequence.  */
-  (((function_ptr) (((int) array + INSN_CACHE_LINE_WIDTH - 1)
-		    & -INSN_CACHE_LINE_WIDTH))
-   ());
-
-#else /* Cache is large.  */
-
-  if (! initialized)
-    {
-      int ptr = (((int) array + INSN_CACHE_LINE_WIDTH - 1)
-		 & -INSN_CACHE_LINE_WIDTH);
-
-      while (ptr < (int) array + sizeof array)
-	{
-	  *(INSTRUCTION_TYPE *)ptr = RETURN_INSTRUCTION;
-	  ptr += INSN_CACHE_LINE_WIDTH;
-	}
-
-      initialized = 1;
-    }
-
-  /* Find the location in array that occupies the same cache line as BEG.  */
-
-  offset = ((int) beg & -INSN_CACHE_LINE_WIDTH) & (INSN_CACHE_PLANE_SIZE - 1);
-  start_addr = (((int) (array + INSN_CACHE_PLANE_SIZE - 1)
-		 & -INSN_CACHE_PLANE_SIZE)
-		+ offset);
-
-  /* Compute the cache alignment of the place to stop clearing.  */
-#if 0  /* This is not needed for gcc's purposes.  */
-  /* If the block to clear is bigger than a cache plane,
-     we clear the entire cache, and OFFSET is already correct.  */
-  if (end < beg + INSN_CACHE_PLANE_SIZE)
-#endif
-    offset = (((int) (end + INSN_CACHE_LINE_WIDTH - 1)
-	       & -INSN_CACHE_LINE_WIDTH)
-	      & (INSN_CACHE_PLANE_SIZE - 1));
-
-#if INSN_CACHE_DEPTH > 1
-  end_addr = (start_addr & -INSN_CACHE_PLANE_SIZE) + offset;
-  if (end_addr <= start_addr)
-    end_addr += INSN_CACHE_PLANE_SIZE;
-
-  for (plane = 0; plane < INSN_CACHE_DEPTH; plane++)
-    {
-      int addr = start_addr + plane * INSN_CACHE_PLANE_SIZE;
-      int stop = end_addr + plane * INSN_CACHE_PLANE_SIZE;
-
-      while (addr != stop)
-	{
-	  /* Call the return instruction at ADDR.  */
-	  ((function_ptr) addr) ();
-
-	  addr += INSN_CACHE_LINE_WIDTH;
-	}
-    }
-#else /* just one plane */
-  do
-    {
-      /* Call the return instruction at START_ADDR.  */
-      ((function_ptr) start_addr) ();
-
-      start_addr += INSN_CACHE_LINE_WIDTH;
-    }
-  while ((start_addr % INSN_CACHE_SIZE) != offset);
-#endif /* just one plane */
-#endif /* Cache is large */
-#endif /* Cache exists */
 #endif /* CLEAR_INSN_CACHE */
 }
 
 #endif /* L_clear_cache */
+
+#ifdef L_enable_execute_stack
+/* Attempt to turn on execute permission for the stack.  */
+
+#ifdef ENABLE_EXECUTE_STACK
+  ENABLE_EXECUTE_STACK
+#else
+void
+__enable_execute_stack (void *addr __attribute__((__unused__)))
+{}
+#endif /* ENABLE_EXECUTE_STACK */
+
+#endif /* L_enable_execute_stack */
 
 #ifdef L_trampoline
 
@@ -1745,51 +1551,6 @@ mprotect (char *addr, int len, int prot)
 #ifdef TRANSFER_FROM_TRAMPOLINE
 TRANSFER_FROM_TRAMPOLINE
 #endif
-
-#ifdef __sysV68__
-
-#include <sys/signal.h>
-#include <errno.h>
-
-/* Motorola forgot to put memctl.o in the libp version of libc881.a,
-   so define it here, because we need it in __clear_insn_cache below */
-/* On older versions of this OS, no memctl or MCT_TEXT are defined;
-   hence we enable this stuff only if MCT_TEXT is #define'd.  */
-
-#ifdef MCT_TEXT
-asm("\n\
-	global memctl\n\
-memctl:\n\
-	movq &75,%d0\n\
-	trap &0\n\
-	bcc.b noerror\n\
-	jmp cerror%\n\
-noerror:\n\
-	movq &0,%d0\n\
-	rts");
-#endif
-
-/* Clear instruction cache so we can call trampolines on stack.
-   This is called from FINALIZE_TRAMPOLINE in mot3300.h.  */
-
-void
-__clear_insn_cache (void)
-{
-#ifdef MCT_TEXT
-  int save_errno;
-
-  /* Preserve errno, because users would be surprised to have
-  errno changing without explicitly calling any system-call.  */
-  save_errno = errno;
-
-  /* Keep it simple : memctl (MCT_TEXT) always fully clears the insn cache.
-     No need to use an address derived from _start or %sp, as 0 works also.  */
-  memctl(0, 4096, MCT_TEXT);
-  errno = save_errno;
-#endif
-}
-
-#endif /* __sysV68__ */
 #endif /* L_trampoline */
 
 #ifndef __CYGWIN__
@@ -1874,8 +1635,9 @@ __do_global_ctors (void)
    For systems which support a .init section we use the .init section
    to run __do_global_ctors, so we need not do anything here.  */
 
+extern void SYMBOL__MAIN (void);
 void
-SYMBOL__MAIN ()
+SYMBOL__MAIN (void)
 {
   /* Support recursive calls to `main': run initializers just once.  */
   static int initialized;
@@ -1917,79 +1679,4 @@ func_ptr __DTOR_LIST__[2];
 #endif
 #endif /* no INIT_SECTION_ASM_OP and not CTOR_LISTS_DEFINED_EXTERNALLY */
 #endif /* L_ctors */
-
-#ifdef L_exit
 
-#include "gbl-ctors.h"
-
-#ifdef NEED_ATEXIT
-
-#ifndef ON_EXIT
-
-# include <errno.h>
-
-static func_ptr *atexit_chain = 0;
-static long atexit_chain_length = 0;
-static volatile long last_atexit_chain_slot = -1;
-
-int
-atexit (func_ptr func)
-{
-  if (++last_atexit_chain_slot == atexit_chain_length)
-    {
-      atexit_chain_length += 32;
-      if (atexit_chain)
-	atexit_chain = (func_ptr *) realloc (atexit_chain, atexit_chain_length
-					     * sizeof (func_ptr));
-      else
-	atexit_chain = (func_ptr *) malloc (atexit_chain_length
-					    * sizeof (func_ptr));
-      if (! atexit_chain)
-	{
-	  atexit_chain_length = 0;
-	  last_atexit_chain_slot = -1;
-	  errno = ENOMEM;
-	  return (-1);
-	}
-    }
-  atexit_chain[last_atexit_chain_slot] = func;
-  return (0);
-}
-
-extern void _cleanup (void);
-extern void _exit (int) __attribute__ ((__noreturn__));
-
-void
-exit (int status)
-{
-  if (atexit_chain)
-    {
-      for ( ; last_atexit_chain_slot-- >= 0; )
-	{
-	  (*atexit_chain[last_atexit_chain_slot + 1]) ();
-	  atexit_chain[last_atexit_chain_slot + 1] = 0;
-	}
-      free (atexit_chain);
-      atexit_chain = 0;
-    }
-#ifdef EXIT_BODY
-  EXIT_BODY;
-#else
-  _cleanup ();
-#endif
-  _exit (status);
-}
-
-#else /* ON_EXIT */
-
-/* Simple; we just need a wrapper for ON_EXIT.  */
-int
-atexit (func_ptr func)
-{
-  return ON_EXIT (func);
-}
-
-#endif /* ON_EXIT */
-#endif /* NEED_ATEXIT */
-
-#endif /* L_exit */
