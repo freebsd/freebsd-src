@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id: moused.c,v 1.3 1996/09/09 18:47:47 sos Exp $
+ **      $Id: moused.c,v 1.4 1996/09/10 18:20:46 peter Exp $
  **/
 
 /**
@@ -53,6 +53,9 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <machine/console.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #define debug(fmt,args...) \
 	if (debug&&nodaemon) fprintf(stderr,"%s: " fmt "\n", progname, ##args)
@@ -150,6 +153,7 @@ main(int argc, char *argv[])
     struct termios	t;
     struct mouse_info 	mouse;
     int			saved_buttons = 0;
+    fd_set		fds;
 
     progname = argv[0];
 
@@ -243,6 +247,9 @@ main(int argc, char *argv[])
 
     for(;;)
     {
+	FD_ZERO(&fds);
+	FD_SET(rodent.mfd,&fds);
+	select(FD_SETSIZE,&fds,NULL,&fds,NULL);
 	i = read(rodent.mfd,&b,1);	/* get a byte */
 	if (i != 1)			/* read returned or error; goodbye */
 	{
