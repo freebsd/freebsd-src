@@ -364,7 +364,7 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 		pp->stripesize = pp2->stripesize;
 		pp->stripeoffset = (pp2->stripeoffset + offset) % pp->stripesize;
 	}
-	if (bootverbose)
+	if (0 && bootverbose)
 		printf("GEOM: Configure %s, start %jd length %jd end %jd\n",
 		    pp->name, (intmax_t)offset, (intmax_t)length,
 		    (intmax_t)(offset + length - 1));
