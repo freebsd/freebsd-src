@@ -37,7 +37,7 @@
 #ifndef _SYS_SOCKETVAR_H_
 #define _SYS_SOCKETVAR_H_
 
-#include <sys/mac.h>			/* for struct label */
+#include <sys/_label.h>			/* for struct label */
 #include <sys/queue.h>			/* for TAILQ macros */
 #include <sys/selinfo.h>		/* for struct selinfo */
 

@@ -38,12 +38,10 @@
 #define	_SYS_UCRED_H_
 
 /*
- * XXXMAC: Recursively include mac.h due to an API assumption that it
- * it is sufficient to include types.h and ucred.h to have a defined
- * struct ucred.  This should be changed so that struct ucred is not
- * exported to userland via _KERNEL.
+ * XXXMAC: this recursive include could be #ifdef _KERNEL if struct
+ * ucred could also be #ifdef _KERNEL.
  */
-#include <sys/mac.h>
+#include <sys/_label.h>
 
 /*
  * Credentials.
