@@ -116,7 +116,9 @@ exit1(p, rv)
 {
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
+#ifdef KTRACE
 	struct vnode *vtmp;
+#endif
 	struct exitlist *ep;
 
 	if (p->p_pid == 1) {
