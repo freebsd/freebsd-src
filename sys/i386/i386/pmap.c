@@ -1213,7 +1213,9 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
 		} else {
-			mpte = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
+			while ((mpte = vm_page_lookup(pmap->pm_pteobj, ptepindex)) != NULL &&
+			       vm_page_sleep_if_busy(mpte, FALSE, "pulook"))
+				vm_page_lock_queues();
 			pmap->pm_ptphint = mpte;
 		}
 	}
