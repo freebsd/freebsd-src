@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.509 1998/12/13 23:06:16 n_hibma Exp $
+#	$Id: LINT,v 1.510 1998/12/21 18:04:20 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -447,6 +447,13 @@ options		TCPDEBUG
 # D.O.S. packet attacks.
 #
 options         "ICMP_BANDLIM"
+
+# DUMMYNET enables the "dummynet" bandwidth limiter. You need
+# IPFIREWALL as well. See the dummynet(4) manpage for more info.
+# BRIDGE enables bridging between ethernet cards -- see bridge(4).
+# You can use IPFIREWALL and dummynet together with bridging.
+#options	DUMMYNET
+#options	BRIDGE
 
 #
 # ATM (HARP version) options
