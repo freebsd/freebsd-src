@@ -751,7 +751,7 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 	while (chn_removefeeder(c) == 0);
 	if (CHANNEL_FREE(c->methods, c->devinfo))
-		sndbuf_free(c->bufhard);
+		sndbuf_free(b);
 	c->flags |= CHN_F_DEAD;
 	sndbuf_destroy(bs);
 	sndbuf_destroy(b);
