@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.45 1995/05/14 02:59:44 davidg Exp $
+#	$Id: GENERIC,v 1.45.2.1 1995/06/01 04:57:15 rgrimes Exp $
 #
 
 machine		"i386"
@@ -95,7 +95,6 @@ device		lpt2	at isa? port? tty
 device de0
 device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
-device eg0 at isa? port 0x310 net irq 5 vector egintr
 device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
 device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
@@ -111,7 +110,5 @@ pseudo-device	log
 pseudo-device	sl	1
 pseudo-device	ppp	1
 pseudo-device	pty	16
-pseudo-device	speaker
 pseudo-device	gzip		# Exec gzipped a.out's
-pseudo-device	vn
 pseudo-device	tun	1
