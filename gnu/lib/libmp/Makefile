@@ -1,5 +1,5 @@
 # Makefile for libmp
-# $Id: Makefile,v 1.3 1995/11/13 18:39:23 markm Exp $
+# $Id: Makefile,v 1.4 1995/11/25 00:13:57 peter Exp $
 
 LIB=    mp
 SRCS=	$(MP_SRCS)
@@ -24,8 +24,7 @@ IMPL_SRCS=	memory.c mp_set_fns.c _mpz_set_str.c _mpz_get_str.c \
 beforedepend:	gmp-mparam.h mp_bases.c
 
 beforeinstall:
-	cmp -s ${.CURDIR}/../libgmp/mp.h ${DESTDIR}/usr/include/mp.h || \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../libgmp/mp.h ${DESTDIR}/usr/include/mp.h
 
 cre-mparam: cre-mparam.c

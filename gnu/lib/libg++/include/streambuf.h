@@ -247,8 +247,8 @@ class ios : public _ios_fields {
 
   protected:
     ios(streambuf* sb = 0, ostream* tie_to = 0) { init(sb, tie_to); }
-    virtual ~ios();
-    void init(streambuf* sb, ostream* tie = 0);
+    inline virtual ~ios();
+    inline void init(streambuf* sb, ostream* tie = 0);
 };
 
 #if __GNUG__==1
