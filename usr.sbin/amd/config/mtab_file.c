@@ -37,7 +37,7 @@
  *
  *	@(#)mtab_file.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mtab_file.c,v 1.5 1998/07/29 03:23:18 imp Exp $
+ * $Id: mtab_file.c,v 1.6 1998/07/29 03:25:08 imp Exp $
  *
  */
 
@@ -271,7 +271,7 @@ mntlist *mp;
 	 * directory as the target mount table
 	 * so that rename() will work.
 	 */
-	char tmpname[MAXPATHLEN + 1];
+	char tmpname[MAXPATHLEN];
 	int retries;
 	int tmpfd;
 	char *cp;
