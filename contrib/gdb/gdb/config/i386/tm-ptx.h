@@ -1,23 +1,25 @@
 /* Target machine definitions for GDB on a Sequent Symmetry under ptx
    with Weitek 1167 and i387 support.
-   Copyright 1986, 1987, 1989, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1995, 2000
+   Free Software Foundation, Inc.
    Symmetry version by Jay Vosburgh (fubar@sequent.com).
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef TM_PTX_H
 #define TM_PTX_H 1
@@ -48,8 +50,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define DECR_PC_AFTER_BREAK 0
 
 #if 0
- --- this code can't be used unless we know we are running native,
-     since it uses host specific ptrace calls.
+-- -this code can 't be used unless we know we are running native,
+since it uses host specific ptrace calls.
 /* code for 80387 fpu.  Functions are from i386-dep.c, copied into
  * symm-dep.c.
  */
@@ -67,7 +69,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    scheme (which is the same as the 386 scheme) and also regmap in the various
    *-nat.c files. */
 
-#undef  REGISTER_NAMES
+#undef REGISTER_NAME
 #define REGISTER_NAMES { "eax",  "ecx",    "edx",  "ebx",  \
 			 "esp",  "ebp",    "esi",  "edi",  \
 			 "eip",  "eflags", "st0",  "st1",  \
@@ -138,8 +140,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define REGISTER_U_ADDR(addr, blockend, regno) \
 { (addr) = ptx_register_u_addr((blockend), (regno)); }
 
-extern int
-ptx_register_u_addr PARAMS ((int, int));
+extern int ptx_register_u_addr (int, int);
 
 /* Total amount of space needed to store our copies of the machine's
    register state, the array `registers'.  10 i*86 registers, 8 i387
@@ -179,10 +180,10 @@ ptx_register_u_addr PARAMS ((int, int));
 ((N < ST0_REGNUM) ? 0 : \
  (N < FP1_REGNUM) ? 1 : \
  0)
-  
+
 /* Convert data from raw format for register REGNUM
    to virtual format for register REGNUM.  */
-extern const struct floatformat floatformat_i387_ext; /* from floatformat.h */
+extern const struct floatformat floatformat_i387_ext;	/* from floatformat.h */
 
 #undef REGISTER_CONVERT_TO_VIRTUAL
 #define REGISTER_CONVERT_TO_VIRTUAL(REGNUM,TYPE,FROM,TO)	\
@@ -190,7 +191,7 @@ extern const struct floatformat floatformat_i387_ext; /* from floatformat.h */
  (REGNUM < FP1_REGNUM) ? (void)floatformat_to_double(&floatformat_i387_ext, \
 						       (FROM),(TO)) : \
  (void)memcpy ((TO), (FROM), 4))
- 
+
 /* Convert data from virtual format for register REGNUM
    to raw format for register REGNUM.  */
 
@@ -224,9 +225,9 @@ extern const struct floatformat floatformat_i387_ext; /* from floatformat.h */
   symmetry_extract_return_value(TYPE, REGBUF, VALBUF)
 
 /*
-#undef  FRAME_FIND_SAVED_REGS
-#define FRAME_FIND_SAVED_REGS(frame_info, frame_saved_regs) \
-{ ptx_frame_find_saved_regs((frame_info), &(frame_saved_regs)); }
-*/
+   #undef  FRAME_FIND_SAVED_REGS
+   #define FRAME_FIND_SAVED_REGS(frame_info, frame_saved_regs) \
+   { ptx_frame_find_saved_regs((frame_info), &(frame_saved_regs)); }
+ */
 
-#endif  /* ifndef TM_PTX_H */
+#endif /* ifndef TM_PTX_H */

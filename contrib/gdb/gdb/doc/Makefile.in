@@ -1,4 +1,5 @@
-##Copyright (C) 1991, 1992, 1999 Free Software Foundation, Inc.
+##Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000, 2002
+##Free Software Foundation, Inc.
 
 # Makefile for GDB documentation.
 # This file is part of GDB.
@@ -23,8 +24,11 @@ VPATH = @srcdir@
 prefix = @prefix@
 
 infodir = @infodir@
+htmldir = $(prefix)/html
 
 SHELL = @SHELL@
+
+LN_S = @LN_S@
 
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -39,14 +43,31 @@ TEXIDIR=${gdbdir}/../texinfo
 # where to find makeinfo, preferably one designed for texinfo-2
 MAKEINFO=makeinfo
 
+# Note that texinfo 4.0's makeinfo --html can only generate a
+# single file, which would be too large, so continue to use
+# texi2html. -sts 2000-03-28
+
+MAKEHTML = texi2html
+MAKEHTMLFLAGS = -menu -split_chapter
+
 # where to find texi2roff, ditto
 TEXI2ROFF=texi2roff
+
+# where to find texi2dvi, ditto
+TEXI2DVI=texi2dvi
 
 # Where is the source dir for the READLINE library doc?  
 # Traditionally readline is in .. or .
 READLINE_DIR = ${gdbdir}/../readline/doc
 
-SET_TEXINPUTS = TEXINPUTS=${TEXIDIR}:.:$(srcdir):$(READLINE_DIR):$$TEXINPUTS
+# The GDB/MI docs come from a sibling directory ../mi
+GDBMI_DIR = ${gdbdir}/mi
+
+SET_TEXINPUTS = \
+   TEXINPUTS=${TEXIDIR}:.:$(srcdir):$(READLINE_DIR):$(GDBMI_DIR):$$TEXINPUTS
+
+# Files which should be generated via 'info' and installed by 'install-info'
+INFO_DEPS = gdb.info gdbint.info stabs.info
 
 # There may be alternate predefined collections of switches to configure
 # the GDB manual.  Normally this is not done in synch with the software
@@ -72,36 +93,59 @@ REFEDITS =
 # Don Knuth's TeX formatter
 TEX = tex
 
-# auxiliary program for sorting Texinfo indices
-TEXINDEX = texindex
-
 # Program to generate Postscript files from DVI files.
 DVIPS = dvips
 
 # Main GDB manual's source files
-SFILES_INCLUDED = gdb-cfg.texi $(srcdir)/remote.texi
+SFILES_INCLUDED = gdb-cfg.texi \
+	$(srcdir)/annotate.texi \
+	$(srcdir)/fdl.texi \
+	$(srcdir)/gpl.texi
 
 SFILES_LOCAL = $(srcdir)/gdb.texinfo GDBvn.texi $(SFILES_INCLUDED)
 
-SFILES_DOC = $(SFILES_LOCAL) \
-                $(READLINE_DIR)/rluser.texinfo $(READLINE_DIR)/inc-hist.texi
+SFILES_DOC = $(SFILES_LOCAL) $(GDBMI_DIR)/gdbmi.texinfo \
+                $(READLINE_DIR)/rluser.texinfo $(READLINE_DIR)/inc-hist.texinfo
 
 #### Host, target, and site specific Makefile fragments come in here.
 ###
 
 all install:
 
-info: gdb.info gdbint.info stabs.info
+info: $(INFO_DEPS)
 dvi: gdb.dvi gdbint.dvi stabs.dvi refcard.dvi
 ps: gdb.ps gdbint.ps stabs.ps refcard.ps
-all-doc: info dvi ps
+html: gdb_toc.html gdbint_toc.html stabs_toc.html
+pdf: gdb.pdf gdbint.pdf stabs.pdf
+all-doc: info dvi ps # pdf
+diststuff: info
 
-install-info: info
-	for i in *.info* ; do \
-		$(INSTALL_DATA) $$i $(infodir)/$$i ; \
+install-info: $(INFO_DEPS)
+	$(SHELL) $(srcdir)/../../mkinstalldirs $(infodir)
+	@list='$(INFO_DEPS)'; \
+	for file in $$list; do \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  for ifile in `cd $$d && echo $$file $$file-[0-9] $$file-[0-9][0-9]`; do \
+	    if test -f $$d/$$ifile; then \
+	      echo " $(INSTALL_DATA) $$d/$$ifile $(infodir)/$$ifile"; \
+	      $(INSTALL_DATA) $$d/$$ifile $(infodir)/$$ifile; \
+	    else : ; fi; \
+	  done; \
+	done
+	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	  list='$(INFO_DEPS)'; \
+	  for file in $$list; do \
+	    echo " install-info --info-dir=$(infodir) $(infodir)/$$file";\
+	    install-info --info-dir=$(infodir) $(infodir)/$$file || :;\
+	  done; \
+	else : ; fi
+
+install-html: html
+	for i in *.html ; do \
+		$(INSTALL_DATA) $$i $(htmldir)/$$i ; \
 	done
 
-STAGESTUFF = *.info* gdb-all.texi GDBvn.texi *.ps *.dvi
+STAGESTUFF = *.info* gdb-all.texi GDBvn.texi *.ps *.dvi *.pdf
 
 # Copy the object files from a particular stage into a subdirectory.
 stage1: force
@@ -142,7 +186,7 @@ mostlyclean:
 	rm -f sedref.dvi sedref.tex tmp.sed
 
 clean: mostlyclean
-	rm -f rluser.texinfo inc-hist.texi gdb-cfg.texi
+	rm -f rluser.texinfo inc-hist.texinfo gdb-cfg.texi
 
 distclean: clean
 	rm -f Makefile config.status
@@ -152,18 +196,16 @@ distclean: clean
 # "clean" or "distclean".  Use maintainer-clean to remove them.
 
 maintainer-clean realclean: distclean
-	rm -f GDBvn.texi *.info* *.dvi *.ps
+	rm -f GDBvn.texi *.info* *.dvi *.ps *.html *.pdf
 
 # GDB QUICK REFERENCE (dvi output)
 refcard.dvi : refcard.tex $(REFEDITS)
-	if [ -z "$(REFEDITS)" ]; then \
-		cp $(srcdir)/refcard.tex sedref.tex ; \
-	else \
-		echo > tmp.sed ; \
-		for f in "$(REFEDITS)" ; do \
-			cat $(srcdir)/$$f >>tmp.sed ; done ; \
-		sed -f tmp.sed $(srcdir)/refcard.tex >sedref.tex ; \
-	fi
+	echo > tmp.sed
+	for f in x $(REFEDITS) ; do \
+		test x$$f = xx && continue ; \
+		cat $(srcdir)/$$f >>tmp.sed ; \
+	done
+	sed -f tmp.sed $(srcdir)/refcard.tex >sedref.tex
 	$(SET_TEXINPUTS) $(TEX) sedref.tex
 	mv sedref.dvi refcard.dvi
 	rm -f sedref.log sedref.tex tmp.sed
@@ -171,9 +213,9 @@ refcard.dvi : refcard.tex $(REFEDITS)
 refcard.ps : refcard.dvi
 	$(DVIPS) -t landscape -o $@ $?
 
-# File to record current GDB version number (copied from main dir Makefile.in)
-GDBvn.texi : ${gdbdir}/Makefile.in
-	echo "@set GDBVN `sed <$(srcdir)/../Makefile.in -n 's/^VERSION *= *//p'`" > ./GDBvn.new
+# File to record current GDB version number (copied from main dir version.in)
+GDBvn.texi : ${gdbdir}/version.in
+	echo "@set GDBVN `head -1 $(srcdir)/../version.in`" > ./GDBvn.new
 	mv GDBvn.new GDBvn.texi
 
 # Updated atomically
@@ -184,7 +226,8 @@ GDBvn.texi : ${gdbdir}/Makefile.in
 # not one for their binary config---which may not be specifically
 # defined anyways).
 gdb-cfg.texi: ${srcdir}/${DOC_CONFIG}-cfg.texi
-	ln -s ${srcdir}/${DOC_CONFIG}-cfg.texi gdb-cfg.texi || \
+	(test "$$LN_S" = "ln -s" && \
+	  ln -s ${srcdir}/${DOC_CONFIG}-cfg.texi gdb-cfg.texi) || \
 	ln ${srcdir}/${DOC_CONFIG}-cfg.texi gdb-cfg.texi || \
 	cp ${srcdir}/${DOC_CONFIG}-cfg.texi gdb-cfg.texi
 
@@ -200,24 +243,29 @@ gdb-cfg.texi: ${srcdir}/${DOC_CONFIG}-cfg.texi
 # GDB MANUAL: TeX dvi file
 gdb.dvi: ${SFILES_DOC}
 	if [ ! -f ./GDBvn.texi ]; then \
-		ln -s $(srcdir)/GDBvn.texi . || \
+		(test "$$LN_S" = "ln -s" && ln -s $(srcdir)/GDBvn.texi .) || \
 		ln $(srcdir)/GDBvn.texi . || \
 		cp $(srcdir)/GDBvn.texi . ; else true; fi
-	$(SET_TEXINPUTS) $(TEX) gdb.texinfo
-	$(SET_TEXINPUTS) $(TEX) gdb.texinfo
-	$(TEXINDEX) gdb.??
-	$(SET_TEXINPUTS) $(TEX) gdb.texinfo
+	$(SET_TEXINPUTS) $(TEXI2DVI) $(srcdir)/gdb.texinfo
 	rm -f gdb.aux gdb.cp* gdb.fn* gdb.ky* gdb.log gdb.pg* gdb.toc \
 		gdb.tp* gdb.vr*
 
 gdb.ps: gdb.dvi
 	$(DVIPS) -o $@ $?
 
+gdb.pdf: ${SFILES_DOC}
+	if [ ! -f ./GDBvn.texi ]; then \
+		(test "$$LN_S" = "ln -s" && ln -s $(srcdir)/GDBvn.texi .) || \
+		ln $(srcdir)/GDBvn.texi . || \
+		cp $(srcdir)/GDBvn.texi . ; else true; fi
+	$(SET_TEXINPUTS) $(TEXI2DVI) --pdf $(srcdir)/gdb.texinfo
+	rm -f gdb.aux gdb.cp* gdb.fn* gdb.ky* gdb.log gdb.pg* gdb.toc \
+		gdb.tp* gdb.vr*
+
 # GDB MANUAL: info file
-# We're using texinfo2, and older makeinfo's may not be able to
-# cope with all the markup.  
 gdb.info: ${SFILES_DOC}
-	$(MAKEINFO) -I ${READLINE_DIR} -I $(srcdir) -o ./gdb.info gdb.texinfo
+	$(MAKEINFO) -I ${READLINE_DIR} -I ${GDBMI_DIR} -I $(srcdir) \
+		-o gdb.info $(srcdir)/gdb.texinfo
 
 # GDB MANUAL: roff translations
 # Try to use a recent texi2roff.  v2 was put on prep in jan91.
@@ -235,7 +283,7 @@ gdb.info: ${SFILES_DOC}
 # in main sourcedir.
 links2roff: $(SFILES_INCLUDED)
 	if [ ! -f gdb.texinfo ]; then \
-		ln -s $(SFILES_INCLUDED) . || \
+		(test "$$LN_S" = "ln -s" && ln -s $(SFILES_INCLUDED) .) || \
 		ln $(SFILES_INCLUDED)    . || \
 		cp $(SFILES_INCLUDED)    . ; \
 	fi
@@ -250,13 +298,20 @@ rluser.texinfo: ${READLINE_DIR}/rluser.texinfo
 		-e 's/^@end ftable/@end table/g' \
 		${READLINE_DIR}/rluser.texinfo > ./rluser.texinfo
 
-inc-hist.texi: ${READLINE_DIR}/inc-hist.texi
-	ln -s ${READLINE_DIR}/inc-hist.texi . || \
-	ln ${READLINE_DIR}/inc-hist.texi . || \
-	cp ${READLINE_DIR}/inc-hist.texi .
+inc-hist.texinfo: ${READLINE_DIR}/inc-hist.texinfo
+	(test "$$LN_S" = "ln -s" && \
+	 ln -s ${READLINE_DIR}/inc-hist.texinfo .) || \
+	ln ${READLINE_DIR}/inc-hist.texinfo . || \
+	cp ${READLINE_DIR}/inc-hist.texinfo .
+
+gdbmi.texinfo: ${GDBMI_DIR}/gdbmi.texinfo
+	(test "$$LN_S" = "ln -s" && \
+	 ln -s ${GDBMI_DIR}/gdbmi.texinfo .) || \
+	ln ${GDBMI_DIR}/gdbmi.texinfo . || \
+	cp ${GDBMI_DIR}/gdbmi.texinfo .
 
 # gdb manual suitable for [gtn]roff -me
-gdb.me: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texi
+gdb.me: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texinfo gdbmi.texinfo
 	sed -e '/\\input texinfo/d' \
 		-e '/@c TEXI2ROFF-KILL/,/@c END TEXI2ROFF-KILL/d' \
 		-e '/^@ifinfo/,/^@end ifinfo/d' \
@@ -271,7 +326,7 @@ gdb.me: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texi
 	>gdb.me 
 
 # gdb manual suitable for [gtn]roff -ms
-gdb.ms: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texi
+gdb.ms: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texinfo gdbmi.texinfo
 	sed -e '/\\input texinfo/d' \
 		-e '/@c TEXI2ROFF-KILL/,/@c END TEXI2ROFF-KILL/d' \
 		-e '/^@ifinfo/,/^@end ifinfo/d' \
@@ -288,7 +343,7 @@ gdb.ms: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texi
 # gdb manual suitable for [tn]roff -mm
 # '@noindent's removed due to texi2roff-2 mm bug; if yours is newer, 
 #   try leaving them in
-gdb.mm: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texi
+gdb.mm: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texinfo gdbmi.texinfo
 	sed -e '/\\input texinfo/d' \
 		-e '/@c TEXI2ROFF-KILL/,/@c END TEXI2ROFF-KILL/d' \
 		-e '/^@ifinfo/,/^@end ifinfo/d' \
@@ -303,36 +358,56 @@ gdb.mm: $(SFILES_LOCAL) links2roff rluser.texinfo inc-hist.texi
 	sed -e 's/---/\\(em/g' \
 	>gdb.mm 
 
+# GDB MANUAL: HTML file
+
+gdb_toc.html: ${SFILES_DOC}
+	$(MAKEHTML) $(MAKEHTMLFLAGS) -I ${READLINE_DIR} -I ${GDBMI_DIR} -I $(srcdir) $(srcdir)/gdb.texinfo
 
 # GDB INTERNALS MANUAL: TeX dvi file
-gdbint.dvi : gdbint.texinfo
-	$(SET_TEXINPUTS) $(TEX) gdbint.texinfo
-	$(TEXINDEX) gdbint.??
-	$(SET_TEXINPUTS) $(TEX) gdbint.texinfo
+gdbint.dvi: gdbint.texinfo gdb-cfg.texi fdl.texi
+	$(SET_TEXINPUTS) $(TEXI2DVI) $(srcdir)/gdbint.texinfo
 	rm -f gdbint.aux gdbint.cp* gdbint.fn* gdbint.ky* \
 		gdbint.log gdbint.pg* gdbint.toc gdbint.tp* gdbint.vr*
 
 gdbint.ps : gdbint.dvi
 	$(DVIPS) -o $@ $?
 
+gdbint.pdf: gdbint.texinfo gdb-cfg.texi fdl.texi
+	$(SET_TEXINPUTS) $(TEXI2DVI) --pdf $(srcdir)/gdbint.texinfo
+	rm -f gdbint.aux gdbint.cp* gdbint.fn* gdbint.ky* \
+		gdbint.log gdbint.pg* gdbint.toc gdbint.tp* gdbint.vr*
+
 # GDB INTERNALS MANUAL: info file
 
-gdbint.info: gdbint.texinfo
-	$(MAKEINFO) -o gdbint.info $(srcdir)/gdbint.texinfo
+gdbint.info: gdbint.texinfo fdl.texi
+	$(MAKEINFO) -I $(srcdir) -o gdbint.info $(srcdir)/gdbint.texinfo
+
+# GDB INTERNALS MANUAL: HTML file
+
+gdbint_toc.html: gdbint.texinfo gdb-cfg.texi fdl.texi
+	$(MAKEHTML) $(MAKEHTMLFLAGS) $(srcdir)/gdbint.texinfo
 
 stabs.info: stabs.texinfo
 	$(MAKEINFO) -o stabs.info $(srcdir)/stabs.texinfo
 
+# STABS DOCUMENTATION: HTML file
+
+stabs_toc.html: stabs.texinfo
+	$(MAKEHTML) $(MAKEHTMLFLAGS) $(srcdir)/stabs.texinfo
+
 # STABS DOCUMENTATION: TeX dvi file
 stabs.dvi : stabs.texinfo
-	$(SET_TEXINPUTS) $(TEX) stabs.texinfo
-	$(TEXINDEX) stabs.??
-	$(SET_TEXINPUTS) $(TEX) stabs.texinfo
+	$(SET_TEXINPUTS) $(TEXI2DVI) $(srcdir)/stabs.texinfo
 	rm -f stabs.aux stabs.cp* stabs.fn* stabs.ky* \
 		stabs.log stabs.pg* stabs.toc stabs.tp* stabs.vr*
 
 stabs.ps: stabs.dvi
 	$(DVIPS) -o $@ $?
+
+stabs.pdf: stabs.dvi
+	$(SET_TEXINPUTS) $(TEXI2DVI) --pdf $(srcdir)/stabs.texinfo
+	rm -f stabs.aux stabs.cp* stabs.fn* stabs.ky* \
+		stabs.log stabs.pg* stabs.toc stabs.tp* stabs.vr*
 
 force:
 

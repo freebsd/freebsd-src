@@ -1,22 +1,26 @@
 /* Definitions to make GDB run on a Sequent Symmetry under dynix 3.0,
    with Weitek 1167 and i387 support.
-   Copyright 1986, 1987, 1989, 1992  Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1989, 1992, 1994, 1996, 1998, 2000
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
+
+#include "regcache.h"
 
 /* Override copies of {fetch,store}_inferior_registers in infptrace.c.  */
 
@@ -28,7 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifdef _SEQUENT_
 #define CHILD_WAIT
-extern int child_wait PARAMS ((int, struct target_waitstatus *));
+extern ptid_t child_wait (ptid_t, struct target_waitstatus *);
 #endif
 
 /* This is the amount to subtract from u.u_ar0
@@ -40,7 +44,7 @@ extern int child_wait PARAMS ((int, struct target_waitstatus *));
 #include <sys/mc_vmparam.h>
 /* VA_UAREA is defined in <sys/mc_vmparam.h>, and is dependant upon 
    sizeof(struct user) */
-#define KERNEL_U_ADDR (VA_UAREA) /* ptx */
+#define KERNEL_U_ADDR (VA_UAREA)	/* ptx */
 #else
 #define KERNEL_U_ADDR (0x80000000 - (UPAGES * NBPG))	/* dynix */
 #endif

@@ -1,6 +1,5 @@
 MH_CFLAGS=
 XM_FILE=xm-cygwin.h
-XDEPFILES=ser-tcp.o
-NATDEPFILES= win32-nat.o
-NAT_FILE=../nm-empty.h
+NATDEPFILES= i386-nat.o win32-nat.o corelow.o
+NAT_FILE=nm-cygwin.h
 XM_CLIBS=

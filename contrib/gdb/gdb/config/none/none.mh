@@ -1,0 +1,5 @@
+# Host: "no target".  This can be used to build you
+# a Makefile that only runs administrative commands like 'clean',
+# 'gdb.tar.Z', etc.
+NAT_FILE= nm-none.h
+XM_FILE= xm-none.h
