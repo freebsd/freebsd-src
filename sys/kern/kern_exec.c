@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.82 1998/04/17 22:36:50 des Exp $
+ *	$Id: kern_exec.c,v 1.83 1998/06/07 17:11:33 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -313,7 +313,7 @@ interpret:
 	p->p_acflag &= ~AFORK;
 
 	/* Set entry address */
-	setregs(p, imgp->entry_addr, (u_long)stack_base);
+	setregs(p, imgp->entry_addr, (u_long)(uintptr_t)stack_base);
 
 exec_fail_dealloc:
 
@@ -485,7 +485,7 @@ exec_extract_strings(imgp)
 	argv = imgp->uap->argv;
 
 	if (argv) {
-		argp = (caddr_t) fuword(argv);
+		argp = (caddr_t) (intptr_t) fuword(argv);
 		if (argp == (caddr_t) -1)
 			return (EFAULT);
 		if (argp)
@@ -505,7 +505,7 @@ exec_extract_strings(imgp)
 				imgp->stringspace -= length;
 				imgp->stringp += length;
 				imgp->argc++;
-			} while ((argp = (caddr_t) fuword(argv++)));
+			} while ((argp = (caddr_t) (intptr_t) fuword(argv++)));
 		}
 	}	
 
@@ -516,7 +516,7 @@ exec_extract_strings(imgp)
 	envv = imgp->uap->envv;
 
 	if (envv) {
-		while ((envp = (caddr_t) fuword(envv++))) {
+		while ((envp = (caddr_t) (intptr_t) fuword(envv++))) {
 			if (envp == (caddr_t) -1)
 				return (EFAULT);
 			if ((error = copyinstr(envp, imgp->stringp,
@@ -603,14 +603,14 @@ exec_copyout_strings(imgp)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	suword(&arginfo->ps_argvstr, (long)vectp);
+	suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp);
 	suword(&arginfo->ps_nargvstr, argc);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		suword(vectp++, (long)destp);
+		suword(vectp++, (long)(intptr_t)destp);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
@@ -619,14 +619,14 @@ exec_copyout_strings(imgp)
 	/* a null vector table pointer seperates the argp's from the envp's */
 	suword(vectp++, 0);
 
-	suword(&arginfo->ps_envstr, (long)vectp);
+	suword(&arginfo->ps_envstr, (long)(intptr_t)vectp);
 	suword(&arginfo->ps_nenvstr, envc);
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		suword(vectp++, (long)destp);
+		suword(vectp++, (long)(intptr_t)destp);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
