@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_setschedparam.c,v 1.2 1999/06/20 08:28:44 jb Exp $
+ * $Id: uthread_setschedparam.c,v 1.1.2.1 1999/05/09 07:48:40 peter Exp $
  */
 #include <errno.h>
 #include <sys/param.h>
