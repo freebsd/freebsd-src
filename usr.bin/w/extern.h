@@ -31,9 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
-struct proc;
+
+struct kinfo_proc;
 void	pr_attime __P((time_t *, time_t *));
 int	pr_idle __P((time_t));
-int	proc_compare __P((struct proc *, struct proc *));
+int	proc_compare __P((struct kinfo_proc *, struct kinfo_proc *));

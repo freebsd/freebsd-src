@@ -75,16 +75,12 @@ struct handle
 /* declarations for load_avg */
 #include "loadavg.h"
 
-#define PP(pp, field) ((pp)->kp_proc . field)
-#define EP(pp, field) ((pp)->kp_eproc . field)
-#define VP(pp, field) ((pp)->kp_eproc.e_vm . field)
-
 /* define what weighted cpu is.  */
-#define weighted_cpu(pct, pp) (PP((pp), p_swtime) == 0 ? 0.0 : \
-			 ((pct) / (1.0 - exp(PP((pp), p_swtime) * logcpu))))
+#define weighted_cpu(pct, pp) ((pp)->ki_swtime == 0 ? 0.0 : \
+			 ((pct) / (1.0 - exp((pp)->ki_swtime * logcpu))))
 
 /* what we consider to be process size: */
-#define PROCSIZE(pp) (VP((pp), vm_map.size) / 1024)
+#define PROCSIZE(pp) ((pp)->ki_size / 1024)
 
 /* definitions for indices in the nlist array */
 
@@ -501,16 +497,16 @@ int (*compare)();
 	 *  status field.  Processes with P_SYSTEM set are system
 	 *  processes---these get ignored unless show_sysprocs is set.
 	 */
-	if (PP(pp, p_stat) != 0 &&
-	    (show_self != PP(pp, p_pid)) &&
-	    (show_system || ((PP(pp, p_flag) & P_SYSTEM) == 0)))
+	if (pp->ki_stat != 0 &&
+	    (show_self != pp->ki_pid) &&
+	    (show_system || ((pp->ki_flag & P_SYSTEM) == 0)))
 	{
 	    total_procs++;
-	    process_states[(unsigned char) PP(pp, p_stat)]++;
-	    if ((PP(pp, p_stat) != SZOMB) &&
-		(show_idle || (PP(pp, p_pctcpu) != 0) || 
-		 (PP(pp, p_stat) == SRUN)) &&
-		(!show_uid || EP(pp, e_pcred.p_ruid) == (uid_t)sel->uid))
+	    process_states[(unsigned char) pp->ki_stat]++;
+	    if ((pp->ki_stat != SZOMB) &&
+		(show_idle || (pp->ki_pctcpu != 0) || 
+		 (pp->ki_stat == SRUN)) &&
+		(!show_uid || pp->ki_ruid == (uid_t)sel->uid))
 	    {
 		*prefp++ = pp;
 		active_procs++;
@@ -555,12 +551,12 @@ char *(*get_userid)();
     hp->remaining--;
     
     /* get the process's command name */
-    if ((PP(pp, p_flag) & P_INMEM) == 0) {
+    if ((pp->ki_flag & P_INMEM) == 0) {
 	/*
 	 * Print swapped processes as <pname>
 	 */
-	char *comm = PP(pp, p_comm);
-#define COMSIZ sizeof(PP(pp, p_comm))
+	char *comm = pp->ki_comm;
+#define COMSIZ sizeof(pp->ki_comm)
 	char buf[COMSIZ];
 	(void) strncpy(buf, comm, COMSIZ);
 	comm[0] = '<';
@@ -575,28 +571,28 @@ char *(*get_userid)();
      * time includes the interrupt time although that is not wanted here.
      * ps(1) is similarly sloppy.
      */
-    cputime = (PP(pp, p_runtime) + 500000) / 1000000;
+    cputime = (pp->ki_runtime + 500000) / 1000000;
 
     /* calculate the base for cpu percentages */
-    pct = pctdouble(PP(pp, p_pctcpu));
+    pct = pctdouble(pp->ki_pctcpu);
 
     /* generate "STATE" field */
-    switch (state = PP(pp, p_stat)) {
+    switch (state = pp->ki_stat) {
 	case SRUN:
-	    if (smpmode && PP(pp, p_oncpu) != 0xff)
-		sprintf(status, "CPU%d", PP(pp, p_oncpu));
+	    if (smpmode && pp->ki_oncpu != 0xff)
+		sprintf(status, "CPU%d", pp->ki_oncpu);
 	    else
 		strcpy(status, "RUN");
 	    break;
 	case SMTX:
-	    if (PP(pp, p_mtxname) != NULL) {
-		sprintf(status, "*%.6s", EP(pp, e_mtxname));
+	    if (pp->ki_kiflag & KI_MTXBLOCK) {
+		sprintf(status, "*%.6s", pp->ki_mtxname);
 	        break;
 	    }
 	    /* fall through */
 	case SSLEEP:
-	    if (PP(pp, p_wmesg) != NULL) {
-		sprintf(status, "%.6s", EP(pp, e_wmesg));
+	    if (pp->ki_wmesg != NULL) {
+		sprintf(status, "%.6s", pp->ki_wmesg);
 		break;
 	    }
 	    /* fall through */
@@ -613,32 +609,32 @@ char *(*get_userid)();
     /* format this entry */
     sprintf(fmt,
 	    smpmode ? smp_Proc_format : up_Proc_format,
-	    PP(pp, p_pid),
+	    pp->ki_pid,
 	    namelength, namelength,
-	    (*get_userid)(EP(pp, e_pcred.p_ruid)),
-	    PP(pp, p_priority) - PZERO,
+	    (*get_userid)(pp->ki_ruid),
+	    pp->ki_priority - PZERO,
 
 	    /*
 	     * normal time      -> nice value -20 - +20 
 	     * real time 0 - 31 -> nice value -52 - -21
 	     * idle time 0 - 31 -> nice value +21 - +52
 	     */
-	    (PP(pp, p_rtprio.type) ==  RTP_PRIO_NORMAL ? 
-	    	PP(pp, p_nice) - NZERO : 
-	    	(RTP_PRIO_IS_REALTIME(PP(pp, p_rtprio.type)) ?
-		    (PRIO_MIN - 1 - RTP_PRIO_MAX + PP(pp, p_rtprio.prio)) : 
-		    (PRIO_MAX + 1 + PP(pp, p_rtprio.prio)))), 
+	    (pp->ki_rtprio.type ==  RTP_PRIO_NORMAL ? 
+	    	pp->ki_nice - NZERO : 
+	    	(RTP_PRIO_IS_REALTIME(pp->ki_rtprio.type) ?
+		    (PRIO_MIN - 1 - RTP_PRIO_MAX + pp->ki_rtprio.prio) : 
+		    (PRIO_MAX + 1 + pp->ki_rtprio.prio))), 
 	    format_k2(PROCSIZE(pp)),
-	    format_k2(pagetok(VP(pp, vm_rssize))),
+	    format_k2(pagetok(pp->ki_rssize)),
 	    status,
-	    smpmode ? PP(pp, p_lastcpu) : 0,
+	    smpmode ? pp->ki_lastcpu : 0,
 	    format_time(cputime),
 	    100.0 * weighted_cpu(pct, pp),
 	    100.0 * pct,
 	    screen_width > cmdlengthdelta ?
 		screen_width - cmdlengthdelta :
 		0,
-	    printable(PP(pp, p_comm)));
+	    printable(pp->ki_comm));
 
     /* return the result */
     return(fmt);
@@ -741,22 +737,22 @@ static unsigned char sorted_state[] =
  
 
 #define ORDERKEY_PCTCPU \
-  if (lresult = (long) PP(p2, p_pctcpu) - (long) PP(p1, p_pctcpu), \
+  if (lresult = (long) p2->ki_pctcpu - (long) p1->ki_pctcpu, \
      (result = lresult > 0 ? 1 : lresult < 0 ? -1 : 0) == 0)
 
 #define ORDERKEY_CPTICKS \
-  if ((result = PP(p2, p_runtime) > PP(p1, p_runtime) ? 1 : \
-                PP(p2, p_runtime) < PP(p1, p_runtime) ? -1 : 0) == 0)
+  if ((result = p2->ki_runtime > p1->ki_runtime ? 1 : \
+                p2->ki_runtime < p1->ki_runtime ? -1 : 0) == 0)
 
 #define ORDERKEY_STATE \
-  if ((result = sorted_state[(unsigned char) PP(p2, p_stat)] - \
-                sorted_state[(unsigned char) PP(p1, p_stat)]) == 0)
+  if ((result = sorted_state[(unsigned char) p2->ki_stat] - \
+                sorted_state[(unsigned char) p1->ki_stat]) == 0)
 
 #define ORDERKEY_PRIO \
-  if ((result = PP(p2, p_priority) - PP(p1, p_priority)) == 0)
+  if ((result = p2->ki_priority - p1->ki_priority) == 0)
 
 #define ORDERKEY_RSSIZE \
-  if ((result = VP(p2, vm_rssize) - VP(p1, vm_rssize)) == 0) 
+  if ((result = p2->ki_rssize - p1->ki_rssize) == 0) 
 
 #define ORDERKEY_MEM \
   if ( (result = PROCSIZE(p2) - PROCSIZE(p1)) == 0 )
@@ -948,9 +944,9 @@ int pid;
     while (--cnt >= 0)
     {
 	pp = *prefp++;	
-	if (PP(pp, p_pid) == (pid_t)pid)
+	if (pp->ki_pid == (pid_t)pid)
 	{
-	    return((int)EP(pp, e_pcred.p_ruid));
+	    return((int)pp->ki_ruid);
 	}
     }
     return(-1);
