@@ -230,8 +230,12 @@ main(int argc, char *argv[])
 
 	retcode = pam_authenticate(pamh, 0);
 	if (retcode != PAM_SUCCESS) {
+#if 0
 		syslog(LOG_ERR, "pam_authenticate: %s",
 		    pam_strerror(pamh, retcode));
+#endif
+		syslog(LOG_AUTH|LOG_WARNING, "BAD SU %s to %s on %s",
+		    username, user, mytty);
 		errx(1, "Sorry");
 	}
 	retcode = pam_get_item(pamh, PAM_USER, (const void **)&p);
