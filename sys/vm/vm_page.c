@@ -698,7 +698,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	This routine must be called at splvm().
  *	This routine may not block.
  */
-static vm_page_t
+vm_page_t
 vm_page_select_cache(int color)
 {
 	vm_page_t m;
