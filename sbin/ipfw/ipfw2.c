@@ -223,6 +223,7 @@ enum tokens {
 	TOK_ICMPTYPES,
 
 	TOK_PLR,
+	TOK_NOERROR,
 	TOK_BUCKETS,
 	TOK_DSTIP,
 	TOK_SRCIP,
@@ -241,6 +242,7 @@ enum tokens {
 
 struct _s_x dummynet_params[] = {
 	{ "plr",		TOK_PLR },
+	{ "noerror",		TOK_NOERROR },
 	{ "buckets",		TOK_BUCKETS },
 	{ "dst-ip",		TOK_DSTIP },
 	{ "src-ip",		TOK_SRCIP },
@@ -502,8 +504,10 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 			p[1] = b;
 		} else if (*s == ',' || *s == '\0' ) {
 			p[0] = p[1] = a;
-		} else	/* invalid separator */
-			break;
+		} else {	/* invalid separator */
+			errx(EX_DATAERR, "invalid separator <%c> in <%s>\n",
+				*s, av);
+		}
 		av = s+1;
 	}
 	if (i > 0) {
@@ -737,17 +741,29 @@ print_icmptypes(ipfw_insn_u32 *cmd)
  * show_ipfw() prints the body of an ipfw rule.
  * Because the standard rule has at least proto src_ip dst_ip, we use
  * a helper function to produce these entries if not provided explicitly.
+ *
+ * Special case: if we have provided a MAC header, and no IP specs,
+ * just leave it alone.
+ * Also, if we have providea a MAC header and no IP protocol, print it
+ * as "all" instead of "ip".
  */
-#define	HAVE_PROTO	1
-#define	HAVE_SRCIP	2
-#define	HAVE_DSTIP	4
-#define	HAVE_MAC	8
+#define	HAVE_PROTO	0x0001
+#define	HAVE_SRCIP	0x0002
+#define	HAVE_DSTIP	0x0004
+#define	HAVE_MAC	0x0008
+#define	HAVE_MACTYPE	0x0010
 
+#define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
 static void
 show_prerequisites(int *flags, int want)
 {
+	if ( (*flags & (HAVE_MAC | HAVE_MACTYPE))  == HAVE_MAC) {
+	     printf(" any");	/* MAC type */
+	     *flags |= HAVE_MACTYPE;
+	}
+		
 	if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
-		printf(" ip");
+		printf( (*flags & HAVE_MAC) ? " all" : " ip");
 	if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
 		printf(" from any");
 	if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
@@ -907,6 +923,9 @@ show_ipfw(struct ip_fw *rule)
 			break;
 
 		case O_MAC_TYPE:
+			if ( (flags & HAVE_MAC) == 0)
+				printf(" MAC");
+			flags |= (HAVE_MAC | HAVE_MACTYPE);
 			print_newports((ipfw_insn_u16 *)cmd, IPPROTO_ETHERTYPE);
 			break;
 
@@ -1340,6 +1359,115 @@ list_pipes(void *data, int nbytes, int ac, char *av[])
 	}
 }
 
+/*
+ * This one handles all set-related commands
+ * 	ipfw set { show | enable | disable }
+ * 	ipfw set swap X Y
+ * 	ipfw set move X to Y
+ * 	ipfw set move rule X to Y
+ */
+static void
+sets_handler(int ac, char *av[])
+{
+	u_int32_t set_disable, masks[2];
+	int i, nbytes;
+	u_int16_t rulenum;
+	u_int8_t cmd, new_set;
+
+	ac--;
+	av++;
+
+	if (!ac)
+		errx(EX_USAGE, "set needs command");
+	if (!strncmp(*av, "show", strlen(*av)) ) {
+		void *data;
+		char *msg;
+
+		nbytes = sizeof(struct ip_fw);
+		if ((data = malloc(nbytes)) == NULL)
+			err(EX_OSERR, "malloc");
+		if (getsockopt(s, IPPROTO_IP, IP_FW_GET, data, &nbytes) < 0)
+			err(EX_OSERR, "getsockopt(IP_FW_GET)");
+		set_disable = (u_int32_t)(((struct ip_fw *)data)->next_rule);
+
+		for (i = 0, msg = "disable" ; i < 31; i++)
+			if (  (set_disable & (1<<i))) {
+				printf("%s %d", msg, i);
+				msg = "";
+			}
+		msg = (set_disable) ? " enable" : "enable";
+		for (i = 0; i < 31; i++)
+			if ( !(set_disable & (1<<i))) {
+				printf("%s %d", msg, i);
+				msg = "";
+			}
+		printf("\n");
+	} else if (!strncmp(*av, "swap", strlen(*av))) {
+		ac--; av++;
+		if (ac != 2)
+			errx(EX_USAGE, "set swap needs 2 set numbers\n");
+		rulenum = atoi(av[0]);
+		new_set = atoi(av[1]);
+		if (!isdigit(*(av[0])) || rulenum > 30)
+			errx(EX_DATAERR, "invalid set number %s\n", av[0]);
+		if (!isdigit(*(av[1])) || new_set > 30)
+			errx(EX_DATAERR, "invalid set number %s\n", av[1]);
+		masks[0] = (4 << 24) | (new_set << 16) | (rulenum);
+		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL,
+			masks, sizeof(u_int32_t));
+	} else if (!strncmp(*av, "move", strlen(*av))) {
+		ac--; av++;
+		if (ac && !strncmp(*av, "rule", strlen(*av))) {
+			cmd = 2;
+			ac--; av++;
+		} else
+			cmd = 3;
+		if (ac != 3 || strncmp(av[1], "to", strlen(*av)))
+			errx(EX_USAGE, "syntax: set move [rule] X to Y\n");
+		rulenum = atoi(av[0]);
+		new_set = atoi(av[2]);
+		if (!isdigit(*(av[0])) || (cmd == 3 && rulenum > 30) ||
+			(cmd == 2 && rulenum == 65535) )
+			errx(EX_DATAERR, "invalid source number %s\n", av[0]);
+		if (!isdigit(*(av[2])) || new_set > 30)
+			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
+		masks[0] = (cmd << 24) | (new_set << 16) | (rulenum);
+		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL,
+			masks, sizeof(u_int32_t));
+	} else if (!strncmp(*av, "disable", strlen(*av)) ||
+		   !strncmp(*av, "enable",  strlen(*av)) ) {
+		int which = !strncmp(*av, "enable",  strlen(*av)) ? 1 : 0;
+
+		ac--; av++;
+		masks[0] = masks[1] = 0;
+
+		while (ac) {
+			if (isdigit(**av)) {
+				i = atoi(*av);
+				if (i < 0 || i > 30)
+					errx(EX_DATAERR,
+					    "invalid set number %d\n", i);
+				masks[which] |= (1<<i);
+			} else if (!strncmp(*av, "disable", strlen(*av)))
+				which = 0;
+			else if (!strncmp(*av, "enable", strlen(*av)))
+				which = 1;
+			else
+				errx(EX_DATAERR,
+					"invalid set command %s\n", *av);
+			av++; ac--;
+		}
+		if ( (masks[0] & masks[1]) != 0 )
+			errx(EX_DATAERR,
+			    "cannot enable and disable the same set\n");
+
+		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, masks, sizeof(masks));
+		if (i)
+			warn("set enable/disable: setsockopt(IP_FW_DEL)");
+	} else
+		errx(EX_USAGE, "invalid set command %s\n", *av);
+}
+
 static void
 list(int ac, char *av[])
 {
@@ -1361,23 +1489,6 @@ list(int ac, char *av[])
 	ac--;
 	av++;
 
-	if (ac && !strncmp(*av, "sets", strlen(*av)) ) {
-		int i;
-		u_int32_t set_disable;
-
-		nbytes = sizeof(struct ip_fw);
-		if ((data = malloc(nbytes)) == NULL)
-			err(EX_OSERR, "malloc");
-		if (getsockopt(s, IPPROTO_IP, IP_FW_GET, data, &nbytes) < 0)
-			err(EX_OSERR, "getsockopt(IP_FW_GET)");
-		set_disable = (u_int32_t)(((struct ip_fw *)data)->next_rule);
-
-		for (i = 0; i < 31; i++)
-			printf("%s set %d\n",
-			    set_disable & (1<<i) ? "disable" : "enable", i);
-		return;
-	}
-		
 	/* get rules or pipes from kernel, resizing array as necessary */
 	nbytes = nalloc;
 
@@ -1691,7 +1802,7 @@ fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 static void
 delete(int ac, char *av[])
 {
-	int rulenum;
+	u_int32_t rulenum;
 	struct dn_pipe pipe;
 	int i;
 	int exitval = EX_OK;
@@ -1699,17 +1810,11 @@ delete(int ac, char *av[])
 
 	memset(&pipe, 0, sizeof pipe);
 
-	if (!strncmp(*av, "disable", strlen(*av)))
-		do_set = 2;	/* disable set */
-	else if (!strncmp(*av, "enable", strlen(*av)))
-		do_set = 3;	/* enable set */
 	av++; ac--;
 	if (ac > 0 && !strncmp(*av, "set", strlen(*av))) {
-		if (do_set == 0)
-			do_set = 1;	/* delete set */
+		do_set = 1;	/* delete set */
 		ac--; av++;
-	} else if (do_set != 0)
-		errx(EX_DATAERR, "missing 'set' keyword");
+	}
 
 	/* Rule number */
 	while (ac && isdigit(**av)) {
@@ -1728,7 +1833,7 @@ delete(int ac, char *av[])
 				    pipe.fs.fs_nr);
 			}
 		} else {
-			rulenum =  (i & 0xffff) | (do_set << 16);
+			rulenum =  (i & 0xffff) | (do_set << 24);
 			i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rulenum,
 			    sizeof rulenum);
 			if (i) {
@@ -1804,6 +1909,10 @@ config_pipe(int ac, char **av)
 		ac--; av++;
 
 		switch(tok) {
+		case TOK_NOERROR:
+			pipe.fs.flags_fs |= DN_NOERROR;
+			break;
+
 		case TOK_PLR:
 			NEED1("plr needs argument 0..1\n");
 			d = strtod(av[0], NULL);
@@ -2173,21 +2282,20 @@ add_mac(ipfw_insn *cmd, int ac, char *av[])
 {
 	ipfw_insn_mac *mac; /* also *src */
 
-	if (ac <3)
-		errx(EX_DATAERR, "MAC dst src type");
+	if (ac <2)
+		errx(EX_DATAERR, "MAC dst src [type]");
 
 	cmd->opcode = O_MACADDR2;
 	cmd->len = (cmd->len & (F_NOT | F_OR)) | F_INSN_SIZE(ipfw_insn_mac);
 
 	mac = (ipfw_insn_mac *)cmd;
-	get_mac_addr_mask(av[0], mac->addr, mac->mask);		/* dst */
+	get_mac_addr_mask(av[0], mac->addr, mac->mask);	/* dst */
 	get_mac_addr_mask(av[1], &(mac->addr[6]), &(mac->mask[6])); /* src */
-	av += 2;
-
-	if (strcmp(av[0], "any") != 0) {	/* we have a non-null port */
+	
+	if (ac>2 && strcmp(av[2], "any") != 0) { /* we have a non-null type */
 		cmd += F_LEN(cmd);
 
-		fill_newports((ipfw_insn_u16 *)cmd, av[0], IPPROTO_ETHERTYPE);
+		fill_newports((ipfw_insn_u16 *)cmd, av[2], IPPROTO_ETHERTYPE);
 		cmd->opcode = O_MAC_TYPE;
 	}
 
@@ -2467,10 +2575,9 @@ add(int ac, char *av[])
 	if (!strncmp(*av, "all", strlen(*av)))
 		; /* same as "ip" */
 	else if (!strncmp(*av, "MAC", strlen(*av))) {
-		/* need exactly 3 fields */
-		cmd = add_mac(cmd, ac-1, av+1);	/* exits in case of errors */
-		ac -= 3;
+		cmd = add_mac(cmd, ac-1, av+1); /* exits in case of errors */
 		av += 3;
+		ac -= 3;
 		have_mac = 1;
 	} else if ((proto = atoi(*av)) > 0)
 		; /* all done! */
@@ -2916,7 +3023,7 @@ done:
 }
 
 static void
-zero (int ac, char *av[])
+zero(int ac, char *av[])
 {
 	int rulenum;
 	int failed = EX_OK;
@@ -2955,7 +3062,7 @@ zero (int ac, char *av[])
 }
 
 static void
-resetlog (int ac, char *av[])
+resetlog(int ac, char *av[])
 {
 	int rulenum;
 	int failed = EX_OK;
@@ -3105,9 +3212,7 @@ ipfw_main(int ac, char **av)
 		add(ac, av);
 	else if (do_pipe && !strncmp(*av, "config", strlen(*av)))
 		config_pipe(ac, av);
-	else if (!strncmp(*av, "delete", strlen(*av))   ||
-	         !strncmp(*av, "disable", strlen(*av))  ||
-	         !strncmp(*av, "enable", strlen(*av)))
+	else if (!strncmp(*av, "delete", strlen(*av)))
 		delete(ac, av);
 	else if (!strncmp(*av, "flush", strlen(*av)))
 		flush();
@@ -3118,6 +3223,8 @@ ipfw_main(int ac, char **av)
 	else if (!strncmp(*av, "print", strlen(*av)) ||
 	         !strncmp(*av, "list", strlen(*av)))
 		list(ac, av);
+	else if (!strncmp(*av, "set", strlen(*av)))
+		sets_handler(ac, av);
 	else if (!strncmp(*av, "show", strlen(*av))) {
 		do_acct++;
 		list(ac, av);
