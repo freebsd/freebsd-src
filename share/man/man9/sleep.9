@@ -96,7 +96,7 @@ Sleeps at most
 .Fa timo
 \&/ hz seconds (0 means no timeout).
 If
-.Fa pri
+.Fa priority
 includes the
 .Dv PCATCH
 flag, signals are checked before and after sleeping, else signals are
@@ -124,7 +124,7 @@ is a mutex which will be released before sleeping and reacquired before
 .Fn msleep
 returns.
 If
-.Fa pri
+.Fa priority
 includes the
 .Dv PDROP
 flag, the
